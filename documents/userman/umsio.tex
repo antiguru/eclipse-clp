@@ -1,0 +1,897 @@
+% BEGIN LICENSE BLOCK
+% Version: CMPL 1.1
+%
+% The contents of this file are subject to the Cisco-style Mozilla Public
+% License Version 1.1 (the "License"); you may not use this file except
+% in compliance with the License.  You may obtain a copy of the License
+% at www.eclipse-clp.org/license.
+% 
+% Software distributed under the License is distributed on an "AS IS"
+% basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+% the License for the specific language governing rights and limitations
+% under the License. 
+% 
+% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% Portions created by the Initial Developer are
+% Copyright (C) 1994 - 2006 Cisco Systems, Inc.  All Rights Reserved.
+% 
+% Contributor(s): 
+% 
+% END LICENSE BLOCK
+%
+% @(#)umsio.tex	1.8 94/10/20 
+%
+
+% \comment{@(\#)text2.mss	20.3 9/19/88}
+% \part{text2, root = `manual.mss'}
+\chapter{Input and Output}
+\label{chapio}
+%HEVEA\cutdef[1]{section}
+%----------------------------------------------------------------------
+\section{Streams}
+%----------------------------------------------------------------------
+\index{input/output} 
+\index{streams}
+Input and output in {\eclipse} is done via communication channels
+called {\it streams}.
+They are usually associated with either a file, a terminal, a socket,
+a pipe, or in-memory queues and buffers.
+\index{read mode}
+\index{write mode}
+\index{update mode}
+The streams may be opened for input only ({\it read mode}), output only
+({\it write mode}), or for both input and output ({\it update mode}).
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Predefined Streams}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Every {\eclipse} session has 4 predefined system streams:
+\label{streams}
+\begin{description}
+\item[{\bf stdin}]	The standard input stream.
+\index{stdin}
+
+\item[{\bf stdout}]	The standard output stream.
+\index{stdout}
+
+\item[{\bf stderr}]	The standard error stream.
+\index{stderr}
+
+\item[{\bf null}]
+\index{null}
+A dummy stream, output to it is discarded, on input it always
+gives end of file.
+\end{description}
+In a stand-alone {\eclipse} stdin, stdout and stderr are connected
+to the corresponding standard I/O descriptors of the process.
+In an embedded {\eclipse}, the meaning of stdin, stdout and
+stderr is determined by the {\eclipse} initialisation options.
+
+
+Moreover, every {\eclipse} session defines the following symbolic stream
+names, which are used for certain categories of input/output:
+\begin{description}
+\item[{\bf input}]	Used by the input predicates that do not have
+an explicit stream argument, e.g. \bipref{read/1}{../bips/kernel/ioterm/read-1.html}.
+\index{read/1}
+\index{input}
+This is by default the same as stdin, but can be redirected.
+
+\item[{\bf output}]	Used by the output predicates that do not have
+an explicit stream argument, e.g. \bipref{write/1}{../bips/kernel/ioterm/write-1.html}.
+\index{write/1}
+\index{output}
+This is by default the same as stdout, but can be redirected.
+
+\item[{\bf error}]
+Output for error messages and all messages about exceptional states.
+\index{error}
+This is by default the same as stderr, but can be redirected.
+
+\item[{\bf warning_output}]
+Used by the system to output warning messages.
+\index{warning_output}
+This is by default the same as stdout, but can be redirected.
+
+\item[{\bf log_output}]
+Used by the system to output log messages, e.g.\ messages about garbage
+collection activity.
+\index{log_output}
+This is by default the same as stdout, but can be redirected.
+
+\item[{\bf user}]
+\index{user}
+This identifier is provided for compatibility with Prolog
+systems and it is identical with {\bf stdin} and {\bf stdout}
+depending on the context where it is used.
+\end{description}
+\begin{center}
+\begin{tabular}{|r|l|}
+\hline
+Symbolic Stream	&	System Stream	\\
+\hline
+\hline
+input		&	0 (stdin)	\\
+\hline
+output		&	1 (stdout)	\\
+warning_output	&	1 (stdout)	\\
+log_output	&	1 (stdout)	\\
+\hline
+error		&	2 (stderr)	\\
+\hline
+		&	3 (null)	\\
+\hline
+\end{tabular}
+
+Initial assignment of symbolic stream names
+\end{center}
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Stream Identifiers and Aliases}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Every stream is identified by a small integer\footnote{
+Note that the stream numbers are not the same as UNIX file descriptors
+}, but it can have several symbolic names (aliases), which are atoms.
+Most of the built-in predicates that require a stream to be specified
+have a stream argument at the first position,
+e.g. {\it write(Stream, Term)}. This argument can be either the stream
+number or a symbolic stream name.
+
+An alias name can be given to a stream either when it is created or
+explicitly by invoking
+\bipref{set_stream/2}{../bips/kernel/iostream/set_stream-2.html}:
+\begin{quote}\begin{verbatim}
+set_stream(Alias, Stream)
+\end{verbatim}\end{quote}
+To find the corresponding stream number, use
+\bipref{get_stream/2}{../bips/kernel/iostream/get_stream-2.html}:
+\begin{quote}\begin{verbatim}
+get_stream(StreamOrAlias, StreamNr)
+\end{verbatim}\end{quote}
+\bipref{get_stream/2}{../bips/kernel/iostream/get_stream-2.html} can also
+be used to check whether two stream names are aliases of each other.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Opening New Streams}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\label{openstream}
+
+Streams provide a uniform interface to a variety of I/O devices and
+pseudo-devices. The following table gives an overview of how
+streams on the different devices are opened.
+\begin{center}
+\begin{tabular}{|c|l|}
+\hline
+I/O device	&	How to open		\\
+\hline
+\hline
+tty		&	implicit (stdin,stdout,stderr) or
+			\bipref{open/3}{../bips/kernel/iostream/open-3.html} of a device file \\
+\hline
+file		&	\biptxtref{open(FileName, Mode, Stream)}{open/3}{../bips/kernel/iostream/open-3.html}		\\
+\hline
+string		&	\biptxtref{open(string(String), Mode, Stream)}{open/3}{../bips/kernel/iostream/open-3.html}		\\
+\hline
+queue		&	\biptxtref{open(queue(String), Mode, Stream)}{open/3}{../bips/kernel/iostream/open-3.html}		\\
+\hline
+pipe		&	\bipref{exec/2}{../bips/kernel/opsys/exec-2.html},
+			\bipref{exec/3}{../bips/kernel/opsys/exec-3.html} and
+			\bipref{exec_group/3}{../bips/kernel/opsys/exec_group-3.html}	\\
+\hline
+socket		&	\bipref{socket/3}{../bips/kernel/iostream/socket-3.html} and
+			\bipref{accept/3}{../bips/kernel/iostream/accept-3.html}	\\
+\hline
+null		&	implicit (null stream)	\\
+\hline
+\end{tabular}
+
+How to open streams onto the different I/O devices
+\end{center}
+
+Most streams are opened for input or output by means of the
+\bipref{open/3}{../bips/kernel/iostream/open-3.html}
+or
+\bipref{open/4}{../bips/kernel/iostream/open-4.html}
+predicate.
+The goals
+\begin{quote}\begin{verbatim}
+open(SourceSink, Mode, Stream)
+open(SourceSink, Mode, Stream, Options)
+\end{verbatim}\end{quote}
+open a communication channel with {\it SourceSink}.
+
+If {\it SourceSink} is an atom or a string, a file is being opened
+and {\it SourceSink} takes
+the form of a file name in the host machine environment.
+{\eclipse} uses an operating
+system independent path name syntax, where the components are separated by
+forward slashes.
+The following forms are possible:
+\begin{itemize}
+\item absolute path name, e.g.\ /usr/peter/prolog/file.pl
+\item relative to the current directory, e.g.\ prolog/file.pl
+\item relative to the own home directory, e.g.\ \verb$~$/prolog/file.pl
+\item start with an environment variable, e.g.\ \$HOME/prolog/file.pl
+\item relative to a user's home directory, e.g.\ \verb$~$peter/prolog/file.pl
+	(UNIX only)
+\item specifying a drive name, e.g.\ //C/prolog/file.pl
+	(Windows only)
+\end{itemize}
+Note that path names usually have to be quoted (in single or double quotes)
+because they contain non-alphanumeric characters.
+
+If {\it SourceSink} is of the form {\tt string(InitString)} a pseudo-file
+in memory is opened, see section \ref{stringio}.
+
+If {\it SourceSink} is of the form {\tt queue(InitString)} a pseudo-pipe
+in memory is opened, see section \ref{queueio}.
+
+{\it Mode} must be one of the atoms {\tt read}, {\tt write}, {\tt append} or
+{\tt update},
+which means that the stream is to be opened for input, output, output at the
+end of the existing stream, or both input and output, respectively.
+Opening a file in {\tt write} mode will create it if it does not exist,
+and erase the previous contents if it does exist.
+Opening a file in {\tt append} mode will keep the current contents
+of the file and start writing at its end.
+
+{\it Stream} is a symbolic stream identifier or an uninstantiated variable.
+If it is uninstantiated, the system will bind it to an identifier (the stream
+number):
+\begin{quote}\begin{verbatim}
+[eclipse 1]: open(new_file, write, Stream).
+Stream = 6
+yes.
+\end{verbatim}\end{quote}
+If the stream argument is an atomic name, this name becomes an alias
+for the (hidden) stream number:
+\begin{quote}\begin{verbatim}
+[eclipse 1]: open(new_file, write, new_stream).
+yes.
+\end{verbatim}\end{quote}
+The stream identifier (symbolic or numeric) may then be used in predicates
+which have a named stream as one of their arguments. For example
+\begin{quote}\begin{verbatim}
+open("foo", update, Stream), write(Stream, subject), close(Stream).
+\end{verbatim}\end{quote}
+will write the atom
+{\it subject} to the file `foo' and close the stream subsequently.
+
+
+It is recommended style {\bf not} to use symbolic stream names in code that is
+meant to be reused. This is because the stream names are global,
+there is the possibility of name clashes, and the code will not be reentrant.
+It is cleaner to open streams with a variable for the stream identifier
+and pass the identifier as an argument wherever it is needed.
+
+
+\index{socket streams}
+{\bf Socket} streams are not opened with open/3, but with the special primitives
+\bipref{socket/3}{../bips/kernel/iostream/socket-3.html} and
+\bipref{accept/3}{../bips/kernel/iostream/accept-3.html}.
+More details are in chapter \ref{sockets}.
+
+\index{pipe streams}
+%The predicate
+%\bipref{pipe/2}{../bips/kernel/iostream/pipe-2.html} is used to
+%open a UNIX pipe, i.e. two streams, {\it In} for reading and {\it Out}
+%for writing, which are connected together using the {\it pipe(2)}
+%system call.
+%This mechanism is normally used to communicate with other processes
+%which were forked by the main process.
+
+A further group of primitives which open streams implicitly is
+\bipref{exec/2}{../bips/kernel/opsys/exec-2.html},
+\bipref{exec/3}{../bips/kernel/opsys/exec-3.html} and
+and \bipref{exec_group/3}{../bips/kernel/opsys/exec_group-3.html}.
+They open {\bf pipes} which connect directly to the I/O channels of the
+executed process. See chapter \ref{chapopsys} for details.
+
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Closing Streams}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+The predicate
+\begin{quote}\begin{verbatim}
+close(Stream)
+\end{verbatim}\end{quote}
+is used to close an open stream.
+If a stream has several alias names, closing any of them will close
+the actual stream. All the other aliases should be closed as well
+(or redirected to streams that are still open),
+because otherwise they will continue
+to refer to the number of the already closed stream.
+
+When an attempt is made to close a redirected system stream (e.g.\ output),
+the stream is closed, but the system stream is reset to its default setting.
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Redirecting Streams}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+\index{redirecting streams}
+The \bipref{set_stream/2}{../bips/kernel/iostream/set_stream-2.html}
+primitive can be used to redirect an already existing symbolic stream
+to a new actual stream.
+This is particularly useful to redirect e.g.\ the default {\bf output} stream
+\begin{quote}\begin{verbatim}
+set_stream(output, MyStream)
+\end{verbatim}\end{quote}
+so that all standard output is redirected to some other destination
+(e.g.\ an opened file instead of the terminal).
+Note that the stream modes (read/write) must be compatible.
+The redirection is terminated by calling
+\begin{quote}\begin{verbatim}
+close(output)
+\end{verbatim}\end{quote}
+which will reestablish the original meaning of the output stream.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Finding Streams}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+The predicate
+\begin{quote}\begin{verbatim}
+current_stream(?Stream)
+\end{verbatim}\end{quote}
+\index{current_stream/1}
+can be used to backtrack over all the currently opened stream
+indentifiers (but not their aliases).
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Stream Properties}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+A stream's properties can be accessed using
+\bipref{get_stream_info/3}{../bips/kernel/iostream/get_stream_info-3.html}
+\begin{quote}\begin{verbatim}
+get_stream_info(+Stream, +Property, -Value)
+\end{verbatim}\end{quote}
+e.g.\ its mode, line number, file name etc.
+Some stream properties can be modified using
+\bipref{set_stream_property/3}{../bips/kernel/iostream/set_stream_property-3.html}
+\begin{quote}\begin{verbatim}
+set_stream_property(+Stream, +Property, +Value)
+\end{verbatim}\end{quote}
+e.g.\ the end-of-line sequence used, the flushing behaviour, the event-raising
+behaviour, the prompt etc.
+
+
+%----------------------------------------------------------------------
+\section{Communication via Streams}
+%----------------------------------------------------------------------
+The contents of a stream may be interpreted in one of the
+three basic ways.
+The first one is to
+consider it as a sequence of characters, so that the basic unit to
+be read or written is a character. The second one interprets
+the stream as a sequence of tokens, thus providing an interface
+to the Prolog lexical analyzer and the third one is to consider a stream as
+a sequence of Prolog terms.
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Character I/O}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+The \bipref{get/1, 2}{../bips/kernel/iochar/get-1.html} and \bipref{put/1, 2}{../bips/kernel/iochar/put-1.html}
+\index{get/1}
+\index{get/2}
+\index{put/1}
+\index{put/2}
+predicates corresponds to the first way
+of looking at streams. The call\begin{quote}\begin{verbatim}
+get(Char)\end{verbatim}\end{quote} takes the next character
+from
+the current input stream and matches it as a single character with Char.
+Note that a character in {\eclipse} is represented as an integer corresponding
+to the ASCII code of the character.
+If the end of file has been reached then an exception is raised.
+The call\begin{quote}\begin{verbatim}
+put(Char)\end{verbatim}\end{quote} puts the char Char on to the current output
+stream.
+The predicates
+\begin{quote}\begin{verbatim}
+get(Stream, Char)\end{verbatim}\end{quote} and
+\begin{quote}\begin{verbatim}
+put(Stream, Char)\end{verbatim}\end{quote} work similarly on the specified stream.
+
+The input and output is normally buffered by {\eclipse}.
+To make I/O in {\it raw mode}, without buffering, the predicates
+\bipref{tyi/1, 2}{../bips/kernel/iochar/tyi-1.html} and \bipref{tyo/1, 2}{../bips/kernel/iochar/tyo-1.html} are provided.
+\index{tyi/1}
+\index{tyi/2}
+\index{tyo/1}
+\index{tyo/2}
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Token I/O}
+\index{token}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+The predicates
+\bipref{read_token/2}{../bips/kernel/iochar/read_token-2.html} and
+\bipref{read_token/3}{../bips/kernel/iochar/read_token-3.html}
+\begin{quote}\begin{verbatim}
+read_token(Token, Class)
+read_token(Stream, Token, Class)
+\end{verbatim}\end{quote}
+represent the second way of interpreting stream contents.
+They read the next token from the current
+input stream, unify it with {\it Token},
+and its token class is unified with {\it Class}.
+A token is either a sequence of characters with the same or compatible
+\index{character class}
+character class, e.g. ab_1A, then it is a Prolog constant
+or variable, or a single character, e.g. ')'.
+\index{token class}
+The token class represents the type of the token and
+its special meaning, e.g. {\tt fullstop}, {\tt comma}, {\tt open_par}, etc.
+The exact definition of character classes and tokens can be found in
+appendices \ref{charclass} and \ref{tokendef}, respectively.
+
+A further, very flexible possibility to read a sequence of
+characters is provided by the built-ins
+\bipref{read_string/3}{../bips/kernel/iochar/read_string-3.html} and
+\bipref{read_string/4}{../bips/kernel/iochar/read_string-4.html}
+\begin{quote}\begin{verbatim}
+read_string(Delimiters, Length, String)
+read_string(Stream, Delimiters, Length, String)
+\end{verbatim}\end{quote}
+Here, the input is read up to a specified delimiter or up to a specified
+length, and returned as an {\eclipse} string.
+
+In particular, one line of input can be read as follows:
+\begin{quote}\begin{verbatim}
+read_line(Stream, String) :-
+    read_string(Stream, end_of_line, _Length, String).
+\end{verbatim}\end{quote}
+Once a string has been read, string manipulation predicates like
+\bipref{split_string/4}{../bips/kernel/stratom/split_string-4.html}
+can be used to break it up into smaller components.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Term I/O}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+The \bipref{read/1, 2}{../bips/kernel/ioterm/read-1.html} and \bipref{write/1, 2}{../bips/kernel/ioterm/write-1.html} predicates  correspond to
+\index{read/1}
+\index{read/2}
+\index{write/1}
+\index{write/2}
+the third way of looking at streams.
+For input, the goal \begin{quote}\begin{verbatim}
+read(Term)\end{verbatim}\end{quote} reads the next {\eclipse} term from the current input
+stream and unifies it with {\it Term}. The input term must be followed by a
+full stop, that is, a '.' character followed by a layout
+character (tab, space or newline) or by the end of file.
+The exact definition of the term syntax can be found in appendix
+\ref{chapsyntax}.
+
+If end of file has been reached then
+an exception is raised, the default handler causes the atom
+{\it end_of_file} to be returned.
+A term may be read from a stream other than the current input stream by
+the call \begin{quote}\begin{verbatim}
+read(Stream, Term)\end{verbatim}\end{quote} which reads the term from the
+named stream.
+
+For additional information about other options for reading terms,
+in particular for how to get variable names, refer to
+\bipref{readvar/3}{../bips/kernel/ioterm/readvar-3.html},
+\bipref{read_term/2}{../bips/kernel/ioterm/read_term-2.html} and
+\bipref{read_term/3}{../bips/kernel/ioterm/read_term-3.html}.
+For reading and processing complete {\eclipse} source code files, use the
+\bipref{library(source_processor)}{../bips/lib/source_processor/index.html}.
+
+
+
+For output, the goal \begin{quote}\begin{verbatim}
+write(Term)\end{verbatim}\end{quote} writes {\it Term} to the current output stream.
+\index{write/1}
+\index{write/2}
+This is done by taking the current operator declarations into account. Output
+produced by the \bipref{write/1, 2}{../bips/kernel/ioterm/write-1.html} predicate is not (necessarily) in
+a form suitable for subsequent input to a Prolog program using the \bipref{read/1}{../bips/kernel/ioterm/read-1.html}
+predicate, for this purpose \bipref{writeq/1, 2}{../bips/kernel/ioterm/writeq-1.html} is to be used.
+\index{writeq/1}
+\index{writeq/2}
+The goal \begin{quote}\begin{verbatim}
+write(Stream, Term)\end{verbatim}\end{quote} writes {\it Term} to the
+named output stream.
+For more details about how to output terms in different formats, see
+section \ref{secoutputformats}.
+
+%The predicate \begin{quote}\begin{verbatim}
+%display(Term)\end{verbatim}\end{quote}
+%\index{display/1}
+%outputs the {\it Term} on the current output stream in the functor syntax,
+%ignoring possible operator declarations.
+
+%The predicate \begin{quote}\begin{verbatim}
+%readvar(Stream, Term, VarList)\end{verbatim}\end{quote}
+%%\index{readvar/3}
+%can be used to read a term from the specified stream
+%and obtain the list of variable names contained in the {\it Term}.
+%{\it VarList} is a list of pairs {\tt [VarName\verb'|'Var]} where
+%{\it VarName} is the atom corresponding to the variable name
+%and {\it Var} is the corresponding variable.
+
+When the flag {\tt variable_names} is switched off,
+\index{variable_names}
+the output predicates are not able to write free variables
+in their source form, i.e. with the correct variable names.
+Then the variables are output in the form
+\begin{quote}\begin{verbatim}
+_N\end{verbatim}\end{quote}
+where {\tt N} is a number which identifies the variable (but note that these
+numbers may change on garbage collection and can therefore not be used to
+identify the variable in a more permanent way).
+Occasionally the number will be prefixed with the lower-case letter {\tt l},
+indicating that the variable is in a short-lived memory area called the
+local stack (see \ref{chapmemory}).
+\index{variable output}
+
+%It is possible to pass any input stream to the {\eclipse} compiler
+%using the predicate 
+%\index{compile_stream/1}
+%\begin{quote}\begin{verbatim}
+%compile_stream(Stream)\end{verbatim}\end{quote}
+%and it is of course possible to mix the compilation with
+%other input predicates.
+%If, for example, the file {\bf a.pl} contains the following data
+%\begin{quote}\begin{verbatim}
+%p(1).
+%p(2).
+%end_of_file.
+%p(3).
+%\end{verbatim}\end{quote}
+%it is possible to execute
+%\begin{quote}\begin{verbatim}
+%[eclipse 1]: open('a.pl', read, a).
+%
+%yes.
+%[eclipse 2]: read(a, X).
+%
+%X = p(1)
+%yes.
+%[eclipse 3]: compile_stream(a).
+%a.pl    compiled 40 bytes in 0.00 seconds
+%
+%yes.
+%[eclipse 4]: read(a, X).
+%
+%X = p(3)
+%yes.
+%[eclipse 5]: p(X).
+%
+%X = 2
+%yes.
+%\end{verbatim}\end{quote}
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{General Parsing and Text Generation}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+Reading and writing of I/O formats that cannot be handled by the methods
+discussed above are probably best done using Definite Clause Grammar
+(DCG) rules. See chapter \ref{dcg} for details.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Flushing}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+On most devices, output is buffered, i.e.\ any output does not appear
+\index{buffered output}
+immediately on the file, pipe or socket, but goes into a buffer first.
+To make sure the data is actually written to the device, the stream
+usually has to be flushed using
+\bipref{flush/1}{../bips/kernel/iostream/flush-1.html}.
+If this is forgotten, the receiving end of a pipe or socket may hang
+in a blocking read operation.
+
+It is possible to configure a stream such that it is automatically
+flushed at every line end (see 
+\bipref{set_stream_property/3}{../bips/kernel/iostream/set_stream_property-3.html}).
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Prompting}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Input streams on terminals can be configured to print a prompt
+whenever input is required, see 
+\bipref{set_stream_property/3}{../bips/kernel/iostream/set_stream_property-3.html}.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Positioning}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Streams that are opened on files or strings can be positioned,
+ie.\ the read/write position can be moved forward or backwards.
+This is not possible on pipes, sockets, queues and terminals.
+
+To specify a position in the file
+to write to or read from, the predicate \bipref{seek/2}{../bips/kernel/iostream/seek-2.html} is provided. The
+\index{seek/2}
+call \begin{quote}\begin{verbatim}
+seek(Stream, Pointer)\end{verbatim}\end{quote} moves the current position in the
+file (the 'file pointer') to the offset {\it Pointer} (a number specifying
+the length in bytes) from
+the start of the file.
+If {\it Pointer} is the atom {\it end_of_file} the
+current position is moved to the end of the file.
+Hence a file could be open in {\tt append} mode using
+\begin{quote}\begin{verbatim}
+open(File, update, Stream), seek(Stream, end_of_file)\end{verbatim}\end{quote}
+The current position in a file may be found by the predicate \bipref{at/2}{../bips/kernel/iostream/at-2.html}.
+\index{at/2}
+The call \begin{quote}\begin{verbatim}
+at(Stream, Pointer)\end{verbatim}\end{quote} unifies {\it Pointer} with the current
+position in the file.
+The predicate
+\begin{quote}\begin{verbatim}
+at_eof(Stream)\end{verbatim}\end{quote}
+succeeds if the current position in the given stream
+is at the file end.
+
+
+%----------------------------------------------------------------------
+\section{In-memory Streams}
+%----------------------------------------------------------------------
+There are two kinds of in-memory streams, string streams and queues.
+String streams behave much like files, they can be read, written,
+positioned etc, but they are implemented as buffer in memory.
+Queues are intended mainly for message-passing-style communication
+between \eclipse and a host language, and they are also implemented as
+memory buffers.
+
+\subsection{String Streams}
+\label{stringio}
+In {\eclipse} it is possible to associate a stream with a Prolog string
+in its memory, and this string is then used in the same way as a file
+for the input and output operations.
+A string stream is opened like a file by the \bipref{open/3}{../bips/kernel/iostream/open-3.html} predicate call
+\begin{quote}\begin{verbatim}
+open(string(InitString), Mode, Stream)
+\end{verbatim}\end{quote}
+where {\it InitString} can be a {\eclipse} string or a variable and represents
+the initial contents of the string stream.
+If a variable is supplied for {\it InitString}, the initial value of the string
+stream is the empty string and the variable is bound to this value:
+\begin{quote}\begin{verbatim}
+[eclipse 1]: open(string(S), update, s).
+S = ""
+yes.
+\end{verbatim}\end{quote} 
+Once a string stream is opened, all predicates using streams
+can take it as argument and perform I/O on it.
+In particular the predicates
+\bipref{seek/2}{../bips/kernel/iostream/seek-2.html} and
+\bipref{at/2}{../bips/kernel/iostream/at-2.html}
+can be used with them.
+
+While writing into a stream changes the stream contents destructively,
+the initial string that has been opened will never be affected.
+The new stream contents can be retrieved either by reading from the string
+stream, or as a whole by using
+\bipref{get_stream_info/3}{../bips/kernel/iostream/get_stream_info-3.html}:
+\begin{quote}\begin{verbatim}
+[eclipse 1]: S = "abcdef", open(string(S), write, s), write(s, ---).
+
+S = "abcdef"
+yes.
+[eclipse 2]: get_stream_info(s, name, S).
+
+S = "---def"
+yes.
+[eclipse 3]: seek(s, 1), write(s, .), get_stream_info(s, name, S).
+
+S = "-.-def"
+yes.
+[eclipse 4]: seek(s, end_of_file), write(s, ine),
+             get_stream_info(s, name, S).
+
+S = "-.-define"
+yes.
+\end{verbatim}\end{quote}
+
+
+\subsection{Queue streams}
+\label{queueio}
+A queue stream is opened by the \bipref{open/3}{../bips/kernel/iostream/open-3.html} predicate
+\begin{quote}\begin{verbatim}
+open(queue(InitString), Mode, Stream)
+\end{verbatim}\end{quote}
+The initial queue contents is {\it InitString}.
+It can be seen as a string which gets extended at its end on writing
+and consumed at its beginning on reading.
+\begin{quote}\begin{verbatim}
+[eclipse 11]: open(queue(""), update, q), write(q, hello), write(q, " wo").
+yes.
+[eclipse 12]: read_string(q, " ", _, X).
+S = "hello"
+yes.
+[eclipse 13]: write(q, "rld"), read(q, X).
+S = world
+yes.
+[eclipse 14]: at_eof(q).
+yes.
+\end{verbatim}\end{quote} 
+It is not allowed to seek on a queue. Therefore, once something is read
+from a queue, it is no longer accessible. A queue is considered to be
+at its end-of-file position when it is currently empty, however this
+is no longer the case when the queue is written again.
+
+A useful feature of queues is that they can raise a synchronous event
+when data arrives on the empty queue. To create such an event-raising
+queue, this has to be specified as an option when opening the queue with
+\bipref{open/4}{../bips/kernel/iostream/open-4.html}.
+In the example we have chosen the same name for the stream and for the
+event, which is not necessary but convenient when the same handler
+is going to be used for different queues:
+\begin{quote}\begin{verbatim}
+[eclipse 1]: [user].
+ handle_queue_event(Q) :-  
+        read_string(Q, "", _, Data),
+        printf("Queue %s received data: %s\n", [Q,Data]).
+yes.
+[eclipse 2]: set_event_handler(eventq, handle_queue_event/1).
+yes.
+[eclipse 3]: open(queue(""), update, eventq, [event(eventq)]).
+yes.
+[eclipse 4]: write(eventq, hello).
+Queue eventq received data: hello
+yes.
+\end{verbatim}\end{quote} 
+
+
+%----------------------------------------------------------------------
+\section{Term Output Formats}
+\label{secoutputformats}
+%----------------------------------------------------------------------
+
+\subsection{Write_term and Printf}
+
+The way {\eclipse} terms are printed can be customised in a number of ways.
+The most flexible predicates to print terms are
+\bipref{write_term/3}{../bips/kernel/ioterm/write_term-3.html}
+and
+\bipref{printf/3}{../bips/kernel/ioterm/printf-3.html}.
+They both allow all variants of term output, but the format is
+specified in a different way.
+\index{output options}
+The following figure gives an overview.
+\begin{center}
+\begin{tabular}{|p{3.5cm}|p{1.5cm}|p{10cm}|}
+\hline
+Output Option for write_term/2,3 & Format char for printf \%..w & Meaning \\
+\hline
+\hline
+as(term)		&   & do not assume any particular meaning of the printed term \\
+\hline
+as(clause)		& C & print the term as a clause (apply clause transformations) \\
+\hline
+as(goal)		& G & print the term as a goal (apply goal transformations) \\
+\hline
+attributes(none)	&   & do not print any variable attributes \\
+\hline
+attributes(pretty)	& m & print attributes using the corresponding print handlers \\
+\hline
+attributes(full)	& M & print the full contents of all variable attributes \\
+\hline
+compact(false)		&   & print extra blank space (around operators, after commas, etc.) for better readability \\
+\hline
+compact(true)		& K & don't print blank space unless necessary \\
+\hline
+depth(Max)		& <Max>  & print the term only up to a maximum nesting depth of Max (a positive integer) \\
+\hline
+depth(0)		&   & observe the stream-specific or global flag 'print_depth' \\
+\hline
+depth(full)		& D & print the whole term (may loop when the term is cyclic!) \\
+\hline
+dotlists(false)		&   & write lists in square bracket notation, e.g. [a,b] \\
+\hline
+dotlists(true)		& . & write lists as terms with functor ./2 \\
+\hline
+newlines(false)		&   & print newlines inside quotes as escape sequence {\bsl}n \\
+\hline
+newlines(true)		& N & print newlines as line breaks even inside quotes \\
+\hline
+numbervars(false)	&   & do not treat '\$VAR'/1 terms specially \\
+\hline
+numbervars(true)	& I & 
+print terms of the form '\$VAR'(N) as named variables: 
+'\$VAR'(0) is printed as A, '\$VAR'(25) as Z, '\$VAR'(26) as A1 and so on.
+When the argument is an atom or a string, just this argument is printed. \\
+\hline
+operators(true)		&   & obey operator declarations and print prefix/infix/postfix \\
+\hline
+operators(false)	& O & ignore operator declarations and print functor notation \\
+\hline
+portrayed(false)	&   & do not use portray/1,2 \\
+\hline
+portrayed(true)		& P & call the user-defined predicate portray/1,2 for printing \\
+\hline
+quoted(false)		&   & do not print quotes around strings or atoms \\
+\hline
+quoted(true)		& Q & quote strings and atoms if necessary \\
+\hline
+transform(true)		&   & apply portray transformations (write macros) \\
+\hline
+transform(false)	& T & do not apply portray transformations (write macros). \\
+\hline
+variables(default)	&   & print variables using their source name (if available) \\
+\hline
+variables(raw)		& v & print variables using a system-generated name, e.g. _123 \\
+\hline
+variables(full)		& V & print variables using source name followed by a number, e.g. Alpha_132 \\
+\hline
+variables(anonymous)	& _ & print every variable as a simple underscore \\
+\hline
+\end{tabular}
+
+Overview of term output options (see write_term/3 for more details)
+\label{outputoptions}
+\end{center}
+The
+\bipref{write_term/2}{../bips/kernel/ioterm/write_term-2.html} and
+\bipref{write_term/3}{../bips/kernel/ioterm/write_term-3.html}
+predicates print a single {\eclipse} term and accept a list of
+output options (first column in the table \ref{outputoptions}).
+
+The
+\bipref{printf/2}{../bips/kernel/ioterm/printf-2.html} and
+\bipref{printf/3}{../bips/kernel/ioterm/printf-3.html}
+predicates are similar to C's printf(3) function, but provide
+additional format characters for printing {\eclipse} terms.
+\index{format string}
+The basic format string for printing arbitrary terms is "\%w".
+Additional format characters can go between \% and w, according
+to the second column in the table \ref{outputoptions}.
+
+For example, the following pairs of printing goals are equivalent:
+\begin{quote}\begin{verbatim}
+printf("%mw",  [X])  <->   write_term(X, [attributes(pretty)])
+printf("%O.w", [X])  <->   write_term(X, [operators(false),dotlist(true)])
+printf("%5_w", [X])  <->   write_term(X, [depth(5),variables(anonymous)])
+\end{verbatim}\end{quote}
+
+
+\subsection{Other Term Output Predicates}
+
+The other term output predicates
+\bipref{write/2}{../bips/kernel/ioterm/write-2.html},
+\bipref{writeq/2}{../bips/kernel/ioterm/writeq-2.html},
+\bipref{write_canonical/2}{../bips/kernel/ioterm/write_canonical-2.html},
+\bipref{display/2}{../bips/kernel/ioterm/display-2.html},
+\bipref{print/2}{../bips/kernel/ioterm/print-2.html}
+can all be defined in terms of write_term/3 (or, similarly
+in terms of printf/3) as follows:
+\begin{quote}\begin{verbatim}
+write(X)   :- write_term(X, []).
+writeq(X)  :- write_term(X, [variables(raw), attributes(full),
+                transform(false), quoted(true), depth(full)]).
+write_canonical(X) :- write_term(X, [variables(raw), attributes(full),
+                transform(false), quoted(true), depth(full),
+                dotlist(true), operators(false)]).
+display(X) :- write_term(X, [dotlist(true), operators(false)]).
+print(X)   :- write_term(X, [portrayed(true)]).
+\end{verbatim}\end{quote}
+
+
+\subsection{Default Output Options}
+
+It is possible to set default output options for an output stream
+in order to globally affect all output to this particular stream.
+The
+\bipref{set_stream_property/3}{../bips/kernel/iostream/set_stream_property-3.html}
+predicate can be used to assign default options (in the same form as
+accepted by write_term/3) to a stream.
+These options will then be observed by all output predicates which do not
+override the particular option.
+
+%HEVEA\cutend
+
+

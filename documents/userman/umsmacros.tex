@@ -1,0 +1,485 @@
+% BEGIN LICENSE BLOCK
+% Version: CMPL 1.1
+%
+% The contents of this file are subject to the Cisco-style Mozilla Public
+% License Version 1.1 (the "License"); you may not use this file except
+% in compliance with the License.  You may obtain a copy of the License
+% at www.eclipse-clp.org/license.
+% 
+% Software distributed under the License is distributed on an "AS IS"
+% basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+% the License for the specific language governing rights and limitations
+% under the License. 
+% 
+% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% Portions created by the Initial Developer are
+% Copyright (C) 1996 - 2006 Cisco Systems, Inc.  All Rights Reserved.
+% 
+% Contributor(s): 
+% 
+% END LICENSE BLOCK
+%
+% @(#)umsmacros.tex	1.9 96/01/08 
+%
+% umsmacros.tex
+%
+
+\chapter{{\eclipse} Macros}
+%HEVEA\cutdef[1]{section}
+\label{chapmacros}
+
+%----------------------------------------------------------------------
+\section{Introduction}
+%----------------------------------------------------------------------
+\index{source transformation}
+\index{macro expansion}
+{\eclipse} provides a general mechanism to perform macro expansion
+of Prolog terms.
+Macro expansion can be performed in 3 situations:
+\begin{description}
+
+\item[read macros]
+\index{read macros}
+\index{macros!read}
+they are expanded just after a Prolog term has been read by the
+{\eclipse} parser. Note that the parser is not only used during
+comilation but by all
+\biptxtref{term-reading}{read/1}{../bips/kernel/ioterm/read-1.html}
+predicates.
+
+\item[compiler macros]
+\index{compiler macros}
+\index{macros!compiler}
+they are expanded only during compilation and only when a term occurs
+in a certain context (clause or goal).
+
+\item[write macros]
+\index{write macros}
+\index{macros!write}
+they are expanded just before a Prolog term is printed by one of the
+output predicates
+
+\end{description}
+Macros are attached to classes of terms specified by their functors
+or by their type.
+Macros obey the module system's visibility rules.
+They may be either
+\biptxtref{local}{local/1}{../bips/kernel/modules/local-1.html}
+or
+\biptxtref{exported}{export/1}{../bips/kernel/modules/export-1.html}.
+The macro expansion is performed by a user-defined Prolog predicate.
+
+
+%----------------------------------------------------------------------
+\section{Using the macros}
+\label{usingmacros}
+%----------------------------------------------------------------------
+
+The following declarations and built-ins control macro expansion:
+\begin{description}
+\item[local macro(+TermClass, +TransPred, +Options)]
+define a macro for the given {\it TermClass}. The transformation will
+be performed by the predicate {\it TransPred}.
+\item[export macro(+TermClass, +TransPred, +Options)]
+as above, but available to other modules.
+\item[erase_macro(+TermClass, +Options)]
+erase a currently defined macro for {\it TermClass}. This can only be done
+in the module where the definition was made.
+\item[current_macro(?TermClass, ?TransPred, ?Options, ?Module)]
+retrieve information about currently defined visible macros.
+\end{description}
+Macros are selectively applied only to terms of the specified class.
+{\it TermClass} can take two forms:
+\begin{description}
+\item[Name/Arity] transform all terms with the specified functor
+\index{type macros}
+\index{macros!type}
+\item[type(Type)] transform all terms of the specified type, where Type
+is one of {\tt compound, string, integer, rational, float, breal, atom,
+goal}\footnote{type(goal) stands for suspensions.}.
+\end{description}
+The {+TransPred} argument specifies the predicate that will perform the
+transformation. It has to be of arity 2 or 3 and should have the form:
+\begin{quote}\begin{verbatim}
+trans_function(OldTerm, NewTerm [, Module]) :- ... .
+\end{verbatim}\end{quote}
+At transformation time, the system will call {\it TransPred} in the module
+where \bipref{macro/3}{../bips/kernel/syntax/macro-3.html} was invoked.
+The term to transform is passed as the first argument, the second is a free
+variable which the transformation predicate should bind to the
+transformed term, and the optional
+third argument is the module where the term is read or written.
+
+{\it Options} is a list which may be empty (in this case the macro defaults
+to a local read term macro) or contain specifications from
+the following categories:
+\begin{itemize}
+\item mode
+\begin{description}
+\index{macros!read}
+\item[read:] This is a read macro and shall be applied after reading a
+term (default).
+
+\index{macros!write}
+\item[write:] This is a write macro and shall be applied before printing
+a term. 
+\end{description}
+
+\item type
+\begin{description}
+\index{macros!term}
+\item[term:] Transform all terms (default).
+
+\index{macros!clause}
+\item[clause:] Transform only if the term is a program clause,
+i.e. inside \bipref{compile/1}{../bips/kernel/database/compile-1.html}, \bipref{assert/1}{../bips/kernel/dynamic/assert-1.html} etc.
+Write macros are applied using the 'C' option in the \bipref{printf/2}{../bips/kernel/ioterm/printf-2.html} predicate.
+
+\index{macros!goal}
+\item[goal:] Goal-read-macros are transformed only if the term is a
+subgoal in the body of a program clause.
+Goal-write macros are applied using the 'G' option in the
+\bipref{printf/2}{../bips/kernel/ioterm/printf-2.html} predicate.
+\end{description}
+
+\item additional specification
+\begin{description}
+\index{macros!protect_arg}
+\item[protect_arg:] Disable transformation of subterms (optional).
+\index{macros!top_only}
+\item[top_only:] Consider only the whole term, not subterms (optional).
+\end{description}
+\end{itemize}
+The following shorthands exist:
+\begin{description}
+\item[local/export portray(+TermClass, +TransPred, +Options)]
+    \bipref{portray/3}{../bips/kernel/syntax/portray-3.html}
+    is like
+    \bipref{macro/3}{../bips/kernel/syntax/macro-3.html},
+    but the write-option is implied.
+\item[inline(+PredSpec, +TransPred)]
+    \bipref{inline/2}{../bips/kernel/database/inline-2.html}
+    is the same as a goal-read-macro. The visibility is inherited
+    from the transformed predicate.
+\end{description}
+
+Here is an example of a conditional read macro:
+\begin{quote}
+\begin{verbatim}
+[eclipse 1]: [user].
+ trans_a(a(X,Y), b(Y)) :-    % transform a/2 into b/1,
+        number(X),           % but only under these
+        X > 0.               % conditions
+
+:- local macro(a/2, trans_a/2, []).
+  user       compiled traceable 204 bytes in 0.00 seconds
+
+yes.
+[eclipse 2]: read(X).
+        a(1, hello).
+
+X = b(hello)                 % transformed
+yes.
+[eclipse 3]: read(X).
+        a(-1, bye).
+
+X = a(-1, bye)               % not transformed
+yes.
+\end{verbatim}
+\end{quote}
+If the transformation function fails, the term is not transformed. Thus, 
+{\bf a(1, zzz)} is transformed into {\bf b(zzz)} but {\bf a(-1, zzz)} 
+is not transformed.
+The arguments are transformed bottom-up. It is possible to protect the 
+subterms of a transformed term by specifying the flag {\tt protect_arg}.
+
+A term can be protected against transformation by quoting it with 
+the ``protecting functor'' (by default it is {\bf no_macro_expansion/1}):
+\index{no_macro_expansion/1}
+\index{macro!no_macro_expansion}
+\begin{quote}
+\begin{verbatim}
+[eclipse 4]: read(X).
+        a(1, no_macro_expansion(a(1, zzz))).
+X = b(a(1, zzz)).
+\end{verbatim}
+\end{quote}
+Note that the protecting functor is itself defined as a macro:
+\begin{quote} \begin{verbatim}
+trprotect(no_macro_expansion(X), X).
+:- export macro(no_macro_expansion/1, trprotect/2, [protect_arg]).
+\end{verbatim} \end{quote}
+
+A local macro is only visible in the module where it has been defined.
+When it is defined as exported, then it is copied to all
+other modules that contain a
+\bipref{use_module/1}{../bips/kernel/modules/use_module-1.html} or
+\bipref{import/1}{../bips/kernel/modules/import-1.html}
+for this module.
+The transformation function should also be exported in this case.
+There are a few global macros predefined by the system, e.g.\ for
+% the following stops latex2html from turning --> into ->
+{\tt -}{\tt ->/2} (grammar rules, see below) or {\tt with/2} and {\tt of/2}
+(structure syntax, see section \ref{chapstruct}).
+These predefined macros can be hidden by local macro definitions.
+
+\index{macro_expansion}
+The global flag {\bf macro_expansion} can be used to disable
+macro expansion globally, e.g.\ for debugging purposes.
+Use {\tt set_flag(macro_expansion, off)} to do so.
+
+The next example shows the use of a type macro. Suppose we want to represent
+integers as s/1 terms:
+\begin{quote} \begin{verbatim}
+[eclipse 1]: [user].
+ tr_int(0, 0).
+ tr_int(N, s(S)) :- N > 0, N1 is N-1, tr_int(N1, S).
+ :- local macro(type(integer), tr_int/2, []).
+
+yes.
+[eclipse 2]: read(X).
+        3.
+
+X = s(s(s(0)))
+yes.
+\end{verbatim} \end{quote}
+When we want to convert the s/1 terms back to normal integers so that they
+are printed in the familiar form, we can use a write macro.
+Note that we first erase the read macro for integers, otherwise we would get
+unexpected effects since all integers occurring in the definition of
+tr_s/2 would turn into s/1 structures:
+\begin{quote} \begin{verbatim}
+[eclipse 3]: erase_macro(type(integer)).
+
+yes.
+[eclipse 4]: [user].
+ tr_s(0, 0).
+ tr_s(s(S), N) :- tr_s(S, N1), N is N1+1.
+ :- local macro(s/1, tr_s/2, [write]).
+
+yes.
+[eclipse 2]: write(s(s(s(0)))).
+3
+yes.
+\end{verbatim} \end{quote}
+
+%----------------------------------------------------------------------
+\section{Definite Clause Grammars --- DCGs}
+\label{dcg}
+%----------------------------------------------------------------------
+\index{DCG}
+\index{definite clause grammar}
+\index{grammar rules}
+\index{$-->$/2}
+Grammar rules are described in many standard Prolog texts (\cite{clocksin81}).
+In {\eclipse} they are provided by a predefined global\footnote{
+So that the user can redefine it with a local one.} macro for
+% the following stops latex2html from turning --> into ->
+{\tt -}{\tt ->/2}.
+When the parser reads a clause whose main functor is {\tt -}{\tt ->/2}, it transforms 
+it according to the standard rules.
+The syntax for DCGs is as follows: 
+\begin{quote}
+\begin{verbatim}
+grammar_rule --> grammar_head, ['-->'], grammar_body.
+
+grammar_head --> non_terminal.
+grammar_head --> non_terminal, [','], terminal.
+
+grammar_body --> grammar_body, [','], grammar_body.
+grammar_body --> grammar_body, [';'], grammar_body.
+grammar_body --> grammar_body, ['->'], grammar_body.
+grammar_body --> grammar_body, ['|'], grammar_body.
+grammar_body --> iteration_spec, ['do'], grammar_body.
+grammar_body --> ['-?->'], grammar_body.
+grammar_body --> grammar_body_item.
+
+grammar_body_item --> ['!'].
+grammar_body_item --> ['{'], Prolog_goals, ['}'].
+grammar_body_item --> non_terminal.
+grammar_body_item --> terminal.
+\end{verbatim}
+\end{quote}
+The non-terminals are syntactically identical to prolog goals (atom, compound
+term or variable), the terminals are lists of prolog terms (typically
+characters or tokens). Every 
+term is transformed, unless it is enclosed in curly brackets. The control
+constructs like conjunction {\tt ,/2}, disjunction ({\tt ;/2} or {\tt |/2}),
+the cut ({\tt !/0}), the condition ({\tt ->/1}) and do-loops do not need to
+be enclosed in curly brackets.
+
+The grammar can be accessed with the built-in \bipref{phrase/3}{../bips/kernel/control/phrase-3.html}.
+The first argument of \bipref{phrase/3}{../bips/kernel/control/phrase-3.html} is the name of the
+grammar to be used, the 
+second argument one is a list containing the input to be parsed. If the
+parsing is successful the built-in will succeed.
+For instance with the grammar
+\begin{quote}
+\begin{verbatim}
+a --> [] | [z], a.
+\end{verbatim}
+\end{quote}
+{\tt phrase(a, X, [])} will give on backtracking: {\tt X = [z] ; X = [z, z] ; X = [z, z, z] ; ...}.
+
+\subsection{Simple DCG example}
+
+The following example illustrates a simple grammar declared using the DCGs.
+
+\begin{quote}
+\begin{verbatim}
+sentence --> imperative, noun_phrase(Number), verb_phrase(Number).
+
+imperative, [you] --> [].
+imperative --> [].
+
+noun_phrase(Number) --> determiner, noun(Number).
+noun_phrase(Number) --> pronom(Number).
+
+verb_phrase(Number) --> verb(Number).
+verb_phrase(Number) --> verb(Number), noun_phrase(_).
+
+determiner --> [the].
+
+noun(singular) --> [man].
+noun(singular) --> [apple].
+noun(plural) --> [men].
+noun(plural) --> [apples].
+
+verb(singular) --> [eats].
+verb(singular) --> [sings].
+verb(plural) --> [eat].
+verb(plural) --> [sing].
+
+pronom(plural) --> [you].
+\end{verbatim}
+\end{quote}
+The above grammar may be successfully parsed
+using \bipref{phrase/3}{../bips/kernel/control/phrase-3.html}. If the predicate
+succeeds then the input has been parsed successfully.
+\begin{quote}
+\begin{verbatim}
+[eclipse 1]: phrase(sentence, [the,man,eats,the,apple], []).
+
+yes.
+[eclipse 2]: phrase(sentence, [the,men,eat], []).
+
+yes.
+[eclipse 3]: phrase(sentence, [the,men,eats], []).
+
+no.
+[eclipse 4]: phrase(sentence, [eat,the,apples], []).
+
+yes.
+[eclipse 5]: phrase(sentence, [you,eat,the,man], []). 
+
+yes.
+\end{verbatim}
+\end{quote}
+The predicate \bipref{phrase/3}{../bips/kernel/control/phrase-3.html} may be used to return the point at which
+parsing of a grammar fails --- if the returned list is empty then the
+input has been successfully parsed.
+
+\begin{quote}
+\begin{verbatim}
+[eclipse 1]: phrase(sentence, [the,man,eats,something,nasty],X).
+
+X = [something, nasty]     More? (;) 
+
+no (more) solution.
+[eclipse 2]: phrase(sentence, [eat,the,apples],X).
+
+X = [the, apples]     More? (;) 
+
+X = []     More? (;) 
+
+no (more) solution.
+[eclipse 3]: phrase(sentence, [hello,there],X).
+
+no (more) solution.
+\end{verbatim}
+\end{quote}
+
+\subsection{Mapping to Prolog Clauses}
+Grammar rule are translated to Prolog clauses by adding two arguments
+which represent the input before and after the nonterminal which is
+represented by the rule.
+The effect of the transformation can be observed, e.g.\ by switching on
+the {\tt all_dynamic} flag so that the compiled clauses can be listed:
+\begin{quote} \begin{verbatim}
+[eclipse 1]: set_flag(all_dynamic, on), [user].
+ p(X) --> q(X).
+ p(X) --> [a].
+user       compiled traceable 296 bytes in 0.25 seconds
+
+yes.
+[eclipse 2]: listing.
+p(_g212, _g214, _g216) :-
+        q(_g212, _g214, _g216).
+p(_g212, _g214, _g216) :-
+        _g214 = [a|_g216].
+
+yes.
+\end{verbatim} \end{quote}
+
+\subsection{Parsing other Data Structures}
+
+DCGs are in principle not limited to the parsing of lists.
+The predicate \bipref{'C'/3}{../bips/kernel/termmanip/C-3.html} is responsible for reading resp.\ generating
+the input tokens. The default definition is
+\begin{quote}\begin{verbatim}
+'C'([Token|Rest], Token, Rest).
+\end{verbatim}\end{quote}
+The first argument represents the parsing input before consuming
+Token and Rest is the input after consuming Token.
+
+By redefining 'C'/3, it is possible to apply a DCG to other
+input sources than a list, e.g.\ to parse directly from an I/O stream:
+\begin{quote}\begin{verbatim}
+:- local 'C'/3.
+'C'(Stream-Pos0, Token, Stream-Pos1) :-
+        seek(Stream, Pos0),
+        read_string(Stream, " ", _, TokenString),
+        atom_string(Token, TokenString),
+        at(Stream, Pos1).
+
+ sentence --> noun, [is], adjective.
+ noun --> [prolog] ; [lisp].
+ adjective --> [boring] ; [great].
+\end{verbatim}\end{quote}
+This can then be applied to a string as follows:
+\begin{quote}\begin{verbatim}
+[eclipse 1]: String = "prolog is great", open(String, string, S),
+             phrase(sentence, S-0, S-End).
+...
+End = 15
+yes.
+\end{verbatim}\end{quote}
+Here is another redefinition of 'C'/3, using a similar idea, which allows
+the direct parsing of {\eclipse} strings as sequences of characters:
+\begin{quote}\begin{verbatim}
+:- local 'C'/3.
+'C'(String-Pos0, Char, String-Pos1) :-
+        Pos0 =< string_length(String),
+        string_code(String, Pos0, Char),
+        Pos1 is Pos0+1.
+
+anagram --> [].
+anagram --> [_].
+anagram --> [C], anagram, [C].
+\end{verbatim}\end{quote}
+This can then be applied to a string as follows:
+\begin{quote}\begin{verbatim}
+[eclipse 1]: phrase(anagram, "abba"-1, "abba"-5).
+yes.
+[eclipse 2]: phrase(anagram, "abca"-1, "abca"-5).
+no (more) solution.
+\end{verbatim}\end{quote}
+Unlike the default definition, these redefinitions of 'C'/3 are not bi-directional.
+Consequently, the grammar rules using them can only be used for parsing,
+not for generating sentences.
+
+Note that every grammar rule uses that definition of 'C'/3 which is visible in
+the module where the grammar rule itself is defined.
+
+%HEVEA\cutend

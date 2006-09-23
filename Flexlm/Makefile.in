@@ -1,0 +1,78 @@
+# BEGIN LICENSE BLOCK
+# Version: CMPL 1.1
+#
+# The contents of this file are subject to the Cisco-style Mozilla Public
+# License Version 1.1 (the "License"); you may not use this file except
+# in compliance with the License.  You may obtain a copy of the License
+# at www.eclipse-clp.org/license.
+# 
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+# the License for the specific language governing rights and limitations
+# under the License. 
+# 
+# The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+# The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+# Portions created by the Initial Developer are
+# Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
+# 
+# Contributor(s): ___________________________________. 
+# 
+# END LICENSE BLOCK
+#
+# Makefile for FlexLM interface
+#
+# $Id: Makefile.in,v 1.1 2006/09/23 01:53:18 snovello Exp $
+#
+
+ARCH = @ARCH@
+top_srcdir = @top_srcdir@
+PREFIX = @prefix@
+
+CC = @CC@
+LD = @LD@
+AR = @AR@
+CFLAGS = @CFLAGS@
+OBJ_SUFFIX = @OBJECTS_SUFFIX@
+DYNLDFLAGS = @DYNLDFLAGS@
+FLEXLMDIR = @FLEXLMDIR@
+
+ECLIBS = -L$(PREFIX)/lib/$(ARCH) -leclipse
+
+CPPFLAGS = -I$(PREFIX)/include/$(ARCH) $(@CPPFLAGS_WITH_WITHOUT_FLEXLM@)
+CPPFLAGS_WITHOUT_FLEXLM = 
+CPPFLAGS_WITH_FLEXLM = -DDHAVE_FLEXLM -I$(FLEXLMDIR)
+
+LIBS_FLEXLM = $(@LIBS_WITH_WITHOUT_FLEXLM@)
+LIBS_WITHOUT_FLEXLM=
+LIBS_WITH_FLEXLM=$(LIBS_WITH_FLEXLM_$(ARCH))
+LIBS_WITH_FLEXLM_i386_nt = $(FLEXLMDIR)/chkstk.s pteclipse.def $(FLEXLMDIR)/lm_new_md.obj $(FLEXLMDIR)/lmgr_md.lib -lcomctl32 -lcomdlg32 -lnetapi32
+LIBS_WITH_FLEXLM_sparc_sunos5 = $(FLEXLMDIR)/lm_new.o -L$(FLEXLMDIR) -llmgr
+LIBS_WITH_FLEXLM_i386_linux = $(LIBS_WITH_FLEXLM_sparc_sunos5)
+LIBS_WITH_FLEXLM_x86_64_linux = $(LIBS_WITH_FLEXLM_sparc_sunos5)
+LIBS_WITH_FLEXLM_i386_sunos5 = $(LIBS_WITH_FLEXLM_sparc_sunos5)
+LIBS_WITH_FLEXLM_x86_64_sunos5 = $(LIBS_WITH_FLEXLM_sparc_sunos5)
+
+
+PT_SOURCES = bip_pt.c
+
+PT_TARGETS = $(PREFIX)/lib/$(ARCH)/pteclipse.$(OBJ_SUFFIX)
+
+install:	$(PT_TARGETS)
+
+
+$(PREFIX)/lib/$(ARCH)/pteclipse.$(OBJ_SUFFIX): $(PT_SOURCES)
+	$(CC) $(CFLAGS) $(DYNLDFLAGS) -o $@ \
+		$(CPPFLAGS) \
+		$(PT_SOURCES) \
+		$(LIBS_FLEXLM) \
+		$(ECLIBS)
+
+
+clean:	ecoclean archclean
+	rm -f $(PT_TARGETS)
+
+archclean:
+
+ecoclean:
+

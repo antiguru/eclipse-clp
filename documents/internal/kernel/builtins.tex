@@ -1,0 +1,185 @@
+% BEGIN LICENSE BLOCK
+% Version: CMPL 1.1
+%
+% The contents of this file are subject to the Cisco-style Mozilla Public
+% License Version 1.1 (the "License"); you may not use this file except
+% in compliance with the License.  You may obtain a copy of the License
+% at www.eclipse-clp.org/license.
+% 
+% Software distributed under the License is distributed on an "AS IS"
+% basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+% the License for the specific language governing rights and limitations
+% under the License. 
+% 
+% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% Portions created by the Initial Developer are
+% Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
+% 
+% Contributor(s): 
+% 
+% END LICENSE BLOCK
+
+\chapter{Built-Ins}
+
+\section{All Solutions }
+     Built-ins to collect all solutions to nondeterministic goals.
+     The implementation is in
+     \begin{itemize}
+     \item setof.pl
+     \end{itemize}
+     and is based on
+     public domain code by Richard O'Keefe. The main change is the
+     use of {\eclipse} bag-predicates to collect the solutions.
+
+\section{Arithmetic }
+     Built-ins for arithmetic computations. Related code is in
+     \begin{itemize}
+     \item emu.c
+     \item bip_arith.c
+     \item bigrat.c
+     \item intervals.c
+     \end{itemize}
+
+
+\section{Non-logical Variables, Arrays, Bags and Shelves }
+     Built-ins to store data across backtracking .
+     \begin{itemize}
+     \item bip_array.c
+     \item bip_record.c
+     \item property.c
+     \end{itemize}
+
+\section{Control }
+     Built-ins and language constructs to control execution .
+     \begin{itemize}
+     \item emu.c
+     \item code.c
+     \item bip_parallel.c
+     \end{itemize}
+
+\section{Predicate Database and Compiler }
+     Built-ins for creation of handling of executable code .
+     \begin{itemize}
+     \item bip_db.c
+     \item procedure.c
+     \item section.c
+     \item pass[234].c
+     \item head.c
+     \item body.c
+     \end{itemize}
+
+\section{Debugging }
+     Built-ins and command related to debugging .
+     \begin{itemize}
+     \item emu.c
+     \item bip_control.c
+     \end{itemize}
+
+\section{Dynamic Predicates }
+     Built-ins to create and manipulate dynamic procedures .
+     \begin{itemize}
+     \item bip_db.c
+     \item dynamic.c
+     \end{itemize}
+
+\section{Development Environment and Global Settings }
+     Built-ins related to the development environment .
+     \begin{itemize}
+     \item bip_control.c
+     \item bip_misc.c
+     \end{itemize}
+
+\section{Event Handling }
+     Built-ins to handle events and interrupts .
+     \begin{itemize}
+     \item emu.c
+     \item handlers.c
+     \item error.c
+     \end{itemize}
+
+\section{External Interface }
+     Built-ins to access functions and data from foreign languages .
+     \begin{itemize}
+     \item external.c
+     \item embed.c
+     \end{itemize}
+
+\section{Character I/O }
+     Built-ins to input and output characters or byte strings .
+     \begin{itemize}
+     \item io.c
+     \item bip_io.c
+     \end{itemize}
+
+\section{Stream I/O }
+     Built-ins to open, manipulate and close I/O streams .
+     \begin{itemize}
+     \item io.c
+     \item bip_io.c
+     \end{itemize}
+
+\section{Term I/O }
+     Built-ins for input/output of complex terms .
+     \begin{itemize}
+     \item bip_io.c
+     \item read.c
+     \item write.c
+     \end{itemize}
+
+\section{Modules }
+     Directives and built-ins related to the module system .
+     \begin{itemize}
+     \item bip_module.c
+     \item proc_desc.c
+     \item property.c
+     \end{itemize}
+
+\section{Operating System }
+     Built-ins to access operating-system services .
+     \begin{itemize}
+     \item bip_misc.c
+     \item bip_io.c
+     \item os_support.c
+     \end{itemize}
+
+\section{Strings and Atoms }
+     Built-ins to create, convert and decompose strings and atoms .
+     \begin{itemize}
+     \item bip_strings.c
+     \item bip_tconv.c
+     \end{itemize}
+
+\section{Advanced Control and Suspensions }
+     Everything related to suspensions, priority- and data-driven control .
+     \begin{itemize}
+     \item emu.c
+     \item bip_delay.c
+     \end{itemize}
+
+\section{Syntax Settings }
+     Operators, structures, macros, character classes .
+     \begin{itemize}
+     \item lex.c
+     \item read.c
+     \end{itemize}
+
+\section{Comparing and Sorting }
+     Built-ins for symbolic term comparison and sorting .
+     \begin{itemize}
+     \item bip_comp.c
+     \end{itemize}
+
+\section{Term Manipulation }
+     Built-ins to convert, compose, decompose and modify terms .
+     \begin{itemize}
+     \item bip_tconv.c
+     \end{itemize}
+
+\section{Type Testing }
+     Meta-logical built-ins to test the type of terms .
+     Most of these map to simple tag tests and are implemented
+     inside the emulator.
+     \begin{itemize}
+     \item emu.c
+     \end{itemize}

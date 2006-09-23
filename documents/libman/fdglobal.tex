@@ -1,0 +1,183 @@
+% BEGIN LICENSE BLOCK
+% Version: CMPL 1.1
+%
+% The contents of this file are subject to the Cisco-style Mozilla Public
+% License Version 1.1 (the "License"); you may not use this file except
+% in compliance with the License.  You may obtain a copy of the License
+% at www.eclipse-clp.org/license.
+% 
+% Software distributed under the License is distributed on an "AS IS"
+% basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+% the License for the specific language governing rights and limitations
+% under the License. 
+% 
+% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% Portions created by the Initial Developer are
+% Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
+% 
+% Contributor(s): Joachim Schimpf, IC-Parc
+% 
+% END LICENSE BLOCK
+%
+% $Id: fdglobal.tex,v 1.1 2006/09/23 01:49:31 snovello Exp $
+%
+% Author: Joachim Schimpf
+%
+
+\chapter{Additional Finite Domain Constraints}
+\label{chapglobconstr}
+%HEVEA\cutdef[1]{section}
+\section{Various Constraints on Lists}
+
+The library {\bf ic_global} implements a number of constraints
+over lists of integer variables. It is loaded using one of 
+\begin{quote}\begin{verbatim}
+:- use_module(library(ic_global)).
+:- lib(ic_global).
+\end{verbatim}\end{quote}
+
+The following predicates are provided
+
+\begin{description}
+\item[\biptxtref{alldifferent(+List)}{ic_global:alldifferent/1}{../bips/lib/ic_global/alldifferent-1.html}]\ \\
+\index{alldifferent/1}
+A version of alldifferent/1 with strong propagation.
+
+\item[\biptxtref{alldifferent(+List, ++Capacity)}{ic_global:alldifferent/2}{../bips/lib/ic_global/alldifferent-2.html}]\ \\
+\index{alldifferent/2}
+Like alldifferent/1, but every value may occur Capacity times.
+
+\item[\biptxtref{minlist(+List, ?Min)}{minlist/2}{../bips/lib/ic_global/minlist-2.html}]\ \\
+\index{minlist/2}
+Min is the minimum of the values in List.
+Operationally: Min gets updated to reflect the current
+range of the minimum of variables and values in List.
+Likewise, the list elements get constrained to the
+minimum given.
+
+\item[\biptxtref{maxlist(+List, ?Max)}{maxlist/2}{../bips/lib/ic_global/maxlist-2.html}]\ \\
+\index{maxlist/2}
+Max is the maximum of the values in List.
+Operationally: Max gets updated to reflect the current
+range of the maximum of variables and values in List.
+Likewise, the list elements get constrained to the
+maximum given.
+
+
+\item[\biptxtref{lexico_le(+List1, +List2)}{lexico_le/2}{../bips/lib/ic_global/lexico_le-2.html}]\ \\
+\index{lexico_le/2}
+Imposes a lexicographic ordering between the two lists.
+
+\item[\biptxtref{ordered(++Relation, +List)}{ordered/2}{../bips/lib/ic_global/ordered-2.html}]\ \\
+\index{ordered/2}
+Constrains List to be ordered according to Relation.
+Relation is one of the atoms \lt, =\lt, \gt, \gt=, = .
+
+\item[\biptxtref{ordered_sum(++List, +Sum)}{ordered_sum/2}{../bips/lib/ic_global/ordered_sum-2.html}]\ \\
+\index{ordered_sum/2}
+The list elements are ordered and their sum is Sum.
+
+\item[\biptxtref{occurrences(++Value, +List, ?N)}{occurrences/3}{../bips/lib/ic_global/occurrences-3.html}]\ \\
+\index{occurrences/3}
+The value Value occurs in List N times.
+Operationally: N gets updated to reflect the number of
+possible occurrences in the List. List elements may get
+instantiated to Value, or Value may be removed from their
+domain if required by N.
+
+\item[\biptxtref{sorted(?List, ?Sorted)}{ic_global:sorted/2}{../bips/lib/ic_global/sorted-2.html}]\ \\
+\index{sorted/2}
+Sorted is a sorted permutation of List.
+
+\item[\biptxtref{sorted(?List, ?Sorted, ?Positions)}{ic_global:sorted/3}{../bips/lib/ic_global/sorted-3.html}]\ \\
+\index{sorted/3}
+Sorted is a sorted permutation of List and Positions is a list whose
+elements indicating the position of each unsorted list element within
+the sorted list.
+
+\item[\biptxtref{sumlist(+List, ?Sum)}{ic_global:sumlist/2}{../bips/lib/ic_global/sumlist-2.html}]\ \\
+\index{sumlist/2}
+The sum of the list elements is Sum. This constraint
+is more efficient than a general IC sum constraint
+if the list is long and Sum is not constrained frequently.
+
+\end{description}
+
+
+\section{Cumulative Constraint and Resource Profiles}
+
+The library {\bf cumulative} implements the cumulative scheduling constraint.
+It is based on the IC library and is loaded using one of 
+\begin{quote}\begin{verbatim}
+:- use_module(library(ic_cumulative)).
+:- lib(ic_cumulative).
+\end{verbatim}\end{quote}
+
+
+\begin{description}
+\item[\biptxtref{cumulative(+StartTimes, +Durations, +Resources, ++ResourceLimit)}{ic_cumulative:cumulative/4}{../bips/lib/ic_cumulative/cumulative-4.html}]\ \\
+\index{cumulative/4}
+A cumulative scheduling constraint. StartTimes, Durations and Resources
+are lists of equal length N of integer variables or integers.
+ResourceLimit is an integer. The declarative meaning is:
+If there are N tasks, each starting at a certain start time, having
+a certain duration and consuming a certain (constant) amount of
+resource, then the sum of resource usage of all the tasks does not
+exceed ResourceLimit at any time.
+
+\item[\biptxtref{profile(+StartTimes, +Durations, +Resources, -Profile)}{ic_cumulative:profile/4}{../bips/lib/ic_cumulative/profile-4.html}]\ \\
+\index{profile/4}
+StartTimes, Durations, Resources and Profile
+are lists of equal length N of integer variables or integers
+with the same meaning as in cumulative/4.
+The list Profile indicates the level of resource usage at the
+starting point of each task.
+\end{description}
+
+
+\section{Edge-finder}
+
+The libraries {\bf ic_edge_finder} and {\bf ic_edge_finder3}
+implement stronger versions of the
+disjunctive and cumulative scheduling constraints. They employ
+a technique known as edge-finding to derive stronger bounds on
+the starting times of the tasks.
+The library is loaded using either
+\begin{quote}\begin{verbatim}
+:- use_module(library(ic_edge_finder)).
+\end{verbatim}\end{quote}
+to get a weaker variant with quadratic complexity, or
+\begin{quote}\begin{verbatim}
+:- use_module(library(ic_edge_finder3)).
+\end{verbatim}\end{quote}
+to get a stronger variant with cubic complexity.
+
+\begin{description}
+\item[disjunctive(+StartTimes,+Durations)]\ \\
+\index{disjunctive/2}
+A disjunctive scheduling constraint. StartTimes and Durations
+are lists of equal length N of integer variables or integers.
+The declarative meaning is that the N tasks with certain start times
+and duration do not overlap at any point in time.
+
+\item[cumulative(+StartTimes,+Durations,+Resources,++ResourceLimit)]\ \\
+\index{cumulative/4}
+A cumulative scheduling constraint. StartTimes, Durations and Resources
+are lists of equal length N of integer variables or integers.
+ResourceLimit is an integer. The declarative meaning is:
+If there are N tasks, each starting at a certain start time, having
+a certain duration and consuming a certain (constant) amount of
+resource, then the sum of resource usage of all the tasks does not
+exceed ResourceLimit at any time.
+This constraint can propagate more information than the implementation
+in library(cumulative).
+
+\item[cumulative(+StartTimes,+Durations,+Resources,+Area,++ResourceLimit)]\ \\
+\index{cumulative/5}
+In this variant, an area (the product of duration and resource usage of
+a task) can be specified, e.g.\ if duration or resource usage are not
+known in advance. The edge-finder algorithm can make use of this information
+to derive bound updates.
+\end{description}
+%HEVEA\cutend

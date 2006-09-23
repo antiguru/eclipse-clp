@@ -1,0 +1,1399 @@
+% BEGIN LICENSE BLOCK
+% Version: CMPL 1.1
+%
+% The contents of this file are subject to the Cisco-style Mozilla Public
+% License Version 1.1 (the "License"); you may not use this file except
+% in compliance with the License.  You may obtain a copy of the License
+% at www.eclipse-clp.org/license.
+% 
+% Software distributed under the License is distributed on an "AS IS"
+% basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+% the License for the specific language governing rights and limitations
+% under the License. 
+% 
+% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% Portions created by the Initial Developer are
+% Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
+% 
+% Contributor(s): 
+% 
+% END LICENSE BLOCK
+
+\chapter{Kernel}
+
+%----------------------------------------------------------------------
+\section{Compiler Structure}
+
+The following provides an outline of the \eclipse compiler structure:
+\\\\
+{\tt {\bf procedure.c}:ec_compile()} is the top-level function of 
+  the compiler proper. It loops compiling each procedure defined within 
+  the specified source file.
+\\\\
+Compilation for each procedure proceeds as follows:
+\begin{itemize}
+\item {\tt {\bf procedure.c}:read_procedure()} creates the clause list for
+  the procedure.
+\item {\tt {\bf section.c}:compile_section()} compiles the procedure
+\begin{itemize}
+\item Performs main clause indexing and {\tt switch} instruction generation
+\item Generates the code for each clause:
+\begin{itemize}
+\item {\tt {\bf pass2.c}:clause_pass2()} performs argument book-keeping
+\begin{itemize}
+\item  Detection of and provision for handling of occurrences of the cut primitive
+ \item Determination of permanent variables and allocation to environment
+ \item Determination of temporary variables for subsequent register
+   allocation or push to local stack
+\end{itemize}
+\item Non-deterministic {\tt try} code generation
+\item {\tt {\bf pass3.c}:gen_clause()} performs the clause code
+    generation. 
+\begin{itemize}
+ \item {\tt {\bf head.c}:head_unification()} Compilation of the head
+     unification of a clause
+ \item {\tt {\bf body.c}:ec_put(), put_*_arguments()} - For all body goals 
+     generate the appropriate code
+\end{itemize}
+\end{itemize}
+\item Path indexing
+\end{itemize}
+\item {\tt {\bf pass4.c}:copy_procedure()} aggregates the various generated
+    code chunks for the procedure.
+\end{itemize}
+
+\section{Abstract Machine}
+
+\eclipse's abstract machine is a variant of the Warren Abstract
+Machine \cite{warren83}. Familiarity with its concepts will help
+understanding this section.
+
+The main differences between the original WAM and our machine's
+corresponding features are
+\begin{itemize}
+\item Separate words used for tag and value.
+\item Separate choicepoint ("control") and environment ("local") stacks.
+\item No CP (continuation pointer) register. The return address
+        is passed via the local stack.
+\item Allocation of temporaries on the local stack rather than in
+        (argument) registers\footnote{
+        We intend to drop this feature in future versions}.
+\item A different scheme (\cite{compnd}) for the compiled
+        unification and construction of compound terms.
+\item Separate calling convention for built-in predicates
+        written in C.
+\item A weaker form of environment trimming.
+\end{itemize}
+The main additional functionality of the \eclipse\ abstract machine
+consists in
+\begin{itemize}
+\item support for cut and block/exit_block.
+\item support for dynamic and parallel choicepoints.
+\item support for synchronous event handling, including
+        triggering of garbage collection.
+\item support for attributed variables
+\item support for goal suspension and resuming
+\item hooks for a box-model tracer.
+\end{itemize}
+Note that, for historical reasons, the name {\bf sepia} is sometimes
+used when talking about the \eclipse\ kernel.
+
+
+%----------------------------------------------------------------------
+\section{Abstract Machine Emulator}
+%----------------------------------------------------------------------
+
+The abstract machine emulator is the heart of \eclipse's runtime system. 
+It is written in C with optional use of GCC features to implement
+threaded code.
+
+The emulator is quite a large piece of code and consists of the single
+function ec_emulate().  The decision to have it as a single function
+is due to technical reasons, especially the need to use register
+variables for efficiency.  If it were distributed over several
+functions, the state of the abstract machine would have to be stored
+in global variables or passed as arguments.
+
+The main part of the emulator is an endless loop (in the non-threaded
+version) that reads one instruction code from the location the program
+pointer (PP) points to, and executes a switch to go to the piece of
+code that implements the instruction.
+\begin{verbatim}
+while(1)
+{
+
+    switch((pp++)->inst)
+    {
+        case MoveAM:
+            <code for instruction>
+            Next-Pp;
+
+        case MoveAMAN:
+            <code for instruction>
+            Next-Pp;
+
+        ...
+
+        default:
+            <undefined instruction>
+    }
+}
+\end{verbatim}
+Apart from the loop with the abstract machine instructions, the
+emulator contains some pseudo-subroutines (entered by goto-
+statements), e.g. for general unification, error handling etc. 
+Moreover, a number of builtin predicates are coded inside the emulator. 
+This is done because they need access to abstract machine registers
+that would not be available outside the emulator, or just for improved
+efficiency (e.g.\ basic arithmetic),
+
+Here is a rough map of the emulator file {\bf emu.c}:
+\begin{verbatim}
+ 800 lines      declarations and macro definitions
+ 100 lines      Initialization
+ 350 lines      general unify and difference routines
+ 500 lines      error and event handling code
+3500 lines      instructions
+1000 lines      built-ins
+\end{verbatim}
+
+
+Closely related code is in the files:
+\begin{description}
+\item[code.c]
+        Hand-coded sequences of abstract machine code, which implement
+        certain built-in predicates, support event handling, etc.
+\item[emu_util.c and emu_c_env.c]
+        Supporting functions to execute low-level operations related
+        to the abstract machine. Also debugging support.
+\item[opcode.h] definition of the opcodes
+\item[sepia.h] macros
+\item[types.h] types
+\item[emu_export.h] internal macros and definitions
+\item[error.h] error codes
+\end{description}
+
+
+\subsection{Threaded Code}
+
+When \eclipse\ is built with the THREADED option, a threaded code
+system is built. This is the usual configuration for releases.
+However, it relies on a GCC feature for taking the address of
+a code label (\&\&). The differences are summarised in the following
+table. We consider the abstract machine instruction MoveAML:
+\begin{verbatim}
+Non-threaded:                       Threaded:
+-------------                       ---------
+
+#define MoveAML 3                   #define MoveAML 3            
+                                                                 
+#define OpValue(x)  x               #define OpValue(x)  op_addr[x]
+
+                                    op_addr[MoveAML] = &&I_MoveAML;    
+                                                                 
+
+Emulator code:                      Emulator code:
+
+_loop_:
+  switch (PP++->inst)
+  {                                   {
+        ...                                 ...
+
+    case MoveAML:                       I_MoveAML:                   
+        <code for instruction>              <code for instruction>       
+        goto _loop_;                        goto *PP++->emu_addr;       
+
+        ...                                 ...
+  }                                   }
+\end{verbatim}
+OpValue() is a macro that is used by the code generator and
+defines which actual op-code value is inserted into the generated code.
+In the non-threaded case this is simply the instruction number,
+in the threaded case, the value is the address of the emulator
+code that implements the instruction.
+
+Performance is significantly improved because the threaded transition
+from one instruction to the next consists just in an indirect jump.
+
+
+\subsection{Emulator Debugging}
+
+The emulator code contains a few simple features that help debugging
+on the abstract machine level:
+\begin{enumerate}
+\item A circular buffer that records
+the last MAX_BACKTRACE addresses of executed abstract instructions.
+The backtrace can be printed by calling the C function lastpp(n).
+\item A flag TRACE that will enable printing of abstract machine
+instructions before they are being executed.
+\item A variable stop_address that can be set (via c C debugger)
+to an abstract code address where one wants to stop execution
+(the emulator calls the function emu_break()).
+\item A STATISTICS flag that enables counting of each
+type of instruction.
+\end{enumerate}
+Theses facilities rely on an emulator loop being present and
+are only available in the non-threaded version.
+
+
+%----------------------------------------------------------------------
+\section{Storage Model/Memory Organisation}
+
+\subsection{Stacks}
+\eclipse\ stores information in the following memory areas:
+\begin{description}
+\item[abstract machine descriptor] argument registers, stack pointers, etc
+\item[shared heap] abstract machine code, shared ground terms,
+        heap copied terms (setval, record, etc)
+\item[local stack] return addresses, environments
+\item[control stack] choice points (copies of parts of the
+        abstract machine state)
+\item[trail stack] undo information (pointers into the stacks, possibly
+        with associated data)
+\item[global stack] most variable-sized data (lists, structures,
+        strings, bignums, suspended goal descriptors, etc)
+\end{description}
+\begin{figure}
+\epsfbox{stacks.eps}
+\caption{\eclipse\ memory areas}
+\end{figure}
+The following choices have been made in the current implementation:
+\begin{itemize}
+\item Each stack occupies a consecutive memory area.
+\item Stacks are paired (control-local and global-trail) and each pair
+        grows towards each other.
+        Therefore there is only a common size limit for each pair,
+        not for each individual stack.
+\item A maximum amount of virtual address space is reserved for each
+        stack pair, physical memory is mapped (in reasonably large increments)
+        into the virtual space as the stacks grow, and unmapped as they
+        shrink.
+\end{itemize}
+To simplify address comparisons, the abstract machine requires that
+\begin{itemize}
+\item the local stack is above the global stack
+\item the local stack grows from high to low addresses
+\item the global stack grows from low to high addresses
+\end{itemize}
+
+
+
+\subsection{Data Representation}
+\label{datarep}
+
+The basic data unit in \eclipse\ is the {\bf pword}:
+\begin{verbatim}
+    typedef struct s_pword
+    {
+        value val;                      /* value part first */
+        type tag;                       /* then tag part */
+    } pword;
+\end{verbatim}
+It consists of a value and tag field, both are the size of a machine
+{\bf word} (32 bit or 64 bit), by which we mean the size of
+a pointer on that machine. In more detail, the layout of a pword is:
+\begin{verbatim}
+32-bit:   31   30   29           7 6 5 4 3 2 1 0
+64-bit:   63   62   61           7 6 5 4 3 2 1 0
+        +---+----+----+---------+---------------+
+        |REF|MARK|LINK|   ...   |      TXXX     |
+        +---+----+----+---------+---------------+
+        |           pointer-sized value         |
+        +---------------------------------------+
+\end{verbatim}
+The conceptual tag is made up of the REF-bit and the 8-bit-tag TXXX
+(where TXXX is TINT for integers, TFLOAT for floats etc).
+The MARK and LINK bits are used by the garbage collector (the MARK
+bits also temporarily in routines like term copying).
+The remainder of the space in the tag word is unused for most data
+types, but some use an additional bit (e.g.\ BIGSIGN) or more (e.g.\
+for storing variable names, see below).
+
+Other frequently used data type on the C level are:
+\begin{verbatim}
+word             pointer-sized signed integer
+uword            pointer-sized unsigned integer
+int32            32-bit signed integer
+uint32           32-bit unsigned integer
+dident           dictionary identifier (pointer to descriptor)
+pri*             procedure identifier (pointer to descriptor)
+\end{verbatim}
+
+
+\subsubsection{Atomic types}
+\begin{figure}
+\epsfbox{ecatomic.eps}
+\caption{\eclipse\ atomic data types}
+\end{figure}
+
+{\bf Integers}, single precision {\bf floats} and {\bf atoms} fit in a single pword.
+The special atom {\bf nil} has its own tag and the value part is irrelevant.
+Atoms are represented by a pointer to their dictionary entry (dident).
+
+All other constants are {\it boxed}, i.e.\ they are store on the
+global stack and pointed to by a tagged pointer.
+The global stack location if prefixed with a TBUFFER-tagged header
+pwords which contains the lenghth of the buffer.
+
+{\bf Strings} are one example of this.
+Unlike many Prolog system, \eclipse\ has true strings. They are stored in
+buffers on the global stack. They have an explicit length field, but to
+be backward compatible with C strings, they are also NUL-terminated.
+
+{\bf Double} floats are either stored in the value part of a pword (if they fit,
+which is the case on 64-bit architectures), or on the global stack in a similar way
+as strings. The method used is selected by the C macro UNBOXED_DOUBLES.
+
+{\bf Bounded reals} (breals) are always on the global stack, except there are
+two doubles.
+
+{\bf Bignum} and rational computations are delegated to the Gmp (Gnu multiprecision)
+library.  Gmp's limb array is stored on the global stack, but the
+library's MP_INT or MP_RAT structure only gets created temporarily
+in order to pass the number to a gmp function.
+Normally, bignums are always too large to fit into TINT words. This rule is
+only violated temporarily (the bignum/2 predicate can create a short
+bignum in order to convert a TINT x TBIG operation into a TBIG x TBIG one).
+
+{\bf Rationals} are simply a pair of bignums (and these bignums can actually
+be small integers, but it is probably not worth optimizing this case).
+
+\subsubsection{Compound types}
+\begin{figure}
+\epsfbox{eccomp.eps}
+\caption{\eclipse\ compound data types}
+\end{figure}
+Lists are represented by a tagged pointer pointing to a consecutive
+pair of pwords on the global stack.
+
+General structures are represented by a tagged pointer pointing to
+consecutive pwords on the global stack, where the first one represents
+the functor (the arity can be looked up from the dident dictionary entry),
+and the following ones are the arguments from 1 to n (arity).
+
+
+\subsubsection{Variables and References}
+\begin{figure}
+\epsfbox{ecvars.eps}
+\caption{\eclipse\ variable and reference types}
+\end{figure}
+References and free variables are distinguished by their value part:
+A self reference is a free variable, otherwise a reference (an indirection)
+pointing to another word.
+
+All variable tags have the TREFBIT (REF in the picture) set\footnote{
+This holds as of version 5.2. Previously, only the simple variable had
+the TREFBIT set}.
+In the reference (non-self-reference) case the rest of the tag is
+irrelevant.  In the self-reference case, the tag also indicates the
+type of the variable.
+
+Note that this scheme has the advantage that pwords can be copied
+regardless of their content: when copied, a variable automatically
+turns into a reference to the original variable (rather than creating
+a new, second variable).
+
+
+\subsection{Creating Data}
+
+Data is created either by executing suitable abstract machine
+instructions, or by external (C, C++) code using the external
+interface macros/functions.
+
+The data-creating abstract machine instructions are essentially the
+{\bf Put} family, the {\bf Get} family in write mode and the
+{\bf Out_get} family.
+\begin{description}
+\item[Put/Get_constant] creates any atomic type in one of the
+        machine's argument registers.
+        There are a number of specialised instructions
+        (Get/Put_integer/atom/nil/...) for the most common data types.
+        In case of the types that don't
+        fit into a single word (strings, bignums), the data buffer is
+        located on the shared heap. The instruction just loads a pointer
+        to this shared buffer into the argument register, rather than
+        copying the buffer onto the global stack.
+\item[Put/Get_list/structure]
+        Structures and lists get created according to
+        \cite{compnd}. The head unification uses Get_list/structure
+        instructions followed by separate read and write sequences
+        ({\bf Read} and {\bf Write} instructions), the body
+        argument construction uses Put_list/structure instructions
+        followed by instructions of the {\bf Push} family.
+\end{description}
+
+
+%----------------------------------------------------------------------
+\section{Abstract Machine Registers}
+%----------------------------------------------------------------------
+
+The `registers' of the abstract machine are fields in the global
+data structure {\tt ec_.m} of type {\tt struct machine}.
+While the emulator is running, some of these conceptual registers
+are cached in local variables of the emulator function ec_emulate().
+
+\subsection{Basic Stack Management}
+\begin{description}
+\item[SP] top of local stack. The stacks grows towards lower addresses,
+        SP points to the top word. Word-aligned, contains a mixture
+        of pwords, saved E and saved PP registers.
+\item[B] top of control stack. The stack grows towards higher addresses.
+        B points to the first free word. Word-aligned, contains a mixture
+        of pwords and saved engine registers.
+\item[TT] top of trail stack. The stacks grows towards lower addresses,
+        TT points to the top word. Word-aligned, contains a mixture
+        of pwords and addresses and other words.
+\item[TG] top of global stack. The stack grows towards higher addresses.
+        TG points to the first free pword, the stack is pword-aligned.
+        Contains only items listed in \ref{datarep}.
+\item[SP_LIMIT] allocation limit for the local stack. When SP crosses this
+        boundary, the local stack needs to be expanded immediately.
+        There is only a small margin of LOCAL_CONTROL_GAP between SP_LIMIT
+        and the end of the mapped memory.
+\item[B_LIMIT] allocation limit for the local stack. When B crosses this
+        boundary, the control stack needs to be expanded immediately.
+        There is only a small margin of LOCAL_CONTROL_GAP between B_LIMIT
+        and the end of the mapped memory.
+\item[TT_LIMIT] allocation limit for the trail stack. When TT crosses this
+        boundary, the trail stack needs to be expanded immediately.
+        There is only a small margin of TRAIL_GAP between TT_LIMIT
+        and the end of the mapped memory.
+\item[TG_LIMIT] allocation limit for the global stack. When TG crosses this
+        boundary, the global stack needs to be expanded immediately.
+        There is only a small margin of GLOBAL_TRAIL_GAP between TG_LIMIT
+        and the end of the mapped memory.
+\end{description}
+
+
+\subsection{Deterministic execution}
+\begin{description}
+\item[PP] program (code) pointer, points to next abstract machine instruction.
+\item[A1..A256] argument registers. Their number limits the maximum
+        arity of a predicate in \eclipse (but not the arity of
+        compound terms!).
+\item[E] current environment, points into the local stack.
+\item[S] structure pointer, used during unification and creation of
+        compound terms.
+\item[EXPORTED flag] abstract machine registers are exported from emulator,
+        i.e.\ they are not cached in emulator registers.
+\end{description}
+
+
+\subsection{Nondeterministic execution}
+\begin{description}
+\item[B] top of control stack. The stack grows towards higher addresses.
+        B points to the first free word. Word-aligned, contains a mixture
+        of pwords and saved engine registers.
+\item[TT] top of trail stack. The stacks grows towards lower addresses,
+        TT points to the top word. Word-aligned, contains a mixture
+        of pwords and addresses and other words.
+\item[EB] environment backtrack pointer, points into the local stack.
+        caches the value of E in the topmost choice point.
+\item[GB] global stack backtrack pointer, points into the global stack.
+        caches the value of TG in the topmost choice point.
+\item[LCA] last cut action. Top of a conceptual stack of {\it cut action}
+        descriptors, implemented as a list threaded into the global stack.
+\item[DET flag] no-choicepoint-flag: flag that indicates that
+        no choicepoint was created since procedure entry. It becomes invalid
+        after the first subgoal call.
+\end{description}
+
+\subsection{Suspend/Resume mechanism}
+In the following, `volatile' means that the register contents is short-lived
+and never gets saved and restored.
+\begin{description}
+\item[LD] top of the list of all suspended goals. This is a conceptual stack,
+        threaded into the global stack (i.e.\ it is a linked list of frames
+        with the links going strictly from newer to older frames in the stack).
+\item[MU] list of meta-unifications. A volatile register that passes a list
+        of attribute-value-pairs from the unification routine to the subsequent
+        meta-unify event handler.
+\item[DE] current suspension, volatile register to pass the address of
+        a suspension that needs re-suspending or waking.
+\item[SV] list of suspending variables. A volatile register that passes
+        a list from a C-builtin to the emulator code that created a
+        suspension for the builtin.
+\item[WL] points to the array (1..SUSP_MAX_PRIO) of woken lists
+        (a structure on the global stack).
+\item[WP,WP_STAMP] current execution priority. Only suspensions with higher
+        priority can interrupt the execution. WP is a tagged 
+        pword, and is paired with the WP_STAMP because it gets
+        value-trailed on change.
+\end{description}
+
+
+\subsection{Events and garbage collection}
+\begin{description}
+\item[GCB] indicates the topmost choicecpoint which already existed
+        during the last garbage collection. Everything older than this
+        choicepoint does not need to be garbage collected again.
+\item[TG_SL] (TG soft limit) garbage collection and general event trigger.
+        This register normally points above the global stack top
+        (but within the already memory-mapped area). When the global stack
+        top TG crosses this boundary, a garbage collection is triggered.
+        The mechanism is also abused to trigger all other synchronous
+        engine events (by forcing TG_SL to zero).
+        This has the advantage that the execution overhead
+        for event handling is restricted to a simple $TG >= TG_SL$ test.
+        Unless when it is zerio, TG_SL is always between TG and TG_LIMIT.
+\item[TG_SLS] (TG_SL shadow) when TG_SL is nonzero, TG_SLS has the same value.
+        When TG_SL is zero (a fake overflow, i.e.\ a general synchronous event),
+        TG_SLS keeps its original value, which is then used to reset TG_SL
+        after event handling.
+\item[IFOFLAG] a synchronisation flag used for mutual exclusion when
+        TG_SL is changed asynchronously from within an interrupt (signal)
+        handler.
+\item[GLOBVAR] points to the array (1..GLOBAL_VARS_NO) of \eclipse\
+        "global references" (a structure on the global stack).
+\item[ALLREFS] points to a list of eclipse_ref_ data structures, i.e.\
+        objects holding additional potential references to \eclipse\ data
+        from within code written using the embedding interface
+        (see ec_refs in the Embedding Manual).
+\item[GLOBAL_NO_IT flag] means that interrupts are currently disabled.
+\item[NO_EXIT flag] means that preemption via exit_block/1 is currently
+        prohibited (e.g.\ because the gc is running).
+\item[WAS_EXIT flag] an exit_block was attempted while NO_EXIT was set
+\item[EVENT_POSTED flag] the synchronous event-queue contains events
+\item[DEL_IRQ_POSTED flag] there is possibly a delayed interrupt among
+        posted events
+\end{description}
+
+
+\subsection{Parallelism}
+A number of additional registers can be found in the code.
+they are mainly related to parallelsim.
+
+
+%----------------------------------------------------------------------
+\section{Instruction Set}
+%----------------------------------------------------------------------
+
+The arguments of the instructions are denoted as follows:
+
+\begin{tabular}{|l|l|l|}
+\hline
+a(A)            & address & argument register A (1..255)\\
+y(Y)            & offset & environment slot Y (offset from E register)\\
+t(X)            & offset & temporary X (offset from SP register)\\
+ref(L)          & address & reference to code address L\\
+N               & integer & environment size\\
+I               & integer & number, .e.g. arity\\
+F               & dident & functor (dictionary identifier)\\
+C               & pword & simple tagged Prolog word\\
+V               & value & value part of Prolog word only\\
+P               & proc & procedure identifier\\
+D               & bool & debug flag\\
+T               & tag & tag (possibly including variable name) \\
+\hline
+\end{tabular}
+
+\subsubsection{Simple Moves}
+These move one pword.
+
+\begin{tabular}{|l|l|}
+\hline
+move(a(A))              & push a(A) onto local stack \\
+move(a(A1),a(A2))       & move from ... to ...  \\
+move(a(A),y(Y))         &       \\
+move(y(Y),a(A))         &       \\
+move(t(X),a(A))         &       \\
+\hline
+get_variable(N,a(A),y(Y))& allocate(N) + move(a(A),y(Y))        \\
+\hline
+\end{tabular}
+
+\subsubsection{General Unification}
+
+\begin{tabular}{|l|l|}
+\hline
+get_value(a(A1),a(A2))          & unify the two general terms             \\
+get_value(a(A),y(Y))            &                 \\
+get_value(a(A),t(X))            &                 \\
+\hline
+\end{tabular}
+
+\subsubsection{Simple Unification}
+Unify argument register content with a constant:
+
+\begin{tabular}{|l|l|}
+\hline
+get_constant(a(A),C)    & unify term in a(A) with constant                        \\
+get_nil(a(A))           &                         \\
+get_integer(a(A),V)     &                         \\
+get_float(a(A),V)       &                         \\
+get_atom(a(A),V)        &                         \\
+get_string(a(A),V)      &                         \\
+\hline
+in_get_constant(a(A),C) & special case for input mode (a(A) instantiated)                         \\
+in_get_nil(a(A))        &                         \\
+in_get_integer(a(A),V)  &                         \\
+in_get_float(a(A),V)    &                         \\
+in_get_atom(a(A),V)     &                         \\
+in_get_string(a(A),V)   &                         \\
+\hline
+out_get_constant(a(A),C)& special case for output mode (a(A) uninstantiated)                      \\
+out_get_nil(a(A))       &                         \\
+out_get_integer(a(A),V) &                         \\
+out_get_float(a(A),V)   &                         \\
+out_get_atom(a(A),V)    &                         \\
+out_get_string(a(A),V)  &                         \\
+\hline
+\end{tabular}
+
+\subsubsection{Structure Unification}
+
+Structure unification is compiled into a sequence of:
+\begin{verbatim}
+        get_structure a(A) F ref(Lr)
+        write_...
+        ...
+        write_...
+        branch Le
+Lr:
+        read_...
+        ...
+        read_...
+Le:
+\end{verbatim}
+
+\begin{tabular}{|l|l|}
+\hline
+get_structure(a(A),F,ref(L))    & unify A with structure with functor F.
+                                  jump to L if read mode\\
+\hline
+get_list(a(A),ref(L))           & special case for list   \\
+in_get_structure(a(A),F,ref(L))         &        special case for input mode      \\
+in_get_list(a(A),ref(L))        & special case for list in input mode             \\
+out_get_structure(a(A),F)       & special case for output mode                    \\
+out_get_list(a(A))              &  special case for list in output mode           \\
+get_structure_arguments(a(A))   & special case input mode after switch            \\
+get_list_arguments(a(A))        & special case input mode after switch            \\
+\hline
+\end{tabular}
+
+The structure arguments are deconstructed with read instructions,
+and constructued with write instructions:
+
+\begin{tabular}{|l|l|}
+\hline
+read/write_constant(C)          &                 \\
+read/write_void                 &         \\
+read/write_variable             &         \\
+read/write_variable(a(A))       &                 \\
+read/write_variable(N,y(Y))     &                 \\
+read/write_variable(y(Y))       &                 \\
+read/write_value(a(A))          &                 \\
+read/write_value(y(Y))          &                 \\
+read/write_value(t(X))          &                 \\
+write_named_void(T)             &                 \\
+write_named_variable(T)         &                 \\
+write_named_variable(a(A),T)    &                         \\
+write_named_variable(y(Y),T)    &                         \\
+write_named_variable(O,y(Y),T)  &                         \\
+write_local_value(a(A))         &                 \\
+write_local_value(y(Y))         &                 \\
+write_local_value(t(X))         &                 \\
+read_reference(N,y(Y))          &                 \\
+read_reference(y(Y))            &                 \\
+read_reference(a(A))            &                 \\
+read_reference                  &         \\
+read/write_nil                  &         \\
+read/write_integer(C)           &         \\
+read/write_float(C)             &         \\
+read/write_atom(C)              &         \\
+read/write_string(C)            &         \\
+\hline
+\end{tabular}
+
+\begin{tabular}{|l|l|}
+\hline
+read_meta(T,ref(L))             &         \\
+read_next_meta(t(X),T,ref(L))   &                 \\
+read_meta(t(X),T,ref(L))        &                 \\
+read_last_meta(T,ref(L))        &                 \\
+write_meta(T)                   &  \\
+\hline
+read_structure(F,ref(L))        & substructures                   \\
+read_structure(F,t(X),ref(L))   &                         \\
+read_next_structure(F,t(X),ref(L)) &                      \\
+read_last_structure(F,ref(L))   &                         \\
+write_structure(F)              &                 \\
+read_list(ref(L))               &                 \\
+read_list(t(X),ref(L))          &                 \\
+read_next_list(x(X),ref(L))     &                         \\
+read_last_list(ref(L))          &                 \\
+write_list                      &         \\
+\hline
+first                           &  \\
+next(t(X))                      &         \\
+mode(t(X))                      &         \\
+next(t(X),ref(L))               &                 \\
+mode(t(X),ref(L))               &                 \\
+\hline
+\end{tabular}
+
+\subsubsection{Matching}
+
+\begin{tabular}{|l|l|}
+\hline
+get_matched_value(a(A1),a(A2))  &                         \\
+get_matched_value(a(A),y(Y))    &                         \\
+get_matched_value(a(A),t(X))    &                         \\
+in_get_meta(a(A),ref(L))        &                         \\
+\hline
+read_test_var                   &         \\
+read_next_meta(t(X),T,ref(L))   &                         \\
+read_meta(t(X),T,ref(L))        &                         \\
+read_last_meta(T,ref(L))        &                         \\
+read_matched_value(a(A))        &                         \\
+read_matched_value(y(Y))        &                         \\
+read_matched_value(t(X))        &                         \\
+match_meta                      &         \\
+match_next_meta(t(X))           &                 \\
+match_meta(t(X))                &                 \\
+match_last_meta                 &         \\
+read_meta(T,ref(L))             &                 \\
+read_attribute(At)              &                 \\
+\hline
+\end{tabular}
+
+The in_get instructions can also be considered matching instructions.
+
+
+\subsubsection{Regular subgoal argument construction}
+
+\begin{tabular}{|l|p{10cm}|}
+\hline
+put_variable(a(A),y(Y))         & move y(Y) to a(A)               \\
+put_variable(a(A))              & set a(A) to new free variable on global  \\
+put_unsafe_value(a(A),t(X))     & move t(X) to a(A), globalise if needed                          \\
+put_unsafe_value(a(A),y(Y))     & move y(Y) to a(A), globalise if needed                          \\
+put_constant(a(A),C)            & move constant to a(A)           \\
+put_nil(a(A))                   &               \\
+put_integer(a(A),C)             &               \\
+put_float(a(A),C)               &               \\
+put_atom(a(A),C)                &               \\
+put_string(a(A),C)              &               \\
+put_list(a(A))                  & push list skeleton, pointed to by a(A) and S          \\
+put_structure(a(A),F)           & push structure skeleton with functor F,
+                                let a(A) point to it, let S point to first argument\\
+\hline
+\multicolumn{2}{|c|}{the next 2 are strange...}\\
+\hline
+put_reference(a(A),O,T)         & push O bytes onto global, init first pword with self reference with tag T,
+                                refer to it from a(A) and S\\
+put_reference(a(A),y(Y),O,T)    &  push O bytes onto global, init first pword with self reference with tag T,
+                                refer to it from a(A),y(Y) and leave S pointing behind it\\
+\hline
+\end{tabular}
+
+Arguments of constructed structures:
+
+\begin{tabular}{|l|l|}
+\hline
+push_void                       &         \\
+push_variable(a(A))             &                 \\
+push_variable(y(Y))             &                 \\
+push_variable                   &         \\
+push_self_reference(I)          &                 \\
+push_void_reference(O)          &                 \\
+push_reference(O)               &                 \\
+push_reference(a(A),O)          &                 \\
+push_reference(y(Y),O)          &                 \\
+push_init_reference(y(Y),O)     &                 \\
+push_value(a(A))                &                 \\
+push_value(y(Y))                &                 \\
+push_value(t(X))                &                 \\
+push_value(G)                   &         \\
+push_local_value(a(A))          &                 \\
+push_local_value(y(Y))          &                 \\
+push_local_value(t(X))          &                 \\
+push_nil                        &         \\
+push_integer(C)                 &         \\
+push_float(C)                   &         \\
+push_init_variable(y(Y))        &                         \\
+push_string(C)                  &         \\
+push_list                       &         \\
+push_structure(I)               &                 \\
+\hline
+\end{tabular}
+
+\subsubsection{Simple subgoal argument construction}
+
+\begin{tabular}{|l|l|}
+\hline
+puts_variable                   &         \\
+puts_variable(a(A))             &                 \\
+puts_variable(y(Y))             &                 \\
+puts_reference(O,I)             &                 \\
+puts_reference(y(Y),O,I)        &                         \\
+puts_value(a(A))                &                 \\
+puts_value(y(Y))                &                 \\
+puts_value(t(X))                &                 \\
+puts_value(G)                   &         \\
+puts_nil                        &         \\
+puts_integer(C)                 &         \\
+puts_float(C)                   &         \\
+puts_atom(C)                    &         \\
+puts_string(C)                  &         \\
+puts_list                       &         \\
+puts_structure(D)               &                 \\
+puts_proc(P)                    &         \\
+\hline
+\end{tabular}
+
+Arguments of constructed structures use the push instructions above.
+
+
+\subsubsection{Choicepoints}
+
+\begin{tabular}{|l|l|}
+\hline
+try_me_else(D,I,ref(L))         & create choicepoint, first alternative follows, next at L                \\
+try(D,I,ref(L))                 & create choicepoint, first alternative at L, next follows        \\
+try(D,I,ref(La),ref(L))         & create choicepoint, first alternative at La, next at L                  \\
+retry_me_else(D,ref(L))         & restore choicepoint, this alternative follows, next at L                \\
+retry(D,ref(L))                 & restore choicepoint, this alternative at L, next follows        \\
+retry(D,ref(La),ref(L))         & restore choicepoint, this alternative at La, next at L                  \\
+trust_me(D)                     & restore and pop choicepoint, last alternative follows   \\
+trust(D,ref(L))                 & restore and pop choicepoint, last alternative at L      \\
+\hline
+try_me_inline(D,ref(L),N)       & like try_me_else, but environemt size instead of arity parameter                        \\
+retry_me_inline(D,ref(L),N)     & like retry_me_else, but environemt size instead of arity parameter                      \\
+trust_me_inline(D,N)            & like trust_me, but extra environment size parameter             \\
+\hline
+set_bp(ref(L))                  & save failure continuation (push small choicepoint)      \\
+restore_bp                      & restore failure continuation (pop small choicepoint)    \\
+new_bp(ref(L))                  & update failure continuation (modify small choicepoint)          \\
+\hline
+try_me_dynamic(...)             & create dynamic predicate choicepoint            \\
+retry_me_dynamic(...)           & restore from dynamic predicate choicepoint              \\
+\hline
+failure                         & goto failure continuation \\
+refail                          & pop one choicepoint and fail again \\
+\hline
+\end{tabular}
+
+\subsubsection{Switches}
+
+\begin{tabular}{|l|l|}
+\hline
+integer_switch(a(A),IT,ref(Ld))         &                 \\
+integer_range_switch(a(A),RT,ref(Le),ref(Ld)) &                           \\
+atom_switch(a(A),AT,ref(Ld))            &                 \\
+list_switch(a(A),ref(Ll),ref(Ln),ref(Ld))&                                \\
+functor_switch(a(A),FT,ref(Ld))         &                 \\
+switch_on_type(a(A),LSt)                &                 \\
+\hline
+\end{tabular}
+
+\subsubsection{Call/Return}
+
+\begin{tabular}{|l|p{10cm}|}
+\hline
+allocate(N)             & allocate an environment                 \\
+deallocate              & deallocate topmost environment                  \\
+initialize(y(VList))    & initialise several environment slots with free variables                        \\
+initialize_named(y(NVList))     & initialise several environment slots with named variables                               \\
+\hline
+space(I)                & adjust local stack pointer              \\
+branch(ref(L))          & local jump              \\
+branchs(I,L)            & branch L + space I              \\
+\hline
+call(ref(L),N)          & predicate call                  \\
+call(P,N)               &                 \\
+callf(ref(L),N)         & predicate call (first subgoal), sets DET flag           \\
+callf(P,N)              &                 \\
+jmp(ref(L))             & predicate tail call             \\
+jmp(P)                  &         \\
+jmpd(ref(L))            & predicate tail call (no choicepoint)            \\
+jmpd(P)                 &         \\
+jmpd(I,ref(L))          & space + jmpd            \\
+ret                     & return (when no environment)    \\
+retd                    & return (when no environment, no choicepoint)    \\
+retn                    & return (when no environment, with choicepoint)          \\
+\hline
+chain(ref(L))           & deallocate + jmp                \\
+chain(P)                & deallocate + jmp                \\
+chainc(ref(L))          & cut + deallocate + jmp                  \\
+chainc(P)               & cut + deallocate + jmp                  \\
+chaind(ref(L))          & deallocate + jmpd               \\
+chaind(P)               & deallocate + jmpd               \\
+exit                    & deallocate + ret        \\
+exitd                   & deallocate + retd       \\
+exitc                   & cut + deallocate + ret          \\
+\hline
+\end{tabular}
+
+\subsubsection{Cut}
+
+\begin{tabular}{|l|l|}
+\hline
+savecut         & save cut point in y(1)                  \\
+savecut(a(A))   & save cut point in a(A)                          \\
+savecut(y(Y))   & save cut point in y(Y)                          \\
+neckcut         & pop topmost choicepoint                 \\
+cut(N)          & cut to point in y(1), trim environment to N slots       \\
+cut(y(Y),N)     & cut to point in y(Y), trim environment to N slots       \\
+cut(a(A))       & cut to point in a(A)                    \\
+softcut(y(Y))   & disable (deep) choicepoint referred to by y(Y)          \\
+cut_single      & cut to point in y(1) iff there is exactly one choicepoint to cut        \\
+\hline
+\end{tabular}
+
+See also chainc, exitc.
+
+\subsubsection{Checkpoints}
+
+\begin{tabular}{|l|p{10cm}|}
+\hline
+res(Na,Ne)      & handle events if any                    \\
+ress(Nt,Na,Ne)  & space Nt + res Na,Ne                    \\
+gc_test(M)      & make sure M pwords can be pushed onto global stack
+                 (expand if necessary, but don't garbage collect)\\
+\hline
+\end{tabular}
+
+\subsubsection{Built-in invocation}
+
+\begin{tabular}{|l|l|}
+\hline
+escape(I)               & execute built-in number I (one of those
+                        that are inside the emulator function)\\
+external(P,Addr)        & invoke a C function at Addr             \\
+\hline
+\end{tabular}
+
+\subsubsection{Metacalls}
+
+\begin{tabular}{|l|l|}
+\hline
+metacall(N)     & for the call/1 and @/2 built-in                 \\
+meta_jmp        & for the call/1 and @/2 built-in                 \\
+explicit_jmp    & for the :/2 built-in    \\
+\hline
+\end{tabular}
+
+\subsubsection{Debugging}
+
+\begin{tabular}{|l|l|}
+\hline
+debug_call(P,Port)      & generates tracer CALL port      \\
+debug_exit              & generates tracer EXIT port      \\
+\hline
+\end{tabular}
+
+\subsubsection{Special purpopse instructions}
+These are only used in handcoded code sequences:
+
+\begin{tabular}{|l|p{10cm}|}
+\hline
+catch           & for the block/3 (catch/3) built-in predicate            \\
+throw           & for the exit_block/1 (throw/1) built-in predicate       \\
+\hline
+fastcall(I,N)           & invoke handler for exception I          \\
+handler_call(I,N)       & invoke handler for interrupt I          \\
+undefined(P)            & raise UNDEFINED exception for predicate P       \\
+continue_after_exception& restore state after exception           \\
+\hline
+continue_after_event            & restore after synchronous event       \\
+continue_after_event_debug      &                                 \\
+\hline
+suspension_call(N)      & for call_suspension/1                   \\
+suspension_jmp          & for call_suspension/1                   \\
+\hline
+wake_init(N)            & for the wake/0 built-in                 \\
+wake                    & for the wake/0 built-in         \\
+\hline
+nop                     & \\
+\hline
+ret_nowake              & ret without event check                 \\
+retd_nowake             & retd without event check                \\
+exitd_nowake            & exitd without event check               \\
+\hline
+exit_emulator(I)        & exit emulator with return code I \\
+\hline
+\end{tabular}
+
+%----------------------------------------------------------------------
+\section{Procedure Call and Return}
+%----------------------------------------------------------------------
+
+Regular predicates are called by
+\begin{enumerate}
+\item loading their arguments into the
+first N argument registers A1..An, where N is the arity of the callee.
+This is usually achieved by a sequence of instructions of the Put family,
+but can also be done e.g.\ by the generic metacall code (see \ref{metacall}).
+\item transferring control by either a {\bf Call} instruction or
+a {\bf Jmp/Chain} instruction. Call instructions push a return address
+(CP in the diagrams) onto the global stack and set PP to the first
+instruction of the called predicate's code.
+Jmp/Chain instructions only set PP (they are used for tail calls and
+don't return). Chain instructions in addition deallocate an envronment.
+\end{enumerate}
+\begin{figure}
+\epsfbox{localframes.eps}
+\label{localframes}
+\caption{\eclipse\ local stack frames}
+\end{figure}
+A Call instruction requires that the caller has allocated an
+environment (see figure \ref{localframes}).
+The last word of the Call instruction is an environment
+size, i.e.\ the number of environment slots that are still needed
+during the execution of the subgoal (see figure \ref{callinstr}). 
+\begin{figure}
+\epsfbox{callinstr.eps}
+\label{callinstr}
+\caption{Call instruction, return address and environment size}
+\end{figure}
+Environment slots are sorted according to their lifetimes, so that the
+ones that become useless first have the highest numbers.  This is a
+\index{trimming} form of {\bf environment trimming}, although not the
+classical one:  the environments are not physically shortened, and the
+variables that have their last occurrence in the current subgoal are
+still considered active.
+The envrionment size field in the call instructions is used by the
+garbage collector only, in order to know which of the environment
+slots should still be considered active.
+
+
+
+
+%----------------------------------------------------------------------
+\section{Nondeterminism}
+%----------------------------------------------------------------------
+
+\subsection{Choicepoints}
+\begin{figure}
+\epsfbox{controlframes.eps}
+\caption{\eclipse\ control stack frames}
+\end{figure}
+
+\subsection{Trail and Undo}
+
+\begin{figure}
+\epsfbox{trailframes.eps}
+\caption{\eclipse\ trail stack frames}
+\end{figure}
+
+
+%----------------------------------------------------------------------
+\section{Metaterms/Attributed Variables}
+
+Metaterms are described in \cite{meier92} and \cite{metaterms95}.
+
+You can think of a metaterm as a variable with (one or more) attached
+attributes.  In ECLiPSe syntax we can write e.g. X\{Attribute\}. 
+Metaterms behave in some respects like variables, but in most respects
+their behaviour is user-definable (e.g.  what happens with them on
+unification, copy_term etc).
+
+The idea that something like "attributed variables" is needed for the
+implementation of coroutining Prologs and CLP languages is rather obvious
+and has been used in implementations long before anybody invented a
+special name for it. However, they were usually not accessible as such
+for the Prolog/CLP programmer.
+I think we can credit Ulrich Neumerkel and Christian Holzbaur for suggesting
+that adding the metaterm primitive to a Prolog machine is in principle
+all that's needed to build constraint solvers on top.
+
+In ECLiPSe we have gone a step further and made an effort to fully
+integrate metaterms into our language as first class citizens.
+I.e. metaterms have their own syntax, they are integrated in unification
+and indexing of the abstract machine, they are handled appropriately
+by almost all builtin predicates, etc. Another important point is that
+ECLiPSe metaterms can have multiple independent attributes, which makes it
+possible to use several constraint solvers at the same time, for example.
+
+By now, metaterms have been successfully used to implement quite a number
+of  different solvers, both at ECRC and by external ECLiPSe users.
+
+
+%----------------------------------------------------------------------
+\section{Advanced Control}
+%----------------------------------------------------------------------
+
+%----------------------------------------------------------------------
+\section{Garbage Collection}
+%----------------------------------------------------------------------
+
+Garbage collection is described in detail in separate reports
+(\cite{gc90} and \cite{gcint90}).
+
+The stack garbage collector recovers garbage on the global stack
+and the trail stack (local and control stack do not contain
+garbage\footnote{
+This is not exactly true. Due to incomplete trimming, environments
+may contain slots that are not really needed anymore. Similarly,
+choice points can contain saved arguments that are not really needed
+on backtracking, either because they were never needed or because
+the remaining alternative clauses don't happen to need them.}).
+
+Garbage collection is triggered by the TG pointer crossing the
+TG_SL pointer. The collection is then performed at the next
+{\bf synchronous point} in execution.
+\index{synchronous point}
+\index{call position}
+A synchronous point in execution is a point where the state of the
+abstract machine can be determined easily, i.e.\ a call-position.
+This is the moment when all the arguments for a call have been loaded
+into the argument registers, a return address has been pushed onto
+the local stack, and the PP register points to the beginning of the
+called predicate's code. The number of significant argument registers
+is equal to the arity of the called predicate, which can be extracted
+from the header of the predicate's code, i.e.\ at a fixed negative
+offset from PP. The active sizes of environments can be determined
+from the return addresses into the corresponding clause code.
+The envrionment size is at a negative offset of -1 from the
+continuation pointer.
+
+
+%----------------------------------------------------------------------
+\section{Metacalls}
+\label{metacall}
+%----------------------------------------------------------------------
+
+Basically, metacalling is very simple:  Given a structure, load its
+arguments into the argument registers and jump to the predicate code
+specified by the structure's functor.  The actual implementation is
+more complex because of handling the cut, modules, and different call
+protocols for externals and prolog predicates.
+
+The central piece is the Metacall/Metajmp instruction.
+It expects the argument registers to be loaded as follows:
+\begin{description}
+\item[A1] the goal structure to be metacalled
+\item[A2] the caller module
+\item[A3] the lookup module
+\item[A4] the cut pointer
+\end{description}
+Apart from the cut pointer, these are the arguments of @/3, which is
+the tool body (see User Manual chapter on the module system) of @/2.
+The abstract code sequence of @/3 is simply the following:
+\begin{verbatim}
+@/3:
+        SavecutAM       A4
+        Meta_jmp
+\end{verbatim}
+and the code of call/2 (the tool body of call/1) is
+\begin{verbatim}
+call/2:
+        Move            A2 A3
+        SavecutAM       A4
+        Meta_jmp
+\end{verbatim}
+In order to handle cuts inside the metacalled goal, the value of the B
+register at the beginning of the metacall is loaded into an argument
+and passed to the instruction.
+
+The Metacall/Metajmp instruction first does the necessary dereferencing
+and type checks on arguments 1 and 3.
+Then the visible predicate is found by calling
+the procedure table lookup function visible_procedure().
+
+The next point is to check for goals that must be handled in a special
+way because they are defined as being transparent to cuts.
+These are conjuntion, disjunction, implication, if-then-else and cut.
+They are all translated into a predicate that takes an additional
+argument which is the cut pointer. This cut pointer is the value of the
+B stack pointer at the beginning of the metacall.
+\begin{verbatim}
+Goal in Module                  Translated goal
+--------------                  ---------------
+Goal1 , Goal2                   ','(Goal1, Goal2, Module, Cut)
+Goal1 ; Goal2                   ';'(Goal1, Goal2, Module, Cut)
+Goal1 -> Goal2                  '->'(Goal1, Goal2, Module, Cut)
+Goal1 -> Goal2 ; Goal3          ';'(Goal1, Goal2, Module, Cut, Goal3)
+!                               cut_to(Cut)
+\end{verbatim}
+The transformed predicates could be defined as follows (although
+in reality they are implemented by abstract code sequences in code.c):
+\begin{verbatim}
+    ','(Goal1, Goal2, Module, Cut) :-
+            call(Goal1, Module, Module, Cut),
+            call(Goal2, Module, Module, Cut).
+
+    '->'(Goal1, Goal2, Module, Cut) :-
+            call(Goal1, Module, Module, []).
+            !,
+            call(Goal2, Module, Module, Cut).
+
+    ;(Goal1, Goal2, Module, Cut) :-
+            call(Goal1, Module, Module, Cut).
+    ;(Goal1, Goal2, Module, Cut) :-
+            call(Goal2, Module, Module, Cut).
+
+    ;(Goal1, Goal2, Module, Cut, Goal3) :-
+            call(Goal1, Module, Module, []).
+            !,
+            call(Goal2, Module, Module, Cut).
+    ;(Goal1, Goal2, Module, Cut, Goal3) :-
+            call(Goal3, Module, Module, Cut).
+\end{verbatim}
+We have written the Metacall/Metajmp instruction as call/4.
+Note also that the Cut pointer is not passed into the conditions
+of implication and if-then-else: these are not transparent to the
+cut, as this could interfere with the subsequent cut of the condition
+itself.
+
+After this goal transformation, the goal arguments are moved to the
+appropriate locations, i.e. the argument registers (when the goal is a
+regular Prolog procedure) or dereferenced and pushed on the local
+stack (when the goal is an external).  When the goal is a tool
+interface, the module argument is also added.  The last step is to
+actually jump to the code of the prolog goal or to call the external,
+respectively.
+
+
+%----------------------------------------------------------------------
+\section{Indexing}
+
+%----------------------------------------------------------------------
+\section{Structure unification}
+%----------------------------------------------------------------------
+Structure unification is compiled differently from the WAM, and is
+quite involved. The information in this section is intended as
+supplement to Micha's paper on the issue \cite{compnd}.
+
+\subsection{Head unification}
+   The basic idea is to unify nested compound terms top-down and
+   left-to-right. Unlike the WAM scheme, this method does not require
+   temporaries to hold structure arguments, but needs a stack instead.
+   However, since the depth of the nested term in the head is known
+   at compile time, this stack can be built from temporaries (every
+   nesting level is assigned one temporary, except the bottom level).
+   These temporaries contain a read/write mode flag and a copy of the
+   S register, indicating how and where to continue after having
+   finished the unification of a compound subterm.
+   This method is better than the WAM scheme especially for wide,
+   flat structures and for right-balanced structures like lists.
+
+   Read and write-mode are in separate code sequences, and there
+   are conditional jumps back and forth between the sequences.
+   If a read-instruction discovers a variable in the input, it
+   creates a structure frame and jumps into the write-sequence to
+   construct the structure arguments. The 'return address' in form
+   of a read-flag and the next value of S is saved in a temporary.
+   At the end of a write sequence for all arguments of a subterm,
+   the temporary is tested and possibly control is transferred back
+   to the read mode. This is all further complicated by a 'last-call'
+   optimization, ie. dropping the temporary before the last subterm.
+
+   Compared to the presentation in Micha's paper, in the actual
+   implementation instructions are merged and specialised:
+\begin{verbatim}
+Write mode:                     Read mode:
+
+First                           (part of Read_structure WLabel)
+    allocate Ti                     allocate Ti
+    down (save S+1|WRITE)           down (save S+1|READ)
+                                      possibly goto write mode
+
+Next Ti RLabel                  (part of Read_next_struct Ti WLabel)
+    possibly goto read mode         up (restore S)
+    up (restore S)                  down (save S+1)
+    down (save S+1)                 possibly goto write mode
+                      
+Mode Ti RLabel                  Mode Ti
+    up (restore S)                  up (restore S)
+    possibly goto read mode
+
+Next Ti                         (part of Read_structure Ti WLabel)
+    down (save S+1)                 down (save S+1)
+                                    possibly goto write mode
+\end{verbatim}
+
+
+\subsection{Body subgoal arguments}
+
+    The terms are built breadth-first, top-down, using two pointers.
+    TG is the allocation pointer and S is the write-pointer, lagging
+    behind and filling the allocated space.
+
+
+
+%----------------------------------------------------------------------
+\section{Ground terms}
+%----------------------------------------------------------------------
+
+%----------------------------------------------------------------------
+\section{Exceptions}
+%----------------------------------------------------------------------
+
+Exception handling corresponds to the builtins block/3 and exit_block/1.
+block/3 is a tool and block/4 is its tool body.
+They are implemented via the following handcoded abstract instruction
+sequences:
+\begin{verbatim}
+block/4:             // block(Goal, Catcher, Recovery, Module)
+        Catch                           // special instruction
+        Allocate        1
+        Savecut
+        Move            A2 A3           // call(Goal)
+        Savecut         A4
+        Metacall        1
+        Cut_single      0               // clean up catch frame
+        Exit
+
+exit_block/1:   % exit_block(Ball)
+        Throw                           // special instruction
+        Move            A2 A3           // call(Recovery)
+        Savecut         A4
+        Meta_jmp
+\end{verbatim}
+These use special-purpose instructions:
+\begin{description}
+\item[Catch] 
+    \begin{itemize}
+    \item checks the Catcher argument in A[2] for simple type or variable
+    \item moves the module argument from A[4] to A[2] (for subsequent call/2)
+    \item builds a catch frame on the control stack, containing:
+                sp, tg, tt, e, Catcher, Recovery, Module
+    \end{itemize}
+\item[Throw] 
+    \begin{itemize}
+    \item check the "Ball" argument in A[1] for simple type or variable
+    \item pop frames off the control stack until a catch frame is found, whose
+          Catcher entry would unify with Ball.
+          If an invocation frame is encountered while popping, we have to exit
+          an emulator invocation and continue executing the BIThrow in the
+          previous emulator.
+    \item If the corresponding catch frame is found:
+        \begin{itemize}
+        \item restore sp, tg, e from catch frame, untrail
+        \item pop the catch frame
+        \item reset EB, GB from the choicepoint below the catch frame
+        \item pop the catch frame
+        \item load A[1] with the Recovery goal, A[2] with the Module
+          (for subsequent call/2)
+        \item unify Catcher and Ball
+        \end{itemize}
+    \end{itemize}
+\item[Cut_single] 
+    Will cut the catch frame if it is on top of the stack, i.e.\ if the
+    goal has not left any choicepoints itself.
+\end{description}
+We guarantee that a catch frame is always found by enclosing
+the toplevel loop with
+\begin{verbatim}
+    block(loop, Tag, notag(Tag))
+\end{verbatim}
+This serves as a "catch-all" for exit_block's.
+
+The corresponding ISO Prolog primitives catch/3 and throw/1 are similar
+but allow complex terms to be thrown. {\eclipse} should eventually migrate
+to support that (but preferably without full heap copying).
+
+
+%----------------------------------------------------------------------
+\section{Event handling}
+%----------------------------------------------------------------------
+\section{Arithmetic}
+%----------------------------------------------------------------------
+\section{Dictionary}
+%----------------------------------------------------------------------
+\section{Module System}
+%----------------------------------------------------------------------
+

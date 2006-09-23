@@ -1,0 +1,969 @@
+# BEGIN LICENSE BLOCK
+# Version: CMPL 1.1
+#
+# The contents of this file are subject to the Cisco-style Mozilla Public
+# License Version 1.1 (the "License"); you may not use this file except
+# in compliance with the License.  You may obtain a copy of the License
+# at www.eclipse-clp.org/license.
+# 
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+# the License for the specific language governing rights and limitations
+# under the License. 
+# 
+# The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+# The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+# Portions created by the Initial Developer are
+# Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
+# 
+# Contributor(s): 
+# 
+# END LICENSE BLOCK
+#
+# Makefile for icparc_solvers
+# $Id: Makefile.in,v 1.1 2006/09/23 01:53:51 snovello Exp $
+#
+
+# The location of third party software releases, e.g. Cplex, Xpress
+THIRDPARTY=@ECLIPSETHIRDPARTY@
+
+# Which eplex interface versions to build
+XPRESS_VERSIONS = @XPRESS_VERSIONS@
+CPLEX_VERSIONS = @CPLEX_VERSIONS@
+OSI_VERSIONS = @OSI_VERSIONS@
+
+ARCH = @ARCH@
+top_srcdir = @top_srcdir@
+PREFIX = @prefix@
+ECLIPSEDIR = $(PREFIX)
+MAKEFILE = Makefile.$(ARCH)
+
+CC = @CC@
+CXX = @CXX@
+AR = @AR@
+CFLAGS = @CFLAGS@ @OPT_FLAGS@
+OS_INCLUDES = @OS_INCLUDES@
+OBJ_SUFFIX = @OBJECTS_SUFFIX@
+EXEEXT = @EXEEXT@
+
+CPPFLAGS  = -I. -I$(ECLIPSEDIR)/include/$(ARCH) -I$(ECLIPSEDIR)/sepia/include -I- $(OS_INCLUDES)
+ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse -lm
+
+
+PERM = a+r,u+w,go-w
+DIRPERM = 2755
+
+.SUFFIXES:	$(SUFFIXES) .$(OBJ_SUFFIX)
+
+.c.o:
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+
+
+# List of shared libraries to build
+
+OBJ_FILES =	\
+	$(OSI_VERSIONS:%=$(ARCH)/seosi%.$(OBJ_SUFFIX)) \
+	$(XPRESS_VERSIONS:%=$(ARCH)/sexpress%.$(OBJ_SUFFIX)) \
+	$(CPLEX_VERSIONS:%=$(ARCH)/secplex%.$(OBJ_SUFFIX)) \
+	$(ARCH)/edge_finder.$(OBJ_SUFFIX) \
+	$(ARCH)/bitmap.$(OBJ_SUFFIX) \
+	$(ARCH)/ic.$(OBJ_SUFFIX) \
+	$(ARCH)/eregex.$(OBJ_SUFFIX)
+
+
+# install is configured as either install_all or install_cross
+install:	@MAKE_TARGET@
+
+# Objects
+all:	$(OBJ_FILES)
+
+
+#----------------------------------------------------------------------
+# EPLEX/OSI
+#----------------------------------------------------------------------
+
+COINLIBDIR = $(THIRDPARTY)/coin/lib/$(ARCH)
+COINOSILIBS = -lOsi -lCoinUtils
+COINCLPLIBS = -lOsiClp -lCgl -lClp
+
+i386_nt/seosiclpcbc.dll: seplex.c coinplex.cpp eplex_params.h seplex.h 
+	$(CXX) -DCOIN -DCOIN_USE_CLP $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/coin/include -c coinplex.cpp
+	$(CC) -DCOIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
+	$(CC) -shared seplex.o coinplex.o $(COINLIBDIR)/CbcBranchUser.o $(COINLIBDIR)/CbcCompareUser.o -L$(COINLIBDIR)  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ $(ECLIBS) -o seosiclpcbc.dll
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	mv seosiclpcbc.dll $(ARCH)/seosiclpcbc.dll
+
+$(ARCH)/seosiclpcbc.so: seplex.c coinplex.cpp eplex_params.h seplex.h 
+	$(CXX) -DCOIN -DCOIN_USE_CLP $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/coin/include -c coinplex.cpp
+	$(CC) -DCOIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
+	$(CC) -shared seplex.o coinplex.o $(COINLIBDIR)/CbcBranchUser.o $(COINLIBDIR)/CbcCompareUser.o -L$(COINLIBDIR)  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ $(ECLIBS) -o seosiclpcbc.so
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	mv seosiclpcbc.so $(ARCH)/seosiclpcbc.so
+
+$(ARCH)/seosisymclp.so: seplex.c coinplex.cpp eplex_params.h seplex.h 
+	$(CXX) -DCOIN -DCOIN_USE_SYM $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/coin/include -c coinplex.cpp
+	$(CC) -DCOIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
+	$(CC) -shared seplex.o coinplex.o -L$(COINLIBDIR) -lOsiSym -lsym $(COINCLPLIBS) $(COINOSILIBS) -lstdc++ $(ECLIBS) -o seosisymclp.so
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	mv seosisymclp.so $(ARCH)/seosisymclp.so
+
+#----------------------------------------------------------------------
+# EPLEX/CPLEX
+#----------------------------------------------------------------------
+
+sparc_sunos5/secplex65.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex65 -c seplex.c
+	$(CC) -G seplex.o /usr/local/cplex65/libcplex.a $(ECLIBS) -o secplex.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv secplex.so sparc_sunos5/secplex65.so
+
+sparc_sunos5/secplex75.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=7 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex75/include/ilcplex -c seplex.c
+	$(CC) -G seplex.o $(THIRDPARTY)/cplex75/lib/sparc_5_5.0/static_pic_mt/libcplex.a $(ECLIBS) -o secplex.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv secplex.so sparc_sunos5/secplex75.so
+
+sparc_sunos5/secplex81.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=8 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex81/include/ilcplex -c seplex.c
+	$(CC) -G seplex.o $(THIRDPARTY)/cplex811/lib/sparc_5_5.0/static_pic_mt/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv secplex.so sparc_sunos5/secplex81.so
+
+sparc_sunos5/secplex90.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c seplex.c
+	$(CC) -G seplex.o $(THIRDPARTY)/cplex90/lib/ultrasparc32_8_6.2/static_pic_mt/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv secplex.so sparc_sunos5/secplex90.so
+
+i386_linux/secplex65.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex -c seplex.c
+	$(CC) -shared seplex.o /usr/local/cplex/libcplex.a $(ECLIBS) -o secplex.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv secplex.so i386_linux/secplex65.so
+
+i386_linux/secplex75.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=7 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex75/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex75/lib/i86_linux2_glibc2.1_egcs1.1/static_pic_mt/libcplex.a -lpthread $(ECLIBS) -o secplex.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv secplex.so i386_linux/secplex75.so
+
+i386_linux/secplex81.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=8 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex811/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex811/lib/i86_linux2_glibc2.2_gcc3.0/static_pic_mt/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv secplex.so i386_linux/secplex81.so
+
+i386_linux/secplex90.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex90/lib/i86_linux2_glibc2.3_gcc3.2/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv secplex.so i386_linux/secplex90.so
+
+
+#----------------------------------------------------------------------
+# EPLEX/XPRESS
+#----------------------------------------------------------------------
+
+XPRESS_VERSION_NAMES = $(XPRESS_VERSIONS:%=express%)
+XPRESS_WORKING_DIRS = $(XPRESS_VERSION_NAMES:%=$(ARCH)/%)
+XPRESS_DEST_DIRS = $(XPRESS_WORKING_DIRS:%=$(PREFIX)/lib/%)
+
+
+# Locations of XPRESS versions, list of support files, and
+# rules to copy them to their destination.
+#
+# For adding a new version:
+#    - add new version number in toplevel configure.ac
+#    - for XPRESS, add XPRESS<version>, SUPPORT_* below, and add
+#      rules for copying the SUPPORT_* files from their actual location
+#    - write the rules for compiling the eplex C code for each version
+
+# XPRESS 13
+XPRESS13 = $(THIRDPARTY)/xosl13
+XPRESS1326 = $(THIRDPARTY)/xosl1326
+XPRESS1326icp = $(THIRDPARTY)/xosl1326icp
+
+
+# XPRESS 14
+# the version of libxprs.so we link against has to be in the form .so.X.Y
+# for Solaris as Xpress always look for this name when loading
+XPRESS14 = $(THIRDPARTY)/xosl14
+XPRESS1427 = $(THIRDPARTY)/xosl1427
+XPRESS1427_SUPPORT_i386_nt = \
+	$(XPRESS1427)/$(ARCH)/bin/xprs.dll \
+	$(XPRESS1427)/$(ARCH)/bin/xprl.dll
+XPRESS1427_SUPPORT_sparc_sunos5 = \
+	$(XPRESS1427)/$(ARCH)/lib/libxprs.so.14.27 \
+	$(XPRESS1427)/$(ARCH)/lib/libxprl.so.1.1
+XPRESS1427_SUPPORT_i386_linux = \
+	$(XPRESS1427_SUPPORT_sparc_sunos5)
+
+$(ARCH)/express1427:	$(XPRESS1427)
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp $(XPRESS1427_SUPPORT_$(ARCH)) $(XPRESS1427_SUPPORT) $@
+	-@/bin/chmod $(PERM) $@/*
+
+$(PREFIX)/lib/$(ARCH)/express1427:	$(ARCH)/express1427
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp -pr $</* $@
+	-@/bin/chmod $(PERM) $@
+
+
+# XPRESS 14icp
+XPRESS1427icp = $(THIRDPARTY)/xosl1427icp
+XPRESS1427icp_SUPPORT = \
+	$(XPRESS14)/lic_icp/xpress.lic
+XPRESS1427icp_SUPPORT_sparc_sunos5 = \
+	$(XPRESS1427icp)/$(ARCH)/lib/libxprs.so.14.27 \
+	$(XPRESS1427icp)/$(ARCH)/lib/libxprl.so.1.1
+XPRESS1427icp_SUPPORT_i386_linux = \
+	$(XPRESS1427icp_SUPPORT_sparc_sunos5)
+
+$(ARCH)/express1427icp:	$(XPRESS1427icp)
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp $(XPRESS1427icp_SUPPORT_$(ARCH)) $(XPRESS1427icp_SUPPORT) $@
+	-@/bin/chmod $(PERM) $@/*
+
+$(PREFIX)/lib/$(ARCH)/express1427icp:	$(ARCH)/express1427icp
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp -pr $</* $@
+	-@/bin/chmod $(PERM) $@
+
+
+# XPRESS 15
+XPRESS15 = $(THIRDPARTY)/xosl15
+XPRESS1525 = $(THIRDPARTY)/xosl1525
+XPRESS1525_SUPPORT = \
+	$(XPRESS1525)/$(ARCH)/bin/dash$(EXEEXT) \
+	$(XPRESS1525)/$(ARCH)/bin/lmgrd$(EXEEXT)
+XPRESS1525_SUPPORT_i386_nt = \
+	$(XPRESS1525)/$(ARCH)/bin/xprs.dll \
+	$(XPRESS1525)/$(ARCH)/bin/xprl.dll
+XPRESS1525_SUPPORT_sparc_sunos5 = \
+	$(XPRESS1525)/$(ARCH)/lib/libxprs.so.15.25 \
+	$(XPRESS1525)/$(ARCH)/lib/libxprl.so.2004
+XPRESS1525_SUPPORT_i386_linux = \
+	$(XPRESS1525_SUPPORT_sparc_sunos5)
+
+$(ARCH)/express1525:	$(XPRESS1525)
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp $(XPRESS1525_SUPPORT_$(ARCH)) $(XPRESS1525_SUPPORT) $@
+	-@/bin/chmod $(PERM) $@/*
+
+$(PREFIX)/lib/$(ARCH)/express1525:	$(ARCH)/express1525
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp -pr $</* $@
+	-@/bin/chmod $(PERM) $@
+
+
+# XPRESS 16
+XPRESS16 = $(THIRDPARTY)/xosl16
+XPRESS1601 = $(THIRDPARTY)/xosl1601
+XPRESS1601_SUPPORT = \
+	$(XPRESS1601)/$(ARCH)/bin/dash$(EXEEXT) \
+	$(XPRESS1601)/$(ARCH)/bin/lmgrd$(EXEEXT)
+XPRESS1601_SUPPORT_i386_nt = \
+	$(XPRESS1601)/$(ARCH)/lib/xprs.dll \
+	$(XPRESS1601)/$(ARCH)/lib/xprl.dll
+XPRESS1601_SUPPORT_sparc_sunos5 = \
+	$(XPRESS1601)/$(ARCH)/lib/libxprs.so.16.01 \
+	$(XPRESS1601)/$(ARCH)/lib/libxprl.so.2005
+XPRESS1601_SUPPORT_i386_linux = \
+	$(XPRESS1601_SUPPORT_sparc_sunos5)
+
+$(ARCH)/express1601:	$(XPRESS1601)
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp $(XPRESS1525_SUPPORT_$(ARCH)) $(XPRESS1525_SUPPORT) $@
+	-@/bin/chmod $(PERM) $@/*
+
+$(PREFIX)/lib/$(ARCH)/express1601:	$(ARCH)/express1601
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp -pr $</* $@
+	-@/bin/chmod $(PERM) $@
+
+
+# compile rules
+sparc_sunos5/sexpress1525.so: seplex.c $(ARCH)/express1525
+	$(CC) -DXPRESS=15  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1525)/$(ARCH)/include -c seplex.c
+	$(CC) -G seplex.o $(ARCH)/express1525/libxprs.so.15.25  $(ECLIBS) -o sexpress.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv sexpress.so sparc_sunos5/sexpress1525.so
+
+sparc_sunos5/sexpress1427icp.so: seplex.c $(ARCH)/express1427icp
+	$(CC) -DXPRESS=14  -DXPRESS_OEM_ICPARC_2002 $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1427)/$(ARCH)/include -c seplex.c
+	$(CC) -G seplex.o $(ARCH)/express1427icp/libxprs.so.14.27 $(ARCH)/express1427icp/libxprl.so.1.1 $(ECLIBS) -lpthread -o sexpress.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv sexpress.so sparc_sunos5/sexpress1427icp.so
+
+sparc_sunos5/sexpress1427.so: seplex.c $(ARCH)/express1427
+	$(CC) -DXPRESS=14  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1427)/$(ARCH)/include -c seplex.c
+	$(CC) -G seplex.o $(ARCH)/express1427/libxprs.so.14.27  $(ECLIBS) -o sexpress.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv sexpress.so sparc_sunos5/sexpress1427.so
+
+sparc_sunos5/sexpress1326icp.so: seplex.c
+	$(CC) -DXPRESS=13 -DXPRESS_OEM_ICPARC_2002  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1326icp)/$(ARCH)/include -c seplex.c
+	$(CC) -G seplex.o $(XPRESS1326icp)/$(ARCH)/lib/libxprs.a $(ECLIBS) -o sexpress.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv sexpress.so sparc_sunos5/sexpress1326icp.so
+
+i386_linux/sexpress1326icp.so: seplex.c
+	$(CC) -DXPRESS=13  -DXPRESS_OEM_ICPARC_2002 $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1326icp)/$(ARCH)/include -c seplex.c
+	$(CC) -shared seplex.o $(XPRESS1326icp)/$(ARCH)/lib/libxprs.a $(ECLIBS) -o sexpress.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv sexpress.so i386_linux/sexpress1326icp.so
+
+i386_linux/sexpress1427.so: seplex.c $(ARCH)/express1427
+	$(CC) -DXPRESS=14  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1427)/$(ARCH)/include -c seplex.c
+	$(CC) -shared seplex.o $(ARCH)/express1427/libxprs.so.14.27  $(ECLIBS) -o sexpress.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv sexpress.so i386_linux/sexpress1427.so
+
+i386_linux/sexpress1427icp.so: seplex.c $(ARCH)/express1427icp
+	$(CC) -DXPRESS=14  -DXPRESS_OEM_ICPARC_2002 $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1427)/$(ARCH)/include -c seplex.c
+	$(CC) -shared seplex.o $(ARCH)/express1427icp/libxprs.so.14.27  $(ECLIBS) -o sexpress.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv sexpress.so i386_linux/sexpress1427icp.so
+
+i386_linux/sexpress1525.so: seplex.c $(ARCH)/express1525
+	$(CC) -DXPRESS=15  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1525)/$(ARCH)/include -c seplex.c
+	$(CC) -shared seplex.o $(ARCH)/express1525/libxprs.so.15.25  $(ECLIBS) -o sexpress.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv sexpress.so i386_linux/sexpress1525.so
+
+i386_linux/sexpress1601.so: seplex.c $(ARCH)/express1601
+	$(CC) -DXPRESS=16  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1601)/$(ARCH)/include -c seplex.c
+	$(CC) -shared seplex.o $(ARCH)/express1601/libxprs.so.16.01  $(ECLIBS) -o sexpress.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv sexpress.so i386_linux/sexpress1601.so
+
+i386_nt/sexpress1427.dll: seplex.c $(ARCH)/express1427
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	$(CC) -DXPRESS=14  $(CPPFLAGS) $(CFLAGS) \
+		-I$(XPRESS1427)/$(ARCH)/include \
+		-shared -o $@ \
+		seplex_xpress.def seplex.c \
+		-L$(XPRESS1427)/$(ARCH)/lib -lxprs $(ECLIBS)
+
+i386_nt/sexpress1525.dll: seplex.c $(ARCH)/express1525
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	$(CC) -DXPRESS=15  $(CPPFLAGS) $(CFLAGS) \
+		-I$(XPRESS1525)/$(ARCH)/include \
+		-shared -o $@ \
+		seplex_xpress.def seplex.c \
+		-L$(XPRESS1525)/$(ARCH)/lib -lxprs $(ECLIBS)
+
+
+# to compile bug reports for Dash
+bug14: bug.c
+	$(CC) -g -DXPRESS=14 $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1427)/$(ARCH)/include bug.c $(XPRESS1427)/$(ARCH)/lib/libxprs.so  -lm -o bug14
+
+bug65: bug.c 
+	$(CC) -g -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex bug.c /usr/local/cplex/libcplex.a  -lm -o bug65
+
+
+#----------------------------------------------------------------------
+# Edge finder
+#----------------------------------------------------------------------
+
+sun4/edge_finder.o: edge_finder.c
+	[ -d sun4 ] || mkdir sun4
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c edge_finder.c -o sun4/edge_finder.o
+
+sparc_sunos5/edge_finder.so: edge_finder.c
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -G edge_finder.c $(ECLIBS) -o sparc_sunos5/edge_finder.so
+
+i386_linux/edge_finder.so: edge_finder.c
+	[ -d i386_linux ] || mkdir i386_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared edge_finder.c $(ECLIBS) -o i386_linux/edge_finder.so
+
+x86_64_linux/edge_finder.so: edge_finder.c
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared edge_finder.c $(ECLIBS) -o x86_64_linux/edge_finder.so
+
+i386_sunos5/edge_finder.so: edge_finder.c
+	[ -d i386_sunos5 ] || mkdir i386_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m32 -shared edge_finder.c $(ECLIBS) -o i386_sunos5/edge_finder.so
+
+x86_64_sunos5/edge_finder.so: edge_finder.c
+	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m64 -shared edge_finder.c $(ECLIBS) -o x86_64_sunos5/edge_finder.so
+
+alpha_linux/edge_finder.so: edge_finder.c
+	[ -d alpha_linux ] || mkdir alpha_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -mieee -shared edge_finder.c $(ECLIBS) -o alpha_linux/edge_finder.so
+
+ppc_macosx/edge_finder.dylib: edge_finder.c
+	[ -d ppc_macosx ] || mkdir ppc_macosx
+	$(CC) $(CPPFLAGS) $(CFLAGS) -dynamic \
+              -DD_LOAD -no-cpp-precomp edge_finder.c -c -o ppc_macosx/edge_finder.o
+	libtool -dynamic -single_module -flat_namespace -lgmp -lgcc $(ECLIBS) \
+                ppc_macosx/edge_finder.o -o ppc_macosx/edge_finder.dylib 
+
+i386_nt/edge_finder.dll: edge_finder.c
+	[ -d i386_nt ] || mkdir i386_nt
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
+		$(<:.c=.def) $< $(ECLIBS)
+
+sun4/edge_finder3.o: edge_finder.c
+	[ -d sun4 ] || mkdir sun4
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -c edge_finder.c -o sun4/edge_finder3.o
+
+sparc_sunos5/edge_finder3.so: edge_finder.c
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -G edge_finder.c $(ECLIBS) -o sparc_sunos5/edge_finder3.so
+
+i386_linux/edge_finder3.so: edge_finder.c
+	[ -d i386_linux ] || mkdir i386_linux
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -shared edge_finder.c $(ECLIBS) -o i386_linux/edge_finder3.so
+
+x86_64_linux/edge_finder3.so: edge_finder.c
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -fPIC -shared edge_finder.c $(ECLIBS) -o x86_64_linux/edge_finder3.so
+
+i386_sunos5/edge_finder3.so: edge_finder.c
+	[ -d i386_sunos5 ] || mkdir i386_sunos5
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -fPIC m32 -shared edge_finder.c $(ECLIBS) -o i386_sunos5/edge_finder3.so
+
+x86_64_sunos5/edge_finder3.so: edge_finder.c
+	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -fPIC -m64 -shared edge_finder.c $(ECLIBS) -o x86_64_sunos5/edge_finder3.so
+
+alpha_linux/edge_finder3.so: edge_finder.c
+	[ -d alpha_linux ] || mkdir alpha_linux
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -mieee -shared edge_finder.c $(ECLIBS) -o alpha_linux/edge_finder3.so
+
+ppc_macosx/edge_finder3.dylib: edge_finder.c
+	[ -d ppc_macosx ] || mkdir ppc_macosx
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -dynamic \
+              -DD_LOAD -no-cpp-precomp edge_finder.c -c -o ppc_macosx/edge_finder3.o
+	libtool -dynamic -single_module -flat_namespace $(ECLIBS) -lgmp \
+                ppc_macosx/edge_finder3.o -o ppc_macosx/edge_finder3.dylib 
+
+i386_nt/edge_finder3.dll: edge_finder.c
+	[ -d i386_nt ] || mkdir i386_nt
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
+		$(<:.c=.def) $< $(ECLIBS)
+
+#----------------------------------------------------------------------
+# Bitmaps
+#----------------------------------------------------------------------
+
+sun4/bitmap.o: bitmap.c
+	[ -d sun4 ] || mkdir sun4
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c bitmap.c -o sun4/bitmap.o
+
+sparc_sunos5/bitmap.so: bitmap.c
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -G bitmap.c $(ECLIBS) -o sparc_sunos5/bitmap.so
+
+i386_linux/bitmap.so: bitmap.c
+	[ -d i386_linux ] || mkdir i386_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared bitmap.c $(ECLIBS) -o i386_linux/bitmap.so
+
+i386_linux/bitmap.o: bitmap.c
+	[ -d i386_linux ] || mkdir i386_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c bitmap.c -o i386_linux/bitmap.o
+
+x86_64_linux/bitmap.so: bitmap.c
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared bitmap.c $(ECLIBS) -o x86_64_linux/bitmap.so
+
+i386_sunos5/bitmap.so: bitmap.c
+	[ -d i386_sunos5 ] || mkdir i386_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m32 -shared bitmap.c $(ECLIBS) -o i386_sunos5/bitmap.so
+
+x86_64_sunos5/bitmap.so: bitmap.c
+	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m64 -shared bitmap.c $(ECLIBS) -o x86_64_sunos5/bitmap.so
+
+alpha_linux/bitmap.so: bitmap.c
+	[ -d alpha_linux ] || mkdir alpha_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared bitmap.c $(ECLIBS) -o alpha_linux/bitmap.so
+
+ppc_macosx/bitmap.dylib: bitmap.c
+	[ -d ppc_macosx ] || mkdir ppc_macosx
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -dynamic \
+              -DD_LOAD -no-cpp-precomp bitmap.c -c -o ppc_macosx/bitmap.o
+	libtool -dynamic -single_module -flat_namespace $(ECLIBS) -lgmp \
+                ppc_macosx/bitmap.o -o ppc_macosx/bitmap.dylib 
+
+i386_nt/bitmap.dll: bitmap.c
+	[ -d i386_nt ] || mkdir i386_nt
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
+		$(<:.c=.def) $< $(ECLIBS)
+
+#----------------------------------------------------------------------
+# Interval constraints
+#----------------------------------------------------------------------
+
+sun4/ic.o: ic.c 
+	[ -d sun4 ] || mkdir sun4
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c ic.c -o sun4/ic.o
+
+sparc_sunos5/ic.so: ic.c
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -G ic.c $(ECLIBS) -o sparc_sunos5/ic.so
+
+i386_linux/ic.so: ic.c
+	[ -d i386_linux ] || mkdir i386_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared ic.c $(ECLIBS) -o i386_linux/ic.so
+
+#i386_linux/ic.so: ic2.c
+#	[ -d i386_linux ] || mkdir i386_linux
+#	$(CC) -g $(CPPFLAGS) $(CFLAGS) -shared ic2.c $(ECLIBS) -o i386_linux/ic.so
+
+ic2.c: ic.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -E -C -P ic.c > ic2.c
+
+i386_linux/ic.o: ic.c
+	[ -d i386_linux ] || mkdir i386_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c ic.c -o i386_linux/ic.o
+
+x86_64_linux/ic.so: ic.c
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared ic.c $(ECLIBS) -o x86_64_linux/ic.so
+
+i386_sunos5/ic.so: ic.c
+	[ -d i386_sunos5 ] || mkdir i386_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -m32 -fPIC -shared ic.c $(ECLIBS) -o i386_sunos5/ic.so
+
+x86_64_sunos5/ic.so: ic.c
+	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -m64 -fPIC -shared ic.c $(ECLIBS) -o x86_64_sunos5/ic.so
+
+alpha_linux/ic.so: ic.c
+	[ -d alpha_linux ] || mkdir alpha_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -mieee -mfp-rounding-mode=d -shared ic.c $(ECLIBS) -o alpha_linux/ic.so
+
+ppc_macosx/ic.dylib: ic.c ppc_macosx/bitmap.dylib
+	[ -d ppc_macosx ] || mkdir ppc_macosx
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -dynamic \
+              -DD_LOAD -no-cpp-precomp ic.c -c -o ppc_macosx/ic.o
+	libtool -dynamic -single_module -flat_namespace $(ECLIBS) -lgcc -lgmp \
+                ppc_macosx/ic.o ppc_macosx/bitmap.dylib -o ppc_macosx/ic.dylib 
+
+i386_nt/ic.dll: ic.c i386_nt/bitmap.dll
+	[ -d i386_nt ] || mkdir i386_nt
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
+		$(<:.c=.def) $< i386_nt/bitmap.dll $(ECLIBS)
+
+
+#----------------------------------------------------------------------
+# Regex library
+#----------------------------------------------------------------------
+
+# Use default regex functions that come with the operating system 
+RXLIBS = 
+
+# Use Spencer library
+#RXLIBS	= -L$(RXLIBDIR) -l$(RXNAME)
+RXINCDIR = rxspencer-alpha3.8.g3
+RXLIBDIR = rxspencer-alpha3.8.g3/.libs
+RXNAME	= rxspencer
+
+
+sparc_sunos5/eregex.so: eregex.c
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -G eregex.c $(ECLIBS) \
+		$(RXLIBS) -o sparc_sunos5/eregex.so
+
+i386_linux/eregex.so: eregex.c
+	[ -d i386_linux ] || mkdir i386_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared eregex.c $(ECLIBS) \
+		$(RXLIBS) -o i386_linux/eregex.so
+
+x86_64_linux/eregex.so: eregex.c
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared eregex.c $(ECLIBS) \
+		$(RXLIBS) -o x86_64_linux/eregex.so
+
+i386_sunos5/eregex.so: eregex.c
+	[ -d i386_sunos5 ] || mkdir i386_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m32 -shared eregex.c $(ECLIBS) \
+		$(RXLIBS) -o i386_sunos5/eregex.so
+
+x86_64_sunos5/eregex.so: eregex.c
+	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m64 -shared eregex.c $(ECLIBS) \
+		$(RXLIBS) -o x86_64_sunos5/eregex.so
+
+alpha_linux/eregex.so: eregex.c
+	[ -d alpha_linux ] || mkdir alpha_linux
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared eregex.c $(ECLIBS) \
+		$(RXLIBS) -o alpha_linux/eregex.so
+
+ppc_macosx/eregex.dylib: eregex.c
+	[ -d ppc_macosx ] || mkdir ppc_macosx
+	$(CC) $(CPPFLAGS) $(CFLAGS) -dynamic \
+              -DD_LOAD -no-cpp-precomp eregex.c -c -o ppc_macosx/eregex.o
+	libtool -dynamic -single_module -flat_namespace $(ECLIBS) -lgmp \
+                ppc_macosx/eregex.o -o ppc_macosx/eregex.dylib 
+
+i386_nt/eregex.dll: eregex.c rxspencer/libregex.a
+	[ -d i386_nt ] || mkdir i386_nt
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Irxspencer -shared -o $@ \
+		$(<:.c=.def) $< rxspencer/libregex.a $(ECLIBS)
+
+# CAUTION: we build directly in the rxspencer directory!
+# This is only ok as long as rxspencer is only used on a single architecture!
+rxspencer/libregex.a:
+	( cd rxspencer ; \
+	  CC=$(CC) AR=$(AR) $(MAKE) lib)
+
+
+#----------------------------------------------------------------------
+# Ilog Solver
+#----------------------------------------------------------------------
+CCC=/opt/SUNWspro/bin/CC4.1
+SOLVERDIR=/opt/ilog/solver427
+SCHEDULERDIR=/opt/ilog/sched41
+SOLVERIncDir=$(SOLVERDIR)/include
+SCHEDULERIncDir=$(SCHEDULERDIR)/include
+ECLIPSE4DIR=$(THIRDPARTY)/4.0
+ILOGFLAGS=-I$(SOLVERIncDir) -I$(SCHEDULERIncDir) -I$(ECLIPSE4DIR)/include/sparc_sunos5
+SYSTEM=sparc_5_4.2
+ILOGLDFLAGS=-L$(SOLVERDIR)/lib/$(SYSTEM)/static -L$(SCHEDULERDIR)/lib/$(SYSTEM)/static -L$(ECLIPSE4DIR)/lib/sparc_sunos5 -Lsparc_sunos5
+ILOGOFILES = ilog/stdecil.o ilog/classes.o ilog/outof.o ilog/ec2il.o ilog/ilog.o ilog/stdsched.o ilog/sched_cstrs.o ilog/scheduler.o
+
+.cc.o :
+	$(CCC) -c $(CPPFLAGS) $(ILOGFLAGS) $< -o $@
+
+sparc_sunos5/libec_ilog.a : $(ILOGOFILES)
+	ar -r $@ $(ILOGOFILES)
+
+sparc_sunos5/eclipseilog : sparc_sunos5/libec_ilog.a
+	$(CCC) -o $@ $(ECLIPSE4DIR)/lib/sparc_sunos5/standalone.o $(ILOGLDFLAGS) -lec_ilog -lschedule -lsolver -leclipse -lgmp -lshm -ldummies -lsocket -ldl -lnsl -lsunmath -o $@
+
+ilog : sparc_sunos5/eclipseilog 
+
+ilogclean :
+	rm $(ILOGOFILES) sparc_sunos5/ec_ilog.a
+
+ilograz : ilogclean
+	rm sparc_sunos5/eclipseilog 
+
+#----------------------------------------------------------------------
+# ECH
+#----------------------------------------------------------------------
+ECH_EXAMPLE_FILES =   bool.pl deussen_bool.pl \
+              diaz_bool.pl puzzle_bool.pl \
+              domain.pl queens_domain.pl primes.pl primes1.pl
+
+ECH_EXAMPLE_DEST = $(ECH_EXAMPLE_FILES:%=$(PREFIX)/doc/examples/ech/%) 
+
+
+
+#----------------------------------------------------------------------
+# Installation
+#----------------------------------------------------------------------
+
+ECLIPSE = $(ECLIPSEDIR)/bin/$(ARCH)/eclipse
+
+EXAMPLE_FILES =	cbs.ecl lds.ecl wcs.ecl knapsack_ls.ecl
+ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl empty_language.ecl \
+		eplex_standalone.ecl \
+		fd_sets.ecl ic_sets.ecl \
+		ic.ecl ic_kernel.ecl ic_constraints.ecl ic_symbolic.ecl \
+		fd_search.ecl ic_search.ecl \
+		fd_sbds.ecl ic_sbds.ecl \
+		fd_generic_interface.ecl ic_generic_interface.ecl \
+		fd_global.ecl ic_global.ecl \
+		cumulative.ecl ic_cumulative.ecl \
+		fd_edge_finder_common.ecl ic_edge_finder_common.ecl \
+		edge_finder.ecl ic_edge_finder.ecl \
+		edge_finder3.ecl ic_edge_finder3.ecl \
+		bfs.ecl colgen.ecl dual_var.ecl \
+		b_trees.ecl n_trees.ecl \
+		regex.ecl sd.ecl \
+		conjunto_fd_sets.ecl ic_hybrid_sets.ecl lex_set.ecl \
+		eplex_osi.ecl eplex_osi_clpcbc.ecl eplex_osi_symclp.ecl \
+		tentative.ecl tentative_constraints.ecl
+PL_ECO_FILES =	changeset.pl linearize.pl shadow_cons.pl ech.pl \
+		repair.pl eplex.pl eplex_relax.pl \
+		eplex_cplex.pl eplex_xpress.pl \
+		repairfd.pl mip.pl \
+		ic_make_overlap_bivs.pl ic_probe_support.pl \
+		ic_probing_for_scheduling.pl ic_probe.pl ic_probe_search.pl \
+		make_overlap_bivs.pl probe_support.pl \
+		probing_for_scheduling.pl probe.pl probe_search.pl bin_info.pl
+ECL_ONLY_FILES = eplex_lic_info.ecl
+INCLUDE_ONLY_FILES = colgen_.ecl eplex_s.ecl \
+		generic_search.ecl generic_search_comments.ecl \
+		generic_sbds.ecl \
+		generic_global_constraints.ecl generic_sets.ecl \
+		generic_hybrid_sets.ecl \
+		generic_cumulative.ecl generic_edge_finder_common.ecl \
+		generic_edge_finder.ecl generic_edge_finder3.ecl
+PL_ECI_FILES =	repair.pl eplex.pl \
+		ech.pl eplex_xpress.pl eplex_cplex.pl \
+		repairfd.pl changeset.pl \
+		ic_make_overlap_bivs.pl ic_probe_support.pl \
+		ic_probing_for_scheduling.pl ic_probe.pl ic_probe_search.pl \
+		make_overlap_bivs.pl probe_support.pl \
+		probing_for_scheduling.pl probe.pl probe_search.pl \
+		mip.pl linearize.pl shadow_cons.pl 
+ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
+		ic.ecl ic_kernel.ecl ic_sets.ecl ic_hybrid_sets.ecl \
+		fd_search.ecl ic_symbolic.ecl \
+		fd_sbds.ecl ic_sbds.ecl \
+		fd_global.ecl ic_global.ecl \
+		cumulative.ecl ic_cumulative.ecl \
+		edge_finder.ecl ic_edge_finder.ecl \
+		edge_finder3.ecl ic_edge_finder3.ecl bfs.ecl colgen.ecl \
+		regex.ecl sd.ecl \
+		eplex_osi.ecl eplex_osi_clpcbc.ecl eplex_osi_symclp.ecl \
+		tentative.ecl tentative_constraints.ecl
+NON_ECLIPSE_FILES =
+
+EXAMPLE_DEST =	$(EXAMPLE_FILES:%=$(PREFIX)/doc/examples/tutorial/%) 
+ECO_DEST =	$(ECL_ECO_FILES:%.ecl=$(PREFIX)/lib/%.eco) \
+		$(PL_ECO_FILES:%.pl=$(PREFIX)/lib/%.eco)
+SOURCE_DEST =	$(ECL_ECO_FILES:%.ecl=$(PREFIX)/lib/%.ecl) \
+		$(PL_ECO_FILES:%.pl=$(PREFIX)/lib/%.pl) \
+		$(ECL_ONLY_FILES:%=$(PREFIX)/lib/%) \
+		$(INCLUDE_ONLY_FILES:%=$(PREFIX)/lib/%)
+ECI_DEST =      $(PL_ECI_FILES:%.pl=$(PREFIX)/lib/%.eci) \
+		$(ECL_ECI_FILES:%.ecl=$(PREFIX)/lib/%.eci) 
+OBJ_DEST =	$(OBJ_FILES:%=$(PREFIX)/lib/%)
+NON_ECLIPSE_DEST = $(NON_ECLIPSE_FILES:%=$(PREFIX)/lib/%)
+
+clean:	archclean ecoclean
+	rm -f $(EXAMPLE_DEST) $(ECH_EXAMPLE_DEST) $(ECI_DEST) 
+
+archclean:
+	rm -rf $(ARCH) $(OBJ_DEST) $(XPRESS_DEST_DIRS)
+	( cd rxspencer ; $(MAKE) clean )
+
+ecoclean:
+	rm -rf *.eco $(ECO_DEST)
+
+install_all:	install_cross $(SOURCE_DEST) $(ECO_DEST) \
+		$(EXAMPLE_DEST) $(ECH_EXAMPLE_DEST) $(ECI_DEST) \
+		$(NON_ECLIPSE_DEST)
+
+install_cross:	$(XPRESS_DEST_DIRS) $(OBJ_DEST)
+
+
+
+%/.stamp:
+	mkdir -p $(@D)
+	@/bin/chmod $(DIRPERM) $(@D)
+	@touch $@; /bin/chmod $(PERM) $@
+
+
+# general installation rules
+#
+# Note:
+# - before making eci/eco we recursively make the objects. One could have
+#   precise dependencies on the relevant objects, but in fact eci/eco don't
+#   really depend on the actual external object contents: a change in the
+#   object does not require the eco/eci to be rebuilt, this is only necessary
+#   if the ecl/pl file changed.
+# - we add . to the library path because some libraries might not yet
+#   be installed in ECLIPSEDIR/lib at [fi]compile time
+
+objects:	$(OBJ_FILES)
+
+$(PREFIX)/doc/examples/tutorial/%.ecl:	%.ecl $(PREFIX)/doc/examples/tutorial/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/%.eco:	%.pl $(PREFIX)/lib/.stamp
+	@$(MAKE) -f $(MAKEFILE) objects
+	$(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(fcompile), set_flag(variable_names,off), fcompile("$(*F)", [outdir:"$(@D)"])'
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/%.eco:	%.ecl $(PREFIX)/lib/.stamp
+	@$(MAKE) -f $(MAKEFILE) objects
+	LD_LIBRARY_PATH=$(COINLIBDIR):$(LD_LIBRARY_PATH) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(fcompile), set_flag(variable_names,off), fcompile("$(*F)", [outdir:"$(@D)"])'
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/%.eci:	%.pl $(PREFIX)/lib/.stamp
+	@$(MAKE) -f $(MAKEFILE) objects
+	$(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(document),icompile("$(*F)","$(@D)")'
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/%.eci:	%.ecl $(PREFIX)/lib/.stamp
+	@$(MAKE) -f $(MAKEFILE) objects
+	LD_LIBRARY_PATH=$(COINLIBDIR):$(LD_LIBRARY_PATH) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(document),icompile("$(*F)","$(@D)")'
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/%.pl:	%.pl $(PREFIX)/lib/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/%.ecl:	%.ecl $(PREFIX)/lib/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/$(ARCH)/%.$(OBJ_SUFFIX):	$(ARCH)/%.$(OBJ_SUFFIX) $(PREFIX)/lib/$(ARCH)/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/$(ARCH)/%.dll.a:	$(ARCH)/%.dll $(PREFIX)/lib/$(ARCH)/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/$(ARCH)/%.def:	%.def $(PREFIX)/lib/$(ARCH)/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/$(ARCH)/%.def:	$(ARCH)/%.def $(PREFIX)/lib/$(ARCH)/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+# GAP source files
+$(PREFIX)/lib/%.g:	%.g $(PREFIX)/lib/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+
+#
+# Pretty-print the sources
+#
+
+PRETTY_DIR =	$(PREFIX)/doc_internal/lib
+
+HTML_DEST =	$(PL_ECO_FILES:%.pl=$(PRETTY_DIR)/%.html) \
+		$(ECL_ECO_FILES:%.ecl=$(PRETTY_DIR)/%.html) \
+		$(ECL_ONLY_FILES:%.ecl=$(PRETTY_DIR)/%.html)
+
+pretty:		$(PRETTY_DIR)/.stamp $(HTML_DEST)
+
+
+$(PRETTY_DIR)/%.html:	%.pl $(PRETTY_DIR)/.stamp
+	-@$(PREFIX)/bin/$(ARCH)/eclipse -e \
+	    "lib(pretty_printer),argv(all,[_,O|F]),pretty_print(F,[outdir:O])" \
+	    -- "$(PRETTY_DIR)" $<
+
+$(PRETTY_DIR)/%.html:	%.ecl $(PRETTY_DIR)/.stamp
+	-@$(PREFIX)/bin/$(ARCH)/eclipse -e \
+	    "lib(pretty_printer),argv(all,[_,O|F]),pretty_print(F,[outdir:O])" \
+	    -- "$(PRETTY_DIR)" $<
+
+$(PRETTY_DIR)/%.html:	ech/%.pl $(PRETTY_DIR)/.stamp
+	-@$(PREFIX)/bin/$(ARCH)/eclipse -e \
+	    "lib(pretty_printer),argv(all,[_,O|F]),pretty_print(F,[outdir:O])" \
+	    -- "$(PRETTY_DIR)" $<
+
+
+# Search dependencies
+
+$(PREFIX)/lib/fd_search.eco: generic_search.ecl 
+$(PREFIX)/lib/ic_search.eco: generic_search.ecl
+
+$(PREFIX)/lib/fd_search.eci: generic_search_comments.ecl 
+$(PREFIX)/lib/ic.eci: generic_search_comments.ecl
+
+# SBDS+SBDD dependencies
+
+$(PREFIX)/lib/fd_sbds.eco: generic_sbds.ecl 
+$(PREFIX)/lib/ic_sbds.eco: generic_sbds.ecl
+
+$(PREFIX)/lib/fd_sbds.eci: generic_sbds.ecl 
+$(PREFIX)/lib/ic_sbds.eci: generic_sbds.ecl
+
+# Sets dependencies
+
+$(PREFIX)/lib/fd_sets.eco : generic_sets.ecl
+$(PREFIX)/lib/ic_sets.eco : generic_sets.ecl
+
+$(PREFIX)/lib/fd_sets.eci : generic_sets.ecl
+$(PREFIX)/lib/ic_sets.eci : generic_sets.ecl
+
+$(PREFIX)/lib/ic_hybrid_sets.eco : generic_hybrid_sets.ecl
+
+$(PREFIX)/lib/ic_hybrid_sets.eci : generic_hybrid_sets.ecl
+
+# additional dependencies for eplex
+
+$(PREFIX)/lib/eplex_standalone.eco:	eplex_s.ecl eplex_standalone.ecl
+
+$(PREFIX)/lib/eplex.eci:	s_eplex_comments.ecl
+
+$(PREFIX)/lib/colgen.eco:	colgen.ecl colgen_.ecl
+$(PREFIX)/lib/colgen.eci:	colgen.ecl colgen_.ecl colgen_comments.ecl
+
+$(PREFIX)/lib/bfs.eci:		bfs.ecl bfs_comments.ecl
+
+# Additional dependencies for global constraints
+
+FD_INTERFACE = fd_generic_interface.ecl
+IC_INTERFACE = ic_generic_interface.ecl
+
+$(PREFIX)/lib/fd_global.eco : generic_global_constraints.ecl $(FD_INTERFACE)
+$(PREFIX)/lib/fd_global.eci : generic_global_constraints.ecl $(FD_INTERFACE)
+$(PREFIX)/lib/ic_global.eco : generic_global_constraints.ecl $(IC_INTERFACE)
+$(PREFIX)/lib/ic_global.eci : generic_global_constraints.ecl $(IC_INTERFACE)
+
+$(PREFIX)/lib/cumulative.eco : generic_cumulative.ecl $(FD_INTERFACE)
+$(PREFIX)/lib/cumulative.eci : generic_cumulative.ecl $(FD_INTERFACE)
+$(PREFIX)/lib/ic_cumulative.eco : generic_cumulative.ecl $(IC_INTERFACE)
+$(PREFIX)/lib/ic_cumulative.eci : generic_cumulative.ecl $(IC_INTERFACE)
+
+$(PREFIX)/lib/fd_edge_finder_common.eco : generic_edge_finder_common.ecl $(FD_INTERFACE)
+$(PREFIX)/lib/fd_edge_finder_common.eci : generic_edge_finder_common.ecl $(FD_INTERFACE)
+$(PREFIX)/lib/ic_edge_finder_common.eco : generic_edge_finder_common.ecl $(IC_INTERFACE)
+$(PREFIX)/lib/ic_edge_finder_common.eci : generic_edge_finder_common.ecl $(IC_INTERFACE)
+
+$(PREFIX)/lib/edge_finder.eco : generic_edge_finder.ecl
+$(PREFIX)/lib/edge_finder.eci : generic_edge_finder.ecl
+$(PREFIX)/lib/ic_edge_finder.eco : generic_edge_finder.ecl
+$(PREFIX)/lib/ic_edge_finder.eci : generic_edge_finder.ecl
+
+$(PREFIX)/lib/edge_finder3.eco : generic_edge_finder.ecl
+$(PREFIX)/lib/edge_finder3.eci : generic_edge_finder.ecl
+$(PREFIX)/lib/ic_edge_finder3.eco : generic_edge_finder.ecl
+$(PREFIX)/lib/ic_edge_finder3.eci : generic_edge_finder.ecl
+
+
+# specific installation rules for ech
+
+$(PREFIX)/lib/%.pl:	ech/%.pl $(PREFIX)/lib/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/%.eco:	ech/%.pl $(PREFIX)/lib/.stamp
+	$(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(fcompile), set_flag(variable_names,off), fcompile("ech/$(*F)", [outdir:"$(@D)"])'
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/%.eci:	ech/%.pl $(OBJECTS) $(PREFIX)/lib/.stamp
+	$(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(document),icompile("$<","$(@D)")'
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/doc/examples/ech/%.pl:	ech/%.pl $(PREFIX)/doc/examples/ech/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+
+#----------------------------------------------------------------------
+# Rebuild configured files
+#----------------------------------------------------------------------
+
+config.h:	stamp-h
+stamp-h:	config.h.in
+	@( cd $(top_srcdir); \
+	  if grep "hostname = `hostname`" config.log ; then \
+	    ./config.status ; \
+	  else \
+	    echo === Please re-run configure on this host ; \
+	  fi )
+
+$(MAKEFILE):	Makefile.in
+	@( cd $(top_srcdir); \
+	  if grep "hostname = `hostname`" config.log ; then \
+	    ./config.status ; \
+	  else \
+	    echo === Please re-run configure on this host ; \
+	  fi )
+

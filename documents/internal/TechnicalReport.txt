@@ -1,0 +1,67 @@
+# BEGIN LICENSE BLOCK
+# Version: CMPL 1.1
+#
+# The contents of this file are subject to the Cisco-style Mozilla Public
+# License Version 1.1 (the "License"); you may not use this file except
+# in compliance with the License.  You may obtain a copy of the License
+# at www.eclipse-clp.org/license.
+# 
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+# the License for the specific language governing rights and limitations
+# under the License. 
+# 
+# The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+# The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+# Portions created by the Initial Developer are
+# Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
+# 
+# Contributor(s): 
+# 
+# END LICENSE BLOCK
+
+IC-PARC Technical Reports
+=========================
+
+IC-PARC-03-1 ECLiPSe Tutorial - An Introduction
+IC-PARC-03-2 ECLiPSe Application Development Tutorial
+IC-PARC-03-3 A Hybrid Multicommodity Routing Algorithm for Traffic Engineering
+IC-PARC-04-1 Mathematical Models for the IGP Metric Optimization Problem with no Flow Splitting
+IC-PARC-04-2 Global Filtering for the Disjointness Constraint on Fixed Cardinality Sets
+IC-PARC-04-3 CP-Based Lagrange Decomposition Applied to Multicast Network Planning
+IC-PARC-04-4 Hybrid Lagrangian Relaxation for Bandwidth-Constrained Routing: 
+Knapsack Decomposition
+IC-PARC-04-5 Data Requirements of Networking Applications
+IC-PARC-05-1 ECLiPSe Tutorial - An Introduction (updated for ECLiPSe 5.8)
+
+% Latex macro for IC-PARC technical report cover page
+% Usage: techReport{<Number>}{Title}{Author(s)}
+
+\usepackage{pstricks}
+\newcommand{\techReport}[3]{
+\thispagestyle{empty}
+\begin{center}\fbox{\large TECHNICAL REPORT IC-PARC-#1}\end{center}
+\vspace{120pt}
+\begin{center}
+\huge #2
+\vspace{24pt} \\
+\large #3
+\end{center}
+\begin{pspicture}(0,10)
+\parbox{\textwidth}{
+\large
+ IC-PARC\\
+ Centre for Planning and Resource Control\\
+ William Penney Laboratory \\
+ Imperial College London\\
+ London\\
+ SW7 2AZ}
+\end{pspicture}\vspace{\fill}
+\vspace{\fill}
+\newpage
+\title{#2}
+}
+
+It's quick and a little hacky - the vertical spacing needs to be adjusted 
+depending on what is being crammed onto the frontpage - modify:
+\begin{pspicture}(0,10).
