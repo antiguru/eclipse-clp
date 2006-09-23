@@ -1,0 +1,174 @@
+Building ECLiPSe
+----------------
+
+You should have the following environment settings:
+
+    export ARCH=<architecture to build for>
+
+	the ECLiPSe architecture name, e.g.
+	    i386_linux
+	    x86_64_linux
+	    sparc_sunos5
+	    i386_sunos5
+	    x86_64_sunos5
+	    i386_nt
+	    ppc_macosx
+
+    export ECLIPSETHIRDPARTY=/vol/Eclipse/thirdparty
+
+    	this points to the location of third-party components that
+	ECLiPSe builds interfaces for, e.g. gmp, cplex, xpress-mp,
+	flexlm, graphviz, grappa.  Configure will detect the presence
+	of components there and build interfaces if possible.
+
+    export CONFIG_SITE=config.$ARCH
+
+    	if a file config.$ARCH exists in this directory, you should
+	have this setting before calling configure, otherwise it can
+	be left unset.
+
+
+Simple build from toplevel directory (e.g. i386_linux, sparc_sunos5):
+
+	./configure
+	make -f Makefile.$ARCH
+
+Build on multi-architecture machine, e.g. 64 bit build on 32/64 bit solaris:
+
+	export ARCH=x64_64_sunos5
+	export CONFIG_SITE=config.$ARCH
+	./configure --build=x86_64-pc-solaris2.9
+	make -f Makefile.$ARCH
+
+Cross build, e.g. for Windows:
+
+	export ARCH=i386_nt
+	export CONFIG_SITE=config.$ARCH
+	./configure --host=i386-mingw32msvc
+	make -f Makefile.$ARCH
+
+To build the documentation:
+
+	make -f Makefile.$ARCH install_documents
+
+
+
+Configure
+---------
+
+There is a single configure in the toplevel directory.
+It generates several makefiles and some config.h.
+For a native build, you can just configure with no arguments.
+The following options are relevant:
+
+ --help
+
+ --prefix		where to install everything (not fully supported
+ 			at the moment)
+
+ --host=i386-mingw32msvc	cross-configure for i386_nt
+
+  --enable-debug          compile with all debugging features
+
+  --without-osi
+  --with-osi[=versions]
+			Build ECLiPSe interface to COIN-OR's OSI.  You can
+			optionally specify a version list, e.g. 
+			"clpcbc symclp". In this case, version specifies the
+			actual solver(s) that OSI is connected to. 
+			Default is to build all available versions.
+
+  --without-cplex
+  --with-cplex[=versions]
+                        Build ECLiPSe interface to ILOG Cplex.  You can
+                        optionally specify a version list, e.g. "81 90".
+                        Default is to build all available versions.
+
+  --without-xpress
+  --with-xpress[=versions]
+                        Build ECLiPSe interface to Dash Xpress-MP.  You can
+                        optionally specify a version list, e.g. "1427 1525".
+                        Default is to build all available versions.
+
+  --without-java
+  --with-java[=dir]     Build ECLiPSe/Java interface.
+                        If dir is given, this is taken as the Java installation
+                        to use, otherwise the value of a JAVA_HOME environment
+                        variable is used, otherwise a number of standard
+                        locations is searched for a Java installation.
+                        Default:yes
+
+  --without-flexlm
+  --with-flexlm[=version]
+                        Build ECLiPSe interface to FlexLM. You can optionally
+                        specify a version preference list.  Default is to
+                        build first available.
+
+  --with-graphviz[=versions]
+                        Copy graphviz executables into the installation.
+                        You can optionally specify a version list, e.g. "1.10".
+                        Default is to use the first available version.
+
+  --with-mysql[=versions]
+                        Build ECLiPSe database interface.  You can optionally
+                        specify a version list, e.g. "50".
+                        Default is to build the first available version.
+
+
+
+Makefiles
+---------
+
+For historical reasons, there are two variants:
+
+For Shm and sepia, a Makefile is created in their $ARCH
+subdirectory (from src/Makefile.in). To run the local build,
+cd to {Shm,sepia}/$ARCH and invoke
+	make install
+as before. Note that the $ARCH directories here do no longer
+have symlinks to the sources, we use VPATH instead. There is
+no longer a local configure!
+
+Other directories (icparc_solvers etc) have a Makefile.$ARCH
+(generated from Makefile.in). To run the local build there,
+you need to call
+	make -f Makefile.$ARCH install
+
+There is also a Makefile.$ARCH (generated from Makefile.in)
+in the toplevel directory which builds everything.
+
+All makefiles implement the targets:
+	install
+	clean
+	archclean
+apart from that, they are still somewhat non-uniform.
+
+After changing a Makefile.in or a config.h.in you can
+regenerate the Makefiles or config.h by invoking
+	./config.status
+in the toplevel directory, but only if you have not
+configured on a different architecture since the original
+configure!!! If you have, you must rerun toplevel configure.
+
+
+# BEGIN LICENSE BLOCK
+# Version: CMPL 1.1
+#
+# The contents of this file are subject to the Cisco-style Mozilla Public
+# License Version 1.1 (the "License"); you may not use this file except
+# in compliance with the License.  You may obtain a copy of the License
+# at www.eclipse-clp.org/license.
+# 
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+# the License for the specific language governing rights and limitations
+# under the License. 
+# 
+# The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+# The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+# Portions created by the Initial Developer are
+# Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
+# 
+# Contributor(s): Joachim Schimpf, CrossCore Optimization
+# 
+# END LICENSE BLOCK

@@ -1,0 +1,279 @@
+----------------------------------------------
+ECLiPSe - Constraint Logic Programming System
+----------------------------------------------
+
+# BEGIN LICENSE BLOCK
+# Version: CMPL 1.1
+#
+# The contents of this file are subject to the Cisco-style Mozilla Public
+# License Version 1.1 (the "License"); you may not use this file except
+# in compliance with the License.  You may obtain a copy of the License
+# at www.eclipse-clp.org/license.
+# 
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+# the License for the specific language governing rights and limitations
+# under the License. 
+# 
+# The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+# The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+# Portions created by the Initial Developer are
+# Copyright (C) 1992-2006 Cisco Systems, Inc.  All Rights Reserved.
+# 
+# Contributor(s): ECRC GmbH
+# Contributor(s): IC-Parc, Imperial College London
+# 
+# END LICENSE BLOCK
+
+-----------------------------------------------------------------------------
+ECLiPSe on UNIX/Linux  (see README_WIN for Windows, README_MACOSX for MacOSX)
+-----------------------------------------------------------------------------
+
+Unpacking
+---------
+
+You should have gotten the following files, either on CD or by ftp.
+There are different versions of these files for different machine
+architectures. These are tar-files compressed with gzip.
+
+Base:
+    README_UNIX			The file you are reading now
+    UNPACK			Unpacking script (Unix)
+    eclipse_basic.tgz		Kernel and basic libraries
+    eclipse_doc_online.tgz	Documentation (html,txt,man)
+    eclipse_doc_print.tgz	Documentation (pdf)
+
+Optional:
+    eclipse_misc.tgz		Free/3rd party libraries
+    eclipse_misc_nc.tgz		Free libraries not for commercial use
+    if_osiclpcbc.tgz            Interface to COIN-OR's open source solvers 
+                                CLP and CBC
+    eclipse_source.tgz		Source code for selected ECLiPSe libraries
+
+Support:
+    tcltk.tgz			A matching Tcl/Tk release (8.4)
+    				(you may have that already).
+				Needed for the tkeclipse development GUI.
+
+These other files are only needed under special circumstances:
+    eclipse_rt.tgz		Runtime only (subset of eclipse_basic.tgz)
+    if_cplexXY.tgz		Interface to CPLEX(r) version XY
+    if_xpressXY.tgz		Interface to XPRESS-MP version XY
+
+
+Make a directory for ECLiPSe on your machine (in the following
+we will write this directory as <eclipsedir>) and move the
+distribution files there.
+
+Uncompress and untar the files in this directory using
+
+    % ./UNPACK
+
+This will create the ECLiPSe directory structure below the
+current directory.
+
+Note that you can always add optional components later without
+having to repeat the installation process below.
+
+
+Installation
+------------
+
+Now run the installation script:
+
+    % ./RUNME
+
+This will prompt you for the necessary information and create
+the eclipse executables in <eclipsedir>/bin/<arch> (where <arch>
+stands for one of the supported machine architectures).
+
+
+To run ECLiPSe
+--------------
+
+Add <eclipsedir>/bin/<arch> to your PATH, e.g.
+
+    % PATH=$PATH:/usr/local/eclipse/bin/sparc_sunos5		(sh/bash)
+ or
+    % setenv path ($path /usr/local/eclipse/bin/sparc_sunos5)	(csh)
+
+It is normally not necessary to set any environment variables in order
+to run eclipse. ECLiPSe is simply called from the command line as:
+
+    % eclipse		(command-line interface)
+or
+    % tkeclipse		(GUI version, needs Tcl/Tk)
+
+If you use the ECLiPSe embeddable library, your may have to set
+$LD_LIBRARY_PATH to include <eclipsedir>/lib/<arch> to enable
+the dynamic linker to find it.
+
+
+Further notes on installation
+-----------------------------
+
+The ECLiPSe installation directory may be shared between machines
+with different hardware/operating system architectures, e.g.
+i386_linux and sparc_sunos5. To do so, just unpack the distributions
+for the different architectures in the same installation directory.
+All architecture-dependent files will go in separate subdirectories.
+
+When you are doing the installation on a networked file system, it is
+recommended that you specify to the installation script a pathname
+under which the directory can be found on all the client machines. 
+If there is no such unique pathname, then users will have to set the
+environment variable ECLIPSEDIR according to where the directory can
+be found on the machine they are on.
+
+
+Documentation
+-------------
+
+The installation subdirectory <eclipsedir>/doc contains html and pdf
+versions of the user documentation. To read the html documentation,
+set your browser to e.g.
+
+    file:<eclipsedir>/doc/index.html
+
+
+The printable documentation is contained in the files:
+
+    tutorial.pdf	Tutorial
+
+    userman.pdf		Basic user manual
+
+    libman.pdf		Library user manual (constraints libraries)
+
+    embedding.pdf	Interfacing and embedding manual
+
+The Reference Manual (the detailed descriptions of the built-in
+predicates and all the libraries) is available exclusively in html
+format and via the help/1 predicate from within ECLiPSe.
+
+Unix man pages are under
+
+    <eclipsedir>/man
+
+
+Installation hints for the 'eplex' library
+----------------------------------------------
+
+The ECLiPSe 'eplex' library is an interface to an external commercial
+Xpress-MP or CPLEX LP/MIP solver.
+
+If you own a separate Xpress-MP or CPLEX licence, then you can use
+the 'eplex' library with the corresponding solver. In this case, you
+need to download a version of 'eplex' that matches the version of the
+Xpress-MP or CPLEX licence that you have (although it may be possible to
+run an older version with a newer licence). For example, for Xpress-MP X.Y,
+you need the package if_xpressXY.tgz.  Similarly, if you have CPLEX X.Y
+you need the package if_cplexXY.tgz.  You can install a mix of different
+versions by just unpacking multiple packages.
+
+To tell ECLiPSe which licence you have on which machine, add the
+necessary lines to the text file <eclipsedir>/lib/eplex_lic_info.ecl,
+according to the instructions provided there.  With this setup, you
+can load the eplex library from ECLiPSe by just invoking lib(eplex),
+and you will get the correct version for each machine.
+
+Academic licences for CPLEX are available from ILOG at
+    http://www.ilog.com/partners/academic/license.cfm
+Academic licences for XPRESS-MP are available from Dash Optimization at
+    http://www.dashoptimization.com/home/users/app.html
+
+
+Graphics
+--------
+
+The Embedding Interface and the TkEclipse Development Environment require
+Tcl/Tk version 8.3 or later.  If this is already installed on your machine
+(normally the case on Linux), you can use your existing installation by
+giving the version and the location of the corresponding library
+directories (e.g. /usr/lib) to the RUNME install program.
+
+Alternatively, you can use the tcltk.tgz package which comes with the
+ECLiPSe distribution. This goes into the tcltk subdirectory of the
+ECLiPSe installation. To make Tcl/Tk/scripts find the files, you
+may have to add <eclipsedir>/tcltk/<arch>/bin to your PATH and
+possibly add <eclipsedir>/tcltk/<arch>/lib to your $LD_LIBRARY_PATH.
+
+Several visualisation features require Java. The recommended version
+is at least 1.4, but versions from 1.2 upwards should still work.
+
+
+Emacs ECLiPSe mode
+------------------
+
+If you use the GNU emacs editor, an ECLiPSe mode is now provided for it.
+**Version 20 (or later) of GNU emacs is required.** This mode is based
+on the prolog mode by Umeda, and provides extensive syntax colouring 
+for ECLiPSe-specific features. See http://www.gnu.org/ if you need more 
+information on GNU and its software. 
+
+In order to use this mode, add the following line to your .emacs file:
+
+(autoload 'eclipse-mode "<eclipsedir>/lib_public/eclipse.el" "ECLIPSE editing mode" t)
+
+where <eclipsedir> is the path to your ECLiPSe installation directory.
+
+You may also need to add these lines so that the .pl and .ecl extensions
+are recognised to be ECLiPSe programs:
+
+(setq auto-mode-alist (cons '("\\.pl" . eclipse-mode) auto-mode-alist))
+(setq auto-mode-alist (cons '("\\.ecl" . eclipse-mode) auto-mode-alist))
+
+See the start of the eclipse.el file for some instructions on using this mode.
+
+
+----------------------------------------------
+General Topics
+----------------------------------------------
+
+Contact Addresses
+-----------------
+
+In case you have supplied us with your electronic mail address, we
+will add you automatically to the ECLiPSe announcements mailing list
+
+    eclipse-announce@icparc.ic.ac.uk
+
+to keep you informed about new releases. If you want to participate
+in discussions related to the use of ECLiPSe and exchange information
+with other users, you should subscribe to the ECLiPSe users mailing list
+
+    eclipse-users@icparc.ic.ac.uk
+
+See the web page http://www.icparc.ic.ac.uk/eclipse/mailinglist.html
+for how to subscribe and unsubscribe.
+
+Problem and bug reports can be submitted via the web site
+
+    http://www.icparc.ic.ac.uk/eclipse/bugs.html
+
+or by email to
+
+    eclipse-bugs@icparc.ic.ac.uk
+
+Please take the time to report problems. Your feedback helps us to
+make ECLiPSe more reliable!
+
+Other requests directed to the development team can be sent to
+
+    eclipse-request@icparc.ic.ac.uk
+
+
+Directory structure
+-------------------
+
+Directories in the binary distribution:
+
+	bin		executable files
+	lib		supported libraries, object files
+	lib_public	third party Prolog libraries
+	lib_noncomm	third party Prolog libraries not for commercial use
+	include		include files for C/C++ interface
+	doc		online documentation, pdf files and example code
+	man		Unix-style man pages
+
+	tcltk		a matching version of Tcl/Tk
+

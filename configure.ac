@@ -1,0 +1,1437 @@
+dnl BEGIN LICENSE BLOCK
+dnl Version: CMPL 1.1
+dnl
+dnl The contents of this file are subject to the Cisco-style Mozilla Public
+dnl License Version 1.1 (the "License"); you may not use this file except
+dnl in compliance with the License.  You may obtain a copy of the License
+dnl at www.eclipse-clp.org/license.
+dnl 
+dnl Software distributed under the License is distributed on an "AS IS"
+dnl basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+dnl the License for the specific language governing rights and limitations
+dnl under the License. 
+dnl 
+dnl The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+dnl The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+dnl Portions created by the Initial Developer are
+dnl Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
+dnl 
+dnl Contributor(s): ECRC GmbH
+dnl Contributor(s): IC-Parc, Imperial College London
+dnl Contributor(s): CrossCore Optimization
+dnl 
+dnl END LICENSE BLOCK
+dnl
+dnl ECLiPSe Configuration File
+dnl
+dnl Much of this file was previously sepia/src/configure.in
+dnl
+
+#----------------------------------------------------------------------
+# General
+#----------------------------------------------------------------------
+
+# AC_INIT defines PACKAGE_NAME and PACKAGE_VERSION
+AC_INIT([ECLiPSe], [5.10])
+AC_PREREQ([2.59])
+AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
+AC_REVISION([$Id: configure.ac,v 1.1 2006/09/23 01:45:05 snovello Exp $])
+AC_CONFIG_SRCDIR([BUILD_ROTD])
+AC_CONFIG_AUX_DIR([config])
+AC_PREFIX_DEFAULT([\${top_srcdir}])
+
+
+#----------------------------------------------------------------------
+# Host
+#----------------------------------------------------------------------
+
+# Where we build
+AC_CANONICAL_BUILD
+
+# What we build for
+AC_CANONICAL_HOST
+
+# Map autoconf's canonical host names to ECLiPSe's ARCH.
+# Please don't put anything else in this switch!
+case $host in
+
+    i?86-*-linux*)
+    	arch=i386_linux
+	;;
+    x86_64-*-linux*)
+    	arch=x86_64_linux
+	;;
+    i?86-*-solaris2.*)
+    	arch=i386_sunos5
+	;;
+    x86_64-*-solaris2.*)
+    	arch=x86_64_sunos5
+	;;
+    i?86-*-mingw32*)
+    	arch=i386_nt
+	;;
+    sparc*-*-sunos[1-4]*)
+    	arch=sun4
+	;;
+    sparc*-*-solaris2.* | sparc*-*-sunos5*)
+    	arch=sparc_sunos5
+	;;
+    powerpc*-*-darwin*)
+	arch=ppc_macosx
+	;;
+    alpha*-*-linux*)
+	arch=alpha_linux
+	;;
+    *)
+	AC_MSG_ERROR([Unknown architecture: $host])
+	;;
+esac
+
+# If ARCH was set, make sure it matches what was detected
+if test -z "$ARCH" ; then
+    ARCH=$arch
+else
+    if test "$ARCH" != "$arch" ; then
+	AC_MSG_ERROR([Your ARCH=$ARCH setting is incompatible with
+		--host=$host, change or unset ARCH])
+    fi
+fi
+
+AC_MSG_NOTICE([Building for ECLiPSe architecture ----- $ARCH -----])
+
+AC_DEFINE_UNQUOTED(HOSTARCH, "$ARCH")
+
+# When cross-building, make sure we have a site defaults file,
+# because many tests won't work!!!
+if test "$host" != "$build"; then
+    if ! test -r "$CONFIG_SITE"; then
+	AC_MSG_ERROR([Need site config file $CONFIG_SITE because we are cross-configuring!!!])
+    fi
+fi
+
+# Make sure we are using a reasonable CONFIG_SITE file
+if test -r "$CONFIG_SITE"; then
+    if test "$CONFIG_SITE" != "config.$ARCH"; then
+	AC_MSG_ERROR([Won't use "$CONFIG_SITE" for architecture $ARCH,
+	    change or unset CONFIG_SITE])
+    fi
+else
+    AC_MSG_NOTICE([No file $CONFIG_SITE])
+fi
+
+# This is how we tell the makefiles that we are cross-compiling
+if test "$host" != "$build"; then
+    MAKE_TARGET=install_cross
+else
+    MAKE_TARGET=install_all
+fi
+
+
+#----------------------------------------------------------------------
+# Defaults for variables
+#----------------------------------------------------------------------
+
+OPT_FLAGS=-O2
+OPT_FLAGS_EMU=-O1
+
+if test -z "$OS_INCLUDES"; then
+    OS_INCLUDES=""
+fi
+
+# OPT_LDFLAGS will be prefixed to LDFLAGS if not --enable-debug
+OPT_LDFLAGS="-s"
+
+# LDFLAGS is used when linking executables
+# --export-dynamic replaces obsolete -rdynamic option
+# It is only meaningful when linking an executable, and makes executable's
+# symbols visible in the dynamic symbol table (which would otherwise only
+# contain symbols exported from dynamically linked libraries). It is
+# probably only useful when making a statically linked eclipse, rather
+# than one using libeclipse.so, but probably doesn't hurt otherwise.
+LDFLAGS="-Wl,--export-dynamic"
+
+# DYNLDFLAGS is used when linking shared libraries
+# In principle, we should also use -Wl,-Bsymbolic here, to link the
+# references to global symbols within the library directly to the definition
+# within the library, and avoiding strange bugs due to symbol clashes.
+# However, this does not work properly with data symbols (like ec_),
+# due to the following behaviour. Quoting from
+# http://docs.sun.com/app/docs/doc/806-0641/6j9vuqujb?a=view:
+#  "If a symbolically bound symbol is interposed upon, then references to
+#   the symbol from outside of the symbolically bound object will bind to
+#   the interposer, whereas the object itself is already bound internally. 
+#   Essentially two symbols with the same name are now being referenced
+#   from within the process.  A symbolically bound data symbol that
+#   results in a copy relocation (see "Copy Relocations") creates the same
+#   interposition situation."
+DYNLDFLAGS="-shared"
+
+RUNPATH_LDFLAG="-Wl,-R"
+
+# OPT_LOCALFLAGS will be appended to LOCALFLAGS if not --enable-debug
+OPT_LOCALFLAGS=""
+OPTIMIZE=cp
+
+#
+# SYSLIBS contains libraries whose use is different on various
+# platforms and which are not needed during autoconfiguration
+# LIBS contains libraries needed to compile programs inside autoconf
+SYSLIBS=""
+GRAPHLIBS=""
+OBJECT_SUFFIX=o
+OBJECTS_SUFFIX=a
+LIB_PREFIX=lib
+BUILDO=o
+VIRTUAL_HEAP_DEFAULT="32*MB"
+VIRTUAL_SHARED_DEFAULT="64*MB"
+VIRTUAL_STACK_DEFAULT="128*MB"
+SHARED_MEM_OFFSET_HEAP="16*MB"
+LDTCL=""
+LOCK="lock.o"
+
+LL_C_SO=".c.so:"
+LD_C_SO="touch \$@"
+PL_C_SO=""
+PD_C_SO=""
+PL_O_SO=""
+PD_O_SO=""
+
+WANT_MPS=n
+
+dnl this must be before bsd on AIX
+LIBS="-lm $LIBS"
+
+if test -z "$LD"; then
+    LD=ld
+fi
+
+CXXSUFFIX=cc
+
+
+#----------------------------------------------------------------------
+# Explicit settings - things that can't be figured out automatically
+#----------------------------------------------------------------------
+case "$ARCH" in
+ ppc_macosx)
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
+    OBJECT_SUFFIX=dylib
+    OBJECTS_SUFFIX=dylib
+    LDFLAGS="-Wl,-search_paths_first"
+    DYNLDFLAGS="-dynamic -single_module -flat_namespace -search_paths_first -lgcc"
+    LD_C_SO=""
+    PL_C_SO=".c.dylib:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.dylib:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="libtool"
+    # LDTCL for loading Tcl/Tk, implemented as a Framework
+    LDTCL="-framework tcl"
+    # RUNPATH_LDLAG is really a noop here
+    RUNPATH_LDFLAG="-L"
+    LOCK=
+    ;;
+ sun4)
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-Dsun4_0 -DD_LOAD"
+    OPT_LDFLAGS="-Xlinker -x"
+    LDFLAGS="-static"
+    RUNPATH_LDFLAG="-L"
+
+    WANT_MPS=y
+    ;;
+ supersparc_sunos4)
+    CFLAGS="-msupersparc $CFLAGS"
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-Dsun4_0 -DD_LOAD"
+    LDFLAGS="-Xlinker -Bstatic"
+    RUNPATH_LDFLAG="-L"
+
+    WANT_MPS=y
+    ;;
+ sparc_sunos5)
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    DYNLDFLAGS="-G"
+    AC_DEFINE(SVR4)
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -G \$< -o \$@"
+    PL_C_SO=".c.so:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.so:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="\$(CC)"
+    WANT_MPS=y
+    AC_DEFINE(HAVE_MAP_NORESERVE)
+    ;;
+ i386_sunos5)
+    CFLAGS="-m32 -fPIC"
+    LDFLAGS="-m32"
+    DYNLDFLAGS="-m32 -G"
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    AC_DEFINE(SVR4)
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -G \$< -o \$@"
+    PL_C_SO=".c.so:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.so:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="\$(CC)"
+    WANT_MPS=y
+    AC_DEFINE(HAVE_MAP_NORESERVE)
+    ;;
+ x86_64_sunos5)
+    CFLAGS="-m64 -fPIC"
+    LDFLAGS="-m64 "
+    DYNLDFLAGS="-m64 -shared"
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+
+    AC_DEFINE(SVR4)
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared \$< -o \$@"
+    PL_C_SO=".c.so:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.so:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="\$(CC)"
+    WANT_MPS=y
+    AC_DEFINE(HAVE_MAP_NORESERVE)
+    ;;
+ alpha_linux)
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    FLOAT_ROUND_FLAGS="-mfp-rounding-mode=d"
+    CFLAGS="-mieee $CFLAGS"
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared \$< -o \$@"
+    PL_C_SO=".c.so:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.so:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="\$(CC)"
+    ;;
+ i386_linux)
+    OPTIMIZE="sh ../src/opt_i386_linux.sh"
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared \$< -o \$@"
+    PL_C_SO=".c.so:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.so:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="\$(CC)"
+    WANT_MPS=y
+    # the check for mman.h does not work in my linux release because
+    # of a compiler warning. The following fix fakes the cache value:
+    ac_cv_header_sys_mman_h=yes
+    # at least some i386 linux libcs have this bug:
+    AC_DEFINE(ATOF_NEGZERO_BUG)
+    ;;
+ x86_64_linux)
+    CFLAGS="-fPIC $CFLAGS"
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared \$< -o \$@"
+    PL_C_SO=".c.so:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.so:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="\$(CC)"
+    WANT_MPS=y
+    ;;
+ i386_nt)
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DREMOTE_TESTS"
+    OBJECT_SUFFIX=dll
+    OBJECTS_SUFFIX=dll
+    LIB_PREFIX=
+    DYLD="\$(CC)"
+    dnl wsock32 is for select(), gethostname() and sockets
+    dnl netapi32 is for the Netbios() function
+    LIBS="-lwsock32 -lnetapi32 $LIBS"
+
+    ;;
+ i386_dynix3)
+    LOCAL_FLAGS="-DD_LOAD"
+    ;;
+ dec5000)
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    AC_DEFINE(REMOTE_TESTS)
+    ;;
+ alpha_osf32)
+    CFLAGS="-taso -Olimit 4500 -ieee_with_inexact $CFLAGS"
+    OPT_FLAGS_EMU=-O2
+    LDFLAGS=-taso
+    DYNLDFLAGS="-G -taso"
+    LOCAL_FLAGS="-DD_LOAD"
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared \$< -o \$@"
+    PL_O_SO=".o.so:"
+    PD_O_SO="ld -shared \$< -o \$@"
+    DYLD = "\$(CC)"
+    WANT_MPS=y
+    ;;
+ rs_aix32)
+    CFLAGS="-fsigned-char $CFLAGS"
+    OPT_FLAGS_EMU=" "
+    OPT_FLAGS_ARITH=" "
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    LDFLAGS="-Xlinker -bexport:../../sepia/src/expsymtab"
+    AC_DEFINE(AIX)
+    AC_DEFINE(_BSD,44)
+    AC_DEFINE(_ALL_SOURCE)
+    AC_DEFINE(REMOTE_TESTS)
+    AC_DEFINE(SMALL_SPACE)
+    AC_DEFINE(STACK_BASE,0x30000000)
+    ;;
+ rs_aix32_cc)
+    CC=cc
+    CFLAGS="-qchars=signed $CFLAGS"
+    OPT_FLAGS_EMU=" "
+    OPT_FLAGS_ARITH=" "
+    LOCAL_FLAGS="-DD_LOAD"
+    LDFLAGS="-Wl,-bexport:../../sepia/src/expsymtab"
+    AC_DEFINE(AIX)
+    AC_DEFINE(_BSD,44)
+    AC_DEFINE(_ALL_SOURCE)
+    AC_DEFINE(REMOTE_TESTS)
+    AC_DEFINE(SMALL_SPACE)
+    AC_DEFINE(STACK_BASE,0x30000000)
+    ;;
+ rs_aix41)
+    CFLAGS="-fsigned-char $CFLAGS"
+    OPT_FLAGS_EMU=" "
+    OPT_FLAGS_ARITH=" "
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    LDFLAGS="-Xlinker -bexport:../../sepia/src/expsymtab"
+    AC_DEFINE(AIX)
+    AC_DEFINE(_BSD,44)
+    AC_DEFINE(_ALL_SOURCE)
+    AC_DEFINE(REMOTE_TESTS)
+    AC_DEFINE(SMALL_SPACE)
+    ;;
+ hp700_ux90)
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    LIBS="-L/lib/pa1.1 $LIBS"
+    LDFLAGS="-Xlinker -a -Xlinker archive"
+    AC_DEFINE(SVR4)
+    AC_DEFINE(REMOTE_TESTS)
+    ;;
+ spp_ux90)
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD"
+    LIBS="-L/lib/pa1.1 $LIBS"
+    LDFLAGS="-Xlinker -a -Xlinker archive"
+    AC_DEFINE(SVR4)
+    AC_DEFINE(REMOTE_TESTS)
+    ;;
+ sgi_irix52)
+    CFLAGS="-signed -Olimit 4300 -mips2 $CFLAGS"
+    LOCAL_FLAGS="-DD_LOAD"
+    AC_DEFINE(SVR4)
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    LL_C_SO=""
+    LD_C_SO=""
+    PL_O_SO=".o.so:"
+    PD_O_SO="ld -shared \$< -o \$@"
+    DYNLDFLAGS = "-shared"
+    DYLD="ld"
+    WANT_MPS=y
+    ;;
+ next_mach)
+    LOCAL_FLAGS="-DNO_SAVE"
+    AC_DEFINE(REMOTE_TESTS)
+    ;;
+ m88k_svr4)
+    OPT_FLAGS_EMU=-O
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD -DGETTIME1"
+    SYSLIBS="-ltermcap $SYSLIBS"
+    AC_DEFINE(REMOTE_TESTS)
+    AC_DEFINE(SVR4)
+#    BUILDO=so		# problems with the dynamic linker
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared \$< -o \$@"
+    PL_C_SO=".c.so:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.so:"
+    PD_O_SO="$LD_C_SO"
+    DYNLDFLAGS="\$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared"
+    DYLD = "\$(CC)"
+    WANT_MPS=y
+    # FIND_X is buggy, but not path is needed, so the default one will do
+    x_libraries=/usr/lib
+    ;;
+ *)
+    echo $ARCH:Unknown architecture
+    exit
+    ;;
+esac
+
+
+#----------------------------------------------------------------------
+# checks for programs
+#----------------------------------------------------------------------
+
+if test -z "$CFLAGS"; then
+    # stop AC_PROG_CC from initialising CFLAGS
+    CFLAGS=" "
+fi
+
+# Find compiler, also sets OBJEXT and EXEEXT
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_CXX
+AC_PROG_CXXCPP
+AC_PROG_AWK
+AC_PROG_RANLIB
+AC_PROG_LN_S
+AC_CHECK_PROG(SED,sed,sed,false)
+
+# Compiler characteristics
+
+AC_C_CONST
+AC_C_INLINE
+AC_C_VOLATILE
+AC_C_BIGENDIAN
+AC_C_CHAR_UNSIGNED
+AC_CHECK_SIZEOF(int,4)
+AC_CHECK_SIZEOF(long,4)
+AC_CHECK_SIZEOF(char *,4)
+AC_CHECK_SIZEOF(long *,4)
+
+AC_CHECK_TYPES([long long, __int64])
+AC_CHECK_TYPES([long long])
+
+dnl Check for void pointers
+AC_CACHE_CHECK(for void pointer, ec_cv_c_void_p,
+    AC_TRY_COMPILE([] , [void *p;],
+	ec_cv_c_void_p=yes, ec_cv_c_void_p=no))
+if test "$ec_cv_c_void_p" = no; then
+    AC_DEFINE(HAVE_NO_VOID_PTR)
+fi
+
+
+AC_CHECK_LIB(ieee,main)
+AC_CHECK_LIB(dl,dlopen)
+AC_CHECK_LIB(nsl,main)
+AC_CHECK_LIB(socket,socket)
+
+
+#----------------------------------------------------------------------
+# The --enable-debug option
+#----------------------------------------------------------------------
+AC_ARG_ENABLE(debug,
+	[  --enable-debug          compile with all debugging features],
+	OPTIMIZE=cp OPT_FLAGS_EMU=-g OPT_FLAGS_ARITH=-g OPT_FLAGS=-g LOCAL_FLAGS="$LOCAL_FLAGS -DPRINTAM",
+	NICE=nice LDFLAGS="$OPT_LDFLAGS $LDFLAGS" LOCAL_FLAGS="$LOCAL_FLAGS $OPT_LOCAL_FLAGS")
+
+if test -z "$OPT_FLAGS_EMU"; then
+	OPT_FLAGS_EMU="$OPT_FLAGS"
+fi
+if test -z "$OPT_FLAGS_ARITH"; then
+	OPT_FLAGS_ARITH="$OPT_FLAGS"
+fi
+
+#----------------------------------------------------------------------
+# The --with-readline option
+#----------------------------------------------------------------------
+#AC_ARG_WITH(readline,
+#	[  --with-readline         support fancy command line editing],
+#	LOCAL_FLAGS="$LOCAL_FLAGS -DHAVE_READLINE" SYSLIBS="-lreadline -lhistory -ltermcap $SYSLIBS",
+#	[])
+
+
+AC_DEFINE_UNQUOTED(OBJECT_SUFFIX_STRING, "$OBJECT_SUFFIX")
+AC_DEFINE_UNQUOTED(VIRTUAL_HEAP_DEFAULT, $VIRTUAL_HEAP_DEFAULT)
+AC_DEFINE_UNQUOTED(VIRTUAL_SHARED_DEFAULT, $VIRTUAL_SHARED_DEFAULT)
+AC_DEFINE_UNQUOTED(VIRTUAL_STACK_DEFAULT, $VIRTUAL_STACK_DEFAULT)
+AC_DEFINE_UNQUOTED(SHARED_MEM_OFFSET_HEAP, $SHARED_MEM_OFFSET_HEAP)
+
+#----------------------------------------------------------------------
+# Programs
+#----------------------------------------------------------------------
+
+echo checking how to process .S files
+rm -f conftest*
+cat > conftest.S <<EOF
+#include "confdefs.h"
+l:
+EOF
+/bin/cp conftest.S conftest1.S
+err=`eval "($CC -c -I. -I../include conftest.S >/dev/null) 2>&1"`
+if test -z "$err" && test -f conftest.o; then
+  S_TO_O='$(CC) $(CPPFLAGS) $(CFLAGS) -c $<'
+else
+  rm -f conftest.o
+  /bin/cp conftest1.S conftest.S
+  err=`eval "(/lib/cpp -P -I. -I../include conftest.S >conftest.s;$CC -c conftest.s) 2>&1"`
+  if test -z "$err"; then
+    S_TO_O='/lib/cpp $(CPPFLAGS) -P $< > $*.s; $(CC) $(CFLAGS) -c $*.s'
+  else
+    rm -f conftest.o
+    err=`eval "($CC -E -P -I. -I../include conftest.S >conftest.s; $CC -c conftest.s) 2>&1"`
+    if test -z "$err"; then
+      S_TO_O='$(CC) $(CPPFLAGS) -E -P $< > $*.s; $(CC) $(CFLAGS) -c $*.s'
+    else
+	rm -f conftest.o
+	err=`eval "($CC -E -I. -I../include conftest.S >conftest.s; $CC -c conftest.s) 2>&1"`
+	if test -z "$err"; then
+	  S_TO_O='$(CC) $(CPPFLAGS) -E $< > $*.s; $(CC) $(CFLAGS) -c $*.s'
+	else
+	  echo "...I have found no way to process the .S files"
+	fi
+    fi
+  fi
+fi
+rm -f conftest*
+test -n "$verbose" && echo "	.S will be processed by $S_TO_O"
+
+
+#----------------------------------------------------------------------
+# Header files
+#----------------------------------------------------------------------
+dnl Check how to read a directory
+AC_HEADER_DIRENT
+dnl Check for ANSI C header files and string operations
+AC_HEADER_STDC
+AC_CHECKING(access types)
+AC_TRY_COMPILE([#include <unistd.h>], [
+    (void) access("/", R_OK);
+    ], AC_DEFINE(ACCESS_IN_UNISTD))
+dnl Check if sbrk is declared in unistd.h
+AC_EGREP_HEADER(sbrk, [unistd.h],, AC_DEFINE(SBRK_UNDEF))
+AC_EGREP_HEADER(gethostid, [unistd.h],, AC_DEFINE(GETHOSTID_UNDEF))
+AC_EGREP_HEADER(strtol, [unistd.h],, AC_DEFINE(STRTOL_UNDEF))
+AC_EGREP_HEADER(memcpy, [string.h], AC_DEFINE(MEMCPY_STRING),
+    AC_EGREP_HEADER(memcpy, [memory.h],AC_DEFINE(MEMCPY_MEMORY),))
+AC_EGREP_HEADER(PATH_MAX, limits.h, AC_DEFINE(PATH_IN_LIMITS))
+
+AC_CHECK_HEADERS(ctype.h memory.h string.h unistd.h sys/mman.h sys/param.h \
+		sys/systeminfo.h sys/utsname.h netdb.h fpu_control.h \
+		fcntl.h limits.h windows.h)
+
+
+#
+# Typedefs
+#
+dnl Check for off_t
+AC_TYPE_OFF_T
+dnl Check for pid_t
+AC_TYPE_PID_T
+dnl Check the return type of the signal handler function
+AC_TYPE_SIGNAL
+dnl Check size_t
+AC_TYPE_SIZE_T
+
+#----------------------------------------------------------------------
+# Library functions
+#----------------------------------------------------------------------
+dnl AC_FUNC_VFORK - this seems too strong for our purposes - bad on Solaris 2.x
+AC_CHECK_FUNC(vfork, , AC_DEFINE(vfork, fork) echo "...No vfork available")
+AC_CHECK_FUNCS(strerror bcopy memcpy memmove gethrtime localtime_r)
+AC_CHECK_FUNCS(getcwd gethostid uname getrusage getwd random)
+AC_CHECK_FUNCS(sigvec sigstack siginterrupt)
+AC_CHECK_FUNCS(sigaction sigaltstack sigprocmask)
+AC_CHECK_FUNCS(setsid sysconf sysinfo tcgetattr times)
+AC_CHECK_FUNCS(finite isinf isnan sincos)
+AC_CHECK_FUNC(alarm, AC_DEFINE(HAVE_ALARM), echo "...Alarm not found")
+AC_CHECK_FUNC(pipe, AC_DEFINE(HAVE_PIPE), echo "...No pipes available")
+AC_CHECK_FUNC(rename, AC_DEFINE(HAVE_RENAME), echo "...Rename not found")
+AC_CHECK_FUNC(setitimer, AC_DEFINE(HAVE_SETITIMER), echo "...Setitimer not found")
+AC_CHECK_FUNC(putenv, AC_DEFINE(HAVE_PUTENV), echo "...Putenv not found")
+AC_CHECK_FUNC(sleep, AC_DEFINE(HAVE_SLEEP), echo "...Sleep not found")
+AC_CHECK_FUNC(vsprintf, AC_DEFINE(HAVE_VARARGS), echo "...Vsprintf not found")
+AC_CHECK_FUNCS(vsprintf vsnprintf)
+AC_CHECK_FUNCS(fpsetround ieee_flags)
+
+dnl The following require xsock32 on Windows, and the check doesn't work:
+dnl this doesn't work: AC_SEARCH_LIBS(select, wsock32)
+dnl this doesn't work: AC_SEARCH_LIBS(gethostname, wsock32)
+AC_CHECK_FUNCS(select gethostname)
+
+AC_FUNC_MMAP
+
+AC_CACHE_CHECK(for working rint, ec_cv_func_rint,
+    AC_TRY_RUN([
+#include <math.h>
+double (*print)(double) = rint;
+int main() {exit((int) (*print)(0.2));}
+], ec_cv_func_rint=yes, ec_cv_func_rint=no, ec_cv_func_rint=no))
+if test "$ec_cv_func_rint" = yes; then
+    AC_DEFINE(HAVE_RINT)
+fi
+
+AC_CACHE_CHECK(for working trunc, ec_cv_func_trunc,
+    AC_TRY_RUN([
+#include <math.h>
+int main() {
+double (*ptrunc)(double) = trunc;
+exit(1.0 == (*ptrunc)(1.6) ? 0 : 1);}
+], ec_cv_func_trunc=yes, ec_cv_func_trunc=no, ec_cv_func_trunc=no))
+if test "$ec_cv_func_trunc" = yes; then
+    AC_DEFINE(HAVE_TRUNC)
+fi
+
+AC_CACHE_CHECK(whether sprintf returns length, ec_cv_func_sprintf,
+    AC_TRY_RUN([
+#include <stdio.h>
+int main() {char buf; exit(sprintf(&buf,""));}
+], ec_cv_func_sprintf=yes, ec_cv_func_sprintf=no, ec_cv_func_sprintf=yes))
+if test "$ec_cv_func_sprintf" = yes; then
+    AC_DEFINE(SPRINTF_RETURNS_LENGTH)
+fi
+
+AC_COMPILE_CHECK(fstat, [#include <sys/stat.h>], [
+struct stat buf;
+(void) fstat(0, &buf);
+], AC_DEFINE(HAVE_FSTAT), echo "...Fstat not found")
+
+AC_COMPILE_CHECK(svr4 dynamic loading, [#include <dlfcn.h>], [
+(void) dlopen("/", 0);
+], AC_DEFINE(HAVE_DLOPEN))
+
+AC_CHECK_HEADERS(mach-o/dyld.h)
+
+AC_COMPILE_CHECK(nlist, [#include <nlist.h>], [
+struct nlist nl;
+(void) nlist("/", &nl);
+], AC_DEFINE(HAVE_NLIST))
+
+echo checking for sgihrclock
+AC_TRY_RUN([
+#include <sys/types.h>
+#include <sys/syssgi.h>
+#include <sys/immu.h>
+#include <errno.h>
+
+main()
+{
+__psunsigned_t cycleval;
+if(syssgi(SGI_QUERY_CYCLECNTR, &cycleval) == -1
+   && errno == ENODEV)
+	exit(-1);
+}], AC_DEFINE(HAVE_SGIHRCLOCK,1), :,:)
+
+dnl The ':' arguments are to say do nothing in these cases
+
+echo checking for sgi64bitclock
+AC_TRY_RUN([
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/syssgi.h>
+#include <sys/immu.h>
+#include <errno.h>
+
+typedef unsigned long long iotimer_t;
+
+main()
+{
+__psunsigned_t phys_addr, raddr, cycleval;
+volatile iotimer_t start_value, *iotimer_addr;
+int fd, poffmask;
+poffmask = getpagesize() - 1;
+if((phys_addr = syssgi(SGI_QUERY_CYCLECNTR, &cycleval)) == -1
+   && errno == ENODEV)
+	exit(-1);
+raddr = phys_addr & ~poffmask;
+fd = open("/dev/mmem", O_RDONLY);
+iotimer_addr = (volatile iotimer_t *)mmap(0, poffmask, PROT_READ,
+					    MAP_PRIVATE, fd, (__psint_t)raddr);
+iotimer_addr = (iotimer_t *)((__psunsigned_t)iotimer_addr + (phys_addr & poffmask));
+start_value = *iotimer_addr;
+}], AC_DEFINE(HAVE_SGI64BITCLOCK,1), :,:)
+
+#
+# Structures
+#
+dnl Check if struct stat contains st_blksize
+AC_STRUCT_ST_BLKSIZE
+
+AC_COMPILE_CHECK([n_un in struct nlist],
+[#include <a.out.h>] , [struct nlist n; n.n_un.n_name;],
+AC_DEFINE(N_NAME, n_un.n_name), AC_DEFINE(N_NAME, n_name))
+
+
+#----------------------------------------------------------------------
+# System services
+#----------------------------------------------------------------------
+
+dnl Check for /dev/zero
+AC_CACHE_CHECK(for /dev/zero, ec_cv_dev_zero,
+    if test -r /dev/zero; then ec_cv_dev_zero=yes; else ec_cv_dev_zero=no; fi)
+if test "$ec_cv_dev_zero" = yes; then
+    AC_DEFINE(HAVE_DEV_ZERO)
+fi
+
+echo "checking if times() returns elapsed real time"
+AC_TRY_RUN([#include <sys/types.h>
+#include <sys/times.h>
+int main() {
+struct tms buf;
+exit( times(&buf) ? 1:0 );}], AC_DEFINE(BSD_TIMES),:,:)
+AC_CHECK_PROG(UPT, uptime, uptime, '')
+AC_DEFINE_UNQUOTED(UPTIME, $UPT)
+
+echo check if we can limit cputime
+check="/bin/csh -c 'limit cputime 10' >/dev/null 2>&1"
+if eval $check; then
+    AC_DEFINE(HAVE_CPU_LIMIT)
+fi
+
+#
+# Check how to get the page size
+#
+AC_COMPILE_CHECK(getpagesize, [], [
+(void) getpagesize();
+], AC_DEFINE(HAVE_GETPAGESIZE) vpage=1)
+if test -z "$vpage"; then
+#SVR4
+AC_COMPILE_CHECK(sysconf1, [#include <unistd.h>], [
+(void) sysconf(_SC_PAGESIZE);
+], AC_DEFINE(SYSCONF_PAGE, _SC_PAGESIZE) vpage=1)
+fi
+if test -z "$vpage"; then
+#AIX
+AC_COMPILE_CHECK(sysconf2, [#include <unistd.h>], [
+(void) sysconf(_SC_PAGE_SIZE);
+], AC_DEFINE(SYSCONF_PAGE, _SC_PAGE_SIZE) vpage=1)
+fi
+if test -z "$vpage"; then
+    echo "...don't know how to get the page size, using 4096"
+fi
+
+#
+# Check if we can get a signal when data is ready
+#
+# BSD
+AC_CACHE_CHECK(for bsd_sigio, ec_cv_sys_bsd_sigio,
+AC_COMPILE_CHECK(, [#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>], [
+int i, fd;
+(void) fcntl(fd, F_SETOWN, getpid());
+i = fcntl(fd, F_GETFL, 0);
+(void) fcntl(fd, F_SETFL, i | FASYNC);
+], ec_cv_sys_bsd_sigio=yes, ec_cv_sys_bsd_sigio=no))
+
+#HP-UX
+AC_CACHE_CHECK(for hp_ux_sigio, ec_cv_sys_hp_ux_sigio,
+AC_COMPILE_CHECK(, [#include <sys/types.h>
+#include <sys/ioctl.h>], [
+int i, fd, pid;
+pid = (int) getpid();
+(void) ioctl(fd, SIOCSPGRP, &pid);
+i = 1;
+(void) ioctl(fd, FIOASYNC, &i);
+], ec_cv_sys_hp_ux_sigio=yes, ec_cv_sys_hp_ux_sigio=no))
+
+#SVR4
+AC_CACHE_CHECK(for sigpoll, ec_cv_sys_sigpoll,
+AC_COMPILE_CHECK(, [#include <sys/types.h>
+#include <stropts.h>
+#include <sys/conf.h>], [
+int i, fd;
+i = ioctl(fd, I_SETSIG, S_RDNORM|S_RDBAND|S_HIPRI|S_BANDURG);
+], ec_cv_sys_sigpoll=yes, ec_cv_sys_sigpoll=no))
+
+if test "$ec_cv_sys_bsd_sigio" = yes; then
+    AC_DEFINE(SIGIO_FASYNC)
+elif test "$ec_cv_sys_hp_ux_sigio" = yes; then
+    AC_DEFINE(SIGIO_FIOASYNC)
+elif test "$ec_cv_sys_sigpoll" = yes; then
+    AC_DEFINE(SIGIO_SETSIG)
+else
+    echo "...SIGIO not available"
+fi
+
+#
+# Check if the signal action is reset to SIG_DLF before entering the handler
+#
+echo checking if signal action is reset before entering the handler
+AC_TRY_RUN([#include <signal.h>
+handler (n) {exit signal(n, SIG_IGN) == SIG_DFL;}
+main () {
+signal (SIGINT, handler);
+kill (getppid (), SIGINT);
+}
+], AC_DEFINE(HANDLER_RESET),:,:)
+
+#
+# Check if mprotect can be used to test for an area already allocated
+#
+echo checking if mprotect can be used to check for allocated pages
+AC_TRY_RUN([#include	<sys/types.h>
+#include	<sys/mman.h>
+#include	<errno.h>
+main () {
+return !(mprotect((char *) 0x3bffc000, 16384, PROT_READ|PROT_WRITE) == -1 &&
+	errno == ENOMEM);
+}
+], AC_DEFINE(HAVE_MPROTECT), echo "...mprotect does not work",
+echo "...mprotect not tested")
+
+#
+# Terminal I/O
+#
+AC_COMPILE_CHECK(termio, [#include <termio.h>], [
+struct termio   rawbuf;
+int		fd;
+rawbuf.c_iflag = tbuf->c_iflag & ~(INLCR | ICRNL);
+(void) ioctl(fd, TCGETA, &rawbuf);
+], AC_DEFINE(TERMIO_SYS_V_STYLE))
+
+AC_TRY_RUN([#include <termio.h>
+int main() {
+char	c = '\n';
+int res = ioctl(0, TIOCSTI, &c);
+if (res == 0) read(0, &c, 1);
+return res;}
+], AC_DEFINE(HAVE_PUSHBACK), :, :)
+
+
+AC_DEFINE(SOCKETS)
+
+AC_CHECK_HEADER([sys/un.h], AC_DEFINE(HAVE_AF_UNIX), [])
+
+
+dnl Check if we can get Ethernet Adapter Address 
+AC_CACHE_CHECK(if we can get Ethernet Adapter Address, ec_cv_siocgifhwaddr,
+    AC_TRY_COMPILE([#include <sys/ioctl.h>
+#include <net/if.h>], [
+	int fd;
+	struct ifreq req;
+	(void) ioctl(fd, SIOCGIFHWADDR, &req);
+	],
+	ec_cv_siocgifhwaddr=yes, ec_cv_siocgifhwaddr=no))
+
+if test "$ec_cv_siocgifhwaddr" = yes; then
+    AC_DEFINE(HAVE_SIOCGIFHWADDR)
+fi
+
+
+#----------------------------------------------------------------------
+# Check for various third party components
+#----------------------------------------------------------------------
+
+ECLIPSETHIRDPARTY=${ECLIPSETHIRDPARTY:-"/vol/Eclipse/thirdparty"}
+
+
+#----------
+# TCL
+#----------
+
+
+TCL_REQUIRED="8.4 8.3"
+
+if test "$ARCH" != "i386_nt"; then
+    dnl find X includes and libraries
+    AC_PATH_X
+    if test ! -z "$x_libraries"; then
+	GRAPHLIBS="-L$x_libraries -lX11 $GRAPHLIBS"
+    else
+	GRAPHLIBS="-lX11 $GRAPHLIBS"
+    fi
+    if test ! -z "$x_includes"; then
+	OS_INCLUDES="-I$x_includes $OS_INCLUDES"
+    fi
+fi
+found_tcl=
+for tcl_version in $TCL_REQUIRED; do
+    TCL_DIR=$ECLIPSETHIRDPARTY/tcltk$tcl_version
+    if test -d $TCL_DIR/$ARCH/lib ; then
+	found_tcl=yes
+	AC_DEFINE(HAVE_TCL)
+	AC_DEFINE(HAVE_TK)
+	OS_INCLUDES="-I$TCL_DIR/include $OS_INCLUDES"
+	if test "$ARCH" != "i386_nt"; then
+	    tcl_lib_version=$tcl_version
+	else
+	    tcl_lib_version=`echo $tcl_version|tr -d .`
+	fi
+	GRAPHLIBS="-L$TCL_DIR/$ARCH/lib -ltcl$tcl_lib_version -ltk$tcl_lib_version $GRAPHLIBS"
+	break
+    fi
+done
+if test -z "$found_tcl"; then
+    AC_MSG_WARN([Could not find usable Tcl ($TCL_REQUIRED) in $ECLIPSETHIRDPARTY])
+else
+    AC_MSG_NOTICE([Using Tcl in $TCL_DIR])
+fi
+
+
+#----------
+# GMP
+#----------
+
+GMP_REQUIRED="4.1"
+for gmp_version in $GMP_REQUIRED; do
+    GMP_DIR=$ECLIPSETHIRDPARTY/gmp$gmp_version
+    if test -d $GMP_DIR/$ARCH/lib; then
+	found_gmp=yes
+	AC_DEFINE(HAVE_GMP)
+	OS_INCLUDES="-I$GMP_DIR/include $OS_INCLUDES"
+	GMP_LIBDIR="$GMP_DIR/$ARCH/lib"
+	if test "$ARCH" = "i386_nt"; then
+	    GMP_LIB="gmp33"
+	else
+	    GMP_LIB="gmp"
+	fi
+	GMP_LD="-L$GMP_LIBDIR -l$GMP_LIB"
+	INSTALL_GMP=install_gmp
+	break
+    fi
+done
+if test -z "$found_gmp"; then
+    AC_MSG_WARN([Could not find Gmp ($GMP_REQUIRED) in $ECLIPSETHIRDPARTY])
+    # set to something, so we can use -R$(GMP_LIBDIR) without syntax error
+    GMP_LIBDIR="."
+else
+    AC_MSG_NOTICE([Using Gmp in $GMP_DIR])
+fi
+
+
+#----------
+# Osi
+#----------
+
+AC_ARG_WITH([osi], [[  --with-osi[=versions]
+			Build ECLiPSe interface to COIN-OR Osi.  You can
+			optionally specify a version list, e.g. "clpcbc sym".
+			Default is to build all available versions.
+    ]],
+    [osi_versions_requested="$withval"], [osi_versions_requested=yes])
+
+if test "$osi_versions_requested" != "no"; then
+    if test "$osi_versions_requested" = "yes"; then
+    	osi_versions_requested="clpcbc symclp"
+    fi
+    for version in $osi_versions_requested; do
+	OSIDIR="$ECLIPSETHIRDPARTY/coin"
+	ls -d $OSIDIR/lib/$ARCH/$version* >/dev/null 2>/dev/null
+	if test $? -eq 0; then
+	    OSI_VERSIONS="$OSI_VERSIONS $version"
+	    AC_MSG_NOTICE([Using OSI $version in $OSIDIR])
+	else
+	    AC_MSG_WARN([Could not find $ARCH support for $version in $OSIDIR])
+	fi
+    done
+fi
+if test -n "$OSI_VERSIONS"; then
+    AC_MSG_NOTICE([Will build OSI interfaces for versions $OSI_VERSIONS])
+else
+    AC_MSG_NOTICE([Not building any OSI interfaces])
+fi
+
+
+#----------
+# Cplex
+#----------
+
+case $ARCH in
+
+    i386_linux)
+    	CPLEX_ARCH_PREFIX=i86_linux
+	;;
+    x86_64_linux)
+    	CPLEX_ARCH_PREFIX=x86-64_RHEL
+	;;
+    sparc_sunos5)
+    	CPLEX_ARCH_PREFIX=ultrasparc
+	;;
+    *)
+    	CPLEX_ARCH_PREFIX=unsupported
+	;;
+esac
+
+AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
+			Build ECLiPSe interface to ILOG Cplex.  You can
+			optionally specify a version list, e.g. "81 90".
+			Default is to build all available versions.
+    ]],
+    [cplex_versions_requested="$withval"], [cplex_versions_requested=yes])
+
+if test "$cplex_versions_requested" != "no"; then
+    if test "$cplex_versions_requested" = "yes"; then
+    	cplex_versions_requested="75 81 90"
+    fi
+    for version in $cplex_versions_requested; do
+	CPLEXDIR="$ECLIPSETHIRDPARTY/cplex$version"
+	ls -d $CPLEXDIR/lib/$CPLEX_ARCH_PREFIX* >/dev/null 2>/dev/null
+	if test $? -eq 0; then
+	    CPLEX_VERSIONS="$CPLEX_VERSIONS $version"
+	    AC_MSG_NOTICE([Using Cplex in $CPLEXDIR])
+	else
+	    AC_MSG_WARN([Could not find $ARCH support in $CPLEXDIR])
+	fi
+    done
+fi
+if test -n "$CPLEX_VERSIONS"; then
+    AC_MSG_NOTICE([Will build Cplex interfaces for versions $CPLEX_VERSIONS])
+else
+    AC_MSG_NOTICE([Not building any Cplex interfaces])
+fi
+
+
+#----------
+# Xpress
+#----------
+
+AC_ARG_WITH([xpress], [[  --with-xpress[=versions]
+			Build ECLiPSe interface to Dash Xpress-MP.  You can
+			optionally specify a version list, e.g. "1427 1525".
+			Default is to build all available versions.
+    ]],
+    [xpress_versions_requested="$withval"], [xpress_versions_requested=yes])
+
+if test "$xpress_versions_requested" != "no"; then
+    if test "$xpress_versions_requested" = "yes"; then
+    	xpress_versions_requested="1326icp 1427icp 1427 1525"
+    fi
+    for version in $xpress_versions_requested; do
+	XPRESSDIR="$ECLIPSETHIRDPARTY/xosl$version"
+	if test -d "$XPRESSDIR/$ARCH"; then
+	    XPRESS_VERSIONS="$XPRESS_VERSIONS $version"
+	    AC_MSG_NOTICE([Using Xpress-MP in $XPRESSDIR])
+	else
+	    AC_MSG_WARN([Could not find $XPRESSDIR])
+	fi
+    done
+fi
+if test -n "$XPRESS_VERSIONS"; then
+    AC_MSG_NOTICE([Will build Xpress-MP interfaces for versions $XPRESS_VERSIONS])
+else
+    AC_MSG_NOTICE([Not building any Xpress-MP interfaces])
+fi
+
+
+#----------
+# Java
+#----------
+
+JAVA_SEARCH_PATH="\
+    $ECLIPSETHIRDPARTY/java/$ARCH/java \
+    /usr/java \
+    /usr/lib/java \
+    /usr/lib/jvm \
+    /usr/j2se\
+"
+
+AC_ARG_WITH([java], [[  --with-java[=dir]	Build ECLiPSe/Java interface.
+			If dir is given, this is taken as the Java installation
+			to use, otherwise the value of a JAVA_HOME environment
+			variable is used, otherwise a number of standard
+			locations is searched for a Java installation.
+			Default:yes
+    ]],
+    [with_java="$withval"], [with_java=yes])
+
+if test "$with_java" == "no"; then
+    unset JAVA_HOME
+    ALL_WITH_JAVA=
+    ALL_CROSS_WITH_JAVA=
+else
+    if test "$with_java" = "yes"; then
+	JAVA_SEARCH_PATH="$JAVA_HOME"
+    else
+	JAVA_SEARCH_PATH="$with_java"
+    fi
+    for JAVA_HOME in $JAVA_SEARCH_PATH; do
+	if test -d $JAVA_HOME/bin/java -a -d $JAVA_HOME/include; then
+	    break
+	fi
+    done
+    if test -d "$JAVA_HOME"; then
+	AC_DEFINE(HAVE_JAVA)
+	ALL_WITH_JAVA=all_with_java
+	ALL_CROSS_WITH_JAVA=all_cross_with_java
+	AC_MSG_NOTICE([Using Java in $JAVA_HOME])
+    else
+	unset JAVA_HOME
+	ALL_WITH_JAVA=
+	ALL_CROSS_WITH_JAVA=
+	AC_MSG_WARN([Could not find a usable Java installation])
+    fi
+fi
+
+
+#----------
+# FlexLM licence manager
+#----------
+
+FLEXLM_VERSION_PREF="7.2"
+
+AC_ARG_WITH([flexlm], [[  --with-flexlm[=version]
+			Build ECLiPSe interface to FlexLM. You can optionally
+			specify a version preference list.  Default is to
+			build first available.
+    ]],
+    [flexlm_versions="$withval"], [flexlm_versions=yes])
+
+FLEXLMDIR=
+if test "$flexlm_versions" != "no"; then
+    if test "$flexlm_versions" = "yes"; then
+    	flexlm_versions="$FLEXLM_VERSION_PREF"
+    fi
+    for version in $flexlm_versions; do
+	FLEXLMDIR="$ECLIPSETHIRDPARTY/flexlm$version/$ARCH"
+	if test -r "$FLEXLMDIR/lmclient.h"; then
+	    break
+	else
+	    FLEXLMDIR=
+	fi
+    done
+    if test -z "$FLEXLMDIR"; then
+	CPPFLAGS_WITH_WITHOUT_FLEXLM=CPPFLAGS_WITHOUT_FLEXLM
+	LIBS_WITH_WITHOUT_FLEXLM=LIBS_WITHOUT_FLEXLM
+	AC_MSG_WARN([Could not find FlexLM $flexlm_versions])
+    else
+	AC_DEFINE(HAVE_FLEXLM)
+	CPPFLAGS_WITH_WITHOUT_FLEXLM=CPPFLAGS_WITH_FLEXLM
+	LIBS_WITH_WITHOUT_FLEXLM=LIBS_WITH_FLEXLM
+	AC_MSG_NOTICE([Using FlexLM in $FLEXLMDIR])
+    fi
+else
+    CPPFLAGS_WITH_WITHOUT_FLEXLM=CPPFLAGS_WITHOUT_FLEXLM
+    LIBS_WITH_WITHOUT_FLEXLM=LIBS_WITHOUT_FLEXLM
+    AC_MSG_NOTICE([Not building the FlexLM interface])
+fi
+
+
+#----------
+# Grappa (prerequisite for Visualisation component)
+#----------
+
+ALL_VISUALISATION=
+ALL_VISUALISATION_CROSS=
+if test -n "$JAVA_HOME"; then
+
+    GRAPPA_REQUIRED="1.2"
+    for version in $GRAPPA_REQUIRED; do
+	GRAPPA_DIR=$ECLIPSETHIRDPARTY/grappa$version
+	GRAPPA_JAR=grappa`echo $version|tr . _`.jar
+	if test -r $GRAPPA_DIR/$GRAPPA_JAR; then
+	    break
+	fi
+	GRAPPA_JAR=
+    done
+    if test -z "$GRAPPA_JAR"; then
+	AC_MSG_WARN([Could not find Grappa ($GRAPPA_REQUIRED) in $ECLIPSETHIRDPARTY])
+    else
+	ALL_VISUALISATION=all_visualisation
+	ALL_VISUALISATION_CROSS=all_visualisation_cross
+	AC_MSG_NOTICE([Using Grappa $GRAPPA_DIR/$GRAPPA_JAR])
+    fi
+
+else
+    AC_MSG_WARN([Not looking for Grappa because no Java available])
+fi
+
+
+#----------
+# Graphviz
+#----------
+
+AC_ARG_WITH([graphviz], [[  --with-graphviz[=versions]
+			Copy graphviz executables into the installation.
+			You can optionally specify a version list, e.g. "1.10".
+			Default is to use the first available version.
+    ]],
+    [graphviz_versions_requested="$withval"], [graphviz_versions_requested=yes])
+
+GRAPHVIZ_TARGET=
+GRAPHVIZ_DIR=
+if test "$graphviz_versions_requested" != "no"; then
+    if test "$graphviz_versions_requested" = "yes"; then
+    	graphviz_versions_requested="1.10"
+    fi
+    for version in $graphviz_versions_requested; do
+	GRAPHVIZ_DIR="$ECLIPSETHIRDPARTY/graphviz$version/$ARCH"
+	if test -d "$GRAPHVIZ_DIR"; then
+	    GRAPHVIZ_TARGET=install_graphviz
+	    AC_MSG_NOTICE([Using Graphviz version $version])
+	    break
+	else
+	    AC_MSG_WARN([Could not find $GRAPHVIZ_DIR])
+	fi
+    done
+fi
+if test -z "$GRAPHVIZ_TARGET"; then
+    AC_MSG_NOTICE([Not adding Graphviz executables])
+fi
+
+
+#----------
+# MySQL
+#----------
+
+AC_ARG_WITH([mysql], [[  --with-mysql[=versions]
+			Build ECLiPSe database interface.  You can optionally
+			specify a version list, e.g. "50".
+			Default is to build the first available version.
+    ]],
+    [mysql_versions_requested="$withval"], [mysql_versions_requested=yes])
+
+ALL_WITH_MYSQL=
+ALL_CROSS_WITH_MYSQL=
+if test "$mysql_versions_requested" != "no"; then
+    if test "$mysql_versions_requested" = "yes"; then
+	if test "$ARCH" = "i386_nt"; then
+	    # temporary, doesn't work yet
+	    mysql_versions_requested=
+	else
+	    mysql_versions_requested="50"
+	fi
+    fi
+    for version in $mysql_versions_requested; do
+	MYSQLDIR="$ECLIPSETHIRDPARTY/mysql$version/$ARCH"
+	if test -d "$MYSQLDIR"; then
+	    ALL_WITH_MYSQL=all_with_mysql
+	    ALL_CROSS_WITH_MYSQL=all_cross_with_mysql
+	    AC_MSG_NOTICE([Using MySQL version $version])
+	    break
+	else
+	    AC_MSG_WARN([Could not find $MYSQLDIR])
+	fi
+    done
+fi
+if test -z "$ALL_WITH_MYSQL"; then
+    AC_MSG_NOTICE([Not building MySQL interface])
+fi
+
+
+#----------
+# Documents
+#----------
+
+AC_CHECK_PROG(PROG_LATEX, latex, yes,no)
+AC_CHECK_PROG(PROG_PS2PDF,ps2pdf,yes,no)
+AC_CHECK_PROG(PROG_HEVEA, hevea, yes,no)
+
+MAKE_DOCUMENTS=
+if test "$PROG_LATEX" = yes -a "$PROG_PS2PDF" = yes -a "$PROG_HEVEA" = yes; then
+    MAKE_DOCUMENTS="make_documents"
+    AC_MSG_NOTICE([Can build ECLiPSe documentation])
+else
+    AC_MSG_WARN([No tools to build ECLiPSe documentation])
+fi
+
+
+#----------------------------------------------------------------------
+
+LIBS="-L. $SYSLIBS $LIBS"
+
+
+#----------------------------------------------------------------------
+# The files to generate
+#----------------------------------------------------------------------
+
+AC_CONFIG_FILES([
+	Makefile.$ARCH:Makefile.in
+	sepia/$ARCH/Makefile:sepia/src/Makefile.in
+	sepia/$ARCH/INST_PARAMS:sepia/src/INST_PARAMS.in
+	sepia/$ARCH/Makefile.external:sepia/src/Makefile.external.in
+	Shm/$ARCH/Makefile:Shm/src/Makefile.in
+	icparc_solvers/Makefile.$ARCH:icparc_solvers/Makefile.in
+	JavaInterface/Makefile.$ARCH:JavaInterface/Makefile.in
+	Flexlm/Makefile.$ARCH:Flexlm/Makefile.in
+	Visualisation/Makefile.$ARCH:Visualisation/Makefile.in
+	Contrib/Makefile.$ARCH:Contrib/Makefile.in
+	ecrc_solvers/Makefile.$ARCH:ecrc_solvers/Makefile.in
+	pt_libraries/Makefile.$ARCH:pt_libraries/Makefile.in
+	Oci/Makefile.$ARCH:Oci/Makefile.in
+	])
+AC_CONFIG_HEADERS([
+	sepia/$ARCH/config.h:sepia/src/config.h.in
+	Shm/$ARCH/config.h:Shm/src/config.h.in],
+	[echo timestamp > sepia/$ARCH/stamp-h])
+
+
+dnl Words to substitute in the Makefiles
+AC_SUBST(ARCH)
+AC_SUBST(ECLIPSETHIRDPARTY)
+AC_SUBST(top_srcdir)
+AC_SUBST(top_builddir)
+AC_SUBST(abs_top_builddir)
+AC_SUBST(prefix)
+AC_SUBST(CC)
+AC_SUBST(CXX)
+AC_SUBST(CXXSUFFIX)
+AC_SUBST(LD)
+AC_SUBST(AR)
+AC_SUBST(RANLIB)
+AC_SUBST(EXEEXT)
+AC_SUBST(NICE)
+AC_SUBST(OPT_FLAGS)
+AC_SUBST(OPT_FLAGS_ARITH)
+AC_SUBST(OPT_FLAGS_EMU)
+AC_SUBST(FLOAT_ROUND_FLAGS)
+AC_SUBST(CFLAGS)
+AC_SUBST(LOCAL_FLAGS)
+AC_SUBST(OS_INCLUDES)
+AC_SUBST(OPTIMIZE)
+AC_SUBST(LDFLAGS)
+AC_SUBST(DYNLDFLAGS)
+AC_SUBST(RUNPATH_LDFLAG)
+AC_SUBST(S_TO_O)
+AC_SUBST(C_TO_I)
+AC_SUBST(LL_C_SO)
+AC_SUBST(LD_C_SO)
+AC_SUBST(PL_C_SO)
+AC_SUBST(PD_C_SO)
+AC_SUBST(PL_O_SO)
+AC_SUBST(PD_O_SO)
+AC_SUBST(DYLD)
+AC_SUBST(LDTCL)
+AC_SUBST(TCL_DIR)
+AC_SUBST(BUILDO)
+AC_SUBST(GRAPHLIBS)
+AC_SUBST(LIBS)
+AC_SUBST(WANT_MPS)
+AC_SUBST(OBJECT_SUFFIX)
+AC_SUBST(OBJECTS_SUFFIX)
+AC_SUBST(LIB_PREFIX)
+AC_SUBST(GMP_LD)
+AC_SUBST(GMP_LIBDIR)
+AC_SUBST(GMP_LIB)
+AC_SUBST(INSTALL_GMP)
+AC_SUBST(LOCK)
+AC_SUBST(OSI_VERSIONS)
+AC_SUBST(CPLEX_VERSIONS)
+AC_SUBST(XPRESS_VERSIONS)
+AC_SUBST(ALL_WITH_JAVA)
+AC_SUBST(ALL_CROSS_WITH_JAVA)
+AC_SUBST(JAVA_HOME)
+AC_SUBST(CPPFLAGS_WITH_WITHOUT_FLEXLM)
+AC_SUBST(LIBS_WITH_WITHOUT_FLEXLM)
+AC_SUBST(FLEXLMDIR)
+AC_SUBST(GRAPPA_DIR)
+AC_SUBST(GRAPPA_JAR)
+AC_SUBST(ALL_VISUALISATION)
+AC_SUBST(MAKE_TARGET)
+AC_SUBST(MAKE_DOCUMENTS)
+AC_SUBST(ALL_WITH_MYSQL)
+AC_SUBST(ALL_CROSS_WITH_MYSQL)
+AC_SUBST(MYSQLDIR)
+AC_SUBST(GRAPHVIZ_TARGET)
+AC_SUBST(GRAPHVIZ_DIR)
+
+AC_OUTPUT

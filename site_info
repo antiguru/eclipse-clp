@@ -1,0 +1,130 @@
+# This script contains site-specific parameters for the BUILD_ROTD script
+
+# Architectures to build for
+ARCHITECTURES="\
+	i386_linux \
+	x86_64_linux \
+	sparc_sunos5 \
+	i386_nt
+"
+
+# Machine names that contain dots or hyphens must be given aliases without,
+# and the mapping defined here as MACHINE_NAME_<alias>=<fullname>, e.g
+# MACHINE_NAME_badgerix=badgerix.company.com
+# MACHINE_NAME_stupid_name=stupid-name
+# All definitions below must then only use the simple alias!
+
+
+# Machine to do disk-intensive operations on.
+DISK_MACHINE=
+
+# Where to build the installation by default (should be on DISK_MACHINE)
+ROTD_DIR=
+
+# Unix group name (all files will be made writable for this group)
+ECLIPSEGROUP=eclipse
+
+# Default location of CVS repository
+CVSDIR=
+CVS_RSH=ssh
+
+# Machine to perform CVS operations on.
+CVS_MACHINE=$DISK_MACHINE
+
+
+# Machine to perform find operations on.
+FIND_MACHINE=$DISK_MACHINE
+
+
+# Machine that the FTP site is on (does not need to share filesystem)
+FTP_MACHINE=
+
+# The destination directory for the archives (on FTP_MACHINE)
+BASE_ARCHIVE_DIR=
+
+
+# Machine to build documentation on.
+DOC_MACHINE=
+
+# Machine to pack the distribution archives on.
+PACK_MACHINE=$DISK_MACHINE
+
+# Native Windows machine for when one is necessary.
+WIN_NATIVE_MACHINE=
+
+# Machines to use to build each architecture.
+MACHINE_i386_linux=$DISK_MACHINE
+MACHINE_x86_64_linux=
+MACHINE_sparc_sunos5=
+MACHINE_alpha_linux=
+MACHINE_ppc_macosx=
+MACHINE_sun4=
+MACHINE_i386_nt=$MACHINE_i386_linux	# Cross-compiler
+
+
+# Optimizer versions to build
+OPTIMIZERS=
+
+
+# Machines to use to build architecture / optimizer combinations.
+# Comment out any versions/combinations you don't want built,
+# or are OK to build on any machine with that architecture.
+
+
+# List specifying which architectures and machines (do not) support Java.
+# By default, Java is assumed to be supported.  Also, a setting for a
+# specific machine overrides a specification for an architecture.
+JAVA_ARCH_sun4=no
+
+
+# Useful shell function for deciding whether a particular machine of
+# specified architecture supports Java or not.
+supports_java() {   # machine, arch
+    eval java_supported=\"'$JAVA_MACHINE_'$1\"
+    if [ -z "$java_supported" ] ; then
+	eval java_supported=\"'$JAVA_ARCH_'$2\"
+    fi
+
+    [ "$java_supported" != no ]
+}
+
+# Object suffix for each architecture (this shouldn't be here).
+
+OBJ_SUFFIX_sparc_sunos5=so
+OBJ_SUFFIX_sun4=o
+OBJ_SUFFIX_i386_linux=so
+OBJ_SUFFIX_x86_64_linux=so
+OBJ_SUFFIX_alpha_linux=so
+OBJ_SUFFIX_ppc_macosx=dylib
+OBJ_SUFFIX_i386_nt=dll
+
+
+# Machines to use to test each architecture.  Note that each architecture
+# can be tested on multiple machines, useful if they are different
+# configurations.  Also, instead of giving a specific machine name, it is
+# also possible to give a class of machines (e.g. farm) --- see the
+# MACHINE_CLASS_ALIAS_* variables.  In such a case, one machine is selected
+# from the class and the tests run on that machine.  Currently the machine
+# is selected by finding one on which no CPLEX licences are in use.
+
+TEST_MACHINES_i386_linux=
+TEST_MACHINES_x86_64_linux=
+TEST_MACHINES_sparc_sunos5=
+TEST_MACHINES_alpha_linux=
+TEST_MACHINES_ppc_macosx=
+TEST_MACHINES_sun4=
+TEST_MACHINES_i386_nt=
+
+MACHINE_CLASS_ALIAS_farm=
+
+
+# Machines which require a non-standard user name...
+#MACHINE_USER_idefix=eclipse
+
+
+# (Test) machines that don't share the rotd file system,
+# and the location of the shadow ROTD_DIR on these machines.
+#REMOTE_MACHINE_idefix=yes
+#ROTD_DIR_idefix=c:/cygwin/vol/Eclipse/rotds
+
+

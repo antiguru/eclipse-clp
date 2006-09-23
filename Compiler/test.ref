@@ -1,0 +1,7969 @@
+
+------ Test 1 -------
+p :-
+	p(A).
+
+p / 0:
+	put_variable             a(1) 
+	jmp                      p / 1 
+
+------ Test 2 -------
+p :-
+	p(A),
+	q(A),
+	r(A).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	move                     y(1)     a(1) 
+	callf                    q / 1     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 3 -------
+p :-
+	(
+	    q(A)
+	;
+	    r(A)
+	).
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	callf                    q / 1     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     0 
+label(L2):
+	put_variable             a(1) 
+	callf                    r / 1     0 
+label(L3):
+	exit                 
+
+------ Test 4 -------
+p :-
+	p(A),
+	(
+	    q(A)
+	;
+	    r(A)
+	).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	callf                    q / 1     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	move                     y(1)     a(1) 
+	callf                    r / 1     0 
+label(L3):
+	exit                 
+
+------ Test 5 -------
+p :-
+	(
+	    q(A)
+	;
+	    r(A)
+	),
+	p(A).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(1) 
+	callf                    q / 1     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_global_variable      a(1)     y(1) 
+	callf                    r / 1     1 
+label(L3):
+	move                     y(1)     a(1) 
+	chain                    p / 1 
+
+------ Test 6 -------
+p :-
+	(
+	    q(A),
+	    r(A)
+	;
+	    s(A),
+	    t(A)
+	).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(1) 
+	callf                    q / 1     1 
+	move                     y(1)     a(1) 
+	callf                    r / 1     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_global_variable      a(1)     y(1) 
+	callf                    s / 1     1 
+	move                     y(1)     a(1) 
+	callf                    t / 1     0 
+label(L3):
+	exit                 
+
+------ Test 7 -------
+p :-
+	f(A),
+	(
+	    q(A),
+	    r(A)
+	;
+	    s(A),
+	    t(A)
+	).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    f / 1     1 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	callf                    q / 1     1 
+	move                     y(1)     a(1) 
+	callf                    r / 1     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	move                     y(1)     a(1) 
+	callf                    s / 1     1 
+	move                     y(1)     a(1) 
+	callf                    t / 1     0 
+label(L3):
+	exit                 
+
+------ Test 8 -------
+p :-
+	(
+	    q(A),
+	    r(A)
+	;
+	    s(A),
+	    t(A)
+	),
+	f(A).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(1) 
+	callf                    q / 1     1 
+	move                     y(1)     a(1) 
+	callf                    r / 1     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_global_variable      a(1)     y(1) 
+	callf                    s / 1     1 
+	move                     y(1)     a(1) 
+	callf                    t / 1     1 
+label(L3):
+	move                     y(1)     a(1) 
+	chain                    f / 1 
+
+------ Test 9 -------
+p :-
+	(
+	    a(A)
+	;
+	    (
+		b(A)
+	    ;
+		c(A)
+	    ),
+	    (
+		d(A)
+	    ;
+		e(A)
+	    )
+	).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	callf                    a / 1     1 
+	branch                   ref(L11) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	try_me_else              0     0     ref(L4) 
+label(L3):
+	put_global_variable      a(1)     y(1) 
+	callf                    b / 1     1 
+	branch                   ref(L6) 
+label(L4):
+	trust_me_inline          0     1 
+label(L5):
+	put_global_variable      a(1)     y(1) 
+	callf                    c / 1     1 
+label(L6):
+	try_me_else              0     0     ref(L8) 
+label(L7):
+	move                     y(1)     a(1) 
+	callf                    d / 1     0 
+	branch                   ref(L10) 
+label(L8):
+	trust_me_inline          0     1 
+label(L9):
+	move                     y(1)     a(1) 
+	callf                    e / 1     0 
+label(L10):
+label(L11):
+	exit                 
+
+------ Test 10 -------
+p(a, A) :-
+	q(A).
+p(b, A) :-
+	r(A).
+
+p / 2:
+	allocate                 0 
+	atom_switch              a(1) 
+		a: 	ref(L1)
+		b: 	ref(L3)
+		default: 	ref(fail)
+
+label(L0):
+	try_me_else              0     2     ref(L2) 
+label(L1):
+	get_atom                 a(1)     a 
+	move                     a(2)     a(1) 
+	callf                    q / 1     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     0 
+label(L3):
+	get_atom                 a(1)     b 
+	move                     a(2)     a(1) 
+	callf                    r / 1     0 
+label(L4):
+	exit                 
+
+------ Test 11 -------
+p :-
+	p(A, A).
+
+p / 0:
+	put_variable             a(1) 
+	move                     a(1)     a(2) 
+	jmp                      p / 2 
+
+------ Test 12 -------
+p :-
+	p(A, A),
+	q(A, A),
+	r(A, A).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    p / 2     1 
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    q / 2     1 
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	chain                    r / 2 
+
+------ Test 13 -------
+p :-
+	(
+	    q(A, A)
+	;
+	    r(A, A)
+	).
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	move                     a(1)     a(2) 
+	callf                    q / 2     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     0 
+label(L2):
+	put_variable             a(1) 
+	move                     a(1)     a(2) 
+	callf                    r / 2     0 
+label(L3):
+	exit                 
+
+------ Test 14 -------
+p :-
+	p(A, A),
+	(
+	    q(A, A)
+	;
+	    r(A, A)
+	).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    p / 2     1 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    q / 2     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    r / 2     0 
+label(L3):
+	exit                 
+
+------ Test 15 -------
+p :-
+	(
+	    q(A, A)
+	;
+	    r(A, A)
+	),
+	p(A, A).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    q / 2     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    r / 2     1 
+label(L3):
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	chain                    p / 2 
+
+------ Test 16 -------
+p :-
+	(
+	    q(A, A),
+	    r(A, A)
+	;
+	    s(A, A),
+	    t(A, A)
+	).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    q / 2     1 
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    r / 2     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    s / 2     1 
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    t / 2     0 
+label(L3):
+	exit                 
+
+------ Test 17 -------
+p :-
+	f(A, A),
+	(
+	    q(A, A),
+	    r(A, A)
+	;
+	    s(A, A),
+	    t(A, A)
+	).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    f / 2     1 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    q / 2     1 
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    r / 2     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    s / 2     1 
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    t / 2     0 
+label(L3):
+	exit                 
+
+------ Test 18 -------
+p :-
+	(
+	    q(A, A),
+	    r(A, A)
+	;
+	    s(A, A),
+	    t(A, A)
+	),
+	f(A, A).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    q / 2     1 
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    r / 2     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    s / 2     1 
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	callf                    t / 2     1 
+label(L3):
+	move                     y(1)     a(1) 
+	move                     a(1)     a(2) 
+	chain                    f / 2 
+
+------ Test 19 -------
+p :-
+	a(A),
+	(
+	    a(A, B)
+	;
+	    a(A, B, B)
+	).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    a / 1     1 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(2) 
+	move                     y(1)     a(1) 
+	callf                    a / 2     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_variable             a(2) 
+	move                     a(2)     a(3) 
+	move                     y(1)     a(1) 
+	callf                    a / 3     0 
+label(L3):
+	exit                 
+
+------ Test 30 -------
+p :-
+	p,
+	+(1, 2, 3).
+
+p / 0:
+	allocate                 0 
+	callf                    p / 0     0 
+	put_integer              a(1)     1 
+	put_integer              a(2)     2 
+	put_integer              a(3)     3 
+	bi_add                   a(1)     a(2)     a(3) 
+	exit                 
+
+------ Test 31 -------
+p :-
+	p(A),
+	q,
+	+(A, 2, 3).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	callf                    q / 0     1 
+	put_integer              a(1)     2 
+	put_integer              a(2)     3 
+	move                     y(1)     a(3) 
+	bi_add                   a(3)     a(1)     a(2) 
+	exit                 
+
+------ Test 32 -------
+p(A, A, B) :-
+	q(a, b, A).
+
+p / 3:
+	get_value                a(2)     a(1) 
+	move                     a(1)     a(3) 
+	put_atom                 a(1)     a 
+	put_atom                 a(2)     b 
+	jmp                      q / 3 
+
+------ Test 33 -------
+p(A, A) :-
+	+(B, C, 1),
+	q(a, b, A).
+
+p / 2:
+	get_value                a(2)     a(1) 
+	put_variable             a(4) 
+	put_variable             a(5) 
+	put_integer              a(6)     1 
+	bi_add                   a(4)     a(5)     a(6) 
+	move                     a(1)     a(3) 
+	put_atom                 a(1)     a 
+	put_atom                 a(2)     b 
+	jmp                      q / 3 
+
+------ Test 34 -------
+p(A, B, C) :-
+	+(D, E, F),
+	p(A, B, C).
+
+p / 3:
+	put_variable             a(4) 
+	put_variable             a(5) 
+	put_variable             a(6) 
+	bi_add                   a(4)     a(5)     a(6) 
+	jmp                      p / 3 
+
+------ Test 35 -------
+p(A) :-
+	(
+	    q(A)
+	;
+	    r(A)
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	callf                    q / 1     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	move                     y(1)     a(1) 
+	callf                    r / 1     0 
+label(L3):
+	exit                 
+
+------ Test 36 -------
+p :-
+	A = B,
+	q,
+	r(B).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      y(1) 
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 37 -------
+p :-
+	A = B,
+	q(A),
+	r(B).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    q / 1     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 38 -------
+p(A) :-
+	q,
+	r(A).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 39 -------
+p(A) :-
+	B = A,
+	q(B),
+	r(A).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     a(2) 
+	move                     a(1)     y(1) 
+	move                     a(2)     a(1) 
+	callf                    q / 1     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 40 -------
+p :-
+	q(A),
+	(
+	    r1(B),
+	    r2(A, B)
+	;
+	    s(A)
+	).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      a(1)     y(1) 
+	initialize               y([2]) 
+	callf                    q / 1     2 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(2) 
+	callf                    r1 / 1     2 
+	move                     y(1)     a(1) 
+	move                     y(2)     a(2) 
+	callf                    r2 / 2     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	move                     y(1)     a(1) 
+	callf                    s / 1     2 
+label(L3):
+	exit                 
+
+------ Test 41 -------
+p :-
+	(
+	    !
+	;
+	    p(A),
+	    p(A),
+	    !
+	).
+
+p / 0:
+	allocate                 2 
+	savecut                  y(1) 
+	initialize               y([2]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	cut                      y(1)     2 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	put_global_variable      a(1)     y(2) 
+	callf                    p / 1     2 
+	move                     y(2)     a(1) 
+	callf                    p / 1     1 
+	cut                      y(1)     1 
+label(L3):
+	exit                 
+
+------ Test 42 -------
+p(A, B) :-
+	!.
+p(A, B) :-
+	p(A),
+	p(B),
+	!.
+
+p / 2:
+	allocate                 2 
+	savecut                  y(1) 
+	initialize               y([2]) 
+	try_me_else              0     2     ref(L1) 
+label(L0):
+	cut                      y(1)     2 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	move                     a(2)     y(2) 
+	callf                    p / 1     2 
+	move                     y(2)     a(1) 
+	callf                    p / 1     1 
+	cut                      y(1)     1 
+label(L3):
+	exit                 
+
+------ Test 43 -------
+p :-
+	s(A),
+	(
+	    c(A)
+	;
+	    p(B),
+	    p(B),
+	    c(A)
+	).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      a(1)     y(1) 
+	initialize               y([2]) 
+	callf                    s / 1     2 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	callf                    c / 1     2 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	put_global_variable      a(1)     y(2) 
+	callf                    p / 1     2 
+	move                     y(2)     a(1) 
+	callf                    p / 1     1 
+	move                     y(1)     a(1) 
+	callf                    c / 1     0 
+label(L3):
+	exit                 
+
+------ Test 44 -------
+p :-
+	s(A),
+	(
+	    c(A)
+	;
+	    p(B),
+	    p(A),
+	    c(B)
+	).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      a(1)     y(1) 
+	initialize               y([2]) 
+	callf                    s / 1     2 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	callf                    c / 1     2 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	put_global_variable      a(1)     y(2) 
+	callf                    p / 1     2 
+	move                     y(1)     a(1) 
+	callf                    p / 1     2 
+	move                     y(2)     a(1) 
+	callf                    c / 1     0 
+label(L3):
+	exit                 
+
+------ Test 45 -------
+p :-
+	s(A),
+	(
+	    p(A),
+	    q,
+	    r
+	;
+	    (
+		p,
+		q(A),
+		r
+	    ;
+		p,
+		q,
+		r(A)
+	    )
+	).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    s / 1     1 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	callf                    p / 1     0 
+	callf                    q / 0     0 
+	callf                    r / 0     0 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	callf                    p / 0     1 
+	move                     y(1)     a(1) 
+	callf                    q / 1     0 
+	callf                    r / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     1 
+label(L4):
+	callf                    p / 0     1 
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	callf                    r / 1     0 
+label(L5):
+	exit                 
+
+------ Test 46 -------
+p :-
+	s(A),
+	(
+	    p,
+	    q,
+	    r(A)
+	;
+	    (
+		p,
+		q(A),
+		r
+	    ;
+		p(A),
+		q,
+		r
+	    )
+	).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    s / 1     1 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    p / 0     1 
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	callf                    r / 1     0 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	callf                    p / 0     1 
+	move                     y(1)     a(1) 
+	callf                    q / 1     0 
+	callf                    r / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     1 
+label(L4):
+	move                     y(1)     a(1) 
+	callf                    p / 1     0 
+	callf                    q / 0     0 
+	callf                    r / 0     0 
+label(L5):
+	exit                 
+
+------ Test 47 -------
+p :-
+	s(A),
+	(
+	    p,
+	    q(A),
+	    r
+	;
+	    (
+		p,
+		q,
+		r(A)
+	    ;
+		p,
+		q,
+		r(A)
+	    )
+	).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    s / 1     1 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    p / 0     1 
+	move                     y(1)     a(1) 
+	callf                    q / 1     0 
+	callf                    r / 0     0 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	callf                    p / 0     1 
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	callf                    r / 1     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     1 
+label(L4):
+	callf                    p / 0     1 
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	callf                    r / 1     0 
+label(L5):
+	exit                 
+
+------ Test 50 -------
+p :-
+	s(A),
+	(
+	    p(A),
+	    q(B),
+	    r(B)
+	;
+	    p(B),
+	    q(B, C),
+	    r(C)
+	).
+
+p / 0:
+	allocate                 3 
+	put_global_variable      a(1)     y(1) 
+	initialize               y([2, 3]) 
+	callf                    s / 1     3 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	callf                    p / 1     3 
+	put_global_variable      a(1)     y(2) 
+	callf                    q / 1     3 
+	move                     y(2)     a(1) 
+	callf                    r / 1     3 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     3 
+label(L2):
+	put_global_variable      a(1)     y(3) 
+	callf                    p / 1     3 
+	put_global_variable      a(2)     y(2) 
+	move                     y(3)     a(1) 
+	callf                    q / 2     2 
+	move                     y(2)     a(1) 
+	callf                    r / 1     1 
+label(L3):
+	exit                 
+
+------ Test 51 -------
+p :-
+	s(A),
+	(
+	    p(A),
+	    q(B),
+	    r(B)
+	;
+	    (
+		p1(A),
+		q1(C),
+		q1(C)
+	    ;
+		p(B),
+		q(B, D),
+		r(D)
+	    )
+	).
+
+p / 0:
+	allocate                 3 
+	put_global_variable      a(1)     y(1) 
+	initialize               y([2, 3]) 
+	callf                    s / 1     3 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	callf                    p / 1     3 
+	put_global_variable      a(1)     y(2) 
+	callf                    q / 1     3 
+	move                     y(2)     a(1) 
+	callf                    r / 1     3 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     3 
+label(L2):
+	move                     y(1)     a(1) 
+	callf                    p1 / 1     3 
+	put_global_variable      a(1)     y(2) 
+	callf                    q1 / 1     3 
+	move                     y(2)     a(1) 
+	callf                    q1 / 1     3 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     3 
+label(L4):
+	put_global_variable      a(1)     y(3) 
+	callf                    p / 1     3 
+	put_global_variable      a(2)     y(2) 
+	move                     y(3)     a(1) 
+	callf                    q / 2     2 
+	move                     y(2)     a(1) 
+	callf                    r / 1     1 
+label(L5):
+	exit                 
+
+------ Test 52 -------
+p :-
+	(
+	    p(A)
+	;
+	    q
+	),
+	(
+	    p(A)
+	;
+	    q
+	).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	callf                    q / 0     1 
+label(L3):
+	try_me_else              0     0     ref(L5) 
+label(L4):
+	move                     y(1)     a(1) 
+	callf                    p / 1     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     1 
+label(L6):
+	callf                    q / 0     1 
+label(L7):
+	exit                 
+
+------ Test 53 -------
+p :-
+	(
+	    p(A)
+	;
+	    q(A)
+	),
+	(
+	    p(A)
+	;
+	    q
+	).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_global_variable      a(1)     y(1) 
+	callf                    q / 1     1 
+label(L3):
+	try_me_else              0     0     ref(L5) 
+label(L4):
+	move                     y(1)     a(1) 
+	callf                    p / 1     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     1 
+label(L6):
+	callf                    q / 0     1 
+label(L7):
+	exit                 
+
+------ Test 54 -------
+p(A) :-
+	A = a,
+	p,
+	p(A).
+
+p / 1:
+	allocate                 1 
+	get_atom                 a(1)     a 
+	move                     a(1)     y(1) 
+	callf                    p / 0     1 
+	move                     y(1)     a(1) 
+	chain                    p / 1 
+
+------ Test 55 -------
+p(A) :-
+	A = B,
+	p(B),
+	p(A).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     a(2) 
+	move                     a(1)     y(1) 
+	move                     a(2)     a(1) 
+	callf                    p / 1     1 
+	move                     y(1)     a(1) 
+	chain                    p / 1 
+
+------ Test 56 -------
+p(A, B) :-
+	A = B,
+	p(B),
+	p(A).
+
+p / 2:
+	allocate                 1 
+	get_value                a(1)     a(2) 
+	move                     a(1)     y(1) 
+	move                     a(2)     a(1) 
+	callf                    p / 1     1 
+	move                     y(1)     a(1) 
+	chain                    p / 1 
+
+------ Test 57 -------
+p(A, B) :-
+	A = B,
+	p,
+	p(A, B).
+
+p / 2:
+	allocate                 2 
+	get_value                a(1)     a(2) 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	callf                    p / 0     2 
+	move                     y(1)     a(1) 
+	move                     y(2)     a(2) 
+	chain                    p / 2 
+
+------ Test 58 -------
+p(A) :-
+	A = B,
+	p,
+	p(A, B).
+
+p / 1:
+	allocate                 2 
+	move                     a(1)     y(1) 
+	move                     a(1)     y(2) 
+	callf                    p / 0     2 
+	move                     y(2)     a(1) 
+	move                     y(1)     a(2) 
+	chain                    p / 2 
+
+------ Test 59 -------
+p(A) :-
+	A = B,
+	p,
+	p(A).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	callf                    p / 0     1 
+	move                     y(1)     a(1) 
+	chain                    p / 1 
+
+------ Test 60 -------
+p :-
+	A = B,
+	p,
+	p(A, B).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      y(1) 
+	move                     y(1)     y(2) 
+	callf                    p / 0     2 
+	move                     y(1)     a(1) 
+	move                     y(2)     a(2) 
+	chain                    p / 2 
+
+------ Test 101 -------
+p :-
+	p(A),
+	q(B, A),
+	r(B),
+	t(B).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      a(1)     y(2) 
+	initialize               y([1]) 
+	callf                    p / 1     2 
+	put_global_variable      a(1)     y(1) 
+	move                     y(2)     a(2) 
+	callf                    q / 2     1 
+	move                     y(1)     a(1) 
+	callf                    r / 1     1 
+	move                     y(1)     a(1) 
+	chain                    t / 1 
+
+------ Test 102 -------
+p :-
+	p(A),
+	q(A, B, C),
+	r(B, D),
+	t(D).
+
+p / 0:
+	allocate                 3 
+	put_global_variable      a(1)     y(3) 
+	initialize               y([1, 2]) 
+	callf                    p / 1     3 
+	put_variable             a(3) 
+	put_global_variable      a(2)     y(2) 
+	move                     y(3)     a(1) 
+	callf                    q / 3     2 
+	put_global_variable      a(2)     y(1) 
+	move                     y(2)     a(1) 
+	callf                    r / 2     1 
+	move                     y(1)     a(1) 
+	chain                    t / 1 
+
+------ Test 103 -------
+p :-
+	(
+	    f(A),
+	    g(A),
+	    a(B)
+	;
+	    b(C),
+	    c(C),
+	    d(B)
+	),
+	e(B).
+
+p / 0:
+	allocate                 2 
+	initialize               y([1, 2]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(2) 
+	callf                    f / 1     2 
+	move                     y(2)     a(1) 
+	callf                    g / 1     1 
+	put_global_variable      a(1)     y(1) 
+	callf                    a / 1     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	put_global_variable      a(1)     y(2) 
+	callf                    b / 1     2 
+	move                     y(2)     a(1) 
+	callf                    c / 1     1 
+	put_global_variable      a(1)     y(1) 
+	callf                    d / 1     1 
+label(L3):
+	move                     y(1)     a(1) 
+	chain                    e / 1 
+
+------ Test 104 -------
+p :-
+	(
+	    f(A),
+	    g(A),
+	    a(B)
+	;
+	    b(C),
+	    c(C)
+	),
+	e(B).
+
+p / 0:
+	allocate                 2 
+	initialize               y([1, 2]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(2) 
+	callf                    f / 1     2 
+	move                     y(2)     a(1) 
+	callf                    g / 1     1 
+	put_global_variable      a(1)     y(1) 
+	callf                    a / 1     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	put_global_variable      a(1)     y(2) 
+	callf                    b / 1     2 
+	move                     y(2)     a(1) 
+	callf                    c / 1     1 
+label(L3):
+	move                     y(1)     a(1) 
+	chain                    e / 1 
+
+------ Test 105 -------
+p :-
+	(
+	    f(A),
+	    g(A),
+	    a(B)
+	;
+	    b(C),
+	    c(C)
+	),
+	e(B),
+	f(B).
+
+p / 0:
+	allocate                 2 
+	initialize               y([1, 2]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(2) 
+	callf                    f / 1     2 
+	move                     y(2)     a(1) 
+	callf                    g / 1     1 
+	put_global_variable      a(1)     y(1) 
+	callf                    a / 1     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	put_global_variable      a(1)     y(2) 
+	callf                    b / 1     2 
+	move                     y(2)     a(1) 
+	callf                    c / 1     1 
+label(L3):
+	move                     y(1)     a(1) 
+	callf                    e / 1     1 
+	move                     y(1)     a(1) 
+	chain                    f / 1 
+
+------ Test 106 -------
+p :-
+	a(A),
+	(
+	    b(A),
+	    c(B)
+	;
+	    d(A),
+	    e(B)
+	),
+	f(B).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      a(1)     y(2) 
+	initialize               y([1]) 
+	callf                    a / 1     2 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(2)     a(1) 
+	callf                    b / 1     1 
+	put_global_variable      a(1)     y(1) 
+	callf                    c / 1     1 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	move                     y(2)     a(1) 
+	callf                    d / 1     1 
+	put_global_variable      a(1)     y(1) 
+	callf                    e / 1     1 
+label(L3):
+	move                     y(1)     a(1) 
+	chain                    f / 1 
+
+------ Test 107 -------
+p :-
+	a(A),
+	(
+	    b(A),
+	    c(B)
+	;
+	    d(A),
+	    e(B)
+	),
+	f(C).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    a / 1     1 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	move                     y(1)     a(1) 
+	callf                    b / 1     0 
+	put_variable             a(1) 
+	callf                    c / 1     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	move                     y(1)     a(1) 
+	callf                    d / 1     0 
+	put_variable             a(1) 
+	callf                    e / 1     0 
+label(L3):
+	put_variable             a(1) 
+	chain                    f / 1 
+
+------ Test 200 -------
+p :-
+	a(A, A).
+
+p / 0:
+	put_variable             a(1) 
+	move                     a(1)     a(2) 
+	jmp                      a / 2 
+
+------ Test 201 -------
+p :-
+	a(f(A), A).
+
+p / 0:
+	put_structure            a(1)     f / 1 
+	push_variable            a(2) 
+	jmp                      a / 2 
+
+------ Test 202 -------
+p :-
+	a(f(A), A),
+	b(f(A), A),
+	c(A, f(A)).
+
+p / 0:
+	allocate                 1 
+	put_structure            a(1)     f / 1 
+	push_variable            y(1) 
+	move                     y(1)     a(2) 
+	callf                    a / 2     1 
+	put_structure            a(1)     f / 1 
+	push_local_value         y(1) 
+	move                     y(1)     a(2) 
+	callf                    b / 2     1 
+	put_structure            a(2)     f / 1 
+	push_local_value         y(1) 
+	move                     y(1)     a(1) 
+	chain                    c / 2 
+
+------ Test 203 -------
+p :-
+	a(f(A), g(A)),
+	b(f(g(A), A)),
+	c(f(A, g(A))).
+
+p / 0:
+	allocate                 1 
+	put_structure            a(1)     f / 1 
+	push_variable            y(1) 
+	put_structure            a(2)     g / 1 
+	push_local_value         y(1) 
+	callf                    a / 2     1 
+	put_structure            a(1)     f / 2 
+	push_structure           2 
+	push_local_value         y(1) 
+	write_did                g / 1 
+	push_local_value         y(1) 
+	callf                    b / 1     1 
+	put_structure            a(1)     f / 2 
+	push_local_value         y(1) 
+	push_structure           2 
+	write_did                g / 1 
+	push_local_value         y(1) 
+	chain                    c / 1 
+
+------ Test 204 -------
+p(A) :-
+	a(A).
+
+p / 1:
+	jmp                      a / 1 
+
+------ Test 205 -------
+p(A) :-
+	a(a, A).
+
+p / 1:
+	move                     a(1)     a(2) 
+	put_atom                 a(1)     a 
+	jmp                      a / 2 
+
+------ Test 206 -------
+p(a).
+
+p / 1:
+	get_atom                 a(1)     a 
+	ret                  
+
+------ Test 207 -------
+p(A) :-
+	a(A, A).
+
+p / 1:
+	move                     a(1)     a(2) 
+	jmp                      a / 2 
+
+------ Test 208 -------
+p(A, B) :-
+	a(A, B).
+
+p / 2:
+	jmp                      a / 2 
+
+------ Test 209 -------
+p(A, B) :-
+	a(B, A).
+
+p / 2:
+	move                     a(1)     a(3) 
+	move                     a(2)     a(1) 
+	move                     a(3)     a(2) 
+	jmp                      a / 2 
+
+------ Test 210 -------
+p :-
+	A = B,
+	a(B, A).
+
+p / 0:
+	put_variable             a(2) 
+	move                     a(2)     a(1) 
+	jmp                      a / 2 
+
+------ Test 211 -------
+p :-
+	a(A, f(A)).
+
+p / 0:
+	put_structure            a(2)     f / 1 
+	push_variable            a(1) 
+	jmp                      a / 2 
+
+------ Test 212 -------
+p(A) :-
+	a(f(A)).
+
+p / 1:
+	move                     a(1)     a(2) 
+	put_structure            a(1)     f / 1 
+	push_local_value         a(2) 
+	jmp                      a / 1 
+
+------ Test 213 -------
+p(A, B, C) :-
+	a(C, A, B).
+
+p / 3:
+	move                     a(2)     a(4) 
+	move                     a(1)     a(2) 
+	move                     a(3)     a(1) 
+	move                     a(4)     a(3) 
+	jmp                      a / 3 
+
+------ Test 214 -------
+p(A, B, C) :-
+	a(f(C), f(A), f(B)).
+
+p / 3:
+	move                     a(1)     a(4) 
+	put_structure            a(1)     f / 1 
+	push_local_value         a(3) 
+	move                     a(2)     a(5) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(4) 
+	put_structure            a(3)     f / 1 
+	push_local_value         a(5) 
+	jmp                      a / 3 
+
+------ Test 215 -------
+p(A, B, C, A) :-
+	a(C, A, B).
+
+p / 4:
+	get_value                a(4)     a(1) 
+	move                     a(2)     a(4) 
+	move                     a(1)     a(2) 
+	move                     a(3)     a(1) 
+	move                     a(4)     a(3) 
+	jmp                      a / 3 
+
+------ Test 216 -------
+p(A, B, C, A) :-
+	a(f(C), f(A), f(B)).
+
+p / 4:
+	get_value                a(4)     a(1) 
+	move                     a(1)     a(4) 
+	put_structure            a(1)     f / 1 
+	push_local_value         a(3) 
+	move                     a(2)     a(5) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(4) 
+	put_structure            a(3)     f / 1 
+	push_local_value         a(5) 
+	jmp                      a / 3 
+
+------ Test 217 -------
+p(f(A)) :-
+	q(A).
+
+p / 1:
+	get_structure            a(1)     f / 1     ref(L0) 
+	write_variable           a(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            a(1) 
+label(L1):
+	jmp                      q / 1 
+
+------ Test 218 -------
+p(A, B, C) :-
+	a(B, C, A).
+
+p / 3:
+	move                     a(3)     a(4) 
+	move                     a(1)     a(3) 
+	move                     a(2)     a(1) 
+	move                     a(4)     a(2) 
+	jmp                      a / 3 
+
+------ Test 219 -------
+p(A, B, C) :-
+	D = A,
+	a(C, D, B).
+
+p / 3:
+	move                     a(3)     a(4) 
+	move                     a(2)     a(3) 
+	move                     a(1)     a(2) 
+	move                     a(4)     a(1) 
+	jmp                      a / 3 
+
+------ Test 220 -------
+p(A, B, C) :-
+	D = A,
+	a(B, C, D).
+
+p / 3:
+	move                     a(2)     a(4) 
+	move                     a(3)     a(2) 
+	move                     a(1)     a(3) 
+	move                     a(4)     a(1) 
+	jmp                      a / 3 
+
+------ Test 221 -------
+p :-
+	a(A, f(A)).
+
+p / 0:
+	put_structure            a(2)     f / 1 
+	push_variable            a(1) 
+	jmp                      a / 2 
+
+------ Test 222 -------
+p :-
+	q(a, A, B, A).
+
+p / 0:
+	put_variable             a(2) 
+	put_variable             a(3) 
+	put_atom                 a(1)     a 
+	move                     a(2)     a(4) 
+	jmp                      q / 4 
+
+------ Test 223 -------
+p :-
+	q(A, A),
+	r(A).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	move                     a(1)     a(2) 
+	callf                    q / 2     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 224 -------
+p :-
+	q(f(A), A),
+	r(A).
+
+p / 0:
+	allocate                 1 
+	put_structure            a(1)     f / 1 
+	push_variable            y(1) 
+	move                     y(1)     a(2) 
+	callf                    q / 2     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 225 -------
+p :-
+	q([a]),
+	r(A).
+
+p / 0:
+	allocate                 0 
+	put_list                 a(1) 
+	write_atom               a 
+	push_nil             
+	callf                    q / 1     0 
+	put_variable             a(1) 
+	chain                    r / 1 
+
+------ Test 226 -------
+p :-
+	q([a, b]),
+	r(A).
+
+p / 0:
+	allocate                 0 
+	put_list                 a(1) 
+	write_atom               a 
+	push_list            
+	write_atom               b 
+	push_nil             
+	callf                    q / 1     0 
+	put_variable             a(1) 
+	chain                    r / 1 
+
+------ Test 227 -------
+p :-
+	q([a, A, b]),
+	r(A).
+
+p / 0:
+	allocate                 1 
+	put_list                 a(1) 
+	write_atom               a 
+	push_list            
+	push_variable            y(1) 
+	push_list            
+	write_atom               b 
+	push_nil             
+	callf                    q / 1     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 228 -------
+p :-
+	q([a, b|A]),
+	r(A).
+
+p / 0:
+	allocate                 1 
+	put_list                 a(1) 
+	write_atom               a 
+	push_list            
+	write_atom               b 
+	push_variable            y(1) 
+	callf                    q / 1     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 229 -------
+p :-
+	q([A], A),
+	r(A).
+
+p / 0:
+	allocate                 1 
+	put_list                 a(1) 
+	push_variable            y(1) 
+	push_nil             
+	move                     y(1)     a(2) 
+	callf                    q / 2     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 230 -------
+p :-
+	q(A, [A]),
+	r(A).
+
+p / 0:
+	allocate                 1 
+	put_list                 a(2) 
+	push_variable            y(1) 
+	push_nil             
+	move                     y(1)     a(1) 
+	callf                    q / 2     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test 231 -------
+p :-
+	q([A], A).
+
+p / 0:
+	put_list                 a(1) 
+	push_variable            a(2) 
+	push_nil             
+	jmp                      q / 2 
+
+------ Test 232 -------
+p :-
+	q(A, [A]).
+
+p / 0:
+	put_list                 a(2) 
+	push_variable            a(1) 
+	push_nil             
+	jmp                      q / 2 
+
+------ Test 233 -------
+p(A) :-
+	q([A], A).
+
+p / 1:
+	move                     a(1)     a(2) 
+	put_list                 a(1) 
+	push_local_value         a(2) 
+	push_nil             
+	jmp                      q / 2 
+
+------ Test 234 -------
+p(A) :-
+	q(A, [A]).
+
+p / 1:
+	put_list                 a(2) 
+	push_local_value         a(1) 
+	push_nil             
+	jmp                      q / 2 
+
+------ Test 235 -------
+p(A) :-
+	q("hello", 3.4, 5_2).
+
+p / 1:
+	put_string               a(1)     "hello" 
+	put_constant             a(2)     3.4 
+	put_constant             a(3)     5_2 
+	jmp                      q / 3 
+
+------ Test 236 -------
+p(A) :-
+	q(f("hello", 3.4, 5_2)).
+
+p / 1:
+	put_structure            a(1)     f / 3 
+	push_string              "hello" 
+	push_constant            3.4 
+	push_constant            5_2 
+	jmp                      q / 1 
+
+------ Test jdm(1) -------
+p(A, B, a) :-
+	q(A, b, f(B)).
+
+p / 3:
+	get_atom                 a(3)     a 
+	put_structure            a(3)     f / 1 
+	push_local_value         a(2) 
+	put_atom                 a(2)     b 
+	jmp                      q / 3 
+
+------ Test jdm(2) -------
+del(t(nil, A, B), A, B).
+del(t(A, B, nil), B, A).
+del(t(A, B, C), B, r(A, D, E)) :-
+	delmin(C, D, E).
+
+del / 3:
+	allocate                 0 
+	functor_switch           a(1) 
+		t / 3: 	ref(L0)
+		default: 	ref(fail)
+
+label(L0):
+	functor_switch           a(3) 
+		r / 3: 	ref(L1)
+		default: 	ref(L16)
+
+label(L1):
+	try_me_else              0     3     ref(L5) 
+label(L2):
+	get_structure            a(1)     t / 3     ref(L3) 
+	write_atom               nil 
+	write_local_value        a(2) 
+	write_local_value        a(3) 
+	branch                   ref(L4) 
+label(L3):
+	read_atom                nil 
+	read_value               a(2) 
+	read_value               a(3) 
+label(L4):
+	branch                   ref(L15) 
+label(L5):
+	retry_me_inline          0     ref(L9)     0 
+label(L6):
+	get_structure            a(1)     t / 3     ref(L7) 
+	write_local_value        a(3) 
+	write_local_value        a(2) 
+	write_atom               nil 
+	branch                   ref(L8) 
+label(L7):
+	read_value               a(3) 
+	read_value               a(2) 
+	read_atom                nil 
+label(L8):
+	branch                   ref(L15) 
+label(L9):
+	trust_me_inline          0     0 
+label(L10):
+	get_structure            a(1)     t / 3     ref(L11) 
+	write_variable           a(4) 
+	write_local_value        a(2) 
+	write_variable           a(1) 
+	branch                   ref(L12) 
+label(L11):
+	read_variable            a(4) 
+	read_value               a(2) 
+	read_variable            a(1) 
+label(L12):
+	get_structure            a(3)     r / 3     ref(L13) 
+	write_local_value        a(4) 
+	write_variable           a(2) 
+	write_variable           a(3) 
+	branch                   ref(L14) 
+label(L13):
+	read_value               a(4) 
+	read_variable            a(2) 
+	read_variable            a(3) 
+label(L14):
+	callf                    delmin / 3     0 
+label(L15):
+	exit                 
+label(L16):
+	try                      0     3     ref(L2) 
+	trust                    0     ref(L6) 
+
+------ Test jdm(3) -------
+dob(person(A, B, C, D), C).
+
+dob / 2:
+	get_structure            a(1)     person / 4     ref(L0) 
+	write_void           
+	write_void           
+	write_local_value        a(2) 
+	write_void           
+	branch                   ref(L1) 
+label(L0):
+	read_void            
+	read_void            
+	read_value               a(2) 
+	read_void            
+label(L1):
+	ret                  
+
+------ Test jdm(4) -------
+qsort([A|B], C) :-
+	split(A, B, D, E),
+	qsort(D, F),
+	qsort(E, G),
+	append(F, G, C).
+
+qsort / 2:
+	allocate                 5 
+	get_list                 a(1)     ref(L0) 
+	write_variable           a(1) 
+	move                     a(2)     a(5) 
+	write_variable           a(2) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            a(1) 
+	move                     a(2)     a(5) 
+	read_variable            a(2) 
+label(L1):
+	move                     a(5)     y(3) 
+	put_global_variable      a(3)     y(5) 
+	put_global_variable      a(4)     y(4) 
+	initialize               y([1, 2]) 
+	callf                    split / 4     5 
+	put_global_variable      a(2)     y(2) 
+	move                     y(5)     a(1) 
+	callf                    qsort / 2     4 
+	put_global_variable      a(2)     y(1) 
+	move                     y(4)     a(1) 
+	callf                    qsort / 2     3 
+	move                     y(2)     a(1) 
+	move                     y(1)     a(2) 
+	move                     y(3)     a(3) 
+	chain                    append / 3 
+
+------ Test jdm(r4) -------
+qsort(A, [B|C]) :-
+	split(B, C, D, E),
+	qsort(D, F),
+	qsort(E, G),
+	append(F, G, A).
+
+qsort / 2:
+	allocate                 5 
+	get_list                 a(2)     ref(L0) 
+	move                     a(1)     a(5) 
+	write_variable           a(1) 
+	write_variable           a(2) 
+	branch                   ref(L1) 
+label(L0):
+	move                     a(1)     a(5) 
+	read_variable            a(1) 
+	read_variable            a(2) 
+label(L1):
+	move                     a(5)     y(3) 
+	put_global_variable      a(3)     y(5) 
+	put_global_variable      a(4)     y(4) 
+	initialize               y([1, 2]) 
+	callf                    split / 4     5 
+	put_global_variable      a(2)     y(2) 
+	move                     y(5)     a(1) 
+	callf                    qsort / 2     4 
+	put_global_variable      a(2)     y(1) 
+	move                     y(4)     a(1) 
+	callf                    qsort / 2     3 
+	move                     y(2)     a(1) 
+	move                     y(1)     a(2) 
+	move                     y(3)     a(3) 
+	chain                    append / 3 
+
+------ Test jdm(5) -------
+rev(A, B) :-
+	revacc([], A, B).
+
+rev / 2:
+	move                     a(2)     a(3) 
+	move                     a(1)     a(2) 
+	put_nil                  a(1) 
+	jmp                      revacc / 3 
+
+------ Test jdm(6) -------
+p(A, B, C, D) :-
+	q(a, A, B, C, D).
+
+p / 4:
+	move                     a(4)     a(5) 
+	move                     a(3)     a(4) 
+	move                     a(2)     a(3) 
+	move                     a(1)     a(2) 
+	put_atom                 a(1)     a 
+	jmp                      q / 5 
+
+------ Test mjt(1) -------
+p(f(A), g(A)) :-
+	q(a, A).
+
+p / 2:
+	get_structure            a(1)     f / 1     ref(L0) 
+	move                     a(2)     a(3) 
+	write_variable           a(2) 
+	branch                   ref(L1) 
+label(L0):
+	move                     a(2)     a(3) 
+	read_variable            a(2) 
+label(L1):
+	get_structure            a(3)     g / 1     ref(L2) 
+	write_local_value        a(2) 
+	branch                   ref(L3) 
+label(L2):
+	read_value               a(2) 
+label(L3):
+	put_atom                 a(1)     a 
+	jmp                      q / 2 
+
+------ Test mjt(2) -------
+p(b(A, B), B, C, a(A)) :-
+	q(c, C, A, B).
+
+p / 4:
+	get_structure            a(1)     b / 2     ref(L0) 
+	move                     a(4)     a(5) 
+	move                     a(2)     a(4) 
+	move                     a(3)     a(2) 
+	write_variable           a(3) 
+	write_local_value        a(4) 
+	branch                   ref(L1) 
+label(L0):
+	move                     a(4)     a(5) 
+	move                     a(2)     a(4) 
+	move                     a(3)     a(2) 
+	read_variable            a(3) 
+	read_value               a(4) 
+label(L1):
+	get_structure            a(5)     a / 1     ref(L2) 
+	write_local_value        a(3) 
+	branch                   ref(L3) 
+label(L2):
+	read_value               a(3) 
+label(L3):
+	put_atom                 a(1)     c 
+	jmp                      q / 4 
+
+------ Test mjt(3) -------
+p(g(A), s(B, h(A)), f(B)) :-
+	var(B),
+	var(A),
+	q(a, A, B).
+
+p / 3:
+	get_structure            a(1)     g / 1     ref(L0) 
+	move                     a(2)     a(4) 
+	write_variable           a(2) 
+	branch                   ref(L1) 
+label(L0):
+	move                     a(2)     a(4) 
+	read_variable            a(2) 
+label(L1):
+	get_structure            a(4)     s / 2     ref(L3) 
+	move                     a(3)     a(4) 
+	write_variable           a(3) 
+	write_structure          h / 1 
+label(L2):
+	write_local_value        a(2) 
+	branch                   ref(L4) 
+label(L3):
+	move                     a(3)     a(4) 
+	read_variable            a(3) 
+	read_last_structure      h / 1     ref(L2) 
+	read_value               a(2) 
+label(L4):
+	get_structure            a(4)     f / 1     ref(L5) 
+	write_local_value        a(3) 
+	branch                   ref(L6) 
+label(L5):
+	read_value               a(3) 
+label(L6):
+	bi_var                   a(3) 
+	bi_var                   a(2) 
+	put_atom                 a(1)     a 
+	jmp                      q / 3 
+
+------ Test 300 -------
+p(A, B) :-
+	p(A),
+	+(A, B, C),
+	-(A, D, C),
+	q(C).
+
+p / 2:
+	allocate                 2 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	callf                    p / 1     2 
+	put_variable             a(1) 
+	move                     y(1)     a(2) 
+	move                     y(2)     a(3) 
+	bi_add                   a(2)     a(3)     a(1) 
+	put_variable             a(3) 
+	bi_sub                   a(2)     a(3)     a(1) 
+	chain                    q / 1 
+
+------ Test 301 -------
+p(A, B) :-
+	p(A),
+	r(A, B, C),
+	q(C).
+
+p / 2:
+	allocate                 3 
+	move                     a(1)     y(2) 
+	move                     a(2)     y(3) 
+	initialize               y([1]) 
+	callf                    p / 1     3 
+	put_global_variable      a(3)     y(1) 
+	move                     y(2)     a(1) 
+	move                     y(3)     a(2) 
+	callf                    r / 3     1 
+	move                     y(1)     a(1) 
+	chain                    q / 1 
+
+------ Test 302 -------
+p(A, B) :-
+	p(B),
+	r(A, B, C),
+	q(C).
+
+p / 2:
+	allocate                 3 
+	move                     a(1)     y(2) 
+	move                     a(2)     y(3) 
+	initialize               y([1]) 
+	move                     a(2)     a(1) 
+	callf                    p / 1     3 
+	put_global_variable      a(3)     y(1) 
+	move                     y(2)     a(1) 
+	move                     y(3)     a(2) 
+	callf                    r / 3     1 
+	move                     y(1)     a(1) 
+	chain                    q / 1 
+
+------ Test 303 -------
+p :-
+	q,
+	A = 1,
+	B = 3,
+	p(C),
+	r(A, C, B).
+
+p / 0:
+	allocate                 3 
+	initialize               y([1, 2, 3]) 
+	callf                    q / 0     3 
+	put_integer              a(2)     1 
+	move                     a(2)     y(1) 
+	put_integer              a(3)     3 
+	move                     a(3)     y(2) 
+	put_global_variable      a(1)     y(3) 
+	callf                    p / 1     3 
+	move                     y(1)     a(1) 
+	move                     y(3)     a(2) 
+	move                     y(2)     a(3) 
+	chain                    r / 3 
+
+------ Test 304 -------
+p :-
+	q,
+	A = f(B),
+	a(A, B).
+
+p / 0:
+	allocate                 0 
+	callf                    q / 0     0 
+	put_structure            a(1)     f / 1 
+	push_variable            a(2) 
+	chain                    a / 2 
+
+------ Test 305 -------
+p(A, B) :-
+	C = 1,
+	A = B,
+	q(B, C).
+
+p / 2:
+	move                     a(1)     a(3) 
+	move                     a(2)     a(1) 
+	put_integer              a(2)     1 
+	get_value                a(3)     a(1) 
+	jmp                      q / 2 
+
+------ Test 306 -------
+p1(A) :-
+	A = 1.
+
+p1 / 1:
+	get_integer              a(1)     1 
+	ret                  
+
+------ Test 307 -------
+p2(A) :-
+	1 = A.
+
+p2 / 1:
+	get_integer              a(1)     1 
+	ret                  
+
+------ Test 308 -------
+p3(A) :-
+	A = 1,
+	p1(A),
+	p1(A).
+
+p3 / 1:
+	allocate                 1 
+	get_integer              a(1)     1 
+	move                     a(1)     y(1) 
+	callf                    p1 / 1     1 
+	move                     y(1)     a(1) 
+	chain                    p1 / 1 
+
+------ Test 309 -------
+p4(A) :-
+	1 = A,
+	p1(A),
+	p1(A).
+
+p4 / 1:
+	allocate                 1 
+	get_integer              a(1)     1 
+	move                     a(1)     y(1) 
+	callf                    p1 / 1     1 
+	move                     y(1)     a(1) 
+	chain                    p1 / 1 
+
+------ Test 310 -------
+p5(f(A)) :-
+	A = 1,
+	p1(A),
+	p1(A).
+
+p5 / 1:
+	allocate                 1 
+	get_structure            a(1)     f / 1     ref(L0) 
+	write_variable           y(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            y(1) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 1     1 
+	move                     y(1)     a(1) 
+	chain                    p1 / 1 
+
+------ Test 311 -------
+p5a(f(A)) :-
+	p1(A),
+	A = 1,
+	p1(A).
+
+p5a / 1:
+	allocate                 1 
+	get_structure            a(1)     f / 1     ref(L0) 
+	write_variable           y(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            y(1) 
+label(L1):
+	move                     y(1)     a(1) 
+	callf                    p1 / 1     1 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	chain                    p1 / 1 
+
+------ Test 312 -------
+p6(f(A)) :-
+	1 = A,
+	p1(A),
+	p1(A).
+
+p6 / 1:
+	allocate                 1 
+	get_structure            a(1)     f / 1     ref(L0) 
+	write_variable           y(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            y(1) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 1     1 
+	move                     y(1)     a(1) 
+	chain                    p1 / 1 
+
+------ Test 313 -------
+p6a(f(A)) :-
+	p1(A),
+	1 = A,
+	p1(A).
+
+p6a / 1:
+	allocate                 1 
+	get_structure            a(1)     f / 1     ref(L0) 
+	write_variable           y(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            y(1) 
+label(L1):
+	move                     y(1)     a(1) 
+	callf                    p1 / 1     1 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	chain                    p1 / 1 
+
+------ Test 314 -------
+p7(f(A)) :-
+	A = 1,
+	p1(A).
+
+p7 / 1:
+	get_structure            a(1)     f / 1     ref(L0) 
+	write_variable           a(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            a(1) 
+label(L1):
+	get_integer              a(1)     1 
+	jmp                      p1 / 1 
+
+------ Test 315 -------
+p8(f(A)) :-
+	1 = A,
+	p1(A).
+
+p8 / 1:
+	get_structure            a(1)     f / 1     ref(L0) 
+	write_variable           a(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            a(1) 
+label(L1):
+	get_integer              a(1)     1 
+	jmp                      p1 / 1 
+
+------ Test 316 -------
+p9(A) :-
+	B = 1,
+	p1(B),
+	p1(B),
+	B = A.
+
+p9 / 1:
+	allocate                 2 
+	move                     a(1)     a(2) 
+	put_integer              a(1)     1 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	callf                    p1 / 1     2 
+	move                     y(1)     a(1) 
+	callf                    p1 / 1     2 
+	get_value                y(1)     y(2) 
+	exit                 
+
+------ Test 317 -------
+p9a(A) :-
+	p1(B),
+	C = 1,
+	p1(C),
+	p1(C),
+	C = A.
+
+p9a / 1:
+	allocate                 2 
+	move                     a(1)     y(2) 
+	put_variable             a(1) 
+	initialize               y([1]) 
+	callf                    p1 / 1     2 
+	put_integer              a(1)     1 
+	move                     a(1)     y(1) 
+	callf                    p1 / 1     2 
+	move                     y(1)     a(1) 
+	callf                    p1 / 1     2 
+	get_value                y(1)     y(2) 
+	exit                 
+
+------ Test 318 -------
+p10(A) :-
+	1 = B,
+	p1(B),
+	p1(B),
+	B = A.
+
+p10 / 1:
+	allocate                 2 
+	move                     a(1)     a(2) 
+	put_integer              a(1)     1 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	callf                    p1 / 1     2 
+	move                     y(1)     a(1) 
+	callf                    p1 / 1     2 
+	get_value                y(1)     y(2) 
+	exit                 
+
+------ Test 319 -------
+p10a(A) :-
+	p1(B),
+	1 = C,
+	p1(C),
+	C = A.
+
+p10a / 1:
+	allocate                 2 
+	move                     a(1)     y(2) 
+	put_variable             a(1) 
+	initialize               y([1]) 
+	callf                    p1 / 1     2 
+	put_integer              a(1)     1 
+	move                     a(1)     y(1) 
+	callf                    p1 / 1     2 
+	get_value                y(1)     y(2) 
+	exit                 
+
+------ Test 320 -------
+p11(A) :-
+	B = 1,
+	call(true),
+	B = A.
+
+p11 / 1:
+	put_integer              a(2)     1 
+	get_value                a(2)     a(1) 
+	ret                  
+
+------ Test 321 -------
+p12(A, B, C) :-
+	D = 1,
+	E = 2,
+	F = 3,
+	call(true),
+	A = D,
+	B = E,
+	C = F.
+
+p12 / 3:
+	put_integer              a(4)     1 
+	put_integer              a(5)     2 
+	put_integer              a(6)     3 
+	get_value                a(1)     a(4) 
+	get_value                a(2)     a(5) 
+	get_value                a(3)     a(6) 
+	ret                  
+
+------ Test 322 -------
+p13(A, B) :-
+	C = 1,
+	D = 2,
+	E = 3,
+	current_op(F, G, H),
+	A = C,
+	B = D.
+
+p13 / 2:
+	allocate                 4 
+	put_integer              a(5)     1 
+	move                     a(5)     y(1) 
+	put_integer              a(6)     2 
+	move                     a(6)     y(2) 
+	move                     a(1)     y(3) 
+	move                     a(2)     y(4) 
+	put_variable             a(1) 
+	put_variable             a(2) 
+	put_variable             a(3) 
+	put_atom                 a(4)     eclipse 
+	callf                    sepia_kernel : current_op_body / 4     4 
+	get_value                y(1)     y(3) 
+	get_value                y(2)     y(4) 
+	exit                 
+
+------ Test 323 -------
+b1 :-
+	A = s(B),
+	eq(B, C),
+	A = s(1),
+	C = 1.
+
+b1 / 0:
+	allocate                 2 
+	put_structure            a(3)     s / 1 
+	push_variable            a(1) 
+	move                     a(3)     y(1) 
+	put_global_variable      a(2)     y(2) 
+	callf                    eq / 2     2 
+	move                     y(1)     a(1) 
+	get_structure            a(1)     s / 1     ref(L0) 
+	write_integer            1 
+	branch                   ref(L1) 
+label(L0):
+	read_integer             1 
+label(L1):
+	move                     y(2)     a(1) 
+	get_integer              a(1)     1 
+	exit                 
+
+------ Test u(1) -------
+p(foo(A, B, C)) :-
+	q(B),
+	r(C).
+
+p / 1:
+	allocate                 1 
+	get_structure            a(1)     foo / 3     ref(L0) 
+	write_void           
+	write_variable           a(1) 
+	write_variable           y(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_void            
+	read_variable            a(1) 
+	read_variable            y(1) 
+label(L1):
+	callf                    q / 1     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test ana(1) -------
+p :-
+	q,
+	A = 1,
+	B = 3,
+	p(A).
+
+p / 0:
+	allocate                 0 
+	callf                    q / 0     0 
+	put_integer              a(1)     1 
+	chain                    p / 1 
+
+------ Test ana(2) -------
+p :-
+	A = 1,
+	A = B.
+
+p / 0:
+	put_integer              a(1)     1 
+	ret                  
+
+------ Test ana(3) -------
+p :-
+	A = B.
+
+p / 0:
+	ret                  
+
+------ Test ana(4) -------
+p :-
+	A = 3,
+	B = A.
+
+p / 0:
+	put_integer              a(1)     3 
+	ret                  
+
+------ Test ana(5) -------
+p :-
+	A = 3,
+	q,
+	A = 4,
+	r.
+
+WARNING: unification of value(3) with value(4) will always fail
+p / 0:
+	allocate                 1 
+	put_integer              a(1)     3 
+	move                     a(1)     y(1) 
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     4 
+	chain                    r / 0 
+
+------ Test ana(6) -------
+p :-
+	A = 3,
+	q,
+	B = A,
+	r,
+	B = 4.
+
+WARNING: unification of value(3) with value(4) will always fail
+p / 0:
+	allocate                 2 
+	put_integer              a(1)     3 
+	move                     a(1)     y(2) 
+	initialize               y([1]) 
+	callf                    q / 0     2 
+	move                     y(2)     y(1) 
+	callf                    r / 0     1 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     4 
+	exit                 
+
+------ Test ana(7) -------
+p :-
+	A = f(B, C),
+	q,
+	A = f(D, E),
+	r.
+
+p / 0:
+	allocate                 1 
+	put_structure            a(1)     f / 2 
+	push_void            
+	push_void            
+	move                     a(1)     y(1) 
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	get_structure            a(1)     f / 2     ref(L0) 
+	write_void           
+	write_void           
+	branch                   ref(L1) 
+label(L0):
+	read_void            
+	read_void            
+label(L1):
+	chain                    r / 0 
+
+------ Test ana(8) -------
+p :-
+	integer(A),
+	(
+	    A = 1
+	;
+	    A = 2
+	),
+	q.
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	bi_integer               a(1) 
+	integer_switch           y(1) 
+		1: 	ref(L1)
+		2: 	ref(L3)
+		default: 	ref(fail)
+
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     1 
+label(L3):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+label(L4):
+	chain                    q / 0 
+
+------ Test ana(9) -------
+p(A, B) :-
+	f(a, B) = f(A, b),
+	q.
+
+p / 2:
+	get_atom                 a(1)     a 
+	get_atom                 a(2)     b 
+	jmp                      q / 0 
+
+------ Test idx(1) -------
+p :-
+	p(A),
+	(
+	    A = 1,
+	    p1
+	;
+	    A = 2,
+	    p2
+	).
+
+p / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	integer_switch           y(1) 
+		1: 	ref(L1)
+		2: 	ref(L3)
+		default: 	ref(fail)
+
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 0     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     1 
+label(L3):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+	callf                    p2 / 0     0 
+label(L4):
+	exit                 
+
+------ Test idx(2) -------
+p :-
+	p(A, B),
+	(
+	    B = a,
+	    A = 1,
+	    p1
+	;
+	    A = 2,
+	    B = b,
+	    p2
+	).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      a(1)     y(1) 
+	put_global_variable      a(2)     y(2) 
+	callf                    p / 2     2 
+	integer_switch           y(1) 
+		1: 	ref(L2)
+		2: 	ref(L4)
+		default: 	ref(fail)
+
+label(L0):
+	atom_switch              y(2) 
+		a: 	ref(L2)
+		b: 	ref(L4)
+		default: 	ref(fail)
+
+label(L1):
+	try_me_else              0     0     ref(L3) 
+label(L2):
+	move                     y(2)     a(1) 
+	get_atom                 a(1)     a 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     2 
+label(L4):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+	move                     y(2)     a(1) 
+	get_atom                 a(1)     b 
+	callf                    p2 / 0     0 
+label(L5):
+	exit                 
+
+------ Test idx(3) -------
+p(A, B) :-
+	(
+	    B = a,
+	    A = 1,
+	    p1
+	;
+	    (
+		A = 2,
+		B = b,
+		p2
+	    ;
+		B = c,
+		p3
+	    )
+	).
+
+p / 2:
+	allocate                 2 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	atom_switch              y(2) 
+		a: 	ref(L2)
+		b: 	ref(L4)
+		c: 	ref(L6)
+		default: 	ref(fail)
+
+label(L0):
+	integer_switch           y(1) 
+		1: 	ref(L8)
+		2: 	ref(L9)
+		default: 	ref(L6)
+
+label(L1):
+	try_me_else              0     0     ref(L3) 
+label(L2):
+	move                     y(2)     a(1) 
+	get_atom                 a(1)     a 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 0     0 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     2 
+label(L4):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+	move                     y(2)     a(1) 
+	get_atom                 a(1)     b 
+	callf                    p2 / 0     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     2 
+label(L6):
+	move                     y(2)     a(1) 
+	get_atom                 a(1)     c 
+	callf                    p3 / 0     1 
+label(L7):
+	exit                 
+label(L8):
+	try                      0     0     ref(L2) 
+	trust                    0     ref(L6) 
+label(L9):
+	try                      0     0     ref(L4) 
+	trust                    0     ref(L6) 
+
+------ Test idx(4) -------
+p(A, B) :-
+	(
+	    B = a,
+	    A = 1,
+	    p1
+	;
+	    (
+		integer(A),
+		B = b,
+		p2
+	    ;
+		number(A),
+		p3
+	    )
+	).
+
+p / 2:
+	allocate                 2 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	switch_on_type           y(1) 
+		list: 	ref(fail)
+		structure: 	ref(fail)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		string: 	ref(fail)
+		bignum: 	ref(L9)
+		breal: 	ref(L6)
+		rational: 	ref(L6)
+		double: 	ref(L6)
+		[]: 	ref(fail)
+		integer: 	ref(L0)
+		atom: 	ref(fail)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+	branch                   ref(L2) 
+label(L0):
+	atom_switch              y(2) 
+		a: 	ref(L8)
+		b: 	ref(L9)
+		default: 	ref(L6)
+
+label(L1):
+	try_me_else              0     0     ref(L3) 
+label(L2):
+	move                     y(2)     a(1) 
+	get_atom                 a(1)     a 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 0     0 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     2 
+label(L4):
+	move                     y(1)     a(1) 
+	bi_integer               a(1) 
+	move                     y(2)     a(1) 
+	get_atom                 a(1)     b 
+	callf                    p2 / 0     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     2 
+label(L6):
+	move                     y(1)     a(1) 
+	bi_number                a(1) 
+	callf                    p3 / 0     2 
+label(L7):
+	exit                 
+label(L8):
+	try                      0     0     ref(L2) 
+	trust                    0     ref(L6) 
+label(L9):
+	try                      0     0     ref(L4) 
+	trust                    0     ref(L6) 
+
+------ Test idx(5) -------
+p(A) :-
+	(
+	    A = 1,
+	    p1
+	;
+	    (
+		A = 2,
+		p2
+	    ;
+		(
+		    integer(A),
+		    p3
+		;
+		    number(A),
+		    p4
+		)
+	    )
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(fail)
+		structure: 	ref(fail)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		string: 	ref(fail)
+		bignum: 	ref(L13)
+		breal: 	ref(L7)
+		rational: 	ref(L7)
+		double: 	ref(L7)
+		[]: 	ref(fail)
+		integer: 	ref(L9)
+		atom: 	ref(fail)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+	branch                   ref(L12) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 0     0 
+	branch                   ref(L8) 
+label(L2):
+	retry_me_inline          0     ref(L4)     1 
+label(L3):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+	callf                    p2 / 0     0 
+	branch                   ref(L8) 
+label(L4):
+	retry_me_inline          0     ref(L6)     1 
+label(L5):
+	move                     y(1)     a(1) 
+	bi_integer               a(1) 
+	callf                    p3 / 0     0 
+	branch                   ref(L8) 
+label(L6):
+	trust_me_inline          0     1 
+label(L7):
+	move                     y(1)     a(1) 
+	bi_number                a(1) 
+	callf                    p4 / 0     0 
+label(L8):
+	exit                 
+label(L9):
+	integer_switch           y(1) 
+		1: 	ref(L10)
+		2: 	ref(L11)
+		default: 	ref(L0)
+
+label(L10):
+	try                      0     0     ref(L1) 
+	retry                    0     ref(L5) 
+	trust                    0     ref(L7) 
+label(L11):
+	try                      0     0     ref(L3) 
+	retry                    0     ref(L5) 
+	trust                    0     ref(L7) 
+label(L12):
+	try                      0     0     ref(L1) 
+	trust                    0     ref(L3) 
+label(L13):
+	try                      0     0     ref(L5) 
+	trust                    0     ref(L7) 
+
+------ Test idx(6) -------
+p :-
+	p(A, B),
+	(
+	    B == a,
+	    A = 1,
+	    p1
+	;
+	    A = 2,
+	    B == b,
+	    p2
+	).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      a(1)     y(1) 
+	put_global_variable      a(2)     y(2) 
+	callf                    p / 2     2 
+	atom_switch              y(2) 
+		a: 	ref(L2)
+		b: 	ref(L4)
+		default: 	ref(fail)
+
+	branch                   ref(fail) 
+label(L0):
+	integer_switch           y(1) 
+		1: 	ref(L2)
+		2: 	ref(L4)
+		default: 	ref(fail)
+
+label(L1):
+	try_me_else              0     0     ref(L3) 
+label(L2):
+	put_atom                 a(1)     a 
+	move                     y(2)     a(2) 
+	bi_identical             a(2)     a(1) 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     2 
+label(L4):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+	put_atom                 a(1)     b 
+	move                     y(2)     a(2) 
+	bi_identical             a(2)     a(1) 
+	callf                    p2 / 0     0 
+label(L5):
+	exit                 
+
+------ Test idx(7) -------
+p(A) :-
+	(
+	    A = [],
+	    p1
+	;
+	    A = [B|C],
+	    p2
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	list_switch              y(1)     ref(L3)     ref(L1)     ref(fail) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_nil                  a(1) 
+	callf                    p1 / 0     0 
+	branch                   ref(L6) 
+label(L2):
+	trust_me_inline          0     1 
+label(L3):
+	move                     y(1)     a(1) 
+	get_list                 a(1)     ref(L4) 
+	write_void           
+	write_void           
+	branch                   ref(L5) 
+label(L4):
+	read_void            
+	read_void            
+label(L5):
+	callf                    p2 / 0     0 
+label(L6):
+	exit                 
+
+------ Test idx(8) -------
+p(A) :-
+	(
+	    var(A),
+	    !,
+	    p
+	;
+	    q
+	).
+
+p / 1:
+	allocate                 2 
+	savecut                  y(2) 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(L3)
+		structure: 	ref(L3)
+		goal: 	ref(L3)
+		handle: 	ref(L3)
+		string: 	ref(L3)
+		bignum: 	ref(L3)
+		breal: 	ref(L3)
+		rational: 	ref(L3)
+		double: 	ref(L3)
+		[]: 	ref(L3)
+		integer: 	ref(L3)
+		atom: 	ref(L3)
+		db_reference: 	ref(L3)
+		meta: 	ref(L3)
+
+	branch                   ref(L1) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	bi_var                   a(1) 
+	cut                      y(2)     2 
+	callf                    p / 0     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     2 
+label(L3):
+	callf                    q / 0     2 
+label(L4):
+	exit                 
+
+------ Test idx(9) -------
+p(A) :-
+	(
+	    A = 3.1,
+	    p
+	;
+	    A = 9.9,
+	    q
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(fail)
+		structure: 	ref(fail)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		string: 	ref(fail)
+		bignum: 	ref(fail)
+		breal: 	ref(fail)
+		rational: 	ref(fail)
+		double: 	ref(L0)
+		[]: 	ref(fail)
+		integer: 	ref(fail)
+		atom: 	ref(fail)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_constant             a(1)     3.1 
+	callf                    p / 0     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     1 
+label(L3):
+	move                     y(1)     a(1) 
+	get_constant             a(1)     9.9 
+	callf                    q / 0     0 
+label(L4):
+	exit                 
+
+------ Test idx(10) -------
+p(A) :-
+	(
+	    A = "foo",
+	    p
+	;
+	    (
+		A = "bar",
+		q
+	    ;
+		r
+	    )
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(L5)
+		structure: 	ref(L5)
+		goal: 	ref(L5)
+		handle: 	ref(L5)
+		string: 	ref(L0)
+		bignum: 	ref(L5)
+		breal: 	ref(L5)
+		rational: 	ref(L5)
+		double: 	ref(L5)
+		[]: 	ref(L5)
+		integer: 	ref(L5)
+		atom: 	ref(L5)
+		db_reference: 	ref(L5)
+		meta: 	ref(L5)
+
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_string               a(1)     "foo" 
+	callf                    p / 0     0 
+	branch                   ref(L6) 
+label(L2):
+	retry_me_inline          0     ref(L4)     1 
+label(L3):
+	move                     y(1)     a(1) 
+	get_string               a(1)     "bar" 
+	callf                    q / 0     0 
+	branch                   ref(L6) 
+label(L4):
+	trust_me_inline          0     1 
+label(L5):
+	callf                    r / 0     1 
+label(L6):
+	exit                 
+
+------ Test idx(11) -------
+p(A) :-
+	(
+	    A = f(1),
+	    p
+	;
+	    (
+		A = g(1, 2),
+		q
+	    ;
+		r
+	    )
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	functor_switch           y(1) 
+		f / 1: 	ref(L11)
+		g / 2: 	ref(L12)
+		default: 	ref(L9)
+
+label(L0):
+	try_me_else              0     0     ref(L4) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_structure            a(1)     f / 1     ref(L2) 
+	write_integer            1 
+	branch                   ref(L3) 
+label(L2):
+	read_integer             1 
+label(L3):
+	callf                    p / 0     0 
+	branch                   ref(L10) 
+label(L4):
+	retry_me_inline          0     ref(L8)     1 
+label(L5):
+	move                     y(1)     a(1) 
+	get_structure            a(1)     g / 2     ref(L6) 
+	write_integer            1 
+	write_integer            2 
+	branch                   ref(L7) 
+label(L6):
+	read_integer             1 
+	read_integer             2 
+label(L7):
+	callf                    q / 0     0 
+	branch                   ref(L10) 
+label(L8):
+	trust_me_inline          0     1 
+label(L9):
+	callf                    r / 0     1 
+label(L10):
+	exit                 
+label(L11):
+	try                      0     0     ref(L1) 
+	trust                    0     ref(L9) 
+label(L12):
+	try                      0     0     ref(L5) 
+	trust                    0     ref(L9) 
+
+------ Test idx(12) -------
+p(A) :-
+	(
+	    A = [],
+	    p
+	;
+	    r
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	list_switch              y(1)     ref(L3)     ref(L0)     ref(L3) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_nil                  a(1) 
+	callf                    p / 0     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     1 
+label(L3):
+	callf                    r / 0     1 
+label(L4):
+	exit                 
+
+------ Test idx(13) -------
+p(A) :-
+	(
+	    A = []
+	->
+	    p
+	;
+	    r
+	).
+
+p / 1:
+	allocate                 2 
+	savecut                  y(2) 
+	move                     a(1)     y(1) 
+	list_switch              y(1)     ref(L3)     ref(L1)     ref(L3) 
+	branch                   ref(L1) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_nil                  a(1) 
+	cut                      y(2)     2 
+	callf                    p / 0     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     2 
+label(L3):
+	callf                    r / 0     2 
+label(L4):
+	exit                 
+
+------ Test idx(14) -------
+p :-
+	p(A, B),
+	(
+	    a == B,
+	    1 = A,
+	    p1
+	;
+	    2 = A,
+	    b == B,
+	    p2
+	).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      a(1)     y(1) 
+	put_global_variable      a(2)     y(2) 
+	callf                    p / 2     2 
+	atom_switch              y(2) 
+		a: 	ref(L2)
+		b: 	ref(L4)
+		default: 	ref(fail)
+
+	branch                   ref(fail) 
+label(L0):
+	integer_switch           y(1) 
+		1: 	ref(L2)
+		2: 	ref(L4)
+		default: 	ref(fail)
+
+label(L1):
+	try_me_else              0     0     ref(L3) 
+label(L2):
+	put_atom                 a(1)     a 
+	move                     y(2)     a(2) 
+	bi_identical             a(1)     a(2) 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     2 
+label(L4):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+	put_atom                 a(1)     b 
+	move                     y(2)     a(2) 
+	bi_identical             a(1)     a(2) 
+	callf                    p2 / 0     0 
+label(L5):
+	exit                 
+
+------ Test idx(15) -------
+p :-
+	p(A, B),
+	(
+	    a == B,
+	    1 = A,
+	    p1
+	;
+	    (
+		2 = A,
+		b == B,
+		p2
+	    ;
+		A == B,
+		p3
+	    )
+	).
+
+p / 0:
+	allocate                 2 
+	put_global_variable      a(1)     y(1) 
+	put_global_variable      a(2)     y(2) 
+	callf                    p / 2     2 
+	atom_switch              y(2) 
+		a: 	ref(L8)
+		b: 	ref(L9)
+		default: 	ref(L6)
+
+	branch                   ref(L6) 
+label(L0):
+	integer_switch           y(1) 
+		1: 	ref(L8)
+		2: 	ref(L9)
+		default: 	ref(L6)
+
+label(L1):
+	try_me_else              0     0     ref(L3) 
+label(L2):
+	put_atom                 a(1)     a 
+	move                     y(2)     a(2) 
+	bi_identical             a(1)     a(2) 
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 0     0 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     2 
+label(L4):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+	put_atom                 a(1)     b 
+	move                     y(2)     a(2) 
+	bi_identical             a(1)     a(2) 
+	callf                    p2 / 0     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     2 
+label(L6):
+	move                     y(1)     a(1) 
+	move                     y(2)     a(2) 
+	bi_identical             a(1)     a(2) 
+	callf                    p3 / 0     0 
+label(L7):
+	exit                 
+label(L8):
+	try                      0     0     ref(L2) 
+	trust                    0     ref(L6) 
+label(L9):
+	try                      0     0     ref(L4) 
+	trust                    0     ref(L6) 
+
+------ Test idx(16) -------
+p(A) :-
+	(
+	    var(B),
+	    !,
+	    p
+	;
+	    q
+	).
+
+p / 1:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	callf                    p / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	callf                    q / 0     1 
+label(L3):
+	exit                 
+
+------ Test idx(20) -------
+p(A) :-
+	(
+	    A == [],
+	    p
+	;
+	    A == [a],
+	    q
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	list_switch              y(1)     ref(L3)     ref(L1)     ref(fail) 
+	branch                   ref(fail) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	put_nil                  a(1) 
+	move                     y(1)     a(2) 
+	bi_identical             a(2)     a(1) 
+	callf                    p / 0     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     1 
+label(L3):
+	put_list                 a(1) 
+	write_atom               a 
+	push_nil             
+	move                     y(1)     a(2) 
+	bi_identical             a(2)     a(1) 
+	callf                    q / 0     0 
+label(L4):
+	exit                 
+
+------ Test idx(21) -------
+p(A) :-
+	(
+	    A == f(a),
+	    r
+	;
+	    A == "hello",
+	    s
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(fail)
+		structure: 	ref(L1)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		string: 	ref(L3)
+		bignum: 	ref(fail)
+		breal: 	ref(fail)
+		rational: 	ref(fail)
+		double: 	ref(fail)
+		[]: 	ref(fail)
+		integer: 	ref(fail)
+		atom: 	ref(fail)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+	branch                   ref(fail) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	put_structure            a(1)     f / 1 
+	write_atom               a 
+	move                     y(1)     a(2) 
+	bi_identical             a(2)     a(1) 
+	callf                    r / 0     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     1 
+label(L3):
+	put_string               a(1)     "hello" 
+	move                     y(1)     a(2) 
+	bi_identical             a(2)     a(1) 
+	callf                    s / 0     0 
+label(L4):
+	exit                 
+
+------ Test idx(22) -------
+p(A) :-
+	(
+	    A == [],
+	    p
+	;
+	    (
+		A == [a],
+		q
+	    ;
+		A == f(a),
+		r
+	    )
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(L3)
+		structure: 	ref(L5)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		string: 	ref(fail)
+		bignum: 	ref(fail)
+		breal: 	ref(fail)
+		rational: 	ref(fail)
+		double: 	ref(fail)
+		[]: 	ref(L1)
+		integer: 	ref(fail)
+		atom: 	ref(fail)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+	branch                   ref(fail) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	put_nil                  a(1) 
+	move                     y(1)     a(2) 
+	bi_identical             a(2)     a(1) 
+	callf                    p / 0     0 
+	branch                   ref(L6) 
+label(L2):
+	retry_me_inline          0     ref(L4)     1 
+label(L3):
+	put_list                 a(1) 
+	write_atom               a 
+	push_nil             
+	move                     y(1)     a(2) 
+	bi_identical             a(2)     a(1) 
+	callf                    q / 0     0 
+	branch                   ref(L6) 
+label(L4):
+	trust_me_inline          0     1 
+label(L5):
+	put_structure            a(1)     f / 1 
+	write_atom               a 
+	move                     y(1)     a(2) 
+	bi_identical             a(2)     a(1) 
+	callf                    r / 0     0 
+label(L6):
+	exit                 
+
+------ Test idx(23) -------
+p :-
+	(
+	    A == [],
+	    p
+	;
+	    q
+	).
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	put_nil                  a(2) 
+	bi_identical             a(1)     a(2) 
+	callf                    p / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     0 
+label(L2):
+	callf                    q / 0     0 
+label(L3):
+	exit                 
+
+------ Test idx(24) -------
+p(A) :-
+	(
+	    A = f(B),
+	    !,
+	    p1
+	;
+	    (
+		A = [C|D],
+		!,
+		p2
+	    ;
+		compound(A),
+		p2
+	    )
+	).
+
+p / 1:
+	allocate                 2 
+	savecut                  y(2) 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(L12)
+		structure: 	ref(L11)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		string: 	ref(fail)
+		bignum: 	ref(fail)
+		breal: 	ref(fail)
+		rational: 	ref(fail)
+		double: 	ref(fail)
+		[]: 	ref(fail)
+		integer: 	ref(fail)
+		atom: 	ref(fail)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+	branch                   ref(L1) 
+label(L0):
+	try_me_else              0     0     ref(L4) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_structure            a(1)     f / 1     ref(L2) 
+	write_void           
+	branch                   ref(L3) 
+label(L2):
+	read_void            
+label(L3):
+	cut                      y(2)     2 
+	callf                    p1 / 0     0 
+	branch                   ref(L10) 
+label(L4):
+	retry_me_inline          0     ref(L8)     2 
+label(L5):
+	move                     y(1)     a(1) 
+	get_list                 a(1)     ref(L6) 
+	write_void           
+	write_void           
+	branch                   ref(L7) 
+label(L6):
+	read_void            
+	read_void            
+label(L7):
+	cut                      y(2)     2 
+	callf                    p2 / 0     0 
+	branch                   ref(L10) 
+label(L8):
+	trust_me_inline          0     2 
+label(L9):
+	move                     y(1)     a(1) 
+	bi_compound              a(1) 
+	callf                    p2 / 0     2 
+label(L10):
+	exit                 
+label(L11):
+	try                      0     0     ref(L1) 
+	trust                    0     ref(L9) 
+label(L12):
+	try                      0     0     ref(L5) 
+	trust                    0     ref(L9) 
+
+------ Test idx(25) -------
+p(A) :-
+	(
+	    A = 1,
+	    p_integer
+	;
+	    (
+		A = 11111111111111,
+		p_big
+	    ;
+		(
+		    A = 1.1,
+		    p_float
+		;
+		    (
+			A = 5_2,
+			p_rational
+		    ;
+			(
+			    A = 0.9__1.1,
+			    p_breal
+			;
+			    (
+				A = "hello",
+				p_string
+			    ;
+				(
+				    A = hello,
+				    p_atom
+				;
+				    (
+					A = [],
+					p_nil
+				    ;
+					(
+					    A = [B|C],
+					    p_list
+					;
+					    A = foo(bar),
+					    p_struct
+					)
+				    )
+				)
+			    )
+			)
+		    )
+		)
+	    )
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(L17)
+		structure: 	ref(L21)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		string: 	ref(L11)
+		bignum: 	ref(L3)
+		breal: 	ref(L9)
+		rational: 	ref(L7)
+		double: 	ref(L5)
+		[]: 	ref(L15)
+		integer: 	ref(L1)
+		atom: 	ref(L13)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p_integer / 0     0 
+	branch                   ref(L24) 
+label(L2):
+	retry_me_inline          0     ref(L4)     1 
+label(L3):
+	move                     y(1)     a(1) 
+	get_constant             a(1)     11111111111111 
+	callf                    p_big / 0     0 
+	branch                   ref(L24) 
+label(L4):
+	retry_me_inline          0     ref(L6)     1 
+label(L5):
+	move                     y(1)     a(1) 
+	get_constant             a(1)     1.1 
+	callf                    p_float / 0     0 
+	branch                   ref(L24) 
+label(L6):
+	retry_me_inline          0     ref(L8)     1 
+label(L7):
+	move                     y(1)     a(1) 
+	get_constant             a(1)     5_2 
+	callf                    p_rational / 0     0 
+	branch                   ref(L24) 
+label(L8):
+	retry_me_inline          0     ref(L10)     1 
+label(L9):
+	move                     y(1)     a(1) 
+	get_constant             a(1)     0.9__1.1 
+	callf                    p_breal / 0     0 
+	branch                   ref(L24) 
+label(L10):
+	retry_me_inline          0     ref(L12)     1 
+label(L11):
+	move                     y(1)     a(1) 
+	get_string               a(1)     "hello" 
+	callf                    p_string / 0     0 
+	branch                   ref(L24) 
+label(L12):
+	retry_me_inline          0     ref(L14)     1 
+label(L13):
+	move                     y(1)     a(1) 
+	get_atom                 a(1)     hello 
+	callf                    p_atom / 0     0 
+	branch                   ref(L24) 
+label(L14):
+	retry_me_inline          0     ref(L16)     1 
+label(L15):
+	move                     y(1)     a(1) 
+	get_nil                  a(1) 
+	callf                    p_nil / 0     0 
+	branch                   ref(L24) 
+label(L16):
+	retry_me_inline          0     ref(L20)     1 
+label(L17):
+	move                     y(1)     a(1) 
+	get_list                 a(1)     ref(L18) 
+	write_void           
+	write_void           
+	branch                   ref(L19) 
+label(L18):
+	read_void            
+	read_void            
+label(L19):
+	callf                    p_list / 0     0 
+	branch                   ref(L24) 
+label(L20):
+	trust_me_inline          0     1 
+label(L21):
+	move                     y(1)     a(1) 
+	get_structure            a(1)     foo / 1     ref(L22) 
+	write_atom               bar 
+	branch                   ref(L23) 
+label(L22):
+	read_atom                bar 
+label(L23):
+	callf                    p_struct / 0     0 
+label(L24):
+	exit                 
+
+------ Test idx(26) -------
+p(A) :-
+	(
+	    var(A),
+	    p_var
+	;
+	    (
+		integer(A),
+		p_integer
+	    ;
+		(
+		    float(A),
+		    p_float
+		;
+		    (
+			rational(A),
+			p_rational
+		    ;
+			(
+			    breal(A),
+			    p_breal
+			;
+			    (
+				string(A),
+				p_string
+			    ;
+				(
+				    nonvar(A),
+				    A = [],
+				    !,
+				    p_nil
+				;
+				    (
+					atom(A),
+					p_atom
+				    ;
+					(
+					    nonvar(A),
+					    A = [B|C],
+					    !,
+					    p_list
+					;
+					    (
+						compound(A),
+						p_struct
+					    ;
+						is_handle(A),
+						p_handle
+					    )
+					)
+				    )
+				)
+			    )
+			)
+		    )
+		)
+	    )
+	).
+
+p / 1:
+	allocate                 2 
+	savecut                  y(2) 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(L25)
+		structure: 	ref(L21)
+		goal: 	ref(fail)
+		handle: 	ref(L23)
+		string: 	ref(L11)
+		bignum: 	ref(L3)
+		breal: 	ref(L9)
+		rational: 	ref(L7)
+		double: 	ref(L5)
+		[]: 	ref(L13)
+		integer: 	ref(L3)
+		atom: 	ref(L15)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+	branch                   ref(L1) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	bi_var                   a(1) 
+	callf                    p_var / 0     2 
+	branch                   ref(L24) 
+label(L2):
+	retry_me_inline          0     ref(L4)     2 
+label(L3):
+	move                     y(1)     a(1) 
+	bi_integer               a(1) 
+	callf                    p_integer / 0     2 
+	branch                   ref(L24) 
+label(L4):
+	retry_me_inline          0     ref(L6)     2 
+label(L5):
+	move                     y(1)     a(1) 
+	bi_float                 a(1) 
+	callf                    p_float / 0     2 
+	branch                   ref(L24) 
+label(L6):
+	retry_me_inline          0     ref(L8)     2 
+label(L7):
+	move                     y(1)     a(1) 
+	bi_rational              a(1) 
+	callf                    p_rational / 0     2 
+	branch                   ref(L24) 
+label(L8):
+	retry_me_inline          0     ref(L10)     2 
+label(L9):
+	move                     y(1)     a(1) 
+	bi_breal                 a(1) 
+	callf                    p_breal / 0     2 
+	branch                   ref(L24) 
+label(L10):
+	retry_me_inline          0     ref(L12)     2 
+label(L11):
+	move                     y(1)     a(1) 
+	bi_string                a(1) 
+	callf                    p_string / 0     2 
+	branch                   ref(L24) 
+label(L12):
+	retry_me_inline          0     ref(L14)     2 
+label(L13):
+	move                     y(1)     a(1) 
+	bi_nonvar                a(1) 
+	get_nil                  a(1) 
+	cut                      y(2)     2 
+	callf                    p_nil / 0     0 
+	branch                   ref(L24) 
+label(L14):
+	retry_me_inline          0     ref(L16)     2 
+label(L15):
+	move                     y(1)     a(1) 
+	bi_atom                  a(1) 
+	callf                    p_atom / 0     2 
+	branch                   ref(L24) 
+label(L16):
+	retry_me_inline          0     ref(L20)     2 
+label(L17):
+	move                     y(1)     a(1) 
+	bi_nonvar                a(1) 
+	get_list                 a(1)     ref(L18) 
+	write_void           
+	write_void           
+	branch                   ref(L19) 
+label(L18):
+	read_void            
+	read_void            
+label(L19):
+	cut                      y(2)     2 
+	callf                    p_list / 0     0 
+	branch                   ref(L24) 
+label(L20):
+	retry_me_inline          0     ref(L22)     2 
+label(L21):
+	move                     y(1)     a(1) 
+	bi_compound              a(1) 
+	callf                    p_struct / 0     2 
+	branch                   ref(L24) 
+label(L22):
+	trust_me_inline          0     2 
+label(L23):
+	move                     y(1)     a(1) 
+	bi_is_handle             a(1) 
+	callf                    p_handle / 0     2 
+label(L24):
+	exit                 
+label(L25):
+	try                      0     0     ref(L17) 
+	trust                    0     ref(L21) 
+
+------ Test idx(27) -------
+p(A) :-
+	(
+	    atom(A),
+	    p_string
+	;
+	    A = hello,
+	    p_hello
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(fail)
+		structure: 	ref(fail)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		string: 	ref(fail)
+		bignum: 	ref(fail)
+		breal: 	ref(fail)
+		rational: 	ref(fail)
+		double: 	ref(fail)
+		[]: 	ref(L1)
+		integer: 	ref(fail)
+		atom: 	ref(L0)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+	branch                   ref(L3) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	bi_atom                  a(1) 
+	callf                    p_string / 0     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     1 
+label(L3):
+	move                     y(1)     a(1) 
+	get_atom                 a(1)     hello 
+	callf                    p_hello / 0     0 
+label(L4):
+	exit                 
+
+------ Test idx(28) -------
+p(A) :-
+	(
+	    A = "abc",
+	    p1
+	;
+	    (
+		A = "def",
+		p2
+	    ;
+		A = ghi,
+		p3
+	    )
+	).
+
+p / 1:
+	allocate                 1 
+	move                     a(1)     y(1) 
+	switch_on_type           y(1) 
+		list: 	ref(fail)
+		structure: 	ref(fail)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		string: 	ref(L7)
+		bignum: 	ref(fail)
+		breal: 	ref(fail)
+		rational: 	ref(fail)
+		double: 	ref(fail)
+		[]: 	ref(fail)
+		integer: 	ref(fail)
+		atom: 	ref(L5)
+		db_reference: 	ref(fail)
+		meta: 	ref(fail)
+
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_string               a(1)     "abc" 
+	callf                    p1 / 0     0 
+	branch                   ref(L6) 
+label(L2):
+	retry_me_inline          0     ref(L4)     1 
+label(L3):
+	move                     y(1)     a(1) 
+	get_string               a(1)     "def" 
+	callf                    p2 / 0     0 
+	branch                   ref(L6) 
+label(L4):
+	trust_me_inline          0     1 
+label(L5):
+	move                     y(1)     a(1) 
+	get_atom                 a(1)     ghi 
+	callf                    p3 / 0     0 
+label(L6):
+	exit                 
+label(L7):
+	try                      0     0     ref(L1) 
+	trust                    0     ref(L3) 
+
+------ Test idx(29) -------
+p(A) :-
+	A = 1,
+	p,
+	q(A).
+p(A) :-
+	A = 2,
+	q,
+	r(A).
+
+p / 1:
+	allocate                 1 
+	initialize               y([1]) 
+	integer_switch           a(1) 
+		1: 	ref(L1)
+		2: 	ref(L3)
+		default: 	ref(fail)
+
+label(L0):
+	try_me_else              0     1     ref(L2) 
+label(L1):
+	get_integer              a(1)     1 
+	move                     a(1)     y(1) 
+	callf                    p / 0     1 
+	move                     y(1)     a(1) 
+	callf                    q / 1     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     1 
+label(L3):
+	get_integer              a(1)     2 
+	move                     a(1)     y(1) 
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	callf                    r / 1     0 
+label(L4):
+	exit                 
+
+------ Test head(100) -------
+p(a) :-
+	q.
+
+p / 1:
+	get_atom                 a(1)     a 
+	jmp                      q / 0 
+
+------ Test head(101) -------
+p(a, A, 3) :-
+	q.
+
+p / 3:
+	get_atom                 a(1)     a 
+	get_integer              a(3)     3 
+	jmp                      q / 0 
+
+------ Test head(102) -------
+p(A, A) :-
+	q.
+
+p / 2:
+	get_value                a(2)     a(1) 
+	jmp                      q / 0 
+
+------ Test head(103) -------
+p(a, A, B, 3.5, 5_2, "hello", A) :-
+	q.
+
+p / 7:
+	get_atom                 a(1)     a 
+	get_constant             a(4)     3.5 
+	get_constant             a(5)     5_2 
+	get_string               a(6)     "hello" 
+	get_value                a(7)     a(2) 
+	jmp                      q / 0 
+
+------ Test head(1) -------
+p(f(1)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 1     ref(L0) 
+	write_integer            1 
+	branch                   ref(L1) 
+label(L0):
+	read_integer             1 
+label(L1):
+	jmp                      q / 0 
+
+------ Test head(2) -------
+p(f(1, 2)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 2     ref(L0) 
+	write_integer            1 
+	write_integer            2 
+	branch                   ref(L1) 
+label(L0):
+	read_integer             1 
+	read_integer             2 
+label(L1):
+	jmp                      q / 0 
+
+------ Test head(3) -------
+p(f(g(1))) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 1     ref(L1) 
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	branch                   ref(L2) 
+label(L1):
+	read_last_structure      g / 1     ref(L0) 
+	read_integer             1 
+label(L2):
+	jmp                      q / 0 
+
+------ Test head(4) -------
+p(f(g(1), h(2))) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 2     ref(L2) 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	mode                     t(0)     ref(L3) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	branch                   ref(L4) 
+label(L2):
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+	mode                     t(0) 
+label(L3):
+	read_last_structure      h / 1     ref(L1) 
+	read_integer             2 
+label(L4):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(5) -------
+p(f(g(1), h(2), i(3))) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 3     ref(L3) 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	next                     t(0)     ref(L4) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	branch                   ref(L6) 
+label(L3):
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+label(L4):
+	read_next_structure      h / 1     t(0)     ref(L1) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_last_structure      i / 1     ref(L2) 
+	read_integer             3 
+label(L6):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(6) -------
+p(f(4, g(1), h(2), i(3))) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 4     ref(L3) 
+	write_integer            4 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	next                     t(0)     ref(L4) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	branch                   ref(L6) 
+label(L3):
+	read_integer             4 
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+label(L4):
+	read_next_structure      h / 1     t(0)     ref(L1) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_last_structure      i / 1     ref(L2) 
+	read_integer             3 
+label(L6):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(7) -------
+p(f(4, g(1), 5, h(2), i(3))) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 5     ref(L3) 
+	write_integer            4 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	mode                     t(0)     ref(L4) 
+	write_integer            5 
+	next                     t(0) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	branch                   ref(L6) 
+label(L3):
+	read_integer             4 
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+	mode                     t(0) 
+label(L4):
+	read_integer             5 
+	read_structure           h / 1     t(0)     ref(L1) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_last_structure      i / 1     ref(L2) 
+	read_integer             3 
+label(L6):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(8) -------
+p(f(4, g(1), 5, h(2), 6, i(3))) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 6     ref(L3) 
+	write_integer            4 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	mode                     t(0)     ref(L4) 
+	write_integer            5 
+	next                     t(0) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_integer            6 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	branch                   ref(L6) 
+label(L3):
+	read_integer             4 
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+	mode                     t(0) 
+label(L4):
+	read_integer             5 
+	read_structure           h / 1     t(0)     ref(L1) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_integer             6 
+	read_last_structure      i / 1     ref(L2) 
+	read_integer             3 
+label(L6):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(9) -------
+p(f(4, g(1), 5, h(2), 6, i(3), 7)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 7     ref(L3) 
+	write_integer            4 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	mode                     t(0)     ref(L4) 
+	write_integer            5 
+	next                     t(0) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_integer            6 
+	next                     t(0) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	mode                     t(0)     ref(L6) 
+	write_integer            7 
+	branch                   ref(L7) 
+label(L3):
+	read_integer             4 
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+	mode                     t(0) 
+label(L4):
+	read_integer             5 
+	read_structure           h / 1     t(0)     ref(L1) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_integer             6 
+	read_structure           i / 1     t(0)     ref(L2) 
+	read_integer             3 
+	mode                     t(0) 
+label(L6):
+	read_integer             7 
+label(L7):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(10) -------
+p(f(4, g(1), 5, h(2), 6, i(3), 7)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 7     ref(L3) 
+	write_integer            4 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	mode                     t(0)     ref(L4) 
+	write_integer            5 
+	next                     t(0) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_integer            6 
+	next                     t(0) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	mode                     t(0)     ref(L6) 
+	write_integer            7 
+	branch                   ref(L7) 
+label(L3):
+	read_integer             4 
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+	mode                     t(0) 
+label(L4):
+	read_integer             5 
+	read_structure           h / 1     t(0)     ref(L1) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_integer             6 
+	read_structure           i / 1     t(0)     ref(L2) 
+	read_integer             3 
+	mode                     t(0) 
+label(L6):
+	read_integer             7 
+label(L7):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(11) -------
+p(f(4, g(1), 5, h(2), 6, i(3), 7, 8)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 8     ref(L3) 
+	write_integer            4 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	mode                     t(0)     ref(L4) 
+	write_integer            5 
+	next                     t(0) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_integer            6 
+	next                     t(0) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	mode                     t(0)     ref(L6) 
+	write_integer            7 
+	write_integer            8 
+	branch                   ref(L7) 
+label(L3):
+	read_integer             4 
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+	mode                     t(0) 
+label(L4):
+	read_integer             5 
+	read_structure           h / 1     t(0)     ref(L1) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_integer             6 
+	read_structure           i / 1     t(0)     ref(L2) 
+	read_integer             3 
+	mode                     t(0) 
+label(L6):
+	read_integer             7 
+	read_integer             8 
+label(L7):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(12) -------
+p(f(g(1), 5, h(2), 6, i(3), 7, 8)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 7     ref(L3) 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	mode                     t(0)     ref(L4) 
+	write_integer            5 
+	next                     t(0) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_integer            6 
+	next                     t(0) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	mode                     t(0)     ref(L6) 
+	write_integer            7 
+	write_integer            8 
+	branch                   ref(L7) 
+label(L3):
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+	mode                     t(0) 
+label(L4):
+	read_integer             5 
+	read_structure           h / 1     t(0)     ref(L1) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_integer             6 
+	read_structure           i / 1     t(0)     ref(L2) 
+	read_integer             3 
+	mode                     t(0) 
+label(L6):
+	read_integer             7 
+	read_integer             8 
+label(L7):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(13) -------
+p(f(g(1), h(2), 6, i(3), 7, 8)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 6     ref(L3) 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	next                     t(0)     ref(L4) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_integer            6 
+	next                     t(0) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	mode                     t(0)     ref(L6) 
+	write_integer            7 
+	write_integer            8 
+	branch                   ref(L7) 
+label(L3):
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+label(L4):
+	read_next_structure      h / 1     t(0)     ref(L1) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_integer             6 
+	read_structure           i / 1     t(0)     ref(L2) 
+	read_integer             3 
+	mode                     t(0) 
+label(L6):
+	read_integer             7 
+	read_integer             8 
+label(L7):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(14) -------
+p(f(g(1), h(2), i(3), 7, 8)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 5     ref(L3) 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	next                     t(0)     ref(L4) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	next                     t(0)     ref(L5) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	mode                     t(0)     ref(L6) 
+	write_integer            7 
+	write_integer            8 
+	branch                   ref(L7) 
+label(L3):
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+label(L4):
+	read_next_structure      h / 1     t(0)     ref(L1) 
+	read_integer             2 
+label(L5):
+	read_next_structure      i / 1     t(0)     ref(L2) 
+	read_integer             3 
+	mode                     t(0) 
+label(L6):
+	read_integer             7 
+	read_integer             8 
+label(L7):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(15) -------
+p(f(g(1), h(2), i(3), 8)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 4     ref(L3) 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	next                     t(0)     ref(L4) 
+	write_structure          h / 1 
+label(L1):
+	write_integer            2 
+	next                     t(0)     ref(L5) 
+	write_structure          i / 1 
+label(L2):
+	write_integer            3 
+	mode                     t(0)     ref(L6) 
+	write_integer            8 
+	branch                   ref(L7) 
+label(L3):
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+label(L4):
+	read_next_structure      h / 1     t(0)     ref(L1) 
+	read_integer             2 
+label(L5):
+	read_next_structure      i / 1     t(0)     ref(L2) 
+	read_integer             3 
+	mode                     t(0) 
+label(L6):
+	read_integer             8 
+label(L7):
+	space                    -1 
+	jmp                      q / 0 
+
+------ Test head(16) -------
+p(A, B) :-
+	A = f(B, C),
+	q(A, C).
+
+p / 2:
+	get_structure            a(1)     f / 2     ref(L0) 
+	write_local_value        a(2) 
+	write_variable           a(2) 
+	branch                   ref(L1) 
+label(L0):
+	read_value               a(2) 
+	read_variable            a(2) 
+label(L1):
+	jmp                      q / 2 
+
+------ Test head(17) -------
+p(A, B) :-
+	A = f(C, B),
+	q(A, C).
+
+p / 2:
+	get_structure            a(1)     f / 2     ref(L0) 
+	move                     a(2)     a(3) 
+	write_variable           a(2) 
+	write_local_value        a(3) 
+	branch                   ref(L1) 
+label(L0):
+	move                     a(2)     a(3) 
+	read_variable            a(2) 
+	read_value               a(3) 
+label(L1):
+	jmp                      q / 2 
+
+------ Test head(18) -------
+p(A, B) :-
+	A = f(g(B), C),
+	q(A, C).
+
+p / 2:
+	get_structure            a(1)     f / 2     ref(L1) 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_local_value        a(2) 
+	mode                     t(0)     ref(L2) 
+	write_variable           a(2) 
+	branch                   ref(L3) 
+label(L1):
+	read_structure           g / 1     ref(L0) 
+	read_value               a(2) 
+	mode                     t(0) 
+label(L2):
+	read_variable            a(2) 
+label(L3):
+	space                    -1 
+	jmp                      q / 2 
+
+------ Test head(19) -------
+p(f(A)) :-
+	q,
+	r(A).
+
+p / 1:
+	allocate                 1 
+	get_structure            a(1)     f / 1     ref(L0) 
+	write_variable           y(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            y(1) 
+label(L1):
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test head(20) -------
+p(f(A, A)) :-
+	q,
+	r(A).
+
+p / 1:
+	allocate                 1 
+	get_structure            a(1)     f / 2     ref(L0) 
+	write_variable           y(1) 
+	write_local_value        y(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            y(1) 
+	read_value               y(1) 
+label(L1):
+	callf                    q / 0     1 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test head(20) -------
+p([g(1), h(2)]) :-
+	q.
+
+p / 1:
+	get_list                 a(1)     ref(L3) 
+	first                
+	write_structure          g / 1 
+label(L0):
+	write_integer            1 
+	mode                     t(0)     ref(L4) 
+	write_list           
+label(L1):
+	first                
+	write_structure          h / 1 
+label(L2):
+	write_integer            2 
+	mode                     t(0)     ref(L5) 
+	write_nil            
+	branch                   ref(L6) 
+label(L3):
+	read_structure           g / 1     ref(L0) 
+	read_integer             1 
+	mode                     t(0) 
+label(L4):
+	read_last_list           ref(L1) 
+	read_structure           h / 1     ref(L2) 
+	read_integer             2 
+	mode                     t(0) 
+label(L5):
+	read_nil             
+label(L6):
+	space                    -2 
+	jmp                      q / 0 
+
+------ Test head(21) -------
+p([[1, 2], [3|A], [4, 5], c]) :-
+	q(A).
+
+p / 1:
+	get_list                 a(1)     ref(L8) 
+	first                
+	write_list           
+label(L0):
+	write_integer            1 
+	write_list           
+label(L1):
+	write_integer            2 
+	write_nil            
+	mode                     t(0)     ref(L9) 
+	write_list           
+label(L2):
+	first                
+	write_list           
+label(L3):
+	write_integer            3 
+	write_variable           a(1) 
+	mode                     t(0)     ref(L10) 
+	write_list           
+label(L4):
+	first                
+	write_list           
+label(L5):
+	write_integer            4 
+	write_list           
+label(L6):
+	write_integer            5 
+	write_nil            
+	mode                     t(0)     ref(L11) 
+	write_list           
+label(L7):
+	write_atom               c 
+	write_nil            
+	branch                   ref(L12) 
+label(L8):
+	read_list                ref(L0) 
+	read_integer             1 
+	read_last_list           ref(L1) 
+	read_integer             2 
+	read_nil             
+	mode                     t(0) 
+label(L9):
+	read_last_list           ref(L2) 
+	read_list                ref(L3) 
+	read_integer             3 
+	read_variable            a(1) 
+	mode                     t(0) 
+label(L10):
+	read_last_list           ref(L4) 
+	read_list                ref(L5) 
+	read_integer             4 
+	read_last_list           ref(L6) 
+	read_integer             5 
+	read_nil             
+	mode                     t(0) 
+label(L11):
+	read_last_list           ref(L7) 
+	read_atom                c 
+	read_nil             
+label(L12):
+	space                    -3 
+	jmp                      q / 1 
+
+------ Test head(22) -------
+p([a, [1, 2], [3, 4], b, [5|A], c]) :-
+	q(A).
+
+p / 1:
+	get_list                 a(1)     ref(L10) 
+	write_atom               a 
+	write_list           
+label(L0):
+	first                
+	write_list           
+label(L1):
+	write_integer            1 
+	write_list           
+label(L2):
+	write_integer            2 
+	write_nil            
+	mode                     t(0)     ref(L11) 
+	write_list           
+label(L3):
+	first                
+	write_list           
+label(L4):
+	write_integer            3 
+	write_list           
+label(L5):
+	write_integer            4 
+	write_nil            
+	mode                     t(0)     ref(L12) 
+	write_list           
+label(L6):
+	write_atom               b 
+	write_list           
+label(L7):
+	first                
+	write_list           
+label(L8):
+	write_integer            5 
+	write_variable           a(1) 
+	mode                     t(0)     ref(L13) 
+	write_list           
+label(L9):
+	write_atom               c 
+	write_nil            
+	branch                   ref(L14) 
+label(L10):
+	read_atom                a 
+	read_last_list           ref(L0) 
+	read_list                ref(L1) 
+	read_integer             1 
+	read_last_list           ref(L2) 
+	read_integer             2 
+	read_nil             
+	mode                     t(0) 
+label(L11):
+	read_last_list           ref(L3) 
+	read_list                ref(L4) 
+	read_integer             3 
+	read_last_list           ref(L5) 
+	read_integer             4 
+	read_nil             
+	mode                     t(0) 
+label(L12):
+	read_last_list           ref(L6) 
+	read_atom                b 
+	read_last_list           ref(L7) 
+	read_list                ref(L8) 
+	read_integer             5 
+	read_variable            a(1) 
+	mode                     t(0) 
+label(L13):
+	read_last_list           ref(L9) 
+	read_atom                c 
+	read_nil             
+label(L14):
+	space                    -3 
+	jmp                      q / 1 
+
+------ Test head(23) -------
+p([a, [1, 2], [3, 4], b, [5|A]|c]) :-
+	q(A).
+
+p / 1:
+	get_list                 a(1)     ref(L9) 
+	write_atom               a 
+	write_list           
+label(L0):
+	first                
+	write_list           
+label(L1):
+	write_integer            1 
+	write_list           
+label(L2):
+	write_integer            2 
+	write_nil            
+	mode                     t(0)     ref(L10) 
+	write_list           
+label(L3):
+	first                
+	write_list           
+label(L4):
+	write_integer            3 
+	write_list           
+label(L5):
+	write_integer            4 
+	write_nil            
+	mode                     t(0)     ref(L11) 
+	write_list           
+label(L6):
+	write_atom               b 
+	write_list           
+label(L7):
+	first                
+	write_list           
+label(L8):
+	write_integer            5 
+	write_variable           a(1) 
+	mode                     t(0)     ref(L12) 
+	write_atom               c 
+	branch                   ref(L13) 
+label(L9):
+	read_atom                a 
+	read_last_list           ref(L0) 
+	read_list                ref(L1) 
+	read_integer             1 
+	read_last_list           ref(L2) 
+	read_integer             2 
+	read_nil             
+	mode                     t(0) 
+label(L10):
+	read_last_list           ref(L3) 
+	read_list                ref(L4) 
+	read_integer             3 
+	read_last_list           ref(L5) 
+	read_integer             4 
+	read_nil             
+	mode                     t(0) 
+label(L11):
+	read_last_list           ref(L6) 
+	read_atom                b 
+	read_last_list           ref(L7) 
+	read_list                ref(L8) 
+	read_integer             5 
+	read_variable            a(1) 
+	mode                     t(0) 
+label(L12):
+	read_atom                c 
+label(L13):
+	space                    -3 
+	jmp                      q / 1 
+
+------ Test head(24) -------
+p([a, [1, 2], [3, 4], b, [5|A]]) :-
+	q(A).
+
+p / 1:
+	get_list                 a(1)     ref(L9) 
+	write_atom               a 
+	write_list           
+label(L0):
+	first                
+	write_list           
+label(L1):
+	write_integer            1 
+	write_list           
+label(L2):
+	write_integer            2 
+	write_nil            
+	mode                     t(0)     ref(L10) 
+	write_list           
+label(L3):
+	first                
+	write_list           
+label(L4):
+	write_integer            3 
+	write_list           
+label(L5):
+	write_integer            4 
+	write_nil            
+	mode                     t(0)     ref(L11) 
+	write_list           
+label(L6):
+	write_atom               b 
+	write_list           
+label(L7):
+	first                
+	write_list           
+label(L8):
+	write_integer            5 
+	write_variable           a(1) 
+	mode                     t(0)     ref(L12) 
+	write_nil            
+	branch                   ref(L13) 
+label(L9):
+	read_atom                a 
+	read_last_list           ref(L0) 
+	read_list                ref(L1) 
+	read_integer             1 
+	read_last_list           ref(L2) 
+	read_integer             2 
+	read_nil             
+	mode                     t(0) 
+label(L10):
+	read_last_list           ref(L3) 
+	read_list                ref(L4) 
+	read_integer             3 
+	read_last_list           ref(L5) 
+	read_integer             4 
+	read_nil             
+	mode                     t(0) 
+label(L11):
+	read_last_list           ref(L6) 
+	read_atom                b 
+	read_last_list           ref(L7) 
+	read_list                ref(L8) 
+	read_integer             5 
+	read_variable            a(1) 
+	mode                     t(0) 
+label(L12):
+	read_nil             
+label(L13):
+	space                    -3 
+	jmp                      q / 1 
+
+------ Test head(30) -------
+p(f([1, 2], [3|A], c)) :-
+	q(A).
+
+p / 1:
+	get_structure            a(1)     f / 3     ref(L3) 
+	first                
+	write_list           
+label(L0):
+	write_integer            1 
+	write_list           
+label(L1):
+	write_integer            2 
+	write_nil            
+	next                     t(0)     ref(L4) 
+	write_list           
+label(L2):
+	write_integer            3 
+	write_variable           a(1) 
+	mode                     t(0)     ref(L5) 
+	write_atom               c 
+	branch                   ref(L6) 
+label(L3):
+	read_list                ref(L0) 
+	read_integer             1 
+	read_last_list           ref(L1) 
+	read_integer             2 
+	read_nil             
+label(L4):
+	read_next_list           t(0)     ref(L2) 
+	read_integer             3 
+	read_variable            a(1) 
+	mode                     t(0) 
+label(L5):
+	read_atom                c 
+label(L6):
+	space                    -1 
+	jmp                      q / 1 
+
+------ Test head(31) -------
+p(f(a, [1, 2], b, [3|A], c)) :-
+	q(A).
+
+p / 1:
+	get_structure            a(1)     f / 5     ref(L3) 
+	write_atom               a 
+	first                
+	write_list           
+label(L0):
+	write_integer            1 
+	write_list           
+label(L1):
+	write_integer            2 
+	write_nil            
+	mode                     t(0)     ref(L4) 
+	write_atom               b 
+	next                     t(0) 
+	write_list           
+label(L2):
+	write_integer            3 
+	write_variable           a(1) 
+	mode                     t(0)     ref(L5) 
+	write_atom               c 
+	branch                   ref(L6) 
+label(L3):
+	read_atom                a 
+	read_list                ref(L0) 
+	read_integer             1 
+	read_last_list           ref(L1) 
+	read_integer             2 
+	read_nil             
+	mode                     t(0) 
+label(L4):
+	read_atom                b 
+	read_list                t(0)     ref(L2) 
+	read_integer             3 
+	read_variable            a(1) 
+	mode                     t(0) 
+label(L5):
+	read_atom                c 
+label(L6):
+	space                    -1 
+	jmp                      q / 1 
+
+------ Test head(32) -------
+p(f(a, [1, 2], [3|A], c)) :-
+	q(A).
+
+p / 1:
+	get_structure            a(1)     f / 4     ref(L3) 
+	write_atom               a 
+	first                
+	write_list           
+label(L0):
+	write_integer            1 
+	write_list           
+label(L1):
+	write_integer            2 
+	write_nil            
+	next                     t(0)     ref(L4) 
+	write_list           
+label(L2):
+	write_integer            3 
+	write_variable           a(1) 
+	mode                     t(0)     ref(L5) 
+	write_atom               c 
+	branch                   ref(L6) 
+label(L3):
+	read_atom                a 
+	read_list                ref(L0) 
+	read_integer             1 
+	read_last_list           ref(L1) 
+	read_integer             2 
+	read_nil             
+label(L4):
+	read_next_list           t(0)     ref(L2) 
+	read_integer             3 
+	read_variable            a(1) 
+	mode                     t(0) 
+label(L5):
+	read_atom                c 
+label(L6):
+	space                    -1 
+	jmp                      q / 1 
+
+------ Test head(33) -------
+p(f(a, [1, 2], b, [3|A])) :-
+	q(A).
+
+p / 1:
+	get_structure            a(1)     f / 4     ref(L3) 
+	write_atom               a 
+	first                
+	write_list           
+label(L0):
+	write_integer            1 
+	write_list           
+label(L1):
+	write_integer            2 
+	write_nil            
+	mode                     t(0)     ref(L4) 
+	write_atom               b 
+	write_list           
+label(L2):
+	write_integer            3 
+	write_variable           a(1) 
+	branch                   ref(L5) 
+label(L3):
+	read_atom                a 
+	read_list                ref(L0) 
+	read_integer             1 
+	read_last_list           ref(L1) 
+	read_integer             2 
+	read_nil             
+	mode                     t(0) 
+label(L4):
+	read_atom                b 
+	read_last_list           ref(L2) 
+	read_integer             3 
+	read_variable            a(1) 
+label(L5):
+	space                    -1 
+	jmp                      q / 1 
+
+------ Test head(34) -------
+p(f("hello", 3.5, 5_3)) :-
+	q.
+
+p / 1:
+	get_structure            a(1)     f / 3     ref(L0) 
+	write_string             "hello" 
+	write_constant           3.5 
+	write_constant           5_3 
+	branch                   ref(L1) 
+label(L0):
+	read_string              "hello" 
+	read_constant            3.5 
+	read_constant            5_3 
+label(L1):
+	jmp                      q / 0 
+
+------ Test unify(1) -------
+p(A, B, C) :-
+	q,
+	A = f(1, g(B, D), E, h(C, B)),
+	r(C, D),
+	s(E).
+
+p / 3:
+	allocate                 4 
+	move                     a(1)     y(2) 
+	move                     a(2)     y(3) 
+	move                     a(3)     y(4) 
+	initialize               y([1]) 
+	callf                    q / 0     4 
+	move                     y(2)     a(3) 
+	get_structure            a(3)     f / 4     ref(L2) 
+	write_integer            1 
+	first                
+	write_structure          g / 2 
+label(L0):
+	write_local_value        y(3) 
+	write_variable           a(2) 
+	mode                     t(0)     ref(L3) 
+	write_variable           y(1) 
+	write_structure          h / 2 
+label(L1):
+	write_local_value        y(4) 
+	write_local_value        y(3) 
+	branch                   ref(L4) 
+label(L2):
+	read_integer             1 
+	read_structure           g / 2     ref(L0) 
+	read_value               y(3) 
+	read_variable            a(2) 
+	mode                     t(0) 
+label(L3):
+	read_variable            y(1) 
+	read_last_structure      h / 2     ref(L1) 
+	read_value               y(4) 
+	read_value               y(3) 
+label(L4):
+	space                    -1 
+	move                     y(4)     a(1) 
+	callf                    r / 2     1 
+	move                     y(1)     a(1) 
+	chain                    s / 1 
+
+------ Test dis(1) -------
+p :-
+	(
+	    a
+	;
+	    (
+		b
+	    ;
+		(
+		    c
+		;
+		    d
+		)
+	    )
+	).
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     0 
+	branch                   ref(L7) 
+label(L1):
+	retry_me_inline          0     ref(L3)     0 
+label(L2):
+	callf                    b / 0     0 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     0 
+label(L4):
+	callf                    c / 0     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     0 
+label(L6):
+	callf                    d / 0     0 
+label(L7):
+	exit                 
+
+------ Test dis(2) -------
+p :-
+	(
+	    (
+		(
+		    a
+		;
+		    b
+		)
+	    ;
+		c
+	    )
+	;
+	    d
+	).
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     0 
+	branch                   ref(L7) 
+label(L1):
+	retry_me_inline          0     ref(L3)     0 
+label(L2):
+	callf                    b / 0     0 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     0 
+label(L4):
+	callf                    c / 0     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     0 
+label(L6):
+	callf                    d / 0     0 
+label(L7):
+	exit                 
+
+------ Test dis(3) -------
+p :-
+	(
+	    a
+	;
+	    (
+		(
+		    b
+		;
+		    c
+		)
+	    ;
+		d
+	    )
+	).
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     0 
+	branch                   ref(L7) 
+label(L1):
+	retry_me_inline          0     ref(L3)     0 
+label(L2):
+	callf                    b / 0     0 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     0 
+label(L4):
+	callf                    c / 0     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     0 
+label(L6):
+	callf                    d / 0     0 
+label(L7):
+	exit                 
+
+------ Test dis(4) -------
+p :-
+	(
+	    a
+	->
+	    aa
+	;
+	    b
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     1 
+	cut                      y(1)     1 
+	callf                    aa / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	callf                    b / 0     1 
+label(L3):
+	exit                 
+
+------ Test dis(5) -------
+p :-
+	q,
+	(
+	    a
+	->
+	    aa
+	;
+	    b
+	).
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	callf                    q / 0     1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     1 
+	cut                      y(1)     1 
+	callf                    aa / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	callf                    b / 0     1 
+label(L3):
+	exit                 
+
+------ Test dis(6) -------
+p :-
+	(
+	    a
+	->
+	    aa
+	;
+	    (
+		b
+	    ->
+		bb
+	    ;
+		(
+		    c
+		->
+		    cc
+		;
+		    d
+		)
+	    )
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     1 
+	cut                      y(1)     1 
+	callf                    aa / 0     0 
+	branch                   ref(L7) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	callf                    b / 0     1 
+	cut                      y(1)     1 
+	callf                    bb / 0     0 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     1 
+label(L4):
+	callf                    c / 0     1 
+	cut                      y(1)     1 
+	callf                    cc / 0     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     1 
+label(L6):
+	callf                    d / 0     1 
+label(L7):
+	exit                 
+
+------ Test dis(7) -------
+p :-
+	(
+	    a
+	->
+	    aa
+	;
+	    (
+		b
+	    ->
+		bb
+	    ;
+		(
+		    c
+		->
+		    cc
+		;
+		    (
+			d
+		    ->
+			dd
+		    )
+		)
+	    )
+	).
+
+p / 0:
+	allocate                 2 
+	savecut                  y(1) 
+	initialize               y([2]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     2 
+	cut                      y(1)     2 
+	callf                    aa / 0     2 
+	branch                   ref(L7) 
+label(L1):
+	retry_me_inline          0     ref(L3)     2 
+label(L2):
+	callf                    b / 0     2 
+	cut                      y(1)     2 
+	callf                    bb / 0     2 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     2 
+label(L4):
+	callf                    c / 0     2 
+	cut                      y(1)     2 
+	callf                    cc / 0     2 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     2 
+label(L6):
+	savecut                  y(2) 
+	callf                    d / 0     2 
+	cut                      y(2)     2 
+	callf                    dd / 0     1 
+label(L7):
+	exit                 
+
+------ Test dis(8) -------
+p :-
+	(
+	    a
+	;
+	    (
+		b
+	    ->
+		bb
+	    ;
+		(
+		    c
+		->
+		    cc
+		;
+		    d
+		)
+	    )
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     1 
+	branch                   ref(L7) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	callf                    b / 0     1 
+	cut                      y(1)     1 
+	callf                    bb / 0     0 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     1 
+label(L4):
+	callf                    c / 0     1 
+	cut                      y(1)     1 
+	callf                    cc / 0     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     1 
+label(L6):
+	callf                    d / 0     1 
+label(L7):
+	exit                 
+
+------ Test dis(9) -------
+p :-
+	(
+	    a
+	->
+	    aa
+	;
+	    (
+		b
+	    ;
+		(
+		    c
+		->
+		    cc
+		;
+		    d
+		)
+	    )
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     1 
+	cut                      y(1)     1 
+	callf                    aa / 0     0 
+	branch                   ref(L7) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	callf                    b / 0     1 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     1 
+label(L4):
+	callf                    c / 0     1 
+	cut                      y(1)     1 
+	callf                    cc / 0     0 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     1 
+label(L6):
+	callf                    d / 0     1 
+label(L7):
+	exit                 
+
+------ Test dis(10) -------
+p :-
+	(
+	    a
+	->
+	    aa
+	;
+	    (
+		b
+	    ->
+		bb
+	    ;
+		(
+		    c
+		;
+		    d
+		)
+	    )
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     1 
+	cut                      y(1)     1 
+	callf                    aa / 0     0 
+	branch                   ref(L7) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	callf                    b / 0     1 
+	cut                      y(1)     1 
+	callf                    bb / 0     0 
+	branch                   ref(L7) 
+label(L3):
+	retry_me_inline          0     ref(L5)     1 
+label(L4):
+	callf                    c / 0     1 
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     1 
+label(L6):
+	callf                    d / 0     1 
+label(L7):
+	exit                 
+
+------ Test dis(11) -------
+p :-
+	(
+	    a
+	->
+	    aa
+	;
+	    (
+		(
+		    b
+		->
+		    bb
+		;
+		    c
+		)
+	    ;
+		d
+	    )
+	).
+
+p / 0:
+	allocate                 2 
+	savecut                  y(1) 
+	initialize               y([2]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     2 
+	cut                      y(1)     2 
+	callf                    aa / 0     2 
+	branch                   ref(L9) 
+label(L1):
+	retry_me_inline          0     ref(L7)     2 
+label(L2):
+	savecut                  y(2) 
+	try_me_else              0     0     ref(L4) 
+label(L3):
+	callf                    b / 0     2 
+	cut                      y(2)     2 
+	callf                    bb / 0     1 
+	branch                   ref(L6) 
+label(L4):
+	trust_me_inline          0     2 
+label(L5):
+	callf                    c / 0     2 
+label(L6):
+	branch                   ref(L9) 
+label(L7):
+	trust_me_inline          0     2 
+label(L8):
+	callf                    d / 0     2 
+label(L9):
+	exit                 
+
+------ Test clause(1) -------
+p :-
+	a.
+p :-
+	b.
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     0 
+label(L2):
+	callf                    b / 0     0 
+label(L3):
+	exit                 
+
+------ Test clause(2) -------
+p :-
+	a.
+p :-
+	b.
+p :-
+	c,
+	d.
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     0 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     0 
+label(L2):
+	callf                    b / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     0 
+label(L4):
+	callf                    c / 0     0 
+	callf                    d / 0     0 
+label(L5):
+	exit                 
+
+------ Test clause(3) -------
+p :-
+	(
+	    a
+	->
+	    aa
+	).
+p :-
+	b.
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	savecut                  y(1) 
+	callf                    a / 0     1 
+	cut                      y(1)     1 
+	callf                    aa / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	callf                    b / 0     1 
+label(L3):
+	exit                 
+
+------ Test special(1) -------
+p(A) :-
+	A.
+
+p / 1:
+	put_atom                 a(2)     eclipse 
+	jmp                      sepia_kernel : untraced_call / 2 
+
+------ Test special(2) -------
+p(A) :-
+	call(A).
+
+p / 1:
+	put_atom                 a(2)     eclipse 
+	jmp                      sepia_kernel : untraced_call / 2 
+
+------ Test special(3) -------
+p(A, B) :-
+	A @ B.
+
+p / 2:
+	jmp                      sepia_kernel : untraced_call / 2 
+
+------ Test special(4) -------
+p(A) :-
+	A @ lists.
+
+p / 1:
+	put_atom                 a(2)     lists 
+	jmp                      sepia_kernel : untraced_call / 2 
+
+------ Test special(5) -------
+p(A, B) :-
+	B : A.
+
+p / 2:
+	put_atom                 a(3)     eclipse 
+	move                     a(1)     a(4) 
+	move                     a(2)     a(1) 
+	move                     a(4)     a(2) 
+	jmp                      sepia_kernel : '[]:@' / 3 
+
+------ Test special(6) -------
+p(A) :-
+	lists : A.
+
+p / 1:
+	move                     a(1)     a(2) 
+	put_atom                 a(1)     lists 
+	put_atom                 a(3)     eclipse 
+	jmp                      sepia_kernel : '[]:@' / 3 
+
+------ Test special(7) -------
+p :-
+	3 = 3.
+
+p / 0:
+	ret                  
+
+------ Test special(8) -------
+p :-
+	3 = 4.
+
+p / 0:
+	failure              
+	ret                  
+
+------ Test special(9) -------
+p :-
+	call(q).
+
+p / 0:
+	jmp                      q / 0 
+
+------ Test special(10) -------
+p :-
+	q,
+	call((a, !, b)),
+	r.
+
+p / 0:
+	allocate                 1 
+	initialize               y([1]) 
+	callf                    q / 0     1 
+	savecut                  y(1) 
+	callf                    a / 0     1 
+	cut                      y(1)     1 
+	callf                    b / 0     0 
+	chain                    r / 0 
+
+------ Test special(11) -------
+p(A) :-
+	call(q) @ A.
+
+p / 1:
+	move                     a(1)     a(2) 
+	put_atom                 a(1)     q 
+	jmp                      sepia_kernel : untraced_call / 2 
+
+------ Test special(12) -------
+p :-
+	call(q) @ lists.
+
+p / 0:
+	jmp                      lists : q / 0 
+
+------ Test special(13) -------
+p :-
+	call(writeln(hello)) @ lists.
+
+p / 0:
+	put_atom                 a(1)     hello 
+	put_atom                 a(2)     lists 
+	jmp                      sepia_kernel : writeln_body / 2 
+
+------ Test special(13) -------
+p :-
+	writeln(hello) @ lists.
+
+p / 0:
+	put_atom                 a(1)     hello 
+	put_atom                 a(2)     lists 
+	jmp                      sepia_kernel : writeln_body / 2 
+
+------ Test tool(1) -------
+p(A) :-
+	get_flag(p / 0, definition_module, A).
+
+p / 1:
+	move                     a(1)     a(3) 
+	put_structure            a(1)     (/) / 2 
+	write_atom               p 
+	push_integer             0 
+	put_atom                 a(2)     definition_module 
+	put_atom                 a(4)     eclipse 
+	jmp                      sepia_kernel : get_flag_body / 4 
+
+------ Test tool(2) -------
+p(A) :-
+	get_flag(p / 0, definition_module, A) @ lists.
+
+p / 1:
+	move                     a(1)     a(3) 
+	put_structure            a(1)     (/) / 2 
+	write_atom               p 
+	push_integer             0 
+	put_atom                 a(2)     definition_module 
+	put_atom                 a(4)     lists 
+	jmp                      sepia_kernel : get_flag_body / 4 
+
+------ Test tool(3) -------
+p(A, B) :-
+	get_flag(p / 0, definition_module, B) @ A.
+
+p / 2:
+	move                     a(1)     a(4) 
+	put_structure            a(1)     (/) / 2 
+	write_atom               p 
+	push_integer             0 
+	move                     a(2)     a(3) 
+	put_atom                 a(2)     definition_module 
+	jmp                      sepia_kernel : get_flag_body / 4 
+
+------ Test tool(4) -------
+p :-
+	q @ lists.
+
+p / 0:
+	jmp                      q / 0 
+
+------ Test tool(5) -------
+p(A) :-
+	q @ A.
+
+p / 1:
+	jmp                      q / 0 
+
+------ Test cut(1) -------
+p :-
+	!.
+
+p / 0:
+	savecut                  a(1) 
+	cut                      a(1) 
+	ret                  
+
+------ Test cut(2) -------
+p :-
+	q,
+	!.
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	callf                    q / 0     1 
+	cut                      y(1)     1 
+	exit                 
+
+------ Test cut(3) -------
+p :-
+	q,
+	!,
+	r.
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	callf                    q / 0     1 
+	cut                      y(1)     1 
+	chain                    r / 0 
+
+------ Test cut(4) -------
+p :-
+	q,
+	!,
+	r.
+p :-
+	s.
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    q / 0     1 
+	cut                      y(1)     1 
+	callf                    r / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	callf                    s / 0     1 
+label(L3):
+	exit                 
+
+------ Test cut(5) -------
+p :-
+	a.
+p :-
+	!,
+	bb.
+p :-
+	c,
+	d.
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     1 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	cut                      y(1)     1 
+	callf                    bb / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     1 
+label(L4):
+	callf                    c / 0     1 
+	callf                    d / 0     1 
+label(L5):
+	exit                 
+
+------ Test cut(6) -------
+p :-
+	a.
+p :-
+	b,
+	!,
+	bb.
+p :-
+	c,
+	d.
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     1 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	callf                    b / 0     1 
+	cut                      y(1)     1 
+	callf                    bb / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     1 
+label(L4):
+	callf                    c / 0     1 
+	callf                    d / 0     1 
+label(L5):
+	exit                 
+
+------ Test bench(1) -------
+conc([], A, A).
+conc([A|B], C, [A|D]) :-
+	conc(B, C, D).
+
+conc / 3:
+	allocate                 0 
+	list_switch              a(1)     ref(L4)     ref(L2)     ref(fail) 
+label(L0):
+	list_switch              a(3)     ref(L1)     ref(L2)     ref(L2) 
+label(L1):
+	try_me_else              0     3     ref(L3) 
+label(L2):
+	get_nil                  a(1) 
+	get_value                a(3)     a(2) 
+	branch                   ref(L9) 
+label(L3):
+	trust_me_inline          0     0 
+label(L4):
+	get_list                 a(1)     ref(L5) 
+	write_variable           a(4) 
+	write_variable           a(1) 
+	branch                   ref(L6) 
+label(L5):
+	read_variable            a(4) 
+	read_variable            a(1) 
+label(L6):
+	get_list                 a(3)     ref(L7) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	branch                   ref(L8) 
+label(L7):
+	read_value               a(4) 
+	read_variable            a(3) 
+label(L8):
+	callf                    conc / 3     0 
+label(L9):
+	exit                 
+
+------ Test bench(2) -------
+conc(A, B, C) :-
+	(
+	    A = [],
+	    B = D,
+	    C = D
+	;
+	    A = [E|F],
+	    B = D,
+	    C = [E|G],
+	    conc(F, D, G)
+	).
+
+conc / 3:
+	allocate                 3 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	move                     a(3)     y(3) 
+	list_switch              y(1)     ref(L4)     ref(L2)     ref(fail) 
+label(L0):
+	list_switch              y(3)     ref(L1)     ref(L2)     ref(L2) 
+label(L1):
+	try_me_else              0     0     ref(L3) 
+label(L2):
+	move                     y(1)     a(1) 
+	get_nil                  a(1) 
+	move                     y(2)     a(1) 
+	move                     y(3)     a(2) 
+	get_value                a(1)     a(2) 
+	branch                   ref(L9) 
+label(L3):
+	trust_me_inline          0     3 
+label(L4):
+	move                     y(1)     a(4) 
+	get_list                 a(4)     ref(L5) 
+	write_variable           a(4) 
+	write_variable           a(1) 
+	branch                   ref(L6) 
+label(L5):
+	read_variable            a(4) 
+	read_variable            a(1) 
+label(L6):
+	move                     y(2)     a(2) 
+	move                     y(3)     a(5) 
+	get_list                 a(5)     ref(L7) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	branch                   ref(L8) 
+label(L7):
+	read_value               a(4) 
+	read_variable            a(3) 
+label(L8):
+	callf                    conc / 3     0 
+label(L9):
+	exit                 
+
+------ Test bench(3) -------
+conc(A, B, C) :-
+	(
+	    A = [D|E],
+	    B = F,
+	    C = [D|G],
+	    conc(E, F, G)
+	;
+	    A = [],
+	    B = F,
+	    C = F
+	).
+
+conc / 3:
+	allocate                 3 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	move                     a(3)     y(3) 
+	list_switch              y(1)     ref(L2)     ref(L8)     ref(fail) 
+label(L0):
+	list_switch              y(3)     ref(L1)     ref(L8)     ref(L8) 
+label(L1):
+	try_me_else              0     0     ref(L7) 
+label(L2):
+	move                     y(1)     a(4) 
+	get_list                 a(4)     ref(L3) 
+	write_variable           a(4) 
+	write_variable           a(1) 
+	branch                   ref(L4) 
+label(L3):
+	read_variable            a(4) 
+	read_variable            a(1) 
+label(L4):
+	move                     y(2)     a(2) 
+	move                     y(3)     a(5) 
+	get_list                 a(5)     ref(L5) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	branch                   ref(L6) 
+label(L5):
+	read_value               a(4) 
+	read_variable            a(3) 
+label(L6):
+	callf                    conc / 3     0 
+	branch                   ref(L9) 
+label(L7):
+	trust_me_inline          0     3 
+label(L8):
+	move                     y(1)     a(1) 
+	get_nil                  a(1) 
+	move                     y(2)     a(1) 
+	get_value                a(1)     y(3) 
+label(L9):
+	exit                 
+
+------ Test at1 -------
+at1 :-
+	var(f(A)),
+	A == a,
+	q(A, f(A)).
+
+at1 / 0:
+	put_structure            a(3)     f / 1 
+	push_variable            a(1) 
+	bi_var                   a(3) 
+	put_atom                 a(3)     a 
+	bi_identical             a(1)     a(3) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(1) 
+	jmp                      q / 2 
+
+------ Test at2 -------
+at2 :-
+	f(A) == f(B),
+	A == B,
+	q(A, B).
+
+at2 / 0:
+	put_structure            a(3)     f / 1 
+	push_variable            a(1) 
+	put_structure            a(4)     f / 1 
+	push_variable            a(2) 
+	bi_identical             a(3)     a(4) 
+	bi_identical             a(1)     a(2) 
+	jmp                      q / 2 
+
+------ Test at3 -------
+at3 :-
+	f(A) == f(B),
+	A == B,
+	q(f(A), f(B)).
+
+at3 / 0:
+	put_structure            a(3)     f / 1 
+	push_variable            a(4) 
+	put_structure            a(5)     f / 1 
+	push_variable            a(6) 
+	bi_identical             a(3)     a(5) 
+	bi_identical             a(4)     a(6) 
+	put_structure            a(1)     f / 1 
+	push_local_value         a(4) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(6) 
+	jmp                      q / 2 
+
+------ Test at4 -------
+at4 :-
+	q,
+	f(A) == f(B),
+	A == B,
+	q(A, B).
+
+at4 / 0:
+	allocate                 0 
+	callf                    q / 0     0 
+	put_structure            a(3)     f / 1 
+	push_variable            a(1) 
+	put_structure            a(4)     f / 1 
+	push_variable            a(2) 
+	bi_identical             a(3)     a(4) 
+	bi_identical             a(1)     a(2) 
+	chain                    q / 2 
+
+------ Test ag1 -------
+ag1 :-
+	*(f(A), f(A), f(A)).
+
+ag1 / 0:
+	put_structure            a(1)     f / 1 
+	push_variable            a(2) 
+	put_structure            a(3)     f / 1 
+	push_local_value         a(2) 
+	put_structure            a(4)     f / 1 
+	push_local_value         a(2) 
+	bi_mul                   a(1)     a(3)     a(4) 
+	ret                  
+
+------ Test ag2 -------
+ag2 :-
+	*(A, A, f(A)).
+
+ag2 / 0:
+	put_variable             a(1) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(1) 
+	bi_mul                   a(1)     a(1)     a(2) 
+	ret                  
+
+------ Test ag3 -------
+ag3 :-
+	A == f(A),
+	q(A).
+
+ag3 / 0:
+	put_variable             a(1) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(1) 
+	bi_identical             a(1)     a(2) 
+	jmp                      q / 1 
+
+------ Test ag5 -------
+ag5 :-
+	p(f(A), f(A), f(A)).
+
+ag5 / 0:
+	put_structure            a(1)     f / 1 
+	push_variable            a(4) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(4) 
+	put_structure            a(3)     f / 1 
+	push_local_value         a(4) 
+	jmp                      p / 3 
+
+------ Test ag6 -------
+ag6 :-
+	p(A, A, f(A)),
+	p(f(B), f(B)),
+	p(C, f(C)),
+	p(f(D), D).
+
+ag6 / 0:
+	allocate                 0 
+	put_structure            a(3)     f / 1 
+	push_variable            a(1) 
+	move                     a(1)     a(2) 
+	callf                    p / 3     0 
+	put_structure            a(1)     f / 1 
+	push_variable            a(3) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(3) 
+	callf                    p / 2     0 
+	put_structure            a(2)     f / 1 
+	push_variable            a(1) 
+	callf                    p / 2     0 
+	put_structure            a(1)     f / 1 
+	push_variable            a(2) 
+	chain                    p / 2 
+
+------ Test ag8 -------
+ag8 :-
+	A =.. [f, B, B],
+	q(A).
+
+ag8 / 0:
+	allocate                 1 
+	put_list                 a(2) 
+	write_atom               f 
+	push_list            
+	push_variable            a(3) 
+	push_list            
+	push_local_value         a(3) 
+	push_nil             
+	put_global_variable      a(1)     y(1) 
+	callf                    (=..) / 2     1 
+	move                     y(1)     a(1) 
+	chain                    q / 1 
+
+------ Test am1 -------
+am1 :-
+	f(A) == A.
+
+am1 / 0:
+	put_structure            a(1)     f / 1 
+	push_variable            a(2) 
+	bi_identical             a(1)     a(2) 
+	ret                  
+
+------ Test am2 -------
+am2 :-
+	f(A) == A,
+	q(A).
+
+am2 / 0:
+	put_structure            a(2)     f / 1 
+	push_variable            a(1) 
+	bi_identical             a(2)     a(1) 
+	jmp                      q / 1 
+
+------ Test am3 -------
+am3 :-
+	f(A) == A,
+	q(A),
+	r.
+
+am3 / 0:
+	allocate                 0 
+	put_structure            a(2)     f / 1 
+	push_variable            a(1) 
+	bi_identical             a(2)     a(1) 
+	callf                    q / 1     0 
+	chain                    r / 0 
+
+------ Test am4 -------
+am4 :-
+	*(f(A), A, f(A)).
+
+am4 / 0:
+	put_structure            a(1)     f / 1 
+	push_variable            a(2) 
+	put_structure            a(3)     f / 1 
+	push_local_value         a(2) 
+	bi_mul                   a(1)     a(2)     a(3) 
+	ret                  
+
+------ Test am5 -------
+am5 :-
+	p(A),
+	*(f(A), A, f(A)),
+	q(A).
+
+am5 / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	put_structure            a(2)     f / 1 
+	push_local_value         y(1) 
+	put_structure            a(3)     f / 1 
+	push_local_value         y(1) 
+	move                     y(1)     a(1) 
+	bi_mul                   a(2)     a(1)     a(3) 
+	chain                    q / 1 
+
+------ Test am6 -------
+am6 :-
+	var(A),
+	*(A, f(A), A),
+	q(A).
+
+am6 / 0:
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(1) 
+	bi_mul                   a(1)     a(2)     a(1) 
+	jmp                      q / 1 
+
+------ Test am7 -------
+am7 :-
+	p(A),
+	*(f(A), A, f(A)),
+	q(A).
+
+am7 / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	put_structure            a(2)     f / 1 
+	push_local_value         y(1) 
+	put_structure            a(3)     f / 1 
+	push_local_value         y(1) 
+	move                     y(1)     a(1) 
+	bi_mul                   a(2)     a(1)     a(3) 
+	chain                    q / 1 
+
+------ Test am8 -------
+am8 :-
+	p(A),
+	*(A, f(A), A),
+	q(A).
+
+am8 / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	put_structure            a(2)     f / 1 
+	push_local_value         y(1) 
+	move                     y(1)     a(1) 
+	bi_mul                   a(1)     a(2)     a(1) 
+	chain                    q / 1 
+
+------ Test am9 -------
+am9 :-
+	var(A),
+	f(A) == A,
+	q(A).
+
+am9 / 0:
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(1) 
+	bi_identical             a(2)     a(1) 
+	jmp                      q / 1 
+
+------ Test am10 -------
+am10 :-
+	p(A),
+	var(A),
+	f(A) == A,
+	q(A).
+
+am10 / 0:
+	allocate                 1 
+	put_global_variable      a(1)     y(1) 
+	callf                    p / 1     1 
+	move                     y(1)     a(1) 
+	bi_var                   a(1) 
+	put_structure            a(2)     f / 1 
+	push_local_value         y(1) 
+	bi_identical             a(2)     a(1) 
+	chain                    q / 1 
+
+------ Test am11 -------
+am11 :-
+	var(A),
+	f(A) == A.
+
+am11 / 0:
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(1) 
+	bi_identical             a(2)     a(1) 
+	ret                  
+
+------ Test am12 -------
+am12 :-
+	var(A),
+	A == f(A).
+
+am12 / 0:
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(1) 
+	bi_identical             a(1)     a(2) 
+	ret                  
+
+------ Test am13 -------
+am13 :-
+	A == f(A).
+
+am13 / 0:
+	put_variable             a(1) 
+	put_structure            a(2)     f / 1 
+	push_local_value         a(1) 
+	bi_identical             a(1)     a(2) 
+	ret                  
+
+------ Test am14 -------
+am14 :-
+	eq(A, B),
+	f(A) == A.
+
+am14 / 0:
+	allocate                 1 
+	put_variable             a(2) 
+	put_global_variable      a(1)     y(1) 
+	callf                    eq / 2     1 
+	put_structure            a(1)     f / 1 
+	push_local_value         y(1) 
+	move                     y(1)     a(2) 
+	bi_identical             a(1)     a(2) 
+	exit                 
+
+------ Test disj1 -------
+p :-
+	(
+	    var(A)
+	->
+	    b
+	;
+	    c
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	callf                    b / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	callf                    c / 0     1 
+label(L3):
+	exit                 
+
+------ Test disj2 -------
+p :-
+	(
+	    var(A)
+	->
+	    b
+	;
+	    (
+		var(A)
+	    ->
+		c
+	    ;
+		d
+	    )
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	callf                    b / 0     0 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	callf                    c / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     1 
+label(L4):
+	callf                    d / 0     1 
+label(L5):
+	exit                 
+
+------ Test disj3 -------
+p :-
+	(
+	    var(A)
+	->
+	    var(B)
+	;
+	    var(C)
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+label(L3):
+	exit                 
+
+------ Test disj4 -------
+p :-
+	(
+	    var(A)
+	->
+	    b
+	;
+	    c
+	),
+	e,
+	f.
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	callf                    b / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	callf                    c / 0     1 
+label(L3):
+	callf                    e / 0     0 
+	chain                    f / 0 
+
+------ Test disj5 -------
+p :-
+	(
+	    var(A)
+	->
+	    b
+	;
+	    (
+		var(A)
+	    ->
+		c
+	    ;
+		d
+	    )
+	),
+	e,
+	f.
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	callf                    b / 0     0 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     1 
+label(L2):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	callf                    c / 0     0 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     1 
+label(L4):
+	callf                    d / 0     1 
+label(L5):
+	callf                    e / 0     0 
+	chain                    f / 0 
+
+------ Test disj6 -------
+p :-
+	(
+	    var(A)
+	->
+	    var(B)
+	;
+	    var(C)
+	),
+	e,
+	f.
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+label(L3):
+	callf                    e / 0     0 
+	chain                    f / 0 
+
+------ Test disj7 -------
+p :-
+	(
+	    var(A)
+	;
+	    var(B)
+	),
+	c,
+	d.
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     0 
+label(L2):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+label(L3):
+	callf                    c / 0     0 
+	chain                    d / 0 
+
+------ Test disj8 -------
+p :-
+	(
+	    once true
+	->
+	    fail
+	;
+	    true
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	savecut                  a(1) 
+	cut                      a(1) 
+	cut                      y(1)     1 
+	failure              
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+label(L3):
+	exit                 
+
+------ Test disj9 -------
+p :-
+	q,
+	once var(A),
+	p.
+
+p / 0:
+	allocate                 0 
+	callf                    q / 0     0 
+	savecut                  a(1) 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1) 
+	chain                    p / 0 
+
+------ Test disj10 -------
+p :-
+	q,
+	once var(A).
+
+p / 0:
+	allocate                 0 
+	callf                    q / 0     0 
+	savecut                  a(1) 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1) 
+	exit                 
+
+------ Test disj11 -------
+p :-
+	(
+	    (
+		a,
+		b
+	    ->
+		c
+	    )
+	->
+	    q
+	).
+
+p / 0:
+	allocate                 2 
+	savecut                  y(1) 
+	savecut                  y(2) 
+	callf                    a / 0     2 
+	callf                    b / 0     2 
+	cut                      y(2)     2 
+	callf                    c / 0     1 
+	cut                      y(1)     1 
+	chain                    q / 0 
+
+------ Test disj12 -------
+p :-
+	(
+	    q,
+	    var(A)
+	->
+	    true
+	).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	callf                    q / 0     1 
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	exit                 
+
+------ Test disj13 -------
+p :-
+	q,
+	var(A),
+	!,
+	p(A).
+
+p / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	callf                    q / 0     1 
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	chain                    p / 1 
+
+------ Test disj14 -------
+p :-
+	(
+	    a
+	;
+	    (
+		var(A)
+	    ->
+		var(A)
+	    )
+	),
+	b.
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	callf                    a / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     0 
+label(L2):
+	savecut                  a(1) 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1) 
+	bi_var                   a(2) 
+label(L3):
+	chain                    b / 0 
+
+------ Test disj15 -------
+p :-
+	(
+	    var(A)
+	->
+	    var(A),
+	    !
+	;
+	    (
+		p,
+		var(A),
+		!
+	    ;
+		var(A),
+		!
+	    )
+	).
+
+p / 0:
+	allocate                 2 
+	savecut                  y(1) 
+	savecut                  y(2) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(2)     2 
+	bi_var                   a(1) 
+	cut                      y(1)     2 
+	branch                   ref(L5) 
+label(L1):
+	retry_me_inline          0     ref(L3)     2 
+label(L2):
+	callf                    p / 0     2 
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     2 
+	branch                   ref(L5) 
+label(L3):
+	trust_me_inline          0     2 
+label(L4):
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     2 
+label(L5):
+	exit                 
+
+------ Test disj16 -------
+p :-
+	not (p, !, once (a, !, b)).
+
+p / 0:
+	allocate                 3 
+	savecut                  y(1) 
+	initialize               y([2, 3]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	savecut                  y(3) 
+	callf                    p / 0     3 
+	cut                      y(3)     3 
+	savecut                  y(2) 
+	callf                    a / 0     2 
+	cut                      y(2)     2 
+	callf                    b / 0     2 
+	cut                      y(2)     2 
+	cut                      y(1)     2 
+	failure              
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     3 
+label(L2):
+label(L3):
+	exit                 
+
+------ Test disj17 -------
+p :-
+	(
+	    q(A)
+	;
+	    r(B)
+	).
+
+p / 0:
+	allocate                 0 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	callf                    q / 1     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     0 
+label(L2):
+	put_variable             a(1) 
+	callf                    r / 1     0 
+label(L3):
+	exit                 
+
+------ Test disj18 -------
+p1(A, B, f(C)) :-
+	A = B,
+	A = C,
+	a = b,
+	q,
+	argc(D),
+	D = a.
+
+p1 / 3:
+	allocate                 1 
+	get_structure            a(3)     f / 1     ref(L0) 
+	write_variable           a(3) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            a(3) 
+label(L1):
+	get_value                a(1)     a(2) 
+	get_value                a(1)     a(3) 
+	failure              
+	initialize               y([1]) 
+	callf                    q / 0     1 
+	put_global_variable      a(1)     y(1) 
+	callf                    argc / 1     1 
+	move                     y(1)     a(1) 
+	get_atom                 a(1)     a 
+	exit                 
+
+------ Test disj19 -------
+t :-
+	not not (!, fail).
+
+t / 0:
+	allocate                 2 
+	savecut                  y(1) 
+	initialize               y([2]) 
+	try_me_else              0     0     ref(L5) 
+label(L0):
+	savecut                  y(2) 
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	savecut                  a(1) 
+	cut                      a(1) 
+	failure              
+	cut                      y(2)     2 
+	failure              
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     2 
+label(L3):
+label(L4):
+	cut                      y(1)     2 
+	failure              
+	branch                   ref(L7) 
+label(L5):
+	trust_me_inline          0     2 
+label(L6):
+label(L7):
+	exit                 
+
+------ Test disj20 -------
+t :-
+	(
+	    true
+	->
+	    not (true -> fail)
+	).
+
+t / 0:
+	allocate                 1 
+	savecut                  a(1) 
+	cut                      a(1) 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	savecut                  a(1) 
+	cut                      a(1) 
+	failure              
+	cut                      y(1)     1 
+	failure              
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     1 
+label(L2):
+label(L3):
+	exit                 
+
+------ Test disj21 -------
+t :-
+	(
+	    q,
+	    var(A)
+	->
+	    p(A)
+	).
+
+t / 0:
+	allocate                 1 
+	savecut                  y(1) 
+	callf                    q / 0     1 
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	cut                      y(1)     1 
+	chain                    p / 1 
+
+------ Test disj22 -------
+q(A) :-
+	(
+	    p(a)
+	->
+	    r(A)
+	).
+
+q / 1:
+	allocate                 2 
+	savecut                  y(2) 
+	move                     a(1)     y(1) 
+	put_atom                 a(1)     a 
+	callf                    p / 1     2 
+	cut                      y(2)     2 
+	move                     y(1)     a(1) 
+	chain                    r / 1 
+
+------ Test disj23 -------
+g(A, B, C) :-
+	copy_term(B, d(A, C, D)),
+	once D.
+
+g / 3:
+	allocate                 2 
+	move                     a(1)     a(4) 
+	move                     a(2)     a(1) 
+	put_structure            a(2)     d / 3 
+	push_local_value         a(4) 
+	push_local_value         a(3) 
+	push_variable            y(2) 
+	initialize               y([1]) 
+	callf                    copy_term / 2     2 
+	savecut                  y(1) 
+	put_atom                 a(2)     eclipse 
+	move                     y(2)     a(1) 
+	callf                    sepia_kernel : untraced_call / 2     1 
+	cut                      y(1)     1 
+	exit                 
+
+------ Test disj24 -------
+p2([A|B], C, D) :-
+	l(C, D, E / F),
+	q(B, C, D).
+
+p2 / 3:
+	allocate                 3 
+	get_list                 a(1)     ref(L0) 
+	write_void           
+	write_variable           y(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_void            
+	read_variable            y(1) 
+label(L1):
+	move                     a(2)     y(2) 
+	move                     a(3)     y(3) 
+	put_structure            a(3)     (/) / 2 
+	push_void            
+	push_void            
+	move                     a(2)     a(1) 
+	move                     y(3)     a(2) 
+	callf                    l / 3     3 
+	move                     y(1)     a(1) 
+	move                     y(2)     a(2) 
+	move                     y(3)     a(3) 
+	chain                    q / 3 
+
+------ Test disj25 -------
+p(A) :-
+	(
+	    (
+		A = 1,
+		!
+	    ;
+		A = 2
+	    ),
+	    fail
+	;
+	    A = 4
+	).
+
+p / 1:
+	allocate                 2 
+	savecut                  y(2) 
+	move                     a(1)     y(1) 
+	integer_switch           y(1) 
+		4: 	ref(L0)
+		default: 	ref(L1)
+
+label(L0):
+	try_me_else              0     0     ref(L7) 
+label(L1):
+	integer_switch           y(1) 
+		1: 	ref(L3)
+		2: 	ref(L5)
+		default: 	ref(fail)
+
+	branch                   ref(L3) 
+label(L2):
+	try_me_else              0     0     ref(L4) 
+label(L3):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	cut                      y(2)     2 
+	branch                   ref(L6) 
+label(L4):
+	trust_me_inline          0     2 
+label(L5):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+label(L6):
+	failure              
+	branch                   ref(L9) 
+label(L7):
+	trust_me_inline          0     2 
+label(L8):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     4 
+label(L9):
+	exit                 
+
+------ Test disj26 -------
+p(A, B) :-
+	(
+	    var(C),
+	    q(C)
+	->
+	    r(C)
+	;
+	    s(A, B)
+	).
+
+p / 2:
+	allocate                 4 
+	savecut                  y(3) 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	initialize               y([4]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_global_variable      a(1)     y(4) 
+	bi_var                   a(1) 
+	callf                    q / 1     4 
+	cut                      y(3)     4 
+	move                     y(4)     a(1) 
+	callf                    r / 1     2 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     4 
+label(L2):
+	move                     y(1)     a(1) 
+	move                     y(2)     a(2) 
+	callf                    s / 2     4 
+label(L3):
+	exit                 
+
+------ Test disj27 -------
+p3(A, B, C) :-
+	(
+	    A = ''
+	->
+	    D = "",
+	    E = F
+	;
+	    D = "a",
+	    E = [A, F]
+	).
+
+p3 / 3:
+	allocate                 2 
+	savecut                  y(2) 
+	move                     a(1)     y(1) 
+	atom_switch              y(1) 
+		'': 	ref(L1)
+		default: 	ref(L3)
+
+	branch                   ref(L1) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(1)     a(1) 
+	get_atom                 a(1)     '' 
+	cut                      y(2)     2 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     2 
+label(L3):
+label(L4):
+	exit                 
+
+------ Test disj28 -------
+s :-
+	(
+	    A == open
+	->
+	    true
+	;
+	    (
+		A == def
+	    ->
+		(
+		    transformed(B)
+		->
+		    true
+		;
+		    true
+		)
+	    )
+	).
+
+s / 0:
+	allocate                 2 
+	savecut                  y(1) 
+	initialize               y([2]) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	put_variable             a(1) 
+	put_atom                 a(2)     open 
+	bi_identical             a(1)     a(2) 
+	cut                      y(1)     2 
+	branch                   ref(L7) 
+label(L1):
+	trust_me_inline          0     2 
+label(L2):
+	savecut                  a(1) 
+	put_variable             a(2) 
+	put_atom                 a(3)     def 
+	bi_identical             a(2)     a(3) 
+	cut                      a(1) 
+	savecut                  y(2) 
+	try_me_else              0     0     ref(L4) 
+label(L3):
+	put_variable             a(1) 
+	callf                    transformed / 1     2 
+	cut                      y(2)     2 
+	branch                   ref(L6) 
+label(L4):
+	trust_me_inline          0     2 
+label(L5):
+label(L6):
+label(L7):
+	exit                 
+
+------ Test disj29 -------
+test A :-
+	!,
+	writeln(clause1),
+	(
+	    A = 1
+	->
+	    writeln(ok)
+	;
+	    writeln(wrong)
+	).
+
+test / 1:
+	allocate                 2 
+	savecut                  a(3) 
+	cut                      a(3) 
+	move                     a(1)     y(2) 
+	put_atom                 a(1)     clause1 
+	put_atom                 a(2)     eclipse 
+	initialize               y([1]) 
+	callf                    sepia_kernel : writeln_body / 2     2 
+	savecut                  y(1) 
+	integer_switch           y(2) 
+		1: 	ref(L1)
+		default: 	ref(L3)
+
+	branch                   ref(L1) 
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     y(2)     a(3) 
+	get_integer              a(3)     1 
+	cut                      y(1)     2 
+	put_atom                 a(1)     ok 
+	put_atom                 a(2)     eclipse 
+	callf                    sepia_kernel : writeln_body / 2     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     2 
+label(L3):
+	put_atom                 a(1)     wrong 
+	put_atom                 a(2)     eclipse 
+	callf                    sepia_kernel : writeln_body / 2     2 
+label(L4):
+	exit                 
+
+------ Test disj30 -------
+test :-
+	getcond(A, B),
+	(
+	    A
+	->
+	    (
+		B
+	    ->
+		true
+	    )
+	).
+
+test / 0:
+	allocate                 4 
+	put_global_variable      a(1)     y(4) 
+	put_global_variable      a(2)     y(3) 
+	initialize               y([1, 2]) 
+	callf                    getcond / 2     4 
+	savecut                  y(2) 
+	put_atom                 a(2)     eclipse 
+	move                     y(4)     a(1) 
+	callf                    sepia_kernel : untraced_call / 2     3 
+	cut                      y(2)     3 
+	savecut                  y(1) 
+	put_atom                 a(2)     eclipse 
+	move                     y(3)     a(1) 
+	callf                    sepia_kernel : untraced_call / 2     1 
+	cut                      y(1)     1 
+	exit                 
+
+------ Test disj31 -------
+go(A) :-
+	A = [B, C, D],
+	findall(E, member(E, A), F),
+	F = [1, 2, 3],
+	nl,
+	write('L = '),
+	write(A).
+
+go / 1:
+	allocate                 2 
+	get_list                 a(1)     ref(L2) 
+	write_void           
+	write_list           
+label(L0):
+	write_void           
+	write_list           
+label(L1):
+	write_void           
+	write_nil            
+	branch                   ref(L3) 
+label(L2):
+	read_void            
+	read_last_list           ref(L0) 
+	read_void            
+	read_last_list           ref(L1) 
+	read_void            
+	read_nil             
+label(L3):
+	move                     a(1)     y(1) 
+	put_structure            a(2)     member / 2 
+	push_variable            a(1) 
+	move                     y(1)     a(5) 
+	push_local_value         a(5) 
+	put_global_variable      a(3)     y(2) 
+	put_atom                 a(4)     eclipse 
+	callf                    sepia_kernel : findall_body / 4     2 
+	move                     y(2)     a(1) 
+	get_list                 a(1)     ref(L6) 
+	write_integer            1 
+	write_list           
+label(L4):
+	write_integer            2 
+	write_list           
+label(L5):
+	write_integer            3 
+	write_nil            
+	branch                   ref(L7) 
+label(L6):
+	read_integer             1 
+	read_last_list           ref(L4) 
+	read_integer             2 
+	read_last_list           ref(L5) 
+	read_integer             3 
+	read_nil             
+label(L7):
+	callf                    nl / 0     1 
+	put_atom                 a(1)     'L = ' 
+	put_atom                 a(2)     eclipse 
+	callf                    sepia_kernel : write_ / 2     1 
+	put_atom                 a(2)     eclipse 
+	move                     y(1)     a(1) 
+	chain                    sepia_kernel : write_ / 2 
+
+------ Test disj32 -------
+append([A|B], C, [A|D]) :-
+	append(B, C, D).
+
+append / 3:
+	get_list                 a(1)     ref(L0) 
+	write_variable           a(4) 
+	write_variable           a(1) 
+	branch                   ref(L1) 
+label(L0):
+	read_variable            a(4) 
+	read_variable            a(1) 
+label(L1):
+	get_list                 a(3)     ref(L2) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	branch                   ref(L3) 
+label(L2):
+	read_value               a(4) 
+	read_variable            a(3) 
+label(L3):
+	jmp                      append / 3 
+
+------ Test disj33 -------
+c(A, B) :-
+	(
+	    A = B
+	->
+	    a
+	;
+	    b
+	),
+	c.
+
+c / 2:
+	allocate                 3 
+	savecut                  y(3) 
+	move                     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	try_me_else              0     0     ref(L1) 
+label(L0):
+	get_value                y(1)     y(2) 
+	cut                      y(3)     3 
+	callf                    a / 0     0 
+	branch                   ref(L3) 
+label(L1):
+	trust_me_inline          0     3 
+label(L2):
+	callf                    b / 0     3 
+label(L3):
+	chain                    c / 0 
+
+------ Test disj34 -------
+producer(A) :-
+	random(B),
+	(
+	    B > 0
+	->
+	    A = [B|C]
+	;
+	    A = [zero|C]
+	),
+	producer(C).
+
+producer / 1:
+	allocate                 4 
+	move                     a(1)     y(4) 
+	put_global_variable      a(1)     y(3) 
+	initialize               y([1, 2]) 
+	callf                    random / 1     4 
+	savecut                  y(2) 
+	list_switch              y(4)     ref(L0)     ref(L1)     ref(L1) 
+label(L0):
+	try_me_else              0     0     ref(L4) 
+label(L1):
+	put_integer              a(1)     0 
+	put_atom                 a(2)     eclipse 
+	move                     y(3)     a(3) 
+	bi_gt                    a(3)     a(1)     a(2) 
+	cut                      y(2)     4 
+	move                     y(4)     a(1) 
+	get_list                 a(1)     ref(L2) 
+	write_local_value        y(3) 
+	write_variable           y(1) 
+	branch                   ref(L3) 
+label(L2):
+	read_value               y(3) 
+	read_variable            y(1) 
+label(L3):
+	branch                   ref(L8) 
+label(L4):
+	trust_me_inline          0     4 
+label(L5):
+	move                     y(4)     a(1) 
+	get_list                 a(1)     ref(L6) 
+	write_atom               zero 
+	write_variable           y(1) 
+	branch                   ref(L7) 
+label(L6):
+	read_atom                zero 
+	read_variable            y(1) 
+label(L7):
+label(L8):
+	move                     y(1)     a(1) 
+	chain                    producer / 1 
