@@ -1,0 +1,6 @@
+#! /bin/sh
+
+chmod +x ARCH PACK RUNME UNPACK BUILD_ROTD config/*
+chmod +x */INSTALL */*/INSTALL Opium/fixmanual
+chmod +x configure */*/configure
+
