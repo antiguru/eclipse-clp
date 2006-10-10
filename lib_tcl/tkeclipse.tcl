@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.1 2006/09/23 01:54:19 snovello Exp $
+# $Id: tkeclipse.tcl,v 1.2 2006/10/10 20:52:55 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -1175,5 +1175,10 @@ if {[string trimleft $tkecl(pref,initquery)] != ""} {
 
 set tkecl(oldcursor) [. cget -cursor]
 
-ec_rpc "toplevel:toplevel" 
+if {[ec_interface_type] == "remote"} {
+    ec_rpc "toplevel:toplevel" 
+} else {
+    ec_post_goal "toplevel:toplevel" 
+    ec_resume 1		;# resume async to keep the GUI active
+}
 ec_cleanup
