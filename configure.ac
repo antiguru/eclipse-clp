@@ -32,10 +32,10 @@ dnl
 #----------------------------------------------------------------------
 
 # AC_INIT defines PACKAGE_NAME and PACKAGE_VERSION
-AC_INIT([ECLiPSe], [5.10])
+AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.1 2006/09/23 01:45:05 snovello Exp $])
+AC_REVISION([$Id: configure.ac,v 1.2 2006/10/10 21:20:25 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])

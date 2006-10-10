@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.1 2006/09/23 01:54:17 snovello Exp $
+# $Id: eclipse_tools.tcl,v 1.2 2006/10/10 21:20:25 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -60,7 +60,7 @@ switch $tcl_platform(platform) {
     windows {
 	package require registry
 	set tkecl(ECLIPSEDIR) [registry get \
-	    HKEY_LOCAL_MACHINE\\SOFTWARE\\IC-Parc\\Eclipse\\5.10 ECLIPSEDIR]
+	    HKEY_LOCAL_MACHINE\\SOFTWARE\\IC-Parc\\Eclipse\\5.11 ECLIPSEDIR]
 	;# fixed does not alias to a mono-spaced font in Windows!
 	set tkecl(windows_registry_path) HKEY_CURRENT_USER\\Software\\IC-Parc\\ECLiPSe\\
 	lappend tkecl(preferences) \

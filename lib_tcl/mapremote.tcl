@@ -11,7 +11,7 @@ switch $tcl_platform(platform) {
     windows {
 	package require registry
 	set tkecl(ECLIPSEDIR) [registry get \
-	    HKEY_LOCAL_MACHINE\\SOFTWARE\\IC-Parc\\Eclipse\\5.10 ECLIPSEDIR]
+	    HKEY_LOCAL_MACHINE\\SOFTWARE\\IC-Parc\\Eclipse\\5.11 ECLIPSEDIR]
     }
     default {
 	error "$tcl_platform(platform) not supported"
