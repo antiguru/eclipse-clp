@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.1 2006/09/23 01:53:51 snovello Exp $
+# $Id: Makefile.in,v 1.2 2006/10/13 00:41:27 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -684,7 +684,8 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl empty_language.ecl \
 		edge_finder3.ecl ic_edge_finder3.ecl \
 		bfs.ecl colgen.ecl dual_var.ecl \
 		b_trees.ecl n_trees.ecl \
-		regex.ecl sd.ecl \
+		config_opts.ecl gap.ecl sym_expr.ecl \
+		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		conjunto_fd_sets.ecl ic_hybrid_sets.ecl lex_set.ecl \
 		eplex_osi.ecl eplex_osi_clpcbc.ecl eplex_osi_symclp.ecl \
 		tentative.ecl tentative_constraints.ecl
@@ -703,7 +704,8 @@ INCLUDE_ONLY_FILES = colgen_.ecl eplex_s.ecl \
 		generic_global_constraints.ecl generic_sets.ecl \
 		generic_hybrid_sets.ecl \
 		generic_cumulative.ecl generic_edge_finder_common.ecl \
-		generic_edge_finder.ecl generic_edge_finder3.ecl
+		generic_edge_finder.ecl generic_edge_finder3.ecl \
+		generic_gap_sbdd.ecl generic_gap_sbds.ecl
 PL_ECI_FILES =	repair.pl eplex.pl \
 		ech.pl eplex_xpress.pl eplex_cplex.pl \
 		repairfd.pl changeset.pl \
@@ -720,10 +722,11 @@ ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		cumulative.ecl ic_cumulative.ecl \
 		edge_finder.ecl ic_edge_finder.ecl \
 		edge_finder3.ecl ic_edge_finder3.ecl bfs.ecl colgen.ecl \
-		regex.ecl sd.ecl \
+		config_opts.ecl gap.ecl sym_expr.ecl \
+		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		eplex_osi.ecl eplex_osi_clpcbc.ecl eplex_osi_symclp.ecl \
 		tentative.ecl tentative_constraints.ecl
-NON_ECLIPSE_FILES =
+NON_ECLIPSE_FILES = RuntimesList.g SBDDa.g
 
 EXAMPLE_DEST =	$(EXAMPLE_FILES:%=$(PREFIX)/doc/examples/tutorial/%) 
 ECO_DEST =	$(ECL_ECO_FILES:%.ecl=$(PREFIX)/lib/%.eco) \
@@ -869,9 +872,13 @@ $(PREFIX)/lib/ic.eci: generic_search_comments.ecl
 
 $(PREFIX)/lib/fd_sbds.eco: generic_sbds.ecl 
 $(PREFIX)/lib/ic_sbds.eco: generic_sbds.ecl
+$(PREFIX)/lib/ic_gap_sbdd.eco: generic_gap_sbdd.ecl
+$(PREFIX)/lib/ic_gap_sbds.eco: generic_gap_sbds.ecl
 
 $(PREFIX)/lib/fd_sbds.eci: generic_sbds.ecl 
 $(PREFIX)/lib/ic_sbds.eci: generic_sbds.ecl
+$(PREFIX)/lib/ic_gap_sbdd.eci: generic_gap_sbdd.ecl
+$(PREFIX)/lib/ic_gap_sbds.eci: generic_gap_sbds.ecl
 
 # Sets dependencies
 

@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.1 2006/09/23 01:45:05 snovello Exp $
+# $Id: Makefile.in,v 1.2 2006/10/13 00:41:27 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -26,7 +26,8 @@ install_cross:	make_sepia \
 install_all:	install_cross \
 		make_ecrc_solvers \
 		make_pt_libraries \
-		make_contrib
+		make_contrib \
+		make_mercury
 
 # build the reference manual only after all eci files have been installed
 # MAKE_DOCUMENTS is either make_documents, or nothing if no tools available
@@ -79,6 +80,10 @@ make_pt_libraries:	make_bin
 make_contrib:		make_bin
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/Contrib; $(MAKE) -f Makefile.$(ARCH))
+
+make_mercury:		make_bin
+	@echo ======== $@ ========
+	@(cd $(top_srcdir)/Mercury; $(MAKE) -f Makefile.$(ARCH))
 
 make_internal_doc:	make_bin
 	@echo ======== $@ ========

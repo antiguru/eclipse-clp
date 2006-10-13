@@ -88,6 +88,15 @@ icparc_solvers/generic_sbds.ecl
 
 _______________________________________________________________________________
 
+All files Mercury/*
+icparc_solvers/{RuntimesList.g SBDDa.g config_opts.ecl gap,ecl
+	generic_gap_sbdd.ecl generic_gap_sbds.ecl sym_expr}
+
+    These file are subject to the GNU LESSER GENERAL PUBLIC LICENSE
+    (LGPL, see legal/lgpl.txt).
+
+_______________________________________________________________________________
+
 Contrib/{xml.ecl xml.pl xml_acquisition.pl xml_diagnosis.pl xml_pp.pl
 	xml_comments.ecl xml_generation.pl xml_utilities.pl}
 
