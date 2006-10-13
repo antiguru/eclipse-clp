@@ -1,17 +1,6 @@
 Building ECLiPSe
 ----------------
 
-BEGIN NOTE
-
-    Due to a mishap while importing the sources into sourceforge, some
-    of your freshly checked-out source files may lack execute permissions,
-    e.g. the configure scripts.  Until this is fixed, please call first
-	./fixperms
-    to correct the problem, then proceed as below.
-
-END NOTE
-
-
 You should have the following environment settings:
 
     export ARCH=<architecture to build for>
