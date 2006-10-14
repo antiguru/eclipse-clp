@@ -25,8 +25,13 @@ ROTD_DIR=
 ECLIPSEGROUP=eclipse
 
 # Default location of CVS repository
-CVSDIR=
+CVSDIR=:ext:eclipse-clp.cvs.sourceforge.net:/cvsroot/eclipse-clp
+# Default location of CVS repository for the tests (if different)
+CVSDIR_TESTS=
 CVS_RSH=ssh
+
+# Location of thirdparty components
+export ECLIPSETHIRDPARTY=/vol/Eclipse/thirdparty_open
 
 # Machine to perform CVS operations on.
 CVS_MACHINE=$DISK_MACHINE
@@ -62,15 +67,6 @@ MACHINE_sun4=
 MACHINE_i386_nt=$MACHINE_i386_linux	# Cross-compiler
 
 
-# Optimizer versions to build
-OPTIMIZERS=
-
-
-# Machines to use to build architecture / optimizer combinations.
-# Comment out any versions/combinations you don't want built,
-# or are OK to build on any machine with that architecture.
-
-
 # List specifying which architectures and machines (do not) support Java.
 # By default, Java is assumed to be supported.  Also, a setting for a
 # specific machine overrides a specification for an architecture.
@@ -87,16 +83,6 @@ supports_java() {   # machine, arch
 
     [ "$java_supported" != no ]
 }
-
-# Object suffix for each architecture (this shouldn't be here).
-
-OBJ_SUFFIX_sparc_sunos5=so
-OBJ_SUFFIX_sun4=o
-OBJ_SUFFIX_i386_linux=so
-OBJ_SUFFIX_x86_64_linux=so
-OBJ_SUFFIX_alpha_linux=so
-OBJ_SUFFIX_ppc_macosx=dylib
-OBJ_SUFFIX_i386_nt=dll
 
 
 # Machines to use to test each architecture.  Note that each architecture

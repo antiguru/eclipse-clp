@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.1 2006/09/23 01:44:58 snovello Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.2 2006/10/14 00:49:04 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -311,70 +311,12 @@ if [ "$jeclipse_tests" = "yes" ] ; then
     test_embeddings="$test_embeddings java"
 fi
 
+if [ -z "$CVSDIR_TESTS" ] ; then
+    CVSDIR_TESTS=$CVSDIR
+fi
 
 # Make sure permissions are set appropriately
 umask $UMASK
-
-
-# The following two lists specify which subsystems to install before and
-# after installing the ECLiPSe executables.  We should find a way of making
-# sure that between them they cover all subsystems.
-
-PRE_EXEC_SUBSYSTEMS="\
-        Gmp \
-        Shm \
-        sepia \
-        Flexlm \
-"
-POST_EXEC_SUBSYSTEMS="\
-        ecrc_solvers \
-        Contrib \
-        icparc_solvers \
-        pt_libraries \
-        Clpqr \
-        Mercury \
-        VBinterface \
-	JavaInterface \
-	grappa \
-	Visualisation \
-"
-DOC_SUBSYSTEMS="\
-        documents \
-"
-WINMSC_SUBSYSTEMS="\
-        Bitmap \
-        EcJava \
-	EcJavaLoad \
-        Eclipse \
-        EplexSCplex \
-        EplexSXpress \
-        Edge_finder \
-        GmpDll \
-        IC \
-        PtEclipse \
-        Regex \
-        Shm \
-        Standalone \
-        TkEclipse \
-        TkExdr \
-"
-
-CFG_Bitmap=Release
-CFG_EcJava=Release
-CFG_EcJavaLoad=Release
-CFG_Eclipse=Release
-CFG_EplexSCplex="ReleaseCplex75"
-CFG_EplexSXpress="Release13 Release13icp Release14 Release14icp Release15"
-CFG_Edge_finder=Release
-CFG_GmpDll=Release
-CFG_IC=Release
-CFG_PtEclipse=Release
-CFG_Regex=Release
-CFG_Shm=Release
-CFG_Standalone=Release
-CFG_TkEclipse=Release
-CFG_TkExdr=Release
-
 
 
 PREFIX=$ROTD_DIR
@@ -654,12 +596,6 @@ check_arch_build_machines() {	# list of architectures
 	    echo "*** Don't know which machine to use for building $arch version."
 	    check_result=1
 	fi
-
-	eval obj_suffix='$OBJ_SUFFIX_'$arch
-	if [ "$obj_suffix" = "" ] ; then
-	    echo "*** Don't know object suffix to use for $arch."
-	    check_result=1
-	fi
     done
 
     [ "$check_result" = 0 ]
@@ -752,12 +688,16 @@ check_out_sources() {	# no arguments
 build_architecture() {	# architecture
     arch=$1
     eval machine='$MACHINE_'$arch
-    eval obj_suffix='$OBJ_SUFFIX_'$arch
-    supports_java $machine $arch
-    supports_java=$?
 
     BUILD_LOGFILE="$PREFIX/$LOG_DIR/log.$arch.build"
     LOCAL_BUILD_LOGFILE="$LOCAL_PREFIX/$LOG_DIR/log.$arch.build"
+
+    case "$arch" in
+	i386_nt)
+	    CONFIG_HOST="--host=i386-mingw32msvc" ;;
+	*)
+	    CONFIG_HOST= ;;
+    esac
 
     if milestone_already_achieved built_$arch ; then
 	echo "Milestone: Skipping build of $arch"
@@ -771,60 +711,10 @@ build_architecture() {	# architecture
 	    ARCH=\"$arch\"
 	    export ARCH
 
-
 	    (
-		# Build the necessary subsystems
-		./INSTALL \"$PRE_EXEC_SUBSYSTEMS\" < /dev/null &&
-
-		# Build the basic executables
-		if [ \"$arch\" != i386_nt ] ; then
-		    ./RUNME --no-docs < /dev/null
-		fi
+		CONFIG_SITE=config.$arch ./configure $CONFIG_HOST
+		make -f Makefile.$arch
 	    ) >> $BUILD_LOGFILE 2>&1 &&
-
-	    echo \"Done.\" | tee -a $BUILD_LOGFILE
-	" &&
-
-	# Build the optimizers and other C libraries
-	for opt in $OPTIMIZERS x ; do
-	    eval opt_machine='$MACHINE_'$arch'_'$opt
-	    if [ "$opt_machine" = "" ] ; then
-		# Skip this combination --- also catches the "x" case.
-		continue
-	    fi
-
-	    remote_commands "$opt_machine" "$PREFIX/$BUILD_DIR/icparc_solvers" "
-		echo \"Building $arch/$opt.$obj_suffix on $opt_machine.\" \
-		    | tee -a $BUILD_LOGFILE
-
-		# In case we're cross-compiling
-		ARCH=\"$arch\"
-		export ARCH
-
-		make $arch/$opt.$obj_suffix >> $BUILD_LOGFILE 2>&1 &&
-
-		echo \"Done.\" | tee -a $BUILD_LOGFILE
-	    " || break	# Exit the loop early if something failed.
-	done && [ "$opt" = x ] &&
-
-	remote_commands "$machine" "$PREFIX/$BUILD_DIR" "
-	    echo \"Building remaining $arch libraries on $machine.\" \
-		| tee -a $BUILD_LOGFILE
-
-	    # In case we're cross-compiling
-	    ARCH=\"$arch\"
-	    export ARCH
-
-	    echo \"Building rest of $arch version on $machine.\" \
-		| tee -a $BUILD_LOGFILE &&
-
-	    ./INSTALL \"$POST_EXEC_SUBSYSTEMS\" < /dev/null \
-		    >> $BUILD_LOGFILE 2>&1 &&
-
-	    if [ $supports_java = 0 ] ; then
-		./INSTALL \"JavaInterface\" < /dev/null \
-			>> $BUILD_LOGFILE 2>&1
-	    fi &&
 
 	    echo \"Done.\" | tee -a $BUILD_LOGFILE
 	" &&
@@ -846,8 +736,7 @@ build_documentation() {	# no arguments
 	echo \"See $DOC_LOGFILE for details.\"
 
 	(
-	    ./INSTALL \"$DOC_SUBSYSTEMS\" < /dev/null &&
-	    ./RUNME --docs < /dev/null
+	    make -f Makefile.\$ARCH install_documents
 	) >> $DOC_LOGFILE 2>&1 &&
 
 	echo \"Done.\" | tee -a $DOC_LOGFILE \
@@ -1016,7 +905,7 @@ install_archives() {	# installation number
 		    # For the standard version, install everything except
 		    # the source
 		    cp $PREFIX/$TMP_ARCHIVE_DIR/common/* $PREFIX/$install_dir &&
-		    rm $PREFIX/$install_dir/eclipse_source.tgz
+		    rm -f $PREFIX/$install_dir/eclipse_source.tgz
 		fi &&
 
 		# Now copy and install each architecture.
@@ -1274,7 +1163,7 @@ check_out_tests() {	# subdirectory (of [LOCAL_]PREFIX)
 		chmod o-rwx \"$PREFIX/$test_dir_\" &&
 		chgrp $ECLIPSEGROUP \"$PREFIX/$test_dir_\" &&
 		cd \"`dirname "$PREFIX/$test_dir_"`\" &&
-		cvs -q -d \"$CVSDIR\" checkout -d \"`basename "$test_dir_"`\" \
+		cvs -q -d \"$CVSDIR_TESTS\" checkout -d \"`basename "$test_dir_"`\" \
 			$PATCH_OPTIONS $DATE_OPTIONS Tests
 	    ) >> $CVS_LOGFILE 2>&1 &&
 
@@ -1588,7 +1477,7 @@ anything_changed() {
         echo \"Differences written to $DIFF_LOGFILE.\"
 	# get diffs and filter out any lines beginning with ? (non-cvs files)
 	cvs -q -d \"$CVSDIR\" diff --brief -r $LAST_SUCCESSFUL_BUILD_TAG \
-		| grep -v \"^? \" >> $DIFF_LOGFILE 2>&1
+		2>&1 | grep -v \"^? \" >> $DIFF_LOGFILE
 	if [ -s $DIFF_LOGFILE ] ; then
 	    echo \"Something has changed.\" | tee -a $CVS_LOGFILE
 	    true
