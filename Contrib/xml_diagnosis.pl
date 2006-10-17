@@ -1,25 +1,15 @@
 /* xml_diagnosis.pl : XML exception diagnosis.
  *
- * Copyright (C) 2001-2003 Binding Time Limited
+ * Copyright (C) 2001-2005 Binding Time Limited
+ * Copyright (C) 2005, 2006 John Fletcher
+ *
+ * Current Release: $Revision: 1.2 $
  * 
  * TERMS AND CONDITIONS:
  *
  * This program is offered free of charge, as unsupported source code. You may
- * use it, copy it, distribute it, modify it or sell it without restriction. 
- * 
- * We hope that it will be useful to you, but it is provided "as is" without
- * any warranty express or implied, including but not limited to the warranty
- * of non-infringement and the implied warranties of merchantability and fitness
- * for a particular purpose.
- * 
- * Binding Time Limited will not be liable for any damages suffered by you as
- * a result of using the Program. In no event will Binding Time Limited be
- * liable for any special, indirect or consequential damages or lost profits
- * even if Binding Time Limited has been advised of the possibility of their
- * occurrence. Binding Time Limited will not be liable for any third party
- * claims against you.
- *
- * $Revision: 1.1 $
+ * use it, copy it, distribute it, modify it or sell it without restriction,
+ * but entirely at your own risk.
  */
 
 :- ensure_loaded( xml_generation ).

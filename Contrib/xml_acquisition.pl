@@ -1,26 +1,15 @@
 /* xml_acquisition.pl : XML -> Document translation.
  *
- * Copyright (C) 2001-2003 Binding Time Limited
+ * Copyright (C) 2001-2005 Binding Time Limited
+ * Copyright (C) 2005, 2006 John Fletcher
+ *
+ * Current Release: $Revision: 1.2 $
  * 
  * TERMS AND CONDITIONS:
  *
  * This program is offered free of charge, as unsupported source code. You may
- * use it, copy it, distribute it, modify it or sell it without restriction. 
- * 
- * We hope that it will be useful to you, but it is provided "as is" without
- * any warranty express or implied, including but not limited to the warranty
- * of non-infringement and the implied warranties of merchantability and fitness
- * for a particular purpose.
- * 
- * Binding Time Limited will not be liable for any damages suffered by you as
- * a result of using the Program. In no event will Binding Time Limited be
- * liable for any special, indirect or consequential damages or lost profits
- * even if Binding Time Limited has been advised of the possibility of their
- * occurrence. Binding Time Limited will not be liable for any third party
- * claims against you.
- *
- * $Revision: 1.1 $
- *
+ * use it, copy it, distribute it, modify it or sell it without restriction,
+ * but entirely at your own risk.
  */
 
 :- ensure_loaded( xml_utilities ).
@@ -76,10 +65,9 @@ layouts( [], Context, _Plus, _Minus, Terms, [], WF ) :-
 	close_context( Context, Terms, WF ).
 layouts( [Char|Chars], Context, Plus, Minus, Terms, Residue, WF ) :-
 	( Char =:= "<" ->
-		Chars1 = [],
 		xml_markup_structure( Chars, Context, Terms, Residue, WF )
 	; Char =:= "&" ->
-		entity_reference( Chars, Context, Terms, Residue, WF )
+		reference_in_layout( Chars, Context, Plus, Minus, Terms, Residue, WF )
 	; Char =< " " ->
 		Minus = [Char|Minus1],
 		layouts( Chars, Context, Plus, Minus1, Terms, Residue, WF )
@@ -118,7 +106,7 @@ xml_markup_structure( Chars, Context, Terms, Residue, WF ) :-
 	; open_tag(Tag,Context,Attributes,Type, Chars, Chars2 ) ->
 		push_tag( Tag, Chars2, Context, Attributes, Type, Terms, Residue, WF )
 	; otherwise ->
-		unparsed( [0'<|Chars], Context, Terms, Residue, WF )
+		unparsed( [0'<|Chars], Context, Terms, Residue, WF ) %'
 	).
 
 push_tag( Tag, Chars, Context, Attributes, Type, Terms, Residue, WF ) :-
@@ -130,9 +118,8 @@ push_tag1( true, Context, Term, Chars, [Term|Terms], Residue, WF ) :-
 push_tag1( false, _Context, Term, Chars, [Term], Chars, false ).
 
 new_element( TagChars, Chars, Context, Attributes0, Type, Term, Residue, WF ) :-
-	input_attributes( Attributes0, Context, Context1, Attributes ),
-	current_namespace( Context, CurrentNamespace ),
-	( append( NSChars, [0':|TagChars1], TagChars ),
+	namespace_attributes( Attributes0, Context, Context1, Attributes1 ),
+	( append( NSChars, [0':|TagChars1], TagChars ), %'
 	  specific_namespace( NSChars, Context1, SpecificNamespace ) ->
 		Namespace0 = SpecificNamespace
 	; otherwise ->
@@ -140,6 +127,7 @@ new_element( TagChars, Chars, Context, Attributes0, Type, Term, Residue, WF ) :-
 		TagChars1 = TagChars,
 		default_namespace( Context1, Namespace0 )
 	),
+	current_namespace( Context1, CurrentNamespace ),
 	( Namespace0 == CurrentNamespace ->
 		Term = element(Tag, Attributes, Contents),
 		Context2 = Context1
@@ -149,6 +137,7 @@ new_element( TagChars, Chars, Context, Attributes0, Type, Term, Residue, WF ) :-
 					),
 		context_update( current_namespace, Context1, Namespace0, Context2 )
 	),
+	input_attributes( Attributes1, Context2, Attributes ),
 	atom_codes( Tag, TagChars1 ),
 	close_tag( Type, Chars, Context2, Contents, Residue, WF ).
 
@@ -237,58 +226,75 @@ closing_tag_name( Tag ) -->
 	">".
 
 entity_reference( Chars, Context, Terms, Residue, WF ) :-
+	reference_in_layout( Chars, Context, L, L, Terms, Residue, WF ).
+
+reference_in_layout( Chars, Context, Plus, Minus, Terms, Residue, WF ) :-
 	( standard_character_entity( Char, Chars, Rest ) ->
-		Terms = [pcdata([Char|Chars1])|Terms1],
+		Minus = [Char|Chars1],
+		Terms = [pcdata(Plus)|Terms1],
 		acquire_pcdata( Rest, Context, Chars1, Terms1, Residue, WF )
 	; entity_reference_name( Reference, Chars, Rest ),
 	  defined_entity( Reference, Context, String ) ->
 		append( String, Rest, Full ),
 		xml_to_document( Full, Context, Terms, Residue, WF )
+	; allow_ampersand( Context ) ->
+		Minus = [0'&|Chars1], %'
+		Terms = [pcdata(Plus)|Terms1],
+		acquire_pcdata( Chars, Context, Chars1, Terms1, Residue, WF )
 	; otherwise ->
-		unparsed( [0'&|Chars], Context, Terms, Residue, WF )
+		unparsed( [0'&|Chars], Context, Terms, Residue, WF ) %'
 	).
 
 reference_in_pcdata( Chars0, Context, Chars1, Terms, Residue, WF ) :-
-	( standard_character_entity(Char, Chars0, Rest ) ->
+	( standard_character_entity( Char, Chars0, Rest ) ->
 		Chars1 = [Char|Chars2],
 		acquire_pcdata( Rest, Context, Chars2, Terms, Residue, WF )
-	; entity_reference_name(Reference, Chars0, Rest ),
+	; entity_reference_name( Reference, Chars0, Rest ),
 	  defined_entity( Reference, Context, String ) ->
 		append( String, Rest, Full ),
 		acquire_pcdata( Full, Context, Chars1, Terms, Residue, WF )
+	; allow_ampersand( Context ) ->
+		Chars1 = [0'&|Chars2],
+		acquire_pcdata( Chars0, Context, Chars2, Terms, Residue, WF )
 	; otherwise ->
 		Chars1 = [],
 		unparsed( [0'&|Chars0], Context, Terms, Residue, WF )
 	).
 
-input_attributes( [], Context, Context, [] ).
-input_attributes( [Attr|Attributes0], Context0, Context, Attributes ) :-
-	Attr = (NameChars=Value),
-	( NameChars == "xmlns" ->
-		Attributes = Attributes1,
+namespace_attributes( [], Context, Context, [] ).
+namespace_attributes( Attributes0, Context0, Context, Attributes ) :-
+	Attributes0 = [_|_],
+	append( "xmlns:", Unqualified, QualifiedNameChars ),
+	( select( "xmlns"=Value, Attributes0, Attributes1 ) ->
 		atom_codes( URI, Value ),
-		context_update( default_namespace, Context0, URI, Context1 )
-	; Attr == ("xml:space"="preserve") ->
-		Attributes = ['xml:space'="preserve"|Attributes1],
-		context_update( space_preserve, Context0, true, Context1 )
-	; append( "xmlns:", Unqualified, NameChars ) ->
-		Attributes = [Name=Value|Attributes1],
-		atom_codes( Name, NameChars ),
+		context_update( default_namespace, Context0, URI, Context1 ),
+		namespace_attributes( Attributes1, Context1, Context, Attributes )
+	; select( QualifiedNameChars=Value, Attributes0, Attributes1 ) ->
+		Attributes = [QualifiedNameChars=Value|Attributes2],
 		atom_codes( URI, Value ),
-		context_update( ns_prefix(Unqualified), Context0, URI, Context1 )
-	; remove_attribute_prefixes( Context0 ),
-	  append( NSChars, [0':|NameChars1], NameChars ), %'
-	  specific_namespace( NSChars, Context0, Namespace ),
-	  current_namespace( Context0, Namespace ) ->
-		Attributes = [Name=Value|Attributes1],
-		atom_codes( Name, NameChars1 ),
-		Context1 = Context0
+		context_update( ns_prefix(Unqualified), Context0, URI, Context1 ),
+		namespace_attributes( Attributes1, Context1, Context, Attributes2 )
+	; member( "xml:space"="preserve", Attributes0 ) ->
+		Attributes = Attributes0,
+		context_update( space_preserve, Context0, true, Context )
 	; otherwise ->
-		Attributes = [Name=Value|Attributes1],
-		atom_codes( Name, NameChars ),
-		Context1 = Context0
+		Context = Context0,
+		Attributes = Attributes0
+	).
+
+input_attributes( [], _Context, [] ).
+input_attributes( [NameChars=Value|Attributes0], Context,
+		[Name=Value|Attributes] ) :-
+	( remove_attribute_prefixes( Context ),
+	  append( NSChars, [0':|NameChars1], NameChars ), %'
+	  NSChars \== "xmlns",
+	  specific_namespace( NSChars, Context, Namespace ),
+	  current_namespace( Context, Namespace ) ->
+		atom_codes( Name, NameChars1 )
+	; otherwise ->
+		atom_codes( Name, NameChars )
 	),
-	input_attributes( Attributes0, Context1, Context, Attributes1 ).
+	input_attributes( Attributes0, Context, Attributes ).
 
 attributes( [Name=Value|Attributes], Seen, Namespaces ) -->
 	spaces,
@@ -317,16 +323,25 @@ doctype( Name, External, Namespaces0, Namespaces1 ) -->
 	spaces,
 	nmtoken( Name ),
 	spaces,
-	doctype_id( External ),
+	doctype_id( External0 ),
 	spaces,
-	doctype1( Namespaces0, Namespaces1 ).
+	doctype1( Namespaces0, Literals, Namespaces1 ),
+	{doctype_extension(Literals, External0, External)}.
 
-doctype1( Namespaces0, Namespaces1 ) -->
+doctype_extension( [], External, External ).
+doctype_extension( [Literal|Literals], External0, External ) :-
+	extended_doctype( External0, [Literal|Literals], External ).
+
+extended_doctype( system(URL), Literals, system(URL,Literals) ).
+extended_doctype( public(URN,URL), Literals, public(URN,URL,Literals) ).
+extended_doctype( local, Literals, local(Literals) ).
+
+doctype1( Namespaces0, Literals, Namespaces1 ) -->
 	"[",
 	!,
-	dtd( Namespaces0, Namespaces1 ),
+	dtd( Namespaces0, Literals, Namespaces1 ),
 	"]".
-doctype1( Namespaces, Namespaces ) --> "".
+doctype1( Namespaces, [], Namespaces ) --> "".
 
 doctype_id( system(URL) ) -->
 	"SYSTEM",
@@ -340,9 +355,10 @@ doctype_id( public(URN,URL) ) -->
 	uri( URL ).
 doctype_id( local ) --> "".
 
-dtd( Namespaces0, Namespaces1 ) -->
+dtd( Namespaces0, Literals, Namespaces1 ) -->
 	spaces,
 	"<!ENTITY",
+	!,
 	spaces,
 	nmtoken_chars( Name ),
 	spaces,
@@ -354,12 +370,35 @@ dtd( Namespaces0, Namespaces1 ) -->
 	 % Don't allow &lt; &quote; etc. to be updated
 	 context_update( entity(Name), Namespaces0, String, Namespaces2 )
 	 },
-	dtd( Namespaces2, Namespaces1 ).
-dtd( Namespaces0, Namespaces1 ) -->
+	dtd( Namespaces2, Literals, Namespaces1 ).
+dtd( Namespaces0, Literals, Namespaces1 ) -->
 	spaces,
-	"<!--", comment(_Comment),
-	dtd( Namespaces0, Namespaces1 ).
-dtd( Namespaces, Namespaces ) --> spaces.
+	"<!--",
+	!,
+	dtd_comment,
+	">",
+	dtd( Namespaces0, Literals, Namespaces1 ).
+dtd( Namespaces0, [dtd_literal(Literal)|Literals], Namespaces1 ) -->
+	spaces,
+	"<!",
+	!,
+	dtd_literal( Literal ),
+	dtd( Namespaces0, Literals, Namespaces1 ).
+dtd( Namespaces, [], Namespaces ) --> spaces.
+
+dtd_literal( [] ) --> ">", !.
+dtd_literal( Chars ) -->
+	"--",
+	!,
+	dtd_comment,
+	dtd_literal( Chars ).
+dtd_literal( [Char|Chars] ) -->
+	[Char],
+	dtd_literal( Chars ).
+
+dtd_comment( Plus, Minus ) :-
+	append( _Chars, [0'-,0'-|Minus], Plus ),
+	!.
 
 nmtokens( [Name|Names] ) -->
 	spaces,
@@ -388,7 +427,7 @@ attribute_leading_layouts( Quote, Namespaces, String, [Char|Plus], Minus ) :-
 		String = [],
 		Minus = Plus
 	; Char =:= "&" ->
-		reference_in_layout( Namespaces, Quote, String, Plus, Minus )
+		ref_in_attribute_layout( Namespaces, Quote, String, Plus, Minus )
 	; Char > 32, Char \== 160 ->
 		String = [Char|String1],
 		attribute_layouts( Quote, Namespaces, false, String1, Plus, Minus )
@@ -405,7 +444,7 @@ attribute_layouts( Quote, Namespaces, Layout, String, [Char|Plus], Minus ) :-
 		reference_in_value( Namespaces, Quote, Layout, String, Plus, Minus )
 	; Char > 32, Char \== 160 ->
 		( Layout == true ->
-			String = [0' ,Char|String1]
+			String = [0' ,Char|String1] %'
 		; otherwise ->
 			String = [Char|String1]
 		),
@@ -414,7 +453,7 @@ attribute_layouts( Quote, Namespaces, Layout, String, [Char|Plus], Minus ) :-
 		attribute_layouts( Quote, Namespaces, true, String, Plus, Minus )
 	).
 
-reference_in_layout( NS, Quote, String, Plus, Minus ) :-
+ref_in_attribute_layout( NS, Quote, String, Plus, Minus ) :-
 	( standard_character_entity( Char, Plus, Mid ) ->
 		String = [Char|String1],
 		attribute_layouts( Quote, NS, false,  String1, Mid, Minus )
@@ -423,14 +462,14 @@ reference_in_layout( NS, Quote, String, Plus, Minus ) :-
 		append( Text, Suffix, Mid ),
 		attribute_leading_layouts( Quote, NS, String, Mid, Minus )
 	; otherwise -> % Just & is okay in a value
-		String = [0'&|String1],
+		String = [0'&|String1], %'
 		attribute_layouts( Quote, NS, false, String1, Plus, Minus )
 	).
 
 reference_in_value( Namespaces, Quote, Layout, String, Plus, Minus ) :-
 	( standard_character_entity( Char, Plus, Mid ) ->
 		( Layout == true ->
-			String = [0' ,Char|String1]
+			String = [0' ,Char|String1] %'
 		; otherwise ->
 			String = [Char|String1]
 		),
@@ -442,7 +481,7 @@ reference_in_value( Namespaces, Quote, Layout, String, Plus, Minus ) :-
 		Layout1 = Layout
 	; otherwise -> % Just & is okay in a value
 		Mid = Plus,
-		String = [0'&|String1],
+		String = [0'&|String1], %'
 		Layout1 = false
 	),
 	attribute_layouts( Quote, Namespaces, Layout1, String1, Mid, Minus ).
@@ -452,7 +491,7 @@ reference_in_value( Namespaces, Quote, Layout, String, Plus, Minus ) :-
  */
 reference_in_entity( Namespaces, Quote, String, Plus, Minus ) :-
 	( standard_character_entity( _SomeChar, Plus, _Rest ) ->
-		String = [0'&|String1], % Character entities are unparsed
+		String = [0'&|String1], % ' Character entities are unparsed
 		Mid = Plus
 	; entity_reference_name( Name, Plus, Suffix ), 
 	  defined_entity( Name, Namespaces, Text ) -> 
@@ -484,11 +523,11 @@ uri1( Quote, [Char|Chars] ) -->
 	uri1( Quote, Chars ).
 
 comment( Chars, Plus, Minus ) :-
-	append( Chars, [0'-,0'-,0'>|Minus], Plus ),
+	append( Chars, [0'-,0'-,0'>|Minus], Plus ), %'
 	!.
 
 cdata( Chars, Plus, Minus ) :-
-	append( Chars, [0'],0'],0'>|Minus], Plus ),
+	append( Chars, [0'],0'],0'>|Minus], Plus ), %'
 	!.
 % Syntax Components
 
@@ -525,7 +564,7 @@ hex_digit_char( 13 ) --> "d".
 hex_digit_char( 14 ) --> "e".
 hex_digit_char( 15 ) --> "f".
 
-quote( 0'" ) --> %"
+quote( 0'" ) --> %'
 	"""".
 quote( 0'' ) -->
 	"'".
@@ -544,7 +583,7 @@ nmtoken( Name ) -->
 
 nmtoken_chars( [Char|Chars] ) -->
 	[Char],
-	{alphabet( Char )},
+	{nmtoken_first( Char )},
 	nmtoken_chars_tail( Chars ).
 
 nmtoken_chars_tail( [Char|Chars] ) -->
@@ -553,6 +592,11 @@ nmtoken_chars_tail( [Char|Chars] ) -->
 	!,
 	nmtoken_chars_tail( Chars ).
 nmtoken_chars_tail([]) --> "".
+
+nmtoken_first( 0': ).
+nmtoken_first( 0'_ ).
+nmtoken_first( Char ) :-
+	alphabet( Char ).
 
 nmtoken_char( 0'a ).
 nmtoken_char( 0'b ).
@@ -708,3 +752,364 @@ character_entity( "amp", 0'&  ). %'
 character_entity( "lt", 0'< ). %'
 character_entity( "gt", 0'> ). %'
 character_entity( "apos", 0'' ).
+
+end_of_file.
+
+/* For reference, this is a comprehensive recognizer for namechar, based on
+ * the definition of in http://www.w3.org/TR/2000/REC-xml-20001006 .
+ */
+namechar -->
+	( letter
+	| unicode_digit
+	|  "."
+	|  "-"
+	|  "_"
+	|  ":"
+	|  combiningchar
+	|  extender
+	).
+
+letter  --> (basechar | ideographic).
+
+basechar  --> 
+	( range( 16'0041, 16'005A )
+	| range( 16'0061, 16'007A )
+	| range( 16'00C0, 16'00D6 )
+	| range( 16'00D8, 16'00F6 )
+	| range( 16'00F8, 16'00FF )
+	| range( 16'0100, 16'0131 )
+	| range( 16'0134, 16'013E )
+	| range( 16'0141, 16'0148 )
+	| range( 16'014A, 16'017E )
+	| range( 16'0180, 16'01C3 )
+	| range( 16'01CD, 16'01F0 )
+	| range( 16'01F4, 16'01F5 )
+	| range( 16'01FA, 16'0217 )
+	| range( 16'0250, 16'02A8 )
+	| range( 16'02BB, 16'02C1 )
+	| [16'0386]
+	| range( 16'0388, 16'038A )
+	| [16'038C]
+	| range( 16'038E, 16'03A1 )
+	| range( 16'03A3, 16'03CE )
+	| range( 16'03D0, 16'03D6 )
+	| [16'03DA]
+	| [16'03DC]
+	| [16'03DE]
+	| [16'03E0]
+	| range( 16'03E2, 16'03F3 )
+	| range( 16'0401, 16'040C )
+	| range( 16'040E, 16'044F )
+	| range( 16'0451, 16'045C )
+	| range( 16'045E, 16'0481 )
+	| range( 16'0490, 16'04C4 )
+	| range( 16'04C7, 16'04C8 )
+	| range( 16'04CB, 16'04CC )
+	| range( 16'04D0, 16'04EB )
+	| range( 16'04EE, 16'04F5 )
+	| range( 16'04F8, 16'04F9 )
+	| range( 16'0531, 16'0556 )
+	| [16'0559]
+	| range( 16'0561, 16'0586 )
+	| range( 16'05D0, 16'05EA )
+	| range( 16'05F0, 16'05F2 )
+	| range( 16'0621, 16'063A )
+	| range( 16'0641, 16'064A )
+	| range( 16'0671, 16'06B7 )
+	| range( 16'06BA, 16'06BE )
+	| range( 16'06C0, 16'06CE )
+	| range( 16'06D0, 16'06D3 )
+	| [16'06D5]
+	| range( 16'06E5, 16'06E6 )
+	| range( 16'0905, 16'0939 )
+	| [16'093D]
+	| range( 16'0958, 16'0961 )
+	| range( 16'0985, 16'098C )
+	| range( 16'098F, 16'0990 )
+	| range( 16'0993, 16'09A8 )
+	| range( 16'09AA, 16'09B0 )
+	| [16'09B2]
+	| range( 16'09B6, 16'09B9 )
+	| range( 16'09DC, 16'09DD )
+	| range( 16'09DF, 16'09E1 )
+	| range( 16'09F0, 16'09F1 )
+	| range( 16'0A05, 16'0A0A )
+	| range( 16'0A0F, 16'0A10 )
+	| range( 16'0A13, 16'0A28 )
+	| range( 16'0A2A, 16'0A30 )
+	| range( 16'0A32, 16'0A33 )
+	| range( 16'0A35, 16'0A36 )
+	| range( 16'0A38, 16'0A39 )
+	| range( 16'0A59, 16'0A5C )
+	| [16'0A5E]
+	| range( 16'0A72, 16'0A74 )
+	| range( 16'0A85, 16'0A8B )
+	| [16'0A8D]
+	| range( 16'0A8F, 16'0A91 )
+	| range( 16'0A93, 16'0AA8 )
+	| range( 16'0AAA, 16'0AB0 )
+	| range( 16'0AB2, 16'0AB3 )
+	| range( 16'0AB5, 16'0AB9 )
+	| [16'0ABD]
+	| [16'0AE0]
+	| range( 16'0B05, 16'0B0C )
+	| range( 16'0B0F, 16'0B10 )
+	| range( 16'0B13, 16'0B28 )
+	| range( 16'0B2A, 16'0B30 )
+	| range( 16'0B32, 16'0B33 )
+	| range( 16'0B36, 16'0B39 )
+	| [16'0B3D]
+	| range( 16'0B5C, 16'0B5D )
+	| range( 16'0B5F, 16'0B61 )
+	| range( 16'0B85, 16'0B8A )
+	| range( 16'0B8E, 16'0B90 )
+	| range( 16'0B92, 16'0B95 )
+	| range( 16'0B99, 16'0B9A )
+	| [16'0B9C]
+	| range( 16'0B9E, 16'0B9F )
+	| range( 16'0BA3, 16'0BA4 )
+	| range( 16'0BA8, 16'0BAA )
+	| range( 16'0BAE, 16'0BB5 )
+	| range( 16'0BB7, 16'0BB9 )
+	| range( 16'0C05, 16'0C0C )
+	| range( 16'0C0E, 16'0C10 )
+	| range( 16'0C12, 16'0C28 )
+	| range( 16'0C2A, 16'0C33 )
+	| range( 16'0C35, 16'0C39 )
+	| range( 16'0C60, 16'0C61 )
+	| range( 16'0C85, 16'0C8C )
+	| range( 16'0C8E, 16'0C90 )
+	| range( 16'0C92, 16'0CA8 )
+	| range( 16'0CAA, 16'0CB3 )
+	| range( 16'0CB5, 16'0CB9 )
+	| [16'0CDE]
+	| range( 16'0CE0, 16'0CE1 )
+	| range( 16'0D05, 16'0D0C )
+	| range( 16'0D0E, 16'0D10 )
+	| range( 16'0D12, 16'0D28 )
+	| range( 16'0D2A, 16'0D39 )
+	| range( 16'0D60, 16'0D61 )
+	| range( 16'0E01, 16'0E2E )
+	| [16'0E30]
+	| range( 16'0E32, 16'0E33 )
+	| range( 16'0E40, 16'0E45 )
+	| range( 16'0E81, 16'0E82 )
+	| [16'0E84]
+	| range( 16'0E87, 16'0E88 )
+	| [16'0E8A]
+	| [16'0E8D]
+	| range( 16'0E94, 16'0E97 )
+	| range( 16'0E99, 16'0E9F )
+	| range( 16'0EA1, 16'0EA3 )
+	| [16'0EA5]
+	| [16'0EA7]
+	| range( 16'0EAA, 16'0EAB )
+	| range( 16'0EAD, 16'0EAE )
+	| [16'0EB0]
+	| range( 16'0EB2, 16'0EB3 )
+	| [16'0EBD]
+	| range( 16'0EC0, 16'0EC4 )
+	| range( 16'0F40, 16'0F47 )
+	| range( 16'0F49, 16'0F69 )
+	| range( 16'10A0, 16'10C5 )
+	| range( 16'10D0, 16'10F6 )
+	| [16'1100]
+	| range( 16'1102, 16'1103 )
+	| range( 16'1105, 16'1107 )
+	| [16'1109]
+	| range( 16'110B, 16'110C )
+	| range( 16'110E, 16'1112 )
+	| [16'113C]
+	| [16'113E]
+	| [16'1140]
+	| [16'114C]
+	| [16'114E]
+	| [16'1150]
+	| range( 16'1154, 16'1155 )
+	| [16'1159]
+	| range( 16'115F, 16'1161 )
+	| [16'1163]
+	| [16'1165]
+	| [16'1167]
+	| [16'1169]
+	| range( 16'116D, 16'116E )
+	| range( 16'1172, 16'1173 )
+	| [16'1175]
+	| [16'119E]
+	| [16'11A8]
+	| [16'11AB]
+	| range( 16'11AE, 16'11AF )
+	| range( 16'11B7, 16'11B8 )
+	| [16'11BA]
+	| range( 16'11BC, 16'11C2 )
+	| [16'11EB]
+	| [16'11F0]
+	| [16'11F9]
+	| range( 16'1E00, 16'1E9B )
+	| range( 16'1EA0, 16'1EF9 )
+	| range( 16'1F00, 16'1F15 )
+	| range( 16'1F18, 16'1F1D )
+	| range( 16'1F20, 16'1F45 )
+	| range( 16'1F48, 16'1F4D )
+	| range( 16'1F50, 16'1F57 )
+	| [16'1F59]
+	| [16'1F5B]
+	| [16'1F5D]
+	| range( 16'1F5F, 16'1F7D )
+	| range( 16'1F80, 16'1FB4 )
+	| range( 16'1FB6, 16'1FBC )
+	| [16'1FBE]
+	| range( 16'1FC2, 16'1FC4 )
+	| range( 16'1FC6, 16'1FCC )
+	| range( 16'1FD0, 16'1FD3 )
+	| range( 16'1FD6, 16'1FDB )
+	| range( 16'1FE0, 16'1FEC )
+	| range( 16'1FF2, 16'1FF4 )
+	| range( 16'1FF6, 16'1FFC )
+	| [16'2126]
+	| range( 16'212A, 16'212B )
+	| [16'212E]
+	| range( 16'2180, 16'2182 )
+	| range( 16'3041, 16'3094 )
+	| range( 16'30A1, 16'30FA )
+	| range( 16'3105, 16'312C )
+	| range( 16'AC00, 16'D7A3 )
+	).
+ideographic  -->
+	( range( 16'4E00, 16'9FA5 )
+	| [16'3007]
+	| range( 16'3021, 16'3029 )
+	).
+combiningchar  -->
+	( range( 16'0300, 16'0345 )
+	| range( 16'0360, 16'0361 )
+	| range( 16'0483, 16'0486 )
+	| range( 16'0591, 16'05A1 )
+	| range( 16'05A3, 16'05B9 )
+	| range( 16'05BB, 16'05BD )
+	| [16'05BF]
+	| range( 16'05C1, 16'05C2 )
+	| [16'05C4]
+	| range( 16'064B, 16'0652 )
+	| [16'0670]
+	| range( 16'06D6, 16'06DC )
+	| range( 16'06DD, 16'06DF )
+	| range( 16'06E0, 16'06E4 )
+	| range( 16'06E7, 16'06E8 )
+	| range( 16'06EA, 16'06ED )
+	| range( 16'0901, 16'0903 )
+	| [16'093C]
+	| range( 16'093E, 16'094C )
+	| [16'094D]
+	| range( 16'0951, 16'0954 )
+	| range( 16'0962, 16'0963 )
+	| range( 16'0981, 16'0983 )
+	| [16'09BC]
+	| [16'09BE]
+	| [16'09BF]
+	| range( 16'09C0, 16'09C4 )
+	| range( 16'09C7, 16'09C8 )
+	| range( 16'09CB, 16'09CD )
+	| [16'09D7]
+	| range( 16'09E2, 16'09E3 )
+	| [16'0A02]
+	| [16'0A3C]
+	| [16'0A3E]
+	| [16'0A3F]
+	| range( 16'0A40, 16'0A42 )
+	| range( 16'0A47, 16'0A48 )
+	| range( 16'0A4B, 16'0A4D )
+	| range( 16'0A70, 16'0A71 )
+	| range( 16'0A81, 16'0A83 )
+	| [16'0ABC]
+	| range( 16'0ABE, 16'0AC5 )
+	| range( 16'0AC7, 16'0AC9 )
+	| range( 16'0ACB, 16'0ACD )
+	| range( 16'0B01, 16'0B03 )
+	| [16'0B3C]
+	| range( 16'0B3E, 16'0B43 )
+	| range( 16'0B47, 16'0B48 )
+	| range( 16'0B4B, 16'0B4D )
+	| range( 16'0B56, 16'0B57 )
+	| range( 16'0B82, 16'0B83 )
+	| range( 16'0BBE, 16'0BC2 )
+	| range( 16'0BC6, 16'0BC8 )
+	| range( 16'0BCA, 16'0BCD )
+	| [16'0BD7]
+	| range( 16'0C01, 16'0C03 )
+	| range( 16'0C3E, 16'0C44 )
+	| range( 16'0C46, 16'0C48 )
+	| range( 16'0C4A, 16'0C4D )
+	| range( 16'0C55, 16'0C56 )
+	| range( 16'0C82, 16'0C83 )
+	| range( 16'0CBE, 16'0CC4 )
+	| range( 16'0CC6, 16'0CC8 )
+	| range( 16'0CCA, 16'0CCD )
+	| range( 16'0CD5, 16'0CD6 )
+	| range( 16'0D02, 16'0D03 )
+	| range( 16'0D3E, 16'0D43 )
+	| range( 16'0D46, 16'0D48 )
+	| range( 16'0D4A, 16'0D4D )
+	| [16'0D57]
+	| [16'0E31]
+	| range( 16'0E34, 16'0E3A )
+	| range( 16'0E47, 16'0E4E )
+	| [16'0EB1]
+	| range( 16'0EB4, 16'0EB9 )
+	| range( 16'0EBB, 16'0EBC )
+	| range( 16'0EC8, 16'0ECD )
+	| range( 16'0F18, 16'0F19 )
+	| [16'0F35]
+	| [16'0F37]
+	| [16'0F39]
+	| [16'0F3E]
+	| [16'0F3F]
+	| range( 16'0F71, 16'0F84 )
+	| range( 16'0F86, 16'0F8B )
+	| range( 16'0F90, 16'0F95 )
+	| [16'0F97]
+	| range( 16'0F99, 16'0FAD )
+	| range( 16'0FB1, 16'0FB7 )
+	| [16'0FB9]
+	| range( 16'20D0, 16'20DC )
+	| [16'20E1]
+	| range( 16'302A, 16'302F )
+	| [16'3099]
+	| [16'309A]
+	).
+
+unicode_digit  -->
+	( range( 16'0030, 16'0039 )
+	| range( 16'0660, 16'0669 )
+	| range( 16'06F0, 16'06F9 )
+	| range( 16'0966, 16'096F )
+	| range( 16'09E6, 16'09EF )
+	| range( 16'0A66, 16'0A6F )
+	| range( 16'0AE6, 16'0AEF )
+	| range( 16'0B66, 16'0B6F )
+	| range( 16'0BE7, 16'0BEF )
+	| range( 16'0C66, 16'0C6F )
+	| range( 16'0CE6, 16'0CEF )
+	| range( 16'0D66, 16'0D6F )
+	| range( 16'0E50, 16'0E59 )
+	| range( 16'0ED0, 16'0ED9 )
+	| range( 16'0F20, 16'0F29 )
+	).
+
+extender  -->
+	( [16'00B7]
+	| [16'02D0]
+	| [16'02D1]
+	| [16'0387]
+	| [16'0640]
+	| [16'0E46]
+	| [16'0EC6]
+	| [16'3005]
+	| range( 16'3031, 16'3035 )
+	| range( 16'309D, 16'309E )
+	| range( 16'30FC, 16'30FE )
+	).
+
+range( Low, High ) -->
+	[Char],
+	{Char >= Low, Char =< High}.

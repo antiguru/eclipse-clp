@@ -1,26 +1,15 @@
 /* xml_generation.pl : Document -> XML translation
  *
- * Copyright (C) 2001, 2002 Binding Time Limited
+ * Copyright (C) 2001-2005 Binding Time Limited
+ * Copyright (C) 2005, 2006 John Fletcher
+ *
+ * Current Release: $Revision: 1.2 $
  * 
  * TERMS AND CONDITIONS:
  *
  * This program is offered free of charge, as unsupported source code. You may
- * use it, copy it, distribute it, modify it or sell it without restriction. 
- * 
- * We hope that it will be useful to you, but it is provided "as is" without
- * any warranty express or implied, including but not limited to the warranty
- * of non-infringement and the implied warranties of merchantability and fitness
- * for a particular purpose.
- * 
- * Binding Time Limited will not be liable for any damages suffered by you as
- * a result of using the Program. In no event will Binding Time Limited be
- * liable for any special, indirect or consequential damages or lost profits
- * even if Binding Time Limited has been advised of the possibility of their
- * occurrence. Binding Time Limited will not be liable for any third party
- * claims against you.
- *
- * History:
- * $Revision: 1.1 $
+ * use it, copy it, distribute it, modify it or sell it without restriction,
+ * but entirely at your own risk.
  */
 
 :- ensure_loaded( xml_utilities ).
@@ -60,8 +49,9 @@ generation( doctype(Name, External), _Prefix, Format, [], Format ) -->
 generation( instructions(Target,Process), _Prefix, Format, Indent, Format ) -->
 	indent( Format, Indent ),
 	"<?", generated_name(Target), " ", chars( Process ) ,"?>".
-generation( pcdata(Chars), _Prefix, _Format, _Indent, false ) -->
-	pcdata_generation( Chars ).
+generation( pcdata(Chars), _Prefix, Format0, _Indent, Format1 ) -->
+	pcdata_generation( Chars ),
+	{pcdata_format( Chars, Format0, Format1 )}.
 generation( comment( Comment ), _Prefix, Format, Indent, Format ) -->
 	indent( Format, Indent ),
 	"<!--", chars( Comment ), "-->".
@@ -78,7 +68,7 @@ generation( element(Name, Atts, Content), Prefix, Format, Indent, Format ) -->
 	generated_content( Content, Format1, Indent, Prefix, Name ).
 generation( cdata(CData), _Prefix, Format, Indent, Format ) -->
 	indent( Format, Indent ),
-	"<![CDATA[", chars(CData), "]]>".
+	"<![CDATA[", cdata_generation(CData), "]]>".
 
 generated_attributes( [], Format, Format  ) --> [].
 generated_attributes( [Name=Value|Attributes], Format0, Format  ) -->
@@ -124,21 +114,43 @@ generated_name( Name, Plus, Minus ) :-
 	append( Chars, Minus, Plus ).
 
 generated_external_id( local ) --> "".
+generated_external_id( local(Literals) ) --> " [",
+	generated_doctype_literals( Literals ), "
+	]".
 generated_external_id( system(URL) ) -->
 	" SYSTEM """,
 	chars( URL ),
 	"""".
+generated_external_id( system(URL,Literals) ) -->
+	" SYSTEM """,
+	chars( URL ),
+	""" [",
+	generated_doctype_literals( Literals ), "
+	]".
 generated_external_id( public(URN,URL) ) -->
 	" PUBLIC """,
 	chars( URN ),
 	""" """,
 	chars( URL ),
 	"""".
+generated_external_id( public(URN,URL,Literals) ) -->
+	" PUBLIC """,
+	chars( URN ),
+	""" """,
+	chars( URL ),
+	""" [",
+	generated_doctype_literals( Literals ), "
+	]".
+
+generated_doctype_literals( [] ) --> "".
+generated_doctype_literals( [dtd_literal(String)|Literals] ) --> "
+	<!", cdata_generation( String ), ">",
+	generated_doctype_literals( Literals ).
 
 /* quoted_string( +Chars ) is a DCG representing Chars, a list of character
  * codes, as a legal XML attribute string. Any leading or trailing layout
  * characters are removed. &, " and < characters are replaced by &amp;, &quot;
- * and &lt; respectively.
+ * and &lt; respectively, .
  */
 quoted_string( Raw, Plus, Minus ) :-
 	quoted_string1( Raw, NoLeadingLayouts ),
@@ -154,22 +166,23 @@ quoted_string1( [Char|Chars], NoLeadingLayouts ) :-
 
 quoted_string2( [], _LayoutPlus, _LayoutMinus, List, List ).
 quoted_string2( [Char|Chars], LayoutPlus, LayoutMinus, Plus, Minus ) :-
-	( must_be_entity( Char ) ->
+	( Char =< " " ->
+		Plus = Plus1,
+		LayoutMinus = [Char|LayoutMinus1],
+		LayoutPlus = LayoutPlus1
+	; Char =< 127 ->
 		Plus = LayoutPlus,
 		pcdata_7bit( Char, LayoutMinus, Plus1 ),
 		LayoutPlus1 = LayoutMinus1
-	; Char > 127 ->
+	; legal_xml_unicode( Char ) ->
 		Plus = LayoutPlus,
-		pcdata_8bits_plus( Char, LayoutMinus, Plus1 ),
-		LayoutPlus1 = LayoutMinus1
-	; Char > 32 ->
-		Plus = LayoutPlus,
-		LayoutMinus = [Char|Plus1],
+		number_codes( Char, Codes ),
+		pcdata_8bits_plus( Codes, LayoutMinus, Plus1 ),
 		LayoutPlus1 = LayoutMinus1
 	; otherwise ->
-		Plus = Plus1,
-		LayoutMinus = [Char|LayoutMinus1],
-		LayoutPlus1 = LayoutPlus
+		LayoutPlus = LayoutPlus1,
+		LayoutMinus = LayoutMinus1,
+		Plus = Plus1
 	),
 	quoted_string2( Chars, LayoutPlus1, LayoutMinus1, Plus1, Minus ).
 
@@ -182,14 +195,18 @@ indent( true, Indent ) -->
  * codes as legal XML "Parsed character data" (PCDATA) string. Any codes
  * which cannot be represented by a 7-bit character are replaced by their
  * decimal numeric character entity e.g. code 160 (non-breaking space) is
- * represented as &#160;.
+ * represented as &#160;. Any character codes disallowed by the XML
+ * specification are not encoded.
  */
 pcdata_generation( [], Plus, Plus ).
 pcdata_generation( [Char|Chars], Plus, Minus ) :-
 	( Char =< 127 ->
 		pcdata_7bit( Char, Plus, Mid )
+	; legal_xml_unicode( Char ) ->
+		number_codes( Char, Codes ),
+		pcdata_8bits_plus( Codes, Plus, Mid )
 	; otherwise ->
-		pcdata_8bits_plus( Char, Plus, Mid )
+		Plus = Mid
 	),
 	pcdata_generation( Chars, Mid, Minus ).
 
@@ -198,11 +215,20 @@ pcdata_generation( [Char|Chars], Plus, Minus ) :-
  * which are common to both XML and HTML. The numeric entity &#39; is used in
  * place of &apos;, because browsers don't recognize it in HTML.
  */
+pcdata_7bit( 0 ) --> "".
+pcdata_7bit( 1 ) --> "".
+pcdata_7bit( 2 ) --> "".
+pcdata_7bit( 3 ) --> "".
+pcdata_7bit( 4 ) --> "".
+pcdata_7bit( 5 ) --> "".
+pcdata_7bit( 6 ) --> "".
+pcdata_7bit( 7 ) --> "".
+pcdata_7bit( 8 ) --> "".
 pcdata_7bit( 9 ) --> [9].
 pcdata_7bit( 10 ) --> [10].
 pcdata_7bit( 11 ) --> "".
 pcdata_7bit( 12 ) --> "".
-pcdata_7bit( 13 ) --> "".
+pcdata_7bit( 13 ) --> [13].
 pcdata_7bit( 14 ) --> "".
 pcdata_7bit( 15 ) --> "".
 pcdata_7bit( 16 ) --> "".
@@ -318,15 +344,36 @@ pcdata_7bit( 125 ) --> "}".
 pcdata_7bit( 126 ) --> "~".
 pcdata_7bit( 127 ) --> "&#127;".
 
-pcdata_8bits_plus( Code ) -->
-	{number_codes(Code, Chars)},
-	"&#", chars( Chars ), ";".
+pcdata_8bits_plus( Codes ) -->
+	"&#", chars( Codes ), ";".
 
-
-/* must_be_entity( ?Code ) where Code is the character value
- * of the form &quot;, &amp; or &lt;
+/* pcdata_format( +Chars, +Format0, ?Format1 ) holds when Format0 and Format1
+ * are the statuses of XML formatting before and after Chars - which may be
+ * null.
  */
-must_be_entity( 0'< ).		% less-than sign
-must_be_entity( 0'" ).		% " quotation mark
-must_be_entity( 0'& ).		% ampersand
-must_be_entity( 0'> ).		% greater-than sign
+pcdata_format( [], Format, Format ).
+pcdata_format( [_Char|_Chars], _Format, false ).
+
+/* cdata_generation( +Chars ) is a DCG representing Chars, a list of character
+ * codes as a legal XML CDATA string. Any character codes disallowed by the XML
+ * specification are not encoded.
+ */
+cdata_generation( [] ) --> "".
+cdata_generation( [Char|Chars] ) -->
+	( {legal_xml_unicode( Char )}, !, [Char]
+	| ""
+	),
+	cdata_generation( Chars ).
+
+legal_xml_unicode( 9 ).
+legal_xml_unicode( 10 ).
+legal_xml_unicode( 13 ).
+legal_xml_unicode( Code ) :-
+	Code >= 32,
+	Code =< 55295.
+legal_xml_unicode( Code ) :-
+	Code >= 57344,
+	Code =< 65533.
+legal_xml_unicode( Code ) :-
+	Code >= 65536,
+	Code =< 1114111.

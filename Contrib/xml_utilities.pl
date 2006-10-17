@@ -1,25 +1,15 @@
 /* XML Utilities
  *
- * Copyright (C) 2001-2003 Binding Time Limited
+ * Copyright (C) 2001-2005 Binding Time Limited
+ * Copyright (C) 2005, 2006 John Fletcher
+ *
+ * Current Release: $Revision: 1.2 $
  * 
  * TERMS AND CONDITIONS:
  *
  * This program is offered free of charge, as unsupported source code. You may
- * use it, copy it, distribute it, modify it or sell it without restriction. 
- * 
- * We hope that it will be useful to you, but it is provided "as is" without
- * any warranty express or implied, including but not limited to the warranty
- * of non-infringement and the implied warranties of merchantability and fitness
- * for a particular purpose.
- * 
- * Binding Time Limited will not be liable for any damages suffered by you as
- * a result of using the Program. In no event will Binding Time Limited be
- * liable for any special, indirect or consequential damages or lost profits
- * even if Binding Time Limited has been advised of the possibility of their
- * occurrence. Binding Time Limited will not be liable for any third party
- * claims against you.
- *
- * $Revision: 1.1 $
+ * use it, copy it, distribute it, modify it or sell it without restriction,
+ * but entirely at your own risk.
  */
 
 % Entity and Namespace map operations: these maps are usually quite small, so
@@ -61,7 +51,7 @@ map_store( [Key0-Data0|Map0], Key, Data, Map ) :-
 initial_context(
 		Controls,
 		context(void,PreserveSpace,'','',Entities,Empty,
-			RemoveAttributePrefixes)
+			RemoveAttributePrefixes,AllowAmpersand)
 		) :-
 	empty_map( Empty ),
 	( member( extended_characters(false), Controls ) ->
@@ -78,74 +68,79 @@ initial_context(
 		RemoveAttributePrefixes = true
 	; otherwise ->
 		RemoveAttributePrefixes = false
+	),
+	( member( allow_ampersand(true), Controls ) ->
+		AllowAmpersand = true
+	; otherwise ->
+		AllowAmpersand = false
 	).
 
 context_update( current_namespace, Context0, URI, Context1 ) :-
 	Context0 = context(Element,Preserve,_Current,Default,Entities,
-		Namespaces,RemoveAttributePrefixes),
+		Namespaces,RemoveAttributePrefixes,Amp),
 	Context1 = context(Element,Preserve,URI,Default,Entities,
-		Namespaces,RemoveAttributePrefixes).
+		Namespaces,RemoveAttributePrefixes,Amp).
 context_update( element, Context0, Tag, Context1 ) :-
 	Context0 = context(_Element,Preserve,Current,Default,Entities,
-		Namespaces,RemoveAttributePrefixes),
+		Namespaces,RemoveAttributePrefixes,Amp),
 	Context1 = context(tag(Tag),Preserve,Current,Default,Entities,
-		Namespaces,RemoveAttributePrefixes).
+		Namespaces,RemoveAttributePrefixes,Amp).
 context_update( default_namespace, Context0, URI, Context1 ):-
 	Context0 = context(Element,Preserve,Current,_Default,Entities,
-		Namespaces,RemoveAttributePrefixes),
+		Namespaces,RemoveAttributePrefixes,Amp),
 	Context1 = context(Element,Preserve,Current,URI,Entities,
-		Namespaces,RemoveAttributePrefixes).
+		Namespaces,RemoveAttributePrefixes,Amp).
 context_update( space_preserve, Context0, Boolean, Context1 ):-
 	Context0 = context(Element,_Preserve,Current,Default,Entities,
-		Namespaces,RemoveAttributePrefixes),
+		Namespaces,RemoveAttributePrefixes,Amp),
 	Context1 = context(Element,Boolean,Current,Default,Entities,
-		Namespaces,RemoveAttributePrefixes).
+		Namespaces,RemoveAttributePrefixes,Amp).
 context_update( ns_prefix(Prefix), Context0, URI, Context1 ) :-
 	Context0 = context(Element,Preserve,Current,Default,Entities,
-		Namespaces0,RemoveAttributePrefixes),
+		Namespaces0,RemoveAttributePrefixes,Amp),
 	Context1 = context(Element,Preserve,Current,Default,Entities,
-		Namespaces1,RemoveAttributePrefixes),
+		Namespaces1,RemoveAttributePrefixes,Amp),
 	map_store( Namespaces0, Prefix, URI, Namespaces1 ).
 context_update( entity(Name), Context0, String, Context1 ) :-
 	Context0 = context(Element,Preserve,Current,Default,Entities0,
-		Namespaces,RemoveAttributePrefixes),
+		Namespaces,RemoveAttributePrefixes,Amp),
 	Context1 = context(Element,Preserve,Current,Default,Entities1,
-		Namespaces,RemoveAttributePrefixes),
+		Namespaces,RemoveAttributePrefixes,Amp),
 	map_store( Entities0, Name, String, Entities1 ).
 
 remove_attribute_prefixes( Context ) :-
 	Context = context(_Element,_Preserve,_Current,_Default,_Entities,
-		_Namespaces,true).
+		_Namespaces,true,_Amp).
 
 current_tag( Context, Tag ) :-
 	Context = context(tag(Tag),_Preserve,_Current,_Default,_Entities,
-		_Namespaces,_RPFA).
+		_Namespaces,_RPFA,_Amp).
 
 current_namespace( Context, Current ) :-
 	Context = context(_Element,_Preserve,Current,_Default,_Entities,
-		_Namespaces,_RPFA).
+		_Namespaces,_RPFA,_Amp).
 
 default_namespace( Context, Default ) :-
 	Context = context(_Element,_Preserve,_Current,Default,_Entities,
-		_Namespaces,_RPFA).
+		_Namespaces,_RPFA,_Amp).
 
 space_preserve( Context ) :-
-	Context = context(_Element,true,_Current,_Default,_Entities,
-		_Namespaces,_RPFA).
+	Context = context(tag(_Tag),true,_Current,_Default,_Entities,
+		_Namespaces,_RPFA,_Amp).
 
 specific_namespace( Prefix, Context, URI ) :-
 	Context = context(_Element,_Preserve,_Current,_Default,_Entities,
-		Namespaces,_RPFA),
+		Namespaces,_RPFA,_Amp),
 	map_member( Prefix, Namespaces, URI ).
 
 defined_entity( Reference, Context, String ) :-
 	Context = context(_Element,_Preserve,_Current,_Default,Entities,
-		_Namespaces,_RPFA),
+		_Namespaces,_RPFA,_Amp),
 	map_member( Reference, Entities, String ).
 	
 close_context( Context, Terms, WellFormed ) :-
 	Context = context(Element,_Preserve,_Current,_Default,_Entities,
-		_Namespaces,_RPFA),
+		_Namespaces,_RPFA,_Amp),
 	close_context1( Element, Terms, WellFormed ).
 
 close_context1( void, [], true ).
@@ -153,7 +148,11 @@ close_context1( tag(TagChars), [out_of_context(Tag)], false ) :-
 	atom_chars( Tag, TagChars ).
 
 void_context(
-	context(void,_Preserve,_Current,_Default,_Entities,_Namespaces)
+	context(void,_Preserve,_Current,_Default,_Entities,_Names,_RPFA,_Amp)
+	).
+
+allow_ampersand(
+	context(_Void,_Preserve,_Current,_Default,_Entities,_Names,_RPFA,true)
 	).
 
 /* pp_string( +String ) prints String onto the current output stream.
@@ -163,7 +162,7 @@ void_context(
  */
 pp_string( Chars ) :-
 	( member( Char, Chars ),
-	  Char > 255 ->
+	  (Char > 255 ; Char < 9) ->
 		write( Chars )
 	; otherwise ->
 		put_quote,
@@ -201,13 +200,17 @@ xml_declaration_attribute_valid( Name, Value ) :-
 canonical_xml_declaration_attribute( version, "1.0" ).
 canonical_xml_declaration_attribute( standalone, "yes" ).
 canonical_xml_declaration_attribute( standalone, "no" ).
+% The encodings here are all valid for the output produced.
 canonical_xml_declaration_attribute( encoding, "utf-8" ).
-canonical_xml_declaration_attribute( encoding, "utf-16" ).
+% canonical_xml_declaration_attribute( encoding, "utf-16" ).
+% This is erroneous for the output of this library
+canonical_xml_declaration_attribute( encoding, "us-ascii" ).
 canonical_xml_declaration_attribute( encoding, "ascii" ).
 canonical_xml_declaration_attribute( encoding, "iso-8859-1" ).
 canonical_xml_declaration_attribute( encoding, "iso-8859-2" ).
 canonical_xml_declaration_attribute( encoding, "iso-8859-15" ).
 canonical_xml_declaration_attribute( encoding, "windows-1252" ).
+% In general, it's better not to specify an encoding.
 
 /* lowercase( +MixedCase, ?Lowercase ) holds when Lowercase and MixedCase are
  * lists of character codes, and Lowercase is identical to MixedCase with

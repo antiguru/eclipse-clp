@@ -1,48 +1,16 @@
 /* xml.pl : Contains xml_parse/[2,3] a bi-directional XML parser written in
  * Prolog.
  *
- * Copyright (C) 2001-2003 Binding Time Limited
+ * Copyright (C) 2001-2005 Binding Time Limited
+ * Copyright (C) 2005, 2006 John Fletcher
  *
- * Current Release: 1.6
+ * Current Release: $Revision: 1.2 $
  * 
  * TERMS AND CONDITIONS:
  *
  * This program is offered free of charge, as unsupported source code. You may
- * use it, copy it, distribute it, modify it or sell it without restriction. 
- * 
- * We hope that it will be useful to you, but it is provided "as is" without
- * any warranty express or implied, including but not limited to the warranty
- * of non-infringement and the implied warranties of merchantability and fitness
- * for a particular purpose.
- * 
- * Binding Time Limited will not be liable for any damages suffered by you as
- * a result of using the Program. In no event will Binding Time Limited be
- * liable for any special, indirect or consequential damages or lost profits
- * even if Binding Time Limited has been advised of the possibility of their
- * occurrence. Binding Time Limited will not be liable for any third party
- * claims against you.
- *
- * History:
- * $Log: xml.pl,v $
- * Revision 1.1  2006/09/23 01:45:20  snovello
- * Initial revision
- *
- * Revision 1.2  2003/03/31 13:58:02  js10
- * Upgraded to latest version from John Fletcher's web site
- *
- * Revision 1.3  2003-03-12 00:12:04+00  john
- * Set Current Release to 1.6.
- *
- * Revision 1.2  2002-05-25 23:17:54+01  john
- * Set Current Release to 1.5.
- *
- * Revision 1.1  2002-01-31 21:04:45+00  john
- * Updated Copyright statements.
- *
- * Revision 1.0  2001-10-17 20:46:24+01  john
- * Initial revision
- *
- *
+ * use it, copy it, distribute it, modify it or sell it without restriction,
+ * but entirely at your own risk.
  *
  */
 :- module( xml,
@@ -58,13 +26,13 @@
  * <atom>=<string> attributes from the (possibly implicit) XML signature of the
  * document. <content> is a (possibly empty) list comprising occurrences of :
  *
- *	pcdata(<string>)					:	Text
- *	comment(<string>)					:	An xml comment;
- *  element(<tag>,<atts>,<content>)		:	<tag>..</tag> encloses <content>
- *										:   <tag /> if empty
- *	instructions(<atom>, <string>)		:	Processing <? <atom> <params> ?>"
- * 	cdata( <string> )					:	<![CDATA[ <string> ]]>
- *	doctype(<atom>, <doctype id>)		:	DTD <!DOCTYPE .. >
+ *    pcdata(<string>)                    :  Text
+ *    comment(<string>)                   :  An xml comment;
+ *    element(<tag>,<atts>,<content>)     :  <tag>..</tag> encloses <content>
+ *                                        :  <tag /> if empty
+ *    instructions(<atom>, <string>)      :  Processing <? <atom> <params> ?>"
+ *     cdata( <string> )                  :  <![CDATA[ <string> ]]>
+ *    doctype(<atom>, <doctype id>)       :  DTD <!DOCTYPE .. >
  *
  * The conversions are not completely symmetrical, in that weaker XML is
  * accepted than can be generated. Specifically, in-bound (Chars -> Document)
@@ -72,8 +40,8 @@
  * term malformed(Attributes, Content) if Chars does not represent well-formed
  * XML. The Content of a malformed/2 structure can contain:
  *
- *	unparsed( <string> )				:	Text which has not been parsed
- *	out_of_context( <tag> )				:	<tag> is not closed
+ *    unparsed( <string> )                :  Text which has not been parsed
+ *    out_of_context( <tag> )             :  <tag> is not closed
  *
  * in addition to the standard term types.
  *
@@ -88,19 +56,28 @@
  * At this release, the Controls applying to in-bound (Chars -> Document)
  * parsing are:
  *
- *	extended_characters(<bool>)			:	Use the extended character
- *										:	entities for XHTML (default true)
+ *    extended_characters(<bool>)         :  Use the extended character
+ *                                        :  entities for XHTML (default true)
  *
- *	format(<bool>)						:	Strip layouts when no character data
- *										:	appears between elements.
- *										:	(default true)
+ *    format(<bool>)                      :  Strip layouts when no character data
+ *                                        :  appears between elements.
+ *                                        :  (default true)
  *
- *	[<bool> is one of 'true' or 'false']
+ *    remove_attribute_prefixes(<bool>)   :  Remove namespace prefixes from
+ *                                        :  attributes when it's the same as the
+ *                                        :  prefix of the parent element
+ *                                        :  (default false).
+ *
+ *    allow_ampersand(<bool>)             :  Allow unescaped ampersand
+ *                                        :  characters (&) to occur in PCDATA.
+ *                                        :  (default false).
+ *
+ *    [<bool> is one of 'true' or 'false']
  *
  * For out-bound (Document -> Chars) parsing, the only available option is:
  *
- *	format(<Bool>)						:	Indent the element content
- *										:	(default true)
+ *    format(<Bool>)                      :  Indent the element content
+ *                                        :  (default true)
  *
  * Different DCGs for input and output are used because input parsing is
  * more flexible than output parsing. Errors in input are recorded as part
