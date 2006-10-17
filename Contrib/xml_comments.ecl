@@ -27,10 +27,18 @@ http://www.zen37763.zen.co.uk/xml.pl.html</a>.
 This program is offered free of charge, as unsupported source code. You may
 use it, copy it, distribute it, modify it or sell it without restriction,
 but entirely at your own risk.
+</p><p>
+We hope that it will be useful to you, but it is provided \"as is\" without
+any warranty express or implied, including but not limited to the warranty
+of non-infringement and the implied warranties of merchantability and fitness
+for a particular purpose.
 </p>
 <pre>
 History:
 $Log: xml_comments.ecl,v $
+Revision 1.3  2006/10/17 22:06:22  jschimpf
+Reinserted lost licensing paragraph.
+
 Revision 1.2  2006/10/17 22:02:21  jschimpf
 Upgraded to John Fletcher's revision 2.0, released 2006/06/18,
 available at http://www.zen37763.zen.co.uk/xml_download.html
