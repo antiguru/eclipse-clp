@@ -15,11 +15,13 @@ lib/apply_macros.eco
 lib/bfs.eco
 lib/bin_info.eco
 lib/branch_and_bound.eco
+lib/b_trees.eco
 lib/calendar.eco
 lib/changeset.eco
 lib/colgen.eco
 lib/constraint_pools.eco
 lib/cumulative.eco
+lib/dbi.eco
 lib/dual_var.eco
 lib/ech.eco
 lib/eclipse.jar
@@ -73,6 +75,7 @@ lib/module_options.eco
 lib/notify_ports.eco
 lib/notinstance.eco
 lib/numbervars.eco
+lib/n_trees.eco
 lib/ordset.eco
 lib/probe.eco
 lib/probe_search.eco
