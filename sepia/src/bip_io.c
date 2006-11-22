@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.1 2006/09/23 01:55:47 snovello Exp $
+ * VERSION	$Id: bip_io.c,v 1.2 2006/11/22 02:02:26 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -73,6 +73,8 @@ extern char	*strcpy(),
 #ifdef _WIN32
 #include	<windows.h>
 #include	<process.h>
+#else
+#include <sys/wait.h>
 #endif
 
 #ifdef SOCKETS
@@ -181,6 +183,31 @@ struct pipe_desc {
 #define EXEC_PIPE_OUT	 8		/* output			*/
 #define EXEC_PIPE_LAST	 16		/* end marker, last fd used	*/
 
+
+#ifdef _WIN32
+/*
+ * On Windows, maintain a list of child process handles to prevent the
+ * processes from disappearing before they have been waited for
+ * (Windows doesn't have zombies)
+ */
+typedef struct child_desc {
+    struct child_desc	*next;
+    struct child_desc	**prev_next;
+    int			pid;
+    HANDLE		hProcess;
+} t_child_desc;
+
+static t_child_desc	*child_processes = 0;
+
+#define Child_Unlink(pd) { \
+	if (pd) { \
+	    *pd->prev_next = pd->next; \
+	    hp_free_size(pd, sizeof(t_child_desc)); \
+	} \
+}
+#endif
+
+
 extern pword		*empty_string;
 extern t_ext_type	heap_event_tid;
 extern int		ec_sigio;
@@ -226,10 +253,7 @@ static void		_get_args();
 
 static int		_open_pipes(struct pipe_desc *pipes);
 static void		_close_pipes(struct pipe_desc *pipes);
-#if _WIN32
-static void		_reset_parent_fds();
-static void		_connect_pipes_for_child();
-#else
+#ifndef _WIN32
 static void		_connect_pipes(struct pipe_desc *pipes);
 #endif
 
@@ -268,6 +292,7 @@ static int     		p_nl(value vs, type ts),
 			p_select(value vin, type tin, value vtime, type ttime, value vout, type tout),
 			p_pipe(value valr, type tagr, value valw, type tagw),
 			p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, type tpr),
+			p_wait(value pv, type pt, value sv, type st, value vmode, type tmode),
 #if defined(HAVE_READLINE)
 			p_readline(),
 #endif
@@ -311,6 +336,13 @@ bip_io_init(int flags)
     stream_types[SNULL>>STYPE_SHIFT] = d_.null;
     stream_types[SSOCKET>>STYPE_SHIFT] = d_socket = in_dict("socket", 0);
     stream_types[STTY>>STYPE_SHIFT] = in_dict("tty", 0);
+
+#ifdef _WIN32
+    if (flags & INIT_PRIVATE)
+    {
+	child_processes = NULL;
+    }
+#endif
 
     if (flags & INIT_SHARED)
     {
@@ -367,6 +399,8 @@ bip_io_init(int flags)
 	(void) built_in(in_dict("accept", 3),	p_accept,	B_UNSAFE|U_SIMPLE);
 	built_in(in_dict("select", 3),		p_select,	B_UNSAFE|U_GROUND)
 	    -> mode = BoundArg(3, GROUND);
+	b_built_in(in_dict("wait", 3), 		p_wait, 	d_.kernel_sepia)
+	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
 #if defined(HAVE_READLINE)
 	(void) exported_built_in(in_dict("readline", 1),		p_readline,	B_SAFE);
 #endif
@@ -3334,6 +3368,10 @@ _build_argv(value vc,
 	    } else if (!IsList(cdr->tag)) {
 		Bip_Error(TYPE_ERROR);
 	    }
+	    if (i >= MAX_ARGS) {
+		Set_Sys_Errno(E2BIG, ERRNO_UNIX);
+		Bip_Error(SYS_ERROR);
+	    }
 	    cdr = cdr->val.ptr;
 	}
 	argv[i] = 0;
@@ -3370,6 +3408,10 @@ p_check_valid_stream(value v, type t)
 
 #ifdef _WIN32
 
+/* The CreateProcess() doc says the command line can be 32k,
+ * except for Win2000, where it's limited to MAX_PATH */
+#define MAX_WIN_CMD_LINE	(32*1024)
+
 static int
 p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, type tpr)
 {
@@ -3378,8 +3420,13 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
     struct pipe_desc	*p;
     int			pid;
     stream_id		id;
-    int			err;
+    int			i, err;
     char		*cmd;
+    pword		*old_tg = TG;
+    STARTUPINFO		si;
+    PROCESS_INFORMATION	pi;
+    DWORD		dwInfo, dwCreationFlags;
+
 
     Check_Ref(tp);
     Check_Integer(tpr);
@@ -3398,19 +3445,142 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
     if (err < 0) {
 	Bip_Error(err)
     }
-    _connect_pipes_for_child(pipes);
 
-    pid = _spawnvp((vpr.nint == 1 ? _P_DETACH : _P_NOWAIT), cmd, argv);
-    if (pid == -1)
+    /* Prepare arguments for CreateProcess() */
+    dwCreationFlags = (vpr.nint==1 ? CREATE_NEW_PROCESS_GROUP : 0);
+
+    ZeroMemory( &pi, sizeof(pi) );
+    ZeroMemory( &si, sizeof(si) );
+    si.cb = sizeof(si);
+
+    /* By default, inherit the parent's standard I/O */
+    si.dwFlags |= STARTF_USESTDHANDLES;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+
+    /* If there are pipes, make sure the correct end gets inherited
+     * by the child, and the other does not.
+     */
+    for(i=0; !(pipes[i].flags & EXEC_PIPE_LAST); ++i)
     {
-	Set_Errno;
-	_reset_parent_fds(pipes);
-	_close_pipes(pipes);
-	Bip_Error(SYS_ERROR);
+	HANDLE hParent, hChild;
+	if (!pipes[i].flags)
+	    continue;
+
+	/* don't create a window if there is any I/O redirection */
+	dwCreationFlags |= CREATE_NO_WINDOW;
+
+	switch(i) {
+	case 0:
+	    hParent = (HANDLE) _get_osfhandle(pipes[i].fd[1]);
+	    hChild = (HANDLE) _get_osfhandle(pipes[i].fd[0]);
+	    si.hStdInput = hChild;
+	    break;
+	case 1:
+	    hParent = (HANDLE) _get_osfhandle(pipes[i].fd[0]);
+	    hChild = (HANDLE) _get_osfhandle(pipes[i].fd[1]);
+	    si.hStdOutput = hChild;
+	    break;
+	case 2:
+	    hParent = (HANDLE) _get_osfhandle(pipes[i].fd[0]);
+	    hChild = (HANDLE) _get_osfhandle(pipes[i].fd[1]);
+	    si.hStdError = hChild;
+	    break;
+	default:	/* TODO: can we inherit the other handles? */
+	    Bip_Error(UNIMPLEMENTED);
+	}
+	if (hParent == INVALID_HANDLE_VALUE || hChild == INVALID_HANDLE_VALUE)
+	{
+	    Set_Errno;
+	    Bip_Error(SYS_ERROR);
+	}
+	if (!SetHandleInformation(hChild, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT)
+	 || !SetHandleInformation(hParent, HANDLE_FLAG_INHERIT, 0))
+	{
+	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	    Bip_Error(SYS_ERROR);
+	}
     }
 
-    _reset_parent_fds(pipes);
+    /* Concat the arguments into a command line again. Thanks, Microsoft! */
+    {
+	char *s;
+	int len = 0;
+	pword *pw_s = TG;
+	for (i=0; argv[i]; ++i)
+	{
+	    len += strlen(argv[i]) + 1;
+	}
+	if (len > MAX_WIN_CMD_LINE)
+	{
+	    Set_Sys_Errno(E2BIG, ERRNO_UNIX);
+	    Bip_Error(SYS_ERROR);
+	}
+	Push_Buffer(len);
+	cmd = s = (char *) BufferStart(pw_s);
+	for (i=0; argv[i]; ++i)
+	{
+	    char *t = argv[i];
+	    while((*s++ = *t++))
+		;
+	    *(s-1) = ' ';
+	}
+	*(s-1) = 0;
+    }
 
+    /* Start the child process */
+    if (!CreateProcess(
+	NULL,	    /* If we specify this, PATH won't be searched */
+	(LPTSTR) cmd,   /* Command line as string */
+	NULL,           /* Process handle not inheritable */
+	NULL,           /* Thread handle not inheritable */
+	TRUE,           /* inherit handles */
+	dwCreationFlags,	/* process group, window, ... */
+	NULL,           /* Use parent's environment block */
+	NULL,           /* Use parent's starting directory  */
+	&si,            /* Pointer to STARTUPINFO structure */
+	&pi))           /* Pointer to PROCESS_INFORMATION structure */
+    {
+	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	Bip_Error(SYS_ERROR);
+	_close_pipes(pipes);
+	Bip_Error(SYS_ERROR);
+    } 
+
+    /* Pop all the temporary strings */
+    TG = old_tg;
+
+    /* Close the (now inherited) child ends of the pipes in the parent */
+    for(i=0; !(pipes[i].flags & EXEC_PIPE_LAST); ++i)
+    {
+	switch(i) {
+	case 0:
+	    close(pipes[i].fd[0]);
+	    break;
+	case 1:
+	case 2:
+	    close(pipes[i].fd[1]);
+	    break;
+	default:	/* TODO: can we inherit the other handles? */
+	    Bip_Error(UNIMPLEMENTED);
+	}
+    }
+    pid = pi.dwProcessId;
+    CloseHandle(pi.hThread);
+    
+    /* Remember the process handle in a list which is used by p_wait().
+     * Otherwise the process can disappear before they have been waited for */
+    {
+	t_child_desc *pd = (t_child_desc *) hp_alloc_size(sizeof(t_child_desc));
+	pd->pid = pid;
+	pd->hProcess = pi.hProcess;
+	pd->next = child_processes;
+	pd->prev_next = &child_processes;
+	child_processes = pd;
+    }
+
+    /* Now create the Eclipse streams for the pipes */
     p = &pipes[0];
     while (!(p->flags & EXEC_PIPE_LAST))
     {
@@ -3433,12 +3603,8 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	}
 	p++;
     }
-    if (vpr.nint == 1) {
-	Succeed_;	/* else we don't know the pid (_P_DETACH) */
-    } else {
-	Return_Unify_Integer(vp, tp, pid);
-    }
 
+    Return_Unify_Integer(vp, tp, pid);
 }
 
 #else
@@ -3738,56 +3904,7 @@ _close_pipes(struct pipe_desc *pipes)
     }
 }
 
-#ifdef _WIN32
-
-static void
-_connect_pipes_for_child(struct pipe_desc *pipes)
-{
-    int		i = 0;
-
-    while (!(pipes->flags & EXEC_PIPE_LAST)) {
-	if (pipes->flags & EXEC_PIPE_IN) {
-	    pipes->fd_orig = dup(i);
-	    if (dup2(pipes->fd[0], i) == -1 ||
-		close(pipes->fd[0]) == -1)
-	    {
-		ec_bad_exit(strerror(errno));
-	    }
-	    if ((pipes->flags & EXEC_PIPE_SIG) && set_sigio(i) < 0) {
-		ec_bad_exit(strerror(errno));
-	    }
-	} else if (pipes->flags & EXEC_PIPE_OUT) {
-	    pipes->fd_orig = dup(i);
-	    if (dup2(pipes->fd[1], i) == -1 ||
-		close(pipes->fd[1]) == -1) {
-		ec_bad_exit(strerror(errno));
-	    }
-	}
-	pipes++;
-	i++;
-    }
-}
-
-static void
-_reset_parent_fds(struct pipe_desc *pipes)
-{
-    int		i = 0;
-
-    while (!(pipes->flags & EXEC_PIPE_LAST)) {
-	if (pipes->flags & EXEC_PIPE_IN || pipes->flags & EXEC_PIPE_OUT)
-	{
-	    if (dup2(pipes->fd_orig, i) == -1
-	     || close(pipes->fd_orig) == -1)
-	    {
-		ec_bad_exit(strerror(errno));
-	    }
-	}
-	pipes++;
-	i++;
-    }
-}
-
-#endif
+#ifndef _WIN32
 
 static void
 _connect_pipes(struct pipe_desc *pipes)
@@ -3817,6 +3934,8 @@ _connect_pipes(struct pipe_desc *pipes)
     }
 }
 
+#endif
+
 static int
 _open_pipes(struct pipe_desc *pipes)
 {
@@ -3834,3 +3953,120 @@ _open_pipes(struct pipe_desc *pipes)
     return 0;
 }
 
+
+static int
+p_wait(value pv, type pt, value sv, type st, value vmode, type tmode)
+{
+    int		statusp;
+    int		pid, res;
+    Prepare_Requests;
+
+    Check_Atom(tmode)
+    Check_Output_Integer(st);
+    if (IsInteger(pt))
+    {
+#ifdef _WIN32
+	HANDLE phandle;
+	DWORD dwstatus;
+	t_child_desc *pd;
+
+	Cut_External;
+
+	/* First try to find the PID in our list of children */
+	for(pd = child_processes; pd; pd = pd->next)
+	{
+	    if (pv.nint == pd->pid)
+		break;
+	}
+	if (pd)	/* We know the process and still have a handle */
+	{
+	    phandle = pd->hProcess;
+	}
+	else	/* Unknown process, try to open a temporary handle */
+	{
+	    phandle = OpenProcess(SYNCHRONIZE|PROCESS_QUERY_INFORMATION, FALSE, pv.nint);
+	    if (!phandle)
+	    {
+		if (GetLastError() == ERROR_INVALID_PARAMETER)
+		{
+		    Fail_;
+		}
+		Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+		Bip_Error(SYS_ERROR);
+	    }
+	}
+
+        if (vmode.did == d_.hang) {
+            res = WaitForSingleObject(phandle, INFINITE);
+        } else if(vmode.did == d_.nohang) {
+            res = WaitForSingleObject(phandle, 0);
+        } else {
+            Bip_Error(RANGE_ERROR);
+        }
+        if (res == WAIT_OBJECT_0)
+	{
+	    /* handle is signaled, i.e. process terminated */
+	    if (!GetExitCodeProcess(phandle, &dwstatus))
+		goto _wait_cleanup_error_;
+            pid = pv.nint;
+	    statusp = dwstatus;
+	    Child_Unlink(pd);
+	    CloseHandle(phandle);
+        }
+	else if (res == WAIT_TIMEOUT)
+	{
+	    /* make it fail, but keep the handle if was in the list */
+	    if (!pd)
+	    {
+		CloseHandle(phandle);
+	    }
+	    Fail_;
+	}
+	else /* WAIT_FAILED */
+	{
+_wait_cleanup_error_:
+	    Child_Unlink(pd);
+	    CloseHandle(phandle);
+	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	    Bip_Error(SYS_ERROR);
+        }
+#else
+	Cut_External;
+        if (vmode.did == d_.hang) {
+	    pid = waitpid((pid_t) pv.nint, &statusp, 0);
+        } else if(vmode.did == d_.nohang) {
+	    pid = waitpid((pid_t) pv.nint, &statusp, WNOHANG);
+            if (pid == 0) { /* Child not yet exited */
+		Fail_;
+            }
+        } else {
+            Bip_Error(RANGE_ERROR);
+        }
+#endif
+    }
+    else if (IsRef(pt))
+    {
+#ifdef _WIN32
+	Bip_Error(UNIMPLEMENTED);
+#else
+	pid = waitpid((pid_t) (-1), &statusp, 0);
+	if (pid >= 0) {
+	    Request_Unify_Integer(pv, pt, pid);
+	}
+#endif
+    }
+    else
+    {
+	Bip_Error(TYPE_ERROR);
+    }
+    if (pid == -1) {
+	Cut_External;
+	if (errno == ECHILD) {
+	    Fail_;
+	}
+	Set_Errno;
+	Bip_Error(SYS_ERROR)
+    }
+    Request_Unify_Integer(sv, st, statusp);
+    Return_Unify;
+}

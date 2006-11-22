@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.1 2006/09/23 01:55:48 snovello Exp $
+  VERSION	$Id: bip_misc.c,v 1.2 2006/11/22 02:02:26 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -44,7 +44,6 @@
 #ifndef _WIN32
 #include <sys/time.h>
 #include <sys/times.h>
-#include <sys/wait.h>
 #include <pwd.h>
 extern void	endpwent(void);
 #include <grp.h>
@@ -124,7 +123,6 @@ static int p_date(value v, type t),
 	p_random(value v, type t),
 	p_seed(value v, type t),
 	p_sleep(value v, type t),
-        p_wait(value pv, type pt, value sv, type st, value vmode, type tmode),
 	p_setenv(value v0, type t0, value v1, type t1),
 	p_suffix(value sval, type stag, value sufval, type suftag),
 	p_session_time(value vtime, type ttime),
@@ -181,8 +179,6 @@ bip_misc_init(int flags)
 	(void) built_in(in_dict("frandom",1), 	p_frandom, B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("seed",1),	p_seed, 	B_SAFE);
 	(void) built_in(in_dict("sleep",1), 	p_sleep, 	B_UNSAFE);
-	b_built_in(in_dict("wait", 3), 		p_wait, 	d_.kernel_sepia)
-	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
 	(void) built_in(in_dict("kill", 2), 	p_kill, 	B_SAFE);
 	(void) built_in(in_dict("suffix", 2), 	p_suffix, B_UNSAFE|U_SIMPLE);
 	built_in(in_dict("pathname", 3), 	p_pathname, B_UNSAFE|U_GROUND)
@@ -1251,76 +1247,6 @@ Not_Available_Built_In(p_stop_timer)
 #endif
 
 
-static int
-p_wait(value pv, type pt, value sv, type st, value vmode, type tmode)
-{
-    int		statusp;
-    int		pid;
-    Prepare_Requests;
-
-    Check_Atom(tmode)
-    Check_Output_Integer(st);
-    if (IsInteger(pt))
-    {
-	Cut_External;
-#ifdef _WIN32
-/* Could continue to use _cwait() in hang case and 
- * GetExitCodeProcess() in nohang case
- * pid = _cwait(&statusp, (int) pv.nint, 0);
- */
-        if (vmode.did == d_.hang) {
-            pid = WaitForSingleObject(pv.nint, INFINITE);
-        } else if(vmode.did == d_.nohang) {
-            pid = WaitForSingleObject(pv.nint, 0);
-        } else {
-            Bip_Error(RANGE_ERROR);
-        }
-        if (pid == WAIT_OBJECT_0) {
-            pid = pv.nint;
-        } else {
-            pid = -1;
-	    errno = ECHILD;
-        }
-#else
-        if (vmode.did == d_.hang) {
-	    pid = waitpid((pid_t) pv.nint, &statusp, 0);
-        } else if(vmode.did == d_.nohang) {
-	    pid = waitpid((pid_t) pv.nint, &statusp, WNOHANG);
-            if (pid == 0) { /* Child not yet exited */
-                pid = -1;
-	        errno = ECHILD;
-            }
-        } else {
-            Bip_Error(RANGE_ERROR);
-        }
-#endif
-    }
-    else if (IsRef(pt))
-    {
-#ifdef _WIN32
-	Bip_Error(UNIMPLEMENTED);
-#else
-	pid = waitpid((pid_t) (-1), &statusp, 0);
-	if (pid >= 0) {
-	    Request_Unify_Integer(pv, pt, pid);
-	}
-#endif
-    }
-    else
-    {
-	Bip_Error(TYPE_ERROR);
-    }
-    if (pid == -1) {
-	Cut_External;
-	if (errno == ECHILD) {
-	    Fail_;
-	}
-	Set_Errno;
-	Bip_Error(SYS_ERROR)
-    }
-    Request_Unify_Integer(sv, st, statusp);
-    Return_Unify;
-}
 
 static int
 p_kill(value pv, type pt, value sv, type st)
