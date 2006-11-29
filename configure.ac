@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.3 2006/10/13 00:41:27 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.4 2006/11/29 16:20:47 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1026,7 +1026,7 @@ if test "$osi_versions_requested" != "no"; then
     fi
     for version in $osi_versions_requested; do
 	OSIDIR="$ECLIPSETHIRDPARTY/coin"
-	ls -d $OSIDIR/lib/$ARCH/$version* >/dev/null 2>/dev/null
+	ls -d $OSIDIR/$ARCH/lib/$version >/dev/null 2>/dev/null
 	if test $? -eq 0; then
 	    OSI_VERSIONS="$OSI_VERSIONS $version"
 	    AC_MSG_NOTICE([Using OSI $version in $OSIDIR])

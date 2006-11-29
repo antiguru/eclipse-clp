@@ -20,9 +20,11 @@
  * 
  * END LICENSE BLOCK */
 
-// NOECLIPSE for debugging logged calls without ECLiPSe
+// NOECLIPSE for debugging logged calls without ECLiPSe. 
 //#define NOECLIPSE
 #undef NOECLIPSE
+// LOG_CALLS defined when generating logged calls, but not when linking
+// with the debugging logged call C program
 //#define LOG_CALLS
 #undef LOG_CALLS
 
@@ -44,6 +46,7 @@
 #include "CbcHeuristic.hpp"
 #include "CbcHeuristicLocal.hpp"
 #include "CbcBranchUser.hpp"
+#include "CbcBranchActual.hpp"
 #include "CbcCompareUser.hpp"
 #include "CglGomory.hpp"
 #include "CglProbing.hpp"
@@ -55,6 +58,13 @@
 #include "CglMixedIntegerRounding2.hpp"
 // Preprocessing
 #include "CglPreProcess.hpp"
+// Barrier
+#include "ClpInterior.hpp"
+#include "ClpSimplex.hpp"
+
+//#include "ClpCholeskyUfl.hpp"
+#include "ClpCholeskyDense.hpp"
+#include "ClpCholeskyWssmp.hpp"
 typedef OsiClpSolverInterface OsiXxxSolverInterface;
 
 #endif
@@ -84,6 +94,12 @@ typedef OsiClpSolverInterface OsiXxxSolverInterface;
 #include "CglMixedIntegerRounding2.hpp"
 // Preprocessing
 #include "CglPreProcess.hpp"
+// Barrier
+#include "ClpInterior.hpp"
+#include "ClpSimplex.hpp"
+//#include "ClpCholeskyUfl.hpp"
+#include "ClpCholeskyDense.hpp"
+#include "ClpCholeskyWssmp.hpp"
 
 typedef OsiCbcSolverInterface OsiXxxSolverInterface;
 
@@ -118,13 +134,16 @@ typedef OsiGlpkSolverInterface OsiXxxSolverInterface;
 // must be defined before seplex.h
 typedef struct {
     OsiXxxSolverInterface * Solver;
-    char** varnames;
-    unsigned int vnsize;
+    char** varnames;     /* for names of variables (columns) */
+    unsigned int vnsize; /* number of variable names */
     char notfirst; /* has problem been solved? */
     /* solver specific */
 #ifdef COIN_USE_CLP
     char mipIsShared; /* 1 if shared with Solver, 0 if copied */
-    CbcModel *mipmodel;
+    CbcModel* mipmodel;
+    ClpInterior* interiormodel;
+    //CbcObject** mipobjects; // information such as SOS to be added to mipmodel 
+    // int nsos; // number of SOSs
     double timeout;
 #endif
 } COINprob;
@@ -214,7 +233,15 @@ int coin_branchAndBound(lp_desc* lpd)
     lpd->lp->Solver->initialSolve();
     bool preprocess_failed = false;
     CglPreProcess process;
-    //std::cout <<"aorignal"<< lpd->lp->Solver->getNumCols() << "--" << lpd->lp->Solver->getNumRows() <<std::endl;
+
+    // copying original bounds before presolve -- Cbc's integer presolve and
+    // MIP branch-and-bound can fix some column bounds. The original bounds
+    // needs to be restored before continuing
+    int mac = lpd->lp->Solver->getNumCols();
+    double* ups = new double[mac];
+    double* lws = new double[mac];
+    memcpy(ups, lpd->lp->Solver->getColUpper(), mac*sizeof(double));
+    memcpy(lws, lpd->lp->Solver->getColLower(), mac*sizeof(double));
 
     if (lpd->presolve)
     {
@@ -226,6 +253,9 @@ int coin_branchAndBound(lp_desc* lpd)
 	{// preprocessing failed -- problem infeasible 
 	 //  but we can't simply return, as we need a valid mipmodel
 	    mipsolver = lpd->lp->Solver;
+	    // restore original bounds
+	    for (int i=0; i<mac; i++) 
+		lpd->lp->Solver->setColBounds(i,lws[i],ups[i]);
 	    preprocess_failed = true;
 	}
 	else 
@@ -236,11 +266,11 @@ int coin_branchAndBound(lp_desc* lpd)
 	mipsolver = lpd->lp->Solver;
     }
 
-#ifdef COIN_USE_CBC
+# ifdef COIN_USE_CBC
     CbcModel* model = lpd->lp->Solver->getModelPtr();
-#endif
+# endif
 
-#ifdef COIN_USE_CLP
+# ifdef COIN_USE_CLP
     {
 	int* iparams; 
 	double* dparams; 
@@ -269,6 +299,7 @@ int coin_branchAndBound(lp_desc* lpd)
 		lpd->lp->mipmodel->setDblParam(cbc_dparam[i], dparams[i]);
 	    delete [] iparams;
 	    delete [] dparams;
+
 	}
 	else
 	{
@@ -278,10 +309,10 @@ int coin_branchAndBound(lp_desc* lpd)
 	
     CbcModel* model = lpd->lp->mipmodel;
     if (lpd->lp->timeout > 0) model->setMaximumSeconds(lpd->lp->timeout);
-#endif
-#ifdef COIN_USE_CBC
+# endif
+# ifdef COIN_USE_CBC
     model->saveReferenceSolver();
-#endif
+# endif
     DerivedHandler* mipMessageHandler = new DerivedHandler;
     model->passInMessageHandler(mipMessageHandler);
     model->messageHandler()->setLogLevel(1);
@@ -438,9 +469,7 @@ int coin_branchAndBound(lp_desc* lpd)
     //CbcModel *model2 = model.integerPresolve();
     //model2->branchAndBound();
     model->branchAndBound();
-#ifdef COIN_USE_CLP
-    // get the original column bounds
-    int mac = lpd->lp->Solver->getNumCols();
+
     //if (model->isProvenOptimal()) fprintf(stdout, "optimal!\n");
     //if (model->isProvenInfeasible()) fprintf(stdout, "infeasible\n");
     //if (model->isSecondsLimitReached()) fprintf(stdout, "timeouted\n");
@@ -449,15 +478,12 @@ int coin_branchAndBound(lp_desc* lpd)
 	eclipse_out(ErrType, "Eplex Error: columns number in original model does not match eplex.\n");
 	return -1;
     }
-    double* ups = new double[mac];
-    double* lws = new double[mac];
-    memcpy(ups, lpd->lp->Solver->getColUpper(), mac*sizeof(double));
-    memcpy(lws, lpd->lp->Solver->getColLower(), mac*sizeof(double));
-#endif
+
     if (lpd->presolve) process.postProcess(*model->solver());
-#ifdef COIN_USE_CLP
+# ifdef COIN_USE_CLP
     else 
 	lpd->lp->Solver = dynamic_cast< OsiXxxSolverInterface*>(model->solver());
+# endif
 
     if (lpd->prob_type == PROBLEM_FIXEDL && 
 	lpd->lp->Solver->isProvenOptimal())
@@ -465,19 +491,82 @@ int coin_branchAndBound(lp_desc* lpd)
 	/* integer col bounds are already fixed to their sol values */
 	lpd->lp->Solver->initialSolve();
     }
-    //if (lpd->lp->Solver->isProvenOptimal()) fprintf(stdout, "orig optimal!\n");
-    //if (lpd->lp->Solver->isProvenPrimalInfeasible()) fprintf(stdout, "orig infeasible\n");
-    //std::cout <<"after"<< lpd->lp->Solver->getNumCols() << "--" << lpd->lp->Solver->getNumRows() <<std::endl;
 
     // reset the column bounds (undo fixed bounds for integer cols)
     for (int i=0; i<mac; i++) 
 	lpd->lp->Solver->setColBounds(i,lws[i],ups[i]);
 
-#endif
     //std::cout<< lpd->lp->Solver->getIterationCount();
 
     return 0;
 }
+
+int coin_solveLinear(lp_desc* lpd, int meth, int auxmeth)
+{
+    switch (meth)
+    {
+    case METHOD_BAR:
+	{
+	ClpModel* clpmodel = lpd->lp->Solver->getModelPtr();
+	//ClpInterior model(*clpmodel);
+	lpd->lp->interiormodel = new ClpInterior;
+	lpd->lp->interiormodel->borrowModel(*clpmodel);
+	//model.borrowModel(*clpmodel);
+	//ClpCholessky* cholesky = new ClpCholeskyUfl();
+	ClpCholeskyBase* cholesky = new ClpCholeskyDense();
+	//model.setCholesky(cholesky);
+	//model.primalDual();
+	lpd->lp->interiormodel->setCholesky(cholesky);
+	lpd->lp->interiormodel->primalDual();
+	// Barrier done
+
+	//lpd->lp->interiormodel->checkSolution();
+	if (lpd->lp->interiormodel->isProvenOptimal()
+	    // infeasibility not correctly detected by ClpInterior, so need
+	    // the next test to make sure solution is feasible
+	    && lpd->lp->interiormodel->sumPrimalInfeasibilities() < 1e-5)
+	{
+	    // Do crossover if optimal...
+	    ClpSimplex model2(*lpd->lp->interiormodel);
+	    // make sure no status left
+	    model2.createStatus();
+	    switch (auxmeth)
+		{
+		case METHOD_PRIMAL:
+		case METHOD_DEFAULT:
+		    model2.primal(1);
+		    break;
+		case METHOD_DUAL:
+		    model2.dual(1);
+		    break;
+		case METHOD_NONE:
+		    break;
+		}
+	}
+	lpd->lp->interiormodel->returnModel(*clpmodel);
+	}
+	break;
+    case METHOD_PRIMAL:
+    case METHOD_DUAL:
+    case METHOD_DEFAULT:
+	if (lpd->lp->notfirst)
+	{
+	    lpd->lp->Solver->resolve();
+	}
+	else
+	{
+	    //lpd->lp->Solver->writeLp("cointest");
+	    lpd->lp->Solver->initialSolve();
+	    lpd->lp->notfirst= 1;
+	    /* timeout for CLP not turned off here, but only before 
+	       branchAndBound() is called, because the timeout setting is 
+	       needed for detecting if timeout happened or not
+	    */ 
+	}
+	break;
+    }
+}
+
 
 extern "C"
 int coin_set_timeout(COINprob* lp, double timeout)
@@ -517,6 +606,27 @@ int coin_branchAndBound(lp_desc *lpd)
     }
 
     return 0;
+}
+
+int coin_solveLinear(lp_desc* lpd, int meth, int aux_meth)
+{
+#ifndef COIN_USE_SYM
+    // with OsiSym, resolve seem to ignore added constraints
+    if (lpd->lp->notfirst)
+    {
+	lpd->lp->Solver->resolve();
+    }
+    else
+#endif
+    {
+	//lpd->lp->Solver->writeLp("cointest");
+	lpd->lp->Solver->initialSolve();
+	lpd->lp->notfirst= 1;
+	/* timeout for CLP not turned off here, but only before 
+	   branchAndBound() is called, because the timeout setting is 
+	   needed for detecting if timeout happened or not
+	*/ 
+    }
 }
 
 extern "C"
@@ -1128,15 +1238,40 @@ int coin_delcols(COINprob* lp, int ndr, int* idxs)
 extern "C"
 int coin_get_bar_primal_objval(COINprob* lp, double &objval)
 {
+#ifdef COIN_USE_CLP
+    if (lp->interiormodel != NULL)
+    {
+	objval = lp->interiormodel->rawObjectiveValue()*lp->interiormodel->optimizationDirection();
+	return 0;
+    }
+#endif
     return -1;
 }
 
 extern "C"
 int coin_get_bar_dual_objval(COINprob* lp, double &objval)
 {
+#ifdef COIN_USE_CLP
+    if (lp->interiormodel != NULL)
+    {
+	// no information at the moment, just return the right infinity 
+	objval =  ( 
+		   lp->interiormodel->isProvenOptimal()
+		   // optimal, just return obj. value 
+		   ? lp->interiormodel->rawObjectiveValue()*lp->interiormodel->optimizationDirection()
+		   // opt.dir = -1 max, 1 min => inf for max, -inf for min
+		   : -1.0*lp->interiormodel->optimizationDirection()*lp->Solver->getInfinity() 
+		   );
+
+	return 0;
+    }
+#endif
     return -1;
 }
 
+/* this should be called soon after a call to coin_solve_problem(), before
+   any backtracking, because the result state etc. are not stored logically
+*/
 extern "C"
 state_t coin_get_result_state(lp_desc* lpd)
 {
@@ -1146,6 +1281,7 @@ state_t coin_get_result_state(lp_desc* lpd)
     if (lpd->lp->Solver->getNumCols() == 0) return state_success;
 #endif
 #ifdef COIN_USE_CLP
+    // get more MIP information using CLP specific methods...
     if (IsMIPProb(lpd->prob_type))
     {
 	CbcModel* model = lpd->lp->mipmodel;
@@ -1163,8 +1299,21 @@ state_t coin_get_result_state(lp_desc* lpd)
 	//if (model->isInitialSolveProvenDualInfeasible()) return state_unbounded;
 	return state_mipsemifail;
     }
-#endif
+    if (lpd->lp->interiormodel != NULL)
+    {// CLP's interior needs special test to detect failure
+	if (lpd->lp->Solver->isProvenOptimal())
+        {
+	    if (lpd->lp->interiormodel->sumPrimalInfeasibilities() < 1e-5)
+		return state_success;
+	    else
+		return state_fail;
+	}
+    } else if (lpd->lp->Solver->isProvenOptimal()) return state_success;
+
+#else // !COIN_USE_CLP
+
     if (lpd->lp->Solver->isProvenOptimal()) return state_success;
+#endif
     // isAbandoned() due to numeric difficulties only
     if (lpd->lp->Solver->isAbandoned()) 
     {
@@ -1173,13 +1322,25 @@ state_t coin_get_result_state(lp_desc* lpd)
     }
     if (lpd->lp->Solver->isProvenPrimalInfeasible()) return state_fail;
     if (lpd->lp->Solver->isProvenDualInfeasible()) return state_unbounded;
-#ifdef COIN_USE_CLP
-    // hit max. iterations or timeout
-    if (lpd->lp->Solver->getModelPtr()->hitMaximumIterations()) return state_lpaborted;
-#endif
-    // no better information....
+
+    // problem is not optimal, infeasible or unbounded, solving is incomplete. 
+    // For MIP, we need to extract information from the MIP to determine
+    // if there is any feasible solution or not. OSI's API does not provide
+    // this, so we return semifail by default if solver specific methods
+    // are not used earlier
     if (IsMIPProb(lpd->prob_type)) return state_mipsemifail;
-    return state_unknown; // LP
+    // is LP...
+#ifdef COIN_USE_CLP
+    // hit max. iterations *or timeout* 
+    if (lpd->lp->Solver->getModelPtr()->hitMaximumIterations() ||
+#else
+    if (lpd->lp->Solver->isIterationLimitReached() || 
+#endif
+	lpd->lp->Solver->isPrimalObjectiveLimitReached() ||
+	lpd->lp->Solver->isDualObjectiveLimitReached())
+	return state_lpaborted;
+    // no better information....
+    return state_unknown; 
 }
 
 extern "C"
@@ -1242,8 +1403,16 @@ int coin_solve_problem(lp_desc* lpd,
     if (lpd->lp->Solver->getNumCols() == 0) return 0;
     if (lpd->lp->Solver->getNumRows() == 0) return 0;
 #endif
-    switch (meth)
+#ifdef COIN_USE_CLP
+    // delete any old interior model of problem
+    if (lpd->lp->interiormodel != NULL)
     {
+	delete lpd->lp->interiormodel;
+	lpd->lp->interiormodel = NULL;
+    }
+#endif
+    switch (meth)
+    {// OSI allows only primal/dual to be specified. Barrier done later
     default:
     case METHOD_DEFAULT:
     case METHOD_DUAL:
@@ -1252,13 +1421,6 @@ int coin_solve_problem(lp_desc* lpd,
     case METHOD_PRIMAL:
 	doDual = false;
 	break;
-	/*
-#if defined(COIN_USE_CLP)
-    case METHOD_BAR:
-	do_barrier(lpd);
-	break;
-#endif
-	*/
     }
 
     lpd->lp->Solver->setHintParam(OsiDoDualInInitial, doDual, OsiHintDo, NULL);
@@ -1289,23 +1451,7 @@ int coin_solve_problem(lp_desc* lpd,
 #endif
 	//lpd->lp->Solver->setHintParam(OsiDoCrash, true, OsiHintDo);
 	lpd->lp->Solver->setHintParam(OsiDoInBranchAndCut, false, OsiHintDo);
-#ifndef COIN_USE_SYM
-	// with OsiSym, resolve seem to ignore added constraints
-	if (lpd->lp->notfirst)
-	{
-	    lpd->lp->Solver->resolve();
-	}
-	else
-#endif
-	{
-	    //lpd->lp->Solver->writeLp("cointest");
-	    lpd->lp->Solver->initialSolve();
-	    lpd->lp->notfirst= 1;
-	    /* timeout for CLP not turned off here, but only before 
-	       branchAndBound() is called, because the timeout setting is 
-               needed for detecting if timeout happened or not
-	    */ 
-	}
+	coin_solveLinear(lpd, meth, auxmeth);
 	break;
 
     default:
@@ -1418,8 +1564,9 @@ int coin_get_probtype(COINprob* lp)
 }
 
 extern "C"
-int coin_create_prob(COINprob* &lp)
+int coin_create_prob(COINprob* &lp, COINprob* def)
 {
+    // def is `default' problem with default settings. NULL if creating default
     DerivedHandler* coinMessageHandler = new DerivedHandler;
     lp = new COINprob;
     lp->Solver = new OsiXxxSolverInterface();
@@ -1428,9 +1575,27 @@ int coin_create_prob(COINprob* &lp)
     lp->vnsize = 0;
 #ifdef COIN_USE_CLP
     lp->mipmodel = new CbcModel(static_cast<OsiSolverInterface &>(*lp->Solver));
+    //lp->mipobjects = NULL;
+    //lp->nsos = 0;
+    lp->interiormodel = NULL;
     lp->mipIsShared = 1;
+    if (def)
+    {// copy the parameter values from default
+	for (int i=0; i<NUMSOLVERINTPARAMS; i++)
+	    lp->mipmodel->setIntParam(cbc_iparam[i], def->mipmodel->getIntParam(cbc_iparam[i]));
+	for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
+	    lp->mipmodel->setDblParam(cbc_dparam[i], def->mipmodel->getDblParam(cbc_dparam[i]));
+    }
+
     lp->timeout = -1; // no timeouts
+#else
+    if (def) 
+    {// this should copy the parameters from def to lp, but it does not
+     // seem to work, so should add specific code to copy params 
+	lp->Solver->copyParameters(*def->Solver);
+    }
 #endif
+
     lp->Solver->passInMessageHandler(coinMessageHandler);
     lp->Solver->messageHandler()->setLogLevel(1);
     coin_set_solver_outputs(lp->Solver);
@@ -1456,6 +1621,30 @@ int coin_get_primal_infeas(COINprob* lp, int &infeas)
     ClpSimplex* simplex = dynamic_cast<ClpSimplex*>( lp->Solver->getModelPtr());
     if (simplex == NULL) return -1;
     infeas = simplex->numberPrimalInfeasibilities();
+#endif
+    return 0;
+}
+
+extern "C"
+int coin_bar_is_dual_feas(COINprob* lp)
+{
+#ifdef COIN_USE_CLP
+    if (lp->interiormodel != NULL)
+    {
+	return lp->interiormodel->dualFeasible();
+    }
+#endif
+    return 0;
+}
+
+extern "C"
+int coin_bar_is_primal_feas(COINprob* lp)
+{
+#ifdef COIN_USE_CLP
+    if (lp->interiormodel != NULL)
+    {
+	return lp->interiormodel->primalFeasible();
+    }
 #endif
     return 0;
 }
@@ -1608,6 +1797,43 @@ int coin_set_name(COINprob* lp, char ntype, int idx, char *const name)
 }
 
 extern "C"
+int coin_load_sos(COINprob* lp, int nsos, int nsosnz, char* sostype, 
+		  int* sosbeg, int* sosind, double* soswt)
+{
+#ifdef NOT_USED 
+    /*COIN_USE_CLP - not used yet as SOS cannot be added to a preprocessed
+      problem*/
+    lp->mipobjects = new CbcObject * [nsos];
+
+    for (int i=0; i<nsos-1; i++)
+    {
+	lp->mipobjects[i] = new CbcSOS(lp->mipmodel, sosbeg[i+1]-sosbeg[i], 
+				       &sosind[i], &soswt[i], i, 
+				       (sostype[i] == '1' ? 1 : 2));
+    }
+    if (nsos > 0)
+    {// last set
+	int i = nsos - 1;
+	lp->objects[i] = new CbcSOS(lp->mipmodel, nsosnz-sosbeg[i], 
+				    &sosind[i], &soswt[i], i, 
+				    (sostype[i] == '1' ? 1 : 2));
+    }
+
+    lp->nsos = nsos;
+    lp->mipmodel->addObjects(nsos,objects);
+    for (int i=0; i<nsos; i++) delete objects[i];
+    delete [] objects;
+
+    return 0;
+#else
+
+    // unimplemented
+    return -1;
+#endif
+
+}
+
+extern "C"
 int coin_free_prob(COINprob* lp)
 {
     if (lp == NULL) return 0;
@@ -1624,6 +1850,7 @@ int coin_free_prob(COINprob* lp)
 #ifdef COIN_USE_CLP
     if (!lp->mipIsShared)
 	delete lp->mipmodel;
+    if (lp->interiormodel != NULL) delete lp->interiormodel;
 #endif
     delete lp->Solver;
     delete lp;

@@ -12309,7 +12309,7 @@ if test "$osi_versions_requested" != "no"; then
     fi
     for version in $osi_versions_requested; do
 	OSIDIR="$ECLIPSETHIRDPARTY/coin"
-	ls -d $OSIDIR/lib/$ARCH/$version* >/dev/null 2>/dev/null
+	ls -d $OSIDIR/$ARCH/lib/$version >/dev/null 2>/dev/null
 	if test $? -eq 0; then
 	    OSI_VERSIONS="$OSI_VERSIONS $version"
 	    { echo "$as_me:$LINENO: Using OSI $version in $OSIDIR" >&5

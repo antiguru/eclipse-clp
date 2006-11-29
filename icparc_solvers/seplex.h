@@ -43,6 +43,31 @@
 #define IsMIPProb(t) ((t) == PROBLEM_MIP || (t) == PROBLEM_MIQP)
 #define IsQPProb(t)  ((t) == PROBLEM_QP || (t) == PROBLEM_MIQP)
 
+#if defined(NOECLIPSE) 
+/* compiling for logged code */
+ 
+# ifdef XPRESS
+#  ifdef __STDC__
+#   define __ANSIC_	/* used in xpresso.h */
+#  endif
+#  include "xprs.h"    
+#  include <stdio.h>
+#  include <string.h>
+#  define CPXLPptr XPRSprob
+# endif /* XPRESS */
+
+# ifdef CPLEX
+#  include "cplex.h"    
+#  include <stdio.h>
+#  include <string.h>
+# endif /* CPLEX */
+
+# ifdef C_TO_COIN
+#  define COINprob void
+# endif /* COIN */
+
+#endif /* NOECLIPSE */
+
 #ifdef COIN
 
 # define CPXLPptr COINprob *
@@ -75,6 +100,7 @@ typedef enum
 /*
  * Our extended problem descriptor
  */
+
 
 typedef struct {
 
@@ -210,3 +236,119 @@ typedef struct {
     int		abort_ctr;
 } lp_desc;
 
+/* C_TO_COIN is defined when compiling for COIN, mapping the C calls in 
+   seplex.c to the procedures in C++ coinplex.cpp. Also defined if
+   compiling the logged calls
+*/
+#ifdef C_TO_COIN
+
+int coin_get_objsen(COINprob * lp);
+int coin_get_numcols(COINprob* lp);
+int coin_get_numrows(COINprob* lp);
+int coin_get_probtype(COINprob* lp);
+int coin_getrhs(COINprob * lp, double *rhs, int start, int end);
+int coin_getrowsense(COINprob * lp, char *rsense, int start, int end);
+int coin_getlb(COINprob * lp, double *lb, int start, int end);
+int coin_getub(COINprob * lp, double *ub, int start, int end);
+int coin_getcoltype(COINprob * lp, char *ctype, int start, int end);
+int coin_chgcoltype(COINprob * lp, int cnt, int *idxs, char *ctype);
+int coin_chgbds(COINprob * lp, int cnt, int * idxs, char * lu, double *bd);
+int coin_loadbasis(COINprob * lp, int *cbase, int *rbase);
+int coin_getbasis(COINprob * lp, int *cbase, int *rbase);
+int coin_get_lpobjval(COINprob * lp, double * objvalp);
+int coin_get_mipobjval(COINprob * lp, double * objvalp);
+int coin_get_bestmipbound(COINprob * lp, double * bound);
+int coin_get_objcoeffs(COINprob * lp, double *objc, int start, int end);
+int coin_chg_objcoeffs(COINprob * lp, int cnt, int * idxs, double * values);
+int coin_get_order(COINprob * lp, int cnt, int * idxs, int * prio, int * direction);
+int coin_chgqobj(COINprob * lp, int i, int j, double value);
+int coin_chgrhs(COINprob * lp, int cnt, int * idxs, double * values);
+int coin_loadprob(COINprob* lp, int mac, int mar, int objsen, double* objx, 
+	double* rhsx, char* senx, 
+	int * matbeg, int* matcnt, int* matind, double* matval, 
+	double* lb, double* ub);
+int coin_setcoltype(COINprob* lp, char *ctype);
+int coin_addcols(COINprob* lp, int coladded, int matnz, double* objx, 
+	int* matbeg, int* matind, double* matval, double* bdl, double* bdu);
+int coin_addrows(COINprob* lp, int rowadded, int nzadded, 
+	double* rhsx, char* senx,
+	int* rmatbeg, int* rmatind, double* rmatval);
+int coin_chgobjsen(COINprob* lp, int objsen);
+int coin_get_row(COINprob* lp, int* nnz, int* rmatind, double* rmatval, int idx);
+int coin_delrows(COINprob* lp, int ndr, int* idx);
+int coin_delcols(COINprob* lp, int ndr, int* idx);
+int coin_get_bar_primal_objval(COINprob* lp, double* objval);
+int coin_get_bar_dual_objval(COINprob* lp, double* objval);
+state_t coin_get_result_state(lp_desc* lpd);
+int coin_get_mipcutoff(COINprob* lp, double* bestbound);
+double coin_infinity(COINprob* lp);
+int coin_getdblparam(COINprob* lp, int key, double* value);
+int coin_getintparam(COINprob* lp, int key, int* value);
+int coin_setdblparam(COINprob* lp, int key, double value);
+int coin_setintparam(COINprob* lp, int key, int value);
+int coin_get_solver_dblparam(COINprob* lp, int key, double* value);
+int coin_get_solver_intparam(COINprob* lp, int key, int* value);
+int coin_set_solver_dblparam(COINprob* lp, int key, double value);
+int coin_set_solver_intparam(COINprob* lp, int key, int value);
+int coin_solve_problem(lp_desc* lpd, 
+	int meth, int auxmeth, int node_meth, int node_auxmeth);
+int coin_get_stats(lp_desc* lpd);
+int coin_get_soln_state(lp_desc* lpd, double* sols, double* pis,
+	double* slacks, double* djs, int* cbase, int* rbase);
+int coin_set_timeout(COINprob* lp, double timeout);
+int coin_create_prob(COINprob** lp, COINprob* def);
+int coin_reset_prob(lp_desc* lpd);
+int coin_writeprob(COINprob* lp, char* file, char* otype);
+int coin_readprob(COINprob* lp, char* file, char* otype);
+int coin_getnumnz(COINprob* lp);
+int coin_getnumint(COINprob* lp);
+int coin_set_name(COINprob* lp, char ntype, int idx, char* name);
+int coin_get_dual_infeas(COINprob* lp, int* infeas);
+int coin_get_primal_infeas(COINprob* lp, int* infeas);
+int coin_bar_is_primal_feas(COINprob* lp);
+int coin_bar_is_dual_feas(COINprob* lp);
+
+#endif
+
+/* NOECLIPSE is defined if compiling the logged calls for bug reporting. 
+   The calls are compiled without using ECLiPSe
+*/
+
+#ifdef NOECLIPSE
+lp_desc *lpd;
+lp_desc *lpdmat[400];  /* change size if more lpd used */
+
+double objval, bestbound, worstbound;
+int res,err;
+
+# ifdef XPRESS
+struct lp_sol {
+    double *sols;
+    double *slacks;
+    double *pis;
+    double *djs;
+    int    *base;
+    int    mac;
+};
+
+struct lp_sol sol;
+ 
+void XPRS_CC
+_get_xpress_sol(lp, solution)
+XPRSprob lp;
+void *solution;
+{
+    struct lp_sol *sol = (struct lp_sol *) solution;
+
+    printf("Getting solution....\n");
+    XPRSgetsol(lp, sol->sols, sol->slacks, sol->pis, sol->djs);
+    printf("Gotten solution....\n");
+/*    if (sol->base != NULL)
+	XPRSgetpresolvebasis(lp, sol->base, sol->base+sol->mac);
+*/
+}
+
+XPRSprob cpx_env;
+
+# endif /* XPRESS */
+#endif /* NOECLIPSE */

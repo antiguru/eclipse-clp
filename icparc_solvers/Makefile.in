@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.2 2006/10/13 00:41:27 jschimpf Exp $
+# $Id: Makefile.in,v 1.3 2006/11/29 16:17:05 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -44,7 +44,10 @@ AR = @AR@
 CFLAGS = @CFLAGS@ @OPT_FLAGS@
 OS_INCLUDES = @OS_INCLUDES@
 OBJ_SUFFIX = @OBJECTS_SUFFIX@
+DYNLDFLAGS = @DYNLDFLAGS@
+DYLD = @DYLD@
 EXEEXT = @EXEEXT@
+GMP_LD = @GMP_LD@
 
 CPPFLAGS  = -I. -I$(ECLIPSEDIR)/include/$(ARCH) -I$(ECLIPSEDIR)/sepia/include -I- $(OS_INCLUDES)
 ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse -lm
@@ -82,30 +85,23 @@ all:	$(OBJ_FILES)
 # EPLEX/OSI
 #----------------------------------------------------------------------
 
-COINLIBDIR = $(THIRDPARTY)/coin/lib/$(ARCH)
+COINARCHDIR = $(THIRDPARTY)/coin/$(ARCH)
 COINOSILIBS = -lOsi -lCoinUtils
 COINCLPLIBS = -lOsiClp -lCgl -lClp
 
-i386_nt/seosiclpcbc.dll: seplex.c coinplex.cpp eplex_params.h seplex.h 
-	$(CXX) -DCOIN -DCOIN_USE_CLP $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/coin/include -c coinplex.cpp
-	$(CC) -DCOIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(CC) -shared seplex.o coinplex.o $(COINLIBDIR)/CbcBranchUser.o $(COINLIBDIR)/CbcCompareUser.o -L$(COINLIBDIR)  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ $(ECLIBS) -o seosiclpcbc.dll
+$(ARCH)/seosiclpcbc.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
+	$(CXX) -DCOIN -DCOIN_USE_CLP $(CPPFLAGS) $(CFLAGS) -I$(COINARCHDIR)/include -c coinplex.cpp
+	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(COINARCHDIR)/lib/CbcBranchUser.o $(COINARCHDIR)/lib/CbcCompareUser.o -L$(COINARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
-	mv seosiclpcbc.dll $(ARCH)/seosiclpcbc.dll
+	mv seosiclpcbc.$(OBJ_SUFFIX) $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX)
 
-$(ARCH)/seosiclpcbc.so: seplex.c coinplex.cpp eplex_params.h seplex.h 
-	$(CXX) -DCOIN -DCOIN_USE_CLP $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/coin/include -c coinplex.cpp
-	$(CC) -DCOIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(CC) -shared seplex.o coinplex.o $(COINLIBDIR)/CbcBranchUser.o $(COINLIBDIR)/CbcCompareUser.o -L$(COINLIBDIR)  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ $(ECLIBS) -o seosiclpcbc.so
+$(ARCH)/seosisymclp.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
+	$(CXX) -DCOIN -DCOIN_USE_SYM $(CPPFLAGS) $(CFLAGS) -I$(COINARCHDIR)/include -c coinplex.cpp
+	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o -L$(COINARCHDIR)/lib -lOsiSym -lSym $(COINCLPLIBS) $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosisymclp.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
-	mv seosiclpcbc.so $(ARCH)/seosiclpcbc.so
-
-$(ARCH)/seosisymclp.so: seplex.c coinplex.cpp eplex_params.h seplex.h 
-	$(CXX) -DCOIN -DCOIN_USE_SYM $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/coin/include -c coinplex.cpp
-	$(CC) -DCOIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(CC) -shared seplex.o coinplex.o -L$(COINLIBDIR) -lOsiSym -lsym $(COINCLPLIBS) $(COINOSILIBS) -lstdc++ $(ECLIBS) -o seosisymclp.so
-	[ -d $(ARCH) ] || mkdir $(ARCH)
-	mv seosisymclp.so $(ARCH)/seosisymclp.so
+	mv seosisymclp.$(OBJ_SUFFIX) $(ARCH)/seosisymclp.$(OBJ_SUFFIX)
 
 #----------------------------------------------------------------------
 # EPLEX/CPLEX
@@ -788,7 +784,7 @@ $(PREFIX)/lib/%.eco:	%.pl $(PREFIX)/lib/.stamp
 
 $(PREFIX)/lib/%.eco:	%.ecl $(PREFIX)/lib/.stamp
 	@$(MAKE) -f $(MAKEFILE) objects
-	LD_LIBRARY_PATH=$(COINLIBDIR):$(LD_LIBRARY_PATH) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(fcompile), set_flag(variable_names,off), fcompile("$(*F)", [outdir:"$(@D)"])'
+	LD_LIBRARY_PATH=$(COINARCHDIR)/lib:$(LD_LIBRARY_PATH) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(fcompile), set_flag(variable_names,off), fcompile("$(*F)", [outdir:"$(@D)"])'
 	-@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eci:	%.pl $(PREFIX)/lib/.stamp
@@ -798,7 +794,7 @@ $(PREFIX)/lib/%.eci:	%.pl $(PREFIX)/lib/.stamp
 
 $(PREFIX)/lib/%.eci:	%.ecl $(PREFIX)/lib/.stamp
 	@$(MAKE) -f $(MAKEFILE) objects
-	LD_LIBRARY_PATH=$(COINLIBDIR):$(LD_LIBRARY_PATH) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(document),icompile("$(*F)","$(@D)")'
+	LD_LIBRARY_PATH=$(COINARCHDIR)/lib:$(LD_LIBRARY_PATH) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(document),icompile("$(*F)","$(@D)")'
 	-@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.pl:	%.pl $(PREFIX)/lib/.stamp

@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.1 2006/09/23 01:53:57 snovello Exp $
+ * Version:	$Id: seplex.c,v 1.2 2006/11/29 16:17:05 kish_shen Exp $
  *
  */
 
@@ -499,6 +499,11 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define UsingBarrierNoCrossOver(d) (meth == METHOD_BAR && auxmeth == METHOD_NONE) 
 # define Get_Bar_Primal_Obj(d, obj) XPRSgetdblattrib((d), XPRS_BARPRIMALOBJ, obj)
 # define Get_Bar_Dual_Obj(d, obj) XPRSgetdblattrib((d), XPRS_BARDUALOBJ, obj)
+# define Bar_Is_Primal_Feasible(lpd) \
+	(XPRSgetdblattrib(lpd->lp, XPRS_BARPRIMALINF, &infeas), infeas < 1e-6)
+# define Bar_Is_Dual_Feasible(lpd) \
+	(XPRSgetdblattrib(lpd->lp, XPRS_BARDUALINF, &infeas), infeas < 1e-6)
+
 
 # define HAS_QUADRATIC
 
@@ -565,6 +570,8 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define UsingBarrierNoCrossOver(d) 0
 # define Get_Bar_Primal_Obj(d, obj) coin_get_bar_primal_objval(d, obj)
 # define Get_Bar_Dual_Obj(d, obj) coin_get_bar_dual_objval(d, obj)
+# define Bar_Is_Primal_Feasible(lpd) coin_bar_is_primal_feas(lpd->lp)
+# define Bar_Is_Dual_Feasible(d) coin_bar_is_dual_feas(lpd->lp)
 
 # define SuccessState(d) (coin_get_result_state(d) == state_success)
 # define FailState(d) (coin_get_result_state(d) == state_fail)
@@ -945,70 +952,6 @@ extern stream_id log_output_;
 
 #ifdef COIN
 
-int coin_get_objsen(COINprob * lp);
-int coin_get_numcols(COINprob* lp);
-int coin_get_numrows(COINprob* lp);
-int coin_get_probtype(COINprob* lp);
-int coin_getrhs(COINprob * lp, double *rhs, int start, int end);
-int coin_getrowsense(COINprob * lp, char *rsense, int start, int end);
-int coin_getlb(COINprob * lp, double *lb, int start, int end);
-int coin_getub(COINprob * lp, double *ub, int start, int end);
-int coin_getcoltype(COINprob * lp, char *ctype, int start, int end);
-int coin_chgcoltype(COINprob * lp, int cnt, int *idxs, char *ctype);
-int coin_chgbds(COINprob * lp, int cnt, int * idxs, char * lu, double *bd);
-int coin_loadbasis(COINprob * lp, int *cbase, int *rbase);
-int coin_getbasis(COINprob * lp, int *cbase, int *rbase);
-int coin_get_lpobjval(COINprob * lp, double * objvalp);
-int coin_get_mipobjval(COINprob * lp, double * objvalp);
-int coin_get_bestmipbound(COINprob * lp, double * bound);
-int coin_get_objcoeffs(COINprob * lp, double *objc, int start, int end);
-int coin_chg_objcoeffs(COINprob * lp, int cnt, int * idxs, double * values);
-int coin_get_order(COINprob * lp, int cnt, int * idxs, int * prio, int * direction);
-int coin_chgqobj(COINprob * lp, int i, int j, double value);
-int coin_chgrhs(COINprob * lp, int cnt, int * idxs, double * values);
-int coin_loadprob(COINprob* lp, int mac, int mar, int objsen, double* objx, 
-	double* rhsx, char* senx, 
-	int * matbeg, int* matcnt, int* matind, double* matval, 
-	double* lb, double* ub);
-int coin_setcoltype(COINprob* lp, char *ctype);
-int coin_addcols(COINprob* lp, int coladded, int matnz, double* objx, 
-	int* matbeg, int* matind, double* matval, double* bdl, double* bdu);
-int coin_addrows(COINprob* lp, int rowadded, int nzadded, 
-	double* rhsx, char* senx,
-	int* rmatbeg, int* rmatind, double* rmatval);
-int coin_chgobjsen(COINprob* lp, int objsen);
-int coin_get_row(COINprob* lp, int* nnz, int* rmatind, double* rmatval, int idx);
-int coin_delrows(COINprob* lp, int ndr, int* idx);
-int coin_delcols(COINprob* lp, int ndr, int* idx);
-int coin_get_bar_primal_objval(COINprob* lp, double* objval);
-int coin_get_bar_dual_objval(COINprob* lp, double* objval);
-state_t coin_get_result_state(lp_desc* lpd);
-int coin_get_mipcutoff(COINprob* lp, double* bestbound);
-double coin_infinity(COINprob* lp);
-int coin_getdblparam(COINprob* lp, int key, double* value);
-int coin_getintparam(COINprob* lp, int key, int* value);
-int coin_setdblparam(COINprob* lp, int key, double value);
-int coin_setintparam(COINprob* lp, int key, int value);
-int coin_get_solver_dblparam(COINprob* lp, int key, double* value);
-int coin_get_solver_intparam(COINprob* lp, int key, int* value);
-int coin_set_solver_dblparam(COINprob* lp, int key, double value);
-int coin_set_solver_intparam(COINprob* lp, int key, int value);
-int coin_solve_problem(lp_desc* lpd, 
-	int meth, int auxmeth, int node_meth, int node_auxmeth);
-int coin_get_stats(lp_desc* lpd);
-int coin_get_soln_state(lp_desc* lpd, double* sols, double* pis,
-	double* slacks, double* djs, int* cbase, int* rbase);
-int coin_set_timeout(COINprob* lp, double timeout);
-int coin_create_prob(COINprob** lp);
-int coin_reset_prob(lp_desc* lpd);
-int coin_writeprob(COINprob* lp, char* file, char* otype);
-int coin_readprob(COINprob* lp, char* file, char* otype);
-int coin_getnumnz(COINprob* lp);
-int coin_getnumint(COINprob* lp);
-int coin_set_name(COINprob* lp, char ntype, int idx, char* name);
-int coin_get_dual_infeas(COINprob* lp, int* infeas);
-int coin_get_primal_infeas(COINprob* lp, int* infeas);
-
 static stream_id solver_streams[4];
 
 static COINprob * cpx_env = NULL;
@@ -1224,7 +1167,7 @@ int p_cpx_init(value vlicloc, type tlicloc,
     int i;
 
     /* use cpx_env to store the `default problem' */
-    CallN(coin_create_prob(&cpx_env));
+    CallN(coin_create_prob(&cpx_env, NULL));
 
     for (i=0; i<4; i++)
     {
@@ -1467,14 +1410,6 @@ p_cpx_exit()
 
 #endif /* !NONLICENCED */
 
-static void
-_clr_lp_desc(lp_desc * lpd)
-{
-    unsigned i;
-    for (i=0; i<sizeof(lp_desc); ++i)
-    	((char *)lpd)[i] = 0;
-}
-
 int
 p_cpx_prob_init(value vpre, type tpre, 
 		value vcpy, type tcpy, 
@@ -1496,7 +1431,9 @@ p_cpx_prob_init(value vpre, type tpre,
     Check_Structure(thandle);
 
     CallN(lpd = (lp_desc *) Malloc(sizeof(lp_desc)));
-    CallN(_clr_lp_desc(lpd));
+    /*CallN(_clr_lp_desc(lpd));*/
+    CallN(memset(lpd, 0, sizeof(lp_desc)));
+
 
 #ifdef USE_PROBLEM_ARRAY
     Log1(lpdmat[%d] = lpd, next_matno);
@@ -2981,6 +2918,9 @@ p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tne
 		lpd->nr = %d;", lpd->nr);
 	Fprintf(log_output_, "\n\
                 lpd->matnz = %d;", lpd->matnz);
+	/* needed by OSI */
+	Fprintf(log_output_, "\n\
+                lpd->mac = %d;", lpd->mac);
 	if (vnewcolobjs.nint)
 	{
 	    for (i=0; i<coladded; ++i)
@@ -3349,7 +3289,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	lpd->ctype = (char *) Malloc((size_t) %d*sizeof(char));\n\
 	lpd->matbeg = (int *) Malloc((size_t) %d*sizeof(int));\n\
 	lpd->matcnt = (int *) Malloc((size_t) %d*sizeof(int));\n\
-    }, vadded.nint, vadded.nint, vadded.nint);
+     }, vadded.nint, vadded.nint, vadded.nint);
 
     for (i=0; i<vadded.nint; i++) lpd->ctype[i] = 'C';
 
@@ -3379,16 +3319,18 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	{
 	    /* since Realloc may copy and free and we need to overwrite entries
 	       anyway it is probably better to free and Malloc */
-	    if (lpd->bdl != NULL) TryFree(lpd->bdl);
+	    TryFree(lpd->bdl);
 	    lpd->bdl = (double *) Malloc((size_t) vadded.nint*sizeof(double));
+	    Log1(lpd->bdl = (double *) malloc(%d*sizeof(double)), vadded.nint);
 	    if (IsList(this)) /* non-default upper bounds */
 	    {
 	        /* both bounds arrays are non-default and will be freed
 		   immediately after flushing: no need to increase lpd->macsz since
 		   we will need to Malloc new bounds arrays of correct size next
 		   time around anyway */
-	        if (lpd->bdu != NULL) TryFree(lpd->bdu);
+	        TryFree(lpd->bdu);
 		lpd->bdu = (double *) Malloc((size_t) vadded.nint*sizeof(double));
+		Log1(lpd->bdu = (double *) malloc(%d*sizeof(double)), vadded.nint);
 		/* fill the bounds arrays with explicit bounds */
 		for (i = 0; (IsList(tlos) && IsList(this)); ++i)
 		{
@@ -3434,6 +3376,8 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 		if (lpd->bdu == NULL) /* upper bounds array freed */
 		{
 		    lpd->bdu = (double *) Malloc((size_t) newcsz*sizeof(double));
+		    Log1(lpd->bdu = (double *) malloc(%d*sizeof(double)), newcsz);
+
 		    for (i=0; i<newcsz; i++)
 		    {
 		      lpd->bdu[i]  = CPX_INFBOUND;
@@ -3442,6 +3386,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 		else
 		{
 		    lpd->bdu = (double *) Realloc(lpd->bdu, (size_t) newcsz*sizeof(double));
+		    Log1(lpd->bdu = (double *) realloc(%d*sizeof(double)), newcsz);
 		    for (i=lpd->macsz; i<newcsz; i++)
 		    {
 		      lpd->bdu[i]  = CPX_INFBOUND;
@@ -3481,6 +3426,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    if (lpd->bdl == NULL) /* lower bounds array freed */
 	    {
 	        lpd->bdl = (double *) Malloc((size_t) newcsz*sizeof(double));
+		Log1(lpd->bdl = (double *) malloc(%d*sizeof(double)), newcsz);
 		for (i=0; i<newcsz; i++)
 		{
 		  lpd->bdl[i]  = -CPX_INFBOUND;
@@ -3489,14 +3435,16 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    else
 	    {
 	        lpd->bdl = (double *) Realloc(lpd->bdl, (size_t) newcsz*sizeof(double));
+		Log1(lpd->bdl = (double *) realloc(%d*sizeof(double)), newcsz);
 		for (i=lpd->macsz; i<newcsz; i++)
 		{
 		  lpd->bdl[i]  = -CPX_INFBOUND;
 		}
 	    }
 	    lpd->macsz = newcsz;
-	    if (lpd->bdu != NULL) TryFree(lpd->bdu);
+	    TryFree(lpd->bdu);
 	    lpd->bdu = (double *) Malloc((size_t) vadded.nint*sizeof(double));
+	    Log1(lpd->bdu = (double *) malloc(%d*sizeof(double)), vadded.nint);
 	    /* fill the upper bounds array with explicit bounds */
 	    for (i = 0; (IsList(this)); ++i)
 	    {
@@ -3529,6 +3477,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    if (lpd->bdl == NULL) /* lower bounds array freed */
 	    {
 	        lpd->bdl = (double *) Malloc((size_t) newcsz*sizeof(double));
+		Log1(lpd->bdl = (double *) malloc(%d*sizeof(double)), newcsz);
 		for (i=0; i<newcsz; i++)
 		{
 		  lpd->bdl[i]  = -CPX_INFBOUND;
@@ -3537,6 +3486,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    else
 	    {
 	        lpd->bdl = (double *) Realloc(lpd->bdl, (size_t) newcsz*sizeof(double));
+		Log1(lpd->bdl = (double *) realloc(%d*sizeof(double)), newcsz);
 		for (i=lpd->macsz; i<newcsz; i++)
 		{
 		  lpd->bdl[i]  = -CPX_INFBOUND;
@@ -3545,6 +3495,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    if (lpd->bdu == NULL) /* upper bounds array freed */
 	    {
 	        lpd->bdu = (double *) Malloc((size_t) newcsz*sizeof(double));
+		Log1(lpd->bdu = (double *) malloc(%d*sizeof(double)), newcsz);
 		for (i=0; i<newcsz; i++)
 		{
 		  lpd->bdu[i]  = CPX_INFBOUND;
@@ -3553,6 +3504,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    else
 	    {
 	        lpd->bdu = (double *) Realloc(lpd->bdu, (size_t) newcsz*sizeof(double));
+		Log1(lpd->bdu = (double *) malloc(%d*sizeof(double)), newcsz);
 		for (i=lpd->macsz; i<newcsz; i++)
 		{
 		  lpd->bdu[i]  = CPX_INFBOUND;
@@ -3565,10 +3517,18 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
     {
         if (IsList(tlos)) /* non-default lower bounds */
 	{
-	    if (lpd->bdl == NULL) lpd->bdl = (double *) Malloc((size_t) vadded.nint*sizeof(double));
+	    if (lpd->bdl == NULL) 
+	    {
+		lpd->bdl = (double *) Malloc((size_t) vadded.nint*sizeof(double));
+		Log1(lpd->bdl = (double *) malloc(%d*sizeof(double)), vadded.nint);
+	    }
 	    if (IsList(this)) /* non-default upper bounds */
 	    {
-	        if (lpd->bdu == NULL) lpd->bdu = (double *) Malloc((size_t) vadded.nint*sizeof(double));
+	        if (lpd->bdu == NULL) 
+                {
+		    lpd->bdu = (double *) Malloc((size_t) vadded.nint*sizeof(double));
+		    Log1(lpd->bdu = (double *) malloc(%d*sizeof(double)), vadded.nint);
+		}
 		/* fill the bounds arrays with explicit bounds */
 		for (i = 0; (IsList(tlos) && IsList(this)); ++i)
 		{
@@ -3611,6 +3571,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	        if (lpd->bdu == NULL) /* upper bounds array freed */
 		{
 		    lpd->bdu = (double *) Malloc((size_t) lpd->macsz*sizeof(double));
+		    Log1(lpd->bdu = (double *) malloc(%d*sizeof(double)), lpd->macsz);
 		    for (i=0; i<lpd->macsz; i++)
 		    {
 		      lpd->bdu[i]  = CPX_INFBOUND;
@@ -3646,6 +3607,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    if (lpd->bdl == NULL) /* lower bounds array freed */
 	    {
 	        lpd->bdl = (double *) Malloc((size_t) lpd->macsz*sizeof(double));
+		Log1(lpd->bdl = (double *) malloc(%d*sizeof(double)), lpd->macsz);
 		for (i=0; i<lpd->macsz; i++)
 		{
 		  lpd->bdl[i]  = -CPX_INFBOUND;
@@ -3680,6 +3642,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    if (lpd->bdl == NULL) /* lower bounds array freed */
 	    {
 	        lpd->bdl = (double *) Malloc((size_t) lpd->macsz*sizeof(double));
+		Log1(lpd->bdl = (double *) malloc(%d*sizeof(double)), lpd->macsz);
 		for (i=0; i<lpd->macsz; i++)
 		{
 		  lpd->bdl[i]  = -CPX_INFBOUND;
@@ -3688,6 +3651,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    if (lpd->bdu == NULL) /* upper bounds array freed */
 	    {
 	        lpd->bdu = (double *) Malloc((size_t) lpd->macsz*sizeof(double));
+		Log1(lpd->bdu = (double *) malloc(%d*sizeof(double)), lpd->macsz);
 		for (i=0; i<lpd->macsz; i++)
 		{
 		  lpd->bdu[i]  = CPX_INFBOUND;
@@ -3703,9 +3667,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	if (IsList(tobjs)) /* only if there are objective coefficients */
 	{
 	    TryFree(lpd->objx);
-	    Log1({\n\
-	       lpd->objx = (double *) Malloc((size_t) %d*sizeof(double));\n\
-	    }, vadded.nint);
+	    Log1(lpd->objx = (double *) malloc((size_t) %d*sizeof(double)), vadded.nint);
 	    lpd->objx = (double *) Malloc((size_t) vadded.nint*sizeof(double));
 	}
 
@@ -4206,7 +4168,7 @@ p_cpx_loadprob(value vlp, type tlp)
 	lpd->bdu = (double *) malloc(lpd->macsz * sizeof(double));\n\
 	lpd->objx = (double *) malloc(lpd->macsz * sizeof(double));\n\
 	lpd->ctype = (char *) malloc(lpd->macsz * sizeof(char));",
-	lpd->sense,lpd->macsz, lpd->marsz, lpd->matnz,
+	lpd->sense,(lpd->macsz ? lpd->macsz : 1), (lpd->marsz ? lpd->marsz: 1), (lpd->matnz? lpd->matnz : 1),
 	lpd->mac, lpd->mar);
 
     for (i=0; i<lpd->mac; ++i)
@@ -4249,7 +4211,7 @@ p_cpx_loadprob(value vlp, type tlp)
     }
 #endif
 #ifdef COIN
-    CallN(coin_create_prob(&(lpd->lp)));
+    CallN(coin_create_prob(&(lpd->lp), cpx_env));
 #endif
 #if defined(CPLEX) || defined(COIN)
     CallN(lpd->lpcopy = lpd->lp);  /* no need for a copy in CPLEX */
@@ -4696,8 +4658,8 @@ p_cpx_lpread(value vfile, type tfile,
 	{ Bip_Error(EC_EXTERNAL_ERROR); }
 # endif
 # ifdef COIN
-    Log0(coin_create_prob(&lpd->lp));
-    if (coin_create_prob(&(lpd->lp))) { Bip_Error(EC_EXTERNAL_ERROR); }
+    Log0(coin_create_prob(&lpd->lp, cpx_env));
+    if (coin_create_prob(&(lpd->lp), cpx_env)) { Bip_Error(EC_EXTERNAL_ERROR); }
 # endif
 
     CallN(lpd->lpcopy = lpd->lp);  /* no need for a copy in CPLEX */
@@ -6187,7 +6149,6 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 			bestbound = (lpd->sense ==  SENSE_MIN ?  -HUGE_VAL : HUGE_VAL);
 		    lpd->objval = worstbound = (lpd->sense == SENSE_MIN ? HUGE_VAL :  -HUGE_VAL);
 		    break;
-#ifndef COIN /* for now */
 		case METHOD_BAR:
 		/* In XPRESS, cross-over may be performed after aborting
                    from a barrier solve. So we may arrive here if the 
@@ -6196,6 +6157,8 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
                    we fall through and treat like METHOD_PRIMAL
 		*/
 		    lpd->descr_state = DESCR_ABORTED_NOSOL;
+#if defined(XPRESS) || defined(COIN)
+# ifdef XPRESS
 		    XPRSgetintattrib(lpd->lpcopy, XPRS_SIMPLEXITER, &attr);
 		    if (attr == 0)
 		    {
@@ -6211,25 +6174,25 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 			lpd->descr_state = DESCR_ABORTED_NOSOL;
 			bestbound = (lpd->sense ==  SENSE_MIN ?  -HUGE_VAL : HUGE_VAL);
 			lpd->objval = worstbound = (lpd->sense == SENSE_MIN ? HUGE_VAL :  -HUGE_VAL);
-			XPRSgetdblattrib(lpd->lp, XPRS_BARPRIMALINF, &infeas);
-			if (infeas < 1e-6)
+# endif
+			if (Bar_Is_Primal_Feasible(lpd))
 			{/* primal feasible */
-			    XPRSgetdblattrib(lpd->lp, XPRS_BARPRIMALOBJ, &worstbound);
+			    Get_Bar_Primal_Obj(lpd->lp, &worstbound);
 			    lpd->objval = worstbound;
 			    lpd->descr_state = DESCR_ABORTED_SOL;
 			}
-			XPRSgetdblattrib(lpd->lp, XPRS_BARDUALINF, &infeas);
-			if (infeas < 1e-6)
+			if (Bar_Is_Dual_Feasible(lpd))
 			{/* dual feasible */
-			    XPRSgetdblattrib(lpd->lp, XPRS_BARDUALOBJ, &bestbound);
+			    Get_Bar_Dual_Obj(lpd->lp, &bestbound);
 			}
-		    
 			break;
+# ifdef XPRESS
 		    }
 		    /* if the crossover simplex is performed, fall through and
 		       treat as primal simplex
 		    */
-#endif /* !COIN */
+# endif
+#endif
 		case METHOD_PRIMAL:
 		    Get_Primal_Infeas(lpd->lp, &attr);
 		    /* attr == 0 ==> we have a feasible primal solution */
@@ -6363,13 +6326,13 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 	    }
 #endif
 #ifdef COIN
-	    CallN(coin_get_soln_state(lpd, 
-		 (outsols.val.ptr == NULL ? NULL : DArrayStart(outsols.val.ptr)),
-   	         (outpis.val.ptr == NULL ? NULL : DArrayStart(outpis.val.ptr)),
-		 (outslacks.val.ptr == NULL ? NULL : DArrayStart(outslacks.val.ptr)),
-		 (outdjs.val.ptr == NULL ? NULL : DArrayStart(outdjs.val.ptr)),
-		 (outcbase.val.ptr == NULL ? NULL : IArrayStart(outcbase.val.ptr)),
-		 (outrbase.val.ptr == NULL ? NULL : IArrayStart(outrbase.val.ptr)) ));
+	    coin_get_soln_state(lpd, 
+		outsols.val.ptr == NULL ? NULL : DArrayStart(outsols.val.ptr),
+		outpis.val.ptr == NULL ? NULL : DArrayStart(outpis.val.ptr),
+		outslacks.val.ptr == NULL ? NULL : DArrayStart(outslacks.val.ptr),
+		outdjs.val.ptr == NULL ? NULL : DArrayStart(outdjs.val.ptr),
+		outcbase.val.ptr == NULL ? NULL : IArrayStart(outcbase.val.ptr),
+	        outrbase.val.ptr == NULL ? NULL : IArrayStart(outrbase.val.ptr));
 
 #endif
 	    break; 
