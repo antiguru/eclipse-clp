@@ -23,17 +23,17 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: stat.pl,v 1.1 2006/09/23 01:55:35 snovello Exp $
+% Version:	$Id: stat.pl,v 1.2 2007/02/02 15:12:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % This file contains some predicates to support the production
 % of virtual machine statistics with SEPIA.
 % If SEPIA is compiled with the PRINTAM option, virtual instruction
-% counting can be switched on and off usine
+% counting can be switched on and off using
 %
-%	statistics(on).		and
-%	statistics(off).
+%	vm_statistics(on).		and
+%	vm_statistics(off).
 %
 % All virtual machine instructions that are executed beetween these
 % two calls are counted in the global array vm_inst_ctr.
@@ -61,6 +61,9 @@
 % table(File).
 %	the same but the output goes to a file.
 %
+%
+% No longer supported (because emulator support removed):
+%
 % pair_table(Inst1, Inst2, Number).
 %	pretty-prints the instruction pair statistics.
 %	the list is sorted according to the counter value.
@@ -70,22 +73,27 @@
 %	the same but the output goes to a file.
 %
 
+:- module(stat).
+
 :- export
 	reset_counters/0,
 	read_counters/1,
 	write_counters/1,
-	pair_table/3,
-	pair_table/4,
+%	pair_table/3,
+%	pair_table/4,
 	table/0,
 	table/1.
 
+:- reexport
+	vm_statistics/1
+   from sepia_kernel.
 
 reset_counters :-
-	statistics(off), 
+	sepia_kernel:vm_statistics(off), 
 	current_array(vm_inst_ctr(L1), _),
-	reset_counters(L1),
-	current_array(vm_pairs_ctr(L2), _),
-	reset_pair_counters(L2).
+	reset_counters(L1).
+%	current_array(vm_pairs_ctr(L2), _),
+%	reset_pair_counters(L2),
 
 reset_counters(L) :-
 	L > 0, !,
@@ -94,12 +102,14 @@ reset_counters(L) :-
 	reset_counters(L1).
 reset_counters(_).
 
+/*
 reset_pair_counters(L) :-
 	L > 0, !,
 	L1 is L - 1,
 	setval(vm_pairs_ctr(L1), 0),
 	reset_pair_counters(L1).
 reset_pair_counters(_).
+*/
 
 
 write_counters(File) :-
@@ -134,7 +144,7 @@ read_counters(_, _, _).
 
 
 table(File) :-
-	statistics(off), 
+	sepia_kernel:vm_statistics(off), 
 	open(File,write,Str),
 	get_stream(output,Oldstream),
 	set_stream(output,Str),
@@ -143,7 +153,7 @@ table(File) :-
 	close(Str).
 
 table :- 
-	statistics(off), 
+	sepia_kernel:vm_statistics(off), 
 	current_array(vm_inst_name(Ln), _),
 	count(0, Ln, 0, Total, [], List),
 	sort(2, >=, List, Sorted),
@@ -201,8 +211,9 @@ do(This, [[El | [Val] ] | T], Total, Cum) :-
 	do(Order, T, Total, NewCum).
 
 
+/*
 pair_table(File, Inst1, Inst2, Number) :-
-	statistics(off), 
+	sepia_kernel:vm_statistics(off), 
 	open(File,write,Str),
 	get_stream(output,Oldstream),
 	set_stream(output,Str),
@@ -211,7 +222,7 @@ pair_table(File, Inst1, Inst2, Number) :-
 	close(Str).
 
 pair_table(Inst1, Inst2, Number) :-
-	statistics(off), 
+	sepia_kernel:vm_statistics(off), 
 	current_array(vm_inst_name(Ln), _),
 	(
 		(
@@ -307,7 +318,7 @@ pair_table(Inst1, Inst2, Number) :-
 	).
 pair_table(_, _, _) :- !.
 
-pair_count(Max, Max, Increment, Total, Total, List, List) :- !.
+pair_count(Max, Max, _Increment, Total, Total, List, List) :- !.
 
 pair_count(El, Max, Increment, Total, Newtotal, List1, Newlist1) :-
 	current_array(vm_inst_name(Ln), _),
@@ -400,13 +411,14 @@ name_to_el(Name, El, Bound) :-
 		name_to_el(Name, El, Newbound)
 	).
 name_to_el(_, _, _).
+*/
 
 spaces(Num) :-
 	Num > 0, !,
 	write(' '),
 	Num1 is Num - 1,
 	spaces(Num1).
-spaces(Num).
+spaces(_Num).
 
 spaces_to_name(Name, Newname) :-
 	L is 26 - string_length(Name),
@@ -414,7 +426,7 @@ spaces_to_name(Name, Newname) :-
 
 append_spaces(Name, Newname, Num) :-
 	Num > 0, !,
-	substring("                              ",1 , Num, Spaces),
+	substring("                              ", 0, Num, _, Spaces),
 	append_strings(Name, Spaces, Newname).
 append_spaces(_, _, _).
 

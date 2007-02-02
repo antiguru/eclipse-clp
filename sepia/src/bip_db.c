@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.1 2006/09/23 01:55:44 snovello Exp $
+ * VERSION	$Id: bip_db.c,v 1.2 2007/02/02 15:12:05 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -118,7 +118,7 @@ static int
     p_external_body(value vpred, type tpred, value vmod, type tmod),
 #ifdef PRINTAM
     p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod),
-    p_statistics(value v, type t),
+    p_vm_statistics(value v, type t),
 #endif
 #ifndef NOALS
     p_als(value val, type tag, value vm, type tm),
@@ -288,7 +288,7 @@ bip_db_init(int flags)
     exported_built_in(in_dict("als_", 2), p_als, B_SAFE);
 #endif
 #ifdef PRINTAM
-    (void) built_in(in_dict("statistics", 1), p_statistics, B_UNSAFE|U_SIMPLE);
+    (void) built_in(in_dict("vm_statistics", 1), p_vm_statistics, B_UNSAFE|U_SIMPLE);
     (void) built_in(in_dict("load_eco", 3), p_load_eco, B_UNSAFE|U_SIMPLE);
 #endif
     (void) exported_built_in(in_dict("store_pred", 5), p_store_pred, B_UNSAFE);
@@ -597,7 +597,7 @@ als(long int addr)	/* for use with dbx */
 
 #ifdef PRINTAM
 static int
-p_statistics(value v, type t)
+p_vm_statistics(value v, type t)
 {
     if (IsRef(t))
     {
