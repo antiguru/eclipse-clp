@@ -371,4 +371,4 @@ op_addr[i++] = (vmcode) &&I_BI_Eq;
 op_addr[i++] = (vmcode) &&I_BI_Ne;
 op_addr[i++] = (vmcode) &&I_BI_Arg;
 op_addr[i++] = (vmcode) &&I_BI_MakeSuspension;
-
+op_addr[i++] = (vmcode) &&I_Debug_scall;

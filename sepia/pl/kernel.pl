@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.1 2006/09/23 01:55:25 snovello Exp $
+% Version:	$Id: kernel.pl,v 1.2 2007/02/09 02:46:51 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -245,7 +245,7 @@
 	concat_strings(Sepiadir, "/lib", Lib),
 	make_array_(library, prolog, local, sepia_kernel),
 	setval(library, Lib),
-	make_array_(library_path, prolog, local, sepia_kernel),
+        make_array_(library_path, prolog, local, sepia_kernel),
 	setval(library_path, [Lib]).
 
 :-	argv(0, Sepia),			% set up some global variables
@@ -311,7 +311,7 @@ main(Restart) :-
 	    restart_init
 	;
 	    restart_init,
-	    error(151, _)		% extension hook: restart
+            error(151, _)		% extension hook: restart
 	),
 	embed_block([]).
 
@@ -347,7 +347,7 @@ yield(ToC,FromC) :-
 
 yield(YieldType,ToC,FromC) :-
 	yield(YieldType,ToC,FromC1,ResumeType),
-	yield_or_continue(ResumeType,FromC1,FromC).
+        yield_or_continue(ResumeType,FromC1,FromC).
 
     % We may be resumed with one of the following resume codes:
     % 0 == RESUME_CONT:		continue and let yield/2,3 succeed
@@ -371,7 +371,7 @@ ec_rpc_in_handler(Base) :-
 
 ec_rpc_in_handler1(In, Out) :-
 	( at_eof(In) ->
-	    flush(Out)
+            flush(Out)
 	;
 	    empty_stream(Out),
 	    block((read_exdr_last(In, Goal),execute_rpc(Out, Goal, true)),
@@ -435,7 +435,7 @@ hang :- hang.
 
 slave :-
 	get_par_goal(pargoal(InitGoal, ParGoal)),
-	(block(InitGoal, _, fail, eclipse) -> true ; true),
+        (block(InitGoal, _, fail, eclipse) -> true ; true),
 	block(
 	    (install_pending_oracle, worker_boundary, ParGoal),
 	    _,
@@ -460,7 +460,7 @@ par_all_body(InitGoal, Goal, Module) :-
 gather_instances(Template, Generator, Module, Ref) :-
 	call(Generator, Module),
 	true,				% force waking before recording
-	dbag_enter(Ref, Template),
+        dbag_enter(Ref, Template),
 	fail.
  
 par_findall_body(InitGoal, Template, Generator, List, Module) :-
@@ -478,7 +478,7 @@ par_findall_body(InitGoal, Template, Generator, List, Module) :-
 
 find_solution(Goal, Module, Ref) :-
 	call(Goal, Module),
-	true,				% force waking before recording
+        true,				% force waking before recording
 	!,
 	dbag_enter(Ref, Goal),
 	fail.
@@ -552,8 +552,8 @@ sepia_version(List, Patch, Date) :-
 	    read(S, sepia_date(Date0)),
 	    read(S, sepia_patch(Patch0)),
 	    read(S, sepia_build(Build)),
-	    close(S),
-	    concat_string([MajorMinorVersionAtom,Patch0,.,Build], VersionString),
+            close(S),
+	    concat_string([MajorMinorVersionAtom,Patch0,".",Build], VersionString),
 	    split_string(VersionString, ".", " ", List0),
 	    strings_to_numbers(List0, List1),
 	    Cached = version(List1,Patch0,Date0),
@@ -765,8 +765,8 @@ process_command_line(["-b", Arg |Args], I, Goal, M) :- !,
 	MI is -I, argv(MI,2),	% delete the 2 arguments
 	process_command_line(Args, I, Goal, M).
 process_command_line(["-e", Arg |Args], I, Goal, M) :- !,
-	open(Arg, string, Stream),
-	read(Stream, ArgTerm),
+        open(Arg, string, Stream),
+        read(Stream, ArgTerm),
 	close(Stream),
 	( var(Goal) -> Goal=ArgTerm ; true ),
 	MI is -I, argv(MI,2),	% delete the 2 arguments
@@ -786,9 +786,9 @@ printf_goal_body(Stream, Value, Module) :-
 	printf_current(Stream, Value, 'G', Module).
 
 printf_current(Stream, Value, Goal, Module) :-
-	output_mode(Mode),
+        output_mode(Mode),
 	concat_string(['%', Mode, Goal, 'w'], Format),
-	printf_body(Stream, Format, [Value], Module).
+        printf_body(Stream, Format, [Value], Module).
 
 
 %------------------------------------------------------------------------
@@ -806,23 +806,23 @@ process_file_permission(executable, 19).
 %--------------------------------
 
 mutex_init_body(Mutex, Module) :-
-	setval_body(Mutex, 0, Module).
+        setval_body(Mutex, 0, Module).
 
 mutex_body(Mutex, Goal, Module) :-
 	get_sys_flag(10, Worker),
 	( getval_body(Mutex, Worker, Module) ->	% already ours (if nested)
 	    ( call(Goal, Module) -> true ; fail )
 	;
-	    block(mutex_body(Mutex, Goal, Module, Worker), T,
+            block(mutex_body(Mutex, Goal, Module, Worker), T,
 		mutex_exit(T, Mutex, Worker, Module))
 	).
 
 mutex_body(Mutex, Goal, Module, Worker) :-
 	( test_and_setval_body(Mutex, 0, Worker, Module) ->
-	    ( call(Goal, Module) ->
+            ( call(Goal, Module) ->
 		setval_body(Mutex, 0, Module)
 	    ;
-		setval_body(Mutex, 0, Module),
+                setval_body(Mutex, 0, Module),
 		fail
 	    )
 	; 
@@ -841,7 +841,7 @@ mutex_one_body(Mutex, Goal, Module) :-
 
 mutex_one_body(Mutex, Goal, Module, Worker) :-
 	( test_and_setval_body(Mutex, 0, Worker, Module) ->
-	    ( call(Goal, Module) ->
+            ( call(Goal, Module) ->
 		setval_body(Mutex, abort, Module) % abort the other workers
 	    ;
 		setval_body(Mutex, 0, Module),
@@ -856,7 +856,7 @@ mutex_one_body(Mutex, Goal, Module, Worker) :-
 
 mutex_exit(T, Mutex, Worker, Module) :-
 	% We don't know whether the lock was grabbed or not!
-	(test_and_setval_body(Mutex, Worker, 0, Module) -> true ; true),
+        (test_and_setval_body(Mutex, Worker, 0, Module) -> true ; true),
 	exit_block(T).
 
 %--------------------------------
@@ -903,7 +903,7 @@ exec_exdr(GoalString,Module) :-
     	term_string(Goal, String)@Module,
 	call(Goal,Module).
     call_any(Goal, Module) :-
-	call(Goal,Module).
+        call(Goal,Module).
 
 %------------------------------------------
 % Some aliases (aliases for tools should
@@ -936,7 +936,7 @@ compile(File, Module) :-
 comp_list([], _) :- !.
 comp_list([H|T], M) :-
 	compile(H, M),
-	comp_list(T, M).
+        comp_list(T, M).
 
 compile_stream_(Stream, Module) :-
 	getval(compiled_stream, CS),
@@ -955,7 +955,7 @@ ensure_loaded([H|T], Module) :-
     ensure_loaded(T, Module).
 ensure_loaded([], _) :- -?-> !.
 ensure_loaded(File, Module) :-
-	get_file(File, yes, FileAtom),
+        get_file(File, yes, FileAtom),
 	!,
 	ensure_loaded1(FileAtom, Module).
 ensure_loaded(File, Module) :-
@@ -976,7 +976,7 @@ ensure_loaded1(FileAtom, Module) :-
 	->
 	    true
 	;
-	    do_compile(FileAtom, Module)
+            do_compile(FileAtom, Module)
 	).
 
 
@@ -1089,7 +1089,7 @@ check_permissions([], _) :- !.
 check_permissions([P|Ps], FileNameS) :-
 	((atom(P), process_file_permission(P, N)) ->
 	    sys_file_flag(FileNameS, N, on),
-	    check_permissions(Ps, FileNameS)
+            check_permissions(Ps, FileNameS)
 	;   set_bip_error(6)
         ).
 
@@ -1389,7 +1389,7 @@ erase_module_pragmas(Module) :-
 
 % File is assumed to be an atom, and the canonical name
 record_compiled_file(File, Goal, Module) :-
-	get_file_info(File, mtime, Time),
+        get_file_info(File, mtime, Time),
 	(recorded_(compiled_file, .(File, _, _, _), Ref) ->
 	    erase_record_(compiled_file, Ref)
 	;
@@ -1465,7 +1465,7 @@ run_stored_goals(Which, Module) :-
     run_list_of_goals([], _).
     run_list_of_goals([Goal|Goals], Module) :-
 	    ( block(call(Goal)@Module, _Tag, fail) ->
-		true
+                true
 	    ;
 	    	error(167, Goal, Module)
 	    ),
@@ -1582,7 +1582,7 @@ forget_discontiguous_predicates(Module) :-
 	( Key = Module:_ ->
 	    % the clause macro is already gone because the module was erased!
 	    store_get(discontiguous_clauses, Key, Bag),
-	    bag_abolish(Bag),
+            bag_abolish(Bag),
 	    store_delete(discontiguous_clauses, Key)
 	;
 	    true	% other module, ignore
@@ -1654,7 +1654,7 @@ load_module_if_needed(File, FileMod, Module) :-
 	    set_bip_error(80)
 	).
 load_module_if_needed(_, _, _) :-
-	set_bip_error(173).
+        set_bip_error(173).
 
 
 
@@ -1682,7 +1682,7 @@ get_module_name(_, _) :-
 % Fails with bip_error set.
 
 check_module_or_load_library(LibModule, _ContextModule) :-
-	illegal_module(LibModule, Err), !,
+        illegal_module(LibModule, Err), !,
 	set_bip_error(Err).
 check_module_or_load_library(LibModule, _ContextModule) :-
 	is_a_module(LibModule), !.
@@ -1791,7 +1791,7 @@ inline_calls(call_priority(Goal, Prio), Inlined, Module) :- -?->
 		wake
 	    ;
 		make_suspension(GoalCopy, Prio, S, Module),
-		schedule_suspensions(1, s([S]))
+                schedule_suspensions(1, s([S]))
 	    )
 	),
 	(integer(Prio) -> 
@@ -1833,7 +1833,7 @@ call_local(Goal, Module) :-
 	reinit_postponed(OldPL),
 	call(Goal, Module),
 	trigger_postponed,
-	reset_postponed(OldPL).
+        reset_postponed(OldPL).
 
 
 call_explicit_body(Goal, DefMod, CallerMod) :-
@@ -1948,7 +1948,7 @@ reverse(List, Rev) :-
 
     reverse([], L, L).
     reverse([H|T], L, SoFar) :-
-	reverse(T, L, [H|SoFar]).
+        reverse(T, L, [H|SoFar]).
 
 
 % length(?List, ?Length)
@@ -2000,7 +2000,7 @@ same_length([_|Xs], [_|Ys]) :-
 % into calls to record_interface/2
 
 record_interface((G1,G2), Module) :- -?->
-	record_interface(G1, Module),
+        record_interface(G1, Module),
 	record_interface(G2, Module).
 record_interface(Goal, Module) :-
 	interpret_obsolete_queries(Goal, IGoal), !,
@@ -2097,7 +2097,7 @@ erase_module_related_records(Module) :-
 	erase_deprecation_advice(Module),
 	forget_discontiguous_predicates(Module),
 	forget_stored_goals(initialization_goals, Module),
-	forget_stored_goals(finalization_goals, Module),
+        forget_stored_goals(finalization_goals, Module),
 
 	% erase information about which files were compiled into Module
 	forget_module_files(Module).
@@ -2170,10 +2170,10 @@ interface_closure(Module, Visited, Directive) :-
 	interface_closure_nopreds(Module, Visited, Directive).
 
 interface_closure_preds(Module, _, (export Pred)) :-
-	current_module_predicate(exported_reexported, Pred, Module).
+        current_module_predicate(exported_reexported, Pred, Module).
 
 interface_closure_nopreds(Module, Visited, Directive) :-
-	recorded_interface_directive(Module, D),
+        recorded_interface_directive(Module, D),
 	( D = (reexport Items from M) ->
 	    nonmember(M, Visited), % prevent looping
 	    split_export_list(Items, _Preds, [], Other, []),
@@ -2184,18 +2184,18 @@ interface_closure_nopreds(Module, Visited, Directive) :-
 	    interface_closure_nopreds_except(M, Other, [M|Visited], Directive)
 	; D = (reexport M) ->
 	    nonmember(M, Visited), % prevent looping
-	    interface_closure_nopreds(M, [M|Visited], Directive)
+            interface_closure_nopreds(M, [M|Visited], Directive)
 	;
 	    Directive = D
 	).
 
 interface_closure_preds_only(_Module, Preds, _Visited, (export Pred)) :-
-	member(Pred, Preds).
+        member(Pred, Preds).
 %	current_module_predicate(exported_reexported, Pred, Module).
 
 interface_closure_nopreds_only(Module, Other, Visited, Directive) :-
 	interface_closure_nopreds(Module, Visited, Directive),
-	Directive = (export Item),
+        Directive = (export Item),
 	not nonmember(Item, Other).
 
 interface_closure_preds_except(Module, Preds, _Visited, (export Pred)) :-
@@ -2293,7 +2293,7 @@ create_module(M) :-
 create_module(M, Exports, Language) :-
 	% if compiling, keep track of created modules (for declaration_checks)
 	( compiled_stream(_) -> record(compiled_modules, M) ; true ),
-	create_module_(M),
+        create_module_(M),
 	import_body(Language, M),
 	export_list(Exports, M).
 
@@ -3556,7 +3556,12 @@ inline_(Proc, Trans, Module) :-
 	tool(exec_string/2, exec_string/3),
 	tool(exec_exdr/1, exec_exdr/2),
 	tool(external/2, external_/3),
-	tool(expand_goal/2, expand_goal/3),
+        tool(expand_clause/2, expand_clause_/3),
+        tool(expand_goal/2, expand_goal/3),
+        tool(expand_goal_annotated/4, expand_goal_annotated_/5),
+        tool(expand_macros/2, expand_macros_/3),
+        tool(expand_macros_annoated/4, expand_macros_annotated_/5),
+        tool(expand_clause_annotated/4, expand_clause_annotated_/5),
 	tool(b_external/2, b_external_/3),
 	tool(external/1, external_body/2),
 	tool(b_external/1, b_external_body/2),
@@ -3597,7 +3602,10 @@ inline_(Proc, Trans, Module) :-
 	call_local/1,
 	exec_exdr/1,
 	exec_string/2,
-	extension/1,
+        expand_clause_annotated/4,
+        expand_goal_annotated/4,
+	expand_macros_annotated/4,
+        extension/1,
 	replace_attribute/2,
 	get_pager/1,
 	illegal_macro/5,
@@ -3682,7 +3690,9 @@ inline_(Proc, Trans, Module) :-
 	exit/1,
 	exists/1,
 	existing_file/4,
-	expand_goal/2,
+        expand_clause/2,
+        expand_goal/2,
+        expand_macros/2,
 	(export)/1,
 	external/1,
 	external/2,
@@ -4228,72 +4238,129 @@ tr_match((Head ?- Body), (Head :- -?-> Body)).
 % If it exits with a positive integer Tag, this is interpreted as
 % an error number and the error will be raised in a higher level
 % predicate, e.g. the compiler or expand_goal/2.
+%
+% Using annotated_term in raw form, as macro expansion not available yet!
+%:- export struct(annotated_term(
+%	term,		% var, atomic or compound
+%	type,		% atom
+%	from,		% integer
+%	to		% integer
+%	% may be extended in future
+%    )).
+
 
 expand_goal(Goal, Expanded, Module) :-
-	block(tr_goals(Goal, Expanded, Module),
+	expand_goal_annotated_(Goal, _, Expanded, _, Module).
+
+expand_goal_annotated_(Goal, AnnGoal, Expanded, AnnExpanded, Module) :-
+	block(tr_goals_annotated(Goal, AnnGoal, Expanded, AnnExpanded, Module),
 	    Tag,
 	    ( integer(Tag), Tag > 0 ->
 	    	error(Tag, Goal, Module)
 	    ;
-	    	exit_block(Tag)
+                exit_block(Tag)
 	    )
 	).
 
+tr_goals(Goal, Expanded, Module) :-
+        tr_goals_annotated(Goal, _, Expanded, _, Module).
 
-tr_goals(Var, Var, _) :- var(Var), !.
-tr_goals((G1, G2), (GC1, GC2), M) :- !,
-	tr_goals(G1, GC1, M),
-	tr_goals(G2, GC2, M).
-tr_goals((G1; G2), (GC1; GC2), M) :- !,
-	tr_goals(G1, GC1, M),
-	tr_goals(G2, GC2, M).
-tr_goals((G1 -> G2), (GC1 -> GC2), M) :- !,
-	tr_goals(G1, GC1, M),
-	tr_goals(G2, GC2, M).
-tr_goals(-?->(G), -?->(GC), M) :- !,
-	tr_goals(G, GC, M).
-tr_goals(not(G), not(GC), M) :-
+
+tr_goals_annotated(Var, Ann, Var, Ann, _) :- var(Var), !.
+tr_goals_annotated((G1, G2), Ann, (GC1, GC2), AnnExp, M) :- !,
+	Ann = annotated_term((AnnG1, AnnG2), Type, From, To),
+ 	AnnExp = annotated_term((AnnGC1,AnnGC2), Type, From, To),
+	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
+	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M).
+tr_goals_annotated((G1; G2), Ann, (GC1; GC2), AnnExp, M) :- !,
+	Ann = annotated_term((AnnG1;AnnG2), Type, From, To),
+ 	AnnExp = annotated_term((AnnGC1;AnnGC2), Type, From, To),
+	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
+	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M).
+tr_goals_annotated((G1 -> G2), Ann, (GC1 -> GC2), AnnExp, M) :- !,
+	Ann = annotated_term((AnnG1->AnnG2), Type, From, To),
+ 	AnnExp = annotated_term((AnnGC1->AnnGC2), Type, From, To),
+	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
+	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M).
+tr_goals_annotated(-?->(G), Ann, -?->(GC), AnnExp, M) :- !,
+	Ann = annotated_term(-?->(AnnG), Type, From, To),
+ 	AnnExp = annotated_term(-?->(AnnGC), Type, From, To),
+	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
+tr_goals_annotated(not(G), Ann, not(GC), AnnExp, M) :-
 	!,
-	tr_goals(G, GC, M).
-tr_goals(\+(G), \+(GC), M) :-
+	Ann = annotated_term(not(AnnG), Type, From, To),
+ 	AnnExp = annotated_term(not(AnnGC), Type, From, To),
+	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
+tr_goals_annotated(\+(G), Ann, \+(GC), AnnExp, M) :-
 	!,
-	tr_goals(G, GC, M).
-tr_goals(LM:G, GC, M) :- !,
-	tr_colon(G, GC, M, LM).
-tr_goals(Goal, GC, M) :-
-	( try_tr_goal(Goal, G1, M, M) -> tr_goals(G1, GC, M) ; GC = Goal ).
+	Ann = annotated_term(\+(AnnG), Type, From, To),
+ 	AnnExp = annotated_term(\+(AnnGC), Type, From, To),
+	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
+tr_goals_annotated(LM:G, Ann, GC, AnnGC, M) :- !,
+        Ann = annotated_term(AnnLM:AnnG, Type, From, To),
+        tr_colon(G, Ann, GC, AnnGC, M, LM).
+tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
+	( try_tr_goal(Goal, Ann, G1, AnnG1, M, M) -> 
+            tr_goals_annotated(G1, AnnG1, GC, AnnGC, M) 
+        ; 
+            GC = Goal,
+            AnnGC = Ann
+        ).
 
 
 % Inlining of ModuleList:Goal
 
-    tr_colon(G, NewG, _M, LM) :- var(LM), !, NewG = LM:G.
-    tr_colon(_G, NewG, _M, []) :- !, NewG = true.
-    tr_colon(G, NewG, M, [LM|LMs]) :- !,
-	( try_tr_goal(G, LMG0, LM, M) ->
-	    tr_goals(LMG0, LMG, M)
+    tr_colon(G, AnnG, NewG, AnnNewG, _M, LM) :- 
+        var(LM), !, 
+        NewG = LM:G,
+        AnnG = annotated_term(_,_,From,To),
+        transformed_annotate(LM, From, To, AnnLM),
+        AnnNewG = annotated_term((AnnLM:AnnG),transformed,From,To).
+    tr_colon(_G, AnnG, NewG, AnnNewG, _M, []) :- !, 
+        NewG = true,
+        AnnG = annotated_term(_,_,From,To),
+        AnnNewG = annotated_term(true,transformed,From,To).
+    tr_colon(G, AnnG, NewG, AnnNewG, M, [LM|LMs]) :- !,
+        AnnG = annotated_term(_,_,From,To),
+	( try_tr_goal(G, AnnG, LMG0, AnnLMG0, LM, M) ->
+	    tr_goals_annotated(LMG0, AnnLMG0, LMG, AnnLMG, M)
 	;
-	    LMG = LM:G
+            LMG = LM:G,
+            transformed_annotate(LM, From, To, AnnLM),
+            AnnLMG = annotated_term((AnnLM:AnnG),transformed,From,To)
 	),
 	( LMs == [] ->
-	    NewG = LMG
+	    NewG = LMG,
+            AnnNewG = AnnLMG
 	;
 	    NewG = (LMG,LMsG),
+            % make sure AnnLMsG inherits From,To
+            AnnNewG = annotated_term((AnnLMG,AnnLMsG),transformed,From,To),
+            AnnLMsG = annotated_term(_,transformed,From,To),
 	    copy_structure(G, GCopy),	% compiler bug workaround
-	    tr_colon(GCopy, LMsG, M, LMs)
+	    tr_colon(GCopy, AnnG, LMsG, AnnLMsG, M, LMs)
 	).
-    tr_colon(G, NewG, M, LM) :-
-	( try_tr_goal(G, LMG, LM, M) -> tr_goals(LMG, NewG, M) ; NewG = LM:G ).
+    tr_colon(G, AnnG, NewG, AnnNewG, M, LM) :-
+	( try_tr_goal(G, AnnG, LMG, AnnLMG, LM, M) -> 
+            tr_goals_annotated(LMG, AnnLMG, NewG, AnnNewG, M) 
+        ; 
+            NewG = LM:G,
+            AnnG = annotated_term(GAnn,Type,From,To),
+            AnnNewG = annotated_term(AnnLM:AnnG,transformed,From,To),
+            transformed_annotate(LM, From, To, AnnLM)
+        ).
 
 
 % Inline transformation of a standard goal
 
-    try_tr_goal(Goal, NewGoal, LM, CM) :-
+    try_tr_goal(Goal, AnnGoal, NewGoal, AnnNewGoal, LM, CM) :-
 	(atom(Goal); compound(Goal)),
 	make_goal_trafo(Goal, NewGoal, LM, TransGoal, CM),
-	subcall(TransGoal, Delayed, CM),
-	!,
-	(Delayed = [] ->
-	    true
+        subcall(TransGoal, Delayed, CM),
+        !,
+	(Delayed = [] -> 
+            AnnGoal = annotated_term(_GoalAnn, _Type, From, To), 
+	    transformed_annotate(NewGoal, From, To, AnnNewGoal)
 	;
 	    error(129, TransGoal, CM)
 	).
@@ -4307,52 +4374,71 @@ tr_goals(Goal, GC, M) :-
 % A transformation that aborts aborts the whole read-predicate.
 %
 
-:- export expand_macros/2.
-:- tool(expand_macros/2, expand_macros_/3).
+expand_macros_annotated_(Term, AnnTerm, Expanded, AnnExpanded, ContextModule) :-
+        expand_macros_term(Term, AnnTerm, Expanded, AnnExpanded,
+             ContextModule, none).
+
 
 expand_macros_(Term, Expanded, ContextModule) :-
-	expand_macros_term(Term, Expanded, ContextModule, none).
+	expand_macros_term(Term, _Ann, Expanded, _AnnExp, ContextModule, none).
 
-    expand_macros_term(Term, Expanded, _ContextModule, _Exclude) :-
+    expand_macros_term(Term, Ann, Expanded, AnnExpanded, _ContextModule, _Exclude) :-
 	var(Term),
+        Ann = AnnExpanded,
+        AnnExpanded = annotated_term(Term,Type,_From,_To),
+        (var(Type) -> Type = transformed ; true),
 	Expanded = Term.
-    expand_macros_term(Term, Expanded, ContextModule, Exclude) :-
+    expand_macros_term(Term, Ann, Expanded, AnnExpanded, ContextModule, Exclude) :-
 	nonvar(Term),
 	functor(Term, N, A),
-	(
-	    visible_term_macro(Term, TransPred, Options, TLM, ContextModule, 12 /*TRANS_PROP*/),
-	    nonmember(Exclude, Options)
-	->
-	    ( memberchk(protect_arg, Options) ->
-		ArgsExpanded = Term
-	    ;
-		% transform arguments
-		functor(ArgsExpanded, N, A),
-		expand_macros_args(1, A, Term, ArgsExpanded, ContextModule)
-	    ),
-	    ( transform(ArgsExpanded, Expanded, TransPred, TLM, ContextModule) ->
-		true
-	    ;
-		Expanded = ArgsExpanded
-	    )
-	;
-	    functor(Expanded, N, A),
-	    expand_macros_args(1, A, Term, Expanded, ContextModule)
-	).
+        ( Ann = annotated_term(TermAnn,Type,From,To), functor(TermAnn, N, A) ->
+            (
+              visible_term_macro(Term, TransPred, Options, TLM, ContextModule, 12 /*TRANS_PROP*/),
+              nonmember(Exclude, Options)
+            ->
+                ( memberchk(protect_arg, Options) ->
+                    ArgsExpanded = Term,
+                    AnnArgsExpanded = annotated_term(TermAnn,Type,From,To)
+                ;
+                    % transform arguments
+                    functor(ArgsExpanded, N, A),
+                    functor(ArgsExpandedAnn, N, A),
+                    expand_macros_args(1, A, Term, TermAnn, ArgsExpanded, ArgsExpandedAnn, ContextModule)
+                ),
+                AnnArgsExpanded = annotated_term(ArgsExpandedAnn,Type,From,To),
+                ( transform(ArgsExpanded, AnnArgsExpanded, Expanded, AnnExpanded, TransPred, TLM, ContextModule) ->
+                    true
+                ;
+                    Expanded = ArgsExpanded,
+                    AnnExpanded = AnnArgsExpanded
+                )
+            ;
+                functor(Expanded, N, A),
+                AnnExpanded = annotated_term(ExpandedAnn,Type,From,To),
+                functor(ExpandedAnn, N, A),
+                expand_macros_args(1, A, Term, TermAnn, Expanded, ExpandedAnn, ContextModule)
+            )
+        ;
+            % mismatch between Term and Ann, don't transform
+            Expanded = Term,
+            AnnExpanded = Ann
+        ).
 
-    expand_macros_args(I, A, Term, ArgsExpanded, ContextModule) :-
+    expand_macros_args(I, A, Term, TermAnn, ArgsExpanded, ArgsExpandedAnn, ContextModule) :-
     	( I > A ->
 	    true
 	;
 	    I1 is I+1,
 	    arg(I, Term, Arg),
 	    arg(I, ArgsExpanded, ExpandedArg),
-	    expand_macros_term(Arg, ExpandedArg, ContextModule, top_only),
-	    expand_macros_args(I1, A, Term, ArgsExpanded, ContextModule)
+            arg(I, TermAnn, AnnArg),
+            arg(I, ArgsExpandedAnn, AnnExpandedArg),
+	    expand_macros_term(Arg, AnnArg, ExpandedArg, AnnExpandedArg, ContextModule, top_only),
+	    expand_macros_args(I1, A, Term, TermAnn, ArgsExpanded, ArgsExpandedAnn, ContextModule)
 	).
 
 
-transform(Term, Expanded, TN/TA, TLM, ContextModule) :-
+transform(Term, Ann, Expanded, AnnExpanded, TN/TA, TLM, ContextModule) :-
 	% construct goal <trans>(<in>, <out>[, <module>])
 	functor(TransGoal, TN, TA),
 	arg(1, TransGoal, Term),
@@ -4367,23 +4453,55 @@ transform(Term, Expanded, TN/TA, TLM, ContextModule) :-
 	module_tag(TLM, MarkedTLM),
 	subcall(MarkedTLM:TransGoal@ContextModule, Delayed),
 	!,
-	( Delayed = [] -> true ; error(129, TLM:TransGoal, ContextModule) ).
+	( Delayed = [] ->
+            Ann = annotated_term(_ExpandedAnn,_Type,From,To), 
+            transformed_annotate(Expanded, From, To, AnnExpanded)
+        ; 
+            error(129, TLM:TransGoal, ContextModule)
+        ).
 
+transformed_annotate(Term, From, To, Ann) :-
+        Ann = annotated_term(TermAnn,transformed,From,To),
+        ( nonvar(Term), 
+          functor(Term, F, A), 
+          A > 0,
+          functor(TermAnn, F, A)
+        ->
+            transformed_annotate_args(1, A, From, To, Term, TermAnn)
+        ;
+            Term = TermAnn
+        ).
 
+transformed_annotate_args(N, A, From, To, Term, TermAnn) :-
+        ( N > A ->
+            true
+        ;
+            arg(N, Term, Arg),
+            arg(N, TermAnn, AnnArg),
+            transformed_annotate(Arg, From, To, AnnArg),
+            N1 is N + 1,
+            transformed_annotate_args(N1, A, From, To, Term, TermAnn)
+        ).
 
-:- export expand_clause/2.
-:- tool(expand_clause/2,expand_clause_/3).
+	
 
 expand_clause_(Clause, ClauseExpanded, ContextModule) :-
+	expand_clause_annotated_(Clause, _, ClauseExpanded, _, ContextModule).
+
+
+expand_clause_annotated_(Clause, AnnClause, ClauseExpanded,
+    AnnClauseExpanded, ContextModule) :-
 	clause_head(Clause, Head),
 	(
 	    nonvar(Head),
 	    visible_term_macro(Head, TransPred, _Options, TLM, ContextModule, 16 /*CLAUSE_TRANS_PROP*/),
-	    transform(Clause, ClauseExpanded, TransPred, TLM, ContextModule)
+	    transform(Clause, AnnClause, ClauseExpanded, AnnClauseExpanded,
+	         TransPred, TLM, ContextModule)
 	->
 	    true
 	;
-	    ClauseExpanded = Clause
+	    ClauseExpanded = Clause,
+	    AnnClauseExpanded = AnnClause
 	).
 
 
@@ -4530,7 +4648,7 @@ portray_goal(Goal, PortrayedGoal, CM) :-
     portray_goal(Goal, PortrayedGoal, CM, LM) :-
 	( atom(Goal) ; compound(Goal) ),
 	visible_term_macro(Goal, TransPred, _Options, TLM, LM, 15 /*WRITE_GOAL_TRANS_PROP*/),
-	transform(Goal, PortrayedGoal, TransPred, TLM, CM),
+	transform(Goal, _, PortrayedGoal, _, TransPred, TLM, CM),
 	!.
     portray_goal(Goal, Goal, _, _).
 
@@ -4558,7 +4676,7 @@ portray_term_(Term, Portrayed, What, Module) :-
 	nonvar(Term),
         (
 	    visible_term_macro(Term, TransPred, Options, TLM, ContextModule, 13), % WRITE_TRANS_PROP
-	    transform(Term, TopPortrayed, TransPred, TLM, ContextModule)
+	    transform(Term, _, TopPortrayed, _, TransPred, TLM, ContextModule)
         ->
             true
         ;
@@ -4594,7 +4712,7 @@ portray_term_(Term, Portrayed, What, Module) :-
 clause_spec(Clause, Name, Arity, Module) :-
 	clause_head(Clause, OldHead),
 	visible_term_macro(OldHead, TransPred, _Options, TLM, Module, 16 /*CLAUSE_TRANS_PROP*/),
-	transform(Clause, TrClause, TransPred, TLM, Module),
+	transform(Clause, _, TrClause, _, TransPred, TLM, Module),
 	clause_head(TrClause, Head),
 	functor(Head, Name, Arity).
 clause_spec(Clause, Name, Arity, _) :-
@@ -6810,6 +6928,7 @@ present_libraries(Sys, [Lib|L], [SysLib|T]) :-
 	present_libraries(Sys, L, T).
 present_libraries(Sys, [_|L], T) :-
 	present_libraries(Sys, L, T).
+
 
 % set the eclipse temporary directory
 :-      make_array_(eclipse_tmp_dir, prolog, local, sepia_kernel),

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.1 2006/09/23 01:55:04 snovello Exp $
+ * VERSION	$Id: opcode.h,v 1.2 2007/02/09 02:41:53 kish_shen Exp $
  */
 
 /*
@@ -450,7 +450,8 @@ extern vmcode bi_addr[];
 #define BI_Ne					(BLOCK1 + 339)
 #define BI_Arg					(BLOCK1 + 340)
 #define BI_MakeSuspension			(BLOCK1 + 341)
-#define OPCODES_WITHOUT_REGS			(BLOCK1 + 342)
+#define Debug_scall				(BLOCK1 + 342)
+#define OPCODES_WITHOUT_REGS			(BLOCK1 + 343)
 
 /*
  * Don't forget to update the following files:

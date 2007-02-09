@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.1 2006/09/23 01:55:34 snovello Exp $
+% Version:	$Id: source_processor.ecl,v 1.2 2007/02/09 02:46:51 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2006/09/23 01:55:34 $").
+:- comment(date, "$Date: 2007/02/09 02:46:51 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -64,7 +64,7 @@
 	file,			% canonical file name
 	line,			% integer
 	offset,			% integer
-	remaining_files,	% list of file names
+        remaining_files,	% list of file names
 	included_from,		% source_position or []
 	options,		% struct options
 	created_modules,	% list of modules
@@ -74,8 +74,8 @@
 
 :- export struct(source_term(
 	term,
-	vars
-	% todo: position information for subterms
+	vars,
+        annotated
     )).
 
 :- local struct(options(
@@ -90,9 +90,10 @@
     summary:"A source term with additional information",
     fields:[
 	term:"A term read from a source file (a clause, fact, etc)",
-	vars:"A list of the term's variables and their names"
+	vars:"A list of the term's variables and their names",
+        annotated:"An annotated version of term with source and type information"
     ],
-    see_also:[readvar/3]
+    see_also:[readvar/3,read_annoated/3]
 ]).
 
 :- comment(struct(source_position), [
@@ -303,12 +304,31 @@ source_close(SourcePos, Options) :-
     :- export struct(source_term(
 	term,		% the read term itself
 	vars,		% list of [VarName|Var] pairs (as in readvar/3)
+	annotated       % the read term with type and source annotations 
 	...
     )).
     </PRE>
     For category 'comment', the term is a string containing the comment.
     For category 'end', the term is the atom end_of_file. In both these
-    cases, vars is the empty list.
+    cases, vars is the empty list, and annotated is uninstantiated.
+    <P>
+    The annotated term is in the same format as that returned by 
+    read_annotated/2, i.e. a recursive wrapper structure around the
+    read term of the following format:
+<PRE>
+    :- export struct(annotated_term(
+        term,                   % var, atomic or compound
+                                % args of compound terms are annotated
+        type,                   % term type (see below)
+        from, to                % source position (integers)
+        ...
+    )).
+</PRE>
+    there is an additional type to that returned by read_annotated/2:
+    transformed, indicating that the (sub)term is the result of macro 
+    transformations of the source term. In this case, the source
+    position (from,to) are the position of the original source term that
+    was transformed. The actual type of the term itself is not returned.
     <P>
     Notes on module handling:  When source_read/3 encounters a
     module-directive (which is a handled_directive), the corresponding
@@ -319,7 +339,7 @@ source_close(SourcePos, Options) :-
     clauses or directives.  By default, source_close/2 removes these
     modules again in order to restore the original state.
     "),
-    see_also:[source_open/3,source_close/2,readvar/3],
+    see_also:[source_open/3,source_close/2,readvar/3,read_annotated/2],
     amode: source_read(+,-,-,-)
     ]).
 
@@ -329,21 +349,22 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	OldPos = source_position{stream:In,module:Module,oldcwd:OldCwd,
 		options:OptFlags,remaining_files:RF,included_from:IF},
 
-	read_next_term(In, TermOrEof, Vars, Error, Comment, OptFlags, Module),
-	get_stream_info(In, line, Line),
+	read_next_term(In, TermOrEof, AnnTermOrEof, Vars, Error, Comment, OptFlags, Module),
+        get_stream_info(In, line, Line),
 	get_stream_info(In, offset, Offset),
 
 	( nonvar(Error) ->
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, Pos1),
 	    source_read(Pos1, NextPos, Kind, SourceTerm)
-
+                    
 	; nonvar(Comment) ->
 	    SourceTerm = source_term{term:Comment,vars:[]},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 	    Kind = comment
 
 	; var(TermOrEof) ->
-	    SourceTerm = source_term{term:TermOrEof,vars:Vars},
+	    SourceTerm = source_term{term:TermOrEof,vars:Vars,
+                                     annotated:AnnTermOrEof},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 	    Kind = var
 
@@ -367,31 +388,37 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	    )
 
 	; TermOrEof = (:- Directive) ->
-	    SourceTerm = source_term{term:TermOrEof,vars:Vars},
+	    SourceTerm = source_term{term:TermOrEof,vars:Vars, annotated:AnnTermOrEof},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, ThisPos),
 	    handle_directives(Directive, ThisPos, NextPos, Kind)
 
 	; TermOrEof = (?- _) ->
-	    SourceTerm = source_term{term:TermOrEof,vars:Vars},
+	    SourceTerm = source_term{term:TermOrEof,vars:Vars, annotated:AnnTermOrEof},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 	    Kind = query
 
 	;
-	    apply_clause_expansion(TermOrEof, TransTerm, OptFlags, Module),
-	    SourceTerm = source_term{term:TransTerm,vars:Vars},
+	    apply_clause_expansion(TermOrEof, AnnTermOrEof, TransTerm, 
+                                   AnnTransTerm, OptFlags, Module),
+            SourceTerm = source_term{term:TransTerm,vars:Vars, annotated:AnnTransTerm},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 	    Kind = clause
 	).
 
-    read_next_term(In, _Term, _Vars, _Error, Comment, options{keep_comments:true}, _Module) ?-
+:- import expand_macros_annotated_/5, 
+          expand_clause_annotated/4,
+          expand_goal_annotated/4
+   from sepia_kernel.
+
+    read_next_term(In, _Term, _AnnTermOrEof, _Vars, _Error, Comment, options{keep_comments:true}, _Module) ?-
 	read_comment(In, Comment),	% may fail
 	!.
-    read_next_term(In, TermOrEof, Vars, Error, _Comment, _OptFlags, Module) :-
-	block(readvar_special(In, TermOrEof, Vars, Module), Error, skip_to_fullstop(In)).
+    read_next_term(In, TermOrEof, AnnTermOrEof, Vars, Error, _Comment, _OptFlags, Module) :-
+	block(readvar_special(In, TermOrEof, AnnTermOrEof, Vars, Module), Error, skip_to_fullstop(In)).
 
-    readvar_special(In, TermOrEof, Vars, Module) :-
-	readvar(In, TermOrEof, Vars)@Module,
-	% If readvar consumed a layout char as part of the fullstop,
+    readvar_special(In, TermOrEof, AnnTermOrEof, Vars, Module) :-
+        read_annotated(In, AnnTermOrEof0)@Module,
+	% If read_annotated consumed a layout char as part of the fullstop,
 	% put it back. Different cases (| indicates stream position):
 	%	term|<eof>	=> don't unget
 	%	term.|<eof>	=> don't unget
@@ -400,12 +427,20 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	%	term.|%comment	=> don't unget
 	% The point of doing this is so that pretty-printers don't lose
 	% any linefeeds etc that were present in the source.
-	unget(In),
+	unget(In), 
 	get_cc(In, _C, Class),
 	( Class = blank_space -> unget(In)
 	; Class = end_of_line -> unget(In)
 	; true
-	).
+	),
+        unannotate_termvar(AnnTermOrEof0, TermOrEof0, Vars),
+        ( AnnTermOrEof0 == end_of_file ->
+            TermOrEof = end_of_file
+        ;
+            expand_macros_annotated_(TermOrEof0, AnnTermOrEof0, TermOrEof,
+                                     AnnTermOrEof, Module)
+    ).
+        
 
     	
     % simple attempt at recovery: skip to fullstop at end of line
@@ -426,34 +461,66 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	).
 
 
-apply_clause_expansion(Term, TransTerm,
-		options{no_clause_expansion:CFlag,goal_expansion:GFlag},
-		Module) :-
+unannotate_termvar(end_of_file, Term, Vars) ?- !, 
+        Term = end_of_file, Vars = [].
+unannotate_termvar(AnnTerm, Term, Vars) :- 
+        unannotate_termvar1(AnnTerm, Term, Vars, []).
+
+    unannotate_termvar1(annotated_term{term:AnnTerm,type:Type}, Term, VIn, VOut)?-
+        nonvar(Type), 
+        ( Type == compound ->
+            functor(AnnTerm, F, A),
+            
+            functor(Term, F, A),
+            (for(I,1,A), fromto(VIn, V1,V2, VOut), 
+             param(AnnTerm,Term) do
+                arg(I, AnnTerm, AnnArg),
+                arg(I, Term, Arg),
+                unannotate_termvar1(AnnArg, Arg, V1, V2)
+            )
+        ; Type = var(Name) -> 
+            Term = AnnTerm,
+            VIn = [[Name|AnnTerm]|VOut]
+        ;
+            Term = AnnTerm,
+            VIn = VOut
+        ).
+
+
+apply_clause_expansion(Term, AnnTerm, TransTerm, AnnTransTerm,
+              options{no_clause_expansion:CFlag,goal_expansion:GFlag},
+	      Module) :-
 	(
 	    CFlag \== true,
 	    get_flag(macro_expansion, on)	% obey global flag as well
 	->
-	    expand_clause(Term, TransTerm1)@Module,
-	    ( GFlag == true, get_flag(goal_expansion, on) ->
-		expand_clause_goals(TransTerm1, TransTerm, Module)
+	    expand_clause_annotated(Term, AnnTerm, TransTerm1, AnnTransTerm1)@Module,
+            ( GFlag == true, get_flag(goal_expansion, on) ->
+		expand_clause_goals(TransTerm1, AnnTransTerm1, TransTerm,
+                                    AnnTransTerm, Module)
 	    ;
-		TransTerm = TransTerm1
+		TransTerm = TransTerm1,
+                AnnTransTerm = AnnTransTerm1
 	    )
 	;
-	    TransTerm = Term
+	    TransTerm = Term,
+            AnnTransTerm = AnnTerm
 	).
 
-
-expand_clause_goals(C, TC, _M) :- var(C), !,
-	TC = C.
-expand_clause_goals(H :- B, H :- BC, M) :-
+expand_clause_goals(C, AC, TC, ATC, _M) :- var(C), !,
+	TC = C, ATC = AC.
+expand_clause_goals(H :- B, Ann, H :- BC, AnnExp, M) :-
 	!,
-	expand_goal(B, BC)@M.
-expand_clause_goals([H|T], [HC|TC], M) :-
+        Ann = annotated_term{term:(AH:-AB),type:Type,from:From,to:To},
+        AnnExp = annotated_term{term:(AH:-ABC),type:Type,from:From,to:To},
+	expand_goal_annotated(B, AB, BC, ABC)@M.
+expand_clause_goals([H|T], Ann, [HC|TC], AnnExp, M) :-
 	!,
-	expand_clause_goals(H, HC, M),
-	expand_clause_goals(T, TC, M).
-expand_clause_goals(C, C, _).
+        Ann = annotated_term{term:[AH|AT],type:Type,from:From,to:To},
+        AnnExp = annotated_term{term:[AHC|ATC],type:Type,from:From,to:To},
+	expand_clause_goals(H, AH, HC, AHC, M),
+	expand_clause_goals(T, AT, TC, ATC, M).
+expand_clause_goals(C, AC, C, AC, _).
 
 
     % handled directives

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.1 2006/09/23 01:55:04 snovello Exp $
+ * VERSION	$Id: names.h,v 1.2 2007/02/09 02:41:53 kish_shen Exp $
  */
 
 /*
@@ -409,6 +409,7 @@ char * inst_name[] = {
 "BI_Ne                     ",
 "BI_Arg                    ",
 "BI_MakeSuspension         ",
+"Debug_scall               ",
 
 #if (NREGARG > 0)
 "MoveAR                    ",

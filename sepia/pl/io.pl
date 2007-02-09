@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.1 2006/09/23 01:55:21 snovello Exp $
+% Version:	$Id: io.pl,v 1.2 2007/02/09 02:46:51 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -492,6 +492,10 @@ option_format_compat(max_depth(N),	16'0002, 16'0000, N).
 :- export read_annotated/2.
 :- tool(read_annotated/2, read_annotated_/3).
 
+
+/**** REMEMBER TO UPDATE annotated_term used in raw form by expand_macros
+ **** and friends when changing the definition here
+ ****/
 :- export struct(annotated_term(
 	term,		% var, atomic or compound
 	type,		% atom

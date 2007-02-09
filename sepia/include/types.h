@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.1 2006/09/23 01:55:06 snovello Exp $
+ * $Id: types.h,v 1.2 2007/02/09 02:41:53 kish_shen Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -269,6 +269,9 @@ typedef struct
 {
     word	invoc;
     struct pri	*proc;
+    dident      file_path;
+    word	file_pos; 
+
 } fail_data_t;
 
 #endif
@@ -289,6 +292,8 @@ typedef struct			/* debugger registers */
     word	fail_culprit;	/* invoc of failure culprit */
 
     word	port_filter;	/* port pre-filtering */
+    dident      file_path;      /* source file for goal */
+    word	file_pos;       /* position in file for start of goal */
     word	min_invoc;
     word	max_invoc;
     word	min_level;
@@ -776,6 +781,7 @@ typedef struct
 	dynamic,
 	e,
 	eclipse_home,
+	empty,
 	eocl,
 	eof,
 	eoi,
