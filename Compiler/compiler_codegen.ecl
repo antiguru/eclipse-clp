@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.1 2006/09/23 01:45:08 snovello Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.2 2007/02/09 02:54:48 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:45:08 $").
+:- comment(date, "$Date: 2007/02/09 02:54:48 $").
 
 
 :- lib(hash).
@@ -188,18 +188,21 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    Code = [code{instr:nop,regs:OrigRegDescs}|Code1],
 	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, HeadArity, MaxArity, Module)
 
-	; Goal = goal{kind:regular,functor:P,lookup_module:LM,envmap:EAM,envsize:ESize} ->
+	; Goal = goal{kind:regular,functor:P,lookup_module:LM,envmap:EAM,envsize:ESize,path:Path,pos:Pos} ->
 	    P = _/CallArity,
 	    MaxArity is max(MaxArity0,CallArity),
 	    move_head_perms(HeadPerms0, Code, Code1a),
 	    generate_regular_puts(Goal, ChunkData0, _ChunkData, Code1a, Code1b, OutArgs),
 	    ( LM==Module -> Pred = P ; Pred = LM:P ),
 	    emit_initialize(EAM, Code1b, Code1),
+            (var(Path) -> Path1 = ''; concat_atom([Path],Path1)),
+            (var(Pos) -> Pos = 0 ; true),
 	    Code1 = [
 		% TODO: add EAMs to the instruction
 		% PRELIMINARY: always use callf instead of call (to reset DET flag)
 %		code{instr:debug_call(Pred,1),regs:OutArgs},code{instr:callf(Pred,ESize),regs:[]}],
-		code{instr:callf(Pred,ESize),regs:OutArgs}],
+		code{instr:debug_scall(Pred,1,Path1,Pos),regs:OutArgs},code{instr:callf(Pred,ESize),regs:[]}],
+%               code{instr:callf(Pred,ESize),regs:OutArgs}],
 	    NextChunk = Goals,
 	    AuxCode = AuxCode0,
 	    % end of chunk, finalize the code

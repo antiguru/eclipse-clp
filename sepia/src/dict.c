@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.1 2006/09/23 01:55:53 snovello Exp $
+ * VERSION	$Id: dict.c,v 1.2 2007/02/09 02:51:46 kish_shen Exp $
  */
 
 /*
@@ -1086,7 +1086,7 @@ _std_did_init(void)
 	/* The first did entered is the empty name. This is used for
 	 * unknown variable names. It has a zero bitfield representation.
 	 */
-	(void) in_dict("", 0);
+	d_.empty = 	in_dict("", 0);
 
 	d_.semi0 = 	in_dict(";", 0);
 	d_.naf = 	in_dict("\\+", 1);

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.1 2006/09/23 01:45:09 snovello Exp $
+% Version:	$Id: compiler_common.ecl,v 1.2 2007/02/09 02:54:48 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:45:09 $").
+:- comment(date, "$Date: 2007/02/09 02:54:48 $").
 
 
 %----------------------------------------------------------------------
@@ -115,7 +115,9 @@ default_options(options{
 	envsize:	"environment size (at call time)",
 	state:		"execution state at call time (struct(state)),"
 			" the result of the analysis phase",
-	lookup_module:	"module where to look up the predicate definition ([] if context module)",
+        pos:            "start position (from start of file) of goal",
+        path:           "full file path to file in which goal occurs",
+        lookup_module:	"module where to look up the predicate definition ([] if context module)",
 	definition_module: "module where the predicate is defined ([] if unknown)"
     ]
 ]).
@@ -128,7 +130,9 @@ default_options(options{
 	envmap,
 	envsize,
 	state,
-    	lookup_module,
+        pos,
+        path,
+        lookup_module,
     	definition_module	% cached
     )).
 

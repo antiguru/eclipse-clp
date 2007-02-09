@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.1 2006/09/23 01:45:11 snovello Exp $
+% Version:	$Id: compiler_top.ecl,v 1.2 2007/02/09 02:54:48 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:45:11 $").
+:- comment(date, "$Date: 2007/02/09 02:54:48 $").
 
 :- comment(desc, html("
 	This module contains the toplevel predicates for invoking the
@@ -83,6 +83,9 @@
 :- export compile_pred/2.
 :- tool(compile_pred/2, compile_pred/3).
 compile_pred(Clauses, OptionList, Module) :-
+        compile_pred_annotated(Clauses, OptionList, _Ann, _Files, Module).
+
+compile_pred_annotated(Clauses, OptionList, AnnClauses, Files, Module) :-
 	( OptionList = options{} ->
 	    Options = OptionList
 	; get_options(OptionList, Options)@compiler_common ->
@@ -92,7 +95,7 @@ compile_pred(Clauses, OptionList, Module) :-
 	    print_default_options(error)@compiler_common,
 	    abort
 	),
-	compile_pred_to_wam(Clauses, WAM, OptionList, Module),
+	compile_pred_to_wam_annotated(Clauses, AnnClauses, Files, WAM, OptionList, Module),
 	Clauses = [Clause|_],
 	extract_pred(Clause, F, A),
 	( Options = options{output:print} ->
@@ -133,6 +136,10 @@ compile_pred(Clauses, OptionList, Module) :-
 :- export compile_pred_to_wam/3.
 :- tool(compile_pred_to_wam/3, compile_pred_to_wam/4).
 compile_pred_to_wam(Clauses, FinalCode, OptionList, Module) :-
+        compile_pred_to_wam_annotated(Clauses, _Ann, _Files, FinalCode, OptionList, Module).
+
+compile_pred_to_wam_annotated(Clauses, AnnCs, Files, FinalCode, OptionList,
+                              Module) :-
 	( OptionList = options{} ->
 	    Options = OptionList
 	; get_options(OptionList, Options)@compiler_common ->
@@ -144,7 +151,7 @@ compile_pred_to_wam(Clauses, FinalCode, OptionList, Module) :-
 	),
 	
 	% Create our normal form
-	normalize_clauses(Clauses, [], NormPred0, _NVars, Module),
+	normalize_clauses_annotated(Clauses, AnnCs, [], Files, NormPred0, _NVars, Module),
 %	print_normalized_clause(output, NormPred0),
 
 	% Do some intra-predicate flow analysis
@@ -215,34 +222,54 @@ compile_file(File, OptionList, Module) :-
 	    fromto(SourcePos0, SourcePos1, SourcePos2, SourcePosEnd),
 	    fromto(ClauseTail, Clauses0, Clauses1, []),
 	    fromto(ClauseTail, ClauseTail0, ClauseTail1, []),
+	    fromto(AnnClauseTail, AnnClauses0, AnnClauses1, []),
+	    fromto(AnnClauseTail, AnnClauseTail0, AnnClauseTail1, []),
+	    fromto(FileTail, Files0, Files1, []),
+	    fromto(FileTail, FileTail0, FileTail1, []),
 	    fromto(none, Pred0, Pred1, none),
 	    param(Options)
 	do
 	    source_read(SourcePos1, SourcePos2, Class, SourceTerm),
-	    arg(module of source_position, SourcePos1, PosModule),
-	    arg(term of source_term, SourceTerm, Term),
-
+            SourcePos1 = source_position{module:PosModule,file:CFile},
+            SourceTerm = source_term{term:Term,annotated:Ann},
+            
 	    ( Class = clause ->
 		extract_pred(Term, N, A),
 		Pred1 = PosModule:N/A,
 		( Pred1 = Pred0 ->		% new clause for same pred
 		    ClauseTail0 = [Term|ClauseTail1],
-		    Clauses1 = Clauses0
+                    Clauses1 = Clauses0,
+                    AnnClauseTail0 = [Ann|AnnClauseTail1],
+                    AnnClauses1 = AnnClauses0,
+                    FileTail0 = [CFile|FileTail1],
+                    Files1 = Files0
 		;
 		    ClauseTail0 = [],		% new pred, compile previous
-		    compile_predicate(Pred0, Clauses0, Options),
-		    Clauses1 = [Term|ClauseTail1]
+                    AnnClauseTail0 = [],
+                    FileTail0 = [],
+                    compile_predicate(Pred0, Clauses0, AnnClauses0, Files0, Options),
+		    Clauses1 = [Term|ClauseTail1],
+                    AnnClauses1 = [Ann|AnnClauseTail1],
+                    Files1 = [CFile|FileTail1]
 		)
 
 	    ; Class = comment ->		% comment, ignore
 		Pred1 = Pred0,
 		ClauseTail1 = ClauseTail0,
-		Clauses1 = Clauses0
+		Clauses1 = Clauses0,
+		AnnClauseTail1 = AnnClauseTail0,
+		AnnClauses1 = AnnClauses0,
+		FileTail1 = FileTail0,
+		Files1 = Files0
 
 	    ; % other classes are taken as predicate separator
 		ClauseTail0 = [],		% compile previous predicate
-		compile_predicate(Pred0, Clauses0, Options),
+                AnnClauseTail0 = [],
+                FileTail0 = [],
+                compile_predicate(Pred0, Clauses0, AnnClauses0, Files0, Options),
 		Clauses1 = ClauseTail1,
+                AnnClauses1 = AnnClauseTail1,
+                Files1 = FileTail1,
 		Pred1 = none,
 
 		( Class = directive ->
@@ -260,10 +287,10 @@ compile_file(File, OptionList, Module) :-
 	compiler_options_cleanup(Options).
 
 
-    compile_predicate(_, [], _) :- !.
-    compile_predicate(M:NA, Clauses, Options) :-
+    compile_predicate(_, [], _, _, _) :- !.
+    compile_predicate(M:NA, Clauses, AClauses, Files, Options) :-
 	writeln(log_output, compiling(M:NA)),
-	compile_pred(Clauses, Options, M).
+        compile_pred_annotated(Clauses, Options, AClauses, Files, M).
 
 
     extract_pred(Head :- _, N, A) :- !,

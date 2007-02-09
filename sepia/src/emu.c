@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.1 2006/09/23 01:55:59 snovello Exp $
+ * VERSION	$Id: emu.c,v 1.2 2007/02/09 02:51:46 kish_shen Exp $
  */
 
 /*
@@ -2259,13 +2259,14 @@ _handle_events_at_res_:				/* (tmp1) */
 
 	if (DBG_PRI)
 	{
-	    PushDynEnvHdr(tmp1+3, WAS_CALL, PP);	/* save arity, PP */
-	    (--SP)->tag.kernel = TPTR;		/* ... and debug info */
-	    SP->val.wptr = (uword *) DBG_PRI;
-	    (--SP)->tag.kernel = TINT;
-	    SP->val.nint = DBG_PORT;
-	    (--SP)->tag.kernel = TINT;
-	    SP->val.nint = DBG_INVOC;
+	    PushDynEnvHdr(tmp1+DYNENVDBGSIZE, WAS_CALL, PP);	/* save arity, PP */
+	    SP -= DYNENVDBGSIZE;
+	    DynEnvDbgPri(E)->tag.kernel = TPTR;		/* ... and debug info */
+	    DynEnvDbgPri(E)->val.wptr = (uword *) DBG_PRI;
+	    Make_Integer(DynEnvDbgPort(E), DBG_PORT);
+	    Make_Integer(DynEnvDbgInvoc(E), DBG_INVOC);
+	    Make_Atom(DynEnvDbgPath(E), DBG_PATH);
+	    Make_Integer(DynEnvDbgPos(E), DBG_POS);
 	    PP = (emu_code) &restore_debug_code_[1];
 	    DBG_PRI = 0;
 	}
@@ -3758,6 +3759,8 @@ _pop_choice_point_:			/* (pw2 points to arguments,DBG_PORT) */
 		    {
 			FTRACE[FDROP].invoc = DInvoc(pw1);
 			FTRACE[FDROP].proc = DProc(pw1);
+			FTRACE[FDROP].file_path = DPath(pw1);
+			FTRACE[FDROP].file_pos = DPos(pw1);
 		    }
 		}
 		RLEVEL = pw1 ? DLevel(pw1) : -1;
@@ -4199,6 +4202,9 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT) */
 		    {
 			FTRACE[FDROP].invoc = DInvoc(pw1);
 			FTRACE[FDROP].proc = DProc(pw1);
+			FTRACE[FDROP].file_path = DPath(pw1);
+			FTRACE[FDROP].file_pos = DPos(pw1);
+
 		    }
 		}
 		RLEVEL = pw1 ? DLevel(pw1) : -1;
@@ -5194,8 +5200,8 @@ _match_values_:
 	    if (DynEnvFlags(E) & WAS_NONDET) {Clr_Det;} else {Set_Det;}
 
 	    if (DynEnvFlags(E) & WAS_CALL) {		/* debug event frame */
-		err_code = (E-3)->val.nint;		/* port */
-		pw1 = E-4;
+		err_code = DynEnvDbgPort(E)->val.nint;		/* port */
+		pw1 = E-DYNENVDBGSIZE-1;
 	    } else {
 		pw1 = E-1;
 		err_code = 0;
@@ -5229,20 +5235,20 @@ _match_values_:
 	    if ((emu_code) DynEnvVal(E) == (emu_code) return_code_)
 	    {
 		/* can't handle the port, it's inlined */
-		(E-3)->val.nint &= ~LAST_CALL;		/* port */
+		DynEnvDbgPort(E)->val.nint &= ~LAST_CALL;	/* port */
 		PP = (emu_code) &restore_code_[1];
 		Next_Pp;
 	    }
-	    proc = (pri *) (E-2)->val.wptr;			/* pri */
-	    err_code = (E-3)->val.nint;				/* port */
+	    proc = (pri *) DynEnvDbgPri(E)->val.wptr;		/* pri */
+	    err_code = DynEnvDbgPort(E)->val.nint;		/* port */
 #ifndef USE_LAST_FLAG
-	    (E-3)->val.nint |= LAST_CALL;
+	    DynEnvDbgPort(E)->val.nint |= LAST_CALL;
 #endif
 	    /*
 	    print_port(current_err_, err_code);
 	    newline(current_err_);
 	    */
-	    DBG_INVOC = (E-4)->val.nint;			/* invoc */
+	    DBG_INVOC = DynEnvDbgInvoc(E)->val.nint;		/* invoc */
 	    if (!DBG_INVOC)
 	    	DBG_INVOC = NINVOC++;
 	    val_did = PriDid(proc);
@@ -5260,7 +5266,7 @@ _match_values_:
 		    TG->val.did = val_did;
 		    (TG++)->tag.kernel = TDICT;
 		}
-		pw1 = E - 4;
+		pw1 = E - DYNENVDBGSIZE - 1;
 		for(; tmp1 > 0; tmp1--)
 		{
 		    pw2 = --pw1;
@@ -5284,7 +5290,8 @@ _match_values_:
 	    val_did = PriModule(proc);
 	    if (val_did == D_UNKNOWN) val_did = proc->module_ref;
 	    Push_Dbg_Frame(pw1, DBG_INVOC, scratch_pw.val, scratch_pw.tag,
-	    	tmp1, WP, proc, val_did)
+	    	tmp1, WP, proc, DynEnvDbgPath(E)->val.did, 
+		DynEnvDbgPos(E)->val.nint, val_did)
 	    if (OfInterest(PriFlags(proc), DBG_INVOC, tmp1))
 	    {
 		A[2] = TAGGED_TD;			/* New call stack */
@@ -6104,6 +6111,9 @@ _end_external_:
 			DBG_PRI = PP[0].proc_entry;
 			DBG_PORT = PP[1].nint;
 			DBG_INVOC = 0L;
+			/* indicate source not used */
+			DBG_PATH = d_.empty;
+			DBG_POS = 0L;
 			Fake_Overflow;
 		    }
 		} else /* if (PriFlags(proc) & DEBUG_ST) */ {
@@ -6116,11 +6126,57 @@ _end_external_:
 			DBG_PRI = PP[0].proc_entry;
 			DBG_PORT = PP[1].nint;
 			DBG_INVOC = 0L;
+			DBG_PATH = d_.empty;
+			DBG_POS = 0L;
 			Fake_Overflow;
 		    }
 		}
 	    }
 	    PP += 2;
+	    Next_Pp;
+
+
+	    /*
+	     * raise a debug-event, i.e. trigger a debugger call
+	     * in the subsequent Call/Jmp/Chain instruction. Source
+             * information may be supplied (filepath, position) 
+	     */
+	Case(Debug_scall, I_Debug_scall)	/* proc, port, path, pos */
+	    if (TD || (PriFlags(PP[0].proc_entry) & DEBUG_ST)) {
+		if (TD) {
+#ifdef UNTESTED_FIX
+		    if (PriFlags(PP[0].proc_entry) & DEBUG_ST)
+		    {
+			/* we abuse the DEBUG_SP bit to reinit creep/leap mode */
+			if (PriFlags(PP[0].proc_entry) & DEBUG_SP)
+			    TRACEMODE &= ~TR_LEAPING;
+		    }
+#endif
+		    if (Tracing && AnyPortWanted && !InvisibleProc(PP[0].proc_entry)) {
+			DBG_PRI = PP[0].proc_entry;
+			DBG_PORT = PP[1].nint;
+			DBG_PATH = PP[2].did;
+			DBG_POS = PP[3].nint;
+			DBG_INVOC = 0L;
+			Fake_Overflow;
+		    }
+		} else /* if (PriFlags(proc) & DEBUG_ST) */ {
+		    if (TRACEMODE & TR_STARTED) {
+			/* we abuse the DEBUG_SP bit to init creep/leap mode */
+			TRACEMODE |= (PriFlags(PP[0].proc_entry) & DEBUG_SP) ?
+					    TR_TRACING : TR_LEAPING;
+		    }
+		    if (AnyPortWanted) {
+			DBG_PRI = PP[0].proc_entry;
+			DBG_PORT = PP[1].nint;
+			DBG_PATH = PP[2].did;
+			DBG_POS = PP[3].nint;
+			DBG_INVOC = 0L;
+			Fake_Overflow;
+		    }
+		}
+	    }
+	    PP += 4;
 	    Next_Pp;
 
 
@@ -6171,7 +6227,8 @@ _end_external_:
 			    scratch_pw.tag.kernel = TNIL;
 			    Push_Dbg_Frame(pw1, NINVOC,
 			    	scratch_pw.val, scratch_pw.tag,
-				DLevel(TD)+1, 1, proc, d_.kernel_sepia)
+				DLevel(TD)+1, 1, proc, 
+				d_.empty, 0, d_.kernel_sepia)
 			    Set_Tf_Flag(TD, TF_NOGOAL);
 			    NINVOC++;
 			}
@@ -6373,6 +6430,8 @@ _end_external_:
 		    {
 			FTRACE[FDROP].invoc = DInvoc(td);
 			FTRACE[FDROP].proc = DProc(td);
+			FTRACE[FDROP].file_path = DPath(td);
+			FTRACE[FDROP].file_pos = DPos(td);
 		    }
 		}
 		RLEVEL = td ? DLevel(td) : -1;
