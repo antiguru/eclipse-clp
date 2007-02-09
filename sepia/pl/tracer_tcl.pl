@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.1 2006/09/23 01:55:39 snovello Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.2 2007/02/09 13:05:56 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -117,6 +117,7 @@
         set_usepred_info/5,
         reenable_usepred/0,
         set_tracer_command/1,
+	read_file_for_gui/1,
 	saros_get_library_path/1,
 	saros_set_library_path/1,
 	saros_compile/1,
@@ -185,11 +186,12 @@ trace_line_handler_tcl(_, Current) :-
 	!,
 	flush(debug_output),
 	open(string(""), write, SS),
-	make_trace_line(SS, Current, Depth, Port, Invoc, Prio),
+	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, FPath, FPos),
 	get_stream_info(SS, name, Line),
 	close(SS),
-	port_style(Port, Style),
-	write_exdr(debug_traceline, [Depth, Style, Line, Invoc, Port, Prio]),
+        port_style(Port, Style),
+	write_exdr(debug_traceline, [Depth, Style, Line, Invoc, Port, Prio,
+                                     FPath, FPos]),
 	flush(debug_traceline),	% may not work in nested emulator...
         peer_do_multitask(tracer),
         getval(tracer_command, Cmd),
@@ -226,9 +228,12 @@ filter_count_and_reset(SpyStatus) :-
         setval(filter_status, off).
         
 make_trace_line(Stream, trace_line with [port:Port, frame:Frame], Depth,
-                Port, Invoc, Prio) :-
-	Frame = tf with [invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M],
+                Port, Invoc, Prio, FPath, FPos) :-
+	Frame = tf with [invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M,
+                         path:Path0, pos:FPos],
 	register_inspected_term(Goal, M),
+        % wrapper around pathname to avoid empty string 
+        (Path0 == '' -> FPath = no ; FPath = p(Path0)),
         % print priority only if not the normal 12
         (Prio == 12 -> PrioS = "" ; concat_string([<,Prio,>], PrioS)),
 	( get_tf_prop(Frame, skip, on) -> Prop = 0'S ; Prop = 0'  ),
@@ -1764,7 +1769,7 @@ get_ancestors_info(Frame0, Anc0, Anc) :-
 
 	 ;   open(string(""), write, SS),
 	     make_trace_line(SS, trace_line with [port:'....',frame:Frame0],
-                             Depth, _Port, Invoc, Prio),
+                             Depth, _Port, Invoc, Prio, _Path, _Pos),
  	     get_stream_info(SS, name, Line),
 	     close(SS),
 	     Frame0 = tf with [parent: PFrame],
@@ -1774,7 +1779,7 @@ get_ancestors_info(Frame0, Anc0, Anc) :-
 get_current_traceline(Depth, Style, Line, Invoc) :-
         getval(exec_state, Current),
         open(string(""), write, SS),
-	make_trace_line(SS, Current, Depth, Port, Invoc, Prio),
+	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, _Path, _Pos),
 	get_stream_info(SS, name, Line),
 	close(SS),
 	port_style(Port, Style).
@@ -1845,6 +1850,26 @@ stop_report_stats_text_summary :-
 report_stats_text_summary :-
         \+ \+ statistics(statistics_text_summary_queue).
 
+
+%----------------------------------------------------------------------
+% source file reader
+%----------------------------------------------------------------------
+read_file_for_gui(File) :- 
+        open(File, read, S),
+        repeat,
+        read_string(S, end_of_line, _, Line),
+        write_exdr(gui_source_file, Line),
+        ( at(gui_source_file) > 32000 ->
+            write_exdr(gui_source_file, end_of_file),
+            flush(gui_source_file)
+        ;
+            true
+        ),
+        at_eof(S),
+        !,
+        write_exdr(gui_source_file, end_of_file),
+        flush(gui_source_file),
+        close(S).
 
 %----------------------------------------------------------------------
 % Initialise toplevel module
