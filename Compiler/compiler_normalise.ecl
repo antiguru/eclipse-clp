@@ -22,15 +22,15 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.2 2007/02/09 02:54:48 kish_shen Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.3 2007/02/10 23:54:13 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
 
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
-:- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/09 02:54:48 $").
+:- comment(author, "Joachim Schimpf, Kish Shen").
+:- comment(date, "$Date: 2007/02/10 23:54:13 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -183,8 +183,8 @@ normalize_clauses_noshare(Clauses, AnnClauses, VarNames, Files, NormClauses, Var
 :- mode normalize_body(?,?,?,+,+,-,+,+,-,-,+,+,+).
 normalize_body(Var, AnnVar, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM) :-
 	var(Var), !,
-        AnnVar = annotated_term{from:From},
-	normalize_goal(call(Var), From, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
+        AnnVar = annotated_term{from:From,to:To},
+	normalize_goal(call(Var), From-To, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
 
 normalize_body('', _Ann, _File, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, _LM, _CM) :- !.
 normalize_body(true, _Ann, _File, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, _LM, _CM) :- !.
@@ -256,14 +256,14 @@ normalize_body(G@M, Ann, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goa
         !,
 	% this could be changed such that the lookup module propagates
 	% through the @ (would be incompatible with Eclipse =< 5)
-        Ann = annotated_term{term:(AG@_AM),from:F},
+        Ann = annotated_term{term:(AG@_AM),from:F,to:T},
         ( atom(M) ->
             normalize_body(G, AG, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
 	; var(G) ->
             
-	    normalize_goal(call(G), F, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
+	    normalize_goal(call(G), F-T, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
 	;
-	    normalize_goal(G, F, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
+	    normalize_goal(G, F-T, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
 	).
 
 normalize_body(LM:G, Ann, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LM0, CM) :-
@@ -279,7 +279,7 @@ normalize_body(!, _Ann, _File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goa
 	cutto_goal(CallPos, Vs0, Vs, Cut, CuttoGoal).
 
 normalize_body(X=Y, Ann, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM) :- !,
-        Ann = annotated_term{from:From},
+        Ann = annotated_term{from:From,to:To},
         % for now, we do not try to break the annotated goal down to each
         % simple unification
         simplify_unification(X, Y, UnifGoals, []),
@@ -288,17 +288,17 @@ normalize_body(X=Y, Ann, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goa
 	    fromto(CallNr0,CallNr1,CallNr2,CallNr),
 	    fromto(Vs0,Vs1,Vs2,Vs),
 	    fromto(Goals,Goals1,Goals2,Goals0),
-	    param(Branch,Cut,LM,CM,From,File)
+	    param(Branch,Cut,LM,CM,From,To,File)
 	do
-	    normalize_goal(UnifGoal, From, File, Branch, CallNr1, CallNr2, Cut, Vs1, Vs2, Goals1, Goals2, LM, CM)
+	    normalize_goal(UnifGoal, From-To, File, Branch, CallNr1, CallNr2, Cut, Vs1, Vs2, Goals1, Goals2, LM, CM)
 	).
 
 normalize_body(G, Ann, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM) :-
-        Ann = annotated_term{from:From},
-        normalize_goal(G, From, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
+        Ann = annotated_term{from:From,to:To},
+        normalize_goal(G, From-To, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
 
 
-normalize_goal(G, From, File, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goals], Goals, LM, CM) :-
+normalize_goal(G, From-To, File, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goals], Goals, LM, CM) :-
 	Goal = goal{
 	    kind:Kind,
 	    callpos:CallPos,
@@ -306,7 +306,8 @@ normalize_goal(G, From, File, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goal
 	    lookup_module:LM1,
 	    functor:N1/A1,
 	    args:NormArgs,
-            pos:From,
+            from:From,
+            to:To,
             path:File
 	},
 	functor(G, N, A),
@@ -550,10 +551,10 @@ assign_varids(Vs, VarNames, N) :-
 % head variables of all clauses to be unified (for indexing analysis)!
 
 normalize_head(Head, AnnHead, File, CallPos, Goals, Goals0, Module, Vs0, Vs, HeadVars) :-
-        AnnHead = annotated_term{term:HeadAnn,from:From},
+        AnnHead = annotated_term{term:HeadAnn,from:From,to:To},
         Goals = [goal{
 		    kind:head, callpos:CallPos, lookup_module:Module,
-		    definition_module:Module, pos:From, path:File,
+		    definition_module:Module, from:From, to:To, path:File,
 		    functor:N/A, args:HeadArgs}
 		|Goals1],
 	    functor(Head, N, A),
@@ -569,7 +570,8 @@ normalize_head(Head, AnnHead, File, CallPos, Goals, Goals0, Module, Vs0, Vs, Hea
 	    do
 		Goals2 = [goal{
 			kind:simple,
-                        pos:From,
+                        from:From,
+                        to:To,
                         path:File,
 			callpos:CallPos,
 			definition_module:sepia_kernel,
@@ -577,7 +579,7 @@ normalize_head(Head, AnnHead, File, CallPos, Goals, Goals0, Module, Vs0, Vs, Hea
 			functor:(=)/2,
 			args:[HeadArg,NormArg]
 		    }|Goals3],
-                arg(I, HeadAnn, annotated_term{from:From}),
+                arg(I, HeadAnn, annotated_term{from:From,to:To}),
 		arg(I, Head, Arg),
 		normalize_term(Arg, NormArg, Vs1,Vs2),
 		( var(Arg), varnonmember(Arg,Seen1) ->
@@ -719,10 +721,10 @@ print_normalized_goal(Stream, Indent, disjunction{arity:A,callpos:P,branches:Bs}
 	writeln(Stream, ")").
 print_normalized_goal(Stream, Indent, goal{kind:K,callpos:P,state:State,
 		lookup_module:LM, functor:F,args:Args,envmap:EAM,
-                pos:Pos,path:Path}) :-
+                from:From,to:To,path:Path}) :-
 	indent(Stream, Indent),
 	( K == head -> write(Stream, "HEAD") ; write(Stream, "GOAL") ),
-	printf(Stream, "  %w  (lm:%w, kind:%w, path:%w, pos:%w callpos:", [F,LM,K,Path,Pos]),
+        printf(Stream, "  %w  (lm:%w, kind:%w, path:%w, from:%w to:%w callpos:", [F,LM,K,Path,From,To]),
 	print_call_pos(Stream, P),
 	decode_activity_map(EAM,Env),
 	printf(Stream, ", env:%w)%n", [Env]),

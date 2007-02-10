@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.2 2007/02/09 02:41:53 kish_shen Exp $
+ * $Id: types.h,v 1.3 2007/02/10 23:59:05 kish_shen Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -270,7 +270,8 @@ typedef struct
     word	invoc;
     struct pri	*proc;
     dident      file_path;
-    word	file_pos; 
+    word	file_frompos;
+    word	file_topos;
 
 } fail_data_t;
 
@@ -293,7 +294,8 @@ typedef struct			/* debugger registers */
 
     word	port_filter;	/* port pre-filtering */
     dident      file_path;      /* source file for goal */
-    word	file_pos;       /* position in file for start of goal */
+    word	file_frompos;   /* offset in file for start of goal */
+    word	file_topos;     /* offset in file for end of goal */
     word	min_invoc;
     word	max_invoc;
     word	min_level;

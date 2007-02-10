@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.2 2007/02/09 02:46:51 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.3 2007/02/11 00:00:49 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -794,7 +794,8 @@ instr(bi_arg(a(A1),a(A2),a(A3)),        340, [a(A1),a(A2),a(A3)]).
 instr(bi_make_suspension(a(A1),a(A2),a(A3),a(A4)),        
                                         341, [a(A1),a(A2),a(A3),a(A4)]).
 % new debug instructions
-instr(debug_scall(P,Port,Path,N),	342, [proc(P),port(Port),atom(Path),i(N)]).
+instr(debug_scall(P,Port,Path,F,T),	342, [proc(P),port(Port),atom(Path),
+                                              i(F),i(T)]).
 
 /***************************************************************************
  assemble

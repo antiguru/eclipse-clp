@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.2 2007/02/09 02:41:53 kish_shen Exp $
+ * $Id: sepia.h,v 1.3 2007/02/10 23:59:05 kish_shen Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1259,7 +1259,8 @@
 #define	DBG_PORT	g_emu_.trace_data.call_port
 #define	DBG_INVOC	g_emu_.trace_data.call_invoc
 #define DBG_PATH        g_emu_.trace_data.file_path
-#define DBG_POS         g_emu_.trace_data.file_pos
+#define DBG_FROM        g_emu_.trace_data.file_frompos
+#define DBG_TO          g_emu_.trace_data.file_topos
 
 #define	LCA	g_emu_.lca
 #define	VM_FLAGS	g_emu_.vm_flags

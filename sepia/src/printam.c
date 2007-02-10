@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.2 2007/02/09 02:51:46 kish_shen Exp $
+ * VERSION	$Id: printam.c,v 1.3 2007/02/10 23:56:07 kish_shen Exp $
  */
 
 /*
@@ -1193,6 +1193,7 @@ print_am(register vmcode *code,
 	        Proc;
 		Port;
 		Atom;
+		Integer;
 		Integer;
 		break;
 

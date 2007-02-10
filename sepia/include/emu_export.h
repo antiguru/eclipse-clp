@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.2 2007/02/09 02:41:53 kish_shen Exp $
+ * VERSION	$Id: emu_export.h,v 1.3 2007/02/10 23:59:05 kish_shen Exp $
  */
 
 /*
@@ -113,8 +113,9 @@ extern vmcode	it_fail_code_[],
 #define DynEnvDbgPort(e) ((e)-3)
 #define DynEnvDbgInvoc(e) ((e)-4)
 #define DynEnvDbgPath(e) ((e)-5)
-#define DynEnvDbgPos(e) ((e)-6)
-#define DYNENVDBGSIZE   5
+#define DynEnvDbgFrom(e) ((e)-6)
+#define DynEnvDbgTo(e)   ((e)-7)
+#define DYNENVDBGSIZE   6
 
 #define PushDynEnvHdr(NrSlots, Flags, Val) \
 	    (--SP)->tag.all = ((NrSlots) << 8) | Flags | TPTR;\
@@ -1224,9 +1225,10 @@ extern dident transf_did ARGS((long));
 #define TF_PROC		6
 #define TF_PRIO 	7
 #define TF_PATH		8
-#define TF_POS		9
-#define TF_MODULE      10
-#define TF_ARITY       10
+#define TF_FROM		9
+#define TF_TO	       10
+#define TF_MODULE      11
+#define TF_ARITY       11
 
 #define DInvoc(td)	(td)[TF_INVOC].val.nint
 #define DGoal(td)	(td)[TF_GOAL]
@@ -1234,9 +1236,10 @@ extern dident transf_did ARGS((long));
 #define DAncestor(td)	(td)[TF_ANCESTOR].val.ptr
 #define DProc(td)	(td)[TF_PROC].val.priptr
 #define DPath(td)	(td)[TF_PATH].val.did
-#define DPos(td)	(td)[TF_POS].val.nint
+#define DFrom(td)	(td)[TF_FROM].val.nint
+#define DTo(td)		(td)[TF_TO].val.nint
 
-#define Push_Dbg_Frame(pw, tinvoc, vgoal, tgoal, depth, prio, proc, filedid, pos, mod) { \
+#define Push_Dbg_Frame(pw, tinvoc, vgoal, tgoal, depth, prio, proc, filedid, from, to, mod) { \
 	pw = TG; \
 	Push_Struct_Frame(d_.trace_frame); \
 	if (PriFlags(proc) & DEBUG_SK) pw[TF_HEADER].tag.kernel |= TF_SKIPPED; \
@@ -1250,13 +1253,14 @@ extern dident transf_did ARGS((long));
 	pw[TF_PROC].tag.kernel = TPTR; \
         Make_Integer(&pw[TF_PRIO], (long) (prio)); \
 	Make_Atom(&pw[TF_PATH], filedid); \
-        Make_Integer(&pw[TF_POS], (long) (pos)); \
+        Make_Integer(&pw[TF_FROM], (long) (from)); \
+        Make_Integer(&pw[TF_TO], (long) (to)); \
 	pw[TF_MODULE].val.did = mod; \
 	pw[TF_MODULE].tag.kernel = ModuleTag(mod); \
 	Make_Struct(&TAGGED_TD, pw); \
     }
 
-#define Make_Dbg_Frame(pw, tinvoc, vgoal, tgoal, depth, prio, proc, filedid, pos, mod) { \
+#define Make_Dbg_Frame(pw, tinvoc, vgoal, tgoal, depth, prio, proc, filedid, from, to, mod) { \
 	pw = TG; \
 	Push_Struct_Frame(d_.trace_frame); \
 	if (PriFlags(proc) & DEBUG_SK) pw[TF_HEADER].tag.kernel |= TF_SKIPPED; \
@@ -1270,12 +1274,13 @@ extern dident transf_did ARGS((long));
 	pw[TF_PROC].tag.kernel = TPTR; \
         Make_Integer(&pw[TF_PRIO], (long) (prio)); \
 	Make_Atom(&pw[TF_PATH], filedid); \
-        Make_Integer(&pw[TF_POS], (long) (pos)); \
+        Make_Integer(&pw[TF_FROM], (long) (from)); \
+        Make_Integer(&pw[TF_TO], (long) (to)); \
 	pw[TF_MODULE].val.did = mod; \
 	pw[TF_MODULE].tag.kernel = ModuleTag(mod); \
     }
 
-#define Make_Partial_Dbg_Frame(pw, tinvoc, goal, prio, proc, filedid, pos, mod) { \
+#define Make_Partial_Dbg_Frame(pw, tinvoc, goal, prio, proc, filedid, from, to, mod) { \
 	pw = TG; \
 	Push_Struct_Frame(d_.trace_frame); \
 	if (PriFlags(proc) & DEBUG_SK) pw[TF_HEADER].tag.kernel |= TF_SKIPPED; \
@@ -1288,7 +1293,8 @@ extern dident transf_did ARGS((long));
 	pw[TF_PROC].tag.kernel = TPTR; \
         Make_Integer(&pw[TF_PRIO], (long) (prio)); \
 	Make_Atom(&pw[TF_PATH], filedid); \
-        Make_Integer(&pw[TF_POS], (long) (pos)); \
+        Make_Integer(&pw[TF_FROM], (long) (from)); \
+        Make_Integer(&pw[TF_TO], (long) (to)); \
 	pw[TF_MODULE].val.did = mod; \
 	pw[TF_MODULE].tag.kernel = ModuleTag(mod); \
     }

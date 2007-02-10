@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer.pl,v 1.2 2007/02/09 02:46:51 kish_shen Exp $
+% Version:	$Id: tracer.pl,v 1.3 2007/02/11 00:00:49 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- Port generation
 %
-% $Id: tracer.pl,v 1.2 2007/02/09 02:46:51 kish_shen Exp $
+% $Id: tracer.pl,v 1.3 2007/02/11 00:00:49 kish_shen Exp $
 %
 % Author:	Joachim Schimpf, IC-Parc
 %
@@ -69,7 +69,7 @@ tracemode,invoc,minlevel,maxlevel can be set via trace_mode/2.
 	struct(ports(call,exit,'*exit',redo,fail,	% enum, really
 		     resume,leave,delay,next,unify,spyterm,modify,else)),
         % tf must correspond to definition in emu_export.h!
-	struct(tf(invoc,goal,depth,chp,parent,proc,prio,path,pos,module)),
+	struct(tf(invoc,goal,depth,chp,parent,proc,prio,path,from,to,module)),
 	struct(trace_line(port,frame)).
 
 :- export

@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.2 2007/02/09 02:51:46 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.3 2007/02/10 23:56:07 kish_shen Exp $
  */
 
 /*
@@ -2266,7 +2266,8 @@ _handle_events_at_res_:				/* (tmp1) */
 	    Make_Integer(DynEnvDbgPort(E), DBG_PORT);
 	    Make_Integer(DynEnvDbgInvoc(E), DBG_INVOC);
 	    Make_Atom(DynEnvDbgPath(E), DBG_PATH);
-	    Make_Integer(DynEnvDbgPos(E), DBG_POS);
+	    Make_Integer(DynEnvDbgFrom(E), DBG_FROM);
+	    Make_Integer(DynEnvDbgTo(E), DBG_TO);
 	    PP = (emu_code) &restore_debug_code_[1];
 	    DBG_PRI = 0;
 	}
@@ -3760,7 +3761,8 @@ _pop_choice_point_:			/* (pw2 points to arguments,DBG_PORT) */
 			FTRACE[FDROP].invoc = DInvoc(pw1);
 			FTRACE[FDROP].proc = DProc(pw1);
 			FTRACE[FDROP].file_path = DPath(pw1);
-			FTRACE[FDROP].file_pos = DPos(pw1);
+			FTRACE[FDROP].file_frompos = DFrom(pw1);
+			FTRACE[FDROP].file_topos = DTo(pw1);
 		    }
 		}
 		RLEVEL = pw1 ? DLevel(pw1) : -1;
@@ -4203,8 +4205,8 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT) */
 			FTRACE[FDROP].invoc = DInvoc(pw1);
 			FTRACE[FDROP].proc = DProc(pw1);
 			FTRACE[FDROP].file_path = DPath(pw1);
-			FTRACE[FDROP].file_pos = DPos(pw1);
-
+			FTRACE[FDROP].file_frompos = DFrom(pw1);
+			FTRACE[FDROP].file_topos = DTo(pw1);
 		    }
 		}
 		RLEVEL = pw1 ? DLevel(pw1) : -1;
@@ -5291,7 +5293,7 @@ _match_values_:
 	    if (val_did == D_UNKNOWN) val_did = proc->module_ref;
 	    Push_Dbg_Frame(pw1, DBG_INVOC, scratch_pw.val, scratch_pw.tag,
 	    	tmp1, WP, proc, DynEnvDbgPath(E)->val.did, 
-		DynEnvDbgPos(E)->val.nint, val_did)
+		DynEnvDbgFrom(E)->val.nint, DynEnvDbgTo(E)->val.nint, val_did)
 	    if (OfInterest(PriFlags(proc), DBG_INVOC, tmp1))
 	    {
 		A[2] = TAGGED_TD;			/* New call stack */
@@ -6113,7 +6115,8 @@ _end_external_:
 			DBG_INVOC = 0L;
 			/* indicate source not used */
 			DBG_PATH = d_.empty;
-			DBG_POS = 0L;
+			DBG_FROM = 0L;
+			DBG_TO = 0L;
 			Fake_Overflow;
 		    }
 		} else /* if (PriFlags(proc) & DEBUG_ST) */ {
@@ -6127,7 +6130,8 @@ _end_external_:
 			DBG_PORT = PP[1].nint;
 			DBG_INVOC = 0L;
 			DBG_PATH = d_.empty;
-			DBG_POS = 0L;
+			DBG_FROM = 0L;
+			DBG_TO = 0L;
 			Fake_Overflow;
 		    }
 		}
@@ -6156,7 +6160,8 @@ _end_external_:
 			DBG_PRI = PP[0].proc_entry;
 			DBG_PORT = PP[1].nint;
 			DBG_PATH = PP[2].did;
-			DBG_POS = PP[3].nint;
+			DBG_FROM = PP[3].nint;
+			DBG_TO = PP[4].nint;
 			DBG_INVOC = 0L;
 			Fake_Overflow;
 		    }
@@ -6170,13 +6175,14 @@ _end_external_:
 			DBG_PRI = PP[0].proc_entry;
 			DBG_PORT = PP[1].nint;
 			DBG_PATH = PP[2].did;
-			DBG_POS = PP[3].nint;
+			DBG_FROM = PP[3].nint;
+			DBG_TO = PP[4].nint;
 			DBG_INVOC = 0L;
 			Fake_Overflow;
 		    }
 		}
 	    }
-	    PP += 4;
+	    PP += 5;
 	    Next_Pp;
 
 
@@ -6228,7 +6234,7 @@ _end_external_:
 			    Push_Dbg_Frame(pw1, NINVOC,
 			    	scratch_pw.val, scratch_pw.tag,
 				DLevel(TD)+1, 1, proc, 
-				d_.empty, 0, d_.kernel_sepia)
+				d_.empty, 0, 0, d_.kernel_sepia)
 			    Set_Tf_Flag(TD, TF_NOGOAL);
 			    NINVOC++;
 			}
@@ -6431,7 +6437,8 @@ _end_external_:
 			FTRACE[FDROP].invoc = DInvoc(td);
 			FTRACE[FDROP].proc = DProc(td);
 			FTRACE[FDROP].file_path = DPath(td);
-			FTRACE[FDROP].file_pos = DPos(td);
+			FTRACE[FDROP].file_frompos = DFrom(pw1);
+			FTRACE[FDROP].file_topos = DTo(pw1);
 		    }
 		}
 		RLEVEL = td ? DLevel(td) : -1;
