@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.2 2007/02/09 13:05:56 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.3 2007/02/11 00:01:52 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -186,12 +186,12 @@ trace_line_handler_tcl(_, Current) :-
 	!,
 	flush(debug_output),
 	open(string(""), write, SS),
-	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, FPath, FPos),
+	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, FPath, From, To),
 	get_stream_info(SS, name, Line),
 	close(SS),
         port_style(Port, Style),
 	write_exdr(debug_traceline, [Depth, Style, Line, Invoc, Port, Prio,
-                                     FPath, FPos]),
+                                     FPath, From, To]),
 	flush(debug_traceline),	% may not work in nested emulator...
         peer_do_multitask(tracer),
         getval(tracer_command, Cmd),
@@ -228,9 +228,9 @@ filter_count_and_reset(SpyStatus) :-
         setval(filter_status, off).
         
 make_trace_line(Stream, trace_line with [port:Port, frame:Frame], Depth,
-                Port, Invoc, Prio, FPath, FPos) :-
+                Port, Invoc, Prio, FPath, From, To) :-
 	Frame = tf with [invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M,
-                         path:Path0, pos:FPos],
+                         path:Path0, from:From, to:To],
 	register_inspected_term(Goal, M),
         % wrapper around pathname to avoid empty string 
         (Path0 == '' -> FPath = no ; FPath = p(Path0)),
@@ -1769,7 +1769,7 @@ get_ancestors_info(Frame0, Anc0, Anc) :-
 
 	 ;   open(string(""), write, SS),
 	     make_trace_line(SS, trace_line with [port:'....',frame:Frame0],
-                             Depth, _Port, Invoc, Prio, _Path, _Pos),
+                             Depth, _Port, Invoc, Prio, _Path, _From, _To),
  	     get_stream_info(SS, name, Line),
 	     close(SS),
 	     Frame0 = tf with [parent: PFrame],
@@ -1779,7 +1779,7 @@ get_ancestors_info(Frame0, Anc0, Anc) :-
 get_current_traceline(Depth, Style, Line, Invoc) :-
         getval(exec_state, Current),
         open(string(""), write, SS),
-	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, _Path, _Pos),
+	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, _Path, _From, _To),
 	get_stream_info(SS, name, Line),
 	close(SS),
 	port_style(Port, Style).
@@ -1854,22 +1854,29 @@ report_stats_text_summary :-
 %----------------------------------------------------------------------
 % source file reader
 %----------------------------------------------------------------------
-read_file_for_gui(File) :- 
-        open(File, read, S),
-        repeat,
-        read_string(S, end_of_line, _, Line),
-        write_exdr(gui_source_file, Line),
-        ( at(gui_source_file) > 32000 ->
+read_file_for_gui(File) :-
+        (get_file_info(File, readable, on) ->
+            open(File, read, S),
+            repeat,
+            read_string(S, end_of_line, _, Line),
+            write_exdr(gui_source_file, Line),
+            ( at(gui_source_file) > 32000 ->
+                write_exdr(gui_source_file, end_of_file),
+                flush(gui_source_file)
+            ;
+                true
+            ),
+            at_eof(S),
+            !,
             write_exdr(gui_source_file, end_of_file),
-            flush(gui_source_file)
+            flush(gui_source_file),
+            close(S)
         ;
-            true
-        ),
-        at_eof(S),
-        !,
-        write_exdr(gui_source_file, end_of_file),
-        flush(gui_source_file),
-        close(S).
+            concat_string(["File ", File, " cannot be read.%n"], Msg),
+            write_exdr(gui_source_file, Msg),
+            write_exdr(gui_source_file, end_of_file),
+            fail
+        ).
 
 %----------------------------------------------------------------------
 % Initialise toplevel module

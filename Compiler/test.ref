@@ -5,7 +5,7 @@ p :-
 
 p / 0:
 	put_variable             a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	jmp                      p / 1 
 
 ------ Test 2 -------
@@ -17,13 +17,13 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 3 -------
@@ -39,14 +39,14 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_variable             a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     0 
 label(L2):
 	put_variable             a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 label(L3):
 	exit                 
@@ -63,19 +63,19 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 label(L3):
 	exit                 
@@ -95,18 +95,18 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     1 
 label(L3):
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	chain                    p / 1 
 
 ------ Test 6 -------
@@ -125,20 +125,20 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              t / 1     1     ''     0 
+	debug_scall              t / 1     1     ''     0     0 
 	callf                    t / 1     0 
 label(L3):
 	exit                 
@@ -157,25 +157,25 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              f / 1     1     ''     0 
+	debug_scall              f / 1     1     ''     0     0 
 	callf                    f / 1     1 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
 	move                     y(1)     a(1) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              t / 1     1     ''     0 
+	debug_scall              t / 1     1     ''     0     0 
 	callf                    t / 1     0 
 label(L3):
 	exit                 
@@ -197,24 +197,24 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     1 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              t / 1     1     ''     0 
+	debug_scall              t / 1     1     ''     0     0 
 	callf                    t / 1     1 
 label(L3):
 	move                     y(1)     a(1) 
-	debug_scall              f / 1     1     ''     0 
+	debug_scall              f / 1     1     ''     0     0 
 	chain                    f / 1 
 
 ------ Test 9 -------
@@ -240,7 +240,7 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_variable             a(1) 
-	debug_scall              a / 1     1     ''     0 
+	debug_scall              a / 1     1     ''     0     0 
 	callf                    a / 1     1 
 	branch                   ref(L11) 
 label(L1):
@@ -249,27 +249,27 @@ label(L2):
 	try_me_else              0     0     ref(L4) 
 label(L3):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              b / 1     1     ''     0 
+	debug_scall              b / 1     1     ''     0     0 
 	callf                    b / 1     1 
 	branch                   ref(L6) 
 label(L4):
 	trust_me_inline          0     1 
 label(L5):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     1 
 label(L6):
 	try_me_else              0     0     ref(L8) 
 label(L7):
 	move                     y(1)     a(1) 
-	debug_scall              d / 1     1     ''     0 
+	debug_scall              d / 1     1     ''     0     0 
 	callf                    d / 1     0 
 	branch                   ref(L10) 
 label(L8):
 	trust_me_inline          0     1 
 label(L9):
 	move                     y(1)     a(1) 
-	debug_scall              e / 1     1     ''     0 
+	debug_scall              e / 1     1     ''     0     0 
 	callf                    e / 1     0 
 label(L10):
 label(L11):
@@ -293,7 +293,7 @@ label(L0):
 label(L1):
 	get_atom                 a(1)     a 
 	move                     a(2)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
 	branch                   ref(L4) 
 label(L2):
@@ -301,7 +301,7 @@ label(L2):
 label(L3):
 	get_atom                 a(1)     b 
 	move                     a(2)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 label(L4):
 	exit                 
@@ -313,7 +313,7 @@ p :-
 p / 0:
 	put_variable             a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	jmp                      p / 2 
 
 ------ Test 12 -------
@@ -326,15 +326,15 @@ p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	callf                    p / 2     1 
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              r / 2     1     ''     0 
+	debug_scall              r / 2     1     ''     0     0 
 	chain                    r / 2 
 
 ------ Test 13 -------
@@ -351,7 +351,7 @@ p / 0:
 label(L0):
 	put_variable             a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     0 
 	branch                   ref(L3) 
 label(L1):
@@ -359,7 +359,7 @@ label(L1):
 label(L2):
 	put_variable             a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              r / 2     1     ''     0 
+	debug_scall              r / 2     1     ''     0     0 
 	callf                    r / 2     0 
 label(L3):
 	exit                 
@@ -377,13 +377,13 @@ p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	callf                    p / 2     1 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     0 
 	branch                   ref(L3) 
 label(L1):
@@ -391,7 +391,7 @@ label(L1):
 label(L2):
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              r / 2     1     ''     0 
+	debug_scall              r / 2     1     ''     0     0 
 	callf                    r / 2     0 
 label(L3):
 	exit                 
@@ -412,7 +412,7 @@ p / 0:
 label(L0):
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	branch                   ref(L3) 
 label(L1):
@@ -420,12 +420,12 @@ label(L1):
 label(L2):
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              r / 2     1     ''     0 
+	debug_scall              r / 2     1     ''     0     0 
 	callf                    r / 2     1 
 label(L3):
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	chain                    p / 2 
 
 ------ Test 16 -------
@@ -445,11 +445,11 @@ p / 0:
 label(L0):
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              r / 2     1     ''     0 
+	debug_scall              r / 2     1     ''     0     0 
 	callf                    r / 2     0 
 	branch                   ref(L3) 
 label(L1):
@@ -457,11 +457,11 @@ label(L1):
 label(L2):
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              s / 2     1     ''     0 
+	debug_scall              s / 2     1     ''     0     0 
 	callf                    s / 2     1 
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              t / 2     1     ''     0 
+	debug_scall              t / 2     1     ''     0     0 
 	callf                    t / 2     0 
 label(L3):
 	exit                 
@@ -481,17 +481,17 @@ p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              f / 2     1     ''     0 
+	debug_scall              f / 2     1     ''     0     0 
 	callf                    f / 2     1 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              r / 2     1     ''     0 
+	debug_scall              r / 2     1     ''     0     0 
 	callf                    r / 2     0 
 	branch                   ref(L3) 
 label(L1):
@@ -499,11 +499,11 @@ label(L1):
 label(L2):
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              s / 2     1     ''     0 
+	debug_scall              s / 2     1     ''     0     0 
 	callf                    s / 2     1 
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              t / 2     1     ''     0 
+	debug_scall              t / 2     1     ''     0     0 
 	callf                    t / 2     0 
 label(L3):
 	exit                 
@@ -526,11 +526,11 @@ p / 0:
 label(L0):
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              r / 2     1     ''     0 
+	debug_scall              r / 2     1     ''     0     0 
 	callf                    r / 2     1 
 	branch                   ref(L3) 
 label(L1):
@@ -538,16 +538,16 @@ label(L1):
 label(L2):
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              s / 2     1     ''     0 
+	debug_scall              s / 2     1     ''     0     0 
 	callf                    s / 2     1 
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              t / 2     1     ''     0 
+	debug_scall              t / 2     1     ''     0     0 
 	callf                    t / 2     1 
 label(L3):
 	move                     y(1)     a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              f / 2     1     ''     0 
+	debug_scall              f / 2     1     ''     0     0 
 	chain                    f / 2 
 
 ------ Test 19 -------
@@ -562,13 +562,13 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              a / 1     1     ''     0 
+	debug_scall              a / 1     1     ''     0     0 
 	callf                    a / 1     1 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_variable             a(2) 
 	move                     y(1)     a(1) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	callf                    a / 2     0 
 	branch                   ref(L3) 
 label(L1):
@@ -577,7 +577,7 @@ label(L2):
 	put_variable             a(2) 
 	move                     a(2)     a(3) 
 	move                     y(1)     a(1) 
-	debug_scall              a / 3     1     ''     0 
+	debug_scall              a / 3     1     ''     0     0 
 	callf                    a / 3     0 
 label(L3):
 	exit                 
@@ -589,7 +589,7 @@ p :-
 
 p / 0:
 	allocate                 0 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	put_integer              a(1)     1 
 	put_integer              a(2)     2 
@@ -606,9 +606,9 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	put_integer              a(1)     2 
 	put_integer              a(2)     3 
@@ -625,7 +625,7 @@ p / 3:
 	move                     a(1)     a(3) 
 	put_atom                 a(1)     a 
 	put_atom                 a(2)     b 
-	debug_scall              q / 3     1     ''     0 
+	debug_scall              q / 3     1     ''     0     0 
 	jmp                      q / 3 
 
 ------ Test 33 -------
@@ -642,7 +642,7 @@ p / 2:
 	move                     a(1)     a(3) 
 	put_atom                 a(1)     a 
 	put_atom                 a(2)     b 
-	debug_scall              q / 3     1     ''     0 
+	debug_scall              q / 3     1     ''     0     0 
 	jmp                      q / 3 
 
 ------ Test 34 -------
@@ -655,7 +655,7 @@ p / 3:
 	put_variable             a(5) 
 	put_variable             a(6) 
 	bi_add                   a(4)     a(5)     a(6) 
-	debug_scall              p / 3     1     ''     0 
+	debug_scall              p / 3     1     ''     0     0 
 	jmp                      p / 3 
 
 ------ Test 35 -------
@@ -672,14 +672,14 @@ p / 1:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 label(L3):
 	exit                 
@@ -693,10 +693,10 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 37 -------
@@ -708,10 +708,10 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 38 -------
@@ -722,10 +722,10 @@ p(A) :-
 p / 1:
 	allocate                 1 
 	move                     a(1)     y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 39 -------
@@ -739,10 +739,10 @@ p / 1:
 	move                     a(1)     a(2) 
 	move                     a(1)     y(1) 
 	move                     a(2)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 40 -------
@@ -759,23 +759,23 @@ p / 0:
 	allocate                 2 
 	put_global_variable      a(1)     y(1) 
 	initialize               y([2]) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     2 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              r1 / 1     1     ''     0 
+	debug_scall              r1 / 1     1     ''     0     0 
 	callf                    r1 / 1     2 
 	move                     y(1)     a(1) 
 	move                     y(2)     a(2) 
-	debug_scall              r2 / 2     1     ''     0 
+	debug_scall              r2 / 2     1     ''     0     0 
 	callf                    r2 / 2     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     2 
 label(L2):
 	move                     y(1)     a(1) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     2 
 label(L3):
 	exit                 
@@ -802,10 +802,10 @@ label(L1):
 	trust_me_inline          0     2 
 label(L2):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	cut                      y(1)     1 
 label(L3):
@@ -831,10 +831,10 @@ label(L1):
 	trust_me_inline          0     2 
 label(L2):
 	move                     a(2)     y(2) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	cut                      y(1)     1 
 label(L3):
@@ -855,25 +855,25 @@ p / 0:
 	allocate                 2 
 	put_global_variable      a(1)     y(1) 
 	initialize               y([2]) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     2 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     2 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     2 
 label(L2):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     0 
 label(L3):
 	exit                 
@@ -893,25 +893,25 @@ p / 0:
 	allocate                 2 
 	put_global_variable      a(1)     y(1) 
 	initialize               y([2]) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     2 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     2 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     2 
 label(L2):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     2 
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     0 
 label(L3):
 	exit                 
@@ -938,38 +938,38 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     1 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     0 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     0 
 	branch                   ref(L5) 
 label(L1):
 	retry_me_inline          0     ref(L3)     1 
 label(L2):
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     0 
 	branch                   ref(L5) 
 label(L3):
 	trust_me_inline          0     1 
 label(L4):
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 label(L5):
 	exit                 
@@ -996,38 +996,38 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     1 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 	branch                   ref(L5) 
 label(L1):
 	retry_me_inline          0     ref(L3)     1 
 label(L2):
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     0 
 	branch                   ref(L5) 
 label(L3):
 	trust_me_inline          0     1 
 label(L4):
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     0 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     0 
 label(L5):
 	exit                 
@@ -1054,38 +1054,38 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     1 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     0 
 	branch                   ref(L5) 
 label(L1):
 	retry_me_inline          0     ref(L3)     1 
 label(L2):
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 	branch                   ref(L5) 
 label(L3):
 	trust_me_inline          0     1 
 label(L4):
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 label(L5):
 	exit                 
@@ -1107,32 +1107,32 @@ p / 0:
 	allocate                 3 
 	put_global_variable      a(1)     y(1) 
 	initialize               y([2, 3]) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     3 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     3 
 	put_global_variable      a(1)     y(2) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     3 
 	move                     y(2)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     3 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     3 
 label(L2):
 	put_global_variable      a(1)     y(3) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     3 
 	put_global_variable      a(2)     y(2) 
 	move                     y(3)     a(1) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     2 
 	move                     y(2)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     1 
 label(L3):
 	exit                 
@@ -1160,45 +1160,45 @@ p / 0:
 	allocate                 3 
 	put_global_variable      a(1)     y(1) 
 	initialize               y([2, 3]) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	callf                    s / 1     3 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     3 
 	put_global_variable      a(1)     y(2) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     3 
 	move                     y(2)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     3 
 	branch                   ref(L5) 
 label(L1):
 	retry_me_inline          0     ref(L3)     3 
 label(L2):
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     3 
 	put_global_variable      a(1)     y(2) 
-	debug_scall              q1 / 1     1     ''     0 
+	debug_scall              q1 / 1     1     ''     0     0 
 	callf                    q1 / 1     3 
 	move                     y(2)     a(1) 
-	debug_scall              q1 / 1     1     ''     0 
+	debug_scall              q1 / 1     1     ''     0     0 
 	callf                    q1 / 1     3 
 	branch                   ref(L5) 
 label(L3):
 	trust_me_inline          0     3 
 label(L4):
 	put_global_variable      a(1)     y(3) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     3 
 	put_global_variable      a(2)     y(2) 
 	move                     y(3)     a(1) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     2 
 	move                     y(2)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     1 
 label(L5):
 	exit                 
@@ -1222,25 +1222,25 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 label(L3):
 	try_me_else              0     0     ref(L5) 
 label(L4):
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     0 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     1 
 label(L6):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 label(L7):
 	exit                 
@@ -1264,26 +1264,26 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
 	put_global_variable      a(1)     y(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 label(L3):
 	try_me_else              0     0     ref(L5) 
 label(L4):
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     0 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     1 
 label(L6):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 label(L7):
 	exit                 
@@ -1298,10 +1298,10 @@ p / 1:
 	allocate                 1 
 	get_atom                 a(1)     a 
 	move                     a(1)     y(1) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	chain                    p / 1 
 
 ------ Test 55 -------
@@ -1315,10 +1315,10 @@ p / 1:
 	move                     a(1)     a(2) 
 	move                     a(1)     y(1) 
 	move                     a(2)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	chain                    p / 1 
 
 ------ Test 56 -------
@@ -1332,10 +1332,10 @@ p / 2:
 	get_value                a(1)     a(2) 
 	move                     a(1)     y(1) 
 	move                     a(2)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	chain                    p / 1 
 
 ------ Test 57 -------
@@ -1349,11 +1349,11 @@ p / 2:
 	get_value                a(1)     a(2) 
 	move                     a(1)     y(1) 
 	move                     a(2)     y(2) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     2 
 	move                     y(1)     a(1) 
 	move                     y(2)     a(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	chain                    p / 2 
 
 ------ Test 58 -------
@@ -1366,11 +1366,11 @@ p / 1:
 	allocate                 2 
 	move                     a(1)     y(1) 
 	move                     a(1)     y(2) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     2 
 	move                     y(2)     a(1) 
 	move                     y(1)     a(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	chain                    p / 2 
 
 ------ Test 59 -------
@@ -1382,10 +1382,10 @@ p(A) :-
 p / 1:
 	allocate                 1 
 	move                     a(1)     y(1) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	chain                    p / 1 
 
 ------ Test 60 -------
@@ -1398,11 +1398,11 @@ p / 0:
 	allocate                 2 
 	put_global_variable      y(1) 
 	move                     y(1)     y(2) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     2 
 	move                     y(1)     a(1) 
 	move                     y(2)     a(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	chain                    p / 2 
 
 ------ Test 101 -------
@@ -1416,17 +1416,17 @@ p / 0:
 	allocate                 2 
 	put_global_variable      a(1)     y(2) 
 	initialize               y([1]) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     2 
 	put_global_variable      a(1)     y(1) 
 	move                     y(2)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              t / 1     1     ''     0 
+	debug_scall              t / 1     1     ''     0     0 
 	chain                    t / 1 
 
 ------ Test 102 -------
@@ -1440,19 +1440,19 @@ p / 0:
 	allocate                 3 
 	put_global_variable      a(1)     y(3) 
 	initialize               y([1, 2]) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     3 
 	put_variable             a(3) 
 	put_global_variable      a(2)     y(2) 
 	move                     y(3)     a(1) 
-	debug_scall              q / 3     1     ''     0 
+	debug_scall              q / 3     1     ''     0     0 
 	callf                    q / 3     2 
 	put_global_variable      a(2)     y(1) 
 	move                     y(2)     a(1) 
-	debug_scall              r / 2     1     ''     0 
+	debug_scall              r / 2     1     ''     0     0 
 	callf                    r / 2     1 
 	move                     y(1)     a(1) 
-	debug_scall              t / 1     1     ''     0 
+	debug_scall              t / 1     1     ''     0     0 
 	chain                    t / 1 
 
 ------ Test 103 -------
@@ -1474,30 +1474,30 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              f / 1     1     ''     0 
+	debug_scall              f / 1     1     ''     0     0 
 	callf                    f / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              g / 1     1     ''     0 
+	debug_scall              g / 1     1     ''     0     0 
 	callf                    g / 1     1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              a / 1     1     ''     0 
+	debug_scall              a / 1     1     ''     0     0 
 	callf                    a / 1     1 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     2 
 label(L2):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              b / 1     1     ''     0 
+	debug_scall              b / 1     1     ''     0     0 
 	callf                    b / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              d / 1     1     ''     0 
+	debug_scall              d / 1     1     ''     0     0 
 	callf                    d / 1     1 
 label(L3):
 	move                     y(1)     a(1) 
-	debug_scall              e / 1     1     ''     0 
+	debug_scall              e / 1     1     ''     0     0 
 	chain                    e / 1 
 
 ------ Test 104 -------
@@ -1518,27 +1518,27 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              f / 1     1     ''     0 
+	debug_scall              f / 1     1     ''     0     0 
 	callf                    f / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              g / 1     1     ''     0 
+	debug_scall              g / 1     1     ''     0     0 
 	callf                    g / 1     1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              a / 1     1     ''     0 
+	debug_scall              a / 1     1     ''     0     0 
 	callf                    a / 1     1 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     2 
 label(L2):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              b / 1     1     ''     0 
+	debug_scall              b / 1     1     ''     0     0 
 	callf                    b / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     1 
 label(L3):
 	move                     y(1)     a(1) 
-	debug_scall              e / 1     1     ''     0 
+	debug_scall              e / 1     1     ''     0     0 
 	chain                    e / 1 
 
 ------ Test 105 -------
@@ -1560,30 +1560,30 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              f / 1     1     ''     0 
+	debug_scall              f / 1     1     ''     0     0 
 	callf                    f / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              g / 1     1     ''     0 
+	debug_scall              g / 1     1     ''     0     0 
 	callf                    g / 1     1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              a / 1     1     ''     0 
+	debug_scall              a / 1     1     ''     0     0 
 	callf                    a / 1     1 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     2 
 label(L2):
 	put_global_variable      a(1)     y(2) 
-	debug_scall              b / 1     1     ''     0 
+	debug_scall              b / 1     1     ''     0     0 
 	callf                    b / 1     2 
 	move                     y(2)     a(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     1 
 label(L3):
 	move                     y(1)     a(1) 
-	debug_scall              e / 1     1     ''     0 
+	debug_scall              e / 1     1     ''     0     0 
 	callf                    e / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              f / 1     1     ''     0 
+	debug_scall              f / 1     1     ''     0     0 
 	chain                    f / 1 
 
 ------ Test 106 -------
@@ -1602,29 +1602,29 @@ p / 0:
 	allocate                 2 
 	put_global_variable      a(1)     y(2) 
 	initialize               y([1]) 
-	debug_scall              a / 1     1     ''     0 
+	debug_scall              a / 1     1     ''     0     0 
 	callf                    a / 1     2 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(2)     a(1) 
-	debug_scall              b / 1     1     ''     0 
+	debug_scall              b / 1     1     ''     0     0 
 	callf                    b / 1     1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     1 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     2 
 label(L2):
 	move                     y(2)     a(1) 
-	debug_scall              d / 1     1     ''     0 
+	debug_scall              d / 1     1     ''     0     0 
 	callf                    d / 1     1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              e / 1     1     ''     0 
+	debug_scall              e / 1     1     ''     0     0 
 	callf                    e / 1     1 
 label(L3):
 	move                     y(1)     a(1) 
-	debug_scall              f / 1     1     ''     0 
+	debug_scall              f / 1     1     ''     0     0 
 	chain                    f / 1 
 
 ------ Test 107 -------
@@ -1642,29 +1642,29 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              a / 1     1     ''     0 
+	debug_scall              a / 1     1     ''     0     0 
 	callf                    a / 1     1 
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	move                     y(1)     a(1) 
-	debug_scall              b / 1     1     ''     0 
+	debug_scall              b / 1     1     ''     0     0 
 	callf                    b / 1     0 
 	put_variable             a(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	callf                    c / 1     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
 	move                     y(1)     a(1) 
-	debug_scall              d / 1     1     ''     0 
+	debug_scall              d / 1     1     ''     0     0 
 	callf                    d / 1     0 
 	put_variable             a(1) 
-	debug_scall              e / 1     1     ''     0 
+	debug_scall              e / 1     1     ''     0     0 
 	callf                    e / 1     0 
 label(L3):
 	put_variable             a(1) 
-	debug_scall              f / 1     1     ''     0 
+	debug_scall              f / 1     1     ''     0     0 
 	chain                    f / 1 
 
 ------ Test 200 -------
@@ -1674,7 +1674,7 @@ p :-
 p / 0:
 	put_variable             a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	jmp                      a / 2 
 
 ------ Test 201 -------
@@ -1684,7 +1684,7 @@ p :-
 p / 0:
 	put_structure            a(1)     f / 1 
 	push_variable            a(2) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	jmp                      a / 2 
 
 ------ Test 202 -------
@@ -1698,17 +1698,17 @@ p / 0:
 	put_structure            a(1)     f / 1 
 	push_variable            y(1) 
 	move                     y(1)     a(2) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	callf                    a / 2     1 
 	put_structure            a(1)     f / 1 
 	push_local_value         y(1) 
 	move                     y(1)     a(2) 
-	debug_scall              b / 2     1     ''     0 
+	debug_scall              b / 2     1     ''     0     0 
 	callf                    b / 2     1 
 	put_structure            a(2)     f / 1 
 	push_local_value         y(1) 
 	move                     y(1)     a(1) 
-	debug_scall              c / 2     1     ''     0 
+	debug_scall              c / 2     1     ''     0     0 
 	chain                    c / 2 
 
 ------ Test 203 -------
@@ -1723,21 +1723,21 @@ p / 0:
 	push_variable            y(1) 
 	put_structure            a(2)     g / 1 
 	push_local_value         y(1) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	callf                    a / 2     1 
 	put_structure            a(1)     f / 2 
 	push_structure           2 
 	push_local_value         y(1) 
 	write_did                g / 1 
 	push_local_value         y(1) 
-	debug_scall              b / 1     1     ''     0 
+	debug_scall              b / 1     1     ''     0     0 
 	callf                    b / 1     1 
 	put_structure            a(1)     f / 2 
 	push_local_value         y(1) 
 	push_structure           2 
 	write_did                g / 1 
 	push_local_value         y(1) 
-	debug_scall              c / 1     1     ''     0 
+	debug_scall              c / 1     1     ''     0     0 
 	chain                    c / 1 
 
 ------ Test 204 -------
@@ -1745,7 +1745,7 @@ p(A) :-
 	a(A).
 
 p / 1:
-	debug_scall              a / 1     1     ''     0 
+	debug_scall              a / 1     1     ''     0     0 
 	jmp                      a / 1 
 
 ------ Test 205 -------
@@ -1755,7 +1755,7 @@ p(A) :-
 p / 1:
 	move                     a(1)     a(2) 
 	put_atom                 a(1)     a 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	jmp                      a / 2 
 
 ------ Test 206 -------
@@ -1771,7 +1771,7 @@ p(A) :-
 
 p / 1:
 	move                     a(1)     a(2) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	jmp                      a / 2 
 
 ------ Test 208 -------
@@ -1779,7 +1779,7 @@ p(A, B) :-
 	a(A, B).
 
 p / 2:
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	jmp                      a / 2 
 
 ------ Test 209 -------
@@ -1790,7 +1790,7 @@ p / 2:
 	move                     a(1)     a(3) 
 	move                     a(2)     a(1) 
 	move                     a(3)     a(2) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	jmp                      a / 2 
 
 ------ Test 210 -------
@@ -1801,7 +1801,7 @@ p :-
 p / 0:
 	put_variable             a(2) 
 	move                     a(2)     a(1) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	jmp                      a / 2 
 
 ------ Test 211 -------
@@ -1811,7 +1811,7 @@ p :-
 p / 0:
 	put_structure            a(2)     f / 1 
 	push_variable            a(1) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	jmp                      a / 2 
 
 ------ Test 212 -------
@@ -1822,7 +1822,7 @@ p / 1:
 	move                     a(1)     a(2) 
 	put_structure            a(1)     f / 1 
 	push_local_value         a(2) 
-	debug_scall              a / 1     1     ''     0 
+	debug_scall              a / 1     1     ''     0     0 
 	jmp                      a / 1 
 
 ------ Test 213 -------
@@ -1834,7 +1834,7 @@ p / 3:
 	move                     a(1)     a(2) 
 	move                     a(3)     a(1) 
 	move                     a(4)     a(3) 
-	debug_scall              a / 3     1     ''     0 
+	debug_scall              a / 3     1     ''     0     0 
 	jmp                      a / 3 
 
 ------ Test 214 -------
@@ -1850,7 +1850,7 @@ p / 3:
 	push_local_value         a(4) 
 	put_structure            a(3)     f / 1 
 	push_local_value         a(5) 
-	debug_scall              a / 3     1     ''     0 
+	debug_scall              a / 3     1     ''     0     0 
 	jmp                      a / 3 
 
 ------ Test 215 -------
@@ -1863,7 +1863,7 @@ p / 4:
 	move                     a(1)     a(2) 
 	move                     a(3)     a(1) 
 	move                     a(4)     a(3) 
-	debug_scall              a / 3     1     ''     0 
+	debug_scall              a / 3     1     ''     0     0 
 	jmp                      a / 3 
 
 ------ Test 216 -------
@@ -1880,7 +1880,7 @@ p / 4:
 	push_local_value         a(4) 
 	put_structure            a(3)     f / 1 
 	push_local_value         a(5) 
-	debug_scall              a / 3     1     ''     0 
+	debug_scall              a / 3     1     ''     0     0 
 	jmp                      a / 3 
 
 ------ Test 217 -------
@@ -1894,7 +1894,7 @@ p / 1:
 label(L0):
 	read_variable            a(1) 
 label(L1):
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test 218 -------
@@ -1906,7 +1906,7 @@ p / 3:
 	move                     a(1)     a(3) 
 	move                     a(2)     a(1) 
 	move                     a(4)     a(2) 
-	debug_scall              a / 3     1     ''     0 
+	debug_scall              a / 3     1     ''     0     0 
 	jmp                      a / 3 
 
 ------ Test 219 -------
@@ -1919,7 +1919,7 @@ p / 3:
 	move                     a(2)     a(3) 
 	move                     a(1)     a(2) 
 	move                     a(4)     a(1) 
-	debug_scall              a / 3     1     ''     0 
+	debug_scall              a / 3     1     ''     0     0 
 	jmp                      a / 3 
 
 ------ Test 220 -------
@@ -1932,7 +1932,7 @@ p / 3:
 	move                     a(3)     a(2) 
 	move                     a(1)     a(3) 
 	move                     a(4)     a(1) 
-	debug_scall              a / 3     1     ''     0 
+	debug_scall              a / 3     1     ''     0     0 
 	jmp                      a / 3 
 
 ------ Test 221 -------
@@ -1942,7 +1942,7 @@ p :-
 p / 0:
 	put_structure            a(2)     f / 1 
 	push_variable            a(1) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	jmp                      a / 2 
 
 ------ Test 222 -------
@@ -1954,7 +1954,7 @@ p / 0:
 	put_variable             a(3) 
 	put_atom                 a(1)     a 
 	move                     a(2)     a(4) 
-	debug_scall              q / 4     1     ''     0 
+	debug_scall              q / 4     1     ''     0     0 
 	jmp                      q / 4 
 
 ------ Test 223 -------
@@ -1966,10 +1966,10 @@ p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
 	move                     a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 224 -------
@@ -1982,10 +1982,10 @@ p / 0:
 	put_structure            a(1)     f / 1 
 	push_variable            y(1) 
 	move                     y(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 225 -------
@@ -1998,10 +1998,10 @@ p / 0:
 	put_list                 a(1) 
 	write_atom               a 
 	push_nil             
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
 	put_variable             a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 226 -------
@@ -2016,10 +2016,10 @@ p / 0:
 	push_list            
 	write_atom               b 
 	push_nil             
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
 	put_variable             a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 227 -------
@@ -2036,10 +2036,10 @@ p / 0:
 	push_list            
 	write_atom               b 
 	push_nil             
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 228 -------
@@ -2054,10 +2054,10 @@ p / 0:
 	push_list            
 	write_atom               b 
 	push_variable            y(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 229 -------
@@ -2071,10 +2071,10 @@ p / 0:
 	push_variable            y(1) 
 	push_nil             
 	move                     y(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 230 -------
@@ -2088,10 +2088,10 @@ p / 0:
 	push_variable            y(1) 
 	push_nil             
 	move                     y(1)     a(1) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	callf                    q / 2     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test 231 -------
@@ -2102,7 +2102,7 @@ p / 0:
 	put_list                 a(1) 
 	push_variable            a(2) 
 	push_nil             
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test 232 -------
@@ -2113,7 +2113,7 @@ p / 0:
 	put_list                 a(2) 
 	push_variable            a(1) 
 	push_nil             
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test 233 -------
@@ -2125,7 +2125,7 @@ p / 1:
 	put_list                 a(1) 
 	push_local_value         a(2) 
 	push_nil             
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test 234 -------
@@ -2136,7 +2136,7 @@ p / 1:
 	put_list                 a(2) 
 	push_local_value         a(1) 
 	push_nil             
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test 235 -------
@@ -2147,7 +2147,7 @@ p / 1:
 	put_string               a(1)     "hello" 
 	put_constant             a(2)     3.4 
 	put_constant             a(3)     5_2 
-	debug_scall              q / 3     1     ''     0 
+	debug_scall              q / 3     1     ''     0     0 
 	jmp                      q / 3 
 
 ------ Test 236 -------
@@ -2159,7 +2159,7 @@ p / 1:
 	push_string              "hello" 
 	push_constant            3.4 
 	push_constant            5_2 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test jdm(1) -------
@@ -2171,7 +2171,7 @@ p / 3:
 	put_structure            a(3)     f / 1 
 	push_local_value         a(2) 
 	put_atom                 a(2)     b 
-	debug_scall              q / 3     1     ''     0 
+	debug_scall              q / 3     1     ''     0     0 
 	jmp                      q / 3 
 
 ------ Test jdm(2) -------
@@ -2242,7 +2242,7 @@ label(L13):
 	read_variable            a(2) 
 	read_variable            a(3) 
 label(L14):
-	debug_scall              delmin / 3     1     ''     0 
+	debug_scall              delmin / 3     1     ''     0     0 
 	callf                    delmin / 3     0 
 label(L15):
 	exit                 
@@ -2291,20 +2291,20 @@ label(L1):
 	put_global_variable      a(3)     y(5) 
 	put_global_variable      a(4)     y(4) 
 	initialize               y([1, 2]) 
-	debug_scall              split / 4     1     ''     0 
+	debug_scall              split / 4     1     ''     0     0 
 	callf                    split / 4     5 
 	put_global_variable      a(2)     y(2) 
 	move                     y(5)     a(1) 
-	debug_scall              qsort / 2     1     ''     0 
+	debug_scall              qsort / 2     1     ''     0     0 
 	callf                    qsort / 2     4 
 	put_global_variable      a(2)     y(1) 
 	move                     y(4)     a(1) 
-	debug_scall              qsort / 2     1     ''     0 
+	debug_scall              qsort / 2     1     ''     0     0 
 	callf                    qsort / 2     3 
 	move                     y(2)     a(1) 
 	move                     y(1)     a(2) 
 	move                     y(3)     a(3) 
-	debug_scall              append / 3     1     ''     0 
+	debug_scall              append / 3     1     ''     0     0 
 	chain                    append / 3 
 
 ------ Test jdm(r4) -------
@@ -2330,20 +2330,20 @@ label(L1):
 	put_global_variable      a(3)     y(5) 
 	put_global_variable      a(4)     y(4) 
 	initialize               y([1, 2]) 
-	debug_scall              split / 4     1     ''     0 
+	debug_scall              split / 4     1     ''     0     0 
 	callf                    split / 4     5 
 	put_global_variable      a(2)     y(2) 
 	move                     y(5)     a(1) 
-	debug_scall              qsort / 2     1     ''     0 
+	debug_scall              qsort / 2     1     ''     0     0 
 	callf                    qsort / 2     4 
 	put_global_variable      a(2)     y(1) 
 	move                     y(4)     a(1) 
-	debug_scall              qsort / 2     1     ''     0 
+	debug_scall              qsort / 2     1     ''     0     0 
 	callf                    qsort / 2     3 
 	move                     y(2)     a(1) 
 	move                     y(1)     a(2) 
 	move                     y(3)     a(3) 
-	debug_scall              append / 3     1     ''     0 
+	debug_scall              append / 3     1     ''     0     0 
 	chain                    append / 3 
 
 ------ Test jdm(5) -------
@@ -2354,7 +2354,7 @@ rev / 2:
 	move                     a(2)     a(3) 
 	move                     a(1)     a(2) 
 	put_nil                  a(1) 
-	debug_scall              revacc / 3     1     ''     0 
+	debug_scall              revacc / 3     1     ''     0     0 
 	jmp                      revacc / 3 
 
 ------ Test jdm(6) -------
@@ -2367,7 +2367,7 @@ p / 4:
 	move                     a(2)     a(3) 
 	move                     a(1)     a(2) 
 	put_atom                 a(1)     a 
-	debug_scall              q / 5     1     ''     0 
+	debug_scall              q / 5     1     ''     0     0 
 	jmp                      q / 5 
 
 ------ Test mjt(1) -------
@@ -2390,7 +2390,7 @@ label(L2):
 	read_value               a(2) 
 label(L3):
 	put_atom                 a(1)     a 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test mjt(2) -------
@@ -2419,7 +2419,7 @@ label(L2):
 	read_value               a(3) 
 label(L3):
 	put_atom                 a(1)     c 
-	debug_scall              q / 4     1     ''     0 
+	debug_scall              q / 4     1     ''     0     0 
 	jmp                      q / 4 
 
 ------ Test mjt(3) -------
@@ -2459,7 +2459,7 @@ label(L6):
 	bi_var                   a(3) 
 	bi_var                   a(2) 
 	put_atom                 a(1)     a 
-	debug_scall              q / 3     1     ''     0 
+	debug_scall              q / 3     1     ''     0     0 
 	jmp                      q / 3 
 
 ------ Test 300 -------
@@ -2473,7 +2473,7 @@ p / 2:
 	allocate                 2 
 	move                     a(1)     y(1) 
 	move                     a(2)     y(2) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     2 
 	put_variable             a(1) 
 	move                     y(1)     a(2) 
@@ -2481,7 +2481,7 @@ p / 2:
 	bi_add                   a(2)     a(3)     a(1) 
 	put_variable             a(3) 
 	bi_sub                   a(2)     a(3)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	chain                    q / 1 
 
 ------ Test 301 -------
@@ -2495,15 +2495,15 @@ p / 2:
 	move                     a(1)     y(2) 
 	move                     a(2)     y(3) 
 	initialize               y([1]) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     3 
 	put_global_variable      a(3)     y(1) 
 	move                     y(2)     a(1) 
 	move                     y(3)     a(2) 
-	debug_scall              r / 3     1     ''     0 
+	debug_scall              r / 3     1     ''     0     0 
 	callf                    r / 3     1 
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	chain                    q / 1 
 
 ------ Test 302 -------
@@ -2518,15 +2518,15 @@ p / 2:
 	move                     a(2)     y(3) 
 	initialize               y([1]) 
 	move                     a(2)     a(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     3 
 	put_global_variable      a(3)     y(1) 
 	move                     y(2)     a(1) 
 	move                     y(3)     a(2) 
-	debug_scall              r / 3     1     ''     0 
+	debug_scall              r / 3     1     ''     0     0 
 	callf                    r / 3     1 
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	chain                    q / 1 
 
 ------ Test 303 -------
@@ -2540,19 +2540,19 @@ p :-
 p / 0:
 	allocate                 3 
 	initialize               y([1, 2, 3]) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     3 
 	put_integer              a(2)     1 
 	move                     a(2)     y(1) 
 	put_integer              a(3)     3 
 	move                     a(3)     y(2) 
 	put_global_variable      a(1)     y(3) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     3 
 	move                     y(1)     a(1) 
 	move                     y(3)     a(2) 
 	move                     y(2)     a(3) 
-	debug_scall              r / 3     1     ''     0 
+	debug_scall              r / 3     1     ''     0     0 
 	chain                    r / 3 
 
 ------ Test 304 -------
@@ -2563,11 +2563,11 @@ p :-
 
 p / 0:
 	allocate                 0 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 	put_structure            a(1)     f / 1 
 	push_variable            a(2) 
-	debug_scall              a / 2     1     ''     0 
+	debug_scall              a / 2     1     ''     0     0 
 	chain                    a / 2 
 
 ------ Test 305 -------
@@ -2581,7 +2581,7 @@ p / 2:
 	move                     a(2)     a(1) 
 	put_integer              a(2)     1 
 	get_value                a(3)     a(1) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test 306 -------
@@ -2610,10 +2610,10 @@ p3 / 1:
 	allocate                 1 
 	get_integer              a(1)     1 
 	move                     a(1)     y(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	chain                    p1 / 1 
 
 ------ Test 309 -------
@@ -2626,10 +2626,10 @@ p4 / 1:
 	allocate                 1 
 	get_integer              a(1)     1 
 	move                     a(1)     y(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	chain                    p1 / 1 
 
 ------ Test 310 -------
@@ -2648,10 +2648,10 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	chain                    p1 / 1 
 
 ------ Test 311 -------
@@ -2669,11 +2669,11 @@ label(L0):
 	read_variable            y(1) 
 label(L1):
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     1 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	chain                    p1 / 1 
 
 ------ Test 312 -------
@@ -2692,10 +2692,10 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	chain                    p1 / 1 
 
 ------ Test 313 -------
@@ -2713,11 +2713,11 @@ label(L0):
 	read_variable            y(1) 
 label(L1):
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     1 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	chain                    p1 / 1 
 
 ------ Test 314 -------
@@ -2733,7 +2733,7 @@ label(L0):
 	read_variable            a(1) 
 label(L1):
 	get_integer              a(1)     1 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	jmp                      p1 / 1 
 
 ------ Test 315 -------
@@ -2749,7 +2749,7 @@ label(L0):
 	read_variable            a(1) 
 label(L1):
 	get_integer              a(1)     1 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	jmp                      p1 / 1 
 
 ------ Test 316 -------
@@ -2765,10 +2765,10 @@ p9 / 1:
 	put_integer              a(1)     1 
 	move                     a(1)     y(1) 
 	move                     a(2)     y(2) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     2 
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     2 
 	get_value                y(1)     y(2) 
 	exit                 
@@ -2786,14 +2786,14 @@ p9a / 1:
 	move                     a(1)     y(2) 
 	put_variable             a(1) 
 	initialize               y([1]) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     2 
 	put_integer              a(1)     1 
 	move                     a(1)     y(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     2 
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     2 
 	get_value                y(1)     y(2) 
 	exit                 
@@ -2811,10 +2811,10 @@ p10 / 1:
 	put_integer              a(1)     1 
 	move                     a(1)     y(1) 
 	move                     a(2)     y(2) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     2 
 	move                     y(1)     a(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     2 
 	get_value                y(1)     y(2) 
 	exit                 
@@ -2831,11 +2831,11 @@ p10a / 1:
 	move                     a(1)     y(2) 
 	put_variable             a(1) 
 	initialize               y([1]) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     2 
 	put_integer              a(1)     1 
 	move                     a(1)     y(1) 
-	debug_scall              p1 / 1     1     ''     0 
+	debug_scall              p1 / 1     1     ''     0     0 
 	callf                    p1 / 1     2 
 	get_value                y(1)     y(2) 
 	exit                 
@@ -2891,7 +2891,7 @@ p13 / 2:
 	put_variable             a(2) 
 	put_variable             a(3) 
 	put_atom                 a(4)     eclipse 
-	debug_scall              sepia_kernel : current_op_body / 4     1     ''     0 
+	debug_scall              sepia_kernel : current_op_body / 4     1     ''     0     0 
 	callf                    sepia_kernel : current_op_body / 4     4 
 	get_value                y(1)     y(3) 
 	get_value                y(2)     y(4) 
@@ -2910,7 +2910,7 @@ b1 / 0:
 	push_variable            a(1) 
 	move                     a(3)     y(1) 
 	put_global_variable      a(2)     y(2) 
-	debug_scall              eq / 2     1     ''     0 
+	debug_scall              eq / 2     1     ''     0     0 
 	callf                    eq / 2     2 
 	move                     y(1)     a(1) 
 	get_structure            a(1)     s / 1     ref(L0) 
@@ -2940,10 +2940,10 @@ label(L0):
 	read_variable            a(1) 
 	read_variable            y(1) 
 label(L1):
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test ana(1) -------
@@ -2955,10 +2955,10 @@ p :-
 
 p / 0:
 	allocate                 0 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 	put_integer              a(1)     1 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	chain                    p / 1 
 
 ------ Test ana(2) -------
@@ -2998,11 +2998,11 @@ p / 0:
 	allocate                 1 
 	put_integer              a(1)     3 
 	move                     a(1)     y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     4 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	chain                    r / 0 
 
 ------ Test ana(6) -------
@@ -3019,10 +3019,10 @@ p / 0:
 	put_integer              a(1)     3 
 	move                     a(1)     y(2) 
 	initialize               y([1]) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     2 
 	move                     y(2)     y(1) 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     1 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     4 
@@ -3041,7 +3041,7 @@ p / 0:
 	push_void            
 	push_void            
 	move                     a(1)     y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
 	get_structure            a(1)     f / 2     ref(L0) 
@@ -3052,7 +3052,7 @@ label(L0):
 	read_void            
 	read_void            
 label(L1):
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	chain                    r / 0 
 
 ------ Test ana(8) -------
@@ -3086,7 +3086,7 @@ label(L3):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
 label(L4):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	chain                    q / 0 
 
 ------ Test ana(9) -------
@@ -3097,7 +3097,7 @@ p(A, B) :-
 p / 2:
 	get_atom                 a(1)     a 
 	get_atom                 a(2)     b 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test idx(1) -------
@@ -3114,7 +3114,7 @@ p :-
 p / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	integer_switch           y(1) 
 		1: 	ref(L1)
@@ -3126,7 +3126,7 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L4) 
 label(L2):
@@ -3134,7 +3134,7 @@ label(L2):
 label(L3):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 label(L4):
 	exit                 
@@ -3156,7 +3156,7 @@ p / 0:
 	allocate                 2 
 	put_global_variable      a(1)     y(1) 
 	put_global_variable      a(2)     y(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	callf                    p / 2     2 
 	integer_switch           y(1) 
 		1: 	ref(L2)
@@ -3176,7 +3176,7 @@ label(L2):
 	get_atom                 a(1)     a 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L5) 
 label(L3):
@@ -3186,7 +3186,7 @@ label(L4):
 	get_integer              a(1)     2 
 	move                     y(2)     a(1) 
 	get_atom                 a(1)     b 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 label(L5):
 	exit                 
@@ -3231,7 +3231,7 @@ label(L2):
 	get_atom                 a(1)     a 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L7) 
 label(L3):
@@ -3241,7 +3241,7 @@ label(L4):
 	get_integer              a(1)     2 
 	move                     y(2)     a(1) 
 	get_atom                 a(1)     b 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 	branch                   ref(L7) 
 label(L5):
@@ -3249,7 +3249,7 @@ label(L5):
 label(L6):
 	move                     y(2)     a(1) 
 	get_atom                 a(1)     c 
-	debug_scall              p3 / 0     1     ''     0 
+	debug_scall              p3 / 0     1     ''     0     0 
 	callf                    p3 / 0     1 
 label(L7):
 	exit                 
@@ -3311,7 +3311,7 @@ label(L2):
 	get_atom                 a(1)     a 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L7) 
 label(L3):
@@ -3321,7 +3321,7 @@ label(L4):
 	bi_integer               a(1) 
 	move                     y(2)     a(1) 
 	get_atom                 a(1)     b 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 	branch                   ref(L7) 
 label(L5):
@@ -3329,7 +3329,7 @@ label(L5):
 label(L6):
 	move                     y(1)     a(1) 
 	bi_number                a(1) 
-	debug_scall              p3 / 0     1     ''     0 
+	debug_scall              p3 / 0     1     ''     0     0 
 	callf                    p3 / 0     2 
 label(L7):
 	exit                 
@@ -3385,7 +3385,7 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L8) 
 label(L2):
@@ -3393,7 +3393,7 @@ label(L2):
 label(L3):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 	branch                   ref(L8) 
 label(L4):
@@ -3401,7 +3401,7 @@ label(L4):
 label(L5):
 	move                     y(1)     a(1) 
 	bi_integer               a(1) 
-	debug_scall              p3 / 0     1     ''     0 
+	debug_scall              p3 / 0     1     ''     0     0 
 	callf                    p3 / 0     0 
 	branch                   ref(L8) 
 label(L6):
@@ -3409,7 +3409,7 @@ label(L6):
 label(L7):
 	move                     y(1)     a(1) 
 	bi_number                a(1) 
-	debug_scall              p4 / 0     1     ''     0 
+	debug_scall              p4 / 0     1     ''     0     0 
 	callf                    p4 / 0     0 
 label(L8):
 	exit                 
@@ -3451,7 +3451,7 @@ p / 0:
 	allocate                 2 
 	put_global_variable      a(1)     y(1) 
 	put_global_variable      a(2)     y(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	callf                    p / 2     2 
 	atom_switch              y(2) 
 		a: 	ref(L2)
@@ -3473,7 +3473,7 @@ label(L2):
 	bi_identical             a(2)     a(1) 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L5) 
 label(L3):
@@ -3484,7 +3484,7 @@ label(L4):
 	put_atom                 a(1)     b 
 	move                     y(2)     a(2) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 label(L5):
 	exit                 
@@ -3508,7 +3508,7 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_nil                  a(1) 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L6) 
 label(L2):
@@ -3523,7 +3523,7 @@ label(L4):
 	read_void            
 	read_void            
 label(L5):
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 label(L6):
 	exit                 
@@ -3565,13 +3565,13 @@ label(L1):
 	move                     y(1)     a(1) 
 	bi_var                   a(1) 
 	cut                      y(2)     2 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L4) 
 label(L2):
 	trust_me_inline          0     2 
 label(L3):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     2 
 label(L4):
 	exit                 
@@ -3610,7 +3610,7 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_constant             a(1)     3.1 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L4) 
 label(L2):
@@ -3618,7 +3618,7 @@ label(L2):
 label(L3):
 	move                     y(1)     a(1) 
 	get_constant             a(1)     9.9 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 label(L4):
 	exit                 
@@ -3661,7 +3661,7 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_string               a(1)     "foo" 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L6) 
 label(L2):
@@ -3669,13 +3669,13 @@ label(L2):
 label(L3):
 	move                     y(1)     a(1) 
 	get_string               a(1)     "bar" 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 	branch                   ref(L6) 
 label(L4):
 	trust_me_inline          0     1 
 label(L5):
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     1 
 label(L6):
 	exit                 
@@ -3712,7 +3712,7 @@ label(L1):
 label(L2):
 	read_integer             1 
 label(L3):
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L10) 
 label(L4):
@@ -3727,13 +3727,13 @@ label(L6):
 	read_integer             1 
 	read_integer             2 
 label(L7):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 	branch                   ref(L10) 
 label(L8):
 	trust_me_inline          0     1 
 label(L9):
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     1 
 label(L10):
 	exit                 
@@ -3762,13 +3762,13 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_nil                  a(1) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L4) 
 label(L2):
 	trust_me_inline          0     1 
 label(L3):
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     1 
 label(L4):
 	exit                 
@@ -3795,13 +3795,13 @@ label(L1):
 	move                     y(1)     a(1) 
 	get_nil                  a(1) 
 	cut                      y(2)     2 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L4) 
 label(L2):
 	trust_me_inline          0     2 
 label(L3):
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     2 
 label(L4):
 	exit                 
@@ -3823,7 +3823,7 @@ p / 0:
 	allocate                 2 
 	put_global_variable      a(1)     y(1) 
 	put_global_variable      a(2)     y(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	callf                    p / 2     2 
 	atom_switch              y(2) 
 		a: 	ref(L2)
@@ -3845,7 +3845,7 @@ label(L2):
 	bi_identical             a(1)     a(2) 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L5) 
 label(L3):
@@ -3856,7 +3856,7 @@ label(L4):
 	put_atom                 a(1)     b 
 	move                     y(2)     a(2) 
 	bi_identical             a(1)     a(2) 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 label(L5):
 	exit                 
@@ -3883,7 +3883,7 @@ p / 0:
 	allocate                 2 
 	put_global_variable      a(1)     y(1) 
 	put_global_variable      a(2)     y(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	callf                    p / 2     2 
 	atom_switch              y(2) 
 		a: 	ref(L8)
@@ -3905,7 +3905,7 @@ label(L2):
 	bi_identical             a(1)     a(2) 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L7) 
 label(L3):
@@ -3916,7 +3916,7 @@ label(L4):
 	put_atom                 a(1)     b 
 	move                     y(2)     a(2) 
 	bi_identical             a(1)     a(2) 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 	branch                   ref(L7) 
 label(L5):
@@ -3925,7 +3925,7 @@ label(L6):
 	move                     y(1)     a(1) 
 	move                     y(2)     a(2) 
 	bi_identical             a(1)     a(2) 
-	debug_scall              p3 / 0     1     ''     0 
+	debug_scall              p3 / 0     1     ''     0     0 
 	callf                    p3 / 0     0 
 label(L7):
 	exit                 
@@ -3954,13 +3954,13 @@ label(L0):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     1 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 label(L3):
 	exit                 
@@ -3986,7 +3986,7 @@ label(L1):
 	put_nil                  a(1) 
 	move                     y(1)     a(2) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L4) 
 label(L2):
@@ -3997,7 +3997,7 @@ label(L3):
 	push_nil             
 	move                     y(1)     a(2) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 label(L4):
 	exit                 
@@ -4039,7 +4039,7 @@ label(L1):
 	write_atom               a 
 	move                     y(1)     a(2) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     0 
 	branch                   ref(L4) 
 label(L2):
@@ -4048,7 +4048,7 @@ label(L3):
 	put_string               a(1)     "hello" 
 	move                     y(1)     a(2) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              s / 0     1     ''     0 
+	debug_scall              s / 0     1     ''     0     0 
 	callf                    s / 0     0 
 label(L4):
 	exit                 
@@ -4094,7 +4094,7 @@ label(L1):
 	put_nil                  a(1) 
 	move                     y(1)     a(2) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L6) 
 label(L2):
@@ -4105,7 +4105,7 @@ label(L3):
 	push_nil             
 	move                     y(1)     a(2) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 	branch                   ref(L6) 
 label(L4):
@@ -4115,7 +4115,7 @@ label(L5):
 	write_atom               a 
 	move                     y(1)     a(2) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     0 
 label(L6):
 	exit                 
@@ -4136,13 +4136,13 @@ label(L0):
 	put_variable             a(1) 
 	put_nil                  a(2) 
 	bi_identical             a(1)     a(2) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     0 
 label(L2):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 label(L3):
 	exit                 
@@ -4196,7 +4196,7 @@ label(L2):
 	read_void            
 label(L3):
 	cut                      y(2)     2 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L10) 
 label(L4):
@@ -4212,7 +4212,7 @@ label(L6):
 	read_void            
 label(L7):
 	cut                      y(2)     2 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 	branch                   ref(L10) 
 label(L8):
@@ -4220,7 +4220,7 @@ label(L8):
 label(L9):
 	move                     y(1)     a(1) 
 	bi_compound              a(1) 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     2 
 label(L10):
 	exit                 
@@ -4305,7 +4305,7 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	debug_scall              p_integer / 0     1     ''     0 
+	debug_scall              p_integer / 0     1     ''     0     0 
 	callf                    p_integer / 0     0 
 	branch                   ref(L24) 
 label(L2):
@@ -4313,7 +4313,7 @@ label(L2):
 label(L3):
 	move                     y(1)     a(1) 
 	get_constant             a(1)     11111111111111 
-	debug_scall              p_big / 0     1     ''     0 
+	debug_scall              p_big / 0     1     ''     0     0 
 	callf                    p_big / 0     0 
 	branch                   ref(L24) 
 label(L4):
@@ -4321,7 +4321,7 @@ label(L4):
 label(L5):
 	move                     y(1)     a(1) 
 	get_constant             a(1)     1.1 
-	debug_scall              p_float / 0     1     ''     0 
+	debug_scall              p_float / 0     1     ''     0     0 
 	callf                    p_float / 0     0 
 	branch                   ref(L24) 
 label(L6):
@@ -4329,7 +4329,7 @@ label(L6):
 label(L7):
 	move                     y(1)     a(1) 
 	get_constant             a(1)     5_2 
-	debug_scall              p_rational / 0     1     ''     0 
+	debug_scall              p_rational / 0     1     ''     0     0 
 	callf                    p_rational / 0     0 
 	branch                   ref(L24) 
 label(L8):
@@ -4337,7 +4337,7 @@ label(L8):
 label(L9):
 	move                     y(1)     a(1) 
 	get_constant             a(1)     0.9__1.1 
-	debug_scall              p_breal / 0     1     ''     0 
+	debug_scall              p_breal / 0     1     ''     0     0 
 	callf                    p_breal / 0     0 
 	branch                   ref(L24) 
 label(L10):
@@ -4345,7 +4345,7 @@ label(L10):
 label(L11):
 	move                     y(1)     a(1) 
 	get_string               a(1)     "hello" 
-	debug_scall              p_string / 0     1     ''     0 
+	debug_scall              p_string / 0     1     ''     0     0 
 	callf                    p_string / 0     0 
 	branch                   ref(L24) 
 label(L12):
@@ -4353,7 +4353,7 @@ label(L12):
 label(L13):
 	move                     y(1)     a(1) 
 	get_atom                 a(1)     hello 
-	debug_scall              p_atom / 0     1     ''     0 
+	debug_scall              p_atom / 0     1     ''     0     0 
 	callf                    p_atom / 0     0 
 	branch                   ref(L24) 
 label(L14):
@@ -4361,7 +4361,7 @@ label(L14):
 label(L15):
 	move                     y(1)     a(1) 
 	get_nil                  a(1) 
-	debug_scall              p_nil / 0     1     ''     0 
+	debug_scall              p_nil / 0     1     ''     0     0 
 	callf                    p_nil / 0     0 
 	branch                   ref(L24) 
 label(L16):
@@ -4376,7 +4376,7 @@ label(L18):
 	read_void            
 	read_void            
 label(L19):
-	debug_scall              p_list / 0     1     ''     0 
+	debug_scall              p_list / 0     1     ''     0     0 
 	callf                    p_list / 0     0 
 	branch                   ref(L24) 
 label(L20):
@@ -4389,7 +4389,7 @@ label(L21):
 label(L22):
 	read_atom                bar 
 label(L23):
-	debug_scall              p_struct / 0     1     ''     0 
+	debug_scall              p_struct / 0     1     ''     0     0 
 	callf                    p_struct / 0     0 
 label(L24):
 	exit                 
@@ -4479,7 +4479,7 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	bi_var                   a(1) 
-	debug_scall              p_var / 0     1     ''     0 
+	debug_scall              p_var / 0     1     ''     0     0 
 	callf                    p_var / 0     2 
 	branch                   ref(L24) 
 label(L2):
@@ -4487,7 +4487,7 @@ label(L2):
 label(L3):
 	move                     y(1)     a(1) 
 	bi_integer               a(1) 
-	debug_scall              p_integer / 0     1     ''     0 
+	debug_scall              p_integer / 0     1     ''     0     0 
 	callf                    p_integer / 0     2 
 	branch                   ref(L24) 
 label(L4):
@@ -4495,7 +4495,7 @@ label(L4):
 label(L5):
 	move                     y(1)     a(1) 
 	bi_float                 a(1) 
-	debug_scall              p_float / 0     1     ''     0 
+	debug_scall              p_float / 0     1     ''     0     0 
 	callf                    p_float / 0     2 
 	branch                   ref(L24) 
 label(L6):
@@ -4503,7 +4503,7 @@ label(L6):
 label(L7):
 	move                     y(1)     a(1) 
 	bi_rational              a(1) 
-	debug_scall              p_rational / 0     1     ''     0 
+	debug_scall              p_rational / 0     1     ''     0     0 
 	callf                    p_rational / 0     2 
 	branch                   ref(L24) 
 label(L8):
@@ -4511,7 +4511,7 @@ label(L8):
 label(L9):
 	move                     y(1)     a(1) 
 	bi_breal                 a(1) 
-	debug_scall              p_breal / 0     1     ''     0 
+	debug_scall              p_breal / 0     1     ''     0     0 
 	callf                    p_breal / 0     2 
 	branch                   ref(L24) 
 label(L10):
@@ -4519,7 +4519,7 @@ label(L10):
 label(L11):
 	move                     y(1)     a(1) 
 	bi_string                a(1) 
-	debug_scall              p_string / 0     1     ''     0 
+	debug_scall              p_string / 0     1     ''     0     0 
 	callf                    p_string / 0     2 
 	branch                   ref(L24) 
 label(L12):
@@ -4529,7 +4529,7 @@ label(L13):
 	bi_nonvar                a(1) 
 	get_nil                  a(1) 
 	cut                      y(2)     2 
-	debug_scall              p_nil / 0     1     ''     0 
+	debug_scall              p_nil / 0     1     ''     0     0 
 	callf                    p_nil / 0     0 
 	branch                   ref(L24) 
 label(L14):
@@ -4537,7 +4537,7 @@ label(L14):
 label(L15):
 	move                     y(1)     a(1) 
 	bi_atom                  a(1) 
-	debug_scall              p_atom / 0     1     ''     0 
+	debug_scall              p_atom / 0     1     ''     0     0 
 	callf                    p_atom / 0     2 
 	branch                   ref(L24) 
 label(L16):
@@ -4554,7 +4554,7 @@ label(L18):
 	read_void            
 label(L19):
 	cut                      y(2)     2 
-	debug_scall              p_list / 0     1     ''     0 
+	debug_scall              p_list / 0     1     ''     0     0 
 	callf                    p_list / 0     0 
 	branch                   ref(L24) 
 label(L20):
@@ -4562,7 +4562,7 @@ label(L20):
 label(L21):
 	move                     y(1)     a(1) 
 	bi_compound              a(1) 
-	debug_scall              p_struct / 0     1     ''     0 
+	debug_scall              p_struct / 0     1     ''     0     0 
 	callf                    p_struct / 0     2 
 	branch                   ref(L24) 
 label(L22):
@@ -4570,7 +4570,7 @@ label(L22):
 label(L23):
 	move                     y(1)     a(1) 
 	bi_is_handle             a(1) 
-	debug_scall              p_handle / 0     1     ''     0 
+	debug_scall              p_handle / 0     1     ''     0     0 
 	callf                    p_handle / 0     2 
 label(L24):
 	exit                 
@@ -4613,7 +4613,7 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	bi_atom                  a(1) 
-	debug_scall              p_string / 0     1     ''     0 
+	debug_scall              p_string / 0     1     ''     0     0 
 	callf                    p_string / 0     0 
 	branch                   ref(L4) 
 label(L2):
@@ -4621,7 +4621,7 @@ label(L2):
 label(L3):
 	move                     y(1)     a(1) 
 	get_atom                 a(1)     hello 
-	debug_scall              p_hello / 0     1     ''     0 
+	debug_scall              p_hello / 0     1     ''     0     0 
 	callf                    p_hello / 0     0 
 label(L4):
 	exit                 
@@ -4665,7 +4665,7 @@ label(L0):
 label(L1):
 	move                     y(1)     a(1) 
 	get_string               a(1)     "abc" 
-	debug_scall              p1 / 0     1     ''     0 
+	debug_scall              p1 / 0     1     ''     0     0 
 	callf                    p1 / 0     0 
 	branch                   ref(L6) 
 label(L2):
@@ -4673,7 +4673,7 @@ label(L2):
 label(L3):
 	move                     y(1)     a(1) 
 	get_string               a(1)     "def" 
-	debug_scall              p2 / 0     1     ''     0 
+	debug_scall              p2 / 0     1     ''     0     0 
 	callf                    p2 / 0     0 
 	branch                   ref(L6) 
 label(L4):
@@ -4681,7 +4681,7 @@ label(L4):
 label(L5):
 	move                     y(1)     a(1) 
 	get_atom                 a(1)     ghi 
-	debug_scall              p3 / 0     1     ''     0 
+	debug_scall              p3 / 0     1     ''     0     0 
 	callf                    p3 / 0     0 
 label(L6):
 	exit                 
@@ -4712,10 +4712,10 @@ label(L0):
 label(L1):
 	get_integer              a(1)     1 
 	move                     a(1)     y(1) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
 	branch                   ref(L4) 
 label(L2):
@@ -4723,10 +4723,10 @@ label(L2):
 label(L3):
 	get_integer              a(1)     2 
 	move                     a(1)     y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 label(L4):
 	exit                 
@@ -4737,7 +4737,7 @@ p(a) :-
 
 p / 1:
 	get_atom                 a(1)     a 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(101) -------
@@ -4747,7 +4747,7 @@ p(a, A, 3) :-
 p / 3:
 	get_atom                 a(1)     a 
 	get_integer              a(3)     3 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(102) -------
@@ -4756,7 +4756,7 @@ p(A, A) :-
 
 p / 2:
 	get_value                a(2)     a(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(103) -------
@@ -4769,7 +4769,7 @@ p / 7:
 	get_constant             a(5)     5_2 
 	get_string               a(6)     "hello" 
 	get_value                a(7)     a(2) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(1) -------
@@ -4783,7 +4783,7 @@ p / 1:
 label(L0):
 	read_integer             1 
 label(L1):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(2) -------
@@ -4799,7 +4799,7 @@ label(L0):
 	read_integer             1 
 	read_integer             2 
 label(L1):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(3) -------
@@ -4816,7 +4816,7 @@ label(L1):
 	read_last_structure      g / 1     ref(L0) 
 	read_integer             1 
 label(L2):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(4) -------
@@ -4843,7 +4843,7 @@ label(L3):
 	read_integer             2 
 label(L4):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(5) -------
@@ -4877,7 +4877,7 @@ label(L5):
 	read_integer             3 
 label(L6):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(6) -------
@@ -4913,7 +4913,7 @@ label(L5):
 	read_integer             3 
 label(L6):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(7) -------
@@ -4953,7 +4953,7 @@ label(L5):
 	read_integer             3 
 label(L6):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(8) -------
@@ -4995,7 +4995,7 @@ label(L5):
 	read_integer             3 
 label(L6):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(9) -------
@@ -5043,7 +5043,7 @@ label(L6):
 	read_integer             7 
 label(L7):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(10) -------
@@ -5091,7 +5091,7 @@ label(L6):
 	read_integer             7 
 label(L7):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(11) -------
@@ -5141,7 +5141,7 @@ label(L6):
 	read_integer             8 
 label(L7):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(12) -------
@@ -5189,7 +5189,7 @@ label(L6):
 	read_integer             8 
 label(L7):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(13) -------
@@ -5233,7 +5233,7 @@ label(L6):
 	read_integer             8 
 label(L7):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(14) -------
@@ -5273,7 +5273,7 @@ label(L6):
 	read_integer             8 
 label(L7):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(15) -------
@@ -5311,7 +5311,7 @@ label(L6):
 	read_integer             8 
 label(L7):
 	space                    -1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(16) -------
@@ -5328,7 +5328,7 @@ label(L0):
 	read_value               a(2) 
 	read_variable            a(2) 
 label(L1):
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test head(17) -------
@@ -5347,7 +5347,7 @@ label(L0):
 	read_variable            a(2) 
 	read_value               a(3) 
 label(L1):
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test head(18) -------
@@ -5372,7 +5372,7 @@ label(L2):
 	read_variable            a(2) 
 label(L3):
 	space                    -1 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test head(19) -------
@@ -5388,10 +5388,10 @@ p / 1:
 label(L0):
 	read_variable            y(1) 
 label(L1):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test head(20) -------
@@ -5409,10 +5409,10 @@ label(L0):
 	read_variable            y(1) 
 	read_value               y(1) 
 label(L1):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test head(20) -------
@@ -5448,7 +5448,7 @@ label(L5):
 	read_nil             
 label(L6):
 	space                    -2 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test head(21) -------
@@ -5517,7 +5517,7 @@ label(L11):
 	read_nil             
 label(L12):
 	space                    -3 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test head(22) -------
@@ -5596,7 +5596,7 @@ label(L13):
 	read_nil             
 label(L14):
 	space                    -3 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test head(23) -------
@@ -5670,7 +5670,7 @@ label(L12):
 	read_atom                c 
 label(L13):
 	space                    -3 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test head(24) -------
@@ -5744,7 +5744,7 @@ label(L12):
 	read_nil             
 label(L13):
 	space                    -3 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test head(30) -------
@@ -5784,7 +5784,7 @@ label(L5):
 	read_atom                c 
 label(L6):
 	space                    -1 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test head(31) -------
@@ -5830,7 +5830,7 @@ label(L5):
 	read_atom                c 
 label(L6):
 	space                    -1 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test head(32) -------
@@ -5872,7 +5872,7 @@ label(L5):
 	read_atom                c 
 label(L6):
 	space                    -1 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test head(33) -------
@@ -5912,7 +5912,7 @@ label(L4):
 	read_variable            a(1) 
 label(L5):
 	space                    -1 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test head(34) -------
@@ -5930,7 +5930,7 @@ label(L0):
 	read_constant            3.5 
 	read_constant            5_3 
 label(L1):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test unify(1) -------
@@ -5946,7 +5946,7 @@ p / 3:
 	move                     a(2)     y(3) 
 	move                     a(3)     y(4) 
 	initialize               y([1]) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     4 
 	move                     y(2)     a(3) 
 	get_structure            a(3)     f / 4     ref(L2) 
@@ -5977,10 +5977,10 @@ label(L3):
 label(L4):
 	space                    -1 
 	move                     y(4)     a(1) 
-	debug_scall              r / 2     1     ''     0 
+	debug_scall              r / 2     1     ''     0     0 
 	callf                    r / 2     1 
 	move                     y(1)     a(1) 
-	debug_scall              s / 1     1     ''     0 
+	debug_scall              s / 1     1     ''     0     0 
 	chain                    s / 1 
 
 ------ Test dis(1) -------
@@ -6003,25 +6003,25 @@ p / 0:
 	allocate                 0 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     0 
 	branch                   ref(L7) 
 label(L1):
 	retry_me_inline          0     ref(L3)     0 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_inline          0     ref(L5)     0 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     0 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     0 
 label(L6):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     0 
 label(L7):
 	exit                 
@@ -6046,25 +6046,25 @@ p / 0:
 	allocate                 0 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     0 
 	branch                   ref(L7) 
 label(L1):
 	retry_me_inline          0     ref(L3)     0 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_inline          0     ref(L5)     0 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     0 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     0 
 label(L6):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     0 
 label(L7):
 	exit                 
@@ -6089,25 +6089,25 @@ p / 0:
 	allocate                 0 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     0 
 	branch                   ref(L7) 
 label(L1):
 	retry_me_inline          0     ref(L3)     0 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_inline          0     ref(L5)     0 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     0 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     0 
 label(L6):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     0 
 label(L7):
 	exit                 
@@ -6127,16 +6127,16 @@ p / 0:
 	savecut                  y(1) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	cut                      y(1)     1 
-	debug_scall              aa / 0     1     ''     0 
+	debug_scall              aa / 0     1     ''     0     0 
 	callf                    aa / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     1 
 label(L3):
 	exit                 
@@ -6155,21 +6155,21 @@ p :-
 p / 0:
 	allocate                 1 
 	initialize               y([1]) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	savecut                  y(1) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	cut                      y(1)     1 
-	debug_scall              aa / 0     1     ''     0 
+	debug_scall              aa / 0     1     ''     0     0 
 	callf                    aa / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     1 
 label(L3):
 	exit                 
@@ -6201,34 +6201,34 @@ p / 0:
 	savecut                  y(1) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	cut                      y(1)     1 
-	debug_scall              aa / 0     1     ''     0 
+	debug_scall              aa / 0     1     ''     0     0 
 	callf                    aa / 0     0 
 	branch                   ref(L7) 
 label(L1):
 	retry_me_inline          0     ref(L3)     1 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     1 
 	cut                      y(1)     1 
-	debug_scall              bb / 0     1     ''     0 
+	debug_scall              bb / 0     1     ''     0     0 
 	callf                    bb / 0     0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_inline          0     ref(L5)     1 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     1 
 	cut                      y(1)     1 
-	debug_scall              cc / 0     1     ''     0 
+	debug_scall              cc / 0     1     ''     0     0 
 	callf                    cc / 0     0 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     1 
 label(L6):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     1 
 label(L7):
 	exit                 
@@ -6265,38 +6265,38 @@ p / 0:
 	initialize               y([2]) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     2 
 	cut                      y(1)     2 
-	debug_scall              aa / 0     1     ''     0 
+	debug_scall              aa / 0     1     ''     0     0 
 	callf                    aa / 0     2 
 	branch                   ref(L7) 
 label(L1):
 	retry_me_inline          0     ref(L3)     2 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     2 
 	cut                      y(1)     2 
-	debug_scall              bb / 0     1     ''     0 
+	debug_scall              bb / 0     1     ''     0     0 
 	callf                    bb / 0     2 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_inline          0     ref(L5)     2 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     2 
 	cut                      y(1)     2 
-	debug_scall              cc / 0     1     ''     0 
+	debug_scall              cc / 0     1     ''     0     0 
 	callf                    cc / 0     2 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     2 
 label(L6):
 	savecut                  y(2) 
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     2 
 	cut                      y(2)     2 
-	debug_scall              dd / 0     1     ''     0 
+	debug_scall              dd / 0     1     ''     0     0 
 	callf                    dd / 0     1 
 label(L7):
 	exit                 
@@ -6326,31 +6326,31 @@ p / 0:
 	savecut                  y(1) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	branch                   ref(L7) 
 label(L1):
 	retry_me_inline          0     ref(L3)     1 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     1 
 	cut                      y(1)     1 
-	debug_scall              bb / 0     1     ''     0 
+	debug_scall              bb / 0     1     ''     0     0 
 	callf                    bb / 0     0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_inline          0     ref(L5)     1 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     1 
 	cut                      y(1)     1 
-	debug_scall              cc / 0     1     ''     0 
+	debug_scall              cc / 0     1     ''     0     0 
 	callf                    cc / 0     0 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     1 
 label(L6):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     1 
 label(L7):
 	exit                 
@@ -6380,31 +6380,31 @@ p / 0:
 	savecut                  y(1) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	cut                      y(1)     1 
-	debug_scall              aa / 0     1     ''     0 
+	debug_scall              aa / 0     1     ''     0     0 
 	callf                    aa / 0     0 
 	branch                   ref(L7) 
 label(L1):
 	retry_me_inline          0     ref(L3)     1 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     1 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_inline          0     ref(L5)     1 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     1 
 	cut                      y(1)     1 
-	debug_scall              cc / 0     1     ''     0 
+	debug_scall              cc / 0     1     ''     0     0 
 	callf                    cc / 0     0 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     1 
 label(L6):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     1 
 label(L7):
 	exit                 
@@ -6434,31 +6434,31 @@ p / 0:
 	savecut                  y(1) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	cut                      y(1)     1 
-	debug_scall              aa / 0     1     ''     0 
+	debug_scall              aa / 0     1     ''     0     0 
 	callf                    aa / 0     0 
 	branch                   ref(L7) 
 label(L1):
 	retry_me_inline          0     ref(L3)     1 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     1 
 	cut                      y(1)     1 
-	debug_scall              bb / 0     1     ''     0 
+	debug_scall              bb / 0     1     ''     0     0 
 	callf                    bb / 0     0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_inline          0     ref(L5)     1 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     1 
 	branch                   ref(L7) 
 label(L5):
 	trust_me_inline          0     1 
 label(L6):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     1 
 label(L7):
 	exit                 
@@ -6489,10 +6489,10 @@ p / 0:
 	initialize               y([2]) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     2 
 	cut                      y(1)     2 
-	debug_scall              aa / 0     1     ''     0 
+	debug_scall              aa / 0     1     ''     0     0 
 	callf                    aa / 0     2 
 	branch                   ref(L9) 
 label(L1):
@@ -6501,23 +6501,23 @@ label(L2):
 	savecut                  y(2) 
 	try_me_else              0     0     ref(L4) 
 label(L3):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     2 
 	cut                      y(2)     2 
-	debug_scall              bb / 0     1     ''     0 
+	debug_scall              bb / 0     1     ''     0     0 
 	callf                    bb / 0     1 
 	branch                   ref(L6) 
 label(L4):
 	trust_me_inline          0     2 
 label(L5):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     2 
 label(L6):
 	branch                   ref(L9) 
 label(L7):
 	trust_me_inline          0     2 
 label(L8):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     2 
 label(L9):
 	exit                 
@@ -6532,13 +6532,13 @@ p / 0:
 	allocate                 0 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     0 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
 label(L3):
 	exit                 
@@ -6556,21 +6556,21 @@ p / 0:
 	allocate                 0 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     0 
 	branch                   ref(L5) 
 label(L1):
 	retry_me_inline          0     ref(L3)     0 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
 	branch                   ref(L5) 
 label(L3):
 	trust_me_inline          0     0 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     0 
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     0 
 label(L5):
 	exit                 
@@ -6591,16 +6591,16 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	savecut                  y(1) 
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	cut                      y(1)     1 
-	debug_scall              aa / 0     1     ''     0 
+	debug_scall              aa / 0     1     ''     0     0 
 	callf                    aa / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     1 
 label(L3):
 	exit                 
@@ -6611,7 +6611,7 @@ p(A) :-
 
 p / 1:
 	put_atom                 a(2)     eclipse 
-	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0 
+	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0     0 
 	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(2) -------
@@ -6620,7 +6620,7 @@ p(A) :-
 
 p / 1:
 	put_atom                 a(2)     eclipse 
-	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0 
+	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0     0 
 	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(3) -------
@@ -6628,7 +6628,7 @@ p(A, B) :-
 	A @ B.
 
 p / 2:
-	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0 
+	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0     0 
 	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(4) -------
@@ -6637,7 +6637,7 @@ p(A) :-
 
 p / 1:
 	put_atom                 a(2)     lists 
-	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0 
+	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0     0 
 	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(5) -------
@@ -6649,7 +6649,7 @@ p / 2:
 	move                     a(1)     a(4) 
 	move                     a(2)     a(1) 
 	move                     a(4)     a(2) 
-	debug_scall              sepia_kernel : '[]:@' / 3     1     ''     0 
+	debug_scall              sepia_kernel : '[]:@' / 3     1     ''     0     0 
 	jmp                      sepia_kernel : '[]:@' / 3 
 
 ------ Test special(6) -------
@@ -6660,7 +6660,7 @@ p / 1:
 	move                     a(1)     a(2) 
 	put_atom                 a(1)     lists 
 	put_atom                 a(3)     eclipse 
-	debug_scall              sepia_kernel : '[]:@' / 3     1     ''     0 
+	debug_scall              sepia_kernel : '[]:@' / 3     1     ''     0     0 
 	jmp                      sepia_kernel : '[]:@' / 3 
 
 ------ Test special(7) -------
@@ -6683,7 +6683,7 @@ p :-
 	call(q).
 
 p / 0:
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test special(10) -------
@@ -6695,15 +6695,15 @@ p :-
 p / 0:
 	allocate                 1 
 	initialize               y([1]) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	savecut                  y(1) 
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	cut                      y(1)     1 
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	chain                    r / 0 
 
 ------ Test special(11) -------
@@ -6713,7 +6713,7 @@ p(A) :-
 p / 1:
 	move                     a(1)     a(2) 
 	put_atom                 a(1)     q 
-	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0 
+	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0     0 
 	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(12) -------
@@ -6721,7 +6721,7 @@ p :-
 	call(q) @ lists.
 
 p / 0:
-	debug_scall              lists : q / 0     1     ''     0 
+	debug_scall              lists : q / 0     1     ''     0     0 
 	jmp                      lists : q / 0 
 
 ------ Test special(13) -------
@@ -6731,7 +6731,7 @@ p :-
 p / 0:
 	put_atom                 a(1)     hello 
 	put_atom                 a(2)     lists 
-	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0 
+	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0     0 
 	jmp                      sepia_kernel : writeln_body / 2 
 
 ------ Test special(13) -------
@@ -6741,7 +6741,7 @@ p :-
 p / 0:
 	put_atom                 a(1)     hello 
 	put_atom                 a(2)     lists 
-	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0 
+	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0     0 
 	jmp                      sepia_kernel : writeln_body / 2 
 
 ------ Test tool(1) -------
@@ -6755,7 +6755,7 @@ p / 1:
 	push_integer             0 
 	put_atom                 a(2)     definition_module 
 	put_atom                 a(4)     eclipse 
-	debug_scall              sepia_kernel : get_flag_body / 4     1     ''     0 
+	debug_scall              sepia_kernel : get_flag_body / 4     1     ''     0     0 
 	jmp                      sepia_kernel : get_flag_body / 4 
 
 ------ Test tool(2) -------
@@ -6769,7 +6769,7 @@ p / 1:
 	push_integer             0 
 	put_atom                 a(2)     definition_module 
 	put_atom                 a(4)     lists 
-	debug_scall              sepia_kernel : get_flag_body / 4     1     ''     0 
+	debug_scall              sepia_kernel : get_flag_body / 4     1     ''     0     0 
 	jmp                      sepia_kernel : get_flag_body / 4 
 
 ------ Test tool(3) -------
@@ -6783,7 +6783,7 @@ p / 2:
 	push_integer             0 
 	move                     a(2)     a(3) 
 	put_atom                 a(2)     definition_module 
-	debug_scall              sepia_kernel : get_flag_body / 4     1     ''     0 
+	debug_scall              sepia_kernel : get_flag_body / 4     1     ''     0     0 
 	jmp                      sepia_kernel : get_flag_body / 4 
 
 ------ Test tool(4) -------
@@ -6791,7 +6791,7 @@ p :-
 	q @ lists.
 
 p / 0:
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test tool(5) -------
@@ -6799,7 +6799,7 @@ p(A) :-
 	q @ A.
 
 p / 1:
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	jmp                      q / 0 
 
 ------ Test cut(1) -------
@@ -6819,7 +6819,7 @@ p :-
 p / 0:
 	allocate                 1 
 	savecut                  y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	cut                      y(1)     1 
 	exit                 
@@ -6833,10 +6833,10 @@ p :-
 p / 0:
 	allocate                 1 
 	savecut                  y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	cut                      y(1)     1 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	chain                    r / 0 
 
 ------ Test cut(4) -------
@@ -6852,16 +6852,16 @@ p / 0:
 	savecut                  y(1) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	cut                      y(1)     1 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	callf                    r / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
-	debug_scall              s / 0     1     ''     0 
+	debug_scall              s / 0     1     ''     0     0 
 	callf                    s / 0     1 
 label(L3):
 	exit                 
@@ -6881,22 +6881,22 @@ p / 0:
 	savecut                  y(1) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	branch                   ref(L5) 
 label(L1):
 	retry_me_inline          0     ref(L3)     1 
 label(L2):
 	cut                      y(1)     1 
-	debug_scall              bb / 0     1     ''     0 
+	debug_scall              bb / 0     1     ''     0     0 
 	callf                    bb / 0     0 
 	branch                   ref(L5) 
 label(L3):
 	trust_me_inline          0     1 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     1 
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     1 
 label(L5):
 	exit                 
@@ -6917,24 +6917,24 @@ p / 0:
 	savecut                  y(1) 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     1 
 	branch                   ref(L5) 
 label(L1):
 	retry_me_inline          0     ref(L3)     1 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     1 
 	cut                      y(1)     1 
-	debug_scall              bb / 0     1     ''     0 
+	debug_scall              bb / 0     1     ''     0     0 
 	callf                    bb / 0     0 
 	branch                   ref(L5) 
 label(L3):
 	trust_me_inline          0     1 
 label(L4):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     1 
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     1 
 label(L5):
 	exit                 
@@ -6974,7 +6974,7 @@ label(L7):
 	read_value               a(4) 
 	read_variable            a(3) 
 label(L8):
-	debug_scall              conc / 3     1     ''     0 
+	debug_scall              conc / 3     1     ''     0     0 
 	callf                    conc / 3     0 
 label(L9):
 	exit                 
@@ -7031,7 +7031,7 @@ label(L7):
 	read_value               a(4) 
 	read_variable            a(3) 
 label(L8):
-	debug_scall              conc / 3     1     ''     0 
+	debug_scall              conc / 3     1     ''     0     0 
 	callf                    conc / 3     0 
 label(L9):
 	exit                 
@@ -7079,7 +7079,7 @@ label(L5):
 	read_value               a(4) 
 	read_variable            a(3) 
 label(L6):
-	debug_scall              conc / 3     1     ''     0 
+	debug_scall              conc / 3     1     ''     0     0 
 	callf                    conc / 3     0 
 	branch                   ref(L9) 
 label(L7):
@@ -7106,7 +7106,7 @@ at1 / 0:
 	bi_identical             a(1)     a(3) 
 	put_structure            a(2)     f / 1 
 	push_local_value         a(1) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test at2 -------
@@ -7122,7 +7122,7 @@ at2 / 0:
 	push_variable            a(2) 
 	bi_identical             a(3)     a(4) 
 	bi_identical             a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test at3 -------
@@ -7142,7 +7142,7 @@ at3 / 0:
 	push_local_value         a(4) 
 	put_structure            a(2)     f / 1 
 	push_local_value         a(6) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	jmp                      q / 2 
 
 ------ Test at4 -------
@@ -7154,7 +7154,7 @@ at4 :-
 
 at4 / 0:
 	allocate                 0 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 	put_structure            a(3)     f / 1 
 	push_variable            a(1) 
@@ -7162,7 +7162,7 @@ at4 / 0:
 	push_variable            a(2) 
 	bi_identical             a(3)     a(4) 
 	bi_identical             a(1)     a(2) 
-	debug_scall              q / 2     1     ''     0 
+	debug_scall              q / 2     1     ''     0     0 
 	chain                    q / 2 
 
 ------ Test ag1 -------
@@ -7200,7 +7200,7 @@ ag3 / 0:
 	put_structure            a(2)     f / 1 
 	push_local_value         a(1) 
 	bi_identical             a(1)     a(2) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test ag5 -------
@@ -7214,7 +7214,7 @@ ag5 / 0:
 	push_local_value         a(4) 
 	put_structure            a(3)     f / 1 
 	push_local_value         a(4) 
-	debug_scall              p / 3     1     ''     0 
+	debug_scall              p / 3     1     ''     0     0 
 	jmp                      p / 3 
 
 ------ Test ag6 -------
@@ -7229,21 +7229,21 @@ ag6 / 0:
 	put_structure            a(3)     f / 1 
 	push_variable            a(1) 
 	move                     a(1)     a(2) 
-	debug_scall              p / 3     1     ''     0 
+	debug_scall              p / 3     1     ''     0     0 
 	callf                    p / 3     0 
 	put_structure            a(1)     f / 1 
 	push_variable            a(3) 
 	put_structure            a(2)     f / 1 
 	push_local_value         a(3) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	callf                    p / 2     0 
 	put_structure            a(2)     f / 1 
 	push_variable            a(1) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	callf                    p / 2     0 
 	put_structure            a(1)     f / 1 
 	push_variable            a(2) 
-	debug_scall              p / 2     1     ''     0 
+	debug_scall              p / 2     1     ''     0     0 
 	chain                    p / 2 
 
 ------ Test ag8 -------
@@ -7261,10 +7261,10 @@ ag8 / 0:
 	push_local_value         a(3) 
 	push_nil             
 	put_global_variable      a(1)     y(1) 
-	debug_scall              (=..) / 2     1     ''     0 
+	debug_scall              (=..) / 2     1     ''     0     0 
 	callf                    (=..) / 2     1 
 	move                     y(1)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	chain                    q / 1 
 
 ------ Test am1 -------
@@ -7286,7 +7286,7 @@ am2 / 0:
 	put_structure            a(2)     f / 1 
 	push_variable            a(1) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test am3 -------
@@ -7300,9 +7300,9 @@ am3 / 0:
 	put_structure            a(2)     f / 1 
 	push_variable            a(1) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
-	debug_scall              r / 0     1     ''     0 
+	debug_scall              r / 0     1     ''     0     0 
 	chain                    r / 0 
 
 ------ Test am4 -------
@@ -7326,7 +7326,7 @@ am5 :-
 am5 / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	put_structure            a(2)     f / 1 
 	push_local_value         y(1) 
@@ -7334,7 +7334,7 @@ am5 / 0:
 	push_local_value         y(1) 
 	move                     y(1)     a(1) 
 	bi_mul                   a(2)     a(1)     a(3) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	chain                    q / 1 
 
 ------ Test am6 -------
@@ -7349,7 +7349,7 @@ am6 / 0:
 	put_structure            a(2)     f / 1 
 	push_local_value         a(1) 
 	bi_mul                   a(1)     a(2)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test am7 -------
@@ -7361,7 +7361,7 @@ am7 :-
 am7 / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	put_structure            a(2)     f / 1 
 	push_local_value         y(1) 
@@ -7369,7 +7369,7 @@ am7 / 0:
 	push_local_value         y(1) 
 	move                     y(1)     a(1) 
 	bi_mul                   a(2)     a(1)     a(3) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	chain                    q / 1 
 
 ------ Test am8 -------
@@ -7381,13 +7381,13 @@ am8 :-
 am8 / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	put_structure            a(2)     f / 1 
 	push_local_value         y(1) 
 	move                     y(1)     a(1) 
 	bi_mul                   a(1)     a(2)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	chain                    q / 1 
 
 ------ Test am9 -------
@@ -7402,7 +7402,7 @@ am9 / 0:
 	put_structure            a(2)     f / 1 
 	push_local_value         a(1) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	jmp                      q / 1 
 
 ------ Test am10 -------
@@ -7415,14 +7415,14 @@ am10 :-
 am10 / 0:
 	allocate                 1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     1 
 	move                     y(1)     a(1) 
 	bi_var                   a(1) 
 	put_structure            a(2)     f / 1 
 	push_local_value         y(1) 
 	bi_identical             a(2)     a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	chain                    q / 1 
 
 ------ Test am11 -------
@@ -7471,7 +7471,7 @@ am14 / 0:
 	allocate                 1 
 	put_variable             a(2) 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              eq / 2     1     ''     0 
+	debug_scall              eq / 2     1     ''     0     0 
 	callf                    eq / 2     1 
 	put_structure            a(1)     f / 1 
 	push_local_value         y(1) 
@@ -7497,13 +7497,13 @@ label(L0):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     1 
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     1 
 label(L3):
 	exit                 
@@ -7532,7 +7532,7 @@ label(L0):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     1 
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
 	branch                   ref(L5) 
 label(L1):
@@ -7541,13 +7541,13 @@ label(L2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     1 
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     0 
 	branch                   ref(L5) 
 label(L3):
 	trust_me_inline          0     1 
 label(L4):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     1 
 label(L5):
 	exit                 
@@ -7601,18 +7601,18 @@ label(L0):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     1 
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     1 
 label(L2):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     1 
 label(L3):
-	debug_scall              e / 0     1     ''     0 
+	debug_scall              e / 0     1     ''     0     0 
 	callf                    e / 0     0 
-	debug_scall              f / 0     1     ''     0 
+	debug_scall              f / 0     1     ''     0     0 
 	chain                    f / 0 
 
 ------ Test disj5 -------
@@ -7641,7 +7641,7 @@ label(L0):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     1 
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     0 
 	branch                   ref(L5) 
 label(L1):
@@ -7650,18 +7650,18 @@ label(L2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     1 
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     0 
 	branch                   ref(L5) 
 label(L3):
 	trust_me_inline          0     1 
 label(L4):
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	callf                    d / 0     1 
 label(L5):
-	debug_scall              e / 0     1     ''     0 
+	debug_scall              e / 0     1     ''     0     0 
 	callf                    e / 0     0 
-	debug_scall              f / 0     1     ''     0 
+	debug_scall              f / 0     1     ''     0     0 
 	chain                    f / 0 
 
 ------ Test disj6 -------
@@ -7693,9 +7693,9 @@ label(L2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 label(L3):
-	debug_scall              e / 0     1     ''     0 
+	debug_scall              e / 0     1     ''     0     0 
 	callf                    e / 0     0 
-	debug_scall              f / 0     1     ''     0 
+	debug_scall              f / 0     1     ''     0     0 
 	chain                    f / 0 
 
 ------ Test disj7 -------
@@ -7721,9 +7721,9 @@ label(L2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 label(L3):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     0 
-	debug_scall              d / 0     1     ''     0 
+	debug_scall              d / 0     1     ''     0     0 
 	chain                    d / 0 
 
 ------ Test disj8 -------
@@ -7760,13 +7760,13 @@ p :-
 
 p / 0:
 	allocate                 0 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 	savecut                  a(1) 
 	put_variable             a(2) 
 	bi_var                   a(2) 
 	cut                      a(1) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	chain                    p / 0 
 
 ------ Test disj10 -------
@@ -7776,7 +7776,7 @@ p :-
 
 p / 0:
 	allocate                 0 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     0 
 	savecut                  a(1) 
 	put_variable             a(2) 
@@ -7801,15 +7801,15 @@ p / 0:
 	allocate                 2 
 	savecut                  y(1) 
 	savecut                  y(2) 
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     2 
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     2 
 	cut                      y(2)     2 
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	callf                    c / 0     1 
 	cut                      y(1)     1 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	chain                    q / 0 
 
 ------ Test disj12 -------
@@ -7824,7 +7824,7 @@ p :-
 p / 0:
 	allocate                 1 
 	savecut                  y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	put_variable             a(1) 
 	bi_var                   a(1) 
@@ -7841,12 +7841,12 @@ p :-
 p / 0:
 	allocate                 1 
 	savecut                  y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     1 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	chain                    p / 1 
 
 ------ Test disj14 -------
@@ -7866,7 +7866,7 @@ p / 0:
 	allocate                 0 
 	try_me_else              0     0     ref(L1) 
 label(L0):
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     0 
 	branch                   ref(L3) 
 label(L1):
@@ -7878,7 +7878,7 @@ label(L2):
 	cut                      a(1) 
 	bi_var                   a(2) 
 label(L3):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	chain                    b / 0 
 
 ------ Test disj15 -------
@@ -7914,7 +7914,7 @@ label(L0):
 label(L1):
 	retry_me_inline          0     ref(L3)     2 
 label(L2):
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     2 
 	put_variable             a(1) 
 	bi_var                   a(1) 
@@ -7940,14 +7940,14 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	savecut                  y(3) 
-	debug_scall              p / 0     1     ''     0 
+	debug_scall              p / 0     1     ''     0     0 
 	callf                    p / 0     3 
 	cut                      y(3)     3 
 	savecut                  y(2) 
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     2 
 	cut                      y(2)     2 
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     2 
 	cut                      y(2)     2 
 	cut                      y(1)     2 
@@ -7972,14 +7972,14 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_variable             a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     0 
 label(L2):
 	put_variable             a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     0 
 label(L3):
 	exit                 
@@ -8005,10 +8005,10 @@ label(L1):
 	get_value                a(1)     a(3) 
 	failure              
 	initialize               y([1]) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	put_global_variable      a(1)     y(1) 
-	debug_scall              argc / 1     1     ''     0 
+	debug_scall              argc / 1     1     ''     0     0 
 	callf                    argc / 1     1 
 	move                     y(1)     a(1) 
 	get_atom                 a(1)     a 
@@ -8085,12 +8085,12 @@ t :-
 t / 0:
 	allocate                 1 
 	savecut                  y(1) 
-	debug_scall              q / 0     1     ''     0 
+	debug_scall              q / 0     1     ''     0     0 
 	callf                    q / 0     1 
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     1 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	chain                    p / 1 
 
 ------ Test disj22 -------
@@ -8106,11 +8106,11 @@ q / 1:
 	savecut                  y(2) 
 	move                     a(1)     y(1) 
 	put_atom                 a(1)     a 
-	debug_scall              p / 1     1     ''     0 
+	debug_scall              p / 1     1     ''     0     0 
 	callf                    p / 1     2 
 	cut                      y(2)     2 
 	move                     y(1)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	chain                    r / 1 
 
 ------ Test disj23 -------
@@ -8127,12 +8127,12 @@ g / 3:
 	push_local_value         a(3) 
 	push_variable            y(2) 
 	initialize               y([1]) 
-	debug_scall              copy_term / 2     1     ''     0 
+	debug_scall              copy_term / 2     1     ''     0     0 
 	callf                    copy_term / 2     2 
 	savecut                  y(1) 
 	put_atom                 a(2)     eclipse 
 	move                     y(2)     a(1) 
-	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0 
+	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0     0 
 	callf                    sepia_kernel : untraced_call / 2     1 
 	cut                      y(1)     1 
 	exit                 
@@ -8159,12 +8159,12 @@ label(L1):
 	push_void            
 	move                     a(2)     a(1) 
 	move                     y(3)     a(2) 
-	debug_scall              l / 3     1     ''     0 
+	debug_scall              l / 3     1     ''     0     0 
 	callf                    l / 3     3 
 	move                     y(1)     a(1) 
 	move                     y(2)     a(2) 
 	move                     y(3)     a(3) 
-	debug_scall              q / 3     1     ''     0 
+	debug_scall              q / 3     1     ''     0     0 
 	chain                    q / 3 
 
 ------ Test disj25 -------
@@ -8242,11 +8242,11 @@ p / 2:
 label(L0):
 	put_global_variable      a(1)     y(4) 
 	bi_var                   a(1) 
-	debug_scall              q / 1     1     ''     0 
+	debug_scall              q / 1     1     ''     0     0 
 	callf                    q / 1     4 
 	cut                      y(3)     4 
 	move                     y(4)     a(1) 
-	debug_scall              r / 1     1     ''     0 
+	debug_scall              r / 1     1     ''     0     0 
 	callf                    r / 1     2 
 	branch                   ref(L3) 
 label(L1):
@@ -8254,7 +8254,7 @@ label(L1):
 label(L2):
 	move                     y(1)     a(1) 
 	move                     y(2)     a(2) 
-	debug_scall              s / 2     1     ''     0 
+	debug_scall              s / 2     1     ''     0     0 
 	callf                    s / 2     4 
 label(L3):
 	exit                 
@@ -8336,7 +8336,7 @@ label(L2):
 	try_me_else              0     0     ref(L4) 
 label(L3):
 	put_variable             a(1) 
-	debug_scall              transformed / 1     1     ''     0 
+	debug_scall              transformed / 1     1     ''     0     0 
 	callf                    transformed / 1     2 
 	cut                      y(2)     2 
 	branch                   ref(L6) 
@@ -8367,7 +8367,7 @@ test / 1:
 	put_atom                 a(1)     clause1 
 	put_atom                 a(2)     eclipse 
 	initialize               y([1]) 
-	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0 
+	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0     0 
 	callf                    sepia_kernel : writeln_body / 2     2 
 	savecut                  y(1) 
 	integer_switch           y(2) 
@@ -8383,7 +8383,7 @@ label(L1):
 	cut                      y(1)     2 
 	put_atom                 a(1)     ok 
 	put_atom                 a(2)     eclipse 
-	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0 
+	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0     0 
 	callf                    sepia_kernel : writeln_body / 2     0 
 	branch                   ref(L4) 
 label(L2):
@@ -8391,7 +8391,7 @@ label(L2):
 label(L3):
 	put_atom                 a(1)     wrong 
 	put_atom                 a(2)     eclipse 
-	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0 
+	debug_scall              sepia_kernel : writeln_body / 2     1     ''     0     0 
 	callf                    sepia_kernel : writeln_body / 2     2 
 label(L4):
 	exit                 
@@ -8414,18 +8414,18 @@ test / 0:
 	put_global_variable      a(1)     y(4) 
 	put_global_variable      a(2)     y(3) 
 	initialize               y([1, 2]) 
-	debug_scall              getcond / 2     1     ''     0 
+	debug_scall              getcond / 2     1     ''     0     0 
 	callf                    getcond / 2     4 
 	savecut                  y(2) 
 	put_atom                 a(2)     eclipse 
 	move                     y(4)     a(1) 
-	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0 
+	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0     0 
 	callf                    sepia_kernel : untraced_call / 2     3 
 	cut                      y(2)     3 
 	savecut                  y(1) 
 	put_atom                 a(2)     eclipse 
 	move                     y(3)     a(1) 
-	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0 
+	debug_scall              sepia_kernel : untraced_call / 2     1     ''     0     0 
 	callf                    sepia_kernel : untraced_call / 2     1 
 	cut                      y(1)     1 
 	exit                 
@@ -8466,7 +8466,7 @@ label(L3):
 	push_local_value         a(5) 
 	put_global_variable      a(3)     y(2) 
 	put_atom                 a(4)     eclipse 
-	debug_scall              sepia_kernel : findall_body / 4     1     ''     0 
+	debug_scall              sepia_kernel : findall_body / 4     1     ''     0     0 
 	callf                    sepia_kernel : findall_body / 4     2 
 	move                     y(2)     a(1) 
 	get_list                 a(1)     ref(L6) 
@@ -8487,15 +8487,15 @@ label(L6):
 	read_integer             3 
 	read_nil             
 label(L7):
-	debug_scall              nl / 0     1     ''     0 
+	debug_scall              nl / 0     1     ''     0     0 
 	callf                    nl / 0     1 
 	put_atom                 a(1)     'L = ' 
 	put_atom                 a(2)     eclipse 
-	debug_scall              sepia_kernel : write_ / 2     1     ''     0 
+	debug_scall              sepia_kernel : write_ / 2     1     ''     0     0 
 	callf                    sepia_kernel : write_ / 2     1 
 	put_atom                 a(2)     eclipse 
 	move                     y(1)     a(1) 
-	debug_scall              sepia_kernel : write_ / 2     1     ''     0 
+	debug_scall              sepia_kernel : write_ / 2     1     ''     0     0 
 	chain                    sepia_kernel : write_ / 2 
 
 ------ Test disj32 -------
@@ -8519,7 +8519,7 @@ label(L2):
 	read_value               a(4) 
 	read_variable            a(3) 
 label(L3):
-	debug_scall              append / 3     1     ''     0 
+	debug_scall              append / 3     1     ''     0     0 
 	jmp                      append / 3 
 
 ------ Test disj33 -------
@@ -8542,16 +8542,16 @@ c / 2:
 label(L0):
 	get_value                y(1)     y(2) 
 	cut                      y(3)     3 
-	debug_scall              a / 0     1     ''     0 
+	debug_scall              a / 0     1     ''     0     0 
 	callf                    a / 0     0 
 	branch                   ref(L3) 
 label(L1):
 	trust_me_inline          0     3 
 label(L2):
-	debug_scall              b / 0     1     ''     0 
+	debug_scall              b / 0     1     ''     0     0 
 	callf                    b / 0     3 
 label(L3):
-	debug_scall              c / 0     1     ''     0 
+	debug_scall              c / 0     1     ''     0     0 
 	chain                    c / 0 
 
 ------ Test disj34 -------
@@ -8571,7 +8571,7 @@ producer / 1:
 	move                     a(1)     y(4) 
 	put_global_variable      a(1)     y(3) 
 	initialize               y([1, 2]) 
-	debug_scall              random / 1     1     ''     0 
+	debug_scall              random / 1     1     ''     0     0 
 	callf                    random / 1     4 
 	savecut                  y(2) 
 	list_switch              y(4)     ref(L0)     ref(L1)     ref(L1) 
@@ -8607,5 +8607,5 @@ label(L6):
 label(L7):
 label(L8):
 	move                     y(1)     a(1) 
-	debug_scall              producer / 1     1     ''     0 
+	debug_scall              producer / 1     1     ''     0     0 
 	chain                    producer / 1 
