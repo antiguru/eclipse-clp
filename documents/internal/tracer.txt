@@ -58,7 +58,12 @@ tf(
 	Depth,
 	Choicepnt,
 	ParentFrame,
-	ProcedureId	% includes module and procedure flags
+	ProcedureId,	% includes module and procedure flags
+        Priority,
+        FilePath,
+	From,
+	To,
+        Module
  )
 
 A TD register points to the top of this stack. When a frame is popped
@@ -241,7 +246,12 @@ Emulator mechanism for call/exit notification
 simplification of the abstract machine ...)
 
 Debug_call
-	sets DBG_PRI,DBG_PORT,DBG_INVOC and raises event
+	sets DBG_PRI,DBG_PORT,DBG_INVOC, and set DBG_PATH, DBG_FROM, DBG_TO
+        to default values, and raises event
+
+Debug_scall (instruction for new compiler -- support source tracing)
+        sets DBG_PRI,DBG_PORT,DBG_INVOC,DBG_PATH,DBG_FROM,DBG_TO, and
+        raises event
 
 Call-instruction
 	sets up call and goes to event handler

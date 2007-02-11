@@ -127,6 +127,12 @@ tf with [
 	chp:Chp,	% a timestamp for the choicepoint at call time
 	parent:Parent,	% the parent in the call stack (another tf-frame, or 0)
 	proc:Proc,	% an identifier for the goal predicate (black box)
+	path:Path,      % the full pathname of the source file where goal 
+                        % occurs (empty atom, '' if no info available) 
+        from:From,      % Offset (in bytes) in source file to start of functor
+                        % for the goal
+        to:To,          % Offset (in bytes) in source file to end of functor
+                        % for the goal
 	module:Module	% the context module (atom)
 ]
 
@@ -296,7 +302,8 @@ Sequence of events roughly:
     tracer_tcl:trace_line_handler_tcl/2 is called.
 
     Trace line information is written to the debug_traceline queue.
-    This is a list [Depth, Style, Line, Invoc, Port, Prio] in exdr format.
+    This is a list [Depth, Style, Line, Invoc, Port, Prio, Path, From, To] 
+    in exdr format.
 
     peer_do_multitask(tracer) is called, which blocks.
 
