@@ -14,6 +14,8 @@ Menu bar:
           Raise top-level: this raises the toplevel window (be it the
              ECLiPSe toplevel or an application's, if the tool set is used
              from within that application). 
+	  Raise Source Context Window: raise the source context window if
+	     it exists,
 	  Predicate Browser: open/raise the predicate brower tool.
 	  Delayed Goals: open/raise the delayed goals display window.
           Close tracer: quits the tracer and continue execution (if a query
@@ -47,6 +49,14 @@ Menu bar:
           Raise tracer window when stopped at trace port: if set, the tracer
 	     window is raised to the top whenever the tracer stops execution
 	     at a trace port.
+	  Show source while tracing: if set, a source context window will
+             show the source file for the current goal. The source line
+             for the most recent goal will be highlighted, and the functor for
+             the current goal coloured in blue (for calls), green (for 
+             successes), or red (for failures). The window can also highlight
+	     the source for ancestor goals selected from the Call Stack (in
+             blue). Source will only be shown if the code is compiled with
+	     source support.
 
 Call Stack:
 
@@ -110,6 +120,11 @@ and a few options are available from the menu:
 	toggle the spying/nospying of the predicate.
 
         display the source for the predicate
+
+        display the source context for this call: show the source context
+           for the selected call in the Source Context window. The call
+           will be highlighted in blue. This option is disabled if
+	   source tracing is not available.
 
         inspect the contents of the goal using the inspector: note that no
            binding information for the goal is available at a fail port.

@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.2 2006/10/10 21:20:25 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.3 2007/02/12 21:21:46 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -132,6 +132,8 @@ lappend tkecl(preferences) \
            "Print depth used by tracer tool (+ int)"} \
 	{balloonhelp        1      boolean         tkeclipsetoolsrc \
            "Balloon help"}  \
+	{trace_source   1      boolean         tkeclipsetoolsrc \
+	     "Show source while tracing"}  \
 	{trace_refresh_dg   1      boolean         tkeclipsetoolsrc \
            "Refresh delayed goals display at every trace line"}  \
 	{trace_refresh_stack   0      boolean         tkeclipsetoolsrc \
@@ -197,6 +199,7 @@ set tkecl(filetypes) {
 # fonts are created here; their settings can be changed later to the user
 # defaults
 font create tkeclmono -family $tkecl(pref,monofont_family) 
+font create tkeclmonobold -family $tkecl(pref,monofont_family) -weight bold
 font create tkecllabel -family $tkecl(pref,labelfont_family) -weight bold 
 
 if ![regexp "^\[ \t]*$" $tkecl(pref,background_colour)] {
@@ -1313,7 +1316,7 @@ proc tkecl:popup_delaymenu {w invoc prio x y} {
 
     if {$invoc != 0} {
 	set rpc_result [ec_rpc_check [list : tracer_tcl \
-    		[list get_goal_info_by_invoc $invoc _ _ _ _]] (()(I____))]
+    		[list get_goal_info_by_invoc $invoc _ _ _ _ _ _]] (()(I______))]
 	set greturn [lindex $rpc_result 2]
 	set spec [lindex  $greturn 2]
 	set tspec [lindex $greturn 3]
@@ -1539,6 +1542,7 @@ proc tkecl:popup_tracer {} {
 	$tmbar add cascade -label "Windows" -menu $tmbar.win -underline 0
 	menu $tmbar.win
 	$tmbar.win add command -label "Raise top-level" -command "tkinspect:RaiseWindow ."
+	$tmbar.win add command -label "Raise Source Context Window" -command "tkinspect:RaiseWindow .ec_tools.ec_tracer.source"
 	$tmbar.win add command -label "Predicate Browser" -command tkecl:popup_pred_prop
 	$tmbar.win add command -label "Delayed Goals" -command tkecl:popup_dg_window
 	$tmbar.win add separator
@@ -1552,6 +1556,7 @@ proc tkecl:popup_tracer {} {
 	$tmbar.opt add check -label "Refresh goal stack at every trace line" -variable tkecl(pref,trace_refresh_stack)
 	$tmbar.opt add check -label "Refresh delayed goals at every trace line" -variable tkecl(pref,trace_refresh_dg)
 	$tmbar.opt add check -label "Raise tracer window at every trace line" -variable tkecl(pref,trace_raise_tracer)
+	$tmbar.opt add check -label "Show source while tracing" -variable tkecl(pref,trace_source)
 	$tmbar add cascade -label "Help" -menu $tmbar.help -underline 0
 	menu $tmbar.help
         $tmbar.help add command -label "Tracer Help" -command "tkecl:Get_helpfileinfo trac $ec_tracer"
@@ -1731,6 +1736,9 @@ proc tkecl:handle_trace_line {stream {length {}}} {
     set invoc [lindex $trace_info 3]
     set tkecl(current_port) [lindex $trace_info 4]
     set prio [lindex $trace_info 5]
+    set fpath_info [lindex $trace_info 6]
+    set from [lindex $trace_info 7]
+    set to [lindex $trace_info 8]
     set tkecl(cont_invoc) $invoc  ;# defaults to current 
     set tkecl(tracer_up_depth) [expr $depth>0 ? $depth-1 : 0]
 
@@ -1783,7 +1791,7 @@ proc tkecl:handle_trace_line {stream {length {}}} {
 	    $ec_tracer.stack.text insert end "..." truncate_style
 	}
 	$ec_tracer.stack.text insert end "\n" $style
-	tkecl:set_goalpopup $depth $invoc $prio
+	tkecl:set_goalpopup $depth $invoc $prio 
 	$ec_tracer.stack.text see end
 	if {$style == "call_style"} {
 	    ;# extract into tkecl(next_trace_line_depth) the line number 
@@ -1795,12 +1803,13 @@ proc tkecl:handle_trace_line {stream {length {}}} {
 	}
     }
 
-    # Refresh stack and delayed goals display
+    # Refresh stack, delayed goals and debug source displays
     if {$tkecl(pref,trace_refresh_stack) && $style != "fail_style"} {
 	# don't refresh during failures because we'd lose displayed information
     	tkecl:refresh_goal_stack
     }
     if {$tkecl(pref,trace_refresh_dg)} { tkecl:refresh_dg }
+    if {$tkecl(pref,trace_source)} { tkecl:update_source_debug $style $from $to $fpath_info }
 }
 
 proc tkecl:handle_tracer_port_start {} {
@@ -2082,12 +2091,15 @@ proc tkecl:popup_goalmenu {w invoc depth prio x y} {
     }
     set m [menu $w.gpopup -tearoff 0]
     set rpc_result [ec_rpc_check [list : tracer_tcl \
-    		[list get_goal_info_by_invoc $invoc _ _ _ _]] (()(I____))]
+    		[list get_goal_info_by_invoc $invoc _ _ _ _ _ _ _]] (()(I_______))]
     set greturn [lindex $rpc_result 2]
     set spec [lindex  $greturn 2]
     set tspec [lindex $greturn 3]
     set module [lindex $greturn 4]
     set lookup_module [lindex $greturn 5]
+    set path_info [lindex $greturn 6]
+    set from [lindex $greturn 7]
+    set to [lindex $greturn 8]
 
     if {![string match unknown $spec] } {
 	$m add command -label "$tspec @ $module <$prio>" -state disabled
@@ -2103,6 +2115,16 @@ proc tkecl:popup_goalmenu {w invoc depth prio x y} {
 		[list tkecl:set_pred_flag $spec $lookup_module spy $spyval]
 	$m add command -label "Display source for this predicate" -command \
 		[list tkecl:set_and_display_source $spec $module]
+	set rpc_result [ec_rpc [list : tracer_tcl \
+				[list is_current_goal $invoc _]] (()(I_))] 
+	if {$rpc_result != "fail"} {
+	    set gstyle [lindex [lindex $rpc_result 2] 2]
+	} else {
+	    set gstyle ancestor_style
+	}
+	if {$path_info == "no"} {set gstate disabled} else {set gstate normal} 
+	$m add command -label "Display source context for this call" -command \
+	    "tkecl:update_source_debug $gstyle $from $to {$path_info}" -state $gstate
 	$m add command -label "Inspect this goal" -command \
 		"tkinspect:Inspect_term_init invoc($invoc)"
 	$m add command -label "Observe this goal" -command "tkecl:observe_goal $invoc"
@@ -2164,8 +2186,10 @@ proc tkecl:refresh_goal_stack {} {
 proc tkecl:set_goalpopup {depth invoc prio} {
 # print goal line in the stack display and set up the tag for it
     set ec_tracer .ec_tools.ec_tracer
-    $ec_tracer.stack.text tag bind $invoc <Button-3> "tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio %X %Y; break"
-    $ec_tracer.stack.text tag bind $invoc <Control-Button-1> "tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio %X %Y; break"
+    $ec_tracer.stack.text tag bind $invoc <Button-3> \
+	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio %X %Y; break"
+    $ec_tracer.stack.text tag bind $invoc <Control-Button-1> \
+	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio %X %Y; break"
     $ec_tracer.stack.text tag bind $invoc <Double-Button-1> "tkinspect:Inspect_term_init invoc($invoc); break"
 
     set stdepth [expr $depth + 1]
@@ -3261,6 +3285,119 @@ proc tkecl:display_popup {p w name nrow x y} {
     tk_popup $m $x $y
 }
 
+#----------------------------------------------------------------------
+# Source Display
+#----------------------------------------------------------------------
+
+proc tkecl:setup_source_debug_window {} {
+    global tkecl
+
+    # setup source debug window, text display for source is not packed, as
+    # it needs to have source text added before displaying it
+    set ec_tracer .ec_tools.ec_tracer
+    toplevel $ec_tracer.source
+    wm title $ec_tracer.source "Source Context"
+    set ec_source $ec_tracer.source
+    text $ec_source.text -bg white -yscrollcommand "$ec_source.vscroll set" -wrap none -xscrollcommand "$ec_source.hscroll set" 
+    scrollbar $ec_source.vscroll -command "$ec_source.text yview"
+    scrollbar $ec_source.hscroll -command "$ec_source.text xview" -orient horizontal
+    pack $ec_source.vscroll -side left -fill y
+    pack $ec_source.hscroll -side bottom -fill x
+
+    bind $ec_source.text <Any-Key> "tkecl:readonly_keypress %A"
+    bind $ec_source.text <ButtonRelease-2> {break}
+    $ec_source.text tag configure call_style -foreground #7070ff \
+	-underline 1 -font tkeclmonobold
+    $ec_source.text tag configure exit_style -foreground #00b000 \
+	-underline 1 -font tkeclmonobold
+    $ec_source.text tag configure fail_style -foreground red \
+	-underline 1 -font tkeclmonobold
+    $ec_source.text tag configure ancestor_style -background lightblue \
+	-relief raised -borderwidth 1
+    $ec_source.text tag configure debug_line -background beige -relief raised -borderwidth 1
+    set tkecl(source_debug,file) ""
+    balloonhelp $ec_source.text "Source context for execution traced by the tracer.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue."
+    tkwait visibility $ec_source  
+
+}
+
+proc tkecl:handle_source_debug_print {stream} {
+
+    set ec_sourcetext .ec_tools.ec_tracer.source.text
+    pack forget $ec_sourcetext ;# do not display text as it is added....
+    set source_stream [ec_streamnum_to_channel $stream]
+    set line [ec_read_exdr $source_stream]
+    while {$line != "end_of_file"} {
+	$ec_sourcetext insert end $line
+	$ec_sourcetext insert end "\n"
+	set line [ec_read_exdr $source_stream]
+    } 
+    pack $ec_sourcetext -fill both -expand 1
+
+}
+
+proc tkecl:update_source_debug {style from to fpath_info} {
+    global tkecl
+
+    set ec_source .ec_tools.ec_tracer.source
+
+    if {![winfo exists $ec_source]} { 
+	if {$fpath_info != "no"} {
+	    tkecl:setup_source_debug_window 
+	    tkinspect:RaiseWindow $ec_source
+	} else {
+	    return
+	}
+    }
+
+    set ec_sourcetext $ec_source.text
+    if {$style != "ancestor_style"} {
+	# reset previous trace call annotations (except debug_line)
+	$ec_sourcetext tag remove call_style 1.0 end
+	$ec_sourcetext tag remove exit_style 1.0 end
+	$ec_sourcetext tag remove fail_style 1.0 end
+    }
+    $ec_sourcetext tag remove ancestor_style 1.0 end
+
+    if {$fpath_info == "no"} {
+	return
+    } else {
+	# get the pathname
+	set fpath [lindex $fpath_info 1]
+    }
+
+    if {$tkecl(source_debug,file) != $fpath} {
+	$ec_sourcetext delete 1.0 end
+	wm title $ec_source "Source Context: $fpath"
+	switch [ec_rpc [list : tracer_tcl [list read_file_for_gui $fpath]] \
+		    {(()(()))}] {
+	    fail -
+	    throw {
+		# problem reading source, no display
+		return
+	    }
+	}
+	set tkecl(source_debug,file) $fpath
+    } else {
+	if {$style != "ancestor_style"} {
+	    $ec_sourcetext tag remove debug_line 1.0 end
+	}
+    }
+
+
+    # assume $from, $to -- position information on an annotated term from
+    # ECLiPSe maps into number of characters from start of file
+    set from_idx [$ec_sourcetext index "1.0 + $from chars"]
+    set to_idx [$ec_sourcetext index "1.0 + $to chars"]
+    $ec_sourcetext tag add $style $from_idx $to_idx
+    if {$style != "ancestor_style"} {
+	$ec_sourcetext tag add debug_line "$from_idx linestart" "$to_idx lineend"
+    }
+    $ec_sourcetext see $from_idx
+	
+}
+
+
 #---------------------------------------------------------------------
 # Balloon Help Toggle
 #---------------------------------------------------------------------
@@ -3449,6 +3586,7 @@ proc tkecl:set_one_tools_default {dname dvalue type} {
 		if [regexp {^[0-9]+$} $dvalue size] {
 		    if {[string compare $dname monofont_size] == 0} {
 			font configure tkeclmono -size $dvalue
+			font configure tkeclmonobold -size $dvalue
 		    } else {
 			font configure tkecllabel -size $dvalue
 		    }
@@ -3461,6 +3599,7 @@ proc tkecl:set_one_tools_default {dname dvalue type} {
 	    font {
 		if {[string compare $dname monofont_family] == 0} {
 		    font configure tkeclmono -family $dvalue
+		    font configure tkeclmonobold -family $dvalue
 		} else {
 		    font configure tkecllabel -family $dvalue
 		}
@@ -3794,6 +3933,7 @@ proc ec_tools_init {w} {
     ec_rpc "tracer_tcl:install_guitools"
     ec_queue_create debug_traceline r tkecl:handle_trace_line
     ec_queue_create debug_output r tkecl:handle_debug_output
+    ec_queue_create gui_source_file r tkecl:handle_source_debug_print
     ec_queue_create matrix_out_queue r tkecl:handle_mat_flush
     ec_queue_create gui_dg_info r tkecl:handle_dg_print
     ec_queue_create statistics_out_queue r tkecl:handle_stats_report

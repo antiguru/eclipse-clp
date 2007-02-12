@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.3 2007/02/11 00:01:52 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.4 2007/02/12 21:23:10 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -112,12 +112,13 @@
 	uninstall_guitools/0,
 	get_ancestors/1,
         get_current_traceline/4,
-	get_goal_info_by_invoc/5,
+	get_goal_info_by_invoc/8,
         prepare_filter/1,
         set_usepred_info/5,
         reenable_usepred/0,
         set_tracer_command/1,
 	read_file_for_gui/1,
+        is_current_goal/2,
 	saros_get_library_path/1,
 	saros_set_library_path/1,
 	saros_compile/1,
@@ -397,7 +398,7 @@ get_inspected_term(current, Term, Module) :-
 	    get_flag(toplevel_module, Module)
 	).
 get_inspected_term(invoc(N), Goal, Module) :-
-	find_goal_by_invoc(N, _LookupModule, Goal, Module).
+	find_goal_by_invoc(N, _LookupModule, Goal, Module, _, _, _).
 get_inspected_term(display(I,R,C), Term, Module) :-
 	get_matrix_term(I, R, C, Term, Module).
 
@@ -1719,17 +1720,18 @@ gui_dg(Which, Trigger, Filter) :-
 get_triggers(Ts) :-
         findall(T, current_trigger(T), Ts).
 
-get_goal_info_by_invoc(Invoc, Spec, TSpec, Module, LookupModule) :-
+get_goal_info_by_invoc(Invoc, Spec, TSpec, Module, LookupModule, Path, From, To) :-
 % TSpec is write transformed goal spec.
-	find_goal_by_invoc(Invoc, LookupModule, Goal0, Module0),
-	check_at_wrapper(Goal0, Module0, Goal, Module),
+	find_goal_by_invoc(Invoc, LookupModule, Goal0, Module0, Path0, From, To),
+        (Path0 == '' -> Path = no ; Path = p(Path0)),
+        check_at_wrapper(Goal0, Module0, Goal, Module),
 	getval(dbg_goal_format_string, Mode),
 	perform_transformation(Goal, Goal, Mode, TGoal, Module),
 	functor(Goal, F,A), !,
 	functor(TGoal, TF, TA),
 	term_string(F/A,Spec),
 	term_string(TF/TA,TSpec).
-get_goal_info_by_invoc(_, "unknown", "unknown", "unknown", "unknown").
+get_goal_info_by_invoc(_, "unknown", "unknown", "unknown", "unknown","","","").
 
 % this catches any Goal@M calls and returns Goal and M as the goal and module
 check_at_wrapper(Goal0@M0, _, Goal, M) ?- !,
@@ -1747,11 +1749,11 @@ compile_string(String) :-
 	flush(output).	       % for compiled-messages
 
 
-find_goal_by_invoc(Invoc, DefModule, Goal, Module) :-
+find_goal_by_invoc(Invoc, DefModule, Goal, Module, Path, From, To) :-
 	getval(exec_state, Current),
 	Current = trace_line with frame:Stack,
 	find_goal(Invoc, Stack, Frame),
-	Frame = tf with [goal:Goal, module:Module],
+	Frame = tf with [goal:Goal, path:Path, from:From, to:To, module:Module],
 	get_tf_prop(Frame, module, DefModule).
 
 get_ancestors(Anc) :-
@@ -1783,6 +1785,11 @@ get_current_traceline(Depth, Style, Line, Invoc) :-
 	get_stream_info(SS, name, Line),
 	close(SS),
 	port_style(Port, Style).
+
+is_current_goal(Invoc, Style) :-
+        getval(exec_state, trace_line with [frame:Frame,port:Port]),
+        Frame = tf with invoc:Invoc,
+        port_style(Port, Style).
 
 %-------------------------------------------------------------------
 % statistics reporting
@@ -1994,7 +2001,7 @@ saros_use_module(OSFile) :-
 
 saros_get_goal_info_by_invoc(Invoc, UseLookupModule, Spec, 
 			     TSpec, Module, LookupModule, Spied) :-
-	get_goal_info_by_invoc(Invoc, Spec, TSpec, Module, LookupModule),
+	get_goal_info_by_invoc(Invoc, Spec, TSpec, Module, LookupModule, _,_,_),
 	( UseLookupModule = 1 ->
 	    flag_value(Spec, spy, LookupModule, Spied)
 	;
