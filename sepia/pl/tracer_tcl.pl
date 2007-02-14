@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.5 2007/02/14 17:01:57 andy_cheadle Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.6 2007/02/14 18:31:16 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -1861,7 +1861,8 @@ report_stats_text_summary :-
 %----------------------------------------------------------------------
 % source file reader
 %----------------------------------------------------------------------
-read_file_for_gui(File) :-
+read_file_for_gui(OSFile) :-
+        os_file_name(File, OSFile),
         (get_file_info(File, readable, on) ->
             open(File, read, S),
             repeat,
