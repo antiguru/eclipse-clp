@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.4 2007/02/12 21:23:10 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.5 2007/02/14 17:01:57 andy_cheadle Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -128,7 +128,7 @@
         saros_ecis_to_htmls/4,
 	saros_cd/1,
 	saros_use_module/1,
-	saros_get_goal_info_by_invoc/7.
+	saros_get_goal_info_by_invoc/10.
 
 
 
@@ -1999,13 +1999,16 @@ saros_use_module(OSFile) :-
 	os_file_name(File, OSFile),
 	use_module(File).
 
-saros_get_goal_info_by_invoc(Invoc, UseLookupModule, Spec, 
-			     TSpec, Module, LookupModule, Spied) :-
-	get_goal_info_by_invoc(Invoc, Spec, TSpec, Module, LookupModule, _,_,_),
-	( UseLookupModule = 1 ->
-	    flag_value(Spec, spy, LookupModule, Spied)
+saros_get_goal_info_by_invoc(Invoc, UseLookupModule, Spec, TSpec, 
+                             Module, LookupModule, Path, From, To, Spied) :-
+	get_goal_info_by_invoc(Invoc, Spec, TSpec, 
+                               Module, LookupModule, Path, From, To),
+	( LookupModule == "unknown" ->
+	    Spied = "off"
 	;
-	     flag_value(Spec, spy, Module, Spied)
+	    ( UseLookupModule = 1 ->
+		flag_value(Spec, spy, LookupModule, Spied)
+	    ;
+		flag_value(Spec, spy, Module, Spied)
+	    )
 	).
-	
-
