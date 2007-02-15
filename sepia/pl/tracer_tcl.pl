@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.6 2007/02/14 18:31:16 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.7 2007/02/15 11:53:38 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -234,7 +234,12 @@ make_trace_line(Stream, trace_line with [port:Port, frame:Frame], Depth,
                          path:Path0, from:From, to:To],
 	register_inspected_term(Goal, M),
         % wrapper around pathname to avoid empty string 
-        (Path0 == '' -> FPath = no ; FPath = p(Path0)),
+        (Path0 == '' -> 
+            FPath = no 
+        ; 
+            os_file_name(Path0, OSPath),
+            FPath = p(OSPath)
+        ),
         % print priority only if not the normal 12
         (Prio == 12 -> PrioS = "" ; concat_string([<,Prio,>], PrioS)),
 	( get_tf_prop(Frame, skip, on) -> Prop = 0'S ; Prop = 0'  ),
@@ -1723,7 +1728,12 @@ get_triggers(Ts) :-
 get_goal_info_by_invoc(Invoc, Spec, TSpec, Module, LookupModule, Path, From, To) :-
 % TSpec is write transformed goal spec.
 	find_goal_by_invoc(Invoc, LookupModule, Goal0, Module0, Path0, From, To),
-        (Path0 == '' -> Path = no ; Path = p(Path0)),
+        (Path0 == '' -> 
+            Path = no 
+        ; 
+            os_file_name(Path0, OSPath),
+            Path = p(OSPath)
+        ),
         check_at_wrapper(Goal0, Module0, Goal, Module),
 	getval(dbg_goal_format_string, Mode),
 	perform_transformation(Goal, Goal, Mode, TGoal, Module),
