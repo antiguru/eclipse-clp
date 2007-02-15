@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.3 2007/02/14 18:36:52 kish_shen Exp $
+% Version:	$Id: compiler_top.ecl,v 1.4 2007/02/15 11:58:41 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/14 18:36:52 $").
+:- comment(date, "$Date: 2007/02/15 11:58:41 $").
 
 :- comment(desc, html("
 	This module contains the toplevel predicates for invoking the
@@ -232,7 +232,6 @@ compile_file(File, OptionList, Module) :-
 	    source_read(SourcePos1, SourcePos2, Class, SourceTerm),
             SourcePos1 = source_position{module:PosModule,file:CFile},
             SourceTerm = source_term{term:Term,annotated:Ann},
-            os_file_name(CFile, OSFile),
             
 	    ( Class = clause ->
 		extract_pred(Term, N, A),
@@ -242,7 +241,7 @@ compile_file(File, OptionList, Module) :-
                     Clauses1 = Clauses0,
                     AnnClauseTail0 = [Ann|AnnClauseTail1],
                     AnnClauses1 = AnnClauses0,
-                    FileTail0 = [OSFile|FileTail1],
+                    FileTail0 = [CFile|FileTail1],
                     Files1 = Files0
 		;
 		    ClauseTail0 = [],		% new pred, compile previous
@@ -251,7 +250,7 @@ compile_file(File, OptionList, Module) :-
                     compile_predicate(Pred0, Clauses0, AnnClauses0, Files0, Options),
 		    Clauses1 = [Term|ClauseTail1],
                     AnnClauses1 = [Ann|AnnClauseTail1],
-                    Files1 = [OSFile|FileTail1]
+                    Files1 = [CFile|FileTail1]
 		)
 
 	    ; Class = comment ->		% comment, ignore
