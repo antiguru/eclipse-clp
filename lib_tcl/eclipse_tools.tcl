@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.3 2007/02/12 21:21:46 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.4 2007/02/18 03:16:45 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3321,7 +3321,7 @@ proc tkecl:setup_source_debug_window {} {
 
 }
 
-proc tkecl:handle_source_debug_print {stream} {
+proc tkecl:handle_source_debug_print {stream {length {}}} {
 
     set ec_sourcetext .ec_tools.ec_tracer.source.text
     pack forget $ec_sourcetext ;# do not display text as it is added....
