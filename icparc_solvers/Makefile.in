@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.3 2006/11/29 16:17:05 kish_shen Exp $
+# $Id: Makefile.in,v 1.4 2007/02/20 03:17:50 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -154,6 +154,12 @@ i386_linux/secplex90.so: seplex.c eplex_params.h seplex.h
 	$(CC) -shared seplex.o $(THIRDPARTY)/cplex90/lib/i86_linux2_glibc2.3_gcc3.2/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex90.so
+
+x86_64_linux/secplex90.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex90/lib/x86-64_RHEL3.0_3.2/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	mv secplex.so x86_64_linux/secplex90.so
 
 
 #----------------------------------------------------------------------
