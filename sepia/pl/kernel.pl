@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.2 2007/02/09 02:46:51 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.3 2007/02/21 19:38:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1328,7 +1328,8 @@ declaration_checks :-
 % :- pragma(verbose(very)).
 % the second will override the first. It can't be erased completely.
 %
-% Atoms: a pragma called 'noxxx' erases a previously given pragma 'xxx'.
+% Atoms: a pragma called 'noxxx' replaces a previously given pragma 'xxx',
+% a pragma called 'xxx' replaces a previously given pragma 'noxxx'.
 %
 %----------------------------------------------------------------------
 
@@ -1338,10 +1339,13 @@ record_pragma(Pragma, Module) :-
 	atom(Pragma),
 	atom_string(Pragma, PragmaString),
 	( substring(PragmaString, "no", 1) ->
-	    substring(PragmaString, 2, _, 0, NewPragmaString),
-	    atom_string(NewPragma, NewPragmaString),
-	    store_delete(pragmas, Module:NewPragma)
+	    substring(PragmaString, 2, _, 0, YesPragmaString),
+	    atom_string(YesPragma, YesPragmaString),
+	    store_delete(pragmas, Module:YesPragma),
+	    store_set(pragmas, Module:Pragma, Pragma)
 	;
+	    concat_atoms(no, Pragma, NoPragma),
+	    store_delete(pragmas, Module:NoPragma),
 	    store_set(pragmas, Module:Pragma, Pragma)
 	).
 record_pragma(Pragma, Module) :-
