@@ -1557,6 +1557,12 @@ transformation (e.g. inlining) of calls to Pred.
     e.g. inline-transformations) can exploit the pragma facility to make
     their behaviour user-configurable. All they need to do is document the
     pragma names/structures and check for them using current_pragma/1.
+    </P><P>
+    Pragma recording works as follows: if the argument of the pragma directive
+    is a structure, the new structure overwrites any previously recorded
+    structure with the same functor.  If the argument is an atom, e.g.
+    'xxx', then a previously recorded atom 'noxxx' is erased and 'xxx'
+    recorded instead, and vice versa.
     </P>"),
     args:["Pragma" : "A variable, atom or compound term"],
     exceptions:[5 : "Pragma is not a variable, atom or compound term."],
@@ -1579,7 +1585,7 @@ transformation (e.g. inlining) of calls to Pred.
     :- pragma(noblah).
 
      ?- findall(P, current_pragma(P), L), writeln(L).
-    [myoption(off)]
+    [noblah, myoption(off)]
 
      ?- current_pragma(myoption(off)).
      Yes.
