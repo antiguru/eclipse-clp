@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.4 2007/02/22 01:28:11 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.5 2007/02/22 12:19:21 jschimpf Exp $
  */
 
 /*
@@ -3756,19 +3756,21 @@ _globalize_if_needed_:
 #define BLastArg(top)		((pword *) BTop(top) - 1)
 
 
-	Case(Trust_me_inline, I_Trust_me_inline)	/* debug,envsize */
-	    DBG_PORT = PP->nint;
-	    PP += 2;
-	    goto _trust_me_;
-
 	Case(Trust, I_Trust)				/* debug,alt */
 	    DBG_PORT = PP->nint;
 	    PP = PP[1].code;
 	    goto _trust_me_;
 
+	Case(Trust_me_inline, I_Trust_me_inline)	/* debug,envsize */
+	    DBG_PORT = PP->nint;
+	    PP += 2;
+	    goto _trust_me_;
+
 	/* Operationally the same as Trust, but points to a branch of an
 	 * inline disjunction rather than a clause. That branch code must
-	 * be predeceded by a retry/trust_me_inline with environment size. */
+	 * be predeceded by a retry/trust_me_inline with environment size.
+	 * We must make sure that the C compiler does not merge Trust and
+	 * Trust_inline, because the opcodes must remain distinguishable! */
 	Case(Trust_inline, I_Trust_inline)		/* debug,alt */
 	    DBG_PORT = PP->nint;
 	    PP = PP[1].code;
@@ -4308,18 +4310,20 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT) */
 	    PP = PP[1].code;
 	    goto _retry_me_;		/* (DBG_PORT) */
 
-	/* Operationally the same as Retry, but points to a branch of an
-	 * inline disjunction rather than a clause. That branch code must
-	 * be predeceded by a retry_me_inline with environment size. */
-	Case(Retry_inline, I_Retry_inline)	/* debug branch */
-	    DBG_PORT = PP->nint;
-	    BBp(B.args) = (vmcode *) (PP + 2);
-	    PP = PP[1].code;
-	    goto _retry_me_;		/* (DBG_PORT) */
-
 	Case(Retrylab, I_Retrylab)		/* debug clause alt */
 	    DBG_PORT = PP->nint;
 	    BBp(B.args) = (vmcode *) PP[2].code;
+	    PP = PP[1].code;
+	    goto _retry_me_;		/* (DBG_PORT) */
+
+	/* Operationally the same as Retry, but points to a branch of an
+	 * inline disjunction rather than a clause. That branch code must
+	 * be predeceded by a retry_me_inline with environment size.
+	 * We must make sure that the C compiler does not merge Retry and
+	 * Retry_inline, because the opcodes must remain distinguishable! */
+	Case(Retry_inline, I_Retry_inline)	/* debug branch */
+	    DBG_PORT = PP->nint;
+	    BBp(B.args) = (vmcode *) (PP + 2);
 	    PP = PP[1].code;
 	    goto _retry_me_;		/* (DBG_PORT) */
 
