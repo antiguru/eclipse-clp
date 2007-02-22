@@ -1519,8 +1519,8 @@ int coin_get_soln_state(lp_desc* lpd, double* sols, double* pis, double* slacks,
     // basis not available for CBC 
     if (cbase != NULL || rbase != NULL)
     {
-	int* cbase0 = (cbase0 == NULL ? new int[mac] : cbase);
-	int* rbase0 = (rbase0 == NULL ? new int[mar] : rbase);
+	int* cbase0 = (cbase == NULL ? new int[mac] : cbase);
+	int* rbase0 = (rbase == NULL ? new int[mar] : rbase);
 
 	lpd->lp->Solver->getBasisStatus(cbase0, rbase0);
 	if (cbase == NULL) delete [] cbase0; 

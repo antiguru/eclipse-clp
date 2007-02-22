@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.2 2006/11/29 16:17:05 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.3 2007/02/22 03:18:59 kish_shen Exp $
  *
  */
 
@@ -531,8 +531,8 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define CPXgetctype(E,A1,A2,A3,A4)	coin_getcoltype(A1,A2,A3,A4)
 # define CPXchgctype(E,A1,A2,A3,A4)	coin_chgcoltype(A1,A2,A3,A4)
 # define CPXchgbds(E,A1,A2,A3,A4,A5)	coin_chgbds(A1,A2,A3,A4,A5)
-# define CPXcopybase(E,A1,A2,A3)	coin_loadbasis(A1,A3,A2) /* args swapped! */
-# define CPXgetbase(E,A1,A2,A3)		coin_getbasis(A1,A3,A2) /* args swapped! */
+# define CPXcopybase(E,A1,A2,A3)	coin_loadbasis(A1,A2,A3) 
+# define CPXgetbase(E,A1,A2,A3)		coin_getbasis(A1,A2,A3) 
 # define Get_LP_Objval(A1,A2)		coin_get_lpobjval(A1,A2)
 # define Get_Best_Objbound(A1, A2)      coin_get_bestmipbound(A1,A2)
 # define CPXgetmipobjval(E,A1,A2)	coin_get_mipobjval(A1,A2)
@@ -5923,8 +5923,9 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 			Get_MIPCutOff(lpd, &bestbound);
 		    } 
 		} else /* infeasible LP problem  */
-		    bestbound = (lpd->sense ==  SENSE_MIN ?  HUGE_VAL : -HUGE_VAL);
 # endif
+		    /* infeasible LP for Xpress, infeasible LP/MIP for COIN */
+		    bestbound = (lpd->sense ==  SENSE_MIN ?  HUGE_VAL : -HUGE_VAL);
 # ifdef CPLEX
 		if (IsMIPProb(lpd->prob_type))
 		{
