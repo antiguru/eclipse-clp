@@ -61,8 +61,13 @@
 // Barrier
 #include "ClpInterior.hpp"
 #include "ClpSimplex.hpp"
-
-//#include "ClpCholeskyUfl.hpp"
+#ifdef UFL_BARRIER
+// Use the University of Florida AMD library for pre-ordering sparse matrices
+// This considerably improves the Barrier performance. Clp must also be 
+// compiled with UFL_BARRIER support. Note that the UFL AMD library is not
+// part of COIN-OR and is distributed under GNU LGPL license. 
+#include "ClpCholeskyUfl.hpp"
+#endif
 #include "ClpCholeskyDense.hpp"
 #include "ClpCholeskyWssmp.hpp"
 typedef OsiClpSolverInterface OsiXxxSolverInterface;
@@ -97,7 +102,9 @@ typedef OsiClpSolverInterface OsiXxxSolverInterface;
 // Barrier
 #include "ClpInterior.hpp"
 #include "ClpSimplex.hpp"
-//#include "ClpCholeskyUfl.hpp"
+#ifdef UFL_BARRIER
+#include "ClpCholeskyUfl.hpp"
+#endif
 #include "ClpCholeskyDense.hpp"
 #include "ClpCholeskyWssmp.hpp"
 
@@ -508,14 +515,13 @@ int coin_solveLinear(lp_desc* lpd, int meth, int auxmeth)
     case METHOD_BAR:
 	{
 	ClpModel* clpmodel = lpd->lp->Solver->getModelPtr();
-	//ClpInterior model(*clpmodel);
 	lpd->lp->interiormodel = new ClpInterior;
 	lpd->lp->interiormodel->borrowModel(*clpmodel);
-	//model.borrowModel(*clpmodel);
-	//ClpCholessky* cholesky = new ClpCholeskyUfl();
+#ifdef UFL_BARRIER
+	ClpCholeskyUfl* cholesky = new ClpCholeskyUfl();
+#else
 	ClpCholeskyBase* cholesky = new ClpCholeskyDense();
-	//model.setCholesky(cholesky);
-	//model.primalDual();
+#endif
 	lpd->lp->interiormodel->setCholesky(cholesky);
 	lpd->lp->interiormodel->primalDual();
 	// Barrier done
