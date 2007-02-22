@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.2 2007/02/09 02:41:53 kish_shen Exp $
+ * VERSION	$Id: names.h,v 1.3 2007/02/22 01:27:34 jschimpf Exp $
  */
 
 /*
@@ -410,6 +410,11 @@ char * inst_name[] = {
 "BI_Arg                    ",
 "BI_MakeSuspension         ",
 "Debug_scall               ",
+"Retry_inline              ",
+"Trust_inline              ",
+"Put_named_variableAM      ",
+"Put_named_variableL       ",
+"Put_named_variableAML     ",
 
 #if (NREGARG > 0)
 "MoveAR                    ",

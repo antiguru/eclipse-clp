@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.2 2007/02/09 02:41:53 kish_shen Exp $
+ * VERSION	$Id: opcode.h,v 1.3 2007/02/22 01:27:34 jschimpf Exp $
  */
 
 /*
@@ -451,7 +451,12 @@ extern vmcode bi_addr[];
 #define BI_Arg					(BLOCK1 + 340)
 #define BI_MakeSuspension			(BLOCK1 + 341)
 #define Debug_scall				(BLOCK1 + 342)
-#define OPCODES_WITHOUT_REGS			(BLOCK1 + 343)
+#define Retry_inline				(BLOCK1 + 343)
+#define Trust_inline				(BLOCK1 + 344)
+#define Put_named_variableAM			(BLOCK1 + 345)
+#define Put_named_variableL			(BLOCK1 + 346)
+#define Put_named_variableAML			(BLOCK1 + 347)
+#define OPCODES_WITHOUT_REGS			(BLOCK1 + 348)
 
 /*
  * Don't forget to update the following files:

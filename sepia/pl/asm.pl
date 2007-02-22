@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.3 2007/02/11 00:00:49 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.4 2007/02/22 01:28:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -398,6 +398,8 @@ abstract machine representation WAMCode.
 	y(Y) 		 permanent variable Y                             1
 	t(X) 		 temporary variable X                             1
         pw(N)		 pword offset                                     1
+        edesc(EnvDesc)	 environment activity descriptor
+			 (integer N, or eam(Bitmap)
         i(I)             integer value I                                  1
         f(Z)  		 floating value Z                                 1
         atom(C)          atom did for C                                   1
@@ -580,10 +582,10 @@ instr(allocate(N), 			136, [pw(N)]).
 instr(space(N), 			137, [pw(N)]).
 instr(initialize(y(VList)), 		138, [vmask(VList)]).
 instr(branch(ref(L)), 			139, [ref(L)]).
-instr(call(ref(L),N), 			140, [ref(L),pw(N)]).
-instr(call(P,N), 			141, [proc(P),pw(N)]).
-instr(callf(ref(L),N), 			142, [ref(L),pw(N)]).
-instr(callf(P,N), 			143, [proc(P),pw(N)]).
+instr(call(ref(L),N), 			140, [ref(L),edesc(N)]).
+instr(call(P,N), 			141, [proc(P),edesc(N)]).
+instr(callf(ref(L),N), 			142, [ref(L),edesc(N)]).
+instr(callf(P,N), 			143, [proc(P),edesc(N)]).
 instr(chain(ref(L)), 			144, [ref(L)]).
 instr(chain(P), 			145, [proc(P)]).
 instr(chainc(ref(L)), 			146, [ref(L)]).
@@ -619,7 +621,7 @@ instr(exit_emulator(N), 		174, [i(N)]).
 instr(debug_exit, 			175, []).
 instr(get_matched_value(a(A),y(Y)),	176, [a(A),y(Y)]).
 instr(nop, 				177, []).
-instr(ress(Nt,Na,Ne), 			178, [pw(Nt),i(Na),pw(Ne)]).
+instr(ress(Nt,Na,Ne), 			178, [pw(Nt),i(Na),edesc(Ne)]).
 instr(deallocate, 			179, []).
 instr(get_constant(a(A),C), 		180, [a(A),valtag(C)]).
 instr(in_get_constant(a(A),C), 		181, [a(A),valtag(C)]).
@@ -640,8 +642,8 @@ instr(gc_test(M,N), 			194, [pw(M),i(N)]).
 %instr(try_me_dynamic(...), 		195, [...]).
 %instr(retry_me_dynamic(...), 		196, [...]).
 instr(read_test_var, 			197, []).
-instr(retry_me_inline(D,ref(L),N),	198, [port(D),ref(L),pw(N)]).
-instr(trust_me_inline(D,N), 		199, [port(D),pw(N)]).
+instr(retry_me_inline(D,ref(L),N),	198, [port(D),ref(L),edesc(N)]).
+instr(trust_me_inline(D,N), 		199, [port(D),edesc(N)]).
 instr(set_bp(ref(L)), 			200, [ref(L)]).
 instr(restore_bp, 			201, []).
 instr(new_bp(ref(L)), 			202, [ref(L)]).
@@ -649,12 +651,12 @@ instr(savecut(y(Y)), 			203, [y(Y)]).
 instr(cut(y(Y),O), 			204, [y(Y),pw(O)]).
 instr(jmpd(N,ref(L)), 			205, [pw(N),ref(L)]).
 instr(switch_on_type(y(Y),LSt), 	206, [y(Y),tags(LSt)]).
-instr(metacall(N), 			207, [pw(N)]).
-instr(fastcall(P,N), 			208, [port(P),pw(N)]).
+instr(metacall(N), 			207, [edesc(N)]).
+instr(fastcall(P,N), 			208, [port(P),edesc(N)]).
 instr(integer_range_switch(y(Y),RT,ref(Le),ref(Ld)), 
 					209, [y(Y),tab with [type:range,
                                               table:RT],ref(Le),ref(Ld)]).
-instr(suspension_call(N), 		210, [pw(N)]).
+instr(suspension_call(N), 		210, [edesc(N)]).
 instr(throw, 				211, []).
 instr(savecut(a(A)), 			212, [a(A)]).
 instr(cut_single,	 		213, []).
@@ -697,8 +699,8 @@ instr(read_last_meta(N,ref(L)),		249, [nv(N),ref(L)]).
 instr(continue_after_exception, 	250, []).
 instr(cut(a(A)), 			251, [a(A)]).
 instr(catch, 				252, []).
-instr(res(Arity,Size), 			253, [i(Arity),pw(Size)]).
-instr(handler_call(O), 			254, [pw(O)]).
+instr(res(Arity,Size), 			253, [i(Arity),edesc(Size)]).
+instr(handler_call(O), 			254, [edesc(O)]).
 instr(retd_nowake, 			255, []).
 instr(push_init_reference(y(Y),O), 	256, [y(Y),pw(O)]).
 instr(exitd_nowake, 			257, []).
@@ -718,10 +720,10 @@ instr(push_value(G), 			268, [pw(G)]).
 instr(guard(y(Y),ref(L)),		269, [y(Y),ref(L)]).
 instr(try_parallel(Size,Ar,TT,O), 	270, [i(Size),i(Ar),try with [table:TT,size:Size,ref:Lt], 
     /*retry_seq(ref(Lt))*/                    o(271),tref(Lt),
-    /*fail_clause(O)*/	                      o(272),pw(O), 
+    /*fail_clause(O)*/	                      o(272),edesc(O), 
     /*try_clause(ref(Lt))*/                   o(273),tref(Lt)]).       
 instr(read_attribute(At), 		274, [an(At)]).
-instr(wake_init(N), 			275, [pw(N)]).
+instr(wake_init(N), 			275, [edesc(N)]).
 instr(wake, 				276, []).
 instr(ret_nowake, 			277, []).
 instr(neckcut_par, 			278, []).
@@ -793,9 +795,13 @@ instr(bi_ne(a(A1),a(A2),a(A3)),         339, [a(A1),a(A2),a(A3)]).
 instr(bi_arg(a(A1),a(A2),a(A3)),        340, [a(A1),a(A2),a(A3)]).
 instr(bi_make_suspension(a(A1),a(A2),a(A3),a(A4)),        
                                         341, [a(A1),a(A2),a(A3),a(A4)]).
-% new debug instructions
-instr(debug_scall(P,Port,Path,F,T),	342, [proc(P),port(Port),atom(Path),
-                                              i(F),i(T)]).
+instr(debug_scall(P,Port,Path,F,T),	342, [proc(P),port(Port),atom(Path),i(F),i(T)]).
+instr(retry_inline(D,ref(L)), 		343, [port(D),ref(L)]).
+instr(trust_inline(D,ref(L)), 		344, [port(D),ref(L)]).
+instr(put_named_variable(a(A),N), 	345, [a(A),nv(N)]).
+instr(put_named_variable(y(Y),N),	346, [y(Y),nv(N)]).
+instr(put_named_variable(a(A),y(Y),N),	347, [a(A),y(Y),nv(N)]).
+
 
 /***************************************************************************
  assemble
@@ -931,6 +937,8 @@ asm_arg(pw(N), IList0, IList, TList0, TList) ?-
 	integer(N), !, % no wrappers 
 	TList0 = TList,
 	IList0 = [pw(N)|IList]. 
+asm_arg(edesc(EDesc), IList0, IList, TList0, TList) ?- !,
+	encode_edesc(EDesc, IList0, IList, TList0, TList).
 asm_arg(i(N), IList0, IList, TList0, TList) ?-
 	integer(N), !, 
 	TList0 = TList,
@@ -1066,6 +1074,42 @@ smallbignum_check(C) :-
            )
        ;   true
        ).
+
+
+% encode/decode environment descriptors
+% We allow for a transition period:
+%	- integer (environment size)
+%	- eam(integer) (environment activity bitmap)
+encode_edesc(ESize, Is, Is0, Ts, Ts0) :-
+	integer(ESize), !,
+	Is = [pw(ESize)|Is0], Ts = Ts0.
+encode_edesc(eam(EAM), Is, Is0, Ts, Ts0) ?-
+%	( EAM =< 2147483647 -> 
+	( EAM =< 1073741823 -> 
+	    % the internal map representation has a mark bit
+	    Code is EAM<<1 + 1,
+	    Is = [Code|Is0], Ts = Ts0
+	;
+%	    printf(error, "More than 31 env slots not yet supported%n"),
+	    printf(error, "More than 30 env slots not yet supported%n"),
+	    set_bip_error(6)
+	).
+
+decode_edesc(Code, EDesc) :-
+	( getbit(Code,0,1) ->
+	    ( Code < 0 ->
+		printf(error, "More than 30 env slots not yet supported%n")
+	    ;
+		true
+	    ),
+	    % it is a bitmap
+	    EDesc = eam(EAM),
+	    EAM is Code >> 1
+	;
+	    % it is an environment size (prelimimary)
+	    decode_code(pw(Code), EDesc)
+	).
+
 
 
 /* link(+CodeList, +PosIn, -PosOut, -FinalCodeList)
@@ -1257,6 +1301,10 @@ disasm_arg(t(T), [D|Ws1], Ws, _, _, Pos0, Pos) ?-
 	Pos is Pos0 + 1.
 disasm_arg(pw(O), [D|Ws1], Ws, _, _, Pos0, Pos) ?- 
 	decode_code(pw(D), O),
+	Ws1 = Ws, 
+	Pos is Pos0 + 1.
+disasm_arg(edesc(EDesc), [D|Ws1], Ws, _, _, Pos0, Pos) ?- 
+	decode_edesc(D, EDesc),
 	Ws1 = Ws, 
 	Pos is Pos0 + 1.
 disasm_arg(i(I), [W|Ws1], Ws, _, _, Pos0, Pos) ?-

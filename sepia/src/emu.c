@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.3 2007/02/10 23:56:07 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.4 2007/02/22 01:28:11 jschimpf Exp $
  */
 
 /*
@@ -586,10 +586,10 @@ int		(*in_external)();
 	    } else if (SameCode(tmp2, Retry_me_inline)) {	\
 		PP = back_code + 4;				\
 		back_code = back_code[2].code;			\
-	    } else if (SameCode(tmp2, Retry)) {			\
+	    } else if (SameCode(tmp2, Retry) || SameCode(tmp2,Retry_inline)) {	\
 		PP = back_code[2].code;				\
 		back_code = back_code + 3;			\
-	    } else if (SameCode(tmp2, Trust)) {			\
+	    } else if (SameCode(tmp2, Trust) || SameCode(tmp2,Trust_inline)) {	\
 		PP = back_code[2].code;				\
 		back_code = (emu_code) 0;			\
 		break;						\
@@ -3471,6 +3471,34 @@ _write_local_:
 	    pw1->tag.kernel = TREF;
 	    Next_Pp;
 
+	Case(Put_named_variableAM, I_Put_named_variableAM)
+	    Get_Argument(pw1)
+	    pw1->val.ptr = TG;
+	    pw1->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = PP++->kernel;
+	    Next_Pp;
+
+	Case(Put_named_variableAML, I_Put_named_variableAML)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    pw1->val.ptr = pw2->val.ptr = TG;
+	    pw1->tag.kernel = pw2->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = PP++->kernel;
+	    Next_Pp;
+
+	Case(Put_named_variableL, I_Put_named_variableL)
+	    Get_Local(pw1)
+	    pw1->val.ptr = TG;
+	    pw1->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = PP++->kernel;
+	    Next_Pp;
+
 	Case(Put_referenceAM, I_Put_referenceAM)
 	    Get_Argument(pw1)
 	    S = TG;
@@ -3734,6 +3762,14 @@ _globalize_if_needed_:
 	    goto _trust_me_;
 
 	Case(Trust, I_Trust)				/* debug,alt */
+	    DBG_PORT = PP->nint;
+	    PP = PP[1].code;
+	    goto _trust_me_;
+
+	/* Operationally the same as Trust, but points to a branch of an
+	 * inline disjunction rather than a clause. That branch code must
+	 * be predeceded by a retry/trust_me_inline with environment size. */
+	Case(Trust_inline, I_Trust_inline)		/* debug,alt */
 	    DBG_PORT = PP->nint;
 	    PP = PP[1].code;
 	    goto _trust_me_;
@@ -4267,6 +4303,15 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT) */
 	    Next_Pp;
 
 	Case(Retry, I_Retry)			/* debug clause */
+	    DBG_PORT = PP->nint;
+	    BBp(B.args) = (vmcode *) (PP + 2);
+	    PP = PP[1].code;
+	    goto _retry_me_;		/* (DBG_PORT) */
+
+	/* Operationally the same as Retry, but points to a branch of an
+	 * inline disjunction rather than a clause. That branch code must
+	 * be predeceded by a retry_me_inline with environment size. */
+	Case(Retry_inline, I_Retry_inline)	/* debug branch */
 	    DBG_PORT = PP->nint;
 	    BBp(B.args) = (vmcode *) (PP + 2);
 	    PP = PP[1].code;

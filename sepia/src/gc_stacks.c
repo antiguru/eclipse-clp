@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.1 2006/09/23 01:56:02 snovello Exp $
+ * $Id: gc_stacks.c,v 1.2 2007/02/22 01:28:11 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -33,10 +33,12 @@
  * CHANGE NOTE:	Due to the general design, it is not allowed to mark twice
  *		from the same root pword. Normally this is ok, since the
  *		traversal algorithm guarantees that every root is visited
- *		only once during marking (e.g. choicepoints or local stack).
- *		For the marking from "old" locations, as done in
- *		mark_from_trail(), this is no longer true when value trailing
- *		is involved. See comment preceding mark_from_trail().
+ *		only once during marking (e.g. choicepoints). Where single
+ *		traversal cannot be guaranteed (e.g. marking from "old"
+ *		locations, as done in mark_from_trail(), or marking
+ *		environments multiple times in different states of activity),
+ *		we use ALREADY_MARKED_FROM bits to remember that a root
+ *		was already used for marking.
  *		Note that this requires that all trailed items (except those
  *		that are only trailed via simple TRAILED_WORD32 value trails)
  *		must have tags! This is the reason that abstact machine
@@ -118,6 +120,7 @@ static void
 	mark_from(long int tag, pword *ref, int ref_in_segment),
 	compact_and_update(void),
 	compact_trail(register pword **garbage_list),
+	reset_env_marks(control_ptr GCB),
 	update_trail_ptrs(control_ptr GCB),
 	ov_reset(void);
 
@@ -136,9 +139,6 @@ static pword
 #define Chp_E(b)	(((b).top - 1)->frame.chp->e)
 
 #define PrevEnv(e)	(*(pword **)(e))
-#define EnvSizePP(pp)	(*((word*)(pp)) / (word)sizeof(pword))
-#define EnvSize(sp)	EnvSizePP(*(vmcode**)(sp) - 1)
-/* casting sizeof to signed word is important since environment size may be -1 */
 
 /* this macro assumes that GCTG = Chp_Tg(GCB) */
 #define InCurrentSegment(ptr) \
@@ -208,6 +208,47 @@ static pword
 }
 
 
+/* Environment descriptors and corresponding access macros.
+ * Environment descriptors occur in call and retry/trust_inline
+ * instructions. They indicate which parts of an environment are active,
+ * and consist of an environment size or an activity bitmap (EAM).  */
+
+typedef uint32	eam_t;
+
+#define EAM_CHUNK_SZ	31
+#define EnvDescPP(pp)	(*((word*)(pp)))
+#define EnvDesc(sp)	EnvDescPP(*(vmcode**)(sp) - 1)
+
+/* Preliminary scheme, allowing old environment sizes:
+ *	<29 bit env size>000	LSB=0 indicates size field, all active
+ *	<31 bit EAM bitmap>1	LSB=1 indicates 31-bit EAM (activity bitmap)
+ * Dynamic environments marked by -1 size field (true size in Y1 tag).
+ */
+#define EdIsSize(ed)	(((ed) & 1) == 0)
+#define EdSize(ed,e)	((ed) == -((word)sizeof(pword)) ? DynEnvSize(e) : (ed) / (word)sizeof(pword))
+#define EdIsEam(ed)	(!EdIsSize(ed))
+#define EdEamPtr(ed)	(&(ed))
+#define EamPtrNext(peam)	(!(*(peam)++ & 1))
+#define EamPtrEam(peam)	(*(eam_t*)(peam) >> 1)
+
+/* Final scheme: allow direct bitmaps (31-bits, bit 0 always set)
+ *	<31 bit EAM bitmap> 1	LSB=1 indicates 31-bit EAM
+ *	<ptr to EAM> 0		LSB=0 indicates pointer to array of
+ *				31-bit maps, where all but the last
+ *				32-bit words of the array have LSB=0.
+ * Dynamic environment sizes (formerly marked by -1 size)
+ * are now indicated by a pointer to a particular static address.
+ */
+/*
+#define EdIsSize(ed)	((eam_t*)(ed) == &dyn_env_size_indicator)
+#define EdSize(ed,e)	DynEnvSize(e)
+#define EdIsEam(ed)	(!EdIsSize(ed))
+#define EdEamPtr(ed)	((ed)&1 ? &(ed) : (eam_t*)(ed))
+#define EamPtrNext(peam)	(!(*(peam)++ & 1))
+#define EamPtrEam(peam)	(*(eam_t*)(peam) >> 1)
+*/
+
+
 /*------------------------------------------------------------------
  * Debugging the GC
  *------------------------------------------------------------------*/
@@ -240,7 +281,8 @@ static pword
 #define Check_Size(esize) \
     if ((unsigned long)esize > 1000000) {\
 	p_fprintf(current_err_,\
-		"GC warning: unlikely environment size (%d)\n",esize);\
+		"GC warning: unlikely environment size (%lx %lx)\n",\
+			edesc,esize);\
 	ec_flush(current_err_);\
     }
 
@@ -592,6 +634,7 @@ collect_stacks(long int arity, long int gc_forced)
 		 * do virtual backtracking and trail garbage detection
 		 */
 	trail_garb_list = mark_from_control_frames(GCB, &trail_garb_count);
+	reset_env_marks(GCB);
 		/*
 		 * end of the marking phase
 		 */
@@ -1218,6 +1261,79 @@ Code Template:
 }
 
 
+
+/*
+* Go through the environment chain of this frame, marking from
+* the permanent variables. Stop if the chain merges with a
+* previously processed chain (mergepoint).
+* Compute the mergepoint for the chain that will be processed next.
+* In the waking routines we have environments of statically unknown
+* size. They are marked in the code with a size of -1.
+* The real size is computed from the tag of Y1.
+*/
+
+/* Walk_Env_Chain(fp,mergepoint,next_chain,next_mergepoint,edesc) */
+#define Walk_Env_Chain(SlotAction) { \
+	pword *env = fp.chp->e; \
+ \
+	/* start of next environment chain */ \
+	next_chain = (fp.top-1)->frame.chp->e; \
+	next_mergepoint = (env >= next_chain) ? env : (pword *)0; \
+ \
+	/* process environments up to and including the shared one */ \
+	/* while (env <= mergepoint) */ \
+	for(;;) \
+	{ \
+	    if (EdIsSize(edesc)) { \
+		/* we have only an environment size, all slots active */ \
+		word sz = EdSize(edesc,env); \
+		Check_Size(sz) \
+		for (pw = env - sz; pw < env; pw++) \
+		{ \
+		    SlotAction /*(pw)*/ \
+		} \
+	    } else { \
+		/* we have an environment activity bitmap */ \
+		eam_t *eam_ptr = EdEamPtr(edesc); \
+		pw = env; \
+		do { \
+		    int i=EAM_CHUNK_SZ; \
+		    eam_t eam = EamPtrEam(eam_ptr); \
+		    for(;eam;--i) { \
+			--(pw); \
+			if (eam & 1) { \
+			    SlotAction /*(pw)*/ \
+			} \
+			eam >>= 1; \
+		    } \
+		    pw -= i; \
+		} while (EamPtrNext(eam_ptr)); \
+	    } \
+	    if (env >= mergepoint) \
+		break; \
+ \
+	    edesc = EnvDesc((pword**)env + 1); \
+	    env = PrevEnv(env); \
+ \
+	    if (!next_mergepoint && env >= next_chain) \
+		next_mergepoint = env; \
+	} \
+ \
+	/* compute the next mergepoint	*/ \
+	if (next_mergepoint) \
+	    mergepoint = next_mergepoint; \
+	else \
+	{ \
+	    do \
+	    { \
+		env = PrevEnv(env); \
+	    } \
+	    while(env < next_chain); \
+	    mergepoint = env; \
+	} \
+}
+
+
 /*
  * Go down control frames and environments, marking their contents,
  * and interleaving an early-reset step between control frames.
@@ -1230,14 +1346,13 @@ mark_from_control_frames(control_ptr GCB, long int *trail_garb_count)
 {
     control_ptr		fp, top, pfp;
     register pword	*env, *pw, *prev_de;
-    pword		*gcb_e, *next_de,
+    pword		*next_de,
 			*next_chain, *mergepoint, *next_mergepoint;
     pword		**tr, **trail_garb_list;
-    register long	size;
+    word		edesc;
 
     tr = TT;
-    gcb_e = Chp_E(GCB);
-    mergepoint = gcb_e;
+    mergepoint = Chp_E(GCB);
     trail_garb_list = (pword **) 0;
     *trail_garb_count = 0;
     prev_de = (pword *) 0;
@@ -1255,7 +1370,6 @@ mark_from_control_frames(control_ptr GCB, long int *trail_garb_count)
 	    || IsExceptionFrame(top.top))
 	{
 	    Print_Err("bad frame in mark_from_choicepoints\n");
-	    size = EnvSize(fp.chp->sp);
 	}
 #endif
 
@@ -1278,87 +1392,51 @@ Code Template:
 
 ****** END EXTENSION SLOT *****/
 
-	else if (IsInlineRetryFrame(top.top))
+	if (IsRetryMeInlineFrame(top.top))
 	{
-	    size = EnvSizePP(top.top->backtrack + RETRY_INLINE_SIZE - 1);
+	    edesc = EnvDescPP(top.top->backtrack + RETRY_ME_INLINE_SIZE - 1);
+	    pw = (pword *)(fp.chp + 1);
 	}
-	else if (IsInlineTrustFrame(top.top))
+	else if (IsTrustMeInlineFrame(top.top))
 	{
-	    size = EnvSizePP(top.top->backtrack + TRUST_INLINE_SIZE - 1);
+	    edesc = EnvDescPP(top.top->backtrack + TRUST_ME_INLINE_SIZE - 1);
+	    pw = (pword *)(fp.chp + 1);
+	}
+	else if (IsRetryInlineFrame(top.top))
+	{
+	    edesc = EnvDescPP((vmcode*)top.top->backtrack[RETRY_INLINE_ALT_OFFSET] - 1);
+	    pw = (pword *)(fp.chp + 1);
+	}
+	else if (IsTrustInlineFrame(top.top))
+	{
+	    edesc = EnvDescPP((vmcode*)top.top->backtrack[TRUST_INLINE_ALT_OFFSET] - 1);
+	    pw = (pword *)(fp.chp + 1);
+	}
+	else if (IsParallelFrame(top.top))
+	{
+	    edesc = EnvDesc(fp.chp->sp);
+	    pw = (pword *)(fp.chp_par + 1);
 	}
 	else /* if (IsChoicePoint(top.top)) */
 	{
-	    if (IsParallelFrame(top.top))
-		pw = (pword *)(fp.chp_par + 1);
-	    else
-		pw = (pword *)(fp.chp + 1);
-	    for (; pw < top.args; pw++)	/* mark from arguments	*/
-	    {
-		Mark_from(pw->tag.kernel, pw, NO)
-	    }
-	    size = EnvSize(fp.chp->sp);
+	    edesc = EnvDesc(fp.chp->sp);
+	    pw = (pword *)(fp.chp + 1);
 	}
 
-	/*
-	 * Go through the environment chain of this frame, marking from
-	 * the permanent variables. Stop if the chain merges with a
-	 * previously processed chain (mergepoint).
-	 * Compute the mergepoint for the chain that will be processed next.
-	 * In the waking routines we have environments of statically unknown
-	 * size. They are marked in the code with a size of -1.
-	 * The real size is computed from the tag of Y1.
-	 */
-	env = fp.chp->e;
-	if (size == -1)			/* a resuming environment */
-	    size = DynEnvSize(env);
-	Check_Size(size)
-
-	top.top = fp.top - 1;		/* find next full frame	*/
-
-					/* start of next environment chain */
-	next_chain = top.top->frame.chp->e;
-	next_mergepoint = (env >= next_chain) ? env - size : (pword *)0;
-
-	/* mark environments until the shared one is reached	*/
-	while (env < mergepoint)
-	{
-	    for (pw = env - size; pw < env; pw++)
-	    {
-		Mark_from(pw->tag.kernel, pw, NO)
-	    }
-
-	    size = EnvSize((pword**)env + 1);
-	    env = PrevEnv(env);
-	    if (size == -1)		/* a resuming environment */
-		size = DynEnvSize(env);
-	    Check_Size(size)
-
-	    if (!next_mergepoint && env >= next_chain)
-		next_mergepoint = env - size;
-	}
-
-	/* mark the unvisited part of the shared environment	*/	
-	for (pw = env - size; pw < mergepoint; pw++)
+	for (; pw < top.args; pw++)	/* mark from arguments	*/
 	{
 	    Mark_from(pw->tag.kernel, pw, NO)
 	}
-	
-	/* compute the next mergepoint	*/
-	if (next_mergepoint)
-	    mergepoint = next_mergepoint;
-	else
-	{
-	    do
+
+	top.top = fp.top - 1;		/* find next full frame	*/
+
+	Walk_Env_Chain( /* (fp,mergepoint,next_chain,next_mergepoint,edesc) */
+	    if (!AlreadyMarkedFrom(pw->tag.kernel))
 	    {
-		size = EnvSize((pword**)env + 1);
-		env = PrevEnv(env);
-		if (size == -1)		/* a resuming environment */
-		    size = DynEnvSize(env);
-		Check_Size(size)
+		Mark_from(pw->tag.kernel, pw, NO)
+		Set_Bit(ALREADY_MARKED_FROM, pw)
 	    }
-	    while(env < next_chain);
-	    mergepoint = env - size;
-	}
+	)
 
 	/*
 	 * Process the LD list in this stack segment. Deterministically
@@ -1443,6 +1521,83 @@ Code Template:
     } while(prev_de);
 
     return trail_garb_list;
+}
+
+
+static void
+reset_env_marks(control_ptr GCB)
+{
+    control_ptr		fp, top;
+    register pword	*env, *pw;
+    pword		*next_chain, *mergepoint, *next_mergepoint;
+    word		edesc;
+
+    mergepoint = Chp_E(GCB);
+
+    top.top = B.top - 1;
+    fp.any_frame = top.top->frame;
+
+    do	/* loop through control frames until we reach GCB */
+    {
+#ifdef DEBUG_GC
+	if (IsInterruptFrame(top.top)
+	    || IsRecursionFrame(top.top)
+	    || IsExceptionFrame(top.top))
+	{
+	    Print_Err("bad frame in mark_from_choicepoints\n");
+	    edesc = EnvDesc(fp.chp->sp);
+	}
+#endif
+
+/**** BEGIN EXTENSION SLOT ****
+
+Name:	GC_MARK_CONTROL_FRAME
+
+Parameters:
+	control_ptr top		points to the top frame of a control frame
+	control_ptr fp		points to the bottom of this frame
+
+Code Template:
+	else if ( this_is_an_extension_frame(top) )
+	{
+	    Find environment descriptor from execution context
+	}
+
+****** END EXTENSION SLOT *****/
+
+	else if (IsRetryMeInlineFrame(top.top))
+	{
+	    edesc = EnvDescPP(top.top->backtrack + RETRY_ME_INLINE_SIZE - 1);
+	}
+	else if (IsTrustMeInlineFrame(top.top))
+	{
+	    edesc = EnvDescPP(top.top->backtrack + TRUST_ME_INLINE_SIZE - 1);
+	}
+	else if (IsRetryInlineFrame(top.top))
+	{
+	    edesc = EnvDescPP((vmcode*)top.top->backtrack[RETRY_INLINE_ALT_OFFSET] - 1);
+	}
+	else if (IsTrustInlineFrame(top.top))
+	{
+	    edesc = EnvDescPP((vmcode*)top.top->backtrack[TRUST_INLINE_ALT_OFFSET] - 1);
+	}
+	else /* if (IsChoicePoint(top.top)) */
+	{
+	    edesc = EnvDesc(fp.chp->sp);
+	}
+
+	top.top = fp.top - 1;		/* find next full frame	*/
+
+	Walk_Env_Chain( /* (fp,mergepoint,next_chain,next_mergepoint,edesc) */
+	    if (AlreadyMarkedFrom(pw->tag.kernel))
+	    {
+		Clr_Bit(ALREADY_MARKED_FROM, pw)
+	    }
+	)
+
+	fp.any_frame = top.top->frame;
+
+    } while (fp.top >= GCB.top);
 }
 
 
@@ -2451,9 +2606,9 @@ mark_dids_from_stacks(long int arity)
 
     {
 	control_ptr		fp, top;
-	register pword	*env;
+	register pword	*env, *pw;
 	pword		*next_chain, *mergepoint, *next_mergepoint;
-	register long	size;
+	word		edesc;
 
 	mergepoint = ((invoc_ptr) (B_ORIG + SAFE_B_AREA))->e;
 	top.top = B.top - 1;		/* find first full frame	*/
@@ -2461,13 +2616,21 @@ mark_dids_from_stacks(long int arity)
 
 	for (;;)	/* loop through all control frames, except the bottom one */
 	{
-	    if (IsInlineRetryFrame(top.top))
+	    if (IsRetryMeInlineFrame(top.top))
 	    {
-		size = EnvSizePP(top.top->backtrack + RETRY_INLINE_SIZE - 1);
+		edesc = EnvDescPP(top.top->backtrack + RETRY_ME_INLINE_SIZE - 1);
 	    }
-	    else if (IsInlineTrustFrame(top.top))
+	    else if (IsTrustMeInlineFrame(top.top))
 	    {
-		size = EnvSizePP(top.top->backtrack + TRUST_INLINE_SIZE - 1);
+		edesc = EnvDescPP(top.top->backtrack + TRUST_ME_INLINE_SIZE - 1);
+	    }
+	    else if (IsRetryInlineFrame(top.top))
+	    {
+		edesc = EnvDescPP((vmcode*)top.top->backtrack[RETRY_INLINE_ALT_OFFSET] - 1);
+	    }
+	    else if (IsTrustInlineFrame(top.top))
+	    {
+		edesc = EnvDescPP((vmcode*)top.top->backtrack[TRUST_INLINE_ALT_OFFSET] - 1);
 	    }
 	    else if (IsInterruptFrame(top.top) || IsRecursionFrame(top.top))
 	    {
@@ -2483,70 +2646,21 @@ mark_dids_from_stacks(long int arity)
 	    else if (IsParallelFrame(top.top))
 	    {
 		mark_dids_from_pwords((pword *)(fp.chp_par + 1), top.args);
-		size = EnvSize(fp.chp_par->sp);
+		edesc = EnvDesc(fp.chp_par->sp);
 	    }
 	    else /* if (IsChoicePoint(top.top)) */
 	    {
 		mark_dids_from_pwords((pword *)(fp.chp + 1), top.args);
-		size = EnvSize(fp.chp->sp);
+		edesc = EnvDesc(fp.chp->sp);
 	    }
-
-	    /*
-	     * Go through the environment chain of this frame, marking from
-	     * the permanent variables. Stop if the chain merges with a
-	     * previously processed chain (mergepoint).
-	     * Compute the mergepoint for the chain that will be processed next.
-	     * In the waking routines we have environments of statically unknown
-	     * size. They are marked in the code with a size of -1.
-	     * The real size is computed from the tag of Y1.
-	     */
-	    env = fp.chp->e;
-	    if (size == -1)			/* a resuming environment */
-		size = DynEnvSize(env);
-	    Check_Size(size)
 
 	    top.top = fp.top - 1;		/* find next full frame	*/
+
+	    Walk_Env_Chain( /* (fp,mergepoint,next_chain,next_mergepoint,edesc) */
+		mark_dids_from_pwords(pw, pw+1);
+	    )
+
 	    fp.any_frame = top.top->frame;
-
-					    /* start of next environment chain */
-	    next_chain = top.top->frame.chp->e;
-	    next_mergepoint = (env >= next_chain) ? env - size : (pword *)0;
-
-	    /* mark environments until the shared one is reached	*/
-	    while (env < mergepoint)
-	    {
-		mark_dids_from_pwords(env - size, env);
-
-		size = EnvSize((pword**)env + 1);
-		env = PrevEnv(env);
-		if (size == -1)		/* a resuming environment */
-		    size = DynEnvSize(env);
-		Check_Size(size)
-
-		if (!next_mergepoint && env >= next_chain)
-		    next_mergepoint = env - size;
-	    }
-
-	    /* mark the unvisited part of the shared environment	*/	
-	    mark_dids_from_pwords(env - size, mergepoint);
-	    
-	    /* compute the next mergepoint	*/
-	    if (next_mergepoint)
-		mergepoint = next_mergepoint;
-	    else
-	    {
-		do
-		{
-		    size = EnvSize((pword**)env + 1);
-		    env = PrevEnv(env);
-		    if (size == -1)		/* a resuming environment */
-			size = DynEnvSize(env);
-		    Check_Size(size)
-		}
-		while(env < next_chain);
-		mergepoint = env - size;
-	    }
-
 	}
 
 	if (fp.args == B_ORIG + SAFE_B_AREA)

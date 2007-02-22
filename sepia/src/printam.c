@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.3 2007/02/10 23:56:07 kish_shen Exp $
+ * VERSION	$Id: printam.c,v 1.4 2007/02/22 01:28:11 jschimpf Exp $
  */
 
 /*
@@ -60,6 +60,7 @@ extern vmcode	fail_code_[];
 void		print_port(stream_id nst, int port);
 static void	_print_label(vmcode **ptr);
 static vmcode	*_print_init_mask(vmcode *code, int name);
+static vmcode	*_print_activity_map(vmcode *code);
 
 /* this one should also check >= brk(0) */
 #define InvalidAddress(ptr)	((ptr) == NULL || (uword) (ptr) & 0x3)
@@ -238,6 +239,13 @@ static vmcode	*_print_init_mask(vmcode *code, int name);
 		(void) ec_outfs(current_output_, "\n\t\t\tdefault:");\
 	}
 
+#define EnvDesc	{						\
+	if (*code & 1) {					\
+	    code = _print_activity_map(code);			\
+	} else {						\
+	    VarOffset;						\
+	}							\
+    }
 
 #define PortName(Port)		ec_debug_ports[(Port) & PORT_MASK]
 
@@ -404,7 +412,14 @@ print_am(register vmcode *code,
 		break;
 	
 	case Write_named_variableAM:
+	case Put_named_variableAM:
 		Am;
+		NamedVar;
+		break;
+
+	case Put_named_variableAML:
+		Am;
+		Perm;
 		NamedVar;
 		break;
 
@@ -512,6 +527,7 @@ print_am(register vmcode *code,
 		break;
 
 	case Write_named_variableL:
+	case Put_named_variableL:
 		Perm;
 		NamedVar;
 		break;
@@ -947,11 +963,13 @@ print_am(register vmcode *code,
 
 	case Retry_me_else:
 	case Retry:
+	case Retry_inline:
 		Port;
 		Code_Label;
 		break;
 
 	case Trust:
+	case Trust_inline:
 		Port;
 		Code_Label;
 		Nl;
@@ -977,12 +995,12 @@ print_am(register vmcode *code,
 	case Retry_me_inline:
 		Port;
 		Code_Label;
-		VarOffset;
+		EnvDesc;
 		break;
 
 	case Trust_me_inline:
 		Port;
-		VarOffset;
+		EnvDesc;
 		break;
 
 	case Try_parallel:
@@ -1079,7 +1097,7 @@ print_am(register vmcode *code,
 	case CallfA:
 	case CallA:
 		Addr;
-		VarOffset;
+		EnvDesc;
 		break;
 
 	case Label:
@@ -1106,12 +1124,12 @@ print_am(register vmcode *code,
 	case Handler_call:
 	case Suspension_call:
 	case Fail_clause:
-		VarOffset;
+		EnvDesc;
 		break;
 
 	case Fastcall:
 		Port;
-		VarOffset;
+		EnvDesc;
 		break;
 
 	case JmpP:
@@ -1341,7 +1359,7 @@ _switch_on_type_:
 		VarOffset;
 	case Res:
 		Integer;
-		VarOffset;
+		EnvDesc;
 		break;
 
 	case Continue_after_event:
@@ -1413,6 +1431,41 @@ _print_init_mask(vmcode *code, int name)
 	    p_fprintf(current_output_,"Y%d ", pos);
 	}
 	init_mask >>= 1;
+	pos++;
+    }
+    return code;
+}
+
+static vmcode *
+_print_activity_map(vmcode *code)
+{
+    uword	map = (*code++);
+    word	pos = 1;
+    int		first = 1;
+
+    if (!(map & 1)) {
+	p_fprintf(current_output_,"<invalid eam>");
+	return code;
+    }
+
+    map >>= 1;
+    if (!map) {
+	p_fprintf(current_output_,"Y<none>");
+	return code;
+    }
+    while (map)
+    {
+	if (map & 1)
+	{
+	    if (first)
+	    {
+		first = 0;
+		p_fprintf(current_output_,"Y%d", pos);
+	    }
+	    else
+		p_fprintf(current_output_,",%d", pos);
+	}
+	map >>= 1;
 	pos++;
     }
     return code;

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: pass4.c,v 1.1 2006/09/23 01:56:12 snovello Exp $
+ * VERSION	$Id: pass4.c,v 1.2 2007/02/22 01:28:11 jschimpf Exp $
  */
 
 /*
@@ -432,6 +432,8 @@ _copy_code(proc_desc *procedure, register vmcode *wptr)
 		case Put_unsafe_valueAML:
 		case Put_unsafe_valueAMTM:
 		case Put_variableAML:
+		case Put_named_variableAM:
+		case Put_named_variableL:
 		case Puts_constant:
 		case Puts_reference:
 		case Read_constant:
@@ -455,6 +457,7 @@ _copy_code(proc_desc *procedure, register vmcode *wptr)
 		case Put_constantAM:
 		case Put_referenceAM:
 		case Puts_referenceL:
+		case Put_named_variableAML:
 		case Ress:
 		case Write_named_variableNL:
 		    Do_Opcode(rptr, wptr);

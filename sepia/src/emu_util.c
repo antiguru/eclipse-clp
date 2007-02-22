@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.1 2006/09/23 01:56:01 snovello Exp $
+ * VERSION	$Id: emu_util.c,v 1.2 2007/02/22 01:28:11 jschimpf Exp $
  */
 
 /*
@@ -110,7 +110,7 @@ pword	*spmax_; /* not for overflow checks, just to know if an address
 allocate_stacks(void)
 {
     extern void alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct **descr);
-    static char *names[4] = { "global","trail","local","control" };
+    static char *names[4] = { "global","trail","control","local" };
     uword sizes[4];
     struct stack_struct *stacks[4];
 
@@ -663,6 +663,11 @@ opaddr_init(void)
 #if defined(__GNUC__) || defined(_WIN32)
     op_addr[0] = 0;
     (void) ec_emulate();	/* will init op_addr[] */
+    if (op_addr[Retry] == op_addr[Retry_inline]
+     || op_addr[Trust] == op_addr[Trust_inline])
+     {
+	ec_panic("Instructions not distinguishable - C compiler too clever", "opaddr_init()");
+     }
 #else
 #ifdef POSTPRO
 #ifdef mc68000
@@ -770,9 +775,10 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 		p_fprintf(current_err_, "catch:\n");
 	    else if (IsGcFrame(BTop(fp.args)))
 		p_fprintf(current_err_, "gc-dummy:\n");
-	    else if (IsInlineRetryFrame(BTop(fp.args)))
-		p_fprintf(current_err_, "inline:\n");
-	    else if (IsInlineTrustFrame(BTop(fp.args)))
+	    else if (IsRetryMeInlineFrame(BTop(fp.args))
+		    || IsTrustMeInlineFrame(BTop(fp.args))
+		    || IsRetryInlineFrame(BTop(fp.args))
+		    || IsTrustInlineFrame(BTop(fp.args)))
 		p_fprintf(current_err_, "inline:\n");
 	    else if (IsUnpubParFrame(BTop(fp.args)))
 	    {

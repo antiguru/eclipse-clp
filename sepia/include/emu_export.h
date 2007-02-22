@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.3 2007/02/10 23:59:05 kish_shen Exp $
+ * VERSION	$Id: emu_export.h,v 1.4 2007/02/22 01:27:34 jschimpf Exp $
  */
 
 /*
@@ -75,12 +75,18 @@ extern vmcode	it_fail_code_[],
 #define IsParallelFrame(top)\
 	(IsPubParFrame(top) || IsUnpubParFrame(top))
 
-#define RETRY_INLINE_SIZE 4
-#define IsInlineRetryFrame(top)\
+#define RETRY_ME_INLINE_SIZE 4
+#define IsRetryMeInlineFrame(top)\
 	SameCode(*((vmcode *)(top)->backtrack), Retry_me_inline)
-#define TRUST_INLINE_SIZE 3
-#define IsInlineTrustFrame(top)\
+#define TRUST_ME_INLINE_SIZE 3
+#define IsTrustMeInlineFrame(top)\
 	SameCode(*((vmcode *)(top)->backtrack), Trust_me_inline)
+#define RETRY_INLINE_ALT_OFFSET 2
+#define IsRetryInlineFrame(top)\
+	SameCode(*((vmcode *)(top)->backtrack), Retry_inline)
+#define TRUST_INLINE_ALT_OFFSET 2
+#define IsTrustInlineFrame(top)\
+	SameCode(*((vmcode *)(top)->backtrack), Trust_inline)
 
 #define Top(pw)		((struct top_frame *)(pw))
 #define Invoc(pw)	((struct invocation_frame *)(pw))
