@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.3 2007/02/10 23:54:13 kish_shen Exp $
+% Version:	$Id: compiler_common.ecl,v 1.4 2007/02/22 01:31:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/10 23:54:13 $").
+:- comment(date, "$Date: 2007/02/22 01:31:56 $").
 
 
 %----------------------------------------------------------------------
@@ -45,15 +45,17 @@
 	    code to File, 'listing' (print WAM code to input file with .lst suffix),
 	    or 'store' in which case the WAM code is assembled and stored in memory
 	    as the code for the predicate.  (default: store)",
-	"print_normalised":"print result of the normalisation pass.",
-	"print_lifetimes":"print result of the variable lifetime analysis.",
-	"print_raw_code":" print annotated WAM code before register allocation.",
-	"print_final_code":" print annotated WAM code after register allocation."
+	"dbgcomp":"generate code with debug instructions (on/off, default:off).",
+	"print_normalised":"print result of the normalisation pass (on/off, default:off).",
+	"print_lifetimes":"print result of the variable lifetime analysis (on/off, default:off).",
+	"print_raw_code":" print annotated WAM code before register allocation (on/off, default:off).",
+	"print_final_code":" print annotated WAM code after register allocation (on/off, default:off)."
     ]
 ]).
 
 :- export struct(options(
 	output,
+	dbgcomp,
 	print_normalised,
 	print_lifetimes,
 	print_raw_code,
@@ -61,12 +63,14 @@
     )).
 
 
+valid_option_field(dbgcomp, dbgcomp of options).
 valid_option_field(print_normalised, print_normalised of options).
 valid_option_field(print_lifetimes, print_lifetimes of options).
 valid_option_field(print_raw_code, print_raw_code of options).
 valid_option_field(print_final_code, print_final_code of options).
 valid_option_field(output, output of options).
 
+valid_option_value(dbgcomp, Value) :- onoff(Value).
 valid_option_value(print_normalised, Value) :- onoff(Value).
 valid_option_value(print_lifetimes, Value) :- onoff(Value).
 valid_option_value(print_raw_code, Value) :- onoff(Value).
@@ -81,6 +85,7 @@ onoff(off).
 onoff(on).
 
 default_options(options{
+	dbgcomp:off,
 	print_normalised:off,
 	print_lifetimes:off,
 	print_raw_code:off,
@@ -147,13 +152,15 @@ default_options(options{
     "),
     fields:[
 	callpos:	"identifier for the chunk it occurs in",
-	entrymap:	"environment activity bitmap (at retry time)",
-	entrysize:	"environment size (at retry time)",
-	exitmap:	"environment activity bitmap (at branch end)",
-	exitsize:	"environment size (at branch end)",
+	entrymap:	"environment activity bitmap (just before disjunction)",
+	entrysize:	"environment size (just before disjunction)",
+	exitmap:	"environment activity bitmap (just after disjunction)",
+	exitsize:	"environment size (just after disjunction)",
 	arity:		"pseudo-arity (valid arguments at retry time)",
     	branches:	"list of normalised goals (at least 2 elements)",
 	branchlabels:	"array[NBranches] of Labels (shared with corresponding indexpoint)",
+	branchentrymaps:"list of envmaps for each branch start (used in retry/trust instructions)",
+	branchinitmaps:	"list of envmaps for end-of-branch inits",
 	index:		"struct indexpoint",
 	state:		"execution state on entry (struct(state)),"
 			" the result of the analysis phase"
@@ -169,6 +176,8 @@ default_options(options{
 	arity,		% arity for try instructions
     	branches,	% list of list of goals
 	branchlabels,	% array[NBranches] of Labels, shared with indexpoint
+	branchentrymaps, % list of envmaps for start of each branch
+	branchinitmaps, % list of envmaps for end of branch inits
 	index,
 	state
     )).
@@ -303,6 +312,28 @@ default_options(options{
     )).
 
 
+:- comment(struct(attrvar), [
+    summary:"Descriptor for an attributed variable in the normalised form",
+    desc:ascii("
+	Descriptor for an attributed variable that occurred in the source
+	code. It is represented as a pair of a plain variable, and a
+	structure. The structure arguments are the normalised attributes.
+	Note that the mapping of attribute slots to indices in the
+	structure depends on the meta_attribute/2 declarations that are
+	in place at compile time.
+    "),
+    fields:[
+	"variable":"A standard variable (struct(variable))",
+	"meta":"An attribute  struture (struct(structure))"
+    ]
+]).
+
+:- export struct(attrvar(
+	variable,		% struct(variable)
+	meta			% struct(structure)
+    )).
+
+
 % Get a descriptor for an additional occurrence of existing variable
 % This can only be used _before_ compute_lifetimes!
 :- export new_vardesc/2.
@@ -315,6 +346,7 @@ new_aux_variable_norm(VarDesc, VId0, VId) :-
 	VarDesc = variable{varid:VId,source_name:''},
 	VId is VId0+1.
 */
+
 
 %----------------------------------------------------------------------
 % Annotated WAM code
@@ -334,7 +366,7 @@ new_aux_variable_norm(VarDesc, VId0, VId) :-
 	information about the purpose of an instruction, or about the
 	source construct it relates to.
     "),
-    see_also:[generate_code/5,print_annotated_code/1],
+    see_also:[generate_code/6,print_annotated_code/1],
     fields:[
 	instr:	"WAM instruction (assembler input format)",
 	regs:	"Register usage descriptor",
@@ -728,8 +760,7 @@ print_call_pos(Stream, [Pos|Branch]) :-
 %----------------------------------------------------------------------
 % Environment activity maps 
 % These are bitmaps indicating which environment slots are uninitialised
-% If slot y(Y) is uninitialised, bit 2^Y is set.
-% Bit 0 is unused (will be used to indicate a pointer to a large bitmap).
+% If slot y(Y) is active, bit 2^Y-1 is set.
 %----------------------------------------------------------------------
 
 :- export decode_activity_map/2.
@@ -742,6 +773,6 @@ decode_activity_map(Map, List) :-
 	    count(I,1,_)
 	do
 	    Map2 is Map1 >> 1,
-	    ( Map2 /\ 1 =:= 0 -> List1=List2 ; List1=[I|List2] )
+	    ( Map1 /\ 1 =:= 0 -> List1=List2 ; List1=[I|List2] )
 	).
 

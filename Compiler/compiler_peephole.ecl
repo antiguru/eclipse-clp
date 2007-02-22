@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.1 2006/09/23 01:45:10 snovello Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:45:10 $").
+:- comment(date, "$Date: 2007/02/22 01:31:56 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -83,12 +83,12 @@ simplify(move(X,X),	More, New) ?- !, New = More.
 
 simplify(initialize(y([])),	More, New) ?- !, New = More.
 
-simplify(callf(P,0),	[Next|More], New) ?- !,
+simplify(callf(P,eam(0)),	[Next|More], New) ?- !,
 	Next = code{instr:Instr},
 	simplify_call(P, Instr, NewInstr),
 	update_struct(code, [instr:NewInstr], Next, NewCode),
 	New = [NewCode|More].
-simplify(call(P,0),	[Next|More], New) ?- !,
+simplify(call(P,eam(0)),	[Next|More], New) ?- !,
 	Next = code{instr:Instr},
 	simplify_call(P, Instr, NewInstr),
 	update_struct(code, [instr:NewInstr], Next, NewCode),

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.3 2007/02/10 23:54:13 kish_shen Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.4 2007/02/22 01:31:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2007/02/10 23:54:13 $").
+:- comment(date, "$Date: 2007/02/22 01:31:56 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -86,9 +86,15 @@
 :- ensure_loaded(compiler_analysis).
 :- import print_goal_state/3 from compiler_analysis.
 
+:- import
+	meta_index/2,
+	get_attribute/3
+   from sepia_kernel.
 
 %----------------------------------------------------------------------
 :- export
+	normalize_clauses_noshare/5,
+        normalize_clauses_noshare_annotated/7,
 	normalize_clauses/5,
         normalize_clauses_annotated/7.
 %----------------------------------------------------------------------
@@ -131,22 +137,32 @@ normalize_clauses_annotated(Clauses, AnnClauses, VarNames, Files, NormClauses, V
 	% because the normalisation will unify the head vars of the
 	% different clauses (necessary for indexing analysis).
 	% Fortunately, copy_term_vars preserves our variable names...
-	( foreach(OrigClause,Clauses), foreach(NewClause,NewClauses) do
+	(
+	    foreach(OrigClause,Clauses),
+	    foreach(NewClause,NewClauses),
+	    foreach(OrigAnnClause,AnnClauses),
+	    foreach(NewAnnClause,NewAnnClauses)
+	do
 	    head_arg_vars(OrigClause, HeadArgVars),
-	    copy_term_vars(HeadArgVars, OrigClause, NewClause)
+	    copy_term_vars(HeadArgVars, OrigClause-OrigAnnClause, NewClause-NewAnnClause)
 	),
-	normalize_clauses_noshare(NewClauses, AnnClauses, VarNames, Files, NormClauses, VarCount, Module).
+	normalize_clauses_noshare_annotated(NewClauses, NewAnnClauses, VarNames, Files, NormClauses, VarCount, Module).
 
     head_arg_vars(Clause, HeadArgVars) :-
 	clause_head_body(Clause, _, Head, _, _, _, _),
 	( foreacharg(Arg,Head), fromto(HeadArgVars,Vars1,Vars0,[]) do
-	    ( var(Arg) -> Vars1=[Arg|Vars0] ; Vars1=Vars0 )
+	    % BUG: we cannot copy metas because we'd lose the attributes!
+%	    ( var(Arg) -> Vars1=[Arg|Vars0] ; Vars1=Vars0 )
+	    ( free(Arg) -> Vars1=[Arg|Vars0] ; Vars1=Vars0 )
 	).
 
 
 % This can be used directly if it is known that the clauses
 % don't have shared variables, e.g. when they come from the parser.
-normalize_clauses_noshare(Clauses, AnnClauses, VarNames, Files, NormClauses, VarCount, Module) :-
+normalize_clauses_noshare(Clauses, VarNames, NormClauses, VarCount, Module) :-
+	normalize_clauses_noshare_annotated(Clauses, _Ann, VarNames, _Files, NormClauses, VarCount, Module).
+
+normalize_clauses_noshare_annotated(Clauses, AnnClauses, VarNames, Files, NormClauses, VarCount, Module) :-
 	normalize_clause_list(Clauses, AnnClauses, Files, NormClauses, Module, Vs, []),
 	assign_varids(Vs, VarNames, VarCount).
 %	reorder_goals(NormClauses0, NormClauses).
@@ -314,7 +330,7 @@ normalize_goal(G, From-To, File, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|G
 	( get_flag(N/A, tool, on)@LM ->		% replace tool with tool body
 	    tool_body(N/A, N1/A1, DM)@LM,
 	    LM1=DM,
-	    normalize_term(CM, NormCM, Vs0, Vs1),	% CM may be a variable
+	    normalize_term(CM, NormCM, Vs0, Vs1, =),	% CM may be a variable
 	    ModuleArg = [NormCM]
 	; get_flag(N/A, definition_module, DM)@LM ->
 	    N1=N, A1=A, LM1=LM,
@@ -338,7 +354,7 @@ normalize_goal(G, From-To, File, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|G
 	    param(G)
 	do
 	    arg(I, G, Arg),
-	    normalize_term(Arg, NormArg, Vs2, Vs3)
+	    normalize_term(Arg, NormArg, Vs2, Vs3, =)
 	).
 
 
@@ -411,17 +427,17 @@ normalize_clause_list(Clauses, AnnClauses, Files, NormClauses, CM, Vs0, Vs) :-
 	).
 
     normalize_clause(Clause, AnnClause, File, Branch, Goals, CM, Cut, Vs0, Vs, HeadVars) :-
-	clause_head_body(Clause, AnnClause, Head, Body, AnnHead, AnnBody, _HeadType),
+	clause_head_body(Clause, AnnClause, Head, Body, AnnHead, AnnBody, HeadType),
 	same_call_pos(Branch, 1, CallNr, CallPos),
-	normalize_head(Head, AnnHead, File, CallPos, Goals, Goals1, CM, Vs0, Vs1, HeadVars),
+	normalize_head(HeadType, Head, AnnHead, File, CallPos, Goals, Goals1, CM, Vs0, Vs1, HeadVars),
 	normalize_body(Body, AnnBody, File, Branch, CallNr, _CallNr, Cut, Vs1, Vs, Goals1, [], CM, CM).
 
     :- mode clause_head_body(+,?,-,-,-,-,-).
-    clause_head_body(H:-B, Ann, H, B, AH, AB, unify) :- !,
+    clause_head_body(H:-B, Ann, H, B, AH, AB, =) :- !,
         Ann = annotated_term{term:(AH:-AB)}.
-    clause_head_body(H?-B, Ann, H, B, AH, AB, match) :- !,
+    clause_head_body(H?-B, Ann, H, B, AH, AB, ?=) :- !,
         Ann = annotated_term{term:(AH?-AB)}.
-    clause_head_body(H, AH, H, '', AH, '', unify).
+    clause_head_body(H, AH, H, '', AH, '', =).
 
     clauses_arity([Clause|_], A) ?-
     	clause_head_body(Clause, _, H, _, _, _, _),
@@ -452,41 +468,64 @@ cutto_goal(CallPos, Vs0, Vs1, CutVar, Goal) :-
 	    functor:cut_to/1,
 	    args:[NormCutVar]
 	},
-	normalize_term(CutVar, NormCutVar, Vs0, Vs1).
+	normalize_term(CutVar, NormCutVar, Vs0, Vs1, =).
 
 
 
 % Normalised term representation:
 %
 %	variables	struct(variable)
+%	attr.variables	struct(attrvar) - only if AttrFlag == (?=) !
 %	atomic		as such
 %	lists		as such
 %	structs		structure(structure)
 %	ground struct	ground_structure(ground)   TODO
 
-:- mode normalize_term(?,-,-,+).
-normalize_term(X, VarDesc, [VarDesc|Vs], Vs) :-
+:- mode normalize_term(?,-,-,+,+).
+normalize_term(X, Desc, [VarDesc|Vs1], Vs0, AttrFlag) :-
 	var(X), !,
+	( get_var_info(X, name, Name) -> true ; true ),
 	VarDesc = variable{source_var:X,source_name:Name},
-	( get_var_info(X, name, Name) -> true ; true ).
-normalize_term(X, X, Vs, Vs) :-
+	( meta(X), AttrFlag = (?=) ->
+	    Desc = attrvar{variable:VarDesc,meta:NormMeta},
+	    meta_attr_struct(X, Meta),
+	    normalize_term(Meta, NormMeta, Vs1, Vs0, AttrFlag)
+	;
+	    Desc = VarDesc, Vs1 = Vs0
+	).
+normalize_term(X, X, Vs, Vs, _AttrFlag) :-
 	atomic(X).
-normalize_term([X|Xs], [Y|Ys], Vs, Vs0) :- !,
-	normalize_term(X, Y, Vs, Vs1),
-	normalize_term(Xs, Ys, Vs1, Vs0).
-normalize_term(X, structure{name:N,arity:A,args:Args}, Vs, Vs0) :-
+normalize_term([X|Xs], [Y|Ys], Vs, Vs0, AttrFlag) :- !,
+	normalize_term(X, Y, Vs, Vs1, AttrFlag),
+	normalize_term(Xs, Ys, Vs1, Vs0, AttrFlag).
+normalize_term(X, structure{name:N,arity:A,args:Args}, Vs, Vs0, AttrFlag) :-
 	compound(X),
 	functor(X, N, A),
 	(
 	    for(I,1,A),
 	    foreach(NormArg,Args),
 	    fromto(Vs,Vs2,Vs1,Vs0),
-	    param(X)
+	    param(X,AttrFlag)
 	do
 	    arg(I, X, Arg),
-	    normalize_term(Arg, NormArg, Vs2, Vs1)
+	    normalize_term(Arg, NormArg, Vs2, Vs1, AttrFlag)
 	).
 
+
+% Build a structure meta/N with all attributes of X
+meta_attr_struct(X, Meta) :-
+	meta_attributes(X, 1, Attrs),
+	Meta =.. [meta|Attrs].
+
+    meta_attributes(X, I, Attrs) :-
+	( meta_index(_Name,I) ->
+	    get_attribute(X, Attr, I),
+	    Attrs = [Attr|Attrs1],
+	    I1 is I+1,
+	    meta_attributes(X, I1, Attrs1)
+	;
+	    Attrs = []
+	).
 
 
 % Introduce a new, auxiliary source variable that was not in the
@@ -549,8 +588,17 @@ assign_varids(Vs, VarNames, N) :-
 % Head unifications get flattened into a sequence of =/2 goals.
 % NOTE: the HeadVars list is shared between all heads and causes the
 % head variables of all clauses to be unified (for indexing analysis)!
+%
+% p(a) :- ...	is normalised into p(T) :- T?=a, ...
+% p(X,X) :- ...	is normalised into p(X,T) :- X=X, X=T, ...
+% p(X,X) ?- ...	is normalised into p(X,T) :- X=X, X==T, ...
+% p(X{A}) ?- ... is normalised into into p(X) :- X?=X{A}, ...
+% p(X{A},X{A}) ?- ... is normalised into p(X,T) :- X?=X{A}, T==X, ...
+%
+% attrvar{} descriptors are only created on the rhs of ?=/2, in all other
+% locations, we use simple variable{} descriptors for attributed variables.
 
-normalize_head(Head, AnnHead, File, CallPos, Goals, Goals0, Module, Vs0, Vs, HeadVars) :-
+normalize_head(HeadType, Head, AnnHead, File, CallPos, Goals, Goals0, Module, Vs0, Vs, HeadVars) :-
         AnnHead = annotated_term{term:HeadAnn,from:From,to:To},
         Goals = [goal{
 		    kind:head, callpos:CallPos, lookup_module:Module,
@@ -566,7 +614,7 @@ normalize_head(Head, AnnHead, File, CallPos, Goals, Goals0, Module, Vs0, Vs, Hea
 		fromto([],Seen1,Seen2,_),
 		fromto(Goals1,Goals2,Goals3,Goals0),
 		foreach(HeadVar,HeadVars),
-		param(Head,HeadAnn,CallPos,File)
+		param(HeadType,Head,HeadAnn,CallPos,File)
 	    do
 		Goals2 = [goal{
 			kind:simple,
@@ -576,27 +624,49 @@ normalize_head(Head, AnnHead, File, CallPos, Goals, Goals0, Module, Vs0, Vs, Hea
 			callpos:CallPos,
 			definition_module:sepia_kernel,
 			lookup_module:sepia_kernel,
-			functor:(=)/2,
+			functor:Op/2,
 			args:[HeadArg,NormArg]
 		    }|Goals3],
                 arg(I, HeadAnn, annotated_term{from:From,to:To}),
 		arg(I, Head, Arg),
-		normalize_term(Arg, NormArg, Vs1,Vs2),
-		( var(Arg), varnonmember(Arg,Seen1) ->
-		    % Don't create a new variable for the first occurrence.
-		    % But create a dummy-goal X=X in order not to lose
-		    % the variable occurrence altogether. This is necessary
-		    % if the variable turns out to be permanent and has only
-		    % this head occurrence in the first chunk. The X=X goal
-		    % will then trigger initialisation of the environment slot.
-		    Seen2 = [Arg|Seen1],
-		    HeadArg = NormArg, Vs3 = Vs2, HeadVar = Arg
-		;
-		    % head argument is nonvariable or repeated var occurrence
+		( nonvar(Arg) ->
+		    % p(nonvar) :-  becomes  p(T) :- T=nonvar
+		    % p(nonvar) ?-  becomes  p(T) :- T?=nonvar
+		    normalize_term(Arg, NormArg, Vs1,Vs2, HeadType),
 		    Seen2 = Seen1,
+		    Op = HeadType,
+		    new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)
+		; varnonmember(Arg,Seen1) ->
+		    Seen2 = [Arg|Seen1],
+		    ( meta(Arg), HeadType = (?=) ->
+			% p(X{A}) ?-  becomes  p(X) :- X?=X{A}
+			Op = HeadType,
+			normalize_term(Arg, NormArg, Vs1, Vs3, ?=),
+			NormArg = attrvar{variable:HeadArg},
+			HeadVar = Arg
+		    ;
+			% Don't create a new variable for the first occurrence.
+			% But create a dummy-goal X=X in order not to lose
+			% the variable occurrence altogether. This is necessary
+			% if the variable turns out to be permanent and has only
+			% this head occurrence in the first chunk. The X=X goal
+			% will then trigger initialisation of the environment slot.
+			% p(X) :-  becomes  p(X) :- X=X
+			normalize_term(Arg, NormArg, Vs1, Vs3, =),
+			Op = (=),
+			HeadArg = NormArg, HeadVar = Arg
+		    )
+		;
+		    % repeat occurence: T=X (or T==X for matching)
+		    normalize_term(Arg, NormArg, Vs1,Vs2, =),
+		    Seen2 = Seen1,
+		    headtype_varop(HeadType, Op),
 		    new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)
 		)
 	    ).
+
+headtype_varop(=, =).
+headtype_varop(?=, ==).
 
 varnonmember(_X, []).
 varnonmember(X, [Y|Ys]) :-

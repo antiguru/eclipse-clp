@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.3 2007/02/10 23:54:13 kish_shen Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.4 2007/02/22 01:31:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/10 23:54:13 $").
+:- comment(date, "$Date: 2007/02/22 01:31:56 $").
 
 
 :- lib(hash).
@@ -116,22 +116,23 @@ new_aux_temp(ChunkData0, ChunkData, aux(AuxCount)) :-
 % Code generation 
 %----------------------------------------------------------------------
 
-:- comment(generate_code/5, [
+:- comment(generate_code/6, [
     summary:"Generate WAM code from normalised source for one predicate",
-    amode:generate_code(+,+,-,?,+),
+    amode:generate_code(+,+,-,?,+,+),
     args:[
 	"Body":"Normalised and fully annotated source of the predicate",
 	"EnvSize":"Environment size needed",
 	"Code":"Head of resulting annotated code",
 	"CodeEnd":"Tail of resulting annotated code",
+	"Options":"Options structure",
 	"Module":"Context module"
     ],
     see_also:[assign_am_registers/3,struct(code)]
 ]).
 
-:- export generate_code/5.
+:- export generate_code/6.
 
-generate_code(Clause, EnvSize, Code, CodeEnd, Module) :-
+generate_code(Clause, EnvSize, Code, CodeEnd, Options, Module) :-
 	( EnvSize >= 0 ->
 	    Code = [code{instr:allocate(EnvSize)}|Code1],
 	    Code4 = [code{instr:exit}|AuxCode]
@@ -139,32 +140,35 @@ generate_code(Clause, EnvSize, Code, CodeEnd, Module) :-
 	    Code = Code1,
 	    Code4 = [code{instr:ret}|AuxCode]
 	),
-	generate_branch(Clause, AuxCode, CodeEnd, Code1, Code4, Module).
+	generate_branch(Clause, 0, AuxCode, CodeEnd, Code1, Code4, Options, Module).
 
 
-generate_branch(Goals, AuxCode0, AuxCode, Code0, Code, Module) :-
+generate_branch(Goals, BranchExitInitMap, AuxCode0, AuxCode, Code0, Code, Options, Module) :-
 	(
 	    fromto(Goals,ThisChunk,NextChunk,[]),
-	    fromto(Code0,Code1,Code2,Code),
+	    fromto(Code0,Code1,Code2,Code3),
 	    fromto(AuxCode0,AuxCode1,AuxCode2,AuxCode),
-	    param(Module)
+	    param(Options,Module)
 	do
 	    init_chunk_data(ChunkData0),
-	    generate_chunk(ThisChunk, NextChunk, [], ChunkData0, AuxCode1, AuxCode2, ChunkCode, ChunkCode, Code1, Code2, 0, _ArityUsed, Module)
-	).
+	    generate_chunk(ThisChunk, NextChunk, [], ChunkData0, AuxCode1, AuxCode2, ChunkCode, ChunkCode, Code1, Code2, 0, _ArityUsed, Options, Module)
+	),
+	% Generate initialization code for any variables which did not occur
+	% in or before the branch, but have a non-first occurrence after it.
+	emit_initialize(BranchExitInitMap, Code3, Code).
 
 
-:- mode generate_chunk(+,-,+,+,?,-,-,?,-,?,+,-,+).
-generate_chunk([], [], HeadPerms, _ChunkData, AuxCode, AuxCode, AllChunkCode, Code, FinalCode, FinalCode0, Arity, Arity, _Module) :-
+:- mode generate_chunk(+,-,+,+,?,-,-,?,-,?,+,-,+,+).
+generate_chunk([], [], HeadPerms, _ChunkData, AuxCode, AuxCode, AllChunkCode, Code, FinalCode, FinalCode0, Arity, Arity, _Options, _Module) :-
 	% end of chunk, finalize the code
 	move_head_perms(HeadPerms, Code, []),
 	assign_am_registers(AllChunkCode, FinalCode, FinalCode0).
 
-generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Module) :-
+generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, Module) :-
 
 	( Goal = goal{kind:simple} ->		 % special goals
 	    generate_simple_goal(Goal, ChunkData0, ChunkData1, Code, Code1),
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, MaxArity0, MaxArity, Module)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, Module)
 
 	; Goal = goal{kind:head,functor:(_/HeadArity),args:Args} ->	% clause-head or pseudo-head
 	    (
@@ -186,25 +190,18 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 		)
 	    ),
 	    Code = [code{instr:nop,regs:OrigRegDescs}|Code1],
-	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, HeadArity, MaxArity, Module)
+	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, HeadArity, MaxArity, Options, Module)
 
-        ; Goal = goal{kind:regular,functor:P,lookup_module:LM,envmap:EAM,
-                      envsize:ESize,path:Path,from:From,to:To} ->
+	; Goal = goal{kind:regular,functor:P,lookup_module:LM,envmap:EAM} ->
 	    P = _/CallArity,
 	    MaxArity is max(MaxArity0,CallArity),
-	    move_head_perms(HeadPerms0, Code, Code1a),
-	    generate_regular_puts(Goal, ChunkData0, _ChunkData, Code1a, Code1b, OutArgs),
+	    move_head_perms(HeadPerms0, Code, Code1),
+	    generate_regular_puts(Goal, ChunkData0, _ChunkData, Code1, Code2, OutArgs),
 	    ( LM==Module -> Pred = P ; Pred = LM:P ),
-	    emit_initialize(EAM, Code1b, Code1),
-            (var(Path) -> Path1 = ''; concat_atom([Path],Path1)),
-            (var(From) -> From = 0 ; true),
-            (var(To) -> To = 0 ; true),
-	    Code1 = [
-		% TODO: add EAMs to the instruction
+	    emit_debug_call_port(Options, Pred, OutArgs, OutArgs1, Goal, Code2, Code3),
+	    Code3 = [
 		% PRELIMINARY: always use callf instead of call (to reset DET flag)
-%		code{instr:debug_call(Pred,1),regs:OutArgs},code{instr:callf(Pred,ESize),regs:[]}],
-		code{instr:debug_scall(Pred,1,Path1,From,To),regs:OutArgs},code{instr:callf(Pred,ESize),regs:[]}],
-%               code{instr:callf(Pred,ESize),regs:OutArgs}],
+		code{instr:callf(Pred,eam(EAM)),regs:OutArgs1}],
 	    NextChunk = Goals,
 	    AuxCode = AuxCode0,
 	    % end of chunk, finalize the code
@@ -213,14 +210,16 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	; Goal = indexpoint{indexes:IndexDescs,envmap:EAM,nextaltlabel:Label2,
 			disjunction:disjunction{arity:TryArity,branchlabels:BranchLabelArray}} ->
 	    MaxArity1 is max(MaxArity0,TryArity),
-	    emit_initialize(EAM, Code, Code1),
-	    generate_indexing(IndexDescs, BranchLabelArray, TryArity, ChunkData0, ChunkData1, Code1, Code2, AuxCode, AuxCode1),
+	    generate_indexing(IndexDescs, BranchLabelArray, TryArity, ChunkData0, ChunkData1, Code, Code2, AuxCode, AuxCode1),
 	    arg(1, BranchLabelArray, BrLabel1),
 	    Code2 = [code{instr:try_me_else(0,TryArity,ref(Label2)),regs:[]},
 		    code{instr:label(BrLabel1),regs:[]}|Code3],
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode1, AuxCode0, AllChunkCode, Code3, FinalCode, FinalCode0, MaxArity1, MaxArity, Module)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode1, AuxCode0, AllChunkCode, Code3, FinalCode, FinalCode0, MaxArity1, MaxArity, Options, Module)
 
-	; Goal = disjunction{branches:Branches,branchlabels:BranchLabelArray,/*entrymap:EAM,*/entrysize:ESize,arity:TryArity,
+	; Goal = disjunction{branches:Branches,branchlabels:BranchLabelArray,
+		entrymap:EAM,arity:TryArity,
+		branchentrymaps:BranchEAMs,
+		branchinitmaps:BranchExitInits,
 		index:indexpoint{nextaltlabel:Label2}} ->
 
 	    length(Branches, NBranches),
@@ -232,40 +231,53 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    assign_am_registers(AllChunkCode, FinalCode, Code1),
 
 	    Branches = [Branch1|Branches2toN],
+	    BranchEAMs = [_|BranchEAMs2toN],
+	    BranchExitInits = [BranchExitInit1|BranchExitInits2toN],
 	    % indexing and try_me are generated inside the 1st branch,
 	    % triggered by indexpoint{} pseudo-goal
-	    generate_branch(Branch1, AuxCode, AuxCode2, Code1, Code2, Module),
+	    generate_branch(Branch1, BranchExitInit1, AuxCode, AuxCode2, Code1, Code2, Options, Module),
 	    Code2 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code3],
 	    (
 		for(I, 2, NBranches-1),
 		fromto(Branches2toN, [Branch|Branches], Branches, [BranchN]),
+		fromto(BranchEAMs2toN, [EAM|EAMs], EAMs, [EAMN]),
+		fromto(BranchExitInits2toN, [BranchExitInit|BEIs], BEIs, [BranchExitInitN]),
 		fromto(Code3, Code4, Code7, Code8),
 		fromto(AuxCode2, AuxCode3, AuxCode4, AuxCode5),
 		fromto(Label2, LabelI, LabelI1, LabelN),
-		param(/*EAM,*/ESize,LabelJoin,BranchLabelArray,Module)
+		param(LabelJoin,BranchLabelArray,Options,Module)
 	    do
 		arg(I, BranchLabelArray, BrLabelI),
 		Code4 = [
 		    code{instr:label(LabelI),regs:[]},
-		    code{instr:retry_me_inline(0,ref(LabelI1),/*EAM,*/ESize),regs:[]},
+		    code{instr:retry_me_inline(0,ref(LabelI1),eam(EAM)),regs:[]},
 		    code{instr:label(BrLabelI),regs:[]}
 		    |Code5],
-		generate_branch(Branch, AuxCode3, AuxCode4, Code5, Code6, Module),
+		generate_branch(Branch, BranchExitInit, AuxCode3, AuxCode4, Code5, Code6, Options, Module),
 		Code6 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code7]
 	    ),
 	    arg(NBranches, BranchLabelArray, BrLabelN),
 	    Code8 = [
 		code{instr:label(LabelN),regs:[]},
-		code{instr:trust_me_inline(0,/*EAM,*/ESize),regs:[]},
+		code{instr:trust_me_inline(0,eam(EAMN)),regs:[]},
 		code{instr:label(BrLabelN),regs:[]}
 		|Code9],
-	    generate_branch(BranchN, AuxCode5, AuxCode0, Code9, Code10, Module),
+	    generate_branch(BranchN, BranchExitInitN, AuxCode5, AuxCode0, Code9, Code10, Options, Module),
 	    Code10 = [code{instr:label(LabelJoin),regs:[]}|FinalCode0]
 
 	;
 	    printf(error, "ERROR: unexpected goal in generate_chunk", []),
 	    abort
 	).
+
+
+% Optionally generate a call-port debug instruction
+emit_debug_call_port(options{dbgcomp:off}, _Pred, OutArgs, OutArgs, _Goal, Code, Code) :- !.
+emit_debug_call_port(options{dbgcomp:on}, Pred, OutArgs, [], goal{path:Path,from:From,to:To}, Code, Code0) :-
+	(var(Path) -> Path1 = ''; concat_atom([Path],Path1)),
+	(var(From) -> From = 0 ; true),
+	(var(To) -> To = 0 ; true),
+	Code = [code{instr:debug_scall(Pred,1,Path1,From,To),regs:OutArgs}|Code0].
 
 
 %----------------------------------------------------------------------
@@ -584,10 +596,10 @@ emit_try_sequences(LabelTable, BranchLabelArray, TryArity, Code0, Code) :-
 			param(BranchLabelArray)
 		    do
 			arg(BranchNr, BranchLabelArray, BranchLabel),
-			Code3 = [code{instr:retry(0,ref(BranchLabel)),regs:[]}|Code4]
+			Code3 = [code{instr:retry_inline(0,ref(BranchLabel)),regs:[]}|Code4]
 		    ),
 		    arg(BranchNrN, BranchLabelArray, BranchLabelN),
-		    Code5 = [code{instr:trust(0,ref(BranchLabelN)),regs:[]}|Code6]
+		    Code5 = [code{instr:trust_inline(0,ref(BranchLabelN)),regs:[]}|Code6]
 		)
 	    ;
 		TryLabel = fail, Code1 = Code6
@@ -611,28 +623,15 @@ reg_or_perm(Var, ChunkData0, ChunkData, RegDesc, VarLoc) :-
 	).
 
 
-
-% The format of the initalize instruction is as follows:
-%	initialise Yi Ymask
-% where Ymask is a bitmask indicating which of the Yj
-% (i+1 =< j =< y+32) should be initialised in addition to Yi.
+% Initialize environment slots according to the bitmap given.  We can't
+% use the current initialize instruction because we want global variables.
 emit_initialize(EAM, Code, Code0) :-
 	decode_activity_map(EAM, Ys),
 	(
-	    fromto(Ys,[Yi|Ys1],Ys2,[]),
+	    foreach(Y,Ys),
 	    fromto(Code,Code1,Code2,Code0)
 	do
-	    Max is Yi+32,
-	    prefix_le(Max, Ys1, Ys2, YMask),
-	    Code1 = [code{instr:initialize(y([Yi|YMask])),regs:[]}|Code2]
-	).
-
-    prefix_le(_Max, [], [], []).
-    prefix_le(Max, [X|Xs], Xs0, XYs) :-
-    	( X =< Max ->
-	    XYs = [X|Ys], prefix_le(Max, Xs, Xs0, Ys)
-	;
-	    Xs0 = [X|Xs], XYs = []
+	    Code1 = [code{instr:put_global_variable(y(Y)),regs:[]}|Code2]
 	).
 
 
@@ -819,6 +818,11 @@ generate_simple_goal(goal{functor: (=)/2, args:[Arg1,Arg2],definition_module:sep
 	generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code), % may fail
 	!.
 
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code) :-
+	Goal = goal{functor: (?=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel},
+	!,
+	generate_in_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code).
+
 generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code) ?- !,
 	Arg = variable{varid:VarId},
 	variable_occurrence(Arg, ChunkData0, ChunkData, VarOccDesc),
@@ -905,7 +909,7 @@ inlined_builtin(number,		1,	bi_number).
 inlined_builtin(atomic,		1,	bi_atomic).
 inlined_builtin(compound,	1,	bi_compound).
 inlined_builtin(is_list,	1,	bi_is_list).
-inlined_builtin(==,		2,	bi_identical).
+inlined_builtin(==,		2,	get_matched_value).
 inlined_builtin(\==,		2,	bi_not_identical).
 inlined_builtin(\==,		3,	bi_not_ident_list).
 inlined_builtin(~=,		3,	bi_inequality).
@@ -1080,6 +1084,31 @@ unify_variables_ord(perm_first_in_chunk(Y1), VarId1, perm_first_in_chunk(Y2), Va
 
 
 
+%
+% Implementation of one way unification (head matching)
+% The Arg1 ?= Arg2 goal is only created during head normalisation,
+% so only certain special cases occur.
+%
+% p(nonvar) ?- ...	was normalised into p(T) :- T ?= nonvar, ...
+%	and T ?= nonvar implemented via specialised head unification code
+%
+% p(X,X) ?- ...		was normalised into p(X,T) :- X=X, X==T, ...
+%
+% p(X{A}) ?- ...	was normalised into p(X) :- X?=X{A}, ...
+% p(X{A},X{A}) ?- ...	was normalised into p(X,T) :- X?=X{A}, T==X, ...
+%
+generate_in_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
+	Arg1 = variable{varid:VarId},
+	( Arg2 = variable{} ->
+	    verify false
+    	;
+	    variable_occurrence(Arg1, ChunkData0, ChunkData1, VarOccDesc),
+	    verify VarOccDesc == tmp,
+	    in_head(VarId, Arg2, ChunkData1, ChunkData, Code0, Code)
+	).
+
+
+
 %----------------------------------------------------------------------
 % Generate code for constructing an arbitrary term
 %----------------------------------------------------------------------
@@ -1156,7 +1185,7 @@ move_head_perms(HeadPerms, Code, Code0) :-
     args:[
 	"Code":"A list of struct(code)"
     ],
-    see_also:[generate_code/5,struct(code)]
+    see_also:[generate_code/6,struct(code)]
 ]).
 
 :- export print_annotated_code/1.

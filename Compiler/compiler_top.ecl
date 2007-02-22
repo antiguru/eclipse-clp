@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.4 2007/02/15 11:58:41 kish_shen Exp $
+% Version:	$Id: compiler_top.ecl,v 1.5 2007/02/22 01:31:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/15 11:58:41 $").
+:- comment(date, "$Date: 2007/02/22 01:31:56 $").
 
 :- comment(desc, html("
 	This module contains the toplevel predicates for invoking the
@@ -149,7 +149,7 @@ compile_pred_to_wam_annotated(Clauses, AnnCs, Files, FinalCode, OptionList,
 	    print_default_options(error)@compiler_common,
 	    abort
 	),
-	
+
 	% Create our normal form
 	normalize_clauses_annotated(Clauses, AnnCs, [], Files, NormPred0, _NVars, Module),
 %	print_normalized_clause(output, NormPred0),
@@ -187,7 +187,7 @@ compile_pred_to_wam_annotated(Clauses, AnnCs, Files, FinalCode, OptionList,
 	),
 
 	% Code generation
-	generate_code(NormPred, EnvSize, Code, [], Module),
+	generate_code(NormPred, EnvSize, Code, [], Options, Module),
 	( Options = options{print_raw_code:on} ->
 	    print_annotated_code(Code)
 	;
@@ -201,7 +201,6 @@ compile_pred_to_wam_annotated(Clauses, AnnCs, Files, FinalCode, OptionList,
 	;
 	    true
 	).
-
 
 
 %----------------------------------------------------------------------
@@ -276,6 +275,8 @@ compile_file(File, OptionList, Module) :-
 		    call_directive(SourcePos1, Term, PosModule)
 		; Class = query ->
 		    call_directive(SourcePos1, Term, PosModule)
+		; Class = handled_directive ->
+		    consider_pragmas(Term, Options)
 		; Class = var ->
 		    compiler_error(4, SourcePos1, SourceTerm)
 		;
@@ -317,6 +318,11 @@ compile_file(File, OptionList, Module) :-
 
 
     compiler_options_setup(File, OptionList, Options) :-
+
+	% Consider global settings for the compiler options
+	get_flag(debug_compile, Dbgcomp),
+	set_default_option(dbgcomp, Dbgcomp)@compiler_common,
+
 	( get_options(OptionList, Options0)@compiler_common ->
 	    true
 	;
@@ -349,5 +355,21 @@ compile_file(File, OptionList, Module) :-
 	error_id(N, Message),
 	printf(error, "Compiler: %w in file %w, line %d:%n%Qw%n",
 		[Message,F,L,Term]).
+
+
+% Adjust compiler options according to pragmas
+
+consider_pragmas(:-(Dir), Options) :-
+	consider_pragmas1(Dir, Options).
+
+consider_pragmas1((D1,D2), Options) ?- !,
+	consider_pragmas1(D1, Options),
+	consider_pragmas1(D2, Options).
+consider_pragmas1(pragma(Pragma), Options) ?- !,
+	consider_pragma(Pragma, Options).
+consider_pragmas1(_, _).
+
+consider_pragma(debug, Options) :- setarg(dbgcomp of options, Options, on).
+consider_pragma(nodebug, Options) :- setarg(dbgcomp of options, Options, off).
 
 

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.1 2006/09/23 01:45:11 snovello Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:45:11 $").
+:- comment(date, "$Date: 2007/02/22 01:31:56 $").
 
 :- comment(desc, ascii("
     This pass (actually two passes: compute_lifetimes and assign_env_slots)
@@ -186,6 +186,9 @@ compute_lifetimes(indexpoint{callpos:CallPos,args:Args}, Map0, Map) :-
     compute_lifetimes_term(CallPos, Occurrence, Map0, Map) :-
 	Occurrence = variable{},
 	register_occurrence(CallPos, Occurrence, Map0, Map).
+    compute_lifetimes_term(CallPos, attrvar{variable:Avar,meta:Meta}, Map0, Map) :-
+	compute_lifetimes_term(CallPos, Avar, Map0, Map1),
+	compute_lifetimes_term(CallPos, Meta, Map1, Map).
     compute_lifetimes_term(CallPos, structure{args:Args}, Map0, Map) :-
 	compute_lifetimes_term(CallPos, Args, Map0, Map).
     compute_lifetimes_term(_CallPos, Term, Map, Map) :- atomic(Term).
@@ -425,8 +428,7 @@ assign_env_slots(Body, Map, EnvSize) :-
 	foreachcallposinbranch(Branch, SlotsInc, SlotsRest, 0, EnvSize0),
 	verify SlotsRest==[],
 
-	InitEAM is (2^EnvSize0-1) << 1,		% EnvSize 1s
-	mark_env_activity(Body, EnvSize0, _TrimmedEnvSize, InitEAM, _EAM, 0, _EDM),
+	mark_env_activity(Body, EnvSize0),
 
 	( EnvSize0 == 0, only_tail_calls(Body) ->
 	    EnvSize = -1
@@ -514,109 +516,147 @@ only_tail_calls([goal{kind:Kind}|Goals]) :-
 
 
 %----------------------------------------------------------------------
-% Last pass: Environment Activity Map generation
+% Computing environment activity maps
 %
-% TODO: Code generation has to insert initialisation at the end of
-%	all branches where the envmap of the last goal doesn't match
-%	the exitmap of the disjunction!
+% We assume that environment slots are already allocated to permanent
+% variables. The job of this phase is to compute environment slot activity
+% maps for various points in the code, in particular call positions
+% and entry and exit points of disjunctive branches. These maps are
+% simple bitmaps, with bit i-1 (i>0) indicating that Yi is active.
+%
+% We make a forward and a backward pass through the directed acyclic
+% graph formed by the normalised clause. During the forward pass, we
+% annotate every goal with two sets:
+%	- seen_before (the slots that occurred before this goal)
+%	- seen_here (the slots that occur in this goal)
+%
+% Then we make a backward pass to discover the last occurrences and
+% compute the actual environment activity maps. With the current strategy
+% of globalising all environment variables, a slot's activity ends at
+% the call that has its last occurrence(s).
 %----------------------------------------------------------------------
 
-mark_env_activity([], N, N, EAM, EAM, EDM, EDM).
-mark_env_activity([Goal|Goals], N0, N, EAM0, EAM, EDM0, EDM) :-
-	mark_env_activity(Goal, N0, N1, EAM0, EAM1, EDM0, EDM1),
-	mark_env_activity(Goals, N1, N, EAM1, EAM, EDM1, EDM).
-mark_env_activity(disjunction{branches:Branches,entrymap:EntryEAM0,exitmap:ExitEAM,
-			entrysize:N0,exitsize:N,index:indexpoint{envmap:EntryEAM0}},
-		N0, N, EntryEAM0, ExitEAM, EntryEDM, ExitEDM) :-
-%	EntryEAM=EntryEAM0,	%%% without Initialize
-	EntryEAM=0,		%%% with Initialize instructions
+% Auxiliary structures built during forward pass, and traversed backward
+:- local struct(rev_goal(	% wrapper for goal{}
+    	goal,		% the goal{} all this belongs to
+	seen_before,	% bitmap of variables seen before this goal
+	seen_here)	% bitmap of variables occurring in this goal
+    ).
+
+:- local struct(rev_disj(	% wrapper for disjunction{}
+	disjunction,	% the disjunction{} all this belongs to
+    	rev_branches,	% list of reversed branches, for backward traversal
+	seen_before,	% bitmap of variables seen before this branch
+	seen_at_end,	% bitmap of variables seen at end of each branch
+	seen_at_ends)	% list of bitmaps of variables seen at end of each branch
+    ).
+
+
+mark_env_activity(Clause, FullEnvSize) :-
+	mark_env_activity_fwd(Clause, 0, _Before, [], Reverse),
+	mark_env_activity_bwd(Reverse, 0, _After, FullEnvSize).
+
+
+mark_env_activity_fwd([], Seen, Seen, Reverse, Reverse).
+mark_env_activity_fwd([Goal|Goals], Seen0, Seen, Reverse0, Reverse) :-
+	mark_env_activity_fwd(Goal, Seen0, Seen1, Reverse0, Reverse1),
+	mark_env_activity_fwd(Goals, Seen1, Seen, Reverse1, Reverse).
+mark_env_activity_fwd(Disjunction, Seen0, Seen, Reverse, [RevDisj|Reverse]) :-
+	Disjunction = disjunction{branches:Branches},
+	RevDisj = rev_disj{rev_branches:RevBranches,disjunction:Disjunction,
+		seen_before:Seen0, seen_at_end:Seen, seen_at_ends:SeenEnds},
 	(
 	    foreach(Branch,Branches),
-	    fromto(N0, N1, N3, N),
-	    fromto(0, DisjExitEAM0, DisjExitEAM1, ExitEAM),
-	    fromto(0, DisjExitEDM0, DisjExitEDM1, ExitEDM),
-	    param(EntryEAM,EntryEDM,N0)
+	    foreach(RevBranch,RevBranches),
+	    foreach(SeenEndBranch,SeenEnds),
+	    fromto(Seen0,Seen1,Seen2,Seen),
+	    param(Seen0)
 	do
-	    % TODO: save BranchExitEAMs - they are needed for extra inits
-	    % at the ends of branches (compare with disjunction's ExitEAM)
-	    mark_env_activity(Branch, N0, N2, EntryEAM, BranchExitEAM, EntryEDM, BranchExitEDM),
-	    DisjExitEAM1 is DisjExitEAM0 /\ BranchExitEAM,
-	    DisjExitEDM1 is DisjExitEDM0 \/ BranchExitEDM,
-	    N3 is min(N1,N2)
+	    mark_env_activity_fwd(Branch, Seen0, SeenEndBranch, [], RevBranch),
+	    Seen2 is Seen1 \/ SeenEndBranch
 	).
-mark_env_activity(goal{kind:Kind,args:Args,envmap:EAMCall,envsize:NCall},
-		N0, N, EAM0, EAM, EDM0, EDM) :-
-	( Kind == regular ->
-/*
-	% Code if we have unsafe variables (located in envrionment)
-	    mark_env_activity_args(Args, 0, CLR, EAM0, EAM, EDM0, EDM1, true),
-	    % Trim environment size as much as possible for the call
-	    trim_env(N0, NCall, EDM1, EDM2),
-	    % The variables that have last occurrence as arguments of this
-	    % call, have their slot deallocated in a delayed way.
-	    EDM3 is EDM2 \/ CLR,
-	    % Trim more for after the call
-	    trim_env(NCall, N, EDM3, EDM)
-*/
-	% Code if we never have/leave variables in the environment
-	    mark_env_activity_args(Args, 0, _CLR, EAM0, EAMCall, EDM0, EDM1, false),
-%	    EAM=EAMCall,	%%% without Initialize
-	    EAM=0,		%%% with Initialize instructions
-	    % Trim environment size as much as possible
-	    trim_env(N0, NCall, EDM1, EDM),
-	    N = NCall
-	;
-	    % TODO: if it's cut_to, trim (but not very important)
-	    N = N0, NCall = N,
-	    mark_env_activity_args(Args, 0, _, EAM0, EAM, EDM0, EDM, false)
-	).
-mark_env_activity(indexpoint{args:Args,envmap:_TryEAM}, N, N, EAM0, EAM, EDM0, EDM) :-
-	mark_env_activity_args(Args, 0, _, EAM0, EAM1, EDM0, EDM, false),
-%	verify _TryEAM==EAM1,	%%% without Initialize
-	EAM=EAM1.
+mark_env_activity_fwd(Goal, Seen0, Seen, Reverse, [RevGoal|Reverse]) :-
+	Goal = goal{args:Args},
+	RevGoal = rev_goal{seen_here:UsedHere,seen_before:Seen0,goal:Goal},
+	mark_env_activity_args(Args, 0, UsedHere),
+	Seen is Seen0 \/ UsedHere.
+mark_env_activity_fwd(Indexpoint, Seen0, Seen, Reverse, Reverse) :-
+	Indexpoint = indexpoint{args:Args},
+	mark_env_activity_args(Args, 0, UsedHere),
+	Seen is Seen0 \/ UsedHere.
 
 
-    :- mode mark_env_activity_args(+,+,-,+,-,+,-,+).
-    mark_env_activity_args([], CLR, CLR, EAM, EAM, EDM, EDM, _DelayClr).
-    mark_env_activity_args([X|Xs], CLR0, CLR, EAM0, EAM, EDM0, EDM, DelayClr) :-
-	mark_env_activity_term(X, CLR0, CLR1, EAM0, EAM1, EDM0, EDM1, DelayClr),
-	mark_env_activity_args(Xs, CLR1, CLR, EAM1, EAM, EDM1, EDM, DelayClr).
+    :- mode mark_env_activity_args(+,+,-).
+    mark_env_activity_args([], EAM, EAM).
+    mark_env_activity_args([X|Xs], EAM0, EAM) :-
+	mark_env_activity_term(X, EAM0, EAM1),
+	mark_env_activity_args(Xs, EAM1, EAM).
 
-    :- mode mark_env_activity_term(+,+,-,+,-,+,-,+).
-    mark_env_activity_term(Var, CLR0, CLR, EAM0, EAM, EDM0, EDM, DelayClr) :-
-	Var = variable{isafirst:F,isalast:L,class:Loc},
+    :- mode mark_env_activity_term(+,+,-).
+    mark_env_activity_term(Var, EAM0, EAM) :-
+	Var = variable{class:Loc},
 	( Loc = nonvoid(y(Y)) ->
-	    ( L == last ->			% it's a last
-		( DelayClr == true ->
-		    EAM0=EAM, EDM0=EDM,		% slot deallocated later
-		    setbit(CLR0, Y, CLR)
-		;
-		    CLR=CLR0, EAM0=EAM,
-		    setbit(EDM0, Y, EDM)
-		)
-	    ; F == first ->
-		CLR0=CLR, EDM0=EDM,
-		clrbit(EAM0, Y, EAM)		% clear the uninit-flag
-	    ;
-		CLR0=CLR, EAM0=EAM, EDM0=EDM
-	    )
+	    EAM is setbit(EAM0, Y-1)		% set the seen-flag
 	;
-	    CLR0=CLR, EAM0=EAM, EDM0=EDM
+	    EAM0=EAM
 	).
-    mark_env_activity_term([X|Xs], CLR0, CLR, EAM0, EAM, EDM0, EDM, _DelayClr) :-
-	mark_env_activity_term(X, CLR0, CLR1, EAM0, EAM1, EDM0, EDM1, false),
-	mark_env_activity_term(Xs, CLR1, CLR, EAM1, EAM, EDM1, EDM, false).
-    mark_env_activity_term(structure{args:Args}, CLR0, CLR, EAM0, EAM, EDM0, EDM, _DelayClr) :-
-	mark_env_activity_term(Args, CLR0, CLR, EAM0, EAM, EDM0, EDM, false).
-    mark_env_activity_term(Term, CLR, CLR, EAM, EAM, EDM, EDM, _DelayClr) :- atomic(Term).
+    mark_env_activity_term(attrvar{variable:Avar,meta:Meta}, EAM0, EAM) :-
+	mark_env_activity_term(Avar, EAM0, EAM1),
+	mark_env_activity_term(Meta, EAM1, EAM).
+    mark_env_activity_term([X|Xs], EAM0, EAM) :-
+	mark_env_activity_term(X, EAM0, EAM1),
+	mark_env_activity_term(Xs, EAM1, EAM).
+    mark_env_activity_term(structure{args:Args}, EAM0, EAM) :-
+	mark_env_activity_term(Args, EAM0, EAM).
+    mark_env_activity_term(Term, EAM, EAM) :- atomic(Term).
 
 
-    trim_env(N0, N, EDM0, EDM) :-
-    	( getbit(EDM0, N0) =:= 1 ->
-	    N1 is N0-1,
-	    clrbit(EDM0, N0, EDM1),
-	    trim_env(N1, N, EDM1, EDM)
-	;
-	    N = N0, EDM = EDM0
-	).
+
+% Backwards traversal of the clause DAG to discover last occurrences.
+% Using the auxiliary data structure created during the forward pass,
+% and the seen_before/seen_here-fields filled in during the forward pass.
+
+mark_env_activity_bwd([], After, After, _ESize).
+mark_env_activity_bwd([Goal|Goals], After0, After, ESize) :-
+	mark_env_activity_bwd(Goal, After0, After1, ESize),
+	mark_env_activity_bwd(Goals, After1, After, ESize).
+mark_env_activity_bwd(rev_disj{rev_branches:Branches,
+			seen_before:SeenBeforeDisj,
+			seen_at_end:SeenEndDisj,
+			seen_at_ends:SeenEnds,
+			disjunction:disjunction{
+			    entrymap:DisjEntryEAM,
+			    exitmap:DisjExitEAM,
+			    branchentrymaps:BranchEntryEAMs,
+			    branchinitmaps:BranchExitInits,
+			    index:indexpoint{envmap:DisjEntryEAM}}},
+		After0, After, ESize) :-
+	% EAM after exiting the disjunction
+	DisjExitEAM is SeenEndDisj /\ After0,
+	(
+	    foreach(Branch,Branches),
+	    foreach(SeenEnd,SeenEnds),
+	    foreach(BranchEntryEAM,BranchEntryEAMs),
+	    foreach(BranchExitInit,BranchExitInits),
+	    fromto(After0,After1,After2,After),
+	    param(SeenBeforeDisj,After0,ESize,DisjExitEAM)
+	do
+	    % slots that are active after the disjunction, but not
+	    % at the end of the branch, must be initialised
+	    % on branch exit!
+	    BranchExitEAM is SeenEnd /\ After0,
+	    BranchExitInit is DisjExitEAM /\ \BranchExitEAM,
+	    mark_env_activity_bwd(Branch, After0, BranchAndAfter, ESize),
+	    BranchEntryEAM is SeenBeforeDisj /\ BranchAndAfter,
+	    After2 is After1 \/ BranchAndAfter
+	),
+	% EAM before entering the disjunction
+	DisjEntryEAM is SeenBeforeDisj /\ After.
+mark_env_activity_bwd(rev_goal{seen_before:Before,seen_here:UsedHere,goal:Goal}, After0, After, ESize) :-
+	Goal = goal{envmap:EAM,envsize:ESize},
+	% if variables were not globalised, slots would remain active during call:
+%	EAM is UsedHere \/ (Before /\ After0),
+	% when unsafe variables are globalised, slots are released on call:
+	EAM is (UsedHere \/ Before) /\ After0,
+	After is After0 \/ UsedHere.
 

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.1 2006/09/23 01:45:11 snovello Exp $
+% Version:	$Id: compiler_test.ecl,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -60,7 +60,7 @@ compile :-
 
 :- export op(200, fx, (test)).
 test(Name) :-
-	test(Name, [output:print]).
+	test(Name, [output:print,dbgcomp:off]).
 
 test(Name, Options) :-
 	(
@@ -285,7 +285,7 @@ testclause(60, (
 testclause(101, (
     	p :- p(X),q(Y,X),r(Y),t(Y)
     )).
-testclause(102, (	% X and Z considered potentially overlapping
+testclause(102, (
     	p :- p(X),q(X,Z,_T),r(Z,Y),t(Y)
     )).
 testclause(103, (
@@ -297,11 +297,24 @@ testclause(104, (
 testclause(105, (
 	p :- ( f(Y),g(Y),a(X) ; b(Z),c(Z) ), e(X), f(X)
     )).
-testclause(106, (	% suboptimal, considered overlapping
+testclause(106, (
 	p :- a(X), ( b(X),c(Y) ; d(X),e(Y) ), f(Y)
     )).
 testclause(107, (
 	p :- a(X), ( b(X),c(Z) ; d(X),e(Z) ), f(_Y)
+    )).
+testclause(108, (
+	p :- a(X), ( b(X) ; c ), d
+    )).
+testclause(109, (
+	p :- a, b(X), c(Y), d(X), e(Y), f
+    )).
+testclause(110, (
+	p :- a(A), a(A,B,C), ( a ; b(B), c(B) ; d(D), e(D) ; f(E), g(E) ), f(D,C,F), g(F)
+    )).
+
+testclause(120, (
+	(sentence(B,C,D,E,F) :- declarative(B,C,G,E,H),terminator(.,G,D,H,F))
     )).
 
 
@@ -675,6 +688,28 @@ testclause(head(31), (p(f(a,[1,2],b,[3|T],c)) :- q(T))).
 testclause(head(32), (p(f(a,[1,2],[3|T],c)) :- q(T))).
 testclause(head(33), (p(f(a,[1,2],b,[3|T])) :- q(T))).
 testclause(head(34), (p(f("hello",3.5,5_3)) :- q)).
+
+testclause(match(1), (p(1,2.3,3_4,a,"s",[]) ?- true)).
+testclause(match(2), (p(X,Y,_,Z,Z) ?- q(X),r(Y))).
+testclause(match(3), (p(X,X,Y,Y) ?- q(X),r(Y))).
+testclause(match(4), (p(foo(bar(1),_,baz(2))) ?- true)).
+testclause(match(5), (p([1,2,[3,4]]) ?- true)).
+testclause(match(6), (p(foo(X,X)) ?- true)).
+testclause(match(7), (p(foo(X,X,Y,Y)) ?- q(X),r(Y))).
+testclause(match(8), (p(X,foo(X,Y),Y) ?- true)).
+testclause(match(9), (p(X,foo(X,Y),Y) ?- p(X),r(Y))).
+
+testclause(match(10), (p(X{suspend:S}) ?- p(X,S))).
+testclause(match(11), (p(X{suspend:S}) ?- p(a,X,S))).
+testclause(match(12), (p(X{suspend:S},X) ?- p(a,b,X,S))).
+testclause(match(13), (p(X{suspend:S}) ?- q, p(X,S))).
+testclause(match(14), (p(X{suspend:S},X) ?- q, p(X,S))).
+testclause(match(20), (p(f(X{suspend:S})) ?- p(X,S))).
+testclause(match(21), (p(f(a,X{suspend:S})) ?- p(X,S))).
+testclause(match(22), (p(f(a,X{suspend:S},c)) ?- p(X,S))).
+testclause(match(23), (p(f(bar(baz),X{suspend:S},c)) ?- p(X,S))).
+testclause(match(24), (p(f(X{suspend:S},X)) ?- p(X,S))).	% suboptimal, matches attributes twice
+testclause(match(25), (p(f(bar(baz),a,X{suspend:S},c)) ?- p(X,S))).
 
 testclause(unify(1), (p(X,Y,Z) :- q, X = f(1,g(Y,W),V,h(Z,Y)), r(Z,W),s(V))).
 

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.1 2006/09/23 01:45:09 snovello Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -75,6 +75,17 @@
 %		down (save S+1)			down (save S+1)
 %						possibly goto write mode
 %
+% Support for head matching (matching clauses)
+%    This is partly done with special code, and partly by reusing the
+%    unify-code and throwing away the write-mode code. The generic code
+%    uses a Dir flag (inout/in) to distinguish unification/matching mode.
+%
+% Support for attributed variable matching
+%    This is similar to matching a variable followed by a structure.
+%    TODO: The current scheme is not suitable for creating .eco files
+%    because the generated code will only work when the same meta_attribute
+%    declarations are in place at compile time and at eco-load time.
+%
 % Possible improvements
 %    It would be advantageous to reorder subterm unification rather than
 %    going left-to-right. E.g. in order to exploit the last-subterm
@@ -90,38 +101,80 @@
 
 
 :- import
-	maxint/1, minint/1
+	maxint/1,
+	minint/1,
+	meta_index/2
     from sepia_kernel.
 
 %:- export head/6.
 
+% generate head unification for VarId I and Term
 head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = [_|_],
 	Code = [code{instr:get_list(RI, ref(LR)),regs:[r(I,RI,use,_),r(_,_,split,_)]}|WCode],
-	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0),
+	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
 	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore,_)]}|RCode],
 	RCode0 = [code{instr:label(LE),regs:[r(_,_,join,_)]}|Code1],
-	( Reg > 0 ->
-	    MReg is -Reg,
-	    Code1 = [code{instr:space(MReg)}|Code0]
-	;
-	    Code1 = Code0
-	).
+	emit_pop_temp(Reg, Code1, Code0).
 head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = structure{name:F,arity:A},
 	Code = [code{instr:get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use,_),r(_,_,split,_)]}|WCode],
-	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0),
+	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
 	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore,_)]}|RCode],
 	RCode0 = [code{instr:label(LE),regs:[r(_,_,join,_)]}|Code1],
+	emit_pop_temp(Reg, Code1, Code0).
+head(I, Term, ChunkData, ChunkData, Code, Code0) :-
+	atomic(Term),
+	Code = [code{instr:Instr,regs:[r(I,RI,use,_)]}|Code0],
+	get_const(RI, Term, Instr).
+
+
+% generate head matching for VarId I and Term
+in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
+	Term = [_|_],
+	Code = [code{instr:in_get_list(RI, ref(LR)),regs:[r(I,RI,use,_)]},
+		code{instr:label(LR)}|RCode],
+	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, [], RCode, Code1, in),
+	replace_lost_labels(WCode),	% and discard the WCode sequence
+	emit_pop_temp(Reg, Code1, Code0).
+in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
+	Term = structure{name:F,arity:A},
+	Code = [code{instr:in_get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use,_)]},
+		code{instr:label(LR)}|RCode],
+	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, [], RCode, Code1, in),
+	replace_lost_labels(WCode),	% and discard the WCode sequence
+	emit_pop_temp(Reg, Code1, Code0).
+in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
+	Term = attrvar{meta:Meta},
+	Code = [code{instr:in_get_meta(RI, ref(fail)),regs:[r(I,RI,use,_)]},
+		code{instr:read_void},
+		code{instr:read_attribute(FirstAttr)}
+		|RCode],
+	meta_index(FirstAttr, 1),
+	unify_args(Meta, ChunkData0, ChunkData, 0, Reg, _WCode, [], RCode, Code1, in),
+	emit_pop_temp(Reg, Code1, Code0).
+in_head(I, Term, ChunkData, ChunkData, Code, Code0) :-
+	atomic(Term),
+	Code = [code{instr:Instr,regs:[r(I,RI,use,_)]}|Code0],
+	in_get_const(RI, Term, Instr).
+
+    % generate code to pop any used stack temporaries
+    emit_pop_temp(Reg, Code, Code0) :-
 	( Reg > 0 ->
 	    MReg is -Reg,
-	    Code1 = [code{instr:space(MReg)}|Code0]
+	    Code = [code{instr:space(MReg)}|Code0]
 	;
-	    Code1 = Code0
+	    Code = Code0
 	).
-head(I, Term, ChunkData, ChunkData, [code{instr:Instr,regs:[r(I,RI,use,_)]}|Code0], Code0) :-
-	atomic(Term),
-	get_const(RI, Term, Instr).
+
+    % Unify all the labels in WCode with the fail-label, because we are
+    % about to throw away the WCode sequence. This redirects the references
+    % from RCode to WCode to fail, however, these jumps are never taken anyway!
+    replace_lost_labels(WCode) :-
+    	( foreach(Instr,WCode) do
+	    ( Instr = code{instr:label(Label)} -> Label=fail ; true )
+	).
+    	
 
 
     % Generate the code for unifying all subterms of Term
@@ -131,11 +184,12 @@ head(I, Term, ChunkData, ChunkData, [code{instr:Instr,regs:[r(I,RI,use,_)]}|Code
     % +Reg-	counts the number of temporaries used so far
     % -WCode+	write mode sequence
     % -RCode+	read mode sequence
+    % +Dir	'inout' or 'in' (for matching)
 
-unify_args([H|T], ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode5, RCode, RCode5) ?-
-	unify_next_arg(H, simple, Prev4, Tmp, ChunkData0, ChunkData1, Reg1, Reg4, WCode, WCode4, RCode, RCode4),
-	unify_last_arg(T, Prev4, Tmp, ChunkData1, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, RCode5).
-unify_args(structure{args:Args}, ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode5, RCode, RCode5) ?-
+unify_args([H|T], ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode5, RCode, RCode5, Dir) ?-
+	unify_next_arg(H, simple, Prev4, Tmp, ChunkData0, ChunkData1, Reg1, Reg4, WCode, WCode4, RCode, RCode4, Dir),
+	unify_last_arg(T, Prev4, Tmp, ChunkData1, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, RCode5, Dir).
+unify_args(structure{args:Args}, ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode5, RCode, RCode5, Dir) ?-
 	(
 	    fromto(Args, [Arg|Args1], Args1, [ArgN]),
 	    fromto(simple, Prev2, Prev3, Prev4),
@@ -143,11 +197,11 @@ unify_args(structure{args:Args}, ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode
 	    fromto(WCode, WCode2, WCode3, WCode4),
 	    fromto(RCode, RCode2, RCode3, RCode4),
 	    fromto(Reg1, Reg2, Reg3, Reg4),
-	    param(Tmp)
+	    param(Tmp,Dir)
 	do
-	    unify_next_arg(Arg, Prev2, Prev3, Tmp, ChunkData1, ChunkData2, Reg2, Reg3, WCode2, WCode3, RCode2, RCode3)
+	    unify_next_arg(Arg, Prev2, Prev3, Tmp, ChunkData1, ChunkData2, Reg2, Reg3, WCode2, WCode3, RCode2, RCode3, Dir)
 	),
-	unify_last_arg(ArgN, Prev4, Tmp, ChunkData3, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, RCode5).
+	unify_last_arg(ArgN, Prev4, Tmp, ChunkData3, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, RCode5, Dir).
 
 
 
@@ -160,82 +214,122 @@ unify_args(structure{args:Args}, ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode
     % +Reg-	counts the number of temporaries used so far
     % -WCode+	write mode sequence
     % -RCode+	read mode sequence
+    % +Dir	'inout' or 'in' (for matching)
 
-:- mode unify_next_arg(+,+,-,?, +,-, +,-, -,?, -,?).
-unify_next_arg(List, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCode, WCode0, RCode, RCode0) :-
+:- mode unify_next_arg(+,+,-,?, +,-, +,-, -,?, -,?, +).
+unify_next_arg(List, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCode, WCode0, RCode, RCode0, Dir) :-
 	List = [_|_],
 	( var(Tmp) ->		% first compound subterm in this level
 	    Reg1 is Reg0 + 1,
 	    Tmp = Reg1,
 	    WCode = [code{instr:first},code{instr:write_list},code{instr:label(WL)}|WCode1],
-	    RCode = [code{instr:read_list(ref(WL))}|RCode1]
+	    RCode2 = [code{instr:read_list(ref(WL))}|RCode1],
+	    matching_test(Dir, RCode, RCode2)
+
 	; Prev = compound ->	% immediately following a compound subterm
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
 	    WCode = [code{instr:next(t(Off),ref(RL))},code{instr:write_list},code{instr:label(WL)}|WCode1],
-	    RCode = [code{instr:label(RL)},code{instr:read_next_list(t(Off),ref(WL))}|RCode1]
+	    RCode2 = [code{instr:label(RL)},code{instr:read_next_list(t(Off),ref(WL))}|RCode1],
+	    matching_test(Dir, RCode, RCode2)
 	; % Prev = simple ->	% following a simple term
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
 	    WCode = [code{instr:next(t(Off))},code{instr:write_list},code{instr:label(WL)}|WCode1],
-	    RCode = [code{instr:read_list(t(Off),ref(WL))}|RCode1]
+	    RCode2 = [code{instr:read_list(t(Off),ref(WL))}|RCode1],
+	    matching_test(Dir, RCode, RCode2)
 	),
-	unify_args(List, ChunkData0, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0).
-unify_next_arg(Struct, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCode, WCode0, RCode, RCode0) :-
+	unify_args(List, ChunkData0, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0, Dir).
+unify_next_arg(Struct, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCode, WCode0, RCode, RCode0, Dir) :-
 	Struct = structure{name:F,arity:A},
 	( var(Tmp) ->		% first compound subterm in this level
 	    Reg1 is Reg0 + 1,
 	    Tmp = Reg1,
 	    WCode = [code{instr:first},code{instr:write_structure(F/A)},code{instr:label(WL)}|WCode1],
-	    RCode = [code{instr:read_structure(F/A,ref(WL))}|RCode1]
+	    RCode2 = [code{instr:read_structure(F/A,ref(WL))}|RCode1],
+	    matching_test(Dir, RCode, RCode2)
 	; Prev = compound ->	% immediately following a compound subterm
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
 	    WCode = [code{instr:next(t(Off),ref(RL))},code{instr:write_structure(F/A)},code{instr:label(WL)}|WCode1],
-	    RCode = [code{instr:label(RL)},code{instr:read_next_structure(F/A,t(Off),ref(WL))}|RCode1]
+	    RCode2 = [code{instr:label(RL)},code{instr:read_next_structure(F/A,t(Off),ref(WL))}|RCode1],
+	    matching_test(Dir, RCode, RCode2)
 	; % Prev = simple ->	% following a simple term
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
 	    WCode = [code{instr:next(t(Off))},code{instr:write_structure(F/A)},code{instr:label(WL)}|WCode1],
-	    RCode = [code{instr:read_structure(F/A,t(Off),ref(WL))}|RCode1]
+	    RCode2 = [code{instr:read_structure(F/A,t(Off),ref(WL))}|RCode1],
+	    matching_test(Dir, RCode, RCode2)
 	),
-	unify_args(Struct, ChunkData0, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0).
-unify_next_arg(Var, Prev, simple, Tmp, ChunkData0, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0) :-
+	unify_args(Struct, ChunkData0, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0, Dir).
+unify_next_arg(Avar, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCode, WCode, RCode, RCode0, Dir) :-
+	Avar = attrvar{variable:Var,meta:Struct},
+	verify Dir == in,
+	( var(Tmp) ->		% first compound subterm in this level
+	    Reg1 is Reg0 + 1,
+	    Tmp = Reg1,
+	    RCode = [code{instr:match_meta}|RCode1]
+	; Prev = compound ->	% immediately following a compound subterm
+	    Reg1 = Reg0,
+	    Off is Reg0-Tmp,
+	    RCode = [code{instr:match_next_meta(t(Off))}|RCode1]
+	; % Prev = simple ->	% following a simple term
+	    Reg1 = Reg0,
+	    Off is Reg0-Tmp,
+	    RCode = [code{instr:match_meta(t(Off))}|RCode1]
+	),
+	unify_va(Var, ChunkData0, ChunkData1, _, [], RCode1, RCode2, Dir),
+	RCode2 = [code{instr:read_attribute(FirstAttr)}|RCode3],
+	meta_index(FirstAttr, 1),
+	unify_args(Struct, ChunkData1, ChunkData, Reg1, Reg2, _, [], RCode3, RCode0, Dir).
+unify_next_arg(Var, Prev, simple, Tmp, ChunkData0, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0, Dir) :-
 	Var = variable{},
 	up(Prev, Tmp, Reg, WCode, WCode1, RCode, RCode1),
-	unify_va(Var, ChunkData0, ChunkData, WCode1, WCode0, RCode1, RCode0).
-unify_next_arg(Const, Prev, simple, Tmp, ChunkData, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0) :-
+	unify_va(Var, ChunkData0, ChunkData, WCode1, WCode0, RCode1, RCode0, Dir).
+unify_next_arg(Const, Prev, simple, Tmp, ChunkData, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0, Dir) :-
 	atomic(Const),
-	up(Prev, Tmp, Reg, WCode, WCode1, RCode, RCode1),
+	up(Prev, Tmp, Reg, WCode, WCode1, RCode, RCode2),
+	matching_test(Dir, RCode2, RCode1),
 	WCode1 = [code{instr:WInstr}|WCode0],
 	RCode1 = [code{instr:RInstr}|RCode0],
 	unify_const(Const, WInstr, RInstr).
 
 
-
     % Generate the code for the last subterm
     % Arguments as above
 
-:- mode unify_last_arg(+,+,+, +,-, +,-, -,?, -,?).
-unify_last_arg(List, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode0, RCode, RCode0) :-
+:- mode unify_last_arg(+,+,+, +,-, +,-, -,?, -,?, +).
+unify_last_arg(List, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode0, RCode, RCode0, Dir) :-
 	List = [_|_],
-	up(Prev, Tmp, Reg0, WCode, WCode1, RCode, RCode1),
+	up(Prev, Tmp, Reg0, WCode, WCode1, RCode, RCode3),
+	matching_test(Dir, RCode3, RCode1),
 	WCode1 = [code{instr:write_list},code{instr:label(WL)}|WCode2],
 	RCode1 = [code{instr:read_last_list(ref(WL))}|RCode2],
-	unify_args(List, ChunkData0, ChunkData, Reg0, Reg1, WCode2, WCode0, RCode2, RCode0).
-unify_last_arg(Struct, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode0, RCode, RCode0) :-
+	unify_args(List, ChunkData0, ChunkData, Reg0, Reg1, WCode2, WCode0, RCode2, RCode0, Dir).
+unify_last_arg(Struct, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode0, RCode, RCode0, Dir) :-
 	Struct = structure{name:F,arity:A},
-	up(Prev, Tmp, Reg0, WCode, WCode1, RCode, RCode1),
+	up(Prev, Tmp, Reg0, WCode, WCode1, RCode, RCode3),
+	matching_test(Dir, RCode3, RCode1),
 	WCode1 = [code{instr:write_structure(F/A)},code{instr:label(WL)}|WCode2],
 	RCode1 = [code{instr:read_last_structure(F/A,ref(WL))}|RCode2],
-	unify_args(Struct, ChunkData0, ChunkData, Reg0, Reg1, WCode2, WCode0, RCode2, RCode0).
-unify_last_arg(Var, Prev, Tmp, ChunkData0, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0) :-
+	unify_args(Struct, ChunkData0, ChunkData, Reg0, Reg1, WCode2, WCode0, RCode2, RCode0, Dir).
+unify_last_arg(Avar, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode, RCode, RCode0, Dir) :-
+	Avar = attrvar{variable:Var,meta:Struct},
+	verify Dir == in,
+	up(Prev, Tmp, Reg0, _, [], RCode, RCode1),
+	RCode1 = [code{instr:match_last_meta}|RCode2],
+	unify_va(Var, ChunkData0, ChunkData1, _, [], RCode2, RCode3, Dir),
+	RCode3 = [code{instr:read_attribute(FirstAttr)}|RCode4],
+	meta_index(FirstAttr, 1),
+	unify_args(Struct, ChunkData1, ChunkData, Reg0, Reg1, _, [], RCode4, RCode0, Dir).
+unify_last_arg(Var, Prev, Tmp, ChunkData0, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0, Dir) :-
 	Var = variable{},
 	up(Prev, Tmp, Reg, WCode, WCode1, RCode, RCode1),
-	unify_va(Var, ChunkData0, ChunkData, WCode1, WCode0, RCode1, RCode0).
-unify_last_arg(Const, Prev, Tmp, ChunkData, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0) :-
+	unify_va(Var, ChunkData0, ChunkData, WCode1, WCode0, RCode1, RCode0, Dir).
+unify_last_arg(Const, Prev, Tmp, ChunkData, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0, Dir) :-
 	atomic(Const),
-	up(Prev, Tmp, Reg, WCode, WCode1, RCode, RCode1),
+	up(Prev, Tmp, Reg, WCode, WCode1, RCode, RCode2),
+	matching_test(Dir, RCode2, RCode1),
 	WCode1 = [code{instr:WInstr}|WCode0],
 	RCode1 = [code{instr:RInstr}|RCode0],
 	unify_const(Const, WInstr, RInstr).
@@ -246,6 +340,10 @@ unify_last_arg(Const, Prev, Tmp, ChunkData, ChunkData, Reg, Reg, WCode, WCode0, 
 	WCode = [code{instr:mode(t(Off),ref(RL))}|WCode0],
 	RCode = [code{instr:mode(t(Off))},code{instr:label(RL)}|RCode0].
     up(simple, _Tmp, _Reg, WCode, WCode, RCode, RCode).
+
+    % when compiling a matching clause: insert nonvar test into read mode
+    matching_test(inout, Code, Code).
+    matching_test(in, [code{instr:read_test_var}|Code0], Code0).
 
 
 %----------------------------------------------------------------------
@@ -367,6 +465,15 @@ get_const(R, Term, get_integer(R,Term)) :- integer(Term),
 	minint =< Term, Term =< maxint, !.
 get_const(R, Term, get_constant(R,Term)).
 
+:- mode in_get_const(?,+,-).
+in_get_const(R, [],   in_get_nil(R)) :- !.
+in_get_const(R, Term, in_get_atom(R,Term)) :- atom(Term), !.
+in_get_const(R, Term, in_get_string(R,Term)) :- string(Term), !.
+%in_get_const(R, Term, in_get_float(R,Term)) :- real(Term), !.
+in_get_const(R, Term, in_get_integer(R,Term)) :- integer(Term),
+	minint =< Term, Term =< maxint, !.
+in_get_const(R, Term, in_get_constant(R,Term)).
+
 
 
 %----------------------------------------------------------------------
@@ -414,6 +521,13 @@ push_va(Var, ChunkData0, ChunkData, Code, Code0) :-
 	Code = [code{instr:push_local_value(Y)}|Code0].		%%% FOR MIXED CODE ONLY
 
 
+
+unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0, inout) :-
+	unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0).
+unify_va(Var, ChunkData0, ChunkData, WCode, WCode, RCode, RCode0, in) :-
+	in_unify_va(Var, ChunkData0, ChunkData, RCode, RCode0).
+
+
 :- mode unify_va(+,+,-,-,?,-,?).
 
 unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0) :-
@@ -447,4 +561,33 @@ unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0) :-
 %	WCode = [code{instr:write_value(Y)}|WCode0],
 	WCode = [code{instr:write_local_value(Y)}|WCode0],		%%% FOR MIXED CODE ONLY
 	RCode = [code{instr:read_value(Y)} |RCode0].
+
+
+% Matching only
+
+:- mode in_unify_va(+,+,-,-,?).
+
+in_unify_va(Var, ChunkData0, ChunkData, RCode, RCode0) :-
+	Var = variable{varid:VarId},
+	variable_occurrence(Var, ChunkData0, ChunkData, VarOccDesc),
+	in_unify_va_code(VarOccDesc, VarId, RCode, RCode0).
+
+    in_unify_va_code(void, _VarId, RCode, RCode0) :-
+	RCode = [code{instr:read_void} |RCode0].
+
+    in_unify_va_code(tmp_first, VarId, RCode, RCode0) :-
+	RCode = [code{instr:read_variable(R),regs:[r(VarId,R,def,_)]} |RCode0].
+
+    in_unify_va_code(tmp, VarId, RCode, RCode0) :-
+	RCode = [code{instr:read_matched_value(R),regs:[r(VarId,R,use,_)]} |RCode0].
+
+    in_unify_va_code(perm_first(Y), VarId, RCode, RCode0) :-
+	RCode = [code{instr:read_variable(Y),regs:[r(VarId,Y,perm,_)]} |RCode0].
+
+    	% does not occur as long as matching only in head
+    in_unify_va_code(perm_first_in_chunk(Y), VarId, RCode, RCode0) :-
+	RCode = [code{instr:read_matched_value(Y),regs:[r(VarId,Y,perm,_)]} |RCode0].
+
+    in_unify_va_code(perm(Y), _VarId, RCode, RCode0) :-
+	RCode = [code{instr:read_matched_value(Y)} |RCode0].
 

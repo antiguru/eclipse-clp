@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile,v 1.1 2006/09/23 01:45:11 snovello Exp $
+# $Id: Makefile,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -99,12 +99,13 @@ test:
 test_chat:
 	@$(AUX_ECLIPSE) -e \
 		'ensure_loaded(compiler_top),\
+		 set_flag(gc_interval,10000),\
 		 cd("$(TESTDIR)/Chatq"),\
 		 [chat],\
 		 open("chat.res",write,output),\
 		 @(call(hi(demo)),chat),\
 		 close(output)'
-	@if diff Chatq/chat.ref Chatq/chat.res ; then echo Chat test ok ; \
+	@if diff $(TESTDIR)/Chatq/chat.ref $(TESTDIR)/Chatq/chat.res ; then echo Chat test ok ; \
 	else echo Chat test failed ; fi
 
 
