@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.2 2007/02/09 02:46:51 kish_shen Exp $
+% Version:	$Id: source_processor.ecl,v 1.3 2007/02/23 15:07:59 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2007/02/09 02:46:51 $").
+:- comment(date, "$Date: 2007/02/23 15:07:59 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -93,7 +93,7 @@
 	vars:"A list of the term's variables and their names",
         annotated:"An annotated version of term with source and type information"
     ],
-    see_also:[readvar/3,read_annoated/3]
+    see_also:[readvar/3,read_annotated/2]
 ]).
 
 :- comment(struct(source_position), [
