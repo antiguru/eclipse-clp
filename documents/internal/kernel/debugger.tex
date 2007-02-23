@@ -24,13 +24,17 @@
 
 \subsection{General}
 
+\index{debugger}
+\index{tracer}
+\index{port model}
 The debugger presents a {\bf port model} to the user.
 On the abstract machine level, we have {\bf debugger notifications}.
 The mapping of debugger notifications into ports is done
 in Prolog (in file tracer.pl).
 
-The debugger notifications happen at {\bf call} and {\bf exit} points.  These
+The debugger notifications\index{notifications}  happen at {\bf call} and {\bf exit} points.  These
 points are chosen because they correspond to synchronous machine
+\index{synchronous state}
 states, ie states where a prolog goal can be inserted.  To get a more
 accurate trace (and to support mixing of debug/nondebug code), we also
 have {\bf redo} notifications at retry/trust instructions.
@@ -41,17 +45,19 @@ has to be notified (even when the instructions are not inside debug-compiled
 code). This is necessary in order to catch failures that leave the traced part
 of the code.
 
-For the tracing of coroutining, we also have a {\bf delay} notification
-(in the make_supension/3 built-in) and a {\bf wake} notification
+For the tracing of coroutining\index{coroutining}, we also have a {\bf delay} notification
+(in the make_suspension/3 built-in) and a {\bf wake} notification
 (in the call_suspension/1 primitive).
+\index{make_suspension/3}
 
 In this redesign of the debugger, particular care has been taken to
 allow arbitrary mixing of code with and without debug instructions,
-or swiching tracing on and off for a subgoal.
+or switching tracing on and off for a subgoal.
 
 
 \subsection{Tracing deterministic execution}
 
+\index{ancestor stack}
 Apart from triggering the notifications, the abstract machine also
 maintains an ancestor (goal) stack, when in debugging mode. 
 Implementation-wise, this is just a normal data structure pushed onto
@@ -67,7 +73,7 @@ tf(
  )
 \end{verbatim}
 
-A TD register points to the top of this stack. When a frame is popped
+A TD\index{TD}  register points to the top of this stack. When a frame is popped
 on exit, the register gets trailed if necessary.
 
 Debug notification events cause invocation of a corresponding handler
@@ -102,11 +108,7 @@ is now solved by only tracing NEXT if it is within debug-compiled code.
 Inline disjunctions are traced as a NEXT port of the predicate that
 contains them.
 
-
-\subsection{Tracing exit_block/leave}
-
-Identical to failure tracing.
-(Not yet done: leaving through several emulator invocations).
+Tracing exit_block/leave ports is done like failure tracing.
 
 
 \subsection{Mixing traced and untraced code}
@@ -188,8 +190,8 @@ Switching tracing off completely is done by setting the port filter to 0.
 
 \subsection{Mixing application and tracing code in the same execution}
 
-The debugger's code must not trace itself...
-Some state must be saved/restored across the notification handlers.
+The debugger's code must not trace itself. Therfore
+some state must be saved/restored across the notification handlers.
 
 
 
@@ -202,37 +204,30 @@ the trace routine. The suspension must be a parameter.
 Its invocation number field can be set from Prolog in the tracer.
 
 
-\subsection{Selective trace modes}
-
-How to implement the selective tracer modes:
-\begin{description}
-\item[SKIP:]
-goto $=< skiplevel$
-
-\item[JUMP level:]
-goto $=<$ or $>= jumplevel$
-
-\item[LEAP:]
-spy flag set in frame. Could do C-level filtering and raise events
-only if spied frame was pushed or popped.
-
-\item[JUMP invoc:]
-if $invoc < nextinvoc$, only check at C level, otherwise naive.
-
-\item[VAR SPY:]
-Best done by waking a goal that invokes the tracer.
-
-\item[ZAP to_port:]
-Prefiltering by port mask.
-\end{description}
-
+\subsection{Pre-filtering}
+\index{port filtering}
+To implement the selective tracer modes (skip, jump, leap, etc)
+the tracer has a number of registers that support fast pre-filtering
+of tracer ports on a low level. These are
+\begin{itemize}
+\item tracemode flags (e.g.\ leap/skip)
+\item min_level, max_level for filtering on the nesting level
+\item min_invoc, max_invoc for filtering on the invocation number
+\item port_filter for filtering the port name
+\end{itemize}
+The pre-filtering can be done with a relatively cheap test:
+\begin{small}
 \begin{verbatim}
 #define OfInterest(flags, invoc, depth) \
         ( (procflags) & TRACEMODE \
         && JMINLEVEL <= (depth) && (depth) <= JMAXLEVEL \
         && ( JINVOC == 0  ||  JINVOC == (invoc) ) )
-
-
+\end{verbatim}
+\end{small}
+and the different skip instructions can be implemented by configuring
+the pre-filter registers as follows:
+\begin{small}
+\begin{verbatim}
                 JINVOC  JMINLEV JMAXLEV         SPIED   TRACBL  SKIPPED
 
 nodebug         0       0       inf             0       0       0
@@ -244,14 +239,17 @@ jump level      0       depth   depth           0       1       0
    or                   0       depth
    or                   depth   inf
 \end{verbatim}
+\end{small}
 
 
 
 \subsection{Emulator mechanism for call/exit notification}
 
-(could do with some simplification, but we leave that until after
-simplification of the abstract machine ...)
-
+The notifications are currently handles by dynamically inserting 
+code sequences into the success continuation. Hopefully this
+can be simplified in release 6, after
+simplification of the abstract machine.
+\begin{small}
 \begin{verbatim}
 Debug_call instruction:
         sets DBG_PRI,DBG_PORT,DBG_INVOC and raises event
@@ -279,9 +277,11 @@ restore_code abstract code fragment:
         restore call state
         insert trap for exit tracing
 \end{verbatim}
+\end{small}
 
 
 \subsection{Emulator mechanism for redo notification}
+\begin{small}
 \begin{verbatim}
 retry/trust instruction:
         save state in environment
@@ -292,18 +292,19 @@ retry/trust instruction:
 restore_code abstract code fragment:
         restore call/retry state
 \end{verbatim}
+\end{small}
 
 
-\subsection{Call/Exit tracking using FIRST/LAST flags (not used currently)}
-
-This is a method that does not require explicit exit notifications.
-Assume: first and last call in a clause are marked F and L respectively.
-The L flag must be stored in the trace frame.
-When encountering a non-first call, generate exit ports for all
-stack frames that have the L flag set.
-
-This is fragile as it relies on F/L flags being always correct and
-never missing anywhere. Difficulties with hidden predicates for example.
+%\subsection{Call/Exit tracking using FIRST/LAST flags (not used currently)}
+%
+%This is a method that does not require explicit exit notifications.
+%Assume: first and last call in a clause are marked F and L respectively.
+%The L flag must be stored in the trace frame.
+%When encountering a non-first call, generate exit ports for all
+%stack frames that have the L flag set.
+%
+%This is fragile as it relies on F/L flags being always correct and
+%never missing anywhere. Difficulties with hidden predicates for example.
 
 
 \subsection{Tracing of simple (emulator) builtins}

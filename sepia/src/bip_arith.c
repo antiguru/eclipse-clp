@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.1 2006/09/23 01:55:42 snovello Exp $
+ * VERSION	$Id: bip_arith.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  */
 
 /*
@@ -994,11 +994,19 @@ p_setbit(value vi, type ti, value vn, type tn, value v, type t)	/* argument orde
     pword result;
 
     Check_Integer(tn);
+    if (vn.nint < 0)
+    {
+	Bip_Error(RANGE_ERROR);
+    }
     if (IsInteger(ti))
     {
-    	if (vn.nint < BITS_PER_WORD)
+    	if (vn.nint < BITS_PER_WORD-1)
 	{
-	    Make_Integer(&result, vi.nint | (1 << vn.nint));
+	    Make_Integer(&result, vi.nint | ((word)1 << vn.nint));
+	}
+	else if (vi.nint < 0)
+	{
+	    Make_Integer(&result, vi.nint);
 	}
 	else
 	{
@@ -1025,11 +1033,24 @@ p_clrbit(value vi, type ti, value vn, type tn, value v, type t)
     pword result;
 
     Check_Integer(tn);
+    if (vn.nint < 0)
+    {
+	Bip_Error(RANGE_ERROR);
+    }
     if (IsInteger(ti))
     {
-	result.tag.kernel = TINT;
-	result.val.nint = vn.nint < BITS_PER_WORD ?
-		vi.nint & ~(1 << vn.nint) : vi.nint;
+    	if (vn.nint < BITS_PER_WORD-1)
+	{
+	    Make_Integer(&result, vi.nint & ~((word)1 << vn.nint));
+	}
+	else if (vi.nint >= 0)
+	{
+	    Make_Integer(&result, vi.nint);
+	}
+	else
+	{
+	    Bip_Error(INTEGER_OVERFLOW);
+	}
     }
     else if (IsBignum(ti) || IsString(ti))
     {
@@ -1051,11 +1072,16 @@ p_getbit(value vi, type ti, value vn, type tn, value v, type t)
     pword result;
 
     Check_Integer(tn);
+    if (vn.nint < 0)
+    {
+	Bip_Error(RANGE_ERROR);
+    }
     result.tag.kernel = TINT;
     if (IsInteger(ti))
     {
-	result.val.nint = vn.nint >= BITS_PER_WORD ? 0 :
-		((unsigned long) vi.nint >> vn.nint) & 1;
+	result.val.nint = vn.nint < BITS_PER_WORD ?
+		((uword) vi.nint >> vn.nint) & 1 :
+		vi.nint < 0 ? 1 : 0;
     }
     else if (IsBignum(ti) || IsString(ti))
     {

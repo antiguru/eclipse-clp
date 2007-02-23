@@ -168,7 +168,7 @@ Error:
 	<CODE>end_of_line</CODE>, the stream is also flushed.
 "),
 	args:[],
-	see_also:[nl / 1]]).
+	see_also:[nl / 1, writeln/1]]).
 
 :- comment(nl / 1, [
 	summary:"A newline is printed on the output stream Stream.",
@@ -198,7 +198,7 @@ Error:
 
 
 ",
-	see_also:[nl / 0, flush/1, open/4, set_stream_property/3, get_stream_info/3]]).
+	see_also:[nl / 0, writeln/2, flush/1, open/4, set_stream_property/3, get_stream_info/3]]).
 
 :- comment(unget / 1, [
 	summary:"Back up one character on Stream",
@@ -389,7 +389,7 @@ buffered current output.
 
 
 ",
-	see_also:[get / 1, get / 2, put / 2]]).
+	see_also:[get / 1, get / 2, put / 2, nl/0]]).
 
 :- comment(put / 2, [
 	summary:"The character represented by the ascii integer code Ascii is put onto the
@@ -448,7 +448,7 @@ Error:
 
 
 ",
-	see_also:[get / 1, get / 2, put / 1]]).
+	see_also:[get / 1, get / 2, put / 1, nl/1]]).
 
 :- comment(put_char / 1, [
 	summary:"Puts the single character string Char onto the buffered current output.
@@ -466,7 +466,7 @@ Error:
 
 
 ",
-	see_also:[get_char / 1, get_char / 2, put_char / 2]]).
+	see_also:[get_char / 1, get_char / 2, put_char / 2, nl/0]]).
 
 :- comment(put_char / 2, [
 	summary:"Puts the single character string Char onto the buffered output stream
@@ -501,7 +501,7 @@ Error:
 
 
 ",
-	see_also:[get_char / 1, get_char / 2, put_char / 1]]).
+	see_also:[get_char / 1, get_char / 2, put_char / 1, nl/1]]).
 
 :- comment(read_string / 3, [
 	summary:"Reads a string from the input stream up to a delimiter or up to a specified length",

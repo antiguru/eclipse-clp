@@ -25,7 +25,10 @@ ROTD_DIR=
 ECLIPSEGROUP=eclipse
 
 # Default location of CVS repository
-CVSDIR=:ext:eclipse-clp.cvs.sourceforge.net:/cvsroot/eclipse-clp
+# pserver access is read-only and doesn't allow incrementing build number!
+CVSDIR=:pserver:anonymous:@eclipse-clp.cvs.sourceforge.net:/cvsroot/eclipse-clp
+# ssh access, requires sourceforge account registered as eclipse-clp developer
+#CVSDIR=:ext:myname@eclipse-clp.cvs.sourceforge.net:/cvsroot/eclipse-clp
 # Default location of CVS repository for the tests (if different)
 CVSDIR_TESTS=
 CVS_RSH=ssh

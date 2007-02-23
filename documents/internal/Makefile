@@ -100,8 +100,19 @@ biprefs:
 
 # HTML version
 
+#$(ROOTFILE)/$(ROOTFILE).html:	$(CHAPTERS)
+#	latex2html $(ROOTFILE)
+
 $(ROOTFILE)/$(ROOTFILE).html:	$(CHAPTERS)
-	latex2html $(ROOTFILE)
+	mkdir -p $(ROOTFILE)
+	hevea -fix underscore.hva hyperref.hva url.hva $(ROOTFILE)
+	hacha -tocbis $(ROOTFILE).html
+        # copy the files needed for the html to $(ROOTFILE) directory
+	cp $(ROOTFILE)[0-9]??.* $(ROOTFILE)/
+	cp $(ROOTFILE).css $(ROOTFILE)/
+	cp contents_motif.gif next_motif.gif previous_motif.gif $(ROOTFILE)
+	cp index.html $(ROOTFILE)/$(ROOTFILE).html
+	ln -s $(ROOTFILE).html $(ROOTFILE)/index.html
 
 
 clean:

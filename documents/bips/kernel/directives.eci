@@ -275,11 +275,14 @@ The following ones are recognized by the document tools:
    the predicate description.
 
 <DT><STRONG>see_also: ListofSpecs</STRONG>
-   <DD>ListofSpecs is a list of items, referring to other predicates and
-   libraries which are related to the commented predicate. The specs can
-   be of the form Name/Arity, LibName:Name/Arity, or library(LibName).
-   This is used to generate the `See Also' section of the predicate
-   description.
+   <DD>ListofSpecs is a list of items, referring to other predicates
+   and libraries which are related to the commented predicate.  This
+   is used to generate the `See Also' section of the predicate description.
+   The specs can be of the form Name/Arity, LibName:Name/Arity,
+   library(LibName).  Name, Arity and LibName can be uninstantiated,
+   in which case links to every matching predicate or library will be
+   generated.  The form link(URL,Text) can be used to insert arbitrary
+   hyperlinks.
 
 <DT><STRONG>summary: String</STRONG> *compulsory*
     <DD>String is a short (one line) summary of the predicate.

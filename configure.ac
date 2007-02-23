@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.4 2006/11/29 16:20:47 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.5 2007/02/23 15:28:30 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -217,8 +217,11 @@ case "$ARCH" in
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
     OBJECT_SUFFIX=dylib
     OBJECTS_SUFFIX=dylib
-    LDFLAGS="-Wl,-search_paths_first"
-    DYNLDFLAGS="-dynamic -single_module -flat_namespace -search_paths_first -lgcc"
+    # these needed to be changed to build at SourceForge
+    #LDFLAGS="-Wl,-search_paths_first"
+    #DYNLDFLAGS="-dynamic -single_module -flat_namespace -search_paths_first -lgcc"
+    LDFLAGS=
+    DYNLDFLAGS="-dynamic -single_module -flat_namespace -lgcc"
     LD_C_SO=""
     PL_C_SO=".c.dylib:"
     PD_C_SO="$LD_C_SO"
@@ -226,7 +229,8 @@ case "$ARCH" in
     PD_O_SO="$LD_C_SO"
     DYLD="libtool"
     # LDTCL for loading Tcl/Tk, implemented as a Framework
-    LDTCL="-framework tcl"
+    #LDTCL="-framework tcl"
+    LDTCL="-F$ECLIPSETHIRDPARTY/tcltk8.4/ppc_macosx/Frameworks -framework Tcl"
     # RUNPATH_LDLAG is really a noop here
     RUNPATH_LDFLAG="-L"
     LOCK=
@@ -987,7 +991,7 @@ for gmp_version in $GMP_REQUIRED; do
     GMP_DIR=$ECLIPSETHIRDPARTY/gmp$gmp_version
     if test -d $GMP_DIR/$ARCH/lib; then
 	found_gmp=yes
-	AC_DEFINE(HAVE_GMP)
+	AC_DEFINE(HAVE_LIBGMP)
 	OS_INCLUDES="-I$GMP_DIR/include $OS_INCLUDES"
 	GMP_LIBDIR="$GMP_DIR/$ARCH/lib"
 	if test "$ARCH" = "i386_nt"; then
@@ -1004,6 +1008,11 @@ if test -z "$found_gmp"; then
     AC_MSG_WARN([Could not find Gmp ($GMP_REQUIRED) in $ECLIPSETHIRDPARTY])
     # set to something, so we can use -R$(GMP_LIBDIR) without syntax error
     GMP_LIBDIR="."
+
+    # If we have nothing in ECLIPSETHIRDPARTY, try if it's a standard lib.
+    # Defines only -lgmp and HAVE_LIBGMP, no attempts to package the gmp lib
+    # with ECLiPSe.  Check for mpz_import to require a new enough version.
+    AC_CHECK_LIB(gmp, __gmpz_import)
 else
     AC_MSG_NOTICE([Using Gmp in $GMP_DIR])
 fi
@@ -1144,22 +1153,24 @@ AC_ARG_WITH([java], [[  --with-java[=dir]	Build ECLiPSe/Java interface.
     ]],
     [with_java="$withval"], [with_java=yes])
 
-if test "$with_java" == "no"; then
+if test "$with_java" = "no"; then
     unset JAVA_HOME
     ALL_WITH_JAVA=
     ALL_CROSS_WITH_JAVA=
+    AC_MSG_NOTICE([Not building Java interface])
 else
-    if test "$with_java" = "yes"; then
-	JAVA_SEARCH_PATH="$JAVA_HOME"
-    else
+    if test "$with_java" != "yes"; then
 	JAVA_SEARCH_PATH="$with_java"
+    elif test -n "$JAVA_HOME"; then
+	JAVA_SEARCH_PATH="$JAVA_HOME"
     fi
     for JAVA_HOME in $JAVA_SEARCH_PATH; do
-	if test -d $JAVA_HOME/bin/java -a -d $JAVA_HOME/include; then
+	if test -x $JAVA_HOME/bin/javac -a -d $JAVA_HOME/include; then
 	    break
 	fi
+	JAVA_HOME=
     done
-    if test -d "$JAVA_HOME"; then
+    if test -n "$JAVA_HOME"; then
 	AC_DEFINE(HAVE_JAVA)
 	ALL_WITH_JAVA=all_with_java
 	ALL_CROSS_WITH_JAVA=all_cross_with_java
@@ -1294,12 +1305,7 @@ ALL_WITH_MYSQL=
 ALL_CROSS_WITH_MYSQL=
 if test "$mysql_versions_requested" != "no"; then
     if test "$mysql_versions_requested" = "yes"; then
-	if test "$ARCH" = "i386_nt"; then
-	    # temporary, doesn't work yet
-	    mysql_versions_requested=
-	else
-	    mysql_versions_requested="50"
-	fi
+	mysql_versions_requested="50"
     fi
     for version in $mysql_versions_requested; do
 	MYSQLDIR="$ECLIPSETHIRDPARTY/mysql$version/$ARCH"

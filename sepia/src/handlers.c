@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.1 2006/09/23 01:56:03 snovello Exp $
+ * VERSION	$Id: handlers.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  */
 
 /*
@@ -41,6 +41,8 @@
 extern char	*strcpy();
 #endif
 
+#include <stdio.h>	/* for sprintf() */
+#include <stdlib.h>	/* for exit() */
 
 #include "sepia.h"
 #include "types.h"

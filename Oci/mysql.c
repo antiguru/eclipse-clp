@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.1 2006/09/23 01:54:28 snovello Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -49,6 +49,9 @@
  * TODO General header for contents of this file
  */
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <stdio.h>
 /*#include <malloc.h>*/
 #include <string.h>
@@ -259,7 +262,7 @@ int
 template_put(int tuple_num, template_t * template,sql_t sql_type,
 	     void * buffer, void * lengths, pword * tuple) 
 {
-    int arg;
+    int arg, i;
     map_t * argmap;
     char * argbuf;
     pword *pw;
@@ -335,8 +338,18 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 	    break;
 */
 	default:
-	    /* RAW -- assume to be dbformat */
-	    res = dbformat_to_term( argbuf, 0, tdict);
+	    /* RAW -- check for dbformat header, assume rest is
+               in dbformat 
+	    */
+	    for (i=0; i<DBF_HEADER_LEN; i++)
+	    {
+		if (argbuf[i] != dbformat_header[i])
+		{
+		    TG = pw;
+		    Bip_Error(TYPE_ERROR);
+		}
+	    }
+	    res = dbformat_to_term( argbuf+DBF_HEADER_LEN, 0, tdict);
 	    if (NULL == res)
 	    {
 		/* bad error but probably won't happen since, if the
@@ -366,6 +379,18 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 	    if ( *(lbuf) > (max) )\
 	    	Bip_Error(TYPE_ERROR);\
 	    Copy_Bytes((buf),(start),(len));\
+	}
+
+/* based on BindLong, the header for the dbformat is placed at the start
+   of the buffer before the dbformatted string is copied
+*/
+#define BindDbFormat(lbuf, buf, max, start, len) \
+	{\
+	    *(lbuf) = (len)+DBF_HEADER_LEN;\
+	    if ( *(lbuf) > (max) )\
+	    	Bip_Error(TYPE_ERROR);\
+	    Copy_Bytes((buf),dbformat_header,DBF_HEADER_LEN);\
+	    Copy_Bytes((buf)+DBF_HEADER_LEN,(start),(len));\
 	}
 
 /* bind the actual data supplied in Prolog structure tuple to the buffers in 
@@ -465,7 +490,7 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
 		ext = term_to_dbformat(arg,NULL);
 		if (NULL == ext)
 		    Bip_Error(TYPE_ERROR);
-		BindLong(largbuf, argbuf, m->size,
+		BindDbFormat(largbuf, argbuf, m->size,
 		    (char *) BufferStart(ext), BufferSize(ext)); 
 	    	TG = old_tg;
 	    }
@@ -575,7 +600,7 @@ void
 session_error_value( session_t * session, int * code, char ** msg)
 {
 	*code = err_code;
-	*msg =  err_msg;
+	*msg =  (char*) err_msg;
 	
 }
 
@@ -870,6 +895,12 @@ session_sql_prep(session_t *session,
     template->to = 0;
 
     free_off = 0;
+
+    if (template->arity != mysql_stmt_param_count(cursor->s.stmt))
+    {
+	raise_dbi_error(DBI_BAD_TEMPLATE);
+	return NULL;
+    }
 
     for(i=0 ; i < template->arity ; i++)
     {

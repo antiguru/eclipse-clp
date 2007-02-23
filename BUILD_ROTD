@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.2 2006/10/14 00:49:04 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.3 2007/02/23 15:28:28 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -67,6 +67,7 @@
 # installed_(all|<arch>)_(standard|runtime)
 # tested_(all|<arch>)_(standard|runtime)_(standalone|java)_(<machine>|<class>)
 # incremented_build_number
+# packed_source
 # updated_symlinks
 # copied_to_ftp
 #
@@ -113,6 +114,12 @@ Options:
 	--no-clean-up
 		Don't delete anything.
 
+	--increment-buildnum
+		If all build and tests successful, increment the build number
+		in the repository.
+	--no-increment-buildnum
+		Do not increment the build number.  (default)
+
 	--install-archives
 		If an architecture successfully builds, tests, etc., copy
 		the corresponding archive files to the main archive
@@ -157,9 +164,6 @@ Options:
 
 	--build-script <script>
 		The BUILD script to use.
-
-	--davinci-dir <path>
-		The location of the daVinci installation you wish to use.
 
 	--resume
 		Resume/retry partially completed/successful build.  Use
@@ -226,6 +230,7 @@ DATE_TAG=`date "+%Y-%m-%d %H:%M"`
 DATE_OPTIONS="-D \"$DATE_TAG\""
 
 clean_up=yes
+increment_buildnum=no
 install_archives=yes
 jeclipse_tests=yes
 resume_build=no
@@ -247,6 +252,11 @@ while [ $# -gt 0 ]; do
 	clean_up=yes ;;
     --no-clean-up)
 	clean_up=no ;;
+
+    --increment-buildnum)
+	increment_buildnum=yes ;;
+    --no-increment-buildnum)
+	increment_buildnum=no ;;
 
     --install-archives)
 	install_archives=yes ;;
@@ -348,7 +358,8 @@ ROTD Build Summary
 ------------------
 
 Patch version:    ${PATCH_TAG:-(main branch)}
-CVS directory:    $CVSDIR
+CVS dir (source): $CVSDIR
+CVS dir (tests):  $CVSDIR_TESTS
 ROTD directory:   $PREFIX/$ROTD_SUBDIR
 Master logfile:	  $MASTER_LOG_FILE
 "
@@ -557,7 +568,7 @@ END
 		return $ssh_result
 	    else
 		echo "Trying again."
-		remote_commands "$machine_name" "$2" "$3" `expr $try_number + 1`
+		remote_commands "$1" "$2" "$3" `expr $try_number + 1`
 	    fi
 	else
 	    echo `date '+%Y-%m-%d %T'` $remote_command_number \
@@ -1215,7 +1226,7 @@ rsync_out() {		# ($machine, $arch -> $remote_prefix)
 	    files="$ROTD_SUBDIR/all/install.* $ROTD_SUBDIR/all/test.*.$machine $ROTD_SUBDIR/$arch"
 	    # echo "rsync -aRu $files $machine_name:$remote_prefix"
 	    remote_commands "$DISK_MACHINE" "$PREFIX" "
-		rsync -aRu --rsh=ssh --exclude 'aux.*' --exclude '*::*' $files $machine_name:$remote_prefix
+		rsync -aRu --rsh=ssh --timeout=60 --exclude 'aux.*' --exclude '*::*' $files $machine_name:$remote_prefix
 	    " &&
 	    remote_commands "$machine" "$remote_prefix/$ROTD_SUBDIR" "
 		mkdir -p logs
@@ -1243,7 +1254,7 @@ rsync_in() {	# ($machine)
 	eval remote_prefix=\"'$ROTD_DIR_'$machine\"
 	# echo "rsync -a --ignore-existing $machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX"
 	remote_commands "$DISK_MACHINE" "$PREFIX" "
-	    rsync -a --rsh=ssh --ignore-existing $machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX
+	    rsync -a --rsh=ssh --timeout=60 --ignore-existing $machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX
 	" || (
 	   echo "Failed to rsync back from $machine_name"
 	   false
@@ -1510,6 +1521,11 @@ choose_working_eclipse() {
 
 # Increment the build number.
 increment_build_number() {
+    if [ "$increment_buildnum" = no ] ; then
+	echo "Increment of build number was not requested."
+	return 0
+    fi
+
     if ! choose_working_eclipse ; then
 	echo "Unable to find a working ECLiPSe for incrementing version number."
 	return 1
@@ -1611,6 +1627,42 @@ update_symlinks() {
 	" &&
 
 	mark_milestone_achieved updated_symlinks
+    fi
+}
+
+
+# Make a tarball of the successfully built and tested source. 
+# We cvs-export the version we just tagged with LAST_SUCCESSFUL_BUILD_TAG,
+# tar it up, and add it to the archives.
+
+pack_source_archive() {
+    if milestone_already_achieved packed_source ; then
+	echo "Milestone: Skipping packing of source"
+    else
+	clean_source_dir=Eclipse_${ECLIPSE_VERSION}_${BUILD_NUMBER}
+	source_archive=archive/common/eclipse_src.tgz
+	PACK_SRC_LOGFILE="$PREFIX/$LOG_DIR/log.pack.source"
+
+	remote_commands "$CVS_MACHINE" "$PREFIX/$ROTD_SUBDIR" "
+	    echo \"Packing source archive on $PACK_MACHINE.\" \
+		| tee $PACK_SRC_LOGFILE
+	    echo \"See $PACK_SRC_LOGFILE for details.\"
+	    (
+		cvs -q -d \"$CVSDIR\" export -d $clean_source_dir \
+		    -r $LAST_SUCCESSFUL_BUILD_TAG Eclipse &&
+		tar cfz $source_archive $clean_source_dir &&
+		chmod a+r,ug+w $source_archive &&
+		rm -rf $clean_source_dir
+	    ) >> $PACK_SRC_LOGFILE 2>&1 &&
+
+	    echo \"Done.\" | tee -a $PACK_SRC_LOGFILE \
+	    || (
+		echo \"Pack source failed.\" | tee -a $PACK_SRC_LOGFILE
+		false
+	    )
+	" &&
+
+	mark_milestone_achieved packed_source
     fi
 }
 
@@ -1967,6 +2019,13 @@ if milestone_already_achieved incremented_build_number || anything_changed >> $M
 	SUMMARY="${SUMMARY}
 This is ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
 "
+	if ! pack_source_archive >> $MASTER_LOG_FILE 2>&1 ; then
+	    echo "Packing source failed.  Continuing anyway." >> $MASTER_LOG_FILE
+	    SUMMARY="${SUMMARY}
+Packing source failed.  Continuing anyway.
+"
+	fi
+
 	# Only copy distribution archives to FTP site and make "stable"
 	# symlinks if the build number was incremented --- otherwise the
 	# build number still can't be used to uniquely identify a version.

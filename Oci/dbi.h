@@ -164,6 +164,11 @@ typedef enum
 /* free *p if it is pointing at something */
 #define TryFree(p)  {if (p) { free(p); p = NULL; } }
 
+/* dbformat header */
+#define DBF_HEADER_LEN		2
+
+static unsigned char dbformat_header[DBF_HEADER_LEN] = {'D','B'};
+
 /* ----------------------------------------------------------------------
  *  Forward declarations
  * ---------------------------------------------------------------------- */

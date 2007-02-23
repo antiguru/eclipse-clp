@@ -30,6 +30,8 @@ ECLiPSe - Constraint Logic Programming System
 ECLiPSe on Windows (see README_UNIX for UNIX/Linux, README_MACOSX for MacOSX)
 -----------------------------------------------------------------------------
 
+***Please read INSTALL first if you are compiling from source.
+
 ECLiPSe for Windows is primarily intended and supported only for
 Windows-NT and later versions (Windows-2000, Windows-XP, ...).
 
@@ -47,28 +49,20 @@ Windows Installer. To do so, download and execute the single file
 
 	ECLiPSe<Version>_<Build>.exe
 
-NOTE: If installing on a multiuser version of windows
-(i.e. Windows-NT, Windows-2000 or later) you will need to run the
-installation executable as the "Admin" user.
+Run this installer program as a user with "administrator" rights.
 
-The installer contains the ECLiPSe kernel, basic libraries 
+The installer contains the ECLiPSe kernel, basic libraries,
 and the following optional packages:
 
-- Online documentation (html, txt)
-- Printable documentation (pdf)
-- The latest interface with the bundled XPRESS-MP OEM version
-- Free/3rd party libraries
-- Source code for selected ECLiPSe libraries
-- The latest Tcl/Tk release
+- Documentation (html, txt, pdf)
+- An interface to COIN-OR's open source solvers CLP and CBC
+- An interface to a version of Dash Optimization's XPRESS-MP solver
+- 3rd party libraries
+- A bundled distribution of GraphViz (to support the visualisation tools)
+- A bundled distribution of Tcl/Tk (to support the TkECLiPSE GUI)
 
 For installation, double click on ECLiPSe<Version>_<Build>.exe and
 the install wizard will guide you through the installation.
-
-Should an alternate XPRESS-MP (or CPLEX(r)) interface be required:
-
-Obtain the appropriate .tgz package (if_cplexXY.tgz or 
-if_xpressXY.tgz) and unpack it in the directory in which ECLiPSe
-was originally installed using the Windows installer.
 
 
 --------------------------------------
@@ -80,27 +74,24 @@ You should have gotten the following files for the "i386_nt" architecture:
 Base:
     README_WIN.TXT		The file you are reading now
     eclipse_basic.tgz        	Kernel and basic libraries
-    eclipse_doc_online.tgz	Documentation (html, txt)
-    eclipse_doc_print.tgz	Documentation (pdf)
+    eclipse_doc.tgz		Documentation (html,txt,man,pdf)
 
 Optional:
     eclipse_misc.tgz		Free/3rd party libraries
-    eclipse_misc_nc.tgz		Free libraries not for commercial use
     if_osiclpcbc.tgz            Interface to COIN-OR's open source solvers 
                                 CLP and CBC
-    eclipse_source.tgz		Source code for selected ECLiPSe libraries
 
 Support:
     tcl831.exe			A matching Tcl/Tk release (8.3)
     				(you may have that already).
 				Needed for the tkeclipse
 				development GUI.
+    editors_eclipse_support.tgz Support for various editors for editing
+                                ECLiPSe code.       
 
 These other files are only needed under special circumstances:
     eclipse_rt.tgz		Runtime only (subset of eclipse_basic.tgz)
     if_xpressXY.tgz		Interface to XPRESS-MP version XY
-    if_cplexXY.tgz		Interface to CPLEX(r) version XY
-
 
 
 Installation
@@ -186,7 +177,6 @@ Directories in the binary distribution:
 
     lib			supported libraries, object files, executables
     lib_public		third party Prolog libraries
-    lib_noncomm		third party Prolog libraries not for commercial use
     lib_tcl		tcl files for the graphical interface
     include		include files for C/C++ interface
     doc			online documentation, pdf files and example code
@@ -252,17 +242,22 @@ format and via the help/1 predicate from within ECLiPSe.
 Installation hints for the 'eplex' library
 ----------------------------------------------
 
-The ECLiPSe 'eplex' library is an interface to an external commercial
-Xpress-MP or CPLEX LP/MIP solver.
+The ECLiPSe 'eplex' library is an interface to an external LP/MIP solver,
+which can be either a free COIN-OR solver (www.coin-or.org), or a
+commercial Xpress-MP or CPLEX solver.
 
-If you own a separate Xpress-MP or CPLEX licence, then you can use
-the 'eplex' library with the corresponding solver. In this case, you
+For the COIN-OR solvers, you do not need a licence to use them. For 
+Xpress-MP or CPLEX, you need to own a separate Xpress-MP or CPLEX licence
+to use the 'eplex' library with the corresponding solver. In this case, you
 need to download a version of 'eplex' that matches the version of the
-Xpress-MP or CPLEX licence that you have (although it may be possible to
+Xpress-MP licence that you have (although it may be possible to
 run an older version with a newer licence). For example, for Xpress-MP X.Y,
-you need the package if_xpressXY.tgz.  Similarly, if you have CPLEX X.Y
-you need the package if_cplexXY.tgz.  You can install a mix of different
+you need the package if_xpressXY.tgz. You can install a mix of different
 versions by just unpacking multiple packages.
+
+Note that we no longer distribute the CPLEX solver for eplex in binary 
+form, as the CPLEX library is statically linked. You need to compile 
+ECLiPSe from source if you want to use CPLEX with the `eplex' library.
 
 To tell ECLiPSe which licence you have on which machine, add the
 necessary lines to the text file <eclipsedir>/lib/eplex_lic_info.ecl,
@@ -274,6 +269,28 @@ Academic licences for CPLEX are available from ILOG at
     http://www.ilog.com/partners/academic/license.cfm
 Academic licences for XPRESS-MP are available from Dash Optimization at
     http://www.dashoptimization.com/home/users/app.html
+
+
+Installation hints for the 'dbi' library
+-----------------------------------------
+
+The ECLiPSe 'dbi' library is an interface to an external
+database. Currently the MySQL database is supported. Because of licensing
+issues, we do not include the MySQL dynamic load library (libmysql.dll) in
+our binary distributions. You will need to obtain this library from
+MySQL AB:
+
+    http://dev.mysql.com/downloads
+
+When 'dbi' is loaded (for example by lib(dbi)), it will need to find and
+load this MySQL dynamic library. If it is in one of the standard system
+library paths, then the library can be loaded without further
+action. Otherwise, you can copy libmysql.dll file to where your ECLiPSe
+dynamic libraries are, i.e. <eclipsedir>/lib/i386_nt. 
+
+You need to be able to connect to a running MySQL server in order to use
+the library. This can be on your local machine, or on a remote machine
+reachable from your network.
 
 
 Graphics
@@ -292,10 +309,11 @@ Emacs ECLiPSe mode
 ------------------
 
 If you use the GNU emacs editor, an ECLiPSe mode is now provided for it.
-**Version 20 (or later) of GNU emacs is required.** This mode is based
-on the prolog mode by Umeda, and provides extensive syntax colouring 
-for ECLiPSe-specific features. See http://www.gnu.org/ if you need more 
-information on GNU and its software. 
+It is not part of the ECLiPSe distribution, and you need to download it
+separately. **Version 20 (or later) of GNU emacs is required.** 
+This mode is based on the prolog mode by Umeda, and provides extensive 
+syntax colouring  for ECLiPSe-specific features. See http://www.gnu.org/ 
+if you need more information on GNU and its software. 
 
 In order to use this mode, add the following line to your .emacs file:
 
@@ -309,6 +327,9 @@ are recognised to be ECLiPSe programs:
 (setq auto-mode-alist (cons '("\\.pl" . eclipse-mode) auto-mode-alist))
 (setq auto-mode-alist (cons '("\\.ecl" . eclipse-mode) auto-mode-alist))
 
+The eclipse.el file needs to be placed somewhere where your emacs can find
+it.
+
 See the start of the eclipse.el file for some instructions on using this mode.
 
 ----------------------------------------------
@@ -318,32 +339,29 @@ General Topics
 Contact Addresses
 -----------------
 
-In case you have supplied us with your electronic mail address, we
-will add you automatically to the ECLiPSe announcements mailing list
+News about ECLiPSe are available from the following sources
 
-    eclipse-announce@icparc.ic.ac.uk
+    http://www.eclipse-clp.org
 
-to keep you informed about new releases. If you want to participate
-in discussions related to the use of ECLiPSe and exchange information
-with other users, you should subscribe to the ECLiPSe users mailing list
+    http://www.sourceforge.net/projects/eclipse-clp
 
-    eclipse-users@icparc.ic.ac.uk
+    comp.constraints    (via news server or e.g. groups.google.com)
 
-See the web page http://www.icparc.ic.ac.uk/eclipse/mailinglist.html
-for how to subscribe and unsubscribe.
+Via http://www.eclipse-clp.org/mailinglist.html you can subscribe to
+one of the ECLiPSe mailing lists
+
+    eclipse-announce@crosscoreop.com	(release announcements)
+    eclipse-users@crosscoreop.com	(user discussion)
+    eclipse-ads@crosscoreop.com		(jobs, conferences, etc)
+
+Alternatively, you can use the forums on 
+
+    http://www.sourceforge.net/projects/eclipse-clp
 
 Problem and bug reports can be submitted via the web site
 
-    http://www.icparc.ic.ac.uk/eclipse/bugs.html
-
-or by email to
-
-    eclipse-bugs@icparc.ic.ac.uk
+    http://www.eclipse-clp.org/bugs.html
 
 Please take the time to report problems. Your feedback helps us to
 make ECLiPSe more reliable!
-
-Other requests directed to the development team can be sent to
-
-    eclipse-request@icparc.ic.ac.uk
 

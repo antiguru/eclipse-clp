@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.2 2007/02/09 02:51:46 kish_shen Exp $
+ * VERSION	$Id: dict.c,v 1.3 2007/02/23 15:28:34 jschimpf Exp $
  */
 
 /*
@@ -386,6 +386,7 @@ _alloc_dict_item(pword *dict_string, int arity)
 	{
 	    dip[i].bitfield = MakeBitField(dict->dir_index, i);
 	    dip[i].string = (pword *) 0;
+	    dip[i].arity = UNUSED_DID_ARITY;
 	    dip[i].next = &dip[i+1];
 	}
 	dip[i-1].next = NULL_DID;
@@ -809,10 +810,10 @@ _tidy_dictionary(void)
 		    }
 		    /* add it to the free list */
 #ifdef DEBUG_DICT
-		    dip->arity = (int) dip->string;
+		    dip->arity = (word) dip->string;
 		    dip->string = (pword *) 0;
 #else
-		    dip->arity = -3;
+		    dip->arity = UNUSED_DID_ARITY;
 		    dip->string = (pword *) 0;
 		    dip->next = dict->free_item_list;
 		    dict->free_item_list = dip;

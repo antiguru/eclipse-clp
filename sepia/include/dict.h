@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.1 2006/09/23 01:55:00 snovello Exp $
+ * VERSION	$Id: dict.h,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -50,6 +50,11 @@
 #define		DICT_HEAP_REF	1	/* (unused)				*/
 #define		DICT_CODE_REF	2	/* may have code references		*/
 #define		DICT_PERMANENT	3	/* do never remove from dictionary	*/
+
+/* In unused (e.g. garbage collected) dict_items, we set the arity
+** field to this value in order to catch bugs */
+#define		UNUSED_DID_ARITY	(-3)
+
 
 
 /* dictionary definitions */

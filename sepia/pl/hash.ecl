@@ -26,7 +26,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Stefano Novello, IC-Parc
-% Version:	$Id: hash.ecl,v 1.1 2006/09/23 01:55:19 snovello Exp $
+% Version:	$Id: hash.ecl,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -35,7 +35,7 @@
 :- comment(summary, "Hash table library").
 :- comment(author, "Stefano Novello, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:55:19 $").
+:- comment(date, "$Date: 2007/02/23 15:28:34 $").
 
 :- export(hash_create/1).
 :- export(hash_add/3).
@@ -82,7 +82,7 @@ hash(Key,Size,Hash) :-
 
 
 :- comment(hash_create/1, [
-    amode:hash_create(-),
+    amode:(hash_create(-) is det),
     args:["Table":"A variable"],
     see_also:[hash_set/3,hash_get/3,hash_erase/1],
     summary:"Creates a new hash table"]).
@@ -100,11 +100,11 @@ hash_create(hash_table{
 
 
 :- comment(hash_erase/1, [
-    amode:hash_erase(+),
+    amode:(hash_erase(+) is det),
     args:["Table":"Hash table"],
     summary:"Remove all entries in the hash table",
-    see_also:[hash_create/1,hash_delete/2],
-    fail_if:"None" ]).
+    see_also:[hash_create/1,hash_delete/2]
+    ]).
 
 hash_erase(H) :-
 	H = hash_table{change:SuspList},
@@ -135,7 +135,7 @@ hash_erase(H) :-
 
 
 :- comment(hash_insert_suspension/3, [
-    amode:hash_insert_suspension(+,+,-),
+    amode:(hash_insert_suspension(+,+,-) is det),
     args:["Table":"Hash table",
 	    "Susp":"A suspension",
 	    "Notifications":"A receive port, see library(notify_ports)"
@@ -209,7 +209,7 @@ hash_insert_suspension(H, Susp, Receiver) :-
 
 
 :- comment(hash_terminate_suspensions/1, [
-    amode:hash_terminate_suspensions(+),
+    amode:(hash_terminate_suspensions(+) is det),
     args:["Table":"Hash table"],
     summary:"Wake and terminate all suspensions attached to the hash table",
     desc:html("Wake all suspensions attached to the hash table and close the
@@ -255,7 +255,7 @@ hash_clone(Old, New) :-
 
 
 :- comment(hash_set/3, [
-    amode:hash_set(+,+,+),
+    amode:(hash_set(+,++,+) is det),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
     see_also:[hash_get/3],
     summary:"Add an (or modify the existing) entry with key Key and value Value to the hash table"]).
@@ -265,7 +265,7 @@ hash_set(H,Key,Elem) :-
 
 
 :- comment(hash_add/3, [
-    amode:hash_add(+,+,+),
+    amode:(hash_add(+,++,+) is det),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
     see_also:[hash_set/3],
     summary:"A synonym for hash_set/3"]).
@@ -294,7 +294,7 @@ hash_add(H,Key,Elem) :-
 	).
 
 :- comment(hash_remove/3, [
-    amode:hash_remove(+,+,-),
+    amode:(hash_remove(+,++,-) is semidet),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
     summary:"Remove the entry with key Key and retrieve its value Value",
     see_also:[hash_get/3,hash_delete/2,hash_erase/1],
@@ -318,18 +318,18 @@ hash_remove(H,Key,Elem) :-
 
 
 :- comment(hash_delete/2, [
-    amode:hash_delete(+,+),
+    amode:(hash_delete(+,++) is det),
     args:["Table":"Hash table", "Key":"a ground term"],
     summary:"Remove the entry with key Key (if any)",
-    see_also:[hash_remove/3,hash_erase/1],
-    fail_if:"None" ]).
+    see_also:[hash_remove/3,hash_erase/1]
+    ]).
 
 hash_delete(H, Key) :-
 	( hash_remove(H, Key, _) -> true ; true ).
 
 
 :- comment(hash_contains/2, [
-    amode:hash_contains(+,+),
+    amode:(hash_contains(+,++) is semidet),
     args:["Table":"A hash table", "Key":"a ground term"],
     summary:"Succeeds if there is an entry stored under key Key",
     see_also:[hash_get/3,hash_list/3],
@@ -340,7 +340,7 @@ hash_contains(H,Key) :-
 
 
 :- comment(hash_get/3, [
-    amode:hash_get(+,+,-),
+    amode:(hash_get(+,++,-) is semidet),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
     summary:"Find the entry stored under key Key and return its value",
     see_also:[hash_create/1,hash_set/3,hash_list/3,hash_contains/2],
@@ -351,7 +351,7 @@ hash_get(H,Key,Elem) :-
 
 
 :- comment(hash_find/3, [
-    amode:hash_find(+,+,-),
+    amode:(hash_find(+,++,-) is semidet),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
     summary:"A synonym for hash_get/3",
     see_also:[hash_get/3],
@@ -388,7 +388,7 @@ hash_find(H,Key,Elem) :-
 
 
 :- comment(hash_count/2, [
-    amode:hash_count(+,?),
+    amode:(hash_count(+,-) is det),
     args:["Table":"A hash table", "Count":"A variable or number"],
     summary:"Returns the number of entries in the table",
     see_also:[hash_create/1,hash_list/3] ]).
@@ -397,10 +397,10 @@ hash_count(hash_table{nb_elems:N}, N).
 
 
 :- comment(hash_entry/3, [
-    amode:hash_entry(+,-,-),
-    amode:hash_entry(+,+,?),
+    amode:(hash_entry(+,-,-) is nondet),
+    amode:(hash_entry(+,++,-) is semidet),
     args:["Table":"A hash table", "Key":"a term", "Value":"a term"],
-    resat:yes,
+    fail_if:"No entry for Key",
     summary:"Succeeds if Key and Value are an entry in table",
     desc:html("
 	Like hash_get/3, but allows the Key to be uninstantiated, in which
@@ -418,14 +418,17 @@ hash_entry(Hash, Key, Value) :-
 	hash_find(Hash, Key, Value).
 
 
-:- comment(hash_last/1, [template:"hash_last(+Iter)",
+:- comment(hash_last/1, [amode:(hash_last(+) is semidet),
+    args:["Iter":"Hash table iterator structure"],
     summary:"Succeeds if the iterator has reached the end of the table",
+    fail_if:"There are further table entries left in the iteration",
     see_also:[hash_iter/2,hash_next/4,hash_list/3] ]).
 
 hash_last(hash_iter{eleft:0}).
 
 
-:- comment(hash_iter/2, [template:"hash_iter(+Hash,-Iter)",
+:- comment(hash_iter/2, [amode:(hash_iter(+,-) is det),
+    args:["Table":"A hash table", "Iter":"Hash table iterator structure (output)"],
     summary:"Create an iterator to traverse the hash table",
     desc:html("
 	Create an iterator to traverse the hash table. Note that the
@@ -439,8 +442,13 @@ hash_iter(H,Iter) :-
 	Iter =  hash_iter{next_index:2,bucket:Bucket,table:T,eleft:N}.
 
 
-:- comment(hash_next/4, [template:"hash_next(+Iter0,-Key,-Value,-Iter1)",
+:- comment(hash_next/4, [amode:(hash_next(+,-,-,-) is semidet),
+    args:["Iter":"Hash table iterator structure",
+    	"Key":"A ground term (output)",
+    	"Value":"A term (output)",
+    	"Iter":"Hash table iterator structure (output)"],
     summary:"Get the next Key - Value pair according to the iterator",
+    fail_if:"No further entries left in this iteration",
     see_also:[hash_iter/2,hash_last/1,hash_list/3] ]).
 
 hash_next(hash_iter{next_index:S1,bucket:Bucket,table:T,eleft:N},Key,Elem,Iter) :-
@@ -458,7 +466,7 @@ hash_next(hash_iter{next_index:S1,bucket:Bucket,table:T,eleft:N},Key,Elem,Iter) 
 
 
 :- comment(hash_list/3, [
-    amode:hash_list(+,-,-),
+    amode:(hash_list(+,-,-) is det),
     args:["Table":"A hash table", "Keys":"a variable or list", "Values":"variable or list"],
     summary:"Retrieve the hash table contents",
     desc:html("
@@ -510,7 +518,8 @@ hash_display(Table,DisplayTable):-
 	DisplayTable= hash(Size,NbElems,DisplayList).
 
 
-:- comment(hash_stat/1, [template:"hash_stat(+Hash)",
+:- comment(hash_stat/1, [amode:(hash_stat(+) is det),
+    args:["Table":"A hash table"],
     summary:"Prints statistics about the hash table",
     see_also:[hash_create/1] ]).
 

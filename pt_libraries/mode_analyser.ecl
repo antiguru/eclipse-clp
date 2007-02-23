@@ -25,7 +25,7 @@
 %
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Andrew Cheadle, IC-Parc
-% Version:      $Id: mode_analyser.ecl,v 1.1 2006/09/23 01:54:59 snovello Exp $
+% Version:      $Id: mode_analyser.ecl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -37,7 +37,7 @@
 
 :- comment(summary, "Instrumentation based mode analyser").
 :- comment(author,"Andrew Cheadle").
-:- comment(date, "$Date: 2006/09/23 01:54:59 $").
+:- comment(date, "$Date: 2007/02/23 15:28:33 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 :- comment(status, prototype).
 
@@ -330,7 +330,6 @@ result_body(Module) :-
    compiled into the calling context module.",
           args:["OptionList" : "List of Name:Value pairs"],
           amode:result(+),
-          exceptions:[4 : "Calling context module is not instantiated"],
           fail_if:"No predicates have been compiled with the mode analyser 
    into the calling context module.",
           resat:no,

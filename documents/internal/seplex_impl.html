@@ -1,4 +1,6 @@
 <!DOCTYPE html PUBLIC "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
 <!-- BEGIN LICENSE BLOCK
    - Version: CMPL 1.1
    -
@@ -20,8 +22,6 @@
    - Contributor(s): 
    - 
    - END LICENSE BLOCK -->
-<html>
-<head>
   <meta http-equiv="Content-Type"
  content="text/html; charset=iso-8859-1">
   <meta name="Author" content="Joachim Schimpf">
@@ -30,15 +30,16 @@
 </head>
 <body>
 &nbsp;
-<h1>Implementation Notes for lib(eplex),&nbsp; in ECLiPSe 5.9</h1>
+<h1>Implementation Notes for lib(eplex),&nbsp; in ECLiPSe 5.10</h1>
 Author: Joachim, Kish
 <br>
-Date: Aug 2006
+Date: Nov 2006
 <br>
 Revision history: July 2003: Taken from lib(eplex) implementation notes
 (5.6), revised Jan 2004 (5.7), Jan 2005 (5.8), Feb 2005 (5.9), July
 2005
-(5.9), May 2006 (5.9), Aug 2006 (Osi)<br>
+(5.9), May 2006 (5.9), Aug 2006 (Osi),<br>
+Nov 2006 (5.10)<br>
 Contents:
 <blockquote>&nbsp;<a href="#Intro">#Introdcution</a> <br>
   <a href="#Global%20structure">&nbsp;#Global structure</a> <br>
@@ -97,7 +98,7 @@ semi-automatically
 from the xpresso.h or cplex.h respectively.</li>
   <li><span style="font-weight: bold;">seplex.h:</span>&nbsp; header
 file for eplex: used by seplex.c and coinplex.cpp, for common
-declarations used in both files.<br>
+declarations used in both files. Also used for compiling loged cide,<br>
   </li>
   <li><span style="font-weight: bold;">coinplex.cpp</span>: C++ code
 interface to OSI solvers, provides the API that seplex.c calls for the
@@ -109,9 +110,6 @@ for the Windows build</li>
   <li> <b>WinMSC/Standalone</b>: the corresponding projects for the
 Windows build (no longer used with Windows cross-compiling)<br>
   </li>
-  <li> <span style="font-weight: bold;">bugxps.h, bugcpx.h</span>: the
-include
-files for the logging code</li>
 </ul>
 <li>
 Related:</li>
@@ -3507,7 +3505,7 @@ returns all the raw indexes for the named group represented by GrpIdx. <br>
 </ul>
 <h3>COIN/OSI solvers</h3>
 <span style="font-family: times new roman,times,serif;">The COIN/OSI
-interface is organised as followed:</span><br
+interface is organised as follow:</span><br
  style="font-family: times new roman,times,serif;">
 <span style="font-family: monospace;"><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -3563,11 +3561,12 @@ The coinplex.cpp routines that are to be called by seplex.c are
 listed&nbsp;<a href="#coinplexapi">here</a>. To define a new call for
 the API:<br>
 <br>
-in seplex.c:<br>
+in seplex.c/h:<br>
 <ul>
   <li>declare the call (with prefix "<span
  style="font-family: monospace;">coin_</span>") with the rest of the
-coinplex procedure declarations, with the types for the arguments. Data
+coinplex procedure declarations, with the types for the arguments, in
+seplex.h. Data
 contructs which are C++ specific (such as the <span
  style="font-family: monospace;">COINprob *</span>) should be passed as
 void pointers (and in C++ used as pointers to the data contructs), and
@@ -3587,14 +3586,18 @@ procedure must be compatible with its declaration in seplex.c. <br>
 to make it visible externally.<br>
   </li>
 </ul>
+The C to coinplex API in seplex.h is only needed by the C code, and is
+compiled with the <span style="font-family: monospace;">-DC_TO_COIN </span>flag
+for C code (seplex.c, logged code), and not for C++ code (coinplex.cpp),<br>
+<br>
 The code in seplex.c should be generic for OSI, i.e. not specific to
 any solver. In coinplex.cpp, solver specific code can be given, but no
 ECLiPSe specific code -- so that coinplex.cpp can be sent as part of
 the <a href="logging">logged code</a> for reporting bugs (some ECLiPSe
 specific code for I/O was needed so that messages from OSI can&nbsp; be
 sent to ECLiPSe steams, but these are in a NOECLIPSE macro that can be
-defined to exclude them).<span style="font-family: monospace;"><br>
-<br>
+defined to exclude them).<br>
+<span style="font-family: monospace;"><br>
 </span>
 <h4>Problem descriptor</h4>
 The C level descriptor (lp_desc) contains a field that points to the
@@ -3604,6 +3607,9 @@ as follow:<br>
 <br>
 struct {<br>
 &nbsp;&nbsp;&nbsp; OsiXxxSolverInterface * Solver;<br>
+&nbsp;&nbsp;&nbsp; char** varnames; /* for names of variables (columns)
+*/<br>
+&nbsp;&nbsp;&nbsp; unsigned int vnsize; /* number of variable names */<br>
 &nbsp;&nbsp;&nbsp; char notfirst; /* has problem been solved? */<br>
 &nbsp;&nbsp;&nbsp;
 .......&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -3613,11 +3619,17 @@ struct {<br>
 notfirst is required to determine if OSI's initialSolve() or resolve()
 should be called to solve the linear problem. <br>
 <br>
+varnames is used to store the variable names (if passed by eplex) that
+are printed when the problem is written out in LP or MPS format).
+vnsize is 0 if no names have been passed from the ECLIpSe level.<br>
+<br>
 For example, for the CLP/CBC solver, there are the following fields:<br>
 <br>
 &nbsp;&nbsp;&nbsp; char mipIsShared; /* 1 if shared with Solver, 0 if
 copied */<br>
-&nbsp;&nbsp;&nbsp; CbcModel *mipmodel; /* pointer to the MIP model */<br>
+&nbsp;&nbsp;&nbsp; CbcModel* mipmodel; /* pointer to the MIP model */<br>
+&nbsp;&nbsp;&nbsp; ClpInterior* interiormodel; /* pointer to the
+interior point model */<br>
 &nbsp;&nbsp;&nbsp; double
 timeout;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 /* timeout value */<br>
@@ -3632,6 +3644,70 @@ and CBC API, instead of using the OsiCbcSolverInterface, because this
 is the recommended method from John Forrest, who is the main person
 behind both CLP and CBC. <br>
 <br>
+<h4>Solver specific Information</h4>
+As much as possible, the external solver is accessed via OSI in <span
+ style="font-family: monospace;">coinplex.cpp</span>, so that common
+code could be used for the different solvers. However, some features
+are not available or poorly supported by OSI, and specific solver
+support for these features should be provided if possible:<br>
+<ul>
+  <li>OSI does not provide much control over MIP solving. The
+default&nbsp;<span style="font-family: monospace;">
+coin_branchAndBound() </span>call OSI's <span
+ style="font-family: monospace;">branchAndBound()</span>.&nbsp; Solver
+specific <span style="font-family: monospace;">coin_branchAndBound() </span>can
+provide more control over the MIP solving. <br>
+  </li>
+  <li>OSI does not support the setting of solving methods beyond if a
+primal or dual method&nbsp; should be used. <span
+ style="font-family: monospace;">coin_solveLinear() </span>allow
+solver specific solving methods (such as interior point methods) to be
+used.</li>
+  <li>Timeouts are not supported. <span style="font-family: monospace;">coin_set_timeout()
+    </span>allows solver specific methods of setting timeout.</li>
+  <li>OSI is not very good at determining semi-fail or semi-success
+state when a problem solve is aborted, and the unknown result&nbsp;
+status&nbsp; have to be returned. Solver specific&nbsp; code can be
+added&nbsp; to <span style="font-family: monospace;">coin_get_result_state()&nbsp;</span>
+to better determine the result status.</li>
+  <li>Obtaining best and worst objective value bounds is also&nbsp;
+very solver specific. The default non-solver specific return value is
+the `infinity' value of the right sign. <br>
+  </li>
+  <li>OSI supports only a small set of solver parameters. Solver
+specific parameters are supported via <span
+ style="font-family: monospace;">coin_set/get_*param() </span>routines.
+See <a href="#osiparams">here for more detail.<br>
+    </a></li>
+  <li>SOS (Special Order Sets) are not supported. <span
+ style="font-family: monospace;">coin_load_sos()</span> allows solver
+specific support for SOS.<br>
+  </li>
+</ul>
+<br>
+Most of the solver specific code are implemented for osI_clpcbc
+currently, and there are also some code to work around some features of
+Cbc:<br>
+<ul>
+  <li>mipmodel is a ClpModel* in COINprob for supporting specialised
+MIP code in <span style="font-family: monospace;">coin_branchAndBound().</span>
+The code is largely taken from sample2 example driver for Cbc<br>
+  </li>
+  <li>Cbc fixes bounds of some variables to their potential solution
+value during MIP presolve and solve. These bounds have to be undone
+after the probelm solve to allow the problem to be correctly resolved.
+This is done by copying the bounds before doing the presolve, and
+restore these bounds before exiting <span
+ style="font-family: monospace;">coin_branchAndBound()</span>.<br>
+  </li>
+  <li>the method CbcModel&nbsp;<span style="font-family: monospace;">
+isContinuousUnbounded()</span> method is used in&nbsp; <span
+ style="font-family: monospace;">coin_get_result_state()</span>, this
+method is currently (Nov 2006) only available on the trunk and
+development branches of Cbc, and not in the stable branch.&nbsp;</li>
+  <li><br>
+  </li>
+</ul>
 <h4><a name="coinplexapi"></a>API between seplex.c and coinplex.cpp</h4>
 <br>
 The following&nbsp; procedures are defined:<br>
@@ -4135,7 +4211,8 @@ beginning
 of the file explains how to do the job semi-automatically using editor
 commands.<br>
 <br>
-Note for OSI: OSI provides only a small number of parameters, whose
+<a name="osiparams"></a>Note for OSI: OSI provides only a small number
+of parameters, whose
 name starts with Osi.&nbsp; Similar mapping rules as CPLEX and Xpress
 are applied, so <span style="font-family: monospace;">OsiDualObjectiveLimit</span>
 becomes <span style="font-family: monospace;">dualobjectivelimit</span>.
@@ -4274,39 +4351,16 @@ supporting calls to the solver. After the optimise call, a new step_N
 procedure,
 with N incremented by 1.
 <p>The data needed for the calls is stored in the same C level problem
-descriptor lp_desc that the eplex code used. This is defined in an
-include
-file, along with some procedures and variables that the log code use.
-There
-are three include files, for the three versions of log code generated:
-<br>
+descriptor lp_desc that the eplex code used. This is defined in
+seplex.h, which is for both normal and logged code, with the logged
+code compiled with a <span style="font-family: monospace;">-DNOECLIPSE</span>
+flag.<br>
 &nbsp;
 <br>
-<table style="text-align: left;" border="1" cellpadding="2"
- cellspacing="2" width="100%">
-  <caption>&nbsp; <br>
-  </caption><tbody>
-  </tbody><tbody>
-  </tbody><tbody>
-  </tbody><tbody>
-  </tbody> <tbody>
-    <tr>
-      <td valign="top">Xpress 13+</td>
-      <td valign="top">bugxprs.h</td>
-    </tr>
-    <tr>
-      <td valign="top">OSI<br>
-      </td>
-      <td valign="top">osilog.h</td>
-    </tr>
-    <tr>
-      <td valign="top">CPlex (6.5+)</td>
-      <td valign="top">bugcpx.h</td>
-    </tr>
-  </tbody>
-</table>
+<br>
 </p>
-<p>The include file has the following support variables:
+<p>The include file has the following support variables (with the <span
+ style="font-family: monospace;">NOECLIPSE</span> flag):
 </p>
 <p>struct lp_desc *lpd;
 <br>

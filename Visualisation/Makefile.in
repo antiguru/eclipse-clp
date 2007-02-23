@@ -22,6 +22,7 @@
 
 # Makefile for visualisation libraries
 
+ARCH = @ARCH@
 top_srcdir = @top_srcdir@
 PREFIX = @prefix@
 MAKEFILE = Makefile.$(ARCH)

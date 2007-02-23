@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.1 2006/09/23 01:55:33 snovello Exp $
+% Version:	$Id: quintus.pl,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -44,8 +44,8 @@
 
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
-:- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, '$Date: 2006/09/23 01:55:33 $').
+:- comment(copyright, 'Cisco Systems, Inc').
+:- comment(date, '$Date: 2007/02/23 15:28:34 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This

@@ -25,7 +25,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.1 2006/09/23 01:56:07 snovello Exp $
+ * VERSION	$Id: main.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
  */
 
 /*
@@ -751,7 +751,7 @@ main(int argc, char **argv)
 		if (++c + 1 > argc) usage(argv[c-1]);
 		argv[new_argc++] = argv[c];		/* shift */
 		size = sizearg(argv[c++]);
-		ec_set_option_int(EC_OPTION_GLOBALSIZE, size);
+		ec_set_option_long(EC_OPTION_GLOBALSIZE, size);
 		if (size < MIN_GLOBAL) {
 		    fprintf(stderr,"Global stack size out of range\n");
 		    exit(-1);
@@ -780,7 +780,7 @@ main(int argc, char **argv)
 		if (++c + 1 > argc) usage(argv[c-1]);
 		argv[new_argc++] = argv[c];		/* shift */
 		size = sizearg(argv[c++]);
-		ec_set_option_int(EC_OPTION_LOCALSIZE, size);
+		ec_set_option_long(EC_OPTION_LOCALSIZE, size);
 		if (size < MIN_LOCAL) {
 		    fprintf(stderr,"Local stack size out of range\n");
 		    exit(-1);
@@ -792,7 +792,7 @@ main(int argc, char **argv)
 		if (++c + 1 > argc) usage(argv[c-1]);
 		argv[new_argc++] = argv[c];		/* shift */
 		size = sizearg(argv[c++]);
-		ec_set_option_int(EC_OPTION_PRIVATESIZE, size);
+		ec_set_option_long(EC_OPTION_PRIVATESIZE, size);
 		if (size < MIN_PRIVATE) {
 		    fprintf(stderr,"Private heap size out of range\n");
 		    exit(-1);
@@ -804,7 +804,7 @@ main(int argc, char **argv)
 		if (++c + 1 > argc) usage(argv[c-1]);
 		argv[new_argc++] = argv[c];		/* shift */
 		size = sizearg(argv[c++]);
-		ec_set_option_int(EC_OPTION_SHAREDSIZE, size);
+		ec_set_option_long(EC_OPTION_SHAREDSIZE, size);
 		if (size < MIN_SHARED) {
 		    fprintf(stderr,"Shared heap size out of range\n");
 		    exit(-1);

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.1 2006/09/23 01:56:01 snovello Exp $
+ * VERSION	$Id: error.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  */
 
 /*
@@ -279,7 +279,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 "child process terminated due to signal",
 "child process stopped",
 "message passing error",			/* MPS_ERROR		*/
-"shared library not found",			/* NO_SHARED_LIB	*/
+"problem while trying to load a shared library",	/* NO_SHARED_LIB	*/
 0,
 0,
 /* -180 */

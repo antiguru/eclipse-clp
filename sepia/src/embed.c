@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.1 2006/09/23 01:55:56 snovello Exp $
+ * $Id: embed.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -74,18 +74,25 @@ extern int	mem_init(int flags);
  * Setting the initialisation options
  *----------------------------------------------------------------------*/
 
+/* backwards compatibility */
 int Winapi
 ec_set_option_int(int opt, int val)
 {
+    return ec_set_option_long(opt, (long) val);
+}
+
+int Winapi
+ec_set_option_long(int opt, long val)
+{
     switch (opt) {
-    case EC_OPTION_PARALLEL_WORKER:	ec_options.parallel_worker = val; break;
-    case EC_OPTION_ARGC:	ec_options.Argc = val; break;
+    case EC_OPTION_PARALLEL_WORKER:	ec_options.parallel_worker = (int) val; break;
+    case EC_OPTION_ARGC:	ec_options.Argc = (int) val; break;
     case EC_OPTION_LOCALSIZE:	ec_options.localsize = val; break;
     case EC_OPTION_GLOBALSIZE:	ec_options.globalsize = val; break;
     case EC_OPTION_PRIVATESIZE:	ec_options.privatesize = val; break;
     case EC_OPTION_SHAREDSIZE:	ec_options.sharedsize = val; break;
-    case EC_OPTION_ALLOCATION:	ec_options.allocation = val; break;
-    case EC_OPTION_IO:		ec_options.io_option = val; break;
+    case EC_OPTION_ALLOCATION:	ec_options.allocation = (int) val; break;
+    case EC_OPTION_IO:		ec_options.io_option = (int) val; break;
     case EC_OPTION_INIT:	ec_options.init_flags = val; break;
     case EC_OPTION_DEBUG_LEVEL:	ec_options.debug_level = val; break;
     default:			return RANGE_ERROR;

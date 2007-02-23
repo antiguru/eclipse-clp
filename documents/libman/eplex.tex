@@ -1269,7 +1269,7 @@ releases of {\eclipse}; please refer to the release notes.
 %for XPRESS-MP, we distinguish versions included with {\eclipse}: the `OEM'
 %versions, from versions obtained independently by the user. 
 
-Depending on which solver licence you have (for the commercial solvers),
+Depending on which solver licence you have (for the commercial solvers), 
 which version of it, and which hardware and operating system,
 you need to use the matching version of this interface.\footnote{Note that
 it is {\bf not} sufficient that you have a valid license and solver
@@ -1481,8 +1481,10 @@ global default for the parameter. The parameters are as in lp_get/3.
 
 \subsubsection{\biptxtref{lp_get(optimizer, -Value)}{lp_get/2}{../bips/lib/eplex/lp_get-2.html}
 and \biptxtref{lp_get(optimizer_version, -Value)}{lp_get/2}{../bips/lib/eplex/lp_get-2.html}}
-Retrieve the name (currently 'cplex','xpress' or 'osi') and version of the external optimizer.
+Retrieve the name (currently 'cplex', 'xpress' or 'osi') and version of the 
+external optimizer.
 This can be used to write portable code even when using solver-specific settings:
+\begin{verbatim}
 \begin{verbatim}
     ( lp_get(optimizer, xpress) ->
         lp_set(Handler, optimize_param(maxnode), 100)

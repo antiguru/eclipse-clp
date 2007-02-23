@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.1 2006/09/23 01:56:22 snovello Exp $
+ * VERSION	$Id: write.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
  */
 
 /*
@@ -1385,6 +1385,12 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
     int	    status;
     long    length = DidLength(d);
     char    *name = DidName(d);
+
+    if (DidArity(d) < 0)
+    {
+	return ec_outfs(out, DidArity(d) == UNUSED_DID_ARITY ?
+			    "ILLEGAL_FREED_FUNCTOR" : "ILLEGAL_FUNCTOR");
+    }
 
     if (idwrite & QUOTED)
     {

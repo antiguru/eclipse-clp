@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cprolog.pl,v 1.1 2006/09/23 01:55:09 snovello Exp $
+% Version:	$Id: cprolog.pl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -45,8 +45,8 @@
 
 :- comment(summary, 'C-Prolog compatibility package').
 :- comment(author, 'Various, ECRC Munich').
-:- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, '$Date: 2006/09/23 01:55:09 $').
+:- comment(copyright, 'Cisco Systems, Inc').
+:- comment(date, '$Date: 2007/02/23 15:28:33 $').
 :- comment(desc, html('
     One of the requirements during the development of ECLiPSe has been the
     aim of minimising the work required to port traditional Prolog

@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_shelf.c,v 1.1 2006/09/23 01:55:50 snovello Exp $
+ * Version:	$Id: bip_shelf.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  *
  * Contents:	Built-ins for the shelf-primitives
  *
@@ -38,6 +38,7 @@
 #include	"dict.h"
 #include	"property.h"
 
+#include        <stdio.h>	/* for sprintf() */
 
 /*----------------------------------------------------------------------
  * Prolog heap arrays
@@ -396,7 +397,7 @@ static int
 _tostr_heap_arr(t_heap_array *obj, char *buf, int quoted) /* obj != NULL */
 {
 #define STRSZ_SHELF 20
-    sprintf(buf, "'SHELF'(16'%08x)", (word) obj);
+    sprintf(buf, "'SHELF'(16'%08x)", (int)(word) obj);	/* possibly truncated */
     return STRSZ_SHELF;
 }
 

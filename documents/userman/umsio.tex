@@ -572,6 +572,23 @@ local stack (see \ref{chapmemory}).
 
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Newlines}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+Newlines should be output using either
+\bipref{nl/0}{../bips/kernel/iochar/nl-0.html},
+\bipref{nl/1}{../bips/kernel/iochar/nl-1.html},
+\bipref{writeln/1}{../bips/kernel/ioterm/writeln-1.html},
+\bipref{writeln/2}{../bips/kernel/ioterm/writeln-2.html},
+or using the "\%n" format with
+\bipref{printf/2}{../bips/kernel/ioterm/printf-2.html},
+\bipref{printf/3}{../bips/kernel/ioterm/printf-3.html}.
+All those will produce a LF or CRLF sequence, depending on the
+stream property settings (see
+\bipref{set_stream_property/3}{../bips/kernel/iostream/set_stream_property-3.html}).
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 \subsection{General Parsing and Text Generation}
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -862,15 +879,17 @@ printf("%5_w", [X])  <->   write_term(X, [depth(5),variables(anonymous)])
 \subsection{Other Term Output Predicates}
 
 The other term output predicates
-\bipref{write/2}{../bips/kernel/ioterm/write-2.html},
-\bipref{writeq/2}{../bips/kernel/ioterm/writeq-2.html},
-\bipref{write_canonical/2}{../bips/kernel/ioterm/write_canonical-2.html},
-\bipref{display/2}{../bips/kernel/ioterm/display-2.html},
-\bipref{print/2}{../bips/kernel/ioterm/print-2.html}
-can all be defined in terms of write_term/3 (or, similarly
-in terms of printf/3) as follows:
+\bipref{write/1}{../bips/kernel/ioterm/write-1.html},
+\bipref{writeln/1}{../bips/kernel/ioterm/write-1.html},
+\bipref{writeq/1}{../bips/kernel/ioterm/writeq-1.html},
+\bipref{write_canonical/1}{../bips/kernel/ioterm/write_canonical-1.html},
+\bipref{display/1}{../bips/kernel/ioterm/display-1.html},
+\bipref{print/1}{../bips/kernel/ioterm/print-1.html}
+can all be defined in terms of write_term/2 (or, similarly
+in terms of printf/2) as follows:
 \begin{quote}\begin{verbatim}
 write(X)   :- write_term(X, []).
+writeln(X)   :- write_term(X, []), nl.
 writeq(X)  :- write_term(X, [variables(raw), attributes(full),
                 transform(false), quoted(true), depth(full)]).
 write_canonical(X) :- write_term(X, [variables(raw), attributes(full),

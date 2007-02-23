@@ -336,7 +336,7 @@
 #undef N_NAME
 
 /* Do we have the GMP multi precision library */
-#undef HAVE_GMP
+#undef HAVE_LIBGMP
 
 /* Do we have the FLEXlm licence manager */
 #undef HAVE_FLEXLM

@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.3 2006/10/10 21:20:25 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.4 2007/02/23 15:28:33 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -433,7 +433,7 @@ proc tkecl:Documentation {} {
     set htmldoc [lindex [lindex [ec_rpc "tracer_tcl:return_html_root(_)"] 2] 1]
     switch $tcl_platform(platform) {
 	unix { exec firefox [cgi_quote_url $htmldoc] &}
-	windows { exec $env(COMSPEC) /c start [cgi_quote_url $htmldoc] & }
+	windows { exec $env(COMSPEC) /c $htmldoc & }
     }
 }
 

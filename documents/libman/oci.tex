@@ -100,9 +100,26 @@ The SQL database interface is contained in the dbi library.
 yes.
 \end{verbatim}
 
-Your environment must be set up so that you can connect to an
-MySQL database. Normally a database administrator will have written
-a script to do this automatically. 
+Your environment must be set up so that you can connect to a
+database supported by lib(dbi). Normally a database administrator will 
+have written a script to do this automatically. 
+
+MySQL specific note: to successfully load the dbi library with MySQL, the MySQL
+client dynamic load library (libmysqlclient.so in Unix systems, libmysql.dll in
+Windows systems) needs to be loaded in as well. This file is
+not provided with {\eclipse} distribution as it is part of the MySQL
+system, and covered by its own license. MySQL can be downloaded from 
+\ahrefurl{http://dev.mysql.com/downloads}.
+Normally, the person who installed your {\eclipse} system should also make
+sure that {\eclipse} can find this client library file using the normal way
+that the operating system can find dynamic load libraries, e.g.\ by putting 
+the file in a standard system
+library location, or in the {\eclipse} dynamic library directory for the
+platform in your {\eclipse} directory. On Unix systems, it is also possible
+for the user to set an environment variable (usually {\tt LD_LIBRARY_PATH})
+to point to where the dynamic library is.
+
+
 %--------------------------------------------------------------------
 \section{Data Templates}
 %--------------------------------------------------------------------

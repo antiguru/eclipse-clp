@@ -1182,7 +1182,7 @@ yes.
         amode:(current_trigger(-) is nondet),
         amode:(current_trigger(+) is semidet),
         fail_if: "Trigger is not a current trigger.",
-        see_also: trigger/1
+        see_also: [trigger/1]
 ]).
 
 :- comment(delayed_goals_number / 2, [

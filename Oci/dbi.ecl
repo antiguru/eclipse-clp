@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.1 2006/09/23 01:54:28 snovello Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -47,6 +47,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 :- module(dbi).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+:- comment(summary, "Interface to MySQL databases").
+:- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
+:- comment(date, "$Date: 2007/02/23 15:28:31 $").
+:- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
 :- lib(suspend).
@@ -102,7 +107,7 @@
 :- symbol_address(p_dbi_init, _ ) -> true ;
 	get_flag(object_suffix,SUF),
         get_flag(hostarch, Arch),
-        concat_string([Arch,/,"mysql.",SUF],F),
+        concat_string([Arch,/,"dbi_mysql.",SUF],F),
 	load(F).
 
 :- external(	s_start/5,	p_session_start),
@@ -410,6 +415,14 @@ dbi_finalize :-
  top of this.
 </P><P>
  Currently, MySQL (version 5.0 or later) is supported by the library.
+ Note that the MySQL client dynamic library (libmysqlclient.so on Unix
+ systems, mysql.dll on Windows) is not included with the distribution, and
+ if this file is not found by ECLiPSe on loading lib(dbi), there will be 
+ an error. This file can be obtained by downloading MySQL, and placing the
+ .so or .dll file into a place where ECLiPSe can find it, for example a 
+ standard system library location, or in the ECLiPSe library location 
+ (<eclipsedir>/lib/<arch>).
+ 
 </P><P>
  Data is exchanged with the DBMS via:
 <DL>
@@ -466,6 +479,16 @@ dbi_finalize :-
               ],
         summary: "starts a new session for the DBMS",
         see_also:[session_close/1],
+        eg:"
+     % connecting to a database server running on the local machine, as 
+     % database user sqluser with password password
+     session_start(\"sqluser\", \"password\", [], S).
+
+     % connecting to a database server running on machine my.sql.host,
+     % as database user sqluser with password password, and selecting
+     % to use the database mydb
+     session_start(sqluser@my.sql.host, password, [dbame:\"mydb\"], S).
+",
         desc: html("\
 <P>
  Starts a new session with the DBMS. A new connection with the DBMS server is
@@ -531,6 +554,15 @@ dbi_finalize :-
         exceptions: [
             5: "Session is not a valid session handle",
             dbi_error: "Problems from DBMS during rollback."],
+        eg:
+"
+    session_sql(Session, \"insert into mytable values (\'a\')\", _),
+    session_commit(Session), % committing the insert of a to table mytable 
+    session_sql(Session, \"insert into mytable values (\'b\')\", _),
+    session_sql(Session, \"insert into mytable values (\'c\')\", _),
+    % undo the inserting of b and c into table mytable (if tranactional)
+    session_rollback(Session), 
+",
         desc: html("\
 <P>
   This undoes all <STRONG>transactional</STRONG> changes made to the database since the last
@@ -557,6 +589,11 @@ dbi_finalize :-
         args: ["Session": "A session handle"],
         summary: "commits transactional changes made to the database.",
         see_also:[session_rollback/1, session_transaction/2],
+        eg:
+"
+    session_sql(Session, \"insert into mytable values (\'a\')\", _),
+    session_commit(Session), % committing the insert of a to table mytable 
+",
         exceptions: [
             5: "Session is not a valid session handle",
             dbi_error: "Problems from DBMS during commit."],
@@ -581,6 +618,22 @@ dbi_finalize :-
         exceptions: [
             5: "Session is not a valid session handle",
             abort: "session_rollback/1 called within Goal"],
+        eg: "
+transfer(Session, Amount,FromAccount,ToAccount) :-
+     session_transaction(Session, 
+         transfer_(Session,Amount,FromAccount,ToAccount)
+     ).
+
+% note \'?\' in SQL in the syntax MySQL uses for placeholders. This may be
+% different in other DBMS
+transfer_(Session, Amount, FromAccount, ToAccount) :-
+    SQL = \"update accounts set balance = balance + ? \\
+                                             where id = ?\",
+    Deduct is - Amount,
+    session_sql_prepare(Session,incbal(1.0,12),SQL,1,Update),
+    cursor_next_execute(Update,incbal(Deduct,FromAccount)),
+    cursor_next_execute(Update,incbal(Amount,ToAccount)).
+",
         desc: html("\
 <P>
  This executes Goal as a database transaction. This predicate is only useful
@@ -625,6 +678,19 @@ dbi_finalize :-
             5: "Session is not a valid session handle or SQL not a string",
             dbi_error: "database returned an error when executing SQL."
                     ],
+        eg:"
+make_accounts(Session) :-
+    session_sql(Session,
+        \"create table accounts \\
+         (id           decimal(4)      not null,\\
+          balance      decimal(9,2)    default 0.0 not null, \\
+          overdraft    decimal(9,2)    default 0.0 not null \\
+         )\" ,_),
+    session_sql(Session,
+        \"insert into accounts (id,balance) values (1001,1200.0)\",1),
+    session_sql(Session,
+        \"insert into accounts (id,balance) values (1002,4300.0)\",1).
+",
         desc: html("\
 <P>
  Executes a SQL statement (without parameters) on the database server. The
@@ -660,6 +726,15 @@ dbi_finalize :-
                    cursor_N_tuples/4, session_sql_prepare_query/5,
                    cursor_close/1
                   ],
+        eg:"
+  check_overdraft_limit(Session, Account) :-
+      L = [\"select count(id) from accounts \\
+          where     id = \",Account,\" and balance < overdraft\"],
+      concat_string(L,SQL),
+      session_sql_query(Session,c(0),SQL,OverdraftCheck),
+      cursor_next_tuple(OverdraftCheck,c(Count)),
+      Count = 0.
+",
         exceptions: [5: "Session is not a valid session handle, or SQLQuery"
                         " not a string, or ResultTemplate not a structure",
                      dbi_error: "Error from DBMS while executing SQLQuery.",
@@ -700,6 +775,18 @@ dbi_finalize :-
                      dbi_error: "Error from DBMS while preparing SQL",
                      dbi_bad_template: "ParamTemplate has the wrong arity"
                     ],
+        eg:"
+  % note \'?\' in SQL in the syntax MySQL uses for placeholders. This may be
+  % different in other DBMS
+  transfer_(Session, Amount, FromAccount, ToAccount) :-
+      SQL = \"update accounts set balance = balance + ? \\
+                                               where id = ?\",
+      Deduct is - Amount,
+      % incbal(1.0,12) is the parameter template
+      session_sql_prepare(Session,incbal(1.0,12),SQL,1,Update),
+      cursor_next_execute(Update,incbal(Deduct,FromAccount)),
+      cursor_next_execute(Update,incbal(Amount,ToAccount)).",
+
         desc: html("\
 <P>
  Prepares a SQL statement for execution. The statement is not actually
@@ -750,8 +837,16 @@ dbi_finalize :-
         see_also: [cursor_next_execute/2, 
                    cursor_next_tuple/2, cursor_all_tuples/2,
                    cursor_N_tuples/4,
-                   session_sql/3, session_sql_query/5
+                   session_sql/3, session_sql_query/4
                   ],
+        eg:"
+ make_check_overdraft_limit(Session, Cursor) :-
+      % note \'?\' in SQL in the syntax MySQL uses for placeholders. This may be
+      % different in other DBMS
+      SQL = \"select count(id) from accounts where ID = ? \\
+                 and balance < overdraft\",
+      session_sql_prepare_query(Session,a(0),c(0),SQL,1,Cursor).",
+
         desc: html("\
 <P>
  Prepares a SQL query for execution. The query is not actually
@@ -833,6 +928,18 @@ dbi_finalize :-
                      dbi_bad_template: "ParamTemplate not specified when"
                                        " Cursor was created"
                     ],
+        eg:"
+  % note \'?\' in SQL in the syntax MySQL uses for placeholders. This may be
+  % different in other DBMS
+  transfer_(Session, Amount, FromAccount, ToAccount) :-
+      SQL = \"update accounts set balance = balance + ? \\
+                                               where id = ?\",
+      Deduct is - Amount,
+      % incbal(1.0,12) is the parameter template
+      session_sql_prepare(Session,incbal(1.0,12),SQL,1,Update),
+      cursor_next_execute(Update,incbal(Deduct,FromAccount)),
+      cursor_next_execute(Update,incbal(Amount,ToAccount)).",
+
         desc: html("\
 <P>
  Executes the parameterised prepared SQL statement represented by Cursor,
@@ -909,6 +1016,16 @@ dbi_finalize :-
                      dbi_bad_template: "ParamTemplate not specified when"
                                        " Cursor was created"
                     ],
+        eg:"
+  transfer_(Session, Amount, FromAccount, ToAccount) :-
+      SQL = \"update accounts set balance = balance + ? \
+                                               where id = ?\",
+      Deduct is - Amount,
+      session_sql_prepare(Session,incbal(1.0,12),SQL,2,Update),
+      Updates = [incbal(Deduct,FromAccount),incbal(Amount,ToAccount)],
+      % execute both updates with one call to cursor_N_execute/4
+      cursor_N_execute(Update,2,Updates,[]).
+",
         desc: html("\
 <P>
  Executes the parameterised prepared SQL statement represented by Cursor,
@@ -952,11 +1069,20 @@ dbi_finalize :-
                      dbi_not_query: "The SQL associated with Cursor is not"
                                     " a query and so cannot return results."
                     ],
+        eg:"
+  check_overdraft_limit(Session, Account) :-
+      L = [\"select count(id) from accounts \\
+          where     id = \",Account,\" and balance < overdraft\"],
+      concat_string(L,SQL),
+      session_sql_query(Session,c(0),SQL,OverdraftCheck),
+      cursor_next_tuple(OverdraftCheck,c(Count)),
+      Count = 0.
+",
         desc: html("\
 <P>
  Retrieve the next result tuple from the SQL query represented by Cursor,
  and unify it with ResultTuple. Cursor is a cursor previously created with
- session_sql_query/3 or session_sql_prepare_query/5. ResultTuple is a
+ session_sql_query/4 or session_sql_prepare_query/5. ResultTuple is a
  structure with the same name and arity as defined by the tuple template
  when the cursor was created. The predicate converts the result to the type
  specified in the template, except that NULL values are returned as
@@ -1046,3 +1172,15 @@ dbi_finalize :-
  to retrieving the results one by one.
 ")
 ]).
+
+:- comment(cursor_field_value/3,hidden).
+:- comment(dbi_error_handler/2, hidden).
+:- comment(session_error_value/3, hidden).
+:- comment(session_retrieve_N_tuples/5, hidden).
+:- comment(session_retrieve_lazy_tuples/5, hidden).
+:- comment(session_retrieve_tuple/4, hidden).
+:- comment(session_sql_prepare/5, hidden).
+:- comment(session_sql_prepare_query/6, hidden).
+:- comment(session_sql_query/5, hidden).
+:- comment(session_start/3, hidden).
+

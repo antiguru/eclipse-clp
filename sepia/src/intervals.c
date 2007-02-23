@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.1 2006/09/23 01:56:05 snovello Exp $
+* Version:	$Id: intervals.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
 *
 
 Supported operations:
@@ -381,8 +381,8 @@ ec_i_add(
 	double yl, double yu,
 	double *lwb, double *upb)
 {
-    double tmp_upb;
-    double tmp_lwb;
+    volatile double tmp_upb;
+    volatile double tmp_lwb;
 
     set_round_up();
     tmp_upb = xu + yu;

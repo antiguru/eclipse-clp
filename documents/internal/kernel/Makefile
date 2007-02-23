@@ -19,44 +19,62 @@
 # Contributor(s): 
 # 
 # END LICENSE BLOCK
-DESTFILE = 
+
+DESTDIR = ../../../doc_internal
 
 ROOTFILE = internal
 
 CHAPTERS = $(ROOTFILE).tex kernel.tex builtins.tex \
-		globalstate.tex io.tex debugger.tex
+	globalstate.tex io.tex debugger.tex gc.tex runtime.tex umscmacros.tex
+
 
 EPSFIGURES = eccomp.eps ecvars.eps ecatomic.eps localframes.eps \
-	controlframes.eps stacks.eps callinstr.eps trailframes.eps
+	controlframes.eps stacks.eps callinstr.eps trailframes.eps \
+	gcfig3.eps gcfig4.eps gcfig5.eps gcfig6.eps gcfig7.eps
 
 #-------------------  generic part -------------------
 
 # the files that are touched by latex as a side effect
-#CHAPAUX = $(CHAPTERS:%.tex=%.aux) $(ROOTFILE).toc $(ROOTFILE).idx
 CHAPAUX = $(ROOTFILE).aux $(ROOTFILE).toc $(ROOTFILE).idx
 
 
-all:	$(ROOTFILE).dvi $(ROOTFILE)/$(ROOTFILE).html
+all:	$(ROOTFILE).pdf $(ROOTFILE)/$(ROOTFILE).html
 
-#install:	../../doc/$(ROOTFILE).pdf $(ROOTFILE)/$(ROOTFILE).html
-#	rm -rf ../../doc/$(DESTFILE)
-#	mv $(ROOTFILE) ../../doc/$(DESTFILE)
-#
-#../../doc/$(DESTFILE).pdf:	$(ROOTFILE).pdf
-#	cp $(ROOTFILE).pdf ../../doc/$(DESTFILE).pdf
-#	chmod 644 ../../doc/$(DESTFILE).pdf
+install:	$(DESTDIR)/$(ROOTFILE).pdf $(DESTDIR)/$(ROOTFILE)/$(ROOTFILE).html
+
+
+$(DESTDIR)/$(ROOTFILE).pdf:	$(ROOTFILE).pdf
+	mkdir -p $(DESTDIR)
+	chmod 755 $(DESTDIR)
+	cp $< $@
+	chmod 644 $@
+
+$(DESTDIR)/$(ROOTFILE)/$(ROOTFILE).html:	$(ROOTFILE)/$(ROOTFILE).html
+	mkdir -p $(DESTDIR)
+	chmod 755 $(DESTDIR)
+	tar cf - $(ROOTFILE) | (cd $(DESTDIR) ; tar xfp - )
+	chmod 755 $(DESTDIR)/$(ROOTFILE)
+	chmod 644 $(DESTDIR)/$(ROOTFILE)/*
 
 # tex -> dvi -> pdf
 
-$(ROOTFILE).dvi:	indexfile.tex $(CHAPAUX) $(ROOTFILE).bbl
+$(ROOTFILE).dvi:	$(CHAPAUX) $(ROOTFILE).bbl $(ROOTFILE).ind 
 	@echo ======== UPDATE-PASS =========
 	@for f in $(CHAPAUX); do \
 		mv $$f $$f.old; cp $$f.old $$f; \
 	    done
-	latex $(ROOTFILE)
+	latex $(ROOTFILE).tex
+	# The touches below are supposed to work around nfs clock skew problems:
+	# The latex run may leave the dvi file with a modification time in the
+	# future. Touch it to make sure the time is right relative to the
+	# subsequent touches of the aux files. Sleep in between to make sure
+	# the dvi is strictly older than the touched aux files.
+	touch $(ROOTFILE).dvi 
+	sleep 1
 	@for f in $(CHAPAUX); do \
 		if cmp -s $$f $$f.old; then mv $$f.old $$f; \
-		else rm $$f.old; echo ===== $$f was modified === ; fi \
+		else rm $$f.old; echo ==== $$f was modified ====; touch $$f; \
+		fi \
 	    done
 	$(MAKE) $(ROOTFILE).dvi
 
@@ -70,8 +88,8 @@ $(ROOTFILE).idx:	$(ROOTFILE).aux
 $(ROOTFILE).bbl:	$(ROOTFILE).aux
 	-bibtex $(ROOTFILE)
 
-indexfile.tex:	$(ROOTFILE).idx
-	-makeindex -o indexfile.tex $(ROOTFILE).idx
+$(ROOTFILE).ind:	$(ROOTFILE).idx
+	-makeindex $(ROOTFILE)
 
 $(ROOTFILE).pdf:	$(ROOTFILE).ps $(EPSFIGURES)
 	ps2pdf $(ROOTFILE).ps
@@ -90,12 +108,25 @@ biprefs:
 
 # HTML version
 
+#$(ROOTFILE)/$(ROOTFILE).html:	$(CHAPTERS)
+#	latex2html $(ROOTFILE)
+
 $(ROOTFILE)/$(ROOTFILE).html:	$(CHAPTERS)
-	latex2html $(ROOTFILE)
+	mkdir -p $(ROOTFILE)
+	hevea -fix underscore.hva hyperref.hva url.hva $(ROOTFILE)
+	hacha -tocbis $(ROOTFILE).html
+        # copy the files needed for the html to $(ROOTFILE) directory
+	cp $(ROOTFILE)[0-9]??.* $(ROOTFILE)/
+	cp $(ROOTFILE).css $(ROOTFILE)/
+	cp contents_motif.gif next_motif.gif previous_motif.gif $(ROOTFILE)
+	cp index.html $(ROOTFILE)/$(ROOTFILE).html
+	rm -f $(ROOTFILE)/index.html
+	ln -s $(ROOTFILE).html $(ROOTFILE)/index.html
 
 
 clean:
 	rm -f *.bak *.idx *.ind *.bbl *.aux *.dvi *.toc *.log *.ilg *.blg
-	rm -f indexfile.tex
-	rm -f $(ROOTFILE).ps $(ROOTFILE).ps.Z $(ROOTFILE).pdf
+	rm -f *.hind *.haux *.hind *.htoc $(ROOTFILE).image.*
+	rm -f $(ROOTFILE)[0-9]??.*
+	rm -f $(ROOTFILE).ps $(ROOTFILE).ps.Z $(ROOTFILE).pdf $(ROOTFILE).html
 	rm -rf $(ROOTFILE)

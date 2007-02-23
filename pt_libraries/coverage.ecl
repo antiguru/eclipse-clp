@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc, Imperial College
-% Version:	$Id: coverage.ecl,v 1.1 2006/09/23 01:54:55 snovello Exp $
+% Version:	$Id: coverage.ecl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
 %
 %
 % TODO
@@ -49,7 +49,7 @@
 
 :- comment(author,"Joachim Schimpf, based on ideas by Helmut Simonis").
 :- comment(copyright,"Cisco Systems, Inc.").
-:- comment(date,"$Date: 2006/09/23 01:54:55 $").
+:- comment(date,"$Date: 2007/02/23 15:28:33 $").
 :- comment(summary, "Tool for obtaining code coverage information").
 :- comment(desc, html("<P>
 	This is a tool for obtaining code coverage information, i.e.
@@ -204,9 +204,9 @@ current_remembered_file(CanonicalFile, Module) :-
 % Use an atomic, full pathname, with suffix, to make sure we don't get any
 % unexpected failures when matching the filenames in the above predicates
 robust_file_name(File, CanonicalFile) :-
-	canonical_path_name(File, File1),
 	get_flag(prolog_suffix, Suffixes),
-	once existing_file(File1, Suffixes, [readable], File2),
+	once existing_file(File, Suffixes, [readable], File1),
+	canonical_path_name(File1, File2),
 	concat_atom([File2], CanonicalFile).
 
 

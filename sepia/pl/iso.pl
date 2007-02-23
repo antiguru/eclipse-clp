@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.1 2006/09/23 01:55:21 snovello Exp $
+% Version:	$Id: iso.pl,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.1 2006/09/23 01:55:21 snovello Exp $
+% $Id: iso.pl,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -52,6 +52,7 @@
 	ceiling/2,
 	round/2,
 	truncate/2,
+	abolish/1,
 	get_char/1,
 	get_char/2.
 
@@ -81,8 +82,8 @@
 
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
-:- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, `$Date: 2006/09/23 01:55:21 $`).
+:- comment(copyright, 'Cisco Systems, Inc').
+:- comment(date, `$Date: 2007/02/23 15:28:34 $`).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
     the definition of Standard Prolog as defined in ISO/IEC 13211-1
@@ -119,6 +120,7 @@
 
 :- export
 	(**)/3,
+	abolish/1,
 	assertz/1,
 	at_end_of_stream/0,
 	at_end_of_stream/1,
@@ -260,6 +262,18 @@ unify_with_occurs_check(X, X).			% 8.2.2
 
 % don't retract all on a subsequent dynamic/1 declaration
 :- set_event_handler(64, true/0).
+
+:- tool(abolish/1, abolish_/2).			% 8.9.4
+abolish_(Pred, Module) :-
+	( @(current_predicate(Pred), Module) ->
+	    ( @(is_dynamic(Pred), Module) ->
+		@(eclipse_language:abolish(Pred), Module)
+	    ;
+	    	error(63, abolish(Pred), Module)
+	    )
+	;
+	    true
+	).
 
 %-----------------------------------------------------------------------
 % 8.11 Stream selection and control (complete except stream properties)

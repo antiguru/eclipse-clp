@@ -23,7 +23,7 @@
 
 :- comment(summary, "Interface to POSIX regular expression handling").
 :- comment(author, "J Chamois").
-:- comment(date, "$Date: 2006/09/23 01:53:52 $").
+:- comment(date, "$Date: 2007/02/23 15:28:33 $").
 :- comment(copyright, "Public domain").
 
 :- export
@@ -132,12 +132,14 @@ bench3(N, P, S) :-
     <H4>Characters</H4>
     Every character stands for itself, except for the characters
     ^.[$()|*+?{\\ which must be escaped with a \\ to prevent
-    them from having special meaning.
+    them from having special meaning (and note that, since the ECLiPSe
+    parser already interprets backslashes, you will have escape the
+    backslash with another backslash in your ECLiPSe source string).
     <DL>
     <DT>.</DT>
 	<DD>Matches any character</DD>
     <DT>[aeiou]</DT>
-	<DD>Matches any of the characters between the bracktes</DD>
+	<DD>Matches any of the characters between the brackets</DD>
     <DT>[^aeiou]</DT>
 	<DD>Matches any character except those listed</DD>
     <DT>[a-z0-9]</DT>
@@ -226,7 +228,7 @@ bench3(N, P, S) :-
     summary:"A substring of String matches the regular expression Pattern",
     args:["Pattern":"A string (or a compiled pattern handle)",
     	"String":"A string"],
-    amode:match(+,+),
+    amode:(match(+,+) is semidet),
     fail_if:"String does not match Pattern",
     desc:html("
 	Succeeds if all or a substring of String matches the regular
@@ -253,7 +255,7 @@ bench3(N, P, S) :-
     args:["Pattern":"A string (or a compiled pattern handle)",
     	"String":"A string",
 	"Options":"List of atoms"],
-    amode:match(+,+,+),
+    amode:(match(+,+,+) is semidet),
     fail_if:"String does not match Pattern",
     see_also:[library(regex),match/2,match/4,matchall/4,matchsub/4,split/4,compile_pattern/3],
     desc:html("
@@ -289,7 +291,7 @@ bench3(N, P, S) :-
     	"String":"A string",
 	"Options":"List of atoms",
 	"Match":"Output: a string"],
-    amode:match(+,+,+,-),
+    amode:(match(+,+,+,-) is semidet),
     fail_if:"String does not match Pattern",
     see_also:[library(regex),match/2,match/3,matchsub/4,matchall/4,compile_pattern/3],
     desc:html("
@@ -320,7 +322,7 @@ bench3(N, P, S) :-
     	"String":"A string",
 	"Options":"List of atoms",
 	"SubMatches":"Output: List of strings"],
-    amode:matchsub(+,+,+,-),
+    amode:(matchsub(+,+,+,-) is semidet),
     fail_if:"String does not match Pattern",
     see_also:[library(regex),match/2,match/3,match/4,compile_pattern/3],
     desc:html("
@@ -353,7 +355,7 @@ bench3(N, P, S) :-
     	"String":"A string",
 	"Options":"List of atoms",
 	"AllMatches":"Output: List of strings"],
-    amode:matchall(+,+,+,-),
+    amode:(matchall(+,+,+,-) is det),
     fail_if:"None",
     see_also:[library(regex),match/2,match/3,match/4,split/4,compile_pattern/3],
     desc:html("
@@ -390,7 +392,7 @@ bench3(N, P, S) :-
     	"String":"A string",
 	"Options":"List of atoms",
 	"Parts":"Output: List of strings"],
-    amode:split(+,+,+,-),
+    amode:(split(+,+,+,-) is det),
     fail_if:"None",
     see_also:[library(regex),matchall/4,compile_pattern/3,concat_string/2,split_string/4],
     desc:html("
@@ -470,7 +472,7 @@ bench3(N, P, S) :-
     args:["Pattern":"A string",
 	"Options":"List of atoms",
     	"CompiledPattern":"Output: a compiled pattern handle"],
-    amode:compile_pattern(+,+,-),
+    amode:(compile_pattern(+,+,-) is det),
     fail_if:"None",
     see_also:[library(regex),match/2,match/3,match/4,matchsub/4,matchall/4],
     desc:html("

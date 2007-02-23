@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.1 2006/09/23 01:56:04 snovello Exp $
+ * VERSION	$Id: init.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -46,6 +46,8 @@
 #include	"io.h"
 
 #include <errno.h>
+#include <stdio.h>	/* for sprintf() */
+#include <stdlib.h>	/* for exit() */
 
 #ifdef HAVE_STRING_H
 #include <string.h>
@@ -61,7 +63,6 @@
  * EXTERN declarations
  */
 
-extern char *	sys_errlist[];
 extern int	io_init(int flags);
 
 

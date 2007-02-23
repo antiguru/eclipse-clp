@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: section.c,v 1.1 2006/09/23 01:56:18 snovello Exp $
+ * VERSION	$Id: section.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
  */
 
 /*
@@ -2288,9 +2288,9 @@ static void
 _print_types(proc_desc *procedure)
 {
     int 	      i;
-    printf(" T	   first      last     lastvar	mv len s  matched not_matched\n");
+    p_fprintf(log_output_, " T	   first      last     lastvar	mv len s  matched not_matched\n");
     for (i=0; i < INDEX_TYPES; i++)
-      printf("%2i: 0x%08x 0x%08x 0x%08x%2d%3d%3d %8x %8x\n",
+      p_fprintf(log_output_, "%2i: 0x%08x 0x%08x 0x%08x%2d%3d%3d %8x %8x\n",
 	  i,
 	  procedure->types[i].first,
 	  procedure->types[i].last,
@@ -2308,9 +2308,9 @@ _print_cldesc(proc_desc *procedure)
 {
     cl_desc	      *clds;
 
-    printf("	addr   desc_tag tag cflags   nomatch\n");
+    p_fprintf(log_output_, "	addr   desc_tag tag cflags   nomatch\n");
     for (clds = procedure->clauses; clds; clds = clds->next)
-      printf("0x%08x 0x%06x %2d 0x%06x 0x%06x\n",
+      p_fprintf(log_output_, "0x%08x 0x%06x %2d 0x%06x 0x%06x\n",
 	  clds,
 	  clds->desc_tag.all & ALL_TYPES,
 	  clds->tag.all,

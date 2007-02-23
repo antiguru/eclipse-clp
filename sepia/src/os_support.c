@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.1 2006/09/23 01:56:10 snovello Exp $
+ * $Id: os_support.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -403,6 +403,10 @@ expand_filename(char *in, char *out)
 	    dir = getenv("HOME");
 	    if (!dir)
 		dir = getenv("HOMEPATH");	/* WinNT */
+	    if (dir && strlen(dir) + strlen(inp) >= MAX_PATH_LEN)
+		dir = (char *) 0;
+	    else if (dir) /* make sure it is in ECLiPSe format */
+		dir = canonical_filename(dir, aux);  
 	}
 #ifndef _WIN32
 	else
@@ -424,6 +428,8 @@ expand_filename(char *in, char *out)
 	dir = getenv(aux);
 	if (dir && strlen(dir) + strlen(inp) >= MAX_PATH_LEN)
 	    dir = (char *) 0;
+	else if (dir) /* make sure it is in ECLiPSe format */
+	    dir = canonical_filename(dir, aux); 
 	break;
     }
     if (dir)

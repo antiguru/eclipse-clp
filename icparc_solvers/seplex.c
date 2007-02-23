@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.3 2007/02/22 03:18:59 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.4 2007/02/23 15:28:33 jschimpf Exp $
  *
  */
 
@@ -3289,7 +3289,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	lpd->ctype = (char *) Malloc((size_t) %d*sizeof(char));\n\
 	lpd->matbeg = (int *) Malloc((size_t) %d*sizeof(int));\n\
 	lpd->matcnt = (int *) Malloc((size_t) %d*sizeof(int));\n\
-     }, vadded.nint, vadded.nint, vadded.nint);
+    }, vadded.nint, vadded.nint, vadded.nint);
 
     for (i=0; i<vadded.nint; i++) lpd->ctype[i] = 'C';
 

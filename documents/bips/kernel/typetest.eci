@@ -564,10 +564,10 @@ Fail:
 	fail_if:"Fails if Term is neither an atom nor an event handle",
 	eg:"
 
-    ?- is_handle(my_event).
+    ?- is_event(my_event).
     Yes (0.00s cpu)
 
-    ?- event_create(true, [], E), is_handle(E).
+    ?- event_create(true, [], E), is_event(E).
     E = 'EVENT'(16'edc90b18)
     Yes (0.00s cpu)
 

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.1 2006/09/23 01:55:15 snovello Exp $
+% Version:	$Id: events.pl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -477,10 +477,11 @@ eof_handler(N, Goal, Module, LM) :-
 	( stream_info_(Stream, 19, on) ->	% yield
 	    stream_info_(Stream, 4, PhysicalStream),
 	    (is_remote_sync_queue(PhysicalStream, _, ControlStream) ->
-		remote_input(Goal, Module,  PhysicalStream, ControlStream)
-	    ;   yield(6, PhysicalStream, _),	% 6 == PWAITIO == EC_waitio
-	        :@(LM, Goal, Module)
-	    )
+		remote_input(PhysicalStream, ControlStream)
+	    ;
+	    	yield(6, PhysicalStream, _)	% 6 == PWAITIO == EC_waitio
+	    ),
+	    :@(LM, Goal, Module)
 	;
 	    eof_handler(N, Goal)
 	).
@@ -1432,7 +1433,6 @@ check_interrupt(N, Int):-
 %----------------------------------------------------------------------
 
 io_event_handler :-
-%	writeln(io_event_handler),
 	findall(Event, ready_sigio_stream_event(Event), Events),
 	event(Events),
 	events_nodefer.
@@ -1462,7 +1462,7 @@ io_event_handler :-
 
 
 %----------------------------------------------------------------------
-% Am event handler that reads exdr terms (atoms or strings)
+% An event handler that reads exdr terms (atoms or strings)
 % from a stream (typically socket) and posts them as events.
 % We expect this handler to be set up with the defers-option.
 %----------------------------------------------------------------------
@@ -1470,11 +1470,17 @@ io_event_handler :-
 :- export post_events_from_stream/1.
 
 post_events_from_stream(Stream) :-
-	( select([Stream], 0, [_]) ->
-	    ( read_exdr(Stream, EventName), (atom(EventName);string(EventName)) ->
-	    	event(EventName)
+	( select([Stream], 0, [_]), read_exdr(Stream, EventName) ->
+	    ( atom(EventName) ->
+		event(EventName)
+	    ; string(EventName) ->
+		atom_string(EventNameAtom, EventName),
+		event(EventNameAtom)
 	    ;
-	    	true
+		type_of(EventName, BadType),
+		printf(warning_output, 
+		    "WARNING: ignoring %w on event posting stream %w%n%b",
+		    [BadType,Stream])
 	    ),
 	    post_events_from_stream(Stream)
 	;

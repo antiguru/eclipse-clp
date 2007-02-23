@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.5 2007/02/22 12:19:21 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.6 2007/02/23 15:28:34 jschimpf Exp $
  */
 
 /*
@@ -674,7 +674,7 @@ int tg_above_trap = 0;		/* true while TG is above tg_trap */
 static vmcode      *dummy_l = NULL;	/* dummy arg for print_am()  */
 static int 	    dummy_r;		/* dummy arg for print_am()  */
 static emu_code	stop_address = 0; /* for address breakpoints in the emulator */
-vmcode *backtrace[MAX_BACKTRACE];	/* record recent PP values   */
+vmcode *ec_backtrace[MAX_BACKTRACE];	/* record recent PP values   */
 int bt_index = 0;
 int bt_max = MAX_BACKTRACE;
 
@@ -686,7 +686,7 @@ int bt_max = MAX_BACKTRACE;
 	    (void) print_am((vmcode *) iptr, &dummy_l, &dummy_r, 0);\
     }							\
     if (iptr == stop_address) {emu_break();}		\
-    backtrace[bt_index] = (vmcode *) iptr;		\
+    ec_backtrace[bt_index] = (vmcode *) iptr;		\
     bt_index = (bt_index + 1) % MAX_BACKTRACE;		\
     Trap_Tg
 
@@ -7341,7 +7341,7 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		    err_code = ARITH_EXCEPTION;
 		    goto _nbip_err_;
 		}
-#if defined(i386) || defined(__x86_64)
+#if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
 		/* need to check this, causes arith exception on i386 */
 		if (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1)
 		    scratch_pw.val.nint = 0L;
@@ -7405,7 +7405,7 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		    err_code = ARITH_EXCEPTION;
 		    goto _nbip_err_;
 #endif
-#if defined(i386) || defined(__x86_64)
+#if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
 		/* need to check this, causes arith exception on i386 */
 		} else if (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) {
 		    scratch_pw.val.nint = 0L;
@@ -8228,7 +8228,7 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 		    err_code = ARITH_EXCEPTION;
 		    goto _bip_err_;
 		}
-#if defined(i386) || defined(__x86_64)
+#if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
 		/* need to check this, causes arith exception on i386 */
 		if (/* SP->val.nint == MIN_S_WORD && */ (SP+1)->val.nint == -1)
 		    scratch_pw.val.nint = 0L;
@@ -8284,7 +8284,7 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 		    err_code = ARITH_EXCEPTION;
 		    goto _bip_err_;
 #endif
-#if defined(i386) || defined(__x86_64)
+#if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
 		/* need to check this, causes arith exception on i386 */
 		} else if (/* SP->val.nint == MIN_S_WORD && */ SP[1].val.nint == -1) {
 		    scratch_pw.val.nint = 0L;

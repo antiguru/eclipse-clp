@@ -22,7 +22,7 @@
 #
 # Makefile for FlexLM interface
 #
-# $Id: Makefile.in,v 1.1 2006/09/23 01:53:18 snovello Exp $
+# $Id: Makefile.in,v 1.2 2007/02/23 15:28:30 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -31,6 +31,7 @@ PREFIX = @prefix@
 
 CC = @CC@
 LD = @LD@
+DYLD = @DYLD@
 AR = @AR@
 CFLAGS = @CFLAGS@
 OBJ_SUFFIX = @OBJECTS_SUFFIX@
@@ -55,6 +56,7 @@ LIBS_WITH_FLEXLM_x86_64_sunos5 = $(LIBS_WITH_FLEXLM_sparc_sunos5)
 
 
 PT_SOURCES = bip_pt.c
+PT_OBJS = $(PT_SOURCES:.c=.o)
 
 PT_TARGETS = $(PREFIX)/lib/$(ARCH)/pteclipse.$(OBJ_SUFFIX)
 
@@ -62,9 +64,9 @@ install:	$(PT_TARGETS)
 
 
 $(PREFIX)/lib/$(ARCH)/pteclipse.$(OBJ_SUFFIX): $(PT_SOURCES)
-	$(CC) $(CFLAGS) $(DYNLDFLAGS) -o $@ \
-		$(CPPFLAGS) \
-		$(PT_SOURCES) \
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(PT_SOURCES)
+	$(DYLD) $(DYNLDFLAGS) -o $@ \
+		$(PT_OBJS) \
 		$(LIBS_FLEXLM) \
 		$(ECLIBS)
 

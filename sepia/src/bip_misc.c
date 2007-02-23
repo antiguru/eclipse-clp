@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.2 2006/11/22 02:02:26 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.3 2007/02/23 15:28:34 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -138,6 +138,7 @@ static int p_date(value v, type t),
 	p_sys_file_flag(value fv, type ft, value nv, type nt, value vv, type vt);
 
 static void
+	_fseed(uint32),
 	_post_alarm(long);
 
 
@@ -228,13 +229,13 @@ bip_misc_init(int flags)
 
     if (flags & INIT_PROCESS)
     {
-	int32 now = (int32) ec_time_init();
-
-	seed = now * getpid();	/* initialize random generators */
+	/* initialize random generators */
+	int rand_init = ec_time_init() * getpid();
+	_fseed((uint32) rand_init);
 #ifdef HAVE_RANDOM
-	srandom((uint32) seed);
+	srandom((unsigned) rand_init);
 #else
-	srand((unsigned) seed);
+	srand((unsigned) rand_init);
 #endif
     }
 }
@@ -588,6 +589,13 @@ p_local_time_string(value vunixtime, type tunixtime, value vformat, type tformat
 #define RND_Q	(RND_M / RND_A)
 #define RND_R	(RND_M % RND_A)
 
+static void
+_fseed(uint32 n)
+{
+    int32 seed0 = n % RND_M;
+    seed = (seed0==0) ? 1 : seed0;	/* seed must be in range 1..2147483646 */
+}
+
 static double
 frandom(void)
 {
@@ -637,13 +645,12 @@ static int
 p_seed(value v, type t)
 {
 	Check_Integer(t);
-	v.nint = v.nint % RND_M;  /* make sure seed is in range */
 #ifdef HAVE_RANDOM
-	srandom((uint32)v.nint);
+	srandom((unsigned) v.nint);
 #else
-	srand(v.nint);
+	srand((unsigned) v.nint);
 #endif
-	seed = v.nint;		/* for frandom() */
+	_fseed((uint32) v.nint);		/* for frandom() */
 	Succeed_;
 }
 

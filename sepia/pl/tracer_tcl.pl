@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.7 2007/02/15 11:53:38 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.8 2007/02/23 15:28:34 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -190,7 +190,7 @@ trace_line_handler_tcl(_, Current) :-
 	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, FPath, From, To),
 	get_stream_info(SS, name, Line),
 	close(SS),
-        port_style(Port, Style),
+	port_style(Port, Style),
 	write_exdr(debug_traceline, [Depth, Style, Line, Invoc, Port, Prio,
                                      FPath, From, To]),
 	flush(debug_traceline),	% may not work in nested emulator...
@@ -1976,15 +1976,17 @@ saros_compile(OSFile) :-
 	compile(File).
 
 saros_fcompile(OSFile, OSOutDir) :-
+	get_flag(toplevel_module, Module), 
 	os_file_name(File, OSFile),
 	os_file_name(OutDir, OSOutDir),
 	Options = [compile:no, outdir:OutDir],
-	fcompile:fcompile(File, Options).
+	fcompile:fcompile(File, Options)@Module.
 
 saros_icompile(OSFile, OSOutDir) :-
+	get_flag(toplevel_module, Module), 
 	os_file_name(File, OSFile),
 	os_file_name(OutDir, OSOutDir),
-	document:icompile(File, OutDir).
+	document:icompile(File, OutDir)@Module.
 
 saros_eci_to_html(OSFile, OSHtmlTopDir, Header) :-
 	os_file_name(File, OSFile),
@@ -2023,3 +2025,6 @@ saros_get_goal_info_by_invoc(Invoc, UseLookupModule, Spec, TSpec,
 		flag_value(Spec, spy, Module, Spied)
 	    )
 	).
+
+	
+

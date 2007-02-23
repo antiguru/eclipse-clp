@@ -21,13 +21,14 @@
 // END LICENSE BLOCK
 
 //Title:        Java/ECLiPSe interface
-//Version:      $Id: Platform.java,v 1.1 2006/09/23 01:54:11 snovello Exp $
+//Version:      $Id: Platform.java,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
 //Author:       Josh Singer
 //Company:      Parc Technologies
 //Description:  Encapsulated Singleton for platform-dependent code.
 package com.parctechnologies.eclipse;
 
 import java.io.*;
+import java.lang.RuntimeException;
 
 abstract class Platform
 {
@@ -67,18 +68,16 @@ abstract class Platform
     String arch = System.getProperty("os.arch");
 
     // Windows variants
-    if((OSName.equals("Windows NT") ||
-        OSName.equals("Windows 98") ||
-        OSName.equals("Windows 95") ||
-        OSName.equals("Windows 2000") ||
-        OSName.startsWith("Windows")) // intended to catch future Windows OSs
-       && arch.equals("x86"))
+    if(OSName.startsWith("Windows")) // intended to catch future Windows OSs
     {
-      return(new Platform_i386_nt());
+       if(arch.equals("x86"))
+       {
+	  return(new Platform_i386_nt());
+       }
     }
 
     // Linux on intels
-    if(OSName.equals("Linux"))
+    else if(OSName.equals("Linux"))
     {
       if(arch.equals("i386") || arch.equals("x86"))
       {
@@ -91,7 +90,7 @@ abstract class Platform
     }
 
     // SunOS/Solaris on sparc/intel
-    if(OSName.equals("SunOS") || OSName.equals("Solaris"))
+    else if(OSName.equals("SunOS") || OSName.equals("Solaris"))
     {
       if(arch.equals("sparc"))
       {
@@ -108,12 +107,15 @@ abstract class Platform
     }
 
     // MacOSX on PPC
-    if(OSName.equals("Mac OS X") && arch.equals("ppc"))
+    else if(OSName.equals("Mac OS X"))
     {
-      return(new Platform_ppc_macosx());
+      // if(arch.equals("ppc"))
+      {
+	  return(new Platform_ppc_macosx());
+      }
     }
 
-    return(null);
+    throw new RuntimeException("Unsupported platform: " + OSName + "/" + arch);
 
   }
 

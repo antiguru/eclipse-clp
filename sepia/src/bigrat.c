@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.1 2006/09/23 01:55:41 snovello Exp $
+ * VERSION		$Id: bigrat.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -42,7 +42,7 @@
 #include "error.h"
 
 
-#ifndef HAVE_GMP
+#ifndef HAVE_LIBGMP
 
 void
 bigrat_init(void)

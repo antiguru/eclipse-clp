@@ -591,11 +591,10 @@ The arguments are used for passing data in and out.
        HostName/Port, where either HostName or Port can be variables. The
        host name and port number are printed on log_output so that the
        other process can use them. The other process must be able to form a
-       remote interface connection with ECLiPSe (currently it has been
-       implemented only for Tcl). When the predicate returns, the remote
-       process will have attached to the ECLiPSe session. This predicate
-       will block until the remote connection is established, and the
-       remote side hands over control.
+       remote interface connection with ECLiPSe.  When the predicate
+       returns, the remote process will have attached to the ECLiPSe
+       session.  This predicate will block until the remote connection
+       is established, and the remote side hands over control.
 
        <P>
        Once the Address is printed by the predicate, this information can
@@ -828,7 +827,7 @@ remote_connect(_Address, Peer, set_event_handler(Control, disconnect/0)).
 <P>
 <PRE>
    type     peer type (remote or embed)
-   lang     peer language (currently \"tcl\" or \"java\")
+   lang     peer language (e.g. \"tcl\" or \"java\")
    connect  connection information. Either:
                remote(LocalHost,PeerHost,TimeOut) or
                embed(Host,Host,block)

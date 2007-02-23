@@ -166,13 +166,14 @@ converted to the corresponding ECLiPSe term Term.
     data with agents written in programming languages that define a
     mapping from EXDR format to the language's data structures.
 <P>
-    EXDR defines the abstract data types Integer, Double, String, List,
-    Nil, Struct and Anonymous Variable. Their mapping to ECLiPSe data
-    types is as follows:
+    EXDR defines the abstract data types Integer, Long, Double, String,
+    List, Nil, Struct and Anonymous Variable. Their mapping to ECLiPSe
+    data types is as follows:
 <PRE>
         EXDR type       ECLiPSe type        e.g.
         ----------------------------------------------
         Integer         integer             123
+        Long            integer             10000000000
         Double          float               12.3
         String          string              \"abc\"
         List            ./2                 [a,b,c]
@@ -180,8 +181,8 @@ converted to the corresponding ECLiPSe term Term.
         Struct          compound or atom    foo(bar,3)
         Anon.Variable   var                 _
 </PRE>
-    Not all ECLiPSe terms have an EXDR representation, e.g. big integers,
-    rationals, suspensions or attributed variables.
+    Not all ECLiPSe terms have an EXDR representation, e.g. integers longer
+    than 64 bits, rationals, suspensions or attributed variables.
 <P>
     More information about EXDR format, including the specification of the
     serialised encoding, can be found in the Embedding and Interfacing Manual.
@@ -297,15 +298,16 @@ Error:
     mapping from EXDR format to the language's data structures.
 
 <P>
-    EXDR defines the abstract data types Integer, Double, String, List,
-    Nil, Struct and Anonymous Variable. Their mapping to ECLiPSe data
-    types is as follows:
+    EXDR defines the abstract data types Integer, Long, Double, String,
+    List, Nil, Struct and Anonymous Variable. Their mapping to ECLiPSe
+    data types is as follows:
 
 <P>
 <PRE>
         EXDR type       ECLiPSe type        e.g.
         ----------------------------------------------
         Integer         integer             123
+	Long            integer             10000000000
         Double          float               12.3
         String          string              \"abc\"
         List            ./2                 [a,b,c]
@@ -317,11 +319,11 @@ Error:
     \"natural\" mapping of the Eclipse terms.  Atoms are written as
     structures of arity 0 (not as strings).
 <P>
-    Not all ECLiPSe terms have an EXDR representation, e.g. big integers,
-    rationals, suspensions or improper lists. The predicate fails in this
-    case, nevertheless writing a complete but simplified term to the stream.
-    All information about variable sharing and variable attributes in the
-    ECLiPSe term is silently lost (no failure).
+    Not all ECLiPSe terms have an EXDR representation, e.g. integers longer
+    than 64 bits, rationals, suspensions or improper lists.  The predicate
+    fails in this case, nevertheless writing a complete but simplified term
+    to the stream.  All information about variable sharing and variable
+    attributes in the ECLiPSe term is silently lost (no failure).
 <P>
     Note that as with all output predicates, the output may be buffered,
     so it may be necessary to flush either by closing the stream or by
@@ -1348,7 +1350,7 @@ Note
 
 
 ",
-	see_also:[display / 1, display / 2, get_flag / 2, set_flag / 2, write / 2, writeq / 1, writeq / 2]]).
+	see_also:[display / 1, display / 2, get_flag / 2, set_flag / 2, write / 2, writeln/1, writeq / 1, writeq / 2]]).
 
 :- comment(write / 2, [
 	summary:"The term Term is written on the output stream Stream according to the
@@ -1392,7 +1394,7 @@ Error:
 
 
 ",
-	see_also:[display / 1, display / 2, get_flag / 2, set_flag / 2, write / 1, writeq / 1, writeq / 2]]).
+	see_also:[display / 1, display / 2, get_flag / 2, set_flag / 2, write / 1, writeln/2, writeq / 1, writeq / 2]]).
 
 :- comment(writeclause / 1, [
 	summary:"The clause Clause is pretty printed on the current output .

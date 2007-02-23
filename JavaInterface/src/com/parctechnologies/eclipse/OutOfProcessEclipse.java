@@ -21,7 +21,7 @@
 // END LICENSE BLOCK
 
 //Title:        Java/ECLiPSe interface
-//Version:      $Id: OutOfProcessEclipse.java,v 1.1 2006/09/23 01:54:11 snovello Exp $
+//Version:      $Id: OutOfProcessEclipse.java,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
 //Author:       Josh Singer
 //Company:      Parc Technologies
 //Description:  ECLiPSe engine run on local machine, separate process
@@ -215,8 +215,25 @@ public class OutOfProcessEclipse implements EclipseConnection, EclipseEngine
     File librarySubdir =
       Platform.getInstance().getLibrarySubdirectory(eclipseDir);
 
+    if (executableSubdir.exists())
+    {
+	// Eclipse has been fully installed, and an 'eclipse' script exists:
+	// run the script because it sets some potentially useful environment
+	// variables (e.g. LD_LIBRARY_PATH, JRE_HOME, TCL_LIBRARY)
+	cmdarray[cmd++] = (new File(executableSubdir, "eclipse")).toString();
+    }
+    else
+    {
+	// No bin-directory, i.e. we have a non-installed Unix-Eclipse, or we
+	// are on Windows (possibly without registry entries).  We try to run
+	// eclipse.exe, supplying the installation directory via the command
+	// line.  This should work for many applications, provided things like
+	// LD_LIBRARY_PATH are taken care of by the host application.
+	cmdarray[cmd++] = (new File(librarySubdir, "eclipse.exe")).toString();
 
-    cmdarray[cmd++] = (new File(executableSubdir, "eclipse")).toString();
+	cmdarray[cmd++] = "-D";
+	cmdarray[cmd++] = eclipseDir.toString();
+    }
 
     // if user has set it in options, add a command line option to set up the
     // local stack size

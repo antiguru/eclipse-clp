@@ -13,7 +13,7 @@
 
 :- pragma(nodebug).
 
-:- make_local_array(seed), setval(seed, [3172, 9814, 20125]).
+:- local variable(seed, [3172, 9814, 20125]).
 
 %   given an integer N >= 1, random(N, I) unifies I with a random
 %   integer between 0 and N - 1.

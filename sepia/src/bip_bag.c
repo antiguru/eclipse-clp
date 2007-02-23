@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_bag.c,v 1.1 2006/09/23 01:55:42 snovello Exp $
+ * Version:	$Id: bip_bag.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  *
  * Contents:	Built-ins for the bag-primitives
  *
@@ -37,6 +37,7 @@
 #include        "error.h"
 #include	"dict.h"
 
+#include        <stdio.h>	/* for sprintf() */
 
 /*----------------------------------------------------------------------
  * Bag primitives:
@@ -126,7 +127,7 @@ static int
 _tostr_heap_bag(t_heap_bag *obj, char *buf, int quoted)	/* obj != NULL */
 {
 #define STRSZ_BAG 18
-    sprintf(buf, "'BAG'(16'%08x)", (word) obj);
+    sprintf(buf, "'BAG'(16'%08x)", (int)(word) obj);	/* possibly truncated */
     return STRSZ_BAG;
 }
 

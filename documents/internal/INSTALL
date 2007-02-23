@@ -28,21 +28,26 @@ if [ "$ARCH" != "i386_linux" ] ; then
     exit 1
 fi
 
-(
-    cd kernel
-    make
-    make internal.ps
-)
-cp -pr kernel/internal $DEST
-cp -pr kernel/internal.ps $DEST
 
 (
-    cd project
-    make
-    make project.ps
+    cd kernel
+    TEXINPUTS=../../texinputs:$TEXINPUTS
+    BIBINPUTS=../../texinputs
+    export TEXINPUTS BIBINPUTS
+    make install
 )
-cp -pr project/project $DEST
-cp -pr project/project.ps $DEST
+
+
+#(
+#    cd project
+#    TEXINPUTS=../../texinputs:$TEXINPUTS
+#    BIBINPUTS=../../texinputs
+#    export TEXINPUTS BIBINPUTS
+#    make
+#    make project.ps
+#)
+#cp -pr project/project $DEST
+#cp -pr project/project.ps $DEST
 
 cp *.html *.txt *.png $DEST
 chmod -R a+rX,ug+w $DEST

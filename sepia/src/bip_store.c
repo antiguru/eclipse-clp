@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_store.c,v 1.1 2006/09/23 01:55:50 snovello Exp $
+ * Version:	$Id: bip_store.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  *
  * Contents:	Built-ins for the store-primitives
  *
@@ -38,6 +38,7 @@
 #include        "dict.h"
 #include        "property.h"
 
+#include        <stdio.h>	/* for sprintf() */
 
 /*----------------------------------------------------------------------
  * Heap hash tables ("stores")
@@ -714,7 +715,7 @@ static int
 _tostr_heap_htable(t_heap_htable *obj, char *buf, int quoted) /* obj != NULL */
 {
 #define STRSZ_STORE 20
-    sprintf(buf, "'STORE'(16'%08x)", (word) obj);
+    sprintf(buf, "'STORE'(16'%08x)", (int)(word) obj);	/* possibly truncated */
     return STRSZ_STORE;
 }
 

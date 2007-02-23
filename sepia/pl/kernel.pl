@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.3 2007/02/21 19:38:36 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.4 2007/02/23 15:28:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1119,14 +1119,22 @@ expand_if_libpath(File, File).
 canonical_path_name(Path0, CanPath) :-
 	(atom(Path0) ; string(Path0)), !,
 	expand_filename(Path0, Path1),
-	(Path1 == "" -> Path = "." ; Path = Path1),
-	get_absolute_path(Path, CanPathS), % CanPathS is a string
-	(string(Path0) ->
-	    CanPath = CanPathS ; atom_string(CanPath, CanPathS)
-	).
+        (has_expanded(Path1) ->
+            (Path1 == "" -> Path = "." ; Path = Path1),
+            get_absolute_path(Path, CanPathS), % CanPathS is a string
+            (string(Path0) -> CanPath = CanPathS ; atom_string(CanPath, CanPathS))
+        ;
+            Path0 = CanPath % something went wrong, return original
+        ).
 canonical_path_name(Path, CanPath) :-
 	error(5, canonical_path_name(Path, CanPath)).
 
+has_expanded(Path) :- % check if first character should have been expanded
+        substring(Path, 0,1,_, First),
+        \+ expand_string(First). 
+
+expand_string("$"). % non-expanded environment variable
+expand_string("~"). % non-expanded home/user path 
 
 nonempty_atom_or_string(Path) :-
 	string(Path), !,

@@ -23,23 +23,7 @@
 # 
 # END LICENSE BLOCK
 #
-# ECLiPSe PROLOG LIBRARY MODULE
-#
-# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.1 2006/09/23 01:54:28 snovello Exp $
-#
-#
-# IDENTIFICATION:	???.pl
-#
-# AUTHOR:		Joachim Schimpf
-# AUTHOR:		Stefano Novello
-#
-# CONTENTS:		name/arity
-#
-# DESCRIPTION:
-#
-
-# SccsId[]="@(#)Makefile.external.in	1.1 06 Mar 1995"
-# ScssCr[]="@(#) Copyright 1995 European Computer-Industry Research Centre GmbH"
+# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
 #
 
 #ORACLE_HOME=/home/mac/oracle
@@ -65,16 +49,33 @@ PERM = a+r,u+w,go-w
 ELIBS	= -L$(PREFIX)/lib/$(ARCH) -L$(MYSQLDIR)/lib -leclipse -lm
 
 
-MLIBS   = -lmysqlclient -lz
+# MySQL libraries to link against
+#
+# Note about Windows cross-compilation with mingw: libmysql.dll.a has been
+# created from libmysql.dll using the following method:
+# 1. Make a file libmysql.def containing entries of the form mysql_xxx@N,
+#	at least for all the symbols that we need from the dll
+#	(attempt a link and process the error messages)
+# 2. Run dlltool -k -d libmydql.def --dllname libmysql.dll -l libmysql.dll.a
+# We've tried lots of other tricks, but this is the one that worked.
+
+MLIBS   	   = $(MLIBS_$(ARCH))
+MLIBS_i386_nt      = $(MYSQLDIR)/lib/libmysql.dll.a
+MLIBS_i386_linux   = -lmysqlclient -lz
+MLIBS_sparc_sunos5 = -lmysqlclient -lz
+MLIBS_x86_64_linux = -lmysqlclient -lz
+
 #OLIBS   = -L$(ORACLE_LIB) $(ORACLE_LIB)/osntab.o -locic -lsql\
 #-lsqlnet  -lora -lsqlnet  -lora -lnlsrtl -lcv6 -lcore -lnlsrtl -lcv6 -lcore
+
 
 #CPPFLAGS  = -I$(PREFIX)/include -I$(ORACLE_HOME)/rdbms/demo -DDEBUG
 CPPFLAGS  = -I$(PREFIX)/include/$(ARCH) -I$(MYSQLDIR)/include -I/usr/local/include
 MFLAGS = -DUSE_MYSQL
 
+
 # dynamic library for DBs
-OBJ_FILES = $(ARCH)/mysql.$(OBJ_SUFFIX)
+OBJ_FILES = $(ARCH)/dbi_mysql.$(OBJ_SUFFIX)
 OBJ_DEST = $(OBJ_FILES:%=$(PREFIX)/lib/%)
 # support .ecl files
 ECL_FILES = mysqlopts.ecl
@@ -111,9 +112,12 @@ $(ARCH)/mysql.o: dbi.h mysql.c
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) $(OPT_FLAGS) $(CFLAGS) $(CPPFLAGS) $(MFLAGS) -c -o $(ARCH)/mysql.o mysql.c
 
-$(ARCH)/mysql.$(OBJ_SUFFIX): $(MOBJ)
+$(ARCH)/dbi_mysql.$(OBJ_SUFFIX): $(MOBJ)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
-	$(CC) $(OPT_FLAGS) -shared $(MOBJ)  $(ELIBS) $(MLIBS) -o $(ARCH)/mysql.$(OBJ_SUFFIX)
+	$(CC) $(OPT_FLAGS) -shared \
+	    $(MOBJ) $(MLIBS) $(ELIBS) \
+	    -o $(ARCH)/dbi_mysql.$(OBJ_SUFFIX)
+
 
 $(PREFIX)/lib/%.eci: %.ecl
 	@$(MAKE) -f $(MAKEFILE) $(OBJ_FILES)

@@ -26,7 +26,7 @@
  *
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.1 2006/09/23 01:54:27 snovello Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	dbi.c
@@ -54,6 +54,11 @@
 #include "external.h"	/* ECLiPSe definitions */
 #include "dbi.h"	/* Oracle call interface */
 
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT
+#endif
 
 static int dbi_errno = 0;
 
@@ -66,7 +71,7 @@ static int dbi_errno = 0;
 /* ----------------------------------------------------------------------
  *  Forward declarations
  * ---------------------------------------------------------------------- */
-int
+EXPORT int
 p_session_start(
 		/* + */ value v_username, type t_username,
 		/* + */ value v_host, type t_host,
@@ -75,36 +80,36 @@ p_session_start(
 		/* - */ value v_session, type t_session
 		);
 
-int
+EXPORT int
 p_session_close(
 		/* + */ value v_session, type t_session
                 );
 
-int
+EXPORT int
 p_session_error_value(
 		/* + */ value v_session, type t_session,
 		/* + */ value v_code, type t_code,
 		/* + */ value v_message, type t_message
 		);
 
-int
+EXPORT int
 p_session_commit(
 		/* + */ value v_session, type t_session
 		);
 
-int
+EXPORT int
 p_session_rollback(
 		/* + */ value v_session, type t_session
 		);
 
-int
+EXPORT int
 p_session_sql_dml(
 		/* + */ value v_session, type t_session,
 		/* + */ value v_SQL, type t_SQL,
 		/* - */ value v_rows, type t_rows
 		);
 
-int
+EXPORT int
 p_session_sql_query(
 		/* + */ value v_session, type t_session,
 		/* + */ value v_template, type t_template,
@@ -113,7 +118,7 @@ p_session_sql_query(
 		/* - */ value v_cursor, type t_cursor
 		);
 
-int
+EXPORT int
 p_session_sql_prepare(
 		/* + */ value v_session, type t_session,
 		/* + */ value v_template, type t_template,
@@ -122,7 +127,7 @@ p_session_sql_prepare(
 		/* - */ value v_cursor, type t_cursor
 		);
 
-int
+EXPORT int
 p_session_sql_prepare_query(
 		/* + */ value v_session, type t_session,
 		/* + */ value v_ptemplate, type t_ptemplate,
@@ -132,18 +137,18 @@ p_session_sql_prepare_query(
 		/* - */ value v_cursor, type t_cursor
 		);
 
-int
+EXPORT int
 p_session_is_in_transaction(
 		/* + */ value v_session, type t_session
                 );
 
-int
+EXPORT int
 p_session_set_in_transaction(
                 /* + */ value v_session, type t_session,
 		/* + */ value v_in, type t_in
                 );
 
-int
+EXPORT int
 p_cursor_N_execute(
 		/* + */ value v_cursor, type t_cursor,
 		/* + */ value v_N, type t_N,
@@ -151,13 +156,19 @@ p_cursor_N_execute(
 		/* ? */ value v_tail, type t_tail
 		);
 
-int
+EXPORT int
+p_cursor_next_execute(
+		/* + */ value v_cursor, type t_cursor,
+		/* + */ value v_tuple, type t_tuple
+		);
+
+EXPORT int
 p_cursor_next_tuple(
 		/* + */ value v_cursor, type t_cursor,
 		/* - */ value v_tuple, type t_tuple
 		);
 
-int
+EXPORT int
 p_cursor_N_tuples(
 		/* + */ value v_cursor, type t_cursor,
 		/* + */ value v_N, type t_N,
@@ -165,22 +176,26 @@ p_cursor_N_tuples(
 		/* ? */ value v_tail, type t_tail
 		);
 
-int
+EXPORT int
 p_cursor_cancel(
 		/* + */ value v_cursor, type t_cursor
 		);
 
-int
+EXPORT int
 p_cursor_free(
 		/* + */ value v_cursorh, type t_cursorh
 		);
 
-int
+EXPORT int
 p_cursor_field_value(
 		/* + */ value v_cursor, type t_cursor,
 		/* + */ value v_item, type t_item,
 		/* - */ value v_value, type t_value
 		);
+
+EXPORT int
+p_handle_free_eagerly(value v_handle, type t_handle);
+
 
 /* max. number of digits for a printed address - 2 digits per byte */
 #define MAX_ADDRESS_DIGITS 2*sizeof(void *) 
@@ -234,7 +249,7 @@ t_ext_type session_handle_tid = {
  *  Initialization and finalization
  * ---------------------------------------------------------------------- */
 
-int
+EXPORT int
 p_dbi_init(
 		/* + */ value v_errno, type t_errno
 		)
@@ -254,10 +269,11 @@ p_dbi_init(
     Succeed_;
 }
 
-int
+EXPORT int
 p_dbi_final()
 {
     dbi_final(); /* do any DB specific finalization */
+    Succeed_;
 }
 
 

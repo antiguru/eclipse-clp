@@ -22,10 +22,13 @@
 
 :- comment(desc, html("\
 <P>
-   This library lets you use an external Mathematical Programming  solver like
-   CPLEX or XPRESS-MP from within ECLiPSe. The library provides just
-   the interface, and does not include the solver or any required licence 
-   to use them.
+   This library lets you use an external Mathematical Programming  solver 
+   from within ECLiPSe. This is done either directly to the solver, like
+   CPLEX or XPRESS-MP, or indirectly via COIN-OR project's Open Solver
+   Interface (OSI), which provides a common and open API for several solvers.
+   Specifically, this allow COIN-OR's own open source solvers like CLP and 
+   For the commercial solvers, the library provides just the interface, 
+   and does not include the solver or any required licence to use them.
 </P><P>
     The constraints provided are:
     <DL>
@@ -143,6 +146,7 @@ the solving behaviour for a particular application's needs.
         CPLEX runtime           licenvstring    serialnum
         XPRESS-MP development   xpress_path     unused
         XPRESS-MP runtime       xpress_path     response
+        OSI                     unused          unused
     </PRE>
         If LicStr is a file or directory name, it is expected to be in
 	the native operating system syntax.
@@ -2685,7 +2689,8 @@ problem specific, or global, again depending on the solver version. In all
 cases, the value returned by lp_get/3 is the current value for the parameter
 for the problem Handle. Refer to the solver documentation for details on the 
 parameters. The names of the parameters are derived from the names of the 
-parameters in the external solver. For CPLEX, take the parameter name from the CPLEX manual (or cplex.h), remove the CPX_PARAM_ prefix and convert the 
+parameters in the external solver. For CPLEX, take the parameter name from 
+the CPLEX manual (or cplex.h), remove the CPX_PARAM_ prefix and convert the 
 rest to lower case, e.g.
 
 <PRE>
@@ -2695,26 +2700,36 @@ For XPRESS-MP (version 13 and newer), take the parameter name from the
 manual (or xpresso.h), remove the XPRS_ prefix (if present) and convert 
 the rest to lower case, e.g.
 <PRE>
-	MAXNODE or XPRS_MAXNODE becomes maxnode. 
+	XPRS_MAXNODE becomes maxnode. 
 </PRE>
-    (pre version 13, the parameter names are prefixed by N_ instead of XPRS_).
+<P>
+For solvers used via the OSI, there are a few generic parameters supported 
+via OSI, and depending on the actual solver, there may be some additional
+solver-specific parameters. For the generic parameters, take the parameter
+name, remove the Osi prefix and convert the rest to lower case, e.g.
+<PRE>
+        OsiPrimalTolerance becomes primaltolerance
+</PRE>
 
 <P>
     The following parameter names are additional aliases that work for
-    either solver:
+    several solvers:
 <DL>
-    <DT><TT>crash</TT>
-	<DD>CPX_PARAM_CRAIND (CPLEX) or XPRS_CRASH (XPRESS-MP) -integer
     <DT><TT>feasibility_tol</TT>
-	<DD>CPX_PARAM_EPRHS (CPLEX) or XPRS_FEASTOL (XPRESS-MP) - float
+	<DD>CPX_PARAM_EPRHS (CPLEX) or XPRS_FEASTOL (XPRESS-MP) or
+            OsiPrimalTolerance (OSI) - float
     <DT><TT>integrality</TT>
-	<DD>CPX_PARAM_EPINT (CPLEX) or XPRS_MIPTOL (XPRESS-MP) - float
+	<DD>CPX_PARAM_EPINT (CPLEX) or XPRS_MIPTOL (XPRESS-MP) or
+            CbcIntegerTolerance (OSI,Cbc specific) - float
     <DT><TT>iteration_limit</TT>
-	<DD>CPX_PARAM_ITLIM (CPLEX) or XPRS_LPITERLIMIT (XPRESS-MP) -integer
+	<DD>CPX_PARAM_ITLIM (CPLEX) or XPRS_LPITERLIMIT (XPRESS-MP) or
+            OsiMaxNumIteration (OSI) -integer
     <DT><TT>node_limit</TT>
-	<DD>CPX_PARAM_NODELIM (CPLEX) or XPRS_MAXNODE (XPRESS-MP) -integer
+	<DD>CPX_PARAM_NODELIM (CPLEX) or XPRS_MAXNODE (XPRESS-MP) or
+            CbcMaxNumNode (OSI, Cbc specific) -integer
     <DT><TT>objdifference</TT>
-	<DD>CPX_PARAM_OBJDIF (CPLEX) or XPRS_MIPADDCUTOFF (XPRESS-MP) - float
+	<DD>CPX_PARAM_OBJDIF (CPLEX) or XPRS_MIPADDCUTOFF (XPRESS-MP) or
+            CbcCutoffIncrement (OSI, Cbc specific) - float
     <DT><TT>refactor</TT>
 	<DD>CPX_PARAM_REINV (CPLEX) or XPRS_INVERTFREQ (XPRESS-MP) -integer
     <DT><TT>scrind</TT>
@@ -3068,7 +3083,8 @@ problem specific, or global, again depending on the solver version. In all
 cases, the value returned by lp_get/3 is the current value for the parameter
 for the problem Handle. Refer to the solver documentation for details on the 
 parameters. The names of the parameters are derived from the names of the 
-parameters in the external solver. For CPLEX, take the parameter name from the CPLEX manual (or cplex.h), remove the CPX_PARAM_ prefix and convert the 
+parameters in the external solver. For CPLEX, take the parameter name from 
+the CPLEX manual (or cplex.h), remove the CPX_PARAM_ prefix and convert the 
 rest to lower case, e.g.
 
 <PRE>
@@ -3078,26 +3094,36 @@ For XPRESS-MP (version 13 and newer), take the parameter name from the
 manual (or xpresso.h), remove the XPRS_ prefix (if present) and convert 
 the rest to lower case, e.g.
 <PRE>
-	MAXNODE or XPRS_MAXNODE becomes maxnode. 
+	XPRS_MAXNODE becomes maxnode. 
 </PRE>
-    (pre version 13, the parameter names are prefixed by N_ instead of XPRS_).
+
+For solvers used via the OSI, there are a few generic parameters supported 
+via OSI, and depending on the actual solver, there may be some additional
+solver-specific parameters. For the generic parameters, take the parameter
+name, remove the Osi prefix and convert the rest to lower case, e.g.
+<PRE>
+        OsiPrimalTolerance becomes primaltolerance
+</PRE>
 
 <P>
     The following parameter names are additional aliases that work for
     either solver:
 <DL>
-    <DT><TT>crash</TT>
-	<DD>CPX_PARAM_CRAIND (CPLEX) or XPRS_CRASH (XPRESS-MP) -integer
     <DT><TT>feasibility_tol</TT>
-	<DD>CPX_PARAM_EPRHS (CPLEX) or XPRS_FEASTOL (XPRESS-MP) - float
+	<DD>CPX_PARAM_EPRHS (CPLEX) or XPRS_FEASTOL (XPRESS-MP) or
+            OsiPrimalTolerance (OSI) - float
     <DT><TT>integrality</TT>
-	<DD>CPX_PARAM_EPINT (CPLEX) or XPRS_MIPTOL (XPRESS-MP) - float
+	<DD>CPX_PARAM_EPINT (CPLEX) or XPRS_MIPTOL (XPRESS-MP) or
+            CbcIntegerTolerance (OSI,Cbc specific) - float
     <DT><TT>iteration_limit</TT>
-	<DD>CPX_PARAM_ITLIM (CPLEX) or XPRS_LPITERLIMIT (XPRESS-MP) -integer
+	<DD>CPX_PARAM_ITLIM (CPLEX) or XPRS_LPITERLIMIT (XPRESS-MP) or
+            OsiMaxNumIteration (OSI) -integer
     <DT><TT>node_limit</TT>
-	<DD>CPX_PARAM_NODELIM (CPLEX) or XPRS_MAXNODE (XPRESS-MP) -integer
+	<DD>CPX_PARAM_NODELIM (CPLEX) or XPRS_MAXNODE (XPRESS-MP) or
+            CbcMaxNumNode (OSI, Cbc specific) -integer
     <DT><TT>objdifference</TT>
-	<DD>CPX_PARAM_OBJDIF (CPLEX) or XPRS_MIPADDCUTOFF (XPRESS-MP) - float
+	<DD>CPX_PARAM_OBJDIF (CPLEX) or XPRS_MIPADDCUTOFF (XPRESS-MP) or
+            CbcCutoffIncrement (OSI, Cbc specific) - float
     <DT><TT>refactor</TT>
 	<DD>CPX_PARAM_REINV (CPLEX) or XPRS_INVERTFREQ (XPRESS-MP) -integer
     <DT><TT>scrind</TT>
@@ -3491,10 +3517,11 @@ desc:      html("\
 <DL>
     <DT><TT>optimizer</TT>
 	<DD>Returns the name of the external solver, currently
-	'cplex' or 'xpress'.
+	'cplex', 'xpress' or 'osi'.
     <DT><TT>optimizer_version</TT>
 	<DD>Returns an integer derived from the version of the
-	external solver.
+	external solver (for osi, the version is the actual solvers
+        used)
     <DT><TT>presolve</TT>
 	<DD>Returns the default presolve setting for solver setup, i.e. the
         presolve setting that a solver state would be given if it was not

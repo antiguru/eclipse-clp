@@ -23,7 +23,7 @@
 /*
  *      System: Eclipse
  *
- *	$Id: tkeclipse.c,v 1.1 2006/09/23 01:56:19 snovello Exp $
+ *	$Id: tkeclipse.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
  *
  *	Code for embedding eclipse into a tcl program
  */
@@ -138,7 +138,7 @@ EcSetOption(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *const 
 	    Tcl_SetResult(interp, "integer expected", TCL_STATIC);
 	    return TCL_ERROR;
 	}
-	err = ec_set_option_int(option_id, option_val);
+	err = ec_set_option_long(option_id, option_val);
 	if (err != PSUCCEED)
 	{
 	    Tcl_SetResult(interp, "invalid option number", TCL_STATIC);

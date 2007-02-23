@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_heapevents.c,v 1.1 2006/09/23 01:55:46 snovello Exp $
+ * Version:	$Id: bip_heapevents.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
  *
  * Contents:	Built-ins for the heap-event-primitives
  *
@@ -36,6 +36,8 @@
 #include        "mem.h"
 #include        "error.h"
 #include	"dict.h"
+
+#include        <stdio.h>	/* for sprintf() */
 
 static dident	d_visible_, d_defers0_;
 
@@ -119,7 +121,7 @@ static int
 _tostr_heap_event(t_heap_event *event, char *buf, int quoted) /* event != NULL */
 {
 #define STRSZ_EVENT 20
-    sprintf(buf, "'EVENT'(16'%08x)", (word) event);
+    sprintf(buf, "'EVENT'(16'%08x)", (int)(word) event);	/* possibly truncated */
     return STRSZ_EVENT;
 }
 

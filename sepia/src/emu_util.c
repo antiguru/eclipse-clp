@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.2 2007/02/22 01:28:11 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.3 2007/02/23 15:28:34 jschimpf Exp $
  */
 
 /*
@@ -702,7 +702,7 @@ opaddr_init(void)
 
 lastpp(int n)
 {
-    extern vmcode *backtrace[];
+    extern vmcode *ec_backtrace[];
     extern int bt_index, bt_max;
     extern vmcode *print_am(register vmcode *code, vmcode **label, int *res, int option);
     int i;
@@ -712,7 +712,7 @@ lastpp(int n)
     if (n >= bt_max) i = bt_index;
     else i = (bt_index + bt_max - n) % bt_max;
     do {
-	(void) print_am(backtrace[i], &dummy_l, &dummy_r, 2 /*PROCLAB*/);
+	(void) print_am(ec_backtrace[i], &dummy_l, &dummy_r, 2 /*PROCLAB*/);
 	i = (i+1) % bt_max;
     } while (i != bt_index);
 }

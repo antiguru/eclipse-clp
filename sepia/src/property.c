@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.1 2006/09/23 01:56:15 snovello Exp $
+ * VERSION	$Id: property.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
  */
 
 /*
@@ -504,6 +504,20 @@ free_prop_value(int prop_name, pword *prop_value)
 	erase_all_records(prop_value);
 	break;
 
+    case HTABLE_PROP:
+    {
+	extern t_ext_type heap_htable_tid;
+	heap_htable_tid.free((t_ext_ptr)prop_value->val.wptr);
+	break;
+    }
+
+    case SHELF_PROP:
+    {
+	extern t_ext_type heap_array_tid;
+	heap_array_tid.free((t_ext_ptr)prop_value->val.wptr);
+	break;
+    }
+
     case MODULE_PROP:
     case TRANS_PROP:
     case WRITE_TRANS_PROP:
@@ -520,7 +534,11 @@ free_prop_value(int prop_name, pword *prop_value)
     case INFIX_PROP:
     case POSTFIX_PROP:
     case SYSCALL_PROP:
+	break;
+
     default:
+	p_fprintf(current_err_, "Unknown property type %d in free_prop_value()\n", prop_name);
+	ec_flush(current_err_);
 	break;
     }
 }
@@ -559,6 +577,13 @@ mark_dids_from_properties(property *prop_list)
 		    }
 		    break;
 
+		case SHELF_PROP:
+		    {
+			extern t_ext_type heap_array_tid;
+			heap_array_tid.mark_dids((t_ext_ptr)p->property_value.val.wptr);
+		    }
+		    break;
+
 		case IDB_PROP:
 		    mark_dids_from_record(&p->property_value);
 		    break;
@@ -594,8 +619,13 @@ mark_dids_from_properties(property *prop_list)
 		case INFIX_PROP:	/* did */
 		case POSTFIX_PROP:	/* did */
 		case SYSCALL_PROP:	/* did or integer */
-		default:
+		case EVENT_PROP:	/* pri */
 		    mark_dids_from_pwords(&p->property_value, &p->property_value + 1);
+		    break;
+
+		default:
+		    p_fprintf(current_err_, "Unknown property type %d in mark_dids_from_properties()\n", p->name);
+		    ec_flush(current_err_);
 		    break;
 		}
 	    }

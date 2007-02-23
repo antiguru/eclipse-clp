@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.1 2006/09/23 01:56:09 snovello Exp $
+ * VERSION	$Id: mem.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
  */
 
 /*
@@ -139,7 +139,7 @@ struct heap_descriptor global_heap;
 /*ARGSUSED*/
 static void
 _unmap_at(char *addr,	/* page-aligned */
-	int bytes)	/* multiple of pagesize */
+	size_t bytes)	/* multiple of pagesize */
 {
     switch(ec_options.allocation)
     {
@@ -167,7 +167,7 @@ _unmap_at(char *addr,	/* page-aligned */
 	    ec_flush(current_err_);
 	}
 #endif
-	ad = mmap((caddr_t) addr,(size_t) bytes, PROT_READ|PROT_WRITE,
+	ad = mmap((caddr_t) addr, bytes, PROT_READ|PROT_WRITE,
 #ifdef MAP_ANONYMOUS
 	    MAP_FIXED|MAP_PRIVATE|MAP_NORESERVE|MAP_ANONYMOUS, -1,
 #else
@@ -176,7 +176,7 @@ _unmap_at(char *addr,	/* page-aligned */
 	    (off_t) 0);
 #else
 	/* remapping with PROT_NONE should free the swap space */
-	ad = mmap((caddr_t) addr,(size_t) bytes, PROT_NONE,
+	ad = mmap((caddr_t) addr, bytes, PROT_NONE,
 #ifdef MAP_ANONYMOUS
 	    MAP_FIXED|MAP_PRIVATE|MAP_ANONYMOUS, -1,
 #else
@@ -197,7 +197,7 @@ _unmap_at(char *addr,	/* page-aligned */
 	ec_panic("ALLOC_FIXED not supported","_map_at()");
 #else
 	char *ad;
-	ad = mmap((caddr_t) addr,(size_t) bytes, PROT_NONE,
+	ad = mmap((caddr_t) addr, bytes, PROT_NONE,
 #ifdef MAP_ANONYMOUS
 	    MAP_FIXED|MAP_PRIVATE|MAP_ANONYMOUS, -1,
 #else
@@ -215,7 +215,7 @@ _unmap_at(char *addr,	/* page-aligned */
 /*ARGSUSED*/
 static int
 _map_at(char *addr,	/* page-aligned */
-	int bytes)	/* multiple of pagesize */
+	size_t bytes)	/* multiple of pagesize */
 {
     switch(ec_options.allocation)
     {
@@ -280,11 +280,16 @@ _map_at(char *addr,	/* page-aligned */
 
 
 static void
-_report_adjustment(char *change, char *name, int bytes)
+_report_adjustment(char *change, char *name, word bytes)
 {
     if (GlobalFlags & GC_VERBOSE)
     {
-	p_fprintf(log_output_, "GC: %s %s stack by %d bytes\n",
+	p_fprintf(log_output_,
+#if SIZEOF_CHAR_P==SIZEOF_LONG
+	    "GC: %s %s stack by %ld bytes\n",
+#else
+	    "GC: %s %s stack by %d bytes\n",
+#endif
 	    change, name, bytes);
 	ec_flush(log_output_);
     }
@@ -519,7 +524,7 @@ alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct *
  *---------------------------------------------------------------------*/
 
 static struct stack_header *
-_stack_init(struct stack_header *down, struct stack_header *up, int words_needed)
+_stack_init(struct stack_header *down, struct stack_header *up, uword words_needed)
 {
     struct stack_header *stack;
     word bytes_allocated;
@@ -535,7 +540,7 @@ _stack_init(struct stack_header *down, struct stack_header *up, int words_needed
 }
 
 void
-stack_create(struct stack_header **pstack, int words_needed)
+stack_create(struct stack_header **pstack, uword words_needed)
 {
     *pstack =
 	_stack_init((struct stack_header *)0, (struct stack_header *)0, words_needed);
@@ -548,7 +553,7 @@ stack_empty(struct stack_header **pstack)
 }
 
 void
-stack_push(register struct stack_header **pstack, int words_needed)
+stack_push(register struct stack_header **pstack, uword words_needed)
 {
     register struct stack_header *stack = *pstack;
 
@@ -578,7 +583,7 @@ stack_pop_to(register struct stack_header **pstack, uword *old_top)
 }
 
 void
-stack_pop(register struct stack_header **pstack, int word_offset)
+stack_pop(register struct stack_header **pstack, uword word_offset)
 {
     register struct stack_header *stack = *pstack;
 
@@ -622,7 +627,7 @@ stack_destroy(register struct stack_header **pstack)
  *---------------------------------------------------------------------*/
 
 static struct temp_header *
-_temp_init(struct temp_header *first, struct temp_header *next, int bytes_needed)
+_temp_init(struct temp_header *first, struct temp_header *next, uword bytes_needed)
 {
     struct temp_header *temp;
     word bytes_allocated;
@@ -639,14 +644,14 @@ _temp_init(struct temp_header *first, struct temp_header *next, int bytes_needed
 }
 
 void
-temp_create(struct temp_header **ptemp, int bytes_needed)
+temp_create(struct temp_header **ptemp, uword bytes_needed)
 {
     *ptemp =
 	_temp_init((struct temp_header *)0, (struct temp_header *)0, bytes_needed);
 }
 
 char *
-temp_alloc(struct temp_header **ptemp, int bytes_needed)
+temp_alloc(struct temp_header **ptemp, uword bytes_needed)
 {
     register struct temp_header *temp = *ptemp;
 
@@ -749,7 +754,7 @@ temp_destroy(struct temp_header **ptemp)
 
 static struct buffer_block_header *
 _buffer_init(struct buffer_block_header *first, struct buffer_block_header *next,
-	int words_needed, int *is_nonpage_buffer)
+	uword words_needed, int *is_nonpage_buffer)
 {
     word	bytes_allocated;
     struct buffer_block_header	*block;
@@ -775,7 +780,7 @@ _buffer_init(struct buffer_block_header *first, struct buffer_block_header *next
 }
 
 void
-buffer_create(unbounded_buffer *bd, int minwords)
+buffer_create(unbounded_buffer *bd, uword minwords)
 {
     bd->read_block =
     bd->write_block = _buffer_init((struct buffer_block_header *) 0,
@@ -794,7 +799,7 @@ buffer_reinit(unbounded_buffer *bd)
 }
 
 uword *
-buffer_alloc(unbounded_buffer *bd, uword *ptr, int words)
+buffer_alloc(unbounded_buffer *bd, uword *ptr, uword words)
 {
     register struct buffer_block_header *block;
 #ifdef DEBUG_HEAP
@@ -889,11 +894,11 @@ buffer_destroy(unbounded_buffer *bd)
     bd->write_block_end = (uword *) 0;
 }
 
-int
+uword
 buffer_pos(unbounded_buffer *bd, uword *ptr)
 {
     struct buffer_block_header *block = bd->write_block->first;
-    register int length = 0;
+    register uword length = 0;
     while (/* block && */ (ptr < (uword *)(block + 1) || block->limit < ptr))
     {
 	length += block->top - (uword *)(block + 1);
@@ -1076,8 +1081,8 @@ mem_layout(void)
 #ifndef _WIN32
     char	*sh = shared_mem_base();
 #endif
-    int		map_alignment;
-    int		offset;
+    word	map_alignment;
+    word	offset;
 
     fprintf(stderr, "\nAddress Space Layout");
     fprintf(stderr,  "\n====================\n\n");
@@ -1142,11 +1147,11 @@ mem_init(int flags)
     if (ec_options.allocation == ALLOC_FIXED)
     {
 #if HAVE_MMAP
-	int offset;
+	word offset;
 	char *start_stack_area;
 	char *start_shared_area = shared_mem_base();
 	char *start_private_area = (char *) sbrk(0);
-	int stacksize = RoundTo(ec_options.localsize + ec_options.globalsize,
+	word stacksize = RoundTo(ec_options.localsize + ec_options.globalsize,
 				STACK_PAGESIZE);
 
 	if (offset = (uword) start_private_area % map_alignment)

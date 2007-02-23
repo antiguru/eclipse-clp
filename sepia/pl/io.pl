@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.2 2007/02/09 02:46:51 kish_shen Exp $
+% Version:	$Id: io.pl,v 1.3 2007/02/23 15:28:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -854,16 +854,40 @@ do_get_file_info(File, compiled_time, Time) :-
 % The above information is used to clean up a remote side when it is 
 % disconnected
 %
+% Dealing with events:
+% To ensure that the remote interface protocol is followed at all times,
+% event handling is deferred during most of the code below. We only
+% allow events during
+%	- running rpcs
+%	- running user goals, e.g. remote_init
+%	- remote flush (but not if inside ec_waitio)
+% but these goals must be safely wrapped in block/3 to make sure the
+% events are deferred again even on failure/throw.
+% Note that, since we re-enable events temporarily from within events-deferred
+% code, we cannot allow nesting, i.e. remote_accept, peer_queue_xxx and
+% flush/waitio handlers must be called from non-events-deferred contexts.
+%
 % First clause is the current version of the remote protocol.
 % The version information should not occur anywhere else on the ECLiPSe side.
 %
  
 remote_version(1).
 
-:- local variable(rpeer_count).
-:- setval(rpeer_count,0).
+:- local variable(rpeer_count, 0).
+:- local variable(in_ec_waitio, []).
 :- local struct(peer_info(type,lang,key,connect)).
 :- local struct(peer_queue(ptype,pname,qtype,dir)).
+
+
+non_interruptable(Goal) :-
+	( events_defer ->
+	    call(Goal),
+	    events_nodefer
+	;
+	    printf(warning_output, "Warning: Illegal events_defer nesting detected during remote protocol (%w)",[Goal]),
+	    call(Goal)
+	).
+
 
 remote_connect(Address, Control, Init, Mod) :-
 	remote_connect_setup(Address, Control, Soc), !,
@@ -914,10 +938,18 @@ remote_connect_accept(Control, Soc, TimeOut, Init, Pass, Res, Mod) :-
 	set_peer_property(Control, peer_info with [type:remote,lang:RemoteLang,
                                      connect:remote(RemoteHost,Host,TimeOut)]),
 	set_event_handler(Control, true/0),
-	close(Soc), !,
-	run_remote_init(Init, Res, Mod),
-	non_interruptable(remote_control_read(Control, Message)),
-	handle_ec_resume(Message, Control).
+	close(Soc),
+	events_defer,	% fail if already deferred (can't handle nesting)
+	!,
+	block((
+		run_remote_init(Init, Res, Mod),
+		remote_control_read(Control, Message),
+		handle_ec_resume(Message, Control),
+		events_nodefer
+	    ), Tag, (
+		events_nodefer,
+		exit_block(Tag)
+	    )).
 remote_connect_accept(Control, Soc, TimeOut, Init, Pass, Res, Mod) :-
 	(nonvar(Soc),current_stream(Soc) -> close(Soc) ; true),
 	(nonvar(Control), current_stream(Control) -> close(Control) ; true),
@@ -950,11 +982,16 @@ timed_accept(Server, TimeOut, RemoteHost, NewQueue) :-
         ).
 
 
+% events deferred!
 run_remote_init(Init, Res, Mod) :-
 	( nonvar(Init), var(Res) ->
-	    block(
-	         (call(Init)@Mod -> Res = Init ; Res = fail), 
-	          _, Res = throw
+	    block((
+		     events_nodefer,
+		     (call(Init)@Mod -> Res = Init ; Res = fail),
+		     events_defer
+		 ),
+		 _,
+		 (events_defer, Res = throw)
             )
 	; nonvar(Res) ->
 	      printf(warning_output, "Warning: result argument %w for initial goal not a variable in remote_control_accept/5. Initial Goal not executed.", [Res])
@@ -1071,6 +1108,7 @@ get_peer_dyn_info_key(Control, ControlKey) :-
 get_peer_queue_key(N, Key) :-
 	concat_atom([peer_queue, N], Key).
 
+
 new_socket_server(Soc, Address, N) :-
 	socket(internet, stream, Soc), 
 	block(
@@ -1079,42 +1117,50 @@ new_socket_server(Soc, Address, N) :-
         ).
 
 
+
 peer_queue_close(Queue) :-
 	(atom(Queue) ; integer(Queue)), !,
 	get_queue_info(Queue, StreamNum, Peer, QType, _Direction),
-	close_peer_queue_type(Peer, StreamNum, QType).
+	non_interruptable(
+	    close_peer_queue_type(Peer, StreamNum, QType)
+	).
 peer_queue_close(Queue) :-
 	error(5, peer_queue_close(Queue)).
 
 
-close_peer_queue_type(remote(Peer), StreamNum, QType) :-
-	non_interruptable((
-	    remote_control_send(Peer, queue_close(StreamNum)),
-	    remote_control_read(Peer, ResumeMessage)
-	)),
+    close_peer_queue_type(remote(Peer), StreamNum, QType) :-
+	remote_control_send(Peer, queue_close(StreamNum)),
+	remote_control_read(Peer, ResumeMessage),
 	close_remote_queue_eclipseside(Peer, StreamNum, QType),
 	handle_ec_resume(ResumeMessage, Peer).
-close_peer_queue_type(embed(Peer), StreamNum, _QType) :-
+	close_peer_queue_type(embed(Peer), StreamNum, _QType) :-
 	write_exdr(embed_info, queue_close(StreamNum)),
 	flush(embed_info),
 	close_embed_queue_eclipseside(Peer, StreamNum).
 
-close_embed_queue_eclipseside(Peer, StreamNum) :-
+    close_embed_queue_eclipseside(Peer, StreamNum) :-
 	deregister_queue(StreamNum, Peer),
 	close(StreamNum).
 
-close_remote_queue_eclipseside(Control, StreamNum, QType) :-
+    close_remote_queue_eclipseside(Control, StreamNum, QType) :-
 	deregister_queue(StreamNum, Control),
 	close_remote_physical_streams(QType, StreamNum).
 
-close_remote_physical_streams(sync(Socket), StreamNum) :-
+    close_remote_physical_streams(sync(Socket), StreamNum) :-
 	(current_stream(StreamNum) -> close(StreamNum) ; true),
 	(current_stream(Socket) -> close(Socket) ; true).
-close_remote_physical_streams(async, StreamNum) :-
+    close_remote_physical_streams(async, StreamNum) :-
 	(current_stream(StreamNum) -> close(StreamNum) ; true).
 
 
+
 peer_queue_create(Name, Control, Sync, Direction, Event) :-
+	non_interruptable(
+	    peer_queue_create1(Name, Control, Sync, Direction, Event)
+	).
+	
+
+peer_queue_create1(Name, Control, Sync, Direction, Event) :-
 	(atom(Name), atom(Control), is_event(Event) -> 
             true ; set_bip_error(5)
         ),
@@ -1127,17 +1173,16 @@ peer_queue_create(Name, Control, Sync, Direction, Event) :-
 	 set_bip_error(6)
         ), !,
 	create_peer_queue_type(Type, Name, Control, Sync, Direction, Event).
-peer_queue_create(Name, Control, Sync, Direction, Event) :-
+peer_queue_create1(Name, Control, Sync, Direction, Event) :-
 	get_bip_error(E),
 	error(E, peer_queue_create(Name, Control, Sync, Direction, Event)).
 
 
-create_peer_queue_type(remote(PeerHost,LocalHost,TimeOut), Name, Control, Sync, Direction, Event) ?-
+    % events deferred!
+    create_peer_queue_type(remote(PeerHost,LocalHost,TimeOut), Name, Control, Sync, Direction, Event) ?-
 	new_socket_server(Soc, LocalHost/Port, 1),
-	non_interruptable((
-	    remote_control_send(Control, socket_client(Port, Name, Sync, Direction)),
-	    remote_control_read(Control, ResumeMessage)
-        )),
+	remote_control_send(Control, socket_client(Port, Name, Sync, Direction)),
+	remote_control_read(Control, ResumeMessage),
 	(is_disconnection(ResumeMessage) ->
 	    close(Soc),
 	    handle_ec_resume(ResumeMessage, Control)
@@ -1150,17 +1195,14 @@ create_peer_queue_type(remote(PeerHost,LocalHost,TimeOut), Name, Control, Sync, 
          close(Soc), 
 	 handle_ec_resume(disconnect, Control)
         ).
-
-% JBS 23/7/2001 call to ecl_create_embed_queue had one too many arguments
-% fixed this.
-create_peer_queue_type(embed(_,_,_), Name, _Peer, _Sync, Direction, Event) ?-
+    create_peer_queue_type(embed(_,_,_), Name, _Peer, _Sync, Direction, Event) ?-
 	ecl_create_embed_queue(Name, Direction, Event),
 	get_stream_info(Name, physical_stream, Nr),
 	write_exdr(embed_info, queue_connect(Name, Nr, Direction)),
 	flush(embed_info).
 
 
-ecl_create_embed_queue(Name, Direction, Event) :-
+    ecl_create_embed_queue(Name, Direction, Event) :-
 	get_embed_peer(Peer),
 	(Direction == fromec ->
 	    Options = [yield(on)],
@@ -1173,13 +1215,13 @@ ecl_create_embed_queue(Name, Direction, Event) :-
 	register_embed_queue(Name, Peer, Direction).
 
 
-is_disconnection(disconnect).
-is_disconnection(disconnect_resume).
-is_disconnection(end_of_file).
+    is_disconnection(disconnect).
+    is_disconnection(disconnect_resume).
+    is_disconnection(end_of_file).
 
-connect_remote_queue(success, Soc, Name, Control, Sync, Direction, Event, TimeOut, RHost, StreamId) :-
-	non_interruptable((
-	   block(
+    % events deferred!
+    connect_remote_queue(success, Soc, Name, Control, Sync, Direction, Event, TimeOut, RHost, StreamId) :-
+	block(
 	      (create_remote_queue(Sync, Direction, Soc, Name, Control, TimeOut, RHost, Event) ->
                    get_stream_info(Name, physical_stream, StreamId)
 	      ;    
@@ -1187,30 +1229,27 @@ connect_remote_queue(success, Soc, Name, Control, Sync, Direction, Event, TimeOu
 		  close(Soc),
 		  StreamId = fail
               ), _, ((current_stream(Soc) -> close(Soc);true), StreamId = fail)
-	  ),
-	  remote_control_send(Control, socket_accept(Name,StreamId)),
-	  remote_control_read(Control, ResumeMessage)
-        )),
+	),
+	remote_control_send(Control, socket_accept(Name,StreamId)),
+	remote_control_read(Control, ResumeMessage),
 	handle_ec_resume(ResumeMessage, Control).
-connect_remote_queue(fail, Soc, Name, Control, _, _, _, _, _, StreamId) :-
+    connect_remote_queue(fail, Soc, Name, Control, _, _, _, _, _, StreamId) :-
 	close(Soc),
 	StreamId = fail,
-	non_interruptable((
-	    remote_control_send(Control, socket_accept(Name, fail)),
-	    remote_control_read(Control, ResumeMessage)
-	)),
+	remote_control_send(Control, socket_accept(Name, fail)),
+	remote_control_read(Control, ResumeMessage),
 	handle_ec_resume(ResumeMessage, Control).
 
 
-create_remote_queue(async, _, Soc, Name, Control, TimeOut, RHost, Event) ?-
+    create_remote_queue(async, _, Soc, Name, Control, TimeOut, RHost, Event) ?-
 	remote_create_async_queue(Soc, Name, Control, TimeOut, RHost, Event).
-create_remote_queue(sync, fromec, Soc, Name, Control, TimeOut, RHost, Event) ?-
+    create_remote_queue(sync, fromec, Soc, Name, Control, TimeOut, RHost, Event) ?-
 	remote_create_fromec_queue(Soc, Name, Control, TimeOut, RHost, Event).
-create_remote_queue(sync, toec, Soc, Name, Control, TimeOut, RHost, Event) ?-
+    create_remote_queue(sync, toec, Soc, Name, Control, TimeOut, RHost, Event) ?-
 	remote_create_toec_queue(Soc, Name, Control, TimeOut, RHost, Event).
 
-% memory queue needed to allow eof event to be raised reading empty queue
-remote_create_toec_queue(Soc, Name, Control, TimeOut, RemoteHost, Event) :-
+    % memory queue needed to allow eof event to be raised reading empty queue
+    remote_create_toec_queue(Soc, Name, Control, TimeOut, RemoteHost, Event) :-
 	open(queue(""), update, Name),
 	concat_atom([Name, soc], SocName),
 	timed_accept(Soc, TimeOut, RemoteHost, SocName),
@@ -1222,17 +1261,17 @@ remote_create_toec_queue(Soc, Name, Control, TimeOut, RemoteHost, Event) :-
 	register_remote_queue(Name, Control, sync(SocName), toec).
 
 
-% memory queue needed for buffering output. 
-% Event is dummy for now, to be used for remote side requesting data
-remote_create_fromec_queue(Soc, Name, Control, TimeOut, RemoteHost, _Event) :-
+    % memory queue needed for buffering output. 
+    % Event is dummy for now, to be used for remote side requesting data
+    remote_create_fromec_queue(Soc, Name, Control, TimeOut, RemoteHost, _Event) :-
 	open(queue(""), update, Name, [yield(on)]),
 	concat_atom([Name, soc], SocName),
 	timed_accept(Soc, TimeOut, RemoteHost, SocName),
 	close(Soc), 
 	register_remote_queue(Name, Control, sync(SocName), fromec).
 
-remote_create_async_queue(Soc, Name, Control, TimeOut, RemoteHost, Event) :-
-% use Control to remember which remote process this stream is connected to
+    remote_create_async_queue(Soc, Name, Control, TimeOut, RemoteHost, Event) :-
+    % use Control to remember which remote process this stream is connected to
 	timed_accept(Soc, TimeOut, RemoteHost, Name),
 	(Event == '' -> 
 	    true
@@ -1240,6 +1279,7 @@ remote_create_async_queue(Soc, Name, Control, TimeOut, RemoteHost, Event) :-
         ),
 	close(Soc),
 	register_remote_queue(Name, Control, async, bidirect).
+
 
 % returns end_of_file as a message if something goes wrong
 remote_control_read(Control, Message) :-
@@ -1288,45 +1328,42 @@ remote_disconnect(Control) :-
 	;   true  % Control is not a current remote peer...
 	).
 
+
+% events not deferred!
 remote_output(PhysicalStream, ControlStream, RemoteStream) :-
-	    read_string(PhysicalStream, end_of_file, Len, Data), 
-	    yield_to_remote(ControlStream, ec_flushio(PhysicalStream, Len), RemoteStream, Data).
-
-
-non_interruptable(Goal) :-
-	( events_defer ->
-	    call(Goal),
-	    events_nodefer
-	;
-	    call(Goal)
-	).
-
-yield_to_remote(ControlStream, YieldMessage, DataStream, Data) :-
 	non_interruptable((
-	   remote_control_send(ControlStream, YieldMessage),
-	   write(DataStream, Data),
-	   flush(DataStream),
-	   remote_control_read(ControlStream, ResumeMessage)
-        )), 
+	    read_string(PhysicalStream, end_of_file, Len, Data), 
+	    yield_to_remote(ControlStream, ec_flushio(PhysicalStream, Len), RemoteStream, Data)
+	)).
+
+    % events deferred!
+    yield_to_remote(ControlStream, YieldMessage, DataStream, Data) :-
+	remote_control_send(ControlStream, YieldMessage),
+	write(DataStream, Data),
+	flush(DataStream),
+	remote_control_read(ControlStream, ResumeMessage),
 	handle_ec_resume(ResumeMessage, ControlStream).
 
-remote_input(Goal, Module, PhysicalStream, ControlStream) :-
-	non_interruptable((
-	   remote_control_send(ControlStream, ec_waitio(PhysicalStream)),
-	   wait_for_remote_input(PhysicalStream, ControlStream)
-           % exit from wait_for_remote_input when remote handler finished
-        )),
-	call(Goal)@Module.
 
-% wait for remote input to arrive, handle any messages before this,
-% data is then copied from the socket to the queue stream (physical stream)
-wait_for_remote_input(PhysicalStream, ControlStream) :-
+% events not deferred!
+remote_input(PhysicalStream, ControlStream) :-
+	non_interruptable((
+	    remote_control_send(ControlStream, ec_waitio(PhysicalStream)),
+	    wait_for_remote_input(PhysicalStream, ControlStream)
+	)).
+
+    % wait for remote input to arrive, handle any messages before this,
+    % data is then copied from the socket to the queue stream (physical stream)
+    % events deferred!
+    wait_for_remote_input(PhysicalStream, ControlStream) :-
 	% we expect at least one rem_flushio-message and a resume
-	non_interruptable(remote_control_read(ControlStream, Message0)),
+	setval(in_ec_waitio, PhysicalStream),
+	remote_control_read(ControlStream, Message0),
 	expect_control(ControlStream,
 		[rem_flushio(PhysicalStream, _), rem_flushio(PhysicalStream)],
 		Message0, Message1),
 	handle_control(Message1, ControlStream, Message2),
+	setval(in_ec_waitio, []),
 	expect_control(ControlStream, [resume], Message2, _).
 
 
@@ -1335,19 +1372,27 @@ remote_rpc_handler(Rpc, Control) :-
 	% the rpc goal corresponding to the control message must eventually
         % arrive on the Rpc socket stream
 	select([Rpc], block, [Rpc]), % wait until Rpc stream is ready..
-	block((read_exdr(Rpc, Goal),
-               execute_rpc(Rpc, Goal,remote_control_send(Control,yield))
-	      ),
-		    _, (remote_control_send(Control, yield),
-		        write_exdr(Rpc, throw), flush(Rpc)
-		       )
-	).
+	block(execute_remote_rpc(Rpc, Control), _, handle_remote_rpc_throw(Rpc, Control)).
+
+    execute_remote_rpc(Rpc, Control) :-
+	read_exdr(Rpc, Goal),
+	events_nodefer,
+	execute_rpc(Rpc, Goal, (
+		events_defer,
+		remote_control_send(Control,yield)
+	    )).
+
+    handle_remote_rpc_throw(Rpc, Control) :-
+	events_defer,
+	remote_control_send(Control, yield),
+	write_exdr(Rpc, throw), flush(Rpc).
 
 
 % Handle initial message Message0 (and possibly further messages on Control)
 % until we get one of the messages specified in the list Expected.
 % The expected message itself is not handled, but returned as ExpectedMessage.
 
+% events deferred!
 expect_control(Control, Expected, Message0, ExpectedMessage) :-
 	( nonmember(Message0, Expected) ->
 	    ( Message0 = resume ->
@@ -1369,14 +1414,16 @@ expect_control(Control, Expected, Message0, ExpectedMessage) :-
 % Handle initial message Message (and possibly further messages on Control).
 % Return as soon as we get a resume message.
 
+% events deferred!
 handle_ec_resume(Message, Control) :-
 	expect_control(Control, [resume], Message, _Message).
 
 
+% events deferred!
 handle_control(rpc, Control, NextMsg) :- -?->  !, % rpc call
 	get_rpcstream_names(Control, Rpc),
 	remote_rpc_handler(Rpc, Control),
-	non_interruptable(remote_control_read(Control, NextMsg)).
+	remote_control_read(Control, NextMsg).
 handle_control(disconnect, Control, _NextMsg) :- -?->  !, % disconnect request
 	write_exdr(Control, disconnect_yield), % acknowledge disconnect
 	flush(Control),
@@ -1392,7 +1439,7 @@ handle_control(rem_flushio(Queue, Len), Control, NextMsg) :- -?-> !,
 	remote_yield(Control, NextMsg).
 handle_control(queue_create(Name,Sync,Direction,Event), Control, NextMsg) :- -?-> !,
 	block((
-	   peer_queue_create(Name, Control, Sync, Direction, Event) -> true;true),
+	   peer_queue_create1(Name, Control, Sync, Direction, Event) -> true;true),
            _, true
         ),
 	remote_yield(Control, NextMsg).
@@ -1416,24 +1463,35 @@ handle_control(Message, Control, NextMsg) :-
 	handle_control(disconnect, Control, NextMsg).
 
 
-deal_with_remote_flush(socket, Queue, Len) ?- !,
-% raw socket, is an asyn. queue; user process the data
-	block((
-	       (get_stream_info(Queue, event, Event),
-	        error(Event, rem_flushio(Queue, Len))
-	       ) -> true ; true
-              ),  _, true  % ignore any problems with the handler
-        ).
-deal_with_remote_flush(_, Queue, Len) :-
-% non-socket case, read data into a buffer
-	block((
-	   (peer_queue_get_property(Queue, type, sync(SockName)),
-	    read_sync_data_to_buffer(Len, Queue, SockName)
-	   ) -> true ; true), _, true % ignore any problems
-        ). 
+% events deferred!
+deal_with_remote_flush(Device, Queue, Len) :-
+	( getval(in_ec_waitio, Queue) ->
+	    % this flush is the input corresponding to a ec_waitio
+	    % don't handle events
+	    block((
+		deal_with_remote_flush1(Device, Queue, Len) -> true ; true
+		), _, true)	% ignore any problems with the handler
 
+	; events_nodefer ->
+	    % handle events during remote flush
+	    block((
+		deal_with_remote_flush1(Device, Queue, Len) -> true ; true
+		), _, true),	% ignore any problems with the handler
+	    events_defer
+	;
+	    printf(error, "Unexpected events_nodefer state in remote flush %w%n", [Queue])
+	).
 
-read_sync_data_to_buffer(Len, Queue, SockName) :-
+    deal_with_remote_flush1(socket, Queue, Len) ?- !,
+	% raw socket, is an asyn. queue; user process the data
+	get_stream_info(Queue, event, Event),
+	error(Event, rem_flushio(Queue, Len)).
+    deal_with_remote_flush1(_, Queue, Len) :-
+	% non-socket case, read data into a buffer
+	peer_queue_get_property(Queue, type, sync(SockName)),
+	read_sync_data_to_buffer(Len, Queue, SockName).
+
+    read_sync_data_to_buffer(Len, Queue, SockName) :-
 	(integer(Len) ->
 	    (read_string(SockName, end_of_file, Len, Data) -> true ; Data = end_of_file),
 	    write(Queue, Data)
@@ -1442,7 +1500,9 @@ read_sync_data_to_buffer(Len, Queue, SockName) :-
 	    write_exdr(Queue, Data) 
 	).
 
+
 % make remote_cleanup more robust so that problems will not choke eclipse
+% events deferred on entry, undeferred om exit
 remote_cleanup(Control) :-
 	block(remote_cleanup_raw(Control), _, fail), !.
 remote_cleanup(Control) :-
@@ -1450,6 +1510,7 @@ remote_cleanup(Control) :-
 
 
 remote_cleanup_raw(Control) :-
+	events_nodefer,			% to make next line work
 	(event(Control) -> true ; true), % user defined cleanup 
 	reset_event_handler(Control),
 	get_peer_dyn_info_key(Control, ControlKey),
@@ -1474,15 +1535,15 @@ cleanup_dynamic_infos([Item|Infos], Control) :-
 cleanup_dynamic_infos([], _).
 
 
+% events deferred!
 remote_yield(Control, ResumeMessage) :-
 	nonvar(Control), 
         peer(Control), 
 	current_stream(Control),
-	non_interruptable((
-	    remote_control_send(Control, yield),
-	    remote_control_read(Control, ResumeMessage)
-	)).
+	remote_control_send(Control, yield),
+	remote_control_read(Control, ResumeMessage).
 
+% events deferred!
 remote_yield(Control) :-
 	remote_yield(Control, ResumeMessage),
 	handle_ec_resume(ResumeMessage, Control).

@@ -80,6 +80,9 @@
 
 #ifndef HAVE_SINCOS
 #define sincos(x,s,c)	{ *(s) = sin(x); *(c) = cos(x); }
+#else
+/* not all math.h seem to define it */
+void sincos(double,double*,double*);
 #endif
 
 #ifndef DLLEXP

@@ -461,7 +461,9 @@ Success:
    path is prefixed with the current working directory
 
    <LI> leading '~' and environment variables (such as '$HOME') are
-      substituted by the appropriate value.
+   substituted by the appropriate value. If this substitution is not
+   possible (e.g. if the envrionment variable does not exist), the 
+   original path is returned unchanged. 
 
    <LI> special sequences such as '.', '..', extra '/' are appropriately
       removed/replaced. 
@@ -922,7 +924,7 @@ Streams and its process ID is Pid.
 <P>
    After forking the process, Pid is unified with its process ID, which can
    be used e.g.  in wait/2 or kill/2.  If the exec system call in the child
-   process failed, the child exits with status 128 + errno.
+   process failed, the child exits with status 128 + errno (Unix).
 
 <P>
 "),
@@ -1036,11 +1038,6 @@ streams are connected to Streams and its process ID is Pid.
    signals sent to the parent.  This feature might be needed if e.g. a
    separate ECLiPSe process is forked which should not be influenced when
    the user types Ctrl-C to the main ECLiPSe process.
-
-<P>
-   WINDOWS: The process is spawned with the P_DETACH flag, i.e. it is not
-   possible to connect any pipes to the child process, nor is a process
-   id returned (Pid remains uninitialised), nor can it be waited for.
 "),
 	args:["Command" : "String, atom or list of atomic terms.", "Streams" : "List of stream ids.", "Pid" : "Integer or a variable."],
 	exceptions:[4 : "Command is not instantiated.", 5 : "Command is instantiated, but not to a string or an atom.", 5 : "Streams is instantiated, but not to a list.", 5 : "A stream in Streams is instantiated, but not to an atom or a    sigio structure.", 5 : "Pid is instantiated, but not to an integer.", 170 : "System error, it was not possible to fork the child.", 192 : "The specified stream is not open in the appropriate mode."],
@@ -1633,8 +1630,6 @@ Error:
    <B>WINDOWS specific behaviour:</B>
    The predicate can only be used to wait for one specific process, i.e. the
    Pid argument must be instantiated and the predicate is not resatisfiable.
-<P>
-   A process that was created using exec_group/3 cannot be waited for.
 <P>
    When the child process terminated normally, then Status is the value
    that the child process exited with.

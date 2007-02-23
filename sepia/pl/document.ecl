@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.1 2006/09/23 01:55:12 snovello Exp $
+% Version:	$Id: document.ecl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2006/09/23 01:55:12 $").
+:- comment(date, "$Date: 2007/02/23 15:28:33 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -332,7 +332,7 @@ process_include1(In, BaseName, Comments0, Comments, FoundM0, FoundM, Module0, Mo
 % only compile file if needed. File is a string
 ensure_compiled(File, _M) :-
 	get_file_info(File, mtime, MTime),
-	(atom(File) -> AFile = File ; atom_string(AFile, File)), 
+	atomify(File, AFile),
         % current_compiled_file expects atoms
 	current_compiled_file(AFile, CTime, _),
 	MTime =< CTime, !.  % no need to compile it
@@ -954,7 +954,7 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 			LibPreds1 = [pred(N/A,Tmpl,PredSumm,HtmlFile)|LibPreds0],
 			Page = pdoc{template:Tmpl,summary:PredSumm,tool:ToolInfo},
 			( var(ToolInfo), memberchk(N/A, Tools0) ->
-			    ToolInfo="This predicate is sensitive to its module context (tool predicate, see @/1)."
+			    ToolInfo="This predicate is sensitive to its module context (tool predicate, see @/2)."
 			; true ),
 			gen_html_file(Header, HtmlDir, LibTitle2, LibName, Page, HtmlFile),
 			gen_ascii_file(HtmlDir, LibTitle2, LibName, Page)
@@ -1135,25 +1135,32 @@ comment_to_html(Stream, struct(N), Comment) ?-
 
 %
 % Analyse the comment list and fill the information into the
-% corresponging fields in the Page-structure. Do some checks.
+% corresponding fields in the Page-structure. Do some checks.
 %
 comment_to_page(CommentedThing, Comment, Page) :-
 	Page = pdoc{index:Index,modes:Modes,exc:Exceptions,
 			    fields:Fields,template:Tmpl,summary:Summary},
-	% fill the regular fields into the Page structure
+	% fill the regular fields into the Page structure, make some
+	% rough format checks, and ignore duplicates.
 	(
 	    foreach(Item,Comment),
 	    param(Page,CommentedThing)
 	do
-	    ( nonvar(Item), Item = Key:Value ->
-		( page_field(CommentedThing, Key, Value, Page) ->
+	    ( page_field(CommentedThing, Item, Arg) ->
+		( Arg == 0 ->
 		    true
 		;
-		    printf(warning_output, "WARNING: Unrecognised or duplicate keyword in comment for %w: %w%n",
-			    [CommentedThing,Key])
+		    arg(Arg, Page, Value),
+		    ( var(Value) ->
+			Item = _:Value
+		    ;
+			Item = Key:_,
+			printf(warning_output, "WARNING: ignoring duplicate %w field in comment for %w%n",
+				[Key,CommentedThing])
+		    )
 		)
 	    ;
-		printf(warning_output, "WARNING: Unrecognised item in comment for %w:%n%w%n",
+		printf(warning_output, "WARNING: Ill-formed entry in comment for %w:%n%w%n",
 			[CommentedThing,Item])
 	    )
 	),
@@ -1176,7 +1183,8 @@ comment_to_page(CommentedThing, Comment, Page) :-
 		    ( valid_mode_det(ModeDet, Mode, _Det), functor(Mode, N, A) ->
 		    	Modes2=[ModeDet|Modes1]
 		    ;
-			printf(warning_output, "WARNING: Invalid amode field in comment for %w%n", [N/A]),
+			printf(warning_output, "WARNING: Invalid amode field in comment for %w:%n%w%n",
+				[N/A,Item]),
 		    	Modes2=Modes1
 		    )
 		;
@@ -1189,7 +1197,7 @@ comment_to_page(CommentedThing, Comment, Page) :-
 		nonvar(Fields),
 		( var(Tmpl) ->
 		    ( foreach(FieldName:_,Fields), foreach(FieldNameAtom,FieldNames) do
-			concat_atom([FieldName], FieldNameAtom)
+			atomify(FieldName, FieldNameAtom)	% may fail
 		    ),
 		    % we store Struct only to check it later
 		    % against the structure declaration
@@ -1232,21 +1240,24 @@ comment_to_page(CommentedThing, Comment, Page) :-
 	    fail
 	).
 
-page_field(_,		Key,		_Val, _Page) :- var(Key), !, fail.
-page_field(_,		summary,	Val, pdoc{summary:Val}) :- !.
-page_field(_/_,		args,		Val, pdoc{args:Val}) :- !.
-page_field(_,		desc,		Val, pdoc{desc:Val}) :- !.
-page_field(_,		eg,		Val, pdoc{eg:Val}) :- !.
-page_field(_,		see_also,	Val, pdoc{see:Val}) :- !.
-page_field(struct2(_,_), fields,	Val, pdoc{fields:Val}) :- !.
-page_field(struct2(_,_), args,		Val, pdoc{fields:Val}) :- !.
-page_field(_/_,		resat,		Val, pdoc{chp:Val}) :- !.
-page_field(_/_,		fail_if,	Val, pdoc{fail:Val}) :- !.
-page_field(_/_,		exceptions,	Val, pdoc{exc:Val}) :- !.
-page_field(_/_,		template,	Val, pdoc{template:Val}) :- !.
-page_field(_/_,		tool,		Val, pdoc{tool:Val}) :- !.
-page_field(_/_,		amode,		_Val, _Page) :- !. % handled separately
-page_field(_,		index,		_Val, _Page) :- !. % handled separately
+
+:- mode page_field(+,?,-).
+page_field(_,		KeyVal,		_) :- var(KeyVal), !, fail.
+page_field(_,		Key:_Val,	_) :- var(Key), !, fail.
+page_field(_,		summary:Val,	summary of pdoc) :- atom_or_string(Val), !.
+page_field(_/_,		args:Val,	args of pdoc) :- ground(Val), is_list(Val), !.
+page_field(_,		desc:Val,	desc of pdoc) :- is_simple_description(Val), !.
+page_field(_,		eg:Val,		eg of pdoc) :- is_simple_description(Val), !.
+page_field(_,		see_also:Val,	see of pdoc) :- is_list(Val), !.
+page_field(struct2(_,_), fields:Val,	fields of pdoc) :- ground(Val), is_list(Val), !.
+page_field(struct2(_,_), args:Val,	fields of pdoc) :- ground(Val), is_list(Val), !.
+page_field(_/_,		resat:Val,	chp of pdoc) :- atom_or_string(Val), !.
+page_field(_/_,		fail_if:Val,	fail of pdoc) :- atom_or_string(Val), !.
+page_field(_/_,		exceptions:Val,	exc of pdoc) :- ground(Val), is_list(Val), !.
+page_field(_/_,		template:Val,	template of pdoc) :- ground(Val), !.
+page_field(_/_,		tool:Val,	tool of pdoc) :- atom_or_string(Val), !.
+page_field(_/_,		amode:_Val,	0) :- !.	% handled separately
+page_field(_,		index:_Val,	0) :- !.	% handled separately
 
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -1493,9 +1504,11 @@ object_spec_to_filename(struct(N), FileName) :-
     filename_char(_, 0'%, 0'Z) :- !.
     filename_char(_, _C, 0'-).
 
-:- mode stringify(+,-).
 stringify(S, S) :- string(S).
 stringify(A, S) :- atom(A), atom_string(A,S).
+
+atomify(A, A) :- atom(A).
+atomify(S, A) :- string(S), atom_string(A,S).
 
 
 alphasort(Arg, Rel, List, Sorted) :-
@@ -1771,6 +1784,11 @@ find_ref(struct(N), Lib, Match) ?- !,
 find_ref(library(Group), _Lib, Match) ?-
 	bip(_N, _A, System, Group, _File), !,
 	Match = library(System, Group).
+find_ref(link(Url,Text), _Lib, Match) ?-
+	atom_or_string(Url),
+	atom_or_string(Text),
+	!,
+	Match = link(Url,Text).
 find_ref(N, Lib, index(N, System, Group, File)) :- atom(N), !,
 	find_ref(N/index, Lib, bip(N, index, System, Group, File)).
 find_ref(S, Lib, Match) :- string(S), !,
@@ -1781,6 +1799,8 @@ find_ref(N, _Lib, noref(N)) :-
 
 print_ref(S, _Lib, noref(N)) ?-
 	printf(S, "%w", [N]).
+print_ref(S, _Lib, link(Url,Text)) ?-
+	printf(S, "<A HREF=\"%w\">%w</A>", [Url, Text]).
 print_ref(S, _Lib, index(N, System, Group, File)) ?-
 	( System = '.' ->
 	    printf(S, "<A HREF=\"../%w/%w.html\">%w</A>", [Group, File, N])
@@ -1833,6 +1853,8 @@ ascii_write_references(S, LibName, List) :-
 
 ascii_print_ref(S, _Lib, noref(N)) ?-
 	printf(S, "%w", [N]).
+ascii_print_ref(S, _Lib, link(_Url,Text)) ?-
+	printf(S, "%w", [Text]).
 ascii_print_ref(S, _Lib, index(N, _System, _Group, _File)) ?-
 	printf(S, "%w", [N]).
 ascii_print_ref(S, _Lib, library(_System,Group)) ?-

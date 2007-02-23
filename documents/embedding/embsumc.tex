@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: embsumc.tex,v 1.1 2006/09/23 01:49:03 snovello Exp $
+% $Id: embsumc.tex,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
 %
 
 \chapter{Summary of C Interface Functions}
@@ -271,8 +271,9 @@ Interfaces to some basic operations on {\eclipse} Data.
 \section{Initialising and Shutting Down the {\eclipse} Subsystem}
 These are the functions needed to embed {\eclipse} into a C main program.
 \begin{description}
-\item[int		ec_set_option_int(int, int)]\ \\
+\item[int		ec_set_option_long(int, long)]\ \\
 	Set the value of a numerical option (see appendix \ref{chapecoptions}).
+        The numerical value can be of type long.
 
 \item[int		ec_set_option_ptr(int, char *)]\ \\
 	Set the value of a string-valued option (see appendix \ref{chapecoptions}).

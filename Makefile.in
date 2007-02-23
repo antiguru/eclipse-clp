@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.2 2006/10/13 00:41:27 jschimpf Exp $
+# $Id: Makefile.in,v 1.3 2007/02/23 15:28:28 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -87,11 +87,11 @@ make_mercury:		make_bin
 
 make_internal_doc:	make_bin
 	@echo ======== $@ ========
-	( cd $(top_srcdir)/sepia/$ARCH ; make pretty )
+	( cd $(top_srcdir)/sepia/$(ARCH) ; make pretty )
 	( cd $(top_srcdir)/icparc_solvers ; make -f Makefile.$(ARCH) pretty )
 	( cd $(top_srcdir)/ecrc_solvers ; make -f Makefile.$(ARCH) pretty )
 	( cd $(top_srcdir)/pt_libraries ; make -f Makefile.$(ARCH) pretty )
-	( cd $(top_srcdir)/documents/internal ; INSTALL )
+	( cd $(top_srcdir)/documents/internal ; ./INSTALL )
 
 
 
