@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: umsdebug.tex,v 1.1 2006/09/23 01:50:42 snovello Exp $
+% $Id: umsdebug.tex,v 1.2 2007/02/24 02:51:54 kish_shen Exp $
 %
 
 \chapter{Debugging}
@@ -946,6 +946,45 @@ If given at a trace line, the command displays the source code of the
 current predicate.
 If the predicate is not written in Prolog, or has not been compiled from
 a file, or the source file is inaccessible, no information can be displayed.
+
+\cmd{w}{write source context for current goal}
+Lists the source lines around the current goal displayed by the trace line,
+showing the context of the goal. For example:  
+
+\begin{quote}\begin{verbatim}
+  (230) 4 CALL  check_word(what, _5824)   %> write source lines
+Source file: /homes/kish/EclipseTests/Chatq/newtop
+  241  :- mode check_words(+,-).
+  242  
+  243  check_words([],[]).
+  244  check_words([Word|Words],[RevWord|RevWords]) :-
+  245>    check_word(Word,RevWord),
+  245     check_words(Words,RevWords).
+  246  
+  247  :- mode check_word(+,-).
+  248  
+   %> 
+\end{verbatim}\end{quote}
+
+The listing shows the line numbers for the source lines, with a \verb'>'
+marking the line with the current goal. Note it is the actual body goal
+that is shown, rather than the predicate definition as in the `.' command.
+An optional numeric argument can be given before the command, specifying
+the number of lines surrounding (i.e. before and after) the current goal
+that should be listed:
+
+\begin{quote}\begin{verbatim}
+    %> 2write source lines
+Source file: /homes/kish/EclipseTests/Chatq/newtop
+  243  check_words([],[]).
+  244  check_words([Word|Words],[RevWord|RevWords]) :-
+  245>    check_word(Word,RevWord),
+  245     check_words(Words,RevWords).
+  246  
+   %> 
+\end{verbatim}\end{quote}
+
+Source is only shown if the code was compiled with source tracing enabled.
 
 \cmd{h}{help}
 Print a summary of the debugger commands.

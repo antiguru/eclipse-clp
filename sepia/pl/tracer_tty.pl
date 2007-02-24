@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.1 2006/09/23 01:55:39 snovello Exp $
+% Version:	$Id: tracer_tty.pl,v 1.2 2007/02/24 02:48:33 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.1 2006/09/23 01:55:39 snovello Exp $
+% $Id: tracer_tty.pl,v 1.2 2007/02/24 02:48:33 kish_shen Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -93,7 +93,7 @@ trace_start_handler_tty :-
 	clear_cmd.
 
 trace_line_handler_tty(_, Current) :-
-	setval(exec_state, Current),
+        setval(exec_state, Current),
 	print_trace_line(Current),
 	interact(Current, Cont),
 	call(Cont).	% may cut_to/fail
@@ -104,7 +104,7 @@ trace_line_handler_tty(_, Current) :-
    reset_event_handler(252).
 
 print_trace_line(trace_line with [port:Port, frame:Frame]) :-
-	Frame = tf with [invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M],
+        Frame = tf with [invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M],
 	!,
         % print priority only if not the normal 12
         (Prio == 12 -> PrioS = "" ; concat_string([<,Prio,>], PrioS)),
@@ -390,6 +390,21 @@ do_tracer_command(0'v, Current, _N, Cont) :- !,
 	suspend(monitor_term(I, Term, Module, Susp), 1, Term->constrained, Susp),
 	interact(Current, Cont).
 
+do_tracer_command(0'w, Current, N0, Cont) :- !,
+        writeln(debug_output, "write source lines"),
+        (N0 == 0 -> N = 4 ; N = N0), % 4 is default
+        Current = trace_line with frame:(tf with [path:File,from:Pos]),
+        ( File \== '' ->
+            ( write_n_lines_around_current(File, Pos, N) ->
+                true
+            ;
+                printf(debug_output, "Unable to find source lines in %w.%n",
+                   [File])
+            )
+        ;
+            writeln(debug_output, "No source information.")
+        ),
+        interact(Current, Cont).
 do_tracer_command(0'z, Current, _N, true) :- !,
 	get_goal_stack(Current, ThisPort, _),
 	printf(debug_output, "zap to port: [%w] %b", [~(ThisPort)]),
@@ -556,6 +571,7 @@ Print data:\n\
        G	print ancestors (call stack)\n\
        u[N]	print scheduled goals [of priority N]\n\
        .	print predicate source or structure definition\n\
+    [N]w        print +/-N surrounding source lines for current goal\n\
 \n\
 Navigate/inspect:\n\
        g   	goto ancestor goal (caller)\n\
@@ -898,6 +914,58 @@ print_one_position(Pos, T, Mod) :-
 	; printf(" %w", [Pos])
         ).
 
+
+%----------------------------------------------------------------------
+% Print source
+%----------------------------------------------------------------------
+
+write_n_lines_around_current(File, Pos, N) :-
+        get_file_info(File, readable, on),
+        open(File, read, S),
+        printf(debug_output, "Source file: %w%n", [File]),
+        (get_line_starts(S, Pos, 1, CurrentLN, [0], Starts) ->
+            N0 is N + 1, % Starts includes line for current goal
+            get_nth(N0, Starts, LastStart, LastN),
+            seek(S, LastStart),
+            FirstLN is CurrentLN - N0 + LastN,
+            (for(I,FirstLN,CurrentLN-1),param(S) do
+                read_string(S, end_of_line, _, Line),
+                printf(debug_output, "%5d  %w%n", [I, Line])
+            ),
+            read_string(S, end_of_line, _, CurrentLine),
+            printf(debug_output, "%5d> %w%n", [CurrentLN, CurrentLine]),
+            NextLN is CurrentLN + 1,
+            LastLN is CurrentLN + N,
+            (fromto(CurrentLN, LN1,LN2, LastLN), param(S,LastLN) do
+                read_string(S, end_of_line, _, Line),
+                printf(debug_output, "%5d  %w%n", [LN1,Line]),
+                (at_eof(S) -> LN2 = LastLN ; LN2 is LN1+1)
+            ),
+            close(S)
+        ;
+            close(S),
+            fail
+        ).
+
+get_nth(M, [Start0], Start, Last) :- !, % reach start of file
+        Start = Start0, Last = M.
+get_nth(1, [Start0|_], Start, Last) :- !, 
+        Start = Start0, Last = 1.
+get_nth(N, [_|Starts], Start, Last) :-  
+        N1 is N - 1,
+        get_nth(N1, Starts, Start, Last).
+
+get_line_starts(S, Pos, LN0, LN,  Starts0, Starts1) :-
+        read_string(S, end_of_line, _, _),
+        at(S, Start),
+        ( Pos < Start ->
+            Starts1 = Starts0,
+            LN = LN0
+        ;
+            \+ at_eof(S), % fail if Pos pass eof
+            LN1 is LN0 + 1,
+            get_line_starts(S, Pos, LN1, LN, [Start|Starts0], Starts1)
+        ).
 
 %----------------------------------------------------------------------
 % Changing output mode
