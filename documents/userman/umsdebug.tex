@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: umsdebug.tex,v 1.2 2007/02/24 02:51:54 kish_shen Exp $
+% $Id: umsdebug.tex,v 1.3 2007/02/24 05:07:54 kish_shen Exp $
 %
 
 \chapter{Debugging}
@@ -953,7 +953,7 @@ showing the context of the goal. For example:
 
 \begin{quote}\begin{verbatim}
   (230) 4 CALL  check_word(what, _5824)   %> write source lines
-Source file: /homes/kish/EclipseTests/Chatq/newtop
+Source file: /homes/user/EclipseTests/Chatq/newtop
   241  :- mode check_words(+,-).
   242  
   243  check_words([],[]).
@@ -975,7 +975,7 @@ that should be listed:
 
 \begin{quote}\begin{verbatim}
     %> 2write source lines
-Source file: /homes/kish/EclipseTests/Chatq/newtop
+Source file: /homes/user/EclipseTests/Chatq/newtop
   243  check_words([],[]).
   244  check_words([Word|Words],[RevWord|RevWords]) :-
   245>    check_word(Word,RevWord),
