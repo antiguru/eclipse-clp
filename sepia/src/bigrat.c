@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.3 2007/02/27 16:06:54 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -145,7 +145,7 @@ typedef __int64 long_long;
 	(pbig)->tag.kernel ^= BIGSIGN;
 
 #define Make_Big(pw, pbig)				\
-	(pw)->val.ptr = (pbig);				\
+        (pw)->val.ptr = (pbig);				\
 	(pw)->tag.kernel = TBIG;
         
 #define Make_Rat(pw, prat)				\
@@ -1422,6 +1422,25 @@ _big_gcd(value v1, value v2, pword *pres)
 }
 
 static int
+_big_gcd_ext(value v1, value v2, pword *ps, pword *pt, pword *pg)
+{
+  MP_INT a,b,g,s,t;
+  mpz_init(&g);
+  mpz_init(&s);
+  mpz_init(&t);
+  Big_To_Mpi(v1.ptr, &a);
+  Big_To_Mpi(v2.ptr, &b);
+  mpz_gcdext(&g, &s, &t, &a, &b);
+
+  Pw_From_Mpi(ps, &s);    
+  Pw_From_Mpi(pt, &t);
+  Pw_From_Mpi(pg, &g);
+  
+  Succeed_;
+}
+
+  
+static int
 _big_lcm(value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
@@ -1886,6 +1905,7 @@ bigrat_init(void)
     tag_desc[TBIG].arith_op[ARITH_TOCLONGLONG] = _big_toclonglong;
     tag_desc[TBIG].arith_op[ARITH_NICERAT] = _big_nicerat;
     tag_desc[TBIG].arith_op[ARITH_GCD] = _big_gcd;
+    tag_desc[TBIG].arith_op[ARITH_GCD_EXT] = _big_gcd_ext;
     tag_desc[TBIG].arith_op[ARITH_LCM] = _big_lcm;
     tag_desc[TBIG].arith_op[ARITH_POWM] = _big_powm;
     tag_desc[TBIG].arith_op[ARITH_NEXT] = _big_next;

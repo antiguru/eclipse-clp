@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.3 2007/02/27 16:06:54 jschimpf Exp $
  */
 
 /*
@@ -544,6 +544,33 @@ static int
 p_gcd(value v1, type t1, value v2, type t2, value v, type t)
 {
     return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_GCD);
+}
+
+static int
+p_gcd_ext(value v1, type t1, value v2, type t2, value s, type ts, value t, type tt, value g, type tg)
+{
+    pword res1,res2,res3;
+    int err;
+    Prepare_Requests;
+    if (IsRef(t1)) { Bip_Error(PDELAY_1) }
+    if (IsRef(t2)) { Bip_Error(PDELAY_2) }
+    Check_Integer_Or_Bignum(t1)
+    Check_Integer_Or_Bignum(t2)
+    Check_Output_Integer_Or_Bignum(ts)
+    Check_Output_Integer_Or_Bignum(tt)
+    Check_Output_Integer_Or_Bignum(tg)
+    /* we don't have a TINT implementation, always compute via bignums */
+    err = tag_desc[t1.kernel].coerce_to[TBIG](v1, &v1);
+    if (err != PSUCCEED) return(err);
+    err = tag_desc[t2.kernel].coerce_to[TBIG](v2, &v2);
+    if (err != PSUCCEED) return(err);
+    err = tag_desc[TBIG].arith_op[ARITH_GCD_EXT](v1, v2, &res1, &res2, &res3);
+    if (err != PSUCCEED) return err;
+    Kill_DE;	/* in case it's a demon */
+    Request_Unify_Pw(s, ts, res1.val, res1.tag);
+    Request_Unify_Pw(t, tt, res2.val, res2.tag);
+    Request_Unify_Pw(g, tg, res3.val, res3.tag);
+    Return_Unify
 }
 
 static int
@@ -1853,6 +1880,7 @@ bip_arith_init(int flags)
     (void) built_in(in_dict("min", 3),	p_min,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
     (void) built_in(in_dict("max", 3),	p_max,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
     (void) built_in(in_dict("gcd", 3),	p_gcd,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
+    (void) built_in(in_dict("gcd", 5),	p_gcd_ext,	B_UNSAFE|U_GROUND|PROC_DEMON);
     (void) built_in(in_dict("lcm", 3),	p_lcm,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
     (void) built_in(in_dict("setbit", 3), p_setbit, B_UNSAFE|U_SIMPLE);
     (void) built_in(in_dict("getbit", 3), p_getbit, B_UNSAFE|U_SIMPLE);

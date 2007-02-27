@@ -2199,7 +2199,43 @@ Error:
       gcd(1.0, 2, 3.0).         (Error 5).
       gcd(4 + 2, 2, 12).        (Error 24).
 ",
-	see_also:[lcm/3, (is) / 2]]).
+	see_also:[gcd/5, lcm/3, (is) / 2]]).
+
+:- comment(gcd / 5, [
+	summary:"Unifies GCD with the Greatest Common Divisor of
+	Number1 and Number2, and gives appropriate coefficients U and
+	V for the corresponding Bezout equation",
+
+	amode:(gcd(+,+,-,-,-) is det),
+	desc:html("
+   The Greatest Common Divisor operation is only defined on integer arguments.
+<P>
+   In coroutining mode, if Number1 or Number2 are uninstantiated, the call
+   is delayed until these variables are instantiated.
+<P>
+   The Bezout equation is Number1*U + Number2*V = GCD.  These
+   coefficients are calculated by an extended version of Euclid's
+   algorithm.
+
+<P>
+"),
+	args:["Number1" : "Integer.", "Number2" : "Integer.",
+		"U" : "A variable of integer.","V" : "A variable or integer.",
+		"GCD" : "A variable or integer."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	eg:"
+Success:
+      gcd(9, 15, 2, -1, 3).
+      gcd(-9, 15, -2, -1, 3).
+      gcd(2358352782,97895234896224,U,V,G).  ( gives U = 2130001290117, V = -51312962, G = 6 )
+
+Error:
+      gcd(A, 2, U, V, 6).             (Error 4).
+      gcd(1, 2, U, V, 3.0).           (Error 5).
+      gcd(1.0, 2, U, V, 3.0).         (Error 5).
+      gcd(4 + 2, 2, U, V, 12).        (Error 24).
+",
+	see_also:[gcd/3, lcm/3, (is) / 2]]).
 
 :- comment(lcm / 3, [
 	summary:"Unifies Results with the Least Common Multiple of Number1 and Number2",
@@ -2233,7 +2269,7 @@ Error:
       lcm(1.0, 2, 3.0).         (Error 5).
       lcm(4 + 2, 2, 12).        (Error 24).
 ",
-	see_also:[gcd/3, (is) / 2]]).
+	see_also:[gcd/3,gcd/5, (is) / 2]]).
 
 :- comment((=\=) / 2, [
 	summary:"Succeed if the value of Expr1 is not equal to the value of Expr2.

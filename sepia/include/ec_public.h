@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_public.h,v 1.1 2006/09/23 01:55:01 snovello Exp $
+ * $Id: ec_public.h,v 1.2 2007/02/27 16:05:39 jschimpf Exp $
  *
  * Macro definitions needed for the ECLiPSe embedding interface.
  *
@@ -129,7 +129,7 @@ PROBLEM: Cannot deal with word size SIZEOF_WORD.
 
 #define MAXARITY		256	/* Size of argument register array */
 #define NTYPES			14	/* Number of types */
-#define ARITH_OPERATIONS	52	/* Number of arithmetic operations */
+#define ARITH_OPERATIONS	53	/* Number of arithmetic operations */
 
 
 /*

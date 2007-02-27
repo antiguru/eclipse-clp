@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.3 2007/02/10 23:59:05 kish_shen Exp $
+ * $Id: sepia.h,v 1.4 2007/02/27 16:05:39 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1447,8 +1447,9 @@
 #define ARITH_ATAN2		49
 #define ARITH_TRUNCATE		50
 #define ARITH_INT		51
+#define ARITH_GCD_EXT		52
 /* Keep this definition in ec_public.h up-to-date: */
-/* #define ARITH_OPERATIONS	52 */
+/* #define ARITH_OPERATIONS	53 */
 
 
 /****************************************************************/
