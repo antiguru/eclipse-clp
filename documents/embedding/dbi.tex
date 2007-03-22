@@ -20,8 +20,11 @@
 % 
 % END LICENSE BLOCK
 
+\chapter{DBI: \eclipse\ SQL Database Interface}
+\label{chapdbi}
 %HEVEA\cutdef[1]{section}
 \index{database, interface to|(}
+\index{MySQL, interface to|(}
 %--------------------------------------------------------------------
 \section{Introduction}
 %--------------------------------------------------------------------
@@ -104,22 +107,24 @@ Your environment must be set up so that you can connect to a
 database supported by lib(dbi). Normally a database administrator will 
 have written a script to do this automatically. 
 
-MySQL specific note: to successfully load the dbi library with MySQL, the MySQL
-client dynamic load library (libmysqlclient.so in Unix systems, libmysql.dll in
-Windows systems) needs to be loaded in as well. This file is
+MySQL specific note: on some platforms, the MySQL client library is
+provided as a dynamic load library (libmysqlclient.so in most Unix systems,
+libmysql.dll in Windows systems). This file is
 not provided with {\eclipse} distribution as it is part of the MySQL
-system, and covered by its own license. MySQL can be downloaded from 
+system, and is covered by its own license. MySQL can be downloaded from 
 \ahrefurl{http://dev.mysql.com/downloads}.
-Normally, the person who installed your {\eclipse} system should also make
-sure that {\eclipse} can find this client library file using the normal way
-that the operating system can find dynamic load libraries, e.g.\ by putting 
-the file in a standard system
-library location, or in the {\eclipse} dynamic library directory for the
-platform in your {\eclipse} directory. On Unix systems, it is also possible
-for the user to set an environment variable (usually {\tt LD_LIBRARY_PATH})
-to point to where the dynamic library is.
-
-
+To successfully load the dbi library in such cases, you must have a version
+of this library file that match the one that your copy of {\eclipse} was
+compiled with, and in addition, {\eclipse} must be able to find this
+library file when the dbi library is loaded.  Normally, the person who
+installed your {\eclipse} system should also make sure that {\eclipse} can
+find this client library file using the normal way that the operating
+system can find dynamic load libraries, e.g.\ by putting the file in a
+standard system library location, or in the {\eclipse} dynamic library
+directory for the platform in your {\eclipse} directory. On Unix systems,
+it is also possible for the user to set an environment variable (usually
+{\tt LD_LIBRARY_PATH}) to point to where the dynamic library is.
+ 
 %--------------------------------------------------------------------
 \section{Data Templates}
 %--------------------------------------------------------------------
@@ -210,8 +215,16 @@ general the following should hold for {\eclipse\/} types:
   for example, non-binary string types (such as VARCHAR) does not accept
   generic binary strings, and SQL data and time types must be in the
   correct syntax -- consult the database manual for the syntax for these types.
-\item[Integers and Floats] are converted to C ints and doubles, which are
-  then converted to the appropriate SQL numeric types.
+\item[Integers and Floats] are converted to C integers and doubles, which are
+  then converted to the specified SQL numeric types. The numbers are passed
+  to the database's C API at the maximum precision and size supported by
+  the database's API. Any integers outside the range representable by the
+   C API's integer type will raise an error. Note that while the number
+  passed to the database is at maximum precisiion and size, the
+  corresponding SQL numberic type specified by the SQL statement that
+  receives the number may be smaller
+  (e.g. SMALLINT). The exact behaviour in this case
+  depends on the database.
 \item[General terms] are converted to {\eclipse}'s internal dbformat
  - a flat binary representation of the term, and then to an appropriate SQL
  binary type. This 
@@ -260,6 +273,20 @@ tuple as well.
 emp(1234,"name", Rules, job)
 emp(1234,"10",rules(4000),'10')
 \end{verbatim}
+
+The size information is used to define the minimum size of the buffer used
+to pass data between ECLiPSe and the database. Depending on the database
+and the situation (input/output, prepared/direct statements), such an 
+intermediate buffer may not be used; in such cases, the buffer size will be
+ignored. Otherwise, if the data is too big to fit into the buffer, an error
+will be raised. 
+
+The data in the buffer is passed to/from the database, which may have its own
+size specification for the data, which is independent of the size
+information specified in the template. In the case of sending data to the
+database, and the data is too large for the database, the exact behaviour
+is dependent on the database. In the case of receiving the data from the
+database, and the data is too large for the buffer, an error will be raised.
 
 %--------------------------------------------------------------------
 \section{Built-Ins}
@@ -643,5 +670,5 @@ This cursor can be re-used to check any number of accounts.
 
 
 \index{database, interface to|)}
-
+\index{MySQL, interface to|)}
 %HEVEA\cutend
