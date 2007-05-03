@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: notify_ports.ecl,v 1.1 2006/09/23 01:55:30 snovello Exp $
+% Version:	$Id: notify_ports.ecl,v 1.2 2007/05/03 21:32:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(notify_ports).
@@ -30,7 +30,7 @@
 
 :- comment(summary, "One-to-many and many-to-many notification ports").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:55:30 $").
+:- comment(date, "$Date: 2007/05/03 21:32:43 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- comment(desc, html("<P>
@@ -525,7 +525,7 @@ open_sender(SendPort) :-
 
 :- export open_sender/2.
 open_sender(Pos, Attr) :-
-	arg(Pos, Attr, []),		% dirty trick to make sure that the
+%	arg(Pos, Attr, []),		% dirty trick to make sure that the
 	setarg(Pos, Attr, _Tail).	% variable is outside the structure
 
 :- export open_tagging_sender/1.
@@ -577,19 +577,20 @@ send_tagged_notification(Pos, Attr, Event) :-
 
 :- export open_receiver/2.
 open_receiver(SendPort, ReceivePort) :-
-	ReceivePort = rec(_),
+	ReceivePort = rec([]),
 	open_receiver(1, SendPort, 1, ReceivePort).
 
 :- export open_receiver/4.
 open_receiver(SendPos, SendStruct, ReceivePos, ReceiveStruct) :-
 	arg(SendPos, SendStruct, Events),
-	arg(ReceivePos, ReceiveStruct, Events).
+%	arg(ReceivePos, ReceiveStruct, []),	% dirty trick to make sure that the
+	setarg(ReceivePos, ReceiveStruct, Events). % variable is outside the structure
 
 % ??? can we close a tagged receiver once all associated senders are closed?
 % Use a pseudo-messsage for each sender-close and keep a counter in the rec!
 :- export open_tagged_receiver/3.
 open_tagged_receiver(Tag, SendPort, ReceivePort) :-
-	ReceivePort = rec(_),
+	ReceivePort = rec([]),
 	open_tagged_receiver(Tag, SendPort, 1, ReceivePort).
 
     open_tagged_receiver(Tag, SendPort, ReceivePos, ReceiveStruct) :-
