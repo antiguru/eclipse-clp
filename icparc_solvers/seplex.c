@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.4 2007/02/23 15:28:33 jschimpf Exp $
+ * Version:	$Id: seplex.c,v 1.5 2007/05/04 14:05:13 kish_shen Exp $
  *
  */
 
@@ -608,6 +608,8 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define NONLICENCED /* not license based */
 # define SOLVER_MAT_BASE 0
 # define SOLVER_MAT_OFFSET 1
+
+#define HAS_QUADRATIC /* CLP has quadratic */
 
 # define CPX_AT_LOWER                   3
 # define CPX_BASIC                      1
@@ -4259,6 +4261,7 @@ p_cpx_loadprob(value vlp, type tlp)
 	    if (err != 0)
 	    { Bip_Error(EC_EXTERNAL_ERROR); }
 	}
+#  ifdef CPLEX
 	for (i=0; i<lpd->cb_cnt; ++i)
 	{
 	    Log3(CPXchgqpcoef(cpx_env, lpd->lp, %d, %d, %f),
@@ -4269,6 +4272,10 @@ p_cpx_loadprob(value vlp, type tlp)
 		{ Bip_Error(EC_EXTERNAL_ERROR); }
 	}
 	lpd->cb_cnt = 0;
+#  elif defined(COIN)
+	coin_set_qobj(lpd->lp, lpd->mac, lpd->cb_cnt, lpd->cb_index, lpd->cb_index2, lpd->cb_value);
+#  endif
+
 # else /* !HAS_QUADRATIC */
 	Fprintf(Current_Error, "Eplex error: Quadratic problems not supported for this solver!\n");
 	ec_flush(Current_Error);
@@ -5764,7 +5771,8 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 #ifdef COIN
 	Log2({lpd->prob_type = %d; lpd->presolve = %d;}, lpd->prob_type, lpd->presolve);
 	Log4(coin_solve_problem(lpd, %d, %d, %d, %d), meth, auxmeth, node_meth, node_auxmeth);
-	coin_solve_problem(lpd, meth, auxmeth, node_meth, node_auxmeth);
+	if (coin_solve_problem(lpd, meth, auxmeth, node_meth, node_auxmeth) == -1)
+	    Bip_Error(UNIMPLEMENTED)
 #endif /* COIN */
 
 	/*********************************************************************

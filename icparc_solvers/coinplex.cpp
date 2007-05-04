@@ -69,7 +69,6 @@
 #include "ClpCholeskyUfl.hpp"
 #endif
 #include "ClpCholeskyDense.hpp"
-#include "ClpCholeskyWssmp.hpp"
 typedef OsiClpSolverInterface OsiXxxSolverInterface;
 
 #endif
@@ -514,14 +513,16 @@ int coin_solveLinear(lp_desc* lpd, int meth, int auxmeth)
     {
     case METHOD_BAR:
 	{
-	ClpModel* clpmodel = lpd->lp->Solver->getModelPtr();
-	lpd->lp->interiormodel = new ClpInterior;
-	lpd->lp->interiormodel->borrowModel(*clpmodel);
 #ifdef UFL_BARRIER
-	ClpCholeskyUfl* cholesky = new ClpCholeskyUfl();
+	ClpCholeskyUfl* cholesky = new ClpCholeskyUfl(-1);
 #else
 	ClpCholeskyBase* cholesky = new ClpCholeskyDense();
 #endif
+	ClpModel* clpmodel = lpd->lp->Solver->getModelPtr();
+	lpd->lp->interiormodel = new ClpInterior;
+	lpd->lp->interiormodel->borrowModel(*clpmodel);
+	// Quadratic QP aparently needs a KKT factorization
+	if (lpd->prob_type == PROBLEM_QP) cholesky->setKKT(true);
 	lpd->lp->interiormodel->setCholesky(cholesky);
 	lpd->lp->interiormodel->primalDual();
 	// Barrier done
@@ -551,6 +552,7 @@ int coin_solveLinear(lp_desc* lpd, int meth, int auxmeth)
 	}
 	lpd->lp->interiormodel->returnModel(*clpmodel);
 	}
+
 	break;
     case METHOD_PRIMAL:
     case METHOD_DUAL:
@@ -1042,6 +1044,53 @@ int coin_get_order(COINprob* lp, int cnt, int* idxs, int* prio, int* direction)
 }
 
 extern "C"
+int coin_set_qobj(COINprob* lp, int mac, int cb_cnt, int* cb_index,
+		  int* cb_index2, double* cb_value)
+{
+#ifdef COIN_USE_CLP
+    if (cb_cnt > 0)
+    {
+	CoinBigIndex* starts = new CoinBigIndex[mac+1];
+	int* colidx = new int[cb_cnt];
+	double* coeffs = new double[cb_cnt];
+	int cur_col = 0;
+	int cur_start = 0;
+
+	for (int i=0; i<cb_cnt; i++)
+	{
+	    // cb_index are sorted in ascending order
+	    colidx[i] = cb_index2[i];
+	    coeffs[i] = cb_value[i];
+	    if (cb_index[i] > cur_col)
+	    {// starting coeffs for new col
+	        for (int s=cur_col; s < cb_index[i]; s++) 
+		    starts[s] = cur_start;
+		cur_start = i;
+		cur_col = cb_index[i];
+	    }
+	}
+	// no coeffs for rest of cols, fill the starts in
+	starts[cur_col] = cur_start; // last col with coeffs
+	for (int s=cur_col+1; s <= mac; s++) starts[s] = cb_cnt;
+
+	lp->Solver->getModelPtr()->loadQuadraticObjective(mac, starts, colidx, coeffs);
+
+	delete [] starts;
+	delete [] colidx;
+	delete [] coeffs;
+
+    }
+
+    return 0;
+
+#else
+
+    return -1;
+
+#endif
+}
+
+extern "C"
 int coin_chgqobj(COINprob* lp, int i, int j, double value)
 {
     return -1;
@@ -1449,8 +1498,9 @@ int coin_solve_problem(lp_desc* lpd,
 	break;
     case PROBLEM_LP:
     case PROBLEM_RELAXEDL:
-    // case PROBLEM_RELAXEDQ:
 #ifdef COIN_USE_CLP
+    case PROBLEM_QP:
+    // case PROBLEM_RELAXEDQ:
 	//	lpd->lp->Solver->getModelPtr()->setPerturbation(50);
 	if (lpd->lp->timeout > 0) 
 	    lpd->lp->Solver->getModelPtr()->setMaximumSeconds(lpd->lp->timeout);
@@ -1461,6 +1511,7 @@ int coin_solve_problem(lp_desc* lpd,
 	break;
 
     default:
+	eclipse_out(ErrType, "Eplex Error: cannot solve problem type with this solver.\n"); 
 	return -1;
 	break;
     }

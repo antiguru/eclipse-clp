@@ -286,6 +286,8 @@ int coin_getdblparam(COINprob* lp, int key, double* value);
 int coin_getintparam(COINprob* lp, int key, int* value);
 int coin_setdblparam(COINprob* lp, int key, double value);
 int coin_setintparam(COINprob* lp, int key, int value);
+int coin_set_qobj(COINprob* lp, int mac, int cb_cnt, int* cb_index, int*
+		  cb_index2, double* cb_value); 
 int coin_get_solver_dblparam(COINprob* lp, int key, double* value);
 int coin_get_solver_intparam(COINprob* lp, int key, int* value);
 int coin_set_solver_dblparam(COINprob* lp, int key, double value);

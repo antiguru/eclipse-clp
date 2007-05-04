@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.1 2006/09/23 01:53:30 snovello Exp $
+% Version:	$Id: eplex_s.ecl,v 1.2 2007/05/04 14:05:12 kish_shen Exp $
 %
 %
 
@@ -4243,10 +4243,21 @@ optimizer_timeout_value_to_seconds(Timeout, Seconds) :-
 
 
 :- mode set_qobj_coeffs(+,++).
-set_qobj_coeffs(_CPH, []).
-set_qobj_coeffs(CPH, [q(I,J,C)|CXs]) :-
+set_qobj_coeffs(CPH, QObjCoeffs0) :-
+        (lp_get(optimizer, osi) ->
+            % sort for OSI, as quadratic terms need to be in sparse matrix form
+            sort(1, =<, QObjCoeffs0, QObjCoeffs)
+        ;
+            QObjCoeffs0 = QObjCoeffs
+        ),
+        set_qobj_coeffs_r(CPH, QObjCoeffs).
+
+
+:- mode set_qobj_coeffs(+,++).
+set_qobj_coeffs_r(_CPH, []).
+set_qobj_coeffs_r(CPH, [q(I,J,C)|CXs]) :-
 	cplex_set_qobj_coeff(CPH, I, J, C),
-	set_qobj_coeffs(CPH, CXs).
+	set_qobj_coeffs_r(CPH, CXs).
 
 :- mode obj_coeffs(+,+,-).
 obj_coeffs([], _,[]).
