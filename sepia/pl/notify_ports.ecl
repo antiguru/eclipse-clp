@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: notify_ports.ecl,v 1.2 2007/05/03 21:32:43 jschimpf Exp $
+% Version:	$Id: notify_ports.ecl,v 1.3 2007/05/04 12:17:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(notify_ports).
@@ -30,7 +30,7 @@
 
 :- comment(summary, "One-to-many and many-to-many notification ports").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/05/03 21:32:43 $").
+:- comment(date, "$Date: 2007/05/04 12:17:59 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- comment(desc, html("<P>
@@ -525,8 +525,10 @@ open_sender(SendPort) :-
 
 :- export open_sender/2.
 open_sender(Pos, Attr) :-
-%	arg(Pos, Attr, []),		% dirty trick to make sure that the
-	setarg(Pos, Attr, _Tail).	% variable is outside the structure
+	% NOTE: here and in other marked locations, we use setarg/3 instead
+	% of arg/3 just to make sure that the variable (that the argument is
+	% being set to) is not physically allocated inside the structure!
+	setarg(Pos, Attr, _Tail).	% see NOTE
 
 :- export open_tagging_sender/1.
 open_tagging_sender(SendPort) :-
@@ -583,36 +585,36 @@ open_receiver(SendPort, ReceivePort) :-
 :- export open_receiver/4.
 open_receiver(SendPos, SendStruct, ReceivePos, ReceiveStruct) :-
 	arg(SendPos, SendStruct, Events),
-%	arg(ReceivePos, ReceiveStruct, []),	% dirty trick to make sure that the
-	setarg(ReceivePos, ReceiveStruct, Events). % variable is outside the structure
+	setarg(ReceivePos, ReceiveStruct, Events).		% see NOTE
 
 % ??? can we close a tagged receiver once all associated senders are closed?
 % Use a pseudo-messsage for each sender-close and keep a counter in the rec!
 :- export open_tagged_receiver/3.
 open_tagged_receiver(Tag, SendPort, ReceivePort) :-
-	ReceivePort = rec([]),
-	open_tagged_receiver(Tag, SendPort, 1, ReceivePort).
-
-    open_tagged_receiver(Tag, SendPort, ReceivePos, ReceiveStruct) :-
 	SendPort = tagging_send(List),
 	!,
-	TaggedSend = send(_,Tag),
+	TaggedSend = send([],Tag),
 	open_sender(1, TaggedSend),
-	open_receiver(1, TaggedSend, ReceivePos, ReceiveStruct),
+	( var(ReceivePort) ->
+	    open_receiver(TaggedSend, ReceivePort)
+	;
+	    arg(1, ReceivePort, Events),
+	    setarg(1, TaggedSend, Events)		% see NOTE
+	),
 	setarg(1, SendPort, [TaggedSend|List]).
-    open_tagged_receiver(_Tag, _SendPort, _ReceivePos, _ReceiveStruct) :-
+open_tagged_receiver(_Tag, _SendPort, _ReceivePort) :-
 	writeln("notify_ports: trying to open tagged receiver on normal send port"),
 	abort.
 
 
 :- export open_receiver_init/4.
 open_receiver_init(SendPort, InitialEvents, InitialTail, ReceivePort) :-
-	ReceivePort = rec(_),
+	ReceivePort = rec([]),
 	open_receiver_init(1, SendPort, InitialEvents, InitialTail, 1, ReceivePort).
 
 :- export open_receiver_init/6.
 open_receiver_init(SendPos, SendStruct, InitialEvents, InitialTail, ReceivePos, ReceiveStruct) :-
-	arg(ReceivePos, ReceiveStruct, InitialEvents),
+	setarg(ReceivePos, ReceiveStruct, InitialEvents),	% see NOTE
 	arg(SendPos, SendStruct, InitialTail).
 
 
