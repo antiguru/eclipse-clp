@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.4 2007/02/18 03:16:45 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.5 2007/05/09 14:55:12 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -2083,23 +2083,18 @@ proc tkecl:configure_tracer_buttons {state} {
 }
 
 
-proc tkecl:popup_goalmenu {w invoc depth prio x y} {
+proc tkecl:popup_goalmenu {w invoc depth prio greturn x y} {
     global tkecl
 
     if [winfo exists $w.gpopup] {
 	destroy $w.gpopup
     }
     set m [menu $w.gpopup -tearoff 0]
-    set rpc_result [ec_rpc_check [list : tracer_tcl \
-    		[list get_goal_info_by_invoc $invoc _ _ _ _ _ _ _]] (()(I_______))]
-    set greturn [lindex $rpc_result 2]
     set spec [lindex  $greturn 2]
     set tspec [lindex $greturn 3]
     set module [lindex $greturn 4]
     set lookup_module [lindex $greturn 5]
     set path_info [lindex $greturn 6]
-    set from [lindex $greturn 7]
-    set to [lindex $greturn 8]
 
     if {![string match unknown $spec] } {
 	$m add command -label "$tspec @ $module <$prio>" -state disabled
@@ -2115,16 +2110,9 @@ proc tkecl:popup_goalmenu {w invoc depth prio x y} {
 		[list tkecl:set_pred_flag $spec $lookup_module spy $spyval]
 	$m add command -label "Display source for this predicate" -command \
 		[list tkecl:set_and_display_source $spec $module]
-	set rpc_result [ec_rpc [list : tracer_tcl \
-				[list is_current_goal $invoc _]] (()(I_))] 
-	if {$rpc_result != "fail"} {
-	    set gstyle [lindex [lindex $rpc_result 2] 2]
-	} else {
-	    set gstyle ancestor_style
-	}
 	if {$path_info == "no"} {set gstate disabled} else {set gstate normal} 
 	$m add command -label "Display source context for this call" -command \
-	    "tkecl:update_source_debug $gstyle $from $to {$path_info}" -state $gstate
+	    "tkecl:show_source_context $invoc {$greturn}" -state $gstate
 	$m add command -label "Inspect this goal" -command \
 		"tkinspect:Inspect_term_init invoc($invoc)"
 	$m add command -label "Observe this goal" -command "tkecl:observe_goal $invoc"
@@ -2186,11 +2174,15 @@ proc tkecl:refresh_goal_stack {} {
 proc tkecl:set_goalpopup {depth invoc prio} {
 # print goal line in the stack display and set up the tag for it
     set ec_tracer .ec_tools.ec_tracer
+    set rpc_result [ec_rpc_check [list : tracer_tcl \
+    		[list get_goal_info_by_invoc $invoc _ _ _ _ _ _ _]] (()(I_______))]
+    set greturn [lindex $rpc_result 2]
     $ec_tracer.stack.text tag bind $invoc <Button-3> \
-	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio %X %Y; break"
+	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio {$greturn} %X %Y; break"
     $ec_tracer.stack.text tag bind $invoc <Control-Button-1> \
-	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio %X %Y; break"
+	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio {$greturn} %X %Y; break"
     $ec_tracer.stack.text tag bind $invoc <Double-Button-1> "tkinspect:Inspect_term_init invoc($invoc); break"
+    $ec_tracer.stack.text tag bind $invoc <Button-1> "tkecl:show_source_context $invoc {$greturn}; break"
 
     set stdepth [expr $depth + 1]
     $ec_tracer.stack.text tag add $invoc $stdepth.0 $stdepth.end
@@ -3335,6 +3327,26 @@ proc tkecl:handle_source_debug_print {stream {length {}}} {
     pack $ec_sourcetext -fill both -expand 1
 
 }
+
+proc tkecl:show_source_context {invoc greturn} {
+
+    set path_info [lindex $greturn 6]
+    set from [lindex $greturn 7]
+    set to [lindex $greturn 8]
+    # is_current_goal/2 must be execute when source is viewed to get 
+    # the current information
+    set rpc_result [ec_rpc [list : tracer_tcl \
+				[list is_current_goal $invoc _]] (()(I_))] 
+    if {$rpc_result != "fail"} {
+	set gstyle [lindex [lindex $rpc_result 2] 2]
+    } else {
+	set gstyle ancestor_style
+    }
+
+    # path_info in quotes because it may have spaces
+    tkecl:update_source_debug $gstyle $from $to "$path_info"
+}
+
 
 proc tkecl:update_source_debug {style from to fpath_info} {
     global tkecl
