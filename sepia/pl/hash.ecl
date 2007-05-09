@@ -26,7 +26,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Stefano Novello, IC-Parc
-% Version:	$Id: hash.ecl,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+% Version:	$Id: hash.ecl,v 1.3 2007/05/09 16:06:01 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -35,7 +35,7 @@
 :- comment(summary, "Hash table library").
 :- comment(author, "Stefano Novello, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2007/02/23 15:28:34 $").
+:- comment(date, "$Date: 2007/05/09 16:06:01 $").
 
 :- export(hash_create/1).
 :- export(hash_add/3).
@@ -57,7 +57,7 @@
 :- export hash_insert_suspension/3.
 :- export hash_terminate_suspensions/1.
 
-:- lib(notify_ports).
+%:- lib(notify_ports).	% autoload on demand
 
 :- local struct(hash_table(
     	size,		% size of table array
@@ -200,12 +200,12 @@ hash_insert_suspension(H, Susp, Receiver) :-
 	Receiver = rec(_),	% assumes knowledge of lib(notify_ports)!!!
 	( var(SuspList) ->
 	    init_suspension_list(change of hash_table, H),
-	    open_sender(changed of hash_table, H)
+	    notify_ports:open_sender(changed of hash_table, H)
 	;
 	    true
 	),
 	enter_suspension_list(change of hash_table, H, Susp),
-	open_receiver(changed of hash_table, H, 1, Receiver).
+	notify_ports:open_receiver(changed of hash_table, H, 1, Receiver).
 
 
 :- comment(hash_terminate_suspensions/1, [
@@ -224,7 +224,7 @@ hash_insert_suspension(H, Susp, Receiver) :-
 hash_terminate_suspensions(H) :-
 	H = hash_table{change:SuspList},
 	( var(SuspList) -> true ;
-	    close_sender(changed of hash_table, H),
+	    notify_ports:close_sender(changed of hash_table, H),
 	    schedule_suspensions(change of hash_table, H),
 	    setarg(change of hash_table, H, _),
 	    setarg(changed of hash_table, H, _),
@@ -233,7 +233,7 @@ hash_terminate_suspensions(H) :-
 
 
 notify(H, Message) :-
-	send_notification(changed of hash_table, H, Message) ->
+	notify_ports:send_notification(changed of hash_table, H, Message) ->
 	schedule_suspensions(change of hash_table, H),
 	wake.
 
