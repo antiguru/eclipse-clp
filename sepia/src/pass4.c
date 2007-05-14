@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: pass4.c,v 1.2 2007/02/22 01:28:11 jschimpf Exp $
+ * VERSION	$Id: pass4.c,v 1.3 2007/05/14 10:14:48 jschimpf Exp $
  */
 
 /*
@@ -1032,7 +1032,7 @@ _do_parallel(vmcode *rptr, vmcode *wptr, proc_desc *procedure)
 
 /*    Do_Direct_Opcode(Retry_par, wptr) */
 	Do_Direct_Opcode(Fail_clause, wptr)
-	Do_Direct_Word(2, wptr)
+	Do_Direct_Word(Esize(2), wptr)
 	Do_Direct_Opcode(Try_clause, wptr)
     Do_Direct_Word(table, wptr)
 
