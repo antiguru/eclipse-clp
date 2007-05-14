@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.4 2007/02/20 03:17:50 kish_shen Exp $
+# $Id: Makefile.in,v 1.5 2007/05/14 23:37:03 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -85,14 +85,14 @@ all:	$(OBJ_FILES)
 # EPLEX/OSI
 #----------------------------------------------------------------------
 
-COINARCHDIR = $(THIRDPARTY)/coin/$(ARCH)
+COINARCHDIR = @OSIDIR@/$(ARCH)
 COINOSILIBS = -lOsi -lCoinUtils
-COINCLPLIBS = -lOsiClp -lCgl -lClp
+COINCLPLIBS = -lOsiClp -lCgl -lClp @OSICLP_ADDLIB@
 
 $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
-	$(CXX) -DCOIN -DCOIN_USE_CLP $(CPPFLAGS) $(CFLAGS) -I$(COINARCHDIR)/include -c coinplex.cpp
+	$(CXX) -DCOIN -DCOIN_USE_CLP @OSICLP_ADDDEF@ $(CPPFLAGS) $(CFLAGS) -I$(COINARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(COINARCHDIR)/lib/CbcBranchUser.o $(COINARCHDIR)/lib/CbcCompareUser.o -L$(COINARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(COINARCHDIR)/lib/CbcBranchUser.o $(COINARCHDIR)/lib/CbcCompareUser.o -L$(COINARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS)  -lstdc++ $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	mv seosiclpcbc.$(OBJ_SUFFIX) $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX)
 
