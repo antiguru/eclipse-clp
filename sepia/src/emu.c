@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.6 2007/02/23 15:28:34 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.7 2007/05/14 10:11:37 jschimpf Exp $
  */
 
 /*
@@ -6608,10 +6608,6 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    if (err_code == PKEEP) {
 		err_code = PSUCCEED;
 	    } else {
-		TAGGED_WL = Invoc(pw1)->wl;
-		WP = Invoc(pw1)->wp;
-		WP_STAMP = Invoc(pw1)->wp_stamp;
-		Restore_Tg_Soft_Lim(Invoc(pw1)->tg_soft_lim);
 		if (err_code != PTHROW) {
 		    /* for PTHROW, this is done in I_Throw */
 		    Untrail_Variables(Invoc(pw1)->tt, i, pw2);
@@ -6619,6 +6615,8 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 		    TG = Invoc(pw1)->tg_before;
 		    LD = Invoc(pw1)->ld;
 		}
+		TAGGED_WL = Invoc(pw1)->wl;
+		Restore_Tg_Soft_Lim(Invoc(pw1)->tg_soft_lim);
 	    }
 	    E = Invoc(pw1)->e;
 	    EB = Invoc(pw1)->eb;
@@ -6637,6 +6635,8 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    g_emu_.nesting_level = Invoc(pw1)->nesting_level;
 	    g_emu_.global_variable = Invoc(pw1)->global_variable;
 
+	    WP = Invoc(pw1)->wp;
+	    WP_STAMP = Invoc(pw1)->wp_stamp;
 	    MU = Invoc(pw1)->mu;
 	    SV = Invoc(pw1)->sv;
 	    DE = Invoc(pw1)->de;
@@ -7182,7 +7182,6 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		    }
 		    scratch_pw.val.nint = tmp1;
 		    tmp1 = TINT;
-		    pw1 = pw2;
 		    goto _nis_no_deref_;	/* (pw1,scratch_pw) */
 		} else if (ISRef(tmp1)) { /* tag derefed arg 2 */
 		    err_code = PDELAY_1_2;
