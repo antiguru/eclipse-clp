@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.5 2007/02/23 15:28:30 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.6 2007/05/15 02:33:27 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1029,12 +1029,19 @@ AC_ARG_WITH([osi], [[  --with-osi[=versions]
     ]],
     [osi_versions_requested="$withval"], [osi_versions_requested=yes])
 
+OSIDIR="$ECLIPSETHIRDPARTY/coin"
+OSICLP_ADDLIB=""
+OSICLP_ADDDEF=""
 if test "$osi_versions_requested" != "no"; then
     if test "$osi_versions_requested" = "yes"; then
     	osi_versions_requested="clpcbc symclp"
     fi
+    ls -d $OSIDIR/$ARCH/lib/*amd* >/dev/null 2>/dev/null
+    if test $? -eq 0; then
+	OSICLP_ADDLIB="-lamd"
+	OSICLP_ADDDEF="-DUFL_BARRIER"
+    fi
     for version in $osi_versions_requested; do
-	OSIDIR="$ECLIPSETHIRDPARTY/coin"
 	ls -d $OSIDIR/$ARCH/lib/$version >/dev/null 2>/dev/null
 	if test $? -eq 0; then
 	    OSI_VERSIONS="$OSI_VERSIONS $version"
@@ -1422,6 +1429,9 @@ AC_SUBST(GMP_LIB)
 AC_SUBST(INSTALL_GMP)
 AC_SUBST(LOCK)
 AC_SUBST(OSI_VERSIONS)
+AC_SUBST(OSIDIR)
+AC_SUBST(OSICLP_ADDLIB)
+AC_SUBST(OSICLP_ADDDEF)
 AC_SUBST(CPLEX_VERSIONS)
 AC_SUBST(XPRESS_VERSIONS)
 AC_SUBST(ALL_WITH_JAVA)
