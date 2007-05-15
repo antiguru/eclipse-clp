@@ -1,4 +1,4 @@
-LIBRARY		IC
+LIBRARY		"ic.dll"
 DESCRIPTION	"ECLiPSe lib(ic) support"
 EXPORTS
 	p_ic_init		@1

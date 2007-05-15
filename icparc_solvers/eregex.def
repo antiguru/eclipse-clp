@@ -1,4 +1,4 @@
-LIBRARY		Regex
+LIBRARY		"eregex.dll"
 DESCRIPTION	"ECLiPSe regular expression library"
 EXPORTS
 	ec_regcomp			@1

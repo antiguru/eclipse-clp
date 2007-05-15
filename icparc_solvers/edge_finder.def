@@ -1,4 +1,4 @@
-LIBRARY		Edge_finder
+LIBRARY		"edge_finder.dll"
 DESCRIPTION	"ECLiPSe lib(edge_finder) support"
 EXPORTS
 	ec_init_ef		@1

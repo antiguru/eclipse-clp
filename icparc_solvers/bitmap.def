@@ -1,4 +1,4 @@
-LIBRARY		Bitmap
+LIBRARY		"bitmap.dll"
 DESCRIPTION	"ECLiPSe low-level bitmap library"
 EXPORTS
 	p_create_bitmap				@1

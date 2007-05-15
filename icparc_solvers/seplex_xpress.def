@@ -1,4 +1,4 @@
-LIBRARY		EplexSXpress
+LIBRARY		"seplex_xpress.dll"
 DESCRIPTION	"ECLiPSe CPLEX Interface"
 EXPORTS
 	p_cpx_init	@1
