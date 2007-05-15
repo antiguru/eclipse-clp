@@ -1,4 +1,4 @@
-LIBRARY		TKEXDR
+LIBRARY		"tkexdr.dll"
 DESCRIPTION	"Support for communicating between ECLiPSe and Tcl/Tk"
 EXPORTS
 	Tkexdr_Init		@1
