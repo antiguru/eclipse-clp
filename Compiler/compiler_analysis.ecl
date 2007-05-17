@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_analysis.ecl,v 1.1 2006/09/23 01:45:08 snovello Exp $
+% Version:	$Id: compiler_analysis.ecl,v 1.2 2007/05/17 23:59:44 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_analysis).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - dataflow analysis").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:45:08 $").
+:- comment(date, "$Date: 2007/05/17 23:59:44 $").
 
 :- lib(m_map).
 
@@ -48,7 +48,7 @@
     see_also:[print_goal_state/3],
     desc:ascii("
 	This takes the normalised source of a predicate and analyses its
-	determinism an dataflow. The result of the analysis is stored in
+	determinism and dataflow. The result of the analysis is stored in
 	the normalised source data structure itself (the state-fields of
 	every subgoal's struct(goal)).
 
@@ -162,7 +162,6 @@ mark_args_as(Domain, [Arg|Args], State0, State) :-
     mark_arg_as(_, _, State, State).
 
 
-
 %use_mode(--, _Arg, State, State).	% i.e. mark_arg_as(uninit,...)
 %use_mode(-, Arg, State0, State) :-
 %	mark_arg_as(univ, Arg, State0, State).
@@ -243,10 +242,13 @@ unify_effect(structure{name:N1,arity:A1,args:Args1},
 
 % binding_effect(+VarId, +NonVar, +State, -State)
 
-binding_effect(VarId, structure{name:F,arity:A}, State0, State) :- !,
-	enter_binding(VarId, F/A, State0, State).
-binding_effect(VarId, [_|_], State0, State) :- !,
-	enter_binding(VarId, (.)/2, State0, State).
+binding_effect(VarId, structure{name:F,arity:A,args:Args}, State0, State) :- !,
+	enter_binding(VarId, F/A, State0, State1),
+	mark_args_as(univ, Args, State1, State).
+binding_effect(VarId, [Arg1|Arg2], State0, State) :- !,
+	enter_binding(VarId, (.)/2, State0, State1),
+	mark_arg_as(univ, Arg1, State1, State2),
+	mark_arg_as(univ, Arg2, State2, State).
 binding_effect(VarId, Constant, State0, State) :- !,
 	enter_binding(VarId, value(Constant), State0, State).
 

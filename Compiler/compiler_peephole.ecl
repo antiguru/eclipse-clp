@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.3 2007/05/17 23:59:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/22 01:31:56 $").
+:- comment(date, "$Date: 2007/05/17 23:59:43 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -49,6 +49,7 @@
 
 :- use_module(compiler_common).
 
+:- import meta_index/2 from sepia_kernel.
 
 :- comment(simplify_code/2, [
     summary:"Strip annotations and do peephole optimizations",
@@ -93,6 +94,54 @@ simplify(call(P,eam(0)),	[Next|More], New) ?- !,
 	simplify_call(P, Instr, NewInstr),
 	update_struct(code, [instr:NewInstr], Next, NewCode),
 	New = [NewCode|More].
+
+	% the code generator compiles attribute unification as it it were
+	% unifying a meta/N structure. Since attribute_name->slot mapping
+	% can change between sessions, we transform sequences like
+	%	read_attriubute suspend		(where suspend->1)
+	%	read_void*			(N times)
+	%	read_xxx			(match actual attribute)
+	%	read_void*			(M times)
+	% into
+	%	read_attriubute name		(where name->N)
+	%	read_xxx			(match actual attribute)
+	% to make the code session-independent. Note that this cannot cope
+	% with multiple attributes being matched at once. This restriction
+	% also exists in the old compiler; lifting it requires a different
+	% compilation scheme with probably new instructions.
+simplify(read_attribute(FirstName),	Code0, New) ?-
+	meta_index(FirstName, I0),
+	skip_read_void(Code0, I0, I, Code1),
+	I > I0,
+	Code1 = [Read|Code2],
+	is_read_instruction(Read),
+	!,
+	% we have read_voids followed by another read: simplify
+	(
+	    meta_index(Name, I),
+	    skip_read_void(Code2, 1, _, Code3),
+	    Code3 = [After|_],
+	    \+ is_read_instruction(After)
+	->
+	    New = [code{instr:read_attribute(Name)},Read|Code3]
+	;
+	    warning("Implementation limit: cannot make attribute matching code"),
+	    warning("session-independent if matching more than one attribute."),
+	    fail
+	).
+
+    is_read_instruction(code{instr:Instr}) :-
+	functor(Instr, Name, _),
+    	atom_string(Name, NameS),
+	substring(NameS, "read_", 1).
+
+    skip_read_void(Codes, N0, N, Rest) :-
+    	( Codes = [code{instr:read_void}|Codes1] ->
+	    N1 is N0+1,
+	    skip_read_void(Codes1, N1, N, Rest) 
+	;
+	    Rest = Codes, N = N0
+	).
 
     :- mode simplify_call(+,+,-).
     simplify_call(P, ret, jmp(P)).
@@ -226,6 +275,16 @@ Pattern 5a:	(skip subsumed instruction)
 
     -> Here the List_switch should be changed to jump directly to rlab.
 
+Pattern 5a:	(redirect to shared code)
+
+	List_switch A1 llab ...
+	...
+    llab:
+	Failure
+
+    -> Here the List_switch should be changed to jump directly to the
+    	global fail label.
+
 
 
 
@@ -251,3 +310,4 @@ Various Patterns:
     read_void/[^read_xxx]	-->	
 
     push_structure(N+1),write_did(F/N)  --> write_structure(F/N)
+

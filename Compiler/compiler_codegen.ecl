@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.4 2007/02/22 01:31:56 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.5 2007/05/17 23:59:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/22 01:31:56 $").
+:- comment(date, "$Date: 2007/05/17 23:59:43 $").
 
 
 :- lib(hash).
@@ -192,6 +192,13 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    Code = [code{instr:nop,regs:OrigRegDescs}|Code1],
 	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, HeadArity, MaxArity, Options, Module)
 
+	; Goal = goal{kind:regular,functor:true/0,definition_module:sepia_kernel}, (Goals = [] ; Goals = [goal{kind:regular}|_] ) ->
+	    % Normally, true/0 should be eliminated in the normalisation phase.
+	    % But due to its legacy semantics (it is a regular goal and can
+	    % cause waking), we only eliminate it here when it occurs at the
+	    % end of a branch or just before another regular goal.
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, Module)
+
 	; Goal = goal{kind:regular,functor:P,lookup_module:LM,envmap:EAM} ->
 	    P = _/CallArity,
 	    MaxArity is max(MaxArity0,CallArity),
@@ -272,8 +279,8 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 
 
 % Optionally generate a call-port debug instruction
-emit_debug_call_port(options{dbgcomp:off}, _Pred, OutArgs, OutArgs, _Goal, Code, Code) :- !.
-emit_debug_call_port(options{dbgcomp:on}, Pred, OutArgs, [], goal{path:Path,from:From,to:To}, Code, Code0) :-
+emit_debug_call_port(options{debug:off}, _Pred, OutArgs, OutArgs, _Goal, Code, Code) :- !.
+emit_debug_call_port(options{debug:on}, Pred, OutArgs, [], goal{path:Path,from:From,to:To}, Code, Code0) :-
 	(var(Path) -> Path1 = ''; concat_atom([Path],Path1)),
 	(var(From) -> From = 0 ; true),
 	(var(To) -> To = 0 ; true),
@@ -359,181 +366,195 @@ generate_indexing(IndexDescs, BranchLabelArray, TryArity, ChunkData0, ChunkData,
 	( for(I,1,NBranches), foreach(I,AllBranches) do true ),
 	hash_create(LabelTable),
 	(
-	    foreach(index{variable:VarDesc,partition:ClassesGroups,other:DefaultGroup},IndexDescs),
-	    fromto(Code0,Code1,Code5,Code),
-	    fromto(AuxCode0,AuxCode1,AuxCode5,AuxCode6),
+	    foreach(index{quality:Quality,variable:VarDesc,partition:DecisionTree},IndexDescs),
+	    fromto(Code0,Code1,Code3,Code),
+	    fromto(AuxCode0,AuxCode1,AuxCode2,AuxCode),
 	    fromto(ChunkData0,ChunkData1,ChunkData2,ChunkData),
-	    param(LabelTable,AllBranches)
+	    param(LabelTable,BranchLabelArray,AllBranches,TryArity,NBranches)
 	do
-	    VarDesc = variable{varid:VarId},
-	    % Map sets of branches to corresponding labels:
-	    % All cases that don't filter anything fall through to next index
-	    % (NextIndexLabel is a fresh label for every index)
-	    hash_set(LabelTable, AllBranches, NextIndexLabel),
-	    % Lookup the labels for all other groups that occur in this index
-	    % (these labels are shared among all indexes - they are the labels
-	    % of either try-sequences, individual branches, or fail.
-	    ( DefaultGroup == [] ->
-	    	DefaultLabel = fail
+	    ( Quality < NBranches ->
+		% Create label for "all branches of the disjunction". This is
+		% re-created for each index, and is the address of the next
+		% index, or the try_me-sequence respectively.
+		hash_set(LabelTable, AllBranches, NextIndexLabel),
+
+		generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLabel,
+		    TryArity, ChunkData1, ChunkData2, Code1, Code2, AuxCode1, AuxCode2),
+		Code2 = [code{instr:label(NextIndexLabel),regs:[]}|Code3]
 	    ;
-		hash_lookup(LabelTable, DefaultGroup, DefaultLabel)
-	    ),
-	    create_labels(ClassesGroups, LabelTable, ClassesLabels),
+		% Omit really bad indexes
+	    	Code1=Code3, AuxCode1=AuxCode2, ChunkData2=ChunkData1
+	    )
+	).
 
-	    % Group things so they map to the available switch instructions
-	    % TODO: group based on the branch-sets, and subtract value-destination
-	    % branches from the corresponding type-destination!!!
-	    group_classes(ClassesLabels, DefaultLabel, VarLabel, Types, ValueGroups),
 
-	    % Decide which switch combination to use, and emit it
-	    ( Types == [], VarLabel == NextIndexLabel ->
-	    	% no indexing possible/necessary
-		Code1=Code4, AuxCode1=AuxCode5, ChunkData1=ChunkData2
+% Precompute a sorted list of the non-variable tags
+:- local variable(tagnames).
+:- local initialization((
+    	sepia_kernel:decode_code(tags,TagArray),
+	TagArray=..[_|TagList0],
+	once delete(meta, TagList0, TagList1),
+	sort(TagList1, TagList),
+	setval(tagnames, TagList)
+    )).
 
-	    ; Types = [Type-_], ValueGroups = [vg(Type,TypeGroup,_,_)] ->
-	    	% Only one type - a value-switch instruction is enough
-		reg_or_perm(VarDesc, ChunkData1, ChunkData2, RegDesc, VarLoc),
-	    	emit_switch_on_value(VarId, Type, TypeGroup, DefaultLabel, VarLoc, RegDesc, Code1, Code3),
-		emit_var_jmp(VarLabel, NextIndexLabel, Code3, Code4),
-		AuxCode1=AuxCode5
 
-	    ; % Types=[_|_]
-	    	% Need a switch_on type, and 0-3 value-switch instructions
-		reg_or_perm(VarDesc, ChunkData1, ChunkData2, RegDesc, VarLoc),
-		emit_switch_on_type(VarId, Types, DefaultLabel, VarLoc, RegDesc, Code1, Code3),
-		emit_var_jmp(VarLabel, NextIndexLabel, Code3, Code4),
-		(
-		    foreach(vg(Type,TypeGroup,TypeSwitchLabel,TypeDefaultLabel),ValueGroups),
-		    fromto(AuxCode1,AuxCode2,AuxCode4,AuxCode5),
-		    param(VarId,VarLoc)
-		do
-		    ( TypeGroup = [_Val-ValLabel], (TypeDefaultLabel == ValLabel ; TypeDefaultLabel == fail ) ->
-			% not worth having this value-switch: either it doesn't discriminate
-			% or it only causes failure (which can be left to the get_xxx instruction)
-			AuxCode2 = AuxCode4,
-			ValLabel = TypeSwitchLabel
+% Generate code for the index characterised by VarDesc and DecisionTree
+
+generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLabel,
+	    	TryArity, ChunkData0, ChunkData, Code0, Code, AuxCode0, AuxCode) :-
+	VarDesc = variable{varid:VarId},
+
+	% Create a label for this index's default case
+	dt_lookup2(DecisionTree, [], DefaultGroup, _),
+	create_group(DefaultGroup, LabelTable, BranchLabelArray, TryArity, DefaultLabel, AuxCode0, AuxCode1),
+
+	% First go through the non-variable tags: generate switch_on_values,
+	% try-sequences for branch-groups and a hash table of their labels,
+	% and a table for use by switch_on_type.
+	getval(tagnames, TagNames),
+	(
+	    foreach(TagName,TagNames),				% in: tag name
+	    foreach(TagName:ref(TagLabel),Table0),		% out: partial table for switch_on_type
+	    fromto(UsedTags,UsedTags1,UsedTags0,[]),		% out: tags that need to be distinguished
+	    fromto(SubDefaults,SubDefaults1,SubDefaults0,[]),	% out: default labels of subswitches
+	    fromto(AuxCode1,AuxCode2,AuxCode6,AuxCode7),	% out: code for try-sequences
+	    fromto(TmpCode0,TmpCode1,TmpCode3,TmpCode4),	% out: code for sub-switches
+	    param(DecisionTree,BranchLabelArray,TryArity,DefaultLabel,VarId),	% in
+	    param(LabelTable),					% inout: labels of try-groups
+	    param(VarLoc,SubRegDesc)				% out: parameters for sub-switches
+	do
+	    ( dt_lookup2(DecisionTree, [TagName], TagDefaultGroup, TagExceptions) ->
+		% we have entries for this tag
+		UsedTags1 = [TagName|UsedTags0],
+		( TagExceptions = [] ->
+		    % need only a try sequence for this tag
+		    verify TagDefaultGroup \== [],
+		    % group: all alternatives for this tag
+		    SubDefaults1 = SubDefaults0,
+		    TmpCode1 = TmpCode3,
+		    create_group(TagDefaultGroup, LabelTable, BranchLabelArray, TryArity, TagLabel, AuxCode2, AuxCode6)
+		;
+		    % we could use a switch_on_value
+		    ( TagDefaultGroup == [] ->
+			TagDefaultLabel = DefaultLabel,
+			AuxCode2 = AuxCode3
 		    ;
-			AuxCode2 = [code{instr:label(TypeSwitchLabel),regs:[]}|AuxCode3],
-			emit_switch_on_value(VarId, Type, TypeGroup, TypeDefaultLabel, VarLoc, r(VarId,VarLoc,use,_), AuxCode3, AuxCode4)
+			% group: default alternatives for this type
+			create_group(TagDefaultGroup, LabelTable, BranchLabelArray, TryArity, TagDefaultLabel, AuxCode2, AuxCode3)
+		    ),
+		    % make a value switch, unless it is trivial
+		    ( TagDefaultLabel == fail, DefaultLabel == fail, TagExceptions = [_Value-ValueGroup], ValueGroup = [_] ->
+			% omit singleton value switches
+			% (although they could lead to earlier failure)
+			SubDefaults1 = SubDefaults0,
+			TmpCode1 = TmpCode3,
+			create_group(ValueGroup, LabelTable, BranchLabelArray, TryArity, TagLabel, AuxCode3, AuxCode6)
+		    ;
+			% do use a value switch
+			SubDefaults1 = [TagDefaultLabel|SubDefaults0],
+			(
+			    foreach(Value-ValueGroup,TagExceptions),
+			    foreach(Value-ref(ValueLabel),ValueLabels),
+			    fromto(AuxCode3,AuxCode4,AuxCode5,AuxCode6),
+			    param(LabelTable,BranchLabelArray,TryArity)
+			do
+			    % group: alternatives for this value
+			    create_group(ValueGroup, LabelTable, BranchLabelArray, TryArity, ValueLabel, AuxCode4, AuxCode5)
+			),
+			TmpCode1 = [code{instr:label(TagLabel),regs:[]}|TmpCode2],
+			emit_switch_on_value(VarId, TagName, ValueLabels, TagDefaultLabel, VarLoc, SubRegDesc, TmpCode2, TmpCode3)
 		    )
 		)
-	    ),
-	    Code4 = [code{instr:label(NextIndexLabel),regs:[]}|Code5]
-	),
-
-	hash_delete(LabelTable, AllBranches),
-	emit_try_sequences(LabelTable, BranchLabelArray, TryArity, AuxCode6, AuxCode).
-
-
-% Enter or lookup the label under Key.
-% Key is a list of branch numbers.
-hash_lookup(Table, Key, Label) :-
-	( hash_get(Table, Key, Label) ->
-	    true
-	;
-	    hash_set(Table, Key, Label)
-	).
-
-
-create_labels(ClassesGroups, LabelTable, ClassesLabels) :-
-	(
-	    foreach(Class-Group,ClassesGroups),
-	    foreach(Class-Label,ClassesLabels),
-	    param(LabelTable)
-	do
-	    hash_lookup(LabelTable, Group, Label)
-	).
-
-
-% Split classes computed in indexing analysis into var, tag and value
-% groups, from which the switch instructions can be more easily derived.
-% group_classes(+Classes, +DefaultLabel, -VarLabel, -Types, -ValueGroups)
-group_classes(Classes, DefaultLabel, VarLabel, Types, ValueGroups) :-
-	% separate type cases, value cases and var case
-	(
-	    foreach(ClassLabel,Classes),
-	    fromto(Types2,Types1,Types0,[]),
-	    fromto(Values,Values1,Values0,[]),
-	    fromto(DefaultLabel,VarLabel0,VarLabel1,VarLabel),
-	    param(DefaultLabel)
-	do
-	    ClassLabel = Class-Label,
-	    ( Class == var ->
-		verify VarLabel0==DefaultLabel,
-	    	VarLabel1 = Label,
-		Types1=Types0, Values1=Values0
-	    ; atomic(Class) ->
-	    	Types1 = [ClassLabel|Types0],
-		VarLabel1=VarLabel0, Values1=Values0
-	    ; Class = value(X,Tag) ->
-		Values1 = [Tag-(X-Label)|Values0],
-		VarLabel1=VarLabel0, Types1=Types0
-	    ; verify Class = _/_,
-		Values1 = [structure-ClassLabel|Values0],
-		VarLabel1=VarLabel0, Types1=Types0
+	    ;
+		% no entries for this tag, use global default label
+		TagLabel = DefaultLabel,
+		AuxCode2 = AuxCode6,
+		TmpCode1 = TmpCode3,
+		UsedTags1 = UsedTags0,
+		SubDefaults1 = SubDefaults0
 	    )
 	),
-	keysort(Values, ValuesSorted),
-	group_same_key_values(ValuesSorted, ValuesByTag),
-	(
-	    foreach(Tag-ValuesLabels,ValuesByTag),
-	    fromto(Types2,Types3,Types4,Types),
-	    fromto(ValueGroups,ValueGroups2,ValueGroups1,[]),
-	    param(DefaultLabel)
-	do
-	    replace_type_label(Tag, ValuesLabels, DefaultLabel, Types3, Types4, ValueGroups2, ValueGroups1)
-	).
 
-    % replace_type_label(+Type, +TypeGroup, +DefaultLabel, -TypeSwitchLabel, -TypeDefaultLabel, Types0, Types2) :-
-    replace_type_label(_Type, [], _DefaultLabel, Types, Types, ValueGroups, ValueGroups).
-    replace_type_label(Type, Values, DefaultLabel, Types0, Types,
-    		[vg(Type,Values,TypeSwitchLabel,TypeDefaultLabel)|ValueGroups], ValueGroups) :-
-	Values = [_|_],
-	( delete(Type-TypeDefaultLabel,Types0, Types1) ->
-	    % Instead of destination for type, jump to the sub-switch
-	    % for this type, and set sub-switch's default case to the
-	    % general destination for type
-	    Types = [Type-TypeSwitchLabel|Types1]
+	% Now consider the variable tags (var/meta/free)
+	( dt_lookup2(DecisionTree, [var], VarDefaultGroup, VarExceptions) ->
+	    ( VarExceptions == [] ->
+		% no distinction free/meta
+		create_group(VarDefaultGroup, LabelTable, BranchLabelArray, TryArity, VarLabel, AuxCode7, AuxCode9),
+		Table = [meta:ref(VarLabel)|Table0]
+	    ;
+		% need to distinguish free/meta
+		( member(meta-MetaGroup, VarExceptions) -> true ; MetaGroup = VarDefaultGroup ),
+		( member(free-FreeGroup, VarExceptions) -> true ; FreeGroup = VarDefaultGroup ),
+		create_group(FreeGroup, LabelTable, BranchLabelArray, TryArity, VarLabel, AuxCode7, AuxCode8),
+		create_group(MetaGroup, LabelTable, BranchLabelArray, TryArity, MetaLabel, AuxCode8, AuxCode9),
+		Table = [meta:ref(MetaLabel)|Table0]
+	    )
 	;
-	    % Add an entry for this type in the type switch
-	    Types = [Type-TypeSwitchLabel|Types0],
-	    TypeDefaultLabel = DefaultLabel
+	    % no var cases (rare)
+	    Table = [meta:ref(DefaultLabel)|Table0],
+	    VarLabel = DefaultLabel,
+	    AuxCode7 = AuxCode9
+	),
+
+	% Get the location of the switch-variable
+	reg_or_perm(VarDesc, ChunkData0, ChunkData, FirstRegDesc, VarLoc),
+	% Create switch_on_type if useful
+	( var(MetaGroup), UsedTags=[_ValueSwitchTag], SubDefaults==[DefaultLabel] ->
+	    % We don't need a switch_on_type
+	    % hook (single) subswitch code into main sequence
+	    Code0 = TmpCode0, TmpCode4 = Code1, AuxCode9 = AuxCode,
+	    SubRegDesc = FirstRegDesc
+
+	; var(MetaGroup), list_tags_only(UsedTags) ->
+	    % A list_switch is sufficient
+	    verify TmpCode0 == TmpCode4,	% should have no subswitches
+	    emit_switch_on_list(Table, DefaultLabel, VarLoc, FirstRegDesc, Code0, Code1),
+	    AuxCode9 = AuxCode
+	;
+	    % Need the full switch_on_type, possibly with subswitches
+	    emit_switch_on_type(Table, VarLoc, FirstRegDesc, Code0, Code1),
+	    % hook subswitches (zero or more) into aux sequence
+	    AuxCode9 = TmpCode0, TmpCode4 = AuxCode,
+	    SubRegDesc = r(VarId,VarLoc,use,_)
+	),
+	emit_var_jmp(VarLabel, NextIndexLabel, Code1, Code).
+
+
+list_tags_only([[]]) :- !.
+list_tags_only([list]) :- !.
+list_tags_only([[],list]) :- !.
+
+
+% A "group" is a sequence of clauses linked by try/retry/trust-instructions.
+% Get the label for the given group. Create a try sequence if necessary.
+create_group(Group, LabelTable, BranchLabelArray, TryArity, GroupLabel, AuxCode1, AuxCode) :-
+	( Group = [] ->
+	    AuxCode1 = AuxCode,
+	    GroupLabel = fail
+	; hash_get(LabelTable, Group, GroupLabel) ->
+	    AuxCode1 = AuxCode
+	;
+	    hash_set(LabelTable, Group, GroupLabel),
+	    emit_try_sequence(Group, BranchLabelArray, TryArity, GroupLabel, AuxCode1, AuxCode)
 	).
 
 
 % Emit the switch_on_type instruction or its simpler version list_switch.
-%	Types		List of Tagname-Label
+%	Table		List of Tagname:ref(Label)
 %	DefaultLabel	Label for tags that do not occur in Types
 
-emit_switch_on_type(_VarId, Types, DefaultLabel, VarLoc, RegDesc, Code0, Code) :-
-	( only_list_types(Types, DefaultLabel, ListLabel, NilLabel) ->
-	    Code0 = [code{instr:list_switch(VarLoc,ref(ListLabel),
-			    ref(NilLabel),ref(DefaultLabel)),
-			regs:[RegDesc]}|Code]
-	;
-	    Code0 = [code{instr:switch_on_type(VarLoc,Table),
-			regs:[RegDesc]}|Code],
-	    sepia_kernel:decode_code(tags, TagNames),
-	    (
-		foreacharg(TagName,TagNames),
-		foreach(TagName:ref(TagLabel),Table),
-		fromto(Types,Types0,Types1,LeftOver),
-		param(DefaultLabel)
-	    do
-		( delete(TagName-TagLabel,Types0,Types1) ->
-		    true
-		;
-		    TagLabel=DefaultLabel,
-		    Types1=Types0
-		)
-	    ),
-	    verify LeftOver == []
-	).
+emit_switch_on_type(Table, VarLoc, RegDesc, Code0, Code) :-
+	Code0 = [code{instr:switch_on_type(VarLoc,Table),
+		    regs:[RegDesc]}|Code].
 
-    % CAUTION: this relies on the types being ordered (in get_index_classes/2)
-    only_list_types([[]-NilLabel,list-ListLabel], _DefaultLabel, ListLabel, NilLabel) :- !.
-    only_list_types([[]-NilLabel], DefaultLabel, DefaultLabel, NilLabel) :- !.
-    only_list_types([list-ListLabel], DefaultLabel, ListLabel, DefaultLabel).
+
+emit_switch_on_list(Table, DefaultLabel, VarLoc, RegDesc, Code0, Code) :-
+	memberchk([]:NilRef, Table),
+	memberchk(list:ListRef, Table),
+	Code0 = [code{instr:list_switch(VarLoc,ListRef,NilRef,ref(DefaultLabel)),
+		    regs:[RegDesc]}|Code].
+
 
 
 % Emit a jump to VarLabel, unless it is the (subsequent) NextIndexLabel
@@ -551,59 +572,41 @@ emit_var_jmp(VarLabel, NextIndexLabel, Code0, Code) :-
 % over it. In this case, VarLoc gets instantiated as a side effect of
 % the register allocator running over the corresponding main index.
 % RegDesc is ignored in this case.
-emit_switch_on_value(_VarId, integer, TypeGroup, DefaultLabel, VarLoc, RegDesc,
+emit_switch_on_value(_VarId, integer, Table, DefaultLabel, VarLoc, RegDesc,
 	    [code{instr:integer_switch(VarLoc,Table,ref(DefaultLabel)),
-		    regs:[RegDesc]}|Code], Code) :-
-	add_ref_wrapper(TypeGroup, Table).
-emit_switch_on_value(_VarId, atom, TypeGroup, DefaultLabel, VarLoc, RegDesc,
+		    regs:[RegDesc]}|Code], Code).
+emit_switch_on_value(_VarId, atom, Table, DefaultLabel, VarLoc, RegDesc,
 	    [code{instr:atom_switch(VarLoc,Table,ref(DefaultLabel)),
-		    regs:[RegDesc]}|Code], Code) :-
-	add_ref_wrapper(TypeGroup, Table).
-emit_switch_on_value(_VarId, structure, TypeGroup, DefaultLabel, VarLoc, RegDesc,
+		    regs:[RegDesc]}|Code], Code).
+emit_switch_on_value(_VarId, structure, Table, DefaultLabel, VarLoc, RegDesc,
 	    [code{instr:functor_switch(VarLoc,Table,ref(DefaultLabel)),
-		    regs:[RegDesc]}|Code], Code) :-
-	add_ref_wrapper(TypeGroup, Table).
-
-    % TODO: change assembler not to require the ref/1 wrapper
-    add_ref_wrapper([], []).
-    add_ref_wrapper([Val-Label|ValLabels], [Val-ref(Label)|ValLabelRefs]) :-
-	add_ref_wrapper(ValLabels, ValLabelRefs).
+		    regs:[RegDesc]}|Code], Code).
 
 
-% Emit all try sequences needed, according to contents of LabelTable.
-% This goes into the AuxCode sequence (without register allocation).
-emit_try_sequences(LabelTable, BranchLabelArray, TryArity, Code0, Code) :-
-	hash_list(LabelTable, BranchGroups, TryLabels),
-	(
-	    foreach(Group, BranchGroups),
-	    foreach(TryLabel, TryLabels),
-	    fromto(Code0,Code1,Code6,Code),
-	    param(BranchLabelArray,TryArity)
-	do
-	    ( Group = [BranchNr1|BranchNrs2toN] ->
-		arg(BranchNr1, BranchLabelArray, BranchLabel1),
-		( BranchNrs2toN == [] ->
-		    % only one alternative, no try sequence needed
-		    TryLabel = BranchLabel1,
-		    Code1 = Code6
-		;
-		    Code1 = [code{instr:label(TryLabel),regs:[]},
-			    code{instr:try(0,TryArity,ref(BranchLabel1)),regs:[]}
-			    |Code2],
-		    (
-			fromto(BranchNrs2toN,[BranchNr|BranchNrs],BranchNrs,[BranchNrN]),
-			fromto(Code2,Code3,Code4,Code5),
-			param(BranchLabelArray)
-		    do
-			arg(BranchNr, BranchLabelArray, BranchLabel),
-			Code3 = [code{instr:retry_inline(0,ref(BranchLabel)),regs:[]}|Code4]
-		    ),
-		    arg(BranchNrN, BranchLabelArray, BranchLabelN),
-		    Code5 = [code{instr:trust_inline(0,ref(BranchLabelN)),regs:[]}|Code6]
-		)
+emit_try_sequence(Group, BranchLabelArray, TryArity, TryLabel, Code1, Code6) :-
+	( Group = [BranchNr1|BranchNrs2toN] ->
+	    arg(BranchNr1, BranchLabelArray, BranchLabel1),
+	    ( BranchNrs2toN == [] ->
+		% only one alternative, no try sequence needed
+		TryLabel = BranchLabel1,
+		Code1 = Code6
 	    ;
-		TryLabel = fail, Code1 = Code6
+		Code1 = [code{instr:label(TryLabel),regs:[]},
+			code{instr:try(0,TryArity,ref(BranchLabel1)),regs:[]}
+			|Code2],
+		(
+		    fromto(BranchNrs2toN,[BranchNr|BranchNrs],BranchNrs,[BranchNrN]),
+		    fromto(Code2,Code3,Code4,Code5),
+		    param(BranchLabelArray)
+		do
+		    arg(BranchNr, BranchLabelArray, BranchLabel),
+		    Code3 = [code{instr:retry_inline(0,ref(BranchLabel)),regs:[]}|Code4]
+		),
+		arg(BranchNrN, BranchLabelArray, BranchLabelN),
+		Code5 = [code{instr:trust_inline(0,ref(BranchLabelN)),regs:[]}|Code6]
 	    )
+	;
+	    TryLabel = fail, Code1 = Code6
 	).
 
 
@@ -938,6 +941,7 @@ inlined_builtin(=<,		3,	bi_le).
 inlined_builtin(>=,		3,	bi_ge).
 inlined_builtin(arg,		3,	bi_arg).
 inlined_builtin(make_suspension, 4,	bi_make_suspension).
+inlined_builtin(sys_return,	1,	bi_exit).
 
 
 

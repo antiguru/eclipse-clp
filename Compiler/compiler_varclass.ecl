@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.3 2007/05/17 23:59:44 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/22 01:31:56 $").
+:- comment(date, "$Date: 2007/05/17 23:59:44 $").
 
 :- comment(desc, ascii("
     This pass (actually two passes: compute_lifetimes and assign_env_slots)
@@ -73,7 +73,7 @@
 % variables in parallel disjunctive branches as being distinct.
 
 :- local struct(slot(		% one for every truly distinct variable
-	% varid,		% name not unique
+	name,			% for error messages only (not unique)
 	firstpos,		% position of first occurrence
 				% (must be first for sorting!)
 	lastpos,		% position of last occurrence
@@ -211,11 +211,12 @@ compute_lifetimes(indexpoint{callpos:CallPos,args:Args}, Map0, Map) :-
 %	- the locations are all unified
  
 register_occurrence(CallPos, Occurrence, Map0, Map) :-
-	Occurrence = variable{varid:VarId,isalast:LastFlag,class:Location},
+	Occurrence = variable{source_name:Name,varid:VarId,isalast:LastFlag,class:Location},
 	( m_map:search(Map0, VarId, OldEntry) ->
-	    OldEntry = [slot{firstpos:FP0,lastpos:LP0,lastflag:LF0,class:Location}|Slots],
+	    OldEntry = [OldSlot|Slots],
+	    OldSlot = slot{firstpos:FP0,lastpos:LP0,lastflag:LF0,class:Location},
 	    merge_slots(Slots, FP0, FP, Location),
-	    NewSlot = slot{firstpos:FP,lastpos:CallPos,lastflag:LastFlag,class:Location},
+	    update_struct(slot, [firstpos:FP,lastpos:CallPos,lastflag:LastFlag], OldSlot, NewSlot),
 	    % check for multiple first occurrences
 	    ( CallPos = FP -> Occurrence = variable{isafirst:first} ; true ),
 	    % check for multiple last occurrences
@@ -223,7 +224,7 @@ register_occurrence(CallPos, Occurrence, Map0, Map) :-
 	    m_map:det_update(Map0, VarId, [NewSlot], Map)
 	;
 	    % first occurrence
-	    m_map:det_insert(Map0, VarId, [slot{firstpos:CallPos,
+	    m_map:det_insert(Map0, VarId, [slot{name:Name,firstpos:CallPos,
 	    	lastpos:CallPos,lastflag:LastFlag,class:Location}], Map),
 	    Occurrence = variable{isafirst:first}
 	).
@@ -320,7 +321,7 @@ merge_branches(DisjPos, BranchMaps, MergedMap) :-
 		compare_pos(OldestFirst, DisjPos, Res),
 		verify Res = (<),
 	    	slots_ending_ge(DisjPos, SortedNoDupSlots, SlotsEnteringDisj),
-		SlotsEnteringDisj = [slot{class:Loc}|_]
+		SlotsEnteringDisj = [Slot1|_]
 	    ->
 		% unify lastflags
 		( foreach(slot{lastflag:LF},SlotsEnteringDisj), param(LF) do
@@ -328,9 +329,9 @@ merge_branches(DisjPos, BranchMaps, MergedMap) :-
 		),
 		% replace with a single summary slot
 		append(DisjPos, [?,?], DisjEndPos),
-		NewSlots = [slot{firstpos:OldestFirst,lastpos:DisjEndPos,
-			    lastflag:LF,class:Loc}]
-	        
+		update_struct(slot, [firstpos:OldestFirst,
+			lastpos:DisjEndPos,lastflag:LF], Slot1, NewSlot),
+		NewSlots = [NewSlot]
 	    ;
 	    	% all occurrences in current disjunction
 	    	% or all before current disjunction
@@ -395,7 +396,8 @@ print_occurrences(Map) :-
 % This could only be done when either determinism information is
 % available, or an extra trail check/trailing is accepted:  If there
 % were a choicepoint inside p/1 or q/1, reusing X's slot would require
-% conditional (value-)trailing of the old slot value.
+% conditional (value-)trailing of the old slot value before it is reused
+% for Y.
 %
 % A problem is posed by variables whose lifetime starts before a disjunction
 % and extends into one or more disjunctive branches (without surviving the
@@ -443,10 +445,10 @@ classify_voids_and_temps(AllSlots, PermSlots) :-
 	    foreach(Slot,AllSlots),
 	    fromto(PermSlots,PermSlots2,PermSlots1,[])
 	do
-	    Slot = slot{firstpos:First,lastpos:Last,class:Loc},
+	    Slot = slot{firstpos:First,lastpos:Last,class:Loc,name:Name},
 	    ( var(Loc) ->			% void
 		Loc = void,
-		%singleton_warning(_, First),
+		singleton_warning(Name),
 		PermSlots2=PermSlots1
 	    ;
 		Loc = nonvoid(Where),	% needs assignment
@@ -461,46 +463,70 @@ classify_voids_and_temps(AllSlots, PermSlots) :-
 	).
 
 
+singleton_warning(_Name).
+/*
+singleton_warning(Name) :-
+	( Name = '' ->
+	    true
+	; atom(Name), atom_string(Name, NameS), substring(NameS,"_",1) ->
+	    true
+	;
+	    printf(warning_output, "Singleton variable: %w%n", [Name])
+	).
+*/
+
+
 foreachcallposinbranch(_Branch, [], [], Y, Y).
 foreachcallposinbranch(Branch, [Slot|Slots], RestSlots, Y0, Y) :-
-	slot_data(Slot, Pos0, Branch0, Loc0),
-	( append(Branch, SubBranch, Branch0) ->
-	    ( (SubBranch = [] ; SubBranch = [_,?]) ->
-		Y1 is Y0+1, Loc0 = y(Y1),	% assign env slot
+	% Branch is list of even length, e.g. [], [7,2]
+	% SlotPos is list of odd length, e.g. [7], [7,2,7] but not [7,?,?]
+	Slot = slot{lastpos:SlotPos,class:nonvoid(Loc)},
+	( append(Branch, RelPos, SlotPos) ->
+	    RelPos = [PosInBranch|SubBranch],
+	    verify PosInBranch \== ?,
+	    ( (SubBranch = [] ; SubBranch = [?,?]) ->
+		Y1 is Y0+1, Loc = y(Y1),	% assign env slot
 		Slots1 = Slots
 	    ;
-		append(Branch, [_], Pos1),	% nested disjunction
-		append(Pos1, _, Pos0),
-		foreachbranchatcallpos(Pos1, [Slot|Slots], Slots1, Y0, Y0, Y1)
+		% SlotPos is deeper down, RelPos=[7,2,7], [7,2,7,?,?] or longer
+		% process branches at callpos [7]
+		append(Branch, [PosInBranch], Pos),	% nested disjunction
+		foreachbranchatcallpos(Pos, [Slot|Slots], Slots1, Y0, Y0, Y1)
 	    ),
 	    foreachcallposinbranch(Branch, Slots1, RestSlots, Y1, Y)
 	;
+	    % the first slot does not end in this branch, return
 	    RestSlots = [Slot|Slots],
 	    Y = Y0
 	).
 
-
+% process all slots that start with Pos
 foreachbranchatcallpos(_Pos, [], [], _Y0, Y, Y).
 foreachbranchatcallpos(Pos, [Slot|Slots], RestSlots, Y0, Ymax0, Ymax) :-
-	slot_data(Slot, Pos0, Branch0, _Loc0),
-	( append(Pos, SubBranch, Branch0) ->
-	    ( SubBranch = [_] ->		% branch at this Pos
-		foreachcallposinbranch(Branch0, [Slot|Slots], Slots1, Y0, Y1),
+	% Pos is list of odd length, e.g. [7], [7,2,7], but not [7,?,?]
+	% SlotPos is list of odd length, e.g. [7], [7,2,7] but not [7,?,?]
+	Slot = slot{lastpos:SlotPos},
+	% is Slot in a branch below this callpos? Always true for initial invocation
+	( append(Pos, RelPos, SlotPos) ->
+	    RelPos = [RelBranch|SubPos],
+	    verify RelBranch \== ?,
+	    % RelPos is [2,7] or [2,7,?,?] or [2,7,2,7] or longer
+	    % which means we are going into branch 2 at Pos
+	    ( (SubPos = [_] ; SubPos = [_,?,?]) ->
+		append(Pos, [RelBranch], Branch),
+		foreachcallposinbranch(Branch, [Slot|Slots], Slots1, Y0, Y1),
 		Ymax1 is max(Ymax0,Y1),
 		foreachbranchatcallpos(Pos, Slots1, RestSlots, Y0, Ymax1, Ymax)
 	    ;
 		append(Pos, [_,_], Pos1),	% branch deeper down
-		append(Pos1, _, Pos0),
+		append(Pos1, _, SlotPos),
 		foreachbranchatcallpos(Pos1, [Slot|Slots], RestSlots, Y0, Ymax0, Ymax)
 	    )
 	;
+	    % Slot not at this callpos, return
 	    RestSlots = [Slot|Slots],
 	    Ymax = Ymax0
 	).
-
-    slot_data(slot{lastpos:Pos0,class:nonvoid(Loc0)}, Pos, Branch, Loc) ?-
-	Pos=Pos0, Loc=Loc0,
-    	pos_branch(Pos0, Branch).
 
 
 % succeed if the clause has no disjunctions

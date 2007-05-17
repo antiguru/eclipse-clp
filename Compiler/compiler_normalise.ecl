@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.4 2007/02/22 01:31:56 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.5 2007/05/17 23:59:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2007/02/22 01:31:56 $").
+:- comment(date, "$Date: 2007/05/17 23:59:43 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -203,7 +203,7 @@ normalize_body(Var, AnnVar, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, 
 	normalize_goal(call(Var), From-To, File, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
 
 normalize_body('', _Ann, _File, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, _LM, _CM) :- !.
-normalize_body(true, _Ann, _File, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, _LM, _CM) :- !.
+%normalize_body(true, _Ann, _File, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, _LM, _CM) :- !.
 
 normalize_body(call(G), Ann, File, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, Goals0, Goals, _LM, CM) :-
 	nonvar(G), !,
@@ -327,20 +327,16 @@ normalize_goal(G, From-To, File, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|G
             path:File
 	},
 	functor(G, N, A),
-	( get_flag(N/A, tool, on)@LM ->		% replace tool with tool body
-	    tool_body(N/A, N1/A1, DM)@LM,
+	get_pred_info(LM, N/A, DM, ToolBody, CallType),
+	( ToolBody = N1/A1 -> 			% replace tool with tool body
 	    LM1=DM,
 	    normalize_term(CM, NormCM, Vs0, Vs1, =),	% CM may be a variable
 	    ModuleArg = [NormCM]
-	; get_flag(N/A, definition_module, DM)@LM ->
-	    N1=N, A1=A, LM1=LM,
-	    Vs1=Vs0, ModuleArg = []
 	;
-	    DM = [],				% definition module unknown
 	    N1=N, A1=A, LM1=LM,
 	    Vs1=Vs0, ModuleArg = []
 	),
-	( get_flag(N/A, call_type, external)@LM ->	% classify goal
+	( CallType = external ->
 	    same_call_pos(Branch, CallNr0, CallNr, CallPos),
 	    Kind = simple
 	;
@@ -355,6 +351,23 @@ normalize_goal(G, From-To, File, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|G
 	do
 	    arg(I, G, Arg),
 	    normalize_term(Arg, NormArg, Vs2, Vs3, =)
+	).
+
+
+    % Look up relevant properties of the called predicate.
+    % If it is not known yet, assume defaults (regular, non-tool, []-module).
+    get_pred_info(LM, Pred, DM, ToolBody, CallType) :-
+	( current_module(LM), get_flag(Pred, declared, _)@LM ->
+	    ( get_flag(Pred, tool, on)@LM ->
+		tool_body(Pred, ToolBody, DM)@LM
+	    ;
+		ToolBody = none,
+		get_flag(Pred, definition_module, DM)@LM
+	    ),
+	    get_flag(Pred, call_type, CallType)@LM
+	;
+	    % Nothing known about Pred, assume defaults
+	    DM = [], ToolBody = none, CallType = prolog
 	).
 
 
@@ -433,10 +446,14 @@ normalize_clause_list(Clauses, AnnClauses, Files, NormClauses, CM, Vs0, Vs) :-
 	normalize_body(Body, AnnBody, File, Branch, CallNr, _CallNr, Cut, Vs1, Vs, Goals1, [], CM, CM).
 
     :- mode clause_head_body(+,?,-,-,-,-,-).
-    clause_head_body(H:-B, Ann, H, B, AH, AB, =) :- !,
-        Ann = annotated_term{term:(AH:-AB)}.
-    clause_head_body(H?-B, Ann, H, B, AH, AB, ?=) :- !,
-        Ann = annotated_term{term:(AH?-AB)}.
+    clause_head_body(H0:- -?->B0, Ann, H, B, AH, AB, HeadType) ?- !,
+        Ann = annotated_term{term:(AH:-annotated_term{term: (-?->AB)})},
+	H=H0, B=B0, HeadType = (?=).
+    clause_head_body(H0:-B0, Ann, H, B, AH, AB, HeadType) ?- !,
+        Ann = annotated_term{term:(AH:-AB)},
+	H=H0, B=B0, HeadType = (=).
+%    clause_head_body(H?-B, Ann, H, B, AH, AB, ?=) :- !,
+%        Ann = annotated_term{term:(AH?-AB)}.
     clause_head_body(H, AH, H, '', AH, '', =).
 
     clauses_arity([Clause|_], A) ?-
@@ -491,6 +508,7 @@ normalize_term(X, Desc, [VarDesc|Vs1], Vs0, AttrFlag) :-
 	    meta_attr_struct(X, Meta),
 	    normalize_term(Meta, NormMeta, Vs1, Vs0, AttrFlag)
 	;
+	    % treat as plain variable when not in matching-clause head
 	    Desc = VarDesc, Vs1 = Vs0
 	).
 normalize_term(X, X, Vs, Vs, _AttrFlag) :-
@@ -605,65 +623,65 @@ normalize_head(HeadType, Head, AnnHead, File, CallPos, Goals, Goals0, Module, Vs
 		    definition_module:Module, from:From, to:To, path:File,
 		    functor:N/A, args:HeadArgs}
 		|Goals1],
-	    functor(Head, N, A),
-            functor(HeadAnn, N, A),
-	    (
-		for(I,1,A),
-		foreach(HeadArg,HeadArgs),
-		fromto(Vs0,Vs1,Vs3,Vs),
-		fromto([],Seen1,Seen2,_),
-		fromto(Goals1,Goals2,Goals3,Goals0),
-		foreach(HeadVar,HeadVars),
-		param(HeadType,Head,HeadAnn,CallPos,File)
-	    do
-		Goals2 = [goal{
-			kind:simple,
-                        from:From,
-                        to:To,
-                        path:File,
-			callpos:CallPos,
-			definition_module:sepia_kernel,
-			lookup_module:sepia_kernel,
-			functor:Op/2,
-			args:[HeadArg,NormArg]
-		    }|Goals3],
-                arg(I, HeadAnn, annotated_term{from:From,to:To}),
-		arg(I, Head, Arg),
-		( nonvar(Arg) ->
-		    % p(nonvar) :-  becomes  p(T) :- T=nonvar
-		    % p(nonvar) ?-  becomes  p(T) :- T?=nonvar
-		    normalize_term(Arg, NormArg, Vs1,Vs2, HeadType),
-		    Seen2 = Seen1,
+	functor(Head, N, A),
+	functor(HeadAnn, N, A),
+	(
+	    for(I,1,A),
+	    foreach(HeadArg,HeadArgs),
+	    fromto(Vs0,Vs1,Vs3,Vs),
+	    fromto([],Seen1,Seen2,_),
+	    fromto(Goals1,Goals2,Goals3,Goals0),
+	    foreach(HeadVar,HeadVars),
+	    param(HeadType,Head,HeadAnn,CallPos,File)
+	do
+	    Goals2 = [goal{
+		    kind:simple,
+		    from:From,
+		    to:To,
+		    path:File,
+		    callpos:CallPos,
+		    definition_module:sepia_kernel,
+		    lookup_module:sepia_kernel,
+		    functor:Op/2,
+		    args:[HeadArg,NormArg]
+		}|Goals3],
+	    arg(I, HeadAnn, annotated_term{from:From,to:To}),
+	    arg(I, Head, Arg),
+	    ( nonvar(Arg) ->
+		% p(nonvar) :-  becomes  p(T) :- T=nonvar
+		% p(nonvar) ?-  becomes  p(T) :- T?=nonvar
+		normalize_term(Arg, NormArg, Vs1,Vs2, HeadType),
+		Seen2 = Seen1,
+		Op = HeadType,
+		new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)
+	    ; varnonmember(Arg,Seen1) ->
+		Seen2 = [Arg|Seen1],
+		( meta(Arg), HeadType = (?=) ->
+		    % p(X{A}) ?-  becomes  p(X) :- X?=X{A}
 		    Op = HeadType,
-		    new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)
-		; varnonmember(Arg,Seen1) ->
-		    Seen2 = [Arg|Seen1],
-		    ( meta(Arg), HeadType = (?=) ->
-			% p(X{A}) ?-  becomes  p(X) :- X?=X{A}
-			Op = HeadType,
-			normalize_term(Arg, NormArg, Vs1, Vs3, ?=),
-			NormArg = attrvar{variable:HeadArg},
-			HeadVar = Arg
-		    ;
-			% Don't create a new variable for the first occurrence.
-			% But create a dummy-goal X=X in order not to lose
-			% the variable occurrence altogether. This is necessary
-			% if the variable turns out to be permanent and has only
-			% this head occurrence in the first chunk. The X=X goal
-			% will then trigger initialisation of the environment slot.
-			% p(X) :-  becomes  p(X) :- X=X
-			normalize_term(Arg, NormArg, Vs1, Vs3, =),
-			Op = (=),
-			HeadArg = NormArg, HeadVar = Arg
-		    )
+		    normalize_term(Arg, NormArg, Vs1, Vs3, ?=),
+		    NormArg = attrvar{variable:HeadArg},
+		    HeadVar = Arg
 		;
-		    % repeat occurence: T=X (or T==X for matching)
-		    normalize_term(Arg, NormArg, Vs1,Vs2, =),
-		    Seen2 = Seen1,
-		    headtype_varop(HeadType, Op),
-		    new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)
+		    % Don't create a new variable for the first occurrence.
+		    % But create a dummy-goal X=X in order not to lose
+		    % the variable occurrence altogether. This is necessary
+		    % if the variable turns out to be permanent and has only
+		    % this head occurrence in the first chunk. The X=X goal
+		    % will then trigger initialisation of the environment slot.
+		    % p(X) :-  becomes  p(X) :- X=X
+		    normalize_term(Arg, NormArg, Vs1, Vs3, =),
+		    Op = (=),
+		    HeadArg = NormArg, HeadVar = Arg
 		)
-	    ).
+	    ;
+		% repeat occurence: T=X (or T==X for matching)
+		normalize_term(Arg, NormArg, Vs1,Vs2, =),
+		Seen2 = Seen1,
+		headtype_varop(HeadType, Op),
+		new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)
+	    )
+	).
 
 headtype_varop(=, =).
 headtype_varop(?=, ==).
@@ -688,7 +706,7 @@ simplify_unification(X, Y, L, L0) :- functor(X, F, N), functor(Y, F, N), !,
 	).
 simplify_unification(_X, _Y, [fail|T], T).
 
-
+/*
 %----------------------------------------------------------------------
 % Reorder a simple basic block prefix
 % - bring indexable tests to the front
@@ -759,7 +777,7 @@ normalize_unif(Goal, NormUnif) :-
 	!,
 	update_struct(goal, args:[Y,X], Goal, NormUnif).
 normalize_unif(Goal, Goal).
-
+*/
 
 %----------------------------------------------------------------------
 % 

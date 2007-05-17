@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.4 2007/02/22 01:31:56 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.5 2007/05/17 23:59:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/22 01:31:56 $").
+:- comment(date, "$Date: 2007/05/17 23:59:43 $").
 
 
 %----------------------------------------------------------------------
@@ -39,58 +39,154 @@
 
 :- comment(struct(options), [
     summary:"Compiler Options",
+    desc:html("
+    Options to control the operation of the compiler.
+<P>
+<P>
+    The abstract machine code which is the result of the compilation can
+    be output in various forms.  Values for 'output' option (default: none):
+    <DL>
+    <DT>none</DT><DD>
+	no output (but code may be loaded, see load option),
+    </DD><DT>eco(File)</DT><DD>
+	output compiled code in eco format,
+    </DD><DT>eco</DT><DD>
+	output compiled code in eco format to input file wth .eco suffix,
+    </DD><DT>print</DT><DD>
+	print resulting WAM code to the output stream,
+    </DD><DT>print(Stream)</DT><DD>
+	print WAM code to Stream,
+    </DD><DT>listing(Stream)</DT><DD>
+	print WAM code to File,
+    </DD><DT>listing</DT><DD>
+	print WAM code to input file with .lst suffix,
+    </DD></DL>
+    The destination directory for output files is determined by the 'outdir'
+    option. The default is to place output files in the same directory as
+    the corresponding input file.
+    <P>
+    When loading is requested, the abstract machine code produced by the
+    compiler gets assembled and loaded into memory as executable code.
+    Values for the 'load' option (default: all):
+    <DL>
+    <DT>none</DT><DD>
+	Do not load any code into memory, do not execute queries 
+	nor directives, but interpret pragmas.
+    </DD><DT>new</DT><DD>
+	Do not overwrite any code in memory, but load new predicates.
+	Do not re-create modules, but create new ones and erase them
+	again after compilation. For existing modules, erase pragmas.
+	Do not execute queries, but call directives and interpret pragmas.
+    </DD><DT>all</DT><DD>
+	Load and replace code in memory, create/re-create all modules, 
+	interpret pragmas, call directives, execute queries.
+    </DD></DL>
+    <P>
+    The 'debug' option (off/on) determines whether the resulting code is
+    traceable.
+    <P>
+    The 'system' and 'skip' option set predicate properties.
+    <P>
+    The 'verbose' option controls whether the compiler produces any log
+    messages to the log_output stream. Level 1 produces information about
+    predicates as they are compiled.
+    <P>
+    Various print_xxx options allow the output of internal compiler data
+    structures for debugging purposes.
+    "),
     fields:[
-	"output":"Either 'print' (print resulting WAM code to the output stream),
-	    'print(Stream)' (print WAM code to Stream), 'listing(File)' (print WAM
-	    code to File, 'listing' (print WAM code to input file with .lst suffix),
-	    or 'store' in which case the WAM code is assembled and stored in memory
-	    as the code for the predicate.  (default: store)",
-	"dbgcomp":"generate code with debug instructions (on/off, default:off).",
+	"output":"Output format and destination (none, print, eco, listing - default none)",
+	"outdir":"directory in which to place output files (default \"\", same as input)",
+	"load":"load code into memory (none/new/all, default:all).",
+	"debug":"generate code with debug instructions (on/off, default:off).",
+	"system":"mark compiled predicates as type:built_in (on/off, default:off).",
+	"skip":"set the skip-flag in all compiled predciates (on/off, default:off).",
+	"expand_clauses":"expand clause macros, such as DCGs (on/off, default:on).",
+	"expand_goals":"expand goal macros, i.e. do inlining (on/off, default:off).",
 	"print_normalised":"print result of the normalisation pass (on/off, default:off).",
+	"print_indexes":"print result of indexing  analysis (on/off, default:off).",
 	"print_lifetimes":"print result of the variable lifetime analysis (on/off, default:off).",
-	"print_raw_code":" print annotated WAM code before register allocation (on/off, default:off).",
-	"print_final_code":" print annotated WAM code after register allocation (on/off, default:off)."
+	"print_raw_code":"print annotated WAM code before register allocation (on/off, default:off).",
+	"print_final_code":"print annotated WAM code after register allocation (on/off, default:off).",
+	"verbose":"print messages to log_output, according to level (integer (0=silent,1=quiet,2=verbose), default:0)."
     ]
 ]).
 
 :- export struct(options(
 	output,
-	dbgcomp,
+	outdir,
+	load,
+	debug,
+	system,
+	skip,
+	expand_clauses,
+	expand_goals,
 	print_normalised,
+	print_indexes,
 	print_lifetimes,
 	print_raw_code,
-	print_final_code
+	print_final_code,
+	verbose
     )).
 
 
-valid_option_field(dbgcomp, dbgcomp of options).
+valid_option_field(debug, debug of options).
+valid_option_field(system, system of options).
+valid_option_field(skip, skip of options).
+valid_option_field(expand_clauses, expand_clauses of options).
+valid_option_field(expand_goals, expand_goals of options).
 valid_option_field(print_normalised, print_normalised of options).
 valid_option_field(print_lifetimes, print_lifetimes of options).
 valid_option_field(print_raw_code, print_raw_code of options).
 valid_option_field(print_final_code, print_final_code of options).
+valid_option_field(print_indexes, print_indexes of options).
+valid_option_field(verbose, verbose of options).
+valid_option_field(outdir, outdir of options).
 valid_option_field(output, output of options).
+valid_option_field(load, load of options).
 
-valid_option_value(dbgcomp, Value) :- onoff(Value).
+valid_option_value(debug, Value) :- onoff(Value).
+valid_option_value(system, Value) :- onoff(Value).
+valid_option_value(skip, Value) :- onoff(Value).
+valid_option_value(expand_clauses, Value) :- onoff(Value).
+valid_option_value(expand_goals, Value) :- onoff(Value).
+valid_option_value(load, none).
+valid_option_value(load, new).
+valid_option_value(load, all).
 valid_option_value(print_normalised, Value) :- onoff(Value).
 valid_option_value(print_lifetimes, Value) :- onoff(Value).
 valid_option_value(print_raw_code, Value) :- onoff(Value).
 valid_option_value(print_final_code, Value) :- onoff(Value).
+valid_option_value(print_indexes, Value) :- onoff(Value).
+valid_option_value(verbose, Value) :- integer(Value).
+valid_option_value(outdir, Value) :- (string(Value);atom(Value)),!.
 valid_option_value(output, listing(_File)).
 valid_option_value(output, listing).
 valid_option_value(output, print(_Stream)).
 valid_option_value(output, print).
-valid_option_value(output, store).
+valid_option_value(output, none).
+valid_option_value(output, eco).
+valid_option_value(output, eco(_)).
+valid_option_value(output, eco_to_stream(_)).
 
 onoff(off).
 onoff(on).
 
 default_options(options{
-	dbgcomp:off,
+	debug:off,
+	system:off,
+	skip:off,
+	expand_clauses:on,
+	expand_goals:off,
+	load:all,
 	print_normalised:off,
 	print_lifetimes:off,
 	print_raw_code:off,
 	print_final_code:off,
-	output:store
+	print_indexes:off,
+	verbose:0,
+	outdir:"",
+	output:none
 }).
 
 
@@ -220,16 +316,14 @@ default_options(options{
     fields:[
 	quality:	"positive float: index quality, the smaller the better",
 	variable:	"variable{} that this index works on",
-	partition:	"list of Class-Branches pairs, e.g. [var-[1,2], value(1,integer)-[1]]",
-	other:		"list of default branches, when value doesn't fall in any class"
+	partition:	"dt{} decision tree"
     ]
 ]).
 
 :- export struct(index(
 	quality,	% positive float, 0.0=best
 	variable,	% variable{}
-	partition,	% list of Class-Branches pairs
-	other		% list of Branches
+	partition	% decision tree
     )).
 
 
@@ -477,10 +571,31 @@ verify _Goal :-
 certainly_once _Goal :-
 	certainly_once _Goal.
 
+
+:- export unreachable/1.
+unreachable(Message) :-
+	printf(warning_output, "WARNING: Unreachable code reached: %w%d",
+		[Message]).
+
+
 :- export indent/2.
 indent(Stream, Indent) :-
 	I is 4*Indent,
 	printf(Stream, "%*c", [I,0' ]).
+
+
+:- export message/2.
+message(Message, options{verbose:Level}) :-
+	( Level > 0 ->
+	    writeln(log_output, Message)
+	;
+	    true
+	).
+
+
+:- export warning/1.
+warning(Message) :-
+	printf(warning_output, "WARNING: %w%n", [Message]).
 
 
 %----------------------------------------------------------------------
@@ -589,6 +704,25 @@ merge_same_key_values(MultiKeyValues, KeyMergedValues) :-
 strip_keys([], []).
 strip_keys([_-X|KXs], [X|Xs]) :-
 	strip_keys(KXs, Xs).
+
+
+:- export select/4.
+select(X, [X|Xs], Y, [Y|Xs]).
+select(X, [Z|Xs], Y, [Z|Ys]) :-
+	select(X, Xs, Y, Ys).
+
+
+:- export selectchk/4.
+selectchk(X, Xs, Y, Ys) :-
+	select(X, Xs, Y, Ys), !.
+
+
+:- export project_arg/3.
+project_arg(_I, [], []).
+project_arg(I, [X|Xs], [Y|Ys]) :-
+	arg(I, X, Y),
+	project_arg(I, Xs, Ys).
+
 
 
 %----------------------------------------------------------------------
@@ -774,5 +908,198 @@ decode_activity_map(Map, List) :-
 	do
 	    Map2 is Map1 >> 1,
 	    ( Map1 /\ 1 =:= 0 -> List1=List2 ; List1=[I|List2] )
+	).
+
+
+%----------------------------------------------------------------------
+% Decision trees
+%
+% Decision trees store key-value pairs.
+% Keys are hierarchical lists of the form [class,subclass,subsubclass,...]
+%   where the list elements can be any ground term. Values are arbitrary.
+% A decision tree will have a node for every prefix of every key.
+% Every tree node stores a set of values, which are the default values
+%   for the key prefix that the node represents.  Exceptions are stored
+%   in the child nodes, which share the prefix but are more specific.
+% For lookup, we get the values from the node which represents the
+%   longest prefix of the given lookup key.
+%----------------------------------------------------------------------
+
+:- lib(hash).
+:- local struct(dt(class,values,except,closed)).
+
+
+:- export dt_init/1.
+dt_init(dt{class:univ,values:[],except:Hash,closed:no}) :-
+	hash_create(Hash).
+
+
+dt_init(Class, Values, dt{class:Class,values:Values,except:Hash,closed:no}) :-
+	hash_create(Hash).
+
+
+:- export dt_add/4.
+:- comment(dt_add/4, [
+    summary:"Add value for a key",
+    amode:(dt_add(+,++,?,+) is det),
+    fail_if:"No entry for Key in the tree",
+    args:[
+	"DT":"A decision tree (destructive update)",
+	"Key":"A key (list of class names)",
+	"Value":"Arbitrary term",
+	"Final":"Atom 'yes' or 'no'"
+    ],
+    desc:"Value will be added as an additional value for Key,
+    including all its exceptions, except for those (sub-)keys
+    that have previously been marked as final.
+    
+    If Final is 'yes', then Key will be marked as final and not
+    accept any future value additions."
+]).
+dt_add(Dt, [], Value, Final) :- !,
+	% the value is for all nodes in this subtree (except closed ones)
+	Dt = dt{values:Values,except:ExceptTable,closed:Closed},
+	( Closed == no ->
+	    % add the value to this node
+	    setarg(values of dt, Dt, [Value|Values]),
+	    setarg(closed of dt, Dt, Final)
+	;
+	    % Subtree already closed, nothing more can be added
+	    true
+	),
+	% add the value to all subnodes (exceptions)
+	hash_list(ExceptTable, _SubClasses, Excepts),
+	(
+	    foreach(Except,Excepts),
+	    param(Value,Final)
+	do
+	    dt_add(Except, [], Value, Final)
+	).
+dt_add(Dt, [Class|SubClass], Value, Final) :-
+	% [create and] descend into the subtree according to key (unless closed)
+	Dt = dt{values:DefaultValues,except:ExceptTable,closed:Closed},
+	( Closed == no ->
+	    ( hash_get(ExceptTable, Class, ClassDt) ->
+		true
+	    ;
+		dt_init(Class, DefaultValues, ClassDt),
+		hash_set(ExceptTable, Class, ClassDt)
+	    ),
+	    dt_add(ClassDt, SubClass, Value, Final)
+	;
+	    true
+	).
+
+
+% add Value everywhere except Key
+:- export dt_addnot/4.
+dt_addnot(_Dt, [], _Value, _Final).
+dt_addnot(Dt, [Class|SubClass], Value, Final) :-
+	% [create and] descend into the subtree according to key (unless closed)
+	Dt = dt{values:DefaultValues,except:ExceptTable,closed:Closed},
+	( Closed == no ->
+	    setarg(values of dt, Dt, [Value|DefaultValues]),
+	    % add the value to all subnodes (except the one for Class)
+	    hash_list(ExceptTable, ExceptClasses, Excepts),
+	    (
+		foreach(Except,Excepts),
+		foreach(ExceptClass,ExceptClasses),
+		param(Class,SubClass,Value,Final)
+	    do
+		( Class == ExceptClass ->
+		    true
+		;
+		    dt_addnot(Except, SubClass, Value, Final)
+		)
+	    ),
+	    ( hash_get(ExceptTable, Class, ClassDt) ->
+		true
+	    ;
+		dt_init(Class, DefaultValues, ClassDt),
+		hash_set(ExceptTable, Class, ClassDt)
+	    ),
+	    dt_addnot(ClassDt, SubClass, Value, Final)
+	;
+	    true
+	).
+
+
+dt_lookup(dt{values:DefaultValues,except:ExceptTable}, Key, Values, ExceptCount) :-
+	( Key = [Class|SubClasses] ->
+	    hash_get(ExceptTable, Class, ClassDt),	% may fail
+	    dt_lookup(ClassDt, SubClasses, Values, ExceptCount)
+	;
+	    Values = DefaultValues,
+	    hash_count(ExceptTable, ExceptCount)
+	).
+
+
+:- export dt_lookup2/4.
+:- comment(dt_lookup2/4, [
+    summary:"Lookup 2 levels: default values for key and immediate exceptions",
+    amode:(dt_lookup2(+,++,-,-) is semidet),
+    fail_if:"No entry for Key in the tree",
+    args:[
+	"DT":"A decision tree",
+	"Key":"A key (list of class names)",
+	"Values":"Output: list of default values for key",
+	"Exceptions":"Output: list of SubKey-DefaultValues pairs"
+    ]
+]).
+
+dt_lookup2(dt{values:RevValues,except:ExceptTable}, Key, Values, Exceptions) :-
+	( Key = [Class|SubClasses] ->
+	    hash_get(ExceptTable, Class, ClassDt),	% may fail
+	    dt_lookup2(ClassDt, SubClasses, Values, Exceptions)
+	;
+	    % the value lists are in reverse order of insertion, reverse them
+	    reverse(RevValues, Values),
+	    hash_list(ExceptTable, SubKeys, SubDts),
+	    (
+		foreach(SubKey,SubKeys),
+		foreach(dt{values:RevSubValues},SubDts),
+		foreach(SubKey-SubValues,Exceptions)
+	    do
+		reverse(RevSubValues, SubValues)
+	    )
+	).
+
+
+:- export dt_values/2.
+dt_values(Dt, ValueGroups) :-
+	dt_values(Dt, ValueGroups, []).
+
+dt_values(dt{values:RevValues,except:ExceptTable}, ValueGroups, ValueGroups0) :-
+	( RevValues = [] ->
+	    ValueGroups = ValueGroups1
+	;
+	    reverse(RevValues, Values),
+	    ValueGroups = [Values|ValueGroups1]
+	),
+	hash_list(ExceptTable, _SubKeys, SubDts),
+	(
+	    foreach(SubDt,SubDts),
+	    fromto(ValueGroups1,ValueGroups2,ValueGroups3,ValueGroups0)
+	do
+	    dt_values(SubDt, ValueGroups2, ValueGroups3)
+	).
+
+
+:- export dt_list/2.
+dt_list(Dt, KeysValues) :-
+	dt_list(Dt, KeysValues, [], []).
+
+dt_list(dt{values:RevValues,except:ExceptTable}, KeysValues, KeysValues0, Key) :-
+	reverse(RevValues, Values),
+	KeysValues = [Key-Values|KeysValues1],
+	hash_list(ExceptTable, _SubKeys, SubDts),
+	(
+	    foreach(SubDt,SubDts),
+	    fromto(KeysValues1,KeysValues2,KeysValues3,KeysValues0),
+	    param(Key)
+	do
+	    SubDt = dt{class:SubClass},
+	    append(Key, [SubClass], SubKey),
+	    dt_list(SubDt, KeysValues2, KeysValues3, SubKey)
 	).
 

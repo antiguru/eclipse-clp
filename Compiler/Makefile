@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
+# $Id: Makefile,v 1.3 2007/05/17 23:59:43 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -55,6 +55,7 @@ PUBLIC_ECO = $(MODULE_FILES:%.ecl=$(PREFIX)/lib/%.eco)
 
 default:
 	@echo "You can make the following:"
+	@echo "  make boot		Compile to .eco files"
 	@echo "  make doc		Generate documentation in doc/"
 	@echo "  make test		Run unit tests"
 	@echo "  make cover		Run unit tests and produce output in coverage/"
@@ -81,6 +82,19 @@ DIRPERM = 2755
 clean:
 	rm -rf *.eci *.eco *.res doc pretty coverage
 
+
+#----------------------------------------------------------------------
+# Bootstrap
+#----------------------------------------------------------------------
+
+boot:
+	rm -f *.eco
+	@$(AUX_ECLIPSE) -e "use_module(compiler_top),comp"
+	
+list:
+	rm -f *.eco
+	@$(AUX_ECLIPSE) -e "use_module(compiler_top),list"
+	
 
 #----------------------------------------------------------------------
 # Test

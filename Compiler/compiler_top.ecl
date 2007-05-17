@@ -22,26 +22,26 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.5 2007/02/22 01:31:56 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.6 2007/05/17 23:59:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
 
-:- comment(summary, "ECLiPSe III compiler - toplevel predicates").
-:- comment(copyright, "Cisco Technology Inc").
-:- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/02/22 01:31:56 $").
+:- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
+:- comment(copyright,	"Cisco Technology Inc").
+:- comment(author,	"Joachim Schimpf").
+:- comment(date,	"$Date: 2007/05/17 23:59:43 $").
 
 :- comment(desc, html("
-	This module contains the toplevel predicates for invoking the
-	compiler. This is where the different compiler passes are chained
-	together, and where the compiler options are defined. When compiling
-	clause lists, there is not much more to it.
-	<P>
-	Moreover, this module currently contains the \"from file\" compiler,
-	i.e. the code to process source files, interpret directives and
-	invoke the compiler proper for each predicate in the file.
-    ")).
+    This module contains the toplevel predicates for invoking the
+    compiler. This is where the different compiler passes are chained
+    together, where the compiler options are defined, and the code
+    to process source files, and to interpret directives and queries.
+    <P>
+    The top-level interfaces to the compiler are: compile/1,2 for
+    compilation from files, compile_term/1,2 for compiling data, and
+    fcompile/1,2 for backward compatibility.
+")).
 
 
 :- use_module(compiler_common).
@@ -53,51 +53,96 @@
 :- use_module(compiler_indexing).
 
 :- lib(asm).
+:- lib(lists).
 :- lib(module_options).
+:- lib(source_processor).
 
 
-% ----------------------------------------------------------------------
+%----------------------------------------------------------------------
+% Compiler Options
+%----------------------------------------------------------------------
 
-:- comment(compile_pred/2, [
-    args:[
-	"Clauses":"A list of clauses for a single predicate",
-	"Options":"A list of options of the form name:value"
-    ],
-    amode:compile_pred(+,++),
-    summary:"Compile a single predicate",
-    desc:html("
-    	Takes a list of clauses (which must all be for the same predicate),
-	and compile them. The result can either be stored as code for the
-	predicate in memory (option output:store, the default), or the
-	resulting WAM code can simply be printed (option output:print).
-    "),
-    see_also:[struct(options)],
-    eg:"
-    ?- compile_pred([p(99) :- q], [output:print]).
-    p / 1:
-	    get_integer              a(1)     99 
-	    jmp                      q / 0 
-    "
-]).
+compiler_options_setup(File, OptionList, Options) :-
 
-:- export compile_pred/2.
-:- tool(compile_pred/2, compile_pred/3).
-compile_pred(Clauses, OptionList, Module) :-
-        compile_pred_annotated(Clauses, OptionList, _Ann, _Files, Module).
+	% Consider global settings for the compiler options
+	get_flag(debug_compile, Dbgcomp),
+	set_default_option(debug, Dbgcomp)@compiler_common,
 
-compile_pred_annotated(Clauses, OptionList, AnnClauses, Files, Module) :-
 	( OptionList = options{} ->
-	    Options = OptionList
-	; get_options(OptionList, Options)@compiler_common ->
+	    Options0 = OptionList
+	; get_options(OptionList, Options0)@compiler_common ->
 	    true
 	;
 	    printf(error, "Invalid option list: %w%n", [OptionList]),
 	    print_default_options(error)@compiler_common,
 	    abort
 	),
-	compile_pred_to_wam_annotated(Clauses, AnnClauses, Files, WAM, OptionList, Module),
+
+	Options0 = options{outdir:OutDir},
+	( Options0 = options{output:listing(LstFile)} ->
+	    open(LstFile,write,Stream),
+	    update_struct(options, [output:print(Stream)], Options0, Options)
+	; Options0 = options{output:listing} ->
+	    concat_string([File], FileS),
+	    pathname(FileS, Dir, Base, Suffix),
+	    ( concat_string([OutDir], "") -> 
+		concat_string([Dir,Base,'.lst'], LstFile)
+	    ;
+		concat_string([OutDir,/,Base,'.lst'], LstFile)
+	    ),
+	    open(LstFile,write,Stream),
+	    update_struct(options, [output:print(Stream)], Options0, Options)
+	; Options0 = options{output:eco(EcoFile)} ->
+	    open(EcoFile,write,Stream),
+	    update_struct(options, [output:eco_to_stream(Stream)], Options0, Options)
+	; Options0 = options{output:eco} ->
+	    concat_string([File], FileS),
+	    pathname(FileS, Dir, Base, Suffix),
+	    ( concat_string([OutDir], "") -> 
+		concat_string([Dir,Base,'.eco'], EcoFile)
+	    ;
+		concat_string([OutDir,/,Base,'.eco'], EcoFile)
+	    ),
+	    open(EcoFile,write,Stream),
+	    update_struct(options, [output:eco_to_stream(Stream)], Options0, Options)
+	;
+	    Options = Options0
+	).
+
+
+compiler_options_cleanup(Options) :-
+    	( Options = options{output:print(Stream)} ->
+	    close(Stream)
+    	; Options = options{output:eco_to_stream(Stream)} ->
+	    close(Stream)
+	;
+	    true
+	).
+
+
+% ----------------------------------------------------------------------
+% Compile a single predicate.
+% 
+% Takes a list of clauses (which must all be for the same predicate),
+% compile them, and store/output the result according to options.
+% ----------------------------------------------------------------------
+
+compile_predicate(_, [], _, _, _) :- !.
+compile_predicate(Module:NA, Clauses, AnnClauses, Files, Options) :-
+	message(compiling(Module:NA), Options),
+	compile_pred_to_wam(Clauses, AnnClauses, Files, WAM, Options, Module),
 	Clauses = [Clause|_],
 	extract_pred(Clause, F, A),
+	pred_flags(Options, Flags),
+	(
+	    ( Options = options{load:all}
+	    ; Options = options{load:new}, \+ is_predicate(F/A)@Module )
+	->
+	    % double negation, because asm binds the labels
+	    \+ \+ block(asm(F/A, WAM, Flags, Module), _, true)
+	;
+	    true % don't clobber existing code if not loading
+	),
 	( Options = options{output:print} ->
 	    printf("%w:%n", [F/A]),
 	    print_wam(WAM)
@@ -108,12 +153,22 @@ compile_pred_annotated(Clauses, OptionList, AnnClauses, Files, Module) :-
 	    print_wam(WAM),
 	    set_stream(output, OldOut),
 	    writeln(Stream, --------------------)
+	; Options = options{output:eco_to_stream(Stream)} ->
+	    pasm(WAM, Size, Codes),
+	    CodeArr =.. [[]|Codes],
+	    ( Module == sepia_kernel ->
+		% call locally, because :/2 may not be defined yet
+		StorePred = store_pred(F/A,CodeArr,Size,Flags)
+	    ;
+		StorePred = sepia_kernel:store_pred(F/A,CodeArr,Size,Flags)
+	    ),
+	    printf(Stream, "%ODQKw.%n", [:-StorePred])@Module
+	; Options = options{output:none} ->
+	    true
 	;
-	    block(
-		asm(F/A, WAM, Module),
-		_,
-		true
-	    )
+	    Options = options{output:Junk},
+	    printf(error, "Invalid output option: %w%n", [Junk]),
+	    abort
 	).
 
     writeclauses(Stream, Clauses) :-
@@ -130,25 +185,24 @@ compile_pred_annotated(Clauses, OptionList, AnnClauses, Files, Module) :-
 	set_stream_property(Stream, output_options, [numbervars(NV)|Opt0]).
 
 
+    pred_flags(options{debug:Debug,system:System,skip:Skip}, Flags) ?-
+	( Debug==on -> Flags0 = 16'00008000 ; Flags0 = 0 ),			% DEBUG_DB
+	( System==on -> Flags1 is Flags0 \/ 16'40000000 ; Flags1 = Flags0 ),	% SYSTEM
+	( Skip==on -> Flags is Flags1 \/ 16'00040000 ; Flags = Flags1 ).	% DEBUG_SK
+
+
+    set_pred_flags(options{debug:Debug,system:System,skip:Skip}, Pred, Module) ?-
+	set_flag(Pred, debugged, Debug)@Module,
+	set_flag(Pred, skip, Skip)@Module,
+	( System==on -> Type = built_in ; Type = user ),
+	set_flag(Pred, type, Type)@Module.
+
+
 
 % Compile a predicate (list of clauses) to WAM code list
+% This chains together the various stages of the comiler
 
-:- export compile_pred_to_wam/3.
-:- tool(compile_pred_to_wam/3, compile_pred_to_wam/4).
-compile_pred_to_wam(Clauses, FinalCode, OptionList, Module) :-
-        compile_pred_to_wam_annotated(Clauses, _Ann, _Files, FinalCode, OptionList, Module).
-
-compile_pred_to_wam_annotated(Clauses, AnnCs, Files, FinalCode, OptionList,
-                              Module) :-
-	( OptionList = options{} ->
-	    Options = OptionList
-	; get_options(OptionList, Options)@compiler_common ->
-	    true
-	;
-	    printf(error, "Invalid option list: %w%n", [OptionList]),
-	    print_default_options(error)@compiler_common,
-	    abort
-	),
+compile_pred_to_wam(Clauses, AnnCs, Files, FinalCode, Options, Module) :-
 
 	% Create our normal form
 	normalize_clauses_annotated(Clauses, AnnCs, [], Files, NormPred0, _NVars, Module),
@@ -160,8 +214,8 @@ compile_pred_to_wam_annotated(Clauses, AnnCs, Files, FinalCode, OptionList,
 	% Here we could have a simplification pass, exploiting
 	% information from the analysis phase.
 
-	% Indexing_transformation needs info from binding_analysis
-	indexing_transformation(NormPred0, NormPred),
+	% Indexing_transformation (needs info from binding_analysis)
+	indexing_transformation(NormPred0, NormPred, Options),
 
 	% Variable classification
 	% compute_lifetimes must be after indexing transformation, because
@@ -207,15 +261,56 @@ compile_pred_to_wam_annotated(Clauses, AnnCs, Files, FinalCode, OptionList,
 % From-file compiler
 %----------------------------------------------------------------------
 
-:- lib(source_processor).
+:- export compile/1.
+:- comment(compile/1, [
+    summary:"Compile a file",
+    args:["File":"File name (atom or string)"],
+    amode:compile(++),
+    see_also:[compiler_top:compile/2,compile_term/1,compile_term/2,struct(options)],
+    desc:html("
+    Compile a file with default options.  The resulting code is directly
+    loaded into memory and ready for execution.  Equivalent to
+    <PRE>
+	compile(File, [])
+    </PRE>
+    ")
+]).
+:- tool(compile/1, compile_/2).
+compile_(File, Module) :-
+    compile_(File, [], Module).
 
-:- export compile_file/2.
 
-:- tool(compile_file/2, compile_file/3).
+:- export compile/2.
+:- comment(compile/2, [
+    summary:"Compile a file",
+    args:["File":"File name (atom or string)",
+    	"Options":"List of compiler options"],
+    amode:compile(++,++),
+    see_also:[compiler_top:compile/1,compile_term/1,compile_term/2,struct(options)],
+    desc:html("
+    Compile a file, with output according to options.
+    ")
+]).
+:- tool(compile/2, compile_/3).
 
-compile_file(File, OptionList, Module) :-
+compile_(File, OptionListOrModule, CM) :-
+	% for backward compatibility, allow compile(File, Module)
+	( atom(OptionListOrModule), OptionListOrModule \== [] ->
+	    Module = OptionListOrModule, OptionList = []
+	;
+	    Module = CM, OptionList = OptionListOrModule
+	
+	),
 	compiler_options_setup(File, OptionList, Options),
-	source_open(File, [goal_expansion], SourcePos0)@Module,
+	sepia_kernel:register_compiler(Term-(compiler_top:compile_term(Term,Options))),
+	( Options = options{load:all} ->
+	    OpenOptions = [recreate_modules],
+	    CloseOptions = [keep_modules]
+	;
+	    OpenOptions = [],
+	    CloseOptions = []
+	),
+	source_open(File, [goal_expansion|OpenOptions], SourcePos0)@Module,
 	(
 	    fromto(begin, _, Class, end),
 	    fromto(SourcePos0, SourcePos1, SourcePos2, SourcePosEnd),
@@ -233,24 +328,9 @@ compile_file(File, OptionList, Module) :-
             SourceTerm = source_term{term:Term,annotated:Ann},
             
 	    ( Class = clause ->
-		extract_pred(Term, N, A),
-		Pred1 = PosModule:N/A,
-		( Pred1 = Pred0 ->		% new clause for same pred
-		    ClauseTail0 = [Term|ClauseTail1],
-                    Clauses1 = Clauses0,
-                    AnnClauseTail0 = [Ann|AnnClauseTail1],
-                    AnnClauses1 = AnnClauses0,
-                    FileTail0 = [CFile|FileTail1],
-                    Files1 = Files0
-		;
-		    ClauseTail0 = [],		% new pred, compile previous
-                    AnnClauseTail0 = [],
-                    FileTail0 = [],
-                    compile_predicate(Pred0, Clauses0, AnnClauses0, Files0, Options),
-		    Clauses1 = [Term|ClauseTail1],
-                    AnnClauses1 = [Ann|AnnClauseTail1],
-                    Files1 = [CFile|FileTail1]
-		)
+		accumulate_clauses(Term, Ann, PosModule, CFile, Options,
+		    Pred0, Clauses0, ClauseTail0, AnnClauses0, AnnClauseTail0, Files0, FileTail0,
+		    Pred1, Clauses1, ClauseTail1, AnnClauses1, AnnClauseTail1, Files1, FileTail1)
 
 	    ; Class = comment ->		% comment, ignore
 		Pred1 = Pred0,
@@ -272,11 +352,16 @@ compile_file(File, OptionList, Module) :-
 		Pred1 = none,
 
 		( Class = directive ->
-		    call_directive(SourcePos1, Term, PosModule)
+		    ( old_compiler_directive(Term, Options) ->
+			true
+		    ;
+			process_directive(SourcePos1, Term, Options, PosModule)
+		    )
 		; Class = query ->
-		    call_directive(SourcePos1, Term, PosModule)
+		    process_query(SourcePos1, Term, Options, PosModule)
 		; Class = handled_directive ->
-		    consider_pragmas(Term, Options)
+		    ( consider_pragmas(Term, Options, PosModule) -> true ; true ),
+		    emit_directive_or_query(Term, Options, PosModule)
 		; Class = var ->
 		    compiler_error(4, SourcePos1, SourceTerm)
 		;
@@ -284,92 +369,350 @@ compile_file(File, OptionList, Module) :-
 		)
 	    )
 	),
-	source_close(SourcePosEnd, [keep_modules]),
+	source_close(SourcePosEnd, CloseOptions),
+	sepia_kernel:deregister_compiler,
 	compiler_options_cleanup(Options).
 
 
-    compile_predicate(_, [], _, _, _) :- !.
-    compile_predicate(M:NA, Clauses, AClauses, Files, Options) :-
-	writeln(log_output, compiling(M:NA)),
-        compile_pred_annotated(Clauses, Options, AClauses, Files, M).
+% Add a single clause or a list of clauses to what we already have.
+% If a predicate is finished, compile it.
+:- mode accumulate_clauses(+,+,+,+,+,+,?,-,?,-,?,-,-,-,-,-,-,-,-).
+accumulate_clauses([], [], _Module, _CFile, _Options,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0) :-
+	!.
+accumulate_clauses([Term|Terms], [AnnTerm|AnnTerms], Module, CFile, Options,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl) :-
+	!,
+	extract_pred(Term, N, A),
+	Pred1 = Module:N/A,
+	( Pred0 == Pred1 ->
+	    % another clause for Pred0
+	    PredClTl0 = [Term|PredClTl1],
+	    PredClAnnTl0 = [AnnTerm|PredClAnnTl1],
+	    FilesTl0 = [CFile|FilesTl1],
+	    accumulate_clauses(Terms, AnnTerms, Module, CFile, Options, 
+	    	Pred0, PredCl0, PredClTl1, PredClAnn0, PredClAnnTl1, Files0, FilesTl1,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl)
+	;
+	    % first clause for next predicate Pred1, compile Pred0
+	    PredClTl0 = [], PredClAnnTl0 = [], FilesTl0 = [],
+	    compile_predicate(Pred0, PredCl0, PredClAnn0, Files0, Options),
+	    PredCl1 = [Term|PredClTl1],
+	    PredClAnn1 = [AnnTerm|PredClAnnTl1],
+	    Files1 = [CFile|FilesTl1],
+	    accumulate_clauses(Terms, AnnTerms, Module, CFile, Options,
+	    	Pred1, PredCl1, PredClTl1, PredClAnn1, PredClAnnTl1, Files1, FilesTl1,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl)
+	).
+accumulate_clauses(Term, AnnTerm, Module, CFile, Options,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl) :-
+	accumulate_clauses([Term], [AnnTerm], Module, CFile, Options,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl).
 
 
     extract_pred(Head :- _, N, A) :- !,
-    	functor(Head, N, A).
-    extract_pred(Head ?- _, N, A) :- !,
-    	functor(Head, N, A).
-    extract_pred((Head if _), N, A) :- !,
     	functor(Head, N, A).
     extract_pred(Fact, N, A) :-
     	functor(Fact, N, A).
 
 
-    call_directive(source_position{file:F,line:L}, Dir, Module) :-
-	arg(1, Dir, Goal),
-    	block(
-	    ( call(Goal)@Module ->
-	    	true
-	    ;
-		printf(warning_output, "Compiler: query failed in file %w, line %d.%n", [F,L])
-	    ),
-	    Tag,
-	    printf(warning_output, "Compiler: query exited (%w) in file %w, line %d.%n", [Tag, F,L])
-	).
-
-
-    compiler_options_setup(File, OptionList, Options) :-
-
-	% Consider global settings for the compiler options
-	get_flag(debug_compile, Dbgcomp),
-	set_default_option(dbgcomp, Dbgcomp)@compiler_common,
-
-	( get_options(OptionList, Options0)@compiler_common ->
-	    true
-	;
-	    printf(error, "Invalid option list: %w%n", [OptionList]),
-	    print_default_options(error)@compiler_common,
-	    abort
-	),
-	( Options0 = options{output:listing(File)} ->
-	    open(File,write,ListingStream),
-	    update_struct(options, [output:print(ListingStream)], Options0, Options)
-	; Options0 = options{output:listing} ->
-	    concat_string([File], FileS),
-	    pathname(FileS, _Dir, _Base, Suffix),
-	    string_length(Suffix, SufLen),
-	    substring(FileS, _, _, SufLen, Base),
-	    concat_string([Base,'.lst'], LstFile),
-	    open(LstFile,write,ListingStream),
-	    update_struct(options, [output:print(ListingStream)], Options0, Options)
-	;
-	    Options = Options0
-	).
-
-
-    compiler_options_cleanup(Options) :-
-    	( Options = options{output:print(ListingStream)} -> close(ListingStream) ; true ).
-
-
-    compiler_error(N, source_position{file:F,line:L},
+compiler_error(N, source_position{file:F,line:L},
     		source_term{term:Term}) :-
 	error_id(N, Message),
 	printf(error, "Compiler: %w in file %w, line %d:%n%Qw%n",
 		[Message,F,L,Term]).
 
 
+
+%----------------------------------------------------------------------
+% Queries, directives and pragmas
+%----------------------------------------------------------------------
+
+process_directive(SourcePos, Term, Options, Module) :-
+	( Options = options{load:none} ->
+	    true
+	;
+	    % new/all
+	    call_directive(SourcePos, Term, Module)
+	),
+	emit_directive_or_query(Term, Options, Module).
+
+
+process_query(SourcePos, Term, Options, Module) :-
+	( Options = options{load:all} ->
+	    call_directive(SourcePos, Term, Module)
+	;
+	    % new/none
+	    true
+	),
+	emit_directive_or_query(Term, Options, Module).
+
+
+call_directive(SourcePos, Dir, Module) :-
+	arg(1, Dir, Goal),
+    	block(
+	    ( call(Goal)@Module ->
+	    	true
+	    ;
+		write(warning_output, "Compiler warning: query failed"),
+		print_location(warning_output, SourcePos, Dir)
+	    ),
+	    Tag,
+	    (
+		printf(warning_output, "Compiler warning: query exited (%w)", [Tag]),
+		print_location(warning_output, SourcePos, Dir)
+	    )
+	).
+
+    print_location(Stream, source_position{file:F,line:L}, _Culprit) :- !,
+	printf(Stream, " in file %w, line %d.%n", [F,L]).
+    print_location(Stream, _, Culprit) :-
+	printf(Stream, " %w%n", [Culprit]).
+    	
+
 % Adjust compiler options according to pragmas
 
-consider_pragmas(:-(Dir), Options) :-
-	consider_pragmas1(Dir, Options).
+consider_pragmas((:-pragma(Pragma)), Options, M) ?-
+	consider_pragma(Pragma, Options, M).
 
-consider_pragmas1((D1,D2), Options) ?- !,
-	consider_pragmas1(D1, Options),
-	consider_pragmas1(D2, Options).
-consider_pragmas1(pragma(Pragma), Options) ?- !,
-	consider_pragma(Pragma, Options).
-consider_pragmas1(_, _).
+consider_pragma(debug, Options, _) :- !,
+	setarg(debug of options, Options, on).
+consider_pragma(nodebug, Options, _) :- !,
+	setarg(debug of options, Options, off).
+consider_pragma(system, Options, _) :- !,
+	setarg(system of options, Options, on).
+consider_pragma(skip, Options, _) :- !,
+	setarg(skip of options, Options, on).
+consider_pragma(noskip, Options, _) :- !,
+	setarg(skip of options, Options, off).
+consider_pragma(expand, Options, _) :- !,
+	setarg(expand_goals of options, Options, on).
+consider_pragma(noexpand, Options, _) :- !,
+	setarg(expand_goals of options, Options, off).
+consider_pragma(Pragma, _, M) :-
+	error(148, pragma(Pragma), M).	% make accessible via current_pragma/1
 
-consider_pragma(debug, Options) :- setarg(dbgcomp of options, Options, on).
-consider_pragma(nodebug, Options) :- setarg(dbgcomp of options, Options, off).
+
+% For compatibility with old compiler
+old_compiler_directive((:-system), Options) :- !,
+	setarg(system of options, Options, on),
+	setarg(debug of options, Options, off),
+	setarg(skip of options, Options, on),
+	setarg(expand_goals of options, Options, on).
+old_compiler_directive((:-system_debug), Options) :- !,
+	setarg(system of options, Options, on),
+	setarg(debug of options, Options, on),
+	setarg(skip of options, Options, off).
 
 
+% copy directives and queries to the eco file
+% omit comments and includes
+% do copy pragmas, since some of them have load-time effect
+% (e.g. suppress deprecation warnings)
+emit_directive_or_query((:-comment(_,_)), _Options, _Module) ?- !.
+emit_directive_or_query((:-include(_)), _Options, _Module) ?- !.
+emit_directive_or_query((:-[_|_]), _Options, _Module) ?- !.
+emit_directive_or_query(Dir, Options, Module) :-
+	( Options = options{output:print} ->
+	    printf("%w.%n", [Dir])
+	; Options = options{output:print(Stream)} ->
+	    printf(Stream, "%w.%n", [Dir])
+	; Options = options{output:eco_to_stream(Stream)} ->
+	    printf(Stream, "%ODQKw.%n", [Dir])@Module
+	; Options = options{output:none} ->
+	    true
+	;
+	    Options = options{output:Junk},
+	    printf(error, "Invalid output option: %w%n", [Junk]),
+	    abort
+	).
+
+
+%----------------------------------------------------------------------
+% Compile term/list
+%----------------------------------------------------------------------
+
+:- export compile_term/1.
+:- comment(compile_term/1, [
+    summary:"Compile a list of terms",
+    args:["Clauses":"List of clauses and/or directives"],
+    amode:compile_term(+),
+    see_also:[compiler_top:compile/1,compile/2,compile_term/2],
+    desc:html("
+    Compile a list of clauses and queries.
+    Handling of directives: include/1, ./2 and currently module/1
+    are not allowed.  Pragmas are interpreted. Others are called
+    as goals.
+    ")
+]).
+
+:- tool(compile_term/1, compile_term_/2).
+compile_term_(Clauses, Module) :-
+	compile_term_(Clauses, [], Module).
+
+
+:- export compile_term/2.
+:- comment(compile_term/2, [
+    summary:"Compile a list of terms",
+    args:["Clauses":"List of clauses and/or directives",
+    	"Options":"List of compiler options"],
+    amode:compile_term(+,++),
+    see_also:[compiler_top:compile/1,compile/2,compile_term/1,struct(options)],
+    desc:html("
+    Compile a list of clauses and queries.
+    Handling of directives: include/1, ./2 and currently module/1
+    are not allowed.  Pragmas are interpreted. Others are treated
+    according to the setting of the 'load' option.
+    ")
+]).
+:- tool(compile_term/2, compile_term_/3).
+
+compile_term_(List, OptionList, Module) :-
+%	writeln(compile_term(List,OptionList)),
+	compiler_options_setup('_term', OptionList, Options),
+	compile_list(List, first, Clauses, Clauses, Options, Module),
+%	compiler_options_cleanup(Options).
+	true.	% don't close files
+
+
+compile_list(Term, _, _, _, Options, Module) :- var(Term), !,
+	error(4, compile_term(Term, Options), Module).
+compile_list([], Pred, Clauses, Tail, Options, _Module) :- !,
+	Tail = [],
+	compile_predicate(Pred, Clauses, _, _, Options).
+compile_list([Term|Terms], Pred, Clauses, Tail, Options, Module) :- !,
+	( var(Term) ->
+	    error(4, compile_term([Term|Terms], Options), Module)
+
+	; Term = (:-_) ->
+	    % separator, compile the preceding predicate
+	    Tail = [],
+	    compile_predicate(Pred, Clauses, _, _, Options),
+	    % unlike compile(file), interpret only pragmas,
+	    % not directives like module/1, include/1, etc
+	    ( consider_pragmas(Term, Options, Module) ->
+		true
+	    ;
+		process_directive(no_source, Term, Options, Module)
+	    ),
+	    compile_list(Terms, none, Clauses1, Clauses1, Options, Module)
+
+	; Term = (?-_) ->
+	    % separator, compile the preceding predicate
+	    Tail = [],
+	    compile_predicate(Pred, Clauses, _, _, Options),
+	    process_query(no_source, Term, Options, Module),
+	    compile_list(Terms, none, Clauses1, Clauses1, Options, Module)
+	;
+	    optional_expansion(Term, TransTerm, Options, Module),
+	    % TransTerm may be a list of clauses!
+	    accumulate_clauses(TransTerm, _, Module, _CFile, Options,
+		    Pred, Clauses, Tail, _, _, _, _,
+		    Pred1, Clauses1, Tail1, _, _, _, _),
+	    compile_list(Terms, Pred1, Clauses1, Tail1, Options, Module)
+	).
+compile_list(Term, Pred, Clauses, Tail, Options, Module) :-
+	( Pred == first ->
+	    % allow to omit list brackets for single term
+	    compile_list([Term], none, Clauses, Tail, Options, Module)
+	;
+	    error(5, compile_term(Term, Options), Module)
+	).
+
+    optional_expansion(Term, TransTerm, options{expand_clauses:CFlag,expand_goals:GFlag}, Module) :-
+	expand_clause_and_goals(Term, _, TransTerm, _, CFlag, GFlag)@Module.
+
+
+%----------------------------------------------------------------------
+% Compatibility: fcompile
+%----------------------------------------------------------------------
+
+:- export fcompile/1.
+:- tool(fcompile/1, fcompile_/2).
+fcompile_(File, Module) :-
+	compile_(File, [output:eco,load:new], Module).
+
+:- export fcompile/2.
+:- tool(fcompile/2, fcompile_/3).
+fcompile_(File, Options0, Module) :-
+	% translate old fcompile's compile-option into load-option
+	( delete(compile:CompileOpt, Options0, Options1) ->
+	    ( memberchk(load:LoadOpt, Options1) ->
+	        ( option_compile_load(CompileOpt, LoadOpt) ->
+		    Options2 = Options1
+		;
+		    printf(error, "Incompatible compile/load options: %w%n",
+		    	[fcompile(File, Options0)]),
+		    abort
+		)
+	    ; CompileOpt == yes ->
+		Options2 = [load:all|Options1]
+	    ;
+		Options2 = [load:new|Options1]
+	    )
+	;
+	    ( memberchk(load:LoadOpt, Options0) ->
+		Options2 = Options0
+	    ;
+		Options2 = [load:new|Options0]
+	    )
+	),
+	( delete(output:_, Options2, Options3) ->
+	    printf(error, "Ignoring output: option, using output:eco%n",[])
+	;
+	    Options3 = Options2
+	),
+	Options = [output:eco|Options3],
+	compile_(File, Options, Module).
+
+    option_compile_load(yes, all).
+    option_compile_load(no, new).
+
+
+%----------------------------------------------------------------------
+% Compiler bootstrapping
+%----------------------------------------------------------------------
+
+:- export comp/0, list/0, load/0.
+
+comp :-
+	Options = [output:eco,load:new,verbose:0],
+	compile(compiler_common,	Options),
+	compile(compiler_normalise,	Options),
+	compile(compiler_analysis,	Options),
+	compile(compiler_peephole,	Options),
+	compile(compiler_codegen,	Options),
+	compile(compiler_varclass,	Options),
+	compile(compiler_indexing,	Options),
+	compile(compiler_regassign,	Options),
+	compile(compiler_top,		Options),
+	true.
+
+list :-
+	Options = [output:listing,load:new],
+	compile(compiler_common,	Options),
+	compile(compiler_normalise,	Options),
+	compile(compiler_analysis,	Options),
+	compile(compiler_peephole,	Options),
+	compile(compiler_codegen,	Options),
+	compile(compiler_varclass,	Options),
+	compile(compiler_indexing,	Options),
+	compile(compiler_regassign,	Options),
+	compile(compiler_top,		Options),
+	true.
+
+load :-
+	sepia_kernel:compile("compiler_common.eco"),
+	sepia_kernel:compile("compiler_normalise.eco"),
+	sepia_kernel:compile("compiler_analysis.eco"),
+	sepia_kernel:compile("compiler_peephole.eco"),
+	sepia_kernel:compile("compiler_codegen.eco"),
+	sepia_kernel:compile("compiler_varclass.eco"),
+	sepia_kernel:compile("compiler_indexing.eco"),
+	sepia_kernel:compile("compiler_regassign.eco"),
+	sepia_kernel:compile("compiler_top.eco"),
+	true

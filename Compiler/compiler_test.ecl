@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.3 2007/05/17 23:59:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -46,21 +46,21 @@ ccompile :-
 % Compile everything normally
 
 compile :-
-	compile(compiler_common),
-	compile(compiler_normalise),
-	compile(compiler_analysis),
-	compile(compiler_indexing),
-	compile(compiler_peephole),
-	compile(compiler_codegen),
-	compile(compiler_regassign),
-	compile(compiler_varclass).
+	eclipse_language:compile(compiler_common),
+	eclipse_language:compile(compiler_normalise),
+	eclipse_language:compile(compiler_analysis),
+	eclipse_language:compile(compiler_indexing),
+	eclipse_language:compile(compiler_peephole),
+	eclipse_language:compile(compiler_codegen),
+	eclipse_language:compile(compiler_regassign),
+	eclipse_language:compile(compiler_varclass).
 
 
 % Run one test (or all matching tests)
 
 :- export op(200, fx, (test)).
 test(Name) :-
-	test(Name, [output:print,dbgcomp:off]).
+	test(Name, [load:none,output:print,debug:off,expand_goals:off,print_indexes:on]).
 
 test(Name, Options) :-
 	(
@@ -70,7 +70,7 @@ test(Name, Options) :-
 	    writeclauses(Pred),
 
 	    block(
-		    ( compile_pred(Pred, Options) ->
+		    ( compile_term(Pred, Options) ->
 			true
 		    ;
 			printf("%n------ Test %w failed -------%n", [Name])
@@ -611,12 +611,11 @@ testclause(idx(23), (
 	(p :- ( _==[], p ; q))
     )).
 testclause(idx(24), (
-	% FIXME: default functor case still goes to branch 1
 	(p(X) :- ( X=f(_), !, p1 ; X=[_|_], !, p2 ; compound(X), p2 ))
     )).
 testclause(idx(25), (p(X) :-
 	    ( X=1, p_integer
-	    ; X=11111111111111, p_big
+	    ; X=10000000000000000000, p_big
 	    ; X=1.1, p_float
 	    ; X=5_2, p_rational
 	    ; X=0.9__1.1, p_breal
@@ -649,6 +648,99 @@ testclause(idx(28), (
 testclause(idx(29), ([
 	(p(X) :- X=1, p, q(X)),
 	(p(X) :- X=2, q, r(X))
+    ])).
+testclause(idx(30), (
+	(p(X) :- ( X=1, !, p1 ; X=2, !, p2 ; p4 ))
+    )).
+testclause(idx(31), (
+	(p(X) :- ( X=1, !, p1 ; X=2, !, p2 ; integer(X), p4 ))
+    )).
+testclause(idx(32), (
+	(p(X) :- ( X=f(_), !, p1 ; X=g(_), !, p2 ; X=[_|_], !, p3 ; compound(X), p4 ))
+    )).
+testclause(idx(33), (
+	[(p(f(A,B,C)) :- !, p1(A,B,C)), (p([A|B]) :- !, p2(A,B)), (p(X) :- compound(X), p3)]
+    )).
+testclause(idx(34), (
+	[(p(f(A,B,A),C) :- !, p1(A,B,C)), (p([A|B],B) :- !, p2(A,B)), (p(X,_) :- compound(X), p3)]
+    )).
+testclause(idx(35), (
+	[(p(f(A,B,C)) :- -?-> !, p1(A,B,C)), (p([A|B]) :- -?-> !, p2(A,B)), (p(X) :- compound(X), p3)]
+    )).
+testclause(idx(36), (
+	[(p(f(A,B,C),C) :- -?-> !, p1(A,B,C)), (p([A|B],B) :- -?-> !, p2(A,B)), (p(X,_) :- compound(X), p3)]
+    )).
+testclause(idx(40), (
+	(p(X) :- ( free(X), p1 ; meta(X), p2 ; p3 ))
+    )).
+testclause(idx(41), (
+	(p(X) :- ( free(X), !, p1 ; meta(X), !, p2 ; p3 ))
+    )).
+testclause(idx(42), (
+	(p(X) :- ( free(X), p1 ; meta(X), p2 ; atom(X), p3 ))
+    )).
+testclause(idx(43), (
+	(p(X) :- ( free(X), p1 ; p2 ))
+    )).
+testclause(idx(44), (
+	(p(X) :- ( free(X), !, p1 ; p2 ))
+    )).
+testclause(idx(45), (
+	(p(X) :- ( free(X), p1 ; p2 ))
+    )).
+testclause(idx(46), (
+	(p(X) :- ( meta(X), p1 ; p2 ))
+    )).
+testclause(idx(47), (
+	(p(X) :- ( meta(X), !, p1 ; p2 ))
+    )).
+testclause(idx(48), (
+	(p(X) :- ( meta(X), p1 ; p2 ))
+    )).
+testclause(idx(49), (
+	(p(X) :- ( free(X), p1 ; var(X), p2 ; p3 ))
+    )).
+testclause(idx(50), (
+	(p(X) :- ( free(X), !, p1 ; var(X), !, p2 ; p3 ))
+    )).
+testclause(idx(51), (
+	(p(X) :- ( free(X), p1 ; var(X), p2 ; atom(X), p3 ))
+    )).
+testclause(idx(52), (
+	(p(X) :- ( var(X), !, p1 ; p2))
+    )).
+testclause(idx(53), (
+	(p(X) :- ( var(X), !, p1 ; X=1, p2 ; X=2, p3))
+    )).
+testclause(idx(54), (
+	(p(X) :- ( var(X), !, p1 ; integer(X), X=1, p2 ; integer(X), X=2, p3))
+    )).
+testclause(idx(55), (
+	(p(X) :- ( var(X), !, p1 ; X=1, !, p2 ; integer(X), p3))
+    )).
+testclause(idx(56), (
+	(p(X,Y) :- ( integer(X), Y=a, p1 ; integer(X), Y=b, p2 ; integer(X), Y=c, p3 ; atom(X), p4))
+    )).
+testclause(idx(100), ([
+	(p(1) :- -?-> p_1),
+	(p(2) :- -?-> p_2)
+    ])).
+testclause(idx(101), ([
+	    ( p(1) :- -?-> p_integer),
+	    ( p(10000000000000000000) :- -?-> p_big),
+	    ( p(1.1) :- -?-> p_float),
+	    ( p(5_2) :- -?-> p_rational),
+	    ( p(0.9__1.1) :- -?-> p_breal),
+	    ( p("hello") :- -?-> p_string),
+	    ( p(hello) :- -?-> p_atom),
+	    ( p([]) :- -?-> p_nil),
+	    ( p([_|_]) :- -?-> p_list),
+	    ( p(foo(bar)) :- -?-> p_struct)
+    ])).
+testclause(idx(200), ([
+	( p(X,Y,Z) :- var(X), !, Y=Z),
+	( p(a,Y,Z) :- !, a(Y,Z)),
+	( p(X,Y,Z) :- q(X,Y,Z))
     ])).
 
 testclause(head(100), ( p(a) :- q)).
@@ -710,6 +802,16 @@ testclause(match(22), (p(f(a,X{suspend:S},c)) ?- p(X,S))).
 testclause(match(23), (p(f(bar(baz),X{suspend:S},c)) ?- p(X,S))).
 testclause(match(24), (p(f(X{suspend:S},X)) ?- p(X,S))).	% suboptimal, matches attributes twice
 testclause(match(25), (p(f(bar(baz),a,X{suspend:S},c)) ?- p(X,S))).
+testclause(match(30), [(p(X{suspend:S}) ?- p(X,S)),
+	(p(X) :- integer(X), q(X))]).
+testclause(match(31), [(p(X{suspend:S}) ?- !, p(X,S)),
+	(p(X) :- q(X))]).
+testclause(match(32), [(p(X{suspend:S}) ?- p(X,S)),
+	(p(X) :- free(X), q(X))]).
+testclause(match(33), [(p(X{suspend:S}) ?- p(X,S)),
+	(p(X) :- meta(X), q(X))]).
+testclause(match(34), [(p(X) :- free(X), q(X)),
+	(p(X{suspend:S}) ?- p(X,S))]).
 
 testclause(unify(1), (p(X,Y,Z) :- q, X = f(1,g(Y,W),V,h(Z,Y)), r(Z,W),s(V))).
 
@@ -757,6 +859,23 @@ testclause(cut(4), [(p :- q, !, r),(p :- s)]).
 testclause(cut(5), [(p :- a),(p :- !,bb),(p:-c,d)]).
 testclause(cut(6), [(p :- a),(p :- b,!,bb),(p:-c,d)]).
 
+testclause(env(1), [
+	(p :-
+	    q(A,B,C,D,E,F,G),
+	    r(H,I,J,K,L,M,N),
+	    q(A,B,C,D,E,F,G),
+	    r(H,I,J,K,L,M,N)
+	)
+]).
+testclause(env(2), [
+	(p :-
+	    q(A0,B0,C0,D0,E0,F0,G0,H0,I0,J0,K0,L0,M0,N0,O0,P0,Q0,R0,S0,T0),
+	    r(A1,B1,C1,D1,E1,F1,G1,H1,I1,J1,K1,L1,M1,N1,O1,P1,Q1,R1,S1,T1),
+	    s(A0,B0,C0,D0,E0,F0,G0,H0,I0,J0,K0,L0,M0,N0,O0,P0,Q0,R0,S0,T0),
+	    t(A1,B1,C1,D1,E1,F1,G1,H1,I1,J1,K1,L1,M1,N1,O1,P1,Q1,R1,S1,T1)
+	)
+]).
+
 testclause(bench(1), [
     (conc([], Ys, Ys)),
     (conc([X|Xs], Ys, [X|XsYs]) :- conc(Xs, Ys, XsYs))
@@ -776,9 +895,86 @@ testclause(bench(3), [
     )
 ]).
 
+testclause(bug(1), [
+    simplify_code([], []),
+    (simplify_code([code(Instr,_,_)|More], SimplifiedCode) :-
+	    ( simplify(Instr, More, SimplifiedCode0) ->
+		simplify_code(SimplifiedCode0, SimplifiedCode)
+	    ;
+		SimplifiedCode = [Instr|SimplifiedCode0],
+		simplify_code(More, SimplifiedCode0)
+	    ))
+]).
+testclause(bug(2), [
+    (loop(Xs) :- ( foreach(X,Xs) do writeln(X) ))
+]).
+testclause(bug(3), [
+    (p(A, B, C) :-
+	( A = B -> C = foo ; else )
+    )
+]).
+testclause(bug(4), [
+    (p(First, Last, PermSlots2) :-
+	( First == Last ->
+	    _Where = temp,
+	    PermSlots2=PermSlots1
+	;
+	    PermSlots2=[_Slot|PermSlots1]
+	)
+    )
+]).
+testclause(bug(5), [
+    (indexing_transformation([A|_], C) :-
+	(
+	    A = disjunction(_)
+	->
+	    then
+	;
+	    C = [_|_]
+	)
+    )
+]).
+testclause(bug(6), [
+    insert_after_head(IndexPoint, Branch, IndexedBranch) :-
+	( Branch = [Head|RestOfBranch], Head = goal(head,_) ->
+	    IndexedBranch = [Head,IndexPoint|RestOfBranch]
+	;
+	    IndexedBranch = [IndexPoint|Branch]
+	)
+]).
+testclause(bug(7), [
+    % bug was that integer index table wasn't sorted.
+    % TODO: no A2 index, because occurrence of :/2 isn't considered inside
+    % guard, because cut occurs only after regular goal (clause 4).
+    (declaration_warning_handler(_N, _Pred, lists) :- !),
+    (declaration_warning_handler(_N, _Pred, profile) :- !),
+    (declaration_warning_handler(75, Pred, Module) :- !,
+	get_flag_body(Pred, definition_module, DM, Module),
+	get_deprecation_advice(Pred, DM, Advice),
+	!,
+	warning_handler(75, Pred, Module),
+	printf(warning_output, " Advice: %w%n", [Advice])),
+    (declaration_warning_handler(85, BadModule:_, _Module) :-
+	known_library(BadModule),
+	!),
+    (declaration_warning_handler(N, Pred, Module) :-
+	warning_handler(N, Pred, Module))
+]).
+testclause(bug(8), [
+    (attach_suspensions(postponed, Susp) ?- !,
+	postpone_suspensions(Susp)),
+    (attach_suspensions(Trigger, Susp) :-
+	atom(Trigger), !,
+	attach_suspensions1(Trigger, Susp)),
+    (attach_suspensions(Trigger, Susp) :-
+	nonvar(Trigger), !, 
+	error(5, attach_suspensions(Trigger, Susp))),
+    (attach_suspensions(Trigger, Susp) :-
+	error(4, attach_suspensions(Trigger, Susp)))
+]).
 
 %----------------------------------------------------------------------
-% The following are test from the old compiler test suite
+% The following are tests from the old compiler test suite
 %----------------------------------------------------------------------
 
 % Allocated temporaries: temporary variables that have their first occurrence
