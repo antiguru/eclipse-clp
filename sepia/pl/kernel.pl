@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.4 2007/02/23 15:28:34 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.5 2007/05/17 15:36:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -274,6 +274,7 @@
     setval(toplevel_trace_mode, nodebug).
 :- make_array_(compiled_stream, prolog, local, sepia_kernel),
     setval(compiled_stream, _).
+:- make_array_(compile_stack, reference([]), local, sepia_kernel).
 
 % ignore_eof is on on Windows because ^C acts like end_of_file
 :- make_array_(ignore_eof, prolog, local, sepia_kernel),
@@ -983,11 +984,13 @@ ensure_loaded1(FileAtom, Module) :-
 do_compile(FileAtom, Module) :-
 	error(146, FileAtom, Module),
 	comp_begin(FileAtom, OldPath, OldPrompt, OldStream, Stream),
+	register_compiler(T-(sepia_kernel:compile_term(T))),
 	( block(
 		compile_stream(Stream, 0, Module),
 		Tag,
 		comp_abort(Tag, OldPath, FileAtom, OldStream, Stream, OldPrompt, Module))
 	->
+	    deregister_compiler,
 	    comp_end(FileAtom, OldStream, Stream, OldPath, OldPrompt, Module),
 	    ( var(OldStream) -> declaration_checks ; true )
 	;
@@ -1377,6 +1380,7 @@ current_pragma_(Pragma, Module) :-
 
 
 erase_module_pragmas(Module) :-
+	reset_name_ctr(Module),
 	stored_keys(pragmas, Keys),
 	erase_module_pragmas(Keys, Module).
 
@@ -2110,6 +2114,7 @@ erase_module_related_records(Module) :-
 	forget_discontiguous_predicates(Module),
 	forget_stored_goals(initialization_goals, Module),
         forget_stored_goals(finalization_goals, Module),
+	reset_name_ctr(Module),
 
 	% erase information about which files were compiled into Module
 	forget_module_files(Module).
@@ -2548,7 +2553,8 @@ unify_number(R, X, M) :- error(5, R is X, M).
 
 :- mode eval(?,?,+).
 
-eval(X, R, _) :- (var(X);number(X)), !, R=X.
+eval(X, R, _) :- var(X), !, R=X.
+eval(X, R, _) :- number(X), !, R=X.
 eval(eval(X), R, M) :-  !, eval(X,R,M).
 eval(+X, R, M) :-       !, eval(X,X1,M), +(X1, R).
 eval(-X, R, M) :-       !, eval(X,X1,M), -(X1, R).
@@ -3612,6 +3618,7 @@ inline_(Proc, Trans, Module) :-
 	trprotect/2,
 	trdcg/3,
 	call_local/1,
+	erase_module_pragmas/1,
 	exec_exdr/1,
 	exec_string/2,
         expand_clause_annotated/4,
@@ -4549,6 +4556,50 @@ expand_clauses(Clause, ExpClauses, Module) :-
 expand_compile_term_(Clauses, Module) :-
 	expand_clauses(Clauses, ExpClauses, Module),
 	compile_term_(ExpClauses, Module).
+
+:- tool(compile_term_flags/2, compile_term_flags_/3).
+compile_term_flags_(Clauses, Flags, Module) :-
+	compile_term_(Clauses, Module),
+	( get_predspec(Clauses, Spec) ->
+	    set_flags(Spec, Flags, Module)
+	;
+	    true
+	).
+
+    get_predspec([Clause|_], N/A) :-
+    	clause_head(Clause, Head),
+	functor(Head, N, A).
+
+    set_flags(_Spec, [], _).
+    set_flags(Spec, [FlagVal|Flags], M) :-
+	FlagVal =.. [Flag,Val],
+	set_flag(Spec, Flag, Val)@M,
+	set_flags(Spec, Flags, M).
+
+
+
+:- export register_compiler/1, deregister_compiler/0.
+register_compiler(NestedCompileSpec) :-
+	getval(compile_stack, Stack),
+	setval(compile_stack, [NestedCompileSpec|Stack]).
+
+deregister_compiler :-
+	getval(compile_stack, Stack),
+	( Stack = [_Old|Rest] ->
+	    setval(compile_stack, Rest)
+	;
+	    true
+	).
+
+:- tool(nested_compile_term/1, nested_compile_term_/2).
+nested_compile_term_(Clauses, Module) :-
+	getval(compile_stack, Stack),
+	( Stack = [Top|_] ->
+	    copy_term(Top, Clauses-Goal),
+	    call(Goal)@Module
+	;
+	    compile_term_(Clauses, Module)
+	).
 
 
 :- define_macro('with attributes'/2, tr_with_attributes/3, [global]).
@@ -5918,6 +5969,7 @@ t_bips(setarg(Path,T,X), Goal, _) :- -?->		% setarg/3
 :- inline((do)/2, t_do/3).
 
 :- make_array_(name_ctr, prolog, local, sepia_kernel), setval(name_ctr,0).
+:- local store(name_ctr).
 
 :- global_flags(16'04000000, 0, _). % set_flag(variable_names, off).
 
@@ -5959,7 +6011,7 @@ t_do((Specs do LoopBody), NewGoal, M) :-
 %	printf("Local vars: %w / %vw%n", [LocalVars, LocalVars]),
 %	printf("Loop body: %Vw%n", [LoopBody1]),
 	check_singletons(LoopBody1, LocalVars),
-	aux_pred_name(Name),
+	aux_pred_name(M, Name),
 	FirstCall =.. [Name|Firsts],		% make replacement goal
 	flatten_and_clean(PreGoals, FirstCall, NewGoal),
 	BaseHead =.. [Name|Lasts],		% make auxiliary predicate
@@ -5967,25 +6019,26 @@ t_do((Specs do LoopBody), NewGoal, M) :-
 	RecCall =.. [Name|RecCallArgs],
 	tr_goals(AuxGoals, AuxGoals1, M),
 	flatten_and_clean((AuxGoals1,LoopBody1), RecCall, BodyGoals),
+	functor(BaseHead, Name, Arity),
 	Code = [
 	    (BaseHead :- true, !),
-	    (RecHead :- BodyGoals)
+	    (RecHead :- BodyGoals),
+	    (:- set_flag(Name/Arity, auxiliary, on))
 	],
-	functor(BaseHead, Name, Arity),
 %	printf("Creating auxiliary predicate %w\n", Name/Arity),
 %	write_clauses(Code),
 %	writeclause(?- NewGoal),
 	copy_term(Code, CodeCopy, _),	% strip attributes
-	compile_term(CodeCopy) @ M,	% compile_term doesn't expand!
-	set_flag(Name/Arity, auxiliary, on) @ M.
+	nested_compile_term(CodeCopy)@M.
 t_do(Illformed, _, M) :-
 	error(123, Illformed, M).
 
-    aux_pred_name(Name) :- nonvar(Name).
-    aux_pred_name(Name) :- var(Name),
-	getval(name_ctr, I),
-	incval(name_ctr),
+    aux_pred_name(_Module, Name) :- nonvar(Name).
+    aux_pred_name(Module, Name) :- var(Name),
+	store_inc(name_ctr, Module),
+	store_get(name_ctr, Module, I),
 	concat_atom([do__,I], Name).
+
 
     write_clauses([]).
     write_clauses([C|Cs]) :-
@@ -6000,13 +6053,16 @@ t_do(Illformed, _, M) :-
 	flatten_and_clean(G2, Gs0, Gs1).
     flatten_and_clean(G, Gs, (G,Gs)).
 
+reset_name_ctr(Module) :-
+	store_set(name_ctr, Module, 0).
 
 %----------------------------------------------------------------------
 % get_spec defines the meaning of each specifier
 %----------------------------------------------------------------------
 
-:- mode get_specs(+,-,-,-,-,-,-,-,-,+).
+:- mode get_specs(?,-,-,-,-,-,-,-,-,+).
 get_specs(Specs, Firsts, Lasts, Pregoals, RecHead, AuxGoals, RecCall, Locals, Name, M) :-
+	nonvar(Specs),
 	get_specs(Specs, Firsts, [], Lasts, [], Pregoals, true, RecHead, [], AuxGoals, true, RecCall, [], Locals, [], Name, M).
 
 :- mode get_specs(+,-,+,-,+,-,+,-,+,-,+,-,+,-,+,?,+).
@@ -6336,7 +6392,7 @@ get_spec('>>'(Specs1, Specs2),
 	length(Firsts2, N2),
 
 	% Set up the auxiliary predicate for iterating Spec1
-	aux_pred_name(NextPredName),
+	aux_pred_name(Module, NextPredName),
 	append(Lasts1, Lasts2, LastsTail1),
 	append(Lasts1, LastsTail1, Lasts11),
 	NextBaseHead =.. [NextPredName | Lasts11],
@@ -6364,16 +6420,16 @@ get_spec('>>'(Specs1, Specs2),
 		    Firsts21 = Firsts2
 		),
 	flatten_and_clean((Goals11, Pregoals21), NextExtraGoal, NextGoals),
+	Arity is 2*N1 + N2,
 	NextCode = [
 	    (NextBaseHead :- !, true),
-	    (NextRecHead :- NextGoals)
+	    (NextRecHead :- NextGoals),
+	    (:- set_flag(NextPredName/Arity, auxiliary, on))
 	],
-	Arity is 2*N1 + N2,
 	%printf("Creating auxiliary predicate %w\n", NextPredName/Arity),
 	%write_clauses(NextCode),
 	copy_term(NextCode, NextCodeCopy, _),	% strip attributes
-	compile_term(NextCodeCopy)@Module,
-	set_flag(NextPredName/Arity, auxiliary, on)@Module,
+	nested_compile_term(NextCodeCopy)@Module,
 
 	% Use a different copy of Firsts2 in PreGoals and Firsts from what
 	% is used in RecHead and AuxGoals (for when goal expansion not
