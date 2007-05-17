@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.3 2007/02/23 15:07:59 kish_shen Exp $
+% Version:	$Id: source_processor.ecl,v 1.4 2007/05/17 23:52:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2007/02/23 15:07:59 $").
+:- comment(date, "$Date: 2007/05/17 23:52:17 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -282,8 +282,8 @@ source_close(SourcePos, Options) :-
     <DT>handled_directive</DT>
     	<DD>A directive (a term with functor :-/1) which has already
 	been handled (interpreted by source_read/3). Such directives are:
-	module/1,3, local/1, export/1, reexport/1, use_module/1, op/3,
-	pragma/1, include/1, ./2</DD>
+	module/1,3, local/1, export/1, reexport/1, use_module/1, lib/1,
+	pragma/1, include/1, ./2, op/3, meta_attribute/2</DD>
     <DT>directive</DT>
     	<DD>A directive (a term with functor :-/1) which has not
 	been handled (ignored by source_read/3)</DD>
@@ -296,6 +296,8 @@ source_close(SourcePos, Options) :-
     <DT>comment</DT>
     	<DD>Spacing, layout and comments between source terms
     	(only when keep_comments option is in effect)</DD>
+    <DT>end_include</DT>
+    	<DD>The end of an included source file</DD>
     <DT>end</DT>
     	<DD>The end of the (top-level) source file</DD>
     </DL>
@@ -309,8 +311,9 @@ source_close(SourcePos, Options) :-
     )).
     </PRE>
     For category 'comment', the term is a string containing the comment.
-    For category 'end', the term is the atom end_of_file. In both these
-    cases, vars is the empty list, and annotated is uninstantiated.
+    For category 'end' and 'end_include', the term is the atom end_of_file.
+    In all these cases, vars is the empty list, and annotated is
+    uninstantiated.
     <P>
     The annotated term is in the same format as that returned by 
     read_annotated/2, i.e. a recursive wrapper structure around the
@@ -344,7 +347,7 @@ source_close(SourcePos, Options) :-
     ]).
 
     % Term classes:
-    %   directive, handled_directive, query, clause, comment, var, end
+    %   directive, handled_directive, query, clause, comment, var, end_include, end
 source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	OldPos = source_position{stream:In,module:Module,oldcwd:OldCwd,
 		options:OptFlags,remaining_files:RF,included_from:IF},
@@ -384,7 +387,8 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 		update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 		Kind = end
 	    ;
-		source_read(IF, NextPos, Kind, SourceTerm)
+		SourceTerm = source_term{term:TermOrEof,vars:Vars},
+		NextPos = IF, Kind = end_include
 	    )
 
 	; TermOrEof = (:- Directive) ->
@@ -407,7 +411,8 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 
 :- import expand_macros_annotated_/5, 
           expand_clause_annotated/4,
-          expand_goal_annotated/4
+          expand_goal_annotated/4,
+	  erase_module_pragmas/1
    from sepia_kernel.
 
     read_next_term(In, _Term, _AnnTermOrEof, _Vars, _Error, Comment, options{keep_comments:true}, _Module) ?-
@@ -439,8 +444,8 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
         ;
             expand_macros_annotated_(TermOrEof0, AnnTermOrEof0, TermOrEof,
                                      AnnTermOrEof, Module)
-    ).
-        
+	).
+
 
     	
     % simple attempt at recovery: skip to fullstop at end of line
@@ -486,16 +491,21 @@ unannotate_termvar(AnnTerm, Term, Vars) :-
             VIn = VOut
         ).
 
-
 apply_clause_expansion(Term, AnnTerm, TransTerm, AnnTransTerm,
-              options{no_clause_expansion:CFlag,goal_expansion:GFlag},
+              options{no_clause_expansion:NoCFlag,goal_expansion:GFlag0},
 	      Module) :-
-	(
-	    CFlag \== true,
-	    get_flag(macro_expansion, on)	% obey global flag as well
-	->
+	( NoCFlag == true -> CFlag=off ; CFlag=on ),
+	( GFlag0 == true -> GFlag=on ; GFlag=off ),
+	expand_clause_and_goals_(Term, AnnTerm,
+		TransTerm, AnnTransTerm, CFlag, GFlag, Module).
+
+
+:- export expand_clause_and_goals/6.
+:- tool(expand_clause_and_goals/6, expand_clause_and_goals_/7).
+expand_clause_and_goals_(Term, AnnTerm, TransTerm, AnnTransTerm, CFlag, GFlag, Module) :-
+	( CFlag == on, get_flag(macro_expansion, on) ->
 	    expand_clause_annotated(Term, AnnTerm, TransTerm1, AnnTransTerm1)@Module,
-            ( GFlag == true, get_flag(goal_expansion, on) ->
+            ( GFlag == on, get_flag(goal_expansion, on) ->
 		expand_clause_goals(TransTerm1, AnnTransTerm1, TransTerm,
                                     AnnTransTerm, Module)
 	    ;
@@ -563,11 +573,15 @@ handle_directives(include([File|Files]), ThisPos, NextPos, handled_directive) :-
 handle_directives(module_interface(NewModule), ThisPos, NextPos, Kind) :- !,
 	directive_warning("Obsolete directive", module_interface(NewModule), ThisPos),
 	handle_directives(module(NewModule), ThisPos, NextPos, Kind).
-handle_directives(begin_module(NewModule), ThisPos, NextPos, Kind) :- !,
-	directive_warning("Obsolete directive", begin_module(NewModule), ThisPos),
-	handle_directives(module(NewModule), ThisPos, NextPos, Kind).
 handle_directives(module(NewModule), ThisPos, NextPos, Kind) :- !,
 	handle_directives(module(NewModule,[],eclipse_language), ThisPos, NextPos, Kind).
+handle_directives(begin_module(NewModule), ThisPos, NextPos, handled_directive) :- !,
+	( current_module(NewModule) ->
+	    erase_module_pragmas(NewModule)
+	;
+	    error(80, begin_module(NewModule))
+	),
+	update_struct(source_position, [module:NewModule], ThisPos, NextPos).
 handle_directives(module(NewModule,Exports,Imports), ThisPos, NextPos, handled_directive) :- !,
 	ThisPos = source_position{options:OptFlags,created_modules:CM0},
 	( current_module(NewModule) ->
@@ -576,7 +590,7 @@ handle_directives(module(NewModule,Exports,Imports), ThisPos, NextPos, handled_d
 	    	erase_module(NewModule),
 		create_module(NewModule, Exports, Imports)
 	    ;
-		true
+		erase_module_pragmas(NewModule)
 	    ),
 	    CM = CM0
 	;
@@ -593,8 +607,8 @@ handle_directives(pragma(Pragma), NextPos, NextPos, handled_directive) :- !,
 
     % other directives
 handle_directives(Directive, NextPos, NextPos, Kind) :-
+	NextPos = source_position{module:Module,file:File},
 	( handled_directive(Directive, ChangeDir) ->
-	    NextPos = source_position{module:Module,file:File},
 	    ( ChangeDir = yes ->
 		pathname(File, Dir, _, _),
 		getcwd(Cwd),
@@ -610,7 +624,7 @@ handle_directives(Directive, NextPos, NextPos, Kind) :-
 		directive_warning("Directive failed", Directive, NextPos)
 	    ),
 	    Kind = handled_directive
-	; obsolete_directive(Directive) ->
+	; obsolete_directive(Directive), Module \= sepia_kernel ->
 	    directive_warning("Obsolete directive", Directive, NextPos),
 	    Kind = directive
 	;
