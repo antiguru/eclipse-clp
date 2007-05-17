@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.2 2007/02/22 01:28:11 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.3 2007/05/17 23:47:27 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -213,41 +213,10 @@ static pword
  * instructions. They indicate which parts of an environment are active,
  * and consist of an environment size or an activity bitmap (EAM).  */
 
-typedef uint32	eam_t;
-
-#define EAM_CHUNK_SZ	31
+/* access environment descriptor, given code pointer */
 #define EnvDescPP(pp)	(*((word*)(pp)))
+/* access environment descriptor, given stack pointer to return address */
 #define EnvDesc(sp)	EnvDescPP(*(vmcode**)(sp) - 1)
-
-/* Preliminary scheme, allowing old environment sizes:
- *	<29 bit env size>000	LSB=0 indicates size field, all active
- *	<31 bit EAM bitmap>1	LSB=1 indicates 31-bit EAM (activity bitmap)
- * Dynamic environments marked by -1 size field (true size in Y1 tag).
- */
-#define EdIsSize(ed)	(((ed) & 1) == 0)
-#define EdSize(ed,e)	((ed) == -((word)sizeof(pword)) ? DynEnvSize(e) : (ed) / (word)sizeof(pword))
-#define EdIsEam(ed)	(!EdIsSize(ed))
-#define EdEamPtr(ed)	(&(ed))
-#define EamPtrNext(peam)	(!(*(peam)++ & 1))
-#define EamPtrEam(peam)	(*(eam_t*)(peam) >> 1)
-
-/* Final scheme: allow direct bitmaps (31-bits, bit 0 always set)
- *	<31 bit EAM bitmap> 1	LSB=1 indicates 31-bit EAM
- *	<ptr to EAM> 0		LSB=0 indicates pointer to array of
- *				31-bit maps, where all but the last
- *				32-bit words of the array have LSB=0.
- * Dynamic environment sizes (formerly marked by -1 size)
- * are now indicated by a pointer to a particular static address.
- */
-/*
-#define EdIsSize(ed)	((eam_t*)(ed) == &dyn_env_size_indicator)
-#define EdSize(ed,e)	DynEnvSize(e)
-#define EdIsEam(ed)	(!EdIsSize(ed))
-#define EdEamPtr(ed)	((ed)&1 ? &(ed) : (eam_t*)(ed))
-#define EamPtrNext(peam)	(!(*(peam)++ & 1))
-#define EamPtrEam(peam)	(*(eam_t*)(peam) >> 1)
-*/
-
 
 /*------------------------------------------------------------------
  * Debugging the GC
@@ -614,6 +583,8 @@ collect_stacks(long int arity, long int gc_forced)
 	Mark_from(TAGGED_WL.tag.kernel, &TAGGED_WL, NO);
 	Mark_from(POSTED.tag.kernel, &POSTED, NO);
 	Mark_from(POSTED_LAST.tag.kernel, &POSTED_LAST, NO);
+	Mark_from_pointer(WP_STAMP.tag.kernel, &WP_STAMP, NO);
+	Mark_from_pointer(PostponedList.tag.kernel, &PostponedList, NO);
 		/*
 		 * Mark the list of cut actions
 		 */
@@ -1284,9 +1255,9 @@ Code Template:
 	/* while (env <= mergepoint) */ \
 	for(;;) \
 	{ \
-	    if (EdIsSize(edesc)) { \
+	    if (EdescIsSize(edesc)) { \
 		/* we have only an environment size, all slots active */ \
-		word sz = EdSize(edesc,env); \
+		word sz = EdescSize(edesc,env); \
 		Check_Size(sz) \
 		for (pw = env - sz; pw < env; pw++) \
 		{ \
@@ -1294,11 +1265,11 @@ Code Template:
 		} \
 	    } else { \
 		/* we have an environment activity bitmap */ \
-		eam_t *eam_ptr = EdEamPtr(edesc); \
+		uword *eam_ptr = EdescEamPtr(edesc); \
 		pw = env; \
 		do { \
 		    int i=EAM_CHUNK_SZ; \
-		    eam_t eam = EamPtrEam(eam_ptr); \
+		    uword eam = EamPtrEam(eam_ptr); \
 		    for(;eam;--i) { \
 			--(pw); \
 			if (eam & 1) { \

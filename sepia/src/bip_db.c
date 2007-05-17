@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.2 2007/02/02 15:12:05 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.3 2007/05/17 23:47:27 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -116,8 +116,8 @@ static int
     p_external(value vp, type tp, value vf, type tf, value vm, type tm),
     p_b_external(value vp, type tp, value vf, type tf, value vm, type tm),
     p_external_body(value vpred, type tpred, value vmod, type tmod),
-#ifdef PRINTAM
     p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod),
+#ifdef PRINTAM
     p_vm_statistics(value v, type t),
 #endif
 #ifndef NOALS
@@ -167,6 +167,8 @@ static	dident
 		d_ymask,
 		d_align,
 		d_table2,
+		d_refm,
+		d_edesc,
 		d_try_table2,
 		d_t1,
 		d_w1,
@@ -246,6 +248,7 @@ bip_db_init(int flags)
     d_ymask = in_dict("ymask", 1);
     d_align = in_dict("align", 1);
     d_table2 = in_dict("table", 2);
+    d_edesc = in_dict("edesc", 1);
     d_try_table2 = in_dict("try_table", 2);
     d_t1 = in_dict("t", 1);
     d_w1 = in_dict("w", 1);
@@ -262,6 +265,7 @@ bip_db_init(int flags)
     d_init2 = in_dict("init", 2);
     d_ref1 = in_dict("ref", 1);
     d_ref2 = in_dict("ref", 2);
+    d_refm = in_dict("refm", 2);
     d_tags = in_dict("tags", 0);
     d_par_fail = in_dict("par_fail", 0);
 
@@ -289,8 +293,8 @@ bip_db_init(int flags)
 #endif
 #ifdef PRINTAM
     (void) built_in(in_dict("vm_statistics", 1), p_vm_statistics, B_UNSAFE|U_SIMPLE);
-    (void) built_in(in_dict("load_eco", 3), p_load_eco, B_UNSAFE|U_SIMPLE);
 #endif
+    (void) built_in(in_dict("load_eco", 3), p_load_eco, B_UNSAFE|U_SIMPLE);
     (void) exported_built_in(in_dict("store_pred", 5), p_store_pred, B_UNSAFE);
     exported_built_in(in_dict("retrieve_code", 3), p_retrieve_code, B_UNSAFE)
 	-> mode = BoundArg(2, GROUND);
@@ -485,13 +489,14 @@ static int
 p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod)
 {
     stream_id nst;
+    char *file;
     int	res;
 
-    Check_Atom_Or_Nil(vfile, tfile);
+    Get_Name(vfile, tfile, file);
     Check_Integer(topt);
     Check_Atom_Or_Nil(vmod, tmod);
 
-    nst = ec_open_file(DidName(vfile.did), SREAD, &res);
+    nst = ec_open_file(file, SREAD, &res);
     if (nst == NO_STREAM)
     {
 	Bip_Error(res);
@@ -2862,7 +2867,12 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 	    else if (d == d_ref1)	/* ref(atom or displacement) */
 	    {
 	        Store_Ref(pw1, base);
-
+	    }
+	    else if (d == d_refm)	/* refm(displacement,marker) */
+	    {
+		/* Temporary hack to create pointers with one of their
+		 * low bits set for marking purposes. */
+		Store_d((word)(base + pw1[0].val.nint) + pw1[1].val.nint)
 	    }
 	    else if (d == d_align)	/* align(multiple of words) */
 	    {
@@ -3062,6 +3072,44 @@ p_decode_code(value vcode, type tcode, value v, type t)
 	}
 	Make_Nil(&pw[1]);
 	Return_Unify_Pw(v, t, result.val, result.tag);
+    }
+    else if (d == d_edesc)	/* edesc(Edesc) -> Size or BitList */
+    {
+	uword edesc; 
+	Dereference_(pw1);
+	Check_Integer(pw1->tag);
+	edesc = pw1->val.nint;
+	if (EdescIsSize(edesc))
+	{
+	    /* it's an environment size, positive or -1 */
+	    Return_Unify_Integer(v, t, (word)edesc/(word)sizeof(pword));
+	}
+	else
+	{
+	    /* decode environment activity map into a list of slot numbers */
+	    pword result;
+	    pword *pw = &result;
+	    uword pos = 1;
+	    uword *eam_ptr = EdescEamPtr(edesc);
+	    do {
+		int i = EAM_CHUNK_SZ;
+		uword eam = EamPtrEam(eam_ptr);
+		for(;eam;--i) {
+		    if (eam & 1) {
+			Make_List(pw, TG);
+			pw = TG;
+			Push_List_Frame();
+			Make_Integer(&pw[0], pos);
+			pw = &pw[1];
+		    }
+		    eam >>= 1;
+		    pos++;
+		}
+		pos += i;
+	    } while (EamPtrNext(eam_ptr));
+	    Make_Nil(pw);
+	    Return_Unify_Pw(v, t, result.val, result.tag);
+	}
     }
     else if (d == d_table2)	/* table(Address,Size) -> ListOfPairs */
     {

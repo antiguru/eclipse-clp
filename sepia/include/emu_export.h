@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.4 2007/02/22 01:27:34 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.5 2007/05/17 23:46:28 jschimpf Exp $
  */
 
 /*
@@ -126,6 +126,62 @@ extern vmcode	it_fail_code_[],
 #define PushDynEnvHdr(NrSlots, Flags, Val) \
 	    (--SP)->tag.all = ((NrSlots) << 8) | Flags | TPTR;\
 	    SP->val.wptr = (uword *) (Val);
+
+
+/*
+ * Environment descriptors and their access macros.
+ * Environment descriptors occur in call and retry/trust_inline
+ * instructions. They indicate which parts of an environment are active,
+ * and consist of an environment size or an activity bitmap (EAM).
+ *
+ * Preliminary scheme, allowing both environment sizes and bitmaps, 32-bit:
+ *	<29 bit env size>000	LSB=00 indicates size field, all slots active,
+ *				size in bytes, multiple of pword.
+ *	<31 bit EAM bitmap>1	LSB= 1 indicates 31-bit EAM (activity bitmap)
+ *	<pointer  to  EAM>10	LSB=10 indicates pointer to uword-array
+ *				of 31+1 bit maps, where all but the last
+ *				uword of the array have LSB=0.
+ * compatible on 64-bit:
+ *	<60 bit env size>0000	LSB=00 indicates size field, all slots active,
+ *				size in bytes, multiple of pword.
+ *	<31 bit  EAM bitmap>1	LSB= 1 indicates 31-bit EAM (activity bitmap)
+ *				bits 32..63 are same as bit 31 (sign extended)
+ *	<pointer  to  EAM>010	LSB=10 indicates pointer to uword-array
+ *				of 31+1 bit maps, where all but the last
+ *				uword of the array have LSB=0.
+ *
+ * Dynamic environments marked by -1 size field (true size in Y1 tag).
+ *
+ * Bitmaps are cut up into 31-bit chunks (bits 1 to 31 of a uword, with
+ * bit 0 of the uword being used as a marker for the last chunk).
+ * First chunk corresponds to Y1(bit1)..Y31(bit31), second chunk to
+ * Y32(bit1)..Y62(bit31), etc.  To have portable byte code, we use 31 bit
+ * chunks even on 64-bit machines, with the rest of the uword wasted.
+ */
+
+#define EAM_CHUNK_SZ	31
+
+#define EdescIsSize(ed)	(((ed) & 3) == 0)
+#define EdescSize(ed,e)	((ed) == -((word)sizeof(pword)) ? DynEnvSize(e) : (ed) / (word)sizeof(pword))
+
+#define EdescIsEam(ed)	(!EdescIsSize(ed))
+#define EdescEamPtr(ed)	((ed)&1 ? (uword*)(&(ed)) : (uword*)((ed) & ~2))
+#define EamPtrNext(peam)	(!(*(peam)++ & 1))
+/* (uint32) cast needed to get rid of sign extension on 64-bit */
+#define EamPtrEam(peam)	((uint32)(*(uword*)(peam)) >> 1)
+
+/* Final, simplified scheme (env size no longer supported):
+ *	<31 bit EAM bitmap>1	LSB=1 indicates 31-bit EAM (activity bitmap)
+ *	<pointer   to  EAM>0	LSB=0 indicates pointer to uword-array
+ *				of 31+1 bit maps, where all but the last
+ *				uword of the array have LSB=0.
+ * Dynamic environment sizes (formerly marked by -1 size) are then
+ * indicated by a pointer to a particular static address.
+ *
+#define EdescIsSize(ed)	((uword*)(ed) == &dyn_env_size_indicator)
+#define EdescSize(ed,e)	DynEnvSize(e)
+#define EdescEamPtr(ed)	((ed)&1 ? (uword*)(&(ed)) : (uword*)(ed))
+*/
 
 
 /*---------------------------------------------------------------------------

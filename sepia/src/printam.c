@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.4 2007/02/22 01:28:11 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.5 2007/05/17 23:47:27 jschimpf Exp $
  */
 
 /*
@@ -60,7 +60,7 @@ extern vmcode	fail_code_[];
 void		print_port(stream_id nst, int port);
 static void	_print_label(vmcode **ptr);
 static vmcode	*_print_init_mask(vmcode *code, int name);
-static vmcode	*_print_activity_map(vmcode *code);
+static void	_print_edesc(uword);
 
 /* this one should also check >= brk(0) */
 #define InvalidAddress(ptr)	((ptr) == NULL || (uword) (ptr) & 0x3)
@@ -239,13 +239,7 @@ static vmcode	*_print_activity_map(vmcode *code);
 		(void) ec_outfs(current_output_, "\n\t\t\tdefault:");\
 	}
 
-#define EnvDesc	{						\
-	if (*code & 1) {					\
-	    code = _print_activity_map(code);			\
-	} else {						\
-	    VarOffset;						\
-	}							\
-    }
+#define EnvDesc _print_edesc(*code++);
 
 #define PortName(Port)		ec_debug_ports[(Port) & PORT_MASK]
 
@@ -1436,39 +1430,39 @@ _print_init_mask(vmcode *code, int name)
     return code;
 }
 
-static vmcode *
-_print_activity_map(vmcode *code)
+
+static void
+_print_edesc(uword edesc)
 {
-    uword	map = (*code++);
-    word	pos = 1;
-    int		first = 1;
-
-    if (!(map & 1)) {
-	p_fprintf(current_output_,"<invalid eam>");
-	return code;
-    }
-
-    map >>= 1;
-    if (!map) {
-	p_fprintf(current_output_,"Y<none>");
-	return code;
-    }
-    while (map)
+    if (EdescIsSize(edesc))
     {
-	if (map & 1)
-	{
-	    if (first)
-	    {
-		first = 0;
-		p_fprintf(current_output_,"Y%d", pos);
-	    }
-	    else
-		p_fprintf(current_output_,",%d", pos);
-	}
-	map >>= 1;
-	pos++;
+	/* size might be -1 */
+	p_fprintf(current_output_,"%d ", (word)edesc/(word)sizeof(pword));
     }
-    return code;
+    else
+    {
+	uword pos = 1;
+	int first = 1;
+	uword *eam_ptr = EdescEamPtr(edesc);
+	p_fprintf(current_output_,"Y[");
+	do {
+	    int i;
+	    uword eam = EamPtrEam(eam_ptr);
+	    for(i=EAM_CHUNK_SZ;i>0;--i) {
+		if (eam & 1) {
+		    if (first) {
+			first = 0;
+			p_fprintf(current_output_,"%d", pos);
+		    } else {
+			p_fprintf(current_output_,",%d", pos);
+		    }
+		}
+		eam >>= 1;
+		pos++;
+	    }
+	} while (EamPtrNext(eam_ptr));
+	p_fprintf(current_output_,"]");
+    }
 }
 
 
