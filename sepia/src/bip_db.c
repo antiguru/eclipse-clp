@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.3 2007/05/17 23:47:27 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.4 2007/05/25 18:21:48 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -135,7 +135,7 @@ static int
     p_illegal_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5),
     p_is_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6),
     p_visible_term_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6),
-    p_make_goal_trafo(value vin, type tin, value vout, type tout, value vlm, type tlm, value vtrans, type ttrans, value vcm, type tcm),
+    p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value vlm, type tlm, value vcm, type tcm),
     p_trimcore(void),
     p_mode(value pv, type pt, value mv, type mt),
     p_bound_arg(value vproc, type tproc, value va, type ta, value vb, type tb, value mv, type mt);
@@ -342,7 +342,7 @@ bip_db_init(int flags)
     (void) exported_built_in(in_dict("is_macro", 6), p_is_macro, B_SAFE);
     (void) local_built_in(in_dict("visible_term_macro", 6), p_visible_term_macro, B_SAFE);
     (void) local_built_in(in_dict("illegal_macro", 5), p_illegal_macro, B_SAFE);
-    (void) local_built_in(in_dict("make_goal_trafo", 5), p_make_goal_trafo, B_UNSAFE);
+    (void) local_built_in(in_dict("visible_goal_macro", 4), p_visible_goal_macro, B_UNSAFE);
     local_built_in(in_dict("module_predicates", 3), p_module_predicates, B_UNSAFE)
 	-> mode = BoundArg(2, GROUND);
 #ifdef lint
@@ -2211,27 +2211,26 @@ p_visible_term_macro(value v1, type t1, value v2, type t2, value v3, type t3, va
 
 
 /*
- * make_goal_trafo(+Goal, ?NewGoal, +LookupMod, -TransGoal, +CallerMod)
+ * visible_goal_macro(+Goal, -TransPred, -TransLookupMod, +LookupMod)
  *
- * Lookup a goal macro (inine transformation) for Goal. If there is
- * none, fail. Otherwise build a transformation goal of the form
- *	LookupMod:trans(Goal, NewGoal [, CallerMod])
+ * Lookup a goal macro (inine transformation) for Goal. If there is none, fail.
  */
 
 static int
-p_make_goal_trafo(value vin, type tin, value vout, type tout, value vlm, type tlm, value vtrans, type ttrans, value vcm, type tcm)
+p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value vtlm, type ttlm, value vlm, type tlm)
 {
 
     dident proc_did;
     pri *proc_pri;
     pword *pw;
+    Prepare_Requests;
 
-    switch (TagType(tin)) {
-    case TDICT:	proc_did = vin.did; break;
+    switch (TagType(tgoal)) {
+    case TDICT:	proc_did = vgoal.did; break;
     case TNIL:	proc_did = d_.nil; break;
     case TLIST:	proc_did = d_.list; break;
-    case TCOMP:	proc_did = vin.ptr->val.did; break;
-    default:	Bip_Error(TYPE_ERROR);
+    case TCOMP:	proc_did = vgoal.ptr->val.did; break;
+    default:	Fail_;
     }
 
     /*
@@ -2256,25 +2255,15 @@ p_make_goal_trafo(value vin, type tin, value vout, type tout, value vlm, type tl
     Pri_Set_Reference(proc_pri);
 
     /*
-     * build transformation call term  lm:trans(goal,Out[,cm])
+     * Return transformation functor and lookup module
      */
     pw = TG;
-    Push_Struct_Frame(d_.colon);
-    pw[1].val.did = proc_pri->module_ref;
-    pw[1].tag.kernel = ModuleTag(proc_pri->module_ref);
-    Make_Struct(&pw[2], TG);
-    Push_Struct_Frame(proc_pri->trans_function);
-    pw[4].val.all = vin.all;
-    pw[4].tag.all = tin.all;
-    pw[5].val.all = vout.all;
-    pw[5].tag.all = tout.all;
-    if (DidArity(proc_pri->trans_function) > 2)
-    {
-	pw[6].val.all = vcm.all;
-	pw[6].tag.all = tcm.all;
-    }
-
-    Return_Unify_Structure(vtrans, ttrans, pw);
+    Push_Struct_Frame(d_.quotient);
+    Make_Atom(&pw[1], add_dict(proc_pri->trans_function, 0));
+    Make_Integer(&pw[2], DidArity(proc_pri->trans_function));
+    Request_Unify_Structure(vtrans, ttrans, pw);
+    Request_Unify_Atom(vtlm, ttlm, proc_pri->module_ref);
+    Return_Unify;
 }
 
 

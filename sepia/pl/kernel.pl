@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.5 2007/05/17 15:36:44 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.6 2007/05/25 18:22:18 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -4372,17 +4372,17 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
 
 % Inline transformation of a standard goal
 
-    try_tr_goal(Goal, AnnGoal, NewGoal, AnnNewGoal, LM, CM) :-
-	(atom(Goal); compound(Goal)),
-	make_goal_trafo(Goal, NewGoal, LM, TransGoal, CM),
-        subcall(TransGoal, Delayed, CM),
-        !,
-	(Delayed = [] -> 
-            AnnGoal = annotated_term(_GoalAnn, _Type, From, To), 
-	    transformed_annotate(NewGoal, From, To, AnnNewGoal)
-	;
-	    error(129, TransGoal, CM)
-	).
+try_tr_goal(Goal, AnnGoal, NewGoal, AnnNewGoal, LM, CM) :-
+	visible_goal_macro(Goal, TransPred, TLM, LM),
+	transform(Goal, AnnGoal, NewGoal, AnnNewGoal, TransPred, TLM, CM).
+
+    % In C:
+    % visible_goal_macro(Goal, TransPred, TLM, LM) :-
+    %	(atom(Goal);compound(Goal)),
+    %	functor(Goal, N, A),
+    %	get_flag(N/A, inline, TransPred)@LM,
+    %	get_flag(N/A, definition_module, TLM)@LM,
+    %	set referenced-flag for the procedure descriptor.
 
 
 %
