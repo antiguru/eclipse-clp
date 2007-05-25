@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: branch_and_bound.pl,v 1.1 2006/09/23 01:55:08 snovello Exp $
+% Version:	$Id: branch_and_bound.pl,v 1.2 2007/05/25 23:09:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(branch_and_bound).
@@ -30,7 +30,7 @@
 :- comment(summary, "Generic branch-and-bound primitives").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, Vassilis Liatsos, IC-Parc, Imperial College, London").
-:- comment(date, "$Date: 2006/09/23 01:55:08 $").
+:- comment(date, "$Date: 2007/05/25 23:09:35 $").
 :- comment(index, ["branch-and-bound","dichotomic search"]).
 :- comment(desc, html("
 	This is a solver-independent library implementing branch-and-bound
@@ -117,7 +117,7 @@ bb_min(Goal, Cost, Template, Solution, Opt, Options, Module) :-
 	!,
 	initial_bounds(Cost, Options, From, To),
 	bb_init(To, Handle),
-	Options = bb_options with timeout:Timeout,
+	Options = bb_options{timeout:Timeout},
         ( Timeout > 0, Timeout < 1.0Inf ->
 	    timeout(
 		bb_any(From, To, Goal, Template, Cost, Handle, Module, Options),
@@ -136,7 +136,7 @@ bb_min(Goal, Cost, _Template, _Solution, _Opt, Options, Module) :-
     bb_any(From, To, Goal, Template, Cost, Handle, Module, Options) :-
 	% The following line is for parallelism (scheduling and copying)
 	%worker_boundary, par_true,
-	Options = bb_options with [strategy:Strategy],
+	Options = bb_options{strategy:Strategy},
 	( Strategy == continue ->
 	    bb_continue(From, To, Goal, Template, Cost, Handle, Module, Options)
 	; Strategy == restart ->
@@ -151,9 +151,9 @@ bb_min(Goal, Cost, _Template, _Solution, _Opt, Options, Module) :-
     bb_any(_From,_To,_Goal,_Template,_Cost,_Handle,_Module,_Options).
 
 
-default_options(bb_options with
-	    [from:From,to:To,factor:Factor,strategy:Strategy,
-	    delta:Delta,timeout:Timeout,probe_timeout:ProbeTimeout]) :-
+default_options(bb_options{
+	    from:From,to:To,factor:Factor,strategy:Strategy,
+	    delta:Delta,timeout:Timeout,probe_timeout:ProbeTimeout}) :-
 	set_default(Strategy, continue),
 	set_default(From, -1.0Inf),
 	set_default(To, 1.0Inf),
@@ -166,8 +166,8 @@ default_options(bb_options with
     set_default(X, X) :- !.
     set_default(_, _).
 
-check_options(bb_options with [from:From,to:To,factor:Factor,
-	     delta:Delta,timeout:Timeout,probe_timeout:ProbeTimeout]) :-
+check_options(bb_options{from:From,to:To,factor:Factor,
+	     delta:Delta,timeout:Timeout,probe_timeout:ProbeTimeout}) :-
 	precise_number(From),
 	precise_number(To),
 	precise_number(Delta),
@@ -201,7 +201,7 @@ bb_delta(From, To, Goal, Template, Cost, Handle, Module, Options) :-
 
     % fails if there is no range left to explore
     % PRE: no breals among the inputs, except Best
-    step(From, Best, bb_options with [factor:Factor,delta:Delta], NewTo) :-
+    step(From, Best, bb_options{factor:Factor,delta:Delta}, NewTo) :-
 	To is number_max(Best),	% we are trying to improve the guaranteed best
 	Gap is To - From,
 	Gap > 0,		% termination condition
@@ -374,7 +374,7 @@ bb_dichotomic(From, To, Goal, Template, Cost, Handle, Module, Options) :-
 	).
 
     % PRE: no breals among the inputs, except Best
-    split(From, FromNoSol, Best, bb_options with [factor:Factor,delta:Delta], Split) :-
+    split(From, FromNoSol, Best, bb_options{factor:Factor,delta:Delta}, Split) :-
 	To is number_max(Best),	% we are trying to improve the guaranteed best
 	Gap is To - From,
 	( FromNoSol == true ->
@@ -483,16 +483,16 @@ bb_probe(_From, _To, _Goal, _Template, _Cost, _Handle, _Module).
 % the bounds from propagation with the user option input (if any)
 
 initial_bounds(Cost, Options, Lower, Upper) :-
-	Options = bb_options with [from:UserFrom, to:UserTo],
+	Options = bb_options{from:UserFrom, to:UserTo},
 	get_var_bounds(Cost, CostL, CostU),
 	Lower is max(UserFrom, CostL),
 	Upper is min(UserTo, CostU).
 
 
-report_success(bb_options with report_success:Spec, Cost, Handle, Module) :-
+report_success(bb_options{report_success:Spec}, Cost, Handle, Module) :-
 	report_result(Spec, "Found a solution with cost %q%n", Cost, Handle, Module).
 
-report_failure(bb_options with report_failure:Spec, Range, Handle, Module) :-
+report_failure(bb_options{report_failure:Spec}, Range, Handle, Module) :-
 	report_result(Spec, "Found no solution with cost %q%n", Range, Handle, Module).
 
     report_result(N/A, _Msg, Range, Handle, Module) ?- !,
@@ -754,7 +754,7 @@ yes.
 	</DL>
 	The default options can be selected by passing a free variable as
 	the Options-argument. To specify other options, pass a bb_options-
-	structure in with-syntax, e.g.
+	structure in struct-syntax, e.g.
 	<PRE>
 	bb_options{strategy:dichotomic, timeout:60}
 	</PRE>

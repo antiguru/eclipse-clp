@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: suspend.pl,v 1.1 2006/09/23 01:55:36 snovello Exp $
+% Version:	$Id: suspend.pl,v 1.2 2007/05/25 23:09:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -53,7 +53,7 @@
 
 :- comment(summary,
     "Lazy-checking versions of arithmetic primitives, and the suspend-attribute").
-:- comment(date, "$Date: 2006/09/23 01:55:36 $").
+:- comment(date, "$Date: 2007/05/25 23:09:35 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Micha Meier, ECRC, Joachim Schimpf, ECRC and IC-Parc").
 :- comment(desc, html("\
@@ -129,7 +129,7 @@ unify_suspend(Term, Attr) :-
 unify_term_suspend(Term, AttrX) :-
     atomic(Term),		% The metaterm was instantiated, wake all
     /*** NONVAR + META ***/
-    AttrX = suspend with [bound:B, inst:I, constrained:C],
+    AttrX = suspend{bound:B, inst:I, constrained:C},
     % schedule_woken/1 is faster than schedule_suspensions/2 but can
     % be used only if the lists are no longer needed after waking
     schedule_woken(C),
@@ -139,7 +139,7 @@ unify_term_suspend(Term, AttrX) :-
     compound(Term),		% The metaterm was instantiated, wake all
     /*** NONVAR + META ***/
     schedule_suspensions(constrained of suspend, AttrX),
-    AttrX = suspend with [bound:B, inst:I, constrained:Cnew],
+    AttrX = suspend{bound:B, inst:I, constrained:Cnew},
     schedule_woken(B),
     schedule_woken(I),
     % the constrained list may still contain demons after scheduling,
@@ -161,8 +161,8 @@ unify_suspend_suspend(_, AttrX, AttrY) :-
 unify_suspend_suspend(_, AttrX, AttrY) :-
     nonvar(AttrY),
     /*** META + META ***/
-    AttrX = suspend with [inst:XI-YI,  bound:BX, constrained:CX],
-    AttrY = suspend with [inst:YI-YI0, bound:BY, constrained:CY],
+    AttrX = suspend{inst:XI-YI,  bound:BX, constrained:CX},
+    AttrY = suspend{inst:YI-YI0, bound:BY, constrained:CY},
     setarg(inst of suspend, AttrY, XI-YI0),
 
     % merge the bound-lists and wake those suspensions that were in both lists
@@ -227,7 +227,7 @@ suspensions_suspend(_{Attr}, Goals, G0) :-
     susp_suspend(Attr, Goals, G0).
 
 susp_suspend(AttrX, Susps, Susps) :- var(AttrX), !.
-susp_suspend(suspend with [inst:I-_, bound:B, constrained:C], [I,B,C|Ss], Ss).
+susp_suspend(suspend{inst:I-_, bound:B, constrained:C}, [I,B,C|Ss], Ss).
 
 
 %----------------------------------------------------------------
@@ -242,7 +242,7 @@ dgn_suspend(AttrX, 0) :-
     /*** VAR ***/
     var(AttrX),
     !.
-dgn_suspend(suspend with [inst:I-_, bound:B, constrained:C], N) :-
+dgn_suspend(suspend{inst:I-_, bound:B, constrained:C}, N) :-
     /*** META ***/
     count_active_suspensions(I, 0, N0),
     count_active_suspensions(B, N0, N1),

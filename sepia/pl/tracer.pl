@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer.pl,v 1.3 2007/02/11 00:00:49 kish_shen Exp $
+% Version:	$Id: tracer.pl,v 1.4 2007/05/25 23:09:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- Port generation
 %
-% $Id: tracer.pl,v 1.3 2007/02/11 00:00:49 kish_shen Exp $
+% $Id: tracer.pl,v 1.4 2007/05/25 23:09:35 jschimpf Exp $
 %
 % Author:	Joachim Schimpf, IC-Parc
 %
@@ -110,7 +110,7 @@ resume(OldStack, NewStack) :-
 	CurrentB = chp(_),
 	timestamp_update(CurrentB, 1),
 
-	( NewStack = tf with parent:Parent ->		% call port
+	( NewStack = tf{parent:Parent} ->		% call port
 	    ( OldStack == Parent ->
 		raise_init_event % if necessary
 	    ;
@@ -169,7 +169,7 @@ redo(Stack, FailDrop, RedoLevel, Which, ShowNext) :-
 trace_fails_redos(0, RedoLevel, FailDrop, _ShowNext, FailLeave) :-
 	trace_failures(FailDrop, RedoLevel, 0, FailLeave).
 trace_fails_redos(Current, RedoLevel, FailDrop, ShowNext, FailLeave) :-
-	Current = tf with depth:Depth,
+	Current = tf{depth:Depth},
 	( Depth > RedoLevel ->
 	    trace_fails_redos1(Current, RedoLevel, FailDrop)
 	; Depth = RedoLevel ->
@@ -181,7 +181,7 @@ trace_fails_redos(Current, RedoLevel, FailDrop, ShowNext, FailLeave) :-
 
     trace_fails_redos1(0, _RedoLevel, _FailDrop).
     trace_fails_redos1(Current, RedoLevel, FailDrop) :-
-	Current = tf with [depth:Depth,parent:Parent],
+	Current = tf{depth:Depth,parent:Parent},
 	( Depth > RedoLevel ->
 	    trace_fails_redos1(Parent, RedoLevel, FailDrop),
 	    port(redo of ports, Current)
@@ -196,7 +196,7 @@ trace_fails_redos(Current, RedoLevel, FailDrop, ShowNext, FailLeave) :-
 	get_fail_info(I1, FakeStack),
 	( FakeStack \== [] ->
 	    % get_fail_info/2 does not fill in depth and parent
-	    FakeStack = tf with [depth:Depth1,parent:Stack],
+	    FakeStack = tf{depth:Depth1,parent:Stack},
 	    trace_failures(I1, Depth1, FakeStack, FailLeave),
 	    port(FailLeave, FakeStack)
 	; % fail info not recorded, ignore
@@ -220,7 +220,7 @@ ndelay(_, MakeSuspension) :-
 	extract_suspension(MakeSuspension, S),
 	last_suspension(S),	% unify S
 	diagnostics(ndelay(MakeSuspension)),
-	Parent = tf with [depth:D],
+	Parent = tf{depth:D},
 	D1 is D+1,
 	trace_delays(Parent, D1, [S]),
 	!, set_priority(P), cont_debug.
@@ -240,7 +240,7 @@ bip_delay :-
 	delay_port_susps(Susps), % get a list of new, traceable suspensions
 	diagnostics(bip_delay(Susps)),
 	current_td(Parent),
-	Parent = tf with [depth:D],
+	Parent = tf{depth:D},
 	D1 is D+1,
 	trace_delays(Parent, D1, Susps),
 	!, set_priority(P), cont_debug.
@@ -248,7 +248,7 @@ bip_delay :-
     trace_delays(_, _, []).
     trace_delays(Parent, Depth, [S|Susps]) :-
 	susp_to_tf(S, Stack),
-	Stack = tf with [depth:Depth,parent:Parent],
+	Stack = tf{depth:Depth,parent:Parent},
 	port((delay) of ports, Stack),
 	trace_delays(Parent, Depth, Susps).
 
@@ -346,7 +346,7 @@ trace_exit_port :-
 	    get_priority(P),			% Don't wake anything
 	    set_priority(1),
 	    current_td(Stack),
-	    ( Stack = tf with [] ->
+	    ( Stack = tf{} ->
 		CurrentB = chp(_),
 		timestamp_update(CurrentB, 1),
 		trace_exit(Stack, CurrentB),
@@ -369,7 +369,7 @@ trace_parent_port(Port) :-
 	    get_priority(P),			% Don't wake anything
 	    set_priority(1),
 	    current_td(Stack),			% use parent frame
-	    ( Stack = tf with [] ->
+	    ( Stack = tf{} ->
 		port_name_to_number(Port, PortNr),
 		port(PortNr, Stack)
 	    ;
@@ -424,11 +424,11 @@ monitor_term(Invoc, Term, Module, Susp) :-
 %----------------------------------------------------------------------
 
 port(PortNr, Stack) :-
-	Stack = tf with [invoc:Invoc,depth:Depth,proc:Proc],
+	Stack = tf{invoc:Invoc,depth:Depth,proc:Proc},
 	diagnostics( of_interest(PortNr, Invoc, Depth, Proc)),
 	( of_interest(PortNr, Invoc, Depth, Proc) ->
 	    port_name(PortNr, Port),
-	    Current = trace_line with [port:Port,frame:Stack],
+	    Current = trace_line{port:Port,frame:Stack},
 	    % This handler is allowed to cut_to, fail and abort
 	    error(252, Current)		% trace line event
 	;
@@ -506,7 +506,7 @@ configure_prefilter(Invoc, Depth, Ports, Preds, Module) :-
 
 port_name(I, Name) :-
 	integer(I),
-	arg(I, ports with [
+	arg(I, ports{
 	    call:call,
 	    exit:exit,
 	    '*exit':'*exit',
@@ -519,7 +519,7 @@ port_name(I, Name) :-
 	    unify:unify,
 	    spyterm:spyterm,
 	    modify:modify,
-	    else:else],
+	    else:else},
 	Name).
 port_name(I, Name) :-
 	atom(I), I = Name.
@@ -582,7 +582,7 @@ find_goal(Invoc, _Stack, Frame) :-
 	find_susp_with_invoc(Invoc, Susps, Frame).
 
     find_ancestor(Invoc, Frame, Found) :-
-    	Frame = tf with [invoc:I,parent:Parent],		% may fail
+    	Frame = tf{invoc:I,parent:Parent},		% may fail
 	( I =:= Invoc ->
 	    Frame = Found
 	;
@@ -592,7 +592,7 @@ find_goal(Invoc, _Stack, Frame) :-
     find_susp_with_invoc(Invoc, [S|Susps], Frame) :-
 	( get_suspension_data(S, invoc, Invoc) ->
 	    susp_to_tf(S, Frame),
-	    Frame = tf with [depth:0,parent:0]
+	    Frame = tf{depth:0,parent:0}
 	;
 	    find_susp_with_invoc(Invoc, Susps, Frame)
 	).

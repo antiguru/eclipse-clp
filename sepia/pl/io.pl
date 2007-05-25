@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.3 2007/02/23 15:28:34 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.4 2007/05/25 23:09:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -935,8 +935,8 @@ remote_connect_accept(Control, Soc, TimeOut, Init, Pass, Res, Mod) :-
         timed_read_exdr(Control, TimeOut, RemoteLang),
 	timed_accept(Soc, TimeOut, RemoteHost, Rpc),
 	write_exdr(Rpc, Control), flush(Rpc),
-	set_peer_property(Control, peer_info with [type:remote,lang:RemoteLang,
-                                     connect:remote(RemoteHost,Host,TimeOut)]),
+	set_peer_property(Control, peer_info{type:remote,lang:RemoteLang,
+                                     connect:remote(RemoteHost,Host,TimeOut)}),
 	set_event_handler(Control, true/0),
 	close(Soc),
 	events_defer,	% fail if already deferred (can't handle nesting)
@@ -1023,21 +1023,21 @@ peer_get_property(Peer, Property, Value) :-
 set_embed_peer(Peer, Lang) :-
 	\+peer(Peer),
 	get_flag(hostname, Host),
-	set_peer_property(Peer, peer_info with [type:embed,lang:Lang,connect:embed(Host,Host,block)]).
+	set_peer_property(Peer, peer_info{type:embed,lang:Lang,connect:embed(Host,Host,block)}).
 
 % all the predicates that access peer_info directly should be put here
 get_embed_peer(Peer) :- 
-	recorded(peer_info, Peer-(peer_info with [type: embed])), !.
+	recorded(peer_info, Peer-(peer_info{type: embed})), !.
 
 set_peer_property(Peer, Info) :-
 	get_peer_dyn_info_key(Peer, Key),
-        Info = peer_info with [key: Key],
+        Info = peer_info{key: Key},
 	recorda(peer_info, Peer-Info).
 
-get_a_peer_property(type, peer_info with [type:Type], Type).
-get_a_peer_property(language, peer_info with [lang:Lang], Lang).
-get_a_peer_property(connect, peer_info with [connect:Connect], Connect).
-get_a_peer_property(queues, peer_info with [key:Key], Qs) :-
+get_a_peer_property(type, peer_info{type:Type}, Type).
+get_a_peer_property(language, peer_info{lang:Lang}, Lang).
+get_a_peer_property(connect, peer_info{connect:Connect}, Connect).
+get_a_peer_property(queues, peer_info{key:Key}, Qs) :-
 	findall(Queue,recorded(Key,queue(Queue)), Qs).
 
 
@@ -1063,11 +1063,11 @@ get_queueinfo_st(Name, Nr, QueueInfo) :-
 	get_peer_queue_key(Nr, Key),
 	recorded(Key, QueueInfo), !.
 
-get_queueinfo_item(peer_type,  peer_queue with [ptype:PeerType], PeerType).
-get_queueinfo_item(peer_name,  peer_queue with [pname:Peer], Peer).
-get_queueinfo_item(type,      peer_queue with [qtype:Type], Type).
-get_queueinfo_item(direction, peer_queue with [dir:Direction], Direction).
-get_queueinfo_item(peer,  peer_queue with [ptype:PeerType,pname:Peer],
+get_queueinfo_item(peer_type,  peer_queue{ptype:PeerType}, PeerType).
+get_queueinfo_item(peer_name,  peer_queue{pname:Peer}, Peer).
+get_queueinfo_item(type,      peer_queue{qtype:Type}, Type).
+get_queueinfo_item(direction, peer_queue{dir:Direction}, Direction).
+get_queueinfo_item(peer,  peer_queue{ptype:PeerType,pname:Peer},
                    PInfo) :- % for backwards compatibility
         PInfo =.. [PeerType, Peer].
         
@@ -1090,7 +1090,7 @@ register_remote_queue(Name, Control, Type, Direction) :-
 	get_peer_queue_key(Nr, Key),
 	get_peer_dyn_info_key(Control, ControlKey),
 	recorda(ControlKey, queue(Nr)),
-	recorda(Key, peer_queue with [ptype:remote, pname:Control, qtype:Type, dir:Direction]).
+	recorda(Key, peer_queue{ptype:remote, pname:Control, qtype:Type, dir:Direction}).
 
 
 register_embed_queue(Name, Peer, Direction) :-
@@ -1099,7 +1099,7 @@ register_embed_queue(Name, Peer, Direction) :-
 	peer_get_property(Peer, type, embed),
 	get_peer_dyn_info_key(Peer, PeerKey),
 	recorda(PeerKey, queue(Nr)),
-	recorda(Key, peer_queue with [ptype:embed, pname:Peer, qtype:sync(Nr), dir:Direction]).
+	recorda(Key, peer_queue{ptype:embed, pname:Peer, qtype:sync(Nr), dir:Direction}).
 	
 	
 get_peer_dyn_info_key(Control, ControlKey) :-
@@ -1569,17 +1569,17 @@ peers_should_cycle :-
 
 peer_register_multitask(Peer, MsgQ) :-
         (peer(Peer) ->
-             \+ recorded(multitask_peers, mt_peer with [peer:Peer]),
+             \+ recorded(multitask_peers, mt_peer{peer:Peer}),
              concat_atom([Peer, multifrom], MsgQ),
              peer_queue_create(MsgQ, Peer, sync, fromec, ''),
-             record(multitask_peers, mt_peer with [peer:Peer,msgq:MsgQ])
+             record(multitask_peers, mt_peer{peer:Peer,msgq:MsgQ})
         ;
              error(6, peer_register_multitask(Peer, MsgQ))
         ).
 
 peer_deregister_multitask(Peer) :-
         (peer(Peer) ->
-             recorded(multitask_peers, mt_peer with [peer:Peer,msgq:MsgQ]),
+             recorded(multitask_peers, mt_peer{peer:Peer,msgq:MsgQ}),
              cleanup_peer_multitask_infos(Peer),
              peer_queue_close(MsgQ)
         ;
@@ -1646,7 +1646,7 @@ peers_mt_broadcast(Msg, Err) :-
         ).
 
 peers_mt_broadcast1([], _, _).
-peers_mt_broadcast1([mt_peer with [peer:Peer,msgq:MQ]|Ps], Msg, Err) :-
+peers_mt_broadcast1([mt_peer{peer:Peer,msgq:MQ}|Ps], Msg, Err) :-
         block(send_mt_message(MQ, Msg), Tag,
               peer_mt_error_recover(Tag,Peer,Err)),
         peers_mt_broadcast1(Ps, Msg, Err).
@@ -1673,7 +1673,7 @@ peer_mt_error_recover(Tag, Peer, Err) :-
         (Tag = Err -> true ; true).
 
 cleanup_peer_multitask_infos(Peer) :-
-        (erase(multitask_peers, mt_peer with [peer:Peer]) -> true ; true).
+        (erase(multitask_peers, mt_peer{peer:Peer}) -> true ; true).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

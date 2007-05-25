@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.2 2007/02/24 02:48:33 kish_shen Exp $
+% Version:	$Id: tracer_tty.pl,v 1.3 2007/05/25 23:09:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.2 2007/02/24 02:48:33 kish_shen Exp $
+% $Id: tracer_tty.pl,v 1.3 2007/05/25 23:09:36 jschimpf Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -103,8 +103,8 @@ trace_line_handler_tty(_, Current) :-
 :- set_default_error_handler(252, trace_line_handler_tty/2),
    reset_event_handler(252).
 
-print_trace_line(trace_line with [port:Port, frame:Frame]) :-
-        Frame = tf with [invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M],
+print_trace_line(trace_line{port:Port, frame:Frame}) :-
+        Frame = tf{invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M},
 	!,
         % print priority only if not the normal 12
         (Prio == 12 -> PrioS = "" ; concat_string([<,Prio,>], PrioS)),
@@ -116,7 +116,7 @@ print_trace_line(trace_line with [port:Port, frame:Frame]) :-
 	( getval(show_module,on) -> MGoal = Goal@M ; MGoal = [Goal] ),
 	getval(dbg_goal_format_string, Format),
 	printf(debug_output, Format, MGoal)@M.
-print_trace_line(inspect with [type:Type,module:M,written:[CurrentTerm|_],path:Pos]) :-
+print_trace_line(inspect{type:Type,module:M,written:[CurrentTerm|_],path:Pos}) :-
 	(Pos == [], Type == goal ->
 	    getval(dbg_format_string, Format)
 	;
@@ -158,16 +158,16 @@ print_suspensions([S|Ss], Kind, Prio) :-
 
 print_ancestor(Stack, Anc) :-
 	parent(Stack, Anc),
-	Anc = tf with [], 	% may fail
+	Anc = tf{}, 	% may fail
 	( timestamp_older(Anc, chp of tf, Stack, chp of tf) ->
-	    print_trace_line(trace_line with [port:'*....', frame:Anc])
+	    print_trace_line(trace_line{port:'*....', frame:Anc})
 	;
-	    print_trace_line(trace_line with [port:'....', frame:Anc])
+	    print_trace_line(trace_line{port:'....', frame:Anc})
 	).
 
 print_ancestors_bottom_up(Stack) :-
 	parent(Stack, Anc),
-	( Anc = tf with [] ->
+	( Anc = tf{} ->
 	    print_ancestors_bottom_up(Anc),
 	    print_ancestor(Stack, _),
 	    nl(debug_output)
@@ -176,7 +176,7 @@ print_ancestors_bottom_up(Stack) :-
 	).
 
     parent(0, 0) :- !.
-    parent(tf with parent:Parent, Parent).
+    parent(tf{parent:Parent}, Parent).
 
 
 %
@@ -206,8 +206,8 @@ interact(Current, Cont) :-
 %
 % Command is a single-character command
 % CurrentTraceLine is one of
-%	trace_line with [...]
-%	inspect with [...]
+%	trace_line{...}
+%	inspect{...}
 % Count is the numeric argument given to the command (default 0)
 % Cont is a goal to execute before continuing
 
@@ -216,7 +216,7 @@ do_tracer_command(0'a, _Current, _N, Cont) :- !,
 	confirm("abort"),
 	getval(exec_state, CurrentPort),
 	trace_mode(5, 0),
-	( CurrentPort = trace_line with port:leave ->
+	( CurrentPort = trace_line{port:leave} ->
 	    % don't abort, we may not have any catching block!
 	    % just behave like n (nodebug)
 	    Cont = true
@@ -231,7 +231,7 @@ do_tracer_command(0'b, Current, _, Cont) :- !,
 	interact(Current, Cont).
 
 do_tracer_command(13, Current, 0, Cont) :-
-	Current = trace_line with [],
+	Current = trace_line{},
 	!,
 	do_tracer_command(0'c, Current, 0, Cont).
 do_tracer_command(0'c, _Current, N, true) :- !,
@@ -274,7 +274,7 @@ do_tracer_command(0'g, Current, _, Cont) :- !,
 	get_goal_stack(Current, _, Frame),
 	writeln(debug_output, "ancestor"),
 	( print_ancestor(Frame, NewFrame) ->
-	    interact(trace_line with [port:'....', frame:NewFrame], Cont)
+	    interact(trace_line{port:'....', frame:NewFrame}, Cont)
 	;
 	    interact(Current, Cont)
 	).
@@ -288,12 +288,12 @@ do_tracer_command(0'G, Current, _N, Cont) :- !,
 	interact(Current, Cont).
 
 do_tracer_command(0'i, Current, _, true) :- !,
-	get_goal_stack(Current, _, tf with invoc:Invoc),
+	get_goal_stack(Current, _, tf{invoc:Invoc}),
 	get_param_default("jump to invoc", Invoc, N),
 	trace_mode(1, N).
 
 do_tracer_command(0'j, Current, 0, true) :- !,
-	get_goal_stack(Current, _, tf with depth:Depth),
+	get_goal_stack(Current, _, tf{depth:Depth}),
 	Depth1 is max(0,Depth-1),
 	get_param_default("jump to level", Depth1, N),
 	( N < Depth -> trace_mode(3, N) ; trace_mode(4, N) ).
@@ -355,7 +355,7 @@ do_tracer_command(0'N, _Current, _N, true) :- !,
 	set_flag(debugging, nodebug).
 
 do_tracer_command(0's, Current, N, true) :- !,
-	get_goal_stack(Current, _, tf with depth:Depth),
+	get_goal_stack(Current, _, tf{depth:Depth}),
 	writeln(debug_output, "skip"),
 	trace_mode(3, Depth),
 	store_cmd(0's, N).
@@ -370,11 +370,11 @@ do_tracer_command(0'u, Current, _, Cont) :- !,
 
 do_tracer_command(0'x, Current, 0, Cont) :- !,
 	getval(exec_state, ExecCurrent),
-	ExecCurrent = trace_line with frame:Stack,
-	Stack = tf with invoc:Invoc,
+	ExecCurrent = trace_line{frame:Stack},
+	Stack = tf{invoc:Invoc},
 	get_param_default("examine goal", Invoc, N),
 	( find_goal(N, Stack, NewFrame) ->
-	    NewCurrent = trace_line with [port:'....', frame:NewFrame],
+	    NewCurrent = trace_line{port:'....', frame:NewFrame},
 	    print_trace_line(NewCurrent),
 	    interact(NewCurrent, Cont)
 	;
@@ -393,7 +393,7 @@ do_tracer_command(0'v, Current, _N, Cont) :- !,
 do_tracer_command(0'w, Current, N0, Cont) :- !,
         writeln(debug_output, "write source lines"),
         (N0 == 0 -> N = 4 ; N = N0), % 4 is default
-        Current = trace_line with frame:(tf with [path:File,from:Pos]),
+        Current = trace_line{frame:tf{path:File,from:Pos}},
         ( File \== '' ->
             ( write_n_lines_around_current(File, Pos, N) ->
                 true
@@ -433,7 +433,7 @@ do_tracer_command(0'>, Current, _, Cont) :- !,
 do_tracer_command(0'+, Current, _N, Cont) :- !,
 	writeln(debug_output, "spy"),
 	get_goal_stack(Current, _, Frame),
-	Frame = tf with [goal:Goal,module:M],
+	Frame = tf{goal:Goal,module:M},
 	functor(Goal, F, A),
 	get_tf_prop(Frame, module, DM),
 	block(set_flag(F/A, spy, on)@DM, abort, true ) ,
@@ -443,7 +443,7 @@ do_tracer_command(0'+, Current, _N, Cont) :- !,
 do_tracer_command(0'-, Current, _N, Cont) :- !,
 	writeln(debug_output, "nospy"),
 	get_goal_stack(Current, _, Frame),
-	Frame = tf with [goal:Goal,module:M],
+	Frame = tf{goal:Goal,module:M},
 	functor(Goal, F, A),
 	get_tf_prop(Frame, module, DM),
 	block(set_flag(F/A, spy, off)@DM, abort, true ) ,
@@ -453,7 +453,7 @@ do_tracer_command(0'-, Current, _N, Cont) :- !,
 do_tracer_command(0'&, Current, _N, Cont) :- !,
 	get_flag(extension, development),
 	writeln(debug_output, "Fake stack:"),
-	getval(exec_state, trace_line with frame:Stack),
+	getval(exec_state, trace_line{frame:Stack}),
 	print_trace_stack(Stack),
 	interact(Current, Cont).
 
@@ -470,7 +470,7 @@ do_tracer_command(0'!, Current, _N, (systrace,Cont)) :- !,
 
 do_tracer_command(0'p, Current, _N, Cont) :- !,
 	nl(debug_output),
-	( Current = inspect with [path:Pos, written:Written, module:M] ->
+	( Current = inspect{path:Pos, written:Written, module:M} ->
 	    reverse(Pos, RPos), reverse(Written, RWritten),
 	    print_inspect_path(RPos, RWritten, M),
 	    flush(debug_output)
@@ -479,7 +479,7 @@ do_tracer_command(0'p, Current, _N, Cont) :- !,
 	interact(Current, Cont).
 
 do_tracer_command(0'., Current, _N, Cont) :- 
-	Current = inspect with [written:[CurrentTerm|_], module:M], !,
+	Current = inspect{written:[CurrentTerm|_], module:M}, !,
 	writeln(debug_output, "structure definition:"),
 	(compound(CurrentTerm) ->
 	    (named_structure(CurrentTerm, M, Defs, A) -> 
@@ -495,8 +495,8 @@ do_tracer_command(0'., Current, _N, Cont) :-
 	interact(Current, Cont).
 
 do_tracer_command(0'., Current, _N, Cont) :- 
-	Current = trace_line with frame:Frame, !,
-	Frame = tf with [goal:G,module:M],
+	Current = trace_line{frame:Frame}, !,
+	Frame = tf{goal:G,module:M},
 	nonvar(G),
 	functor(G, N, A),
 	atom(N),
@@ -532,7 +532,7 @@ do_tracer_command(0'A, Frame, N, Cont) :- !,		% move up
 	interact(Frame2, Cont).
 
 do_tracer_command(13, Frame, N, Cont) :- 
-	Frame = inspect with [],
+	Frame = inspect{},
 	!,
 	nl(debug_output),
 	get_inspect_frame(Frame, Frame1),
@@ -684,14 +684,14 @@ store_cmd(Cmd, N) :-
 	setval(next_cmd, N1-Cmd).
 
 
-current_term(trace_line with frame:
-		(tf with [goal:Term,module:Module]), Term, Module).
-current_term(inspect with [written:[Term|_],module:Module], Term, Module).
+current_term(trace_line{frame:
+		tf{goal:Term,module:Module}}, Term, Module).
+current_term(inspect{written:[Term|_],module:Module}, Term, Module).
 
 
 print_trace_stack(0).
 print_trace_stack(Frame) :-
-	Frame = tf with [invoc:Invoc,goal:Goal,depth:D,parent:Parent],
+	Frame = tf{invoc:Invoc,goal:Goal,depth:D,parent:Parent},
 	( get_tf_prop(Frame, skip, on) -> Prop = 0'S ; Prop = 0'  ),
 	( get_tf_prop(Frame, spy, on) -> Spied = 0'+ ; Spied = 0'  ),
 	get_tf_prop(Frame, ?, FF),
@@ -699,8 +699,8 @@ print_trace_stack(Frame) :-
 	print_trace_stack(Parent).
 
 % returns the goal stack from both trace_line and inspect frames
-get_goal_stack(trace_line with [port:Port,frame:Stack], Port, Stack) :- !.
-get_goal_stack(inspect with [goalf:Stack], Port, Stack) :- 
+get_goal_stack(trace_line{port:Port,frame:Stack}, Port, Stack) :- !.
+get_goal_stack(inspect{goalf:Stack}, Port, Stack) :- 
 	Port = '....'.
 
 
@@ -716,19 +716,19 @@ break :-
 % Inspect subterms
 %----------------------------------------------------------------------
 
-get_inspect_frame(trace_line with frame:Frame, New) ?- !,
-	Frame = tf with [goal:Goal,module:Module],
+get_inspect_frame(trace_line{frame:Frame}, New) ?- !,
+	Frame = tf{goal:Goal,module:Module},
 	written_term(Goal, Goal, WGoal, Module),
-	New = inspect with [top:Goal,path:[],module:Module,written:[WGoal],type:goal,goalf:Frame].
+	New = inspect{top:Goal,path:[],module:Module,written:[WGoal],type:goal,goalf:Frame}.
 get_inspect_frame(Frame, Frame). % the default case, placed last
 
-inspect_subterm(0, inspect with [top:Top,module:Module,type:Type,goalf:Tf], Frame) ?- !,
+inspect_subterm(0, inspect{top:Top,module:Module,type:Type,goalf:Tf}, Frame) ?- !,
 % N == 0 jump to top-level
 	written_term(Top, Top, WTop, Module),
-	Frame = inspect with [top:Top,written:[WTop],path:[],module:Module,type:Type,goalf:Tf],
+	Frame = inspect{top:Top,written:[WTop],path:[],module:Module,type:Type,goalf:Tf},
 	print_trace_line(Frame).
 
-inspect_subterm(Choice, inspect with [top:Top,type:Type,path:Pos0,module:Module,written:Written0,goalf:Tf], Frame) :-
+inspect_subterm(Choice, inspect{top:Top,type:Type,path:Pos0,module:Module,written:Written0,goalf:Tf}, Frame) :-
 	Written0 = [CurrentTerm|_],
 	meta(CurrentTerm), Choice> 0, !,
 	(get_attribute(CurrentTerm,RawAttribute,Choice) ->
@@ -741,11 +741,11 @@ inspect_subterm(Choice, inspect with [top:Top,type:Type,path:Pos0,module:Module,
 	;   printf(debug_output, "%nInvalid attribute.%n", []),
 	    Pos1 = Pos0, Written = Written0, Attribute = CurrentTerm
         ),
-	Frame = inspect with [top:Top,type:Type,module:Module,path:Pos1,written:Written,goalf:Tf],
+	Frame = inspect{top:Top,type:Type,module:Module,path:Pos1,written:Written,goalf:Tf},
 	print_trace_line(Frame).
 
  
-inspect_subterm(N, inspect with [top:Top,type:Type,path:Pos,module:Module,written:Written,goalf:Tf], Frame) :-
+inspect_subterm(N, inspect{top:Top,type:Type,path:Pos,module:Module,written:Written,goalf:Tf}, Frame) :-
 	N > 0, !,  % get Nth arg
 	Written = [CurrentTerm|_],
 	(nonvar(CurrentTerm),
@@ -760,19 +760,19 @@ inspect_subterm(N, inspect with [top:Top,type:Type,path:Pos,module:Module,writte
            nl(debug_output),
            NewTerm = CurrentTerm, Pos1 = Pos, Written1 = Written
         ),
-	Frame = inspect with [top:Top,module:Module,path:Pos1,
-	   written:Written1,type:Type,goalf:Tf],
+	Frame = inspect{top:Top,module:Module,path:Pos1,
+	   written:Written1,type:Type,goalf:Tf},
 	print_trace_line(Frame).
 
 
-move_down(N, inspect with [path:Pos,top:Top,written:Written,module:Module,type:Type,goalf:Tf], Frame) :-
+move_down(N, inspect{path:Pos,top:Top,written:Written,module:Module,type:Type,goalf:Tf}, Frame) :-
 	current_pos(Pos, CPos),
 	traverse_down(N, 0, CPos, Top, Pos, Written, Type, Tf, Frame, Module).
 
 
 traverse_down(N, N, CPos, Top, Pos, Written, Type, Tf, Frame, Module) :- !,
 	printf(debug_output, "down subterm %d for %d levels%n", [CPos,N]),
-        Frame = inspect with [top:Top,path:Pos,written:Written,module:Module,type:Type,goalf:Tf],
+        Frame = inspect{top:Top,path:Pos,written:Written,module:Module,type:Type,goalf:Tf},
         print_trace_line(Frame).
 traverse_down(N, M, CPos, Top, Pos, Written0, Type, Tf, Frame, Module) :-
 	M1 is M + 1,
@@ -784,22 +784,22 @@ traverse_down(N, M, CPos, Top, Pos, Written0, Type, Tf, Frame, Module) :-
 	    written_term(Top, RawNewTerm, NewTerm, Module),
 	    traverse_down(N, M1, CPos, Top, [CPos|Pos], [NewTerm|Written0], Type, Tf, Frame, Module)
           ; printf(debug_output, "Out of range after traversing down argument %d for %d levels%n", [CPos, M]),
-            Frame = inspect with [top:Top,module:Module,path:Pos,written:Written0,type:Type,goalf:Tf],
+            Frame = inspect{top:Top,module:Module,path:Pos,written:Written0,type:Type,goalf:Tf},
 	    print_trace_line(Frame)
         ).
 
 
-move_up(N, inspect with [top:Top,module:Module,written:Written0,path:Pos,
-   type:Type,goalf:Gf], Frame) :-
+move_up(N, inspect{top:Top,module:Module,written:Written0,path:Pos,
+   type:Type,goalf:Gf}, Frame) :-
 	port_remove_levels(N, Pos, Pos1, _), 
 	reverse(Pos1, RPos), reverse(Written0, RWritten0), 
 	port_get_new_subterm(RPos, RWritten0, WrittenFront, []),
-	Frame = inspect with [top:Top,module:Module,written:WrittenFront,
-	  type:Type,path:Pos1,goalf:Gf],
+	Frame = inspect{top:Top,module:Module,written:WrittenFront,
+	  type:Type,path:Pos1,goalf:Gf},
 	print_trace_line(Frame).
 
-move_left(M, inspect with [top:Top,written:Written0,path:Pos,module:Module,
-   type:Type,goalf:Gf], Frame) :-
+move_left(M, inspect{top:Top,written:Written0,path:Pos,module:Module,
+   type:Type,goalf:Gf}, Frame) :-
 	move_path_left(M, Pos, Pos1, N1, Status),
 	(Status \== false ->
 	      Written0 = [_|Written1],
@@ -812,8 +812,8 @@ move_left(M, inspect with [top:Top,written:Written0,path:Pos,module:Module,
 	      nl(debug_output),
 	      Written2 = Written0 
         ),
-	Frame = inspect with [top:Top,written:Written2,path:Pos1,
-           type:Type,module:Module,goalf:Gf],
+	Frame = inspect{top:Top,written:Written2,path:Pos1,
+           type:Type,module:Module,goalf:Gf},
 	print_trace_line(Frame).
 
 move_path_left(M, Pos, Pos1, N1, Status) :-
@@ -829,8 +829,8 @@ move_path_left(M, Pos, Pos1, N1, Status) :-
 	      Pos1 = Pos
 	).
 
-move_right(M, inspect with [top:Top,written:Written0,path:Pos,module:Module,
-   type:Type,goalf:Gf], Frame) :-
+move_right(M, inspect{top:Top,written:Written0,path:Pos,module:Module,
+   type:Type,goalf:Gf}, Frame) :-
 	(Pos = [N|Pos0], integer(N) -> % move to N+1
 	    Written0 = [_|Written1],
 	    Written1 = [ParentTerm|_],
@@ -846,8 +846,8 @@ move_right(M, inspect with [top:Top,written:Written0,path:Pos,module:Module,
 	   nl(debug_output),
 	   Pos1 = Pos, Written2 = Written0
         ),
-	Frame = inspect with [top:Top,written:Written2,path:Pos1,module:Module,
-	   type:Type,goalf:Gf],
+	Frame = inspect{top:Top,written:Written2,path:Pos1,module:Module,
+	   type:Type,goalf:Gf},
 	print_trace_line(Frame).
 
 

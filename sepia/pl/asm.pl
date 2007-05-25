@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.5 2007/05/17 23:49:02 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.6 2007/05/25 23:09:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -556,21 +556,21 @@ instr(puts_atom(C), 			116, [atom(C)]).
 instr(puts_string(C), 			117, [s(C)]).
 instr(puts_list, 			118, []).
 instr(puts_structure(D), 		119, [func(D)]).
-instr(integer_switch(a(A),IT,ref(Ld)),  120, [a(A),tab with [type:int,
-                                              table:IT],ref(Ld)]).
-instr(atom_switch(a(A),AT,ref(Ld)),	121, [a(A),tab with [type:atom,
-                                              table:AT],ref(Ld)]).
+instr(integer_switch(a(A),IT,ref(Ld)),  120, [a(A),tab{type:int,
+                                              table:IT},ref(Ld)]).
+instr(atom_switch(a(A),AT,ref(Ld)),	121, [a(A),tab{type:atom,
+                                              table:AT},ref(Ld)]).
 instr(list_switch(a(A),ref(Ll),ref(Ln),ref(Ld)),	
                                         122, [a(A),ref(Ll),ref(Ln),ref(Ld)]).
-instr(functor_switch(a(A),FT,ref(Ld)),	123, [a(A),tab with [type:functor,
-					      table:FT],ref(Ld)]).
+instr(functor_switch(a(A),FT,ref(Ld)),	123, [a(A),tab{type:functor,
+					      table:FT},ref(Ld)]).
 instr(switch_on_type(a(A),LSt), 	124, [a(A),tags(LSt)]).
-instr(atom_switch(y(Y),AT,ref(Ld)),	125, [y(Y),tab with [type:atom,
-                                              table:AT],ref(Ld)]).
-instr(functor_switch(y(Y),FT,ref(Ld)),	126, [y(Y),tab with [type:functor,
-					      table:FT],ref(Ld)]).
-instr(integer_switch(y(Y),IT,ref(Ld)),  127, [y(Y),tab with [type:int,
-                                              table:IT],ref(Ld)]).
+instr(atom_switch(y(Y),AT,ref(Ld)),	125, [y(Y),tab{type:atom,
+                                              table:AT},ref(Ld)]).
+instr(functor_switch(y(Y),FT,ref(Ld)),	126, [y(Y),tab{type:functor,
+					      table:FT},ref(Ld)]).
+instr(integer_switch(y(Y),IT,ref(Ld)),  127, [y(Y),tab{type:int,
+                                              table:IT},ref(Ld)]).
 instr(try_me_else(D,N,ref(L)), 		128, [port(D),i(N),ref(L)]).
 instr(try(D,N,ref(L)), 			129, [port(D),i(N),ref(L)]).
 instr(try(D,N,ref(La),ref(L)),		130, [port(D),i(N),ref(La),ref(L)]).
@@ -655,8 +655,8 @@ instr(switch_on_type(y(Y),LSt), 	206, [y(Y),tags(LSt)]).
 instr(metacall(N), 			207, [edesc(N)]).
 instr(fastcall(P,N), 			208, [port(P),edesc(N)]).
 instr(integer_range_switch(y(Y),RT,ref(Le),ref(Ld)), 
-					209, [y(Y),tab with [type:range,
-                                              table:RT],ref(Le),ref(Ld)]).
+					209, [y(Y),tab{type:range,
+                                              table:RT},ref(Le),ref(Ld)]).
 instr(suspension_call(N), 		210, [edesc(N)]).
 instr(throw, 				211, []).
 instr(savecut(a(A)), 			212, [a(A)]).
@@ -714,12 +714,12 @@ instr(read_reference(a(A)), 		263, [a(A)]).
 instr(read_reference, 			264, []).
 instr(read_void(N), 			265, [pw(N)]).
 instr(integer_range_switch(a(A),RT,ref(Le),ref(Ld)), 
-					266, [a(A),tab with [type:range,
-                                              table:RT],ref(Le),ref(Ld)]).
+					266, [a(A),tab{type:range,
+                                              table:RT},ref(Le),ref(Ld)]).
 instr(puts_value(G), 			267, [pw(G)]).
 instr(push_value(G), 			268, [pw(G)]).
 instr(guard(y(Y),ref(L)),		269, [y(Y),ref(L)]).
-instr(try_parallel(Size,Ar,TT,O), 	270, [i(Size),i(Ar),try with [table:TT,size:Size,ref:Lt], 
+instr(try_parallel(Size,Ar,TT,O), 	270, [i(Size),i(Ar),try{table:TT,size:Size,ref:Lt}, 
     /*retry_seq(ref(Lt))*/                    o(271),tref(Lt),
     /*fail_clause(O)*/	                      o(272),edesc(O), 
     /*try_clause(ref(Lt))*/                   o(273),tref(Lt)]).       
@@ -1044,13 +1044,13 @@ asm_arg(an(Att), IList0, IList, TList0, TList) ?-
 	atom(Att), !,
 	TList0 = TList,
 	IList0 = [an(Att)|IList].
-asm_arg(try with [table:Table,ref:TLabel], IList0, IList, TList0, TList) ?-
+asm_arg(try{table:Table,ref:TLabel}, IList0, IList, TList0, TList) ?-
 	(foreach(Branch, Table) do 
            valid_ref(Branch)
         ), !,
 	IList0 = [ref(TLabel)|IList],
 	append([align(2),label(TLabel)|Table], TList, TList0).
-asm_arg(tab with [table:Table,type:Type], IList0, IList, TList0, TList) ?- !,
+asm_arg(tab{table:Table,type:Type}, IList0, IList, TList0, TList) ?- !,
 	table_size(Table, Type, Size),
 	IList0 = [ref(TLabel), Size|IList],
 	make_switch_table(Type, TLabel, Table, TList0, TList).
@@ -1424,7 +1424,7 @@ disasm_arg(an(Att), [D|Ws1], Ws, _, _, Pos0, Pos) ?-
 	meta_index(Att, I),
 	Ws1 = Ws, 
 	Pos is Pos0 + 1.
-disasm_arg(try with [table:Table,size:Size,ref:Offset], [Address|Ws1], Ws, 
+disasm_arg(try{table:Table,size:Size,ref:Offset}, [Address|Ws1], Ws, 
     Base, H, Pos0, Pos) ?-
 	decode_code(ref(Address,Base), Offset),
 	Pos is Pos0 + 1,
@@ -1434,7 +1434,7 @@ disasm_arg(try with [table:Table,size:Size,ref:Offset], [Address|Ws1], Ws,
                add_label_to_hashed(Try, TryRef, Base, H)
 		
 	).
-disasm_arg(tab with [type:Type,table:Table], [Address,Size0|Ws1], Ws, 
+disasm_arg(tab{type:Type,table:Table}, [Address,Size0|Ws1], Ws, 
     Base, H, Pos0, Pos) ?-
 	extra_table_entries(Type, Extra),
 	Size is Size0 + Extra,  % number of actual entries to extract
@@ -1485,7 +1485,7 @@ skip_words(N, [_|Ws0], Ws) :-
 */
 add_labels([], _, WAM0, WAM) ?- WAM0 = WAM.
 add_labels(Ls0, [Current|Ss], [Instr|WAM0], WAM) :-
-	Ls0 = [label with [add:Offset,label:N]|Ls1], 
+	Ls0 = [label{add:Offset,label:N}|Ls1], 
 	( Offset == Current ->
 	    WAM = [label(N),Instr|WAM1], 
             Ls = Ls1
@@ -1505,7 +1505,7 @@ add_label_to_hashed(Absolute, ref(LabelRef), Base, H) :-
 	    LabelRef = Mapped
 	;integer(Mapped) -> % label is coverted to a displacement   
 	    % LabelRef is left as var.
-	    Label = label with [add:Mapped,label:LabelRef],
+	    Label = label{add:Mapped,label:LabelRef},
 	    (hash_find(H, Mapped, Label) -> 
 		true   % unified with existing label
 	    ;   hash_add(H, Mapped, Label)   % add new label
@@ -1642,12 +1642,12 @@ pretty_print_instr(I, ArgTypes) :-
 
 pretty_print_args([], []) :-  nl.
 pretty_print_args([Table,ref(E),ref(D)|As], 
-                  [tab with [type:range, table:Table],ref(E),ref(D)|ATs]) :-
+                  [tab{type:range,table:Table},ref(E),ref(D)|ATs]) :-
 	!,
 	nl,
         print_rangetable(Table, E, D),
 	pretty_print_args(As, ATs).
-pretty_print_args([Table,ref(D)|As], [tab with [table:Table],ref(D)|ATs]) :-
+pretty_print_args([Table,ref(D)|As], [tab{table:Table},ref(D)|ATs]) :-
 	!, 
         nl,
         (foreach(Key-Ref, Table) do

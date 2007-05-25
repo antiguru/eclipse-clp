@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fcompile.pl,v 1.1 2006/09/23 01:55:15 snovello Exp $
+% Version:	$Id: fcompile.pl,v 1.2 2007/05/25 23:09:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -211,12 +211,12 @@ fcompile_body(File, OptionsList, Module) :-
 	% compile must be done before streams are set
 	atom_or_string(File), 
         % fill in any unspecified options with defaults
-	set_options(OptionsList, fc_options with [ 
+	set_options(OptionsList, fc_options{
              outdir:  OutDir,
 	     verbose: Verbose,
 	     format:  Format,
 	     compile: Compile
-        ]), 
+        }), 
 	get_inout_names(File, OutDir, InDir, InFile, OutFile), 
 
 	( Compile == no -> true
@@ -239,7 +239,7 @@ fcompile_body(File, OptionsList, _Module) :-
 	error(E, fcompile(File, OptionsList)).
 
 set_options(List, Options) :-
-	Options = fc_options with [],
+	Options = fc_options{},
 	(fill_specified_options(List, Options) ->
 	    fill_default_options(Options) 
 	;
@@ -266,8 +266,8 @@ set_valid_option(compile:Compile, Options) ?-
 	arg(compile of fc_options, Options, Compile).
 
 fill_default_options(Options) :-
-	Options = fc_options with [outdir:OutDir,verbose:Verbose,
-                    format:Format,compile:Compile],
+	Options = fc_options{outdir:OutDir,verbose:Verbose,
+                    format:Format,compile:Compile},
 	(var(OutDir) -> getcwd(OutDir) ; true),
 	(var(Verbose) -> Verbose = no ; true),
 	(var(Format) -> Format = byte ; true),
@@ -635,6 +635,7 @@ check_and_gen_auxs([W|Ws], Out, PHash, Format, Verbose, M) :-
 	check_and_gen_auxs(Ws, Out, PHash, Format, Verbose, M).
 
 
+% If the Min/Max limits have unnecessarily large absolute values, reduce them
 try_trim_range([Min0-MinR,Max0-MaxR|Table], Le, TRTable) :-
 	try_trim_min(Min0, MinR, Table, Max0, Le, Min),
 	try_trim_max(Max0, MaxR, Table, Min, Le, Max),

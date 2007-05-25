@@ -23,7 +23,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Kish Shen and Joachim Schimpf, IC-Parc, Imperial College
-% Version:	$Id: constraint_pools.ecl,v 1.1 2006/09/23 01:55:09 snovello Exp $
+% Version:	$Id: constraint_pools.ecl,v 1.2 2007/05/25 23:09:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(constraint_pools).
@@ -438,7 +438,7 @@ get_pool_data(Pool, Data) :-
 	init_data_if_needed(Data0, Data, Pool).
 
     init_data_if_needed(0, Data, Pool) :- !,
-	Data = pool_data with [store:Store,item:0],
+	Data = pool_data{store:Store,item:0},
 	call(static_pool_data(NTypes))@Pool,
 	functor(Store, [], NTypes),
 	( foreacharg([], Store) do true ),
@@ -453,7 +453,7 @@ pool_is_empty(Pool) :-
 
 get_pool_item(Pool, Item) :-
 	get_pool_data(Pool, Data),
-	Data = pool_data with [item:Item].
+	Data = pool_data{item:Item}.
 
 
 set_pool_item(Pool, Item) :-
@@ -463,13 +463,13 @@ set_pool_item(Pool, Item) :-
 
 get_pool_store(Pool, Store) :-
 	get_pool_data(Pool, Data),
-	Data = pool_data with [store:Store]. 
+	Data = pool_data{store:Store}. 
 
 
 % this is performance-critical, that's why there are no checks done here...
 post_typed_pool_constraint(Pool, Type, Const) :-
 	get_pool_data(Pool, Data),
-	Data = pool_data with [store:Store],
+	Data = pool_data{store:Store},
 	arg(Type, Store, Consts),
 	setarg(Type, Store, [Const|Consts]).
 

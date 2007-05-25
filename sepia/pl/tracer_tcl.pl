@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.8 2007/02/23 15:28:34 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.9 2007/05/25 23:09:35 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -213,7 +213,7 @@ prepare_filter(Count) :-
 do_filter(off, _).
 do_filter(on, _) :-
         filter_count_and_reset(none).
-do_filter(goal(SpyStatus), trace_line with frame:(tf with [goal:Goal, module:Module])):-
+do_filter(goal(SpyStatus), trace_line{frame:tf{goal:Goal, module:Module}}):-
         goal_filter(Goal, Module),
         filter_count_and_reset(SpyStatus).
 
@@ -228,10 +228,10 @@ filter_count_and_reset(SpyStatus) :-
         ),
         setval(filter_status, off).
         
-make_trace_line(Stream, trace_line with [port:Port, frame:Frame], Depth,
+make_trace_line(Stream, trace_line{port:Port, frame:Frame}, Depth,
                 Port, Invoc, Prio, FPath, From, To) :-
-	Frame = tf with [invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M,
-                         path:Path0, from:From, to:To],
+	Frame = tf{invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M,
+                         path:Path0, from:From, to:To},
 	register_inspected_term(Goal, M),
         % wrapper around pathname to avoid empty string 
         (Path0 == '' -> 
@@ -267,7 +267,7 @@ set_tracer_command(Cmd) :-
 :- mode interpret_command(+,+,+,-).
 interpret_command("a", CurrentPort, _, Cont) :- !,
 	trace_mode(5, 0),
-	( CurrentPort = trace_line with port:leave ->
+	( CurrentPort = trace_line{port:leave} ->
 	    % don't abort, we may not have any catching block!
 	    % turn it into a creep instead...
 	    Cont = true
@@ -284,14 +284,14 @@ interpret_command("c", _, _, true) :- !, trace_mode(0, []).
 interpret_command("i", _, _, true) :- !.
 interpret_command("j", _, _, true) :- !.
 interpret_command(f(N), Current, _, Cont) :- !,
-	Current = trace_line with [port:Port,frame:Stack],
+	Current = trace_line{port:Port,frame:Stack},
 	( Port \== fail, Port \== leave, find_goal(N, Stack, Frame) ->
 	    Cont = (cut_to_stamp(Frame, chp of tf),fail)
 	;
 	    Cont = true		% already failing or frame not found
 	).
 interpret_command("z", Current, _, true) :- !,	% zap to different port
-	Current = trace_line with [port:Port],
+	Current = trace_line{port:Port},
 	configure_prefilter(_, _, ~Port, _, dont_care).
 interpret_command("", _, _, true) :- !.	% no command, continue as before
 
@@ -1019,12 +1019,12 @@ add_matname(Name0,Matrix,Module,Id,SL, Module) :-
 	getval(matdisplaydata, Mats),
 	getval(matdisplayid, Id0),
 	concat_string([Name0], Name),  % make sure it is a string
-	NewMat = matrix with [name:Name,module:Module],
+	NewMat = matrix{name:Name,module:Module},
 	(\+member(NewMat, Mats) -> % \+member because 0 terminates list
 	    Id is Id0 + 1,
 	    setval(matdisplayid, Id),
 	    concat_string([Name0], Name),  % make sure it is a string
-	    NewMat = matrix with [id:Id,matrix:Matrix,suspl:SL],
+	    NewMat = matrix{id:Id,matrix:Matrix,suspl:SL},
 	    setval(matdisplaydata, [NewMat|Mats])
 	;   sepia_kernel:set_bip_error(6)
         ).
@@ -1032,14 +1032,14 @@ add_matname(Name0,Matrix,Module,Id,SL, Module) :-
 shutdown_mat(Name0, Id, Module) :-
 	getval(matdisplaydata, Mats),
 	concat_string([Name0], Name),
-	M = matrix with [id:Id,name:Name,module:Module,suspl:Ss],
+	M = matrix{id:Id,name:Name,module:Module,suspl:Ss},
 	memberchk(M, Mats),
         % stop sending of information to GUI side
 	(foreach(S,Ss) do kill_suspension(S)).
 
 get_matrix_term(Id, R, C, Term, Mod) :-
 	getval(matdisplaydata, Ms),
-	member(matrix with [id:Id,module:Mod,matrix:Mat], Ms),
+	member(matrix{id:Id,module:Mod,matrix:Mat}, Ms),
 	dim(Mat, Bounds),
 	get_subscripts(Bounds, R, C, Sub),
 	subscript(Mat, Sub, Term).
@@ -1127,7 +1127,7 @@ get_module_from_infofile(Path, File, MFile) :-
 	get_file_info(FullName, readable, on),
 	open(FullName, read, In),
 	(read(In, :-module(Module)) -> % module should be first item in file
-	    MFile = mfile with [dir:Path,module:Module,file:FullName],
+	    MFile = mfile{dir:Path,module:Module,file:FullName},
 	    close(In)
 	;   close(In), fail
         ).
@@ -1243,7 +1243,7 @@ return_lbnode_children(dir, PInfo, Modules) ?-
 return_lbnode_children(module, PInfo, InterNodes) ?-
 	memberchk(module:Module, PInfo),
 	memberchk(dir:Dir, PInfo),
-	return_module_info(Module, Dir, minfo with [interface:Interface]),
+	return_module_info(Module, Dir, minfo{interface:Interface}),
 	sort_minfo(Interface, Preds, Others),
 	(foreach(P, Preds), fromto(InterNodes, Nodes0, Nodes1, InterNodes1) do
               term_string(P, PIndex),
@@ -1442,29 +1442,29 @@ lub(?, _, ?).
 
 return_module_info(Module, Dir, MInfo) :-
 	getval(library_info, Info),
-	memberchk(mfile with [module:Module,dir:Dir, file:File], Info),
+	memberchk(mfile{module:Module,dir:Dir, file:File}, Info),
 	read_interface_file(File, InterItems, Comments),
-	MInfo = minfo with [interface:InterItems, comments:Comments].
+	MInfo = minfo{interface:InterItems, comments:Comments}.
 
 return_module_summary(Module, Dir, Summary) :-
-	return_module_info(Module, Dir, minfo with [comments:MCom]),
+	return_module_info(Module, Dir, minfo{comments:MCom}),
 	memberchk(comment(summary, Summary), MCom).
 
 return_module_desc(Module, Dir, Desc) :-
-	return_module_info(Module, Dir, minfo with [comments:MCom]),
+	return_module_info(Module, Dir, minfo{comments:MCom}),
 	(memberchk(comment(desc, Desc), MCom) -> 
 	    true ; Desc = ""
 	).
 
 return_modules_in_dir(Directory, Modules) :-
 	getval(library_info, Info),
-	findall(M, member(mfile with [dir:Directory,module:M], Info), Modules).
+	findall(M, member(mfile{dir:Directory,module:M}, Info), Modules).
 
 return_libdirs(Dirs) :-
 	get_flag(library_path, Dirs).
 
 return_pred_comment(M, Dir, Name, Arity, PCom) :-
-	return_module_info(M, Dir, minfo with [comments:MCom]),
+	return_module_info(M, Dir, minfo{comments:MCom}),
 	(memberchk(comment(Name/Arity, PCom), MCom) ->
 	    true ; PCom = []
 	).
@@ -1498,7 +1498,7 @@ construct_args_descr(PredCom, PredInfoIn, PredInfoOut) :-
 is_lbmodule(Module) :-
 	atom(Module),
 	getval(library_info, Info),
-	memberchk(mfile with [module:Module], Info).
+	memberchk(mfile{module:Module}, Info).
 
 
 %----------------------------------------------------------------------
@@ -1688,7 +1688,7 @@ gui_dg(Which, Trigger, Filter) :-
 	get_suspension_data(S, state, State),
 	( get_suspension_data(S, spy, on) -> Spied = 0'+ ; Spied = 0'  ),
 	functor(Goal, F, A),
-	filter_dg(F/A, Filter, dg_filter with [spiedonly:Spied,wakeonly:State]),
+	filter_dg(F/A, Filter, dg_filter{spiedonly:Spied,wakeonly:State}),
 	printf(gui_dg_buffer, "%n %c(%d) <%d>  ", [Spied, Invoc, Prio]),
         % delay goals are printed with format and depth options of tracer
 	getval(dbg_goal_format_string, Format),
@@ -1709,15 +1709,15 @@ gui_dg(Which, Trigger, Filter) :-
 	spied_filter(Filter, Values),
 	traced_filter(Filter, F/A).
 
-      spied_filter(dg_filter with [spiedonly:1], dg_filter with [spiedonly:Spied]) ?- !,
+      spied_filter(dg_filter{spiedonly:1}, dg_filter{spiedonly:Spied}) ?- !,
 	  Spied == 0'+.
       spied_filter(_, _).
 
-      state_filter(dg_filter with [wakeonly:1], dg_filter with [wakeonly:State]) ?- !,
+      state_filter(dg_filter{wakeonly:1}, dg_filter{wakeonly:State}) ?- !,
 	  State == 1.
       state_filter(_, _).
 
-      traced_filter(dg_filter with [traceonly: 1], F/A) ?- 
+      traced_filter(dg_filter{traceonly: 1}, F/A) ?- 
 	  get_flag(F/A, leash, notrace), !,
 	  fail.
       traced_filter(_, _).
@@ -1761,14 +1761,14 @@ compile_string(String) :-
 
 find_goal_by_invoc(Invoc, DefModule, Goal, Module, Path, From, To) :-
 	getval(exec_state, Current),
-	Current = trace_line with frame:Stack,
+	Current = trace_line{frame:Stack},
 	find_goal(Invoc, Stack, Frame),
-	Frame = tf with [goal:Goal, path:Path, from:From, to:To, module:Module],
+	Frame = tf{goal:Goal, path:Path, from:From, to:To, module:Module},
 	get_tf_prop(Frame, module, DefModule).
 
 get_ancestors(Anc) :-
-	getval(exec_state, trace_line with frame:Frame),
-	(Frame = tf with [parent:Stack] ->
+	getval(exec_state, trace_line{frame:Frame}),
+	(Frame = tf{parent:Stack} ->
 	    get_ancestors_info(Stack, [], Anc)
 	    % Anc are returned with oldest first; printing in GUI can then
 	    % be from top to bottom 
@@ -1780,11 +1780,11 @@ get_ancestors_info(Frame0, Anc0, Anc) :-
 	     Anc0 = Anc
 
 	 ;   open(string(""), write, SS),
-	     make_trace_line(SS, trace_line with [port:'....',frame:Frame0],
+	     make_trace_line(SS, trace_line{port:'....',frame:Frame0},
                              Depth, _Port, Invoc, Prio, _Path, _From, _To),
  	     get_stream_info(SS, name, Line),
 	     close(SS),
-	     Frame0 = tf with [parent: PFrame],
+	     Frame0 = tf{parent: PFrame},
 	     get_ancestors_info(PFrame, [a(Depth,Invoc,Prio,Line)|Anc0], Anc)
 	 ).
 
@@ -1797,8 +1797,8 @@ get_current_traceline(Depth, Style, Line, Invoc) :-
 	port_style(Port, Style).
 
 is_current_goal(Invoc, Style) :-
-        getval(exec_state, trace_line with [frame:Frame,port:Port]),
-        Frame = tf with invoc:Invoc,
+        getval(exec_state, trace_line{frame:Frame,port:Port}),
+        Frame = tf{invoc:Invoc},
         port_style(Port, Style).
 
 %-------------------------------------------------------------------
