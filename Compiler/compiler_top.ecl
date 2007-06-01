@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.7 2007/06/01 15:47:45 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.8 2007/06/01 23:13:37 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2007/06/01 15:47:45 $").
+:- comment(date,	"$Date: 2007/06/01 23:13:37 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -127,10 +127,10 @@ compiler_options_cleanup(Options) :-
 % compile them, and store/output the result according to options.
 % ----------------------------------------------------------------------
 
-compile_predicate(_, [], _, _, _) :- !.
-compile_predicate(Module:NA, Clauses, AnnClauses, Files, Options) :-
+compile_predicate(_, [], _, _) :- !.
+compile_predicate(Module:NA, Clauses, AnnClauses, Options) :-
 	message(compiling(Module:NA), Options),
-	compile_pred_to_wam(Clauses, AnnClauses, Files, WAM, Options, Module),
+	compile_pred_to_wam(Clauses, AnnClauses, WAM, Options, Module),
 	Clauses = [Clause|_],
 	extract_pred(Clause, F, A),
 	pred_flags(Options, Flags),
@@ -202,10 +202,10 @@ compile_predicate(Module:NA, Clauses, AnnClauses, Files, Options) :-
 % Compile a predicate (list of clauses) to WAM code list
 % This chains together the various stages of the comiler
 
-compile_pred_to_wam(Clauses, AnnCs, Files, FinalCode, Options, Module) :-
+compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module) :-
 
 	% Create our normal form
-	normalize_clauses_annotated(Clauses, AnnCs, [], Files, NormPred0, _NVars, Module),
+	normalize_clauses_annotated(Clauses, AnnCs, [], NormPred0, _NVars, Module),
 %	print_normalized_clause(output, NormPred0),
 
 	% Do some intra-predicate flow analysis
@@ -318,37 +318,31 @@ compile_(File, OptionListOrModule, CM) :-
 	    fromto(ClauseTail, ClauseTail0, ClauseTail1, []),
 	    fromto(AnnClauseTail, AnnClauses0, AnnClauses1, []),
 	    fromto(AnnClauseTail, AnnClauseTail0, AnnClauseTail1, []),
-	    fromto(FileTail, Files0, Files1, []),
-	    fromto(FileTail, FileTail0, FileTail1, []),
 	    fromto(none, Pred0, Pred1, none),
 	    param(Options)
 	do
 	    source_read(SourcePos1, SourcePos2, Class, SourceTerm),
-            SourcePos1 = source_position{module:PosModule,file:CFile},
+            SourcePos1 = source_position{module:PosModule},
             SourceTerm = source_term{term:Term,annotated:Ann},
             
 	    ( Class = clause ->
-		accumulate_clauses(Term, Ann, PosModule, CFile, Options,
-		    Pred0, Clauses0, ClauseTail0, AnnClauses0, AnnClauseTail0, Files0, FileTail0,
-		    Pred1, Clauses1, ClauseTail1, AnnClauses1, AnnClauseTail1, Files1, FileTail1)
+		accumulate_clauses(Term, Ann, PosModule, Options,
+		    Pred0, Clauses0, ClauseTail0, AnnClauses0, AnnClauseTail0,
+		    Pred1, Clauses1, ClauseTail1, AnnClauses1, AnnClauseTail1)
 
 	    ; Class = comment ->		% comment, ignore
 		Pred1 = Pred0,
 		ClauseTail1 = ClauseTail0,
 		Clauses1 = Clauses0,
 		AnnClauseTail1 = AnnClauseTail0,
-		AnnClauses1 = AnnClauses0,
-		FileTail1 = FileTail0,
-		Files1 = Files0
+		AnnClauses1 = AnnClauses0
 
 	    ; % other classes are taken as predicate separator
 		ClauseTail0 = [],		% compile previous predicate
                 AnnClauseTail0 = [],
-                FileTail0 = [],
-                compile_predicate(Pred0, Clauses0, AnnClauses0, Files0, Options),
+                compile_predicate(Pred0, Clauses0, AnnClauses0, Options),
 		Clauses1 = ClauseTail1,
                 AnnClauses1 = AnnClauseTail1,
-                Files1 = FileTail1,
 		Pred1 = none,
 
 		( Class = directive ->
@@ -376,14 +370,14 @@ compile_(File, OptionListOrModule, CM) :-
 
 % Add a single clause or a list of clauses to what we already have.
 % If a predicate is finished, compile it.
-:- mode accumulate_clauses(+,+,+,+,+,+,?,-,?,-,?,-,-,-,-,-,-,-,-).
-accumulate_clauses([], [], _Module, _CFile, _Options,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0) :-
+:- mode accumulate_clauses(+,+,+,+,+,?,-,?,-,-,-,-,-,-).
+accumulate_clauses([], [], _Module, _Options,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0) :-
 	!.
-accumulate_clauses([Term|Terms], [AnnTerm|AnnTerms], Module, CFile, Options,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl) :-
+accumulate_clauses([Term|Terms], [AnnTerm|AnnTerms], Module, Options,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl) :-
 	!,
 	extract_pred(Term, N, A),
 	Pred1 = Module:N/A,
@@ -391,27 +385,25 @@ accumulate_clauses([Term|Terms], [AnnTerm|AnnTerms], Module, CFile, Options,
 	    % another clause for Pred0
 	    PredClTl0 = [Term|PredClTl1],
 	    PredClAnnTl0 = [AnnTerm|PredClAnnTl1],
-	    FilesTl0 = [CFile|FilesTl1],
-	    accumulate_clauses(Terms, AnnTerms, Module, CFile, Options, 
-	    	Pred0, PredCl0, PredClTl1, PredClAnn0, PredClAnnTl1, Files0, FilesTl1,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl)
+	    accumulate_clauses(Terms, AnnTerms, Module, Options, 
+	    	Pred0, PredCl0, PredClTl1, PredClAnn0, PredClAnnTl1,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl)
 	;
 	    % first clause for next predicate Pred1, compile Pred0
-	    PredClTl0 = [], PredClAnnTl0 = [], FilesTl0 = [],
-	    compile_predicate(Pred0, PredCl0, PredClAnn0, Files0, Options),
+	    PredClTl0 = [], PredClAnnTl0 = [],
+	    compile_predicate(Pred0, PredCl0, PredClAnn0, Options),
 	    PredCl1 = [Term|PredClTl1],
 	    PredClAnn1 = [AnnTerm|PredClAnnTl1],
-	    Files1 = [CFile|FilesTl1],
-	    accumulate_clauses(Terms, AnnTerms, Module, CFile, Options,
-	    	Pred1, PredCl1, PredClTl1, PredClAnn1, PredClAnnTl1, Files1, FilesTl1,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl)
+	    accumulate_clauses(Terms, AnnTerms, Module, Options,
+	    	Pred1, PredCl1, PredClTl1, PredClAnn1, PredClAnnTl1,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl)
 	).
-accumulate_clauses(Term, AnnTerm, Module, CFile, Options,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl) :-
-	accumulate_clauses([Term], [AnnTerm], Module, CFile, Options,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0, Files0, FilesTl0,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl, Files, FilesTl).
+accumulate_clauses(Term, AnnTerm, Module, Options,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl) :-
+	accumulate_clauses([Term], [AnnTerm], Module, Options,
+		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
+		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl).
 
 
     extract_pred(Head :- _, N, A) :- !,
@@ -583,7 +575,7 @@ compile_list(Term, _, _, _, Options, Module) :- var(Term), !,
 	error(4, compile_term(Term, Options), Module).
 compile_list([], Pred, Clauses, Tail, Options, _Module) :- !,
 	Tail = [],
-	compile_predicate(Pred, Clauses, _, _, Options).
+	compile_predicate(Pred, Clauses, _, Options).
 compile_list([Term|Terms], Pred, Clauses, Tail, Options, Module) :- !,
 	( var(Term) ->
 	    error(4, compile_term([Term|Terms], Options), Module)
@@ -591,7 +583,7 @@ compile_list([Term|Terms], Pred, Clauses, Tail, Options, Module) :- !,
 	; Term = (:-_) ->
 	    % separator, compile the preceding predicate
 	    Tail = [],
-	    compile_predicate(Pred, Clauses, _, _, Options),
+	    compile_predicate(Pred, Clauses, _, Options),
 	    % unlike compile(file), interpret only pragmas,
 	    % not directives like module/1, include/1, etc
 	    ( consider_pragmas(Term, Options, Module) ->
@@ -604,15 +596,15 @@ compile_list([Term|Terms], Pred, Clauses, Tail, Options, Module) :- !,
 	; Term = (?-_) ->
 	    % separator, compile the preceding predicate
 	    Tail = [],
-	    compile_predicate(Pred, Clauses, _, _, Options),
+	    compile_predicate(Pred, Clauses, _, Options),
 	    process_query(no_source, Term, Options, Module),
 	    compile_list(Terms, none, Clauses1, Clauses1, Options, Module)
 	;
 	    optional_expansion(Term, TransTerm, Options, Module),
 	    % TransTerm may be a list of clauses!
-	    accumulate_clauses(TransTerm, _, Module, _CFile, Options,
-		    Pred, Clauses, Tail, _, _, _, _,
-		    Pred1, Clauses1, Tail1, _, _, _, _),
+	    accumulate_clauses(TransTerm, _, Module, Options,
+		    Pred, Clauses, Tail, _, _,
+		    Pred1, Clauses1, Tail1, _, _),
 	    compile_list(Terms, Pred1, Clauses1, Tail1, Options, Module)
 	).
 compile_list(Term, Pred, Clauses, Tail, Options, Module) :-
