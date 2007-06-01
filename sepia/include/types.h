@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.3 2007/02/10 23:59:05 kish_shen Exp $
+ * $Id: types.h,v 1.4 2007/06/01 15:42:08 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -258,6 +258,19 @@ typedef stream_desc	*stream_id;
 #else
 typedef void_ptr	stream_id;
 #endif
+
+
+/*
+ * Descriptor for a source location
+ */
+
+typedef struct {
+	dident file;		/* file name atom (or '' if none) */
+	uword line;		/* line number in stream */
+	uword from;		/* stream offset of first char */
+	uword to;		/* stream offset of last char + 1 */
+} source_pos_t;
+
 
 /*---------------------------------------------------------------------------
  * Tracer/debugger data

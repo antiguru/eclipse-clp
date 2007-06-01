@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: lex.h,v 1.1 2006/09/23 01:55:03 snovello Exp $
+ * VERSION	$Id: lex.h,v 1.2 2007/06/01 15:42:07 jschimpf Exp $
  */
 
 /*
@@ -150,31 +150,21 @@
 
 
 /*
- * Descriptor for a token's source location
- */
-
-typedef struct {
-	uword from;		/* stream offset of first char */
-	uword to;		/* stream offset of last char + 1 */
-} source_pos;
-
-
-/*
  * Token structure returned by the lexer
  */
 
 typedef struct {
-	int	class;		/* current token class		*/
+	int	class;		/* token class			*/
 
 	/*
 	 * Depending on the token class, we have either:
 	 * - a valid tagged pword value (term)
 	 * - or a char* (string) whose length is in term.val.nint
 	 */
-	pword	term;		/* current token value		*/
-	char *	string;		/* current token string (if any) */
+	pword	term;		/* token value			*/
+	char *	string;		/* token string (if any)	*/
 
-	source_pos pos;		/* stream position of token	*/
+	source_pos_t pos;	/* source position of token	*/
 
 } token_desc;
 
