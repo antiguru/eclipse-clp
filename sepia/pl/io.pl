@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.4 2007/05/25 23:09:35 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.5 2007/06/01 15:45:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -489,21 +489,65 @@ option_format_compat(max_depth(N),	16'0002, 16'0000, N).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-:- export read_annotated/2.
-:- tool(read_annotated/2, read_annotated_/3).
-
-
 /**** REMEMBER TO UPDATE annotated_term used in raw form by expand_macros
  **** and friends when changing the definition here
  ****/
 :- export struct(annotated_term(
 	term,		% var, atomic or compound
-	type,		% atom
+	type,		% atom or var/1
+	file,		% atom
+	line,		% integer
 	from,		% integer
 	to		% integer
 	% may be extended in future
     )).
 	
+:- export read_annotated/2.
+:- tool(read_annotated/2, read_annotated_/3).
+
+read_annotated_(Stream, AnnTerm, Module) :-
+	read_annotated_raw(Stream, RawAnnTerm, HasMacros, Module),
+	( HasMacros == 1 ->
+	    unannotate_term(RawAnnTerm, RawTerm),
+	    expand_macros_annotated_(RawTerm, RawAnnTerm, _Term, AnnTerm, Module)
+	;
+	    AnnTerm = RawAnnTerm
+	).
+
+
+:- export read_annotated/3.
+:- tool(read_annotated/3, read_annotated_/4).
+
+read_annotated_(Stream, Term, AnnTerm, Module) :-
+	read_annotated_raw(Stream, RawAnnTerm, HasMacros, Module),
+	unannotate_term(RawAnnTerm, RawTerm),
+	( HasMacros == 1 ->
+	    expand_macros_annotated_(RawTerm, RawAnnTerm, Term, AnnTerm, Module)
+	;
+	    Term = RawTerm, AnnTerm = RawAnnTerm
+	).
+
+
+unannotate_term(end_of_file, Term) :- -?->
+	Term = end_of_file.
+unannotate_term(annotated_term{term:TermAnn}, Term) :- -?->
+	( compound(TermAnn) ->
+	    functor(TermAnn, F, A),
+	    functor(Term, F, A),
+	    unannotate_term_args(A, TermAnn, Term)
+	;
+	    Term = TermAnn
+	).
+
+    unannotate_term_args(0, _TermAnn, _Term) :- !.
+    unannotate_term_args(I, TermAnn, Term) :-
+	    I1 is I-1,
+	    arg(I, TermAnn, AnnArg),
+	    arg(I, Term, Arg),
+	    unannotate_term(AnnArg, Arg),
+	    unannotate_term_args(I1, TermAnn, Term).
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

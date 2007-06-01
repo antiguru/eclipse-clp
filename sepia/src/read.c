@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.1 2006/09/23 01:56:15 snovello Exp $
+ * Version:	$Id: read.c,v 1.2 2007/06/01 15:43:48 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -285,7 +285,7 @@ int
 static int
 	_pread3(value v, type t, stream_id nst, value vm, type tm),
 	p_read2(value v, type t, value vm, type tm),
-	p_read_annotated(value vs, type ts, value v, type t, value vm, type tm),
+	p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, value vm, type tm),
 	p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type tm);
 
 static unsigned long
@@ -401,13 +401,18 @@ static int
 
 #define	TERM_TERM	1
 #define	TERM_TYPE	2
-#define	TERM_FROM	3
-#define	TERM_TO		4
+#define	TERM_FILE	3
+#define	TERM_LINE	4
+#define	TERM_FROM	5
+#define	TERM_TO		6
+#define	TERM_ARITY	6
 
 
-static source_pos no_pos_ = {0,0};
+static source_pos_t no_pos_ = {D_UNKNOWN,0,0,0};
 
 #define Merge_Source_Pos(p1,p2,paux)			\
+	paux.file = p1.file;				\
+	paux.line = p1.line;				\
 	paux.from = p1.from;				\
 	paux.to = p2.to;
 
@@ -429,6 +434,8 @@ static source_pos no_pos_ = {0,0};
 	    Make_Struct(pw, TG);			\
 	    Push_Struct_Frame(d_annotated_term_);	\
 	    Make_Atom(_pw+TERM_TYPE, dtype);		\
+	    Make_Atom(_pw+TERM_FILE, (pos).file);	\
+	    Make_Integer(_pw+TERM_LINE, (pos).line);	\
 	    Make_Integer(_pw+TERM_FROM, (pos).from);	\
 	    Make_Integer(_pw+TERM_TO, (pos).to);	\
 	    _pw += TERM_TERM;				\
@@ -447,6 +454,8 @@ static source_pos no_pos_ = {0,0};
 	    Push_Struct_Frame(d_annotated_term_);	\
 	    pvar = _pw+TERM_TERM;			\
 	    Make_Struct(_pw+TERM_TYPE, TG);		\
+	    Make_Atom(_pw+TERM_FILE, (pos).file);	\
+	    Make_Integer(_pw+TERM_LINE, (pos).line);	\
 	    Make_Integer(_pw+TERM_FROM, (pos).from);	\
 	    Make_Integer(_pw+TERM_TO, (pos).to);	\
 	    _pw = TG;					\
@@ -479,6 +488,12 @@ static source_pos no_pos_ = {0,0};
 	pword *_pw;					\
 	Make_Term_Wrapper(pw, _pw, d_.atom0, pos);	\
 	Make_Nil(_pw);					\
+    }
+
+#define Build_Integer(pw,n,pos) {			\
+	pword *_pw;					\
+	Make_Term_Wrapper(pw, _pw, d_.integer0, pos);	\
+	Make_Integer(_pw, n);				\
     }
 
 #define Build_Struct(pw, pfct, d,pos) {			\
@@ -546,21 +561,19 @@ static void
 _build_list_from_token(parse_desc *pd, pword *pw)
 {
     int i;
-    pword *_pw;
     Flag_Type_Macro(pd, TINT);
     Flag_Type_Macro(pd, TDICT);
     Flag_Did_Macro(pd, d_.nil);
     Flag_Type_Macro(pd, TCOMP);
     Flag_Did_Macro(pd, d_.list);
-    Make_Term_Wrapper(pw, _pw, d_.string0, pd->token.pos);
     for(i=0; i<TokenStringLen(pd); ++i)
     {
-	Make_List(_pw, TG);
-	Push_List_Frame();
-	_pw = TG-1;
-	Make_Integer(_pw-1, TokenString(pd)[i]);
+	pword *phead;
+	Build_List(pw, phead, pd->token.pos);
+	Build_Integer(phead, TokenString(pd)[i], pd->token.pos);
+	pw = phead+1;
     }
-    Make_Nil(_pw);
+    Build_Nil(pw, pd->token.pos);
 }
 
 
@@ -783,9 +796,9 @@ _return_0_:
  */
 
 static int
-_read_list(parse_desc *pd, pword *result, source_pos *ppos)
+_read_list(parse_desc *pd, pword *result, source_pos_t *ppos)
 {
-    source_pos pos = *ppos;
+    source_pos_t pos = *ppos;
 
     for(;;)
     {
@@ -893,7 +906,7 @@ _read_sequence_until(parse_desc *pd, pword *result, int terminator)
 
 static int
 _read_struct(parse_desc *pd, char *name, uword length, pword *result,
-	source_pos *ppos)
+	source_pos_t *ppos)
 {
     int status;
     dident functor;
@@ -975,7 +988,7 @@ _read_next_term(parse_desc *pd,
     uword	length;
     dident	did0;
     opi		*pre_op;
-    source_pos	pos;
+    source_pos_t	pos;
 
     pos = pd->token.pos;
     switch(pd->token.class)
@@ -1488,8 +1501,9 @@ read_init(int flags)
 
     d_comma0_ = in_dict(",", 0);
     d_bar0_ = in_dict("|", 0);
-    d_annotated_term_ = in_dict("annotated_term", 4);
+    d_annotated_term_ = in_dict("annotated_term", TERM_ARITY);
     d_anonymous_ = in_dict("anonymous", 0);
+    no_pos_.file = d_.empty;
 
     if (!(flags & INIT_SHARED))
 	return;
@@ -1500,8 +1514,8 @@ read_init(int flags)
 	-> mode = BoundArg(2, NONVAR);
     exported_built_in(in_dict("readvar", 4), p_readvar, B_UNSAFE|U_FRESH)
 	-> mode = BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
-    exported_built_in(in_dict("read_annotated_", 3), p_read_annotated, B_UNSAFE|U_FRESH)
-	-> mode = BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
+    exported_built_in(in_dict("read_annotated_raw", 4), p_read_annotated_raw, B_UNSAFE|U_FRESH)
+	-> mode = BoundArg(2, NONVAR) | BoundArg(3, CONSTANT);
 }
 
 
@@ -1630,11 +1644,12 @@ p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type 
 
 
 static int
-p_read_annotated(value vs, type ts, value v, type t, value vm, type tm)
+p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, value vm, type tm)
 {
     pword	*pw;
     pword	result;
     int		 status;
+    int		has_macro = 0;
     stream_id	 nst = get_stream_id(vs, ts, SREAD, &status);
     Prepare_Requests
 
@@ -1651,20 +1666,23 @@ p_read_annotated(value vs, type ts, value v, type t, value vm, type tm)
 
     status = ec_read_term(nst, LAYOUT_PLEASE |
     		(GlobalFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
-		&result, 0, 0, vm, tm);
+		&result, 0, &has_macro, vm, tm);
 
     if (status != PSUCCEED)
     {
 	Bip_Error(status);
     }
 
+    /* return flag indicating presence of macros */
+    Request_Unify_Integer(vf, tf, has_macro)
+
     pw = &result;
     Dereference_(pw);
-    if (IsRef(pw->tag) && pw == &result)
+    if (!(IsRef(pw->tag) && pw == &result))
     {
-	Succeed_;	/* a free variable */
+	Request_Unify_Pw(v, t, pw->val, pw->tag)
     }
-    Return_Unify_Pw(v, t, pw->val, pw->tag)
+    Return_Unify
 }
 
 

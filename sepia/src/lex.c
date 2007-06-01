@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.1 2006/09/23 01:56:07 snovello Exp $
+ * VERSION	$Id: lex.c,v 1.2 2007/06/01 15:43:48 jschimpf Exp $
  */
 
 /*
@@ -352,6 +352,8 @@ lex_an(	stream_id nst,		/* in: stream to read from */
     int			ctype;
 
     token->string = (char *) 0;
+    token->pos.file = StreamName(nst);
+    token->pos.line = StreamLine(nst);
     token->pos.from = CurrentOffset(nst,pligne);
 
     if (!pligne) {
@@ -374,6 +376,7 @@ _start_:		/* cc/ctype: current char, pligne: ptr to next char */
 	tok = _skip_blanks(nst, sd, &pligne, &cc, &ctype);
     	if (LexError(tok))
 	    break;
+	token->pos.line = StreamLine(nst);
 	token->pos.from = PreviousOffset(nst,pligne,cc);
 	goto _start_;		/* tok maybe BLANK_SPACE */
 
@@ -382,6 +385,7 @@ _start_:		/* cc/ctype: current char, pligne: ptr to next char */
     	if (LexError(tok))
 	    break;
 	else if (tok == BLANK_SPACE) {
+	    token->pos.line = StreamLine(nst);
 	    token->pos.from = PreviousOffset(nst,pligne,cc);
 	    goto _start_;	/* it was really a comment */
 	} else

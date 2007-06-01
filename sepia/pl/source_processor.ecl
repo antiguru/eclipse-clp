@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.4 2007/05/17 23:52:17 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.5 2007/06/01 15:45:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2007/05/17 23:52:17 $").
+:- comment(date, "$Date: 2007/06/01 15:45:34 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -78,20 +78,28 @@
         annotated
     )).
 
+
+:- import expand_clause_annotated/4,
+          expand_goal_annotated/4,
+	  erase_module_pragmas/1
+   from sepia_kernel.
+
+
 :- local struct(options(
     	keep_comments,		% true if set, else variable
 	recreate_modules,	% erase old module before creating
 	no_macro_expansion,	% true if set, else variable
 	no_clause_expansion,	% true if set, else variable
-	goal_expansion		% true if set, else variable
+	goal_expansion,		% true if set, else variable
+	with_annotations	% true if set, else variable
     )).
 
 :- comment(struct(source_term), [
     summary:"A source term with additional information",
     fields:[
 	term:"A term read from a source file (a clause, fact, etc)",
-	vars:"A list of the term's variables and their names",
-        annotated:"An annotated version of term with source and type information"
+	vars:"A list of the term's variables and their names information (or [] if the with_annotations option is in effect)",
+        annotated:"An annotated version of term with source and type information (only if with_annotations option given, otherwise uninstantiated)"
     ],
     see_also:[readvar/3,read_annotated/2]
 ]).
@@ -139,6 +147,9 @@
     <DT>keep_comments</DT>
 	<DD>treat comments and spacing between source terms as data
 		rather than ignoring it</DD>
+    <DT>with_annotations</DT>
+	<DD>return an annotated source term with every source term
+	(and do not return a separate variable list)</DD>
     <DT>no_macro_expansion</DT>
 	<DD>do not expand term macros (e.g. with/2 and of/2)</DD>
     <DT>no_clause_expansion</DT>
@@ -211,6 +222,7 @@ source_open(File, OptionList, SourcePos, Module) :-
     set_option(no_macro_expansion, options{no_macro_expansion:true}).
     set_option(no_clause_expansion, options{no_clause_expansion:true}).
     set_option(goal_expansion, options{goal_expansion:true}).
+    set_option(with_annotations, options{with_annotations:true}).
 
     peek(In, C) :- get(In, C).
     peek(In, _) :- unget(In), fail.
@@ -315,23 +327,24 @@ source_close(SourcePos, Options) :-
     In all these cases, vars is the empty list, and annotated is
     uninstantiated.
     <P>
-    The annotated term is in the same format as that returned by 
-    read_annotated/2, i.e. a recursive wrapper structure around the
-    read term of the following format:
+    Note that either the vars-field or the annotated field is valid,
+    depending on the setting of the with_annotations-option.  If the option
+    is set, the vars field contains an empty list, and the annotated term
+    is in the same format as that returned by read_annotated/2, i.e. a
+    recursive wrapper structure around the read term of the following format:
 <PRE>
     :- export struct(annotated_term(
         term,                   % var, atomic or compound
                                 % args of compound terms are annotated
         type,                   % term type (see below)
-        from, to                % source position (integers)
+        file,                   % file name (atom)
+        line,                   % line number (integer >= 1)
+        from, to                % source position (integers >= 0)
         ...
     )).
 </PRE>
-    there is an additional type to that returned by read_annotated/2:
-    transformed, indicating that the (sub)term is the result of macro 
-    transformations of the source term. In this case, the source
-    position (from,to) are the position of the original source term that
-    was transformed. The actual type of the term itself is not returned.
+    If the with_annotations-option is not set, the annotated-field remains
+    uninstantiated, and the vars-field is a list as detailed in readvar/3.
     <P>
     Notes on module handling:  When source_read/3 encounters a
     module-directive (which is a handled_directive), the corresponding
@@ -409,21 +422,22 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	    Kind = clause
 	).
 
-:- import expand_macros_annotated_/5, 
-          expand_clause_annotated/4,
-          expand_goal_annotated/4,
-	  erase_module_pragmas/1
-   from sepia_kernel.
-
     read_next_term(In, _Term, _AnnTermOrEof, _Vars, _Error, Comment, options{keep_comments:true}, _Module) ?-
 	read_comment(In, Comment),	% may fail
 	!.
-    read_next_term(In, TermOrEof, AnnTermOrEof, Vars, Error, _Comment, _OptFlags, Module) :-
-	block(readvar_special(In, TermOrEof, AnnTermOrEof, Vars, Module), Error, skip_to_fullstop(In)).
+    read_next_term(In, TermOrEof, AnnTermOrEof, Vars, Error, _Comment, OptFlags, Module) :-
+	block(read_special(In, TermOrEof, AnnTermOrEof, Vars, OptFlags, Module),
+		Error, skip_to_fullstop(In)).
 
-    readvar_special(In, TermOrEof, AnnTermOrEof, Vars, Module) :-
-        read_annotated(In, AnnTermOrEof0)@Module,
-	% If read_annotated consumed a layout char as part of the fullstop,
+
+    read_special(In, TermOrEof, AnnTermOrEof, Vars, options{with_annotations:WithAnn}, Module) ?- !,
+	( WithAnn == true ->
+	    Vars = [],
+	    read_annotated(In, TermOrEof, AnnTermOrEof)@Module
+	;
+	    readvar(In, TermOrEof, Vars)@Module
+	),
+	% If the read consumed a layout char as part of the fullstop,
 	% put it back. Different cases (| indicates stream position):
 	%	term|<eof>	=> don't unget
 	%	term.|<eof>	=> don't unget
@@ -437,15 +451,7 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	( Class = blank_space -> unget(In)
 	; Class = end_of_line -> unget(In)
 	; true
-	),
-        unannotate_termvar(AnnTermOrEof0, TermOrEof0, Vars),
-        ( AnnTermOrEof0 == end_of_file ->
-            TermOrEof = end_of_file
-        ;
-            expand_macros_annotated_(TermOrEof0, AnnTermOrEof0, TermOrEof,
-                                     AnnTermOrEof, Module)
 	).
-
 
     	
     % simple attempt at recovery: skip to fullstop at end of line
@@ -465,31 +471,6 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	    skip_to_fullstop(Stream)
 	).
 
-
-unannotate_termvar(end_of_file, Term, Vars) ?- !, 
-        Term = end_of_file, Vars = [].
-unannotate_termvar(AnnTerm, Term, Vars) :- 
-        unannotate_termvar1(AnnTerm, Term, Vars, []).
-
-    unannotate_termvar1(annotated_term{term:AnnTerm,type:Type}, Term, VIn, VOut)?-
-        nonvar(Type), 
-        ( Type == compound ->
-            functor(AnnTerm, F, A),
-            
-            functor(Term, F, A),
-            (for(I,1,A), fromto(VIn, V1,V2, VOut), 
-             param(AnnTerm,Term) do
-                arg(I, AnnTerm, AnnArg),
-                arg(I, Term, Arg),
-                unannotate_termvar1(AnnArg, Arg, V1, V2)
-            )
-        ; Type = var(Name) -> 
-            Term = AnnTerm,
-            VIn = [[Name|AnnTerm]|VOut]
-        ;
-            Term = AnnTerm,
-            VIn = VOut
-        ).
 
 apply_clause_expansion(Term, AnnTerm, TransTerm, AnnTransTerm,
               options{no_clause_expansion:NoCFlag,goal_expansion:GFlag0},

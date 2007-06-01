@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.3 2007/06/01 15:45:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -424,8 +424,7 @@ extract_stream(read(_), input).
 extract_stream(read_(_, _), input).
 extract_stream(readvar(S, _, _), S).
 extract_stream(readvar(S, _, _, _), S).
-extract_stream(read_annotated(S, _), S).
-extract_stream(read_annotated_(S, _, _), S).
+extract_stream(read_annotated_raw(S, _, _, _), S).
 extract_stream(read_string(_, _, _), input).
 extract_stream(read_string(S, _, _, _), S).
 extract_stream(read(S, _), S).
@@ -494,8 +493,6 @@ eof_handler(_, read_(_, end_of_file, _)).
 eof_handler(_, read_exdr(_, _)) :- fail.
 eof_handler(_, readvar(_, end_of_file, _)).
 eof_handler(_, readvar(_, end_of_file, _, _)).
-eof_handler(_, read_annotated(_, end_of_file)).
-eof_handler(_, read_annotated_(_, end_of_file, _)).
 eof_handler(_, read_token(_, end_of_file, end_of_file)).
 eof_handler(_, read_token_(_, end_of_file, end_of_file, _)).
 eof_handler(_, read_string(_, _, _)) :- fail.
@@ -511,6 +508,11 @@ eof_handler(_, tyi(_, -1)).
 eof_handler(_, get_char(_)) :- fail.
 eof_handler(_, get_char(_, _)) :- fail.
 eof_handler(_, getw(_, end_of_file)).
+eof_handler(_, read_annotated_raw(S,
+	    annotated_term(end_of_file,end_of_file,File,Line,End,End), 0, _)) :-
+	stream_info_(S, 0 /*name*/, File),
+	stream_info_(S, 5 /*line*/, Line),
+	at(S, End).
 
 
 past_eof_handler(N, Goal) :-
