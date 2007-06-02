@@ -32,6 +32,7 @@
 :- tool(read / 1).
 :- tool(read / 2).
 :- tool(read_annotated / 2).
+:- tool(read_annotated / 3).
 :- tool(read_term / 2).
 :- tool(read_term / 3).
 :- tool(readvar / 3).
@@ -2022,40 +2023,63 @@ Error:
 
 
 :- comment(read_annotated / 2, [
-	summary:"Read a whole term in ECLiPSe syntax from the input stream Stream, and return a descriptive terms with type and source annotations",
+	summary:"Read term with type and source position information",
 	amode:(read_annotated(+,-) is semidet),
 	desc:html("<P>\
+    This is defined as
+<PRE>
+    read_annoated(Stream, AnnTerm) :-
+    	read_annotated(Stream _Term, AnnTerm).
+</PRE>
+	</P>"),
+	args:["Stream" : "Integer (stream number) or Atom (reserved or user-defined symbolic stream name).",
+		"AnnTerm" : "Variable or term"],
+	fail_if:"Fails if a syntax error was detected and no term could be read",
+	exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is not an atom or an integer.", 190 : "End of file was encountered before reading any character.", 192 : "Stream is not an input stream.", 193 : "Stream is an illegal stream specification.", 198 : "Trying to read even after the error 190 was raised."],
+	see_also:[read_annotated/3]]).
+
+:- comment(read_annotated / 3, [
+	summary:"Read term with type and source position information",
+	amode:(read_annotated(+,-,-) is semidet),
+	desc:html("<P>\
     Reads the next input term (up to the end of file, or up to a fullstop)
-    from from the input stream Stream and returns a descriptor containing
-    all information about the term, plus additional type and source annotations.
+    from from the input stream Stream, and returns this term as Term, and
+    a descriptor AnnTerm.  AnnTerm is structurally similar to Term and
+    contains all information about the term, plus additional type information,
+    variable names, and source position annotations for all subterms.
 </P><P>
     The structure of the descriptive terms is as follows:
     <PRE>
 	:- export struct(annotated_term(
 		term,			% var, atomic or compound
 		type,			% term type (see below)
+		file,			% source file name (atom)
+		line,			% source line (integer)
 		from, to		% source position (integers)
 		...
 	)).
     </PRE>
 </P><P>
-    The type field describes the type of the parsed term and is one of
+    The type-field describes the type of the parsed term and is one of
     the following:
-</P>
 <PRE>
     integer
     float
     rational
     breal
     atom
-    string		term is a string or a char_code list
-    anonymous		term is an anonymous variable
-    var(NameAtom)	term is a variable with the given name
+    string
     compound		term is compound (with annotated subterms)
+    anonymous		term is a variable (was anonymous (_) in source)
+    var(NameAtom)	term is a variable (with the given source name)
+    var			term is a variable (introduced by macro expansion)
+    end_of_file		end of file was read (term is end_of_file)
 </PRE>
+    These type names correspond to the ones used in type_of/2, except that
+    they convey additional information about variables and end_of_file..
 </P><P>
-    In the case of atomic terms and variables, the term field simply
-    contains the plain parsed term. For compound terms, the term field
+    In the case of atomic terms and variables, the term-field simply
+    contains the plain parsed term. For compound terms, the term-field
     contains a structure whose functor is the functor of the plain term,
     but whose arguments are annotated versions of the plain term arguments.
 </P><P>
@@ -2097,9 +2121,24 @@ Error:
 	    compound, ...)
 </PRE>
 </P><P>
-The from/to fields of an annotated term describe a \"source position\"
-of the term. Every term/subterm is represented by one (sometimes two
-consecutive) tokens in the source, defined as follows:
+The file/line/from/to-fields of an annotated term describe the
+\"source position\" of the term.  The fields contain:
+<DL>
+<DT>file</DT><DD>
+    The canonical file name of the source file (an atom), or the
+    empty atom '' if the source is not a file or not known.
+</DD>
+<DT>line</DT><DD>
+    The line number in the source stream (positive integer).
+</DD>
+<DT>from, to</DT><DD>
+    The exact term position as integer offsets in the source stream,
+    starting at from and ending at to-1.
+</DD>
+</DL>
+The source position of a whole (sub)term is defined as the source position
+of the unique token (sometimes token pair) which represents that (sub)term.
+The representing token (pair) is defined as follows:
 <UL>
 <LI>atoms, strings and unsigned numbers are represented by their
     corresponding IDENTIFIER, NUMBER or STRING token.
@@ -2135,10 +2174,15 @@ consecutive) tokens in the source, defined as follows:
 
 <LI>special notations:
 <P>
+  {X}
+<PRE>
+	'{}'(X) represented by the { token,
+	X	represented by itself
+</PRE>
   X[Args]
 <PRE>
 	subscript(X, [...]) represented by the [ token,
-	X,Args	represented by itself,
+	X,Args	represented by themselves
 </PRE>
   X{Args}
 <PRE>
@@ -2155,61 +2199,74 @@ consecutive) tokens in the source, defined as follows:
   	apply(X,[Args])	represented by the ( token
   	X,Args	represented by themselves
 </PRE>
-  In all these cases, the commas represent nothing.
 </P>
 </UL>
-</P>
 <P>
-    The source position of a term is the union of the source positions of
-    the representing tokens.
+    Terms that were read from source may be subject to macro expansion
+    (see macro/3, expand_macros/2).  In that case, term components
+    that were introduced by the expansion may not have an exactly
+    corresponding item in the source (but will usually inherit a
+    meaningful, though not necessarily unique, source position). 
+    Moreover, variables that were newly introduced by the expansion
+    have a type-field of 'var' without name information.  Also,
+    'anonymous' variables may have more than one occurrence after expansion.
 </P><P>
-    No macro expansions are performed by this primitive.
-</P><P>
-    If only end of file is read, the event 190 is raised and the default
-    handler unifies Term with the atom end_of_file.
+    If only end of file is read, the event 190 is raised. The default
+    handler unifies Term with an annotated term of the form
+    annotated_term{term:end_of_file,type:end_of_file}, and the source
+    location is the last position in the file.
 </P><P>
     The default action for syntax errors is to print a warning and fail.
 </P>
 "),
-	args:["Stream" : "Integer (stream number) or Atom (reserved or user-defined                symbolic stream name).", "Term" : "Prolog term or variable."],
+	args:["Stream" : "Integer (stream number) or Atom (reserved or user-defined symbolic stream name).",
+		"Term" : "Variable or term",
+		"AnnTerm" : "Variable or term"],
 	fail_if:"Fails if a syntax error was detected and no term could be read",
 	exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is not an atom or an integer.", 190 : "End of file was encountered before reading any character.", 192 : "Stream is not an input stream.", 193 : "Stream is an illegal stream specification.", 198 : "Trying to read even after the error 190 was raised."],
 	eg:"
-?- read_annotated(input,X).
+?- read_annotated(input,T,AT).
  33.
 
-X = annotated_term(33, integer, 0, 2)
+T = 33
+AT = annotated_term(33, integer, user, 1, 0, 2)
 Yes (0.00s cpu)
 
 
-?- read_annotated(input,X).
+?- read_annotated(input,T,AT).
  foo(bar).
 
-X = annotated_term(foo(annotated_term(bar, atom, 8, 11)), compound, 4, 8)
+T = foo(bar)
+AT = annotated_term(foo(
+	    annotated_term(bar, atom, user, 2, 8, 11)
+	), compound, user, 2, 4, 8)
 Yes (0.00s cpu)
 
 
 ?- read_annotated(input,X).
  a + 3.
 
-X = annotated_term(annotated_term(a, atom, 14, 15) +
-	annotated_term(3, integer, 18, 19), compound, 16, 17)
+T = a + 3
+AT = annotated_term(
+	    annotated_term(a, atom, user, 3, 14, 15)
+	+   annotated_term(3, integer, user, 3, 18, 19),
+	compound, user, 3, 16, 17)
 Yes (0.00s cpu)
 
 
 ?- read_annotated(input,X).
  [a,b].
 
-X = annotated_term([
-	annotated_term(a, atom, 22, 23)|
-	annotated_term([
-		annotated_term(b, atom, 24, 25)|
-		annotated_term([], atom, 25, 26)
-		], compound, 23, 24)
-	], compound, 21, 22)
+T = [a, b]
+AT = annotated_term([
+	    annotated_term(a, atom, user, 4, 22, 23)|
+	    annotated_term([
+		    annotated_term(b, atom, user, 4, 24, 25)|
+		    annotated_term([], atom, user, 4, 25, 26)
+		], compound, user, 4, 23, 24)
+	], compound, user, 4, 21, 22)
 Yes (0.00s cpu)
-
 ",
-	see_also:[read / 1, readvar / 3, read_token / 2, read_token / 3,
-	expand_macros/2]]).
+	see_also:[read_annotated/2, read / 1, readvar / 3, read_token / 2, read_token / 3,
+	expand_macros/2, macro/3, type_of/2]]).
 
