@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.4 2007/06/01 15:42:08 jschimpf Exp $
+ * $Id: types.h,v 1.5 2007/06/03 17:03:11 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -271,6 +271,8 @@ typedef struct {
 	uword to;		/* stream offset of last char + 1 */
 } source_pos_t;
 
+#define SOURCE_POS_SZ	4	/* words in the structure above */
+
 
 /*---------------------------------------------------------------------------
  * Tracer/debugger data
@@ -282,9 +284,7 @@ typedef struct
 {
     word	invoc;
     struct pri	*proc;
-    dident      file_path;
-    word	file_frompos;
-    word	file_topos;
+    source_pos_t source_pos;
 
 } fail_data_t;
 
@@ -306,14 +306,13 @@ typedef struct			/* debugger registers */
     word	fail_culprit;	/* invoc of failure culprit */
 
     word	port_filter;	/* port pre-filtering */
-    dident      file_path;      /* source file for goal */
-    word	file_frompos;   /* offset in file for start of goal */
-    word	file_topos;     /* offset in file for end of goal */
     word	min_invoc;
     word	max_invoc;
     word	min_level;
     word	max_level;
     word	trace_mode;
+
+    source_pos_t source_pos;	/* source position */
 } trace_t;
 
 

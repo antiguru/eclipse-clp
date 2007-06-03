@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.6 2007/05/25 23:09:35 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.7 2007/06/03 17:03:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -796,7 +796,7 @@ instr(bi_ne(a(A1),a(A2),a(A3)),         339, [a(A1),a(A2),a(A3)]).
 instr(bi_arg(a(A1),a(A2),a(A3)),        340, [a(A1),a(A2),a(A3)]).
 instr(bi_make_suspension(a(A1),a(A2),a(A3),a(A4)),        
                                         341, [a(A1),a(A2),a(A3),a(A4)]).
-instr(debug_scall(P,Port,Path,F,T),	342, [proc(P),port(Port),atom(Path),i(F),i(T)]).
+instr(debug_scall(P,Port,Path,L,F,T),	342, [proc(P),port(Port),atom(Path),i(L),i(F),i(T)]).
 instr(retry_inline(D,ref(L)), 		343, [port(D),ref(L)]).
 instr(trust_inline(D,ref(L)), 		344, [port(D),ref(L)]).
 instr(put_named_variable(a(A),N), 	345, [a(A),nv(N)]).

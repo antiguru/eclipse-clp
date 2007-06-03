@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.3 2007/05/25 23:09:36 jschimpf Exp $
+% Version:	$Id: tracer_tty.pl,v 1.4 2007/06/03 17:03:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.3 2007/05/25 23:09:36 jschimpf Exp $
+% $Id: tracer_tty.pl,v 1.4 2007/06/03 17:03:11 jschimpf Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -393,9 +393,9 @@ do_tracer_command(0'v, Current, _N, Cont) :- !,
 do_tracer_command(0'w, Current, N0, Cont) :- !,
         writeln(debug_output, "write source lines"),
         (N0 == 0 -> N = 4 ; N = N0), % 4 is default
-        Current = trace_line{frame:tf{path:File,from:Pos}},
+        Current = trace_line{frame:tf{path:File,line:Line}},
         ( File \== '' ->
-            ( write_n_lines_around_current(File, Pos, N) ->
+            ( write_n_lines_around_current(File, Line, N) ->
                 true
             ;
                 printf(debug_output, "Unable to find source lines in %w.%n",
@@ -919,53 +919,36 @@ print_one_position(Pos, T, Mod) :-
 % Print source
 %----------------------------------------------------------------------
 
-write_n_lines_around_current(File, Pos, N) :-
+write_n_lines_around_current(File, CurrentLN, N) :-
         get_file_info(File, readable, on),
         open(File, read, S),
         printf(debug_output, "Source file: %w%n", [File]),
-        (get_line_starts(S, Pos, 1, CurrentLN, [0], Starts) ->
-            N0 is N + 1, % Starts includes line for current goal
-            get_nth(N0, Starts, LastStart, LastN),
-            seek(S, LastStart),
-            FirstLN is CurrentLN - N0 + LastN,
-            (for(I,FirstLN,CurrentLN-1),param(S) do
-                read_string(S, end_of_line, _, Line),
-                printf(debug_output, "%5d  %w%n", [I, Line])
-            ),
-            read_string(S, end_of_line, _, CurrentLine),
-            printf(debug_output, "%5d> %w%n", [CurrentLN, CurrentLine]),
-            NextLN is CurrentLN + 1,
-            LastLN is CurrentLN + N,
-            (fromto(CurrentLN, LN1,LN2, LastLN), param(S,LastLN) do
-                read_string(S, end_of_line, _, Line),
-                printf(debug_output, "%5d  %w%n", [LN1,Line]),
-                (at_eof(S) -> LN2 = LastLN ; LN2 is LN1+1)
-            ),
-            close(S)
+	( 
+	    FirstLN is CurrentLN - N,
+	    ( for(_,2,FirstLN), param(S) do
+		read_string(S, end_of_line, _, _)
+	    ),
+	    ( for(I,FirstLN,CurrentLN-1), param(S) do
+		read_string(S, end_of_line, _, Line),
+		printf(debug_output, "%5d  %w%n", [I, Line])
+	    ),
+	    read_string(S, end_of_line, _, CurrentLine),
+	    printf(debug_output, "%5d> %w%n", [CurrentLN, CurrentLine]),
+	    ( ( for(I,CurrentLN+1,CurrentLN+N), param(S) do
+		% read_string may fail due to end of file
+		read_string(S, end_of_line, _, Line),
+		printf(debug_output, "%5d  %w%n", [I, Line])
+	      ) ->
+		true
+	    ;
+		true
+	    ),
+	    close(S)
         ;
             close(S),
             fail
-        ).
+	).
 
-get_nth(M, [Start0], Start, Last) :- !, % reach start of file
-        Start = Start0, Last = M.
-get_nth(1, [Start0|_], Start, Last) :- !, 
-        Start = Start0, Last = 1.
-get_nth(N, [_|Starts], Start, Last) :-  
-        N1 is N - 1,
-        get_nth(N1, Starts, Start, Last).
-
-get_line_starts(S, Pos, LN0, LN,  Starts0, Starts1) :-
-        read_string(S, end_of_line, _, _),
-        at(S, Start),
-        ( Pos < Start ->
-            Starts1 = Starts0,
-            LN = LN0
-        ;
-            \+ at_eof(S), % fail if Pos pass eof
-            LN1 is LN0 + 1,
-            get_line_starts(S, Pos, LN1, LN, [Start|Starts0], Starts1)
-        ).
 
 %----------------------------------------------------------------------
 % Changing output mode

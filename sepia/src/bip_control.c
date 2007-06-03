@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.3 2007/02/10 23:56:07 kish_shen Exp $
+ * VERSION	$Id: bip_control.c,v 1.4 2007/06/03 17:03:11 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -958,8 +958,10 @@ p_get_fail_info(value vi, type ti, value vf, type tf)
     mdid = PriModule(FTRACE[vi.nint].proc);
     if (mdid == D_UNKNOWN) mdid = FTRACE[vi.nint].proc->module_ref;
     Make_Partial_Dbg_Frame(pw, FTRACE[vi.nint].invoc, goal, SUSP_MAX_PRIO,
-    		FTRACE[vi.nint].proc, FTRACE[vi.nint].file_path, 
-                FTRACE[vi.nint].file_frompos, FTRACE[vi.nint].file_topos, mdid);
+    		FTRACE[vi.nint].proc, FTRACE[vi.nint].source_pos.file, 
+                FTRACE[vi.nint].source_pos.line,
+                FTRACE[vi.nint].source_pos.from,
+		FTRACE[vi.nint].source_pos.to, mdid);
     Return_Unify_Structure(vf, tf, pw);
 }
 
@@ -974,7 +976,7 @@ p_susp_to_tf(value vs, type ts, value vf, type tf)
 
     Check_Type(ts, TSUSP);
     Make_Partial_Dbg_Frame(pw, SuspDebugInvoc(vs.ptr), vs.ptr[SUSP_GOAL],
-		SuspPrio(vs.ptr), SuspProc(vs.ptr), d_.empty, 0, 0,
+		SuspPrio(vs.ptr), SuspProc(vs.ptr), d_.empty, 0, 0, 0,
 		SuspModule(vs.ptr));
     Return_Unify_Structure(vf, tf, pw);
 }
@@ -1024,11 +1026,11 @@ p_make_tf(value vpush, type tpush, value vi, type ti, value vg, type tg, value v
     if (vpush.nint)				/* push */
     {
 	if (!NewLocation(TD)) { Trail_Pword(&TAGGED_TD); }
-	Push_Dbg_Frame(pw, invoc, vg, tg, depth, vp.nint, proc, d_.empty, 0, 0, vm.did);
+	Push_Dbg_Frame(pw, invoc, vg, tg, depth, vp.nint, proc, d_.empty, 0, 0, 0, vm.did);
     }
     else					/* don't push */
     {
-	Make_Dbg_Frame(pw, invoc, vg, tg, depth, vp.nint, proc, d_.empty, 0, 0, vm.did);
+	Make_Dbg_Frame(pw, invoc, vg, tg, depth, vp.nint, proc, d_.empty, 0, 0, 0, vm.did);
 	pw[TF_ANCESTOR] = TAGGED_TD;
     }
     Set_Tf_Flag(TD, TF_INTRACER);		/* assume we are within tracer */

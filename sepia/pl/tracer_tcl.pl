@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.9 2007/05/25 23:09:35 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.10 2007/06/03 17:03:11 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -187,7 +187,7 @@ trace_line_handler_tcl(_, Current) :-
 	!,
 	flush(debug_output),
 	open(string(""), write, SS),
-	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, FPath, From, To),
+	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, FPath, _Linum, From, To),
 	get_stream_info(SS, name, Line),
 	close(SS),
 	port_style(Port, Style),
@@ -229,9 +229,9 @@ filter_count_and_reset(SpyStatus) :-
         setval(filter_status, off).
         
 make_trace_line(Stream, trace_line{port:Port, frame:Frame}, Depth,
-                Port, Invoc, Prio, FPath, From, To) :-
+                Port, Invoc, Prio, FPath, Linum, From, To) :-
 	Frame = tf{invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M,
-                         path:Path0, from:From, to:To},
+                         path:Path0, line:Linum, from:From, to:To},
 	register_inspected_term(Goal, M),
         % wrapper around pathname to avoid empty string 
         (Path0 == '' -> 
@@ -403,7 +403,7 @@ get_inspected_term(current, Term, Module) :-
 	    get_flag(toplevel_module, Module)
 	).
 get_inspected_term(invoc(N), Goal, Module) :-
-	find_goal_by_invoc(N, _LookupModule, Goal, Module, _, _, _).
+	find_goal_by_invoc(N, _LookupModule, Goal, Module, _, _, _, _).
 get_inspected_term(display(I,R,C), Term, Module) :-
 	get_matrix_term(I, R, C, Term, Module).
 
@@ -1727,7 +1727,7 @@ get_triggers(Ts) :-
 
 get_goal_info_by_invoc(Invoc, Spec, TSpec, Module, LookupModule, Path, From, To) :-
 % TSpec is write transformed goal spec.
-	find_goal_by_invoc(Invoc, LookupModule, Goal0, Module0, Path0, From, To),
+	find_goal_by_invoc(Invoc, LookupModule, Goal0, Module0, Path0, _Linum, From, To),
         (Path0 == '' -> 
             Path = no 
         ; 
@@ -1759,11 +1759,11 @@ compile_string(String) :-
 	flush(output).	       % for compiled-messages
 
 
-find_goal_by_invoc(Invoc, DefModule, Goal, Module, Path, From, To) :-
+find_goal_by_invoc(Invoc, DefModule, Goal, Module, Path, Linum, From, To) :-
 	getval(exec_state, Current),
 	Current = trace_line{frame:Stack},
 	find_goal(Invoc, Stack, Frame),
-	Frame = tf{goal:Goal, path:Path, from:From, to:To, module:Module},
+	Frame = tf{goal:Goal, path:Path, line:Linum, from:From, to:To, module:Module},
 	get_tf_prop(Frame, module, DefModule).
 
 get_ancestors(Anc) :-
@@ -1781,7 +1781,7 @@ get_ancestors_info(Frame0, Anc0, Anc) :-
 
 	 ;   open(string(""), write, SS),
 	     make_trace_line(SS, trace_line{port:'....',frame:Frame0},
-                             Depth, _Port, Invoc, Prio, _Path, _From, _To),
+                             Depth, _Port, Invoc, Prio, _Path, _Linum, _From, _To),
  	     get_stream_info(SS, name, Line),
 	     close(SS),
 	     Frame0 = tf{parent: PFrame},
@@ -1791,7 +1791,7 @@ get_ancestors_info(Frame0, Anc0, Anc) :-
 get_current_traceline(Depth, Style, Line, Invoc) :-
         getval(exec_state, Current),
         open(string(""), write, SS),
-	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, _Path, _From, _To),
+	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, _Path, _Linum, _From, _To),
 	get_stream_info(SS, name, Line),
 	close(SS),
 	port_style(Port, Style).
