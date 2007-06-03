@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.5 2007/05/17 23:59:43 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.6 2007/06/03 17:08:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/05/17 23:59:43 $").
+:- comment(date, "$Date: 2007/06/03 17:08:15 $").
 
 
 :- lib(hash).
@@ -280,11 +280,12 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 
 % Optionally generate a call-port debug instruction
 emit_debug_call_port(options{debug:off}, _Pred, OutArgs, OutArgs, _Goal, Code, Code) :- !.
-emit_debug_call_port(options{debug:on}, Pred, OutArgs, [], goal{path:Path,from:From,to:To}, Code, Code0) :-
+emit_debug_call_port(options{debug:on}, Pred, OutArgs, [], goal{path:Path,line:Line,from:From,to:To}, Code, Code0) :-
 	(var(Path) -> Path1 = ''; concat_atom([Path],Path1)),
+	(var(Line) -> Line = 0 ; true),
 	(var(From) -> From = 0 ; true),
 	(var(To) -> To = 0 ; true),
-	Code = [code{instr:debug_scall(Pred,1,Path1,From,To),regs:OutArgs}|Code0].
+	Code = [code{instr:debug_scall(Pred,1,Path1,Line,From,To),regs:OutArgs}|Code0].
 
 
 %----------------------------------------------------------------------
