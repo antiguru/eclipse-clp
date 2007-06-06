@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.4 2007/05/25 18:21:48 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.5 2007/06/06 15:28:40 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -1853,7 +1853,7 @@ p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, 
 	    lookup_module = vmod.did;
 	}
 	Get_Proc_Did(vtrans, ttrans, dt)
-	if (DidArity(dt) != 2 && DidArity(dt) != 3)	
+	if (DidArity(dt) < 2 || DidArity(dt) > 5)	
 	{
 	    Bip_Error(RANGE_ERROR);
 	} 

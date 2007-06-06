@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.7 2007/06/01 15:45:34 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.8 2007/06/06 15:29:31 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -984,7 +984,7 @@ ensure_loaded1(FileAtom, Module) :-
 do_compile(FileAtom, Module) :-
 	error(146, FileAtom, Module),
 	comp_begin(FileAtom, OldPath, OldPrompt, OldStream, Stream),
-	register_compiler(T-(sepia_kernel:compile_term(T))),
+	register_compiler(args(T,_)-(sepia_kernel:compile_term(T))),
 	( block(
 		compile_stream(Stream, 0, Module),
 		Tag,
@@ -4268,6 +4268,7 @@ tr_match((Head ?- Body), (Head :- -?-> Body)).
 %	to		% integer
 %	% may be extended in future
 %    )).
+% This is defined later in this file
 
 expand_goal(Goal, Expanded, Module) :-
 	expand_goal_annotated_(Goal, _, Expanded, _, Module).
@@ -4515,14 +4516,26 @@ expand_macros_annotated_(Term, AnnTerm, Expanded, AnnExpanded, ContextModule) :-
 
 % var(Ann) => var(AnnExpanded)
 transform(Term, Ann, Expanded, AnnExpanded, TN/TA, TLM, ContextModule) :-
-	% construct goal <trans>(<in>, <out>[, <module>])
+	% construct goal <trans>(<in>, <out>[, <module>]) or
+        %                <trans>(<in>, <out>, <inann>, <outann>[, <module>])
 	functor(TransGoal, TN, TA),
 	arg(1, TransGoal, Term),
 	arg(2, TransGoal, Expanded),
-	( TA > 2 ->
-	    arg(3, TransGoal, ContextModule)
-	;
-	    true
+        ( TA > 2 ->
+            (TA == 3 ->
+                arg(3, TransGoal, ContextModule)
+            ; 
+                /* with annotated goal, arity 4 or 5 */
+                arg(3, TransGoal, Ann),
+                arg(4, TransGoal, AnnExpanded),
+                ( TA > 4 ->
+                    arg(5, TransGoal, ContextModule)
+                ;
+                    true
+                )
+            )
+        ;
+            true
 	),
 	% call toplevel transformation
 	% TLM:TransGoal@ContextModule
@@ -4634,7 +4647,6 @@ compile_term_flags_(Clauses, Flags, Module) :-
 	set_flags(Spec, Flags, M).
 
 
-
 :- export register_compiler/1, deregister_compiler/0.
 register_compiler(NestedCompileSpec) :-
 	getval(compile_stack, Stack),
@@ -4650,9 +4662,13 @@ deregister_compiler :-
 
 :- tool(nested_compile_term/1, nested_compile_term_/2).
 nested_compile_term_(Clauses, Module) :-
+        nested_compile_term_annotated_(Clauses, _, Module).
+
+:- tool(nested_compile_term_annotated/2, nested_compile_term_annotated_/3).
+nested_compile_term_annotated_(Clauses, AnnClauses, Module) :-
 	getval(compile_stack, Stack),
 	( Stack = [Top|_] ->
-	    copy_term(Top, Clauses-Goal),
+	    copy_term(Top, args(Clauses,AnnClauses)-Goal),
 	    call(Goal)@Module
 	;
 	    compile_term_(Clauses, Module)
@@ -6017,13 +6033,13 @@ t_bips(setarg(Path,T,X), Goal, _) :- -?->		% setarg/3
 
 :- export (do)/2.
 :- export (do)/3.
-:- export t_do/3.
+:- export t_do/5.
 :- export extract_next_array_element/4.
 :- export extract_next_array_element/8.
 :- export multifor_next/7.
 :- export multifor_init/8.
 :- tool((do)/2, (do)/3).
-:- inline((do)/2, t_do/3).
+:- inline((do)/2, t_do/5).
 
 :- make_array_(name_ctr, prolog, local, sepia_kernel), setval(name_ctr,0).
 :- local store(name_ctr).
@@ -6059,35 +6075,83 @@ do(Specs, LoopBody, M) :-
 % Compilation
 %----------------------------------------------------------------------
 
+/**** REMEMBER TO UPDATE annotated_term used in raw form by expand_macros
+ **** and friends when changing the definition here
+ ****/
+:- export struct(annotated_term(
+	term,		% var, atomic or compound
+	type,		% atom
+        file,           % atom
+        line,           % integer
+        from,		% integer
+	to		% integer
+	% may be extended in future
+    )).
+	
+
 :- tool(writeclause/1).
 
-t_do((Specs do LoopBody), NewGoal, M) :-
-	get_specs(Specs, Firsts, Lasts, PreGoals, RecHeadArgs, AuxGoals, RecCallArgs, LocalVars, Name, M),
+t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
+        (nonvar(AnnDoLoop) ->
+            AnnDoLoop =  annotated_term{term:(_AnnSpecs do AnnLoopBody)}
+        ;
+            true
+        ), 
+        get_specs(Specs, Firsts, Lasts, PreGoals, RecHeadArgs, AuxGoals, RecCallArgs, LocalVars, Name, M),
 	!,
-	tr_goals(LoopBody, LoopBody1, M),	% expand body recursively
+	% expand body recursively
+        tr_goals_annotated(LoopBody, AnnLoopBody, LoopBody1, AnnLoopBody1, M),
 %	printf("Local vars: %w / %vw%n", [LocalVars, LocalVars]),
 %	printf("Loop body: %Vw%n", [LoopBody1]),
-	check_singletons(LoopBody1, LocalVars),
-	aux_pred_name(M, Name),
+        check_singletons(LoopBody1, LocalVars),
+        aux_pred_name(M, Name),
 	FirstCall =.. [Name|Firsts],		% make replacement goal
-	flatten_and_clean(PreGoals, FirstCall, NewGoal),
+        transformed_annotate(FirstCall, AnnDoLoop, AnnFirstCall),
+        transformed_annotate(PreGoals, AnnDoLoop, AnnPreGoals),
+	flatten_and_clean(PreGoals, FirstCall, AnnPreGoals, AnnFirstCall, 
+                          NewGoal, AnnNewGoal),
 	BaseHead =.. [Name|Lasts],		% make auxiliary predicate
 	RecHead =.. [Name|RecHeadArgs],
 	RecCall =.. [Name|RecCallArgs],
-	tr_goals(AuxGoals, AuxGoals1, M),
-	flatten_and_clean((AuxGoals1,LoopBody1), RecCall, BodyGoals),
-	functor(BaseHead, Name, Arity),
+        transformed_annotate(AuxGoals, AnnDoLoop, AnnAuxGoals),
+        transformed_annotate(RecCall, AnnDoLoop, AnnRecCall),
+        transformed_annotate(RecHead, AnnDoLoop, AnnRecHead),
+        tr_goals_annotated(AuxGoals, AnnAuxGoals, AuxGoals1, AnnAuxGoals1, M),
+        inherit_annotation((AnnAuxGoals1,AnnLoopBody1), AnnDoLoop, AnnRecCall0),
+        flatten_and_clean((AuxGoals1,LoopBody1), RecCall, AnnRecCall0,
+                          AnnRecCall, BodyGoals, AnnBodyGoals), 
+        functor(BaseHead, Name, Arity),
+        BHClause = (BaseHead :- true, !),
+        RHClause = (RecHead :- BodyGoals),
+        Directive = (:- set_flag(Name/Arity, auxiliary, on)),
 	Code = [
-	    (BaseHead :- true, !),
-	    (RecHead :- BodyGoals),
-	    (:- set_flag(Name/Arity, auxiliary, on))
+	    BHClause,
+	    RHClause,
+            Directive
 	],
+        
+        (nonvar(AnnDoLoop) ->
+            transformed_annotate(BHClause, AnnDoLoop, AnnBHClause),
+            transformed_annotate(Directive, AnnDoLoop, AnnDirective),
+            inherit_annotation((AnnRecHead :- AnnBodyGoals), AnnDoLoop, AnnRHClause),
+            /* create a annotated list of Code  [
+                AnnBHClause,
+                AnnRHClause,
+                AnnDirective
+            ], */
+            inherit_annotation([AnnBHClause|AnnCode1], AnnDoLoop, AnnCode),
+            inherit_annotation([AnnRHClause|AnnCode2], AnnDoLoop, AnnCode1),
+            inherit_annotation([AnnDirective|AnnCode3], AnnDoLoop, AnnCode2),
+            inherit_annotation([], AnnDoLoop, AnnCode3)
+        ;
+            true
+        ),
 %	printf("Creating auxiliary predicate %w\n", Name/Arity),
 %	write_clauses(Code),
 %	writeclause(?- NewGoal),
-	copy_term(Code, CodeCopy, _),	% strip attributes
-	nested_compile_term(CodeCopy)@M.
-t_do(Illformed, _, M) :-
+	copy_term((Code,AnnCode), (CodeCopy,AnnCodeCopy), _),% strip attributes
+        nested_compile_term_annotated(CodeCopy,AnnCodeCopy)@M.
+t_do(Illformed, _, _, _, M) :-
 	error(123, Illformed, M).
 
     aux_pred_name(_Module, Name) :- nonvar(Name).
@@ -6102,13 +6166,15 @@ t_do(Illformed, _, M) :-
 	writeclause(C),
 	write_clauses(Cs).
 
-    :- mode flatten_and_clean(?, ?, -).
-    flatten_and_clean(G, Gs, (G,Gs)) :- var(G), !.
-    flatten_and_clean(true, Gs, Gs) :- !.
-    flatten_and_clean((G1,G2), Gs0, Gs) :- !,
-	flatten_and_clean(G1, Gs1, Gs),
-	flatten_and_clean(G2, Gs0, Gs1).
-    flatten_and_clean(G, Gs, (G,Gs)).
+    :- mode flatten_and_clean(?, ?, ?, ?, -, -).
+    flatten_and_clean(G, Gs, AG, AGs, (G,Gs), AFG) :- var(G), !,
+        AFG = annotated_term{term:(AG,AGs)}.
+    flatten_and_clean(true, Gs, _AG, AGs, Gs, AGs) :- !.
+    flatten_and_clean((G1,G2), Gs0, annotated_term{term:(AG1,AG2)}, AGs0, Gs, AGs) :-
+        !,
+	flatten_and_clean(G1, Gs1, AG1, AGs1, Gs, AGs),
+	flatten_and_clean(G2, Gs0, AG2, AGs0, Gs1, AGs1).
+    flatten_and_clean(G, Gs, AG, AGs, (G,Gs), annotated_term{term:(AG,AGs)}).
 
 reset_name_ctr(Module) :-
 	store_set(name_ctr, Module, 0).
@@ -6127,7 +6193,7 @@ get_specs((Specs1,Specs2), Firsts, Firsts0, Lasts, Lasts0, Pregoals, Pregoals0, 
 	get_specs(Specs1, Firsts, Firsts1, Lasts, Lasts1, Pregoals, Pregoals1, RecHead, RecHead1, AuxGoals, AuxGoals1, RecCall, RecCall1, Locals, Locals1, Name, M),
 	get_specs(Specs2, Firsts1, Firsts0, Lasts1, Lasts0, Pregoals1, Pregoals0, RecHead1, RecHead0, AuxGoals1, AuxGoals0, RecCall1, RecCall0, Locals1, Locals0, Name, M).
 get_specs(Spec, Firsts, Firsts0, Lasts, Lasts0, Pregoals, Pregoals0, RecHead, RecHead0, AuxGoals, AuxGoals0, RecCall, RecCall0, Locals, Locals0, Name, M) :-
-	get_spec(Spec, Firsts, Firsts0, Lasts, Lasts0, Pregoals, Pregoals0, RecHead, RecHead0, AuxGoals, AuxGoals0, RecCall, RecCall0, Locals, Locals0, Name, M).
+        get_spec(Spec, Firsts, Firsts0, Lasts, Lasts0, Pregoals, Pregoals0, RecHead, RecHead0, AuxGoals, AuxGoals0, RecCall, RecCall0, Locals, Locals0, Name, M).
 
 :- mode get_spec(+,-,+,-,+,-,+,-,+,-,+,-,+,-,+,?,+).
 get_spec(loop_name(Name),
@@ -6476,7 +6542,7 @@ get_spec('>>'(Specs1, Specs2),
 		    RecCalls11 = RecCalls1,
 		    Firsts21 = Firsts2
 		),
-	flatten_and_clean((Goals11, Pregoals21), NextExtraGoal, NextGoals),
+	flatten_and_clean((Goals11, Pregoals21), NextExtraGoal, _, _, NextGoals, _),
 	Arity is 2*N1 + N2,
 	NextCode = [
 	    (NextBaseHead :- !, true),

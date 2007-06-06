@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.8 2007/06/01 23:13:37 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.9 2007/06/06 15:27:36 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2007/06/01 23:13:37 $").
+:- comment(date,	"$Date: 2007/06/06 15:27:36 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -302,7 +302,7 @@ compile_(File, OptionListOrModule, CM) :-
 	
 	),
 	compiler_options_setup(File, OptionList, Options),
-	sepia_kernel:register_compiler(Term-(compiler_top:compile_term(Term,Options))),
+	sepia_kernel:register_compiler(args(Term,Ann)-(compiler_top:compile_term_annotated(Term,Ann,Options))),
 	( Options = options{load:all} ->
 	    OpenOptions = [recreate_modules],
 	    CloseOptions = [keep_modules]
@@ -324,8 +324,8 @@ compile_(File, OptionListOrModule, CM) :-
 	    source_read(SourcePos1, SourcePos2, Class, SourceTerm),
             SourcePos1 = source_position{module:PosModule},
             SourceTerm = source_term{term:Term,annotated:Ann},
-            
-	    ( Class = clause ->
+
+            ( Class = clause ->
 		accumulate_clauses(Term, Ann, PosModule, Options,
 		    Pred0, Clauses0, ClauseTail0, AnnClauses0, AnnClauseTail0,
 		    Pred1, Clauses1, ClauseTail1, AnnClauses1, AnnClauseTail1)
@@ -564,26 +564,61 @@ compile_term_(Clauses, Module) :-
 :- tool(compile_term/2, compile_term_/3).
 
 compile_term_(List, OptionList, Module) :-
+        compile_term_annotated_(List, _, OptionList, Module).
+
+:- export compile_term_annotated/3.
+:- comment(compile_term_annotated/3, [
+    summary:"Compile a list of terms, possibly annotated with source information",
+    args:["Clauses":"List of clauses and/or directives",
+        "Annotated":"Annotated form of Clauses, or variable"
+    	"Options":"List of compiler options"],
+    amode:compile_term_annotated(+,?,++),
+    see_also:[compiler_top:compile/1,compiler_top:compile_term/2,compile/2,compile_term/1,read_annotated/2,read_annotated/3,struct(options)],
+    desc:html("
+    Compile a list of clauses and queries, possibly with source information,
+    supplied by Annotated. This predicate is provided to allow the user to
+    compile clauses that the user generate from processing some source file,
+    with the mapping to the original unprocessed source information
+    supplied by Annotated. If Annotated is a variable, then no source 
+    information is available, and the predicate behaves exactly like 
+    compile_term/2. If Annotated is instantiated, it must corresponded to
+    the annotated form of Clauses, i.e. as returned by read_annotated/2,3. 
+    Handling of directives: include/1, ./2 and currently module/1
+    are not allowed.  Pragmas are interpreted. Others are treated
+    according to the setting of the 'load' option.
+    ")
+]).
+:- tool(compile_term_annotated/3, compile_term_annotated_/4).
+
+compile_term_annotated_(List, AnnList, OptionList, Module) :-
 %	writeln(compile_term(List,OptionList)),
 	compiler_options_setup('_term', OptionList, Options),
-	compile_list(List, first, Clauses, Clauses, Options, Module),
+	compile_list(List, AnnList, first, Clauses, Clauses, AnnC, AnnC,
+                     Options, Module),
 %	compiler_options_cleanup(Options).
 	true.	% don't close files
 
 
-compile_list(Term, _, _, _, Options, Module) :- var(Term), !,
+compile_list(Term, _, _, _, _, _, _, Options, Module) :- var(Term), !,
 	error(4, compile_term(Term, Options), Module).
-compile_list([], Pred, Clauses, Tail, Options, _Module) :- !,
+compile_list([], _, Pred, Clauses, Tail, AnnC, AnnCTail, Options, _Module) :- !,
 	Tail = [],
-	compile_predicate(Pred, Clauses, _, Options).
-compile_list([Term|Terms], Pred, Clauses, Tail, Options, Module) :- !,
-	( var(Term) ->
+        AnnCTail = [],
+	compile_predicate(Pred, Clauses, AnnC, Options).
+compile_list([Term|Terms], AnnTermList, Pred, Clauses, Tail, AnnC, AnnCTail, Options, Module) :- !,
+        (nonvar(AnnTermList) -> 
+            AnnTermList = annotated_term{term:[AnnTerm|AnnTerms]}
+        ;
+            true
+        ),
+        ( var(Term) ->
 	    error(4, compile_term([Term|Terms], Options), Module)
 
 	; Term = (:-_) ->
 	    % separator, compile the preceding predicate
 	    Tail = [],
-	    compile_predicate(Pred, Clauses, _, Options),
+            AnnCTail = [],
+	    compile_predicate(Pred, Clauses, AnnC, Options),
 	    % unlike compile(file), interpret only pragmas,
 	    % not directives like module/1, include/1, etc
 	    ( consider_pragmas(Term, Options, Module) ->
@@ -591,32 +626,41 @@ compile_list([Term|Terms], Pred, Clauses, Tail, Options, Module) :- !,
 	    ;
 		process_directive(no_source, Term, Options, Module)
 	    ),
-	    compile_list(Terms, none, Clauses1, Clauses1, Options, Module)
+	    compile_list(Terms, AnnTerms, none, Clauses1, Clauses1,
+                         AnnC1, AnnC1, Options, Module)
 
-	; Term = (?-_) ->
+        ; Term = (?-_) ->
 	    % separator, compile the preceding predicate
 	    Tail = [],
-	    compile_predicate(Pred, Clauses, _, Options),
+            AnnCTail = [],
+	    compile_predicate(Pred, Clauses, AnnC, Options),
 	    process_query(no_source, Term, Options, Module),
-	    compile_list(Terms, none, Clauses1, Clauses1, Options, Module)
+	    compile_list(Terms, AnnTerms, none, Clauses1, Clauses1,
+                         AnnC1, AnnC1, Options, Module)
 	;
-	    optional_expansion(Term, TransTerm, Options, Module),
+	    optional_expansion(Term, AnnTerm, TransTerm, AnnTrans, Options, Module),
 	    % TransTerm may be a list of clauses!
-	    accumulate_clauses(TransTerm, _, Module, Options,
-		    Pred, Clauses, Tail, _, _,
-		    Pred1, Clauses1, Tail1, _, _),
-	    compile_list(Terms, Pred1, Clauses1, Tail1, Options, Module)
+	    accumulate_clauses(TransTerm, AnnTrans, Module, Options,
+		    Pred, Clauses, Tail, AnnC, AnnCTail,
+		    Pred1, Clauses1, Tail1, AnnC1, AnnCTail1),
+	    compile_list(Terms, AnnTerms, Pred1, Clauses1, Tail1, 
+                    AnnC1, AnnCTail1, Options, Module)
 	).
-compile_list(Term, Pred, Clauses, Tail, Options, Module) :-
+compile_list(Term, AnnTerm, Pred, Clauses, Tail, AnnC, AnnCTail, Options, Module) :-
 	( Pred == first ->
 	    % allow to omit list brackets for single term
-	    compile_list([Term], none, Clauses, Tail, Options, Module)
+            (nonvar(AnnTerm) ->
+                AnnTermList = annotated_term{term:[annotated_term{term:AnnTerm}|annotated_term{term:[]}]}
+            ;
+                true
+            ),
+	    compile_list([Term], AnnTermList, none, Clauses, Tail, AnnC, AnnCTail, Options, Module)
 	;
 	    error(5, compile_term(Term, Options), Module)
 	).
 
-    optional_expansion(Term, TransTerm, options{expand_clauses:CFlag,expand_goals:GFlag}, Module) :-
-	expand_clause_and_goals(Term, _, TransTerm, _, CFlag, GFlag)@Module.
+    optional_expansion(Term, AnnTerm, TransTerm, AnnTransTerm, options{expand_clauses:CFlag,expand_goals:GFlag}, Module) :-
+	expand_clause_and_goals(Term, AnnTerm, TransTerm, AnnTransTerm, CFlag, GFlag)@Module.
 
 
 %----------------------------------------------------------------------
