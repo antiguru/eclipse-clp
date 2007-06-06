@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.8 2007/06/06 15:29:31 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.9 2007/06/06 22:01:27 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -4292,6 +4292,13 @@ good_annotation(_TermIn, In) :- var(In), !.
 good_annotation(Term, annotated_term(TermAnn,_,_,_,_,_)) :-
 	( var(Term) -> true ; functor(Term, F, N), functor(TermAnn, F, N) ).
 
+annotated_arg(_I, AnnTerm, _AnnArg) :- var(AnnTerm), !.
+annotated_arg(I, annotated_term(TermAnn,_,_,_,_,_), AnnArg) :-
+	arg(I, TermAnn, AnnArg).
+
+annotated_match(AnnTerm, _TermAnn) :- var(AnnTerm), !.
+annotated_match(annotated_term(TermAnn,_,_,_,_,_), TermAnn).
+
 % Make annotated term for TermOut with same annotation as In.
 % TermIn and TermOut are assumed to have the same structure. Similar to:
 %   In = annotated_term{term:TermIn},
@@ -4310,7 +4317,6 @@ inherit_annotation(TermOut,
 	    annotated_term(_TermIn,_TypeIn,File,Line,From,To),
 	    annotated_term(TermOut,TypeOut,File,Line,From,To)) :-
 	type_of(TermOut, TypeOut).
-		
 
 
 tr_goals_annotated(Var, Ann, Var, Ann, _) :- var(Var), !.
@@ -4338,7 +4344,8 @@ tr_goals_annotated(\+(G), Ann, \+(GC), AnnExp, M) :-
 	same_annotation(\+(AnnG), Ann, \+(AnnGC), AnnExp),
 	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
 tr_goals_annotated(LM:G, Ann, GC, AnnGC, M) :- !,
-	tr_colon(G, Ann, GC, AnnGC, M, LM).
+	annotated_arg(2, Ann, AnnG),
+	tr_colon(G, AnnG, GC, AnnGC, M, LM).
 tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
 	( try_tr_goal(Goal, Ann, G1, AnnG1, M, M) -> 
 	    tr_goals_annotated(G1, AnnG1, GC, AnnGC, M) 
@@ -6092,11 +6099,7 @@ do(Specs, LoopBody, M) :-
 :- tool(writeclause/1).
 
 t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
-        (nonvar(AnnDoLoop) ->
-            AnnDoLoop =  annotated_term{term:(_AnnSpecs do AnnLoopBody)}
-        ;
-            true
-        ), 
+	annotated_arg(2, AnnDoLoop, AnnLoopBody),
         get_specs(Specs, Firsts, Lasts, PreGoals, RecHeadArgs, AuxGoals, RecCallArgs, LocalVars, Name, M),
 	!,
 	% expand body recursively
@@ -6168,13 +6171,15 @@ t_do(Illformed, _, _, _, M) :-
 
     :- mode flatten_and_clean(?, ?, ?, ?, -, -).
     flatten_and_clean(G, Gs, AG, AGs, (G,Gs), AFG) :- var(G), !,
-        AFG = annotated_term{term:(AG,AGs)}.
+	inherit_annotation((AG,AGs), AG, AFG).
     flatten_and_clean(true, Gs, _AG, AGs, Gs, AGs) :- !.
-    flatten_and_clean((G1,G2), Gs0, annotated_term{term:(AG1,AG2)}, AGs0, Gs, AGs) :-
+    flatten_and_clean((G1,G2), Gs0, AG, AGs0, Gs, AGs) :-
         !,
+	annotated_match(AG, (AG1,AG2)),
 	flatten_and_clean(G1, Gs1, AG1, AGs1, Gs, AGs),
 	flatten_and_clean(G2, Gs0, AG2, AGs0, Gs1, AGs1).
-    flatten_and_clean(G, Gs, AG, AGs, (G,Gs), annotated_term{term:(AG,AGs)}).
+    flatten_and_clean(G, Gs, AG, AGs, (G,Gs), AFG) :-
+	inherit_annotation((AG,AGs), AG, AFG).
 
 reset_name_ctr(Module) :-
 	store_set(name_ctr, Module, 0).
