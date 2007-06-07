@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.5 2007/05/09 14:55:12 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.6 2007/06/07 15:10:56 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -1542,7 +1542,6 @@ proc tkecl:popup_tracer {} {
 	$tmbar add cascade -label "Windows" -menu $tmbar.win -underline 0
 	menu $tmbar.win
 	$tmbar.win add command -label "Raise top-level" -command "tkinspect:RaiseWindow ."
-	$tmbar.win add command -label "Raise Source Context Window" -command "tkinspect:RaiseWindow .ec_tools.ec_tracer.source"
 	$tmbar.win add command -label "Predicate Browser" -command tkecl:popup_pred_prop
 	$tmbar.win add command -label "Delayed Goals" -command tkecl:popup_dg_window
 	$tmbar.win add separator
@@ -1561,22 +1560,28 @@ proc tkecl:popup_tracer {} {
 	menu $tmbar.help
         $tmbar.help add command -label "Tracer Help" -command "tkecl:Get_helpfileinfo trac $ec_tracer"
 
-	frame $ec_tracer.trace
-	label $ec_tracer.trace.label -text "Trace Log"
-	text $ec_tracer.trace.text -bg white -yscrollcommand "$ec_tracer.trace.vscroll set" -wrap none -xscrollcommand "$ec_tracer.trace.hscroll set"
-	$ec_tracer.trace.text tag configure call_style -foreground blue
-	$ec_tracer.trace.text tag configure exit_style -foreground #00b000
-	$ec_tracer.trace.text tag configure fail_style -foreground red
-	$ec_tracer.trace.text tag configure truncate_style -background pink
-	scrollbar $ec_tracer.trace.vscroll -command "$ec_tracer.trace.text yview"
-	scrollbar $ec_tracer.trace.hscroll -command "$ec_tracer.trace.text xview" -orient horizontal
-	pack $ec_tracer.trace.vscroll -side left -fill y
-	pack $ec_tracer.trace.hscroll -side bottom -fill x
-	pack $ec_tracer.trace.text -side bottom -expand 1 -fill both
-	pack $ec_tracer.trace.label -side left -expand 1 -fill x
+	set ec_tracertab $ec_tracer.tab
+	tabnotebook $ec_tracertab -padx 14 -pady 4 -background darkgray \
+	    -activebackground #f0f0f0 -disabledbackground darkgray \
+	    -normalbackground gray -borderwidth 0 -font tkecllabel
+	frame $ec_tracertab.trace
+	$ec_tracertab add "Trace Log" -window $ec_tracertab.trace
+	$ec_tracertab activate "Trace Log"
+	label $ec_tracertab.trace.label -text "Trace Log"
+	text $ec_tracertab.trace.text -bg white -yscrollcommand "$ec_tracertab.trace.vscroll set" -wrap none -xscrollcommand "$ec_tracertab.trace.hscroll set"
+	$ec_tracertab.trace.text tag configure call_style -foreground blue
+	$ec_tracertab.trace.text tag configure exit_style -foreground #00b000
+	$ec_tracertab.trace.text tag configure fail_style -foreground red
+	$ec_tracertab.trace.text tag configure truncate_style -background pink
+	scrollbar $ec_tracertab.trace.vscroll -command "$ec_tracertab.trace.text yview"
+	scrollbar $ec_tracertab.trace.hscroll -command "$ec_tracertab.trace.text xview" -orient horizontal
+	pack $ec_tracertab.trace.vscroll -side left -fill y
+	pack $ec_tracertab.trace.hscroll -side bottom -fill x
+	pack $ec_tracertab.trace.text -side bottom -expand 1 -fill both
+	pack $ec_tracertab.trace.label -side left -expand 1 -fill x
 
-	bind $ec_tracer.trace.text <Any-Key> "tkecl:readonly_keypress %A"
-	bind $ec_tracer.trace.text <ButtonRelease-2> {break}
+	bind $ec_tracertab.trace.text <Any-Key> "tkecl:readonly_keypress %A"
+	bind $ec_tracertab.trace.text <ButtonRelease-2> {break}
 
 	frame $ec_tracer.stack
 	label $ec_tracer.stack.label -text "Call Stack"
@@ -1659,11 +1664,10 @@ proc tkecl:popup_tracer {} {
 	pack $ec_tracer.stack -side top -expand 1 -fill both
 	pack $ec_tracer.buttons -side top -fill x
 	pack $ec_tracer.cont -side top -fill x
-	pack $ec_tracer.trace -side top -expand 1 -fill both
+	pack $ec_tracertab -expand 1 -fill both
 	pack $ec_tracer.close -side top -fill x
 
 	ec_rpc "set_flag(debugging,creep)"
-
 
 #--------------------------------------------------------------------
 # Balloon Help for tracer
@@ -1673,8 +1677,8 @@ proc tkecl:popup_tracer {} {
    shows the current goal and its ancestors.\n \
    Calls for current goal in blue, failure in red, success in green. \ 
    Ancestors printed with non-current bindings in black\n \
-   Press right (or control-left) mouse button over a stack item for popup menu related to that goal/predicate.\n Double-click left mouse button over a stack item to inspect it.\n "
-       balloonhelp $ec_tracer.trace.label "Trace log: chronological log of traced goals.\n Calls in blue, successes in green, failures in red\n Leading indentation indicates depth"
+   Press right (or control-left) mouse button over a stack item for popup menu related to that goal/predicate.\n Double-click left mouse button over a stack item to inspect it.\n Single click left mouse button to show source contxt\n "
+       balloonhelp $ec_tracertab.trace.label "Trace log: chronological log of traced goals.\n Calls in blue, successes in green, failures in red\n Leading indentation indicates depth"
        balloonhelp $ec_tracer.buttons.creep "Creep to next tracable goal's debug port.\n\
    Keyboard shortcut: `c'\nPress and hold button for continuous creep."
        balloonhelp $ec_tracer.buttons.skip "Skip to exit/fail port of goal (creep\
@@ -1714,7 +1718,7 @@ proc tkecl:handle_debug_output {stream {length {}}} {
     if {![winfo exists .ec_tools.ec_tracer]} {
 	return
     }
-    ec_stream_to_window_sync {} .ec_tools.ec_tracer.trace.text $stream $length
+    ec_stream_to_window_sync {} .ec_tools.ec_tracer.tab.trace.text $stream $length
 }
 
 # CAUTION: text widgets positions are a bit weird: the text widget always
@@ -1748,14 +1752,14 @@ proc tkecl:handle_trace_line {stream {length {}}} {
     } else {
 	set truncated 0
     }
-    $ec_tracer.trace.text tag configure $depth -lmargin1 "$depth m"
-    $ec_tracer.trace.text insert end $line "$style $depth"
+    $ec_tracer.tab.trace.text tag configure $depth -lmargin1 "$depth m"
+    $ec_tracer.tab.trace.text insert end $line "$style $depth"
     if $truncated {
-	$ec_tracer.trace.text insert end "..." truncate_style
+	$ec_tracer.tab.trace.text insert end "..." truncate_style
     }
     ;# make sure at least a partial line at the start is visible 
-    $ec_tracer.trace.text see "end -1 line linestart +40 chars"
-    $ec_tracer.trace.text insert end "\n" $style
+    $ec_tracer.tab.trace.text see "end -1 line linestart +40 chars"
+    $ec_tracer.tab.trace.text insert end "\n" $style
 
     set stdepth [expr $depth + 1] ;# actual depth in printed stack
     set next_line [lindex [split [$ec_tracer.stack.text index end-1chars] .] 0]
@@ -3286,15 +3290,15 @@ proc tkecl:setup_source_debug_window {} {
 
     # setup source debug window, text display for source is not packed, as
     # it needs to have source text added before displaying it
-    set ec_tracer .ec_tools.ec_tracer
-    toplevel $ec_tracer.source
-    wm title $ec_tracer.source "Source Context"
-    set ec_source $ec_tracer.source
+    set ec_source .ec_tools.ec_tracer.tab.source
+    .ec_tools.ec_tracer.tab add "Source Context" -window [frame $ec_source] 
+    label $ec_source.label -text "Source Context"
     text $ec_source.text -bg white -yscrollcommand "$ec_source.vscroll set" -wrap none -xscrollcommand "$ec_source.hscroll set" 
     scrollbar $ec_source.vscroll -command "$ec_source.text yview"
     scrollbar $ec_source.hscroll -command "$ec_source.text xview" -orient horizontal
     pack $ec_source.vscroll -side left -fill y
     pack $ec_source.hscroll -side bottom -fill x
+    pack $ec_source.label -side top  -fill x
 
     bind $ec_source.text <Any-Key> "tkecl:readonly_keypress %A"
     bind $ec_source.text <ButtonRelease-2> {break}
@@ -3308,23 +3312,22 @@ proc tkecl:setup_source_debug_window {} {
 	-relief raised -borderwidth 1
     $ec_source.text tag configure debug_line -background beige -relief raised -borderwidth 1
     set tkecl(source_debug,file) ""
-    balloonhelp $ec_source.text "Source context for execution traced by the tracer.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue."
-    tkwait visibility $ec_source  
+    balloonhelp $ec_source.label "Source context for execution traced by the tracer.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue."
+    # tkwait visibility $ec_source  
 
 }
 
 proc tkecl:handle_source_debug_print {stream {length {}}} {
 
-    set ec_sourcetext .ec_tools.ec_tracer.source.text
+    set ec_sourcetext .ec_tools.ec_tracer.tab.source.text
     pack forget $ec_sourcetext ;# do not display text as it is added....
     set source_stream [ec_streamnum_to_channel $stream]
-    set line [ec_read_exdr $source_stream]
-    while {$line != "end_of_file"} {
-	$ec_sourcetext insert end $line
-	$ec_sourcetext insert end "\n"
-	set line [ec_read_exdr $source_stream]
-    } 
-    pack $ec_sourcetext -fill both -expand 1
+    set part [ec_read_exdr $source_stream]
+    if {$part != ""} {
+	$ec_sourcetext insert end $part
+    } else {
+	pack $ec_sourcetext -fill both -expand 1
+    }
 
 }
 
@@ -3348,15 +3351,15 @@ proc tkecl:show_source_context {invoc greturn} {
 }
 
 
+
 proc tkecl:update_source_debug {style from to fpath_info} {
     global tkecl
 
-    set ec_source .ec_tools.ec_tracer.source
+    set ec_source .ec_tools.ec_tracer.tab.source
 
     if {![winfo exists $ec_source]} { 
 	if {$fpath_info != "no"} {
 	    tkecl:setup_source_debug_window 
-	    tkinspect:RaiseWindow $ec_source
 	} else {
 	    return
 	}
@@ -3372,6 +3375,7 @@ proc tkecl:update_source_debug {style from to fpath_info} {
     $ec_sourcetext tag remove ancestor_style 1.0 end
 
     if {$fpath_info == "no"} {
+	# .ec_tools.ec_tracer.tab itemconfigure "Source Context" -state disabled
 	return
     } else {
 	# get the pathname
@@ -3380,7 +3384,6 @@ proc tkecl:update_source_debug {style from to fpath_info} {
 
     if {$tkecl(source_debug,file) != $fpath} {
 	$ec_sourcetext delete 1.0 end
-	wm title $ec_source "Source Context: $fpath"
 	switch [ec_rpc [list : tracer_tcl [list read_file_for_gui $fpath]] \
 		    {(()(()))}] {
 	    fail -
@@ -3390,6 +3393,7 @@ proc tkecl:update_source_debug {style from to fpath_info} {
 	    }
 	}
 	set tkecl(source_debug,file) $fpath
+	$ec_source.label configure -text "Source Context: $fpath"
     } else {
 	if {$style != "ancestor_style"} {
 	    $ec_sourcetext tag remove debug_line 1.0 end

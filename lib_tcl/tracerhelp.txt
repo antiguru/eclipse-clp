@@ -14,8 +14,6 @@ Menu bar:
           Raise top-level: this raises the toplevel window (be it the
              ECLiPSe toplevel or an application's, if the tool set is used
              from within that application). 
-	  Raise Source Context Window: raise the source context window if
-	     it exists,
 	  Predicate Browser: open/raise the predicate brower tool.
 	  Delayed Goals: open/raise the delayed goals display window.
           Close tracer: quits the tracer and continue execution (if a query
@@ -49,14 +47,8 @@ Menu bar:
           Raise tracer window when stopped at trace port: if set, the tracer
 	     window is raised to the top whenever the tracer stops execution
 	     at a trace port.
-	  Show source while tracing: if set, a source context window will
-             show the source file for the current goal. The source line
-             for the most recent goal will be highlighted, and the functor for
-             the current goal coloured in blue (for calls), green (for 
-             successes), or red (for failures). The window can also highlight
-	     the source for ancestor goals selected from the Call Stack (in
-             blue). Source will only be shown if the code is compiled with
-	     source support.
+	  Show source while tracing: if set, the source context tab will
+             show the source file for the current goal. 
 
 Call Stack:
 
@@ -67,9 +59,16 @@ Command buttons:
 
     Buttons for executing various debugger commands.
 
-Trace Log:
+The bottom winodw is a tabbed window, which can be selected to display:
+
+Trace Log tab:
 
     This shows the execution trace.
+
+Source Context tab:
+
+    This shows the source context for the execution,
+
 
 Close button:
 
@@ -122,7 +121,7 @@ and a few options are available from the menu:
         display the source for the predicate
 
         display the source context for this call: show the source context
-           for the selected call in the Source Context window. The call
+           for the selected call in the Source Context tab. The call
            will be highlighted in blue. This option is disabled if
 	   source tracing is not available.
 
@@ -147,15 +146,30 @@ and a few options are available from the menu:
         cause the call stack to be refreshed
 	   (same as Refresh goal stack option in the Options menu)
 
+Single left click on a goal will display the source context for the goal
+in the Source Tracing tab.
+
 Double left clicking on a goal will directly invoke the inspector to allow
 the user to examine the goal.
 
 Note that if the written form of a predicate is different from its internal
 representation, then the predicate name shown in summary of the popup menu
 is in the written form, but in the internal form elsewhere in the menu.
- 
-Trace Log
----------
+
+Source Context tab
+------------------
+
+This shows the source context for the execution. The source line for the
+current goal will be highlighted, and the functor for the current goal
+coloured in blue (for calls), green (for successes), or red (for
+failures). The window can also highlight the source for ancestor goals
+selected from the Call Stack (in blue). The name of the source file is
+shown at the top of the window. Only one file can be displayed at a time.
+
+Source will only be shown if the code is compiled with source support.
+
+Trace Log tab
+-------------
 
 This shows the trace of execution via the trace line. This is similar to
 what is available in a traditional tty debugger. Each time the tracer stops
