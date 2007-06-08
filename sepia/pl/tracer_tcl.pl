@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.10 2007/06/03 17:03:11 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.11 2007/06/08 14:41:49 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -1876,17 +1876,14 @@ read_file_for_gui(OSFile) :-
         (get_file_info(File, readable, on) ->
             open(File, read, S),
             repeat,
-            read_string(S, end_of_line, _, Line),
-            write_exdr(gui_source_file, Line),
-            ( at(gui_source_file) > 32000 ->
-                write_exdr(gui_source_file, end_of_file),
-                flush(gui_source_file)
+            ( read_string(S, end_of_file, 32000, Part) ->
+                write_exdr(gui_source_file, Part),
+                flush(gui_source_file),
+                fail
             ;
-                true
+                !
             ),
-            at_eof(S),
-            !,
-            write_exdr(gui_source_file, end_of_file),
+            write_exdr(gui_source_file, ""),
             flush(gui_source_file),
             close(S)
         ;
