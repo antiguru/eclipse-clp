@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.6 2007/06/01 23:13:36 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.7 2007/06/08 14:25:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/06/01 23:13:36 $").
+:- comment(date, "$Date: 2007/06/08 14:25:05 $").
 
 
 %----------------------------------------------------------------------
@@ -108,7 +108,8 @@
 	"print_lifetimes":"print result of the variable lifetime analysis (on/off, default:off).",
 	"print_raw_code":"print annotated WAM code before register allocation (on/off, default:off).",
 	"print_final_code":"print annotated WAM code after register allocation (on/off, default:off).",
-	"verbose":"print messages to log_output, according to level (integer (0=silent,1=quiet,2=verbose), default:0)."
+	"verbose":"print messages to log_output, according to level (integer (0=silent,1=quiet,2=verbose), default:0).",
+	"warnings":"print warning messages to warning_output, according to level (on/off, default:on)."
     ]
 ]).
 
@@ -126,7 +127,8 @@
 	print_lifetimes,
 	print_raw_code,
 	print_final_code,
-	verbose
+	verbose,
+	warnings
     )).
 
 
@@ -141,6 +143,7 @@ valid_option_field(print_raw_code, print_raw_code of options).
 valid_option_field(print_final_code, print_final_code of options).
 valid_option_field(print_indexes, print_indexes of options).
 valid_option_field(verbose, verbose of options).
+valid_option_field(warnings, warnings of options).
 valid_option_field(outdir, outdir of options).
 valid_option_field(output, output of options).
 valid_option_field(load, load of options).
@@ -159,6 +162,7 @@ valid_option_value(print_raw_code, Value) :- onoff(Value).
 valid_option_value(print_final_code, Value) :- onoff(Value).
 valid_option_value(print_indexes, Value) :- onoff(Value).
 valid_option_value(verbose, Value) :- integer(Value).
+valid_option_value(warnings, Value) :- onoff(Value).
 valid_option_value(outdir, Value) :- (string(Value);atom(Value)),!.
 valid_option_value(output, listing(_File)).
 valid_option_value(output, listing).
@@ -185,6 +189,7 @@ default_options(options{
 	print_final_code:off,
 	print_indexes:off,
 	verbose:0,
+	warnings:on,
 	outdir:"",
 	output:none
 }).
@@ -385,8 +390,8 @@ default_options(options{
     fields:[
 	varid:		"unique source variable id (integer), created by normalize_clauses",
 	source_var:	"source variable",
-	source_name:	"variable name (atom) if any, else the source"
-			" variable itself (for error messages)",
+	source_info:	"struct(annotated_term), name/1 or 'none'",
+	isafirst:	"'first' if first occurrence, else uninst (filled in by compute_lifetimes)",
 	isafirst:	"'first' if first occurrence, else uninst (filled in by compute_lifetimes)",
 	isalast:	"'last' if last occurrence, else uninst (filled in by compute_lifetimes)",
 	class:		"variable class and permanent location (filled in by assign_env_slots)"
@@ -396,8 +401,7 @@ default_options(options{
 :- export struct(variable(
 	varid,			% unique source variable id (integer)
 	source_var,		% source variable (possibly a copy!)
-	source_name,		% variable name (atom) if any,
-				% else uninitialised (for error messages)
+	source_info,		% struct(annotated_term) or uninstantiated
 	isafirst,		% 'first' if first occurrence, else uninst
 	isalast,		% 'last' if last occurrence, else uninst
 
@@ -406,6 +410,12 @@ default_options(options{
 				%	nonvoid(temp)
 				%	nonvoid(y(I))
     )).
+
+
+:- export var_source_name/2.
+var_source_name(variable{source_info:annotated_term{type:var(Name0)}}, Name) ?- !, Name=Name0.
+var_source_name(variable{source_info:name(Name0)}, Name) ?- !, Name=Name0.
+
 
 
 :- comment(struct(attrvar), [

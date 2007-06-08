@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_analysis.ecl,v 1.2 2007/05/17 23:59:44 jschimpf Exp $
+% Version:	$Id: compiler_analysis.ecl,v 1.3 2007/06/08 14:25:05 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_analysis).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - dataflow analysis").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/05/17 23:59:44 $").
+:- comment(date, "$Date: 2007/06/08 14:25:05 $").
 
 :- lib(m_map).
 
@@ -304,7 +304,7 @@ alias_effect(VarId1, VarId2, State0, State) :-
 		    fail
 		),
 		m_map:det_update(Map0, AliasVarId1, alias(AliasVarId2), Map1),
-		m_map:det_update(Map0, AliasVarId2, Binding12, Map)
+		m_map:det_update(Map1, AliasVarId2, Binding12, Map)
 	    ;
 		m_map:det_insert(Map0, VarId2, alias(AliasVarId1), Map)
 	    )

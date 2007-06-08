@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.6 2007/06/01 23:13:36 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.7 2007/06/08 14:25:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2007/06/01 23:13:36 $").
+:- comment(date, "$Date: 2007/06/08 14:25:05 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -90,6 +90,21 @@
 	meta_index/2,
 	get_attribute/3
    from sepia_kernel.
+
+
+% Utilities to deal with (optionally uninstantiated) annotated terms
+% TODO: inline these
+:- local op(700, xfx, =:).
+Var =: _Template :- var(Var), !.
+Term =: Term.
+
+varg(I, T, A) :- ( var(T) -> true ; arg(I, T, A) ).
+
+ann_update_term(_NewTermAnn, Ann, _NewAnn) :- var(Ann), !.
+ann_update_term(NewTermAnn, Ann, NewAnn) :-
+	type_of(NewTermAnn, Type),
+	update_struct(annotated_term, [term:NewTermAnn,type:Type], Ann, NewAnn).
+
 
 %----------------------------------------------------------------------
 :- export
@@ -188,9 +203,9 @@ normalize_clauses_noshare_annotated(Clauses, AnnClauses, VarNames, NormClauses, 
 %	true/0 should really be removed completely in this step. However,
 %	historically true/0 has been a regular goal in ECLiPSe, and
 %	is used to force waking befores cuts, etc.  So removing it completely
-%	would break old code in subtle ways. We should introduce a simple
-%	version of it that is guaranteed to be eliminated completely, e.g.
-%	for use in macro expansions.  Possible name ''/0.
+%	would break old code in subtle ways. We therefore introduce a simple
+%	version of it, called ''/0, that is guaranteed to be eliminated
+%	completely, e.g. for use in macro expansions.
 %
 % Disjunctions:
 %	Disjunctions are flattened as much as possible.
@@ -199,7 +214,8 @@ normalize_clauses_noshare_annotated(Clauses, AnnClauses, VarNames, NormClauses, 
 :- mode normalize_body(?,?,+,+,-,+,+,-,-,+,+,+).
 normalize_body(Var, AnnVar, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM) :-
 	var(Var), !,
-	normalize_goal(call(Var), AnnVar, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
+	ann_update_term(call(AnnVar), AnnVar, AnnCall),
+	normalize_goal(call(Var), AnnCall, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
 
 normalize_body('', _Ann, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, _LM, _CM) :- !.
 %normalize_body(true, _Ann, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, _LM, _CM) :- !.
@@ -210,7 +226,7 @@ normalize_body(call(G), Ann, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, Goals0, Goa
 	same_call_pos(Branch, CallNr0, CallNr1, CallPos0),
 	savecut_goal(CallPos0, Vs0, Vs1, LocalCut, SavecutGoal),
 	% cuts have local effect!
-        Ann = annotated_term{term:call(AnnG)},
+        Ann =: annotated_term{term:call(AnnG)},
         normalize_body(G, AnnG, Branch, CallNr1, CallNr, LocalCut, Vs1, Vs, Goals1, Goals, CM, CM).
 
 normalize_body(once(G), Ann, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, Goals0, Goals, _LM, CM) :- !,
@@ -218,23 +234,24 @@ normalize_body(once(G), Ann, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, Goals0, Goa
 	same_call_pos(Branch, CallNr0, CallNr1, CallPos0),
 	savecut_goal(CallPos0, Vs0, Vs1, LocalCut, SavecutGoal),
 	% cuts have local effect!
-        Ann = annotated_term{term:once(AG)},
+        Ann =: annotated_term{term:once(AG)},
         normalize_body(G, AG, Branch, CallNr1, CallNr2, LocalCut, Vs1, Vs2, Goals1, Goals2, CM, CM),
 	Goals2 = [CuttoGoal|Goals],
 	same_call_pos(Branch, CallNr2, CallNr, CallPos1),
 	cutto_goal(CallPos1, Vs2, Vs, LocalCut, CuttoGoal).
 
 normalize_body(not(G), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LM, CM) :- !,
-        Ann = annotated_term{term:not(AG)},
-        update_struct(annotated_term,[term:(\+AG)],Ann,Ann0),
+        Ann =: annotated_term{term:not(AG)},
+        ann_update_term(\+AG, Ann, Ann0),
         normalize_body(\+G, Ann0, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LM, CM).
 
 normalize_body(\+G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LM, CM) :- !,
-        Ann = annotated_term{term:(\+AG),from:Fr,to:To},
-        Ann1 = annotated_term{term:(AnnIf;AnnNone),from:Fr,to:To},
-        AnnIf = annotated_term{term:(AG->annotated_term{term:fail,from:Fr,to:To})},
-        AnnNone = annotated_term{term:'',from:Fr,to:To},
-        normalize_body((G->fail;''), Ann1, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LM, CM).
+        Ann =: annotated_term{term:(\+AG)},
+        ann_update_term(fail, Ann, AnnFail),
+        ann_update_term('', Ann, AnnTrue),
+        ann_update_term((AG->AnnFail), Ann, AnnCond),
+        ann_update_term((AnnCond;AnnTrue), Ann, AnnITE),
+        normalize_body((G->fail;''), AnnITE, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LM, CM).
 
 normalize_body((G1->G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, _LM, CM) :- !,
 	% this is a ->/2 that's _not_ inside a ;/2
@@ -242,7 +259,7 @@ normalize_body((G1->G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goa
 	same_call_pos(Branch, CallNr0, CallNr1, CallPos0),
 	savecut_goal(CallPos0, Vs0, Vs1, LocalCut, SavecutGoal),
 	% cuts have local effect!
-        Ann = annotated_term{term:(AG1->AG2)},
+        Ann =: annotated_term{term:(AG1->AG2)},
         normalize_body(G1, AG1, Branch, CallNr1, CallNr2, LocalCut, Vs1, Vs2, Goals1, Goals2, CM, CM),
 	Goals2 = [CuttoGoal|Goals3],
 	same_call_pos(Branch, CallNr2, CallNr3, CallPos1),
@@ -255,14 +272,14 @@ normalize_body((G1;G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals
 	savecut_goal(CallPos0, Vs0, Vs1, DisjCut, SavecutGoal),
 	new_call_pos(Branch, CallNr1, CallNr2, _CallPos),
 	new_call_pos(Branch, CallNr2, CallNr, CallPos),
-        Ann = annotated_term{term:(AG1;AG2)},
+        Ann =: annotated_term{term:(AG1;AG2)},
 	normalize_left_branch(G1, AG1, CallPos, 1, BranchNr1, Cut, DisjCut, Vs1, Vs2, Branches, Branches1, CM, CM),
 	normalize_right_branch(G2, AG2, CallPos, BranchNr1, _NBranches, Cut, DisjCut, Vs2, Vs, Branches1, [], CM, CM).
 
 normalize_body((G1,G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LM, CM) :- !,
 	% this could be changed such that the lookup module propagates
 	% through the comma (would be incompatible with Eclipse =< 5)
-        Ann = annotated_term{term:(AG1,AG2)},
+        Ann =: annotated_term{term:(AG1,AG2)},
 	normalize_body(G1, AG1, Branch, CallNr0, CallNr1, Cut, Vs0, Vs1, Goals, Goals1, CM, CM),
 	normalize_body(G2, AG2, Branch, CallNr1, CallNr, Cut, Vs1, Vs, Goals1, Goals0, CM, CM).
 
@@ -271,21 +288,21 @@ normalize_body(G@M, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, L
         !,
 	% this could be changed such that the lookup module propagates
 	% through the @ (would be incompatible with Eclipse =< 5)
-        Ann = annotated_term{term:(AG@_AM)},
+	Ann =: annotated_term{term:(AG@_AM)},
         ( atom(M) ->
             normalize_body(G, AG, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
 	; var(G) ->
-            
-	    normalize_goal(call(G), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
+	    ann_update_term(call(AG), Ann, AnnCall),
+	    normalize_goal(call(G), AnnCall, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
 	;
-	    normalize_goal(G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
+	    normalize_goal(G, AG, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
 	).
 
 normalize_body(LM:G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LM0, CM) :-
 	% get_flag((:)/2, definition_module, sepia_kernel)@LM0,
 	atom(LM), nonvar(G),
 	!,
-        Ann = annotated_term{term:_ALM:AG},
+        Ann =: annotated_term{term:(_ALM:AG)},
         normalize_body(G, AG, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
 
 normalize_body(!, _Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LM, _CM) :- !,
@@ -311,8 +328,8 @@ normalize_body(G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM,
         normalize_goal(G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
 
 
-normalize_goal(G, SourcePos, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goals], Goals, LM, CM) :-
-	SourcePos = annotated_term{file:File,line:Line,from:From,to:To},
+normalize_goal(G, AnnG, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goals], Goals, LM, CM) :-
+	AnnG =: annotated_term{term:GAnn,file:File,line:Line,from:From,to:To},
 	Goal = goal{
 	    kind:Kind,
 	    callpos:CallPos,
@@ -329,7 +346,8 @@ normalize_goal(G, SourcePos, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goals
 	get_pred_info(LM, N/A, DM, ToolBody, CallType),
 	( ToolBody = N1/A1 -> 			% replace tool with tool body
 	    LM1=DM,
-	    normalize_term(CM, NormCM, Vs0, Vs1, =),	% CM may be a variable
+	    ann_update_term(CM, AnnG, AnnCM),
+	    normalize_term(CM, AnnCM, NormCM, Vs0, Vs1, =),	% CM may be a variable
 	    ModuleArg = [NormCM]
 	;
 	    N1=N, A1=A, LM1=LM,
@@ -346,10 +364,11 @@ normalize_goal(G, SourcePos, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goals
 	    for(I,1,A),
 	    fromto(NormArgs,[NormArg|MoreArgs],MoreArgs,ModuleArg),
 	    fromto(Vs1,Vs2,Vs3,Vs),
-	    param(G)
+	    param(G,GAnn)
 	do
 	    arg(I, G, Arg),
-	    normalize_term(Arg, NormArg, Vs2, Vs3, =)
+	    varg(I, GAnn, AnnArg),
+	    normalize_term(Arg, AnnArg, NormArg, Vs2, Vs3, =)
 	).
 
 
@@ -376,7 +395,7 @@ normalize_left_branch((G1->G2), Ann, DisjCallPos, BranchNr0, BranchNr, Cut, Disj
 	new_branch(DisjCallPos, BranchNr0, BranchNr, BranchPos),
 	same_call_pos(BranchPos, 1, CallNr1, CallPos1),
 	savecut_goal(CallPos1, Vs0, Vs1, LocalCut, SavecutGoal),
-        Ann = annotated_term{term:(AG1->AG2)},
+        Ann =: annotated_term{term:(AG1->AG2)},
 	normalize_body(G1, AG1, BranchPos, CallNr1, CallNr2, LocalCut, Vs1, Vs2, Goals, Goals1, CM, CM),
 	Goals1 = [CuttoGoal|Goals2],
 	same_call_pos(BranchPos, CallNr2, CallNr3, CallPos2),
@@ -387,7 +406,7 @@ normalize_left_branch((G1;G2), Ann, DisjCallPos, BranchNr0, BranchNr, Cut, DisjC
 	nonvar(G1), G1 \= (_ -> _),
 	!,
 	% This disjunction can be merged with the parent one
-        Ann = annotated_term{term:(AG1;AG2)},
+        Ann =: annotated_term{term:(AG1;AG2)},
         normalize_left_branch(G1, AG1, DisjCallPos, BranchNr0, BranchNr1, Cut, DisjCut, Vs0, Vs1, Branches, Branches1, CM, CM),
 	normalize_right_branch(G2, AG2, DisjCallPos, BranchNr1, BranchNr, Cut, DisjCut, Vs1, Vs, Branches1, Branches0, CM, CM).
 normalize_left_branch(G1, Ann, DisjCallPos, BranchNr0, BranchNr, Cut, _DisjCut, Vs0, Vs, [Goals|Branches], Branches, LM, CM) :-
@@ -398,7 +417,7 @@ normalize_left_branch(G1, Ann, DisjCallPos, BranchNr0, BranchNr, Cut, _DisjCut, 
 
 normalize_right_branch((G1;G2), Ann, DisjCallPos, BranchNr0, BranchNr, Cut, LocalCut, Vs0, Vs, Branches, Branches0, _LM, CM) ?- !,
 	% This disjunction can be merged with the parent one
-        Ann = annotated_term{term:(AG1;AG2)},
+        Ann =: annotated_term{term:(AG1;AG2)},
         normalize_left_branch(G1, AG1, DisjCallPos, BranchNr0, BranchNr1, Cut, LocalCut, Vs0, Vs1, Branches, Branches1, CM, CM),
 	normalize_right_branch(G2, AG2, DisjCallPos, BranchNr1, BranchNr, Cut, LocalCut, Vs1, Vs, Branches1, Branches0, CM, CM).
 normalize_right_branch(G1, Ann, DisjCallPos, BranchNr0, BranchNr, Cut, _LocalCut, Vs0, Vs, [Goals|Goals0], Goals0, LM, CM) :-
@@ -445,13 +464,14 @@ normalize_clause_list(Clauses, AnnClauses, NormClauses, CM, Vs0, Vs) :-
 
     :- mode clause_head_body(+,?,-,-,-,-,-).
     clause_head_body(H0:- -?->B0, Ann, H, B, AH, AB, HeadType) ?- !,
-        Ann = annotated_term{term:(AH:-annotated_term{term: (-?->AB)})},
+        Ann =: annotated_term{term:(AH:-AnnMatch)},
+        AnnMatch =: annotated_term{term:(-?->AB)},
 	H=H0, B=B0, HeadType = (?=).
     clause_head_body(H0:-B0, Ann, H, B, AH, AB, HeadType) ?- !,
-        Ann = annotated_term{term:(AH:-AB)},
+        Ann =: annotated_term{term:(AH:-AB)},
 	H=H0, B=B0, HeadType = (=).
 %    clause_head_body(H?-B, Ann, H, B, AH, AB, ?=) :- !,
-%        Ann = annotated_term{term:(AH?-AB)}.
+%        Ann =: annotated_term{term:(AH?-AB)}.
     clause_head_body(H, AH, H, '', AH, '', =).
 
     clauses_arity([Clause|_], A) ?-
@@ -483,7 +503,7 @@ cutto_goal(CallPos, Vs0, Vs1, CutVar, Goal) :-
 	    functor:cut_to/1,
 	    args:[NormCutVar]
 	},
-	normalize_term(CutVar, NormCutVar, Vs0, Vs1, =).
+	normalize_term(CutVar, _, NormCutVar, Vs0, Vs1, =).
 
 
 
@@ -496,35 +516,43 @@ cutto_goal(CallPos, Vs0, Vs1, CutVar, Goal) :-
 %	structs		structure(structure)
 %	ground struct	ground_structure(ground)   TODO
 
-:- mode normalize_term(?,-,-,+,+).
-normalize_term(X, Desc, [VarDesc|Vs1], Vs0, AttrFlag) :-
+:- mode normalize_term(?,?,-,-,+,+).
+normalize_term(X, AnnX, Desc, [VarDesc|Vs1], Vs0, AttrFlag) :-
 	var(X), !,
-	( get_var_info(X, name, Name) -> true ; true ),
-	VarDesc = variable{source_var:X,source_name:Name},
+	( nonvar(AnnX) ->
+	    VarDesc = variable{source_var:X,source_info:AnnX}
+	; get_var_info(X, name, Name) ->
+	    VarDesc = variable{source_var:X,source_info:name(Name)}
+	;
+	    VarDesc = variable{source_var:X,source_info:none}
+	),
 	( meta(X), AttrFlag = (?=) ->
 	    Desc = attrvar{variable:VarDesc,meta:NormMeta},
 	    meta_attr_struct(X, Meta),
-	    normalize_term(Meta, NormMeta, Vs1, Vs0, AttrFlag)
+	    normalize_term(Meta, _Ann, NormMeta, Vs1, Vs0, AttrFlag)
 	;
 	    % treat as plain variable when not in matching-clause head
 	    Desc = VarDesc, Vs1 = Vs0
 	).
-normalize_term(X, X, Vs, Vs, _AttrFlag) :-
+normalize_term(X, _Ann, X, Vs, Vs, _AttrFlag) :-
 	atomic(X).
-normalize_term([X|Xs], [Y|Ys], Vs, Vs0, AttrFlag) :- !,
-	normalize_term(X, Y, Vs, Vs1, AttrFlag),
-	normalize_term(Xs, Ys, Vs1, Vs0, AttrFlag).
-normalize_term(X, structure{name:N,arity:A,args:Args}, Vs, Vs0, AttrFlag) :-
+normalize_term([X|Xs], Ann, [Y|Ys], Vs, Vs0, AttrFlag) :- !,
+	Ann =: annotated_term{term:[AnnX|AnnXs]},
+	normalize_term(X, AnnX, Y, Vs, Vs1, AttrFlag),
+	normalize_term(Xs, AnnXs, Ys, Vs1, Vs0, AttrFlag).
+normalize_term(X, Ann, structure{name:N,arity:A,args:Args}, Vs, Vs0, AttrFlag) :-
 	compound(X),
+	Ann =: annotated_term{term:AnnX},
 	functor(X, N, A),
 	(
 	    for(I,1,A),
 	    foreach(NormArg,Args),
 	    fromto(Vs,Vs2,Vs1,Vs0),
-	    param(X,AttrFlag)
+	    param(X,AnnX,AttrFlag)
 	do
 	    arg(I, X, Arg),
-	    normalize_term(Arg, NormArg, Vs2, Vs1, AttrFlag)
+	    varg(I, AnnX, AnnArg),
+	    normalize_term(Arg, AnnArg, NormArg, Vs2, Vs1, AttrFlag)
 	).
 
 
@@ -546,9 +574,8 @@ meta_attr_struct(X, Meta) :-
 
 % Introduce a new, auxiliary source variable that was not in the
 % original source. Treat occurrences like normal source variables.
-% The name '' suppresses singleton warnings later
 new_aux_variable(X, VarDesc, [VarDesc|Vs], Vs) :-
-	VarDesc = variable{source_name:'',source_var:X}.
+	VarDesc = variable{source_info:none,source_var:X}.
 
 
 
@@ -615,7 +642,7 @@ assign_varids(Vs, VarNames, N) :-
 % locations, we use simple variable{} descriptors for attributed variables.
 
 normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals0, Module, Vs0, Vs, HeadVars) :-
-        AnnHead = annotated_term{term:HeadAnn,file:File,line:Line,from:From,to:To},
+	AnnHead =: annotated_term{term:HeadAnn,file:File,line:Line,from:From,to:To},
         Goals = [goal{
 		    kind:head, callpos:CallPos, lookup_module:Module,
 		    definition_module:Module,
@@ -623,7 +650,6 @@ normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals0, Module, Vs0, Vs,
 		    functor:N/A, args:HeadArgs}
 		|Goals1],
 	functor(Head, N, A),
-	functor(HeadAnn, N, A),
 	(
 	    for(I,1,A),
 	    foreach(HeadArg,HeadArgs),
@@ -645,12 +671,13 @@ normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals0, Module, Vs0, Vs,
 		    functor:Op/2,
 		    args:[HeadArg,NormArg]
 		}|Goals3],
-	    arg(I, HeadAnn, annotated_term{file:File,line:Line,from:From,to:To}),
+	    varg(I, HeadAnn, AnnArg),
+	    AnnArg =: annotated_term{file:File,line:Line,from:From,to:To},
 	    arg(I, Head, Arg),
 	    ( nonvar(Arg) ->
 		% p(nonvar) :-  becomes  p(T) :- T=nonvar
 		% p(nonvar) ?-  becomes  p(T) :- T?=nonvar
-		normalize_term(Arg, NormArg, Vs1,Vs2, HeadType),
+		normalize_term(Arg, AnnArg, NormArg, Vs1,Vs2, HeadType),
 		Seen2 = Seen1,
 		Op = HeadType,
 		new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)
@@ -659,7 +686,7 @@ normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals0, Module, Vs0, Vs,
 		( meta(Arg), HeadType = (?=) ->
 		    % p(X{A}) ?-  becomes  p(X) :- X?=X{A}
 		    Op = HeadType,
-		    normalize_term(Arg, NormArg, Vs1, Vs3, ?=),
+		    normalize_term(Arg, AnnArg, NormArg, Vs1, Vs3, ?=),
 		    NormArg = attrvar{variable:HeadArg},
 		    HeadVar = Arg
 		;
@@ -670,13 +697,13 @@ normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals0, Module, Vs0, Vs,
 		    % this head occurrence in the first chunk. The X=X goal
 		    % will then trigger initialisation of the environment slot.
 		    % p(X) :-  becomes  p(X) :- X=X
-		    normalize_term(Arg, NormArg, Vs1, Vs3, =),
+		    normalize_term(Arg, AnnArg, NormArg, Vs1, Vs3, =),
 		    Op = (=),
 		    HeadArg = NormArg, HeadVar = Arg
 		)
 	    ;
 		% repeat occurence: T=X (or T==X for matching)
-		normalize_term(Arg, NormArg, Vs1,Vs2, =),
+		normalize_term(Arg, AnnArg, NormArg, Vs1,Vs2, =),
 		Seen2 = Seen1,
 		headtype_varop(HeadType, Op),
 		new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)

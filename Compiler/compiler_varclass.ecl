@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.3 2007/05/17 23:59:44 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.4 2007/06/08 14:25:05 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/05/17 23:59:44 $").
+:- comment(date, "$Date: 2007/06/08 14:25:05 $").
 
 :- comment(desc, ascii("
     This pass (actually two passes: compute_lifetimes and assign_env_slots)
@@ -73,7 +73,7 @@
 % variables in parallel disjunctive branches as being distinct.
 
 :- local struct(slot(		% one for every truly distinct variable
-	name,			% for error messages only (not unique)
+	source_info,		% for error messages only
 	firstpos,		% position of first occurrence
 				% (must be first for sorting!)
 	lastpos,		% position of last occurrence
@@ -211,7 +211,7 @@ compute_lifetimes(indexpoint{callpos:CallPos,args:Args}, Map0, Map) :-
 %	- the locations are all unified
  
 register_occurrence(CallPos, Occurrence, Map0, Map) :-
-	Occurrence = variable{source_name:Name,varid:VarId,isalast:LastFlag,class:Location},
+	Occurrence = variable{source_info:Source,varid:VarId,isalast:LastFlag,class:Location},
 	( m_map:search(Map0, VarId, OldEntry) ->
 	    OldEntry = [OldSlot|Slots],
 	    OldSlot = slot{firstpos:FP0,lastpos:LP0,lastflag:LF0,class:Location},
@@ -224,7 +224,7 @@ register_occurrence(CallPos, Occurrence, Map0, Map) :-
 	    m_map:det_update(Map0, VarId, [NewSlot], Map)
 	;
 	    % first occurrence
-	    m_map:det_insert(Map0, VarId, [slot{name:Name,firstpos:CallPos,
+	    m_map:det_insert(Map0, VarId, [slot{source_info:Source,firstpos:CallPos,
 	    	lastpos:CallPos,lastflag:LastFlag,class:Location}], Map),
 	    Occurrence = variable{isafirst:first}
 	).
@@ -414,13 +414,13 @@ print_occurrences(Map) :-
 %----------------------------------------------------------------------
 
 
-:- export assign_env_slots/3.
+:- export assign_env_slots/4.
 
-assign_env_slots(Body, Map, EnvSize) :-
+assign_env_slots(Body, Map, EnvSize, Options) :-
 	m_map:to_assoc_list(Map, MapList),
 	strip_keys(MapList, Slots),
 	flatten(Slots, FlatSlots),
-	classify_voids_and_temps(FlatSlots, PermSlots),
+	classify_voids_and_temps(FlatSlots, PermSlots, Options),
 	% The sorting here is a bit subtle: we rely on the callpos
 	% partial order being compatible with the total term order.
 	sort(firstpos of slot, >=, PermSlots, SlotsIncStart),
@@ -440,15 +440,16 @@ assign_env_slots(Body, Map, EnvSize) :-
 
 
 % Deal with the void and temporary variables, and filter them out
-classify_voids_and_temps(AllSlots, PermSlots) :-
+classify_voids_and_temps(AllSlots, PermSlots, Options) :-
 	(
 	    foreach(Slot,AllSlots),
-	    fromto(PermSlots,PermSlots2,PermSlots1,[])
+	    fromto(PermSlots,PermSlots2,PermSlots1,[]),
+	    param(Options)
 	do
-	    Slot = slot{firstpos:First,lastpos:Last,class:Loc,name:Name},
+	    Slot = slot{firstpos:First,lastpos:Last,class:Loc,source_info:Source},
 	    ( var(Loc) ->			% void
 		Loc = void,
-		singleton_warning(Name),
+		singleton_warning(Source, Options),
 		PermSlots2=PermSlots1
 	    ;
 		Loc = nonvoid(Where),	% needs assignment
@@ -463,17 +464,15 @@ classify_voids_and_temps(AllSlots, PermSlots) :-
 	).
 
 
-singleton_warning(_Name).
-/*
-singleton_warning(Name) :-
-	( Name = '' ->
-	    true
-	; atom(Name), atom_string(Name, NameS), substring(NameS,"_",1) ->
+%singleton_warning(+VarSourceInfo, +Options).
+singleton_warning(annotated_term{type:var(Name),file:Path,line:Line}, options{warnings:on}) ?- !,
+	( atom_string(Name, NameS), substring(NameS,"_",1) ->
 	    true
 	;
-	    printf(warning_output, "Singleton variable: %w%n", [Name])
+	    pathname(Path, _, File),
+	    printf(warning_output, "File %w, line %d: Singleton variable %w%n", [File,Line,Name])
 	).
-*/
+singleton_warning(_, _).
 
 
 foreachcallposinbranch(_Branch, [], [], Y, Y).

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.9 2007/06/06 15:27:36 kish_shen Exp $
+% Version:	$Id: compiler_top.ecl,v 1.10 2007/06/08 14:25:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2007/06/06 15:27:36 $").
+:- comment(date,	"$Date: 2007/06/08 14:25:05 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -84,7 +84,7 @@ compiler_options_setup(File, OptionList, Options) :-
 	    update_struct(options, [output:print(Stream)], Options0, Options)
 	; Options0 = options{output:listing} ->
 	    concat_string([File], FileS),
-	    pathname(FileS, Dir, Base, Suffix),
+	    pathname(FileS, Dir, Base, _Suffix),
 	    ( concat_string([OutDir], "") -> 
 		concat_string([Dir,Base,'.lst'], LstFile)
 	    ;
@@ -97,7 +97,7 @@ compiler_options_setup(File, OptionList, Options) :-
 	    update_struct(options, [output:eco_to_stream(Stream)], Options0, Options)
 	; Options0 = options{output:eco} ->
 	    concat_string([File], FileS),
-	    pathname(FileS, Dir, Base, Suffix),
+	    pathname(FileS, Dir, Base, _Suffix),
 	    ( concat_string([OutDir], "") -> 
 		concat_string([Dir,Base,'.eco'], EcoFile)
 	    ;
@@ -227,7 +227,7 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module) :-
 	;
 	    true
 	),
-	assign_env_slots(NormPred, Lifetimes, EnvSize),
+	assign_env_slots(NormPred, Lifetimes, EnvSize, Options),
 	( Options = options{print_normalised:on} ->
 	    print_normalized_clause(output, NormPred)
 	;
@@ -691,7 +691,7 @@ fcompile_(File, Options0, Module) :-
 		Options2 = [load:new|Options1]
 	    )
 	;
-	    ( memberchk(load:LoadOpt, Options0) ->
+	    ( memberchk(load:_LoadOpt, Options0) ->
 		Options2 = Options0
 	    ;
 		Options2 = [load:new|Options0]
@@ -729,7 +729,7 @@ comp :-
 	true.
 
 list :-
-	Options = [output:listing,load:new],
+	Options = [output:listing,load:new,verbose:1],
 	compile(compiler_common,	Options),
 	compile(compiler_normalise,	Options),
 	compile(compiler_analysis,	Options),
