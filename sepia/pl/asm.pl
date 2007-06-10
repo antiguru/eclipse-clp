@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.8 2007/06/09 01:45:32 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.9 2007/06/10 22:12:47 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1211,16 +1211,19 @@ make_switch_table(range, H, TL, Table, [align(2),label(TL)|Ts0], Ts) :- !,
 	Table = [Min,Max|TableRest],
 	keysort(TableRest, SortedTableRest),
 	insert_table([Min,Max|SortedTableRest], int, H, Ts0, Ts).
-make_switch_table(Type, _H, TL, Table, [align(2),label(TL)|Ts0], Ts) :-
+make_switch_table(Type, H, TL, Table, [align(2),label(TL)|Ts0], Ts) :-
 	% add alignment and label for table
 	(Type == atom ; Type == functor), !,
-	make_nonint_table(Table, Ts0, Ts).
+	make_nonint_table(Table, H, Ts0, Ts).
 
 
-make_nonint_table(Table, Ts0, Ts) ?-
+make_nonint_table(Table, H, Ts0, Ts) ?-
 	length(Table, N),
 	Size is N * 2, % 2 words per entry. Size here is for *all* entries
-	Ts0 = [table(Table,Size)|Ts].
+	( foreach(Key-ref(LabIdx),Table), foreach(Key-ref(Lab),Table1), param(H) do
+	    label_idx_to_var(LabIdx, H, Lab)
+	),
+	Ts0 = [table(Table1,Size)|Ts].
 
 table_size(Table, Type, Size) :-
 	length(Table, Size0),
@@ -1650,7 +1653,7 @@ find_pred(_, _, _) :-
 
 fill_label([], _).
 fill_label([WAM|WAMs], N) :-
-	(WAM = label(L) ->
+	(WAM = label(L), var(L) ->
 	    concat_atom(['L',N], L),
 	    N1 is N + 1
 	; N1 = N
