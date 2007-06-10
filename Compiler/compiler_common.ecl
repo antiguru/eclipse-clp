@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.7 2007/06/08 14:25:05 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.8 2007/06/10 22:10:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/06/08 14:25:05 $").
+:- comment(date, "$Date: 2007/06/10 22:10:30 $").
 
 
 %----------------------------------------------------------------------
@@ -122,6 +122,7 @@
 	skip,
 	expand_clauses,
 	expand_goals,
+	opt_level,
 	print_normalised,
 	print_indexes,
 	print_lifetimes,
@@ -137,6 +138,7 @@ valid_option_field(system, system of options).
 valid_option_field(skip, skip of options).
 valid_option_field(expand_clauses, expand_clauses of options).
 valid_option_field(expand_goals, expand_goals of options).
+valid_option_field(opt_level, opt_level of options).
 valid_option_field(print_normalised, print_normalised of options).
 valid_option_field(print_lifetimes, print_lifetimes of options).
 valid_option_field(print_raw_code, print_raw_code of options).
@@ -156,6 +158,7 @@ valid_option_value(expand_goals, Value) :- onoff(Value).
 valid_option_value(load, none).
 valid_option_value(load, new).
 valid_option_value(load, all).
+valid_option_value(opt_level, Value) :- integer(Value).
 valid_option_value(print_normalised, Value) :- onoff(Value).
 valid_option_value(print_lifetimes, Value) :- onoff(Value).
 valid_option_value(print_raw_code, Value) :- onoff(Value).
@@ -183,6 +186,7 @@ default_options(options{
 	expand_clauses:on,
 	expand_goals:off,
 	load:all,
+	opt_level:0,
 	print_normalised:off,
 	print_lifetimes:off,
 	print_raw_code:off,

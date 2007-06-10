@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.10 2007/06/08 14:25:05 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.11 2007/06/10 22:10:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2007/06/08 14:25:05 $").
+:- comment(date,	"$Date: 2007/06/10 22:10:30 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -249,7 +249,7 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module) :-
 	),
 
 	% WAM level postprocessing
-	simplify_code(Code, FinalCode),
+	simplify_code(Code, FinalCode, Options),
 	( Options = options{print_final_code:on} ->
 	    print_annotated_code(FinalCode)
 	;

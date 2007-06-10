@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.3 2007/05/17 23:59:43 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.4 2007/06/10 22:10:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/05/17 23:59:43 $").
+:- comment(date, "$Date: 2007/06/10 22:10:30 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -51,28 +51,296 @@
 
 :- import meta_index/2 from sepia_kernel.
 
-:- comment(simplify_code/2, [
+
+:- local struct(chunk(
+    	cont,	% index of continuation chunk
+	len,	% length of code list
+	code,	% code list
+	done)).	% 'done' if chunk already in final code list, else uninstantiated
+
+
+% maximum size of code chunks that should be duplicated to save a branch
+max_joined_len(2).
+
+
+:- comment(simplify_code/3, [
     summary:"Strip annotations and do peephole optimizations",
-    amode:simplify_code(+,-),
+    amode:simplify_code(+,-,+),
     args:[
 	"AnnotatedCodeIn":"A list of annotated WAM code (struct(code))",
-	"WamCodeOut":"A list of WAM instructions in lib(asm) format"
+	"WamCodeOut":"A list of WAM instructions in lib(asm) format",
+	"Options":"struct(options)"
     ],
     see_also:[struct(code)]
 ]).
 
-:- export simplify_code/2.
+:- export simplify_code/3.
+simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
+	( OptLevel > 0 ->
+	    flat_code_to_basic_blocks(CodeList, BasicBlockArray),
+	    ( for(_,1,max_joined_len), param(BasicBlockArray) do
+		join_short_continuations(BasicBlockArray)
+	    ),
+	    ( foreacharg(chunk{code:Chunk,cont:Cont},BasicBlockArray,I), param(BasicBlockArray) do
+		simplify_chunk(Chunk, SimplChunk),
+		setarg(I, BasicBlockArray, chunk{code:SimplChunk,len:(-1),cont:Cont})
+	    ),
+	    basic_blocks_to_flat_instr(BasicBlockArray, WamList)
+	;
+	    ( foreach(code{instr:Instr},CodeList), foreach(Instr,Instrs) do
+		true
+	    ),
+	    simplify_chunk(Instrs, WamList)
+	).
 
 
-% simplify and strip annotations
 
-simplify_code([], []).
-simplify_code([code{instr:Instr}|More], SimplifiedCode) :-
+% Take a simple list of annotated code, and cut it up at the labels.
+% The result are code chunks that correspond to basic blocks.
+% Number each chunk and instantiate the corresponding Label to this number.
+% Enter the chunk into an array indexed by the chunk number.
+%
+% We already do some opportunistic simplification here:
+% - removing the code{} wrapper
+% - eliminating nops
+% - eliminating redundant consecutive labels (unifying the Labels)
+% - eliminating unreachable code between branch() and the next label()
+%
+% During code traversal, we maintain a State variable with the values:
+%  labels:	the previous instruction was a label
+%  normal:	we are in the middle of a chunk
+%  unreachable:	the current code is unreachable
+
+
+:- export flat_code_to_basic_blocks/2.
+flat_code_to_basic_blocks(AnnCode, BasicBlockArray) :-
+	(
+	    fromto(AnnCode, [code{instr:Instr}|Code1], Code1, []),
+	    fromto(FirstChunk,Chunk0,Chunk1,LastChunk),
+	    fromto(FirstChunk,Tail0,Tail1,[]),
+	    fromto(Chunks,Chunks0,Chunks1,Chunks2),
+	    fromto(1,N0,N1,N),			% chunk number
+	    fromto(0,Len0,Len1,Len),		% chunk length
+	    fromto(labels,State,State1,EndState)
+	do
+	    ( Instr = label(L) ->
+		verify var(L),
+		L = N1,				% instantiate the label
+		State1 = labels,
+		( State == labels ->
+		    N1 = N0,			% a redundant label
+		    Len1 = Len0,
+		    Chunk1 = Chunk0,
+		    Tail0 = Tail1,
+		    Chunks0 = Chunks1
+		; State == normal ->
+		    Len1 = 0,
+		    succ(N0, N1),		% new chunk number
+		    Chunk1 = Tail1,		% start a new chunk
+		    Tail0 = [],			% terminate the previous chunk
+		    Chunks0 = [chunk{code:Chunk0,len:Len0,cont:L}|Chunks1]	% collect finished chunk
+		; % State == unreachable ->
+		    Len1 = 0,
+		    succ(N0, N1),		% new chunk number
+		    Chunk1 = Tail1,		% start a new chunk
+		    Tail0 = [],			% terminate the previous chunk
+		    Chunks0 = Chunks1		% dont't collect finished chunk
+		)
+
+	    ; Instr = branch(ref(L)) ->
+		N1 = N0,
+		State1 = unreachable,
+		( State == unreachable ->
+		    succ(Len0, Len1),
+		    Chunk1 = Chunk0,
+		    Chunks0 = Chunks1,
+		    Tail0 = Tail1
+		; atom(L) ->
+		    Len1 = 0,
+		    succ(Len0, Len2),
+		    Chunk1 = Tail1,		% start a new chunk
+		    Tail0 = [Instr],		% terminate the previous chunk
+		    Chunks0 = [chunk{code:Chunk0,len:Len2,cont:0}|Chunks1]	% collect finished chunk
+		;
+		    Len1 = 0,
+		    Chunk1 = Tail1,		% start a new chunk
+		    Tail0 = [],			% terminate the previous chunk
+		    Chunks0 = [chunk{code:Chunk0,len:Len0,cont:L}|Chunks1]	% collect finished chunk
+		)
+
+	    ; Instr = nop ->
+		N1 = N0,
+		Len1 = Len0,
+	    	Chunk1 = Chunk0,
+		Chunks0 = Chunks1,
+	    	Tail0 = Tail1,
+		next_state(State, State1)
+
+	    ; unconditional_transfer(Instr) ->
+		N1 = N0,
+		State1 = unreachable,
+		( State == unreachable ->
+		    succ(Len0, Len1),
+		    Chunk1 = Chunk0,
+		    Chunks0 = Chunks1,
+		    Tail0 = Tail1
+		;
+		    Len1 = 0,
+		    succ(Len0, Len2),
+		    Chunk1 = Tail1,		% start a new chunk
+		    Tail0 = [Instr],		% terminate the previous chunk
+		    Chunks0 = [chunk{code:Chunk0,len:Len2,cont:0}|Chunks1]	% collect finished chunk
+		)
+
+	    ;
+		N1 = N0,			% still the same chunk
+		succ(Len0, Len1),
+	    	Chunk1 = Chunk0,
+		Chunks0 = Chunks1,
+	    	Tail0 = [Instr|Tail1],		% append this instruction
+		next_state(State, State1)
+	    )
+	),
+	( EndState = unreachable ->
+	    Chunks2 = []
+	;
+	    Chunks2 = [chunk{code:LastChunk,len:Len,cont:0}]
+	),
+	verify length(Chunks, N),
+	BasicBlockArray =.. [[]|Chunks].
+
+    next_state(unreachable, unreachable).
+    next_state(labels, normal).
+    next_state(normal, normal).
+
+    % Unconditional control transfer instructions
+    % Only needs to list instructions generated by the code generator
+    unconditional_transfer(branch(_)).
+    unconditional_transfer(exit).
+    unconditional_transfer(exitd).
+    unconditional_transfer(failure).
+    unconditional_transfer(ret).
+    unconditional_transfer(retd).
+    unconditional_transfer(retn).
+    unconditional_transfer(jmp(_)).
+    unconditional_transfer(jmpd(_)).
+    unconditional_transfer(chain(_)).
+    unconditional_transfer(chaind(_)).
+    unconditional_transfer(trust(_,_)).
+    unconditional_transfer(trust_inline(_,_)).
+
+
+join_short_continuations(BasicBlockArray) :-
+	(
+	    foreacharg(chunk{cont:Cont,len:Len,code:Code},BasicBlockArray,I),
+	    param(BasicBlockArray)
+	do
+	    ( Cont == 0 ->
+		true
+	    ;
+		arg(Cont, BasicBlockArray, NextChunk),
+		NextChunk = chunk{len:ContLen,code:ContCode,cont:ContCont},
+		( ContLen > max_joined_len ->
+		    true
+		;
+		    append(Code, ContCode, NewCode),
+		    NewLen is Len+ContLen,
+		    setarg(I, BasicBlockArray, chunk{code:NewCode,len:NewLen,cont:ContCont})
+		)
+	    )
+	).
+
+
+% Flatten the BasicBlockArray into a WAM code list.
+% We emit only the reachable chunks, by collecting all ref()s in the code.
+% The done-flag in the array indicates whether the chunk has already been
+% processed.
+
+:- export basic_blocks_to_flat_instr/2.
+
+basic_blocks_to_flat_instr(BasicBlockArray, Instrs) :-
+	(
+	    fromto(1,I,NextI,0),			% current chunk
+	    fromto(1,PrevCont,Cont,_),			% prev. chunk's continuation
+	    fromto(TargetsT0,Targets1,Targets2,_),	% ref-targets (queue)
+	    fromto(TargetsT0,TargetsT1,TargetsT2,_),	% queue tail
+	    fromto(Instrs,Instrs0,Instrs2,[]),		% result list
+	    param(BasicBlockArray)
+	do
+	    arg(I, BasicBlockArray, Chunk),
+	    Chunk = chunk{code:Code,done:Done,cont:Cont0},
+	    ( var(Done) ->
+		% process chunk: extract refs, append code to final code list
+		Done = done,
+		Cont = Cont0,
+		find_targets(Code, BasicBlockArray, TargetsT1, TargetsT2),
+		Instrs0 = [label(I)|Instrs1],
+		append(Code, Instrs2, Instrs1)
+	    ; PrevCont == I ->
+		% previous chunk continues into this one, but it has already
+		% been emitted, so we need a branch (or a copy if it is short)
+		( Cont0 == 0 , length(Code) =< max_joined_len ->
+		    append(Code, Instrs2, Instrs0)
+		;
+		    Instrs0 = [branch(ref(I))|Instrs2]
+		),
+		Cont = 0,
+		TargetsT2 = TargetsT1
+	    ;
+		Cont = 0,
+		TargetsT2 = TargetsT1,
+		Instrs0 = Instrs2
+	    ),
+	    % Choose the next chunk to process: prefer the current chunk's
+	    % continuation, otherwise pick one from the queue
+	    ( Cont > 0 ->
+		NextI = Cont, Targets1 = Targets2	% use continuation
+	    ; var(Targets1) ->
+	    	NextI = 0				% queue empty, finished
+	    ;
+		Targets1 = [NextI|Targets2]		% pick from queue
+	    )
+	).
+
+    % Find all ref()s that refer to unprocessed chunks and queue the labels
+    find_targets(X, _BasicBlockArray, TargetsT, TargetsT) :- var(X), !.
+    find_targets([X|Xs], BasicBlockArray, TargetsT0, TargetsT2) :- !,
+	find_targets(X, BasicBlockArray, TargetsT0, TargetsT1),
+	find_targets(Xs, BasicBlockArray, TargetsT1, TargetsT2).
+    find_targets(ref(L), BasicBlockArray, TargetsT0, TargetsT1) :- !,
+	(
+	    integer(L),
+	    arg(L, BasicBlockArray, Chunk),
+	    Chunk = chunk{done:Done},
+	    var(Done)
+	->
+	    TargetsT0 = [L|TargetsT1]
+	;
+	    TargetsT0 = TargetsT1
+	).
+    find_targets(Xs, BasicBlockArray, TargetsT0, TargetsT3) :-
+    	compound(Xs), !,
+	(
+	    foreacharg(X,Xs),
+	    fromto(TargetsT0,TargetsT1,TargetsT2,TargetsT3),
+	    param(BasicBlockArray)
+	do
+	    find_targets(X, BasicBlockArray, TargetsT1, TargetsT2)
+	).
+    find_targets(_, _BasicBlockArray, TargetsT, TargetsT).
+    	
+
+%----------------------------------------------------------------------
+% simplify a basic block
+%----------------------------------------------------------------------
+
+simplify_chunk([], []).
+simplify_chunk([Instr|More], SimplifiedCode) :-
 	( simplify(Instr, More, SimplifiedCode0) ->
-	    simplify_code(SimplifiedCode0, SimplifiedCode)
+	    simplify_chunk(SimplifiedCode0, SimplifiedCode)
 	;
 	    SimplifiedCode = [Instr|SimplifiedCode0],
-	    simplify_code(More, SimplifiedCode0)
+	    simplify_chunk(More, SimplifiedCode0)
 	).
 
 
@@ -84,26 +352,23 @@ simplify(move(X,X),	More, New) ?- !, New = More.
 
 simplify(initialize(y([])),	More, New) ?- !, New = More.
 
-simplify(callf(P,eam(0)),	[Next|More], New) ?- !,
-	Next = code{instr:Instr},
+simplify(callf(P,eam(0)),	[Instr|More], New) ?- !,
 	simplify_call(P, Instr, NewInstr),
-	update_struct(code, [instr:NewInstr], Next, NewCode),
-	New = [NewCode|More].
-simplify(call(P,eam(0)),	[Next|More], New) ?- !,
-	Next = code{instr:Instr},
-	simplify_call(P, Instr, NewInstr),
-	update_struct(code, [instr:NewInstr], Next, NewCode),
-	New = [NewCode|More].
+	New = [NewInstr|More].
 
-	% the code generator compiles attribute unification as it it were
+simplify(call(P,eam(0)),	[Instr|More], New) ?- !,
+	simplify_call(P, Instr, NewInstr),
+	New = [NewInstr|More].
+
+	% the code generator compiles attribute unification as if it were
 	% unifying a meta/N structure. Since attribute_name->slot mapping
 	% can change between sessions, we transform sequences like
-	%	read_attriubute suspend		(where suspend->1)
+	%	read_attribute suspend		(where suspend->1)
 	%	read_void*			(N times)
 	%	read_xxx			(match actual attribute)
 	%	read_void*			(M times)
 	% into
-	%	read_attriubute name		(where name->N)
+	%	read_attribute name		(where name->N)
 	%	read_xxx			(match actual attribute)
 	% to make the code session-independent. Note that this cannot cope
 	% with multiple attributes being matched at once. This restriction
@@ -123,20 +388,20 @@ simplify(read_attribute(FirstName),	Code0, New) ?-
 	    Code3 = [After|_],
 	    \+ is_read_instruction(After)
 	->
-	    New = [code{instr:read_attribute(Name)},Read|Code3]
+	    New = [read_attribute(Name),Read|Code3]
 	;
 	    warning("Implementation limit: cannot make attribute matching code"),
 	    warning("session-independent if matching more than one attribute."),
 	    fail
 	).
 
-    is_read_instruction(code{instr:Instr}) :-
+    is_read_instruction(Instr) :-
 	functor(Instr, Name, _),
     	atom_string(Name, NameS),
 	substring(NameS, "read_", 1).
 
     skip_read_void(Codes, N0, N, Rest) :-
-    	( Codes = [code{instr:read_void}|Codes1] ->
+    	( Codes = [read_void|Codes1] ->
 	    N1 is N0+1,
 	    skip_read_void(Codes1, N1, N, Rest) 
 	;
@@ -148,7 +413,9 @@ simplify(read_attribute(FirstName),	Code0, New) ?-
     simplify_call(P, exit, chain(P)).
 
 
+%----------------------------------------------------------------------
 end_of_file.
+%----------------------------------------------------------------------
 
 
 
