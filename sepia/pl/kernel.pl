@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.9 2007/06/06 22:01:27 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.10 2007/06/20 16:44:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -179,6 +179,8 @@
    tool(bip_error/1, bip_error_/2),
    tool(bip_error/2, bip_error_/3),
    tool(get_recordlist/3, get_recordlist/4),
+   tool(lock/0, lock/1),
+   tool(lock_pass/1, lock_pass_/2),
    tool(local_record/1, local_record_body/2),
    tool(mutex_init/1, mutex_init_body/2),
    tool(mutex/2, mutex_body/3),
@@ -3756,6 +3758,8 @@ inline_(Proc, Trans, Module) :-
 	lib/2,
 	(local)/1,
 	local_record/1,
+	lock/0,
+	lock_pass_/1,
 	make_suspension/3,
 	make_suspension/4,
 	max/2,
@@ -7077,6 +7081,8 @@ include(Files, Module) :-		% proper definition
 :- deprecated(is_locked/1,		"Use get_module_info/3").
 :- deprecated(lib/2,			"Use lib/1").
 :- deprecated(local_record/1,		"Use :- local record(...)").
+:- deprecated(lock/1,			"Use lock for current module, or lock@Module").
+:- deprecated(lock/2,			"Use lock_pass(Pass) for current module, or lock_pass(Pass)@Module").
 :- deprecated(make_array/1,		"Use :- local variable(...) or :- local array(...)").
 :- deprecated(make_array/2,		"Use :- local array(...)").
 :- deprecated(make_local_array/1,	"Use :- local variable(...) or :- local array(...)").
@@ -7166,5 +7172,5 @@ present_libraries(Sys, [_|L], T) :-
 	(extension(development) ->
 	    true
 	;
-	    lock(sepia_kernel, "Sepia")
+	    lock_pass("Sepia")
 	).

@@ -770,13 +770,16 @@ it is possible to {\em lock} a module. Locking makes it impossible
 to access internal, local items from outside the module. Of course,
 the module can still be used though its interface.
 The built-in predicates related to locking are
-\bipref{lock/1}{../bips/kernel/modules/lock-1.html} which provides
+\bipref{lock/0}{../bips/kernel/modules/lock-0.html} which provides
 a definitive lock,
-\bipref{lock/2}{../bips/kernel/modules/lock-2.html}
+\bipref{lock_pass/1}{../bips/kernel/modules/lock_pass-1.html}
 which allows subsequent unlocking using a password (
 \bipref{unlock/2}{../bips/kernel/modules/unlock-2.html}),
 and
 \bipref{get_module_info/3}{../bips/kernel/modules/get_module_info-3.html}
 which allows to check whether a module is locked.
+\bipref{lock/0}{../bips/kernel/modules/lock-0.html} and
+\bipref{lock_pass/1}{../bips/kernel/modules/lock_pass-1.html} are
+usually used as a directive in the source file of the module to be locked.
 
 %HEVEA\cutend

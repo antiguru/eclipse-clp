@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.1 2006/09/23 01:55:49 snovello Exp $
+ * VERSION	$Id: bip_module.c,v 1.2 2007/06/20 16:43:34 jschimpf Exp $
  */
 
 /*
@@ -56,6 +56,7 @@ static int
     p_is_locked(value v, type t),
     p_lock1(value v, type t),
     p_lock2(value v, type t, value vl, type tl),
+    p_lock_pass_(value v, type t, value vl, type tl),
     p_unlock2(value v, type t, value vl, type tl),
     p_tool1(value vi, type ti, value vm, type tm),
     p_tool2(value vi, type ti, value vb, type tb, value vm, type tm),
@@ -113,6 +114,7 @@ bip_module_init(int flags)
     (void) local_built_in(in_dict("create_module_", 1), p_create_module, B_SAFE);
     (void) built_in(d_.lock, p_lock1, B_SAFE);
     (void) built_in(in_dict("lock", 2), p_lock2, B_SAFE);
+    (void) built_in(in_dict("lock_pass_", 2), p_lock_pass_, B_SAFE);
     (void) built_in(in_dict("unlock", 2), p_unlock2, B_SAFE);
     (void) exported_built_in(in_dict("tool_", 2), p_tool1, B_UNSAFE);
     (void) exported_built_in(in_dict("tool_", 3), p_tool2, B_UNSAFE);
@@ -240,8 +242,9 @@ p_tool_body(value vi, type ti, value vb, type tb, value vmb, type tmb, value vm,
  *
  *	create_module/1
  *	erase_module/1
- *	lock/1
- *	lock/2
+ *	lock/1			tool body of lock/0 + backward comp.
+ *	lock/2			backward compatibility
+ *	lock_pass_/2		tool body of lock_pass/1
  *	unlock/2
  *
  ******************************************************************* */
@@ -308,44 +311,22 @@ p_default_module(value v, type t)
 }
 
 
-/*ARGSUSED*/
 static int
 p_lock1(value v, type t)
 {
-   Check_Atom_Or_Nil(v, t);
-
-   if (!IsModule(v.did))
-   {
-       Bip_Error(MODULENAME);
-   }
-   if (IsLocked(v.did))
-   {
-       Bip_Error(LOCKED);
-   }
-
-   DidModule(v.did) = HARD_LOCK_MODULE;
-
-   Succeed_;
+    Check_Module_And_Access(v, t);
+    DidModule(v.did) = HARD_LOCK_MODULE;
+    Succeed_;
 }
 
 
-/*ARGSUSED*/
 static int
-p_lock2(value v, type t, value vl, type tl)
+p_lock_pass_(value vl, type tl, value v, type t)
 {
    module_item	*m;
 
-   Check_Atom_Or_Nil(v, t);
+   Check_Module_And_Access(v, t);
    Check_String(tl);
-
-   if (!IsModule(v.did))
-   {
-       Bip_Error(MODULENAME);
-   }
-   if (IsLocked(v.did))
-   {
-       Bip_Error(LOCKED);
-   }
 
    DidModule(v.did) = SOFT_LOCK_MODULE;
    m = ModuleItem(v.did);
@@ -355,6 +336,14 @@ p_lock2(value v, type t, value vl, type tl)
 
    Succeed_;
 }
+
+
+static int
+p_lock2(value v, type t, value vl, type tl)
+{
+    return p_lock_pass_(vl, tl, v, t);
+}
+
 
 static int
 p_unlock2(value v, type t, value vl, type tl)
