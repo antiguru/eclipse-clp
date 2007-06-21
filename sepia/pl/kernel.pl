@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.10 2007/06/20 16:44:50 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.11 2007/06/21 00:52:29 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -4554,7 +4554,12 @@ transform(Term, Ann, Expanded, AnnExpanded, TN/TA, TLM, ContextModule) :-
 	subcall(MarkedTLM:TransGoal@ContextModule, Delayed),
 	!,
 	( Delayed = [] ->
-	    transformed_annotate(Expanded, Ann, AnnExpanded)
+            (var(AnnExpanded) ->
+                % TransGoal did not annotate AnnExpanded
+                transformed_annotate(Expanded, Ann, AnnExpanded)
+            ;
+                good_annotation(Expanded, AnnExpanded)
+            )
 	; 
 	    error(129, TLM:TransGoal, ContextModule)
 	).
