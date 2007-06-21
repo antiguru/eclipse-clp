@@ -40,8 +40,8 @@
 	desc:html("\
    This declaration is used to define a macro transformation on a class of
    terms.  Macro transformations are performed when a term is read by one of
-   the predicates read/1,2, read_term/2,3 or readvar/3 (unless the stream
-   flag or global flag macro_expansion is switched off).
+   the predicates read/1,2, read_term/2,3, readvar/3 or read_annotated/2,3 
+   (unless the stream flag or global flag macro_expansion is switched off).
 <P>
    The TermClass specifies to which terms the transformation will be
    applied:
@@ -53,15 +53,27 @@
 	compound, string, integer, rational, float, breal, goal, atom, meta.
 </DL>
    The +TransPred argument specifies the predicate that will perform the
-   transformation.  TransPred must be of arity 2 or 3 and be in the form:
+   transformation.  TransPred can be of either arity 2 or 3, and be in the 
+   form:
 <PRE>
 	trans_function(OldTerm, NewTerm [, Module]) :- ... .
 </PRE>
+   or it can be source annotation aware, and be of arity 4 or 5, as follows:
+<PRE>
+	trans_function(OldTerm, NewTerm, OldAnn, NewAnn [, Module]) :- ... .
+</PRE>
    At transformation time, the system will call TransPred in the module
-   where <CODE>local macro/3</CODE> was invoked.  The term to transform is passed
-   as the first argument, the second is a free variable which the
-   transformation should bind to the transformed term, and the optional
-   third argument is the module where the term was being read in.
+   where <CODE>local macro/3</CODE> was invoked. The term to transform is
+   passed as the first argument, the second is a free variable which the
+   transformation should bind to the transformed term. In the case of the
+   source annotation aware version of TransPred, if the term was read in by
+   read_annotated/2,3, the annotated version of the term to transformed is
+   passed in the third argument, and the transformation should bind the
+   fourth argument to the annotated transformed term; otherwise, if no
+   source annotation information is available, the third argument is passed
+   in as a free variable, and the transformation should not bind the fourth
+   argument. In both TransPred cases, the optional last argument is the
+   module where the term was being read in.
 <P>
    Options is a list which may be empty or contain one of the following
    type specification atoms:
@@ -103,6 +115,15 @@
    transform all subterms of a term in a bottom-up fashion. This means that
    the transformation predicate will see a term with already transformed
    subterms.
+<P>
+   The source annotation aware transformation predicate is provided to
+   allow the user to detail how the subterms of the original term is mapped
+   to the transformed term. Without this extra information, the whole of
+   the transformed term is given the source information (source position,
+   source file etc.) of the original source term. This extra information is
+   useful when the subterms are goals, because without the extra
+   information, source tracing of these goals during debugging will not be
+   done.
 "),
 	args:["TermClass" : "Term in the form Atom, Atom/Integer or type(Type).",
 	    "TransPred" : "Term in the form Atom/Integer.",
@@ -170,11 +191,54 @@
     yes.
 
 
+% Example showing use of annotation aware macro transformation
+
+    [eclipse 1]: [user].
+    trans_r(r(A,B), New, AnnR, AnnNew) :-
+           New = rr(B,A),
+           (nonvar(AnnR) ->
+               AnnR = annotated_term{term:RAnn},
+               RAnn = r(AnnA,AnnB),
+               NewRAnn = rr(AnnB,AnnA),
+               update_struct(annotated_term, [term:NewRAnn], AnnR, AnnNew)
+           ; 
+               true
+           ).
+
+    :- local macro(r/2, trans_r/4,[]).
+            
+    yes.
+    [eclipse 2]: read(user,R).  
+    r(a,b).
+
+    R = rr(b, a)
+    yes.
+    [eclipse 3]: read_annotated(user,R,AR).      
+    r(a,b).
+
+    R = rr(b, a)
+    AR = annotated_term(rr(annotated_term(b, atom, user, 15, 362, 363), annotated_term(a, atom, user, 15, 360, 361)), compound, user, 15, 358, 360)
+    yes.
+
+% The previous example with non-annotation aware transformation:
+
+    [eclipse 1]: [user].
+    trans_r(r(A,B),rr(B,A)).
+    :- local macro(r/2, trans_r/  2,[]).
+
+    yes.
+    [eclipse 2]: read_annotated(user,R,AR).
+    r(a,b).
+
+    R = rr(b, a)
+    AR = annotated_term(rr(annotated_term(b, atom, user, 3, 61, 63), annotated_term(a, atom, user, 3, 61, 63)), compound, user, 3, 61, 63)
+    % all subterms have the same position information
+
 Error:
    local macro(X, trx/2, []).              (Error 4).
    local macro(a/1, tra/2, [c]).           (Error 6).
 ",
-	see_also:[portray/3, expand_macros/2, expand_clause/2, current_macro / 4, erase_macro / 2, phrase / 3, inline / 2]]).
+	see_also:[portray/3, expand_macros/2, expand_clause/2, current_macro / 4, erase_macro / 2, phrase / 3, inline / 2, read_annotated / 3]]).
 
 
 :- comment(portray / 3, [
