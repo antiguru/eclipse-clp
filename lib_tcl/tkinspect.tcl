@@ -79,7 +79,7 @@ proc tkinspect:Inspect_term_init {source} {
     }
 
     toplevel $iw ;#-height 160m -width 190m
-    wm title $iw "Inspect Term"
+    wm title $iw "ECLiPSe Inspector"
     wm minsize $iw 27 3
 
 #    ec_inspect_init

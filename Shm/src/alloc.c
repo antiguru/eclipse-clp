@@ -23,7 +23,7 @@
 /*
 * IDENTIFICATION	alloc.c
 *
-* VERSION		$Id: alloc.c,v 1.1 2006/09/23 01:56:23 snovello Exp $
+* VERSION		$Id: alloc.c,v 1.2 2007/07/03 00:10:25 jschimpf Exp $
 *
 * AUTHOR		Joachim Schimpf
 *
@@ -109,6 +109,7 @@ volatile int delayed_it_ = 0;		/* flags that something is in the queue */
 void
 irq_lock_init(void (*irq_func)(void))
 {
+    it_disabled_ = delayed_it_ = 0;
     delayed_irq_func = irq_func;
 }
 
@@ -219,6 +220,8 @@ pagemanager_init(struct heap_descriptor *hd)
 	pages->free[i] = (struct cluster *) 0;
     pages->allocated = 0;
     pages->freed = 0;
+    pages->log_page = (struct page_log *) 0;
+    pages->log_idx = 0;
 }
 
 
@@ -235,6 +238,35 @@ _alloc_aux_page(struct heap_descriptor *hd)
     ++hd->pages->allocated;
     return address;
 }
+
+static void
+_release_aux_page(struct heap_descriptor *hd, generic_ptr address)
+{
+    (void) hd->less(address, BYTES_PER_PAGE, hd);
+    --hd->pages->allocated;
+}
+
+static void _release_logged_pages(struct heap_descriptor *hd);
+
+void
+pagemanager_fini(struct heap_descriptor *hd)
+{
+    int i;
+    _release_logged_pages(hd);
+    for (i=0; i<BITMAP_BLOCKS; i++)
+    {
+	if (hd->pages->map[i])
+	{
+	    _release_aux_page(hd, hd->pages->map[i]);
+	    hd->pages->map[i] = 0;
+	}
+    }
+    if (hd->pages->allocated)
+    {
+	_print("SHM: not all pages were freed in pagemanager_fini()\n");
+    }
+}
+
 
 #ifdef USE_BITMAPS
 static bits32 *
@@ -429,6 +461,74 @@ free_pages(
 
 
 /*
+ * We keep an additional log of all the more-requests to the OS.
+ * This is used to forcibly free all heap space (allocated or not)
+ * when the heap is finalised. We use auxiliary pages for this log.
+ */
+
+static void
+_log_more_pages(struct heap_descriptor *hd, generic_ptr address, word pages_requested)
+{
+    struct page_log *log_page = hd->pages->log_page;
+
+    if (pages_requested == 0)
+    	return;
+
+    if (log_page)
+    {
+	int i = hd->pages->log_idx;
+	if (address == log_page[i].addr + log_page[i].npages*BYTES_PER_PAGE)
+	{
+	    /* adjacent to previous logged allocation, amend the record */
+	    log_page[i].npages += pages_requested;
+	    return;
+	}
+	if (++i < BYTES_PER_PAGE/sizeof(struct page_log))
+	{
+	    /* create a new log entry in same block */
+	    hd->pages->log_idx = i;
+	    log_page[i].addr = address;
+	    log_page[i].npages = pages_requested;
+	    return;
+	}
+    }
+
+    /* allocate a new auxiliary page for the log, and initialise */
+    hd->pages->log_page = (struct page_log*) _alloc_aux_page(hd);
+    hd->pages->log_idx = 1;
+    hd->pages->log_page[0].addr = log_page;	/* link to previous */
+    hd->pages->log_page[0].npages = 0;
+    hd->pages->log_page[1].addr = address;
+    hd->pages->log_page[1].npages = pages_requested;
+    return;
+}
+
+
+static void
+_release_logged_pages(struct heap_descriptor *hd)
+{
+    struct page_log *log_page = hd->pages->log_page;
+    int max = hd->pages->log_idx;
+    while (log_page)
+    {
+	int i;
+	struct page_log *old_log_page;
+	/* free all the logged page clusters in this log page */
+	for(i=max; i>=1; --i)
+	{
+	    (void) hd->less(log_page[i].addr, log_page[i].npages*BYTES_PER_PAGE, hd);
+	    hd->pages->allocated -= log_page[i].npages;
+	}
+	/* free the log page itself, and proceed to previous one */
+	old_log_page = log_page;
+	log_page = (struct page_log *) log_page[0].addr;
+	_release_aux_page(hd, old_log_page);
+	max = BYTES_PER_PAGE/sizeof(struct page_log) - 1;
+    }
+}
+
+
+/*
  * Allocate memory in units of pages. The second argument returns the
  * amount of memory that has really been allocated. It is at least as
  * much as was requested, but rounded up to the next page multiple.
@@ -556,6 +656,7 @@ alloc_pagewise(
 	}
 
 	/* update some statistics */
+	_log_more_pages(hd, address, pages_requested);
 	pages->allocated += pages_requested;
 	bytes_requested = pages_requested*BYTES_PER_PAGE;
 	if (!pages->min_addr || address < pages->min_addr)

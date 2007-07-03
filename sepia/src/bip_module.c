@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.2 2007/06/20 16:43:34 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /*
@@ -54,6 +54,7 @@ extern syntax_desc
 static int
     p_is_module(value v, type t),
     p_is_locked(value v, type t),
+    p_authorized_module(value v, type t),
     p_lock1(value v, type t),
     p_lock2(value v, type t, value vl, type tl),
     p_lock_pass_(value v, type t, value vl, type tl),
@@ -108,6 +109,7 @@ bip_module_init(int flags)
 	return;
     (void) local_built_in(in_dict("erase_module_", 2), p_erase_module, B_SAFE);
     (void) local_built_in(in_dict("is_a_module", 1), p_is_module, B_SAFE);
+    (void) local_built_in(in_dict("authorized_module", 1), p_authorized_module, B_SAFE);
     (void) built_in(in_dict("is_locked", 1), p_is_locked, B_SAFE);
     (void) built_in(in_dict("begin_module", 1), p_begin_module, B_SAFE);
     (void) local_built_in(in_dict("begin_module", 2), p_begin_module, B_SAFE);
@@ -385,6 +387,14 @@ p_is_module(value v, type t)
 {
     Check_Atom_Or_Nil(v, t);
     Succeed_If(IsModule(v.did));
+}
+
+
+static int
+p_authorized_module(value v, type t)
+{
+    Check_Module_And_Access(v, t);
+    Succeed_;
 }
 
 
@@ -902,13 +912,15 @@ p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod)
 	pword		*prop;
 
 	Check_Module(tfrom_mod, from_mod);
-	Check_Module_Access(from_mod, tfrom_mod);
 
 	Check_Atom_Or_Nil(module, module_tag);
 	if (!IsModule(module.did))
 	{
-	    Succeed_;		/* should make an event !! */
-	} else if (IsLocked(module.did)) {
+	    Succeed_;
+	} else if (IsLocked(module.did)
+		&& (from_mod.did != d_.kernel_sepia
+			|| !IsModuleTag(from_mod.did, tfrom_mod)))
+	{
 	    Bip_Error(LOCKED);
 	}
 

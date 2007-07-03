@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.1 2006/09/23 01:56:06 snovello Exp $
+ * VERSION	$Id: io.c,v 1.2 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /*
@@ -1694,7 +1694,7 @@ ec_outfc(stream_id nst, int c)
  *			Stream must be a file.
  */
 int
-ec_outfw(stream_id nst, long int w)
+ec_outfw(stream_id nst, word w)
 {
     int			res = PSUCCEED;
     register char	*p;
@@ -1705,7 +1705,7 @@ ec_outfw(stream_id nst, long int w)
 	res = StreamMethods(nst).flush(nst);
     p = (char *) StreamPtr(nst);
     s = (char *) &w;
-    for (i = 0; i < sizeof(long); i++)
+    for (i = 0; i < sizeof(word); i++)
 	*p++ = *s++;
     StreamPtr(nst) = (unsigned char *) p;
     StreamMode(nst) |= MWRITE;

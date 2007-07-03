@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.3 2007/07/03 00:10:24 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -50,7 +50,7 @@
 
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2007/02/23 15:28:31 $").
+:- comment(date, "$Date: 2007/07/03 00:10:24 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
@@ -110,7 +110,8 @@
         concat_string([Arch,/,"dbi_mysql.",SUF],F),
 	load(F).
 
-:- external(	s_start/5,	p_session_start),
+:- external(	s_init/1,	p_session_init),
+   external(	s_start/5,	p_session_start),
    external(	s_error_value/3,	p_session_error_value),
    external(	s_commit/1,	p_session_commit),
    external(	s_rollback/1,	p_session_rollback),
@@ -130,7 +131,6 @@
    external(	cursor_N_tuples/4,	p_cursor_N_tuples),
    
    external(	c_field_value/3,	p_cursor_field_value),
-   external(	cursor_cancel/1,	p_cursor_cancel),
    external(    cursor_free/1,          p_cursor_free),
    
    external(	handle_free_eagerly/1,	p_handle_free_eagerly),
@@ -151,14 +151,14 @@ extract_session(s_sql_prepare_query(S,_,_,_,_,_),S).
 extract_session(s_close(S),S).
 extract_session(s_commit(S),S).
 extract_session(s_rollback(S),S).
-extract_session(s_start(_,_,_,_,S),S).
+extract_session(s_init(S),S).
+extract_session(s_start(S,_,_,_,_),S).
 
 :- mode extract_cursor(+,-).
 extract_cursor(cursor_next_execute(C,_),C).
 extract_cursor(cursor_N_execute(C,_,_,_),C).
 extract_cursor(cursor_next_tuple(C,_),C).
 extract_cursor(cursor_N_tuples(C,_,_,_),C).
-extract_cursor(cursor_cancel(C),C).
 extract_cursor(cursor_close(C),C).
 
 session_abort(S) :-
@@ -169,6 +169,7 @@ session_abort(S) :-
         ).
 
 cursor_session(cursor{session:S0},S) ?- S0 = S.
+
 
 
 dbi_error_handler(Error, Goal) :-
@@ -184,6 +185,7 @@ dbi_error_handler(Error, Goal) :-
 
 dbi_error_handler(Error,Goal) :-
 	extract_session(Goal,S),
+        nonvar(S),
 	s_error_value(S,Code,Message),
 	!,
 	error_id(Error,Id),
@@ -236,13 +238,18 @@ session_start(Login,Passwd0,OptsList,Session) :-
         get_user_and_host(Login, User, Host),
         get_opts(session, OptsList,Opts), !,
         concat_string([Passwd0], Passwd),
-        s_start(User,Host,Passwd,Opts,Session).
+        s_init(Session),
+        s_start(Session,User,Host,Passwd,Opts).
 session_start(Login,Passwd,OptsList,Session) :-
         error(6,session_start(Login,Passwd,OptsList,Session)).
 
 
 session_error_value(Session,Code,Message) :-
-    s_error_value(Session,Code,Message).
+        ( is_handle(Session) ->
+            s_error_value(Session,Code,Message)
+        ;
+            error(5, session_error_value(Session,Code,Message))
+        ).
 
 
 session_commit(Session) :-
@@ -257,8 +264,11 @@ session_rollback(Session) :-
 
 
 session_sql(Session,SQL,Tuples) :-
-    s_sql_dml(Session,SQL,Tuples).
-
+    ( is_handle(Session) -> 
+        s_sql_dml(Session,SQL,Tuples) 
+    ;
+        error(5, session_sql(Session,SQL,Tuples))
+    ).
 
 session_sql_query(Session,Template,SQL,Cursor) :-
     Cursor = cursor{handle:CursorH,session:Session},
@@ -288,7 +298,11 @@ session_sql_prepare_query(Session,ParamT,QueryT,SQL,N,Cursor) :-
 
 
 session_close(Session) :-
-    s_close(Session).
+    ( is_handle(Session) ->
+        s_close(Session)
+    ;
+        error(5, session_close(Session))
+    ).        
 
 
 %
@@ -302,15 +316,17 @@ field_t( return_code_as_string,	3).
 field_t( warning_flags,		4).
 field_t( row_ID,		5).
 
-cursor_close(cursor{handle:Handle}) ?-
+cursor_close(cursor{handle:Handle}) ?- !,
         cursor_free(Handle).
+cursor_close(Cursor) :-
+        error(5, cursor_close(Cursor)).
 
 cursor_field_value(Cursor,Field,Value) :-
 	atom(Field),
+        Cursor = cursor{},
 	field_t(Field,F),
 	!,
 	c_field_value(Cursor,F,Value).
-
 cursor_field_value(Cursor,Field,Value) :-
     	error(5,cursor_field_value(Cursor,Field,Value)).
 
@@ -372,7 +388,6 @@ cursor_lazy_tuples(Cursor,Cut,Tuples) :-
 	;
 	    Rest = []
 	).
-
 
 cursor_all_execute(_Cursor,[]) :- !.
 cursor_all_execute(Cursor,Tuples) :-
@@ -522,6 +537,7 @@ dbi_finalize :-
         exceptions:[
             5: "Login, Password or Options not of the correct type.",
             6: "Invalid option specification in Options.",
+            dbi_bad_field: "Problems with Option's argument.",
             dbi_error: "Problems connecting to DBMS server."]
                    
 ]).
@@ -923,10 +939,14 @@ make_accounts(Session) :-
         exceptions: [5: "Cursor is not a valid cursor handle", 
                      5: "Type mismatch between parameter template"
                         " specification for Cursor and actual tuple data",
+                     dbi_buffer_over: "Parameter value(s) too big for the"
+                                      " buffer",
                      dbi_error: "Error from DBMS while executing SQL"
                                 " associated with Cursor.",
                      dbi_bad_template: "ParamTemplate not specified when"
-                                       " Cursor was created"
+                                       " Cursor was created",
+                     dbi_bad_cursor: "The Cursor is not in a state to"
+                                     " execute a query (e.g. it was cancelled)"
                     ],
         eg:"
   % note \'?\' in SQL in the syntax MySQL uses for placeholders. This may be
@@ -1067,7 +1087,10 @@ make_accounts(Session) :-
                                 " associated with Cursor.",
                      dbi_error: "Error from DBMS while fetching result",
                      dbi_not_query: "The SQL associated with Cursor is not"
-                                    " a query and so cannot return results."
+                                    " a query and so cannot return results.",
+                     dbi_buffer_over: "Result value(s) too big for the"
+                                      " buffer",
+                     dbi_cancelled: "The cursor have been cancelled."
                     ],
         eg:"
   check_overdraft_limit(Session, Account) :-
@@ -1090,7 +1113,12 @@ make_accounts(Session) :-
 </P><P>
  If the SQL query have not yet been executed, and it contains no
  parameters, then the SQL query will first be executed before retrieving
- the result.")
+ the result.
+</P><P>
+ cursor_next_tuple/2 will fail when all the results tuples for the query
+ have been returned. If it is then called again for the same SQL query,
+ this cancels the cursor, and raise the cursor cancelled error. 
+")
 ]).
 
 :- comment(cursor_all_tuples/2, [

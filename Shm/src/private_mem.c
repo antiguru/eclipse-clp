@@ -23,7 +23,7 @@
 /*---------------------------------------------------------------------
  * IDENTIFICATION	private_mem.c
  *
- * VERSION		$Id: private_mem.c,v 1.1 2006/09/23 01:56:26 snovello Exp $
+ * VERSION		$Id: private_mem.c,v 1.2 2007/07/03 00:10:25 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -118,6 +118,20 @@ _private_sbrk(word size, int align, struct heap_descriptor *hd)
 #endif
 }
 
+static int
+_private_release(generic_ptr address, word size, struct heap_descriptor *hd)
+{
+#ifdef HAVE_WINDOWS_H
+    return VirtualFree(address, 0, MEM_RELEASE);
+#else
+#ifdef USE_MMAP
+    return !munmap(address, size);
+#else
+    return 1;
+#endif
+#endif
+}
+
 char *
 private_mem_init_desc(
 	void (*panic_fct)(const char*, const char*),
@@ -127,37 +141,24 @@ private_mem_init_desc(
     /* 
      * Set up the private heap
      */
-#ifdef HAVE_WINDOWS_H
-    private_memory = (struct prmem *)
-	VirtualAlloc(NULL,sizeof(struct prmem),MEM_COMMIT,PAGE_READWRITE);
-    if (!private_memory)
-    	return (char *) -1;
-#else
 #ifdef USE_MMAP
 #ifdef HAVE_MAP_ANONYMOUS
     hd->map_fd = -1;
 #else
     hd->map_fd = open("/dev/zero", O_RDWR);
 #endif
+#endif
     private_memory = (struct prmem *)
-	mmap((void*) 0, sizeof(struct prmem),
-		PROT_READ|PROT_WRITE,
-		MAP_ANONYMOUS|MAP_PRIVATE,
-		hd->map_fd, (off_t) 0);
-    if (private_memory == (struct prmem *) MAP_FAILED)
-    	return (char *) -1;
-#else
-    private_memory = (struct prmem *)
-	sbrk(sizeof(struct prmem));
+	_private_sbrk(sizeof(struct prmem), 1, hd);
     if (private_memory == (struct prmem *) -1)
     	return (char *) -1;
-#endif
-#endif
+
     hd->shared_header = 0;
     hd->pages = &private_memory->pages;
     hd->heap = &private_memory->heap;
     hd->panic = panic_fct;
     hd->more = _private_sbrk;
+    hd->less = _private_release;
     pagemanager_init(hd);
     alloc_init(hd);
     return (char *) private_memory;
@@ -168,6 +169,25 @@ private_mem_init(void (*panic_fct)(const char*, const char*))
 {
     Disable_Int();
     (void) private_mem_init_desc(panic_fct, &private_heap);
+    Enable_Int();
+}
+
+void
+private_mem_release_desc(struct heap_descriptor *hd)
+{
+    struct prmem dummy;
+    char *prmem_struct_addr;
+    pagemanager_fini(hd);
+    /* sorry, hack to find lost address of the above allocated structure */
+    prmem_struct_addr = (char*)hd->pages - ((char*)&dummy.pages - (char*)&dummy);
+    _private_release(prmem_struct_addr, sizeof(struct prmem), NULL);
+}
+
+void
+private_mem_release()
+{
+    Disable_Int();
+    (void) private_mem_release_desc(&private_heap);
     Enable_Int();
 }
 

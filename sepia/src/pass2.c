@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: pass2.c,v 1.1 2006/09/23 01:56:11 snovello Exp $
+ * VERSION	$Id: pass2.c,v 1.2 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /*
@@ -253,7 +253,6 @@ static var_desc
 static void	_print_pass2_info(cl_desc *clds, proc_desc *procedure);
 
 int		debug_pass2 = 0;
-static type	kernel_tag_;
 
  /*
   * FUNCTION DEFINITIONS: 

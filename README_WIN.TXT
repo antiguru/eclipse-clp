@@ -30,7 +30,9 @@ ECLiPSe - Constraint Logic Programming System
 ECLiPSe on Windows (see README_UNIX for UNIX/Linux, README_MACOSX for MacOSX)
 -----------------------------------------------------------------------------
 
-***Please read INSTALL first if you are compiling from source.
+*** These instructions are for installing a binary distribution!
+*** If you want to compile from source, see the file INSTALL,
+*** and document/internal/SetupGuide.pdf for more detailed help. 
 
 ECLiPSe for Windows is primarily intended and supported only for
 Windows-NT and later versions (Windows-2000, Windows-XP, ...).
@@ -58,8 +60,10 @@ and the following optional packages:
 - An interface to COIN-OR's open source solvers CLP and CBC
 - An interface to a version of Dash Optimization's XPRESS-MP solver
 - 3rd party libraries
-- A bundled distribution of GraphViz (to support the visualisation tools)
-- A bundled distribution of Tcl/Tk (to support the TkECLiPSE GUI)
+- A bundled standalone distribution of GraphViz
+  (to support the visualisation tools)
+- A bundled (but not standalone) distribution of Tcl/Tk
+  (to support the TkECLiPSE GUI)
 
 For installation, double click on ECLiPSe<Version>_<Build>.exe and
 the install wizard will guide you through the installation.
@@ -70,6 +74,15 @@ Manual Installation from .tgz Packages
 --------------------------------------
 
 You should have gotten the following files for the "i386_nt" architecture:
+There are different versions of these files for different machine
+architectures. These are tar-files compressed with gzip.
+
+If you are downloading from SourceForge, these file names may have
+additional version (and platform) specification like
+
+     eclipse_basic_5_10_57_i386_linux.tgz 
+
+that are required to make the filename unique. 
 
 Base:
     README_WIN.TXT		The file you are reading now
@@ -82,12 +95,11 @@ Optional:
                                 CLP and CBC
 
 Support:
-    tcl831.exe			A matching Tcl/Tk release (8.3)
+    tcltk.exe			A matching Tcl/Tk release (8.5)
     				(you may have that already).
-				Needed for the tkeclipse
-				development GUI.
+				Needed for the tkeclipse development GUI.
     editors_eclipse_support.tgz Support for various editors for editing
-                                ECLiPSe code.       
+                                ECLiPSe code.  
 
 These other files are only needed under special circumstances:
     eclipse_rt.tgz		Runtime only (subset of eclipse_basic.tgz)
@@ -127,7 +139,7 @@ Installation
 
 
 3.  If you don't have Tcl/Tk 8 on your machine yet, or you have a version
-    different from 8.3, install it now by executing tcl831.exe !
+    different from 8.5, install it now.
 
     It is not absolutely necessary to have Tcl/Tk in order to
     run ECLiPSe, but it simplifies the installation and allows
@@ -148,7 +160,7 @@ Installation
 If you don't have Tcl/Tk
 ------------------------
 
-After unpaking the distribution files you need to make
+After unpacking the distribution files you need to make
 a registry entry for ECLiPSe:
 
    - double-click on <eclipsedir>\lib\i386_nt\eclipse.reg

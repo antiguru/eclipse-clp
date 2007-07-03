@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.2 2007/02/09 02:41:53 kish_shen Exp $
+** $Id: rounding_control.h,v 1.3 2007/07/03 00:10:28 jschimpf Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -123,6 +123,9 @@
     #define DLLEXP __declspec(dllimport)
     #endif
 
+    #define Declare_Rounding_Control_State \
+	unsigned int ec_fpu_control_orig_;
+
     extern DLLEXP unsigned int ec_fpu_control_orig_;
     #define init_rounding_modes() { \
 		ec_fpu_control_orig_ = _statusfp(); \
@@ -151,6 +154,11 @@
     /*
     ** Bits 14-13 of the 32-bit MXCSR Register are for rounding control:
     */
+
+    #define Declare_Rounding_Control_State \
+	unsigned int ec_fpu_control_orig_; \
+	unsigned int ec_fpu_control_up_; \
+	unsigned int ec_fpu_control_down_;
 
     extern unsigned int ec_fpu_control_orig_;
     extern unsigned int ec_fpu_control_up_;
@@ -194,6 +202,11 @@
     ** or precision...
     */
 
+    #define Declare_Rounding_Control_State \
+	fpu_control_t ec_fpu_control_orig_; \
+	fpu_control_t ec_fpu_control_up_; \
+	fpu_control_t ec_fpu_control_down_;
+
     extern fpu_control_t ec_fpu_control_orig_;
     extern fpu_control_t ec_fpu_control_up_;
     extern fpu_control_t ec_fpu_control_down_;
@@ -231,6 +244,9 @@
 
     #include <ieeefp.h>
 
+    #define Declare_Rounding_Control_State \
+	fp_rnd ec_fpu_round_orig_;
+
     extern fp_rnd ec_fpu_round_orig_;
 
     #define init_rounding_modes() { \
@@ -264,6 +280,11 @@
     ** 51-47  Trap flags (don't touch)
     ** 46-0   Reserved
     */
+
+    #define Declare_Rounding_Control_State \
+	unsigned long ec_fpu_control_orig_; \
+	unsigned long ec_fpu_control_up_; \
+	unsigned long ec_fpu_control_down_;
 
     extern unsigned long ec_fpu_control_orig_;
     extern unsigned long ec_fpu_control_up_;
@@ -318,6 +339,9 @@
 
     #include <fenv.h>
 
+    #define Declare_Rounding_Control_State \
+	int ec_fpu_round_orig_;
+
     extern int ec_fpu_round_orig_;
 
     #define init_rounding_modes() { \
@@ -332,9 +356,12 @@
     #define restore_round_mode() { \
                 fesetround(ec_fpu_round_orig_); \
             }
-*/
+
 # else  /* defined(__POWERPC__) */
 /* this code is based on David K. Wittenberg's macros */
+
+    #define Declare_Rounding_Control_State
+
     #define init_rounding_modes() {}
 
     #define set_round_up() { \
@@ -359,6 +386,9 @@
 
     #include <sys/ieeefp.h>
     #include <floatingpoint.h>
+
+    #define Declare_Rounding_Control_State \
+	char *ec_fpu_round_orig_;
 
     extern char *ec_fpu_round_orig_;
 

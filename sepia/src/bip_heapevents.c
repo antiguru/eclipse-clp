@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_heapevents.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+ * Version:	$Id: bip_heapevents.c,v 1.3 2007/07/03 00:10:29 jschimpf Exp $
  *
  * Contents:	Built-ins for the heap-event-primitives
  *
@@ -39,7 +39,7 @@
 
 #include        <stdio.h>	/* for sprintf() */
 
-static dident	d_visible_, d_defers0_;
+static dident	d_defers0_;
 
 /*----------------------------------------------------------------------
  * Prolog heap events

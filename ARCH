@@ -27,7 +27,7 @@
 # This name is used to create the machine/OS dependent subdirectories
 # of the ECLiPSe installation.
 
-# IC-Parc, $Id: ARCH,v 1.1 2006/09/23 01:44:57 snovello Exp $
+# IC-Parc, $Id: ARCH,v 1.2 2007/07/03 00:10:20 jschimpf Exp $
 
 OPSYS=`(uname -s) 2>/dev/null` || OPSYS=unknown
 VERSION=`(uname -r) 2>/dev/null` || VERSION=unknown
@@ -113,9 +113,12 @@ UNIX_System_V)
 	;;
 Windows_NT)
 	export ARCH=i386_nt;;
+CYGWIN*)
+	export ARCH=i386_nt;;
 Darwin)
 	case $MODEL in
 	    "Power Macintosh")	ARCH=ppc_macosx;;
+	    i386)		ARCH=i386_macosx;;
 	    *) 			ARCH=unknown;;
 	esac
 	;;

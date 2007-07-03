@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /*
@@ -236,8 +236,6 @@ static dident	d_event_, d_throw_, d_internal_, d_defers_;
 static type	kernel_tag_;
 static int	user_error = USER_ERROR;
 
-static sig_action_t sigactions[NSIG];
-
 
 int	p_reset(void);
 
@@ -258,16 +256,21 @@ static int
 	_set_error_array(pri **arr, long int n, dident w, value vm, type tm);
 
 static RETSIGTYPE
-#ifdef SA_SIGINFO
-	_break(int, siginfo_t*, void *),
-#else
-	_break(int),
-#endif
 	_abort_handler(int),
 	_throw_handler(int);
 
-extern RETSIGTYPE
-	sigprof_handler(int);
+#ifdef SA_SIGINFO
+static RETSIGTYPE _break(int, siginfo_t*, void *);
+#else
+static RETSIGTYPE _break(int);
+#endif
+
+/* Profiling handler is defined in emu.c */
+#if defined(__GNUC__) && defined(HAVE_UCONTEXTGREGS)
+extern RETSIGTYPE sigprof_handler(int, siginfo_t*, void *);
+#else
+extern RETSIGTYPE sigprof_handler(int);
+#endif
 
 #define Check_Error_Number(v,t)				\
 	Check_Integer(t)				\
@@ -280,269 +283,6 @@ extern RETSIGTYPE
     Check_Integer(t)					\
     if((v).nint <= 0 || (v).nint >= NSIG)		\
 	{ Bip_Error(RANGE_ERROR) }
-
-
-void
-handlers_init(int flags)
-{
-    register int i;
-
-    d_event_ = in_dict("event",1);
-    d_throw_ = in_dict("throw",1);
-    d_defers_ = in_dict("defers",1);
-    d_internal_ = in_dict("internal",0);
-    kernel_tag_.kernel = ModuleTag(d_.kernel_sepia);
-
-    if (flags & INIT_SHARED)
-    {
-	ErrorHandler =
-	    (pri **) hg_alloc(MAX_ERRORS * sizeof(pri *));
-	DefaultErrorHandler =
-	    (pri **) hg_alloc(MAX_ERRORS * sizeof(pri *));
-	DefaultErrorHandler[0] = ErrorHandler[0] =
-	    DidPtr(in_dict("boot_error", 2))->procedure;
-	for(i = 1; i < MAX_ERRORS; i++)
-	{
-	    ErrorHandler[i] = (pri *) 0;
-	    DefaultErrorHandler[i] = (pri *) 0;
-	}
-
-	InterruptHandler =
-	    (pri **) hg_alloc(NSIG * sizeof(pri *));
-	InterruptHandlerFlags =
-	    (int *) hg_alloc(NSIG * sizeof(int));
-	InterruptName =
-	    (dident *) hg_alloc(NSIG * sizeof(dident));
-
-	for(i = 0; i < NSIG; i++)
-	{
-	    InterruptHandler[i] = (pri *) 0;
-	    InterruptHandlerFlags[i] = IH_UNCHANGED;
-	    InterruptName[i] = D_UNKNOWN;
-	}
-
-	/*
-	 * Assign the prolog names to the signals
-	 */
-
-	/* 0 is a pseudo-signal used for parallel abort */
-	InterruptHandlerFlags[0] = IH_POST_EVENT;
-
-#ifdef SIGHUP
-	InterruptName[SIGHUP] = in_dict("hup", 0);
-#endif
-	InterruptName[SIGINT] = in_dict("int", 0);
-#ifdef SIGQUIT
-	InterruptName[SIGQUIT] = in_dict("quit", 0);
-#endif
-	InterruptName[SIGILL] = in_dict("ill", 0);
-#ifdef SIGTRAP
-	InterruptName[SIGTRAP] = in_dict("trap", 0);
-#endif
-	InterruptName[SIGABRT] = in_dict("abrt", 0);
-#ifdef SIGEMT
-	InterruptName[SIGEMT] = in_dict("emt", 0);
-#endif
-	InterruptName[SIGFPE] = in_dict("fpe", 0);
-#ifdef SIGKILL
-	InterruptName[SIGKILL] = in_dict("kill", 0);
-#endif
-#ifdef SIGBUS
-	InterruptName[SIGBUS] = in_dict("bus", 0);
-#endif
-	InterruptName[SIGSEGV] = in_dict("segv", 0);
-#ifdef SIGSYS
-	InterruptName[SIGSYS] = in_dict("sys", 0);
-#endif
-#ifdef SIGPIPE
-	InterruptName[SIGPIPE] = in_dict("pipe", 0);
-#endif
-#ifdef SIGALRM
-	ec_sigalrm = SIGALRM;
-	InterruptName[SIGALRM] = in_dict("alrm", 0);
-#else
-	ec_sigalrm = 0;	/* will be properly assigned below */
-#endif
-	InterruptName[SIGTERM] = in_dict("term", 0);
-#ifdef SIGUSR1
-	InterruptName[SIGUSR1] = in_dict("usr1", 0);
-#endif
-#ifdef SIGUSR2
-	InterruptName[SIGUSR2] = in_dict("usr2", 0);
-#endif
-#ifdef SIGCHLD
-	InterruptName[SIGCHLD] = in_dict("chld", 0);
-#endif
-#ifdef SIGCLD
-	InterruptName[SIGCLD] = in_dict("chld", 0);	/* old name for CHLD */
-#endif
-#ifdef SIGWINCH
-	InterruptName[SIGWINCH] = in_dict("winch", 0);
-#endif
-#ifdef SIGURG
-	InterruptName[SIGURG] = in_dict("urg", 0);
-#endif
-#ifdef SIGSUSP
-	InterruptName[SIGSUSP] = in_dict("susp", 0);
-#endif
-#ifdef SIGSTOP
-	InterruptName[SIGSTOP] = in_dict("stop", 0);
-#endif
-#ifdef SIGTSTP
-	InterruptName[SIGTSTP] = in_dict("tstp", 0);
-#endif
-#ifdef SIGCONT
-	InterruptName[SIGCONT] = in_dict("cont", 0);
-#endif
-#ifdef SIGTTIN
-	InterruptName[SIGTTIN] = in_dict("ttin", 0);
-#endif
-#ifdef SIGTTOU
-	InterruptName[SIGTTOU] = in_dict("ttou", 0);
-#endif
-#ifdef SIGVTALRM
-	InterruptName[SIGVTALRM] = in_dict("vtalrm", 0);
-#endif
-#ifdef SIGPROF
-	InterruptName[SIGPROF] = in_dict("prof", 0);
-#endif
-#ifdef SIGXCPU
-	InterruptName[SIGXCPU] = in_dict("xcpu", 0);
-#endif
-#ifdef SIGXFSZ
-	InterruptName[SIGXFSZ] = in_dict("xfsz", 0);
-#endif
-#ifdef SIGPWR
-	InterruptName[SIGPWR] = in_dict("pwr", 0);
-#endif
-#ifdef SIGIOT
-	InterruptName[SIGIOT] = in_dict("iot", 0);
-#endif
-#ifdef SIGWAITING
-	InterruptName[SIGWAITING] = in_dict("waiting", 0);
-#endif
-#ifdef SIGLWP
-	InterruptName[SIGLWP] = in_dict("lwp", 0);
-#endif
-#ifdef SIGPOLL
-	InterruptName[SIGPOLL] = in_dict("poll", 0);
-#endif
-#ifdef SIGIO
-	ec_sigio = SIGIO;
-	InterruptName[SIGIO] = in_dict("io", 0);	/* after POLL */
-#else
-	ec_sigio = 0;		/* will be properly assigned below */
-#endif
-#ifdef SIGLOST
-	InterruptName[SIGLOST] = in_dict("lost", 0);
-#endif
-#ifdef SIGQUIT
-	InterruptName[SIGQUIT] = in_dict("quit", 0);
-#endif
-#ifdef SIGPHONE
-	InterruptName[SIGPHONE] = in_dict("phone", 0);
-#endif
-
-	/*
-	 * If we didn't have SIGALRM defined, find a free number and fake it
-	 * (use 14 of possible). We use it for our timer implementation.
-	 */
-#ifndef SIGALRM
-	for(i = 14; i < NSIG; i++)
-	{
-	    if (InterruptName[i] == D_UNKNOWN)
-	    {
-		ec_sigalrm = i;
-		InterruptName[i] = in_dict("alrm", 0);
-		InterruptHandlerFlags[i] = IH_POST_EVENT;
-		break;
-	    }
-	}
-	if (!ec_sigalrm)
-	    ec_panic("Couldn't find a pseudo-signal number for SIGALRM", "handlers_init()");
-#endif
-#ifndef SIGIO
-	for(i = 1; i < NSIG; i++)
-	{
-	    if (InterruptName[i] == D_UNKNOWN)
-	    {
-		ec_sigio = i;
-		InterruptName[i] = in_dict("io", 0);
-		InterruptHandlerFlags[i] = IH_POST_EVENT;
-		break;
-	    }
-	}
-	if (!ec_sigio)
-	    ec_panic("Couldn't find a pseudo-signal number for SIGIO", "handlers_init()");
-#endif
-    }
-    if (flags & INIT_PRIVATE)	/* handler arrays already exist */
-    {
-	/* get a private copy of the array pointers */
-	error_handler_ = ErrorHandler;
-	default_error_handler_ = DefaultErrorHandler;
-	interrupt_handler_ = InterruptHandler;
-	interrupt_handler_flags_ = InterruptHandlerFlags;
-	interrupt_name_ = InterruptName;
-    }
-    /*
-     * event builtins
-     */
-    if (flags & INIT_SHARED)
-    {
-	(void) local_built_in(in_dict("post_events",1),
-				p_post_events,			B_SAFE);
-	(void) built_in(in_dict("pause",0),	p_pause,	B_SAFE);
-	(void) built_in(in_dict("define_error", 2),
-				p_define_error,		B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("reset_error_handler", 1),
-				p_reset_error_handler,		B_SAFE);
-	(void) built_in(in_dict("reset_event_handler", 1),
-				p_reset_error_handler,		B_SAFE);
-
-	(void) local_built_in(d_.reset,		p_reset,	B_SAFE);
-	(void) exported_built_in(in_dict("set_error_handler_", 3),
-				p_set_error_handler,		B_SAFE);
-	(void) exported_built_in(in_dict("set_default_error_handler_", 3),
-				p_set_default_error_handler,	B_SAFE);
-	(void) local_built_in(in_dict("set_interrupt_handler_nr", 3),
-				p_set_interrupt_handler_nr,	B_SAFE);
-	local_built_in(in_dict("get_error_handler", 4),
-				p_get_error_handler,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT) |
-		    BoundArg(4, CONSTANT);
-	local_built_in(in_dict("get_event_handler", 4),
-				p_get_event_handler,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT) |
-		    BoundArg(4, CONSTANT);
-	local_built_in(in_dict("get_interrupt_handler_nr", 4),
-				p_get_interrupt_handler_nr, B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT) |
-		    BoundArg(4, CONSTANT);
-	(void) local_built_in(in_dict("valid_error", 1),
-				p_valid_error,		B_SAFE);
-	local_built_in(in_dict("interrupt_id_det", 2),
-				p_interrupt_id_det,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-    }
-    
-
-    /* This must be done before we install _break() as a handler */
-    irq_lock_init(delayed_break);
-
-    if (flags & INIT_PROCESS)
-    {
-	Init_Block_Mask();
-	Save_Sig_Mask(initial_sig_mask_);
-    }
-    else		/* on reset signals may need to be unblocked  */
-    {
-	Restore_Sig_Mask(initial_sig_mask_);
-    }
-    spurious = 0;	/* reset fatal signal nesting indicator */
-
-    errno = 0;		/*  we may have ignored some return values ... */
-}
 
 
 /*----------------------------------------------------------------------
@@ -940,6 +680,7 @@ _install_int_handler(int i, int how, pri *proc)
     case IH_POST_EVENT:
 	Add_To_Block_Mask(i);
 #ifdef SA_SIGINFO
+	action.sa_flags |= SA_SIGINFO;
 	action.sa_sigaction = _break;
 #else
 	action.sa_handler = _break;
@@ -971,7 +712,12 @@ _install_int_handler(int i, int how, pri *proc)
 #ifdef SIGPROF
 	case SIGPROF:
 	    Del_From_Block_Mask(i);
+#if defined(__GNUC__) && defined(HAVE_UCONTEXTGREGS)
+	    action.sa_flags |= SA_SIGINFO;
+	    action.sa_sigaction = sigprof_handler;
+#else
 	    action.sa_handler = sigprof_handler;
+#endif
 	    break;
 #endif
 #if defined(SIGIO)
@@ -1503,5 +1249,275 @@ p_valid_error(value vn, type tn)
     Succeed_;
 }
 
-/* WARNING: Bip_Error is redefined to Bip_Error_Fail at this point */
+/* undo redefiinition of Bip_Error() */
+#undef Bip_Error
+#define Bip_Error(N) return(N);
+
+
+void
+handlers_init(int flags)
+{
+    register int i;
+
+    first_delayed_ = next_delayed_ = 0;
+
+    d_event_ = in_dict("event",1);
+    d_throw_ = in_dict("throw",1);
+    d_defers_ = in_dict("defers",1);
+    d_internal_ = in_dict("internal",0);
+    kernel_tag_.kernel = ModuleTag(d_.kernel_sepia);
+
+    if (flags & INIT_SHARED)
+    {
+	ErrorHandler =
+	    (pri **) hg_alloc(MAX_ERRORS * sizeof(pri *));
+	DefaultErrorHandler =
+	    (pri **) hg_alloc(MAX_ERRORS * sizeof(pri *));
+	DefaultErrorHandler[0] = ErrorHandler[0] =
+	    DidPtr(in_dict("boot_error", 2))->procedure;
+	for(i = 1; i < MAX_ERRORS; i++)
+	{
+	    ErrorHandler[i] = (pri *) 0;
+	    DefaultErrorHandler[i] = (pri *) 0;
+	}
+
+	InterruptHandler =
+	    (pri **) hg_alloc(NSIG * sizeof(pri *));
+	InterruptHandlerFlags =
+	    (int *) hg_alloc(NSIG * sizeof(int));
+	InterruptName =
+	    (dident *) hg_alloc(NSIG * sizeof(dident));
+
+	for(i = 0; i < NSIG; i++)
+	{
+	    InterruptHandler[i] = (pri *) 0;
+	    InterruptHandlerFlags[i] = IH_UNCHANGED;
+	    InterruptName[i] = D_UNKNOWN;
+	}
+
+	/*
+	 * Assign the prolog names to the signals
+	 */
+
+	/* 0 is a pseudo-signal used for parallel abort */
+	InterruptHandlerFlags[0] = IH_POST_EVENT;
+
+#ifdef SIGHUP
+	InterruptName[SIGHUP] = in_dict("hup", 0);
+#endif
+	InterruptName[SIGINT] = in_dict("int", 0);
+#ifdef SIGQUIT
+	InterruptName[SIGQUIT] = in_dict("quit", 0);
+#endif
+	InterruptName[SIGILL] = in_dict("ill", 0);
+#ifdef SIGTRAP
+	InterruptName[SIGTRAP] = in_dict("trap", 0);
+#endif
+	InterruptName[SIGABRT] = in_dict("abrt", 0);
+#ifdef SIGEMT
+	InterruptName[SIGEMT] = in_dict("emt", 0);
+#endif
+	InterruptName[SIGFPE] = in_dict("fpe", 0);
+#ifdef SIGKILL
+	InterruptName[SIGKILL] = in_dict("kill", 0);
+#endif
+#ifdef SIGBUS
+	InterruptName[SIGBUS] = in_dict("bus", 0);
+#endif
+	InterruptName[SIGSEGV] = in_dict("segv", 0);
+#ifdef SIGSYS
+	InterruptName[SIGSYS] = in_dict("sys", 0);
+#endif
+#ifdef SIGPIPE
+	InterruptName[SIGPIPE] = in_dict("pipe", 0);
+#endif
+#ifdef SIGALRM
+	ec_sigalrm = SIGALRM;
+	InterruptName[SIGALRM] = in_dict("alrm", 0);
+#else
+	ec_sigalrm = 0;	/* will be properly assigned below */
+#endif
+	InterruptName[SIGTERM] = in_dict("term", 0);
+#ifdef SIGUSR1
+	InterruptName[SIGUSR1] = in_dict("usr1", 0);
+#endif
+#ifdef SIGUSR2
+	InterruptName[SIGUSR2] = in_dict("usr2", 0);
+#endif
+#ifdef SIGCHLD
+	InterruptName[SIGCHLD] = in_dict("chld", 0);
+#endif
+#ifdef SIGCLD
+	InterruptName[SIGCLD] = in_dict("chld", 0);	/* old name for CHLD */
+#endif
+#ifdef SIGWINCH
+	InterruptName[SIGWINCH] = in_dict("winch", 0);
+#endif
+#ifdef SIGURG
+	InterruptName[SIGURG] = in_dict("urg", 0);
+#endif
+#ifdef SIGSUSP
+	InterruptName[SIGSUSP] = in_dict("susp", 0);
+#endif
+#ifdef SIGSTOP
+	InterruptName[SIGSTOP] = in_dict("stop", 0);
+#endif
+#ifdef SIGTSTP
+	InterruptName[SIGTSTP] = in_dict("tstp", 0);
+#endif
+#ifdef SIGCONT
+	InterruptName[SIGCONT] = in_dict("cont", 0);
+#endif
+#ifdef SIGTTIN
+	InterruptName[SIGTTIN] = in_dict("ttin", 0);
+#endif
+#ifdef SIGTTOU
+	InterruptName[SIGTTOU] = in_dict("ttou", 0);
+#endif
+#ifdef SIGVTALRM
+	InterruptName[SIGVTALRM] = in_dict("vtalrm", 0);
+#endif
+#ifdef SIGPROF
+	InterruptName[SIGPROF] = in_dict("prof", 0);
+#endif
+#ifdef SIGXCPU
+	InterruptName[SIGXCPU] = in_dict("xcpu", 0);
+#endif
+#ifdef SIGXFSZ
+	InterruptName[SIGXFSZ] = in_dict("xfsz", 0);
+#endif
+#ifdef SIGPWR
+	InterruptName[SIGPWR] = in_dict("pwr", 0);
+#endif
+#ifdef SIGIOT
+	InterruptName[SIGIOT] = in_dict("iot", 0);
+#endif
+#ifdef SIGWAITING
+	InterruptName[SIGWAITING] = in_dict("waiting", 0);
+#endif
+#ifdef SIGLWP
+	InterruptName[SIGLWP] = in_dict("lwp", 0);
+#endif
+#ifdef SIGPOLL
+	InterruptName[SIGPOLL] = in_dict("poll", 0);
+#endif
+#ifdef SIGIO
+	ec_sigio = SIGIO;
+	InterruptName[SIGIO] = in_dict("io", 0);	/* after POLL */
+#else
+	ec_sigio = 0;		/* will be properly assigned below */
+#endif
+#ifdef SIGLOST
+	InterruptName[SIGLOST] = in_dict("lost", 0);
+#endif
+#ifdef SIGQUIT
+	InterruptName[SIGQUIT] = in_dict("quit", 0);
+#endif
+#ifdef SIGPHONE
+	InterruptName[SIGPHONE] = in_dict("phone", 0);
+#endif
+
+	/*
+	 * If we didn't have SIGALRM defined, find a free number and fake it
+	 * (use 14 of possible). We use it for our timer implementation.
+	 */
+#ifndef SIGALRM
+	for(i = 14; i < NSIG; i++)
+	{
+	    if (InterruptName[i] == D_UNKNOWN)
+	    {
+		ec_sigalrm = i;
+		InterruptName[i] = in_dict("alrm", 0);
+		InterruptHandlerFlags[i] = IH_POST_EVENT;
+		break;
+	    }
+	}
+	if (!ec_sigalrm)
+	    ec_panic("Couldn't find a pseudo-signal number for SIGALRM", "handlers_init()");
+#endif
+#ifndef SIGIO
+	for(i = 1; i < NSIG; i++)
+	{
+	    if (InterruptName[i] == D_UNKNOWN)
+	    {
+		ec_sigio = i;
+		InterruptName[i] = in_dict("io", 0);
+		InterruptHandlerFlags[i] = IH_POST_EVENT;
+		break;
+	    }
+	}
+	if (!ec_sigio)
+	    ec_panic("Couldn't find a pseudo-signal number for SIGIO", "handlers_init()");
+#endif
+    }
+    if (flags & INIT_PRIVATE)	/* handler arrays already exist */
+    {
+	/* get a private copy of the array pointers */
+	error_handler_ = ErrorHandler;
+	default_error_handler_ = DefaultErrorHandler;
+	interrupt_handler_ = InterruptHandler;
+	interrupt_handler_flags_ = InterruptHandlerFlags;
+	interrupt_name_ = InterruptName;
+    }
+    /*
+     * event builtins
+     */
+    if (flags & INIT_SHARED)
+    {
+	(void) local_built_in(in_dict("post_events",1),
+				p_post_events,			B_SAFE);
+	(void) built_in(in_dict("pause",0),	p_pause,	B_SAFE);
+	(void) built_in(in_dict("define_error", 2),
+				p_define_error,		B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("reset_error_handler", 1),
+				p_reset_error_handler,		B_SAFE);
+	(void) built_in(in_dict("reset_event_handler", 1),
+				p_reset_error_handler,		B_SAFE);
+
+	(void) local_built_in(d_.reset,		p_reset,	B_SAFE);
+	(void) exported_built_in(in_dict("set_error_handler_", 3),
+				p_set_error_handler,		B_SAFE);
+	(void) exported_built_in(in_dict("set_default_error_handler_", 3),
+				p_set_default_error_handler,	B_SAFE);
+	(void) local_built_in(in_dict("set_interrupt_handler_nr", 3),
+				p_set_interrupt_handler_nr,	B_SAFE);
+	local_built_in(in_dict("get_error_handler", 4),
+				p_get_error_handler,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT) |
+		    BoundArg(4, CONSTANT);
+	local_built_in(in_dict("get_event_handler", 4),
+				p_get_event_handler,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT) |
+		    BoundArg(4, CONSTANT);
+	local_built_in(in_dict("get_interrupt_handler_nr", 4),
+				p_get_interrupt_handler_nr, B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT) |
+		    BoundArg(4, CONSTANT);
+	(void) local_built_in(in_dict("valid_error", 1),
+				p_valid_error,		B_SAFE);
+	local_built_in(in_dict("interrupt_id_det", 2),
+				p_interrupt_id_det,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+    }
+    
+
+    /* This must be done before we install _break() as a handler */
+    irq_lock_init(delayed_break);
+
+    if (flags & INIT_PROCESS)
+    {
+	Init_Block_Mask();
+	Save_Sig_Mask(initial_sig_mask_);
+    }
+    else		/* on reset signals may need to be unblocked  */
+    {
+	Restore_Sig_Mask(initial_sig_mask_);
+    }
+    spurious = 0;	/* reset fatal signal nesting indicator */
+
+    errno = 0;		/*  we may have ignored some return values ... */
+
+    user_error = USER_ERROR;
+}
+
 

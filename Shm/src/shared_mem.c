@@ -23,7 +23,7 @@
 /*---------------------------------------------------------------------
  * IDENTIFICATION	shared_mem.c
  *
- * VERSION		$Id: shared_mem.c,v 1.1 2006/09/23 01:56:26 snovello Exp $
+ * VERSION		$Id: shared_mem.c,v 1.2 2007/07/03 00:10:25 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -89,6 +89,7 @@ extern char	*strcpy();
 #endif
 
 static generic_ptr shared_sbrk(word size, int align, struct heap_descriptor *hd);
+static int shared_release(generic_ptr address, word size, struct heap_descriptor *hd);
 
 
 /*---------------------------------------------------------------------
@@ -118,6 +119,7 @@ shared_mem_init(
 {
     hd->panic = panic_func;
     hd->more = shared_sbrk;
+    hd->less = shared_release;
 
     if (!size) size = VIRTUAL_SHARED_DEFAULT;
     if (!incr) incr = MAP_INCREMENT_DEFAULT;
@@ -290,7 +292,10 @@ void
 shared_mem_release(struct heap_descriptor *hd)
 {
     if (!hd->shared_header)
+    {
+	pagemanager_fini(hd);
 	return;
+    }
     a_mutex_lock(&hd->shared_header->lock);
     if (--hd->shared_header->processes == 0 && hd->shared_header->mapfile)
     {
@@ -351,6 +356,12 @@ _return_:
     a_mutex_unlock(&hd->shared_header->lock);
     */
     return (generic_ptr) p;
+}
+
+static int
+shared_release(generic_ptr address, word size, struct heap_descriptor *hd)
+{
+    return 1;
 }
 #endif /* HAVE_MMAP */
 

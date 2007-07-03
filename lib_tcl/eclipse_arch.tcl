@@ -20,7 +20,7 @@
 # 
 # END LICENSE BLOCK
 #
-# $Id: eclipse_arch.tcl,v 1.1 2006/09/23 01:54:15 snovello Exp $
+# $Id: eclipse_arch.tcl,v 1.2 2007/07/03 00:10:27 jschimpf Exp $
 #
 # compute the ECLiPSe architecture name using Tcl primitives
 #
@@ -56,7 +56,10 @@ proc ec_arch {} {
 	    }
 	}
 	Darwin {
-	    return ppc_macosx
+	    switch -glob $tcl_platform(machine) {
+		Power*	{ return ppc_macosx }
+		i?86	{ return i386_macosx }
+	    }
 	}
     }
     error "Platform $tcl_platform(os) $tcl_platform(osVersion) ($tcl_platform(machine)) not supported"

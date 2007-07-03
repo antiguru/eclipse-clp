@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.5 2007/05/04 14:05:13 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.6 2007/07/03 00:10:27 jschimpf Exp $
  *
  */
 
@@ -124,6 +124,19 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define CPX_COL_AT_UPPER   CPX_AT_UPPER
 # define CPX_COL_BASIC      CPX_BASIC
 # define CPX_COL_FREE_SUPER CPX_FREE_SUPER
+
+#if CPLEX >= 10
+/* CPLEX 10+ has more generic error for no solution state */
+# define CPXERR_NO_INT_SOLN CPXERR_NO_SOLN 
+
+/* CPXcopysos() args changed in 10: removed sospri and added sosname */
+# define CPXcopysos_(E,L,A1,A2,A3,A4,A5,A6) CPXcopysos(E,L,A1,A2,A3,A4,A5,A6,NULL)
+
+#else
+
+#define CPXcopysos_(E,L,A1,A2,A3,A4,A5,A6) CPXcopysos(E,L,A1,A2,A3,NULL,A4,A5,A6)
+
+#endif 
 
 #if CPLEX >= 7
 # define CPX_HAS_LPOPT
@@ -550,7 +563,7 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
           coin_addrows(A1,A3,A4,A5,A6,A7,A8,A9) /* diff args! */
 # define CPXchgobjsen(E,A1,A2) coin_chgobjsen(A1,A2)
 # define CPXchgprobtype(A1, A2, A3)     0 /* 0 for success return code */
-# define CPXcopysos(E,A1,A2,A3,A4,A5,A6,A7,A8) -1 /* -1 for error */
+# define CPXcopysos_(E,A1,A2,A3,A4,A5,A6,A7) -1 /* -1 for error */
 # define CPXgetrows(E,A1,A2,A3,A4,A5,A6,A7,A8,A9) \
           coin_get_row(A1,A2,A4,A5,A8) /* gets one row only! */
 # define CPXwriteprob(E,A1,A2,A3) coin_writeprob(A1,A2,A3)
@@ -4242,8 +4255,9 @@ p_cpx_loadprob(value vlp, type tlp)
 
     if (lpd->nsos)
     {
-	if (CPXcopysos(cpx_env, lpd->lp, lpd->nsos, lpd->nsosnz, lpd->sostype,
-		0, lpd->sosbeg, lpd->sosind, lpd->sosref))
+	/* macro mapping to version depending CPXcopysos() */
+	if (CPXcopysos_(cpx_env, lpd->lp, lpd->nsos, lpd->nsosnz, lpd->sostype,
+		lpd->sosbeg, lpd->sosind, lpd->sosref))
 	    { Bip_Error(EC_EXTERNAL_ERROR); }
     }
     if IsQPProb(lpd->prob_type)
@@ -4533,9 +4547,12 @@ _lpwrite(lp_desc * lpd, int format, char * file)
     case 3:
 	res = CPXmbasewrite(cpx_env, lpd->lp, file);
 	break;
+# if defined(CPLEX) && CPLEX < 10
+    /* removed in CPLEX 10 */
     case 5:
 	res = CPXtreewrite(cpx_env, lpd->lp, file);
 	break;
+# endif
     case 6:
 	res = CPXembwrite(cpx_env, lpd->lp, file);
 	break;
@@ -5772,7 +5789,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 	Log2({lpd->prob_type = %d; lpd->presolve = %d;}, lpd->prob_type, lpd->presolve);
 	Log4(coin_solve_problem(lpd, %d, %d, %d, %d), meth, auxmeth, node_meth, node_auxmeth);
 	if (coin_solve_problem(lpd, meth, auxmeth, node_meth, node_auxmeth) == -1)
-	    Bip_Error(UNIMPLEMENTED)
+	    Bip_Error(UNIMPLEMENTED);
 #endif /* COIN */
 
 	/*********************************************************************

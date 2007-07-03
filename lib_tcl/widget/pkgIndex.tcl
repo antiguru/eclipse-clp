@@ -36,7 +36,7 @@ package ifneeded Console 2.0 [list tclPkgSetup $dir Console 2.0 {
 	Console ConsoleDialog console consoledialog
 }   }   }]
 
-package ifneeded Hierarchy 2.0 [list tclPkgSetup $dir Hierarchy 2.1 {
+package ifneeded Hierarchy 2.1 [list tclPkgSetup $dir Hierarchy 2.1 {
     {hierarchy.tcl source {
 	Hierarchy hierarchy hierarchy_dir hierarchy_widget
 }   }   }]

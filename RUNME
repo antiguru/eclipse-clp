@@ -165,21 +165,23 @@ fi
 # directory defaults
 ECLIPSEDIR=`pwd`
 EXE_DIR="\$ECLIPSEDIR/bin/$ARCH"
-WISH_DIRECTORY="\$ECLIPSEDIR/tcltk/$ARCH/bin"
-TCL_ARCH_LIBRARY="\$ECLIPSEDIR/tcltk/$ARCH/lib"
-TCL_VERSION="4"
-TCL_LIBRARY="\$ECLIPSEDIR/tcltk/lib/tcl8.$TCL_VERSION"
-TK_LIBRARY="\$ECLIPSEDIR/tcltk/lib/tk8.$TCL_VERSION"
+TCL_DIR="${TCL_DIR:-\$ECLIPSEDIR/tcltk/$ARCH}"
+TCL_ARCH_DIR="${TCL_ARCH_DIR:-\$ECLIPSEDIR/tcltk/$ARCH}"
+TCL_VERSION="${TCL_VERSION:-8.4}"
+WISH_DIRECTORY="$TCL_ARCH_DIR/bin"
+TCL_ARCH_LIBRARY="$TCL_ARCH_DIR/lib"
+TCL_LIBRARY="$TCL_DIR/lib/tcl$TCL_VERSION"
+TK_LIBRARY="$TCL_DIR/lib/tk$TCL_VERSION"
 DAVINCIHOME="${DAVINCIHOME:-\$ECLIPSEDIR/daVinci/$ARCH}"
 USER_OBJECTS=""
-TCL_FRAMEWORK="/Library/Frameworks"
+TCL_FRAMEWORK="/System/Library/Frameworks"
 case $ARCH in
-    ppc_macosx)
+    *_macosx)
 # name of environment variable for specifying library paths
 	LD_LIB_PATH_NAME=DYLD_LIBRARY_PATH
 	FRAMEWORK_PATH_NAME=DYLD_FRAMEWORK_PATH
 	XWISH_DIRECTORY="\$WISH_DIRECTORY"
-	XWISH_EXEC="xwish8.$TCL_VERSION"
+	XWISH_EXEC="xwish$TCL_VERSION"
 	;;
     *)
 	LD_LIB_PATH_NAME=LD_LIBRARY_PATH
@@ -245,19 +247,19 @@ echo "environment, just hit return."
 echo "If you want to use your existing Tcl/Tk installation (e.g. on Linux)"
 echo "please specify the corresponding information here:"
 
-ask "What is the minor version number of your Tcl/Tk 8.* installation" TCL_VERSION
-ask "In which directory is the wish8.$TCL_VERSION executable" WISH_DIRECTORY
+ask "What is the version number of your Tcl/Tk installation (8.X)" TCL_VERSION "8.3 8.4 8.5"
+ask "In which directory is the wish$TCL_VERSION executable" WISH_DIRECTORY
 
 case $ARCH in
-    ppc_macosx)
+    *_macosx)
 	echo "On MacOSX, the native Aqua Tcl/Tk is packaged using Frameworks."
 	ask "In which directory is the Tcl Framework (where Tcl.framework is)" TCL_FRAMEWORK
-	echo "If you have an X11 version of Tcl/Tk 8.$TCL_VERSION, you can also"
+	echo "If you have an X11 version of Tcl/Tk $TCL_VERSION, you can also"
 	echo "setup xtkeclipse (and xtktools) to run the X version of TkECLiPSe."
-	ask "In which directory is the wish8.$TCL_VERSION executable for X11 (none if you don't have it)" XWISH_DIRECTORY
+	ask "In which directory is the wish$TCL_VERSION executable for X11 (none if you don't have it)" XWISH_DIRECTORY
 
 	if test $XWISH_DIRECTORY != "none"; then
-	    ask "What is the name of the wish8.$TCL_VERSION executable for X11" XWISH_EXEC
+	    ask "What is the name of the wish$TCL_VERSION executable for X11" XWISH_EXEC
 	   ask "Where is the X11 Tcl/Tk objects library directory (.dylib files)" TCL_ARCH_LIBRARY
            TK_ARCH_LIBRARY="$TCL_ARCH_LIBRARY"
 	fi
@@ -466,7 +468,7 @@ ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
 $LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$$LD_LIB_PATH_NAME"
 EOF
 case $ARCH in 
-    ppc_macosx)
+    *_macosx)
 	cat >> "$dest" <<EOF
 DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMWORK_PATH"
 EOF
@@ -491,7 +493,7 @@ ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
 $LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$$LD_LIB_PATH_NAME"
 EOF
 case $ARCH in 
-    ppc_macosx)
+    *_macosx)
 	cat >> "$dest" <<EOF
 DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMWORK_PATH"
 EOF
@@ -503,7 +505,7 @@ TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY $FRAMEWORK_PATH_NAME $LD_LIB_PATH_NAME DAVINCIHOME JRE_HOME
-exec "$WISH_DIRECTORY/wish8.$TCL_VERSION" "$ECLIPSEDIR/lib_tcl/tkeclipse.tcl" -- "\$@"
+exec "$WISH_DIRECTORY/wish$TCL_VERSION" "$ECLIPSEDIR/lib_tcl/tkeclipse.tcl" -- "\$@"
 EOF
 chmod 755 "$dest"
 
@@ -512,7 +514,7 @@ chmod 755 "$dest"
 #-------------------------------------------------------------------
 
 case $ARCH in
-    ppc_macosx)
+    *_macosx)
 
 	if test $XWISH_DIRECTORY != none; then
 
@@ -579,7 +581,7 @@ if have_java_interface; then
 ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
 EOF
 case $ARCH in
-    ppc_macosx)
+    *_macosx)
 	cat >> "$dest" <<EOF
 DYLD_LIBRARY_PATH="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$DYLD_LIBRARY_PATH"
 DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMEWORK_PATH"
@@ -619,7 +621,7 @@ ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
 $LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$$LD_LIB_PATH_NAME"
 EOF
 case $ARCH in 
-    ppc_macosx)
+    *_macosx)
 	cat >> "$dest" <<EOF
 DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMWORK_PATH"
 EOF
@@ -630,7 +632,7 @@ TCL_LIBRARY="\${TCL_LIBRARY:-$TCL_LIBRARY}"
 TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY $FRAMEWORK_PATH_NAME $LD_LIB_PATH_NAME DAVINCIHOME 
-exec "$WISH_DIRECTORY/wish8.$TCL_VERSION" "$ECLIPSEDIR/lib_tcl/tktools.tcl" -- "\$@"
+exec "$WISH_DIRECTORY/wish$TCL_VERSION" "$ECLIPSEDIR/lib_tcl/tktools.tcl" -- "\$@"
 EOF
 chmod 755 "$dest"
 

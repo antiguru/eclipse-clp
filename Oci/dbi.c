@@ -26,7 +26,7 @@
  *
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.3 2007/07/03 00:10:24 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	dbi.c
@@ -72,12 +72,17 @@ static int dbi_errno = 0;
  *  Forward declarations
  * ---------------------------------------------------------------------- */
 EXPORT int
+p_session_init(
+		/* - */ value v_session, type t_session
+              );
+
+EXPORT int
 p_session_start(
+                /* + */ value v_session, type t_session,
 		/* + */ value v_username, type t_username,
 		/* + */ value v_host, type t_host,
 		/* + */ value v_password, type t_password,
-		/* + */ value v_opts, type t_opts,
-		/* - */ value v_session, type t_session
+		/* + */ value v_opts, type t_opts
 		);
 
 EXPORT int
@@ -174,11 +179,6 @@ p_cursor_N_tuples(
 		/* + */ value v_N, type t_N,
 		/* - */ value v_tuples, type t_tuples,
 		/* ? */ value v_tail, type t_tail
-		);
-
-EXPORT int
-p_cursor_cancel(
-		/* + */ value v_cursor, type t_cursor
 		);
 
 EXPORT int
@@ -332,30 +332,16 @@ session_copy(session_t * session)
  * ---------------------------------------------------------------------- */
 
 int
-p_session_start(
-		/* + */ value v_username, type t_username,
-		/* + */ value v_host, type t_host,
-		/* + */ value v_password, type t_password,
-		/* + */ value v_opts, type t_opts,
+p_session_init(
 		/* - */ value v_session, type t_session
 		)
 {
 	session_t * session;
 	pword p_session;
-	int res;
 
-	Check_String(t_username);
-	Check_String(t_host);
-	Check_String(t_password);
-	Check_Structure(t_opts);
-		
-	session_start(	StringStart(v_username),
-			StringStart(v_host),
-			StringStart(v_password),
-			v_opts, 
-			&session);
+	session_init( &session);
 
-	if (NULL == session)
+	if (session == NULL)
 	{
 	    Bip_Error(dbi_errno);
 	}
@@ -366,6 +352,35 @@ p_session_start(
 }
 
 int
+p_session_start(
+ 	        /* + */ value v_session, type t_session,
+		/* + */ value v_username, type t_username,
+		/* + */ value v_host, type t_host,
+		/* + */ value v_password, type t_password,
+		/* + */ value v_opts, type t_opts
+		)
+{
+        session_t * session;
+
+	Get_Typed_Object(v_session,t_session,&session_handle_tid,session);
+
+	Check_String(t_username);
+	Check_String(t_host);
+	Check_String(t_password);
+	Check_Structure(t_opts);
+		
+	if ( session_start( session,
+			    StringStart(v_username),
+			    StringStart(v_host),
+			    StringStart(v_password),
+			    v_opts) )
+	    Bip_Error(dbi_errno);
+
+	Succeed;
+
+}
+
+int
 p_session_close(value v_session, type t_session)
 {
     pword handle;
@@ -373,11 +388,8 @@ p_session_close(value v_session, type t_session)
     handle.tag.all = t_session.all;
     session_t * session;
 
-    if (IsRef(t_session)) { session = NULL; }
-    else
-    {
-	Get_Typed_Object(v_session,t_session,&session_handle_tid,session);
-    }
+    Get_Typed_Object(v_session,t_session,&session_handle_tid,session);
+
     session_close(session);
     return ec_free_handle(handle, &session_handle_tid);
 }
@@ -398,11 +410,7 @@ p_session_error_value(
 
 	Check_Output_Integer(t_code);
 	Check_Output_String(t_message);
-	if (IsRef(t_session)) { session = NULL; }
-	else
-	{
-	    Get_Typed_Object(v_session,t_session,&session_handle_tid,session);
-	}
+	Get_Typed_Object(v_session,t_session,&session_handle_tid,session);
 
 	session_error_value(session, &code, &message);
 
@@ -454,7 +462,7 @@ p_session_sql_dml(
 	session_t * session;
 	cursor_t * cursor;
 	char * SQL;
-	int rows, *prows;
+	word rows, *prows;
 	int res;
 
 	Check_String(t_SQL);
@@ -495,7 +503,7 @@ p_session_sql_query(
 	template_t * template;
 	cursor_t * cursor;
 	int res;
-	int N;
+	word N;
 
 	Check_Integer(t_N);
 	N = v_N.nint;
@@ -535,7 +543,7 @@ p_session_sql_prepare(
 	template_t * template;
 	cursor_t * cursor;
 	int res;
-	int N;
+	word N;
 
 	Check_Integer(t_N);
 	N = v_N.nint;
@@ -574,7 +582,7 @@ p_session_sql_prepare_query(
 	template_t *ptemplate, *qtemplate;
 	cursor_t * cursor;
 	int res;
-	int N;
+	word N;
 
 	Check_Integer(t_N);
 	N = v_N.nint;
@@ -700,7 +708,8 @@ p_cursor_N_execute(
 {
     cursor_t * cursor;
     pword * car; pword * cdr, * argp;
-    int tuple, res;
+    int res;
+    word tuple;
     Prepare_Requests;
 
     Check_Output_Integer(t_N);
@@ -768,7 +777,7 @@ p_cursor_N_tuples(
 		)
 {
     cursor_t * cursor;
-    int n,first;
+    word n;
     int res;
     pword tuple_list, * argp;
     pword * tail;
@@ -812,29 +821,6 @@ p_cursor_free(value v_cursorh, type t_cursorh)
 
 
 }
-
-int
-p_cursor_cancel(
-		/* + */ value v_cursor, type t_cursor
-		)
-{
-    cursor_t * cursor;
-    pword * argp;
-    int res;
-
-    Check_Structure(t_cursor);
-    argp = &v_cursor.ptr[CURSOR_HANDLE];
-    Dereference_(argp);
-    Get_Typed_Object(argp->val, argp->tag,&cursor_handle_tid,cursor);
-
-    if (cursor_cancel(cursor))
-    {
-	Bip_Error(Error_Code(res));
-    }
-
-    Succeed;
-}
-
 
 int
 p_cursor_field_value(
@@ -882,7 +868,7 @@ p_cursor_field_value(
     }
     else
     {
-	Return_Unify_Integer(v_value, t_value, * (int *)value);
+	Return_Unify_Integer(v_value, t_value, * (word *)value);
     }
 	
 

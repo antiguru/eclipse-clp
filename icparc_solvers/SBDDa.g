@@ -3,7 +3,7 @@
 #
 #   Steve Linton
 #
-# $Id: SBDDa.g,v 1.1 2006/10/13 00:41:27 jschimpf Exp $
+# $Id: SBDDa.g,v 1.2 2007/07/03 00:10:27 jschimpf Exp $
 #
 
 #
@@ -26,7 +26,7 @@
 
 #
 #  The interface to this file is four functions: 
-#      Init( g, n)   initialize the process with symmetry group g
+#      SBDDInit( g, n)   initialize the process with symmetry group g
 #         acting on n points (1..n)
 #      
 #      BacktrackRoot( choice, depth ) informs the dominance detection
@@ -279,7 +279,7 @@ end;
 # The public initialization function
 #
 
-Init := function(g, n)
+SBDDInit := function(g, n)
     G := g;
     N := n;
     treeroot := rec(type:=N_FORK, 

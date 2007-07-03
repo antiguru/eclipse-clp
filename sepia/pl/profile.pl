@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: profile.pl,v 1.1 2006/09/23 01:55:32 snovello Exp $
+% Version:	$Id: profile.pl,v 1.2 2007/07/03 00:10:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -43,7 +43,7 @@
 :- comment(summary, "Profiling package for ECLiPSe programs").
 :- comment(author, "Micha Meier and Stefano Novello, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:55:32 $").
+:- comment(date, "$Date: 2007/07/03 00:10:28 $").
 :- comment(profile/1, [template:"profile(+Goal)",
     summary:"Execute Goal (once) and print profiling information"]).
 :- comment(profile/2, [template:"profile(+Goal, +Options)",
@@ -225,17 +225,16 @@ search(Key,node(Ltree,EKey,_,EContents,Rtree),Contents) :-
 		search(Key,Ltree,Contents)
 	;
 		( tree_minkey(Rtree,MinKey),
-		  Key < MinKey ->
-			EContents = Contents
-		;
+		  Key >= MinKey ->
 			search(Key,Rtree,Contents)
+		;
+			EContents = Contents
 		)
 	).
 
 % tree_minkey(Node, MinKey)
 
 :- mode tree_minkey(++, -).
-tree_minkey(A,16'7fffffff) :- atom(A).
 tree_minkey(node(_,_,MinKey,_,_),MinKey).
 
 %==============================================================================

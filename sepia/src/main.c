@@ -25,7 +25,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
+ * VERSION	$Id: main.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /*
@@ -475,7 +475,7 @@ main(int argc, char **argv)
 	}
 	else
 	{
-	    initfile = strcat(strcpy(bootfile_buf, ec_options.eclipse_home), "/lib/kernel.eco");
+	    initfile = strcat(strcpy(bootfile_buf, ec_eclipse_home), "/lib/kernel.eco");
 	    if (ec_access(initfile, R_OK) < 0)
 	    {
 		int l = strlen(initfile);	/* no .eco, try the .pl file */

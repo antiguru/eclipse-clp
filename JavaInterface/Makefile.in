@@ -25,6 +25,7 @@
 # Author: Josh Singer
 
 ARCH = @ARCH@
+OSTYPE = @OSTYPE@
 top_srcdir = @top_srcdir@
 PREFIX = @prefix@
 MAKEFILE = Makefile.$(ARCH)
@@ -32,10 +33,16 @@ MAKEFILE = Makefile.$(ARCH)
 CC = @CC@
 CFLAGS = @CFLAGS@
 OPT_FLAGS = @OPT_FLAGS@
+DYLD = @DYLD@
+DYNLDFLAGS = @DYNLDFLAGS@
 OBJECTS_SUFFIX = @OBJECTS_SUFFIX@
 LIB_PREFIX = @LIB_PREFIX@
 JAVA_HOME = @JAVA_HOME@
 JAVA_BIN = $(JAVA_HOME)/bin
+
+GMP_LD = @GMP_LD@
+
+RUNPATH_DYLDFLAG = @RUNPATH_DYLDFLAG@
 
 SOURCEDIR=./src/com/parctechnologies/eclipse
 
@@ -163,72 +170,33 @@ eclipse.jar: $(SOURCEDIR)/*.java
 #	Containing just chdir() functions (Java has no chdir), which are
 #	used to change the current directory while loading libec_java.so
 
-i386_linux/libec_java.so: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p i386_linux
-	$(CC) -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux -c ec_java.c
-	$(CC) -shared -L$(REL_EC_DIR)/lib/$(ARCH) ec_java.o -Xlinker -R. -leclipse -o $(ARCH)/libec_java.so
+ifneq "$(ARCH)" "i386_nt"
+
+# -lc needed for MacOS X
+ ifeq "$(ARCH)" "i386_macosx"
+    LIBC="-lc"
+ else
+  ifeq "$(ARCH)" "ppc_macosx"
+    LIBC="-lc"
+  else
+    LIBC=
+  endif
+ endif
+
+$(ARCH)/libec_java.$(OBJECTS_SUFFIX): ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
+	mkdir -p $(ARCH)
+	$(CC) $(CFLAGS) -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OSTYPE) -c ec_java.c
+	$(DYLD) $(DYNLDFLAGS) -L$(REL_EC_DIR)/lib/$(ARCH)  ec_java.o $(RUNPATH_DYLDFLAG). $(GMP_LD) -leclipse -o $(ARCH)/libec_java.$(OBJECTS_SUFFIX)
 	rm ec_java.o
 
-i386_linux/libec_java_load.so: ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p i386_linux
-	$(CC) -shared -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux ec_java_load.c -o $(ARCH)/libec_java_load.so
+$(ARCH)/libec_java_load.$(OBJECTS_SUFFIX): ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
+	mkdir -p $(ARCH)
+	$(CC) $(CFLAGS) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OSTYPE) -c ec_java_load.c 
+	$(DYLD) $(DYNLDFLAGS) ec_java_load.o $(LIBC) -o $(ARCH)/libec_java_load.$(OBJECTS_SUFFIX)
+	rm ec_java_load.o
 
-
-x86_64_linux/libec_java.so: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p x86_64_linux
-	$(CC) -fPIC -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux -c ec_java.c
-	$(CC) -shared -L$(REL_EC_DIR)/lib/$(ARCH) ec_java.o -Xlinker -R. -leclipse -o $(ARCH)/libec_java.so
-	rm ec_java.o
-
-x86_64_linux/libec_java_load.so: ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p x86_64_linux
-	$(CC) -shared -fPIC -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux ec_java_load.c -o $(ARCH)/libec_java_load.so
-
-
-i386_sunos5/libec_java.so: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p i386_sunos5
-	$(CC) -fPIC -m32 -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/solaris -c ec_java.c
-	$(CC) -fPIC -m32 -shared -L$(REL_EC_DIR)/lib/$(ARCH) ec_java.o -Xlinker -R. -leclipse -o $(ARCH)/libec_java.so
-	rm ec_java.o
-
-i386_sunos5/libec_java_load.so: ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p i386_sunos5
-	$(CC) -fPIC -m32 -shared -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/solaris ec_java_load.c -o $(ARCH)/libec_java_load.so
-
-
-x86_64_sunos5/libec_java.so: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p x86_64_sunos5
-	$(CC) -fPIC -m64 -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/solaris -c ec_java.c
-	$(CC) -fPIC -m64 -shared -L$(REL_EC_DIR)/lib/$(ARCH) ec_java.o -Xlinker -R. -leclipse -o $(ARCH)/libec_java.so
-	rm ec_java.o
-
-x86_64_sunos5/libec_java_load.so: ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p x86_64_sunos5
-	$(CC) -fPIC -m64 -shared -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/solaris ec_java_load.c -o $(ARCH)/libec_java_load.so
-
-
-sparc_sunos5/libec_java.so: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p sparc_sunos5
-	$(CC) -fpic -shared -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/solaris -L$(REL_EC_DIR)/lib/$(ARCH) -Xlinker -R. -leclipse ec_java.c -o $(ARCH)/libec_java.so
-
-sparc_sunos5/libec_java_load.so: ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p sparc_sunos5
-	$(CC) -fpic -shared -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/solaris ec_java_load.c -o $(ARCH)/libec_java_load.so
-
-
-ppc_macosx/libec_java.dylib: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p ppc_macosx
-	$(CC) -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/ -dynamic -c ec_java.c
-	libtool -dynamic -single_module -flat_namespace -L$(REL_EC_DIR)/lib/$(ARCH) ec_java.o -leclipse -lgmp -lc -o $(ARCH)/libec_java.dylib
-	rm ec_java.o
-
-ppc_macosx/libec_java_load.dylib: ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p ppc_macosx
-	$(CC) -dynamic -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux -c ec_java_load.c
-	libtool -dynamic -single_module -flat_namespace ec_java_load.o -lc -o $(ARCH)/libec_java_load.dylib
-
-
-
+else
+# ARCH = i386_nt
 # CAUTION: for the case that $(JAVA_HOME)/include/win32 does not exist
 # (because we are cross-compiling) we have our own include/win32/jni_md.h
 # It's a simple file that will hopefully not change much between Java versions.
@@ -252,6 +220,7 @@ i386_nt/ec_java_load.dll: ec_java_load.c com_parctechnologies_eclipse_NativeEcli
 		-Wl,--output-def,$(ARCH)/ec_java_load.def \
 		ec_java_load.c -o $(ARCH)/ec_java_load.dll
 
+endif
 
 com_parctechnologies_eclipse_NativeEclipse.h : ./src/com/parctechnologies/eclipse/NativeEclipse.java 
 	mkdir -p ./classes

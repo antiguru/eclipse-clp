@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.3 2007/02/23 15:28:34 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.4 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /*
@@ -240,19 +240,23 @@ emu_init(int flags, int vm_options)
 	allocate_stacks();
 
     /* the stack pointers */
-    TG = GCTG = (pword *) g_emu_.global_trail[0].start;
+    TG = GCTG = GB = (pword *) g_emu_.global_trail[0].start;
     TT = (pword **) g_emu_.global_trail[1].start;
     if (!trim_global_trail(TG_SEG))		/* sets TG_LIM and TT_LIM */
 	ec_panic(MEMORY_P, "emu_init()");
 
-    B.args = (pword *) g_emu_.control_local[0].start;
+    B.args = PB = PPB = (pword *) g_emu_.control_local[0].start;
 #ifndef AS_EMU
-    E = SP = (pword *) g_emu_.control_local[1].start;
+    E = SP = EB = (pword *) g_emu_.control_local[1].start;
 #endif
     if (!trim_control_local())		/* sets b_limit and sp_limit */
 	ec_panic(MEMORY_P, "emu_init()");
 
-    LD = LCA = (pword *) 0;		/* some other registers */
+    /* some other registers */
+    DE = MU = LD = LCA = OCB = TCS = TO = TG_SL = TG_SLS = (pword *) 0;
+    FO = PO = (char *) 0;
+    PP = (vmcode *) 0;
+    WP = LOAD = NTRY = 0;
 
     /* Push a witness that is older than any choicepoint's witness.
      * It must be the first pword on the global stack!!!
@@ -264,6 +268,8 @@ emu_init(int flags, int vm_options)
     Make_Ref(&WP_STAMP, (pword*)0);	/* Make_Stamp(&WP_STAMP) */
     Make_Var(&POSTED);			/* difference list of posted goals */
     POSTED_LAST = POSTED;
+    PARSENV = NULL;
+    Set_Bip_Error(0);
 
     for(i = 0; i <= MAXARITY; i++)
     {
@@ -291,6 +297,19 @@ emu_init(int flags, int vm_options)
 
     TracerInit;
 }
+
+
+/*
+ * Finalize the engine
+ */
+
+void
+ec_emu_fini()
+{
+    extern void dealloc_stack_pairs(struct stack_struct *, struct stack_struct *);
+    dealloc_stack_pairs(g_emu_.global_trail, g_emu_.control_local);
+}
+
 
 static int
 _equal_value(pword *pw1, pword *pw2)
@@ -374,6 +393,7 @@ bip_emu_init(int flags)
 	tag_desc[i].from_string = _lex_error;
 	tag_desc[i].string_size = 0;
 	tag_desc[i].to_string = 0;
+	tag_desc[i].order = 0;
     }
 
     tag_desc[THANDLE].equal = _equal_handle;

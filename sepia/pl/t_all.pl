@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: t_all.pl,v 1.1 2006/09/23 01:55:40 snovello Exp $
+% Version:	$Id: t_all.pl,v 1.2 2007/07/03 00:10:29 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %-----------------------------------------------------------------------
@@ -195,12 +195,14 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	    set_flag(variable_names, off),
 	    set_flag(print_depth, 100000),
 	    sepia_kernel:cputime(StartTime),
+	    get_priority(OldPrio),
 
 	    block(
 		(
 		    call(RunGoal)@M,		% run test goal
 		    garbage_collect,
-		    trimcore
+		    trimcore,
+		    check_state(OldPrio)
 		->
 		    set_flag(prefer_rationals, off),	% set by some tests
 		    sepia_kernel:cputime(EndTime),
@@ -244,6 +246,21 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	close(ErrorStream),
 	flush(test_log_output),
 	close(test_log_output).
+
+
+check_state(OldPrio) :-
+	( get_priority(OldPrio) ->
+	    true
+	;
+	    exit_block(test_terminated_with_modified_priority)
+	),
+	( events_defer ->
+	    events_nodefer
+	;
+	    events_nodefer,
+	    exit_block(test_terminated_with_events_deferred)
+	).
+
 
 %----------------------------------------------------------------------
 

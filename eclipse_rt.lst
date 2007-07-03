@@ -4,6 +4,7 @@ lib/${ARCH}/${LIBPREFIX}ec_java_load.${LIBSUFFIX}
 lib/${ARCH}/${LIBPREFIX}eclipse.${LIBSUFFIX}
 lib/${ARCH}/${LIBPREFIX}gmp*.${LIBSUFFIX}*
 lib/${ARCH}/bitmap.${SOSUFFIX}
+lib/${ARCH}/dbi_mysql.${SOSUFFIX}
 lib/${ARCH}/eclipse.exe
 lib/${ARCH}/edge_finder.${SOSUFFIX}
 lib/${ARCH}/ic.${SOSUFFIX}
@@ -94,4 +95,4 @@ lib/timeout.eco
 lib/var_name.eco
 lib/version.pl
 legal/lgpl.txt
-legal/licence_acad.txt
+legal/cmpl.txt

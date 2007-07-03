@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.3 2007/07/03 00:10:25 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -53,6 +53,7 @@
 #include <windows.h>
 #endif
 #include <stdio.h>
+#include <stdlib.h>
 /*#include <malloc.h>*/
 #include <string.h>
 #include <mysql/mysql.h> 
@@ -82,6 +83,18 @@
 #define DBI_NOT_PREPARED    8
 #define DBI_NO_PARAM        9
 #define DBI_NYI            10
+#define DBI_MEMORY         11
+#define DBI_BUFFER_OVER    12
+
+#ifdef HAVE_LONG_LONG
+
+#define BUFINT long long int
+
+#else
+
+#define BUFINT int
+
+#endif
 
 /* ----------------------------------------------------------------------
  *  Global data
@@ -100,7 +113,10 @@ char *dbi_error[] =
 /* DBI_CANCELLED */	"DBI-007: cursor was cancelled",
 /* DBI_NOT_PREPARED */	"DBI-008: cursor was not a prepared SQL",
 /* DBI_NO_PARAM */      "DBI-009: input parameters not supplied",
-/* DBI_NYI */		"DBI-010: not implemented" };
+/* DBI_NYI */		"DBI-010: not implemented" ,
+/* DBI_MEMORY */        "DBI-011: memory allocation problem",
+/* DBI_BUFFER_OVER */   "BBI-012: buffer overflow"
+};
 
 /* ----------------------------------------------------------------------
  *  Internally used procedures
@@ -142,7 +158,7 @@ raise_mysql_stmt_error(MYSQL_STMT * stmt)
  *  Auxiliary functions
  * ---------------------------------------------------------------------- */
 
-#define RoundupSize(s) (sizeof(int) * (1 + (s)/sizeof(int)))
+#define RoundupSize(s) (sizeof(word) * (1 + (s)/sizeof(word)))
 
 /* initialise the data structures  associated with a template from the
    information supplied from Prolog. This should be followed, for prepared
@@ -158,28 +174,36 @@ template_get(value v,type t,template_t * * template_out)
 {
 	dident did;
 	char argtag;
-	int arity;
-	int i;
-	int size;
+	word arity;
+	word i;
+	word size;
 	template_t * template;
 	pword * arg;
 
 	if (IsNil(t)) 
 	{
 	    *template_out = NULL;
-	    Succeed;
+	    return 0;
 	}
 	Check_Structure(t);
 
 	did =  v.ptr->val.did;
 	arity = DidArity(did);
 
-	template = (template_t *) malloc(sizeof(template_t));
+	if (!(template = (template_t *) malloc(sizeof(template_t))))
+        {
+	    raise_dbi_error(DBI_MEMORY);
+	    return -1;
+	}
 	memset(template, 0, sizeof(template_t));
 
 	template->did = did;
 	template->arity = arity;
-	template->map = (map_t *) malloc(arity * sizeof(map_t));
+	if (!(template->map = (map_t *) malloc(arity * sizeof(map_t))))
+        {
+	    raise_dbi_error(DBI_MEMORY);
+	    return -1;
+	}
 	memset(template->map, 0, arity * sizeof(map_t));
 
 	for( i = 0 ; i < arity ; i ++)
@@ -193,7 +217,7 @@ template_get(value v,type t,template_t * * template_out)
 		/* LONG VARCHAR */
 	    	template->map[i].ext_type = MYSQL_TYPE_VAR_STRING;
 		size = atoi( DidName(arg->val.did) );
-		if ( size )
+		if ( size && size > 0)
 		{
 		    template->map[i].size = RoundupSize(size);
 		}
@@ -206,7 +230,7 @@ template_get(value v,type t,template_t * * template_out)
 		/* LONG VARCHAR */
 	    	template->map[i].ext_type = MYSQL_TYPE_VAR_STRING;
 		size = atoi( StringStart(arg->val) );
-		if ( size )
+		if ( size && size > 0 )
 		{
 		    template->map[i].size = RoundupSize(size);
 		}
@@ -217,8 +241,12 @@ template_get(value v,type t,template_t * * template_out)
 	    	break;
 	    case TINT:
 		/* signed integer */
+#ifdef HAVE_LONG_LONG /* buffer for 64 bit integers if available */
+		template->map[i].ext_type = MYSQL_TYPE_LONGLONG;
+#else
 		template->map[i].ext_type = MYSQL_TYPE_LONG;
-		template->map[i].size =  sizeof(int);
+#endif
+		template->map[i].size =  sizeof(BUFINT);
 	    	break;
 	    case TDBL:
 		template->map[i].ext_type = MYSQL_TYPE_DOUBLE;
@@ -262,7 +290,8 @@ int
 template_put(int tuple_num, template_t * template,sql_t sql_type,
 	     void * buffer, void * lengths, pword * tuple) 
 {
-    int arg, i;
+    word i;
+    word arg;
     map_t * argmap;
     char * argbuf;
     pword *pw;
@@ -276,6 +305,11 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
     Push_Struct_Frame(template->did);
     for (arg = 0 ; arg < template->arity ; arg++)
     {
+	/* For prepared statements, buffers with sizes specified by the 
+           results tuple template is used to receive the results. A 
+           MYSQL_DATA_TRUNCATED result code is returned by
+           mysql_stmt_fetch() if the returned results are truncated.
+	*/
 	argmap = &(template->map[arg]);
 	if (sql_type == prepared)
 	{
@@ -288,6 +322,12 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 
 	} else /* if (sql_type == direct) */
 	{
+	    /* For direct statements, the buffer sizes specified
+               by the results tuple template can be ignored, because the
+               results are returned as a byte stream by MySQL, which is then
+               converted to ECLiPSe data structure, using the global stack
+               as needed
+	    */
 	    argbuf = (char *) ((MYSQL_ROW)buffer)[arg]; 
 	    if (argbuf == NULL)
 	    {/* NULL value */
@@ -298,25 +338,37 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 	switch(argmap->prolog_tag)
 	{
 	case TDICT:
-	    argbuf[ ((unsigned long *)lengths)[arg] ] = '\0';
+	    argbuf[ ((uword *)lengths)[arg] ] = '\0';
 	    Make_Atom(&pw[arg+1], Did(argbuf, 0));
 	    break;
 	case TSTRG:
 	    pw[arg+1].tag.kernel = TSTRG;
-	    Make_Stack_String(((unsigned long *)lengths)[arg] , pw[arg+1].val, s);
-	    Copy_Bytes(s, argbuf, ((unsigned long *)lengths)[arg]);
-	    s[ ((unsigned long *)lengths)[arg] ] = '\0';
+	    Make_Stack_String(((uword *)lengths)[arg] , pw[arg+1].val, s);
+	    Copy_Bytes(s, argbuf, ((uword *)lengths)[arg]);
+	    s[ ((uword *)lengths)[arg] ] = '\0';
 	    break;
 	case TINT:
-	    /* 32 bit signed integer */
+	    /* signed integer */
 	    if (sql_type == prepared)
 	    {
-		Make_Integer( &pw[arg+1], *(int *)argbuf);
+#if defined(HAVE_LONG_LONG)
+		/* may convert to ECLiPSe TBIG if required */
+		tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](*(long long int *)argbuf, &pw[arg+1]);
+#else
+		Make_Integer( &pw[arg+1], *(word *)argbuf);
+#endif
 	    } else
 	    {
-		int i;
+#if defined(HAVE_LONG_LONG) 
+		long long int i; 
+		sscanf(((MYSQL_ROW)buffer)[arg],"%Ld",&i);
+		/* may convert to ECLiPSe TBIG if required */
+		tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](i, &pw[arg+1]);
+#else
+		word i;
 		sscanf(((MYSQL_ROW)buffer)[arg],"%ld",&i);
 		Make_Integer(&pw[arg+1], i);
+#endif
 	    }
 	    break;
 	case TDBL:
@@ -376,8 +428,10 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 #define BindLong(lbuf, buf, max, start, len)\
 	{\
 	    *(lbuf) = (len);\
-	    if ( *(lbuf) > (max) )\
-	    	Bip_Error(TYPE_ERROR);\
+	    if ( *(lbuf) > (max) ) {\
+	    	raise_dbi_error(DBI_BUFFER_OVER);\
+                return -1;\
+            }\
 	    Copy_Bytes((buf),(start),(len));\
 	}
 
@@ -387,8 +441,10 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 #define BindDbFormat(lbuf, buf, max, start, len) \
 	{\
 	    *(lbuf) = (len)+DBF_HEADER_LEN;\
-	    if ( *(lbuf) > (max) )\
-	    	Bip_Error(TYPE_ERROR);\
+	    if ( *(lbuf) > (max) ) {\
+	    	raise_dbi_error(DBI_BUFFER_OVER);\
+                return -1;\
+            }\
 	    Copy_Bytes((buf),dbformat_header,DBF_HEADER_LEN);\
 	    Copy_Bytes((buf)+DBF_HEADER_LEN,(start),(len));\
 	}
@@ -399,13 +455,13 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 int
 template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,pword * tuple) 
 {
-    int i;
-    int j;
+    word i;
+    word j;
     pword * arg;
     value argval;
     map_t * m;
     char * argbuf;
-    unsigned long * largbuf;
+    uword * largbuf;
     extern pword * term_to_dbformat(pword *,dident);
 
 #ifdef DEBUG
@@ -423,7 +479,7 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
     for (i = 0 ; i < template->arity ; i++)
     {
 	m = &(template->map[i]);
-	largbuf = &(((unsigned long *)lengths)[i]);
+	largbuf = &(((uword *)lengths)[i]);
 	arg = tuple->val.ptr + i + 1;
 #ifdef DEBUG
 	fprintf(stderr,"m=0x%x arg=0x%x\n",m,arg);
@@ -445,7 +501,11 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
 	    fprintf(stderr,"DEBUG m tag %d arg tag %d\n",
 	    	m->prolog_tag, TagType(arg->tag));
 #endif
-	    Bip_Error(TYPE_ERROR);
+#if defined(HAVE_LONG_LONG) && SIZEOF_LONG == 4
+	    /* allow TBIG for integers between 32 and 64 bits */
+	    if (!(TagType(arg->tag) == TBIG && m->prolog_tag == TINT))
+#endif 
+		Bip_Error(TYPE_ERROR);
 	}
 	switch(m->prolog_tag)
 	{
@@ -476,8 +536,17 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
 	    fprintf(stderr,"DEBUG bind int argbuf 0x%x int %d\n",
 	    				argbuf, arg->val.nint);
 #endif
-	    /* 32 bit signed integer */
-	    *(int *) argbuf  =  arg->val.nint;
+#if defined(HAVE_LONG_LONG) && SIZEOF_LONG == 4
+	    if (TagType(arg->tag) == TBIG)
+	    {/* convert TBIG integers of between 33 and 64 bits to long long */
+		int res;
+		res = tag_desc[TBIG].arith_op[ARITH_TOCLONGLONG](arg->val.ptr, argbuf);
+		if (res != PSUCCEED) Bip_Error(res);
+		break;
+	    } else
+#endif
+	    /* BUFINT sized signed integer */
+	    *(BUFINT *) argbuf  =  (BUFINT) arg->val.nint;
 	    break;
 	case TDBL:
 	    *(double *) argbuf  =  Dbl(arg->val);
@@ -502,33 +571,50 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
 /* ----------------------------------------------------------------------
  *  Stubs
  * ---------------------------------------------------------------------- */
-
 void 
-session_start(char * username, char * host, char * password, 
-	      value v_opts, session_t ** session)
+session_init(session_t ** session)
 {
 	session_t * s;
-	char * dbname = NULL;
-	pword * optarg;
-	char * engine = NULL;
-	dident optdid = v_opts.ptr->val.did;
 
 	*session = NULL; 
 
-	s = (session_t *) malloc(sizeof(session_t));
+	if (!(s = (session_t *) malloc(sizeof(session_t))))
+        {
+	    raise_dbi_error(DBI_BAD_SESSION);
+	    return;
+	}
 	memset(s, 0, sizeof(session_t));
 	s->mysql = mysql_init(NULL);
 
 	if (s->mysql == NULL) /* init failed */
 	{/* cannot raise mysql error here -- no mysql handle! */
+	    raise_dbi_error(DBI_BAD_SESSION);
 	    free(s);
 	    return;
 	}
 
+	NoErrors;
+	*session = s;
+	return;
+
+}
+
+int
+session_start(session_t * s, char * username, char * host, char * password, value v_opts)
+{
+	char * dbname = NULL;
+	pword * optarg;
+	char * engine = NULL;
+	dident optdid = v_opts.ptr->val.did;
+
 	if (host[0] == '\0') host = NULL; /* emptry string -> no hostname */
 
 	/* processing options */
-	if (strcmp(DidName(optdid), "session_opts") != 0) return;
+	if (strcmp(DidName(optdid), "session_opts") != 0) 
+	{
+	    raise_dbi_error(DBI_BAD_FIELD);
+	    return -1;
+	}
 
 	optarg = v_opts.ptr+SESSION_OPT_DBNAME;
 	Dereference_(optarg);
@@ -543,7 +629,8 @@ session_start(char * username, char * host, char * password,
 		dbname = DidName(optarg->val.did);
 		break;
 	    default:
-		return; /* incompatible type */
+		raise_dbi_error(DBI_BAD_FIELD);
+		return -1; /* incompatible type */
 		break;
 	    }
 	}
@@ -562,8 +649,8 @@ session_start(char * username, char * host, char * password,
 		trans_type = StringStart(optarg->val);
 		break;
 	    default:
-		free(s);
-		return;
+		raise_dbi_error(DBI_BAD_FIELD);
+		return -1;
 	    }
 	    if (strcmp(trans_type, "transactional") == 0)
 	    {
@@ -578,8 +665,7 @@ session_start(char * username, char * host, char * password,
 	if (!mysql_real_connect(s->mysql, host, username, password, dbname, 0, NULL, CLIENT_MULTI_STATEMENTS))
 	{
 	    raise_mysql_error(s->mysql);
-	    free(s);
-	    return;
+	    return -1;
 	}
 	mysql_autocommit(s->mysql, 0);
 	/* select @@storage_engine */
@@ -588,12 +674,15 @@ session_start(char * username, char * host, char * password,
 	    char sql_set[50] = "set @@storage_engine=";
 
 	    strcat(sql_set, engine);
-	    mysql_query(s->mysql, sql_set);
+	    if (!mysql_query(s->mysql, sql_set))
+	    {
+		raise_mysql_error(s->mysql);
+		return -1;
+	    }
 	}
 
 	NoErrors;
-	*session = s;
-	return;
+	return 0;
 }
 
 void
@@ -631,12 +720,16 @@ session_rollback(session_t * session)
 
 /* initialise and prepare a cursor (no bindings) */
 cursor_t *
-session_sql_prepare(session_t * session, char * SQL, int length, char use_prepared)
+session_sql_prepare(session_t * session, char * SQL, word length, char use_prepared)
 {
 	cursor_t * cursor;
 
 
-	cursor = (cursor_t *) malloc(sizeof(cursor_t));
+	if (!(cursor = (cursor_t *) malloc(sizeof(cursor_t))))
+        {
+	    raise_dbi_error(DBI_MEMORY);
+	    return NULL;
+	}
 	memset(cursor, 0, sizeof(cursor_t));
 
 	cursor->session = session;
@@ -666,7 +759,7 @@ session_sql_prepare(session_t * session, char * SQL, int length, char use_prepar
 	    cursor->sql_length = length;
 	    if (!(cursor->s.sql = (char *)malloc(length)))
 	    {
-		raise_dbi_error(DBI_BAD_CURSOR);
+		raise_dbi_error(DBI_MEMORY);
 		free(cursor);
 		return NULL;
 	    }
@@ -685,7 +778,7 @@ session_sql_prepare(session_t * session, char * SQL, int length, char use_prepar
 */
 cursor_t *
 ready_session_sql_cursor(session_t *session, template_t *params, template_t *query, 
-		  char *SQL, int length, int N, char use_prepared)
+		  char *SQL, word length, word N, char use_prepared)
 {
     cursor_t * cursor;
     MYSQL_STMT * c;
@@ -693,11 +786,11 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
     MYSQL_RES *resdata = NULL;
     MYSQL_FIELD *field;
     char * b;
-    int i;
+    word i;
     map_t * m;
-    int free_off;
-    int size;
-    unsigned long *tlengths;
+    word free_off;
+    word size;
+    uword *tlengths;
     my_bool * errors;
 #ifdef DEBUG
     int * mytype;
@@ -745,10 +838,22 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 
     if (query->arity == 0) return cursor;
 
-    bind = (MYSQL_BIND *)malloc(sizeof(MYSQL_BIND)*query->arity);
+    if (!(bind = (MYSQL_BIND *)malloc(sizeof(MYSQL_BIND)*query->arity)))
+    {
+	raise_dbi_error(DBI_MEMORY);
+	return NULL;
+    }
     memset(bind, 0, sizeof(MYSQL_BIND)*query->arity);
-    tlengths = (unsigned long *) malloc(query->arity*sizeof(unsigned long));
-    errors = (my_bool *) malloc(query->arity*sizeof(my_bool));
+    if (!(tlengths = (uword *) malloc(query->arity*sizeof(uword))))
+    {
+	raise_dbi_error(DBI_MEMORY);
+	return NULL;
+    }
+    if (!(errors = (my_bool *) malloc(query->arity*sizeof(my_bool))))
+    {
+	raise_dbi_error(DBI_MEMORY);
+	return NULL;
+    }
 
     for(i=0 ; i < query->arity ; i++)
     {
@@ -782,8 +887,8 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	case MYSQL_TYPE_BIT:
 	    /*
 	     * These are types whose string representation will never be
-	     * very long so we can save a bit of buffer space in case
-	     * this case
+	     * very long so we can save a bit of buffer space in 
+	     * these cases
 	     */
 	    if (m->size > 32) m->size = 32;
 	    break;
@@ -815,11 +920,16 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	free_off += N * m->size;
     }
 
-    b = (char *)malloc(free_off);
+    if (!(b = (char *)malloc(free_off)))
+    {
+	raise_dbi_error(DBI_MEMORY);
+	return NULL;
+    }
 #ifdef DEBUG
     fprintf(stderr,"DEBUG buffer = 0x%x\n",b);
 #endif
     cursor->tuple_buffer = b;
+    /* assumes unsigned long fits into uword */
     cursor->tuple_datalengths = (void *) tlengths;
     cursor->tuple_errors = errors;
 
@@ -829,7 +939,7 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	bind[i].buffer_type = m->ext_type;
 	bind[i].buffer = (char *)b+m->offset;
 	bind[i].buffer_length = m->size;
-	bind[i].length = &(tlengths[i]);
+	bind[i].length = (unsigned long *) &(tlengths[i]);
 	bind[i].is_null = &(m->is_null);
 	m->is_null = 0;
 	bind[i].error = &(errors[i]);
@@ -873,12 +983,12 @@ conversion_error:
 /* prepare the param template's data buffer, and bind them to the DB */
 cursor_t *
 session_sql_prep(session_t *session,
-		template_t *template, char *SQL, int length, int N)
+		template_t *template, char *SQL, word length, word N)
 {
     cursor_t * cursor;
-    int i,j;
+    word i,j;
     map_t * m;
-    int free_off, err;
+    word free_off, err;
     char * b;
     MYSQL_BIND *bind = NULL;
 
@@ -904,7 +1014,7 @@ session_sql_prep(session_t *session,
 
     for(i=0 ; i < template->arity ; i++)
     {
-	int size = DEFAULT_BUFFER_SIZE;
+	uword size = DEFAULT_BUFFER_SIZE;
 
 	m = &(template->map[i]);
 	
@@ -914,21 +1024,33 @@ session_sql_prep(session_t *session,
 	free_off += m->size * N;
 	m->increment = m->size;
 /*	m->loffset = free_off;*/
-	free_off += sizeof(int) * N;
+	free_off += sizeof(word) * N;
 
 	m->increment = m->size;
-	/*	m->lincrement = sizeof(int);*/
+	/*	m->lincrement = sizeof(word);*/
     }
 
-    cursor->param_buffer = (char *)malloc(free_off);
+    if (!(cursor->param_buffer = (char *)malloc(free_off)))
+    {
+	raise_dbi_error(DBI_MEMORY);
+	return NULL;
+    }
     b = cursor->param_buffer;
 
 
-    bind = (MYSQL_BIND *)malloc(sizeof(MYSQL_BIND)*template->arity);
+    if (!(bind = (MYSQL_BIND *)malloc(sizeof(MYSQL_BIND)*template->arity)))
+    {
+	raise_dbi_error(DBI_MEMORY);
+	return NULL;
+    }
     memset(bind, 0, sizeof(MYSQL_BIND)*template->arity);
 
-    cursor->param_datalengths = (unsigned long *) malloc(template->arity*sizeof(unsigned long));
-   for(i=0 ; i < template->arity ; i++)
+    if (!(cursor->param_datalengths = (unsigned long *) malloc(template->arity*sizeof(uword))))
+    {
+	raise_dbi_error(DBI_MEMORY);
+	return NULL;
+    }
+    for(i=0 ; i < template->arity ; i++)
     {
 	m = &(template->map[i]);
 
@@ -976,7 +1098,7 @@ session_close(session_t * session)
 int
 cursor_sql_execute(cursor_t * cursor)
 {
-    int nfield = 0;
+    unsigned int nfield = 0;
 #ifdef DEBUG
     fprintf(stderr,"cursor_sql_execute\n");
 #endif
@@ -998,7 +1120,7 @@ cursor_sql_execute(cursor_t * cursor)
 	    raise_mysql_stmt_error(cursor->s.stmt);
 	    return -1;
 	}
-	cursor->prolog_processed_count = (int) mysql_stmt_affected_rows(cursor->s.stmt);
+	cursor->prolog_processed_count = (word) mysql_stmt_affected_rows(cursor->s.stmt);
 	if (mysql_stmt_store_result(cursor->s.stmt))
 	{
 	    raise_mysql_stmt_error(cursor->s.stmt);
@@ -1019,7 +1141,7 @@ cursor_sql_execute(cursor_t * cursor)
 	    return -1;
 	}
 	TryFree(cursor->s.sql);
-	cursor->prolog_processed_count = (int) mysql_affected_rows(cursor->session->mysql);
+	cursor->prolog_processed_count = (word) mysql_affected_rows(cursor->session->mysql);
 	if ((cursor->s.res = mysql_store_result(cursor->session->mysql)) == NULL)
 	{
 	    nfield = mysql_field_count(cursor->session->mysql);
@@ -1127,7 +1249,8 @@ cursor_one_tuple(cursor_t *cursor)
 		raise_mysql_stmt_error(cursor->s.stmt);
 		return -1;
 		break;
-	    case MYSQL_DATA_TRUNCATED:
+	    case MYSQL_DATA_TRUNCATED: /* truncated  - buffer(s) too small */
+		raise_dbi_error(DBI_BUFFER_OVER);
 		return -1;
 		break;
 	    /* otherwise, there is no problem */
@@ -1172,7 +1295,7 @@ cursor_one_tuple(cursor_t *cursor)
 }
 
 int
-cursor_N_tuples(cursor_t * cursor, int * n, pword * tuple_listp, pword ** tp)
+cursor_N_tuples(cursor_t * cursor, word * n, pword * tuple_listp, pword ** tp)
 {
     pword * head;
     template_t * template; 
@@ -1189,6 +1312,7 @@ cursor_N_tuples(cursor_t * cursor, int * n, pword * tuple_listp, pword ** tp)
 	 * list
 	 */
 
+	if (cursor->state == nodata) break; /* exhausted data previously, just return */
 	if (cursor_one_tuple(cursor) == -1) return -1; /* error has occurred */
 	if (template->to == template->from) break; /* reached end */
 
@@ -1210,7 +1334,7 @@ cursor_N_tuples(cursor_t * cursor, int * n, pword * tuple_listp, pword ** tp)
 }
 
 int 
-cursor_N_execute(cursor_t * cursor, int * tuplep, value v_tuples, type t_tuples, pword ** cdrp)
+cursor_N_execute(cursor_t * cursor, word * tuplep, value v_tuples, type t_tuples, pword ** cdrp)
 {
     int res;
     pword * car; 
@@ -1245,25 +1369,6 @@ cursor_N_execute(cursor_t * cursor, int * tuplep, value v_tuples, type t_tuples,
 
 
     return 0;
-}
-
-int
-cursor_cancel(cursor_t * cursor)
-{
-	if (cursor->session->closed)
-	{
-	    raise_dbi_error(DBI_BAD_CURSOR);
-	    return -1;
-	}
-
-	if ( cursor->state != idle  && cursor->state != closed &&
-	     !mysql_stmt_free_result(cursor->s.stmt))
-	{
-	    raise_mysql_stmt_error(cursor->s.stmt);
-	    return -1;
-	}
-	cursor->state = idle;
-	return 0;
 }
 
 int 
@@ -1331,10 +1436,17 @@ cursor_free(cursor_t * cursor)
 	}
 	TryFree(cursor->tuple_template);
 	TryFree(cursor->param_buffer);
-	TryFree(cursor->tuple_buffer);
 	TryFree(cursor->tuple_errors);
-	TryFree(cursor->tuple_datalengths);
 	TryFree(cursor->param_datalengths);
+	if (cursor->sql_type == prepared)
+	{/* these are malloc'ed only for prepared statements. 
+	    If session has already been freed, then tuple_buffer etc.
+            would be freed by MySQL already, even though they still have
+            non-zero values
+	 */
+	    TryFree(cursor->tuple_buffer);
+	    TryFree(cursor->tuple_datalengths);
+	}
 
 	free(cursor);
 

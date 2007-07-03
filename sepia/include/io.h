@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: io.h,v 1.1 2006/09/23 01:55:03 snovello Exp $
+ * VERSION	$Id: io.h,v 1.2 2007/07/03 00:10:28 jschimpf Exp $
  */
 
 /*
@@ -291,7 +291,7 @@ Extern	int	ec_tty_outs ARGS((stream_id, char*, int));
 Extern	int	ec_seek_stream ARGS((stream_id,long,int));
 Extern	int	ec_stream_at ARGS((stream_id,long*));
 Extern	int	ec_close_stream ARGS((stream_id));
-Extern	int	ec_outfw ARGS((stream_id, long));
+Extern	int	ec_outfw ARGS((stream_id, word));
 Extern	int	ec_outfc ARGS((stream_id, int));
 Extern	int	ec_getch ARGS((stream_id));
 Extern	int	ec_ungetch ARGS((stream_id));

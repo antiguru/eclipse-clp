@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+ * $Id: embed.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -68,6 +68,15 @@ extern char *	strcpy();
 extern int	eclipse_global_init(int init_flags);
 extern int	eclipse_boot(char *initfile);
 extern int	mem_init(int flags);
+
+
+/*
+ * Global state
+ */
+
+#ifdef _WIN32
+static void *resume_thread = NULL;
+#endif
 
 
 /*----------------------------------------------------------------------
@@ -125,24 +134,14 @@ ec_init(void)
     char	filename_buf[MAX_PATH_LEN];
     pword	goal,module;
     int		res;
-    
 
+    
     /*----------------------------------------------------------------
      * Make the connection to the shared heap, if any.
      * Because of mmap problems on some machines this should
      * happen AFTER initializing the message passing system.
      *----------------------------------------------------------------*/
     mem_init(ec_options.init_flags);	/* depends on -c and -m options */
-
-    /*
-     * convert pathname to canonical representation (should be done in
-     * ec_set_option_ptr(), bu is here after mem_init() because of hp_alloc())
-     */
-    if (ec_options.eclipse_home)
-    {
-	(void) canonical_filename(ec_options.eclipse_home, filename_buf);
-	ec_options.eclipse_home = strcpy((char*) hp_alloc(strlen(filename_buf)+1), filename_buf);
-    }
 
     /*
      * Init the global (shared) eclipse structures, dictionary, code...
@@ -160,9 +159,9 @@ ec_init(void)
      */
     emu_init(ec_options.init_flags, 0);
 
-    initfile = strcat(strcpy(filename_buf, ec_options.eclipse_home), "/lib/kernel.eco");
+    initfile = strcat(strcpy(filename_buf, ec_eclipse_home), "/lib/kernel.eco");
     if (ec_access(initfile, R_OK) < 0)
-	initfile = strcat(strcpy(filename_buf, ec_options.eclipse_home), "/lib/kernel.pl");
+	initfile = strcat(strcpy(filename_buf, ec_eclipse_home), "/lib/kernel.pl");
 
     res = eclipse_boot(initfile);
     if (res != PSUCCEED)
@@ -176,6 +175,19 @@ ec_init(void)
     return PSUCCEED;
 }
 
+void
+ec_embed_fini(void)
+{
+#ifdef _WIN32
+    if (resume_thread)
+    {
+	(void) ec_thread_terminate(resume_thread, 3000/*ms timeout*/);
+	resume_thread = NULL;
+    }
+#endif
+    hp_free(ec_eclipse_home);
+    ec_eclipse_home = 0;
+}
 
 /*----------------------------------------------------------------------
  * Posting goals
@@ -254,10 +266,6 @@ ec_exec_string(
 /*----------------------------------------------------------------------
  * Resuming Eclipse execution
  *----------------------------------------------------------------------*/
-
-#ifdef _WIN32
-void *resume_thread = NULL;
-#endif
 
 int Winapi
 ec_resume(void)

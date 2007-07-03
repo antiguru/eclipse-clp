@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
+ * $Id: os_support.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -145,13 +145,9 @@ int		ec_os_errgrp_;	/* which group of error numbers it is from */
  * Initialisation
  *----------------------------------------------------------------------*/
 
-long
-ec_time_init(void)	/* return value used for initialising random() */
+void
+ec_os_init(void)
 {
-
-#ifdef _WIN32
-
-#endif
 
 #ifdef _WIN32
     DWORD now;
@@ -194,8 +190,16 @@ ec_time_init(void)	/* return value used for initialising random() */
 	(void) WSAStartup(MAKEWORD(2,0), &wsa_data);	/* init Winsock */
     }
 #endif
+}
 
-    return (long) now;
+
+void
+ec_os_fini(void)
+{
+#ifdef _WIN32
+    ec_terminate_alarm();	/* terminate alarm thread, if any */
+    (void) WSACleanup();	/* finalise Winsock (once per WSAStartup()) */
+#endif
 }
 
 
@@ -1205,7 +1209,7 @@ int
 ec_thread_terminate(void *desc, int timeout)
 {
     int result;
-    DWORD thread_exit_code;
+    DWORD thread_exit_code = 0;
 
     if (ec_thread_stopped(desc, &result))
     {
@@ -1234,7 +1238,8 @@ ec_thread_terminate(void *desc, int timeout)
 	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return -1;
 	}
-	return thread_exit_code;	/* 0 or 1 */
+	/*thread_exit_code is 0 or 1 */
+	break;
 
     default:
     case WAIT_TIMEOUT:	/* timeout occurred, terminate forcibly */
@@ -1243,12 +1248,23 @@ ec_thread_terminate(void *desc, int timeout)
 	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return -1;
 	}
-	return 0;	/* don't bother to wait */
+	/* thread_exit_code is 0, don't bother to wait */
+	break;
 
     case WAIT_FAILED:
 	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return -1;
     }
+
+    if (!CloseHandle(((thread_data*)desc)->thread_handle) ||
+	!CloseHandle(((thread_data*)desc)->start_event) ||
+	!CloseHandle(((thread_data*)desc)->done_event))
+    {
+	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	return -1;
+    }
+    free(desc);
+    return thread_exit_code;	/* 0 or 1 */
 }
 
 #endif
@@ -1278,6 +1294,7 @@ typedef struct {
     DWORD new_ivl;			/* future intervals (ms) */
     void (*new_callback)(long);		/* callback function ... */
     long new_cb_arg;			/* ... and its argument */
+    int terminate_req;			/* request to terminate alarm thread */
 
 /* output ( w for thread, r for main) */
     DWORD old_remain;			/* remaining time when stopped (ms) */
@@ -1360,29 +1377,36 @@ ec_alarm_thread(timer_thread *desc)
 	 */
 	if (res == WAIT_OBJECT_0)
 	{
-	    desc->old_remain = desc->running ? next_timeout : 0;
-	    desc->old_ivl = desc->active_ivl;
+	    if (desc->terminate_req)
+	    {
+		break;		/* same as ExitThread(1); */
+	    }
+	    else
+	    {
+		desc->old_remain = desc->running ? next_timeout : 0;
+		desc->old_ivl = desc->active_ivl;
 
-	    if (desc->new_first)		/* change settings */
-	    {
-		desc->active_due = now_time.QuadPart + (LONGLONG)desc->new_first*10000;
-		desc->active_ivl = desc->new_ivl;
-		desc->active_callback = desc->new_callback;
-		desc->active_cb_arg = desc->new_cb_arg;
-		desc->running = 1;
-		next_timeout = desc->new_first;
-	    }
-	    else				/* clear settings */
-	    {
-		desc->active_due = 0;
-		desc->active_ivl = 0;
-		desc->running = 0;
-		next_timeout = INFINITE;
-	    }
-	    /* indicate acceptance */
-	    if (!SetEvent(alarm_thread.time_accept_event))
-	    {
-		ec_bad_exit("ECLiPSe: timer thread SetEvent() failed");
+		if (desc->new_first)		/* change settings */
+		{
+		    desc->active_due = now_time.QuadPart + (LONGLONG)desc->new_first*10000;
+		    desc->active_ivl = desc->new_ivl;
+		    desc->active_callback = desc->new_callback;
+		    desc->active_cb_arg = desc->new_cb_arg;
+		    desc->running = 1;
+		    next_timeout = desc->new_first;
+		}
+		else				/* clear settings */
+		{
+		    desc->active_due = 0;
+		    desc->active_ivl = 0;
+		    desc->running = 0;
+		    next_timeout = INFINITE;
+		}
+		/* indicate acceptance */
+		if (!SetEvent(alarm_thread.time_accept_event))
+		{
+		    ec_bad_exit("ECLiPSe: timer thread SetEvent() failed");
+		}
 	    }
 	}
     }
@@ -1402,6 +1426,7 @@ ec_set_alarm(
     if (!alarm_thread.thread_handle)	/* create thread if not yet there */
     {
 	DWORD thread_id;
+	alarm_thread.terminate_req = 0;
 	alarm_thread.running = 0;
 	alarm_thread.time_set_event = CreateEvent(NULL, FALSE, FALSE, NULL);
 	if (!alarm_thread.time_set_event)
@@ -1455,6 +1480,63 @@ ec_set_alarm(
 	if (old_interv) *old_interv = alarm_thread.old_ivl / 1000.0;
 	return 1;
     }
+}
+
+
+/*
+ * Terminate the alarm thread.
+ * Returns: 1 if cleanly terminated, 0 if forcibly terminated, -1 error
+ */
+int
+ec_terminate_alarm()
+{
+    DWORD thread_exit_code = 0;
+
+    /* send a termination request to the thread */
+    alarm_thread.terminate_req = 1;
+    if (!SetEvent(alarm_thread.time_set_event))
+    {
+	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	return -1;
+    }
+
+    /* wait for termination */
+    switch(WaitForSingleObject(alarm_thread.thread_handle, 3000))
+    {
+    case WAIT_OBJECT_0:	/* termination was signalled */
+	if (!GetExitCodeThread(alarm_thread.thread_handle, &thread_exit_code))
+	{
+	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	    return -1;
+	}
+	/* thread_exit_code is 0 or 1 */
+	break;
+
+    default:
+    case WAIT_TIMEOUT:	/* timeout occurred, terminate forcibly */
+	if (!TerminateThread(alarm_thread.thread_handle, 0))
+	{
+	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	    return -1;
+	}
+	/* thread_exit_code is 0, don't bother to wait */
+	break;
+
+    case WAIT_FAILED:
+	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	return -1;
+    }
+
+    if (!CloseHandle(alarm_thread.thread_handle) ||
+	!CloseHandle(alarm_thread.time_set_event) ||
+	!CloseHandle(alarm_thread.time_accept_event))
+    {
+	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	return -1;
+    }
+
+    alarm_thread.thread_handle = NULL;
+    return thread_exit_code;	/* 0 or 1 */
 }
 
 #endif

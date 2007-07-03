@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.1 2006/09/23 01:55:04 snovello Exp $
+ * $Id: os_support.h,v 1.2 2007/07/03 00:10:28 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -145,7 +145,8 @@ extern int	clock_hz;
 extern int	ec_os_errno_;
 extern int	ec_os_errgrp_;
 
-long	ec_time_init ARGS((void));
+void	ec_os_init ARGS((void));
+void	ec_os_fini ARGS((void));
 char *	expand_filename ARGS((char *in, char *out));
 char *	os_filename ARGS((char *in, char *out));
 extern DLLEXP	char *		os_filename ARGS((char *in, char *out));

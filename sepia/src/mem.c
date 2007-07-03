@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
+ * VERSION	$Id: mem.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /*
@@ -491,6 +491,37 @@ alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct *
     {
 	descr[i]->start = descr[i]->end = descr[i]->peak = stack_base;
 	stack_base += bytes[i]/sizeof(uword);
+    }
+}
+
+
+void
+dealloc_stack_pairs(struct stack_struct *lower, struct stack_struct *upper)
+{
+    generic_ptr addr = lower[0].start;
+    uword bytes = (char*) upper[1].start - (char*) addr;
+
+    switch(ec_options.allocation)
+    {
+    case ALLOC_VIRTUAL:
+    case ALLOC_PRE:
+#if _WIN32
+	if (!VirtualFree(addr, 0 /*!*/, MEM_RELEASE))
+	{
+	    ec_options.user_panic("failed to release stacks","dealloc_stack_pair()");
+	}
+#else
+#ifdef HAVE_MMAP
+	if (munmap(addr, (size_t) bytes) != 0)
+	{
+	    ec_options.user_panic("failed to release stacks","dealloc_stack_pair()");
+	}
+#endif
+#endif
+	break;
+    case ALLOC_FIXED:
+	/* cannot deallocate */
+	break;
     }
 }
 
@@ -1290,3 +1321,10 @@ malloc_init(void)
     mem_is_initialized = 1;
 }
 
+void
+mem_fini()
+{
+    shared_mem_release(&global_heap);
+    private_mem_release();
+    mem_is_initialized = 0;
+}

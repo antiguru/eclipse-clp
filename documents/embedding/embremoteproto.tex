@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: embremoteproto.tex,v 1.1 2006/09/23 01:49:03 snovello Exp $
+% $Id: embremoteproto.tex,v 1.2 2007/07/03 00:10:26 jschimpf Exp $
 %
 % Author:       Kish Shen, IC-Parc
 %
@@ -147,9 +147,9 @@ checking the pass-term.
 \end{enumerate}
 
 The remote protocol version is stored in the flag {\tt
-remote_protocol_version}, accessible via \bipref{get_flag/2}{../bips/kernel/env/get_flag-2.html}. This
-should be a {\tt remote_protocol/1} term, with an integer version
-number. This version number should only change when the protocol is
+remote_protocol_version}, accessible via \bipref{get_flag/2}{../bips/kernel/env/get_flag-2.html}
+as an integer version number.
+This version number should only change when the protocol is
 modified. Checking of the version ensures that the same (or at
 least compatible) versions of the protocol are used, so that the two sides
 behaves correctly. The version information is sent from the remote side

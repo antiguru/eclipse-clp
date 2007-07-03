@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.11 2007/06/21 00:52:29 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.12 2007/07/03 00:10:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -391,8 +391,9 @@ ec_rpc_in_handler1(In, Out) :-
 
     :- tool(term_string/2).
     execute_rpc(Out, GoalString, Extra) :-
-	string(GoalString), !,
-	term_string(Goal, GoalString),
+	string(GoalString), !, 
+	default_module(M),
+	term_string(Goal, GoalString)@M,
 	execute_rpc(Out, Goal, Extra).
     execute_rpc(Out, Goal, Extra) :-
 	default_module(M),
@@ -573,6 +574,7 @@ sepia_version(List, Patch, Date) :-
 
 sepia_version_banner(Text, Date) :-
 	get_sys_flag(11, Version),
+	get_sys_flag(8, Arch),
 	sepia_version(List, Patch, Date),
 	append(_, [Build], List), !,
 	configuration(Conf),
@@ -595,8 +597,8 @@ sepia_version_banner(Text, Date) :-
 	    "\nSource available at www.sourceforge.org/projects/eclipse-clp",
 	    GmpCopyright,
 	    "\nFor other libraries see their individual copyright notices",
-	    "\nVersion ", Version, Patch, " #", Build, ", ", Date,
-	    PidInfo, "\n"
+	    "\nVersion ", Version, Patch, " #", Build, " (", Arch, "), ",
+	    Date, PidInfo, "\n"
 	], Text).
 
 
@@ -726,8 +728,7 @@ cleanup_before_exit :-
 	% Call user handler first, so it can abort the exit if desired
 	( error(152, N) -> true ; true ),	% may abort
 
-	disconnect_remotes, 
-	finalize_all_modules.			% now we could erase modules
+	erase_modules.
 
 
 %----------------------------------------
@@ -2122,31 +2123,52 @@ erase_module_related_records(Module) :-
 	forget_module_files(Module).
 
 erase_module(Mod, From_mod) :-
-	( illegal_module(Mod, Error) ->
-	    error(Error, erase_module(Mod), From_mod)
-	; illegal_existing_module(From_mod, Error) ->
-	    error(Error, erase_module(Mod), From_mod)
-	; Mod = From_mod ->
-	    error(101, erase_module(Mod), From_mod)
+	check_atom(Mod),
+	check_module(From_mod),
+	( is_a_module(Mod) ->
+	    ( Mod == From_mod ->
+	    	set_bip_error(101)
+	    ; is_locked(Mod), From_mod\==sepia_kernel, \+authorized_module(From_mod) ->
+		% locked modules can only be deleted from sepia_kernel
+		% (needed only for system cleanup, i.e. erase_modules/0)
+		set_bip_error(82)
+	    ;
+		erase_module_unchecked(Mod, From_mod)
+	    )
 	;
-	    erase_module_unchecked(Mod, From_mod)
-	).
+	    true
+	),
+	!.
+erase_module(Mod, From_mod) :-
+	get_bip_error(Error),
+	error(Error, erase_module(Mod), From_mod).
 
+
+% may fail with bip_error set
 erase_module_unchecked(Mod, From_mod) :-
 	run_stored_goals(finalization_goals, Mod),
-	( erase_module_(Mod, From_mod) ->
-	    erase_module_related_records(Mod)
-	;
-	    get_bip_error(Error),
-	    error(Error, erase_module(Mod), From_mod)
-	).
+	erase_module_(Mod, From_mod),
+	erase_module_related_records(Mod).
 
 
-finalize_all_modules :-
-	current_module(Module),
+% Cleanup: Erase all modules except sepia_kernel, and finalize sepia_kernel.
+% Because we currently don't keep track of module dependencies, we first
+% finalize all modules, and then delete them. This should avoid problems
+% caused by finalizers that assume the existence of other modules.
+erase_modules :-
+	module_tag(sepia_kernel, Self),
+	(
+	    current_module(Module), Module \== Self,
 	    run_stored_goals(finalization_goals, Module),
-	fail.
-finalize_all_modules.
+	    fail
+	;
+	    current_module(Module), Module \== Self,
+	    % erase_module won't run the finalizers again
+	    ( erase_module_unchecked(Module, Self) -> true ; get_bip_error(_) ),
+	    fail
+	;
+	    run_stored_goals(finalization_goals, Self)
+	).
 
 
 %
@@ -2288,13 +2310,14 @@ import_interface(Module, Where) :-		% may fail with bip_error
 % It erases the module and re-creates it
 
 module_directive(New_module, From_module, Exports, Language) :-
-	illegal_module(New_module, Error) ->
-	    error(Error, module(New_module))
-	;
-	erase_module_unchecked(New_module, From_module) ->
+	(
+	    check_atom(New_module),
+	    erase_module_unchecked(New_module, From_module)
+	->
 	    create_module(New_module, Exports, Language)
 	;
-	bip_error(module(New_module)).
+	    bip_error(module(New_module))
+	).
 
 module(M):-
 	error(81, module(M)).
@@ -4024,23 +4047,20 @@ prof_predicate(Flags, Pred, Module, Start, I) :-
     incval(profile_module),
     current_functor(N, A, 2, 0),	% functors with predicates only
     local_proc_flags(P, 0, Module, Module, Private),	% definition_module
-    local_proc_flags(P, 14, on, Module, _Private),	% defined
-    local_proc_flags(P, 1, ProcFlags, Module, _Private), % flags
+    local_proc_flags(P, 14, on, Module, _Private),		% defined
+    local_proc_flags(P, 1, ProcFlags, Module, _Private),	% flags
     (ProcFlags /\ 16'00000300 =:= 16'00000200 ->	% CODETYPE==VMCODE
 	true
     ;
 	Flags /\ 1 =:= 1
     ),
     local_proc_flags(P, 7, Start, Module, _),
-    ( Private = global ->
-	Pred = N/A
-    ; Flags /\ 2 =:= 2 ->
-	Pred = N/A
-    ; prof_replace_pred(N, A, Module, Pred, I) ->
-	true
+    % If N/A is local to a locked Module, and the 'all'-flag is not given,
+    % then try to map it to a more useful exported predicate name (using table).
+    ( Private=local, Flags/\2 =:= 0, prof_replace_pred(N, A, Module, Pred, I) ->
+    	true
     ;
-	Pred = ' ',
-	I = J
+	Pred = N/A
     ).
 
 % prof_replace_pred(Name, Arity, Module, NewPred, Index)
@@ -4067,14 +4087,15 @@ prof_replace_pred((;),			4, sepia_kernel, metacall,	6) :- !.
 prof_replace_pred((;),			5, sepia_kernel, metacall,	6) :- !.
 prof_replace_pred(length1,		2, sepia_kernel, length/2,	7) :- !.
 prof_replace_pred(length,		3, sepia_kernel, length/2,	7) :- !.
-prof_replace_pred(member/3,		2, sepia_kernel, member/2,	8) :- !.
-prof_replace_pred(reverse/3,		2, sepia_kernel, reverse/2,	9) :- !.
-prof_replace_pred(subscript1/_,		2, sepia_kernel, subscript/3,  10) :- !.
-prof_replace_pred(subscript2/_,		2, sepia_kernel, subscript/3,  10) :- !.
-prof_replace_pred(subscript3/_,		2, sepia_kernel, subscript/3,  10) :- !.
-prof_replace_pred(subscript/4,		2, sepia_kernel, subscript/3,  10) :- !.
+prof_replace_pred(member,		3, sepia_kernel, member/2,	8) :- !.
+prof_replace_pred(reverse,		3, sepia_kernel, reverse/2,	9) :- !.
+prof_replace_pred(subscript1,		5, sepia_kernel, subscript/3,  10) :- !.
+prof_replace_pred(subscript2,		6, sepia_kernel, subscript/3,  10) :- !.
+prof_replace_pred(subscript3,		5, sepia_kernel, subscript/3,  10) :- !.
+prof_replace_pred(subscript,		4, sepia_kernel, subscript/3,  10) :- !.
+prof_replace_pred(forallc,		4, sepia_kernel, do/2,         11) :- !.
 
-prof_fixed_entries(8).
+prof_fixed_entries(12).
 
 :- local	% because the tool declaration has made them exported ...
 	erase_record/3,

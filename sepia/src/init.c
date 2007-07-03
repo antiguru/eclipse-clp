@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -104,6 +104,7 @@ extern void	bip_arith_init(int flags),
 		megalog_init(),
 		megalog_end(),
 		mem_init(int flags),
+		mem_fini(void),
 		module_init(int flags),
 		opaddr_init(void),
 		op_init(int flags),
@@ -146,6 +147,18 @@ static char * arg1 = "Embedded ECLiPSE";
  */
 
 t_eclipse_data	ec_;
+
+/* TODO: move the following into ec_ on main branch */
+char *ec_eclipse_home;		/* canonical, hp_allocated */
+
+
+/*
+ * The ec_options structure is
+ * - statically initialised
+ * - can be overwritten by the embedding application before ec_init()
+ * - is pure input, i.e. must not be changed by eclipse itself
+ * - memory pointed to by members is owned by host application, not ECLiPSe
+ */
 
 t_eclipse_options ec_options =
 {
@@ -201,7 +214,7 @@ t_eclipse_options ec_options =
 	/* default module */
 	"eclipse",
 
-	/* eclipse_home */
+	/* eclipse_home, input, non-canonical */
 	(char *) 0,
 
 	/* init_flags */
@@ -239,20 +252,28 @@ eclipse_global_init(int init_flags)
 {
     int err;
 
+    ec_os_init();
+
     if (!(init_flags & (INIT_SHARED|REINIT_SHARED)))
     {
 	/* if we attach to a heap, it must be fully initialised */
 	wait_for_flag(&GlobalFlags, HEAP_READY);
     }
 
-    if (!ec_options.eclipse_home)
+    /*
+     * convert pathname to canonical representation
+     */
+    if (ec_options.eclipse_home)
     {
-	ec_options.eclipse_home = eclipsehome();
-	if (!ec_options.eclipse_home)
-	{
-	    ec_bad_exit("ECLIPSEDIR is not set, aborting.");
-	}
+	char buf[MAX_PATH_LEN];
+	(void) canonical_filename(ec_options.eclipse_home, buf);
+	ec_eclipse_home = strcpy((char*) hp_alloc(strlen(buf)+1), buf);
     }
+    else
+    {
+	ec_eclipse_home = strcpy((char*) hp_alloc(strlen(eclipsehome())+1), eclipsehome());
+    }
+
     dict_init(init_flags);
     opaddr_init();
     worker_init(init_flags);
@@ -266,7 +287,7 @@ eclipse_global_init(int init_flags)
     }
     bip_emu_init(init_flags);
     bip_arith_init(init_flags);
-    bip_array_init(init_flags, ec_options.eclipse_home);
+    bip_array_init(init_flags, ec_eclipse_home);
     bip_comp_init(init_flags);
     bip_control_init(init_flags);
     bip_db_init(init_flags);
@@ -337,9 +358,34 @@ _make_error_message(int err, char *where, char *buf)
 }
 
 
-/*
+/*----------------------------------------------------------------
  * Shutdown code (see also p_exit(), exit/1 and halt/0)
- */
+ *
+ * Shutdown can be requested either from Prolog (exit/1,halt/0) or
+ * from C (ec_cleanup()). In either case, we first do a cleanup at
+ * the Prolog level (running finalization goals etc), then the low
+ * level cleanup ec_cleanup1().
+ * 
+ * The cleanup is to be done such that all dynamic resources are
+ * freed, and the system can either be reinitialised by ec_init(),
+ * or, in the embedded case, the eclipse.[so,dll] can be unloaded,
+ * freeing all ECLiPSe-related resources in the process.
+ * In particular, we must take care of:
+ * - closing all I/O
+ * - destroying threads
+ * - unloading shared libraries
+ * - deallocating the engine stacks
+ * - resetting signal handlers
+ * - freeing all heap spaces
+ * - resetting all static variables to their initial state
+ * Because we destroy our shared and private heaps indiscriminately
+ * at the end, we need not be too concerned about explicitly deallo-
+ * cating all data structures that were previously allocated there.
+ * However, we must then be sure that the embedding host does not
+ * retain pointers to such (hg/hp_allocated) data. In case ECLiPSe
+ * makes any allocations with the system malloc(), these must be
+ * freed explicitly otherwise they will constitute a memory leak.
+ *----------------------------------------------------------------*/
 
 int
 ec_cleanup1(int exit_code)
@@ -382,10 +428,17 @@ ec_worker_cleanup(void)
 {
     megalog_end();
 
-    handlers_fini();
+    ec_emu_fini();		/* destroy the engine */
+    ec_embed_fini();
 
-    flush_and_close_io(1);
+    bip_load_fini();		/* unload any shared libraries */
+
+    flush_and_close_io(1);	/* shut down I/O system */
     
+    ec_os_fini();		/* timers, threads, sockets */
+
+    handlers_fini();		/* undo signal handler settings */
+
     if (ec_options.parallel_worker)
 	exit_mps();
 
@@ -393,9 +446,8 @@ ec_worker_cleanup(void)
      * all streams are closed */
     Disable_Int();
 
-    ec_unlink_temps();
-
-    shared_mem_release(&global_heap);
+    /* finally, release all heap memory */
+    mem_fini();
 }
 
 /*

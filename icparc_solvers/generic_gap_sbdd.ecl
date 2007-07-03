@@ -3,7 +3,7 @@
 % See SBDDa.g for the GAP side.
 % IPG, WH, TK, SAL
 %
-% $Id: generic_gap_sbdd.ecl,v 1.1 2006/10/13 00:41:27 jschimpf Exp $
+% $Id: generic_gap_sbdd.ecl,v 1.2 2007/07/03 00:10:27 jschimpf Exp $
 %
 
 %
@@ -210,7 +210,7 @@ sbdd_initialise_body(Array, GroupId, MaxPoints, DimFactors, ValOffset, Options,
 	DecInfoList = [],
 	getval(src_dir, SrcDir),
 	gap_command("Read(\"%s/SBDDa.g\")", [SrcDir]),
-	gap_command("Init(%s, %d)", [GroupId, MaxPoints]),%% Supplied by driver code
+	gap_command("SBDDInit(%s, %d)", [GroupId, MaxPoints]),%% Supplied by driver code
 	dim(Array, Dims),
 	init_array(Array, Dims, [], Shared, [], PointSet).
 

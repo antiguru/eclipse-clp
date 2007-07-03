@@ -35,7 +35,7 @@
  * using an atomic test-and-set instruction (lock.S)
  *---------------------------------------------------------------------*/
 
-#if (defined(lint) || !(defined(m88k) || defined(sparc) || defined(mc68000) || defined(i386) || defined(mips) || defined(__alpha__) || defined(_PA_RISC1_0) || defined(_PA_RISC1_1)))
+#if (defined(lint) || defined(__APPLE__) || !(defined(m88k) || defined(sparc) || defined(mc68000) || defined(i386) || defined(mips) || defined(__alpha__) || defined(_PA_RISC1_0) || defined(_PA_RISC1_1)))
 
 int
 mutex_lock_failed(plock)	/* dummy (not atomic) */

@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+* Version:	$Id: intervals.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
 *
 
 Supported operations:
@@ -133,41 +133,7 @@ mindeltas(+Xold, +Xnew, -LwdDelta:double, -UpbDelta:double)
 
 /* Declarations of global variables used by the macros in rounding_control.h */
 
-#ifdef _WIN32
-
-    unsigned int ec_fpu_control_orig_;
-
-#elif defined(_FPU_SETCW)
-
-#if defined(__x86_64) && defined(__SSE_MATH__)
-    unsigned int ec_fpu_control_orig_;
-    unsigned int ec_fpu_control_up_;
-    unsigned int ec_fpu_control_down_;
-#else
-    fpu_control_t ec_fpu_control_orig_;
-    fpu_control_t ec_fpu_control_up_;
-    fpu_control_t ec_fpu_control_down_;
-#endif
-
-#elif defined(HAVE_FPSETROUND)
-
-    fp_rnd ec_fpu_round_orig_;
-
-#elif defined(__alpha__)
-
-    unsigned long ec_fpu_control_orig_;
-    unsigned long ec_fpu_control_up_;
-    unsigned long ec_fpu_control_down_;
-
-#elif defined(__POWERPC__) && defined(__APPLE__) && defined(__MACH__)
-
-    int ec_fpu_round_orig_;
-
-#elif defined(HAVE_IEEE_FLAGS)
-
-    char *ec_fpu_round_orig_;
-
-#endif
+Declare_Rounding_Control_State
 
 
 #define Return_Double(v, t, d) 	{	\

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.3 2007/02/23 15:28:34 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.4 2007/07/03 00:10:29 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -230,7 +230,7 @@ bip_misc_init(int flags)
     if (flags & INIT_PROCESS)
     {
 	/* initialize random generators */
-	int rand_init = ec_time_init() * getpid();
+	int rand_init = ec_unix_time() * getpid();
 	_fseed((uint32) rand_init);
 #ifdef HAVE_RANDOM
 	srandom((unsigned) rand_init);

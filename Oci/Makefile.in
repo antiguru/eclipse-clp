@@ -23,7 +23,7 @@
 # 
 # END LICENSE BLOCK
 #
-# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
+# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.3 2007/07/03 00:10:24 jschimpf Exp $
 #
 
 #ORACLE_HOME=/home/mac/oracle
@@ -41,12 +41,24 @@ CC = @CC@
 CFLAGS = @CFLAGS@
 OS_INCLUDES = @OS_INCLUDES@
 OPT_FLAGS = @OPT_FLAGS@
+LIBS = @LIBS@
 OBJ_SUFFIX = @OBJECTS_SUFFIX@
+DYNLDFLAGS = @DYNLDFLAGS@
+DYLD = @DYLD@
+ifeq "$(ARCH)" "ppc_macosx"
+	LD_LIB_PATH = DYLD_LIBRARY_PATH
+else 
+ifeq "$(ARCH)" "i386_macosx"
+	LD_LIB_PATH = DYLD_LIBRARY_PATH
+else
+	LD_LIB_PATH = LD_LIBRARY_PATH
+endif
+endif
 
 ECLIPSE = $(PREFIX)/bin/$(ARCH)/eclipse
 PERM = a+r,u+w,go-w
 
-ELIBS	= -L$(PREFIX)/lib/$(ARCH) -L$(MYSQLDIR)/lib -leclipse -lm
+ELIBS	= -L$(PREFIX)/lib/$(ARCH) -L$(MYSQLDIR)/lib -leclipse @GMP_LD@ $(LIBS)
 
 
 # MySQL libraries to link against
@@ -59,11 +71,20 @@ ELIBS	= -L$(PREFIX)/lib/$(ARCH) -L$(MYSQLDIR)/lib -leclipse -lm
 # 2. Run dlltool -k -d libmydql.def --dllname libmysql.dll -l libmysql.dll.a
 # We've tried lots of other tricks, but this is the one that worked.
 
-MLIBS   	   = $(MLIBS_$(ARCH))
 MLIBS_i386_nt      = $(MYSQLDIR)/lib/libmysql.dll.a
-MLIBS_i386_linux   = -lmysqlclient -lz
-MLIBS_sparc_sunos5 = -lmysqlclient -lz
-MLIBS_x86_64_linux = -lmysqlclient -lz
+MLIBS_unix	   = -lmysqlclient -lz
+ifeq "$(ARCH)" "i386_nt"
+   MLIBS = $(MLIBS_i386_nt)
+else 
+ ifeq "$(ARCH)" "i386_macosx"
+   # -lgcc needed for linking against static mysql library
+   # ppc_macosx already have -lgcc, so no need to add it here
+   MLIBS = $(MLIBS_unix) -lgcc
+ else
+   MLIBS = $(MLIBS_unix)
+ endif
+endif
+
 
 #OLIBS   = -L$(ORACLE_LIB) $(ORACLE_LIB)/osntab.o -locic -lsql\
 #-lsqlnet  -lora -lsqlnet  -lora -lnlsrtl -lcv6 -lcore -lnlsrtl -lcv6 -lcore
@@ -114,19 +135,19 @@ $(ARCH)/mysql.o: dbi.h mysql.c
 
 $(ARCH)/dbi_mysql.$(OBJ_SUFFIX): $(MOBJ)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
-	$(CC) $(OPT_FLAGS) -shared \
+	$(DYLD) $(DYNLDFLAGS) \
 	    $(MOBJ) $(MLIBS) $(ELIBS) \
 	    -o $(ARCH)/dbi_mysql.$(OBJ_SUFFIX)
 
 
 $(PREFIX)/lib/%.eci: %.ecl
 	@$(MAKE) -f $(MAKEFILE) $(OBJ_FILES)
-	LD_LIBRARY_PATH=$(MYSQLDIR)/lib:$(LD_LIBRARY_PATH) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(document),icompile("$<","$(@D)")'
+	$(LD_LIB_PATH)=$(MYSQLDIR)/lib:$($(LD_LIB_PATH)) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(document),icompile("$<","$(@D)")'
 	-@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eco: %.ecl mysqlopts.ecl
 	@$(MAKE) -f $(MAKEFILE) $(OBJ_FILES)
-	LD_LIBRARY_PATH=$(MYSQLDIR)/lib:$(LD_LIBRARY_PATH) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(fcompile), set_flag(variable_names,off), fcompile("$<", [outdir:"$(@D)"])'
+	$(LD_LIB_PATH)=$(MYSQLDIR)/lib:$($(LD_LIB_PATH)) $(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(fcompile), set_flag(variable_names,off), fcompile("$<", [outdir:"$(@D)"])'
 	-@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/$(ARCH)/%.$(OBJ_SUFFIX):	$(ARCH)/%.$(OBJ_SUFFIX)

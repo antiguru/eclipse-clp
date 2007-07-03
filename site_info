@@ -66,6 +66,7 @@ MACHINE_x86_64_linux=
 MACHINE_sparc_sunos5=
 MACHINE_alpha_linux=
 MACHINE_ppc_macosx=
+MACHINE_i386_macosx=
 MACHINE_sun4=
 MACHINE_i386_nt=$MACHINE_i386_linux	# Cross-compiler
 
@@ -101,6 +102,7 @@ TEST_MACHINES_x86_64_linux=
 TEST_MACHINES_sparc_sunos5=
 TEST_MACHINES_alpha_linux=
 TEST_MACHINES_ppc_macosx=
+TEST_MACHINES_i386_macosx=
 TEST_MACHINES_sun4=
 TEST_MACHINES_i386_nt=
 

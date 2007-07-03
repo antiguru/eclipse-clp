@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.3 2007/07/03 00:10:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2007/02/23 15:28:33 $").
+:- comment(date, "$Date: 2007/07/03 00:10:28 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -1350,7 +1350,7 @@ gen_full_index(HtmlTopDir, LinkBack, SystemName, GroupFlag) :-
 
 	    % insert the targets for the A-Z jump table
 	    atom_string(Name, NameString),
-	    string_list(NameString, [ThisInitial|_]),
+	    string_code(NameString, 1, ThisInitial),
 	    getval(initial, NextInitial),
 	    char_key(NextInitial, NextKey),
 	    char_key(ThisInitial, ThisKey),
@@ -1465,8 +1465,9 @@ writeln_if(Stream, String, Flag) :- nonvar(Flag),
 :- export object_spec_to_filename/2.
 object_spec_to_filename(N/A, FileName) :- !,
     	atom_string(N,S),
-	string_list(S,L),
-	( foreach(C,L), foreach(TC,TL) do
+	string_length(S,SL),
+	( for(I,1,SL), foreach(TC,TL), param(S) do
+	    string_code(S, I, C),
 	    get_chtab(C, CC),
 	    filename_char(CC, C, TC)
 	),
@@ -1526,8 +1527,9 @@ string_to_sorting_key(A, K) :- atom(A),
 	atom_string(A,S),
 	string_to_sorting_key(S, K).
 string_to_sorting_key(S, K) :- string(S),
-	string_list(S, Chars),
-	( foreach(Char,Chars), foreach(Key,K) do
+	string_length(S, N),
+	( for(I,1,N), foreach(Key,K), param(S) do
+	    string_code(S, I, Char),
 	    char_key(Char, Key)
 	).
 

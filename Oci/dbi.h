@@ -47,14 +47,14 @@ typedef struct {
     int  ext_type;
     /* filled in from DB */
     int  dbtype;
-    int  size; /* e.g. for length of fixed len strings */
+    word  size; /* e.g. for length of fixed len strings */
     /*
      * give a buffer b, this argument in the ith tuple
      * (starting from 0) is to
      * be found in b[offset + i * increment]
      */
-    int  offset;
-    int  increment;
+    word  offset;
+    word  increment;
 #ifdef USE_MYSQL
     my_bool is_null; 
 #endif
@@ -62,10 +62,10 @@ typedef struct {
 
 typedef struct {
 	dident did;	/* Used to create structure functor */
-	int arity; 	/* number of slots in type map */
-	int tuples;	/* number of tuples stored in cursor */
-	int from;	/* index of first valid unread tuple */
-	int to;		/* 1 + index of last valid unread tuple */
+	uword arity; 	/* number of slots in type map */
+	uword tuples;	/* number of tuples stored in cursor */
+	uword from;	/* index of first valid unread tuple */
+	uword to;		/* 1 + index of last valid unread tuple */
 	map_t * map;	/* Maps prolog types to Oracle external types */
 } template_t;
 
@@ -78,7 +78,7 @@ typedef struct {
 typedef struct
 {
     /* User fields */
-    int refs;    /* How live references to this session */
+    int refs;    /* How many live references to this session */
     char closed; /* Was the session closed */
     char in_transaction;
     /* DB specific fields */
@@ -117,7 +117,7 @@ typedef struct cursor_handle
 {
  /* User fields */
     sql_t sql_type;
-    int prolog_processed_count;
+    word prolog_processed_count;
     template_t * param_template;
     template_t * tuple_template;
     session_t * session;
@@ -174,8 +174,11 @@ static unsigned char dbformat_header[DBF_HEADER_LEN] = {'D','B'};
  * ---------------------------------------------------------------------- */
 
 void 
-session_start(char * username, char * host, char * password, 
-	      value v_opts, session_t ** session);
+session_init(session_t ** session);
+
+int 
+session_start(session_t * session, char * username, char * host, 
+              char * password, value v_opts);
 
 void
 session_error_value(session_t * session, int * code, char ** msg);
@@ -196,15 +199,15 @@ int
 session_sql_update(session_t * session, char * SQL);
 
 cursor_t *
-session_sql_prepare(session_t * session, char * SQL, int lenght, char use_prepared);
+session_sql_prepare(session_t * session, char * SQL, word lenght, char use_prepared);
 
 cursor_t *
-session_sql_prep(session_t *session, template_t *template, char *SQL, int length, int N);
+session_sql_prep(session_t *session, template_t *template, char *SQL, word length, word N);
 
 cursor_t *
 ready_session_sql_cursor(session_t *session,
-	template_t *params, template_t *query, char *SQL, int length, 
-        int N, char use_prepared);
+	template_t *params, template_t *query, char *SQL, word length, 
+        word N, char use_prepared);
 
 int 
 session_tostr(session_t * session, char *buf, int quoted);
@@ -231,13 +234,10 @@ int
 cursor_one_tuple(cursor_t *cursor);
 
 int 
-cursor_N_tuples(cursor_t* cursor, int* n, pword* tuple_listp, pword** tp);
+cursor_N_tuples(cursor_t* cursor, word* n, pword* tuple_listp, pword** tp);
 
 int
 cursor_all_tuples(cursor_t * cursor, template_t * template, void * buffer);
-
-int
-cursor_cancel(cursor_t * cursor);
 
 int
 cursor_field_value(cursor_t * cursor, field_t field, void ** value);

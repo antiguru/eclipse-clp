@@ -11,6 +11,12 @@
 %   Keys_and_values has moved to PROJEC.PL.
 
 :- module(listut).			% SEPIA header
+
+:- comment(summary, "List processing utilities").
+:- comment(author, "Bob Welham, Lawrence Byrd, R.A.O'Keefe, Joachim Schimpf").
+:- comment(copyright, 'This file is in the public domain').
+:- comment(date, "$Date: 2007/07/03 00:10:23 $").
+
 :- export
 	append/3,			%   List x List -> List
 	correspond/4,			%   Elem <- List x List -> Elem
@@ -47,10 +53,10 @@
 	nextto(?, ?, ?),
 	nmember(?, +, ?),
 	nmembers(+, +, -),
-	nth0(+, +, ?),
-	nth0(+, ?, ?, ?),
-	nth1(+, +, ?),
-	nth1(+, ?, ?, ?),
+	nth0(?, ?, ?),
+	nth0(?, ?, ?, ?),
+	nth1(?, ?, ?),
+	nth1(?, ?, ?, ?),
 	numlist(+, +, ?),
 	perm(?, ?),
 	perm2(?,?, ?,?),
@@ -96,6 +102,7 @@ correspond(X, [_|T], [_|U], Y) :-
 delete([], _, []) :- !.
 delete([Kill|Tail], Kill, Rest) :- !,
 	delete(Tail, Kill, Rest).
+
 	delete([Head|Tail], Kill, [Head|Rest]) :- !,
 		delete(Tail, Kill, Rest).
 
@@ -125,7 +132,7 @@ nextto(X,Y, [_|List]) :-
 nmember(Elem, [Elem|_], 1).
 nmember(Elem, [_|List], N) :-
 	nmember(Elem, List, M),
-		N is M+1.
+	N is M+1.
 
 % nmembers(+Indices, +Answers, -Ans) or nmembers(-Indices, +Answers, +Ans)
 % (But not nmembers(-,+,-), it loops.)
@@ -136,73 +143,154 @@ nmember(Elem, [_|List], N) :-
 nmembers([], _, []).
 nmembers([N|Rest], Answers, [Ans|RestAns]) :-
 	nmember(Ans, Answers, N),
-		nmembers(Rest, Answers, RestAns).
+	nmembers(Rest, Answers, RestAns).
 
-%   nth0(+N, +List, ?Elem) is true when Elem is the Nth member of List,
+%   nth0(?N, ?List, ?Elem) is true when Elem is the Nth member of List,
 %   counting the first as element 0.  (That is, throw away the first
-%   N elements and unify Elem with the next.)  It can only be used to
-%   select a particular element given the list and index.  For that
-%   task it is more efficient than nmember.
-%   nth1(+N, +List, ?Elem) is the same as nth0, except that it counts from
+%   N elements and unify Elem with the next.)
+%   nth1(?N, ?List, ?Elem) is the same as nth0, except that it counts from
 %   1, that is nth(1, [H|_], H).
 
-nth0(0, [Head|_], Head) :- !.
+:- comment(nth0/3, [
+    amode:(nth0(+,+,-) is det),
+    amode:(nth0(-,+,-) is nondet),
+    amode:(nth0(-,-,-) is nondet),
+    args:["I":"Integer position index, counting from 0",
+    	"List":"A list",
+	"Elem":"Any term"],
+    summary:"Access nth element of a list",
+    see_also:[nth1/3,nth0/4,nth1/4],
+    desc:html("\
+	Succeeds when Elem is the Nth member of List, counting the
+	first as element 0.  (That is, throw away the first N elements
+	and unify Elem with the next.)
+    ")]).
 
-nth0(N, [_|Tail], Elem) :-
-	nonvar(N),
-	M is N-1,
-	nth0(M, Tail, Elem).
+nth0(I, Xs, X) :-
+	var(I), 
+	nth_nd(I, Xs, X, 0).
+nth0(I, Xs, X) :-
+	nonvar(I), 
+	nth0_det(I, Xs, X).
 
-nth0(N,[_|T],Item) :-		% Clause added KJ 4-5-87 to allow mode
-	var(N),			% nth0(-,+,+)
-	nth0(M,T,Item),
-	N is M + 1.
+    nth0_det(0, [X|_], X).
+    nth0_det(I, [_|Xs], El) :-
+	integer(I), I>0,	% redundant, for indexing
+	succ(I1, I),
+	nth0_det(I1, Xs, El).
 
 
-nth1(1, [Head|_], Head) :- !.
+:- comment(nth1/3, [
+    amode:(nth1(+,+,-) is det),
+    amode:(nth1(-,+,-) is nondet),
+    amode:(nth1(-,-,-) is nondet),
+    args:["I":"Integer position index, counting from 1",
+    	"List":"A list",
+	"Elem":"Any term"],
+    summary:"Access nth element of a list",
+    see_also:[nth0/3,nth0/4,nth1/4],
+    desc:html("\
+	Succeeds when Elem is the Nth member of List, counting the
+	first as element 1.
+    ")]).
 
-nth1(N, [_|Tail], Elem) :-
-	nonvar(N),
-	M is N-1,			% should be succ(M, N)
-	nth1(M, Tail, Elem).
+nth1(I, Xs, X) :-
+	var(I), 
+	nth_nd(I, Xs, X, 1).
+nth1(I, Xs, X) :-
+	nonvar(I), 
+	nth1_det(I, Xs, X).
 
-nth1(N,[_|T],Item) :-		% Clause added KJ 4-5-87 to allow mode
-	var(N),			% nth1(-,+,+)
-	nth1(M,T,Item),
-	N is M + 1.
+    nth1_det(1, [X|_], X).
+    nth1_det(I, [_|Xs], El) :-
+	integer(I), I>1,	% for indexing
+	succ(I1, I),
+	nth1_det(I1, Xs, El).
 
-%   nth0(+N, ?List, ?Elem, ?Rest) unifies Elem with the Nth element of List,
+    nth_nd(N, [X|_], X, N).
+    nth_nd(N, [_|Xs], El, I) :-
+	succ(I, I1),
+	nth_nd(N, Xs, El, I1).
+
+
+%   nth0(?N, ?List, ?Elem, ?Rest) unifies Elem with the Nth element of List,
 %   counting from 0, and Rest with the other elements.  It can be used
 %   to select the Nth element of List (yielding Elem and Rest), or to 
-%   insert Elem before the Nth (counting from 1) element of Rest, when
+%   insert Elem after the Nth (counting from 1) element of Rest, when
 %   it yields List, e.g. nth0(2, List, c, [a,b,d,e]) unifies List with
 %   [a,b,c,d,e].  nth1 is the same except that it counts from 1.  nth1
-%   can be used to insert Elem after the Nth element of Rest.
+%   can be used to insert Elem before the Nth element (couting from 1) of Rest.
 
-nth0(0, [Head|Tail], Head, Tail) :- !.
+:- comment(nth0/4, [
+    amode:(nth0(+,+,-,-) is det),
+    amode:(nth0(-,+,-,-) is nondet),
+    amode:(nth0(-,-,-,-) is nondet),
+    args:["I":"Integer position index, counting from 0",
+    	"List":"A list",
+	"Elem":"Any term",
+	"Rest":"A list"],
+    summary:"Access nth element and remainder of a list",
+    see_also:[nth0/3,nth1/3,nth1/4],
+    desc:html("\
+	Unifies Elem with the Nth element of List, counting from 0,
+	and Rest with the other elements.  It can be used to select
+	the Nth (counting from 0) element of List (yielding Elem and
+	Rest), or to insert Elem after the Nth (counting from 1)
+	element of Rest, when it yields List, e.g. nth0(2, List, c,
+	[a,b,d,e]) unifies List with [a,b,c,d,e].
+    ")]).
 
-nth0(N, [Head|Tail], Elem, [Head|Rest]) :-
-	nonvar(N),
-	M is N-1,
-	nth0(M, Tail, Elem, Rest).
+nth0(I, Xs, X, Rest) :-
+	var(I), 
+	nth_nd(I, Xs, X, Rest, 0).
+nth0(I, Xs, X, Rest) :-
+	nonvar(I), 
+	nth0_det(I, Xs, X, Rest).
 
-nth0(N, [Head|Tail], Elem, [Head|Rest]) :-	% Clause added KJ 4-5-87
-	var(N),					% to allow mode
-	nth0(M, Tail, Elem, Rest),		% nth0(-,+,+,?).
-	N is M+1.
+    nth0_det(0, [X|Xs], X, Xs).
+    nth0_det(I, [X|Xs], El, [X|Rs]) :-
+	integer(I), I>0,	% redundant, for indexing
+	succ(I1, I),
+	nth0_det(I1, Xs, El, Rs).
 
 
-nth1(1, [Head|Tail], Head, Tail) :- !.
+:- comment(nth1/4, [
+    amode:(nth1(+,+,-,-) is det),
+    amode:(nth1(-,+,-,-) is nondet),
+    amode:(nth1(-,-,-,-) is nondet),
+    args:["I":"Integer position index, counting from 1",
+    	"List":"A list",
+	"Elem":"Any term",
+	"Rest":"A list"],
+    summary:"Access nth element and remainder of a list",
+    see_also:[nth0/3,nth1/3,nth0/4],
+    desc:html("\
+	Unifies Elem with the Nth element of List, counting from 1,
+	and Rest with the other elements.  It can be used to select
+	the Nth element of List (yielding Elem and Rest), or to insert
+	Elem before the Nth (counting from 1) element of Rest, when it
+	yields List, e.g. nth1(3, List, c, [a,b,d,e]) unifies List
+	with [a,b,c,d,e].
+    ")]).
 
-nth1(N, [Head|Tail], Elem, [Head|Rest]) :-
-	nonvar(N),
-	M is N-1,
-	nth1(M, Tail, Elem, Rest).
+nth1(I, Xs, X, Rest) :-
+	var(I), 
+	nth_nd(I, Xs, X, Rest, 1).
+nth1(I, Xs, X, Rest) :-
+	nonvar(I), 
+	nth1_det(I, Xs, X, Rest).
 
-nth1(N, [Head|Tail], Elem, [Head|Rest]) :-	% Clause added KJ 4-5-87
-	var(N),					% to allow mode
-	nth1(M, Tail, Elem, Rest),		% nth1(-,+,+,?).
-	N is M+1.
+    nth1_det(1, [X|Xs], X, Xs).
+    nth1_det(I, [X|Xs], El, [X|Rs]) :-
+	integer(I), I>1,	% for indexing
+	succ(I1, I),
+	nth1_det(I1, Xs, El, Rs).
+
+    nth_nd(N, [X|Xs], X, Xs, N).
+    nth_nd(N, [X|Xs], El, [X|Rs], I) :-
+	succ(I, I1),
+	nth_nd(N, Xs, El, Rs, I1).
+
 
 %   numlist(Lower, Upper, List)
 %   is true when List is [Lower, ..., Upper]

@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.8 2007/06/03 17:03:11 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.9 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /*
@@ -63,6 +63,7 @@
 #include "error.h"
 #include "mem.h"
 #include "dict.h"
+#include "io.h"
 #include "emu_export.h"
 #include "embed.h"
 
@@ -142,12 +143,26 @@ typedef code_item	*emu_code;
  * The PP register: we are using tricks to be able to access
  * it from within sigprof_handler() via Int_Pp
  */
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #  ifdef i386
 #define Declare_Pp	register emu_code pp asm("%esi");
 #define Restore_Pp
 #define Import_Pp	pp = (emu_code) g_emu_.pp;
-#define Int_Pp		esi
+#ifdef HAVE_UCONTEXTGREGS
+#define Int_Pp		(((ucontext_t*) context)->uc_mcontext.gregs[REG_ESI])
+#else
+#define Int_Pp		0
+#endif
+#  else
+#  ifdef __x86_64
+#define Declare_Pp	register emu_code pp asm("%r13");
+#define Restore_Pp
+#define Import_Pp	pp = (emu_code) g_emu_.pp;
+#ifdef HAVE_UCONTEXTGREGS
+#define Int_Pp		(((ucontext_t*) context)->uc_mcontext.gregs[REG_R13])
+#else
+#define Int_Pp		0
+#endif
 #  else
 #  ifdef sparc
 register emu_code	pp	asm("%g5");
@@ -167,6 +182,7 @@ register emu_code	pp	asm("$12");
 #define Restore_Pp
 #define Import_Pp	pp = (emu_code) g_emu_.pp;
 #define Int_Pp		0
+#  endif
 #  endif
 #  endif
 #  endif
@@ -4712,6 +4728,7 @@ _switch_on_type_:
 
 	Case(Initialize_named, I_Initialize_named)
 	/* Initialize firstY, mask, nam1, name2, ...	*/
+	    Check_Gc /* cause compiler doesn't generate appropriate Gc_test! */
 	    Get_Local(pw1)
 	    i = (uword) PP++->nint;
 	    S = TG++;
@@ -8576,22 +8593,36 @@ emu_break(void) {}	/* a dummy function to put a breakpoint in */
  * Signal handler for WAM-level profiling
  *--------------------------------------------------*/
 
-#if defined(i386) && defined(__GNUC__)
-/*ARGSUSED*/
+#if defined(__GNUC__) && defined(HAVE_UCONTEXTGREGS)
+
+#include <signal.h>
+#define __USE_GNU	/* to get REG_XXX */
+#include <ucontext.h>
+#ifndef REG_ESI
+#define REG_ESI ESI	/* e.g. on Solaris 10 */
+#endif
+
+
 RETSIGTYPE
-sigprof_handler(long int signr, long int gs, long int fs, long int es, long int ds, long int edi, long int esi, long int ebp, long int esp, long int ebx, long int edx, long int ecx, long int eax)
+sigprof_handler(int signr, siginfo_t* dummy, void *context)
+
 #else
+
 RETSIGTYPE
 sigprof_handler(void)
+
 #endif
 {
     extern stream_id	profile_stream_;
+
     if (VM_FLAGS & PROFILING)
     {
 	if (VM_FLAGS & EXPORTED)
-	    (void) ec_outfw(profile_stream_, (long) g_emu_.pp);
+	    (void) ec_outfw(profile_stream_, (word) g_emu_.pp);
 	else
-	    (void) ec_outfw(profile_stream_, (long) Int_Pp);
+	{
+	    (void) ec_outfw(profile_stream_, (word) Int_Pp);
+	}
     }
 }
 

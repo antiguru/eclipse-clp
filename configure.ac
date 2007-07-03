@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.6 2007/05/15 02:33:27 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.7 2007/07/03 00:10:22 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -67,7 +67,7 @@ case $host in
     x86_64-*-solaris2.*)
     	arch=x86_64_sunos5
 	;;
-    i?86-*-mingw32*)
+    i?86-*-mingw32* | i?86-*-cygwin*)
     	arch=i386_nt
 	;;
     sparc*-*-sunos[1-4]*)
@@ -78,6 +78,9 @@ case $host in
 	;;
     powerpc*-*-darwin*)
 	arch=ppc_macosx
+	;;
+    i?86-*-darwin*)
+	arch=i386_macosx
 	;;
     alpha*-*-linux*)
 	arch=alpha_linux
@@ -166,7 +169,10 @@ LDFLAGS="-Wl,--export-dynamic"
 #   interposition situation."
 DYNLDFLAGS="-shared"
 
+# use with $CC [generating executable]
 RUNPATH_LDFLAG="-Wl,-R"
+# use with $DYLD [generating dynamic library]
+RUNPATH_DYLDFLAG=$RUNPATH_LDFLAG
 
 # OPT_LOCALFLAGS will be appended to LOCALFLAGS if not --enable-debug
 OPT_LOCALFLAGS=""
@@ -207,12 +213,42 @@ fi
 
 CXXSUFFIX=cc
 
+origostype=$OSTYPE
 
 #----------------------------------------------------------------------
 # Explicit settings - things that can't be figured out automatically
 #----------------------------------------------------------------------
 case "$ARCH" in
+ i386_macosx)
+    GCCLIBDIR=$(ls -d /usr/lib/gcc/i686*/* 2>/dev/null)
+    if test $? -ne 0; then
+	GCCLIBDIR="."
+    fi
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
+    OBJECT_SUFFIX=dylib
+    OBJECTS_SUFFIX=dylib
+    # these needed to be changed to build at SourceForge
+    LDFLAGS=
+    DYNLDFLAGS="-dynamic -single_module -flat_namespace -search_paths_first -L$GCCLIBDIR"
+    LD_C_SO=""
+    PL_C_SO=".c.dylib:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.dylib:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="libtool"
+    # LDTCL for loading Tcl/Tk, implemented as a Framework
+    LDTCL="-framework Tcl"
+    RUNPATH_DYLDFLAG="-executable_path "
+    # RUNPATH_LDLAG is really a noop here
+    RUNPATH_LDFLAG="-L"
+    LOCK=
+    ;;
  ppc_macosx)
+    GCCLIBDIR=$(ls -d /usr/lib/gcc/powerpc*/* 2>/dev/null)
+    if test $? -ne 0; then
+	GCCLIBDIR="."
+    fi
     OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
     OBJECT_SUFFIX=dylib
@@ -220,8 +256,17 @@ case "$ARCH" in
     # these needed to be changed to build at SourceForge
     #LDFLAGS="-Wl,-search_paths_first"
     #DYNLDFLAGS="-dynamic -single_module -flat_namespace -search_paths_first -lgcc"
+    # It seems that PPC MacOSX have some problems linking that requires 
+    # libgcc to be linked in to define some undefined symbols, but the 
+    # method to do this varies with the OS versions:
+    # -lgcc (10.2)
+    # -lcc_dynamic (10.3? -- suggested on the web, but not tested by us)
+    # -L$GCCLIBDIR -lgcc (10.4), where $GCCLIBDIR is a directory in 
+    # /usr/lib/gcc, which the script tries to determine. The flag
+    # -arch_only ppc is also required, as the libgcc.a cannot be linked 
+    # for ppc64 or Intel
     LDFLAGS=
-    DYNLDFLAGS="-dynamic -single_module -flat_namespace -lgcc"
+    DYNLDFLAGS="-dynamic -single_module -flat_namespace  -search_paths_first -L$GCCLIBDIR  -lgcc -arch_only ppc"
     LD_C_SO=""
     PL_C_SO=".c.dylib:"
     PD_C_SO="$LD_C_SO"
@@ -230,7 +275,10 @@ case "$ARCH" in
     DYLD="libtool"
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     #LDTCL="-framework tcl"
-    LDTCL="-F$ECLIPSETHIRDPARTY/tcltk8.4/ppc_macosx/Frameworks -framework Tcl"
+    LDTCL=" -framework Tcl"
+    # -lSystemStubs needed for PPC MacOs X 10.4.9 we built on
+    LIBS= "$LIBS -lSystemStubs"
+    RUNPATH_DYLDFLAG="-executable_path "
     # RUNPATH_LDLAG is really a noop here
     RUNPATH_LDFLAG="-L"
     LOCK=
@@ -241,6 +289,7 @@ case "$ARCH" in
     OPT_LDFLAGS="-Xlinker -x"
     LDFLAGS="-static"
     RUNPATH_LDFLAG="-L"
+    RUNPATH_DYLDFLAG="-L"
 
     WANT_MPS=y
     ;;
@@ -250,6 +299,7 @@ case "$ARCH" in
     LOCAL_FLAGS="-Dsun4_0 -DD_LOAD"
     LDFLAGS="-Xlinker -Bstatic"
     RUNPATH_LDFLAG="-L"
+    RUNPATH_DYLDFLAG="-L"
 
     WANT_MPS=y
     ;;
@@ -332,12 +382,16 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
     DYLD="\$(CC)"
+    RUNPATH_LDFLAG="-Wl,-rpath "
+    RUNPATH_DYLDFLAG="-Wl,-rpath "
     WANT_MPS=y
     # the check for mman.h does not work in my linux release because
     # of a compiler warning. The following fix fakes the cache value:
     ac_cv_header_sys_mman_h=yes
     # at least some i386 linux libcs have this bug:
     AC_DEFINE(ATOF_NEGZERO_BUG)
+    # some bash shell set OSTYPE to gnu-linux
+    OSTYPE="linux"  
     ;;
  x86_64_linux)
     CFLAGS="-fPIC $CFLAGS"
@@ -352,8 +406,11 @@ case "$ARCH" in
     PD_O_SO="$LD_C_SO"
     DYLD="\$(CC)"
     WANT_MPS=y
+    # some bash shell set OSTYPE to gnu-linux
+    OSTYPE="linux"  
     ;;
  i386_nt)
+    CFLAGS="$CFLAGS"
     OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
@@ -363,6 +420,7 @@ case "$ARCH" in
     dnl wsock32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lwsock32 -lnetapi32 $LIBS"
+    OSTYPE="win32"
 
     ;;
  i386_dynix3)
@@ -490,6 +548,18 @@ case "$ARCH" in
 esac
 
 
+if test -z "$OSTYPE"; then
+   AC_MSG_ERROR([Unable to determine OSTYPE])
+else
+   if test "$host" != "$build"; then
+      # if cross-compiling, should not be using the shell's OSTYPE
+      if test "$origostype" == "$OSTYPE"; then
+          AC_MSG_ERROR([OSTYPE not set for cross-compile]) 
+      fi
+   fi
+   AC_MSG_NOTICE([OSTYPE is $OSTYPE])
+fi
+
 #----------------------------------------------------------------------
 # checks for programs
 #----------------------------------------------------------------------
@@ -505,6 +575,7 @@ AC_PROG_CPP
 AC_PROG_CXX
 AC_PROG_CXXCPP
 AC_PROG_AWK
+AC_PATH_PROG(AR,ar,ar,[$PATH:/usr/ccs/bin])
 AC_PROG_RANLIB
 AC_PROG_LN_S
 AC_CHECK_PROG(SED,sed,sed,false)
@@ -673,26 +744,38 @@ AC_CHECK_FUNCS(select gethostname)
 
 AC_FUNC_MMAP
 
-AC_CACHE_CHECK(for working rint, ec_cv_func_rint,
-    AC_TRY_RUN([
+AC_MSG_CHECKING(for working rint)
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[
 #include <math.h>
 double (*print)(double) = rint;
-int main() {exit((int) (*print)(0.2));}
-], ec_cv_func_rint=yes, ec_cv_func_rint=no, ec_cv_func_rint=no))
-if test "$ec_cv_func_rint" = yes; then
-    AC_DEFINE(HAVE_RINT)
-fi
+]],[[
+exit((int) (*print)(0.2));
+]])],
+[AC_MSG_RESULT(yes)
+ AC_DEFINE(HAVE_RINT)],
+[AC_MSG_RESULT(no)],
+[AC_MSG_RESULT(maybe)
+ AC_CHECK_FUNC(rint, AC_DEFINE(HAVE_RINT))]
+)
 
-AC_CACHE_CHECK(for working trunc, ec_cv_func_trunc,
-    AC_TRY_RUN([
+AC_MSG_CHECKING(for working trunc)
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[
 #include <math.h>
-int main() {
 double (*ptrunc)(double) = trunc;
-exit(1.0 == (*ptrunc)(1.6) ? 0 : 1);}
-], ec_cv_func_trunc=yes, ec_cv_func_trunc=no, ec_cv_func_trunc=no))
-if test "$ec_cv_func_trunc" = yes; then
+]],[[
+exit(1.0 == (*ptrunc)(1.6) ? 0 : 1);
+]])],
+[ if test "$ARCH" != "i386_macosx"; then
+    AC_MSG_RESULT(yes) 
     AC_DEFINE(HAVE_TRUNC)
-fi
+  else
+    # Intel Mac OS X (10.4) has buggy trunc (>-1.0,<-0.0 gives 0.0)
+    AC_MSG_RESULT(no)
+  fi],
+[AC_MSG_RESULT(no)],
+[AC_MSG_RESULT(maybe)
+ AC_CHECK_FUNC(trunc, AC_DEFINE(HAVE_TRUNC))]
+)
 
 AC_CACHE_CHECK(whether sprintf returns length, ec_cv_func_sprintf,
     AC_TRY_RUN([
@@ -932,6 +1015,20 @@ if test "$ec_cv_siocgifhwaddr" = yes; then
 fi
 
 
+dnl Check if we can access registers from within a signal handler
+AC_CACHE_CHECK(if we can access registers from within a signal handler, ec_cv_ucontextgregs,
+    AC_TRY_COMPILE([#include <signal.h>
+#include <ucontext.h>], [[
+	ucontext_t ctx;
+	greg_t x = ctx.uc_mcontext.gregs[0];
+	]],
+	ec_cv_ucontextgregs=yes, ec_cv_ucontextgregs=no))
+
+if test "$ec_cv_ucontextgregs" = yes; then
+    AC_DEFINE(HAVE_UCONTEXTGREGS)
+fi
+
+
 #----------------------------------------------------------------------
 # Check for various third party components
 #----------------------------------------------------------------------
@@ -944,41 +1041,78 @@ ECLIPSETHIRDPARTY=${ECLIPSETHIRDPARTY:-"/vol/Eclipse/thirdparty"}
 #----------
 
 
-TCL_REQUIRED="8.4 8.3"
+AC_ARG_WITH([tcl], [[  --without-tcl
+			Build ECLiPSe without the tkeclipse development
+			environment and without the Tcl/Tk interface
+			(not recommended).
+    ]],
+    [tcl_requested="$withval"], [tcl_requested=yes])
 
-if test "$ARCH" != "i386_nt"; then
-    dnl find X includes and libraries
-    AC_PATH_X
-    if test ! -z "$x_libraries"; then
-	GRAPHLIBS="-L$x_libraries -lX11 $GRAPHLIBS"
+if test "$tcl_requested" = "yes"; then
+
+    TCL_REQUIRED="8.4 8.5 8.3"
+
+    if test "$ARCH" != "i386_nt"; then
+	dnl find X includes and libraries
+	AC_PATH_X
+	if test ! -z "$x_libraries"; then
+	    GRAPHLIBS="-L$x_libraries -lX11 $GRAPHLIBS"
+	else
+	    GRAPHLIBS="-lX11 $GRAPHLIBS"
+	fi
+	if test ! -z "$x_includes"; then
+	    OS_INCLUDES="-I$x_includes $OS_INCLUDES"
+	fi
+    fi
+    found_tcl=
+    for TCL_VERSION in $TCL_REQUIRED; do
+	if test "$ARCH" != "i386_nt"; then
+	    tcl_lib_version=$TCL_VERSION
+	else
+	    tcl_lib_version=`echo $TCL_VERSION|tr -d .`
+	fi
+	# look in thirdparty directory first
+	TCL_ARCH_DIR="$ECLIPSETHIRDPARTY/tcltk$TCL_VERSION/$ARCH"
+	if test -d "$TCL_ARCH_DIR/lib" ; then
+	    found_tcl=yes
+	    TCL_DIR="$TCL_ARCH_DIR"
+	    break
+	fi
+	# check in standard locations
+	if test "$ARCH" = "i386_nt"; then
+	    TCL_DIR="$PROGRAMFILES/Tcl"
+	    if test -d "$TCL_DIR/lib/tcl$TCL_VERSION" ; then
+		found_tcl=yes
+		TCL_ARCH_DIR="$TCL_DIR"
+		break
+	    fi
+	else
+	    TCL_DIRS="/usr /usr/local"
+	    for TCL_DIR in $TCL_DIRS; do
+		if test -d "$TCL_DIR/lib/tcl$TCL_VERSION" ; then
+		    found_tcl=yes
+		    TCL_ARCH_DIR="$TCL_DIR"
+		    GRAPHLIBS="-L$TCL_ARCH_DIR/lib -ltcl$tcl_lib_version -ltk$tcl_lib_version $GRAPHLIBS"
+		    break
+		fi
+	    done
+	    if test -n "$found_tcl"; then
+		break
+	    fi 
+	fi
+    done
+    if test -z "$found_tcl"; then
+	AC_MSG_WARN([Could not find usable Tcl ($TCL_REQUIRED) in $ECLIPSETHIRDPARTY or elsewhere])
     else
-	GRAPHLIBS="-lX11 $GRAPHLIBS"
-    fi
-    if test ! -z "$x_includes"; then
-	OS_INCLUDES="-I$x_includes $OS_INCLUDES"
-    fi
-fi
-found_tcl=
-for tcl_version in $TCL_REQUIRED; do
-    TCL_DIR=$ECLIPSETHIRDPARTY/tcltk$tcl_version
-    if test -d $TCL_DIR/$ARCH/lib ; then
-	found_tcl=yes
+	AC_MSG_NOTICE([Using Tcl $TCL_VERSION in $TCL_DIR])
 	AC_DEFINE(HAVE_TCL)
 	AC_DEFINE(HAVE_TK)
-	OS_INCLUDES="-I$TCL_DIR/include $OS_INCLUDES"
-	if test "$ARCH" != "i386_nt"; then
-	    tcl_lib_version=$tcl_version
-	else
-	    tcl_lib_version=`echo $tcl_version|tr -d .`
-	fi
-	GRAPHLIBS="-L$TCL_DIR/$ARCH/lib -ltcl$tcl_lib_version -ltk$tcl_lib_version $GRAPHLIBS"
-	break
+	GRAPHLIBS="-L\"$TCL_ARCH_DIR/lib\" -ltcl$tcl_lib_version -ltk$tcl_lib_version $GRAPHLIBS"
+	OS_INCLUDES="-I\"$TCL_DIR/include\" $OS_INCLUDES"
     fi
-done
-if test -z "$found_tcl"; then
-    AC_MSG_WARN([Could not find usable Tcl ($TCL_REQUIRED) in $ECLIPSETHIRDPARTY])
+
 else
-    AC_MSG_NOTICE([Using Tcl in $TCL_DIR])
+    AC_MSG_WARN([Not building any components that need Tcl/Tk])
 fi
 
 
@@ -986,35 +1120,56 @@ fi
 # GMP
 #----------
 
-GMP_REQUIRED="4.1"
-for gmp_version in $GMP_REQUIRED; do
-    GMP_DIR=$ECLIPSETHIRDPARTY/gmp$gmp_version
-    if test -d $GMP_DIR/$ARCH/lib; then
-	found_gmp=yes
-	AC_DEFINE(HAVE_LIBGMP)
-	OS_INCLUDES="-I$GMP_DIR/include $OS_INCLUDES"
-	GMP_LIBDIR="$GMP_DIR/$ARCH/lib"
-	if test "$ARCH" = "i386_nt"; then
-	    GMP_LIB="gmp33"
-	else
-	    GMP_LIB="gmp"
+AC_ARG_WITH([gmp], [[  --without-gmp
+			Build ECLiPSe without bignum/rational support.
+			Default is to try finding GMP to build this support.
+    ]],
+    [gmp_requested="$withval"], [gmp_requested=yes])
+
+if test "$gmp_requested" = "yes"; then
+    GMP_REQUIRED="4.1 4.2"
+    for gmp_version in $GMP_REQUIRED; do
+	GMP_DIR=$ECLIPSETHIRDPARTY/gmp$gmp_version
+	if test -d $GMP_DIR/$ARCH/lib; then
+	    found_gmp=yes
+	    AC_DEFINE(HAVE_LIBGMP)
+	    OS_INCLUDES="-I$GMP_DIR/include $OS_INCLUDES"
+	    GMP_LIBDIR="$GMP_DIR/$ARCH/lib"
+	    if test "$ARCH" = "i386_nt"; then
+		GMP_LIB="gmp33"
+	    else
+		GMP_LIB="gmp"
+	    fi
+	    GMP_LD="-L$GMP_LIBDIR -l$GMP_LIB"
+            # MacOS X does not support -rpath; link in static GMP for sepia
+	    # executable to avoid setting DYLD_LIBRARY_PATH
+	    if test "$ARCH" = "i386_macosx"; then
+		GMP_EXE_LD="$GMP_LIBDIR/lib$GMP_LIB.a"
+	    elif test "$ARCH" = "ppc_macosx"; then
+		GMP_EXE_LD="$GMP_LIBDIR/lib$GMP_LIB.a"
+	    else
+		GMP_EXE_LD="$GMP_LD"
+	    fi
+	    INSTALL_GMP=install_gmp
+	    break
 	fi
-	GMP_LD="-L$GMP_LIBDIR -l$GMP_LIB"
-	INSTALL_GMP=install_gmp
-	break
+    done
+    if test -z "$found_gmp"; then
+	AC_MSG_WARN([Could not find Gmp ($GMP_REQUIRED) in $ECLIPSETHIRDPARTY])
+	# set to something, so we can use -R$(GMP_LIBDIR) without syntax error
+	GMP_LIBDIR="."
+
+	# If we have nothing in ECLIPSETHIRDPARTY, try if it's a standard lib.
+	# Defines only -lgmp and HAVE_LIBGMP, no attempts to package the gmp lib
+	# with ECLiPSe.  Check for mpz_import to require a new enough version.
+	AC_CHECK_LIB(gmp, __gmpz_import)
+    else
+	AC_MSG_NOTICE([Using Gmp in $GMP_DIR])
     fi
-done
-if test -z "$found_gmp"; then
-    AC_MSG_WARN([Could not find Gmp ($GMP_REQUIRED) in $ECLIPSETHIRDPARTY])
+else
+    AC_MSG_NOTICE([Not using Gmp, not building bignum/rational support])
     # set to something, so we can use -R$(GMP_LIBDIR) without syntax error
     GMP_LIBDIR="."
-
-    # If we have nothing in ECLIPSETHIRDPARTY, try if it's a standard lib.
-    # Defines only -lgmp and HAVE_LIBGMP, no attempts to package the gmp lib
-    # with ECLiPSe.  Check for mpz_import to require a new enough version.
-    AC_CHECK_LIB(gmp, __gmpz_import)
-else
-    AC_MSG_NOTICE([Using Gmp in $GMP_DIR])
 fi
 
 
@@ -1024,14 +1179,14 @@ fi
 
 AC_ARG_WITH([osi], [[  --with-osi[=versions]
 			Build ECLiPSe interface to COIN-OR Osi.  You can
-			optionally specify a version list, e.g. "clpcbc sym".
+			optionally specify a version list, e.g. "clpcbc symclp".
 			Default is to build all available versions.
     ]],
     [osi_versions_requested="$withval"], [osi_versions_requested=yes])
 
-OSIDIR="$ECLIPSETHIRDPARTY/coin"
+OSIBASEDIR="$ECLIPSETHIRDPARTY/coin"
+OSIBUILD=""   # which Coin build? (normally set to "")
 OSICLP_ADDLIB=""
-OSICLP_ADDDEF=""
 if test "$osi_versions_requested" != "no"; then
     if test "$osi_versions_requested" = "yes"; then
     	osi_versions_requested="clpcbc symclp"
@@ -1042,10 +1197,15 @@ if test "$osi_versions_requested" != "no"; then
 	OSICLP_ADDDEF="-DUFL_BARRIER"
     fi
     for version in $osi_versions_requested; do
+        OSIDIR="$OSIBASEDIR$version$OSIBUILD"
 	ls -d $OSIDIR/$ARCH/lib/$version >/dev/null 2>/dev/null
 	if test $? -eq 0; then
 	    OSI_VERSIONS="$OSI_VERSIONS $version"
 	    AC_MSG_NOTICE([Using OSI $version in $OSIDIR])
+            ls -d $OSIDIR/$ARCH/lib/*amd* >/dev/null 2>/dev/null
+            if test $? -eq 0; then
+	         OSICLP_ADDLIB="-lamd"
+            fi
 	else
 	    AC_MSG_WARN([Could not find $ARCH support for $version in $OSIDIR])
 	fi
@@ -1073,6 +1233,9 @@ case $ARCH in
     sparc_sunos5)
     	CPLEX_ARCH_PREFIX=ultrasparc
 	;;
+    i386_nt)
+    	CPLEX_ARCH_PREFIX=i386_nt
+	;;
     *)
     	CPLEX_ARCH_PREFIX=unsupported
 	;;
@@ -1087,7 +1250,7 @@ AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
 
 if test "$cplex_versions_requested" != "no"; then
     if test "$cplex_versions_requested" = "yes"; then
-    	cplex_versions_requested="75 81 90"
+    	cplex_versions_requested="75 81 90 101"
     fi
     for version in $cplex_versions_requested; do
 	CPLEXDIR="$ECLIPSETHIRDPARTY/cplex$version"
@@ -1149,6 +1312,7 @@ JAVA_SEARCH_PATH="\
     /usr/lib/java \
     /usr/lib/jvm \
     /usr/j2se\
+    /Library/Java/Home \
 "
 
 AC_ARG_WITH([java], [[  --with-java[=dir]	Build ECLiPSe/Java interface.
@@ -1397,6 +1561,7 @@ AC_SUBST(NICE)
 AC_SUBST(OPT_FLAGS)
 AC_SUBST(OPT_FLAGS_ARITH)
 AC_SUBST(OPT_FLAGS_EMU)
+AC_SUBST(OSTYPE)
 AC_SUBST(FLOAT_ROUND_FLAGS)
 AC_SUBST(CFLAGS)
 AC_SUBST(LOCAL_FLAGS)
@@ -1405,6 +1570,7 @@ AC_SUBST(OPTIMIZE)
 AC_SUBST(LDFLAGS)
 AC_SUBST(DYNLDFLAGS)
 AC_SUBST(RUNPATH_LDFLAG)
+AC_SUBST(RUNPATH_DYLDFLAG)
 AC_SUBST(S_TO_O)
 AC_SUBST(C_TO_I)
 AC_SUBST(LL_C_SO)
@@ -1416,6 +1582,8 @@ AC_SUBST(PD_O_SO)
 AC_SUBST(DYLD)
 AC_SUBST(LDTCL)
 AC_SUBST(TCL_DIR)
+AC_SUBST(TCL_ARCH_DIR)
+AC_SUBST(TCL_VERSION)
 AC_SUBST(BUILDO)
 AC_SUBST(GRAPHLIBS)
 AC_SUBST(LIBS)
@@ -1424,14 +1592,15 @@ AC_SUBST(OBJECT_SUFFIX)
 AC_SUBST(OBJECTS_SUFFIX)
 AC_SUBST(LIB_PREFIX)
 AC_SUBST(GMP_LD)
+AC_SUBST(GMP_EXE_LD)
 AC_SUBST(GMP_LIBDIR)
 AC_SUBST(GMP_LIB)
 AC_SUBST(INSTALL_GMP)
 AC_SUBST(LOCK)
 AC_SUBST(OSI_VERSIONS)
-AC_SUBST(OSIDIR)
+AC_SUBST(OSIBASEDIR)
+AC_SUBST(OSIBUILD)
 AC_SUBST(OSICLP_ADDLIB)
-AC_SUBST(OSICLP_ADDDEF)
 AC_SUBST(CPLEX_VERSIONS)
 AC_SUBST(XPRESS_VERSIONS)
 AC_SUBST(ALL_WITH_JAVA)

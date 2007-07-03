@@ -142,23 +142,23 @@ the \verb+ECLIPSEDIR+ location before initialising the embedded {\eclipse}
 with \verb+ec_init+.
 
 
-\subsection{Static linking (Unix/Linux)}
-
-If your operating system only supports static linking, or if you want
-to link statically for some reason, you have to link explicitly with
-\verb+libeclipse.a+ and the necessary support libraries must be specified, e.g.
-\begin{verbatim}
-gcc -I$ECLIPSEDIR/include/$ARCH eg_c_basic.c $ECLIPSEDIR/lib/$ARCH/libeclipse.a
-    -L$ECLIPSEDIR/lib/$ARCH -lgmp -lshm -ldummies -ldl -lnsl -lsocket -lm
-\end{verbatim}
-The libraries \verb+gmp+, \verb+shm+ and \verb+dummies+ are {\eclipse}
-support libraries and must be specified in that order.
-The others are Unix libraries.
-
-It is recommended that you copy the makefile "Makefile.external"
-provided in your  installation directory under lib/\$ARCH and adapt it
-for your purposes.
-\index{Makefile}
+%\subsection{Static linking (Unix/Linux)}
+%
+%If your operating system only supports static linking, or if you want
+%to link statically for some reason, you have to link explicitly with
+%\verb+libeclipse.a+ and the necessary support libraries must be specified, e.g.
+%\begin{verbatim}
+%gcc -I$ECLIPSEDIR/include/$ARCH eg_c_basic.c $ECLIPSEDIR/lib/$ARCH/libeclipse.a
+%    -L$ECLIPSEDIR/lib/$ARCH -lgmp -lshm -ldummies -ldl -lnsl -lsocket -lm
+%\end{verbatim}
+%The libraries \verb+gmp+, \verb+shm+ and \verb+dummies+ are {\eclipse}
+%support libraries and must be specified in that order.
+%The others are Unix libraries.
+%
+%It is recommended that you copy the makefile "Makefile.external"
+%provided in your  installation directory under lib/\$ARCH and adapt it
+%for your purposes.
+%\index{Makefile}
 % If the makefile is not used, the command to compile a C++ source
 % with {\eclipse} library calls looks similar to this:
 % \begin{verbatim}
@@ -175,19 +175,39 @@ for your purposes.
 
 \subsection{Compiling, linking and running on Windows}
 
-You need to have the following additional setting in your C/C++
-compiler/development system:
+If you use GCC, you can link either directly against \verb+eclipse.dll+
+or against \verb+eclipse.dll.a+.
+The required command line is similar to the Unix case.
+
+If you use a Microsoft compiler, make sure you have the following
+additional settings in your C/C++ compiler/development system:
 \begin{itemize}
 \item In the {\bf C/C++ Preprocessor} settings,
 specify the {\eclipse} include directory as an additional
-include directory, e.g.\ \verb+C:/Eclipse/include/i386_nt+.
+include directory, e.g.\ \verb+C:\Program Files\ECLiPSe 5.10\include\i386_nt+.
 \item In the {\bf Link} settings,
 specify \verb+eclipse.lib+ as an additional object/library
 module, and the location of this library, e.g.\
-\verb+C:/Eclipse/lib/i386_nt+ as an additional library path.
+\verb+C:\Program Files\ECLiPSe 5.10\lib\i386_nt+ as an additional library path.
 \end{itemize}
+\index{eclipse.lib}
+Moreover, you need to create an \verb+eclipse.lib+ for the compiler to
+link against.  This file can be created from \verb+eclipse.def+ and
+\verb+eclipse.dll+ (which are part of the {\eclipse} distribution),
+using the \verb+lib.exe+ or \verb+link.exe+ tool (which comes with the
+C/C++ development system).
+\begin{verbatim}
+    cd C:\Program Files\ECLiPSe 5.10\lib\i386_nt
+    lib.exe /def:eclipse.def
+\end{verbatim}
+Warnings about import directives can be ignored.
+If you do not have \verb+lib.exe+, try instead
+\begin{verbatim}
+    link.exe /lib /def:eclipse.def
+\end{verbatim}
 
 At runtime, your application must be able to locate \verb+eclipse.dll+,
+\index{eclipse.dll}
 i.e.\ you should either
 \begin{itemize}
 \item copy \verb+eclipse.dll+ into the folder where your application is located, or

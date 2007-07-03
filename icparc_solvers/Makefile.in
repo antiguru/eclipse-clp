@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.5 2007/05/14 23:37:03 kish_shen Exp $
+# $Id: Makefile.in,v 1.6 2007/07/03 00:10:27 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -48,9 +48,10 @@ DYNLDFLAGS = @DYNLDFLAGS@
 DYLD = @DYLD@
 EXEEXT = @EXEEXT@
 GMP_LD = @GMP_LD@
+FLOAT_ROUND_FLAGS = @FLOAT_ROUND_FLAGS@
 
 CPPFLAGS  = -I. -I$(ECLIPSEDIR)/include/$(ARCH) -I$(ECLIPSEDIR)/sepia/include -I- $(OS_INCLUDES)
-ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse -lm
+ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse @LIBS@
 
 
 PERM = a+r,u+w,go-w
@@ -85,27 +86,35 @@ all:	$(OBJ_FILES)
 # EPLEX/OSI
 #----------------------------------------------------------------------
 
-COINARCHDIR = @OSIDIR@/$(ARCH)
+OSIBASEDIR = @OSIBASEDIR@
+OSIBUILD = @OSIBUILD@
+
 COINOSILIBS = -lOsi -lCoinUtils
-COINCLPLIBS = -lOsiClp -lCgl -lClp @OSICLP_ADDLIB@
+COINCLPLIBS = -lOsiClp -lCgl -lClp @OSICLP_ADDLIB@ 
+
+CLPCBCARCHDIR = $(OSIBASEDIR)clpcbc$(OSIBUILD)/$(ARCH)
+SYMCLPARCHDIR = $(OSIBASEDIR)symclp$(OSIBUILD)/$(ARCH)
 
 $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
-	$(CXX) -DCOIN -DCOIN_USE_CLP @OSICLP_ADDDEF@ $(CPPFLAGS) $(CFLAGS) -I$(COINARCHDIR)/include -c coinplex.cpp
+	$(CXX) -DCOIN -DCOIN_USE_CLP $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(COINARCHDIR)/lib/CbcBranchUser.o $(COINARCHDIR)/lib/CbcCompareUser.o -L$(COINARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS)  -lstdc++ $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	mv seosiclpcbc.$(OBJ_SUFFIX) $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX)
 
 $(ARCH)/seosisymclp.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
-	$(CXX) -DCOIN -DCOIN_USE_SYM $(CPPFLAGS) $(CFLAGS) -I$(COINARCHDIR)/include -c coinplex.cpp
+	$(CXX) -DCOIN -DCOIN_USE_SYM $(CPPFLAGS) $(CFLAGS) -I$(SYMCLPARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o -L$(COINARCHDIR)/lib -lOsiSym -lSym $(COINCLPLIBS) $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosisymclp.$(OBJ_SUFFIX)
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o -L$(SYMCLPARCHDIR)/lib -lOsiSym -lSym $(COINCLPLIBS) $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosisymclp.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	mv seosisymclp.$(OBJ_SUFFIX) $(ARCH)/seosisymclp.$(OBJ_SUFFIX)
 
 #----------------------------------------------------------------------
 # EPLEX/CPLEX
 #----------------------------------------------------------------------
+
+CPLEX90_SUPPORT_i386_nt = $(THIRDPARTY)/cplex90/bin/i386_nt/cplex90.dll
+CPLEX101_SUPPORT_i386_nt = $(THIRDPARTY)/cplex101/bin/i386_nt/cplex101.dll
 
 sparc_sunos5/secplex65.so: seplex.c eplex_params.h seplex.h
 	$(CC) -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex65 -c seplex.c
@@ -131,6 +140,12 @@ sparc_sunos5/secplex90.so: seplex.c eplex_params.h seplex.h
 	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
 	mv secplex.so sparc_sunos5/secplex90.so
 
+sparc_sunos5/secplex101.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=10 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex101/include/ilcplex -c seplex.c
+	$(CC) -G seplex.o $(THIRDPARTY)/cplex101/lib/ultrasparc32_8_6.2/static_pic_mt/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv secplex.so sparc_sunos5/secplex101.so
+
 i386_linux/secplex65.so: seplex.c eplex_params.h seplex.h
 	$(CC) -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex -c seplex.c
 	$(CC) -shared seplex.o /usr/local/cplex/libcplex.a $(ECLIBS) -o secplex.so
@@ -155,11 +170,40 @@ i386_linux/secplex90.so: seplex.c eplex_params.h seplex.h
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex90.so
 
+
+i386_linux/secplex101.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=10 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex101/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex101/lib/i86_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv secplex.so i386_linux/secplex101.so
+
+i386_nt/secplex90.dll: seplex_cplex.def seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c seplex.c
+	$(DYLD) $(DYNLDFLAGS)  seplex_cplex.def seplex.o $(THIRDPARTY)/cplex90/lib/i386_nt/stat_mda/cplex90.lib $(ECLIBS) -o secplex.dll
+	[ -d i386_nt ] || mkdir i386_nt
+	mv secplex.dll i386_nt/secplex90.dll
+	cp $(CPLEX90_SUPPORT_i386_nt) i386_nt/
+	cp $(CPLEX90_SUPPORT_i386_nt) ../lib/i386_nt/
+
+i386_nt/secplex101.dll: seplex_cplex.def seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=10 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex101/include/ilcplex -c seplex.c
+	$(DYLD) $(DYNLDFLAGS)  seplex_cplex.def seplex.o $(THIRDPARTY)/cplex101/lib/i386_nt/stat_mda/cplex101.lib $(ECLIBS) -o secplex.dll
+	[ -d i386_nt ] || mkdir i386_nt
+	mv secplex.dll i386_nt/secplex101.dll
+	cp $(CPLEX101_SUPPORT_i386_nt) i386_nt/
+	cp $(CPLEX101_SUPPORT_i386_nt) ../lib/i386_nt/
+
 x86_64_linux/secplex90.so: seplex.c eplex_params.h seplex.h
 	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c seplex.c
 	$(CC) -shared seplex.o $(THIRDPARTY)/cplex90/lib/x86-64_RHEL3.0_3.2/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d x86_64_linux ] || mkdir x86_64_linux
 	mv secplex.so x86_64_linux/secplex90.so
+
+x86_64_linux/secplex101.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=10 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex101/lib/x86-64_RHEL3.0_3.2/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	mv secplex.so x86_64_linux/secplex101.so
 
 
 #----------------------------------------------------------------------
@@ -371,194 +415,96 @@ bug14: bug.c
 bug65: bug.c 
 	$(CC) -g -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex bug.c /usr/local/cplex/libcplex.a  -lm -o bug65
 
+bugclp: bug.c
+	$(CXX) -DCOIN -DCOIN_USE_CLP -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) -I$(COINARCHDIR)/include -c coinplex.cpp
+	$(CC) coinplex.o $(COINARCHDIR)/lib/CbcBranchUser.o $(COINARCHDIR)/lib/CbcCompareUser.o -L$(COINARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ -DCOIN -DC_TO_COIN -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) bug.c -o bugclp
+
+
 
 #----------------------------------------------------------------------
 # Edge finder
 #----------------------------------------------------------------------
 
-sun4/edge_finder.o: edge_finder.c
-	[ -d sun4 ] || mkdir sun4
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c edge_finder.c -o sun4/edge_finder.o
-
-sparc_sunos5/edge_finder.so: edge_finder.c
-	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -G edge_finder.c $(ECLIBS) -o sparc_sunos5/edge_finder.so
-
-i386_linux/edge_finder.so: edge_finder.c
-	[ -d i386_linux ] || mkdir i386_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -shared edge_finder.c $(ECLIBS) -o i386_linux/edge_finder.so
-
-x86_64_linux/edge_finder.so: edge_finder.c
-	[ -d x86_64_linux ] || mkdir x86_64_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared edge_finder.c $(ECLIBS) -o x86_64_linux/edge_finder.so
-
-i386_sunos5/edge_finder.so: edge_finder.c
-	[ -d i386_sunos5 ] || mkdir i386_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m32 -shared edge_finder.c $(ECLIBS) -o i386_sunos5/edge_finder.so
-
-x86_64_sunos5/edge_finder.so: edge_finder.c
-	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m64 -shared edge_finder.c $(ECLIBS) -o x86_64_sunos5/edge_finder.so
-
-alpha_linux/edge_finder.so: edge_finder.c
-	[ -d alpha_linux ] || mkdir alpha_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -mieee -shared edge_finder.c $(ECLIBS) -o alpha_linux/edge_finder.so
-
-ppc_macosx/edge_finder.dylib: edge_finder.c
-	[ -d ppc_macosx ] || mkdir ppc_macosx
-	$(CC) $(CPPFLAGS) $(CFLAGS) -dynamic \
-              -DD_LOAD -no-cpp-precomp edge_finder.c -c -o ppc_macosx/edge_finder.o
-	libtool -dynamic -single_module -flat_namespace -lgmp -lgcc $(ECLIBS) \
-                ppc_macosx/edge_finder.o -o ppc_macosx/edge_finder.dylib 
+ifeq ($(ARCH),i386_nt)
 
 i386_nt/edge_finder.dll: edge_finder.c
 	[ -d i386_nt ] || mkdir i386_nt
 	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
 		$(<:.c=.def) $< $(ECLIBS)
 
-sun4/edge_finder3.o: edge_finder.c
-	[ -d sun4 ] || mkdir sun4
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -c edge_finder.c -o sun4/edge_finder3.o
+else
 
-sparc_sunos5/edge_finder3.so: edge_finder.c
-	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -G edge_finder.c $(ECLIBS) -o sparc_sunos5/edge_finder3.so
+$(ARCH)/edge_finder.$(OBJ_SUFFIX): edge_finder.c
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LOCAL_FLAGS) edge_finder.c \
+              -c -o $(ARCH)/edge_finder.o
+	$(DYLD) $(DYNLDFLAGS) $(GMP_LD) $(ECLIBS) \
+             $(ARCH)/edge_finder.o -o $(ARCH)/edge_finder.$(OBJ_SUFFIX)
+endif
 
-i386_linux/edge_finder3.so: edge_finder.c
-	[ -d i386_linux ] || mkdir i386_linux
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -shared edge_finder.c $(ECLIBS) -o i386_linux/edge_finder3.so
-
-x86_64_linux/edge_finder3.so: edge_finder.c
-	[ -d x86_64_linux ] || mkdir x86_64_linux
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -fPIC -shared edge_finder.c $(ECLIBS) -o x86_64_linux/edge_finder3.so
-
-i386_sunos5/edge_finder3.so: edge_finder.c
-	[ -d i386_sunos5 ] || mkdir i386_sunos5
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -fPIC m32 -shared edge_finder.c $(ECLIBS) -o i386_sunos5/edge_finder3.so
-
-x86_64_sunos5/edge_finder3.so: edge_finder.c
-	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -fPIC -m64 -shared edge_finder.c $(ECLIBS) -o x86_64_sunos5/edge_finder3.so
-
-alpha_linux/edge_finder3.so: edge_finder.c
-	[ -d alpha_linux ] || mkdir alpha_linux
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -mieee -shared edge_finder.c $(ECLIBS) -o alpha_linux/edge_finder3.so
-
-ppc_macosx/edge_finder3.dylib: edge_finder.c
-	[ -d ppc_macosx ] || mkdir ppc_macosx
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -dynamic \
-              -DD_LOAD -no-cpp-precomp edge_finder.c -c -o ppc_macosx/edge_finder3.o
-	libtool -dynamic -single_module -flat_namespace $(ECLIBS) -lgmp \
-                ppc_macosx/edge_finder3.o -o ppc_macosx/edge_finder3.dylib 
+ifeq ($(ARCH),i386_nt)
 
 i386_nt/edge_finder3.dll: edge_finder.c
 	[ -d i386_nt ] || mkdir i386_nt
 	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
 		$(<:.c=.def) $< $(ECLIBS)
 
+else
+
+$(ARCH)/edge_finder3.$(OBJ_SUFFIX): edge_finder3.c
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) $(LOCAL_FLAGS) edge_finder3.c \
+              -c -o $(ARCH)/edge_finder3.o
+	$(DYLD) $(DYNLDFLAGS) $(GMP_LD) $(ECLIBS) \
+             $(ARCH)/edge_finder3.o -o $(ARCH)/edge_finder3.$(OBJ_SUFFIX)
+
+endif
+
 #----------------------------------------------------------------------
 # Bitmaps
 #----------------------------------------------------------------------
 
-sun4/bitmap.o: bitmap.c
-	[ -d sun4 ] || mkdir sun4
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c bitmap.c -o sun4/bitmap.o
-
-sparc_sunos5/bitmap.so: bitmap.c
-	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -G bitmap.c $(ECLIBS) -o sparc_sunos5/bitmap.so
-
-i386_linux/bitmap.so: bitmap.c
-	[ -d i386_linux ] || mkdir i386_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -shared bitmap.c $(ECLIBS) -o i386_linux/bitmap.so
-
-i386_linux/bitmap.o: bitmap.c
-	[ -d i386_linux ] || mkdir i386_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c bitmap.c -o i386_linux/bitmap.o
-
-x86_64_linux/bitmap.so: bitmap.c
-	[ -d x86_64_linux ] || mkdir x86_64_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared bitmap.c $(ECLIBS) -o x86_64_linux/bitmap.so
-
-i386_sunos5/bitmap.so: bitmap.c
-	[ -d i386_sunos5 ] || mkdir i386_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m32 -shared bitmap.c $(ECLIBS) -o i386_sunos5/bitmap.so
-
-x86_64_sunos5/bitmap.so: bitmap.c
-	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m64 -shared bitmap.c $(ECLIBS) -o x86_64_sunos5/bitmap.so
-
-alpha_linux/bitmap.so: bitmap.c
-	[ -d alpha_linux ] || mkdir alpha_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -shared bitmap.c $(ECLIBS) -o alpha_linux/bitmap.so
-
-ppc_macosx/bitmap.dylib: bitmap.c
-	[ -d ppc_macosx ] || mkdir ppc_macosx
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -dynamic \
-              -DD_LOAD -no-cpp-precomp bitmap.c -c -o ppc_macosx/bitmap.o
-	libtool -dynamic -single_module -flat_namespace $(ECLIBS) -lgmp \
-                ppc_macosx/bitmap.o -o ppc_macosx/bitmap.dylib 
+ifeq ($(ARCH),i386_nt)
 
 i386_nt/bitmap.dll: bitmap.c
 	[ -d i386_nt ] || mkdir i386_nt
 	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
 		$(<:.c=.def) $< $(ECLIBS)
 
+else
+
+$(ARCH)/bitmap.$(OBJ_SUFFIX): bitmap.c
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LOCAL_FLAGS) bitmap.c \
+              -c -o $(ARCH)/bitmap.o
+	$(DYLD) $(DYNLDFLAGS) $(GMP_LD) $(ECLIBS) \
+             $(ARCH)/bitmap.o -o $(ARCH)/bitmap.$(OBJ_SUFFIX)
+
+endif
+
 #----------------------------------------------------------------------
 # Interval constraints
 #----------------------------------------------------------------------
 
-sun4/ic.o: ic.c 
-	[ -d sun4 ] || mkdir sun4
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c ic.c -o sun4/ic.o
-
-sparc_sunos5/ic.so: ic.c
-	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -G ic.c $(ECLIBS) -o sparc_sunos5/ic.so
-
-i386_linux/ic.so: ic.c
-	[ -d i386_linux ] || mkdir i386_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -shared ic.c $(ECLIBS) -o i386_linux/ic.so
-
-#i386_linux/ic.so: ic2.c
-#	[ -d i386_linux ] || mkdir i386_linux
-#	$(CC) -g $(CPPFLAGS) $(CFLAGS) -shared ic2.c $(ECLIBS) -o i386_linux/ic.so
-
-ic2.c: ic.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -E -C -P ic.c > ic2.c
-
-i386_linux/ic.o: ic.c
-	[ -d i386_linux ] || mkdir i386_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c ic.c -o i386_linux/ic.o
-
-x86_64_linux/ic.so: ic.c
-	[ -d x86_64_linux ] || mkdir x86_64_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared ic.c $(ECLIBS) -o x86_64_linux/ic.so
-
-i386_sunos5/ic.so: ic.c
-	[ -d i386_sunos5 ] || mkdir i386_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -m32 -fPIC -shared ic.c $(ECLIBS) -o i386_sunos5/ic.so
-
-x86_64_sunos5/ic.so: ic.c
-	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -m64 -fPIC -shared ic.c $(ECLIBS) -o x86_64_sunos5/ic.so
-
-alpha_linux/ic.so: ic.c
-	[ -d alpha_linux ] || mkdir alpha_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -mieee -mfp-rounding-mode=d -shared ic.c $(ECLIBS) -o alpha_linux/ic.so
-
-ppc_macosx/ic.dylib: ic.c ppc_macosx/bitmap.dylib
-	[ -d ppc_macosx ] || mkdir ppc_macosx
-	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -dynamic \
-              -DD_LOAD -no-cpp-precomp ic.c -c -o ppc_macosx/ic.o
-	libtool -dynamic -single_module -flat_namespace $(ECLIBS) -lgcc -lgmp \
-                ppc_macosx/ic.o ppc_macosx/bitmap.dylib -o ppc_macosx/ic.dylib 
+ifeq ($(ARCH),i386_nt)
 
 i386_nt/ic.dll: ic.c i386_nt/bitmap.dll
 	[ -d i386_nt ] || mkdir i386_nt
 	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
 		$(<:.c=.def) $< i386_nt/bitmap.dll $(ECLIBS)
+else
 
+$(ARCH)/ic.$(OBJ_SUFFIX): ic.c $(ARCH)/bitmap.$(OBJ_SUFFIX)
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(FLOAT_ROUND_FLAGS) \
+              ic.c -c -o $(ARCH)/ic.o
+	$(DYLD) $(DYNLDFLAGS)  $(ECLIBS) $(GMP_LD) \
+               $(ARCH)/ic.o $(ARCH)/bitmap.$(OBJ_SUFFIX) -o $(ARCH)/ic.$(OBJ_SUFFIX) 
+#i386_linux/ic.so: ic2.c
+#	[ -d i386_linux ] || mkdir i386_linux
+#	$(CC) -g $(CPPFLAGS) $(CFLAGS) -shared ic2.c $(ECLIBS) -o i386_linux/ic.so
+
+endif 
 
 #----------------------------------------------------------------------
 # Regex library
@@ -573,48 +519,23 @@ RXINCDIR = rxspencer-alpha3.8.g3
 RXLIBDIR = rxspencer-alpha3.8.g3/.libs
 RXNAME	= rxspencer
 
-
-sparc_sunos5/eregex.so: eregex.c
-	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -G eregex.c $(ECLIBS) \
-		$(RXLIBS) -o sparc_sunos5/eregex.so
-
-i386_linux/eregex.so: eregex.c
-	[ -d i386_linux ] || mkdir i386_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -shared eregex.c $(ECLIBS) \
-		$(RXLIBS) -o i386_linux/eregex.so
-
-x86_64_linux/eregex.so: eregex.c
-	[ -d x86_64_linux ] || mkdir x86_64_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared eregex.c $(ECLIBS) \
-		$(RXLIBS) -o x86_64_linux/eregex.so
-
-i386_sunos5/eregex.so: eregex.c
-	[ -d i386_sunos5 ] || mkdir i386_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m32 -shared eregex.c $(ECLIBS) \
-		$(RXLIBS) -o i386_sunos5/eregex.so
-
-x86_64_sunos5/eregex.so: eregex.c
-	[ -d x86_64_sunos5 ] || mkdir x86_64_sunos5
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -m64 -shared eregex.c $(ECLIBS) \
-		$(RXLIBS) -o x86_64_sunos5/eregex.so
-
-alpha_linux/eregex.so: eregex.c
-	[ -d alpha_linux ] || mkdir alpha_linux
-	$(CC) $(CPPFLAGS) $(CFLAGS) -shared eregex.c $(ECLIBS) \
-		$(RXLIBS) -o alpha_linux/eregex.so
-
-ppc_macosx/eregex.dylib: eregex.c
-	[ -d ppc_macosx ] || mkdir ppc_macosx
-	$(CC) $(CPPFLAGS) $(CFLAGS) -dynamic \
-              -DD_LOAD -no-cpp-precomp eregex.c -c -o ppc_macosx/eregex.o
-	libtool -dynamic -single_module -flat_namespace $(ECLIBS) -lgmp \
-                ppc_macosx/eregex.o -o ppc_macosx/eregex.dylib 
+ifeq ($(ARCH),i386_nt)
 
 i386_nt/eregex.dll: eregex.c rxspencer/libregex.a
 	[ -d i386_nt ] || mkdir i386_nt
 	$(CC) $(CPPFLAGS) $(CFLAGS) -Irxspencer -shared -o $@ \
 		$(<:.c=.def) $< rxspencer/libregex.a $(ECLIBS)
+
+else
+
+$(ARCH)/eregex.$(OBJ_SUFFIX): eregex.c
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LOCAL_FLAGS) eregex.c \
+              -c -o $(ARCH)/eregex.o
+	$(DYLD) $(DYNLDFLAGS) $(GMP_LD) $(ECLIBS) $(RXLIBS) \
+             $(ARCH)/eregex.o -o $(ARCH)/eregex.$(OBJ_SUFFIX)
+
+endif
 
 # CAUTION: we build directly in the rxspencer directory!
 # This is only ok as long as rxspencer is only used on a single architecture!
@@ -644,7 +565,7 @@ sparc_sunos5/libec_ilog.a : $(ILOGOFILES)
 	ar -r $@ $(ILOGOFILES)
 
 sparc_sunos5/eclipseilog : sparc_sunos5/libec_ilog.a
-	$(CCC) -o $@ $(ECLIPSE4DIR)/lib/sparc_sunos5/standalone.o $(ILOGLDFLAGS) -lec_ilog -lschedule -lsolver -leclipse -lgmp -lshm -ldummies -lsocket -ldl -lnsl -lsunmath -o $@
+	$(CCC) -o $@ $(ECLIPSE4DIR)/lib/sparc_sunos5/standalone.o $(ILOGLDFLAGS) -lec_ilog -lschedule -lsolver -leclipse $(GMP_LD) -lshm -ldummies -lsocket -ldl -lnsl -lsunmath -o $@
 
 ilog : sparc_sunos5/eclipseilog 
 

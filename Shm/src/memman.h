@@ -116,10 +116,17 @@ struct cluster {
 	word		dummy;
 };
 
+struct page_log {
+    generic_ptr addr;
+    word npages;
+};
+
 struct page_admin {
 	word		allocated;		/* # pages gotten from OS */
 	word		freed;			/* # pages in free list */
 	generic_ptr	min_addr, max_addr;
+	struct page_log	*log_page;		/* log of more'd pages */
+	word		log_idx;
 	struct cluster	*free[PAGE_LISTS];	/* free[i]: i-page-clusters */
 						/* free[0]: larger clusters */
 	bits32		*map[BITMAP_BLOCKS];	/* bitmap of pages (1 = free) */
@@ -216,9 +223,11 @@ struct heap_descriptor {
 	int		map_fd;
 #ifdef __STDC__
 	generic_ptr	(*more)(word,int,struct heap_descriptor*);
+	int		(*less)(generic_ptr,word,struct heap_descriptor*);
 	void		(*panic)(const char*, const char*);
 #else
 	generic_ptr	(*more)();
+	generic_ptr	(*less)();
 	void		(*panic)();
 #endif
 	int		debug_level;
@@ -256,6 +265,7 @@ extern struct heap_descriptor private_heap;
 #ifdef __STDC__
 
 void		pagemanager_init(struct heap_descriptor *);
+void		pagemanager_fini(struct heap_descriptor *);
 generic_ptr	alloc_page(struct heap_descriptor *);
 generic_ptr	alloc_pagewise(struct heap_descriptor *, word, word *);
 void		free_pages(struct heap_descriptor *, generic_ptr, word);
@@ -297,6 +307,8 @@ int		shared_mem_restore(struct heap_descriptor *hd, int fd);
 void		private_mem_init(void (*panic_fct)(const char*, const char*));
 char *		private_mem_init_desc(void (*panic_fct)(const char*, const char*),
 			struct heap_descriptor *hd);
+void		private_mem_fini();
+void		private_mem_fini_desc(struct heap_descriptor *hd);
 
 
 #else /* __STDC__ */

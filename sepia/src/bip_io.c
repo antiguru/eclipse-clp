@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.2 2006/11/22 02:02:26 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.3 2007/07/03 00:10:29 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -80,15 +80,12 @@ extern char	*strcpy(),
 #ifdef SOCKETS
 #ifdef _WIN32
 
-#define Selectable(nst)		IsSocket(nst)
 #define StreamCanSignal(nst)	IsSocket(nst)
 
 typedef SOCKET socket_t;
 
 #else
 
-#define Selectable(nst) \
-	(IsSocket(nst) || IsFileStream(nst) || IsPipeStream(nst) || IsTty(nst))
 #define StreamCanSignal(nst)	(IsSocket(nst) || IsPipeStream(nst))
 
 #define INVALID_SOCKET (-1)
@@ -1885,7 +1882,8 @@ p_getw(value vs, type ts, value val, type tag)
     int			res;
     register char	*p;
     long		l;
-    char		*pl;
+    word		w;
+    char		*pw;
     int			i;
     stream_id		nst = get_stream_id(vs, ts, SREAD, &res);
 
@@ -1895,21 +1893,21 @@ p_getw(value vs, type ts, value val, type tag)
 	Bip_Error(res)
     }
     Lock_Stream(nst);
-    p = ec_getstring(nst, sizeof(long), &l);
+    p = ec_getstring(nst, sizeof(word), &l);
     Unlock_Stream(nst);
     if (p == 0)
     {
 	Bip_Error((int)l)
     }
-    else if (l < sizeof(long))
+    else if (l < sizeof(word))
     {
 	Bip_Error(PEOF)
     }
     /* cope with p possibly not aligned */
-    pl = (char *) &l;
-    for (i = 0; i < sizeof(long); i++)
-	*pl++ = *p++;
-    Return_Unify_Integer(val, tag, l);
+    pw = (char *) &w;
+    for (i = 0; i < sizeof(word); i++)
+	*pw++ = *p++;
+    Return_Unify_Integer(val, tag, w);
 }
 
 static int
@@ -3016,6 +3014,9 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
     int			res;
     int			buffer_input = 0;
     int			need_select = 0;
+#ifdef _WIN32
+    int			need_kbhit = 0;
+#endif
     stream_id		nst;
     struct timeval	to;
     struct timeval	*pto = &to;
@@ -3074,30 +3075,39 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
 	if (IsSocket(nst))	/* We don't wait for writes in sockets... */
 	    nst = SocketInputStream(nst);
 
-	if (!(StreamMode(nst) & SSELECTABLE))
+	if (StreamMode(nst) & SSELECTABLE)
+	{
+	    if (IsReadStream(nst) && StreamMethods(nst).buffer_nonempty(nst))
+	    {
+		buffer_input = 1;	/* we can read from buffer */
+	    }
+	    else if (StreamUnit(nst) != NO_UNIT)
+	    {
+		need_select = 1;
+		if (IsReadStream(nst))
+		{
+		    FD_SET((socket_t) StreamUnit(nst), &dread);
+		}
+		else if (IsWriteStream(nst))
+		{
+		    FD_SET((socket_t) StreamUnit(nst), &dwrite);
+		}
+		if ((socket_t) StreamUnit(nst) > max)
+		    max = StreamUnit(nst);
+	    }
+	    /* else: stream definitely not ready */
+	}
+#ifdef _WIN32
+	else if (IsTty(nst) && IsReadStream(nst) && pto && pto->tv_sec==0 && pto->tv_usec==0)
+	{
+	    /* allow pseudo-select on Windows console with zero timeout */
+	    need_kbhit = 1;
+	}
+#endif
+	else
 	{
 	    Bip_Error(UNIMPLEMENTED);
 	}
-
-	if (IsReadStream(nst) && StreamMethods(nst).buffer_nonempty(nst))
-	{
-	    buffer_input = 1;	/* we can read from buffer */
-	}
-	else if (StreamUnit(nst) != NO_UNIT)
-	{
-	    need_select = 1;
-	    if (IsReadStream(nst))
-	    {
-		FD_SET((socket_t) StreamUnit(nst), &dread);
-	    }
-	    else if (IsWriteStream(nst))
-	    {
-		FD_SET((socket_t) StreamUnit(nst), &dwrite);
-	    }
-	    if ((socket_t) StreamUnit(nst) > max)
-		max = StreamUnit(nst);
-	}
-	/* else: stream definitely not ready */
 
 	Dereference_(pl);		/* get the list tail	*/
 	if (IsRef(pl->tag))
@@ -3124,6 +3134,12 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
 	    Bip_Error(SYS_ERROR);
 	}
     }
+#ifdef _WIN32
+    if (need_kbhit && _kbhit())
+    {
+	FD_SET((socket_t) StreamUnit(nst), &dread);
+    }
+#endif
 
     pl = list;
     list = p = Gbl_Tg;

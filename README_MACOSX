@@ -31,6 +31,10 @@ ECLiPSe on MacOSX  (see README_WIN for Windows, README_UNIX for UNIX/Linux)
 
 ***Please read INSTALL first if you are compiling from source.
 
+Note that the PowerPC and Intel versions of Mac OS X are distinguished by
+ECLiPSe; the Power PC version is ppc_macosx, and the Intel version is 
+i386_macosx.
+
 Unpacking
 ---------
 
@@ -38,18 +42,29 @@ You should have gotten the following files, either on CD or by ftp.
 There are different versions of these files for different machine
 architectures. These are tar-files compressed with gzip.
 
+If you are downloading from SourceForge, these file names may have
+additional version (and platform) specification like
+
+     eclipse_basic_5_10_57_i386_linux.tgz 
+
+that are required to make the filename unique. 
+
 Base:
-    README_MACOSX		The file you are reading now
-    UNPACK			Unpacking script (Unix)
-    eclipse_basic.tgz		Kernel and basic libraries
+    eclipse_basic.tgz		Kernel and basic libraries 
+                                (either the i386_macosx or ppc_macox version,
+				depending on your platform)
     eclipse_doc.tgz		Documentation (html,txt,man,pdf)
 
 Optional:
     eclipse_misc.tgz		Free/3rd party libraries
     if_osiclpcbc.tgz            Interface to COIN-OR's open source solvers 
                                 CLP and CBC
+    eclipse_src.tgz             The source for ECLiPSe
 
 Support:
+    tcltk.tgz			A matching Tcl/Tk release (8.4)
+    				(you may have that already).
+				Needed for the tkeclipse development GUI.
     editors_eclipse_support.tgz Support for various editors for editing
                                 ECLiPSe code.       
 
@@ -65,12 +80,15 @@ Make a directory for ECLiPSe on your machine (in the following
 we will write this directory as <eclipsedir>) and move the
 distribution files there.
 
-Uncompress and untar the files in this directory using
+Uncompress and untar the files in this directory using tar, e.g.
 
-    % ./UNPACK
+    % tar -zxvf eclipse_basic.tgz
+
+for each file downloaded.
 
 This will create the ECLiPSe directory structure below the
-current directory.
+current directory. [replace eclipse_basic.tgz with the name of the package
+you are untaring]
 
 Note that you can always add optional components later without
 having to repeat the installation process below.
@@ -79,7 +97,12 @@ having to repeat the installation process below.
 Installation
 ------------
 
-Now run the installation script:
+If you are installing from source, first compile ECLiPSe as described in
+the file INSTALL (see also the file document/internal/SetupGuide.doc for 
+more detailed help). After compiling ECLiPSe, you can run the installation 
+script as described below.
+
+If you are installing from the binary packages, run the installation script:
 
     % ./RUNME
 
@@ -171,11 +194,11 @@ If you have the standard one-button mouse from Apple, you can still access
 these functions with control-clicking the mouse button instead.
 
 On MacOSX, TkEclipse is available in both the native Aqua and X11 windowing
-environments. You need to have X11 installed to run the X11 version. The
-tcltk.tgz package contains the X11 version of Tcl/Tk, and assumes that the
-Aqua version is a Framework version placed in the standard place. If you
-don't have the Aqua version of Tcl/Tk, you can download it in either source
-or binary form from links at www.tcl.tk. 
+environments. You need to have X11 installed to run the X11 version. In
+recent versions of MacOSX, Tcl/Tk (for Aqua) is installed by default. The
+tcltk.tgz package contains the X11 version of Tcl/Tk, which is not
+available by default. If you don't have the Aqua version of Tcl/Tk, you can
+download it in either source or binary form from links at www.tcl.tk.
 
 X11 is shipped with recent versions of MacOSX, and can be downloaded free
 of charge for older versions of MacOSX. 

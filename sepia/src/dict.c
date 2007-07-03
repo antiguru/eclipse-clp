@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.3 2007/02/23 15:28:34 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.4 2007/07/03 00:10:30 jschimpf Exp $
  */
 
 /*
@@ -1267,7 +1267,7 @@ _std_did_init(void)
 
 		/* module names */
 	d_.default_module =	in_dict(ec_options.default_module, 0);
-	d_.eclipse_home =	in_dict(ec_options.eclipse_home, 0);
+	d_.eclipse_home =	in_dict(ec_eclipse_home, 0);
 	d_.kernel_sepia = in_dict("sepia_kernel", 0);
 	d_.cn =		in_dict("cn", 0);
 

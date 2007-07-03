@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
+ * $Id: embed.h,v 1.3 2007/07/03 00:10:28 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -242,6 +242,7 @@ Extern DLLEXP void		ec_panic ARGS((const char* what, const char* where)); /* no 
 #ifndef EC_EMBED
 
 Extern t_eclipse_options	ec_options;
+Extern char			*ec_eclipse_home;
 Extern stream_id		current_input_, current_output_, current_err_;
 Extern stream_id		log_output_, warning_output_, null_;
 

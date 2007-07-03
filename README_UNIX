@@ -38,9 +38,15 @@ You should have gotten the following files, either on CD or by ftp.
 There are different versions of these files for different machine
 architectures. These are tar-files compressed with gzip.
 
+If you are downloading from SourceForge, these file names may have
+additional version (and platform) specification like
+
+     eclipse_basic_5_10_57_i386_linux.tgz 
+
+that are required to make the filename unique. 
+
 Base:
     README_UNIX			The file you are reading now
-    UNPACK			Unpacking script (Unix)
     eclipse_basic.tgz		Kernel and basic libraries
     eclipse_doc.tgz		Documentation (html,txt,man,pdf)
 
@@ -68,9 +74,11 @@ Make a directory for ECLiPSe on your machine (in the following
 we will write this directory as <eclipsedir>) and move the
 distribution files there.
 
-Uncompress and untar the files in this directory using
+Uncompress and untar the files in this directory using tar, e.g.
 
-    % ./UNPACK
+    % tar -zxvf eclipse_basic.tgz
+
+for each file downloaded.
 
 This will create the ECLiPSe directory structure below the
 current directory.
@@ -82,7 +90,12 @@ having to repeat the installation process below.
 Installation
 ------------
 
-Now run the installation script:
+If you are installing from source, first compile ECLiPSe as described in
+the file INSTALL (see also the file document/internal/SetupGuide.doc for 
+more detailed help). After compiling ECLiPSe, you can run the installation 
+script as described below.
+
+If you are installing from the binary packages, run the installation script:
 
     % ./RUNME
 

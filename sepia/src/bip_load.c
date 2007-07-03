@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_load.c,v 1.1 2006/09/23 01:55:48 snovello Exp $
+ * VERSION	$Id: bip_load.c,v 1.2 2007/07/03 00:10:29 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -129,46 +129,10 @@ extern char	*sbrk();
 
 unsigned ec_vers = 0;
 
-static int
-	p_call_c(value v, type t, value vr, type tr),
-	p_load(value v, type t),
-	p_symbol_address(value vals, type tags, value vala, type taga);
-static void
-	_pt_init(int flags);
-
 pword	*p_whoami_;
 pword	*p_binary_;
 
 dident	d_hostarch_;
-
-
-/****************************************************************
- * Common Initialization
- ****************************************************************/
-
-void
-bip_load_init(int flags)
-{
-    value	dummy_v1;
-
-    if (flags & INIT_SHARED)
-    {
-	(void) built_in(in_dict("load",1), p_load, B_SAFE);
-	(void) exported_built_in(in_dict("symbol_address", 2),
-				p_symbol_address,	B_UNSAFE|U_SIMPLE);
-	built_in(in_dict("call_c",2), p_call_c, B_UNSAFE|U_SIMPLE)
-		-> mode = BoundArg(2, CONSTANT);
-
-	_pt_init(flags);
-    }
-
-    /* whoami and binary are properly initialized in top.pl */
-    dummy_v1.nint = 0;
-    p_whoami_ = init_kernel_var(flags, in_dict("whoami", 0), dummy_v1, tint);
-    p_binary_ = init_kernel_var(flags, in_dict("binary", 0), dummy_v1, tint);
-
-    d_hostarch_ = in_dict(HOSTARCH, 0);
-}
 
 
 #if defined(D_LOAD) && defined(D_DEF)
@@ -228,8 +192,16 @@ type t;
 }
 
 void
-ec_unlink_temps()
-{}
+bip_load_fini(void)
+{
+    while (dload_list)
+    {
+	struct dload_info *dli = dload_list;
+	dload_list = dli->next;
+	(void) FreeLibrary(dli->handle);
+	hp_free_size(dli, sizeof(struct dload_info));
+    }
+}
 
 #else
 #ifdef OS_SUPPORTS_DL
@@ -292,8 +264,16 @@ p_load(value v, type t)
 }
 
 void
-ec_unlink_temps(void)
-{}
+bip_load_fini(void)
+{
+    while (dload_list)
+    {
+	struct dload_info *dli = dload_list;
+	dload_list = dli->next;
+	(void) dlclose(dli->handle);
+	hp_free_size(dli, sizeof(struct dload_info));
+    }
+}
 
 #else /*!OS_SUPPORTS_DL */
 #ifdef _AIX
@@ -445,23 +425,24 @@ _load_once(char *loader, char *vstr, char *tmpdir)
 }
 
 void
-ec_unlink_temps()
+bip_load_fini()
 {
+    if (ec_vers > 0)
     {
-	if (ec_vers > 0)
-	{
-	    struct dload_info *cur = dload_list;
+	struct dload_info *cur = dload_list;
 
-	    while(cur != NULL)
-	    {
-		unlink(cur->filename);
-		cur = cur->next;
-	    }
+	while(cur != NULL)
+	{
+	    unlink(cur->filename);
+	    cur = cur->next;
 	}
     }
 }
 
 #else
+
+static generic_ptr dload_list = 0;
+
 static int 
 p_load(value v, type t)
 {
@@ -588,7 +569,7 @@ _load_once(char buf[], char *loader, char *end, char *vstr, char *temp,
 }
 
 void
-ec_unlink_temps()
+bip_load_fini()
 {
     if (IsString(p_whoami_->tag) && ec_vers > 0)
 	(void) unlink(StringStart(p_whoami_->val));
@@ -1088,7 +1069,7 @@ _pt_init(int flags)
     (void) exported_built_in(in_dict("licence_heartbeat", 4), p_licence_heartbeat, B_SAFE);
     (void) exported_built_in(in_dict("licence_held", 1), p_licence_held, B_SAFE);
 
-    strcpy(pteclipse, ec_options.eclipse_home);	/* check for pteclipse lib */
+    strcpy(pteclipse, ec_eclipse_home);	/* check for pteclipse lib */
     strcat(pteclipse, "/lib/");
     strcat(pteclipse, HOSTARCH);
     strcat(pteclipse, "/pteclipse.");
@@ -1119,4 +1100,43 @@ _pt_init(int flags)
 	}
     }
 }
+
+
+/****************************************************************
+ * Common Initialization and Finalization
+ ****************************************************************/
+
+void
+bip_load_init(int flags)
+{
+    value	dummy_v1;
+
+    if (flags & INIT_SHARED)
+    {
+	(void) built_in(in_dict("load",1), p_load, B_SAFE);
+	(void) exported_built_in(in_dict("symbol_address", 2),
+				p_symbol_address,	B_UNSAFE|U_SIMPLE);
+	built_in(in_dict("call_c",2), p_call_c, B_UNSAFE|U_SIMPLE)
+		-> mode = BoundArg(2, CONSTANT);
+
+	_pt_init(flags);
+    }
+
+    /* whoami and binary are properly initialized in top.pl */
+    dummy_v1.nint = 0;
+    p_whoami_ = init_kernel_var(flags, in_dict("whoami", 0), dummy_v1, tint);
+    p_binary_ = init_kernel_var(flags, in_dict("binary", 0), dummy_v1, tint);
+
+    d_hostarch_ = in_dict(HOSTARCH, 0);
+
+    ec_vers = 0;
+
+    dload_list = 0;
+#ifndef _WIN32
+#ifdef OS_SUPPORTS_DL
+    myself = 0;
+#endif
+#endif
+}
+
 

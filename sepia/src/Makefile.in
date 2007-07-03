@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+# $Id: Makefile.in,v 1.3 2007/07/03 00:10:29 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -118,6 +118,7 @@ GMP_LIB = @GMP_LIB@
 GMP_LD = @GMP_LD@
 LDTCL = @LDTCL@
 RUNPATH_LDFLAG = @RUNPATH_LDFLAG@
+RUNPATH_DYLDFLAG = @RUNPATH_DYLDFLAG@
 
 # postprocessor for emu.s
 
@@ -140,6 +141,8 @@ EXT_INCLUDES =	external.h error.h sepia.h ec_public.h types.h config.h \
 # *************** LIBRARIES ***************
 
 BASIC_LIBS =	@GMP_LD@ -lshm
+# GMP_EXE_LD is the static libgmp if rpath is not supported (e.g. MacOS X)
+BASIC_EXE_LIBS = @GMP_EXE_LD@ -lshm
 PAR_LIBS =	-lnsrv -lpds
 
 
@@ -233,7 +236,7 @@ sepia$(EXE):		$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) whereami.o libd
 		$(COMMON_OBJECTS) $(EXT_OBJECTS) whereami.o \
 		-L$(SYS_LIB) \
 		$(RUNPATH_LDFLAG)$(GMP_LIBDIR) \
-		libdummies.a $(BASIC_LIBS) $(LIBS) -o ./sepia$(EXE)
+		libdummies.a $(BASIC_EXE_LIBS) $(LIBS) -o ./sepia$(EXE)
 
 # The sepia executable needs this link to find its prolog files
 ../lib:	../pl
@@ -353,7 +356,7 @@ tkeclipse.a: tkeclipse.o
 tkeclipse.so: tkeclipse.o tkexdr.so $(LIB_PREFIX)eclipse.so
 		$(DYLD) $(DYNLDFLAGS) \
 			-L$(RUN_LIB) -L$(SYS_LIB) \
-                        $(RUNPATH_LDFLAG)$(RELRUNPATH) \
+                        $(RUNPATH_DYLDFLAG)$(RELRUNPATH) \
 			tkeclipse.o tkexdr.so $(LIB_PREFIX)eclipse.so \
                         $(LIBS) -lc -o ./tkeclipse.so
 
@@ -361,14 +364,13 @@ tkeclipse.so: tkeclipse.o tkexdr.so $(LIB_PREFIX)eclipse.so
 tkeclipse.dylib: tkeclipse.o tkexdr.dylib $(LIB_PREFIX)eclipse.dylib
 		$(DYLD) $(DYNLDFLAGS) \
 			-L$(RUN_LIB) -L$(SYS_LIB) \
-                        $(RUNPATH_LDFLAG)$(RELRUNPATH) \
+                        $(RUNPATH_DYLDFLAG)$(RELRUNPATH) \
 			tkeclipse.o tkexdr.dylib $(LIB_PREFIX)eclipse.dylib \
                         $(LIBS)  $(GMP_LD) $(LDTCL) -o ./tkeclipse.dylib
 
 tkeclipse.dll: tkeclipse.def tkeclipse.o tkexdr.dll $(LIB_PREFIX)eclipse.dll
 		$(DYLD) $(DYNLDFLAGS) -o ./tkeclipse.dll \
 			-L$(RUN_LIB) -L$(SYS_LIB) \
-                        $(RUNPATH_LDFLAG)$(RELRUNPATH) \
 			$< tkeclipse.o tkexdr.dll $(LIB_PREFIX)eclipse.dll \
 			$(GRAPHLIBS) $(LIBS)
 
@@ -380,7 +382,7 @@ $(LIB_PREFIX)eclipse.so: $(COMMON_OBJECTS) $(DUMMYLIBS)
 		$(DYLD) $(DYNLDFLAGS) -o $(LIB_PREFIX)eclipse.so \
 			$(COMMON_OBJECTS) $(DUMMYLIBS) \
 			-L$(RUN_LIB) -L$(SYS_LIB) \
-			$(RUNPATH_LDFLAG)$(RELRUNPATH) \
+			$(RUNPATH_DYLDFLAG)$(RELRUNPATH) \
 			$(BASIC_LIBS) $(LIBS)
 
 $(LIB_PREFIX)eclipse.dylib: $(COMMON_OBJECTS) $(DUMMYLIBS)
@@ -910,7 +912,7 @@ elipsys_fd.o: error.h
 embed.o: config.h sepia.h ec_public.h types.h error.h mem.h dict.h module.h
 embed.o: emu_export.h embed.h os_support.h
 emu.o: config.h sepia.h ec_public.h types.h error.h mem.h dict.h emu_export.h
-emu.o: embed.h opcode.h database.h dynamic.h module.h debug.h property.h
+emu.o: embed.h opcode.h database.h dynamic.h module.h debug.h property.h io.h
 emu_c_env.o: config.h sepia.h ec_public.h types.h error.h embed.h mem.h io.h
 emu_c_env.o: dict.h emu_export.h module.h debug.h opcode.h
 emu_par.o: config.h sepia.h ec_public.h types.h embed.h error.h io.h mem.h

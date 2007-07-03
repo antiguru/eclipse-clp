@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: ic_symbolic.ecl,v 1.1 2006/09/23 01:53:49 snovello Exp $
+% Version:	$Id: ic_symbolic.ecl,v 1.2 2007/07/03 00:10:27 jschimpf Exp $
 %
 % Todo:
 %  -	compile time transformation could do all symbolic->int mapping
@@ -45,7 +45,7 @@
 
 :- comment(summary, "Solver for constraints over ordered symbolic domains").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:53:49 $").
+:- comment(date, "$Date: 2007/07/03 00:10:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 
@@ -411,6 +411,10 @@ test_unify_sic_sic(ic_symbolic with [dom:D,ic_var:Y_ic], ic_symbolic with [dom:D
 
 % get domain (also print handler)
 
+get_domain_as_list(Value, [Value]) :-
+	atom(Value).
+	% We could check for valid domain value instead (but would need Module):
+	% domain_index(Value, _Domain, _Index)@Module.
 get_domain_as_list(_{ic_symbolic with [ic_var:X_ic,dom:(Module:Name)]}, Values) ?-
 	ic_kernel:get_domain_as_list(X_ic, IcDomain),
 	current_domain(Name, _DefModule, DomainArray)@Module,

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.6 2007/06/06 15:29:31 kish_shen Exp $
+% Version:	$Id: io.pl,v 1.7 2007/07/03 00:10:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1349,6 +1349,8 @@ remote_control_send(Control, Message) :-
 	    flush(Control)
 	).
 
+
+:- local finalization(disconnect_remotes).
 
 disconnect_remotes :-
 	recorded_list(peer_info, Remotes),

@@ -566,8 +566,8 @@ constraint predicates.
 A set domain variable is a metaterm. The {\bf conjunto.pl} library
 defines a metaterm attribute
 
-{\bf set with [setdom : [Glb,Lub], card: C, weight: W, del\verb/_/inst: Dinst,
-del\verb/_/glb: Dglb, del\verb/_/lub: Dlub, del\verb/_/any: Dany]}
+{\bf set\{setdom:[Glb,Lub], card:C, weight:W, del\verb/_/inst:Dinst,
+del\verb/_/glb:Dglb, del\verb/_/lub:Dlub, del\verb/_/any:Dany\}}
 
 This attribute stores information regarding the set domain, its
 cardinality, and weight (null if undefined) and together with four
@@ -614,7 +614,7 @@ arg(del_inst of set, Attr, Dinst)
 \end{verbatim}\end{quote}
 or by using a unification: 
 \begin{quote}\begin{verbatim}
-Attr = set with del_inst: Dinst
+Attr = set{del_inst: Dinst}
 \end{verbatim}\end{quote}
 \index{unification}
 
@@ -860,7 +860,7 @@ a set. The {\bf setdom} attribute of a set domain variable (metaterm)
 is printed in the simplified form of just the $glb..lub$ interval, e.g.
 
 \begin{verbatim}
-[eclipse 2]: S `:: {}..{a,v,c}, svar_attribute(S,A), A = set with setdom : D.
+[eclipse 2]: S `:: {}..{a,v,c}, svar_attribute(S,A), A = set{setdom : D}.
 
 S = S{{} .. {a, c, v}}
 A = {} .. {a, c, v}

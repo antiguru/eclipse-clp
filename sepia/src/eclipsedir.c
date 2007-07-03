@@ -23,7 +23,7 @@
 /*
  * ECLiPSe C SOURCE MODULE
  *
- * $Id: eclipsedir.c,v 1.1 2006/09/23 01:55:54 snovello Exp $
+ * $Id: eclipsedir.c,v 1.2 2007/07/03 00:10:30 jschimpf Exp $
  *
  * Note that this file is used by different executables
  * (eclipse, worker manager)
@@ -37,10 +37,15 @@
 #include	<stdlib.h>
 #endif
 
+/*
+ * eclipsehome() returns a pointer to a canonical file name.
+ * The string should be considered static.
+ */
 
 extern char	*whereami();
 
-static char	*eclipsehome_;
+static char	*eclipsehome_ = 0;
+static char	buf[MAX_PATH_LEN];
 
 char *
 eclipsehome(void)
@@ -50,13 +55,12 @@ eclipsehome(void)
 	eclipsehome_ = whereami();
 	if (!eclipsehome_)
 	{
-	    char buf[MAX_PATH_LEN];
+	    char buf1[MAX_PATH_LEN];
 	    int size=MAX_PATH_LEN;
-	    if (ec_env_lookup("ECLIPSEDIR", buf, &size))
+	    if (ec_env_lookup("ECLIPSEDIR", buf1, &size))
 	    {
-		char buf1[MAX_PATH_LEN];
-		(void) canonical_filename(buf, buf1);
-		eclipsehome_ = strcpy((char*) malloc(strlen(buf1)+1), buf1);
+		(void) canonical_filename(buf1, buf);
+		eclipsehome_ = buf;
 	    }
 	    else
 	    {

@@ -302,6 +302,9 @@
 /* Define if you have times.  */
 #undef HAVE_TIMES
 
+/* Define if we have <ucontext.h> and can acces registers from signal context.  */
+#undef HAVE_UCONTEXTGREGS
+
 /* Define if you have the <ctype.h> header file.  */
 #undef HAVE_CTYPE_H
 
