@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.3 2007/02/23 15:28:28 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.4 2007/07/03 14:16:08 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -206,8 +206,6 @@ for param_name in $required_site_params; do
 	exit 1
     fi
 done
-
-TCLTKDIR=$ECLIPSETHIRDPARTY/tcltk8.4
 
 if [ "$ARCH" = i386_nt ] ; then
     LOCAL_ROTD_DIR=R:
@@ -679,11 +677,7 @@ check_out_sources() {	# no arguments
 		    cd .. &&
 		    cvs -q -d \"$CVSDIR\" checkout -d \"`basename "$BUILD_DIR"`\" \
 			$PATCH_OPTIONS $DATE_OPTIONS Eclipse
-		) &&
-
-		# Set up the tcl/tk symbolic link
-		rm -f tcltk &&
-		ln -s \"$TCLTKDIR\" tcltk
+		)
 	    ) >> $CVS_LOGFILE 2>&1 &&
 
 	    echo \"Done.\" | tee -a $CVS_LOGFILE \
@@ -714,7 +708,7 @@ build_architecture() {	# architecture
 	echo "Milestone: Skipping build of $arch"
     else
 	remote_commands "$machine" "$PREFIX/$BUILD_DIR" "
-	    echo \"Building first part of $arch version on $machine.\" \
+	    echo \"Building $arch version on $machine.\" \
 		| tee -a $BUILD_LOGFILE
 	    echo \"See $BUILD_LOGFILE for details.\"
 
@@ -776,30 +770,7 @@ build_archives() {	# list of achitectures
 	    echo \"Pack failed.\" | tee -a $PACK_LOGFILE
 	    false
 	)
-    " &&
-    # On PACK completion, if the architecture is i386_nt then 
-    # build the Windoze installer
-    for arch in $built_archs ; do
-	if [ "$arch" = i386_nt ] ; then
-#	    remote_commands "$WIN_NATIVE_MACHINE" "$WIN_PREFIX/$BUILD_DIR" "
-#		echo \"Building $arch NSIS Windoze installer on $WIN_NATIVE_MACHINE.\"
-#		(
-#		    makensis /V4 /OECLiPSe_NSIS.log ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}.nsi
-#		    mv ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}.exe $WIN_PREFIX/$TMP_ARCHIVE_DIR/$arch/
-#		)
-#	    " >> $MASTER_LOG_FILE 2>&1
-	    (
-		echo "Building $arch NSIS Windoze installer on local machine."
-		cd $PREFIX/$BUILD_DIR
-		makensis -V4 -OECLiPSe_NSIS.log ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}.nsi
-		mv ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}.exe $PREFIX/$TMP_ARCHIVE_DIR/$arch/
-	    ) >> $PACK_LOGFILE 2>&1
-	    return
-	fi
-    done && (
-	echo "Unable to build NSIS Windoze installer, i386_nt not successfully built" \
-	    | tee -a $PACK_LOG_FILE
-    )    
+    "
 }
 
 clean_build_archs() {	# list of architectures
@@ -1214,9 +1185,9 @@ check_out_all_tests() {
 
 rsync_out() {		# ($machine, $arch -> $remote_prefix)
     echo "Called rsync_out($machine,$arch)"
-    eval machine_name=\"'$MACHINE_NAME_'$machine\"
-    if [ "$machine_name" = "" ] ; then
-	machine_name="$machine"
+    eval rsync_machine_name=\"'$MACHINE_NAME_'$machine\"
+    if [ "$rsync_machine_name" = "" ] ; then
+	rsync_machine_name="$machine"
     fi
     eval is_remote_machine=\"'$REMOTE_MACHINE_'$machine\"
     if [ -n "$is_remote_machine" ] ; then
@@ -1224,14 +1195,14 @@ rsync_out() {		# ($machine, $arch -> $remote_prefix)
 	(
 	    cd "$PREFIX"
 	    files="$ROTD_SUBDIR/all/install.* $ROTD_SUBDIR/all/test.*.$machine $ROTD_SUBDIR/$arch"
-	    # echo "rsync -aRu $files $machine_name:$remote_prefix"
+	    # echo "rsync -aRu $files $rsync_machine_name:$remote_prefix"
 	    remote_commands "$DISK_MACHINE" "$PREFIX" "
-		rsync -aRu --rsh=ssh --timeout=60 --exclude 'aux.*' --exclude '*::*' $files $machine_name:$remote_prefix
+		rsync -aRu --rsh=ssh --timeout=60 --exclude 'aux.*' --exclude '*::*' $files $rsync_machine_name:$remote_prefix
 	    " &&
 	    remote_commands "$machine" "$remote_prefix/$ROTD_SUBDIR" "
 		mkdir -p logs
 	    " || (
-	       echo "Failed to rsync to $machine_name"
+	       echo "Failed to rsync to $rsync_machine_name"
 	       false
 	    )
 	)
@@ -1245,18 +1216,18 @@ rsync_out() {		# ($machine, $arch -> $remote_prefix)
 
 rsync_in() {	# ($machine)
     echo "Called rsync_in($machine)"
-    eval machine_name=\"'$MACHINE_NAME_'$machine\"
-    if [ "$machine_name" = "" ] ; then
-	machine_name="$machine"
+    eval rsync_machine_name=\"'$MACHINE_NAME_'$machine\"
+    if [ "$rsync_machine_name" = "" ] ; then
+	rsync_machine_name="$machine"
     fi
     eval is_remote_machine=\"'$REMOTE_MACHINE_'$machine\"
     if [ -n "$is_remote_machine" ] ; then
 	eval remote_prefix=\"'$ROTD_DIR_'$machine\"
-	# echo "rsync -a --ignore-existing $machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX"
+	# echo "rsync -a --ignore-existing $rsync_machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX"
 	remote_commands "$DISK_MACHINE" "$PREFIX" "
-	    rsync -a --rsh=ssh --timeout=60 --ignore-existing $machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX
+	    rsync -a --rsh=ssh --timeout=60 --ignore-existing $rsync_machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX
 	" || (
-	   echo "Failed to rsync back from $machine_name"
+	   echo "Failed to rsync back from $rsync_machine_name"
 	   false
 	)
     fi
@@ -1640,7 +1611,7 @@ pack_source_archive() {
 	echo "Milestone: Skipping packing of source"
     else
 	clean_source_dir=Eclipse_${ECLIPSE_VERSION}_${BUILD_NUMBER}
-	source_archive=archive/common/eclipse_src.tgz
+	source_archive=archive/src/eclipse_src.tgz
 	PACK_SRC_LOGFILE="$PREFIX/$LOG_DIR/log.pack.source"
 
 	remote_commands "$CVS_MACHINE" "$PREFIX/$ROTD_SUBDIR" "
@@ -1650,6 +1621,7 @@ pack_source_archive() {
 	    (
 		cvs -q -d \"$CVSDIR\" export -d $clean_source_dir \
 		    -r $LAST_SUCCESSFUL_BUILD_TAG Eclipse &&
+		mkdir -p `dirname $source_archive` &&
 		tar cfz $source_archive $clean_source_dir &&
 		chmod a+r,ug+w $source_archive &&
 		rm -rf $clean_source_dir
@@ -1763,8 +1735,7 @@ copy_to_ftp() {	# list of architectures
 		    # Don't include the UNPACK script
 		    rm -f UNPACK
 		    ln -s ../common/README_WIN.TXT README &&
-		    ln -s ../common/README_WIN.TXT Readme.txt &&
-		    ln -s ../../Support/Windows/tcl831.exe .
+		    ln -s ../common/README_WIN.TXT Readme.txt
 		else
 		    ln -s ../common/README_UNIX README &&
 		    ln -s ../common/README_UNIX Readme.txt
