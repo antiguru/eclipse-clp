@@ -20,23 +20,53 @@
 % 
 % END LICENSE BLOCK
 
+
+:- lib(module_options).
+
+:- local struct(options(/*session*/ session_dbname,session_storage,
+                        /*cursor*/  cursor_buffering,cursor_type)
+               ).
+
+default_options(options{cursor_buffering:"client",cursor_type:"read_only"}).
+
+
+valid_option_field(session_dbname, session_dbname of options).
+valid_option_field(session_storage, session_storage of options).
+
+valid_option_field(cursor_buffering, cursor_buffering of options).
+valid_option_field(cursor_type, cursor_type of options).
+
+
+valid_option_value(session_dbname, Value) :-  
+        (string(Value) ; atom(Value)), !.
+valid_option_value(session_storage, Value) :- 
+        (string(Value) ; atom(Value)), !.
+
+valid_option_value(cursor_buffering, Value) :-
+        (string(Value) ; atom(Value)), 
+        concat_string([Value], ValueS),
+        (ValueS == "server" ; ValueS = "client"), !.
+valid_option_value(cursor_type, Value) :-
+        (string(Value) ; atom(Value)), 
+        concat_string([Value], ValueS),
+        (ValueS == "no_cursor" ; ValueS = "read_only"), !.
+
+
 :- local struct(session_opts(dbname,storage)).
+:- local struct(cursor_opts(buffering,type)).
 
-valid_opts_field(session, dbname, dbname of session_opts) :- !.
-valid_opts_field(session, storage, storage of session_opts).
+valid_opts_field(Type, Name, Field) :-
+        concat_atom([Type, '_', Name], OptName),
+        valid_option_field(OptName, Field).
 
-valid_opt_value(session, dbname, Value) :-  
-        (string(Value) ; atom(Value)), !.
-valid_opt_value(session, storage, Value) :- 
-        (string(Value) ; atom(Value)), !.
-
-
-opts_struct(session, session_opts{}).
+valid_opt_value(Type, Name, Value) :-
+        concat_atom([Type, '_', Name], OptName),
+        valid_option_value(OptName, Value).
 
 get_opts(Type, OptList, OptStruct) :-
-        opts_struct(Type, OptStruct),
-        (foreach(F:V, OptList), param(OptStruct,Type) do
-            valid_opts_field(Type, F, FPos),
-            valid_opt_value(Type,  F, V),
-            arg(FPos, OptStruct, V)
-        ).
+        (foreach(F:V, OptList), param(Type), 
+         foreach(TF:V, TypedOptList) do
+            concat_atom([Type,'_',F], TF)
+        ),
+        get_options(TypedOptList, OptStruct).
+

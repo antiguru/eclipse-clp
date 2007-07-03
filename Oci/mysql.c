@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.3 2007/07/03 00:10:25 jschimpf Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.4 2007/07/03 20:42:47 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -70,6 +70,8 @@
 */
 #define SESSION_OPT_DBNAME	1
 #define SESSION_OPT_STORAGE     2
+#define CURSOR_OPT_BUFFER	3
+#define CURSOR_OPT_TYPE		4
 
 #define NoErrors {err_code = 0 ; err_msg = "\0"; }
 
@@ -610,7 +612,7 @@ session_start(session_t * s, char * username, char * host, char * password, valu
 	if (host[0] == '\0') host = NULL; /* emptry string -> no hostname */
 
 	/* processing options */
-	if (strcmp(DidName(optdid), "session_opts") != 0) 
+	if (strcmp(DidName(optdid), "options") != 0) 
 	{
 	    raise_dbi_error(DBI_BAD_FIELD);
 	    return -1;
@@ -1091,17 +1093,78 @@ session_close(session_t * session)
     return;
 }
 
+/* sets MySQL specific options for cursor. opts must be a structure */
+int
+cursor_set_options(cursor_t * cursor, value v_opts)
+{
+    pword * optarg;
+    char * option;
+    dident optdid = v_opts.ptr->val.did; 
+
+    /* processing options */
+    if (strcmp(DidName(optdid), "options") != 0) 
+    {
+	raise_dbi_error(DBI_BAD_FIELD);
+	return -1;
+    }
+
+    optarg = v_opts.ptr+CURSOR_OPT_BUFFER;
+    Dereference_(optarg);
+    switch (TagType(optarg->tag))
+    {
+    case TSTRG:
+	option = StringStart(optarg->val);
+	break;
+    case TDICT:
+	option = DidName(optarg->val.did);
+	break;
+    default:
+	raise_dbi_error(DBI_BAD_FIELD);
+	return -1;
+	break;
+    }
+    cursor->server_cursor = (strcmp(option, "server") == 0 ? 1 : 0);
+
+    optarg = v_opts.ptr+CURSOR_OPT_TYPE;
+    Dereference_(optarg);
+    switch (TagType(optarg->tag))
+    {
+    case TSTRG:
+	option = StringStart(optarg->val);
+	break;
+    case TDICT:
+	option = DidName(optarg->val.did);
+	break;
+    default:
+	raise_dbi_error(DBI_BAD_FIELD);
+	return -1;
+	break;
+    }
+    if (strcmp(option, "no_cursor") == 0)
+    {
+	cursor->cursor_type = CURSOR_NO_CURSOR;
+    } else if (strcmp(option, "read_only") == 0)
+    {
+	cursor->cursor_type = CURSOR_READ_ONLY;
+    } else
+    {
+	raise_dbi_error(DBI_BAD_FIELD);
+	return -1;
+    }
+    return 0;
+}
 
 /* executes the statement in cursor. For prepared statements, input params
    must already be bound
 */
 int
-cursor_sql_execute(cursor_t * cursor)
+cursor_sql_execute(cursor_t * cursor, int with_defaults)
 {
     unsigned int nfield = 0;
 #ifdef DEBUG
     fprintf(stderr,"cursor_sql_execute\n");
 #endif
+
     if (cursor->session->closed ||
 	cursor->state == closed ||
 	cursor->state == idle 
@@ -1111,17 +1174,31 @@ cursor_sql_execute(cursor_t * cursor)
 	return -1;
     }
 
+    if (with_defaults)
+    {
+	cursor->server_cursor = 0;
+	cursor->cursor_type = CURSOR_NO_CURSOR;
+    }
+
     if (cursor->sql_type == prepared)
     {/* prepared statememnt */
+	unsigned long type;
+
 	/* free any previous results */
 	if (cursor->state == executed) mysql_stmt_free_result(cursor->s.stmt);
+	if (cursor->cursor_type == CURSOR_READ_ONLY)
+	    type  = CURSOR_TYPE_READ_ONLY;
+	else
+	    type = CURSOR_TYPE_NO_CURSOR;
+	mysql_stmt_attr_set(cursor->s.stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type);
 	if (mysql_stmt_execute(cursor->s.stmt))
 	{
 	    raise_mysql_stmt_error(cursor->s.stmt);
 	    return -1;
 	}
 	cursor->prolog_processed_count = (word) mysql_stmt_affected_rows(cursor->s.stmt);
-	if (mysql_stmt_store_result(cursor->s.stmt))
+	if (!cursor->server_cursor && /* store result on client side */
+	    mysql_stmt_store_result(cursor->s.stmt))
 	{
 	    raise_mysql_stmt_error(cursor->s.stmt);
 	    return -1;
@@ -1134,6 +1211,7 @@ cursor_sql_execute(cursor_t * cursor)
 	    raise_dbi_error(DBI_NOT_PREPARED);
 	    return -1;
 	}
+
 	if (mysql_real_query(cursor->session->mysql, cursor->s.sql, cursor->sql_length))
 	{
 	    raise_mysql_error(cursor->session->mysql);
@@ -1142,7 +1220,14 @@ cursor_sql_execute(cursor_t * cursor)
 	}
 	TryFree(cursor->s.sql);
 	cursor->prolog_processed_count = (word) mysql_affected_rows(cursor->session->mysql);
-	if ((cursor->s.res = mysql_store_result(cursor->session->mysql)) == NULL)
+	if (cursor->server_cursor)
+	{/* result on server side */
+	    cursor->s.res = mysql_use_result(cursor->session->mysql);	
+	} else
+	{/* result on client side */
+	    cursor->s.res = mysql_store_result(cursor->session->mysql);
+	}
+	if (cursor->s.res == NULL)
 	{
 	    nfield = mysql_field_count(cursor->session->mysql);
 	    if (nfield != 0)
@@ -1226,7 +1311,7 @@ cursor_one_tuple(cursor_t *cursor)
 	    raise_dbi_error(DBI_NO_PARAM);
 	    return -1;
 	}
-	if (err = cursor_sql_execute(cursor)) return err;
+	if (err = cursor_sql_execute(cursor, 1)) return err;
     }
     
     /* using from..to is for compatibility with Oracle oci */
@@ -1357,7 +1442,7 @@ cursor_N_execute(cursor_t * cursor, word * tuplep, value v_tuples, type t_tuples
 		return res;
 	}
 
-	if (cursor_sql_execute(cursor))
+	if (cursor_sql_execute(cursor, 1))
 	{
 	    return -1;
 	}

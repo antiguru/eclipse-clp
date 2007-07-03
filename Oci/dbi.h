@@ -133,6 +133,8 @@ typedef struct cursor_handle
 #ifdef USE_MYSQL
     my_bool * tuple_errors;
     unsigned long sql_length; /* prepared or not */
+    char server_cursor;       /* server-side cursor or not */ 
+    char cursor_type;         /* type of cursor (prepared only) */
     union 
     {
 	MYSQL_STMT * stmt; /* prepared SQL statement */
@@ -142,6 +144,12 @@ typedef struct cursor_handle
 #endif
 } cursor_t;
 
+#ifdef USE_MYSQL
+/* cursor types */
+#define CURSOR_NO_CURSOR 0
+#define CURSOR_READ_ONLY 1
+
+#endif
 
 #define DEFAULT_BUFFER_SIZE 1000
 
@@ -222,7 +230,10 @@ session_t *
 session_copy(session_t * session); /* DB independent */
 
 int
-cursor_sql_execute(cursor_t * cursor);
+cursor_set_options(cursor_t * cursor, value v_opts); /* DB dependent */
+
+int
+cursor_sql_execute(cursor_t * cursor, int with_options);
 
 int
 cursor_bind_placeholder(cursor_t * cursor, char * placeholder, char * value);

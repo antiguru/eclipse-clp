@@ -534,7 +534,8 @@ parameter tuples.
 
 For database queries, lib(dbi) provides predicates to execute SQL
 statements and extract the results returned by the database.
-\bipref{session_sql_query/4}{../bips/lib/dbi/session_sql_query-4.html} 
+\bipref{session_sql_query/4}{../bips/lib/dbi/session_sql_query-4.html} or
+\bipref{session_sql_query/5}{../bips/lib/dbi/session_sql_query-5.html} 
 executes an SQL statement, returning a cursor to allow the results to be
 extracted from the database. The predicates to do this are
 \bipref{cursor_next_tuple/2}{../bips/lib/dbi/cursor_next_tuple-2.html},
@@ -542,7 +543,7 @@ extracted from the database. The predicates to do this are
 \bipref{cursor_N_tuples/4}{../bips/lib/dbi/cursor_N_tuples-4.html}.
 
 The datatypes of the results tuple is specified by a template given to
-session_sql_query/4. See section~\ref{data-templates} for details on the
+session_sql_query/4,5. See section~\ref{data-templates} for details on the
 templates.  
 
 \subsubsection
@@ -631,7 +632,9 @@ and for the results tuples (as with \bipref{session_sql_query/4}{../bips/lib/dbi
 is prepared by
 \bipref{session_sql_prepare_query/5}{../bips/lib/dbi/session_sql_prepare_query-5.html},
 it then needs to be executed by
-\bipref{cursor_next_execute/2}{../bips/lib/dbi/cursor_next_execute-2.html},
+\bipref{cursor_next_execute/2}{../bips/lib/dbi/cursor_next_execute-2.html} or
+\bipref{cursor_next_execute/3}{../bips/lib/dbi/cursor_next_execute-3.html}
+(cursor_next_execute/3 allows the specification of options for the cursor),
 and the results can then be retrieved by \bipref{cursor_next_tuple/2}{../bips/lib/dbi/cursor_next_tuple-2.html},
 \bipref{cursor_all_tuples/2}{../bips/lib/dbi/cursor_all_tuples-2.html} and
 \bipref{cursor_N_tuples/4}{../bips/lib/dbi/cursor_N_tuples-4.html}. After

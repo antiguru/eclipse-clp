@@ -26,7 +26,7 @@
  *
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.3 2007/07/03 00:10:24 jschimpf Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.4 2007/07/03 20:42:47 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	dbi.c
@@ -120,6 +120,7 @@ p_session_sql_query(
 		/* + */ value v_template, type t_template,
 		/* + */ value v_SQL, type t_SQL,
 		/* + */ value v_N, type t_N,
+		/* + */ value v_opts, type t_opts,
 		/* - */ value v_cursor, type t_cursor
 		);
 
@@ -164,7 +165,8 @@ p_cursor_N_execute(
 EXPORT int
 p_cursor_next_execute(
 		/* + */ value v_cursor, type t_cursor,
-		/* + */ value v_tuple, type t_tuple
+		/* + */ value v_tuple, type t_tuple,
+		/* + */ value v_opts, type t_opts
 		);
 
 EXPORT int
@@ -474,7 +476,7 @@ p_session_sql_dml(
 	if (NULL == cursor)
 	    Bip_Error(dbi_errno);
 
-	if (res = cursor_sql_execute(cursor))
+	if (res = cursor_sql_execute(cursor, 1))
 	{
 	    cursor_free(cursor);
 	    Bip_Error(Error_Code(res));
@@ -494,6 +496,7 @@ p_session_sql_query(
 		/* + */ value v_template, type t_template,
 		/* + */ value v_SQL, type t_SQL,
 		/* + */ value v_N, type t_N,
+		/* + */ value v_opts, type t_opts,
 		/* - */ value v_cursor, type t_cursor
 		)
 {
@@ -508,6 +511,7 @@ p_session_sql_query(
 	Check_Integer(t_N);
 	N = v_N.nint;
 	Check_String(t_SQL);
+	Check_Structure(t_opts);
 	Get_Typed_Object(v_session,t_session,&session_handle_tid,session);
 
 	if (res = template_get(v_template, t_template, &template))
@@ -517,7 +521,13 @@ p_session_sql_query(
 
 	cursor = ready_session_sql_cursor(session, NULL, template, StringStart(v_SQL), StringLength(v_SQL),  N, 0);
 	if (NULL == cursor ) {  Bip_Error(dbi_errno); }
-	if (res = cursor_sql_execute(cursor)) 
+
+	if (res = cursor_set_options(cursor, v_opts))
+	{
+	    Bip_Error(Error_Code(res));
+	}
+	
+	if (res = cursor_sql_execute(cursor, 0)) 
 	{
 	    cursor_free(cursor);
 	    Bip_Error(Error_Code(res));
@@ -669,7 +679,8 @@ p_session_set_in_transaction(
 int
 p_cursor_next_execute(
 		/* + */ value v_cursor, type t_cursor,
-		/* + */ value v_tuple, type t_tuple
+		/* + */ value v_tuple, type t_tuple,
+		/* + */ value v_opts, type t_opts
 		)
 {
     cursor_t * cursor;
@@ -678,10 +689,16 @@ p_cursor_next_execute(
 
     tuple.val = v_tuple;
     tuple.tag = t_tuple;
+    Check_Structure(t_opts);
     Check_Structure(t_cursor);
     argp = &v_cursor.ptr[CURSOR_HANDLE];
     Dereference_(argp);
     Get_Typed_Object(argp->val, argp->tag,&cursor_handle_tid,cursor);
+
+    if (res = cursor_set_options(cursor, v_opts))
+    {
+	Bip_Error(Error_Code(res));
+    }
 
     if (res = template_bind(0, cursor->param_template,
 		  cursor->param_buffer, cursor->param_datalengths,&tuple))
@@ -689,7 +706,7 @@ p_cursor_next_execute(
 	Bip_Error(Error_Code(res));
     }
 
-    if (res = cursor_sql_execute(cursor)) 
+    if (res = cursor_sql_execute(cursor, 0)) 
     {
 	Bip_Error(Error_Code(res));
     }

@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.3 2007/07/03 00:10:24 jschimpf Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.4 2007/07/03 20:42:46 kish_shen Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -50,7 +50,7 @@
 
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2007/07/03 00:10:24 $").
+:- comment(date, "$Date: 2007/07/03 20:42:46 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
@@ -72,19 +72,22 @@
         session_sql/3,
 
 	session_sql_prepare/4,
-	session_sql_prepare/5,
+	session_N_sql_prepare/5,
 	cursor_next_execute/2,
+        cursor_next_execute/3,
 	cursor_N_execute/4,
         cursor_all_execute/2,
 
         cursor_close/1,
 	session_sql_query/4,
         session_sql_query/5,
+	session_sql_query_N/6,
+   
 	cursor_next_tuple/2,
 	cursor_N_tuples/4,
         cursor_all_tuples/2,
 	session_sql_prepare_query/5,
-        session_sql_prepare_query/6,
+        session_sql_prepare_query_N/6,
 
         session_retrieve_tuple/4,
         session_retrieve_N_tuples/5,
@@ -119,13 +122,13 @@
 
 %   external(	s_sql_ddl/2,	p_session_sql_ddl),
    external(	s_sql_dml/3,	p_session_sql_dml),
-   external(	s_sql_query/5,	p_session_sql_query),
+   external(	s_sql_query/6,	p_session_sql_query),
    external(	s_sql_prepare/5,	p_session_sql_prepare),
    external(	s_sql_prepare_query/6,	p_session_sql_prepare_query),
    external(    s_set_in_transaction/2, p_session_set_in_transaction),
-   external(    s_is_in_transaction/1, p_session_is_in_transaction),
+   external(    s_is_in_transaction/1,  p_session_is_in_transaction),
    
-   external(	cursor_next_execute/2,	p_cursor_next_execute),
+   external(	cursor_next_exec/3,	p_cursor_next_execute),
    external(	cursor_N_execute/4,	p_cursor_N_execute),
    external(	cursor_next_tuple/2,	p_cursor_next_tuple),
    external(	cursor_N_tuples/4,	p_cursor_N_tuples),
@@ -145,7 +148,7 @@
 :- mode extract_session(+,-).
 extract_session(s_sql_ddl(S,_),S).
 extract_session(s_sql_dml(S,_,_),S).
-extract_session(s_sql_query(S,_,_,_,_),S).
+extract_session(s_sql_query(S,_,_,_,_,_),S).
 extract_session(s_sql_prepare(S,_,_,_,_),S).
 extract_session(s_sql_prepare_query(S,_,_,_,_,_),S).
 extract_session(s_close(S),S).
@@ -155,7 +158,9 @@ extract_session(s_init(S),S).
 extract_session(s_start(S,_,_,_,_),S).
 
 :- mode extract_cursor(+,-).
+extract_cursor(cursor_next_exec(C,_,_),C).
 extract_cursor(cursor_next_execute(C,_),C).
+extract_cursor(cursor_next_execute(C,_,_),C).
 extract_cursor(cursor_N_execute(C,_,_,_),C).
 extract_cursor(cursor_next_tuple(C,_),C).
 extract_cursor(cursor_N_tuples(C,_,_,_),C).
@@ -270,20 +275,34 @@ session_sql(Session,SQL,Tuples) :-
         error(5, session_sql(Session,SQL,Tuples))
     ).
 
+session_sql_query(Session,Template,SQL,OptsList,Cursor) :-
+    Cursor = cursor{handle:CursorH,session:Session},
+    ( get_opts(cursor, OptsList, Opts) ->
+        s_sql_query(Session, Template,SQL,1,Opts,CursorH)
+    ;
+        printf(error, "Invalid option list in %w%n", [OptsList]),
+        error(6, session_sql_query(Session, Template,SQL,OptsList,Cursor))
+    ).
+    
 session_sql_query(Session,Template,SQL,Cursor) :-
-    Cursor = cursor{handle:CursorH,session:Session},
-    s_sql_query(Session,Template,SQL,1,CursorH).
+    session_sql_query_N(Session,Template,SQL,1,[],Cursor).
 
-session_sql_query(Session,Template,SQL,N,Cursor) :-
+
+session_sql_query_N(Session,Template,SQL,N,OptsList,Cursor) :-
     Cursor = cursor{handle:CursorH,session:Session},
-    s_sql_query(Session,Template,SQL,N,CursorH).
+    ( get_opts(cursor, OptsList, Opts) ->
+        s_sql_query(Session,Template,SQL,N,Opts,CursorH)
+    ;
+        printf(error, "Invalid option list in %w%n", [OptsList]),
+        error(6, session_sql_query_N(Session, Template,SQL,N,OptsList,Cursor))
+    ).
 
 
 session_sql_prepare(Session,Template,SQL,Cursor) :-
     Cursor = cursor{handle:CursorH,session:Session},
     s_sql_prepare(Session,Template,SQL,1,CursorH).
 
-session_sql_prepare(Session,Template,SQL,N,Cursor) :-
+session_N_sql_prepare(Session,Template,SQL,N,Cursor) :-
     Cursor = cursor{handle:CursorH,session:Session},
     s_sql_prepare(Session,Template,SQL,N,CursorH).
 
@@ -292,7 +311,7 @@ session_sql_prepare_query(Session,ParamT,QueryT,SQL,Cursor) :-
     Cursor = cursor{handle:CursorH,session:Session},
     s_sql_prepare_query(Session,ParamT,QueryT,SQL,1,CursorH).
 
-session_sql_prepare_query(Session,ParamT,QueryT,SQL,N,Cursor) :-
+session_sql_prepare_query_N(Session,ParamT,QueryT,SQL,N,Cursor) :-
     Cursor = cursor{handle:CursorH,session:Session},
     s_sql_prepare_query(Session,ParamT,QueryT,SQL,N,CursorH).
 
@@ -388,6 +407,18 @@ cursor_lazy_tuples(Cursor,Cut,Tuples) :-
 	;
 	    Rest = []
 	).
+
+cursor_next_execute(Cursor, Tuple)  :-
+        cursor_next_execute(Cursor, Tuple, []).
+
+cursor_next_execute(Cursor, Tuple, OptsList) :-
+        ( get_opts(cursor, OptsList, Opts) ->
+            cursor_next_exec(Cursor, Tuple, Opts)
+        ;
+            printf(error, "Invalid option list in %w%n", [OptsList]),
+            error(6, cursor_next_execute(Cursor, Tuple, OptsList))
+        ).
+
 
 cursor_all_execute(_Cursor,[]) :- !.
 cursor_all_execute(Cursor,Tuples) :-
@@ -738,7 +769,8 @@ make_accounts(Session) :-
                "Cursor": "Returned cursor handle"
               ],
         summary: "Executes a SQL query on the database server.",
-        see_also: [cursor_next_tuple/2, cursor_all_tuples/2,
+        see_also: [session_sql_query/5, cursor_next_tuple/2, 
+                   cursor_all_tuples/2,
                    cursor_N_tuples/4, session_sql_prepare_query/5,
                    cursor_close/1
                   ],
@@ -770,6 +802,89 @@ make_accounts(Session) :-
  </P><P>
  The SQL query must be valid for the DBMS to execute. It can contain
  NULL characters, i.e. it can contain binary data.
+ </P><P>
+ This predicate is called with default options for the cursor, i.e. it is
+ equivalent to calling session_sql_query/5 with an empty Options list.
+")
+]).
+
+:- comment(session_sql_query/5, [
+        amode: session_sql_query(++,+,++, ++,-),
+        args: ["Session": "A session handle",
+               "ResultTemplate": "Template defining the types of results"
+                                " tuple (structure)",
+               "SQLQuery": "A SQL statement query (string)",
+               "Options": "Options (list of Option:Value pairs or nil)",
+               "Cursor": "Returned cursor handle"
+              ],
+        summary: "Executes a SQL query on the database server with options"
+                 " specified by Options.",
+        see_also: [session_sql_query/4, cursor_next_tuple/2, cursor_all_tuples/2,
+                   cursor_N_tuples/4, session_sql_prepare_query/5,
+                   cursor_close/1
+                  ],
+        eg:"
+  check_overdraft_limit(Session, Account) :-
+      L = [\"select count(id) from accounts \\
+          where     id = \",Account,\" and balance < overdraft\"],
+      concat_string(L,SQL),
+      % the buffering:server option is MySQL specific
+      session_sql_query(Session,c(0),SQL,[buffering:server],OverdraftCheck),
+      cursor_next_tuple(OverdraftCheck,c(Count)),
+      Count = 0.
+",
+        exceptions: [5: "Session is not a valid session handle, or SQLQuery"
+                        " not a string, or ResultTemplate not a structure",
+                     6: "Invalid option specification in Options",
+                     dbi_error: "Error from DBMS while executing SQLQuery.",
+                     dbi_bad_template: "ResultTemplate has the wrong arity"
+                    ],
+        desc: html("\
+<P>
+ Executes a SQL query on the database server. The predicate returns in
+ Cursor the cursor handle for this SQL query, and the results can then be
+ retrieved using cursor_*_tuple family of predicates. Options is 
+ a (possibly empty) list of <TT>Option:Value</TT> pairs, specifying 
+ DBMS-specific options for the cursor.
+</P><P>
+ The SQL query returns result in tuples of N elements each. Each tuple is
+ mapped to a Prolog structure of arity N. ResultTemplate is a structure of
+ arity N specifying the types of the return data for ECLiPSe. See the
+ general description of this library or the manual for a description of 
+ the template specification.
+ </P><P>
+ The SQL query must be valid for the DBMS to execute. It can contain
+ NULL characters, i.e. it can contain binary data.
+</P><P>
+ MySQL specific:
+</P><P>
+ Options is used to specify the type of cursor used. Currently this only
+ applies to cursors for SQL queries. The options are:
+<DL>
+<P>
+<DT><STRONG><TT>buffering</TT></STRONG>
+<DD>Specifies where the result set of a SQL query is buffered. Value can be
+ either <TT>client</TT> (the default) or <TT>server</TT>. By default, the
+ whole of the result set for a query is copied to the client (i.e. the
+ ECLiPSe process running lib(dbi)) after the SQL query is executed. The 
+ alternative is to leave the result set on the DBMS server, and only get
+ the result tuples from the server one by one (with e.g. cursor_next_tuple/2).
+ </P><P>
+ The default buffering is on the client side, because this is the default
+ of the MySQL C API, and in addition, it imposes certain restrictions on
+ how the result tuples can be retrieved. However, as the whole result set
+ is retreived, this can impose significant memory overheads if there are
+ many tuples in the result set. On the other hand, there is no restrictions
+ on how many active client buffered cursor is allowed per session at the
+ same time, but only one active server buffered cursor is allowed at any
+ one time -- a query result must be exhausted or the cursor explicitly
+ closed before another query can be issued for that session.
+ </P><P>
+<DT><STRONG><TT>type</TT></STRONG>
+<DD>This option is not relevant for the direct SQL queries of
+ session_sql_query/4. It is only relevant for prepared queries, and has no
+ effect here.
+</DL>
 ")
 ]).
 
@@ -931,7 +1046,8 @@ make_accounts(Session) :-
                "Tuple": "A tuple of parameter values matching the template"
                         " for this cursor (structure)"
               ],
-        see_also: [cursor_all_execute/2, cursor_N_execute/4, 
+        see_also: [cursor_next_execute/3, cursor_all_execute/2, 
+                   cursor_N_execute/4, 
                    session_sql_prepare/4, session_sql_prepare_query/5
                   ],
         summary: "Executes the parametrised prepared SQL statement"
@@ -956,7 +1072,7 @@ make_accounts(Session) :-
                                                where id = ?\",
       Deduct is - Amount,
       % incbal(1.0,12) is the parameter template
-      session_sql_prepare(Session,incbal(1.0,12),SQL,1,Update),
+      session_sql_prepare(Session,incbal(1.0,12),SQL,Update),
       cursor_next_execute(Update,incbal(Deduct,FromAccount)),
       cursor_next_execute(Update,incbal(Amount,ToAccount)).",
 
@@ -975,7 +1091,92 @@ make_accounts(Session) :-
 </P><P>
  If the SQL statement is a query, and was prepared as a query using
  session_sql_prepare_query/5, results can be obtained from the query by
- the cursor_*_tuple family of predicates.")
+ the cursor_*_tuple family of predicates.
+</P><P>
+ This predicate is called with default options for the cursor, i.e. it is
+ equivalent to calling cursor_next_execute/3 with an empty Options list.
+ 
+")
+]).
+
+:- comment(cursor_next_execute/3, [
+        amode: cursor_next_execute(++,+,++),
+        args: ["Cursor": "A cursor handle",
+               "Tuple": "A tuple of parameter values matching the template"
+                        " for this cursor (structure)",
+               "Options": "Options (list of Option:Value pairs or nil)"
+              ],
+        see_also: [cursor_next_execute/2, cursor_all_execute/2, cursor_N_execute/4, 
+                   session_sql_prepare/4, session_sql_prepare_query/5
+                  ],
+        summary: "Executes the parametrised prepared SQL statement"
+                 " represented by Cursor, with options Options.",
+        exceptions: [5: "Cursor is not a valid cursor handle", 
+                     5: "Type mismatch between parameter template"
+                        " specification for Cursor and actual tuple data",
+                     6: "Invalid option specification in Options",
+                     dbi_buffer_over: "Parameter value(s) too big for the"
+                                      " buffer",
+                     dbi_error: "Error from DBMS while executing SQL"
+                                " associated with Cursor.",
+                     dbi_bad_template: "ParamTemplate not specified when"
+                                       " Cursor was created",
+                     dbi_bad_cursor: "The Cursor is not in a state to"
+                                     " execute a query (e.g. it was cancelled)"
+                    ],
+
+        desc: html("\
+<P>
+ Executes the parameterised prepared SQL statement represented by Cursor,
+ previously prepared by session_sql_prepare/4 or session_sql_prepare_query/5.
+ The parameter values for this execution is supplied by Tuple. Options is 
+ a (possibly empty) list of <TT>Option:Value</TT> pairs, specifying 
+ DBMS-specific options for the cursor.
+</P><P>
+ Tuple is a structure whose name and arity match the parameter template
+ when Cursor was prepared, and the arguments give the values for the
+ parameters for this execution, and must be compatible with the type
+ specified by the template, except that an argument can be an
+ uninstantiated variable, to denote a NULL value for the corresponding
+ parameter.
+</P><P>
+ If the SQL statement is a query, and was prepared as a query using
+ session_sql_prepare_query/5, results can be obtained from the query by
+ the cursor_*_tuple family of predicates.
+</P><P>
+ MySQL specific:
+</P><P>
+ Options is used to specify the type of cursor used. Currently this only
+ applies to cursors for SQL queries. The options are:
+<DL>
+<P>
+<DT><STRONG><TT>buffering</TT></STRONG>
+<DD>Specifies where the result set of a SQL query is buffered. Value can be
+ either <TT>client</TT> (the default) or <TT>server</TT>. By default, the
+ whole of the result set for a query is copied to the client (i.e. the
+ ECLiPSe process running lib(dbi)) after the SQL query is executed. The 
+ alternative is to leave the result set on the DBMS server, and only get
+ the result tuples from the server one by one (with e.g. cursor_next_tuple/2).
+ </P><P>
+ The default buffering is on the client side, because this is the default
+ of the MySQL C API, and in addition, it imposes certain restrictions on
+ how the result tuples can be retrieved. However, as the whole result set
+ is retreived, this can impose significant memory overheads if there are
+ many tuples in the result set.
+ </P><P>
+<DT><STRONG><TT>type</TT></STRONG>
+<DD>Specifies the type of cursor, and is only meaningful if the buffering
+ option is set to server. Value can be either <TT>no_cursor</TT> (the
+ default) or <TT>read_only</TT>.  These correspond to the MySQL statement 
+ attribute STMT_ATTR_CURSOR_TYPE of CURSOR_TYPE_NO_CURSOR and 
+ CURSOR_TYPE_READ_ONLY respectively (See the MySQL manual for details).
+</P><P>
+ Only one active cursor of type no_cursor is allowed per session, and this
+ active cursor must be closed before another query can be issued to the
+ DBMS server. read_only cursor does not have this restriction, and several
+ such cursors can be active at the same time. 
+</DL>
+")
 ]).
 
 :- comment(cursor_all_execute/2, [
@@ -1207,8 +1408,8 @@ make_accounts(Session) :-
 :- comment(session_retrieve_N_tuples/5, hidden).
 :- comment(session_retrieve_lazy_tuples/5, hidden).
 :- comment(session_retrieve_tuple/4, hidden).
-:- comment(session_sql_prepare/5, hidden).
-:- comment(session_sql_prepare_query/6, hidden).
-:- comment(session_sql_query/5, hidden).
+:- comment(session_N_sql_prepare/5, hidden).
+:- comment(session_sql_prepare_query_N/6, hidden).
+:- comment(session_sql_query_N/6, hidden).
 :- comment(session_start/3, hidden).
 
