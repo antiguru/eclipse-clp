@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.7 2007/07/03 00:10:22 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.8 2007/07/04 15:57:23 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1185,16 +1185,13 @@ AC_ARG_WITH([osi], [[  --with-osi[=versions]
     [osi_versions_requested="$withval"], [osi_versions_requested=yes])
 
 OSIBASEDIR="$ECLIPSETHIRDPARTY/coin"
-OSIBUILD=""   # which Coin build? (normally set to "")
+OSIBUILD="amd"   # which Coin build? (normally set to ""), but use amd here
+                 # (with UFL AMD support) 
 OSICLP_ADDLIB=""
+OSICLP_ADDDEF=""
 if test "$osi_versions_requested" != "no"; then
     if test "$osi_versions_requested" = "yes"; then
     	osi_versions_requested="clpcbc symclp"
-    fi
-    ls -d $OSIDIR/$ARCH/lib/*amd* >/dev/null 2>/dev/null
-    if test $? -eq 0; then
-	OSICLP_ADDLIB="-lamd"
-	OSICLP_ADDDEF="-DUFL_BARRIER"
     fi
     for version in $osi_versions_requested; do
         OSIDIR="$OSIBASEDIR$version$OSIBUILD"
@@ -1205,7 +1202,8 @@ if test "$osi_versions_requested" != "no"; then
             ls -d $OSIDIR/$ARCH/lib/*amd* >/dev/null 2>/dev/null
             if test $? -eq 0; then
 	         OSICLP_ADDLIB="-lamd"
-            fi
+		 OSICLP_ADDDEF="-DUFL_BARRIER"
+	    fi
 	else
 	    AC_MSG_WARN([Could not find $ARCH support for $version in $OSIDIR])
 	fi
@@ -1601,6 +1599,7 @@ AC_SUBST(OSI_VERSIONS)
 AC_SUBST(OSIBASEDIR)
 AC_SUBST(OSIBUILD)
 AC_SUBST(OSICLP_ADDLIB)
+AC_SUBST(OSICLP_ADDDEF)
 AC_SUBST(CPLEX_VERSIONS)
 AC_SUBST(XPRESS_VERSIONS)
 AC_SUBST(ALL_WITH_JAVA)

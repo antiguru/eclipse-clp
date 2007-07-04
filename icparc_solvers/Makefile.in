@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.6 2007/07/03 00:10:27 jschimpf Exp $
+# $Id: Makefile.in,v 1.7 2007/07/04 15:58:45 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -96,7 +96,7 @@ CLPCBCARCHDIR = $(OSIBASEDIR)clpcbc$(OSIBUILD)/$(ARCH)
 SYMCLPARCHDIR = $(OSIBASEDIR)symclp$(OSIBUILD)/$(ARCH)
 
 $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
-	$(CXX) -DCOIN -DCOIN_USE_CLP $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
+	$(CXX) -DCOIN -DCOIN_USE_CLP @OSICLP_ADDDEF@ $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
 	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
