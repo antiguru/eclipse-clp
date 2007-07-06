@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.8 2007/07/04 15:57:23 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.9 2007/07/06 12:52:05 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -277,7 +277,7 @@ case "$ARCH" in
     #LDTCL="-framework tcl"
     LDTCL=" -framework Tcl"
     # -lSystemStubs needed for PPC MacOs X 10.4.9 we built on
-    LIBS= "$LIBS -lSystemStubs"
+    LIBS="$LIBS -lSystemStubs"
     RUNPATH_DYLDFLAG="-executable_path "
     # RUNPATH_LDLAG is really a noop here
     RUNPATH_LDFLAG="-L"
