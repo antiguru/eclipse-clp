@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.9 2007/07/03 00:10:30 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.10 2007/08/03 13:48:59 jschimpf Exp $
  */
 
 /*
@@ -2297,6 +2297,7 @@ _handle_events_at_res_:				/* (tmp1) */
 	pw1 = &A[1];	/* save the argument registers */
 	for (; tmp1; --tmp1)
 	    *(--SP) = *pw1++;
+	Check_Local_Overflow
 
     /*  goto _handle_events_at_return_;  */
 
@@ -5266,15 +5267,16 @@ _match_values_:
 
 
  	Case(Continue_after_event, I_Continue_after_event)
-	    tmp1 = DynEnvSize(E) - 1;
 	    PP = (emu_code) DynEnvVal(E);		/* get continuation */
 	    if (DynEnvFlags(E) & WAS_NONDET) {Clr_Det;} else {Set_Det;}
 
 	    if (DynEnvFlags(E) & WAS_CALL) {		/* debug event frame */
 		err_code = DynEnvDbgPort(E)->val.nint;		/* port */
 		pw1 = E-DYNENVDBGSIZE-1;
+		tmp1 = DynEnvSize(E)-DYNENVDBGSIZE-1;
 	    } else {
 		pw1 = E-1;
+		tmp1 = DynEnvSize(E) - 1;
 		err_code = 0;
 	    }
 
