@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.5 2007/06/06 15:28:40 kish_shen Exp $
+ * VERSION	$Id: bip_db.c,v 1.6 2007/08/12 19:39:07 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -643,20 +643,23 @@ p_is_predicate(value val, type tag, value vm, type tm)
 
     Check_Module(tm, vm);
     Get_Proc_Did(val, tag, d);
-    proc = visible_procedure(d, vm.did, tm, PRI_DONTWARN);
-    if (proc && proc->flags & CODE_DEFINED)
-    {
-	Succeed_;
-    }
+    proc = visible_procedure(d, vm.did, tm, PRI_DONTIMPORT);
     if (!proc)
     {
 	Get_Bip_Error(err);
-	if (err != NOENTRY)
-	{
+	switch(err) {
+
+	case IMPORT_PENDING:
+	    Succeed_;		/* assume it's defined... */
+
+	case NOENTRY:
+	    Fail_;
+
+	default:
 	    Bip_Error(err);
 	}
     }
-    Fail_;
+    Succeed_If(proc->flags & CODE_DEFINED)
 }
 
 
