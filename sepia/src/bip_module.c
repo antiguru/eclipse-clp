@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.4 2007/08/12 17:30:09 jschimpf Exp $
  */
 
 /*
@@ -633,6 +633,7 @@ _tool_code(pri *procb, int debug)
 static int
 p_tool1(value vi, type ti, value vm, type tm)
 {
+#if 0
     dident	di;
     pri		*proci, *pd;
     int		err;
@@ -664,6 +665,9 @@ p_tool1(value vi, type ti, value vm, type tm)
 	Incr_Code_Arity(PriCode(proci));
     }
     Succeed_;
+#else
+    Bip_Error(NOT_IMPLEMENTED);
+#endif
 }
 
 
@@ -726,8 +730,20 @@ p_tool2(value vi, type ti, value vb, type tb, value vm, type tm)
     proci->mode = procb->mode;
     pricode.vmc = _tool_code(procb, GlobalFlags & DBGCOMP);
     pri_define_code(proci, procb->flags & CODETYPE, pricode);
-    if (PriExported(proci))
-        (void) export_procedure(db, vm.did, tm);
+    /* make sure the tool body is exported or reexported, so it can
+     * be invoked with a qualified call with lookup module vm */
+    if (!PriAnyExp(procb) && !PriWillExport(procb))
+    {
+	if (PriScope(procb) == IMPORT)
+	    procb = reexport_procedure(db, vm.did, tm, PriHomeModule(procb));
+	else
+	    procb = export_procedure(db, vm.did, tm);
+	if (!procb)
+	{
+	    Get_Bip_Error(err);
+	    Bip_Error(err);
+	}
+    }
     Succeed_;
 }
 

@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.1 2006/09/23 01:56:14 snovello Exp $
+ * Version:	$Id: proc_desc.c,v 1.2 2007/08/12 17:30:09 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -995,6 +995,7 @@ local_procedure(dident functor, dident module, type module_tag, int options)
  *	EXPORT  -> EXPORT
  * Error
  *	IMPORT	-> error
+ *	IMPEXP	-> error
  *
  * Shared memory locks: like visible_procedure()
  *----------------------------------------------------------------------*/
@@ -1029,6 +1030,7 @@ export_procedure(dident functor, dident module, type module_tag)
     case LOCAL:
 	if (ExportImmediately(pd))
 	{
+	    pd->flags &= ~TO_EXPORT;
 	    Pri_Set_Scope(pd, EXPORT);
 	    _remove_incompatible_uses(pd);
 	    _update_all_uses(pd);
@@ -1355,7 +1357,8 @@ visible_procedure(dident functor, dident module, type module_tag, int options)
     }
     else if (options & PRI_DONTIMPORT)
     {
-	Set_Bip_Error(NOENTRY);
+	dident dummy;
+	Set_Bip_Error(_hiding_import(functor, module, &dummy) ? IMPORT_PENDING : NOENTRY);
 	pd = 0;
     }
     else

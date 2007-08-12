@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: error.h,v 1.1 2006/09/23 01:55:02 snovello Exp $
+ * VERSION	$Id: error.h,v 1.2 2007/08/12 17:32:03 jschimpf Exp $
  *
  * IDENTIFICATION		error.h
  *
@@ -121,6 +121,7 @@
 #define LOCAL_EXISTS		-92
 #define EXPORT_EXISTS		-93
 #define IMPORT_EXISTS		-94
+#define IMPORT_PENDING		-95
 #define IMPORT_CLASH_RESOLVE	-96
 #define MODULE_EXISTS		-97
 #define WRONG_UNLOCK_STRING	-98

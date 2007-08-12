@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: pdb.pl,v 1.1 2006/09/23 01:55:31 snovello Exp $
+% Version:	$Id: pdb.pl,v 1.2 2007/08/12 17:36:32 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -175,14 +175,13 @@ current_predicate_body(P, M):-
 	P = N/A,
 	matches_predspec(P),
 	!,
-	( nonvar(N), nonvar(A) ->
-	    is_predicate_(P, M),	% speed up the test case
-	    fail_if(is_built_in_(P, M))
+	( nonground(P) ->
+	    current_functor(N, A, 2, 0)		% functors with predicates only
 	;
-	    current_functor(N, A, 2, 0),	% functors with predicates only
-	    get_flag_body(P, defined, on, M),
-	    get_flag_body(P, type, user, M)
-	).
+	    true
+	),
+	get_flag_body(P, defined, on, M),
+	get_flag_body(P, type, user, M).
 current_predicate_body(P, M):-
 	error(5, current_predicate(P), M).
 
@@ -195,14 +194,13 @@ current_built_in_body(P, M):-
 	P = N/A,
 	matches_predspec(P),
 	!,
-	( nonvar(N), nonvar(A) ->
-	    is_predicate_(P, M),	% speed up the test case
-	    is_built_in_(P, M)
+	( nonground(P) ->
+	    current_functor(N, A, 2, 0)		% functors with predicates only
 	;
-	    current_functor(N, A, 2, 0),	% functors with predicates only
-	    get_flag_body(P, defined, on, M),
-	    get_flag_body(P, type, built_in, M)
-	).
+	    true
+	),
+	get_flag_body(P, defined, on, M),
+	get_flag_body(P, type, built_in, M).
 current_built_in_body(P, M):-
 	error(5, current_built_in(P), M).
 

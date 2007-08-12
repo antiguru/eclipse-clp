@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.3 2007/08/12 17:30:41 jschimpf Exp $
  */
 
 /*
@@ -174,7 +174,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 "trying to redefine an existing local procedure",	/* LOCAL_EXISTS		*/
 "trying to redefine an existing exported procedure",	/* EXPORT_EXISTS	*/
 "trying to redefine an existing imported procedure",	/* IMPORT_EXISTS	*/
-0,						/* was GLOBAL_EXISTS	*/
+"import pending",				/* IMPORT_PENDING	*/
 "ambiguous import",				/* IMPORT_CLASH_RESOLVE	*/
 "module already exists",			/* MODULE_EXISTS 	*/
 "key not correct",				/* WRONG_UNLOCK_STRING	*/
