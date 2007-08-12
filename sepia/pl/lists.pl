@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.1 2006/09/23 01:55:27 snovello Exp $
+% Version:	$Id: lists.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -54,7 +54,7 @@
 
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:55:27 $").
+:- comment(date, "$Date: 2007/08/12 19:40:41 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -73,6 +73,8 @@
 % Make sure that the important operators are ok
 :-	op(1100, xfy, ;),
 	op(1050, xfy, ->).
+
+:- pragma(system).
 
 :- export
 	checklist/2,

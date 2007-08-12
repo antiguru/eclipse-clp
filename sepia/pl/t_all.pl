@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: t_all.pl,v 1.2 2007/07/03 00:10:29 jschimpf Exp $
+% Version:	$Id: t_all.pl,v 1.3 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %-----------------------------------------------------------------------
@@ -45,8 +45,6 @@
 	       set_default_error_handler/2,
 	       trimcore/0
 	from sepia_kernel.
-
-:- tool(test1/2).
 
 :- export
 	test1/2,

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: apply_macros.pl,v 1.1 2006/09/23 01:55:06 snovello Exp $
+% Version:	$Id: apply_macros.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(apply_macros).
@@ -31,7 +31,7 @@
 :- comment(summary, "Utilities to apply a predicate to all elements of a list resp. all subterms of a term").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:55:06 $").
+:- comment(date, "$Date: 2007/08/12 19:40:41 $").
 :- comment(desc, html("
     Note that this library is largely superseded by the do-loop construct!
     <P>
@@ -477,6 +477,7 @@ aux_pred_name(Name, Pattern, NewName) :-
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+:- local maplist_body/4.	% hide the one from lib(lists)
 :- tool(maplist/3, maplist_body/4).
 
 maplist_body(_, [], [], _).

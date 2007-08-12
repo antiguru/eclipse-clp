@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: scattered.pl,v 1.1 2006/09/23 01:55:33 snovello Exp $
+% Version:	$Id: scattered.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -68,7 +68,7 @@
 :- comment(summary, "Allow a source file to contain non-consecutive clauses").
 :- comment(author, "Joachim Schimpf and Micha Meier, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:55:33 $").
+:- comment(date, "$Date: 2007/08/12 19:40:41 $").
 :- comment(status, deprecated).
 :- comment(desc, html("
     The ECLiPSe compiler does not allow the clauses for static predicates
@@ -110,7 +110,6 @@
 :- export op(1000, fy, scattered).
 
 :- export (scattered)/1.
-:- tool((scattered)/1).
 
 :- import
 	abolish_body/2,

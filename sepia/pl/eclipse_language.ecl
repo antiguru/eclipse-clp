@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.4 2007/06/20 16:44:50 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.5 2007/08/12 19:40:41 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -98,8 +98,6 @@
 :- reexport atomic / 1 from sepia_kernel.
 :- reexport attach_suspensions / 2 from sepia_kernel.
 :- reexport attached_suspensions / 2 from sepia_kernel.
-:- reexport autoload / 2 from sepia_kernel.
-:- reexport autoload_tool / 2 from sepia_kernel.
 :- reexport b_external / 1 from sepia_kernel.
 :- reexport b_external / 2 from sepia_kernel.
 :- reexport bag_abolish / 1 from sepia_kernel.
@@ -610,10 +608,10 @@
 
 /********* Autoloading library predicates ***************/
 
-:- autoload(lists, [
-	collection_to_list/2, flatten/2, intersection/3, subset/2, union/3]).
-:- autoload_tool(lists, [checklist/2, maplist/3, print_list/1]).
-:- autoload_tool(profile, [profile/1, profile/2]).
+:- autoload_system(lists, [
+	collection_to_list/2, flatten/2, intersection/3, subset/2, union/3,
+	checklist/2->checklist_body/3, maplist/3->maplist_body/4, print_list/1->print_list_/2]).
+:- autoload_system(profile, [profile/1->profile_body/2, profile/2->profile_body/3]).
 
 :- (reexport
 	append/3,

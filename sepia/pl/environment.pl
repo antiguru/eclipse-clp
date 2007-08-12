@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.1 2006/09/23 01:55:14 snovello Exp $
+% Version:	$Id: environment.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -63,8 +63,7 @@
 % get_flag(+Name, ?Value)
 %----------------------------------------
 
-:- tool(get_flag/2, get_flag_body/3),
-   skipped(get_flag/2).
+:- skipped(get_flag/2).
 
 get_flag_body(Name, Value, M) :-
 	atom(Name) ->
@@ -75,7 +74,6 @@ get_flag_body(Name, Value, M) :-
 	;
 	    error(5, get_flag(Name, Value)).
 
-:- tool(recorded/2).
 
 do_get_flag(all_dynamic,X, _) :-
 	(getval(alldynamic,0) -> X=off ; X=on).
@@ -517,7 +515,6 @@ valid_debug_mode(leap) ?- true.
 %----------------------------------------
 
 :- tool(env/0, env_body/1), skipped(env/0), untraceable(env/0).
-:- tool(setof/3).
 
 env_body(M) :-
 	nl(output),

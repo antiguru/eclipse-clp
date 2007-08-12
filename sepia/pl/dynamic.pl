@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dynamic.pl,v 1.1 2006/09/23 01:55:12 snovello Exp $
+% Version:	$Id: dynamic.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -71,8 +71,6 @@
 :- tool( (listing)/1, listing_body/2).
 :- tool( retract/1, retract_body/2).
 :- tool( retract_all/1, retract_all_body/2).
-:- tool( writeclause/1, writeclause_body/2).
-:- tool( writeclause/2, writeclause_body/3).
 :- tool( write_goal/3, write_goal/4).		% exported, for opium
 
 :- system.		% compiler directive to add the SYSTEM flag

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tconv.pl,v 1.1 2006/09/23 01:55:36 snovello Exp $
+% Version:	$Id: tconv.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -47,7 +47,6 @@
 	get_var_info/3,
 	term_string/2.
 
-:- tool(term_string/2, term_string_body/3).
 :- skipped term_string/2.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

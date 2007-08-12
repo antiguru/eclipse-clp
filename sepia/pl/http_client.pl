@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: http_client.pl,v 1.1 2006/09/23 01:55:19 snovello Exp $
+% Version:	$Id: http_client.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -42,7 +42,7 @@
 :- comment(summary, "HTTP client library").
 :- comment(author, "Ph. Bonnet, S. Bressan and M. Meier, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:55:19 $").
+:- comment(date, "$Date: 2007/08/12 19:40:41 $").
 
 :- comment(http_client/7, [
     template:"http_client(+Method, +Uri, +ObjectBody, +HttpParams, -RespError, -RespParam, -RespObjectBody)",
@@ -83,7 +83,7 @@
         http_open/2,
         http_client/7.
 
-:- tool(http_compile/1).
+:- tool(http_compile/1, http_compile/2).
 
 
 :- use_module(http_grammar).
@@ -319,7 +319,6 @@ http_open(URL, Stream) :-
     no (more) solution.
     "]).
 
-:- tool(http_compile/1, http_compile/2).
 http_compile(URL, Module) :-
 	http_open(URL, Stream),
 	compile_stream(Stream)@Module,

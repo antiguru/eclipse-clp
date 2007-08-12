@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.3 2007/06/01 15:45:34 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.4 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -42,8 +42,6 @@
 
 :- system.
 :- pragma(nodebug).
-
-:- tool(printf/3).
 
 %------------------------------------
 % error/event handling builtins

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: profile.pl,v 1.2 2007/07/03 00:10:28 jschimpf Exp $
+% Version:	$Id: profile.pl,v 1.3 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -43,7 +43,7 @@
 :- comment(summary, "Profiling package for ECLiPSe programs").
 :- comment(author, "Micha Meier and Stefano Novello, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2007/07/03 00:10:28 $").
+:- comment(date, "$Date: 2007/08/12 19:40:41 $").
 :- comment(profile/1, [template:"profile(+Goal)",
     summary:"Execute Goal (once) and print profiling information"]).
 :- comment(profile/2, [template:"profile(+Goal, +Options)",
@@ -58,6 +58,7 @@
     </DL>
     ")]).
 
+:- pragma(system).
 :- export
 	profile/1,
 	profile/2.

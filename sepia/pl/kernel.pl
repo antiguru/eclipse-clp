@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.12 2007/07/03 00:10:28 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.13 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -150,8 +150,11 @@
    tool(getval/2, getval_body/3),
    tool(use_module/1, use_module_body/2),
    tool(is/2, is_body/3),
+   tool((^)/2, exquant_body/3),
+   tool(bagof/3, bagof_body/4),
    tool(block/3, block/4),
    tool(block_atomic/3, block_atomic/4),
+   tool(coverof/3, coverof_body/4),
    tool(untraced_block/3, block/4),
    tool(printf_with_current_modes/2, printf_with_current_modes_body/3),
    tool(printf_goal/2, printf_goal_body/3),
@@ -178,6 +181,8 @@
    tool(error/3, error_/4),
    tool(bip_error/1, bip_error_/2),
    tool(bip_error/2, bip_error_/3),
+   tool(findall/3, findall_body/4),
+   tool(get_flag/2, get_flag_body/3),
    tool(get_recordlist/3, get_recordlist/4),
    tool(lock/0, lock/1),
    tool(lock_pass/1, lock_pass_/2),
@@ -202,10 +207,12 @@
    tool(read/2, read_/3),
    tool(read_token/2, read_token_/3),
    tool(recorda/3, recorda_body/4),	
+   tool(recorded/2, recorded_body/3),
    tool(recorded_list/2, recorded_list_body/3),
    tool(recordz/3, recordz_body/4),
    tool(set_default_error_handler/2, set_default_error_handler_/3),
    tool(set_flag/3, set_flag_body/4),
+   tool(setof/3, setof_body/4),
    tool(shelf_dec/2, shelf_dec_/3),
    tool(shelf_get/3, shelf_get_/4),
    tool(shelf_inc/2, shelf_inc_/3),
@@ -223,9 +230,12 @@
    tool(stored_keys_and_values/2, stored_keys_and_values_/3),
    tool(bytes_to_term/2, bytes_to_term_/3),
    tool(term_to_bytes/2, term_to_bytes_/3),
+   tool(term_string/2, term_string_body/3),
    tool(test_and_setval/3, test_and_setval_body/4),
    tool(write/1, write_/2),
    tool(write/2, write_/3),
+   tool(writeclause/1, writeclause_body/2),
+   tool(writeclause/2, writeclause_body/3),
    tool(writeln/1, writeln_body/2),
    tool(writeln/2, writeln_body/3),
    tool(writeq/1, writeq_/2),
@@ -389,7 +399,6 @@ ec_rpc_in_handler1(In, Out) :-
 	read_exdr(Stream, Goal0),
 	( at_eof(Stream) -> Goal=Goal0 ; read_exdr_last(Stream, Goal) ).
 
-    :- tool(term_string/2).
     execute_rpc(Out, GoalString, Extra) :-
 	string(GoalString), !, 
 	default_module(M),
@@ -1613,8 +1622,6 @@ forget_discontiguous_predicates(Module) :-
 % Environment
 %--------------------------------
 
-:- tool(get_flag/2).
-
 abort :-
 	get_sys_flag(10, W),	% get_flag(worker, W)
 	( W==0 ->
@@ -2176,7 +2183,6 @@ erase_modules :-
 % Built-in to query the module interface and other properties
 %
 
-:- tool(findall/3).
 get_module_info(Module, What, Info) :-
 	illegal_existing_module(Module, Error), !,
 	error(Error, get_module_info(Module, What, Info)).
@@ -2437,15 +2443,10 @@ autoload(File, List) :-
 	autoload(File, List, File, []).
 
 autoload_tool(File, List) :-
-	autoload(File, List, File, [tool]).
+	erro(267, autoload_tool(File, List)).
 
-autoload_system(File, Module, List) :-
-	record(autoload, autoload(File, Module, List)),
-	autoload(File, List, Module, [system,skip]).
-
-autoload_system_tool(File, Module, List) :-
-	record(autoload, autoload(File, Module, List)),
-	autoload(File, List, Module, [system,skip,tool]).
+autoload_system(File, List) :-
+	autoload(File, List, File, [system]).
 
 
 autoload(File, Var, Module, _) :-
@@ -2462,6 +2463,12 @@ autoload(File, Nonsense, _, _):-
 
 
 set_procs_flags([], _, _).
+set_procs_flags([F/A->TF/TA|Rest], Module, Flags) :- !,
+	export_body(F/A, Module),
+	tool_(F/A, TF/TA, Module),
+	set_flags(Flags, F, A, Module),
+	set_flags(Flags, TF, TA, Module),
+	set_procs_flags(Rest, Module, Flags).
 set_procs_flags([F/A|Rest], Module, Flags) :-
 	export_body(F/A, Module),
 	set_flags(Flags, F, A, Module),
@@ -2469,11 +2476,7 @@ set_procs_flags([F/A|Rest], Module, Flags) :-
 
 set_flags([], _, _, _).
 set_flags([Flag|Flags], F, A, Module) :-
-	( Flag == tool ->
-	    tool_(F/A, Module)
-	;
-	    set_proc_flags(F/A, Flag, on, Module)
-	),
+	set_proc_flags(F/A, Flag, on, Module),
 	set_flags(Flags, F, A, Module).
 
 
@@ -3683,6 +3686,7 @@ inline_(Proc, Trans, Module) :-
 	asserta/1,
 	autoload/2,
 	autoload_tool/2,
+	autoload_system/2,
 	b_external/1,
 	b_external/2,
 	between/4,
@@ -3782,7 +3786,7 @@ inline_(Proc, Trans, Module) :-
 	(local)/1,
 	local_record/1,
 	lock/0,
-	lock_pass_/1,
+	lock_pass/1,
 	make_suspension/3,
 	make_suspension/4,
 	max/2,
@@ -6125,8 +6129,6 @@ do(Specs, LoopBody, M) :-
 	% may be extended in future
     )).
 	
-
-:- tool(writeclause/1).
 
 t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
 	annotated_arg(2, AnnDoLoop, AnnLoopBody),

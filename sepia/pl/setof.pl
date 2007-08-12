@@ -24,7 +24,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: setof.pl,v 1.1 2006/09/23 01:55:34 snovello Exp $
+% Version:	$Id: setof.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -90,12 +90,6 @@
 	coverof/3,
 	bagof/3,
 	(^)/2.
-
-:- tool((^)/2, exquant_body/3).
-:- tool( setof/3, setof_body/4).
-:- tool( bagof/3, bagof_body/4).
-:- tool( coverof/3, coverof_body/4).
-:- tool( findall/3, findall_body/4).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

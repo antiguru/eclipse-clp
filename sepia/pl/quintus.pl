@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.3 2007/08/12 19:40:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -45,7 +45,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2007/02/23 15:28:34 $').
+:- comment(date, '$Date: 2007/08/12 19:40:41 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -721,8 +721,6 @@ meta_predicate_body((A,B), M) :-
 	meta_predicate_body(A, M),
 	meta_predicate_body(B, M).
 meta_predicate_body(Def, M) :-
-	functor(Def, N, A),
-	tool_(N/A, M),
 	printf(error, '*** Warning: the meta_predicate definition %w%n    must be manually replaced by a tool definition%n%b', [Def]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
