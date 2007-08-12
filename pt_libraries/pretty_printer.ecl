@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 % Author/s:	Joachim Schimpf, IC-Parc, Imperial College
-% Version:	$Id: pretty_printer.ecl,v 1.1 2006/09/23 01:55:00 snovello Exp $
+% Version:	$Id: pretty_printer.ecl,v 1.2 2007/08/12 19:58:01 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :-module(pretty_printer).
@@ -63,7 +63,7 @@
 
 :-comment(author,"H. Simonis").
 :-comment(copyright,"Cisco Systems, Inc.").
-:-comment(date,"$Date: 2006/09/23 01:55:00 $").
+:-comment(date,"$Date: 2007/08/12 19:58:01 $").
 
 
 %----------------------------------------------------------------------
@@ -631,6 +631,7 @@ process_term(comment, Term, Options, _Module) :-
 %	setval(last_comment, Term).
 process_term(var, Term, Options, _Module) :-
 	colored(Term, warning, Options).
+process_term(end_include, _Term, _Options, _Module).
 process_term(end, _Term, _Options, _Module).
 
 
