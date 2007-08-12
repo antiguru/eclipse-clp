@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.4 2007/07/03 20:42:46 kish_shen Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.5 2007/08/12 19:51:30 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -50,13 +50,11 @@
 
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2007/07/03 20:42:46 $").
+:- comment(date, "$Date: 2007/08/12 19:51:30 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
 :- lib(suspend).
-
-:- tool(session_transaction/2).
 
 :- export
         session_start/4,

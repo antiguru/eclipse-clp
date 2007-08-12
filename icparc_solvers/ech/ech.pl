@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ech.pl,v 1.1 2006/09/23 01:54:03 snovello Exp $
+% Version:	$Id: ech.pl,v 1.2 2007/08/12 19:54:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %  New CHR implementation
@@ -76,23 +76,24 @@
 :- export chr/1, chr/2, in_chrstore/1, option/2, option/3, chr_get_constraint/1, 
        chr_get_constraint/2, (constraints)/1, (constraints)/2, (handler)/1.
 
-:- tool(suspend_constraint/4).
-:- tool(get_global_constraint/2).
-:- tool(get_constraint_list/3).
-:- tool(kill_constraint/2).
-:- tool(check_pairapplied/6).
-:- tool(insert_pairapplied/6).
-:- tool(check_samepairapplied/6).
-:- tool(insert_samepairapplied/6).
-:- tool(check_pairapplied_directmarked/8).
-:- tool(check_samepairapplied_directmarked/8). 
-:- tool((chr)/1).
-:- tool(in_chrstore/1).
-:- tool(option/2).
-:- tool((constraints)/1).
-:- tool(chr_get_constraint/1).
-:- tool(chr_get_constraint/2).
 
+:- tool(suspend_constraint/4, suspend_constraint/5).
+:- tool(get_global_constraint/2, get_global_constraint/3).
+:- tool(get_constraint_list/3, get_constraint_list/4).
+:- tool(kill_constraint/2, kill_constraint/3).
+:- tool(check_pairapplied/6, check_pairapplied/7).
+:- tool(insert_pairapplied/6, insert_pairapplied/7).
+:- tool(check_samepairapplied/6, check_samepairapplied/7).
+:- tool(insert_samepairapplied/6, insert_samepairapplied/7).
+:- tool(check_pairapplied_directmarked/8, check_pairapplied_directmarked/9).
+:- tool(check_samepairapplied_directmarked/8, 
+        check_samepairapplied_directmarked/9).
+:- tool((chr)/1, (chr)/2).
+:- tool(in_chrstore/1, in_chrstore/2).
+:- tool(option/2, option/3).
+:- tool((constraints)/1, (constraints)/2).
+:- tool(chr_get_constraint/1, chr_get_gconstraint/2).
+:- tool(chr_get_constraint/2, chr_get_vconstraint/3).
 
 
 
@@ -167,24 +168,6 @@ handler _. % do nothing; for compatibility only
 %:- export macro(varslist_threshold/0, varslistthreshold/2, []).
 :- export macro(no_macro_expansion(cdelete_threshold/0), cdeletethreshold/2, []).
 
-
-:- tool(suspend_constraint/4, suspend_constraint/5).
-:- tool(get_global_constraint/2, get_global_constraint/3).
-:- tool(get_constraint_list/3, get_constraint_list/4).
-:- tool(kill_constraint/2, kill_constraint/3).
-:- tool(check_pairapplied/6, check_pairapplied/7).
-:- tool(insert_pairapplied/6, insert_pairapplied/7).
-:- tool(check_samepairapplied/6, check_samepairapplied/7).
-:- tool(insert_samepairapplied/6, insert_samepairapplied/7).
-:- tool(check_pairapplied_directmarked/8, check_pairapplied_directmarked/9).
-:- tool(check_samepairapplied_directmarked/8, 
-        check_samepairapplied_directmarked/9).
-:- tool((chr)/1, (chr)/2).
-:- tool(in_chrstore/1, in_chrstore/2).
-:- tool(option/2, option/3).
-:- tool((constraints)/1, (constraints)/2).
-:- tool(chr_get_constraint/1, chr_get_gconstraint/2).
-:- tool(chr_get_constraint/2, chr_get_vconstraint/3).
 
 :- pragma(expand).
 
