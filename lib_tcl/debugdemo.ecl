@@ -25,8 +25,13 @@
 :- [mapcolour].
 
 exec_mapdisplay(Pid, Port) :-
-        (get_flag(hostarch, "i386_nt") ->
-             exec([wish83, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
+        get_flag(hostarch, ARCH),
+        WishVersion = "85",  % update if Tcl/Tk version changes
+        (ARCH = "i386_nt" ->
+             get_flag(installation_directory, ECDIR),
+             concat_string([ECDIR, "/tcltk/",ARCH, "/wish", WishVersion], WISH),
+             os_file_name(WISH, WISHOS),
+             exec([WISHOS, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
         ;
              exec([wish, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
         ),
