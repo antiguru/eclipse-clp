@@ -26,12 +26,12 @@
 
 exec_mapdisplay(Pid, Port) :-
         get_flag(hostarch, ARCH),
-        WishVersion = "85",  % update if Tcl/Tk version changes
         (ARCH = "i386_nt" ->
              get_flag(installation_directory, ECDIR),
-             concat_string([ECDIR, "/tcltk/",ARCH, "/wish", WishVersion], WISH),
-             os_file_name(WISH, WISHOS),
-             exec([WISHOS, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
+             concat_string([ECDIR, "/tcltk/",ARCH, "/bin"], WISHPATH),
+             read_directory(WISHPATH, "wish*", _, [WISH|_]),
+             concat_string([WISHPATH, WISH], WISHEXEC),
+             exec([WISHEXEC, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
         ;
              exec([wish, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
         ),
