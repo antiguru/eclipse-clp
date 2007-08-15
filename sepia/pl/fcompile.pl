@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fcompile.pl,v 1.2 2007/05/25 23:09:35 jschimpf Exp $
+% Version:	$Id: fcompile.pl,v 1.3 2007/08/15 17:10:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -364,7 +364,7 @@ pred_flag(Pred, Flags, Module) :-
 	    F2 is F1 \/ 16'00040000		% DEBUG_SK
 	;   F2 = F1 ),
 	( get_flag(Pred, debugged, on)@Module ->
-	    Flags is F2 \/ 16'0008000		% DEBUG_DB
+	    Flags is F2 \/ 16'00080000		% DEBUG_DB
 	;   Flags = F2 ).
 
 
