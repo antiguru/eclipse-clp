@@ -217,6 +217,8 @@ proc continue_colouring {n} {
 # initialise the program. Sets up a default map with a default size so that
 # the map colouring can be done immediately
 proc map_init {} {
+    global tkecl
+
     ec_tools_init .mbar.tools
 
     frame  .b
@@ -236,6 +238,7 @@ proc map_init {} {
     ec_queue_create update_map fromec update_map
     ec_queue_create continue toec  continue_colouring
 
+    cd [file join $tkecl(ECLIPSEDIR) lib_tcl]
     ec_rpc [list compile mapcolour] (())
     init_mapdata
 }

@@ -51,12 +51,13 @@ switch $tcl_platform(platform) {
     }
 }
 
-lappend auto_path [file join $tkecl(ECLIPSEDIR) lib_tcl]
+set lib_tcl_path [file join $tkecl(ECLIPSEDIR) lib_tcl]
+lappend auto_path $lib_tcl_path
 
 package require eclipse
 package require eclipse_tools
 
-source "mapcolour.tcl"
+source [file join $lib_tcl_path "mapcolour.tcl"]
 
 # Initialisation
 ec_init

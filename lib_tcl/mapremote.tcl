@@ -19,7 +19,8 @@ switch $tcl_platform(platform) {
     }
 }
 
-lappend auto_path [file join $tkecl(ECLIPSEDIR) lib_tcl]
+set lib_tcl_path [file join $tkecl(ECLIPSEDIR) lib_tcl]
+lappend auto_path $lib_tcl_path
 
 package require eclipse_tools 
 package require remote_eclipse 
@@ -48,7 +49,7 @@ set map_remote(connected) 0
 set map_remote(host) localhost
 set map_remote(port) ""
 
-source "mapcolour.tcl"
+source [file join $lib_tcl_path "mapcolour.tcl"]
 
 foreach arg $argv {
     switch -- $argstate {
