@@ -14,7 +14,7 @@
 % The Original Code is  The ECLiPSe Constraint Logic Programming System. 
 % The Initial Developer of the Original Code is  Cisco Systems, Inc. 
 % Portions created by the Initial Developer are
-% Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
+% Copyright (C) 2006,2007 Cisco Systems, Inc.  All Rights Reserved.
 % 
 % Contributor(s): Joachim Schimpf.
 % 
@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.11 2007/06/10 22:10:30 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.12 2007/08/15 23:09:55 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,13 +30,14 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2007/06/10 22:10:30 $").
+:- comment(date,	"$Date: 2007/08/15 23:09:55 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
     compiler. This is where the different compiler passes are chained
-    together, where the compiler options are defined, and the code
-    to process source files, and to interpret directives and queries.
+    together, and where the compiler options are defined.  It also
+    contains the code to process source files, and to interpret
+    directives and queries.
     <P>
     The top-level interfaces to the compiler are: compile/1,2 for
     compilation from files, compile_term/1,2 for compiling data, and
@@ -53,6 +54,7 @@
 :- use_module(compiler_indexing).
 
 :- lib(asm).
+:- lib(hash).
 :- lib(lists).
 :- lib(module_options).
 :- lib(source_processor).
@@ -127,49 +129,71 @@ compiler_options_cleanup(Options) :-
 % compile them, and store/output the result according to options.
 % ----------------------------------------------------------------------
 
-compile_predicate(_, [], _, _) :- !.
-compile_predicate(Module:NA, Clauses, AnnClauses, Options) :-
-	message(compiling(Module:NA), Options),
-	compile_pred_to_wam(Clauses, AnnClauses, WAM, Options, Module),
-	Clauses = [Clause|_],
-	extract_pred(Clause, F, A),
-	pred_flags(Options, Flags),
-	(
-	    ( Options = options{load:all}
-	    ; Options = options{load:new}, \+ is_predicate(F/A)@Module )
-	->
-	    % double negation, because asm binds the labels
-	    \+ \+ block(asm(F/A, WAM, Flags, Module), _, true)
-	;
-	    true % don't clobber existing code if not loading
-	),
-	( Options = options{output:print} ->
-	    printf("%w:%n", [F/A]),
-	    print_wam(WAM)
-	; Options = options{output:print(Stream)} ->
-	    writeclauses(Stream, Clauses),
-	    get_stream(output, OldOut),
-	    set_stream(output, Stream),
-	    print_wam(WAM),
-	    set_stream(output, OldOut),
-	    writeln(Stream, --------------------)
-	; Options = options{output:eco_to_stream(Stream)} ->
-	    pasm(WAM, Size, Codes),
-	    CodeArr =.. [[]|Codes],
-	    ( Module == sepia_kernel ->
-		% call locally, because :/2 may not be defined yet
-		StorePred = store_pred(F/A,CodeArr,Size,Flags)
+compile_predicate(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Options) ?-
+	block(
+	    compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Options),
+	    abort_compile_predicate,
+	    true).
+
+
+compile_predicate1(_, [], _, _, _, _) :- !.
+compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Options) ?-
+	message(compiling(ModulePred), Options),
+	ModulePred = Module:Pred,
+	verify (Clauses = [Clause|_], extract_pred(Clause, Pred)),
+	check_flags(Pred, Module),
+	( get_flag(Pred, stability, dynamic)@Module ->
+	    % preliminary handling of dynamic code
+	    ( foreach(Clause, Clauses), param(Module) do
+		assert(Clause)@Module
+	    )
+
+	% treat non-consecutive and multifile here
+
+	; check_redefinition(ModulePred, PredsSeen, SourcePos) ->
+	    compile_pred_to_wam(Clauses, AnnClauses, WAM, Options, Module),
+	    pred_flags(Options, Flags),
+	    (
+		( Options = options{load:all}
+		; Options = options{load:new}, \+ is_predicate(Pred)@Module )
+	    ->
+		% double negation, because asm binds the labels
+		\+ \+ block(asm(Pred, WAM, Flags, Module), _, true),
+		set_pred_pos(Pred, SourcePos, Module)
 	    ;
-		StorePred = sepia_kernel:store_pred(F/A,CodeArr,Size,Flags)
+		true % don't clobber existing code if not loading
 	    ),
-	    printf(Stream, "%ODQKw.%n", [:-StorePred])@Module
-	; Options = options{output:none} ->
-	    true
+	    ( Options = options{output:print} ->
+		printf("%w:%n", [Pred]),
+		print_wam(WAM)
+	    ; Options = options{output:print(Stream)} ->
+		writeclauses(Stream, Clauses),
+		get_stream(output, OldOut),
+		set_stream(output, Stream),
+		print_wam(WAM),
+		set_stream(output, OldOut),
+		writeln(Stream, --------------------)
+	    ; Options = options{output:eco_to_stream(Stream)} ->
+		pasm(WAM, Size, Codes),
+		CodeArr =.. [[]|Codes],
+		( Module == sepia_kernel ->
+		    % call locally, because :/2 may not be defined yet
+		    StorePred = store_pred(Pred,CodeArr,Size,Flags)
+		;
+		    StorePred = sepia_kernel:store_pred(Pred,CodeArr,Size,Flags)
+		),
+		printf(Stream, "%ODQKw.%n", [:-StorePred])@Module
+	    ; Options = options{output:none} ->
+		true
+	    ;
+		Options = options{output:Junk},
+		printf(error, "Invalid output option: %w%n", [Junk]),
+		abort
+	    )
 	;
-	    Options = options{output:Junk},
-	    printf(error, "Invalid output option: %w%n", [Junk]),
-	    abort
+	    true
 	).
+
 
     writeclauses(Stream, Clauses) :-
 	get_stream_info(Stream, output_options, Opt),
@@ -186,7 +210,7 @@ compile_predicate(Module:NA, Clauses, AnnClauses, Options) :-
 
 
     pred_flags(options{debug:Debug,system:System,skip:Skip}, Flags) ?-
-	( Debug==on -> Flags0 = 16'00008000 ; Flags0 = 0 ),			% DEBUG_DB
+	( Debug==on -> Flags0 = 16'00080000 ; Flags0 = 0 ),			% DEBUG_DB
 	( System==on -> Flags1 is Flags0 \/ 16'40000000 ; Flags1 = Flags0 ),	% SYSTEM
 	( Skip==on -> Flags is Flags1 \/ 16'00040000 ; Flags = Flags1 ).	% DEBUG_SK
 
@@ -196,6 +220,57 @@ compile_predicate(Module:NA, Clauses, AnnClauses, Options) :-
 	set_flag(Pred, skip, Skip)@Module,
 	( System==on -> Type = built_in ; Type = user ),
 	set_flag(Pred, type, Type)@Module.
+
+
+    set_pred_pos(_Pred, none, _Module).
+    set_pred_pos(Pred, source_position{file:File,line:Line,offset:Offset}, Module) :-
+    	set_flag(Pred, source_file, File)@Module,
+    	set_flag(Pred, source_line, Line)@Module,
+    	set_flag(Pred, source_offset, Offset)@Module.
+
+
+    check_redefinition(ModulePred, PredsSeen, SourcePos) :-
+	ModulePred = Module:Pred,
+    	( hash_contains(PredsSeen, ModulePred) ->
+	    compiler_error(SourcePos,
+	    	"clauses for %w are not consecutive (ignoring)", [Pred])
+	;
+	    (
+		get_flag(Pred, source_file, OldFile)@Module,
+		SourcePos = source_position{file:NewFile},
+		OldFile \== NewFile
+	    ->
+		    compiler_message(warning_output, SourcePos,
+			    "replacing previous definition for %w from file %w",
+			    [Pred, OldFile])
+	    ;
+		true
+	    ),
+	    hash_set(PredsSeen, ModulePred, [])
+	).
+
+
+    check_flags(Pred, Module) :-
+    	( get_flag(Pred, tool, on)@Module ->
+	    error(61, Pred, Module)
+	; true ),
+    	( get_flag(Pred, parallel, on)@Module ->
+	    printf(warning_output, "Parallel code not supported for %w%n", [Module:Pred])
+	; true ).
+
+
+    compiler_message(Stream, SourcePos, String, Params) :-
+	( SourcePos = source_position{file:F,line:L} ->
+	    printf(Stream, "File %w, line %d:%n  ", [F,L])
+	;
+	    printf(Stream, "In compiling %w%n  ", [SourcePos])
+	),
+	printf(Stream, String, Params),
+	nl(Stream).
+
+    compiler_error(SourcePos, String, Params) :-
+	compiler_message(error, SourcePos, String, Params),
+	exit_block(abort_compile_predicate).
 
 
 
@@ -302,7 +377,6 @@ compile_(File, OptionListOrModule, CM) :-
 	
 	),
 	compiler_options_setup(File, OptionList, Options),
-	sepia_kernel:register_compiler(args(Term,Ann)-(compiler_top:compile_term_annotated(Term,Ann,Options))),
 	( Options = options{load:all} ->
 	    OpenOptions = [recreate_modules],
 	    CloseOptions = [keep_modules]
@@ -310,113 +384,115 @@ compile_(File, OptionListOrModule, CM) :-
 	    OpenOptions = [],
 	    CloseOptions = []
 	),
-	source_open(File, [with_annotations,goal_expansion|OpenOptions], SourcePos0)@Module,
-	(
-	    fromto(begin, _, Class, end),
-	    fromto(SourcePos0, SourcePos1, SourcePos2, SourcePosEnd),
-	    fromto(ClauseTail, Clauses0, Clauses1, []),
-	    fromto(ClauseTail, ClauseTail0, ClauseTail1, []),
-	    fromto(AnnClauseTail, AnnClauses0, AnnClauses1, []),
-	    fromto(AnnClauseTail, AnnClauseTail0, AnnClauseTail1, []),
-	    fromto(none, Pred0, Pred1, none),
-	    param(Options)
-	do
-	    source_read(SourcePos1, SourcePos2, Class, SourceTerm),
-            SourcePos1 = source_position{module:PosModule},
-            SourceTerm = source_term{term:Term,annotated:Ann},
+	( source_open(File, [with_annotations,goal_expansion|OpenOptions], SourcePos0)@Module ->
+	    sepia_kernel:register_compiler(args(Term,Ann)-(compiler_top:compile_term_annotated(Term,Ann,Options))),
+	    hash_create(PredsSeen),
+	    (
+		fromto(begin, _, Class, end),
+		fromto(SourcePos0, SourcePos1, SourcePos2, SourcePosEnd),
+		fromto(SourcePos0, PredPos1, PredPos2, _),
+		fromto(ClauseTail, Clauses0, Clauses1, []),
+		fromto(ClauseTail, ClauseTail0, ClauseTail1, []),
+		fromto(AnnClauseTail, AnnClauses0, AnnClauses1, []),
+		fromto(AnnClauseTail, AnnClauseTail0, AnnClauseTail1, []),
+		fromto(none, Pred0, Pred1, none),
+		param(PredsSeen,Options)
+	    do
+		source_read(SourcePos1, SourcePos2, Class, SourceTerm),
+		SourcePos1 = source_position{module:PosModule},
+		SourceTerm = source_term{term:Term,annotated:Ann},
 
-            ( Class = clause ->
-		accumulate_clauses(Term, Ann, PosModule, Options,
-		    Pred0, Clauses0, ClauseTail0, AnnClauses0, AnnClauseTail0,
-		    Pred1, Clauses1, ClauseTail1, AnnClauses1, AnnClauseTail1)
+		( Class = clause ->
+		    accumulate_clauses(Term, Ann, PosModule, Options, SourcePos1, PredsSeen,
+			Pred0, PredPos1, Clauses0, ClauseTail0, AnnClauses0, AnnClauseTail0,
+			Pred1, PredPos2, Clauses1, ClauseTail1, AnnClauses1, AnnClauseTail1)
 
-	    ; Class = comment ->		% comment, ignore
-		Pred1 = Pred0,
-		ClauseTail1 = ClauseTail0,
-		Clauses1 = Clauses0,
-		AnnClauseTail1 = AnnClauseTail0,
-		AnnClauses1 = AnnClauses0
+		; Class = comment ->		% comment, ignore
+		    Pred1 = Pred0,
+		    ClauseTail1 = ClauseTail0,
+		    Clauses1 = Clauses0,
+		    AnnClauseTail1 = AnnClauseTail0,
+		    AnnClauses1 = AnnClauses0,
+		    PredPos2 = PredPos1
 
-	    ; % other classes are taken as predicate separator
-		ClauseTail0 = [],		% compile previous predicate
-                AnnClauseTail0 = [],
-                compile_predicate(Pred0, Clauses0, AnnClauses0, Options),
-		Clauses1 = ClauseTail1,
-                AnnClauses1 = AnnClauseTail1,
-		Pred1 = none,
+		; % other classes are taken as predicate separator
+		    ClauseTail0 = [],		% compile previous predicate
+		    AnnClauseTail0 = [],
+		    compile_predicate(Pred0, Clauses0, AnnClauses0, PredPos1, PredsSeen, Options),
+		    Clauses1 = ClauseTail1,
+		    AnnClauses1 = AnnClauseTail1,
+		    Pred1 = none,
+		    PredPos2 = none,
 
-		( Class = directive ->
-		    ( old_compiler_directive(Term, Options) ->
-			true
+		    ( Class = directive ->
+			( old_compiler_directive(Term, Options) ->
+			    true
+			;
+			    process_directive(SourcePos1, Term, Options, PosModule)
+			)
+		    ; Class = query ->
+			process_query(SourcePos1, Term, Options, PosModule)
+		    ; Class = handled_directive ->
+			( consider_pragmas(Term, Options, PosModule) -> true ; true ),
+			emit_directive_or_query(Term, Options, PosModule)
+		    ; Class = var ->
+			compiler_message(warning_output, SourcePos1, "Invalid Clause: %w", [Term])
 		    ;
-			process_directive(SourcePos1, Term, Options, PosModule)
+		       true
 		    )
-		; Class = query ->
-		    process_query(SourcePos1, Term, Options, PosModule)
-		; Class = handled_directive ->
-		    ( consider_pragmas(Term, Options, PosModule) -> true ; true ),
-		    emit_directive_or_query(Term, Options, PosModule)
-		; Class = var ->
-		    compiler_error(4, SourcePos1, SourceTerm)
-		;
-		   true
 		)
-	    )
-	),
-	source_close(SourcePosEnd, CloseOptions),
-	sepia_kernel:deregister_compiler,
-	compiler_options_cleanup(Options).
+	    ),
+	    sepia_kernel:deregister_compiler,
+	    source_close(SourcePosEnd, CloseOptions),
+	    compiler_options_cleanup(Options)
+	;
+	    compiler_options_cleanup(Options),
+	    printf(error, "No such file in %Qw%n", [compile(File)]),
+	    abort
+	).
 
 
 % Add a single clause or a list of clauses to what we already have.
 % If a predicate is finished, compile it.
-:- mode accumulate_clauses(+,+,+,+,+,?,-,?,-,-,-,-,-,-).
-accumulate_clauses([], [], _Module, _Options,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0) :-
+:- mode accumulate_clauses(+,+,+,+,+,+,+,+,?,-,?,-,-,-,-,-,-,-).
+accumulate_clauses([], [], _Module, _Options, _ClausePos, _PredsSeen,
+		Pred0, PredPos0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
+		Pred0, PredPos0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0) :-
 	!.
-accumulate_clauses([Term|Terms], [AnnTerm|AnnTerms], Module, Options,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl) :-
+accumulate_clauses([Term|Terms], [AnnTerm|AnnTerms], Module, Options, ClausePos, PredsSeen,
+		Pred0, PredPos0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
+		Pred, PredPos, PredCl, PredClTl, PredClAnn, PredClAnnTl) :-
 	!,
-	extract_pred(Term, N, A),
-	Pred1 = Module:N/A,
+	extract_pred(Term, NA),
+	Pred1 = Module:NA,
 	( Pred0 == Pred1 ->
 	    % another clause for Pred0
 	    PredClTl0 = [Term|PredClTl1],
 	    PredClAnnTl0 = [AnnTerm|PredClAnnTl1],
-	    accumulate_clauses(Terms, AnnTerms, Module, Options, 
-	    	Pred0, PredCl0, PredClTl1, PredClAnn0, PredClAnnTl1,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl)
+	    accumulate_clauses(Terms, AnnTerms, Module, Options, ClausePos, PredsSeen,
+	    	Pred0, PredPos0, PredCl0, PredClTl1, PredClAnn0, PredClAnnTl1,
+		Pred, PredPos, PredCl, PredClTl, PredClAnn, PredClAnnTl)
 	;
 	    % first clause for next predicate Pred1, compile Pred0
 	    PredClTl0 = [], PredClAnnTl0 = [],
-	    compile_predicate(Pred0, PredCl0, PredClAnn0, Options),
+	    compile_predicate(Pred0, PredCl0, PredClAnn0, PredPos0, PredsSeen, Options),
 	    PredCl1 = [Term|PredClTl1],
 	    PredClAnn1 = [AnnTerm|PredClAnnTl1],
-	    accumulate_clauses(Terms, AnnTerms, Module, Options,
-	    	Pred1, PredCl1, PredClTl1, PredClAnn1, PredClAnnTl1,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl)
+	    accumulate_clauses(Terms, AnnTerms, Module, Options, ClausePos, PredsSeen,
+	    	Pred1, ClausePos, PredCl1, PredClTl1, PredClAnn1, PredClAnnTl1,
+		Pred, PredPos, PredCl, PredClTl, PredClAnn, PredClAnnTl)
 	).
-accumulate_clauses(Term, AnnTerm, Module, Options,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl) :-
-	accumulate_clauses([Term], [AnnTerm], Module, Options,
-		Pred0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
-		Pred, PredCl, PredClTl, PredClAnn, PredClAnnTl).
+accumulate_clauses(Term, AnnTerm, Module, Options, ClausePos, PredsSeen,
+		Pred0, PredPos0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
+		Pred, PredPos, PredCl, PredClTl, PredClAnn, PredClAnnTl) :-
+	accumulate_clauses([Term], [AnnTerm], Module, Options, ClausePos, PredsSeen,
+		Pred0, PredPos0, PredCl0, PredClTl0, PredClAnn0, PredClAnnTl0,
+		Pred, PredPos, PredCl, PredClTl, PredClAnn, PredClAnnTl).
 
-
-    extract_pred(Head :- _, N, A) :- !,
+    extract_pred((Head :- _), N/A) :- !,
     	functor(Head, N, A).
-    extract_pred(Fact, N, A) :-
+    extract_pred(Fact, N/A) :-
     	functor(Fact, N, A).
-
-
-compiler_error(N, source_position{file:F,line:L},
-    		source_term{term:Term}) :-
-	error_id(N, Message),
-	printf(error, "Compiler: %w in file %w, line %d:%n%Qw%n",
-		[Message,F,L,Term]).
 
 
 
@@ -593,19 +669,20 @@ compile_term_(List, OptionList, Module) :-
 compile_term_annotated_(List, AnnList, OptionList, Module) :-
 %	writeln(compile_term(List,OptionList)),
 	compiler_options_setup('_term', OptionList, Options),
+	hash_create(PredsSeen),
 	compile_list(List, AnnList, first, Clauses, Clauses, AnnC, AnnC,
-                     Options, Module),
+                     PredsSeen, Options, Module),
 %	compiler_options_cleanup(Options).
 	true.	% don't close files
 
 
-compile_list(Term, _, _, _, _, _, _, Options, Module) :- var(Term), !,
+compile_list(Term, _, _, _, _, _, _, _PredsSeen, Options, Module) :- var(Term), !,
 	error(4, compile_term(Term, Options), Module).
-compile_list([], _, Pred, Clauses, Tail, AnnC, AnnCTail, Options, _Module) :- !,
+compile_list([], _, Pred, Clauses, Tail, AnnC, AnnCTail, PredsSeen, Options, _Module) :- !,
 	Tail = [],
         AnnCTail = [],
-	compile_predicate(Pred, Clauses, AnnC, Options).
-compile_list([Term|Terms], AnnTermList, Pred, Clauses, Tail, AnnC, AnnCTail, Options, Module) :- !,
+	compile_predicate(Pred, Clauses, AnnC, none, PredsSeen, Options).
+compile_list([Term|Terms], AnnTermList, Pred, Clauses, Tail, AnnC, AnnCTail, PredsSeen, Options, Module) :- !,
         (nonvar(AnnTermList) -> 
             AnnTermList = annotated_term{term:[AnnTerm|AnnTerms]}
         ;
@@ -618,7 +695,7 @@ compile_list([Term|Terms], AnnTermList, Pred, Clauses, Tail, AnnC, AnnCTail, Opt
 	    % separator, compile the preceding predicate
 	    Tail = [],
             AnnCTail = [],
-	    compile_predicate(Pred, Clauses, AnnC, Options),
+	    compile_predicate(Pred, Clauses, AnnC, none, PredsSeen, Options),
 	    % unlike compile(file), interpret only pragmas,
 	    % not directives like module/1, include/1, etc
 	    ( consider_pragmas(Term, Options, Module) ->
@@ -627,26 +704,26 @@ compile_list([Term|Terms], AnnTermList, Pred, Clauses, Tail, AnnC, AnnCTail, Opt
 		process_directive(no_source, Term, Options, Module)
 	    ),
 	    compile_list(Terms, AnnTerms, none, Clauses1, Clauses1,
-                         AnnC1, AnnC1, Options, Module)
+                         AnnC1, AnnC1, PredsSeen, Options, Module)
 
         ; Term = (?-_) ->
 	    % separator, compile the preceding predicate
 	    Tail = [],
             AnnCTail = [],
-	    compile_predicate(Pred, Clauses, AnnC, Options),
+	    compile_predicate(Pred, Clauses, AnnC, none, PredsSeen, Options),
 	    process_query(no_source, Term, Options, Module),
 	    compile_list(Terms, AnnTerms, none, Clauses1, Clauses1,
-                         AnnC1, AnnC1, Options, Module)
+                         AnnC1, AnnC1, PredsSeen, Options, Module)
 	;
 	    optional_expansion(Term, AnnTerm, TransTerm, AnnTrans, Options, Module),
 	    % TransTerm may be a list of clauses!
-	    accumulate_clauses(TransTerm, AnnTrans, Module, Options,
-		    Pred, Clauses, Tail, AnnC, AnnCTail,
-		    Pred1, Clauses1, Tail1, AnnC1, AnnCTail1),
+	    accumulate_clauses(TransTerm, AnnTrans, Module, Options, none, PredsSeen,
+		    Pred, none, Clauses, Tail, AnnC, AnnCTail,
+		    Pred1, _Pos, Clauses1, Tail1, AnnC1, AnnCTail1),
 	    compile_list(Terms, AnnTerms, Pred1, Clauses1, Tail1, 
-                    AnnC1, AnnCTail1, Options, Module)
+                    AnnC1, AnnCTail1, PredsSeen, Options, Module)
 	).
-compile_list(Term, AnnTerm, Pred, Clauses, Tail, AnnC, AnnCTail, Options, Module) :-
+compile_list(Term, AnnTerm, Pred, Clauses, Tail, AnnC, AnnCTail, PredsSeen, Options, Module) :-
 	( Pred == first ->
 	    % allow to omit list brackets for single term
             (nonvar(AnnTerm) ->
@@ -654,7 +731,7 @@ compile_list(Term, AnnTerm, Pred, Clauses, Tail, AnnC, AnnCTail, Options, Module
             ;
                 true
             ),
-	    compile_list([Term], AnnTermList, none, Clauses, Tail, AnnC, AnnCTail, Options, Module)
+	    compile_list([Term], AnnTermList, none, Clauses, Tail, AnnC, AnnCTail, PredsSeen, Options, Module)
 	;
 	    error(5, compile_term(Term, Options), Module)
 	).
