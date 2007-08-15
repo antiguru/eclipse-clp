@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.6 2007/08/12 19:39:07 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.7 2007/08/15 17:08:49 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -185,6 +185,9 @@ static	dident
 		d_functor1,
 		d_ref1,
                 d_ref2,
+		d_source_file_,
+		d_source_line_,
+		d_source_offset_,
 		d_tags,
 		d_type_;
 
@@ -268,6 +271,9 @@ bip_db_init(int flags)
     d_refm = in_dict("refm", 2);
     d_tags = in_dict("tags", 0);
     d_par_fail = in_dict("par_fail", 0);
+    d_source_file_ = in_dict("source_file", 0);
+    d_source_line_ = in_dict("source_line", 0);
+    d_source_offset_ = in_dict("source_offset", 0);
 
     d_predlist_option[PREDLIST_UNDECLARED] = in_dict("undeclared",0);
     d_predlist_option[PREDLIST_LOCAL] = in_dict("local",0);
@@ -2379,7 +2385,7 @@ p_abolish(value n, type tn, value a, type ta, value vm, type tm)
 static int
 p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, value vm, type tm)
 {
-	uint32	new_flags, changed_flags;
+	uint32	new_flags = 0, changed_flags = 0;
 	dident	wdid;
 	pri	*proc;
 	int	err, use_local_procedure = 0;
@@ -2424,6 +2430,20 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	    } else {
 		Bip_Error(RANGE_ERROR);
 	    }
+	}
+	else if (vf.did == d_source_file_)
+	{
+	    Check_Atom(tv)
+	    use_local_procedure = 1;
+	}
+	else if (vf.did == d_source_line_ || vf.did == d_source_offset_)
+	{
+	    Check_Integer(tv)
+	    if (vv.nint < 0)
+	    {
+		Bip_Error(RANGE_ERROR);
+	    }
+	    use_local_procedure = 1;
 	}
 	else
 	{
@@ -2500,27 +2520,50 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	    }
 	}
 
-	/*
-	 * Some additional restrictions on flag changes
-	 */
-	if (DynamicProc(proc) && (new_flags & PROC_PARALLEL))
+	if (changed_flags)
 	{
-	    err = ALREADY_DYNAMIC;
-	    goto _unlock_return_err_;
-	}
-	/* disallow clearing skip-flag in locked modules */
-	if ((DEBUG_SK & PriFlags(proc) & changed_flags & ~new_flags)
-	    && IsLocked(proc->module_def)
-	    && (proc->module_def != vm.did || !IsModuleTag(vm.did,tm)))
-	{
-	    err = LOCKED;
-	    goto _unlock_return_err_;
-	}
-	err = pri_compatible_flags(proc, changed_flags, new_flags);
-	if (err != PSUCCEED)
-	    goto _unlock_return_err_;
+	    /*
+	     * Some additional restrictions on flag changes
+	     */
+	    if (DynamicProc(proc) && (new_flags & PROC_PARALLEL))
+	    {
+		err = ALREADY_DYNAMIC;
+		goto _unlock_return_err_;
+	    }
+	    /* disallow clearing skip-flag in locked modules */
+	    if ((DEBUG_SK & PriFlags(proc) & changed_flags & ~new_flags)
+		&& IsLocked(proc->module_def)
+		&& (proc->module_def != vm.did || !IsModuleTag(vm.did,tm)))
+	    {
+		err = LOCKED;
+		goto _unlock_return_err_;
+	    }
+	    err = pri_compatible_flags(proc, changed_flags, new_flags);
+	    if (err != PSUCCEED)
+		goto _unlock_return_err_;
 
-	pri_change_flags(proc, changed_flags, new_flags);
+	    pri_change_flags(proc, changed_flags, new_flags);
+	}
+	else /* changing information stored in code header */
+	{
+	    if (!(PriFlags(proc) & CODE_DEFINED))
+	    {
+		err = NOENTRY;
+		goto _unlock_return_err_;
+	    }
+	    if (vf.did == d_source_file_)
+	    {
+		ProcFid(PriCode(proc)) = vv.did;
+	    }
+	    else if (vf.did == d_source_line_)
+	    {
+		ProcLid(PriCode(proc)) = vv.nint;
+	    }
+	    else if (vf.did == d_source_offset_)
+	    {
+		ProcBid(PriCode(proc)) = vv.nint;
+	    }
+	}
 	a_mutex_unlock(&ProcedureLock);
 	Succeed_;
 
