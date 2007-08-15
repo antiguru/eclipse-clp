@@ -28,9 +28,9 @@ exec_mapdisplay(Pid, Port) :-
         get_flag(hostarch, ARCH),
         (ARCH = "i386_nt" ->
              get_flag(installation_directory, ECDIR),
-             concat_string([ECDIR, "/tcltk/",ARCH, "/bin"], WISHPATH),
-             read_directory(WISHPATH, "wish*", _, [WISH|_]),
-             concat_string([WISHPATH, WISH], WISHEXEC),
+             concat_string([ECDIR, "/tcltk/",ARCH, "/bin/"], WISHPATH),
+	     read_directory(WISHPATH, "wish*", _, [WISH|_]), 
+	     concat_string([WISHPATH, WISH], WISHEXEC),
              exec([WISHEXEC, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
         ;
              exec([wish, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
