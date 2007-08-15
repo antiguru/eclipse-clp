@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.13 2007/08/12 19:40:41 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.14 2007/08/15 17:05:27 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -4004,20 +4004,6 @@ inline_(Proc, Trans, Module) :-
 	';_body'/3,
 	'->_body'/3.
 
-% These must be set unskipped in the current module system.
-% This is because before autoloading the predicates (the first call to it),
-% we do not know what will be the debugger flags (and compilation mode).
-:- unskipped
-	(^)/2,
-	setof/3,
-	bagof/3,
-	coverof/3,
-	findall/3.
-:- set_proc_flags((^)/2, debug, on),
-   set_proc_flags(setof/3, debug, on),
-   set_proc_flags(bagof/3, debug, on),
-   set_proc_flags(coverof/3, debug, on),
-   set_proc_flags(findall/3, debug, on).
 
 :- set_flag([trace_body/2,debug_body/2], start_tracing, on).
 :- set_flag(make_suspension/3, invisible, on).
