@@ -16,13 +16,14 @@
 % Portions created by the Initial Developer are
 % Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
 % 
-% Contributor(s): Joachim Schimpf.
+% Contributor(s): Joachim Schimpf
+%                 Kish Shen
 % 
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.4 2007/06/10 22:10:30 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.5 2007/08/20 01:24:12 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -30,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/06/10 22:10:30 $").
+:- comment(date, "$Date: 2007/08/20 01:24:12 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -77,22 +78,32 @@ max_joined_len(2).
 :- export simplify_code/3.
 simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
 	( OptLevel > 0 ->
-	    flat_code_to_basic_blocks(CodeList, BasicBlockArray),
-	    ( for(_,1,max_joined_len), param(BasicBlockArray) do
-		join_short_continuations(BasicBlockArray)
+	    flat_code_to_basic_blocks(CodeList, BasicBlockArray, Rejoins),
+            interchunk_simplify(BasicBlockArray, Rejoins, ReachedArray, Branches),
+            make_nonreplicate_array(BasicBlockArray, Rejoins, NonRepArray),
+            ( for(_,1,max_joined_len), 
+              param(BasicBlockArray, NonRepArray, ReachedArray) 
+            do
+		join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray)
 	    ),
-	    ( foreacharg(chunk{code:Chunk,cont:Cont},BasicBlockArray,I), param(BasicBlockArray) do
-		simplify_chunk(Chunk, SimplChunk),
-		setarg(I, BasicBlockArray, chunk{code:SimplChunk,len:(-1),cont:Cont})
-	    ),
-	    basic_blocks_to_flat_instr(BasicBlockArray, WamList)
+	    ( foreacharg(chunk{code:Chunk,cont:Cont,len:Len,done:Done},
+                         BasicBlockArray,I), 
+              param(BasicBlockArray) do
+                ( var(Done) ->
+                    simplify_chunk(Chunk, SimplChunk),
+                    % Len is approximate after simplify! 
+                    setarg(I, BasicBlockArray, chunk{code:SimplChunk,len:Len,cont:Cont})
+                ;
+                    true
+                )
+            ),
+	    basic_blocks_to_flat_instr(BasicBlockArray, Branches, WamList)
 	;
 	    ( foreach(code{instr:Instr},CodeList), foreach(Instr,Instrs) do
 		true
 	    ),
 	    simplify_chunk(Instrs, WamList)
-	).
-
+        ).
 
 
 % Take a simple list of annotated code, and cut it up at the labels.
@@ -100,107 +111,154 @@ simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
 % Number each chunk and instantiate the corresponding Label to this number.
 % Enter the chunk into an array indexed by the chunk number.
 %
+% Also determine if two consecutive chunks are `contiguous' chunks, i.e.
+% the instructions at the splitting of the chunks should be contiguous in
+% the final code if possible. These chunks will be rejoined as soon as 
+% possible, unless the earlier chunk is unreachable. The first chunk numbers 
+% for each of these contigueous chunks are collected in Rejoins
+%
+% 
 % We already do some opportunistic simplification here:
 % - removing the code{} wrapper
 % - eliminating nops
 % - eliminating redundant consecutive labels (unifying the Labels)
 % - eliminating unreachable code between branch() and the next label()
+% - make indirect branch() (branch() to another branch()) direct
 %
 % During code traversal, we maintain a State variable with the values:
-%  labels:	the previous instruction was a label
+%  labels:	the previous instruction was a label (not in rejoin state)
 %  normal:	we are in the middle of a chunk
 %  unreachable:	the current code is unreachable
+%  rejoin:      the previous instruction was a `contiguous' instruction, i.e.
+%               it should be contiguous with the following instruction
+%  rejoinlabels: the previous instruction was a label, encountered while
+%               state was rejoin
 
-
-:- export flat_code_to_basic_blocks/2.
-flat_code_to_basic_blocks(AnnCode, BasicBlockArray) :-
+flat_code_to_basic_blocks(AnnCode, BasicBlockArray, Rejoins) :-
 	(
 	    fromto(AnnCode, [code{instr:Instr}|Code1], Code1, []),
 	    fromto(FirstChunk,Chunk0,Chunk1,LastChunk),
 	    fromto(FirstChunk,Tail0,Tail1,[]),
+            fromto(1,Label0,Label1,_),	% last label (while in
+                                        % labels/rejoinlabels state)
 	    fromto(Chunks,Chunks0,Chunks1,Chunks2),
-	    fromto(1,N0,N1,N),			% chunk number
+	    fromto(0,N0,N1,N),			% chunk number
 	    fromto(0,Len0,Len1,Len),		% chunk length
-	    fromto(labels,State,State1,EndState)
+            fromto([],Rejoins0,Rejoins1,Rejoins), % rejoin chunk numbers
+            fromto(labels,State,State1,EndState)
 	do
-	    ( Instr = label(L) ->
+            ( Instr = label(L) ->
 		verify var(L),
-		L = N1,				% instantiate the label
-		State1 = labels,
-		( State == labels ->
-		    N1 = N0,			% a redundant label
-		    Len1 = Len0,
-		    Chunk1 = Chunk0,
-		    Tail0 = Tail1,
-		    Chunks0 = Chunks1
-		; State == normal ->
-		    Len1 = 0,
-		    succ(N0, N1),		% new chunk number
-		    Chunk1 = Tail1,		% start a new chunk
-		    Tail0 = [],			% terminate the previous chunk
-		    Chunks0 = [chunk{code:Chunk0,len:Len0,cont:L}|Chunks1]	% collect finished chunk
-		; % State == unreachable ->
-		    Len1 = 0,
-		    succ(N0, N1),		% new chunk number
-		    Chunk1 = Tail1,		% start a new chunk
-		    Tail0 = [],			% terminate the previous chunk
-		    Chunks0 = Chunks1		% dont't collect finished chunk
-		)
+                ( State == rejoin ->
+                    State1 = rejoinlabels 
+                ; State == rejoinlabels ->
+                    State1 = rejoinlabels
+                ; 
+                    State1 = labels
+                ),
+                Label1 = L,
+                Rejoins0 = Rejoins1,
+                N1 = N0,
+                ( (State == labels ; State == rejoinlabels) ->
+                    Label1 = Label0,		% a redundant label
+                    Len1 = Len0,
+                    Chunk1 = Chunk0,
+                    Tail0 = Tail1,
+                    Chunks0 = Chunks1
+                ; State == unreachable ->
+                    Len1 = 0,
+                    Chunk1 = Tail1,	% start a new chunk
+                    Tail0 = [],		% terminate the previous chunk
+                    Chunks0 = Chunks1	% dont't collect finished chunk
+                ; % State == normal ; State == rejoin
+                    Len1 = 0,
+                    Chunk1 = Tail1,	% start a new chunk
+                    Tail0 = [],		% terminate the previous chunk
+                    % collect finished chunk (L is uninstantiated)
+                    Chunks0 = [chunk{code:Chunk0,len:Len0,cont:L}|Chunks1]
+                )
 
 	    ; Instr = branch(ref(L)) ->
-		N1 = N0,
-		State1 = unreachable,
-		( State == unreachable ->
-		    succ(Len0, Len1),
-		    Chunk1 = Chunk0,
+                N1 = N0,
+                Label1 = none,
+                Rejoins1 = Rejoins0,
+                State1 = unreachable,
+                ( (State == labels ; State == rejoinlabels) ->
+                    % branch follows immediately from a label
+                    Label0 = L,		% get rid of indirect label
+                    Len0 = Len1,
+		    Chunk0 = Chunk1,
 		    Chunks0 = Chunks1,
 		    Tail0 = Tail1
-		; atom(L) ->
+                ; State == unreachable ->
+		    succ(Len0, Len1),
+		    Chunk0 = Chunk1,
+		    Chunks0 = Chunks1,
+		    Tail0 = Tail1
+		; atom(L)  ->
 		    Len1 = 0,
 		    succ(Len0, Len2),
 		    Chunk1 = Tail1,		% start a new chunk
 		    Tail0 = [Instr],		% terminate the previous chunk
-		    Chunks0 = [chunk{code:Chunk0,len:Len2,cont:0}|Chunks1]	% collect finished chunk
+		    Chunks0 = [chunk{code:Chunk0,len:Len2,cont:0}|Chunks1] % collect finished chunk
 		;
-		    Len1 = 0,
+                    Len1 = 0,
 		    Chunk1 = Tail1,		% start a new chunk
 		    Tail0 = [],			% terminate the previous chunk
 		    Chunks0 = [chunk{code:Chunk0,len:Len0,cont:L}|Chunks1]	% collect finished chunk
 		)
 
 	    ; Instr = nop ->
+                Rejoins0 = Rejoins1,
+                Label0 = Label1,
 		N1 = N0,
 		Len1 = Len0,
 	    	Chunk1 = Chunk0,
-		Chunks0 = Chunks1,
-	    	Tail0 = Tail1,
-		next_state(State, State1)
+		Chunks1 = Chunks0,
+	    	Tail1 = Tail0,
+                State = State1   % keep same state
 
-	    ; unconditional_transfer(Instr) ->
-		N1 = N0,
-		State1 = unreachable,
-		( State == unreachable ->
-		    succ(Len0, Len1),
-		    Chunk1 = Chunk0,
-		    Chunks0 = Chunks1,
-		    Tail0 = Tail1
-		;
-		    Len1 = 0,
-		    succ(Len0, Len2),
-		    Chunk1 = Tail1,		% start a new chunk
-		    Tail0 = [Instr],		% terminate the previous chunk
-		    Chunks0 = [chunk{code:Chunk0,len:Len2,cont:0}|Chunks1]	% collect finished chunk
-		)
-
-	    ;
-		N1 = N0,			% still the same chunk
-		succ(Len0, Len1),
-	    	Chunk1 = Chunk0,
-		Chunks0 = Chunks1,
-	    	Tail0 = [Instr|Tail1],		% append this instruction
-		next_state(State, State1)
-	    )
-	),
+            ; 
+                Label1 = none,
+                ( (State == labels ; State == rejoinlabels) ->
+                    % init. current chunk -- we are in code following a label
+                    % that we want to keep
+                    Label0 = N1,	% instantiate the previous label
+                    succ(N0, N1),	% current chunk number
+                    (State == rejoinlabels ->
+                        Rejoins1 = [N0|Rejoins0] % current is a rejoin chunk
+                    ;
+                        Rejoins1 = Rejoins0
+                    )
+                ;
+                    N0 = N1,
+                    Rejoins1 = Rejoins0
+                ),
+                ( unconditional_transfer(Instr) ->
+                    State1 = unreachable,
+                    ( State == unreachable ->
+                        succ(Len0, Len1),
+                        Chunk1 = Chunk0,
+                        Chunks1 = Chunks0,
+                        Tail1 = Tail0
+                    ;
+                        Len1 = 0,
+                        succ(Len0, Len2),
+                        Chunk1 = Tail1,		% start a new chunk
+                        Tail0 = [Instr],	% terminat current chunk
+			% collect finished chunk
+                        Chunks0 = [chunk{code:Chunk0,len:Len2,cont:0}|Chunks1]
+                    )
+                
+                ; 
+                    succ(Len0, Len1),
+                    Chunk1 = Chunk0,
+                    Chunks0 = Chunks1,
+                    Tail0 = [Instr|Tail1],	% append this instruction
+                    next_state(Instr, State, State1)
+                )
+            )
+        ),
 	( EndState = unreachable ->
 	    Chunks2 = []
 	;
@@ -209,9 +267,17 @@ flat_code_to_basic_blocks(AnnCode, BasicBlockArray) :-
 	verify length(Chunks, N),
 	BasicBlockArray =.. [[]|Chunks].
 
-    next_state(unreachable, unreachable).
-    next_state(labels, normal).
-    next_state(normal, normal).
+% determine the next state while in the middle of traversing code
+next_state(Instr, State, NextState) :-
+        ( State == unreachable -> 
+            NextState = unreachable 
+        ; 
+            ( indexing_branch(Instr) -> 
+                NextState = rejoin % following code should be contiguous
+            ; 
+                NextState = normal
+            )
+        ).
 
     % Unconditional control transfer instructions
     % Only needs to list instructions generated by the code generator
@@ -229,21 +295,137 @@ flat_code_to_basic_blocks(AnnCode, BasicBlockArray) :-
     unconditional_transfer(trust(_,_)).
     unconditional_transfer(trust_inline(_,_)).
 
+    % these are indexing branch instructions with a default fall-through
+    % case. It is desirable that the fall-through code is contiguous with
+    % the instruction rather than a branch to somewhere else. However, if 
+    % code following is split into a new chunk, the two chunks should be 
+    % rejoined as soon as possible to ensure the final code is contiguous.
+    indexing_branch(try_me_else(_,_,_)).
+    indexing_branch(try(_,_,_)).
+    indexing_branch(retry_me_else(_,_)).
+    indexing_branch(retry(_,_)).
+    indexing_branch(trust_me(_)).
+    indexing_branch(retry_me_inline(_,_,_)).
+    indexing_branch(trust_me_inline(_,_)).
+    indexing_branch(retry_inline(_,_)).
 
-join_short_continuations(BasicBlockArray) :-
+
+% interchunk_simplify is intended to do peephole optimisations across
+% different chunks, connected by refs.
+% mark all reachable chunks by following the continuations and refs.
+% Rejoin any contiguous chunks, unless its first chunk is unreachable
+
+interchunk_simplify(BasicBlockArray, Rejoins, ReachedArray, Targets) :-
+        find_reached_chunks(BasicBlockArray, ReachedArray, Targets),
+        rejoin_contiguous_chunks(BasicBlockArray, ReachedArray, Rejoins).
+
+find_reached_chunks(BasicBlockArray, ReachedArray, Targets) :-
+        functor(BasicBlockArray, F, N),
+        functor(ReachedArray, F, N),
+        functor(TargetArray, F, N), 
+        arg(1, ReachedArray, []), % first chunk
+        arg(1, BasicBlockArray, Chunk),
+        find_reached_chunks_(Chunk, BasicBlockArray, ReachedArray, 
+                             Targets, Targets, TargetArray).
+
+find_reached_chunks_(Chunk, BasicBlockArray, ReachedArray, Targets,
+                     TargetsT0, TargetArray) :-
+        Chunk = chunk{cont:Cont,code:Code},
+        ( integer(Cont), Cont > 0 -> 
+            arg(Cont, ReachedArray, []),
+            arg(Cont, BasicBlockArray, ContChunk)
+        ; 
+            true
+        ),
+        find_targets(Code, TargetArray, TargetsT0, TargetsT1),
+        ( nonvar(ContChunk) ->
+            find_reached_chunks_(ContChunk, BasicBlockArray, ReachedArray, 
+                                 Targets, TargetsT1, TargetArray)
+        ;
+            find_chunks_in_branch(Targets, BasicBlockArray, ReachedArray,
+                                  TargetsT1, TargetArray)
+        ).
+
+find_chunks_in_branch(Targets, BasicBlockArray, ReachedArray, 
+                      TargetsT, TargetArray) :-
+        ( var(Targets) ->
+            true % queue empty, done
+        ;
+            Targets = [Target|Targets0],
+            arg(Target, ReachedArray, Ref),
+            ( var(Ref) ->  % not yet processed
+                Ref = [], % process it now
+                arg(Target, BasicBlockArray, Chunk),
+                find_reached_chunks_(Chunk, BasicBlockArray, ReachedArray,
+                                     Targets0, TargetsT, TargetArray)
+            ;
+                find_chunks_in_branch(Targets0, BasicBlockArray,
+                                      ReachedArray, TargetsT, TargetArray)
+            )
+        ).
+
+
+% rejoin adjacent chunks that should be contiguous if the first chunk
+% is reached. Rejoins must have later chunks first in the list because more 
+% after rejoining two chunks, the rejoined chunk can be rejoined with the
+% previous chunk
+rejoin_contiguous_chunks(BasicBlockArray, ReachedArray, Rejoins) :-
+        (foreach(R, Rejoins), param(BasicBlockArray, ReachedArray) do
+            arg(R, BasicBlockArray, chunk{len:Len,code:Code}),
+            arg(R, ReachedArray, Reached),
+            ( nonvar(Reached) -> % first chunk of rejoin chunks reached? 
+                succ(R, NextC),  % yes, rejoin with succeeding chunk
+                % succeeding chunk mark as processed
+                arg(NextC, BasicBlockArray, chunk{len:NextLen,code:NextCode,
+                                                  cont:NextCont,done:done}),
+                append(Code, [label(NextC)|NextCode],NewCode),
+                NewLen is Len + NextLen,
+                setarg(R, BasicBlockArray, chunk{len:NewLen,code:NewCode,
+                                                 cont:NextCont})
+            ;
+                % first chunk not reached, so don't join
+                true
+            )
+        ).
+
+% NonRepArray indicates which chunks should not be replicated -- currently
+% chunks that contains labels (i.e. rejoined chunks)
+make_nonreplicate_array(BasicBlockArray, Rejoins, NonRepArray) :-
+        functor(BasicBlockArray, F, A),
+        functor(NonRepArray, F, A),
+        ( foreach(R, Rejoins), param(NonRepArray) do
+            R1 is R + 1,
+            arg(R, NonRepArray, []), 
+            arg(R1, NonRepArray, [])
+        ).
+
+% Joins a chunk to its continuation if the continuation is short, and can
+% be replicated -- i.e. there are no labels inside the continuation chunk.
+% An optimisation is that if the continuation immediately jumps elsewhere,
+% the continuation of the chunk is simply updated.
+join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray) :-
 	(
-	    foreacharg(chunk{cont:Cont,len:Len,code:Code},BasicBlockArray,I),
-	    param(BasicBlockArray)
+	    foreacharg(Chunk,BasicBlockArray,I),
+	    param(BasicBlockArray,NonRepArray,ReachedArray)
 	do
-	    ( Cont == 0 ->
+            Chunk = chunk{cont:Cont,len:Len,code:Code,done:Done},
+            ( arg(I, ReachedArray, ReachedI), var(ReachedI) ->
+                % chunk not reached, don't join
+                true
+            ; nonvar(Done) ->
+                % nonvar if chunk discarded, don't join
+                true
+            ; Cont == 0 ->
 		true
-	    ;
-		arg(Cont, BasicBlockArray, NextChunk),
+	    ; (arg(Cont, NonRepArray, NonRepC), nonvar(NonRepC) ) ->
+                true  % next chunk should not be replicated -- don't join
+            ;
+                arg(Cont, BasicBlockArray, NextChunk),
 		NextChunk = chunk{len:ContLen,code:ContCode,cont:ContCont},
 		( ContLen > max_joined_len ->
 		    true
-		;
-		    append(Code, ContCode, NewCode),
+                ;
+                    append(Code, ContCode, NewCode),
 		    NewLen is Len+ContLen,
 		    setarg(I, BasicBlockArray, chunk{code:NewCode,len:NewLen,cont:ContCont})
 		)
@@ -256,78 +438,72 @@ join_short_continuations(BasicBlockArray) :-
 % The done-flag in the array indicates whether the chunk has already been
 % processed.
 
-:- export basic_blocks_to_flat_instr/2.
-
-basic_blocks_to_flat_instr(BasicBlockArray, Instrs) :-
+basic_blocks_to_flat_instr(BasicBlockArray, Reached, Instrs) :-
 	(
 	    fromto(1,I,NextI,0),			% current chunk
 	    fromto(1,PrevCont,Cont,_),			% prev. chunk's continuation
-	    fromto(TargetsT0,Targets1,Targets2,_),	% ref-targets (queue)
-	    fromto(TargetsT0,TargetsT1,TargetsT2,_),	% queue tail
+	    fromto(Reached,Reached1,Reached2,_),	% ref-targets (queue)
 	    fromto(Instrs,Instrs0,Instrs2,[]),		% result list
 	    param(BasicBlockArray)
 	do
 	    arg(I, BasicBlockArray, Chunk),
 	    Chunk = chunk{code:Code,done:Done,cont:Cont0},
 	    ( var(Done) ->
-		% process chunk: extract refs, append code to final code list
+		% process chunk: append code to final code list
 		Done = done,
 		Cont = Cont0,
-		find_targets(Code, BasicBlockArray, TargetsT1, TargetsT2),
 		Instrs0 = [label(I)|Instrs1],
 		append(Code, Instrs2, Instrs1)
 	    ; PrevCont == I ->
 		% previous chunk continues into this one, but it has already
-		% been emitted, so we need a branch (or a copy if it is short)
-		( Cont0 == 0 , length(Code) =< max_joined_len ->
-		    append(Code, Instrs2, Instrs0)
-		;
-		    Instrs0 = [branch(ref(I))|Instrs2]
-		),
-		Cont = 0,
-		TargetsT2 = TargetsT1
+		% been emitted, so we need a branch 
+                % can't copy because 
+                %  1) chunk may have labels
+                %  2) no length info for chunk because of simplification
+                Instrs0 = [branch(ref(I))|Instrs2],
+		Cont = 0
 	    ;
 		Cont = 0,
-		TargetsT2 = TargetsT1,
 		Instrs0 = Instrs2
 	    ),
 	    % Choose the next chunk to process: prefer the current chunk's
 	    % continuation, otherwise pick one from the queue
 	    ( Cont > 0 ->
-		NextI = Cont, Targets1 = Targets2	% use continuation
-	    ; var(Targets1) ->
+		NextI = Cont, Reached1 = Reached2	% use continuation
+	    ; var(Reached1) ->
 	    	NextI = 0				% queue empty, finished
 	    ;
-		Targets1 = [NextI|Targets2]		% pick from queue
+		Reached1 = [NextI|Reached2]		% pick from queue
 	    )
 	).
 
+        
     % Find all ref()s that refer to unprocessed chunks and queue the labels
-    find_targets(X, _BasicBlockArray, TargetsT, TargetsT) :- var(X), !.
-    find_targets([X|Xs], BasicBlockArray, TargetsT0, TargetsT2) :- !,
-	find_targets(X, BasicBlockArray, TargetsT0, TargetsT1),
-	find_targets(Xs, BasicBlockArray, TargetsT1, TargetsT2).
-    find_targets(ref(L), BasicBlockArray, TargetsT0, TargetsT1) :- !,
-	(
-	    integer(L),
-	    arg(L, BasicBlockArray, Chunk),
-	    Chunk = chunk{done:Done},
-	    var(Done)
+    find_targets(X, _, TargetsT, TargetsT) :- var(X), !.
+    find_targets([X|Xs], TargetArray, TargetsT0, TargetsT2) ?- !,
+	find_targets(X, TargetArray, TargetsT0, TargetsT1),
+	find_targets(Xs, TargetArray, TargetsT1, TargetsT2).
+    find_targets(ref(L), TargetArray, TargetsT0, TargetsT1) :- !, 
+        (
+            integer(L),
+            arg(L, TargetArray, Ref),
+	    var(Ref)
 	->
-	    TargetsT0 = [L|TargetsT1]
+	    TargetsT0 = [L|TargetsT1],
+            Ref = []
 	;
 	    TargetsT0 = TargetsT1
 	).
-    find_targets(Xs, BasicBlockArray, TargetsT0, TargetsT3) :-
+    find_targets(Xs, TargetArray, TargetsT0, TargetsT3) :-
     	compound(Xs), !,
 	(
 	    foreacharg(X,Xs),
 	    fromto(TargetsT0,TargetsT1,TargetsT2,TargetsT3),
-	    param(BasicBlockArray)
+	    param(TargetArray)
 	do
-	    find_targets(X, BasicBlockArray, TargetsT1, TargetsT2)
+	    find_targets(X, TargetArray, TargetsT1, TargetsT2)
 	).
-    find_targets(_, _BasicBlockArray, TargetsT, TargetsT).
+    find_targets(_, _TargetArray, TargetsT, TargetsT).
     	
 
 %----------------------------------------------------------------------
@@ -359,6 +535,22 @@ simplify(callf(P,eam(0)),	[Instr|More], New) ?- !,
 simplify(call(P,eam(0)),	[Instr|More], New) ?- !,
 	simplify_call(P, Instr, NewInstr),
 	New = [NewInstr|More].
+
+simplify(cut(y(1),_N), [exit|More], New) ?- !,
+        New = [exitc|More].
+
+simplify(cut(y(1), N), More, New) ?- !,
+        New = [cut1(N)|More].
+
+simplify(savecut(a(A)), [cut(a(A))|More], New) ?- !,
+        New = [savecut(a(A))|More].
+/*
+simplify(push_structure(B), [write_did(F/A)|More], New) ?- !,
+        B is A + 1,
+        New = [write_structure(F/A)|More].
+*/
+simplify(allocate(N), [move(a(I),y(J))|More], New) ?- !,
+        New = [get_variable(N, a(I), y(J))|More].
 
 	% the code generator compiles attribute unification as if it were
 	% unifying a meta/N structure. Since attribute_name->slot mapping
@@ -395,11 +587,33 @@ simplify(read_attribute(FirstName),	Code0, New) ?-
 	    fail
 	).
 
-    is_read_instruction(Instr) :-
+simplify(read_void, [Instr0|Rest0], New) ?- !,
+        (Instr0 == read_void ->
+            skip_read_void(Rest0, 2, N, Rest),
+            (Rest = [Instr|_], is_in_read_struct(Instr) ->
+                New = [read_void(N)|Rest]
+            ;
+                New = Rest % skip trailing read_voids
+            )
+        ;
+            % do not simplify single read_void except a trailing one
+            \+ is_in_read_struct(Instr0), 
+            New = [Instr0|Rest0] 
+        ).
+
+is_read_instruction(Instr) :-
 	functor(Instr, Name, _),
     	atom_string(Name, NameS),
 	substring(NameS, "read_", 1).
 
+    % is_in_read_struct(+Instr) checks if Instr, which follows a read_void, 
+    % is still (possibly) part of instructions reading the structure, i.e.
+    % if it is a read_*, or a move (which should be followed by a
+    % read_variable, which we don't check for) 
+    is_in_read_struct(Instr) :-
+        is_read_instruction(Instr), !.
+    is_in_read_struct(move(_,_)).
+        
     skip_read_void(Codes, N0, N, Rest) :-
     	( Codes = [read_void|Codes1] ->
 	    N1 is N0+1,
@@ -519,6 +733,7 @@ Pattern 4:	(eliminate unreachable code)
 Pattern 5:	(skip subsumed instruction)
 
 	Atom_switch A1 [a->alab, b->blab]
+
 	...
     alab:
 	Get_atom A1 a
@@ -574,7 +789,9 @@ Various Patterns:
     savecut(a(A)),cut(a(A))	-->	savecut(a(A))
 
     read_void,read_void+	-->	read_void N
-    read_void/[^read_xxx]	-->	
+    read_void/[^(read_xxx|move)]	-->	
 
     push_structure(N+1),write_did(F/N)  --> write_structure(F/N)
 
+    allocate n, move Ai,Yj      -->     get_variable(n,Ai,Yj)
+                                        
