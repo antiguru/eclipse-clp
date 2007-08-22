@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.3 2007/08/22 23:07:24 jschimpf Exp $
  */
 
 /*
@@ -501,8 +501,11 @@ free_prop_value(int prop_name, pword *prop_value)
 	break;
 
     case IDB_PROP:
-	erase_all_records(prop_value);
+    {
+	extern t_ext_type heap_rec_header_tid;
+	heap_rec_header_tid.free((t_ext_ptr)prop_value->val.wptr);
 	break;
+    }
 
     case HTABLE_PROP:
     {
@@ -585,7 +588,10 @@ mark_dids_from_properties(property *prop_list)
 		    break;
 
 		case IDB_PROP:
-		    mark_dids_from_record(&p->property_value);
+		    {
+			extern t_ext_type heap_rec_header_tid;
+			heap_rec_header_tid.mark_dids((t_ext_ptr)p->property_value.val.wptr);
+		    }
 		    break;
 
 		case TRANS_PROP:
@@ -1001,7 +1007,6 @@ _copy_term_to_heap(value v, type t, register pword *top, value **handle_slot, re
 	case TINT:
 	case TNIL:
 	case TDICT:
-	case TDBREF:
 	case TPTR:
 	case TPROC:
 #ifdef UNBOXED_DOUBLES
@@ -1274,7 +1279,6 @@ _copy_size(value v, type t, word size, word *num_handles, int *perr)
 	case TINT:
 	case TNIL:
 	case TDICT:
-	case TDBREF:
 	case TPTR:
 	case TPROC:
 #ifdef UNBOXED_DOUBLES

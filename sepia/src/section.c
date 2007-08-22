@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: section.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
+ * VERSION	$Id: section.c,v 1.3 2007/08/22 23:07:24 jschimpf Exp $
  */
 
 /*
@@ -929,7 +929,6 @@ _test_goal(proc_desc *procedure, cl_desc *clds, pword *goal, int index, int top,
 	Mark_Mask(*mask, TNIL);
 	Mark_Mask(*mask, TINT);
 	Mark_Mask(*mask, TDICT);
-	Mark_Mask(*mask, TDBREF);
     }
     else if (wdid == d_.nonvar) {
 	Mark_Mask(*mask, TLIST);
@@ -944,7 +943,6 @@ _test_goal(proc_desc *procedure, cl_desc *clds, pword *goal, int index, int top,
 	Mark_Mask(*mask, TNIL);
 	Mark_Mask(*mask, TINT);
 	Mark_Mask(*mask, TDICT);
-	Mark_Mask(*mask, TDBREF);
     }
     else if (wdid == d_.number) {
 	Mark_Mask(*mask, TINT);
@@ -999,7 +997,6 @@ _test_goal(proc_desc *procedure, cl_desc *clds, pword *goal, int index, int top,
 	Mark_Mask(*mask, TNIL);
 	Mark_Mask(*mask, TINT);
 	Mark_Mask(*mask, TDICT);
-	Mark_Mask(*mask, TDBREF);
 
 	Mark_Mask(*mask, TLIST);
 	Mark_Mask(*mask, TCOMP);

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.1 2006/09/23 01:55:51 snovello Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.2 2007/08/22 23:07:24 jschimpf Exp $
  */
 
 /*
@@ -60,7 +60,6 @@ static int	p_atom_string(value va, type ta, value vs, type ts),
 		p_functor(value vt, type t, value vf, type tf, value va, type ta), 
 		p_integer_atom(value vn, type tn, value vs, type ts), 
 		p_number_string(value vn, type tn, value vs, type ts),
-		p_dbref_integer(value vd, type td, value vi, type ti),
 		p_term_hash(value vterm, type tterm, value vdepth, type tdepth, value vrange, type trange, value vhash, type thash),
 		p_canonical_copy(value v, type t, value vi, type ti),
 		p_setarg(value vn, type tn, value vt, type tt, value va, type ta),
@@ -91,8 +90,6 @@ bip_tconv_init(int flags)
 	built_in(in_dict("atom_string", 2), p_atom_string, B_UNSAFE|U_GROUND)
 		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
 	built_in(in_dict("integer_atom", 2), p_integer_atom, B_UNSAFE|U_GROUND)
-		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	exported_built_in(in_dict("dbref_integer", 2), p_dbref_integer, B_UNSAFE|U_GROUND)
 		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
 	(void) built_in(in_dict("type_of", 2), p_type_of, B_UNSAFE|U_SIMPLE);
 	(void) local_built_in(in_dict("get_var_type", 2),
@@ -1205,20 +1202,6 @@ p_get_var_name(value vvar, type tvar, value vname, type tname)
     {
 	Set_Bip_Error(0);
 	Fail_;
-    }
-}
-
-static int
-p_dbref_integer(value vd, type td, value vi, type ti)
-{
-    if (IsRef(td)) {
-	Check_Integer(ti)
-	Return_Unify_Pw(vd, td, vi, tdbref)
-    } else {
-	if (!IsDbRef(td)) {
-	    Bip_Error(TYPE_ERROR)
-	}
-	Return_Unify_Integer(vi, ti, vd.nint)
     }
 }
 

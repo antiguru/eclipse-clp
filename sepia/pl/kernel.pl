@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.14 2007/08/15 17:05:27 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.15 2007/08/22 23:08:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -172,18 +172,20 @@
    tool((\+)/1, fail_if_body/2),
    tool(call/1, untraced_call/2),
    tool(call_local/1, call_local/2),
+   tool(current_record/1, current_record_body/2),
    tool(set_syntax/2, set_syntax_/3),
    tool(ensure_loaded/1, ensure_loaded/2),
+   tool(erase/2, erase_body/3),
    tool(erase_all/1, erase_all_body/2),
+   tool(erase_all/2, erase_all_body/3),
    tool(erase_module/1, erase_module/2),
-   tool(erase_record_/2, erase_record/3),
    tool(error/2, error_/3),
    tool(error/3, error_/4),
    tool(bip_error/1, bip_error_/2),
    tool(bip_error/2, bip_error_/3),
    tool(findall/3, findall_body/4),
    tool(get_flag/2, get_flag_body/3),
-   tool(get_recordlist/3, get_recordlist/4),
+   tool(recorded_list/2, recorded_list_body/3),
    tool(lock/0, lock/1),
    tool(lock_pass/1, lock_pass_/2),
    tool(local_record/1, local_record_body/2),
@@ -195,21 +197,26 @@
    tool(par_once/2, par_once_body/3),
    tool(printf/2, printf_body/3),
    tool(printf/3, printf_body/4),
-   tool(record/2, recordz_body/3),
-   tool(recordz/2, recordz_body/3),
    tool(is_predicate/1, is_predicate_/2),
-   tool(is_record/3, is_record_/4),
+   tool(is_record/1, is_record_body/2),
    tool(incval/1, incval_body/2),
    tool(decval/1, decval_body/2),
-   tool(recorda/2, recorda_body/3),
    tool((tool)/1, tool_/2),
    tool(read/1, read_/2),
    tool(read/2, read_/3),
    tool(read_token/2, read_token_/3),
+   tool(record/2, recordz_body/3),
+   tool(recorda/2, recorda_body/3),
    tool(recorda/3, recorda_body/4),	
    tool(recorded/2, recorded_body/3),
+   tool(recorded/3, recorded_body/4),
+   tool(recordedchk/2, recordedchk_body/3),
+   tool(recordedchk/3, recordedchk_body/4),
    tool(recorded_list/2, recorded_list_body/3),
+   tool(recorded_refs/2, recorded_refs_body/3),
+   tool(recordz/2, recordz_body/3),
    tool(recordz/3, recordz_body/4),
+   tool(rerecord/2, rerecord_body/3),
    tool(set_default_error_handler/2, set_default_error_handler_/3),
    tool(set_flag/3, set_flag_body/4),
    tool(setof/3, setof_body/4),
@@ -275,7 +282,6 @@
 
 
 :- local_record(libraries/0),
-   local_record(autoload/0),
    local_record(compiled_modules/0).
 
 
@@ -926,6 +932,121 @@ exec_exdr(GoalString,Module) :-
 false :- fail.
 
 
+%------------------------------------------
+% Recorded database
+% The related C code is in bip_record.c
+%------------------------------------------
+
+
+% current_record_body/2 succeeds iff Key is a key of the indexed database
+% (This is terribly inefficient if Key is uninstantiated)
+
+current_record_body(Key, Module):-
+	var(Key), !,
+	current_functor(Functor, Arity, 1, 0),
+	functor(Key, Functor, Arity),
+	is_record_body(Key, Module).
+current_record_body(Key, Module):-
+	( valid_key(Key) ->
+	    is_record_body(Key, Module)
+	;
+	    bip_error(current_record(Key), Module)
+	).
+
+
+% rerecord_body/3 removes all values associated with the first argument before 
+% associating the second argument with the first
+
+rerecord_body(Key, Value, Module):-
+	( valid_key(Key) ->
+	    erase_all_body(Key, Module),
+	    recorda_body(Key, Value, Module)
+	;
+	    bip_error(rerecord(Key, Value), Module)
+	).
+
+
+% erase_body/3 removes an indexed database entry that has been asserted 
+% by record or rerecord. It erases the first matching value only, so we
+% don't need to worry about logical update semantics.
+
+erase_body(Key, Value, Module):-
+	( valid_key(Key) ->
+	    first_recorded_(Key, DbRef, Module),
+	    erase_first_matching(DbRef, Value)
+	;
+	    bip_error(erase(Key, Value), Module)
+	).
+
+    erase_first_matching(DbRef, Value) :-
+	( referenced_record(DbRef, Value) ->
+	    erase(DbRef)
+	;
+	    next_recorded(DbRef, DbRef1),
+	    erase_first_matching(DbRef1, Value)
+	).
+
+erase_all_body(Key, Value, Module):-
+	( valid_key(Key) ->
+	    ( first_recorded_(Key, DbRef, Module) ->
+		erase_matching(DbRef, Value)
+	    ;
+		true
+	    )
+	;
+	    bip_error(erase(Key, Value), Module)
+	).
+
+    erase_matching(DbRef, Value) :-
+	( referenced_record(DbRef, Value) ->
+	    erase(DbRef)
+	;
+	    true
+	),
+	( next_recorded(DbRef, DbRef1) ->
+	    erase_matching(DbRef1, Value)
+	;
+	    true
+	).
+
+recorded_body(Key, Value, Module) :-
+	recorded_body(Key, Value, _DbRef, Module).
+
+
+recorded_body(Key, Value, DbRef, Module) :-
+	( valid_key(Key) ->
+	    recorded_refs_body(Key, DbRefs, Module),
+	    member(DbRef, DbRefs),
+	    referenced_record(DbRef, Value)
+	;
+	    bip_error(recorded(Key, Value, DbRef), Module)
+	).
+
+
+% recordedchk/2,3 find only the first matching record,
+% so no need to worry about logical update semantics
+
+recordedchk_body(Key, Value, Module) :-
+	recordedchk_body(Key, Value, _DbRef, Module).
+
+
+recordedchk_body(Key, Value, DbRef, Module) :-
+	( valid_key(Key) ->
+	    first_recorded_(Key, DbRef0, Module),
+	    recorded_member(DbRef0, Value, DbRef)
+	;
+	    bip_error(recordedchk(Key, Value, DbRef), Module)
+	).
+
+    recorded_member(DbRef0, Value, DbRef) :-
+	( referenced_record(DbRef0, Value) ->
+	    DbRef = DbRef0
+	;
+	    next_recorded(DbRef0, DbRef1),
+	    recorded_member(DbRef1, Value, DbRef)
+	).
+
+
 %--------------------------------
 % Compiler
 %--------------------------------
@@ -1418,8 +1539,8 @@ erase_module_pragmas(Module) :-
 % File is assumed to be an atom, and the canonical name
 record_compiled_file(File, Goal, Module) :-
 	get_file_info(File, mtime, Time),
-	(recorded_(compiled_file, .(File, _, _, _), Ref) ->
-	    erase_record_(compiled_file, Ref)
+	(recordedchk(compiled_file, .(File, _, _, _), Ref) ->
+	    erase(Ref)
 	;
 	    true
 	),
@@ -1437,15 +1558,15 @@ current_compiled_file(File, Time, Module, Goal) :-
 	    ),
 	    canonical_path_name(FileA, CanonicalFileA)
 	),
-	recorded_(compiled_file, .(CanonicalFileA, Module, Time, Goal), _Ref),
+	recorded(compiled_file, .(CanonicalFileA, Module, Time, Goal)),
 	% don't leave a choicepoint in + mode
 	( var(File) -> File = CanonicalFileA ; File = CanonicalFileA, ! ).
 
 
 % change the module-field of a record
 change_compiled_file_module(FileAtom, FileMod) :-
-	( recorded_(compiled_file, .(FileAtom, _Module, Time, Goal), Ref) ->
-	    erase_record_(compiled_file, Ref),
+	( recordedchk(compiled_file, .(FileAtom, _Module, Time, Goal), Ref) ->
+	    erase(Ref),
 	    recorda(compiled_file, .(FileAtom, FileMod, Time, Goal))
 	;
 	    true
@@ -1455,8 +1576,8 @@ change_compiled_file_module(FileAtom, FileMod) :-
 % erase information about which files were compiled into Module
 forget_module_files(Module) :-
 	(
-	    recorded_(compiled_file, .(_File, Module, _Time, _Goal), Ref),
-	    erase_record_(compiled_file, Ref),
+	    recorded(compiled_file, .(_File, Module, _Time, _Goal), Ref),
+	    erase(Ref),
 	    fail
 	;
 	    true
@@ -2094,13 +2215,12 @@ record_interface_directive(Directive, Module) :-
 
     init_module_record(N, Value, Module) :-
 	functor(Key, Module, N),
-	( is_record(Key, local, _) -> true ; local_record(Module/N) ),
+	( is_record(Key) -> true ; local_record(Module/N) ),
 	recordz(Key, Value).
 
 recorded_interface_directive(Module, Directive) :-
 	functor(Key, Module, 1),
-	is_record(Key, local, 1),
-	recorded_(Key, Directive, _).
+	recorded(Key, Directive).
 
 
 record_module_import(Import, Module) :-
@@ -2108,13 +2228,16 @@ record_module_import(Import, Module) :-
 
 recorded_module_import(Module, Import) :-
 	functor(Key, Module, 2),
-	is_record(Key, local, 1),
-	recorded_(Key, Import, _).
+	recorded(Key, Import).
 	
 erase_module_related_records(Module) :-
+	% erase information about Module's interface queries
+	functor(Key1, Module, 1),
+	( is_record(Key1) -> erase_all(Key1) ; true ),
+
 	% erase information about which modules were imported into Module
 	functor(Key, Module, 2),
-	( is_record(Key, local, 1) -> erase_all(Key) ; true ),
+	( is_record(Key) -> erase_all(Key) ; true ),
 
 	% erase any information stored on behalf of the module
 	erase_module_structs(Module),
@@ -2478,11 +2601,6 @@ set_flags([], _, _, _).
 set_flags([Flag|Flags], F, A, Module) :-
 	set_proc_flags(F/A, Flag, on, Module),
 	set_flags(Flags, F, A, Module).
-
-
-recorded_(Key, Value, Ref):-			% just for local use
-	get_recordlist(Key, List, []),
-	get_record(List, Value, Ref).
 
 
 %--------------------------------
@@ -3716,6 +3834,7 @@ inline_(Proc, Trans, Module) :-
 	current_suspension/1,
 	current_after_event/1,
 	current_after_events/1,
+	current_record/1,
 	debug/1,
 	decval/1,
 	define_macro/3,
@@ -3729,7 +3848,9 @@ inline_(Proc, Trans, Module) :-
 	ensure_loaded/1,
 	error/2, 
 	error/3,
+	erase/2,
 	erase_all/1,
+	erase_all/2,
 	erase_array/1,
 	erase_macro/1,
 	erase_macro/2,
@@ -3820,10 +3941,15 @@ inline_(Proc, Trans, Module) :-
 	readvar/3,
 	recorda/2,
 	recorda/3,
+	recorded/2,
+	recorded/3,
+	recordedchk/2,
+	recordedchk/3,
 	recorded_list/2,
 	record/2,
 	recordz/2,
 	recordz/3,
+	rerecord/2,
 	(reexport)/1,
 	reset_error_handlers/0,
 	read_token/3,
@@ -3914,7 +4040,6 @@ inline_(Proc, Trans, Module) :-
 	once_body/2,
 	compile_stream/3,
 %	print_statistics/0,
-	recorded_/3,
 	(skipped)/1,
 	syserror/4,
 	(traceable)/1,
@@ -3978,7 +4103,6 @@ inline_(Proc, Trans, Module) :-
 	put_char/1,
 	read_string/3,
 	read_token/2,
-	recorded_/3,
 	reset_error_handler/1,
 	reset_error_handlers/0,
 	sepia_version_banner/2,
@@ -4088,7 +4212,6 @@ prof_replace_pred(forallc,		4, sepia_kernel, do/2,         11) :- !.
 prof_fixed_entries(12).
 
 :- local	% because the tool declaration has made them exported ...
-	erase_record/3,
 	get_syntax_/3,
 	mutex_one_body/3,
 	set_syntax_/3,
@@ -7043,7 +7166,6 @@ include(File, Module) :-		% preliminary include predicate
 :- include("debug.pl").
 :- include("dynamic.pl").
 :- include("environment.pl").
-:- include("idb.pl").
 :- include("io.pl").
 :- include("setof.pl").
 :- include("tconv.pl").

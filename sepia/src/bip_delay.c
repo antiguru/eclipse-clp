@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.1 2006/09/23 01:55:45 snovello Exp $
+ * VERSION	$Id: bip_delay.c,v 1.2 2007/08/22 23:07:23 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -808,7 +808,6 @@ _setuniv(value v, type t)
 	case TNIL:
 	case TINT:
 	case TDICT:
-	case TDBREF:
 	case TSTRG:
 	case TPTR:
 	case TPROC:
@@ -1990,50 +1989,6 @@ p_meta_index(value vname, type tname, value vi, type ti)
 }
 
 
-/* The following builtins use the global error variable ! */
-#undef Bip_Error
-#define Bip_Error(N) Bip_Error_Fail(N)
-
-int
-meta_index(dident wd)
-{
-    register pword	*pw, *r;
-    extern pword	*p_meta_attribute_;
-
-    /* We do not dereference because there should be no references here */
-    /* Neither do we check for erased items because extensions are not
-       unloaded */
-    pw = p_meta_attribute_;
-    pw = pw->val.ptr + 1;
-    while (IsList(pw->tag)) {
-	pw = pw->val.ptr;
-	r = (pw++)->val.ptr;
-	if (r->val.did == wd)
-	    return r[1].val.nint;
-    }
-    return 0;
-}
-
-dident
-meta_name(int slot)
-{
-    register pword	*pw, *r;
-    extern pword	*p_meta_attribute_;
-
-    /* We do not dereference because there should be no references here */
-    /* Neither do we check for erased items because extensions are not
-       unloaded */
-    pw = p_meta_attribute_;
-    pw = pw->val.ptr + 1;
-    while (IsList(pw->tag)) {
-	pw = pw->val.ptr;
-	r = (pw++)->val.ptr;
-	if (r[1].val.nint == slot)
-	    return r->val.did;
-    }
-    return D_UNKNOWN;
-}
-
 static int
 p_notify_constrained(value v, type t)
 {
@@ -2043,4 +1998,3 @@ p_notify_constrained(value v, type t)
     return notify_constrained(v.ptr);
 }
 
-/* CAUTION: Bip_Error() redefined to Bip_Error_Fail() */

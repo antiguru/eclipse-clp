@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.4 2007/08/12 19:40:41 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.5 2007/08/22 23:08:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -888,21 +888,8 @@ mutex_lib(Goal, CallerModule) :-
 	)).
 
 % fails if predicate is defined in the meantime
-get_autoload_info(Goal, CallerModule, File, HomeModule) :-
-	functor(Goal, N, A),
-	get_recordlist(autoload, List, []),
-	get_record(List, autoload(File, HomeModule, Preds), _),
-	member(N/A, Preds),
-	!,				% it is a system autoload
-	(
-	    get_record(List, autoload(File, _, _), Ref),
-		erase_record(autoload, Ref, sepia_kernel),
-	    fail
-	;
-	    true
-	).
 get_autoload_info(Goal, CallerModule, HomeModule, HomeModule) :-
-	functor(Goal, N, A),		% a user autoload
+	functor(Goal, N, A),
 	proc_flags(N/A, 14, off, CallerModule),	% get_flag(N/A, defined, off)
 	proc_flags(N/A, 0, HomeModule, CallerModule).
 

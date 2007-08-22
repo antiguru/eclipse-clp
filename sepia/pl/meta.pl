@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.1 2006/09/23 01:55:29 snovello Exp $
+% Version:	$Id: meta.pl,v 1.2 2007/08/22 23:08:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -81,7 +81,6 @@
 %
 
 :- tool(meta_attribute/2, meta_attribute_body/3).
-:- tool(erase_record/2, erase_record/3).
 :- local_record(pre_unify).
 :- local_record(unify).
 :- local_record(test_unify).
@@ -114,7 +113,7 @@ make_new_attribute(Name, _) :-
     !,
     set_bip_error(5).
 make_new_attribute(Name, Index) :-
-    recorded_(meta_attribute, [Name|Index], _),
+    recordedchk(meta_attribute, [Name|Index]),
     !.
 make_new_attribute(Name, Index) :-
     incval(meta_index),
@@ -147,8 +146,8 @@ add_local_handlers(Index, Name, [H:P|List], Module) :- !,
     ;
 	fail	% with bip_error set from meta_event/2
     ),
-    (recorded_(H, t(Index, _, _, _, _), Ref) ->
-	erase_record(H, Ref)
+    (recordedchk(H, t(Index, _, _, _, _), Ref) ->
+	erase(Ref)
     ;
 	true
     ),
@@ -450,7 +449,7 @@ collect_local_handlers(I, Key, List) :-
     !,
     I1 is I - 1,
     (Cont = t(I, _, _, P, _),
-    recorded_(Key, Cont, _),
+    recorded(Key, Cont),
     P \= true/0 ->
 	List = [Cont|NewList],
 	collect_local_handlers(I1, Key, NewList)

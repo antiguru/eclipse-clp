@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.2 2007/02/23 15:28:35 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.3 2007/08/22 23:07:25 jschimpf Exp $
  */
 
 /*
@@ -712,14 +712,6 @@ _pwrite_:
     case TNIL:
 	Handle_Type_Macro(TDICT)
 	return (ec_outf(out, "[]", 2));
-
-    case TDBREF:
-	Handle_Type_Macro(TDBREF)
-	if (idwrite & QUOTED)
-	    if ((status = ec_outf(out, "16", 2)) ||
-		(status = ec_outfc(out, (char) sd->current_aq_char)))
-		    return status;
-	return p_fprintf(out, "%lx", val.nint);
 
     case TEXTERN:	/* shouldn't occur */
         return p_fprintf(out, "EXTERN_%lx", val.nint);

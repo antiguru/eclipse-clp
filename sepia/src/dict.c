@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.4 2007/07/03 00:10:30 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.5 2007/08/22 23:07:24 jschimpf Exp $
  */
 
 /*
@@ -300,7 +300,6 @@ dict_init(int flags)
 	tag_desc[TNIL].tag_name = d_.nil;
 	tag_desc[TINT].tag_name = d_.integer0;
 	tag_desc[TDICT].tag_name = d_.atom0;
-	tag_desc[TDBREF].tag_name = d_.dbref;
 	tag_desc[TPTR].tag_name = d_.meta0;
 	tag_desc[TTVV].tag_name = d_.var0;
 
@@ -315,7 +314,6 @@ dict_init(int flags)
 	tag_desc[THANDLE].type_name = in_dict("handle", 0);
 	tag_desc[TNIL].super = TDICT;
 	tag_desc[TDICT].type_name = d_.atom0;
-	tag_desc[TDBREF].type_name = d_.dbref;
 	tag_desc[TPTR].type_name = d_.meta0;
 	tag_desc[TTVV].type_name = d_.var0;
     }
@@ -1332,7 +1330,6 @@ _std_did_init(void)
 	d_.suspend_attr = in_dict("suspend", 3);
 	d_.constrained = in_dict("constrained", 0);
 	d_.meta0 = in_dict("meta", 0);
-	d_.dbref = in_dict("db_reference",0);
 	d_.free = in_dict("free",0);
 
 	d_.stdin0 = in_dict("stdin", 0);

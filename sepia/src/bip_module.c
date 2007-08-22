@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.4 2007/08/12 17:30:09 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.5 2007/08/22 23:07:24 jschimpf Exp $
  */
 
 /*
@@ -923,7 +923,6 @@ p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod)
 {
 	module_item	*pm, *import_pm;
 	int		 i;
-	type		t;
 	didlist		*lib_scan;
 	pword		*prop;
 
@@ -945,15 +944,6 @@ p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod)
 	 * descriptor is unprotected. It should be first removed as property
 	 * and then cleaned up.
 	 */
-
-	/* erase the recorded interfaces */
-	a_mutex_lock(&PropertyLock);
-	t.kernel = ModuleTag(d_.kernel_sepia);
-	prop =
-	    GetPointerToRecord(add_dict(module.did, 1), d_.kernel_sepia, t, &i);
-	if (prop)
-	    erase_records(prop);
-	a_mutex_unlock(&PropertyLock);
 
 	pm = ModuleItem(module.did);
 

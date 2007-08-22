@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.1 2006/09/23 01:55:43 snovello Exp $
+ * VERSION	$Id: bip_comp.c,v 1.2 2007/08/22 23:07:23 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -766,7 +766,6 @@ _instance(int rel,		/* relation type asked for */
 
 	case TINT:
 	case TDICT:
-	case TDBREF:
 	case TNIL:
 	case TPTR:
 #ifdef UNBOXED_DOUBLES

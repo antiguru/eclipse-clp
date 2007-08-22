@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.3 2007/07/03 00:10:29 jschimpf Exp $
+# $Id: Makefile.in,v 1.4 2007/08/22 23:07:23 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -605,7 +605,7 @@ ECI_PL_LIBRARIES =	anti_unify.pl apply.pl apply_macros.pl \
 TCL_LIBRARIES =	menu.tcl
 
 KERNEL_PARTS =	kernel.pl events.pl meta.pl array.pl pdb.pl debug.pl \
-		dynamic.pl environment.pl idb.pl io.pl setof.pl tconv.pl \
+		dynamic.pl environment.pl io.pl setof.pl tconv.pl \
 		kernel_bips.pl tracer.pl
 
 BOOT_EXEC =	INST_PARAMS Makefile.external eclipse.exe
@@ -875,8 +875,8 @@ bip_module.o: opcode.h dynamic.h property.h
 bip_mps.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h dict.h
 bip_parallel.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
 bip_parallel.o: io.h dict.h emu_export.h property.h module.h opcode.h
-bip_record.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h io.h
-bip_record.o: debug.h dict.h database.h emu_export.h property.h module.h
+bip_record.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
+bip_record.o: dict.h property.h module.h
 bip_shelf.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
 bip_shelf.o: dict.h property.h
 bip_store.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h

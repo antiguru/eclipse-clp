@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.3 2007/08/12 19:40:41 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.4 2007/08/22 23:08:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -45,7 +45,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2007/08/12 19:40:41 $').
+:- comment(date, '$Date: 2007/08/22 23:08:49 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -349,7 +349,6 @@ tr_lib(L, L) :-
 	current_built_in_body/2,
 	current_op_body/4,
 	current_predicate_body/2,
-	dbref_integer/2,
 	dynamic_body/2,
 	ensure_loaded/2,
 	export_body/2,
@@ -720,7 +719,7 @@ meta_predicate_body((A,B), M) :-
 	!,
 	meta_predicate_body(A, M),
 	meta_predicate_body(B, M).
-meta_predicate_body(Def, M) :-
+meta_predicate_body(Def, _M) :-
 	printf(error, '*** Warning: the meta_predicate definition %w%n    must be manually replaced by a tool definition%n%b', [Def]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -794,42 +793,38 @@ internal_key(Key, IKey) :-
 	concat_atom([Key, '\000'], IKey).	% append \000 char
 internal_key(Key, Key).
 
+
+
 % Possible modes: recorded(+,-,-) recorded(-,-,+) recorded(-,-,-)
 :- tool(recorded/3, recorded_body/4).
 recorded_body(Key, Term, QRef, Module) :-
 	var(QRef), !,
 	internal_key(Key, IKey),
 	@(sepia_kernel:recorded(IKey, Term, DbRef), Module),
-	dbref_integer(DbRef, Ref),
-	QRef = '$ref'(Ref, 0).
-recorded_body(Key, Term, '$ref'(Ref, 0), Module) :-
+	QRef = '$ref'(DbRef, 0).
+recorded_body(Key, Term, '$ref'(DbRef, 0), Module) :-
 	internal_key(Key, IKey),
 	@(sepia_kernel:recorded(IKey, Term, DbRef), Module),
-	dbref_integer(DbRef, Ref),
 	!.
 
 :- tool(recorda/3, recorda_body/4).
-recorda_body(Key, Term, '$ref'(Ref, 0), Module) :-
+recorda_body(Key, Term, '$ref'(DbRef, 0), Module) :-
 	nonvar(Key),
 	internal_key(Key, NewKey),
-	@(sepia_kernel:recorda(NewKey, Term, DbRef), Module),
-	dbref_integer(DbRef, Ref).
+	@(sepia_kernel:recorda(NewKey, Term, DbRef), Module).
 
 :- tool(recordz/3, recordz_body/4).
-recordz_body(Key, Term, '$ref'(Ref, 0), Module) :-
+recordz_body(Key, Term, '$ref'(DbRef, 0), Module) :-
 	nonvar(Key),
 	internal_key(Key, NewKey),
-	@(sepia_kernel:recordz(NewKey, Term, DbRef), Module),
-	dbref_integer(DbRef, Ref).
+	@(sepia_kernel:recordz(NewKey, Term, DbRef), Module).
 
 :- tool(erase/1, erase_body/2).
-erase_body('$ref'(Ref, 0), Module) :-
-	dbref_integer(DbRef, Ref),
+erase_body('$ref'(DbRef, 0), Module) :-
 	@(sepia_kernel:erase(DbRef), Module).
 
 :- tool(instance/2, instance_body/3).
-instance_body('$ref'(Ref, 0), Term, Module) :-
-	dbref_integer(DbRef, Ref),
+instance_body('$ref'(DbRef, 0), Term, Module) :-
 	@(referenced_record(DbRef, Term), Module).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.6 2007/06/03 17:03:12 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.7 2007/08/22 23:07:24 jschimpf Exp $
  */
 
 /*
@@ -1528,7 +1528,6 @@ static char * tag_string[] = {
     "TNIL    ",
     "TINT    ",
     "TDICT   ",
-    "TDBREF  ",
     "TPTR    ",
     "TTVV    ",
     "TPROC   ",
@@ -1626,8 +1625,6 @@ ppw(pword *pw)				/* print prolog words */
 	    ec_outfs(current_output_, DidName(pw->val.did));
 	    if (DidArity(pw->val.did))
 		p_fprintf(current_output_, "/%d", DidArity(pw->val.did));
-	    break;
-	case TDBREF:
 	    break;
 	case TPTR:
 	    break;

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.1 2006/09/23 01:56:00 snovello Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.2 2007/08/22 23:07:24 jschimpf Exp $
  */
 
 /*
@@ -2237,12 +2237,6 @@ check_pword(pword *ref)
     case TDICT:
 	return bitfield_did((long) DidBitField(ref->val.did)) == ref->val.did;
 
-    case TDBREF:
-	ref= ref->val.ptr;
-	if (!address_in_heap(&global_heap, ref))
-	    return 0;
-	return check_pword(ref);
-
     case TVAR_TAG:
 	if (ref->val.ptr != ref)
 	    return check_pword(ref->val.ptr);
@@ -2306,7 +2300,6 @@ check_arg(pword *pw)
     case TNIL:
     case TINT:
     case TDICT:
-    case TDBREF:
 #ifdef UNBOXED_DOUBLES
     case TDBL:
 #endif
@@ -2415,7 +2408,6 @@ check_global1(register pword *min, register pword *max)
 	case TNIL:
 	case TINT:
 	case TDICT:
-	case TDBREF:
 #ifdef UNBOXED_DOUBLES
 	case TDBL:
 #endif
