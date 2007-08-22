@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.5 2007/06/03 17:03:11 jschimpf Exp $
+ * $Id: sepia.h,v 1.6 2007/08/22 23:02:10 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -54,7 +54,6 @@
  *	TNIL		simple		atomic
  *	TINT		simple		atomic
  *	TDICT		simple		atomic
- *	TDBREF		simple		atomic
  *	TPTR		simple		atomic
  */
 
@@ -70,34 +69,33 @@
 #define TNIL		9	/* nil, value field does not matter */
 #define TINT		10	/* integer */
 #define TDICT		11 	/* atom / functor */
-#define TDBREF		12 	/* database reference, treated like simple */
-#define TPTR   		13     	/* pointer - used for objects, arrays and */
+#define TPTR   		12     	/* pointer - used for objects, arrays and */
 				/* other highly illogical stuff */
 
 /* Keep this definition in ec_public.h up-to-date: */
-/* #define NTYPES	14 	 * no. of types + var (for codegen) */
+/* #define NTYPES	13 	 * no. of types + var (for codegen) */
 
 /* internal tags, not unifiable */
 
-#define TTVV		14	/* for the code generator, the val is a	*/
+#define TTVV		13	/* for the code generator, the val is a	*/
 				/* (var_desc *)				*/
 				/* TTVV must be one after NTYPES	*/
-#define TPROC		15 	/* goal tag, val is a (pri *)		*/
-#define TEND		16	/* to mark the first unused argument	*/
+#define TPROC		14 	/* goal tag, val is a (pri *)		*/
+#define TEND		15	/* to mark the first unused argument	*/
 
 /* tags for identifying special global stack structures */
 
-#define TCLDESC		17 	/* clause descriptor when compiling	*/
-#define TVARDESC	18	/* compiler structures			*/
-#define TBLSIZE		19
-#define TDE     	20	/* delay environment			*/
-#define TGRS		21	/* ground body structure (codegen)	*/
-#define TGRL		22	/* ground body list (codegen)		*/
-#define TEXTERN		23	/* a stack anchor for external data,	*/
+#define TCLDESC		16 	/* clause descriptor when compiling	*/
+#define TVARDESC	17	/* compiler structures			*/
+#define TBLSIZE		18
+#define TDE     	19	/* delay environment			*/
+#define TGRS		20	/* ground body structure (codegen)	*/
+#define TGRL		21	/* ground body list (codegen)		*/
+#define TEXTERN		22	/* a stack anchor for external data,	*/
 				/* referenced by THANDLE pwords.      	*/
 				/* Value part is pointer to type desc.	*/
 				/* Next pword is TPTR | &data.		*/
-#define TBUFFER		24	/* a buffer on the global stack, used	*/
+#define TBUFFER		23	/* a buffer on the global stack, used	*/
 				/* for strings, bignums, doubles etc.	*/
 				/* The value part gives the number of	*/
 				/* bytes - 1 that follow		*/
@@ -247,7 +245,6 @@
 #define IsNil(item)		SameTypeC(item, TNIL)
 #define IsInteger(item)		SameTypeC(item, TINT)
 #define IsAtom(item)		SameTypeC(item, TDICT)
-#define IsDbRef(item)		SameTypeC(item, TDBREF)
 #define IsProc(item)		SameTypeC(item, TPROC)
 #define IsHandle(item)		SameTypeC(item, THANDLE)
 
@@ -1165,7 +1162,6 @@
 #define DynamicProcedures	(*(proc_duet **) &shared_data->dynamic_procedures)
 #define GlobalProcedures	(*(proc_duet **) &shared_data->global_procedures)
 #define CompiledStructures	(*(proc_duet **) &shared_data->compiled_structures)
-#define ErasedDbRefs		(*(pword **) &shared_data->erased_db_refs)
 #define NbStreams		(shared_data->nbstreams)
 #define StreamDescriptors	(*(stream_id **) &shared_data->stream_descriptors)
 #define ErrorHandler		(*(pri ***) &shared_data->error_handler)
@@ -1395,7 +1391,6 @@
 #define tcomp	tag_desc[TCOMP].tag
 #define tstrg	tag_desc[TSTRG].tag
 #define tint	tag_desc[TINT].tag
-#define tdbref	tag_desc[TDBREF].tag
 
 #define ARITH_PLUS		0
 #define ARITH_NEG		1

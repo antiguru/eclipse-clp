@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.5 2007/06/03 17:03:11 jschimpf Exp $
+ * $Id: types.h,v 1.6 2007/08/22 23:02:10 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -628,7 +628,6 @@ struct shared_data_t {
 		compiled_structures,
 		dynamic_procedures,		/* proc_chain_lock */
 		global_procedures,		/* proc_chain_lock */
-		erased_db_refs,			/* prop_list_lock? */
 		constant_table,
 
 		stream_descriptors,
@@ -778,7 +777,6 @@ typedef struct
 	cos,
 	cprolog,
 	cut_to,
-	dbref,
 	debug,
 	log_output,
 	warning_output,
