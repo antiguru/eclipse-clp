@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.2 2007/05/17 23:59:43 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.3 2007/08/24 14:34:12 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/05/17 23:59:43 $").
+:- comment(date, "$Date: 2007/08/24 14:34:12 $").
 
 :- use_module(compiler_common).
 :- use_module(compiler_analysis).
@@ -432,13 +432,13 @@ atomic_tag(X, string) :- string(X).
 %	t	with this tag the test is definitely satisfied
 %	m	with this tag the test may be satisfied
 type_test(atom,		[[atom]-t,[[]]-t]).
-type_test(atomic,	[[[]]-t,[atom]-t,[bignum]-t,[breal]-t,[db_reference]-t,[goal]-t,[double]-t,[handle]-t,[integer]-t,[rational]-t,[string]-t]).
+type_test(atomic,	[[[]]-t,[atom]-t,[bignum]-t,[breal]-t,[goal]-t,[double]-t,[handle]-t,[integer]-t,[rational]-t,[string]-t]).
 type_test(bignum,	[[bignum]-t]).
 type_test(breal,	[[breal]-t]).
 type_test(compound,	[[list]-t,[structure]-t]).
 type_test(float,	[[double]-t]).
 type_test(free,		[[var,free]-t]).
-type_test(ground,	[[[]]-t,[atom]-t,[bignum]-t,[breal]-t,[db_reference]-t,[goal]-t,[list]-m,[structure]-m,[double]-t,[handle]-t,[integer]-t,[rational]-t,[string]-t]).	% not only tag test
+type_test(ground,	[[[]]-t,[atom]-t,[bignum]-t,[breal]-t,[goal]-t,[list]-m,[structure]-m,[double]-t,[handle]-t,[integer]-t,[rational]-t,[string]-t]).	% not only tag test
 type_test(integer,	[[bignum]-t,[integer]-t]).
 type_test(is_event,	[[atom]-m,[handle]-m]).	% not only tag test!
 type_test(is_handle,	[[handle]-t]).
@@ -446,7 +446,7 @@ type_test(is_list,	[[[]]-t,[list]-m]).	% not only tag test!
 type_test(is_suspension, [[[]]-t,[goal]-m]).	% not only tag test!
 type_test(meta,		[[var,meta]-t]).
 type_test(nonground,	[[var]-t,[list]-m,[structure]-m]).	% not only tag test
-type_test(nonvar,	[[[]]-t,[atom]-t,[bignum]-t,[breal]-t,[db_reference]-t,[goal]-t,[list]-t,[structure]-t,[double]-t,[handle]-t,[integer]-t,[rational]-t,[string]-t]).
+type_test(nonvar,	[[[]]-t,[atom]-t,[bignum]-t,[breal]-t,[goal]-t,[list]-t,[structure]-t,[double]-t,[handle]-t,[integer]-t,[rational]-t,[string]-t]).
 type_test(number,	[[bignum]-t,[breal]-t,[double]-t,[integer]-t,[rational]-t]).
 type_test(rational,	[[rational]-t]).
 type_test(real,		[[breal]-t,[double]-t]).
