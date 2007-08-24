@@ -2125,7 +2125,7 @@ label(L15):
 	exit                 
 label(L16):
 	try                      0     3     ref(L2) 
-	trust_inline             0     ref(L6) 
+	trust_inline             0     ref(L6)     Y[] 
 
 ------ Test jdm(3) -------
 dob(person(A, B, C, D), C).
@@ -3106,10 +3106,10 @@ label(L9):
 	exit                 
 label(L10):
 	try                      0     0     ref(L4) 
-	trust_inline             0     ref(L8) 
+	trust_inline             0     ref(L8)     Y[2] 
 label(L11):
 	try                      0     0     ref(L6) 
-	trust_inline             0     ref(L8) 
+	trust_inline             0     ref(L8)     Y[2] 
 
 ------ Test idx(4) -------
 p(A, B) :-
@@ -3199,7 +3199,7 @@ label(L8):
 	exit                 
 label(L9):
 	try                      0     0     ref(L5) 
-	trust_inline             0     ref(L7) 
+	trust_inline             0     ref(L7)     Y[1] 
 label(L10):
 	integer_switch           y(1) 
 		1: 	ref(L0)
@@ -3207,7 +3207,7 @@ label(L10):
 
 label(L11):
 	try                      0     0     ref(L3) 
-	trust_inline             0     ref(L7) 
+	trust_inline             0     ref(L7)     Y[1] 
 
 ------ Test idx(5) -------
 p(A) :-
@@ -3290,18 +3290,18 @@ label(L8):
 	exit                 
 label(L9):
 	try                      0     0     ref(L5) 
-	trust_inline             0     ref(L7) 
+	trust_inline             0     ref(L7)     Y[1] 
 label(L10):
 	try                      0     0     ref(L1) 
-	retry_inline             0     ref(L5) 
-	trust_inline             0     ref(L7) 
+	retry_inline             0     ref(L5)     Y[1] 
+	trust_inline             0     ref(L7)     Y[1] 
 label(L11):
 	try                      0     0     ref(L3) 
-	retry_inline             0     ref(L5) 
-	trust_inline             0     ref(L7) 
+	retry_inline             0     ref(L5)     Y[1] 
+	trust_inline             0     ref(L7)     Y[1] 
 label(L12):
 	try                      0     0     ref(L1) 
-	trust_inline             0     ref(L3) 
+	trust_inline             0     ref(L3)     Y[1] 
 label(L13):
 	integer_switch           y(1) 
 		1: 	ref(L10)
@@ -3618,10 +3618,10 @@ label(L11):
 	exit                 
 label(L12):
 	try                      0     0     ref(L6) 
-	trust_inline             0     ref(L10) 
+	trust_inline             0     ref(L10)     Y[] 
 label(L13):
 	try                      0     0     ref(L2) 
-	trust_inline             0     ref(L10) 
+	trust_inline             0     ref(L10)     Y[] 
 
 ------ Test idx(12) -------
 p(A) :-
@@ -3833,10 +3833,10 @@ label(L9):
 	exit                 
 label(L10):
 	try                      0     0     ref(L4) 
-	trust_inline             0     ref(L8) 
+	trust_inline             0     ref(L8)     Y[1,2] 
 label(L11):
 	try                      0     0     ref(L6) 
-	trust_inline             0     ref(L8) 
+	trust_inline             0     ref(L8)     Y[1,2] 
 
 ------ Test idx(16) -------
 p(A) :-
@@ -4603,7 +4603,7 @@ label(L6):
 	exit                 
 label(L7):
 	try                      0     0     ref(L1) 
-	trust_inline             0     ref(L3) 
+	trust_inline             0     ref(L3)     Y[1] 
 
 ------ Test idx(29) -------
 p(A) :-
@@ -5044,10 +5044,10 @@ label(L10):
 	exit                 
 label(L11):
 	try                      0     2     ref(L5) 
-	trust_inline             0     ref(L9) 
+	trust_inline             0     ref(L9)     Y[] 
 label(L12):
 	try                      0     2     ref(L1) 
-	trust_inline             0     ref(L9) 
+	trust_inline             0     ref(L9)     Y[] 
 label(L13):
 	functor_switch           a(1) 
 		f / 3: 	ref(L12)
@@ -5195,10 +5195,10 @@ label(L8):
 	exit                 
 label(L9):
 	try                      0     2     ref(L4) 
-	trust_inline             0     ref(L7) 
+	trust_inline             0     ref(L7)     Y[] 
 label(L10):
 	try                      0     2     ref(L1) 
-	trust_inline             0     ref(L7) 
+	trust_inline             0     ref(L7)     Y[] 
 label(L11):
 	functor_switch           a(1) 
 		f / 3: 	ref(L10)
@@ -5266,10 +5266,10 @@ label(L6):
 	exit                 
 label(L7):
 	try                      0     0     ref(L1) 
-	trust_inline             0     ref(L5) 
+	trust_inline             0     ref(L5)     Y[] 
 label(L8):
 	try                      0     0     ref(L3) 
-	trust_inline             0     ref(L5) 
+	trust_inline             0     ref(L5)     Y[] 
 
 ------ Test idx(41) -------
 p(A) :-
@@ -5746,7 +5746,7 @@ label(L6):
 	exit                 
 label(L7):
 	try                      0     0     ref(L3) 
-	trust_inline             0     ref(L5) 
+	trust_inline             0     ref(L5)     Y[] 
 
 ------ Test idx(50) -------
 p(A) :-
@@ -5877,7 +5877,7 @@ label(L6):
 	exit                 
 label(L7):
 	try                      0     0     ref(L1) 
-	trust_inline             0     ref(L3) 
+	trust_inline             0     ref(L3)     Y[1] 
 
 ------ Test idx(52) -------
 p(A) :-
@@ -6224,17 +6224,17 @@ label(L10):
 	exit                 
 label(L11):
 	try                      0     0     ref(L3) 
-	retry_inline             0     ref(L5) 
-	trust_inline             0     ref(L7) 
+	retry_inline             0     ref(L5)     Y[1,2] 
+	trust_inline             0     ref(L7)     Y[1,2] 
 label(L12):
 	try                      0     0     ref(L3) 
-	trust_inline             0     ref(L9) 
+	trust_inline             0     ref(L9)     Y[1] 
 label(L13):
 	try                      0     0     ref(L5) 
-	trust_inline             0     ref(L9) 
+	trust_inline             0     ref(L9)     Y[1] 
 label(L14):
 	try                      0     0     ref(L7) 
-	trust_inline             0     ref(L9) 
+	trust_inline             0     ref(L9)     Y[1] 
 
 ------ Test idx(100) -------
 p(1) :-
@@ -9811,21 +9811,21 @@ label(L15):
 	exit                 
 label(L16):
 	try                      0     3     ref(L8) 
-	retry_inline             0     ref(L10) 
-	trust_inline             0     ref(L14) 
+	retry_inline             0     ref(L10)     Y[1] 
+	trust_inline             0     ref(L14)     Y[] 
 label(L17):
 	try                      0     3     ref(L4) 
-	retry_inline             0     ref(L6) 
-	trust_inline             0     ref(L14) 
+	retry_inline             0     ref(L6)     Y[1] 
+	trust_inline             0     ref(L14)     Y[] 
 label(L18):
 	try                      0     3     ref(L4) 
-	retry_inline             0     ref(L6) 
-	retry_inline             0     ref(L10) 
-	trust_inline             0     ref(L14) 
+	retry_inline             0     ref(L6)     Y[1] 
+	retry_inline             0     ref(L10)     Y[1] 
+	trust_inline             0     ref(L14)     Y[] 
 label(L19):
 	try                      0     3     ref(L4) 
-	retry_inline             0     ref(L6) 
-	trust_inline             0     ref(L8) 
+	retry_inline             0     ref(L6)     Y[1] 
+	trust_inline             0     ref(L8)     Y[1] 
 
 ------ Test bug(8) -------
 attach_suspensions(postponed, A) ?-

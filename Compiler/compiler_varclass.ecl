@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.4 2007/06/08 14:25:05 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.5 2007/08/24 21:50:51 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/06/08 14:25:05 $").
+:- comment(date, "$Date: 2007/08/24 21:50:51 $").
 
 :- comment(desc, ascii("
     This pass (actually two passes: compute_lifetimes and assign_env_slots)
@@ -652,7 +652,7 @@ mark_env_activity_bwd(rev_disj{rev_branches:Branches,
 			disjunction:disjunction{
 			    entrymap:DisjEntryEAM,
 			    exitmap:DisjExitEAM,
-			    branchentrymaps:BranchEntryEAMs,
+			    branchentrymaps:BranchEntryEamArray,
 			    branchinitmaps:BranchExitInits,
 			    index:indexpoint{envmap:DisjEntryEAM}}},
 		After0, After, ESize) :-
@@ -676,7 +676,8 @@ mark_env_activity_bwd(rev_disj{rev_branches:Branches,
 	    After2 is After1 \/ BranchAndAfter
 	),
 	% EAM before entering the disjunction
-	DisjEntryEAM is SeenBeforeDisj /\ After.
+	DisjEntryEAM is SeenBeforeDisj /\ After,
+	BranchEntryEamArray =.. [[]|BranchEntryEAMs].
 mark_env_activity_bwd(rev_goal{seen_before:Before,seen_here:UsedHere,goal:Goal}, After0, After, ESize) :-
 	Goal = goal{envmap:EAM,envsize:ESize},
 	% if variables were not globalised, slots would remain active during call:

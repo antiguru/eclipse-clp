@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.7 2007/08/24 15:28:44 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.8 2007/08/24 21:50:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/08/24 15:28:44 $").
+:- comment(date, "$Date: 2007/08/24 21:50:51 $").
 
 
 :- lib(hash).
@@ -215,9 +215,9 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    assign_am_registers(AllChunkCode, FinalCode, FinalCode0)
 
 	; Goal = indexpoint{indexes:IndexDescs,envmap:EAM,nextaltlabel:Label2,
-			disjunction:disjunction{arity:TryArity,branchlabels:BranchLabelArray}} ->
+			disjunction:disjunction{arity:TryArity,branchlabels:BranchLabelArray,branchentrymaps:BranchEamArray}} ->
 	    MaxArity1 is max(MaxArity0,TryArity),
-	    generate_indexing(IndexDescs, BranchLabelArray, TryArity, ChunkData0, ChunkData1, Code, Code2, AuxCode, AuxCode1),
+	    generate_indexing(IndexDescs, BranchLabelArray, BranchEamArray, TryArity, ChunkData0, ChunkData1, Code, Code2, AuxCode, AuxCode1),
 	    arg(1, BranchLabelArray, BrLabel1),
 	    Code2 = [code{instr:try_me_else(0,TryArity,ref(Label2)),regs:[]},
 		    code{instr:label(BrLabel1),regs:[]}|Code3],
@@ -225,7 +225,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 
 	; Goal = disjunction{branches:Branches,branchlabels:BranchLabelArray,
 		entrymap:EAM,arity:TryArity,
-		branchentrymaps:BranchEAMs,
+		branchentrymaps:BranchEamArray,
 		branchinitmaps:BranchExitInits,
 		index:indexpoint{nextaltlabel:Label2}} ->
 
@@ -238,7 +238,6 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    assign_am_registers(AllChunkCode, FinalCode, Code1),
 
 	    Branches = [Branch1|Branches2toN],
-	    BranchEAMs = [_|BranchEAMs2toN],
 	    BranchExitInits = [BranchExitInit1|BranchExitInits2toN],
 	    % indexing and try_me are generated inside the 1st branch,
 	    % triggered by indexpoint{} pseudo-goal
@@ -247,14 +246,14 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    (
 		for(I, 2, NBranches-1),
 		fromto(Branches2toN, [Branch|Branches], Branches, [BranchN]),
-		fromto(BranchEAMs2toN, [EAM|EAMs], EAMs, [EAMN]),
 		fromto(BranchExitInits2toN, [BranchExitInit|BEIs], BEIs, [BranchExitInitN]),
 		fromto(Code3, Code4, Code7, Code8),
 		fromto(AuxCode2, AuxCode3, AuxCode4, AuxCode5),
 		fromto(Label2, LabelI, LabelI1, LabelN),
-		param(LabelJoin,BranchLabelArray,Options,Module)
+		param(LabelJoin,BranchLabelArray,BranchEamArray,Options,Module)
 	    do
 		arg(I, BranchLabelArray, BrLabelI),
+		arg(I, BranchEamArray, EAM),
 		Code4 = [
 		    code{instr:label(LabelI),regs:[]},
 		    code{instr:retry_me_inline(0,ref(LabelI1),eam(EAM)),regs:[]},
@@ -264,6 +263,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 		Code6 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code7]
 	    ),
 	    arg(NBranches, BranchLabelArray, BrLabelN),
+	    arg(NBranches, BranchEamArray, EAMN),
 	    Code8 = [
 		code{instr:label(LabelN),regs:[]},
 		code{instr:trust_me_inline(0,eam(EAMN)),regs:[]},
@@ -358,11 +358,12 @@ emit_debug_call_port(options{debug:on}, Pred, OutArgs, [], goal{path:Path,line:L
 % generate_indexing
 % Input:	IndexDescs - ordered list of index descriptors
 %		BranchLabelArray - labels for alternative branches
+%		BranchEamArray - entry EAMs for alternative branches
 %		TryArity - number of args to save in choicepoints
 % Output:	Code - main indexing code
 %		AuxCode - sub-index and try-sequence code
 
-generate_indexing(IndexDescs, BranchLabelArray, TryArity, ChunkData0, ChunkData, Code0, Code, AuxCode0, AuxCode) :-
+generate_indexing(IndexDescs, BranchLabelArray, BranchEamArray, TryArity, ChunkData0, ChunkData, Code0, Code, AuxCode0, AuxCode) :-
 	functor(BranchLabelArray, _, NBranches),
 	( for(I,1,NBranches), foreach(I,AllBranches) do true ),
 	hash_create(LabelTable),
@@ -371,7 +372,7 @@ generate_indexing(IndexDescs, BranchLabelArray, TryArity, ChunkData0, ChunkData,
 	    fromto(Code0,Code1,Code3,Code),
 	    fromto(AuxCode0,AuxCode1,AuxCode2,AuxCode),
 	    fromto(ChunkData0,ChunkData1,ChunkData2,ChunkData),
-	    param(LabelTable,BranchLabelArray,AllBranches,TryArity,NBranches)
+	    param(LabelTable,BranchLabelArray,BranchEamArray,AllBranches,TryArity,NBranches)
 	do
 	    ( Quality < NBranches ->
 		% Create label for "all branches of the disjunction". This is
@@ -379,7 +380,7 @@ generate_indexing(IndexDescs, BranchLabelArray, TryArity, ChunkData0, ChunkData,
 		% index, or the try_me-sequence respectively.
 		hash_set(LabelTable, AllBranches, NextIndexLabel),
 
-		generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLabel,
+		generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, BranchEamArray, NextIndexLabel,
 		    TryArity, ChunkData1, ChunkData2, Code1, Code2, AuxCode1, AuxCode2),
 		Code2 = [code{instr:label(NextIndexLabel),regs:[]}|Code3]
 	    ;
@@ -402,13 +403,13 @@ generate_indexing(IndexDescs, BranchLabelArray, TryArity, ChunkData0, ChunkData,
 
 % Generate code for the index characterised by VarDesc and DecisionTree
 
-generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLabel,
+generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, BranchEamArray, NextIndexLabel,
 	    	TryArity, ChunkData0, ChunkData, Code0, Code, AuxCode0, AuxCode) :-
 	VarDesc = variable{varid:VarId},
 
 	% Create a label for this index's default case
 	dt_lookup2(DecisionTree, [], DefaultGroup, _),
-	create_group(DefaultGroup, LabelTable, BranchLabelArray, TryArity, DefaultLabel, AuxCode0, AuxCode1),
+	create_group(DefaultGroup, LabelTable, BranchLabelArray, BranchEamArray, TryArity, DefaultLabel, AuxCode0, AuxCode1),
 
 	% First go through the non-variable tags: generate switch_on_values,
 	% try-sequences for branch-groups and a hash table of their labels,
@@ -421,7 +422,7 @@ generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLab
 	    fromto(SubDefaults,SubDefaults1,SubDefaults0,[]),	% out: default labels of subswitches
 	    fromto(AuxCode1,AuxCode2,AuxCode6,AuxCode7),	% out: code for try-sequences
 	    fromto(TmpCode0,TmpCode1,TmpCode3,TmpCode4),	% out: code for sub-switches
-	    param(DecisionTree,BranchLabelArray,TryArity,DefaultLabel,VarId),	% in
+	    param(DecisionTree,BranchLabelArray,BranchEamArray,TryArity,DefaultLabel,VarId),	% in
 	    param(LabelTable),					% inout: labels of try-groups
 	    param(VarLoc,SubRegDesc)				% out: parameters for sub-switches
 	do
@@ -434,7 +435,7 @@ generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLab
 		    % group: all alternatives for this tag
 		    SubDefaults1 = SubDefaults0,
 		    TmpCode1 = TmpCode3,
-		    create_group(TagDefaultGroup, LabelTable, BranchLabelArray, TryArity, TagLabel, AuxCode2, AuxCode6)
+		    create_group(TagDefaultGroup, LabelTable, BranchLabelArray, BranchEamArray, TryArity, TagLabel, AuxCode2, AuxCode6)
 		;
 		    % we could use a switch_on_value
 		    ( TagDefaultGroup == [] ->
@@ -442,7 +443,7 @@ generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLab
 			AuxCode2 = AuxCode3
 		    ;
 			% group: default alternatives for this type
-			create_group(TagDefaultGroup, LabelTable, BranchLabelArray, TryArity, TagDefaultLabel, AuxCode2, AuxCode3)
+			create_group(TagDefaultGroup, LabelTable, BranchLabelArray, BranchEamArray, TryArity, TagDefaultLabel, AuxCode2, AuxCode3)
 		    ),
 		    % make a value switch, unless it is trivial
 		    ( TagDefaultLabel == fail, DefaultLabel == fail, TagExceptions = [_Value-ValueGroup], ValueGroup = [_] ->
@@ -450,7 +451,7 @@ generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLab
 			% (although they could lead to earlier failure)
 			SubDefaults1 = SubDefaults0,
 			TmpCode1 = TmpCode3,
-			create_group(ValueGroup, LabelTable, BranchLabelArray, TryArity, TagLabel, AuxCode3, AuxCode6)
+			create_group(ValueGroup, LabelTable, BranchLabelArray, BranchEamArray, TryArity, TagLabel, AuxCode3, AuxCode6)
 		    ;
 			% do use a value switch
 			SubDefaults1 = [TagDefaultLabel|SubDefaults0],
@@ -458,10 +459,10 @@ generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLab
 			    foreach(Value-ValueGroup,TagExceptions),
 			    foreach(Value-ref(ValueLabel),ValueLabels),
 			    fromto(AuxCode3,AuxCode4,AuxCode5,AuxCode6),
-			    param(LabelTable,BranchLabelArray,TryArity)
+			    param(LabelTable,BranchLabelArray,BranchEamArray,TryArity)
 			do
 			    % group: alternatives for this value
-			    create_group(ValueGroup, LabelTable, BranchLabelArray, TryArity, ValueLabel, AuxCode4, AuxCode5)
+			    create_group(ValueGroup, LabelTable, BranchLabelArray, BranchEamArray, TryArity, ValueLabel, AuxCode4, AuxCode5)
 			),
 			TmpCode1 = [code{instr:label(TagLabel),regs:[]}|TmpCode2],
 			emit_switch_on_value(VarId, TagName, ValueLabels, TagDefaultLabel, VarLoc, SubRegDesc, TmpCode2, TmpCode3)
@@ -481,14 +482,14 @@ generate_index(VarDesc, DecisionTree, LabelTable, BranchLabelArray, NextIndexLab
 	( dt_lookup2(DecisionTree, [var], VarDefaultGroup, VarExceptions) ->
 	    ( VarExceptions == [] ->
 		% no distinction free/meta
-		create_group(VarDefaultGroup, LabelTable, BranchLabelArray, TryArity, VarLabel, AuxCode7, AuxCode9),
+		create_group(VarDefaultGroup, LabelTable, BranchLabelArray, BranchEamArray, TryArity, VarLabel, AuxCode7, AuxCode9),
 		Table = [meta:ref(VarLabel)|Table0]
 	    ;
 		% need to distinguish free/meta
 		( member(meta-MetaGroup, VarExceptions) -> true ; MetaGroup = VarDefaultGroup ),
 		( member(free-FreeGroup, VarExceptions) -> true ; FreeGroup = VarDefaultGroup ),
-		create_group(FreeGroup, LabelTable, BranchLabelArray, TryArity, VarLabel, AuxCode7, AuxCode8),
-		create_group(MetaGroup, LabelTable, BranchLabelArray, TryArity, MetaLabel, AuxCode8, AuxCode9),
+		create_group(FreeGroup, LabelTable, BranchLabelArray, BranchEamArray, TryArity, VarLabel, AuxCode7, AuxCode8),
+		create_group(MetaGroup, LabelTable, BranchLabelArray, BranchEamArray, TryArity, MetaLabel, AuxCode8, AuxCode9),
 		Table = [meta:ref(MetaLabel)|Table0]
 	    )
 	;
@@ -529,7 +530,7 @@ list_tags_only([[],list]) :- !.
 
 % A "group" is a sequence of clauses linked by try/retry/trust-instructions.
 % Get the label for the given group. Create a try sequence if necessary.
-create_group(Group, LabelTable, BranchLabelArray, TryArity, GroupLabel, AuxCode1, AuxCode) :-
+create_group(Group, LabelTable, BranchLabelArray, BranchEamArray, TryArity, GroupLabel, AuxCode1, AuxCode) :-
 	( Group = [] ->
 	    AuxCode1 = AuxCode,
 	    GroupLabel = fail
@@ -537,7 +538,7 @@ create_group(Group, LabelTable, BranchLabelArray, TryArity, GroupLabel, AuxCode1
 	    AuxCode1 = AuxCode
 	;
 	    hash_set(LabelTable, Group, GroupLabel),
-	    emit_try_sequence(Group, BranchLabelArray, TryArity, GroupLabel, AuxCode1, AuxCode)
+	    emit_try_sequence(Group, BranchLabelArray, BranchEamArray, TryArity, GroupLabel, AuxCode1, AuxCode)
 	).
 
 
@@ -584,7 +585,7 @@ emit_switch_on_value(_VarId, structure, Table, DefaultLabel, VarLoc, RegDesc,
 		    regs:[RegDesc]}|Code], Code).
 
 
-emit_try_sequence(Group, BranchLabelArray, TryArity, TryLabel, Code1, Code6) :-
+emit_try_sequence(Group, BranchLabelArray, BranchEamArray, TryArity, TryLabel, Code1, Code6) :-
 	( Group = [BranchNr1|BranchNrs2toN] ->
 	    arg(BranchNr1, BranchLabelArray, BranchLabel1),
 	    ( BranchNrs2toN == [] ->
@@ -598,13 +599,15 @@ emit_try_sequence(Group, BranchLabelArray, TryArity, TryLabel, Code1, Code6) :-
 		(
 		    fromto(BranchNrs2toN,[BranchNr|BranchNrs],BranchNrs,[BranchNrN]),
 		    fromto(Code2,Code3,Code4,Code5),
-		    param(BranchLabelArray)
+		    param(BranchLabelArray,BranchEamArray)
 		do
 		    arg(BranchNr, BranchLabelArray, BranchLabel),
-		    Code3 = [code{instr:retry_inline(0,ref(BranchLabel)),regs:[]}|Code4]
+		    arg(BranchNr, BranchEamArray, BranchEam),
+		    Code3 = [code{instr:retry_inline(0,ref(BranchLabel),eam(BranchEam)),regs:[]}|Code4]
 		),
 		arg(BranchNrN, BranchLabelArray, BranchLabelN),
-		Code5 = [code{instr:trust_inline(0,ref(BranchLabelN)),regs:[]}|Code6]
+		arg(BranchNrN, BranchEamArray, BranchEamN),
+		Code5 = [code{instr:trust_inline(0,ref(BranchLabelN),eam(BranchEamN)),regs:[]}|Code6]
 	    )
 	;
 	    TryLabel = fail, Code1 = Code6
