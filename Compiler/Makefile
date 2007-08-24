@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile,v 1.3 2007/05/17 23:59:43 jschimpf Exp $
+# $Id: Makefile,v 1.4 2007/08/24 23:16:08 kish_shen Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -107,6 +107,10 @@ test:
 	@if diff test.ref test.res ; then echo Compiler unit test ok ; \
 	else echo Compiler unit test failed ; fi
 
+testo:
+	@$(AUX_ECLIPSE) -b compiler_test.ecl -e ftesto
+	@if diff testo.ref testo.res ; then echo Optimised Compiler unit test ok ; \
+	else echo Compiler unit test failed ; fi
 
 # Test Chat application
 

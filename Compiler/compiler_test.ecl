@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.3 2007/05/17 23:59:43 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.4 2007/08/24 23:16:08 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -62,6 +62,10 @@ compile :-
 test(Name) :-
 	test(Name, [load:none,output:print,debug:off,expand_goals:off,print_indexes:on]).
 
+testo(Name) :-
+	test(Name, [load:none,output:print,debug:off,expand_goals:off,
+                    print_indexes:on,opt_level:1]).
+
 test(Name, Options) :-
 	(
 	    testclause(Name, Pred0),
@@ -72,7 +76,7 @@ test(Name, Options) :-
 	    block(
 		    ( compile_term(Pred, Options) ->
 			true
-		    ;
+                    ;
 			printf("%n------ Test %w failed -------%n", [Name])
 		    ),
 		    Tag,
@@ -99,6 +103,8 @@ test(Name, Options) :-
 test :-
 	test(_).
 
+testo :-
+        testo(_).
 
 % Run all tests with output to file 'test.res'
 
@@ -109,6 +115,12 @@ ftest :-
 	close(warning_output),
 	close(output).
 
+ftesto :-
+	open("testo.res",write,output),
+	set_stream(warning_output, output),
+	testo,
+	close(warning_output),
+	close(output).
 
 % Run coverage test
 
