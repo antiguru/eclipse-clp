@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.5 2007/08/20 01:24:12 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.6 2007/08/24 23:13:03 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/08/20 01:24:12 $").
+:- comment(date, "$Date: 2007/08/24 23:13:03 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -293,7 +293,7 @@ next_state(Instr, State, NextState) :-
     unconditional_transfer(chain(_)).
     unconditional_transfer(chaind(_)).
     unconditional_transfer(trust(_,_)).
-    unconditional_transfer(trust_inline(_,_)).
+    unconditional_transfer(trust_inline(_,_,_)).
 
     % these are indexing branch instructions with a default fall-through
     % case. It is desirable that the fall-through code is contiguous with
@@ -307,7 +307,7 @@ next_state(Instr, State, NextState) :-
     indexing_branch(trust_me(_)).
     indexing_branch(retry_me_inline(_,_,_)).
     indexing_branch(trust_me_inline(_,_)).
-    indexing_branch(retry_inline(_,_)).
+    indexing_branch(retry_inline(_,_,_)).
 
 
 % interchunk_simplify is intended to do peephole optimisations across
