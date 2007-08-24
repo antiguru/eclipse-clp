@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.3 2007/05/17 23:47:27 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.4 2007/08/24 21:37:39 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -1375,12 +1375,12 @@ Code Template:
 	}
 	else if (IsRetryInlineFrame(top.top))
 	{
-	    edesc = EnvDescPP((vmcode*)top.top->backtrack[RETRY_INLINE_ALT_OFFSET] - 1);
+	    edesc = EnvDescPP(top.top->backtrack + RETRY_INLINE_SIZE - 1);
 	    pw = (pword *)(fp.chp + 1);
 	}
 	else if (IsTrustInlineFrame(top.top))
 	{
-	    edesc = EnvDescPP((vmcode*)top.top->backtrack[TRUST_INLINE_ALT_OFFSET] - 1);
+	    edesc = EnvDescPP(top.top->backtrack + TRUST_INLINE_SIZE - 1);
 	    pw = (pword *)(fp.chp + 1);
 	}
 	else if (IsParallelFrame(top.top))
@@ -1546,11 +1546,11 @@ Code Template:
 	}
 	else if (IsRetryInlineFrame(top.top))
 	{
-	    edesc = EnvDescPP((vmcode*)top.top->backtrack[RETRY_INLINE_ALT_OFFSET] - 1);
+	    edesc = EnvDescPP(top.top->backtrack + RETRY_INLINE_SIZE - 1);
 	}
 	else if (IsTrustInlineFrame(top.top))
 	{
-	    edesc = EnvDescPP((vmcode*)top.top->backtrack[TRUST_INLINE_ALT_OFFSET] - 1);
+	    edesc = EnvDescPP(top.top->backtrack + TRUST_INLINE_SIZE - 1);
 	}
 	else /* if (IsChoicePoint(top.top)) */
 	{
@@ -2597,11 +2597,11 @@ mark_dids_from_stacks(long int arity)
 	    }
 	    else if (IsRetryInlineFrame(top.top))
 	    {
-		edesc = EnvDescPP((vmcode*)top.top->backtrack[RETRY_INLINE_ALT_OFFSET] - 1);
+		edesc = EnvDescPP(top.top->backtrack + RETRY_INLINE_SIZE - 1);
 	    }
 	    else if (IsTrustInlineFrame(top.top))
 	    {
-		edesc = EnvDescPP((vmcode*)top.top->backtrack[TRUST_INLINE_ALT_OFFSET] - 1);
+		edesc = EnvDescPP(top.top->backtrack + TRUST_INLINE_SIZE - 1);
 	    }
 	    else if (IsInterruptFrame(top.top) || IsRecursionFrame(top.top))
 	    {

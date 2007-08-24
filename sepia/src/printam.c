@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.7 2007/08/22 23:07:24 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.8 2007/08/24 21:37:39 jschimpf Exp $
  */
 
 /*
@@ -957,15 +957,26 @@ print_am(register vmcode *code,
 
 	case Retry_me_else:
 	case Retry:
-	case Retry_inline:
 		Port;
 		Code_Label;
 		break;
 
+	case Retry_inline:
+		Port;
+		Code_Label;
+		EnvDesc;
+		break;
+
 	case Trust:
+		Port;
+		Code_Label;
+		Nl;
+		break;
+
 	case Trust_inline:
 		Port;
 		Code_Label;
+		EnvDesc;
 		Nl;
 		break;
 

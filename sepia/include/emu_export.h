@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.6 2007/06/03 17:03:11 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.7 2007/08/24 21:36:43 jschimpf Exp $
  */
 
 /*
@@ -81,10 +81,10 @@ extern vmcode	it_fail_code_[],
 #define TRUST_ME_INLINE_SIZE 3
 #define IsTrustMeInlineFrame(top)\
 	SameCode(*((vmcode *)(top)->backtrack), Trust_me_inline)
-#define RETRY_INLINE_ALT_OFFSET 2
+#define RETRY_INLINE_SIZE 4
 #define IsRetryInlineFrame(top)\
 	SameCode(*((vmcode *)(top)->backtrack), Retry_inline)
-#define TRUST_INLINE_ALT_OFFSET 2
+#define TRUST_INLINE_SIZE 4
 #define IsTrustInlineFrame(top)\
 	SameCode(*((vmcode *)(top)->backtrack), Trust_inline)
 

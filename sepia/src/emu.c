@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.10 2007/08/03 13:48:59 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.11 2007/08/24 21:37:39 jschimpf Exp $
  */
 
 /*
@@ -3767,6 +3767,53 @@ _globalize_if_needed_:
 
 /***********************************************
  * OR-level instructions
+
+ ECLiPSe 5.X compiler:
+
+ Main sequence for clause choicepoints:
+     Try_me_else	debug arity elselabel
+	 <clause1>
+     Retry_me_else	debug elselabel
+	 <clause2>
+     Trust_me		debug
+	 <clause3>
+
+ Sub-sequences:
+     Try		debug arity melabel
+     Retry		debug melabel
+     Trust		debug melabel
+
+ Sub-sequence can share tails via:
+     Trylab		debug arity melabel elselabel
+
+     Retrylab		debug melabel elselabel
+
+     Trust		debug melabel
+
+ Inline disjunctions (no subsequences used):
+     Try_me_else	debug arity elselabel
+	 <branch1>
+     Retry_me_inline	debug elselabel EAM
+	 <branch2>
+     Trust_me_inline	debug EAM
+	 <branch3>
+
+
+ ECLiPSe 6.X compiler:
+
+ Main sequences:
+     Try_me_else	debug arity elselabel
+	 <branch1>
+     Retry_me_inline	debug elselabel EAM
+	 <branch2>
+     Trust_me_inline	debug EAM
+	 <branch3>
+
+ Sub-sequences:
+     Try		debug arity melabel
+     Retry_inline	debug melabel EAM
+     Trust_inline	debug melabel EAM
+
  ***********************************************/
 
 #define BChpParArgs(top)	((pword *) (ChpPar(BPrev(top)) + 1))
@@ -3785,11 +3832,10 @@ _globalize_if_needed_:
 	    goto _trust_me_;
 
 	/* Operationally the same as Trust, but points to a branch of an
-	 * inline disjunction rather than a clause. That branch code must
-	 * be predeceded by a retry/trust_me_inline with environment size.
+	 * inline disjunction rather than a clause.
 	 * We must make sure that the C compiler does not merge Trust and
 	 * Trust_inline, because the opcodes must remain distinguishable! */
-	Case(Trust_inline, I_Trust_inline)		/* debug,alt */
+	Case(Trust_inline, I_Trust_inline)		/* debug,alt,envsize */
 	    DBG_PORT = PP->nint;
 	    PP = PP[1].code;
 	    goto _trust_me_;
@@ -4337,13 +4383,10 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT) */
 	    goto _retry_me_;		/* (DBG_PORT) */
 
 	/* Operationally the same as Retry, but points to a branch of an
-	 * inline disjunction rather than a clause. That branch code must
-	 * be predeceded by a retry_me_inline with environment size.
-	 * We must make sure that the C compiler does not merge Retry and
-	 * Retry_inline, because the opcodes must remain distinguishable! */
-	Case(Retry_inline, I_Retry_inline)	/* debug branch */
+	 * inline disjunction rather than a clause, and has envsize. */
+	Case(Retry_inline, I_Retry_inline)	/* debug branch envsize */
 	    DBG_PORT = PP->nint;
-	    BBp(B.args) = (vmcode *) (PP + 2);
+	    BBp(B.args) = (vmcode *) (PP + 3);
 	    PP = PP[1].code;
 	    goto _retry_me_;		/* (DBG_PORT) */
 
