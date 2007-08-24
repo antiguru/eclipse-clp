@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.6 2007/06/03 17:08:15 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.7 2007/08/24 15:28:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/06/03 17:08:15 $").
+:- comment(date, "$Date: 2007/08/24 15:28:44 $").
 
 
 :- lib(hash).
@@ -822,6 +822,10 @@ generate_simple_goal(goal{functor: (=)/2, args:[Arg1,Arg2],definition_module:sep
 	generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code), % may fail
 	!.
 
+generate_simple_goal(goal{functor: (==)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code) ?-
+	generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code), % may fail
+	!.
+
 generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code) :-
 	Goal = goal{functor: (?=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel},
 	!,
@@ -1110,6 +1114,33 @@ generate_in_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
 	    variable_occurrence(Arg1, ChunkData0, ChunkData1, VarOccDesc),
 	    verify VarOccDesc == tmp,
 	    in_head(VarId, Arg2, ChunkData1, ChunkData, Code0, Code)
+	).
+
+
+%
+% Identity ==/2
+% implement some cases via in_get_xxx instructions, otherwise fail
+%
+
+generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
+	atomic(Arg1),
+	Arg2 = variable{},
+	!,
+	generate_identity(Arg2, Arg1, ChunkData0, ChunkData, Code0, Code).
+generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
+	Arg1 = variable{varid:VarId},
+	atomic(Arg2),
+	!,
+	put_variable(Arg1, ChunkData0, ChunkData, Code0, Code1),
+	Code1 = [code{instr:Instr,regs:[r(VarId,RI,use,_)]}|Code],
+	in_get_const(RI, Arg2, Instr).
+generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
+	atomic(Arg1), atomic(Arg2),
+	ChunkData0 = ChunkData,
+	( Arg1 = Arg2 ->
+	    Code0 = Code
+	;
+	    Code0 = [code{instr:failure,regs:[]}|Code]
 	).
 
 

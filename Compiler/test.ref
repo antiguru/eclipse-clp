@@ -3356,9 +3356,8 @@ label(L2):
 label(L3):
 	try_me_else              0     0     ref(L5) 
 label(L4):
-	put_atom                 a(1)     a 
-	move                     y(2)     a(2) 
-	get_matched_value        a(2)     a(1) 
+	move                     y(2)     a(1) 
+	in_get_atom              a(1)     a 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
 	callf                    p1 / 0     Y[] 
@@ -3368,9 +3367,8 @@ label(L5):
 label(L6):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
-	put_atom                 a(1)     b 
-	move                     y(2)     a(2) 
-	get_matched_value        a(2)     a(1) 
+	move                     y(2)     a(1) 
+	in_get_atom              a(1)     b 
 	callf                    p2 / 0     Y[] 
 label(L7):
 	exit                 
@@ -3740,9 +3738,8 @@ label(L2):
 label(L3):
 	try_me_else              0     0     ref(L5) 
 label(L4):
-	put_atom                 a(1)     a 
-	move                     y(2)     a(2) 
-	get_matched_value        a(1)     a(2) 
+	move                     y(2)     a(1) 
+	in_get_atom              a(1)     a 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
 	callf                    p1 / 0     Y[] 
@@ -3752,9 +3749,8 @@ label(L5):
 label(L6):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
-	put_atom                 a(1)     b 
-	move                     y(2)     a(2) 
-	get_matched_value        a(1)     a(2) 
+	move                     y(2)     a(1) 
+	in_get_atom              a(1)     b 
 	callf                    p2 / 0     Y[] 
 label(L7):
 	exit                 
@@ -3811,9 +3807,8 @@ label(L2):
 label(L3):
 	try_me_else              0     0     ref(L5) 
 label(L4):
-	put_atom                 a(1)     a 
-	move                     y(2)     a(2) 
-	get_matched_value        a(1)     a(2) 
+	move                     y(2)     a(1) 
+	in_get_atom              a(1)     a 
 	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
 	callf                    p1 / 0     Y[] 
@@ -3823,9 +3818,8 @@ label(L5):
 label(L6):
 	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
-	put_atom                 a(1)     b 
-	move                     y(2)     a(2) 
-	get_matched_value        a(1)     a(2) 
+	move                     y(2)     a(1) 
+	in_get_atom              a(1)     b 
 	callf                    p2 / 0     Y[] 
 	branch                   ref(L9) 
 label(L7):
@@ -3894,9 +3888,8 @@ p / 1:
 label(L0):
 	try_me_else              0     0     ref(L2) 
 label(L1):
-	put_nil                  a(1) 
-	move                     y(1)     a(2) 
-	get_matched_value        a(2)     a(1) 
+	move                     y(1)     a(1) 
+	in_get_nil               a(1) 
 	callf                    p / 0     Y[] 
 	branch                   ref(L4) 
 label(L2):
@@ -3958,9 +3951,8 @@ label(L1):
 label(L2):
 	trust_me_inline          0     Y[1] 
 label(L3):
-	put_string               a(1)     "hello" 
-	move                     y(1)     a(2) 
-	get_matched_value        a(2)     a(1) 
+	move                     y(1)     a(1) 
+	in_get_string            a(1)     "hello" 
 	callf                    s / 0     Y[] 
 label(L4):
 	exit                 
@@ -4009,9 +4001,8 @@ p / 1:
 label(L0):
 	try_me_else              0     0     ref(L2) 
 label(L1):
-	put_nil                  a(1) 
-	move                     y(1)     a(2) 
-	get_matched_value        a(2)     a(1) 
+	move                     y(1)     a(1) 
+	in_get_nil               a(1) 
 	callf                    p / 0     Y[] 
 	branch                   ref(L6) 
 label(L2):
@@ -4049,8 +4040,7 @@ p / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_variable             a(1) 
-	put_nil                  a(2) 
-	get_matched_value        a(1)     a(2) 
+	in_get_nil               a(1) 
 	callf                    p / 0     Y[] 
 	branch                   ref(L3) 
 label(L1):
@@ -9943,8 +9933,7 @@ at1 / 0:
 	put_structure            a(3)     f / 1 
 	push_variable            a(1) 
 	bi_var                   a(3) 
-	put_atom                 a(3)     a 
-	get_matched_value        a(1)     a(3) 
+	in_get_atom              a(1)     a 
 	put_structure            a(2)     f / 1 
 	push_local_value         a(1) 
 	jmp                      q / 2 
@@ -11101,8 +11090,7 @@ s / 0:
 	try_me_else              0     0     ref(L1) 
 label(L0):
 	put_variable             a(1) 
-	put_atom                 a(2)     open 
-	get_matched_value        a(1)     a(2) 
+	in_get_atom              a(1)     open 
 	cut1                     2 
 	branch                   ref(L7) 
 label(L1):
@@ -11110,8 +11098,7 @@ label(L1):
 label(L2):
 	savecut                  a(1) 
 	put_variable             a(2) 
-	put_atom                 a(3)     def 
-	get_matched_value        a(2)     a(3) 
+	in_get_atom              a(2)     def 
 	cut                      a(1) 
 	savecut                  y(2) 
 	try_me_else              0     0     ref(L4) 
