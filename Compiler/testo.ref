@@ -249,20 +249,22 @@ p / 2:
 label(1):
 	allocate                 0 
 	atom_switch              a(1) 
-		a: 	ref(4)
-		b: 	ref(6)
+		a: 	ref(8)
+		b: 	ref(9)
 		default: 	ref(fail)
 
 label(3):
 	try_me_else              0     2     ref(5) 
 label(4):
 	get_atom                 a(1)     a 
+label(8):
 	move                     a(2)     a(1) 
 	chain                    q / 1 
 label(5):
 	trust_me_inline          0     Y[] 
 label(6):
 	get_atom                 a(1)     b 
+label(9):
 	move                     a(2)     a(1) 
 	chain                    r / 1 
 
@@ -700,7 +702,8 @@ label(1):
 	savecut                  y(1) 
 	try_me_else              0     0     ref(3) 
 label(2):
-	exitc                
+	cut                      y(1)     2 
+	exit                 
 label(3):
 	trust_me_inline          0     Y[1] 
 label(4):
@@ -708,7 +711,8 @@ label(4):
 	callf                    p / 1     Y[1,2] 
 	move                     y(2)     a(1) 
 	callf                    p / 1     Y[1] 
-	exitc                
+	cut                      y(1)     2 
+	exit                 
 
 ------ Test 42 -------
 p(A, B) :-
@@ -724,7 +728,8 @@ label(1):
 	savecut                  y(1) 
 	try_me_else              0     2     ref(3) 
 label(2):
-	exitc                
+	cut                      y(1)     2 
+	exit                 
 label(3):
 	trust_me_inline          0     Y[1] 
 label(4):
@@ -732,7 +737,8 @@ label(4):
 	callf                    p / 1     Y[1,2] 
 	move                     y(2)     a(1) 
 	callf                    p / 1     Y[1] 
-	exitc                
+	cut                      y(1)     2 
+	exit                 
 
 ------ Test 43 -------
 p :-
@@ -2090,7 +2096,7 @@ label(4):
 	exit                 
 label(16):
 	try                      0     3     ref(4) 
-	trust_inline             0     ref(7) 
+	trust_inline             0     ref(7)     Y[] 
 label(6):
 	retry_me_inline          0     ref(9)     Y[] 
 label(7):
@@ -3123,10 +3129,10 @@ label(5):
 	chain                    p1 / 0 
 label(11):
 	try                      0     0     ref(5) 
-	trust_inline             0     ref(9) 
+	trust_inline             0     ref(9)     Y[2] 
 label(12):
 	try                      0     0     ref(7) 
-	trust_inline             0     ref(9) 
+	trust_inline             0     ref(9)     Y[2] 
 label(6):
 	retry_me_inline          0     ref(8)     Y[1,2] 
 label(7):
@@ -3197,14 +3203,14 @@ label(1):
 	branch                   ref(4) 
 label(10):
 	try                      0     0     ref(6) 
-	trust_inline             0     ref(8) 
+	trust_inline             0     ref(8)     Y[1] 
 label(11):
 	integer_switch           y(1) 
 		1: 	ref(2)
 		default: 	ref(10)
 
 	try                      0     0     ref(4) 
-	trust_inline             0     ref(8) 
+	trust_inline             0     ref(8)     Y[1] 
 label(2):
 	atom_switch              y(2) 
 		a: 	ref(12)
@@ -3221,7 +3227,7 @@ label(4):
 	chain                    p1 / 0 
 label(12):
 	try                      0     0     ref(4) 
-	trust_inline             0     ref(8) 
+	trust_inline             0     ref(8)     Y[1] 
 label(5):
 	retry_me_inline          0     ref(7)     Y[1,2] 
 label(6):
@@ -3287,13 +3293,13 @@ label(1):
 		structure: 	ref(fail)
 
 	try                      0     0     ref(3) 
-	trust_inline             0     ref(5) 
+	trust_inline             0     ref(5)     Y[1] 
 label(14):
 	try                      0     0     ref(3) 
-	trust_inline             0     ref(5) 
+	trust_inline             0     ref(5)     Y[1] 
 label(11):
 	try                      0     0     ref(7) 
-	trust_inline             0     ref(9) 
+	trust_inline             0     ref(9)     Y[1] 
 label(9):
 	move                     y(1)     a(1) 
 	bi_number                a(1) 
@@ -3318,12 +3324,12 @@ label(7):
 	chain                    p3 / 0 
 label(12):
 	try                      0     0     ref(3) 
-	retry_inline             0     ref(7) 
-	trust_inline             0     ref(9) 
+	retry_inline             0     ref(7)     Y[1] 
+	trust_inline             0     ref(9)     Y[1] 
 label(13):
 	try                      0     0     ref(5) 
-	retry_inline             0     ref(7) 
-	trust_inline             0     ref(9) 
+	retry_inline             0     ref(7)     Y[1] 
+	trust_inline             0     ref(9)     Y[1] 
 
 ------ Test idx(6) -------
 p :-
@@ -3576,10 +3582,10 @@ label(4):
 	chain                    p / 0 
 label(14):
 	try                      0     0     ref(8) 
-	trust_inline             0     ref(12) 
+	trust_inline             0     ref(12)     Y[] 
 label(15):
 	try                      0     0     ref(4) 
-	trust_inline             0     ref(12) 
+	trust_inline             0     ref(12)     Y[] 
 label(7):
 	retry_me_inline          0     ref(11)     Y[1] 
 label(8):
@@ -3756,10 +3762,10 @@ label(9):
 	chain                    p3 / 0 
 label(11):
 	try                      0     0     ref(5) 
-	trust_inline             0     ref(9) 
+	trust_inline             0     ref(9)     Y[1,2] 
 label(12):
 	try                      0     0     ref(7) 
-	trust_inline             0     ref(9) 
+	trust_inline             0     ref(9)     Y[1,2] 
 label(5):
 	move                     y(2)     a(1) 
 	in_get_atom              a(1)     a 
@@ -3791,7 +3797,7 @@ label(1):
 label(2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p / 0 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -4434,7 +4440,7 @@ label(3):
 	chain                    p1 / 0 
 label(9):
 	try                      0     0     ref(3) 
-	trust_inline             0     ref(5) 
+	trust_inline             0     ref(5)     Y[1] 
 label(4):
 	retry_me_inline          0     ref(6)     Y[1] 
 label(5):
@@ -4469,14 +4475,15 @@ p / 1:
 label(1):
 	allocate                 1 
 	integer_switch           a(1) 
-		1: 	ref(4)
-		2: 	ref(6)
+		1: 	ref(8)
+		2: 	ref(9)
 		default: 	ref(fail)
 
 label(3):
 	try_me_else              0     1     ref(5) 
 label(4):
 	get_integer              a(1)     1 
+label(8):
 	move                     a(1)     y(1) 
 	callf                    p / 0     Y[1] 
 	move                     y(1)     a(1) 
@@ -4485,6 +4492,7 @@ label(5):
 	trust_me_inline          0     Y[] 
 label(6):
 	get_integer              a(1)     2 
+label(9):
 	move                     a(1)     y(1) 
 	callf                    q / 0     Y[1] 
 	move                     y(1)     a(1) 
@@ -4734,29 +4742,29 @@ label(3):
 	write_variable           a(1) 
 	write_variable           a(2) 
 	write_variable           a(3) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p1 / 3 
 label(7):
 	get_list                 a(1)     ref(8) 
 	write_variable           a(1) 
 	write_variable           a(2) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p2 / 2 
 label(13):
 	functor_switch           a(1) 
-		f / 3: 	ref(3)
+		f / 3: 	ref(4)
 		default: 	ref(11)
 
 label(4):
 	read_variable            a(1) 
 	read_variable            a(2) 
 	read_variable            a(3) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p1 / 3 
 label(8):
 	read_variable            a(1) 
 	read_variable            a(2) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p2 / 2 
 label(11):
 	bi_compound              a(1) 
@@ -4805,11 +4813,11 @@ label(3):
 	move                     a(2)     a(3) 
 	write_variable           a(2) 
 	write_local_value        a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p1 / 3 
 label(13):
 	try                      0     2     ref(7) 
-	trust_inline             0     ref(11) 
+	trust_inline             0     ref(11)     Y[] 
 label(15):
 	functor_switch           a(1) 
 		f / 3: 	ref(14)
@@ -4820,24 +4828,24 @@ label(4):
 	move                     a(2)     a(3) 
 	read_variable            a(2) 
 	read_value               a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p1 / 3 
 label(7):
 	get_list                 a(1)     ref(8) 
 	write_variable           a(1) 
 	write_local_value        a(2) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p2 / 2 
 label(11):
 	bi_compound              a(1) 
 	chain                    p3 / 0 
 label(14):
 	try                      0     2     ref(3) 
-	trust_inline             0     ref(11) 
+	trust_inline             0     ref(11)     Y[] 
 label(8):
 	read_variable            a(1) 
 	read_value               a(2) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p2 / 2 
 
 ------ Test idx(35) -------
@@ -4884,24 +4892,24 @@ label(6):
 label(7):
 	read_variable            a(1) 
 	read_variable            a(2) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p2 / 2 
 label(11):
 	functor_switch           a(1) 
 		f / 3: 	ref(3)
 		default: 	ref(9)
 
+label(9):
+	bi_compound              a(1) 
+	chain                    p3 / 0 
 label(3):
 	in_get_structure         a(1)     f / 3     ref(4) 
 label(4):
 	read_variable            a(1) 
 	read_variable            a(2) 
 	read_variable            a(3) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p1 / 3 
-label(9):
-	bi_compound              a(1) 
-	chain                    p3 / 0 
 
 ------ Test idx(36) -------
 p(f(A, B, C), C) :-
@@ -4944,7 +4952,7 @@ label(1):
 	branch                   ref(fail) 
 label(11):
 	try                      0     2     ref(6) 
-	trust_inline             0     ref(9) 
+	trust_inline             0     ref(9)     Y[] 
 label(13):
 	functor_switch           a(1) 
 		f / 3: 	ref(12)
@@ -4955,14 +4963,14 @@ label(6):
 label(7):
 	read_variable            a(1) 
 	read_matched_value       a(2) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p2 / 2 
 label(9):
 	bi_compound              a(1) 
 	chain                    p3 / 0 
 label(12):
 	try                      0     2     ref(3) 
-	trust_inline             0     ref(9) 
+	trust_inline             0     ref(9)     Y[] 
 label(3):
 	in_get_structure         a(1)     f / 3     ref(4) 
 label(4):
@@ -4970,7 +4978,7 @@ label(4):
 	move                     a(2)     a(3) 
 	read_variable            a(2) 
 	read_matched_value       a(3) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p1 / 3 
 
 ------ Test idx(40) -------
@@ -5012,10 +5020,10 @@ label(1):
 		structure: 	ref(7)
 
 	try                      0     0     ref(3) 
-	trust_inline             0     ref(7) 
+	trust_inline             0     ref(7)     Y[] 
 label(10):
 	try                      0     0     ref(5) 
-	trust_inline             0     ref(7) 
+	trust_inline             0     ref(7)     Y[] 
 label(7):
 	chain                    p3 / 0 
 label(3):
@@ -5441,7 +5449,7 @@ label(3):
 	chain                    p1 / 0 
 label(9):
 	try                      0     0     ref(5) 
-	trust_inline             0     ref(7) 
+	trust_inline             0     ref(7)     Y[] 
 label(4):
 	retry_me_inline          0     ref(6)     Y[1] 
 label(5):
@@ -5548,7 +5556,7 @@ label(1):
 		structure: 	ref(fail)
 
 	try                      0     0     ref(3) 
-	trust_inline             0     ref(5) 
+	trust_inline             0     ref(5)     Y[1] 
 label(5):
 	move                     y(1)     a(1) 
 	bi_var                   a(1) 
@@ -5829,8 +5837,8 @@ label(10):
 	chain                    p4 / 0 
 label(12):
 	try                      0     0     ref(4) 
-	retry_inline             0     ref(6) 
-	trust_inline             0     ref(8) 
+	retry_inline             0     ref(6)     Y[1,2] 
+	trust_inline             0     ref(8)     Y[1,2] 
 label(4):
 	move                     y(1)     a(1) 
 	bi_integer               a(1) 
@@ -6004,22 +6012,23 @@ label(1):
 	allocate                 1 
 	savecut                  y(1) 
 	atom_switch              a(1) 
-		a: 	ref(6)
+		a: 	ref(10)
 		default: 	ref(8)
 
 label(4):
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	get_value                a(2)     a(3) 
 	exit                 
+label(8):
+	chain                    q / 3 
 label(6):
 	get_atom                 a(1)     a 
-	cut1                     1 
+label(10):
+	cut                      y(1)     1 
 	move                     a(2)     a(1) 
 	move                     a(3)     a(2) 
 	chain                    a / 2 
-label(8):
-	chain                    q / 3 
 
 ------ Test head(100) -------
 p(a) :-
@@ -7827,7 +7836,7 @@ label(3):
 	read_void            
 	read_attribute           suspend 
 	read_variable            a(2) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p / 2 
 label(4):
 	trust_me_inline          0     Y[] 
@@ -8115,7 +8124,7 @@ label(1):
 	try_me_else              0     0     ref(3) 
 label(2):
 	callf                    a / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    aa / 0 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -8141,7 +8150,7 @@ label(1):
 	try_me_else              0     0     ref(3) 
 label(2):
 	callf                    a / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    aa / 0 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -8177,19 +8186,19 @@ label(1):
 	try_me_else              0     0     ref(3) 
 label(2):
 	callf                    a / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    aa / 0 
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
 	callf                    b / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    bb / 0 
 label(5):
 	retry_me_inline          0     ref(7)     Y[1] 
 label(6):
 	callf                    c / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    cc / 0 
 label(7):
 	trust_me_inline          0     Y[] 
@@ -8229,19 +8238,19 @@ label(1):
 	try_me_else              0     0     ref(3) 
 label(2):
 	callf                    a / 0     Y[1] 
-	cut1                     2 
+	cut                      y(1)     2 
 	chain                    aa / 0 
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
 	callf                    b / 0     Y[1] 
-	cut1                     2 
+	cut                      y(1)     2 
 	chain                    bb / 0 
 label(5):
 	retry_me_inline          0     ref(7)     Y[1] 
 label(6):
 	callf                    c / 0     Y[1] 
-	cut1                     2 
+	cut                      y(1)     2 
 	chain                    cc / 0 
 label(7):
 	trust_me_inline          0     Y[] 
@@ -8282,13 +8291,13 @@ label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
 	callf                    b / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    bb / 0 
 label(5):
 	retry_me_inline          0     ref(7)     Y[1] 
 label(6):
 	callf                    c / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    cc / 0 
 label(7):
 	trust_me_inline          0     Y[] 
@@ -8322,7 +8331,7 @@ label(1):
 	try_me_else              0     0     ref(3) 
 label(2):
 	callf                    a / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    aa / 0 
 label(3):
 	retry_me_inline          0     ref(5)     Y[] 
@@ -8332,7 +8341,7 @@ label(5):
 	retry_me_inline          0     ref(7)     Y[1] 
 label(6):
 	callf                    c / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    cc / 0 
 label(7):
 	trust_me_inline          0     Y[] 
@@ -8366,13 +8375,13 @@ label(1):
 	try_me_else              0     0     ref(3) 
 label(2):
 	callf                    a / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    aa / 0 
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
 	callf                    b / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    bb / 0 
 label(5):
 	retry_me_inline          0     ref(7)     Y[] 
@@ -8410,7 +8419,7 @@ label(1):
 	try_me_else              0     0     ref(3) 
 label(2):
 	callf                    a / 0     Y[1] 
-	cut1                     2 
+	cut                      y(1)     2 
 	chain                    aa / 0 
 label(3):
 	retry_me_inline          0     ref(8)     Y[] 
@@ -8489,7 +8498,7 @@ label(1):
 label(2):
 	savecut                  y(1) 
 	callf                    a / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    aa / 0 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -8590,7 +8599,7 @@ label(1):
 	callf                    q / 0     Y[] 
 	savecut                  y(1) 
 	callf                    a / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	callf                    b / 0     Y[] 
 	chain                    r / 0 
 
@@ -8696,7 +8705,6 @@ p :-
 
 p / 0:
 label(1):
-	savecut                  a(1) 
 	ret                  
 
 ------ Test cut(2) -------
@@ -8709,7 +8717,8 @@ label(1):
 	allocate                 1 
 	savecut                  y(1) 
 	callf                    q / 0     Y[1] 
-	exitc                
+	cut                      y(1)     1 
+	exit                 
 
 ------ Test cut(3) -------
 p :-
@@ -8722,7 +8731,7 @@ label(1):
 	allocate                 1 
 	savecut                  y(1) 
 	callf                    q / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    r / 0 
 
 ------ Test cut(4) -------
@@ -8740,7 +8749,7 @@ label(1):
 	try_me_else              0     0     ref(3) 
 label(2):
 	callf                    q / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    r / 0 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -8767,7 +8776,7 @@ label(2):
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    bb / 0 
 label(5):
 	trust_me_inline          0     Y[] 
@@ -8797,7 +8806,7 @@ label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
 	callf                    b / 0     Y[1] 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    bb / 0 
 label(5):
 	trust_me_inline          0     Y[] 
@@ -8961,28 +8970,29 @@ INDEXES for disjunction [2]
 conc / 3:
 label(1):
 	allocate                 0 
-	list_switch              a(1)     ref(6)     ref(4)     ref(fail) 
+	list_switch              a(1)     ref(7)     ref(12)     ref(fail) 
 	list_switch              a(3)     ref(3)     ref(4)     ref(4) 
 label(3):
 	try_me_else              0     3     ref(5) 
 label(4):
 	get_nil                  a(1) 
+label(12):
 	get_value                a(3)     a(2) 
 	exit                 
+label(7):
+	read_variable            a(4) 
+	read_variable            a(1) 
+label(8):
+	get_list                 a(3)     ref(9) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	chain                    conc / 3 
 label(5):
 	trust_me_inline          0     Y[] 
 label(6):
 	get_list                 a(1)     ref(7) 
 	write_variable           a(4) 
 	write_variable           a(1) 
-label(8):
-	get_list                 a(3)     ref(9) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	chain                    conc / 3 
-label(7):
-	read_variable            a(4) 
-	read_variable            a(1) 
 	branch                   ref(8) 
 label(9):
 	read_value               a(4) 
@@ -9142,26 +9152,20 @@ INDEXES for disjunction [2, 2, 2]
 simplify_code / 2:
 label(1):
 	allocate                 5 
-	list_switch              a(1)     ref(6)     ref(4)     ref(fail) 
+	list_switch              a(1)     ref(8)     ref(18)     ref(fail) 
 	list_switch              a(2)     ref(6)     ref(3)     ref(6) 
 label(3):
 	try_me_else              0     2     ref(5) 
 label(4):
 	get_nil                  a(1) 
+label(18):
 	get_nil                  a(2) 
 	exit                 
-label(5):
-	trust_me_inline          0     Y[] 
-label(6):
-	get_list                 a(1)     ref(8) 
-	first                
-	write_structure          code / 3 
-label(7):
-	write_variable           y(1) 
-	write_void           
-	write_void           
-	mode                     t(0)     ref(9) 
-	write_variable           y(2) 
+label(8):
+	read_structure           code / 3     ref(7) 
+	read_variable            y(1) 
+	mode                     t(0) 
+	read_variable            y(2) 
 label(10):
 	space                    -1 
 	savecut                  y(4) 
@@ -9178,14 +9182,18 @@ label(12):
 	move                     y(5)     a(1) 
 	move                     y(3)     a(2) 
 	chain                    simplify_code / 2 
-label(8):
-	read_structure           code / 3     ref(7) 
-	read_variable            y(1) 
-	mode                     t(0) 
-	read_variable            y(2) 
-	branch                   ref(10) 
-label(9):
-	read_variable            y(2) 
+label(5):
+	trust_me_inline          0     Y[] 
+label(6):
+	get_list                 a(1)     ref(8) 
+	first                
+	write_structure          code / 3 
+label(7):
+	write_variable           y(1) 
+	write_void           
+	write_void           
+	mode                     t(0)     ref(9) 
+	write_variable           y(2) 
 	branch                   ref(10) 
 label(13):
 	trust_me_inline          0     Y[1,2,3] 
@@ -9196,6 +9204,9 @@ label(14):
 	write_variable           a(2) 
 	move                     y(2)     a(1) 
 	chain                    simplify_code / 2 
+label(9):
+	read_variable            y(2) 
+	branch                   ref(10) 
 label(15):
 	read_value               y(1) 
 	read_variable            a(2) 
@@ -9452,23 +9463,27 @@ label(1):
 	allocate                 5 
 	savecut                  y(1) 
 	atom_switch              a(3) 
-		profile: 	ref(7)
-		lists: 	ref(5)
+		profile: 	ref(21)
+		lists: 	ref(22)
 		default: 	ref(17)
 
 label(5):
 	get_atom                 a(3)     lists 
-	exitc                
-label(7):
-	get_atom                 a(3)     profile 
-	exitc                
+label(22):
+	cut                      y(1)     5 
+	exit                 
 label(17):
 	try                      0     3     ref(9) 
-	retry_inline             0     ref(11) 
-	trust_inline             0     ref(15) 
+	retry_inline             0     ref(11)     Y[1] 
+	trust_inline             0     ref(15)     Y[] 
+label(7):
+	get_atom                 a(3)     profile 
+label(21):
+	cut                      y(1)     5 
+	exit                 
 label(9):
 	get_integer              a(1)     75 
-	cut1                     5 
+	cut                      y(1)     5 
 	move                     a(2)     y(3) 
 	move                     a(3)     y(4) 
 	put_atom                 a(2)     definition_module 
@@ -9480,7 +9495,7 @@ label(9):
 	move                     y(3)     a(1) 
 	move                     y(5)     a(2) 
 	callf                    get_deprecation_advice / 3     Y[1,2,3,4] 
-	cut1                     5 
+	cut                      y(1)     5 
 	put_integer              a(1)     75 
 	move                     y(3)     a(2) 
 	move                     y(4)     a(3) 
@@ -9498,13 +9513,15 @@ label(11):
 	write_variable           a(1) 
 	write_void           
 	callf                    known_library / 1     Y[1] 
-	exitc                
+	cut                      y(1)     5 
+	exit                 
 label(15):
 	chain                    warning_handler / 3 
 label(12):
 	read_variable            a(1) 
 	callf                    known_library / 1     Y[1] 
-	exitc                
+	cut                      y(1)     5 
+	exit                 
 
 ------ Test bug(8) -------
 attach_suspensions(postponed, A) ?-
@@ -9566,7 +9583,7 @@ label(9):
 	chain                    sepia_kernel : error_ / 3 
 label(5):
 	bi_atom                  a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    attach_suspensions1 / 2 
 label(11):
 	atom_switch              a(1) 
@@ -9575,7 +9592,7 @@ label(11):
 
 label(7):
 	bi_nonvar                a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	move                     a(2)     a(4) 
 	put_structure            a(2)     attach_suspensions / 2 
 	push_local_value         a(1) 
@@ -9585,7 +9602,7 @@ label(7):
 	chain                    sepia_kernel : error_ / 3 
 label(3):
 	in_get_atom              a(1)     postponed 
-	cut1                     1 
+	cut                      y(1)     1 
 	move                     a(2)     a(1) 
 	chain                    postpone_suspensions / 1 
 
@@ -9990,7 +10007,7 @@ label(1):
 label(2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    b / 0 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -10021,14 +10038,14 @@ label(1):
 label(2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    b / 0 
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    c / 0 
 label(5):
 	trust_me_inline          0     Y[] 
@@ -10053,7 +10070,7 @@ label(1):
 label(2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	exit                 
@@ -10084,7 +10101,7 @@ label(1):
 label(2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	callf                    b / 0     Y[] 
 label(5):
 	callf                    e / 0     Y[] 
@@ -10121,7 +10138,7 @@ label(1):
 label(2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	callf                    b / 0     Y[] 
 label(7):
 	callf                    e / 0     Y[] 
@@ -10131,7 +10148,7 @@ label(3):
 label(4):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	callf                    c / 0     Y[] 
 	branch                   ref(7) 
 label(5):
@@ -10160,7 +10177,7 @@ label(1):
 label(2):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	put_variable             a(1) 
 	bi_var                   a(1) 
 label(5):
@@ -10219,7 +10236,7 @@ label(2):
 	savecut                  y(2) 
 	callf                    true / 0     Y[1,2] 
 	cut                      y(2)     2 
-	cut1                     2 
+	cut                      y(1)     2 
 	failure              
 label(3):
 	trust_me_inline          0     Y[] 
@@ -10279,7 +10296,7 @@ label(1):
 	callf                    b / 0     Y[1,2] 
 	cut                      y(2)     2 
 	callf                    c / 0     Y[1] 
-	cut1                     2 
+	cut                      y(1)     2 
 	chain                    q / 0 
 
 ------ Test disj12 -------
@@ -10298,7 +10315,8 @@ label(1):
 	callf                    q / 0     Y[1] 
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	exitc                
+	cut                      y(1)     1 
+	exit                 
 
 ------ Test disj13 -------
 p :-
@@ -10314,7 +10332,7 @@ label(1):
 	callf                    q / 0     Y[1] 
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p / 1 
 
 ------ Test disj14 -------
@@ -10376,20 +10394,23 @@ label(2):
 	bi_var                   a(1) 
 	cut                      y(2)     2 
 	bi_var                   a(1) 
-	exitc                
+	cut                      y(1)     2 
+	exit                 
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
 	callf                    p / 0     Y[1] 
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	exitc                
+	cut                      y(1)     2 
+	exit                 
 label(5):
 	trust_me_inline          0     Y[1] 
 label(6):
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	exitc                
+	cut                      y(1)     2 
+	exit                 
 
 ------ Test disj16 -------
 p :-
@@ -10409,7 +10430,7 @@ label(2):
 	cut                      y(2)     3 
 	callf                    b / 0     Y[1,2] 
 	cut                      y(2)     3 
-	cut1                     3 
+	cut                      y(1)     3 
 	failure              
 label(3):
 	trust_me_inline          0     Y[] 
@@ -10472,7 +10493,6 @@ label(2):
 	savecut                  y(2) 
 	try_me_else              0     0     ref(4) 
 label(3):
-	savecut                  a(1) 
 	failure              
 label(6):
 	trust_me_inline          0     Y[] 
@@ -10481,7 +10501,7 @@ label(7):
 label(4):
 	trust_me_inline          0     Y[1] 
 label(5):
-	cut1                     2 
+	cut                      y(1)     2 
 	failure              
 
 ------ Test disj20 -------
@@ -10526,7 +10546,7 @@ label(1):
 	callf                    q / 0     Y[1] 
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut1                     1 
+	cut                      y(1)     1 
 	chain                    p / 1 
 
 ------ Test disj22 -------
@@ -10567,7 +10587,8 @@ label(1):
 	put_atom                 a(2)     eclipse 
 	move                     y(2)     a(1) 
 	callf                    sepia_kernel : untraced_call / 2     Y[1] 
-	exitc                
+	cut                      y(1)     2 
+	exit                 
 
 ------ Test disj24 -------
 p2([A|B], C, D) :-
@@ -10752,7 +10773,7 @@ label(1):
 label(2):
 	put_variable             a(1) 
 	in_get_atom              a(1)     open 
-	cut1                     2 
+	cut                      y(1)     2 
 	branch                   ref(7) 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -10807,7 +10828,7 @@ label(1):
 label(4):
 	move                     y(2)     a(3) 
 	get_integer              a(3)     1 
-	cut1                     2 
+	cut                      y(1)     2 
 	put_atom                 a(1)     ok 
 	put_atom                 a(2)     eclipse 
 	chain                    sepia_kernel : writeln_body / 2 
@@ -10844,7 +10865,8 @@ label(1):
 	put_atom                 a(2)     eclipse 
 	move                     y(3)     a(1) 
 	callf                    sepia_kernel : untraced_call / 2     Y[1] 
-	exitc                
+	cut                      y(1)     4 
+	exit                 
 
 ------ Test disj31 -------
 go(A) :-

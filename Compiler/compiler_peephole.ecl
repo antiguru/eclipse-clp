@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.6 2007/08/24 23:13:03 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.7 2007/08/25 23:00:25 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/08/24 23:13:03 $").
+:- comment(date, "$Date: 2007/08/25 23:00:25 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -59,7 +59,7 @@
 	code,	% code list
 	done)).	% 'done' if chunk already in final code list, else uninstantiated
 
-
+         
 % maximum size of code chunks that should be duplicated to save a branch
 max_joined_len(2).
 
@@ -79,8 +79,9 @@ max_joined_len(2).
 simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
 	( OptLevel > 0 ->
 	    flat_code_to_basic_blocks(CodeList, BasicBlockArray, Rejoins),
-            interchunk_simplify(BasicBlockArray, Rejoins, ReachedArray, Branches),
             make_nonreplicate_array(BasicBlockArray, Rejoins, NonRepArray),
+            interchunk_simplify(BasicBlockArray, Rejoins, NonRepArray,
+                                ReachedArray, Branches),
             ( for(_,1,max_joined_len), 
               param(BasicBlockArray, NonRepArray, ReachedArray) 
             do
@@ -295,6 +296,24 @@ next_state(Instr, State, NextState) :-
     unconditional_transfer(trust(_,_)).
     unconditional_transfer(trust_inline(_,_,_)).
 
+    % unconditional control transfer instruction to outside the predicate
+    % Subset of unconditional_transfer/1, plus extra instr from peephole
+    % optimisation.  Keep the two in sync!
+    % Separate definitions for the two to avoid cuts in merged definition
+    unconditional_transfer_out(exit).
+    unconditional_transfer_out(exitd).
+    unconditional_transfer_out(failure).
+    unconditional_transfer_out(ret).
+    unconditional_transfer_out(retd).
+    unconditional_transfer_out(retn).
+    unconditional_transfer_out(jmp(_)).
+    unconditional_transfer_out(jmpd(_)).
+    unconditional_transfer_out(chain(_)).
+    unconditional_transfer_out(chaind(_)).
+    /* generated instr from peephole optimiser */
+    unconditional_transfer_out(branchs(_,_)).
+    unconditional_transfer_out(jmpd(_,_)).
+
     % these are indexing branch instructions with a default fall-through
     % case. It is desirable that the fall-through code is contiguous with
     % the instruction rather than a branch to somewhere else. However, if 
@@ -307,29 +326,34 @@ next_state(Instr, State, NextState) :-
     indexing_branch(trust_me(_)).
     indexing_branch(retry_me_inline(_,_,_)).
     indexing_branch(trust_me_inline(_,_)).
-    indexing_branch(retry_inline(_,_,_)).
+    indexing_branch(retry_inline(_,_)).
 
+
+%----------------------------------------------------------------------
+% inter-chunk reachability and simplifications
+%----------------------------------------------------------------------
 
 % interchunk_simplify is intended to do peephole optimisations across
 % different chunks, connected by refs.
 % mark all reachable chunks by following the continuations and refs.
 % Rejoin any contiguous chunks, unless its first chunk is unreachable
 
-interchunk_simplify(BasicBlockArray, Rejoins, ReachedArray, Targets) :-
-        find_reached_chunks(BasicBlockArray, ReachedArray, Targets),
+interchunk_simplify(BasicBlockArray, Rejoins, NonRepArray, ReachedArray, Targets) :-
+        find_reached_chunks(BasicBlockArray, NonRepArray, ReachedArray, Targets),
         rejoin_contiguous_chunks(BasicBlockArray, ReachedArray, Rejoins).
 
-find_reached_chunks(BasicBlockArray, ReachedArray, Targets) :-
+find_reached_chunks(BasicBlockArray, NonRepArray, ReachedArray, Targets) :-
         functor(BasicBlockArray, F, N),
         functor(ReachedArray, F, N),
         functor(TargetArray, F, N), 
+        N1 is N + 1,  % start of extra label id
         arg(1, ReachedArray, []), % first chunk
         arg(1, BasicBlockArray, Chunk),
-        find_reached_chunks_(Chunk, BasicBlockArray, ReachedArray, 
-                             Targets, Targets, TargetArray).
+        find_reached_chunks_(Chunk, BasicBlockArray, NonRepArray, ReachedArray, 
+                             Targets, Targets, TargetArray, N1, _).
 
-find_reached_chunks_(Chunk, BasicBlockArray, ReachedArray, Targets,
-                     TargetsT0, TargetArray) :-
+find_reached_chunks_(Chunk, BasicBlockArray, NonRepArray, ReachedArray, Targets,
+                     TargetsT0, TargetArray, NL0, NL) :-
         Chunk = chunk{cont:Cont,code:Code},
         ( integer(Cont), Cont > 0 -> 
             arg(Cont, ReachedArray, []),
@@ -337,17 +361,18 @@ find_reached_chunks_(Chunk, BasicBlockArray, ReachedArray, Targets,
         ; 
             true
         ),
-        find_targets(Code, TargetArray, TargetsT0, TargetsT1),
+        process_targets(Code, BasicBlockArray, NonRepArray, TargetArray, 
+                     NL0, NL1, TargetsT0, TargetsT1),
         ( nonvar(ContChunk) ->
-            find_reached_chunks_(ContChunk, BasicBlockArray, ReachedArray, 
-                                 Targets, TargetsT1, TargetArray)
+            find_reached_chunks_(ContChunk, BasicBlockArray, NonRepArray, ReachedArray, 
+                                 Targets, TargetsT1, TargetArray, NL1, NL)
         ;
-            find_chunks_in_branch(Targets, BasicBlockArray, ReachedArray,
-                                  TargetsT1, TargetArray)
+            find_chunks_in_branch(Targets, BasicBlockArray, NonRepArray, ReachedArray,
+                                  TargetsT1, TargetArray, NL1, NL)
         ).
 
-find_chunks_in_branch(Targets, BasicBlockArray, ReachedArray, 
-                      TargetsT, TargetArray) :-
+find_chunks_in_branch(Targets, BasicBlockArray, NonRepArray, ReachedArray, 
+                      TargetsT, TargetArray, NL0, NL) :-
         ( var(Targets) ->
             true % queue empty, done
         ;
@@ -356,14 +381,148 @@ find_chunks_in_branch(Targets, BasicBlockArray, ReachedArray,
             ( var(Ref) ->  % not yet processed
                 Ref = [], % process it now
                 arg(Target, BasicBlockArray, Chunk),
-                find_reached_chunks_(Chunk, BasicBlockArray, ReachedArray,
-                                     Targets0, TargetsT, TargetArray)
+                find_reached_chunks_(Chunk, BasicBlockArray, NonRepArray, ReachedArray,
+                    Targets0, TargetsT, TargetArray, NL0, NL)
             ;
-                find_chunks_in_branch(Targets0, BasicBlockArray,
-                                      ReachedArray, TargetsT, TargetArray)
+                find_chunks_in_branch(Targets0, BasicBlockArray, NonRepArray,
+                    ReachedArray, TargetsT, TargetArray, NL0, NL)
             )
         ).
 
+% Find all ref()s that refer to unprocessed chunks and queue the labels
+% also perform inter-chunk optimisations by looking at the instructions
+% in the original chunk and the chunks being ref'ed
+process_targets(X, _, _, _, NL, NL, TargetsT, TargetsT) :- var(X), !.
+process_targets([X|Xs], BasicBlockArray, NonRepArray, TargetArray, NL0, NL2, 
+             TargetsT0, TargetsT2) ?- !,
+        process_targets(X, BasicBlockArray, NonRepArray, TargetArray, NL0, NL1, 
+                     TargetsT0, TargetsT1),
+	process_targets(Xs, BasicBlockArray, NonRepArray, TargetArray, NL1,
+                     NL2, TargetsT1, TargetsT2).
+process_targets(atom_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
+             TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+        mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
+        ( foreach(Atom-Ref, Table), 
+          fromto(TargetsT1, TT2,TT3, TargetsT),
+          fromto(NL0, NL1,NL2, NL),
+          param(BasicBlockArray,NonRepArray,TargetArray,A)
+        do
+            skip_subsumed_instr(get_atom(a(A),Atom), Ref, next, BasicBlockArray,
+                                NonRepArray, TargetArray, NL1, NL2, TT2, TT3)
+        ).
+process_targets(functor_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
+             TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+        mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
+        ( foreach(Func-FRef, Table), 
+          fromto(TargetsT1, TT2,TT3, TargetsT),
+          fromto(NL0, NL1,NL2, NL),
+          param(BasicBlockArray,NonRepArray,TargetArray,A)
+        do
+            skip_subsumed_instr(get_structure(a(A),Func,ReadRef), FRef, ReadRef, 
+                 BasicBlockArray, NonRepArray, TargetArray, NL1,NL2, TT2,TT3)
+        ). 
+process_targets(integer_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
+             TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+        mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
+        ( foreach(Int-Ref, Table), 
+          fromto(TargetsT1, TT2,TT3, TargetsT),
+          fromto(NL0, NL1,NL2, NL),
+          param(BasicBlockArray,NonRepArray,TargetArray,A)
+        do
+            skip_subsumed_instr(get_integer(a(A),Int), Ref, next, BasicBlockArray,
+                                NonRepArray, TargetArray, NL1, NL2, TT2, TT3)
+        ). 
+process_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), BasicBlockArray, 
+             NonRepArray, TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+        mark_and_accumulate_targets(VarLab, TargetArray, TargetsT0, TargetsT1),
+        skip_subsumed_instr(get_list(a(A),ReadRef), ListRef, ReadRef,
+             BasicBlockArray, NonRepArray, TargetArray, NL0, NL1, TargetsT1, TargetsT2),
+        skip_subsumed_instr(get_nil(a(A)), NilRef, next, BasicBlockArray,
+                            NonRepArray, TargetArray, NL1, NL, TargetsT2, TargetsT).
+process_targets(switch_on_type(a(A),SwitchList), BasicBlockArray, NonRepArray,
+             TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+        (
+            foreach(Type:Ref, SwitchList),
+            fromto(TargetsT0, TT1,TT2, TargetsT),
+            fromto(NL0, NL1,NL2, NL),
+            param(BasicBlockArray,NonRepArray,TargetArray,A)
+        do
+            ( Type == [] ->
+                skip_subsumed_instr(get_nil(a(A)), Ref, next, BasicBlockArray,
+                    NonRepArray, TargetArray, NL1,NL2, TT1,TT2)
+            ;
+                Ref = ref(Label),
+                NL1 = NL2,
+                mark_and_accumulate_targets(Label, TargetArray, TT1, TT2) 
+            )
+        ).
+process_targets(ref(L), _, _, TargetArray, NL, NL, TargetsT0, TargetsT1) :- !, 
+        mark_and_accumulate_targets(L, TargetArray, TargetsT0, TargetsT1).
+process_targets(Xs, BasicBlockArray, NonRepArray, TargetArray, NL0, NL3, TargetsT0, TargetsT3) :-
+    	compound(Xs), !,
+	(
+	    foreacharg(X,Xs),
+	    fromto(TargetsT0,TargetsT1,TargetsT2,TargetsT3),
+            fromto(NL0,NL1,NL2,NL3),
+	    param(BasicBlockArray,NonRepArray,TargetArray)
+	do
+	    process_targets(X, BasicBlockArray, NonRepArray, TargetArray, 
+                         NL1, NL2, TargetsT1, TargetsT2)
+	). 
+process_targets(_, _, _, _, NL, NL, TargetsT, TargetsT).
+
+% mark_and_accumulate_targets checks if T is a new target, and mark it in
+% TargetArray if it is new, and add it to the Targets list
+mark_and_accumulate_targets(T, TargetArray, TargetsT0, TargetsT1) :-
+        (
+            integer(T),
+            arg(T, TargetArray, IsNew),
+	    var(IsNew)
+	->
+	    TargetsT0 = [T|TargetsT1],
+            IsNew = []
+	;
+	    TargetsT0 = TargetsT1
+	).
+
+% skip_subsumed_instr checks to see if the chunk referenced by BaseRef
+% starts witj SkipInstr, and if it does, change BaseRef to skip the 
+% instruction, either to the following instruction, or to the target
+% given in NewRef
+skip_subsumed_instr(SkipInstr, BaseRef, NewRef, BasicBlockArray, 
+                    NonRepArray, TargetArray,  NL0, NL1, TargetsT0, TargetsT1) :-
+        BaseRef = ref(BaseTarget),
+        ( integer(BaseTarget),
+          arg(BaseTarget, BasicBlockArray, Chunk),
+          Chunk = chunk{code:Code},
+          Code = [SkipInstr|Rest] % Base chunk has skipped instr
+        ->  
+            ( NewRef == next ->  % new target follows skipped instr  
+                ( Rest = [label(NL)|_] ->
+                    NewCode = [SkipInstr|Rest], % has a label already
+                    NL1 = NL0
+                ;
+                    NL = NL0,               % add a new label
+                    NewCode = [SkipInstr,label(NL)|Rest],
+                    NL1 is NL0 + 1
+                ),
+                arg(BaseTarget, NonRepArray, []), % chunk now non-replicatable
+                setarg(1, BaseRef, NL),   % move target to after skipped instr 
+                setarg(code of chunk, Chunk, NewCode),
+                % jumping into chunk BaseTarget, so mark it if needed
+                mark_and_accumulate_targets(BaseTarget, TargetArray, TargetsT0, TargetsT1)
+            ; NewRef = ref(NewTarget) -> % new target is an existing label
+                NL1 = NL0,
+                setarg(1, BaseRef, NewTarget),  
+                mark_and_accumulate_targets(NewTarget, TargetArray, TargetsT0, TargetsT1)
+            ;   % don't know where new target is
+                TargetsT0 = TargetsT1,
+                NL0 = NL1
+            )
+        ;   % SkipInstr not matched
+            NL0 = NL1,
+            mark_and_accumulate_targets(BaseTarget, TargetArray, TargetsT0, TargetsT1)
+        ).
 
 % rejoin adjacent chunks that should be contiguous if the first chunk
 % is reached. Rejoins must have later chunks first in the list because more 
@@ -477,35 +636,7 @@ basic_blocks_to_flat_instr(BasicBlockArray, Reached, Instrs) :-
 	    )
 	).
 
-        
-    % Find all ref()s that refer to unprocessed chunks and queue the labels
-    find_targets(X, _, TargetsT, TargetsT) :- var(X), !.
-    find_targets([X|Xs], TargetArray, TargetsT0, TargetsT2) ?- !,
-	find_targets(X, TargetArray, TargetsT0, TargetsT1),
-	find_targets(Xs, TargetArray, TargetsT1, TargetsT2).
-    find_targets(ref(L), TargetArray, TargetsT0, TargetsT1) :- !, 
-        (
-            integer(L),
-            arg(L, TargetArray, Ref),
-	    var(Ref)
-	->
-	    TargetsT0 = [L|TargetsT1],
-            Ref = []
-	;
-	    TargetsT0 = TargetsT1
-	).
-    find_targets(Xs, TargetArray, TargetsT0, TargetsT3) :-
-    	compound(Xs), !,
-	(
-	    foreacharg(X,Xs),
-	    fromto(TargetsT0,TargetsT1,TargetsT2,TargetsT3),
-	    param(TargetArray)
-	do
-	    find_targets(X, TargetArray, TargetsT1, TargetsT2)
-	).
-    find_targets(_, _TargetArray, TargetsT, TargetsT).
-    	
-
+                     
 %----------------------------------------------------------------------
 % simplify a basic block
 %----------------------------------------------------------------------
@@ -536,21 +667,28 @@ simplify(call(P,eam(0)),	[Instr|More], New) ?- !,
 	simplify_call(P, Instr, NewInstr),
 	New = [NewInstr|More].
 
-simplify(cut(y(1),_N), [exit|More], New) ?- !,
+/*simplify(cut(y(1),_N), [exit|More], New) ?- !,
         New = [exitc|More].
-
-simplify(cut(y(1), N), More, New) ?- !,
-        New = [cut1(N)|More].
-
+*/
 simplify(savecut(a(A)), [cut(a(A))|More], New) ?- !,
         New = [savecut(a(A))|More].
-/*
-simplify(push_structure(B), [write_did(F/A)|More], New) ?- !,
+
+simplify(savecut(_), [Instr|More], New) ?- !,
+        unconditional_transfer_out(Instr),
+        New = [Instr|More].
+
+/*simplify(push_structure(B), [write_did(F/A)|More], New) ?- !,
         B is A + 1,
         New = [write_structure(F/A)|More].
 */
 simplify(allocate(N), [move(a(I),y(J))|More], New) ?- !,
         New = [get_variable(N, a(I), y(J))|More].
+
+simplify(space(N), [branch(L)|More], New) ?- !,
+        New = [branchs(N,L)|More].
+
+simplify(space(N), [jmpd(L)|More], New) ?- !,
+        New = [jmpd(N,L)|More].
 
 	% the code generator compiles attribute unification as if it were
 	% unifying a meta/N structure. Since attribute_name->slot mapping
@@ -757,6 +895,36 @@ Pattern 5a:	(skip subsumed instruction)
 
     -> Here the List_switch should be changed to jump directly to rlab.
 
+Pattern 5a:    (skip subsumed instruction)
+
+	get_variable n An Ym
+	switch_on_type Ym meta:mlab 
+
+     mlab:
+        move Ym An
+        ...
+
+     -> change the meta:mlab to meta:lab where lab is after move Ym An
+
+        get_variable n An Ym
+	list_switch Ym ref(llab) ref(nlab) ...
+
+     nlab:
+        move Ym An
+        in_get_nil An
+        ...
+
+     -> change to:
+
+        get_variable n An Ym
+	list_switch An ref(lab) ref(nlab) ...
+
+     nlab:
+        move Ym An
+        in_get_nil An
+     lab:
+        ...
+
 Pattern 5a:	(redirect to shared code)
 
 	List_switch A1 llab ...
@@ -784,14 +952,22 @@ before failure can occur (but probably better done earlier):
 
 Various Patterns:
 
-    cut(y(1),N), exit		-->	exitc
 
     savecut(a(A)),cut(a(A))	-->	savecut(a(A))
-
+    savecut(..), <transfer out> -->     <transfer out>
+                                        
     read_void,read_void+	-->	read_void N
     read_void/[^(read_xxx|move)]	-->	
 
-    push_structure(N+1),write_did(F/N)  --> write_structure(F/N)
 
     allocate n, move Ai,Yj      -->     get_variable(n,Ai,Yj)
                                         
+    space n, branch L           -->     branchs n,L
+    space n, jmpd L             -->     jmpd n, L
+                                        
+Patterns that are not safe to optimise:
+                                      
+    push_structure(N+1),write_did(F/N)  --> write_structure(F/N)
+    because the push_structure and write_did may refer to different structs                                        
+    cut(y(1),N), exit		-->	exitc 
+    because cut(...) may be local cut (not the whole cluase)                                  
