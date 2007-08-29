@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.7 2007/06/08 14:25:05 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.8 2007/08/29 20:53:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2007/06/08 14:25:05 $").
+:- comment(date, "$Date: 2007/08/29 20:53:17 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -96,7 +96,8 @@
 % TODO: inline these
 :- local op(700, xfx, =:).
 Var =: _Template :- var(Var), !.
-Term =: Term.
+%Term =: Term.
+Term =: Term2 :- verify instance(Term, Term2), Term = Term2.
 
 varg(I, T, A) :- ( var(T) -> true ; arg(I, T, A) ).
 
@@ -311,17 +312,16 @@ normalize_body(!, _Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _L
 	cutto_goal(CallPos, Vs0, Vs, Cut, CuttoGoal).
 
 normalize_body(X=Y, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM) :- !,
-        % for now, we do not try to break the annotated goal down to each
-        % simple unification
-        simplify_unification(X, Y, UnifGoals, []),
+        simplify_unification(X=Y, Ann, UnifGoals, AnnUnifGoals),
 	(
 	    foreach(UnifGoal, UnifGoals),
+	    foreach(AnnUnifGoal, AnnUnifGoals),
 	    fromto(CallNr0,CallNr1,CallNr2,CallNr),
 	    fromto(Vs0,Vs1,Vs2,Vs),
 	    fromto(Goals,Goals1,Goals2,Goals0),
-	    param(Branch,Cut,LM,CM,Ann)
+	    param(Branch,Cut,LM,CM)
 	do
-	    normalize_goal(UnifGoal, Ann, Branch, CallNr1, CallNr2, Cut, Vs1, Vs2, Goals1, Goals2, LM, CM)
+	    normalize_goal(UnifGoal, AnnUnifGoal, Branch, CallNr1, CallNr2, Cut, Vs1, Vs2, Goals1, Goals2, LM, CM)
 	).
 
 normalize_body(G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM) :-
@@ -369,6 +369,7 @@ normalize_goal(G, AnnG, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goals], Go
 	    arg(I, G, Arg),
 	    varg(I, GAnn, AnnArg),
 	    normalize_term(Arg, AnnArg, NormArg, Vs2, Vs3, =)
+	    % ( Vs2==Vs3 -> term is ground ; true )
 	).
 
 
@@ -718,20 +719,43 @@ varnonmember(X, [Y|Ys]) :-
 	X \== Y,
 	varnonmember(X, Ys).
 
-simplify_unification(X, Y, [X=Y|T], T) :- var(X), !.
-simplify_unification(X, Y, [Y=X|T], T) :- var(Y), !.
-simplify_unification(X, Y, L, L) :- X == Y, !.
-simplify_unification(X, Y, L, L0) :- functor(X, F, N), functor(Y, F, N), !,
+
+% Flatten unifications and normalise them such that there is always
+% a variable on the left hand side. The sub-unifications inherit the
+% source annotation from the original unification goal.
+simplify_unification(X=Y, Ann, UnifGoals, AnnUnifGoals) ?-
+	Ann =: annotated_term{term:(AnnX=AnnY)},
+	simplify_unification(X, Y, AnnX, AnnY, Ann, UnifGoals, [], AnnUnifGoals, []).
+
+
+%:- mode simplify_unification(?,?,?,?,?,-,?,-,?).
+simplify_unification(X, Y, AnnX, AnnY, Ann, [X=Y|T], T, [AnnEq|AT], AT) :-
+	var(X), !,
+	ann_update_term(AnnX=AnnY, Ann, AnnEq).
+simplify_unification(X, Y, AnnX, AnnY, Ann, Us, Us0, AnnUs, AnnUs0) :-
+	var(Y), !,
+	simplify_unification(Y, X, AnnY, AnnX, Ann, Us, Us0, AnnUs, AnnUs0).
+simplify_unification(X, Y, _AnnX, _AnnY, _Ann, Us, Us, AnnUs, AnnUs) :-
+	X == Y, !.
+simplify_unification(X, Y, AnnX, AnnY, Ann, L, L0, AnnL, AnnL0) :-
+	functor(X, F, N), functor(Y, F, N), !,
+	AnnX =: annotated_term{term:XAnn},
+	AnnY =: annotated_term{term:YAnn},
 	(
 	    for(I,1,N),
 	    fromto(L,L1,L2,L0),
-	    param(X,Y)
+	    fromto(AnnL,AnnL1,AnnL2,AnnL0),
+	    param(X,Y,XAnn,YAnn,Ann)
 	do
 	    arg(I, X, AX),
 	    arg(I, Y, AY),
-	    simplify_unification(AX, AY, L1, L2)
+	    varg(I, XAnn, AnnAX),
+	    varg(I, YAnn, AnnAY),
+	    simplify_unification(AX, AY, AnnAX, AnnAY, Ann, L1, L2, AnnL1, AnnL2)
 	).
-simplify_unification(_X, _Y, [fail|T], T).
+simplify_unification(_X, _Y, _AnnX, _AnnY, Ann, [fail|T], T, [AnnF|AT], AT) :-
+	ann_update_term(fail, Ann, AnnF).
+
 
 /*
 %----------------------------------------------------------------------
