@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.7 2007/08/25 23:00:25 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.8 2007/08/29 13:29:03 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/08/25 23:00:25 $").
+:- comment(date, "$Date: 2007/08/29 13:29:03 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -407,7 +407,9 @@ process_targets(atom_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
           fromto(NL0, NL1,NL2, NL),
           param(BasicBlockArray,NonRepArray,TargetArray,A)
         do
-            skip_subsumed_instr(get_atom(a(A),Atom), Ref, next, BasicBlockArray,
+            skip_subsumed_instr([(get_atom(a(A),Atom),next), 
+                                 (in_get_atom(a(A),Atom),next)], 
+                                Ref, BasicBlockArray,
                                 NonRepArray, TargetArray, NL1, NL2, TT2, TT3)
         ).
 process_targets(functor_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
@@ -418,8 +420,9 @@ process_targets(functor_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArra
           fromto(NL0, NL1,NL2, NL),
           param(BasicBlockArray,NonRepArray,TargetArray,A)
         do
-            skip_subsumed_instr(get_structure(a(A),Func,ReadRef), FRef, ReadRef, 
-                 BasicBlockArray, NonRepArray, TargetArray, NL1,NL2, TT2,TT3)
+            skip_subsumed_instr([(get_structure(a(A),Func,ReadRef),ReadRef),
+                                 (in_get_structure(a(A),Func,InRef),InRef)], 
+                 FRef, BasicBlockArray, NonRepArray, TargetArray, NL1,NL2, TT2,TT3)
         ). 
 process_targets(integer_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
              TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
@@ -429,15 +432,20 @@ process_targets(integer_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArra
           fromto(NL0, NL1,NL2, NL),
           param(BasicBlockArray,NonRepArray,TargetArray,A)
         do
-            skip_subsumed_instr(get_integer(a(A),Int), Ref, next, BasicBlockArray,
+            skip_subsumed_instr([(get_integer(a(A),Int),next),
+                                 (in_get_integer(a(A),Int),next)], 
+                                Ref, BasicBlockArray,
                                 NonRepArray, TargetArray, NL1, NL2, TT2, TT3)
         ). 
 process_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), BasicBlockArray, 
              NonRepArray, TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
         mark_and_accumulate_targets(VarLab, TargetArray, TargetsT0, TargetsT1),
-        skip_subsumed_instr(get_list(a(A),ReadRef), ListRef, ReadRef,
+        skip_subsumed_instr([(get_list(a(A),ReadRef),ReadRef),
+                            (in_get_list(a(A),InRef),InRef)], ListRef, 
              BasicBlockArray, NonRepArray, TargetArray, NL0, NL1, TargetsT1, TargetsT2),
-        skip_subsumed_instr(get_nil(a(A)), NilRef, next, BasicBlockArray,
+        skip_subsumed_instr([(get_nil(a(A)),next),
+                             (in_get_nil(a(A)),next)], 
+                            NilRef, BasicBlockArray,
                             NonRepArray, TargetArray, NL1, NL, TargetsT2, TargetsT).
 process_targets(switch_on_type(a(A),SwitchList), BasicBlockArray, NonRepArray,
              TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
@@ -447,15 +455,15 @@ process_targets(switch_on_type(a(A),SwitchList), BasicBlockArray, NonRepArray,
             fromto(NL0, NL1,NL2, NL),
             param(BasicBlockArray,NonRepArray,TargetArray,A)
         do
-            ( Type == [] ->
-                skip_subsumed_instr(get_nil(a(A)), Ref, next, BasicBlockArray,
+            ( subsumed_type_instr(Type, A, SkipCandidates) -> 
+                skip_subsumed_instr(SkipCandidates, Ref, BasicBlockArray,
                     NonRepArray, TargetArray, NL1,NL2, TT1,TT2)
             ;
                 Ref = ref(Label),
                 NL1 = NL2,
                 mark_and_accumulate_targets(Label, TargetArray, TT1, TT2) 
             )
-        ).
+        ). 
 process_targets(ref(L), _, _, TargetArray, NL, NL, TargetsT0, TargetsT1) :- !, 
         mark_and_accumulate_targets(L, TargetArray, TargetsT0, TargetsT1).
 process_targets(Xs, BasicBlockArray, NonRepArray, TargetArray, NL0, NL3, TargetsT0, TargetsT3) :-
@@ -486,16 +494,18 @@ mark_and_accumulate_targets(T, TargetArray, TargetsT0, TargetsT1) :-
 	).
 
 % skip_subsumed_instr checks to see if the chunk referenced by BaseRef
-% starts witj SkipInstr, and if it does, change BaseRef to skip the 
+% starts with SkipInstr, which is one of the Candidates of instructions 
+% that is subsumed. If it does, change BaseRef to skip the 
 % instruction, either to the following instruction, or to the target
 % given in NewRef
-skip_subsumed_instr(SkipInstr, BaseRef, NewRef, BasicBlockArray, 
-                    NonRepArray, TargetArray,  NL0, NL1, TargetsT0, TargetsT1) :-
+skip_subsumed_instr(Candidates, BaseRef, BasicBlockArray, NonRepArray, 
+                    TargetArray,  NL0, NL1, TargetsT0, TargetsT1) :-
         BaseRef = ref(BaseTarget),
         ( integer(BaseTarget),
           arg(BaseTarget, BasicBlockArray, Chunk),
           Chunk = chunk{code:Code},
-          Code = [SkipInstr|Rest] % Base chunk has skipped instr
+          match_skipped_instr(Candidates, SkipInstr, NewRef, Code, Rest)
+          %Code = [SkipInstr|Rest] % Base chunk has skipped instr
         ->  
             ( NewRef == next ->  % new target follows skipped instr  
                 ( Rest = [label(NL)|_] ->
@@ -523,6 +533,36 @@ skip_subsumed_instr(SkipInstr, BaseRef, NewRef, BasicBlockArray,
             NL0 = NL1,
             mark_and_accumulate_targets(BaseTarget, TargetArray, TargetsT0, TargetsT1)
         ).
+
+match_skipped_instr([(Candidate,NewRef0)|Candidates], SkipInstr, NewRef, Code, Rest) :-
+        ( Code = [Candidate|Rest] ->
+            SkipInstr = Candidate,
+            NewRef0 = NewRef
+        ;
+            match_skipped_instr(Candidates, SkipInstr, NewRef, Code, Rest)
+        ).
+
+
+% the (mainly) type test instructions that are subsumed by the type
+% switches of switch_on_type
+subsumed_type_instr(meta, A, [(bi_var(a(A)),next),(bi_meta(a(A)),next),(in_get_meta(a(A),_),next)]).
+subsumed_type_instr([], A, [(get_nil(a(A)),next),(bi_atom(a(A)),next),
+                            (bi_atomic(a(A)),next),
+                            (bi_nonvar(a(A)),next),(in_get_nil(a(A)),next)]).
+subsumed_type_instr(atom, A, [(bi_atom(a(A)),next),(bi_atomic(a(A)),next)]).
+subsumed_type_instr(bignum, A, [(bi_number(a(A)),next),(bi_integer(a(A)),next),
+                                (bi_atomic(a(A)),next)]).
+subsumed_type_instr(integer, A, [(bi_number(a(A)),next),(bi_integer(a(A)),next),
+                                (bi_atomic(a(A)),next)]).
+subsumed_type_instr(breal, A, [(bi_number(a(A)),next),(bi_real(a(A)),next),
+                               (bi_breal(a(A)),next)]).
+subsumed_type_instr(double, A, [(bi_number(a(A)),next),(bi_real(a(A)),next),
+                               (bi_float(a(A)),next)]).
+subsumed_type_instr(handle, A, [(bi_is_handle(a(A)),next)]).
+subsumed_type_instr(list, A, [(bi_is_list(a(A)),next),(bi_compound(a(A)),next)]).
+subsumed_type_instr(rational, A, [(bi_number(a(A)),next),(bi_rational(a(A)),next)]).
+subsumed_type_instr(string, A, [(bi_atomic(a(A)),next),(bi_string(a(A)),next)]).
+subsumed_type_instr(structure, A, [(bi_compound(a(A)),next)]).
 
 % rejoin adjacent chunks that should be contiguous if the first chunk
 % is reached. Rejoins must have later chunks first in the list because more 

@@ -4896,14 +4896,12 @@ label(7):
 	chain                    p2 / 2 
 label(11):
 	functor_switch           a(1) 
-		f / 3: 	ref(3)
+		f / 3: 	ref(4)
 		default: 	ref(9)
 
 label(9):
 	bi_compound              a(1) 
 	chain                    p3 / 0 
-label(3):
-	in_get_structure         a(1)     f / 3     ref(4) 
 label(4):
 	read_variable            a(1) 
 	read_variable            a(2) 
@@ -5876,16 +5874,18 @@ p / 1:
 label(1):
 	allocate                 0 
 	integer_switch           a(1) 
-		1: 	ref(4)
-		2: 	ref(6)
+		1: 	ref(8)
+		2: 	ref(9)
 		default: 	ref(fail)
 
 	branch                   ref(fail) 
 label(4):
 	in_get_integer           a(1)     1 
+label(8):
 	chain                    p_1 / 0 
 label(6):
 	in_get_integer           a(1)     2 
+label(9):
 	chain                    p_2 / 0 
 
 ------ Test idx(101) -------
@@ -5941,7 +5941,7 @@ label(1):
 	allocate                 0 
 	switch_on_type           a(1) 
 		meta: 	ref(fail)
-		[]: 	ref(17)
+		[]: 	ref(25)
 		atom: 	ref(15)
 		bignum: 	ref(5)
 		breal: 	ref(11)
@@ -5957,6 +5957,7 @@ label(1):
 	branch                   ref(fail) 
 label(17):
 	in_get_nil               a(1) 
+label(25):
 	chain                    p_nil / 0 
 label(15):
 	in_get_atom              a(1)     hello 
@@ -7772,15 +7773,15 @@ p / 1:
 label(1):
 	allocate                 0 
 	switch_on_type           a(1) 
-		meta: 	ref(3)
+		meta: 	ref(7)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
-		bignum: 	ref(5)
+		bignum: 	ref(8)
 		breal: 	ref(fail)
 		double: 	ref(fail)
 		goal: 	ref(fail)
 		handle: 	ref(fail)
-		integer: 	ref(5)
+		integer: 	ref(8)
 		list: 	ref(fail)
 		rational: 	ref(fail)
 		string: 	ref(fail)
@@ -7789,12 +7790,14 @@ label(1):
 	branch                   ref(fail) 
 label(3):
 	in_get_meta              a(1)     ref(fail) 
+label(7):
 	read_void            
 	read_attribute           suspend 
 	read_variable            a(2) 
 	chain                    p / 2 
 label(5):
 	bi_integer               a(1) 
+label(8):
 	chain                    q / 1 
 
 ------ Test match(31) -------
@@ -7860,7 +7863,7 @@ p / 1:
 label(1):
 	allocate                 0 
 	switch_on_type           a(1) 
-		meta: 	ref(3)
+		meta: 	ref(7)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
 		bignum: 	ref(fail)
@@ -7879,6 +7882,7 @@ label(5):
 	chain                    q / 1 
 label(3):
 	in_get_meta              a(1)     ref(fail) 
+label(7):
 	read_void            
 	read_attribute           suspend 
 	read_variable            a(2) 
@@ -7929,7 +7933,7 @@ p / 1:
 label(1):
 	allocate                 0 
 	switch_on_type           a(1) 
-		meta: 	ref(5)
+		meta: 	ref(7)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
 		bignum: 	ref(fail)
@@ -7948,6 +7952,7 @@ label(3):
 	chain                    q / 1 
 label(5):
 	in_get_meta              a(1)     ref(fail) 
+label(7):
 	read_void            
 	read_attribute           suspend 
 	read_variable            a(2) 
@@ -9560,7 +9565,7 @@ label(1):
 	savecut                  y(1) 
 	switch_on_type           a(1) 
 		meta: 	ref(9)
-		[]: 	ref(5)
+		[]: 	ref(12)
 		atom: 	ref(11)
 		bignum: 	ref(7)
 		breal: 	ref(7)
@@ -9583,11 +9588,12 @@ label(9):
 	chain                    sepia_kernel : error_ / 3 
 label(5):
 	bi_atom                  a(1) 
+label(12):
 	cut                      y(1)     1 
 	chain                    attach_suspensions1 / 2 
 label(11):
 	atom_switch              a(1) 
-		postponed: 	ref(3)
+		postponed: 	ref(13)
 		default: 	ref(5)
 
 label(7):
@@ -9602,6 +9608,7 @@ label(7):
 	chain                    sepia_kernel : error_ / 3 
 label(3):
 	in_get_atom              a(1)     postponed 
+label(13):
 	cut                      y(1)     1 
 	move                     a(2)     a(1) 
 	chain                    postpone_suspensions / 1 
