@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.3 2007/08/22 23:07:24 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.4 2007/09/04 16:22:13 jschimpf Exp $
  */
 
 /*
@@ -83,7 +83,6 @@ void
 	mark_dids_from_array(pword *prop_value),
 	mark_dids_from_pwords(pword *from, register pword *to),
 	mark_dids_from_heapterm(pword *root),
-	mark_dids_from_record(pword *prop),
 	mark_dids_from_properties(property *prop_list);
 
 extern void		handle_copy_anchor(pword*,pword*,int);
