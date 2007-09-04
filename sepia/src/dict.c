@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.5 2007/08/22 23:07:24 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.6 2007/09/04 16:28:48 jschimpf Exp $
  */
 
 /*
@@ -848,6 +848,8 @@ _mark_dids_from_procs(pri *proc)
 	    Mark_Did(proc->module_ref);
 	if (proc->trans_function)
 	    Mark_Did(proc->trans_function);
+	if (DynamicProc(proc))
+	    ec_mark_dids_dyn_code(PriCode(proc));
 	/* PriDid does not need to be marked because it has a procedure
 	 * and will therefore not be collected */
     }

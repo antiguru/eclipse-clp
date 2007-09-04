@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.7 2007/08/15 17:08:49 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.8 2007/09/04 16:28:48 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -95,6 +95,7 @@ extern vmcode par_fail_code_[];
 
 extern int	trafo_clause(value cval, type ctag, int macro, dident module, type mtag, pword **list);
 
+extern t_ext_type heap_rec_header_tid;
 
 static int
 #ifdef DBGING_DYN_DB
@@ -105,13 +106,19 @@ static int
     p_compile_stream(value vstr, type tstr, value flags, type tf, value module, type tm),
     p_compile_term(value vl, type tl, value module, type tm),
     p_current_functor(value valn, type tagn, value vala, type taga, value vopt, type topt, value valsn, type tagsn),
+#ifdef OLD_DYNAMIC
     p_dynamic(value v1, type t1, value v2, type t2, value vm, type tm),
+#endif
+    p_dynamic_create(value v1, type t1, value v2, type t2, value vm, type tm),
+    p_dynamic_source(value v1, type t1, value v2, type t2, value vsrc, type tsrc, value vm, type tm),
     p_is_dynamic(value v1, type t1, value v2, type t2, value vm, type tm),
     p_is_built_in(value val, type tag, value vm, type tm),
     p_is_predicate(value val, type tag, value vm, type tm),
+#ifdef OLD_DYNAMIC
     p_assert_(value vcl, type tcl, value vmod, type tmod),
     p_asserta_(value vcl, type tcl, value vmod, type tmod),
     p_kill_pair(value vref, type tclref),
+#endif
     p_module_predicates(value vwhich, type twhich, value v, type t, value vm, type tm),
     p_external(value vp, type tp, value vf, type tf, value vm, type tm),
     p_b_external(value vp, type tp, value vf, type tf, value vm, type tm),
@@ -313,14 +320,20 @@ bip_db_init(int flags)
 
     (void) local_built_in(in_dict("trimcore0", 0), p_trimcore, B_SAFE);
     (void) exported_built_in(in_dict("abolish_", 3), p_abolish, B_SAFE);
+#ifdef OLD_DYNAMIC
     (void) local_built_in(in_dict("dynamic_", 3), p_dynamic, B_SAFE);
+#endif
+    (void) local_built_in(in_dict("dynamic_create_", 3), p_dynamic_create, B_SAFE);
+    (void) exported_built_in(in_dict("dynamic_source_", 4), p_dynamic_source, B_UNSAFE|U_SIMPLE);
     exported_built_in(in_dict("is_dynamic_", 3), p_is_dynamic, B_SAFE);
     (void) local_built_in(in_dict("is_built_in_", 2), p_is_built_in, B_SAFE);
     proc = exported_built_in(in_dict("is_predicate_", 2),
 					  p_is_predicate, B_SAFE);
+#ifdef OLD_DYNAMIC
     (void) exported_built_in(in_dict("assert_", 2), p_assert_, B_UNSAFE);
     (void) exported_built_in(in_dict("asserta_", 2), p_asserta_, B_UNSAFE);
     (void) local_built_in(in_dict("kill_pair", 1), p_kill_pair, B_UNSAFE);
+#endif
     (void) local_built_in(in_dict("compile_stream",3),p_compile_stream, B_UNSAFE);
     (void) local_built_in(d_.pcompile, p_pcompile, B_UNSAFE);
     (void) exported_built_in(in_dict("compile_term_", 2), p_compile_term, B_UNSAFE);
@@ -577,6 +590,7 @@ p_als(value val, type tag, value vm, type tm)
 	while (code || (code = label));
 	if (res == PFAIL)
 	    {Fail_}
+#ifdef OLD_DYNAMIC
 	if (DynamicProc(proc))
 	{
 				/* print the source code as well */
@@ -586,6 +600,7 @@ p_als(value val, type tag, value vm, type tm)
 	    while (code || (code = label));
 	    return res;
 	}
+#endif
 	Succeed_;
     }
     else
@@ -988,6 +1003,8 @@ Not_Available_Built_In(p_external_body)
 			DYNAMIC CODE
  * ******************************************************************* */
 
+#ifdef OLD_DYNAMIC
+
 /*
  *      initialisation of a dynamic procedure
  *
@@ -1027,6 +1044,54 @@ init_dynamic(pri *pd)
 
     return start;
 }
+
+#else
+
+/* How to get the source-record pointer from the code or pri */
+#define DynCodeSrcHandle(code) ((pword *)((code)[2]))
+#define DynCodeSrcRecord(code) ((t_ext_ptr)ExternalData(DynCodeSrcHandle(code)))
+
+static vmcode *
+_init_dynamic1(pri *pd, t_ext_ptr source_record)
+{
+	vmcode		*code, *start;
+	pword		*pw;
+	pri_code_t	pricode;
+
+	Allocate_Default_Procedure((long) (4/*code*/ + 4/*anchor*/), PriDid(pd));
+	pw = (pword *)(code + 4);
+	if ((uword)pw % sizeof(pword) != 0)
+	    ec_panic("code block insufficiently aligned", "ec_make_dyn_proc()");
+	start = code;
+
+	Store_3(Call_dynamic, pd, pw)
+	Store_i(Code_end)
+
+	/* handle anchor for the source record */
+	pw[0].val.ptr = (pword *) &heap_rec_header_tid;
+	pw[0].tag.kernel = TEXTERN;
+	pw[1].val.ptr = (pword *) source_record;
+	pw[1].tag.kernel = TPTR;
+
+	return start;
+}
+
+
+void
+ec_free_dyn_code(vmcode *code)
+{
+    heap_rec_header_tid.free(DynCodeSrcRecord(code));
+    reclaim_procedure(ProcHeader(code));
+}
+
+
+void
+ec_mark_dids_dyn_code(vmcode *code)
+{
+    heap_rec_header_tid.mark_dids(DynCodeSrcRecord(code));
+}
+
+#endif
 
 
 /*
@@ -1077,7 +1142,7 @@ p_is_built_in(value val, type tag, value vm, type tm)
     Succeed_If(procindex->flags & SYSTEM);
 }
 
-
+#ifdef OLD_DYNAMIC
 /*
  * Get the procedure entry from a clause into proc_entry and the
  * arity into proc_arity.  vcl and tcl are the clause's value and tag.
@@ -1341,7 +1406,7 @@ p_kill_pair(value vref, type tclref)
 	}
 	Succeed_;
 } /* p_kill_pair */
-
+#endif
 
 /*
  * 	proc_flags(Name/Arity, Code, Value, Module, Private)
@@ -2280,6 +2345,7 @@ p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value v
 #undef Bip_Error
 #define Bip_Error(N) Bip_Error_Fail(N)
 
+#ifdef OLD_DYNAMIC
 /*
 	dynamic_/3	non standard
 	a dynamic declaration on any procedure sets its flag to PROC_DYNAMIC|ARGFIXEDWAM
@@ -2331,6 +2397,112 @@ p_dynamic(value v1, type t1, value v2, type t2, value vm, type tm)
     a_mutex_unlock(&ProcChainLock);
     a_mutex_unlock(&ProcedureLock);
     Succeed_;
+}
+
+#endif
+
+
+/*
+ * dynamic_create_(+Name, +Arity, +SrcHandle, +Module)
+ * create a dynamic predicate Name/Arity, whose source is stored in SrcHandle
+ * fails on error with bip_error
+ */
+
+static int
+p_dynamic_create(value v1, type t1, value v2, type t2, value vm, type tm)
+{
+    dident	wdid;
+    pri		*proc;
+    int		ndebug;				/* current dbg mode */
+    int		err;
+    pri_code_t	pricode;
+    extern t_ext_ptr	ec_record_create(void);
+
+    Check_Module(tm, vm);
+    Add_Did(v1, t1, v2, t2, wdid);
+    ndebug = (GlobalFlags & DBGCOMP) ? 0 : DEBUG_DB;
+
+    a_mutex_lock(&ProcedureLock);
+    proc = local_procedure(wdid, vm.did, tm, PRI_CREATE);
+    if (!proc)
+    {
+	a_mutex_unlock(&ProcedureLock);
+	Get_Bip_Error(err);
+	Bip_Error(err);
+    }
+    /* we redefine a procedure defined in the module		*/
+    if (DynamicProc(proc))
+    {
+	a_mutex_unlock(&ProcedureLock);
+	Bip_Error(ALREADY_DYNAMIC);
+    }
+    if (proc->flags & CODE_DEFINED)
+    {
+	a_mutex_unlock(&ProcedureLock);
+	Bip_Error(ALREADY_DEFINED);
+    }
+    err = pri_compatible_flags(proc, ARGPASSING|PROC_DYNAMIC|EXTERN|TOOL|PROC_PARALLEL|DEBUG_DB, ARGFIXEDWAM|PROC_DYNAMIC|ndebug);
+    if (err != PSUCCEED)
+    {
+	a_mutex_unlock(&ProcedureLock);
+	Bip_Error(err);
+    }
+    pri_change_flags(proc, ARGPASSING|PROC_DYNAMIC|EXTERN|TOOL|PROC_PARALLEL|DEBUG_DB, ARGFIXEDWAM|PROC_DYNAMIC|ndebug);
+    pricode.vmc = _init_dynamic1(proc, ec_record_create());
+    pri_define_code(proc, VMCODE, pricode);
+    a_mutex_unlock(&ProcedureLock);
+    Succeed_;
+}
+
+
+/*
+ * dynamic_source_(+Name, +Arity, -SrcHandle, +Module)
+ * retrieve the record handle under which the source is stored
+ */
+
+static int
+p_dynamic_source(value v1, type t1, value v2, type t2, value vsrc, type tsrc, value vm, type tm)
+{
+    dident	wdid;
+    pri		*proc;
+    pword	ref_pw;
+
+    Check_Module(tm, vm);
+    Add_Did(v1, t1, v2, t2, wdid);
+    proc = visible_procedure(wdid, vm.did, tm, 0);
+    if (!proc) {
+	int err;
+	Get_Bip_Error(err);
+	if (err == NOENTRY)
+	    err = ACCESSING_UNDEF_DYN_PROC;
+	Bip_Error(err);
+    }
+    if (PriScope(proc) != DEFAULT && PriModule(proc) != PriHomeModule(proc))
+    {
+	Bip_Error(ACCESSING_NON_LOCAL);
+    }
+    if (!DynamicProc(proc))
+    {
+	if (PriFlags(proc) & CODE_DEFINED)
+	{
+	    Bip_Error(NOT_DYNAMIC);
+	}
+	else
+	{
+	    Bip_Error(ACCESSING_UNDEF_DYN_PROC);
+	}
+    }
+
+    /* Create a THANDLE pointer to the anchor inside the code block
+     * (taken from the 2nd * parameter of the [Call_dynamic proc handle]
+     * instruction).  This is only legal if it is guaranteed that the
+     * pointer does not live longer than the code block (otherwise we
+     * have to use ec_handle() to create a global stack anchor.
+     */
+    
+    ref_pw.val.ptr = DynCodeSrcHandle(PriCode(proc));
+    ref_pw.tag.kernel = THANDLE;
+    Return_Unify_Pw(vsrc, tsrc, ref_pw.val, ref_pw.tag);
 }
 
 

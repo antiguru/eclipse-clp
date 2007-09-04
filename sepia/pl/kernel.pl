@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.15 2007/08/22 23:08:49 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.16 2007/09/04 16:28:48 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -997,17 +997,15 @@ erase_all_body(Key, Value, Module):-
 	    bip_error(erase(Key, Value), Module)
 	).
 
+    erase_matching(end, _Value) :- !.
     erase_matching(DbRef, Value) :-
-	( referenced_record(DbRef, Value) ->
+	( next_recorded(DbRef, DbRef1) -> true ; DbRef1 = end ),
+	( \+ referenced_record(DbRef, Value) ->
+	    true
+	;
 	    erase(DbRef)
-	;
-	    true
 	),
-	( next_recorded(DbRef, DbRef1) ->
-	    erase_matching(DbRef1, Value)
-	;
-	    true
-	).
+	erase_matching(DbRef1, Value).
 
 recorded_body(Key, Value, Module) :-
 	recorded_body(Key, Value, _DbRef, Module).
@@ -3702,8 +3700,6 @@ inline_(Proc, Trans, Module) :-
 
 :-	
 	tool(abolish_record/1, abolish_record_body/2),
-	tool(assert/1, assert_/2),
-	tool(asserta/1, asserta_/2),
 	tool((:)/2, '[]:@'/3),
 	tool(call_boxed/5, call_boxed_/6),
 	tool(call_boxed/6, call_boxed_/7),
@@ -3800,8 +3796,6 @@ inline_(Proc, Trans, Module) :-
 	(\+)/1,
 	abort/0, 
 	abolish_record/1,
-	assert/1,
-	asserta/1,
 	autoload/2,
 	autoload_tool/2,
 	autoload_system/2,
@@ -4118,8 +4112,6 @@ inline_(Proc, Trans, Module) :-
 	writeln/2.
 
 :- traceable
-	assert/1,
-	asserta/1,
 	(is)/2,		% because it inherits untraceable from is_body/3
 	use_module/1.
 

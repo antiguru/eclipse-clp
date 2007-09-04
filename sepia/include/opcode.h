@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.3 2007/02/22 01:27:34 jschimpf Exp $
+ * VERSION	$Id: opcode.h,v 1.4 2007/09/04 16:28:48 jschimpf Exp $
  */
 
 /*
@@ -456,7 +456,8 @@ extern vmcode bi_addr[];
 #define Put_named_variableAM			(BLOCK1 + 345)
 #define Put_named_variableL			(BLOCK1 + 346)
 #define Put_named_variableAML			(BLOCK1 + 347)
-#define OPCODES_WITHOUT_REGS			(BLOCK1 + 348)
+#define Call_dynamic				(BLOCK1 + 348)
+#define OPCODES_WITHOUT_REGS			(BLOCK1 + 349)
 
 /*
  * Don't forget to update the following files:

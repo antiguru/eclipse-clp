@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.11 2007/08/24 21:37:39 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.12 2007/09/04 16:28:48 jschimpf Exp $
  */
 
 /*
@@ -6453,6 +6453,35 @@ _end_external_:
 	    }
 	    Pop_Ret_Code
 	    goto _regular_err_2_; /* (err_code, A2 goal, A3 caller, A4 lookup) */
+
+
+
+	Case(Call_dynamic, I_Call_dynamic)	/* (proc,handle) */
+	    proc = PP[0].proc_entry;
+	    val_did = PriDid(proc);
+	    /* build a goal structure and put it into A[2] */
+	    tmp1 = DidArity(val_did);
+	    if(tmp1 == 0) {
+		Make_Atom(&A[2], val_did);
+	    } else {
+		S = TG;		/* build goal structure	*/
+		TG += tmp1 + 1;
+		S->val.did = val_did;
+		(S++)->tag.kernel = TDICT;
+		pw1 = &A[1];
+		for(i = 0; i < tmp1; i++) {
+		    pw2 = pw1++;
+		    Move_Pw_To_Global_Stack(pw2,S, ;)
+		}
+		Make_Struct(&A[2], TG - tmp1 - 1);
+		Check_Gc
+	    }
+	    A[1].val.ptr = PP[1].ptr;
+	    A[1].tag.kernel = THANDLE;
+	    Make_Marked_Module(&A[3], PriModule(proc));
+	    proc = error_handler_[-(CALLING_DYNAMIC)];
+	    PP = (emu_code) PriCode(proc);
+	    Next_Pp;
 
 
 

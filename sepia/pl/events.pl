@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.5 2007/08/22 23:08:49 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.6 2007/09/04 16:28:48 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -215,25 +215,6 @@ warning_handler(X, Where, Module) :-
 	write(warning_output, 'WARNING: '),
 	warning_message(X, Where, Module).
 
-undef_dynamic_handler(N, assert_(Clause, Module), _) :- !,
-	undef_dynamic_handler(N, assert(Clause), Module).
-undef_dynamic_handler(N, asserta_(Clause, Module), _) :- !,
-	undef_dynamic_handler(N, asserta(Clause), Module).
-undef_dynamic_handler(N, assert(Clause), Module) :-
-	clause_spec(Clause, Name, Arity, Module),
-	dynamic_(Name, Arity, Module),			% may fail with error
-	!,
-	assert_(Clause, Module).
-undef_dynamic_handler(N, asserta(Clause), Module) :-
-	clause_spec(Clause, Name, Arity, Module),
-	dynamic_(Name, Arity, Module),			% may fail with error
-	!,
-	asserta_(Clause, Module).
-undef_dynamic_handler(N, Goal, _) :-
-	get_bip_error(E) ->
-	    error_handler(E, Goal)
-	;
-	    error_handler(N, Goal).
 
 
 undef_array_handler(N, setval_body(Name, Value, Module), _) :- !,
@@ -1179,6 +1160,7 @@ postpone_suspensions(Susp) :-
    set_default_error_handler_(76, declaration_warning_handler/3, sepia_kernel),
    set_default_error_handler_(77, declaration_warning_handler/3, sepia_kernel),
    set_default_error_handler_(78, error_handler/2, sepia_kernel),
+   set_default_error_handler_(79, call_dynamic_/3, sepia_kernel),
    set_default_error_handler_(80, error_handler/2, sepia_kernel),
    set_default_error_handler_(81, error_handler/2, sepia_kernel),
    set_default_error_handler_(82, locked_access_handler/2, sepia_kernel),

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.8 2007/08/24 21:37:39 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.9 2007/09/04 16:28:48 jschimpf Exp $
  */
 
 /*
@@ -1202,6 +1202,7 @@ print_am(register vmcode *code,
 	case External1:
 	case External2:
 	case External3:
+	case Call_dynamic:
 		Proc;
 		Addr;
 		break;

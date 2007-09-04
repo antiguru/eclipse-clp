@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.2 2007/08/22 23:07:24 jschimpf Exp $
+ * VERSION	$Id: bip_record.c,v 1.3 2007/09/04 16:28:48 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -88,6 +88,13 @@ _rec_create(void)
     obj->term.val.nint = 0;
     obj->term.tag.kernel = TEND;	/* remains TEND for header cells */
     return obj;
+}
+
+
+t_ext_ptr
+ec_record_create(void)
+{
+    return (t_ext_ptr) _rec_create();
 }
 
 
@@ -758,8 +765,8 @@ p_valid_key(value v, type t)
     Error_If_Ref(t);
     if (IsAtom(t) || IsStructure(t) || IsNil(t) || IsList(t))
 	{ Succeed_; }
-    else
-	{ Bip_Error(TYPE_ERROR) }
+    Check_Typed_Object_Handle(v, t, &heap_rec_header_tid);
+    Succeed_;
 }
 
 #undef Bip_Error

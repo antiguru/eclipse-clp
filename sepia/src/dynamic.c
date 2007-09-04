@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: dynamic.c,v 1.1 2006/09/23 01:55:54 snovello Exp $
+ * VERSION	$Id: dynamic.c,v 1.2 2007/09/04 16:28:48 jschimpf Exp $
  */
 
 /*
@@ -60,6 +60,7 @@
 #include	"database.h"
 #include	"module.h"
 
+#ifdef OLD_DYNAMIC
 
  /*
   * TYPEDEFS:
@@ -300,7 +301,7 @@ _free_memory_:
     Gbl_Tg = save_tg;
     return res;
 }
-
+#endif
 
 /*
 	PROCEDURE COMPILATION OF DYNAMIC CLAUSES
@@ -324,10 +325,22 @@ compile_dynamic(proc_desc *procedure, dident module)
     proc.proc = procedure->proc;	/* to test flags */
     while (procedure->clauses)
     {
+#ifdef OLD_DYNAMIC
 	proc.pflags = procedure->pflags & PR_NOWARN;
 	clause = (procedure->clauses->clause);
 	if ((result = assert_clause(clause->val, clause->tag,
 			v, procedure->module_tag, &proc, ASSERTZ)) == PSUCCEED)
+#else
+	pword *tr = TG;
+	dident d_assert_ = in_dict("assert_", 2);
+	proc.pflags = procedure->pflags & PR_NOWARN;
+	clause = (procedure->clauses->clause);
+	Push_Struct_Frame(d_assert_);
+	tr[1] = *clause;
+	tr[2].val.did = module;
+	tr[2].tag.all = procedure->module_tag.all;
+	if ((result = do_trafo(tr)) == PSUCCEED)
+#endif
 	{
 	    procedure->clauses = procedure->clauses->next;
 	    procedure->size += proc.size;
@@ -341,6 +354,7 @@ compile_dynamic(proc_desc *procedure, dident module)
     Succeed_;
 } /* compile_dynamic */
 
+#ifdef OLD_DYNAMIC
 
 /******************************************************************************/
 /*		The Dynamic Database Garbage Collector			      */
@@ -607,3 +621,13 @@ _reset_gc_fields(vmcode *code)
 	code = (vmcode *) NextAlternative(code);
     }
 }
+
+#else
+
+int
+p_garbage_collect_dyn_db(void)
+{
+    Succeed_;
+}
+
+#endif

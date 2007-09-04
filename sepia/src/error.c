@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.3 2007/08/12 17:30:41 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.4 2007/09/04 16:28:48 jschimpf Exp $
  */
 
 /*
@@ -155,7 +155,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 "predicate declared but not defined",
 "predicate used but not declared or defined",
 "calling a procedure with a reserved name",
-0,
+"calling a dynamic procedure",			/* CALLING_DYNAMIC	*/
 /* Modules */
 /* -80 */
 "not a module",					/* MODULENAME		*/

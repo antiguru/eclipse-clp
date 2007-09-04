@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: error.h,v 1.2 2007/08/12 17:32:03 jschimpf Exp $
+ * VERSION	$Id: error.h,v 1.3 2007/09/04 16:28:48 jschimpf Exp $
  *
  * IDENTIFICATION		error.h
  *
@@ -111,6 +111,7 @@
 #define ACCESSING_UNDEF_DYN_PROC -70	/* no defined dynamic at all */
 #define ALREADY_PARALLEL	-71
 #define UNDEF_OPERATOR		-72
+#define CALLING_DYNAMIC		-79
 
 #define MODULENAME		-80
 #define DIRECTIVE		-81

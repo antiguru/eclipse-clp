@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.3 2007/02/22 01:27:34 jschimpf Exp $
+ * VERSION	$Id: names.h,v 1.4 2007/09/04 16:28:48 jschimpf Exp $
  */
 
 /*
@@ -415,6 +415,7 @@ char * inst_name[] = {
 "Put_named_variableAM      ",
 "Put_named_variableL       ",
 "Put_named_variableAML     ",
+"Call_dynamic              ",
 
 #if (NREGARG > 0)
 "MoveAR                    ",

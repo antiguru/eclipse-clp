@@ -377,3 +377,4 @@ op_addr[i++] = (vmcode) &&I_Trust_inline;
 op_addr[i++] = (vmcode) &&I_Put_named_variableAM;
 op_addr[i++] = (vmcode) &&I_Put_named_variableL;
 op_addr[i++] = (vmcode) &&I_Put_named_variableAML;
+op_addr[i++] = (vmcode) &&I_Call_dynamic;

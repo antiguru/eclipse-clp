@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.2 2007/08/12 17:30:09 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.3 2007/09/04 16:28:48 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -1783,12 +1783,16 @@ remove_procedure(pri *proc)
 	}
 	else if (PriFlags(proc) & PROC_DYNAMIC)
 	{
+#ifdef OLD_DYNAMIC
 	    a_mutex_lock(&ProcChainLock);
 	    add_proc_to_chain((pri *) code, &AbolishedDynProcedures);
 	    /* Mark the abolish clock into the death of the first clause */
 	    Death(StartOfAss(code)) = DynGlobalClock;
 	    delete_proc_from_chain(proc, &DynamicProcedures);
 	    a_mutex_unlock(&ProcChainLock);
+#else
+	    ec_free_dyn_code(code);
+#endif
 	    PriFlags(proc) &= ~PROC_DYNAMIC;
 	}
 	else

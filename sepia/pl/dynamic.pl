@@ -15,7 +15,7 @@
 % The Original Code is  The ECLiPSe Constraint Logic Programming System. 
 % The Initial Developer of the Original Code is  Cisco Systems, Inc. 
 % Portions created by the Initial Developer are
-% Copyright (C) 1989-2006 Cisco Systems, Inc.  All Rights Reserved.
+% Copyright (C) 1989-2007 Cisco Systems, Inc.  All Rights Reserved.
 % 
 % Contributor(s): ECRC GmbH
 % Contributor(s): IC-Parc, Imperal College London
@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dynamic.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
+% Version:	$Id: dynamic.pl,v 1.3 2007/09/04 16:28:48 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -44,39 +44,72 @@
  * periklis		26.9.89	Major revision for the logical update semantics.
  * micha		20.3.89	Moved all the dynamic-related predicates
  *				from db.pl into this file.
+ * joachim		2007	Radically simplified record-based version
  */
 
 :- begin_module(sepia_kernel).
 
+:- system.		% compiler directive to add the SYSTEM flag
+
 :- export
 	(abolish)/1,
+	assert/1,
+	asserta/1,
+	assertz/1,
+	(dynamic)/1,
+	is_dynamic/1,
 	clause/1,clause/2,
-	(dynamic)/1,(is_dynamic)/1,
 	(listing)/0,(listing)/1,
 	retract/1,
 	retract_all/1,
 	writeclause/1,
 	writeclause/2.
 
+
 /*
  * TOOL DIRECTIVES
+ * (body names are chosen for backward compatibility)
  */
 
-:- tool( (abolish)/1, abolish_body/2).
-:- tool( clause/1, clause_body/2).
-:- tool( clause/2, clause_body/3).
-:- tool( (dynamic)/1, dynamic_body/2).
-:- tool( is_dynamic/1, is_dynamic_body/2).
-:- tool( (listing)/0, listing_body/1).
-:- tool( (listing)/1, listing_body/2).
-:- tool( retract/1, retract_body/2).
-:- tool( retract_all/1, retract_all_body/2).
-:- tool( write_goal/3, write_goal/4).		% exported, for opium
+:- tool((abolish)/1, abolish_body/2).
+:- tool(assert/1, assert_/2).
+:- tool(asserta/1, asserta_/2).
+:- tool(assertz/1, assert_/2).
+:- tool(clause/1, clause_body/2).
+:- tool(clause/2, clause_body/3).
+:- tool((dynamic)/1, dynamic_body/2).
+:- tool(is_dynamic/1, is_dynamic_body/2).
+:- tool(listing/1, listing_body/2).
+:- tool(listing/0, listing_body/1).
+:- tool(retract/1, retract_body/2).
+:- tool(retract_all/1, retract_all_body/2).
+:- tool(write_goal/3, write_goal/4).		% exported, for opium
 
-:- system.		% compiler directive to add the SYSTEM flag
 
 
-% We allow several variants:
+%
+% Dynamic clauses are recorded in source form in the indexed database,
+% under an anonymous SrcHandle.
+% 
+% Additionally every dynamic predicate has the following stub code,
+% which contains that SrcHandle.  E.g. for p/3:
+%
+%	p(A, B, C) :-
+%	    call_dynamic_(<SrcHandle for p/3>, p(A,B,C), <home module>).
+%
+% call_dynamic_/3 is common code, essentially an interpreter for the
+% clauses stored under SrcHandle.  Note that cuts in the clause body
+% must cut the recorded-choicepoint that backtracks over the clauses!
+
+call_dynamic_(SrcHandle, Goal, Module) :-
+%	get_cut(Cut),
+%	recorded(SrcHandle, (Goal:-Body)),
+%	call(Body, Module, Module, Cut).
+	untraced_call((recorded(SrcHandle, (Goal:-Body)), Body), Module).
+
+
+
+% Dynamic declaration - we allow several variants:
 %	dynamic n/a
 %	dynamic n/a, n/a, n/a		% Sepia
 %	dynamic [n/a, n/a, n/a]		% Quintus, ISO, ...
@@ -111,7 +144,7 @@ dynamic_body(Preds, Module) :-
 
     dynamic_body_single(Name/Arity, Module) ?-
     	atom(Name), integer(Arity), Arity >= 0, !,
-	dynamic_(Name, Arity, Module).
+	dynamic_create_(Name, Arity, Module).
     dynamic_body_single(Pred, _) :-
 	nonground(Pred) -> set_bip_error(4) ; set_bip_error(5).
 
@@ -143,136 +176,130 @@ abolish_body(Functor, Module ) :-
 	error(5, abolish(Functor), Module).
 
 
-% clause/4 is just an interface to clause/5, works for facts and rules
+% Auxiliary to check and decompose clause arguments
 
-clause((Head:-Body), Error, Ref, Module) :-
+clause_info(Clause, _N, _A, _NormClause) :- var(Clause), !,
+    	set_bip_error(4).
+clause_info(Clause, N, A, NormClause) :- Clause = (Head:-_), !,
+	NormClause = Clause,
+	check_callable(Head),
+	functor(Head, N, A).
+clause_info(Head, N, A, NormClause) :-
+	NormClause = (Head:-true),
+	check_callable(Head),
+	functor(Head, N, A).
+
+
+% Handler for event 70
+
+undef_dynamic_handler(N, assert(Clause), Module) :- !,
+	undef_dynamic_handler(N, assertz(Clause), Module).
+undef_dynamic_handler(N, asserta(Clause), Module) :-
+	clause_info(Clause, Name, Arity, _NormClause),
+	dynamic_create_(Name, Arity, Module),
 	!,
-	clause(Head, Body, Ref, Module, Error).
-clause(Fact, Error, Ref, Module) :-
-	clause(Fact, true, Ref, Module, Error).
+	asserta(Clause)@Module.
+undef_dynamic_handler(N, assertz(Clause), Module) :-
+	clause_info(Clause, Name, Arity, _NormClause),
+	dynamic_create_(Name, Arity, Module),
+	!,
+	assertz(Clause)@Module.
+undef_dynamic_handler(N, Goal, _) :-
+	( get_bip_error(E) ->
+	    error_handler(E, Goal)
+	;
+	    error_handler(N, Goal)
+	).
 
 
-% clause/1 finds clauses whose head unifies with the head of the argument.
-% unifies the body of the clause with the body of the argument.
+asserta_(Clause, Module) :-
+	( clause_info(Clause, N, A, NormClause),
+	  dynamic_source_(N, A, SrcHandle, Module) ->
+	    recorda(SrcHandle, NormClause)
+	;
+	    bip_error(asserta(Clause), Module)
+	).
+
+
+assert_(Clause, Module) :-
+	( clause_info(Clause, N, A, NormClause),
+	  dynamic_source_(N, A, SrcHandle, Module) ->
+	    recordz(SrcHandle, NormClause)
+	;
+	    bip_error(assertz(Clause), Module)
+	).
+
 
 clause_body(Clause, Module) :-
-	clause(Clause, Error, _, Module),
-	(var(Error) ->
-	    true
+	( clause_info(Clause, N, A, NormClause),
+	  dynamic_source_(N, A, SrcHandle, Module) ->
+	    recorded(SrcHandle, NormClause)
 	;
-	    error(Error, clause(Clause), Module)
+	    bip_error(clause(Clause), Module)
 	).
 
-
-% clause/2
-% clause(Head,Body) <==> clause((Head/Body))
 
 clause_body(Head, Body, Module) :-
-	clause(Head, Body, _, Module, Error),
-	(var(Error) ->
-	    true
+	( check_callable(Head),
+	  functor(Head, N, A),
+	  dynamic_source_(N, A, SrcHandle, Module) ->
+	    recorded(SrcHandle, (Head:-Body))
 	;
-	    error(Error, clause(Head, Body), Module)
+	    bip_error(clause(Head, Body), Module)
 	).
 
-
-% retract/1 removes the first clause that matches the argument 
-% from the database. It is a backtrackable retract/1 (BSI)
 
 retract_body(Clause, Module) :-
-	clause(Clause, Error, Ref, Module),
-	(var(Error) ->
-	    kill_pair(Ref)
+	( clause_info(Clause, N, A, NormClause),
+	  dynamic_source_(N, A, SrcHandle, Module) ->
+	    erase(SrcHandle, NormClause)
 	;
-	    error(Error, retract(Clause), Module)
+	    bip_error(retract(Clause), Module)
 	).
 
 
-% retract_all/1 retracts from the database all clauses 
-% whose head matches the argument
-
-retract_all_body(Head, Module):-
-	clause(Head, _, Ref, Module, Error),
-	(var(Error) ->
-	    kill_pair(Ref),
-	    fail
+retract_all_body(Head, Module) :-
+	( check_callable(Head),
+	  functor(Head, N, A),
+	  dynamic_source_(N, A, SrcHandle, Module) ->
+	    erase_all(SrcHandle, Head :- _)@Module
 	;
-	    !,
-	    error(Error, retract_all(Head), Module)
-	).
-retract_all_body(_, _).
-
-
-% listing/0, listing/1 prints the definition of a predicate to the standard 
-% output. Functor and Arity must be defined. (difference from BSI). 
-
-listing_body(Module):-
-	(gen_listing(_, Module) ->
-	    true
-	;
-	    get_bip_error(E),
-	    error(E, listing, Module)
+	    bip_error(retract_all(Head), Module)
 	).
 
 
-listing_body(PredList, Module) :-
-	var(PredList),
-	!,
-	error(4, listing(PredList), Module).
-listing_body(PredList, Module) :-
-	illegal_unlocked_module(Module, Error),
-	!,
-	error(Error, listing(PredList), Module).
-listing_body((A, B), Module) :-
-	!,
-	listing_body(A, Module),
-	listing_body(B, Module).
-listing_body(Name, Module) :-
-	atom(Name),	% listing(p) = list all clauses with head p/AnyArity
-	!,
-	(gen_listing(Name/_, Module) ->
-	    true
+listing_body(Pred, Module) :-
+	( check_predspec(Pred),
+	  Pred = N/A,
+	  dynamic_source_(N, A, SrcHandle, Module) ->
+	    (
+		recorded(SrcHandle, Clause)@Module,
+		writeclause(Clause)@Module,
+		fail
+	    ;
+		true
+	    )
 	;
-	    get_bip_error(E),
-	    error(E, listing(Name), Module)
+	    bip_error(listing(Pred), Module)
 	).
-listing_body(Name, Module) :-
-	check_predspec(Name),		% mail fail with bip_error
-	Name = N/A,
-	pred_listing(N, A, Module),	% mail fail with bip_error
-	!.
-listing_body(Name, Module) :-
-	bip_error(listing(Name), Module).
 
 
-% fails on error, setting the global error variable
-gen_listing(Pred, Module) :-
-	Pred = F/A,
-	current_predicate_body(Pred, Module),
-	is_dynamic_(F, A, Module),
-	proc_flags(Pred, 0, Module, Module), % definition module = Module
-	(pred_listing(F, A, Module) ->
+listing_body(Module) :-
+	(
+	    current_predicate_body(Pred, Module),
+	    is_dynamic_(F, A, Module),
+	    proc_flags(Pred, 0, Module, Module), % definition module = Module
+	    listing_body(Pred, Module),
 	    nl(output),
 	    fail
 	;
-	    !,
-	    fail	% bip_error set by pred_listing/3
+	    true
 	).
-gen_listing(_, _).
 
-% fails on error, setting the global error variable
-pred_listing(Functor,Arity, Module):- 
-	functor(Head, Functor, Arity),
-	clause(Head, Body, _, Module, Error),
-	(var(Error) ->
-	    writeclause_body((Head:-Body), Module),
-	    fail
-	;
-	    !,
-	    set_bip_error(Error)
-	).
-pred_listing(_,_,_).
 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % some predicates to output a clause (used in listing)
 
 writeclause_body(C,M):-	
