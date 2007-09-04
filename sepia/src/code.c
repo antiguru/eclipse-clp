@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.1 2006/09/23 01:55:52 snovello Exp $
+ * VERSION	$Id: code.c,v 1.2 2007/09/04 16:18:10 jschimpf Exp $
  */
 
 /********************************************************************
@@ -603,7 +603,7 @@ code_init(int flags)
   if (flags & INIT_SHARED)
   {
     did1 = in_dict("block", 4);
-    Allocate_Default_Procedure(15L, did1);
+    Allocate_Default_Procedure(16L, did1);
     Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
     Store_2(Catch, 0)
     Store_2(Allocate, Esize(1))
@@ -616,7 +616,7 @@ code_init(int flags)
     Store_i(Code_end);
 
     did1 = in_dict("block_atomic", 4);
-    Allocate_Default_Procedure(15L, did1);
+    Allocate_Default_Procedure(16L, did1);
     Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
     Store_2(Catch, 1)
     Store_2(Allocate, Esize(1))
