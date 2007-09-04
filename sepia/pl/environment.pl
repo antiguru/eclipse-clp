@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.2 2007/08/12 19:40:41 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.3 2007/09/04 16:57:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -75,8 +75,8 @@ get_flag_body(Name, Value, M) :-
 	    error(5, get_flag(Name, Value)).
 
 
-do_get_flag(all_dynamic,X, _) :-
-	(getval(alldynamic,0) -> X=off ; X=on).
+%do_get_flag(all_dynamic,X, _) :-
+%	(getval(alldynamic,0) -> X=off ; X=on).
 do_get_flag(break_level, X, _) :- getval(break_level, X).
 do_get_flag(coroutine,X, _) :-
 	global_flags(0,0,F),
@@ -270,12 +270,8 @@ do_set_flag(publishing_parameter,X, _) :- !,
 	(integer(X) -> sys_flags(3, X) ; set_bip_error(5)).
 do_set_flag(break_level, X, _) :- !,
 	(integer(X) -> setval(break_level, X) ; set_bip_error(5)).
-do_set_flag(all_dynamic, X, _) :- !,
-	(
-	    X == off ->	setval(alldynamic, 0) ;
-	    X == on ->	setval(alldynamic, 1) ;
-	    wrong_atom(X)
-	).
+do_set_flag(all_dynamic, _X, _) :- !,
+	set_bip_error(141).	% unimplemented
 do_set_flag(after_event_timer, T, _) :-
 	(
 	    try_set_after_timer(T) -> true ;
@@ -596,6 +592,7 @@ long_flag(cwd).
 long_flag(default_language).
 long_flag(extension).		% nondet
 long_flag(tmp_dir).
+long_flag(hostid).
 long_flag(hostname).
 long_flag(installation_directory).
 long_flag(library_path).	% too long

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: procedure.c,v 1.1 2006/09/23 01:56:13 snovello Exp $
+ * VERSION	$Id: procedure.c,v 1.2 2007/09/04 16:57:34 jschimpf Exp $
  */
 
 /*
@@ -80,7 +80,9 @@
  * EXTERNAL VARIABLE DECLARATIONS:
  */
 
+#ifdef OLD_DYNAMIC
 extern vmcode	*init_dynamic(pri *pd);
+#endif
 extern int	compile_dynamic(proc_desc *procedure, dident module);
 extern void	copy_procedure(proc_desc *procedure);
 
@@ -435,6 +437,7 @@ int ec_compile(stream_id nst, long int flags, dident module, type tmod)
 	    GargsSize(procedure.gargs) = procedure.arity + 10;
 	}
 
+#ifdef OLD_DYNAMIC
 	/* dynamic procedures */
 	if (g_alldynamic_->val.nint && !(cd.flags & FDUMPED))
 	{
@@ -464,6 +467,7 @@ int ec_compile(stream_id nst, long int flags, dident module, type tmod)
 		continue;
 	    }
 	}
+#endif
 
 	/* check for consecutive clauses */
 	code = PriCode(procindex);
