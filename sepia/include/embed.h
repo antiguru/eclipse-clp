@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.3 2007/07/03 00:10:28 jschimpf Exp $
+ * $Id: embed.h,v 1.4 2007/09/05 10:40:57 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -281,6 +281,8 @@ Extern DLLEXP	char *		os_filename ARGS((char *in, char *out));
 
 Extern DLLEXP 	pword * 	term_to_dbformat ARGS((pword*, dident));
 Extern DLLEXP 	pword * 	dbformat_to_term ARGS((char*, dident, type));
+
+Extern	DLLEXP	int		meta_index ARGS((dident));
 
 #endif /* !EC_EMBED */
 

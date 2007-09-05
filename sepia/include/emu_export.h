@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.7 2007/08/24 21:36:43 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.8 2007/09/05 10:40:57 jschimpf Exp $
  */
 
 /*
@@ -1474,7 +1474,6 @@ Extern	void	untrail_ext ARGS((pword**,int));
 Extern	void	do_cut_action ARGS((void));
 Extern	DLLEXP	void	schedule_cut_fail_action ARGS((void (*)(value,type), value, type));
 Extern	void	trail_undo ARGS((pword*, void (*)(pword*)));
-Extern	DLLEXP	int	meta_index ARGS((dident));
 Extern	dident	meta_name ARGS((int));
 Extern	int	p_schedule_woken ARGS((value, type));
 Extern	DLLEXP	int	p_schedule_postponed ARGS((value, type));
