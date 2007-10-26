@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.9 2007/07/06 12:52:05 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.10 2007/10/26 02:17:33 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1223,13 +1223,13 @@ fi
 case $ARCH in
 
     i386_linux)
-    	CPLEX_ARCH_PREFIX=i86_linux
+    	CPLEX_ARCH_PREFIX=i386_linux
 	;;
     x86_64_linux)
-    	CPLEX_ARCH_PREFIX=x86-64_RHEL
+    	CPLEX_ARCH_PREFIX=x86_64_linux
 	;;
     sparc_sunos5)
-    	CPLEX_ARCH_PREFIX=ultrasparc
+    	CPLEX_ARCH_PREFIX=sparc_sunos5
 	;;
     i386_nt)
     	CPLEX_ARCH_PREFIX=i386_nt
