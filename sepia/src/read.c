@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.2 2007/06/01 15:43:48 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.3 2007/11/06 00:12:16 kish_shen Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -1839,10 +1839,11 @@ trafo_term(dident tr_did,	/* the functor of the term to transform	*/
 	return 0;
 
     /* create a goal of the form:
-     *	trans_term( <trans>(In,Out{,CurModule}), TrModule )
+     *	trans_term( <trans>(In,Out{,AnnIn,AnnOut}{,CurModule}), TrModule ) or
+     *  AnnIn,AnnOut are always uninstantiated here
      */
     pw = Gbl_Tg;
-    Gbl_Tg += 7;
+    Gbl_Tg += DidArity(md->trans_function) + 4;
     Check_Gc;
     pw->tag.all		= TDICT;
     pw->val.did		= d_.trans_term;
@@ -1855,13 +1856,29 @@ trafo_term(dident tr_did,	/* the functor of the term to transform	*/
 
     (pw+5)->tag.kernel	= TREF;
     (pw+5)->val.ptr	= (pw+5);
-    if(DidArity(md->trans_function) > 2)
+    switch (DidArity(md->trans_function))
     {
+    case 2: /* <trans>(In, Out) */
+	break;
+    case 3: /* <trans>(In,Out,CurModule) */
 	(pw+6)->tag.all	= mt.all;
 	(pw+6)->val.did	= mv;
+	break;
+    case 5: /* <trans>(In,Out,AnnIn,AnnOut,CurModule) */
+	(pw+8)->tag.all	= mt.all;
+	(pw+8)->val.did	= mv;
+ 	/* falls through */
+    case 4: /* <trans>(In,Out,AnnIn,AnnOut) */
+	(pw+6)->tag.kernel = TREF;
+	(pw+6)->val.ptr	= (pw+6);
+	(pw+7)->tag.kernel = TREF;
+	(pw+7)->val.ptr	= (pw+7);
+	break;
+    default:
+	/* incorrect arity for <trans> */
+	Gbl_Tg = Gbl_Tg - DidArity(md->trans_function) - 4;
+	return 0;
     }
-    else
-	Gbl_Tg--;
 
     return pw;
 }
