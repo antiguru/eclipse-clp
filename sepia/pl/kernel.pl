@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.16 2007/09/04 16:28:48 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.17 2007/11/06 00:02:02 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -3758,7 +3758,7 @@ inline_(Proc, Trans, Module) :-
 	sepia_version_banner/2,
 	tr_match/2,
 	trprotect/2,
-	trdcg/3,
+	trdcg/5,
 	call_local/1,
 	erase_module_pragmas/1,
 	exec_exdr/1,
@@ -4251,127 +4251,6 @@ trprotect(In, Out) :- arg(1, In, Out).
 
 :- define_macro(no_macro_expansion/1, trprotect/2, [protect_arg,global]).
 
-%
-% Definite clause grammars (DCG)
-%
-
-trdcg((Head --> Body), Clause, Module) :-
-	check_head(Head),
-	head(Head, NewHead, Pushback, S0, _, S1, Module),
-	body(Body, NewBody, S0, S1, Module),
-	(Pushback = true
-	    ->
-		Clause = (NewHead :- NewBody)
-	     ;	
-		Clause = (NewHead :- NewBody, Pushback)
-	).
-
-check_head(H) :-
-	non_terminal(H, -126),
-	(H = (A, P)
-	    ->
-		non_terminal(A, -126),
-		error_if_not_list(P, -126)
-	     ;
-		true
-	).
-
-non_terminal(V, Where) :-
-	(var(V) ; number(V) ; string(V)),
-	!,
-	exit_block(Where).
-non_terminal(_, _).
-
-error_if_not_list(.(_,_), _) :-
-	!.
-error_if_not_list(_, Where) :-
-	exit_block(Where).
-
-:- mode head(+, -, -, -, -, -, ++).
-head((Head , Pushbacklist), NewHead, Pushback, S0, S, S1, Module) :-
-	!,
-	goal(Head, NewHead, S0, S, _, Module),
-	body(Pushbacklist, Pushback, S, S1, Module).
-head(Head, NewHead, true, S0, S, S, Module) :-
-	goal(Head, NewHead, S0, S, _, Module).
-
-body(X, Y, S0, S, Module) :-
-	body(X, Y0, S0, S, Last, Module),
-	(Last == S0 ->			% nothing was added
-	    app_eq(X, Y0, S0 = S, Y)	% take care of -> (for ;)
-	;
-	    S = Last,
-	    Y = Y0
-	).
-
-body(X, Y, S0, S, Last, Module) :-
-	var(X),
-	!,
-	goal(X, Y, S0, S, Last, Module).
-body(( -?-> B), (-?-> NewB), S0, S1, Last, Module) :-
-	!,
-	body(B, NewB, S0, S1, Last, Module).
-body((B -> R), (NewB -> NewR), S0, S2, Last, Module) :-
-	!,
-	body(B, NewB, S0, S1, S1, Module),
-	body(R, NewR, S1, S2, Last, Module).
-body((B ; R), (NewB ; NewR), S0, S, S, Module) :-
-	!,
-	body(B, NewB, S0, S, Module),
-	body(R, NewR, S0, S, Module).
-body((B | R), (NewB ; NewR), S0, S, S, Module) :-
-	!,
-	body(B, NewB, S0, S, Module),
-	body(R, NewR, S0, S, Module).
-body((B , R), Goal, S0, S, Last, Module) :-
-	!,
-	body(B, NewB, S0, S1, S1, Module),
-	body(R, NewR, S1, S, Last, Module),
-	app_goal(NewB, NewR, Goal).
-body((Iter do Body), Goal, S0, S, Last, Module) :-
-	!,
-	S = Last,
-	Goal = (fromto(S0, S1, S2, S),Iter do NewBody),
-	body(Body, NewBody, S1, S2, Module).
-body(B, NewB, S0, S, Last, Module) :-
-	goal(B, NewB, S0, S, Last, Module).
-
-:- mode goal(?, -, ?, ?, ?, ++).		% could be more precise?
-goal(X, phrase(X,S0,S), S0, S, S, _) :-
-	var(X),
-	!.
-goal({Goal}, Goal, S0, _, S0, _) :-
-	!.
-goal(!, (S0=S,!), S0, S, S, _) :-
-	!.
-goal([], true, S0, _, S0, _) :-
-	!.
-goal([H|T], Goal, S0, S, Last, Module) :-
-	!,
-	goal(T, IGoal, S1, S, Last, Module),
-	( IGoal = (S1 = X) ->		% can be done at transformation time
-	    Goal = 'C'(S0,H,X)
-	;
-	    app_goal('C'(S0,H,S1), IGoal, Goal)
-	).
-goal(G, NewG, S0, S, S, _) :-
-	non_terminal(G, -127),
-	G =.. [F | L],
-	append(L, [S0, S], NL),
-	NewG =.. [F | NL].
-
-app_goal(true, G, Goal) :- -?-> !, Goal = G.
-app_goal(G, true, Goal) :- -?-> !, Goal = G.
-app_goal(A, B, (A, B)).
-
-%app_eq(Input, SoFar, Eq, Output)
-app_eq((_->_), (A -> B), Eq, (A -> B1)) :-
-	!,
-	app_goal(B, Eq, B1).
-app_eq(_, (A -> B), Eq, ((A -> B), Eq)) :- !.
-app_eq(_, Y, Eq, Y1) :-
-	app_goal(Y, Eq, Y1).
-:- define_macro((-->)/2, trdcg/3, [clause,global]).
 
 /* Backward-compatibility transformation for matching clauses */
 
@@ -7079,6 +6958,161 @@ multifor_next([Idx0 | RevIdx0], RevFrom, RevTo, [Step | RevStep], RevIdx,
 	    reverse(RevIdx0, FwdIdx, [Idx0|FwdIdx0])
 	).
 
+
+%----------------------------------------------------------------------
+% Definite clause grammars (DCG)
+%----------------------------------------------------------------------
+
+trdcg((Head --> Body), Clause, AnnDCG, AnnClause, Module) :-
+        check_head(Head),
+        same_annotation((AnnHead --> AnnBody), AnnDCG, 
+                        (AnnNewHead :- AnnNewBody), AnnClause),
+        head(Head, NewHead, AnnHead, AnnNewHead, Pushback, AnnPushback, S0, _, S1, Module),
+	body(Body, NewBody, AnnBody, AnnNewBody0, S0, S1, Module),
+        (Pushback = true
+	    ->
+                Clause = (NewHead :- NewBody),
+                AnnNewBody = AnnNewBody0 
+	     ;	
+		Clause = (NewHead :- NewBody, Pushback),
+                inherit_annotation((AnnNewBody0,AnnPushback), AnnNewBody0, AnnNewBody)
+
+	).
+
+check_head(H) :-
+	non_terminal(H, -126),
+	(H = (A, P)
+	    ->
+		non_terminal(A, -126),
+		error_if_not_list(P, -126)
+	     ;
+		true
+	).
+
+non_terminal(V, Where) :-
+	(var(V) ; number(V) ; string(V)),
+	!,
+	exit_block(Where).
+non_terminal(_, _).
+
+error_if_not_list(.(_,_), _) :-
+	!.
+error_if_not_list(_, Where) :-
+	exit_block(Where).
+
+:- mode head(+, -, -, -, -, -, ++).
+head((Head , Pushbacklist), NewHead, AnnPHead, AnnNewHead, 
+     Pushback, AnnPushback, S0, S, S1, Module) :-
+	!,
+	goal(Head, NewHead, AnnHead, AnnNewHead, S0, S, _, Module),
+        annotated_match(AnnPHead, (AnnHead,AnnPushbacklist)), 
+	body(Pushbacklist, Pushback, AnnPushbacklist, AnnPushback, S, S1, Module).
+head(Head, NewHead, AnnHead, AnnNewHead, true, AnnTrue, S0, S, S, Module) :-
+        inherit_annotation(true, AnnHead, AnnTrue),
+        goal(Head, NewHead, AnnHead, AnnNewHead, S0, S, _, Module).
+
+body(X, Y, AnnX, AnnY, S0, S, Module) :-
+        body(X, Y0, AnnX, AnnY0, S0, S, Last, Module),
+        (Last == S0 ->			% nothing was added
+            app_eq(X, Y0, S0 = S, AnnY0, Y, AnnY)	% take care of -> (for ;)
+	;
+	    S = Last,
+	    Y = Y0,
+            AnnY = AnnY0
+	).
+
+body(X, Y, AnnX, AnnY, S0, S, Last, Module) :-
+	var(X),
+	!,
+	goal(X, Y, AnnX, AnnY, S0, S, Last, Module).
+body(( -?-> B), (-?-> NewB), AnnX, AnnY, S0, S1, Last, Module) :-
+	!,
+        same_annotation((-?-> AnnB), AnnX, (-?-> AnnNewB), AnnY),
+	body(B, NewB, AnnB, AnnNewB, S0, S1, Last, Module).
+body((B -> R), (NewB -> NewR), AnnX, AnnY, S0, S2, Last, Module) :-
+	!,
+        same_annotation((AnnB->AnnR), AnnX, (AnnNewB->AnnNewR), AnnY),
+	body(B, NewB, AnnB, AnnNewB, S0, S1, S1, Module),
+	body(R, NewR, AnnR, AnnNewR, S1, S2, Last, Module).
+body((B ; R), (NewB ; NewR), AnnX, AnnY, S0, S, S, Module) :-
+	!,
+        same_annotation((AnnB ; AnnR), AnnX, (AnnNewB ; AnnNewR), AnnY),
+	body(B, NewB, AnnB, AnnNewB, S0, S, Module),
+	body(R, NewR, AnnR, AnnNewR, S0, S, Module).
+body((B | R), (NewB ; NewR), AnnX, AnnY, S0, S, S, Module) :-
+	!,
+        same_annotation((AnnB | AnnR), AnnX, (AnnNewB ; AnnNewR), AnnY),
+	body(B, NewB, AnnB, AnnNewB, S0, S, Module),
+	body(R, NewR, AnnR, AnnNewR, S0, S, Module).
+body((B , R), Goal, AnnX, AnnGoal, S0, S, Last, Module) :-
+	!,
+        annotated_match(AnnX, (AnnB, AnnR)),
+	body(B, NewB, AnnB, AnnNewB, S0, S1, S1, Module),
+	body(R, NewR, AnnR, AnnNewR, S1, S, Last, Module),
+	app_goal(NewB, NewR, AnnNewB, AnnNewR, Goal, AnnGoal).
+body((Iter do Body), Goal, AnnDo, AnnGoal, S0, S, Last, Module) :-
+	!,
+	S = Last,
+	Goal = (fromto(S0, S1, S2, S),Iter do NewBody),
+        same_annotation((AnnIter do AnnBody), AnnDo, (AnnNewIter do AnnNewBody), AnnGoal), 
+        transformed_annotate(fromto(S0,S1,S2,S), AnnDo, AnnFromTo),
+        same_annotation(_IterAnn, AnnIter, (AnnFromTo,AnnIter), AnnNewIter),
+	body(Body, NewBody, AnnBody, AnnNewBody, S1, S2, Module).
+body(B, NewB, AnnB, AnnNewB, S0, S, Last, Module) :-
+        goal(B, NewB, AnnB, AnnNewB, S0, S, Last, Module).
+
+:- mode goal(?, -, ?, -, ?, ?, ?, ++).		% could be more precise?
+goal(X, phrase(X,S0,S), AnnX, AnnPhraseX, S0, S, S, _) :-
+	var(X),
+	!,
+        transformed_annotate(phrase(X,S0,S), AnnX, AnnPhraseX).
+goal({Goal}, Goal, AnnGoal, GoalAnn, S0, _, S0, _) :-
+	!, 
+        annotated_match(AnnGoal, {GoalAnn}).
+goal(!, (S0=S,!), AnnCut, AnnCutGoal, S0, S, S, _) :-
+	!,
+        transformed_annotate(S0=S, AnnCut, AnnEq),
+        inherit_annotation((AnnEq,AnnCut), AnnCut, AnnCutGoal).
+goal([], true, AnnNil, AnnTrue, S0, _, S0, _) :-
+	!,
+        transformed_annotate(true, AnnNil, AnnTrue).
+goal([H|T], Goal, AnnX, AnnGoal, S0, S, Last, Module) :-
+	!,
+        annotated_match(AnnX, [AnnH|AnnT]),
+	goal(T, IGoal, AnnT, AnnIGoal, S1, S, Last, Module),
+	( IGoal = (S1 = X) ->		% can be done at transformation time
+	    Goal = 'C'(S0,H,X),
+            transformed_annotate(Goal, AnnH, AnnGoal)
+	;
+            transformed_annotate('C'(S0,H,S1), AnnH, AnnC),
+            app_goal('C'(S0,H,S1), IGoal, AnnC, AnnIGoal, Goal, AnnGoal)
+	).
+goal(G, NewG, AnnG, AnnNewG, S0, S, S, _) :-
+	non_terminal(G, -127),
+	G =.. [F | L],
+	append(L, [S0, S], NL),
+	NewG =.. [F | NL],
+        transformed_annotate(NewG, AnnG, AnnNewG).
+
+app_goal(true, G, _, AnnG, Goal, AnnGoal) :- -?-> !, Goal = G, AnnGoal = AnnG.
+app_goal(G, true, AnnG, _, Goal, AnnGoal) :- -?-> !, Goal = G, AnnGoal = AnnG.
+app_goal(A, B, AnnA, AnnB, (A, B), AnnGoal) :-
+        inherit_annotation((AnnA,AnnB), AnnA, AnnGoal).
+
+%app_eq(Input, SoFar, Eq, AnnSoFar, Output, AnnOutput)
+app_eq((_->_), (A -> B), Eq, AnnSoFar, (A -> B1), AnnOut) :-
+	!,
+        annotated_match(AnnSoFar, (AnnA -> AnnB)),
+        transformed_annotate(Eq, AnnSoFar, AnnEq),
+	app_goal(B, Eq, AnnB, AnnEq, B1, AnnB1),
+        inherit_annotation((AnnA -> AnnB1), AnnSoFar, AnnOut).
+app_eq(_, (A -> B), Eq, AnnSoFar, ((A -> B), Eq), AnnOut) :- !,
+        transformed_annotate(Eq, AnnSoFar, AnnEq),
+        inherit_annotation((AnnSoFar,AnnEq), AnnSoFar, AnnOut).
+app_eq(_, Y, Eq, AnnY, Y1, AnnY1) :-
+        transformed_annotate(Eq, AnnY, AnnEq),
+	app_goal(Y, Eq, AnnY, AnnEq, Y1, AnnY1).
+:- define_macro((-->)/2, trdcg/5, [clause,global]).
 
 %----------------------------------------------------------------------
 % Singleton warnings
