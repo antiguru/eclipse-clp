@@ -404,22 +404,18 @@ no (more) solution.
 Grammar rule are translated to Prolog clauses by adding two arguments
 which represent the input before and after the nonterminal which is
 represented by the rule.
-The effect of the transformation can be observed, e.g.\ by switching on
-the {\tt all_dynamic} flag so that the compiled clauses can be listed:
+The effect of the transformation can be observed, e.g.\ by calling bipref{expand_clause/2}{../bips/kernel/database/expand_clause-2.html}:
 \begin{quote} \begin{verbatim}
-[eclipse 1]: set_flag(all_dynamic, on), [user].
- p(X) --> q(X).
- p(X) --> [a].
-user       compiled traceable 296 bytes in 0.25 seconds
+[eclipse 1]: expand_clause(p(X) --> q(X), Expanded).
 
-yes.
-[eclipse 2]: listing.
-p(_g212, _g214, _g216) :-
-        q(_g212, _g214, _g216).
-p(_g212, _g214, _g216) :-
-        _g214 = [a|_g216].
+X = X
+Expanded = p(X, _250, _243) :- q(X, _250, _243)
+Yes (0.00s cpu)
+[eclipse 2]: expand_clause(p(X) --> [a], Expanded).
 
-yes.
+X = X
+Expanded = p(X, _251, _244) :- 'C'(_251, a, _244)
+Yes (0.00s cpu)
 \end{verbatim} \end{quote}
 
 \subsection{Parsing other Data Structures}

@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.6 2007/06/07 15:10:56 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.7 2007/11/07 18:23:23 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -696,7 +696,6 @@ proc tkecl:popup_global_state {} {
 	wm title $gstate "ECLiPSe Global Settings"
 	
 	tkecl:add_radiobutton $gstate after_event_timer "real virtual"
-	tkecl:add_radiobutton $gstate all_dynamic "off on"
 	tkecl:add_radiobutton $gstate breal_exceptions "off on"
 	tkecl:add_radiobutton $gstate coroutine "off on"
 	tkecl:add_radiobutton $gstate debugging "nodebug creep leap"

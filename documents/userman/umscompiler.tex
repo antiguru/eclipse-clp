@@ -165,16 +165,6 @@ Setting this flag to \biptxtref{check_singletons}{get_flag/2}{../bips/kernel/env
 but additionally, the compiler will issue warnings about variables which occur
 only once in a clause and whose names do not start with an underscore character.
 
-\item [] \biptxtref{all_dynamic}{get_flag/2}{../bips/kernel/env/get_flag-2.html}
-When this flag is {\bf on}, all procedures are compiled
-as dynamic ones (and there is no equivalent {\bf static/1}
-declaration).
-It can be used to port programs from older interpreters
-which rely heavily on the fact that all predicates
-in these interpreters were dynamic.
-Another possible use is to switch it on at the beginning of a file
-that contains many dynamic predicates and switch it off at its end.
-
 \item [] \biptxtref{macro_expansion}{get_flag/2}{../bips/kernel/env/get_flag-2.html}
 This is in fact a parser flag, is enables or disables the macro transformation
 (see Chapter \ref{chapmacros}) for the input source.
