@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dynamic.pl,v 1.3 2007/09/04 16:28:48 jschimpf Exp $
+% Version:	$Id: dynamic.pl,v 1.4 2007/11/07 00:34:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -286,8 +286,9 @@ listing_body(Pred, Module) :-
 
 listing_body(Module) :-
 	(
+	    Pred = N/A,
 	    current_predicate_body(Pred, Module),
-	    is_dynamic_(F, A, Module),
+	    is_dynamic_(N, A, Module),
 	    proc_flags(Pred, 0, Module, Module), % definition module = Module
 	    listing_body(Pred, Module),
 	    nl(output),
