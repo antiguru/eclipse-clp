@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.1 2006/09/23 01:45:19 snovello Exp $
+# $Id: Makefile.in,v 1.2 2007/11/22 11:01:05 kish_shen Exp $
 #
 
 ARCH = @ARCH@
@@ -18,7 +18,7 @@ PL_ECI_FILES =	applic.pl arrays.pl assoc.pl bags.pl between.pl distfix.pl \
 		project.pl random.pl rdtok.pl read.pl struct.pl \
 		tidy.pl trees.pl
 
-ECL_ECI_FILES =	cardinal.ecl xml.ecl
+ECL_ECI_FILES =	cardinal.ecl grasper.ecl xml.ecl
 
 PL_FILES =	xml.pl xml_diagnosis.pl xml_pp.pl xml_acquisition.pl \
 		xml_generation.pl xml_utilities.pl \
