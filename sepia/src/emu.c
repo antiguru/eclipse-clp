@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.12 2007/09/04 16:28:48 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.13 2007/11/22 17:54:10 kish_shen Exp $
  */
 
 /*
@@ -5410,7 +5410,7 @@ _match_values_:
 		DynEnvDbgLine(E)->val.nint,
 		DynEnvDbgFrom(E)->val.nint,
 		DynEnvDbgTo(E)->val.nint, val_did)
-	    if (OfInterest(PriFlags(proc), DBG_INVOC, tmp1))
+	    if (OfInterest(PriFlags(proc), DBG_INVOC, tmp1, DynEnvDbgPath(E)->val.did, DynEnvDbgLine(E)->val.nint))
 	    {
 		A[2] = TAGGED_TD;			/* New call stack */
 
@@ -5441,7 +5441,7 @@ _match_values_:
 	    A[1] = TAGGED_TD;			/* Old call stack */
 	    Pop_Dbg_Frame();
 	    pw1 = A[1].val.ptr;
-	    if (ExitPortWanted && OfInterest(PriFlags(DProc(pw1)), DInvoc(pw1), DLevel(pw1)))
+	    if (ExitPortWanted && OfInterest(PriFlags(DProc(pw1)), DInvoc(pw1), DLevel(pw1), D_UNKNOWN, 0))
 	    {
 		/* call debug event(OldStack) */
 		proc = error_handler_[-(DEBUG_EXIT_EVENT)];
@@ -6330,7 +6330,7 @@ _end_external_:
 		    {
 			proc = PP[0].proc_entry;
 			if (!(PriFlags(proc) & DEBUG_SK)
-				|| OfInterest(PriFlags(proc), NINVOC, DLevel(TD)+1))
+			    || OfInterest(PriFlags(proc), NINVOC, DLevel(TD)+1, D_UNKNOWN, 0) )
 			{
 			    /*
 			     * Raise a DEBUG_BIPCALL_EVENT whose handler will
@@ -6367,7 +6367,7 @@ _end_external_:
 			    && (PriArgPassing(proc) == ARGSTACK))
 		    {
 			if (!(TfFlags(TD) & TF_NOGOAL)
-			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD)))
+			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD), D_UNKNOWN, 0))
 			{
 			    err_code = DEBUG_BIPEXIT_EVENT;
 			    PP += 2;
@@ -6385,7 +6385,7 @@ _end_external_:
 		    {
 			FCULPRIT = DInvoc(TD);
 			if (!(TfFlags(TD) & TF_NOGOAL)
-			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD)))
+			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD), D_UNKNOWN, 0) )
 			{
 			    err_code = DEBUG_BIPFAIL_EVENT;
 			    PP += 2;
@@ -7772,7 +7772,7 @@ _narg_:
 	    {
 		Set_Susp_DebugInvoc(pw2, NINVOC);
 		++NINVOC;
-		if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(procb), NINVOC-1, DLevel(TD)+1))
+		if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(procb), NINVOC-1, DLevel(TD)+1, D_UNKNOWN, 0) )
 		{
 		    err_code = DEBUG_DELAY_EVENT;
 		    /* to suppress tracing of the event handler call: */
@@ -8623,7 +8623,7 @@ _arg_:
 	    {
 		Set_Susp_DebugInvoc(pw2, NINVOC);
 		++NINVOC;
-		if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(procb), NINVOC-1, DLevel(TD)+1))
+		if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(procb), NINVOC-1, DLevel(TD)+1, D_UNKNOWN, 0) )
 		{
 		    err_code = DEBUG_DELAY_EVENT;
 		    /* to suppress tracing of the event handler call: */

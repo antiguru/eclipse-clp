@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.6 2007/08/22 23:02:10 jschimpf Exp $
+ * $Id: sepia.h,v 1.7 2007/11/22 17:56:06 kish_shen Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1248,6 +1248,8 @@
 #define	JMAXINVOC	g_emu_.trace_data.max_invoc
 #define	JMINLEVEL	g_emu_.trace_data.min_level
 #define	JMAXLEVEL	g_emu_.trace_data.max_level
+#define BREAKLINE	g_emu_.trace_data.break_line
+#define BREAKFILE	g_emu_.trace_data.break_file
 #define	PORTFILTER	g_emu_.trace_data.port_filter
 #define	FTRACE		g_emu_.trace_data.fail_trace
 #define	TRACEMODE	g_emu_.trace_data.trace_mode

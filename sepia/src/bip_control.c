@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.4 2007/06/03 17:03:11 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.5 2007/11/22 17:54:10 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -76,7 +76,7 @@ static int	p_dbgcomp(void),
 		p_events_defer(void),
 		p_raise_init_event(void),
 		p_current_td(value v, type t),
-		p_of_interest(value vport, type tport, value vinvoc, type tinvoc, value vdepth, type tdepth, value vproc, type tproc),
+		p_of_interest(value vport, type tport, value vinvoc, type tinvoc, value vdepth, type tdepth, value vproc, type tproc, value vfile, type tfile, value vline, type tline),
 		p_trace_mode(value v, type t, value vmode, type tmode),
 		p_tracing(void),
 		p_delay_port_susps(value v, type t),
@@ -164,7 +164,7 @@ bip_control_init(int flags)
 	(void) local_built_in(in_dict("raise_init_event", 0), p_raise_init_event, B_SAFE);
 	(void) local_built_in(in_dict("current_td", 1), p_current_td, B_UNSAFE);
 	(void) local_built_in(in_dict("trace_mode", 2), p_trace_mode, B_SAFE);
-	(void) local_built_in(in_dict("of_interest", 4), p_of_interest, B_SAFE);
+	(void) local_built_in(in_dict("of_interest", 6), p_of_interest, B_SAFE);
 	(void) local_built_in(in_dict("get_fail_info", 2), p_get_fail_info, B_UNSAFE);
 	(void) local_built_in(in_dict("susp_to_tf", 2), p_susp_to_tf, B_UNSAFE);
 	(void) local_built_in(in_dict("make_tf", 7), p_make_tf, B_UNSAFE);
@@ -807,13 +807,15 @@ p_failure_culprit(value vf, type tf, value vi, type ti)
  * Check whether the given data matches the current prefilter conditions
  */
 static int
-p_of_interest(value vport, type tport, value vinvoc, type tinvoc, value vdepth, type tdepth, value vproc, type tproc)
+p_of_interest(value vport, type tport, value vinvoc, type tinvoc, value vdepth, type tdepth, value vproc, type tproc, value vfile, type tfile, value vline, type tline)
 {
     word flags = vproc.priptr ? PriFlags(vproc.priptr) : DEBUG_TR;
     word port = IsInteger(tport) ? vport.nint : OTHER_PORT;
     Check_Integer(tinvoc);
     Check_Integer(tdepth);
-    Succeed_If(PortWanted(port) && OfInterest(flags, vinvoc.nint, vdepth.nint));
+    Check_Integer(tline);
+    Check_Atom(tfile);
+    Succeed_If(PortWanted(port) && OfInterest(flags, vinvoc.nint, vdepth.nint, vfile.did, vline.nint));
 }
 
 
@@ -829,18 +831,21 @@ p_trace_mode(value v, type t, value vmode, type tmode)
 	JMINLEVEL = 0; JMAXLEVEL = MAX_DEPTH;
 	PORTFILTER = ANY_NOTIFIES;
 	TRACEMODE = TR_TRACING;
+	BREAKLINE = 0;
 	break;
     case 1:				/* jump(Invoc) */
 	JMININVOC= JMAXINVOC = vmode.nint;
 	JMINLEVEL = 0; JMAXLEVEL = MAX_DEPTH;
 	PORTFILTER = ANY_NOTIFIES;
 	TRACEMODE = TR_TRACING;
+	BREAKLINE = 0;
 	break;
     case 2:				/* leap */
 	JMININVOC = 0; JMAXINVOC = MAX_INVOC;
 	JMINLEVEL = 0; JMAXLEVEL = MAX_DEPTH;
 	PORTFILTER = ANY_NOTIFIES;
 	TRACEMODE = TR_TRACING|TR_LEAPING;
+	BREAKLINE = 0;
 	break;
     case 3:				/* skip(Depth) */
 	JMININVOC = 0; JMAXINVOC = MAX_INVOC;
@@ -848,15 +853,18 @@ p_trace_mode(value v, type t, value vmode, type tmode)
 	PORTFILTER = ANY_NOTIFIES &
 		~(PortFilterBit(NEXT_PORT)|PortFilterBit(ELSE_PORT));
 	TRACEMODE = TR_TRACING;
+	BREAKLINE = 0;
 	break;
     case 4:				/* jump(Level) */
 	JMININVOC = 0; JMAXINVOC = MAX_INVOC;
 	JMINLEVEL = JMAXLEVEL = vmode.nint;
 	PORTFILTER = ANY_NOTIFIES;
 	TRACEMODE = TR_TRACING;
+	BREAKLINE = 0;
 	break;
     case 5:				/* zap(port), nodebug */
 	PORTFILTER = vmode.nint;
+	BREAKLINE = 0;
 	if (PORTFILTER == 0)		/* nodebug */
 	{
 #if 0
@@ -885,6 +893,13 @@ p_trace_mode(value v, type t, value vmode, type tmode)
 	break;
     case 11:
 	TRACEMODE = vmode.nint ? TR_TRACING|TR_LEAPING : TR_TRACING;
+	break;
+
+    case 13:
+	BREAKFILE = vmode.did;
+	break;
+    case 14:
+	BREAKLINE = vmode.nint;
 	break;
 
     /*
@@ -1149,7 +1164,7 @@ ec_make_suspension(pword goal, int prio, void *proc, pword *psusp)
 	Set_Susp_DebugInvoc(susp, NINVOC);
 	++NINVOC;
 	/* only if the port is of interest, raise the debug event */
-	if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(((pri*)proc)), NINVOC-1, DLevel(TD)+1))
+	if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(((pri*)proc)), NINVOC-1, DLevel(TD)+1, D_UNKNOWN, 0))
 	    return DEBUG_SUSP_EVENT;
     }
     return PSUCCEED;

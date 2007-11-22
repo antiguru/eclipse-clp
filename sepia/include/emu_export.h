@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.8 2007/09/05 10:40:57 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.9 2007/11/22 17:56:06 kish_shen Exp $
  */
 
 /*
@@ -1379,11 +1379,13 @@ extern dident transf_did ARGS((long));
  *   match, in leap mode only traceable ones with spy points.
  * - depth is in selected range
  * - invoc is in selected range
+ * - if a breakpoint is set (BREAKLINE!=0), and breakline and breakfile match 
  */
-#define OfInterest(flags, invoc, depth) \
+#define OfInterest(flags, invoc, depth, breakfile, breakline) \
 	( !((((flags) & TRACEMODE) ^ TRACEMODE) & (TR_TRACING|TR_LEAPING)) \
 	&& JMINLEVEL <= (depth) && (depth) <= JMAXLEVEL \
-	&& JMININVOC <= (invoc) && (invoc) <= JMAXINVOC )
+	&& JMININVOC <= (invoc) && (invoc) <= JMAXINVOC \
+	&& (!BREAKLINE || BREAKLINE == (breakline) && BREAKFILE == (breakfile)) )
 
 /*
  * Init the tracer state. The TR_STARTED flag is used to trigger raising
@@ -1392,6 +1394,7 @@ extern dident transf_did ARGS((long));
 #define TracerInit \
 	NINVOC = RLEVEL = FDROP = JMININVOC = 0; \
 	JMINLEVEL = 0; JMAXLEVEL = MAX_DEPTH; JMAXINVOC = MAX_INVOC; \
+	BREAKLINE = 0; BREAKFILE = D_UNKNOWN; \
 	PORTFILTER = ANY_NOTIFIES; \
 	TRACEMODE = TR_TRACING|TR_STARTED;
 

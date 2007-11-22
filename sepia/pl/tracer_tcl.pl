@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.11 2007/06/08 14:41:49 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.12 2007/11/22 17:53:05 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -58,7 +58,8 @@
 	variable(lbpath_type),
 	variable(library_info),
 	variable(show_module),
-        variable(tracer_command).
+        variable(tracer_command),
+        variable(breakpoint).
 
 
 
@@ -70,6 +71,7 @@
 :- setval(filter_count, 1).
 :- setval(filter_hits, 0).
 :- setval(tracer_command, "c").
+:- setval(breakpoint, nofile:0).
 
 % the types for each level of the path used by the library browser
 :- setval(lbpath_type, [top,dir,module,interface]).
@@ -117,6 +119,7 @@
         set_usepred_info/5,
         reenable_usepred/0,
         set_tracer_command/1,
+	set_source_breakpoint/2,
 	read_file_for_gui/1,
         is_current_goal/2,
 	saros_get_library_path/1,
@@ -142,6 +145,7 @@
 :- import
 	set_default_error_handler/2,
 	configure_prefilter/5,
+        configure_prefilter/6,
 	cut_to_stamp/2,
 	trace_mode/2,
 	find_goal/3,
@@ -293,6 +297,9 @@ interpret_command(f(N), Current, _, Cont) :- !,
 interpret_command("z", Current, _, true) :- !,	% zap to different port
 	Current = trace_line{port:Port},
 	configure_prefilter(_, _, ~Port, _, dont_care).
+interpret_command("Z", Current, _, true) :- !,  % jump to breakpoint
+        getval(breakpoint, File:Line),
+        configure_prefilter(_, _, _, _, File:Line, dont_care).
 interpret_command("", _, _, true) :- !.	% no command, continue as before
 
 
@@ -1892,6 +1899,11 @@ read_file_for_gui(OSFile) :-
             write_exdr(gui_source_file, end_of_file),
             fail
         ).
+
+set_source_breakpoint(OSFile, Line) :-
+        os_file_name(File, OSFile),
+        canonical_path_name(File, CFile),
+        setval(breakpoint, CFile:Line).
 
 %----------------------------------------------------------------------
 % Initialise toplevel module

@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.7 2007/11/07 18:23:23 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.8 2007/11/22 17:51:32 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -1626,6 +1626,8 @@ proc tkecl:popup_tracer {} {
 	    pack $ec_tracer.buttons.up -side left -fill x -expand 1
 	button $ec_tracer.buttons.leap -text Leap -underline 0 -command {tkecl:set_tracercommand l}
 	    pack $ec_tracer.buttons.leap -side left -fill x -expand 1
+	button $ec_tracer.buttons.breakp -text "To Brkpt" -command {tkecl:set_tracercommand Z}
+	    pack $ec_tracer.buttons.breakp -side left -fill x -expand 1
 	button $ec_tracer.buttons.filter -text {Filter} -underline 0 -command {tkecl:set_tracercommand filter}
 	    pack $ec_tracer.buttons.filter -side left -fill x -expand 1
 	button $ec_tracer.buttons.abort -text Abort -command {tkecl:set_tracercommand a}
@@ -2051,6 +2053,7 @@ proc tkecl:configure_tracer_buttons {state} {
     $ec_tracer.buttons.leap configure -state $state
     $ec_tracer.buttons.up configure -state $state
     $ec_tracer.buttons.filter configure -state $state
+    $ec_tracer.buttons.breakp configure -state $state
     $ec_tracer.buttons.skip configure -state $state
     $ec_tracer.buttons.abort configure -state $state
     $ec_tracer.buttons.nodebug configure -state $state
@@ -3301,6 +3304,7 @@ proc tkecl:setup_source_debug_window {} {
 
     bind $ec_source.text <Any-Key> "tkecl:readonly_keypress %A"
     bind $ec_source.text <ButtonRelease-2> {break}
+    bind $ec_source.text <Button-3> "tkecl:popup_sourcetext_menu $ec_source.text %X %Y; break"
     $ec_source.text tag configure call_style -foreground #7070ff \
 	-underline 1 -font tkeclmonobold
     $ec_source.text tag configure exit_style -foreground #00b000 \
@@ -3314,6 +3318,25 @@ proc tkecl:setup_source_debug_window {} {
     balloonhelp $ec_source.label "Source context for execution traced by the tracer.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue."
     # tkwait visibility $ec_source  
 
+}
+
+proc tkecl:popup_sourcetext_menu {t x y} {
+    global tkecl
+
+    if [winfo exists $t.popup] {
+	destroy $t.popup
+    }
+
+    set m [menu $t.popup -tearoff 0]
+    set line [tkecl:get_current_text_line $t]
+    $m add command -label "Set breakpoint at $line" -command "tkecl:set_breakpoint $tkecl(source_debug,file) $line" 
+
+    tk_popup $m $x $y
+}
+
+proc tkecl:set_breakpoint {file line} {
+
+    ec_rpc [list : tracer_tcl [list set_source_breakpoint $file $line]] {(()(()I))}
 }
 
 proc tkecl:handle_source_debug_print {stream {length {}}} {
@@ -3412,6 +3435,12 @@ proc tkecl:update_source_debug {style from to fpath_info} {
 	
 }
 
+
+proc tkecl:get_current_text_line {t} {
+
+    regexp {^[0-9]+} [$t index current] line
+    return $line
+}
 
 #---------------------------------------------------------------------
 # Balloon Help Toggle

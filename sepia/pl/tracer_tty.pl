@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.4 2007/06/03 17:03:11 jschimpf Exp $
+% Version:	$Id: tracer_tty.pl,v 1.5 2007/11/22 17:53:05 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.4 2007/06/03 17:03:11 jschimpf Exp $
+% $Id: tracer_tty.pl,v 1.5 2007/11/22 17:53:05 kish_shen Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -61,6 +61,7 @@
 :- import
 	set_default_error_handler/2,
 	configure_prefilter/5,
+	configure_prefilter/6,
 	trace_mode/2,
 	get_attribute/3,
 	get_tf_prop/3,
@@ -412,6 +413,17 @@ do_tracer_command(0'z, Current, _N, true) :- !,
 	    	read_port_list(debug_input, Ports),
 		( var(Ports) -> Ports = ~(ThisPort) ; true ),
 		configure_prefilter(_, _, Ports, _, dontcare)
+	    ), abort, fail).
+
+do_tracer_command(0'Z, Current, _N, true) :- !,
+	get_goal_stack(Current, ThisPort, _),
+	printf(debug_output, "jump to breakpoint: %b",[]),
+	block((
+	    	( read_term(debug_input, File:Line, []) ->
+                    configure_prefilter(_, _, _, _, File:Line, dontcare)
+                ;
+                    true
+                )
 	    ), abort, fail).
 
 do_tracer_command(0'<, Current, _, Cont) :- !,

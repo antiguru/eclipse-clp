@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer.pl,v 1.5 2007/06/03 17:03:11 jschimpf Exp $
+% Version:	$Id: tracer.pl,v 1.6 2007/11/22 17:53:05 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- Port generation
 %
-% $Id: tracer.pl,v 1.5 2007/06/03 17:03:11 jschimpf Exp $
+% $Id: tracer.pl,v 1.6 2007/11/22 17:53:05 kish_shen Exp $
 %
 % Author:	Joachim Schimpf, IC-Parc
 %
@@ -53,11 +53,12 @@ and ports, the artificial ports normally cannot be displayed with
 arguments because the engine is already in a different state (e.g
 FAIL REDO).
 
-Ports are filtered with of_interest/4 and pre-filtered on engine level:
+Ports are filtered with of_interest/6 and pre-filtered on engine level:
 
     ==invoc &&  minlevel=<level=<maxlevel && (SPIED|TRACEABLE & tracemode)
-
-tracemode,invoc,minlevel,maxlevel can be set via trace_mode/2.
+    && (breakline==0 || (breakline == line && breakfile == file))
+tracemode,invoc,minlevel,maxlevel,breakline,breakfile can be set via 
+trace_mode/2.
 
 */
 
@@ -85,7 +86,8 @@ tracemode,invoc,minlevel,maxlevel can be set via trace_mode/2.
 	find_goal/3,
 	get_tf_prop/3,
 	debug_port_names/1,
-	configure_prefilter/5.
+	configure_prefilter/5,
+        configure_prefilter/6.
 
 %diagnostics(N) :- nl, writeln(N).
 diagnostics(_).
@@ -424,9 +426,9 @@ monitor_term(Invoc, Term, Module, Susp) :-
 %----------------------------------------------------------------------
 
 port(PortNr, Stack) :-
-	Stack = tf{invoc:Invoc,depth:Depth,proc:Proc},
-	diagnostics( of_interest(PortNr, Invoc, Depth, Proc)),
-	( of_interest(PortNr, Invoc, Depth, Proc) ->
+	Stack = tf{invoc:Invoc,depth:Depth,proc:Proc,path:PFile,line:Line},
+	diagnostics( of_interest(PortNr, Invoc, Depth, Proc, PFile, Line)),
+	( of_interest(PortNr, Invoc, Depth, Proc, PFile, Line) ->
 	    port_name(PortNr, Port),
 	    Current = trace_line{port:Port,frame:Stack},
 	    % This handler is allowed to cut_to, fail and abort
@@ -438,8 +440,12 @@ port(PortNr, Stack) :-
 
 
 configure_prefilter(Invoc, Depth, Ports, Preds, Module) :-
+        configure_prefilter(Invoc, Depth, Ports, Preds, _BreakPos, Module).
+
+configure_prefilter(Invoc, Depth, Ports, Preds, BreakPos, Module) :-
 	decode_range(Invoc, MinInvoc, MaxInvoc),
 	decode_range(Depth, MinDepth, MaxDepth),
+        decode_breakpos(BreakPos, BreakFile, BreakLine),
 	port_spec_to_mask(Ports, 0, PortMask),
 	diagnostics(portMask=PortMask),
 %	nospy(_),
@@ -453,9 +459,11 @@ configure_prefilter(Invoc, Depth, Ports, Preds, Module) :-
 	trace_mode(8, MinInvoc),
 	trace_mode(9, MaxInvoc),
 	trace_mode(5, PortMask),
-	trace_mode(11, LeapFlag).
-configure_prefilter(Invoc, Depth, Ports, Preds, Module) :-
-	error(6, configure_prefilter(Invoc, Depth, Ports, Preds, Module)).
+	trace_mode(11, LeapFlag),
+        trace_mode(13, BreakFile),
+        trace_mode(14, BreakLine).
+configure_prefilter(Invoc, Depth, Ports, Preds, BreakPos, Module) :-
+	error(6, configure_prefilter(Invoc, Depth, Ports, Preds, BreakPos, Module)).
 
     decode_range(N, 0, Max) :- var(N), !, maxint(Max).
     decode_range(N, N, N) :- integer(N).
@@ -466,6 +474,11 @@ configure_prefilter(Invoc, Depth, Ports, Preds, Module) :-
     decode_range(<(H), 0, Max) :- Max is H-1.
     decode_range(=<(Max), 0, Max).
     decode_range(>=(Min), Min, Max) :- maxint(Max).
+
+    decode_breakpos(BreakPos, nofile, 0) :- var(BreakPos), !.
+    decode_breakpos(File:BreakLine, BreakFile, BreakLine) :-
+        canonical_path_name(File, BreakFile0),
+        concat_atom([BreakFile0], BreakFile).
 
     :- mode port_spec_to_mask(?, +, -).
     port_spec_to_mask(Var, Mask0, Mask) :- var(Var), !,
