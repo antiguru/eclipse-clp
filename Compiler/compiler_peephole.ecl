@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.8 2007/08/29 13:29:03 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.9 2007/12/04 17:29:49 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/08/29 13:29:03 $").
+:- comment(date, "$Date: 2007/12/04 17:29:49 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -361,8 +361,8 @@ find_reached_chunks_(Chunk, BasicBlockArray, NonRepArray, ReachedArray, Targets,
         ; 
             true
         ),
-        process_targets(Code, BasicBlockArray, NonRepArray, TargetArray, 
-                     NL0, NL1, TargetsT0, TargetsT1),
+        process_chunk_targets(Code, BasicBlockArray, NonRepArray, TargetArray, 
+                              [], NL0, NL1, TargetsT0, TargetsT1),
         ( nonvar(ContChunk) ->
             find_reached_chunks_(ContChunk, BasicBlockArray, NonRepArray, ReachedArray, 
                                  Targets, TargetsT1, TargetArray, NL1, NL)
@@ -392,15 +392,20 @@ find_chunks_in_branch(Targets, BasicBlockArray, NonRepArray, ReachedArray,
 % Find all ref()s that refer to unprocessed chunks and queue the labels
 % also perform inter-chunk optimisations by looking at the instructions
 % in the original chunk and the chunks being ref'ed
-process_targets(X, _, _, _, NL, NL, TargetsT, TargetsT) :- var(X), !.
-process_targets([X|Xs], BasicBlockArray, NonRepArray, TargetArray, NL0, NL2, 
-             TargetsT0, TargetsT2) ?- !,
-        process_targets(X, BasicBlockArray, NonRepArray, TargetArray, NL0, NL1, 
-                     TargetsT0, TargetsT1),
-	process_targets(Xs, BasicBlockArray, NonRepArray, TargetArray, NL1,
-                     NL2, TargetsT1, TargetsT2).
-process_targets(atom_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
-             TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+process_chunk_targets([I|Rest0], BasicBlockArray, NonRepArray, TargetArray, 
+                      Prev, NL0, NL, TargetsT0, TargetsT) ?-
+        process_instr_targets(I, BasicBlockArray, NonRepArray, TargetArray,
+                              Rest0, Rest1, Prev, NL0, NL1, TargetsT0, TargetsT1),
+        process_chunk_targets(Rest1, BasicBlockArray, NonRepArray, TargetArray,
+                              [I|Prev], NL1, NL, TargetsT1, TargetsT).
+process_chunk_targets([], _, _, _, _, NL0, NL, TargetsT0, TargetsT) ?-
+            NL0 = NL, TargetsT0 = TargetsT.
+
+
+process_instr_targets(atom_switch(a(A),Table,ref(Def)), BasicBlockArray, 
+    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?-
+        !,
+        Rest0 = Rest,
         mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
         ( foreach(Atom-Ref, Table), 
           fromto(TargetsT1, TT2,TT3, TargetsT),
@@ -412,8 +417,9 @@ process_targets(atom_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
                                 Ref, BasicBlockArray,
                                 NonRepArray, TargetArray, NL1, NL2, TT2, TT3)
         ).
-process_targets(functor_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
-             TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+process_instr_targets(functor_switch(a(A),Table,ref(Def)), BasicBlockArray, 
+    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?- !,
+        Rest0 = Rest,
         mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
         ( foreach(Func-FRef, Table), 
           fromto(TargetsT1, TT2,TT3, TargetsT),
@@ -424,8 +430,9 @@ process_targets(functor_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArra
                                  (in_get_structure(a(A),Func,InRef),InRef)], 
                  FRef, BasicBlockArray, NonRepArray, TargetArray, NL1,NL2, TT2,TT3)
         ). 
-process_targets(integer_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArray,
-             TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+process_instr_targets(integer_switch(a(A),Table,ref(Def)), BasicBlockArray, 
+    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?- !,
+        Rest0 = Rest,
         mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
         ( foreach(Int-Ref, Table), 
           fromto(TargetsT1, TT2,TT3, TargetsT),
@@ -437,8 +444,9 @@ process_targets(integer_switch(a(A),Table,ref(Def)), BasicBlockArray, NonRepArra
                                 Ref, BasicBlockArray,
                                 NonRepArray, TargetArray, NL1, NL2, TT2, TT3)
         ). 
-process_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), BasicBlockArray, 
-             NonRepArray, TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+process_instr_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), BasicBlockArray, 
+    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?- !,
+        Rest0 = Rest,
         mark_and_accumulate_targets(VarLab, TargetArray, TargetsT0, TargetsT1),
         skip_subsumed_instr([(get_list(a(A),ReadRef),ReadRef),
                             (in_get_list(a(A),InRef),InRef)], ListRef, 
@@ -447,37 +455,53 @@ process_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), BasicBlockArray,
                              (in_get_nil(a(A)),next)], 
                             NilRef, BasicBlockArray,
                             NonRepArray, TargetArray, NL1, NL, TargetsT2, TargetsT).
-process_targets(switch_on_type(a(A),SwitchList), BasicBlockArray, NonRepArray,
-             TargetArray, NL0, NL, TargetsT0, TargetsT) ?- !,
+process_instr_targets(switch_on_type(a(A),SwitchList), BasicBlockArray, 
+    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?- !,
+        ( Rest0 = [branch(VRef)|_] ->
+            Rest0 = Rest,
+            subsumed_type_instr(var, A, VSkipCands),
+            skip_subsumed_instr(VSkipCands, VRef, BasicBlockArray, NonRepArray,
+                                TargetArray, NL0, NL1, TargetsT0, TargetsT1)
+        ;
+            % if the fall through code continues without branching, it may 
+            % not be worthwhile to add a branch to skip the following
+            % instruction
+            Rest0 = Rest,
+            NL0  = NL1,
+            TargetsT0 = TargetsT1
+        ),
         (
             foreach(Type:Ref, SwitchList),
-            fromto(TargetsT0, TT1,TT2, TargetsT),
-            fromto(NL0, NL1,NL2, NL),
+            fromto(TargetsT1, TT1,TT2, TargetsT),
+            fromto(NL1, NL2,NL3, NL),
             param(BasicBlockArray,NonRepArray,TargetArray,A)
         do
             ( subsumed_type_instr(Type, A, SkipCandidates) -> 
                 skip_subsumed_instr(SkipCandidates, Ref, BasicBlockArray,
-                    NonRepArray, TargetArray, NL1,NL2, TT1,TT2)
+                    NonRepArray, TargetArray, NL2,NL3, TT1,TT2)
             ;
                 Ref = ref(Label),
-                NL1 = NL2,
+                NL2 = NL3,
                 mark_and_accumulate_targets(Label, TargetArray, TT1, TT2) 
             )
-        ). 
-process_targets(ref(L), _, _, TargetArray, NL, NL, TargetsT0, TargetsT1) :- !, 
+        ).
+process_instr_targets(Xs, _BasicBlockArray, _NonRepArray, TargetArray, 
+                      Rest, Rest, _RC, NL, NL, TargetsT0, TargetsT) :-
+       find_targets(Xs, TargetArray, TargetsT0, TargetsT).
+
+
+find_targets(ref(L), TargetArray, TargetsT0, TargetsT1) ?- !, 
         mark_and_accumulate_targets(L, TargetArray, TargetsT0, TargetsT1).
-process_targets(Xs, BasicBlockArray, NonRepArray, TargetArray, NL0, NL3, TargetsT0, TargetsT3) :-
+find_targets(Xs, TargetArray, TargetsT0, TargetsT) :- 
     	compound(Xs), !,
 	(
 	    foreacharg(X,Xs),
-	    fromto(TargetsT0,TargetsT1,TargetsT2,TargetsT3),
-            fromto(NL0,NL1,NL2,NL3),
-	    param(BasicBlockArray,NonRepArray,TargetArray)
+            fromto(TargetsT0, TargetsT1,TargetsT2, TargetsT),
+	    param(TargetArray)
 	do
-	    process_targets(X, BasicBlockArray, NonRepArray, TargetArray, 
-                         NL1, NL2, TargetsT1, TargetsT2)
+            find_targets(X, TargetArray, TargetsT1, TargetsT2)
 	). 
-process_targets(_, _, _, _, NL, NL, TargetsT, TargetsT).
+find_targets(_, _, TargetsT, TargetsT).
 
 % mark_and_accumulate_targets checks if T is a new target, and mark it in
 % TargetArray if it is new, and add it to the Targets list
@@ -563,6 +587,7 @@ subsumed_type_instr(list, A, [(bi_is_list(a(A)),next),(bi_compound(a(A)),next)])
 subsumed_type_instr(rational, A, [(bi_number(a(A)),next),(bi_rational(a(A)),next)]).
 subsumed_type_instr(string, A, [(bi_atomic(a(A)),next),(bi_string(a(A)),next)]).
 subsumed_type_instr(structure, A, [(bi_compound(a(A)),next)]).
+subsumed_type_instr(var, A, [(bi_var(a(A)),next),(bi_free(a(A)),next)]).
 
 % rejoin adjacent chunks that should be contiguous if the first chunk
 % is reached. Rejoins must have later chunks first in the list because more 
