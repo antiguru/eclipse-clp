@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.9 2007/09/04 16:28:48 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.10 2008/01/15 14:44:13 kish_shen Exp $
  */
 
 /*
@@ -572,12 +572,24 @@ print_am(register vmcode *code,
 
 #endif /* NREGTMP */
 
+	case Move3AML:
+	        Am;
+		Perm;
+	case Move2AML:
+	        Am;
+		Perm;
 	case MoveAML:
 	case Get_valueAML:
 	case Get_matched_valueAML:
 	case Put_variableAML:
 	case Put_unsafe_valueAML:
 	case Put_global_variableAML:
+		Am;
+		Perm;
+		break;
+
+	case MoveNAML:
+	        Integer;
 		Am;
 		Perm;
 		break;
@@ -673,7 +685,19 @@ print_am(register vmcode *code,
 		Perm;
 		break;
 
+	case Move3LAM:
+		Perm;
+	        Am;
+	case Move2LAM:
+		Perm;
+	        Am;
 	case MoveLAM:
+		Perm;
+		Am;
+		break;
+
+	case MoveNLAM:
+	        Integer;
 		Perm;
 		Am;
 		break;
@@ -1082,6 +1106,8 @@ print_am(register vmcode *code,
 	case Push_void_reference:
 	case Read_attribute:
 	case Read_voidN:
+	case Write_voidN:
+	case Push_voidN:
 	case Puts_valueG:
 	case Push_valueG:
 		VarOffset;

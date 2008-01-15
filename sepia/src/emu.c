@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.13 2007/11/22 17:54:10 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.14 2008/01/15 14:43:41 kish_shen Exp $
  */
 
 /*
@@ -2520,10 +2520,55 @@ Possible additional combined instructions
 	    Move_Pw(pw1,pw2)
 	    Next_Pp;
 
+	Case(MoveNAML, I_MoveNAML)
+	    i = PP++->nint;
+	    Get_Argument(pw1);
+	    Get_Local(pw2);
+	    do
+	    {
+		Move_Pw(pw1, pw2)
+		pw1++;
+		pw2--;
+	    } while (--i > 0);
+	    Next_Pp;
+
+	Case(Move3AML, I_Move3AML)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    Move_Pw(pw1,pw2)
+	Case(Move2AML, I_Move2AML)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    Move_Pw(pw1,pw2)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    Move_Pw(pw1,pw2)
+	    Next_Pp;
+
+	Case(Move3LAM, I_Move3LAM)
+	    Get_Local(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
+	Case(Move2LAM, I_Move2LAM)
+	    Get_Local(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
 	Case(MoveLAM, I_MoveLAM)
 	    Get_Local(pw1)
 	    Get_Argument(pw2)
 	    Move_Pw(pw1,pw2)
+	    Next_Pp;
+
+	Case(MoveNLAM, I_MoveNLAM)
+	    i = PP++->nint;
+	    Get_Local(pw1);
+	    Get_Argument(pw2);
+	    do
+	    {
+		Move_Pw(pw1, pw2)
+		pw1--;
+		pw2++;
+	    } while (--i > 0);
 	    Next_Pp;
 
 	Case(MoveTMAM, I_MoveTMAM)
@@ -3170,6 +3215,16 @@ _match_meta_:
 	    ((S)++)->tag.kernel = TREF;
 	    Next_Pp;
 
+	Case(Push_voidN, I_Push_voidN)
+	Case(Write_voidN, I_Write_voidN)
+	    pw1 = ByteOffsetPlus(S, PP++->offset);
+	    while (S < pw1)
+	    {
+		S->val.ptr = S;
+		((S)++)->tag.kernel = TREF;
+	    }
+	    Next_Pp;
+	
 	Case(Write_variableAM, I_Write_variableAM)
 	Case(Push_variableAM, I_Push_variableAM)
 	    Get_Argument(pw1)

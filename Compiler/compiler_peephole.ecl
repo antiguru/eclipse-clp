@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.9 2007/12/04 17:29:49 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.10 2008/01/15 14:40:34 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/12/04 17:29:49 $").
+:- comment(date, "$Date: 2008/01/15 14:40:34 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -771,7 +771,7 @@ simplify(space(N), [jmpd(L)|More], New) ?- !,
 	% compilation scheme with probably new instructions.
 simplify(read_attribute(FirstName),	Code0, New) ?-
 	meta_index(FirstName, I0),
-	skip_read_void(Code0, I0, I, Code1),
+	count_same_instr(Code0, read_void, I0, I, Code1),
 	I > I0,
 	Code1 = [Read|Code2],
 	is_read_instruction(Read),
@@ -779,7 +779,7 @@ simplify(read_attribute(FirstName),	Code0, New) ?-
 	% we have read_voids followed by another read: simplify
 	(
 	    meta_index(Name, I),
-	    skip_read_void(Code2, 1, _, Code3),
+	    count_same_instr(Code2, read_void, 1, _, Code3),
 	    Code3 = [After|_],
 	    \+ is_read_instruction(After)
 	->
@@ -792,7 +792,7 @@ simplify(read_attribute(FirstName),	Code0, New) ?-
 
 simplify(read_void, [Instr0|Rest0], New) ?- !,
         (Instr0 == read_void ->
-            skip_read_void(Rest0, 2, N, Rest),
+            count_same_instr(Rest0, read_void, 2, N, Rest),
             (Rest = [Instr|_], is_in_read_struct(Instr) ->
                 New = [read_void(N)|Rest]
             ;
@@ -803,6 +803,87 @@ simplify(read_void, [Instr0|Rest0], New) ?- !,
             \+ is_in_read_struct(Instr0), 
             New = [Instr0|Rest0] 
         ).
+
+simplify(write_void, [write_void|Rest0], New) ?- !,
+        count_same_instr(Rest0, write_void, 2, N, Rest),
+        New = [write_void(N)|Rest]. 
+
+simplify(push_void, [push_void|Rest0], New) ?- !,
+        count_same_instr(Rest0, push_void, 2, N, Rest),
+        New = [push_void(N)|Rest]. 
+
+simplify(move(y(Y1),a(A1)), [Instr0|Rest0], New) ?- 
+        Instr0 = move(y(Y2),a(A2)), !,
+        ( A2 =:= A1 + 1, Y2 =:= Y1 + 1 ->
+            % the arguments for the moves are consecutive
+            extract_conargs_moves(Rest0, move(y(Y),a(A)), Y, A, Y1, A1, 2, N, Rest),
+            New = [move(N,y(Y1),a(A1))|Rest]
+        ;
+            MoveInstrs = [move(y(Y1),a(A1))|MoveInstrs0],
+            extract_nonconargs_moves(Rest0, move(y(_),a(_)), Instr0, Y2, A2, MoveInstrs0, Rest),
+            MoveInstrs \= [_], % no compact possible with single move
+            compact_moves(MoveInstrs, New, Rest)
+        ).
+
+simplify(move(a(A1),y(Y1)), [Instr0|Rest0], New) ?- 
+        Instr0 = move(a(A2),y(Y2)), !,
+        ( A2 =:= A1 + 1, Y2 =:= Y1 + 1 ->
+            % the arguments for the moves are consecutive
+            extract_conargs_moves(Rest0, move(a(A),y(Y)), A, Y, A1, Y1, 2, N, Rest),
+            New = [move(N,a(A1),y(Y1))|Rest]
+        ;
+            MoveInstrs = [move(a(A1),y(Y1))|MoveInstrs0],
+            extract_nonconargs_moves(Rest0, move(a(_),y(_)), Instr0, A2, Y2, MoveInstrs0, Rest),
+            MoveInstrs \= [_], % no compact possible with single move
+            compact_moves(MoveInstrs, New, Rest)
+        ).
+
+
+extract_conargs_moves(Codes, Instr, X, Y, X0, Y0, N0, N, Rest) :-
+        ( \+ \+ (Codes = [Instr|_], X0 + N0 =:= X, Y0 + N0 =:= Y) 
+        ->
+            Codes = [_|Codes1],
+            N1 is N0+1,
+            extract_conargs_moves(Codes1, Instr, X, Y, X0, Y0, N1, N, Rest)
+        ;
+            N = N0, 
+            Rest = Codes
+        ).
+            
+extract_nonconargs_moves(Codes0, Template, Instr0, X0, Y0, MoveInstrs1, Codes) :-
+        ( Codes0 = [Instr1|Codes1],
+          \+ \+ Instr1 = Template ->
+            arg([1,1], Instr1, X1),
+            arg([2,1], Instr1, Y1),
+            ( X1 =:= X0 + 1,
+              Y1 =:= Y0 + 1 ->
+                MoveInstrs1 = [],
+                Codes = [Instr0|Codes0]
+            ;
+                MoveInstrs1 = [Instr0|MoveInstrs2], 
+                extract_nonconargs_moves(Codes1, Template, Instr1, X1, Y1,
+                                         MoveInstrs2, Codes)
+            )
+        ;
+            MoveInstrs1 = [Instr0],
+            Codes = Codes0
+        ).
+
+:- mode compact_moves(+,-,-).
+compact_moves([], Tail, Tail).
+compact_moves([Instr1,Instr2,Instr3|Rest], [move3(X1,Y1,X2,Y2,X3,Y3)|CRest1],
+              CRest) :-
+        !,
+        Instr1 =.. [_,X1,Y1],
+        Instr2 =.. [_,X2,Y2],
+        Instr3 =.. [_,X3,Y3],
+        compact_moves(Rest, CRest1, CRest).
+compact_moves([Instr1,Instr2], [move2(X1,Y1,X2,Y2)|CRest], CRest) :-
+        !,
+        Instr1 =.. [_,X1,Y1],
+        Instr2 =.. [_,X2,Y2].
+compact_moves([Instr], [Instr|CRest], CRest).
+
 
 is_read_instruction(Instr) :-
 	functor(Instr, Name, _),
@@ -817,10 +898,10 @@ is_read_instruction(Instr) :-
         is_read_instruction(Instr), !.
     is_in_read_struct(move(_,_)).
         
-    skip_read_void(Codes, N0, N, Rest) :-
-    	( Codes = [read_void|Codes1] ->
+    count_same_instr(Codes, Instr, N0, N, Rest) :-
+    	( Codes = [Instr|Codes1] ->
 	    N1 is N0+1,
-	    skip_read_void(Codes1, N1, N, Rest) 
+	    count_same_instr(Codes1, Instr, N1, N, Rest) 
 	;
 	    Rest = Codes, N = N0
 	).
@@ -1024,7 +1105,8 @@ Various Patterns:
     read_void,read_void+	-->	read_void N
     read_void/[^(read_xxx|move)]	-->	
 
-
+    write_void,write_void+	-->	write_void N
+                                        
     allocate n, move Ai,Yj      -->     get_variable(n,Ai,Yj)
                                         
     space n, branch L           -->     branchs n,L

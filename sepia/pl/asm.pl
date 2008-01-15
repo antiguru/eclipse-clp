@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.11 2007/09/04 16:28:48 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.12 2008/01/15 14:45:00 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -803,6 +803,16 @@ instr(put_named_variable(a(A),N), 	345, [a(A),nv(N)]).
 instr(put_named_variable(y(Y),N),	346, [y(Y),nv(N)]).
 instr(put_named_variable(a(A),y(Y),N),	347, [a(A),y(Y),nv(N)]).
 %instr(call_dynamic(P,ref(L)),		348, [proc(P),ref(L)]).
+instr(write_void(N), 			349, [pw(N)]).
+instr(push_void(N), 			350, [pw(N)]).
+instr(move(N, y(Y), a(A)),		351, [i(N), y(Y), a(A)]).
+instr(move(N, a(A), y(Y)),		352, [i(N), a(A), y(Y)]).
+instr(move2(y(Y1),a(A1),y(Y2),a(A2)),   353, [y(Y1),a(A1),y(Y2),a(A2)]).
+instr(move3(y(Y1),a(A1),y(Y2),a(A2),y(Y3),a(A3)),
+      					354, [y(Y1),a(A1),y(Y2),a(A2),y(Y3),a(A3)]).
+instr(move2(a(A1),y(Y1),a(A2),y(Y2)),   355, [a(A1),y(Y1),a(A2),y(Y2)]).
+instr(move3(a(A1),y(Y1),a(A2),y(Y2),a(A3),y(Y3)),
+      					356, [a(A1),y(Y1),a(A2),y(Y2),a(A3),y(Y3)]).
 
 
 /***************************************************************************
