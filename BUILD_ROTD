@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.4 2007/07/03 14:16:08 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.5 2008/01/22 15:14:10 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -69,7 +69,7 @@
 # incremented_build_number
 # packed_source
 # updated_symlinks
-# copied_to_ftp
+# copied_to_ftp_<machine>
 #
 # Note that we don't milestone cleaning up, since we probably want to re-do
 # that anyway.
@@ -158,16 +158,14 @@ Options:
 		The name to use for the rotd (rather than constructing
 		it from the date).
 
-	--base-archive-dir <path>
-		Directory to put the final distribution archives (in a
-		version-specific subdirectory).
-
 	--build-script <script>
 		The BUILD script to use.
 
 	--resume
 		Resume/retry partially completed/successful build.  Use
 		with care if it's more than just tests that failed.
+
+Other parameters must be specified in the site_info file.
 "
 
 for param_name in ARCH JAVA_HOME JRE_HOME ECLIPSETOOLS ECLIPSETHIRDPARTY; do
@@ -187,7 +185,7 @@ SCRIPT_DIR=`dirname $0`
 required_site_params="
 	ARCHITECTURES \
 	ROTD_DIR \
-	BASE_ARCHIVE_DIR \
+	ARCHIVE_DESTS \
 	ECLIPSEGROUP \
 	DISK_MACHINE \
 	CVS_MACHINE \
@@ -195,7 +193,6 @@ required_site_params="
 	CVS_RSH \
 	DOC_MACHINE \
 	FIND_MACHINE \
-	FTP_MACHINE \
 	PACK_MACHINE \
 "
 
@@ -284,9 +281,6 @@ while [ $# -gt 0 ]; do
     --rotd-name)
 	ROTD_NAME=$2 ; shift ;;
 
-    --base-archive-dir)
-	BASE_ARCHIVE_DIR="$2" ; shift ;;
-
     --build-script)
 	BUILD_SCRIPT="$2" ; shift ;;
 
@@ -363,7 +357,7 @@ Master logfile:	  $MASTER_LOG_FILE
 "
 if [ "$install_archives" = "yes" ] ; then
     SUMMARY="${SUMMARY}\
-Base archive dir: $FTP_MACHINE:$BASE_ARCHIVE_DIR
+Archive destinations: $ARCHIVE_DESTS
 "
 else
     SUMMARY="${SUMMARY}\
@@ -764,6 +758,31 @@ build_archives() {	# list of achitectures
 	./PACK --version-num \"$ECLIPSE_VERSION\" --build-num \"$BUILD_NUMBER\" \
 	       --dest-dir \"$PREFIX/$TMP_ARCHIVE_DIR\" $* < /dev/null \
 	       >> $PACK_LOGFILE 2>&1 &&
+
+	# this should be in the PACK script itself:
+	for arch in $* x ; do
+	    [ \"\$arch\" = x ] && break
+
+	    cd $PREFIX/$TMP_ARCHIVE_DIR/\$arch &&
+	    ln -s ../common/* . &&
+
+	    # Apache http server displays contents of README file,
+	    # but also hides the file.  That's why we create both
+	    # README and Readme ...
+	    if [ \"\$arch\" = i386_nt ] ; then
+		# Change Windoze installer permission
+		chmod ug+w,ugo+rx ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}.exe
+
+		# Don't include the UNPACK script
+		rm -f UNPACK
+		ln -s ../common/README_WIN.TXT README &&
+		ln -s ../common/README_WIN.TXT Readme.txt
+	    else
+		ln -s ../common/README_UNIX README &&
+		ln -s ../common/README_UNIX Readme.txt
+	    fi \
+	    || break	# Exit the loop early if something failed.
+	done && [ \"\$arch\" = x ] &&
 
 	echo \"Done.\" | tee -a $PACK_LOGFILE \
 	|| (
@@ -1492,10 +1511,6 @@ choose_working_eclipse() {
 
 # Increment the build number.
 increment_build_number() {
-    if [ "$increment_buildnum" = no ] ; then
-	echo "Increment of build number was not requested."
-	return 0
-    fi
 
     if ! choose_working_eclipse ; then
 	echo "Unable to find a working ECLiPSe for incrementing version number."
@@ -1640,10 +1655,9 @@ pack_source_archive() {
 
 
 # Copy the new archives to the appropriate location on the FTP site.
-# Note that it copies everything (rather than just the architectures
-# specified) on the assumption that the files should only be installed if
-# everything succeeded.  The list of architectures is just so it knows which
-# directories to create symlinks in.
+# Note that it copies everything (except the private subdirectory)
+# on the assumption that the files should only be installed if
+# everything succeeded.
 # Archive directory management:
 # - Before creating FTP directory for the new version, delete any directory
 #   for the same version of ECLiPSe which contains a .superseded file but
@@ -1651,23 +1665,38 @@ pack_source_archive() {
 # - Create a .superseded file in any directory for this version which did
 #   not have one previously.
 # - Copy the new archives over.
-copy_to_ftp() {	# list of architectures
-    [ "$install_archives" = yes ] || return 0
 
-    copy_archs="$*"
+copy_to_ftps() {
+    # requires: ECLIPSE_VERSION BUILD_NUMBER ARCHIVE_DESTS
 
-    if ! choose_working_eclipse ; then
-	echo "Unable to find a working ECLiPSe to get version numbers for copying to FTP site."
-	return 1
+    if [ -n "$ARCHIVE_DESTS" ] ; then
+	all_ftps_ok=0
+	for archive_dest in $ARCHIVE_DESTS ; do
+	    FTP_MACHINE=`echo $archive_dest|sed 's/:.*//'`
+	    BASE_ARCHIVE_DIR=`echo $archive_dest|sed 's/.*://'`
+	    copy_to_ftp || all_ftps_ok=1
+	done 
+	return $all_ftps_ok
+    elif [ -n "$FTP_MACHINE" && -n "$BASE_ARCHIVE_DIR" ] ; then
+	# backward compatibility only
+   	copy_to_ftp
+    else
+	false
     fi
+}
+
+copy_to_ftp() {
+    # requires: ECLIPSE_VERSION BUILD_NUMBER FTP_MACHINE BASE_ARCHIVE_DIR
+
+    [ "$install_archives" = yes ] || return 0
 
     ARCHIVE_DIR=$BASE_ARCHIVE_DIR/${ECLIPSE_VERSION}_$BUILD_NUMBER
     NEW_ARCHIVE_DIR=$ARCHIVE_DIR.tmp
 
     echo "ECLiPSe version" $ECLIPSE_VERSION "; build number" $BUILD_NUMBER
 
-    if milestone_already_achieved copied_to_ftp ; then
-	echo "Milestone: Skipping copying to FTP"
+    if milestone_already_achieved copied_to_ftp_$FTP_MACHINE ; then
+	echo "Milestone: Skipping copying to FTP $FTP_MACHINE"
     else
 	# Remove superseded versions, mark unmarked version(s) as superseded.
 	# Be very careful.  We don't want to accidentally blow away the entire
@@ -1702,51 +1731,35 @@ copy_to_ftp() {	# list of architectures
 	" &&
 
 	# Copy everything across (from DISK_MACHINE to FTP_MACHINE)
-	eval ftp_machine_name=\"'$MACHINE_NAME_'$FTP_MACHINE\"
+	eval ftp_machine_name=\"'$MACHINE_NAME_'$FTP_MACHINE\" &&
 	if [ "$ftp_machine_name" = "" ] ; then
 	    ftp_machine_name="$FTP_MACHINE"
-	fi
+	fi &&
+	eval ftp_user=\"'$MACHINE_USER_'$FTP_MACHINE\" &&
+	if [ "$ftp_user" = "" ] ; then
+	    ftp_user_flags=""
+	else
+	    ftp_user_flags="-l $ftp_user"
+	fi &&
 	remote_commands "$DISK_MACHINE" "$PREFIX/$TMP_ARCHIVE_DIR" "
 	    umask $UMASK
 
-	    rsync -aR --rsh=ssh * $ftp_machine_name:$NEW_ARCHIVE_DIR
+	    #rsync -aR --rsh=ssh * $ftp_machine_name:$NEW_ARCHIVE_DIR
+	    tar cf - --exclude=private * | \
+	    	ssh $ftp_user_flags $ftp_machine_name \
+			\"cd $NEW_ARCHIVE_DIR ; tar xfp -\"
 	" &&
 
 	# Make final adjustments
 	remote_commands "$FTP_MACHINE" "$BASE_ARCHIVE_DIR" "
 	    umask $UMASK
 
-	    chmod -R o-rwx $NEW_ARCHIVE_DIR/private &&
 	    chmod o+rx $NEW_ARCHIVE_DIR &&
-
-	    for arch in $copy_archs x ; do
-		[ \"\$arch\" = x ] && break
-
-		cd $NEW_ARCHIVE_DIR/\$arch &&
-		ln -s ../common/* . &&
-
-		# Apache http server displays contents of README file,
-		# but also hides the file.  That's why we create both
-		# README and Readme ...
-		if [ \"\$arch\" = i386_nt ] ; then
-		    # Change Windoze installer permission
-		    chmod ug+w,ugo+rx ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}.exe
-
-		    # Don't include the UNPACK script
-		    rm -f UNPACK
-		    ln -s ../common/README_WIN.TXT README &&
-		    ln -s ../common/README_WIN.TXT Readme.txt
-		else
-		    ln -s ../common/README_UNIX README &&
-		    ln -s ../common/README_UNIX Readme.txt
-		fi \
-		|| break	# Exit the loop early if something failed.
-	    done && [ \"\$arch\" = x ] &&
 
 	    mv $NEW_ARCHIVE_DIR $ARCHIVE_DIR
 	" &&
 
-	mark_milestone_achieved copied_to_ftp \
+	mark_milestone_achieved copied_to_ftp_$FTP_MACHINE \
 	|| (
 	    # If something went wrong with the copy, don't delete the old
 	    # directory(s) next time.
@@ -1755,6 +1768,10 @@ copy_to_ftp() {	# list of architectures
 		    rm -f ./\$d/.superseded
 		done
 	    "
+	    echo "Copying files to FTP site $FTP_MACHINE failed." >> $MASTER_LOG_FILE 2>&1
+	    SUMMARY="${SUMMARY}
+	Copying files to FTP site $FTP_MACHINE failed.
+	"
 	    false
 	)
     fi
@@ -1978,15 +1995,16 @@ SUMMARY="${SUMMARY}\
 
 
 # Increment the build number if everything went well and there's been some
-# change since the last successful build.  Note that if it's a resumed
-# build, it may *look* as though nothing has changed because the CVS tags
-# have already been updated - if the incremented_build_number milestone has
-# been achieved already, something *had* changed, so proceed on that basis
-# (it may be that the copy to FTP failed).
+# change since the last successful build. Also pack corresponding sources.
 
 [ "$everything_ok" = 0 ] &&
-if milestone_already_achieved incremented_build_number || anything_changed >> $MASTER_LOG_FILE 2>&1 ; then
-    if increment_build_number >> $MASTER_LOG_FILE 2>&1 ; then
+if anything_changed >> $MASTER_LOG_FILE 2>&1 ; then
+    if [ "$increment_buildnum" = no ] ; then
+	echo "Increment of build number was not requested." >> $MASTER_LOG_FILE 2>&1
+	SUMMARY="${SUMMARY}
+Increment of build number was not requested.
+"
+    elif increment_build_number >> $MASTER_LOG_FILE 2>&1 ; then
 	SUMMARY="${SUMMARY}
 This is ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
 "
@@ -1996,42 +2014,55 @@ This is ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
 Packing source failed.  Continuing anyway.
 "
 	fi
-
-	# Only copy distribution archives to FTP site and make "stable"
-	# symlinks if the build number was incremented --- otherwise the
-	# build number still can't be used to uniquely identify a version.
-	if update_symlinks >> $MASTER_LOG_FILE 2>&1 ; then
-	    if copy_to_ftp $built_archs >> $MASTER_LOG_FILE 2>&1 ; then
-		true
-	    else
-		echo "Copying files to FTP site failed." >> $MASTER_LOG_FILE 2>&1
-		SUMMARY="${SUMMARY}
-Copying files to FTP site failed.
-"
-		false
-	    fi
-	else
-	    echo "Updating symlinks failed.  Skipping copy to FTP site." >> $MASTER_LOG_FILE 2>&1
-	    SUMMARY="${SUMMARY}
-Updating symlinks failed.  Skipping copy to FTP site.
-"
-	    false
-	fi
     else
-	echo "Failed to increment build number.  Skipping updating of symlinks and copy to
-FTP site." >> $MASTER_LOG_FILE 2>&1
+	echo "Failed to increment build number." >> $MASTER_LOG_FILE 2>&1
 	SUMMARY="${SUMMARY}
-Failed to increment build number.  Skipping updating of symlinks and copy to
-FTP site.
+Failed to increment build number.
 "
 	false
     fi
 else
-    echo "Skipping increment of build number, updating of symlinks and copy to FTP site
-since nothing seems to have changed." >> $MASTER_LOG_FILE 2>&1
+    echo "Skipping increment of build number since nothing has changed." >> $MASTER_LOG_FILE 2>&1
     SUMMARY="${SUMMARY}
-Skipping increment of build number, updating of symlinks and copy to FTP site
-since nothing seems to have changed.
+Skipping increment of build number since nothing has changed.
+"
+fi || everything_ok=1
+
+
+# Only copy distribution archives to FTP site and make "stable"
+# symlinks if the build number was incremented --- otherwise the
+# build number still can't be used to uniquely identify a version.
+if [ "$everything_ok" = 0 ] ; then
+    if ! update_symlinks >> $MASTER_LOG_FILE 2>&1 ; then
+	echo "Updating symlinks failed." >> $MASTER_LOG_FILE 2>&1
+	SUMMARY="${SUMMARY}
+Updating symlinks failed.
+"
+	false
+    fi
+else
+    echo "Skipping updating of symlinks." >> $MASTER_LOG_FILE 2>&1
+    SUMMARY="${SUMMARY}
+Skipping updating of symlinks.
+"
+    true
+fi || everything_ok=1
+
+
+if [ "$everything_ok" = 0 ] ; then
+    if copy_to_ftps >> $MASTER_LOG_FILE 2>&1 ; then
+	true
+    else
+	echo "Copying files to FTP site failed." >> $MASTER_LOG_FILE 2>&1
+	SUMMARY="${SUMMARY}
+Copying files to FTP site failed.
+"
+	false
+    fi
+else
+    echo "Skipping copy to FTP site." >> $MASTER_LOG_FILE 2>&1
+    SUMMARY="${SUMMARY}
+Skipping copy to FTP site.
 "
     true
 fi || everything_ok=1

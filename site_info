@@ -15,6 +15,15 @@ ARCHITECTURES="\
 # All definitions below must then only use the simple alias!
 
 
+# Machines which require a non-standard user name...
+#MACHINE_USER_idefix=eclipse
+
+
+# (Test) machines that don't share the rotd file system,
+# and the location of the shadow ROTD_DIR on these machines.
+#REMOTE_MACHINE_idefix=yes
+#ROTD_DIR_idefix=c:/cygwin/vol/Eclipse/rotds
+
 # Machine to do disk-intensive operations on.
 DISK_MACHINE=
 
@@ -44,11 +53,13 @@ CVS_MACHINE=$DISK_MACHINE
 FIND_MACHINE=$DISK_MACHINE
 
 
-# Machine that the FTP site is on (does not need to share filesystem)
-FTP_MACHINE=
-
-# The destination directory for the archives (on FTP_MACHINE)
-BASE_ARCHIVE_DIR=
+# List of remote destinations to transfer the final archives to
+# (replacement for obsolete FTP_MACHINE, BASE_ARCHIVE_DIR).
+# The machines here must allow passwordless ssh from DISK_MACHINE!
+# Use short machine alias (see above) here, rather than full name.
+ARCHIVE_DESTS="\
+	venus:/home/ecl/mirror\
+"
 
 
 # Machine to build documentation on.
@@ -107,15 +118,4 @@ TEST_MACHINES_sun4=
 TEST_MACHINES_i386_nt=
 
 MACHINE_CLASS_ALIAS_farm=
-
-
-# Machines which require a non-standard user name...
-#MACHINE_USER_idefix=eclipse
-
-
-# (Test) machines that don't share the rotd file system,
-# and the location of the shadow ROTD_DIR on these machines.
-#REMOTE_MACHINE_idefix=yes
-#ROTD_DIR_idefix=c:/cygwin/vol/Eclipse/rotds
-
 
