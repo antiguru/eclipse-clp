@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.12 2008/01/25 15:34:08 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.13 2008/01/30 17:43:15 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -143,7 +143,7 @@ fi
 # the flags for OPT_FLAGS_EMU are -O2 optimisations that don't cause problems and do not
 # slow down execution on i386_linux
 OPT_FLAGS="-O2 -fomit-frame-pointer"
-OPT_FLAGS_EMU="-O1 -fomit-frame-pointer -fomit-frame-pointer -fthread-jumps -fforce-mem -fforce-addr  -fexpensive-optimizations -fdelete-null-pointer-checks -fpeephole2 -falign-functions -falign-jumps  -foptimize-sibling-calls -fregmove  -fsched-interblock -fcaller-saves -ftsp-ordering  -funit-at-a-time"
+OPT_FLAGS_EMU="-O1 -fomit-frame-pointer -fthread-jumps -fforce-mem -fforce-addr  -fexpensive-optimizations -fdelete-null-pointer-checks -fpeephole2 -falign-functions -falign-jumps  -foptimize-sibling-calls -fregmove  -fsched-interblock -fcaller-saves -funit-at-a-time"
 
 if test -z "$OS_INCLUDES"; then
     OS_INCLUDES=""
