@@ -24,7 +24,7 @@ DESTFILE = libman
 
 ROOTFILE = libman
 
-CHAPTERS = $(ROOTFILE).tex solverinter.tex eplex.tex oci.tex \
+CHAPTERS = $(ROOTFILE).tex solverinter.tex eplex.tex  \
 	repair.tex fdsets.tex extpropia.tex \
 	extchr.tex fdglobal.tex ic.tex introduction.tex icsymbolic.tex
 

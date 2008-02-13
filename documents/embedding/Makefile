@@ -26,7 +26,7 @@ ROOTFILE=embroot
 
 CHAPTERS = $(ROOTFILE).tex umsforeign.tex embed.tex \
 	embfunc.tex embsumc.tex embsumcxx.tex embtcl.tex \
-	embexdr.tex embjava.tex embremote.tex embtclmulti.tex embremoteproto.tex
+	embexdr.tex embjava.tex embremote.tex embtclmulti.tex embremoteproto.tex dbi.tex
 
 
 #------------------ generic part -----------------
