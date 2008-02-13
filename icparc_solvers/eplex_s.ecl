@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.2 2007/05/04 14:05:12 kish_shen Exp $
+% Version:	$Id: eplex_s.ecl,v 1.3 2008/02/13 21:31:18 kish_shen Exp $
 %
 %
 
@@ -120,6 +120,7 @@
                                 % lp_var_non_monotonic_set_bounds(+Handle, +Var, +Lo, +Hi)
 :- export lp_var_get_bounds/4.  % lp_var_get_bounds(+Handle, +Var, -Lo, -Hi)
 
+:- export lp_get_iis/5.		% lp_get_iis(+Handle, -NCstrs, -NCVars, -CCstrIdxs, -CVarStats)
 
 :- tool(lp_demon_setup/6,lp_demon_setup_body/7).
 :- tool(lp_demon_setup/5,lp_demon_setup_body/6).
@@ -176,6 +177,7 @@
 :- export eplex_var_get/4.	% eplex_var_get/3
 :- export eplex_var_get_bounds/4.  % eplex_var_get_bounds/3.
 :- export eplex_add_constraints/3. % eplex_add_constraints/2
+:- export eplex_get_iis/5.	% eplex_get_iis/4
 
 :- local struct(constraint_type(integers,reals,linear)).
 :- local struct(bound_info(bound,code,var)).
@@ -444,6 +446,8 @@ load_external_solver(_, _, _, _).
         external(cplex_get_named_cpcstr_indices/3, p_cpx_get_named_cpcstr_indices),
         external(cplex_get_cpcstr_info/4, p_cpx_get_cpcstr_info),
         external(cplex_set_cpcstr_cond/4, p_cpx_set_cpcstr_cond),
+        external(cplex_infeas_info/6, p_cpx_infeas_info),
+        
         
         setval(loaded_solver, loaded(Solver,Version))
     ;
@@ -632,6 +636,7 @@ lp_release_license.
             unboundh,           % unbounded state handler, else var
             unkh,               % unknown state handler, else var
             aborth,             % abort state handler, else var
+            infeash,		% infeasible state handler, else var
 % Output (from last solve):
             mr,                 % int: number of user rows 
                                 % m = (mr + nccpr)
@@ -649,7 +654,10 @@ lp_release_license.
 	    slacks,		% array[m] of slacks (or [] or _)
 	    djs,		% array[n] of reduced costs (or [] or _)
 	    cbase,		% iarray[n] of basis status (or [] or _)
-	    rbase		% iarray[m] of basis status (or [] or _)
+	    rbase,		% iarray[m] of basis status (or [] or _)
+            iis_rows,		% iarray[cm] of conflict row ids (or [] or _)
+            iis_cols,		% iarray[cn] of conflict col ids (or [] or _)
+            iis_colstats	% string[cn] of conflict col status (or [] or _)
 	)
     ).
 
@@ -2703,7 +2711,8 @@ lp_solve(Handle, ObjVal) :-
                       option_dump:DumpOpt, sync_bounds:SyncBounds,
                       method:M, aux_method:AM, 
                       node_method:NM, node_aux_method:NAM,
-                      obj:ObjConst,cbase:CBase,rbase:RBase},
+                      obj:ObjConst,cbase:CBase,rbase:RBase,
+                      iis_rows:IISRows},
         cplex_get_prob_param(CPH, 10, ProbState),
         ( ProbState = 0 ->			% DESCR_EMPTY
             printf(error, "Eplex error: no problem loaded in %w.%n",
@@ -2717,10 +2726,21 @@ lp_solve(Handle, ObjVal) :-
         ;
             true
         ),
-                        
+        ( nonvar(IISRows) ->
+            /* have a previous iis result from failure, clear it */
+            clear_result(Handle, iis_rows of prob),
+            clear_result(Handle, iis_cols of prob),
+            clear_result(Handle, iis_colstats of prob)
+        ;
+            true
+        ),
+        
         cplex_optimise(Handle, m(M,AM,NM,NAM), TO, DumpOpt, 
+            % the out structure must correspond to that in p_cpx_optmise()
+            % in seplex.c!
             out(sols of prob, pis of prob, slacks of prob,
-                djs of prob, cbase of prob, rbase of prob, cp_cond_map of prob),
+                djs of prob, cbase of prob, rbase of prob, cp_cond_map of prob,
+                iis_rows of prob, iis_cols of prob, iis_colstats of prob),
             Result, Stat, Worst, Best), 
         set_lp_handle_value(Handle, status of prob, Stat),
         BestBound is ObjConst + Best,
@@ -2753,8 +2773,14 @@ set_lp_handle_value(Handle, ArgPos, New) :-
         schedule_suspensions(change_suspensions of prob, Handle),
         wake.
 
-    consider_status(3, _, _) :- !,			% DESCR_SOLVED_NOSOL
-	fail.
+    consider_status(3, Handle, _) :- !,			% DESCR_SOLVED_NOSOL
+        Handle = prob{infeash:G,caller_module:Caller},
+        set_lp_handle_value(Handle, cost of prob, _), % not known!
+        (nonvar(G) ->
+             call(G)@Caller
+        ;
+             error(eplex_infeasible, lp_solve(Handle, _ObjVal))
+        ).
 
     consider_status(4, Handle, ObjVal) :- !,		% DESCR_ABORTED_SOL
     	Handle = prob{cplex_handle:CPH,obj:ObjConst,
@@ -2815,10 +2841,14 @@ eplex_result_handler(eplex_abort, lp_solve(prob{status:Stat}, _)) :-
 	printf(error, "event(eplex_abort): Optimization aborted (optimizer status = %d)%n", [Stat]),
 	exit_block(abort).
 
+eplex_result_handler(eplex_infeasible, lp_solve(_,_)) :-
+        fail.
+
 :- set_event_handler(eplex_suboptimal,	eplex_result_handler/2).
 :- set_event_handler(eplex_unbounded,	eplex_result_handler/2).
 :- set_event_handler(eplex_unknown,	eplex_result_handler/2).
 :- set_event_handler(eplex_abort,	eplex_result_handler/2).
+:- set_event_handler(eplex_infeasible,	eplex_result_handler/2).
 
 
 % ----------------------------------------------------------------------
@@ -3294,6 +3324,8 @@ process_option(reduced_cost(YesNo), Handle, _) ?- !,
 	lp_set(Handle, reduced_cost, YesNo).
 process_option(keep_basis(YesNo), Handle, _) ?- !,
 	lp_set(Handle, keep_basis, YesNo).
+process_option(cache_iis(YesNo), Handle, _) ?- !,
+	lp_set(Handle, cache_iis, YesNo).
 process_option(timeout(Lim0), Handle, _) ?- !,
         lp_set(Handle, timeout, Lim0).
 process_option(sync_bounds(YesNo), Handle, _) ?- !,
@@ -3340,6 +3372,8 @@ process_option(unknown_handler(Goal), Handle, _) ?- !,
         lp_set(Handle, unknown_handler, Goal).
 process_option(abort_handler(Goal), Handle, _) ?- !,
         lp_set(Handle, abort_handler, Goal). 
+process_option(infeasible_handler(Goal), Handle, _) ?- !,
+        lp_set(Handle, infeasible_handler, Goal). 
 process_option(NoOpt, _Handle, _) :-
 	writeln(error, "Eplex error: Invalid option for setup":NoOpt),
         abort.
@@ -3712,6 +3746,10 @@ lp_set1(Handle, reduced_cost, YesNo) :-
 lp_set1(Handle, keep_basis, YesNo) :-
 	select_result(Handle, cbase of prob, YesNo),
 	select_result(Handle, rbase of prob, YesNo), !.
+lp_set1(Handle, cache_iis, YesNo) :- !,
+        select_result(Handle, iis_rows of prob, YesNo),
+        select_result(Handle, iis_cols of prob, YesNo),
+        select_result(Handle, iis_colstats of prob, YesNo).
 lp_set1(Handle, sync_bounds, yes) :- !, 
 	setarg(sync_bounds of prob, Handle, yes).
 lp_set1(Handle, sync_bounds, no) :- !, 
@@ -3750,6 +3788,8 @@ lp_set1(Handle, unknown_handler, Spec) :- !,
         lp_set_state_handler(Handle, unkh of prob, Spec).
 lp_set1(Handle, abort_handler, Spec) :- !,
         lp_set_state_handler(Handle, aborth of prob, Spec).
+lp_set1(Handle, infeasible_handler, Spec) :- !,
+        lp_set_state_handler(Handle, infeash of prob, Spec).
 lp_set1(Handle, timeout, Value0) :-
         number(Value0),
         % timeout could be int or float, depending on solver
@@ -4605,6 +4645,51 @@ get_changeable_value_handle(Handle, Var, Val):-
         ).
 
 %-----------------------------------------------------------------------
+% Infeasible analysis
+%-----------------------------------------------------------------------
+
+eplex_get_iis(NCRows, NCCols, CIdxs, CVs, Pool) :-
+        get_pool_handle(Handle, Pool),
+        !,
+        lp_get_iis(Handle, NCRows, NCCols, CIdxs, CVs).
+eplex_get_iis(NCRows, NCCols, CIdxs, CVs, Pool) :-
+	printf(error, "Eplex error: instance %w has no associated"
+               " solver:%n", [Pool]),
+        error(5, eplex_get_iis(NCRows, NCCols, CIdxs, CVs, Pool)).
+
+lp_get_iis(Handle, NCRows, NCCols, CstrIdxs, CVs) :-
+        Handle = prob{cplex_handle:CPH,mr:MR,cp_cond_map:Map,iis_rows:CRowIdxs0},
+        ( array(CRowIdxs0) ->
+            % IIS computed eagerly on failure and associated with the IIS arrays
+            Handle = prob{iis_rows:CRowIdxs,iis_cols:CColIdxs,iis_colstats:CColStatus},
+            iarray_size(CRowIdxs, NCRows),
+            iarray_size(CColIdxs, NCCols)
+        ;
+            cplex_infeas_info(CPH, NCRows, NCCols, CRowIdxs, CColIdxs,
+                              CColStatus)
+        ),
+        iarray_list(CRowIdxs, CRowIdxLst),
+	( foreach(RIdx, CRowIdxLst), param(Map,MR),
+          foreach(CIdx, CstrIdxs)  do
+            matidx_cstridx(RIdx, Map, MR, CIdx)
+	),
+	
+%        lp_get1(Handle, constraints_norm(CRowIdxLst), Cstrs),
+        iarray_list(CColIdxs, CColIdxLst),
+	(CColIdxLst \== [] ->
+            lp_get1(Handle, vars, VArr),
+            ( foreach(ColIdx, CColIdxLst), param(VArr,CColStatus),
+              foreach(V:StatusAtom, CVs), count(I, 1,_) do
+                string_code(CColStatus, I, StatusCode),
+                char_code(StatusAtom, StatusCode),
+                Pos is ColIdx + 1,
+		arg(Pos, VArr, V)
+            )
+	;
+            CVs = []
+	).
+
+%-----------------------------------------------------------------------
 % cutpool support
 %-----------------------------------------------------------------------
 
@@ -4616,6 +4701,42 @@ rawidx_cstridx(0, Idx, Idx) :- integer(Idx), !.
 rawidx_cstridx(1, Idx, g(1,Idx)) :- !, integer(Idx).
 rawidx_cstridx(2, Idx, g(2,Idx)) :- integer(Idx).
 
+matidx_cstridx(MatIdx, Map, MR, CIdx) :-
+        ( MatIdx >= MR ->
+            Idx is MatIdx - MR,
+            % find each pool cstr independently -- not efficient if need 
+            % to find many
+            find_cstridx(Idx, Map, 0, CIdx)
+	;
+            CIdx = MatIdx
+	).
+
+find_cstridx(Idx, Map, RIdx0, CIdx) :-
+	get_iarray_element(Map, RIdx0, Delta),
+	( Idx =:= Delta ->
+            constraint_type_code(condcp, CType),
+            rawidx_cstridx(CType, RIdx0, CIdx)
+	;
+            RIdx1 is RIdx0 + 1,
+            find_cstridx(Idx, Map, RIdx1, CIdx)
+	).
+/*
+matidx_cstridx(Idx, CIdx, Map) :-
+	cplex_get_prob_param(CPH, 0, NRows),
+	NCPRows is NRows - MC,
+	functor(MCMap, '', NCPRows),
+	iarray_size(Map, MSize),
+	Last is MSize - 1,
+	(for(J,0,Last), param(Map, MCMap) do
+		get_iarray_element(Map, J, Delta),
+		( Delta >= 0 ->
+			MIdx is Delta + 1,
+			arg(MIdx, MCMap, J)
+		;
+			true
+		)
+	)
+*/
 
 get_named_cp_index(Handle, Name, Idx) :-
         atom(Name),
@@ -4762,7 +4883,7 @@ create_eplex_pool(Pool) :-
             (::)/2 ->  lp_interval/3,
             integers/1 -> integers/2,
             reals/1 -> reals/2,
-           piecewise_linear_hull/3 -> piecewise_linear_hull/4,
+            piecewise_linear_hull/3 -> piecewise_linear_hull/4,
             suspend_on_change/2 -> suspend_on_change/3,
             get_changeable_value/2 -> get_changeable_value/3,
 	    eplex_solver_setup/1 -> eplex_solver_setup/2,
@@ -4777,6 +4898,7 @@ create_eplex_pool(Pool) :-
             eplex_add_constraints/2 -> eplex_add_constraints/3,
             eplex_read/2 -> eplex_read/3,
             eplex_write/2 -> eplex_write/3,
+            eplex_get_iis/4 -> eplex_get_iis/5,
 	    eplex_cleanup/0 -> eplex_cleanup/1
 	]).
 

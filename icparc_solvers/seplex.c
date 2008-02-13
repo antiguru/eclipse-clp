@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.6 2007/07/03 00:10:27 jschimpf Exp $
+ * Version:	$Id: seplex.c,v 1.7 2008/02/13 21:31:18 kish_shen Exp $
  *
  */
 
@@ -125,16 +125,39 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define CPX_COL_BASIC      CPX_BASIC
 # define CPX_COL_FREE_SUPER CPX_FREE_SUPER
 
+#define SUPPORT_IIS
+
 #if CPLEX >= 10
-/* CPLEX 10+ has more generic error for no solution state */
+/* CPLEX 10+ has more generic error for no solution state and the more general conflict set 
+   rather than IIS (which is for LP only) for infeasible analyses
+*/
 # define CPXERR_NO_INT_SOLN CPXERR_NO_SOLN 
 
 /* CPXcopysos() args changed in 10: removed sospri and added sosname */
 # define CPXcopysos_(E,L,A1,A2,A3,A4,A5,A6) CPXcopysos(E,L,A1,A2,A3,A4,A5,A6,NULL)
 
+# define HAS_GENERAL_CONFLICT_REFINER
+
+# define Find_Conflict(Res, L, NRows, NCols)  Res = CPXrefineconflict(cpx_env, L, &(NRows), &(NCols))
+
+# define Get_Conflict(L, Status, RowIdxs, RowStat, NRows_p, ColIdxs, ColStat, NCols_p) \
+	CPXgetconflict(cpx_env, L, &(Status), RowIdxs, RowStat, NRows_p, ColIdxs, ColStat, NCols_p)
+
 #else
 
-#define CPXcopysos_(E,L,A1,A2,A3,A4,A5,A6) CPXcopysos(E,L,A1,A2,A3,NULL,A4,A5,A6)
+# define CPXcopysos_(E,L,A1,A2,A3,A4,A5,A6) CPXcopysos(E,L,A1,A2,A3,NULL,A4,A5,A6)
+
+/* mapping the calls to find a conflict set to the older and less general routines (LP only) to get 
+   the IIS 
+*/
+# define Find_Conflict(Res, L, NRows, NCols)    Res = CPXfindiis(cpx_env, L, &(NRows), &(NCols))
+
+# define Get_Conflict(L, Status, RowIdxs, RowStat, NRows_p, ColIdxs, ColStat, NCols_p) \
+	CPXgetiis(cpx_env, L, &(Status), RowIdxs, RowStat, NRows_p, ColIdxs, ColStat, NCols_p)
+
+# define CPX_CONFLICT_LB           CPXIIS_AT_LOWER
+# define CPX_CONFLICT_UB           CPXIIS_AT_UPPER
+# define CPX_STAT_CONFLICT_MINIMAL CPXIIS_COMPLETE
 
 #endif 
 
@@ -426,6 +449,15 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define CPXchgprobtype(A1, A2, A3)     0 /* 0 for success return code */
 
 # define CPXLPptr			XPRSprob /* prob. pointer 13+ only! */
+
+# define SUPPORT_IIS
+# define Find_Conflict(Err, L, NRows, NCols) { \
+	Err = XPRSiis(L, ""); \
+        if (!Err) Err = XPRSgetiis(L, &(NCols), &(NRows), NULL, NULL); \
+}
+
+# define Get_Conflict(L, Status, RowIdxs, RowStat, Nrows_p, ColIdxs, ColStat, Ncols_p)  \
+	Status = XPRSgetiis(L, Ncols_p, Nrows_p,  ColIdxs, RowIdxs)
 
 # define Get_Int_Param(E,L,A1,A2) \
    ((L) == NULL ? XPRSgetintcontrol(E,A1,A2) : XPRSgetintcontrol((L)->lp,A1,A2))
@@ -789,10 +821,12 @@ static int next_matno = 0, current_matno = -1;
 #define Check_Array(t) Check_String(t)
 #define IArrayStart(pw) ((int *)BufferStart(pw))
 #define DArrayStart(pw) ((double *)BufferStart(pw))
+#define CArrayStart(pw) ((char *)BufferStart(pw))
 #define Return_Unify_Array(v,t,a) Return_Unify_String(v,t,a)
 #define DArraySize(pbuf) ((BufferSize(pbuf) - 1) / sizeof(double))
 #define IArraySize(pbuf) ((BufferSize(pbuf) - 1) / sizeof(int))
 
+static pword * _create_carray();
 static pword * _create_darray();
 static pword * _create_iarray();
 
@@ -4814,6 +4848,21 @@ p_cpx_lpread(value vfile, type tfile,
 }
 
 pword *
+_create_result_carray(value vhandle, int pos, int size)
+{
+    pword *argp = &vhandle.ptr[pos];
+
+    Dereference_(argp);
+
+    if (IsRef(argp->tag))
+	return NULL;
+    else
+    {
+	return _create_carray(size);
+    }
+}
+
+pword *
 _create_result_darray(value vhandle, int pos, int size)
 {
     pword *argp = &vhandle.ptr[pos];
@@ -4842,6 +4891,166 @@ _create_result_iarray(value vhandle, int pos, int size)
 	return _create_iarray(size);
     }
 }
+
+/*----------------------------------------------------------------------*
+ * Accessing Infeasible information
+ *----------------------------------------------------------------------*/
+
+#ifdef SUPPORT_IIS 
+static int
+_get_iis(lp_desc * lpd, int * nrowsp, int * ncolsp, int * rowidxs, int * colidxs, char * colstats)
+{
+    int status;
+    int i;
+# ifdef CPLEX
+    int * rowstatbuf, * colstatbuf;
+
+    rowstatbuf = Malloc(sizeof(int) * *nrowsp);
+    colstatbuf = Malloc(sizeof(int) * *ncolsp);
+
+# endif
+
+    Get_Conflict(lpd->lp, status, rowidxs, rowstatbuf, nrowsp, colidxs, colstatbuf, ncolsp);
+
+# ifdef CPLEX
+    switch (status)
+    {
+    case CPX_STAT_CONFLICT_MINIMAL:
+	for(i=0;i<*ncolsp;i++)
+	{
+	    switch (colstatbuf[i])
+	    {
+# ifdef HAS_GENERAL_CONFLICT_REFINER
+	    case CPX_CONFLICT_MEMBER:
+		colstats[i] = 'b';
+		break;
+#  endif
+	    case CPX_CONFLICT_LB:
+		colstats[i] = 'l';
+		break;
+	    case CPX_CONFLICT_UB:
+		colstats[i] = 'u';
+		break;
+	    default:
+		colstats[i] = 'x';
+		break;
+	    }
+	}
+	Free(rowstatbuf);
+	Free(colstatbuf);
+	break;
+    default:
+	Free(rowstatbuf);
+	Free(colstatbuf);
+	return -1;
+	break;
+#  ifdef HAS_GENERAL_CONFLICT_REFINER
+    case CPX_STAT_CONFLICT_FEASIBLE:
+	/* An infeaible problem can return CONFLICT_FEASIBLE, with no conflict set, probably because
+	   problem is near feasible.
+	*/
+	*nrowsp = 0;
+	*ncolsp = 0;
+	Free(rowstatbuf);
+	Free(colstatbuf);
+	return 1;
+	break;
+#  endif
+    }
+# endif
+# ifdef XPRESS
+    if (!status) {
+	for(i=0;i<*ncolsp;i++) colstats[i] = 'x';
+    } else {
+	return -1;
+    }
+# endif
+
+    return 0;
+}
+
+#endif /* SUPPORT_IIS */
+
+int
+p_cpx_infeas_info(value vlp, type tlp, 
+		  value vnrows, type tnrows, 
+		  value vncols, type tncols, 
+		  value vrowidx, type trowidx, 
+		  value vcolidx, type tcolidx, 
+		  value vcolstat, type tcolstat)
+{
+#ifdef SUPPORT_IIS
+    int cnrows, cncols, status;
+    pword * rowidxbuf, * colidxbuf, * colstatbuf;
+    lp_desc *lpd;
+    int res;
+    pword * old_tg;
+# ifdef CPLEX
+    int * rowstat, * colstat;
+# endif
+    LpDescOnly(vlp, tlp, lpd);
+    Prepare_Requests
+
+    if (lpd->descr_state == DESCR_SOLVED_NOSOL) 
+    {
+	/* it seems that for CPLEX 10, if the find conflct call is made for a sp;ved problem,
+           the function can succeed without error but does not set the size of the rows and columns!
+	   So we only call find conflict for infeasible problems
+	*/
+	Find_Conflict(res, lpd->lp, cnrows, cncols);
+	if (res) { Bip_Error(EC_EXTERNAL_ERROR); }
+
+	old_tg = TG;
+	rowidxbuf  = _create_iarray(cnrows);
+	colidxbuf =  _create_iarray(cncols); 
+	colstatbuf = _create_carray(cncols);
+	res = _get_iis(lpd, &cnrows, &cncols, IArrayStart(rowidxbuf), IArrayStart(colidxbuf), CArrayStart(colstatbuf));
+
+	switch (res)
+	{
+	case 1:
+	    /* no conflict set, reset TG and create zero length arrays instead */
+	    TG = old_tg;
+	    rowidxbuf = _create_iarray(0);
+	    colidxbuf = _create_iarray(0);
+	    colstatbuf = _create_carray(0);
+	    break;
+	case -1:
+	    /* error in trying to obtain IIS */
+	    Fail;
+	    break;
+	}
+
+    } else
+    {/* lpd->desc_state != DESCR_SOLVED_NOSOL */
+	cnrows = 0;
+	cncols = 0;
+	rowidxbuf  = _create_iarray(cnrows);
+	colidxbuf =  _create_iarray(cncols); 
+	colstatbuf = _create_carray(cncols);
+    }
+
+    Request_Unify_Integer(vnrows, tnrows, cnrows);
+    Request_Unify_Integer(vncols, tncols, cncols);
+    Request_Unify_String(vrowidx, trowidx, rowidxbuf);
+    Request_Unify_String(vcolidx, tcolidx, colidxbuf);
+    Request_Unify_String(vcolstat, tcolstat, colstatbuf);
+
+    Return_Unify;
+
+#else
+
+    Fprintf(Current_Error, "Eplex error: this solver does not support infeasibilty analysis.\n");
+    ec_flush(Current_Error);
+    Bip_Error(UNIMPLEMENTED);
+
+#endif
+
+}
+
+/*----------------------------------------------------------------------*
+ * Solve
+ *----------------------------------------------------------------------*/
 
 #ifdef XPRESS
 int _mip_opt(lp_desc * lpd, char * meth_string, char * node_meth_string,
@@ -5078,6 +5287,7 @@ _cstr_state(lp_desc * lpd, int row, char add_cp_cstr, double * sols)
     }
 }
 
+
 /* cplex_optimise(Handle, SolveMethods, TimeOut, SetNext, OutputPos, 
                   OptResult, OptStatus, WorstBound, BestBound)
 
@@ -5102,7 +5312,8 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
     lp_desc *lpd; 
     int res, oldmar;
     int meth, node_meth, auxmeth, node_auxmeth;
-    int solspos, pispos, slackspos, djspos, cbasepos, rbasepos, cpcondmappos; 
+    int solspos, pispos, slackspos, djspos, cbasepos, rbasepos, cpcondmappos;
+    int iis_rowspos, iis_colspos, iis_colstatspos;
     pword * pw, outsols, outpis, outslacks, outdjs, outcbase, outrbase;
     /* outdjs: when adding a solver, check to make sure that the reduced
        cost is of the same sign as what we defined (and what CPLEX and
@@ -5160,7 +5371,9 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
     Check_Integer(pw->tag);
     node_auxmeth = pw->val.nint;
 
-    /* out(sols,pis,slacks,djs,cbase,rbase,cp_cond_map) */
+    /* out(sols,pis,slacks,djs,cbase,rbase,cp_cond_map,iis_rows,iis_cols,iis_colstats) 
+       must correspond to the out structure in the call to cplex_optimise in ECLiPSe!
+    */
     pw = &vout.ptr[1];
     Dereference_(pw);
     Check_Integer(pw->tag);
@@ -5189,6 +5402,19 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
     Dereference_(pw);
     Check_Integer(pw->tag);
     cpcondmappos = pw->val.nint;
+    pw = &vout.ptr[8];
+    Dereference_(pw);
+    Check_Integer(pw->tag);
+    iis_rowspos = pw->val.nint;
+    pw = &vout.ptr[9];
+    Dereference_(pw);
+    Check_Integer(pw->tag);
+    iis_colspos = pw->val.nint;
+    pw = &vout.ptr[10];
+    Dereference_(pw);
+    Check_Integer(pw->tag);
+    iis_colstatspos = pw->val.nint;
+
     
     if (IsStructure(tdump)) 
     { /* write_before_solve(Format,File) */
@@ -6365,6 +6591,58 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 	case DESCR_SOLVED_NOSOL:
 	    add_cp_cstr = 0;
 	    /* no solution; state always fail */
+#ifdef SUPPORT_IIS
+	    {
+		pword *argp = &vhandle.ptr[iis_rowspos];
+
+		Dereference_(argp);
+
+		if (!IsRef(argp->tag))  
+		{
+		    int iis_nrows, iis_ncols;
+		    int err;
+		    pword * old_tg1;
+
+		    pword iis_rowidxs, iis_colidxs, iis_colstats;
+
+		    Find_Conflict(err, lpd->lp, iis_nrows, iis_ncols);
+		    if (err) 
+		    {/* we can't simply abort here if an error occurs, just create dummy arrays
+                        and do not proceed to try to get the IIS */
+			iis_nrows = 0;
+			iis_ncols = 0;
+		    }
+		    old_tg1 = TG;
+		    iis_rowidxs.val.ptr = _create_iarray(iis_nrows);
+		    iis_rowidxs.tag.kernel = TSTRG;
+		    iis_colidxs.val.ptr = _create_iarray(iis_ncols);
+		    iis_colidxs.tag.kernel = TSTRG;
+		    iis_colstats.val.ptr = _create_carray(iis_ncols);
+		    iis_colstats.tag.kernel = TSTRG;
+
+
+		    if (!err && (_get_iis(lpd, &iis_nrows, &iis_ncols, 
+				     IArrayStart(iis_rowidxs.val.ptr), IArrayStart(iis_colidxs.val.ptr), 
+					  CArrayStart(iis_colstats.val.ptr)) 
+			    != 0)
+			)
+		    {
+			/* something went wrong; reallocate iis arrays with 0 size */
+			TG = old_tg1;
+			iis_nrows = 0;
+			iis_ncols = 0;
+			iis_rowidxs.val.ptr = _create_iarray(0);
+			iis_colidxs.val.ptr = _create_iarray(0);
+			iis_colstats.val.ptr = _create_carray(0);
+		    }
+
+		    ec_assign(vhandle.ptr+iis_rowspos, iis_rowidxs.val, iis_rowidxs.tag);
+		    ec_assign(vhandle.ptr+iis_colspos, iis_colidxs.val, iis_colidxs.tag);
+		    ec_assign(vhandle.ptr+iis_colstatspos, iis_colstats.val, iis_colstats.tag);
+			
+		}
+	    }
+#endif
 	    break;
 	default:
 	{
@@ -6533,7 +6811,7 @@ p_cpx_loadbase(value vlp, type tlp, value vcarr, type tcarr, value vrarr, type t
     LpDesc(vlp, tlp, lpd);
     SetPreSolve(lpd->presolve);
     if (lpd->mac == IArraySize(vcarr.ptr) && lpd->mar == IArraySize(vrarr.ptr)) {
-	/* Fix b58: only load basis if current row/col == array sizes */
+	/* Finx b58: only load basis if current row/col == array sizes */
 #ifdef LOG_CALLS
 	Fprintf(log_output_, "\niloadbasis(...);");
 #endif
@@ -6900,6 +7178,14 @@ p_create_darray(value vi, type ti, value varr, type tarr)
     Check_Integer(ti);
     pbuf = _create_darray(vi.nint);
     Return_Unify_String(varr, tarr, pbuf);
+}
+
+static pword *
+_create_carray(int i)
+{
+    pword *pbuf = TG;
+    Push_Buffer(i*sizeof(char) + 1);
+    return pbuf;
 }
 
 static pword *
@@ -7323,6 +7609,7 @@ p_copy_extended_arrays(value vbarr, type tbarr, value vsarr, type tsarr, value v
     }
     Succeed;
 }
+
 
 /*----------------------------------------------------------------------*
  * Accessing iarrays

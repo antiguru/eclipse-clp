@@ -78,3 +78,4 @@ EXPORTS
 	p_cpx_get_named_cp_index @76
 	p_cpx_get_named_cpcstr_indices @77
 	p_cpx_get_cpcstr_info    @78
+	p_cpx_infeas_info	 @79

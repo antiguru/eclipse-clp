@@ -269,8 +269,9 @@ solve the problem. The simplest way to do this is to use:
     posted are taken into account. If the external solver can find an
     optimal solution to the eplex problem, then the predicate succeeds and Cost is
     instantiated to the optimal value. If the problem is infeasible (has no
-    solution) or unbounded (Cost is not bounded by the constraints), then 
-    the predicate fails. 
+    solution), then the predicate fails (by default). If the problem is
+    unbounded (Cost is not bounded by the constraints), then the predicate
+    succeeds without producing any solution values for the variables. 
 
 \end{description}
 \subsection{Examples}
@@ -783,7 +784,7 @@ variable.
 
 Apply the external solver's LP or MIP solver to the problem represented by Handle.
 Precisely which method is used depends on the options given to lp_setup/4.
-lp_solve/2 fails if there is no solution or succeeds
+lp_solve/2 fails (by default) if there is no solution or succeeds
 if an optimal solution is found, returning the solution's cost in Cost
 (unlike with lp_demon_setup/6, Cost gets instantiated to a number).
 After a success, various solution and status information can be retrieved
@@ -967,7 +968,8 @@ If the external solver does not produce a solution, then:
 added to the problem matrix without checking for violation,  and the
 external solver is invoked for one more time. This is because the extra
 constraints may make the problem bounded. 
-\item if the problem is infeasible, then failure occurs as normal
+\item if the problem is infeasible, then failure occurs as normal (with the
+default infeasible handler behaviour). 
 \end{itemize}
 
 This multiple invocation of the solver occurs within an eplex's call to the
@@ -1164,6 +1166,12 @@ classifies these into the following cases, with default ways of handling them:
 	problem is unbounded, so unless the problem was set up with
 	the solution(no) option, an error will occur when trying to
 	continue as if the optimisation had succeeded.
+   \item[infeasible]
+        This means that the problem is infeasible. Note that it is possible
+        for a problem that is on the boundary between feasible and
+    	infeasible to be returned as feasible or infeasible, depending on
+    	the solver and solving method used. The default behaviour is to
+    	fail. 
     \item[unknown]
     	This means that due to the solution method chosen, it is unknown
 	whether the problem is unbounded or infeasible. The default
@@ -1181,9 +1189,17 @@ eplex_set/2 or lp_set/3) as an option. If given, the user defined goal will
 be executed instead. The user defined handler could for instance change
 parameter settings and call lp_solve again. 
 
+Redefining the default behaviour for infeasible problems allows the
+infeasible problem state to be examined, e.g.\ by extracting the IIS
+(Irreducible Infeasible Subsystem) from it with 
+\bipref{eplex_get_iis/4}{../bips/lib/eplex/eplex_get_iis-4.html}.
+It is recommended that the
+user-defined handler should fail after examining the state to preserve
+the correct logical behaviour.
+ 
 \label{lpevents}
 The default behaviour is implemented by raising the events {\tt
-eplex_suboptimal}, {\tt eplex_unbounded}, {\tt eplex_unknown} and {\tt
+eplex_suboptimal}, {\tt eplex_unbounded}, {\tt eplex_infeasible}, {\tt eplex_unknown} and {\tt
 eplex_abort} for the different abort cases. These events can themselves be
 redefined to change the default behaviours. However, as this changes the
 behaviour globally, it is not recommended.

@@ -47,7 +47,8 @@
 	eplex_var_get/4,
         eplex_set/3,
         eplex_read/3,
-        eplex_write/3.
+        eplex_write/3,
+        eplex_get_iis/6.
 
 % make sure there is a s_eplex module 
 % (needed for warnings when trying to load other versions of eplex)

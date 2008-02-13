@@ -960,6 +960,7 @@ see_also:[($=)/2,($=<)/2,($>=)/2,(=:=)/2, (>=)/2, (=<)/2,
           eplex_solver_setup/1,
 	  eplex_probe/2, eplex_solve/1,
           eplex_get/2, eplex_var_get/3,
+          eplex_get_iis/4,
 	  lp_demon_setup/5, lp_setup/4
          ],
 desc: html("\
@@ -1114,6 +1115,22 @@ ListOfOptions are (such option should occur no more than once):
     <TT>no</TT>.
 
 <P>
+    <DT><STRONG><TT>cache_iis(YesNo)</TT></STRONG>
+     <DD>Specify if an IIS should be computed immediately for an infeasible problem
+     (if supported by the external solver), and store it so that it can bee retrieved by
+     eplex_get_iis/4 or lp_get_iis/5 (called from within a user-defined infeasible 
+     handler). This will be done before the problem can be modified and make the computing 
+     of the IIS impossible. The IIS will only be available before the problem is solved
+     again, and also before the infeasible solve is backtracked. This option has no effect  
+     if the external solver does not support the computation of an IIS. Note that if this 
+     option is set, eplex will always ask for an IIS to computed for an infeasible problem, 
+     even if it is immediately backtracked by the infeasible handler failing, and that the 
+     option is only needed if the problem instance in the external solver is modified 
+     before eplex_get_iis/4 or lp_get_iis/5 is called. 
+     YesNo is one of the atoms <TT>yes</TT> or <TT>no</TT>, the default is 
+    <TT>no</TT>.
+
+<P>
 <DT><STRONG><TT>demon_tolerance(RealTol, IntTol)</TT></STRONG>
     <DD>Specify how far outside a variable's range an lp-solution
     can fall before lp_demon_setup/5 re-triggers.
@@ -1156,7 +1173,7 @@ ListOfOptions are (such option should occur no more than once):
     parameter for time-out directly. In cases where the solver expects an
     integer for the time-out interval, the time given is rounded up to the
     next integer value. The timeout is set by setting the external
-    solver's timeout setitngs, and the exact behaviour may be solver dependent.
+    solver's timeout settings, and the exact behaviour may be solver dependent.
 <P>
 <DT><STRONG><TT>suboptimal_handler(+Goal)</TT></STRONG>
     <DD>Specifies a user defined goal Goal to handle the case when the
@@ -1167,7 +1184,16 @@ ListOfOptions are (such option should occur no more than once):
 <DT><STRONG><TT>unbounded_handler(+Goal)</TT></STRONG>
     <DD>Specifies a user defined goal Goal to handle the case when the
     problem is unbounded. Goal would be run in place of raising the  
-    default <TT>eplex_unknown</TT> event.
+    default <TT>eplex_unbounded</TT> event.
+<P>
+<DT><STRONG><TT>infeasible_handler(+Goal)</TT></STRONG>
+    <DD>Specifies a user defined goal Goal to handle the case when the
+    external solver found that the problem is infeasible. Goal would be run
+    in place of raising the default <TT>eplex_infeasible</TT> event.  Note
+    that the default and logically correct behaviour is to fail, this
+    handler is provided to allow the user to analyse the cause of the
+    infeasibility. It is recommended that the handler should also fail
+    after performing the analysis.
 <P>
 <DT><STRONG><TT>unknown_handler(+Goal)</TT></STRONG>
     <DD>Specifies a user defined goal Goal to handle the case when the
@@ -1334,7 +1360,7 @@ args:      ["Objective":     "Objective function: min(CostExpr) or max(CostExpr)
             "TriggerModes":  "List of conditions for re-triggering solver",
             "Handle":        "handle to solver state"
            ],
-see_also:  [lp_solve/2, lp_set/3, lp_setup/4,
+see_also:  [lp_solve/2, lp_set/3, lp_setup/4, lp_get_iis/5,
             solution_out_of_range/1, schedule_suspensions/1,
 	    library(constraint_pools)],
 summary:   "Setup the external solver as a simplex demon.",
@@ -1535,7 +1561,7 @@ args:      ["NormConstraints": "normalised constraints",
            ],
 summary:   "Create a new external solver state for the constraints NormConstraints.",
 see_also:  [lp_add/3, lp_set/3, lp_add_vars/2, lp_add_constraints/3,
-            lp_solve/2, lp_probe/3, lp_get/3,
+            lp_solve/2, lp_probe/3, lp_get/3, lp_get_iis/5,
             normalise_cstrs/3, lp_write/3],
 desc:      html("\
 <P>
@@ -1674,6 +1700,22 @@ The solver Options are:
     <TT>no</TT>.
 
 <P>
+    <DT><STRONG><TT>cache_iis(YesNo)</TT></STRONG>
+     <DD>Specify if an IIS should be computed immediately for an infeasible problem
+     (if supported by the external solver), and store it so that it can bee retrieved by
+     eplex_get_iis/4 or lp_get_iis/5 (called from within a user-defined infeasible 
+     handler). This will be done before the problem can be modified and make the computing 
+     of the IIS impossible. The IIS will only be available before the problem is solved
+     again, and also before the infeasible solve is backtracked. This option has no effect  
+     if the external solver does not support the computation of an IIS. Note that if this 
+     option is set, eplex will always ask for an IIS to computed for an infeasible problem, 
+     even if it is immediately backtracked by the infeasible handler failing, and that the 
+     option is only needed if the problem instance in the external solver is modified 
+     before eplex_get_iis/4 or lp_get_iis/5 is called. 
+     YesNo is one of the atoms <TT>yes</TT> or <TT>no</TT>, the default is 
+    <TT>no</TT>.
+
+<P>
 <DT><STRONG><TT>demon_tolerance(RealTol, IntTol)</TT></STRONG>
     <DD>Specify how far outside a variable's range an lp-solution
     can fall before lp_demon_setup/5 re-triggers.
@@ -1721,7 +1763,7 @@ The solver Options are:
     parameter for time-out directly. In cases where the solver expects an
     integer for the time-out interval, the time given is rounded up to the
     next integer value. The timeout is set by setting the external solver's
-    timeout setitngs, and the exact behaviour may be solver dependent.
+    timeout settings, and the exact behaviour may be solver dependent.
 <P>
 <DT><STRONG><TT>suboptimal_handler(+Goal)</TT></STRONG>
     <DD>Specifies a user defined goal Goal to handle the case when the
@@ -1732,7 +1774,16 @@ The solver Options are:
 <DT><STRONG><TT>unbounded_handler(+Goal)</TT></STRONG>
     <DD>Specifies a user defined goal Goal to handle the case when the
     problem is unbounded. Goal would be run in place of raising the  
-    default <TT>eplex_unknown</TT> event.
+    default <TT>eplex_unbounded</TT> event.
+<DT><STRONG><TT>infeasible_handler(+Goal)</TT></STRONG>
+    <DD>Specifies a user defined goal Goal to handle the case when the
+    external solver found that the problem is infeasible. Goal would be run
+    in place of raising the default <TT>eplex_infeasible</TT> event.  Note
+    that the default and logically correct behaviour is to fail, this
+    handler is provided to allow the user to analyse the cause of the
+    infeasibility. It is recommended that the handler should also fail
+    after performing the analysis.
+<P>
 <P>
 <DT><STRONG><TT>unknown_handler(+Goal)</TT></STRONG>
     <DD>Specifies a user defined goal Goal to handle the case when the
@@ -1842,7 +1893,7 @@ args:      [
             "Cost":   "Value of returned solution"
            ],
 summary:   "Explicitly invoke the external solver associated with EplexInstance.",
-fail_if:   "External solver was unable to find a solution.",
+fail_if:   "External solver was unable to find a solution (default behaviour)",
 see_also:  [eplex_solver_setup/4, eplex_solver_setup/1, eplex_var_get/3, eplex_get/2,
             ($=)/2,($=<)/2,($>=)/2,(=:=)/2, (>=)/2, (=<)/2, 
             ($::)/2, (::)/2,integers/1, reals/1
@@ -1882,13 +1933,17 @@ desc:      html("\
     	This means that a solution was found but it may be suboptimal.
 	The default behaviour is to print a warning and succeed.
     <DT>unbounded_handler (eplex_unbounded event)<DD>
-	This means that the problem is unbounded.  The default
+	This means that the problem is unbounded. The default
 	behaviour is to bind Cost to infinity (positive or negative
 	depending on the optimisation direction), print a warning and
 	succeed.  CAUTION: No solution values are computed when the
 	problem is unbounded, so unless the problem was set up with
 	the solution(no) option, an error will occur when trying to
 	continue as if the optimisation had succeeded.
+    <DT>infeasible_handler (eplex_infeasible event)<DD>
+    	This means that the problem is infeasible. The default
+	behaviour is to fail. Redefining this handler allows the 
+        examination of the failed problem, e.g. obtaining an IIS for it.
     <DT>unknown_handler (eplex_unknown event)<DD>
     	This means that due to the solution method chosen, it is unknown
 	whether the problem is unbounded or infeasible. The default
@@ -1965,6 +2020,10 @@ desc:      html("\
 	problem is unbounded, so unless the problem was set up with
 	the solution(no) option, an error will occur when trying to
 	continue as if the optimisation had succeeded.
+    <DT>infeasible_handler (eplex_infeasible event)<DD>
+    	This means that the problem is infeasible. The default
+	behaviour is to fail. Redefining this handler allows the 
+        examination of the failed problem, e.g. obtaining an IIS for it.
     <DT>unknown_handler (eplex_unknown event)<DD>
     	This means that due to the solution method chosen, it is unknown
 	whether the problem is unbounded or infeasible. The default
@@ -2571,7 +2630,7 @@ desc:      html("\
                    The status is either 0 (not active) or 1 (active).
                    A pair of lists Indexes-ActiveStatus is returned.
            <DT><STRONG><TT>add_initially</TT></STRONG>
-               <DD>the cuurent add_initially status of the selected 
+               <DD>the current add_initially status of the selected 
                    constraints. The status is either 0 (not add) or 1 (add).
                    Note that although inactive constraints have a
                    add_initially status, they will not be added to a problem.
@@ -2776,7 +2835,7 @@ desc:      html("\
 
 <P>
      <DT><STRONG><TT>constraints</TT></STRONG>
-     <DD>Returns a list of the problem constraints (excluding any cutppol
+     <DD>Returns a list of the problem constraints (excluding any cutpool
          constraints) in denormalised (readable) form.  They may be
          simplified with respect to the originals that were passed to the
          problem.
@@ -3142,7 +3201,7 @@ args:      ["Handle": "Handle to a solver state",
            ],
 resat:     no,
 summary:   "Change initial options for solver state Handle.",
-see_also:  [lp_setup/4, lp_get/3, lp_var_get/4, eplex_set/2],
+see_also:  [lp_setup/4, lp_get/3, lp_var_get/4, lp_get_iis/5, eplex_set/2],
 desc:      html("\
 <P>
 This primitive can be used to change some of the initial options
@@ -3214,6 +3273,20 @@ even after setup.
         Value is one of the atoms <TT>yes</TT> or <TT>no</TT>.
 
 <P>
+    <DT><STRONG><TT>cache_iis</TT></STRONG>
+        <DD>When a problem is found to be infeasible, compute an IIS for the problem
+        (if supported by the external solver), and store it so that it can bee retrieved
+        by eplex_get_iis/4 or lp_get_iis/5. This will be done before the problem can
+        be modified and make the computing of the IIS impossible. The IIS will oulu
+        be available before the problem is solved again, and before the infeasible  
+        solve is backtracked. This option has no effect if the external solver does not 
+        support the finding of IIS. Note that if this option is set, eplex will always ask
+        for an IIS to computed for an infeasible problem, even if it is immediately backtracked 
+        by the infeasible handler failing, and that the option is only needed if the problem 
+        instance in the external solver is modified before eplex_get_iis/4 or lp_get_iis/5 is called. 
+        Value is one of the atoms <TT>yes</TT> or <TT>no</TT>.
+
+<P>
     <DT><STRONG><TT>demon_tolerance</TT></STRONG>
         <DD>Specify how far outside a variable's range an lp-solution
         can fall before lp_demon_setup/5 re-triggers.
@@ -3282,6 +3355,16 @@ even after setup.
         handler, and would be run in place of raising the default
         <TT>eplex_unbounded</TT> event.
 <P>
+    <DT><STRONG><TT>infeasible_handler</TT></STRONG>
+        <DD>Value is a user defined goal to handle the case when the
+        external solver found the problem to be infeasible. Value would
+        replace any existing infeasible handler, and would be run in place
+        of raising the default <TT>eplex_infeasible</TT> event. Note that
+        the default and logically correct behaviour is to fail, this
+        handler is provided to allow the user to analyse the cause of the
+        infeasibility. It is recommended that the handler should also fail
+        after performing the analysis.
+<P>
     <DT><STRONG><TT>unknown_handler</TT></STRONG>
         <DD>Value is a user defined goal to handle the case when the
         external solver was not able to determine if the problem is
@@ -3340,7 +3423,7 @@ summary:   "Change initial options for solver state associated with EplexInstanc
 exceptions: [5: "EplexInstance does not a solver setup for it.",
              40: "Solver state had been previously destroyed."
              ],
-see_also:  [eplex_solver_setup/4, eplex_set/2, lp_set/3, lp_get/3],
+see_also:  [eplex_solver_setup/4, eplex_set/2, eplex_get_iis/4, lp_set/3, lp_get/3],
 desc:      html("\
 <P>
 This primitive can be used to change some of the initial options
@@ -3410,6 +3493,20 @@ even after setup of a solver for eplex instance <EM>EplexInstance</EM>.
         Value is one of the atoms <TT>yes</TT> or <TT>no</TT>.
 
 <P>
+    <DT><STRONG><TT>cache_iis</TT></STRONG>
+        <DD>When a problem is found to be infeasible, compute an IIS for the problem
+        (if supported by the external solver), and store it so that it can bee retrieved
+        by eplex_get_iis/4 or lp_get_iis/5. This will be done before the problem can
+        be modified and make the computing of the IIS impossible. The IIS will only
+        be available before the problem is solved again, and before the infeasible  
+        solve is backtracked. This option has no effect if the external solver does not 
+        support the finding of IIS. Note that if this option is set, eplex will always ask
+        for an IIS to computed for an infeasible problem, even if it is immediately backtracked 
+        by the infeasible handler failing, and that the option is only needed if the problem 
+        instance in the external solver is modified before eplex_get_iis/4 or lp_get_iis/5 is called. 
+        Value is one of the atoms <TT>yes</TT> or <TT>no</TT>.
+
+<P>
     <DT><STRONG><TT>demon_tolerance</TT></STRONG>
         <DD>Specify how far outside a variable's range an lp-solution
         can fall before lp_demon_setup/5 re-triggers.
@@ -3453,6 +3550,16 @@ even after setup of a solver for eplex instance <EM>EplexInstance</EM>.
         problem is unbounded. Value would replace any existing unbounded
         handler, and would be run in place of raising the default
         <TT>eplex_unbounded</TT> event.
+<P>
+<DT><STRONG><TT>infeasible_handler</TT></STRONG>
+        <DD>Value is a user defined goal to handle the case when the
+        external solver found the problem to be infeasible. Value would
+        replace any existing infeasible handler, and would be run in place
+        of raising the default <TT>eplex_infeasible</TT> event. Note that
+        the default and logically correct behaviour is to fail, this
+        handler is provided to allow the user to analyse the cause of the
+        infeasibility. It is recommended that the handler should also fail
+        after performing the analysis.
 <P>
 <DT><STRONG><TT>unknown_handler</TT></STRONG>
         <DD>Value is a user defined goal to handle the case when the
@@ -3741,6 +3848,204 @@ desc: html("
     Handle, i.e. it must occur in the constraints posted to the solver
     state. ")
 ]).
+
+:- comment(eplex_get_iis/4, [
+        summary: "Returns an IIS for an infeasible problem associated with EplexInstance.",
+        template: "EplexInstance:eplex_get_iis(-NumConstraints, -NumVars, -ConstraintIdxs, -VarInfos)",
+        exceptions: [141: "External solver does not support finding IIS",
+                     213: "Error in external solver while getting IIS"
+                    ],
+        args: ["NumConstraints" : "Number of constraints in the IIS",
+               "NumVars" : "Number of variables in the IIS",
+               "ConstraintIdxs": "List of Indexes of the constraints in the IIS", 
+               "VarInfos": "List of Variable:Status pairs where Variables"
+                          " are the variables in the IIS and Status is the"
+                          " status of that variable"
+              ],
+        amode: eplex_get_iis(-,-,-,-),
+        see_also: [lp_get_iis/5, eplex_solver_setup/4, eplex_solve/1, eplex_probe/2,
+                   eplex_get/2, eplex_set/2, 
+                   lp_add_constraints/4, lp_add_cutpool_constraints/4], 
+        eg: "
+ % simple inconsistency, get the constraints with constraints option of eplex_get/2
+ [eclipse 6]: eplex:(X=:=Y),
+        eplex:(X+Y>=3),
+        eplex:(X+Y=<2),
+        eplex_solver_setup(min(X)),
+        eplex_set(infeasible_handler,
+             eplex_get_iis(NC,BV, Is, Vs),
+             eplex_get(constraints(Is), Cs))),
+        eplex_solve(C).
+  CPLEX Error  1217: No solution exists.
+ 
+  X = X{-1e+20 .. 1e+20}
+  Y = Y{-1e+20 .. 1e+20}
+  NC = 2
+  BV = 0
+  Is = [0, 1]
+  Vs = []
+  Cs = [X{-1e+20 .. 1e+20} + Y{-1e+20 .. 1e+20} =< 2.0, X + Y >= 3.0]
+  C = C
+  Yes (0.00s cpu)
+  [eclipse 7]:
+
+  % simple example using cutpool constraints and cache_iis option
+  [eclipse 7]:         eplex:(X=:=Y), eplex_solver_setup(min(X)),
+        eplex_set(cache_iis, yes), eplex_set(infeasible_handler, eplex_get_iis(NC,NV,Is,Vs)),
+        eplex_get(handle, H),
+        lp_add_cutpool_constraints(H, [(X+Y>=4),(2*X =:= 2*Y), (X+Y=<3)], [], Idxs),
+        eplex_solve(C).
+  
+                                CPLEX Error  1217: No solution exists.
+ 
+  X = X{-1e+20 .. 1e+20}
+  Y = Y{-1e+20 .. 1e+20}
+  NC = 2
+  NV = 0
+  Is = [g(2, 0), g(2, 2)]
+  Vs = []
+  H = lp_handle(0)
+  Idxs = [g(2, 0), g(2, 1), g(2, 2)]
+  C = C
+  Yes (0.00s cpu)
+  [eclipse 8]:
+  ",         
+        desc: html("\
+    <P>
+    If the solver found that the problem was infeasible, this predicate
+    will return an IIS (Irreducible Infeasible Subsystem or Irreducible
+    Inconsistent Subsystem) for the problem, if supported by the solver. 
+    An IIS is a subset of the problem constraints and variables which
+    defines an infeasible subproblem. It is usually irreducible in that
+    any proper subset of the IIS is feasible. Finding an IIS allows the
+    diagnostic analysis of the infeasible problem. Note that a problem
+    may have more than one infeasibility, and thus more than one IIS, 
+    but this predicate only returns one. 
+    </P><P>
+    NumConstraints and NumVars are the number of constraints and variables
+    that are in the IIS. ConstraintIdxs is a list of the constraint indexes
+    of the constraints in the IIS, these indexes are the indexes that are
+    returned by lp_add_constraints/4 and lp_add_cutpool_constraints/4, and can 
+    also be used to retrieve the constraint with the constraints_norm(Indexes)
+    and constraints(Indexes) options of eplex_get/2 and lp_get/3. VarInfos gives
+    information for the variables in the IIS, and is a list of Var:Status
+    pair, where Var is a variable in the IIS, and Status is its status.
+    Status is a one character string, and can be:
+<DL>
+       <DT>\"b\": <DD>if both bounds of the variable are involved in the infeasibility
+       <DT>\"u\": <DD>if the upper bound of the variable is involved in the infeasibility
+       <DT>\"l\": <DD>if the lower bound of the variable is involved in the infeasibility
+       <DT>\"x\": <DD>if it is unknown which bound is involved in the infeasibility
+</DL><P>
+    An IIS is returned only if finding IIS is supported by the external
+    solver. In addition, the solver may limit the type of problems and the
+    information returned by the IIS, for example, finding an IIS may be
+    limited to linear problems, and/or bound status information may be
+    unavailable for the variables (hence the need for the \"x\" status).
+    Consult the manual entry for infeasibility analyses for more detail.   
+</P><P>
+    The current solver state must be infeasible when this predicate is called
+    to obtain the IIS. However, the default behaviour is to fail when the 
+    solver determines the problem to be infeasible. Therefore, this
+    predicate must be called inside a user-defined infeasible handler, which
+    can be defined during solver setup, or with eplex_set/2 or lp_set/3 after
+    solver setup. 
+</P><P>
+    The IIS can only be obtained from the external solver before any change is
+    made to the problem in the external solver. Unfortunately, certain
+    eplex functionality does change the problem soon after solving the
+    problem, before the user have any chance to obtain the IIS information,
+    e.g. cutpool constraints or probing -- in the case of the cutpool constraints,
+    the removal of the active cutpool constraints, and in the case of probing,
+    To get around this problem, the cache_iis option can be used to
+    instruct eplex to obtain the IIS information whenever the problem is
+    determined to be infeasible, and this information is then cached by the
+    eplex instance, so that when the user request the IIS information, it can
+    be obtained from the cache.
+</P><P>
+    For some external solvers, and for problems on the boundary between
+    feasible and infeaible, it is possible that the routine that finds
+    the IIS will conclude that the problem is feasible, even though it was
+    considered onfeasible when the problem was solved. In such cases, an
+    empty IIS will be returned.
+")
+]).
+
+:- comment(lp_get_iis/5, [
+        summary: "Returns an IIS for an infeasible problem.",
+        args: ["Handle" : "Handle to a solver state",
+               "NumConstraints" : "Number of constraints in the IIS",
+               "NumVars" : "Number of variables in the IIS",
+               "ConstraintIdxs": "List of Indexes of the constraints in the IIS", 
+               "VarInfos": "List of Variable:Status pairs where Variables"
+                          " are the variables in the IIS and Status is the"
+                          " status of that variable"
+              ],
+        amode: lp_get_iis(+,-,-,-,-),
+        exceptions: [141: "External solver does not support finding IIS"],
+        see_also: [eplex_get_iis/4, lp_setup/4, lp_demon_setup/5, lp_solve/2, lp_probe/3,
+                   lp_get/3, lp_set/3, lp_add_constraints/4, lp_add_cutpool_constraints/4], 
+        desc: html("\
+    <P>
+    If the solver found that the problem was infeasible, this predicate
+    will return an IIS (Irreducible Infeasible Subsystem or Irreducible
+    Inconsistent Subsystem) for the problem, if supported by the solver. 
+    An IIS is a subset of the problem constraints and variables which
+    defines an infeasible subproblem. It is usually irreducible in that
+    any proper subset of the IIS is feasible. Finding an IIS allows the
+    diagnostic analysis of the infeasible problem. Note that a problem
+    may have more than one infeasibility, and thus more than one IIS, 
+    but this predicate only returns one. 
+    </P><P>
+    NumConstraints and NumVars are the number of constraints and variables
+    that are in the IIS. ConstraintIdxs is a list of the constraint indexes
+    of the constraints in the IIS, these indexes are the indexes that are
+    returned by lp_add_constraints/4 and lp_add_cutpool_constraints/4, and can 
+    also be used to retrieve the constraint with the constraints_norm(Indexes)
+    and constraints(Indexes) options of eplex_get/2 and lp_get/3. VarInfos gives
+    information for the variables in the IIS, and is a list of Var:Status
+    pair, where Var is a variable in the IIS, and Status is its status.
+    Status is a one character string, and can be:
+<DL>
+       <DT>\"b\": <DD>if both bounds of the variable are involved in the infeasibility
+       <DT>\"u\": <DD>if the upper bound of the variable is involved in the infeasibility
+       <DT>\"l\": <DD>if the lower bound of the variable is involved in the infeasibility
+       <DT>\"x\": <DD>if it is unknown which bound is involved in the infeasibility
+</DL><P>
+    An IIS is returned only if finding IIS is supported by the external
+    solver. In addition, the solver may limit the type of problems and the
+    information returned by the IIS, for example, finding an IIS may be
+    limited to linear problems, and/or bound status information may be
+    unavailable for the variables (hence the need for the \"x\" status).
+    Consult the manual entry for infeasibility analyses for more detail.   
+</P><P>
+    The current solver state must be infeasible when this predicate is called
+    to obtain the IIS. However, the default behaviour is to fail when the 
+    solver determines the problem to be infeasible. Therefore, this
+    predicate must be called inside a user-defined infeasible handler, which
+    can be defined during solver setup, or with eplex_set/2 or lp_set/3 after
+    solver setup. 
+</P><P>
+    The IIS can only be obtained from the external solver before any change is
+    made to the problem in the external solver. Unfortunately, certain
+    eplex functionality does change the problem soon after solving the
+    problem, before the user have any chance to obtain the IIS information,
+    e.g. cutpool constraints or probing -- in the case of the cutpool constraints,
+    the removal of the active cutpool constraints, and in the case of probing,
+    To get around this problem, the cache_iis option can be used to
+    instruct eplex to obtain the IIS information whenever the problem is
+    determined to be infeasible, and this information is then cached by the
+    eplex instance, so that when the user request the IIS information, it can
+    be obtained from the cache.
+</P><P>
+    For some external solvers, and for problems on the boundary between
+    feasible and infeaible, it is possible that the routine that finds
+    the IIS will conclude that the problem is feasible, even though it was
+    considered onfeasible when the problem was solved. In such cases, an
+    empty IIS will be returned.
+")
+]).
+
 
 :- comment(piecewise_linear_hull/3, [
 template: "EplexInstance:piecewise_linear_hull(?X, ++Points, ?Y)",
