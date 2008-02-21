@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.10 2008/01/15 14:40:34 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.11 2008/02/21 15:40:42 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/01/15 14:40:34 $").
+:- comment(date, "$Date: 2008/02/21 15:40:42 $").
 
 :- comment(desc, ascii("
     This is very preliminary!
@@ -708,52 +708,70 @@ basic_blocks_to_flat_instr(BasicBlockArray, Reached, Instrs) :-
 
 simplify_chunk([], []).
 simplify_chunk([Instr|More], SimplifiedCode) :-
-	( simplify(Instr, More, SimplifiedCode0) ->
-	    simplify_chunk(SimplifiedCode0, SimplifiedCode)
+        ( simplify(Instr, More, SimplifiedCode, MoreTail, SimplifiedCodeTail) ->
+	    simplify_chunk(MoreTail, SimplifiedCodeTail)
 	;
-	    SimplifiedCode = [Instr|SimplifiedCode0],
-	    simplify_chunk(More, SimplifiedCode0)
+	    SimplifiedCode = [Instr|SimplifiedCodeTail],
+	    simplify_chunk(More, SimplifiedCodeTail)
 	).
 
 
-% simplify(+Instr, +Follow, -New)
+% simplify(+Instr, +Follow, -New, -FollowTail, -NewTail)
+% New is where the simplified instruction goes, with an uninstantiated NewTail
+% FollowTail is the tail of the existing following instruction, with the head being
+% the next instruction to simplified
 
-simplify(nop,		More, New) ?- !, New = More.
+simplify(nop, More, New, MoreT, NewT) ?- !, 
+        NewT = New,
+        MoreT = More.
 
-simplify(move(X,X),	More, New) ?- !, New = More.
+simplify(move(X,X), More, New, MoreT, NewT) ?- !, 
+        NewT = New,
+        MoreT = More.
 
-simplify(initialize(y([])),	More, New) ?- !, New = More.
+simplify(initialize(y([])), More, New, MoreT, NewT) ?- !, 
+        NewT = New,
+        MoreT = More.
 
-simplify(callf(P,eam(0)),	[Instr|More], New) ?- !,
-	simplify_call(P, Instr, NewInstr),
-	New = [NewInstr|More].
+simplify(callf(P,eam(0)), [Instr|More], New, MoreT, NewT) ?- !,
+	New = [NewInstr|NewT],
+        MoreT = More,
+	simplify_call(P, Instr, NewInstr).
 
-simplify(call(P,eam(0)),	[Instr|More], New) ?- !,
-	simplify_call(P, Instr, NewInstr),
-	New = [NewInstr|More].
+simplify(call(P,eam(0)), [Instr|More], New, MoreT, NewT) ?- !,
+	New = [NewInstr|NewT],
+        MoreT = More,
+	simplify_call(P, Instr, NewInstr).
 
 /*simplify(cut(y(1),_N), [exit|More], New) ?- !,
         New = [exitc|More].
 */
-simplify(savecut(a(A)), [cut(a(A))|More], New) ?- !,
-        New = [savecut(a(A))|More].
+simplify(savecut(a(A)), [cut(a(A))|More], New, MoreT, NewT) ?- !,
+        % remove cut(..) and allow savecut(..) to be examined again for further simplifications
+        MoreT = [savecut(a(A))|More],
+        New = NewT.
 
-simplify(savecut(_), [Instr|More], New) ?- !,
-        unconditional_transfer_out(Instr),
-        New = [Instr|More].
+simplify(savecut(_), More, New, MoreT, NewT) ?- !,
+        More = [Instr|_],
+        New = NewT,
+        More = MoreT,
+        unconditional_transfer_out(Instr).
 
 /*simplify(push_structure(B), [write_did(F/A)|More], New) ?- !,
         B is A + 1,
         New = [write_structure(F/A)|More].
 */
-simplify(allocate(N), [move(a(I),y(J))|More], New) ?- !,
-        New = [get_variable(N, a(I), y(J))|More].
+simplify(allocate(N), [move(a(I),y(J))|More], New, MoreT, NewT) ?- !,
+        More = MoreT,
+        New = [get_variable(N, a(I), y(J))|NewT].
 
-simplify(space(N), [branch(L)|More], New) ?- !,
-        New = [branchs(N,L)|More].
+simplify(space(N), [branch(L)|More], New, MoreT, NewT) ?- !,
+        More = MoreT,
+        New = [branchs(N,L)|NewT].
 
-simplify(space(N), [jmpd(L)|More], New) ?- !,
-        New = [jmpd(N,L)|More].
+simplify(space(N), [jmpd(L)|More], New, MoreT, NewT) ?- !,
+        More = MoreT,
+        New = [jmpd(N,L)|NewT].
 
 	% the code generator compiles attribute unification as if it were
 	% unifying a meta/N structure. Since attribute_name->slot mapping
@@ -769,73 +787,75 @@ simplify(space(N), [jmpd(L)|More], New) ?- !,
 	% with multiple attributes being matched at once. This restriction
 	% also exists in the old compiler; lifting it requires a different
 	% compilation scheme with probably new instructions.
-simplify(read_attribute(FirstName),	Code0, New) ?-
+simplify(read_attribute(FirstName), More0, New, MoreT, NewT) ?-
 	meta_index(FirstName, I0),
-	count_same_instr(Code0, read_void, I0, I, Code1),
+	count_same_instr(More0, read_void, I0, I, More1),
 	I > I0,
-	Code1 = [Read|Code2],
+	More1 = [Read|More2],
 	is_read_instruction(Read),
 	!,
 	% we have read_voids followed by another read: simplify
 	(
 	    meta_index(Name, I),
-	    count_same_instr(Code2, read_void, 1, _, Code3),
-	    Code3 = [After|_],
+	    count_same_instr(More2, read_void, 1, _, MoreT),
+	    MoreT = [After|_],
 	    \+ is_read_instruction(After)
 	->
-	    New = [read_attribute(Name),Read|Code3]
+            New = [read_attribute(Name),Read|NewT]
 	;
 	    warning("Implementation limit: cannot make attribute matching code"),
 	    warning("session-independent if matching more than one attribute."),
 	    fail
 	).
 
-simplify(read_void, [Instr0|Rest0], New) ?- !,
+simplify(read_void, Rest, New, RestT, NewT) ?- !,
+        Rest = [Instr0|Rest0],
         (Instr0 == read_void ->
-            count_same_instr(Rest0, read_void, 2, N, Rest),
-            (Rest = [Instr|_], is_in_read_struct(Instr) ->
-                New = [read_void(N)|Rest]
+            count_same_instr(Rest0, read_void, 2, N, RestT),
+            (RestT = [Instr|_], is_in_read_struct(Instr) ->
+               New = [read_void(N)|NewT]
             ;
-                New = Rest % skip trailing read_voids
+               New = NewT % skip trailing read_voids
             )
         ;
             % do not simplify single read_void except a trailing one
-            \+ is_in_read_struct(Instr0), 
-            New = [Instr0|Rest0] 
+            \+ is_in_read_struct(Instr0),
+            RestT = Rest,
+            New = NewT 
         ).
 
-simplify(write_void, [write_void|Rest0], New) ?- !,
-        count_same_instr(Rest0, write_void, 2, N, Rest),
-        New = [write_void(N)|Rest]. 
+simplify(write_void, [write_void|Rest0], New, RestT, NewT) ?- !,
+        count_same_instr(Rest0, write_void, 2, N, RestT),
+        New = [write_void(N)|NewT]. 
 
-simplify(push_void, [push_void|Rest0], New) ?- !,
-        count_same_instr(Rest0, push_void, 2, N, Rest),
-        New = [push_void(N)|Rest]. 
+simplify(push_void, [push_void|Rest0], New, RestT, NewT) ?- !,
+        count_same_instr(Rest0, push_void, 2, N, RestT),
+        New = [push_void(N)|NewT]. 
 
-simplify(move(y(Y1),a(A1)), [Instr0|Rest0], New) ?- 
+simplify(move(y(Y1),a(A1)), [Instr0|Rest0], New, RestT, NewT) ?- 
         Instr0 = move(y(Y2),a(A2)), !,
         ( A2 =:= A1 + 1, Y2 =:= Y1 + 1 ->
             % the arguments for the moves are consecutive
-            extract_conargs_moves(Rest0, move(y(Y),a(A)), Y, A, Y1, A1, 2, N, Rest),
-            New = [move(N,y(Y1),a(A1))|Rest]
+            extract_conargs_moves(Rest0, move(y(Y),a(A)), Y, A, Y1, A1, 2, N, RestT),
+            New = [move(N,y(Y1),a(A1))|NewT]
         ;
             MoveInstrs = [move(y(Y1),a(A1))|MoveInstrs0],
-            extract_nonconargs_moves(Rest0, move(y(_),a(_)), Instr0, Y2, A2, MoveInstrs0, Rest),
+            extract_nonconargs_moves(Rest0, move(y(_),a(_)), Instr0, Y2, A2, MoveInstrs0, RestT),
             MoveInstrs \= [_], % no compact possible with single move
-            compact_moves(MoveInstrs, New, Rest)
+            compact_moves(MoveInstrs, New, NewT)
         ).
 
-simplify(move(a(A1),y(Y1)), [Instr0|Rest0], New) ?- 
+simplify(move(a(A1),y(Y1)), [Instr0|Rest0], New, RestT, NewT) ?- 
         Instr0 = move(a(A2),y(Y2)), !,
         ( A2 =:= A1 + 1, Y2 =:= Y1 + 1 ->
             % the arguments for the moves are consecutive
-            extract_conargs_moves(Rest0, move(a(A),y(Y)), A, Y, A1, Y1, 2, N, Rest),
-            New = [move(N,a(A1),y(Y1))|Rest]
+            extract_conargs_moves(Rest0, move(a(A),y(Y)), A, Y, A1, Y1, 2, N, RestT),
+            New = [move(N,a(A1),y(Y1))|NewT]
         ;
             MoveInstrs = [move(a(A1),y(Y1))|MoveInstrs0],
-            extract_nonconargs_moves(Rest0, move(a(_),y(_)), Instr0, A2, Y2, MoveInstrs0, Rest),
+            extract_nonconargs_moves(Rest0, move(a(_),y(_)), Instr0, A2, Y2, MoveInstrs0, RestT),
             MoveInstrs \= [_], % no compact possible with single move
-            compact_moves(MoveInstrs, New, Rest)
+            compact_moves(MoveInstrs, New, NewT)
         ).
 
 
@@ -1111,7 +1131,7 @@ Various Patterns:
                                         
     space n, branch L           -->     branchs n,L
     space n, jmpd L             -->     jmpd n, L
-                                        
+
 Patterns that are not safe to optimise:
                                       
     push_structure(N+1),write_did(F/N)  --> write_structure(F/N)
