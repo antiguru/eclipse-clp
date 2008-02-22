@@ -3964,9 +3964,9 @@ desc: html("
     be obtained from the cache.
 </P><P>
     For some external solvers, and for problems on the boundary between
-    feasible and infeaible, it is possible that the routine that finds
+    feasible and infeasible, it is possible that the routine that finds
     the IIS will conclude that the problem is feasible, even though it was
-    considered onfeasible when the problem was solved. In such cases, an
+    considered infeasible when the problem was solved. In such cases, an
     empty IIS will be returned.
 ")
 ]).
@@ -4039,9 +4039,9 @@ desc: html("
     be obtained from the cache.
 </P><P>
     For some external solvers, and for problems on the boundary between
-    feasible and infeaible, it is possible that the routine that finds
+    feasible and infeasible, it is possible that the routine that finds
     the IIS will conclude that the problem is feasible, even though it was
-    considered onfeasible when the problem was solved. In such cases, an
+    considered infeasible when the problem was solved. In such cases, an
     empty IIS will be returned.
 ")
 ]).
