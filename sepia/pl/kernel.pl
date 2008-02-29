@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.17 2007/11/06 00:02:02 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.18 2008/02/29 22:15:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -3643,6 +3643,8 @@ pri_flag_code(start_tracing,	19).
 pri_flag_code(source_file,	 3).
 pri_flag_code(source_line,	 4).
 pri_flag_code(source_offset,	 5).
+
+pri_flag_code(code_size,	29).	% statistics
 
 
 check_var_or_flag_value(X) :- var(X), !.

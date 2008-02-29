@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.8 2007/09/04 16:28:48 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.9 2008/02/29 22:14:44 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1601,6 +1601,13 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
     	break;
     case 28:		/* code_type */
 	Request_Unify_Atom(vf, tf, flags & EXTERN ? d_.external: d_.prolog);
+    	break;
+
+    case 29:		/* code_size */
+	if (PriCodeType(proc) != VMCODE) {
+	    Fail_;
+	}
+	Request_Unify_Integer(vf, tf, ProcCodeSize(code));
     	break;
 
     default:
