@@ -1043,53 +1043,58 @@ value Value.
 
 <P>
 <PRE>
-    Flags             Values        Description
-   ------------------------------------------------------
-    auxiliary         on,off        predicate is a
-                                    compiler auiliary
-    call_type         prolog,       predicate calling
-                      external      convention
-    debugged          on, off       compiled in
-                                    debugging mode
-    declared          on, off       predicate was
-                                    declared
-    defined           on, off       predicate code
-                                    exists
-    definition_module an atom       where the procedure
-                                    is defined
-    demon             on, off       predicate is a demon
-    deprecated        on, off       predicate is deprecated,
-                                    warning on use
-    leash             stop,         see below
-                      print,
-                      notrace
-    mode              pred(Mode1,   the mode of the
-                      ...)          predicate
-    parallel          on, off       clauses may be exe-
-                                    cuted in parallel
-    priority          1..12         waking priority
-    skip              on, off       procedure will be
-                                    traced, but its
-                                    children will not
-    spy               on, off       procedure has a
-                                    spypoint
-    stability         static,       is the procedure
-                      dynamic       dynamic?
-    tool              on, off       tool property
-    type              built-in,     type of predicate
-                      user
-    visibility        local,        module scope
-                      exported,
-                      reexported,
-                      imported
-    source_file       an atom       the file where
-                                    defined
-    source_line       an integer    starting line
-                                    number in the file
-    source_offset     an integer    byte offset at
-                                    which the procedure
-                                    definition starts
-                                    in its source file
+    Flags              Values           Description
+   ----------------------------------------------------------------------
+    auxiliary          on,off           predicate is a compiler auxiliary
+
+    call_type          prolog,          predicate calling external convention
+
+    code_size          an integer       size of abstract machine
+                                        code in words (32/64 bits)
+
+    debugged           on, off          compiled in debugging mode
+
+    declared           on, off          predicate was declared
+
+    defined            on, off          predicate code exists
+
+    definition_module  an atom          where the procedure is defined
+
+    demon              on, off          predicate is a demon
+
+    deprecated         on, off          predicate is deprecated,
+                                        warning on use
+
+    leash              stop,print,      see below
+                       notrace
+
+    mode               pred(Mode1,...)  the mode of the predicate
+
+    parallel           on, off          clauses may be executed in parallel
+
+    priority           1..12            waking priority
+
+    skip               on, off          procedure will be traced,
+                                        but its children will not
+
+    spy                on, off          procedure has a spypoint
+
+    stability          static,dynamic   is the procedure dynamic?
+
+    tool               on, off          tool property
+
+    type               built-in,user    type of predicate
+
+    visibility         local,exported   module scope
+                       reexported,
+                       imported
+
+    source_file        an atom          the file where defined
+
+    source_line        an integer       starting line number in the file
+
+    source_offset      an integer       byte offset at which the procedure
+                                        definition starts in its source file
 </PRE>
    The possible values of leash and their meanings are:
 
