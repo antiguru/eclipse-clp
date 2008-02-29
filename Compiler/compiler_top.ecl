@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.12 2007/08/15 23:09:55 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.13 2008/02/29 22:35:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2007/08/15 23:09:55 $").
+:- comment(date,	"$Date: 2008/02/29 22:35:36 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -151,7 +151,7 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 	% treat non-consecutive and multifile here
 
 	; check_redefinition(ModulePred, PredsSeen, SourcePos) ->
-	    compile_pred_to_wam(Clauses, AnnClauses, WAM, Options, Module),
+	    compile_pred_to_wam(Clauses, AnnClauses, WAM, Options, ModulePred),
 	    pred_flags(Options, Flags),
 	    (
 		( Options = options{load:all}
@@ -277,7 +277,7 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 % Compile a predicate (list of clauses) to WAM code list
 % This chains together the various stages of the comiler
 
-compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module) :-
+compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
 
 	% Create our normal form
 	normalize_clauses_annotated(Clauses, AnnCs, [], NormPred0, _NVars, Module),
@@ -316,7 +316,7 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module) :-
 	),
 
 	% Code generation
-	generate_code(NormPred, EnvSize, Code, [], Options, Module),
+	generate_code(NormPred, EnvSize, Code, [], Options, Module:Pred),
 	( Options = options{print_raw_code:on} ->
 	    print_annotated_code(Code)
 	;

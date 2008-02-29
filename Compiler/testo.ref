@@ -514,7 +514,7 @@ p :-
 p / 0:
 label(1):
 	allocate                 0 
-	callf                    p / 0     Y[] 
+	callf                    ref(1)     Y[] 
 	put_integer              a(1)     1 
 	put_integer              a(2)     2 
 	put_integer              a(3)     3 
@@ -579,7 +579,7 @@ label(1):
 	put_variable             a(5) 
 	put_variable             a(6) 
 	bi_add                   a(4)     a(5)     a(6) 
-	jmp                      p / 3 
+	jmp                      ref(1) 
 
 ------ Test 35 -------
 p(A) :-
@@ -832,14 +832,14 @@ label(2):
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
-	callf                    p / 0     Y[1] 
+	callf                    ref(1)     Y[1] 
 	move                     y(1)     a(1) 
 	callf                    q / 1     Y[] 
 	chain                    r / 0 
 label(5):
 	trust_me_inline          0     Y[1] 
 label(6):
-	callf                    p / 0     Y[1] 
+	callf                    ref(1)     Y[1] 
 	callf                    q / 0     Y[1] 
 	move                     y(1)     a(1) 
 	chain                    r / 1 
@@ -870,14 +870,14 @@ label(1):
 	callf                    s / 1     Y[1] 
 	try_me_else              0     0     ref(3) 
 label(2):
-	callf                    p / 0     Y[1] 
+	callf                    ref(1)     Y[1] 
 	callf                    q / 0     Y[1] 
 	move                     y(1)     a(1) 
 	chain                    r / 1 
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
-	callf                    p / 0     Y[1] 
+	callf                    ref(1)     Y[1] 
 	move                     y(1)     a(1) 
 	callf                    q / 1     Y[] 
 	chain                    r / 0 
@@ -915,21 +915,21 @@ label(1):
 	callf                    s / 1     Y[1] 
 	try_me_else              0     0     ref(3) 
 label(2):
-	callf                    p / 0     Y[1] 
+	callf                    ref(1)     Y[1] 
 	move                     y(1)     a(1) 
 	callf                    q / 1     Y[] 
 	chain                    r / 0 
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
-	callf                    p / 0     Y[1] 
+	callf                    ref(1)     Y[1] 
 	callf                    q / 0     Y[1] 
 	move                     y(1)     a(1) 
 	chain                    r / 1 
 label(5):
 	trust_me_inline          0     Y[1] 
 label(6):
-	callf                    p / 0     Y[1] 
+	callf                    ref(1)     Y[1] 
 	callf                    q / 0     Y[1] 
 	move                     y(1)     a(1) 
 	chain                    r / 1 
@@ -1108,7 +1108,7 @@ label(1):
 	move                     a(1)     y(1) 
 	callf                    p / 0     Y[1] 
 	move                     y(1)     a(1) 
-	chain                    p / 1 
+	chain                    ref(1) 
 
 ------ Test 55 -------
 p(A) :-
@@ -1122,9 +1122,9 @@ label(1):
 	move                     a(1)     a(2) 
 	move                     a(1)     y(1) 
 	move                     a(2)     a(1) 
-	callf                    p / 1     Y[1] 
+	callf                    ref(1)     Y[1] 
 	move                     y(1)     a(1) 
-	chain                    p / 1 
+	chain                    ref(1) 
 
 ------ Test 56 -------
 p(A, B) :-
@@ -1155,7 +1155,7 @@ label(1):
 	move                     2     a(1)     y(1) 
 	callf                    p / 0     Y[1,2] 
 	move                     2     y(1)     a(1) 
-	chain                    p / 2 
+	chain                    ref(1) 
 
 ------ Test 58 -------
 p(A) :-
@@ -1182,7 +1182,7 @@ label(1):
 	get_variable             1     a(1)     y(1) 
 	callf                    p / 0     Y[1] 
 	move                     y(1)     a(1) 
-	chain                    p / 1 
+	chain                    ref(1) 
 
 ------ Test 60 -------
 p :-
@@ -1195,7 +1195,7 @@ label(1):
 	allocate                 2 
 	put_global_variable      y(1) 
 	move                     y(1)     y(2) 
-	callf                    p / 0     Y[1,2] 
+	callf                    ref(1)     Y[1,2] 
 	move                     2     y(1)     a(1) 
 	chain                    p / 2 
 
@@ -2167,10 +2167,10 @@ label(3):
 	callf                    split / 4     Y[3,4,5] 
 	put_global_variable      a(2)     y(2) 
 	move                     y(5)     a(1) 
-	callf                    qsort / 2     Y[2,3,4] 
+	callf                    ref(1)     Y[2,3,4] 
 	put_global_variable      a(2)     y(1) 
 	move                     y(4)     a(1) 
-	callf                    qsort / 2     Y[1,2,3] 
+	callf                    ref(1)     Y[1,2,3] 
 	move3                    y(2)     a(1)     y(1)     a(2)     y(3)     a(3) 
 	chain                    append / 3 
 label(2):
@@ -2200,10 +2200,10 @@ label(3):
 	callf                    split / 4     Y[3,4,5] 
 	put_global_variable      a(2)     y(2) 
 	move                     y(5)     a(1) 
-	callf                    qsort / 2     Y[2,3,4] 
+	callf                    ref(1)     Y[2,3,4] 
 	put_global_variable      a(2)     y(1) 
 	move                     y(4)     a(1) 
-	callf                    qsort / 2     Y[1,2,3] 
+	callf                    ref(1)     Y[1,2,3] 
 	move3                    y(2)     a(1)     y(1)     a(2)     y(3)     a(3) 
 	chain                    append / 3 
 label(2):
@@ -3929,7 +3929,7 @@ label(1):
 label(2):
 	put_variable             a(1) 
 	in_get_nil               a(1) 
-	chain                    p / 0 
+	chain                    ref(1) 
 label(3):
 	trust_me_inline          0     Y[] 
 label(4):
@@ -7597,7 +7597,7 @@ label(1):
 	move                     a(1)     y(1) 
 	callf                    q / 0     Y[1,2] 
 	move                     2     y(1)     a(1) 
-	chain                    p / 2 
+	chain                    ref(1) 
 
 ------ Test match(20) -------
 p(f(A)) ?-
@@ -8906,7 +8906,7 @@ label(8):
 	get_list                 a(3)     ref(9) 
 	write_local_value        a(4) 
 	write_variable           a(3) 
-	chain                    conc / 3 
+	chain                    ref(1) 
 label(5):
 	trust_me_inline          0     Y[] 
 label(6):
@@ -8917,7 +8917,7 @@ label(6):
 label(9):
 	read_value               a(4) 
 	read_variable            a(3) 
-	chain                    conc / 3 
+	chain                    ref(1) 
 
 ------ Test bench(2) -------
 conc(A, B, C) :-
@@ -8968,7 +8968,7 @@ label(8):
 	get_list                 a(5)     ref(9) 
 	write_local_value        a(4) 
 	write_variable           a(3) 
-	chain                    conc / 3 
+	chain                    ref(1) 
 label(7):
 	read_variable            a(4) 
 	read_variable            a(1) 
@@ -8976,7 +8976,7 @@ label(7):
 label(9):
 	read_value               a(4) 
 	read_variable            a(3) 
-	chain                    conc / 3 
+	chain                    ref(1) 
 
 ------ Test bench(3) -------
 conc(A, B, C) :-
@@ -9019,7 +9019,7 @@ label(6):
 	get_list                 a(5)     ref(7) 
 	write_local_value        a(4) 
 	write_variable           a(3) 
-	chain                    conc / 3 
+	chain                    ref(1) 
 label(9):
 	trust_me_inline          0     Y[1,2,3] 
 label(10):
@@ -9035,7 +9035,7 @@ label(5):
 label(7):
 	read_value               a(4) 
 	read_variable            a(3) 
-	chain                    conc / 3 
+	chain                    ref(1) 
 
 ------ Test bug(1) -------
 simplify_code([], []).
@@ -9094,7 +9094,7 @@ label(12):
 	callf                    simplify / 3     Y[3,4,5] 
 	cut                      y(4)     5 
 	move2                    y(5)     a(1)     y(3)     a(2) 
-	chain                    simplify_code / 2 
+	chain                    ref(1) 
 label(5):
 	trust_me_inline          0     Y[] 
 label(6):
@@ -9115,7 +9115,7 @@ label(14):
 	write_local_value        y(1) 
 	write_variable           a(2) 
 	move                     y(2)     a(1) 
-	chain                    simplify_code / 2 
+	chain                    ref(1) 
 label(9):
 	read_variable            y(2) 
 	branch                   ref(10) 
@@ -9123,7 +9123,7 @@ label(15):
 	read_value               y(1) 
 	read_variable            a(2) 
 	move                     y(2)     a(1) 
-	chain                    simplify_code / 2 
+	chain                    ref(1) 
 
 ------ Test bug(2) -------
 loop(A) :-
@@ -10158,7 +10158,7 @@ label(1):
 	put_variable             a(2) 
 	bi_var                   a(2) 
 	cut                      a(1) 
-	chain                    p / 0 
+	chain                    ref(1) 
 
 ------ Test disj10 -------
 p :-
@@ -10300,7 +10300,7 @@ label(2):
 label(3):
 	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
-	callf                    p / 0     Y[1] 
+	callf                    ref(1)     Y[1] 
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	cut                      y(1)     2 
@@ -10324,7 +10324,7 @@ label(1):
 	try_me_else              0     0     ref(3) 
 label(2):
 	savecut                  y(3) 
-	callf                    p / 0     Y[1,3] 
+	callf                    ref(1)     Y[1,3] 
 	cut                      y(3)     3 
 	savecut                  y(2) 
 	callf                    a / 0     Y[1,2] 
@@ -10857,7 +10857,7 @@ label(3):
 	get_list                 a(3)     ref(4) 
 	write_local_value        a(4) 
 	write_variable           a(3) 
-	jmp                      append / 3 
+	jmp                      ref(1) 
 label(2):
 	read_variable            a(4) 
 	read_variable            a(1) 
@@ -10865,7 +10865,7 @@ label(2):
 label(4):
 	read_value               a(4) 
 	read_variable            a(3) 
-	jmp                      append / 3 
+	jmp                      ref(1) 
 
 ------ Test disj33 -------
 c(A, B) :-
@@ -10933,7 +10933,7 @@ label(3):
 	write_variable           y(1) 
 label(8):
 	move                     y(1)     a(1) 
-	chain                    producer / 1 
+	chain                    ref(1) 
 label(5):
 	trust_me_inline          0     Y[4] 
 label(6):

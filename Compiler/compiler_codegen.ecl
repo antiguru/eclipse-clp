@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.8 2007/08/24 21:50:51 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.9 2008/02/29 22:35:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/08/24 21:50:51 $").
+:- comment(date, "$Date: 2008/02/29 22:35:36 $").
 
 
 :- lib(hash).
@@ -125,33 +125,34 @@ new_aux_temp(ChunkData0, ChunkData, aux(AuxCount)) :-
 	"Code":"Head of resulting annotated code",
 	"CodeEnd":"Tail of resulting annotated code",
 	"Options":"Options structure",
-	"Module":"Context module"
+	"ModulePred":"Context module and Name/Arity"
     ],
     see_also:[assign_am_registers/3,struct(code)]
 ]).
 
 :- export generate_code/6.
 
-generate_code(Clause, EnvSize, Code, CodeEnd, Options, Module) :-
+generate_code(Clause, EnvSize, Code, CodeEnd, Options, ModPred) :-
+	Code = [code{instr:label(Start)}|Code0],
 	( EnvSize >= 0 ->
-	    Code = [code{instr:allocate(EnvSize)}|Code1],
+	    Code0 = [code{instr:allocate(EnvSize)}|Code1],
 	    Code4 = [code{instr:exit}|AuxCode]
 	;
-	    Code = Code1,
+	    Code0 = Code1,
 	    Code4 = [code{instr:ret}|AuxCode]
 	),
-	generate_branch(Clause, 0, AuxCode, CodeEnd, Code1, Code4, Options, Module).
+	generate_branch(Clause, 0, AuxCode, CodeEnd, Code1, Code4, Options, ModPred@Start).
 
 
-generate_branch(Goals, BranchExitInitMap, AuxCode0, AuxCode, Code0, Code, Options, Module) :-
+generate_branch(Goals, BranchExitInitMap, AuxCode0, AuxCode, Code0, Code, Options, SelfInfo) :-
 	(
 	    fromto(Goals,ThisChunk,NextChunk,[]),
 	    fromto(Code0,Code1,Code2,Code3),
 	    fromto(AuxCode0,AuxCode1,AuxCode2,AuxCode),
-	    param(Options,Module)
+	    param(Options,SelfInfo)
 	do
 	    init_chunk_data(ChunkData0),
-	    generate_chunk(ThisChunk, NextChunk, [], ChunkData0, AuxCode1, AuxCode2, ChunkCode, ChunkCode, Code1, Code2, 0, _ArityUsed, Options, Module)
+	    generate_chunk(ThisChunk, NextChunk, [], ChunkData0, AuxCode1, AuxCode2, ChunkCode, ChunkCode, Code1, Code2, 0, _ArityUsed, Options, SelfInfo)
 	),
 	% Generate initialization code for any variables which did not occur
 	% in or before the branch, but have a non-first occurrence after it.
@@ -164,11 +165,11 @@ generate_chunk([], [], HeadPerms, _ChunkData, AuxCode, AuxCode, AllChunkCode, Co
 	move_head_perms(HeadPerms, Code, []),
 	assign_am_registers(AllChunkCode, FinalCode, FinalCode0).
 
-generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, Module) :-
+generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo) :-
 
 	( Goal = goal{kind:simple} ->		 % special goals
 	    generate_simple_goal(Goal, ChunkData0, ChunkData1, Code, Code1),
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, Module)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo)
 
 	; Goal = goal{kind:head,functor:(_/HeadArity),args:Args} ->	% clause-head or pseudo-head
 	    (
@@ -190,25 +191,32 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 		)
 	    ),
 	    Code = [code{instr:nop,regs:OrigRegDescs}|Code1],
-	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, HeadArity, MaxArity, Options, Module)
+	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, HeadArity, MaxArity, Options, SelfInfo)
 
 	; Goal = goal{kind:regular,functor:true/0,definition_module:sepia_kernel}, (Goals = [] ; Goals = [goal{kind:regular}|_] ) ->
 	    % Normally, true/0 should be eliminated in the normalisation phase.
 	    % But due to its legacy semantics (it is a regular goal and can
 	    % cause waking), we only eliminate it here when it occurs at the
 	    % end of a branch or just before another regular goal.
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, Module)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo)
 
 	; Goal = goal{kind:regular,functor:P,lookup_module:LM,envmap:EAM} ->
 	    P = _/CallArity,
 	    MaxArity is max(MaxArity0,CallArity),
 	    move_head_perms(HeadPerms0, Code, Code1),
 	    generate_regular_puts(Goal, ChunkData0, _ChunkData, Code1, Code2, OutArgs),
-	    ( LM==Module -> Pred = P ; Pred = LM:P ),
+	    SelfInfo = Module:Self@SelfLab,
+	    ( LM\==Module ->
+	    	Pred = LM:P, Dest = Pred	% calling non-visible
+	    ; P==Self ->
+	    	Pred = P, Dest = ref(SelfLab)	% direct recursive call
+	    ;
+	    	Pred = P, Dest = Pred		% calling visible pred
+	    ),
 	    emit_debug_call_port(Options, Pred, OutArgs, OutArgs1, Goal, Code2, Code3),
 	    Code3 = [
 		% PRELIMINARY: always use callf instead of call (to reset DET flag)
-		code{instr:callf(Pred,eam(EAM)),regs:OutArgs1}],
+		code{instr:callf(Dest,eam(EAM)),regs:OutArgs1}],
 	    NextChunk = Goals,
 	    AuxCode = AuxCode0,
 	    % end of chunk, finalize the code
@@ -221,7 +229,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    arg(1, BranchLabelArray, BrLabel1),
 	    Code2 = [code{instr:try_me_else(0,TryArity,ref(Label2)),regs:[]},
 		    code{instr:label(BrLabel1),regs:[]}|Code3],
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode1, AuxCode0, AllChunkCode, Code3, FinalCode, FinalCode0, MaxArity1, MaxArity, Options, Module)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode1, AuxCode0, AllChunkCode, Code3, FinalCode, FinalCode0, MaxArity1, MaxArity, Options, SelfInfo)
 
 	; Goal = disjunction{branches:Branches,branchlabels:BranchLabelArray,
 		entrymap:EAM,arity:TryArity,
@@ -241,7 +249,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    BranchExitInits = [BranchExitInit1|BranchExitInits2toN],
 	    % indexing and try_me are generated inside the 1st branch,
 	    % triggered by indexpoint{} pseudo-goal
-	    generate_branch(Branch1, BranchExitInit1, AuxCode, AuxCode2, Code1, Code2, Options, Module),
+	    generate_branch(Branch1, BranchExitInit1, AuxCode, AuxCode2, Code1, Code2, Options, SelfInfo),
 	    Code2 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code3],
 	    (
 		for(I, 2, NBranches-1),
@@ -250,7 +258,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 		fromto(Code3, Code4, Code7, Code8),
 		fromto(AuxCode2, AuxCode3, AuxCode4, AuxCode5),
 		fromto(Label2, LabelI, LabelI1, LabelN),
-		param(LabelJoin,BranchLabelArray,BranchEamArray,Options,Module)
+		param(LabelJoin,BranchLabelArray,BranchEamArray,Options,SelfInfo)
 	    do
 		arg(I, BranchLabelArray, BrLabelI),
 		arg(I, BranchEamArray, EAM),
@@ -259,7 +267,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 		    code{instr:retry_me_inline(0,ref(LabelI1),eam(EAM)),regs:[]},
 		    code{instr:label(BrLabelI),regs:[]}
 		    |Code5],
-		generate_branch(Branch, BranchExitInit, AuxCode3, AuxCode4, Code5, Code6, Options, Module),
+		generate_branch(Branch, BranchExitInit, AuxCode3, AuxCode4, Code5, Code6, Options, SelfInfo),
 		Code6 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code7]
 	    ),
 	    arg(NBranches, BranchLabelArray, BrLabelN),
@@ -269,7 +277,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 		code{instr:trust_me_inline(0,eam(EAMN)),regs:[]},
 		code{instr:label(BrLabelN),regs:[]}
 		|Code9],
-	    generate_branch(BranchN, BranchExitInitN, AuxCode5, AuxCode0, Code9, Code10, Options, Module),
+	    generate_branch(BranchN, BranchExitInitN, AuxCode5, AuxCode0, Code9, Code10, Options, SelfInfo),
 	    Code10 = [code{instr:label(LabelJoin),regs:[]}|FinalCode0]
 
 	;
