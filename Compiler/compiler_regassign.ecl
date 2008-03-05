@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_regassign.ecl,v 1.1 2006/09/23 01:45:11 snovello Exp $
+% Version:	$Id: compiler_regassign.ecl,v 1.2 2008/03/05 03:59:54 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_regassign).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III Compiler - register allocator").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:45:11 $").
+:- comment(date, "$Date: 2008/03/05 03:59:54 $").
 
 :- lib(hash).
 :- use_module(compiler_common).
@@ -48,12 +48,6 @@
 	current,		% "IsIn" \/ "Assigned"
 	desirable		% "Destination"
     )).
-
-
-
-:- local wam_registers/1.
-%wam_registers(5).		% to test spilling
-wam_registers(255).
 
 
 
