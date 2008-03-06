@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_regassign.ecl,v 1.2 2008/03/05 03:59:54 jschimpf Exp $
+% Version:	$Id: compiler_regassign.ecl,v 1.3 2008/03/06 20:42:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_regassign).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III Compiler - register allocator").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/05 03:59:54 $").
+:- comment(date, "$Date: 2008/03/06 20:42:24 $").
 
 :- lib(hash).
 :- use_module(compiler_common).
@@ -238,9 +238,13 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 			    verify false
 			    */
 			),
+			remove_current_location(Locations, VarId, RegOrSlot),
+			clear_current_content(Contains, RegOrSlot),
 			set_current_content(Contains, Reg, VarId),
 			add_current_location(Locations, VarId, Reg),
-			Code5 = [code{instr:move(RegOrSlot,Reg)}|Code6]
+			% Note: we add regs information for peephole stage
+			Code5 = [code{instr:move(RegOrSlot,Reg),comment:transfer,
+					regs:[r(VarId,RegOrSlot,use,last),r(VarId,Reg,def,_)]}|Code6]
 		    ;
 			% first occurrence
 			verify false
@@ -350,13 +354,15 @@ vacate_register(Reg, Locations, Contains, Desirables, DontFree, Code, Code0) :-
 	    Code = Code0
 	; find_good_register_for(OldVarId, Locations, Contains, Desirables, [Reg|DontFree], [], Code, Code1, AltReg) ->
 	    verify AltReg \== Reg,
-	    Code1 = [code{instr:move(Reg,AltReg)}|Code0],
+	    % Note: we add regs information for the peephole stage
+	    Code1 = [code{instr:move(Reg,AltReg),regs:[r(OldVarId,Reg,use,last),r(OldVarId,AltReg,def,_),comment:transfer]}|Code0],
 	    add_current_location(Locations, OldVarId, AltReg),
 	    set_current_content(Contains, AltReg, OldVarId)
 	;
 	    % spill Reg into memory
 	    Slot = y(_Y),
-	    Code = [code{instr:move(Reg,Slot),comment:spill(OldVarId)}|Code0],
+	    % Note: we add regs information for the peephole stage
+	    Code = [code{instr:move(Reg,Slot),regs:[r(OldVarId,Reg,use,last)],comment:spill(OldVarId)}|Code0],
 	    add_current_location(Locations, OldVarId, Slot)
 	).
 
