@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_regassign.ecl,v 1.3 2008/03/06 20:42:24 jschimpf Exp $
+% Version:	$Id: compiler_regassign.ecl,v 1.4 2008/03/07 23:00:54 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_regassign).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III Compiler - register allocator").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/06 20:42:24 $").
+:- comment(date, "$Date: 2008/03/07 23:00:54 $").
 
 :- lib(hash).
 :- use_module(compiler_common).
@@ -355,7 +355,7 @@ vacate_register(Reg, Locations, Contains, Desirables, DontFree, Code, Code0) :-
 	; find_good_register_for(OldVarId, Locations, Contains, Desirables, [Reg|DontFree], [], Code, Code1, AltReg) ->
 	    verify AltReg \== Reg,
 	    % Note: we add regs information for the peephole stage
-	    Code1 = [code{instr:move(Reg,AltReg),regs:[r(OldVarId,Reg,use,last),r(OldVarId,AltReg,def,_),comment:transfer]}|Code0],
+	    Code1 = [code{instr:move(Reg,AltReg),regs:[r(OldVarId,Reg,use,last),r(OldVarId,AltReg,def,_)],comment:transfer}|Code0],
 	    add_current_location(Locations, OldVarId, AltReg),
 	    set_current_content(Contains, AltReg, OldVarId)
 	;
@@ -494,7 +494,7 @@ Input format:
     are variables which are shared between instruction and descriptor, e.g.
     R1 and R2 in
 
-    	code{instr:move(R1,R2), regs:[r(73,R1,use,_),r(45,R2,def,_)}
+    	code{instr:move(R1,R2), regs:[r(73,R1,use,_),r(45,R2,def,_)]}
 
     The allocator produces a copy of the input code list, consisting of the
     (further instantiated) input elements, and possibly with move instructions
