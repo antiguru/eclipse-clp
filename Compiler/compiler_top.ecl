@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.14 2008/03/03 14:12:43 kish_shen Exp $
+% Version:	$Id: compiler_top.ecl,v 1.15 2008/03/07 00:56:12 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/03/03 14:12:43 $").
+:- comment(date,	"$Date: 2008/03/07 00:56:12 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -653,7 +653,7 @@ compile_term_(List, OptionList, Module) :-
 :- comment(compile_term_annotated/3, [
     summary:"Compile a list of terms, possibly annotated with source information",
     args:["Clauses":"List of clauses and/or directives",
-        "Annotated":"Annotated form of Clauses, or variable"
+        "Annotated":"Annotated form of Clauses, or variable",
     	"Options":"List of compiler options"],
     amode:compile_term_annotated(+,?,++),
     see_also:[compiler_top:compile/1,compiler_top:compile_term/2,compile/2,compile_term/1,read_annotated/2,read_annotated/3,struct(options)],
