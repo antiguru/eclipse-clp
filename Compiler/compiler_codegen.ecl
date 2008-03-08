@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.9 2008/02/29 22:35:36 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.10 2008/03/08 02:20:58 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/02/29 22:35:36 $").
+:- comment(date, "$Date: 2008/03/08 02:20:58 $").
 
 
 :- lib(hash).
@@ -862,10 +862,12 @@ generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_
 	( VarOccDesc = void ->
 	    Code0 = Code
 	; VarOccDesc = tmp ->
-	    Code0 = [code{instr:cut(R),regs:[r(VarId,R,use,_)]}|Code]
+	    Code0 = [code{instr:cut(R),regs:[r(VarId,R,use_a,_)]}|Code]
 	; VarOccDesc = perm_first_in_chunk(Y) ->
 	    Code0 = [code{instr:cut(Y,ESize),regs:[r(VarId,Y,perm,_)]}|Code]
 	; VarOccDesc = perm(_Y) ->
+	    % this should be use_y, otherwise if the value somehow got
+	    % into a register, it will be used from there
 	    Code0 = [code{instr:cut(RY,ESize),regs:[r(VarId,RY,use,_)]}|Code]
 	;
 	    verify false
@@ -881,7 +883,7 @@ generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia
 	(
 	    foreach(Arg,Args),
 	    foreacharg(Reg,Instr),
-	    foreach(r(ValId,Reg,use,_),RegDescs),
+	    foreach(r(ValId,Reg,use_a,_),RegDescs),
 	    fromto(ChunkData0, ChunkData2, ChunkData3, ChunkData),
 	    fromto(Code0, Code1, Code2, Code3)
 	do
@@ -900,7 +902,7 @@ generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, 
 	    param(RegArr,RegDescArr)
 	do
 	    arg(I, RegArr, Reg),
-	    arg(I, RegDescArr, r(ValId,Reg,use,_)),
+	    arg(I, RegDescArr, r(ValId,Reg,use_a,_)),
 	    put_term(Arg, ChunkData2, ChunkData3, Code1, Code2, ValId)
 	).
 
@@ -1010,7 +1012,7 @@ bind_variable(tmp_first, VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
 bind_variable(tmp, VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
 	head(VarId, Term, ChunkData0, ChunkData, Code, Code0).
 bind_variable(perm_first(Y), VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
-	Code1 = [code{instr:move(R,Y),regs:[r(VarId,R,use,_),r(VarId,Y,perm,_)]}|Code0],
+	Code1 = [code{instr:move(R,Y),regs:[r(VarId,R,use_a,_),r(VarId,Y,perm,_)]}|Code0],
 	body(VarId, Term, ChunkData0, ChunkData, Code, Code1).
 bind_variable(perm_first_in_chunk(Y), VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Code = [code{instr:nop,regs:[r(VarId,Y,perm,_)]}|Code1],
@@ -1060,18 +1062,18 @@ unify_variables_ord(tmp, VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0) :
 
 unify_variables_ord(tmp_first, VarId1, tmp_first, VarId2, Code, Code0) :- !,
 	Code = [code{instr:put_variable(R1), regs:[r(VarId1,R1,def,_)]},
-		code{instr:move(R11,R2), regs:[r(VarId1,R11,use,_),r(VarId2,R2,def,_)]}
+		code{instr:move(R11,R2), regs:[r(VarId1,R11,use_a,_),r(VarId2,R2,def,_)]}
 		|Code0].
 unify_variables_ord(tmp_first, _VarId1, void, _VarId2, Code, Code) :- !.
-unify_variables_ord(tmp_first, VarId1, perm(_), VarId2, Code, Code0) :- !,
-	Code = [code{instr:move(RY2,R1), regs:[r(VarId2,RY2,use,_),r(VarId1,R1,def,_)]}
-		|Code0].
+unify_variables_ord(tmp_first, VarId1, perm(Y2), _VarId2, Code, Code0) :- !,
+%	Code = [code{instr:move(RY2,R1), regs:[r(_VarId2,RY2,use,_),r(VarId1,R1,def,_)]}|Code0].
+	Code = [code{instr:nop, regs:[r(VarId1,Y2,perm,_)]} |Code0].
 unify_variables_ord(tmp_first, VarId1, perm_first(Y2), VarId2, Code, Code0) :- !,
 	Code = [code{instr:put_global_variable(R1,Y2), regs:[r(VarId2,Y2,perm,_),r(VarId1,R1,def,_)]}
 		|Code0].
-unify_variables_ord(tmp_first, VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0) :- !,
-	Code = [code{instr:move(Y2,R1), regs:[r(VarId2,Y2,perm,_),r(VarId1,R1,def,_)]}
-		|Code0].
+unify_variables_ord(tmp_first, VarId1, perm_first_in_chunk(Y2), _VarId2, Code, Code0) :- !,
+%	Code = [code{instr:move(Y2,R1), regs:[r(_VarId2,Y2,perm,_),r(VarId1,R1,def,_)]}|Code0].
+	Code = [code{instr:nop, regs:[r(VarId1,Y2,perm,_)]} |Code0].
 
 unify_variables_ord(void, _VarId1, void, _VarId2, Code, Code) :- !.
 unify_variables_ord(void, _VarId1, perm(_), _VarId2, Code, Code) :- !.
@@ -1143,7 +1145,7 @@ generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
 	atomic(Arg2),
 	!,
 	put_variable(Arg1, ChunkData0, ChunkData, Code0, Code1),
-	Code1 = [code{instr:Instr,regs:[r(VarId,RI,use,_)]}|Code],
+	Code1 = [code{instr:Instr,regs:[r(VarId,RI,use_a,_)]}|Code],
 	in_get_const(RI, Arg2, Instr).
 generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
 	atomic(Arg1), atomic(Arg2),

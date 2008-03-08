@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.4 2007/08/24 23:16:08 kish_shen Exp $
+% Version:	$Id: compiler_test.ecl,v 1.5 2008/03/08 02:20:58 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -292,6 +292,9 @@ testclause(59, (
 testclause(60, (
 	p :- X=Y, p, p(X,Y)
     )).
+testclause(61, (
+	p :- (!, _X=_Y, !, p ; p)
+    )).
 	
 
 testclause(101, (
@@ -444,6 +447,15 @@ testclause(236, (
 	p(_X) :- q(f("hello",3.4,5_2))
     )).
 
+testclause(240, [(
+	p :- p(X,Y),
+	    (
+		    p(X), r, p(Y), s
+		;
+		    p(Y), r, p(X), s
+	    )
+    )]).
+
 % test cases from Janssens,Demoen,Marien
 testclause(jdm(1), (
 	p(T,U,a):-q(T,b,f(U))
@@ -527,6 +539,12 @@ testclause(320, (p11(Y) :- X=1, call(true), X=Y)).
 testclause(321, (p12(A, B, C) :- X=1, Y=2, Z=3, call(true), A=X, B=Y, C=Z)).
 testclause(322, (p13(A, B) :- X=1, Y=2, _=3, current_op(_, _, _), A=X, B=Y)).
 testclause(323, (b1 :- D=s(X), eq(X,Y), D=s(1), Y = 1)).
+
+testclause(324, (
+    do_x(List1) :-
+	( List1=List2 ; List1=[1|List2] ),
+	do_x(List2)
+    )).
 
 
 testclause(u(1), (
@@ -754,6 +772,9 @@ testclause(idx(200), ([
 	( p(a,Y,Z) :- !, a(Y,Z)),
 	( p(X,Y,Z) :- q(X,Y,Z))
     ])).
+testclause(idx(300), (	% switch from a(_) or y(_)
+	(p(X) :- ( X=1, p1 ; X=2, p2), q(X))
+    )).
 
 testclause(head(100), ( p(a) :- q)).
 testclause(head(101), ( p(a,_X,3) :- q)).

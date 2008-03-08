@@ -1199,6 +1199,31 @@ label(1):
 	move                     2     y(1)     a(1) 
 	chain                    p / 2 
 
+------ Test 61 -------
+p :-
+	(
+	    !,
+	    A = B,
+	    !,
+	    p
+	;
+	    p
+	).
+
+p / 0:
+label(1):
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(3) 
+label(2):
+	cut                      y(1)     1 
+	cut                      y(1)     1 
+	chain                    ref(1) 
+label(3):
+	trust_me_inline          0     Y[] 
+label(4):
+	chain                    ref(1) 
+
 ------ Test 101 -------
 p :-
 	p(A),
@@ -2042,6 +2067,45 @@ label(1):
 	push_constant            5_2 
 	jmp                      q / 1 
 
+------ Test 240 -------
+p :-
+	p(A, B),
+	(
+	    p(A),
+	    r,
+	    p(B),
+	    s
+	;
+	    p(B),
+	    r,
+	    p(A),
+	    s
+	).
+
+p / 0:
+label(1):
+	allocate                 2 
+	put_global_variable      a(1)     y(1) 
+	put_global_variable      a(2)     y(2) 
+	callf                    p / 2     Y[1,2] 
+	try_me_else              0     0     ref(3) 
+label(2):
+	move                     y(1)     a(1) 
+	callf                    p / 1     Y[2] 
+	callf                    r / 0     Y[2] 
+	move                     y(2)     a(1) 
+	callf                    p / 1     Y[] 
+	chain                    s / 0 
+label(3):
+	trust_me_inline          0     Y[1,2] 
+label(4):
+	move                     y(2)     a(1) 
+	callf                    p / 1     Y[1] 
+	callf                    r / 0     Y[1] 
+	move                     y(1)     a(1) 
+	callf                    p / 1     Y[] 
+	chain                    s / 0 
+
 ------ Test jdm(1) -------
 p(A, B, a) :-
 	q(A, b, f(B)).
@@ -2771,6 +2835,44 @@ label(3):
 label(2):
 	read_integer             1 
 	branch                   ref(3) 
+
+------ Test 324 -------
+do_x(A) :-
+	(
+	    A = B
+	;
+	    A = [1|B]
+	),
+	do_x(B).
+
+INDEXES for disjunction [2]
+1. Quality 1.5
+    [] - [1]
+    [list] - [1, 2]
+    [var] - [1, 2]
+do_x / 1:
+label(1):
+	get_variable             2     a(1)     y(2) 
+	list_switch              y(2)     ref(2)     ref(3)     ref(3) 
+label(2):
+	try_me_else              0     0     ref(4) 
+label(3):
+	move                     y(2)     y(1) 
+label(7):
+	move                     y(1)     a(1) 
+	chain                    ref(1) 
+label(4):
+	trust_me_inline          0     Y[2] 
+label(5):
+	move                     y(2)     a(1) 
+	get_list                 a(1)     ref(6) 
+	write_integer            1 
+	write_variable           y(1) 
+	branch                   ref(7) 
+label(6):
+	read_integer             1 
+	read_variable            y(1) 
+	branch                   ref(7) 
 
 ------ Test u(1) -------
 p(foo(A, B, C)) :-
@@ -5999,6 +6101,49 @@ label(10):
 	move                     a(3)     a(2) 
 	chain                    a / 2 
 
+------ Test idx(300) -------
+p(A) :-
+	(
+	    A = 1,
+	    p1
+	;
+	    A = 2,
+	    p2
+	),
+	q(A).
+
+INDEXES for disjunction [2]
+1. Quality 1.3
+    [] - []
+    [var] - [1, 2]
+    [integer] - []
+    [integer, 1] - [1]
+    [integer, 2] - [2]
+p / 1:
+label(1):
+	get_variable             1     a(1)     y(1) 
+	integer_switch           y(1) 
+		1: 	ref(4)
+		2: 	ref(6)
+		default: 	ref(fail)
+
+label(3):
+	try_me_else              0     0     ref(5) 
+label(4):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     1 
+	callf                    p1 / 0     Y[1] 
+label(7):
+	move                     y(1)     a(1) 
+	chain                    q / 1 
+label(5):
+	trust_me_inline          0     Y[1] 
+label(6):
+	move                     y(1)     a(1) 
+	get_integer              a(1)     2 
+	callf                    p2 / 0     Y[1] 
+	branch                   ref(7) 
+
 ------ Test head(100) -------
 p(a) :-
 	q.
@@ -8953,8 +9098,7 @@ label(3):
 label(4):
 	move                     y(1)     a(1) 
 	get_nil                  a(1) 
-	move                     2     y(2)     a(1) 
-	get_value                a(1)     a(2) 
+	get_value                y(2)     y(3) 
 	exit                 
 label(5):
 	trust_me_inline          0     Y[1,2,3] 
@@ -8964,10 +9108,11 @@ label(6):
 	write_variable           a(4) 
 	write_variable           a(1) 
 label(8):
-	move2                    y(2)     a(2)     y(3)     a(5) 
+	move                     y(3)     a(5) 
 	get_list                 a(5)     ref(9) 
 	write_local_value        a(4) 
 	write_variable           a(3) 
+	move                     y(2)     a(2) 
 	chain                    ref(1) 
 label(7):
 	read_variable            a(4) 
@@ -8976,6 +9121,7 @@ label(7):
 label(9):
 	read_value               a(4) 
 	read_variable            a(3) 
+	move                     y(2)     a(2) 
 	chain                    ref(1) 
 
 ------ Test bench(3) -------
@@ -9015,18 +9161,18 @@ label(4):
 	write_variable           a(4) 
 	write_variable           a(1) 
 label(6):
-	move2                    y(2)     a(2)     y(3)     a(5) 
+	move                     y(3)     a(5) 
 	get_list                 a(5)     ref(7) 
 	write_local_value        a(4) 
 	write_variable           a(3) 
+	move                     y(2)     a(2) 
 	chain                    ref(1) 
 label(9):
 	trust_me_inline          0     Y[1,2,3] 
 label(10):
 	move                     y(1)     a(1) 
 	get_nil                  a(1) 
-	move                     y(2)     a(1) 
-	get_value                a(1)     y(3) 
+	get_value                y(2)     y(3) 
 	exit                 
 label(5):
 	read_variable            a(4) 
@@ -9035,6 +9181,7 @@ label(5):
 label(7):
 	read_value               a(4) 
 	read_variable            a(3) 
+	move                     y(2)     a(2) 
 	chain                    ref(1) 
 
 ------ Test bug(1) -------
@@ -10786,8 +10933,7 @@ label(5):
 	move                     a(1)     y(1) 
 	put_structure            a(2)     member / 2 
 	push_variable            a(1) 
-	move                     y(1)     a(5) 
-	push_local_value         a(5) 
+	push_local_value         y(1) 
 	put_global_variable      a(3)     y(2) 
 	put_atom                 a(4)     eclipse 
 	callf                    sepia_kernel : findall_body / 4     Y[1,2] 

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_regassign.ecl,v 1.4 2008/03/07 23:00:54 kish_shen Exp $
+% Version:	$Id: compiler_regassign.ecl,v 1.5 2008/03/08 02:20:58 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_regassign).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III Compiler - register allocator").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/07 23:00:54 $").
+:- comment(date, "$Date: 2008/03/08 02:20:58 $").
 
 :- lib(hash).
 :- use_module(compiler_common).
@@ -163,7 +163,7 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 	    % RegDescs is a list of register descriptors, either:
 	    % - orig*
 	    % - dest*
-	    % - perm* use* def* perm*
+	    % - perm* use[_a]* def* perm*
 
 	    (
 		loop_name(assign_registers_inner),
@@ -178,22 +178,37 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 
 		% assign_one_register(VarId, Type, Last, Committed, Code2, Code6, Locations, Contains, Desirables, Reg)
 
-		( Type = use ->
-		    % not the first occurrence
+		( Type = use_a ->
+		    % not the first occurrence, we need the value in an a(_) register
 		    Locations3 = Locations,
 		    Contains3 = Contains,
 		    Stack3 = Stack2,
 		    Committed2 = [Reg|Committed1],
+		    % current_location returns a(_) before y(_) locations
 		    certainly_once current_location(Locations, VarId, RegOrSlot),
 		    ( RegOrSlot = a(_) ->
 			% value is in a register, use it
 			Reg = RegOrSlot,
 			Code2 = Code6
 		    ;
-			% value was spilled: find a register now and reload from environment
+			% value in y(_): find a register now and reload from environment
 			% Cannot use a register that is already committed for the current instruction
 			find_any_register_for(VarId, Locations, Contains, Desirables, Committed1, [], Code2, Code5, Reg),
-			Code5 = [code{instr:move(RegOrSlot,Reg),comment:unspill(VarId)}|Code6]
+			Code5 = [code{instr:move(RegOrSlot,Reg),comment:load(VarId)}|Code6]
+		    )
+
+		; Type = use ->
+		    % not the first occurrence, value can be in a(_) or y(_)
+		    Locations3 = Locations,
+		    Contains3 = Contains,
+		    Stack3 = Stack2,
+		    Code2 = Code6,
+		    % current_location returns a(_) before y(_) locations
+		    certainly_once current_location(Locations, VarId, Reg),
+		    ( Reg = a(_) ->
+			Committed2 = [Reg|Committed1]
+		    ;
+			Committed2 = Committed1
 		    )
 
 		; Type = def ->
@@ -244,7 +259,7 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 			add_current_location(Locations, VarId, Reg),
 			% Note: we add regs information for peephole stage
 			Code5 = [code{instr:move(RegOrSlot,Reg),comment:transfer,
-					regs:[r(VarId,RegOrSlot,use,last),r(VarId,Reg,def,_)]}|Code6]
+					regs:[r(VarId,RegOrSlot,use_a,last),r(VarId,Reg,def,_)]}|Code6]
 		    ;
 			% first occurrence
 			verify false
@@ -287,9 +302,13 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 		( last_occurrence(Type, Last) ->
 		    % No need to clean up the Locations table,
 		    % since VarId won't occur any more
-		    % Next two lines are only to make debugging easier!
-		    certainly_once current_content(Contains, Reg, NoLongerUsedVarId),
-		    clear_locations(Locations, NoLongerUsedVarId),
+		    % Next 6 lines are only to make debugging easier!
+		    ( Reg = a(_) ->
+			certainly_once current_content(Contains, Reg, NoLongerUsedVarId),
+			clear_locations(Locations, NoLongerUsedVarId)
+		    ;
+			true
+		    ),
 
 		    clear_current_content(Contains, Reg)
 		;
@@ -300,6 +319,7 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 
 	last_occurrence(def, last) ?- true.
 	last_occurrence(orig, last) ?- true.
+	last_occurrence(use_a, last) ?- true.
 	last_occurrence(use, last) ?- true.
 
 
@@ -355,19 +375,22 @@ vacate_register(Reg, Locations, Contains, Desirables, DontFree, Code, Code0) :-
 	; find_good_register_for(OldVarId, Locations, Contains, Desirables, [Reg|DontFree], [], Code, Code1, AltReg) ->
 	    verify AltReg \== Reg,
 	    % Note: we add regs information for the peephole stage
-	    Code1 = [code{instr:move(Reg,AltReg),regs:[r(OldVarId,Reg,use,last),r(OldVarId,AltReg,def,_)],comment:transfer}|Code0],
+	    Code1 = [code{instr:move(Reg,AltReg),regs:[r(OldVarId,Reg,use_a,last),r(OldVarId,AltReg,def,_)],comment:transfer}|Code0],
 	    add_current_location(Locations, OldVarId, AltReg),
 	    set_current_content(Contains, AltReg, OldVarId)
 	;
 	    % spill Reg into memory
+	    % TODO: allocate slot
 	    Slot = y(_Y),
 	    % Note: we add regs information for the peephole stage
-	    Code = [code{instr:move(Reg,Slot),regs:[r(OldVarId,Reg,use,last)],comment:spill(OldVarId)}|Code0],
+	    Code = [code{instr:move(Reg,Slot),regs:[r(OldVarId,Reg,use_a,last)],comment:spill(OldVarId)}|Code0],
 	    add_current_location(Locations, OldVarId, Slot)
 	).
 
 
-% contents table
+% Contents table
+% - only used for registers, not env slots
+% - only one content supported (no aliases)
 
 init_contents_table(Contains) :-
 	hash_create(Contains).
@@ -385,7 +408,9 @@ clear_current_content(Contains, Reg) :-
 	hash_delete(Contains, Reg).
 
 
-% location table
+% Location table
+% - a varid can be in more than one location, a(_) or y(_)
+% - a(_) locations are preferred to y(_) locations
 
 init_location_table(Locations) :-
 	hash_create(Locations).
@@ -523,17 +548,29 @@ Input format:
 		value for R can be chosen by the register allocator.
 		This must be the first occurrence of variable 33 in the chunk.
 
-	r(33, R, use, L)
+	r(33, R, use_a, L)
 		instruction expects variable 33 in register R.
 		value for R can be chosen by the register allocator.
 		This can be a middle/last occurrence of variable 33 in the chunk.
 
+	r(33, RY, use, L)
+		instruction expects variable 33 in register or env slot RY.
+		The value for RY can be chosen by the register allocator.
+		This can be a middle/last occurrence of variable 33 in the chunk.
+		Variable 33 can be a permanent variable, which is in y(_)
+		and possibly in one or more a(_) as well; or it can be a
+		temporary variable, which is usually in one or more a(_),
+		but can be spilled into a y(_). We never hold permanent
+		variables only in a register.
+
 	r(33, y(Y), perm, L)
 		not actually a register descriptor. It is used to inform the
-		allocator about the location of a permanent variable. This is
-		useful when a permanent variable is also available in a register.
-		It is then treated like an unspilled variable, i.e. it always
-		has a second source.
+		allocator about the location of a permanent variable. If it
+		is needed in a register, it will be moved into one, after
+		which it looks exactly like a spilled temporary. The y(_)
+		slots are guaranteed not to lose their content until the
+		and of chunk. We allow several variables to be aliased to
+		the same y(_)!
  
     Within an instruction, the RegDescs list must be ordered such that
     used regs are first, defined ones later (if they can be reused), reflecting

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.2 2007/02/22 01:31:56 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.3 2008/03/08 02:21:24 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -111,42 +111,42 @@
 % generate head unification for VarId I and Term
 head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = [_|_],
-	Code = [code{instr:get_list(RI, ref(LR)),regs:[r(I,RI,use,_),r(_,_,split,_)]}|WCode],
+	Code = [code{instr:get_list(RI, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split,_)]}|WCode],
 	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
 	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore,_)]}|RCode],
 	RCode0 = [code{instr:label(LE),regs:[r(_,_,join,_)]}|Code1],
 	emit_pop_temp(Reg, Code1, Code0).
 head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = structure{name:F,arity:A},
-	Code = [code{instr:get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use,_),r(_,_,split,_)]}|WCode],
+	Code = [code{instr:get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split,_)]}|WCode],
 	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
 	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore,_)]}|RCode],
 	RCode0 = [code{instr:label(LE),regs:[r(_,_,join,_)]}|Code1],
 	emit_pop_temp(Reg, Code1, Code0).
 head(I, Term, ChunkData, ChunkData, Code, Code0) :-
 	atomic(Term),
-	Code = [code{instr:Instr,regs:[r(I,RI,use,_)]}|Code0],
+	Code = [code{instr:Instr,regs:[r(I,RI,use_a,_)]}|Code0],
 	get_const(RI, Term, Instr).
 
 
 % generate head matching for VarId I and Term
 in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = [_|_],
-	Code = [code{instr:in_get_list(RI, ref(LR)),regs:[r(I,RI,use,_)]},
+	Code = [code{instr:in_get_list(RI, ref(LR)),regs:[r(I,RI,use_a,_)]},
 		code{instr:label(LR)}|RCode],
 	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, [], RCode, Code1, in),
 	replace_lost_labels(WCode),	% and discard the WCode sequence
 	emit_pop_temp(Reg, Code1, Code0).
 in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = structure{name:F,arity:A},
-	Code = [code{instr:in_get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use,_)]},
+	Code = [code{instr:in_get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use_a,_)]},
 		code{instr:label(LR)}|RCode],
 	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, [], RCode, Code1, in),
 	replace_lost_labels(WCode),	% and discard the WCode sequence
 	emit_pop_temp(Reg, Code1, Code0).
 in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = attrvar{meta:Meta},
-	Code = [code{instr:in_get_meta(RI, ref(fail)),regs:[r(I,RI,use,_)]},
+	Code = [code{instr:in_get_meta(RI, ref(fail)),regs:[r(I,RI,use_a,_)]},
 		code{instr:read_void},
 		code{instr:read_attribute(FirstAttr)}
 		|RCode],
@@ -155,7 +155,7 @@ in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	emit_pop_temp(Reg, Code1, Code0).
 in_head(I, Term, ChunkData, ChunkData, Code, Code0) :-
 	atomic(Term),
-	Code = [code{instr:Instr,regs:[r(I,RI,use,_)]}|Code0],
+	Code = [code{instr:Instr,regs:[r(I,RI,use_a,_)]}|Code0],
 	in_get_const(RI, Term, Instr).
 
     % generate code to pop any used stack temporaries
