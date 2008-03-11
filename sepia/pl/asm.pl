@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.12 2008/01/15 14:45:00 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.13 2008/03/11 23:34:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -444,6 +444,7 @@ instr(move(t(X),a(A)),                    5, [t(X),a(A)]).
 instr(get_variable(N,a(A),y(Y)),          6, [pw(N),a(A),y(Y)]).
 instr(get_value(a(A1),a(A2)), 		  7, [a(A1),a(A2)]). 
 instr(get_value(a(A),y(Y)),		  8, [a(A),y(Y)]). 
+instr(get_value(y(Y),a(A)),		  8, [a(A),y(Y)]). 	% alias
 instr(get_value(a(A),t(X)), 	          9, [a(A),t(X)]).
 instr(get_nil(a(A)), 		         10, [a(A)]).
 instr(get_integer(a(A),C), 		 11, [a(A),i(C)]).
@@ -621,6 +622,7 @@ instr(refail, 				173, []).
 instr(exit_emulator(N), 		174, [i(N)]).
 instr(debug_exit, 			175, []).
 instr(get_matched_value(a(A),y(Y)),	176, [a(A),y(Y)]).
+instr(get_matched_value(y(Y),a(A)),	176, [a(A),y(Y)]).	% alias
 instr(nop, 				177, []).
 instr(ress(Nt,Na,Ne), 			178, [pw(Nt),i(Na),edesc(Ne)]).
 instr(deallocate, 			179, []).
