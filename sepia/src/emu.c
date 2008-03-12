@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.14 2008/01/15 14:43:41 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.15 2008/03/12 16:06:16 jschimpf Exp $
  */
 
 /*
@@ -3208,6 +3208,7 @@ _match_meta_:
 	    (--SP)->tag.kernel = TREF;
 	    SP->val.ptr = S;
 	    Check_Local_Overflow
+	    /* fall through */
 
 	Case(Write_void, I_Write_void)
 	Case(Push_void, I_Push_void)
@@ -3254,42 +3255,33 @@ _match_meta_:
 	    ((S)++)->tag.kernel = TREF;
 	    Next_Pp;
 
-	Case(Write_named_void, I_Write_named_void)
-	    pw1 = TG++;
-	    S->val.ptr = pw1;
-	    ((S)++)->tag.kernel = TREF;
-	    pw1->tag.kernel = PP++->kernel;
-	    pw1->val.ptr = pw1;
-	    Next_Pp;
-
 	Case(Write_named_variable, I_Write_named_variable)
-	    pw1 = TG++;
 	    (--SP)->tag.kernel = TREF;
-	    SP->val.ptr = S->val.ptr = pw1;
+	    SP->val.ptr = S;
 	    Check_Local_Overflow
-	    ((S)++)->tag.kernel = TREF;
-	    pw1->tag.kernel = PP++->kernel;
-	    pw1->val.ptr = pw1;
+	    /* fall through */
+
+	Case(Write_named_void, I_Write_named_void)
+	    S->val.ptr = S;
+	    ((S)++)->tag.kernel = PP++->kernel;
 	    Next_Pp;
 
 	Case(Write_named_variableAM, I_Write_named_variableAM)
 	    Get_Argument(pw1)
-	    pw2 = TG++;
-	    pw1->val.ptr = S->val.ptr = pw2;
-	    pw1->tag.kernel = S++->tag.kernel = TREF;
-	    pw2->tag.kernel = PP++->kernel;
-	    pw2->val.ptr = pw2;
+	    pw1->val.ptr = S;
+	    pw1->tag.kernel = TREF;
+	    S->val.ptr = S;
+	    ((S)++)->tag.kernel = PP++->kernel;
 	    Next_Pp;
 
 	Case(Write_named_variableNL, I_Write_named_variableNL)
 	    Alloc_Env
 	Case(Write_named_variableL, I_Write_named_variableL)
 	    Get_Local(pw1)
-	    pw2 = TG++;
-	    pw1->val.ptr = S->val.ptr = pw2;
-	    pw1->tag.kernel = S++->tag.kernel = TREF;
-	    pw2->tag.kernel = PP++->kernel;
-	    pw2->val.ptr = pw2;
+	    pw1->val.ptr = S;
+	    pw1->tag.kernel = TREF;
+	    S->val.ptr = S;
+	    ((S)++)->tag.kernel = PP++->kernel;
 	    Next_Pp;
 
 	Case(Push_self_reference, I_Push_self_reference)
