@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.6 2008/03/13 14:22:59 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.7 2008/03/13 19:02:21 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/03/13 14:22:59 $").
+:- comment(date, "$Date: 2008/03/13 19:02:21 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -70,7 +70,7 @@
 	created_modules,	% list of modules
 	oldcwd,			% current directory before opening
 	module,			% module
-	ifdefs			% number of nested ifdefs
+	ifdefs			% list of nested ifdefs (then/else atoms)
     )).
 
 :- export struct(source_term(
@@ -219,7 +219,7 @@ source_open(File, OptionList, SourcePos, Module) :-
 	get_stream_info(In, line, Line),
 	SourcePos = source_position{
 		stream:In, module:Module, offset:Offset,options:OptFlags,
-		created_modules:[], oldcwd:OldCwd, ifdefs:0,
+		created_modules:[], oldcwd:OldCwd, ifdefs:[],
 		line:Line,file:FullFile,remaining_files:RF,included_from:IF}.
 
     set_option(Var, _ ) :- var(Var), !, fail.
@@ -379,7 +379,7 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	( nonvar(Error) ->
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, Pos1),
 	    source_read(Pos1, NextPos, Kind, SourceTerm)
-                    
+                 
 	; nonvar(Comment) ->
 	    SourceTerm = source_term{term:Comment,vars:[]},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
@@ -408,7 +408,6 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 		update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 		Kind = end
 	    ;
-		warn_ifdef(OldPos),
 		SourceTerm = source_term{term:TermOrEof,vars:Vars},
 		NextPos = IF, Kind = end_include
 	    )
@@ -462,7 +461,7 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	; true
 	).
 
-    	
+
 apply_clause_expansion(Term, AnnTerm, TransTerm, AnnTransTerm,
               options{no_clause_expansion:NoCFlag,goal_expansion:GFlag0},
 	      Module) :-
@@ -510,41 +509,69 @@ expand_clause_goals(C, AC, C, AC, _).
 % Directives
 %----------------------------------------------------------------------
 
-handle_ifdef_and_directives(if(Cond), ThisPos, NextPos, Kind, _, SourceTerm, options{filter_if_endif:true}) ?-
-	!,
-	ThisPos = source_position{module:Module},
-	( block(call(Cond)@Module, _, fail) ->
-	    N1 is ThisPos[ifdefs of source_position] + 1,
-	    update_struct(source_position, [ifdefs:N1], ThisPos, ThisPos1),
-	    source_read(ThisPos1, NextPos, Kind, SourceTerm)
-	;
-	    ThisPos = source_position{stream:Stream},
-	    ( skip_to_endif(Stream, 0) ->
-		true
-	    ;
-		directive_warning("Missing :-endif", if(Cond), ThisPos)
-	    ),
-	    source_read(ThisPos, NextPos, Kind, SourceTerm)
-	).
-handle_ifdef_and_directives(endif, ThisPos, NextPos, Kind, _, SourceTerm, options{filter_if_endif:true}) ?- !,
-	N1 is ThisPos[ifdefs of source_position] - 1,
-	( N1 >= 0 ->
-	    true
-	;
-	    directive_warning("Unmatched conditional directive", endif, ThisPos)
-	),
-	update_struct(source_position, [ifdefs:N1], ThisPos, ThisPos1),
-	source_read(ThisPos1, NextPos, Kind, SourceTerm).
+handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, options{filter_if_endif:true}) ?- !,
+	handle_ifdef(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm).
 handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm, SourceTerm, _OptFlags) :-
 	handle_directives(Directive, ThisPos, NextPos, Kind).
 
 
-warn_ifdef(source_position{ifdefs:N,file:File}) :-
-	( N > 0 ->
-	    printf(warning_output, "WARNING: Missing endif at end of file %w%n", [File])
+handle_ifdef(if(Cond), ThisPos, NextPos, Kind, SourceTerm0, SourceTerm) ?- !,
+	ThisPos = source_position{module:Module,ifdefs:Nesting0},
+	( block(call(Cond)@Module, _, fail) ->
+	    Nesting1 = [then|Nesting0],		% go into then-reading mode
+	    update_struct(source_position, [ifdefs:Nesting1], ThisPos, ThisPos1),
+	    source_read(ThisPos1, NextPos, Kind, SourceTerm)
 	;
-	    true
+	    skip_to_conditional(ThisPos, NextDir),
+	    ( NextDir == endif ->
+		source_read(ThisPos, NextPos, Kind, SourceTerm)
+	    ; NextDir == else ->
+		Nesting1 = [else|Nesting0],	% go into else-reading mode
+		update_struct(source_position, [ifdefs:Nesting1], ThisPos, ThisPos1),
+		source_read(ThisPos1, NextPos, Kind, SourceTerm)
+	    ; NextDir = elif(Cond1) ->
+		% failed if() followed by elif: treat like if()
+		handle_ifdef(if(Cond1), ThisPos, NextPos, Kind, SourceTerm0, SourceTerm)
+	    ;	% end_of_file
+		directive_warning("Unmatched conditional directive", if(Cond), ThisPos),
+		source_read(ThisPos, NextPos, Kind, SourceTerm)
+	    )
 	).
+handle_ifdef(Else, ThisPos, NextPos, Kind, _, SourceTerm) :-
+	nonvar(Else), (Else=else;Else=elif(_)),
+	!,
+	( ThisPos = source_position{ifdefs:[then|Nesting]} ->
+	    % we were reading a then/elif-part and found else/elif
+	    skip_to_endif(ThisPos, NextDir),
+	    ( NextDir == endif ->
+		update_struct(source_position, [ifdefs:Nesting], ThisPos, ThisPos1),
+		source_read(ThisPos1, NextPos, Kind, SourceTerm)
+	    ;
+		directive_warning("Missing endif after", Else, ThisPos),
+		source_read(ThisPos, NextPos, Kind, SourceTerm)
+	    )
+	;
+	    % we found else/elif and were not in an ifdef, or in an else part
+	    directive_warning("Unexpected conditional directive", Else, ThisPos),
+	    source_read(ThisPos, NextPos, Kind, SourceTerm)
+	).
+handle_ifdef(endif, ThisPos, NextPos, Kind, _, SourceTerm) ?- !,
+	( ThisPos = source_position{ifdefs:[_Any|Nesting]} ->
+	    % properly terminate this ifdef
+	    update_struct(source_position, [ifdefs:Nesting], ThisPos, ThisPos1),
+	    source_read(ThisPos1, NextPos, Kind, SourceTerm)
+	;
+	    % we found endif without being in ifdef
+	    directive_warning("Unmatched conditional directive", endif, ThisPos),
+	    source_read(ThisPos, NextPos, Kind, SourceTerm)
+	).
+handle_ifdef(Directive, ThisPos, NextPos, Kind, SourceTerm, SourceTerm) :-
+	handle_directives(Directive, ThisPos, NextPos, Kind).
+
+
+    warn_ifdef(source_position{ifdefs:[]}) :- !.
+    warn_ifdef(source_position{file:File}) :-
+	printf(warning_output, "WARNING: Missing endif at end of file %w%n", [File]).
 
 
 handle_directives(Directive, NextPos, NextPos, directive) :-
@@ -643,10 +670,11 @@ handle_directives(Directive, NextPos, NextPos, Kind) :-
 	;
 	    Kind = directive
 	).
-	
+
     directive_warning(Msg, Directive, source_position{line:Line,file:File}) :-
 	printf(warning_output, "WARNING: %w in file %w, line %d:%n:- %w.%n",
 		[Msg,File,Line,Directive]).
+
 
 % handled_directive(+Directive, -NeedToChangeDir)
 :- mode handled_directive(+, -).
@@ -757,36 +785,57 @@ skip_to_fullstop(Stream) :-
 	).
 
 
-skip_to_endif(Stream, Nesting) :-
+skip_to_endif(ThisPos, NextDir) :-
+	skip_to_conditional(ThisPos, NextDir0),
+	( is_else_directive(:-NextDir0) ->
+	    skip_to_endif(ThisPos, NextDir)
+	;
+	    NextDir = NextDir0
+	).
+
+% Skip to elif/1, else/0, endif/0 or end_of_file
+skip_to_conditional(source_position{stream:Stream}, NextDir) :-
+	skip_to_conditional(Stream, 0, NextDir).
+
+skip_to_conditional(Stream, Nesting, NextDir) :-
 	% suppress syntax errors in the skipped code
 	get_stream(error, OldError),
 	set_stream(error, null),
-	skip_to_endif1(Stream, Nesting),
+	skip_to_conditional1(Stream, Nesting, NextDir),
 	set_stream(error, OldError).
 
-    skip_to_endif1(Stream, Nesting) :-
+    skip_to_conditional1(Stream, Nesting, NextDir) :-
 	( read(Stream, Term) ->
 	    ( Term == end_of_file ->
 		unget(Stream),
-		fail
+		NextDir = end_of_file
 	    ; Term == (:-endif) ->
 		( Nesting > 0 ->
 		    Nesting1 is Nesting-1,
-		    skip_to_endif1(Stream, Nesting1)
+		    skip_to_conditional1(Stream, Nesting1, NextDir)
 		;
-		    true
+		    NextDir = endif
 		)
 	    ; is_if_directive(Term) ->
 		Nesting1 is Nesting+1,
-		skip_to_endif1(Stream, Nesting1)
+		skip_to_conditional1(Stream, Nesting1, NextDir)
+	    ; is_else_directive(Term) ->
+		( Nesting > 0 ->
+		    skip_to_conditional1(Stream, Nesting, NextDir)
+		;
+		    Term = (:-NextDir)
+		)
 	    ;
-		skip_to_endif1(Stream, Nesting)
+		skip_to_conditional1(Stream, Nesting, NextDir)
 	    )
 	;
-	    skip_to_endif1(Stream, Nesting)
+	    skip_to_conditional1(Stream, Nesting, NextDir)
 	).
 
     is_if_directive(:-if(_)) ?- true.
+
+    is_else_directive(:-elif(_)) ?- true.
+    is_else_directive(:-else) ?- true.
 
 
 %----------------------------------------------------------------------
@@ -943,7 +992,7 @@ test(File) :-
 %----------------------------------------------------------------------
 
 echo(File) :-
-	source_open(File, [keep_comments], SP0),
+	source_open(File, [filter_if_endif], SP0),
 	(
 	    fromto(begin, _, Class, end),
 	    fromto(SP0, SP1, SP2, SPend)
