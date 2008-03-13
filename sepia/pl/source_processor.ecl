@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.5 2007/06/01 15:45:34 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.6 2008/03/13 14:22:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2007/06/01 15:45:34 $").
+:- comment(date, "$Date: 2008/03/13 14:22:59 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -69,7 +69,8 @@
 	options,		% struct options
 	created_modules,	% list of modules
 	oldcwd,			% current directory before opening
-	module			% module
+	module,			% module
+	ifdefs			% number of nested ifdefs
     )).
 
 :- export struct(source_term(
@@ -87,6 +88,7 @@
 
 :- local struct(options(
     	keep_comments,		% true if set, else variable
+    	filter_if_endif,	% true if set, else variable
 	recreate_modules,	% erase old module before creating
 	no_macro_expansion,	% true if set, else variable
 	no_clause_expansion,	% true if set, else variable
@@ -141,12 +143,16 @@
     <LI>syntax settings
     <LI>comments (optional)
     <LI>changing the current directory to the opened file's directory
+    <LI>handling of if-endif directives
     </UL>
     OptionList can contain the following:
     <DL>
     <DT>keep_comments</DT>
 	<DD>treat comments and spacing between source terms as data
 		rather than ignoring it</DD>
+    <DT>filter_if_endif</DT>
+	<DD>interpret if/1 and endif/0 directives and include/exclude
+	corresponding source parts accordingly</DD>
     <DT>with_annotations</DT>
 	<DD>return an annotated source term with every source term
 	(and do not return a separate variable list)</DD>
@@ -213,11 +219,12 @@ source_open(File, OptionList, SourcePos, Module) :-
 	get_stream_info(In, line, Line),
 	SourcePos = source_position{
 		stream:In, module:Module, offset:Offset,options:OptFlags,
-		created_modules:[], oldcwd:OldCwd,
+		created_modules:[], oldcwd:OldCwd, ifdefs:0,
 		line:Line,file:FullFile,remaining_files:RF,included_from:IF}.
 
     set_option(Var, _ ) :- var(Var), !, fail.
     set_option(keep_comments, options{keep_comments:true}).
+    set_option(filter_if_endif, options{filter_if_endif:true}).
     set_option(recreate_modules, options{recreate_modules:true}).
     set_option(no_macro_expansion, options{no_macro_expansion:true}).
     set_option(no_clause_expansion, options{no_clause_expansion:true}).
@@ -304,7 +311,7 @@ source_close(SourcePos, Options) :-
     <DT>var</DT>
     	<DD>A term consisting of only a variable (very likely an error)</DD>
     <DT>clause</DT>
-    	<DD>Any other term (a syntactically valid clause)</DD>
+    	<DD>Any other term (usually a clause)</DD>
     <DT>comment</DT>
     	<DD>Spacing, layout and comments between source terms
     	(only when keep_comments option is in effect)</DD>
@@ -396,18 +403,20 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 		    source_read(OldPos1, NextPos, Kind, SourceTerm)
 		)
 	    ; IF = [] ->
+		warn_ifdef(OldPos),
 		SourceTerm = source_term{term:TermOrEof,vars:Vars},
 		update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 		Kind = end
 	    ;
+		warn_ifdef(OldPos),
 		SourceTerm = source_term{term:TermOrEof,vars:Vars},
 		NextPos = IF, Kind = end_include
 	    )
 
 	; TermOrEof = (:- Directive) ->
-	    SourceTerm = source_term{term:TermOrEof,vars:Vars, annotated:AnnTermOrEof},
+	    SourceTerm0 = source_term{term:TermOrEof,vars:Vars, annotated:AnnTermOrEof},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, ThisPos),
-	    handle_directives(Directive, ThisPos, NextPos, Kind)
+	    handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, OptFlags)
 
 	; TermOrEof = (?- _) ->
 	    SourceTerm = source_term{term:TermOrEof,vars:Vars, annotated:AnnTermOrEof},
@@ -454,24 +463,6 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	).
 
     	
-    % simple attempt at recovery: skip to fullstop at end of line
-    skip_to_fullstop(Stream) :-
-    	get(Stream, C1),
-	( C1 = 0'. ->
-	    get(Stream, C2),
-	    ( C2 \= -1, get_chtab(C2, end_of_line) ->
-	    	true
-	    ;
-		unget(Stream),
-		skip_to_fullstop(Stream)
-	    )
-	; C1 = -1 ->
-	    unget(Stream)
-	;
-	    skip_to_fullstop(Stream)
-	).
-
-
 apply_clause_expansion(Term, AnnTerm, TransTerm, AnnTransTerm,
               options{no_clause_expansion:NoCFlag,goal_expansion:GFlag0},
 	      Module) :-
@@ -514,7 +505,48 @@ expand_clause_goals([H|T], Ann, [HC|TC], AnnExp, M) :-
 expand_clause_goals(C, AC, C, AC, _).
 
 
-    % handled directives
+
+%----------------------------------------------------------------------
+% Directives
+%----------------------------------------------------------------------
+
+handle_ifdef_and_directives(if(Cond), ThisPos, NextPos, Kind, _, SourceTerm, options{filter_if_endif:true}) ?-
+	!,
+	ThisPos = source_position{module:Module},
+	( block(call(Cond)@Module, _, fail) ->
+	    N1 is ThisPos[ifdefs of source_position] + 1,
+	    update_struct(source_position, [ifdefs:N1], ThisPos, ThisPos1),
+	    source_read(ThisPos1, NextPos, Kind, SourceTerm)
+	;
+	    ThisPos = source_position{stream:Stream},
+	    ( skip_to_endif(Stream, 0) ->
+		true
+	    ;
+		directive_warning("Missing :-endif", if(Cond), ThisPos)
+	    ),
+	    source_read(ThisPos, NextPos, Kind, SourceTerm)
+	).
+handle_ifdef_and_directives(endif, ThisPos, NextPos, Kind, _, SourceTerm, options{filter_if_endif:true}) ?- !,
+	N1 is ThisPos[ifdefs of source_position] - 1,
+	( N1 >= 0 ->
+	    true
+	;
+	    directive_warning("Unmatched conditional directive", endif, ThisPos)
+	),
+	update_struct(source_position, [ifdefs:N1], ThisPos, ThisPos1),
+	source_read(ThisPos1, NextPos, Kind, SourceTerm).
+handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm, SourceTerm, _OptFlags) :-
+	handle_directives(Directive, ThisPos, NextPos, Kind).
+
+
+warn_ifdef(source_position{ifdefs:N,file:File}) :-
+	( N > 0 ->
+	    printf(warning_output, "WARNING: Missing endif at end of file %w%n", [File])
+	;
+	    true
+	).
+
+
 handle_directives(Directive, NextPos, NextPos, directive) :-
 	var(Directive), !.
 handle_directives((D1,D2), ThisPos, NextPos, Kind) :- !,
@@ -647,8 +679,9 @@ obsolete_directive(make_local_array(_)).
 obsolete_directive(make_local_array(_,_)).
 obsolete_directive(tool(_)).
 
+
 %----------------------------------------------------------------------
-% Comments
+% Auxiliary read predicates
 %----------------------------------------------------------------------
 
 read_comment(Stream, Comment) :-
@@ -704,6 +737,56 @@ read_comment(Stream, Comment) :-
     get_cc(Stream, C, Class) :-
 	get(Stream, C),
 	( C >= 0 -> get_chtab(C, Class) ; Class = eof ).
+
+
+% simple attempt at recovery: skip to fullstop at end of line
+skip_to_fullstop(Stream) :-
+    	get(Stream, C1),
+	( C1 = 0'. ->
+	    get(Stream, C2),
+	    ( C2 \= -1, get_chtab(C2, end_of_line) ->
+	    	true
+	    ;
+		unget(Stream),
+		skip_to_fullstop(Stream)
+	    )
+	; C1 = -1 ->
+	    unget(Stream)
+	;
+	    skip_to_fullstop(Stream)
+	).
+
+
+skip_to_endif(Stream, Nesting) :-
+	% suppress syntax errors in the skipped code
+	get_stream(error, OldError),
+	set_stream(error, null),
+	skip_to_endif1(Stream, Nesting),
+	set_stream(error, OldError).
+
+    skip_to_endif1(Stream, Nesting) :-
+	( read(Stream, Term) ->
+	    ( Term == end_of_file ->
+		unget(Stream),
+		fail
+	    ; Term == (:-endif) ->
+		( Nesting > 0 ->
+		    Nesting1 is Nesting-1,
+		    skip_to_endif1(Stream, Nesting1)
+		;
+		    true
+		)
+	    ; is_if_directive(Term) ->
+		Nesting1 is Nesting+1,
+		skip_to_endif1(Stream, Nesting1)
+	    ;
+		skip_to_endif1(Stream, Nesting)
+	    )
+	;
+	    skip_to_endif1(Stream, Nesting)
+	).
+
+    is_if_directive(:-if(_)) ?- true.
 
 
 %----------------------------------------------------------------------
