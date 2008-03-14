@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.7 2008/03/13 19:02:21 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.8 2008/03/14 00:21:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/03/13 19:02:21 $").
+:- comment(date, "$Date: 2008/03/14 00:21:39 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -88,7 +88,7 @@
 
 :- local struct(options(
     	keep_comments,		% true if set, else variable
-    	filter_if_endif,	% true if set, else variable
+    	filter_conditionals,	% true if set, else variable
 	recreate_modules,	% erase old module before creating
 	no_macro_expansion,	% true if set, else variable
 	no_clause_expansion,	% true if set, else variable
@@ -150,9 +150,10 @@
     <DT>keep_comments</DT>
 	<DD>treat comments and spacing between source terms as data
 		rather than ignoring it</DD>
-    <DT>filter_if_endif</DT>
-	<DD>interpret if/1 and endif/0 directives and include/exclude
-	corresponding source parts accordingly</DD>
+    <DT>filter_conditionals</DT>
+	<DD>interpret if/1, elif/1, else/0 and endif/0 directives and
+	include or exclude corresponding source parts accordingly, while
+	removing the directives themselves</DD>
     <DT>with_annotations</DT>
 	<DD>return an annotated source term with every source term
 	(and do not return a separate variable list)</DD>
@@ -224,7 +225,7 @@ source_open(File, OptionList, SourcePos, Module) :-
 
     set_option(Var, _ ) :- var(Var), !, fail.
     set_option(keep_comments, options{keep_comments:true}).
-    set_option(filter_if_endif, options{filter_if_endif:true}).
+    set_option(filter_conditionals, options{filter_conditionals:true}).
     set_option(recreate_modules, options{recreate_modules:true}).
     set_option(no_macro_expansion, options{no_macro_expansion:true}).
     set_option(no_clause_expansion, options{no_clause_expansion:true}).
@@ -509,7 +510,7 @@ expand_clause_goals(C, AC, C, AC, _).
 % Directives
 %----------------------------------------------------------------------
 
-handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, options{filter_if_endif:true}) ?- !,
+handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, options{filter_conditionals:true}) ?- !,
 	handle_ifdef(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm).
 handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm, SourceTerm, _OptFlags) :-
 	handle_directives(Directive, ThisPos, NextPos, Kind).
@@ -547,7 +548,7 @@ handle_ifdef(Else, ThisPos, NextPos, Kind, _, SourceTerm) :-
 		update_struct(source_position, [ifdefs:Nesting], ThisPos, ThisPos1),
 		source_read(ThisPos1, NextPos, Kind, SourceTerm)
 	    ;
-		directive_warning("Missing endif after", Else, ThisPos),
+		% warning will be raised later
 		source_read(ThisPos, NextPos, Kind, SourceTerm)
 	    )
 	;
@@ -992,7 +993,7 @@ test(File) :-
 %----------------------------------------------------------------------
 
 echo(File) :-
-	source_open(File, [filter_if_endif], SP0),
+	source_open(File, [filter_conditionals], SP0),
 	(
 	    fromto(begin, _, Class, end),
 	    fromto(SP0, SP1, SP2, SPend)
