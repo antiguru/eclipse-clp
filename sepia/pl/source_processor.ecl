@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.8 2008/03/14 00:21:39 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.9 2008/03/14 01:12:52 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/03/14 00:21:39 $").
+:- comment(date, "$Date: 2008/03/14 01:12:52 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -131,12 +131,13 @@
 
 :- comment(source_open/3, [
     summary: "Open an ECLiPSe source code file for subsequent processing",
-    args: ["File":"Name of source file (Atom or string)",
+    args: ["File":"Name of source file (Atom or string), or term of the form stream(Stream)",
     	"OptionList":"List of options, possibly empty",
 	"SourcePos":"Source position handle"],
-    desc:html("This predicates opens an ECLiPSe source file for subsequent
-    reading with source_read/4. Compared to the standard primitives for
-    reading from a file, this takes care of
+    desc:html("This predicates opens an ECLiPSe source file (or prepares and
+    already opened stream) for subsequent reading with source_read/4.
+    Compared to the standard primitives for reading from a file, this
+    takes care of
     <UL>
     <LI>nesting of included files
     <LI>creating and keeping track of modules
@@ -183,6 +184,11 @@
     i.e. information about the module context and the precise location
     of a source term (e.g. for error messages).
     <P>
+    If File is of the form stream(Stream), then the predicate expects
+    Stream to be an already opened input stream. Correspondingly, the
+    processed stream will not be closed at the end of source processing
+    (unlike files).
+    <P>
     "),
     see_also:[source_close/2,source_read/4],
     amode: source_open(+,+,-)
@@ -190,25 +196,34 @@
 
 :- tool(source_open/3,source_open/4).
 source_open(File, OptionList, SourcePos, Module) :-
-    	( foreach(Option,OptionList), param(OptFlags) do
-	    set_option(Option, OptFlags)
-	),
-	!,
-	source_open(File, [], [], OptFlags, SourcePos, Module).
-source_open(File, OptionList, SourcePos, Module) :-
-	error(6, source_open(File, OptionList, SourcePos), Module).
+	( 
+	    ( foreach(Option,OptionList), param(OptFlags) do
+		set_option(Option, OptFlags)
+	    )
+	->
+	    ( source_open(File, [], [], OptFlags, SourcePos, Module) ->
+		true
+	    ;
+		error(171, source_open(File, OptionList, SourcePos), Module)
+	    )
+	;
+	    error(6, source_open(File, OptionList, SourcePos), Module)
+	).
 
     % fails if file doesn't exist
     source_open(File, RF, IF, OptFlags, SourcePos, Module) :-
-	(atom(File) ; string(File)),
-	!,
-	get_flag(prolog_suffix, Suffixes),
-	once existing_file(File, Suffixes, [readable], GoodFile),
-	canonical_path_name(GoodFile, FullFile),
-	pathname(FullFile, Dir, _, _),
+	nonvar(File),						% may fail
 	getcwd(OldCwd),
-	cd(Dir),
-	open(FullFile, read, In),
+	( File = stream(In) ->
+	    FullFile = File
+	; (atom(File) ; string(File)) ->			% may fail
+	    get_flag(prolog_suffix, Suffixes),
+	    once existing_file(File, Suffixes, [readable], GoodFile), % may fail
+	    canonical_path_name(GoodFile, FullFile),
+	    pathname(FullFile, Dir, _, _),
+	    cd(Dir),
+	    open(FullFile, read, In)
+	),
 	( skip_utf8_bom(In) -> true ; true ),
 	OptFlags = options{no_macro_expansion:NoMacroExp},
 	( NoMacroExp == true ->
@@ -254,6 +269,10 @@ source_open(File, OptionList, SourcePos, Module) :-
 	source processing (by default they are erased to restore the
 	original state)</DD>
     </DL>
+    <P>
+    Note that if source_open/3 had been called on an already open stream
+    with a stream(Stream) argument, then Stream will not be closed by
+    source_close/2.
     "),
     see_also:[source_open/3],
     amode: source_close(+,+)
@@ -278,10 +297,17 @@ source_close(SourcePos, Options) :-
 	    )
 	).
 
-    close_streams(source_position{stream:Stream,included_from:IF,oldcwd:OldCwd}) :-
+    close_streams(source_position{file:File,stream:Stream,included_from:IF,oldcwd:OldCwd}) :-
 	cd(OldCwd),
-	( current_stream(Stream) -> close(Stream) ; true ),
+	close_input(File, Stream),
 	( IF = [] -> true ; close_streams(IF) ).
+
+    close_input(File, Stream) :-
+	( current_stream(Stream), File \= stream(_) ->
+	    close(Stream)
+	;
+	    true
+	).
 
 
 :- comment(source_read/4, [
@@ -371,7 +397,7 @@ source_close(SourcePos, Options) :-
     %   directive, handled_directive, query, clause, comment, var, end_include, end
 source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	OldPos = source_position{stream:In,module:Module,oldcwd:OldCwd,
-		options:OptFlags,remaining_files:RF,included_from:IF},
+		options:OptFlags,remaining_files:RF,included_from:IF,file:File},
 
 	read_next_term(In, TermOrEof, AnnTermOrEof, Vars, Error, Comment, OptFlags, Module),
         get_stream_info(In, line, Line),
@@ -393,7 +419,7 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	    Kind = var
 
 	; TermOrEof = end_of_file ->
-	    close(In),
+	    close_input(File, In),
 	    cd(OldCwd),
 	    ( RF = [RF0|RFs] ->
 	        ( source_open(RF0, RFs, IF, OptFlags, NextPos0, Module) ->
