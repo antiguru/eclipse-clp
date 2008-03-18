@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.9 2008/03/14 01:12:52 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.10 2008/03/18 15:28:25 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/03/14 01:12:52 $").
+:- comment(date, "$Date: 2008/03/18 15:28:25 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -123,7 +123,8 @@
 	options:"structure describing option settings",
 	created_modules:"list of modules created so far",
 	oldcwd:"current directory before opening this file",
-	module:"read-module at this source position"
+	module:"read-module at this source position",
+	ifdefs:"list of atoms (then|else) describing nesting of if-directives"
     ],
     see_also:[source_open/3,source_close/2,source_read/4]
 ]).
