@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.3 2008/03/08 02:21:24 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.4 2008/03/20 03:02:25 kish_shen Exp $
 %
 % This code is based on the paper
 %
@@ -57,21 +57,21 @@
 %
 %    Write mode:				Read mode:
 %
-%	First				    (part of Read_structure WLabel)
+% (part	of Write_first_struct/list)          (part of Read_structure WLabel)
 %		allocate Ti			allocate Ti
 %		down (save S+1|WRITE)		down (save S+1|READ)
 %						possibly goto write mode
 %
-%	Next Ti RLabel			    (part of Read_next_struct Ti WLabel)
+% (part of Write_next_struct/list Ti RLabel) (part of Read_next_struct Ti WLabel)
 %		possibly goto read mode		up (restore S)
 %		up (restore S)			down (save S+1)
 %		down (save S+1)			possibly goto write mode
 %				
-%	Mode Ti RLabel			    Mode Ti
+%	Mode Ti RLabel			     Mode Ti
 %		up (restore S)			up (restore S)
 %		possibly goto read mode
 %
-%	Next Ti				    (part of Read_structure Ti WLabel)
+% (part of Write_next_struct/list Ti)	     (part of Read_structure Ti WLabel)
 %		down (save S+1)			down (save S+1)
 %						possibly goto write mode
 %
@@ -222,21 +222,21 @@ unify_next_arg(List, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCo
 	( var(Tmp) ->		% first compound subterm in this level
 	    Reg1 is Reg0 + 1,
 	    Tmp = Reg1,
-	    WCode = [code{instr:first},code{instr:write_list},code{instr:label(WL)}|WCode1],
+	    WCode = [code{instr:write_first_list},code{instr:label(WL)}|WCode1],
 	    RCode2 = [code{instr:read_list(ref(WL))}|RCode1],
 	    matching_test(Dir, RCode, RCode2)
 
 	; Prev = compound ->	% immediately following a compound subterm
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
-	    WCode = [code{instr:next(t(Off),ref(RL))},code{instr:write_list},code{instr:label(WL)}|WCode1],
+	    WCode = [code{instr:write_next_list(t(Off),ref(RL))},code{instr:label(WL)}|WCode1],
 	    RCode2 = [code{instr:label(RL)},code{instr:read_next_list(t(Off),ref(WL))}|RCode1],
 	    matching_test(Dir, RCode, RCode2)
 	; % Prev = simple ->	% following a simple term
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
-	    WCode = [code{instr:next(t(Off))},code{instr:write_list},code{instr:label(WL)}|WCode1],
-	    RCode2 = [code{instr:read_list(t(Off),ref(WL))}|RCode1],
+	    WCode = [code{instr:write_next_list(t(Off))},code{instr:label(WL)}|WCode1],
+            RCode2 = [code{instr:read_list(t(Off),ref(WL))}|RCode1],
 	    matching_test(Dir, RCode, RCode2)
 	),
 	unify_args(List, ChunkData0, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0, Dir).
@@ -245,19 +245,19 @@ unify_next_arg(Struct, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, W
 	( var(Tmp) ->		% first compound subterm in this level
 	    Reg1 is Reg0 + 1,
 	    Tmp = Reg1,
-	    WCode = [code{instr:first},code{instr:write_structure(F/A)},code{instr:label(WL)}|WCode1],
-	    RCode2 = [code{instr:read_structure(F/A,ref(WL))}|RCode1],
+	    WCode = [code{instr:write_first_structure(F/A)},code{instr:label(WL)}|WCode1],
+            RCode2 = [code{instr:read_structure(F/A,ref(WL))}|RCode1],
 	    matching_test(Dir, RCode, RCode2)
 	; Prev = compound ->	% immediately following a compound subterm
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
-	    WCode = [code{instr:next(t(Off),ref(RL))},code{instr:write_structure(F/A)},code{instr:label(WL)}|WCode1],
+	    WCode = [code{instr:write_next_structure(F/A,t(Off),ref(RL))},code{instr:label(WL)}|WCode1],
 	    RCode2 = [code{instr:label(RL)},code{instr:read_next_structure(F/A,t(Off),ref(WL))}|RCode1],
 	    matching_test(Dir, RCode, RCode2)
 	; % Prev = simple ->	% following a simple term
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
-	    WCode = [code{instr:next(t(Off))},code{instr:write_structure(F/A)},code{instr:label(WL)}|WCode1],
+	    WCode = [code{instr:write_next_structure(F/A,t(Off))},code{instr:label(WL)}|WCode1],
 	    RCode2 = [code{instr:read_structure(F/A,t(Off),ref(WL))}|RCode1],
 	    matching_test(Dir, RCode, RCode2)
 	),

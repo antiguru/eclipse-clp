@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.5 2008/01/15 14:41:41 kish_shen Exp $
+ * VERSION	$Id: names.h,v 1.6 2008/03/20 02:57:38 kish_shen Exp $
  */
 
 /*
@@ -424,7 +424,57 @@ char * inst_name[] = {
 "Move3LAM                  ",
 "Move2AML                  ",
 "Move3AML                  ",
-
+"Move2AMAM                 ",
+"Move3AMAM                 ",
+"Move2LL                   ",
+"Move3LL                   ",
+"SwapAMAM                  ",
+"ShiftAMAMAM               ",
+"ShiftAMAMAMAM             ",
+"ShiftAMAMAMAMAM           ",
+"Read_variable2AML         ",
+"Read_variable2AM          ",
+"Read_variable2L           ",
+"Write_variable2AML        ",
+"Write_variable2AM         ",
+"Write_variable2L          ",
+"Write_local_value2AM      ",
+"Write_local_value2L       ",
+"Push_local_value2AM       ",
+"Push_local_value2L        ",
+"Put_global_variable2AML   ",
+"Put_variable2AM           ",
+"Get_integer2AM	           ",
+"Get_atom2AM               ",
+"Get_atomintegerAMAM       ",
+"Get_integeratomAMAM       ",
+"Write_first_structure     ",
+"Write_first_list          ",
+"Write_next_structureTM    ",
+"Write_next_listTM         ",
+"Write_next_structureTMlab ",
+"Write_next_listTMlab      ",
+"Read_atom2                ",
+"Read_integer2             ",
+"Read_integeratom          ",
+"Read_atominteger          ",
+"Write_did2                ",
+"Write_integer2            ",
+"Write_integerdid          ",
+"Write_didinteger          ",
+"MoveLAMCallfA             ",
+"MoveLAMCallfP             ",
+"MoveLAMChainA             ",
+"MoveLAMChainP             ",
+"MoveLAMJmpA               ",
+"MoveLAMJmpP               ",
+"Put_global_variableAMLCallfA",
+"Put_global_variableAMLCallfP",
+"Put_global_variableAMLChainA",
+"Put_global_variableAMLChainP",
+"Put_global_variableAMLJmpA ",
+"Put_global_variableAMLJmpA ",   
+"RotAMAMAM                 ",
 
 #if (NREGARG > 0)
 "MoveAR                    ",

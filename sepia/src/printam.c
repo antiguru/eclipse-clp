@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.10 2008/01/15 14:44:13 kish_shen Exp $
+ * VERSION	$Id: printam.c,v 1.11 2008/03/20 03:00:57 kish_shen Exp $
  */
 
 /*
@@ -328,6 +328,7 @@ print_am(register vmcode *code,
 	case Write_void:
 	case Write_nil:
 	case Write_list:
+	case Write_first_list:
 	case Match_meta:
 	case Match_last_meta:
 	case First:
@@ -432,7 +433,15 @@ print_am(register vmcode *code,
 		NamedVar;
 		break;
 
+	case Move3AMAM:
+	        Am;
+		/* fall through */
+	case ShiftAMAMAMAMAM:
+	        Am;
+		/* fall through */
 	case BI_MakeSuspension:
+	case ShiftAMAMAMAM:
+	case Move2AMAM:
 	    	Am;
 		/* fall through */
 
@@ -454,6 +463,8 @@ print_am(register vmcode *code,
 	case BI_Eq:
 	case BI_Ne:
 	case BI_Arg:
+	case ShiftAMAMAM:
+	case RotAMAMAM:
 	        Am;
 		/* fall through */
 
@@ -464,6 +475,11 @@ print_am(register vmcode *code,
 	case BI_Minus:
 	case BI_Succ:
 	case BI_Bitnot:
+	case SwapAMAM:
+	case Read_variable2AM:
+	case Write_variable2AM:
+	case Write_local_value2AM:
+	case Push_local_value2AM:
 	        Am;
 	        Am;
 		break;
@@ -545,6 +561,7 @@ print_am(register vmcode *code,
 	case Push_valueTM:
 	case Push_local_valueTM:
 	case Puts_valueTM:
+	case Write_next_listTM:
 		Temp;
 		break;
 
@@ -576,6 +593,7 @@ print_am(register vmcode *code,
 	        Am;
 		Perm;
 	case Move2AML:
+	case Put_global_variable2AML:
 	        Am;
 		Perm;
 	case MoveAML:
@@ -584,6 +602,8 @@ print_am(register vmcode *code,
 	case Put_variableAML:
 	case Put_unsafe_valueAML:
 	case Put_global_variableAML:
+	case Read_variable2AML:
+	case Write_variable2AML:
 		Am;
 		Perm;
 		break;
@@ -722,8 +742,20 @@ print_am(register vmcode *code,
 		Am;
 		break;
 
+	case Move3LL:
+	        Perm;
+	        Perm;
+		/* falls through */
+	case Move2LL:
+	        Perm;
+	        Perm;
+		/* falls through */
 	case MoveLL:
 	case Get_valueLL:
+	case Write_variable2L:
+	case Write_local_value2L:
+	case Push_local_value2L:
+	case Read_variable2L:
 		Perm;
 		Perm;
 		break;
@@ -736,6 +768,10 @@ print_am(register vmcode *code,
 		Ar;
 		break;
 #endif /* NREGARG */
+
+	case Get_atom2AM:
+		Am;
+		Atom;
 
 	case Get_atomAM:
 	case Out_get_atomAM:
@@ -754,6 +790,24 @@ print_am(register vmcode *code,
 		Atom;
 		break;
 #endif /* NREGARG */
+
+	case Get_integeratomAMAM:
+		Am;
+		Integer;
+		Am;
+		Atom;
+		break;
+
+	case Get_atomintegerAMAM:
+		Am;
+		Atom;
+		Am;
+		Integer;
+		break;
+
+	case Get_integer2AM:
+		Am;
+		Integer;
 
 	case Get_integerAM:
 	case Out_get_integerAM:
@@ -870,11 +924,28 @@ print_am(register vmcode *code,
 		NamedVar;
 		break;
 
+	case Read_atom2:
+	        Atom;
+	        /* falls through */
 	case Read_atom:
 	case Puts_atom:
 		Atom;
 		break;
 
+	case Read_atominteger:
+	        Atom;
+		Integer;
+		break;
+
+	case Read_integeratom:
+		Integer;
+	        Atom;
+		break;
+
+	case Read_integer2:
+	case Write_integer2:
+	        Integer;
+	        /* falls through */
 	case Read_integer:
 	case Write_integer:
 	case Push_integer:
@@ -898,9 +969,23 @@ print_am(register vmcode *code,
 		String;
 		break;
 
+	case Write_did2:
+	        Structure;
+		/* falls through */
 	case Write_structure:
+	case Write_first_structure:
 	case Write_did:
 	case Puts_structure:
+		Structure;
+		break;
+
+	case Write_didinteger:
+		Structure;
+		Integer;
+		break;
+	    
+	case Write_integerdid:
+		Integer;
 		Structure;
 		break;
 
@@ -920,13 +1005,20 @@ print_am(register vmcode *code,
 
 	case Read_structureTM:
 	case Read_next_structureTM:
+	case Write_next_structureTMlab:
 		Structure;
 	case NextTMlab:
 	case ModeTMlab:
 	case Read_listTM:
 	case Read_next_listTM:
+	case Write_next_listTMlab:
 		Temp;
 		Code_Label;
+		break;
+
+	case Write_next_structureTM:
+	        Structure;
+		Temp;
 		break;
 
 	case Read_metaTM:
@@ -1125,8 +1217,18 @@ print_am(register vmcode *code,
 		VarOffset;
 		break;
 
+	case MoveLAMCallfA:
+	        Perm;
+		Am;
 	case CallfA:
 	case CallA:
+		Addr;
+		EnvDesc;
+		break;
+
+	case Put_global_variableAMLCallfA:
+		Am;
+	        Perm;
 		Addr;
 		EnvDesc;
 		break;
@@ -1148,6 +1250,25 @@ print_am(register vmcode *code,
 		Nl;
 		break;
 
+	case MoveLAMChainA:
+	case MoveLAMJmpA:
+	        Perm;
+		Am;
+		Addr;
+		Nl;
+		break;
+
+	case Put_global_variableAMLChainA:
+	case Put_global_variableAMLJmpA:
+		Am;
+	        Perm;
+		Addr;
+		Nl;
+		break;
+
+	case MoveLAMCallfP:
+	        Perm;
+		Am;
 	case CallfP:
 	case CallP:
 		Proc;
@@ -1158,16 +1279,35 @@ print_am(register vmcode *code,
 		EnvDesc;
 		break;
 
+	case Put_global_variableAMLCallfP:
+	        Am;
+		Perm;
+	        Proc;
+		EnvDesc;
+		break;
+
 	case Fastcall:
 		Port;
 		EnvDesc;
 		break;
 
+	case MoveLAMJmpP:
+	case MoveLAMChainP:
+	        Perm;
+		Am;
 	case JmpP:
 	case JmpdP:
 	case ChainP:
 	case ChaincP:
 	case ChaindP:
+		Proc;
+		Nl;
+		break;
+
+	case Put_global_variableAMLJmpP:
+	case Put_global_variableAMLChainP:
+		Am;
+	        Perm;
 		Proc;
 		Nl;
 		break;

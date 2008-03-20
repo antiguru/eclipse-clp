@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.15 2008/03/12 16:06:16 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.16 2008/03/20 03:00:58 kish_shen Exp $
  */
 
 /*
@@ -421,7 +421,8 @@ int		(*in_external)();
 			SP = ByteOffsetMinus(SP, PP++->offset);\
 			Check_Local_Overflow
 
-#define Move_Pw(s,d)	d->val.all=s->val.all; d->tag.all=s->tag.all;
+/*#define Move_Pw(s,d)	d->val.all=s->val.all; d->tag.all=s->tag.all;*/
+#define Move_Pw(s,d)    *d = *s;
 
 /*
  * move an arbitrary prolog word to a location on the global stack.
@@ -2463,12 +2464,32 @@ _loop_:
 	Case(Nop, I_Nop)
 	    Next_Pp;
 
+	Case(Move3AMAM, I_Move3AMAM)
+	    Get_Argument(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
+	Case(Move2AMAM, I_Move2AMAM)
+	    Get_Argument(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
 	Case(MoveAMAM, I_MoveAMAM)
 	    Get_Argument(pw1)
 	    Get_Argument(pw2)
 	    Move_Pw(pw1,pw2)
 	    Next_Pp;
 
+	Case(Move3LL, I_Move3LL)
+	    Get_Local(pw1)
+	    Get_Local(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
+	Case(Move2LL, I_Move2LL)
+	    Get_Local(pw1)
+	    Get_Local(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
 	Case(MoveLL, I_MoveLL)
 	    Get_Local(pw1)
 	    Get_Local(pw2)
@@ -2481,7 +2502,7 @@ Possible additional combined instructions
 	Swap	A1<->A2
 	Shift	A1<-A2<-A3	(all different)
 	Rotate	A1<-A2<-A3(<-A1)
-
+*/
 	Case(SwapAMAM, I_SwapAMAM)
 	    Get_Argument(pw1)
 	    Get_Argument(pw2)
@@ -2501,6 +2522,28 @@ Possible additional combined instructions
 	    *pw2 = *pw1;
 	    Next_Pp;
 
+	Case(ShiftAMAMAMAM, I_ShiftAMAMAMAM)
+	    Get_Argument(pw1)
+	    Get_Argument(pw2)
+	    *pw1 = *pw2;
+	    Get_Argument(pw1)
+	    *pw2 = *pw1;
+	    Get_Argument(pw2)
+	    *pw1 = *pw2;
+	    Next_Pp;
+
+	Case(ShiftAMAMAMAMAM, I_ShiftAMAMAMAMAM)
+	    Get_Argument(pw1)
+	    Get_Argument(pw2)
+	    *pw1 = *pw2;
+	    Get_Argument(pw1)
+	    *pw2 = *pw1;
+	    Get_Argument(pw2)
+	    *pw1 = *pw2;
+	    Get_Argument(pw1)
+	    *pw2 = *pw1;
+	    Next_Pp;
+
 	Case(RotAMAMAM, I_RotAMAMAM)
 	    Get_Argument(pw1)
 	    scratch_pw = *pw1,
@@ -2510,7 +2553,6 @@ Possible additional combined instructions
 	    *pw2 = *pw1;
 	    *pw1 = scratch_pw;
 	    Next_Pp;
-*/
 
 	Case(Get_variableNAML, I_Get_variableNAML)
 	    Alloc_Env
@@ -2655,6 +2697,10 @@ _compare_const_:					/* (tmp1,pw1,pp) */
 		{ Fail }
 	    Next_Pp;
 
+	Case(Get_integer2AM, I_Get_integer2AM)
+	    Get_Argument(pw1)
+	    Unify_Simple_pw1(TINT, nint, tmp1)
+	    /* falls through */
 	Case(Out_get_integerAM, I_Out_get_integerAM)
 	Case(Get_integerAM, I_Get_integerAM)
 	    Get_Argument(pw1)
@@ -2669,6 +2715,10 @@ _compare_const_:					/* (tmp1,pw1,pp) */
 	    Next_Pp;
 #endif
 
+	Case(Get_atom2AM, I_Get_atom2AM)
+	    Get_Argument(pw1)
+	    Unify_Simple_pw1(TDICT, did, tmp1)
+	    /* falls through */
 	Case(Out_get_atomAM, I_Out_get_atomAM)
 	Case(Get_atomAM, I_Get_atomAM)
 	    Get_Argument(pw1)
@@ -2690,6 +2740,20 @@ _compare_const_:					/* (tmp1,pw1,pp) */
 		Bind_CRef_pw1(PP++->all,TSTRG)
 	    } else
 		{ Fail }
+	    Next_Pp;
+
+	Case(Get_atomintegerAMAM, I_Get_atomintegerAMAM)
+	    Get_Argument(pw1)
+	    Unify_Simple_pw1(TDICT, did, tmp1)
+	    Get_Argument(pw1)
+	    Unify_Simple_pw1(TINT, nint, tmp1)
+	    Next_Pp;
+
+	Case(Get_integeratomAMAM, I_Get_integeratomAMAM)
+	    Get_Argument(pw1)
+	    Unify_Simple_pw1(TINT, nint, tmp1)
+	    Get_Argument(pw1)
+	    Unify_Simple_pw1(TDICT, did, tmp1)
 	    Next_Pp;
 
 	Case(Get_metaAM, I_Get_metaAM)
@@ -2845,8 +2909,19 @@ _read_meta_:			/* unify *pw1 with a new meta with tag i */
 	    Check_Local_Overflow
 	    Next_Pp;
 
+	Case(Read_variable2AM, I_Read_variable2AM)
+	    Get_Argument(pw1)
+	    *pw1 = *(S++);
+	    /* falls through */
 	Case(Read_variableAM, I_Read_variableAM)
 	    Get_Argument(pw1)
+	    *pw1 = *(S++);
+	    Next_Pp;
+
+	Case(Read_variable2AML, I_Read_variable2AML)
+	    Get_Argument(pw1)
+	    *pw1 = *(S++);
+	    Get_Local(pw1)
 	    *pw1 = *(S++);
 	    Next_Pp;
 
@@ -2854,6 +2929,13 @@ _read_meta_:			/* unify *pw1 with a new meta with tag i */
 	    Alloc_Env
 
 	Case(Read_variableL, I_Read_variableL)
+	    Get_Local(pw1)
+	    *pw1 = *(S++);
+	    Next_Pp;
+
+	Case(Read_variable2L, I_Read_variable2L)
+	    Get_Local(pw1)
+	    *pw1 = *(S++);
 	    Get_Local(pw1)
 	    *pw1 = *(S++);
 	    Next_Pp;
@@ -2923,6 +3005,10 @@ _read_meta_:			/* unify *pw1 with a new meta with tag i */
 	    }
 	    Next_Pp;
 
+	Case(Read_integer2, I_Read_integer2)
+	    pw1 = S++;
+	    Unify_Simple_pw1(TINT, nint, tmp1)
+	    /* falls through */
 	Case(Read_integer, I_Read_integer)
 	    pw1 = S++;
 	    Unify_Simple_pw1(TINT, nint, tmp1)
@@ -2935,9 +3021,27 @@ _read_meta_:			/* unify *pw1 with a new meta with tag i */
 	    Next_Pp;
 #endif
 
+	Case(Read_atom2, I_Read_atom2)
+	    pw1 = S++;
+	    Unify_Simple_pw1(TDICT, did, tmp1)
+	    /* falls through */
 	Case(Read_atom, I_Read_atom)
 	    pw1 = S++;
 	    Unify_Simple_pw1(TDICT, did, tmp1)
+	    Next_Pp;
+
+	Case(Read_integeratom, I_Read_integeratom)
+	    pw1 = S++;
+	    Unify_Simple_pw1(TINT, nint, tmp1)
+	    pw1 = S++;
+	    Unify_Simple_pw1(TDICT, did, tmp1)
+	    Next_Pp;
+
+	Case(Read_atominteger, I_Read_atominteger)
+	    pw1 = S++;
+	    Unify_Simple_pw1(TDICT, did, tmp1)
+	    pw1 = S++;
+	    Unify_Simple_pw1(TINT, nint, tmp1)
 	    Next_Pp;
 
 	Case(Read_string, I_Read_string)
@@ -3226,9 +3330,29 @@ _match_meta_:
 	    }
 	    Next_Pp;
 	
+	Case(Write_variable2AM, I_Write_variable2AM)
+	    Get_Argument(pw1)
+	    pw1->val.ptr = S;
+	    pw1->tag.kernel = TREF;
+	    S->val.ptr = S;
+	    ((S)++)->tag.kernel = TREF;
+	    /* falls through */
 	Case(Write_variableAM, I_Write_variableAM)
 	Case(Push_variableAM, I_Push_variableAM)
 	    Get_Argument(pw1)
+	    pw1->val.ptr = S;
+	    pw1->tag.kernel = TREF;
+	    S->val.ptr = S;
+	    ((S)++)->tag.kernel = TREF;
+	    Next_Pp;
+
+	Case(Write_variable2AML, I_Write_variable2AML)
+	    Get_Argument(pw1)
+	    pw1->val.ptr = S;
+	    pw1->tag.kernel = TREF;
+	    S->val.ptr = S;
+	    ((S)++)->tag.kernel = TREF;
+	    Get_Local(pw1)
 	    pw1->val.ptr = S;
 	    pw1->tag.kernel = TREF;
 	    S->val.ptr = S;
@@ -3245,6 +3369,19 @@ _match_meta_:
 	    pw1->tag.kernel = TREF;
 	    S->val.ptr = S;
 	    ((S)++)->tag.kernel = TREF;
+	    Next_Pp;
+
+	Case(Write_variable2L, I_Write_variable2L)
+	    Get_Local(pw1)
+	    pw1->val.ptr = S;
+	    pw1->tag.kernel = TREF;
+	    S->val.ptr = S;
+	    ((S)++)->tag.kernel = TREF;
+	    S->val.ptr = S;
+	    S->tag.kernel = TREF;
+	    Get_Local(pw1)
+	    pw1->val.ptr = (S)++;
+	    pw1->tag.kernel = TREF;
 	    Next_Pp;
 
 	Case(Push_init_variableL, I_Push_init_variableL)
@@ -3324,7 +3461,6 @@ _match_meta_:
 	    TG = ByteOffsetPlus(TG, PP++->offset);
 	    Next_Pp;
 
-
 	Case(Write_valueAM, I_Write_valueAM)
 	Case(Push_valueAM, I_Push_valueAM)
 	    Get_Argument(pw1)
@@ -3381,6 +3517,35 @@ _write_local_:
 	    Get_Temporary(pw1)
 	    goto _write_local_;
 
+
+	Case(Push_local_value2AM, I_Push_local_value2AM)
+	    Get_Argument(pw1)
+	    Get_Argument(pw2)
+_push_local2_:
+	    Move_Pw_To_Global_Stack(pw1,S, ;)
+	    Move_Pw_To_Global_Stack(pw2,S, ;)
+	    Next_Pp;
+
+	Case(Push_local_value2L, I_Push_local_value2L)
+	    Get_Local(pw1)
+	    Get_Local(pw2)
+	    goto _push_local2_;
+
+	Case(Write_local_value2AM, I_Write_local_value2AM)
+	    Get_Argument(pw1)
+	    Get_Argument(pw2)
+_write_local2_:
+	    Move_Pw_To_Global_Stack(pw1,S, Occur_Check_Write(pw1, Fail))
+	    Occur_Check_Boundary(0);
+	    Move_Pw_To_Global_Stack(pw2,S, Occur_Check_Write(pw2, Fail))
+	    Occur_Check_Boundary(0);
+	    Next_Pp;
+
+	Case(Write_local_value2L, I_Write_local_value2L)
+	    Get_Local(pw1)
+	    Get_Local(pw2)
+	    goto _write_local2_;
+
         /* val, tag !!!!!! */
 
         Case(Write_constant, I_Write_constant)
@@ -3394,6 +3559,10 @@ _write_local_:
 	    ((S)++)->tag.kernel = TNIL;
 	    Next_Pp;
 
+	Case(Write_integer2, I_Write_integer2)
+	    S->val.nint = PP++->nint;
+	    ((S)++)->tag.kernel = TINT;
+	    /* falls through */
 	Case(Write_integer, I_Write_integer)
 	Case(Push_integer, I_Push_integer)
 	    S->val.nint = PP++->nint;
@@ -3408,9 +3577,27 @@ _write_local_:
 	    Next_Pp;
 #endif
 
+	Case(Write_did2, I_Write_did2)
+	    S->val.did = PP++->did;
+	    ((S)++)->tag.kernel = TDICT;
+	    /* falls through */
 	Case(Write_did, I_Write_did)
 	    S->val.did = PP++->did;
 	    ((S)++)->tag.kernel = TDICT;
+	    Next_Pp;
+
+	Case(Write_integerdid, I_Write_integerdid)
+	    S->val.nint = PP++->nint;
+	    ((S)++)->tag.kernel = TINT;
+	    S->val.did = PP++->did;
+	    ((S)++)->tag.kernel = TDICT;
+	    Next_Pp;
+
+	Case(Write_didinteger, I_Write_didinteger)
+	    S->val.did = PP++->did;
+	    ((S)++)->tag.kernel = TDICT;
+	    S->val.nint = PP++->nint;
+	    ((S)++)->tag.kernel = TINT;
 	    Next_Pp;
 
 	Case(Write_string, I_Write_string)
@@ -3429,6 +3616,11 @@ _write_local_:
 	    S->tag.kernel = PP++->kernel;
 	    Next_Pp;
 
+	Case(Write_first_list, I_Write_first_list)
+	    (--SP)->tag.kernel = MODE_WRITE;
+	    SP->val.ptr = S + 1;
+	    Check_Local_Overflow
+	    /* falls through */
 	Case(Write_list, I_Write_list)
 	    pw1 = S;
 	    S = TG;
@@ -3437,12 +3629,42 @@ _write_local_:
 	    pw1->tag.kernel = TLIST;
 	    Next_Pp;
 
+	Case(Write_next_listTM, I_Write_next_listTM)
+	    Get_Temporary(pw1);
+	    pw1->val.ptr = S + 1;
+	    pw1 = S;
+	    S = TG;
+	    TG = S + 2;
+	    pw1->val.ptr = S;
+	    pw1->tag.kernel = TLIST;
+	    Next_Pp;
+
+	Case(Write_next_listTMlab, I_Write_next_listTMlab)
+	    Get_Temporary(pw1)
+	    if(pw1->tag.kernel == MODE_READ) {
+		PP = PP->code;
+	    } else {
+		S = (pw1->val.ptr)++;
+		PP++;
+		pw1 = S;
+		S = TG;
+		TG = S + 2;
+		pw1->val.ptr = S;
+		pw1->tag.kernel = TLIST;
+	    }
+	    Next_Pp;
+
 	Case(Push_list, I_Push_list)
 	    S->val.ptr = TG;
 	    ((S)++)->tag.kernel = TLIST;
 	    TG += 2;
 	    Next_Pp;
 
+	Case(Write_first_structure, I_Write_first_structure)
+	    (--SP)->tag.kernel = MODE_WRITE;
+	    SP->val.ptr = S + 1;
+	    Check_Local_Overflow
+	    /* falls through */
 	Case(Write_structure, I_Write_structure)
 	    S->val.ptr = TG;
 	    S->tag.kernel = TCOMP;
@@ -3451,6 +3673,35 @@ _write_local_:
 	    TG += DidArity(val_did) + 1;
 	    S->val.did = val_did;
 	    ((S)++)->tag.kernel = TDICT;
+	    Next_Pp;
+
+	Case(Write_next_structureTM, I_Write_next_structureTM)
+	    val_did = PP++->did;
+	    Get_Temporary(pw1); 
+	    pw1->val.ptr = S + 1;
+	    S->val.ptr = TG;
+	    S->tag.kernel = TCOMP;
+	    S = TG;
+	    TG += DidArity(val_did) + 1;
+	    S->val.did = val_did;
+	    ((S)++)->tag.kernel = TDICT;
+	    Next_Pp;
+	    
+	Case(Write_next_structureTMlab, I_Write_next_structureTMlab)
+	    Get_Temporary_Offs(1, pw1)
+	    if(pw1->tag.kernel == MODE_READ) {
+		PP = (PP+2)->code;
+	    } else {
+		S = (pw1->val.ptr)++;
+		S->val.ptr = TG;
+		S->tag.kernel = TCOMP;
+		S = TG;
+		val_did = PP->did;
+		TG += DidArity(val_did) + 1;
+		S->val.did = val_did;
+		((S)++)->tag.kernel = TDICT;
+		PP+=3;
+	    }
 	    Next_Pp;
 
 	Case(Push_structure, I_Push_structure)
@@ -3507,6 +3758,14 @@ _write_local_:
 	    pw2->tag.kernel = TREF;
 	    Next_Pp;
 
+	Case(Put_variable2AM, I_Put_variable2AM)
+	    Get_Argument(pw1)
+	    pw1->val.ptr = TG;
+	    pw1->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = TREF;
+	    /* falls through */
 	Case(Put_global_variableAM, I_Put_global_variableAM)
 	Case(Put_variableAM, I_Put_variableAM)
 	    Get_Argument(pw1)
@@ -3517,6 +3776,15 @@ _write_local_:
 	    pw1->tag.kernel = TREF;
 	    Next_Pp;
 
+	Case(Put_global_variable2AML, I_Put_global_variable2AML)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    pw1->val.ptr = pw2->val.ptr = TG;
+	    pw1->tag.kernel = pw2->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = TREF;
+	    /* falls through */
 	Case(Put_global_variableAML, I_Put_global_variableAML)
 	    Get_Argument(pw1)
 	    Get_Local(pw2)
@@ -4715,12 +4983,32 @@ _switch_on_type_:
 	    Occur_Check_Boundary(TG)
 	    Next_Pp;
 
+	Case(MoveLAMCallfA, I_MoveLAMCallfA)
+	    Get_Local(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
 	Case(CallfA, I_CallfA)
 	    Set_Det
 	Case(CallA, I_CallA)
 	    Push_Ret_Code(PP + 2)
 	    Check_Local_Overflow
 	Case(JmpdA, I_JmpdA)
+	    PP = PP->code;
+	    Handle_Events_Call
+	    Next_Pp;
+
+	Case(Put_global_variableAMLCallfA, I_Put_global_variableAMLCallfA)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    pw1->val.ptr = pw2->val.ptr = TG;
+	    pw1->tag.kernel = pw2->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = TREF;
+	    Set_Det
+	    Push_Ret_Code(PP + 2)
+	    Check_Local_Overflow
 	    PP = PP->code;
 	    Handle_Events_Call
 	    Next_Pp;
@@ -4737,6 +5025,11 @@ _switch_on_type_:
 	    PP = PP->code;
 	    Next_Pp;
 
+	Case(MoveLAMCallfP, I_MoveLAMCallfP)
+	    Get_Local(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
 	Case(CallfP, I_CallfP)
 	    Set_Det
 	Case(CallP, I_CallP)
@@ -4747,7 +5040,38 @@ _switch_on_type_:
 	    Handle_Events_Call
 	    Next_Pp;
 
+	Case(Put_global_variableAMLCallfP, I_Put_global_variableAMLCallfP)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    pw1->val.ptr = pw2->val.ptr = TG;
+	    pw1->tag.kernel = pw2->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = TREF;
+	    Set_Det
+	    Push_Ret_Code(PP + 2)
+	    Check_Local_Overflow
+	    PP = (emu_code) PriCode(PP->proc_entry);
+	    Handle_Events_Call
+	    Next_Pp;
+
+	Case(Put_global_variableAMLChainP, I_Put_global_variableAMLChainP)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    pw1->val.ptr = pw2->val.ptr = TG;
+	    pw1->tag.kernel = pw2->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = TREF;
+	    goto _chainp_;
+
+	Case(MoveLAMChainP, I_MoveLAMChainP)
+	    Get_Local(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
 	Case(ChainP, I_ChainP)
+_chainp_:
 	    if(E < EB) {
 		Pop_Env
 		if(EB == SP) {Repush_Ret_Code}
@@ -4761,7 +5085,23 @@ _switch_on_type_:
 	    Handle_Events_Call
 	    Next_Pp;
 
+	Case(Put_global_variableAMLChainA, I_Put_global_variableAMLChainA)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    pw1->val.ptr = pw2->val.ptr = TG;
+	    pw1->tag.kernel = pw2->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = TREF;
+	    goto _chaina_;
+
+	Case(MoveLAMChainA, I_MoveLAMChainA)
+	    Get_Local(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
 	Case(ChainA, I_ChainA)
+_chaina_:
 	    if(E < EB) {
 		Pop_Env
 		if(EB == SP) {Repush_Ret_Code}
@@ -4842,6 +5182,28 @@ _switch_on_type_:
 	    }
 	    Next_Pp;
 
+	Case(Put_global_variableAMLJmpA, I_Put_global_variableAMLJmpA)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    pw1->val.ptr = pw2->val.ptr = TG;
+	    pw1->tag.kernel = pw2->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = TREF;
+	    if (!Deterministic) {
+		Repush_Ret_Code
+		Check_Local_Overflow
+		Set_Det
+	    }
+	    PP = PP->code;
+	    Handle_Events_Call
+	    Next_Pp;
+
+	Case(MoveLAMJmpA, I_MoveLAMJmpA)
+	    Get_Local(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
 	Case(JmpA, I_JmpA)
 	    if (!Deterministic) {
 		Repush_Ret_Code
@@ -4852,6 +5214,28 @@ _switch_on_type_:
 	    Handle_Events_Call
 	    Next_Pp;
 
+	Case(Put_global_variableAMLJmpP, I_Put_global_variableAMLJmpP)
+	    Get_Argument(pw1)
+	    Get_Local(pw2)
+	    pw1->val.ptr = pw2->val.ptr = TG;
+	    pw1->tag.kernel = pw2->tag.kernel = TREF;
+	    pw1 = TG++;
+	    pw1->val.ptr = pw1;
+	    pw1->tag.kernel = TREF;
+	    if (!Deterministic) {
+		Repush_Ret_Code
+		Check_Local_Overflow
+		Set_Det
+	    }
+	    PP = (emu_code) PriCode(PP->proc_entry);
+	    Handle_Events_Call
+	    Next_Pp;
+
+	Case(MoveLAMJmpP, I_MoveLAMJmpP)
+	    Get_Local(pw1)
+	    Get_Argument(pw2)
+	    Move_Pw(pw1,pw2)
+	    /* falls through */
 	Case(JmpP, I_JmpP)
 	    if (!Deterministic) {
 		Repush_Ret_Code

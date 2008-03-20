@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.5 2008/01/15 14:41:41 kish_shen Exp $
+ * VERSION	$Id: opcode.h,v 1.6 2008/03/20 02:57:37 kish_shen Exp $
  */
 
 /*
@@ -465,7 +465,58 @@ extern vmcode bi_addr[];
 #define Move3LAM				(BLOCK1 + 354)
 #define Move2AML				(BLOCK1 + 355)
 #define Move3AML				(BLOCK1 + 356)
-#define OPCODES_WITHOUT_REGS			(BLOCK1 + 357)
+#define Move2AMAM				(BLOCK1 + 357)
+#define Move3AMAM				(BLOCK1 + 358)
+#define Move2LL					(BLOCK1 + 359)
+#define Move3LL					(BLOCK1 + 360)
+#define SwapAMAM				(BLOCK1 + 361)
+#define ShiftAMAMAM				(BLOCK1 + 362)
+#define ShiftAMAMAMAM				(BLOCK1 + 363)
+#define ShiftAMAMAMAMAM				(BLOCK1 + 364)
+#define Read_variable2AML			(BLOCK1 + 365)
+#define Read_variable2AM			(BLOCK1 + 366)
+#define Read_variable2L				(BLOCK1 + 367)
+#define Write_variable2AML			(BLOCK1 + 368)
+#define Write_variable2AM			(BLOCK1 + 369)
+#define Write_variable2L       			(BLOCK1 + 370)
+#define Write_local_value2AM       	       	(BLOCK1 + 371)
+#define Write_local_value2L       	        (BLOCK1 + 372)
+#define Push_local_value2AM       	       	(BLOCK1 + 373)
+#define Push_local_value2L       	        (BLOCK1 + 374)
+#define Put_global_variable2AML                 (BLOCK1 + 375)
+#define Put_variable2AM				(BLOCK1 + 376)
+#define Get_atom2AM				(BLOCK1 + 377)
+#define Get_integer2AM				(BLOCK1 + 378)
+#define Get_atomintegerAMAM			(BLOCK1 + 379)
+#define Get_integeratomAMAM			(BLOCK1 + 380)
+#define Write_first_structure			(BLOCK1 + 381)
+#define Write_first_list			(BLOCK1 + 382)
+#define Write_next_structureTM			(BLOCK1 + 383)
+#define Write_next_listTM			(BLOCK1 + 384)
+#define Write_next_structureTMlab		(BLOCK1 + 385)
+#define Write_next_listTMlab			(BLOCK1 + 386)
+#define Read_atom2				(BLOCK1 + 387)
+#define Read_integer2				(BLOCK1 + 388)
+#define Read_integeratom			(BLOCK1 + 389)
+#define Read_atominteger			(BLOCK1 + 390)
+#define Write_did2				(BLOCK1 + 391)
+#define Write_integer2				(BLOCK1 + 392)
+#define Write_integerdid			(BLOCK1 + 393)
+#define Write_didinteger			(BLOCK1 + 394)
+#define MoveLAMCallfA                           (BLOCK1 + 395)
+#define MoveLAMCallfP                           (BLOCK1 + 396)
+#define MoveLAMChainA                           (BLOCK1 + 397)
+#define MoveLAMChainP                           (BLOCK1 + 398)
+#define MoveLAMJmpA                             (BLOCK1 + 399)
+#define MoveLAMJmpP                             (BLOCK1 + 400)
+#define Put_global_variableAMLCallfA            (BLOCK1 + 401)
+#define Put_global_variableAMLCallfP            (BLOCK1 + 402)
+#define Put_global_variableAMLChainA            (BLOCK1 + 403)
+#define Put_global_variableAMLChainP            (BLOCK1 + 404)
+#define Put_global_variableAMLJmpA              (BLOCK1 + 405)
+#define Put_global_variableAMLJmpP              (BLOCK1 + 406)
+#define RotAMAMAM				(BLOCK1 + 407)
+#define OPCODES_WITHOUT_REGS			(BLOCK1 + 408)
 
 /*
  * Don't forget to update the following files:

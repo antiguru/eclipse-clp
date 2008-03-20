@@ -23,29 +23,25 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.11 2008/02/21 15:40:42 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.12 2008/03/20 03:02:25 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
 
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
-:- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/02/21 15:40:42 $").
+:- comment(author, "Joachim Schimpf, Kish Shen").
+:- comment(date, "$Date: 2008/03/20 03:02:25 $").
 
 :- comment(desc, ascii("
-    This is very preliminary!
-
     This pass does simple code improvements like:
 
-	 - eliminating nop
-	 - eliminating move(X,X)
-	 - merging instructions (e.g. call+ret -> chain)
-
-    Takes a list of register-allocated, annotated code (but ignores
-    all annotations).  Annotations are stripped, code simplified,
-    and a plain list of instructions is returned, which can be fed
-    into the assembler.
+	 - eliminating some instructions (e.g. nop)
+	 - moving branch targets (e.g. to skip unneeded type tests)
+	 - merging instructions (e.g. call+ret -> jmp)
+    Takes a list of register-allocated, annotated code  Code is simplified,
+    and finally the annotations are stripped, and a plain list of 
+    instructions is returned, which can be fed into the assembler.
 ")).
 
 :- use_module(compiler_common).
@@ -75,17 +71,63 @@ max_joined_len(2).
     see_also:[struct(code)]
 ]).
 
+/* 
+simplify_code(+CodeList, -WamList +Options)
+    Performs peephole optimisation on annotated code list CodeList, and
+    peoduces an (unannotated) WamList of abstract instruction.
+
+    The code can either be broken into `chunks', to allow for inter-chunk
+    optimisations (such as moving of jump targets, joining of short
+    continuations, and dead code removal), and then peephole optimisation
+    is performed on each chunk, or it can be peephole optimised as a unit.
+
+    If broken into chunks, the chunks are rejoined without any
+    `dead' chunks (i.e. chunks that cannot be reached). The chunks may be
+    rejoined in a different order from the original. Because some
+    originally adjacent chunks are best if adjucent in the final code,
+    these are rejoined early (before peephole optimisation), to ensure that
+    they stay adjacent.
+
+    The joining of short continuations will duplicate code, but reduces 
+    branching, and the joined code allows for last call optimisation,
+    if the continuation exits from the predicate. Short continuations are
+    only joined if there are more than one chunk that continues into it;
+    this is to prevent duplication of the code -- one for the continuation,
+    and one for any branch targets. This optimisation greatly reduces the
+    code size expansion. The alternative is to put a label into the first
+    joined short continuation to act as a branch target, but the label
+    prevents important optimisations (such as the last call opt) in the
+    `boundary' code that is joined.
+*/
 :- export simplify_code/3.
 simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
 	( OptLevel > 0 ->
 	    flat_code_to_basic_blocks(CodeList, BasicBlockArray, Rejoins),
             make_nonreplicate_array(BasicBlockArray, Rejoins, NonRepArray),
-            interchunk_simplify(BasicBlockArray, Rejoins, NonRepArray,
-                                ReachedArray, Branches),
+            interchunk_simplify(BasicBlockArray, Rejoins, NonRepArray, ReachedArray, Branches),
+            functor(BasicBlockArray, F, N),
+            functor(ContArray, F, N),
+            % create ContArray: determine chunks that are continuations
+            % from 0  (ContArray[n] is var), 
+            %      1  (ContArray[n] = r(M), M is var)
+            %      1+ (ContArray[n] = r([])
+            % other chunks
+            (foreacharg(chunk{cont:Cont}, BasicBlockArray),
+             param(ContArray,ReachedArray) do
+                ( integer(Cont), Cont > 0,
+                  arg(Cont, ReachedArray, Reached),
+                  nonvar(Reached) % is a reached chunk
+                ->
+                    arg(Cont, ContArray, CStatus),
+                    (var(CStatus) -> CStatus = r(_) ; CStatus = r([]))
+                ;
+                    true
+                )
+            ),
             ( for(_,1,max_joined_len), 
-              param(BasicBlockArray, NonRepArray, ReachedArray) 
+              param(BasicBlockArray, NonRepArray, ReachedArray,ContArray) 
             do
-		join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray)
+		join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray, ContArray)
 	    ),
 	    ( foreacharg(chunk{code:Chunk,cont:Cont,len:Len,done:Done},
                          BasicBlockArray,I), 
@@ -98,12 +140,13 @@ simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
                     true
                 )
             ),
-	    basic_blocks_to_flat_instr(BasicBlockArray, Branches, WamList)
+	    basic_blocks_to_flat_code(BasicBlockArray, Branches, CodeList1),
+            simplify_chunk(CodeList1, SimpCodeList)  % run simplify again on entire code list
 	;
-	    ( foreach(code{instr:Instr},CodeList), foreach(Instr,Instrs) do
-		true
-	    ),
-	    simplify_chunk(Instrs, WamList)
+	    simplify_chunk(CodeList, SimpCodeList)
+        ),
+        ( foreach(code{instr:Instr},SimpCodeList), foreach(Instr,WamList) do
+            true
         ).
 
 
@@ -137,7 +180,7 @@ simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
 
 flat_code_to_basic_blocks(AnnCode, BasicBlockArray, Rejoins) :-
 	(
-	    fromto(AnnCode, [code{instr:Instr}|Code1], Code1, []),
+	    fromto(AnnCode, [AnnInstr|Code1], Code1, []),
 	    fromto(FirstChunk,Chunk0,Chunk1,LastChunk),
 	    fromto(FirstChunk,Tail0,Tail1,[]),
             fromto(1,Label0,Label1,_),	% last label (while in
@@ -148,6 +191,7 @@ flat_code_to_basic_blocks(AnnCode, BasicBlockArray, Rejoins) :-
             fromto([],Rejoins0,Rejoins1,Rejoins), % rejoin chunk numbers
             fromto(labels,State,State1,EndState)
 	do
+            AnnInstr = code{instr:Instr},
             ( Instr = label(L) ->
 		verify var(L),
                 ( State == rejoin ->
@@ -200,7 +244,7 @@ flat_code_to_basic_blocks(AnnCode, BasicBlockArray, Rejoins) :-
 		    Len1 = 0,
 		    succ(Len0, Len2),
 		    Chunk1 = Tail1,		% start a new chunk
-		    Tail0 = [Instr],		% terminate the previous chunk
+		    Tail0 = [AnnInstr],		% terminate the previous chunk
 		    Chunks0 = [chunk{code:Chunk0,len:Len2,cont:0}|Chunks1] % collect finished chunk
 		;
                     Len1 = 0,
@@ -246,7 +290,7 @@ flat_code_to_basic_blocks(AnnCode, BasicBlockArray, Rejoins) :-
                         Len1 = 0,
                         succ(Len0, Len2),
                         Chunk1 = Tail1,		% start a new chunk
-                        Tail0 = [Instr],	% terminat current chunk
+                        Tail0 = [AnnInstr],	% terminat current chunk
 			% collect finished chunk
                         Chunks0 = [chunk{code:Chunk0,len:Len2,cont:0}|Chunks1]
                     )
@@ -255,7 +299,7 @@ flat_code_to_basic_blocks(AnnCode, BasicBlockArray, Rejoins) :-
                     succ(Len0, Len1),
                     Chunk1 = Chunk0,
                     Chunks0 = Chunks1,
-                    Tail0 = [Instr|Tail1],	% append this instruction
+                    Tail0 = [AnnInstr|Tail1],	% append this instruction
                     next_state(Instr, State, State1)
                 )
             )
@@ -306,13 +350,13 @@ next_state(Instr, State, NextState) :-
     unconditional_transfer_out(ret).
     unconditional_transfer_out(retd).
     unconditional_transfer_out(retn).
-    unconditional_transfer_out(jmp(_)).
+/*    unconditional_transfer_out(jmp(_)).
     unconditional_transfer_out(jmpd(_)).
     unconditional_transfer_out(chain(_)).
     unconditional_transfer_out(chaind(_)).
     /* generated instr from peephole optimiser */
-    unconditional_transfer_out(branchs(_,_)).
-    unconditional_transfer_out(jmpd(_,_)).
+/*    unconditional_transfer_out(branchs(_,_)).
+    unconditional_transfer_out(jmpd(_,_)).*/
 
     % these are indexing branch instructions with a default fall-through
     % case. It is desirable that the fall-through code is contiguous with
@@ -355,14 +399,18 @@ find_reached_chunks(BasicBlockArray, NonRepArray, ReachedArray, Targets) :-
 find_reached_chunks_(Chunk, BasicBlockArray, NonRepArray, ReachedArray, Targets,
                      TargetsT0, TargetArray, NL0, NL) :-
         Chunk = chunk{cont:Cont,code:Code},
-        ( integer(Cont), Cont > 0 -> 
-            arg(Cont, ReachedArray, []),
+        process_chunk_targets(Code, BasicBlockArray, NonRepArray, TargetArray, 
+                              NL0, NL1, TargetsT0, TargetsT1, NewCode),
+        setarg(code of chunk, Chunk, NewCode),
+        ( integer(Cont), Cont > 0,    % continue to another chunk 
+          arg(Cont, ReachedArray, ReachedCont), 
+          var(ReachedCont)  % that chunk have not yet been reached
+        -> 
+            ReachedCont =  [],  % Mark as reached
             arg(Cont, BasicBlockArray, ContChunk)
         ; 
             true
         ),
-        process_chunk_targets(Code, BasicBlockArray, NonRepArray, TargetArray, 
-                              [], NL0, NL1, TargetsT0, TargetsT1),
         ( nonvar(ContChunk) ->
             find_reached_chunks_(ContChunk, BasicBlockArray, NonRepArray, ReachedArray, 
                                  Targets, TargetsT1, TargetArray, NL1, NL)
@@ -377,9 +425,9 @@ find_chunks_in_branch(Targets, BasicBlockArray, NonRepArray, ReachedArray,
             true % queue empty, done
         ;
             Targets = [Target|Targets0],
-            arg(Target, ReachedArray, Ref),
-            ( var(Ref) ->  % not yet processed
-                Ref = [], % process it now
+            arg(Target, ReachedArray, RefStatus),
+            ( var(RefStatus) ->  % not yet processed
+                RefStatus = [], % process it now, and mark it as reached
                 arg(Target, BasicBlockArray, Chunk),
                 find_reached_chunks_(Chunk, BasicBlockArray, NonRepArray, ReachedArray,
                     Targets0, TargetsT, TargetArray, NL0, NL)
@@ -392,102 +440,123 @@ find_chunks_in_branch(Targets, BasicBlockArray, NonRepArray, ReachedArray,
 % Find all ref()s that refer to unprocessed chunks and queue the labels
 % also perform inter-chunk optimisations by looking at the instructions
 % in the original chunk and the chunks being ref'ed
-process_chunk_targets([I|Rest0], BasicBlockArray, NonRepArray, TargetArray, 
-                      Prev, NL0, NL, TargetsT0, TargetsT) ?-
-        process_instr_targets(I, BasicBlockArray, NonRepArray, TargetArray,
-                              Rest0, Rest1, Prev, NL0, NL1, TargetsT0, TargetsT1),
+process_chunk_targets([Code|Rest0], BasicBlockArray, NonRepArray, TargetArray, 
+                      NL0, NL, TargetsT0, TargetsT, New) ?-
+        Code = code{instr:I},        
+        process_instr_targets(I, Code, BasicBlockArray, NonRepArray, TargetArray,
+                              Rest0, Rest1, NL0, NL1, TargetsT0, TargetsT1, New, New1),
         process_chunk_targets(Rest1, BasicBlockArray, NonRepArray, TargetArray,
-                              [I|Prev], NL1, NL, TargetsT1, TargetsT).
-process_chunk_targets([], _, _, _, _, NL0, NL, TargetsT0, TargetsT) ?-
-            NL0 = NL, TargetsT0 = TargetsT.
+                              NL1, NL, TargetsT1, TargetsT, New1).
+process_chunk_targets([], _, _, _, NL0, NL, TargetsT0, TargetsT, New) ?-
+            NL0 = NL, TargetsT0 = TargetsT, New = [].
 
 
-process_instr_targets(atom_switch(a(A),Table,ref(Def)), BasicBlockArray, 
-    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?-
+process_instr_targets(atom_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, NonRepArray, TargetArray,
+    Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?-
         !,
         Rest0 = Rest,
         mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
+        update_struct(code, [instr:atom_switch(a(A),NewTable,ref(Def))], Code, NewCode),
+        New = [NewCode|NewT],
         ( foreach(Atom-Ref, Table), 
+          foreach(Atom-NewRef, NewTable),
           fromto(TargetsT1, TT2,TT3, TargetsT),
           fromto(NL0, NL1,NL2, NL),
           param(BasicBlockArray,NonRepArray,TargetArray,A)
         do
             skip_subsumed_instr([(get_atom(a(A),Atom),next), 
                                  (in_get_atom(a(A),Atom),next)], 
-                                Ref, BasicBlockArray,
-                                NonRepArray, TargetArray, NL1, NL2, TT2, TT3)
+                                Ref, BasicBlockArray, NonRepArray, TargetArray, NL1, NL2, TT2, TT3, NewRef)
         ).
-process_instr_targets(functor_switch(a(A),Table,ref(Def)), BasicBlockArray, 
-    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?- !,
+process_instr_targets(functor_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, NonRepArray, 
+    TargetArray, Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?- !,
         Rest0 = Rest,
         mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
+        update_struct(code, [instr:functor_switch(a(A),NewTable,ref(Def))], Code, NewCode),
+        New = [NewCode|NewT],
         ( foreach(Func-FRef, Table), 
+          foreach(Func-NewFRef, NewTable),
           fromto(TargetsT1, TT2,TT3, TargetsT),
           fromto(NL0, NL1,NL2, NL),
           param(BasicBlockArray,NonRepArray,TargetArray,A)
         do
             skip_subsumed_instr([(get_structure(a(A),Func,ReadRef),ReadRef),
                                  (in_get_structure(a(A),Func,InRef),InRef)], 
-                 FRef, BasicBlockArray, NonRepArray, TargetArray, NL1,NL2, TT2,TT3)
+                 FRef, BasicBlockArray, NonRepArray, TargetArray, NL1,NL2, TT2,TT3, NewFRef)
         ). 
-process_instr_targets(integer_switch(a(A),Table,ref(Def)), BasicBlockArray, 
-    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?- !,
+process_instr_targets(integer_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, NonRepArray,  
+    TargetArray, Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?- !,
         Rest0 = Rest,
         mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
+        update_struct(code, [instr:integer_switch(a(A),NewTable,ref(Def))], Code, NewCode),
+        New = [NewCode|NewT],
         ( foreach(Int-Ref, Table), 
+          foreach(Int-NewRef, NewTable),
           fromto(TargetsT1, TT2,TT3, TargetsT),
           fromto(NL0, NL1,NL2, NL),
           param(BasicBlockArray,NonRepArray,TargetArray,A)
         do
             skip_subsumed_instr([(get_integer(a(A),Int),next),
                                  (in_get_integer(a(A),Int),next)], 
-                                Ref, BasicBlockArray,
-                                NonRepArray, TargetArray, NL1, NL2, TT2, TT3)
+                                Ref, BasicBlockArray, NonRepArray, TargetArray, NL1, NL2, TT2, TT3, NewRef)
+                                
         ). 
-process_instr_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), BasicBlockArray, 
-    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?- !,
+process_instr_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), Code, BasicBlockArray, NonRepArray, TargetArray, 
+    Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?- !,
         Rest0 = Rest,
         mark_and_accumulate_targets(VarLab, TargetArray, TargetsT0, TargetsT1),
+        update_struct(code, [instr:list_switch(a(A),NewListRef,NewNilRef,ref(VarLab))], Code, NewCode),
+        New = [NewCode|NewT],
         skip_subsumed_instr([(get_list(a(A),ReadRef),ReadRef),
                             (in_get_list(a(A),InRef),InRef)], ListRef, 
-             BasicBlockArray, NonRepArray, TargetArray, NL0, NL1, TargetsT1, TargetsT2),
+                            BasicBlockArray, NonRepArray, TargetArray, NL0, NL1, TargetsT1, TargetsT2, NewListRef),
         skip_subsumed_instr([(get_nil(a(A)),next),
                              (in_get_nil(a(A)),next)], 
-                            NilRef, BasicBlockArray,
-                            NonRepArray, TargetArray, NL1, NL, TargetsT2, TargetsT).
-process_instr_targets(switch_on_type(a(A),SwitchList), BasicBlockArray, 
-    NonRepArray, TargetArray, Rest0, Rest, _RC, NL0, NL, TargetsT0, TargetsT) ?- !,
-        ( Rest0 = [branch(VRef)|_] ->
-            Rest0 = Rest,
+                            NilRef, BasicBlockArray,  NonRepArray, TargetArray, NL1, NL, TargetsT2, TargetsT, NewNilRef).
+process_instr_targets(switch_on_type(a(A),SwitchList), Code, BasicBlockArray, NonRepArray, TargetArray, 
+    Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?- !,
+        update_struct(code, [instr:switch_on_type(a(A),NewSwitchList)], Code, NewCode),
+        New = [NewCode|NewT1],
+        ( Rest0 =  [Code1|Rest1],
+          Code1 = code{instr:branch(VRef)} ->
+            Rest1 = Rest,
+            update_struct(code, [instr:branch(NewVRef)], Code1, NewCode1),
+            NewT1 = [NewCode1|NewT],
             subsumed_type_instr(var, A, VSkipCands),
             skip_subsumed_instr(VSkipCands, VRef, BasicBlockArray, NonRepArray,
-                                TargetArray, NL0, NL1, TargetsT0, TargetsT1)
-        ;
+                                TargetArray, NL0, NL1, TargetsT0, TargetsT1, NewVRef)
+        ; /*Code1 \= code{instr:label(_)} ->*/
+            % no label, just check if next instruction is a type test that
+            % can be skipped entirely
             % if the fall through code continues without branching, it may 
             % not be worthwhile to add a branch to skip the following
             % instruction
             Rest0 = Rest,
+            NewT1 = NewT,
             NL0  = NL1,
             TargetsT0 = TargetsT1
         ),
         (
             foreach(Type:Ref, SwitchList),
+            foreach(Type:NewRef,NewSwitchList),
             fromto(TargetsT1, TT1,TT2, TargetsT),
             fromto(NL1, NL2,NL3, NL),
             param(BasicBlockArray,NonRepArray,TargetArray,A)
         do
             ( subsumed_type_instr(Type, A, SkipCandidates) -> 
                 skip_subsumed_instr(SkipCandidates, Ref, BasicBlockArray,
-                    NonRepArray, TargetArray, NL2,NL3, TT1,TT2)
+                    NonRepArray, TargetArray, NL2,NL3, TT1,TT2, NewRef)
             ;
                 Ref = ref(Label),
                 NL2 = NL3,
+                NewRef = Ref,
                 mark_and_accumulate_targets(Label, TargetArray, TT1, TT2) 
             )
         ).
-process_instr_targets(Xs, _BasicBlockArray, _NonRepArray, TargetArray, 
-                      Rest, Rest, _RC, NL, NL, TargetsT0, TargetsT) :-
-       find_targets(Xs, TargetArray, TargetsT0, TargetsT).
+process_instr_targets(Xs, Code, _BasicBlockArray, _NonRepArray, TargetArray, 
+                      Rest, Rest, NL, NL, TargetsT0, TargetsT, New, NewT) :-
+        New = [Code|NewT],
+        find_targets(Xs, TargetArray, TargetsT0, TargetsT).
 
 
 find_targets(ref(L), TargetArray, TargetsT0, TargetsT1) ?- !, 
@@ -512,7 +581,7 @@ mark_and_accumulate_targets(T, TargetArray, TargetsT0, TargetsT1) :-
 	    var(IsNew)
 	->
 	    TargetsT0 = [T|TargetsT1],
-            IsNew = []
+            IsNew = []  % mark target chunk as reached
 	;
 	    TargetsT0 = TargetsT1
 	).
@@ -523,43 +592,45 @@ mark_and_accumulate_targets(T, TargetArray, TargetsT0, TargetsT1) :-
 % instruction, either to the following instruction, or to the target
 % given in NewRef
 skip_subsumed_instr(Candidates, BaseRef, BasicBlockArray, NonRepArray, 
-                    TargetArray,  NL0, NL1, TargetsT0, TargetsT1) :-
+                    TargetArray,  NL0, NL1, TargetsT0, TargetsT1, NewRef) :-
         BaseRef = ref(BaseTarget),
         ( integer(BaseTarget),
           arg(BaseTarget, BasicBlockArray, Chunk),
           Chunk = chunk{code:Code},
-          match_skipped_instr(Candidates, SkipInstr, NewRef, Code, Rest)
+          match_skipped_instr(Candidates, SkipInstr, NewRefPos, Code, Rest)
           %Code = [SkipInstr|Rest] % Base chunk has skipped instr
         ->  
-            ( NewRef == next ->  % new target follows skipped instr  
-                ( Rest = [label(NL)|_] ->
-                    NewCode = [SkipInstr|Rest], % has a label already
+            ( NewRefPos == next ->  % new target follows skipped instr  
+                ( Rest = [code{instr:label(NL)}|_] ->
+                    NewCode = [code{instr:SkipInstr}|Rest], % has a label already
                     NL1 = NL0
                 ;
                     NL = NL0,               % add a new label
-                    NewCode = [SkipInstr,label(NL)|Rest],
+                    NewCode = [code{instr:SkipInstr},code{instr:label(NL)}|Rest],
                     NL1 is NL0 + 1
                 ),
                 arg(BaseTarget, NonRepArray, []), % chunk now non-replicatable
-                setarg(1, BaseRef, NL),   % move target to after skipped instr 
+                NewRef = ref(NL),  % move target to after skipped instr 
                 setarg(code of chunk, Chunk, NewCode),
                 % jumping into chunk BaseTarget, so mark it if needed
                 mark_and_accumulate_targets(BaseTarget, TargetArray, TargetsT0, TargetsT1)
-            ; NewRef = ref(NewTarget) -> % new target is an existing label
+            ; NewRefPos = ref(NewTarget) -> % new target is an existing label
                 NL1 = NL0,
-                setarg(1, BaseRef, NewTarget),  
+                NewRef = NewRefPos,
                 mark_and_accumulate_targets(NewTarget, TargetArray, TargetsT0, TargetsT1)
             ;   % don't know where new target is
                 TargetsT0 = TargetsT1,
-                NL0 = NL1
+                NL0 = NL1,
+                NewRef = BaseRef
             )
         ;   % SkipInstr not matched
             NL0 = NL1,
+            NewRef = BaseRef,
             mark_and_accumulate_targets(BaseTarget, TargetArray, TargetsT0, TargetsT1)
         ).
 
 match_skipped_instr([(Candidate,NewRef0)|Candidates], SkipInstr, NewRef, Code, Rest) :-
-        ( Code = [Candidate|Rest] ->
+        ( Code = [code{instr:Candidate}|Rest] ->
             SkipInstr = Candidate,
             NewRef0 = NewRef
         ;
@@ -572,21 +643,25 @@ match_skipped_instr([(Candidate,NewRef0)|Candidates], SkipInstr, NewRef, Code, R
 subsumed_type_instr(meta, A, [(bi_var(a(A)),next),(bi_meta(a(A)),next),(in_get_meta(a(A),_),next)]).
 subsumed_type_instr([], A, [(get_nil(a(A)),next),(bi_atom(a(A)),next),
                             (bi_atomic(a(A)),next),
-                            (bi_nonvar(a(A)),next),(in_get_nil(a(A)),next)]).
-subsumed_type_instr(atom, A, [(bi_atom(a(A)),next),(bi_atomic(a(A)),next)]).
+                            (bi_nonvar(a(A)),next),(in_get_nil(a(A)),next),
+                            (bi_nonvar(a(A)),next)]).
+subsumed_type_instr(atom, A, [(bi_atom(a(A)),next),(bi_atomic(a(A)),next),
+                              (bi_nonvar(a(A)),next)]).
 subsumed_type_instr(bignum, A, [(bi_number(a(A)),next),(bi_integer(a(A)),next),
-                                (bi_atomic(a(A)),next)]).
+                                (bi_atomic(a(A)),next),
+                                (bi_nonvar(a(A)),next)]).
 subsumed_type_instr(integer, A, [(bi_number(a(A)),next),(bi_integer(a(A)),next),
-                                (bi_atomic(a(A)),next)]).
+                                (bi_atomic(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(breal, A, [(bi_number(a(A)),next),(bi_real(a(A)),next),
-                               (bi_breal(a(A)),next)]).
+                               (bi_breal(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(double, A, [(bi_number(a(A)),next),(bi_real(a(A)),next),
-                               (bi_float(a(A)),next)]).
-subsumed_type_instr(handle, A, [(bi_is_handle(a(A)),next)]).
-subsumed_type_instr(list, A, [(bi_is_list(a(A)),next),(bi_compound(a(A)),next)]).
-subsumed_type_instr(rational, A, [(bi_number(a(A)),next),(bi_rational(a(A)),next)]).
-subsumed_type_instr(string, A, [(bi_atomic(a(A)),next),(bi_string(a(A)),next)]).
-subsumed_type_instr(structure, A, [(bi_compound(a(A)),next)]).
+                               (bi_float(a(A)),next),(bi_nonvar(a(A)),next)]).
+subsumed_type_instr(handle, A, [(bi_is_handle(a(A)),next),(bi_nonvar(a(A)),next)]).
+subsumed_type_instr(list, A, [(bi_is_list(a(A)),next),(bi_compound(a(A)),next),
+                              (bi_nonvar(a(A)),next)]).
+subsumed_type_instr(rational, A, [(bi_number(a(A)),next),(bi_rational(a(A)),next),(bi_nonvar(a(A)),next)]).
+subsumed_type_instr(string, A, [(bi_atomic(a(A)),next),(bi_string(a(A)),next),(bi_nonvar(a(A)),next)]).
+subsumed_type_instr(structure, A, [(bi_compound(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(var, A, [(bi_var(a(A)),next),(bi_free(a(A)),next)]).
 
 % rejoin adjacent chunks that should be contiguous if the first chunk
@@ -600,12 +675,12 @@ rejoin_contiguous_chunks(BasicBlockArray, ReachedArray, Rejoins) :-
             ( nonvar(Reached) -> % first chunk of rejoin chunks reached? 
                 succ(R, NextC),  % yes, rejoin with succeeding chunk
                 % succeeding chunk mark as processed
-                arg(NextC, BasicBlockArray, chunk{len:NextLen,code:NextCode,
-                                                  cont:NextCont,done:done}),
-                append(Code, [label(NextC)|NextCode],NewCode),
+                arg(NextC, BasicBlockArray, NextChunk),
+                NextChunk = chunk{len:NextLen,code:NextCode,cont:NextCont,done:done},
+                append(Code, [code{instr:label(NextC)}|NextCode],NewCode),
                 NewLen is Len + NextLen,
-                setarg(R, BasicBlockArray, chunk{len:NewLen,code:NewCode,
-                                                 cont:NextCont})
+                setarg(R, BasicBlockArray, chunk{len:NewLen,code:NewCode, cont:NextCont}),
+                setarg(cont of chunk, NextChunk, 0)  % get rid of the old continuation in the discarded chunk
             ;
                 % first chunk not reached, so don't join
                 true
@@ -627,13 +702,14 @@ make_nonreplicate_array(BasicBlockArray, Rejoins, NonRepArray) :-
 % be replicated -- i.e. there are no labels inside the continuation chunk.
 % An optimisation is that if the continuation immediately jumps elsewhere,
 % the continuation of the chunk is simply updated.
-join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray) :-
+join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray, ContArray) :-
 	(
 	    foreacharg(Chunk,BasicBlockArray,I),
-	    param(BasicBlockArray,NonRepArray,ReachedArray)
+	    param(BasicBlockArray,NonRepArray,ReachedArray,ContArray)
 	do
             Chunk = chunk{cont:Cont,len:Len,code:Code,done:Done},
-            ( arg(I, ReachedArray, ReachedI), var(ReachedI) ->
+            arg(I, ReachedArray, ReachedI),
+            ( var(ReachedI) ->
                 % chunk not reached, don't join
                 true
             ; nonvar(Done) ->
@@ -641,18 +717,20 @@ join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray) :-
                 true
             ; Cont == 0 ->
 		true
-	    ; (arg(Cont, NonRepArray, NonRepC), nonvar(NonRepC) ) ->
+	    ; arg(Cont, NonRepArray, NonRepC), nonvar(NonRepC)  ->
                 true  % next chunk should not be replicated -- don't join
+            ; arg(Cont, ContArray, CStatus), CStatus = r(M), var(M) ->
+                true % cont chunk is continuation for one chunk only, don't join now
             ;
                 arg(Cont, BasicBlockArray, NextChunk),
 		NextChunk = chunk{len:ContLen,code:ContCode,cont:ContCont},
 		( ContLen > max_joined_len ->
 		    true
-                ;
+                ; 
                     append(Code, ContCode, NewCode),
 		    NewLen is Len+ContLen,
 		    setarg(I, BasicBlockArray, chunk{code:NewCode,len:NewLen,cont:ContCont})
-		)
+                )
 	    )
 	).
 
@@ -662,33 +740,33 @@ join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray) :-
 % The done-flag in the array indicates whether the chunk has already been
 % processed.
 
-basic_blocks_to_flat_instr(BasicBlockArray, Reached, Instrs) :-
+basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
 	(
 	    fromto(1,I,NextI,0),			% current chunk
 	    fromto(1,PrevCont,Cont,_),			% prev. chunk's continuation
 	    fromto(Reached,Reached1,Reached2,_),	% ref-targets (queue)
-	    fromto(Instrs,Instrs0,Instrs2,[]),		% result list
+	    fromto(Code,Code0,Code2,[]),		% result list
 	    param(BasicBlockArray)
 	do
 	    arg(I, BasicBlockArray, Chunk),
-	    Chunk = chunk{code:Code,done:Done,cont:Cont0},
+	    Chunk = chunk{code:ChunkCode,done:Done,cont:Cont0},
 	    ( var(Done) ->
 		% process chunk: append code to final code list
 		Done = done,
 		Cont = Cont0,
-		Instrs0 = [label(I)|Instrs1],
-		append(Code, Instrs2, Instrs1)
+		Code0 = [code{instr:label(I)}|Code1],
+		append(ChunkCode, Code2, Code1)
 	    ; PrevCont == I ->
 		% previous chunk continues into this one, but it has already
 		% been emitted, so we need a branch 
                 % can't copy because 
                 %  1) chunk may have labels
                 %  2) no length info for chunk because of simplification
-                Instrs0 = [branch(ref(I))|Instrs2],
+                Code0 = [code{instr:branch(ref(I))}|Code2],
 		Cont = 0
 	    ;
 		Cont = 0,
-		Instrs0 = Instrs2
+		Code0 = Code2
 	    ),
 	    % Choose the next chunk to process: prefer the current chunk's
 	    % continuation, otherwise pick one from the queue
@@ -701,58 +779,67 @@ basic_blocks_to_flat_instr(BasicBlockArray, Reached, Instrs) :-
 	    )
 	).
 
-                     
+
 %----------------------------------------------------------------------
 % simplify a basic block
 %----------------------------------------------------------------------
 
+% simplify_chunk leaves the annotations around instructions so that it can be
+% run multiple times on a chunk
 simplify_chunk([], []).
-simplify_chunk([Instr|More], SimplifiedCode) :-
-        ( simplify(Instr, More, SimplifiedCode, MoreTail, SimplifiedCodeTail) ->
+simplify_chunk([AnnInstr|More], SimplifiedCode) :-
+        AnnInstr = code{instr:Instr},
+        ( simplify(Instr, AnnInstr, More, SimplifiedCode, MoreTail, SimplifiedCodeTail) ->
 	    simplify_chunk(MoreTail, SimplifiedCodeTail)
 	;
-	    SimplifiedCode = [Instr|SimplifiedCodeTail],
+	    SimplifiedCode = [AnnInstr|SimplifiedCodeTail],
 	    simplify_chunk(More, SimplifiedCodeTail)
 	).
 
 
-% simplify(+Instr, +Follow, -New, -FollowTail, -NewTail)
-% New is where the simplified instruction goes, with an uninstantiated NewTail
-% FollowTail is the tail of the existing following instruction, with the head being
-% the next instruction to simplified
+% simplify(+Instr, +Code, +Follow, -New, -FollowTail, -NewTail)
+% New is where the simplified annotated instruction goes, with an 
+% uninstantiated NewTail FollowTail is the tail of the existing following 
+% instruction, with the head being the next instruction to simplified.
+% Code is the annotated version of Instr. Instr is extracted to allow
+% for indexing.
 
-simplify(nop, More, New, MoreT, NewT) ?- !, 
+simplify(nop, _, More, New, MoreT, NewT) ?- !, 
         NewT = New,
         MoreT = More.
 
-simplify(move(X,X), More, New, MoreT, NewT) ?- !, 
+simplify(move(X,X), _, More, New, MoreT, NewT) ?- !, 
         NewT = New,
         MoreT = More.
 
-simplify(initialize(y([])), More, New, MoreT, NewT) ?- !, 
+simplify(initialize(y([])), _, More, New, MoreT, NewT) ?- !, 
         NewT = New,
         MoreT = More.
 
-simplify(callf(P,eam(0)), [Instr|More], New, MoreT, NewT) ?- !,
-	New = [NewInstr|NewT],
+simplify(callf(P,eam(0)), Code, [code{instr:Instr}|More], New, MoreT, NewT) ?- !,
         MoreT = More,
+        New = [NewCode|NewT],
+        % body goals order rearranged here to avoid old compiler bug
+        update_struct(code, instr:NewInstr, Code, NewCode),
 	simplify_call(P, Instr, NewInstr).
 
-simplify(call(P,eam(0)), [Instr|More], New, MoreT, NewT) ?- !,
-	New = [NewInstr|NewT],
+simplify(call(P,eam(0)), Code, [code{instr:Instr}|More], New, MoreT, NewT) ?- !,
         MoreT = More,
+	New = [NewCode|NewT],
+        % body goals order rearranged here to avoid old compiler bug
+        update_struct(code, instr:NewInstr, Code, NewCode),
 	simplify_call(P, Instr, NewInstr).
 
 /*simplify(cut(y(1),_N), [exit|More], New) ?- !,
         New = [exitc|More].
 */
-simplify(savecut(a(A)), [cut(a(A))|More], New, MoreT, NewT) ?- !,
+simplify(savecut(a(A)), Code, [code{instr:cut(a(A))}|More], New, MoreT, NewT) ?- !,
         % remove cut(..) and allow savecut(..) to be examined again for further simplifications
-        MoreT = [savecut(a(A))|More],
+        MoreT = [Code|More],
         New = NewT.
 
-simplify(savecut(_), More, New, MoreT, NewT) ?- !,
-        More = [Instr|_],
+simplify(savecut(_), _, More, New, MoreT, NewT) ?- !,
+        More = [code{instr:Instr}|_],
         New = NewT,
         More = MoreT,
         unconditional_transfer_out(Instr).
@@ -761,17 +848,17 @@ simplify(savecut(_), More, New, MoreT, NewT) ?- !,
         B is A + 1,
         New = [write_structure(F/A)|More].
 */
-simplify(allocate(N), [move(a(I),y(J))|More], New, MoreT, NewT) ?- !,
+simplify(allocate(N), _, [code{instr:move(a(I),y(J)),regs:Regs}|More], New, MoreT, NewT) ?- !,
         More = MoreT,
-        New = [get_variable(N, a(I), y(J))|NewT].
+        New = [code{instr:get_variable(N, a(I), y(J)),regs:Regs}|NewT].
 
-simplify(space(N), [branch(L)|More], New, MoreT, NewT) ?- !,
+simplify(space(N), _, [code{instr:branch(L)}|More], New, MoreT, NewT) ?- !,
         More = MoreT,
-        New = [branchs(N,L)|NewT].
+        New = [code{instr:branchs(N,L)}|NewT].
 
-simplify(space(N), [jmpd(L)|More], New, MoreT, NewT) ?- !,
+simplify(space(N), _, [code{instr:jmpd(L)}|More], New, MoreT, NewT) ?- !,
         More = MoreT,
-        New = [jmpd(N,L)|NewT].
+        New = [code{instr:jmpd(N,L)}|NewT].
 
 	% the code generator compiles attribute unification as if it were
 	% unifying a meta/N structure. Since attribute_name->slot mapping
@@ -787,33 +874,34 @@ simplify(space(N), [jmpd(L)|More], New, MoreT, NewT) ?- !,
 	% with multiple attributes being matched at once. This restriction
 	% also exists in the old compiler; lifting it requires a different
 	% compilation scheme with probably new instructions.
-simplify(read_attribute(FirstName), More0, New, MoreT, NewT) ?-
+simplify(read_attribute(FirstName), _, More0, New, MoreT, NewT) ?-
 	meta_index(FirstName, I0),
 	count_same_instr(More0, read_void, I0, I, More1),
 	I > I0,
-	More1 = [Read|More2],
+	More1 = [AnnRead|More2],
+        AnnRead = code{instr:Read},
 	is_read_instruction(Read),
 	!,
 	% we have read_voids followed by another read: simplify
 	(
 	    meta_index(Name, I),
 	    count_same_instr(More2, read_void, 1, _, MoreT),
-	    MoreT = [After|_],
+	    MoreT = [code{instr:After}|_],
 	    \+ is_read_instruction(After)
 	->
-            New = [read_attribute(Name),Read|NewT]
+            New = [code{instr:read_attribute(Name)},AnnRead|NewT]
 	;
 	    warning("Implementation limit: cannot make attribute matching code"),
 	    warning("session-independent if matching more than one attribute."),
 	    fail
 	).
 
-simplify(read_void, Rest, New, RestT, NewT) ?- !,
-        Rest = [Instr0|Rest0],
+simplify(read_void, _, Rest, New, RestT, NewT) ?- !,
+        Rest = [code{instr:Instr0}|Rest0],
         (Instr0 == read_void ->
             count_same_instr(Rest0, read_void, 2, N, RestT),
-            (RestT = [Instr|_], is_in_read_struct(Instr) ->
-               New = [read_void(N)|NewT]
+            (RestT = [code{instr:Instr}|_], is_in_read_struct(Instr) ->
+               New = [code{instr:read_void(N)}|NewT]
             ;
                New = NewT % skip trailing read_voids
             )
@@ -824,43 +912,392 @@ simplify(read_void, Rest, New, RestT, NewT) ?- !,
             New = NewT 
         ).
 
-simplify(write_void, [write_void|Rest0], New, RestT, NewT) ?- !,
+simplify(write_void, _, [code{instr:write_void}|Rest0], New, RestT, NewT) ?- !,
         count_same_instr(Rest0, write_void, 2, N, RestT),
-        New = [write_void(N)|NewT]. 
+        New = [code{instr:write_void(N)}|NewT]. 
 
-simplify(push_void, [push_void|Rest0], New, RestT, NewT) ?- !,
+simplify(push_void, _, [code{instr:push_void}|Rest0], New, RestT, NewT) ?- !,
         count_same_instr(Rest0, push_void, 2, N, RestT),
-        New = [push_void(N)|NewT]. 
+        New = [code{instr:push_void(N)}|NewT]. 
 
-simplify(move(y(Y1),a(A1)), [Instr0|Rest0], New, RestT, NewT) ?- 
-        Instr0 = move(y(Y2),a(A2)), !,
+simplify(move(y(Y1),a(A1)), _, [AnnInstr0|Rest0], New, RestT, NewT) ?- 
+        AnnInstr0 = code{instr:move(y(Y2),a(A2))}, !,
         ( A2 =:= A1 + 1, Y2 =:= Y1 + 1 ->
             % the arguments for the moves are consecutive
             extract_conargs_moves(Rest0, move(y(Y),a(A)), Y, A, Y1, A1, 2, N, RestT),
-            New = [move(N,y(Y1),a(A1))|NewT]
+            New = [code{instr:move(N,y(Y1),a(A1))}|NewT]
         ;
             MoveInstrs = [move(y(Y1),a(A1))|MoveInstrs0],
-            extract_nonconargs_moves(Rest0, move(y(_),a(_)), Instr0, Y2, A2, MoveInstrs0, RestT),
+            extract_nonconargs_moves(Rest0, move(y(_),a(_)), AnnInstr0, Y2, A2, MoveInstrs0, RestT),
             MoveInstrs \= [_], % no compact possible with single move
             compact_moves(MoveInstrs, New, NewT)
         ).
 
-simplify(move(a(A1),y(Y1)), [Instr0|Rest0], New, RestT, NewT) ?- 
-        Instr0 = move(a(A2),y(Y2)), !,
+simplify(move(a(A1),y(Y1)), _, [AnnInstr0|Rest0], New, RestT, NewT) ?- 
+        AnnInstr0 = code{instr:move(a(A2),y(Y2))}, !,
         ( A2 =:= A1 + 1, Y2 =:= Y1 + 1 ->
             % the arguments for the moves are consecutive
             extract_conargs_moves(Rest0, move(a(A),y(Y)), A, Y, A1, Y1, 2, N, RestT),
-            New = [move(N,a(A1),y(Y1))|NewT]
+            New = [code{instr:move(N,a(A1),y(Y1))}|NewT]
         ;
             MoveInstrs = [move(a(A1),y(Y1))|MoveInstrs0],
-            extract_nonconargs_moves(Rest0, move(a(_),y(_)), Instr0, A2, Y2, MoveInstrs0, RestT),
+            extract_nonconargs_moves(Rest0, move(a(_),y(_)), AnnInstr0, A2, Y2, MoveInstrs0, RestT),
             MoveInstrs \= [_], % no compact possible with single move
             compact_moves(MoveInstrs, New, NewT)
         ).
 
+simplify(move(y(Y),a(A)), _, [code{instr:callf(P,EAM)}|Rest0], New, RestT, NewT) ?- !,
+        ( EAM == eam(0) ->
+            Rest0 = [code{instr:Instr}|Rest1],
+            ( simplify_call(P, Instr, NewInstr) ->
+                simplify(move(y(Y),a(A)), _, [code{instr:NewInstr}|Rest1], New, RestT, NewT)
+            ;
+                New = [code{instr:move_callf(y(Y),a(A),P,EAM)}|NewT],
+                RestT = Rest0
+            )
+        ;
+                New = [code{instr:move_callf(y(Y),a(A),P,EAM)}|NewT],
+                RestT = Rest0
+        ).
+
+simplify(move(y(Y),a(A)), _, [code{instr:jmp(P)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:move_jmp(y(Y),a(A),P)}|NewT],
+        RestT = Rest.
+
+simplify(move(y(Y),a(A)), _, [code{instr:chain(P)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:move_chain(y(Y),a(A),P)}|NewT],
+        RestT = Rest.
+
+simplify(put_global_variable(a(A),y(Y)), _, [code{instr:callf(P,EAM)}|Rest0], New, RestT, NewT) ?- !,
+        ( EAM == eam(0) ->
+            Rest0 = [code{instr:Instr}|Rest1],
+            ( simplify_call(P, Instr, NewInstr) ->
+                simplify(put_global_variable(a(A),y(Y)), _, [code{instr:NewInstr}|Rest1], New, RestT, NewT)
+            ;
+                New = [code{instr:put_global_variable_callf(a(A),y(Y),P,EAM)}|NewT],
+                RestT = Rest0
+            )
+        ;
+                New = [code{instr:put_global_variable_callf(a(A),y(Y),P,EAM)}|NewT],
+                RestT = Rest0
+        ).
+
+simplify(put_global_variable(a(A),y(Y)), _, [code{instr:jmp(P)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:put_global_variable_jmp(a(A),y(Y),P)}|NewT],
+        RestT = Rest.
+
+simplify(put_global_variable(a(A),y(Y)), _, [code{instr:chain(P)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:put_global_variable_chain(a(A),y(Y),P)}|NewT],
+        RestT = Rest.
+
+simplify(move(a(A1),a(A2)), Code, Rest, New, RestT, NewT) ?- !,
+        Code = code{regs:Regs},
+        extract_moveaas(Rest, Moves, RegInfos, RestT), 
+        simplify_moveaas([A1-A2|Moves], [Regs|RegInfos], New, NewT).
+
+simplify(move(y(Y1),y(Y2)), _, [code{instr:move(y(Y3),y(Y4))}|Rest], New, RestT, NewT) ?- !,
+        ( Rest = [code{instr:move(y(Y5),y(Y6))}|Rest0] ->
+            New = [code{instr:move3(y(Y1),y(Y2),y(Y3),y(Y4),y(Y5),y(Y6))}|NewT],
+            Rest0 = RestT
+        ;
+            New = [code{instr:move2(y(Y1),y(Y2),y(Y3),y(Y4))}|NewT],
+            Rest = RestT
+        ).
+
+simplify(read_variable(a(A1)), _, [code{instr:read_variable(a(A2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:read_variable2(a(A1),a(A2))}|NewT],
+        RestT = Rest.
+
+simplify(read_variable(a(A1)), _, [code{instr:read_variable(y(Y2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:read_variable2(a(A1),y(Y2))}|NewT],
+        RestT = Rest.
+
+simplify(write_variable(a(A1)), _, [code{instr:write_variable(a(A2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_variable2(a(A1),a(A2))}|NewT],
+        RestT = Rest.
+
+simplify(push_variable(a(A1)), _, [code{instr:push_variable(a(A2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_variable2(a(A1),a(A2))}|NewT],
+        RestT = Rest.
+
+simplify(write_variable(a(A1)), _, [code{instr:write_variable(y(Y2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_variable2(a(A1),y(Y2))}|NewT],
+        RestT = Rest.
+
+simplify(read_variable(y(Y1)), _, [code{instr:read_variable(y(Y2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:read_variable2(y(Y1),y(Y2))}|NewT],
+        RestT = Rest.
+
+simplify(write_variable(y(Y1)), _, [code{instr:write_variable(y(Y2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_variable2(y(Y1),y(Y2))}|NewT],
+        RestT = Rest.
+
+simplify(push_variable(y(Y1)), _, [code{instr:push_variable(y(Y2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_variable2(y(Y1),y(Y2))}|NewT],
+        RestT = Rest.
+
+simplify(write_local_value(a(A1)), _, [code{instr:write_local_value(a(A2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_local_value2(a(A1),a(A2))}|NewT],
+        RestT = Rest.
+
+simplify(write_local_value(y(Y1)), _, [code{instr:write_local_value(y(Y2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_local_value2(y(Y1),y(Y2))}|NewT],
+        RestT = Rest.
+
+simplify(push_local_value(a(A1)), _, [code{instr:push_local_value(a(A2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:push_local_value2(a(A1),a(A2))}|NewT],
+        RestT = Rest.
+
+simplify(push_local_value(y(Y1)), _, [code{instr:push_local_value(y(Y2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:push_local_value2(y(Y1),y(Y2))}|NewT],
+        RestT = Rest.
+
+simplify(put_global_variable(a(A1),y(Y1)), _, [code{instr:put_global_variable(a(A2),y(Y2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:put_global_variable2(a(A1),y(Y1),a(A2),y(Y2))}|NewT],
+        RestT = Rest.
+
+simplify(put_variable(a(A1)), _, [code{instr:put_variable(a(A2))}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:put_variable2(a(A1),a(A2))}|NewT],
+        RestT = Rest.
+
+simplify(get_atom(a(A1),C1), _, [code{instr:get_atom(a(A2),C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:get_atom2(a(A1),C1,a(A2),C2)}|NewT],
+        RestT = Rest.
+
+simplify(get_integer(a(A1),C1), _, [code{instr:get_integer(a(A2),C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:get_integer2(a(A1),C1,a(A2),C2)}|NewT],
+        RestT = Rest.
+
+simplify(get_atom(a(A1),C1), _, [code{instr:get_integer(a(A2),C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:get_atominteger(a(A1),C1,a(A2),C2)}|NewT],
+        RestT = Rest.
+
+simplify(get_integer(a(A1),C1), _, [code{instr:get_atom(a(A2),C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:get_integeratom(a(A1),C1,a(A2),C2)}|NewT],
+        RestT = Rest.
+
+simplify(write_integer(C1), _, [code{instr:write_integer(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_integer2(C1,C2)}|NewT],
+        RestT = Rest.
+
+/* push_integer = write_integer in emu.c */
+simplify(push_integer(C1), _, [code{instr:push_integer(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_integer2(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(read_integer(C1), _, [code{instr:read_integer(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:read_integer2(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(write_atom(C1), _, [code{instr:write_atom(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_atom2(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(write_atom(C1), _, [code{instr:write_did(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_atomdid(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(write_did(C1), _, [code{instr:write_did(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_did2(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(write_did(C1), _, [code{instr:write_atom(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_didatom(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(read_atom(C1), _, [code{instr:read_atom(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:read_atom2(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(write_atom(C1), _, [code{instr:write_integer(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_atominteger(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(write_did(C1), _, [code{instr:write_integer(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_didinteger(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(read_atom(C1), _, [code{instr:read_integer(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:read_atominteger(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(write_integer(C1), _, [code{instr:write_atom(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_integeratom(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(write_integer(C1), _, [code{instr:write_did(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:write_integerdid(C1,C2)}|NewT],
+        RestT = Rest.
+
+simplify(read_integer(C1), _, [code{instr:read_atom(C2)}|Rest], New, RestT, NewT) ?- !,
+        New = [code{instr:read_integeratom(C1,C2)}|NewT],
+        RestT = Rest.
+
+
+/* extract consecutive move a(_) a(_) insturctions for further optimisation 
+   MoveRegs is a list of the arg register pairs for each move instruction,
+   and RegInfos is a list of the corresponding regs field for the instruction 
+*/ 
+:- mode extract_moveaas(+, -, -, -).
+extract_moveaas([code{instr:move(a(A1),a(A2)),regs:RegI}|Rest], MoveRegs, RegInfos, RestT) ?- !,
+        MoveRegs = [A1-A2|MoveRegs1],
+        RegInfos = [RegI|RegInfos1],
+        extract_moveaas(Rest, MoveRegs1, RegInfos1, RestT).
+extract_moveaas(Rest, [], [], Rest).
+
+/* simplify the move a(_) a(_) sequence by
+   1. extracting sequences of move a(_) a(_) which are shifting the value between a
+      chain of registers (e.g A1<-A2...<-An). The move instr may be non-consecutive.
+   2. convert these chains to the following instructions, in order of preference:
+         a) rotate type instruction  A1<-A2...<-A1
+         b) shift type instruction A1<-A2 ...<-An
+         c) multiple move instruction (non-chained moves) 
+*/
+simplify_moveaas(Regs, RegInfos, New, NewT) :-
+        extract_reg_chains(Regs, RegInfos, Chains, [], ChainInfos, []),
+        convert_chains_to_instrs(Chains, ChainInfos, 0, [], New, NewT).
+
+extract_reg_chains([], [], Chains, ChainsT, ChainInfos, ChainInfosT) ?- 
+        Chains = ChainsT,
+        ChainInfos = ChainInfosT.
+extract_reg_chains([A1-A2|Regs0], [[A1Info,A2Info]|RegInfos0], Chains, ChainsT, ChainInfos, ChainInfosT) :-
+        (find_reg_chain(A1, A1Info, Regs0, RegInfos0, [], Regs1, RegInfos1, Chained1, CInfo1) ->
+            Chains =[[a(A2)|Chained1]|Chains1],
+            ChainInfos = [[A2Info|CInfo1]|ChainInfos1]
+            
+        ;
+            Chains = [[a(A1),a(A2)]|Chains1],
+            ChainInfos = [[A1Info,A2Info]|ChainInfos1],
+            RegInfos0 = RegInfos1,
+            Regs0 = Regs1
+        ),
+        extract_reg_chains(Regs1, RegInfos1, Chains1, ChainsT, ChainInfos1, ChainInfosT).
+
+find_reg_chain(S, SInfo, [], [], OldDests, RegsOut, RInfosOut, Chained, CInfo) ?- !,
+        OldDests \== [],  % fail if no chain is found (OldDests == [])
+        RegsOut = [],
+        RInfosOut = [],
+        Chained = [a(S)],
+        CInfo = [SInfo].
+find_reg_chain(S0, S0Info, [RegPair|Regs1], [RPairInfo|RInfos1], OldDests0, RegsOut, RInfosOut, Chained, CInfo) :-
+        RegPair = S1-D1,
+        RPairInfo = [S1Info,D1Info],
+        (  D1 == S0 ->
+            Chained = [a(D1)|Chained1],
+            CInfo = [D1Info|CInfo1],
+            RegsOut = RegsOut1,
+            RInfosOut = RInfosOut1,
+            NewS = S1,
+            NewSInfo = S1Info,
+            OldDests1 = [D1|OldDests0]
+        ;
+            nonmember(D1, OldDests0), 
+            Chained = Chained1,
+            CInfo = CInfo1,
+            RegsOut = [RegPair|RegsOut1],
+            RInfosOut = [RPairInfo|RInfosOut1],
+            NewS = S0,
+            NewSInfo = S0Info,
+            OldDests1 = OldDests0
+        ),
+        find_reg_chain(NewS, NewSInfo, Regs1, RInfos1, OldDests1, RegsOut1, RInfosOut1, Chained1, CInfo1).
+
+convert_chains_to_instrs([], [], NMoves, MoveRegs, New, NewT) ?- 
+        (NMoves > 0 ->
+            combine_moves(NMoves, MoveRegs, Instr),
+            New = [code{instr:Instr}|NewT]
+        ;
+            New = NewT
+        ).
+convert_chains_to_instrs([Chain|Rest], [CInfo|ChainsInfo], NMoves, MoveRegs, New, NewT) ?-
+        length(Chain, L),
+        ( L == 2 ->
+            /* a move instr */
+            ( NMoves =:= maxmoveaas -> /* maxmoveaas must be > 0! */
+                combine_moves(NMoves, MoveRegs, MoveInstr),
+                New = [code{instr:MoveInstr}|New1],
+                NMoves1 = 1,
+                MoveRegs1 = Chain
+            ;
+                New1 = New,
+                NMoves1 is NMoves + 1,
+                append(MoveRegs, Chain, MoveRegs1)
+            ),
+            convert_chains_to_instrs(Rest, ChainsInfo, NMoves1, MoveRegs1, New1, NewT)
+        
+        ;   /* a shift instruction */
+            ( NMoves > 0 ->
+                /* generate previously accumulated move instr */
+                combine_moves(NMoves, MoveRegs, MoveInstr),
+                New = [code{instr:MoveInstr}|New1]
+            ;
+                New1 = New
+            ),
+            ( L =< maxshift -> /* maxshift must be > 2 */
+                ( L == 4, 
+                  Chain = [T,A1,A2,T],
+                  CInfo = [_,_,_,TInfo],
+                  TInfo = r(_,_,_,IsLast),
+                  IsLast == last
+                ->
+                   New1 = [code{instr:swap(A1,A2)}|New2]
+                ; L == 5, 
+                  Chain = [T,A1,A2,A3,T],
+                  CInfo = [_,_,_,_,TInfo],
+                  TInfo = r(_,_,_,IsLast),
+                  IsLast == last
+                ->
+                   New1 = [code{instr:rot(A1,A2,A3)}|New2]
+                ;
+                   ShiftInstr =.. [shift|Chain],
+                   New1 = [code{instr:ShiftInstr}|New2]
+                )
+
+            ;
+                split_shift_instrs(Chain, L, New1, New2)
+            ),
+            convert_chains_to_instrs(Rest, ChainsInfo, 0, [], New2, NewT)
+        ).
+
+combine_moves(NMoves, MoveRegs, Instr) :-
+        (NMoves == 1 -> Param = "" ; Param = NMoves),
+        concat_atom([move, Param], IName),
+        Instr =.. [IName|MoveRegs].
+
+split_shift_instrs(Chain, L, New, NewT) :-
+        maxshift(Max),
+        split_chain(L, Max, Chain, New, NewT).
+
+split_chain(Len, Max, Chain, New, NewT) :-
+        ( Len == 2 ->
+            /* 2 arguments - move instr, argument order reversed */
+            Chain = [A1,A2],
+            New = [code{instr:move(A2,A1)}|NewT]
+        ; Len =< Max ->
+            Instr =.. [shift|Chain],
+            New = [code{instr:Instr}|NewT]
+        ; 
+            get_subchain(Max, Chain, SubChain, RestChain),
+            Instr =.. [shift|SubChain],
+            New = [code{instr:Instr}|New1],
+            Len1 is Len - Max + 1,
+            split_chain(Len1, Max, RestChain, New1, NewT)
+        ).
+
+get_subchain(1, List0, SubT, RestList) :- !, 
+        List0 = RestList,
+        List0 = [E|_],
+        SubT = [E].
+get_subchain(N, [E|List0], SubT, RestList) :-
+        SubT = [E|SubT0],
+        N0 is N - 1,
+        get_subchain(N0, List0, SubT0, RestList).
+
+maxmoveaas(3).  /* maximum number of non-related move a(_) a(_) than can be combined */
+maxshift(5).    /* maximum number of arguments in a shift instruction */
 
 extract_conargs_moves(Codes, Instr, X, Y, X0, Y0, N0, N, Rest) :-
-        ( \+ \+ (Codes = [Instr|_], X0 + N0 =:= X, Y0 + N0 =:= Y) 
+        ( \+ \+ (Codes = [code{instr:Instr}|_], X0 + N0 =:= X, Y0 + N0 =:= Y) 
         ->
             Codes = [_|Codes1],
             N1 is N0+1,
@@ -870,18 +1307,20 @@ extract_conargs_moves(Codes, Instr, X, Y, X0, Y0, N0, N, Rest) :-
             Rest = Codes
         ).
             
-extract_nonconargs_moves(Codes0, Template, Instr0, X0, Y0, MoveInstrs1, Codes) :-
-        ( Codes0 = [Instr1|Codes1],
+extract_nonconargs_moves(Codes0, Template, AnnInstr0, X0, Y0, MoveInstrs1, Codes) :-
+        AnnInstr0 = code{instr:Instr0},
+        ( Codes0 = [AnnInstr1|Codes1],
+          AnnInstr1 = code{instr:Instr1},
           \+ \+ Instr1 = Template ->
             arg([1,1], Instr1, X1),
             arg([2,1], Instr1, Y1),
             ( X1 =:= X0 + 1,
               Y1 =:= Y0 + 1 ->
                 MoveInstrs1 = [],
-                Codes = [Instr0|Codes0]
+                Codes = [AnnInstr0|Codes0]
             ;
                 MoveInstrs1 = [Instr0|MoveInstrs2], 
-                extract_nonconargs_moves(Codes1, Template, Instr1, X1, Y1,
+                extract_nonconargs_moves(Codes1, Template, AnnInstr1, X1, Y1,
                                          MoveInstrs2, Codes)
             )
         ;
@@ -891,18 +1330,18 @@ extract_nonconargs_moves(Codes0, Template, Instr0, X0, Y0, MoveInstrs1, Codes) :
 
 :- mode compact_moves(+,-,-).
 compact_moves([], Tail, Tail).
-compact_moves([Instr1,Instr2,Instr3|Rest], [move3(X1,Y1,X2,Y2,X3,Y3)|CRest1],
+compact_moves([Instr1,Instr2,Instr3|Rest], [code{instr:move3(X1,Y1,X2,Y2,X3,Y3)}|CRest1],
               CRest) :-
         !,
         Instr1 =.. [_,X1,Y1],
         Instr2 =.. [_,X2,Y2],
         Instr3 =.. [_,X3,Y3],
         compact_moves(Rest, CRest1, CRest).
-compact_moves([Instr1,Instr2], [move2(X1,Y1,X2,Y2)|CRest], CRest) :-
+compact_moves([Instr1,Instr2], [code{instr:move2(X1,Y1,X2,Y2)}|CRest], CRest) :-
         !,
         Instr1 =.. [_,X1,Y1],
         Instr2 =.. [_,X2,Y2].
-compact_moves([Instr], [Instr|CRest], CRest).
+compact_moves([Instr], [code{instr:Instr}|CRest], CRest).
 
 
 is_read_instruction(Instr) :-
@@ -919,7 +1358,7 @@ is_read_instruction(Instr) :-
     is_in_read_struct(move(_,_)).
         
     count_same_instr(Codes, Instr, N0, N, Rest) :-
-    	( Codes = [Instr|Codes1] ->
+    	( Codes = [code{instr:Instr}|Codes1] ->
 	    N1 is N0+1,
 	    count_same_instr(Codes1, Instr, N1, N, Rest) 
 	;
@@ -1120,7 +1559,7 @@ Various Patterns:
 
 
     savecut(a(A)),cut(a(A))	-->	savecut(a(A))
-    savecut(..), <transfer out> -->     <transfer out>
+    savecut(..), <transfer out> -->     <transfer out> unsafe for calls
                                         
     read_void,read_void+	-->	read_void N
     read_void/[^(read_xxx|move)]	-->	
