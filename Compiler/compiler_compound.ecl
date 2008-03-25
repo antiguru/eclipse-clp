@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.4 2008/03/20 03:02:25 kish_shen Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.5 2008/03/25 19:23:26 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -112,14 +112,16 @@
 head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = [_|_],
 	Code = [code{instr:get_list(RI, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split,_)]}|WCode],
-	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
+	alloc_term(Term, ChunkData0, ChunkData1),
+	unify_args(Term, ChunkData1, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
 	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore,_)]}|RCode],
 	RCode0 = [code{instr:label(LE),regs:[r(_,_,join,_)]}|Code1],
 	emit_pop_temp(Reg, Code1, Code0).
 head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = structure{name:F,arity:A},
 	Code = [code{instr:get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split,_)]}|WCode],
-	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
+	alloc_term(Term, ChunkData0, ChunkData1),
+	unify_args(Term, ChunkData1, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
 	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore,_)]}|RCode],
 	RCode0 = [code{instr:label(LE),regs:[r(_,_,join,_)]}|Code1],
 	emit_pop_temp(Reg, Code1, Code0).
@@ -239,7 +241,8 @@ unify_next_arg(List, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCo
             RCode2 = [code{instr:read_list(t(Off),ref(WL))}|RCode1],
 	    matching_test(Dir, RCode, RCode2)
 	),
-	unify_args(List, ChunkData0, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0, Dir).
+	alloc_term(List, ChunkData0, ChunkData1, Dir),
+	unify_args(List, ChunkData1, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0, Dir).
 unify_next_arg(Struct, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCode, WCode0, RCode, RCode0, Dir) :-
 	Struct = structure{name:F,arity:A},
 	( var(Tmp) ->		% first compound subterm in this level
@@ -261,7 +264,8 @@ unify_next_arg(Struct, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, W
 	    RCode2 = [code{instr:read_structure(F/A,t(Off),ref(WL))}|RCode1],
 	    matching_test(Dir, RCode, RCode2)
 	),
-	unify_args(Struct, ChunkData0, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0, Dir).
+	alloc_term(Struct, ChunkData0, ChunkData1, Dir),
+	unify_args(Struct, ChunkData1, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0, Dir).
 unify_next_arg(Avar, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCode, WCode, RCode, RCode0, Dir) :-
 	Avar = attrvar{variable:Var,meta:Struct},
 	verify Dir == in,
@@ -305,14 +309,16 @@ unify_last_arg(List, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode0
 	matching_test(Dir, RCode3, RCode1),
 	WCode1 = [code{instr:write_list},code{instr:label(WL)}|WCode2],
 	RCode1 = [code{instr:read_last_list(ref(WL))}|RCode2],
-	unify_args(List, ChunkData0, ChunkData, Reg0, Reg1, WCode2, WCode0, RCode2, RCode0, Dir).
+	alloc_term(List, ChunkData0, ChunkData1, Dir),
+	unify_args(List, ChunkData1, ChunkData, Reg0, Reg1, WCode2, WCode0, RCode2, RCode0, Dir).
 unify_last_arg(Struct, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode0, RCode, RCode0, Dir) :-
 	Struct = structure{name:F,arity:A},
 	up(Prev, Tmp, Reg0, WCode, WCode1, RCode, RCode3),
 	matching_test(Dir, RCode3, RCode1),
 	WCode1 = [code{instr:write_structure(F/A)},code{instr:label(WL)}|WCode2],
 	RCode1 = [code{instr:read_last_structure(F/A,ref(WL))}|RCode2],
-	unify_args(Struct, ChunkData0, ChunkData, Reg0, Reg1, WCode2, WCode0, RCode2, RCode0, Dir).
+	alloc_term(Struct, ChunkData0, ChunkData1, Dir),
+	unify_args(Struct, ChunkData1, ChunkData, Reg0, Reg1, WCode2, WCode0, RCode2, RCode0, Dir).
 unify_last_arg(Avar, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode, RCode, RCode0, Dir) :-
 	Avar = attrvar{variable:Var,meta:Struct},
 	verify Dir == in,
@@ -370,13 +376,15 @@ body(ArgId, Term, State, State, [code{instr:Instr,regs:[r(ArgId,R,def,_)]}|Code0
 	put_const(R, Term, Instr).
 body(ArgId, Term, State0, State, Code, Code0) :- Term = [_|_],
 	Code = [code{instr:put_list(R),regs:[r(ArgId,R,def,_)]}|Code1],
-	push_args(Term, QueueHead, QueueTail, State0, State1, Code1, Code2),
-	push_next_in_queue(QueueHead, QueueTail, State1, State, Code2, Code0).
+	alloc_term(Term, State0, State1),
+	push_args(Term, QueueHead, QueueTail, State1, State2, Code1, Code2),
+	push_next_in_queue(QueueHead, QueueTail, State2, State, Code2, Code0).
 body(ArgId, Term, State0, State, Code, Code0) :-
 	Term = structure{name:F,arity:A},
 	Code = [code{instr:put_structure(R, F/A),regs:[r(ArgId,R,def,_)]}|Code1],
-	push_args(Term, QueueHead, QueueTail, State0, State1, Code1, Code2),
-	push_next_in_queue(QueueHead, QueueTail, State1, State, Code2, Code0).
+	alloc_term(Term, State0, State1),
+	push_args(Term, QueueHead, QueueTail, State1, State2, Code1, Code2),
+	push_next_in_queue(QueueHead, QueueTail, State2, State, Code2, Code0).
 
 
 push_args([H|T], QueueTail0, QueueTail, State0, State, Code, Code0) ?-
@@ -408,12 +416,14 @@ push_next_in_queue([Term|QueueRest], QueueTail0, State0, State, Code, Code0) :-
 push_arg(Arg, Queue, Queue, State0, State, Code, Code0) :-
 	Arg = variable{}, !,
 	push_va(Arg, State0, State, Code, Code0).
-push_arg(Arg, [Arg|Queue], Queue, State, State, Code, Code0) :- Arg = [_|_],
-	Code = [code{instr:push_list}|Code0].
-push_arg(Arg, [Arg|Queue], Queue, State, State, Code, Code0) :-
+push_arg(Arg, [Arg|Queue], Queue, State0, State, Code, Code0) :- Arg = [_|_],
+	Code = [code{instr:push_list}|Code0],
+	alloc_term(Arg, State0, State).
+push_arg(Arg, [Arg|Queue], Queue, State0, State, Code, Code0) :-
 	Arg = structure{arity:A},
 	N is A+1,
-	Code = [code{instr:push_structure(N)}|Code0].
+	Code = [code{instr:push_structure(N)}|Code0],
+	alloc_term(Arg, State0, State).
 push_arg(Arg, Queue, Queue, State, State, [code{instr:Instr}|Code0], Code0) :-
 	atomic(Arg),
 	push_const(Arg, Instr).
@@ -532,32 +542,33 @@ unify_va(Var, ChunkData0, ChunkData, WCode, WCode, RCode, RCode0, in) :-
 
 unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0) :-
 	Var = variable{varid:VarId},
-	variable_occurrence(Var, ChunkData0, ChunkData, VarOccDesc),
-	unify_va_code(VarOccDesc, VarId, WCode, WCode0, RCode, RCode0).
+	variable_occurrence(Var, ChunkData0, ChunkData1, VarOccDesc),
+	unify_va_code(VarOccDesc, VarId, WCode, WCode0, RCode, RCode1, GAlloc),
+	alloc_check_after(GAlloc, ChunkData1, ChunkData, RCode1, RCode0).
 
-    unify_va_code(void, _VarId, WCode, WCode0, RCode, RCode0) :-
+    unify_va_code(void, _VarId, WCode, WCode0, RCode, RCode0, 0) :-
 	WCode = [code{instr:write_void}|WCode0],
 	RCode = [code{instr:read_void} |RCode0].
 
-    unify_va_code(tmp_first, VarId, WCode, WCode0, RCode, RCode0) :-
+    unify_va_code(tmp_first, VarId, WCode, WCode0, RCode, RCode0, 0) :-
 	WCode = [code{instr:write_variable(R),regs:[r(VarId,R,def,_)]}|WCode0],
 	RCode = [code{instr:read_variable(R),regs:[r(VarId,R,def,_)]} |RCode0].
 
-    unify_va_code(tmp, VarId, WCode, WCode0, RCode, RCode0) :-
+    unify_va_code(tmp, VarId, WCode, WCode0, RCode, RCode0, unbounded_maybe) :-
 %	WCode = [code{instr:write_value(R),regs:[r(VarId,R,use,_)]}|WCode0],
 	WCode = [code{instr:write_local_value(R),regs:[r(VarId,R,use,_)]}|WCode0],		%%% FOR MIXED CODE ONLY
 	RCode = [code{instr:read_value(R),regs:[r(VarId,R,use,_)]} |RCode0].
 
-    unify_va_code(perm_first(Y), VarId, WCode, WCode0, RCode, RCode0) :-
+    unify_va_code(perm_first(Y), VarId, WCode, WCode0, RCode, RCode0, 0) :-
 	WCode = [code{instr:write_variable(Y),regs:[r(VarId,Y,perm,_)]}|WCode0],
 	RCode = [code{instr:read_variable(Y),regs:[r(VarId,Y,perm,_)]} |RCode0].
 
-    unify_va_code(perm_first_in_chunk(Y), VarId, WCode, WCode0, RCode, RCode0) :-
+    unify_va_code(perm_first_in_chunk(Y), VarId, WCode, WCode0, RCode, RCode0, unbounded_maybe) :-
 %	WCode = [code{instr:write_value(Y),regs:[r(VarId,Y,perm,_)]}|WCode0],
 	WCode = [code{instr:write_local_value(Y),regs:[r(VarId,Y,perm,_)]}|WCode0],		%%% FOR MIXED CODE ONLY
 	RCode = [code{instr:read_value(Y),regs:[r(VarId,Y,perm,_)]} |RCode0].
 
-    unify_va_code(perm(Y), _VarId, WCode, WCode0, RCode, RCode0) :-
+    unify_va_code(perm(Y), _VarId, WCode, WCode0, RCode, RCode0, unbounded_maybe) :-
 %	WCode = [code{instr:write_value(Y)}|WCode0],
 	WCode = [code{instr:write_local_value(Y)}|WCode0],		%%% FOR MIXED CODE ONLY
 	RCode = [code{instr:read_value(Y)} |RCode0].
@@ -590,4 +601,35 @@ in_unify_va(Var, ChunkData0, ChunkData, RCode, RCode0) :-
 
     in_unify_va_code(perm(Y), _VarId, RCode, RCode0) :-
 	RCode = [code{instr:read_matched_value(Y)} |RCode0].
+
+
+%----------------------------------------------------------------------
+% Track global stack space needed for constructing terms
+%----------------------------------------------------------------------
+
+alloc_term(_, ChunkData, ChunkData, in).
+alloc_term(Term, ChunkData0, ChunkData, inout) :-
+	alloc_term(Term, ChunkData0, ChunkData).
+
+alloc_term(structure{arity:A}, ChunkData0, ChunkData) :- !,
+	N is A+1,
+	alloc_check_pwords(N, ChunkData0, ChunkData).
+alloc_term([_|_], ChunkData0, ChunkData) :- !,
+	alloc_check_pwords(2, ChunkData0, ChunkData).
+%alloc_term(X, ChunkData0, ChunkData) :- float(X), !,
+%	alloc_check_pwords(2, ChunkData0, ChunkData).
+%alloc_term(X, ChunkData0, ChunkData) :- integer(X), !,
+%	( X =< 16'7fffffff, X+1 >= -16'7fffffff ->
+%	    % 32-bit integer
+%	    ChunkData = ChunkData0
+%	;
+%	    % potential bignum
+%	    ( count(_,2,N), fromto(X,X1,X2,0) do X2 is X1>>30>>30>>4 ),
+%	    alloc_check_pwords(N, ChunkData0, ChunkData)
+%	).
+%alloc_term(X, ChunkData0, ChunkData) :- string(X), !,
+%	N is (string_length(X)+16)//8,
+%	alloc_check_pwords(N, ChunkData0, ChunkData)
+alloc_term(_, ChunkData, ChunkData) :-
+	unreachable("alloc_term").
 

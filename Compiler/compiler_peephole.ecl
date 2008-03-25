@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.13 2008/03/25 14:55:19 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.14 2008/03/25 19:23:26 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/03/25 14:55:19 $").
+:- comment(date, "$Date: 2008/03/25 19:23:26 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -253,7 +253,7 @@ flat_code_to_basic_blocks(AnnCode, BasicBlockArray, Rejoins) :-
 		    Chunks0 = [chunk{code:Chunk0,len:Len0,cont:L}|Chunks1]	% collect finished chunk
 		)
 
-	    ; Instr = nop ->
+	    ; is_nop(Instr) ->
                 Rejoins0 = Rejoins1,
                 Label0 = Label1,
 		N1 = N0,
@@ -785,16 +785,35 @@ basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
 %----------------------------------------------------------------------
 
 % simplify_chunk leaves the annotations around instructions so that it can be
-% run multiple times on a chunk
-simplify_chunk([], []).
-simplify_chunk([AnnInstr|More], SimplifiedCode) :-
+% run multiple times on a chunk.
+% Every time we make a simplification, we back up 1 instruction to the
+% left, and try to simplify again. 
+
+simplify_chunk(Code, SimplifiedCode) :-
+	simplify_chunk(Empty, Empty, Code, SimplifiedCode).
+
+:- mode simplify_chunk(?,?,+,-).
+simplify_chunk(Rescan, [], [], Rescan).
+simplify_chunk(Rescan, RescanTail, [AnnInstr|More], AllSimplified) :-
         AnnInstr = code{instr:Instr},
-        ( simplify(Instr, AnnInstr, More, SimplifiedCode, MoreTail, SimplifiedCodeTail) ->
-	    simplify_chunk(MoreTail, SimplifiedCodeTail)
+        ( simplify(Instr, AnnInstr, More, Simplified, MoreTail, SimplifiedTail) ->
+	    % We transformed Instr+More -> Simplified
+	    % Now simplify Rescan+Simplified+Moretail
+	    SimplifiedTail = MoreTail,
+	    RescanTail = Simplified,
+	    simplify_chunk(Empty, Empty, Rescan, AllSimplified)
 	;
-	    SimplifiedCode = [AnnInstr|SimplifiedCodeTail],
-	    simplify_chunk(More, SimplifiedCodeTail)
+	    % Instr which couldn't be simplified goes into rescan,
+	    % and the old rescan goes into the final code.
+	    AllSimplified = Rescan,
+	    simplify_chunk([AnnInstr|Tail], Tail, More, RescanTail)
 	).
+
+
+is_nop(nop) :- true.
+is_nop(move(X,X)) :- true.
+is_nop(gc_test(0)) ?- true.
+is_nop(initialize([])) ?- true.
 
 
 % simplify(+Instr, +Code, +Follow, -New, -FollowTail, -NewTail)
@@ -802,9 +821,22 @@ simplify_chunk([AnnInstr|More], SimplifiedCode) :-
 % uninstantiated NewTail FollowTail is the tail of the existing following 
 % instruction, with the head being the next instruction to simplified.
 % Code is the annotated version of Instr. Instr is extracted to allow
-% for indexing.
+% for indexing. This must fail if no simplification is done!
 
 simplify(nop, _, More, New, MoreT, NewT) ?- !, 
+        NewT = New,
+        MoreT = More.
+
+simplify(gc_test(N), _, More, New, MoreT, NewT) ?-
+	( N==0 ->
+	    true
+	;
+	    N =< wam_max_global_push,
+	    % The following test is necessary to retain small gc_tests in
+	    % the (rare) case of initialisation code at the end of branches!
+	    More = [code{instr:Instr}|_], Instr \= put_global_variable(y(_))
+	),
+	!, 
         NewT = New,
         MoreT = More.
 
@@ -822,6 +854,12 @@ simplify(callf(P,eam(0)), Code, [code{instr:Instr}|More], New, MoreT, NewT) ?- !
         % body goals order rearranged here to avoid old compiler bug
         update_struct(code, instr:NewInstr, Code, NewCode),
 	simplify_call(P, Instr, NewInstr).
+
+simplify(move_callf(Y,A,P,eam(0)), Code, [code{instr:exit}|More], New, MoreT, NewT) ?- !,
+        MoreT = More,
+        New = [NewCode|NewT],
+	true,
+        update_struct(code, instr:move_chain(Y,A,P), Code, NewCode).
 
 simplify(call(P,eam(0)), Code, [code{instr:Instr}|More], New, MoreT, NewT) ?- !,
         MoreT = More,
@@ -994,6 +1032,7 @@ simplify(put_global_variable(a(A),y(Y)), _, [code{instr:chain(P)}|Rest], New, Re
 simplify(move(a(A1),a(A2)), Code, Rest, New, RestT, NewT) ?- !,
         Code = code{regs:Regs},
         extract_moveaas(Rest, Moves, RegInfos, RestT), 
+	Moves \= [],
         simplify_moveaas([A1-A2|Moves], [Regs|RegInfos], New, NewT).
 
 simplify(move(y(Y1),y(Y2)), _, [code{instr:move(y(Y3),y(Y4))}|Rest], New, RestT, NewT) ?- !,

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.5 2008/03/08 02:20:58 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.6 2008/03/25 19:23:26 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -61,6 +61,9 @@ compile :-
 :- export op(200, fx, (test)).
 test(Name) :-
 	test(Name, [load:none,output:print,debug:off,expand_goals:off,print_indexes:on]).
+
+testx(Name, MoreOpt) :-
+	test(Name, [load:none,output:print,debug:off,expand_goals:off,print_indexes:on|MoreOpt]).
 
 testo(Name) :-
 	test(Name, [load:none,output:print,debug:off,expand_goals:off,
@@ -129,6 +132,7 @@ ctest :-
 	set_stream(output,null),
 	set_stream(warning_output, null),
 	test,
+	testo,
 	close(warning_output),
 	close(output),
 	result.
@@ -295,7 +299,76 @@ testclause(60, (
 testclause(61, (
 	p :- (!, _X=_Y, !, p ; p)
     )).
-	
+
+testclause(70, (
+	p :- A=_, p(A)		% tmp_first = void
+    )).
+testclause(71, (
+	p(X) :- A=X, p(A), q(X)	% tmp_first = tmp
+    )).
+testclause(72, (
+	p(X) :- r, A=X, p(A), q(X)	% tmp_first = perm_first_in_chunk
+    )).
+testclause(73, (
+	p(X) :- r, var(X), A=X, p(A), q(X)	% tmp_first = perm
+    )).
+testclause(74, (
+	p :- A=X, p(A), q(X)	% tmp_first = perm_first
+    )).
+testclause(75, (
+	p :- p(X), var(X), _=X	% void = perm
+    )).
+testclause(76, (
+	p :- p(X,Y), var(X), var(Y), X=Y	% perm = perm
+    )).
+testclause(77, (
+	p :- p(X,Y), var(X), X=Y	% perm = perm_first_in_chunk
+    )).
+
+testclause(80, (
+	p(F1,F2,F3,F4,F5) :- t,
+		_=_,		% void=void
+		_=T1,		% void=tmp_first
+		_=T1,		% void=tmp
+		_=P1,		% void=perm_first
+		_=P1,		% void=perm
+		_=F1,		% void=perm_first_in_chunk
+		T3=_,		% tmp_first=void
+		T4=T5,		% tmp_first=tmp_first
+		T6=T5,		% tmp_first=tmp
+		T7=P3,		% tmp_first=perm_first
+		T8=P1,		% tmp_first=perm
+		T81=F2,		% tmp_first=perm_first_in_chunk
+		T3=_,		% tmp=void
+		T4=T9,		% tmp=tmp_first
+		T6=T9,		% tmp=tmp
+		T7=P4,		% tmp=perm_first
+		T8=P1,		% tmp=perm
+		T81=F3,		% tmp_first=perm_first_in_chunk
+		P5=_,		% perm_first=void
+		P6=T10,		% perm_first=tmp_first
+		P7=T10,		% perm_first=tmp
+		P8=P10,		% perm_first=perm_first
+		P9=P1,		% perm_first=perm
+		P2=F4,		% perm_first=perm_first_in_chunk
+		P5=_,		% perm=void
+		P6=T11,		% perm=tmp_first
+		P7=T11,		% perm=tmp
+		P8=P11,		% perm=perm_first
+		P9=P1,		% perm=perm
+		P2=F5,		% perm=perm_first_in_chunk
+	    q,
+		P5=_,		% perm_first_in_chunk=void
+		P6=T12,		% perm_first_in_chunk=tmp_first
+		P7=T12,		% perm_first_in_chunk=tmp
+		P8=P12,		% perm_first_in_chunk=perm_first
+		P9=P5,		% perm_first_in_chunk=perm
+		P10=F1,		% perm_first_in_chunk=perm_first
+
+	    r(P1,P2,P3,P4,P5,P6,P7,P8,P9,P10,P11),
+	    var(P12)
+    )).
+
 
 testclause(101, (
     	p :- p(X),q(Y,X),r(Y),t(Y)
@@ -767,6 +840,11 @@ testclause(idx(101), ([
 	    ( p([_|_]) :- -?-> p_list),
 	    ( p(foo(bar)) :- -?-> p_struct)
     ])).
+testclause(idx(102), ([
+	p(a,1),
+	p(b,2),
+	p(c,3)
+    ])).
 testclause(idx(200), ([
 	( p(X,Y,Z) :- var(X), !, Y=Z),
 	( p(a,Y,Z) :- !, a(Y,Z)),
@@ -859,6 +937,7 @@ testclause(dis(8), (p :- (a;b->bb;c->cc;d))).
 testclause(dis(9), (p :- (a->aa;b;c->cc;d))).
 testclause(dis(10),(p :- (a->aa;b->bb;c;d))).
 testclause(dis(11),(p :- (a->aa;(b->bb;c);d))).
+testclause(dis(12),(p :- (\+a->b;c))).
 
 testclause(clause(1), [(p :- a),(p :- b)]).
 testclause(clause(2), [(p :- a),(p :- b),(p:-c,d)]).
@@ -926,6 +1005,25 @@ testclause(bench(3), [
 	;
 	    A=[], B=Ys, C=Ys
     )
+]).
+testclause(bench(4), [
+    (conc(e(_), Ys, Ys)),
+    (conc(f(X,Xs), Ys, f(X,XsYs)) :- conc(Xs, Ys, XsYs))
+]).
+testclause(bench(5), [
+    (conc(A,B,C) :-
+	    A=e(_), B=Ys, C=Ys
+	;
+    	    A=f(X,Xs), B=Ys, C=f(X,XsYs), conc(Xs, Ys, XsYs)
+    )
+]).
+testclause(bench(6), [
+    (conc([], Ys0, Ys) :- !, Ys0=Ys),
+    (conc([X|Xs], Ys, [X|XsYs]) :- conc(Xs, Ys, XsYs))
+]).
+testclause(bench(7), [
+    (conc([], Ys0, Ys) :- t, !, Ys0=Ys),
+    (conc([X|Xs], Ys, [X|XsYs]) :- conc(Xs, Ys, XsYs))
 ]).
 
 testclause(bug(1), [
@@ -1005,6 +1103,31 @@ testclause(bug(8), [
     (attach_suspensions(Trigger, Susp) :-
 	error(4, attach_suspensions(Trigger, Susp)))
 ]).
+testclause(bug(9), [
+     % The 2nd unification was turned into failure because of
+     % an annotation-related bug in normalisation
+    (execute(Node1, Nodes2, Nodes) :-
+       ( [Node1|Nodes2] = Nodes ; Nodes = [] ))
+]).
+testclause(bug(10), [(
+	%	(
+	%	    fromto(Map, Map1, Map2, 0),
+	%	    fromto(List, List1, List2, []),
+	%	    count(I,1,_)
+	%	do
+	%	    Map2 is Map1 >> 1,
+	%	    ( Map1 /\ 1 =:= 0 -> List1=List2 ; List1=[I|List2] )
+	%	)
+    do_x(0, [], I, I)
+    ),(
+    do_x(Map1, List1, I1, I2) :-
+	I1 is I+1,
+	Map2 is Map1 >> 1,
+	( Map1 /\ 1 =:= 0 -> List1=List2 ; List1=[I|List2] ),
+	do_x(Map2, List2, I1, I2)
+    )]).
+
+
 
 %----------------------------------------------------------------------
 % The following are tests from the old compiler test suite
@@ -1165,3 +1288,46 @@ testclause(disj34, [(producer(S) :-
 	->      S = [N|S1]
 	;       S = [zero|S1]),
 	producer(S1))]).
+
+
+%-------- checks for gc_test --------------------------
+
+testclause(alloc(1), [(
+    p(X) :- X=foo(2,3,4,5)
+    )]).
+testclause(alloc(2), [(
+    p:- X=foo(2,3,4,5), q(X)
+    )]).
+testclause(alloc(3), [(
+    p:- X=foo(2,3), q(X)
+    ),(
+    p:- X=foo(2,3,4,5), r(X)
+    )]).
+testclause(alloc(4), [(
+    p:- X=foo(2,3,4,5), r(X)
+    ),(
+    p:- X=foo(2,3), q(X)
+    )]).
+testclause(alloc(5), [(
+    p:- (X=foo(2,3,4,5), r(X) ; X=foo(2,3), q(X))
+    )]).
+testclause(alloc(6), [(
+    p(Y):- Y=bar(2), (X=foo(2,3,4,5,6), r(X) ; X=foo(2,3), q(X))
+    )]).
+testclause(alloc(7), [(
+    p(Y):- (Y==a, X=foo(2,3,4,5,6), r(X) ; Y==b, X=foo(2,3), q(X) ; Y==c, X==foo(2,3,4,5), s(X))
+    )]).
+testclause(alloc(8), [(
+    p(Y):- (Y==a, X=foo(2,6), r(X) ; Y==b, X=foo(2,3), q(X) ; Y==c, X==foo(2,3,4,5), s(X))
+    )]).
+testclause(alloc(10), [(
+    p:- (X=foo(2,3,4,5), r(X,Z) ; X=foo(2,3), q(X)), s(Z)
+    )]).
+testclause(alloc(11), [(
+    % test goes after get_value, because unbounded
+    p(X,X,foo(2,3,4,5))
+    )]).
+testclause(alloc(12), [(
+    % tests go at start, plus after read_value (because unbounded_maybe)
+    p(bar(X,X),foo(2,3,4,5))
+    )]).

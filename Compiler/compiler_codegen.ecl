@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.10 2008/03/08 02:20:58 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.11 2008/03/25 19:23:26 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/08 02:20:58 $").
+:- comment(date, "$Date: 2008/03/25 19:23:26 $").
 
 
 :- lib(hash).
@@ -48,11 +48,16 @@
 
 :- local struct(chunk_data(
 	occurred,		% hash table varid->bool
-	aux_count		% number of auxiliary temporaries
+	aux_count,		% number of auxiliary temporaries
+	need_global		% space needed on global stack at this point
     )).
 
 
 init_chunk_data(chunk_data{aux_count:0,occurred:Init}) :-
+	hash_create(Init).
+
+start_new_chunk(ChunkData0, ChunkData) :-
+	update_struct(chunk_data, [aux_count:0,occurred:Init], ChunkData0, ChunkData),
 	hash_create(Init).
 
 print_chunk_data(_,_).
@@ -141,35 +146,42 @@ generate_code(Clause, EnvSize, Code, CodeEnd, Options, ModPred) :-
 	    Code0 = Code1,
 	    Code4 = [code{instr:ret}|AuxCode]
 	),
-	generate_branch(Clause, 0, AuxCode, CodeEnd, Code1, Code4, Options, ModPred@Start).
+	init_chunk_data(ChunkData0),
+	alloc_check_start(ChunkData0, ChunkData1, Code1, Code2),
+	generate_branch(Clause, ChunkData1, _ChunkData, 0, AuxCode, CodeEnd, Code2, Code4, Options, ModPred@Start).
 
 
-generate_branch(Goals, BranchExitInitMap, AuxCode0, AuxCode, Code0, Code, Options, SelfInfo) :-
+generate_branch(AllChunks, ChunkData0, ChunkData, BranchExitInitMap, AuxCode0, AuxCode, Code0, Code, Options, SelfInfo) :-
+	% first chunk in branch
+	generate_chunk(AllChunks, OtherChunks, [], ChunkData0, ChunkData2, AuxCode0, AuxCode1, ChunkCode, ChunkCode, Code0, Code1, 0, _ArityUsed, Options, SelfInfo),
 	(
-	    fromto(Goals,ThisChunk,NextChunk,[]),
-	    fromto(Code0,Code1,Code2,Code3),
-	    fromto(AuxCode0,AuxCode1,AuxCode2,AuxCode),
+	    fromto(OtherChunks,ThisChunk,NextChunk,[]),
+	    fromto(ChunkData2,ChunkData3,ChunkData6,ChunkData7),
+	    fromto(Code1,Code2,Code3,Code4),
+	    fromto(AuxCode1,AuxCode2,AuxCode3,AuxCode),
 	    param(Options,SelfInfo)
 	do
-	    init_chunk_data(ChunkData0),
-	    generate_chunk(ThisChunk, NextChunk, [], ChunkData0, AuxCode1, AuxCode2, ChunkCode, ChunkCode, Code1, Code2, 0, _ArityUsed, Options, SelfInfo)
+	    start_new_chunk(ChunkData3, ChunkData4),
+	    alloc_check_start(ChunkData4, ChunkData5, ChunkCode, ChunkCode1),
+	    generate_chunk(ThisChunk, NextChunk, [], ChunkData5, ChunkData6, AuxCode2, AuxCode3, ChunkCode, ChunkCode1, Code2, Code3, 0, _ArityUsed, Options, SelfInfo)
 	),
+	start_new_chunk(ChunkData7, ChunkData),
 	% Generate initialization code for any variables which did not occur
 	% in or before the branch, but have a non-first occurrence after it.
-	emit_initialize(BranchExitInitMap, Code3, Code).
+	emit_initialize(BranchExitInitMap, Code4, Code).
 
 
-:- mode generate_chunk(+,-,+,+,?,-,-,?,-,?,+,-,+,+).
-generate_chunk([], [], HeadPerms, _ChunkData, AuxCode, AuxCode, AllChunkCode, Code, FinalCode, FinalCode0, Arity, Arity, _Options, _Module) :-
-	% end of chunk, finalize the code
+:- mode generate_chunk(+,-,+,+,-,?,-,-,?,-,?,+,-,+,+).
+generate_chunk([], [], HeadPerms, ChunkData, ChunkData, AuxCode, AuxCode, AllChunkCode, Code, FinalCode, FinalCode0, Arity, Arity, _Options, _Module) :-
+	% end of chunk (non-regular end of branch or clause), finalize the code
 	move_head_perms(HeadPerms, Code, []),
+	alloc_check_end(ChunkData),
 	assign_am_registers(AllChunkCode, FinalCode, FinalCode0).
-
-generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo) :-
+generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo) :-
 
 	( Goal = goal{kind:simple} ->		 % special goals
 	    generate_simple_goal(Goal, ChunkData0, ChunkData1, Code, Code1),
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, ChunkData, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo)
 
 	; Goal = goal{kind:head,functor:(_/HeadArity),args:Args} ->	% clause-head or pseudo-head
 	    (
@@ -191,20 +203,20 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 		)
 	    ),
 	    Code = [code{instr:nop,regs:OrigRegDescs}|Code1],
-	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, HeadArity, MaxArity, Options, SelfInfo)
+	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, ChunkData, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, HeadArity, MaxArity, Options, SelfInfo)
 
 	; Goal = goal{kind:regular,functor:true/0,definition_module:sepia_kernel}, (Goals = [] ; Goals = [goal{kind:regular}|_] ) ->
 	    % Normally, true/0 should be eliminated in the normalisation phase.
 	    % But due to its legacy semantics (it is a regular goal and can
 	    % cause waking), we only eliminate it here when it occurs at the
 	    % end of a branch or just before another regular goal.
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo)
 
 	; Goal = goal{kind:regular,functor:P,lookup_module:LM,envmap:EAM} ->
 	    P = _/CallArity,
 	    MaxArity is max(MaxArity0,CallArity),
 	    move_head_perms(HeadPerms0, Code, Code1),
-	    generate_regular_puts(Goal, ChunkData0, _ChunkData, Code1, Code2, OutArgs),
+	    generate_regular_puts(Goal, ChunkData0, ChunkData, Code1, Code2, OutArgs),
 	    SelfInfo = Module:Self@SelfLab,
 	    ( LM\==Module ->
 	    	Pred = LM:P, Dest = Pred	% calling non-visible
@@ -220,19 +232,20 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    NextChunk = Goals,
 	    AuxCode = AuxCode0,
 	    % end of chunk, finalize the code
+	    alloc_check_end(ChunkData),
 	    assign_am_registers(AllChunkCode, FinalCode, FinalCode0)
 
 	; Goal = indexpoint{indexes:IndexDescs,envmap:EAM,nextaltlabel:Label2,
-			disjunction:disjunction{arity:TryArity,branchlabels:BranchLabelArray,branchentrymaps:BranchEamArray}} ->
+			disjunction:disjunction{arity:TryArity,branchlabels:BranchLabelArray,branchentrymaps:BranchEamArray,determinism:Det}} ->
 	    MaxArity1 is max(MaxArity0,TryArity),
 	    generate_indexing(IndexDescs, BranchLabelArray, BranchEamArray, TryArity, ChunkData0, ChunkData1, Code, Code2, AuxCode, AuxCode1),
 	    arg(1, BranchLabelArray, BrLabel1),
 	    Code2 = [code{instr:try_me_else(0,TryArity,ref(Label2)),regs:[]},
 		    code{instr:label(BrLabel1),regs:[]}|Code3],
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, AuxCode1, AuxCode0, AllChunkCode, Code3, FinalCode, FinalCode0, MaxArity1, MaxArity, Options, SelfInfo)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, ChunkData, AuxCode1, AuxCode0, AllChunkCode, Code3, FinalCode, FinalCode0, MaxArity1, MaxArity, Options, SelfInfo)
 
 	; Goal = disjunction{branches:Branches,branchlabels:BranchLabelArray,
-		entrymap:EAM,arity:TryArity,
+		entrymap:EAM,arity:TryArity,determinism:Det,
 		branchentrymaps:BranchEamArray,
 		branchinitmaps:BranchExitInits,
 		index:indexpoint{nextaltlabel:Label2}} ->
@@ -249,16 +262,21 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 	    BranchExitInits = [BranchExitInit1|BranchExitInits2toN],
 	    % indexing and try_me are generated inside the 1st branch,
 	    % triggered by indexpoint{} pseudo-goal
-	    generate_branch(Branch1, BranchExitInit1, AuxCode, AuxCode2, Code1, Code2, Options, SelfInfo),
+	    alloc_check_split(ChunkData0, [GAlloc1|GAllocs2toN]),
+	    start_new_chunk(ChunkData0, ChunkData1),
+	    alloc_check_start_branch(det, ChunkData1, ChunkData11, Code1, Code11, GAlloc1),
+	    generate_branch(Branch1, ChunkData11, ChunkDataE1, BranchExitInit1, AuxCode, AuxCode2, Code11, Code2, Options, SelfInfo),
 	    Code2 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code3],
 	    (
 		for(I, 2, NBranches-1),
 		fromto(Branches2toN, [Branch|Branches], Branches, [BranchN]),
 		fromto(BranchExitInits2toN, [BranchExitInit|BEIs], BEIs, [BranchExitInitN]),
+		fromto(GAllocs2toN, [GAllocI|GAs], GAs, [GAllocN]),
+		fromto(ChunkDataE2toN, [ChunkDataE|CDEs], CDEs, [ChunkDataEN]),
 		fromto(Code3, Code4, Code7, Code8),
 		fromto(AuxCode2, AuxCode3, AuxCode4, AuxCode5),
 		fromto(Label2, LabelI, LabelI1, LabelN),
-		param(LabelJoin,BranchLabelArray,BranchEamArray,Options,SelfInfo)
+		param(LabelJoin,BranchLabelArray,BranchEamArray,Options,SelfInfo,Det,ChunkData1)
 	    do
 		arg(I, BranchLabelArray, BrLabelI),
 		arg(I, BranchEamArray, EAM),
@@ -267,7 +285,9 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 		    code{instr:retry_me_inline(0,ref(LabelI1),eam(EAM)),regs:[]},
 		    code{instr:label(BrLabelI),regs:[]}
 		    |Code5],
-		generate_branch(Branch, BranchExitInit, AuxCode3, AuxCode4, Code5, Code6, Options, SelfInfo),
+		start_new_chunk(ChunkData1, ChunkData2),
+		alloc_check_start_branch(Det, ChunkData2, ChunkData3, Code5, Code51, GAllocI),
+		generate_branch(Branch, ChunkData3, ChunkDataE, BranchExitInit, AuxCode3, AuxCode4, Code51, Code6, Options, SelfInfo),
 		Code6 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code7]
 	    ),
 	    arg(NBranches, BranchLabelArray, BrLabelN),
@@ -277,8 +297,12 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, AuxCode, AuxCode
 		code{instr:trust_me_inline(0,eam(EAMN)),regs:[]},
 		code{instr:label(BrLabelN),regs:[]}
 		|Code9],
-	    generate_branch(BranchN, BranchExitInitN, AuxCode5, AuxCode0, Code9, Code10, Options, SelfInfo),
-	    Code10 = [code{instr:label(LabelJoin),regs:[]}|FinalCode0]
+	    start_new_chunk(ChunkData1, ChunkData2),
+	    alloc_check_start_branch(Det, ChunkData2, ChunkData3, Code9, Code91, GAllocN),
+	    generate_branch(BranchN, ChunkData3, ChunkDataEN, BranchExitInitN, AuxCode5, AuxCode0, Code91, Code10, Options, SelfInfo),
+	    Code10 = [code{instr:label(LabelJoin),regs:[]}|FinalCode0],
+	    init_chunk_data(ChunkData),
+	    alloc_check_join([ChunkDataE1|ChunkDataE2toN], ChunkData)
 
 	;
 	    printf(error, "ERROR: unexpected goal in generate_chunk", []),
@@ -640,13 +664,22 @@ reg_or_perm(Var, ChunkData0, ChunkData, RegDesc, VarLoc) :-
 
 % Initialize environment slots according to the bitmap given.  We can't
 % use the current initialize instruction because we want global variables.
+% This code doesn't need register allocation run over it!
 emit_initialize(EAM, Code, Code0) :-
 	decode_activity_map(EAM, Ys),
+	length(Ys, N),
+	% We always generate a gc_test, assuming we are in a separate
+	% pseudo-chunk at the end of a branch. In this case, we must
+	% establish a stack margin at the end of the branch, because
+	% the following chunk will assume the availability of it.
+	% This is ugly, but could be simply folded into an initialize
+	% instruction.
+	Code = [code{instr:gc_test(N)}|Code3],
 	(
 	    foreach(Y,Ys),
-	    fromto(Code,Code1,Code2,Code0)
+	    fromto(Code3,Code1,Code2,Code0)
 	do
-	    Code1 = [code{instr:put_global_variable(y(Y)),regs:[]}|Code2]
+	    Code1 = [code{instr:put_global_variable(y(Y)),regs:[],comment:initialize}|Code2]
 	).
 
 
@@ -874,96 +907,107 @@ generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_
 	).
 
 generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code) ?-
-	inlined_builtin(Name, Arity, InstrName),
+	inlined_builtin(Name, Arity, GlobalAlloc, InstrName),
 	!,
 	functor(Instr, InstrName, Arity),
-	Code3 = [code{instr:Instr,regs:RegDescs}|Code],
 	% could also use heuristic_put_order here, but these builtins
 	% are unlikely to be called with constructed structure arguments.
 	(
 	    foreach(Arg,Args),
 	    foreacharg(Reg,Instr),
 	    foreach(r(ValId,Reg,use_a,_),RegDescs),
-	    fromto(ChunkData0, ChunkData2, ChunkData3, ChunkData),
+	    fromto(ChunkData0, ChunkData2, ChunkData3, ChunkData4),
 	    fromto(Code0, Code1, Code2, Code3)
 	do
 	    put_term(Arg, ChunkData2, ChunkData3, Code1, Code2, ValId)
-	).
+	),
+	Code3 = [code{instr:Instr,regs:RegDescs}|Code4],
+	alloc_check_after(GlobalAlloc, ChunkData4, ChunkData, Code4, Code).
 
 generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, Code) ?-
-	Code3 = [code{instr:escape(P,Regs),regs:RegDescs}|Code],
-	RegArr =.. [_|Regs],
-	RegDescArr =.. [_|RegDescs],
+	P = _/Arity,
+	dim(RegArr, [Arity]),
+	dim(RegDescs, [Arity]),
 	heuristic_put_order(Args, ChunkData0, OrderedPuts),
 	(
 	    foreach(put(_,I,Arg),OrderedPuts),
-	    fromto(ChunkData0, ChunkData2, ChunkData3, ChunkData),
+	    fromto(ChunkData0, ChunkData2, ChunkData3, ChunkData4),
 	    fromto(Code0, Code1, Code2, Code3),
 	    param(RegArr,RegDescArr)
 	do
 	    arg(I, RegArr, Reg),
 	    arg(I, RegDescArr, r(ValId,Reg,use_a,_)),
 	    put_term(Arg, ChunkData2, ChunkData3, Code1, Code2, ValId)
-	).
+	),
+	RegArr =.. [_|Regs],
+	RegDescArr =.. [_|RegDescs],
+	Code3 = [code{instr:escape(P,Regs),regs:RegDescs}|Code4],
+	alloc_check_after(unbounded, ChunkData4, ChunkData, Code4, Code).
 
 
 % All the builtins that can be implemented by an instruction like
 %	bi_inst Ai ... Ak
 
-% inlined_builtin(+Name, +Arity, -Instruction)
-inlined_builtin(fail,		0,	failure).
-inlined_builtin(free,		1,	bi_free).
-inlined_builtin(is_suspension,	1,	bi_is_suspension).
-inlined_builtin(is_event,	1,	bi_is_event).
-inlined_builtin(is_handle,	1,	bi_is_handle).
-inlined_builtin(nonvar,		1,	bi_nonvar).
-inlined_builtin(var,		1,	bi_var).
-inlined_builtin(meta,		1,	bi_meta).
-inlined_builtin(atom,		1,	bi_atom).
-inlined_builtin(integer,	1,	bi_integer).
-inlined_builtin(rational,	1,	bi_rational).
-inlined_builtin(real,		1,	bi_real).
-inlined_builtin(float,		1,	bi_float).
-inlined_builtin(breal,		1,	bi_breal).
-inlined_builtin(string,		1,	bi_string).
-inlined_builtin(number,		1,	bi_number).
-inlined_builtin(atomic,		1,	bi_atomic).
-inlined_builtin(compound,	1,	bi_compound).
-inlined_builtin(is_list,	1,	bi_is_list).
-inlined_builtin(==,		2,	get_matched_value).
-inlined_builtin(\==,		2,	bi_not_identical).
-inlined_builtin(\==,		3,	bi_not_ident_list).
-inlined_builtin(~=,		3,	bi_inequality).
-inlined_builtin(set_bip_error,	1,	bi_set_bip_error).
-inlined_builtin(get_bip_error,	1,	bi_get_bip_error).
-inlined_builtin(cont_debug,	0,	bi_cont_debug).
-inlined_builtin(-,		2,	bi_minus).
-inlined_builtin(succ,		2,	bi_succ).
-inlined_builtin(+,		3,	bi_add).
-inlined_builtin(-,		3,	bi_sub).
-inlined_builtin(*,		3,	bi_mul).
-inlined_builtin(/,		3,	bi_quot).
-inlined_builtin(//,		3,	bi_div).
-inlined_builtin(rem,		3,	bi_rem).
-inlined_builtin(div,		3,	bi_fdiv).
-inlined_builtin(mod,		3,	bi_mod).
-inlined_builtin(/\,		3,	bi_and).
-inlined_builtin(\/,		3,	bi_or).
-inlined_builtin(xor,		3,	bi_xor).
-inlined_builtin(\,		2,	bi_bitnot).
-inlined_builtin(=:=,		3,	bi_eq).
-inlined_builtin(=\=,		3,	bi_ne).
-inlined_builtin(<,		3,	bi_lt).
-inlined_builtin(>,		3,	bi_gt).
-inlined_builtin(=<,		3,	bi_le).
-inlined_builtin(>=,		3,	bi_ge).
-inlined_builtin(arg,		3,	bi_arg).
-inlined_builtin(make_suspension, 4,	bi_make_suspension).
-inlined_builtin(sys_return,	1,	bi_exit).
+% inlined_builtin(+Name, +Arity, -MaxGlobalAlloc, -Instruction)
+%
+% MaxGlobalAlloc could be made more precise:
+%	arithmetics	can create bignums, therefore unbounded
+%	others		can only delay or make exception -> const+arity
+%
+inlined_builtin(fail,		0,	0,		failure).
+inlined_builtin(free,		1,	0,		bi_free).
+inlined_builtin(is_suspension,	1,	0,		bi_is_suspension).
+inlined_builtin(is_event,	1,	0,		bi_is_event).
+inlined_builtin(is_handle,	1,	0,		bi_is_handle).
+inlined_builtin(nonvar,		1,	0,		bi_nonvar).
+inlined_builtin(var,		1,	0,		bi_var).
+inlined_builtin(meta,		1,	0,		bi_meta).
+inlined_builtin(atom,		1,	0,		bi_atom).
+inlined_builtin(integer,	1,	0,		bi_integer).
+inlined_builtin(rational,	1,	0,		bi_rational).
+inlined_builtin(real,		1,	0,		bi_real).
+inlined_builtin(float,		1,	0,		bi_float).
+inlined_builtin(breal,		1,	0,		bi_breal).
+inlined_builtin(string,		1,	0,		bi_string).
+inlined_builtin(number,		1,	0,		bi_number).
+inlined_builtin(atomic,		1,	0,		bi_atomic).
+inlined_builtin(compound,	1,	0,		bi_compound).
+inlined_builtin(is_list,	1,	0,		bi_is_list).
+inlined_builtin(==,		2,	0,		get_matched_value).
+inlined_builtin(\==,		2,	0,		bi_not_identical).
+inlined_builtin(\==,		3,	unbounded,	bi_not_ident_list).
+inlined_builtin(~=,		3,	unbounded,	bi_inequality).
+inlined_builtin(set_bip_error,	1,	0,		bi_set_bip_error).
+inlined_builtin(get_bip_error,	1,	2,		bi_get_bip_error).
+inlined_builtin(cont_debug,	0,	0,		bi_cont_debug).
+inlined_builtin(-,		2,	unbounded,	bi_minus).
+inlined_builtin(succ,		2,	unbounded,	bi_succ).
+inlined_builtin(+,		3,	unbounded,	bi_add).
+inlined_builtin(-,		3,	unbounded,	bi_sub).
+inlined_builtin(*,		3,	unbounded,	bi_mul).
+inlined_builtin(/,		3,	unbounded,	bi_quot).
+inlined_builtin(//,		3,	unbounded,	bi_div).
+inlined_builtin(rem,		3,	unbounded,	bi_rem).
+inlined_builtin(div,		3,	unbounded,	bi_fdiv).
+inlined_builtin(mod,		3,	unbounded,	bi_mod).
+inlined_builtin(/\,		3,	unbounded,	bi_and).
+inlined_builtin(\/,		3,	unbounded,	bi_or).
+inlined_builtin(xor,		3,	unbounded,	bi_xor).
+inlined_builtin(\,		2,	unbounded,	bi_bitnot).
+inlined_builtin(=:=,		3,	unbounded,	bi_eq).
+inlined_builtin(=\=,		3,	unbounded,	bi_ne).
+inlined_builtin(<,		3,	unbounded,	bi_lt).
+inlined_builtin(>,		3,	unbounded,	bi_gt).
+inlined_builtin(=<,		3,	unbounded,	bi_le).
+inlined_builtin(>=,		3,	unbounded,	bi_ge).
+inlined_builtin(arg,		3,	unbounded,	bi_arg).
+inlined_builtin(make_suspension, 4,	unbounded,	bi_make_suspension).
+inlined_builtin(sys_return,	1,	0,		bi_exit).
 
 
 
 % The special case of =/2 goal
+% Due to normalisation, all should be in the form Var=Term!
 % Fail if no special treatment possible (shouldn't happen)
 
 generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
@@ -974,18 +1018,19 @@ generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
 	    ChunkData = ChunkData0, Code0 = Code
 	;
 	    variable_occurrence(Arg1, ChunkData0, ChunkData1, VarOccDesc1),
-	    variable_occurrence(Arg2, ChunkData1, ChunkData, VarOccDesc2),
-	    unify_variables(VarOccDesc1, VarId1, VarOccDesc2, VarId2, Code0, Code)
+	    variable_occurrence(Arg2, ChunkData1, ChunkData2, VarOccDesc2),
+	    unify_variables(VarOccDesc1, VarId1, VarOccDesc2, VarId2, Code0, Code1, GAlloc),
+	    alloc_check_after(GAlloc, ChunkData2, ChunkData, Code1, Code)
 	).
-generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
-	Arg2 = variable{},
-	!,
-	generate_unify(Arg2, Arg1, ChunkData0, ChunkData, Code0, Code).
 generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
 	Arg1 = variable{varid:VarId},
 	!,
 	variable_occurrence(Arg1, ChunkData0, ChunkData1, VarOccDesc),
 	bind_variable(VarOccDesc, VarId, Arg2, ChunkData1, ChunkData, Code0, Code).
+generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
+	Arg2 = variable{},
+	!,
+	generate_unify(Arg2, Arg1, ChunkData0, ChunkData, Code0, Code).
 generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
 	atomic(Arg1), atomic(Arg2), !,
 	ChunkData0 = ChunkData,
@@ -998,7 +1043,6 @@ generate_unify(_Arg1, _Arg2, _ChunkData0, _ChunkData, _Code0, _Code) :-
 	writeln(warning_output,
 	    "WARNING: nonvar = nonvar unification should be unwrapped by preprocessing"),
 	fail.
-
 
 %
 % Generate code for the unification of a variable and a nonvariable.
@@ -1033,74 +1077,77 @@ bind_variable(perm(_Y), VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
 %	perm_first_in_chunk(y(Y))
 %
 
-unify_variables(VarOccDesc1, VarId1, VarOccDesc2, VarId2, Code, Code0) :-
+unify_variables(VarOccDesc1, VarId1, VarOccDesc2, VarId2, Code, Code0, GAlloc) :-
 	% order the two descriptors, so we need only half a matrix below
 	( VarOccDesc1 @> VarOccDesc2 ->
-	    unify_variables_ord(VarOccDesc2, VarId2, VarOccDesc1, VarId1, Code, Code0)
+	    unify_variables_ord(VarOccDesc2, VarId2, VarOccDesc1, VarId1, Code, Code0, GAlloc)
 	;
-	    unify_variables_ord(VarOccDesc1, VarId1, VarOccDesc2, VarId2, Code, Code0)
+	    unify_variables_ord(VarOccDesc1, VarId1, VarOccDesc2, VarId2, Code, Code0, GAlloc)
 	).
 
 % PRE: VarOccDesc1 @=< VarOccDesc2
-unify_variables_ord(tmp, VarId1, tmp, VarId2, Code, Code0) :- !,
+:- mode unify_variables_ord(+,+,+,+,-,?,-).
+unify_variables_ord(tmp, VarId1, tmp, VarId2, Code, Code0, unbounded) :- !,
 	Code = [code{instr:get_value(R1,R2), regs:[r(VarId1,R1,use,_),r(VarId2,R2,use,_)]}
 		|Code0].
-unify_variables_ord(tmp, VarId1, tmp_first, VarId2, Code, Code0) :- !,
+unify_variables_ord(tmp, VarId1, tmp_first, VarId2, Code, Code0, 0) :- !,
 	Code = [code{instr:move(R1,R2), regs:[r(VarId1,R1,use,_),r(VarId2,R2,def,_)]}
 		|Code0].
-unify_variables_ord(tmp, _VarId1, void, _VarId2, Code, Code) :- !.
-unify_variables_ord(tmp, VarId1, perm(_), VarId2, Code, Code0) :- !,
+unify_variables_ord(tmp, _VarId1, void, _VarId2, Code, Code, 0) :- !.
+unify_variables_ord(tmp, VarId1, perm(_), VarId2, Code, Code0, unbounded) :- !,
 	Code = [code{instr:get_value(R1,RY2), regs:[r(VarId1,R1,use,_),r(VarId2,RY2,use,_)]}
 		|Code0].
-unify_variables_ord(tmp, VarId1, perm_first(Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(tmp, VarId1, perm_first(Y2), VarId2, Code, Code0, 0) :- !,
 	Code = [code{instr:move(R1,Y2), regs:[r(VarId1,R1,use,_),r(VarId2,Y2,perm,_)]}
 		|Code0].
-unify_variables_ord(tmp, VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(tmp, VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0, unbounded) :- !,
 	Code = [code{instr:get_value(R1,Y2), regs:[r(VarId1,R1,use,_),r(VarId2,Y2,perm,_)]}
 		|Code0].
 
-
-unify_variables_ord(tmp_first, VarId1, tmp_first, VarId2, Code, Code0) :- !,
+unify_variables_ord(tmp_first, VarId1, tmp_first, VarId2, Code, Code0, 1) :- !,
 	Code = [code{instr:put_variable(R1), regs:[r(VarId1,R1,def,_)]},
 		code{instr:move(R11,R2), regs:[r(VarId1,R11,use_a,_),r(VarId2,R2,def,_)]}
 		|Code0].
-unify_variables_ord(tmp_first, _VarId1, void, _VarId2, Code, Code) :- !.
-unify_variables_ord(tmp_first, VarId1, perm(Y2), _VarId2, Code, Code0) :- !,
+unify_variables_ord(tmp_first, VarId1, void, _VarId2, Code, Code0, 1) :- !,
+	Code = [code{instr:put_variable(R1), regs:[r(VarId1,R1,def,_)]}
+		|Code0].
+unify_variables_ord(tmp_first, VarId1, perm(Y2), _VarId2, Code, Code0, 0) :- !,
 %	Code = [code{instr:move(RY2,R1), regs:[r(_VarId2,RY2,use,_),r(VarId1,R1,def,_)]}|Code0].
 	Code = [code{instr:nop, regs:[r(VarId1,Y2,perm,_)]} |Code0].
-unify_variables_ord(tmp_first, VarId1, perm_first(Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(tmp_first, VarId1, perm_first(Y2), VarId2, Code, Code0, 1) :- !,
 	Code = [code{instr:put_global_variable(R1,Y2), regs:[r(VarId2,Y2,perm,_),r(VarId1,R1,def,_)]}
 		|Code0].
-unify_variables_ord(tmp_first, VarId1, perm_first_in_chunk(Y2), _VarId2, Code, Code0) :- !,
-%	Code = [code{instr:move(Y2,R1), regs:[r(_VarId2,Y2,perm,_),r(VarId1,R1,def,_)]}|Code0].
-	Code = [code{instr:nop, regs:[r(VarId1,Y2,perm,_)]} |Code0].
+unify_variables_ord(tmp_first, VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0, 0) :- !,
+%	Code = [code{instr:move(Y2,R1), regs:[r(VarId2,Y2,perm,_),r(VarId1,R1,def,_)]}|Code0].
+	Code = [code{instr:nop, regs:[r(VarId1,Y2,perm,_),r(VarId2,Y2,perm,_)]} |Code0].
 
-unify_variables_ord(void, _VarId1, void, _VarId2, Code, Code) :- !.
-unify_variables_ord(void, _VarId1, perm(_), _VarId2, Code, Code) :- !.
-unify_variables_ord(void, _VarId1, perm_first(Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(void, _VarId1, void, _VarId2, Code, Code, 0) :- !.
+unify_variables_ord(void, _VarId1, perm(_), _VarId2, Code, Code, 0) :- !.
+unify_variables_ord(void, _VarId1, perm_first(Y2), VarId2, Code, Code0, 1) :- !,
 	Code = [code{instr:put_global_variable(Y2), regs:[r(VarId2,Y2,perm,_)]}
 		|Code0].
-unify_variables_ord(void, _VarId1, perm_first_in_chunk(_), _VarId2, Code, Code) :- !.
+unify_variables_ord(void, _VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0, 0) :- !,
+	Code = [code{instr:nop, regs:[r(VarId2,Y2,perm,_)]} |Code0].
 
-unify_variables_ord(perm(_Y1), VarId1, perm(_Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(perm(_Y1), VarId1, perm(_Y2), VarId2, Code, Code0, unbounded) :- !,
 	Code = [code{instr:get_value(RY1,RY2), regs:[r(VarId1,RY1,use,_),r(VarId2,RY2,use,_)]}
 		|Code0].
-unify_variables_ord(perm(_Y1), VarId1, perm_first(Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(perm(_Y1), VarId1, perm_first(Y2), VarId2, Code, Code0, 0) :- !,
 	Code = [code{instr:move(RY1,Y2), regs:[r(VarId1,RY1,use,_),r(VarId2,Y2,perm,_)]}
 		|Code0].
-unify_variables_ord(perm(_Y1), VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(perm(_Y1), VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0, unbounded) :- !,
 	Code = [code{instr:get_value(RY1,Y2), regs:[r(VarId1,RY1,use,_),r(VarId2,Y2,perm,_)]}
 		|Code0].
 
-unify_variables_ord(perm_first(Y1), VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(perm_first(Y1), VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0, 0) :- !,
 	Code = [code{instr:move(Y2,Y1), regs:[r(VarId2,Y2,perm,_),r(VarId1,Y1,perm,_)]}
 		|Code0].
-unify_variables_ord(perm_first(Y1), VarId1, perm_first(Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(perm_first(Y1), VarId1, perm_first(Y2), VarId2, Code, Code0, 1) :- !,
 	Code = [code{instr:put_global_variable(Y1), regs:[r(VarId1,Y1,perm,_)]},
 		code{instr:move(Y1,Y2), regs:[r(VarId2,Y2,perm,_)]}
 		|Code0].
 
-unify_variables_ord(perm_first_in_chunk(Y1), VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0) :- !,
+unify_variables_ord(perm_first_in_chunk(Y1), VarId1, perm_first_in_chunk(Y2), VarId2, Code, Code0, unbounded) :- !,
 	Code = [code{instr:get_value(Y1,Y2), regs:[r(VarId1,Y1,perm,_),r(VarId2,Y2,perm,_)]}
 		|Code0].
 
@@ -1185,29 +1232,30 @@ put_term(Term, ChunkData0, ChunkData, Code, Code0, ValId) :-
 
 put_variable(Var, ChunkData0, ChunkData, Code, Code0) :-
 	Var = variable{varid:VarId},
-	variable_occurrence(Var, ChunkData0, ChunkData, VarOccDesc),
-	put_va_code(VarOccDesc, VarId, Code, Code0).
+	variable_occurrence(Var, ChunkData0, ChunkData1, VarOccDesc),
+	put_va_code(VarOccDesc, VarId, Code, Code0, GAlloc),
+	alloc_check_pwords(GAlloc, ChunkData1, ChunkData).
 
-    put_va_code(void, VarId, Code, Code0) :-
+    put_va_code(void, VarId, Code, Code0, 1) :-
 	Code = [code{instr:put_variable(R),regs:[r(VarId,R,def,_)]}|Code0].
-    put_va_code(tmp_first, VarId, Code, Code0) :-
+    put_va_code(tmp_first, VarId, Code, Code0, 1) :-
 	Code = [code{instr:put_variable(R),regs:[r(VarId,R,def,_)]}|Code0].
-    put_va_code(tmp, _VarId, Code, Code0) :-
+    put_va_code(tmp, _VarId, Code, Code0, 0) :-
 	% Variable already known in this chunk: The register allocator will
 	% move it to the correct register as necessary (triggered by the dest
 	% descriptor that comes with the call instruction).
 	Code = Code0.
-    put_va_code(perm_first(Y), VarId, Code, Code0) :-
+    put_va_code(perm_first(Y), VarId, Code, Code0, 1) :-
 	% First ever occurrence of this permanent variable. Emit code to
 	% initialise it and tell the reg allocator about the two locations.
 	Code = [code{instr:put_global_variable(R,Y),regs:[r(VarId,Y,perm,_),r(VarId,R,def,_)]}|Code0].
-    put_va_code(perm_first_in_chunk(Y), VarId, Code, Code0) :-
+    put_va_code(perm_first_in_chunk(Y), VarId, Code, Code0, 0) :-
 	% First occurrence of this permanent variable in this chunk.
 	% Tell the reg allocator about the permanent location. It will then
 	% move it to the correct register as necessary (triggered by the dest
 	% descriptor that comes with the call instruction).
 	Code = [code{instr:nop,regs:[r(VarId,Y,perm,_)]}|Code0].
-    put_va_code(perm(_Y), _VarId, Code, Code0) :-
+    put_va_code(perm(_Y), _VarId, Code, Code0, 0) :-
 	% Variable already known in this chunk. The register allocator will
 	% move it to the correct register as necessary.
 	Code = Code0.
@@ -1222,6 +1270,122 @@ move_head_perms(HeadPerms, Code, Code0) :-
 	do
 	    Move = code{instr:move(R,Y),regs:[r(VarId,R,use,_),r(VarId,Y,perm,_)]}
 	).
+
+
+%----------------------------------------------------------------------
+% Global stack allocation checks
+%
+% We distinguish the following points in the WAM code:
+%
+% start: a point where we are guaranteed to have the standard margin
+%	available on the global stack (this is the case at predicate
+%	entry or after returning from a regular call).
+%
+% allocation(maximum):
+%	a (potential) allocation point, we know the maximum used.
+%	These are instructions like put_structure, write_list, etc
+%	We insert no checks at these points.
+%
+% after_unbounded_alloc(certainly/maybe reached):
+%	a (potential) unbounded allocation point, after which we
+%	have no guarantee except the standard margin (either we
+%	have the same as before, or standard margin). Examples are:
+%	- get_value (because of attributed variable unification, which
+%	  builds up the MU-list). It is certainly reached.
+%	- read_value, same as get_value, but not certainly reached.
+%	- arithmetic builtins, because of bignums+rationals
+%	We may need to insert a check after this (potential) allocation.
+%
+% split: before a disjunction - we promote the max allocation
+%	requirement of the branches left over split-point.
+
+% start_branch(det):
+%	promote check to the left. This is used for the first branch,
+%	or all branches in case of deterministic switch.
+%
+% start_branch(nondet):
+%	If less than margin needed, promote check to the left (because
+%	we may enter the branch directly via switch). If more than
+%	margin needed, insert check here (because we may enter
+%	via retry/trust and have only guarantee for standard margin),
+%	and promote nothing left.
+%
+% end: a point where an implicit check follows (call, ret, ...)
+%
+%
+%
+% This code uses delayed goals to fill in the size-arguments in the
+% gc_test instructions once they become known.  This results in lots
+% of gc_test <small> which must be removed later, but it does not
+% leave gaps in the code, which is a bit nicer for debugging.
+% Note that this code is independent of the chunk structure.
+%----------------------------------------------------------------------
+
+alloc_check_pwords(0, ChunkData0, ChunkData) :- !,
+	ChunkData = ChunkData0.
+alloc_check_pwords(N, ChunkData0, ChunkData) :-
+	ChunkData0 = chunk_data{need_global:N0},
+	suspend(+(N1,N,N0), 0, N1->inst),
+	update_struct(chunk_data, [need_global:N1], ChunkData0, ChunkData).
+
+alloc_check_start(ChunkData0, ChunkData, [code{instr:gc_test(N)}|Code0], Code0) :-
+	update_struct(chunk_data, [need_global:N], ChunkData0, ChunkData).
+
+delay alloc_check_split(_, Ms) if nonground(Ms).
+alloc_check_split(chunk_data{need_global:N}, Ms) :-
+	N is max(Ms).
+
+alloc_check_start_branch(Det, ChunkData0, ChunkData, Code, Code0, NeedBefore) :-
+	( Det == det ->
+	    % we have come here directly via switch from code before,
+	    % so promote left.
+	    Code = Code0,
+	    update_struct(chunk_data, [need_global:NeedBefore], ChunkData0, ChunkData)
+	;
+	    % we have to promote left because we have no guarantee here:
+	    % we may have come here directly via switch from code before
+	    % (-> rely on left-promoted amount), or we may have had a
+	    % retry/trust (-> we can rely on standard margin).
+	    Code = [code{instr:gc_test(N)}|Code0],
+	    update_struct(chunk_data, [need_global:NeedAfter], ChunkData0, ChunkData),
+	    suspend(test_or_promote(reached, NeedAfter, NeedBefore, N), 0, NeedAfter->inst)
+	).
+
+alloc_check_join(_ChunkDataEs, _).	% disabled
+%alloc_check_join(ChunkDataEs, chunk_data{need_global:N}) ?-
+%	( foreach(chunk_data{need_global:N},ChunkDataEs), param(N) do true ).
+
+
+% N is integer, 'unbounded' or 'unbounded_maybe'
+alloc_check_after(N, ChunkData0, ChunkData, Code, Code) :-
+	integer(N), !,
+	alloc_check_pwords(N, ChunkData0, ChunkData).
+alloc_check_after(UnbReach, ChunkData0, ChunkData, [code{instr:gc_test(N)}|Code0], Code0) :- !,
+	ChunkData0 = chunk_data{need_global:NeedBefore},
+	update_struct(chunk_data, [need_global:NeedAfter], ChunkData0, ChunkData),
+	suspend(test_or_promote(UnbReach, NeedAfter, NeedBefore, N), 0, NeedAfter->inst).
+
+    % we are just after a potentially unbounded allocation+check
+    test_or_promote(UnbReach, NeedAfter, NeedBefore, TestHere) :-
+	( NeedAfter > wam_max_global_push ->
+	    ( UnbReach == unbounded_maybe ->
+		% since the check might not be reached,
+		% check for enough space in the previous test
+		TestHere=NeedAfter, NeedBefore=NeedAfter
+	    ;
+		% since the check is certainly reached,
+		% it has the responsibility for NeedAfter
+		TestHere=NeedAfter, NeedBefore=0
+	    )
+	;
+	    % no check needed because either:
+	    % - no allocate&check, previous check covers
+	    % - after-bip, bip doesn't allocate, and previous check covers
+	    % - after-bip, bip allocates&checks, and we have Guarantee
+	    TestHere=0, NeedBefore=NeedAfter
+	).
+
+alloc_check_end(chunk_data{need_global:0}).
 
 
 %----------------------------------------------------------------------

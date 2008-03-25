@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.3 2007/08/24 14:34:12 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.4 2008/03/25 19:23:26 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/08/24 14:34:12 $").
+:- comment(date, "$Date: 2008/03/25 19:23:26 $").
 
 :- use_module(compiler_common).
 :- use_module(compiler_analysis).
@@ -119,11 +119,11 @@ Algorithm:
 
     CAUTION: the entries in the index tree *assume* (for purposes of
     definitive passing of guard and commit) that the indexing code
-    tests for eactly the tag/value give in the tree entry.
+    tests for exactly the tag/value given in the tree entry.
 */
 
 index_disjunction(Disjunction, IndexPoint) :-
-	Disjunction = disjunction{callpos:CallPos,branches:Branches,branchlabels:BranchLabelArray,state:StartState,index:IndexPoint},
+	Disjunction = disjunction{callpos:CallPos,branches:Branches,branchlabels:BranchLabelArray,state:StartState,index:IndexPoint,determinism:Determinism},
 	IndexPoint = indexpoint{callpos:IndexCallPos,args:Args,indexes:OrderedIndexes,disjunction:Disjunction},
 	new_branch(CallPos, 1, _, FirstBranch),
 	same_call_pos(FirstBranch, 1, _, IndexCallPos),
@@ -230,7 +230,8 @@ index_disjunction(Disjunction, IndexPoint) :-
 	( foreach(index{partition:Dt,quality:Q},Indexes) do
 	    eval_index_quality(Dt, Q)
 	),
-	sort(quality of index, =<, Indexes, OrderedIndexes).
+	sort(quality of index, =<, Indexes, OrderedIndexes),
+	eval_index_det(OrderedIndexes, Determinism).
 
 
 
@@ -532,7 +533,6 @@ exploit_commit(GuardInfo, GuardInfo).
 % Evaluate index quality: A positive float, the smaller the better.
 % Roughly computes fan-out (number of alternatives jumped to)
 % divided by fan-in (number of different argument values tested for).
-% Fail for really useless indexes.
 
 eval_index_quality(Dt, Q) :-	
 	% collect all occurring sets of alternatives
@@ -549,12 +549,24 @@ eval_index_quality(Dt, Q) :-
 	Q is length(AllTargetBranches)/length(BranchesSets).
 
 
+% Check if the index makes the disjunction deterministic
+
+eval_index_det([index{partition:Dt}|_], semidet) :-
+	dt_list(Dt, Parts),
+	( foreach(_Key-Branches,Parts) do
+	    (Branches==[] -> true ; Branches = [_] )
+	),
+	!.
+eval_index_det(_, nondet).
+	
+	
+
 
 % Debugging: print readable summary of index
 
-dump_indexes(indexpoint{disjunction:disjunction{callpos:CallPos},indexes:Indexes}, options{print_indexes:Flag}) :-
+dump_indexes(indexpoint{disjunction:disjunction{callpos:CallPos,determinism:Det},indexes:Indexes}, options{print_indexes:Flag}) :-
 	( Flag==on, Indexes = [_|_] ->
-	    printf("INDEXES for disjunction %w%n", [CallPos]),
+	    printf("INDEXES for (%w) disjunction %w%n", [Det,CallPos]),
 	    (
 		count(I,1,_),
 %		foreach(index{quality:Q,variable:variable{varid:VarId},partition:Dt},Indexes)

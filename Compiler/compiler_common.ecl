@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.8 2007/06/10 22:10:30 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.9 2008/03/25 19:23:26 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/06/10 22:10:30 $").
+:- comment(date, "$Date: 2008/03/25 19:23:26 $").
 
 
 %----------------------------------------------------------------------
@@ -56,7 +56,7 @@
 	print resulting WAM code to the output stream,
     </DD><DT>print(Stream)</DT><DD>
 	print WAM code to Stream,
-    </DD><DT>listing(Stream)</DT><DD>
+    </DD><DT>listing(File)</DT><DD>
 	print WAM code to File,
     </DD><DT>listing</DT><DD>
 	print WAM code to input file with .lst suffix,
@@ -269,6 +269,7 @@ default_options(options{
 	branchentrymaps:"list of envmaps for each branch start (used in retry/trust instructions)",
 	branchinitmaps:	"list of envmaps for end-of-branch inits",
 	index:		"struct indexpoint",
+	determinism:	"'nondet' or 'semidet' (for switches)",
 	state:		"execution state on entry (struct(state)),"
 			" the result of the analysis phase"
     ]
@@ -286,6 +287,7 @@ default_options(options{
 	branchentrymaps, % list of envmaps for start of each branch
 	branchinitmaps, % list of envmaps for end of branch inits
 	index,
+	determinism,
 	state
     )).
 
@@ -626,6 +628,11 @@ warning(Message) :-
 
 :- export wam_registers/1.
 wam_registers(255).
+%wam_registers(8).
+
+:- export wam_max_global_push/1.
+wam_max_global_push(200).
+%wam_max_global_push(4).
 
 
 %----------------------------------------------------------------------
