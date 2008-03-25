@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile,v 1.4 2007/08/24 23:16:08 kish_shen Exp $
+# $Id: Makefile,v 1.5 2008/03/25 19:26:40 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -80,7 +80,7 @@ DIRPERM = 2755
 #----------------------------------------------------------------------
 
 clean:
-	rm -rf *.eci *.eco *.res doc pretty coverage
+	rm -rf *.eci *.eco *.lst *.res doc pretty coverage
 
 
 #----------------------------------------------------------------------
@@ -105,12 +105,17 @@ list:
 test:
 	@$(AUX_ECLIPSE) -b compiler_test.ecl -e ftest
 	@if diff test.ref test.res ; then echo Compiler unit test ok ; \
-	else echo Compiler unit test failed ; fi
+	else echo Compiler unit test failed ; false ; fi
 
 testo:
 	@$(AUX_ECLIPSE) -b compiler_test.ecl -e ftesto
 	@if diff testo.ref testo.res ; then echo Optimised Compiler unit test ok ; \
-	else echo Compiler unit test failed ; fi
+	else echo Compiler unit test failed ; false ; fi
+
+refs:	test testo
+	mv test.res test.ref
+	mv testo.res testo.ref
+
 
 # Test Chat application
 
