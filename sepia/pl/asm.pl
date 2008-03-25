@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.14 2008/03/20 17:24:26 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.15 2008/03/25 14:53:32 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -810,17 +810,17 @@ instr(write_void(N), 			349, [pw(N)]).
 instr(push_void(N), 			350, [pw(N)]).
 instr(move(N, y(Y), a(A)),		351, [i(N), y(Y), a(A)]).
 instr(move(N, a(A), y(Y)),		352, [i(N), a(A), y(Y)]).
-instr(move2(y(Y1),a(A1),y(Y2),a(A2)),   353, [y(Y1),a(A1),y(Y2),a(A2)]).
-instr(move3(y(Y1),a(A1),y(Y2),a(A2),y(Y3),a(A3)),
+instr(move(y(Y1),a(A1),y(Y2),a(A2)),    353, [y(Y1),a(A1),y(Y2),a(A2)]).
+instr(move(y(Y1),a(A1),y(Y2),a(A2),y(Y3),a(A3)),
       					354, [y(Y1),a(A1),y(Y2),a(A2),y(Y3),a(A3)]).
-instr(move2(a(A1),y(Y1),a(A2),y(Y2)),   355, [a(A1),y(Y1),a(A2),y(Y2)]).
-instr(move3(a(A1),y(Y1),a(A2),y(Y2),a(A3),y(Y3)),
+instr(move(a(A1),y(Y1),a(A2),y(Y2)),    355, [a(A1),y(Y1),a(A2),y(Y2)]).
+instr(move(a(A1),y(Y1),a(A2),y(Y2),a(A3),y(Y3)),
       					356, [a(A1),y(Y1),a(A2),y(Y2),a(A3),y(Y3)]).
-instr(move2(a(A1),a(A2),a(A3),a(A4)),   357, [a(A1),a(A2),a(A3),a(A4)]).
-instr(move3(a(A1),a(A2),a(A3),a(A4),a(A5),a(A6)),
+instr(move(a(A1),a(A2),a(A3),a(A4)),    357, [a(A1),a(A2),a(A3),a(A4)]).
+instr(move(a(A1),a(A2),a(A3),a(A4),a(A5),a(A6)),
       					358, [a(A1),a(A2),a(A3),a(A4),a(A5),a(A6)]).
-instr(move2(y(Y1),y(Y2),y(Y3),y(Y4)),   359, [y(Y1),y(Y2),y(Y3),y(Y4)]).
-instr(move3(y(Y1),y(Y2),y(Y3),y(Y4),y(Y5),y(Y6)),
+instr(move(y(Y1),y(Y2),y(Y3),y(Y4)),    359, [y(Y1),y(Y2),y(Y3),y(Y4)]).
+instr(move(y(Y1),y(Y2),y(Y3),y(Y4),y(Y5),y(Y6)),
       					360, [y(Y1),y(Y2),y(Y3),y(Y4),y(Y5),y(Y6)]).
 instr(swap(a(A1),a(A2)),		361, [a(A1),a(A2)]).
 instr(shift(a(A1),a(A2),a(A3)), 	362, [a(A1),a(A2),a(A3)]).

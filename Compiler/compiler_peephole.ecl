@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.12 2008/03/20 03:02:25 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.13 2008/03/25 14:55:19 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/03/20 03:02:25 $").
+:- comment(date, "$Date: 2008/03/25 14:55:19 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -900,14 +900,15 @@ simplify(read_void, _, Rest, New, RestT, NewT) ?- !,
         Rest = [code{instr:Instr0}|Rest0],
         (Instr0 == read_void ->
             count_same_instr(Rest0, read_void, 2, N, RestT),
-            (RestT = [code{instr:Instr}|_], is_in_read_struct(Instr) ->
+            (is_in_read_struct(RestT) ->
+%            (RestT = [code{instr:Instr}|_], is_in_read_struct(Instr) ->
                New = [code{instr:read_void(N)}|NewT]
             ;
                New = NewT % skip trailing read_voids
             )
         ;
             % do not simplify single read_void except a trailing one
-            \+ is_in_read_struct(Instr0),
+            \+ is_in_read_struct(Rest),
             RestT = Rest,
             New = NewT 
         ).
@@ -997,10 +998,10 @@ simplify(move(a(A1),a(A2)), Code, Rest, New, RestT, NewT) ?- !,
 
 simplify(move(y(Y1),y(Y2)), _, [code{instr:move(y(Y3),y(Y4))}|Rest], New, RestT, NewT) ?- !,
         ( Rest = [code{instr:move(y(Y5),y(Y6))}|Rest0] ->
-            New = [code{instr:move3(y(Y1),y(Y2),y(Y3),y(Y4),y(Y5),y(Y6))}|NewT],
+            New = [code{instr:move(y(Y1),y(Y2),y(Y3),y(Y4),y(Y5),y(Y6))}|NewT],
             Rest0 = RestT
         ;
-            New = [code{instr:move2(y(Y1),y(Y2),y(Y3),y(Y4))}|NewT],
+            New = [code{instr:move(y(Y1),y(Y2),y(Y3),y(Y4))}|NewT],
             Rest = RestT
         ).
 
@@ -1204,7 +1205,7 @@ find_reg_chain(S0, S0Info, [RegPair|Regs1], [RPairInfo|RInfos1], OldDests0, Regs
 
 convert_chains_to_instrs([], [], NMoves, MoveRegs, New, NewT) ?- 
         (NMoves > 0 ->
-            combine_moves(NMoves, MoveRegs, Instr),
+            combine_moves(MoveRegs, Instr),
             New = [code{instr:Instr}|NewT]
         ;
             New = NewT
@@ -1214,7 +1215,7 @@ convert_chains_to_instrs([Chain|Rest], [CInfo|ChainsInfo], NMoves, MoveRegs, New
         ( L == 2 ->
             /* a move instr */
             ( NMoves =:= maxmoveaas -> /* maxmoveaas must be > 0! */
-                combine_moves(NMoves, MoveRegs, MoveInstr),
+                combine_moves(MoveRegs, MoveInstr),
                 New = [code{instr:MoveInstr}|New1],
                 NMoves1 = 1,
                 MoveRegs1 = Chain
@@ -1228,7 +1229,7 @@ convert_chains_to_instrs([Chain|Rest], [CInfo|ChainsInfo], NMoves, MoveRegs, New
         ;   /* a shift instruction */
             ( NMoves > 0 ->
                 /* generate previously accumulated move instr */
-                combine_moves(NMoves, MoveRegs, MoveInstr),
+                combine_moves(MoveRegs, MoveInstr),
                 New = [code{instr:MoveInstr}|New1]
             ;
                 New1 = New
@@ -1259,10 +1260,8 @@ convert_chains_to_instrs([Chain|Rest], [CInfo|ChainsInfo], NMoves, MoveRegs, New
             convert_chains_to_instrs(Rest, ChainsInfo, 0, [], New2, NewT)
         ).
 
-combine_moves(NMoves, MoveRegs, Instr) :-
-        (NMoves == 1 -> Param = "" ; Param = NMoves),
-        concat_atom([move, Param], IName),
-        Instr =.. [IName|MoveRegs].
+combine_moves(MoveRegs, Instr) :-
+        Instr =.. [move|MoveRegs].
 
 split_shift_instrs(Chain, L, New, NewT) :-
         maxshift(Max),
@@ -1330,14 +1329,14 @@ extract_nonconargs_moves(Codes0, Template, AnnInstr0, X0, Y0, MoveInstrs1, Codes
 
 :- mode compact_moves(+,-,-).
 compact_moves([], Tail, Tail).
-compact_moves([Instr1,Instr2,Instr3|Rest], [code{instr:move3(X1,Y1,X2,Y2,X3,Y3)}|CRest1],
+compact_moves([Instr1,Instr2,Instr3|Rest], [code{instr:move(X1,Y1,X2,Y2,X3,Y3)}|CRest1],
               CRest) :-
         !,
         Instr1 =.. [_,X1,Y1],
         Instr2 =.. [_,X2,Y2],
         Instr3 =.. [_,X3,Y3],
         compact_moves(Rest, CRest1, CRest).
-compact_moves([Instr1,Instr2], [code{instr:move2(X1,Y1,X2,Y2)}|CRest], CRest) :-
+compact_moves([Instr1,Instr2], [code{instr:move(X1,Y1,X2,Y2)}|CRest], CRest) :-
         !,
         Instr1 =.. [_,X1,Y1],
         Instr2 =.. [_,X2,Y2].
@@ -1353,9 +1352,22 @@ is_read_instruction(Instr) :-
     % is still (possibly) part of instructions reading the structure, i.e.
     % if it is a read_*, or a move (which should be followed by a
     % read_variable, which we don't check for) 
-    is_in_read_struct(Instr) :-
-        is_read_instruction(Instr), !.
-    is_in_read_struct(move(_,_)).
+    is_in_read_struct([code{instr:Instr}|Code]) ?-
+        ( is_pure_move_instr(Instr) ->
+            is_in_read_struct(Code)
+        ;
+            is_read_instruction(Instr) % fail if not a read_* instruction
+        ).
+    is_in_read_struct([]). % reached end of chunk, assume still in read_struct
+
+    is_pure_move_instr(swap(_,_)) :- !.
+    is_pure_move_instr(rot(_,_,_)) :- !.
+    is_pure_move_instr(Instr) :- 
+        % note this does not count the move_* instructions (these are moves
+        % followed by call/chain/jmp)
+        functor(Instr, move, _), !.
+    is_pure_move_instr(Instr) :-
+        functor(Instr, shift, _), !.
         
     count_same_instr(Codes, Instr, N0, N, Rest) :-
     	( Codes = [code{instr:Instr}|Codes1] ->
@@ -1434,7 +1446,7 @@ Pattern 2:	(merge instr sequence)
 	move(Yi,Aj)
 	move(Yk,Al)
     ->
-    	move2(Yi,Aj,Yk,Al)
+    	move(Yi,Aj,Yk,Al)
 
 Pattern 2a:
 
