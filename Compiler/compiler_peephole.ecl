@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.14 2008/03/25 19:23:26 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.15 2008/03/25 21:47:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/03/25 19:23:26 $").
+:- comment(date, "$Date: 2008/03/25 21:47:49 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -934,22 +934,9 @@ simplify(read_attribute(FirstName), _, More0, New, MoreT, NewT) ?-
 	    fail
 	).
 
-simplify(read_void, _, Rest, New, RestT, NewT) ?- !,
-        Rest = [code{instr:Instr0}|Rest0],
-        (Instr0 == read_void ->
-            count_same_instr(Rest0, read_void, 2, N, RestT),
-            (is_in_read_struct(RestT) ->
-%            (RestT = [code{instr:Instr}|_], is_in_read_struct(Instr) ->
-               New = [code{instr:read_void(N)}|NewT]
-            ;
-               New = NewT % skip trailing read_voids
-            )
-        ;
-            % do not simplify single read_void except a trailing one
-            \+ is_in_read_struct(Rest),
-            RestT = Rest,
-            New = NewT 
-        ).
+simplify(read_void, _, [code{instr:read_void}|Rest0], New, RestT, NewT) ?- !,
+	count_same_instr(Rest0, read_void, 2, N, RestT),
+	New = [code{instr:read_void(N)}|NewT].
 
 simplify(write_void, _, [code{instr:write_void}|Rest0], New, RestT, NewT) ?- !,
         count_same_instr(Rest0, write_void, 2, N, RestT),
@@ -1387,28 +1374,7 @@ is_read_instruction(Instr) :-
     	atom_string(Name, NameS),
 	substring(NameS, "read_", 1).
 
-    % is_in_read_struct(+Instr) checks if Instr, which follows a read_void, 
-    % is still (possibly) part of instructions reading the structure, i.e.
-    % if it is a read_*, or a move (which should be followed by a
-    % read_variable, which we don't check for) 
-    is_in_read_struct([code{instr:Instr}|Code]) ?-
-        ( is_pure_move_instr(Instr) ->
-            is_in_read_struct(Code)
-        ;
-            is_read_instruction(Instr) % fail if not a read_* instruction
-        ).
-    is_in_read_struct([]). % reached end of chunk, assume still in read_struct
-
-    is_pure_move_instr(swap(_,_)) :- !.
-    is_pure_move_instr(rot(_,_,_)) :- !.
-    is_pure_move_instr(Instr) :- 
-        % note this does not count the move_* instructions (these are moves
-        % followed by call/chain/jmp)
-        functor(Instr, move, _), !.
-    is_pure_move_instr(Instr) :-
-        functor(Instr, shift, _), !.
-        
-    count_same_instr(Codes, Instr, N0, N, Rest) :-
+count_same_instr(Codes, Instr, N0, N, Rest) :-
     	( Codes = [code{instr:Instr}|Codes1] ->
 	    N1 is N0+1,
 	    count_same_instr(Codes1, Instr, N1, N, Rest) 
@@ -1416,9 +1382,9 @@ is_read_instruction(Instr) :-
 	    Rest = Codes, N = N0
 	).
 
-    :- mode simplify_call(+,+,-).
-    simplify_call(P, ret, jmp(P)).
-    simplify_call(P, exit, chain(P)).
+:- mode simplify_call(+,+,-).
+simplify_call(P, ret, jmp(P)).
+simplify_call(P, exit, chain(P)).
 
 
 %----------------------------------------------------------------------
@@ -1613,7 +1579,6 @@ Various Patterns:
     savecut(..), <transfer out> -->     <transfer out> unsafe for calls
                                         
     read_void,read_void+	-->	read_void N
-    read_void/[^(read_xxx|move)]	-->	
 
     write_void,write_void+	-->	write_void N
                                         

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.5 2008/03/25 19:23:26 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.6 2008/03/25 21:47:49 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -188,22 +188,36 @@ in_head(I, Term, ChunkData, ChunkData, Code, Code0) :-
     % -RCode+	read mode sequence
     % +Dir	'inout' or 'in' (for matching)
 
-unify_args([H|T], ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode5, RCode, RCode5, Dir) ?-
-	unify_next_arg(H, simple, Prev4, Tmp, ChunkData0, ChunkData1, Reg1, Reg4, WCode, WCode4, RCode, RCode4, Dir),
-	unify_last_arg(T, Prev4, Tmp, ChunkData1, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, RCode5, Dir).
-unify_args(structure{args:Args}, ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode5, RCode, RCode5, Dir) ?-
-	(
-	    fromto(Args, [Arg|Args1], Args1, [ArgN]),
-	    fromto(simple, Prev2, Prev3, Prev4),
-	    fromto(ChunkData0,ChunkData1,ChunkData2,ChunkData3),
-	    fromto(WCode, WCode2, WCode3, WCode4),
-	    fromto(RCode, RCode2, RCode3, RCode4),
-	    fromto(Reg1, Reg2, Reg3, Reg4),
-	    param(Tmp,Dir)
-	do
-	    unify_next_arg(Arg, Prev2, Prev3, Tmp, ChunkData1, ChunkData2, Reg2, Reg3, WCode2, WCode3, RCode2, RCode3, Dir)
+unify_args(Compound, ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode5, RCode, RCode5, Dir) :-
+	( Compound = [H|T] ->
+	    unify_next_arg(H, simple, Prev4, Tmp, ChunkData0, ChunkData1, Reg1, Reg4, WCode, WCode4, RCode1, RCode4, Dir),
+	    unify_last_arg(T, Prev4, Tmp, ChunkData1, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, [], Dir)
+	; Compound = structure{args:Args} ->
+	    (
+		fromto(Args, [Arg|Args1], Args1, [ArgN]),
+		fromto(simple, Prev2, Prev3, Prev4),
+		fromto(ChunkData0,ChunkData1,ChunkData2,ChunkData3),
+		fromto(WCode, WCode2, WCode3, WCode4),
+		fromto(RCode1, RCode2, RCode3, RCode4),
+		fromto(Reg1, Reg2, Reg3, Reg4),
+		param(Tmp,Dir)
+	    do
+		unify_next_arg(Arg, Prev2, Prev3, Tmp, ChunkData1, ChunkData2, Reg2, Reg3, WCode2, WCode3, RCode2, RCode3, Dir)
+	    ),
+	    unify_last_arg(ArgN, Prev4, Tmp, ChunkData3, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, [], Dir)
 	),
-	unify_last_arg(ArgN, Prev4, Tmp, ChunkData3, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, RCode5, Dir).
+	remove_trailing_read_voids(RCode1, RCode, RCode5, Empty, Empty).
+
+    remove_trailing_read_voids([], Out, Out, _RVs, _RVs0).
+    remove_trailing_read_voids([H|T], Out, Out0, RVs, RVs0) :-
+    	( H = code{instr:read_void} ->
+	    RVs0 = [H|RVs1],	% collect read_voids in RVs
+	    remove_trailing_read_voids(T, Out, Out0, RVs, RVs1)
+	;
+	    Out = RVs,		% emit collected read_voids
+	    RVs0 = [H|Out1],	% and the following non-read_void
+	    remove_trailing_read_voids(T, Out1, Out0, Empty, Empty)
+	).
 
 
 
