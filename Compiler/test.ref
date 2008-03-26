@@ -7886,6 +7886,75 @@ label(L1):
 label(L2):
 	jmp                      q / 0 
 
+------ Test head(40) -------
+p([A, B, C, D, E]).
+
+p / 1:
+label(L0):
+	get_list                 a(1)     ref(L5) 
+	write_void           
+	write_list           
+label(L1):
+	write_void           
+	write_list           
+label(L2):
+	write_void           
+	write_list           
+label(L3):
+	write_void           
+	write_list           
+label(L4):
+	write_void           
+	write_nil            
+	branch                   ref(L6) 
+label(L5):
+	read_void            
+	read_last_list           ref(L1) 
+	read_void            
+	read_last_list           ref(L2) 
+	read_void            
+	read_last_list           ref(L3) 
+	read_void            
+	read_last_list           ref(L4) 
+	read_void            
+	read_nil             
+label(L6):
+	ret                  
+
+------ Test head(41) -------
+p(f(A, B, C, D, E)).
+
+p / 1:
+label(L0):
+	get_structure            a(1)     f / 5     ref(L1) 
+	write_void               5 
+	branch                   ref(L2) 
+label(L1):
+label(L2):
+	ret                  
+
+------ Test head(42) -------
+p(f(A, s(B, C), D, E)).
+
+p / 1:
+label(L0):
+	get_structure            a(1)     f / 4     ref(L2) 
+	write_void           
+	write_first_structure     s / 2 
+label(L1):
+	write_void               2 
+	mode                     t(0)     ref(L3) 
+	write_void               2 
+	branch                   ref(L4) 
+label(L2):
+	read_void            
+	read_structure           s / 2     ref(L1) 
+	mode                     t(0) 
+label(L3):
+label(L4):
+	space                    -1 
+	ret                  
+
 ------ Test match(1) -------
 p(1, 2.3, 3_4, a, "s", []) ?-
 	true.
@@ -8230,6 +8299,29 @@ label(L3):
 	space                    -1 
 	jmp                      p / 2 
 
+------ Test match(26) -------
+p(f(A, bar(baz), c)) ?-
+	p(A, B).
+
+p / 1:
+label(L0):
+	in_get_structure         a(1)     f / 3     ref(L1) 
+label(L1):
+	match_meta           
+	read_variable            a(1) 
+	read_attribute           suspend 
+	read_variable            a(2) 
+label(L2):
+	read_next_structure      bar / 1     t(0)     ref(fail) 
+	read_test_var        
+	read_atom                baz 
+	mode                     t(0) 
+label(L3):
+	read_test_var        
+	read_atom                c 
+	space                    -1 
+	jmp                      p / 2 
+
 ------ Test match(30) -------
 p(A) ?-
 	p(A, B).
@@ -8457,6 +8549,52 @@ label(L4):
 	callf                    p / 2     Y[] 
 label(L5):
 	exit                 
+
+------ Test match(40) -------
+p([A, B, C, D, E]) ?-
+	true.
+
+p / 1:
+label(L0):
+	in_get_list              a(1)     ref(L1) 
+label(L1):
+	read_void            
+	read_last_list           ref(fail) 
+	read_void            
+	read_last_list           ref(fail) 
+	read_void            
+	read_last_list           ref(fail) 
+	read_void            
+	read_last_list           ref(fail) 
+	read_void            
+	read_test_var        
+	read_nil             
+	ret                  
+
+------ Test match(41) -------
+p(f(A, B, C, D, E)) ?-
+	true.
+
+p / 1:
+label(L0):
+	in_get_structure         a(1)     f / 5     ref(L1) 
+label(L1):
+	ret                  
+
+------ Test match(42) -------
+p(f(A, s(B, C), D, E)) ?-
+	true.
+
+p / 1:
+label(L0):
+	in_get_structure         a(1)     f / 4     ref(L1) 
+label(L1):
+	read_void            
+	read_structure           s / 2     ref(fail) 
+	mode                     t(0) 
+label(L2):
+	space                    -1 
+	ret                  
 
 ------ Test unify(1) -------
 p(A, B, C) :-

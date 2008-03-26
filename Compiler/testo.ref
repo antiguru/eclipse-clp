@@ -7294,6 +7294,74 @@ label(2):
 	read_constant            5_3 
 	jmp                      q / 0 
 
+------ Test head(40) -------
+p([A, B, C, D, E]).
+
+p / 1:
+label(1):
+	get_list                 a(1)     ref(6) 
+	write_void           
+	write_list           
+label(2):
+	write_void           
+	write_list           
+label(3):
+	write_void           
+	write_list           
+label(4):
+	write_void           
+	write_list           
+label(5):
+	write_void           
+	write_nil            
+	ret                  
+label(6):
+	read_void            
+	read_last_list           ref(2) 
+	read_void            
+	read_last_list           ref(3) 
+	read_void            
+	read_last_list           ref(4) 
+	read_void            
+	read_last_list           ref(5) 
+	read_void            
+	read_nil             
+	ret                  
+
+------ Test head(41) -------
+p(f(A, B, C, D, E)).
+
+p / 1:
+label(1):
+	get_structure            a(1)     f / 5     ref(2) 
+	write_void               5 
+label(2):
+	ret                  
+
+------ Test head(42) -------
+p(f(A, s(B, C), D, E)).
+
+p / 1:
+label(1):
+	get_structure            a(1)     f / 4     ref(3) 
+	write_void           
+	write_first_structure     s / 2 
+label(2):
+	write_void               2 
+	mode                     t(0)     ref(4) 
+	write_void               2 
+	space                    -1 
+	ret                  
+label(3):
+	read_void            
+	read_structure           s / 2     ref(2) 
+	mode                     t(0) 
+	space                    -1 
+	ret                  
+label(4):
+	space                    -1 
+	ret                  
+
 ------ Test match(1) -------
 p(1, 2.3, 3_4, a, "s", []) ?-
 	true.
@@ -7638,6 +7706,29 @@ label(4):
 	space                    -1 
 	jmp                      p / 2 
 
+------ Test match(26) -------
+p(f(A, bar(baz), c)) ?-
+	p(A, B).
+
+p / 1:
+label(1):
+	in_get_structure         a(1)     f / 3     ref(2) 
+label(2):
+	match_meta           
+	read_variable            a(1) 
+	read_attribute           suspend 
+	read_variable            a(2) 
+label(3):
+	read_next_structure      bar / 1     t(0)     ref(fail) 
+	read_test_var        
+	read_atom                baz 
+	mode                     t(0) 
+label(4):
+	read_test_var        
+	read_atom                c 
+	space                    -1 
+	jmp                      p / 2 
+
 ------ Test match(30) -------
 p(A) ?-
 	p(A, B).
@@ -7840,6 +7931,52 @@ label(7):
 	read_attribute           suspend 
 	read_variable            a(2) 
 	chain                    p / 2 
+
+------ Test match(40) -------
+p([A, B, C, D, E]) ?-
+	true.
+
+p / 1:
+label(1):
+	in_get_list              a(1)     ref(2) 
+label(2):
+	read_void            
+	read_last_list           ref(fail) 
+	read_void            
+	read_last_list           ref(fail) 
+	read_void            
+	read_last_list           ref(fail) 
+	read_void            
+	read_last_list           ref(fail) 
+	read_void            
+	read_test_var        
+	read_nil             
+	ret                  
+
+------ Test match(41) -------
+p(f(A, B, C, D, E)) ?-
+	true.
+
+p / 1:
+label(1):
+	in_get_structure         a(1)     f / 5     ref(2) 
+label(2):
+	ret                  
+
+------ Test match(42) -------
+p(f(A, s(B, C), D, E)) ?-
+	true.
+
+p / 1:
+label(1):
+	in_get_structure         a(1)     f / 4     ref(2) 
+label(2):
+	read_void            
+	read_structure           s / 2     ref(fail) 
+	mode                     t(0) 
+label(3):
+	space                    -1 
+	ret                  
 
 ------ Test unify(1) -------
 p(A, B, C) :-
