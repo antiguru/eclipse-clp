@@ -7343,14 +7343,12 @@ p / 1:
 label(1):
 	in_get_structure         a(1)     foo / 3     ref(2) 
 label(2):
-	read_test_var        
 	read_structure           bar / 1     ref(fail) 
 	read_test_var        
 	read_integer             1 
 	mode                     t(0) 
 label(3):
 	read_void            
-	read_test_var        
 	read_last_structure      baz / 1     ref(fail) 
 	read_test_var        
 	read_integer             2 
@@ -7367,17 +7365,13 @@ label(1):
 label(2):
 	read_test_var        
 	read_integer             1 
-	read_test_var        
 	read_last_list           ref(fail) 
 	read_test_var        
 	read_integer             2 
-	read_test_var        
 	read_last_list           ref(fail) 
-	read_test_var        
 	read_list                ref(fail) 
 	read_test_var        
 	read_integer             3 
-	read_test_var        
 	read_last_list           ref(fail) 
 	read_test_var        
 	read_integer             4 
@@ -7583,7 +7577,6 @@ p / 1:
 label(1):
 	in_get_structure         a(1)     f / 3     ref(2) 
 label(2):
-	read_test_var        
 	read_structure           bar / 1     ref(fail) 
 	read_test_var        
 	read_atom                baz 
@@ -7627,7 +7620,6 @@ p / 1:
 label(1):
 	in_get_structure         a(1)     f / 4     ref(2) 
 label(2):
-	read_test_var        
 	read_structure           bar / 1     ref(fail) 
 	read_test_var        
 	read_atom                baz 

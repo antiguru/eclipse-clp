@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.6 2008/03/25 21:47:49 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.7 2008/03/26 00:43:22 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -153,7 +153,8 @@ in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 		code{instr:read_attribute(FirstAttr)}
 		|RCode],
 	meta_index(FirstAttr, 1),
-	unify_args(Meta, ChunkData0, ChunkData, 0, Reg, _WCode, [], RCode, Code1, in),
+	unify_args(Meta, ChunkData0, ChunkData, 0, Reg, WCode, [], RCode, Code1, in),
+	replace_lost_labels(WCode),	% and discard the WCode sequence
 	emit_pop_temp(Reg, Code1, Code0).
 in_head(I, Term, ChunkData, ChunkData, Code, Code0) :-
 	atomic(Term),
@@ -171,7 +172,8 @@ in_head(I, Term, ChunkData, ChunkData, Code, Code0) :-
 
     % Unify all the labels in WCode with the fail-label, because we are
     % about to throw away the WCode sequence. This redirects the references
-    % from RCode to WCode to fail, however, these jumps are never taken anyway!
+    % from RCode to WCode to fail, effectively turning the
+    % read_*_[list|structure] instructions into in_read_*_[list|structure]
     replace_lost_labels(WCode) :-
     	( foreach(Instr,WCode) do
 	    ( Instr = code{instr:label(Label)} -> Label=fail ; true )
@@ -239,21 +241,18 @@ unify_next_arg(List, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCo
 	    Reg1 is Reg0 + 1,
 	    Tmp = Reg1,
 	    WCode = [code{instr:write_first_list},code{instr:label(WL)}|WCode1],
-	    RCode2 = [code{instr:read_list(ref(WL))}|RCode1],
-	    matching_test(Dir, RCode, RCode2)
+	    RCode = [code{instr:read_list(ref(WL))}|RCode1]
 
 	; Prev = compound ->	% immediately following a compound subterm
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
 	    WCode = [code{instr:write_next_list(t(Off),ref(RL))},code{instr:label(WL)}|WCode1],
-	    RCode2 = [code{instr:label(RL)},code{instr:read_next_list(t(Off),ref(WL))}|RCode1],
-	    matching_test(Dir, RCode, RCode2)
+	    RCode = [code{instr:label(RL)},code{instr:read_next_list(t(Off),ref(WL))}|RCode1]
 	; % Prev = simple ->	% following a simple term
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
 	    WCode = [code{instr:write_next_list(t(Off))},code{instr:label(WL)}|WCode1],
-            RCode2 = [code{instr:read_list(t(Off),ref(WL))}|RCode1],
-	    matching_test(Dir, RCode, RCode2)
+            RCode = [code{instr:read_list(t(Off),ref(WL))}|RCode1]
 	),
 	alloc_term(List, ChunkData0, ChunkData1, Dir),
 	unify_args(List, ChunkData1, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0, Dir).
@@ -263,20 +262,17 @@ unify_next_arg(Struct, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, W
 	    Reg1 is Reg0 + 1,
 	    Tmp = Reg1,
 	    WCode = [code{instr:write_first_structure(F/A)},code{instr:label(WL)}|WCode1],
-            RCode2 = [code{instr:read_structure(F/A,ref(WL))}|RCode1],
-	    matching_test(Dir, RCode, RCode2)
+            RCode = [code{instr:read_structure(F/A,ref(WL))}|RCode1]
 	; Prev = compound ->	% immediately following a compound subterm
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
 	    WCode = [code{instr:write_next_structure(F/A,t(Off),ref(RL))},code{instr:label(WL)}|WCode1],
-	    RCode2 = [code{instr:label(RL)},code{instr:read_next_structure(F/A,t(Off),ref(WL))}|RCode1],
-	    matching_test(Dir, RCode, RCode2)
+	    RCode = [code{instr:label(RL)},code{instr:read_next_structure(F/A,t(Off),ref(WL))}|RCode1]
 	; % Prev = simple ->	% following a simple term
 	    Reg1 = Reg0,
 	    Off is Reg0-Tmp,
 	    WCode = [code{instr:write_next_structure(F/A,t(Off))},code{instr:label(WL)}|WCode1],
-	    RCode2 = [code{instr:read_structure(F/A,t(Off),ref(WL))}|RCode1],
-	    matching_test(Dir, RCode, RCode2)
+	    RCode = [code{instr:read_structure(F/A,t(Off),ref(WL))}|RCode1]
 	),
 	alloc_term(Struct, ChunkData0, ChunkData1, Dir),
 	unify_args(Struct, ChunkData1, ChunkData, Reg1, Reg2, WCode1, WCode0, RCode1, RCode0, Dir).
@@ -319,16 +315,14 @@ unify_next_arg(Const, Prev, simple, Tmp, ChunkData, ChunkData, Reg, Reg, WCode, 
 :- mode unify_last_arg(+,+,+, +,-, +,-, -,?, -,?, +).
 unify_last_arg(List, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode0, RCode, RCode0, Dir) :-
 	List = [_|_],
-	up(Prev, Tmp, Reg0, WCode, WCode1, RCode, RCode3),
-	matching_test(Dir, RCode3, RCode1),
+	up(Prev, Tmp, Reg0, WCode, WCode1, RCode, RCode1),
 	WCode1 = [code{instr:write_list},code{instr:label(WL)}|WCode2],
 	RCode1 = [code{instr:read_last_list(ref(WL))}|RCode2],
 	alloc_term(List, ChunkData0, ChunkData1, Dir),
 	unify_args(List, ChunkData1, ChunkData, Reg0, Reg1, WCode2, WCode0, RCode2, RCode0, Dir).
 unify_last_arg(Struct, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode0, RCode, RCode0, Dir) :-
 	Struct = structure{name:F,arity:A},
-	up(Prev, Tmp, Reg0, WCode, WCode1, RCode, RCode3),
-	matching_test(Dir, RCode3, RCode1),
+	up(Prev, Tmp, Reg0, WCode, WCode1, RCode, RCode1),
 	WCode1 = [code{instr:write_structure(F/A)},code{instr:label(WL)}|WCode2],
 	RCode1 = [code{instr:read_last_structure(F/A,ref(WL))}|RCode2],
 	alloc_term(Struct, ChunkData0, ChunkData1, Dir),

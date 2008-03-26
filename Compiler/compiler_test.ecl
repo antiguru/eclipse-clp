@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.6 2008/03/25 19:23:26 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.7 2008/03/26 00:43:22 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -891,6 +891,9 @@ testclause(head(31), (p(f(a,[1,2],b,[3|T],c)) :- q(T))).
 testclause(head(32), (p(f(a,[1,2],[3|T],c)) :- q(T))).
 testclause(head(33), (p(f(a,[1,2],b,[3|T])) :- q(T))).
 testclause(head(34), (p(f("hello",3.5,5_3)) :- q)).
+testclause(head(40), [(p([_,_,_,_,_]) :- true)]).
+testclause(head(41), [(p(f(_,_,_,_,_)) :- true)]).
+testclause(head(42), [(p(f(_,s(_,_),_,_)) :- true)]).
 
 testclause(match(1), (p(1,2.3,3_4,a,"s",[]) ?- true)).
 testclause(match(2), (p(X,Y,_,Z,Z) ?- q(X),r(Y))).
@@ -913,6 +916,7 @@ testclause(match(22), (p(f(a,X{suspend:S},c)) ?- p(X,S))).
 testclause(match(23), (p(f(bar(baz),X{suspend:S},c)) ?- p(X,S))).
 testclause(match(24), (p(f(X{suspend:S},X)) ?- p(X,S))).	% suboptimal, matches attributes twice
 testclause(match(25), (p(f(bar(baz),a,X{suspend:S},c)) ?- p(X,S))).
+testclause(match(26), (p(f(X{suspend:S},bar(baz),c)) ?- p(X,S))).
 testclause(match(30), [(p(X{suspend:S}) ?- p(X,S)),
 	(p(X) :- integer(X), q(X))]).
 testclause(match(31), [(p(X{suspend:S}) ?- !, p(X,S)),
@@ -923,6 +927,9 @@ testclause(match(33), [(p(X{suspend:S}) ?- p(X,S)),
 	(p(X) :- meta(X), q(X))]).
 testclause(match(34), [(p(X) :- free(X), q(X)),
 	(p(X{suspend:S}) ?- p(X,S))]).
+testclause(match(40), [(p([_,_,_,_,_]) ?- true)]).
+testclause(match(41), [(p(f(_,_,_,_,_)) ?- true)]).
+testclause(match(42), [(p(f(_,s(_,_),_,_)) ?- true)]).
 
 testclause(unify(1), (p(X,Y,Z) :- q, X = f(1,g(Y,W),V,h(Z,Y)), r(Z,W),s(V))).
 
