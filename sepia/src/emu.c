@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.16 2008/03/20 03:00:58 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.17 2008/03/27 16:55:39 kish_shen Exp $
  */
 
 /*
@@ -2749,13 +2749,6 @@ _compare_const_:					/* (tmp1,pw1,pp) */
 	    Unify_Simple_pw1(TINT, nint, tmp1)
 	    Next_Pp;
 
-	Case(Get_integeratomAMAM, I_Get_integeratomAMAM)
-	    Get_Argument(pw1)
-	    Unify_Simple_pw1(TINT, nint, tmp1)
-	    Get_Argument(pw1)
-	    Unify_Simple_pw1(TDICT, did, tmp1)
-	    Next_Pp;
-
 	Case(Get_metaAM, I_Get_metaAM)
 	    Get_Argument(pw1)
 	    i = (uword) PP++->kernel;
@@ -5055,23 +5048,12 @@ _switch_on_type_:
 	    Handle_Events_Call
 	    Next_Pp;
 
-	Case(Put_global_variableAMLChainP, I_Put_global_variableAMLChainP)
-	    Get_Argument(pw1)
-	    Get_Local(pw2)
-	    pw1->val.ptr = pw2->val.ptr = TG;
-	    pw1->tag.kernel = pw2->tag.kernel = TREF;
-	    pw1 = TG++;
-	    pw1->val.ptr = pw1;
-	    pw1->tag.kernel = TREF;
-	    goto _chainp_;
-
 	Case(MoveLAMChainP, I_MoveLAMChainP)
 	    Get_Local(pw1)
 	    Get_Argument(pw2)
 	    Move_Pw(pw1,pw2)
 	    /* falls through */
 	Case(ChainP, I_ChainP)
-_chainp_:
 	    if(E < EB) {
 		Pop_Env
 		if(EB == SP) {Repush_Ret_Code}
@@ -5085,23 +5067,12 @@ _chainp_:
 	    Handle_Events_Call
 	    Next_Pp;
 
-	Case(Put_global_variableAMLChainA, I_Put_global_variableAMLChainA)
-	    Get_Argument(pw1)
-	    Get_Local(pw2)
-	    pw1->val.ptr = pw2->val.ptr = TG;
-	    pw1->tag.kernel = pw2->tag.kernel = TREF;
-	    pw1 = TG++;
-	    pw1->val.ptr = pw1;
-	    pw1->tag.kernel = TREF;
-	    goto _chaina_;
-
 	Case(MoveLAMChainA, I_MoveLAMChainA)
 	    Get_Local(pw1)
 	    Get_Argument(pw2)
 	    Move_Pw(pw1,pw2)
 	    /* falls through */
 	Case(ChainA, I_ChainA)
-_chaina_:
 	    if(E < EB) {
 		Pop_Env
 		if(EB == SP) {Repush_Ret_Code}
@@ -5182,28 +5153,6 @@ _chaina_:
 	    }
 	    Next_Pp;
 
-	Case(Put_global_variableAMLJmpA, I_Put_global_variableAMLJmpA)
-	    Get_Argument(pw1)
-	    Get_Local(pw2)
-	    pw1->val.ptr = pw2->val.ptr = TG;
-	    pw1->tag.kernel = pw2->tag.kernel = TREF;
-	    pw1 = TG++;
-	    pw1->val.ptr = pw1;
-	    pw1->tag.kernel = TREF;
-	    if (!Deterministic) {
-		Repush_Ret_Code
-		Check_Local_Overflow
-		Set_Det
-	    }
-	    PP = PP->code;
-	    Handle_Events_Call
-	    Next_Pp;
-
-	Case(MoveLAMJmpA, I_MoveLAMJmpA)
-	    Get_Local(pw1)
-	    Get_Argument(pw2)
-	    Move_Pw(pw1,pw2)
-	    /* falls through */
 	Case(JmpA, I_JmpA)
 	    if (!Deterministic) {
 		Repush_Ret_Code
@@ -5214,28 +5163,6 @@ _chaina_:
 	    Handle_Events_Call
 	    Next_Pp;
 
-	Case(Put_global_variableAMLJmpP, I_Put_global_variableAMLJmpP)
-	    Get_Argument(pw1)
-	    Get_Local(pw2)
-	    pw1->val.ptr = pw2->val.ptr = TG;
-	    pw1->tag.kernel = pw2->tag.kernel = TREF;
-	    pw1 = TG++;
-	    pw1->val.ptr = pw1;
-	    pw1->tag.kernel = TREF;
-	    if (!Deterministic) {
-		Repush_Ret_Code
-		Check_Local_Overflow
-		Set_Det
-	    }
-	    PP = (emu_code) PriCode(PP->proc_entry);
-	    Handle_Events_Call
-	    Next_Pp;
-
-	Case(MoveLAMJmpP, I_MoveLAMJmpP)
-	    Get_Local(pw1)
-	    Get_Argument(pw2)
-	    Move_Pw(pw1,pw2)
-	    /* falls through */
 	Case(JmpP, I_JmpP)
 	    if (!Deterministic) {
 		Repush_Ret_Code

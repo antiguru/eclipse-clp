@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.15 2008/03/25 21:47:49 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.16 2008/03/27 16:53:07 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/03/25 21:47:49 $").
+:- comment(date, "$Date: 2008/03/27 16:53:07 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -253,12 +253,12 @@ flat_code_to_basic_blocks(AnnCode, BasicBlockArray, Rejoins) :-
 		    Chunks0 = [chunk{code:Chunk0,len:Len0,cont:L}|Chunks1]	% collect finished chunk
 		)
 
-	    ; is_nop(Instr) ->
+            ; is_nop(Instr) ->
                 Rejoins0 = Rejoins1,
                 Label0 = Label1,
-		N1 = N0,
-		Len1 = Len0,
-	    	Chunk1 = Chunk0,
+                N1 = N0,
+                Len1 = Len0,
+                Chunk1 = Chunk0,
 		Chunks1 = Chunks0,
 	    	Tail1 = Tail0,
                 State = State1   % keep same state
@@ -339,6 +339,9 @@ next_state(Instr, State, NextState) :-
     unconditional_transfer(chaind(_)).
     unconditional_transfer(trust(_,_)).
     unconditional_transfer(trust_inline(_,_,_)).
+    % generated instructions from peephole optimiser
+    unconditional_transfer(move_chain(_,_,_)).
+    unconditional_transfer(branchs(_,_)).
 
     % unconditional control transfer instruction to outside the predicate
     % Subset of unconditional_transfer/1, plus extra instr from peephole
@@ -354,8 +357,8 @@ next_state(Instr, State, NextState) :-
     unconditional_transfer_out(jmpd(_)).
     unconditional_transfer_out(chain(_)).
     unconditional_transfer_out(chaind(_)).
-    /* generated instr from peephole optimiser */
-/*    unconditional_transfer_out(branchs(_,_)).
+    % generated instr from peephole optimiser 
+    unconditional_transfer_out(branchs(_,_)).
     unconditional_transfer_out(jmpd(_,_)).*/
 
     % these are indexing branch instructions with a default fall-through
@@ -955,7 +958,7 @@ simplify(move(y(Y1),a(A1)), _, [AnnInstr0|Rest0], New, RestT, NewT) ?-
         ;
             MoveInstrs = [move(y(Y1),a(A1))|MoveInstrs0],
             extract_nonconargs_moves(Rest0, move(y(_),a(_)), AnnInstr0, Y2, A2, MoveInstrs0, RestT),
-            MoveInstrs \= [_], % no compact possible with single move
+            MoveInstrs0 \= [], % no compact possible with single move.
             compact_moves(MoveInstrs, New, NewT)
         ).
 
@@ -968,53 +971,21 @@ simplify(move(a(A1),y(Y1)), _, [AnnInstr0|Rest0], New, RestT, NewT) ?-
         ;
             MoveInstrs = [move(a(A1),y(Y1))|MoveInstrs0],
             extract_nonconargs_moves(Rest0, move(a(_),y(_)), AnnInstr0, A2, Y2, MoveInstrs0, RestT),
-            MoveInstrs \= [_], % no compact possible with single move
+            MoveInstrs0 \= [], % no compact possible with single move
             compact_moves(MoveInstrs, New, NewT)
         ).
 
 simplify(move(y(Y),a(A)), _, [code{instr:callf(P,EAM)}|Rest0], New, RestT, NewT) ?- !,
-        ( EAM == eam(0) ->
-            Rest0 = [code{instr:Instr}|Rest1],
-            ( simplify_call(P, Instr, NewInstr) ->
-                simplify(move(y(Y),a(A)), _, [code{instr:NewInstr}|Rest1], New, RestT, NewT)
-            ;
-                New = [code{instr:move_callf(y(Y),a(A),P,EAM)}|NewT],
-                RestT = Rest0
-            )
-        ;
-                New = [code{instr:move_callf(y(Y),a(A),P,EAM)}|NewT],
-                RestT = Rest0
-        ).
-
-simplify(move(y(Y),a(A)), _, [code{instr:jmp(P)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:move_jmp(y(Y),a(A),P)}|NewT],
-        RestT = Rest.
+        New = [code{instr:move_callf(y(Y),a(A),P,EAM)}|NewT],
+        RestT = Rest0.
 
 simplify(move(y(Y),a(A)), _, [code{instr:chain(P)}|Rest], New, RestT, NewT) ?- !,
         New = [code{instr:move_chain(y(Y),a(A),P)}|NewT],
         RestT = Rest.
 
 simplify(put_global_variable(a(A),y(Y)), _, [code{instr:callf(P,EAM)}|Rest0], New, RestT, NewT) ?- !,
-        ( EAM == eam(0) ->
-            Rest0 = [code{instr:Instr}|Rest1],
-            ( simplify_call(P, Instr, NewInstr) ->
-                simplify(put_global_variable(a(A),y(Y)), _, [code{instr:NewInstr}|Rest1], New, RestT, NewT)
-            ;
-                New = [code{instr:put_global_variable_callf(a(A),y(Y),P,EAM)}|NewT],
-                RestT = Rest0
-            )
-        ;
-                New = [code{instr:put_global_variable_callf(a(A),y(Y),P,EAM)}|NewT],
-                RestT = Rest0
-        ).
-
-simplify(put_global_variable(a(A),y(Y)), _, [code{instr:jmp(P)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:put_global_variable_jmp(a(A),y(Y),P)}|NewT],
-        RestT = Rest.
-
-simplify(put_global_variable(a(A),y(Y)), _, [code{instr:chain(P)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:put_global_variable_chain(a(A),y(Y),P)}|NewT],
-        RestT = Rest.
+        New = [code{instr:put_global_variable_callf(a(A),y(Y),P,EAM)}|NewT],
+        RestT = Rest0.
 
 simplify(move(a(A1),a(A2)), Code, Rest, New, RestT, NewT) ?- !,
         Code = code{regs:Regs},
@@ -1100,7 +1071,8 @@ simplify(get_atom(a(A1),C1), _, [code{instr:get_integer(a(A2),C2)}|Rest], New, R
         RestT = Rest.
 
 simplify(get_integer(a(A1),C1), _, [code{instr:get_atom(a(A2),C2)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:get_integeratom(a(A1),C1,a(A2),C2)}|NewT],
+        A1 \= A2, % just to be sure  
+        New = [code{instr:get_atominteger(a(A2),C2,a(A1),C1)}|NewT],
         RestT = Rest.
 
 simplify(write_integer(C1), _, [code{instr:write_integer(C2)}|Rest], New, RestT, NewT) ?- !,
@@ -1321,6 +1293,9 @@ get_subchain(N, [E|List0], SubT, RestList) :-
 maxmoveaas(3).  /* maximum number of non-related move a(_) a(_) than can be combined */
 maxshift(5).    /* maximum number of arguments in a shift instruction */
 
+% extract a sequence of move instructions of the same type whose argument
+% refers to consecutive registers. The number of such move instructions, N,
+% is returned
 extract_conargs_moves(Codes, Instr, X, Y, X0, Y0, N0, N, Rest) :-
         ( \+ \+ (Codes = [code{instr:Instr}|_], X0 + N0 =:= X, Y0 + N0 =:= Y) 
         ->
@@ -1331,7 +1306,9 @@ extract_conargs_moves(Codes, Instr, X, Y, X0, Y0, N0, N, Rest) :-
             N = N0, 
             Rest = Codes
         ).
-            
+
+% extract a sequence of move instructions of type Template whose arguments
+% are not consectuve, starting with AnnInstr0. Can return an empty sequence
 extract_nonconargs_moves(Codes0, Template, AnnInstr0, X0, Y0, MoveInstrs1, Codes) :-
         AnnInstr0 = code{instr:Instr0},
         ( Codes0 = [AnnInstr1|Codes1],

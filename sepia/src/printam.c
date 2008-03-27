@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.11 2008/03/20 03:00:57 kish_shen Exp $
+ * VERSION	$Id: printam.c,v 1.12 2008/03/27 16:55:39 kish_shen Exp $
  */
 
 /*
@@ -791,13 +791,6 @@ print_am(register vmcode *code,
 		break;
 #endif /* NREGARG */
 
-	case Get_integeratomAMAM:
-		Am;
-		Integer;
-		Am;
-		Atom;
-		break;
-
 	case Get_atomintegerAMAM:
 		Am;
 		Atom;
@@ -1251,17 +1244,8 @@ print_am(register vmcode *code,
 		break;
 
 	case MoveLAMChainA:
-	case MoveLAMJmpA:
 	        Perm;
 		Am;
-		Addr;
-		Nl;
-		break;
-
-	case Put_global_variableAMLChainA:
-	case Put_global_variableAMLJmpA:
-		Am;
-	        Perm;
 		Addr;
 		Nl;
 		break;
@@ -1291,7 +1275,6 @@ print_am(register vmcode *code,
 		EnvDesc;
 		break;
 
-	case MoveLAMJmpP:
 	case MoveLAMChainP:
 	        Perm;
 		Am;
@@ -1300,14 +1283,6 @@ print_am(register vmcode *code,
 	case ChainP:
 	case ChaincP:
 	case ChaindP:
-		Proc;
-		Nl;
-		break;
-
-	case Put_global_variableAMLJmpP:
-	case Put_global_variableAMLChainP:
-		Am;
-	        Perm;
 		Proc;
 		Nl;
 		break;

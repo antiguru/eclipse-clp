@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.15 2008/03/25 14:53:32 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.16 2008/03/27 16:54:51 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -843,46 +843,35 @@ instr(put_variable2(a(A1),a(A2)),       376, [a(A1),a(A2)]).
 instr(get_atom2(a(A1),C1,a(A2),C2),     377, [a(A1),atom(C1),a(A2),atom(C2)]).
 instr(get_integer2(a(A1),C1,a(A2),C2),  378, [a(A1),i(C1),a(A2),i(C2)]).
 instr(get_atominteger(a(A1),C,a(A2),I), 379, [a(A1),atom(C),a(A2),i(I)]).
-instr(get_integeratom(a(A1),I,a(A2),C), 380, [a(A1),i(I),a(A2),atom(C)]).
-instr(write_first_structure(D),         381, [func(D)]).
-instr(write_first_list,                 382, []).
-instr(write_next_structure(D,t(X)),     383, [func(D),t(X)]).
-instr(write_next_list(t(X)),            384, [t(X)]).
+instr(write_first_structure(D),         380, [func(D)]).
+instr(write_first_list,                 381, []).
+instr(write_next_structure(D,t(X)),     382, [func(D),t(X)]).
+instr(write_next_list(t(X)),            383, [t(X)]).
 instr(write_next_structure(D,t(X),ref(L)),     
-       					385, [func(D),t(X),ref(L)]).
-instr(write_next_list(t(X),ref(L)),     386, [t(X),ref(L)]).
-instr(read_atom2(C1,C2),		387, [atom(C1),atom(C2)]).
-instr(read_integer2(C1,C2),		388, [i(C1),i(C2)]).
-instr(read_integeratom(C1,C2),		389, [i(C1),atom(C2)]).
-instr(read_atominteger(C1,C2),		390, [atom(C1),i(C2)]).
-instr(write_did2(C1,C2),		391, [func(C1),func(C2)]).
-instr(write_atom2(C1,C2),		391, [atom(C1),atom(C2)]).  %=write_did2
-instr(write_atomdid(C1,C2),		391, [atom(C1),func(C2)]).  %=write_did2
-instr(write_didatom(C1,C2),		391, [func(C1),atom(C2)]).  %=write_did2
-instr(write_integer2(C1,C2),		392, [i(C1),i(C2)]).
-instr(write_integerdid(C1,C2),		393, [i(C1),func(C2)]).
-instr(write_integeratom(C1,C2),		393, [i(C1),atom(C2)]).     %=write_integerdid
-instr(write_didinteger(C1,C2),		394, [func(C1),i(C2)]).
-instr(write_atominteger(C1,C2),		394, [atom(C1),i(C2)]).     %=writedidinteger
-instr(move_callf(y(Y),a(A),ref(L),N),	395, [y(Y),a(A),ref(L),edesc(N)]).
-instr(move_callf(y(Y),a(A),P,N),	396, [y(Y),a(A),proc(P),edesc(N)]).
-instr(move_chain(y(Y),a(A),ref(L)),	397, [y(Y),a(A),ref(L)]).
-instr(move_chain(y(Y),a(A),P),		398, [y(Y),a(A),proc(P)]).
-instr(move_jmp(y(Y),a(A),ref(L)),	399, [y(Y),a(A),ref(L)]).
-instr(move_jmp(y(Y),a(A),P),		400, [y(Y),a(A),proc(P)]).
+       					384, [func(D),t(X),ref(L)]).
+instr(write_next_list(t(X),ref(L)),     385, [t(X),ref(L)]).
+instr(read_atom2(C1,C2),		386, [atom(C1),atom(C2)]).
+instr(read_integer2(C1,C2),		387, [i(C1),i(C2)]).
+instr(read_integeratom(C1,C2),		388, [i(C1),atom(C2)]).
+instr(read_atominteger(C1,C2),		389, [atom(C1),i(C2)]).
+instr(write_did2(C1,C2),		390, [func(C1),func(C2)]).
+instr(write_atom2(C1,C2),		390, [atom(C1),atom(C2)]).  %=write_did2
+instr(write_atomdid(C1,C2),		390, [atom(C1),func(C2)]).  %=write_did2
+instr(write_didatom(C1,C2),		390, [func(C1),atom(C2)]).  %=write_did2
+instr(write_integer2(C1,C2),		391, [i(C1),i(C2)]).
+instr(write_integerdid(C1,C2),		392, [i(C1),func(C2)]).
+instr(write_integeratom(C1,C2),		392, [i(C1),atom(C2)]).     %=write_integerdid
+instr(write_didinteger(C1,C2),		393, [func(C1),i(C2)]).
+instr(write_atominteger(C1,C2),		393, [atom(C1),i(C2)]).     %=writedidinteger
+instr(move_callf(y(Y),a(A),ref(L),N),	394, [y(Y),a(A),ref(L),edesc(N)]).
+instr(move_callf(y(Y),a(A),P,N),	395, [y(Y),a(A),proc(P),edesc(N)]).
+instr(move_chain(y(Y),a(A),ref(L)),	396, [y(Y),a(A),ref(L)]).
+instr(move_chain(y(Y),a(A),P),		397, [y(Y),a(A),proc(P)]).
 instr(put_global_variable_callf(a(A),y(Y),ref(L),N),	
-                                        401, [a(A),y(Y),ref(L),edesc(N)]).
+                                        398, [a(A),y(Y),ref(L),edesc(N)]).
 instr(put_global_variable_callf(a(A),y(Y),P,N),	
-                                        402, [a(A),y(Y),proc(P),edesc(N)]).
-instr(put_global_variable_chain(a(A),y(Y),ref(L)),
-                                        403, [a(A),y(Y),ref(L)]).
-instr(put_global_variable_chain(a(A),y(Y),P),
-                                        404, [a(A),y(Y),proc(P)]).
-instr(put_global_variable_jmp(a(A),y(Y),ref(L)),
-                                        405, [a(A),y(Y),ref(L)]).
-instr(put_global_variable_jmp(a(A),y(Y),P),
-                                        406, [a(A),y(Y),proc(P)]).
-instr(rot(a(A1),a(A2),a(A3)),		407, [a(A1),a(A2),a(A3)]).
+                                        399, [a(A),y(Y),proc(P),edesc(N)]).
+instr(rot(a(A1),a(A2),a(A3)),		400, [a(A1),a(A2),a(A3)]).
 
 /***************************************************************************
  assemble

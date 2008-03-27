@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.6 2008/03/20 02:57:38 kish_shen Exp $
+ * VERSION	$Id: names.h,v 1.7 2008/03/27 16:56:30 kish_shen Exp $
  */
 
 /*
@@ -447,7 +447,6 @@ char * inst_name[] = {
 "Get_integer2AM	           ",
 "Get_atom2AM               ",
 "Get_atomintegerAMAM       ",
-"Get_integeratomAMAM       ",
 "Write_first_structure     ",
 "Write_first_list          ",
 "Write_next_structureTM    ",
@@ -466,14 +465,8 @@ char * inst_name[] = {
 "MoveLAMCallfP             ",
 "MoveLAMChainA             ",
 "MoveLAMChainP             ",
-"MoveLAMJmpA               ",
-"MoveLAMJmpP               ",
 "Put_global_variableAMLCallfA",
 "Put_global_variableAMLCallfP",
-"Put_global_variableAMLChainA",
-"Put_global_variableAMLChainP",
-"Put_global_variableAMLJmpA ",
-"Put_global_variableAMLJmpA ",   
 "RotAMAMAM                 ",
 
 #if (NREGARG > 0)
