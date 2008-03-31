@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.15 2008/03/07 00:56:12 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.16 2008/03/31 02:07:01 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/03/07 00:56:12 $").
+:- comment(date,	"$Date: 2008/03/31 02:07:01 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -800,7 +800,7 @@ fcompile_(File, Options0, Module) :-
 :- export comp/0, list/0, load/0.
 
 comp :-
-	Options = [output:eco,load:new,verbose:0,opt_level:1],
+	Options = [output:eco,load:new,verbose:0,opt_level:1,expand_goals:on],
 	compile(compiler_common,	Options),
 	compile(compiler_normalise,	Options),
 	compile(compiler_analysis,	Options),
@@ -813,7 +813,7 @@ comp :-
 	true.
 
 list :-
-	Options = [output:listing,load:new,verbose:1],
+	Options = [output:listing,load:new,verbose:1,opt_level:1,expand_goals:on],
 	compile(compiler_common,	Options),
 	compile(compiler_normalise,	Options),
 	compile(compiler_analysis,	Options),
