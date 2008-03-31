@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.10 2008/03/18 15:28:25 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.11 2008/03/31 17:14:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/03/18 15:28:25 $").
+:- comment(date, "$Date: 2008/03/31 17:14:33 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -598,7 +598,8 @@ handle_ifdef(Directive, ThisPos, NextPos, Kind, SourceTerm, SourceTerm) :-
 
 
     warn_ifdef(source_position{ifdefs:[]}) :- !.
-    warn_ifdef(source_position{file:File}) :-
+    warn_ifdef(source_position{file:Path}) :-
+	pathname(Path, _Dir, File),
 	printf(warning_output, "WARNING: Missing endif at end of file %w%n", [File]).
 
 
@@ -610,7 +611,8 @@ handle_directives((D1,D2), ThisPos, NextPos, Kind) :- !,
 	( Kind1 == Kind2 ->
 	    Kind = Kind1
 	;
-	    ThisPos = source_position{line:Line,file:File},
+	    ThisPos = source_position{line:Line,file:Path},
+	    pathname(Path, _Dir, File),
 	    printf(warning_output, "WARNING: Confusing compound directive"
 	    	" in file %w, line %d:%n:- %w.%n", [File,Line,(D1,D2)]),
 	    Kind = directive
@@ -699,7 +701,8 @@ handle_directives(Directive, NextPos, NextPos, Kind) :-
 	    Kind = directive
 	).
 
-    directive_warning(Msg, Directive, source_position{line:Line,file:File}) :-
+    directive_warning(Msg, Directive, source_position{line:Line,file:Path}) :-
+	pathname(Path, _Dir, File),
 	printf(warning_output, "WARNING: %w in file %w, line %d:%n:- %w.%n",
 		[Msg,File,Line,Directive]).
 
