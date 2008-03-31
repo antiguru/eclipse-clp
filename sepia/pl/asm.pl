@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.17 2008/03/31 14:50:56 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.18 2008/03/31 20:16:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1394,7 +1394,6 @@ disasm(Pred, WAMList, Module) :-
               IStart is the next start position to be added to this list
 */
 
-interpret_pred([], _Base, _H, _IStart, [], []).
 interpret_pred([IWord|Ws0], Base, H, IStart, WAM0, Starts0) :-
 	decode_code(o(IWord), OpCode),
 	(
@@ -1402,7 +1401,9 @@ interpret_pred([IWord|Ws0], Base, H, IStart, WAM0, Starts0) :-
 	    FirstPos is IStart + 1,		% +1 for opc 
 	    disasm_args(Args, Ws0, Ws1, Base, H, FirstPos, PosEnd) % may fail
 	->
-	    ( Instr = comment(_) ->
+	    ( Instr = code_end ->
+		Starts0 = [IStart], WAM0 = [Instr]
+	    ; Instr = comment(_) ->
 		interpret_pred(Ws1, Base, H, PosEnd, WAM0, Starts0)
 	    ;
 		Starts0 = [IStart|Starts1], WAM0 = [Instr|WAM1],
