@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.9 2007/11/22 17:56:06 kish_shen Exp $
+ * VERSION	$Id: emu_export.h,v 1.10 2008/03/31 14:47:14 jschimpf Exp $
  */
 
 /*
@@ -774,6 +774,7 @@ extern pword	*spmax_;
  * the result argument is not a variable or the same numeric type.
  */
 
+#ifdef ARITH_OUTPUT_TYPE_ERROR
 #define Return_Numeric(v, t, result) \
     if (IsRef(t)) { \
         Return_Bind_Var(v, t, result.val.all, result.tag.all); \
@@ -784,6 +785,18 @@ extern pword	*spmax_;
     } else if (tag_desc[TagType(t)].super == tag_desc[TagType(result.tag)].super) { \
         Fail_; \
     } else { Bip_Error(TYPE_ERROR); }
+#else
+#define Return_Numeric(v, t, result) \
+    if (IsRef(t)) { \
+        Return_Bind_Var(v, t, result.val.all, result.tag.all); \
+    } else if (SameType(t, result.tag)) { \
+        Succeed_If( \
+            IsSimple(t) ? SimpleEq(t.kernel, v, result.val) \
+            : tag_desc[TagType(t)].equal(result.val.ptr, v.ptr)); \
+    } else { \
+        Fail_; \
+    }
+#endif
 
 /*---------------------------------------------------------------------------
  * Coroutining / Metaterms
@@ -1492,4 +1505,36 @@ Extern	DLLEXP	int p_merge_suspension_lists ARGS((value, type, value, type, value
 Extern	DLLEXP	int p_set_suspension_priority ARGS((value, type, value, type));
 Extern	DLLEXP	int ec_enter_suspension ARGS((pword *, pword *));
 Extern	DLLEXP	int unary_arith_op ARGS((value,type,value,type,int,int));
+Extern	int	binary_arith_op ARGS((value,type,value,type,value,type,int));
+Extern	int	un_arith_op ARGS((value,type,pword *,int,int));
+Extern	int	bin_arith_op ARGS((value,type,value,type,pword *,int));
+
+Extern pri
+	*fail_proc_,
+	*cut_to_stamp_proc_,
+	*minus_proc_,
+	*add_proc_,
+	*sub_proc_,
+	*mul_proc_,
+	*quot_proc_,
+	*div_proc_,
+	*rem_proc_,
+	*fdiv_proc_,
+	*mod_proc_,
+	*and_proc_,
+	*or_proc_,
+	*xor_proc_,
+	*bitnot_proc_,
+	*lt_proc3_,
+	*le_proc3_,
+	*eq_proc3_,
+	*ne_proc3_,
+	*ge_proc3_,
+	*gt_proc3_,
+	*identical_proc_,
+	*not_identical_proc_,
+	*inequality_proc_,
+	*not_ident_list_proc_,
+	*arg_proc_,
+	*make_suspension_proc_;
 

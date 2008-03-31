@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.7 2008/03/27 16:56:30 kish_shen Exp $
+ * VERSION	$Id: opcode.h,v 1.8 2008/03/31 14:47:31 jschimpf Exp $
  */
 
 /*
@@ -400,8 +400,8 @@ extern vmcode bi_addr[];
 #define Get_valueLL				(BLOCK1 + 289)
 #define Escapef					(BLOCK1 + 290)
 #define BI_Exit					(BLOCK1 + 291)
-#define BI_PutCutAM				(BLOCK1 + 292)
-#define BI_PutCutL				(BLOCK1 + 293)
+#define BI_Bignum				(BLOCK1 + 292)
+#define BI_Callable				(BLOCK1 + 293)
 #define BI_CutToStamp				(BLOCK1 + 294)
 #define BI_SetBipError				(BLOCK1 + 295)
 #define BI_GetBipError				(BLOCK1 + 296)
@@ -429,7 +429,7 @@ extern vmcode bi_addr[];
 #define BI_NotIdentList				(BLOCK1 + 318)
 #define BI_ContDebug				(BLOCK1 + 319)
 #define BI_Minus				(BLOCK1 + 320)
-#define BI_Succ					(BLOCK1 + 321)
+#define BI_Addi					(BLOCK1 + 321)
 #define BI_Add					(BLOCK1 + 322)
 #define BI_Sub					(BLOCK1 + 323)
 #define BI_Mul					(BLOCK1 + 324)
@@ -509,7 +509,8 @@ extern vmcode bi_addr[];
 #define Put_global_variableAMLCallfA            (BLOCK1 + 398)
 #define Put_global_variableAMLCallfP            (BLOCK1 + 399)
 #define RotAMAMAM				(BLOCK1 + 400)
-#define OPCODES_WITHOUT_REGS			(BLOCK1 + 401)
+#define BI_Arity				(BLOCK1 + 401)
+#define OPCODES_WITHOUT_REGS			(BLOCK1 + 402)
 
 /*
  * Don't forget to update the following files:

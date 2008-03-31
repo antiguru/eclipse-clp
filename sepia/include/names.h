@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.7 2008/03/27 16:56:30 kish_shen Exp $
+ * VERSION	$Id: names.h,v 1.8 2008/03/31 14:47:21 jschimpf Exp $
  */
 
 /*
@@ -359,8 +359,8 @@ char * inst_name[] = {
 "Get_valueLL               ",
 "Escapef                   ",
 "BI_Exit                   ",
-"BI_PutCutAM               ",
-"BI_PutCutL                ",
+"BI_Bignum                 ",
+"BI_Callable               ",
 "BI_CutToStamp             ",
 "BI_SetBipError            ",
 "BI_GetBipError            ",
@@ -388,7 +388,7 @@ char * inst_name[] = {
 "BI_NotIdentList           ",
 "BI_ContDebug              ",
 "BI_Minus                  ",
-"BI_Succ                   ",
+"BI_Addi                   ",
 "BI_Add                    ",
 "BI_Sub                    ",
 "BI_Mul                    ",
@@ -468,6 +468,7 @@ char * inst_name[] = {
 "Put_global_variableAMLCallfA",
 "Put_global_variableAMLCallfP",
 "RotAMAMAM                 ",
+"BI_Arity                  ",
 
 #if (NREGARG > 0)
 "MoveAR                    ",
