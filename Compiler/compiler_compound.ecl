@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.7 2008/03/26 00:43:22 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.8 2008/03/31 02:04:44 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -534,9 +534,9 @@ push_va(Var, ChunkData0, ChunkData, Code, Code0) :-
 %	Code = [code{instr:push_value(Y),regs:[r(VarId,Y,perm,_)]}|Code0].
 	Code = [code{instr:push_local_value(Y),regs:[r(VarId,Y,perm,_)]}|Code0].		%%% FOR MIXED CODE ONLY
 
-    push_va_code(perm(Y), _VarId, Code, Code0) :-
-%	Code = [code{instr:push_value(Y)}|Code0].
-	Code = [code{instr:push_local_value(Y)}|Code0].		%%% FOR MIXED CODE ONLY
+    push_va_code(perm(_Y), VarId, Code, Code0) :-
+%	Code = [code{instr:push_value(RY),regs:[r(VarId,RY,use,_)]}|Code0].
+	Code = [code{instr:push_local_value(RY),regs:[r(VarId,RY,use,_)]}|Code0].		%%% FOR MIXED CODE ONLY
 
 
 
@@ -576,10 +576,10 @@ unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0) :-
 	WCode = [code{instr:write_local_value(Y),regs:[r(VarId,Y,perm,_)]}|WCode0],		%%% FOR MIXED CODE ONLY
 	RCode = [code{instr:read_value(Y),regs:[r(VarId,Y,perm,_)]} |RCode0].
 
-    unify_va_code(perm(Y), _VarId, WCode, WCode0, RCode, RCode0, unbounded_maybe) :-
-%	WCode = [code{instr:write_value(Y)}|WCode0],
-	WCode = [code{instr:write_local_value(Y)}|WCode0],		%%% FOR MIXED CODE ONLY
-	RCode = [code{instr:read_value(Y)} |RCode0].
+    unify_va_code(perm(_Y), VarId, WCode, WCode0, RCode, RCode0, unbounded_maybe) :-
+%	WCode = [code{instr:write_value(RY),regs:[r(VarId,RY,use,_)]}|WCode0],
+	WCode = [code{instr:write_local_value(RY),regs:[r(VarId,RY,use,_)]}|WCode0],		%%% FOR MIXED CODE ONLY
+	RCode = [code{instr:read_value(RY),regs:[r(VarId,RY,use,_)]} |RCode0].
 
 
 % Matching only
@@ -607,8 +607,8 @@ in_unify_va(Var, ChunkData0, ChunkData, RCode, RCode0) :-
     in_unify_va_code(perm_first_in_chunk(Y), VarId, RCode, RCode0) :-
 	RCode = [code{instr:read_matched_value(Y),regs:[r(VarId,Y,perm,_)]} |RCode0].
 
-    in_unify_va_code(perm(Y), _VarId, RCode, RCode0) :-
-	RCode = [code{instr:read_matched_value(Y)} |RCode0].
+    in_unify_va_code(perm(_Y), VarId, RCode, RCode0) :-
+	RCode = [code{instr:read_matched_value(RY),regs:[r(VarId,RY,use,_)]} |RCode0].
 
 
 %----------------------------------------------------------------------
