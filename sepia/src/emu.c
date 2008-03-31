@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.17 2008/03/27 16:55:39 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.18 2008/03/31 14:48:54 jschimpf Exp $
  */
 
 /*
@@ -293,39 +293,10 @@ extern pri	**default_error_handler_,
 		**interrupt_handler_,
 		**error_handler_;
 
-extern pri	*identical_proc_,
-                *not_identical_proc_,
-                *inequality_proc_,
-                *not_ident_list_proc_,
-                *minus_proc_,
-                *succ_proc_,
-                *add_proc_,
-                *sub_proc_,
-                *mul_proc_,
-                *quot_proc_,
-                *div_proc_,
-                *rem_proc_,
-                *fdiv_proc_,
-                *mod_proc_,
-                *and_proc_,
-                *or_proc_,
-                *xor_proc_,
-                *bitnot_proc_,
-                *lt_proc_,
-                *le_proc_,
-                *gt_proc_,
-                *ge_proc_,
-                *eq_proc_,
-                *ne_proc_,
-                *arg_proc_,
-                *make_suspension_proc_;
-
 
  /*
   * EXTERNAL VARIABLE DEFINITIONS: 
   */
-
-int		(*in_external)();
 
 
  /*
@@ -730,7 +701,6 @@ int bt_max = MAX_BACKTRACE;
 	}
 
 #define Compare_Bip(BIxx, Op) \
-	in_external = PriFunc(proc);\
 	Delay_Check_1\
 	Delay_Check_2\
 	/* don't Kill_DE here since arith_compare() can return PDELAY */\
@@ -781,7 +751,6 @@ int bt_max = MAX_BACKTRACE;
 
 
 #define Generic_Arith_Overflow_Bip(BIxx, Op, SignOp, OpNr) \
-	in_external = PriFunc(proc);\
 	Delay_Check_1\
 	Delay_Check_2\
 	Kill_DE;\
@@ -819,7 +788,6 @@ int bt_max = MAX_BACKTRACE;
 
 
 #define Int_Arith_Bip(BIxx, Op, OpNr) \
-	in_external = PriFunc(proc);\
 	Delay_Check_1\
 	Delay_Check_2\
 	Kill_DE;\
@@ -830,133 +798,6 @@ int bt_max = MAX_BACKTRACE;
 	}\
 	err_code = OpNr;\
 	goto _bin_op_;
-
-
-/*
- * Arithmetic BIPs (abs machine version)
- */
-
-/* pw is dereferenced */
-#define NDelay_Check_1(pw)		\
-	if (IsRef((pw)->tag)) {	\
-		err_code = PDELAY_1;	\
-		goto _npdelay_;		\
-	}
-
-#define NDelay_Check_2(pw)		\
-	if (IsRef((pw)->tag)) {	\
-		err_code = PDELAY_2;	\
-		goto _npdelay_;		\
-	}
-
-#define NCompare_Bip(BIxx, Op) /* arity 3 */\
-        pw1 = PP[-3].arg;\
-        Dereference_Pw(pw1)\
-	NDelay_Check_1(pw1)\
-        pw2 = PP[-2].arg;\
-        Dereference_Pw(pw2)\
-	NDelay_Check_2(pw2)\
-	/* don't Kill_DE here since arith_compare() can return PDELAY */\
-	if (IsInteger(pw1->tag)) {\
-	    if (IsInteger(pw2->tag))\
-		if (pw1->val.nint Op pw2->val.nint)\
-		    { goto _nbip_kill_succeed_;}\
-		else\
-		    { goto _nbip_fail_; }\
-	    else if (IsDouble(pw2->tag))\
-		if ((double)pw1->val.nint Op Dbl(pw2->val))\
-		    { goto _nbip_kill_succeed_;}\
-		else\
-		    { goto _nbip_fail_; }\
-	}\
-	else if (IsDouble(pw1->tag)) {\
-	    if (IsInteger(pw2->tag))\
-		if (Dbl(pw1->val) Op (double)pw2->val.nint)\
-		    { goto _nbip_kill_succeed_;}\
-		else\
-		    { goto _nbip_fail_; }\
-	    else if (IsDouble(pw2->tag))\
-		if (Dbl(pw1->val) Op Dbl(pw2->val))\
-		    { goto _nbip_kill_succeed_;}\
-		else\
-		    { goto _nbip_fail_; }\
-	}\
-	if (IsNumber(pw1->tag) && IsNumber(pw2->tag)) {\
-	    int relation = BIxx; /* don't use a register */ \
-	    Export_B_Sp_Tg_Tt\
-	    err_code = (long) arith_compare(pw1->val, pw1->tag,\
-		pw2->val, pw2->tag, &relation);\
-	    Import_Tg_Tt\
-	    if (err_code == PDELAY){\
-		SV = (pword *) 0;\
-		goto _npdelay_always_;\
-	    }\
-	    if (err_code != PSUCCEED)\
-		goto _nbip_err_;\
-	    if (relation Op 0) {\
-	    	goto _nbip_kill_succeed_;\
-	    } else {\
-		goto _nbip_fail_;\
-	    }\
-	}\
-	err_code = COMPARE_TRAP;\
-	goto _nbip_err_;
-
-
-#define NGeneric_Arith_Overflow_Bip(BIxx, Op, SignOp, OpNr) /* arity 3 */\
-        pw1 = PP[-3].arg;\
-        Dereference_Pw(pw1);\
-	pw2 = PP[-2].arg;\
-        Dereference_Pw(pw2);\
-	NDelay_Check_1(pw1)\
-	NDelay_Check_2(pw2)\
-	Kill_DE;\
-	if (IsInteger(pw1->tag)) {\
-	    if (IsInteger(pw2->tag)) {\
-		register word	n1 = pw1->val.nint;\
-		register word	n2 = pw2->val.nint;\
-						\
-		scratch_pw.val.nint = n1 Op n2;\
-		if (((n1 >= 0) SignOp (n2 >= 0)) && \
-		    (n1 >= 0) != (scratch_pw.val.nint >= 0)) {\
-		    err_code = INTEGER_OVERFLOW;\
-		    goto _nbip_err_;\
-		} else \
-		    goto _nis_integer_;\
-	    }\
-	    if (IsDouble(pw2->tag)) {\
-		dbl_res = (double)pw1->val.nint Op Dbl(pw2->val);\
-		goto _nis_float_check_;\
-	    }\
-	}\
-	else if (IsDouble(pw1->tag)) {\
-	    if (IsInteger(pw2->tag)) {\
-		dbl_res = Dbl(pw1->val) Op (double)pw2->val.nint;\
-		goto _nis_float_check_;\
-	    }\
-	    if (IsDouble(pw2->tag)) {\
-		dbl_res = Dbl(pw1->val) Op Dbl(pw2->val);\
-		goto _nis_float_check_;\
-	    }\
-	}\
-	err_code = OpNr;\
-	goto _nbin_op_;
-
-
-#define NInt_Arith_Bip(BIxx, Op, OpNr) /* arity 3 */\
-        pw1 = PP[-3].arg;\
-        Dereference_Pw(pw1);\
-	NDelay_Check_1(pw1)\
-        pw2 = PP[-2].arg;\
-        Dereference_Pw(pw2);\
-	NDelay_Check_2(pw2)\
-	Kill_DE;\
-	if (IsInteger(pw1->tag) && IsInteger(pw2->tag)) {\
-	    scratch_pw.val.nint = pw1->val.nint Op pw2->val.nint;\
-	    goto _nis_integer_;\
-	}\
-	err_code = OpNr;\
-	goto _nbin_op_;
 
 
 /*
@@ -1058,7 +899,6 @@ ec_emulate(void)		/* (struct machine *m) */
     control_ptr	b_aux;
     dident	val_did;
     int		err_code;
-    pword	*module_ptr;	/* pointer to module name	*/
     pword	scratch_pw;	/* scratch space to have a pointer to a pword */
     pword	*pdl;
     pri		*proc, *procb;
@@ -1142,15 +982,31 @@ _regular_err_2_: /* (err_code), goal A2, context module A3, lookup module A4 */
 
 /******************************************************************
  * The diff routine is used to implement the builtins
- *	== 	\== 	~=
- * and the value matching instructions.
  *
- * It works on the terms whose addresses are held by pw1 and pw2.
- * Succeeds if they cannot be unified, fails if they are identical,
- * otherwise delays (if ~=) or succeeds (if \==)
+ *			==/2 	\==/2 	~=/2	\==/3
+ * not unifiable	fail	succeed	succeed	succeed with []
+ * identical		succeed	fail	fail	fail
+ * uncertain		succeed	succeed	delay	succeed with list
+ *
+ * It works on the terms whose addresses are held by pw1 and pw2,
+ * In addition, ~=/2 expects a pointer to its arguments in pw3,
+ * while \==/3 expects a pointer the its output argument in pw3.
+ * The value matching instructions are handled like ==/2..
  ******************************************************************/
 
-_diff_:					/* (pw1, pw2, proc) */
+#ifdef NEW_BIP_CONVENTION
+#define IsIdenticalProc(proc) (proc == identical_proc_)
+#define IsNotIdenticalProc(proc) (proc == not_identical_proc_)
+#define IsInequalityProc(proc) (proc == inequality_proc_)
+#define IsNotIdentListProc(proc) (proc == not_ident_list_proc_)
+#else
+#define IsIdenticalProc(proc) (PriCint(proc) == BIIdentical)
+#define IsNotIdenticalProc(proc) (PriCint(proc) == BINotIdentical)
+#define IsInequalityProc(proc) (PriCint(proc) == BIInequality)
+#define IsNotIdentListProc(proc) (PriCint(proc) == BINotIdentList)
+#endif
+
+_diff_:					/* (pw1, pw2, [pw3,] proc) */
     Mark_Prof(_diff_)
     pdl = SP;
 _do_diff_:
@@ -1182,26 +1038,26 @@ _do_diff_:
  	     goto _diff_cont_; /* identical cdt var */
  	  }
  	  /* else variables not identical */
-	   if (PriCint(proc) == BIIdentical) 
+	   if (IsIdenticalProc(proc)) 
 	       { SP = pdl; Fail; }
-	   if (PriCint(proc) == BINotIdentical) 
+	   if (IsNotIdenticalProc(proc)) 
 	       { SP = pdl; Next_Pp; }
 	  Push_var_delay_unif(pw2->val.ptr, pw2->tag.kernel);
 	  Push_var_delay_unif(pw1->val.ptr,pw1->tag.kernel);
 	  goto _diff_delay_;
        } 
-       if (PriCint(proc) == BIIdentical) 
+       if (IsIdenticalProc(proc)) 
 	   { SP = pdl; Fail; }
-       if (PriCint(proc) == BINotIdentical) 
+       if (IsNotIdenticalProc(proc)) 
 	   { SP = pdl; Next_Pp; }
        Push_var_delay(pw1->val.ptr,pw1->tag.kernel);
        goto _diff_delay_;
     } 
     else if (IsRef(pw2->tag)) 
     {		               /* only the 2nd is a variable*/
-       if (PriCint(proc) == BIIdentical) 
+       if (IsIdenticalProc(proc)) 
 	   { SP = pdl; Fail; }
-       if (PriCint(proc) == BINotIdentical) 
+       if (IsNotIdenticalProc(proc)) 
 	   { SP = pdl; Next_Pp; }
        Push_var_delay(pw2->val.ptr,pw2->tag.kernel);
        goto _diff_delay_;
@@ -1278,19 +1134,19 @@ _diff_cont_:				/* the terms are equal (so far) */
 	Pdl_Next(pw1, pw2, tmp1);
 	goto _do_diff_;			/* continue */
     }
-    if (PriCint(proc) != BIIdentical)
+    if (!IsIdenticalProc(proc)) 
 	Fail
     Next_Pp;
 _diff_different_:			/* the terms are different */
     SP = pdl;			/* remove PDL */
-    if (PriCint(proc) == BIIdentical)
+    if (IsIdenticalProc(proc)) 
 	Fail
-    else if (PriCint(proc) == BINotIdentList)
+    else if (IsNotIdentListProc(proc)) 
     {
-	pw1 = &SP[2];			/* unify 3rd argument with [] */
+	pw1 = pw3;			/* unify 3rd argument with [] */
+	Dereference_Pw(pw1)
 	if (IsVar(pw1->tag))
 	{
-	    pw1 = pw1->val.ptr;
 	    Trail_If_Needed(pw1)
 	    pw1->tag.kernel = TNIL;
 	    Next_Pp; 
@@ -1301,19 +1157,37 @@ _diff_different_:			/* the terms are different */
     }
     Kill_DE;	/* this is for BIInequality only! */
     Next_Pp; 
-_diff_delay_:				/* (SV, proc) */
+_diff_delay_:				/* (SV, proc, pw3 points to args) */
     SP = pdl;				/* remove PDL and delay */
-    if (PriCint(proc) == BIInequality)
+    if (IsInequalityProc(proc)) 
     {
+	if (!DE)			/* make a suspension structure */
+	{
+	    val_did = PriDid(proc);
+	    DE = pw1 = TG;
+	    TG += SUSP_SIZE;
+	    Init_Susp_Header(pw1, proc);
+	    Init_Susp_State(pw1, PriPriority(proc));
+	    Make_Struct(&pw1[SUSP_GOAL], TG);	/* goal */
+	    Make_Atom(&pw1[SUSP_MODULE], PriModule(proc));
+	    Make_Atom(TG, val_did);
+	    S = TG+1;
+	    TG += 3;
+	    pw1 = pw3;
+	    Move_Pw_To_Global_Stack(pw1, S, ;);
+	    pw1 = pw3+1;
+	    Move_Pw_To_Global_Stack(pw1, S, ;);
+	    Check_Gc
+	}
 	err_code = PDELAY | PDELAY_BOUND;
-	goto _pdelay_always_;		/* (err_code, proc) */
+	goto _ndelay_de_sv_;		/* (de, sv, args?) */
     }
-    else /* PriCint(proc) == BINotIdentList */
+    else /* IsNotIdentListProc(proc) */
     {
-	pw1 = &SP[2];			/* unify 3rd argument with SV list */
+	pw1 = pw3;			/* unify 3rd argument with SV list */
+	Dereference_Pw(pw1)
 	if (IsVar(pw1->tag))
 	{
-	    pw1 = pw1->val.ptr;
 	    Trail_If_Needed(pw1)
 	    pw1->val.ptr = SV;
 	    pw1->tag.kernel = TLIST;
@@ -1532,17 +1406,14 @@ _bip_res_:		/* (err_code,proc), args on local stack */
 	{
 _bip_succeed_:
 	    Reset_DE;	/* demons are responsible to Kill_DE if appropriate */
-	    in_external = 0;
 	    Next_Pp;
 _bip_kill_succeed_:
 	    Kill_DE;
-	    in_external = 0;
 	    Next_Pp;
 	}
 	else if (err_code == PFAIL)
 	{
 _bip_fail_:
-	    in_external = 0;
 	    Fail;
 	}
 	else if ((err_code & ~PDELAY_MASK) == PDELAY)
@@ -1557,7 +1428,6 @@ _pdelay_:				/* (err_code, proc)	*/
 	    }
 _pdelay_always_:			/* (err_code, proc)	*/
 	    Mark_Prof(_pdelay_always_)
-	    in_external = 0;
 	    if (!DE)			/* make a suspension structure */
 	    {
 		val_did = PriDid(proc);
@@ -1653,7 +1523,6 @@ _pdelay_always_:			/* (err_code, proc)	*/
 	else if (err_code == PTHROW)
 	{
 	    Reset_DE;
-	    in_external = 0;
 	    PP = (emu_code) do_exit_block_code_; /* Ball should be in A[1] */
 	    Next_Pp;
 	}
@@ -1671,7 +1540,6 @@ _pdelay_always_:			/* (err_code, proc)	*/
 _bip_err_:			/* (err_code, proc), args on local stack */
 	Mark_Prof(_bip_err_)
 	Kill_DE;
-	in_external = 0;
 	err_code = -err_code;
 	val_did = PriDid(proc);
 	tmp1 = DidArity(val_did);
@@ -1775,24 +1643,64 @@ _bip_err_:			/* (err_code, proc), args on local stack */
      BIP Result management (new abstract machine instr version)
 ******************************************************************/
 
-_nbip_res_:	     /* (err_code,proc), args at *PP[-arity..-1] */
+/*
+ * Construct a goal structure for a builtin that is compiled into one
+ * of the I_BI_Xxx instructions, e.g. bi_add(arg,arg,uninit_arg,mask).
+ * We assume that PP points behind the instruction, i.e. behind mask.
+ * Mask describes the preceding argument words, 2 bits for each argument:
+ *
+ *     mask   code contains
+ *	0	pointer to argument register
+ *	1	pointer to uninitialised argument register
+ *	2	32-bit integer
+ *	3	module did
+ * 	?	possible extension: pri (for make_suspension/4)
+ *
+ * We assume that these predicates have arity>0 and are not tools.
+ * We also assume no local stack variables (otherwise need to globalise).
+ */
+
+#define Push_Bip_Goal(_did,_i,_mask) { /*(PP)*/ \
+	(_i) = DidArity(_did)+1;\
+	TG->val.did = (_did);\
+	TG++->tag.kernel = TDICT;\
+	(_mask) = PP[-1].nint;\
+	do {\
+	    switch((_mask) & 3) {\
+	    case 0:\
+		*TG = *(PP[-(_i)].ptr);\
+		break;\
+	    case 1:\
+		PP[-(_i)].ptr->val.ptr=TG; PP[-(_i)].ptr->tag.kernel=TREF;\
+		TG->val.ptr=TG; TG->tag.kernel=TREF;\
+		break;\
+	    case 2:\
+		TG->val.nint = PP[-(_i)].nint; TG->tag.kernel=TINT;\
+		break;\
+	    case 3:\
+		Make_Marked_Module(TG, PP[-(_i)].did);\
+		break;\
+	    }\
+	    ++TG; (_mask) >>= 2;\
+	} while (--(_i)>1);\
+}
+
+
+_nbip_res_:	     /* (err_code,proc), args at *PP[-arity-1..-2] */
 	Mark_Prof(_bip_res_)
 	Occur_Check_Boundary(0)
 	if (err_code == PSUCCEED)
 	{
 _nbip_succeed_:
 	    Reset_DE;	/* demons are responsible to Kill_DE if appropriate */
-	    in_external = 0;
 	    Next_Pp;
 _nbip_kill_succeed_:
 	    Kill_DE;
-	    in_external = 0;
 	    Next_Pp;
 	}
 	else if (err_code == PFAIL)
 	{
 _nbip_fail_:
-	    in_external = 0;
 	    Fail;
 	}
 	else if ((err_code & ~PDELAY_MASK) == PDELAY)
@@ -1807,41 +1715,16 @@ _npdelay_:				/* (err_code, proc)	*/
 	    }
 _npdelay_always_:			/* (err_code, proc)	*/
 	    Mark_Prof(_pdelay_always_)
-	    in_external = 0;
 	    if (!DE)			/* make a suspension structure */
 	    {
 		val_did = PriDid(proc);
-		tmp1 = DidArity(val_did) + (ToolProc(proc) ? 1 : 0);
 		DE = pw1 = TG;
-		TG += SUSP_SIZE + 1 + tmp1;
+		TG += SUSP_SIZE;
 		Init_Susp_Header(pw1, proc);
 		Init_Susp_State(pw1, PriPriority(proc));
-		pw1[SUSP_GOAL].val.ptr = pw1 + SUSP_SIZE;	/* goal */
-		pw1[SUSP_GOAL].tag.kernel = TCOMP;
-		if (PriFlags(proc) & TOOL) {
-		    pw1[SUSP_MODULE] = *PP[-1].arg;
-		} else {
-		    pw1[SUSP_MODULE].tag.kernel = TDICT;
-		    pw1[SUSP_MODULE].val.did = PriModule(proc);
-		}
-
-#ifdef BIP_OVERWRITE_OUTARG
-		pw2 = ((PriFlags(proc) & TOOL) ? PP[-2].arg : PP[-1].arg );
-		pw2->val.ptr = TG;
-		pw2->tag.kernel = TREF;
-		pw2 = TG++;
-		pw2->val.ptr = pw2;
-		pw2->tag.kernel = TREF;
-#endif
-		S = pw1 + SUSP_SIZE;	/* build goal structure */
-		S->val.did = val_did;
-		(S++)->tag.kernel = TDICT;
-		for(tmp1= -tmp1; tmp1 < 0; tmp1++)
-		{
-		    pw1 = PP[tmp1].arg;
-		    Move_Pw_To_Global_Stack(pw1, S, ;);
-
-		}
+		Make_Struct(&pw1[SUSP_GOAL], TG);	/* goal */
+		Make_Atom(&pw1[SUSP_MODULE], PriModule(proc));
+		Push_Bip_Goal(val_did, i, tmp1)
 		Check_Gc
 	    }
 
@@ -1853,7 +1736,7 @@ _npdelay_always_:			/* (err_code, proc)	*/
 	    if (err_code & PDELAY_MASK)	/* delay on argument(s) 1-3 */
 	    {
 		Export_B_Sp_Tg_Tt_Eb_Gb
-		tmp1 = DidArity(PriDid(proc)) + (ToolProc(proc) ? 1 : 0);
+		tmp1 = DidArity(PriDid(proc)) + 1;
 		if (err_code & (PDELAY_1 & PDELAY_MASK)) {
 		    pw1 = PP[-tmp1].arg->val.ptr;
 		    Dereference_Pw(pw1)
@@ -1885,6 +1768,7 @@ _npdelay_always_:			/* (err_code, proc)	*/
 	    }
 	    else	/* suspending_variables points to a list of	*/
 	    {		/* pointers to suspending variables		*/
+_ndelay_de_sv_:
 		pw2 = SV;
 		Export_B_Sp_Tg_Tt_Eb_Gb
 		while (pw2)
@@ -1911,7 +1795,6 @@ _npdelay_always_:			/* (err_code, proc)	*/
 	else if (err_code == PTHROW)
 	{
 	    Reset_DE;
-	    in_external = 0;
 	    PP = (emu_code) do_exit_block_code_; /* Ball should be in A[1] */
 	    Next_Pp;
 	}
@@ -1925,19 +1808,13 @@ _npdelay_always_:			/* (err_code, proc)	*/
  * Builtin returned an error code
  *******************************************************************/
 
-_nbip_err_:		/* (err_code, proc), args at *PP[-arity..-1] */
+_nbip_err_:		/* (err_code, proc), args at *PP[-arity-1..-2] */
 	Mark_Prof(_bip_err_)
 	Kill_DE;
-	in_external = 0;
 	err_code = -err_code;
 	if (PriFlags(proc) & TOOL)
 	{
-	    pw3 = PP[-1].arg;	/* caller module */
-	    Dereference_Pw(pw3);
-	    scratch_pw = *pw3;
-	}
-	else {
-	    Make_Marked_Module(&scratch_pw, PriModule(proc));
+	    (void) ec_panic("Assertion Failed", "Emulator, nbip_error");
 	}
 
 	if (!(procb = error_handler_[err_code]))	/* get the handler */
@@ -1952,6 +1829,12 @@ _nbip_err_:		/* (err_code, proc), args at *PP[-arity..-1] */
 	}
 	else
 	{
+
+	/* Build culprit goal (before saving argument registers!) */
+	    val_did = PriDid(proc);
+	    pw3 = TG;
+	    Push_Bip_Goal(val_did, i, tmp1)
+
 	/* create an exception frame to be able to restore the machine
 	 * state partially on SUCCESSful return from error handler.
 	 * ( the handler call should behave like a builtin call,
@@ -1961,78 +1844,50 @@ _nbip_err_:		/* (err_code, proc), args at *PP[-arity..-1] */
 	 * MU is saved/restored and WP (priority) is set to 1 in order to
 	 * make the exception handler not interfere with waking.
 	 */
-		Push_Ret_Code(PP)
-		pw1 = B.args;
-		Exception(pw1)->sp = SP;
-		Exception(pw1)->tg = TG;
-		Exception(pw1)->tt = TT;
-		Exception(pw1)->e = E;
-		Exception(pw1)->ld = LD;
-		Exception(pw1)->eb = EB;
-		Exception(pw1)->gb = GB;
-		EB = SP;
-		GB = TG;
-		Push_Witness
-		Exception(pw1)->flags = emu_flags;
-		Exception(pw1)->de = DE;
+	    Push_Ret_Code(PP)
+	    pw1 = B.args;
+	    Exception(pw1)->sp = SP;
+	    Exception(pw1)->tg = TG;
+	    Exception(pw1)->tt = TT;
+	    Exception(pw1)->e = E;
+	    Exception(pw1)->ld = LD;
+	    Exception(pw1)->eb = EB;
+	    Exception(pw1)->gb = GB;
+	    EB = SP;
+	    GB = TG;
+	    Push_Witness
+	    Check_Gc;
+	    Exception(pw1)->flags = emu_flags;
+	    Exception(pw1)->de = DE;
 #define STRICT_EXCEPTION
 #ifdef STRICT_EXCEPTION
-		Exception(pw1)->mu = MU;
-		MU = (pword *) 0;
-		Exception(pw1)->wp = WP;
-		Set_WP(1);
+	    Exception(pw1)->mu = MU;
+	    MU = (pword *) 0;
+	    Exception(pw1)->wp = WP;
+	    Set_WP(1);
 #endif
-		Save_Tg_Soft_Lim(Exception(pw1)->tg_soft_lim);
-		pw1 = (pword *) (Exception(pw1) + 1);
-		pw2 = &A[1];	/* save arguments	*/
-		for(i = 1; i < MAXARITY; i++) {
-		    *pw1 = *pw2++;
-		    if((pw1++)->tag.kernel == TEND)
-		        break;
-		}
-		Top(pw1)->backtrack = exception_fail_code_;
-		Top(pw1)->frame.exception = B.exception;
-		B.top = Top(pw1) + 1;
-		Check_Control_Overflow
+	    Save_Tg_Soft_Lim(Exception(pw1)->tg_soft_lim);
+	    pw1 = (pword *) (Exception(pw1) + 1);
+	    pw2 = &A[1];	/* save arguments	*/
+	    for(i = 1; i < MAXARITY; i++) {
+		*pw1 = *pw2++;
+		if((pw1++)->tag.kernel == TEND)
+		    break;
+	    }
+	    Top(pw1)->backtrack = exception_fail_code_;
+	    Top(pw1)->frame.exception = B.exception;
+	    B.top = Top(pw1) + 1;
+	    Check_Control_Overflow
 
-	/* now setup arguments for syserror(Err, Goal, ContextMod, LookupMod)	*/
-                /* build the error goal structure first before the args
-                   are overwritten */
-#ifdef BIP_OVERWRITE_OUTARG
-		pw2 = ((PriFlags(proc) & TOOL) ? PP[-2].arg : PP[-1].arg );
-		pw2->val.ptr = TG;
-		pw2->tag.kernel = TREF;
-		pw2 = TG++;
-		pw2->val.ptr = pw2;
-		pw2->tag.kernel = TREF;
-#endif
-		S = TG;
-		val_did = PriDid(proc);
-		TG->val.did = val_did;	
-		(TG++)->tag.kernel = TDICT;
-		i = DidArity(val_did) + (ToolProc(proc) ? 1 : 0);
-		for (tmp1 = -i; tmp1<0; tmp1++) {
-		    pw2 = PP[tmp1].arg;
-		    Move_Pw_To_Global_Stack(pw2,TG, ;)
-		}
+	/* Now call syserror(Err, Goal, ContextMod, LookupMod) */
+	    Make_Integer(&A[1], err_code);	/* error code */
+	    Make_Struct(&A[2], pw3);		/* culprit goal */
+	    Make_Marked_Module(&A[3], PriModule(proc)); /* context module */
+	    Make_Lookup_Module(&A[4], proc);	/* lookup module */
+	    A[5].tag.kernel = TEND;
 
-		pw1 = &A[1];
-		pw1->val.nint = err_code;
-		(pw1++)->tag.kernel = TINT;
-		if (i > 0)			/* error goal	*/
-		{
-		    pw1->val.ptr = S;
-		    (pw1++)->tag.kernel = TCOMP;
-		} else
-		    S = pw1++;
-		*pw1++ = scratch_pw;	/* context module */
-		Check_Gc;
-		Make_Lookup_Module(pw1, proc);
-		(++pw1)->tag.kernel = TEND;
-
-
-		PP = (emu_code) bip_error_code_;
-		Next_Pp;			/* jump into syserror/4	*/
+	    PP = (emu_code) bip_error_code_;
+	    Next_Pp;				/* jump into syserror/4	*/
 	}
 
 
@@ -6003,16 +5858,16 @@ _anycall_:				/* (pw1,DBG_PORT,i) */
 	    }
 
 	}
-	    module_ptr = &A[2];			/* caller module */
+	    pw3 = &A[2];			/* caller module */
 	    tmp1 = DidArity(val_did);		/* general metacall	*/
 
-	    if (PriArgPassing(proc) == ARGFIXEDWAM)
+	    if (PriArgPassing(proc) != ARGSTACK)
 	    {
-_call_structure_reg_:	/* (DBG_PORT, DBG_INVOC, proc, tmp1, pw1, module_ptr) */
+_call_structure_reg_:	/* (DBG_PORT, DBG_INVOC, proc, tmp1, pw1, pw3(module)) */
 		Mark_Prof(_call_structure_reg_)
 		pw2 = &A[0];			/* copy arguments */
 		if (PriFlags(proc) & TOOL)
-		    pw2[tmp1+1] = *module_ptr; /* must be done first */
+		    pw2[tmp1+1] = *pw3;		 /* must be done first */
 		switch((unsigned) tmp1) {
 		default:
 		    do
@@ -6051,12 +5906,14 @@ _exec_prolog_:		/* (DBG_INVOC, DBG_PORT, proc, PP) */
 			}
 		    }
 		}
-		Handle_Events_Call
+	    	if (PriArgPassing(proc) != ARGFLEXWAM) {
+		    Handle_Events_Call
+		}
 		Next_Pp;
 	    }
 	    else /* if (PriArgPassing(proc) == ARGSTACK) */
 	    {
-_call_structure_bip_:	/* (DBG_PORT, DBG_INVOC, proc, tmp1, pw1, module_ptr) */
+_call_structure_bip_:	/* (DBG_PORT, DBG_INVOC, proc, tmp1, pw1, pw3(module)) */
 		/*
 		 * Metacalled builtins are enclosed in a Prolog wrapper with
 		 * an environment. This allows for popping the arguments and
@@ -6066,8 +5923,8 @@ _call_structure_bip_:	/* (DBG_PORT, DBG_INVOC, proc, tmp1, pw1, module_ptr) */
 		Push_Ret_Code(PP)
 		Push_Env
 		if (PriFlags(proc) & TOOL) {
-		    Dereference_Pw(module_ptr)	/* can happen... */
-		    *(--SP) = *module_ptr; 
+		    Dereference_Pw(pw3)	/* can happen... */
+		    *(--SP) = *pw3; 
 		}
 		pw2 = pw1 + tmp1;
 		for(; tmp1 > 0; tmp1--) {
@@ -6124,7 +5981,7 @@ _susp_call_:
 		Next_Pp;		/* ok, already woken	*/
 	    }
 _susp_wake_:					/* suspension in pw2 */
-	    module_ptr = &pw2[SUSP_MODULE];
+	    pw3 = &pw2[SUSP_MODULE];
 	    proc = (pri*) pw2[SUSP_PRI].val.wptr;
 	    pw1 = &pw2[SUSP_GOAL];		/* find the arguments */
 	    Dereference_Pw_Tag(pw1, tmp1)
@@ -6150,9 +6007,9 @@ _susp_wake_:					/* suspension in pw2 */
 		Set_Susp_Dead(pw2);
 	    }
 	    if (PriArgPassing(proc) == ARGSTACK)
-		goto _call_structure_bip_; /* (DBG_PORT,proc,tmp1,pw1,module_ptr) */
+		goto _call_structure_bip_; /* (DBG_PORT,proc,tmp1,pw1,pw3) */
 	    else
-		goto _call_structure_reg_; /* (DBG_PORT,DBG_INVOC,proc,tmp1,pw1,module_ptr) */
+		goto _call_structure_reg_; /* (DBG_PORT,DBG_INVOC,proc,tmp1,pw1,pw3) */
 
 
 	Case(Handler_call, I_Handler_call)	/* A[1] signal number */
@@ -6207,7 +6064,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 	    val_did = PriDid(proc);
 	    tmp1 = DidArity(val_did);
 	    Set_Det
-	    if (PriArgPassing(proc) == ARGFIXEDWAM) {
+	    if (PriArgPassing(proc) != ARGSTACK) {
 		if(PriFlags(proc) & TOOL) {
 		    pw1 = &A[tmp1+1];
 		    pw1->val.did = PriModule(proc);
@@ -6218,10 +6075,10 @@ _handler_call_:				/* (proc,DBG_PORT) */
 	    if (PriFlags(proc) & TOOL) {
 		scratch_pw.val.did = PriModule(proc);
 		scratch_pw.tag.kernel = ModuleTag(PriModule(proc));
-		module_ptr = &scratch_pw;
+		pw3 = &scratch_pw;
 	    }
 	    pw1 = &A[0];
-	    goto _call_structure_bip_;	/* (DBG_PORT,DBG_INVOC,proc,tmp1,pw1,module_ptr) */
+	    goto _call_structure_bip_;	/* (DBG_PORT,DBG_INVOC,proc,tmp1,pw1,pw3) */
 
 
 	Case(Meta_jmpA, I_Meta_jmpA)	/* used to call source of dynamic facts
@@ -6294,7 +6151,6 @@ _handler_call_:				/* (proc,DBG_PORT) */
 	Case(ExtCall, I_ExtCall)
 	    proc = (PP++)->proc_entry;
 	    /* save for the profiler and in case an error is raised */
-	    in_external = PriFunc(proc);
 	    Export_B_Sp_Tg_Tt_Eb_Gb
 	    (void) (* PriFunc(proc))( A );
 	    Import_Tg_Tt
@@ -7249,48 +7105,38 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    pw1->tag.kernel = TINT;
 	    Next_Pp;
 
-	 /* Builtins as abstract machine instructions */
-	/*Case(BIUnify, I_BIUnify) not needed - use get_valeAMAM*/
+
+
+/*----------------------------------------------------------------------
+ * Abstract machine instructions for compilation of builtins
+ *----------------------------------------------------------------------*/
 
 	Case(BI_Exit, I_BI_Exit)
 	    err_code = PP->arg->val.nint;
 	    goto _exit_emulator_;
 
-        Case(BI_PutCutAM, I_BI_PutCutAM)  /* save the value of B into its perm. argument */
-	    if (IsGcFrame(B.top - 1))
-		pw2 = (B.top - 1)->frame.args; /* ignore dummy */
-	    else
-		pw2 = B.args;
-	    pw1 = PP++->arg->val.ptr;
-	    goto _put_cut_;
-
-	Case(BI_PutCutL, I_BI_PutCutL)
-	    if (IsGcFrame(B.top - 1))
-		pw2 = (B.top - 1)->frame.args; /* ignore dummy */
-	    else
-		pw2 = B.args;
-	    Get_Local(pw1);
-_put_cut_:
-	    pw1->val.all = (uword) pw2;
-	    pw1->tag.kernel = TCUT;
-	    Next_Pp;
-		
-         Case(BI_CutToStamp, I_BI_CutToStamp)
-	    Get_Argument(pw2)
-            Get_Argument(pw1) 
+         Case(BI_CutToStamp, I_BI_CutToStamp)	/* Ai Aj Mask=0000 */
+            Get_Argument(pw2) 
+	    Dereference_Pw(pw2);
+	    Get_Argument(pw1)
+	    Dereference_Pw(pw1);
+	    ++PP;
 	    if (!IsStructure(pw2->tag) || !IsInteger(pw1->tag)) {
 		err_code = TYPE_ERROR;
-		goto _bip_err_;
+		proc = cut_to_stamp_proc_;
+		goto _nbip_err_;
 	    }
 	    pw2 = pw2->val.ptr;
 	    if (pw1->val.nint < 1 || pw1->val.nint > DidArity(pw2->val.did)) {
 		err_code = RANGE_ERROR;
-		goto _bip_err_;
+		proc = cut_to_stamp_proc_;
+		goto _nbip_err_;
 	    }
 	    pw2 += pw1->val.nint;
 	    if (!IsRef(pw2->tag)) {
 		err_code = TYPE_ERROR;
-		goto _bip_err_;
+		proc = cut_to_stamp_proc_;
+		goto _nbip_err_;
 	    }
 	    /* We should probably have some extra checks here to guard against
 	     * cutting through invocation frames and maybe even blocks. */
@@ -7309,20 +7155,15 @@ _put_cut_:
 	    }
 	    Fail;
 
-         Case(BI_GetBipError, I_BI_GetBipError)
+         Case(BI_GetBipError, I_BI_GetBipError)	/* Ai(uninit) */
 	    Get_Bip_Error(err_code);
 	    if (err_code)
 	    {
 		Get_Argument(pw1)
-		scratch_pw.tag.kernel = TINT;
-		scratch_pw.val.nint = - err_code;
-		pw2 = &scratch_pw;
-		goto _unify_;
+		Make_Integer(pw1, -err_code);
+		Next_Pp;
 	    }
-	    else
-		Fail;
-
-	  /*Case(BIFail, I_BIFail) not needed -- use Failure */
+	    Fail;
 
           Case(BI_Free, I_BI_Free)
 	    Get_Argument(pw1)
@@ -7352,6 +7193,12 @@ _put_cut_:
 	    Get_Argument(pw1)
 	    Dereference_Pw_Tag(pw1, tmp1);
 	    if (!(IsTag(tmp1, TINT) || IsTag(tmp1,TBIG))) { Fail }
+	    Next_Pp;
+
+          Case(BI_Bignum, I_BI_Bignum)
+	    Get_Argument(pw1)
+	    Dereference_Pw_Tag(pw1, tmp1);
+	    if (!IsTag(tmp1,TBIG)) { Fail }
 	    Next_Pp;
 
 	 Case(BI_Float, I_BI_Float)
@@ -7404,6 +7251,13 @@ _put_cut_:
 	    Get_Argument(pw1)
 	    Dereference_Pw_Tag(pw1, tmp1);
 	    if (!(IsTag(tmp1, TLIST) || IsTag(tmp1, TCOMP))) { Fail }
+	    Next_Pp;
+
+         Case(BI_Callable, I_BI_Callable)
+	    Get_Argument(pw1)
+	    Dereference_Pw_Tag(pw1, tmp1);
+	    if (!(IsTag(tmp1,TCOMP) || IsTag(tmp1,TDICT) ||
+	    	IsTag(tmp1,TLIST) || IsTag(tmp1,TNIL))) { Fail }
 	    Next_Pp;
 
          Case(BI_Meta, I_BI_Meta)
@@ -7473,14 +7327,16 @@ _put_cut_:
          Case(BI_Inequality, I_BI_Inequality)
 	    Get_Argument(pw1)
 	    Get_Argument(pw2) 
+	    pw3 = pw1;
 	    proc = inequality_proc_;
-	    goto _diff_;			/* (proc, pw1, pw2) */
+	    goto _diff_;			/* (proc, pw1, pw2, pw3) */
 
          Case(BI_NotIdentList, I_BI_NotIdentList)
 	    Get_Argument(pw1)
 	    Get_Argument(pw2)
+	    Get_Argument(pw3)
 	    proc = not_ident_list_proc_;
-	    goto _diff_;			/* (proc, pw1, pw2) */
+	    goto _diff_;			/* (proc, pw1, pw2, pw3) */
 
          Case(BI_ContDebug, I_BI_ContDebug)
 	    /* Allow normal tracing again, except pred is skipped.
@@ -7494,184 +7350,234 @@ _put_cut_:
 
 
 /*
- * the arithmetic builtins
+ * Instructions for the arithmetic builtins
+ *
+ * bi_minus	&Ai &Ak		2'000100
+ * bi_add	&Ai &Aj &Ak	2'010000
+ * bi_addi	i   &Aj &Ak	2'010010
+ * bi_ge	&Ai &Aj	module	2'110000
+ *
+ * bi_arg	&Ai &Aj	&Ak	2'010000
+ * bi_make_susp	&Ai &Aj	&Ak &Al	2'00000000 or 2'00010000
  */
 
-_nbin_op_:		/* (err_code,pw1,pw2,...) */
-	Export_B_Sp_Tg_Tt_Eb_Gb
-	pw3 = PP[-1].arg;
-#ifdef BIP_OVERWRITE_OUTARG
-	pw3->val.ptr = pw3;
-	pw3->tag.kernel = TREF;
-#else
-        Dereference_Pw(pw3);
-#endif
-	err_code = binary_arith_op(pw1->val, pw1->tag,
-	    pw2->val, pw2->tag,
-	    pw3->val, pw3->tag, err_code);
-	Import_Tg_Tt
-	goto _nbip_res_;
+/* pw is assumed dereferenced */
+#define NDelay_Check_1(pw)		\
+	if (IsRef((pw)->tag)) {	\
+		err_code = PDELAY_1;	\
+		goto _npdelay_;		\
+	}
 
-_nun_op_:				/* (err_code,pw1,...) */
-	Export_B_Sp_Tg_Tt_Eb_Gb
-	pw2 = PP[-1].arg;
-#ifdef BIP_OVERWRITE_OUTARG
-	pw2->val.ptr = pw2;
-	pw2->tag.kernel = TREF;
-#else
-        Dereference_Pw(pw2);
-#endif
-	err_code = unary_arith_op(pw1->val, pw1->tag,
-	    pw2->val, pw2->tag, err_code, TINT);
-	Import_Tg_Tt
-	goto _nbip_res_;
+#define NDelay_Check_2(pw)		\
+	if (IsRef((pw)->tag)) {	\
+		err_code = PDELAY_2;	\
+		goto _npdelay_;		\
+	}
 
-_nis_float_check_:			/* (dbl_res) */
-	    if (!GoodFloat(dbl_res))
-	    {
-		err_code = ARITH_EXCEPTION;
-		goto _nbip_err_;
-	    }
-	    Make_Double_Val(scratch_pw.val, dbl_res);
-	    tmp1 = TDBL;
-	    goto _nis_;
-_nis_integer_:				/* (scratch_pw.val)	*/
-	    tmp1 = TINT;
-_nis_:	                                /* PP[-1] deref'ed into pw1 */
-	    pw1 = PP[-1].arg;
-#ifndef BIP_OVERWRITE_OUTARG
-	    Dereference_Pw(pw1);
-#endif
-_nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
-	    Mark_Prof(_is_)
-	    in_external = 0;
-#ifdef BIP_OVERWRITE_OUTARG
-            {
-#else
-	    if (IsVar(pw1->tag))
-	    {
-		pw1 = pw1->val.ptr;
-		Trail_If_Needed(pw1)
-#endif
-		pw1->val.ptr = scratch_pw.val.ptr;
-		pw1->tag.kernel = tmp1;
-		Next_Pp;
-	    }
-	    /*
-	     * the following code must do the same as the
-	     * Return_Numeric() macro in emu_export.h:
-	     */
-	    if(IsRef(pw1->tag))
-	    {
-		pw1 = pw1->val.ptr;
-		pw2 = scratch_pw.val.ptr;
-		goto _bind_nonstandard_;	/* (pw1, pw2, tmp1) */
-	    }
-	    if(TagType(pw1->tag) == TagTypeC(tmp1)) {
-		if (ISSimple(tmp1))
-		{
-		    if (SimpleEq(tmp1, pw1->val, scratch_pw.val))
-			{ Next_Pp;}
-		    else
-			{ Fail }
-		}
-		Export_B_Sp_Tg_Tt
-		err_code = tag_desc[TagTypeC(tmp1)].equal(pw1->val.ptr, scratch_pw.val.ptr);
-		Import_None
-		if (err_code)
-		    { Next_Pp;}
-		else
-		    { Fail }
-	    }
-	    else if (tag_desc[TagType(pw1->tag)].super == tag_desc[TagTypeC(tmp1)].super)
-		{ Fail }
-	    else
-		err_code = TYPE_ERROR;
-	    goto _nbip_err_;
+#define NCompare_Bip(Proc, BIxx, Op) /* arity 3 */\
+	proc = Proc;\
+	PP+= 4;\
+        pw1 = PP[-4].arg;\
+        Dereference_Pw(pw1)\
+	NDelay_Check_1(pw1)\
+        pw2 = PP[-3].arg;\
+        Dereference_Pw(pw2)\
+	NDelay_Check_2(pw2)\
+	/* don't Kill_DE here since arith_compare() can return PDELAY */\
+	if (IsInteger(pw1->tag)) {\
+	    if (IsInteger(pw2->tag))\
+		if (pw1->val.nint Op pw2->val.nint)\
+		    { goto _nbip_kill_succeed_;}\
+		else\
+		    { goto _nbip_fail_; }\
+	    else if (IsDouble(pw2->tag))\
+		if ((double)pw1->val.nint Op Dbl(pw2->val))\
+		    { goto _nbip_kill_succeed_;}\
+		else\
+		    { goto _nbip_fail_; }\
+	}\
+	else if (IsDouble(pw1->tag)) {\
+	    if (IsInteger(pw2->tag))\
+		if (Dbl(pw1->val) Op (double)pw2->val.nint)\
+		    { goto _nbip_kill_succeed_;}\
+		else\
+		    { goto _nbip_fail_; }\
+	    else if (IsDouble(pw2->tag))\
+		if (Dbl(pw1->val) Op Dbl(pw2->val))\
+		    { goto _nbip_kill_succeed_;}\
+		else\
+		    { goto _nbip_fail_; }\
+	}\
+	if (IsNumber(pw1->tag) && IsNumber(pw2->tag)) {\
+	    int relation = BIxx; /* don't use a register */ \
+	    Export_B_Sp_Tg_Tt\
+	    err_code = (long) arith_compare(pw1->val, pw1->tag,\
+		pw2->val, pw2->tag, &relation);\
+	    Import_Tg_Tt\
+	    if (err_code == PDELAY){\
+		SV = (pword *) 0;\
+		goto _npdelay_always_;\
+	    }\
+	    if (err_code != PSUCCEED)\
+		goto _nbip_err_;\
+	    if (relation Op 0) {\
+	    	goto _nbip_kill_succeed_;\
+	    } else {\
+		goto _nbip_fail_;\
+	    }\
+	}\
+	err_code = COMPARE_TRAP;\
+	goto _nbip_err_;
 
-	 Case(BI_Minus, I_BI_Minus)
-	    PP += 2;
+
+#define NGeneric_Arith_Overflow_Bip(BIxx, Op, SignOp, OpNr) /* arity 3 */\
+	PP += 4;\
+        pw1 = PP[-4].arg;\
+        Dereference_Pw(pw1);\
+	pw2 = PP[-3].arg;\
+        Dereference_Pw(pw2);\
+	NDelay_Check_1(pw1)\
+	NDelay_Check_2(pw2)\
+	Kill_DE;\
+	if (IsInteger(pw1->tag)) {\
+	    if (IsInteger(pw2->tag)) {\
+		register word	n1 = pw1->val.nint;\
+		register word	n2 = pw2->val.nint;\
+		tmp1 = n1 Op n2;\
+		if (((n1 >= 0) SignOp (n2 >= 0)) && \
+		    (n1 >= 0) != (tmp1 >= 0)) {\
+		    err_code = INTEGER_OVERFLOW;\
+		    goto _nbip_err_;\
+		} \
+		PP[-2].arg->val.nint = tmp1;\
+		PP[-2].arg->tag.kernel = TINT;\
+		Next_Pp;\
+	    }\
+	    if (IsDouble(pw2->tag)) {\
+		dbl_res = (double)pw1->val.nint Op Dbl(pw2->val);\
+		goto _nis_float_check_;\
+	    }\
+	}\
+	else if (IsDouble(pw1->tag)) {\
+	    if (IsInteger(pw2->tag)) {\
+		dbl_res = Dbl(pw1->val) Op (double)pw2->val.nint;\
+		goto _nis_float_check_;\
+	    }\
+	    if (IsDouble(pw2->tag)) {\
+		dbl_res = Dbl(pw1->val) Op Dbl(pw2->val);\
+		goto _nis_float_check_;\
+	    }\
+	}\
+	err_code = OpNr;\
+	goto _nbin_op_;
+
+
+#define NInt_Arith_Bip(Proc, BIxx, Op, OpNr) /* arity 3 */\
+	proc = Proc;\
+	PP += 4;\
+        pw1 = PP[-4].arg;\
+        Dereference_Pw(pw1);\
+	NDelay_Check_1(pw1)\
+        pw2 = PP[-3].arg;\
+        Dereference_Pw(pw2);\
+	NDelay_Check_2(pw2)\
+	Kill_DE;\
+	if (IsInteger(pw1->tag) && IsInteger(pw2->tag)) {\
+	    PP[-2].arg->val.nint = pw1->val.nint Op pw2->val.nint;\
+	    PP[-2].arg->tag.kernel = TINT;\
+	    Next_Pp;\
+	}\
+	err_code = OpNr;\
+	goto _nbin_op_;
+
+
+
+	Case(BI_Minus, I_BI_Minus)
 	    proc = minus_proc_;
-	    pw1 = PP[-2].arg;
+	    PP += 3;
+	    pw1 = PP[-3].arg;
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1)
 	    if (IsInteger(pw1->tag))
 	    {
-		if ((scratch_pw.val.nint = -pw1->val.nint) == MIN_S_WORD) {
+		if ((PP[-2].arg->val.nint = -pw1->val.nint) == MIN_S_WORD) {
 		    err_code = INTEGER_OVERFLOW;
 		    goto _nbip_err_;
 		}
-		goto _nis_integer_;
+		PP[-2].arg->tag.kernel = TINT;
+		Next_Pp;
 	    }
 	    else if (IsDouble(pw1->tag))
 	    {
-		Make_Double_Val(scratch_pw.val, -Dbl(pw1->val));
-		tmp1 = TDBL;
-		goto _nis_;
+		Make_Double(PP[-2].arg, -Dbl(pw1->val));
+		Next_Pp;
 	    }
 	    err_code = ARITH_NEG;
-	    goto _nun_op_;		/* (err_code,pw1) */
 
-	 Case(BI_Succ, I_BI_Succ)
-	    PP += 2;
-            proc = succ_proc_;
-	    pw1 = PP[-2].arg;
-	    Dereference_Pw_Tag(pw1, tmp1)
-	    if (IsTag(tmp1,TINT))
-	    {
-		tmp1 = pw1->val.nint + 1;
-		if (tmp1 <= 0) {
-		    if (tmp1 == MIN_S_WORD) {
-			err_code = INTEGER_OVERFLOW;
-			goto _nbip_err_;
-		    }
-		    Fail
-		}
-		scratch_pw.val.nint = tmp1;
-		goto _nis_integer_;	/* (scratch_pw) */
-	    }
-	    else if (ISRef(tmp1))  /* tag derefed arg 1 */
-	    {
-		pw2 = PP[-1].arg;
-		Dereference_Pw_Tag(pw2, tmp1)
-		if (IsTag(tmp1,TINT)) {
-		    tmp1 = pw2->val.nint;
-		    if (tmp1-- <= 0) {
-			Fail
-		    }
-		    scratch_pw.val.nint = tmp1;
-		    tmp1 = TINT;
-		    goto _nis_no_deref_;	/* (pw1,scratch_pw) */
-		} else if (ISRef(tmp1)) { /* tag derefed arg 2 */
-		    err_code = PDELAY_1_2;
-		    goto _npdelay_;
-		}
-		Export_B_Sp_Tg_Tt_Eb_Gb
-		err_code = unary_arith_op(pw2->val, pw2->tag,
-		    pw1->val, pw1->tag, ARITH_PREV, TINT);
-		Import_Tg_Tt
-		goto _nbip_res_;		/* (err_code,proc) */
-	    }
-	    err_code = ARITH_NEXT;
-	    goto _nun_op_;		/* (err_code,pw1) */
+_nun_op_:				/* (err_code,pw1,PP,proc) */
+	    Export_B_Sp_Tg_Tt_Eb_Gb
+	    err_code = un_arith_op(pw1->val, pw1->tag, PP[-2].arg, err_code, TINT);
+	    Import_Tg_Tt
+	    goto _nbip_res_;
 
-	 Case(BI_Add, I_BI_Add)
-	    proc = add_proc_;
-	    PP+= 3;
-	    NGeneric_Arith_Overflow_Bip(BIAdd, +, ==, ARITH_ADD)
 
-	 Case(BI_Sub, I_BI_Sub)
-	    proc = sub_proc_;
-	    PP+= 3;
-	    NGeneric_Arith_Overflow_Bip(BISub, -, !=, ARITH_SUB)
-
-	 Case(BI_Mul, I_BI_Mul)
-	    proc = mul_proc_;
-	    PP+= 3;
-	    pw1 = PP[-3].arg;
+	Case(BI_Addi, I_BI_Addi)
+	    PP += 4;
+	    pw1 = PP[-4].arg;
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1)
-	    pw2 = PP[-2].arg;
+	    Kill_DE;
+	    if (IsInteger(pw1->tag)) {
+		register word	n1 = pw1->val.nint;
+		register word	n2 = PP[-3].nint;
+		tmp1 = n1 + n2;
+		if (((n1 >= 0) == (n2 >= 0)) && 
+		    (n1 >= 0) != (tmp1 >= 0)) {
+		    err_code = INTEGER_OVERFLOW;
+		    proc = add_proc_;
+		    goto _nbip_err_;
+		} 
+		Make_Integer(PP[-2].arg, tmp1);
+		Next_Pp;
+	    } else if (IsDouble(pw1->tag)) {
+		dbl_res = Dbl(pw1->val) + (double)PP[-3].nint;
+		proc = add_proc_;
+_nis_float_check_:			/* (dbl_res) */
+		if (!GoodFloat(dbl_res))
+		{
+		    err_code = ARITH_EXCEPTION;
+		    goto _nbip_err_;
+		}
+		Make_Double(PP[-2].arg, dbl_res);
+		Next_Pp;
+	    }
+	    Make_Integer(&scratch_pw, PP[-3].nint);
+	    pw2 = &scratch_pw;
+	    err_code = ARITH_ADD;
+	    proc = add_proc_;
+
+_nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
+	    Export_B_Sp_Tg_Tt_Eb_Gb
+	    err_code = bin_arith_op(pw1->val, pw1->tag, pw2->val, pw2->tag, PP[-2].arg, err_code);
+	    Import_Tg_Tt
+	    goto _nbip_res_;
+
+
+	Case(BI_Add, I_BI_Add)
+	    proc = add_proc_;
+	    NGeneric_Arith_Overflow_Bip(BIAdd, +, ==, ARITH_ADD)
+
+	Case(BI_Sub, I_BI_Sub)
+	    proc = sub_proc_;
+	    NGeneric_Arith_Overflow_Bip(BISub, -, !=, ARITH_SUB)
+
+	Case(BI_Mul, I_BI_Mul)
+	    proc = mul_proc_;
+	    PP += 4;
+	    pw1 = PP[-4].arg;
+	    Dereference_Pw(pw1);
+	    NDelay_Check_1(pw1)
+	    pw2 = PP[-3].arg;
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2)
 	    Kill_DE		/* it's a demon */
@@ -7679,19 +7585,18 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		if (IsInteger(pw2->tag))
 		{
 		    tmp1 = pw1->val.nint;
-		    if (tmp1 == 0) {
-			scratch_pw.val.nint = 0;
-			goto _nis_integer_;
+		    if (tmp1 != 0) {
+			tmp1 *= pw2->val.nint;
+			if (tmp1 == MIN_S_WORD ||			/* maybe */
+			    tmp1/pw1->val.nint != pw2->val.nint)	/* for sure */
+			{
+			    err_code = INTEGER_OVERFLOW;
+			    goto _nbip_err_;
+			}
 		    }
-		    tmp1 *= pw1->val.nint;
-		    if (tmp1 == MIN_S_WORD ||			/* maybe */
-			tmp1/pw1->val.nint != pw2->val.nint)	/* for sure */
-		    {
-			err_code = INTEGER_OVERFLOW;
-			goto _nbip_err_;
-		    }
-		    scratch_pw.val.nint = tmp1;
-		    goto _nis_integer_;
+		    PP[-2].arg->val.nint = tmp1;
+		    PP[-2].arg->tag.kernel = TINT;
+		    Next_Pp;
 		}
 		if (IsDouble(pw2->tag)) {
 		    dbl_res = (double)pw1->val.nint * Dbl(pw2->val);
@@ -7709,15 +7614,15 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		}
 	    }
 	    err_code = ARITH_MUL;
-	    goto _nbin_op_;		/* (err_code,pw1,pw2) */
+	    goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
 
-	 Case(BI_Quot, I_BI_Quot)
+	Case(BI_Quot, I_BI_Quot)
 	    proc = quot_proc_;
-	    PP+= 3;
-	    pw1 = PP[-3].arg;
+	    PP += 4;
+	    pw1 = PP[-4].arg;
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1)
-	    pw2 = PP[-2].arg;
+	    pw2 = PP[-3].arg;
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2)
 	    Kill_DE		/* it's a demon */
@@ -7727,7 +7632,7 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		    if (GlobalFlags & PREFER_RATIONALS)
 		    {
 			err_code = ARITH_DIV;
-			goto _nbin_op_;		/* (err_code,pw1,pw2) */
+			goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
 		    }
 		    else
 		    {
@@ -7752,15 +7657,15 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		}
 	    }
 	    err_code = ARITH_DIV;
-	    goto _nbin_op_;		/* (err_code,pw1,pw2) */
+	    goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
 
-	 Case(BI_Div, I_BI_Div)
+	Case(BI_Div, I_BI_Div)
 	    proc = div_proc_;
-	    PP+= 3;
-	    pw1 = PP[-3].arg;
+	    PP += 4;
+	    pw1 = PP[-4].arg;
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1)
-	    pw2 = PP[-2].arg;
+	    pw2 = PP[-3].arg;
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2);
 	    Kill_DE		/* it's a demon */
@@ -7776,19 +7681,20 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		    err_code = INTEGER_OVERFLOW;
 		    goto _nbip_err_;
 		}
-		scratch_pw.val.nint = pw1->val.nint / pw2->val.nint;
-		goto _nis_integer_;
+		PP[-2].arg->val.nint = pw1->val.nint / pw2->val.nint;
+		PP[-2].arg->tag.kernel = TINT;
+		Next_Pp;
 	    }
 	    err_code = ARITH_IDIV;
-	    goto _nbin_op_;		/* (err_code,pw1,pw2) */
+	    goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
 
-	 Case(BI_Rem, I_BI_Rem)
+	Case(BI_Rem, I_BI_Rem)
 	    proc = rem_proc_;
-	    PP+= 3;
-	    pw1 = PP[-3].arg;
+	    PP += 4;
+	    pw1 = PP[-4].arg;
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1);
-	    pw2 = PP[-2].arg;
+	    pw2 = PP[-3].arg;
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2);
 	    Kill_DE		/* it's a demon */
@@ -7799,26 +7705,27 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		    err_code = ARITH_EXCEPTION;
 		    goto _nbip_err_;
 		}
+		PP[-2].arg->val.nint =
 #if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
-		/* need to check this, causes arith exception on i386 */
-		if (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1)
-		    scratch_pw.val.nint = 0L;
-		else
+		    /* need to check this, causes arith exception on i386 */
+		    (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) ?
+			PP[-2].arg->val.nint = 0L :
 #endif
 		    /* Assume % truncates towards zero */
-		    scratch_pw.val.nint = pw1->val.nint % pw2->val.nint;
-		goto _nis_integer_;
+		       pw1->val.nint % pw2->val.nint;
+		PP[-2].arg->tag.kernel = TINT;
+		Next_Pp;
 	    }
 	    err_code = ARITH_MOD;
-	    goto _nbin_op_;		/* (err_code,pw1,pw2) */
+	    goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
 
-	 Case(BI_FloorDiv, I_BI_FloorDiv)
+	Case(BI_FloorDiv, I_BI_FloorDiv)
 	    proc = fdiv_proc_;
-	    PP+= 3;
-	    pw1 = PP[-3].arg;
+	    PP += 4;
+	    pw1 = PP[-4].arg;
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1);
-	    pw2 = PP[-2].arg;
+	    pw2 = PP[-3].arg;
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2);
 	    Kill_DE		/* it's a demon */
@@ -7834,22 +7741,24 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		    err_code = INTEGER_OVERFLOW;
 		    goto _nbip_err_;
 		}
-		scratch_pw.val.nint = pw1->val.nint / pw2->val.nint;
+		tmp1 = pw1->val.nint / pw2->val.nint;
 		/* Need to adjust rounding if opposite signs */
 		if (((pw1->val.nint ^ pw2->val.nint) < 0) && (pw1->val.nint % pw2->val.nint))
-		    --scratch_pw.val.nint;
-		goto _nis_integer_;
+		    --tmp1;
+		PP[-2].arg->val.nint = tmp1;
+		PP[-2].arg->tag.kernel = TINT;
+		Next_Pp;
 	    }
 	    err_code = ARITH_FLOORDIV;
-	    goto _nbin_op_;		/* (err_code,pw1,pw2) */
+	    goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
 
-	 Case(BI_FloorRem, I_BI_FloorRem)
+	Case(BI_FloorRem, I_BI_FloorRem)
 	    proc = mod_proc_;
-	    PP+= 3;
-	    pw1 = PP[-3].arg;
+	    PP += 4;
+	    pw1 = PP[-4].arg;
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1);
-	    pw2 = PP[-2].arg;
+	    pw2 = PP[-3].arg;
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2);
 	    Kill_DE		/* it's a demon */
@@ -7858,7 +7767,7 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 		if (pw2->val.nint == 0) {
 #ifdef KNUTH_EXTENDED_MOD
 		    /* extension according to Knuth Vol 1, 1.2.4 */
-		    scratch_pw.val.nint = pw1->val.nint;
+		    tmp1 = pw1->val.nint;
 #else
 		    err_code = ARITH_EXCEPTION;
 		    goto _nbip_err_;
@@ -7866,85 +7775,89 @@ _nis_no_deref_:				/* :- pw1 is (scratch_pw.val,tmp1) */
 #if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
 		/* need to check this, causes arith exception on i386 */
 		} else if (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) {
-		    scratch_pw.val.nint = 0L;
+		    tmp1 = 0L;
 #endif
 		} else {
 		    /* Assume % truncates towards zero */
-		    scratch_pw.val.nint = pw1->val.nint % pw2->val.nint;
+		    tmp1 = pw1->val.nint % pw2->val.nint;
 		    /* Need to adjust nonzero results if opposite signs */
-		    if (scratch_pw.val.nint && (pw1->val.nint ^ pw2->val.nint) < 0)
-			scratch_pw.val.nint += pw2->val.nint;
+		    if (tmp1 && (pw1->val.nint ^ pw2->val.nint) < 0)
+			tmp1 += pw2->val.nint;
 		}
-		goto _nis_integer_;
+		PP[-2].arg->val.nint = tmp1;
+		PP[-2].arg->tag.kernel = TINT;
+		Next_Pp;
 	    }
 	    err_code = ARITH_FLOORREM;
-	    goto _nbin_op_;		/* (err_code,pw1,pw2) */
+	    goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
 
-	 Case(BI_And, I_BI_And)			/* the bit operations */
-	    proc = and_proc_;
-	    PP+= 3;
-	    NInt_Arith_Bip(BIAnd, &, ARITH_AND)
+	Case(BI_And, I_BI_And)			/* the bit operations */
+	    NInt_Arith_Bip(and_proc_, BIAnd, &, ARITH_AND)
 
-	 Case(BI_Or, I_BI_Or)
-	    proc = or_proc_;
-	    PP+= 3;
-	    NInt_Arith_Bip(BIOr, |, ARITH_OR)
+	Case(BI_Or, I_BI_Or)
+	    NInt_Arith_Bip(or_proc_, BIOr, |, ARITH_OR)
 
-	 Case(BI_Xor, I_BI_Xor)
-	    proc = xor_proc_;
-	    PP+= 3;
-	    NInt_Arith_Bip(BIXor, ^, ARITH_XOR)
+	Case(BI_Xor, I_BI_Xor)
+	    NInt_Arith_Bip(xor_proc_, BIXor, ^, ARITH_XOR)
 
-	 Case(BI_Bitnot, I_BI_Bitnot)
+	Case(BI_Bitnot, I_BI_Bitnot)
 	    proc = bitnot_proc_;
-	    PP+= 2;
-	    pw1 = PP[-2].arg;
+	    pw1 = PP->arg;
+	    PP += 3;
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1);
 	    if (IsInteger(pw1->tag))
 	    {
-		scratch_pw.val.nint = ~ pw1->val.nint;
-		goto _nis_integer_;
+		PP[-2].arg->val.nint = ~ pw1->val.nint;
+		PP[-2].arg->tag.kernel = TINT;
+		Next_Pp;
 	    }
 	    err_code = ARITH_COM;
-	    goto _nun_op_;		/* (err_code) */
+	    goto _nun_op_;		/* (err_code,pw1,PP,proc) */
 
 
-	 Case(BI_Lt, I_BI_Lt)	       /* The arithmetic comparisons */
-	    proc = lt_proc_;
-	    PP+= 3;
-	    NCompare_Bip(BILt, <)
+	Case(BI_Lt, I_BI_Lt)	       /* The arithmetic comparisons */
+	    NCompare_Bip(lt_proc3_, BILt, <)
 
-	 Case(BI_Le, I_BI_Le)
-	    proc = le_proc_;
-	    PP+= 3;
-	    NCompare_Bip(BILe, <=)
+	Case(BI_Le, I_BI_Le)
+	    NCompare_Bip(le_proc3_, BILe, <=)
 
-	 Case(BI_Gt, I_BI_Gt)
-	    proc = gt_proc_;
-	    PP+= 3;
-	    NCompare_Bip(BIGt, >)
+	Case(BI_Gt, I_BI_Gt)
+	    NCompare_Bip(gt_proc3_, BIGt, >)
 
-	 Case(BI_Ge, I_BI_Ge)
-	    proc = ge_proc_;
-	    PP+= 3;
-	    NCompare_Bip(BIGe, >=)
+	Case(BI_Ge, I_BI_Ge)
+	    NCompare_Bip(ge_proc3_, BIGe, >=)
 
-	 Case(BI_Eq, I_BI_Eq)
-	    proc = eq_proc_;
-	    PP+= 3;
-	    NCompare_Bip(BIEq, ==)
+	Case(BI_Eq, I_BI_Eq)
+	    NCompare_Bip(eq_proc3_, BIEq, ==)
 
-	 Case(BI_Ne, I_BI_Ne)
-	    proc = ne_proc_;
-	    PP+= 3;
-	    NCompare_Bip(BINe, !=)
+	Case(BI_Ne, I_BI_Ne)
+	    NCompare_Bip(ne_proc3_, BINe, !=)
 
-	 Case(BI_Arg, I_BI_Arg)			/* arg(+N, +Term, ?Arg)	*/
+	Case(BI_Arity, I_BI_Arity)		/* arity(+Term, -N)	*/
+	    pw1 = PP++->arg;
+	    Dereference_Pw_Tag(pw1, tmp1);
+	    if (IsTag(tmp1, TCOMP)) {
+		tmp1 = DidArity(pw1->val.ptr->val.did);
+	    } else if (IsTag(tmp1, TLIST)) {
+		tmp1 = 2;
+	    } else {
+		tmp1 = 0;
+	    }
+	    Make_Integer(PP->arg, tmp1)
+	    ++PP;
+	    Next_Pp;
+
+	Case(BI_Arg, I_BI_Arg)			/* arg(+N, +Term, -Arg)	*/
 	    proc = arg_proc_;
-            PP += 3;
-	    pw1 = PP[-2].arg;		/* check Term */
-	    pw2 = PP[-3].arg;
+            PP += 4;
+	    pw1 = PP[-3].arg;		/* check Term */
+	    if (PP[-1].nint & 2) {
+		pw2 = &scratch_pw;	/* immediate integer argument */
+		Make_Integer(&scratch_pw, PP[-4].nint);
+	    } else {
+		pw2 = PP[-4].arg;
+	    }
 _narg_: 
 /* pw1 and pw2 must be set correctly before jumping here */
 	    Dereference_Pw_Tag(pw1, tmp1);
@@ -7985,9 +7898,8 @@ _narg_:
 		if (tmp1 >= 1 && tmp1 <= i)
 		{
 		    Kill_DE;			/* necessary before success */
-		    pw1 += tmp1;
-		    pw2 = PP[-1].arg;
-		    goto _unify_;
+		    *PP[-2].arg = pw1[tmp1];
+		    Next_Pp;
 		}
 		else
 		    err_code = RANGE_ERROR;
@@ -8017,8 +7929,8 @@ _narg_:
 			if (IsTag(pw2->tag.kernel, TNIL))
 			{
 			    Kill_DE;		/* necessary before success */
-			    pw2 = PP[-1].arg;
-			    goto _unify_;
+			    *PP[-2].arg = *pw1;
+			    Next_Pp;
 			}
 			else
 			{
@@ -8054,10 +7966,10 @@ _narg_:
 	     * Specially compiled call from inside a delay clause:
 	     *			make_suspension(Goal, Prio, Susp, Pri)
 	     */
-	 Case(BI_MakeSuspension, I_BI_MakeSuspension)
+	Case(BI_MakeSuspension, I_BI_MakeSuspension)
 	    proc = make_suspension_proc_;
-            PP += 4;
-	    pw1 = PP[-4].arg;
+            PP += 5;
+	    pw1 = PP[-5].arg;
 	    Dereference_Pw_Tag(pw1, tmp1);	/* check goal argument */
 	    if (IsTag(tmp1, TCOMP))
 		val_did = pw1->val.ptr->val.did;
@@ -8074,7 +7986,7 @@ _narg_:
 	    pw2 = TG;				/* allocate suspension */
 	    TG += SUSP_SIZE;
 	    Check_Gc
-	    pw3 = PP[-1].arg;
+	    pw3 = PP[-2].arg;
 	    Dereference_Pw_Tag(pw3, tmp1);	/* find the pri */
 	    if (IsTag(tmp1, TINT))		/* we have the pri already */
 	    {
@@ -8104,7 +8016,7 @@ _narg_:
 		err_code = ISRef(tmp1) ? INSTANTIATION_FAULT : TYPE_ERROR;
 		goto _nbip_err_;		/* (proc, err_code) */
 	    }
-	    pw3 = PP[-3].arg;
+	    pw3 = PP[-4].arg;
 	    Dereference_Pw_Tag(pw3, tmp1);	/* find the priority */
 	    if (IsTag(tmp1, TINT))
 	    {
@@ -8139,7 +8051,7 @@ _narg_:
 		}
 	    }
 
-	    pw1 = PP[-2].arg;			/* output unification */
+	    pw1 = PP[-3].arg;			/* output unification */
 	    Dereference_Pw(pw1);
 	    if (IsRef(pw1->tag))
 	    {
@@ -8221,6 +8133,7 @@ _escape_:			/* (proc) */
 		Next_Pp;
 
       E_Case(BICutToStamp, E_BICutToStamp)
+	    proc = cut_to_stamp_proc_;
 	    if (!IsStructure(SP[0].tag) || !IsInteger(SP[1].tag)) {
 		err_code = TYPE_ERROR;
 		goto _bip_err_;
@@ -8383,14 +8296,15 @@ _escape_:			/* (proc) */
 	    goto _diff_;			/* (proc, pw1, pw2) */
 
       E_Case(BIInequality, E_BIInequality)
-	    pw1 = SP;
+	    pw1 = pw3 = SP;
 	    pw2 = SP + 1;
-	    goto _diff_;			/* (proc, pw1, pw2) */
+	    goto _diff_;			/* (proc, pw1, pw2, pw3) */
 
       E_Case(BINotIdentList, E_BINotIdentList)
 	    pw1 = SP;
 	    pw2 = SP + 1;
-	    goto _diff_;			/* (proc, pw1, pw2) */
+	    pw3 = SP + 2;
+	    goto _diff_;			/* (proc, pw1, pw2, pw3) */
 
 
 #ifdef SAVEDSTATES
@@ -8460,7 +8374,6 @@ _is_integer_:				/* (pw1, scratch_pw.val)	*/
 	    tmp1 = TINT;
 _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 	    Mark_Prof(_is_)
-	    in_external = 0;
 	    if (IsVar(pw1->tag))
 	    {
 		pw1 = pw1->val.ptr;
@@ -8495,15 +8408,19 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 		else
 		    { Fail }
 	    }
+#ifdef ARITH_OUTPUT_TYPE_ERROR
 	    else if (tag_desc[TagType(pw1->tag)].super == tag_desc[TagTypeC(tmp1)].super)
 		{ Fail }
 	    else
 		err_code = TYPE_ERROR;
+#else
+	    else
+		{ Fail }
+#endif
 	    goto _bip_err_;
 
 
 	E_Case(BIMinus, E_BIMinus)
-	    in_external = PriFunc(proc);
 	    Delay_Check_1
 	    pw1 = SP+1;
 	    if (IsInteger(SP->tag))
@@ -8524,7 +8441,6 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 	    goto _un_op_;		/* (err_code) */
 
 	E_Case(BISucc, E_BISucc)
-	    in_external = PriFunc(proc);
 	    if (IsInteger(SP[0].tag))
 	    {
 		tmp1 = SP[0].val.nint + 1;
@@ -8569,7 +8485,6 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 	    Generic_Arith_Overflow_Bip(BISub, -, !=, ARITH_SUB)
 
 	E_Case(BIMul, E_BIMul)
-	    in_external = PriFunc(proc);
 	    Delay_Check_1
 	    Delay_Check_2
 	    Kill_DE		/* it's a demon */
@@ -8611,7 +8526,6 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 	    goto _bin_op_;		/* (err_code) */
 
 	E_Case(BIQuot, E_BIQuot)
-	    in_external = PriFunc(proc);
 	    Delay_Check_1
 	    Delay_Check_2
 	    Kill_DE		/* it's a demon */
@@ -8650,7 +8564,6 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 	    goto _bin_op_;		/* (err_code) */
 
 	E_Case(BIDiv, E_BIDiv)
-	    in_external = PriFunc(proc);
 	    Delay_Check_1
 	    Delay_Check_2
 	    Kill_DE		/* it's a demon */
@@ -8674,7 +8587,6 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 	    goto _bin_op_;		/* (err_code) */
 
 	E_Case(BIRem, E_BIRem)
-	    in_external = PriFunc(proc);
 	    Delay_Check_1
 	    Delay_Check_2
 	    Kill_DE		/* it's a demon */
@@ -8700,7 +8612,6 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 	    goto _bin_op_;		/* (err_code) */
 
 	E_Case(BIFloorDiv, E_BIFloorDiv)
-	    in_external = PriFunc(proc);
 	    Delay_Check_1
 	    Delay_Check_2
 	    Kill_DE		/* it's a demon */
@@ -8727,7 +8638,6 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 	    goto _bin_op_;		/* (err_code) */
 
 	E_Case(BIFloorRem, E_BIFloorRem)
-	    in_external = PriFunc(proc);
 	    Delay_Check_1
 	    Delay_Check_2
 	    Kill_DE		/* it's a demon */
@@ -8769,7 +8679,6 @@ _is_:					/* :- pw1 is (scratch_pw.val,tmp1) */
 	    Int_Arith_Bip(BIXor, ^, ARITH_XOR)
 
 	E_Case(BIBitnot, E_BIBitnot)
-	    in_external = PriFunc(proc);
 	    Delay_Check_1
 	    if (IsInteger(SP->tag))
 	    {
@@ -9044,7 +8953,7 @@ RETSIGTYPE
 sigprof_handler(void)
 
 #endif
-{
+{ 
     extern stream_id	profile_stream_;
 
     if (VM_FLAGS & PROFILING)

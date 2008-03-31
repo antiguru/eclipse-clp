@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.16 2008/03/27 16:53:07 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.17 2008/03/31 14:52:38 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/03/27 16:53:07 $").
+:- comment(date, "$Date: 2008/03/31 14:52:38 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -645,13 +645,13 @@ match_skipped_instr([(Candidate,NewRef0)|Candidates], SkipInstr, NewRef, Code, R
 % switches of switch_on_type
 subsumed_type_instr(meta, A, [(bi_var(a(A)),next),(bi_meta(a(A)),next),(in_get_meta(a(A),_),next)]).
 subsumed_type_instr([], A, [(get_nil(a(A)),next),(bi_atom(a(A)),next),
-                            (bi_atomic(a(A)),next),
+                            (bi_atomic(a(A)),next),(bi_callable(a(A)),next),
                             (bi_nonvar(a(A)),next),(in_get_nil(a(A)),next),
                             (bi_nonvar(a(A)),next)]).
 subsumed_type_instr(atom, A, [(bi_atom(a(A)),next),(bi_atomic(a(A)),next),
-                              (bi_nonvar(a(A)),next)]).
+                              (bi_callable(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(bignum, A, [(bi_number(a(A)),next),(bi_integer(a(A)),next),
-                                (bi_atomic(a(A)),next),
+                                (bi_bignum(a(A)),next),(bi_atomic(a(A)),next),
                                 (bi_nonvar(a(A)),next)]).
 subsumed_type_instr(integer, A, [(bi_number(a(A)),next),(bi_integer(a(A)),next),
                                 (bi_atomic(a(A)),next),(bi_nonvar(a(A)),next)]).
@@ -661,10 +661,11 @@ subsumed_type_instr(double, A, [(bi_number(a(A)),next),(bi_real(a(A)),next),
                                (bi_float(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(handle, A, [(bi_is_handle(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(list, A, [(bi_is_list(a(A)),next),(bi_compound(a(A)),next),
-                              (bi_nonvar(a(A)),next)]).
+                                (bi_callable(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(rational, A, [(bi_number(a(A)),next),(bi_rational(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(string, A, [(bi_atomic(a(A)),next),(bi_string(a(A)),next),(bi_nonvar(a(A)),next)]).
-subsumed_type_instr(structure, A, [(bi_compound(a(A)),next),(bi_nonvar(a(A)),next)]).
+subsumed_type_instr(structure, A, [(bi_compound(a(A)),next),
+				(bi_callable(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(var, A, [(bi_var(a(A)),next),(bi_free(a(A)),next)]).
 
 % rejoin adjacent chunks that should be contiguous if the first chunk

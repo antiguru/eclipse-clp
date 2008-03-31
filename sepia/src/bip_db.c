@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.9 2008/02/29 22:14:44 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.10 2008/03/31 14:48:51 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1535,7 +1535,7 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 	/* This flag should have more (and more appropriately named) values,
 	 * taking into account both the setting of CODETYPE and ARGPASSING.
 	 */
-	Request_Unify_Atom(vf, tf, (flags & ARGPASSING) == ARGSTACK ? d_.external: d_.prolog);
+	Request_Unify_Atom(vf, tf, (flags & ARGPASSING) == ARGFIXEDWAM ? d_.prolog: d_.external);
     	break;
     case 11:		/* debugged */
 	Request_Unify_Atom(vf, tf, flags & DEBUG_DB? d_.on: d_.off);

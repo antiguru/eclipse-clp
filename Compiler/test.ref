@@ -520,9 +520,8 @@ label(L0):
 	allocate                 0 
 	callf                    ref(L0)     Y[] 
 	put_integer              a(1)     1 
-	put_integer              a(2)     2 
-	put_integer              a(3)     3 
-	bi_add                   a(1)     a(2)     a(3) 
+	bi_addi                  a(1)     2     a(1)     24 
+	get_integer              a(1)     3 
 	exit                 
 
 ------ Test 31 -------
@@ -536,10 +535,9 @@ label(L0):
 	allocate                 1 
 	put_global_variable_callf     a(1)     y(1)     p / 1     Y[1] 
 	callf                    q / 0     Y[1] 
-	put_integer              a(1)     2 
-	put_integer              a(2)     3 
-	move                     y(1)     a(3) 
-	bi_add                   a(3)     a(1)     a(2) 
+	move                     y(1)     a(1) 
+	bi_addi                  a(1)     2     a(1)     24 
+	get_integer              a(1)     3 
 	exit                 
 
 ------ Test 32 -------
@@ -563,8 +561,8 @@ p / 2:
 label(L0):
 	get_value                a(2)     a(1) 
 	put_variable2            a(4)     a(5) 
-	put_integer              a(6)     1 
-	bi_add                   a(4)     a(5)     a(6) 
+	bi_add                   a(4)     a(5)     a(4)     16 
+	get_integer              a(4)     1 
 	move                     a(1)     a(3) 
 	put_atom                 a(1)     a 
 	put_atom                 a(2)     b 
@@ -578,8 +576,7 @@ p(A, B, C) :-
 p / 3:
 label(L0):
 	put_variable2            a(4)     a(5) 
-	put_variable             a(6) 
-	bi_add                   a(4)     a(5)     a(6) 
+	bi_add                   a(4)     a(5)     a(4)     16 
 	jmp                      ref(L0) 
 
 ------ Test 35 -------
@@ -1714,6 +1711,20 @@ label(L0):
 	move                     y(1)     a(2)     y(3)     a(3)     y(2)     a(4) 
 	move_chain               y(4)     a(5)     terminator / 5 
 
+------ Test 130 -------
+p(A, B) :-
+	+(1, A, C),
+	+(2, C, D),
+	+(3, D, B).
+
+p / 2:
+label(L0):
+	bi_addi                  a(1)     1     a(1)     24 
+	bi_addi                  a(1)     2     a(1)     24 
+	bi_addi                  a(1)     3     a(1)     24 
+	get_value                a(1)     a(2) 
+	ret                  
+
 ------ Test 200 -------
 p :-
 	a(A, A).
@@ -2490,11 +2501,11 @@ label(L0):
 	get_variable             2     a(1)     y(1) 
 	move                     a(2)     y(2) 
 	callf                    p / 1     Y[1,2] 
-	put_variable             a(1) 
 	move                     2     y(1)     a(2) 
-	bi_add                   a(2)     a(3)     a(1) 
+	bi_add                   a(2)     a(3)     a(1)     16 
 	put_variable             a(3) 
-	bi_sub                   a(2)     a(3)     a(1) 
+	bi_sub                   a(2)     a(3)     a(2)     16 
+	get_value                a(2)     a(1) 
 	chain                    q / 1 
 
 ------ Test 301 -------
@@ -9618,6 +9629,667 @@ label(L0):
 	move                     20     y(1)     a(1) 
 	chain                    t / 20 
 
+------ Test bip(type_tests) -------
+p(A) :-
+	free(A).
+p(A) :-
+	is_suspension(A).
+p(A) :-
+	is_event(A).
+p(A) :-
+	is_handle(A).
+p(A) :-
+	nonvar(A).
+p(A) :-
+	var(A).
+p(A) :-
+	meta(A).
+p(A) :-
+	atom(A).
+p(A) :-
+	integer(A).
+p(A) :-
+	sepia_kernel : bignum(A).
+p(A) :-
+	rational(A).
+p(A) :-
+	real(A).
+p(A) :-
+	float(A).
+p(A) :-
+	breal(A).
+p(A) :-
+	string(A).
+p(A) :-
+	number(A).
+p(A) :-
+	atomic(A).
+p(A) :-
+	sepia_kernel : callable(A).
+p(A) :-
+	compound(A).
+p(A) :-
+	is_list(A).
+p(A) :-
+	fail.
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 4.5
+    [] - [21]
+    [[]] - [2, 5, 8, 17, 18, 20, 21]
+    [var] - [6, 21]
+    [var, free] - [1, 6, 21]
+    [var, meta] - [6, 7, 21]
+    [atom] - [3, 5, 8, 17, 18, 21]
+    [bignum] - [5, 9, 10, 16, 17, 21]
+    [goal] - [2, 5, 17, 21]
+    [double] - [5, 12, 13, 16, 17, 21]
+    [list] - [5, 18, 19, 20, 21]
+    [structure] - [5, 18, 19, 21]
+    [rational] - [5, 11, 16, 17, 21]
+    [handle] - [3, 4, 5, 17, 21]
+    [breal] - [5, 12, 14, 16, 17, 21]
+    [integer] - [5, 9, 16, 17, 21]
+    [string] - [5, 15, 17, 21]
+p / 1:
+label(L0):
+	allocate                 0 
+	switch_on_type           a(1) 
+		meta: 	ref(L57)
+		[]: 	ref(L44)
+		atom: 	ref(L45)
+		bignum: 	ref(L46)
+		breal: 	ref(L47)
+		double: 	ref(L48)
+		goal: 	ref(L49)
+		handle: 	ref(L50)
+		integer: 	ref(L51)
+		list: 	ref(L52)
+		rational: 	ref(L53)
+		string: 	ref(L54)
+		structure: 	ref(L55)
+
+	branch                   ref(L56) 
+label(L1):
+	try_me_else              0     1     ref(L3) 
+label(L2):
+	bi_free                  a(1) 
+	branch                   ref(L43) 
+label(L3):
+	retry_me_inline          0     ref(L5)     Y[] 
+label(L4):
+	bi_is_suspension         a(1) 
+	branch                   ref(L43) 
+label(L5):
+	retry_me_inline          0     ref(L7)     Y[] 
+label(L6):
+	bi_is_event              a(1) 
+	branch                   ref(L43) 
+label(L7):
+	retry_me_inline          0     ref(L9)     Y[] 
+label(L8):
+	bi_is_handle             a(1) 
+	branch                   ref(L43) 
+label(L9):
+	retry_me_inline          0     ref(L11)     Y[] 
+label(L10):
+	bi_nonvar                a(1) 
+	branch                   ref(L43) 
+label(L11):
+	retry_me_inline          0     ref(L13)     Y[] 
+label(L12):
+	bi_var                   a(1) 
+	branch                   ref(L43) 
+label(L13):
+	retry_me_inline          0     ref(L15)     Y[] 
+label(L14):
+	bi_meta                  a(1) 
+	branch                   ref(L43) 
+label(L15):
+	retry_me_inline          0     ref(L17)     Y[] 
+label(L16):
+	bi_atom                  a(1) 
+	branch                   ref(L43) 
+label(L17):
+	retry_me_inline          0     ref(L19)     Y[] 
+label(L18):
+	bi_integer               a(1) 
+	branch                   ref(L43) 
+label(L19):
+	retry_me_inline          0     ref(L21)     Y[] 
+label(L20):
+	bi_bignum                a(1) 
+	branch                   ref(L43) 
+label(L21):
+	retry_me_inline          0     ref(L23)     Y[] 
+label(L22):
+	bi_rational              a(1) 
+	branch                   ref(L43) 
+label(L23):
+	retry_me_inline          0     ref(L25)     Y[] 
+label(L24):
+	bi_real                  a(1) 
+	branch                   ref(L43) 
+label(L25):
+	retry_me_inline          0     ref(L27)     Y[] 
+label(L26):
+	bi_float                 a(1) 
+	branch                   ref(L43) 
+label(L27):
+	retry_me_inline          0     ref(L29)     Y[] 
+label(L28):
+	bi_breal                 a(1) 
+	branch                   ref(L43) 
+label(L29):
+	retry_me_inline          0     ref(L31)     Y[] 
+label(L30):
+	bi_string                a(1) 
+	branch                   ref(L43) 
+label(L31):
+	retry_me_inline          0     ref(L33)     Y[] 
+label(L32):
+	bi_number                a(1) 
+	branch                   ref(L43) 
+label(L33):
+	retry_me_inline          0     ref(L35)     Y[] 
+label(L34):
+	bi_atomic                a(1) 
+	branch                   ref(L43) 
+label(L35):
+	retry_me_inline          0     ref(L37)     Y[] 
+label(L36):
+	bi_callable              a(1) 
+	branch                   ref(L43) 
+label(L37):
+	retry_me_inline          0     ref(L39)     Y[] 
+label(L38):
+	bi_compound              a(1) 
+	branch                   ref(L43) 
+label(L39):
+	retry_me_inline          0     ref(L41)     Y[] 
+label(L40):
+	bi_is_list               a(1) 
+	branch                   ref(L43) 
+label(L41):
+	trust_me_inline          0     Y[] 
+label(L42):
+	failure              
+label(L43):
+	exit                 
+label(L44):
+	try                      0     1     ref(L4) 
+	retry_inline             0     ref(L10)     Y[] 
+	retry_inline             0     ref(L16)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	retry_inline             0     ref(L36)     Y[] 
+	retry_inline             0     ref(L40)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L45):
+	try                      0     1     ref(L6) 
+	retry_inline             0     ref(L10)     Y[] 
+	retry_inline             0     ref(L16)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	retry_inline             0     ref(L36)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L46):
+	try                      0     1     ref(L10) 
+	retry_inline             0     ref(L18)     Y[] 
+	retry_inline             0     ref(L20)     Y[] 
+	retry_inline             0     ref(L32)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L47):
+	try                      0     1     ref(L10) 
+	retry_inline             0     ref(L24)     Y[] 
+	retry_inline             0     ref(L28)     Y[] 
+	retry_inline             0     ref(L32)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L48):
+	try                      0     1     ref(L10) 
+	retry_inline             0     ref(L24)     Y[] 
+	retry_inline             0     ref(L26)     Y[] 
+	retry_inline             0     ref(L32)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L49):
+	try                      0     1     ref(L4) 
+	retry_inline             0     ref(L10)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L50):
+	try                      0     1     ref(L6) 
+	retry_inline             0     ref(L8)     Y[] 
+	retry_inline             0     ref(L10)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L51):
+	try                      0     1     ref(L10) 
+	retry_inline             0     ref(L18)     Y[] 
+	retry_inline             0     ref(L32)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L52):
+	try                      0     1     ref(L10) 
+	retry_inline             0     ref(L36)     Y[] 
+	retry_inline             0     ref(L38)     Y[] 
+	retry_inline             0     ref(L40)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L53):
+	try                      0     1     ref(L10) 
+	retry_inline             0     ref(L22)     Y[] 
+	retry_inline             0     ref(L32)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L54):
+	try                      0     1     ref(L10) 
+	retry_inline             0     ref(L30)     Y[] 
+	retry_inline             0     ref(L34)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L55):
+	try                      0     1     ref(L10) 
+	retry_inline             0     ref(L36)     Y[] 
+	retry_inline             0     ref(L38)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L56):
+	try                      0     1     ref(L2) 
+	retry_inline             0     ref(L12)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+label(L57):
+	try                      0     1     ref(L12) 
+	retry_inline             0     ref(L14)     Y[] 
+	trust_inline             0     ref(L42)     Y[] 
+
+------ Test bip(other) -------
+p(A) :-
+	sepia_kernel : set_bip_error(A).
+p(A) :-
+	sepia_kernel : cont_debug.
+p(A) :-
+	sepia_kernel : sys_return(A).
+p(A) :-
+	make_suspension(true, 3, A).
+p(A) :-
+	sepia_kernel : make_suspension(true, 3, A, eclipse).
+
+p / 1:
+label(L0):
+	allocate                 0 
+	try_me_else              0     1     ref(L2) 
+label(L1):
+	bi_set_bip_error         a(1) 
+	branch                   ref(L10) 
+label(L2):
+	retry_me_inline          0     ref(L4)     Y[] 
+label(L3):
+	bi_cont_debug        
+	branch                   ref(L10) 
+label(L4):
+	retry_me_inline          0     ref(L6)     Y[] 
+label(L5):
+	bi_exit                  a(1) 
+	branch                   ref(L10) 
+label(L6):
+	retry_me_inline          0     ref(L8)     Y[] 
+label(L7):
+	put_atom                 a(2)     true 
+	put_integer              a(3)     3 
+	put_atom                 a(4)     eclipse 
+	bi_make_suspension       a(2)     a(3)     a(1)     a(4)     0 
+	branch                   ref(L10) 
+label(L8):
+	trust_me_inline          0     Y[] 
+label(L9):
+	put_atom                 a(2)     true 
+	put_integer              a(3)     3 
+	put_atom                 a(4)     eclipse 
+	bi_make_suspension       a(2)     a(3)     a(1)     a(4)     0 
+label(L10):
+	exit                 
+
+------ Test bip(eq) -------
+p(A, B) :-
+	A = B.
+p(A, B) :-
+	A == B.
+p(A, B) :-
+	A \== B.
+p(A, B) :-
+	A ~= B.
+p(A, B) :-
+	sepia_kernel : \==(A, B, []).
+
+p / 2:
+label(L0):
+	allocate                 0 
+	try_me_else              0     2     ref(L2) 
+label(L1):
+	get_value                a(1)     a(2) 
+	branch                   ref(L10) 
+label(L2):
+	retry_me_inline          0     ref(L4)     Y[] 
+label(L3):
+	get_matched_value        a(1)     a(2) 
+	branch                   ref(L10) 
+label(L4):
+	retry_me_inline          0     ref(L6)     Y[] 
+label(L5):
+	bi_not_identical         a(1)     a(2) 
+	branch                   ref(L10) 
+label(L6):
+	retry_me_inline          0     ref(L8)     Y[] 
+label(L7):
+	bi_inequality            a(1)     a(2)     0 
+	branch                   ref(L10) 
+label(L8):
+	trust_me_inline          0     Y[] 
+label(L9):
+	put_nil                  a(3) 
+	bi_not_ident_list        a(1)     a(2)     a(3)     0 
+label(L10):
+	exit                 
+
+------ Test bip(arith_comp) -------
+p(A, B) :-
+	A < B.
+p(A, B) :-
+	A =< B.
+p(A, B) :-
+	A =:= B.
+p(A, B) :-
+	A >= B.
+p(A, B) :-
+	A > B.
+p(A, B) :-
+	A =\= B.
+
+p / 2:
+label(L0):
+	allocate                 0 
+	try_me_else              0     2     ref(L2) 
+label(L1):
+	bi_lt                    a(1)     a(2)     eclipse     48 
+	branch                   ref(L12) 
+label(L2):
+	retry_me_inline          0     ref(L4)     Y[] 
+label(L3):
+	bi_le                    a(1)     a(2)     eclipse     48 
+	branch                   ref(L12) 
+label(L4):
+	retry_me_inline          0     ref(L6)     Y[] 
+label(L5):
+	bi_eq                    a(1)     a(2)     eclipse     48 
+	branch                   ref(L12) 
+label(L6):
+	retry_me_inline          0     ref(L8)     Y[] 
+label(L7):
+	bi_ge                    a(1)     a(2)     eclipse     48 
+	branch                   ref(L12) 
+label(L8):
+	retry_me_inline          0     ref(L10)     Y[] 
+label(L9):
+	bi_gt                    a(1)     a(2)     eclipse     48 
+	branch                   ref(L12) 
+label(L10):
+	trust_me_inline          0     Y[] 
+label(L11):
+	bi_ne                    a(1)     a(2)     eclipse     48 
+label(L12):
+	exit                 
+
+------ Test bip(arith_comp_mod) -------
+p(A, B, C) :-
+	sepia_kernel : <(A, B, C).
+p(A, B, C) :-
+	sepia_kernel : =<(A, B, C).
+p(A, B, C) :-
+	sepia_kernel : =:=(A, B, C).
+p(A, B, C) :-
+	sepia_kernel : >=(A, B, C).
+p(A, B, C) :-
+	sepia_kernel : >(A, B, C).
+p(A, B, C) :-
+	sepia_kernel : =\=(A, B, C).
+
+p / 3:
+label(L0):
+	allocate                 0 
+	try_me_else              0     3     ref(L2) 
+label(L1):
+	bi_lt                    a(1)     a(2)     a(3)     0 
+	branch                   ref(L12) 
+label(L2):
+	retry_me_inline          0     ref(L4)     Y[] 
+label(L3):
+	bi_le                    a(1)     a(2)     a(3)     0 
+	branch                   ref(L12) 
+label(L4):
+	retry_me_inline          0     ref(L6)     Y[] 
+label(L5):
+	bi_eq                    a(1)     a(2)     a(3)     0 
+	branch                   ref(L12) 
+label(L6):
+	retry_me_inline          0     ref(L8)     Y[] 
+label(L7):
+	bi_ge                    a(1)     a(2)     a(3)     0 
+	branch                   ref(L12) 
+label(L8):
+	retry_me_inline          0     ref(L10)     Y[] 
+label(L9):
+	bi_gt                    a(1)     a(2)     a(3)     0 
+	branch                   ref(L12) 
+label(L10):
+	trust_me_inline          0     Y[] 
+label(L11):
+	bi_ne                    a(1)     a(2)     a(3)     0 
+label(L12):
+	exit                 
+
+------ Test bip(functions) -------
+p(A) :-
+	get_bip_error(B),
+	B - C,
+	+(C, 1, D),
+	+(B, C, D),
+	-(D, 1, E),
+	-(D, C, E),
+	*(E, 2, F),
+	/(F, 2, G),
+	//(G, 2, H),
+	rem(H, 2, I),
+	div(I, 2, J),
+	mod(J, 2, K),
+	/\(K, 2, L),
+	\/(L, 2, M),
+	xor(M, 2, N),
+	\(N, O),
+	sepia_kernel : arity(foo(a, b, c), 3),
+	arg(O, foo(a, b, c), A).
+
+p / 1:
+label(L0):
+	get_variable             2     a(1)     y(2) 
+	put_global_variable_callf     a(1)     y(1)     get_bip_error / 1     Y[1,2] 
+	move                     y(1)     a(1) 
+	bi_minus                 a(1)     a(2)     4 
+	bi_addi                  a(2)     1     a(3)     24 
+	bi_add                   a(1)     a(2)     a(1)     16 
+	get_value                a(1)     a(3) 
+	bi_addi                  a(3)     -1     a(1)     24 
+	bi_sub                   a(3)     a(2)     a(2)     16 
+	get_value                a(2)     a(1) 
+	put_integer              a(2)     2 
+	bi_mul                   a(1)     a(2)     a(1)     16 
+	put_integer              a(2)     2 
+	bi_quot                  a(1)     a(2)     a(1)     16 
+	put_integer              a(2)     2 
+	bi_div                   a(1)     a(2)     a(1)     16 
+	put_integer              a(2)     2 
+	bi_rem                   a(1)     a(2)     a(1)     16 
+	put_integer              a(2)     2 
+	bi_fdiv                  a(1)     a(2)     a(1)     16 
+	put_integer              a(2)     2 
+	bi_mod                   a(1)     a(2)     a(1)     16 
+	put_integer              a(2)     2 
+	bi_and                   a(1)     a(2)     a(1)     16 
+	put_integer              a(2)     2 
+	bi_or                    a(1)     a(2)     a(1)     16 
+	put_integer              a(2)     2 
+	bi_xor                   a(1)     a(2)     a(1)     16 
+	bi_bitnot                a(1)     a(1)     4 
+	put_structure            a(2)     foo / 3 
+	write_atom2              a     b 
+	write_atom               c 
+	bi_arity                 a(2)     a(2) 
+	get_integer              a(2)     3 
+	put_structure            a(2)     foo / 3 
+	write_atom2              a     b 
+	write_atom               c 
+	bi_arg                   a(1)     a(2)     a(1)     16 
+	get_value                a(1)     y(2) 
+	exit                 
+
+------ Test bip(1) -------
+p(A, B) :-
+	+(A, B, C),
+	-(C, 1, D),
+	p(D).
+
+p / 2:
+label(L0):
+	bi_add                   a(1)     a(2)     a(2)     16 
+	bi_addi                  a(2)     -1     a(1)     24 
+	jmp                      p / 1 
+
+------ Test bip(2) -------
+p(A, B) :-
+	+(A, B, C),
+	-(A, B, C).
+
+p / 2:
+label(L0):
+	bi_add                   a(1)     a(2)     a(3)     16 
+	bi_sub                   a(1)     a(2)     a(1)     16 
+	get_value                a(1)     a(3) 
+	ret                  
+
+------ Test bip(3) -------
+p(A, B) :-
+	+(A, B, 0).
+
+p / 2:
+label(L0):
+	bi_add                   a(1)     a(2)     a(1)     16 
+	get_integer              a(1)     0 
+	ret                  
+
+------ Test bip(4) -------
+p(A, B) :-
+	+(A, B, foo(bar)).
+
+p / 2:
+label(L0):
+	bi_add                   a(1)     a(2)     a(1)     16 
+	get_structure            a(1)     foo / 1     ref(L1) 
+	write_atom               bar 
+	branch                   ref(L2) 
+label(L1):
+	read_atom                bar 
+label(L2):
+	ret                  
+
+------ Test bip(5) -------
+p(A, B) :-
+	+(A, 1, B).
+
+p / 2:
+label(L0):
+	bi_addi                  a(1)     1     a(1)     24 
+	get_value                a(1)     a(2) 
+	ret                  
+
+------ Test bip(6) -------
+p(A, B) :-
+	+(A, B, C),
+	q,
+	p(C).
+
+p / 2:
+label(L0):
+	allocate                 1 
+	bi_add                   a(1)     a(2)     a(1)     16 
+	move                     a(1)     y(1) 
+	callf                    q / 0     Y[1] 
+	move_chain               y(1)     a(1)     p / 1 
+
+------ Test bip(7) -------
+p(A, B) :-
+	q,
+	+(A, B, C),
+	p(C).
+
+p / 2:
+label(L0):
+	get_variable             2     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	callf                    q / 0     Y[1,2] 
+	move                     2     y(1)     a(2) 
+	bi_add                   a(2)     a(3)     a(1)     16 
+	chain                    p / 1 
+
+------ Test bip(8) -------
+p(A, B) :-
+	q(C),
+	+(A, B, C),
+	p(C).
+
+p / 2:
+label(L0):
+	get_variable             3     a(1)     y(2) 
+	move                     a(2)     y(3) 
+	put_global_variable_callf     a(1)     y(1)     q / 1     Y[1,2,3] 
+	move                     2     y(2)     a(2) 
+	bi_add                   a(2)     a(3)     a(2)     16 
+	get_value                a(2)     y(1) 
+	move_chain               y(1)     a(1)     p / 1 
+
+------ Test bip(9) -------
+p(A, B) :-
+	q(C),
+	+(A, B, C),
+	-(A, B, C),
+	p(C).
+
+p / 2:
+label(L0):
+	get_variable             3     a(1)     y(2) 
+	move                     a(2)     y(3) 
+	put_global_variable_callf     a(1)     y(1)     q / 1     Y[1,2,3] 
+	move                     2     y(2)     a(2) 
+	bi_add                   a(2)     a(3)     a(4)     16 
+	get_value                a(4)     y(1) 
+	bi_sub                   a(2)     a(3)     a(2)     16 
+	get_value                a(2)     y(1) 
+	move_chain               y(1)     a(1)     p / 1 
+
+------ Test bip(10) -------
+p(A, B) :-
+	+(A, B, C).
+
+p / 2:
+label(L0):
+	bi_add                   a(1)     a(2)     a(1)     16 
+	ret                  
+
+------ Test bip(20) -------
+p(A, B) :-
+	A > B.
+
+p / 2:
+label(L0):
+	bi_gt                    a(1)     a(2)     eclipse     48 
+	ret                  
+
 ------ Test bench(1) -------
 conc([], A, A).
 conc([A|B], C, [A|D]) :-
@@ -10024,6 +10696,71 @@ label(L8):
 label(L9):
 	callf                    ref(L0)     Y[] 
 label(L10):
+	exit                 
+
+------ Test bench(tak) -------
+tak(A, B, C, D) :-
+	(
+	    A =< B
+	->
+	    C = D
+	;
+	    E is A - 1,
+	    tak(E, B, C, F),
+	    G is B - 1,
+	    tak(G, C, A, H),
+	    I is C - 1,
+	    tak(I, A, B, J),
+	    tak(F, H, J, D)
+	).
+
+tak / 4:
+label(L0):
+	allocate                 11 
+	savecut                  y(5) 
+	move                     4     a(1)     y(1) 
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	move                     2     y(1)     a(1) 
+	bi_le                    a(1)     a(2)     eclipse     48 
+	cut                      y(5)     11 
+	get_value                y(3)     y(4) 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     Y[1,2,3,4] 
+label(L3):
+	put_structure            a(2)     (-) / 2 
+	push_local_value         y(1) 
+	push_integer             1 
+	put_global_variable      a(1)     y(11) 
+	put_atom                 a(3)     eclipse 
+	callf                    sepia_kernel : is_body / 3     Y[1,2,3,4,11] 
+	put_global_variable      a(4)     y(8) 
+	move                     y(11)     a(1) 
+	move                     2     y(2)     a(2) 
+	callf                    ref(L0)     Y[1,2,3,4,8] 
+	put_structure            a(2)     (-) / 2 
+	push_local_value         y(2) 
+	push_integer             1 
+	put_global_variable      a(1)     y(10) 
+	put_atom                 a(3)     eclipse 
+	callf                    sepia_kernel : is_body / 3     Y[1,2,3,4,8,10] 
+	put_global_variable      a(4)     y(7) 
+	move                     y(10)     a(1)     y(3)     a(2)     y(1)     a(3) 
+	callf                    ref(L0)     Y[1,2,3,4,7,8] 
+	put_structure            a(2)     (-) / 2 
+	push_local_value         y(3) 
+	push_integer             1 
+	put_global_variable      a(1)     y(9) 
+	put_atom                 a(3)     eclipse 
+	callf                    sepia_kernel : is_body / 3     Y[1,2,4,7,8,9] 
+	put_global_variable      a(4)     y(6) 
+	move                     y(9)     a(1) 
+	move                     2     y(1)     a(2) 
+	callf                    ref(L0)     Y[4,6,7,8] 
+	move                     y(8)     a(1)     y(7)     a(2)     y(6)     a(3) 
+	move_callf               y(4)     a(4)     ref(L0)     Y[] 
+label(L4):
 	exit                 
 
 ------ Test bug(1) -------
@@ -10653,8 +11390,7 @@ label(L8):
 	push_local_value         y(7) 
 	push_integer             1 
 	put_integer              a(2)     0 
-	put_atom                 a(3)     eclipse 
-	bi_eq                    a(1)     a(2)     a(3) 
+	bi_eq                    a(1)     a(2)     eclipse     48 
 	cut                      y(5)     8 
 	move                     y(8)     y(1) 
 	branch                   ref(L13) 
@@ -10758,9 +11494,13 @@ label(L0):
 	push_variable            a(2) 
 	put_structure            a(3)     f / 1 
 	push_local_value         a(2) 
-	put_structure            a(4)     f / 1 
-	push_local_value         a(2) 
-	bi_mul                   a(1)     a(3)     a(4) 
+	bi_mul                   a(1)     a(3)     a(1)     16 
+	get_structure            a(1)     f / 1     ref(L1) 
+	write_local_value        a(2) 
+	branch                   ref(L2) 
+label(L1):
+	read_value               a(2) 
+label(L2):
 	ret                  
 
 ------ Test ag2 -------
@@ -10770,9 +11510,13 @@ ag2 :-
 ag2 / 0:
 label(L0):
 	put_variable             a(1) 
-	put_structure            a(2)     f / 1 
-	push_local_value         a(1) 
-	bi_mul                   a(1)     a(1)     a(2) 
+	bi_mul                   a(1)     a(1)     a(2)     16 
+	get_structure            a(2)     f / 1     ref(L1) 
+	write_local_value        a(1) 
+	branch                   ref(L2) 
+label(L1):
+	read_value               a(1) 
+label(L2):
 	ret                  
 
 ------ Test ag3 -------
@@ -10892,9 +11636,13 @@ am4 / 0:
 label(L0):
 	put_structure            a(1)     f / 1 
 	push_variable            a(2) 
-	put_structure            a(3)     f / 1 
-	push_local_value         a(2) 
-	bi_mul                   a(1)     a(2)     a(3) 
+	bi_mul                   a(1)     a(2)     a(1)     16 
+	get_structure            a(1)     f / 1     ref(L1) 
+	write_local_value        a(2) 
+	branch                   ref(L2) 
+label(L1):
+	read_value               a(2) 
+label(L2):
 	ret                  
 
 ------ Test am5 -------
@@ -10909,10 +11657,14 @@ label(L0):
 	put_global_variable_callf     a(1)     y(1)     p / 1     Y[1] 
 	put_structure            a(2)     f / 1 
 	push_local_value         y(1) 
-	put_structure            a(3)     f / 1 
-	push_local_value         y(1) 
 	move                     y(1)     a(1) 
-	bi_mul                   a(2)     a(1)     a(3) 
+	bi_mul                   a(2)     a(1)     a(2)     16 
+	get_structure            a(2)     f / 1     ref(L1) 
+	write_local_value        a(1) 
+	branch                   ref(L2) 
+label(L1):
+	read_value               a(1) 
+label(L2):
 	chain                    q / 1 
 
 ------ Test am6 -------
@@ -10927,7 +11679,8 @@ label(L0):
 	bi_var                   a(1) 
 	put_structure            a(2)     f / 1 
 	push_local_value         a(1) 
-	bi_mul                   a(1)     a(2)     a(1) 
+	bi_mul                   a(1)     a(2)     a(2)     16 
+	get_value                a(2)     a(1) 
 	jmp                      q / 1 
 
 ------ Test am7 -------
@@ -10942,10 +11695,14 @@ label(L0):
 	put_global_variable_callf     a(1)     y(1)     p / 1     Y[1] 
 	put_structure            a(2)     f / 1 
 	push_local_value         y(1) 
-	put_structure            a(3)     f / 1 
-	push_local_value         y(1) 
 	move                     y(1)     a(1) 
-	bi_mul                   a(2)     a(1)     a(3) 
+	bi_mul                   a(2)     a(1)     a(2)     16 
+	get_structure            a(2)     f / 1     ref(L1) 
+	write_local_value        a(1) 
+	branch                   ref(L2) 
+label(L1):
+	read_value               a(1) 
+label(L2):
 	chain                    q / 1 
 
 ------ Test am8 -------
@@ -10961,7 +11718,8 @@ label(L0):
 	put_structure            a(2)     f / 1 
 	push_local_value         y(1) 
 	move                     y(1)     a(1) 
-	bi_mul                   a(1)     a(2)     a(1) 
+	bi_mul                   a(1)     a(2)     a(2)     16 
+	get_value                a(2)     a(1) 
 	chain                    q / 1 
 
 ------ Test am9 -------
@@ -10993,7 +11751,7 @@ label(L0):
 	move                     y(1)     a(1) 
 	bi_var                   a(1) 
 	put_structure            a(2)     f / 1 
-	push_local_value         y(1) 
+	push_local_value         a(1) 
 	get_matched_value        a(2)     a(1) 
 	chain                    q / 1 
 
@@ -12122,17 +12880,16 @@ label(L1):
 	try_me_else              0     0     ref(L5) 
 label(L2):
 	put_integer              a(1)     0 
-	put_atom                 a(2)     eclipse 
-	move                     y(3)     a(3) 
-	bi_gt                    a(3)     a(1)     a(2) 
+	move                     y(3)     a(2) 
+	bi_gt                    a(2)     a(1)     eclipse     48 
 	cut                      y(2)     4 
 	move                     y(4)     a(1) 
 	get_list                 a(1)     ref(L3) 
-	write_local_value        y(3) 
+	write_local_value        a(2) 
 	write_variable           y(1) 
 	branch                   ref(L4) 
 label(L3):
-	read_value               y(3) 
+	read_value               a(2) 
 	read_variable            y(1) 
 label(L4):
 	branch                   ref(L9) 

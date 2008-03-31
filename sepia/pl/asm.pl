@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.16 2008/03/27 16:54:51 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.17 2008/03/31 14:50:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -746,58 +746,65 @@ instr(get_value(y(Y1),y(Y2)),		289, [y(Y1),y(Y2)]).
 %instr(escape(P,Args),			290, [proc(P),arglist(Args)]).
 
 % new WAM instructions for inlined builtins
-instr(bi_exit(a(A)),                    291, [a(A)]).
-%instr(bi_put_cut(a(A)),                 292, [a(A)]).
-%instr(bi_put_cut(y(Y)),                 293, [a(Y)]).
-instr(bi_cut_to_stamp(a(A1),a(A2)),     294, [a(A1),a(A2)]).
-instr(bi_set_bip_error(a(A1)),          295, [a(A1)]).
-instr(bi_get_bip_error(a(A1)),          296, [a(A1)]).
-instr(bi_free(a(A1)),                   297, [a(A1)]).
-instr(bi_var(a(A1)),                    298, [a(A1)]).
-instr(bi_nonvar(a(A1)),                 299, [a(A1)]).
-instr(bi_atom(a(A1)),                   300, [a(A1)]).
-instr(bi_integer(a(A1)),                301, [a(A1)]).
-instr(bi_float(a(A1)),                  302, [a(A1)]).
-instr(bi_breal(a(A1)),                  303, [a(A1)]).
-instr(bi_real(a(A1)),                   304, [a(A1)]).
-instr(bi_rational(a(A1)),               305, [a(A1)]).
-instr(bi_string(a(A1)),                 306, [a(A1)]).
-instr(bi_number(a(A1)),                 307, [a(A1)]).
-instr(bi_atomic(a(A1)),                 308, [a(A1)]).
-instr(bi_compound(a(A1)),               309, [a(A1)]).
-instr(bi_meta(a(A1)),                   310, [a(A1)]).
-instr(bi_is_suspension(a(A1)),          311, [a(A1)]).
-instr(bi_is_handle(a(A1)),              312, [a(A1)]).
-instr(bi_is_event(a(A1)),               313, [a(A1)]).
-instr(bi_is_list(a(A1)),                314, [a(A1)]).
-instr(bi_identical(a(A1),a(A2)),        315, [a(A1),a(A2)]).
-instr(bi_not_identical(a(A1),a(A2)),    316, [a(A1),a(A2)]).
-instr(bi_inequality(a(A1),a(A2)),       317, [a(A1),a(A2)]).
-instr(bi_not_ident_list(a(A1),a(A2)),   318, [a(A1),a(A2)]).
-instr(bi_cont_debug,                    319, []).
-instr(bi_minus(a(A1),a(A2)),            320, [a(A1),a(A2)]).
-instr(bi_succ(a(A1),a(A2)),             321, [a(A1),a(A2)]).
-instr(bi_add(a(A1),a(A2),a(A3)),        322, [a(A1),a(A2),a(A3)]).
-instr(bi_sub(a(A1),a(A2),a(A3)),        323, [a(A1),a(A2),a(A3)]).
-instr(bi_mul(a(A1),a(A2),a(A3)),        324, [a(A1),a(A2),a(A3)]).
-instr(bi_quot(a(A1),a(A2),a(A3)),       325, [a(A1),a(A2),a(A3)]).
-instr(bi_div(a(A1),a(A2),a(A3)),        326, [a(A1),a(A2),a(A3)]).
-instr(bi_rem(a(A1),a(A2),a(A3)),        327, [a(A1),a(A2),a(A3)]).
-instr(bi_fdiv(a(A1),a(A2),a(A3)),       328, [a(A1),a(A2),a(A3)]).
-instr(bi_mod(a(A1),a(A2),a(A3)),        329, [a(A1),a(A2),a(A3)]).
-instr(bi_and(a(A1),a(A2),a(A3)),        330, [a(A1),a(A2),a(A3)]).
-instr(bi_or(a(A1),a(A2),a(A3)),         331, [a(A1),a(A2),a(A3)]).
-instr(bi_xor(a(A1),a(A2),a(A3)),        332, [a(A1),a(A2),a(A3)]).
-instr(bi_bitnot(a(A1),a(A2)),           333, [a(A1),a(A2)]).
-instr(bi_lt(a(A1),a(A2),a(A3)),         334, [a(A1),a(A2),a(A3)]).
-instr(bi_le(a(A1),a(A2),a(A3)),         335, [a(A1),a(A2),a(A3)]).
-instr(bi_gt(a(A1),a(A2),a(A3)),         336, [a(A1),a(A2),a(A3)]).
-instr(bi_ge(a(A1),a(A2),a(A3)),         337, [a(A1),a(A2),a(A3)]).
-instr(bi_eq(a(A1),a(A2),a(A3)),         338, [a(A1),a(A2),a(A3)]).
-instr(bi_ne(a(A1),a(A2),a(A3)),         339, [a(A1),a(A2),a(A3)]).
-instr(bi_arg(a(A1),a(A2),a(A3)),        340, [a(A1),a(A2),a(A3)]).
-instr(bi_make_suspension(a(A1),a(A2),a(A3),a(A4)),        
-                                        341, [a(A1),a(A2),a(A3),a(A4)]).
+instr(bi_exit(a(A)),			291, [a(A)]).
+instr(bi_bignum(a(A1)),			292, [a(A1)]).
+instr(bi_callable(a(A1)),		293, [a(A1)]).
+instr(bi_cut_to_stamp(a(A1),a(A2),0),	294, [a(A1),a(A2),0]).
+instr(bi_set_bip_error(a(A1)),		295, [a(A1)]).
+instr(bi_get_bip_error(a(A1)),		296, [a(A1)]).
+instr(bi_free(a(A1)),			297, [a(A1)]).
+instr(bi_var(a(A1)),			298, [a(A1)]).
+instr(bi_nonvar(a(A1)),			299, [a(A1)]).
+instr(bi_atom(a(A1)),			300, [a(A1)]).
+instr(bi_integer(a(A1)),		301, [a(A1)]).
+instr(bi_float(a(A1)),			302, [a(A1)]).
+instr(bi_breal(a(A1)),			303, [a(A1)]).
+instr(bi_real(a(A1)),			304, [a(A1)]).
+instr(bi_rational(a(A1)),		305, [a(A1)]).
+instr(bi_string(a(A1)),			306, [a(A1)]).
+instr(bi_number(a(A1)),			307, [a(A1)]).
+instr(bi_atomic(a(A1)),			308, [a(A1)]).
+instr(bi_compound(a(A1)),		309, [a(A1)]).
+instr(bi_meta(a(A1)),			310, [a(A1)]).
+instr(bi_is_suspension(a(A1)),		311, [a(A1)]).
+instr(bi_is_handle(a(A1)),		312, [a(A1)]).
+instr(bi_is_event(a(A1)),		313, [a(A1)]).
+instr(bi_is_list(a(A1)),		314, [a(A1)]).
+instr(bi_identical(a(A1),a(A2)),	315, [a(A1),a(A2)]).
+instr(bi_not_identical(a(A1),a(A2)),	316, [a(A1),a(A2)]).
+instr(bi_inequality(a(A1),a(A2),0),	317, [a(A1),a(A2),i(0)]).
+instr(bi_not_ident_list(a(A1),a(A2),a(3),0),	318, [a(A1),a(A2),a(3),i(0)]).
+instr(bi_cont_debug,			319, []).
+instr(bi_minus(a(A1),a(UA2),4),		320, [a(A1),a(UA2),i(4)]).
+instr(bi_addi(a(A1),I,a(A2),24),	321, [a(A1),i(I),a(A2),i(24)]).
+instr(bi_add(a(A1),a(A2),a(UA3),16),	322, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_sub(a(A1),a(A2),a(UA3),16),	323, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_mul(a(A1),a(A2),a(UA3),16),	324, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_quot(a(A1),a(A2),a(UA3),16),	325, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_div(a(A1),a(A2),a(UA3),16),	326, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_rem(a(A1),a(A2),a(UA3),16),	327, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_fdiv(a(A1),a(A2),a(UA3),16),	328, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_mod(a(A1),a(A2),a(UA3),16),	329, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_and(a(A1),a(A2),a(UA3),16),	330, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_or(a(A1),a(A2),a(UA3),16),	331, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_xor(a(A1),a(A2),a(UA3),16),	332, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_bitnot(a(A1),a(UA2),4),	333, [a(A1),a(UA2),i(4)]).
+instr(bi_lt(a(A1),a(A2),a(A3),0),	334, [a(A1),a(A2),a(A3),i(0)]).
+instr(bi_lt(a(A1),a(A2),M,48),		334, [a(A1),a(A2),atom(M),i(48)]).
+instr(bi_le(a(A1),a(A2),a(A3),0),	335, [a(A1),a(A2),a(A3),i(0)]).
+instr(bi_le(a(A1),a(A2),M,48),		335, [a(A1),a(A2),atom(M),i(48)]).
+instr(bi_gt(a(A1),a(A2),a(A3),0),	336, [a(A1),a(A2),a(A3),i(0)]).
+instr(bi_gt(a(A1),a(A2),M,48),		336, [a(A1),a(A2),atom(M),i(48)]).
+instr(bi_ge(a(A1),a(A2),a(A3),0),	337, [a(A1),a(A2),a(A3),i(0)]).
+instr(bi_ge(a(A1),a(A2),M,48),		337, [a(A1),a(A2),atom(M),i(48)]).
+instr(bi_eq(a(A1),a(A2),a(A3),0),	338, [a(A1),a(A2),a(A3),i(0)]).
+instr(bi_eq(a(A1),a(A2),M,48),		338, [a(A1),a(A2),atom(M),i(48)]).
+instr(bi_ne(a(A1),a(A2),a(A3),0),	339, [a(A1),a(A2),a(A3),i(0)]).
+instr(bi_ne(a(A1),a(A2),M,48),		339, [a(A1),a(A2),atom(M),i(48)]).
+instr(bi_arg(a(A1),a(A2),a(UA3),16),	340, [a(A1),a(A2),a(UA3),i(16)]).
+instr(bi_arg(I,a(A2),a(UA3),18),	340, [i(I),a(A2),a(UA3),i(18)]).
+instr(bi_make_suspension(a(A1),a(A2),a(A3),a(A4),0),	    
+					341, [a(A1),a(A2),a(A3),a(A4),i(0)]).	
 instr(debug_scall(P,Port,Path,L,F,T),	342, [proc(P),port(Port),atom(Path),i(L),i(F),i(T)]).
 instr(retry_inline(D,ref(L),N),		343, [port(D),ref(L),edesc(N)]).
 instr(trust_inline(D,ref(L),N),		344, [port(D),ref(L),edesc(N)]).
@@ -872,6 +879,8 @@ instr(put_global_variable_callf(a(A),y(Y),ref(L),N),
 instr(put_global_variable_callf(a(A),y(Y),P,N),	
                                         399, [a(A),y(Y),proc(P),edesc(N)]).
 instr(rot(a(A1),a(A2),a(A3)),		400, [a(A1),a(A2),a(A3)]).
+instr(bi_arity(a(A1),a(UA2)),		401, [a(A1),a(UA2)]).
+
 
 /***************************************************************************
  assemble
@@ -1384,36 +1393,25 @@ disasm(Pred, WAMList, Module) :-
               the offset in words from the base of the current WAM instruction.
               IStart is the next start position to be added to this list
 */
+
+interpret_pred([], _Base, _H, _IStart, [], []).
 interpret_pred([IWord|Ws0], Base, H, IStart, WAM0, Starts0) :-
 	decode_code(o(IWord), OpCode),
-	(instr(Instr, OpCode, Args) ->
-	    interpret_instr(Instr, Base, H, IStart, Args, WAM0, Starts0, Ws0)
+	(
+	    instr(Instr, OpCode, Args),		% nondet
+	    FirstPos is IStart + 1,		% +1 for opc 
+	    disasm_args(Args, Ws0, Ws1, Base, H, FirstPos, PosEnd) % may fail
+	->
+	    ( Instr = comment(_) ->
+		interpret_pred(Ws1, Base, H, PosEnd, WAM0, Starts0)
+	    ;
+		Starts0 = [IStart|Starts1], WAM0 = [Instr|WAM1],
+		interpret_pred(Ws1, Base, H, PosEnd, WAM1, Starts1)
+	    )
 	;   
-	    printf(error, "Unrecognised opcode %w.%n", [OpCode]),
+	    printf(error, "Unrecognised opcode (%w) or invalid instruction arguments.%n", [OpCode]),
 	    set_bip_error(6)
 	).
-
-
-
-interpret_instr(code_end, _, _, IStart, [], WAM, Starts, _) ?- !,
-	% have reached end of WAM instructions
-	WAM = [code_end], 
-	Starts = [IStart]. 
-interpret_instr(comment(_), Base, H, IStart, Args, WAM0, Starts0, Ws0) ?-
-	% remove comment instruction -- don't add its IStart to Starts list
-	FirstPos is IStart + 1, % +1 for opc 
-	disasm_args(Args, Ws0, Ws1, Base, H, FirstPos, NewIStart), !,
-	interpret_pred(Ws1, Base, H, NewIStart, WAM0, Starts0).
-interpret_instr(Instr, Base, H, IStart, Args, WAM0, Starts0, Ws0) :-
-	FirstPos is IStart + 1, % for opc itself
-	disasm_args(Args, Ws0, Ws1, Base, H, FirstPos, PosEnd), 
-        !,
-	Starts0 = [IStart|Starts1],
-	WAM0 = [Instr|WAM1],
-        interpret_pred(Ws1, Base, H, PosEnd, WAM1, Starts1).
-interpret_instr(Instr, _, _, _, _, _, _, _) :-
-	printf(error, "Unable to disassemble arguments for %w.%n", [Instr]),
-        set_bip_error(6).
 
 
 /* disasm_args(+ArgTypes, +WordListIn, -WordListOut, +Base, +Hash,

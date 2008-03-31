@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.6 2007/09/04 16:28:48 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.7 2008/03/31 14:50:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -888,13 +888,21 @@ integer_overflow_handler(E, Goal) :-
 % is neither a number nor a free variable.
 % The arguments are evaluated and the goal is re-called.
 
-compare_handler(_, Goal, M, LM) :-
+compare_handler(_, Goal, CM, LM) :-
 	functor(Goal, F, A),
 	arg(1, Goal, X),
 	arg(2, Goal, Y),
-	functor(NewGoal, F, A),
-	arg(1, NewGoal, X1),
-	arg(2, NewGoal, Y1),
+	( A > 2 ->
+	    arg(3, Goal, M),		% for >= 6.0 culprit is tool body
+	    functor(NewGoal, F, 2),
+	    arg(1, NewGoal, X1),
+	    arg(2, NewGoal, Y1)
+	;
+	    functor(NewGoal, F, A),	% up to 5.10 culprit is tool
+	    arg(1, NewGoal, X1),
+	    arg(2, NewGoal, Y1),
+	    M = CM
+	),
 	eval(X, X1, M),
 	eval(Y, Y1, M),
 	( number(X1), number(Y1) ->

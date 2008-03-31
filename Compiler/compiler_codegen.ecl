@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.11 2008/03/25 19:23:26 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.12 2008/03/31 14:52:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/25 19:23:26 $").
+:- comment(date, "$Date: 2008/03/31 14:52:33 $").
 
 
 :- lib(hash).
@@ -906,23 +906,88 @@ generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_
 	    verify false
 	).
 
-generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code) ?-
-	inlined_builtin(Name, Arity, GlobalAlloc, InstrName),
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code) ?-
+	Goal = goal{functor: (-)/3, args:[A1,A2in,A3], definition_module:sepia_kernel},
+	integer(A2in), A2 is -A2in, smallint(A2),
 	!,
-	functor(Instr, InstrName, Arity),
-	% could also use heuristic_put_order here, but these builtins
-	% are unlikely to be called with constructed structure arguments.
+	update_struct(goal, [functor:(+)/3,args:[A1,A2,A3]], Goal, Goal1),
+	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code).
+
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code) ?-
+	Goal = goal{functor: (+)/3, args:[A1,A2,A3], definition_module:sepia_kernel},
+	smallint(A1), \+smallint(A2),
+	!,
+	update_struct(goal, [args:[A2,A1,A3]], Goal, Goal1),
+	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code).
+
+generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code) ?-
+	inlined_builtin(Name, Arity, GlobalAlloc, InstrTemplate),	% nondet
+	functor(InstrTemplate, InstrName, N),
+	functor(Instr, InstrName, N),
+	% We have to generate the code in the correct order because of the
+	% occurrence information in ChunkData. First the input arguments:
 	(
 	    foreach(Arg,Args),
-	    foreacharg(Reg,Instr),
-	    foreach(r(ValId,Reg,use_a,_),RegDescs),
-	    fromto(ChunkData0, ChunkData2, ChunkData3, ChunkData4),
-	    fromto(Code0, Code1, Code2, Code3)
+	    count(I,1,_),
+	    fromto(RegDescs,RegDescs1,RegDescs2,RegDescs3),
+	    fromto(ChunkData0, ChunkData1, ChunkData2, ChunkData3),
+	    fromto(Code0, Code1, Code2, Code3),
+	    fromto(0,ArgDesc1,ArgDesc2,ArgDesc3),
+	    param(Instr,InstrTemplate)
 	do
-	    put_term(Arg, ChunkData2, ChunkData3, Code1, Code2, ValId)
+	    arg(I, Instr, Reg),
+	    arg(I, InstrTemplate, Expect),
+	    ( Expect == int ->
+	    	smallint(Arg),			% may fail
+		ArgDesc2 is (ArgDesc1<<2) + 2,
+		Reg=Arg, RegDescs1=RegDescs2, ChunkData1=ChunkData2, Code1=Code2
+	    ; Expect == mod ->
+	    	atom(Arg),			% may fail
+		ArgDesc2 is (ArgDesc1<<2) + 3,
+		Reg=Arg, RegDescs1=RegDescs2, ChunkData1=ChunkData2, Code1=Code2
+	    ; Expect == arg ->
+		ArgDesc2 is (ArgDesc1<<2),
+		RegDescs1 = [r(ValId,Reg,use_a,_)|RegDescs2],
+		put_term(Arg, ChunkData1, ChunkData2, Code1, Code2, ValId)
+	    ;
+		% ignore here - treat in second pass
+		ArgDesc2 is (ArgDesc1<<2),
+		RegDescs1=RegDescs2, ChunkData1=ChunkData2, Code1=Code2
+	
+	    )
 	),
+	!,	% Commit to this instruction variant and emit it
 	Code3 = [code{instr:Instr,regs:RegDescs}|Code4],
-	alloc_check_after(GlobalAlloc, ChunkData4, ChunkData, Code4, Code).
+	alloc_check_after(GlobalAlloc, ChunkData3, ChunkData4, Code4, Code5),
+	% Now generate code for result unification, if necessary
+	(
+	    foreach(Arg,Args),
+	    count(I,1,_),
+	    fromto(RegDescs3,RegDescs4,RegDescs5,[]),
+	    fromto(ChunkData4, ChunkData5, ChunkData7, ChunkData),
+	    fromto(Code5, Code6, Code8, Code),
+	    fromto(0,ArgDesc1,ArgDesc2,ArgDesc4),
+	    param(Instr,InstrTemplate)
+	do
+	    arg(I, Instr, Reg),
+	    arg(I, InstrTemplate, Expect),
+	    ( Expect == uarg ->
+		ArgDesc2 is (ArgDesc1<<2) + 1,
+		RegDescs4 = [RegDesc|RegDescs5],
+		unify_result(Arg, Reg, RegDesc, ChunkData5, ChunkData6, Code6, Code7, GlobalAlloc2),
+		alloc_check_after(GlobalAlloc2, ChunkData6, ChunkData7, Code7, Code8)
+	    ;
+		% these were treated in the first pass
+		ArgDesc2 is (ArgDesc1<<2),
+		RegDescs4=RegDescs5, ChunkData5=ChunkData7, Code6=Code8
+	    )
+	),
+	( N>0, arg(N, InstrTemplate, argdesc) ->
+	    ArgDesc is ArgDesc3 \/ ArgDesc4,
+	    arg(N, Instr, ArgDesc)
+	;
+	    true
+	).
 
 generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, Code) ?-
 	P = _/Arity,
@@ -946,63 +1011,85 @@ generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, 
 
 
 % All the builtins that can be implemented by an instruction like
-%	bi_inst Ai ... Ak
+%	bi_inst Ai ... Ak [desc]
 
-% inlined_builtin(+Name, +Arity, -MaxGlobalAlloc, -Instruction)
+% inlined_builtin(+Name, +Arity, -MaxGlobalAlloc, -InstructionTemplate)
 %
 % MaxGlobalAlloc could be made more precise:
 %	arithmetics	can create bignums, therefore unbounded
 %	others		can only delay or make exception -> const+arity
 %
+% InstructionTemplate has the instruction name as its functor, and its
+% arguments describe how the instruction interprets its arguments.
+%	arg	pointer to argument register
+%	uarg	pointer to uninitialised argument register
+%	int	32-bit integer
+%	mod	module did
+%	desc	runtime descriptor for the preceding arguments
+%
+% If a builtin has special instruction templates for special cases,
+% they must be listed before the general template (see e.g. +/3).
+%
 inlined_builtin(fail,		0,	0,		failure).
-inlined_builtin(free,		1,	0,		bi_free).
-inlined_builtin(is_suspension,	1,	0,		bi_is_suspension).
-inlined_builtin(is_event,	1,	0,		bi_is_event).
-inlined_builtin(is_handle,	1,	0,		bi_is_handle).
-inlined_builtin(nonvar,		1,	0,		bi_nonvar).
-inlined_builtin(var,		1,	0,		bi_var).
-inlined_builtin(meta,		1,	0,		bi_meta).
-inlined_builtin(atom,		1,	0,		bi_atom).
-inlined_builtin(integer,	1,	0,		bi_integer).
-inlined_builtin(rational,	1,	0,		bi_rational).
-inlined_builtin(real,		1,	0,		bi_real).
-inlined_builtin(float,		1,	0,		bi_float).
-inlined_builtin(breal,		1,	0,		bi_breal).
-inlined_builtin(string,		1,	0,		bi_string).
-inlined_builtin(number,		1,	0,		bi_number).
-inlined_builtin(atomic,		1,	0,		bi_atomic).
-inlined_builtin(compound,	1,	0,		bi_compound).
-inlined_builtin(is_list,	1,	0,		bi_is_list).
-inlined_builtin(==,		2,	0,		get_matched_value).
-inlined_builtin(\==,		2,	0,		bi_not_identical).
-inlined_builtin(\==,		3,	unbounded,	bi_not_ident_list).
-inlined_builtin(~=,		3,	unbounded,	bi_inequality).
-inlined_builtin(set_bip_error,	1,	0,		bi_set_bip_error).
-inlined_builtin(get_bip_error,	1,	2,		bi_get_bip_error).
+inlined_builtin(free,		1,	0,		bi_free(arg)).
+inlined_builtin(is_suspension,	1,	0,		bi_is_suspension(arg)).
+inlined_builtin(is_event,	1,	0,		bi_is_event(arg)).
+inlined_builtin(is_handle,	1,	0,		bi_is_handle(arg)).
+inlined_builtin(nonvar,		1,	0,		bi_nonvar(arg)).
+inlined_builtin(var,		1,	0,		bi_var(arg)).
+inlined_builtin(meta,		1,	0,		bi_meta(arg)).
+inlined_builtin(atom,		1,	0,		bi_atom(arg)).
+inlined_builtin(integer,	1,	0,		bi_integer(arg)).
+inlined_builtin(bignum,		1,	0,		bi_bignum(arg)).
+inlined_builtin(rational,	1,	0,		bi_rational(arg)).
+inlined_builtin(real,		1,	0,		bi_real(arg)).
+inlined_builtin(float,		1,	0,		bi_float(arg)).
+inlined_builtin(breal,		1,	0,		bi_breal(arg)).
+inlined_builtin(string,		1,	0,		bi_string(arg)).
+inlined_builtin(number,		1,	0,		bi_number(arg)).
+inlined_builtin(atomic,		1,	0,		bi_atomic(arg)).
+inlined_builtin(callable,	1,	0,		bi_callable(arg)).
+inlined_builtin(compound,	1,	0,		bi_compound(arg)).
+inlined_builtin(is_list,	1,	0,		bi_is_list(arg)).
+inlined_builtin(==,		2,	0,		get_matched_value(arg,arg)).
+inlined_builtin(\==,		2,	0,		bi_not_identical(arg,arg)).
+inlined_builtin(set_bip_error,	1,	0,		bi_set_bip_error(arg)).
 inlined_builtin(cont_debug,	0,	0,		bi_cont_debug).
-inlined_builtin(-,		2,	unbounded,	bi_minus).
-inlined_builtin(succ,		2,	unbounded,	bi_succ).
-inlined_builtin(+,		3,	unbounded,	bi_add).
-inlined_builtin(-,		3,	unbounded,	bi_sub).
-inlined_builtin(*,		3,	unbounded,	bi_mul).
-inlined_builtin(/,		3,	unbounded,	bi_quot).
-inlined_builtin(//,		3,	unbounded,	bi_div).
-inlined_builtin(rem,		3,	unbounded,	bi_rem).
-inlined_builtin(div,		3,	unbounded,	bi_fdiv).
-inlined_builtin(mod,		3,	unbounded,	bi_mod).
-inlined_builtin(/\,		3,	unbounded,	bi_and).
-inlined_builtin(\/,		3,	unbounded,	bi_or).
-inlined_builtin(xor,		3,	unbounded,	bi_xor).
-inlined_builtin(\,		2,	unbounded,	bi_bitnot).
-inlined_builtin(=:=,		3,	unbounded,	bi_eq).
-inlined_builtin(=\=,		3,	unbounded,	bi_ne).
-inlined_builtin(<,		3,	unbounded,	bi_lt).
-inlined_builtin(>,		3,	unbounded,	bi_gt).
-inlined_builtin(=<,		3,	unbounded,	bi_le).
-inlined_builtin(>=,		3,	unbounded,	bi_ge).
-inlined_builtin(arg,		3,	unbounded,	bi_arg).
-inlined_builtin(make_suspension, 4,	unbounded,	bi_make_suspension).
-inlined_builtin(sys_return,	1,	0,		bi_exit).
+inlined_builtin(sys_return,	1,	0,		bi_exit(arg)).
+inlined_builtin(\==,		3,	unbounded,	bi_not_ident_list(arg,arg,arg,desc)).
+inlined_builtin(~=,		2,	unbounded,	bi_inequality(arg,arg,desc)).
+inlined_builtin(make_suspension, 4,	unbounded,	bi_make_suspension(arg,arg,arg,arg,desc)).
+inlined_builtin(=:=,		3,	unbounded,	bi_eq(arg,arg,mod,desc)).
+inlined_builtin(=:=,		3,	unbounded,	bi_eq(arg,arg,arg,desc)).
+inlined_builtin(=\=,		3,	unbounded,	bi_ne(arg,arg,mod,desc)).
+inlined_builtin(=\=,		3,	unbounded,	bi_ne(arg,arg,arg,desc)).
+inlined_builtin(<,		3,	unbounded,	bi_lt(arg,arg,mod,desc)).
+inlined_builtin(<,		3,	unbounded,	bi_lt(arg,arg,arg,desc)).
+inlined_builtin(>,		3,	unbounded,	bi_gt(arg,arg,mod,desc)).
+inlined_builtin(>,		3,	unbounded,	bi_gt(arg,arg,arg,desc)).
+inlined_builtin(=<,		3,	unbounded,	bi_le(arg,arg,mod,desc)).
+inlined_builtin(=<,		3,	unbounded,	bi_le(arg,arg,arg,desc)).
+inlined_builtin(>=,		3,	unbounded,	bi_ge(arg,arg,mod,desc)).
+inlined_builtin(>=,		3,	unbounded,	bi_ge(arg,arg,arg,desc)).
+inlined_builtin(-,		2,	unbounded,	bi_minus(arg,uarg,desc)).
+inlined_builtin(+,		3,	unbounded,	bi_addi(arg,int,uarg,desc)).
+inlined_builtin(+,		3,	unbounded,	bi_add(arg,arg,uarg,desc)).
+inlined_builtin(-,		3,	unbounded,	bi_sub(arg,arg,uarg,desc)).
+inlined_builtin(*,		3,	unbounded,	bi_mul(arg,arg,uarg,desc)).
+inlined_builtin(/,		3,	unbounded,	bi_quot(arg,arg,uarg,desc)).
+inlined_builtin(//,		3,	unbounded,	bi_div(arg,arg,uarg,desc)).
+inlined_builtin(rem,		3,	unbounded,	bi_rem(arg,arg,uarg,desc)).
+inlined_builtin(div,		3,	unbounded,	bi_fdiv(arg,arg,uarg,desc)).
+inlined_builtin(mod,		3,	unbounded,	bi_mod(arg,arg,uarg,desc)).
+inlined_builtin(/\,		3,	unbounded,	bi_and(arg,arg,uarg,desc)).
+inlined_builtin(\/,		3,	unbounded,	bi_or(arg,arg,uarg,desc)).
+inlined_builtin(xor,		3,	unbounded,	bi_xor(arg,arg,uarg,desc)).
+inlined_builtin(><,		3,	unbounded,	bi_xor(arg,arg,uarg,desc)).
+inlined_builtin(\,		2,	unbounded,	bi_bitnot(arg,uarg,desc)).
+inlined_builtin(arg,		3,	unbounded,	bi_arg(int,arg,uarg,desc)).
+inlined_builtin(arg,		3,	unbounded,	bi_arg(arg,arg,uarg,desc)).
+inlined_builtin(arity,		2,	0,		bi_arity(arg,uarg)).
+inlined_builtin(get_bip_error,	1,	0,		bi_get_bip_error(uarg)).
 
 
 
@@ -1063,6 +1150,44 @@ bind_variable(perm_first_in_chunk(Y), VarId, Term, ChunkData0, ChunkData, Code, 
 	head(VarId, Term, ChunkData0, ChunkData, Code1, Code0).
 bind_variable(perm(_Y), VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
 	head(VarId, Term, ChunkData0, ChunkData, Code, Code0).
+
+
+%
+% Generate code for unifying the value in register R with Arg
+%
+
+unify_result(Arg, R, RegDesc, ChunkData0, ChunkData, Code0, Code, GAlloc) :-
+	Arg = variable{varid:VarId}, !,
+	variable_occurrence(Arg, ChunkData0, ChunkData1, VarOccDesc),
+	( VarOccDesc = void ->
+	    RegDesc = r(VarId,R,def,_last),
+	    ChunkData1 = ChunkData, Code0 = Code, GAlloc = 0
+	; VarOccDesc = tmp_first ->
+	    RegDesc = r(VarId,R,def,_),
+	    ChunkData1 = ChunkData, Code0 = Code, GAlloc = 0
+	; VarOccDesc = tmp ->
+	    new_aux_temp(ChunkData1, ChunkData, TVarId),
+	    RegDesc = r(TVarId,R,def,_), GAlloc = unbounded,
+	    Code0 = [code{instr:get_value(R1,R2), regs:[r(TVarId,R1,use,_),r(VarId,R2,use,_)]}|Code]
+	; VarOccDesc = perm(_Y) ->
+	    new_aux_temp(ChunkData1, ChunkData, TVarId),
+	    RegDesc = r(TVarId,R,def,_), GAlloc = unbounded,
+	    Code0 = [code{instr:get_value(R1,RY2), regs:[r(TVarId,R1,use,_),r(VarId,RY2,use,_)]}|Code]
+	; VarOccDesc = perm_first(Y) ->
+	    new_aux_temp(ChunkData1, ChunkData, TVarId),
+	    RegDesc = r(TVarId,R,def,_), GAlloc = 0,
+	    Code0 = [code{instr:move(R1,Y), regs:[r(TVarId,R1,use,_),r(VarId,Y,perm,_)]}|Code]
+	; VarOccDesc = perm_first_in_chunk(Y) ->
+	    new_aux_temp(ChunkData1, ChunkData, TVarId),
+	    RegDesc = r(TVarId,R,def,_), GAlloc = unbounded,
+	    Code0 = [code{instr:get_value(R1,Y), regs:[r(TVarId,R1,use,_),r(VarId,Y,perm,_)]}|Code]
+	;
+	    unreachable("unify_result")
+	).
+unify_result(Arg, R, RegDesc, ChunkData0, ChunkData, Code0, Code, 0) :-
+	new_aux_temp(ChunkData0, ChunkData1, TVarId),
+	RegDesc = r(TVarId,R,def,_),
+	head(TVarId, Arg, ChunkData1, ChunkData, Code0, Code).
 
 
 %

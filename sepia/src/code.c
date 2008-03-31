@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.2 2007/09/04 16:18:10 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.3 2008/03/31 14:48:53 jschimpf Exp $
  */
 
 /********************************************************************
@@ -163,6 +163,57 @@ vmcode	*bip_error_code_,
 pri	*true_proc_,
 	*softcut_proc_,
 	*cut_to_proc_;
+
+
+
+pri *
+make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
+{
+    vmcode	*code;
+    type	tm;
+    pri_code_t	pricode;
+    pri		*pd;
+    word	 i, arity = DidArity(did1);
+    Allocate_Default_Procedure(arity+7, did1);
+    Exported_Kernel_Proc(did1, flags|EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF|DEBUG_SK, code);
+    PriMode(pd) = mode;
+    Store_i(opc);
+	for(i=1; i<arity; ++i) {
+	    Store_d(Address(i));
+	}
+	Store_d(Address(arity+1));
+	if (argdesc >= 0) {
+	    Store_d(argdesc);
+	}
+    Store_3(Get_valueAMAM,Address(arity),Address(arity+1))
+    Store_i(Retd);
+    Store_i(Code_end);
+    return pd;
+}
+
+pri *
+make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
+{
+    vmcode	*code;
+    type	tm;
+    pri_code_t	pricode;
+    pri		*pd;
+    word	 i, arity = DidArity(did1);
+    Allocate_Default_Procedure(arity+4, did1);
+    Exported_Kernel_Proc(did1, flags|EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF|DEBUG_SK, code);
+    PriMode(pd) = mode;
+    Store_i(opc);
+	for(i=1; i<=arity; ++i) {
+	    Store_d(Address(i));
+	}
+	if (argdesc >= 0) {
+	    Store_d(argdesc);
+	}
+    Store_i(Retd);
+    Store_i(Code_end);
+    return pd;
+}
+
 
 /*
  * Initialisation of code that is defined on the WAM level.
@@ -1015,6 +1066,74 @@ code_init(int flags)
     Store_i(Retd);
     Store_i(Code_end);
 
+
+#ifdef NEW_BIP_CONVENTION
+    /* some of these could be defined in Prolog! */
+    fail_proc_ = make_test_bip(d_.fail, Failure, 0, 0, -1);
+    make_test_bip(d_.unify, Get_valueAMAM, U_UNIFY, BoundArg(1, NONVAR) | BoundArg(2, NONVAR), -1);
+
+    make_test_bip(in_dict("set_bip_error",1), BI_SetBipError, 0, 0, -1);
+    make_function_bip(in_dict("get_bip_error",1), BI_GetBipError, U_SIMPLE, BoundArg(1,CONSTANT), -1);
+    make_function_bip(in_dict("get_cut",1), SavecutAM, U_SIMPLE, BoundArg(1,CONSTANT), -1);
+
+    make_test_bip(in_dict("sys_return",1), BI_Exit, 0, 0, -1);
+    cut_to_stamp_proc_ = make_test_bip(in_dict("cut_to_stamp",2), BI_CutToStamp, 0, 0, 0);
+    make_test_bip(in_dict("cont_debug",0), BI_ContDebug, 0, 0, -1);
+
+    make_test_bip(d_.free1, BI_Free, 0, 0, -1);
+    make_test_bip(d_.is_suspension, BI_IsSuspension, 0, 0, -1);
+    make_test_bip(d_.is_event, BI_IsEvent, 0, 0, -1);
+    make_test_bip(d_.is_handle, BI_IsHandle, 0, 0, -1);
+    make_test_bip(d_.var, BI_Var, 0, 0, -1);
+    make_test_bip(d_.nonvar, BI_NonVar, 0, 0, -1);
+    make_test_bip(d_.meta, BI_Meta, 0, 0, -1);
+    make_test_bip(d_.atom, BI_Atom, 0, 0, -1);
+    make_test_bip(d_.integer, BI_Integer, 0, 0, -1);
+    make_test_bip(d_.rational, BI_Rational, 0, 0, -1);
+    make_test_bip(d_.real, BI_Real, 0, 0, -1);
+    make_test_bip(d_.float1, BI_Float, 0, 0, -1);
+    make_test_bip(d_.breal, BI_Breal, 0, 0, -1);
+    make_test_bip(d_.string, BI_String, 0, 0, -1);
+    make_test_bip(d_.number, BI_Number, 0, 0, -1);
+    make_test_bip(d_.atomic, BI_Atomic, 0, 0, -1);
+    make_test_bip(d_.compound, BI_Compound, 0, 0, -1);
+    make_test_bip(d_.is_list, BI_IsList, 0, 0, -1);
+
+    minus_proc_ = make_function_bip(in_dict("-",2), BI_Minus, U_SIMPLE, BoundArg(2,CONSTANT), 4);
+    add_proc_ = make_function_bip(in_dict("+",3), BI_Add, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    sub_proc_ = make_function_bip(in_dict("-",3), BI_Sub, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    mul_proc_ = make_function_bip(in_dict("*",3), BI_Mul, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    quot_proc_ = make_function_bip(in_dict("/",3), BI_Quot, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    div_proc_ = make_function_bip(in_dict("//",3), BI_Div, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    rem_proc_ = make_function_bip(in_dict("rem",3), BI_Rem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    fdiv_proc_ = make_function_bip(in_dict("div",3), BI_FloorDiv, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    mod_proc_ = make_function_bip(in_dict("mod",3), BI_FloorRem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    and_proc_ = make_function_bip(in_dict("/\\",3), BI_And, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    or_proc_ = make_function_bip(in_dict("\\/",3), BI_Or, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    xor_proc_ = make_function_bip(in_dict("xor", 3), BI_Xor, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    bitnot_proc_ = make_function_bip(in_dict("\\",2), BI_Bitnot, U_SIMPLE, BoundArg(2,CONSTANT), 4);
+    arg_proc_ = make_function_bip(in_dict("arg",3), BI_Arg, PROC_DEMON|U_UNIFY, BoundArg(2, NONVAR) | BoundArg(3, NONVAR), 16);
+
+    make_suspension_proc_ = make_test_bip(in_dict("make_suspension",4), I_BIMakeSuspension, U_UNIFY, BoundArg(3, NONVAR), 0);
+	PriFlags(make_suspension_proc_) |= DEBUG_INVISIBLE;
+
+    identical_proc_ = make_test_bip(d_.identical, BI_Identical, 0, 0, -1);
+    not_identical_proc_ = make_test_bip(d_.not_identical, BI_NotIdentical, 0, 0, -1);
+    inequality_proc_ = make_test_bip(d_.diff_reg, BI_Inequality, PROC_DEMON, 0, 0);
+    not_ident_list_proc_ = make_test_bip(in_dict("\\==",3), BI_NotIdentList, 0, BoundArg(3, NONVAR), 0);
+#endif
+    lt_proc3_ = make_test_bip(in_dict("<",3), BI_Lt, PROC_DEMON, 0, 0);
+    gt_proc3_ = make_test_bip(in_dict(">",3), BI_Gt, PROC_DEMON, 0, 0);
+    le_proc3_ = make_test_bip(in_dict("=<",3), BI_Le, PROC_DEMON, 0, 0);
+    ge_proc3_ = make_test_bip(in_dict(">=",3), BI_Ge, PROC_DEMON, 0, 0);
+    eq_proc3_ = make_test_bip(in_dict("=:=",3), BI_Eq, PROC_DEMON, 0, 0);
+    ne_proc3_ = make_test_bip(in_dict("=\\=",3), BI_Ne, PROC_DEMON, 0, 0);
+
+    make_test_bip(d_.bignum, BI_Bignum, 0, 0, -1);
+    make_test_bip(in_dict("callable",1), BI_Callable, 0, 0, -1);
+
+    make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE, BoundArg(2,CONSTANT), -1);
+
   } /* end if (flags & INIT_SHARED) */
 
 
@@ -1022,9 +1141,40 @@ code_init(int flags)
  * Initialize global (non-shared) pointers to procedure identifiers
  *-----------------------------------------------------------------*/
 
-    true_proc_ = local_procedure(d_.true0, d_.kernel_sepia, tm, 0);
-    cut_to_proc_ = local_procedure(d_.cut_to, d_.kernel_sepia, tm, 0);
-    softcut_proc_ = local_procedure(d_.softcut, d_.kernel_sepia, tm, 0);
+#define KernelProc(d) local_procedure(d, d_.kernel_sepia, tm, 0)
+
+    true_proc_ = KernelProc(d_.true0);
+    cut_to_proc_ = KernelProc(d_.cut_to);
+    softcut_proc_ = KernelProc(d_.softcut);
+#ifdef NEW_BIP_CONVENTION
+    cut_to_stamp_proc_ = KernelProc(in_dict("cut_to_stamp", 2));
+    fail_proc_ = KernelProc(d_.fail);
+    identical_proc_ = KernelProc(d_.identical);
+    not_identical_proc_ = KernelProc(d_.not_identical);
+    not_ident_list_proc_ = KernelProc(in_dict("\\==",3));
+    inequality_proc_ = KernelProc(d_.diff_reg);
+    minus_proc_ = KernelProc(in_dict("-",2));
+    add_proc_ = KernelProc(in_dict("+",3));
+    sub_proc_ = KernelProc(in_dict("-",3));
+    mul_proc_ = KernelProc(in_dict("*",3));
+    quot_proc_ = KernelProc(in_dict("/",3));
+    div_proc_ = KernelProc(in_dict("//",3));
+    rem_proc_ = KernelProc(in_dict("rem",3));
+    fdiv_proc_ = KernelProc(in_dict("div",3));
+    mod_proc_ = KernelProc(in_dict("mod",3));
+    and_proc_ = KernelProc(in_dict("/\\",3));
+    or_proc_ = KernelProc(in_dict("\\/",3));
+    xor_proc_ = KernelProc(in_dict("xor",3));
+    bitnot_proc_ = KernelProc(in_dict("\\",3));
+    lt_proc_ = KernelProc(d_.inf);
+    le_proc_ = KernelProc(d_.infq);
+    gt_proc_ = KernelProc(d_.sup);
+    ge_proc_ = KernelProc(d_.supq);
+    eq_proc_ = KernelProc(d_.equal);
+    ne_proc_ = KernelProc(d_.not_equal);
+    arg_proc_ = KernelProc(in_dict("arg",3));
+    make_suspension_proc_ = KernelProc(in_dict("make_suspension",4));
+#endif
 }
 
 

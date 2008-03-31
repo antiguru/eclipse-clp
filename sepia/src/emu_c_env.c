@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.2 2007/08/22 23:07:24 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.3 2008/03/31 14:48:56 jschimpf Exp $
  */
 
 /*
@@ -49,7 +49,6 @@
 extern int		*interrupt_handler_flags_;
 extern dident		*interrupt_name_;
 extern jmp_buf reset;
-extern int		(*in_external)();
 extern pword		*p_meta_arity_;
 extern void		msg_nopoll();
 extern void		ec_init_globvars(void);
@@ -255,7 +254,6 @@ save_vm_status(vmcode *fail_code, int options)
      */
 
     g_emu_.nesting_level++;
-    in_external = (int (*)()) 0;
 
     DE = MU = SV = (pword *) 0;
 
@@ -324,7 +322,6 @@ emulc(void)
     case PFAIL:
 	/* We get here when a C++ external want to fail */
     	PP = fail_code_;
-	in_external = (int (*)()) 0;
 	break;
     case PTHROW: 
 	/* we get here when a recursive emulator throws or
@@ -336,7 +333,6 @@ emulc(void)
 	 * emulator!
 	 */
 	VM_FLAGS &= ~NO_EXIT;
-	in_external = (int (*)()) 0;
 	/* in case we aborted in polling mode */
 	msg_nopoll();
 	break;
@@ -349,7 +345,6 @@ emulc(void)
     default:
     	/* We get here when a C++ external wants to raise an error */
     	PP = bip_error_code_;
-	in_external = (int (*)()) 0;
 	break;
 
     }

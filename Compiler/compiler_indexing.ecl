@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.4 2008/03/25 19:23:26 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.5 2008/03/31 14:52:42 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/25 19:23:26 $").
+:- comment(date, "$Date: 2008/03/31 14:52:42 $").
 
 :- use_module(compiler_common).
 :- use_module(compiler_analysis).
@@ -436,6 +436,7 @@ type_test(atom,		[[atom]-t,[[]]-t]).
 type_test(atomic,	[[[]]-t,[atom]-t,[bignum]-t,[breal]-t,[goal]-t,[double]-t,[handle]-t,[integer]-t,[rational]-t,[string]-t]).
 type_test(bignum,	[[bignum]-t]).
 type_test(breal,	[[breal]-t]).
+type_test(callable,	[[[]]-t,[atom]-t,[list]-t,[structure]-t]).
 type_test(compound,	[[list]-t,[structure]-t]).
 type_test(float,	[[double]-t]).
 type_test(free,		[[var,free]-t]).

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.12 2008/03/27 16:55:39 kish_shen Exp $
+ * VERSION	$Id: printam.c,v 1.13 2008/03/31 14:48:59 jschimpf Exp $
  */
 
 /*
@@ -69,6 +69,7 @@ static void	_print_edesc(uword);
 #define Atom		{p_fprintf(current_output_,"%s ", DidName(*code)); code++;}
 #define VarOffset	p_fprintf(current_output_,"%d ", (int)(*code++)/(long)sizeof(pword))
 #define Integer		p_fprintf(current_output_,"%d ", (int)(*code++))
+#define ArgDesc		p_fprintf(current_output_,"<%x> ", (int)(*code++))
 #define Float		p_fprintf(current_output_,"%f ", * (float *) code++)
 #define String \
 	{   value v;\
@@ -145,6 +146,7 @@ static void	_print_edesc(uword);
 	{p_fprintf(current_output_,"%s/", DidName(((pri *) *code)->did));\
 	 p_fprintf(current_output_,"%d ",DidArity(((pri *)*code)->did));\
 	 code++;}
+
 
 #define ExtName EsuName
 #define ExtCallName EsuName
@@ -382,7 +384,6 @@ print_am(register vmcode *code,
 	case Puts_valueAM:
 	case SavecutAM:
 	case BI_Exit:
-	case BI_PutCutAM:
 	case BI_SetBipError:
 	case BI_GetBipError:
 	case BI_Free:
@@ -403,6 +404,8 @@ print_am(register vmcode *code,
 	case BI_IsHandle:
 	case BI_IsEvent:
 	case BI_IsList:
+	case BI_Bignum:
+	case BI_Callable:
 		Am;
 		break;
 	
@@ -439,9 +442,29 @@ print_am(register vmcode *code,
 	case ShiftAMAMAMAMAM:
 	        Am;
 		/* fall through */
-	case BI_MakeSuspension:
 	case ShiftAMAMAMAM:
 	case Move2AMAM:
+	    	Am;
+		/* fall through */
+
+	case ShiftAMAMAM:
+	case RotAMAMAM:
+	        Am;
+		/* fall through */
+
+	case BI_Arity:
+	case BI_Identical:
+	case BI_NotIdentical:
+	case SwapAMAM:
+	case Read_variable2AM:
+	case Write_variable2AM:
+	case Write_local_value2AM:
+	case Push_local_value2AM:
+	        Am;
+	        Am;
+		break;
+
+	case BI_MakeSuspension:
 	    	Am;
 		/* fall through */
 
@@ -463,25 +486,24 @@ print_am(register vmcode *code,
 	case BI_Eq:
 	case BI_Ne:
 	case BI_Arg:
-	case ShiftAMAMAM:
-	case RotAMAMAM:
 	        Am;
 		/* fall through */
 
-	case BI_Identical:
-	case BI_NotIdentical:
 	case BI_Inequality:
 	case BI_NotIdentList:
 	case BI_Minus:
-	case BI_Succ:
 	case BI_Bitnot:
-	case SwapAMAM:
-	case Read_variable2AM:
-	case Write_variable2AM:
-	case Write_local_value2AM:
-	case Push_local_value2AM:
+	case BI_CutToStamp:
 	        Am;
 	        Am;
+	        ArgDesc;
+		break;
+
+	case BI_Addi:
+	        Am;
+	        Integer;
+	        Am;
+	        ArgDesc;
 		break;
 
 #if (NREGARG > 0)
@@ -1513,6 +1535,7 @@ _switch_on_type_:
 	case Continue_after_event:
 	case Continue_after_event_debug:
 	case Debug_exit:
+	case BI_ContDebug:
 		break;
 
 	case Puts_proc:

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.7 2008/03/26 00:43:22 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.8 2008/03/31 14:52:48 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -405,6 +405,9 @@ testclause(120, (
 	(sentence(B,C,D,E,F) :- declarative(B,C,G,E,H),terminator(.,G,D,H,F))
     )).
 
+testclause(130, (
+	p(X,Z) :- +(1,X,Y), +(2,Y,W), +(3,W,Z)
+    )).
 
 % put sequences
 
@@ -995,6 +998,98 @@ testclause(env(2), [
 	)
 ]).
 
+
+% Inlined builtins
+testclause(bip(type_tests), [
+    	(p(X) :- free(X)),
+	(p(X) :- is_suspension(X)),
+	(p(X) :- is_event(X)),
+	(p(X) :- is_handle(X)),
+	(p(X) :- nonvar(X)),
+	(p(X) :- var(X)),
+	(p(X) :- meta(X)),
+	(p(X) :- atom(X)),
+	(p(X) :- integer(X)),
+	(p(X) :- sepia_kernel:bignum(X)),
+	(p(X) :- rational(X)),
+	(p(X) :- real(X)),
+	(p(X) :- float(X)),
+	(p(X) :- breal(X)),
+	(p(X) :- string(X)),
+	(p(X) :- number(X)),
+	(p(X) :- atomic(X)),
+	(p(X) :- sepia_kernel:callable(X)),
+	(p(X) :- compound(X)),
+	(p(X) :- is_list(X)),
+	(p(X) :- fail)
+]).
+testclause(bip(other), [
+    	(p(X) :- sepia_kernel:set_bip_error(X)),
+    	(p(_) :- sepia_kernel:cont_debug),
+    	(p(X) :- sepia_kernel:sys_return(X)),
+    	(p(X) :- make_suspension(true,3,X)),
+    	(p(X) :- sepia_kernel:make_suspension(true,3,X,eclipse))
+]).
+testclause(bip(eq), [
+    	(p(X,Y) :- X=Y),
+    	(p(X,Y) :- X==Y),
+    	(p(X,Y) :- X\==Y),
+    	(p(X,Y) :- X~=Y),
+    	(p(X,Y) :- sepia_kernel: \==(X,Y,[]))
+]).
+testclause(bip(arith_comp), [
+    	(p(X,Y) :- X<Y),
+    	(p(X,Y) :- X=<Y),
+    	(p(X,Y) :- X=:=Y),
+    	(p(X,Y) :- X>=Y),
+    	(p(X,Y) :- X>Y),
+    	(p(X,Y) :- X=\=Y)
+]).
+testclause(bip(arith_comp_mod), [
+    	(p(X,Y,M) :- sepia_kernel: <(X,Y,M)),
+    	(p(X,Y,M) :- sepia_kernel: =<(X,Y,M)),
+    	(p(X,Y,M) :- sepia_kernel: =:=(X,Y,M)),
+    	(p(X,Y,M) :- sepia_kernel: >=(X,Y,M)),
+    	(p(X,Y,M) :- sepia_kernel: >(X,Y,M)),
+    	(p(X,Y,M) :- sepia_kernel: =\=(X,Y,M))
+]).
+testclause(bip(functions), [(
+    	p(Z) :-
+		get_bip_error(A),
+		-(A,B),
+		+(B,1,C),
+		+(A,B,C),
+		-(C,1,D),
+		-(C,B,D),
+		*(D,2,E),
+		/(E,2,F),
+		//(F,2,G),
+		rem(G,2,H),
+		div(H,2,I),
+		mod(I,2,J),
+		/\(J,2,K),
+		\/(K,2,L),
+		xor(L,2,M),
+		\(M,N),
+		sepia_kernel:arity(foo(a,b,c),3),
+		arg(N,foo(a,b,c),Z)
+)]).
+
+% different cases for output argument unification
+testclause(bip(1), [ (p(X,Y) :- +(X,Y,Z), -(Z,1,W), p(W) )]).
+testclause(bip(2), [ (p(X,Y) :- +(X,Y,Z), -(X,Y,Z) )]).
+testclause(bip(3), [ (p(X,Y) :- +(X,Y,0) )]).
+testclause(bip(4), [ (p(X,Y) :- +(X,Y,foo(bar)) )]).
+testclause(bip(5), [ (p(X,Y) :- +(X,1,Y) )]).
+testclause(bip(6), [ (p(X,Y) :- +(X,Y,Z), q, p(Z) )]).
+testclause(bip(7), [ (p(X,Y) :- q, +(X,Y,Z), p(Z) )]).
+testclause(bip(8), [ (p(X,Y) :- q(Z), +(X,Y,Z), p(Z) )]).
+testclause(bip(9), [ (p(X,Y) :- q(Z), +(X,Y,Z), -(X,Y,Z), p(Z) )]).
+testclause(bip(10), [ (p(X,Y) :- +(X,Y,_) )]).
+
+testclause(bip(20), [ (p(X,Y) :- X>Y) ]).
+
+
 testclause(bench(1), [
     (conc([], Ys, Ys)),
     (conc([X|Xs], Ys, [X|XsYs]) :- conc(Xs, Ys, XsYs))
@@ -1031,6 +1126,20 @@ testclause(bench(6), [
 testclause(bench(7), [
     (conc([], Ys0, Ys) :- t, !, Ys0=Ys),
     (conc([X|Xs], Ys, [X|XsYs]) :- conc(Xs, Ys, XsYs))
+]).
+testclause(bench(tak), [
+    tak(X,Y,Z,A) :-
+    	( X =< Y ->
+	    Z = A
+	;
+	    X1 is X-1,
+	    tak(X1,Y,Z,A1),
+	    Y1 is Y-1,
+	    tak(Y1,Z,X,A2),
+	    Z1 is Z-1,
+	    tak(Z1,X,Y,A3),
+	    tak(A1,A2,A3,A)
+	)
 ]).
 
 testclause(bug(1), [

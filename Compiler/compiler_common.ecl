@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.9 2008/03/25 19:23:26 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.10 2008/03/31 14:52:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/25 19:23:26 $").
+:- comment(date, "$Date: 2008/03/31 14:52:40 $").
 
 
 %----------------------------------------------------------------------
@@ -634,6 +634,11 @@ wam_registers(255).
 wam_max_global_push(200).
 %wam_max_global_push(4).
 
+:- export smallint/1.
+smallint(X) :- 
+	integer(X),
+	X =< 16'7fffffff,
+	X+1 >= -16'7fffffff.
 
 %----------------------------------------------------------------------
 % General auxiliaries

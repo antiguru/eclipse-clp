@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.4 2007/07/03 00:10:30 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.5 2008/03/31 14:48:57 jschimpf Exp $
  */
 
 /*
@@ -59,7 +59,6 @@ pri	*identical_proc_,
         *inequality_proc_,
         *not_ident_list_proc_,
         *minus_proc_,
-        *succ_proc_,
         *add_proc_,
         *sub_proc_,
         *mul_proc_,
@@ -78,8 +77,15 @@ pri	*identical_proc_,
         *ge_proc_,
         *eq_proc_,
         *ne_proc_,
+	*lt_proc3_,
+	*le_proc3_,
+	*gt_proc3_,
+	*ge_proc3_,
+	*eq_proc3_,
+	*ne_proc3_,
         *arg_proc_,
         *make_suspension_proc_,
+	*cut_to_stamp_proc_,
 	*fail_proc_;
 
 fail_data_t	fail_trace_[MAX_FAILTRACE];
@@ -427,6 +433,7 @@ bip_emu_init(int flags)
      * PROC_DEMON: set only for predicates that can be re-delayed -
      * their code is responsible for calling Kill_DE before succeeding!
      */
+#ifndef NEW_BIP_CONVENTION
     proc = local_built_in(
 	in_dict("sys_return", 1),		(int (*) ()) BIExit,
 	BIPNO);
@@ -435,6 +442,7 @@ bip_emu_init(int flags)
 	in_dict("get_cut", 1),			(int (*) ()) BIGetCut,
 	BIPNO|U_SIMPLE);
 	PriFlags(proc) |= DEBUG_SK;
+    cut_to_stamp_proc_ =
     proc = exported_built_in(
 	in_dict("cut_to_stamp", 2),		(int (*) ()) BICutToStamp,
 	BIPNO);
@@ -542,10 +550,6 @@ bip_emu_init(int flags)
     proc = built_in(in_dict("-",2), (int (*) ()) BIMinus,BIPNO|U_SIMPLE);
 	PriMode(proc) = BoundArg(2, CONSTANT);
 	PriFlags(proc) |= DEBUG_SK;
-    succ_proc_ =
-    proc = built_in(in_dict("succ",2), (int (*) ()) BISucc, BIPNO|U_SIMPLE);
-	PriMode(proc) = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT);
-	PriFlags(proc) |= DEBUG_SK;
     add_proc_ =
     proc = built_in(in_dict("+",3), (int (*) ()) BIAdd,	BIPNO|U_SIMPLE|PROC_DEMON);
 	PriMode(proc) = BoundArg(3, CONSTANT);
@@ -627,20 +631,22 @@ bip_emu_init(int flags)
 	BIPNO|U_UNIFY);
 	PriMode(proc) =	BoundArg(3, NONVAR);
 	PriFlags(proc) |= DEBUG_INVISIBLE;
+#endif
   }
   else if (flags & INIT_PRIVATE) /* just init the private pri pointers */
   {
+#ifdef NEW_BIP_CONVENTION
     type tm;
     tm.kernel = ModuleTag(d_.kernel_sepia);
 #define KernelProc(d) local_procedure(d, d_.kernel_sepia, tm, 0)
 
+    cut_to_stamp_proc_ = KernelProc(in_dict("cut_to_stamp", 2));
     fail_proc_ = KernelProc(d_.fail);
     identical_proc_ = KernelProc(d_.identical);
     not_identical_proc_ = KernelProc(d_.not_identical);
     not_ident_list_proc_ = KernelProc(in_dict("\\==",3));
     inequality_proc_ = KernelProc(d_.diff_reg);
     minus_proc_ = KernelProc(in_dict("-",2));
-    succ_proc_ = KernelProc(in_dict("succ",2));
     add_proc_ = KernelProc(in_dict("+",3));
     sub_proc_ = KernelProc(in_dict("-",3));
     mul_proc_ = KernelProc(in_dict("*",3));
@@ -661,6 +667,7 @@ bip_emu_init(int flags)
     ne_proc_ = KernelProc(d_.not_equal);
     arg_proc_ = KernelProc(in_dict("arg",3));
     make_suspension_proc_ = KernelProc(in_dict("make_suspension",4));
+#endif
   }
 }
 

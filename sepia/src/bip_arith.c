@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.3 2007/02/27 16:06:54 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.4 2008/03/31 14:48:49 jschimpf Exp $
  */
 
 /*
@@ -119,13 +119,45 @@ static double (*pow_ptr_to_avoid_buggy_inlining)(double,double) = pow;
 #define Pow pow
 #endif
 
-static int bin_arith_op ARGS((value,type,value,type,pword *,int));
-
 
 /*------------------------------------------------------------------------
- * The two multi-directional builtins plus/3 and times/3
- * Don't work with bignums yet! Maybe write them in Prolog?
+ * The multi-directional builtins succ/2, plus/3 and times/3
+ * Some don't work with bignums yet! Maybe write them in Prolog?
  *-----------------------------------------------------------------------*/
+
+static int
+p_succ(value x, type tx, value y, type ty)
+{
+    pword result;
+
+    result.tag.kernel = TINT;
+    if (IsInteger(tx))
+    {
+	result.val.nint = x.nint + 1;
+	if (result.val.nint <= 0) {
+	    if (result.val.nint == MIN_S_WORD) {
+		Bip_Error(INTEGER_OVERFLOW);
+	    }
+	    Fail_;
+	}
+	Return_Numeric(y, ty, result);
+    }
+    else if (IsRef(tx))
+    {
+	if (IsInteger(ty)) {
+	    if (y.nint <= 0) {
+		Fail_
+	    }
+	    result.val.nint = y.nint - 1;
+	    Return_Numeric(x, tx, result);
+	} else if (IsRef(ty)) {
+	    return PDELAY_1_2;
+	}
+	return unary_arith_op(y, ty, x, tx, ARITH_PREV, TINT);
+    }
+    return unary_arith_op(x, tx, y, ty, ARITH_NEXT, TINT);
+}
+
 
 static int
 p_plus(value x, type tx, value y, type ty, value z, type tz)
@@ -744,13 +776,6 @@ p_rationalize(value v1, type t1, value v, type t)
     Return_Numeric(v, t, result)
 }
 
-/*ARGSUSED*/
-static int
-p_bignum(value v, type t)
-{
-   Succeed_If(IsBignum(t));
-}
-
 static int
 p_bignum2(value v1, type t1, value v, type t)
 {
@@ -1150,6 +1175,29 @@ _strg_setbit(value v1, value v2, pword *pres)	/* string x int -> string */
  *-----------------------------------------------------------------------*/
 
 int
+un_arith_op(
+    	value v1, type t1,	/* input */
+	pword *result,		/* output */
+	int op,			/* operation */
+	int top)		/* the 'minimal' type for the result */
+{
+    int err;
+
+    if (tag_desc[TagType(t1)].numeric < tag_desc[top].numeric)
+    {
+	if (!IsNumber(t1))
+	    { Bip_Error(ARITH_TYPE_ERROR); }
+	err = tag_desc[TagType(t1)].coerce_to[top](v1, &v1);
+	if (err != PSUCCEED) return err;
+	result->tag.kernel = top;
+    }
+    else
+	/* CAUTION: must strip extra tag bits, e.g. PERSISTENT */
+	result->tag.kernel = Tag(t1.kernel);
+    return tag_desc[TagType(result->tag)].arith_op[op](v1, result);
+}
+
+int
 unary_arith_op(
     	value v1, type t1,	/* input */
 	value v, type t,	/* output */
@@ -1159,24 +1207,12 @@ unary_arith_op(
     pword result;
     int err;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
-
-    if (tag_desc[TagType(t1)].numeric < tag_desc[top].numeric)
-    {
-	if (!IsNumber(t1))
-	    { Bip_Error(ARITH_TYPE_ERROR); }
-	err = tag_desc[TagType(t1)].coerce_to[top](v1, &v1);
-	if (err != PSUCCEED) return err;
-	result.tag.kernel = top;
-    }
-    else
-	/* CAUTION: must strip extra tag bits, e.g. PERSISTENT */
-	result.tag.kernel = Tag(t1.kernel);
-    err = tag_desc[TagType(result.tag)].arith_op[op](v1, &result);
+    err = un_arith_op(v1, t1, &result, op, top);
     if (err != PSUCCEED) return err;
     Return_Numeric(v, t, result)
 }
 
-static int
+int
 bin_arith_op(value v1, type t1, value v2, type t2, pword *pres, int op)
 {
     int err;
@@ -1862,6 +1898,8 @@ bip_arith_init(int flags)
 	return;
 
     /* plus/3 and times/3 have NONVAR because the bound argument is not known */
+    built_in(in_dict("succ", 2), p_succ, B_UNSAFE|U_SIMPLE)
+	-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
     built_in(in_dict("plus", 3), p_plus, B_UNSAFE|U_SIMPLE|PROC_DEMON)
 	-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR) |
 		BoundArg(3, NONVAR);
@@ -1912,7 +1950,6 @@ bip_arith_init(int flags)
     (void) built_in(in_dict("rationalize", 2), p_rationalize, B_UNSAFE|U_SIMPLE);
     (void) exported_built_in(in_dict("minint", 1), p_minint, B_UNSAFE|U_SIMPLE);
     (void) exported_built_in(in_dict("maxint", 1), p_maxint, B_UNSAFE|U_SIMPLE);
-    (void) exported_built_in(in_dict("bignum", 1), p_bignum,B_SAFE);
     (void) exported_built_in(in_dict("bignum", 2), p_bignum2,B_UNSAFE|U_SIMPLE);
     (void) exported_built_in(in_dict("breal", 2), p_breal2,B_UNSAFE|U_SIMPLE);
     (void) exported_built_in(in_dict("is_zero", 1), p_is_zero,B_SAFE);
