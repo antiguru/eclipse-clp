@@ -261,7 +261,7 @@ yes.
 
 :- comment(copy_term / 3, [
 	summary:"A copy of OldTerm with new variables is created and unified with NewTerm.
-MetaTerms is a list mapping the attributed variables in OldTerm to the corresponding
+AttrVars is a list mapping the attributed variables in OldTerm to the corresponding
 variables in NewTerm.
 
 ",
@@ -274,8 +274,8 @@ variables in NewTerm.
 <P>
    This predicate is a more primitive version of copy_term/2 and does
    not imply a particular handling of attributed variables. Instead it copies the
-   attributed variables as normal variables, and returns the MetaTerms list as
-   a means to define the copying of attributed variables separately.  MetaTerms is a
+   attributed variables as normal variables, and returns the AttrVars list as
+   a means to define the copying of attributed variables separately.  AttrVars is a
    list of pairs [&lt;attributed variable&gt;|&lt;variable&gt;] which maps the
    attributed variables in OldTerm to the corresponding fresh variables in
    NewTerm.  By processing this list, the variables can be instantiated to
@@ -291,7 +291,9 @@ variables in NewTerm.
         apply_copy_term_handlers(Metas).
 </PRE>
 "),
-	args:["OldTerm" : "Prolog term.", "NewTerm" : "Prolog term, normally a variable.", "MetaTerms" : "List of Pairs or a variable."],
+	args:["OldTerm" : "Prolog term.",
+		"NewTerm" : "Prolog term, normally a variable.",
+		"AttrVars" : "List of Pairs or a variable."],
 	eg:"
 [eclipse 1]: set_flag(output_mode, \"QPMV\").
 
@@ -366,6 +368,8 @@ or computes the dimensions of an existing matrix.
     not significant.
 
 <P>
+    To get the size of one-dimensional arrays, it is more efficient to
+    use arity/2.
 "),
 	args:["Term" : "Variable or structure.", "Dimensions" : "Variable or list of integers."],
 	exceptions:[4 : "Both Term and Dimensions are not sufficiently instantiated.", 5 : "Dimensions is not a list of integers."],
@@ -380,7 +384,7 @@ yes.
 
 
 ",
-	see_also:[arg / 3, subscript / 3, flatten_array / 2, functor / 3]]).
+	see_also:[arg / 3, arity/2, subscript / 3, flatten_array / 2, functor / 3]]).
 
 :- comment(flatten_array / 2, [
 	summary:"Returns a flat list of the elements of a multi-dimensional array.",
@@ -890,6 +894,7 @@ if Term and Functor are atomic and equal, and Arity is 0.
    terms with arity 0 and functor equal to the term.
 
 <P>
+   To query only the arity of a term, arity/2 can be used instead of functor/3.
 "),
 	args:["Term" : "Prolog term.", "Functor" : "Atomic term or variable.", "Arity" : "Positive integer or variable."],
 	exceptions:[4 : "Term and either (or both) of Functor and Arity are    uninstantiated (non-coroutine mode only).", 5 : "Arity is neither a variable nor an integer.", 5 : "Functor is neither a variable nor an atomic term.", 6 : "Arity is a negative integer."],
@@ -914,7 +919,42 @@ if Term and Functor are atomic and equal, and Arity is 0.
 
 
 ",
-	see_also:[(=..) / 2, arg / 3]]).
+	see_also:[arity/2, (=..) / 2, arg / 3]]).
+
+:- comment(arity / 2, [
+	summary:"Succeeds if Arity is the arity of Term.",
+	amode:(arity(+,-) is det),
+	desc:html("
+    If Term is instantiated, its arity (number of arguments) is unified
+    with Arity.  For compound terms, this is the number of arguments,
+    for atomic terms it is 0.  As usual, non-empty lists are considered
+    compound terms with arity 2.
+<P>
+    Note that (like all predicates that return a number as their last
+    argument), this predicate can be used as a function inside arithmetic
+    expressions, e.g.
+<PRE>
+	..., (I > arity(Term) -> writeln(error), fail ; arg(I, Term, Arg) ).
+</PRE>
+"),
+	args:["Term" : "Prolog term.", "Arity" : "Variable or integer."],
+	exceptions:[4 : "Term is uninstantiated (non-coroutine mode only)."],
+	eg:"
+Success:
+   arity(f(1,2),2).
+   arity(f(1,2),A).    (gives A=2).
+   arity([],A).        (gives A=0).
+   arity(\"s\",A).     (gives A=0).
+   arity(33,A).        (gives A=0).
+
+Fail:
+   arity(f(1,2),3).
+   arity(\"compound(g)\",1).
+
+Error:
+   arity(_,A).         (Error 4).
+",
+	see_also:[(=..) / 2, arg / 3, functor/3]]).
 
 :- comment((=..) / 2, [
 	summary:"Univ --- Succeeds if List is the list which has Term's functor as its first
@@ -971,7 +1011,7 @@ Error:
 
 
 ",
-	see_also:[arg / 3, functor / 3]]).
+	see_also:[arg / 3, arity/2, functor / 3]]).
 
 :- comment(arg / 3, [
 	summary:"Succeeds if Arg is the Nth argument of the compound term Term.
@@ -1018,7 +1058,7 @@ Error:
 
 
 ",
-	see_also:[functor / 3, (=..) / 2, subscript / 3]]).
+	see_also:[arity/2, functor / 3, (=..) / 2, subscript / 3]]).
 
 :- comment(term_string / 2, [
 	summary:"Conversion between a Prolog term and a string.

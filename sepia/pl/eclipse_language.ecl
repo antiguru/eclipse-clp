@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.5 2007/08/12 19:40:41 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.6 2008/04/01 18:16:48 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -85,6 +85,7 @@
 :- reexport arg / 3 from sepia_kernel.
 :- reexport argc / 1 from sepia_kernel.
 :- reexport argv / 2 from sepia_kernel.
+:- reexport arity / 2 from sepia_kernel.
 :- reexport asin / 2 from sepia_kernel.
 :- reexport assert / 1 from sepia_kernel.
 :- reexport asserta / 1 from sepia_kernel.
@@ -125,6 +126,7 @@
 :- reexport call_explicit / 2 from sepia_kernel.
 :- reexport call_local / 1 from sepia_kernel.
 :- reexport call_priority / 2 from sepia_kernel.
+:- reexport callable / 1 from sepia_kernel.
 :- reexport cancel_after_event / 1 from sepia_kernel.
 :- reexport cancel_after_event / 2 from sepia_kernel.
 :- reexport canonical_path_name / 2 from sepia_kernel.
@@ -439,6 +441,7 @@
 :- reexport read_term / 3 from sepia_kernel.
 :- reexport real / 1 from sepia_kernel.
 :- reexport record / 2 from sepia_kernel.
+:- reexport record_create / 1 from sepia_kernel.
 :- reexport recorda / 2 from sepia_kernel.
 :- reexport recorda / 3 from sepia_kernel.
 :- reexport recorded / 2 from sepia_kernel.

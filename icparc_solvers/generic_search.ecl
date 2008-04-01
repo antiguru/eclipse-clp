@@ -27,7 +27,7 @@
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 %               Joachim Schimpf, IC-Parc
 %               Kish Shen, IC-Parc
-% Version:	$Id: generic_search.ecl,v 1.1 2006/09/23 01:53:35 snovello Exp $
+% Version:	$Id: generic_search.ecl,v 1.2 2008/04/01 18:18:28 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -135,9 +135,6 @@ is_search_method(lds(N)) :- integer(N), !.
 is_search_method(dbs(N,M)) :- integer(N), integer(M), !.
 is_search_method(dbs(N,bbs(M))) :- integer(N), integer(M), !.
 is_search_method(dbs(N,lds(M))) :- integer(N), integer(M), !.
-
-callable(C) :- atom(C).
-callable(C) :- compound(C).
 
 
 /***********************************************************************

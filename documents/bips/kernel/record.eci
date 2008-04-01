@@ -25,6 +25,7 @@
 
 :- tool(erase / 2).
 :- tool(erase_all / 1).
+%:- tool(erase_all / 2).
 :- tool(is_record / 1).
 :- tool(record / 2).
 :- tool(recorda / 2).
@@ -32,6 +33,7 @@
 :- tool(recorded / 2).
 :- tool(recorded / 3).
 :- tool(recorded_list / 2).
+%:- tool(recorded_refs / 2).
 :- tool(recordz / 2).
 :- tool(recordz / 3).
 :- tool(rerecord / 2).
@@ -40,13 +42,15 @@
 :- comment(desc, html("\
 	ECLiPSe provides several facilities to store information across
 	backtracking. The following table gives an overview. If at all
-	possible, the handle-based facilities (bags, shelves, stores)
-	should be preferred because they lead to cleaner, reentrant code
-	(without global state) and reduce the risk of memory leaks.
+	possible, the handle-based facilities (bags, records, shelves,
+	stores) should be preferred because they lead to cleaner, reentrant
+	code (without global state) and reduce the risk of memory leaks.
 <PRE>
     Facility        Type            Reference       See
     ================================================================
     bags            unordered bag   by handle       bag_create/1
+    ----------------------------------------------------------------
+    anon.records    ordered list    by handle       record_create/1
     ----------------------------------------------------------------
     shelves         array           by handle       shelf_create/2,3
     ----------------------------------------------------------------
@@ -62,7 +66,7 @@
     non-logical     array           by name         array/1,2
     arrays
     ----------------------------------------------------------------
-    records         ordered list    by name         record/1,2
+    named records   ordered list    by name         record/1,2
     ----------------------------------------------------------------
     dynamic         ordered list    by name         dynamic/1,assert/1
     predicates
@@ -83,7 +87,7 @@
 
 <P>
 "),
-	args:["Key" : "Variable, atom or compound term."],
+	args:["Key" : "Variable, atom, compound term, or handle."],
 	fail_if:"Fails if Key is not a current key",
 	exceptions:[5 : "Key is neither a variable, an atom nor a compound term."],
 	eg:"
@@ -109,6 +113,39 @@
 ",
 	see_also:[is_record / 1]]).
 
+:- comment(record_create / 1, [
+	summary:"Create an anonymous record handle",
+	amode:(record_create(-) is det),
+	desc:html("
+    	This creates an anonymous 'record' object which can store an
+	ordered list of terms, and whose contents are unaffected by
+	backtracking.
+<P>
+	Records can be referred to either by handle or by name. Whenever
+	possible, handles should be used, because this naturally leads to
+	robust, reentrant code, and avoids the danger of memory leaks.
+	An anonymous record disappears when the system backtracks over
+	its creation, when the record handle gets garbage collected,
+	or when it is explicitly destroyed.
+<P>
+	When named records are used, the visibility of the record name is
+	local to the module where it was created. A named record never
+	disappears, therefore, in order to free the associated memory,
+	its contents should be erased when no longer needed.
+    "),
+	args:["Handle" : "Variable, will be bound to a handle."],
+	eg:"
+	?- record_create(R), record(R,a), record(R,b), recorded_list(R,L).
+	L = [a,b]
+
+	?- record_create(R),
+	   ( member(X,[a,b,c]), record(R,X), fail
+	   ; recorded_list(R,L)
+	   ).
+	L = [a,b,c]
+",
+	see_also:[is_record / 1]]).
+
 :- comment(erase / 2, [
 	summary:"Succeeds if the term Value associated with key Key is removed as an entry
 in the indexed database.
@@ -125,7 +162,7 @@ in the indexed database.
 
 <P>
 "),
-	args:["Key" : "Atom or compound term.", "Value" : "Any Prolog term."],
+	args:["Key" : "Atom, compound term, or handle.", "Value" : "Any Prolog term."],
 	fail_if:"Fails if Value does not unify with any term recorded under the key Key",
 	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
 	eg:"
@@ -165,7 +202,7 @@ database.
 
 <P>
 "),
-	args:["Key" : "An atom or compound term."],
+	args:["Key" : "An atom, compound term or handle."],
 	exceptions:[4 : "Key is uninstantiated.", 5 : "Key is neither an atom nor a compound term."],
 	eg:"
    Success:
@@ -199,7 +236,7 @@ database.
 
 <P>
 "),
-	args:["Key" : "An atom or compound term."],
+	args:["Key" : "An atom, compound term or handle."],
 	fail_if:"Fails if Key is not a key for a recorded item",
 	exceptions:[4 : "Key is uninstantiated.", 5 : "Key is neither an atom nor a compound term."],
 	eg:"
@@ -242,7 +279,7 @@ database.
 
 <P>
 "),
-	args:["Key" : "An atom or compound term.", "Value" : "Any prolog term."],
+	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term."],
 	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
 	eg:"
    Success:
@@ -282,7 +319,7 @@ Error:
 
 <P>
 "),
-	args:["Key" : "An atom or compound term.", "Value" : "Any prolog term."],
+	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term."],
 	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
 	eg:"
    Success:
@@ -364,7 +401,7 @@ the key Key.
 
 <P>
 "),
-	args:["Key" : "An atom or compound term.", "Value" : "Any prolog term."],
+	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term."],
 	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
 	eg:"
    Success:
@@ -444,8 +481,9 @@ indexed database and this term is successfully erased.
    in the indexed database.  Database references can be obtained from the
    predicates recorda/3, recordz/3 and recorded/3.  If the referenced term
    has already been erased, erase/1 fails.  Backtracking through calls of
-   erase/1 does not undo an erasure.  Note that database references are not
-   integers.
+   erase/1 does not undo an erasure.  Note that an erased term can still
+   be retrieved via the database reference, but it can no longer be found
+   by lookup under the recording-key.
 
 <P>
 "),
@@ -539,7 +577,7 @@ in the indexed database under the key Key.
 
 <P>
 "),
-	args:["Key" : "An atom or compound term.", "Value" : "Any prolog term.", "DBRef" : "A variable."],
+	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term.", "DBRef" : "A variable."],
 	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term.", 5 : "DBRef neither a variable nor a database reference."],
 	eg:"
    Success:
@@ -563,7 +601,7 @@ Error:
 the key Key and DBRef is its unique reference.
 
 ",
-	amode:(recorded(+,-,-) is det),
+	amode:(recorded(+,-,-) is nondet),
 	desc:html("   Used to find all values associated with a key.  Value is unified with
    the first term that is associated with Key.  DBRef is unified with the
    unique database reference of this database entry.  In the case of
@@ -619,7 +657,7 @@ the key Key and DBRef is its unique reference.
 
 <P>
 "),
-	args:["Key" : "An atom or compound term.", "Value" : "Any prolog term.", "DBRef" : "A variable."],
+	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term.", "DBRef" : "A variable."],
 	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term.", 5 : "DBRef neither a variable nor a database reference."],
 	eg:"
    Success:
@@ -639,40 +677,35 @@ Error:
 	see_also:[recorda / 3, recorded / 3, erase / 1, referenced_record / 2]]).
 
 :- comment(referenced_record / 2, [
-	summary:"Succeeds if DBRef is the database reference of a currently recorded term
-and this term unifies with Value
-
-",
-	amode:(referenced_record(+,-) is semidet),
-	desc:html("   The database reference DBRef must refer to a term that has been recorded
-   in the indexed database.  Database references can be obtained from the
-   predicates recorda/3, recordz/3 and recorded/3.  If the referenced term
-   has already been erased, referenced_record/2 fails.  Otherwise, Value is
-   unified with a copy of the recorded term.  Note that database references
-   are not integers.
-
-<P>
+	summary:"Succeeds if Value is the Term recorded under the database reference DBRef.",
+	amode:(referenced_record(+,-) is det),
+	desc:html("\
+   The database reference DBRef must refer to a term that has previously
+   been recorded in the indexed database.  Database references can be
+   obtained from the predicates recorda/3, recordz/3 and recorded/3.
+   Value is unified with a copy of the recorded term.  Note that this
+   is the case even if the original database entry has been removed since
+   the database reference was obtained (logical update semantics).
 "),
 	args:["DBRef" : "A database reference.", "Value" : "Any Prolog term."],
-	fail_if:"Fails if the referenced term has already been erased",
 	exceptions:[4 : "DBRef is not instantiated.", 5 : "DBRef is neither a variable nor a database reference."],
 	eg:"
-   Success:
-   [eclipse]: recordz(beer, paulaner, Ref),
-   referenced_record(Ref, X).
+   [eclipse]: recordz(beer, paulaner, Ref), referenced_record(Ref, X).
    Ref = 1714c8
    X = paulaner
    yes.
-   [eclipse]: recorded(beer, _, Ref),
-   referenced_record(Ref, X).
+
+   [eclipse]: recorded(beer, _, Ref), referenced_record(Ref, X).
    Ref = 1714c8
    X = paulaner     More? (;)
    yes.
-   Failure:
-   [eclipse]: recorded(beer, _, Ref),
-   erase(Ref), referenced_record(Ref, X).
-   no (more) solution.
-   Error:
+
+   [eclipse]: recorded(beer, _, Ref), erase(Ref), referenced_record(Ref, X).
+   Ref = 1714c8
+   X = paulaner     More? (;)
+   yes.
+
+Error:
    referenced_record(_, Value).         (Error 4)
    referenced_record(123, Value).       (Error 5)
 

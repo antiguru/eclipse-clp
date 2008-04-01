@@ -48,13 +48,15 @@
 :- comment(desc, html("\
 	ECLiPSe provides several facilities to store information across
 	backtracking. The following table gives an overview. If at all
-	possible, the handle-based facilities (bags, shelves, stores)
-	should be preferred because they lead to cleaner, reentrant code
-	(without global state) and reduce the risk of memory leaks.
+	possible, the handle-based facilities (bags, records, shelves,
+	stores) should be preferred because they lead to cleaner, reentrant
+	code (without global state) and reduce the risk of memory leaks.
 <PRE>
     Facility        Type            Reference       See
     ================================================================
     bags            unordered bag   by handle       bag_create/1
+    ----------------------------------------------------------------
+    anon.records    ordered list    by handle       record_create/1
     ----------------------------------------------------------------
     shelves         array           by handle       shelf_create/2,3
     ----------------------------------------------------------------
@@ -70,7 +72,7 @@
     non-logical     array           by name         array/1,2
     arrays
     ----------------------------------------------------------------
-    records         ordered list    by name         record/1,2
+    named records   ordered list    by name         record/1,2
     ----------------------------------------------------------------
     dynamic         ordered list    by name         dynamic/1,assert/1
     predicates

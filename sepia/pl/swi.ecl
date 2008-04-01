@@ -1,7 +1,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Copyright:	This file is in the public domain
-% Version:	$Id: swi.ecl,v 1.2 2007/07/03 00:10:28 jschimpf Exp $
+% Version:	$Id: swi.ecl,v 1.3 2008/04/01 18:16:48 jschimpf Exp $
 % Description:	SWI Prolog compatibility package
 % ----------------------------------------------------------------------
 
@@ -10,7 +10,7 @@
 :- comment(summary, 'SWI-Prolog compatibility package').
 :- comment(author, 'J Chamois').
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, '$Date: 2007/07/03 00:10:28 $').
+:- comment(date, '$Date: 2008/04/01 18:16:48 $').
 :- comment(desc, html('
     This library is incomplete, and intended to ease the task of
     porting SWI-Prolog programs to ECLiPSe Prolog, or to add modules
@@ -119,10 +119,6 @@
 rational(R, N, D) :-
 	N is numerator(R),
 	D is denominator(R).
-
-:- export callable/1.
-callable(T) :- atom(T).
-callable(T) :- compound(T).
 
 :- export cyclic_term/1.
 cyclic_term(T) :-
