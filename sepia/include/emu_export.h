@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.10 2008/03/31 14:47:14 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.11 2008/04/01 18:28:35 jschimpf Exp $
  */
 
 /*
@@ -1508,33 +1508,4 @@ Extern	DLLEXP	int unary_arith_op ARGS((value,type,value,type,int,int));
 Extern	int	binary_arith_op ARGS((value,type,value,type,value,type,int));
 Extern	int	un_arith_op ARGS((value,type,pword *,int,int));
 Extern	int	bin_arith_op ARGS((value,type,value,type,pword *,int));
-
-Extern pri
-	*fail_proc_,
-	*cut_to_stamp_proc_,
-	*minus_proc_,
-	*add_proc_,
-	*sub_proc_,
-	*mul_proc_,
-	*quot_proc_,
-	*div_proc_,
-	*rem_proc_,
-	*fdiv_proc_,
-	*mod_proc_,
-	*and_proc_,
-	*or_proc_,
-	*xor_proc_,
-	*bitnot_proc_,
-	*lt_proc3_,
-	*le_proc3_,
-	*eq_proc3_,
-	*ne_proc3_,
-	*ge_proc3_,
-	*gt_proc3_,
-	*identical_proc_,
-	*not_identical_proc_,
-	*inequality_proc_,
-	*not_ident_list_proc_,
-	*arg_proc_,
-	*make_suspension_proc_;
 

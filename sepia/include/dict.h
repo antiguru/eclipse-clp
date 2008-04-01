@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.3 2008/03/31 14:47:07 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.4 2008/04/01 18:28:35 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -580,6 +580,39 @@ Extern pri *	local_built_in(dident did1, int (*func) (/* ??? */), long int flags
 Extern pri *	exported_built_in(dident did1, int (*func) (/* ??? */), long int flags);
 Extern pri *	b_built_in(dident did1, int (*func) (/* ??? */), dident module);
 Extern word	ec_getaddress ARGS((char*));
+
+/*
+ * Pointers to some compiler-expanded builtin descriptors (in particular
+ * those which have an emulator instruction and can delay or raise events)
+ */
+Extern pri
+	*fail_proc_,
+	*cut_to_stamp_proc_,
+	*minus_proc_,
+	*add_proc_,
+	*sub_proc_,
+	*mul_proc_,
+	*quot_proc_,
+	*div_proc_,
+	*rem_proc_,
+	*fdiv_proc_,
+	*mod_proc_,
+	*and_proc_,
+	*or_proc_,
+	*xor_proc_,
+	*bitnot_proc_,
+	*lt_proc3_,
+	*le_proc3_,
+	*eq_proc3_,
+	*ne_proc3_,
+	*ge_proc3_,
+	*gt_proc3_,
+	*identical_proc_,
+	*not_identical_proc_,
+	*inequality_proc_,
+	*not_ident_list_proc_,
+	*arg_proc_,
+	*make_suspension_proc_;
 
 /* operator lookup */
 Extern opi *	visible_op ARGS((dident atom, dident module, type mod_tag, int *res));
