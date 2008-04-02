@@ -736,6 +736,9 @@ Error:
    calling process.
 
 <P>
+    Note that (like all predicates that return a number as their last
+    argument), this predicate can be used as a function inside arithmetic
+    expressions.
 "),
 	args:["Time" : "Float number or variable."],
 	exceptions:[5 : "Time is instantiated, but not to a float."],

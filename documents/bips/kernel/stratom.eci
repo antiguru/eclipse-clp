@@ -496,6 +496,9 @@ Error:
    atom is the number of characters in the atom's name.
 
 <P>
+    Note that (like all predicates that return a number as their last
+    argument), this predicate can be used as a function inside arithmetic
+    expressions.
 "),
 	args:["Atom" : "Atom.", "Length" : "Integer or variable."],
 	exceptions:[4 : "Atom is not instantiated (non-coroutine mode only).", 5 : "Atom is instantiated, but not to an atom.", 5 : "Length is neither an integer nor a variable."],
@@ -611,6 +614,9 @@ Error:
 	desc:html("   The length of the string String is unified with Length.
 
 <P>
+    Note that (like all predicates that return a number as their last
+    argument), this predicate can be used as a function inside arithmetic
+    expressions.
 "),
 	args:["String" : "String.", "Length" : "Integer or variable."],
 	exceptions:[4 : "String is not instantiated (non-coroutine mode only).", 5 : "String is instantiated, but not to a string.", 5 : "Length is neither an integer nor a variable."],
@@ -875,6 +881,10 @@ Error:
 	This predicate extracts the Index'th byte from the given string String. 
 	Bytes in the string are numbered from 1 (analogous to array indices in
 	subscript/3 and arg/3).
+    <P>
+	Note that (like all predicates that return a number as their last
+	argument), this predicate can be used as a function inside arithmetic
+	expressions.
 "),
 	exceptions:[
 	    5 : "Index is not an integer",

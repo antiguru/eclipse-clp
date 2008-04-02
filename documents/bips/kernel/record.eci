@@ -144,7 +144,7 @@
 	   ).
 	L = [a,b,c]
 ",
-	see_also:[is_record / 1]]).
+	see_also:[is_record / 1, record/1, record/2, recorded/2]]).
 
 :- comment(erase / 2, [
 	summary:"Succeeds if the term Value associated with key Key is removed as an entry
@@ -496,7 +496,7 @@ indexed database and this term is successfully erased.
    recordz(whiskey, glenfiddich, Ref),
    recordz(whiskey, dimple, _),
    erase(Ref).
-   Ref = 98538
+   Ref = 'DBREF'(16'50470d28)
    yes.
    [eclipse]: recorded(whiskey, L, _).
    L = jameson     More? (;)
@@ -512,7 +512,7 @@ indexed database and this term is successfully erased.
 
 
 ",
-	see_also:[erase_all / 1, recorda / 3, recordz / 3, recorded / 3, referenced_record / 2]]).
+	see_also:[erase_all / 1, is_handle/1, recorda / 3, recordz / 3, recorded / 3, referenced_record / 2]]).
 
 :- comment(recorded_list / 2, [
 	summary:"Succeeds if the List is the list of all terms that are currently recorded
@@ -567,9 +567,9 @@ in the indexed database under the key Key.
 	desc:html("   Used to record any prolog term Value at the beginning of the indexed
    database entry associated with the key Key.  Unlike recorda/2, this
    predicate delivers a so-called database reference in DBRef which is a
-   unique name for the indexed database entry that is created.  Note that
-   it is not a number!  In the case of compound terms, all keys of the same
-   name and arity are treated as equal.
+   unique handle for the indexed database entry that is created.
+   In the case of compound terms, all keys of the same name and arity are
+   treated as equal.
 
 <P>
    If backtracking occurs through the call of recorda/3 the associated
@@ -583,8 +583,8 @@ in the indexed database under the key Key.
    Success:
     [eclipse]: recorda(whiskey,jameson,Ref1),
              recorda(whiskey,bushmills,Ref2).
-    Ref1 = 98518
-    Ref2 = 98538
+    Ref1 = 'DBREF'(16'50470dc8)
+    Ref2 = 'DBREF'(16'50470de0)
     yes.
 Error:
     recorda(Key, anything, Ref).          (Error 4)
@@ -594,7 +594,7 @@ Error:
 
 
 ",
-	see_also:[recordz / 3, recorded / 3, erase / 1, referenced_record / 2]]).
+	see_also:[recordz / 3, recorded / 3, is_handle/1, erase / 1, referenced_record / 2]]).
 
 :- comment(recorded / 3, [
 	summary:"Succeeds if the term Value has been recorded in the indexed database under
@@ -624,9 +624,9 @@ the key Key and DBRef is its unique reference.
    recordz(beer, lowenbrau, _),
    recorded(beer, Value, Ref).
    Value = paulaner
-   Ref = 98518     More? (;)
+   Ref = 'DBREF'(16'50470e90)     More? (;)
    Value = lowenbrau
-   Ref = 98538     More? (;)
+   Ref = 'DBREF'(16'50470ea8)     More? (;)
    no (more) solution.
    Fail:
    erase_all(beer),recorded(beer,guiness, Ref).
@@ -637,7 +637,7 @@ the key Key and DBRef is its unique reference.
 
 
 ",
-	see_also:[recorda / 3, recordz / 3, erase / 1, referenced_record / 2]]).
+	see_also:[recorda / 3, recordz / 3, erase / 1, is_handle/1, referenced_record / 2]]).
 
 :- comment(recordz / 3, [
 	summary:"Records the term Value at the end of key Key in the indexed database.
@@ -646,10 +646,9 @@ the key Key and DBRef is its unique reference.
 	amode:(recordz(+,?,-) is det),
 	desc:html("   Used to record any prolog term Value at the end of the indexed database
    entry associated with the key Key.  Unlike recordz/2, this predicate
-   delivers a so-called database reference in DBRef which is a unique name
-   for the indexed database entry that is created.  Note that it is not a
-   number!  In the case of compound terms, all keys of the same name and
-   arity are treated as equal.
+   delivers a so-called database reference in DBRef which is a unique handle
+   for the indexed database entry that is created.  In the case of
+   compound terms, all keys of the same name and arity are treated as equal.
 
 <P>
    If backtracking occurs through the call of recordz/3 the associated
@@ -663,8 +662,8 @@ the key Key and DBRef is its unique reference.
    Success:
     [eclipse]: recordz(whiskey,jameson,Ref1),
              recordz(whiskey,bushmills,Ref2).
-    Ref1 = 98518
-    Ref2 = 98538
+    Ref1 = 'DBREF'(16'50470f10)
+    Ref2 = 'DBREF'(16'50470f28)
     yes.
 Error:
     recordz(Key, anything, Ref).          (Error 4)
@@ -674,7 +673,7 @@ Error:
 
 
 ",
-	see_also:[recorda / 3, recorded / 3, erase / 1, referenced_record / 2]]).
+	see_also:[recorda / 3, recorded / 3, erase / 1, is_handle/1, referenced_record / 2]]).
 
 :- comment(referenced_record / 2, [
 	summary:"Succeeds if Value is the Term recorded under the database reference DBRef.",
@@ -691,17 +690,17 @@ Error:
 	exceptions:[4 : "DBRef is not instantiated.", 5 : "DBRef is neither a variable nor a database reference."],
 	eg:"
    [eclipse]: recordz(beer, paulaner, Ref), referenced_record(Ref, X).
-   Ref = 1714c8
+   Ref = 'DBREF'(16'50470d00)
    X = paulaner
    yes.
 
    [eclipse]: recorded(beer, _, Ref), referenced_record(Ref, X).
-   Ref = 1714c8
+   Ref = 'DBREF'(16'50470d00)
    X = paulaner     More? (;)
    yes.
 
    [eclipse]: recorded(beer, _, Ref), erase(Ref), referenced_record(Ref, X).
-   Ref = 1714c8
+   Ref = 'DBREF'(16'50470d00)
    X = paulaner     More? (;)
    yes.
 

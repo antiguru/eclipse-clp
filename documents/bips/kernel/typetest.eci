@@ -191,8 +191,9 @@ Error:
 
 ",
 	amode:(atom(?) is semidet),
-	desc:html("   Used to test whether Atom is an atom.
-
+	desc:html("
+    Used to test whether Atom is an atom.
+    Note that this includes the empty list [].
 <P>
 "),
 	args:["Atom" : "Prolog term."],
@@ -216,7 +217,7 @@ Fail:
 
 
 ",
-	see_also:[var / 1, is_list/1, type_of / 2]]).
+	see_also:[var / 1, is_list/1, callable/1, type_of / 2]]).
 
 :- comment(atomic / 1, [
 	summary:"Succeeds if Term is an atom, a number, or a string.
@@ -247,6 +248,42 @@ Fail:
 ",
 	see_also:[atom / 1, compound / 1, is_list/1, var / 1]]).
 
+:- comment(callable / 1, [
+	summary:"Succeeds if Term is callable, i.e. of type atom or compound.",
+	amode:(callable(?) is semidet),
+	desc:html("
+Used to test whether Term is a 'callable' term, i.e. whether it
+is an atom or compound term, and could therefore be used as a goal.
+Note that this is a purely syntactic check which does not say
+anything about the existence of a corresponding predicate.
+<P>
+This predicate is equivalent to
+<PRE>
+    callable(X) :- atom(X).
+    callable(X) :- compound(X).
+</PRE>
+Note that it also succeeds for lists.
+"),
+	args:["Term" : "Prolog term."],
+	fail_if:"Fails if Term is not an atom or a compound term",
+	eg:"
+Success:
+   callable(true).
+   callable(hello(\"world\",42)).
+   callable(f(1,2)).
+   callable([1,2,3]).
+   callable(.(1,2)).
+   callable(foo).
+   callable([]).
+
+Fail:
+   callable(\"f(1,2)\").
+   callable(_).
+   callable(42).
+   make_suspension(true,0,S), callable(S).
+",
+	see_also:[atom / 1, compound/1, is_list/1, var / 1]]).
+
 :- comment(compound / 1, [
 	summary:"Succeeds if Term is of type compound, i.e.  a structure or a list.
 
@@ -271,7 +308,7 @@ Fail:
 
 
 ",
-	see_also:[atom / 1, atomic / 1, is_list/1, var / 1]]).
+	see_also:[atom / 1, atomic / 1, callable/1, is_list/1, var / 1]]).
 
 :- comment(integer / 1, [
 	summary:"Succeeds if Integer is an integer number.
@@ -321,7 +358,7 @@ Fail:
 
 
 ",
-	see_also:[nonvar / 1, ground/1, type_of / 2, var / 1]]).
+	see_also:[nonvar / 1, ground/1, nonground/2, nonground/3, type_of / 2, var / 1]]).
 
 :- comment(ground / 1, [
 	summary:"Succeeds if Term is ground.
@@ -341,7 +378,7 @@ Fail:
    ground(f(a,B,c)).
    ground([x,y|Z]).
 ",
-	see_also:[nonvar / 1, nonground/1, type_of / 2, var / 1]]).
+	see_also:[nonvar / 1, nonground/1, nonground/2, nonground/3, type_of / 2, var / 1]]).
 
 :- comment(nonvar / 1, [
 	summary:"Succeeds if Term is instantiated.
@@ -523,7 +560,7 @@ Fail:
     ?- is_list(X).
     No (0.00s cpu)
 ",
-	see_also:[atom/1,compound/1,ground/1]]).
+	see_also:[atom/1,callable/1, compound/1,ground/1]]).
 
 :- comment(is_handle / 1, [
 	summary:"Succeeds if Term is an external data handle.
@@ -781,7 +818,7 @@ Error:
 
 
 ",
-	see_also:[atom / 1, compound / 1, free / 1, integer / 1, meta / 1,
+	see_also:[atom / 1, callable/1, compound / 1, free / 1, integer / 1, meta / 1,
 	number / 1, nonground / 1, breal/1, rational / 1, float/1, float/1,
 	real / 1, string / 1, var / 1]]).
 
