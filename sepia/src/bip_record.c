@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.3 2007/09/04 16:28:48 jschimpf Exp $
+ * VERSION	$Id: bip_record.c,v 1.4 2008/04/02 00:45:11 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -643,9 +643,14 @@ p_erase(value vrec, type trec)
 	obj->prev->next = obj->next;
 	obj->prev = obj->next = 0;
 	_rec_free_elem(obj);
+	a_mutex_unlock(&PropertyLock);
+	Succeed_;
     }
-    a_mutex_unlock(&PropertyLock);
-    Succeed_;
+    else /* was already removed from record-list */
+    {
+	a_mutex_unlock(&PropertyLock);
+	Fail_;
+    }
 }
 
 
