@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.12 2008/03/31 14:52:33 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.13 2008/04/03 01:02:26 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/31 14:52:33 $").
+:- comment(date, "$Date: 2008/04/03 01:02:26 $").
 
 
 :- lib(hash).
@@ -1088,7 +1088,7 @@ inlined_builtin(><,		3,	unbounded,	bi_xor(arg,arg,uarg,desc)).
 inlined_builtin(\,		2,	unbounded,	bi_bitnot(arg,uarg,desc)).
 inlined_builtin(arg,		3,	unbounded,	bi_arg(int,arg,uarg,desc)).
 inlined_builtin(arg,		3,	unbounded,	bi_arg(arg,arg,uarg,desc)).
-inlined_builtin(arity,		2,	0,		bi_arity(arg,uarg)).
+inlined_builtin(arity,		2,	unbounded,	bi_arity(arg,uarg,desc)).
 inlined_builtin(get_bip_error,	1,	0,		bi_get_bip_error(uarg)).
 
 

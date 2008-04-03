@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.13 2008/03/31 14:48:59 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.14 2008/04/03 00:58:55 jschimpf Exp $
  */
 
 /*
@@ -452,7 +452,6 @@ print_am(register vmcode *code,
 	        Am;
 		/* fall through */
 
-	case BI_Arity:
 	case BI_Identical:
 	case BI_NotIdentical:
 	case SwapAMAM:
@@ -494,6 +493,7 @@ print_am(register vmcode *code,
 	case BI_Minus:
 	case BI_Bitnot:
 	case BI_CutToStamp:
+	case BI_Arity:
 	        Am;
 	        Am;
 	        ArgDesc;

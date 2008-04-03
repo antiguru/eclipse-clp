@@ -9394,7 +9394,7 @@ label(1):
 	put_structure            a(2)     foo / 3 
 	write_atom2              a     b 
 	write_atom               c 
-	bi_arity                 a(2)     a(2) 
+	bi_arity                 a(2)     a(2)     4 
 	get_integer              a(2)     3 
 	put_structure            a(2)     foo / 3 
 	write_atom2              a     b 

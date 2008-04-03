@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.18 2008/03/31 20:16:05 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.19 2008/04/03 00:58:55 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -879,7 +879,7 @@ instr(put_global_variable_callf(a(A),y(Y),ref(L),N),
 instr(put_global_variable_callf(a(A),y(Y),P,N),	
                                         399, [a(A),y(Y),proc(P),edesc(N)]).
 instr(rot(a(A1),a(A2),a(A3)),		400, [a(A1),a(A2),a(A3)]).
-instr(bi_arity(a(A1),a(UA2)),		401, [a(A1),a(UA2)]).
+instr(bi_arity(a(A1),a(UA2),4),		401, [a(A1),a(UA2),i(4)]).
 
 
 /***************************************************************************

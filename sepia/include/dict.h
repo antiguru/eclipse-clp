@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.4 2008/04/01 18:28:35 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.5 2008/04/03 00:58:54 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -587,6 +587,9 @@ Extern word	ec_getaddress ARGS((char*));
  */
 Extern pri
 	*fail_proc_,
+	*true_proc_,
+	*softcut_proc_,
+	*cut_to_proc_,
 	*cut_to_stamp_proc_,
 	*minus_proc_,
 	*add_proc_,
@@ -612,6 +615,7 @@ Extern pri
 	*inequality_proc_,
 	*not_ident_list_proc_,
 	*arg_proc_,
+	*arity_proc_,
 	*make_suspension_proc_;
 
 /* operator lookup */

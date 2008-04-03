@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.3 2008/03/31 14:48:53 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.4 2008/04/03 00:58:55 jschimpf Exp $
  */
 
 /********************************************************************
@@ -161,6 +161,7 @@ vmcode	*bip_error_code_,
 
 
 pri	*true_proc_,
+	*arity_proc_,
 	*softcut_proc_,
 	*cut_to_proc_;
 
@@ -1132,7 +1133,7 @@ code_init(int flags)
     make_test_bip(d_.bignum, BI_Bignum, 0, 0, -1);
     make_test_bip(in_dict("callable",1), BI_Callable, 0, 0, -1);
 
-    make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE, BoundArg(2,CONSTANT), -1);
+    arity_proc_ = make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE, BoundArg(2,CONSTANT), 4);
 
   } /* end if (flags & INIT_SHARED) */
 
@@ -1173,6 +1174,7 @@ code_init(int flags)
     eq_proc_ = KernelProc(d_.equal);
     ne_proc_ = KernelProc(d_.not_equal);
     arg_proc_ = KernelProc(in_dict("arg",3));
+    arity_proc_ = KernelProc(in_dict("arity",2));
     make_suspension_proc_ = KernelProc(in_dict("make_suspension",4));
 #endif
 }

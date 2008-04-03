@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.18 2008/03/31 14:48:54 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.19 2008/04/03 00:58:55 jschimpf Exp $
  */
 
 /*
@@ -7834,19 +7834,23 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	Case(BI_Ne, I_BI_Ne)
 	    NCompare_Bip(ne_proc3_, BINe, !=)
 
-	Case(BI_Arity, I_BI_Arity)		/* arity(+Term, -N)	*/
-	    pw1 = PP++->arg;
+	Case(BI_Arity, I_BI_Arity)		/* arity(+Term,-N)	*/
+	    pw1 = PP->arg;
+	    PP += 3;	/* 2 args + desc */
 	    Dereference_Pw_Tag(pw1, tmp1);
 	    if (IsTag(tmp1, TCOMP)) {
-		tmp1 = DidArity(pw1->val.ptr->val.did);
+		Make_Integer(PP[-2].arg, DidArity(pw1->val.ptr->val.did));
+		Next_Pp;
 	    } else if (IsTag(tmp1, TLIST)) {
-		tmp1 = 2;
-	    } else {
-		tmp1 = 0;
+		Make_Integer(PP[-2].arg, 2);
+		Next_Pp;
+	    } else if (!ISRef(tmp1)) {
+		Make_Integer(PP[-2].arg, 0);
+		Next_Pp;
 	    }
-	    Make_Integer(PP->arg, tmp1)
-	    ++PP;
-	    Next_Pp;
+	    proc = arity_proc_;
+	    err_code = PDELAY_1;
+	    goto _npdelay_;
 
 	Case(BI_Arg, I_BI_Arg)			/* arg(+N, +Term, -Arg)	*/
 	    proc = arg_proc_;
