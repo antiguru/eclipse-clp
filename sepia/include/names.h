@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.8 2008/03/31 14:47:21 jschimpf Exp $
+ * VERSION	$Id: names.h,v 1.9 2008/04/11 02:19:39 kish_shen Exp $
  */
 
 /*
@@ -469,6 +469,7 @@ char * inst_name[] = {
 "Put_global_variableAMLCallfP",
 "RotAMAMAM                 ",
 "BI_Arity                  ",
+"Exits                     ",
 
 #if (NREGARG > 0)
 "MoveAR                    ",

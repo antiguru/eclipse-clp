@@ -7848,7 +7848,7 @@ p / 1:
 label(1):
 	allocate                 0 
 	switch_on_type           a(1) 
-		meta: 	ref(7)
+		meta: 	ref(8)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
 		bignum: 	ref(fail)
@@ -7862,12 +7862,14 @@ label(1):
 		string: 	ref(fail)
 		structure: 	ref(fail)
 
+	branch                   ref(7) 
 label(5):
 	bi_free                  a(1) 
+label(7):
 	chain                    q / 1 
 label(3):
 	in_get_meta              a(1)     ref(fail) 
-label(7):
+label(8):
 	read_void            
 	read_attribute           suspend 
 	read_variable            a(2) 
@@ -7918,7 +7920,7 @@ p / 1:
 label(1):
 	allocate                 0 
 	switch_on_type           a(1) 
-		meta: 	ref(7)
+		meta: 	ref(8)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
 		bignum: 	ref(fail)
@@ -7932,12 +7934,14 @@ label(1):
 		string: 	ref(fail)
 		structure: 	ref(fail)
 
+	branch                   ref(7) 
 label(3):
 	bi_free                  a(1) 
+label(7):
 	chain                    q / 1 
 label(5):
 	in_get_meta              a(1)     ref(fail) 
-label(7):
+label(8):
 	read_void            
 	read_attribute           suspend 
 	read_variable            a(2) 

@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.17 2008/03/31 14:52:38 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.18 2008/04/11 02:22:56 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/03/31 14:52:38 $").
+:- comment(date, "$Date: 2008/04/11 02:22:56 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -402,7 +402,7 @@ find_reached_chunks(BasicBlockArray, NonRepArray, ReachedArray, Targets) :-
 find_reached_chunks_(Chunk, BasicBlockArray, NonRepArray, ReachedArray, Targets,
                      TargetsT0, TargetArray, NL0, NL) :-
         Chunk = chunk{cont:Cont,code:Code},
-        process_chunk_targets(Code, BasicBlockArray, NonRepArray, TargetArray, 
+        process_chunk_targets(Code, BasicBlockArray, Cont, NonRepArray, TargetArray, 
                               NL0, NL1, TargetsT0, TargetsT1, NewCode),
         setarg(code of chunk, Chunk, NewCode),
         ( integer(Cont), Cont > 0,    % continue to another chunk 
@@ -443,18 +443,18 @@ find_chunks_in_branch(Targets, BasicBlockArray, NonRepArray, ReachedArray,
 % Find all ref()s that refer to unprocessed chunks and queue the labels
 % also perform inter-chunk optimisations by looking at the instructions
 % in the original chunk and the chunks being ref'ed
-process_chunk_targets([Code|Rest0], BasicBlockArray, NonRepArray, TargetArray, 
+process_chunk_targets([Code|Rest0], BasicBlockArray, Cont, NonRepArray, TargetArray, 
                       NL0, NL, TargetsT0, TargetsT, New) ?-
         Code = code{instr:I},        
-        process_instr_targets(I, Code, BasicBlockArray, NonRepArray, TargetArray,
+        process_instr_targets(I, Code, BasicBlockArray, Cont, NonRepArray, TargetArray,
                               Rest0, Rest1, NL0, NL1, TargetsT0, TargetsT1, New, New1),
-        process_chunk_targets(Rest1, BasicBlockArray, NonRepArray, TargetArray,
+        process_chunk_targets(Rest1, BasicBlockArray, Cont, NonRepArray, TargetArray,
                               NL1, NL, TargetsT1, TargetsT, New1).
-process_chunk_targets([], _, _, _, NL0, NL, TargetsT0, TargetsT, New) ?-
+process_chunk_targets([], _, _, _, _, NL0, NL, TargetsT0, TargetsT, New) ?-
             NL0 = NL, TargetsT0 = TargetsT, New = [].
 
 
-process_instr_targets(atom_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, NonRepArray, TargetArray,
+process_instr_targets(atom_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, _, NonRepArray, TargetArray,
     Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?-
         !,
         Rest0 = Rest,
@@ -471,7 +471,7 @@ process_instr_targets(atom_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, N
                                  (in_get_atom(a(A),Atom),next)], 
                                 Ref, BasicBlockArray, NonRepArray, TargetArray, NL1, NL2, TT2, TT3, NewRef)
         ).
-process_instr_targets(functor_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, NonRepArray, 
+process_instr_targets(functor_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, _, NonRepArray, 
     TargetArray, Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?- !,
         Rest0 = Rest,
         mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
@@ -487,7 +487,7 @@ process_instr_targets(functor_switch(a(A),Table,ref(Def)), Code, BasicBlockArray
                                  (in_get_structure(a(A),Func,InRef),InRef)], 
                  FRef, BasicBlockArray, NonRepArray, TargetArray, NL1,NL2, TT2,TT3, NewFRef)
         ). 
-process_instr_targets(integer_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, NonRepArray,  
+process_instr_targets(integer_switch(a(A),Table,ref(Def)), Code, BasicBlockArray, _, NonRepArray,  
     TargetArray, Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?- !,
         Rest0 = Rest,
         mark_and_accumulate_targets(Def, TargetArray, TargetsT0, TargetsT1),
@@ -504,7 +504,7 @@ process_instr_targets(integer_switch(a(A),Table,ref(Def)), Code, BasicBlockArray
                                 Ref, BasicBlockArray, NonRepArray, TargetArray, NL1, NL2, TT2, TT3, NewRef)
                                 
         ). 
-process_instr_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), Code, BasicBlockArray, NonRepArray, TargetArray, 
+process_instr_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), Code, BasicBlockArray, _, NonRepArray, TargetArray, 
     Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?- !,
         Rest0 = Rest,
         mark_and_accumulate_targets(VarLab, TargetArray, TargetsT0, TargetsT1),
@@ -516,24 +516,28 @@ process_instr_targets(list_switch(a(A),ListRef,NilRef,ref(VarLab)), Code, BasicB
         skip_subsumed_instr([(get_nil(a(A)),next),
                              (in_get_nil(a(A)),next)], 
                             NilRef, BasicBlockArray,  NonRepArray, TargetArray, NL1, NL, TargetsT2, TargetsT, NewNilRef).
-process_instr_targets(switch_on_type(a(A),SwitchList), Code, BasicBlockArray, NonRepArray, TargetArray, 
+process_instr_targets(switch_on_type(a(A),SwitchList), Code, BasicBlockArray, Cont, NonRepArray, TargetArray, 
     Rest0, Rest, NL0, NL, TargetsT0, TargetsT, New, NewT) ?- !,
         update_struct(code, [instr:switch_on_type(a(A),NewSwitchList)], Code, NewCode),
         New = [NewCode|NewT1],
-        ( Rest0 =  [Code1|Rest1],
-          Code1 = code{instr:branch(VRef)} ->
-            Rest1 = Rest,
-            update_struct(code, [instr:branch(NewVRef)], Code1, NewCode1),
-            NewT1 = [NewCode1|NewT],
-            subsumed_type_instr(var, A, VSkipCands),
-            skip_subsumed_instr(VSkipCands, VRef, BasicBlockArray, NonRepArray,
-                                TargetArray, NL0, NL1, TargetsT0, TargetsT1, NewVRef)
-        ; /*Code1 \= code{instr:label(_)} ->*/
-            % no label, just check if next instruction is a type test that
-            % can be skipped entirely
-            % if the fall through code continues without branching, it may 
-            % not be worthwhile to add a branch to skip the following
-            % instruction
+        ( Rest0 == [] ->
+            % end of chunk, the fall through case (type = var) continues to 
+            % Cont
+            Rest0 = Rest,
+            ContRef = ref(Cont),
+            subsumed_type_instr(free, A, VSkipCands),
+            skip_subsumed_instr(VSkipCands, ContRef, BasicBlockArray, NonRepArray,
+                                TargetArray, NL0, NL1, TargetsT0, TargetsT1, NewVRef),
+            ( ContRef == NewVRef ->
+                % no subsumed instruction found, no change to following code
+                NewT1 = NewT
+            ;
+                % add a branch to new label
+                NewT1 = [code{instr:branch(NewVRef)}|NewT]
+            )
+        ;
+            % code following switch_on_type in chunk, do nothing with it
+            % for now (could check for subsumed type test that is skipped
             Rest0 = Rest,
             NewT1 = NewT,
             NL0  = NL1,
@@ -556,7 +560,7 @@ process_instr_targets(switch_on_type(a(A),SwitchList), Code, BasicBlockArray, No
                 mark_and_accumulate_targets(Label, TargetArray, TT1, TT2) 
             )
         ).
-process_instr_targets(Xs, Code, _BasicBlockArray, _NonRepArray, TargetArray, 
+process_instr_targets(Xs, Code, _BasicBlockArray, _Cont, _NonRepArray, TargetArray, 
                       Rest, Rest, NL, NL, TargetsT0, TargetsT, New, NewT) :-
         New = [Code|NewT],
         find_targets(Xs, TargetArray, TargetsT0, TargetsT).
@@ -666,7 +670,7 @@ subsumed_type_instr(rational, A, [(bi_number(a(A)),next),(bi_rational(a(A)),next
 subsumed_type_instr(string, A, [(bi_atomic(a(A)),next),(bi_string(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(structure, A, [(bi_compound(a(A)),next),
 				(bi_callable(a(A)),next),(bi_nonvar(a(A)),next)]).
-subsumed_type_instr(var, A, [(bi_var(a(A)),next),(bi_free(a(A)),next)]).
+subsumed_type_instr(free, A, [(bi_var(a(A)),next),(bi_free(a(A)),next)]).
 
 % rejoin adjacent chunks that should be contiguous if the first chunk
 % is reached. Rejoins must have later chunks first in the list because more 
@@ -898,10 +902,14 @@ simplify(space(N), _, [code{instr:branch(L)}|More], New, MoreT, NewT) ?- !,
         More = MoreT,
         New = [code{instr:branchs(N,L)}|NewT].
 
+simplify(space(N), _, [code{instr:exit}|More], New, MoreT, NewT) ?- !,
+        More = MoreT,
+        New = [code{instr:exits(N)}|NewT].
+/*        
 simplify(space(N), _, [code{instr:jmpd(L)}|More], New, MoreT, NewT) ?- !,
         More = MoreT,
         New = [code{instr:jmpd(N,L)}|NewT].
-
+*/
 	% the code generator compiles attribute unification as if it were
 	% unifying a meta/N structure. Since attribute_name->slot mapping
 	% can change between sessions, we transform sequences like

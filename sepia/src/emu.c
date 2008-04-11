@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.19 2008/04/03 00:58:55 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.20 2008/04/11 02:18:23 kish_shen Exp $
  */
 
 /*
@@ -5081,6 +5081,10 @@ _switch_on_type_:
 	    Handle_Events_Call
 	    Next_Pp;
 
+	Case(Exits, I_Exits)
+/* CAUTION: if Space is to be used to grab space, add an overflow check */
+	    SP = ByteOffsetMinus(SP, PP++->offset);
+  	    /* falls through */
 	Case(Exit, I_Exit)
 	    Set_Det
 	    if(E < EB) {

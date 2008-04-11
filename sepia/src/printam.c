@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.14 2008/04/03 00:58:55 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.15 2008/04/11 02:18:23 kish_shen Exp $
  */
 
 /*
@@ -1208,6 +1208,7 @@ print_am(register vmcode *code,
 	case Allocate:
 	case Wake_init:
 	case Space:
+	case Exits:
 	case Push_structure:
 	case Push_reference:
 	case Push_void_reference:

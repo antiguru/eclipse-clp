@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.8 2008/03/31 14:47:31 jschimpf Exp $
+ * VERSION	$Id: opcode.h,v 1.9 2008/04/11 02:19:39 kish_shen Exp $
  */
 
 /*
@@ -510,7 +510,8 @@ extern vmcode bi_addr[];
 #define Put_global_variableAMLCallfP            (BLOCK1 + 399)
 #define RotAMAMAM				(BLOCK1 + 400)
 #define BI_Arity				(BLOCK1 + 401)
-#define OPCODES_WITHOUT_REGS			(BLOCK1 + 402)
+#define Exits					(BLOCK1 + 402)
+#define OPCODES_WITHOUT_REGS			(BLOCK1 + 403)
 
 /*
  * Don't forget to update the following files:
