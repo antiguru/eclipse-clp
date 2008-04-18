@@ -1157,7 +1157,7 @@ merge(M0, M1, M) :-
 	to_assoc_list(M0, ML0),
 	to_assoc_list(M1, ML1),
 	%list__merge(ML0, ML1, ML),
-	merge(ML0, ML1, ML),
+	eclipse_language:merge(ML0, ML1, ML),
 	from_sorted_assoc_list(ML, M).
 
 %-----------------------------------------------------------------------------%
