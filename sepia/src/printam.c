@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.15 2008/04/11 02:18:23 kish_shen Exp $
+ * VERSION	$Id: printam.c,v 1.16 2008/04/18 10:32:14 jschimpf Exp $
  */
 
 /*
@@ -1350,6 +1350,11 @@ print_am(register vmcode *code,
 	case Push_referenceL:
 	case Push_init_referenceL:
 		Perm;
+		VarOffset;
+		break;
+
+	case CutAMN:
+		Am;
 		VarOffset;
 		break;
 

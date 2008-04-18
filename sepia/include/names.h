@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.9 2008/04/11 02:19:39 kish_shen Exp $
+ * VERSION	$Id: names.h,v 1.10 2008/04/18 10:32:57 jschimpf Exp $
  */
 
 /*
@@ -470,6 +470,7 @@ char * inst_name[] = {
 "RotAMAMAM                 ",
 "BI_Arity                  ",
 "Exits                     ",
+"CutAMN                    ",
 
 #if (NREGARG > 0)
 "MoveAR                    ",

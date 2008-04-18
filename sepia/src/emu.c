@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.20 2008/04/11 02:18:23 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.21 2008/04/18 10:32:14 jschimpf Exp $
  */
 
 /*
@@ -5157,17 +5157,23 @@ _neckcut_:
 	    }
 	    /* else fall through to Cut */
 
-	Case(Cut, I_Cut)
+	Case(Cut, I_Cut)		/* EnvTrimSize (env. definitely exposed) */
 	    pw1 = (E - 1)->val.ptr;
 	    Cut_To(pw1)
 	    Set_Det
 	    SP = ByteOffsetMinus(E, PP++->offset);
 	    Next_Pp;
 
-	Case(CutL, I_CutL)
+	Case(CutAMN, I_CutAMN)		/* Ai EnvTrimSize */
+	    Get_Argument(pw1)
+	    goto _cut_and_trim_if_environment_exposed_;
+
+	Case(CutL, I_CutL)		/* Yi EnvTrimSize */
 	    Get_Local(pw1)
+_cut_and_trim_if_environment_exposed_:
 	    pw1 = pw1->val.ptr;
 	    Cut_To(pw1)
+	    Set_Det	/* needed if instruction gets used in first chunk */
 	    pw1 = ByteOffsetMinus(E, PP++->offset);
 	    if (pw1 > EB)
 		SP = EB;
@@ -5175,7 +5181,7 @@ _neckcut_:
 		SP = pw1;
 	    Next_Pp;
 
-	Case(CutAM, I_CutAM)
+	Case(CutAM, I_CutAM)		/* Ai */
 	    Get_Argument(pw1);
 	    Dereference_Pw(pw1)
 	    pw1 = pw1->val.ptr;
