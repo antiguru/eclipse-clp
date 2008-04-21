@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_regassign.ecl,v 1.5 2008/03/08 02:20:58 jschimpf Exp $
+% Version:	$Id: compiler_regassign.ecl,v 1.6 2008/04/21 14:41:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_regassign).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III Compiler - register allocator").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/08 02:20:58 $").
+:- comment(date, "$Date: 2008/04/21 14:41:20 $").
 
 :- lib(hash).
 :- use_module(compiler_common).
@@ -66,21 +66,42 @@
     see_also:[struct(code)],
     desc:ascii("
     	This is the register allocator. It takes as input a list of annotated
-	WAM code for one chunk, which still contains unassigned registers.
+	WAM code, which still contains unassigned registers.
 	It produces a difference list of WAM code with all registers assigned,
 	and possibly additional move-instructions inserted.
-
-	See module description for details.
+	<P>
+	The input list is actually a segmented code list, where each segment
+	is processed independently by the register allocator. A segment
+	usually corresponds to a chunk, but this is not a requirement.
+	The segmented input list is an improper list: a tail with functor
+	next/1 indicates the beginning of a new segment:
+<PRE>
+	    [Instr1_1,...,Instr1_n|next(
+		[Instr2_1,...,Instr2_n|next(
+		    [])])]
+</PRE>
+	The output list is a plain list with the next-separators removed.
+	<P>
+	For details of the allocation algorithm see module description.
     ")
 ]).
 
 :- export assign_am_registers/3.
 
-assign_am_registers(AnnotatedCodeList, Code, Code0) :-
+assign_am_registers([], Code, Code) :- !.
+assign_am_registers(SectionedList, Code, Code0) :-
+	(
+	    fromto(SectionedList,SL1,SL2,[]),
+	    fromto(Code,Code1,Code2,Code0)
+	do
+	    assign_am_registers(SL1, SL2, Code1, Code2)
+	).
+
+assign_am_registers(AnnotatedCodeList, ACL0, Code, Code0) :-
 
 	% build a reverse list of register descriptors
 	(
-	    foreach(code{regs:RegDescs}, AnnotatedCodeList),
+	    fromto(AnnotatedCodeList,[code{regs:RegDescs}|ACL], ACL, next(ACL0)),
 	    fromto([],RRD1,RRD3,ReverseRegDescs)
 	do
 	    (
@@ -104,23 +125,19 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 	    foreach(r(VarId,Reg,Type,Last), ReverseRegDescs),
 	    fromto(Desirables,Desirable2,Desirable3,[]),
 	    fromto(LastSeen0,LastSeen1,LastSeen2,_),
-	    fromto([], Stack1, Stack2, _),
 	    param(Locations0,Contains0)
 	do
 	    verify nonvar(Type),
-	    ( Type = split ->
-		Stack2 = Stack1,
+	    ( Type = split(_) ->
 		LastSeen2 = LastSeen1,
 		Desirable2 = Desirable3
-	    ; Type = restore ->
-		Stack1 = [LastSeen2|Stack2],
+	    ; Type = restore(state(LastSeen2,_,_,_)) ->
+		% if we ever allow multiple restores, we need to hash_clone again!
 		Desirable2 = Desirable3
-	    ; Type = join ->
+	    ; Type = join(state(LastSeen1,_,_,_)) ->
 		hash_clone(LastSeen1, LastSeen2),
-		Stack2 = [LastSeen1|Stack1],
 		Desirable2 = Desirable3
 	    ;
-		Stack2 = Stack1,
 		LastSeen2 = LastSeen1,
 		( Type = orig ->
 		    verify nonvar(Reg),
@@ -150,11 +167,10 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 	% main pass, assigning concrete registers
 	(
 	    loop_name(assign_registers_outer),
-	    foreach(AnnotatedInstr, AnnotatedCodeList),
+	    fromto(AnnotatedCodeList,[AnnotatedInstr|ACL], ACL, next(_)),
 	    fromto(Code, Code1, Code9, Code0),
 	    fromto(Locations0, Locations1, Locations4, _),
 	    fromto(Contains0, Contains1, Contains4, _),
-	    fromto([], Stack1, Stack4, _),
 	    param(Desirables)
 	do
 	    AnnotatedInstr = code{regs:RegDescs},
@@ -172,7 +188,6 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 		fromto(Code1, Code2, Code6, Code8),
 		fromto(Locations1, Locations, Locations3, Locations4),
 		fromto(Contains1, Contains, Contains3, Contains4),
-		fromto(Stack1, Stack2, Stack3, Stack4),
 		param(Desirables)
 	    do
 
@@ -182,7 +197,6 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 		    % not the first occurrence, we need the value in an a(_) register
 		    Locations3 = Locations,
 		    Contains3 = Contains,
-		    Stack3 = Stack2,
 		    Committed2 = [Reg|Committed1],
 		    % current_location returns a(_) before y(_) locations
 		    certainly_once current_location(Locations, VarId, RegOrSlot),
@@ -201,7 +215,6 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 		    % not the first occurrence, value can be in a(_) or y(_)
 		    Locations3 = Locations,
 		    Contains3 = Contains,
-		    Stack3 = Stack2,
 		    Code2 = Code6,
 		    % current_location returns a(_) before y(_) locations
 		    certainly_once current_location(Locations, VarId, Reg),
@@ -214,7 +227,6 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 		; Type = def ->
 		    Locations3 = Locations,
 		    Contains3 = Contains,
-		    Stack3 = Stack2,
 		    Committed2 = Committed1,
 		    % Assume that the current instruction's used registers can be reused already
 		    find_any_register_for(VarId, Locations, Contains, Desirables, [], Committed1, Code2, Code6, Reg)
@@ -223,14 +235,12 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 		    verify current_location(Locations, VarId, Reg),
 		    Locations3 = Locations,
 		    Contains3 = Contains,
-		    Stack3 = Stack2,
 		    Committed2 = Committed1,
 		    Code2 = Code6
 
 		; Type = dest ->
 		    Locations3 = Locations,
 		    Contains3 = Contains,
-		    Stack3 = Stack2,
 		    Committed2 = [Reg|Committed1],
 		    ( current_location(Locations, VarId, Reg) ->
 			% already in the right place
@@ -270,31 +280,25 @@ assign_am_registers(AnnotatedCodeList, Code, Code0) :-
 		    verify (nonvar(Reg), Reg = y(_)),
 		    Locations3 = Locations,
 		    Contains3 = Contains,
-		    Stack3 = Stack2,
 		    add_permanent_location(Locations, VarId, Reg),
 		    Committed2 = Committed1,
 		    Code2 = Code6
 
-		; Type = split ->
+		; Type = split(state(_,Locations,Contains,Committed1)) ->
+		    Code2 = Code6,
+		    Committed2 = Committed1,
+		    hash_clone(Locations, Locations3),
+		    hash_clone(Contains, Contains3)
+
+		; Type = restore(state(_,Locations3,Contains3,Committed2)) ->
+		    % if we ever allow multiple restores, we need to hash_clone again!
+		    Code2 = Code6
+
+		; Type = join(_) ->
 		    Code2 = Code6,
 		    Committed2 = Committed1,
 		    Locations3 = Locations,
-		    Contains3 = Contains,
-		    hash_clone(Locations, LocationsSave),
-		    hash_clone(Contains, ContainsSave),
-		    Stack3 = [state(LocationsSave,ContainsSave,Committed1)|Stack2]
-
-		; Type = restore ->
-		    Code2 = Code6,
-		    Stack2 = [state(Locations3,Contains3,Committed2)|Stack3]
-
-		; Type = join ->
-		    Code2 = Code6,
-		    Committed2 = Committed1,
-		    Locations3 = Locations,
-		    Contains3 = Contains,
-		    Stack3 = Stack2
-
+		    Contains3 = Contains
 		;
 		    verify false
 		),

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.8 2008/03/31 02:04:44 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.9 2008/04/21 14:41:20 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -111,19 +111,19 @@
 % generate head unification for VarId I and Term
 head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = [_|_],
-	Code = [code{instr:get_list(RI, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split,_)]}|WCode],
+	Code = [code{instr:get_list(RI, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split(State),_)]}|WCode],
 	alloc_term(Term, ChunkData0, ChunkData1),
 	unify_args(Term, ChunkData1, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
-	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore,_)]}|RCode],
-	RCode0 = [code{instr:label(LE),regs:[r(_,_,join,_)]}|Code1],
+	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore(State),_)]}|RCode],
+	RCode0 = [code{instr:label(LE),regs:[r(_,_,join(State),_)]}|Code1],
 	emit_pop_temp(Reg, Code1, Code0).
 head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = structure{name:F,arity:A},
-	Code = [code{instr:get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split,_)]}|WCode],
+	Code = [code{instr:get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split(State),_)]}|WCode],
 	alloc_term(Term, ChunkData0, ChunkData1),
 	unify_args(Term, ChunkData1, ChunkData, 0, Reg, WCode, WCode0, RCode, RCode0, inout),
-	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore,_)]}|RCode],
-	RCode0 = [code{instr:label(LE),regs:[r(_,_,join,_)]}|Code1],
+	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore(State),_)]}|RCode],
+	RCode0 = [code{instr:label(LE),regs:[r(_,_,join(State),_)]}|Code1],
 	emit_pop_temp(Reg, Code1, Code0).
 head(I, Term, ChunkData, ChunkData, Code, Code0) :-
 	atomic(Term),

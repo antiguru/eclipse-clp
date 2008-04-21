@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.8 2008/03/31 14:52:48 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.9 2008/04/21 14:41:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -66,7 +66,7 @@ testx(Name, MoreOpt) :-
 	test(Name, [load:none,output:print,debug:off,expand_goals:off,print_indexes:on|MoreOpt]).
 
 testo(Name) :-
-	test(Name, [load:none,output:print,debug:off,expand_goals:off,
+	test(Name, [load:none,output:print,debug:off,%expand_goals:on,
                     print_indexes:on,opt_level:1]).
 
 test(Name, Options) :-
@@ -104,16 +104,23 @@ test(Name, Options) :-
 % Run all tests
 
 test :-
-	test(_).
+	cputime(T0),
+	test(_),
+	T is cputime-T0,
+	printf(log_output, "Test took %.3fs%n", [T]).
 
 testo :-
-        testo(_).
+	cputime(T0),
+        testo(_),
+	T is cputime-T0,
+	printf(log_output, "Test took %.3fs%n", [T]).
 
 % Run all tests with output to file 'test.res'
 
 ftest :-
 	open("test.res",write,output),
 	set_stream(warning_output, output),
+	set_stream_property(output, end_of_line, lf),
 	test,
 	close(warning_output),
 	close(output).
@@ -853,6 +860,18 @@ testclause(idx(200), ([
 	( p(a,Y,Z) :- !, a(Y,Z)),
 	( p(X,Y,Z) :- q(X,Y,Z))
     ])).
+testclause(idx(201), ([
+	( p(X,Y) :- +(X,1,X1), ( p1(X1,Y) ; p2(X,Y) ) )
+    ])).
+testclause(idx(202), ([
+	( p(X0,Y) :- true, +(X0,1,X), ( p1(X,Y) ; p2(X,Y) ) )
+    ])).
+testclause(idx(203), ([
+	( p(X0,Y) :- true, +(X0,1,X), ( p1(X,Y) ; p2(X,X,Y) ) )
+    ])).
+testclause(idx(204), ([
+	( p(X0,Y) :- true, +(X0,1,X), integer(X), ( p1(X,Y) ; p2(X,Y) ) )
+    ])).
 testclause(idx(300), (	% switch from a(_) or y(_)
 	(p(X) :- ( X=1, p1 ; X=2, p2), q(X))
     )).
@@ -997,6 +1016,36 @@ testclause(env(2), [
 	    t(A1,B1,C1,D1,E1,F1,G1,H1,I1,J1,K1,L1,M1,N1,O1,P1,Q1,R1,S1,T1)
 	)
 ]).
+testclause(env(3), [(
+	p(X,Y,Z) :- a, b(X), c(Y), d(Z), e
+)]).
+testclause(env(4), [(
+	p(X,Y,Z) :- a, b(X), c(Z), d(Y), e
+)]).
+testclause(env(5), [
+	( p(W,X,Y,Z) :- t, a(W), e),
+	( p(W,X,Y,Z) :- t, b(X), e),
+	( p(W,X,Y,Z) :- t, c(Y), d(Z), e),
+	( p(W,X,Y,Z) :- t, a(W), e)
+]).
+testclause(env(6), [
+	( p(a,W,X,Y,Z) :- t, a(W), e),
+	( p(a,W,X,Y,Z) :- t, b(X), e),
+	( p(b,W,X,Y,Z) :- t, c(Y), d(Z), e),
+	( p(a,W,X,Y,Z) :- t, a(W), e)
+]).
+testclause(env(7), [
+	( p(a,W,X,Y,Z) :- t, a(W), e),
+	( p(a,W,X,Y,Z) :- t, b(X), e),
+	( p(a,W,X,Y,Z) :- t, c(Y), d(Z), e),
+	( p(b,W,X,Y,Z) :- t, a(W), e)
+]).
+testclause(env(8), [
+	( p(a,W,X,Y,Z) :- t, a(W), e),
+	( p(b,W,X,Y,Z) :- t, b(X), e),
+	( p(a,W,X,Y,Z) :- t, c(Y), d(Z), e),
+	( p(b,W,X,Y,Z) :- t, a(W), e)
+]).
 
 
 % Inlined builtins
@@ -1025,8 +1074,8 @@ testclause(bip(type_tests), [
 ]).
 testclause(bip(other), [
     	(p(X) :- sepia_kernel:set_bip_error(X)),
-    	(p(_) :- sepia_kernel:cont_debug),
-    	(p(X) :- sepia_kernel:sys_return(X)),
+%    	(p(_) :- sepia_kernel:cont_debug),	% local in sepia_kernel
+%    	(p(X) :- sepia_kernel:sys_return(X)),	% local in sepia_kernel
     	(p(X) :- make_suspension(true,3,X)),
     	(p(X) :- sepia_kernel:make_suspension(true,3,X,eclipse))
 ]).
@@ -1141,7 +1190,19 @@ testclause(bench(tak), [
 	    tak(A1,A2,A3,A)
 	)
 ]).
-
+testclause(bench(takc), [(
+    tak(X,Y,Z,A) :-
+    	X =< Y, !, Z = A
+),(
+    tak(X,Y,Z,A) :-
+	X1 is X-1,
+	tak(X1,Y,Z,A1),
+	Y1 is Y-1,
+	tak(Y1,Z,X,A2),
+	Z1 is Z-1,
+	tak(Z1,X,Y,A3),
+	tak(A1,A2,A3,A)
+)]).
 testclause(bug(1), [
     simplify_code([], []),
     (simplify_code([code(Instr,_,_)|More], SimplifiedCode) :-

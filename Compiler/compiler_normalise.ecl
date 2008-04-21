@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.8 2007/08/29 20:53:17 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.9 2008/04/21 14:41:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2007/08/29 20:53:17 $").
+:- comment(date, "$Date: 2008/04/21 14:41:20 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -60,13 +60,10 @@
 
 	Goal ::=	SimpleGoal
 		|	Disjunction
-		|	Indexpoint
 
 	SimpleGoal ::=	goal{Term, ...}		% also used for head
 
 	Disjunction ::=	disjunction{Branches, ...}
-
-	Indexpoint ::=	indexpoint{...}
 
 	Branches ::=	[Conjunction|...]
 
@@ -268,7 +265,7 @@ normalize_body((G1->G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goa
 	normalize_body(G2, AG2, Branch, CallNr3, CallNr, Cut, Vs3, Vs, Goals3, Goals, CM, CM).
 
 normalize_body((G1;G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LM, CM) :- !,
-	Goals = [SavecutGoal,disjunction{arity:0,callpos:CallPos,branches:Branches}|Goals0],
+	Goals = [SavecutGoal,disjunction{callpos:CallPos,branches:Branches}|Goals0],
 	same_call_pos(Branch, CallNr0, CallNr1, CallPos0),
 	savecut_goal(CallPos0, Vs0, Vs1, DisjCut, SavecutGoal),
 	new_call_pos(Branch, CallNr1, CallNr2, _CallPos),
@@ -430,16 +427,17 @@ normalize_right_branch(G1, Ann, DisjCallPos, BranchNr0, BranchNr, Cut, _LocalCut
 
 % normalize_clause_list(+Clauses, ?AnnClauses, -NormClause, +CM, +Vs0, -Vs)
 normalize_clause_list([Clause], [AnnClause], NormClause, CM, Vs0, Vs) :- !,
-	NormClause = [SavecutGoal|NormClause1],
+	NormClause = [HeadMarker, SavecutGoal |NormClause1],
 	same_call_pos([], 1, _CallNr, CallPos),
 	savecut_goal(CallPos, Vs0, Vs1, Cut, SavecutGoal),
-	normalize_clause(Clause, AnnClause, [], NormClause1, CM, Cut, Vs1, Vs, _).
+	normalize_clause(Clause, AnnClause, [], NormClause1, CM, Cut, Vs1, Vs2, HeadVars),
+	head_marker(Clause, CM, CallPos, HeadVars, Vs2, Vs, HeadMarker).
 normalize_clause_list(Clauses, AnnClauses, NormClauses, CM, Vs0, Vs) :-
 	NormClauses = [
-	    SavecutGoal,
-	    disjunction{arity:Arity,callpos:CallPos,branches:NormBranches}
+	    HeadMarker,
+	    SavecutGoal, 
+	    disjunction{callpos:CallPos,branches:NormBranches}
 	],
-	clauses_arity(Clauses, Arity),
 	same_call_pos([], 1, CallNr1, CallPos0),
 	savecut_goal(CallPos0, Vs0, Vs1, Cut, SavecutGoal),
 	new_call_pos([], CallNr1, CallNr2, _CallPos),
@@ -448,19 +446,21 @@ normalize_clause_list(Clauses, AnnClauses, NormClauses, CM, Vs0, Vs) :-
 	(
 	    foreach(Clause,Clauses),
             foreach(AnnClause,AnnClauses),
-	    foreach([NormHead|Goals],NormBranches),
+	    foreach(Goals,NormBranches),
 	    fromto(1,BranchNr1,BranchNr2,_BranchNr),
-	    fromto(Vs1,Vs2,Vs3,Vs),
-	    param(CallPos,CM,Cut,_HeadVars)
+	    fromto(Vs1,Vs2,Vs3,Vs4),
+	    param(CallPos,CM,Cut,HeadVars)
 	do
 	    new_branch(CallPos, BranchNr1, BranchNr2, ClauseBranch),
-	    normalize_clause(Clause, AnnClause, ClauseBranch, [NormHead|Goals], CM, Cut, Vs2, Vs3, _HeadVars)
-	).
+	    normalize_clause(Clause, AnnClause, ClauseBranch, Goals, CM, Cut, Vs2, Vs3, HeadVars)
+	),
+	Clauses = [SomeClause|_],
+	head_marker(SomeClause, CM, CallPos0, HeadVars, Vs4, Vs, HeadMarker).
 
     normalize_clause(Clause, AnnClause, Branch, Goals, CM, Cut, Vs0, Vs, HeadVars) :-
 	clause_head_body(Clause, AnnClause, Head, Body, AnnHead, AnnBody, HeadType),
 	same_call_pos(Branch, 1, CallNr, CallPos),
-	normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals1, CM, Vs0, Vs1, HeadVars),
+	normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals1, Vs0, Vs1, HeadVars),
 	normalize_body(Body, AnnBody, Branch, CallNr, _CallNr, Cut, Vs1, Vs, Goals1, [], CM, CM).
 
     :- mode clause_head_body(+,?,-,-,-,-,-).
@@ -475,9 +475,21 @@ normalize_clause_list(Clauses, AnnClauses, NormClauses, CM, Vs0, Vs) :-
 %        Ann =: annotated_term{term:(AH?-AB)}.
     clause_head_body(H, AH, H, '', AH, '', =).
 
-    clauses_arity([Clause|_], A) ?-
+
+head_marker(Clause, CM, CallPos, HeadVars, Vs0, Vs, Goal) :-
+	(
+	    foreach(HeadVar,HeadVars),
+	    foreach(HeadArg,HeadArgs),
+	    fromto(Vs0,Vs1,Vs2,Vs)
+	do
+	    new_aux_variable(HeadVar, HeadArg, Vs1, Vs2)
+	),
+	Goal = goal{
+	    kind:head, callpos:CallPos,
+	    lookup_module:CM, definition_module:CM,
+	    functor:N/A, args:HeadArgs},
     	clause_head_body(Clause, _, H, _, _, _, _),
-	functor(H, _, A).
+	functor(H, N, A).
 
 
 % Create a goal to save the cut position in a new variable
@@ -518,14 +530,14 @@ cutto_goal(CallPos, Vs0, Vs1, CutVar, Goal) :-
 %	ground struct	ground_structure(ground)   TODO
 
 :- mode normalize_term(?,?,-,-,+,+).
-normalize_term(X, AnnX, Desc, [VarDesc|Vs1], Vs0, AttrFlag) :-
+normalize_term(X, AnnX, Desc, [X-VarDesc|Vs1], Vs0, AttrFlag) :-
 	var(X), !,
 	( nonvar(AnnX) ->
-	    VarDesc = variable{source_var:X,source_info:AnnX}
+	    VarDesc = variable{source_info:AnnX}
 	; get_var_info(X, name, Name) ->
-	    VarDesc = variable{source_var:X,source_info:name(Name)}
+	    VarDesc = variable{source_info:name(Name)}
 	;
-	    VarDesc = variable{source_var:X,source_info:none}
+	    VarDesc = variable{source_info:none}
 	),
 	( meta(X), AttrFlag = (?=) ->
 	    Desc = attrvar{variable:VarDesc,meta:NormMeta},
@@ -574,9 +586,10 @@ meta_attr_struct(X, Meta) :-
 
 
 % Introduce a new, auxiliary source variable that was not in the
-% original source. Treat occurrences like normal source variables.
-new_aux_variable(X, VarDesc, [VarDesc|Vs], Vs) :-
-	VarDesc = variable{source_info:none,source_var:X}.
+% original source, or an additional occurrence of a source variable.
+% Treat occurrences like normal source variables.
+new_aux_variable(X, VarDesc, [X-VarDesc|Vs], Vs) :-
+	VarDesc = variable{source_info:none}.
 
 
 
@@ -586,9 +599,9 @@ new_aux_variable(X, VarDesc, [VarDesc|Vs], Vs) :-
 % that is taken care of in the variable classification pass.
 
 assign_varids(Vs, _VarNames, N) :-
-	sort(source_var of variable, =<, Vs, SortedVs),
+	keysort(Vs, SortedVs),
 	(
-	    foreach(variable{source_var:X,varid:I},SortedVs),
+	    foreach(X-variable{varid:I},SortedVs),
 	    fromto(_OtherVar,X0,X,_),
 	    fromto(0,I0,I,N)
 	do
@@ -602,12 +615,12 @@ assign_varids(Vs, _VarNames, N) :-
 % If name information is missing, set source_name to the source variable.
 
 assign_varids(Vs, VarNames, N) :-
-	sort(source_var of variable, =<, Vs, SortedVs),
+	keysort(Vs, SortedVs),
 	sort(2, <, VarNames, SortedNames),
 	assign_varids_names(SortedVs, _OtherVar, SortedNames, 0, N).
 
     assign_varids_names([], _X, _Names, I, I).
-    assign_varids_names([variable{source_var:X,varid:I,source_name:Name}|List], X0, Names0, I0, IN) :-
+    assign_varids_names([X-variable{varid:I,source_name:Name}|List], X0, Names0, I0, IN) :-
     	( X == X0 -> I = I0 ; I is I0+1 ),
 	lookup_name(X, Names0, Names, Name),
 	assign_varids_names(List, X, Names, I, IN).
@@ -634,33 +647,25 @@ assign_varids(Vs, VarNames, N) :-
 % head variables of all clauses to be unified (for indexing analysis)!
 %
 % p(a) :- ...	is normalised into p(T) :- T?=a, ...
-% p(X,X) :- ...	is normalised into p(X,T) :- X=X, X=T, ...
-% p(X,X) ?- ...	is normalised into p(X,T) :- X=X, X==T, ...
+% p(X,X) :- ...	is normalised into p(X,T) :- X=T, ...
+% p(X,X) ?- ...	is normalised into p(X,T) :- X==T, ...
 % p(X{A}) ?- ... is normalised into into p(X) :- X?=X{A}, ...
 % p(X{A},X{A}) ?- ... is normalised into p(X,T) :- X?=X{A}, T==X, ...
 %
 % attrvar{} descriptors are only created on the rhs of ?=/2, in all other
 % locations, we use simple variable{} descriptors for attributed variables.
 
-normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals0, Module, Vs0, Vs, HeadVars) :-
-	AnnHead =: annotated_term{term:HeadAnn,file:File,line:Line,from:From,to:To},
-        Goals = [goal{
-		    kind:head, callpos:CallPos, lookup_module:Module,
-		    definition_module:Module,
-		    path:File, line:Line, from:From, to:To,
-		    functor:N/A, args:HeadArgs}
-		|Goals1],
-	functor(Head, N, A),
+normalize_head(HeadType, Head, AnnHead, CallPos, Goals1, Goals, Vs0, Vs, HeadVars) :-
+	AnnHead =: annotated_term{term:HeadAnn},
 	(
-	    for(I,1,A),
-	    foreach(HeadArg,HeadArgs),
+	    foreacharg(Arg,Head,I),
 	    fromto(Vs0,Vs1,Vs3,Vs),
 	    fromto([],Seen1,Seen2,_),
-	    fromto(Goals1,Goals2,Goals3,Goals0),
+	    fromto(Goals1,Goals2,Goals3,Goals),
 	    foreach(HeadVar,HeadVars),
-	    param(HeadType,Head,HeadAnn,CallPos)
+	    param(HeadType,HeadAnn,CallPos)
 	do
-	    Goals2 = [goal{
+	    Goal = goal{
 		    kind:simple,
 		    path:File,
 		    line:Line,
@@ -671,13 +676,13 @@ normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals0, Module, Vs0, Vs,
 		    lookup_module:sepia_kernel,
 		    functor:Op/2,
 		    args:[HeadArg,NormArg]
-		}|Goals3],
+		},
 	    varg(I, HeadAnn, AnnArg),
 	    AnnArg =: annotated_term{file:File,line:Line,from:From,to:To},
-	    arg(I, Head, Arg),
 	    ( nonvar(Arg) ->
 		% p(nonvar) :-  becomes  p(T) :- T=nonvar
 		% p(nonvar) ?-  becomes  p(T) :- T?=nonvar
+		Goals2 = [Goal|Goals3],
 		normalize_term(Arg, AnnArg, NormArg, Vs1,Vs2, HeadType),
 		Seen2 = Seen1,
 		Op = HeadType,
@@ -686,24 +691,20 @@ normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals0, Module, Vs0, Vs,
 		Seen2 = [Arg|Seen1],
 		( meta(Arg), HeadType = (?=) ->
 		    % p(X{A}) ?-  becomes  p(X) :- X?=X{A}
+		    Goals2 = [Goal|Goals3],
 		    Op = HeadType,
 		    normalize_term(Arg, AnnArg, NormArg, Vs1, Vs3, ?=),
 		    NormArg = attrvar{variable:HeadArg},
 		    HeadVar = Arg
 		;
 		    % Don't create a new variable for the first occurrence.
-		    % But create a dummy-goal X=X in order not to lose
-		    % the variable occurrence altogether. This is necessary
-		    % if the variable turns out to be permanent and has only
-		    % this head occurrence in the first chunk. The X=X goal
-		    % will then trigger initialisation of the environment slot.
-		    % p(X) :-  becomes  p(X) :- X=X
-		    normalize_term(Arg, AnnArg, NormArg, Vs1, Vs3, =),
-		    Op = (=),
-		    HeadArg = NormArg, HeadVar = Arg
+		    HeadVar = Arg,
+		    normalize_term(Arg, AnnArg, HeadArg, Vs1, Vs3, =),
+		    Goals2 = Goals3
 		)
 	    ;
 		% repeat occurence: T=X (or T==X for matching)
+		Goals2 = [Goal|Goals3],
 		normalize_term(Arg, AnnArg, NormArg, Vs1,Vs2, =),
 		Seen2 = Seen1,
 		headtype_varop(HeadType, Op),
@@ -845,13 +846,37 @@ print_normalized_goal(_Stream, _Indent, []).
 print_normalized_goal(Stream, Indent, [Goal|Goals]) :-
 	print_normalized_goal(Stream, Indent, Goal),
 	print_normalized_goal(Stream, Indent, Goals).
-print_normalized_goal(Stream, Indent, disjunction{arity:A,callpos:P,branches:Bs}) :-
-	( foreach(Branch,Bs), fromto("TRY",T,"RETRY",_), param(Stream,Indent,P,A) do
+print_normalized_goal(Stream, Indent, disjunction{determinism:Det,arity:A,
+		args:Args,indexvars:IndexVars,callpos:P,branches:Bs,branchheadargs:BHA}) :-
+	indent(Stream, Indent),
+	printf(Stream, "DISJ/%w  (%w, callpos:", [A,Det]),
+	print_call_pos(Stream, P),
+	writeln(Stream, ")"),
+	ArgIndent is Indent+1,
+	( foreach(Arg,Args), param(Stream,ArgIndent) do
+	    indent(Stream, ArgIndent), writeln(Stream, Arg)
+	),
+	indent(Stream, Indent),
+	writeln(Stream, "INDEXES:"),
+	( foreach(Arg,IndexVars), param(Stream,ArgIndent) do
+	    indent(Stream, ArgIndent), writeln(Stream, Arg)
+	),
+	( foreach(Branch,Bs), fromto("TRY",T,"RETRY",_), count(BranchI,1,_), param(Stream,Indent,P,A,BHA) do
 	    Indent1 is Indent+1,
 	    indent(Stream, Indent),
-	    printf(Stream, "%w/%d  (callpos:", [T,A]),
-	    print_call_pos(Stream, P),
+	    printf(Stream, "%w/%w  (callpos:", [T,A]),
+	    append(P, [BranchI], PB),
+	    print_call_pos(Stream, PB),
 	    writeln(Stream, ")"),
+	    ArgIndent is Indent1+1,
+	    ( integer(A), A>0 ->
+		arg(BranchI, BHA, Args),
+		( foreach(Arg,Args), param(Stream,ArgIndent) do
+		    indent(Stream, ArgIndent), writeln(Stream, Arg)
+		)
+	    ;
+		true
+	    ),
 	    print_normalized_goal(Stream, Indent1, Branch)
 	),
 	indent(Stream, Indent),
@@ -868,31 +893,7 @@ print_normalized_goal(Stream, Indent, goal{kind:K,callpos:P,state:State,
 	decode_activity_map(EAM,Env),
 	printf(Stream, ", env:%w)%n", [Env]),
 	ArgIndent is Indent+1,
-	( foreach(A,Args), param(Stream,ArgIndent) do
-	    indent(Stream, ArgIndent), writeln(Stream, A)
+	( foreach(Arg,Args), param(Stream,ArgIndent) do
+	    indent(Stream, ArgIndent), writeln(Stream, Arg)
 	),
 	print_goal_state(Stream, Indent, State).
-print_normalized_goal(Stream, Indent, indexpoint{callpos:P,args:Args}) :-
-	indent(Stream, Indent),
-	write(Stream, "INDEX  (callpos:"),
-	print_call_pos(Stream, P),
-	writeln(Stream, ")"),
-	ArgIndent is Indent+1,
-	( foreach(A,Args), param(Stream,ArgIndent) do
-	    indent(Stream, ArgIndent), writeln(Stream, A)
-	).
-
-
-/*
-print_normalized_head(Stream, Head) :-
-	functor(Head, F, A),
-	printf(Stream, "HEAD  %w%n", [F/A]),
-	(
-	    foreacharg(Arg,Head),
-	    param(Stream)
-	do
-	    indent(Stream, 1), writeln(Stream, Arg)
-	).
-*/
-
-

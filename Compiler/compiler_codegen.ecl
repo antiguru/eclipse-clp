@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.13 2008/04/03 01:02:26 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.14 2008/04/21 14:41:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,13 +30,12 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/03 01:02:26 $").
+:- comment(date, "$Date: 2008/04/21 14:41:20 $").
 
 
 :- lib(hash).
 
 :- use_module(compiler_common).
-:- use_module(compiler_regassign).
 
 :- include(compiler_compound).
 
@@ -47,43 +46,44 @@
 %----------------------------------------------------------------------
 
 :- local struct(chunk_data(
-	occurred,		% hash table varid->bool
+	occurred,		% hash table varid->bool (vars already seen in chunk)
 	aux_count,		% number of auxiliary temporaries
-	need_global		% space needed on global stack at this point
+	need_global,		% space needed on global stack at this point
+	eam			% environment activity map at chunk entry
     )).
 
 
-init_chunk_data(chunk_data{aux_count:0,occurred:Init}) :-
+init_chunk_data(EAM, chunk_data{aux_count:0,occurred:Init,eam:EAM}) :-
 	hash_create(Init).
 
-start_new_chunk(ChunkData0, ChunkData) :-
-	update_struct(chunk_data, [aux_count:0,occurred:Init], ChunkData0, ChunkData),
+start_new_chunk(EAM, ChunkData0, ChunkData) :-
+	update_struct(chunk_data, [aux_count:0,occurred:Init,eam:EAM], ChunkData0, ChunkData),
 	hash_create(Init).
 
 print_chunk_data(_,_).
 
 
-%
-% Registers a variable occurrence within a chunk and
+%----------------------------------------------------------------------
+% Register a variable occurrence within a chunk and
 % returns a "variable occurrence descriptor" of the form:
 %
-%	void
-%	tmp_first
-%	tmp
-%	perm_first(y(Y))
-%	perm_first_in_chunk(y(Y))
-%	perm(y(Y))
+%	void				void variable
+%	tmp_first			first occurrence of a temporary in its chunk
+%	tmp				repeat occurrence of a temporary in its chunk
+%	perm_first(y(Y))		first occurrence of a perm in its 1st chunk
+%	perm_first_in_chunk(y(Y))	first occurrence of perm in a later chunk
+%	perm(y(Y))			repeat occurrence of perm
 %
+% Special case: head perms that are still waiting to be moved into the environment
+% at the end of the initial chunk (delayed_perm) are classified as tmp.
 
-variable_occurrence(variable{varid:VarId,isafirst:FirstChunk,class:Class},
-		ChunkData, ChunkData, Descriptor) :-
-	ChunkData = chunk_data{occurred:OccurredInChunk},
-	variable_occurrence1(Class, FirstChunk, VarId, OccurredInChunk, Descriptor).
+variable_occurrence(variable{varid:VarId,class:Class}, ChunkData, ChunkData, Descriptor) :-
+	ChunkData = chunk_data{occurred:OccurredInChunk,eam:EAM},
+	variable_occurrence1(Class, EAM, VarId, OccurredInChunk, Descriptor).
 
-    variable_occurrence1(void, FirstChunk, _VarId, _OccurredInChunk, Descriptor) :- !,
-    	Descriptor = void,
-	verify FirstChunk == first.
-    variable_occurrence1(nonvoid(y(Y)), FirstChunk, VarId, OccurredInChunk, Descriptor) :- !,
+    variable_occurrence1(void, _EAM, _VarId, _OccurredInChunk, Descriptor) :- !,
+    	Descriptor = void.
+    variable_occurrence1(nonvoid(y(Y)), EAM, VarId, OccurredInChunk, Descriptor) :- !,
 	( hash_get(OccurredInChunk, VarId, Type) ->
 	    ( Type == delayed_perm ->
 		Descriptor = tmp
@@ -92,13 +92,13 @@ variable_occurrence(variable{varid:VarId,isafirst:FirstChunk,class:Class},
 	    )
 	;
 	    hash_set(OccurredInChunk, VarId, true),
-	    ( FirstChunk == first ->
+	    ( 0 is getbit(EAM, Y-1) ->
 		Descriptor = perm_first(y(Y))
 	    ;
 		Descriptor = perm_first_in_chunk(y(Y))
 	    )
 	).
-    variable_occurrence1(nonvoid(_Tmp), _FirstChunk, VarId, OccurredInChunk, Descriptor) :-
+    variable_occurrence1(nonvoid(_Tmp), _EAM, VarId, OccurredInChunk, Descriptor) :-
 	( hash_contains(OccurredInChunk, VarId) ->
 	    Descriptor = tmp
 	;
@@ -137,86 +137,69 @@ new_aux_temp(ChunkData0, ChunkData, aux(AuxCount)) :-
 
 :- export generate_code/6.
 
-generate_code(Clause, EnvSize, Code, CodeEnd, Options, ModPred) :-
+generate_code(Clause, EnvSize, Code, AuxCode, Options, ModPred) :-
 	Code = [code{instr:label(Start)}|Code0],
 	( EnvSize >= 0 ->
 	    Code0 = [code{instr:allocate(EnvSize)}|Code1],
-	    Code4 = [code{instr:exit}|AuxCode]
+	    Code4 = [code{instr:exit}|next([])]
 	;
 	    Code0 = Code1,
-	    Code4 = [code{instr:ret}|AuxCode]
+	    Code4 = [code{instr:ret}|next([])]
 	),
-	init_chunk_data(ChunkData0),
+	init_chunk_data(0, ChunkData0),
 	alloc_check_start(ChunkData0, ChunkData1, Code1, Code2),
-	generate_branch(Clause, ChunkData1, _ChunkData, 0, AuxCode, CodeEnd, Code2, Code4, Options, ModPred@Start).
+	generate_branch(Clause, [], ChunkData1, _ChunkData, 0, AuxCode, [], Code2, Code4, Options, ModPred@Start).
 
 
-generate_branch(AllChunks, ChunkData0, ChunkData, BranchExitInitMap, AuxCode0, AuxCode, Code0, Code, Options, SelfInfo) :-
+generate_branch(AllChunks, HeadPerms, ChunkData0, ChunkData, BranchExitInitMap, AuxCode0, AuxCode, Code0, Code, Options, SelfInfo) :-
 	% first chunk in branch
-	generate_chunk(AllChunks, OtherChunks, [], ChunkData0, ChunkData2, AuxCode0, AuxCode1, ChunkCode, ChunkCode, Code0, Code1, 0, _ArityUsed, Options, SelfInfo),
+	generate_chunk(AllChunks, OtherChunks, HeadPerms, ChunkData0, ChunkData2, AuxCode0, AuxCode1, Code0, Code1, 0, _ArityUsed, Options, SelfInfo),
 	(
 	    fromto(OtherChunks,ThisChunk,NextChunk,[]),
-	    fromto(ChunkData2,ChunkData3,ChunkData6,ChunkData7),
-	    fromto(Code1,Code2,Code3,Code4),
+	    fromto(ChunkData2,ChunkData3,ChunkData6,ChunkData),
+	    fromto(Code1,next(Code2),Code4,Code5),
 	    fromto(AuxCode1,AuxCode2,AuxCode3,AuxCode),
 	    param(Options,SelfInfo)
 	do
-	    start_new_chunk(ChunkData3, ChunkData4),
-	    alloc_check_start(ChunkData4, ChunkData5, ChunkCode, ChunkCode1),
-	    generate_chunk(ThisChunk, NextChunk, [], ChunkData5, ChunkData6, AuxCode2, AuxCode3, ChunkCode, ChunkCode1, Code2, Code3, 0, _ArityUsed, Options, SelfInfo)
+	    alloc_check_start(ChunkData3, ChunkData5, Code2, Code3),
+	    generate_chunk(ThisChunk, NextChunk, [], ChunkData5, ChunkData6, AuxCode2, AuxCode3, Code3, next(Code4), 0, _ArityUsed, Options, SelfInfo)
 	),
-	start_new_chunk(ChunkData7, ChunkData),
 	% Generate initialization code for any variables which did not occur
 	% in or before the branch, but have a non-first occurrence after it.
-	emit_initialize(BranchExitInitMap, Code4, Code).
+	emit_initialize(BranchExitInitMap, Code5, next(Code)).
 
 
-:- mode generate_chunk(+,-,+,+,-,?,-,-,?,-,?,+,-,+,+).
-generate_chunk([], [], HeadPerms, ChunkData, ChunkData, AuxCode, AuxCode, AllChunkCode, Code, FinalCode, FinalCode0, Arity, Arity, _Options, _Module) :-
+:- mode generate_chunk(+,-,+,+,-,?,-,-,?,+,-,+,+).
+generate_chunk([], [], HeadPerms, ChunkData0, ChunkData, AuxCode, AuxCode, Code, Code1, Arity, Arity, _Options, _Module) :-
 	% end of chunk (non-regular end of branch or clause), finalize the code
-	move_head_perms(HeadPerms, Code, []),
-	alloc_check_end(ChunkData),
-	assign_am_registers(AllChunkCode, FinalCode, FinalCode0).
-generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo) :-
+	move_head_perms(HeadPerms, Code, Code1),
+	alloc_check_end(ChunkData0),
+	start_new_chunk(0, ChunkData0, ChunkData).
+generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCode, AuxCode0, /*AllChunkCode, Code,*/ Code, Code0, MaxArity0, MaxArity, Options, SelfInfo) :-
 
 	( Goal = goal{kind:simple} ->		 % special goals
 	    generate_simple_goal(Goal, ChunkData0, ChunkData1, Code, Code1),
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, ChunkData, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, ChunkData, AuxCode, AuxCode0, Code1, Code0, MaxArity0, MaxArity, Options, SelfInfo)
 
 	; Goal = goal{kind:head,functor:(_/HeadArity),args:Args} ->	% clause-head or pseudo-head
-	    (
-		foreach(VarDesc, Args),
-		foreach(r(VarId,a(I),orig,_), OrigRegDescs),
-		fromto(ChunkData0, ChunkData1, ChunkData1, ChunkData3),
-		fromto(HeadPerms3, HeadPerms2, HeadPerms1, HeadPerms0),
-		count(I,1,_)
-	    do
-		VarDesc = variable{varid:VarId,class:C},
-		ChunkData1 = chunk_data{occurred:OccurredInChunk},
-		verify \+(hash_contains(OccurredInChunk, VarId)),
-		( C = nonvoid(y(Y)) ->
-		    hash_set(OccurredInChunk, VarId, delayed_perm),
-		    HeadPerms2 = [delayed_move(VarId,y(Y))|HeadPerms1]
-		;
-		    hash_set(OccurredInChunk, VarId, true),
-		    HeadPerms2 = HeadPerms1
-		)
-	    ),
+
+	    verify HeadPerms0 == [],
+	    generate_head_info([](Args), 1, ChunkData0, ChunkData3, HeadPerms3, [], OrigRegDescs),
 	    Code = [code{instr:nop,regs:OrigRegDescs}|Code1],
-	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, ChunkData, AuxCode, AuxCode0, AllChunkCode, Code1, FinalCode, FinalCode0, HeadArity, MaxArity, Options, SelfInfo)
+	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, ChunkData, AuxCode, AuxCode0, Code1, Code0, HeadArity, MaxArity, Options, SelfInfo)
 
 	; Goal = goal{kind:regular,functor:true/0,definition_module:sepia_kernel}, (Goals = [] ; Goals = [goal{kind:regular}|_] ) ->
 	    % Normally, true/0 should be eliminated in the normalisation phase.
 	    % But due to its legacy semantics (it is a regular goal and can
 	    % cause waking), we only eliminate it here when it occurs at the
 	    % end of a branch or just before another regular goal.
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCode, AuxCode0, AllChunkCode, Code, FinalCode, FinalCode0, MaxArity0, MaxArity, Options, SelfInfo)
+	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCode, AuxCode0, Code, Code0, MaxArity0, MaxArity, Options, SelfInfo)
 
-	; Goal = goal{kind:regular,functor:P,lookup_module:LM,envmap:EAM} ->
+	; Goal = goal{kind:regular,functor:P,args:Args,lookup_module:LM,envmap:EAM} ->
 	    P = _/CallArity,
 	    MaxArity is max(MaxArity0,CallArity),
 	    move_head_perms(HeadPerms0, Code, Code1),
-	    generate_regular_puts(Goal, ChunkData0, ChunkData, Code1, Code2, OutArgs),
+	    generate_regular_puts(Args, ChunkData0, ChunkData1, Code1, Code2, OutArgs),
 	    SelfInfo = Module:Self@SelfLab,
 	    ( LM\==Module ->
 	    	Pred = LM:P, Dest = Pred	% calling non-visible
@@ -228,44 +211,41 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 	    emit_debug_call_port(Options, Pred, OutArgs, OutArgs1, Goal, Code2, Code3),
 	    Code3 = [
 		% PRELIMINARY: always use callf instead of call (to reset DET flag)
-		code{instr:callf(Dest,eam(EAM)),regs:OutArgs1}],
+		code{instr:callf(Dest,eam(EAM)),regs:OutArgs1}|Code0],
 	    NextChunk = Goals,
 	    AuxCode = AuxCode0,
 	    % end of chunk, finalize the code
-	    alloc_check_end(ChunkData),
-	    assign_am_registers(AllChunkCode, FinalCode, FinalCode0)
+	    alloc_check_end(ChunkData1),
+	    start_new_chunk(EAM, ChunkData1, ChunkData)
 
-	; Goal = indexpoint{indexes:IndexDescs,envmap:EAM,nextaltlabel:Label2,
-			disjunction:disjunction{arity:TryArity,branchlabels:BranchLabelArray,branchentrymaps:BranchEamArray,determinism:Det}} ->
-	    MaxArity1 is max(MaxArity0,TryArity),
-	    generate_indexing(IndexDescs, BranchLabelArray, BranchEamArray, TryArity, ChunkData0, ChunkData1, Code, Code2, AuxCode, AuxCode1),
-	    arg(1, BranchLabelArray, BrLabel1),
-	    Code2 = [code{instr:try_me_else(0,TryArity,ref(Label2)),regs:[]},
-		    code{instr:label(BrLabel1),regs:[]}|Code3],
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, ChunkData, AuxCode1, AuxCode0, AllChunkCode, Code3, FinalCode, FinalCode0, MaxArity1, MaxArity, Options, SelfInfo)
+	; Goal = disjunction{branches:Branches, branchlabels:BranchLabelArray,
+		entrymap:EAM, exitmap: DisjExitEAM, determinism:Det,
+		arity:TryArity, args:Args, branchheadargs:HeadArgsArray,
+		branchentrymaps:BranchEamArray, branchinitmaps:BranchExitInits,
+		indexes:IndexDescs} ->
 
-	; Goal = disjunction{branches:Branches,branchlabels:BranchLabelArray,
-		entrymap:EAM,arity:TryArity,determinism:Det,
-		branchentrymaps:BranchEamArray,
-		branchinitmaps:BranchExitInits,
-		index:indexpoint{nextaltlabel:Label2}} ->
-
-	    length(Branches, NBranches),
+	    arity(BranchLabelArray, NBranches),
+	    make_retry_me_activity_maps(BranchEamArray, RetryEamArray),
 	    MaxArity is max(MaxArity0,TryArity),
 	    NextChunk = Goals,
 
-	    % end of chunk, finalize the code (auxiliary code doesn't need registers assigned)
-	    move_head_perms(HeadPerms0, Code, []),
-	    assign_am_registers(AllChunkCode, FinalCode, Code1),
-
 	    Branches = [Branch1|Branches2toN],
 	    BranchExitInits = [BranchExitInit1|BranchExitInits2toN],
-	    % indexing and try_me are generated inside the 1st branch,
-	    % triggered by indexpoint{} pseudo-goal
-	    alloc_check_split(ChunkData0, [GAlloc1|GAllocs2toN]),
-	    start_new_chunk(ChunkData0, ChunkData1),
-	    alloc_check_start_branch(det, ChunkData1, ChunkData11, Code1, Code11, GAlloc1),
-	    generate_branch(Branch1, ChunkData11, ChunkDataE1, BranchExitInit1, AuxCode, AuxCode2, Code11, Code2, Options, SelfInfo),
+
+	    move_head_perms(HeadPerms0, Code, Code101),
+	    generate_regular_puts(Args, ChunkData0, ChunkData01, Code101, Code102, ArgDests),
+	    Code102 = [code{instr:nop,regs:ArgDests}|Code103],
+	    generate_indexing(IndexDescs, BranchLabelArray, BranchEamArray, TryArity, ChunkData01, ChunkData1, Code103, next(Code104), AuxCode, AuxCode1),
+	    arg(1, BranchLabelArray, BrLabel1),
+	    arg(1, BranchEamArray, EAM1),
+	    Code104 = [code{instr:try_me_else(0,TryArity,ref(Label2)),regs:ArgOrigs}|Code105],
+	    alloc_check_split(ChunkData1, [GAlloc1|GAllocs2toN]),
+
+	    start_new_chunk(EAM1, ChunkData1, ChunkData2),
+	    Code105 = [code{instr:label(BrLabel1),regs:[]}|Code106],
+	    alloc_check_start_branch(det, ChunkData2, ChunkData3, Code106, Code107, GAlloc1),
+	    generate_head_info(HeadArgsArray, 1, ChunkData3, ChunkData4, PseudoHeadPerms, [], ArgOrigs),
+	    generate_branch(Branch1, PseudoHeadPerms, ChunkData4, ChunkDataE1, BranchExitInit1, AuxCode1, AuxCode2, Code107, Code2, Options, SelfInfo),
 	    Code2 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code3],
 	    (
 		for(I, 2, NBranches-1),
@@ -276,37 +256,79 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 		fromto(Code3, Code4, Code7, Code8),
 		fromto(AuxCode2, AuxCode3, AuxCode4, AuxCode5),
 		fromto(Label2, LabelI, LabelI1, LabelN),
-		param(LabelJoin,BranchLabelArray,BranchEamArray,Options,SelfInfo,Det,ChunkData1)
+		param(LabelJoin,BranchLabelArray,BranchEamArray,RetryEamArray,Options,SelfInfo,Det,ChunkData1,HeadArgsArray)
 	    do
 		arg(I, BranchLabelArray, BrLabelI),
 		arg(I, BranchEamArray, EAM),
+		arg(I, RetryEamArray, RetryEAM),
 		Code4 = [
 		    code{instr:label(LabelI),regs:[]},
-		    code{instr:retry_me_inline(0,ref(LabelI1),eam(EAM)),regs:[]},
+		    code{instr:retry_me_inline(0,ref(LabelI1),eam(RetryEAM)),regs:ArgOrigs},
 		    code{instr:label(BrLabelI),regs:[]}
 		    |Code5],
-		start_new_chunk(ChunkData1, ChunkData2),
+		start_new_chunk(EAM, ChunkData1, ChunkData2),
 		alloc_check_start_branch(Det, ChunkData2, ChunkData3, Code5, Code51, GAllocI),
-		generate_branch(Branch, ChunkData3, ChunkDataE, BranchExitInit, AuxCode3, AuxCode4, Code51, Code6, Options, SelfInfo),
+		generate_head_info(HeadArgsArray, I, ChunkData3, ChunkData4, PseudoHeadPerms, [], ArgOrigs),
+		generate_branch(Branch, PseudoHeadPerms, ChunkData4, ChunkDataE, BranchExitInit, AuxCode3, AuxCode4, Code51, Code6, Options, SelfInfo),
 		Code6 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code7]
 	    ),
 	    arg(NBranches, BranchLabelArray, BrLabelN),
 	    arg(NBranches, BranchEamArray, EAMN),
+	    arg(NBranches, RetryEamArray, RetryEAMN),
 	    Code8 = [
 		code{instr:label(LabelN),regs:[]},
-		code{instr:trust_me_inline(0,eam(EAMN)),regs:[]},
+		code{instr:trust_me_inline(0,eam(RetryEAMN)),regs:ArgOrigsN},
 		code{instr:label(BrLabelN),regs:[]}
 		|Code9],
-	    start_new_chunk(ChunkData1, ChunkData2),
-	    alloc_check_start_branch(Det, ChunkData2, ChunkData3, Code9, Code91, GAllocN),
-	    generate_branch(BranchN, ChunkData3, ChunkDataEN, BranchExitInitN, AuxCode5, AuxCode0, Code91, Code10, Options, SelfInfo),
-	    Code10 = [code{instr:label(LabelJoin),regs:[]}|FinalCode0],
-	    init_chunk_data(ChunkData),
+	    start_new_chunk(EAMN, ChunkData1, ChunkData2N),
+	    alloc_check_start_branch(Det, ChunkData2N, ChunkData3N, Code9, Code91, GAllocN),
+	    generate_head_info(HeadArgsArray, NBranches, ChunkData3N, ChunkData4N, PseudoHeadPermsN, [], ArgOrigsN),
+	    generate_branch(BranchN, PseudoHeadPermsN, ChunkData4N, ChunkDataEN, BranchExitInitN, AuxCode5, AuxCode0, Code91, Code10, Options, SelfInfo),
+	    Code10 = [code{instr:label(LabelJoin),regs:[]}|Code0],
+	    init_chunk_data(DisjExitEAM, ChunkData),
 	    alloc_check_join([ChunkDataE1|ChunkDataE2toN], ChunkData)
 
 	;
 	    printf(error, "ERROR: unexpected goal in generate_chunk", []),
 	    abort
+	).
+
+    % Environment activity at retry/trust instructions is the union of
+    % the activities of this and all following branches still to be tried
+    make_retry_me_activity_maps(BranchEamArray,RetryEamArray) :-
+	arity(BranchEamArray, NBranches),
+	dim(RetryEamArray, [NBranches]),
+	(
+	    for(I,NBranches,1,-1),
+	    fromto(0,RetryEAM0,RetryEAM,_),
+	    param(BranchEamArray,RetryEamArray)
+	do
+	    arg(I, BranchEamArray, EAM),
+	    arg(I, RetryEamArray, RetryEAM),
+	    RetryEAM is RetryEAM0 \/ EAM
+	).
+
+
+generate_head_info([], _BranchI, ChunkData, ChunkData, HeadPerms, HeadPerms, []) :- !.
+generate_head_info(HeadArgsArray, BranchI, ChunkData0, ChunkData3, HeadPerms3, HeadPerms0, OrigRegDescs) :-
+	arg(BranchI, HeadArgsArray, Args),
+	(
+	    foreach(VarDesc, Args),
+	    foreach(r(VarId,a(I),orig,_), OrigRegDescs),
+	    fromto(ChunkData0, ChunkData1, ChunkData1, ChunkData3),
+	    fromto(HeadPerms3, HeadPerms2, HeadPerms1, HeadPerms0),
+	    count(I,1,_)
+	do
+	    VarDesc = variable{varid:VarId,class:C},
+	    ChunkData1 = chunk_data{occurred:OccurredInChunk},
+	    verify \+(hash_contains(OccurredInChunk, VarId)),
+	    ( C = nonvoid(y(Y)) ->
+		hash_set(OccurredInChunk, VarId, delayed_perm),
+		HeadPerms2 = [delayed_move(VarId,y(Y))|HeadPerms1]
+	    ;
+		hash_set(OccurredInChunk, VarId, true),
+		HeadPerms2 = HeadPerms1
+	    )
 	).
 
 
@@ -317,7 +339,7 @@ emit_debug_call_port(options{debug:on}, Pred, OutArgs, [], goal{path:Path,line:L
 	(var(Line) -> Line = 0 ; true),
 	(var(From) -> From = 0 ; true),
 	(var(To) -> To = 0 ; true),
-	Code = [code{instr:debug_scall(Pred,1,Path1,Line,From,To),regs:OutArgs}|Code0].
+	Code = [code{instr:debug_scall(Pred,1,Path1,Line,From,To),regs:OutArgs}|Code0].  % 1=CALL_PORT
 
 
 %----------------------------------------------------------------------
@@ -396,7 +418,7 @@ emit_debug_call_port(options{debug:on}, Pred, OutArgs, [], goal{path:Path,line:L
 %		AuxCode - sub-index and try-sequence code
 
 generate_indexing(IndexDescs, BranchLabelArray, BranchEamArray, TryArity, ChunkData0, ChunkData, Code0, Code, AuxCode0, AuxCode) :-
-	functor(BranchLabelArray, _, NBranches),
+	arity(BranchLabelArray, NBranches),
 	( for(I,1,NBranches), foreach(I,AllBranches) do true ),
 	hash_create(LabelTable),
 	(
@@ -630,19 +652,31 @@ emit_try_sequence(Group, BranchLabelArray, BranchEamArray, TryArity, TryLabel, C
 			|Code2],
 		(
 		    fromto(BranchNrs2toN,[BranchNr|BranchNrs],BranchNrs,[BranchNrN]),
+		    fromto([],RevGroup1,[BranchNr|RevGroup1],RevGroup),
+		    fromto([],RetryEams1,[RetryEam|RetryEams1],RetryEams),
 		    fromto(Code2,Code3,Code4,Code5),
-		    param(BranchLabelArray,BranchEamArray)
+		    param(BranchLabelArray)
 		do
 		    arg(BranchNr, BranchLabelArray, BranchLabel),
-		    arg(BranchNr, BranchEamArray, BranchEam),
-		    Code3 = [code{instr:retry_inline(0,ref(BranchLabel),eam(BranchEam)),regs:[]}|Code4]
+		    Code3 = [code{instr:retry_inline(0,ref(BranchLabel),eam(RetryEam)),regs:[]}|Code4]
 		),
 		arg(BranchNrN, BranchLabelArray, BranchLabelN),
-		arg(BranchNrN, BranchEamArray, BranchEamN),
-		Code5 = [code{instr:trust_inline(0,ref(BranchLabelN),eam(BranchEamN)),regs:[]}|Code6]
+		Code5 = [code{instr:trust_inline(0,ref(BranchLabelN),eam(TrustEam)),regs:[]}|Code6],
+		make_retry_activity_maps([BranchNrN|RevGroup], BranchEamArray, [TrustEam|RetryEams])
 	    )
 	;
 	    TryLabel = fail, Code1 = Code6
+	).
+
+    make_retry_activity_maps(RevGroup, BranchEamArray, RetryEams) :-
+	(
+	    foreach(I, RevGroup),
+	    foreach(RetryEAM, RetryEams),
+	    fromto(0,RetryEAM0,RetryEAM,_),
+	    param(BranchEamArray)
+	do
+	    arg(I, BranchEamArray, EAM),
+	    RetryEAM is RetryEAM0 \/ EAM
 	).
 
 
@@ -694,8 +728,7 @@ emit_initialize(EAM, Code, Code0) :-
 % arguments with lots of temporaries should be put first.
 %----------------------------------------------------------------------
 
-generate_regular_puts(goal{args:Args},
-		ChunkData0, ChunkData, Code0, Code, CallRegDescs) :-
+generate_regular_puts(Args, ChunkData0, ChunkData, Code0, Code, CallRegDescs) :-
 
 	% determine an order (this should be an option)
 	heuristic_put_order(Args, ChunkData0, Ordered),
@@ -890,20 +923,16 @@ generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia
 
 generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_kernel,envsize:ESize}, ChunkData0, ChunkData, Code0, Code) ?- !,
 	Arg = variable{varid:VarId},
-%	verify nonvar(ESize),
+	verify nonvar(ESize),
 	variable_occurrence(Arg, ChunkData0, ChunkData, VarOccDesc),
 	( VarOccDesc = void ->
 	    Code0 = Code
-	; VarOccDesc = tmp ->
-	    Code0 = [code{instr:cut(R),regs:[r(VarId,R,use_a,_)]}|Code]
 	; VarOccDesc = perm_first_in_chunk(Y) ->
 	    Code0 = [code{instr:cut(Y,ESize),regs:[r(VarId,Y,perm,_)]}|Code]
-	; VarOccDesc = perm(_Y) ->
-	    % this should be use_y, otherwise if the value somehow got
-	    % into a register, it will be used from there
-	    Code0 = [code{instr:cut(RY,ESize),regs:[r(VarId,RY,use,_)]}|Code]
 	;
-	    verify false
+	    verify (VarOccDesc = perm(_Y) ; VarOccDesc == tmp),
+	    ( ESize >= 0 -> Instr = cut(RY,ESize) ; Instr = cut(RY) ),
+	    Code0 = [code{instr:Instr,regs:[r(VarId,RY,use,_)]}|Code]
 	).
 
 generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code) ?-
@@ -1530,22 +1559,26 @@ alloc_check_end(chunk_data{need_global:0}).
 
 print_annotated_code(Code) :-
 	writeln("------ Code ------"),
-	( foreach(InstrDesc,Code) do
-	    ( InstrDesc = code{instr:Instr,regs:Regs,comment:C} ->
-		( Instr = label(_) ->
-		    printf("%Vw%t", [Instr])
+	( fromto(Code,Code1,Code4,[]) do
+	    ( fromto(Code1,[InstrDesc|Code2],Code3,next(Code4)) do
+		( InstrDesc = code{instr:Instr,regs:Regs,comment:C} ->
+		    ( Instr = label(_) ->
+			printf("%Vw%t", [Instr])
+		    ;
+			printf("%t%Vw", [Instr])
+		    ),
+		    ( nonvar(Regs) -> printf("%t%t%_w", [Regs]) ; true ),
+		    ( nonvar(C) -> printf("%t%% %Vw", [C]) ; true ),
+		    nl
 		;
-		    printf("%t%Vw", [Instr])
+		    ( InstrDesc = label(_) ->
+			printf("%Vw%n", [InstrDesc])
+		    ;
+			printf("%t%Vw%n", [InstrDesc])
+		    )
 		),
-		( nonvar(Regs) -> printf("%t%t%_w", [Regs]) ; true ),
-		( nonvar(C) -> printf("%t%% %Vw", [C]) ; true ),
-		nl
-	    ;
-		( InstrDesc = label(_) ->
-		    printf("%Vw%n", [InstrDesc])
-		;
-		    printf("%t%Vw%n", [InstrDesc])
-		)
+		% allow termination by [] or next([])
+		( Code2 == [] -> Code3 = next([]) ; Code3 = Code2 )
 	    )
 	).
 

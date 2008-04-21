@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.5 2007/08/24 21:50:51 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.6 2008/04/21 14:41:20 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,35 +35,48 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/08/24 21:50:51 $").
+:- comment(date, "$Date: 2008/04/21 14:41:20 $").
 
-:- comment(desc, ascii("
-    This pass (actually two passes: compute_lifetimes and assign_env_slots)
-    takes as input a normalised predicate and finds out
-
-    - how many distinct variables there actually are (variables with the same
-      name occurring in parallel or-branches are considered distinct)
-
-    - classifies variables into void, temp, or permanent
-
-    - assigns environment slots to the permanent variables
-
-    - compute the size of environment needed
-
-    - computes 'environment activity map' for each call position
-
-    - makes singleton warnings
-
+:- comment(desc, html("
+    This pass (consisting of several phases) does the following jobs:
+    <UL>
+    <LI>
+    Computing the lifetimes of variables, thus classifying them into void
+    variables (for which singleton warnings may be generated), temporary
+    variables (whose lifetime does not extend across regular predicate calls),
+    and permanent variables (which require an environment slot). This
+    information is filled into the class-slots of the Body's variable{}
+    descriptors. Note that variables of the same name which occur only in
+    alternative disjunctive branches, are considered separate variables,
+    and may be assigned difference storage classes. 
+    <LI>
+    Decide whether values should be passed into disjunctions via environment
+    variables or as pseudo-aruments via argument registers.
+    <LI>
+    The second phase assigns concrete environment slots to variables,
+    ordered such that lifetimes that end later are put in slots with
+    lower numbers (if possible), which enables environment trimming.
+    It also computes the total environment size needed.
+    <LI>
+    The third phase computes environment activity maps for every relevant
+    position in the code.  These are needed to tell the garbage collector
+    which slots are not yet initialised, and which slots lifetime has
+    already ended even if the environment hasn't been trimmed (yet).
+    </UL>
+    <P>
     Note that, in this context, we talk about 'first' and 'last' occurrences
-    only with a granularity of 'call positions', i.e. all occurrences of a
-    variable in the first/last chunk it occurs in are considered (and marked
-    as) 'first'/'last'.
+    only with a granularity of 'call positions', e.g. all occurrences of a
+    variable in the first chunk it occurs in are considered 'first'.
     That way, later compiler stages are still free to reorder operations
-    within each chunk without affecting this variable classification.
+    within each chunk without affecting the variable classification.
+    <P>
+    This pass recognises the options 'print_lifetimes' (on/off) and
+    'warnings' (on/off) for singleton variable warnings.
 ")).
 
 
 :- lib(m_map).
+:- lib(hash).
 
 :- use_module(compiler_common).
 
@@ -77,7 +90,6 @@
 	firstpos,		% position of first occurrence
 				% (must be first for sorting!)
 	lastpos,		% position of last occurrence
-	lastflag,		% shared isalast-flag of all last occurrences
 	class			% shared with all occurrences (struct(variable))
     )).
 
@@ -86,7 +98,6 @@
     fields:[
 	firstpos:"call position of first variable occurrence",
 	lastpos:"call position of last variable occurrence",
-	lastflag:"shared isalast-flag of all last variable occurrences",
 	class:"shared class-field of all variable occurrences"
     ],
     see_also:[struct(variable)]
@@ -101,15 +112,12 @@
 %----------------------------------------------------------------------
 % Variable lifetimes and detection of false sharing
 %
-% We build a map that stores for each variable the first and
-% last occurrences (in terms of call positions).
-%
-% Also, the individual occurrences are marked as first and/or last
-% but only with a granularity of call positions (i.e. all occurrences
-% in the chunk are marked). The exact first occurrence is determined
-% later when generating code for the chunk. This has the advantage
-% that everything within the chunk can still be reordered after this
-% pass.
+% We build a map that stores for each variable the first and last occurrences
+% (in terms of call positions).  This is needed for classifying variables
+% as permanent. We are not interested to know which occurrence _within_ a chunk
+% is first, this will be determined later when generating code for the chunk.
+% This has the advantage that everything within the chunk can still be
+% reordered after this pass.
 %
 % Because of disjunctive branches, there can be more than one
 % first and last occurrence of each variable. Moreover, variables
@@ -117,7 +125,7 @@
 % variables, so this pass finds out how many different variables
 % there really are.
 %
-% The disjunctions are conceptually traversed in parallel,
+% The disjunctions are conceptually traversed in parallel.
 % When joining up, we merge the branches's maps into one.
 % 
 % Data structures:
@@ -137,48 +145,70 @@
 % then they could be merged more efficiently.
 %----------------------------------------------------------------------
 
-:- comment(compute_lifetimes/2, [
-    summary:"Compute variable lifetimes and detection of false sharing",
-    amode:compute_lifetimes(+,-),
+:- comment(classify_variables/3, [
+    summary:"Compute variable sharing, lifetimes and storage locations",
+    amode:classify_variables(+,-,+),
     args:[
 	"Body":"Normalised predicate",
-	"Lifetimes":"A map varid->struct(slot)"
+	"EnvSize":"Integer - necessary environment size",
+	"Options":"options-structure"
     ],
     see_also:[print_occurrences/1]
 ]).
 
-:- export compute_lifetimes/2.
-
-compute_lifetimes(Body, Lifetimes) :-
+:- export classify_variables/3.
+classify_variables(Body, EnvSize, Options) :-
 	m_map:init(Lifetimes0),
-	compute_lifetimes(Body, Lifetimes0, Lifetimes),
-	set_last_occurrence_flags(Lifetimes).
-	
-    set_last_occurrence_flags(Lifetimes) :-
-    	m_map:values(Lifetimes, SlotsList),
-	( foreach(Slots,SlotsList) do
-	    ( foreach(Slot,Slots) do
-	    	Slot = slot{lastflag:last}
-	    )
+	compute_lifetimes(Body, nohead, _PredHead, Lifetimes0, Lifetimes),
+	assign_env_slots(Body, Lifetimes, EnvSize, Options),
+	( Options = options{print_lifetimes:on} ->
+	    printf("------ Environment size %d ------%n", [EnvSize]),
+	    print_occurrences(Lifetimes)
+	;
+	    true
 	).
 
-compute_lifetimes([], Map, Map).
-compute_lifetimes([Goal|Goals], Map0, Map) :-
-	compute_lifetimes(Goal, Map0, Map1),
-	compute_lifetimes(Goals, Map1, Map).
-compute_lifetimes(disjunction{branches:Branches,callpos:DisjPos}, Map0, Map) :-
+
+compute_lifetimes([], _PredHead, nohead, Map, Map).
+compute_lifetimes([Goal|Goals], PredHead0, PredHead, Map0, Map) :-
+	compute_lifetimes(Goal, PredHead0, PredHead1, Map0, Map1),
+	compute_lifetimes(Goals, PredHead1, PredHead, Map1, Map).
+compute_lifetimes(disjunction{branches:Branches,callpos:DisjPos,
+		    branchlabels:BLA, indexvars:IndexArgs,
+		    arity:Arity,args:DisjArgs,branchheadargs:HeadArgsArray},
+		PredHead, nohead, Map0, Map) :-
+	% Index variables are accessed just before the disjunction
+	prev_call_pos(DisjPos, PreDisjPos),
+	compute_lifetimes_term(PreDisjPos, IndexArgs, Map0, Map1),
+	% Select pseudo-arguments to pass into the disjunction
+	vars_in_first_chunks(Branches, CandidateVarIdTable),
+	select_pseudo_arguments(CandidateVarIdTable, PredHead, PreDisjPos, Map1, Map2, DisjArgs, Arity),
+	( DisjArgs == [] ->
+	    HeadArgsArray = []	% instead of []([],...,[]), save some space
+	;
+	    arity(BLA, NBranches),
+	    dim(HeadArgsArray, [NBranches])
+	),
 	(
 	    foreach(Branch,Branches),
 	    foreach(BranchMap,BranchMaps),
-	    param(Map0)
+	    count(I,1,_),
+	    param(Map2,DisjArgs,HeadArgsArray,DisjPos)
 	do
-	    compute_lifetimes(Branch, Map0, BranchMap)
+	    % prefix pseudo-head arguments to the branch
+	    make_branch_head(I, HeadArgsArray, DisjArgs, HeadArgs),
+	    append(DisjPos, [I,1], BranchFirstPos),
+	    compute_lifetimes_term(BranchFirstPos, HeadArgs, Map2, Map3),
+	    compute_lifetimes(Branch, nohead, _PredHead, Map3, BranchMap)
 	),
 	merge_branches(DisjPos, BranchMaps, Map).
-compute_lifetimes(goal{callpos:GoalPos,args:Args}, Map0, Map) :-
+compute_lifetimes(Goal, PredHead0, PredHead, Map0, Map) :-
+	Goal = goal{kind:Kind,callpos:GoalPos,args:Args},
+	( Kind == head -> verify PredHead0==nohead, PredHead = Goal
+	; Kind == simple -> PredHead = PredHead0
+	; PredHead = nohead
+	),
 	compute_lifetimes_term(GoalPos, Args, Map0, Map).
-compute_lifetimes(indexpoint{callpos:CallPos,args:Args}, Map0, Map) :-
-	compute_lifetimes_term(CallPos, Args, Map0, Map).
 
     compute_lifetimes_term(CallPos, [X|Xs], Map0, Map) :-
 	compute_lifetimes_term(CallPos, X, Map0, Map1),
@@ -211,22 +241,17 @@ compute_lifetimes(indexpoint{callpos:CallPos,args:Args}, Map0, Map) :-
 %	- the locations are all unified
  
 register_occurrence(CallPos, Occurrence, Map0, Map) :-
-	Occurrence = variable{source_info:Source,varid:VarId,isalast:LastFlag,class:Location},
+	Occurrence = variable{source_info:Source,varid:VarId,class:Location},
 	( m_map:search(Map0, VarId, OldEntry) ->
 	    OldEntry = [OldSlot|Slots],
-	    OldSlot = slot{firstpos:FP0,lastpos:LP0,lastflag:LF0,class:Location},
+	    OldSlot = slot{firstpos:FP0,class:Location},
 	    merge_slots(Slots, FP0, FP, Location),
-	    update_struct(slot, [firstpos:FP,lastpos:CallPos,lastflag:LastFlag], OldSlot, NewSlot),
-	    % check for multiple first occurrences
-	    ( CallPos = FP -> Occurrence = variable{isafirst:first} ; true ),
-	    % check for multiple last occurrences
-	    ( CallPos = LP0 -> LastFlag = LF0 ; true ),
+	    update_struct(slot, [firstpos:FP,lastpos:CallPos], OldSlot, NewSlot),
 	    m_map:det_update(Map0, VarId, [NewSlot], Map)
 	;
 	    % first occurrence
 	    m_map:det_insert(Map0, VarId, [slot{source_info:Source,firstpos:CallPos,
-	    	lastpos:CallPos,lastflag:LastFlag,class:Location}], Map),
-	    Occurrence = variable{isafirst:first}
+	    	lastpos:CallPos, class:Location}], Map)
 	).
 
     % - unifies all the slot's class fields
@@ -293,8 +318,7 @@ register_occurrence(CallPos, Occurrence, Map0, Map) :-
 % entries with common first and different last occurrences:
 %	- first occurrence is older than the disjunction!
 %	- summarise them into one entry (by taking the common prefix of the
-%	last occurrences, unifying the class, and unifying the isalast
-%	flags)
+%	last occurrences, and unifying the class)
 %
 % entries whose first occurrence differs:
 %	- the first occurrence may be in this or in an earlier disjunction!
@@ -323,14 +347,9 @@ merge_branches(DisjPos, BranchMaps, MergedMap) :-
 	    	slots_ending_ge(DisjPos, SortedNoDupSlots, SlotsEnteringDisj),
 		SlotsEnteringDisj = [Slot1|_]
 	    ->
-		% unify lastflags
-		( foreach(slot{lastflag:LF},SlotsEnteringDisj), param(LF) do
-		    true
-		),
 		% replace with a single summary slot
 		append(DisjPos, [?,?], DisjEndPos),
-		update_struct(slot, [firstpos:OldestFirst,
-			lastpos:DisjEndPos,lastflag:LF], Slot1, NewSlot),
+		update_struct(slot, [firstpos:OldestFirst, lastpos:DisjEndPos], Slot1, NewSlot),
 		NewSlots = [NewSlot]
 	    ;
 	    	% all occurrences in current disjunction
@@ -353,6 +372,123 @@ merge_branches(DisjPos, BranchMaps, MergedMap) :-
 	).
 
 
+% From the candidates in VarIdTable, pick those that (so far) have their only occurrences
+% in the chunk before the disjunction at PreDisjPos. 
+select_pseudo_arguments(VarIdTable, PredHead, PreDisjPos, Map0, Map, DisjArgs, DisjArity) :-
+	hash_list(VarIdTable, VarIds, _),
+	(
+	    foreach(VarId,VarIds),
+	    fromto(Map0,Map1,Map2,Map),
+	    param(PreDisjPos,VarIdTable)
+	do
+	    % a variable that only occurs in PreDisPos can have only one slot
+	    (
+		m_map:search(Map1, VarId, Slots),
+		Slots = [slot{firstpos:PreDisjPos,lastpos:LP,class:Location,source_info:Source}]
+	    ->
+	    	verify PreDisjPos == LP,
+		% instantiate VarId's table entry to argument descriptor
+		hash_get(VarIdTable, VarId, ArgDesc),
+		verify var(ArgDesc),
+		ArgDesc = variable{varid:VarId,class:Location,source_info:Source},
+		% Classify the pre-disjunction occurrence as nonvoid(temp) here,
+		% and remove its entry from the Map.  That way, future
+		% occurrences will be considered first occurrences again.
+		Location = nonvoid(temp),
+		m_map:delete(Map1, VarId, Map2)
+	    ;
+		% Not useful as pseudo-argument: delete it from the candidate table
+		hash_delete(VarIdTable, VarId),
+	    	Map1 = Map2
+	    )
+	),
+	% Table now contains the varids we want to use as arguments
+	hash_count(VarIdTable, IdealDisjArity),
+	% For those disjunction-pseudo-args that match clause head args,
+	% put them in the same argument position (provided it is not beyond
+	% the disjunction's arity)
+	( PredHead = goal{functor:_/HeadArity,args:HeadArgs} ->
+	    (
+		for(_,1,min(HeadArity,IdealDisjArity)),
+		fromto(HeadArgs,[variable{varid:VarId}|HeadArgs1],HeadArgs1,_),
+		fromto(DisjArgs,[ArgDesc|DisjArgs1],DisjArgs1,DisjArgs2),
+		fromto(RemainingPositions,RemPos1,RemPos2,DisjArgs2),
+		param(VarIdTable)
+	    do
+	    	( hash_remove(VarIdTable, VarId, ArgDesc) ->
+		    RemPos1 = RemPos2
+		;
+		    RemPos1 = [ArgDesc|RemPos2]
+		)
+	    )
+	;
+	    verify PredHead==nohead,
+	    RemainingPositions = DisjArgs
+	),
+	DisjArity is min(IdealDisjArity,wam_registers),
+	length(DisjArgs, DisjArity),
+	hash_list(VarIdTable, _VarIds, RemainingArgDescs0),
+	sort(varid of variable, =<, RemainingArgDescs0, RemainingArgDescs),
+	(
+	    foreach(ArgDesc,RemainingPositions),
+	    fromto(RemainingArgDescs,[ArgDesc|ArgDescs],ArgDescs,Overflow)
+	do
+	    true
+	),
+	verify (Overflow==[] ; IdealDisjArity > DisjArity).
+
+
+% Build a hash map of all VarIds that occur in first chunks of
+% the given disjunctive branches
+vars_in_first_chunks(Branches, Occurs) :-
+	hash_create(Occurs),
+	(
+	    foreach(Branch,Branches),
+	    param(Occurs)
+	do
+	    vars_in_first_chunk(Branch, Occurs)
+	).
+
+    vars_in_first_chunk([], _Occurs).
+    vars_in_first_chunk([Goal|Goals], Occurs) :-
+	( Goal = goal{kind:Kind,args:Args} ->
+	    vars_in_term(Args, Occurs),
+	    ( Kind == regular ->
+	    	true
+	    ;
+		vars_in_first_chunk(Goals, Occurs)
+	    )
+	;
+	    true
+	).
+
+    vars_in_term([X|Xs], Occurs) :-
+	vars_in_term(X, Occurs),
+	vars_in_term(Xs, Occurs).
+    vars_in_term(variable{varid:VarId}, Occurs) :-
+	hash_set(Occurs, VarId, _empty).
+    vars_in_term(attrvar{variable:Avar,meta:Meta}, Occurs) :-
+	vars_in_term(Avar, Occurs),
+	vars_in_term(Meta, Occurs).
+    vars_in_term(structure{args:Args}, Occurs) :-
+	vars_in_term(Args, Occurs).
+    vars_in_term(Term, _Occurs) :- atomic(Term).
+
+
+% Make head variables for the branch's pseudo-arguments
+% Set their source_info field to 'none' because we don't want singleton
+% warnings in case they are the only occurrence in a branch and behind.
+make_branch_head(_I, [], [], []) :- !.
+make_branch_head(I, HeadArgsArray, DisjArgs, HeadArgs) :-
+	arg(I, HeadArgsArray, HeadArgs),
+	(
+	    foreach(variable{varid:VarId,source_info:_Source},DisjArgs),
+	    foreach(variable{varid:VarId,source_info:none},HeadArgs)
+	do
+	    true
+	).
+
+
 :- comment(print_occurrences/1, [
     summary:"Debugging: print result of variable lifetime analysis",
     amode:print_occurrences(+),
@@ -361,8 +497,6 @@ merge_branches(DisjPos, BranchMaps, MergedMap) :-
     ],
     see_also:[compute_lifetimes/2]
 ]).
-
-:- export print_occurrences/1.
 
 print_occurrences(Map) :-
 	writeln("------ Variable Lifetimes ------"),
@@ -404,17 +538,10 @@ print_occurrences(Map) :-
 % disjunction): it may not be possible to compute an optimal slot with
 % minimal lifetime, because the relative order of the ends of lifetimes
 % with other variables may be different in different branches.  We currently
-% treat such variables as always surviving until the end of the disjunction
-% (this may prevent garbage collection, but is in effect the same as in
-% ECLiPSe I).
-% 
-% Because of the way the garbage collector marks environments, we can
-% only shrink the active environment, not selectively mark slots as
-% no longer active.
+% treat such slots as always surviving until the end of the disjunction,
+% but note that environment activity maps contain precise information,
+% so that garbage collection is not negatively affected by this.
 %----------------------------------------------------------------------
-
-
-:- export assign_env_slots/4.
 
 assign_env_slots(Body, Map, EnvSize, Options) :-
 	m_map:to_assoc_list(Map, MapList),
@@ -426,7 +553,6 @@ assign_env_slots(Body, Map, EnvSize, Options) :-
 	sort(firstpos of slot, >=, PermSlots, SlotsIncStart),
 	sort(lastpos of slot, >=, SlotsIncStart, SlotsInc),
 	init_branch(Branch),
-%	assign_perm_slots(SlotsInc, Branch, 0, EnvSize0),
 	foreachcallposinbranch(Branch, SlotsInc, SlotsRest, 0, EnvSize0),
 	verify SlotsRest==[],
 
@@ -474,6 +600,13 @@ singleton_warning(annotated_term{type:var(Name),file:Path,line:Line}, options{wa
 	).
 singleton_warning(_, _).
 
+log_assignment(slot{source_info:Source}, Loc) ?- !,
+	( Source = annotated_term{type:var(Name),line:Line} ->
+	    printf(log_output, "%w	%w (%d)%n", [Loc,Name,Line])
+	;
+	    printf(log_output, "%w	%w%n", [Loc,Source])
+	).
+
 
 foreachcallposinbranch(_Branch, [], [], Y, Y).
 foreachcallposinbranch(Branch, [Slot|Slots], RestSlots, Y0, Y) :-
@@ -485,6 +618,7 @@ foreachcallposinbranch(Branch, [Slot|Slots], RestSlots, Y0, Y) :-
 	    verify PosInBranch \== ?,
 	    ( (SubBranch = [] ; SubBranch = [?,?]) ->
 		Y1 is Y0+1, Loc = y(Y1),	% assign env slot
+%		log_assignment(Slot, Loc),
 		Slots1 = Slots
 	    ;
 		% SlotPos is deeper down, RelPos=[7,2,7], [7,2,7,?,?] or longer
@@ -587,26 +721,32 @@ mark_env_activity_fwd([Goal|Goals], Seen0, Seen, Reverse0, Reverse) :-
 	mark_env_activity_fwd(Goal, Seen0, Seen1, Reverse0, Reverse1),
 	mark_env_activity_fwd(Goals, Seen1, Seen, Reverse1, Reverse).
 mark_env_activity_fwd(Disjunction, Seen0, Seen, Reverse, [RevDisj|Reverse]) :-
-	Disjunction = disjunction{branches:Branches},
+	Disjunction = disjunction{branches:Branches,args:DisjArgs,
+		branchheadargs:HeadArgsArray,indexvars:IndexVars},
 	RevDisj = rev_disj{rev_branches:RevBranches,disjunction:Disjunction,
 		seen_before:Seen0, seen_at_end:Seen, seen_at_ends:SeenEnds},
+	mark_env_activity_args(IndexVars, Seen0, Seen1),
+	mark_env_activity_args(DisjArgs, Seen1, Seen2),
 	(
 	    foreach(Branch,Branches),
 	    foreach(RevBranch,RevBranches),
 	    foreach(SeenEndBranch,SeenEnds),
-	    fromto(Seen0,Seen1,Seen2,Seen),
-	    param(Seen0)
+	    fromto(Seen2,Seen3,Seen4,Seen),
+	    count(BranchI,1,_),
+	    param(Seen2,HeadArgsArray)
 	do
-	    mark_env_activity_fwd(Branch, Seen0, SeenEndBranch, [], RevBranch),
-	    Seen2 is Seen1 \/ SeenEndBranch
+	    ( HeadArgsArray == [] ->
+		SeenAfterHead = Seen2
+	    ;
+		arg(BranchI, HeadArgsArray, HeadArgs),
+		mark_env_activity_args(HeadArgs, Seen2, SeenAfterHead)
+	    ),
+	    mark_env_activity_fwd(Branch, SeenAfterHead, SeenEndBranch, [], RevBranch),
+	    Seen4 is Seen3 \/ SeenEndBranch
 	).
 mark_env_activity_fwd(Goal, Seen0, Seen, Reverse, [RevGoal|Reverse]) :-
 	Goal = goal{args:Args},
 	RevGoal = rev_goal{seen_here:UsedHere,seen_before:Seen0,goal:Goal},
-	mark_env_activity_args(Args, 0, UsedHere),
-	Seen is Seen0 \/ UsedHere.
-mark_env_activity_fwd(Indexpoint, Seen0, Seen, Reverse, Reverse) :-
-	Indexpoint = indexpoint{args:Args},
 	mark_env_activity_args(Args, 0, UsedHere),
 	Seen is Seen0 \/ UsedHere.
 
@@ -653,8 +793,7 @@ mark_env_activity_bwd(rev_disj{rev_branches:Branches,
 			    entrymap:DisjEntryEAM,
 			    exitmap:DisjExitEAM,
 			    branchentrymaps:BranchEntryEamArray,
-			    branchinitmaps:BranchExitInits,
-			    index:indexpoint{envmap:DisjEntryEAM}}},
+			    branchinitmaps:BranchExitInits}},
 		After0, After, ESize) :-
 	% EAM after exiting the disjunction
 	DisjExitEAM is SeenEndDisj /\ After0,

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.10 2008/03/31 14:52:40 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.11 2008/04/21 14:41:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/31 14:52:40 $").
+:- comment(date, "$Date: 2008/04/21 14:41:20 $").
 
 
 %----------------------------------------------------------------------
@@ -258,65 +258,43 @@ default_options(options{
 	in the source (;/2) or from multiple clauses.
     "),
     fields:[
+	determinism:	"'nondet' or 'semidet' (for switches)",
 	callpos:	"identifier for the chunk it occurs in",
+	arity:		"pseudo-arity (valid arguments at retry time)",
+	args,		"the disjunction's pseudo-arguments",
+	branchheadargs,	"the pseudo-head arguments for each branch",
+	indexvars,	"list of variable{}s to which the indexes apply",
+	indexes,	"list of index{} corresponding to indexvars",
+    	branches:	"list of normalised goals (at least 2 elements)",
+	branchlabels:	"array[NBranches] of Labels",
+	branchentrymaps:"list of envmaps for each branch start (used in retry/trust instructions)",
+	branchinitmaps:	"list of envmaps for end-of-branch inits",
 	entrymap:	"environment activity bitmap (just before disjunction)",
 	entrysize:	"environment size (just before disjunction)",
 	exitmap:	"environment activity bitmap (just after disjunction)",
 	exitsize:	"environment size (just after disjunction)",
-	arity:		"pseudo-arity (valid arguments at retry time)",
-    	branches:	"list of normalised goals (at least 2 elements)",
-	branchlabels:	"array[NBranches] of Labels (shared with corresponding indexpoint)",
-	branchentrymaps:"list of envmaps for each branch start (used in retry/trust instructions)",
-	branchinitmaps:	"list of envmaps for end-of-branch inits",
-	index:		"struct indexpoint",
-	determinism:	"'nondet' or 'semidet' (for switches)",
 	state:		"execution state on entry (struct(state)),"
 			" the result of the analysis phase"
     ]
 ]).
 
 :- export struct(disjunction(
+	determinism,	% semidet or nondet
 	callpos,
-	entrymap,
+	arity,		% arity for try instructions (number of pseudo-arguments)
+	args,		% the disjunction's pseudo-arguments
+	branchheadargs,	% the pseudo-head arguments for each branch
+	indexvars,	% list of variable{}s to which the indexes apply
+	indexes,	% list of index{} corresponding to indexvars
+    	branches,	% list of list of goals
+	branchlabels,	% array[NBranches] of Labels
+	branchentrymaps, % list of envmaps for start of each branch
+	branchinitmaps, % list of envmaps for end-of-branch-inits
+	entrymap,	
 	entrysize,
 	exitmap,
 	exitsize,
-	arity,		% arity for try instructions
-    	branches,	% list of list of goals
-	branchlabels,	% array[NBranches] of Labels, shared with indexpoint
-	branchentrymaps, % list of envmaps for start of each branch
-	branchinitmaps, % list of envmaps for end of branch inits
-	index,
-	determinism,
 	state
-    )).
-
-
-:- comment(struct(indexpoint), [
-    summary:"Descriptor for a disjunction's indexes",
-    desc:ascii("
-	Descriptor for indexing. This is a pseudo goal that occurs
-	at the beginning of the first alternative of a disjunction.
-	It is treated similar to a simple goal.
-    "),
-    fields:[
-	callpos:	"identifier for the chunk it occurs in",
-	envmap:		"environment activity bitmap",
-	args:		"list of variable{} which are being indexed upon",
-	nextaltlabel:	"label of second alternative's retry/trust",
-	indexes:	"list of index{} in order of decreasing quality",
-	disjunction:	"disjunction{} that this index is connected to"
-    ]
-]).
-
-:- export struct(indexpoint(
-	callpos,
-	envmap,		% environment activity bitmap
-	args,		% list of variable{} that are switched on
-			% (a cache for the ones in indexes below)
-	nextaltlabel,	% label of first retry_me_else
-	indexes,	% list of index{}
-	disjunction	% disjunction{} that this index is connected to
     )).
 
 
@@ -395,26 +373,18 @@ default_options(options{
     "),
     fields:[
 	varid:		"unique source variable id (integer), created by normalize_clauses",
-	source_var:	"source variable",
-	source_info:	"struct(annotated_term), name/1 or 'none'",
-	isafirst:	"'first' if first occurrence, else uninst (filled in by compute_lifetimes)",
-	isafirst:	"'first' if first occurrence, else uninst (filled in by compute_lifetimes)",
-	isalast:	"'last' if last occurrence, else uninst (filled in by compute_lifetimes)",
-	class:		"variable class and permanent location (filled in by assign_env_slots)"
+	class:		"variable class and permanent location (filled in by assign_env_slots)",
+	source_info:	"struct(annotated_term), name/1 or 'none'"
     ]
 ]).
 
 :- export struct(variable(
 	varid,			% unique source variable id (integer)
-	source_var,		% source variable (possibly a copy!)
-	source_info,		% struct(annotated_term) or uninstantiated
-	isafirst,		% 'first' if first occurrence, else uninst
-	isalast,		% 'last' if last occurrence, else uninst
-
-	class			% variable class and preliminary location:
+	class,			% variable class and location:
 				%	void
 				%	nonvoid(temp)
 				%	nonvoid(y(I))
+	source_info		% struct(annotated_term) or uninstantiated
     )).
 
 
@@ -436,7 +406,7 @@ var_source_name(variable{source_info:name(Name0)}, Name) ?- !, Name=Name0.
     "),
     fields:[
 	"variable":"A standard variable (struct(variable))",
-	"meta":"An attribute  struture (struct(structure))"
+	"meta":"An attribute struture (struct(structure))"
     ]
 ]).
 
@@ -810,7 +780,7 @@ top_sort(Adj, PreOrdered, Ordered, UpEdges) :-
 
 %----------------------------------------------------------------------
 % Chunks and Call Positions
-% A chunk is a sequences of simple goals that ends with a regular goal
+% A chunk is a sequence of simple goals that ends with a regular goal
 % or the end of the clause. All goals in a chunk have the same call
 % position.  A call position is a list of positive integers (odd length):
 %	[Pos]
@@ -1131,3 +1101,11 @@ dt_list(dt{values:RevValues,except:ExceptTable}, KeysValues, KeysValues0, Key) :
 	    dt_list(SubDt, KeysValues2, KeysValues3, SubKey)
 	).
 
+
+%----------------------------------------------------------------------
+% Debugging support: output transformation for lib(m_map)
+%----------------------------------------------------------------------
+
+:- export portray(two/4,   m_map:to_sorted_assoc_list/2, [protect_arg]).
+:- export portray(three/7, m_map:to_sorted_assoc_list/2, [protect_arg]).
+:- export portray(four/10, m_map:to_sorted_assoc_list/2, [protect_arg]).

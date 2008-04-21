@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.18 2008/04/11 02:22:56 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.19 2008/04/21 14:41:19 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/04/11 02:22:56 $").
+:- comment(date, "$Date: 2008/04/21 14:41:19 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -818,8 +818,8 @@ simplify_chunk(Rescan, RescanTail, [AnnInstr|More], AllSimplified) :-
 	).
 
 
-is_nop(nop) :- true.
-is_nop(move(X,X)) :- true.
+is_nop(nop) ?- true.
+is_nop(move(X,X)) ?- true.
 is_nop(gc_test(0)) ?- true.
 is_nop(initialize([])) ?- true.
 
@@ -879,7 +879,12 @@ simplify(call(P,eam(0)), Code, [code{instr:Instr}|More], New, MoreT, NewT) ?- !,
 /*simplify(cut(y(1),_N), [exit|More], New) ?- !,
         New = [exitc|More].
 */
-simplify(savecut(a(A)), Code, [code{instr:cut(a(A))}|More], New, MoreT, NewT) ?- !,
+simplify(savecut(AY), Code, [code{instr:cut(AY)}|More], New, MoreT, NewT) ?- !,
+        % remove cut(..) and allow savecut(..) to be examined again for further simplifications
+        MoreT = [Code|More],
+        New = NewT.
+
+simplify(savecut(AY), Code, [code{instr:cut(AY,_)}|More], New, MoreT, NewT) ?- !,
         % remove cut(..) and allow savecut(..) to be examined again for further simplifications
         MoreT = [Code|More],
         New = NewT.
@@ -889,6 +894,14 @@ simplify(savecut(_), _, More, New, MoreT, NewT) ?- !,
         New = NewT,
         More = MoreT,
         unconditional_transfer_out(Instr).
+
+simplify(cut(A), Code, [code{instr:cut(A)}|More], New, MoreT, NewT) ?- !,
+        New = [Code|NewT],
+        More = MoreT.
+
+simplify(cut(AY,E), Code, [code{instr:cut(AY,E)}|More], New, MoreT, NewT) ?- !,
+        New = [Code|NewT],
+        More = MoreT.
 
 /*simplify(push_structure(B), [write_did(F/A)|More], New) ?- !,
         B is A + 1,

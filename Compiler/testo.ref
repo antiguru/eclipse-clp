@@ -556,14 +556,14 @@ p(A) :-
 
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	try_me_else              0     1     ref(3) 
 label(2):
-	move_chain               y(1)     a(1)     q / 1 
+	chain                    q / 1 
 label(3):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(4):
-	move_chain               y(1)     a(1)     r / 1 
+	chain                    r / 1 
 
 ------ Test 36 -------
 p :-
@@ -654,14 +654,15 @@ p :-
 p / 0:
 label(1):
 	allocate                 2 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	cut                      y(1)     2 
+	cut                      a(1)     2 
 	exit                 
 label(3):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(4):
+	move                     a(1)     y(1) 
 	put_global_variable_callf     a(1)     y(2)     p / 1     Y[1,2] 
 	move_callf               y(2)     a(1)     p / 1     Y[1] 
 	cut                      y(1)     2 
@@ -678,18 +679,20 @@ p(A, B) :-
 p / 2:
 label(1):
 	allocate                 2 
-	savecut                  y(1) 
+	move                     a(2)     a(3) 
+	savecut                  a(2) 
+	move                     a(3)     y(1) 
 	try_me_else              0     2     ref(3) 
 label(2):
-	cut                      y(1)     2 
+	cut                      a(2)     2 
 	exit                 
 label(3):
 	trust_me_inline          0     Y[1] 
 label(4):
 	move                     a(2)     y(2) 
 	callf                    p / 1     Y[1,2] 
-	move_callf               y(2)     a(1)     p / 1     Y[1] 
-	cut                      y(1)     2 
+	move_callf               y(1)     a(1)     p / 1     Y[2] 
+	cut                      y(2)     2 
 	exit                 
 
 ------ Test 43 -------
@@ -1119,12 +1122,11 @@ p :-
 
 p / 0:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	cut                      y(1)     1 
-	cut                      y(1)     1 
+	cut                      a(1)     0 
 	chain                    ref(1) 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -2846,18 +2848,17 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 do_x / 1:
 label(1):
-	get_variable             2     a(1)     y(2) 
-	list_switch              y(2)     ref(2)     ref(3)     ref(3) 
+	allocate                 1 
+	list_switch              a(1)     ref(2)     ref(3)     ref(3) 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(2)     y(1) 
+	move                     a(1)     y(1) 
 label(7):
 	move_chain               y(1)     a(1)     ref(1) 
 label(4):
-	trust_me_inline          0     Y[2] 
+	trust_me_inline          0     Y[] 
 label(5):
-	move                     y(2)     a(1) 
 	get_list                 a(1)     ref(6) 
 	write_integer            1 
 	write_variable           y(1) 
@@ -3006,26 +3007,26 @@ INDEXES for (nondet) disjunction [2]
     [integer, 2] - [2]
 p / 0:
 label(1):
-	allocate                 1 
-	put_global_variable      a(1)     y(1) 
+	allocate                 0 
+	put_variable             a(1) 
 	bi_integer               a(1) 
 label(2):
-	integer_switch           y(1) 
-		1: 	ref(4)
-		2: 	ref(6)
+	integer_switch           a(1) 
+		1: 	ref(8)
+		2: 	ref(9)
 		default: 	ref(fail)
 
 label(3):
-	try_me_else              0     0     ref(5) 
+	try_me_else              0     1     ref(5) 
 label(4):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
+label(8):
 	chain                    q / 0 
 label(5):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(6):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
+label(9):
 	chain                    q / 0 
 
 ------ Test ana(9) -------
@@ -3172,48 +3173,43 @@ INDEXES for (nondet) disjunction [2]
     [integer, 2] - [2, 3]
 p / 2:
 label(1):
-	get_variable             2     a(1)     y(1) 
-	move                     a(2)     y(2) 
+	allocate                 0 
 label(2):
-	atom_switch              y(2) 
-		a: 	ref(5)
+	atom_switch              a(2) 
+		a: 	ref(13)
 		b: 	ref(7)
-		c: 	ref(9)
+		c: 	ref(14)
 		default: 	ref(fail)
 
 label(3):
-	integer_switch           y(1) 
+	integer_switch           a(1) 
 		1: 	ref(11)
 		2: 	ref(12)
 		default: 	ref(9)
 
 label(4):
-	try_me_else              0     0     ref(6) 
+	try_me_else              0     2     ref(6) 
 label(5):
-	move                     y(2)     a(1) 
-	get_atom                 a(1)     a 
-	move                     y(1)     a(1) 
+	get_atom                 a(2)     a 
+label(13):
 	get_integer              a(1)     1 
 	chain                    p1 / 0 
 label(11):
-	try                      0     0     ref(5) 
-	trust_inline             0     ref(9)     Y[2] 
+	try                      0     2     ref(5) 
+	trust_inline             0     ref(9)     Y[] 
 label(12):
-	try                      0     0     ref(7) 
-	trust_inline             0     ref(9)     Y[2] 
+	try                      0     2     ref(7) 
+	trust_inline             0     ref(9)     Y[] 
 label(6):
-	retry_me_inline          0     ref(8)     Y[1,2] 
+	retry_me_inline          0     ref(8)     Y[] 
 label(7):
-	move                     y(1)     a(1) 
-	get_integer              a(1)     2 
-	move                     y(2)     a(1) 
-	get_atom                 a(1)     b 
+	get_atominteger          a(2)     b     a(1)     2 
 	chain                    p2 / 0 
 label(8):
-	trust_me_inline          0     Y[2] 
+	trust_me_inline          0     Y[] 
 label(9):
-	move                     y(2)     a(1) 
-	get_atom                 a(1)     c 
+	get_atom                 a(2)     c 
+label(14):
 	chain                    p3 / 0 
 
 ------ Test idx(4) -------
@@ -3251,62 +3247,56 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2, 3]
 p / 2:
 label(1):
-	get_variable             2     a(1)     y(1) 
-	move                     a(2)     y(2) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(4)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
 		bignum: 	ref(10)
-		breal: 	ref(8)
-		double: 	ref(8)
+		breal: 	ref(13)
+		double: 	ref(13)
 		goal: 	ref(fail)
 		handle: 	ref(fail)
 		integer: 	ref(11)
 		list: 	ref(fail)
-		rational: 	ref(8)
+		rational: 	ref(13)
 		string: 	ref(fail)
 		structure: 	ref(fail)
 
 	branch                   ref(4) 
 label(10):
-	try                      0     0     ref(6) 
-	trust_inline             0     ref(8)     Y[1] 
+	try                      0     2     ref(6) 
+	trust_inline             0     ref(8)     Y[] 
 label(11):
-	integer_switch           y(1) 
+	integer_switch           a(1) 
 		1: 	ref(2)
 		default: 	ref(10)
 
 label(12):
-	try                      0     0     ref(4) 
-	trust_inline             0     ref(8)     Y[1] 
+	try                      0     2     ref(4) 
+	trust_inline             0     ref(8)     Y[] 
 label(2):
-	atom_switch              y(2) 
+	atom_switch              a(2) 
 		a: 	ref(12)
 		b: 	ref(10)
 		default: 	ref(8)
 
 label(3):
-	try_me_else              0     0     ref(5) 
+	try_me_else              0     2     ref(5) 
 label(4):
-	move                     y(2)     a(1) 
-	get_atom                 a(1)     a 
-	move                     y(1)     a(1) 
-	get_integer              a(1)     1 
+	get_atominteger          a(2)     a     a(1)     1 
 	chain                    p1 / 0 
 label(5):
-	retry_me_inline          0     ref(7)     Y[1,2] 
+	retry_me_inline          0     ref(7)     Y[] 
 label(6):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
-	move                     y(2)     a(1) 
-	get_atom                 a(1)     b 
+	get_atom                 a(2)     b 
 	chain                    p2 / 0 
 label(7):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(8):
-	move                     y(1)     a(1) 
 	bi_number                a(1) 
+label(13):
 	chain                    p3 / 0 
 
 ------ Test idx(5) -------
@@ -3342,58 +3332,55 @@ INDEXES for (nondet) disjunction [2]
     [double] - [4]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(14)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
 		bignum: 	ref(11)
-		breal: 	ref(9)
-		double: 	ref(9)
+		breal: 	ref(16)
+		double: 	ref(16)
 		goal: 	ref(fail)
 		handle: 	ref(fail)
 		integer: 	ref(15)
 		list: 	ref(fail)
-		rational: 	ref(9)
+		rational: 	ref(16)
 		string: 	ref(fail)
 		structure: 	ref(fail)
 
 label(14):
-	try                      0     0     ref(3) 
-	trust_inline             0     ref(5)     Y[1] 
+	try                      0     1     ref(3) 
+	trust_inline             0     ref(5)     Y[] 
 label(11):
-	try                      0     0     ref(7) 
-	trust_inline             0     ref(9)     Y[1] 
+	try                      0     1     ref(7) 
+	trust_inline             0     ref(9)     Y[] 
 label(9):
-	move                     y(1)     a(1) 
 	bi_number                a(1) 
+label(16):
 	chain                    p4 / 0 
 label(15):
-	integer_switch           y(1) 
+	integer_switch           a(1) 
 		1: 	ref(12)
 		2: 	ref(13)
 		default: 	ref(11)
 
 label(3):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
 	chain                    p1 / 0 
 label(5):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
 	chain                    p2 / 0 
 label(7):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
 	chain                    p3 / 0 
 label(12):
-	try                      0     0     ref(3) 
-	retry_inline             0     ref(7)     Y[1] 
-	trust_inline             0     ref(9)     Y[1] 
+	try                      0     1     ref(3) 
+	retry_inline             0     ref(7)     Y[] 
+	trust_inline             0     ref(9)     Y[] 
 label(13):
-	try                      0     0     ref(5) 
-	retry_inline             0     ref(7)     Y[1] 
-	trust_inline             0     ref(9)     Y[1] 
+	try                      0     1     ref(5) 
+	retry_inline             0     ref(7)     Y[] 
+	trust_inline             0     ref(9)     Y[] 
 
 ------ Test idx(6) -------
 p :-
@@ -3463,22 +3450,22 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	list_switch              y(1)     ref(5)     ref(3)     ref(fail) 
+	allocate                 0 
+	list_switch              a(1)     ref(6)     ref(8)     ref(fail) 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	get_nil                  a(1) 
+label(8):
 	chain                    p1 / 0 
-label(4):
-	trust_me_inline          0     Y[1] 
-label(5):
-	move                     y(1)     a(1) 
-	get_list                 a(1)     ref(6) 
-	write_void               2 
 label(6):
 	chain                    p2 / 0 
+label(4):
+	trust_me_inline          0     Y[] 
+label(5):
+	get_list                 a(1)     ref(6) 
+	write_void               2 
+	branch                   ref(6) 
 
 ------ Test idx(8) -------
 p(A) :-
@@ -3496,11 +3483,10 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
-		meta: 	ref(3)
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(7)
 		[]: 	ref(5)
 		atom: 	ref(5)
 		bignum: 	ref(5)
@@ -3514,10 +3500,11 @@ label(1):
 		string: 	ref(5)
 		structure: 	ref(5)
 
+	branch                   ref(7) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_var                   a(1) 
-	cut                      y(2)     2 
+label(7):
+	cut                      a(2)     0 
 	chain                    p / 0 
 label(5):
 	chain                    q / 0 
@@ -3539,16 +3526,14 @@ INDEXES for (nondet) disjunction [2]
     [double] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	try_me_else              0     1     ref(3) 
 label(2):
-	move                     y(1)     a(1) 
 	get_constant             a(1)     3.1 
 	chain                    p / 0 
 label(3):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(4):
-	move                     y(1)     a(1) 
 	get_constant             a(1)     9.9 
 	chain                    q / 0 
 
@@ -3573,8 +3558,8 @@ INDEXES for (nondet) disjunction [2]
     [string] - [1, 2, 3]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(2)
 		[]: 	ref(7)
 		atom: 	ref(7)
@@ -3590,15 +3575,13 @@ label(1):
 		structure: 	ref(7)
 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	get_string               a(1)     "foo" 
 	chain                    p / 0 
 label(4):
-	retry_me_inline          0     ref(6)     Y[1] 
+	retry_me_inline          0     ref(6)     Y[] 
 label(5):
-	move                     y(1)     a(1) 
 	get_string               a(1)     "bar" 
 	chain                    q / 0 
 label(6):
@@ -3629,30 +3612,28 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2, 3]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
+	allocate                 0 
 label(2):
-	functor_switch           y(1) 
+	functor_switch           a(1) 
 		g / 2: 	ref(14)
 		f / 1: 	ref(15)
 		default: 	ref(12)
 
 label(3):
-	try_me_else              0     0     ref(7) 
+	try_me_else              0     1     ref(7) 
 label(4):
-	move                     y(1)     a(1) 
 	get_structure            a(1)     f / 1     ref(5) 
 	write_integer            1 
 	chain                    p / 0 
 label(14):
-	try                      0     0     ref(8) 
+	try                      0     1     ref(8) 
 	trust_inline             0     ref(12)     Y[] 
 label(15):
-	try                      0     0     ref(4) 
+	try                      0     1     ref(4) 
 	trust_inline             0     ref(12)     Y[] 
 label(7):
-	retry_me_inline          0     ref(11)     Y[1] 
+	retry_me_inline          0     ref(11)     Y[] 
 label(8):
-	move                     y(1)     a(1) 
 	get_structure            a(1)     g / 2     ref(9) 
 	write_integer2           1     2 
 	chain                    q / 0 
@@ -3683,12 +3664,11 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	list_switch              y(1)     ref(5)     ref(2)     ref(5) 
+	allocate                 0 
+	list_switch              a(1)     ref(5)     ref(2)     ref(5) 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	get_nil                  a(1) 
 	chain                    p / 0 
 label(4):
@@ -3713,14 +3693,13 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	list_switch              y(1)     ref(5)     ref(3)     ref(5) 
+	allocate                 0 
+	savecut                  a(2) 
+	list_switch              a(1)     ref(5)     ref(7)     ref(5) 
 label(3):
-	move                     y(1)     a(1) 
 	get_nil                  a(1) 
-	cut                      y(2)     2 
+label(7):
+	cut                      a(2)     0 
 	chain                    p / 0 
 label(5):
 	chain                    r / 0 
@@ -3851,13 +3830,13 @@ p(A) :-
 
 p / 1:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     1 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     0 
 	chain                    p / 0 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -3881,19 +3860,18 @@ INDEXES for (semidet) disjunction [2]
     [[]] - [1]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	list_switch              y(1)     ref(5)     ref(3)     ref(fail) 
+	allocate                 0 
+	list_switch              a(1)     ref(5)     ref(7)     ref(fail) 
 	branch                   ref(fail) 
 label(5):
-	put_list                 a(1) 
+	put_list                 a(2) 
 	write_atom               a 
 	push_nil             
-	move                     y(1)     a(2) 
-	get_matched_value        a(2)     a(1) 
+	get_matched_value        a(1)     a(2) 
 	chain                    q / 0 
 label(3):
-	move                     y(1)     a(1) 
 	in_get_nil               a(1) 
+label(7):
 	chain                    p / 0 
 
 ------ Test idx(21) -------
@@ -3914,8 +3892,8 @@ INDEXES for (semidet) disjunction [2]
     [string] - [2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(fail)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
@@ -3932,14 +3910,12 @@ label(1):
 
 	branch                   ref(fail) 
 label(5):
-	move                     y(1)     a(1) 
 	in_get_string            a(1)     "hello" 
 	chain                    s / 0 
 label(3):
-	put_structure            a(1)     f / 1 
+	put_structure            a(2)     f / 1 
 	write_atom               a 
-	move                     y(1)     a(2) 
-	get_matched_value        a(2)     a(1) 
+	get_matched_value        a(1)     a(2) 
 	chain                    r / 0 
 
 ------ Test idx(22) -------
@@ -3966,10 +3942,10 @@ INDEXES for (semidet) disjunction [2]
     [structure, f / 1] - [3]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(fail)
-		[]: 	ref(3)
+		[]: 	ref(9)
 		atom: 	ref(fail)
 		bignum: 	ref(fail)
 		breal: 	ref(fail)
@@ -3984,21 +3960,19 @@ label(1):
 
 	branch                   ref(fail) 
 label(3):
-	move                     y(1)     a(1) 
 	in_get_nil               a(1) 
+label(9):
 	chain                    p / 0 
 label(5):
-	put_list                 a(1) 
+	put_list                 a(2) 
 	write_atom               a 
 	push_nil             
-	move                     y(1)     a(2) 
-	get_matched_value        a(2)     a(1) 
+	get_matched_value        a(1)     a(2) 
 	chain                    q / 0 
 label(7):
-	put_structure            a(1)     f / 1 
+	put_structure            a(2)     f / 1 
 	write_atom               a 
-	move                     y(1)     a(2) 
-	get_matched_value        a(2)     a(1) 
+	get_matched_value        a(1)     a(2) 
 	chain                    r / 0 
 
 ------ Test idx(23) -------
@@ -4049,10 +4023,9 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
 		meta: 	ref(3)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
@@ -4068,26 +4041,23 @@ label(1):
 		structure: 	ref(11)
 
 label(3):
-	move                     y(1)     a(1) 
 	get_structure            a(1)     f / 1     ref(4) 
 	write_void           
 label(4):
-	cut                      y(2)     2 
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(6):
-	move                     y(1)     a(1) 
 	get_list                 a(1)     ref(7) 
 	write_void               2 
 label(7):
-	cut                      y(2)     2 
+	cut                      a(2)     0 
 	chain                    p2 / 0 
 label(11):
-	functor_switch           y(1) 
-		f / 1: 	ref(3)
+	functor_switch           a(1) 
+		f / 1: 	ref(4)
 		default: 	ref(9)
 
 label(9):
-	move                     y(1)     a(1) 
 	bi_compound              a(1) 
 	chain                    p2 / 0 
 
@@ -4160,10 +4130,10 @@ INDEXES for (nondet) disjunction [2]
     [double] - [3]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(2)
-		[]: 	ref(17)
+		[]: 	ref(26)
 		atom: 	ref(15)
 		bignum: 	ref(5)
 		breal: 	ref(11)
@@ -4177,15 +4147,13 @@ label(1):
 		structure: 	ref(22)
 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
 	chain                    p_integer / 0 
 label(4):
-	retry_me_inline          0     ref(6)     Y[1] 
+	retry_me_inline          0     ref(6)     Y[] 
 label(5):
-	move                     y(1)     a(1) 
 	get_constant             a(1)     10000000000000000000 
 	chain                    p_big / 0 
 label(20):
@@ -4194,52 +4162,45 @@ label(23):
 	read_atom                bar 
 	chain                    p_struct / 0 
 label(6):
-	retry_me_inline          0     ref(8)     Y[1] 
+	retry_me_inline          0     ref(8)     Y[] 
 label(7):
-	move                     y(1)     a(1) 
 	get_constant             a(1)     1.1 
 	chain                    p_float / 0 
 label(8):
-	retry_me_inline          0     ref(10)     Y[1] 
+	retry_me_inline          0     ref(10)     Y[] 
 label(9):
-	move                     y(1)     a(1) 
 	get_constant             a(1)     5_2 
 	chain                    p_rational / 0 
 label(10):
-	retry_me_inline          0     ref(12)     Y[1] 
+	retry_me_inline          0     ref(12)     Y[] 
 label(11):
-	move                     y(1)     a(1) 
 	get_constant             a(1)     0.9__1.1 
 	chain                    p_breal / 0 
 label(12):
-	retry_me_inline          0     ref(14)     Y[1] 
+	retry_me_inline          0     ref(14)     Y[] 
 label(13):
-	move                     y(1)     a(1) 
 	get_string               a(1)     "hello" 
 	chain                    p_string / 0 
 label(14):
-	retry_me_inline          0     ref(16)     Y[1] 
+	retry_me_inline          0     ref(16)     Y[] 
 label(15):
-	move                     y(1)     a(1) 
 	get_atom                 a(1)     hello 
 	chain                    p_atom / 0 
 label(16):
-	retry_me_inline          0     ref(18)     Y[1] 
+	retry_me_inline          0     ref(18)     Y[] 
 label(17):
-	move                     y(1)     a(1) 
 	get_nil                  a(1) 
+label(26):
 	chain                    p_nil / 0 
 label(18):
-	retry_me_inline          0     ref(21)     Y[1] 
+	retry_me_inline          0     ref(21)     Y[] 
 label(19):
-	move                     y(1)     a(1) 
 	get_list                 a(1)     ref(20) 
 	write_void               2 
 	branch                   ref(20) 
 label(21):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(22):
-	move                     y(1)     a(1) 
 	get_structure            a(1)     foo / 1     ref(23) 
 	write_atom               bar 
 	chain                    p_struct / 0 
@@ -4320,73 +4281,73 @@ INDEXES for (semidet) disjunction [2]
     [double] - [3]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
-		meta: 	ref(3)
-		[]: 	ref(15)
-		atom: 	ref(17)
-		bignum: 	ref(5)
-		breal: 	ref(11)
-		double: 	ref(7)
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(26)
+		[]: 	ref(27)
+		atom: 	ref(28)
+		bignum: 	ref(29)
+		breal: 	ref(30)
+		double: 	ref(31)
 		goal: 	ref(fail)
-		handle: 	ref(24)
-		integer: 	ref(5)
-		list: 	ref(19)
-		rational: 	ref(9)
-		string: 	ref(13)
-		structure: 	ref(22)
+		handle: 	ref(32)
+		integer: 	ref(29)
+		list: 	ref(33)
+		rational: 	ref(34)
+		string: 	ref(35)
+		structure: 	ref(36)
 
+	branch                   ref(26) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_var                   a(1) 
+label(26):
 	chain                    p_var / 0 
 label(15):
-	move                     y(1)     a(1) 
 	bi_nonvar                a(1) 
+label(27):
 	get_nil                  a(1) 
-	cut                      y(2)     2 
+	cut                      a(2)     0 
 	chain                    p_nil / 0 
 label(17):
-	move                     y(1)     a(1) 
 	bi_atom                  a(1) 
+label(28):
 	chain                    p_atom / 0 
 label(5):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
+label(29):
 	chain                    p_integer / 0 
 label(11):
-	move                     y(1)     a(1) 
 	bi_breal                 a(1) 
+label(30):
 	chain                    p_breal / 0 
 label(7):
-	move                     y(1)     a(1) 
 	bi_float                 a(1) 
+label(31):
 	chain                    p_float / 0 
 label(24):
-	move                     y(1)     a(1) 
 	bi_is_handle             a(1) 
+label(32):
 	chain                    p_handle / 0 
 label(19):
-	move                     y(1)     a(1) 
 	bi_nonvar                a(1) 
+label(33):
 	get_list                 a(1)     ref(20) 
 	write_void               2 
 label(20):
-	cut                      y(2)     2 
+	cut                      a(2)     0 
 	chain                    p_list / 0 
 label(9):
-	move                     y(1)     a(1) 
 	bi_rational              a(1) 
+label(34):
 	chain                    p_rational / 0 
 label(13):
-	move                     y(1)     a(1) 
 	bi_string                a(1) 
+label(35):
 	chain                    p_string / 0 
 label(22):
-	move                     y(1)     a(1) 
 	bi_compound              a(1) 
+label(36):
 	chain                    p_struct / 0 
 
 ------ Test idx(27) -------
@@ -4408,10 +4369,10 @@ INDEXES for (nondet) disjunction [2]
     [atom, hello] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(5)
-		[]: 	ref(3)
+		[]: 	ref(8)
 		atom: 	ref(7)
 		bignum: 	ref(fail)
 		breal: 	ref(fail)
@@ -4426,20 +4387,19 @@ label(1):
 
 	branch                   ref(5) 
 label(7):
-	atom_switch              y(1) 
+	atom_switch              a(1) 
 		hello: 	ref(2)
 		default: 	ref(3)
 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_atom                  a(1) 
+label(8):
 	chain                    p_string / 0 
 label(4):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(5):
-	move                     y(1)     a(1) 
 	get_atom                 a(1)     hello 
 	chain                    p_hello / 0 
 
@@ -4467,8 +4427,8 @@ INDEXES for (nondet) disjunction [2]
     [string] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(2)
 		[]: 	ref(fail)
 		atom: 	ref(7)
@@ -4484,24 +4444,21 @@ label(1):
 		structure: 	ref(fail)
 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	get_string               a(1)     "abc" 
 	chain                    p1 / 0 
 label(9):
-	try                      0     0     ref(3) 
-	trust_inline             0     ref(5)     Y[1] 
+	try                      0     1     ref(3) 
+	trust_inline             0     ref(5)     Y[] 
 label(4):
-	retry_me_inline          0     ref(6)     Y[1] 
+	retry_me_inline          0     ref(6)     Y[] 
 label(5):
-	move                     y(1)     a(1) 
 	get_string               a(1)     "def" 
 	chain                    p2 / 0 
 label(6):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(7):
-	move                     y(1)     a(1) 
 	get_atom                 a(1)     ghi 
 	chain                    p3 / 0 
 
@@ -4573,27 +4530,26 @@ INDEXES for (semidet) disjunction [2]
     [integer, 2] - [2]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
+	allocate                 0 
+	savecut                  a(2) 
 label(2):
-	integer_switch           y(1) 
-		1: 	ref(4)
-		2: 	ref(6)
+	integer_switch           a(1) 
+		1: 	ref(10)
+		2: 	ref(11)
 		default: 	ref(8)
 
 label(4):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	cut                      y(2)     2 
+label(10):
+	cut                      a(2)     0 
 	chain                    p1 / 0 
-label(6):
-	move                     y(1)     a(1) 
-	get_integer              a(1)     2 
-	cut                      y(2)     2 
-	chain                    p2 / 0 
 label(8):
 	chain                    p4 / 0 
+label(6):
+	get_integer              a(1)     2 
+label(11):
+	cut                      a(2)     0 
+	chain                    p2 / 0 
 
 ------ Test idx(31) -------
 p(A) :-
@@ -4622,14 +4578,13 @@ INDEXES for (semidet) disjunction [2]
     [integer, 2] - [2]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
 		meta: 	ref(3)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
-		bignum: 	ref(7)
+		bignum: 	ref(10)
 		breal: 	ref(fail)
 		double: 	ref(fail)
 		goal: 	ref(fail)
@@ -4641,24 +4596,24 @@ label(1):
 		structure: 	ref(fail)
 
 label(3):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	cut                      y(2)     2 
+label(11):
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(7):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
+label(10):
 	chain                    p4 / 0 
 label(9):
-	integer_switch           y(1) 
-		1: 	ref(3)
-		2: 	ref(5)
+	integer_switch           a(1) 
+		1: 	ref(11)
+		2: 	ref(12)
 		default: 	ref(7)
 
 label(5):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
-	cut                      y(2)     2 
+label(12):
+	cut                      a(2)     0 
 	chain                    p2 / 0 
 
 ------ Test idx(32) -------
@@ -4694,10 +4649,9 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
 		meta: 	ref(3)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
@@ -4713,36 +4667,29 @@ label(1):
 		structure: 	ref(14)
 
 label(3):
-	move                     y(1)     a(1) 
 	get_structure            a(1)     f / 1     ref(4) 
 	write_void           
 label(4):
-	cut                      y(2)     2 
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(9):
-	move                     y(1)     a(1) 
 	get_list                 a(1)     ref(10) 
 	write_void               2 
 label(10):
-	cut                      y(2)     2 
+	cut                      a(2)     0 
 	chain                    p3 / 0 
 label(14):
-	functor_switch           y(1) 
-		f / 1: 	ref(3)
-		g / 1: 	ref(6)
+	functor_switch           a(1) 
+		f / 1: 	ref(4)
+		g / 1: 	ref(7)
 		default: 	ref(12)
 
-label(6):
-	move                     y(1)     a(1) 
-	get_structure            a(1)     g / 1     ref(7) 
-	write_void           
-label(7):
-	cut                      y(2)     2 
-	chain                    p2 / 0 
 label(12):
-	move                     y(1)     a(1) 
 	bi_compound              a(1) 
 	chain                    p4 / 0 
+label(7):
+	cut                      a(2)     0 
+	chain                    p2 / 0 
 
 ------ Test idx(33) -------
 p(f(A, B, C)) :-
@@ -4764,8 +4711,8 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 p / 1:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
+	allocate                 0 
+	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(3)
 		[]: 	ref(fail)
@@ -4783,14 +4730,17 @@ label(1):
 
 label(3):
 	get_structure            a(1)     f / 3     ref(4) 
-	write_variable2          a(1)     a(2) 
-	write_variable           a(3) 
-	cut                      y(1)     1 
+	write_variable           a(1) 
+	move                     a(2)     a(4) 
+	write_variable2          a(2)     a(3) 
+	cut                      a(4)     0 
 	chain                    p1 / 3 
 label(7):
 	get_list                 a(1)     ref(8) 
-	write_variable2          a(1)     a(2) 
-	cut                      y(1)     1 
+	write_variable           a(1) 
+	move                     a(2)     a(3) 
+	write_variable           a(2) 
+	cut                      a(3)     0 
 	chain                    p2 / 2 
 label(13):
 	functor_switch           a(1) 
@@ -4798,13 +4748,16 @@ label(13):
 		default: 	ref(11)
 
 label(4):
-	read_variable2           a(1)     a(2) 
-	read_variable            a(3) 
-	cut                      y(1)     1 
+	read_variable            a(1) 
+	move                     a(2)     a(4) 
+	read_variable2           a(2)     a(3) 
+	cut                      a(4)     0 
 	chain                    p1 / 3 
 label(8):
-	read_variable2           a(1)     a(2) 
-	cut                      y(1)     1 
+	read_variable            a(1) 
+	move                     a(2)     a(3) 
+	read_variable            a(2) 
+	cut                      a(3)     0 
 	chain                    p2 / 2 
 label(11):
 	bi_compound              a(1) 
@@ -4830,8 +4783,8 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1]
 p / 2:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
+	allocate                 0 
+	savecut                  a(3) 
 	switch_on_type           a(1) 
 		meta: 	ref(3)
 		[]: 	ref(fail)
@@ -4850,13 +4803,13 @@ label(1):
 label(3):
 	get_structure            a(1)     f / 3     ref(4) 
 	write_variable           a(1) 
-	move                     a(2)     a(3) 
+	shift                    a(4)     a(3)     a(2) 
 	write_variable           a(2) 
 	write_local_value        a(1) 
-	cut                      y(1)     1 
+	cut                      a(4)     0 
 	chain                    p1 / 3 
 label(13):
-	try                      0     2     ref(7) 
+	try                      0     3     ref(7) 
 	trust_inline             0     ref(11)     Y[] 
 label(15):
 	functor_switch           a(1) 
@@ -4865,27 +4818,27 @@ label(15):
 
 label(4):
 	read_variable            a(1) 
-	move                     a(2)     a(3) 
+	shift                    a(4)     a(3)     a(2) 
 	read_variable            a(2) 
 	read_value               a(1) 
-	cut                      y(1)     1 
+	cut                      a(4)     0 
 	chain                    p1 / 3 
 label(7):
 	get_list                 a(1)     ref(8) 
 	write_variable           a(1) 
 	write_local_value        a(2) 
-	cut                      y(1)     1 
+	cut                      a(3)     0 
 	chain                    p2 / 2 
 label(11):
 	bi_compound              a(1) 
 	chain                    p3 / 0 
 label(14):
-	try                      0     2     ref(3) 
+	try                      0     3     ref(3) 
 	trust_inline             0     ref(11)     Y[] 
 label(8):
 	read_variable            a(1) 
 	read_value               a(2) 
-	cut                      y(1)     1 
+	cut                      a(3)     0 
 	chain                    p2 / 2 
 
 ------ Test idx(35) -------
@@ -4909,8 +4862,8 @@ INDEXES for (semidet) disjunction [2]
     [structure, f / 3] - [1]
 p / 1:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
+	allocate                 0 
+	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(fail)
 		[]: 	ref(fail)
@@ -4930,8 +4883,10 @@ label(1):
 label(6):
 	in_get_list              a(1)     ref(7) 
 label(7):
-	read_variable2           a(1)     a(2) 
-	cut                      y(1)     1 
+	read_variable            a(1) 
+	move                     a(2)     a(3) 
+	read_variable            a(2) 
+	cut                      a(3)     0 
 	chain                    p2 / 2 
 label(11):
 	functor_switch           a(1) 
@@ -4942,9 +4897,10 @@ label(9):
 	bi_compound              a(1) 
 	chain                    p3 / 0 
 label(4):
-	read_variable2           a(1)     a(2) 
-	read_variable            a(3) 
-	cut                      y(1)     1 
+	read_variable            a(1) 
+	move                     a(2)     a(4) 
+	read_variable2           a(2)     a(3) 
+	cut                      a(4)     0 
 	chain                    p1 / 3 
 
 ------ Test idx(36) -------
@@ -4968,8 +4924,8 @@ INDEXES for (nondet) disjunction [2]
     [structure, f / 3] - [1, 3]
 p / 2:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
+	allocate                 0 
+	savecut                  a(3) 
 	switch_on_type           a(1) 
 		meta: 	ref(fail)
 		[]: 	ref(fail)
@@ -4987,7 +4943,7 @@ label(1):
 
 	branch                   ref(fail) 
 label(11):
-	try                      0     2     ref(6) 
+	try                      0     3     ref(6) 
 	trust_inline             0     ref(9)     Y[] 
 label(13):
 	functor_switch           a(1) 
@@ -4999,22 +4955,22 @@ label(6):
 label(7):
 	read_variable            a(1) 
 	read_matched_value       a(2) 
-	cut                      y(1)     1 
+	cut                      a(3)     0 
 	chain                    p2 / 2 
 label(9):
 	bi_compound              a(1) 
 	chain                    p3 / 0 
 label(12):
-	try                      0     2     ref(3) 
+	try                      0     3     ref(3) 
 	trust_inline             0     ref(9)     Y[] 
 label(3):
 	in_get_structure         a(1)     f / 3     ref(4) 
 label(4):
 	read_variable            a(1) 
-	move                     a(2)     a(3) 
+	shift                    a(4)     a(3)     a(2) 
 	read_variable            a(2) 
 	read_matched_value       a(3) 
-	cut                      y(1)     1 
+	cut                      a(4)     0 
 	chain                    p1 / 3 
 
 ------ Test idx(40) -------
@@ -5039,8 +4995,8 @@ INDEXES for (nondet) disjunction [2]
     [var, meta] - [2, 3]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(10)
 		[]: 	ref(7)
 		atom: 	ref(7)
@@ -5056,19 +5012,17 @@ label(1):
 		structure: 	ref(7)
 
 label(9):
-	try                      0     0     ref(3) 
+	try                      0     1     ref(3) 
 	trust_inline             0     ref(7)     Y[] 
 label(10):
-	try                      0     0     ref(5) 
+	try                      0     1     ref(5) 
 	trust_inline             0     ref(7)     Y[] 
 label(7):
 	chain                    p3 / 0 
 label(3):
-	move                     y(1)     a(1) 
 	bi_free                  a(1) 
 	chain                    p1 / 0 
 label(5):
-	move                     y(1)     a(1) 
 	bi_meta                  a(1) 
 	chain                    p2 / 0 
 
@@ -5096,11 +5050,10 @@ INDEXES for (semidet) disjunction [2]
     [var, meta] - [2]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
-		meta: 	ref(5)
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(10)
 		[]: 	ref(7)
 		atom: 	ref(7)
 		bignum: 	ref(7)
@@ -5114,15 +5067,16 @@ label(1):
 		string: 	ref(7)
 		structure: 	ref(7)
 
+	branch                   ref(9) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_free                  a(1) 
-	cut                      y(2)     2 
+label(9):
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(5):
-	move                     y(1)     a(1) 
 	bi_meta                  a(1) 
-	cut                      y(2)     2 
+label(10):
+	cut                      a(2)     0 
 	chain                    p2 / 0 
 label(7):
 	chain                    p3 / 0 
@@ -5152,11 +5106,11 @@ INDEXES for (semidet) disjunction [2]
     [var, meta] - [2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
-		meta: 	ref(5)
-		[]: 	ref(7)
-		atom: 	ref(7)
+	allocate                 0 
+	switch_on_type           a(1) 
+		meta: 	ref(10)
+		[]: 	ref(11)
+		atom: 	ref(11)
 		bignum: 	ref(fail)
 		breal: 	ref(fail)
 		double: 	ref(fail)
@@ -5168,17 +5122,18 @@ label(1):
 		string: 	ref(fail)
 		structure: 	ref(fail)
 
+	branch                   ref(9) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_free                  a(1) 
+label(9):
 	chain                    p1 / 0 
 label(5):
-	move                     y(1)     a(1) 
 	bi_meta                  a(1) 
+label(10):
 	chain                    p2 / 0 
 label(7):
-	move                     y(1)     a(1) 
 	bi_atom                  a(1) 
+label(11):
 	chain                    p3 / 0 
 
 ------ Test idx(43) -------
@@ -5197,8 +5152,8 @@ INDEXES for (nondet) disjunction [2]
     [var, free] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(5)
 		[]: 	ref(5)
 		atom: 	ref(5)
@@ -5214,9 +5169,8 @@ label(1):
 		structure: 	ref(5)
 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_free                  a(1) 
 	chain                    p1 / 0 
 label(4):
@@ -5241,10 +5195,9 @@ INDEXES for (semidet) disjunction [2]
     [var, free] - [1]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
 		meta: 	ref(5)
 		[]: 	ref(5)
 		atom: 	ref(5)
@@ -5259,10 +5212,11 @@ label(1):
 		string: 	ref(5)
 		structure: 	ref(5)
 
+	branch                   ref(7) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_free                  a(1) 
-	cut                      y(2)     2 
+label(7):
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(5):
 	chain                    p2 / 0 
@@ -5283,8 +5237,8 @@ INDEXES for (nondet) disjunction [2]
     [var, free] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(5)
 		[]: 	ref(5)
 		atom: 	ref(5)
@@ -5300,9 +5254,8 @@ label(1):
 		structure: 	ref(5)
 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_free                  a(1) 
 	chain                    p1 / 0 
 label(4):
@@ -5326,8 +5279,8 @@ INDEXES for (nondet) disjunction [2]
     [var, meta] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(2)
 		[]: 	ref(5)
 		atom: 	ref(5)
@@ -5344,9 +5297,8 @@ label(1):
 
 	branch                   ref(5) 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_meta                  a(1) 
 	chain                    p1 / 0 
 label(4):
@@ -5371,11 +5323,10 @@ INDEXES for (semidet) disjunction [2]
     [var, meta] - [1]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
-		meta: 	ref(3)
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(7)
 		[]: 	ref(5)
 		atom: 	ref(5)
 		bignum: 	ref(5)
@@ -5392,9 +5343,9 @@ label(1):
 label(5):
 	chain                    p2 / 0 
 label(3):
-	move                     y(1)     a(1) 
 	bi_meta                  a(1) 
-	cut                      y(2)     2 
+label(7):
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 
 ------ Test idx(48) -------
@@ -5413,8 +5364,8 @@ INDEXES for (nondet) disjunction [2]
     [var, meta] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(2)
 		[]: 	ref(5)
 		atom: 	ref(5)
@@ -5431,9 +5382,8 @@ label(1):
 
 	branch                   ref(5) 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_meta                  a(1) 
 	chain                    p1 / 0 
 label(4):
@@ -5462,8 +5412,8 @@ INDEXES for (nondet) disjunction [2]
     [var, free] - [1, 2, 3]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(9)
 		[]: 	ref(7)
 		atom: 	ref(7)
@@ -5479,18 +5429,16 @@ label(1):
 		structure: 	ref(7)
 
 label(2):
-	try_me_else              0     0     ref(4) 
+	try_me_else              0     1     ref(4) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_free                  a(1) 
 	chain                    p1 / 0 
 label(9):
-	try                      0     0     ref(5) 
+	try                      0     1     ref(5) 
 	trust_inline             0     ref(7)     Y[] 
 label(4):
-	retry_me_inline          0     ref(6)     Y[1] 
+	retry_me_inline          0     ref(6)     Y[] 
 label(5):
-	move                     y(1)     a(1) 
 	bi_var                   a(1) 
 	chain                    p2 / 0 
 label(6):
@@ -5521,11 +5469,10 @@ INDEXES for (semidet) disjunction [2]
     [var, free] - [1]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
-		meta: 	ref(5)
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(10)
 		[]: 	ref(7)
 		atom: 	ref(7)
 		bignum: 	ref(7)
@@ -5539,15 +5486,16 @@ label(1):
 		string: 	ref(7)
 		structure: 	ref(7)
 
+	branch                   ref(9) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_free                  a(1) 
-	cut                      y(2)     2 
+label(9):
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(5):
-	move                     y(1)     a(1) 
 	bi_var                   a(1) 
-	cut                      y(2)     2 
+label(10):
+	cut                      a(2)     0 
 	chain                    p2 / 0 
 label(7):
 	chain                    p3 / 0 
@@ -5576,11 +5524,11 @@ INDEXES for (nondet) disjunction [2]
     [var, free] - [1, 2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
-	switch_on_type           y(1) 
-		meta: 	ref(5)
-		[]: 	ref(7)
-		atom: 	ref(7)
+	allocate                 0 
+	switch_on_type           a(1) 
+		meta: 	ref(10)
+		[]: 	ref(11)
+		atom: 	ref(11)
 		bignum: 	ref(fail)
 		breal: 	ref(fail)
 		double: 	ref(fail)
@@ -5593,18 +5541,17 @@ label(1):
 		structure: 	ref(fail)
 
 label(9):
-	try                      0     0     ref(3) 
-	trust_inline             0     ref(5)     Y[1] 
+	try                      0     1     ref(3) 
+	trust_inline             0     ref(5)     Y[] 
 label(5):
-	move                     y(1)     a(1) 
 	bi_var                   a(1) 
+label(10):
 	chain                    p2 / 0 
 label(7):
-	move                     y(1)     a(1) 
 	bi_atom                  a(1) 
+label(11):
 	chain                    p3 / 0 
 label(3):
-	move                     y(1)     a(1) 
 	bi_free                  a(1) 
 	chain                    p1 / 0 
 
@@ -5624,11 +5571,10 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
-		meta: 	ref(3)
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(7)
 		[]: 	ref(5)
 		atom: 	ref(5)
 		bignum: 	ref(5)
@@ -5642,10 +5588,11 @@ label(1):
 		string: 	ref(5)
 		structure: 	ref(5)
 
+	branch                   ref(7) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_var                   a(1) 
-	cut                      y(2)     2 
+label(7):
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(5):
 	chain                    p2 / 0 
@@ -5675,27 +5622,25 @@ INDEXES for (semidet) disjunction [2]
     [integer, 2] - [3]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
+	allocate                 0 
+	savecut                  a(2) 
 label(2):
-	integer_switch           y(1) 
-		1: 	ref(6)
-		2: 	ref(8)
+	integer_switch           a(1) 
+		1: 	ref(10)
+		2: 	ref(11)
 		default: 	ref(fail)
 
 label(4):
-	move                     y(1)     a(1) 
 	bi_var                   a(1) 
-	cut                      y(2)     2 
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(6):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
+label(10):
 	chain                    p2 / 0 
 label(8):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
+label(11):
 	chain                    p3 / 0 
 
 ------ Test idx(54) -------
@@ -5725,27 +5670,23 @@ INDEXES for (semidet) disjunction [2]
     [integer, 2] - [3]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
+	allocate                 0 
+	savecut                  a(2) 
 label(2):
-	integer_switch           y(1) 
+	integer_switch           a(1) 
 		1: 	ref(6)
 		2: 	ref(8)
 		default: 	ref(fail)
 
 label(4):
-	move                     y(1)     a(1) 
 	bi_var                   a(1) 
-	cut                      y(2)     2 
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(6):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
 	get_integer              a(1)     1 
 	chain                    p2 / 0 
 label(8):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
 	get_integer              a(1)     2 
 	chain                    p3 / 0 
@@ -5776,14 +5717,13 @@ INDEXES for (semidet) disjunction [2]
     [integer, 1] - [2]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
-	switch_on_type           y(1) 
-		meta: 	ref(3)
+	allocate                 0 
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(10)
 		[]: 	ref(fail)
 		atom: 	ref(fail)
-		bignum: 	ref(7)
+		bignum: 	ref(11)
 		breal: 	ref(fail)
 		double: 	ref(fail)
 		goal: 	ref(fail)
@@ -5794,24 +5734,25 @@ label(1):
 		string: 	ref(fail)
 		structure: 	ref(fail)
 
+	branch                   ref(10) 
 label(3):
-	move                     y(1)     a(1) 
 	bi_var                   a(1) 
-	cut                      y(2)     2 
+label(10):
+	cut                      a(2)     0 
 	chain                    p1 / 0 
 label(7):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
+label(11):
 	chain                    p3 / 0 
 label(9):
-	integer_switch           y(1) 
-		1: 	ref(5)
+	integer_switch           a(1) 
+		1: 	ref(12)
 		default: 	ref(7)
 
 label(5):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	cut                      y(2)     2 
+label(12):
+	cut                      a(2)     0 
 	chain                    p2 / 0 
 
 ------ Test idx(56) -------
@@ -5853,12 +5794,11 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2, 3, 4]
 p / 2:
 label(1):
-	get_variable             2     a(1)     y(1) 
-	move                     a(2)     y(2) 
-	switch_on_type           y(1) 
+	allocate                 0 
+	switch_on_type           a(1) 
 		meta: 	ref(fail)
-		[]: 	ref(10)
-		atom: 	ref(10)
+		[]: 	ref(16)
+		atom: 	ref(16)
 		bignum: 	ref(12)
 		breal: 	ref(fail)
 		double: 	ref(fail)
@@ -5872,30 +5812,24 @@ label(1):
 
 	branch                   ref(fail) 
 label(10):
-	move                     y(1)     a(1) 
 	bi_atom                  a(1) 
+label(16):
 	chain                    p4 / 0 
 label(12):
-	try                      0     0     ref(4) 
-	retry_inline             0     ref(6)     Y[1,2] 
-	trust_inline             0     ref(8)     Y[1,2] 
+	try                      0     2     ref(4) 
+	retry_inline             0     ref(6)     Y[] 
+	trust_inline             0     ref(8)     Y[] 
 label(4):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
-	move                     y(2)     a(1) 
-	get_atom                 a(1)     a 
+	get_atom                 a(2)     a 
 	chain                    p1 / 0 
 label(6):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
-	move                     y(2)     a(1) 
-	get_atom                 a(1)     b 
+	get_atom                 a(2)     b 
 	chain                    p2 / 0 
 label(8):
-	move                     y(1)     a(1) 
 	bi_integer               a(1) 
-	move                     y(2)     a(1) 
-	get_atom                 a(1)     c 
+	get_atom                 a(2)     c 
 	chain                    p3 / 0 
 
 ------ Test idx(100) -------
@@ -6112,8 +6046,8 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 p / 3:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
+	allocate                 0 
+	savecut                  a(4) 
 label(2):
 	atom_switch              a(1) 
 		a: 	ref(10)
@@ -6121,7 +6055,7 @@ label(2):
 
 label(4):
 	bi_var                   a(1) 
-	cut                      y(1)     1 
+	cut                      a(4)     0 
 	get_value                a(2)     a(3) 
 	exit                 
 label(8):
@@ -6129,9 +6063,109 @@ label(8):
 label(6):
 	get_atom                 a(1)     a 
 label(10):
-	cut                      y(1)     1 
+	cut                      a(4)     0 
 	shift                    a(1)     a(2)     a(3) 
 	chain                    a / 2 
+
+------ Test idx(201) -------
+p(A, B) :-
+	+(A, 1, C),
+	(
+	    p1(C, B)
+	;
+	    p2(A, B)
+	).
+
+p / 2:
+label(1):
+	allocate                 0 
+	bi_addi                  a(1)     1     a(3)     24 
+	try_me_else              0     3     ref(3) 
+label(2):
+	move                     a(3)     a(1) 
+	chain                    p1 / 2 
+label(3):
+	trust_me_inline          0     Y[] 
+label(4):
+	chain                    p2 / 2 
+
+------ Test idx(202) -------
+p(A, B) :-
+	true,
+	+(A, 1, C),
+	(
+	    p1(C, B)
+	;
+	    p2(C, B)
+	).
+
+p / 2:
+label(1):
+	get_variable             2     a(1)     y(2) 
+	move                     a(2)     y(1) 
+	callf                    true / 0     Y[1,2] 
+	move                     y(2)     a(2) 
+	bi_addi                  a(2)     1     a(1)     24 
+	try_me_else              0     1     ref(3) 
+label(2):
+	move_chain               y(1)     a(2)     p1 / 2 
+label(3):
+	trust_me_inline          0     Y[1] 
+label(4):
+	move_chain               y(1)     a(2)     p2 / 2 
+
+------ Test idx(203) -------
+p(A, B) :-
+	true,
+	+(A, 1, C),
+	(
+	    p1(C, B)
+	;
+	    p2(C, C, B)
+	).
+
+p / 2:
+label(1):
+	get_variable             2     a(1)     y(2) 
+	move                     a(2)     y(1) 
+	callf                    true / 0     Y[1,2] 
+	move                     y(2)     a(2) 
+	bi_addi                  a(2)     1     a(1)     24 
+	try_me_else              0     1     ref(3) 
+label(2):
+	move_chain               y(1)     a(2)     p1 / 2 
+label(3):
+	trust_me_inline          0     Y[1] 
+label(4):
+	move                     a(1)     a(2) 
+	move_chain               y(1)     a(3)     p2 / 3 
+
+------ Test idx(204) -------
+p(A, B) :-
+	true,
+	+(A, 1, C),
+	integer(C),
+	(
+	    p1(C, B)
+	;
+	    p2(C, B)
+	).
+
+p / 2:
+label(1):
+	get_variable             2     a(1)     y(2) 
+	move                     a(2)     y(1) 
+	callf                    true / 0     Y[1,2] 
+	move                     y(2)     a(2) 
+	bi_addi                  a(2)     1     a(1)     24 
+	bi_integer               a(1) 
+	try_me_else              0     1     ref(3) 
+label(2):
+	move_chain               y(1)     a(2)     p1 / 2 
+label(3):
+	trust_me_inline          0     Y[1] 
+label(4):
+	move_chain               y(1)     a(2)     p2 / 2 
 
 ------ Test idx(300) -------
 p(A) :-
@@ -6153,26 +6187,28 @@ INDEXES for (nondet) disjunction [2]
     [integer, 2] - [2]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
+	allocate                 1 
 label(2):
-	integer_switch           y(1) 
-		1: 	ref(4)
-		2: 	ref(6)
+	integer_switch           a(1) 
+		1: 	ref(8)
+		2: 	ref(9)
 		default: 	ref(fail)
 
 label(3):
-	try_me_else              0     0     ref(5) 
+	try_me_else              0     1     ref(5) 
 label(4):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
+label(8):
+	move                     a(1)     y(1) 
 	callf                    p1 / 0     Y[1] 
 label(7):
 	move_chain               y(1)     a(1)     q / 1 
 label(5):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(6):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
+label(9):
+	move                     a(1)     y(1) 
 	callf                    p2 / 0     Y[1] 
 	branch                   ref(7) 
 
@@ -7799,8 +7835,8 @@ INDEXES for (nondet) disjunction [2]
     [var, meta] - [1, 2]
 p / 1:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
+	allocate                 0 
+	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(2)
 		[]: 	ref(5)
@@ -7818,13 +7854,14 @@ label(1):
 
 	branch                   ref(5) 
 label(2):
-	try_me_else              0     1     ref(4) 
+	try_me_else              0     2     ref(4) 
 label(3):
 	in_get_meta              a(1)     ref(fail) 
 	read_void            
 	read_attribute           suspend 
+	move                     a(2)     a(3) 
 	read_variable            a(2) 
-	cut                      y(1)     1 
+	cut                      a(3)     0 
 	chain                    p / 2 
 label(4):
 	trust_me_inline          0     Y[] 
@@ -8366,7 +8403,7 @@ label(2):
 	cut                      y(1)     1 
 	chain                    aa / 0 
 label(3):
-	retry_me_inline          0     ref(5)     Y[] 
+	retry_me_inline          0     ref(5)     Y[1] 
 label(4):
 	chain                    b / 0 
 label(5):
@@ -8830,15 +8867,15 @@ p :-
 
 p / 0:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
 	chain                    a / 0 
 label(3):
-	retry_me_inline          0     ref(5)     Y[1] 
+	retry_me_inline          0     ref(5)     Y[] 
 label(4):
-	cut                      y(1)     1 
+	cut                      a(1)     0 
 	chain                    bb / 0 
 label(5):
 	trust_me_inline          0     Y[] 
@@ -8935,6 +8972,304 @@ label(1):
 	callf                    s / 20     Y[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	move                     20     y(1)     a(1) 
 	chain                    t / 20 
+
+------ Test env(3) -------
+p(A, B, C) :-
+	a,
+	b(A),
+	c(B),
+	d(C),
+	e.
+
+p / 3:
+label(1):
+	get_variable             3     a(1)     y(3) 
+	move                     a(2)     y(2)     a(3)     y(1) 
+	callf                    a / 0     Y[1,2,3] 
+	move_callf               y(3)     a(1)     b / 1     Y[1,2] 
+	move_callf               y(2)     a(1)     c / 1     Y[1] 
+	move_callf               y(1)     a(1)     d / 1     Y[] 
+	chain                    e / 0 
+
+------ Test env(4) -------
+p(A, B, C) :-
+	a,
+	b(A),
+	c(C),
+	d(B),
+	e.
+
+p / 3:
+label(1):
+	get_variable             3     a(1)     y(3) 
+	move                     2     a(2)     y(1) 
+	callf                    a / 0     Y[1,2,3] 
+	move_callf               y(3)     a(1)     b / 1     Y[1,2] 
+	move_callf               y(2)     a(1)     c / 1     Y[1] 
+	move_callf               y(1)     a(1)     d / 1     Y[] 
+	chain                    e / 0 
+
+------ Test env(5) -------
+p(A, B, C, D) :-
+	t,
+	a(A),
+	e.
+p(A, B, C, D) :-
+	t,
+	b(B),
+	e.
+p(A, B, C, D) :-
+	t,
+	c(C),
+	d(D),
+	e.
+p(A, B, C, D) :-
+	t,
+	a(A),
+	e.
+
+p / 4:
+label(1):
+	get_variable             4     a(1)     y(1) 
+	move                     3     a(2)     y(2) 
+	try_me_else              0     0     ref(3) 
+label(2):
+	callf                    t / 0     Y[1] 
+	move_callf               y(1)     a(1)     a / 1     Y[] 
+	chain                    e / 0 
+label(3):
+	retry_me_inline          0     ref(5)     Y[1,2,3,4] 
+label(4):
+	callf                    t / 0     Y[2] 
+	move_callf               y(2)     a(1)     b / 1     Y[] 
+	chain                    e / 0 
+label(5):
+	retry_me_inline          0     ref(7)     Y[1,3,4] 
+label(6):
+	callf                    t / 0     Y[3,4] 
+	move_callf               y(3)     a(1)     c / 1     Y[4] 
+	move_callf               y(4)     a(1)     d / 1     Y[] 
+	chain                    e / 0 
+label(7):
+	trust_me_inline          0     Y[1] 
+label(8):
+	callf                    t / 0     Y[1] 
+	move_callf               y(1)     a(1)     a / 1     Y[] 
+	chain                    e / 0 
+
+------ Test env(6) -------
+p(a, A, B, C, D) :-
+	t,
+	a(A),
+	e.
+p(a, A, B, C, D) :-
+	t,
+	b(B),
+	e.
+p(b, A, B, C, D) :-
+	t,
+	c(C),
+	d(D),
+	e.
+p(a, A, B, C, D) :-
+	t,
+	a(A),
+	e.
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 2.7
+    [] - []
+    [atom] - []
+    [atom, a] - [1, 2, 4]
+    [atom, b] - [3]
+    [var] - [1, 2, 3, 4]
+p / 5:
+label(1):
+	get_variable             4     a(2)     y(1) 
+	move                     3     a(3)     y(2) 
+label(2):
+	atom_switch              a(1) 
+		a: 	ref(12)
+		b: 	ref(13)
+		default: 	ref(fail)
+
+label(3):
+	try_me_else              0     1     ref(5) 
+label(4):
+	get_atom                 a(1)     a 
+	callf                    t / 0     Y[1] 
+	move_callf               y(1)     a(1)     a / 1     Y[] 
+	chain                    e / 0 
+label(12):
+	try                      0     1     ref(4) 
+	retry_inline             0     ref(6)     Y[1,2] 
+	trust_inline             0     ref(10)     Y[1] 
+label(5):
+	retry_me_inline          0     ref(7)     Y[1,2,3,4] 
+label(6):
+	get_atom                 a(1)     a 
+	callf                    t / 0     Y[2] 
+	move_callf               y(2)     a(1)     b / 1     Y[] 
+	chain                    e / 0 
+label(7):
+	retry_me_inline          0     ref(9)     Y[1,3,4] 
+label(8):
+	get_atom                 a(1)     b 
+label(13):
+	callf                    t / 0     Y[3,4] 
+	move_callf               y(3)     a(1)     c / 1     Y[4] 
+	move_callf               y(4)     a(1)     d / 1     Y[] 
+	chain                    e / 0 
+label(9):
+	trust_me_inline          0     Y[1] 
+label(10):
+	get_atom                 a(1)     a 
+	callf                    t / 0     Y[1] 
+	move_callf               y(1)     a(1)     a / 1     Y[] 
+	chain                    e / 0 
+
+------ Test env(7) -------
+p(a, A, B, C, D) :-
+	t,
+	a(A),
+	e.
+p(a, A, B, C, D) :-
+	t,
+	b(B),
+	e.
+p(a, A, B, C, D) :-
+	t,
+	c(C),
+	d(D),
+	e.
+p(b, A, B, C, D) :-
+	t,
+	a(A),
+	e.
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 2.7
+    [] - []
+    [atom] - []
+    [atom, a] - [1, 2, 3]
+    [atom, b] - [4]
+    [var] - [1, 2, 3, 4]
+p / 5:
+label(1):
+	get_variable             4     a(2)     y(1) 
+	move                     3     a(3)     y(2) 
+label(2):
+	atom_switch              a(1) 
+		a: 	ref(12)
+		b: 	ref(13)
+		default: 	ref(fail)
+
+label(3):
+	try_me_else              0     1     ref(5) 
+label(4):
+	get_atom                 a(1)     a 
+	callf                    t / 0     Y[1] 
+	move_callf               y(1)     a(1)     a / 1     Y[] 
+	chain                    e / 0 
+label(12):
+	try                      0     1     ref(4) 
+	retry_inline             0     ref(6)     Y[2,3,4] 
+	trust_inline             0     ref(8)     Y[3,4] 
+label(5):
+	retry_me_inline          0     ref(7)     Y[1,2,3,4] 
+label(6):
+	get_atom                 a(1)     a 
+	callf                    t / 0     Y[2] 
+	move_callf               y(2)     a(1)     b / 1     Y[] 
+	chain                    e / 0 
+label(7):
+	retry_me_inline          0     ref(9)     Y[1,3,4] 
+label(8):
+	get_atom                 a(1)     a 
+	callf                    t / 0     Y[3,4] 
+	move_callf               y(3)     a(1)     c / 1     Y[4] 
+	move_callf               y(4)     a(1)     d / 1     Y[] 
+	chain                    e / 0 
+label(9):
+	trust_me_inline          0     Y[1] 
+label(10):
+	get_atom                 a(1)     b 
+label(13):
+	callf                    t / 0     Y[1] 
+	move_callf               y(1)     a(1)     a / 1     Y[] 
+	chain                    e / 0 
+
+------ Test env(8) -------
+p(a, A, B, C, D) :-
+	t,
+	a(A),
+	e.
+p(b, A, B, C, D) :-
+	t,
+	b(B),
+	e.
+p(a, A, B, C, D) :-
+	t,
+	c(C),
+	d(D),
+	e.
+p(b, A, B, C, D) :-
+	t,
+	a(A),
+	e.
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 2.7
+    [] - []
+    [atom] - []
+    [atom, a] - [1, 3]
+    [atom, b] - [2, 4]
+    [var] - [1, 2, 3, 4]
+p / 5:
+label(1):
+	get_variable             4     a(2)     y(1) 
+	move                     3     a(3)     y(2) 
+label(2):
+	atom_switch              a(1) 
+		a: 	ref(12)
+		b: 	ref(13)
+		default: 	ref(fail)
+
+label(3):
+	try_me_else              0     1     ref(5) 
+label(4):
+	get_atom                 a(1)     a 
+	callf                    t / 0     Y[1] 
+	move_callf               y(1)     a(1)     a / 1     Y[] 
+	chain                    e / 0 
+label(12):
+	try                      0     1     ref(4) 
+	trust_inline             0     ref(8)     Y[3,4] 
+label(13):
+	try                      0     1     ref(6) 
+	trust_inline             0     ref(10)     Y[1] 
+label(5):
+	retry_me_inline          0     ref(7)     Y[1,2,3,4] 
+label(6):
+	get_atom                 a(1)     b 
+	callf                    t / 0     Y[2] 
+	move_callf               y(2)     a(1)     b / 1     Y[] 
+	chain                    e / 0 
+label(7):
+	retry_me_inline          0     ref(9)     Y[1,3,4] 
+label(8):
+	get_atom                 a(1)     a 
+	callf                    t / 0     Y[3,4] 
+	move_callf               y(3)     a(1)     c / 1     Y[4] 
+	move_callf               y(4)     a(1)     d / 1     Y[] 
+	chain                    e / 0 
+label(9):
+	trust_me_inline          0     Y[1] 
+label(10):
+	get_atom                 a(1)     b 
+	callf                    t / 0     Y[1] 
+	move_callf               y(1)     a(1)     a / 1     Y[] 
+	chain                    e / 0 
 
 ------ Test bip(type_tests) -------
 p(A) :-
@@ -9166,10 +9501,6 @@ label(31):
 p(A) :-
 	sepia_kernel : set_bip_error(A).
 p(A) :-
-	sepia_kernel : cont_debug.
-p(A) :-
-	sepia_kernel : sys_return(A).
-p(A) :-
 	make_suspension(true, 3, A).
 p(A) :-
 	sepia_kernel : make_suspension(true, 3, A, eclipse).
@@ -9184,24 +9515,14 @@ label(2):
 label(3):
 	retry_me_inline          0     ref(5)     Y[] 
 label(4):
-	bi_cont_debug        
-	exit                 
-label(5):
-	retry_me_inline          0     ref(7)     Y[] 
-label(6):
-	bi_exit                  a(1) 
-	exit                 
-label(7):
-	retry_me_inline          0     ref(9)     Y[] 
-label(8):
 	put_atom                 a(2)     true 
 	put_integer              a(3)     3 
 	put_atom                 a(4)     eclipse 
 	bi_make_suspension       a(2)     a(3)     a(1)     a(4)     0 
 	exit                 
-label(9):
+label(5):
 	trust_me_inline          0     Y[] 
-label(10):
+label(6):
 	put_atom                 a(2)     true 
 	put_integer              a(3)     3 
 	put_atom                 a(4)     eclipse 
@@ -9618,37 +9939,35 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 conc / 3:
 label(1):
-	get_variable             3     a(1)     y(1) 
-	move                     2     a(2)     y(2) 
-	list_switch              y(1)     ref(6)     ref(4)     ref(fail) 
+	allocate                 0 
+	list_switch              a(1)     ref(7)     ref(12)     ref(fail) 
 label(2):
-	list_switch              y(3)     ref(3)     ref(4)     ref(4) 
+	list_switch              a(3)     ref(3)     ref(4)     ref(4) 
 label(3):
-	try_me_else              0     0     ref(5) 
+	try_me_else              0     3     ref(5) 
 label(4):
-	move                     y(1)     a(1) 
 	get_nil                  a(1) 
-	get_value                y(2)     y(3) 
+label(12):
+	move                     a(2)     a(1) 
+	get_value                a(3)     a(1) 
 	exit                 
-label(5):
-	trust_me_inline          0     Y[1,2,3] 
-label(6):
-	move                     y(1)     a(4) 
-	get_list                 a(4)     ref(7) 
-	write_variable2          a(4)     a(1) 
-label(8):
-	move                     y(3)     a(5) 
-	get_list                 a(5)     ref(9) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	move_chain               y(2)     a(2)     ref(1) 
 label(7):
 	read_variable2           a(4)     a(1) 
+label(8):
+	get_list                 a(3)     ref(9) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	chain                    ref(1) 
+label(5):
+	trust_me_inline          0     Y[] 
+label(6):
+	get_list                 a(1)     ref(7) 
+	write_variable2          a(4)     a(1) 
 	branch                   ref(8) 
 label(9):
 	read_value               a(4) 
 	read_variable            a(3) 
-	move_chain               y(2)     a(2)     ref(1) 
+	chain                    ref(1) 
 
 ------ Test bench(3) -------
 conc(A, B, C) :-
@@ -9675,37 +9994,35 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 conc / 3:
 label(1):
-	get_variable             3     a(1)     y(1) 
-	move                     2     a(2)     y(2) 
-	list_switch              y(1)     ref(4)     ref(10)     ref(fail) 
+	allocate                 0 
+	list_switch              a(1)     ref(5)     ref(12)     ref(fail) 
 label(2):
-	list_switch              y(3)     ref(3)     ref(10)     ref(10) 
+	list_switch              a(3)     ref(3)     ref(10)     ref(10) 
 label(3):
-	try_me_else              0     0     ref(9) 
+	try_me_else              0     3     ref(9) 
 label(4):
-	move                     y(1)     a(4) 
-	get_list                 a(4)     ref(5) 
+	get_list                 a(1)     ref(5) 
 	write_variable2          a(4)     a(1) 
 label(6):
-	move                     y(3)     a(5) 
-	get_list                 a(5)     ref(7) 
+	get_list                 a(3)     ref(7) 
 	write_local_value        a(4) 
 	write_variable           a(3) 
-	move_chain               y(2)     a(2)     ref(1) 
-label(9):
-	trust_me_inline          0     Y[1,2,3] 
-label(10):
-	move                     y(1)     a(1) 
-	get_nil                  a(1) 
-	get_value                y(2)     y(3) 
-	exit                 
+	chain                    ref(1) 
 label(5):
 	read_variable2           a(4)     a(1) 
 	branch                   ref(6) 
+label(9):
+	trust_me_inline          0     Y[] 
+label(10):
+	get_nil                  a(1) 
+label(12):
+	move                     a(2)     a(1) 
+	get_value                a(3)     a(1) 
+	exit                 
 label(7):
 	read_value               a(4) 
 	read_variable            a(3) 
-	move_chain               y(2)     a(2)     ref(1) 
+	chain                    ref(1) 
 
 ------ Test bench(4) -------
 conc(e(A), B, B).
@@ -9791,47 +10108,44 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 conc / 3:
 label(1):
-	get_variable             3     a(1)     y(1) 
-	move                     2     a(2)     y(2) 
+	allocate                 0 
 label(2):
-	functor_switch           y(1) 
-		e / 1: 	ref(5)
-		f / 2: 	ref(8)
+	functor_switch           a(1) 
+		e / 1: 	ref(6)
+		f / 2: 	ref(9)
 		default: 	ref(fail)
 
 label(3):
-	functor_switch           y(3) 
+	functor_switch           a(3) 
 		f / 2: 	ref(4)
 		default: 	ref(5)
 
 label(4):
-	try_me_else              0     0     ref(7) 
+	try_me_else              0     3     ref(7) 
 label(5):
-	move                     y(1)     a(1) 
 	get_structure            a(1)     e / 1     ref(6) 
 	write_void           
 label(6):
-	get_value                y(2)     y(3) 
+	move                     a(2)     a(1) 
+	get_value                a(3)     a(1) 
 	exit                 
-label(7):
-	trust_me_inline          0     Y[1,2,3] 
-label(8):
-	move                     y(1)     a(4) 
-	get_structure            a(4)     f / 2     ref(9) 
-	write_variable2          a(4)     a(1) 
-label(10):
-	move                     y(3)     a(5) 
-	get_structure            a(5)     f / 2     ref(11) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	move_chain               y(2)     a(2)     ref(1) 
 label(9):
 	read_variable2           a(4)     a(1) 
+label(10):
+	get_structure            a(3)     f / 2     ref(11) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	chain                    ref(1) 
+label(7):
+	trust_me_inline          0     Y[] 
+label(8):
+	get_structure            a(1)     f / 2     ref(9) 
+	write_variable2          a(4)     a(1) 
 	branch                   ref(10) 
 label(11):
 	read_value               a(4) 
 	read_variable            a(3) 
-	move_chain               y(2)     a(2)     ref(1) 
+	chain                    ref(1) 
 
 ------ Test bench(6) -------
 conc([], A, B) :-
@@ -9848,13 +10162,13 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 conc / 3:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
+	allocate                 0 
+	savecut                  a(4) 
 	list_switch              a(1)     ref(6)     ref(11)     ref(fail) 
 label(3):
 	get_nil                  a(1) 
 label(11):
-	cut                      y(1)     1 
+	cut                      a(4)     0 
 	get_value                a(2)     a(3) 
 	exit                 
 label(6):
@@ -9940,49 +10254,108 @@ tak(A, B, C, D) :-
 
 tak / 4:
 label(1):
-	allocate                 11 
-	savecut                  y(5) 
-	move                     4     a(1)     y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 10 
+	savecut                  a(5) 
+	try_me_else              0     5     ref(3) 
 label(2):
-	move                     2     y(1)     a(1) 
 	bi_le                    a(1)     a(2)     eclipse     48 
-	cut                      y(5)     11 
-	get_value                y(3)     y(4) 
+	cut                      a(5)     10 
+	get_value                a(3)     a(4) 
 	exit                 
 label(3):
-	trust_me_inline          0     Y[1,2,3,4] 
+	trust_me_inline          0     Y[] 
 label(4):
+	move                     3     a(1)     y(6) 
+	move                     a(4)     y(4) 
 	put_structure            a(2)     (-) / 2 
-	push_local_value         y(1) 
-	push_integer             1 
-	put_global_variable      a(1)     y(11) 
-	put_atom                 a(3)     eclipse 
-	callf                    sepia_kernel : is_body / 3     Y[1,2,3,4,11] 
-	put_global_variable      a(4)     y(8) 
-	move                     y(11)     a(1) 
-	move                     2     y(2)     a(2) 
-	callf                    ref(1)     Y[1,2,3,4,8] 
-	put_structure            a(2)     (-) / 2 
-	push_local_value         y(2) 
+	push_local_value         a(1) 
 	push_integer             1 
 	put_global_variable      a(1)     y(10) 
 	put_atom                 a(3)     eclipse 
-	callf                    sepia_kernel : is_body / 3     Y[1,2,3,4,8,10] 
-	put_global_variable      a(4)     y(7) 
-	move                     y(10)     a(1)     y(3)     a(2)     y(1)     a(3) 
-	callf                    ref(1)     Y[1,2,3,4,7,8] 
+	callf                    sepia_kernel : is_body / 3     Y[4,6,7,8,10] 
+	put_global_variable      a(4)     y(3) 
+	move                     y(10)     a(1) 
+	move                     2     y(7)     a(2) 
+	callf                    ref(1)     Y[3,4,6,7,8] 
 	put_structure            a(2)     (-) / 2 
-	push_local_value         y(3) 
+	push_local_value         y(7) 
 	push_integer             1 
 	put_global_variable      a(1)     y(9) 
 	put_atom                 a(3)     eclipse 
-	callf                    sepia_kernel : is_body / 3     Y[1,2,4,7,8,9] 
-	put_global_variable      a(4)     y(6) 
-	move                     y(9)     a(1) 
-	move                     2     y(1)     a(2) 
-	callf                    ref(1)     Y[4,6,7,8] 
-	move                     y(8)     a(1)     y(7)     a(2)     y(6)     a(3) 
+	callf                    sepia_kernel : is_body / 3     Y[3,4,6,7,8,9] 
+	put_global_variable      a(4)     y(2) 
+	move                     y(9)     a(1)     y(8)     a(2)     y(6)     a(3) 
+	callf                    ref(1)     Y[2,3,4,6,7,8] 
+	put_structure            a(2)     (-) / 2 
+	push_local_value         y(8) 
+	push_integer             1 
+	put_global_variable      a(1)     y(5) 
+	put_atom                 a(3)     eclipse 
+	callf                    sepia_kernel : is_body / 3     Y[2,3,4,5,6,7] 
+	put_global_variable      a(4)     y(1) 
+	move                     3     y(5)     a(1) 
+	callf                    ref(1)     Y[1,2,3,4] 
+	move                     y(3)     a(1)     y(2)     a(2)     y(1)     a(3) 
+	move_chain               y(4)     a(4)     ref(1) 
+
+------ Test bench(takc) -------
+tak(A, B, C, D) :-
+	A =< B,
+	!,
+	C = D.
+tak(A, B, C, D) :-
+	E is A - 1,
+	tak(E, B, C, F),
+	G is B - 1,
+	tak(G, C, A, H),
+	I is C - 1,
+	tak(I, A, B, J),
+	tak(F, H, J, D).
+
+tak / 4:
+label(1):
+	allocate                 10 
+	savecut                  a(5) 
+	try_me_else              0     5     ref(3) 
+label(2):
+	bi_le                    a(1)     a(2)     eclipse     48 
+	cut                      a(5)     10 
+	get_value                a(3)     a(4) 
+	exit                 
+label(3):
+	trust_me_inline          0     Y[] 
+label(4):
+	move                     3     a(1)     y(6) 
+	move                     a(4)     y(4) 
+	put_structure            a(2)     (-) / 2 
+	push_local_value         a(1) 
+	push_integer             1 
+	put_global_variable      a(1)     y(10) 
+	put_atom                 a(3)     eclipse 
+	callf                    sepia_kernel : is_body / 3     Y[4,6,7,8,10] 
+	put_global_variable      a(4)     y(3) 
+	move                     y(10)     a(1) 
+	move                     2     y(7)     a(2) 
+	callf                    ref(1)     Y[3,4,6,7,8] 
+	put_structure            a(2)     (-) / 2 
+	push_local_value         y(7) 
+	push_integer             1 
+	put_global_variable      a(1)     y(9) 
+	put_atom                 a(3)     eclipse 
+	callf                    sepia_kernel : is_body / 3     Y[3,4,6,7,8,9] 
+	put_global_variable      a(4)     y(2) 
+	move                     y(9)     a(1)     y(8)     a(2)     y(6)     a(3) 
+	callf                    ref(1)     Y[2,3,4,6,7,8] 
+	put_structure            a(2)     (-) / 2 
+	push_local_value         y(8) 
+	push_integer             1 
+	put_global_variable      a(1)     y(5) 
+	put_atom                 a(3)     eclipse 
+	callf                    sepia_kernel : is_body / 3     Y[2,3,4,5,6,7] 
+	put_global_variable      a(4)     y(1) 
+	move                     3     y(5)     a(1) 
+	callf                    ref(1)     Y[1,2,3,4] 
+	move                     y(3)     a(1)     y(2)     a(2)     y(1)     a(3) 
 	move_chain               y(4)     a(4)     ref(1) 
 
 ------ Test bug(1) -------
@@ -10014,7 +10387,7 @@ INDEXES for (nondet) disjunction [2, 2, 2]
     [var] - [1, 2]
 simplify_code / 2:
 label(1):
-	allocate                 5 
+	allocate                 3 
 	list_switch              a(1)     ref(8)     ref(18)     ref(fail) 
 label(2):
 	list_switch              a(2)     ref(6)     ref(3)     ref(6) 
@@ -10027,23 +10400,24 @@ label(18):
 	exit                 
 label(8):
 	read_structure           code / 3     ref(7) 
-	read_variable            y(2) 
+	move                     a(2)     a(3) 
+	read_variable            a(2) 
 	mode                     t(0) 
 label(9):
-	read_variable            y(1) 
+	read_variable            a(1) 
 label(10):
 	space                    -1 
-	savecut                  y(4) 
-	move                     a(2)     y(3) 
-	list_switch              y(3)     ref(11)     ref(12)     ref(12) 
+	savecut                  y(1) 
+	list_switch              a(3)     ref(11)     ref(12)     ref(12) 
 label(11):
-	try_me_else              0     0     ref(13) 
+	try_me_else              0     3     ref(13) 
 label(12):
-	put_global_variable      a(3)     y(5) 
-	move                     y(2)     a(1)     y(1)     a(2) 
-	callf                    simplify / 3     Y[3,4,5] 
-	cut                      y(4)     5 
-	move                     y(5)     a(1)     y(3)     a(2) 
+	move                     a(3)     y(3) 
+	put_global_variable      a(3)     y(2) 
+	swap                     a(1)     a(2) 
+	callf                    simplify / 3     Y[1,2,3] 
+	cut                      y(1)     3 
+	move                     2     y(2)     a(1) 
 	chain                    ref(1) 
 label(5):
 	trust_me_inline          0     Y[] 
@@ -10051,23 +10425,23 @@ label(6):
 	get_list                 a(1)     ref(8) 
 	write_first_structure     code / 3 
 label(7):
-	write_variable           y(2) 
+	move                     a(2)     a(3) 
+	write_variable           a(2) 
 	write_void               2 
 	mode                     t(0)     ref(9) 
-	write_variable           y(1) 
+	write_variable           a(1) 
 	branch                   ref(10) 
 label(13):
-	trust_me_inline          0     Y[1,2,3] 
+	trust_me_inline          0     Y[] 
 label(14):
-	move                     y(3)     a(3) 
 	get_list                 a(3)     ref(15) 
-	write_local_value        y(2) 
+	write_local_value        a(2) 
 	write_variable           a(2) 
-	move_chain               y(1)     a(1)     ref(1) 
+	chain                    ref(1) 
 label(15):
-	read_value               y(2) 
+	read_value               a(2) 
 	read_variable            a(2) 
-	move_chain               y(1)     a(1)     ref(1) 
+	chain                    ref(1) 
 
 ------ Test bug(2) -------
 loop(A) :-
@@ -10100,15 +10474,13 @@ p(A, B, C) :-
 
 p / 3:
 label(1):
-	allocate                 4 
-	savecut                  y(4) 
-	move                     3     a(1)     y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(4) 
+	try_me_else              0     4     ref(3) 
 label(2):
-	get_value                y(1)     y(2) 
-	cut                      y(4)     4 
-	move                     y(3)     a(1) 
-	get_atom                 a(1)     foo 
+	get_value                a(1)     a(2) 
+	cut                      a(4)     0 
+	get_atom                 a(3)     foo 
 	exit                 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -10128,20 +10500,17 @@ p(A, B, C) :-
 
 p / 3:
 label(1):
-	allocate                 4 
-	savecut                  y(4) 
-	move                     3     a(1)     y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(4) 
+	try_me_else              0     4     ref(3) 
 label(2):
-	move                     2     y(1)     a(1) 
 	get_matched_value        a(1)     a(2) 
-	cut                      y(4)     4 
+	cut                      a(4)     0 
 	exit                 
 label(3):
-	trust_me_inline          0     Y[3] 
+	trust_me_inline          0     Y[] 
 label(4):
-	move                     y(3)     a(1) 
-	get_list                 a(1)     ref(5) 
+	get_list                 a(3)     ref(5) 
 	write_void               2 
 	exit                 
 label(5):
@@ -10165,32 +10534,28 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 indexing_transformation / 2:
 label(1):
-	allocate                 3 
+	allocate                 0 
 	get_list                 a(1)     ref(2) 
-	write_variable           y(1) 
+	write_variable           a(1) 
 	write_void           
-	savecut                  y(3) 
-	move                     a(2)     y(2) 
+	savecut                  a(3) 
 label(4):
-	functor_switch           y(1) 
-		disjunction / 1: 	ref(6)
+	functor_switch           a(1) 
+		disjunction / 1: 	ref(7)
 		default: 	ref(9)
 
 label(6):
-	move                     y(1)     a(1) 
 	get_structure            a(1)     disjunction / 1     ref(7) 
 	write_void           
 label(7):
-	cut                      y(3)     3 
+	cut                      a(3)     0 
 	chain                    (then) / 0 
 label(2):
-	read_variable            y(1) 
-	savecut                  y(3) 
-	move                     a(2)     y(2) 
+	read_variable            a(1) 
+	savecut                  a(3) 
 	branch                   ref(4) 
 label(9):
-	move                     y(2)     a(1) 
-	get_list                 a(1)     ref(10) 
+	get_list                 a(2)     ref(10) 
 	write_void               2 
 	exit                 
 label(10):
@@ -10214,52 +10579,47 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 insert_after_head / 3:
 label(1):
-	allocate                 4 
-	savecut                  y(4) 
-	move                     3     a(1)     y(1) 
-	list_switch              y(2)     ref(2)     ref(11)     ref(11) 
+	allocate                 0 
+	savecut                  a(4) 
+	list_switch              a(2)     ref(2)     ref(11)     ref(11) 
 label(2):
-	try_me_else              0     0     ref(10) 
+	try_me_else              0     4     ref(10) 
 label(3):
-	move                     y(2)     a(1) 
-	get_list                 a(1)     ref(4) 
-	write_variable2          a(1)     a(2) 
+	get_list                 a(2)     ref(4) 
+	write_variable2          a(2)     a(5) 
 label(5):
-	get_structure            a(1)     goal / 2     ref(6) 
+	get_structure            a(2)     goal / 2     ref(6) 
 	write_atom               head 
 	write_void           
 label(7):
-	cut                      y(4)     4 
-	move                     y(3)     a(3) 
+	cut                      a(4)     0 
 	get_list                 a(3)     ref(9) 
-	write_local_value        a(1) 
+	write_local_value        a(2) 
 	write_list           
 label(8):
-	write_local_value        y(1) 
-	write_local_value        a(2) 
+	write_local_value2       a(1)     a(5) 
 	exit                 
 label(10):
-	trust_me_inline          0     Y[1,2,3] 
+	trust_me_inline          0     Y[] 
 label(11):
-	move                     y(3)     a(1) 
-	get_list                 a(1)     ref(12) 
-	write_local_value2       y(1)     y(2) 
+	get_list                 a(3)     ref(12) 
+	write_local_value2       a(1)     a(2) 
 	exit                 
 label(4):
-	read_variable2           a(1)     a(2) 
+	read_variable2           a(2)     a(5) 
 	branch                   ref(5) 
 label(6):
 	read_atom                head 
 	branch                   ref(7) 
 label(9):
-	read_value               a(1) 
-	read_last_list           ref(8) 
-	read_value               y(1) 
 	read_value               a(2) 
+	read_last_list           ref(8) 
+	read_value               a(1) 
+	read_value               a(5) 
 	exit                 
 label(12):
-	read_value               y(1) 
-	read_value               y(2) 
+	read_value               a(1) 
+	read_value               a(2) 
 	exit                 
 
 ------ Test bug(7) -------
@@ -10296,7 +10656,7 @@ INDEXES for (nondet) disjunction [2]
 declaration_warning_handler / 3:
 label(1):
 	allocate                 5 
-	savecut                  y(1) 
+	savecut                  a(4) 
 label(2):
 	atom_switch              a(3) 
 		profile: 	ref(21)
@@ -10306,34 +10666,34 @@ label(2):
 label(5):
 	get_atom                 a(3)     lists 
 label(22):
-	cut                      y(1)     5 
+	cut                      a(4)     5 
 	exit                 
 label(17):
-	try                      0     3     ref(9) 
-	retry_inline             0     ref(11)     Y[1] 
+	try                      0     4     ref(9) 
+	retry_inline             0     ref(11)     Y[] 
 	trust_inline             0     ref(15)     Y[] 
 label(7):
 	get_atom                 a(3)     profile 
 label(21):
-	cut                      y(1)     5 
+	cut                      a(4)     5 
 	exit                 
 label(9):
 	get_integer              a(1)     75 
-	cut                      y(1)     5 
-	move                     2     a(2)     y(3) 
+	cut                      a(4)     5 
+	move                     3     a(2)     y(2) 
 	put_atom                 a(2)     definition_module 
 	put_global_variable      a(3)     y(5) 
-	move                     y(3)     a(1)     y(4)     a(4) 
-	callf                    get_flag_body / 4     Y[1,3,4,5] 
-	put_global_variable      a(3)     y(2) 
-	move                     y(3)     a(1)     y(5)     a(2) 
+	move                     y(2)     a(1)     y(3)     a(4) 
+	callf                    get_flag_body / 4     Y[2,3,4,5] 
+	put_global_variable      a(3)     y(1) 
+	move                     y(2)     a(1)     y(5)     a(2) 
 	callf                    get_deprecation_advice / 3     Y[1,2,3,4] 
-	cut                      y(1)     5 
+	cut                      y(4)     5 
 	put_integer              a(1)     75 
-	move                     2     y(3)     a(2) 
-	callf                    warning_handler / 3     Y[2] 
+	move                     2     y(2)     a(2) 
+	callf                    warning_handler / 3     Y[1] 
 	put_list                 a(3) 
-	push_local_value         y(2) 
+	push_local_value         y(1) 
 	push_nil             
 	put_atom                 a(1)     warning_output 
 	put_string               a(2)     " Advice: %w%n" 
@@ -10344,6 +10704,8 @@ label(11):
 	get_structure            a(2)     (:) / 2     ref(12) 
 	write_variable           a(1) 
 	write_void           
+label(13):
+	move                     a(4)     y(1) 
 	callf                    known_library / 1     Y[1] 
 	cut                      y(1)     5 
 	exit                 
@@ -10351,9 +10713,7 @@ label(15):
 	chain                    warning_handler / 3 
 label(12):
 	read_variable            a(1) 
-	callf                    known_library / 1     Y[1] 
-	cut                      y(1)     5 
-	exit                 
+	branch                   ref(13) 
 
 ------ Test bug(8) -------
 attach_suspensions(postponed, A) ?-
@@ -10388,8 +10748,8 @@ INDEXES for (semidet) disjunction [2]
     [goal] - [3]
 attach_suspensions / 2:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
+	allocate                 0 
+	savecut                  a(3) 
 	switch_on_type           a(1) 
 		meta: 	ref(9)
 		[]: 	ref(12)
@@ -10415,7 +10775,7 @@ label(9):
 label(5):
 	bi_atom                  a(1) 
 label(12):
-	cut                      y(1)     1 
+	cut                      a(3)     0 
 	chain                    attach_suspensions1 / 2 
 label(11):
 	atom_switch              a(1) 
@@ -10425,7 +10785,7 @@ label(11):
 label(7):
 	bi_nonvar                a(1) 
 label(13):
-	cut                      y(1)     1 
+	cut                      a(3)     0 
 	move                     a(2)     a(4) 
 	put_structure            a(2)     attach_suspensions / 2 
 	push_local_value2        a(1)     a(4) 
@@ -10435,7 +10795,7 @@ label(13):
 label(3):
 	in_get_atom              a(1)     postponed 
 label(14):
-	cut                      y(1)     1 
+	cut                      a(3)     0 
 	move                     a(2)     a(1) 
 	chain                    postpone_suspensions / 1 
 
@@ -10455,25 +10815,23 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 execute / 3:
 label(1):
-	get_variable             3     a(1)     y(1) 
-	move                     2     a(2)     y(2) 
-	list_switch              y(3)     ref(3)     ref(6)     ref(fail) 
+	allocate                 0 
+	list_switch              a(3)     ref(4)     ref(8)     ref(fail) 
 label(2):
-	try_me_else              0     0     ref(5) 
+	try_me_else              0     3     ref(5) 
 label(3):
-	move                     y(3)     a(1) 
-	get_list                 a(1)     ref(4) 
-	write_local_value2       y(1)     y(2) 
-	exit                 
-label(5):
-	trust_me_inline          0     Y[3] 
-label(6):
-	move                     y(3)     a(1) 
-	get_nil                  a(1) 
+	get_list                 a(3)     ref(4) 
+	write_local_value2       a(1)     a(2) 
 	exit                 
 label(4):
-	read_value               y(1) 
-	read_value               y(2) 
+	read_value               a(1) 
+	read_value               a(2) 
+	exit                 
+label(5):
+	trust_me_inline          0     Y[] 
+label(6):
+	get_nil                  a(3) 
+label(8):
 	exit                 
 
 ------ Test bug(10) -------
@@ -10507,7 +10865,7 @@ INDEXES for (nondet) disjunction [2, 2, 4]
     [var] - [1, 2]
 do_x / 4:
 label(1):
-	allocate                 8 
+	allocate                 7 
 label(2):
 	integer_switch           a(1) 
 		0: 	ref(3)
@@ -10525,45 +10883,45 @@ label(5):
 label(6):
 	trust_me_inline          0     Y[] 
 label(7):
-	move                     2     a(1)     y(7) 
+	move                     2     a(1)     y(6) 
 	move                     2     a(3)     y(3) 
 	put_structure            a(2)     (+) / 2 
-	push_variable            y(6) 
+	push_variable            y(5) 
 	push_integer             1 
 	put_atom                 a(3)     eclipse 
-	move_callf               y(3)     a(1)     sepia_kernel : is_body / 3     Y[3,4,6,7,8] 
+	move_callf               y(3)     a(1)     sepia_kernel : is_body / 3     Y[3,4,5,6,7] 
 	put_structure            a(2)     (>>) / 2 
-	push_local_value         y(7) 
+	push_local_value         y(6) 
 	push_integer             1 
 	put_global_variable      a(1)     y(2) 
 	put_atom                 a(3)     eclipse 
-	callf                    sepia_kernel : is_body / 3     Y[2,3,4,6,7,8] 
-	savecut                  y(5) 
-	list_switch              y(8)     ref(8)     ref(9)     ref(9) 
+	callf                    sepia_kernel : is_body / 3     Y[2,3,4,5,6,7] 
+	savecut                  a(1) 
+	list_switch              y(7)     ref(8)     ref(9)     ref(9) 
 label(8):
-	try_me_else              0     0     ref(10) 
+	try_me_else              0     1     ref(10) 
 label(9):
-	put_structure            a(1)     (/\) / 2 
-	push_local_value         y(7) 
+	put_structure            a(2)     (/\) / 2 
+	push_local_value         y(6) 
 	push_integer             1 
-	put_integer              a(2)     0 
-	bi_eq                    a(1)     a(2)     eclipse     48 
-	cut                      y(5)     8 
-	move                     y(8)     y(1) 
+	put_integer              a(3)     0 
+	bi_eq                    a(2)     a(3)     eclipse     48 
+	cut                      a(1)     7 
+	move                     y(7)     y(1) 
 label(13):
 	move                     y(2)     a(1)     y(1)     a(2) 
 	move                     2     y(3)     a(3) 
 	chain                    ref(1) 
 label(10):
-	trust_me_inline          0     Y[2,3,4,6,8] 
+	trust_me_inline          0     Y[2,3,4,5,7] 
 label(11):
-	move                     y(8)     a(1) 
+	move                     y(7)     a(1) 
 	get_list                 a(1)     ref(12) 
-	write_local_value        y(6) 
+	write_local_value        y(5) 
 	write_variable           y(1) 
 	branch                   ref(13) 
 label(12):
-	read_value               y(6) 
+	read_value               y(5) 
 	read_variable            y(1) 
 	branch                   ref(13) 
 
@@ -10972,13 +11330,13 @@ p :-
 
 p / 0:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     1 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     0 
 	chain                    b / 0 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -11003,20 +11361,20 @@ p :-
 
 p / 0:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     1 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     0 
 	chain                    b / 0 
 label(3):
-	retry_me_inline          0     ref(5)     Y[1] 
+	retry_me_inline          0     ref(5)     Y[] 
 label(4):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     1 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     0 
 	chain                    c / 0 
 label(5):
 	trust_me_inline          0     Y[] 
@@ -11035,13 +11393,13 @@ p :-
 
 p / 0:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     1 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     0 
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	exit                 
@@ -11066,13 +11424,13 @@ p :-
 
 p / 0:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     1 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     0 
 	callf                    b / 0     Y[] 
 label(5):
 	callf                    e / 0     Y[] 
@@ -11103,23 +11461,23 @@ p :-
 
 p / 0:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     1 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     0 
 	callf                    b / 0     Y[] 
 label(7):
 	callf                    e / 0     Y[] 
 	chain                    f / 0 
 label(3):
-	retry_me_inline          0     ref(5)     Y[1] 
+	retry_me_inline          0     ref(5)     Y[] 
 label(4):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     1 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     0 
 	callf                    c / 0     Y[] 
 	branch                   ref(7) 
 label(5):
@@ -11142,13 +11500,13 @@ p :-
 
 p / 0:
 label(1):
-	allocate                 1 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     1 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     0 
 	put_variable             a(1) 
 	bi_var                   a(1) 
 label(5):
@@ -11227,7 +11585,7 @@ label(1):
 	savecut                  a(1) 
 	put_variable             a(2) 
 	bi_var                   a(2) 
-	cut                      a(1) 
+	cut                      a(1)     0 
 	chain                    ref(1) 
 
 ------ Test disj10 -------
@@ -11242,7 +11600,7 @@ label(1):
 	savecut                  a(1) 
 	put_variable             a(2) 
 	bi_var                   a(2) 
-	cut                      a(1) 
+	cut                      a(1)     0 
 	exit                 
 
 ------ Test disj11 -------
@@ -11332,7 +11690,7 @@ label(4):
 	savecut                  a(1) 
 	put_variable             a(2) 
 	bi_var                   a(2) 
-	cut                      a(1) 
+	cut                      a(1)     0 
 	bi_var                   a(2) 
 	chain                    b / 0 
 
@@ -11356,31 +11714,32 @@ p :-
 
 p / 0:
 label(1):
-	allocate                 2 
-	savecut                  y(1) 
-	savecut                  y(2) 
-	try_me_else              0     0     ref(3) 
+	allocate                 1 
+	savecut                  a(1) 
+	savecut                  a(2) 
+	try_me_else              0     2     ref(3) 
 label(2):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(2)     2 
-	bi_var                   a(1) 
-	cut                      y(1)     2 
+	put_variable             a(3) 
+	bi_var                   a(3) 
+	cut                      a(2)     1 
+	bi_var                   a(3) 
+	cut                      a(1)     1 
 	exit                 
 label(3):
-	retry_me_inline          0     ref(5)     Y[1] 
+	retry_me_inline          0     ref(5)     Y[] 
 label(4):
+	move                     a(1)     y(1) 
 	callf                    ref(1)     Y[1] 
 	put_variable             a(1) 
 	bi_var                   a(1) 
-	cut                      y(1)     2 
+	cut                      y(1)     1 
 	exit                 
 label(5):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(6):
-	put_variable             a(1) 
-	bi_var                   a(1) 
-	cut                      y(1)     2 
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	cut                      a(1)     1 
 	exit                 
 
 ------ Test disj16 -------
@@ -11457,12 +11816,12 @@ t :-
 
 t / 0:
 label(1):
-	allocate                 2 
+	allocate                 1 
 	savecut                  y(1) 
 	try_me_else              0     0     ref(6) 
 label(2):
-	savecut                  y(2) 
-	try_me_else              0     0     ref(4) 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(4) 
 label(3):
 	failure              
 label(6):
@@ -11472,7 +11831,7 @@ label(7):
 label(4):
 	trust_me_inline          0     Y[1] 
 label(5):
-	cut                      y(1)     2 
+	cut                      y(1)     1 
 	failure              
 
 ------ Test disj20 -------
@@ -11610,37 +11969,35 @@ INDEXES for (semidet) disjunction [2, 1, 2]
     [integer, 2] - [2]
 p / 1:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
+	allocate                 1 
+	savecut                  y(1) 
 label(2):
-	integer_switch           y(1) 
+	integer_switch           a(1) 
 		4: 	ref(3)
 		default: 	ref(4)
 
 label(3):
-	try_me_else              0     0     ref(10) 
+	try_me_else              0     1     ref(10) 
 label(4):
-	integer_switch           y(1) 
-		1: 	ref(6)
-		2: 	ref(8)
+	integer_switch           a(1) 
+		1: 	ref(13)
+		2: 	ref(14)
 		default: 	ref(fail)
 
 label(6):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-	cut                      y(2)     2 
+label(13):
+	cut                      y(1)     1 
 	failure              
 label(10):
-	trust_me_inline          0     Y[1] 
+	trust_me_inline          0     Y[] 
 label(11):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     4 
 label(12):
 	exit                 
 label(8):
-	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
+label(14):
 	failure              
 
 ------ Test disj26 -------
@@ -11656,20 +12013,18 @@ p(A, B) :-
 
 p / 2:
 label(1):
-	allocate                 4 
-	savecut                  y(3) 
-	move                     2     a(1)     y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 2 
+	savecut                  y(1) 
+	try_me_else              0     2     ref(3) 
 label(2):
-	put_global_variable      a(1)     y(4) 
+	put_global_variable      a(1)     y(2) 
 	bi_var                   a(1) 
-	callf                    q / 1     Y[3,4] 
-	cut                      y(3)     4 
-	move_chain               y(4)     a(1)     r / 1 
+	callf                    q / 1     Y[1,2] 
+	cut                      y(1)     2 
+	move_chain               y(2)     a(1)     r / 1 
 label(3):
-	trust_me_inline          0     Y[1,2] 
+	trust_me_inline          0     Y[] 
 label(4):
-	move                     2     y(1)     a(1) 
 	chain                    s / 2 
 
 ------ Test disj27 -------
@@ -11692,18 +12047,17 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
 p3 / 3:
 label(1):
-	allocate                 2 
-	savecut                  y(2) 
-	move                     a(1)     y(1) 
+	allocate                 0 
+	savecut                  a(2) 
 label(2):
-	atom_switch              y(1) 
-		'': 	ref(4)
+	atom_switch              a(1) 
+		'': 	ref(7)
 		default: 	ref(6)
 
 label(4):
-	move                     y(1)     a(1) 
 	get_atom                 a(1)     '' 
-	cut                      y(2)     2 
+label(7):
+	cut                      a(2)     0 
 label(6):
 	exit                 
 
@@ -11729,13 +12083,13 @@ s :-
 
 s / 0:
 label(1):
-	allocate                 2 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 1 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(3) 
 label(2):
-	put_variable             a(1) 
-	in_get_atom              a(1)     open 
-	cut                      y(1)     2 
+	put_variable             a(2) 
+	in_get_atom              a(2)     open 
+	cut                      a(1)     1 
 	branch                   ref(7) 
 label(3):
 	trust_me_inline          0     Y[] 
@@ -11743,13 +12097,13 @@ label(4):
 	savecut                  a(1) 
 	put_variable             a(2) 
 	in_get_atom              a(2)     def 
-	cut                      a(1) 
-	savecut                  y(2) 
+	cut                      a(1)     1 
+	savecut                  y(1) 
 	try_me_else              0     0     ref(6) 
 label(5):
 	put_variable             a(1) 
-	callf                    transformed / 1     Y[2] 
-	cut                      y(2)     2 
+	callf                    transformed / 1     Y[1] 
+	cut                      y(1)     1 
 	branch                   ref(7) 
 label(6):
 	trust_me_inline          0     Y[] 
@@ -11776,22 +12130,22 @@ INDEXES for (semidet) disjunction [3]
     [integer, 1] - [1]
 test / 1:
 label(1):
-	allocate                 2 
+	allocate                 1 
 	savecut                  a(3) 
-	move                     a(1)     y(2) 
+	move                     a(1)     y(1) 
 	put_atom                 a(1)     clause1 
 	put_atom                 a(2)     eclipse 
-	callf                    sepia_kernel : writeln_body / 2     Y[2] 
-	savecut                  y(1) 
+	callf                    sepia_kernel : writeln_body / 2     Y[1] 
+	savecut                  a(1) 
 label(2):
-	integer_switch           y(2) 
+	integer_switch           y(1) 
 		1: 	ref(4)
 		default: 	ref(6)
 
 label(4):
-	move                     y(2)     a(3) 
+	move                     y(1)     a(3) 
 	get_integer              a(3)     1 
-	cut                      y(1)     2 
+	cut                      a(1)     1 
 	put_atom                 a(1)     ok 
 	put_atom                 a(2)     eclipse 
 	chain                    sepia_kernel : writeln_body / 2 
@@ -11925,13 +12279,12 @@ c(A, B) :-
 
 c / 2:
 label(1):
-	allocate                 3 
-	savecut                  y(3) 
-	move                     2     a(1)     y(1) 
-	try_me_else              0     0     ref(3) 
+	allocate                 0 
+	savecut                  a(3) 
+	try_me_else              0     3     ref(3) 
 label(2):
-	get_value                y(1)     y(2) 
-	cut                      y(3)     3 
+	get_value                a(1)     a(2) 
+	cut                      a(3)     0 
 	callf                    a / 0     Y[] 
 	chain                    c / 0 
 label(3):
@@ -11959,33 +12312,33 @@ INDEXES for (nondet) disjunction [3]
     [var] - [1, 2]
 producer / 1:
 label(1):
-	get_variable             4     a(1)     y(4) 
-	put_global_variable_callf     a(1)     y(3)     random / 1     Y[3,4] 
-	savecut                  y(2) 
-	list_switch              y(4)     ref(2)     ref(3)     ref(3) 
+	get_variable             3     a(1)     y(3) 
+	put_global_variable_callf     a(1)     y(2)     random / 1     Y[2,3] 
+	savecut                  a(1) 
+	list_switch              y(3)     ref(2)     ref(3)     ref(3) 
 label(2):
-	try_me_else              0     0     ref(5) 
+	try_me_else              0     1     ref(5) 
 label(3):
-	put_integer              a(1)     0 
-	move                     y(3)     a(2) 
-	bi_gt                    a(2)     a(1)     eclipse     48 
-	cut                      y(2)     4 
-	move                     y(4)     a(1) 
+	put_integer              a(2)     0 
+	move                     y(2)     a(3) 
+	bi_gt                    a(3)     a(2)     eclipse     48 
+	cut                      a(1)     3 
+	move                     y(3)     a(1) 
 	get_list                 a(1)     ref(4) 
-	write_local_value        a(2) 
+	write_local_value        a(3) 
 	write_variable           y(1) 
 label(8):
 	move_chain               y(1)     a(1)     ref(1) 
 label(5):
-	trust_me_inline          0     Y[4] 
+	trust_me_inline          0     Y[3] 
 label(6):
-	move                     y(4)     a(1) 
+	move                     y(3)     a(1) 
 	get_list                 a(1)     ref(7) 
 	write_atom               zero 
 	write_variable           y(1) 
 	branch                   ref(8) 
 label(4):
-	read_value               a(2) 
+	read_value               a(3) 
 	read_variable            y(1) 
 	branch                   ref(8) 
 label(7):
@@ -12155,32 +12508,32 @@ INDEXES for (semidet) disjunction [2]
     [atom, c] - [3]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
+	allocate                 0 
 label(2):
-	atom_switch              y(1) 
-		a: 	ref(4)
-		b: 	ref(6)
-		c: 	ref(8)
+	atom_switch              a(1) 
+		a: 	ref(10)
+		b: 	ref(11)
+		c: 	ref(12)
 		default: 	ref(fail)
 
 	branch                   ref(fail) 
 label(4):
-	move                     y(1)     a(2) 
-	in_get_atom              a(2)     a 
+	in_get_atom              a(1)     a 
+label(10):
 	put_structure            a(1)     foo / 5 
 	write_integer2           2     3 
 	write_integer2           4     5 
 	push_integer             6 
 	chain                    r / 1 
 label(6):
-	move                     y(1)     a(2) 
-	in_get_atom              a(2)     b 
+	in_get_atom              a(1)     b 
+label(11):
 	put_structure            a(1)     foo / 2 
 	write_integer2           2     3 
 	chain                    q / 1 
 label(8):
-	move                     y(1)     a(2) 
-	in_get_atom              a(2)     c 
+	in_get_atom              a(1)     c 
+label(12):
 	put_variable             a(1) 
 	put_structure            a(2)     foo / 4 
 	write_integer2           2     3 
@@ -12215,30 +12568,30 @@ INDEXES for (semidet) disjunction [2]
     [atom, c] - [3]
 p / 1:
 label(1):
-	get_variable             1     a(1)     y(1) 
+	allocate                 0 
 label(2):
-	atom_switch              y(1) 
-		a: 	ref(4)
-		b: 	ref(6)
-		c: 	ref(8)
+	atom_switch              a(1) 
+		a: 	ref(10)
+		b: 	ref(11)
+		c: 	ref(12)
 		default: 	ref(fail)
 
 	branch                   ref(fail) 
 label(4):
-	move                     y(1)     a(2) 
-	in_get_atom              a(2)     a 
+	in_get_atom              a(1)     a 
+label(10):
 	put_structure            a(1)     foo / 2 
 	write_integer2           2     6 
 	chain                    r / 1 
 label(6):
-	move                     y(1)     a(2) 
-	in_get_atom              a(2)     b 
+	in_get_atom              a(1)     b 
+label(11):
 	put_structure            a(1)     foo / 2 
 	write_integer2           2     3 
 	chain                    q / 1 
 label(8):
-	move                     y(1)     a(2) 
-	in_get_atom              a(2)     c 
+	in_get_atom              a(1)     c 
+label(12):
 	put_variable             a(1) 
 	put_structure            a(2)     foo / 4 
 	write_integer2           2     3 

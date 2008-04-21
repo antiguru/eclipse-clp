@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.5 2008/03/31 14:52:42 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.6 2008/04/21 14:41:20 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/03/31 14:52:42 $").
+:- comment(date, "$Date: 2008/04/21 14:41:20 $").
 
 :- use_module(compiler_common).
 :- use_module(compiler_analysis).
@@ -40,9 +40,7 @@
 :- comment(desc, ascii("
    This pass finds information that can be exploited for indexing (i.e.
    filtering alternatives from disjunctions). The disjunctions are annotated
-   with this information, and a pseudo-goal (struct indexpoint{}) is inserted
-   into the normalised code, at the beginning of the first alternative of
-   every indexable disjunction.
+   with this information.
 
    The code generator uses this information to generate switch-instructions
    and try-sequences.
@@ -61,37 +59,23 @@
 
 :- export indexing_transformation/3.
 
-indexing_transformation([], [], _).
-indexing_transformation([Goal|Goals], OutGoals0, Options) :-
-	( Goal = disjunction{branches:Branches} ->
-	    update_struct(disjunction, [branches:OutBranches], Goal, OutGoal),
-	    index_disjunction(Goal, IndexPoint),
-	    dump_indexes(IndexPoint, Options),
-	    OutGoals0 = [OutGoal|OutGoals4],
-	    (
-		foreach(Branch,Branches),
-		foreach(OutBranch,OutBranches0),
-		param(Options)
-	    do
-		indexing_transformation(Branch, OutBranch, Options)
-	    ),
-	    % we insert this marker into the goal sequence mainly for
-	    % variable classification purposes
-	    OutBranches0 = [OutBranch1|OutBranches2N],
-	    insert_after_head(IndexPoint, OutBranch1, IndexedOutBranch1),
-	    OutBranches = [IndexedOutBranch1|OutBranches2N]
-	;
-	    OutGoals0 = [Goal|OutGoals4]
-	),
-	indexing_transformation(Goals, OutGoals4, Options).
+indexing_transformation(Goals, Goals, Options) :-
+	% currently no actual modification, just annotation!
+	indexing_transformation(Goals, Options).
 
-    insert_after_head(IndexPoint, Branch, IndexedBranch) :-
-	( Branch = [Head|RestOfBranch], Head = goal{kind:head} ->
-	    IndexedBranch = [Head,IndexPoint|RestOfBranch]
+indexing_transformation([], _).
+indexing_transformation([Goal|Goals], Options) :-
+	( Goal = disjunction{branches:Branches} ->
+	    index_disjunction(Goal),
+	    dump_indexes(Goal, Options),
+	    ( foreach(Branch,Branches), param(Options) do
+		indexing_transformation(Branch, Options)
+	    )
 	;
-	    IndexedBranch = [IndexPoint|Branch]
-	).
-    	
+	    true
+	),
+	indexing_transformation(Goals, Options).
+
 
 /*
 Algorithm:
@@ -122,11 +106,9 @@ Algorithm:
     tests for exactly the tag/value given in the tree entry.
 */
 
-index_disjunction(Disjunction, IndexPoint) :-
-	Disjunction = disjunction{callpos:CallPos,branches:Branches,branchlabels:BranchLabelArray,state:StartState,index:IndexPoint,determinism:Determinism},
-	IndexPoint = indexpoint{callpos:IndexCallPos,args:Args,indexes:OrderedIndexes,disjunction:Disjunction},
-	new_branch(CallPos, 1, _, FirstBranch),
-	same_call_pos(FirstBranch, 1, _, IndexCallPos),
+index_disjunction(disjunction{branches:Branches,branchlabels:BranchLabelArray,
+		state:StartState,
+		indexvars:Args,indexes:OrderedIndexes,determinism:Determinism}) :-
 
 	% Collect all guards of all branches into one list of guard{}
 	hash_create(VaridsInCommittedGuards),
@@ -565,7 +547,7 @@ eval_index_det(_, nondet).
 
 % Debugging: print readable summary of index
 
-dump_indexes(indexpoint{disjunction:disjunction{callpos:CallPos,determinism:Det},indexes:Indexes}, options{print_indexes:Flag}) :-
+dump_indexes(disjunction{callpos:CallPos,determinism:Det,indexes:Indexes}, options{print_indexes:Flag}) :-
 	( Flag==on, Indexes = [_|_] ->
 	    printf("INDEXES for (%w) disjunction %w%n", [Det,CallPos]),
 	    (
@@ -573,8 +555,9 @@ dump_indexes(indexpoint{disjunction:disjunction{callpos:CallPos,determinism:Det}
 %		foreach(index{quality:Q,variable:variable{varid:VarId},partition:Dt},Indexes)
 		foreach(index{quality:Q,partition:Dt},Indexes)
 	    do
-%		printf("%d. Quality %.1f, variable %d%n", [I,Q,VarId]),
-		printf("%d. Quality %.1f%n", [I,Q]),
+		Q1 is round(10*Q)/10,	% printf's rounding is unreliable
+%		printf("%d. Quality %.1f, variable %d%n", [I,Q1,VarId]),
+		printf("%d. Quality %.1f%n", [I,Q1]),
 		dt_list(Dt, Parts), 
 		( foreach(Part,Parts) do
 		    printf("    %w%n", [Part])

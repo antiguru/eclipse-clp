@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.16 2008/03/31 02:07:01 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.17 2008/04/21 14:41:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/03/31 02:07:01 $").
+:- comment(date,	"$Date: 2008/04/21 14:41:20 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -52,6 +52,7 @@
 :- use_module(compiler_codegen).
 :- use_module(compiler_varclass).
 :- use_module(compiler_indexing).
+:- use_module(compiler_regassign).
 
 :- lib(asm).
 :- lib(hash).
@@ -212,9 +213,9 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 
 
     pred_flags(options{debug:Debug,system:System,skip:Skip}, Flags) ?-
-	( Debug==on -> Flags0 = 16'00080000 ; Flags0 = 0 ),			% DEBUG_DB
-	( System==on -> Flags1 is Flags0 \/ 16'40000000 ; Flags1 = Flags0 ),	% SYSTEM
-	( Skip==on -> Flags is Flags1 \/ 16'00040000 ; Flags = Flags1 ).	% DEBUG_SK
+	( Debug==on -> Flags0 = 16'00080000 ; Flags0 = 0 ),			%'% DEBUG_DB
+	( System==on -> Flags1 is Flags0 \/ 16'40000000 ; Flags1 = Flags0 ),	%'% SYSTEM
+	( Skip==on -> Flags is Flags1 \/ 16'00040000 ; Flags = Flags1 ).	%'% DEBUG_SK
 
 
     set_pred_flags(options{debug:Debug,system:System,skip:Skip}, Pred, Module) ?-
@@ -295,38 +296,36 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
 	indexing_transformation(NormPred0, NormPred, Options),
 
 	% Variable classification
-	% compute_lifetimes must be after indexing transformation, because
+	% classify_variables must be after indexing transformation, because
 	% indexing_transformation introduces extra variable occurrences.
-	compute_lifetimes(NormPred, Lifetimes),
-	( Options = options{print_lifetimes:on} ->
-	    printf("------ Lifetime results ------%n", []),
-	    print_occurrences(Lifetimes)
-	;
-	    true
-	),
-	assign_env_slots(NormPred, Lifetimes, EnvSize, Options),
+	% Classifies void, temp and permanent vaiables, and assigns environment
+	% slots to the permanent ones. Also adds disjunction pseudo-args.
+	classify_variables(NormPred, EnvSize, Options),
+
 	( Options = options{print_normalised:on} ->
 	    print_normalized_clause(output, NormPred)
 	;
 	    true
 	),
-	( Options = options{print_lifetimes:on} ->
-	    printf("------ Environment size %d ------%n", [EnvSize]),
-	    print_occurrences(Lifetimes)
+
+	% Code generation
+	generate_code(NormPred, EnvSize, RawCode, AuxCode, Options, Module:Pred),
+	( Options = options{print_raw_code:on} ->
+	    print_annotated_code(RawCode)
 	;
 	    true
 	),
 
-	% Code generation
-	generate_code(NormPred, EnvSize, Code, [], Options, Module:Pred),
+	% Register allocation
+	assign_am_registers(RawCode, RegCode, AuxCode),
 	( Options = options{print_raw_code:on} ->
-	    print_annotated_code(Code)
+	    print_annotated_code(RegCode)
 	;
 	    true
 	),
 
 	% WAM level postprocessing
-	simplify_code(Code, FinalCode, Options),
+	simplify_code(RegCode, FinalCode, Options),
 	( Options = options{print_final_code:on} ->
 	    print_annotated_code(FinalCode)
 	;
@@ -800,7 +799,7 @@ fcompile_(File, Options0, Module) :-
 :- export comp/0, list/0, load/0.
 
 comp :-
-	Options = [output:eco,load:new,verbose:0,opt_level:1,expand_goals:on],
+	Options = [output:eco,load:new,verbose:0,opt_level:0,expand_goals:on],
 	compile(compiler_common,	Options),
 	compile(compiler_normalise,	Options),
 	compile(compiler_analysis,	Options),
@@ -813,7 +812,7 @@ comp :-
 	true.
 
 list :-
-	Options = [output:listing,load:new,verbose:1,opt_level:1,expand_goals:on],
+	Options = [debug:off,output:listing,load:none,verbose:1,opt_level:1,expand_goals:on],
 	compile(compiler_common,	Options),
 	compile(compiler_normalise,	Options),
 	compile(compiler_analysis,	Options),
@@ -835,4 +834,5 @@ load :-
 	sepia_kernel:compile("compiler_indexing.eco"),
 	sepia_kernel:compile("compiler_regassign.eco"),
 	sepia_kernel:compile("compiler_top.eco"),
-	true
+	true.
+
