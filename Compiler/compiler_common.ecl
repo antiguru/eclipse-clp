@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.11 2008/04/21 14:41:20 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.12 2008/04/23 18:09:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/21 14:41:20 $").
+:- comment(date, "$Date: 2008/04/23 18:09:46 $").
 
 
 %----------------------------------------------------------------------
@@ -103,6 +103,7 @@
 	"skip":"set the skip-flag in all compiled predciates (on/off, default:off).",
 	"expand_clauses":"expand clause macros, such as DCGs (on/off, default:on).",
 	"expand_goals":"expand goal macros, i.e. do inlining (on/off, default:off).",
+	"opt_level":"optimization level (0 or 1)",
 	"print_normalised":"print result of the normalisation pass (on/off, default:off).",
 	"print_indexes":"print result of indexing  analysis (on/off, default:off).",
 	"print_lifetimes":"print result of the variable lifetime analysis (on/off, default:off).",
@@ -184,9 +185,9 @@ default_options(options{
 	system:off,
 	skip:off,
 	expand_clauses:on,
-	expand_goals:off,
+	expand_goals:on,
 	load:all,
-	opt_level:0,
+	opt_level:1,
 	print_normalised:off,
 	print_lifetimes:off,
 	print_raw_code:off,
@@ -261,11 +262,11 @@ default_options(options{
 	determinism:	"'nondet' or 'semidet' (for switches)",
 	callpos:	"identifier for the chunk it occurs in",
 	arity:		"pseudo-arity (valid arguments at retry time)",
-	args,		"the disjunction's pseudo-arguments",
-	branchheadargs,	"the pseudo-head arguments for each branch",
-	indexvars,	"list of variable{}s to which the indexes apply",
-	indexes,	"list of index{} corresponding to indexvars",
-    	branches:	"list of normalised goals (at least 2 elements)",
+	args:		"the disjunction's pseudo-arguments",
+	branchheadargs:	"the pseudo-head arguments for each branch",
+	indexvars:	"list of variable{}s to which the indexes apply",
+	indexes:	"list of index{} corresponding to indexvars",
+	branches:	"list of normalised goals (at least 2 elements)",
 	branchlabels:	"array[NBranches] of Labels",
 	branchentrymaps:"list of envmaps for each branch start (used in retry/trust instructions)",
 	branchinitmaps:	"list of envmaps for end-of-branch inits",
@@ -562,7 +563,7 @@ certainly_once _Goal :-
 
 :- export unreachable/1.
 unreachable(Message) :-
-	printf(warning_output, "WARNING: Unreachable code reached: %w%d",
+	printf(warning_output, "WARNING: Unreachable code reached: %w%n",
 		[Message]).
 
 
