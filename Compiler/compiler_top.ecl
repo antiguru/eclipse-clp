@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.17 2008/04/21 14:41:20 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.18 2008/04/23 13:45:28 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/04/21 14:41:20 $").
+:- comment(date,	"$Date: 2008/04/23 13:45:28 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -177,13 +177,13 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 		set_stream(output, OldOut),
 		writeln(Stream, --------------------)
 	    ; Options = options{output:eco_to_stream(Stream)} ->
-                pasm(WAM, Size, Codes),
+                pasm(WAM, Size, BTPos, Codes),
 		CodeArr =.. [[]|Codes],
 		( Module == sepia_kernel ->
 		    % call locally, because :/2 may not be defined yet
-		    StorePred = store_pred(Pred,CodeArr,Size,Flags)
+		    StorePred = store_pred(Pred,CodeArr,Size,BTPos,Flags)
 		;
-		    StorePred = sepia_kernel:store_pred(Pred,CodeArr,Size,Flags)
+		    StorePred = sepia_kernel:store_pred(Pred,CodeArr,Size,BTPos,Flags)
 		),
 		printf(Stream, "%ODQKw.%n", [:-StorePred])@Module
 	    ; Options = options{output:none} ->
@@ -800,7 +800,7 @@ fcompile_(File, Options0, Module) :-
 
 comp :-
 	Options = [output:eco,load:new,verbose:0,opt_level:0,expand_goals:on],
-	compile(compiler_common,	Options),
+        compile(compiler_common,	Options),
 	compile(compiler_normalise,	Options),
 	compile(compiler_analysis,	Options),
 	compile(compiler_peephole,	Options),

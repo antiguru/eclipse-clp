@@ -1072,6 +1072,9 @@ value Value.
 
     parallel           on, off          clauses may be executed in parallel
 
+    port_info          list of          information on `ports' for predicate,
+                       port-infos       i.e. where breakpoints can be added
+
     priority           1..12            waking priority
 
     skip               on, off          procedure will be traced,

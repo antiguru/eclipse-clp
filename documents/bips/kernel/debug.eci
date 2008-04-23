@@ -95,6 +95,11 @@ SpecList is a variable, remove all spypoints.
    procedures with name name and of any arity.
 
 <P>
+   If SpecList is of the form File:Line, where File is atomic and Line is
+   an integer, the the closest matching breakpoint to line Line in the file 
+   File is removed.
+  
+<P>
    If SpecList is a variable, all spypoints of visible procedures are
    removed.
 
@@ -251,11 +256,17 @@ Error:
 ",
 	template:"spy +SpecList",
 	amode:(spy(++) is det),
-	desc:html("   This predicate sets spypoints on all the procedures given by SpecList in
-   a similar fashion to breakpoints in procedural languages.  The
+	desc:html("   This predicate sets spypoints on all the procedures given by SpecList,
+   or a breakpoint on a goal in a specific procedure, in a similar fashion 
+   to breakpoints in procedural languages. For setting spypoints,  the
    procedure(s) are all of the form name/arity or else of the form name, in
-   which case all procedures with name name have spy points set.
-
+   which case all procedures with name name have spy points set. For setting 
+   a breakpoint, SpecList should be of the form File:Line, where File is 
+   atomic and is the name of a source file whose code is already loaded into
+   ECLiPSe, and Line is an integer that specifies a line number in the file.
+   A breakpoint will be added to the body goal in a tracable procedure that
+   most closely match the line number Line, i.e. the source for the goal is 
+   either on, or close to, line Line in File. 
 <P>
    If not already debugging, the trace mode is switched on and set to leap.
 
@@ -269,9 +280,13 @@ Error:
 
 <P>
 "),
-	args:["SpecList" : "Sequence of expressions of the form Atom/Integer, or of the                form atom."],
-	exceptions:[4 : "SpecList is not instantiated.", 5 : "SpecList is not of the form Atom/Integer.", 60 : "SpecList contains an undefined procedure."],
-	eg:"
+	args:["SpecList" : "Sequence of expressions of the form Atom/Integer, or Atom, or Atomic:Integer."],
+	exceptions:[4 : "SpecList is not instantiated.", 
+                    5 : "SpecList is not of the correct form", 
+                    6 : "SpecList in the form File:Line did not correspond to a source file or breakpoint", 
+                    60 : "SpecList contains an undefined procedure."],
+
+        eg:"
 Success:
       [eclipse]: [user].
        lower:-writeln(hi).
@@ -762,13 +777,14 @@ Success:
 
 :- comment(debugging / 0, [
 	summary:"Information about the current top-level tracing mode and spied
-procedures is printed on the current output.
+procedures and breakpoints is printed on the current output.
 
 ",
 	amode:(debugging is det),
 	desc:html("   Prints the information about the tracing mode:  whether it is off,
    in creep or in leap mode.
-   It then lists all the visible procedures with a spypoint set.
+   It then lists all the visible procedures with a spypoint set, and then
+   all breakpoints.
 
 <P>
 "),
