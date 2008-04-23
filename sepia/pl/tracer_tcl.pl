@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.12 2007/11/22 17:53:05 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.13 2008/04/23 13:38:30 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -145,7 +145,6 @@
 :- import
 	set_default_error_handler/2,
 	configure_prefilter/5,
-        configure_prefilter/6,
 	cut_to_stamp/2,
 	trace_mode/2,
 	find_goal/3,
@@ -297,9 +296,6 @@ interpret_command(f(N), Current, _, Cont) :- !,
 interpret_command("z", Current, _, true) :- !,	% zap to different port
 	Current = trace_line{port:Port},
 	configure_prefilter(_, _, ~Port, _, dont_care).
-interpret_command("Z", Current, _, true) :- !,  % jump to breakpoint
-        getval(breakpoint, File:Line),
-        configure_prefilter(_, _, _, _, File:Line, dont_care).
 interpret_command("", _, _, true) :- !.	% no command, continue as before
 
 
@@ -1903,7 +1899,7 @@ read_file_for_gui(OSFile) :-
 set_source_breakpoint(OSFile, Line) :-
         os_file_name(File, OSFile),
         canonical_path_name(File, CFile),
-        setval(breakpoint, CFile:Line).
+        spy(CFile:Line).
 
 %----------------------------------------------------------------------
 % Initialise toplevel module

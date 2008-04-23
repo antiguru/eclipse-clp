@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.11 2008/04/01 18:28:35 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.12 2008/04/23 13:40:07 kish_shen Exp $
  */
 
 /*
@@ -1389,16 +1389,18 @@ extern dident transf_did ARGS((long));
  * OfInterest is true if:
  * - the predicate's DEBUG_TR|DEBUG_SP flags are the same as the tracer's
  *   TR_TRACING|TR_LEAPING flags, i.e. in creep mode all traceable preds
- *   match, in leap mode only traceable ones with spy points.
+ *   match, in leap mode only traceable ones with spy points
+ * *or*
+ *  tracer is in leap mode and we are at a breakpoint (BREAK is set)
+ * 
  * - depth is in selected range
  * - invoc is in selected range
- * - if a breakpoint is set (BREAKLINE!=0), and breakline and breakfile match 
  */
-#define OfInterest(flags, invoc, depth, breakfile, breakline) \
-	( !((((flags) & TRACEMODE) ^ TRACEMODE) & (TR_TRACING|TR_LEAPING)) \
+#define OfInterest(flags, invoc, depth) \
+	( (!((((flags) & TRACEMODE) ^ TRACEMODE) & (TR_TRACING|TR_LEAPING)) \
+        || (BREAK && (TRACEMODE & TR_LEAPING))) \
 	&& JMINLEVEL <= (depth) && (depth) <= JMAXLEVEL \
-	&& JMININVOC <= (invoc) && (invoc) <= JMAXINVOC \
-	&& (!BREAKLINE || BREAKLINE == (breakline) && BREAKFILE == (breakfile)) )
+	&& JMININVOC <= (invoc) && (invoc) <= JMAXINVOC )
 
 /*
  * Init the tracer state. The TR_STARTED flag is used to trigger raising
@@ -1407,7 +1409,7 @@ extern dident transf_did ARGS((long));
 #define TracerInit \
 	NINVOC = RLEVEL = FDROP = JMININVOC = 0; \
 	JMINLEVEL = 0; JMAXLEVEL = MAX_DEPTH; JMAXINVOC = MAX_INVOC; \
-	BREAKLINE = 0; BREAKFILE = D_UNKNOWN; \
+	BREAK = 0; \
 	PORTFILTER = ANY_NOTIFIES; \
 	TRACEMODE = TR_TRACING|TR_STARTED;
 

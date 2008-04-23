@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.16 2008/04/18 10:32:14 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.17 2008/04/23 13:42:01 kish_shen Exp $
  */
 
 /*
@@ -1652,11 +1652,12 @@ _print_edesc(uword edesc)
 void
 print_port(stream_id nst, int port)
 {
-    (void) p_fprintf(nst,"%s%s%s%s%s",
+    (void) p_fprintf(nst,"%s%s%s%s%s%s",
 	port & FIRST_CALL ? "F|" : "",
 	port & LAST_CALL ? "L|" : "",
 	port & NO_ARGS ? "NA|" : "",
 	port & INLINE_PORT ? "I|" : "",
+        port & BREAKPOINT ? "B|" : "",
 	PortName(port) + 1
 	);
 }

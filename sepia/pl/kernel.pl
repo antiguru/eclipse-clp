@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.18 2008/02/29 22:15:39 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.19 2008/04/23 13:38:30 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -144,7 +144,7 @@
 :- global_flags(16'00000080,0,_).	% debug_compile (DBGCOMP) off
 
 :- tool_(tool/2, tool_/3, sepia_kernel).	% tool declarations
-:- tool(store_pred/4, store_pred/5).		% needed when loading kernel.eco
+:- tool(store_pred/5, store_pred/6).		% needed when loading kernel.eco
 :- tool((not)/1, fail_if_body/2),
    tool(setval/2, setval_body/3),
    tool(getval/2, getval_body/3),
@@ -3637,6 +3637,7 @@ pri_flag_code(type,		22).
 
 pri_flag_code(debugged,		11).	% debugging-related, alphabetic
 pri_flag_code(leash,		15).
+pri_flag_code(port_info,	30).
 pri_flag_code(skip,		17).
 pri_flag_code(spy,		18).
 pri_flag_code(start_tracing,	19).
@@ -3686,6 +3687,8 @@ do_set_flag(_, invisible, _, Module) :-
 do_set_flag(_, debug, _, _) :- !,
 	set_bip_error(6).		% to protect set_proc_flags/4 below
 do_set_flag(_, system, _, _) :- !,
+	set_bip_error(6).		% to protect set_proc_flags/4 below
+do_set_flag(_, break, _, _) :- !,
 	set_bip_error(6).		% to protect set_proc_flags/4 below
 do_set_flag(Proc, inline, Trans, Module) :- !,
 	define_macro_(Proc, Trans, [goal], Module).

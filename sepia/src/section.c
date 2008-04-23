@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: section.c,v 1.3 2007/08/22 23:07:24 jschimpf Exp $
+ * VERSION	$Id: section.c,v 1.4 2008/04/23 13:42:01 kish_shen Exp $
  */
 
 /*
@@ -2270,12 +2270,12 @@ _index_next_arguments(proc_desc *procedure, int next_index, int max_index, regis
 }
 
 vmcode *
-allocate_code_block(long int size, uword link, uword bid, uword fid, uword btype, uword cid)
+allocate_code_block(long int size, uword btablepos, uword link, uword bid, uword fid, uword btype, uword cid)
 {
     vmcode	*code;
 
     code = (vmcode *) hg_alloc(((int)size + PROC_PREFIX_SIZE) * sizeof(vmcode));
-    Make_Prefix(link, size, bid, fid, btype, cid)
+    Make_Prefix(link, btablepos, size, bid, fid, btype, cid)
     return code;
 }
 

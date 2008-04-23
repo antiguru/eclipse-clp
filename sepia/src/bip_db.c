@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.10 2008/03/31 14:48:51 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.11 2008/04/23 13:42:01 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -130,7 +130,7 @@ static int
 #ifndef NOALS
     p_als(value val, type tag, value vm, type tm),
 #endif
-    p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vflags, type tflags, value vm, type tm),
+    p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vm, type tm),
     p_retrieve_code(value vproc, type tproc, value vcode, type tcode, value vm, type tm),
     p_decode_code(value vcode, type tcode, value v, type t),
     p_functor_did(value vspec, type tspec, value v, type t),
@@ -308,7 +308,7 @@ bip_db_init(int flags)
     (void) built_in(in_dict("vm_statistics", 1), p_vm_statistics, B_UNSAFE|U_SIMPLE);
 #endif
     (void) built_in(in_dict("load_eco", 3), p_load_eco, B_UNSAFE|U_SIMPLE);
-    (void) exported_built_in(in_dict("store_pred", 5), p_store_pred, B_UNSAFE);
+    (void) exported_built_in(in_dict("store_pred", 6), p_store_pred, B_UNSAFE);
     exported_built_in(in_dict("retrieve_code", 3), p_retrieve_code, B_UNSAFE)
 	-> mode = BoundArg(2, GROUND);
     (void) exported_built_in(in_dict("decode_code", 2), p_decode_code, B_UNSAFE);
@@ -1060,8 +1060,10 @@ _init_dynamic1(pri *pd, t_ext_ptr source_record)
 
 	Allocate_Default_Procedure((long) (4/*code*/ + 4/*anchor*/), PriDid(pd));
 	pw = (pword *)(code + 4);
-	if ((uword)pw % sizeof(pword) != 0)
-	    ec_panic("code block insufficiently aligned", "ec_make_dyn_proc()");
+	/* commented out 2008-04 -- does not seem to be needed
+	  if ((uword)pw % sizeof(pword) != 0)
+	  ec_panic("code block insufficiently aligned", "ec_make_dyn_proc()");
+	*/
 	start = code;
 
 	Store_3(Call_dynamic, pd, pw)
@@ -1423,7 +1425,9 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
     int		source;
     int		err;
     pword	*s;
+    pword	result;
     type	tt;
+    uword	temp1;
     Prepare_Requests;
 
 #ifdef lint
@@ -1608,6 +1612,34 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 	    Fail_;
 	}
 	Request_Unify_Integer(vf, tf, ProcCodeSize(code));
+    	break;
+
+    case 30:		/* port_info */
+	if (PriCodeType(proc) != VMCODE) {
+	    Fail_;
+	}
+	temp1 = ProcBrkTableOffset(code);
+	s = &result;
+	if (temp1 != 0) {
+	    code += temp1; /* start of break table */
+	    while (*code != 0) {
+		Make_List(s, TG);
+		s = TG;
+		Push_List_Frame();
+		Make_Struct(&s[0], TG);
+		Push_Struct_Frame(in_dict("p",3));
+		/* this relies on the order of words from a break-port word as follows:
+                   break-port word, file path (dident), line (int)
+		*/ 
+		Make_Integer(&s[3], *(((vmcode *)(*code))+2)/* breakport line */);
+		Make_Atom(&s[4], (dident)(*(((vmcode *)(*code))+1))/* breakport file */);
+		Make_Integer(&s[5], (*((vmcode *)(*code)) & BREAKPOINT ? 1 : 0));
+		s = &s[1];
+		code ++;
+	    }
+	}
+	Make_Nil(s);
+	Request_Unify_Pw(vf, tf, result.val, result.tag);
     	break;
 
     default:
@@ -2624,6 +2656,14 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	    }
 	    use_local_procedure = 1;
 	}
+	else if (vf.did == d_.break0)
+	{
+	    Check_Integer(tv);
+	    if (vv.nint < 0)
+	    {
+		Bip_Error(RANGE_ERROR);
+	    }
+	}
 	else
 	{
 	    /*
@@ -2723,7 +2763,7 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 
 	    pri_change_flags(proc, changed_flags, new_flags);
 	}
-	else /* changing information stored in code header */
+	else /* changing information stored in code header or breakport */
 	{
 	    if (!(PriFlags(proc) & CODE_DEFINED))
 	    {
@@ -2742,6 +2782,38 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	    {
 		ProcBid(PriCode(proc)) = vv.nint;
 	    }
+	    else if (vf.did == d_.break0)
+	    {/* toggle the breakpoint flag of the port word in a debug_scall, pointed to by
+                the port table */
+		vmcode * code;
+		uword offset;
+
+		code = PriCode(proc);
+		offset = ProcBrkTableOffset(code);
+		if (offset == 0)
+		{
+		    err = RANGE_ERROR;
+		    goto _unlock_return_err_;
+		}
+		code += ProcBrkTableOffset(code);
+		while (*code != 0)
+		{
+		    /* this relies on the order of words from a break-port word as follows:
+		       break-port word, file path (dident), line (int)
+		    */ 
+		    if (*(((vmcode *)(*code))+2)/* breakport line */ == vv.nint)
+		    {
+			**((vmcode **)code) ^= BREAKPOINT;
+			break;
+		    }
+		    code++;
+		}
+		if (*code == 0) /* no match found */
+		{
+		    err = RANGE_ERROR;
+		    goto _unlock_return_err_;
+		}
+	    }
 	}
 	a_mutex_unlock(&ProcedureLock);
 	Succeed_;
@@ -2756,10 +2828,12 @@ _unlock_return_err_:
 #define Bip_Error(err)	return(err);
 
 /*
- * store_pred(+PredSpec, +CodeListOrArray, +Size, +FlagBits, +Module)
+ * store_pred(+PredSpec, +CodeListOrArray, +Size, +BTablePos, +FlagBits, +Module)
  *
  * Create the predicate PredSpec with the VM-code specified in CodeList.
- * Size is the code size in units of vmcode.
+ * Size is the code size in units of vmcode. BTable is the offset to the start of the 
+ * port/break table, which are addresses to the port words in the predicate for setting
+ * breakpoints (=0 if no table)
  */
 
 
@@ -2848,7 +2922,7 @@ _set_did_stability(
 #endif
 
 static int
-p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vflags, type tflags, value vm, type tm)
+p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vm, type tm)
 {
     dident		wdid;
     register pword	*codeptr, *pw1;
@@ -2860,6 +2934,7 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
     word		codetype, codelen;
 
     Check_Integer(tsize);
+    Check_Integer(tbrktable);
     Error_If_Ref(tcode);
     if (IsList(tcode)) {
 	codetype = TLIST;
@@ -2875,8 +2950,7 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
     Get_Proc_Did(vproc, tproc, wdid);
     Check_Integer(tflags);
 
-    Allocate_Default_Procedure(vsize.nint, wdid);
-
+    Allocate_Default_ProcedureBTable(vsize.nint, wdid, vbrktable.nint);
 
     /*
      * Traverse the code list, convert the elements and store them away

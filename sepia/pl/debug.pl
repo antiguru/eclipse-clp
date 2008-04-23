@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.1 2006/09/23 01:55:11 snovello Exp $
+% Version:	$Id: debug.pl,v 1.2 2008/04/23 13:38:30 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -126,7 +126,15 @@ debug_info(Mode, Module) :-
 		fail
 	;
 		true
-	).
+	),
+        (
+            current_breakpoint((Line,File), P, DM),
+            printf(log_output, "Line %d in file %w (in predicate %w:%w) has"
+                               " a breakpoint set.%n", [Line,File,DM,P]),
+            fail
+        ;
+            true
+        ).
 
 %
 % add spypoint(s)
@@ -155,6 +163,20 @@ set_spypoints(F/N, M) ?- !,
 	set_spypoints(M:F/N, M).
 set_spypoints(PM:F, M) ?- atom(F), !,
 	set_spypoints(PM:F/_, M).
+set_spypoints(F:L, M) ?- integer(L), atomic(F), !,
+        ( get_portlist_from_file(F, FullName, PortsList),
+          find_best_port(PortsList, L, FullName, none, DM, PortPred, PortLine),
+          get_flag(PortPred, port_info, PInfo)@DM ->
+            ( memberchk(p(PortLine,FullName,0), PInfo) -> 
+                set_proc_flags(PortPred, break, PortLine, DM),
+                printf(log_output, "breakpoint added to line %d of file %w in"
+                                   " predicate %w%n", [PortLine,FullName,PortPred])
+            ;
+                true
+            )
+        ;
+            error(6, spy(F:L), M)
+        ).
 set_spypoints(QualPredSpec, M) :-
 	check_partial_qualpredspec(QualPredSpec),
 	!,
@@ -214,6 +236,17 @@ nospy_body(F/N, M) ?- !,
 	nospy_body(_Any:F/N, M).
 nospy_body(PM:F, M) ?- atom(F), !,
 	nospy_body(PM:F/_, M).
+nospy_body(F:L, _M) ?- integer(L), atomic(F), !,
+        ( get_portlist_from_file(F, File, PortsList),
+          find_best_port(PortsList, L, File, none, DM, PortPred, PortLine),
+          get_flag(PortPred, port_info, PInfo)@DM,
+          memberchk(p(PortLine,File,1), PInfo) ->
+            set_proc_flags(PortPred, break, PortLine, DM),
+            printf(log_output, "breakpoint removed from line %d of file %w in"
+                               " predicate %w%n", [PortLine,File,PortPred])
+        ;
+            true
+        ).
 nospy_body(QualPredSpec, M) :-
 	check_partial_qualpredspec(QualPredSpec),
 	!,
@@ -277,6 +310,63 @@ set_leash(_Port, _Mode).
 get_leash(_Port, stop).
 
 
+current_predicate_with_ports(PredSpec, Module, PortInfos) :-
+        current_module(Module),
+        \+ is_locked(Module),
+        current_module_predicate(defined, PredSpec)@Module,
+        get_flag(PredSpec, debugged, on)@Module,
+        get_flag(PredSpec, port_info, PortInfos)@Module.
+        
+ports_in_file(File, List) :-
+        findall(port(Line,M,P), (
+                current_predicate_with_ports(P, M, PInfos),
+                member(p(Line,File,_), PInfos)
+             ), List0),
+        sort(1,<, List0, List).
+
+find_best_port([], Line, File, LastPort, DM, PortPred, PortLine) :-
+        LastPort = port(PortLine,DM,PortPred).
+find_best_port([Port0|PortList0], Line, File, LastPort, DM, PortPred, PortLine) :-
+        Port0 = port(Line0,DM0,Pred0),
+        ( Line0 =:= Line ->
+            DM = DM0, PortPred = Pred0, PortLine = Line0
+        ; Line0 > Line ->
+           /* decide if LastPort or Port0 is the better port */
+            ( LastPort = port(LastLine,LastDM,LastPred) ->
+                ( Pred0 \= LastPred, get_flag(Pred0, source_file, File) ->
+                    % start of predicate is in same file as Port0 
+                    get_flag(Pred0, source_line, StartLine0),
+                    (StartLine0 > Line ->
+                        /* assume Pred0 starts after Line, use LastPort */
+                        DM = LastDM, PortPred = LastPred, PortLine = LastLine
+                                                                   
+                    ;
+                        DM = DM0, PortPred = Pred0, PortLine = Line0
+                    )
+                ;
+                    DM = DM0, PortPred = Pred0, PortLine = Line0
+                )
+            ;
+                DM = DM0, PortPred = Pred0, PortLine = Line0
+            )
+        ; /* Line0 < Line */
+           find_best_port(PortList0, Line, File, Port0, DM, PortPred, PortLine)
+        ).
+
+get_portlist_from_file(F, File, PortsList) :-
+        concat_atom([F], File0),
+        canonical_path_name(File0, File1),
+        get_flag(prolog_suffix, Ss),
+        once(existing_file(File1, Ss, [readable], File)), 
+        ports_in_file(File, PortsList).
+
+current_breakpoint(BP,P,M) :- 
+        current_predicate_with_ports(P, M, PInfos),
+        member(p(Line,File,1), PInfos),
+        BP = (Line,File).   
+
+        
+        
 %--------------------------------------------------------
 
 ?- untraceable

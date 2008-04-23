@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: debug.h,v 1.1 2006/09/23 01:55:00 snovello Exp $
+ * VERSION	$Id: debug.h,v 1.2 2008/04/23 13:40:07 kish_shen Exp $
  *
  */
 
@@ -44,12 +44,12 @@
  * be at the beginning.
  */
 
-#define PORT_MASK		0x003f
+#define PORT_MASK		0x003f /* must match port_mask/1 in asm.pl */
 #define NO_ARGS			0x0100 /* arguments unavailable */
 #define INLINE_PORT		0x0200
 #define LAST_CALL		0x0400
 #define FIRST_CALL		0x0800
-
+#define BREAKPOINT		0x1000 /* bit-flag in Port to indicate a breakpoint   */
 
 /*
  * CAUTION: This port numbering is replicated in tracer.pl
