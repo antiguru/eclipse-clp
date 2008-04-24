@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.9 2008/04/21 14:41:20 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.10 2008/04/24 18:40:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/04/21 14:41:20 $").
+:- comment(date, "$Date: 2008/04/24 18:40:46 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -884,14 +884,14 @@ print_normalized_goal(Stream, Indent, disjunction{determinism:Det,arity:A,
 	print_call_pos(Stream, P),
 	writeln(Stream, ")").
 print_normalized_goal(Stream, Indent, goal{kind:K,callpos:P,state:State,
-		lookup_module:LM, functor:F,args:Args,envmap:EAM,
+		lookup_module:LM, functor:F,args:Args,envmap:EAM,envsize:ESize,
                 path:Path,line:Line}) :-
 	indent(Stream, Indent),
 	( K == head -> write(Stream, "HEAD") ; write(Stream, "GOAL") ),
         printf(Stream, "  %w  (lm:%w, kind:%w, path:%w, line:%w callpos:", [F,LM,K,Path,Line]),
 	print_call_pos(Stream, P),
 	decode_activity_map(EAM,Env),
-	printf(Stream, ", env:%w)%n", [Env]),
+	printf(Stream, ", env:%w@%w)%n", [ESize,Env]),
 	ArgIndent is Indent+1,
 	( foreach(Arg,Args), param(Stream,ArgIndent) do
 	    indent(Stream, ArgIndent), writeln(Stream, Arg)

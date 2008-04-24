@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.9 2008/04/21 14:41:20 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.10 2008/04/24 18:40:46 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -110,6 +110,10 @@
 
 % generate head unification for VarId I and Term
 head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
+	head1(I, Term, ChunkData0, ChunkData, Code1, Code0),
+	env_allocate_delta(ChunkData0, ChunkData, Code, Code1).
+
+head1(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = [_|_],
 	Code = [code{instr:get_list(RI, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split(State),_)]}|WCode],
 	alloc_term(Term, ChunkData0, ChunkData1),
@@ -117,7 +121,7 @@ head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore(State),_)]}|RCode],
 	RCode0 = [code{instr:label(LE),regs:[r(_,_,join(State),_)]}|Code1],
 	emit_pop_temp(Reg, Code1, Code0).
-head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
+head1(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = structure{name:F,arity:A},
 	Code = [code{instr:get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use_a,_),r(_,_,split(State),_)]}|WCode],
 	alloc_term(Term, ChunkData0, ChunkData1),
@@ -125,7 +129,7 @@ head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	WCode0 = [code{instr:branch(ref(LE))},code{instr:label(LR),regs:[r(_,_,restore(State),_)]}|RCode],
 	RCode0 = [code{instr:label(LE),regs:[r(_,_,join(State),_)]}|Code1],
 	emit_pop_temp(Reg, Code1, Code0).
-head(I, Term, ChunkData, ChunkData, Code, Code0) :-
+head1(I, Term, ChunkData, ChunkData, Code, Code0) :-
 	atomic(Term),
 	Code = [code{instr:Instr,regs:[r(I,RI,use_a,_)]}|Code0],
 	get_const(RI, Term, Instr).
@@ -133,20 +137,24 @@ head(I, Term, ChunkData, ChunkData, Code, Code0) :-
 
 % generate head matching for VarId I and Term
 in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
+	in_head1(I, Term, ChunkData0, ChunkData, Code1, Code0),
+	env_allocate_delta(ChunkData0, ChunkData, Code, Code1).
+
+in_head1(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = [_|_],
 	Code = [code{instr:in_get_list(RI, ref(LR)),regs:[r(I,RI,use_a,_)]},
 		code{instr:label(LR)}|RCode],
 	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, [], RCode, Code1, in),
 	replace_lost_labels(WCode),	% and discard the WCode sequence
 	emit_pop_temp(Reg, Code1, Code0).
-in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
+in_head1(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = structure{name:F,arity:A},
 	Code = [code{instr:in_get_structure(RI, F/A, ref(LR)),regs:[r(I,RI,use_a,_)]},
 		code{instr:label(LR)}|RCode],
 	unify_args(Term, ChunkData0, ChunkData, 0, Reg, WCode, [], RCode, Code1, in),
 	replace_lost_labels(WCode),	% and discard the WCode sequence
 	emit_pop_temp(Reg, Code1, Code0).
-in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
+in_head1(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	Term = attrvar{meta:Meta},
 	Code = [code{instr:in_get_meta(RI, ref(fail)),regs:[r(I,RI,use_a,_)]},
 		code{instr:read_void},
@@ -156,7 +164,7 @@ in_head(I, Term, ChunkData0, ChunkData, Code, Code0) :-
 	unify_args(Meta, ChunkData0, ChunkData, 0, Reg, WCode, [], RCode, Code1, in),
 	replace_lost_labels(WCode),	% and discard the WCode sequence
 	emit_pop_temp(Reg, Code1, Code0).
-in_head(I, Term, ChunkData, ChunkData, Code, Code0) :-
+in_head1(I, Term, ChunkData, ChunkData, Code, Code0) :-
 	atomic(Term),
 	Code = [code{instr:Instr,regs:[r(I,RI,use_a,_)]}|Code0],
 	in_get_const(RI, Term, Instr).
@@ -512,10 +520,10 @@ in_get_const(R, Term, in_get_constant(R,Term)).
 
 :- mode push_va(+,+,-,-,?).
 
-push_va(Var, ChunkData0, ChunkData, Code, Code0) :-
+push_va(Var, ChunkData0, ChunkData, Code0, Code) :-
 	Var = variable{varid:VarId},
-	variable_occurrence(Var, ChunkData0, ChunkData, VarOccDesc),
-	push_va_code(VarOccDesc, VarId, Code, Code0).
+	variable_occurrence(Var, ChunkData0, ChunkData, Code0, Code1, VarOccDesc),
+	push_va_code(VarOccDesc, VarId, Code1, Code).
 
     push_va_code(void, _VarId, Code, Code0) :-
 	Code = [code{instr:push_void}|Code0].
@@ -550,7 +558,10 @@ unify_va(Var, ChunkData0, ChunkData, WCode, WCode, RCode, RCode0, in) :-
 
 unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0) :-
 	Var = variable{varid:VarId},
-	variable_occurrence(Var, ChunkData0, ChunkData1, VarOccDesc),
+	variable_occurrence(Var, ChunkData0, ChunkData1, _AllocateCode, [], VarOccDesc),
+	% AllocateCode is empty or consists of one allocate(N) instruction.
+	% It is discared here, and later reconstructed and prefixed to the
+	% whole compound unification, to avoid interference with stack temps.
 	unify_va_code(VarOccDesc, VarId, WCode, WCode0, RCode, RCode1, GAlloc),
 	alloc_check_after(GAlloc, ChunkData1, ChunkData, RCode1, RCode0).
 
@@ -588,7 +599,10 @@ unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0) :-
 
 in_unify_va(Var, ChunkData0, ChunkData, RCode, RCode0) :-
 	Var = variable{varid:VarId},
-	variable_occurrence(Var, ChunkData0, ChunkData, VarOccDesc),
+	variable_occurrence(Var, ChunkData0, ChunkData, _AllocateCode, [], VarOccDesc),
+	% AllocateCode is empty or consists of one allocate(N) instruction.
+	% It is discared here, and later reconstructed and prefixed to the
+	% whole compound unification, to avoid interference with stack temps.
 	in_unify_va_code(VarOccDesc, VarId, RCode, RCode0).
 
     in_unify_va_code(void, _VarId, RCode, RCode0) :-

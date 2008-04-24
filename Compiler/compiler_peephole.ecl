@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.19 2008/04/21 14:41:19 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.20 2008/04/24 18:40:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/04/21 14:41:19 $").
+:- comment(date, "$Date: 2008/04/24 18:40:46 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -369,11 +369,11 @@ next_state(Instr, State, NextState) :-
     indexing_branch(try_me_else(_,_,_)).
     indexing_branch(try(_,_,_)).
     indexing_branch(retry_me_else(_,_)).
-    indexing_branch(retry(_,_)).
-    indexing_branch(trust_me(_)).
     indexing_branch(retry_me_inline(_,_,_)).
+    indexing_branch(retry(_,_)).
+    indexing_branch(retry_inline(_,_,_)).
+    indexing_branch(trust_me(_)).
     indexing_branch(trust_me_inline(_,_)).
-    indexing_branch(retry_inline(_,_)).
 
 
 %----------------------------------------------------------------------
@@ -798,24 +798,34 @@ basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
 % left, and try to simplify again. 
 
 simplify_chunk(Code, SimplifiedCode) :-
-	simplify_chunk(Empty, Empty, Code, SimplifiedCode).
+	simplify_chunk(Empty1, Empty1, Empty2, Empty2, Code, SimplifiedCode).
 
-:- mode simplify_chunk(?,?,+,-).
-simplify_chunk(Rescan, [], [], Rescan).
-simplify_chunk(Rescan, RescanTail, [AnnInstr|More], AllSimplified) :-
+:- mode simplify_chunk(?,?,?,?,+,-).
+simplify_chunk(Rescan1, Rescan2, Rescan2, [], [], Rescan1).
+simplify_chunk(Rescan1, RescanT1, Rescan2, RescanT2, [AnnInstr|More], AllSimplified) :-
         AnnInstr = code{instr:Instr},
         ( simplify(Instr, AnnInstr, More, Simplified, MoreTail, SimplifiedTail) ->
+%	    log(Instr, More, Simplified),
 	    % We transformed Instr+More -> Simplified
 	    % Now simplify Rescan+Simplified+Moretail
-	    SimplifiedTail = MoreTail,
-	    RescanTail = Simplified,
-	    simplify_chunk(Empty, Empty, Rescan, AllSimplified)
+	    RescanT1 = Rescan2, RescanT2 = Simplified, SimplifiedTail = MoreTail,
+	    simplify_chunk(Empty1, Empty1, Empty2, Empty2, Rescan1, AllSimplified)
 	;
-	    % Instr which couldn't be simplified goes into rescan,
+	    % Instr which couldn't be simplified goes into rescan2,
 	    % and the old rescan goes into the final code.
-	    AllSimplified = Rescan,
-	    simplify_chunk([AnnInstr|Tail], Tail, More, RescanTail)
+	    AllSimplified = Rescan1,
+	    simplify_chunk(Rescan2, RescanT2, [AnnInstr|Tail], Tail, More, RescanT1)
 	).
+
+
+log(Instr, More, Simplified) :-
+	code_instr(More, Next),
+	code_instr(Simplified, Simp),
+	writeln(Instr+Next->Simp).
+
+code_instr(X, []) :- var(X), !.
+code_instr([], []) :- !.
+code_instr([code{instr:Instr}|_], Instr).
 
 
 is_nop(nop) ?- true.
@@ -855,6 +865,22 @@ simplify(move(X,X), _, More, New, MoreT, NewT) ?- !,
 simplify(initialize(y([])), _, More, New, MoreT, NewT) ?- !, 
         NewT = New,
         MoreT = More.
+
+simplify(deallocate, _Code, [code{instr:ret}|More], New, MoreT, NewT) ?- !,
+        MoreT = More,
+        New = [code{instr:exit}|NewT].
+
+simplify(jmp(_), Code, [code{instr:ret}|More], New, MoreT, NewT) ?- !,
+        MoreT = More,
+        New = [Code|NewT].
+
+simplify(chain(_), Code, [code{instr:ret}|More], New, MoreT, NewT) ?- !,
+        MoreT = More,
+        New = [Code|NewT].
+
+simplify(move_chain(_,_,_), Code, [code{instr:ret}|More], New, MoreT, NewT) ?- !,
+        MoreT = More,
+        New = [Code|NewT].
 
 simplify(callf(P,eam(0)), Code, [code{instr:Instr}|More], New, MoreT, NewT) ?- !,
         MoreT = More,

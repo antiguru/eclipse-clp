@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.18 2008/04/23 13:45:28 kish_shen Exp $
+% Version:	$Id: compiler_top.ecl,v 1.19 2008/04/24 18:40:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/04/23 13:45:28 $").
+:- comment(date,	"$Date: 2008/04/24 18:40:46 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -227,7 +227,8 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 
     set_pred_pos(_Pred, none, _Module).
     set_pred_pos(Pred, source_position{file:File,line:Line,offset:Offset}, Module) :-
-    	set_flag(Pred, source_file, File)@Module,
+	concat_atom([File], FileAtom),	% temporary
+    	set_flag(Pred, source_file, FileAtom)@Module,
     	set_flag(Pred, source_line, Line)@Module,
     	set_flag(Pred, source_offset, Offset)@Module.
 
@@ -300,7 +301,7 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
 	% indexing_transformation introduces extra variable occurrences.
 	% Classifies void, temp and permanent vaiables, and assigns environment
 	% slots to the permanent ones. Also adds disjunction pseudo-args.
-	classify_variables(NormPred, EnvSize, Options),
+	classify_variables(NormPred, 0, Options),
 
 	( Options = options{print_normalised:on} ->
 	    print_normalized_clause(output, NormPred)
@@ -309,7 +310,7 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
 	),
 
 	% Code generation
-	generate_code(NormPred, EnvSize, RawCode, AuxCode, Options, Module:Pred),
+	generate_code(NormPred, RawCode, AuxCode, Options, Module:Pred),
 	( Options = options{print_raw_code:on} ->
 	    print_annotated_code(RawCode)
 	;
@@ -799,8 +800,8 @@ fcompile_(File, Options0, Module) :-
 :- export comp/0, list/0, load/0.
 
 comp :-
-	Options = [output:eco,load:new,verbose:0,opt_level:0,expand_goals:on],
-        compile(compiler_common,	Options),
+	Options = [output:eco,load:new,verbose:0,opt_level:1,expand_goals:on],
+	compile(compiler_common,	Options),
 	compile(compiler_normalise,	Options),
 	compile(compiler_analysis,	Options),
 	compile(compiler_peephole,	Options),

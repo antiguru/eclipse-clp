@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.6 2008/04/21 14:41:20 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.7 2008/04/24 18:40:46 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/21 14:41:20 $").
+:- comment(date, "$Date: 2008/04/24 18:40:46 $").
 
 :- comment(desc, html("
     This pass (consisting of several phases) does the following jobs:
@@ -147,10 +147,10 @@
 
 :- comment(classify_variables/3, [
     summary:"Compute variable sharing, lifetimes and storage locations",
-    amode:classify_variables(+,-,+),
+    amode:classify_variables(+,+,+),
     args:[
 	"Body":"Normalised predicate",
-	"EnvSize":"Integer - necessary environment size",
+	"EnvSize":"Extra environment slots needed",
 	"Options":"options-structure"
     ],
     see_also:[print_occurrences/1]
@@ -158,9 +158,11 @@
 
 :- export classify_variables/3.
 classify_variables(Body, EnvSize, Options) :-
+	verify EnvSize == 0,	% not yet done
 	m_map:init(Lifetimes0),
 	compute_lifetimes(Body, nohead, _PredHead, Lifetimes0, Lifetimes),
-	assign_env_slots(Body, Lifetimes, EnvSize, Options),
+	assign_env_slots(Lifetimes, MaxEnvSize, Options),
+	mark_env_activity(Body, MaxEnvSize),
 	( Options = options{print_lifetimes:on} ->
 	    printf("------ Environment size %d ------%n", [EnvSize]),
 	    print_occurrences(Lifetimes)
@@ -495,7 +497,7 @@ make_branch_head(I, HeadArgsArray, DisjArgs, HeadArgs) :-
     args:[
 	"Lifetimes":"A map varid->struct(slot)"
     ],
-    see_also:[compute_lifetimes/2]
+    see_also:[classify_variables/3]
 ]).
 
 print_occurrences(Map) :-
@@ -543,7 +545,7 @@ print_occurrences(Map) :-
 % so that garbage collection is not negatively affected by this.
 %----------------------------------------------------------------------
 
-assign_env_slots(Body, Map, EnvSize, Options) :-
+assign_env_slots(Map, EnvSize, Options) :-
 	m_map:to_assoc_list(Map, MapList),
 	strip_keys(MapList, Slots),
 	flatten(Slots, FlatSlots),
@@ -553,16 +555,8 @@ assign_env_slots(Body, Map, EnvSize, Options) :-
 	sort(firstpos of slot, >=, PermSlots, SlotsIncStart),
 	sort(lastpos of slot, >=, SlotsIncStart, SlotsInc),
 	init_branch(Branch),
-	foreachcallposinbranch(Branch, SlotsInc, SlotsRest, 0, EnvSize0),
-	verify SlotsRest==[],
-
-	mark_env_activity(Body, EnvSize0),
-
-	( EnvSize0 == 0, only_tail_calls(Body) ->
-	    EnvSize = -1
-	;
-	    EnvSize = EnvSize0
-	).
+	foreachcallposinbranch(Branch, SlotsInc, SlotsRest, 0, EnvSize),
+	verify SlotsRest==[].
 
 
 % Deal with the void and temporary variables, and filter them out
@@ -662,18 +656,6 @@ foreachbranchatcallpos(Pos, [Slot|Slots], RestSlots, Y0, Ymax0, Ymax) :-
 	).
 
 
-% succeed if the clause has no disjunctions
-% and at most one tail recursive regular call
-
-only_tail_calls([]).
-only_tail_calls([goal{kind:Kind}|Goals]) :-
-	( Kind = regular ->
-	    Goals = []
-	;
-	    only_tail_calls(Goals)
-	).
-
-
 %----------------------------------------------------------------------
 % Computing environment activity maps
 %
@@ -698,6 +680,7 @@ only_tail_calls([goal{kind:Kind}|Goals]) :-
 % Auxiliary structures built during forward pass, and traversed backward
 :- local struct(rev_goal(	% wrapper for goal{}
     	goal,		% the goal{} all this belongs to
+	max_y,		% max y slot accessed in this goal
 	seen_before,	% bitmap of variables seen before this goal
 	seen_here)	% bitmap of variables occurring in this goal
     ).
@@ -705,15 +688,18 @@ only_tail_calls([goal{kind:Kind}|Goals]) :-
 :- local struct(rev_disj(	% wrapper for disjunction{}
 	disjunction,	% the disjunction{} all this belongs to
     	rev_branches,	% list of reversed branches, for backward traversal
+	max_y_setup,	% max y slot in setup before disjunction entry
+	max_y_heads,	% max y slot accessed in all branch heads
 	seen_before,	% bitmap of variables seen before this branch
 	seen_at_end,	% bitmap of variables seen at end of each branch
 	seen_at_ends)	% list of bitmaps of variables seen at end of each branch
     ).
 
 
-mark_env_activity(Clause, FullEnvSize) :-
+mark_env_activity(Clause, MaxEnvSize) :-
 	mark_env_activity_fwd(Clause, 0, _Before, [], Reverse),
-	mark_env_activity_bwd(Reverse, 0, _After, FullEnvSize).
+	mark_env_activity_bwd(Reverse, 0, _After, -1, EntryEnvSize),
+	verify MaxEnvSize =:= max(EntryEnvSize,0).
 
 
 mark_env_activity_fwd([], Seen, Seen, Reverse, Reverse).
@@ -724,56 +710,59 @@ mark_env_activity_fwd(Disjunction, Seen0, Seen, Reverse, [RevDisj|Reverse]) :-
 	Disjunction = disjunction{branches:Branches,args:DisjArgs,
 		branchheadargs:HeadArgsArray,indexvars:IndexVars},
 	RevDisj = rev_disj{rev_branches:RevBranches,disjunction:Disjunction,
-		seen_before:Seen0, seen_at_end:Seen, seen_at_ends:SeenEnds},
-	mark_env_activity_args(IndexVars, Seen0, Seen1),
-	mark_env_activity_args(DisjArgs, Seen1, Seen2),
+		max_y_setup:MaxYSetup, max_y_heads:MaxYHeads,
+		seen_before:SeenBefore, seen_at_end:Seen, seen_at_ends:SeenEnds},
+	mark_env_activity_args(IndexVars, Seen0, Seen1, -1, MaxY1),
+	mark_env_activity_args(DisjArgs, Seen1, SeenBefore, MaxY1, MaxYSetup),
 	(
 	    foreach(Branch,Branches),
 	    foreach(RevBranch,RevBranches),
 	    foreach(SeenEndBranch,SeenEnds),
-	    fromto(Seen2,Seen3,Seen4,Seen),
+	    fromto(SeenBefore,Seen3,Seen4,Seen),
+	    fromto(-1,MaxY1,MaxY2,MaxYHeads),
 	    count(BranchI,1,_),
-	    param(Seen2,HeadArgsArray)
+	    param(SeenBefore,HeadArgsArray)
 	do
 	    ( HeadArgsArray == [] ->
-		SeenAfterHead = Seen2
+		SeenAfterHead = SeenBefore, MaxY1 = MaxY2
 	    ;
 		arg(BranchI, HeadArgsArray, HeadArgs),
-		mark_env_activity_args(HeadArgs, Seen2, SeenAfterHead)
+		mark_env_activity_args(HeadArgs, SeenBefore, SeenAfterHead, MaxY1, MaxY2)
 	    ),
 	    mark_env_activity_fwd(Branch, SeenAfterHead, SeenEndBranch, [], RevBranch),
 	    Seen4 is Seen3 \/ SeenEndBranch
 	).
 mark_env_activity_fwd(Goal, Seen0, Seen, Reverse, [RevGoal|Reverse]) :-
 	Goal = goal{args:Args},
-	RevGoal = rev_goal{seen_here:UsedHere,seen_before:Seen0,goal:Goal},
-	mark_env_activity_args(Args, 0, UsedHere),
+	RevGoal = rev_goal{max_y:MaxY,seen_here:UsedHere,seen_before:Seen0,goal:Goal},
+	mark_env_activity_args(Args, 0, UsedHere, -1, MaxY),
 	Seen is Seen0 \/ UsedHere.
 
 
-    :- mode mark_env_activity_args(+,+,-).
-    mark_env_activity_args([], EAM, EAM).
-    mark_env_activity_args([X|Xs], EAM0, EAM) :-
-	mark_env_activity_term(X, EAM0, EAM1),
-	mark_env_activity_args(Xs, EAM1, EAM).
+    :- mode mark_env_activity_args(+,+,-,+,-).
+    mark_env_activity_args([], EAM, EAM, MaxY, MaxY).
+    mark_env_activity_args([X|Xs], EAM0, EAM, MaxY0, MaxY) :-
+	mark_env_activity_term(X, EAM0, EAM1, MaxY0, MaxY1),
+	mark_env_activity_args(Xs, EAM1, EAM, MaxY1, MaxY).
 
-    :- mode mark_env_activity_term(+,+,-).
-    mark_env_activity_term(Var, EAM0, EAM) :-
+    :- mode mark_env_activity_term(+,+,-,+,-).
+    mark_env_activity_term(Var, EAM0, EAM, MaxY0, MaxY) :-
 	Var = variable{class:Loc},
 	( Loc = nonvoid(y(Y)) ->
-	    EAM is setbit(EAM0, Y-1)		% set the seen-flag
+	    EAM is setbit(EAM0, Y-1),		% set the seen-flag
+	    MaxY is max(MaxY0,Y)
 	;
-	    EAM0=EAM
+	    EAM0=EAM, MaxY0=MaxY
 	).
-    mark_env_activity_term(attrvar{variable:Avar,meta:Meta}, EAM0, EAM) :-
-	mark_env_activity_term(Avar, EAM0, EAM1),
-	mark_env_activity_term(Meta, EAM1, EAM).
-    mark_env_activity_term([X|Xs], EAM0, EAM) :-
-	mark_env_activity_term(X, EAM0, EAM1),
-	mark_env_activity_term(Xs, EAM1, EAM).
-    mark_env_activity_term(structure{args:Args}, EAM0, EAM) :-
-	mark_env_activity_term(Args, EAM0, EAM).
-    mark_env_activity_term(Term, EAM, EAM) :- atomic(Term).
+    mark_env_activity_term(attrvar{variable:Avar,meta:Meta}, EAM0, EAM, MaxY0, MaxY) :-
+	mark_env_activity_term(Avar, EAM0, EAM1, MaxY0, MaxY1),
+	mark_env_activity_term(Meta, EAM1, EAM, MaxY1, MaxY).
+    mark_env_activity_term([X|Xs], EAM0, EAM, MaxY0, MaxY) :-
+	mark_env_activity_term(X, EAM0, EAM1, MaxY0, MaxY1),
+	mark_env_activity_term(Xs, EAM1, EAM, MaxY1, MaxY).
+    mark_env_activity_term(structure{args:Args}, EAM0, EAM, MaxY0, MaxY) :-
+	mark_env_activity_term(Args, EAM0, EAM, MaxY0, MaxY).
+    mark_env_activity_term(Term, EAM, EAM, MaxY, MaxY) :- atomic(Term).
 
 
 
@@ -781,20 +770,24 @@ mark_env_activity_fwd(Goal, Seen0, Seen, Reverse, [RevGoal|Reverse]) :-
 % Using the auxiliary data structure created during the forward pass,
 % and the seen_before/seen_here-fields filled in during the forward pass.
 
-mark_env_activity_bwd([], After, After, _ESize).
-mark_env_activity_bwd([Goal|Goals], After0, After, ESize) :-
-	mark_env_activity_bwd(Goal, After0, After1, ESize),
-	mark_env_activity_bwd(Goals, After1, After, ESize).
+mark_env_activity_bwd([], After, After, ESize, ESize).
+mark_env_activity_bwd([Goal|Goals], After0, After, ESize0, ESize) :-
+	mark_env_activity_bwd(Goal, After0, After1, ESize0, ESize1),
+	mark_env_activity_bwd(Goals, After1, After, ESize1, ESize).
 mark_env_activity_bwd(rev_disj{rev_branches:Branches,
+			max_y_setup:MaxYSetup,
+			max_y_heads:MaxYHeads,
 			seen_before:SeenBeforeDisj,
 			seen_at_end:SeenEndDisj,
 			seen_at_ends:SeenEnds,
 			disjunction:disjunction{
 			    entrymap:DisjEntryEAM,
 			    exitmap:DisjExitEAM,
+			    entrysize:EntryESize,
+			    exitsize:ExitESize,
 			    branchentrymaps:BranchEntryEamArray,
 			    branchinitmaps:BranchExitInits}},
-		After0, After, ESize) :-
+		After0, After, ExitESize, ESize) :-
 	% EAM after exiting the disjunction
 	DisjExitEAM is SeenEndDisj /\ After0,
 	(
@@ -803,22 +796,27 @@ mark_env_activity_bwd(rev_disj{rev_branches:Branches,
 	    foreach(BranchEntryEAM,BranchEntryEAMs),
 	    foreach(BranchExitInit,BranchExitInits),
 	    fromto(After0,After1,After2,After),
-	    param(SeenBeforeDisj,After0,ESize,DisjExitEAM)
+	    fromto(ExitESize,ESize1,ESize2,ESize3),
+	    param(SeenBeforeDisj,After0,ExitESize,DisjExitEAM)
 	do
 	    % slots that are active after the disjunction, but not
 	    % at the end of the branch, must be initialised
 	    % on branch exit!
 	    BranchExitEAM is SeenEnd /\ After0,
 	    BranchExitInit is DisjExitEAM /\ \BranchExitEAM,
-	    mark_env_activity_bwd(Branch, After0, BranchAndAfter, ESize),
+	    mark_env_activity_bwd(Branch, After0, BranchAndAfter, ExitESize, BranchEntryESize),
+	    ESize2 is max(ESize1,BranchEntryESize),
 	    BranchEntryEAM is SeenBeforeDisj /\ BranchAndAfter,
 	    After2 is After1 \/ BranchAndAfter
 	),
+	EntryESize is max(ESize3,MaxYHeads),
+	ESize is max(EntryESize,MaxYSetup),
 	% EAM before entering the disjunction
 	DisjEntryEAM is SeenBeforeDisj /\ After,
 	BranchEntryEamArray =.. [[]|BranchEntryEAMs].
-mark_env_activity_bwd(rev_goal{seen_before:Before,seen_here:UsedHere,goal:Goal}, After0, After, ESize) :-
-	Goal = goal{envmap:EAM,envsize:ESize},
+mark_env_activity_bwd(rev_goal{max_y:MaxY,seen_before:Before,seen_here:UsedHere,goal:Goal}, After0, After, ESize0, ESize) :-
+	Goal = goal{envmap:EAM,envsize:ESize0},
+	ESize is max(max(0,ESize0),MaxY),	% need at least empty environment
 	% if variables were not globalised, slots would remain active during call:
 %	EAM is UsedHere \/ (Before /\ After0),
 	% when unsafe variables are globalised, slots are released on call:

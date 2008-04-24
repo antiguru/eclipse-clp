@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.9 2008/04/21 14:41:20 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.10 2008/04/24 18:40:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -60,10 +60,10 @@ compile :-
 
 :- export op(200, fx, (test)).
 test(Name) :-
-	test(Name, [load:none,output:print,debug:off,expand_goals:off,print_indexes:on]).
+	test(Name, [load:none,output:print,debug:off,expand_goals:off,opt_level:0,print_indexes:on]).
 
 testx(Name, MoreOpt) :-
-	test(Name, [load:none,output:print,debug:off,expand_goals:off,print_indexes:on|MoreOpt]).
+	test(Name, [load:none,output:print,debug:off,expand_goals:off,opt_level:0,print_indexes:on|MoreOpt]).
 
 testo(Name) :-
 	test(Name, [load:none,output:print,debug:off,%expand_goals:on,
@@ -1046,6 +1046,19 @@ testclause(env(8), [
 	( p(a,W,X,Y,Z) :- t, c(Y), d(Z), e),
 	( p(b,W,X,Y,Z) :- t, a(W), e)
 ]).
+testclause(env(20), [(p(X) :- p, q(X))]).
+testclause(env(21), [(p(X) :- p, q(X), atom(a))]).
+testclause(env(22), [(p(X) :- p, q(X), atom(X))]).
+testclause(env(23), [(p(X) :- q(X))]).
+testclause(env(24), [(p(X) :- q(X), atom(a))]).
+testclause(env(25), [(p(X) :- q(X), atom(X))]).
+testclause(env(26), [(p(X) :- (atom(X);number(X)), integer(X))]).
+testclause(env(27), [(p(X) :- p, q(X), !)]).
+testclause(env(28), [(p(X) :- p, q(X), !, atom(a))]).
+testclause(env(29), [(p(X) :- p, q(X), !, atom(X))]).
+testclause(env(30), [(p(X) :- p, q(X), atom(a), !)]).
+testclause(env(31), [(p(X) :- p, q(X), atom(X), !)]).
+testclause(env(32), [(p(X) :- p(X), q(X), atom(a), ( var(_) -> integer(3);atom(b)))]).
 
 
 % Inlined builtins
