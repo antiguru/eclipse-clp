@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.10 2008/04/24 18:40:46 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.11 2008/04/26 20:42:00 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -120,7 +120,7 @@ testo :-
 ftest :-
 	open("test.res",write,output),
 	set_stream(warning_output, output),
-	set_stream_property(output, end_of_line, lf),
+	set_stream_property(output, end_of_line, lf),	% even on Windows!
 	test,
 	close(warning_output),
 	close(output).
@@ -128,6 +128,7 @@ ftest :-
 ftesto :-
 	open("testo.res",write,output),
 	set_stream(warning_output, output),
+	set_stream_property(output, end_of_line, lf),	% even on Windows!
 	testo,
 	close(warning_output),
 	close(output).
