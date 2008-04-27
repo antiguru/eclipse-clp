@@ -23,7 +23,7 @@
 # 
 # END LICENSE BLOCK
 #
-# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.3 2007/07/03 00:10:24 jschimpf Exp $
+# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.4 2008/04/27 23:12:47 jschimpf Exp $
 #
 
 #ORACLE_HOME=/home/mac/oracle
@@ -164,6 +164,6 @@ clean:	archclean
 archclean:
 	rm -rf *.o *.$(OBJSUFFIX) $(ARCH)
 
-
-
+ecoclean:
+	rm -f $(ECO_FILES) $(ECO_DEST)
 
