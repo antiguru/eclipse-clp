@@ -1047,6 +1047,9 @@ value Value.
    ----------------------------------------------------------------------
     auxiliary          on,off           predicate is a compiler auxiliary
 
+    break_lines        list of          list of predicate source File:Line
+                       atom:integer     that currently have breakpoints set
+
     call_type          prolog,          predicate calling external convention
 
     code_size          an integer       size of abstract machine
@@ -1072,8 +1075,8 @@ value Value.
 
     parallel           on, off          clauses may be executed in parallel
 
-    port_info          list of          information on `ports' for predicate,
-                       port-infos       i.e. where breakpoints can be added
+    port_lines         list of          list of predicate source File:Line
+                       atom:integer     where breakpoints can be added
 
     priority           1..12            waking priority
 
