@@ -206,8 +206,8 @@ Typing `u' in the tracer window is a shortcut for this command.
 
 
 Leap button - this causes the tracer to continue execution until it reaches
-a goal with spy point set on it. Typing `l' in the tracer window is a
-shortcut for this command.
+a goal with spy point set on it, or a call that has a source line breakpoint.
+Typing `l' in the tracer window is a shortcut for this command.
 
 Filter button - this causes the tracer to continue execution until it
 reaches a port that satisfies certain filter conditions.  The filter
@@ -254,8 +254,9 @@ the ports types where execution should be stopped.
 You can also specify a predicate specification which must be met by
 the current goal in question. "Any predicate" (the default) will
 impose no restriction on the form of the current goal. "Any predicate
-with a spypoint" will only allow stops at predicates with
-spypoints. "Specific predicate instance" allows you to set a detailed
+with a spypoint or call with a breakpoint" will only allow stops at ports
+of predicates with spypoints or at call ports with source line breakpoints.
+"Specific predicate instance" allows you to set a detailed
 specifiction of the form of the goal for the next stopping port:
 
 "Defining module" is any module where the template predicate is

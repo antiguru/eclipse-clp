@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.2 2008/04/23 13:38:30 kish_shen Exp $
+% Version:	$Id: debug.pl,v 1.3 2008/04/28 18:28:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -121,16 +121,18 @@ debug_info(Mode, Module) :-
 	writeln(log_output, Mode),
 	(
 	    current_spied_predicate(F/A, M),
+	    write(log_output, "Spying "),
 	    ( Module = M -> true ; printf(log_output, "%w:", [M]) ),
-	    printf(log_output, "%a/%d\t is being spied%n", [F, A]),
+	    printf(log_output, "%a/%d%n", [F, A]),
 		fail
 	;
 		true
 	),
         (
-            current_breakpoint((Line,File), P, DM),
-            printf(log_output, "Line %d in file %w (in predicate %w:%w) has"
-                               " a breakpoint set.%n", [Line,File,DM,P]),
+	    current_predicate_with_port(break_lines, P, DM, File:Line),
+	    local_file_name(File, LocalFile),
+            printf(log_output, "Breakpoint at line %d in file %w (in predicate %w:%w)%n",
+                               [Line,LocalFile,DM,P]),
             fail
         ;
             true
@@ -166,8 +168,9 @@ set_spypoints(PM:F, M) ?- atom(F), !,
 set_spypoints(F:L, M) ?- integer(L), atomic(F), !,
         ( get_portlist_from_file(F, FullName, PortsList),
           find_best_port(PortsList, L, FullName, none, DM, PortPred, PortLine),
-          get_flag(PortPred, port_info, PInfo)@DM ->
-            ( memberchk(p(PortLine,FullName,0), PInfo) -> 
+          get_flag(PortPred, break_lines, PInfo)@DM
+	->
+            ( nonmember(FullName:PortLine, PInfo) -> 
                 set_proc_flags(PortPred, break, PortLine, DM),
                 printf(log_output, "breakpoint added to line %d of file %w in"
                                    " predicate %w%n", [PortLine,FullName,PortPred])
@@ -236,11 +239,13 @@ nospy_body(F/N, M) ?- !,
 	nospy_body(_Any:F/N, M).
 nospy_body(PM:F, M) ?- atom(F), !,
 	nospy_body(PM:F/_, M).
-nospy_body(F:L, _M) ?- integer(L), atomic(F), !,
+nospy_body(F:L, _M) ?- integer(L), !,
+	check_atom_or_string(F),
         ( get_portlist_from_file(F, File, PortsList),
           find_best_port(PortsList, L, File, none, DM, PortPred, PortLine),
-          get_flag(PortPred, port_info, PInfo)@DM,
-          memberchk(p(PortLine,File,1), PInfo) ->
+          get_flag(PortPred, break_lines, PInfo)@DM,
+          memberchk(File:PortLine, PInfo)
+	->
             set_proc_flags(PortPred, break, PortLine, DM),
             printf(log_output, "breakpoint removed from line %d of file %w in"
                                " predicate %w%n", [PortLine,File,PortPred])
@@ -310,17 +315,17 @@ set_leash(_Port, _Mode).
 get_leash(_Port, stop).
 
 
-current_predicate_with_ports(PredSpec, Module, PortInfos) :-
+current_predicate_with_port(PortType, PredSpec, Module, PortInfo) :-
         current_module(Module),
         \+ is_locked(Module),
         current_module_predicate(defined, PredSpec)@Module,
         get_flag(PredSpec, debugged, on)@Module,
-        get_flag(PredSpec, port_info, PortInfos)@Module.
+        get_flag(PredSpec, PortType, PortInfos)@Module,
+	member(PortInfo, PortInfos).
         
 ports_in_file(File, List) :-
         findall(port(Line,M,P), (
-                current_predicate_with_ports(P, M, PInfos),
-                member(p(Line,File,_), PInfos)
+                current_predicate_with_port(port_lines, P, M, File:Line)
              ), List0),
         sort(1,<, List0, List).
 
@@ -360,13 +365,7 @@ get_portlist_from_file(F, File, PortsList) :-
         once(existing_file(File1, Ss, [readable], File)), 
         ports_in_file(File, PortsList).
 
-current_breakpoint(BP,P,M) :- 
-        current_predicate_with_ports(P, M, PInfos),
-        member(p(Line,File,1), PInfos),
-        BP = (Line,File).   
-
-        
-        
+ 
 %--------------------------------------------------------
 
 ?- untraceable

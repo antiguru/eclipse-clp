@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.6 2008/04/23 13:38:30 kish_shen Exp $
+% Version:	$Id: tracer_tty.pl,v 1.7 2008/04/28 18:28:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.6 2008/04/23 13:38:30 kish_shen Exp $
+% $Id: tracer_tty.pl,v 1.7 2008/04/28 18:28:09 jschimpf Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -109,7 +109,8 @@ print_trace_line(trace_line{port:Port, frame:Frame}) :-
         % print priority only if not the normal 12
         (Prio == 12 -> PrioS = "" ; concat_string([<,Prio,>], PrioS)),
 	( get_tf_prop(Frame, skip, on) -> Prop = 0'S ; Prop = 0'  ),
-	( get_tf_prop(Frame, spy, on) -> Spied = 0'+ ; Spied = 0'  ),
+	( get_tf_prop(Frame, break) =\= 0 -> Spied = 0'#
+	; get_tf_prop(Frame, spy, on) -> Spied = 0'+ ; Spied = 0'  ),
 	Indent is Depth*getval(indent_step),
 	printf(debug_output, "%c%c%*c(%d) %d %A%s  ",
 			[Prop, Spied, Indent, 0' , Invoc, Depth, Port, PrioS]),
@@ -463,8 +464,9 @@ do_tracer_command(0'*, Current, _N, Cont) :- !,
 	print_trace_stack(Stack),
 	interact(Current, Cont).
 
-do_tracer_command(0'!, Current, _N, (systrace,Cont)) :- !,
+do_tracer_command(0'!, Current, _N, Cont) :- !,
 	get_flag(extension, development),
+	trace_mode(13, []),	% abstract instruction tracing on/off
 	interact(Current, Cont).
 
 do_tracer_command(0'p, Current, _N, Cont) :- !,

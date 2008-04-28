@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer.pl,v 1.7 2008/04/23 13:38:30 kish_shen Exp $
+% Version:	$Id: tracer.pl,v 1.8 2008/04/28 18:28:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- Port generation
 %
-% $Id: tracer.pl,v 1.7 2008/04/23 13:38:30 kish_shen Exp $
+% $Id: tracer.pl,v 1.8 2008/04/28 18:28:09 jschimpf Exp $
 %
 % Author:	Joachim Schimpf, IC-Parc
 %
@@ -53,7 +53,7 @@ and ports, the artificial ports normally cannot be displayed with
 arguments because the engine is already in a different state (e.g
 FAIL REDO).
 
-Ports are filtered with of_interest/4 and pre-filtered on engine level:
+Ports are filtered with of_interest/5 and pre-filtered on engine level:
 
     ==invoc &&  minlevel=<level=<maxlevel && 
     ( (SPIED|TRACEABLE & tracemode) || tracemode=leap && at_breakpoint)
@@ -152,19 +152,18 @@ nexit(Stack) :-
 % FailDrop:	how many levels failed (use get_fail_info/2 to get details)
 % RedoLevel:	at which level the failure was caught, ie the youngest
 %		common ancestor of the failed and the redone goal.
-% Which:	0 for retry, 1 for trust, 2 for throw
+% FailLeave:	fail port or leave port
 % ShowNext:	1 if the predicate with the choice point is debuggable,
 %		which means that the NEXT-port should be shown.
 
-redo(Stack, FailDrop, RedoLevel, Which, ShowNext) :-
+redo(Stack, FailDrop, RedoLevel, FailLeave, ShowNext) :-
 	disable_tracing,
 	get_priority(P), % Don't wake anything
 	set_priority(1),
 	diagnostics(redo(Stack, FailDrop, RedoLevel, Which, ShowNext)),
-
-	(  Which = 2 -> FailLeave = leave of ports ; FailLeave = fail of ports ),
 	trace_fails_redos(Stack, RedoLevel, FailDrop, ShowNext, FailLeave),
-	!, set_priority(P), cont_debug.
+	!, set_priority(P), cont_debug,
+	fail.	% must fail for correct state restoration and continuation!
 
 
 trace_fails_redos(0, RedoLevel, FailDrop, _ShowNext, FailLeave) :-
@@ -426,8 +425,9 @@ monitor_term(Invoc, Term, Module, Susp) :-
 
 port(PortNr, Stack) :-
 	Stack = tf{invoc:Invoc,depth:Depth,proc:Proc},
-	diagnostics( of_interest(PortNr, Invoc, Depth, Proc)),
-	( of_interest(PortNr, Invoc, Depth, Proc) ->
+	get_tf_prop(Stack, break, BrkPt),
+	diagnostics( of_interest(PortNr, Invoc, Depth, Proc, BrkPt)),
+	( of_interest(PortNr, Invoc, Depth, Proc, BrkPt) ->
 	    port_name(PortNr, Port),
 	    Current = trace_line{port:Port,frame:Stack},
 	    % This handler is allowed to cut_to, fail and abort
@@ -441,7 +441,6 @@ port(PortNr, Stack) :-
 configure_prefilter(Invoc, Depth, Ports, Preds, Module) :-
 	decode_range(Invoc, MinInvoc, MaxInvoc),
 	decode_range(Depth, MinDepth, MaxDepth),
-        decode_breakpos(BreakPos, BreakFile, BreakLine),
 	port_spec_to_mask(Ports, 0, PortMask),
 	diagnostics(portMask=PortMask),
 %	nospy(_),
@@ -468,11 +467,6 @@ configure_prefilter(Invoc, Depth, Ports, Preds, Module) :-
     decode_range(<(H), 0, Max) :- Max is H-1.
     decode_range(=<(Max), 0, Max).
     decode_range(>=(Min), Min, Max) :- maxint(Max).
-
-    decode_breakpos(BreakPos, nofile, 0) :- var(BreakPos), !.
-    decode_breakpos(File:BreakLine, BreakFile, BreakLine) :-
-        canonical_path_name(File, BreakFile0),
-        concat_atom([BreakFile0], BreakFile).
 
     :- mode port_spec_to_mask(?, +, -).
     port_spec_to_mask(Var, Mask0, Mask) :- var(Var), !,

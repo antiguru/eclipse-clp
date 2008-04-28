@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.19 2008/04/23 13:38:30 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.20 2008/04/28 18:28:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -3040,6 +3040,11 @@ check_string(X) :- var(X), !, set_bip_error(4).
 check_string(X) :- string(X), !.
 check_string(_) :- set_bip_error(5).
 
+check_atom_string(X) :- var(X), !, set_bip_error(4).
+check_atom_string(X) :- atom(X), !.
+check_atom_string(X) :- string(X), !.
+check_atom_string(_) :- set_bip_error(5).
+
 check_var_or_string(X) :- var(X), !.
 check_var_or_string(X) :- check_string(X).
 
@@ -3635,15 +3640,16 @@ pri_flag_code(stability,	20).
 pri_flag_code(tool,		21).
 pri_flag_code(type,		22).
 
-pri_flag_code(debugged,		11).	% debugging-related, alphabetic
+pri_flag_code(debugged,		11).	% debugging-related, almost alphabetic
 pri_flag_code(leash,		15).
-pri_flag_code(port_info,	30).
 pri_flag_code(skip,		17).
 pri_flag_code(spy,		18).
 pri_flag_code(start_tracing,	19).
 pri_flag_code(source_file,	 3).
 pri_flag_code(source_line,	 4).
 pri_flag_code(source_offset,	 5).
+pri_flag_code(port_lines,	31).
+pri_flag_code(break_lines,	30).
 
 pri_flag_code(code_size,	29).	% statistics
 

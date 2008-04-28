@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.13 2008/04/23 13:38:30 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.14 2008/04/28 18:28:09 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -58,8 +58,7 @@
 	variable(lbpath_type),
 	variable(library_info),
 	variable(show_module),
-        variable(tracer_command),
-        variable(breakpoint).
+        variable(tracer_command).
 
 
 
@@ -71,7 +70,6 @@
 :- setval(filter_count, 1).
 :- setval(filter_hits, 0).
 :- setval(tracer_command, "c").
-:- setval(breakpoint, nofile:0).
 
 % the types for each level of the path used by the library browser
 :- setval(lbpath_type, [top,dir,module,interface]).
@@ -246,7 +244,8 @@ make_trace_line(Stream, trace_line{port:Port, frame:Frame}, Depth,
         % print priority only if not the normal 12
         (Prio == 12 -> PrioS = "" ; concat_string([<,Prio,>], PrioS)),
 	( get_tf_prop(Frame, skip, on) -> Prop = 0'S ; Prop = 0'  ),
-	( get_tf_prop(Frame, spy, on) -> Spied = 0'+ ; Spied = 0'  ),
+	( get_tf_prop(Frame, break) =\= 0 -> Spied = 0'#
+	; get_tf_prop(Frame, spy, on) -> Spied = 0'+ ; Spied = 0'  ),
 	Indent is Depth*getval(indent_step),
 	printf(Stream, "%c%c%*c(%d) %d %A%s  ",
 			[Prop, Spied, Indent, 0' , Invoc, Depth, Port, PrioS]),

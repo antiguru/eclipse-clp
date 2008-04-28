@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.8 2007/11/22 17:51:32 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.9 2008/04/28 18:32:59 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -1626,8 +1626,6 @@ proc tkecl:popup_tracer {} {
 	    pack $ec_tracer.buttons.up -side left -fill x -expand 1
 	button $ec_tracer.buttons.leap -text Leap -underline 0 -command {tkecl:set_tracercommand l}
 	    pack $ec_tracer.buttons.leap -side left -fill x -expand 1
-	button $ec_tracer.buttons.breakp -text "To Brkpt" -command {tkecl:set_tracercommand Z}
-	    pack $ec_tracer.buttons.breakp -side left -fill x -expand 1
 	button $ec_tracer.buttons.filter -text {Filter} -underline 0 -command {tkecl:set_tracercommand filter}
 	    pack $ec_tracer.buttons.filter -side left -fill x -expand 1
 	button $ec_tracer.buttons.abort -text Abort -command {tkecl:set_tracercommand a}
@@ -1684,7 +1682,7 @@ proc tkecl:popup_tracer {} {
    Keyboard shortcut: `c'\nPress and hold button for continuous creep."
        balloonhelp $ec_tracer.buttons.skip "Skip to exit/fail port of goal (creep\
    if already at port).\nKeyboard shortcut: `s'"
-       balloonhelp $ec_tracer.buttons.leap "Leap to next spied goal's port.\n\
+       balloonhelp $ec_tracer.buttons.leap "Leap to next spied predicate port or next breakpoint.\n\
    Keyboard shortcut: `l'"
        balloonhelp $ec_tracer.buttons.up "Continue until back to parent's\
    depth\nKeyboard shortcut: `u'"
@@ -2053,7 +2051,6 @@ proc tkecl:configure_tracer_buttons {state} {
     $ec_tracer.buttons.leap configure -state $state
     $ec_tracer.buttons.up configure -state $state
     $ec_tracer.buttons.filter configure -state $state
-    $ec_tracer.buttons.breakp configure -state $state
     $ec_tracer.buttons.skip configure -state $state
     $ec_tracer.buttons.abort configure -state $state
     $ec_tracer.buttons.nodebug configure -state $state
@@ -2270,7 +2267,7 @@ proc tkecl:popup_filter {} {
 
     set row 0
     set col 0
-    set cols 3
+    set cols 5
 
     label $ec_tracer.filter.predsettings.predtypetitle -text "Predicate specification:"
     grid $ec_tracer.filter.predsettings.predtypetitle -columnspan $cols -sticky w
@@ -2281,9 +2278,9 @@ proc tkecl:popup_filter {} {
 
     grid $ec_tracer.filter.predsettings.predtype1 -columnspan $cols -sticky w
     incr row
-    radiobutton $ec_tracer.filter.predsettings.predtype2 -text "Any predicate with a spypoint" \
+    radiobutton $ec_tracer.filter.predsettings.predtype2 -text "Any predicate with a spypoint or call with a breakpoint" \
 	    -variable tkecl(filter_predtype) -value anyspy -command "tkecl:fields_disable $ec_tracer"
-    grid $ec_tracer.filter.predsettings.predtype2 -columnspan $cols -sticky w
+    grid $ec_tracer.filter.predsettings.predtype2 -columnspan 5 -sticky w
     incr row
     radiobutton $ec_tracer.filter.predsettings.predtype3 -text "Specific predicate instance:" \
 	    -variable tkecl(filter_predtype) -value goalmatching -command "tkecl:enable_pred $ec_tracer"
@@ -3329,7 +3326,7 @@ proc tkecl:popup_sourcetext_menu {t x y} {
 
     set m [menu $t.popup -tearoff 0]
     set line [tkecl:get_current_text_line $t]
-    $m add command -label "Set breakpoint at $line" -command "tkecl:set_breakpoint $tkecl(source_debug,file) $line" 
+    $m add command -label "Set breakpoint at line $line" -command "tkecl:set_breakpoint $tkecl(source_debug,file) $line" 
 
     tk_popup $m $x $y
 }
@@ -3382,6 +3379,7 @@ proc tkecl:update_source_debug {style from to fpath_info} {
     if {![winfo exists $ec_source]} { 
 	if {$fpath_info != "no"} {
 	    tkecl:setup_source_debug_window 
+	    .ec_tools.ec_tracer.tab activate "Source Context"
 	} else {
 	    return
 	}
