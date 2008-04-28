@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.12 2008/04/23 13:40:07 kish_shen Exp $
+ * VERSION	$Id: emu_export.h,v 1.13 2008/04/28 18:05:34 jschimpf Exp $
  */
 
 /*
@@ -1391,14 +1391,14 @@ extern dident transf_did ARGS((long));
  *   TR_TRACING|TR_LEAPING flags, i.e. in creep mode all traceable preds
  *   match, in leap mode only traceable ones with spy points
  * *or*
- *  tracer is in leap mode and we are at a breakpoint (BREAK is set)
+ *  tracer is in leap mode and we are at a breakpoint
  * 
  * - depth is in selected range
  * - invoc is in selected range
  */
-#define OfInterest(flags, invoc, depth) \
+#define OfInterest(flags, invoc, depth, brkpt) \
 	( (!((((flags) & TRACEMODE) ^ TRACEMODE) & (TR_TRACING|TR_LEAPING)) \
-        || (BREAK && (TRACEMODE & TR_LEAPING))) \
+        || ((brkpt) && (TRACEMODE & TR_LEAPING))) \
 	&& JMINLEVEL <= (depth) && (depth) <= JMAXLEVEL \
 	&& JMININVOC <= (invoc) && (invoc) <= JMAXINVOC )
 
@@ -1409,14 +1409,8 @@ extern dident transf_did ARGS((long));
 #define TracerInit \
 	NINVOC = RLEVEL = FDROP = JMININVOC = 0; \
 	JMINLEVEL = 0; JMAXLEVEL = MAX_DEPTH; JMAXINVOC = MAX_INVOC; \
-	BREAK = 0; \
 	PORTFILTER = ANY_NOTIFIES; \
 	TRACEMODE = TR_TRACING|TR_STARTED;
-
-/* Parameters for the redo-notifier */
-#define PORT_RETRY	0
-#define PORT_TRUST	1
-#define PORT_THROW	2
 
 /* Flag in debug-event save frame */
 #define WAS_CALL	(SIGN_BIT >> 3)
@@ -1428,15 +1422,20 @@ extern dident transf_did ARGS((long));
 #define MAX_FAILTRACE	1024
 
 /* Trace frame flags */
-#define TF_SKIPPED	0x100	/* it is a skipped procedure's frame	*/
-#define TF_INTRACER	0x200	/* we are currently inside tracer code	*/
-#define TF_NOGOAL	0x400	/* frame's goal/module field is invalid	*/
+#define TF_SKIPPED	0x0100	/* it is a skipped procedure's frame	*/
+#define TF_INTRACER	0x0200	/* we are currently inside tracer code	*/
+#define TF_NOGOAL	0x0400	/* frame's goal/module field is invalid	*/
+#define TF_REDO		0x0800	/* we are tracing a REDO (retry/trust)	*/
+#define TF_BREAK	0x1000	/* this frame's CALL had a breakpoint	*/
+#define TF_SYSTRACE	0x2000	/* abstract instruction trace disabled	*/
 
 #define TfFlags(td)		(td)[TF_HEADER].tag.kernel
 #define Set_Tf_Flag(td,flag)	{ TfFlags(td) |= (flag); }
 #define Clr_Tf_Flag(td,flag)	{ TfFlags(td) &= ~(flag); }
+#define Flip_Tf_Flag(td,flag)	{ TfFlags(td) ^= (flag); }
 
-#define Tracing		(TD && (TfFlags(TD) & (TF_SKIPPED|TF_INTRACER)) == 0)
+#define Unskipped(td)	((TfFlags(td) & (TF_SKIPPED|TF_INTRACER)) == 0)
+#define Tracing		(TD && Unskipped(TD))
 #define TracingWakes	(TD && (TfFlags(TD) & (TF_INTRACER)) == 0)
 
 

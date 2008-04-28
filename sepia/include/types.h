@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.8 2008/04/23 13:40:12 kish_shen Exp $
+ * $Id: types.h,v 1.9 2008/04/28 18:05:34 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -310,7 +310,6 @@ typedef struct			/* debugger registers */
     word	max_invoc;
     word	min_level;
     word	max_level;
-    word	at_break;	/* breakpoint flag */
     word	trace_mode;
 
     source_pos_t source_pos;	/* source position */
