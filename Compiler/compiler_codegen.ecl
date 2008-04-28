@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.15 2008/04/24 18:40:46 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.16 2008/04/28 23:33:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/24 18:40:46 $").
+:- comment(date, "$Date: 2008/04/28 23:33:40 $").
 
 
 :- lib(hash).
@@ -240,7 +240,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 	    arg(1, BranchLabelArray, BrLabel1),
 	    arg(1, BranchEamArray, EAM1),
 	    Code104 = [
-		code{instr:try_me_else(0,TryArity,ref(Label2)),regs:ArgOrigs},
+		code{instr:try_me_else(#no_port,TryArity,ref(Label2)),regs:ArgOrigs},
 		code{instr:label(BrLabel1),regs:[]}|Code106],
 	    start_new_chunk(EAM1, ChunkData1, ChunkData2),
 	    alloc_check_start_branch(det, ChunkData2, ChunkData3, Code106, Code107, GAlloc1),
@@ -305,25 +305,25 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 % Select retry/trust instructions according to debug mode,
 % and whether an environment exists or not (-1).
 
-retry_me_instr(options{debug:off}, -1, Else, EAM, Instr) ?- !, Instr = retry_me_else(0,Else), verify EAM==eam(0).	% NO_PORT
-retry_me_instr(options{debug:on},  -1, Else, EAM, Instr) ?- !, Instr = retry_me_else(16'9,Else), verify EAM==eam(0).	% NEXT_PORT
-retry_me_instr(options{debug:off},  _, Else, EAM, Instr) ?- !, Instr = retry_me_inline(0,Else,EAM).			% NO_PORT
-retry_me_instr(options{debug:on},   _, Else, EAM, Instr) ?- !, Instr = retry_me_inline(16'20D,Else,EAM).		% INLINE_PORT|ELSE_PORT
+retry_me_instr(options{debug:off}, -1, Else, EAM, Instr) ?- !, Instr = retry_me_else(#no_port,Else), verify EAM==eam(0).
+retry_me_instr(options{debug:on},  -1, Else, EAM, Instr) ?- !, Instr = retry_me_else(#next_port,Else), verify EAM==eam(0).
+retry_me_instr(options{debug:off},  _, Else, EAM, Instr) ?- !, Instr = retry_me_inline(#no_port,Else,EAM).
+retry_me_instr(options{debug:on},   _, Else, EAM, Instr) ?- !, Instr = retry_me_inline(#else_port,Else,EAM).
 
-trust_me_instr(options{debug:off}, -1, EAM, Instr) ?- !, Instr = trust_me(0), verify EAM==eam(0).	% NO_PORT
-trust_me_instr(options{debug:on},  -1, EAM, Instr) ?- !, Instr = trust_me(16'9), verify EAM==eam(0).	% NEXT_PORT
-trust_me_instr(options{debug:off},  _, EAM, Instr) ?- !, Instr = trust_me_inline(0,EAM).		% NO_PORT
-trust_me_instr(options{debug:on},   _, EAM, Instr) ?- !, Instr = trust_me_inline(16'20D,EAM).		% INLINE_PORT|ELSE_PORT
+trust_me_instr(options{debug:off}, -1, EAM, Instr) ?- !, Instr = trust_me(#no_port), verify EAM==eam(0).
+trust_me_instr(options{debug:on},  -1, EAM, Instr) ?- !, Instr = trust_me(#next_port), verify EAM==eam(0).
+trust_me_instr(options{debug:off},  _, EAM, Instr) ?- !, Instr = trust_me_inline(#no_port,EAM).
+trust_me_instr(options{debug:on},   _, EAM, Instr) ?- !, Instr = trust_me_inline(#else_port,EAM).
 
-retry_instr(options{debug:off}, -1, Alt, _EAM, Instr) ?- !, Instr = retry(0,Alt).			% NO_PORT
-retry_instr(options{debug:on},  -1, Alt, _EAM, Instr) ?- !, Instr = retry(16'9,Alt).			% NEXT_PORT
-retry_instr(options{debug:off},  _, Alt,  EAM, Instr) ?- !, Instr = retry_inline(0,Alt,EAM).		% NO_PORT
-retry_instr(options{debug:on},   _, Alt,  EAM, Instr) ?- !, Instr = retry_inline(16'20D,Alt,EAM).	% INLINE_PORT|ELSE_PORT
+retry_instr(options{debug:off}, -1, Alt, _EAM, Instr) ?- !, Instr = retry(#no_port,Alt).
+retry_instr(options{debug:on},  -1, Alt, _EAM, Instr) ?- !, Instr = retry(#next_port,Alt).
+retry_instr(options{debug:off},  _, Alt,  EAM, Instr) ?- !, Instr = retry_inline(#no_port,Alt,EAM).
+retry_instr(options{debug:on},   _, Alt,  EAM, Instr) ?- !, Instr = retry_inline(#else_port,Alt,EAM).
 
-trust_instr(options{debug:off}, -1, Alt, _EAM, Instr) ?- !, Instr = trust(0,Alt).			% NO_PORT
-trust_instr(options{debug:on},  -1, Alt, _EAM, Instr) ?- !, Instr = trust(16'9,Alt).			% NEXT_PORT
-trust_instr(options{debug:off},  _, Alt,  EAM, Instr) ?- !, Instr = trust_inline(0,Alt,EAM).		% NO_PORT
-trust_instr(options{debug:on},   _, Alt,  EAM, Instr) ?- !, Instr = trust_inline(16'20D,Alt,EAM).	% INLINE_PORT|ELSE_PORT
+trust_instr(options{debug:off}, -1, Alt, _EAM, Instr) ?- !, Instr = trust(#no_port,Alt).
+trust_instr(options{debug:on},  -1, Alt, _EAM, Instr) ?- !, Instr = trust(#next_port,Alt).
+trust_instr(options{debug:off},  _, Alt,  EAM, Instr) ?- !, Instr = trust_inline(#no_port,Alt,EAM).
+trust_instr(options{debug:on},   _, Alt,  EAM, Instr) ?- !, Instr = trust_inline(#else_port,Alt,EAM).
 
 
 % Environment activity at retry/trust instructions is the union of
@@ -383,7 +383,7 @@ emit_debug_call_port(options{debug:on}, Pred, OutArgs, [], goal{path:Path,line:L
 	(var(Line) -> Line = 0 ; true),
 	(var(From) -> From = 0 ; true),
 	(var(To) -> To = 0 ; true),
-	Code = [code{instr:debug_scall(Pred,1,Path1,Line,From,To),regs:OutArgs}|Code0].  % 1=CALL_PORT
+	Code = [code{instr:debug_scall(Pred,#call_port,Path1,Line,From,To),regs:OutArgs}|Code0].
 
 
 %----------------------------------------------------------------------
@@ -796,7 +796,7 @@ emit_try_sequence(Group, BranchLabelArray, BranchEamArray, TryArity, TryLabel, A
 		Code1 = Code6
 	    ;
 		Code1 = [code{instr:label(TryLabel),regs:[]},
-			code{instr:try(0,TryArity,ref(BranchLabel1)),regs:[]}
+			code{instr:try(#no_port,TryArity,ref(BranchLabel1)),regs:[]}
 			|Code2],
 		(
 		    fromto(BranchNrs2toN,[BranchNr|BranchNrs],BranchNrs,[BranchNrN]),
@@ -1697,7 +1697,7 @@ alloc_check_after(UnbReach, ChunkData0, ChunkData, [code{instr:gc_test(N)}|Code0
 
     % we are just after a potentially unbounded allocation+check
     test_or_promote(UnbReach, NeedAfter, NeedBefore, TestHere) :-
-	( NeedAfter > wam_max_global_push ->
+	( NeedAfter > #wam_max_global_push ->
 	    ( UnbReach == unbounded_maybe ->
 		% since the check might not be reached,
 		% check for enough space in the previous test
@@ -1728,7 +1728,7 @@ alloc_check_end(chunk_data{need_global:0}).
     args:[
 	"Code":"A list of struct(code)"
     ],
-    see_also:[generate_code/6,struct(code)]
+    see_also:[generate_code/5,struct(code)]
 ]).
 
 :- export print_annotated_code/1.

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.8 2008/04/28 23:19:27 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.9 2008/04/28 23:33:40 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/28 23:19:27 $").
+:- comment(date, "$Date: 2008/04/28 23:33:40 $").
 
 :- comment(desc, html("
     This pass (consisting of several phases) does the following jobs:
@@ -427,7 +427,7 @@ select_pseudo_arguments(VarIdTable, PredHead, PreDisjPos, Map0, Map, DisjArgs, D
 	    verify PredHead==nohead,
 	    RemainingPositions = DisjArgs
 	),
-	DisjArity is min(IdealDisjArity, wam_registers),
+	DisjArity is min(IdealDisjArity, #wam_registers),
 	length(DisjArgs, DisjArity),
 	hash_list(VarIdTable, _VarIds, RemainingArgDescs0),
 	sort(varid of variable, =<, RemainingArgDescs0, RemainingArgDescs),

@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.20 2008/04/24 18:40:46 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.21 2008/04/28 23:33:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/04/24 18:40:46 $").
+:- comment(date, "$Date: 2008/04/28 23:33:40 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -812,9 +812,13 @@ simplify_chunk(Rescan1, RescanT1, Rescan2, RescanT2, [AnnInstr|More], AllSimplif
 	    simplify_chunk(Empty1, Empty1, Empty2, Empty2, Rescan1, AllSimplified)
 	;
 	    % Instr which couldn't be simplified goes into rescan2,
-	    % and the old rescan goes into the final code.
+	    % and the old rescan1 goes into the final code.
 	    AllSimplified = Rescan1,
 	    simplify_chunk(Rescan2, RescanT2, [AnnInstr|Tail], Tail, More, RescanT1)
+
+	    % Only 1 instruction back:
+%	    AllSimplified = Rescan2,
+%	    simplify_chunk(Rescan1, RescanT1, [AnnInstr|Tail], Tail, More, RescanT2)
 	).
 
 
@@ -849,7 +853,7 @@ simplify(gc_test(N), _, More, New, MoreT, NewT) ?-
 	( N==0 ->
 	    true
 	;
-	    N =< wam_max_global_push,
+	    N =< #wam_max_global_push,
 	    % The following test is necessary to retain small gc_tests in
 	    % the (rare) case of initialisation code at the end of branches!
 	    More = [code{instr:Instr}|_], Instr \= put_global_variable(y(_))

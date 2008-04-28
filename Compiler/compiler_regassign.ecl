@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_regassign.ecl,v 1.6 2008/04/21 14:41:20 jschimpf Exp $
+% Version:	$Id: compiler_regassign.ecl,v 1.7 2008/04/28 23:33:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_regassign).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III Compiler - register allocator").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/21 14:41:20 $").
+:- comment(date, "$Date: 2008/04/28 23:33:40 $").
 
 :- lib(hash).
 :- use_module(compiler_common).
@@ -480,8 +480,7 @@ clear_locations(Locations, VarId) :-
 % This should be sped up using an explicit free-list
 free_register(Contains, Reg) :-
 	Reg = a(N),
-	wam_registers(Max),
-	between(1, Max, 1, N),
+	between(1, #wam_registers, 1, N),
 	register_is_free(Contains, Reg).
 
 % Enumerate all non-free registers that are only a second source
@@ -489,8 +488,7 @@ redundant_source_register(Contains, Locations, Reg) :-
 	Reg = a(I),
 	% replace next 3 lines with
 	% hash_current(Contains, Reg, VarId)
-	wam_registers(Max),
-	between(1, Max, 1, I),
+	between(1, #wam_registers, 1, I),
 	current_content(Contains, Reg, VarId),
 	current_locations(Locations, VarId, [_,_|_]).
 
@@ -499,8 +497,7 @@ single_source_register(Contains, Locations, Reg) :-
 	Reg = a(I),
 	% replace next 3 lines with
 	% hash_current(Contains, Reg, VarId)
-	wam_registers(Max),
-	between(1, Max, 1, I),
+	between(1, #wam_registers, 1, I),
 	current_content(Contains, Reg, VarId),
 	current_locations(Locations, VarId, [_]).
 

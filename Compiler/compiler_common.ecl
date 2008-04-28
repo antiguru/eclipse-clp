@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.12 2008/04/23 18:09:46 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.13 2008/04/28 23:33:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/23 18:09:46 $").
+:- comment(date, "$Date: 2008/04/28 23:33:40 $").
 
 
 %----------------------------------------------------------------------
@@ -449,7 +449,7 @@ new_aux_variable_norm(VarDesc, VId0, VId) :-
 	information about the purpose of an instruction, or about the
 	source construct it relates to.
     "),
-    see_also:[generate_code/6,print_annotated_code/1],
+    see_also:[generate_code/5,print_annotated_code/1],
     fields:[
 	instr:	"WAM instruction (assembler input format)",
 	regs:	"Register usage descriptor",
@@ -591,19 +591,17 @@ warning(Message) :-
 % Parameters
 %----------------------------------------------------------------------
 
-:- comment(wam_registers/1, [
-    summary:"The number of argument registers of the abstract machine",
-    amode:wam_registers(-),
-    args:["N":"An integer"]
-]).
+:- export macro((#)/1,'tr_#'/2,[]), op(100, fx, #).
+:- export 'tr_#'/2.
+'tr_#'(no_macro_expansion(#Name), Value) :- constant(Name, Value).
 
-:- export wam_registers/1.
-wam_registers(255).
-%wam_registers(8).
+    constant(wam_registers,		255).		% MAXARITY
+    constant(wam_max_global_push,	200).
+    constant(no_port,			0).		% NO_PORT
+    constant(call_port,			1).		% CALL_PORT
+    constant(next_port,			9).		% NEXT_PORT
+    constant(else_port,			16'20D).	% INLINE_PORT|ELSE_PORT
 
-:- export wam_max_global_push/1.
-wam_max_global_push(200).
-%wam_max_global_push(4).
 
 :- export smallint/1.
 smallint(X) :- 
