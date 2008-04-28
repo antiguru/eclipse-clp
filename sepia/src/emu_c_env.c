@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.3 2008/03/31 14:48:56 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.4 2008/04/28 18:17:46 jschimpf Exp $
  */
 
 /*
@@ -136,7 +136,7 @@ save_vm_status(vmcode *fail_code, int options)
     register pword *pw1;
     register control_ptr b_aux;
     register uint32 i;
-    extern vmcode dummy_return_env_0_[];
+    extern vmcode fail_return_env_0_[];
 
     /*
      * Build the invocation frame
@@ -152,7 +152,7 @@ save_vm_status(vmcode *fail_code, int options)
 
     /* push a dummy return address (needed in the GC) */
     SP = (pword *) (((vmcode **) SP) -1);
-    *((vmcode **) SP) = &dummy_return_env_0_[1];
+    *((vmcode **) SP) = &fail_return_env_0_[1];
 
     i = VM_FLAGS;
     Disable_Int()			/* will be reset in ..._emulc() */

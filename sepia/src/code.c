@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.4 2008/04/03 00:58:55 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.5 2008/04/28 18:17:46 jschimpf Exp $
  */
 
 /********************************************************************
@@ -90,7 +90,7 @@
  */
 
 vmcode dummy_procedure_code_[PROC_PREFIX_SIZE+3]; /* should be the first */
-vmcode dummy_return_env_0_[1];
+vmcode fail_return_env_0_[3];
 vmcode eval_code_[15];
 vmcode slave_code_[2];
 vmcode slave_fail_code_[25];
@@ -641,11 +641,13 @@ code_init(int flags)
 
 
 /*
- * &dummy_return_env_0_[1] is used as a fake return address
- * with environment size 0
+ * &fail_return_env_0_[1] is used as a return address with
+ * environment size 0, and for triggering failure after return
  */
-    code = &dummy_return_env_0_[0];
-    Store_d(0)
+    code = &fail_return_env_0_[0];
+    Store_d(Esize(0))
+    Store_i(Failure)
+    Store_i(Code_end);
 
 
 /*

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.11 2008/04/23 13:42:01 kish_shen Exp $
+ * VERSION	$Id: bip_db.c,v 1.12 2008/04/28 18:17:45 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1427,7 +1427,8 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
     pword	*s;
     pword	result;
     type	tt;
-    uword	temp1;
+    uword	brk_table_offset;
+    uword	brk_filter = 0;
     Prepare_Requests;
 
 #ifdef lint
@@ -1614,28 +1615,34 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 	Request_Unify_Integer(vf, tf, ProcCodeSize(code));
     	break;
 
-    case 30:		/* port_info */
+    case 30:		/* break_lines */
+    	brk_filter = BREAKPOINT;
+	/* fall through */
+
+    case 31:		/* port_lines */
 	if (PriCodeType(proc) != VMCODE) {
 	    Fail_;
 	}
-	temp1 = ProcBrkTableOffset(code);
 	s = &result;
-	if (temp1 != 0) {
-	    code += temp1; /* start of break table */
-	    while (*code != 0) {
-		Make_List(s, TG);
-		s = TG;
-		Push_List_Frame();
-		Make_Struct(&s[0], TG);
-		Push_Struct_Frame(in_dict("p",3));
-		/* this relies on the order of words from a break-port word as follows:
-                   break-port word, file path (dident), line (int)
-		*/ 
-		Make_Integer(&s[3], *(((vmcode *)(*code))+2)/* breakport line */);
-		Make_Atom(&s[4], (dident)(*(((vmcode *)(*code))+1))/* breakport file */);
-		Make_Integer(&s[5], (*((vmcode *)(*code)) & BREAKPOINT ? 1 : 0));
-		s = &s[1];
-		code ++;
+	brk_table_offset = ProcBrkTableOffset(code);
+	if (brk_table_offset)
+	{
+	    for(code += brk_table_offset; *code; ++code)
+	    {
+		if (((*(vmcode**)code)[0] & brk_filter) == brk_filter)
+		{
+		    Make_List(s, TG);
+		    s = TG;
+		    Push_List_Frame();
+		    Make_Struct(&s[0], TG);
+		    Push_Struct_Frame(d_.colon);
+		    /* this relies on the order of words from a break-port word as follows:
+		       break-port word, file path (dident), line (int)
+		    */ 
+		    Make_Atom(&s[3], ((dident*)(*(vmcode**)code))[1]);	/* file */
+		    Make_Integer(&s[4], (*(vmcode**)code)[2]);		/* line */
+		    s = &s[1];
+		}
 	    }
 	}
 	Make_Nil(s);

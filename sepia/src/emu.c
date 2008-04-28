@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.22 2008/04/23 13:42:01 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.23 2008/04/28 18:17:44 jschimpf Exp $
  */
 
 /*
@@ -284,6 +284,7 @@ extern vmcode
 		cond3_body_code_[],
 		softcut5_body_code_[],
 		*auto_gc_code_,
+		fail_return_env_0_[],
 		restore_code_[],
 		restore_debug_code_[],
 		trace_exit_code_[],
@@ -3985,11 +3986,13 @@ _globalize_if_needed_:
 
 
 	Case(Trust, I_Trust)				/* debug,alt */
+	    back_code = PP;
 	    DBG_PORT = PP->nint;
 	    PP = PP[1].code;
 	    goto _trust_me_;
 
 	Case(Trust_me_inline, I_Trust_me_inline)	/* debug,envsize */
+	    back_code = PP;
 	    DBG_PORT = PP->nint;
 	    PP += 2;
 	    goto _trust_me_;
@@ -3999,13 +4002,15 @@ _globalize_if_needed_:
 	 * We must make sure that the C compiler does not merge Trust and
 	 * Trust_inline, because the opcodes must remain distinguishable! */
 	Case(Trust_inline, I_Trust_inline)		/* debug,alt,envsize */
+	    back_code = PP;
 	    DBG_PORT = PP->nint;
 	    PP = PP[1].code;
 	    goto _trust_me_;
 
 	Case(Trust_me, I_Trust_me)			/* debug */
+	    back_code = PP;
 	    DBG_PORT = PP++->nint;
-_trust_me_:						/* (PP,DBG_PORT) */
+_trust_me_:					/* (back_code,PP,DBG_PORT) */
 #ifdef NEW_ORACLE
 	    if (FO && NTRY==0)
 		goto _recomp_err_;
@@ -4013,6 +4018,7 @@ _trust_me_:						/* (PP,DBG_PORT) */
 	    pw2 = BChpArgs(B.args);
 	    Record_Next_Alternative;
 _pop_choice_point_:			/* (pw2 points to arguments,DBG_PORT) */
+	    /* Tracer hook before failure: save debug stack data to FTRACE */
 	    if (TD)	/* find out how deep we fail */
 	    {
 		FDROP = 0;
@@ -4050,47 +4056,75 @@ _pop_choice_point_:			/* (pw2 points to arguments,DBG_PORT) */
 	    Wipe(Chp(pw2)->tg,TG);
 	    TG = Chp(pw2)->tg;
 	    Adjust_GcTg_and_TgSl(TG);
-            B.args = pw2;
-	    pw2 = BPrev(pw2);
-            EB = Chp(pw2)->sp;
-            GB = Chp(pw2)->tg;
 	    Reset_Unify_Exceptions
             Set_Det
             Reset_DE;
 	    Debug_Check_Global
 
-	    if ( FDROP > 0  &&  PortWanted(FAIL_PORT)
-	     || TD  &&  RLEVEL != DLevel(TD)  &&  PortWanted(PREDO_PORT)
-	     || Tracing  &&  (DBG_PORT&PORT_MASK)  &&  PortWanted(DBG_PORT&PORT_MASK))
+	    /* Tracer hook after failure:
+	     * Here we trace one or more FAIL, one or more REDO, and a single
+	     * NEXT or ELSE (modulo some of these ports being filtered out).
+	     * At this point the true debugger stack may already be empty,
+	     * but we still may have to trace some FAIL ports (FDROP>0).
+	     * We exploit the choicepoint for state-saving across the call to
+	     * the DEBUG_REDO_EVENT handler (which must fail): we keep the
+	     * choicepoint around, and arrange for the same Trust* instruction
+	     * to be executed once more after handler return. To suppress the
+	     * debug handler to be called again, we set the TF_REDO flag in
+	     * the top trace frame.
+	     */
+	    if (FDROP > 0  &&  PortWanted(FAIL_PORT))
+		goto _trace_trust_;
+	    if (TD)
 	    {
-		/* Different things for inline and clause-choicepoints:
-		 * After a clause choicepoint we must push an auxiliary
-		 * environment and save the arguments and the DET flag.
-		 * After an inline choicepoint we can insert a call directly.
-		 */
-		if (!(DBG_PORT & INLINE_PORT))
+		if (RLEVEL != DLevel(TD)  &&  PortWanted(PREDO_PORT))
+		    goto _trace_trust_;	/* not 2nd time */
+	        if (Unskipped(TD))
 		{
-		    Push_Env
-		    PushDynEnvHdr(tmp1, 0, PP);		/* save arity, PP */
-		    PP = (emu_code) &restore_code_[1];
-		    pw1 = &A[1];	/* save the argument registers */
-		    for (; tmp1; --tmp1)
-			*(--SP) = *pw1++;
-		} /* else inline chp with environment and envsize */
-		Push_Ret_Code(PP)
-		Check_Local_Overflow
-		Set_Det
-
-		proc = error_handler_[-(DEBUG_REDO_EVENT)];
-		PP = (emu_code) PriCode(proc);
-		A[1] = TAGGED_TD;
-		Make_Integer(&A[2], FDROP);
-		Make_Integer(&A[3], RLEVEL);
-		Make_Integer(&A[4], PORT_TRUST);
-		Make_Integer(&A[5], DBG_PORT&PORT_MASK);	/* NO/NEXT/ELSE_PORT */
+		    if (!(TfFlags(TD) & TF_REDO) && (DBG_PORT&PORT_MASK) && PortWanted(DBG_PORT&PORT_MASK))
+			goto _trace_trust_;
+		    Clr_Tf_Flag(TD, TF_REDO);
+		}
 	    }
-
+            EB = BChp(pw2)->sp;	/* finish resetting state */
+            GB = BChp(pw2)->tg;
+	    B.args = pw2;	/* and pop the choicepoint */
             Next_Pp;
+
+_trace_trust_:				/* (DBG_PORT,FDROP,RLEVEL,tmp1) */
+	    /* Make it look as if retrying the Trust instructions. Note that
+	     * setting the BP field is necessary in exotic cases like notnot,
+	     * where the trust instruction is not reached via a failure! */
+	    BBp(B.args) = (vmcode *) back_code-1;
+	    EB = SP; GB = TG;
+	    Push_Witness;
+_trace_redo_:				/* (DBG_PORT,FDROP,RLEVEL,tmp1) */
+	    if (TD)
+		Set_Tf_Flag(TD, TF_REDO);
+	    /* After a clause choicepoint we must push an auxiliary
+	     * empty environment to be able to make the handler call.
+	     * In case of an inline choicepoint we can insert a call directly.
+	     * Note that the environment size in front of the Failure
+	     * continuation is zero, but the environment will still get
+	     * marked correctly because the choicepoints still points to
+	     * this alternative and has a correct environment map.
+	     */
+	    if (!(DBG_PORT & INLINE_PORT))
+	    {
+		Push_Env
+	    }
+	    Push_Ret_Code((emu_code)&fail_return_env_0_[1])
+	    Check_Local_Overflow
+	    Set_Det
+	    proc = error_handler_[-(DEBUG_REDO_EVENT)];
+	    PP = (emu_code) PriCode(proc);
+	    A[1] = TAGGED_TD;
+	    Make_Integer(&A[2], FDROP);
+	    Make_Integer(&A[3], RLEVEL);
+	    Make_Integer(&A[4], FAIL_PORT);
+	    Make_Integer(&A[5], DBG_PORT&PORT_MASK);	/* NO/NEXT/ELSE_PORT */
+	    Next_Pp;
+
 
 
 	/*
@@ -4368,7 +4402,8 @@ _try_par_1_:	/* (i:alt, tmp1:arity, back_code, err_code) */
 		if (PPB < B.args) {
 		    goto _pop_choice_point_;	/* (pw2,DBG_PORT) */
 		} else {
-		    goto _read_choice_point_;	/* (pw2,DBG_PORT) */
+		    back_code = (emu_code) BBp(B.args);	/* leave unchanged */
+		    goto _read_choice_point_;	/* (pw2,DBG_PORT,back_code) */
 		}
 	    }
 	    else /* fail through */
@@ -4442,22 +4477,23 @@ _try_1_:
 
 	Case(Retry_me_inline, I_Retry_me_inline)	/* debug alt envsize */
 	    DBG_PORT = PP->nint;
-	    BBp(B.args) = (vmcode *) PP[1].code;
+	    back_code = PP[1].code;
 	    PP += 3;	/* skip debug-flag, label and env size */
-	    goto _retry_me_;
+	    goto _retry_me_;		/* (DBG_PORT,back_code) */
 
 	Case(Retry_me_else, I_Retry_me_else)		/* debug alt */
 	    DBG_PORT = PP->nint;
-	    BBp(B.args) = (vmcode *) PP[1].code;
+	    back_code =  PP[1].code;
 	    PP += 2;
-_retry_me_:				/*  (PP,DBG_PORT) */
+_retry_me_:				/*  (PP,DBG_PORT,back_code) */
 	    pw2 = BChpArgs(B.args);
 	    Record_Next_Alternative;
 #ifdef NEW_ORACLE
 	    if (FO && NTRY==0)
 		goto _recomp_err_;
 #endif
-_read_choice_point_:			/* (pw2 points to args, DBG_PORT) */
+_read_choice_point_:			/* (pw2 points to args, DBG_PORT,back_code) */
+	    /* Tracer hook before failure: save debug stack data to FTRACE */
 	    if (TD)	/* find out how deep we fail */
 	    {
 		FDROP = 0;
@@ -4500,58 +4536,45 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT) */
 	    Reset_DE;
 	    Debug_Check_Global
 
-	    if ( FDROP > 0  &&  PortWanted(FAIL_PORT)
-	     || TD  &&  RLEVEL != DLevel(TD)  &&  PortWanted(PREDO_PORT)
-	     || Tracing  &&  (DBG_PORT&PORT_MASK)  &&  PortWanted(DBG_PORT&PORT_MASK))
+	    /* Tracer hook after failure: call DEBUG_REDO_EVENT handler.
+	     * Don't update the alternative if calling the trace handler
+	     * vecause the retry instruction will be executed again! */
+	    if (FDROP > 0  &&  PortWanted(FAIL_PORT))
+	    	goto _trace_redo_;
+	    if (TD)
 	    {
-		/* Different things for inline and clause-choicepoints:
-		 * After a clause choicepoint we must push an auxiliary
-		 * environment and save the arguments and the DET flag.
-		 * After an inline choicepoint we can insert a call directly.
-		 */
-		if (!(DBG_PORT & INLINE_PORT))
+		if (RLEVEL != DLevel(TD)  &&  PortWanted(PREDO_PORT))
+		    goto _trace_redo_;
+	        if (Unskipped(TD))
 		{
-		    Push_Env
-		    PushDynEnvHdr(tmp1, WAS_NONDET, PP); /* save arity, PP */
-		    PP = (emu_code) &restore_code_[1];
-		    pw1 = &A[1];	/* save the argument registers */
-		    for (; tmp1; --tmp1)
-			*(--SP) = *pw1++;
-		} /* else inline chp with environment and envsize */
-		Push_Ret_Code(PP)
-		Check_Local_Overflow
-		Set_Det
-
-		proc = error_handler_[-(DEBUG_REDO_EVENT)];
-		PP = (emu_code) PriCode(proc);
-		A[1] = TAGGED_TD;
-		Make_Integer(&A[2], FDROP);
-		Make_Integer(&A[3], RLEVEL);
-		Make_Integer(&A[4], PORT_RETRY);
-		Make_Integer(&A[5], DBG_PORT&PORT_MASK);/* NO/NEXT/ELSE_PORT */
+		    if (!(TfFlags(TD) & TF_REDO) && (DBG_PORT&PORT_MASK) && PortWanted(DBG_PORT&PORT_MASK))
+			goto _trace_redo_;
+		    Clr_Tf_Flag(TD, TF_REDO);
+		}
 	    }
-
+	    /* not debugging, update the alternative */
+	    BBp(B.args) = (vmcode *) back_code;
 	    Next_Pp;
 
 	Case(Retry, I_Retry)			/* debug clause */
 	    DBG_PORT = PP->nint;
-	    BBp(B.args) = (vmcode *) (PP + 2);
+	    back_code = (PP + 2);
 	    PP = PP[1].code;
-	    goto _retry_me_;		/* (DBG_PORT) */
+	    goto _retry_me_;		/* (DBG_PORT,back_code) */
 
 	Case(Retrylab, I_Retrylab)		/* debug clause alt */
 	    DBG_PORT = PP->nint;
-	    BBp(B.args) = (vmcode *) PP[2].code;
+	    back_code = PP[2].code;
 	    PP = PP[1].code;
-	    goto _retry_me_;		/* (DBG_PORT) */
+	    goto _retry_me_;		/* (DBG_PORT,back_code) */
 
 	/* Operationally the same as Retry, but points to a branch of an
 	 * inline disjunction rather than a clause, and has envsize. */
 	Case(Retry_inline, I_Retry_inline)	/* debug branch envsize */
 	    DBG_PORT = PP->nint;
-	    BBp(B.args) = (vmcode *) (PP + 3);
+	    back_code = PP + 3;
 	    PP = PP[1].code;
-	    goto _retry_me_;		/* (DBG_PORT) */
+	    goto _retry_me_;		/* (DBG_PORT,back_code) */
 
 
 /*
@@ -4611,20 +4634,21 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT) */
 			/* get the call clock (the last argument)	*/
 	    i = ((pword *)(B.top - 1) - 1)->val.nint;
 	    back_code = (PP+2)->code;
-	    PP += DYNAMIC_INSTR_SIZE - 1;
 	    while (back_code != FAIL)	/* look for living alternative	*/
 	    {
 		if (!Dead(back_code, i))
 		{
-		    BBp(B.args) = (vmcode *) back_code;
 		    DBG_PORT = NEXT_PORT;
-		    goto _retry_me_;		/* (DBG_PORT)	*/
+		    PP += DYNAMIC_INSTR_SIZE - 1;
+		    goto _retry_me_;		/* (DBG_PORT,back_code)	*/
 		}
 		back_code = (back_code+3)->code;
 	    }
 						/* the last living clause */
+	    back_code = PP;
+	    PP += DYNAMIC_INSTR_SIZE - 1;
 	    DBG_PORT = NEXT_PORT;
-	    goto _trust_me_;			/* (DBG_PORT)	*/
+	    goto _trust_me_;			/* (back_code,PP,DBG_PORT) */
 
 
 /***********************************************
@@ -5633,7 +5657,13 @@ _match_values_:
 		DynEnvDbgLine(E)->val.nint,
 		DynEnvDbgFrom(E)->val.nint,
 		DynEnvDbgTo(E)->val.nint, val_did)
-	    if (OfInterest(PriFlags(proc), DBG_INVOC, tmp1))
+#if (TF_BREAK == BREAKPOINT)
+	    err_code &= BREAKPOINT;
+	    Set_Tf_Flag(TD, err_code)
+#else
+Please make sure that TF_BREAK == BREAKPOINT
+#endif
+	    if (OfInterest(PriFlags(proc), DBG_INVOC, tmp1, err_code))
 	    {
 		A[2] = TAGGED_TD;			/* New call stack */
 
@@ -5664,7 +5694,7 @@ _match_values_:
 	    A[1] = TAGGED_TD;			/* Old call stack */
 	    Pop_Dbg_Frame();
 	    pw1 = A[1].val.ptr;
-	    if (ExitPortWanted && OfInterest(PriFlags(DProc(pw1)), DInvoc(pw1), DLevel(pw1)))
+	    if (ExitPortWanted && OfInterest(PriFlags(DProc(pw1)), DInvoc(pw1), DLevel(pw1), 0))
 	    {
 		/* call debug event(OldStack) */
 		proc = error_handler_[-(DEBUG_EXIT_EVENT)];
@@ -5807,7 +5837,7 @@ _anycall_:				/* (pw1,DBG_PORT,i) */
 		Push_Ret_Code(PP)
 		Check_Local_Overflow;
 		PP = (emu_code) CodeStart(comma_body_code_);
-		DBG_PORT = 0;	/* don't trace, treat as inlined */
+		DBG_PORT = NO_PORT;	/* don't trace, treat as inlined */
 		goto _exec_prolog_;
 	    }
 	    else if(val_did == d_.semicolon) {
@@ -5841,7 +5871,7 @@ _anycall_:				/* (pw1,DBG_PORT,i) */
 		    A[2] = *(++pw1);
 		    PP = (emu_code) CodeStart(semic_body_code_);
 		}
-		DBG_PORT = 0;	/* don't trace, treat as inlined */
+		DBG_PORT = NO_PORT;	/* don't trace, treat as inlined */
 		goto _exec_prolog_;
 	    } else if(val_did == d_.cond) {	/* simple ->/2 */
 		/* call((G1;G2), CM, LM, Cut)
@@ -5852,7 +5882,7 @@ _anycall_:				/* (pw1,DBG_PORT,i) */
 		Push_Ret_Code(PP)
 		Check_Local_Overflow;
 		PP = (emu_code) CodeStart(cond_body_code_);
-		DBG_PORT = 0;	/* don't trace, treat as inlined */
+		DBG_PORT = NO_PORT;	/* don't trace, treat as inlined */
 		goto _exec_prolog_;
 	    } else if(val_did == d_.cut) {	/* !/0 ==> cut_to(Cut) */
 		pw2 = &A[4];
@@ -6500,13 +6530,12 @@ _end_external_:
 #endif
 		    if (Tracing && AnyPortWanted && !InvisibleProc(PP[0].proc_entry)) {
 			DBG_PRI = PP[0].proc_entry;
-			DBG_PORT = PP[1].nint & PORT_MASK;
+			DBG_PORT = PP[1].nint;
 			DBG_PATH = PP[2].did;
 			DBG_LINE = PP[3].nint;
 			DBG_FROM = PP[4].nint;
 			DBG_TO = PP[5].nint;
 			DBG_INVOC = 0L;
-			BREAK = PP[1].nint & BREAKPOINT;
 			Fake_Overflow;
 		    }
 		} else /* if (PriFlags(proc) & DEBUG_ST) */ {
@@ -6517,13 +6546,12 @@ _end_external_:
 		    }
 		    if (AnyPortWanted) {
 			DBG_PRI = PP[0].proc_entry;
-			DBG_PORT = PP[1].nint & PORT_MASK;
+			DBG_PORT = PP[1].nint;
 			DBG_PATH = PP[2].did;
 			DBG_LINE = PP[3].nint;
 			DBG_FROM = PP[4].nint;
 			DBG_TO = PP[5].nint;
 			DBG_INVOC = 0L;
-			BREAK = PP[1].nint & BREAKPOINT;
 			Fake_Overflow;
 		    }
 		}
@@ -6556,7 +6584,7 @@ _end_external_:
 		    {
 			proc = PP[0].proc_entry;
 			if (!(PriFlags(proc) & DEBUG_SK)
-			    || OfInterest(PriFlags(proc), NINVOC, DLevel(TD)+1) )
+			    || OfInterest(PriFlags(proc), NINVOC, DLevel(TD)+1, PP[1].nint & BREAKPOINT) )
 			{
 			    /*
 			     * Raise a DEBUG_BIPCALL_EVENT whose handler will
@@ -6593,7 +6621,7 @@ _end_external_:
 			    && (PriArgPassing(proc) == ARGSTACK))
 		    {
 			if (!(TfFlags(TD) & TF_NOGOAL)
-			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD)))
+			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD), 0))
 			{
 			    err_code = DEBUG_BIPEXIT_EVENT;
 			    PP += 2;
@@ -6611,7 +6639,7 @@ _end_external_:
 		    {
 			FCULPRIT = DInvoc(TD);
 			if (!(TfFlags(TD) & TF_NOGOAL)
-			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD)) )
+			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD), 0) )
 			{
 			    err_code = DEBUG_BIPFAIL_EVENT;
 			    PP += 2;
@@ -6873,7 +6901,7 @@ _end_external_:
 		A[1] = TAGGED_TD;
 		Make_Integer(&A[2], FDROP);
 		Make_Integer(&A[3], RLEVEL);
-		Make_Integer(&A[4], PORT_THROW);
+		Make_Integer(&A[4], LEAVE_PORT);
 		Make_Integer(&A[5], NEXT_PORT);	/* show NEXT port? */
 	    }
 
@@ -7357,6 +7385,13 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    if (TD)
 	    {
 		Clr_Tf_Flag(TD, TF_INTRACER);
+#ifdef PRINTAM
+		if (TfFlags(TD) & TF_SYSTRACE) {
+		    /* reenable abstract instruction tracing, if necessary */
+		    Clr_Tf_Flag(TD, TF_SYSTRACE);
+		    VM_FLAGS |= TRACE;
+		}
+#endif
 	    }
 	    Next_Pp;
 
@@ -8058,7 +8093,7 @@ _narg_:
 	    {
 		Set_Susp_DebugInvoc(pw2, NINVOC);
 		++NINVOC;
-		if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(procb), NINVOC-1, DLevel(TD)+1) )
+		if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(procb), NINVOC-1, DLevel(TD)+1, 0) )
 		{
 		    err_code = DEBUG_DELAY_EVENT;
 		    /* to suppress tracing of the event handler call: */
@@ -8355,6 +8390,13 @@ _escape_:			/* (proc) */
 	    if (TD)
 	    {
 		Clr_Tf_Flag(TD, TF_INTRACER);
+#ifdef PRINTAM
+		if (TfFlags(TD) & TF_SYSTRACE) {
+		    /* reenable abstract instruction tracing, if necessary */
+		    Clr_Tf_Flag(TD, TF_SYSTRACE);
+		    VM_FLAGS |= TRACE;
+		}
+#endif
 	    }
 	    Next_Pp;
 
@@ -8906,7 +8948,7 @@ _arg_:
 	    {
 		Set_Susp_DebugInvoc(pw2, NINVOC);
 		++NINVOC;
-		if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(procb), NINVOC-1, DLevel(TD)+1) )
+		if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(procb), NINVOC-1, DLevel(TD)+1, 0) )
 		{
 		    err_code = DEBUG_DELAY_EVENT;
 		    /* to suppress tracing of the event handler call: */
