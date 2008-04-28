@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.7 2008/04/24 18:40:46 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.8 2008/04/28 23:19:27 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/24 18:40:46 $").
+:- comment(date, "$Date: 2008/04/28 23:19:27 $").
 
 :- comment(desc, html("
     This pass (consisting of several phases) does the following jobs:
@@ -195,18 +195,18 @@ compute_lifetimes(disjunction{branches:Branches,callpos:DisjPos,
 	    foreach(Branch,Branches),
 	    foreach(BranchMap,BranchMaps),
 	    count(I,1,_),
-	    param(Map2,DisjArgs,HeadArgsArray,DisjPos)
+	    param(Map2,DisjArgs,HeadArgsArray,DisjPos,Arity)
 	do
 	    % prefix pseudo-head arguments to the branch
 	    make_branch_head(I, HeadArgsArray, DisjArgs, HeadArgs),
 	    append(DisjPos, [I,1], BranchFirstPos),
 	    compute_lifetimes_term(BranchFirstPos, HeadArgs, Map2, Map3),
-	    compute_lifetimes(Branch, nohead, _PredHead, Map3, BranchMap)
+	    compute_lifetimes(Branch, Arity-HeadArgs, _PredHead, Map3, BranchMap)
 	),
 	merge_branches(DisjPos, BranchMaps, Map).
 compute_lifetimes(Goal, PredHead0, PredHead, Map0, Map) :-
-	Goal = goal{kind:Kind,callpos:GoalPos,args:Args},
-	( Kind == head -> verify PredHead0==nohead, PredHead = Goal
+	Goal = goal{kind:Kind,callpos:GoalPos,args:Args,functor:_/Arity},
+	( Kind == head -> verify PredHead0==nohead, PredHead = Arity-Args
 	; Kind == simple -> PredHead = PredHead0
 	; PredHead = nohead
 	),
@@ -409,7 +409,7 @@ select_pseudo_arguments(VarIdTable, PredHead, PreDisjPos, Map0, Map, DisjArgs, D
 	% For those disjunction-pseudo-args that match clause head args,
 	% put them in the same argument position (provided it is not beyond
 	% the disjunction's arity)
-	( PredHead = goal{functor:_/HeadArity,args:HeadArgs} ->
+	( PredHead = HeadArity-HeadArgs ->
 	    (
 		for(_,1,min(HeadArity,IdealDisjArity)),
 		fromto(HeadArgs,[variable{varid:VarId}|HeadArgs1],HeadArgs1,_),
@@ -427,7 +427,7 @@ select_pseudo_arguments(VarIdTable, PredHead, PreDisjPos, Map0, Map, DisjArgs, D
 	    verify PredHead==nohead,
 	    RemainingPositions = DisjArgs
 	),
-	DisjArity is min(IdealDisjArity,wam_registers),
+	DisjArity is min(IdealDisjArity, wam_registers),
 	length(DisjArgs, DisjArity),
 	hash_list(VarIdTable, _VarIds, RemainingArgDescs0),
 	sort(varid of variable, =<, RemainingArgDescs0, RemainingArgDescs),

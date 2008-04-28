@@ -11338,16 +11338,14 @@ label(L5):
 	get_list                 a(1)     ref(L7) 
 	write_first_structure     code / 3 
 label(L6):
-	move                     a(2)     a(3) 
-	write_variable           a(2) 
+	write_variable           a(3) 
 	write_void               2 
 	mode                     t(0)     ref(L8) 
 	write_variable           a(1) 
 	branch                   ref(L9) 
 label(L7):
 	read_structure           code / 3     ref(L6) 
-	move                     a(2)     a(3) 
-	read_variable            a(2) 
+	read_variable            a(3) 
 	mode                     t(0) 
 label(L8):
 	read_variable            a(1) 
@@ -11355,14 +11353,13 @@ label(L9):
 	space                    -1 
 	allocate                 3 
 	savecut                  y(1) 
-	list_switch              a(3)     ref(L10)     ref(L11)     ref(L11) 
+	list_switch              a(2)     ref(L10)     ref(L11)     ref(L11) 
 label(L10):
 	try_me_else              0     3     ref(L12) 
 label(L11):
-	move                     a(3)     y(3) 
-	put_global_variable      a(3)     y(2) 
-	swap                     a(1)     a(2) 
-	callf                    simplify / 3     Y[1,2,3] 
+	move                     a(2)     y(3) 
+	shift                    a(2)     a(1)     a(3) 
+	put_global_variable_callf     a(3)     y(2)     simplify / 3     Y[1,2,3] 
 	cut                      y(1)     3 
 	move                     2     y(2)     a(1) 
 	chain                    ref(L0) 
@@ -11370,12 +11367,12 @@ label(L11):
 label(L12):
 	trust_me_inline          0     Y[] 
 label(L13):
-	get_list                 a(3)     ref(L14) 
-	write_local_value        a(2) 
+	get_list                 a(2)     ref(L14) 
+	write_local_value        a(3) 
 	write_variable           a(2) 
 	branch                   ref(L15) 
 label(L14):
-	read_value               a(2) 
+	read_value               a(3) 
 	read_variable            a(2) 
 label(L15):
 	chain                    ref(L0) 
