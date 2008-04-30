@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.23 2008/04/28 18:17:44 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.24 2008/04/30 17:06:01 jschimpf Exp $
  */
 
 /*
@@ -4814,6 +4814,7 @@ _switch_on_type_:
 	    Dereference_Pw_Tag(pw1,tmp1)
 	    if (ISRef(tmp1)) {
 		if (IsTag(tmp1, TMETA)) {
+		    S = pw1->val.ptr;		/* so we can skip In_get_metaAM */
 		    PP = (PP + TPTR)->code;
 		} else
 		    PP += NTYPES;
@@ -7406,6 +7407,9 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
  *
  * bi_arg	&Ai &Aj	&Ak	2'010000
  * bi_make_susp	&Ai &Aj	&Ak &Al	2'00000000 or 2'00010000
+ *
+ * CAUTION: the output argument(s) may be the same as the inputs.
+ * Do not store there while the inputs are still needed!
  */
 
 /* pw is assumed dereferenced */
@@ -7547,11 +7551,11 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    NDelay_Check_1(pw1)
 	    if (IsInteger(pw1->tag))
 	    {
-		if ((PP[-2].arg->val.nint = -pw1->val.nint) == MIN_S_WORD) {
+		if ((tmp1 = -pw1->val.nint) == MIN_S_WORD) {
 		    err_code = INTEGER_OVERFLOW;
 		    goto _nbip_err_;
 		}
-		PP[-2].arg->tag.kernel = TINT;
+		Make_Integer(PP[-2].arg, tmp1);
 		Next_Pp;
 	    }
 	    else if (IsDouble(pw1->tag))
@@ -7641,8 +7645,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 			    goto _nbip_err_;
 			}
 		    }
-		    PP[-2].arg->val.nint = tmp1;
-		    PP[-2].arg->tag.kernel = TINT;
+		    Make_Integer(PP[-2].arg, tmp1);
 		    Next_Pp;
 		}
 		if (IsDouble(pw2->tag)) {
@@ -7728,8 +7731,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		    err_code = INTEGER_OVERFLOW;
 		    goto _nbip_err_;
 		}
-		PP[-2].arg->val.nint = pw1->val.nint / pw2->val.nint;
-		PP[-2].arg->tag.kernel = TINT;
+		Make_Integer(PP[-2].arg, pw1->val.nint / pw2->val.nint);
 		Next_Pp;
 	    }
 	    err_code = ARITH_IDIV;
@@ -7755,8 +7757,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		PP[-2].arg->val.nint =
 #if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
 		    /* need to check this, causes arith exception on i386 */
-		    (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) ?
-			PP[-2].arg->val.nint = 0L :
+		    (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) ? 0L :
 #endif
 		    /* Assume % truncates towards zero */
 		       pw1->val.nint % pw2->val.nint;
@@ -7792,8 +7793,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		/* Need to adjust rounding if opposite signs */
 		if (((pw1->val.nint ^ pw2->val.nint) < 0) && (pw1->val.nint % pw2->val.nint))
 		    --tmp1;
-		PP[-2].arg->val.nint = tmp1;
-		PP[-2].arg->tag.kernel = TINT;
+		Make_Integer(PP[-2].arg, tmp1);
 		Next_Pp;
 	    }
 	    err_code = ARITH_FLOORDIV;
@@ -7831,8 +7831,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		    if (tmp1 && (pw1->val.nint ^ pw2->val.nint) < 0)
 			tmp1 += pw2->val.nint;
 		}
-		PP[-2].arg->val.nint = tmp1;
-		PP[-2].arg->tag.kernel = TINT;
+		Make_Integer(PP[-2].arg, tmp1);
 		Next_Pp;
 	    }
 	    err_code = ARITH_FLOORREM;
@@ -7855,8 +7854,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	    NDelay_Check_1(pw1);
 	    if (IsInteger(pw1->tag))
 	    {
-		PP[-2].arg->val.nint = ~ pw1->val.nint;
-		PP[-2].arg->tag.kernel = TINT;
+		Make_Integer(PP[-2].arg, ~ pw1->val.nint);
 		Next_Pp;
 	    }
 	    err_code = ARITH_COM;
