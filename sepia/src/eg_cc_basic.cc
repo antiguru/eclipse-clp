@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_cc_basic.cc,v 1.1 2006/09/23 01:55:54 snovello Exp $
+ * $Id: eg_cc_basic.cc,v 1.2 2008/05/06 14:48:02 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	eg_cc_basic.cc
@@ -38,7 +38,7 @@
  */
 
 #include	"eclipseclass.h"
-
+#include <iostream>
 
 main()
 {
@@ -53,11 +53,11 @@ main()
 
     n = ec_queue_read(1, buf, 1024);
     buf[n] = 0;
-    cout << "eclipse returned: " << buf << ".\n":
+    std::cout << "eclipse returned: " << buf << ".\n";
 
     n = ec_queue_read(2, buf, 1024);
     buf[n] = 0;
-    cout << "eclipse error returned: " << buf << ".\n";
+    std::cout << "eclipse error returned: " << buf << ".\n";
 
     ec_cleanup();
     exit(0);

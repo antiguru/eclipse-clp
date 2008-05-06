@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Application Example
  *
- * $Id: eg_cc_mip.cc,v 1.1 2006/09/23 01:55:54 snovello Exp $
+ * $Id: eg_cc_mip.cc,v 1.2 2008/05/06 14:48:02 kish_shen Exp $
  *
  * IDENTIFICATION:	eg_sendmore.c
  *
@@ -35,7 +35,7 @@
  */
 
 #include	"eclipseclass.h"
-#include	<iostream.h>
+#include	<iostream>
 
 
 #define NCOLS	3
@@ -108,19 +108,19 @@ main()
 	    int i;
 
 	    if (EC_word(Profit).is_double(&d) == EC_succeed)
-		cout << "Profit is " << d << "\n";
+		std::cout << "Profit is " << d << "\n";
 	    else
-		cout << "Profit is ?\n";
+		std::cout << "Profit is ?\n";
 
 	    for (i=0; i<NCOLS; i++)
 	    {
 		if (Vars[i].is_double(&d) == EC_succeed)
-		    cout << "X" << i << " = " << d << "\n";
+		    std::cout << "X" << i << " = " << d << "\n";
 		else
-		    cout << "X" << i << " = ?\n";
+		    std::cout << "X" << i << " = ?\n";
 	    }
 	}
-	else cout << "No solution\n";
+	else std::cout << "No solution\n";
     }
     ec_cleanup();
 }

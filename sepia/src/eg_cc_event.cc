@@ -26,7 +26,7 @@
  */
 
 #include	"eclipseclass.h"
-#include	<iostream.h>
+#include	<iostream>
 #include	<signal.h>
 #include	<unistd.h>
 
@@ -49,13 +49,13 @@ main(int argc,char ** argv)
     post_goal("between(1,99999,1,X), writeln(X), fail");
     switch (EC_resume())
     {
-    case EC_succeed:	cout << "Succeeded\n"; break;
-    case EC_fail:	cout << "Failed\n"; break;
-    case EC_throw:	cout << "Aborted\n"; break;
-    default:		cout << "???\n"; break;
+    case EC_succeed:	std::cout << "Succeeded\n"; break;
+    case EC_fail:	std::cout << "Failed\n"; break;
+    case EC_throw:	std::cout << "Aborted\n"; break;
+    default:		std::cout << "???\n"; break;
     }
 
-    ec_cleanup(0);
+    ec_cleanup();
     exit(0);
 }
 

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_cc_handle.cc,v 1.1 2006/09/23 01:55:54 snovello Exp $
+ * $Id: eg_cc_handle.cc,v 1.2 2008/05/06 14:48:02 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	minimain.c
@@ -59,6 +59,6 @@ main()
 
     EC_resume();
 
-    ec_cleanup(0);
+    ec_cleanup();
 }
 

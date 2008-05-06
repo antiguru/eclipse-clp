@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_cc_fail_loop.cc,v 1.1 2006/09/23 01:55:54 snovello Exp $
+ * $Id: eg_cc_fail_loop.cc,v 1.2 2008/05/06 14:48:02 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	fail_loop.c
@@ -38,7 +38,7 @@
  */
 
 #include	"eclipseclass.h"
-#include	<iostream.h>
+#include	<iostream>
 
 
 main(int argc,char ** argv)
@@ -62,7 +62,7 @@ main(int argc,char ** argv)
 	/* on each iteration X is instantiated to a different number */
     	if (EC_succeed == ((EC_word)X).is_long(&num))
 	{
-	    cout << "p(" << num << ")\n";
+	    std::cout << "p(" << num << ")\n";
 
 	    /* at 10 we want to exit the loop, cutting away other choices */
 	    if(num == 10)
@@ -72,7 +72,7 @@ main(int argc,char ** argv)
 	post_goal(fail);
     }
 
-    ec_cleanup(0);
+    ec_cleanup();
     exit(0);
 }
 

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe SAMPLE CODE
  *
- * $Id: eg_cc_test.cc,v 1.1 2006/09/23 01:55:54 snovello Exp $
+ * $Id: eg_cc_test.cc,v 1.2 2008/05/06 14:48:02 kish_shen Exp $
  *
  * AUTHOR:		Joachim Schimpf
  *
@@ -33,7 +33,7 @@
 
 
 #include	"eclipseclass.h"
-#include	<iostream.h>
+#include	<iostream>
 
 long	longs[] = {1,2,3,4,5};
 double	doubles[] = {1.1,2.2,3.3,4.4,5.5};
@@ -50,7 +50,7 @@ echo_stream(int stream)
     while ((n = ec_queue_read(stream, buf, 1023)) > 0)
     {
 	buf[n] = 0;
-	cout << buf;
+	std::cout << buf;
     }
 }
 
@@ -123,7 +123,7 @@ main(int argc, char **argv)
     EC_refs	YZ(2);
 
     /*----------------------------------------*/
-    cout << "Testing post_goal()\n";
+    std::cout << "Testing post_goal()\n";
     /*----------------------------------------*/
 
     post_goal(uni(X, EC_atom("hello")));
@@ -138,13 +138,13 @@ main(int argc, char **argv)
     	EC_succeed == YZ[1].is_long(&n)
 	)
     {
-	cout << "Answer was X=" << a.name() << ", Y=" << s << ", n=" << n << "\n";
+	std::cout << "Answer was X=" << a.name() << ", Y=" << s << ", n=" << n << "\n";
     }
     else
     	goto _problem_;
 
     /*----------------------------------------*/
-    cout << "Testing constructors\n";
+    std::cout << "Testing constructors\n";
     /*----------------------------------------*/
     X = newvar();
     post_goal(uni(X,
@@ -173,21 +173,21 @@ main(int argc, char **argv)
     	goto _problem_;
 
     /*----------------------------------------*/
-    cout << "Testing assignment\n";
+    std::cout << "Testing assignment\n";
     /*----------------------------------------*/
     YZ.set(1,77);
     if (!(YZ[1].is_long(&n) == EC_succeed && n == 77))
     	goto _problem_;
 
     /*----------------------------------------*/
-    cout << "Testing checking and decomposition\n";
+    std::cout << "Testing checking and decomposition\n";
     /*----------------------------------------*/
     pw1 = X;
     if (pw1.is_list(pw2,pw1) == EC_succeed &&
     	pw2.is_list(pw3,pw4) == EC_succeed &&
     	pw3.is_double(&d) == EC_succeed
     )
-	cout << "d = " << d << "\n";
+	std::cout << "d = " << d << "\n";
     else
     	goto _problem_;
 
@@ -195,7 +195,7 @@ main(int argc, char **argv)
     	pw2.is_list(pw3,pw4) == EC_succeed &&
     	pw3.is_long(&n) == EC_succeed
     )
-	cout << "n = " << n << "\n";
+	std::cout << "n = " << n << "\n";
     else
     	goto _problem_;
 
@@ -203,21 +203,21 @@ main(int argc, char **argv)
     	pw2.is_list(pw3,pw4) == EC_succeed &&
     	pw3.is_long(&n) == EC_succeed
     )
-	cout << "n = " << n << "\n";
+	std::cout << "n = " << n << "\n";
     else
     	goto _problem_;
 
     if (pw1.is_list(pw2,pw1) == EC_succeed &&
     	pw2.is_string(&s) == EC_succeed
     )
-	cout << "s = " << s << "\n";
+	std::cout << "s = " << s << "\n";
     else
     	goto _problem_;
 
     if (pw1.is_list(pw2,pw1) == EC_succeed &&
     	pw2.is_atom(&a) == EC_succeed
     )
-	cout << "a = " << a.name() << "\n";
+	std::cout << "a = " << a.name() << "\n";
     else
     	goto _problem_;
 
@@ -228,7 +228,7 @@ main(int argc, char **argv)
 	pw2.arg(3,pw3) == EC_succeed &&
 	pw3.is_long(&n) == EC_succeed
     )
-	cout << "functor = " << f.name() << "/" << f.arity() << ", n = " << n << "\n";
+	std::cout << "functor = " << f.name() << "/" << f.arity() << ", n = " << n << "\n";
     else
     	goto _problem_;
 
@@ -239,7 +239,7 @@ main(int argc, char **argv)
     	pw1.is_list(pw2,pw1) == EC_succeed &&
     	pw1.is_nil() == EC_succeed
     )
-	cout << "end\n";
+	std::cout << "end\n";
     else
     	goto _problem_;
 
@@ -253,7 +253,7 @@ main(int argc, char **argv)
   }
 
 _problem_:
-    cout << "PROBLEM!!!\n";
+    std::cout << "PROBLEM!!!\n";
     return -1;
 }
 

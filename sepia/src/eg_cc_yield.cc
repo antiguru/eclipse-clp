@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_cc_yield.cc,v 1.1 2006/09/23 01:55:54 snovello Exp $
+ * $Id: eg_cc_yield.cc,v 1.2 2008/05/06 14:48:03 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	cc_yield.c
@@ -38,7 +38,7 @@
  */
 
 #include	"eclipseclass.h"
-#include	<iostream.h>
+#include	<iostream>
 
 
 main(int argc,char ** argv)
@@ -48,12 +48,12 @@ main(int argc,char ** argv)
     int res;
     long x;
 
-    post_goal("between(1,99,1,X), writeln(X),
-    		(X>5 ->
-		    yield(X, Cont),
-		    ( Cont == stop -> exit_block(abort) ; true )
-		;
-		    true
+    post_goal("between(1,99,1,X), writeln(X),\
+    		(X>5 ->                      \
+		    yield(X, Cont),          \
+		    ( Cont == stop -> exit_block(abort) ; true )\
+		;                            \
+		    true                     \
 		)");
     res = EC_resume(X_or_Cut);
 
@@ -62,23 +62,23 @@ main(int argc,char ** argv)
 	switch (res)
 	{
 	    case EC_succeed:
-		cout << "succeeded\n";
+		std::cout << "succeeded\n";
 		post_goal("fail");
 		res = EC_resume(X_or_Cut);
 		break;
 
 	    case EC_fail:
-		cout << "failed\n";
+		std::cout << "failed\n";
 		goto _stop_;
 
 	    case EC_throw:
-		cout << "aborted\n";
+		std::cout << "aborted\n";
 		post_goal("writeln(new_goal_after_abort)");
 		res = EC_resume(X_or_Cut);
 		break;
 
 	    case 3:	/* case EC_yield: */
-		cout << "yielded\n";
+		std::cout << "yielded\n";
 		if (EC_succeed == EC_word(X_or_Cut).is_long(&x) && x>6)
 		    res = EC_resume(EC_atom("stop"), X_or_Cut);
 		else
@@ -86,13 +86,13 @@ main(int argc,char ** argv)
 		break;
 
 	    default:
-		cout << "bad return code\n";
+		std::cout << "bad return code\n";
 		break;
 	}
     }
 
 _stop_:
-    ec_cleanup(0);
+    ec_cleanup();
     exit(0);
 }
 
