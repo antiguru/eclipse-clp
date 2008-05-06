@@ -226,7 +226,6 @@ label(1):
 		b: 	ref(8)
 		default: 	ref(fail)
 
-label(2):
 	try_me_else              0     2     ref(4) 
 label(3):
 	get_atom                 a(1)     a 
@@ -2163,7 +2162,6 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2, 3]
 del / 3:
 label(1):
-label(2):
 	functor_switch           a(3) 
 		r / 3: 	ref(3)
 		default: 	ref(16)
@@ -2175,9 +2173,11 @@ label(4):
 	write_atom               nil 
 	write_local_value2       a(2)     a(3) 
 	ret                  
-label(16):
-	try                      0     3     ref(4) 
-	trust                    0     ref(7) 
+label(5):
+	read_atom                nil 
+	read_value               a(2) 
+	read_value               a(3) 
+	ret                  
 label(6):
 	retry_me_else            0     ref(9) 
 label(7):
@@ -2185,10 +2185,10 @@ label(7):
 	write_local_value2       a(3)     a(2) 
 	write_atom               nil 
 	ret                  
-label(5):
-	read_atom                nil 
-	read_value               a(2) 
+label(8):
 	read_value               a(3) 
+	read_value               a(2) 
+	read_atom                nil 
 	ret                  
 label(9):
 	trust_me                 0 
@@ -2202,11 +2202,6 @@ label(12):
 	write_local_value        a(4) 
 	write_variable2          a(2)     a(3) 
 	jmp                      delmin / 3 
-label(8):
-	read_value               a(3) 
-	read_value               a(2) 
-	read_atom                nil 
-	ret                  
 label(11):
 	read_variable            a(4) 
 	read_value               a(2) 
@@ -2216,6 +2211,9 @@ label(13):
 	read_value               a(4) 
 	read_variable2           a(2)     a(3) 
 	jmp                      delmin / 3 
+label(16):
+	try                      0     3     ref(4) 
+	trust                    0     ref(7) 
 
 ------ Test jdm(3) -------
 dob(person(A, B, C, D), C).
@@ -2997,13 +2995,11 @@ p / 0:
 label(1):
 	put_variable             a(1) 
 	bi_integer               a(1) 
-label(2):
 	integer_switch           a(1) 
 		1: 	ref(8)
 		2: 	ref(9)
 		default: 	ref(fail)
 
-label(3):
 	try_me_else              0     1     ref(5) 
 label(4):
 	get_integer              a(1)     1 
@@ -3050,13 +3046,11 @@ p / 0:
 label(1):
 	allocate                 1 
 	put_global_variable_callf     a(1)     y(1)     p / 1     Y[1] 
-label(2):
 	integer_switch           y(1) 
 		1: 	ref(4)
 		2: 	ref(6)
 		default: 	ref(fail)
 
-label(3):
 	try_me_else              0     0     ref(5) 
 label(4):
 	move                     y(1)     a(1) 
@@ -3100,13 +3094,11 @@ label(1):
 	allocate                 2 
 	put_global_variable2     a(1)     y(1)     a(2)     y(2) 
 	callf                    p / 2     Y[1,2] 
-label(2):
 	integer_switch           y(1) 
 		1: 	ref(5)
 		2: 	ref(7)
 		default: 	ref(fail)
 
-label(3):
 	atom_switch              y(2) 
 		a: 	ref(5)
 		b: 	ref(7)
@@ -3168,25 +3160,17 @@ label(1):
 		c: 	ref(13)
 		default: 	ref(fail)
 
-label(2):
 	integer_switch           a(1) 
 		1: 	ref(10)
 		2: 	ref(11)
 		default: 	ref(8)
 
-label(3):
 	try_me_else              0     2     ref(5) 
 label(4):
 	get_atom                 a(2)     a 
 label(12):
 	get_integer              a(1)     1 
 	jmp                      p1 / 0 
-label(10):
-	try                      0     2     ref(4) 
-	trust                    0     ref(8) 
-label(11):
-	try                      0     2     ref(6) 
-	trust                    0     ref(8) 
 label(5):
 	retry_me_else            0     ref(7) 
 label(6):
@@ -3198,6 +3182,12 @@ label(8):
 	get_atom                 a(2)     c 
 label(13):
 	jmp                      p3 / 0 
+label(10):
+	try                      0     2     ref(4) 
+	trust                    0     ref(8) 
+label(11):
+	try                      0     2     ref(6) 
+	trust                    0     ref(8) 
 
 ------ Test idx(4) -------
 p(A, B) :-
@@ -3250,24 +3240,12 @@ label(1):
 		structure: 	ref(fail)
 
 	branch                   ref(4) 
-label(10):
-	try                      0     2     ref(6) 
-	trust                    0     ref(8) 
-label(11):
-	integer_switch           a(1) 
-		1: 	ref(2)
-		default: 	ref(10)
-
-label(12):
-	try                      0     2     ref(4) 
-	trust                    0     ref(8) 
 label(2):
 	atom_switch              a(2) 
 		a: 	ref(12)
 		b: 	ref(10)
 		default: 	ref(8)
 
-label(3):
 	try_me_else              0     2     ref(5) 
 label(4):
 	get_atominteger          a(2)     a     a(1)     1 
@@ -3284,6 +3262,17 @@ label(8):
 	bi_number                a(1) 
 label(13):
 	jmp                      p3 / 0 
+label(10):
+	try                      0     2     ref(6) 
+	trust                    0     ref(8) 
+label(11):
+	integer_switch           a(1) 
+		1: 	ref(2)
+		default: 	ref(10)
+
+label(12):
+	try                      0     2     ref(4) 
+	trust                    0     ref(8) 
 
 ------ Test idx(5) -------
 p(A) :-
@@ -3336,19 +3325,6 @@ label(1):
 label(14):
 	try                      0     1     ref(3) 
 	trust                    0     ref(5) 
-label(11):
-	try                      0     1     ref(7) 
-	trust                    0     ref(9) 
-label(9):
-	bi_number                a(1) 
-label(16):
-	jmp                      p4 / 0 
-label(15):
-	integer_switch           a(1) 
-		1: 	ref(12)
-		2: 	ref(13)
-		default: 	ref(11)
-
 label(3):
 	get_integer              a(1)     1 
 	jmp                      p1 / 0 
@@ -3358,6 +3334,13 @@ label(5):
 label(7):
 	bi_integer               a(1) 
 	jmp                      p3 / 0 
+label(9):
+	bi_number                a(1) 
+label(16):
+	jmp                      p4 / 0 
+label(11):
+	try                      0     1     ref(7) 
+	trust                    0     ref(9) 
 label(12):
 	try                      0     1     ref(3) 
 	retry                    0     ref(7) 
@@ -3366,6 +3349,12 @@ label(13):
 	try                      0     1     ref(5) 
 	retry                    0     ref(7) 
 	trust                    0     ref(9) 
+label(15):
+	integer_switch           a(1) 
+		1: 	ref(12)
+		2: 	ref(13)
+		default: 	ref(11)
+
 
 ------ Test idx(6) -------
 p :-
@@ -3397,7 +3386,6 @@ label(1):
 	allocate                 2 
 	put_global_variable2     a(1)     y(1)     a(2)     y(2) 
 	callf                    p / 2     Y[1,2] 
-label(2):
 	atom_switch              y(2) 
 		a: 	ref(5)
 		b: 	ref(7)
@@ -3436,20 +3424,18 @@ INDEXES for (nondet) disjunction [2]
 p / 1:
 label(1):
 	list_switch              a(1)     ref(6)     ref(8)     ref(fail) 
-label(2):
 	try_me_else              0     1     ref(4) 
 label(3):
 	get_nil                  a(1) 
 label(8):
 	jmp                      p1 / 0 
-label(6):
-	jmp                      p2 / 0 
 label(4):
 	trust_me                 0 
 label(5):
 	get_list                 a(1)     ref(6) 
 	write_void               2 
-	branch                   ref(6) 
+label(6):
+	jmp                      p2 / 0 
 
 ------ Test idx(8) -------
 p(A) :-
@@ -3593,40 +3579,38 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2, 3]
 p / 1:
 label(1):
-label(2):
 	functor_switch           a(1) 
 		g / 2: 	ref(14)
 		f / 1: 	ref(15)
 		default: 	ref(12)
 
-label(3):
 	try_me_else              0     1     ref(7) 
 label(4):
 	get_structure            a(1)     f / 1     ref(5) 
 	write_integer            1 
 	jmp                      p / 0 
-label(14):
-	try                      0     1     ref(8) 
-	trust                    0     ref(12) 
-label(15):
-	try                      0     1     ref(4) 
-	trust                    0     ref(12) 
+label(5):
+	read_integer             1 
+	jmp                      p / 0 
 label(7):
 	retry_me_else            0     ref(11) 
 label(8):
 	get_structure            a(1)     g / 2     ref(9) 
 	write_integer2           1     2 
 	jmp                      q / 0 
-label(5):
-	read_integer             1 
-	jmp                      p / 0 
+label(9):
+	read_integer2            1     2 
+	jmp                      q / 0 
 label(11):
 	trust_me                 0 
 label(12):
 	jmp                      r / 0 
-label(9):
-	read_integer2            1     2 
-	jmp                      q / 0 
+label(14):
+	try                      0     1     ref(8) 
+	trust                    0     ref(12) 
+label(15):
+	try                      0     1     ref(4) 
+	trust                    0     ref(12) 
 
 ------ Test idx(12) -------
 p(A) :-
@@ -3712,7 +3696,6 @@ label(1):
 	allocate                 2 
 	put_global_variable2     a(1)     y(1)     a(2)     y(2) 
 	callf                    p / 2     Y[1,2] 
-label(2):
 	atom_switch              y(2) 
 		a: 	ref(5)
 		b: 	ref(7)
@@ -3767,7 +3750,6 @@ label(1):
 	allocate                 2 
 	put_global_variable2     a(1)     y(1)     a(2)     y(2) 
 	callf                    p / 2     Y[1,2] 
-label(2):
 	atom_switch              y(2) 
 		a: 	ref(11)
 		b: 	ref(12)
@@ -3777,12 +3759,6 @@ label(9):
 	move                     2     y(1)     a(1) 
 	get_matched_value        a(1)     a(2) 
 	chain                    p3 / 0 
-label(11):
-	try                      0     0     ref(5) 
-	trust_inline             0     ref(9)     Y[1,2] 
-label(12):
-	try                      0     0     ref(7) 
-	trust_inline             0     ref(9)     Y[1,2] 
 label(5):
 	move                     y(2)     a(1) 
 	in_get_atom              a(1)     a 
@@ -3795,6 +3771,12 @@ label(7):
 	move                     y(2)     a(1) 
 	in_get_atom              a(1)     b 
 	chain                    p2 / 0 
+label(11):
+	try                      0     0     ref(5) 
+	trust_inline             0     ref(9)     Y[1,2] 
+label(12):
+	try                      0     0     ref(7) 
+	trust_inline             0     ref(9)     Y[1,2] 
 
 ------ Test idx(16) -------
 p(A) :-
@@ -3839,16 +3821,16 @@ p / 1:
 label(1):
 	list_switch              a(1)     ref(5)     ref(7)     ref(fail) 
 	branch                   ref(fail) 
+label(3):
+	in_get_nil               a(1) 
+label(7):
+	jmp                      p / 0 
 label(5):
 	put_list                 a(2) 
 	write_atom               a 
 	push_nil             
 	get_matched_value        a(1)     a(2) 
 	jmp                      q / 0 
-label(3):
-	in_get_nil               a(1) 
-label(7):
-	jmp                      p / 0 
 
 ------ Test idx(21) -------
 p(A) :-
@@ -3884,14 +3866,14 @@ label(1):
 		structure: 	ref(3)
 
 	branch                   ref(fail) 
-label(5):
-	in_get_string            a(1)     "hello" 
-	jmp                      s / 0 
 label(3):
 	put_structure            a(2)     f / 1 
 	write_atom               a 
 	get_matched_value        a(1)     a(2) 
 	jmp                      r / 0 
+label(5):
+	in_get_string            a(1)     "hello" 
+	jmp                      s / 0 
 
 ------ Test idx(22) -------
 p(A) :-
@@ -4024,14 +4006,14 @@ label(6):
 label(7):
 	cut                      a(2) 
 	jmp                      p2 / 0 
+label(9):
+	bi_compound              a(1) 
+	jmp                      p2 / 0 
 label(11):
 	functor_switch           a(1) 
 		f / 1: 	ref(4)
 		default: 	ref(9)
 
-label(9):
-	bi_compound              a(1) 
-	jmp                      p2 / 0 
 
 ------ Test idx(25) -------
 p(A) :-
@@ -4127,11 +4109,6 @@ label(4):
 label(5):
 	get_constant             a(1)     10000000000000000000 
 	jmp                      p_big / 0 
-label(20):
-	jmp                      p_list / 0 
-label(23):
-	read_atom                bar 
-	jmp                      p_struct / 0 
 label(6):
 	retry_me_else            0     ref(8) 
 label(7):
@@ -4168,12 +4145,16 @@ label(18):
 label(19):
 	get_list                 a(1)     ref(20) 
 	write_void               2 
-	branch                   ref(20) 
+label(20):
+	jmp                      p_list / 0 
 label(21):
 	trust_me                 0 
 label(22):
 	get_structure            a(1)     foo / 1     ref(23) 
 	write_atom               bar 
+	jmp                      p_struct / 0 
+label(23):
+	read_atom                bar 
 	jmp                      p_struct / 0 
 
 ------ Test idx(26) -------
@@ -4273,6 +4254,26 @@ label(3):
 	bi_var                   a(1) 
 label(26):
 	jmp                      p_var / 0 
+label(5):
+	bi_integer               a(1) 
+label(29):
+	jmp                      p_integer / 0 
+label(7):
+	bi_float                 a(1) 
+label(31):
+	jmp                      p_float / 0 
+label(9):
+	bi_rational              a(1) 
+label(34):
+	jmp                      p_rational / 0 
+label(11):
+	bi_breal                 a(1) 
+label(30):
+	jmp                      p_breal / 0 
+label(13):
+	bi_string                a(1) 
+label(35):
+	jmp                      p_string / 0 
 label(15):
 	bi_nonvar                a(1) 
 label(27):
@@ -4283,22 +4284,6 @@ label(17):
 	bi_atom                  a(1) 
 label(28):
 	jmp                      p_atom / 0 
-label(5):
-	bi_integer               a(1) 
-label(29):
-	jmp                      p_integer / 0 
-label(11):
-	bi_breal                 a(1) 
-label(30):
-	jmp                      p_breal / 0 
-label(7):
-	bi_float                 a(1) 
-label(31):
-	jmp                      p_float / 0 
-label(24):
-	bi_is_handle             a(1) 
-label(32):
-	jmp                      p_handle / 0 
 label(19):
 	bi_nonvar                a(1) 
 label(33):
@@ -4307,18 +4292,14 @@ label(33):
 label(20):
 	cut                      a(2) 
 	jmp                      p_list / 0 
-label(9):
-	bi_rational              a(1) 
-label(34):
-	jmp                      p_rational / 0 
-label(13):
-	bi_string                a(1) 
-label(35):
-	jmp                      p_string / 0 
 label(22):
 	bi_compound              a(1) 
 label(36):
 	jmp                      p_struct / 0 
+label(24):
+	bi_is_handle             a(1) 
+label(32):
+	jmp                      p_handle / 0 
 
 ------ Test idx(27) -------
 p(A) :-
@@ -4355,11 +4336,6 @@ label(1):
 		structure: 	ref(fail)
 
 	branch                   ref(5) 
-label(7):
-	atom_switch              a(1) 
-		hello: 	ref(2)
-		default: 	ref(3)
-
 label(2):
 	try_me_else              0     1     ref(4) 
 label(3):
@@ -4371,6 +4347,11 @@ label(4):
 label(5):
 	get_atom                 a(1)     hello 
 	jmp                      p_hello / 0 
+label(7):
+	atom_switch              a(1) 
+		hello: 	ref(2)
+		default: 	ref(3)
+
 
 ------ Test idx(28) -------
 p(A) :-
@@ -4416,9 +4397,6 @@ label(2):
 label(3):
 	get_string               a(1)     "abc" 
 	jmp                      p1 / 0 
-label(9):
-	try                      0     1     ref(3) 
-	trust                    0     ref(5) 
 label(4):
 	retry_me_else            0     ref(6) 
 label(5):
@@ -4429,6 +4407,9 @@ label(6):
 label(7):
 	get_atom                 a(1)     ghi 
 	jmp                      p3 / 0 
+label(9):
+	try                      0     1     ref(3) 
+	trust                    0     ref(5) 
 
 ------ Test idx(29) -------
 p(A) :-
@@ -4454,7 +4435,6 @@ label(1):
 		2: 	ref(8)
 		default: 	ref(fail)
 
-label(2):
 	try_me_else              0     1     ref(4) 
 label(3):
 	get_integer              a(1)     1 
@@ -4497,7 +4477,6 @@ INDEXES for (semidet) disjunction [2]
 p / 1:
 label(1):
 	savecut                  a(2) 
-label(2):
 	integer_switch           a(1) 
 		1: 	ref(10)
 		2: 	ref(11)
@@ -4508,13 +4487,13 @@ label(4):
 label(10):
 	cut                      a(2) 
 	jmp                      p1 / 0 
-label(8):
-	jmp                      p4 / 0 
 label(6):
 	get_integer              a(1)     2 
 label(11):
 	cut                      a(2) 
 	jmp                      p2 / 0 
+label(8):
+	jmp                      p4 / 0 
 
 ------ Test idx(31) -------
 p(A) :-
@@ -4564,6 +4543,11 @@ label(3):
 label(11):
 	cut                      a(2) 
 	jmp                      p1 / 0 
+label(5):
+	get_integer              a(1)     2 
+label(12):
+	cut                      a(2) 
+	jmp                      p2 / 0 
 label(7):
 	bi_integer               a(1) 
 label(10):
@@ -4574,11 +4558,6 @@ label(9):
 		2: 	ref(12)
 		default: 	ref(7)
 
-label(5):
-	get_integer              a(1)     2 
-label(12):
-	cut                      a(2) 
-	jmp                      p2 / 0 
 
 ------ Test idx(32) -------
 p(A) :-
@@ -4635,24 +4614,24 @@ label(3):
 label(4):
 	cut                      a(2) 
 	jmp                      p1 / 0 
+label(7):
+	cut                      a(2) 
+	jmp                      p2 / 0 
 label(9):
 	get_list                 a(1)     ref(10) 
 	write_void               2 
 label(10):
 	cut                      a(2) 
 	jmp                      p3 / 0 
+label(12):
+	bi_compound              a(1) 
+	jmp                      p4 / 0 
 label(14):
 	functor_switch           a(1) 
 		f / 1: 	ref(4)
 		g / 1: 	ref(7)
 		default: 	ref(12)
 
-label(12):
-	bi_compound              a(1) 
-	jmp                      p4 / 0 
-label(7):
-	cut                      a(2) 
-	jmp                      p2 / 0 
 
 ------ Test idx(33) -------
 p(f(A, B, C)) :-
@@ -4697,6 +4676,12 @@ label(3):
 	write_variable2          a(2)     a(3) 
 	cut                      a(4) 
 	jmp                      p1 / 3 
+label(4):
+	read_variable            a(1) 
+	move                     a(2)     a(4) 
+	read_variable2           a(2)     a(3) 
+	cut                      a(4) 
+	jmp                      p1 / 3 
 label(7):
 	get_list                 a(1)     ref(8) 
 	write_variable           a(1) 
@@ -4704,17 +4689,6 @@ label(7):
 	write_variable           a(2) 
 	cut                      a(3) 
 	jmp                      p2 / 2 
-label(13):
-	functor_switch           a(1) 
-		f / 3: 	ref(4)
-		default: 	ref(11)
-
-label(4):
-	read_variable            a(1) 
-	move                     a(2)     a(4) 
-	read_variable2           a(2)     a(3) 
-	cut                      a(4) 
-	jmp                      p1 / 3 
 label(8):
 	read_variable            a(1) 
 	move                     a(2)     a(3) 
@@ -4724,6 +4698,11 @@ label(8):
 label(11):
 	bi_compound              a(1) 
 	jmp                      p3 / 0 
+label(13):
+	functor_switch           a(1) 
+		f / 3: 	ref(4)
+		default: 	ref(11)
+
 
 ------ Test idx(34) -------
 p(f(A, B, A), C) :-
@@ -4769,14 +4748,6 @@ label(3):
 	write_local_value        a(1) 
 	cut                      a(4) 
 	jmp                      p1 / 3 
-label(13):
-	try                      0     3     ref(7) 
-	trust                    0     ref(11) 
-label(15):
-	functor_switch           a(1) 
-		f / 3: 	ref(14)
-		default: 	ref(11)
-
 label(4):
 	read_variable            a(1) 
 	shift                    a(4)     a(3)     a(2) 
@@ -4790,17 +4761,25 @@ label(7):
 	write_local_value        a(2) 
 	cut                      a(3) 
 	jmp                      p2 / 2 
-label(11):
-	bi_compound              a(1) 
-	jmp                      p3 / 0 
-label(14):
-	try                      0     3     ref(3) 
-	trust                    0     ref(11) 
 label(8):
 	read_variable            a(1) 
 	read_value               a(2) 
 	cut                      a(3) 
 	jmp                      p2 / 2 
+label(11):
+	bi_compound              a(1) 
+	jmp                      p3 / 0 
+label(13):
+	try                      0     3     ref(7) 
+	trust                    0     ref(11) 
+label(14):
+	try                      0     3     ref(3) 
+	trust                    0     ref(11) 
+label(15):
+	functor_switch           a(1) 
+		f / 3: 	ref(14)
+		default: 	ref(11)
+
 
 ------ Test idx(35) -------
 p(f(A, B, C)) :-
@@ -4840,6 +4819,12 @@ label(1):
 		structure: 	ref(11)
 
 	branch                   ref(fail) 
+label(4):
+	read_variable            a(1) 
+	move                     a(2)     a(4) 
+	read_variable2           a(2)     a(3) 
+	cut                      a(4) 
+	jmp                      p1 / 3 
 label(6):
 	in_get_list              a(1)     ref(7) 
 label(7):
@@ -4848,20 +4833,14 @@ label(7):
 	read_variable            a(2) 
 	cut                      a(3) 
 	jmp                      p2 / 2 
+label(9):
+	bi_compound              a(1) 
+	jmp                      p3 / 0 
 label(11):
 	functor_switch           a(1) 
 		f / 3: 	ref(4)
 		default: 	ref(9)
 
-label(9):
-	bi_compound              a(1) 
-	jmp                      p3 / 0 
-label(4):
-	read_variable            a(1) 
-	move                     a(2)     a(4) 
-	read_variable2           a(2)     a(3) 
-	cut                      a(4) 
-	jmp                      p1 / 3 
 
 ------ Test idx(36) -------
 p(f(A, B, C), C) :-
@@ -4901,14 +4880,15 @@ label(1):
 		structure: 	ref(13)
 
 	branch                   ref(fail) 
-label(11):
-	try                      0     3     ref(6) 
-	trust                    0     ref(9) 
-label(13):
-	functor_switch           a(1) 
-		f / 3: 	ref(12)
-		default: 	ref(9)
-
+label(3):
+	in_get_structure         a(1)     f / 3     ref(4) 
+label(4):
+	read_variable            a(1) 
+	shift                    a(4)     a(3)     a(2) 
+	read_variable            a(2) 
+	read_matched_value       a(3) 
+	cut                      a(4) 
+	jmp                      p1 / 3 
 label(6):
 	in_get_list              a(1)     ref(7) 
 label(7):
@@ -4919,18 +4899,17 @@ label(7):
 label(9):
 	bi_compound              a(1) 
 	jmp                      p3 / 0 
+label(11):
+	try                      0     3     ref(6) 
+	trust                    0     ref(9) 
 label(12):
 	try                      0     3     ref(3) 
 	trust                    0     ref(9) 
-label(3):
-	in_get_structure         a(1)     f / 3     ref(4) 
-label(4):
-	read_variable            a(1) 
-	shift                    a(4)     a(3)     a(2) 
-	read_variable            a(2) 
-	read_matched_value       a(3) 
-	cut                      a(4) 
-	jmp                      p1 / 3 
+label(13):
+	functor_switch           a(1) 
+		f / 3: 	ref(12)
+		default: 	ref(9)
+
 
 ------ Test idx(40) -------
 p(A) :-
@@ -4972,17 +4951,17 @@ label(1):
 label(9):
 	try                      0     1     ref(3) 
 	trust                    0     ref(7) 
-label(10):
-	try                      0     1     ref(5) 
-	trust                    0     ref(7) 
-label(7):
-	jmp                      p3 / 0 
 label(3):
 	bi_free                  a(1) 
 	jmp                      p1 / 0 
 label(5):
 	bi_meta                  a(1) 
 	jmp                      p2 / 0 
+label(7):
+	jmp                      p3 / 0 
+label(10):
+	try                      0     1     ref(5) 
+	trust                    0     ref(7) 
 
 ------ Test idx(41) -------
 p(A) :-
@@ -5382,9 +5361,6 @@ label(2):
 label(3):
 	bi_free                  a(1) 
 	jmp                      p1 / 0 
-label(9):
-	try                      0     1     ref(5) 
-	trust                    0     ref(7) 
 label(4):
 	retry_me_else            0     ref(6) 
 label(5):
@@ -5394,6 +5370,9 @@ label(6):
 	trust_me                 0 
 label(7):
 	jmp                      p3 / 0 
+label(9):
+	try                      0     1     ref(5) 
+	trust                    0     ref(7) 
 
 ------ Test idx(50) -------
 p(A) :-
@@ -5490,6 +5469,9 @@ label(1):
 label(9):
 	try                      0     1     ref(3) 
 	trust                    0     ref(5) 
+label(3):
+	bi_free                  a(1) 
+	jmp                      p1 / 0 
 label(5):
 	bi_var                   a(1) 
 label(10):
@@ -5498,9 +5480,6 @@ label(7):
 	bi_atom                  a(1) 
 label(11):
 	jmp                      p3 / 0 
-label(3):
-	bi_free                  a(1) 
-	jmp                      p1 / 0 
 
 ------ Test idx(52) -------
 p(A) :-
@@ -5569,13 +5548,11 @@ INDEXES for (semidet) disjunction [2]
 p / 1:
 label(1):
 	savecut                  a(2) 
-label(2):
 	integer_switch           a(1) 
 		1: 	ref(10)
 		2: 	ref(11)
 		default: 	ref(fail)
 
-label(4):
 	bi_var                   a(1) 
 	cut                      a(2) 
 	jmp                      p1 / 0 
@@ -5616,13 +5593,11 @@ INDEXES for (semidet) disjunction [2]
 p / 1:
 label(1):
 	savecut                  a(2) 
-label(2):
 	integer_switch           a(1) 
 		1: 	ref(6)
 		2: 	ref(8)
 		default: 	ref(fail)
 
-label(4):
 	bi_var                   a(1) 
 	cut                      a(2) 
 	jmp                      p1 / 0 
@@ -5683,6 +5658,11 @@ label(3):
 label(10):
 	cut                      a(2) 
 	jmp                      p1 / 0 
+label(5):
+	get_integer              a(1)     1 
+label(12):
+	cut                      a(2) 
+	jmp                      p2 / 0 
 label(7):
 	bi_integer               a(1) 
 label(11):
@@ -5692,11 +5672,6 @@ label(9):
 		1: 	ref(12)
 		default: 	ref(7)
 
-label(5):
-	get_integer              a(1)     1 
-label(12):
-	cut                      a(2) 
-	jmp                      p2 / 0 
 
 ------ Test idx(56) -------
 p(A, B) :-
@@ -5753,14 +5728,6 @@ label(1):
 		structure: 	ref(fail)
 
 	branch                   ref(fail) 
-label(10):
-	bi_atom                  a(1) 
-label(16):
-	jmp                      p4 / 0 
-label(12):
-	try                      0     2     ref(4) 
-	retry                    0     ref(6) 
-	trust                    0     ref(8) 
 label(4):
 	bi_integer               a(1) 
 	get_atom                 a(2)     a 
@@ -5773,6 +5740,14 @@ label(8):
 	bi_integer               a(1) 
 	get_atom                 a(2)     c 
 	jmp                      p3 / 0 
+label(10):
+	bi_atom                  a(1) 
+label(16):
+	jmp                      p4 / 0 
+label(12):
+	try                      0     2     ref(4) 
+	retry                    0     ref(6) 
+	trust                    0     ref(8) 
 
 ------ Test idx(100) -------
 p(1) :-
@@ -5871,35 +5846,35 @@ label(1):
 		structure: 	ref(22)
 
 	branch                   ref(fail) 
+label(3):
+	in_get_integer           a(1)     1 
+	jmp                      p_integer / 0 
+label(5):
+	in_get_constant          a(1)     10000000000000000000 
+	jmp                      p_big / 0 
+label(7):
+	in_get_constant          a(1)     1.1 
+	jmp                      p_float / 0 
+label(9):
+	in_get_constant          a(1)     5_2 
+	jmp                      p_rational / 0 
+label(11):
+	in_get_constant          a(1)     0.9__1.1 
+	jmp                      p_breal / 0 
+label(13):
+	in_get_string            a(1)     "hello" 
+	jmp                      p_string / 0 
+label(15):
+	in_get_atom              a(1)     hello 
+	jmp                      p_atom / 0 
 label(17):
 	in_get_nil               a(1) 
 label(25):
 	jmp                      p_nil / 0 
-label(15):
-	in_get_atom              a(1)     hello 
-	jmp                      p_atom / 0 
-label(5):
-	in_get_constant          a(1)     10000000000000000000 
-	jmp                      p_big / 0 
-label(11):
-	in_get_constant          a(1)     0.9__1.1 
-	jmp                      p_breal / 0 
-label(7):
-	in_get_constant          a(1)     1.1 
-	jmp                      p_float / 0 
-label(3):
-	in_get_integer           a(1)     1 
-	jmp                      p_integer / 0 
 label(19):
 	in_get_list              a(1)     ref(20) 
 label(20):
 	jmp                      p_list / 0 
-label(9):
-	in_get_constant          a(1)     5_2 
-	jmp                      p_rational / 0 
-label(13):
-	in_get_string            a(1)     "hello" 
-	jmp                      p_string / 0 
 label(22):
 	in_get_structure         a(1)     foo / 1     ref(23) 
 label(23):
@@ -5935,14 +5910,12 @@ label(1):
 		c: 	ref(12)
 		default: 	ref(fail)
 
-label(2):
 	integer_switch           a(2) 
 		1: 	ref(4)
 		2: 	ref(6)
 		3: 	ref(8)
 		default: 	ref(fail)
 
-label(3):
 	try_me_else              0     2     ref(5) 
 label(4):
 	get_atom                 a(1)     a 
@@ -5984,25 +5957,22 @@ INDEXES for (semidet) disjunction [2]
 p / 3:
 label(1):
 	savecut                  a(4) 
-label(2):
 	atom_switch              a(1) 
 		a: 	ref(10)
 		default: 	ref(8)
 
-label(4):
 	bi_var                   a(1) 
 	cut                      a(4) 
 	get_value                a(2)     a(3) 
-label(9):
 	ret                  
-label(8):
-	jmp                      q / 3 
 label(6):
 	get_atom                 a(1)     a 
 label(10):
 	cut                      a(4) 
 	shift                    a(1)     a(2)     a(3) 
 	jmp                      a / 2 
+label(8):
+	jmp                      q / 3 
 
 ------ Test idx(201) -------
 p(A, B) :-
@@ -6128,7 +6098,6 @@ label(1):
 		2: 	ref(8)
 		default: 	ref(fail)
 
-label(2):
 	try_me_else              0     1     ref(4) 
 label(3):
 	get_integer              a(1)     1 
@@ -7393,7 +7362,6 @@ label(2):
 	read_test_var        
 	read_integer             1 
 	mode                     t(0) 
-label(3):
 	read_void            
 	read_last_structure      baz / 1     ref(fail) 
 	read_test_var        
@@ -7424,7 +7392,6 @@ label(2):
 	read_test_var        
 	read_nil             
 	mode                     t(0) 
-label(3):
 	read_test_var        
 	read_nil             
 	space                    -1 
@@ -7608,7 +7575,6 @@ label(2):
 	read_attribute           suspend 
 	read_variable            a(2) 
 	mode                     t(0) 
-label(3):
 	read_test_var        
 	read_atom                c 
 	space                    -1 
@@ -7630,7 +7596,6 @@ label(2):
 	read_attribute           suspend 
 	read_variable            a(2) 
 	mode                     t(0) 
-label(3):
 	read_test_var        
 	read_atom                c 
 	space                    -1 
@@ -7649,7 +7614,6 @@ label(2):
 	read_attribute           suspend 
 	read_variable            a(2) 
 	mode                     t(0) 
-label(3):
 	match_last_meta      
 	read_matched_value       a(1) 
 	read_attribute           suspend 
@@ -7669,7 +7633,6 @@ label(2):
 	read_test_var        
 	read_atom                baz 
 	mode                     t(0) 
-label(3):
 	read_test_var        
 	read_atom                a 
 	match_meta               t(0) 
@@ -7677,7 +7640,6 @@ label(3):
 	read_attribute           suspend 
 	read_variable            a(2) 
 	mode                     t(0) 
-label(4):
 	read_test_var        
 	read_atom                c 
 	space                    -1 
@@ -7695,12 +7657,10 @@ label(2):
 	read_variable            a(1) 
 	read_attribute           suspend 
 	read_variable            a(2) 
-label(3):
 	read_next_structure      bar / 1     t(0)     ref(fail) 
 	read_test_var        
 	read_atom                baz 
 	mode                     t(0) 
-label(4):
 	read_test_var        
 	read_atom                c 
 	space                    -1 
@@ -7951,7 +7911,6 @@ label(2):
 	read_void            
 	read_structure           s / 2     ref(fail) 
 	mode                     t(0) 
-label(3):
 	space                    -1 
 	ret                  
 
@@ -8421,14 +8380,14 @@ label(5):
 	callf                    b / 0     Y[2] 
 	cut                      y(2)     0 
 	chain                    bb / 0 
-label(8):
-	trust_me_inline          0     Y[] 
-label(9):
-	chain                    d / 0 
 label(6):
 	trust_me_inline          0     Y[] 
 label(7):
 	chain                    c / 0 
+label(8):
+	trust_me_inline          0     Y[] 
+label(9):
+	chain                    d / 0 
 
 ------ Test dis(12) -------
 p :-
@@ -8452,15 +8411,15 @@ label(3):
 	callf                    a / 0     Y[1,2] 
 	cut                      y(2)     1 
 	failure              
-label(6):
-	trust_me_inline          0     Y[] 
-label(7):
-	chain                    c / 0 
 label(4):
 	trust_me_inline          0     Y[1] 
 label(5):
 	cut                      y(1)     0 
 	chain                    b / 0 
+label(6):
+	trust_me_inline          0     Y[] 
+label(7):
+	chain                    c / 0 
 
 ------ Test clause(1) -------
 p :-
@@ -9008,23 +8967,17 @@ p / 5:
 label(1):
 	get_variable             4     a(2)     y(1) 
 	move                     3     a(3)     y(2) 
-label(2):
 	atom_switch              a(1) 
 		a: 	ref(12)
 		b: 	ref(13)
 		default: 	ref(fail)
 
-label(3):
 	try_me_else              0     1     ref(5) 
 label(4):
 	get_atom                 a(1)     a 
 	callf                    t / 0     Y[1] 
 	move_callf               y(1)     a(1)     a / 1     Y[] 
 	chain                    e / 0 
-label(12):
-	try                      0     1     ref(4) 
-	retry_inline             0     ref(6)     Y[1,2] 
-	trust_inline             0     ref(10)     Y[1] 
 label(5):
 	retry_me_inline          0     ref(7)     Y[1,2,3,4] 
 label(6):
@@ -9048,6 +9001,10 @@ label(10):
 	callf                    t / 0     Y[1] 
 	move_callf               y(1)     a(1)     a / 1     Y[] 
 	chain                    e / 0 
+label(12):
+	try                      0     1     ref(4) 
+	retry_inline             0     ref(6)     Y[1,2] 
+	trust_inline             0     ref(10)     Y[1] 
 
 ------ Test env(7) -------
 p(a, A, B, C, D) :-
@@ -9079,23 +9036,17 @@ p / 5:
 label(1):
 	get_variable             4     a(2)     y(1) 
 	move                     3     a(3)     y(2) 
-label(2):
 	atom_switch              a(1) 
 		a: 	ref(12)
 		b: 	ref(13)
 		default: 	ref(fail)
 
-label(3):
 	try_me_else              0     1     ref(5) 
 label(4):
 	get_atom                 a(1)     a 
 	callf                    t / 0     Y[1] 
 	move_callf               y(1)     a(1)     a / 1     Y[] 
 	chain                    e / 0 
-label(12):
-	try                      0     1     ref(4) 
-	retry_inline             0     ref(6)     Y[2,3,4] 
-	trust_inline             0     ref(8)     Y[3,4] 
 label(5):
 	retry_me_inline          0     ref(7)     Y[1,2,3,4] 
 label(6):
@@ -9119,6 +9070,10 @@ label(13):
 	callf                    t / 0     Y[1] 
 	move_callf               y(1)     a(1)     a / 1     Y[] 
 	chain                    e / 0 
+label(12):
+	try                      0     1     ref(4) 
+	retry_inline             0     ref(6)     Y[2,3,4] 
+	trust_inline             0     ref(8)     Y[3,4] 
 
 ------ Test env(8) -------
 p(a, A, B, C, D) :-
@@ -9150,25 +9105,17 @@ p / 5:
 label(1):
 	get_variable             4     a(2)     y(1) 
 	move                     3     a(3)     y(2) 
-label(2):
 	atom_switch              a(1) 
 		a: 	ref(12)
 		b: 	ref(13)
 		default: 	ref(fail)
 
-label(3):
 	try_me_else              0     1     ref(5) 
 label(4):
 	get_atom                 a(1)     a 
 	callf                    t / 0     Y[1] 
 	move_callf               y(1)     a(1)     a / 1     Y[] 
 	chain                    e / 0 
-label(12):
-	try                      0     1     ref(4) 
-	trust_inline             0     ref(8)     Y[3,4] 
-label(13):
-	try                      0     1     ref(6) 
-	trust_inline             0     ref(10)     Y[1] 
 label(5):
 	retry_me_inline          0     ref(7)     Y[1,2,3,4] 
 label(6):
@@ -9191,6 +9138,12 @@ label(10):
 	callf                    t / 0     Y[1] 
 	move_callf               y(1)     a(1)     a / 1     Y[] 
 	chain                    e / 0 
+label(12):
+	try                      0     1     ref(4) 
+	trust_inline             0     ref(8)     Y[3,4] 
+label(13):
+	try                      0     1     ref(6) 
+	trust_inline             0     ref(10)     Y[1] 
 
 ------ Test env(20) -------
 p(A) :-
@@ -9529,10 +9482,68 @@ label(57):
 	try                      0     1     ref(3) 
 	retry                    0     ref(13) 
 	trust                    0     ref(43) 
-label(58):
-	try                      0     1     ref(13) 
-	retry                    0     ref(15) 
-	trust                    0     ref(43) 
+label(3):
+	bi_free                  a(1) 
+	ret                  
+label(5):
+	bi_is_suspension         a(1) 
+	ret                  
+label(7):
+	bi_is_event              a(1) 
+	ret                  
+label(9):
+	bi_is_handle             a(1) 
+	ret                  
+label(11):
+	bi_nonvar                a(1) 
+	ret                  
+label(13):
+	bi_var                   a(1) 
+	ret                  
+label(15):
+	bi_meta                  a(1) 
+	ret                  
+label(17):
+	bi_atom                  a(1) 
+	ret                  
+label(19):
+	bi_integer               a(1) 
+	ret                  
+label(21):
+	bi_bignum                a(1) 
+	ret                  
+label(23):
+	bi_rational              a(1) 
+	ret                  
+label(25):
+	bi_real                  a(1) 
+	ret                  
+label(27):
+	bi_float                 a(1) 
+	ret                  
+label(29):
+	bi_breal                 a(1) 
+	ret                  
+label(31):
+	bi_string                a(1) 
+	ret                  
+label(33):
+	bi_number                a(1) 
+	ret                  
+label(35):
+	bi_atomic                a(1) 
+	ret                  
+label(37):
+	bi_callable              a(1) 
+	ret                  
+label(39):
+	bi_compound              a(1) 
+	ret                  
+label(41):
+	bi_is_list               a(1) 
+	ret                  
+label(43):
+	failure              
 label(45):
 	try                      0     1     ref(5) 
 	retry                    0     ref(11) 
@@ -9608,68 +9619,10 @@ label(56):
 	retry                    0     ref(37) 
 	retry                    0     ref(39) 
 	trust                    0     ref(43) 
-label(3):
-	bi_free                  a(1) 
-	ret                  
-label(13):
-	bi_var                   a(1) 
-	ret                  
-label(43):
-	failure              
-label(15):
-	bi_meta                  a(1) 
-	ret                  
-label(5):
-	bi_is_suspension         a(1) 
-	ret                  
-label(11):
-	bi_nonvar                a(1) 
-	ret                  
-label(17):
-	bi_atom                  a(1) 
-	ret                  
-label(35):
-	bi_atomic                a(1) 
-	ret                  
-label(37):
-	bi_callable              a(1) 
-	ret                  
-label(41):
-	bi_is_list               a(1) 
-	ret                  
-label(7):
-	bi_is_event              a(1) 
-	ret                  
-label(19):
-	bi_integer               a(1) 
-	ret                  
-label(21):
-	bi_bignum                a(1) 
-	ret                  
-label(33):
-	bi_number                a(1) 
-	ret                  
-label(25):
-	bi_real                  a(1) 
-	ret                  
-label(29):
-	bi_breal                 a(1) 
-	ret                  
-label(27):
-	bi_float                 a(1) 
-	ret                  
-label(9):
-	bi_is_handle             a(1) 
-	ret                  
-label(39):
-	bi_compound              a(1) 
-	ret                  
-label(23):
-	bi_rational              a(1) 
-	ret                  
-label(31):
-	bi_string                a(1) 
-	ret                  
+label(58):
+	try                      0     1     ref(13) 
+	retry                    0     ref(15) 
+	trust                    0     ref(43) 
 
 ------ Test bip(other) -------
 p(A) :-
@@ -10055,7 +10008,6 @@ INDEXES for (nondet) disjunction [2]
 conc / 3:
 label(1):
 	list_switch              a(1)     ref(7)     ref(12)     ref(fail) 
-label(2):
 	list_switch              a(3)     ref(3)     ref(4)     ref(4) 
 label(3):
 	try_me_else              0     3     ref(5) 
@@ -10063,20 +10015,19 @@ label(4):
 	get_nil                  a(1) 
 label(12):
 	get_value                a(3)     a(2) 
-label(11):
 	ret                  
-label(7):
-	read_variable2           a(4)     a(1) 
-label(8):
-	get_list                 a(3)     ref(9) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	jmp                      ref(1) 
 label(5):
 	trust_me                 0 
 label(6):
 	get_list                 a(1)     ref(7) 
 	write_variable2          a(4)     a(1) 
+label(8):
+	get_list                 a(3)     ref(9) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	jmp                      ref(1) 
+label(7):
+	read_variable2           a(4)     a(1) 
 	branch                   ref(8) 
 label(9):
 	read_value               a(4) 
@@ -10109,7 +10060,6 @@ INDEXES for (nondet) disjunction [2]
 conc / 3:
 label(1):
 	list_switch              a(1)     ref(7)     ref(12)     ref(fail) 
-label(2):
 	list_switch              a(3)     ref(3)     ref(4)     ref(4) 
 label(3):
 	try_me_else              0     3     ref(5) 
@@ -10118,20 +10068,19 @@ label(4):
 label(12):
 	move                     a(2)     a(1) 
 	get_value                a(3)     a(1) 
-label(11):
 	ret                  
-label(7):
-	read_variable2           a(4)     a(1) 
-label(8):
-	get_list                 a(3)     ref(9) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	jmp                      ref(1) 
 label(5):
 	trust_me                 0 
 label(6):
 	get_list                 a(1)     ref(7) 
 	write_variable2          a(4)     a(1) 
+label(8):
+	get_list                 a(3)     ref(9) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	jmp                      ref(1) 
+label(7):
+	read_variable2           a(4)     a(1) 
 	branch                   ref(8) 
 label(9):
 	read_value               a(4) 
@@ -10164,7 +10113,6 @@ INDEXES for (nondet) disjunction [2]
 conc / 3:
 label(1):
 	list_switch              a(1)     ref(5)     ref(12)     ref(fail) 
-label(2):
 	list_switch              a(3)     ref(3)     ref(10)     ref(10) 
 label(3):
 	try_me_else              0     3     ref(9) 
@@ -10179,6 +10127,10 @@ label(6):
 label(5):
 	read_variable2           a(4)     a(1) 
 	branch                   ref(6) 
+label(7):
+	read_value               a(4) 
+	read_variable            a(3) 
+	jmp                      ref(1) 
 label(9):
 	trust_me                 0 
 label(10):
@@ -10186,12 +10138,7 @@ label(10):
 label(12):
 	move                     a(2)     a(1) 
 	get_value                a(3)     a(1) 
-label(11):
 	ret                  
-label(7):
-	read_value               a(4) 
-	read_variable            a(3) 
-	jmp                      ref(1) 
 
 ------ Test bench(4) -------
 conc(e(A), B, B).
@@ -10212,13 +10159,11 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 conc / 3:
 label(1):
-label(2):
 	functor_switch           a(1) 
 		e / 1: 	ref(6)
 		f / 2: 	ref(9)
 		default: 	ref(fail)
 
-label(3):
 	functor_switch           a(3) 
 		f / 2: 	ref(4)
 		default: 	ref(5)
@@ -10230,20 +10175,19 @@ label(5):
 	write_void           
 label(6):
 	get_value                a(3)     a(2) 
-label(13):
 	ret                  
-label(9):
-	read_variable2           a(4)     a(1) 
-label(10):
-	get_structure            a(3)     f / 2     ref(11) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	jmp                      ref(1) 
 label(7):
 	trust_me                 0 
 label(8):
 	get_structure            a(1)     f / 2     ref(9) 
 	write_variable2          a(4)     a(1) 
+label(10):
+	get_structure            a(3)     f / 2     ref(11) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	jmp                      ref(1) 
+label(9):
+	read_variable2           a(4)     a(1) 
 	branch                   ref(10) 
 label(11):
 	read_value               a(4) 
@@ -10277,13 +10221,11 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
 conc / 3:
 label(1):
-label(2):
 	functor_switch           a(1) 
 		e / 1: 	ref(6)
 		f / 2: 	ref(9)
 		default: 	ref(fail)
 
-label(3):
 	functor_switch           a(3) 
 		f / 2: 	ref(4)
 		default: 	ref(5)
@@ -10296,20 +10238,19 @@ label(5):
 label(6):
 	move                     a(2)     a(1) 
 	get_value                a(3)     a(1) 
-label(13):
 	ret                  
-label(9):
-	read_variable2           a(4)     a(1) 
-label(10):
-	get_structure            a(3)     f / 2     ref(11) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	jmp                      ref(1) 
 label(7):
 	trust_me                 0 
 label(8):
 	get_structure            a(1)     f / 2     ref(9) 
 	write_variable2          a(4)     a(1) 
+label(10):
+	get_structure            a(3)     f / 2     ref(11) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	jmp                      ref(1) 
+label(9):
+	read_variable2           a(4)     a(1) 
 	branch                   ref(10) 
 label(11):
 	read_value               a(4) 
@@ -10338,11 +10279,9 @@ label(3):
 label(11):
 	cut                      a(4) 
 	get_value                a(2)     a(3) 
-label(10):
 	ret                  
 label(6):
 	read_variable2           a(4)     a(1) 
-label(7):
 	get_list                 a(3)     ref(8) 
 	write_local_value        a(4) 
 	write_variable           a(3) 
@@ -10375,7 +10314,6 @@ label(1):
 	allocate                 3 
 	savecut                  y(1) 
 	list_switch              a(1)     ref(7)     ref(12)     ref(fail) 
-label(2):
 	list_switch              a(3)     ref(3)     ref(4)     ref(4) 
 label(3):
 	try_me_else              0     3     ref(5) 
@@ -10386,21 +10324,19 @@ label(12):
 	callf                    t / 0     Y[1,2,3] 
 	cut                      y(1)     3 
 	get_value                y(2)     y(3) 
-	deallocate           
-label(11):
-	ret                  
-label(7):
-	read_variable2           a(4)     a(1) 
-label(8):
-	get_list                 a(3)     ref(9) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	chain                    ref(1) 
+	exit                 
 label(5):
 	trust_me_inline          0     Y[] 
 label(6):
 	get_list                 a(1)     ref(7) 
 	write_variable2          a(4)     a(1) 
+label(8):
+	get_list                 a(3)     ref(9) 
+	write_local_value        a(4) 
+	write_variable           a(3) 
+	chain                    ref(1) 
+label(7):
+	read_variable2           a(4)     a(1) 
 	branch                   ref(8) 
 label(9):
 	read_value               a(4) 
@@ -10431,7 +10367,6 @@ label(2):
 	bi_le                    a(1)     a(2)     eclipse     48 
 	cut                      a(5) 
 	get_value                a(3)     a(4) 
-label(5):
 	ret                  
 label(3):
 	trust_me                 0 
@@ -10478,7 +10413,6 @@ label(2):
 	bi_le                    a(1)     a(2)     eclipse     48 
 	cut                      a(5) 
 	get_value                a(3)     a(4) 
-label(5):
 	ret                  
 label(3):
 	trust_me                 0 
@@ -10533,7 +10467,6 @@ INDEXES for (nondet) disjunction [2, 2, 2]
 simplify_code / 2:
 label(1):
 	list_switch              a(1)     ref(8)     ref(18)     ref(fail) 
-label(2):
 	list_switch              a(2)     ref(6)     ref(3)     ref(6) 
 label(3):
 	try_me_else              0     2     ref(5) 
@@ -10541,14 +10474,17 @@ label(4):
 	get_nil                  a(1) 
 label(18):
 	get_nil                  a(2) 
-label(17):
 	ret                  
-label(8):
-	read_structure           code / 3     ref(7) 
-	read_variable            a(3) 
-	mode                     t(0) 
-label(9):
-	read_variable            a(1) 
+label(5):
+	trust_me                 0 
+label(6):
+	get_list                 a(1)     ref(8) 
+	write_first_structure     code / 3 
+label(7):
+	write_variable           a(3) 
+	write_void               2 
+	mode                     t(0)     ref(9) 
+	write_variable           a(1) 
 label(10):
 	space                    -1 
 	allocate                 3 
@@ -10563,16 +10499,12 @@ label(12):
 	cut                      y(1)     3 
 	move                     2     y(2)     a(1) 
 	chain                    ref(1) 
-label(5):
-	trust_me                 0 
-label(6):
-	get_list                 a(1)     ref(8) 
-	write_first_structure     code / 3 
-label(7):
-	write_variable           a(3) 
-	write_void               2 
-	mode                     t(0)     ref(9) 
-	write_variable           a(1) 
+label(8):
+	read_structure           code / 3     ref(7) 
+	read_variable            a(3) 
+	mode                     t(0) 
+label(9):
+	read_variable            a(1) 
 	branch                   ref(10) 
 label(13):
 	trust_me_inline          0     Y[] 
@@ -10616,7 +10548,6 @@ label(2):
 	get_value                a(1)     a(2) 
 	cut                      a(4) 
 	get_atom                 a(3)     foo 
-label(5):
 	ret                  
 label(3):
 	trust_me                 0 
@@ -10673,7 +10604,6 @@ label(1):
 	write_variable           a(1) 
 	write_void           
 	savecut                  a(3) 
-label(4):
 	functor_switch           a(1) 
 		disjunction / 1: 	ref(7)
 		default: 	ref(9)
@@ -10687,7 +10617,11 @@ label(7):
 label(2):
 	read_variable            a(1) 
 	savecut                  a(3) 
-	branch                   ref(4) 
+	functor_switch           a(1) 
+		disjunction / 1: 	ref(7)
+		default: 	ref(9)
+
+	branch                   ref(6) 
 label(9):
 	get_list                 a(2)     ref(10) 
 	write_void               2 
@@ -10731,12 +10665,6 @@ label(7):
 label(8):
 	write_local_value2       a(1)     a(5) 
 	ret                  
-label(10):
-	trust_me                 0 
-label(11):
-	get_list                 a(3)     ref(12) 
-	write_local_value2       a(1)     a(2) 
-	ret                  
 label(4):
 	read_variable2           a(2)     a(5) 
 	branch                   ref(5) 
@@ -10748,6 +10676,12 @@ label(9):
 	read_last_list           ref(8) 
 	read_value               a(1) 
 	read_value               a(5) 
+	ret                  
+label(10):
+	trust_me                 0 
+label(11):
+	get_list                 a(3)     ref(12) 
+	write_local_value2       a(1)     a(2) 
 	ret                  
 label(12):
 	read_value               a(1) 
@@ -10788,7 +10722,6 @@ INDEXES for (nondet) disjunction [2]
 declaration_warning_handler / 3:
 label(1):
 	savecut                  a(4) 
-label(2):
 	atom_switch              a(3) 
 		profile: 	ref(21)
 		lists: 	ref(22)
@@ -10799,10 +10732,6 @@ label(5):
 label(22):
 	cut                      a(4) 
 	ret                  
-label(17):
-	try                      0     4     ref(9) 
-	retry                    0     ref(11) 
-	trust                    0     ref(15) 
 label(7):
 	get_atom                 a(3)     profile 
 label(21):
@@ -10841,11 +10770,15 @@ label(13):
 	callf                    known_library / 1     Y[1] 
 	cut                      y(1)     0 
 	exit                 
-label(15):
-	jmp                      warning_handler / 3 
 label(12):
 	read_variable            a(1) 
 	branch                   ref(13) 
+label(15):
+	jmp                      warning_handler / 3 
+label(17):
+	try                      0     4     ref(9) 
+	retry                    0     ref(11) 
+	trust                    0     ref(15) 
 
 ------ Test bug(8) -------
 attach_suspensions(postponed, A) ?-
@@ -10903,16 +10836,17 @@ label(9):
 	put_integer              a(1)     4 
 	put_atom                 a(3)     eclipse 
 	jmp                      sepia_kernel : error_ / 3 
+label(3):
+	in_get_atom              a(1)     postponed 
+label(14):
+	cut                      a(3) 
+	move                     a(2)     a(1) 
+	jmp                      postpone_suspensions / 1 
 label(5):
 	bi_atom                  a(1) 
 label(12):
 	cut                      a(3) 
 	jmp                      attach_suspensions1 / 2 
-label(11):
-	atom_switch              a(1) 
-		postponed: 	ref(14)
-		default: 	ref(5)
-
 label(7):
 	bi_nonvar                a(1) 
 label(13):
@@ -10923,12 +10857,11 @@ label(13):
 	put_integer              a(1)     5 
 	put_atom                 a(3)     eclipse 
 	jmp                      sepia_kernel : error_ / 3 
-label(3):
-	in_get_atom              a(1)     postponed 
-label(14):
-	cut                      a(3) 
-	move                     a(2)     a(1) 
-	jmp                      postpone_suspensions / 1 
+label(11):
+	atom_switch              a(1) 
+		postponed: 	ref(14)
+		default: 	ref(5)
+
 
 ------ Test bug(9) -------
 execute(A, B, C) :-
@@ -10947,7 +10880,6 @@ INDEXES for (nondet) disjunction [2]
 execute / 3:
 label(1):
 	list_switch              a(3)     ref(4)     ref(8)     ref(fail) 
-label(2):
 	try_me_else              0     3     ref(5) 
 label(3):
 	get_list                 a(3)     ref(4) 
@@ -10995,7 +10927,6 @@ INDEXES for (nondet) disjunction [2, 2, 3]
     [var] - [1, 2]
 do_x / 4:
 label(1):
-label(2):
 	integer_switch           a(1) 
 		0: 	ref(3)
 		default: 	ref(7)
@@ -11008,7 +10939,6 @@ label(5):
 	get_integer              a(1)     0 
 	get_nil                  a(2) 
 	get_value                a(4)     a(3) 
-label(14):
 	ret                  
 label(6):
 	trust_me                 0 
@@ -11692,9 +11622,7 @@ label(2):
 label(3):
 	trust_me_inline          0     Y[] 
 label(4):
-	deallocate           
-label(5):
-	ret                  
+	exit                 
 
 ------ Test disj9 -------
 p :-
@@ -11889,9 +11817,7 @@ label(2):
 label(3):
 	trust_me_inline          0     Y[] 
 label(4):
-	deallocate           
-label(5):
-	ret                  
+	exit                 
 
 ------ Test disj17 -------
 p :-
@@ -11948,17 +11874,15 @@ label(2):
 	try_me_else              0     1     ref(4) 
 label(3):
 	failure              
-label(6):
-	trust_me_inline          0     Y[] 
-label(7):
-	deallocate           
-label(8):
-	ret                  
 label(4):
 	trust_me_inline          0     Y[1] 
 label(5):
 	cut                      y(1)     0 
 	failure              
+label(6):
+	trust_me_inline          0     Y[] 
+label(7):
+	exit                 
 
 ------ Test disj20 -------
 t :-
@@ -11984,9 +11908,7 @@ label(2):
 label(3):
 	trust_me_inline          0     Y[] 
 label(4):
-	deallocate           
-label(5):
-	ret                  
+	exit                 
 
 ------ Test disj21 -------
 t :-
@@ -12099,7 +12021,6 @@ p / 1:
 label(1):
 	allocate                 1 
 	savecut                  y(1) 
-label(2):
 	integer_switch           a(1) 
 		4: 	ref(3)
 		default: 	ref(4)
@@ -12117,17 +12038,15 @@ label(6):
 label(13):
 	cut                      y(1)     0 
 	failure              
-label(10):
-	trust_me_inline          0     Y[] 
-label(11):
-	get_integer              a(1)     4 
-	deallocate           
-label(12):
-	ret                  
 label(8):
 	get_integer              a(1)     2 
 label(14):
 	failure              
+label(10):
+	trust_me_inline          0     Y[] 
+label(11):
+	get_integer              a(1)     4 
+	exit                 
 
 ------ Test disj26 -------
 p(A, B) :-
@@ -12177,7 +12096,6 @@ INDEXES for (semidet) disjunction [2]
 p3 / 3:
 label(1):
 	savecut                  a(2) 
-label(2):
 	atom_switch              a(1) 
 		'': 	ref(7)
 		default: 	ref(6)
@@ -12264,7 +12182,6 @@ label(1):
 	put_atom                 a(2)     eclipse 
 	callf                    sepia_kernel : writeln_body / 2     Y[1] 
 	savecut                  a(1) 
-label(2):
 	integer_switch           y(1) 
 		1: 	ref(4)
 		default: 	ref(6)
@@ -12455,6 +12372,10 @@ label(3):
 	write_local_value        a(3) 
 	write_variable           y(1) 
 	move_chain               y(1)     a(1)     ref(1) 
+label(4):
+	read_value               a(3) 
+	read_variable            y(1) 
+	move_chain               y(1)     a(1)     ref(1) 
 label(5):
 	trust_me_inline          0     Y[3] 
 label(6):
@@ -12462,10 +12383,6 @@ label(6):
 	get_list                 a(1)     ref(7) 
 	write_atom               zero 
 	write_variable           y(1) 
-	move_chain               y(1)     a(1)     ref(1) 
-label(4):
-	read_value               a(3) 
-	read_variable            y(1) 
 	move_chain               y(1)     a(1)     ref(1) 
 label(7):
 	read_atom                zero 
@@ -12630,7 +12547,6 @@ INDEXES for (semidet) disjunction [2]
     [atom, c] - [3]
 p / 1:
 label(1):
-label(2):
 	atom_switch              a(1) 
 		a: 	ref(10)
 		b: 	ref(11)
@@ -12689,7 +12605,6 @@ INDEXES for (semidet) disjunction [2]
     [atom, c] - [3]
 p / 1:
 label(1):
-label(2):
 	atom_switch              a(1) 
 		a: 	ref(10)
 		b: 	ref(11)

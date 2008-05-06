@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.21 2008/04/28 23:33:40 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.22 2008/05/06 00:49:36 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/04/28 23:33:40 $").
+:- comment(date, "$Date: 2008/05/06 00:49:36 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -104,31 +104,32 @@ simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
 	( OptLevel > 0 ->
 	    flat_code_to_basic_blocks(CodeList, BasicBlockArray, Rejoins),
             make_nonreplicate_array(BasicBlockArray, Rejoins, NonRepArray),
-            interchunk_simplify(BasicBlockArray, Rejoins, NonRepArray, ReachedArray, Branches),
-            functor(BasicBlockArray, F, N),
-            functor(ContArray, F, N),
-            % create ContArray: determine chunks that are continuations
-            % from 0  (ContArray[n] is var), 
-            %      1  (ContArray[n] = r(M), M is var)
-            %      1+ (ContArray[n] = r([])
-            % other chunks
-            (foreacharg(chunk{cont:Cont}, BasicBlockArray),
-             param(ContArray,ReachedArray) do
-                ( integer(Cont), Cont > 0,
-                  arg(Cont, ReachedArray, Reached),
-                  nonvar(Reached) % is a reached chunk
-                ->
-                    arg(Cont, ContArray, CStatus),
-                    (var(CStatus) -> CStatus = r(_) ; CStatus = r([]))
+            interchunk_simplify(BasicBlockArray, Rejoins, NonRepArray,
+                                ReachedArray, Targets),
+            compute_chunk_connections(BasicBlockArray, ReachedArray, Targets,
+                ContArray, RefedArray, JoinedArray, Branches, BranchesT),
+            ( for(_,1,max_joined_len), 
+              param(BasicBlockArray, NonRepArray, ReachedArray,
+                    ContArray,RefedArray,JoinedArray) 
+            do
+		join_short_continuations(BasicBlockArray, ReachedArray,
+                    NonRepArray, ContArray, RefedArray, JoinedArray)
+	    ),
+            % add marked chunks in JoinedArray to Branches
+            ( foreacharg(J, JoinedArray, Idx), param(RefedArray),
+              fromto(BranchesT, B1,B2, []) do
+                ( nonvar(J),
+                  arg(Idx, RefedArray, Refed),
+                  nonvar(Refed)
+                -> 
+                    % add to branches that needs to be processed when
+                    % joining branches back together for continuations
+                    % that have been joined early,  and is ref'ed
+                    B1 = [Idx|B2]
                 ;
-                    true
+                    B1 = B2
                 )
             ),
-            ( for(_,1,max_joined_len), 
-              param(BasicBlockArray, NonRepArray, ReachedArray,ContArray) 
-            do
-		join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray, ContArray)
-	    ),
 	    ( foreacharg(chunk{code:Chunk,cont:Cont,len:Len,done:Done},
                          BasicBlockArray,I), 
               param(BasicBlockArray) do
@@ -140,7 +141,8 @@ simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
                     true
                 )
             ),
-	    basic_blocks_to_flat_code(BasicBlockArray, Branches, CodeList1),
+	    basic_blocks_to_flat_code(BasicBlockArray, Branches, RefedArray,
+                                      ContArray, CodeList1),
             simplify_chunk(CodeList1, SimpCodeList)  % run simplify again on entire code list
 	;
 	    simplify_chunk(CodeList, SimpCodeList)
@@ -149,6 +151,46 @@ simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
             true
         ).
 
+compute_chunk_connections(BasicBlockArray, ReachedArray, Targets, ContArray,
+    RefedArray, JoinedArray, Branches, BranchesT) :-
+        functor(BasicBlockArray, F, N),
+        functor(ContArray, F, N),
+        functor(RefedArray,F, N),
+        functor(JoinedArray, F, N),
+        arg(1, ContArray, r([])), % Chunk 1 marked as cont'ed into 
+        ( foreacharg(chunk{cont:Cont}, BasicBlockArray, I),
+         param(ContArray,ReachedArray) do
+            % ContArray: determine chunks that are continuations
+            % from 0  (ContArray[n] is var), 
+            %      1  (ContArray[n] = r(M), M is var)
+            %      1+ (ContArray[n] = r([])
+            % other chunks
+            ( arg(I, ReachedArray, Reached),
+              nonvar(Reached), % is a reached chunk
+              integer(Cont), Cont > 0
+            ->
+                arg(Cont, ContArray, CStatus),
+                (var(CStatus) -> CStatus = r(_) ; CStatus = r([]))
+            ;
+                true
+            )
+        ),
+        % RefedArray: 
+        % RefedArray[n] is var if it is not the target of any ref()
+        % RefedArray[n] = [] if it is the target of one or more ref()
+        ( foreach(T, Targets), param(RefedArray) do
+            arg(T, RefedArray, [])
+        ),
+        ( foreacharg(IsCont,ContArray, I), foreacharg(Refed,RefedArray), 
+          fromto(Branches, Branches0,Branches1, BranchesT) do
+            ( var(IsCont), nonvar(Refed) ->
+                % chunk is not continued into, but is referenced, 
+                % i.e. first chunk of a branch
+                Branches0 = [I|Branches1]
+            ;
+                Branches0 = Branches1
+            )
+        ).
 
 % Take a simple list of annotated code, and cut it up at the labels.
 % The result are code chunks that correspond to basic blocks.
@@ -710,51 +752,75 @@ make_nonreplicate_array(BasicBlockArray, Rejoins, NonRepArray) :-
 % be replicated -- i.e. there are no labels inside the continuation chunk.
 % An optimisation is that if the continuation immediately jumps elsewhere,
 % the continuation of the chunk is simply updated.
-join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray, ContArray) :-
-	(
+join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray, ContArray, RefedArray, JoinedArray) :-
+        (
 	    foreacharg(Chunk,BasicBlockArray,I),
-	    param(BasicBlockArray,NonRepArray,ReachedArray,ContArray)
+	    param(BasicBlockArray,NonRepArray,ReachedArray,ContArray,RefedArray,JoinedArray)
 	do
             Chunk = chunk{cont:Cont,len:Len,code:Code,done:Done},
-            arg(I, ReachedArray, ReachedI),
-            ( var(ReachedI) ->
-                % chunk not reached, don't join
-                true
+            ( Cont == 0 ->
+                true % no continuatipn to join
             ; nonvar(Done) ->
-                % nonvar if chunk discarded, don't join
-                true
-            ; Cont == 0 ->
-		true
-	    ; arg(Cont, NonRepArray, NonRepC), nonvar(NonRepC)  ->
-                true  % next chunk should not be replicated -- don't join
-            ; arg(Cont, ContArray, CStatus), CStatus = r(M), var(M) ->
-                true % cont chunk is continuation for one chunk only, don't join now
+                true % nonvar if chunk discarded, don't join
             ;
                 arg(Cont, BasicBlockArray, NextChunk),
-		NextChunk = chunk{len:ContLen,code:ContCode,cont:ContCont},
-		( ContLen > max_joined_len ->
-		    true
-                ; 
-                    append(Code, ContCode, NewCode),
-		    NewLen is Len+ContLen,
-		    setarg(I, BasicBlockArray, chunk{code:NewCode,len:NewLen,cont:ContCont})
+                NextChunk = chunk{len:ContLen,code:ContCode,cont:ContCont},
+                arg(I, ReachedArray, ReachedI),
+                ( var(ReachedI) ->
+                    true % chunk not reached, don't join
+                ; arg(Cont, NonRepArray, NonRepC), nonvar(NonRepC)  ->
+                    true  % next chunk should not be replicated -- don't join
+                ; arg(Cont, ContArray, ContStatus), ContStatus \== r([]),
+                  arg(Cont, RefedArray, Refed), nonvar(Refed) ->
+                    true % cont chunk is continuation for one (i.e. this) chunk
+                         % only, and is referenced, don't join now
+                ;
+                    arg(Cont, BasicBlockArray, NextChunk),
+                    NextChunk = chunk{len:ContLen,code:ContCode,cont:ContCont},
+                    ( ContLen > max_joined_len ->
+                        true
+                    ; 
+                        % Join NextChunk to chunk I.
+                        % mark NextChunk as joined, and update ContArray
+                        % if this is not the first time NextChunk is joined
+                        % because NextChunk is now replicated and so is its
+                        % continuation (ContCont)
+                        arg(Cont, JoinedArray, Joined),
+                        ( var(Joined) ->
+                            Joined = []
+                        ;
+                            (ContCont > 0 ->
+                                % make sure ContCont is now marked as
+                                % having multiple continuations
+                                arg(ContCont, ContArray, r([]))
+                            ;
+                                true
+                            )
+                        ),
+
+                        append(Code, ContCode, NewCode),
+                        NewLen is Len+ContLen,
+                        setarg(I, BasicBlockArray, chunk{code:NewCode,len:NewLen,cont:ContCont})
+                    )
                 )
-	    )
-	).
+            )
+        ).
 
 
 % Flatten the BasicBlockArray into a WAM code list.
-% We emit only the reachable chunks, by collecting all ref()s in the code.
+% We emit only the reachable chunks, by collecting all ref()s in the code,
+% and filter for those ref()s that are not continued into, i.e. start of
+% branches, plus chunks that have been joined but are ref'ed as well..
 % The done-flag in the array indicates whether the chunk has already been
 % processed.
 
-basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
+basic_blocks_to_flat_code(BasicBlockArray, Reached, RefedArray, ContArray, Code) :-
 	(
 	    fromto(1,I,NextI,0),			% current chunk
 	    fromto(1,PrevCont,Cont,_),			% prev. chunk's continuation
-	    fromto(Reached,Reached1,Reached2,_),	% ref-targets (queue)
+	    fromto(Reached,Reached1,Reached2,_),	% branches (queue)
 	    fromto(Code,Code0,Code2,[]),		% result list
-	    param(BasicBlockArray)
+	    param(BasicBlockArray,ContArray,RefedArray)
 	do
 	    arg(I, BasicBlockArray, Chunk),
 	    Chunk = chunk{code:ChunkCode,done:Done,cont:Cont0},
@@ -762,7 +828,15 @@ basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
 		% process chunk: append code to final code list
 		Done = done,
 		Cont = Cont0,
-		Code0 = [code{instr:label(I)}|Code1],
+                ( arg(I, RefedArray, Refed), var(Refed), % chunk not ref'ed
+                  PrevCont = I, % is a continuation from previously chunk
+                  arg(I, ContArray, IsCont), IsCont \== r([])
+                 ->
+                    % no label needed if it is the only continuation
+                    Code0 = Code1  
+                ;
+                    Code0 = [code{instr:label(I)}|Code1]
+                ),
 		append(ChunkCode, Code2, Code1)
 	    ; PrevCont == I ->
 		% previous chunk continues into this one, but it has already
@@ -780,7 +854,7 @@ basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
 	    % continuation, otherwise pick one from the queue
 	    ( Cont > 0 ->
 		NextI = Cont, Reached1 = Reached2	% use continuation
-	    ; var(Reached1) ->
+	    ; Reached1 == [] ->
 	    	NextI = 0				% queue empty, finished
 	    ;
 		Reached1 = [NextI|Reached2]		% pick from queue
