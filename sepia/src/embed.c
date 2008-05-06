@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
+ * $Id: embed.c,v 1.4 2008/05/06 02:48:10 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -161,7 +161,13 @@ ec_init(void)
 
     initfile = strcat(strcpy(filename_buf, ec_eclipse_home), "/lib/kernel.eco");
     if (ec_access(initfile, R_OK) < 0)
+    {
 	initfile = strcat(strcpy(filename_buf, ec_eclipse_home), "/lib/kernel.pl");
+	if (ec_access(initfile, R_OK) < 0)
+	{
+	    ec_panic("Aborting: Can't find boot file! Please check either\na) your program's setting for eclipsedir in ec_set_option(), or\nb) your setting for ECLIPSEDIR environment variable.\n","ec_init()");
+	}
+    }	    
 
     res = eclipse_boot(initfile);
     if (res != PSUCCEED)
