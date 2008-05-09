@@ -11922,6 +11922,60 @@ label(L13):
 label(L14):
 	ret                  
 
+------ Test bug(11) -------
+add_incoming(A, B, C, D) :-
+	arg(A, C, E),
+	(
+	    var(E)
+	->
+	    arg(A, B, E),
+	    do__N(E, D, B, C, D)
+	;
+	    true
+	).
+
+INDEXES for (semidet) disjunction [2]
+1. Quality 1.0
+    [] - [2]
+    [var] - [1]
+add_incoming / 4:
+label(L0):
+	bi_arg                   a(1)     a(3)     a(5)     16 
+	savecut                  a(6) 
+	switch_on_type           a(5) 
+		meta: 	ref(L2)
+		[]: 	ref(L4)
+		atom: 	ref(L4)
+		bignum: 	ref(L4)
+		breal: 	ref(L4)
+		double: 	ref(L4)
+		goal: 	ref(L4)
+		handle: 	ref(L4)
+		integer: 	ref(L4)
+		list: 	ref(L4)
+		rational: 	ref(L4)
+		string: 	ref(L4)
+		structure: 	ref(L4)
+
+	branch                   ref(L2) 
+label(L1):
+	try_me_else              0     6     ref(L3) 
+label(L2):
+	bi_var                   a(5) 
+	cut                      a(6) 
+	bi_arg                   a(1)     a(2)     a(6)     16 
+	get_value                a(6)     a(5) 
+	move                     a(5)     a(1) 
+	rot                      a(3)     a(2)     a(4) 
+	move                     a(2)     a(5) 
+	jmp                      do__N / 5 
+	branch                   ref(L5) 
+label(L3):
+	trust_me                 0 
+label(L4):
+label(L5):
+	ret                  
+
 ------ Test at1 -------
 at1 :-
 	var(f(A)),

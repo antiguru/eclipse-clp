@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.11 2008/04/26 20:42:00 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.12 2008/05/09 17:21:31 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -1317,7 +1317,40 @@ testclause(bug(10), [(
 	( Map1 /\ 1 =:= 0 -> List1=List2 ; List1=[I|List2] ),
 	do_x(Map2, List2, I1, I2)
     )]).
+testclause(bug(11), [(
+/*
 
+Was peephole bug:
+calls           do__N(InEdges,AdjArray,Incoming,RelevantIncoming,Incoming)
+instead of      do__N(InEdges,AdjArray,Incoming,RelevantIncoming,AdjArray)
+
+because it turned
+        move(a(5), a(1))                [r(1, a(5), use_a, last), r(1, a(1), def
+, _)]   % transfer
+        move(a(3), a(6))                [r(4, a(3), use_a, last), r(4, a(6), def
+, _)]   % transfer
+        move(a(2), a(3))                [r(3, a(2), use_a, last), r(3, a(3), def
+, _)]   % transfer
+        move(a(4), a(2))                [r(5, a(4), use_a, last), r(5, a(2), def
+, _)]   % transfer
+        move(a(6), a(4))                [r(4, a(6), use_a, last), r(4, a(4), def
+, _)]   % transfer
+        move(a(2), a(5))                [r(5, a(2), use_a, last), r(5, a(5), def
+, _)]   % transfer
+into
+        shift                    a(1)     a(5)     a(2) 
+        rot                      a(3)     a(2)     a(4) 
+
+*/
+    add_incoming(To, Incoming, RelevantIncoming, AdjArray) :-
+        arg(To, RelevantIncoming, InEdges),
+        ( var(InEdges) ->
+            arg(To, Incoming, InEdges),
+            do__N(InEdges,AdjArray,Incoming,RelevantIncoming,AdjArray)
+        ;
+            true
+        )
+    )]).
 
 
 %----------------------------------------------------------------------

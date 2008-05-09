@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.22 2008/05/06 00:49:36 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.23 2008/05/09 17:21:31 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/05/06 00:49:36 $").
+:- comment(date, "$Date: 2008/05/09 17:21:31 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -1117,7 +1117,7 @@ simplify(move(a(A1),a(A2)), Code, Rest, New, RestT, NewT) ?- !,
         Code = code{regs:Regs},
         extract_moveaas(Rest, Moves, RegInfos, RestT), 
 	Moves \= [],
-        simplify_moveaas([A1-A2|Moves], [Regs|RegInfos], New, NewT).
+        simplify_moveaas([A1>A2|Moves], [Regs|RegInfos], New, NewT).
 
 simplify(move(y(Y1),y(Y2)), _, [code{instr:move(y(Y3),y(Y4))}|Rest], New, RestT, NewT) ?- !,
         ( Rest = [code{instr:move(y(Y5),y(Y6))}|Rest0] ->
@@ -1265,14 +1265,19 @@ simplify(read_integer(C1), _, [code{instr:read_atom(C2)}|Rest], New, RestT, NewT
 */ 
 :- mode extract_moveaas(+, -, -, -).
 extract_moveaas([code{instr:move(a(A1),a(A2)),regs:RegI}|Rest], MoveRegs, RegInfos, RestT) ?- !,
-        MoveRegs = [A1-A2|MoveRegs1],
+        MoveRegs = [A1>A2|MoveRegs1], % use '>' to suggest move direction
         RegInfos = [RegI|RegInfos1],
         extract_moveaas(Rest, MoveRegs1, RegInfos1, RestT).
 extract_moveaas(Rest, [], [], Rest).
 
 /* simplify the move a(_) a(_) sequence by
    1. extracting sequences of move a(_) a(_) which are shifting the value between a
-      chain of registers (e.g A1<-A2...<-An). The move instr may be non-consecutive.
+      chain of registers (e.g A1<-A2...<-An). The move instr may be non-consecutive, 
+      effectively rearranging the order of the moves: move a(Source) a(Dest) can be
+      done earlier as long as the intervening moves does not:
+         a) overwrite Source (i.e. Source register is not a destination for intervening moves)
+         b) use the contents of Dest (i.e. Dest register is not a source for intervening moves)
+      A chain is represented as a list [a(A1),a(A2)...] which represents the chain A1<-A2...
    2. convert these chains to the following instructions, in order of preference:
          a) rotate type instruction  A1<-A2...<-A1
          b) shift type instruction A1<-A2 ...<-An
@@ -1285,8 +1290,11 @@ simplify_moveaas(Regs, RegInfos, New, NewT) :-
 extract_reg_chains([], [], Chains, ChainsT, ChainInfos, ChainInfosT) ?- 
         Chains = ChainsT,
         ChainInfos = ChainInfosT.
-extract_reg_chains([A1-A2|Regs0], [[A1Info,A2Info]|RegInfos0], Chains, ChainsT, ChainInfos, ChainInfosT) :-
-        (find_reg_chain(A1, A1Info, Regs0, RegInfos0, [], Regs1, RegInfos1, Chained1, CInfo1) ->
+extract_reg_chains([A1>A2|Regs0], [[A1Info,A2Info]|RegInfos0], Chains, ChainsT, ChainInfos, ChainInfosT) :-
+        ( find_reg_chain(A1, A1Info, Regs0, RegInfos0, [], [], Regs1, RegInfos1, Chained1, CInfo1),
+          Chained1 \= [_] % no chain found if there is only  one element 
+        ->
+        
             Chains =[[a(A2)|Chained1]|Chains1],
             ChainInfos = [[A2Info|CInfo1]|ChainInfos1]
             
@@ -1296,36 +1304,59 @@ extract_reg_chains([A1-A2|Regs0], [[A1Info,A2Info]|RegInfos0], Chains, ChainsT, 
             RegInfos0 = RegInfos1,
             Regs0 = Regs1
         ),
+        % try find more chains in remaining move instructions
         extract_reg_chains(Regs1, RegInfos1, Chains1, ChainsT, ChainInfos1, ChainInfosT).
 
-find_reg_chain(S, SInfo, [], [], OldDests, RegsOut, RInfosOut, Chained, CInfo) ?- !,
-        OldDests \== [],  % fail if no chain is found (OldDests == [])
+find_reg_chain(S, SInfo, [], [], _UnmovedSs, _UnmovedDs, RegsOut, RInfosOut, Chained, CInfo) ?- !,
         RegsOut = [],
         RInfosOut = [],
         Chained = [a(S)],
         CInfo = [SInfo].
-find_reg_chain(S0, S0Info, [RegPair|Regs1], [RPairInfo|RInfos1], OldDests0, RegsOut, RInfosOut, Chained, CInfo) :-
-        RegPair = S1-D1,
+find_reg_chain(S0, S0Info, [RegPair|Regs1], [RPairInfo|RInfos1], UnmovedSs0, UnmovedDs0, 
+               RegsOut, RInfosOut, Chained, CInfo) :-
+        RegPair = (S1>D1),
         RPairInfo = [S1Info,D1Info],
-        (  D1 == S0 ->
-            Chained = [a(D1)|Chained1],
-            CInfo = [D1Info|CInfo1],
-            RegsOut = RegsOut1,
-            RInfosOut = RInfosOut1,
-            NewS = S1,
-            NewSInfo = S1Info,
-            OldDests1 = [D1|OldDests0]
+        (  D1 == S0  ->
+            % S1>D1 match for chain, can it be added to chain?
+            ( nonmember(D1, UnmovedSs0), % not a source in intervening moves
+              nonmember(S1, UnmovedDs0),  % not a destination in intervening moves
+              check_source_reg_info(S1, S1Info, UnmovedSs0)
+            ->
+                % add to chain
+                Chained = [a(D1)|Chained1],
+                CInfo = [D1Info|CInfo1],
+                find_reg_chain(S1, S1Info, Regs1, RInfos1, UnmovedSs0,
+                               UnmovedDs0, RegsOut, RInfosOut, Chained1, CInfo1)
+            ;
+                % intervening moves prevent S1>D1 to be part of the chain,
+                % stop now
+                RegsOut = [],
+                RInfosOut = [],
+                Chained = [a(S0)],
+                CInfo = [S0Info]
+                
+            )
         ;
-            nonmember(D1, OldDests0), 
-            Chained = Chained1,
-            CInfo = CInfo1,
+            % S1>D1 does not match for current chain. Try matching with
+            % subsequent moves
             RegsOut = [RegPair|RegsOut1],
             RInfosOut = [RPairInfo|RInfosOut1],
-            NewS = S0,
-            NewSInfo = S0Info,
-            OldDests1 = OldDests0
-        ),
-        find_reg_chain(NewS, NewSInfo, Regs1, RInfos1, OldDests1, RegsOut1, RInfosOut1, Chained1, CInfo1).
+            find_reg_chain(S0, S0Info, Regs1, RInfos1, [S1|UnmovedSs0], [D1|UnmovedDs0], 
+                           RegsOut1, RInfosOut1, Chained, CInfo)
+        ).
+        
+    % make sure that the source register information is still correct if
+    % the move instruction is added to a chain: if it is the last use of
+    % the register, it should not be moved before an earlier use of the
+    % register as a source. [alternative: update the reg info instead] 
+    check_source_reg_info(S, SInfo, UnmovedSs) :-
+        ( SInfo = r(_,_,_,IsLast), IsLast == last ->
+            nonmember(S, UnmovedSs) 
+         ; 
+            true
+        ).
+       
+
 
 convert_chains_to_instrs([], [], NMoves, MoveRegs, New, NewT) ?- 
         (NMoves > 0 ->
