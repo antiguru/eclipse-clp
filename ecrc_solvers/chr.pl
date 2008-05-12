@@ -24,32 +24,31 @@
 % the chr2pl compiler
 
 
-% This predicate called for the labeling must be dynamic as soon as
-% several handlers are loaded in the same session: the predicate is the
-% scatterred in several files.
-:- dynamic 'CHRlabel_with' /3.
-:- set_flag('CHRlabel_with'/3, leash, notrace).
-
-:- module_interface(chr).
+:- module(chr).
 
 :- pragma(deprecated_warnings(off)).
 
 :- comment(summary, "Constraint Handling Rules Library - obsolescent, use library(ech) instead").
 :- comment(author, "Pascal Brisset and Thom Fruehwirth, ECRC").
 :- comment(copyright, "1994-2006 Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:52:45 $").
+:- comment(date, "$Date: 2008/05/12 13:23:31 $").
 :- comment(status, deprecated).
 :- comment(include, "chr_doc.pl").
+
+% This predicate called for the labeling must be dynamic as soon as
+% several handlers are loaded in the same session: the predicate is the
+% scatterred in several files.
+:- export initialization(dynamic('CHRlabel_with' /3)).
 
 %%%%%% Check of a guard %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % The guard (Goal) is simply called and it's checked that there are no
 % delayed goals left after
 chr_macro(no_delayed_goals(Goal),
-  ( last_suspension(LD),
+  ( sepia_kernel:last_suspension(LD),
     Goal,
     true,                   % force all wakings
-    new_suspensions(LD, []))).
+    sepia_kernel:new_suspensions(LD, []))).
 
 % Before the guard (Goal) is called, a 'fail' is attached to every variable
 % of the Goal. Then, as soon as one of these variables is touched
@@ -57,31 +56,32 @@ chr_macro(no_delayed_goals(Goal),
 chr_macro(no_global_bindings(Goal, Globals),
   ( make_suspension('CHRfail', 1, Susp),
     IS,
-    last_suspension(LD),
+    sepia_kernel:last_suspension(LD),
     Goal,
     true,                   % force all wakings
-    new_suspensions(LD, []),
+    sepia_kernel:new_suspensions(LD, []),
     kill_suspension(Susp))) :-
   IS = insert_suspension(Globals, Susp, constrained of suspend, suspend).
     
 
-:- export chr_macro/2.
+:- export no_delayed_goals/1.
+:- inline(no_delayed_goals/1, chr_macro/2).
+no_delayed_goals(Goal) :-
+	no_delayed_goals(Goal).
 
-:- define_macro(no_delayed_goals/1, chr_macro/2, []).
-:- define_macro(no_global_bindings/2, chr_macro/2, []).
-:- define_macro('CHRhead_not_kept'/1, tr_chr/2, [write]).
+:- export no_global_bindings/2.
+:- inline(no_global_bindings/2, chr_macro/2).
+no_global_bindings(Goal, Globals) :-
+	no_global_bindings(Goal, Globals).
 
-:- use_module(chr2pl).
+:- export portray('CHRhead_not_kept'/1, tr_chr/2, []).
 
-:- import last_suspension/1, new_suspensions/2 from sepia_kernel.
-
-
-:- begin_module(chr).
+:- reexport(chr2pl).
 
 :- import sepia_kernel.
 
 %%%%%%%% Exported predicates %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-:- Preds = (
+:- export
 	'CHRget_delayed_goals' /2,
 	'CHRkill' /1,
 	'CHRalready_in' /1,
@@ -107,8 +107,7 @@ chr_macro(no_global_bindings(Goal, Globals),
 	chr_start_handler/3,
 	tr_chr/2,
 	chr_resolve/1,
-	chr_labeling/0),
-	export(Preds).
+	chr_labeling/0.
 
 
 :- tool('CHRdelay'/2, 'CHRdelay'/3),

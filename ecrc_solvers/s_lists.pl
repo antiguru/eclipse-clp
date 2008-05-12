@@ -21,10 +21,10 @@
 % END LICENSE BLOCK
 
 %----------------------------------------------------------------------
-:- module_interface(s_lists).
+:- module(s_lists).
 %----------------------------------------------------------------------
 
-:- use_module(library(fd)).
+:- reexport(fd).
 :- use_module(library(ordset)).
 
 :- export macro(no_macro_expansion({}/1), tr_slists/2,[]).
@@ -56,8 +56,6 @@ tr_slists(no_macro_expansion({}(Conjunction)), Set) :-
 	    list2set/2, set2list/2, s_memberchk/2, s_remove/3, s_dis/2,
 	    s_weight/2, s_weight_discr/2.
 
-%----------------------------------------------------------------------
-:- begin_module(s_lists).
 %----------------------------------------------------------------------
 :- pragma(nodebug).
 

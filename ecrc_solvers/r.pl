@@ -48,7 +48,7 @@
 */
 
 
-:- Pred = (
+:- export
 	$= /2,
 	$<> /2,
 	$>= /2,
@@ -64,9 +64,7 @@
 	print_global_list2/0,
         get_constraint_store/1,
         is_slack_variable/1,
-        variable_name/2),
-	export(Pred).
-%	skipped Pred.
+        variable_name/2.
 
 
 :- pragma(nodebug).

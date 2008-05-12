@@ -21,28 +21,29 @@
 % END LICENSE BLOCK
 
 %----------------------------------------------------------------------
-:- module_interface(set).
+:- module(set).
 %----------------------------------------------------------------------
 
-:- use_module(s_lists).
+:- reexport(s_lists).
 
-:- op(700, xfx, `<>).
-:- op(700, xfx, `=).
-:- op(700, xfx, in).
-:- op(700, xfx, notin).
-:- op(700, xfx, `::).
-:- op(700, xfx, `<).
-:- op(500, yfx, \).
+:- export
+	op(700, xfx, `<>),
+	op(700, xfx, `=),
+	op(700, xfx, in),
+	op(700, xfx, notin),
+	op(700, xfx, `::),
+	op(700, xfx, `<),
+	op(500, yfx, \),
 
-:- op(700, xfy, dis_s).     /* disjoint       */
-:- op(700, xfy, in_s).      /* membership     */
-:- op(700, xfy, nin_s).     /* non membership */
-:- op(650, xfx, def_s).     /* set def        */
-:- op(700, xfy, sub_s).     /* subset         */
-:- op(650, xfx, glb).
-:- op(650, xfx, lub).
+	op(700, xfy, dis_s),     /* disjoint       */
+	op(700, xfy, in_s),      /* membership     */
+	op(700, xfy, nin_s),     /* non membership */
+	op(650, xfx, def_s),     /* set def        */
+	op(700, xfy, sub_s),     /* subset         */
+	op(650, xfx, glb),
+	op(650, xfx, lub).
 
-:- Preds = (
+:- export
 	(`<>) /2,
 	(`=) /2 ,
 	(in) /2,
@@ -73,9 +74,7 @@
 	max_weight/2,
 	refine/1,
 	par_refine/1,
-	modify_bound/3
-	),
-	export(Preds).
+	modify_bound/3.
 
 
 :- export struct( set(
@@ -94,7 +93,7 @@
 	delayed_goals_number: delayed_goals_number_set/2,
 	print: tr_setvar/2]). 
 
-:- export macro(property(functor) of set, tr_set/2, [write, protect_arg]).
+:- export portray(property(functor) of set, tr_set/2, [protect_arg]).
 
 tr_set(set with setdom:[Glb, Lub], T) :-
 	-?->
@@ -110,11 +109,9 @@ tr_setvar(In, Out) :-
 
 
 %----------------------------------------------------------------------
-:- begin_module(set).
-%----------------------------------------------------------------------
 :- pragma(nodebug).
 
-:- import setarg/3, suspensions_to_goals/3 from sepia_kernel.
+:- import suspensions_to_goals/3 from sepia_kernel.
 
 S `:: Min .. Max :- 
 	var(S),!,

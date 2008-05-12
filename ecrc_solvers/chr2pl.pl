@@ -24,19 +24,20 @@
 %%%% Compiler for CHR
 %% Modified by Kish Shen, March 98, to print more readable compiled code
 
-:- module_interface(chr2pl).
+:- module(chr2pl).
 
 :- pragma(deprecated_warnings(off)).
 
-:- op(1200, fy, handler).
-:- op(1200, fy, constraints).
-:- op(1200, fy, [label_with]).
-:- op(1190, xfx, [==>, <=>]).
-:- op(1200, xfx, :--).
-:- op(1200, xfx, @).
-:- op(1100, xfx, |).
-:- op(1100, xfx, \ ).
-:- op(700, xfx, flag).
+:- export
+	op(1200, fy, handler),
+	op(1200, fy, constraints),
+	op(1200, fy, [label_with]),
+	op(1190, xfx, [==>, <=>]),
+	op(1200, xfx, :--),
+	op(1200, xfx, @),
+	op(1100, xfx, |),
+	op(1100, xfx, \ ),
+	op(700, xfx, flag).
 
 
 %%%%%%%%%%%% Exported predicates %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -44,13 +45,11 @@
 
 :- tool(chr/1, chr/2).
 
-:- begin_module(chr2pl).
-
 :- local variable(gen_num).
 
 :- skipped((chr2pl/1, chr/2)).
 
-:- define_macro('CHRhead_not_kept'/1, id/2, [write]).
+:- local portray('CHRhead_not_kept'/1, id/2, []).
 
 id(X,X).
 
