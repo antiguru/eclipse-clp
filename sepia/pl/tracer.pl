@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer.pl,v 1.8 2008/04/28 18:28:09 jschimpf Exp $
+% Version:	$Id: tracer.pl,v 1.9 2008/05/12 12:34:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- Port generation
 %
-% $Id: tracer.pl,v 1.8 2008/04/28 18:28:09 jschimpf Exp $
+% $Id: tracer.pl,v 1.9 2008/05/12 12:34:59 jschimpf Exp $
 %
 % Author:	Joachim Schimpf, IC-Parc
 %
@@ -65,6 +65,7 @@ trace_mode/2.
 :- begin_module(sepia_kernel).
 :- pragma(nodebug).
 :- pragma(system).
+:- pragma(noskip).
 
 :- export
 	struct(ports(call,exit,'*exit',redo,fail,	% enum, really
@@ -160,7 +161,7 @@ redo(Stack, FailDrop, RedoLevel, FailLeave, ShowNext) :-
 	disable_tracing,
 	get_priority(P), % Don't wake anything
 	set_priority(1),
-	diagnostics(redo(Stack, FailDrop, RedoLevel, Which, ShowNext)),
+	diagnostics(redo(Stack, FailDrop, RedoLevel, FailLeave, ShowNext)),
 	trace_fails_redos(Stack, RedoLevel, FailDrop, ShowNext, FailLeave),
 	!, set_priority(P), cont_debug,
 	fail.	% must fail for correct state restoration and continuation!

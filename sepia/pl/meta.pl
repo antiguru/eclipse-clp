@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.2 2007/08/22 23:08:49 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.3 2008/05/12 12:34:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -39,6 +39,7 @@
 :- begin_module(sepia_kernel).
 :- pragma(system).
 :- pragma(nodebug).
+:- pragma(noskip).
 
 :- export
 	copy_term/2,

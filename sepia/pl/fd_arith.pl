@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_arith.pl,v 1.1 2006/09/23 01:55:17 snovello Exp $
+% Version:	$Id: fd_arith.pl,v 1.2 2008/05/12 12:34:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -127,7 +127,7 @@
 :- inline((isd)/2, tr_fd_arith_in/2).
 
 
-:- TopPreds = (
+:- export
 				% not skipped because might suspend & wake
     #=  /2,
     #>  /2,
@@ -156,9 +156,7 @@
     #\= /2,
     #\= /3,
     (isd)/2,
-    default_domain/1),
-
-    export(TopPreds).
+    default_domain/1.
 
 :- export
 	term_to_linear/2,

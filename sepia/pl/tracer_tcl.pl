@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.14 2008/04/28 18:28:09 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.15 2008/05/12 12:34:59 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -884,7 +884,7 @@ divide_list(N, List0, LLists0, Fill, M0, M) :-
 
 make_one_sublist(I, [], List1, Sub, Fill) ?- !,
 	List1 = [],
-	(foreach(E, Sub), count(J, 1, I), param(Fill) do
+	(foreach(E, Sub), count(_, 1, I), param(Fill) do
             E = Fill
 	).
 make_one_sublist(0, List0, List1, Sub, _) ?- !, List1 = List0, Sub = [].
@@ -1793,7 +1793,7 @@ get_ancestors_info(Frame0, Anc0, Anc) :-
 get_current_traceline(Depth, Style, Line, Invoc) :-
         getval(exec_state, Current),
         open(string(""), write, SS),
-	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, _Path, _Linum, _From, _To),
+	make_trace_line(SS, Current, Depth, Port, Invoc, _Prio, _Path, _Linum, _From, _To),
 	get_stream_info(SS, name, Line),
 	close(SS),
 	port_style(Port, Style).

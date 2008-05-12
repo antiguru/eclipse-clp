@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd.pl,v 1.1 2006/09/23 01:55:17 snovello Exp $
+% Version:	$Id: fd.pl,v 1.2 2008/05/12 12:34:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -113,7 +113,7 @@
    */
 
 
-:- TopPreds = (
+:- export
     alldifferent/1,
     atmost/3,
     element/3,
@@ -128,9 +128,7 @@
     min_max/4,
     min_max/5,
     min_max/6,
-    min_max/8),
-
-    export(TopPreds).
+    min_max/8.
 
 :-  tool(minimize/2, minimize_body/3),
     tool(minimize/4, minimize_body/5),

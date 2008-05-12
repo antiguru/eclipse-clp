@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_domain.pl,v 1.1 2006/09/23 01:55:18 snovello Exp $
+% Version:	$Id: fd_domain.pl,v 1.2 2008/05/12 12:34:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -100,6 +100,7 @@
 %----------------------------------------------------------------
 % Attribute definition
 %----------------------------------------------------------------
+
 :- meta_attribute(fd, [
 	unify:			unify_domain/3,
 	test_unify:		test_unify_domain/2,
@@ -123,8 +124,7 @@
 % Hide the attribute structure on output
 % print the metaterm alone as [Domain]
 
-:- call(functor(fd with [], Name, Arity)),
-   ( export macro(Name/Arity, tr_fd_domain_out/2, [write, protect_arg])).
+:- export macro(property(functor) of fd, tr_fd_domain_out/2, [write, protect_arg]).
 :- export macro(dom/2, tr_fd_domain_out/2, [write, protect_arg]).
 :- export macro(dom_ent/3, tr_fd_domain_out/2, [write, goal]).
 :- export macro(fd_dom_simple/2, tr_fd_domain_out/2, [write, goal]).
@@ -138,7 +138,7 @@
 :- inline((#::)/2, tr_fd_domain_in/2).
 :- inline((#::)/3, tr_fd_domain_in/2).
 
-:- TopPreds = (
+:- export
     :: /2,
     :: /3,
     #:: /2,
@@ -169,9 +169,7 @@
     dvar_update/2,
     dvar_update_nocheck/3,
 
-    dvar_msg/3),
-
-    export(TopPreds).
+    dvar_msg/3.
 
 :-  local get_attribute/2.
 
@@ -811,10 +809,10 @@ dvar_update(Var{fd:DS}, NewDom) :-
     dvar_update(Var, NewDom, DS, Size).
 
 :- mode dvar_update(?, ++, ++, ++).
-dvar_update(Var, dom([Var|_], _), _, 1).
+dvar_update(Var, dom([Var|_], _), _, 1) :- !.
 dvar_update(Var, NewDom, DS, Size) :-
-    integer(Size),
-    Size > 1,
+%    integer(Size),
+%    Size > 1,
     DS = fd with domain:dom(_, OldSize),
     (Size < OldSize ->
 	attr_bind(DS, NewDom, Var, _),
@@ -827,11 +825,11 @@ dvar_update(Var, NewDom, DS, Size) :-
     ).
 
 :- mode dvar_update_nocheck(?, ++, ++).
-dvar_update_nocheck(Var, [Var|_], 1).
+dvar_update_nocheck(Var, [Var|_], 1) :- !.
 dvar_update_nocheck(Var{fd:DS}, ND, Size) :-
     -?->
-    integer(Size),
-    Size > 1,
+%    integer(Size),
+%    Size > 1,
     NewDom = dom(ND, Size),
     attr_bind(DS, NewDom, Var, _),
     dvar_replace(Var, NewDom).

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.3 2007/09/04 16:57:05 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.4 2008/05/12 12:34:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -466,8 +466,8 @@ do_set_flag(workers,X,_) :- !,
 	; wm_get(List), stringify(Host, HostS),
 	  memberchk([Total,Awake,HostS], List),
 	  Asleep is Total-Awake, 
-	  ( Value = +(Diff) -> ( Create is Diff-Asleep,
-				 Create =< 0 -> wm_set(wake, Host, Diff)
+	  ( Value = +(Diff) ->  Create is Diff-Asleep,
+				( Create =< 0 -> wm_set(wake, Host, Diff)
 				 ; wm_set(wake, Host, Asleep),
 				   wm_set(add, Host, Create)
 				)

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.7 2008/03/31 14:50:59 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.8 2008/05/12 12:34:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -545,8 +545,10 @@ pragma_handler(N, Proc, _Module) :-
 	compiler_error_handler(N, Proc).
 
 
-compiled_file_handler(X, (File, Size, Time), Module) :-
-	compiled_file_handler(X, File, Size, Time, Module).
+compiled_file_handler(N, (File, Size, Time), Module) :- !,
+	compiled_file_handler(N, File, Size, Time, Module).
+compiled_file_handler(N, Goal, Module) :-
+	error_handler(N, Goal, Module).
 
 compiled_file_handler(_, term, _, _, _) :- !.
 compiled_file_handler(X, File, Size, Time, Module) :-
@@ -569,14 +571,12 @@ compiled_file_handler(X, File, Size, Time, Module) :-
 	    printf(log_output, "%-10s dumped %d bytes into %s\n%b",
 		[FileP, At, Size])
 	;			% compiled/loaded
-	    get_flag(debug_compile, Dbg),
-	    (Dbg == on ->
-		Mode = traceable
-	    ;
-		Mode = optimized
-	    ),
-	    printf(log_output, "%-10s %a %a %d bytes in %.2f seconds\n%b",
-		[FileP, Type, Mode, Size, Time])
+	Size < 0 ->
+	    printf(log_output, "%-10s %a in %.2f seconds\n%b",
+		[FileP, Type, Time])
+	;
+	    printf(log_output, "%-10s %a %d bytes in %.2f seconds\n%b",
+		[FileP, Type, Size, Time])
 	).
 
 
@@ -1662,10 +1662,10 @@ event_after_every(E, Int) :-
 	->
 	    current_after_time(CurrentTime),
 	    ( events_defer ->
-		unchecked_add_after_event(every(Int), CurrentTime, E, Int, DueTime),
+		unchecked_add_after_event(every(Int), CurrentTime, E, Int, _DueTime),
 		events_nodefer
 	    ;
-		unchecked_add_after_event(every(Int), CurrentTime, E, Int, DueTime)
+		unchecked_add_after_event(every(Int), CurrentTime, E, Int, _DueTime)
 	    )
 	;
 	    get_bip_error(Id),

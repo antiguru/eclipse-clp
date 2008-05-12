@@ -22,48 +22,46 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: paddy.pl,v 1.1 2006/09/23 01:55:31 snovello Exp $
+% Version:	$Id: paddy.pl,v 1.2 2008/05/12 12:34:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %                   The PADDY system.
 
 % PUT BINDING PROPAGATION IN POST-TRANSFORMATION!
 
-?- module(paddy).
+:- module(paddy).
 
 :- pragma(deprecated_warnings(off)).
 :- pragma(undeclared_warnings(off)).
 
-?- local (help)/0.
+:- local (help)/0.
 
-?- get_flag(debug_compile,DC), get_flag(variable_names,VN),
-   make_local_array(flags), setval(flags, flags(DC,VN)), nodbgcomp.
+:- local
+   variable(bounds),
+   variable(index),
+   variable(clause_id),
+   variable(source_files),
+   variable(progsize),
+   variable(temp),
+   variable(many_patterns),
+   variable(name_count),
+   variable(prune),
+   variable(pattern_count),
+   variable(pointer),
+   variable(predicate_size),
+   variable(pattern_number),
+   variable(term_depth).
 
-?- make_local_array(bounds),
-   make_local_array(index),
-   make_local_array(clause_id),
-   make_local_array(source_files),
-   make_local_array(progsize),
-   make_local_array(temp),
-   make_local_array(many_patterns),
-   make_local_array(name_count),
-   make_local_array(prune),
-   make_local_array(pattern_count),
-   make_local_array(pointer),
-   make_local_array(predicate_size),
-   make_local_array(pattern_number),
-   make_local_array(term_depth).
-
-?- import
+:- import
       term_size/2, current_array_body/3, setval_body/3, getval_body/3,
       make_local_array_body/2, erase_array_body/2
    from sepia_kernel.
 
-?- export 
+:- export 
       pin/1, p/0, p/1, p/2, pout/1, pout/0,
       term_depth/1, pattern_number/1, bounds/1.
 
-?- dynamic
+:- dynamic
       temp_side/1, temp_prop/1, temp_head_pred/1, temp_delay_pred/1,
       temp_op/3, temp_dynamic_pred/1, temp_pd_predicate/1,
       temp_parallel_pred/1, deprolog_module/2, deprolog_file/1.
@@ -87,7 +85,7 @@ bounds :-
    array_size(prog,N,prolog),
    array_size(proc,N,prolog).
 
-?- set_flag(print_depth,100), set_stream(divert,output),
+:- set_flag(print_depth,100), set_stream(divert,output),
    set_stream(log_output,null),
    ensure_loaded(library(lists)),
    set_stream(log_output,output),
@@ -1097,7 +1095,7 @@ pattern_key(A,S) :-
    sk(N,A,S1),
    term_string(S1,Ss), atom_string(S,Ss).
 
-?- export sk/3.
+:- export sk/3.
 
 sk(0,_,'0') :- !.
 sk(_,T,'0') :- var(T), !.
@@ -1774,5 +1772,3 @@ help :-
 
 :- set_error_handler(231, (help)/0).
 
-?- getval(flags,flags(DC, VN)), set_flag(debug_compile,DC),
-   set_flag(variable_names,off), erase_array(flags).
