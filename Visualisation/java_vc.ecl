@@ -21,8 +21,8 @@
 % END LICENSE BLOCK
 
 :- module(java_vc).
-:- lib(vc_support).
-:- lib(graphviz_license).
+:- use_module(vc_support).
+:- use_module(graphviz_license).
 
 :- export start_vc/1, stop_vc/1, find_java/1.
 

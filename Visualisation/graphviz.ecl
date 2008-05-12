@@ -16,20 +16,20 @@
 % Portions created by the Initial Developer are
 % Copyright (C) 2002 - 2006 Cisco Systems, Inc.  All Rights Reserved.
 % 
-% Contributor(s): Adnrew Sadler, IC-Parc
+% Contributor(s): Andrew Sadler, IC-Parc
 % 
 % END LICENSE BLOCK
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: graphviz.ecl,v 1.1 2006/09/23 01:56:28 snovello Exp $
+% Version:	$Id: graphviz.ecl,v 1.2 2008/05/12 13:32:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(graphviz).
 
 :- comment(summary, "Interface to Graphviz Graph Drawing Programs from AT&T").
 :- comment(author, "Andrew J Sadler and Joachim Schimpf, IC-Parc").
-:- comment(date, "$Id: graphviz.ecl,v 1.1 2006/09/23 01:56:28 snovello Exp $").
+:- comment(date, "$Id: graphviz.ecl,v 1.2 2008/05/12 13:32:51 jschimpf Exp $").
 :- comment(desc, html("
     This library provides an interface to the Graphviz Graph Drawing Programs
     from AT&T. Graphviz is subject to the following notice:
@@ -59,7 +59,7 @@
                         edge_attrs_generator,
                         layout)).
 
-:-local(variable(graph_counter)),setval(graph_counter,0).
+:- local variable(graph_counter, 0).
 
 valid_option_field(graph_attrs, graph_attrs of options).
 valid_option_field(default_edge_attrs, default_edge_attrs of options).

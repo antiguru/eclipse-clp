@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.3 2008/02/13 21:31:18 kish_shen Exp $
+% Version:	$Id: eplex_s.ecl,v 1.4 2008/05/12 13:30:19 jschimpf Exp $
 %
 %
 
@@ -768,8 +768,8 @@ lp_var_set_bounds(Handle, V, Lo0, Hi0) :-
             lp_impose_col_bounds(Handle, Attr, I, Lo, Hi),
             wake
 	; number(V) ->
-            V >= Lo,
-            V =< Hi
+            V >= Lo0,
+            V =< Hi0
         ;
             printf(error: "Eplex error: variable %w is not a problem"
                           " variable for handle %w:%n",[V,Handle]),
@@ -4117,7 +4117,7 @@ reduced_cost_pruning1(Handle, IpCost) :-
                                 lp_var_set_bounds(Handle, Var, L, NewH)
                           ;
                                 writeln(warning_output, "Eplex warning: reduced_cost_pruning would cause failure"),
-                                writeln(warning_output, (x(I):(L..H)->(L..NewH),sol=Sol,rc=RC,obj=ObjC,gap=Gap))
+                                writeln(warning_output, (Var:(L..H)->(L..NewH),gap=Gap,rc=RC))
                           )
                     ; RC < MFeasibilityTol ->	% at upper bound
                           %		    var_range(Var, L, H),
@@ -4131,7 +4131,7 @@ reduced_cost_pruning1(Handle, IpCost) :-
                                 lp_var_set_bounds(Handle, Var, NewL, H)
                           ;
                                 writeln(warning_output, "Eplex warning: reduced_cost_pruning would cause failure"),
-                                writeln(warning_output, (x(I):(L..H)->(NewL..H),sol=Sol,rc=RC,obj=ObjC,gap=Gap))
+                                writeln(warning_output, (Var:(L..H)->(NewL..H),gap=Gap,rc=RC))
                           )
                     ;
                           true

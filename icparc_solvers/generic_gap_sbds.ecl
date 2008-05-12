@@ -2,7 +2,7 @@
 % Module implementing GAP-SBDS.
 % WH, IPG and others
 %
-% $Id: generic_gap_sbds.ecl,v 1.1 2006/10/13 00:41:27 jschimpf Exp $
+% $Id: generic_gap_sbds.ecl,v 1.2 2008/05/12 13:30:19 jschimpf Exp $
 %
 
 %
@@ -683,6 +683,7 @@ unify_meta(XAttr, YAttr) :-
 
 :- tool(all_solutions/1, all_solutions_body/2).
 :- tool(all_solutions/2, all_solutions_body/3).
+:- tool(count_solutions/2, count_solutions_body/3).
 
 all_solutions_body(Goal, Module) :-
 	all_solutions_body(Goal, _NSols, Module).
@@ -868,7 +869,6 @@ update_maxdepth(D) :-
 
 
 % From the ECLiPSe docs, but made into a tool.
-:- tool(count_solutions/2, count_solutions_body/3).
 count_solutions_body(Goal, Total, Module) :-
         init_backtracks,
         shelf_create(count(0), Shelf),

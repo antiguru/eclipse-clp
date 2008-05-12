@@ -22,7 +22,7 @@
 
 :- module(viewable).
 
-:- lib(vc_support).
+:- use_module(vc_support).
 
 :- reexport  viewable_create/2,
              viewable_create/3,

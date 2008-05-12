@@ -3,7 +3,7 @@
 % See SBDDa.g for the GAP side.
 % IPG, WH, TK, SAL
 %
-% $Id: generic_gap_sbdd.ecl,v 1.2 2007/07/03 00:10:27 jschimpf Exp $
+% $Id: generic_gap_sbdd.ecl,v 1.3 2008/05/12 13:30:19 jschimpf Exp $
 %
 
 %
@@ -898,6 +898,7 @@ collections\n", []),
 
 :- tool(all_solutions/1, all_solutions_body/2).
 :- tool(all_solutions/2, all_solutions_body/3).
+:- tool(count_solutions/2, count_solutions_body/3).
 
 all_solutions_body(Goal, Module) :-
 	all_solutions_body(Goal, _NSols, Module).
@@ -1120,7 +1121,6 @@ update_maxdepth(D) :-
 
 
 % From the ECLiPSe docs, but made into a tool.
-:- tool(count_solutions/2, count_solutions_body/3).
 count_solutions_body(Goal, Total, Module) :-
         init_backtracks,
         shelf_create(count(0), Shelf),

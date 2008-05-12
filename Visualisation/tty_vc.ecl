@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 
 :- module(tty_vc).
-:- lib(vc_support).
+:- use_module(vc_support).
 :- lib(hash).
 
 :- export start_tty_vc/1.
