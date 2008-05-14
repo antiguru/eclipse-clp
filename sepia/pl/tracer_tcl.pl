@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.15 2008/05/12 12:34:59 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.16 2008/05/14 02:13:26 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -117,8 +117,9 @@
         set_usepred_info/5,
         reenable_usepred/0,
         set_tracer_command/1,
-	set_source_breakpoint/2,
+	set_source_breakpoint/4,
 	read_file_for_gui/1,
+        breakpoints_for_file/4,
         is_current_goal/2,
 	saros_get_library_path/1,
 	saros_set_library_path/1,
@@ -131,6 +132,9 @@
 	saros_use_module/1,
 	saros_get_goal_info_by_invoc/10.
 
+:- reexport 
+        current_files_with_port_lines/1
+   from sepia_kernel.
 
 
 %----------------------------------------------------------------------
@@ -147,7 +151,9 @@
 	trace_mode/2,
 	find_goal/3,
 	get_attribute/3,
-	get_tf_prop/3
+	get_tf_prop/3,
+        get_portlist_from_file/4,
+        find_matching_breakport/6
     from sepia_kernel.
 
 :- lib(development_support).
@@ -1871,7 +1877,7 @@ report_stats_text_summary :-
 
 
 %----------------------------------------------------------------------
-% source file reader
+% source debugging/btrakpoints
 %----------------------------------------------------------------------
 read_file_for_gui(OSFile) :-
         os_file_name(File, OSFile),
@@ -1895,11 +1901,33 @@ read_file_for_gui(OSFile) :-
             fail
         ).
 
-set_source_breakpoint(OSFile, Line) :-
+set_source_breakpoint(ToState, OSFile, Line, PortLine) :-
         os_file_name(File, OSFile),
-        canonical_path_name(File, CFile),
-        spy(CFile:Line).
+        find_matching_breakport(File, Line, FullName, DM, PortPred, PortLine),
+        get_flag(PortPred, break_lines, PInfo)@DM,
+        ( portline_state_is_different(ToState, FullName:PortLine, PInfo) ->
+            set_proc_flags(PortPred, break, PortLine, DM)
+        ;
+            true
+        ).
 
+    portline_state_is_different(on, PortSpec, PInfo) :-
+        nonmember(PortSpec, PInfo).
+    portline_state_is_different(off, PortSpec, PInfo) :-
+        memberchk(PortSpec, PInfo).
+
+breakpoints_for_file(OSFile, BreakLines, PortLines, Preds) :-
+        os_file_name(File, OSFile),
+        get_portlist_from_file(File, port_lines, _, Ports),
+        get_portlist_from_file(File, break_lines, _, Breaks),
+        ( foreach(port(PL,_,PredSpec), Ports), 
+          foreach(PL, PortLines), foreach((PredString,PL), Preds0) 
+        do 
+            term_string(PredSpec, PredString)
+        ),
+        ( foreach(port(BL,_,_), Breaks), foreach(BL, BreakLines) do true),
+        sort(1, <, Preds0, Preds).
+        
 %----------------------------------------------------------------------
 % Initialise toplevel module
 %----------------------------------------------------------------------

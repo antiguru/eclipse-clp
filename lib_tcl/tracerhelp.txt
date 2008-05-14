@@ -159,12 +159,48 @@ is in the written form, but in the internal form elsewhere in the menu.
 Source Context tab
 ------------------
 
-This shows the source context for the execution. The source line for the
-current goal will be highlighted, and the functor for the current goal
-coloured in blue (for calls), green (for successes), or red (for
-failures). The window can also highlight the source for ancestor goals
-selected from the Call Stack (in blue). The name of the source file is
-shown at the top of the window. Only one file can be displayed at a time.
+This shows the source context for the execution. The main section shows the
+line number, status and the actual source for the selected source
+file. During tracing, the source file and the source line for the
+current goal will be selected and shown. The source line will be
+highlighted,  and the functor for the current goal coloured in blue (for 
+calls), green (for successes), or red (for failures). The window can also 
+highlight the source for ancestor goals selected from the Call Stack (in
+blue). 
+
+The status pane shows the port status for the selected source file: 
+'#' shows that a port exists in the corresponding source line. It is 
+coloured light gray if no breakpoint have been set on it, and red if a 
+breakpoint is set on it. A set breakpoint will cause the tracer to stop
+when execution reaches the goal on the source line. Note that if there
+is more than one goal on the source line, the breakpoint will only be set
+on one of the goal. 
+
+Only one source file can be displayed at a time, and the 'Source file:'
+combobox can be used to select the source file to display. Use the popdown
+list to select source file to display. Only source file compiled with
+source debug information will be available for selection. The Refresh 
+button is used to refresh/reload the source file. This can be used to
+update the breakpoint status information, if breakpoints were set without
+using the GUI. 
+
+Navigation within the source file are supported by the 'Find..' button and
+the `Show Predicate...' menu. The 'Find..' button opens a search tool
+window, which allows the searching of specific text in the selected source
+file. The 'Show Predicate...' shows a menu of the predicates with port
+information in the selected source file. Select a predicate in the menu to
+move the source display to show the selected predicate.
+
+Right-click on the source text window to popup a menu with the following 
+option:
+
+    - Set a breakppint near the line where the mouse button was clicked  
+    - Unset a breakppint near the line where the mouse button was clicked  
+    - Start an editor to edit the source file. The editor used is the 
+      editor specified in the Preference editor. If the facilitiy is 
+      available (as specified by the edit_line_option in the Preference
+      editor), the editor will start showing the line where the mouse
+      button was clicked. 
 
 Source will only be shown if the code is compiled with source support.
 

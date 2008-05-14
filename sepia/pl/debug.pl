@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.3 2008/04/28 18:28:09 jschimpf Exp $
+% Version:	$Id: debug.pl,v 1.4 2008/05/14 02:13:26 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -53,6 +53,12 @@
 	(nospy)/1,
 	debug_reset/0,
 	debugging/0.
+
+% for tracer_*
+:- export 
+        get_portlist_from_file/4,
+        find_matching_breakport/6,
+        current_files_with_port_lines/1.
 
 :- tool( debugging/0, debugging_body/1).
 :- tool( (spy)/1, spy_body/2).
@@ -165,9 +171,9 @@ set_spypoints(F/N, M) ?- !,
 	set_spypoints(M:F/N, M).
 set_spypoints(PM:F, M) ?- atom(F), !,
 	set_spypoints(PM:F/_, M).
-set_spypoints(F:L, M) ?- integer(L), atomic(F), !,
-        ( get_portlist_from_file(F, FullName, PortsList),
-          find_best_port(PortsList, L, FullName, none, DM, PortPred, PortLine),
+set_spypoints(F:L, M) ?- integer(L),  !,
+        ( check_atom_string(F) -> true ; error(5, spy(F:L), M) ),
+        ( find_matching_breakport(F, L, FullName, DM, PortPred, PortLine),
           get_flag(PortPred, break_lines, PInfo)@DM
 	->
             ( nonmember(FullName:PortLine, PInfo) -> 
@@ -240,9 +246,8 @@ nospy_body(F/N, M) ?- !,
 nospy_body(PM:F, M) ?- atom(F), !,
 	nospy_body(PM:F/_, M).
 nospy_body(F:L, _M) ?- integer(L), !,
-	check_atom_or_string(F),
-        ( get_portlist_from_file(F, File, PortsList),
-          find_best_port(PortsList, L, File, none, DM, PortPred, PortLine),
+        ( check_atom_string(F) -> true ; error(5, spy(F:L), M) ),
+        ( find_matching_breakport(F, L, FullName, DM, PortPred, PortLine),
           get_flag(PortPred, break_lines, PInfo)@DM,
           memberchk(File:PortLine, PInfo)
 	->
@@ -314,7 +319,9 @@ nospy_body(U, M):-
 set_leash(_Port, _Mode).
 get_leash(_Port, stop).
 
-
+%
+% breakpoint related
+%
 current_predicate_with_port(PortType, PredSpec, Module, PortInfo) :-
         current_module(Module),
         \+ is_locked(Module),
@@ -323,11 +330,18 @@ current_predicate_with_port(PortType, PredSpec, Module, PortInfo) :-
         get_flag(PredSpec, PortType, PortInfos)@Module,
 	member(PortInfo, PortInfos).
         
-ports_in_file(File, List) :-
+ports_in_file(File, PortType, List) :-
         findall(port(Line,M,P), (
-                current_predicate_with_port(port_lines, P, M, File:Line)
+                current_predicate_with_port(PortType, P, M, File:Line)
              ), List0),
         sort(1,<, List0, List).
+
+current_files_with_port_lines(Files) :-
+        findall(OSF, (
+                current_predicate_with_port(port_lines, _, _, F:_),
+                os_file_name(F, OSF)
+              ), Files0),
+        sort(0, <, Files0, Files).
 
 find_best_port([], Line, File, LastPort, DM, PortPred, PortLine) :-
         LastPort = port(PortLine,DM,PortPred).
@@ -358,14 +372,17 @@ find_best_port([Port0|PortList0], Line, File, LastPort, DM, PortPred, PortLine) 
            find_best_port(PortList0, Line, File, Port0, DM, PortPred, PortLine)
         ).
 
-get_portlist_from_file(F, File, PortsList) :-
+get_portlist_from_file(F, PortType, File, PortsList) :-
         concat_atom([F], File0),
         canonical_path_name(File0, File1),
         get_flag(prolog_suffix, Ss),
         once(existing_file(File1, Ss, [readable], File)), 
-        ports_in_file(File, PortsList).
+        ports_in_file(File, PortType, PortsList).
 
- 
+find_matching_breakport(File, Line, FullFile, DM, PortPred, PortLine) :-
+        get_portlist_from_file(File, port_lines, FullFile, PortsList),
+        find_best_port(PortsList, Line, FullFile, none, DM, PortPred, PortLine).
+
 %--------------------------------------------------------
 
 ?- untraceable

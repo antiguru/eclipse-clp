@@ -111,6 +111,16 @@ editor            string                 The command that will be invoked
                                          started with a xterm. On Window, 
                                          wordpad is started.
 
+edit_line_option  string                 The command line option to use with
+                                         the editor command which specifies 
+					 the line in the file the editor should 
+					 start at. For some common editors 
+					 where this option is known, it will
+					 be set depending on the editor
+                                         parameter. If the option needs a space 
+					 between the option and the line number,
+					 it should be included here.
+                                         
 inspect_prdepth   +ve integer            The initial print depth that the
                                          inspector will used. Default is 5.
 
