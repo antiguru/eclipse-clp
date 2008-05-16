@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.19 2008/04/24 18:40:46 jschimpf Exp $
+% Version:	$Id: compiler_top.ecl,v 1.20 2008/05/16 10:36:04 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/04/24 18:40:46 $").
+:- comment(date,	"$Date: 2008/05/16 10:36:04 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -179,11 +179,12 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 	    ; Options = options{output:eco_to_stream(Stream)} ->
                 pasm(WAM, Size, BTPos, Codes),
 		CodeArr =.. [[]|Codes],
-		( Module == sepia_kernel ->
+                get_pred_pos(SourcePos, File, Line, Offset),
+                ( Module == sepia_kernel ->
 		    % call locally, because :/2 may not be defined yet
-		    StorePred = store_pred(Pred,CodeArr,Size,BTPos,Flags)
+		    StorePred = store_pred(Pred,CodeArr,Size,BTPos,Flags,File,Line,Offset)
 		;
-		    StorePred = sepia_kernel:store_pred(Pred,CodeArr,Size,BTPos,Flags)
+		    StorePred = sepia_kernel:store_pred(Pred,CodeArr,Size,BTPos,Flags,File,Line,Offset)
 		),
 		printf(Stream, "%ODQKw.%n", [:-StorePred])@Module
 	    ; Options = options{output:none} ->
@@ -232,6 +233,9 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
     	set_flag(Pred, source_line, Line)@Module,
     	set_flag(Pred, source_offset, Offset)@Module.
 
+    get_pred_pos(none, 0, 0, 0).
+    get_pred_pos(source_position{file:File0,line:Line,offset:Offset}, File, Line, Offset) :-
+        concat_atom([File0], File).
 
     check_redefinition(ModulePred, PredsSeen, SourcePos) :-
 	ModulePred = Module:Pred,

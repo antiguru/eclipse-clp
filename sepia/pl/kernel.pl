@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.20 2008/04/28 18:28:09 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.21 2008/05/16 10:38:27 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -144,7 +144,7 @@
 :- global_flags(16'00000080,0,_).	% debug_compile (DBGCOMP) off
 
 :- tool_(tool/2, tool_/3, sepia_kernel).	% tool declarations
-:- tool(store_pred/5, store_pred/6).		% needed when loading kernel.eco
+:- tool(store_pred/8, store_pred/9).		% needed when loading kernel.eco
 :- tool((not)/1, fail_if_body/2),
    tool(setval/2, setval_body/3),
    tool(getval/2, getval_body/3),

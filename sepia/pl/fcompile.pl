@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fcompile.pl,v 1.4 2008/04/23 13:38:30 kish_shen Exp $
+% Version:	$Id: fcompile.pl,v 1.5 2008/05/16 10:38:26 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -351,7 +351,7 @@ gen_aux_for_module(M, FPreds0, PHash, Format, Verbose, NDefin0, NDefin, Out) :-
 
 % This is a hopefully temporary solution to the problem that flags which are
 % set via compiler directives would not be restored when loading .eco format.
-% We now remember them as an extra argument to store_pred/5
+% We now remember them as an extra argument to store_pred/9
 
 pred_flag(Pred, Flags, Module) :-
 	( get_flag(Pred, type, built_in)@Module ->
@@ -505,9 +505,9 @@ output_wam_for_pred(F,A,M, Out, PHash, Format, Verbose) :-
 	pred_flag(F/A, Flags, M),
 	WArr =.. [[]|WList],
 	( M == sepia_kernel ->
-	    output_term(Format, Out, (:- store_pred(F/A,WArr,Size,BTPos,Flags)), M)
+	    output_term(Format, Out, (:- store_pred(F/A,WArr,Size,BTPos,Flags,0,0,0)), M)
 	;
-	    output_term(Format, Out, (:- sepia_kernel:store_pred(F/A,WArr,Size,BTPos,Flags)), M)
+	    output_term(Format, Out, (:- sepia_kernel:store_pred(F/A,WArr,Size,BTPos,Flags,0,0,0)), M)
 	).
 
 

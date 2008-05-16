@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.12 2008/04/28 18:17:45 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.13 2008/05/16 10:37:09 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -130,7 +130,7 @@ static int
 #ifndef NOALS
     p_als(value val, type tag, value vm, type tm),
 #endif
-    p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vm, type tm),
+    p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vfid, type tfid, value vlid, type tlid, value vbid, type tbid, value vm, type tm),
     p_retrieve_code(value vproc, type tproc, value vcode, type tcode, value vm, type tm),
     p_decode_code(value vcode, type tcode, value v, type t),
     p_functor_did(value vspec, type tspec, value v, type t),
@@ -308,7 +308,7 @@ bip_db_init(int flags)
     (void) built_in(in_dict("vm_statistics", 1), p_vm_statistics, B_UNSAFE|U_SIMPLE);
 #endif
     (void) built_in(in_dict("load_eco", 3), p_load_eco, B_UNSAFE|U_SIMPLE);
-    (void) exported_built_in(in_dict("store_pred", 6), p_store_pred, B_UNSAFE);
+    (void) exported_built_in(in_dict("store_pred", 9), p_store_pred, B_UNSAFE);
     exported_built_in(in_dict("retrieve_code", 3), p_retrieve_code, B_UNSAFE)
 	-> mode = BoundArg(2, GROUND);
     (void) exported_built_in(in_dict("decode_code", 2), p_decode_code, B_UNSAFE);
@@ -2835,12 +2835,14 @@ _unlock_return_err_:
 #define Bip_Error(err)	return(err);
 
 /*
- * store_pred(+PredSpec, +CodeListOrArray, +Size, +BTablePos, +FlagBits, +Module)
+ * store_pred(+PredSpec, +CodeListOrArray, +Size, +BTablePos, +FlagBits, +File, +Line, +Offset, +Module)
  *
  * Create the predicate PredSpec with the VM-code specified in CodeList.
  * Size is the code size in units of vmcode. BTable is the offset to the start of the 
  * port/break table, which are addresses to the port words in the predicate for setting
- * breakpoints (=0 if no table)
+ * breakpoints (=0 if no table). File, Line and Offset gives source information:
+ * the source file path (atom), the first line for the predicate, and the offset in
+ * bytes to the predicate. These should all be set to 0 if there is no source info 
  */
 
 
@@ -2929,7 +2931,7 @@ _set_did_stability(
 #endif
 
 static int
-p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vm, type tm)
+p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vfid, type tfid, value vlid, type tlid, value vbid, type tbid, value vm, type tm)
 {
     dident		wdid;
     register pword	*codeptr, *pw1;
@@ -2957,7 +2959,15 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
     Get_Proc_Did(vproc, tproc, wdid);
     Check_Integer(tflags);
 
-    Allocate_Default_ProcedureBTable(vsize.nint, wdid, vbrktable.nint);
+    if (IsInteger(tfid)) {
+	/* fid set to 0 if there is no source information */
+	Allocate_Default_ProcedureBTable(vsize.nint, wdid, vbrktable.nint);
+    } else {
+	Check_Atom(tfid);
+	Check_Integer(tlid);
+	Check_Integer(tbid);
+	code = AllocateCodeBlockBTable(vsize.nint, vbrktable.nint, 0L, vbid.nint, vfid.did, vlid.nint, Cid(-1L, wdid));
+    }
 
     /*
      * Traverse the code list, convert the elements and store them away
