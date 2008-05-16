@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.7 2008/04/28 18:28:09 jschimpf Exp $
+% Version:	$Id: tracer_tty.pl,v 1.8 2008/05/16 18:04:46 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.7 2008/04/28 18:28:09 jschimpf Exp $
+% $Id: tracer_tty.pl,v 1.8 2008/05/16 18:04:46 kish_shen Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -732,7 +732,7 @@ inspect_subterm(0, inspect{top:Top,module:Module,type:Type,goalf:Tf}, Frame) ?- 
 inspect_subterm(Choice, inspect{top:Top,type:Type,path:Pos0,module:Module,written:Written0,goalf:Tf}, Frame) :-
 	Written0 = [CurrentTerm|_],
 	meta(CurrentTerm), Choice> 0, !,
-	(get_attribute(CurrentTerm,RawAttribute,Choice) ->
+	(block(get_attribute(CurrentTerm,RawAttribute,Choice), _, fail) ->
 	    meta_attributes(Atts),
 	    member([AttName|Choice], Atts),
 	    Pos1 = [AttName-Choice|Pos0],
@@ -740,7 +740,7 @@ inspect_subterm(Choice, inspect{top:Top,type:Type,path:Pos0,module:Module,writte
 	    Written = [Attribute|Written0]
 
 	;   printf(debug_output, "%nInvalid attribute.%n", []),
-	    Pos1 = Pos0, Written = Written0, Attribute = CurrentTerm
+	    Pos1 = Pos0, Written = Written0
         ),
 	Frame = inspect{top:Top,type:Type,module:Module,path:Pos1,written:Written,goalf:Tf},
 	print_trace_line(Frame).
@@ -759,7 +759,7 @@ inspect_subterm(N, inspect{top:Top,type:Type,path:Pos,module:Module,written:Writ
            Pos1 = [N|Pos], Written1 = [NewTerm|Written]  
          ; write(debug_output, 'Out of range.....'),
            nl(debug_output),
-           NewTerm = CurrentTerm, Pos1 = Pos, Written1 = Written
+           Pos1 = Pos, Written1 = Written
         ),
 	Frame = inspect{top:Top,module:Module,path:Pos1,
 	   written:Written1,type:Type,goalf:Tf},
