@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_top.ecl,v 1.20 2008/05/16 10:36:04 kish_shen Exp $
+% Version:	$Id: compiler_top.ecl,v 1.21 2008/05/16 17:45:45 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_top).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/05/16 10:36:04 $").
+:- comment(date,	"$Date: 2008/05/16 17:45:45 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -108,6 +108,17 @@ compiler_options_setup(File, OptionList, Options) :-
 	    ),
 	    open(EcoFile,write,Stream),
 	    update_struct(options, [output:eco_to_stream(Stream)], Options0, Options)
+	; Options0 = options{output:asm} ->
+	    concat_string([File], FileS),
+	    pathname(FileS, Dir, Base, _Suffix),
+	    ( concat_string([OutDir], "") -> 
+		concat_string([Dir,Base,'.asm'], AsmFile)
+	    ;
+		concat_string([OutDir,/,Base,'.asm'], AsmFile)
+	    ),
+	    open(AsmFile,write,Stream),
+            printf(Stream, ":- ensure_loaded(library(asm)).%n%n", []),
+	    update_struct(options, [output:asm_to_stream(Stream)], Options0, Options)
 	;
 	    Options = Options0
 	).
@@ -117,6 +128,8 @@ compiler_options_cleanup(Options) :-
     	( Options = options{output:print(Stream)} ->
 	    close(Stream)
     	; Options = options{output:eco_to_stream(Stream)} ->
+	    close(Stream)
+    	; Options = options{output:asm_to_stream(Stream)} ->
 	    close(Stream)
 	;
 	    true
@@ -187,7 +200,9 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 		    StorePred = sepia_kernel:store_pred(Pred,CodeArr,Size,BTPos,Flags,File,Line,Offset)
 		),
 		printf(Stream, "%ODQKw.%n", [:-StorePred])@Module
-	    ; Options = options{output:none} ->
+	    ; Options = options{output:asm_to_stream(Stream)} ->
+                pretty_print_asm(WAM, Stream, Pred, Flags, Module)
+            ; Options = options{output:none} ->
                 true
 	    ;
 		Options = options{output:Junk},
@@ -213,6 +228,20 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 	set_stream_property(Stream, output_options, [numbervars(NV)|Opt0]).
 
 
+    pretty_print_asm(WAM, Stream, Pred, Flags, Module) :-
+        printf(Stream, ":- asm:asm(%ODQKw, [%n", [Pred])@Module,
+        ( fromto(WAM, [Instr|Rest],Rest, []), param(Stream, Module) do
+            ( Instr = label(_) ->
+                printf(Stream, "%ODQKw", [Instr])@Module % no indent for labels
+            ;
+                printf(Stream, "	%ODQKw", [Instr])@Module
+            ),
+            (Rest \== [] -> writeln(Stream, ",") ; nl(Stream))
+        ),
+        printf(Stream, "], %ODQKw, %ODQKw).%n%n", [Flags, Module]).
+
+
+            
     pred_flags(options{debug:Debug,system:System,skip:Skip}, Flags) ?-
 	( Debug==on -> Flags0 = 16'00080000 ; Flags0 = 0 ),			%'% DEBUG_DB
 	( System==on -> Flags1 is Flags0 \/ 16'40000000 ; Flags1 = Flags0 ),	%'% SYSTEM
@@ -602,6 +631,8 @@ emit_directive_or_query(Dir, Options, Module) :-
 	    printf(Stream, "%w.%n", [Dir])
 	; Options = options{output:eco_to_stream(Stream)} ->
 	    printf(Stream, "%ODQKw.%n", [Dir])@Module
+	; Options = options{output:asm_to_stream(Stream)} ->
+	    printf(Stream, "%ODQKw.%n", [Dir])@Module
 	; Options = options{output:none} ->
 	    true
 	;
@@ -804,7 +835,7 @@ fcompile_(File, Options0, Module) :-
 :- export comp/0, list/0, load/0.
 
 comp :-
-	Options = [output:eco,load:new,verbose:0,opt_level:1,expand_goals:on],
+	Options = [output:asm,load:new,verbose:0,opt_level:1,expand_goals:on],
 	compile(compiler_common,	Options),
 	compile(compiler_normalise,	Options),
 	compile(compiler_analysis,	Options),

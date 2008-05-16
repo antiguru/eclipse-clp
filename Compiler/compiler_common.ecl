@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.13 2008/04/28 23:33:40 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.14 2008/05/16 17:45:45 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/28 23:33:40 $").
+:- comment(date, "$Date: 2008/05/16 17:45:45 $").
 
 
 %----------------------------------------------------------------------
@@ -48,6 +48,10 @@
     <DL>
     <DT>none</DT><DD>
 	no output (but code may be loaded, see load option),
+    </DD><DT>asm</DT><DD>
+	output compiled code in asm format to input file wth .asm suffix,
+        This format represents the code as WAM code that can be loaded back
+        into ECLiPSe using the assembler (lib(asm)).  
     </DD><DT>eco(File)</DT><DD>
 	output compiled code in eco format,
     </DD><DT>eco</DT><DD>
@@ -95,7 +99,7 @@
     structures for debugging purposes.
     "),
     fields:[
-	"output":"Output format and destination (none, print, eco, listing - default none)",
+	"output":"Output format and destination (none, print, eco, asm, listing - default none)",
 	"outdir":"directory in which to place output files (default \"\", same as input)",
 	"load":"load code into memory (none/new/all, default:all).",
 	"debug":"generate code with debug instructions (on/off, default:off).",
@@ -176,6 +180,8 @@ valid_option_value(output, none).
 valid_option_value(output, eco).
 valid_option_value(output, eco(_)).
 valid_option_value(output, eco_to_stream(_)).
+valid_option_value(output, asm).
+valid_option_value(output, asm_to_stream(_)).
 
 onoff(off).
 onoff(on).
