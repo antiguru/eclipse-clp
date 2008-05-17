@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.24 2008/04/30 17:06:01 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.25 2008/05/17 00:27:05 jschimpf Exp $
  */
 
 /*
@@ -4805,7 +4805,17 @@ _integer_range_switch_:
 
 	Case(Switch_on_typeL, I_Switch_on_typeL)
 	    Get_Local(pw1);
-	    goto _switch_on_type_;
+	    Dereference_Pw_Tag(pw1,tmp1)
+	    if (ISRef(tmp1)) {
+		if (IsTag(tmp1, TMETA)) {
+		    S = pw1->val.ptr;		/* so we can skip In_get_metaAM */
+		    PP = (PP + TPTR)->code;
+		} else
+		    PP += NTYPES;
+	    } else {
+		PP = (PP + TagTypeC(tmp1))->code;
+	    }
+	    Next_Pp;
 
 	Case(Switch_on_typeAM, I_Switch_on_typeAM)
 	    Get_Argument(pw1)
