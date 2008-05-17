@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.10 2008/04/18 10:32:57 jschimpf Exp $
+ * VERSION	$Id: names.h,v 1.11 2008/05/17 00:30:11 jschimpf Exp $
  */
 
 /*
@@ -471,6 +471,7 @@ char * inst_name[] = {
 "BI_Arity                  ",
 "Exits                     ",
 "CutAMN                    ",
+"Put_moduleAM              ",
 
 #if (NREGARG > 0)
 "MoveAR                    ",

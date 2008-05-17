@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.25 2008/05/17 00:27:05 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.26 2008/05/17 00:29:37 jschimpf Exp $
  */
 
 /*
@@ -3769,6 +3769,12 @@ _globalize_if_needed_:
 	    Get_Argument(pw1);
 	    pw1->val.did = PP++->did;
 	    pw1->tag.kernel = TDICT;
+	    Next_Pp;
+
+	Case(Put_moduleAM, I_Put_moduleAM)
+	    Get_Argument(pw1);
+	    Make_Marked_Module(pw1, PP->did);
+	    ++PP;
 	    Next_Pp;
 
 	Case(Put_stringAM, I_Put_stringAM)
