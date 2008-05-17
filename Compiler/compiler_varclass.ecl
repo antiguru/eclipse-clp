@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.9 2008/04/28 23:33:40 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.10 2008/05/17 00:00:40 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/28 23:33:40 $").
+:- comment(date, "$Date: 2008/05/17 00:00:40 $").
 
 :- comment(desc, html("
     This pass (consisting of several phases) does the following jobs:
@@ -75,10 +75,10 @@
 ")).
 
 
-:- lib(m_map).
 :- lib(hash).
 
 :- use_module(compiler_common).
+:- use_module(compiler_map).
 
 
 % struct(slot) describes one true, distinct variable. There may be more
@@ -159,7 +159,7 @@
 :- export classify_variables/3.
 classify_variables(Body, EnvSize, Options) :-
 	verify EnvSize == 0,	% not yet done
-	m_map:init(Lifetimes0),
+	compiler_map:init(Lifetimes0),
 	compute_lifetimes(Body, nohead, _PredHead, Lifetimes0, Lifetimes),
 	assign_env_slots(Lifetimes, MaxEnvSize, Options),
 	mark_env_activity(Body, MaxEnvSize),
@@ -244,15 +244,15 @@ compute_lifetimes(Goal, PredHead0, PredHead, Map0, Map) :-
  
 register_occurrence(CallPos, Occurrence, Map0, Map) :-
 	Occurrence = variable{source_info:Source,varid:VarId,class:Location},
-	( m_map:search(Map0, VarId, OldEntry) ->
+	( compiler_map:search(Map0, VarId, OldEntry) ->
 	    OldEntry = [OldSlot|Slots],
 	    OldSlot = slot{firstpos:FP0,class:Location},
 	    merge_slots(Slots, FP0, FP, Location),
 	    update_struct(slot, [firstpos:FP,lastpos:CallPos], OldSlot, NewSlot),
-	    m_map:det_update(Map0, VarId, [NewSlot], Map)
+	    compiler_map:det_update(Map0, VarId, [NewSlot], Map)
 	;
 	    % first occurrence
-	    m_map:det_insert(Map0, VarId, [slot{source_info:Source,firstpos:CallPos,
+	    compiler_map:det_insert(Map0, VarId, [slot{source_info:Source,firstpos:CallPos,
 	    	lastpos:CallPos, class:Location}], Map)
 	).
 
@@ -331,7 +331,7 @@ merge_branches(DisjPos, BranchMaps, MergedMap) :-
 	    foreach(Map,BranchMaps),
 	    fromto(Lists, [MapList|Lists1], Lists1, Tail)
 	do
-	    m_map:to_sorted_assoc_list(Map, MapList)
+	    compiler_map:to_sorted_assoc_list(Map, MapList)
 	),
 	merge_sorted_lists(Lists, Tail, MergedList),
 	concat_same_key_values_unstable(MergedList, GroupedList),
@@ -359,7 +359,7 @@ merge_branches(DisjPos, BranchMaps, MergedMap) :-
 		NewSlots = SortedNoDupSlots
 	    )
 	),
-	m_map:from_sorted_assoc_list(NewGroupedList, MergedMap).
+	compiler_map:from_sorted_assoc_list(NewGroupedList, MergedMap).
 
 
     slots_ending_ge(_Pos, [], []).
@@ -385,7 +385,7 @@ select_pseudo_arguments(VarIdTable, PredHead, PreDisjPos, Map0, Map, DisjArgs, D
 	do
 	    % a variable that only occurs in PreDisPos can have only one slot
 	    (
-		m_map:search(Map1, VarId, Slots),
+		compiler_map:search(Map1, VarId, Slots),
 		Slots = [slot{firstpos:PreDisjPos,lastpos:LP,class:Location,source_info:Source}]
 	    ->
 	    	verify PreDisjPos == LP,
@@ -397,7 +397,7 @@ select_pseudo_arguments(VarIdTable, PredHead, PreDisjPos, Map0, Map, DisjArgs, D
 		% and remove its entry from the Map.  That way, future
 		% occurrences will be considered first occurrences again.
 		Location = nonvoid(temp),
-		m_map:delete(Map1, VarId, Map2)
+		compiler_map:delete(Map1, VarId, Map2)
 	    ;
 		% Not useful as pseudo-argument: delete it from the candidate table
 		hash_delete(VarIdTable, VarId),
@@ -502,9 +502,9 @@ make_branch_head(I, HeadArgsArray, DisjArgs, HeadArgs) :-
 
 print_occurrences(Map) :-
 	writeln("------ Variable Lifetimes ------"),
-	m_map:count(Map, N),
+	compiler_map:count(Map, N),
 	( for(VarId,1,N), param(Map) do
-	    m_map:lookup(Map, VarId, Slots),
+	    compiler_map:lookup(Map, VarId, Slots),
 	    printf("Variable #%d:%n", [VarId]),
 	    ( foreach(Slot,Slots) do printf("  %w%n", [Slot]) ),
 	    nl
@@ -546,9 +546,14 @@ print_occurrences(Map) :-
 %----------------------------------------------------------------------
 
 assign_env_slots(Map, EnvSize, Options) :-
-	m_map:to_assoc_list(Map, MapList),
-	strip_keys(MapList, Slots),
-	flatten(Slots, FlatSlots),
+	compiler_map:to_assoc_list(Map, MapList),
+	% strip keys and flatten
+	(
+	    foreach(_-Slots,MapList) >> foreach(Slot,Slots),
+	    foreach(Slot,FlatSlots)
+	do
+	    true
+	),
 	classify_voids_and_temps(FlatSlots, PermSlots, Options),
 	% The sorting here is a bit subtle: we rely on the callpos
 	% partial order being compatible with the total term order.

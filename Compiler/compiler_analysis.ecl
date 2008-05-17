@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_analysis.ecl,v 1.3 2007/06/08 14:25:05 jschimpf Exp $
+% Version:	$Id: compiler_analysis.ecl,v 1.4 2008/05/17 00:00:40 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_analysis).
@@ -30,11 +30,10 @@
 :- comment(summary, "ECLiPSe III compiler - dataflow analysis").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/06/08 14:25:05 $").
-
-:- lib(m_map).
+:- comment(date, "$Date: 2008/05/17 00:00:40 $").
 
 :- use_module(compiler_common).
+:- use_module(compiler_map).
 
 
 %----------------------------------------------------------------------
@@ -68,7 +67,7 @@ binding_analysis(Body) :-
 	binding_analysis(Body, StartingState, _EndState).
 
     initial_state(state{determinism:det,bindings:Map0}) :-
-    	m_map:init(Map0).
+    	compiler_map:init(Map0).
 
 
 % binding_analysis(+Goals, +State, -State)
@@ -264,9 +263,9 @@ binding_effect(VarId, Constant, State0, State) :- !,
 		    [OldBinding, NewBinding]),
 		fail
 	    ),
-	    m_map:det_update(Map0, AliasVarId, Binding, Map1)
+	    compiler_map:det_update(Map0, AliasVarId, Binding, Map1)
 	;
-	    m_map:det_insert(Map0, VarId, NewBinding, Map1)
+	    compiler_map:det_insert(Map0, VarId, NewBinding, Map1)
 	).
 
 % lookup with dereferencing kown aliases
@@ -274,7 +273,7 @@ lookup_binding(Map, VarId, Binding) :-
     lookup_binding(Map, VarId, Binding, _AliasVarId).
 
 lookup_binding(Map, VarId, Binding, AliasVarId) :-
-    m_map:search(Map, VarId, Binding1), % may fail
+    compiler_map:search(Map, VarId, Binding1), % may fail
     ( Binding1 = alias(NextVarId) ->
 	lookup_binding(Map, NextVarId, Binding, AliasVarId)
     ;
@@ -303,16 +302,16 @@ alias_effect(VarId1, VarId2, State0, State) :-
 			[Binding1, Binding2]),
 		    fail
 		),
-		m_map:det_update(Map0, AliasVarId1, alias(AliasVarId2), Map1),
-		m_map:det_update(Map1, AliasVarId2, Binding12, Map)
+		compiler_map:det_update(Map0, AliasVarId1, alias(AliasVarId2), Map1),
+		compiler_map:det_update(Map1, AliasVarId2, Binding12, Map)
 	    ;
-		m_map:det_insert(Map0, VarId2, alias(AliasVarId1), Map)
+		compiler_map:det_insert(Map0, VarId2, alias(AliasVarId1), Map)
 	    )
 	; lookup_binding(Map0, VarId2, _Binding2, AliasVarId2) ->
-	    m_map:det_insert(Map0, VarId1, alias(AliasVarId2), Map)
+	    compiler_map:det_insert(Map0, VarId1, alias(AliasVarId2), Map)
 	;
-	    m_map:det_insert(Map0, VarId1, alias(VarId2), Map1),
-	    m_map:det_insert(Map1, VarId2, univ, Map)
+	    compiler_map:det_insert(Map0, VarId1, alias(VarId2), Map1),
+	    compiler_map:det_insert(Map1, VarId2, univ, Map)
 	).
 
 
@@ -426,7 +425,7 @@ merge_alternative_states(State, [], State).
 merge_alternative_states(State0, EndStates, State) :-
 	State0 = state{bindings:Map0},
 	EndStates = [state{bindings:FirstEndMap}|_],
-	m_map:keys(FirstEndMap, VarIds),
+	compiler_map:keys(FirstEndMap, VarIds),
 	(
 	    foreach(VarId, VarIds),
 	    fromto(State0, State1, State2, State),
@@ -456,14 +455,14 @@ merge_alternative_states(State0, EndStates, State) :-
 
     merge_end_bindings(InitialBinding, VarId, EndStates, EndBinding) :-
 	EndStates = [state{bindings:Map0}|MoreEndStates],
-	m_map:lookup(Map0, VarId, FirstEndBinding),	% cannot fail
+	compiler_map:lookup(Map0, VarId, FirstEndBinding),	% cannot fail
 	FirstEndBinding \= InitialBinding,		% may fail
 	(
 	    foreach(state{bindings:MapI}, MoreEndStates),
 	    fromto(FirstEndBinding,MergedBinding1,MergedBinding2,EndBinding),
 	    param(InitialBinding,VarId)
 	do
-	    m_map:search(MapI, VarId, EndBindingI),	% may fail
+	    compiler_map:search(MapI, VarId, EndBindingI),	% may fail
 	    domain_union(MergedBinding1, EndBindingI, MergedBinding2),
 	    MergedBinding2 \= InitialBinding		% may fail
 	).
@@ -481,14 +480,14 @@ print_goal_state(Stream, Indent0, state{determinism:Det,bindings:Map}) :-
     Indent is Indent0+1,
     indent(Stream, Indent),
     printf("DETERMINISM: %w%n", [Det]),
-    m_map:to_sorted_assoc_list(Map, Bindings),
+    compiler_map:to_sorted_assoc_list(Map, Bindings),
     ( Bindings = [_|_] ->
 	indent(Stream, Indent),
 	printf("BINDING INFO:%n", []),
 	( foreach(Binding,Bindings), param(Stream,Indent,Map) do
 	    indent(Stream, Indent),
 	    ( Binding = _ - alias(Alias) ->
-		m_map:lookup(Map, Alias, AliasBinding),
+		compiler_map:lookup(Map, Alias, AliasBinding),
 		writeln(Binding -> AliasBinding)
 	    ;
 		writeln(Binding)
