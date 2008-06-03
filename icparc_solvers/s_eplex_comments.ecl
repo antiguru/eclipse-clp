@@ -4047,6 +4047,122 @@ desc: html("
 ]).
 
 
+:- comment(eplex_verify_solution/2, [
+        summary: "Verifies the current solution for the problem associated with EplexInstance.",
+        template:"EplexInstance:eplex_verify_solution(-ViolatedCstrs,-ViolatedVars)",
+        args: ["ViolatedCstrs": "List of violated Constraints.", 
+               "ViolatedVars": "List of violated variables."
+              ],
+        amode: eplex_verify_solution(-,-),
+        desc: html(
+"<P>
+ This predicate checks the current solution for the problem associated with
+ EplexInstance. It verifies that all the constraints are satisfied by the
+ solution values for the problem variables, and that the solution values do
+ not violate their bounds, and the values are integral for integer variables.
+ Violated Constraints are returned in ViolatedCstrs, and violated variables in 
+ ViolatedVars.
+</P><P>
+ Under normal circumstances, if the external solver produces a solution, it 
+ should produce no violations. Any violations probably indicates a problem
+ with the external solver. However, because the external solver is a complex
+ piece of software and may contain problems, it is a good idea to verify the
+ solution, and this predicate provides an easy way to do this.
+</P><P>
+ Each violation is returned as a structure of the following form:
+ <PRE>  vio(type,delta,idx,item) </PRE>
+ where
+<DL>
+       <DT>type:   <DD>the type of violation:
+          <DL>
+              <DT>norm:   <DD>the violated item is a normal constraint.
+              <DT>condcp: <DD>the violated item is an active cutpool constraint.
+              <DT>int:    <DD>the violated item is an integer variable whose 
+                      solution value is not integral.                    
+              <DT>lower:  <DD>the violated item is a variable whose solution value
+                      is less than the lower bound.                     
+              <DT>upper:  <DD>the violated item is a variable whose solution value
+                      is greater than the upper bound.                     
+           </DL>
+        <DT>delta: <DD>the absolute value of the violation. 
+        <DT>idx:   <DD>the index used by the external solver for the item (most
+               likely the row/column number in the problem matrix). This 
+               is needed to locate the violation in the solver for reporting
+               or investigating the problem.
+         <DT>item:  <DD>the violated item, i.e. the constraint or variable.
+</DL><P>
+ For checking of constraints, a fresh copy of the constraint is made with
+ the solution values, as this avoids binding the original variables. Any active
+ cutpool constraints in the (logically) last solve of the problem are checked,
+ along with the normal constraints. A constraint is considered to be  violated
+ if the difference between the sum of the left-hand side and the right-hand side 
+ for the constraint is greater than the feasibility tolerance (feasibility_tol)
+ parameter for the instance. For variables, a bound is considered violated if
+ the solution value falls outside the bound by more than feasibility tolerance,
+ and integrarity is considered to be violated if the fractional part of the
+ soltuion is greater than the integrarity parameter for the instance. 
+"),
+ fail_if: "no solution values are available."
+]).
+
+:- comment(lp_verify_solution/3, [
+        summary: "Verifies the current solution for the problem associated with Handle.",
+        args: ["Handle": "Handle to a solver state",
+               "ViolatedCstrs": "List of violated Constraints.", 
+               "ViolatedVars": "List of violated variables."
+              ],
+        amode: lp_verify_solution(+.-,-),
+        desc: html(
+"<P>
+ This predicate checks the current solution for the problem associated with
+ Handle. It verifies that all the constraints are satisfied by the
+ solution values for the problem variables, and that the solution values do
+ not violate their bounds, and the values are integral for integer variables.
+ Violated Constraints are returned in ViolatedCstrs, and violated variables in 
+ ViolatedVars.
+</P><P>
+ Under normal circumstances, if the external solver produces a solution, it 
+ should produce no violations. Any violations probably indicates a problem
+ with the external solver. However, because the external solver is a complex
+ piece of software and may contain problems, it is a good idea to verify the
+ solution, and this predicate provides an easy way to do this.
+</P><P>
+ Each violation is returned as a structure of the following form:
+ <PRE>  vio(type,delta,idx,item) </PRE>
+ where
+<DL>
+       <DT>type:   <DD>the type of violation:
+          <DL>
+              <DT>norm:   <DD>the violated item is a normal constraint.
+              <DT>condcp: <DD>the violated item is an active cutpool constraint.
+              <DT>int:    <DD>the violated item is an integer variable whose 
+                      solution value is not integral.                    
+              <DT>lower:  <DD>the violated item is a variable whose solution value
+                      is less than the lower bound.                     
+              <DT>upper:  <DD>the violated item is a variable whose solution value
+                      is greater than the upper bound.                     
+           </DL>
+        <DT>delta: <DD>the absolute value of the violation. 
+        <DT>idx:   <DD>the index used by the external solver for the item (most
+               likely the row/column number in the problem matrix). This 
+               is needed to locate the violation in the solver for reporting
+               or investigating the problem.
+         <DT>item:  <DD>the violated item, i.e. the constraint or variable.
+</DL><P>
+ For checking of constraints, a fresh copy of the constraint is made with
+ the solution values, as this avoids binding the original variables. Any active
+ cutpool constraints in the (logically) last solve of the problem are checked,
+ along with the normal constraints. A constraint is considered to be  violated
+ if the difference between the sum of the left-hand side and the right-hand side 
+ for the constraint is greater than the feasibility tolerance (feasibility_tol)
+ parameter for the instance. For variables, a bound is considered violated if
+ the solution value falls outside the bound by more than feasibility tolerance,
+ and integrarity is considered to be violated if the fractional part of the
+ soltuion is greater than the integrarity parameter for the instance. 
+"),
+ fail_if: "no solution values are available."
+]).
+
 :- comment(piecewise_linear_hull/3, [
 template: "EplexInstance:piecewise_linear_hull(?X, ++Points, ?Y)",
 args:["X":"Parameter/domain of the piecewise function",

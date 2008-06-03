@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.4 2008/05/12 13:30:19 jschimpf Exp $
+% Version:	$Id: eplex_s.ecl,v 1.5 2008/06/03 17:36:21 kish_shen Exp $
 %
 %
 
@@ -121,6 +121,7 @@
 :- export lp_var_get_bounds/4.  % lp_var_get_bounds(+Handle, +Var, -Lo, -Hi)
 
 :- export lp_get_iis/5.		% lp_get_iis(+Handle, -NCstrs, -NCVars, -CCstrIdxs, -CVarStats)
+:- export lp_verify_solution/3. % lp_verify_solution(+Handle, -ViolatedCstrs, -ViolatedVars)
 
 :- tool(lp_demon_setup/6,lp_demon_setup_body/7).
 :- tool(lp_demon_setup/5,lp_demon_setup_body/6).
@@ -178,6 +179,7 @@
 :- export eplex_var_get_bounds/4.  % eplex_var_get_bounds/3.
 :- export eplex_add_constraints/3. % eplex_add_constraints/2
 :- export eplex_get_iis/5.	% eplex_get_iis/4
+:- export eplex_verify_solution/3. % eplex_verify_solution/2.
 
 :- local struct(constraint_type(integers,reals,linear)).
 :- local struct(bound_info(bound,code,var)).
@@ -1072,7 +1074,7 @@ lp_var_get(Handle, X, What, Val) :-
              error(6, lp_var_get(Handle, X, type, Type))
         ).
     lp_var_get1(Handle, X, reduced_cost, Val) :- !,
-	(lp_var_redcost(Handle, X, Val) ->
+ 	(lp_var_redcost(Handle, X, Val) ->
 	      true
 	;
 	      fail_if_valid_var_get(lp_var_get(Handle,X,reduced_cost,Val),
@@ -1112,7 +1114,6 @@ lp_var_get(X, What, Sol) :-
 % obsolete
 lp_var_solution(X, Val) :-
 	lp_var_get(X, solution, Val).
-
 
 
 /***
@@ -4142,7 +4143,84 @@ reduced_cost_pruning1(Handle, IpCost) :-
             )
         ).
 
+eplex_verify_solution(VCs, VVs, Pool) :-
+        get_pool_handle(Handle, Pool), !,
+        lp_verify_solution(Handle, VCs, VVs).
+eplex_verify_solution(VCs, VVs, Pool) :-
+        printf(error, "Eplex error: instance %w has no associated"
+                      " solver:%n", [Pool]),
+        error(5, eplex_verify(VCs, VVs, Pool)).
 
+
+lp_verify_solution(Handle, VCs, VVs) :-
+        Handle = prob{cplex_handle:CPH,vars:VList,sols:SolArr},
+        cplex_get_param(CPH, feasibility_tol, Tol),
+        cplex_get_param(CPH, integrality, IntTol),
+        cplex_get_prob_param(CPH, 0, Rows),
+        VArr =.. [''|VList], % need random access to variables
+        cplex_matrix_base(Base),
+        MaxRow is Rows - cplex_matrix_offset,
+        ( for(I,Base,MaxRow), param(VArr,CPH,Tol,Handle), 
+          fromto(VCs, VC0,VC1, VCT1)
+        do
+            construct_and_verify_one_constraint(I,VArr,CPH,norm,Tol,Handle,VC0,VC1)
+        ),
+        get_last_solved_rawidxs(Handle, CPIdxs, _, _),
+        ( foreach(I, CPIdxs), param(VArr,CPH,Tol,Handle), 
+          fromto(VCT1, VC0,VC1, [])
+        do
+            construct_and_verify_one_constraint(I,VArr,CPH,condcp,Tol,Handle,VC0,VC1)
+        ),
+        cplex_get_prob_param(CPH, 1, Cols),
+        ( foreacharg(V, VArr, I), param(CPH, Cols, Base, Tol, IntTol, SolArr), 
+          fromto([], VV0,VV1, VVs) 
+        do
+            VIdx is Cols - I + Base, %Vars are in reverse column order
+            cplex_get_col_bounds(CPH, VIdx, Lo, Hi),
+            get_darray_element(SolArr, VIdx, Val),
+            (Val >= Lo - Tol, Val =< Hi + Tol -> 
+                cplex_get_col_type(CPH, VIdx, TypeCode),
+                cplex_type_code(T, TypeCode),
+                (T == integer ->
+                    Diff is abs(round(Val) - Val),
+                    (Diff > IntTol -> VV1 = [vio(int,Diff,VIdx,V)|VV0] ; VV1 = VV0)
+                ;
+                    VV0 = VV1 
+                )
+            ; 
+                (Val < Lo - Tol -> VioBound = lower ; VioBound = upper),
+                (Val < Lo -> Diff is Lo - Val ; Diff is Val - Hi),
+                VV1 = [vio(VioBound,Diff,VIdx,V)|VV0])
+        ).
+
+   construct_and_verify_one_constraint(I, VArr, CPH, Type, Tol, Handle, VC0, VC1) :-
+        constraint_type_code(Type, TypeCode),
+        construct_one_constraint(CPH, TypeCode, I, VArr, C),
+        term_variables(C, CVs),
+        copy_term((C,CVs), (CCopy,CVsCopy), _), % omit attributes!
+        ( foreach(V, CVs), foreach(VCopy, CVsCopy),
+          param(Handle) do
+            lp_var_solution(Handle, V, VCopy)
+        ),
+        verify_one_constraint(CCopy, Tol, Diff),
+        (Diff == satisfied -> 
+            VC0 = VC1 
+        ; 
+            convert_rawidx_to_row_index(Type, Handle, I, RowIdx),
+            VC0 = [vio(Type,Diff,RowIdx,C)|VC1]
+        ).
+
+   verify_one_constraint(Sense:[Cst*1|Lhs], Tol, Diff) :-
+        Rhs is -Cst,
+        LhsSum is sum(Lhs),
+        Expr =.. [Sense,LhsSum,Rhs],
+        (call(Expr) ->
+            Diff = satisfied
+        ;
+            Diff0 is abs(LhsSum - Rhs),
+            (Diff0 > Tol -> Diff = Diff0 ; Diff = satisfied)
+            
+        ).    
 % ----------------------------------------------------------------------
 % Interface to the C procedures
 % ----------------------------------------------------------------------
@@ -4899,6 +4977,7 @@ create_eplex_pool(Pool) :-
             eplex_read/2 -> eplex_read/3,
             eplex_write/2 -> eplex_write/3,
             eplex_get_iis/4 -> eplex_get_iis/5,
+            eplex_verify_solution/2 -> eplex_verify_solution/3,
 	    eplex_cleanup/0 -> eplex_cleanup/1
 	]).
 
