@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.23 2008/05/09 17:21:31 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.24 2008/06/04 13:27:07 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/05/09 17:21:31 $").
+:- comment(date, "$Date: 2008/06/04 13:27:07 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -141,8 +141,7 @@ simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
                     true
                 )
             ),
-	    basic_blocks_to_flat_code(BasicBlockArray, Branches, RefedArray,
-                                      ContArray, CodeList1),
+	    basic_blocks_to_flat_code(BasicBlockArray, Branches, CodeList1),
             simplify_chunk(CodeList1, SimpCodeList)  % run simplify again on entire code list
 	;
 	    simplify_chunk(CodeList, SimpCodeList)
@@ -814,13 +813,13 @@ join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray, ContArray, 
 % The done-flag in the array indicates whether the chunk has already been
 % processed.
 
-basic_blocks_to_flat_code(BasicBlockArray, Reached, RefedArray, ContArray, Code) :-
+basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
 	(
 	    fromto(1,I,NextI,0),			% current chunk
 	    fromto(1,PrevCont,Cont,_),			% prev. chunk's continuation
 	    fromto(Reached,Reached1,Reached2,_),	% branches (queue)
 	    fromto(Code,Code0,Code2,[]),		% result list
-	    param(BasicBlockArray,ContArray,RefedArray)
+	    param(BasicBlockArray)
 	do
 	    arg(I, BasicBlockArray, Chunk),
 	    Chunk = chunk{code:ChunkCode,done:Done,cont:Cont0},
@@ -828,15 +827,7 @@ basic_blocks_to_flat_code(BasicBlockArray, Reached, RefedArray, ContArray, Code)
 		% process chunk: append code to final code list
 		Done = done,
 		Cont = Cont0,
-                ( arg(I, RefedArray, Refed), var(Refed), % chunk not ref'ed
-                  PrevCont = I, % is a continuation from previously chunk
-                  arg(I, ContArray, IsCont), IsCont \== r([])
-                 ->
-                    % no label needed if it is the only continuation
-                    Code0 = Code1  
-                ;
-                    Code0 = [code{instr:label(I)}|Code1]
-                ),
+                Code0 = [code{instr:label(I)}|Code1],
 		append(ChunkCode, Code2, Code1)
 	    ; PrevCont == I ->
 		% previous chunk continues into this one, but it has already

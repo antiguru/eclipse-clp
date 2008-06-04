@@ -11976,6 +11976,129 @@ label(L4):
 label(L5):
 	ret                  
 
+------ Test bug(12) -------
+i_np_head0(np_head(A), B - C, B - C, void).
+i_np_head0(name(A), B - A, B - A, id).
+i_np_head0(wh(A), A, A, id).
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 1.5
+    [] - []
+    [structure] - []
+    [structure, name / 1] - [2]
+    [structure, wh / 1] - [3]
+    [structure, np_head / 1] - [1]
+    [var] - [1, 2, 3]
+2. Quality 2.0
+    [] - [3]
+    [structure] - [3]
+    [structure, - / 2] - [1, 2, 3]
+    [var] - [1, 2, 3]
+3. Quality 2.0
+    [] - [3]
+    [structure] - [3]
+    [structure, - / 2] - [1, 2, 3]
+    [var] - [1, 2, 3]
+4. Quality 2.0
+    [] - []
+    [atom] - []
+    [atom, id] - [2, 3]
+    [atom, void] - [1]
+    [var] - [1, 2, 3]
+i_np_head0 / 4:
+label(L0):
+label(L1):
+	functor_switch           a(1) 
+		name / 1: 	ref(L17)
+		wh / 1: 	ref(L25)
+		np_head / 1: 	ref(L9)
+		default: 	ref(fail)
+
+label(L2):
+label(L3):
+	functor_switch           a(2) 
+		(-) / 2: 	ref(L4)
+		default: 	ref(L25)
+
+label(L4):
+label(L5):
+	functor_switch           a(3) 
+		(-) / 2: 	ref(L6)
+		default: 	ref(L25)
+
+label(L6):
+label(L7):
+	atom_switch              a(4) 
+		id: 	ref(L29)
+		void: 	ref(L9)
+		default: 	ref(fail)
+
+label(L8):
+	try_me_else              0     4     ref(L16) 
+label(L9):
+	get_structure            a(1)     np_head / 1     ref(L10) 
+	write_void           
+	branch                   ref(L11) 
+label(L10):
+label(L11):
+	get_structure            a(2)     (-) / 2     ref(L12) 
+	write_variable2          a(1)     a(2) 
+	branch                   ref(L13) 
+label(L12):
+	read_variable2           a(1)     a(2) 
+label(L13):
+	get_structure            a(3)     (-) / 2     ref(L14) 
+	write_local_value2       a(1)     a(2) 
+	branch                   ref(L15) 
+label(L14):
+	read_value               a(1) 
+	read_value               a(2) 
+label(L15):
+	get_atom                 a(4)     void 
+	branch                   ref(L28) 
+label(L16):
+	retry_me_else            0     ref(L24) 
+label(L17):
+	get_structure            a(1)     name / 1     ref(L18) 
+	write_variable           a(1) 
+	branch                   ref(L19) 
+label(L18):
+	read_variable            a(1) 
+label(L19):
+	get_structure            a(2)     (-) / 2     ref(L20) 
+	write_variable           a(2) 
+	write_local_value        a(1) 
+	branch                   ref(L21) 
+label(L20):
+	read_variable            a(2) 
+	read_value               a(1) 
+label(L21):
+	get_structure            a(3)     (-) / 2     ref(L22) 
+	write_local_value2       a(2)     a(1) 
+	branch                   ref(L23) 
+label(L22):
+	read_value               a(2) 
+	read_value               a(1) 
+label(L23):
+	get_atom                 a(4)     id 
+	branch                   ref(L28) 
+label(L24):
+	trust_me                 0 
+label(L25):
+	get_structure            a(1)     wh / 1     ref(L26) 
+	write_local_value        a(2) 
+	branch                   ref(L27) 
+label(L26):
+	read_value               a(2) 
+label(L27):
+	get_value                a(3)     a(2) 
+	get_atom                 a(4)     id 
+label(L28):
+	ret                  
+label(L29):
+	try                      0     4     ref(L17) 
+	trust                    0     ref(L25) 
+
 ------ Test at1 -------
 at1 :-
 	var(f(A)),

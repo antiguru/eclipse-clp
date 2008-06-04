@@ -226,6 +226,7 @@ label(1):
 		b: 	ref(8)
 		default: 	ref(fail)
 
+label(2):
 	try_me_else              0     2     ref(4) 
 label(3):
 	get_atom                 a(1)     a 
@@ -3000,6 +3001,7 @@ label(1):
 		2: 	ref(9)
 		default: 	ref(fail)
 
+label(3):
 	try_me_else              0     1     ref(5) 
 label(4):
 	get_integer              a(1)     1 
@@ -3051,6 +3053,7 @@ label(1):
 		2: 	ref(6)
 		default: 	ref(fail)
 
+label(3):
 	try_me_else              0     0     ref(5) 
 label(4):
 	move                     y(1)     a(1) 
@@ -3165,6 +3168,7 @@ label(1):
 		2: 	ref(11)
 		default: 	ref(8)
 
+label(3):
 	try_me_else              0     2     ref(5) 
 label(4):
 	get_atom                 a(2)     a 
@@ -3246,6 +3250,7 @@ label(2):
 		b: 	ref(10)
 		default: 	ref(8)
 
+label(3):
 	try_me_else              0     2     ref(5) 
 label(4):
 	get_atominteger          a(2)     a     a(1)     1 
@@ -3424,6 +3429,7 @@ INDEXES for (nondet) disjunction [2]
 p / 1:
 label(1):
 	list_switch              a(1)     ref(6)     ref(8)     ref(fail) 
+label(2):
 	try_me_else              0     1     ref(4) 
 label(3):
 	get_nil                  a(1) 
@@ -3584,6 +3590,7 @@ label(1):
 		f / 1: 	ref(15)
 		default: 	ref(12)
 
+label(3):
 	try_me_else              0     1     ref(7) 
 label(4):
 	get_structure            a(1)     f / 1     ref(5) 
@@ -4435,6 +4442,7 @@ label(1):
 		2: 	ref(8)
 		default: 	ref(fail)
 
+label(2):
 	try_me_else              0     1     ref(4) 
 label(3):
 	get_integer              a(1)     1 
@@ -5553,6 +5561,7 @@ label(1):
 		2: 	ref(11)
 		default: 	ref(fail)
 
+label(4):
 	bi_var                   a(1) 
 	cut                      a(2) 
 	jmp                      p1 / 0 
@@ -5598,6 +5607,7 @@ label(1):
 		2: 	ref(8)
 		default: 	ref(fail)
 
+label(4):
 	bi_var                   a(1) 
 	cut                      a(2) 
 	jmp                      p1 / 0 
@@ -5916,6 +5926,7 @@ label(1):
 		3: 	ref(8)
 		default: 	ref(fail)
 
+label(3):
 	try_me_else              0     2     ref(5) 
 label(4):
 	get_atom                 a(1)     a 
@@ -5961,6 +5972,7 @@ label(1):
 		a: 	ref(10)
 		default: 	ref(8)
 
+label(4):
 	bi_var                   a(1) 
 	cut                      a(4) 
 	get_value                a(2)     a(3) 
@@ -6098,6 +6110,7 @@ label(1):
 		2: 	ref(8)
 		default: 	ref(fail)
 
+label(2):
 	try_me_else              0     1     ref(4) 
 label(3):
 	get_integer              a(1)     1 
@@ -7362,6 +7375,7 @@ label(2):
 	read_test_var        
 	read_integer             1 
 	mode                     t(0) 
+label(3):
 	read_void            
 	read_last_structure      baz / 1     ref(fail) 
 	read_test_var        
@@ -7392,6 +7406,7 @@ label(2):
 	read_test_var        
 	read_nil             
 	mode                     t(0) 
+label(3):
 	read_test_var        
 	read_nil             
 	space                    -1 
@@ -7575,6 +7590,7 @@ label(2):
 	read_attribute           suspend 
 	read_variable            a(2) 
 	mode                     t(0) 
+label(3):
 	read_test_var        
 	read_atom                c 
 	space                    -1 
@@ -7596,6 +7612,7 @@ label(2):
 	read_attribute           suspend 
 	read_variable            a(2) 
 	mode                     t(0) 
+label(3):
 	read_test_var        
 	read_atom                c 
 	space                    -1 
@@ -7614,6 +7631,7 @@ label(2):
 	read_attribute           suspend 
 	read_variable            a(2) 
 	mode                     t(0) 
+label(3):
 	match_last_meta      
 	read_matched_value       a(1) 
 	read_attribute           suspend 
@@ -7633,6 +7651,7 @@ label(2):
 	read_test_var        
 	read_atom                baz 
 	mode                     t(0) 
+label(3):
 	read_test_var        
 	read_atom                a 
 	match_meta               t(0) 
@@ -7640,6 +7659,7 @@ label(2):
 	read_attribute           suspend 
 	read_variable            a(2) 
 	mode                     t(0) 
+label(4):
 	read_test_var        
 	read_atom                c 
 	space                    -1 
@@ -7657,10 +7677,12 @@ label(2):
 	read_variable            a(1) 
 	read_attribute           suspend 
 	read_variable            a(2) 
+label(3):
 	read_next_structure      bar / 1     t(0)     ref(fail) 
 	read_test_var        
 	read_atom                baz 
 	mode                     t(0) 
+label(4):
 	read_test_var        
 	read_atom                c 
 	space                    -1 
@@ -8972,6 +8994,7 @@ label(1):
 		b: 	ref(13)
 		default: 	ref(fail)
 
+label(3):
 	try_me_else              0     1     ref(5) 
 label(4):
 	get_atom                 a(1)     a 
@@ -9041,6 +9064,7 @@ label(1):
 		b: 	ref(13)
 		default: 	ref(fail)
 
+label(3):
 	try_me_else              0     1     ref(5) 
 label(4):
 	get_atom                 a(1)     a 
@@ -9110,6 +9134,7 @@ label(1):
 		b: 	ref(13)
 		default: 	ref(fail)
 
+label(3):
 	try_me_else              0     1     ref(5) 
 label(4):
 	get_atom                 a(1)     a 
@@ -10282,6 +10307,7 @@ label(11):
 	ret                  
 label(6):
 	read_variable2           a(4)     a(1) 
+label(7):
 	get_list                 a(3)     ref(8) 
 	write_local_value        a(4) 
 	write_variable           a(3) 
@@ -10880,6 +10906,7 @@ INDEXES for (nondet) disjunction [2]
 execute / 3:
 label(1):
 	list_switch              a(3)     ref(4)     ref(8)     ref(fail) 
+label(2):
 	try_me_else              0     3     ref(5) 
 label(3):
 	get_list                 a(3)     ref(4) 
@@ -11028,6 +11055,128 @@ label(6):
 	jmp                      do__N / 5 
 label(5):
 	ret                  
+
+------ Test bug(12) -------
+i_np_head0(np_head(A), B - C, B - C, void).
+i_np_head0(name(A), B - A, B - A, id).
+i_np_head0(wh(A), A, A, id).
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 1.5
+    [] - []
+    [structure] - []
+    [structure, name / 1] - [2]
+    [structure, wh / 1] - [3]
+    [structure, np_head / 1] - [1]
+    [var] - [1, 2, 3]
+2. Quality 2.0
+    [] - [3]
+    [structure] - [3]
+    [structure, - / 2] - [1, 2, 3]
+    [var] - [1, 2, 3]
+3. Quality 2.0
+    [] - [3]
+    [structure] - [3]
+    [structure, - / 2] - [1, 2, 3]
+    [var] - [1, 2, 3]
+4. Quality 2.0
+    [] - []
+    [atom] - []
+    [atom, id] - [2, 3]
+    [atom, void] - [1]
+    [var] - [1, 2, 3]
+i_np_head0 / 4:
+label(1):
+	functor_switch           a(1) 
+		name / 1: 	ref(15)
+		wh / 1: 	ref(23)
+		np_head / 1: 	ref(8)
+		default: 	ref(fail)
+
+	functor_switch           a(2) 
+		(-) / 2: 	ref(4)
+		default: 	ref(22)
+
+label(4):
+	functor_switch           a(3) 
+		(-) / 2: 	ref(5)
+		default: 	ref(22)
+
+	atom_switch              a(4) 
+		id: 	ref(26)
+		void: 	ref(7)
+		default: 	ref(fail)
+
+label(6):
+	try_me_else              0     4     ref(13) 
+label(7):
+	get_structure            a(1)     np_head / 1     ref(8) 
+	write_void           
+label(8):
+	get_structure            a(2)     (-) / 2     ref(9) 
+	write_variable2          a(1)     a(2) 
+label(10):
+	get_structure            a(3)     (-) / 2     ref(11) 
+	write_local_value2       a(1)     a(2) 
+	get_atom                 a(4)     void 
+	ret                  
+label(9):
+	read_variable2           a(1)     a(2) 
+	branch                   ref(10) 
+label(11):
+	read_value               a(1) 
+	read_value               a(2) 
+	get_atom                 a(4)     void 
+	ret                  
+label(13):
+	retry_me_else            0     ref(21) 
+label(14):
+	get_structure            a(1)     name / 1     ref(15) 
+	write_variable           a(1) 
+label(16):
+	get_structure            a(2)     (-) / 2     ref(17) 
+	write_variable           a(2) 
+	write_local_value        a(1) 
+label(18):
+	get_structure            a(3)     (-) / 2     ref(19) 
+	write_local_value2       a(2)     a(1) 
+	get_atom                 a(4)     id 
+	ret                  
+label(15):
+	read_variable            a(1) 
+	branch                   ref(16) 
+label(17):
+	read_variable            a(2) 
+	read_value               a(1) 
+	branch                   ref(18) 
+label(19):
+	read_value               a(2) 
+	read_value               a(1) 
+	get_atom                 a(4)     id 
+	ret                  
+label(21):
+	trust_me                 0 
+label(22):
+	get_structure            a(1)     wh / 1     ref(23) 
+	write_local_value        a(2) 
+	get_value                a(3)     a(2) 
+	get_atom                 a(4)     id 
+	ret                  
+label(23):
+	read_value               a(2) 
+	get_value                a(3)     a(2) 
+	get_atom                 a(4)     id 
+	ret                  
+label(26):
+	try                      0     4     ref(14) 
+	trust                    0     ref(22) 
+label(5):
+	atom_switch              a(4) 
+		id: 	ref(26)
+		void: 	ref(7)
+		default: 	ref(fail)
+
+	branch                   ref(6) 
 
 ------ Test at1 -------
 at1 :-

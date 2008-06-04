@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.12 2008/05/09 17:21:31 kish_shen Exp $
+% Version:	$Id: compiler_test.ecl,v 1.13 2008/06/04 13:27:11 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- use_module(compiler_top).
@@ -1351,7 +1351,11 @@ into
             true
         )
     )]).
-
+testclause(bug(12), [
+	(i_np_head0(np_head(_Noun), Type-X,Type-X,void)),
+	(i_np_head0(name(Name), Type-Name,Type-Name,id)),
+	(i_np_head0(wh(X),X,X,id))
+     ]).
 
 %----------------------------------------------------------------------
 % The following are tests from the old compiler test suite
