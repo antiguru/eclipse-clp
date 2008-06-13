@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ech.pl,v 1.2 2007/08/12 19:54:43 jschimpf Exp $
+% Version:	$Id: ech.pl,v 1.3 2008/06/13 00:48:22 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %  New CHR implementation
@@ -249,7 +249,7 @@ check_if_new_or_update(Module) :-
    ).
 
 
-:- set_event_handler(139, chrcompile/3).
+:- local initialization(set_event_handler(139, chrcompile/3)).
 
 /* transform(+Rules, +Constraints, +N, +Module)
    transforms the list of CHR in rules into Prolog code. Constraints is the 
