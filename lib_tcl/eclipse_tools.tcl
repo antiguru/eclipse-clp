@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.10 2008/05/14 02:17:27 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.11 2008/06/13 15:05:49 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -1331,7 +1331,7 @@ proc tkecl:popup_delaymenu {w invoc prio x y} {
 
     if {$invoc != 0} {
 	set rpc_result [ec_rpc_check [list : tracer_tcl \
-    		[list get_goal_info_by_invoc $invoc _ _ _ _ _ _]] (()(I______))]
+    		[list get_goal_info_by_invoc $invoc _ _ _ _ _ _ _]] (()(I_______))]
 	set greturn [lindex $rpc_result 2]
 	set spec [lindex  $greturn 2]
 	set tspec [lindex $greturn 3]
@@ -1581,7 +1581,7 @@ proc tkecl:popup_tracer {} {
 	    -normalbackground gray -borderwidth 0 -font tkecllabel
 	frame $ec_tracertab.trace
 	$ec_tracertab add "Trace Log" -window $ec_tracertab.trace
-	$ec_tracertab activate "Trace Log"
+#	$ec_tracertab activate "Trace Log"
 	label $ec_tracertab.trace.label -text "Trace Log"
 	text $ec_tracertab.trace.text -bg white -yscrollcommand "$ec_tracertab.trace.vscroll set" -wrap none -xscrollcommand "$ec_tracertab.trace.hscroll set"
 	$ec_tracertab.trace.text tag configure call_style -foreground blue
@@ -3332,7 +3332,10 @@ proc tkecl:setup_source_debug_window {} {
 
     bind $ec_source.context.status <Any-Key> "tkecl:readonly_keypress %A"
     bind $ec_source.context.status <ButtonRelease-2> {break}
+    bind $ec_source.context.status <Double-Button-1> "tkecl:toggle_breakpoint $ec_source.context.status; break"
 
+    menu $ec_source.context.text.popupmenu -tearoff 0
+    menu $ec_source.context.text.popupmenu.predmenu
     bind $ec_source.context.text <Any-Key> "tkecl:readonly_keypress %A"
     bind $ec_source.context.text <ButtonRelease-2> {break}
     bind $ec_source.context.text <Button-3> "tkecl:popup_sourcetext_menu $ec_source.context.text %X %Y; break"
@@ -3347,33 +3350,28 @@ proc tkecl:setup_source_debug_window {} {
     $ec_source.context.text tag configure debug_line -background beige -relief raised -borderwidth 1
     $ec_source.context.text configure -cursor left_ptr 
 
-    $ec_source.context.status tag configure on_style -foreground red 
-    $ec_source.context.status tag configure off_style -foreground lightgray
+    $ec_source.context.status tag configure on -foreground red 
+    $ec_source.context.status tag configure off -foreground lightgray
     $ec_source.context.status configure -cursor left_ptr 
     $ec_source.context.lineno configure -cursor left_ptr 
 
-    button $ec_source.control.load -text Refresh -state disabled -command {tkecl:load_source_debug_file "$tkecl(source_debug,file)"}
     combobox $ec_source.control.select -click single -bg white -listheight 16 -editable 0 \
         -postcommand [list tkecl:get_source_debug_filenames $ec_source.control.select] \
-	-textvariable tkecl(source_debug,file) -labeltext "Source file:" \
+	-textvariable tkecl(source_debug,file) -labeltext "File:" \
 	-command tkecl:load_source_debug_file
-    menubutton $ec_source.control.preds -text "Show Predicate..." -menu $ec_source.control.preds.menu
-    menu $ec_source.control.preds.menu
-    button $ec_source.control.find -text "Find..." -command "tkecl:show-find source_debug $ec_source.context.text .ec_tools.ec_tracer"
-    pack $ec_source.control.load -side left
+
     pack $ec_source.control.select -side left -fill x -expand 1
-    pack $ec_source.control.find -side left
-    pack $ec_source.control.preds -side right 
     pack $ec_source.control -side bottom -fill x -expand 1
 
+    .ec_tools.ec_tracer.tab activate "Source Context"
+
     balloonhelp $ec_source.label "Source context for execution traced by the tracer"
-    balloonhelp $ec_source.context.text "Display source file for debugging.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue.\nUse right mouse button to popup window to set/unset breakpoints and\nto start an editor to edit file, starting at the\nselected line if possible.\n"
-    balloonhelp $ec_source.context.status "Show port status for line in selected source file:zna light gray '#' indicates a port line (not active)\n a red '#' indicates an active breakpoint"
+    balloonhelp $ec_source.context.text "Display source file for debugging.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue.\nUse right mouse button to popup window to set/unset breakpoints,\nnavigate the file, via text search or jumoing to predicates, and\nto start an editor to edit file, starting at the\nselected line if possible.\n"
+
+    balloonhelp $ec_source.context.status "Show port status for line in selected source file:zna light gray '#' indicates a port line (not active)\n a red '#' indicates an active breakpoint\nDouble-click left mouse button to toggle the setting of a nearby breakpoint."
     balloonhelp $ec_source.context.lineno "Show line numbers for selected source line"
     balloonhelp $ec_source.control.select "Select from popup list the source file to display"
-    balloonhelp $ec_source.control.find "Click to open a window to search for text in selected source file"
-    balloonhelp $ec_source.control.preds "Hold down left button to popup a menu showing\n predicate defined in source file with ports.\nSelect a predicate to move source display window to show predicate"
-    balloonhelp $ec_source.control.load "Click to refresh (reload) selected source file"
+
     # tkwait visibility $ec_source  
 
 }
@@ -3405,43 +3403,61 @@ proc tkecl:vscroll-sync {windowlist y0 y1} {
 }
 
 
+proc tkecl:toggle_breakpoint {t} {
+    global tkecl
+
+    set line [tkecl:get_current_text_line $t]
+    tkecl:set_breakpoint toggle $tkecl(source_debug,file) $line
+
+}
+
 proc tkecl:popup_sourcetext_menu {t x y} {
     global tkecl
 
-    if [winfo exists $t.popup] {
-	destroy $t.popup
+    # return if no file loaded into source context window
+    if {[string compare $tkecl(source_debug,file) ""] == 0} return
+
+    set m $t.popupmenu 
+    if [winfo exists $m] {
+	$m delete 0 end
+    } else {
+	menu $m -tearoff 0
     }
 
-    set m [menu $t.popup -tearoff 0]
     set line [tkecl:get_current_text_line $t]
     $m add command -label "Set breakpoint near line $line" -command "tkecl:set_breakpoint on $tkecl(source_debug,file) $line" 
     $m add command -label "Unset breakpoint near line $line" -command "tkecl:set_breakpoint off $tkecl(source_debug,file) $line"
     $m add separator
+    $m add command -label "Find..." -command "tkecl:show-find source_debug .ec_tools.ec_tracer.tab.source.context.text .ec_tools.ec_tracer"
+#    menu $ec_source.control.preds.menu
+    $m add cascade -label "Display Predicate..." -menu $m.predmenu
+#    $m.preds add command -label "blah" -command
+    $m add separator
+    $m add command -label "Refresh this file" -command \
+	"tkecl:load_source_debug_file {$tkecl(source_debug,file)} [$t xview] [$t yview]"
     $m add command -label "Edit this file" -command "tkecl:edit_file $tkecl(source_debug,file)  $line" 
     tk_popup $m $x $y
 }
 
 proc tkecl:set_breakpoint {tostate file line} {
 
-    set result [ec_rpc [list : tracer_tcl [list set_source_breakpoint $tostate $file $line _]] {(()(()()I_))}]
+    set result [ec_rpc [list : tracer_tcl [list set_source_breakpoint $tostate $file $line _ _ _]] {(()(()()I___))}]
     switch $result {
 	fail {
 	    tk_messageBox -type ok -message "No breaklines found in file"
+
 	}
 	throw {
 	    # shouldn't happen!
 	    bell
 	}
 	default {
-	    set breakline [lindex [lindex $result 2] 3]
+	    set returned [lindex $result 2]
+	    set breakline [lindex $returned 4]
+	    set old_style [lindex $returned 5]
+	    set new_style [lindex $returned 6]
 	    set ec_breakstatus .ec_tools.ec_tracer.tab.source.context.status
-	    if {$tostate == "on"} {
-		set old_style off_style
-		set new_style on_style
-	    } else {
-		set old_style on_style
-		set new_style off_style
-	    }
+
 	    $ec_breakstatus tag remove $old_style $breakline.0 $breakline.end
 	    $ec_breakstatus tag add $new_style $breakline.0 $breakline.end
 
@@ -3563,7 +3579,8 @@ proc tkecl:get_current_text_line {t} {
     return $line
 }
 
-proc tkecl:load_source_debug_file {fpath} {
+
+proc tkecl:load_source_debug_file {fpath {xfrac 0} {xfracend 1} {yfrac 0}  {yfracend 0}} {
     global tkecl
 
     set ec_source .ec_tools.ec_tracer.tab.source
@@ -3580,6 +3597,8 @@ proc tkecl:load_source_debug_file {fpath} {
      }
 
     set tkecl(source_debug,file) $fpath
+    $ec_source.context.text xview moveto $xfrac 
+    $ec_source.context.text yview moveto $yfrac 
 
     set result [ec_rpc [list : tracer_tcl [list breakpoints_for_file $fpath _ _ _]] {(()(()___))}]
     switch $result {
@@ -3589,16 +3608,17 @@ proc tkecl:load_source_debug_file {fpath} {
 	}
 	default {
 	    set actives [lindex [lindex $result 2] 2]
+
 	    set ports [lindex [lindex $result 2] 3]
 	    set predslist [lindex [lindex $result 2] 4]
 	    foreach line $ports {
-		$ec_source.context.status insert $line.0 "#" off_style
+		$ec_source.context.status insert $line.0 "#" off
 	    }
 	    foreach line $actives {
-		$ec_source.context.status tag remove off_style $line.0 $line.end
-		$ec_source.context.status tag add on_style $line.0 $line.end
+		$ec_source.context.status tag remove off $line.0 $line.end
+		$ec_source.context.status tag add on $line.0 $line.end
 	    }
-	    set predmenu $ec_source.control.preds.menu
+	    set predmenu $ec_source.context.text.popupmenu.predmenu
 	    $predmenu delete 0 end
 	    set i 0
 	    foreach pred $predslist {
@@ -3613,7 +3633,7 @@ proc tkecl:load_source_debug_file {fpath} {
 	}
     }
 
-    $ec_source.control.load configure -state normal
+#    $ec_source.control.load configure -state normal
 }
 
 # the find code is adapted from tkdiff
@@ -3624,6 +3644,7 @@ proc tkecl:load_source_debug_file {fpath} {
 proc tkecl:show-find {name source top} {
     global tkecl
 
+    set ff $source.find.content.findFrame
     if {![winfo exists $source.find]} {
         toplevel $source.find
         wm group $source.find $top
@@ -3631,10 +3652,11 @@ proc tkecl:show-find {name source top} {
         wm title $source.find "$name Find"
 
         # we don't want the window to be deleted, just hidden from view
-        wm protocol $source.find WM_DELETE_WINDOW [list wm withdraw \
+# following lines seems to produce a collasped window - commented out
+#        wm protocol $source.find WM_DELETE_WINDOW [list wm withdraw \
           $source.find]
 
-        wm withdraw $source.find
+#        wm withdraw $source.find
         update idletasks
 
         frame $source.find.content -bd 2 -relief groove
@@ -3650,7 +3672,6 @@ proc tkecl:show-find {name source top} {
         pack $source.find.buttons.dismiss -side right -pady 5 -padx 0
         pack $source.find.buttons.doit -side right -pady 5 -padx 1
 
-        set ff $source.find.content.findFrame
         frame $ff -height 100 -bd 2 -relief flat
         pack $ff -side top -fill x -expand n -padx 0 -pady 5
 

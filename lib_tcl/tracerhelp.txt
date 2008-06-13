@@ -174,35 +174,41 @@ coloured light gray if no breakpoint have been set on it, and red if a
 breakpoint is set on it. A set breakpoint will cause the tracer to stop
 when execution reaches the goal on the source line. Note that if there
 is more than one goal on the source line, the breakpoint will only be set
-on one of the goal. 
+on one of the goal. Double clicking the left mouse button on a line in the
+status pane will toggle the breakpoint setting of a breakpoint near the
+line in the source file.
 
-Only one source file can be displayed at a time, and the 'Source file:'
-combobox can be used to select the source file to display. Use the popdown
-list to select source file to display. Only source file compiled with
-source debug information will be available for selection. The Refresh 
-button is used to refresh/reload the source file. This can be used to
-update the breakpoint status information, if breakpoints were set without
-using the GUI. 
+Only one source file can be displayed at a time, and during tracing, the
+source file being traced would be displayed by default. The user can select
+another source file to display using the 'File:' combobox at the top of the
+source display window. Use the popdown list to select source file to display,
+so that the user can add/remove break-point from the file. Only source file 
+compiled with source debug information will be available for selection. 
 
-Navigation within the source file are supported by the 'Find..' button and
-the `Show Predicate...' menu. The 'Find..' button opens a search tool
-window, which allows the searching of specific text in the selected source
-file. The 'Show Predicate...' shows a menu of the predicates with port
-information in the selected source file. Select a predicate in the menu to
-move the source display to show the selected predicate.
-
-Right-click on the source text window to popup a menu with the following 
-option:
+Right-click and hold the mouse button on the source text window to popup a menu 
+with the following  option:
 
     - Set a breakppint near the line where the mouse button was clicked  
     - Unset a breakppint near the line where the mouse button was clicked  
+    - Find a specific text in the source file and display the line with the text
+      in the source text window
+    - select a predicate from the source file to display in the source text window.
+      Only predicates with ports will be shown in the selection, and the list
+      can be "torn off" (by selecting the dotted line at the top of the list)
+      to be displayed as a separate window
+    - refresh/reload the source file. This can be used to update the breakpoint
+      status information, which may need updating if the user set/unset 
+      breakpoints without using the GUI. 
     - Start an editor to edit the source file. The editor used is the 
       editor specified in the Preference editor. If the facilitiy is 
       available (as specified by the edit_line_option in the Preference
       editor), the editor will start showing the line where the mouse
       button was clicked. 
 
-Source will only be shown if the code is compiled with source support.
+Source will only be shown if the code was compiled with source support. The
+full path name is used to find the source file, so it should be in the same
+place as when the file was compiled. Currently there is no checking to see
+if the source file is more recent than the compiled code. 
 
 Trace Log tab
 -------------

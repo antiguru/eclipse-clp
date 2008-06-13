@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.16 2008/05/14 02:13:26 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.17 2008/06/13 15:04:39 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -117,7 +117,7 @@
         set_usepred_info/5,
         reenable_usepred/0,
         set_tracer_command/1,
-	set_source_breakpoint/4,
+	set_source_breakpoint/6,
 	read_file_for_gui/1,
         breakpoints_for_file/4,
         is_current_goal/2,
@@ -1901,20 +1901,24 @@ read_file_for_gui(OSFile) :-
             fail
         ).
 
-set_source_breakpoint(ToState, OSFile, Line, PortLine) :-
+set_source_breakpoint(ChangeToType, OSFile, Line, PortLine, From, To) :-
         os_file_name(File, OSFile),
         find_matching_breakport(File, Line, FullName, DM, PortPred, PortLine),
         get_flag(PortPred, break_lines, PInfo)@DM,
-        ( portline_state_is_different(ToState, FullName:PortLine, PInfo) ->
+        portline_state(FullName:PortLine, PInfo, From), 
+        ( portline_state_should_toggle(ChangeToType, From) ->
+            (From == on -> To = off ; To = on),
             set_proc_flags(PortPred, break, PortLine, DM)
         ;
-            true
+            From = To
         ).
 
-    portline_state_is_different(on, PortSpec, PInfo) :-
-        nonmember(PortSpec, PInfo).
-    portline_state_is_different(off, PortSpec, PInfo) :-
-        memberchk(PortSpec, PInfo).
+    portline_state(PortSpec, PInfo, From) :-
+        (memberchk(PortSpec, PInfo) -> From = on ; From = off).
+
+    portline_state_should_toggle(toggle, _).
+    portline_state_should_toggle(off, on).
+    portline_state_should_toggle(on, off).
 
 breakpoints_for_file(OSFile, BreakLines, PortLines, Preds) :-
         os_file_name(File, OSFile),
