@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.16 2008/04/28 23:33:40 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.17 2008/06/13 00:38:55 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/28 23:33:40 $").
+:- comment(date, "$Date: 2008/06/13 00:38:55 $").
 
 
 :- lib(hash).
@@ -89,7 +89,7 @@ variable_occurrence(variable{varid:VarId,class:Class}, ChunkData0, ChunkData, Co
 
     variable_occurrence1(void, _EAM, _VarId, _OccurredInChunk, Descriptor) ?-
     	Descriptor = void.
-    variable_occurrence1(nonvoid(y(Y)), EAM, VarId, OccurredInChunk, Descriptor) ?-
+    variable_occurrence1(nonvoid(y(Y)), EAM, VarId, OccurredInChunk, Descriptor) ?- !,
 	( hash_get(OccurredInChunk, VarId, Type) ->
 	    ( Type == delayed_perm ->
 		Descriptor = tmp
@@ -178,7 +178,8 @@ generate_chunk([], [], HeadPerms, ChunkData0, ChunkData, AuxCode, AuxCode, Code,
 
 generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCode, AuxCode0, Code, Code0, Options, SelfInfo) :-
 	( Goal = goal{kind:simple} ->		 % special goals
-	    generate_simple_goal(Goal, ChunkData0, ChunkData1, Code, Code1),
+	    SelfInfo = Module:_@_,
+	    generate_simple_goal(Goal, ChunkData0, ChunkData1, Code, Code1, Module),
 	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, ChunkData, AuxCode, AuxCode0, Code1, Code0, Options, SelfInfo)
 
 	; Goal = goal{kind:head,args:Args} ->	% clause-head or pseudo-head
@@ -197,8 +198,8 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 
 	; Goal = goal{kind:regular,functor:P,args:Args,lookup_module:LM,envmap:EAM,envsize:ESize} ->
 	    move_head_perms(HeadPerms0, ChunkData0, ChunkData1, Code, Code1),
-	    generate_regular_puts(Args, ChunkData1, ChunkData2, Code1, Code2, OutArgs),
 	    SelfInfo = Module:Self@SelfLab,
+	    generate_regular_puts(Args, ChunkData1, ChunkData2, Code1, Code2, OutArgs, Module),
 	    ( LM\==Module ->
 	    	Pred = LM:P, Dest = Pred	% calling non-visible
 	    ; P==Self ->
@@ -227,7 +228,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 
 	    % Pre-disjunction: move pseudo-arguments into place and make switches
 	    move_head_perms(HeadPerms0, ChunkData0, ChunkData00, Code, Code101),
-	    generate_regular_puts(Args, ChunkData00, ChunkData1, Code101, Code102, ArgDests),
+	    generate_regular_puts(Args, ChunkData00, ChunkData1, Code101, Code102, ArgDests, []),
 	    Code102 = [code{instr:nop,regs:ArgDests}|Code103],
 	    generate_indexing(IndexDescs, BranchLabelArray, BranchEamArray, TryArity, ChunkData1, Code103, next(Code104), AuxCode, AuxCode1, Options),
 	    alloc_check_split(ChunkData1, [GAlloc1|GAllocs2toN]),
@@ -379,11 +380,7 @@ generate_head_info(HeadArgsArray, BranchI, ChunkData0, ChunkData3, HeadPerms3, H
 % Optionally generate a call-port debug instruction
 emit_debug_call_port(options{debug:off}, _Pred, OutArgs, OutArgs, _Goal, Code, Code) :- !.
 emit_debug_call_port(options{debug:on}, Pred, OutArgs, [], goal{path:Path,line:Line,from:From,to:To}, Code, Code0) :-
-	(var(Path) -> Path1 = ''; concat_atom([Path],Path1)),
-	(var(Line) -> Line = 0 ; true),
-	(var(From) -> From = 0 ; true),
-	(var(To) -> To = 0 ; true),
-	Code = [code{instr:debug_scall(Pred,#call_port,Path1,Line,From,To),regs:OutArgs}|Code0].
+	Code = [code{instr:debug_scall(Pred,#call_port,Path,Line,From,To),regs:OutArgs}|Code0].
 
 
 %----------------------------------------------------------------------
@@ -866,7 +863,7 @@ emit_initialize(EAM, Code, Code0) :-
 % arguments with lots of temporaries should be put first.
 %----------------------------------------------------------------------
 
-generate_regular_puts(Args, ChunkData0, ChunkData, Code0, Code, CallRegDescs) :-
+generate_regular_puts(Args, ChunkData0, ChunkData, Code0, Code, CallRegDescs, Module) :-
 
 	% determine an order (this should be an option)
 	heuristic_put_order(Args, ChunkData0, Ordered),
@@ -876,9 +873,10 @@ generate_regular_puts(Args, ChunkData0, ChunkData, Code0, Code, CallRegDescs) :-
 	    foreach(put(_,I,Arg), Ordered),
 	    foreach(r(ArgId,a(I),dest,_), CallRegDescs),
 	    fromto(ChunkData0, ChunkData1, ChunkData2, ChunkData),
-	    fromto(Code0, Code1, Code2, Code)
+	    fromto(Code0, Code1, Code2, Code),
+	    param(Module)
 	do
-	    put_term(Arg, ChunkData1, ChunkData2, Code1, Code2, ArgId)
+	    put_term(Arg, ChunkData1, ChunkData2, Code1, Code2, ArgId, Module)
 	).
 
 
@@ -1033,20 +1031,20 @@ generate_regular_puts(goal{args:Args,functor:F/N},
 %	instr Ai ... Ak
 %----------------------------------------------------------------------
 
-generate_simple_goal(goal{functor: (=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code) ?-
-	generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code), % may fail
+generate_simple_goal(goal{functor: (=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, Module) ?-
+	generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code, Module), % may fail
 	!.
 
-generate_simple_goal(goal{functor: (==)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code) ?-
+generate_simple_goal(goal{functor: (==)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, _Module) ?-
 	generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code), % may fail
 	!.
 
-generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code) :-
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, _Module) :-
 	Goal = goal{functor: (?=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel},
 	!,
 	generate_in_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code).
 
-generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code) ?- !,
+generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, _Module) ?- !,
 	Arg = variable{varid:VarId},
 	variable_occurrence(Arg, ChunkData0, ChunkData, Code0, Code1, VarOccDesc),
 	( VarOccDesc = void ->
@@ -1059,7 +1057,7 @@ generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia
 	    verify false	% require a first occurrence!
 	).
 
-generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_kernel,envsize:ESize}, ChunkData0, ChunkData, Code0, Code) ?- !,
+generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_kernel,envsize:ESize}, ChunkData0, ChunkData, Code0, Code, _Module) ?- !,
 	Arg = variable{varid:VarId},
 	variable_occurrence(Arg, ChunkData0, ChunkData1, Code0, Code1, VarOccDesc),
 	ChunkData1 = chunk_data{allocated:ExistingESize},
@@ -1109,21 +1107,21 @@ generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_
 	    )
 	).
 
-generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code) ?-
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Module) ?-
 	Goal = goal{functor: (-)/3, args:[A1,A2in,A3], definition_module:sepia_kernel},
 	integer(A2in), A2 is -A2in, smallint(A2),
 	!,
 	update_struct(goal, [functor:(+)/3,args:[A1,A2,A3]], Goal, Goal1),
-	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code).
+	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code, Module).
 
-generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code) ?-
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Module) ?-
 	Goal = goal{functor: (+)/3, args:[A1,A2,A3], definition_module:sepia_kernel},
 	smallint(A1), \+smallint(A2),
 	!,
 	update_struct(goal, [args:[A2,A1,A3]], Goal, Goal1),
-	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code).
+	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code, Module).
 
-generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code) ?-
+generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, Module) ?-
 	inlined_builtin(Name, Arity, GlobalAlloc, InstrTemplate),	% nondet
 	functor(InstrTemplate, InstrName, N),
 	functor(Instr, InstrName, N),
@@ -1135,26 +1133,23 @@ generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia
 	    fromto(RegDescs,RegDescs1,RegDescs2,RegDescs3),
 	    fromto(ChunkData0, ChunkData1, ChunkData2, ChunkData3),
 	    fromto(Code0, Code1, Code2, Code3),
-	    fromto(0,ArgDesc1,ArgDesc2,ArgDesc3),
-	    param(Instr,InstrTemplate)
+	    fromto(0,ArgDesc1,ArgDesc2,ArgDesc),
+	    param(Instr,InstrTemplate,Module)
 	do
 	    arg(I, Instr, Reg),
 	    arg(I, InstrTemplate, Expect),
+	    add_arg_desc(I, Expect, ArgDesc1, ArgDesc2),
 	    ( Expect == int ->
 	    	smallint(Arg),			% may fail
-		ArgDesc2 is (ArgDesc1<<2) + 2,
 		Reg=Arg, RegDescs1=RegDescs2, ChunkData1=ChunkData2, Code1=Code2
 	    ; Expect == mod ->
 	    	atom(Arg),			% may fail
-		ArgDesc2 is (ArgDesc1<<2) + 3,
 		Reg=Arg, RegDescs1=RegDescs2, ChunkData1=ChunkData2, Code1=Code2
 	    ; Expect == arg ->
-		ArgDesc2 is (ArgDesc1<<2),
 		RegDescs1 = [r(ValId,Reg,use_a,_)|RegDescs2],
-		put_term(Arg, ChunkData1, ChunkData2, Code1, Code2, ValId)
+		put_term(Arg, ChunkData1, ChunkData2, Code1, Code2, ValId, Module)
 	    ;
 		% ignore here - treat in second pass
-		ArgDesc2 is (ArgDesc1<<2),
 		RegDescs1=RegDescs2, ChunkData1=ChunkData2, Code1=Code2
 	
 	    )
@@ -1169,30 +1164,26 @@ generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia
 	    fromto(RegDescs3,RegDescs4,RegDescs5,[]),
 	    fromto(ChunkData4, ChunkData5, ChunkData7, ChunkData),
 	    fromto(Code5, Code6, Code8, Code),
-	    fromto(0,ArgDesc1,ArgDesc2,ArgDesc4),
 	    param(Instr,InstrTemplate)
 	do
 	    arg(I, Instr, Reg),
 	    arg(I, InstrTemplate, Expect),
 	    ( Expect == uarg ->
-		ArgDesc2 is (ArgDesc1<<2) + 1,
 		RegDescs4 = [RegDesc|RegDescs5],
 		unify_result(Arg, Reg, RegDesc, ChunkData5, ChunkData6, Code6, Code7, GlobalAlloc2),
 		alloc_check_after(GlobalAlloc2, ChunkData6, ChunkData7, Code7, Code8)
 	    ;
 		% these were treated in the first pass
-		ArgDesc2 is (ArgDesc1<<2),
 		RegDescs4=RegDescs5, ChunkData5=ChunkData7, Code6=Code8
 	    )
 	),
-	( N>0, arg(N, InstrTemplate, argdesc) ->
-	    ArgDesc is ArgDesc3 \/ ArgDesc4,
+	( N>0, arg(N, InstrTemplate, desc) ->
 	    arg(N, Instr, ArgDesc)
 	;
 	    true
 	).
 
-generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, Code) ?-
+generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, Code, Module) ?-
 	P = _/Arity,
 	dim(RegArr, [Arity]),
 	dim(RegDescs, [Arity]),
@@ -1201,11 +1192,11 @@ generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, 
 	    foreach(put(_,I,Arg),OrderedPuts),
 	    fromto(ChunkData0, ChunkData2, ChunkData3, ChunkData4),
 	    fromto(Code0, Code1, Code2, Code3),
-	    param(RegArr,RegDescArr)
+	    param(RegArr,RegDescArr,Module)
 	do
 	    arg(I, RegArr, Reg),
 	    arg(I, RegDescArr, r(ValId,Reg,use_a,_)),
-	    put_term(Arg, ChunkData2, ChunkData3, Code1, Code2, ValId)
+	    put_term(Arg, ChunkData2, ChunkData3, Code1, Code2, ValId, Module)
 	),
 	RegArr =.. [_|Regs],
 	RegDescArr =.. [_|RegDescs],
@@ -1234,6 +1225,7 @@ generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, 
 % they must be listed before the general template (see e.g. +/3).
 %
 inlined_builtin(fail,		0,	0,		failure).
+inlined_builtin(false,		0,	0,		failure).
 inlined_builtin(free,		1,	0,		bi_free(arg)).
 inlined_builtin(is_suspension,	1,	0,		bi_is_suspension(arg)).
 inlined_builtin(is_event,	1,	0,		bi_is_event(arg)).
@@ -1259,8 +1251,8 @@ inlined_builtin(\==,		2,	0,		bi_not_identical(arg,arg)).
 inlined_builtin(set_bip_error,	1,	0,		bi_set_bip_error(arg)).
 inlined_builtin(cont_debug,	0,	0,		bi_cont_debug).
 inlined_builtin(sys_return,	1,	0,		bi_exit(arg)).
-inlined_builtin(\==,		3,	unbounded,	bi_not_ident_list(arg,arg,arg,desc)).
-inlined_builtin(~=,		2,	unbounded,	bi_inequality(arg,arg,desc)).
+inlined_builtin(\==,		3,	unbounded,	bi_not_ident_list(arg,arg,arg)).
+inlined_builtin(~=,		2,	unbounded,	bi_inequality(arg,arg)).
 inlined_builtin(make_suspension, 4,	unbounded,	bi_make_suspension(arg,arg,arg,arg,desc)).
 inlined_builtin(=:=,		3,	unbounded,	bi_eq(arg,arg,mod,desc)).
 inlined_builtin(=:=,		3,	unbounded,	bi_eq(arg,arg,arg,desc)).
@@ -1294,13 +1286,18 @@ inlined_builtin(arg,		3,	unbounded,	bi_arg(arg,arg,uarg,desc)).
 inlined_builtin(arity,		2,	unbounded,	bi_arity(arg,uarg,desc)).
 inlined_builtin(get_bip_error,	1,	0,		bi_get_bip_error(uarg)).
 
+% Encode argument descriptors in bitmask, 2 bits per argument
+add_arg_desc(_,  arg, Desc, Desc).
+add_arg_desc(I, uarg, Desc0, Desc) :- Desc is Desc0 + 1 << (2*(I-1)).
+add_arg_desc(I,  int, Desc0, Desc) :- Desc is Desc0 + 2 << (2*(I-1)).
+add_arg_desc(I,  mod, Desc0, Desc) :- Desc is Desc0 + 3 << (2*(I-1)).
 
 
 % The special case of =/2 goal
 % Due to normalisation, all should be in the form Var=Term!
 % Fail if no special treatment possible (shouldn't happen)
 
-generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
+generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code, _Module) :-
 	Arg1 = variable{varid:VarId1},
 	Arg2 = variable{varid:VarId2},
 	!,
@@ -1312,16 +1309,16 @@ generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
 	    unify_variables(VarOccDesc1, VarId1, VarOccDesc2, VarId2, Code2, Code3, GAlloc),
 	    alloc_check_after(GAlloc, ChunkData2, ChunkData, Code3, Code)
 	).
-generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
+generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code, Module) :-
 	Arg1 = variable{varid:VarId},
 	!,
 	variable_occurrence(Arg1, ChunkData0, ChunkData1, Code0, Code1, VarOccDesc),
-	bind_variable(VarOccDesc, VarId, Arg2, ChunkData1, ChunkData, Code1, Code).
-generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
+	bind_variable(VarOccDesc, VarId, Arg2, ChunkData1, ChunkData, Code1, Code, Module).
+generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code, Module) :-
 	Arg2 = variable{},
 	!,
-	generate_unify(Arg2, Arg1, ChunkData0, ChunkData, Code0, Code).
-generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
+	generate_unify(Arg2, Arg1, ChunkData0, ChunkData, Code0, Code, Module).
+generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code, _Module) :-
 	atomic(Arg1), atomic(Arg2), !,
 	ChunkData0 = ChunkData,
 	( Arg1 = Arg2 ->
@@ -1329,7 +1326,7 @@ generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
 	;
 	    Code0 = [code{instr:failure,regs:[]}|Code]
 	).
-generate_unify(_Arg1, _Arg2, _ChunkData0, _ChunkData, _Code0, _Code) :-
+generate_unify(_Arg1, _Arg2, _ChunkData0, _ChunkData, _Code0, _Code, _Module) :-
 	writeln(warning_output,
 	    "WARNING: nonvar = nonvar unification should be unwrapped by preprocessing"),
 	fail.
@@ -1337,21 +1334,21 @@ generate_unify(_Arg1, _Arg2, _ChunkData0, _ChunkData, _Code0, _Code) :-
 %
 % Generate code for the unification of a variable and a nonvariable.
 %
-% bind_variable(VarOccDesc, VarId, Term, ChunkData0, ChunkData, Code, Code0)
+% bind_variable(VarOccDesc, VarId, Term, ChunkData0, ChunkData, Code, Code0, Module)
 %
 
-bind_variable(void, _VarId, _Term, ChunkData, ChunkData, Code, Code).
-bind_variable(tmp_first, VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
-	body(VarId, Term, ChunkData0, ChunkData, Code, Code0).
-bind_variable(tmp, VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
+bind_variable(void, _VarId, _Term, ChunkData, ChunkData, Code, Code, _Module).
+bind_variable(tmp_first, VarId, Term, ChunkData0, ChunkData, Code, Code0, Module) :-
+	body(VarId, Term, ChunkData0, ChunkData, Code, Code0, Module).
+bind_variable(tmp, VarId, Term, ChunkData0, ChunkData, Code, Code0, _Module) :-
 	head(VarId, Term, ChunkData0, ChunkData, Code, Code0).
-bind_variable(perm_first(Y), VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
+bind_variable(perm_first(Y), VarId, Term, ChunkData0, ChunkData, Code, Code0, Module) :-
 	Code1 = [code{instr:move(R,Y),regs:[r(VarId,R,use_a,_),r(VarId,Y,perm,_)]}|Code0],
-	body(VarId, Term, ChunkData0, ChunkData, Code, Code1).
-bind_variable(perm_first_in_chunk(Y), VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
+	body(VarId, Term, ChunkData0, ChunkData, Code, Code1, Module).
+bind_variable(perm_first_in_chunk(Y), VarId, Term, ChunkData0, ChunkData, Code, Code0, _Module) :-
 	Code = [code{instr:nop,regs:[r(VarId,Y,perm,_)]}|Code1],
 	head(VarId, Term, ChunkData0, ChunkData, Code1, Code0).
-bind_variable(perm(_Y), VarId, Term, ChunkData0, ChunkData, Code, Code0) :-
+bind_variable(perm(_Y), VarId, Term, ChunkData0, ChunkData, Code, Code0, _Module) :-
 	head(VarId, Term, ChunkData0, ChunkData, Code, Code0).
 
 
@@ -1537,12 +1534,12 @@ generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code) :-
 % Generate code for constructing an arbitrary term
 %----------------------------------------------------------------------
 
-put_term(Term, ChunkData0, ChunkData, Code, Code0, VarId) :-
+put_term(Term, ChunkData0, ChunkData, Code, Code0, VarId, _Module) :-
 	Term = variable{varid:VarId}, !,
 	put_variable(Term, ChunkData0, ChunkData, Code, Code0).
-put_term(Term, ChunkData0, ChunkData, Code, Code0, ValId) :-
+put_term(Term, ChunkData0, ChunkData, Code, Code0, ValId, Module) :-
 	new_aux_temp(ChunkData0, ChunkData1, ValId),
-	body(ValId, Term, ChunkData1, ChunkData, Code, Code0).
+	body(ValId, Term, ChunkData1, ChunkData, Code, Code0, Module).
 
 
 %

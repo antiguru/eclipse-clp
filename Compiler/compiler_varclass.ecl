@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.10 2008/05/17 00:00:40 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.11 2008/06/13 00:38:55 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/05/17 00:00:40 $").
+:- comment(date, "$Date: 2008/06/13 00:38:55 $").
 
 :- comment(desc, html("
     This pass (consisting of several phases) does the following jobs:
@@ -590,13 +590,12 @@ classify_voids_and_temps(AllSlots, PermSlots, Options) :-
 
 
 %singleton_warning(+VarSourceInfo, +Options).
-singleton_warning(annotated_term{type:var(Name),file:Path,line:Line}, options{warnings:on}) ?- !,
-	( atom_string(Name, NameS), substring(NameS,"_",1) ->
-	    true
-	;
-	    pathname(Path, _, File),
-	    printf(warning_output, "File %w, line %d: Singleton variable %w%n", [File,Line,Name])
-	).
+singleton_warning(annotated_term{type:var(Name),file:Path,line:Line}, options{warnings:on}) ?-
+	atom_string(Name, NameS), \+ substring(NameS,"_",1),
+	get_flag(variable_names, check_singletons),	% preliminary?
+	!,
+	pathname(Path, _, File),
+	printf(warning_output, "File %w, line %d: Singleton variable %w%n", [File,Line,Name]).
 singleton_warning(_, _).
 
 log_assignment(slot{source_info:Source}, Loc) ?- !,

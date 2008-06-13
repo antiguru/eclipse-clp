@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.10 2008/04/24 18:40:46 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.11 2008/06/13 00:38:55 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -101,8 +101,7 @@
 
 
 :- import
-	maxint/1,
-	minint/1,
+	bignum/1,
 	meta_index/2
     from sepia_kernel.
 
@@ -303,7 +302,8 @@ unify_next_arg(Avar, Prev, compound, Tmp, ChunkData0, ChunkData, Reg0, Reg2, WCo
 	unify_va(Var, ChunkData0, ChunkData1, _, [], RCode1, RCode2, Dir),
 	RCode2 = [code{instr:read_attribute(FirstAttr)}|RCode3],
 	meta_index(FirstAttr, 1),
-	unify_args(Struct, ChunkData1, ChunkData, Reg1, Reg2, _, [], RCode3, RCode0, Dir).
+	unify_args(Struct, ChunkData1, ChunkData, Reg1, Reg2, WCode1, [], RCode3, RCode0, Dir),
+	replace_lost_labels(WCode1).	% and discard the WCode sequence
 unify_next_arg(Var, Prev, simple, Tmp, ChunkData0, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0, Dir) :-
 	Var = variable{},
 	up(Prev, Tmp, Reg, WCode, WCode1, RCode, RCode1),
@@ -343,7 +343,8 @@ unify_last_arg(Avar, Prev, Tmp, ChunkData0, ChunkData, Reg0, Reg1, WCode, WCode,
 	unify_va(Var, ChunkData0, ChunkData1, _, [], RCode2, RCode3, Dir),
 	RCode3 = [code{instr:read_attribute(FirstAttr)}|RCode4],
 	meta_index(FirstAttr, 1),
-	unify_args(Struct, ChunkData1, ChunkData, Reg0, Reg1, _, [], RCode4, RCode0, Dir).
+	unify_args(Struct, ChunkData1, ChunkData, Reg0, Reg1, WCode1, [], RCode4, RCode0, Dir),
+	replace_lost_labels(WCode1).	% and discard the WCode sequence
 unify_last_arg(Var, Prev, Tmp, ChunkData0, ChunkData, Reg, Reg, WCode, WCode0, RCode, RCode0, Dir) :-
 	Var = variable{},
 	up(Prev, Tmp, Reg, WCode, WCode1, RCode, RCode1),
@@ -387,15 +388,15 @@ unify_last_arg(Const, Prev, Tmp, ChunkData, ChunkData, Reg, Reg, WCode, WCode0, 
 
 %:- export body/6.
 
-body(ArgId, Term, State, State, [code{instr:Instr,regs:[r(ArgId,R,def,_)]}|Code0], Code0) :-
+body(ArgId, Term, State, State, [code{instr:Instr,regs:[r(ArgId,R,def,_)]}|Code0], Code0, Module) :-
 	atomic(Term),
-	put_const(R, Term, Instr).
-body(ArgId, Term, State0, State, Code, Code0) :- Term = [_|_],
+	put_const(R, Term, Module, Instr).
+body(ArgId, Term, State0, State, Code, Code0, _Module) :- Term = [_|_],
 	Code = [code{instr:put_list(R),regs:[r(ArgId,R,def,_)]}|Code1],
 	alloc_term(Term, State0, State1),
 	push_args(Term, QueueHead, QueueTail, State1, State2, Code1, Code2),
 	push_next_in_queue(QueueHead, QueueTail, State2, State, Code2, Code0).
-body(ArgId, Term, State0, State, Code, Code0) :-
+body(ArgId, Term, State0, State, Code, Code0, _Module) :-
 	Term = structure{name:F,arity:A},
 	Code = [code{instr:put_structure(R, F/A),regs:[r(ArgId,R,def,_)]}|Code1],
 	alloc_term(Term, State0, State1),
@@ -456,9 +457,9 @@ push_arg(Arg, Queue, Queue, State, State, [code{instr:Instr}|Code0], Code0) :-
 unify_const([],   write_nil,		read_nil) :- !.
 unify_const(Term, write_atom(Term),	read_atom(Term)) :- atom(Term), !.
 unify_const(Term, write_string(Term),   read_string(Term)) :- string(Term), !.
-%unify_const(Term, write_float(Term),    read_float(Term)) :- real(Term), !.
-unify_const(Term, write_integer(Term),  read_integer(Term)) :- integer(Term),
-	minint =< Term, Term =< maxint, !.
+%unify_const(Term, write_float(Term),    read_float(Term)) :- float(Term), !.
+unify_const(Term, write_constant(Term), read_constant(Term)) :- bignum(Term), !.
+unify_const(Term, write_integer(Term),  read_integer(Term)) :- integer(Term), !.
 unify_const(Term, write_constant(Term), read_constant(Term)).
 
 
@@ -466,38 +467,39 @@ unify_const(Term, write_constant(Term), read_constant(Term)).
 push_const([],   push_nil) :- !.
 push_const(Term, write_atom(Term)) :- atom(Term), !.
 push_const(Term, push_string(Term)) :- string(Term), !.
-%push_const(Term, push_float(Term)) :- real(Term), !.
-push_const(Term, push_integer(Term)) :- integer(Term),
-	minint =< Term, Term =< maxint, !.
+%push_const(Term, push_float(Term)) :- float(Term), !.
+push_const(Term, push_constant(Term)) :- bignum(Term), !.
+push_const(Term, push_integer(Term)) :- integer(Term), !.
 push_const(Term, push_constant(Term)).
 
 
-:- mode put_const(?,+,-).
-put_const(R, [],   put_nil(R)) :- !.
-put_const(R, Term, put_atom(R,Term)) :- atom(Term), !.
-put_const(R, Term, put_string(R,Term)) :- string(Term), !.
-%put_const(R, Term, put_float(R,Term)) :- real(Term), !.
-put_const(R, Term, put_integer(R,Term)) :- integer(Term),
-	minint =< Term, Term =< maxint, !.
-put_const(R, Term, put_constant(R,Term)).
+:- mode put_const(?,+,+,-).
+put_const(R, [],   _M, put_nil(R)) :- !.
+put_const(R, Mod, Mod, put_module(R,Mod)) :- atom(Mod), !.
+put_const(R, Term, _M, put_atom(R,Term)) :- atom(Term), !.
+put_const(R, Term, _M, put_string(R,Term)) :- string(Term), !.
+%put_const(R, Term, _M, put_float(R,Term)) :- float(Term), !.
+put_const(R, Term, _M, put_constant(R,Term)) :- bignum(Term), !.
+put_const(R, Term, _M, put_integer(R,Term)) :- integer(Term), !.
+put_const(R, Term, _M, put_constant(R,Term)).
 
 
 :- mode get_const(?,+,-).
 get_const(R, [],   get_nil(R)) :- !.
 get_const(R, Term, get_atom(R,Term)) :- atom(Term), !.
 get_const(R, Term, get_string(R,Term)) :- string(Term), !.
-%get_const(R, Term, get_float(R,Term)) :- real(Term), !.
-get_const(R, Term, get_integer(R,Term)) :- integer(Term),
-	minint =< Term, Term =< maxint, !.
+%get_const(R, Term, get_float(R,Term)) :- float(Term), !.
+get_const(R, Term, get_constant(R,Term)) :- bignum(Term), !.
+get_const(R, Term, get_integer(R,Term)) :- integer(Term), !.
 get_const(R, Term, get_constant(R,Term)).
 
 :- mode in_get_const(?,+,-).
 in_get_const(R, [],   in_get_nil(R)) :- !.
 in_get_const(R, Term, in_get_atom(R,Term)) :- atom(Term), !.
 in_get_const(R, Term, in_get_string(R,Term)) :- string(Term), !.
-%in_get_const(R, Term, in_get_float(R,Term)) :- real(Term), !.
-in_get_const(R, Term, in_get_integer(R,Term)) :- integer(Term),
-	minint =< Term, Term =< maxint, !.
+%in_get_const(R, Term, in_get_float(R,Term)) :- float(Term), !.
+in_get_const(R, Term, in_get_constant(R,Term)) :- bignum(Term), !.
+in_get_const(R, Term, in_get_integer(R,Term)) :- integer(Term), !.
 in_get_const(R, Term, in_get_constant(R,Term)).
 
 
@@ -560,7 +562,7 @@ unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0) :-
 	Var = variable{varid:VarId},
 	variable_occurrence(Var, ChunkData0, ChunkData1, _AllocateCode, [], VarOccDesc),
 	% AllocateCode is empty or consists of one allocate(N) instruction.
-	% It is discared here, and later reconstructed and prefixed to the
+	% It is discarded here, and later reconstructed and prefixed to the
 	% whole compound unification, to avoid interference with stack temps.
 	unify_va_code(VarOccDesc, VarId, WCode, WCode0, RCode, RCode1, GAlloc),
 	alloc_check_after(GAlloc, ChunkData1, ChunkData, RCode1, RCode0).
@@ -601,7 +603,7 @@ in_unify_va(Var, ChunkData0, ChunkData, RCode, RCode0) :-
 	Var = variable{varid:VarId},
 	variable_occurrence(Var, ChunkData0, ChunkData, _AllocateCode, [], VarOccDesc),
 	% AllocateCode is empty or consists of one allocate(N) instruction.
-	% It is discared here, and later reconstructed and prefixed to the
+	% It is discarded here, and later reconstructed and prefixed to the
 	% whole compound unification, to avoid interference with stack temps.
 	in_unify_va_code(VarOccDesc, VarId, RCode, RCode0).
 

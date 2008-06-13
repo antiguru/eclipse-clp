@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.4 2007/08/22 23:07:23 jschimpf Exp $
+# $Id: Makefile.in,v 1.5 2008/06/13 00:42:39 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -201,6 +201,9 @@ EG_SRC	=	Makefile.external eg.cc minimain.c
 
 # *************** Generic Rules ***************
 
+# force deletion of targets when command failed
+.DELETE_ON_ERROR:
+
 .c.o:
 	$(CC) $(OPT_FLAGS) $(CFLAGS) $(CPPFLAGS) -c $<
 
@@ -231,7 +234,7 @@ EG_SRC	=	Makefile.external eg.cc minimain.c
 
 # A statically linked standard development system, sepia kernel only
 # This is used during installation, e.g. for making .eco and .eci files
-sepia$(EXE):		$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) whereami.o libdummies.a ../lib
+sepia$(EXE):		$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) whereami.o libdummies.a ../lib $(BOOT_ECOS)
 	$(CC) $(OPT_FLAGS) $(LDFLAGS) $(DEVSYS_OBJECTS) \
 		$(COMMON_OBJECTS) $(EXT_OBJECTS) whereami.o \
 		-L$(SYS_LIB) \
@@ -315,8 +318,12 @@ archclean:
 		rm -f sepia$(EXE) eclipse.exe
 		rm -f whereami.c eclipse_cc.h eclipse.def
 
-ecoclean:
-		rm -rf $(ECO_DEST)
+ecoclean:	bootecoclean
+		rm -rf $(ECO_LIB_DEST)
+
+# delete STABLE_ECLIPSE's boot-files only if AUX_SEPIA works
+bootecoclean:	boot_test
+		rm -rf $(ECO_BOOT_DEST)
 
 # *************** Libraries and Compound Objects ***************
 
@@ -529,7 +536,6 @@ DIRPERM = 2755
 # PL_LIBRARIES		they go to $(PREFIX)/lib in source form (.pl)
 # ECL_ECO_LIBRARIES	they go to $(PREFIX)/lib in source & compiled form
 # PL_ECO_LIBRARIES	they go to $(PREFIX)/lib in source & compiled form
-# ECO_LIBRARIES		they go to $(PREFIX)/lib in compiled form (.eco)
 #
 # BOOT_EXEC		they go to $(PREFIX)/lib/$ARCH
 # LIB_OBJECTS		they go to $(PREFIX)/lib/$ARCH
@@ -550,15 +556,14 @@ PL_LIBRARIES =	version.pl
 # (.eco).
 #
 
-ECL_ECO_LIBRARIES =	constraint_pools.ecl document.ecl \
-		eclipse_language.ecl hash.ecl module_options.ecl \
-		notify_ports.ecl port_profiler.ecl source_processor.ecl \
+ECL_ECO_LIBRARIES =	constraint_pools.ecl document.ecl fcompile.ecl \
+		notify_ports.ecl port_profiler.ecl \
 		swi.ecl time_log.ecl timeout.ecl var_name.ecl
 
 PL_ECO_LIBRARIES =	anti_unify.pl apply.pl \
-		apply_macros.pl asm.pl atts.pl branch_and_bound.pl \
+		apply_macros.pl atts.pl branch_and_bound.pl \
 		calendar.pl cgi.pl cio.pl cprolog.pl \
-		development_support.pl fcompile.pl fd.pl \
+		development_support.pl fd.pl \
 		fd_arith.pl fd_chip.pl fd_domain.pl fd_elipsys.pl \
 		fd_util.pl foreign.pl fromonto.pl heaps.pl \
 		http.pl http_client.pl http_grammar.pl http_method.pl \
@@ -568,28 +573,30 @@ PL_ECO_LIBRARIES =	anti_unify.pl apply.pl \
 		quintus.pl quintus_util.pl rationals.pl remote_tools.pl \
 		scattered.pl sepia.pl sicstus.pl sockets.pl \
 		source_storage.pl spell.pl structures.pl \
-		suspend.pl systools.pl t_all.pl test_util.pl toplevel.pl \
+		systools.pl t_all.pl test_util.pl toplevel.pl \
 		tracer_tcl.pl tracer_tty.pl util.pl
 
-
-# Files to go to $(PREFIX)/lib in compiled form only (.eco)
-# These should be files that we never want to distribute in source form
-
-ECO_LIBRARIES = kernel.pl
+BOOT_ECO_LIBRARIES = \
+		kernel \
+		asm \
+		hash \
+		module_options \
+		suspend \
+		eclipse_language
 
 
 # Files from which .eci files will be produced (.ecl,.pl)
 
-ECI_ECL_LIBRARIES =	hash.ecl document.ecl source_processor.ecl \
+ECI_ECL_LIBRARIES =	hash.ecl document.ecl \
 		var_name.ecl flexlm.ecl time_log.ecl module_options.ecl \
 		notify_ports.ecl constraint_pools.ecl port_profiler.ecl \
-		swi.ecl timeout.ecl
+		swi.ecl timeout.ecl fcompile.ecl
 
 
 ECI_PL_LIBRARIES =	anti_unify.pl apply.pl apply_macros.pl \
 		asm.pl atts.pl branch_and_bound.pl cgi.pl \
 		calendar.pl cio.pl cprolog.pl \
-		fcompile.pl foreign.pl fromonto.pl heaps.pl \
+		foreign.pl fromonto.pl heaps.pl \
 		http.pl http_server.pl http_client.pl \
 		iso.pl lips.pl lists.pl \
 		matrix_util.pl notinstance.pl numbervars.pl \
@@ -607,6 +614,20 @@ TCL_LIBRARIES =	menu.tcl
 KERNEL_PARTS =	kernel.pl events.pl meta.pl array.pl pdb.pl debug.pl \
 		dynamic.pl environment.pl io.pl setof.pl tconv.pl \
 		kernel_bips.pl tracer.pl
+
+COMPILER_MODULES = \
+		ecl_compiler \
+		compiler_analysis \
+		compiler_codegen \
+		compiler_common \
+		compiler_indexing \
+		compiler_normalise \
+		compiler_peephole \
+		compiler_regassign \
+		compiler_varclass \
+		compiler_map \
+		source_processor
+
 
 BOOT_EXEC =	INST_PARAMS Makefile.external eclipse.exe
 
@@ -646,21 +667,27 @@ ECI_DEST =	$(ECI_PL_LIBRARIES:%.pl=$(PREFIX)/lib/%.eci) \
 		$(ECI_ECL_LIBRARIES:%.ecl=$(PREFIX)/lib/%.eci)
 ECL_DEST =	$(ECL_ECO_LIBRARIES:%.ecl=$(PREFIX)/lib/%.ecl)
 TCL_DEST =	$(TCL_LIBRARIES:%.tcl=$(PREFIX)/lib/%.tcl)
-ECO_DEST =	$(ECO_LIBRARIES:%.pl=$(PREFIX)/lib/%.eco) \
-		$(ECL_ECO_LIBRARIES:%.ecl=$(PREFIX)/lib/%.eco) \
+ECO_LIB_DEST =	$(ECL_ECO_LIBRARIES:%.ecl=$(PREFIX)/lib/%.eco) \
 		$(PL_ECO_LIBRARIES:%.pl=$(PREFIX)/lib/%.eco)
+ECO_BOOT_DEST = $(BOOT_ECO_LIBRARIES:%=$(PREFIX)/lib/%.eco) \
+		$(COMPILER_MODULES:%=$(PREFIX)/lib/%.eco)
 SYSLIB_DEST =	$(SYSLIB_OBJECTS:%=$(PREFIX)/lib/$(ARCH)/%)
 BOOT_EXE_DEST =	$(BOOT_EXEC:%=$(PREFIX)/lib/$(ARCH)/%)
 LIB_OBJ_DEST =	$(LIB_OBJECTS:%=$(PREFIX)/lib/$(ARCH)/%)
 EG_SOURCES_DEST = $(EG_SOURCES:%=$(PREFIX)/doc/examples/%)
 EXT_INC_DEST =	$(EXT_INCLUDES:%=$(PREFIX)/include/$(ARCH)/%)
 
+# These files are in the repository, so the system can be bootstrapped:
+BOOT_ECOS =	$(BOOT_ECO_LIBRARIES:%=$(SEPIA)/lib/%.eco)
+COMPILER_ECOS:	$(COMPILER_MODULES:%=$(SEPIA)/lib/%.eco)
+
 
 # -----------------------------------------------------------------------------
 # how to install the machine independent files
 # -----------------------------------------------------------------------------
 
-install_common:	$(C_DEST) $(ECL_DEST) $(ECI_DEST) $(PL_DEST) $(ECO_DEST) \
+install_common:	$(C_DEST) $(ECL_DEST) $(ECI_DEST) $(PL_DEST) \
+		$(ECO_LIB_DEST) $(ECO_BOOT_DEST) \
 		$(TCL_DEST) $(EG_SOURCES_DEST)
 
 $(PREFIX)/lib/%.c:	$(SEPIA)/src/%.c $(PREFIX)/lib/.stamp
@@ -681,7 +708,7 @@ $(PREFIX)/lib/%.tcl:	$(SEPIA)/pl/%.tcl $(PREFIX)/lib/.stamp
 
 # copy the version file, replacing the date with the current one
 $(PREFIX)/lib/version.pl:	$(SEPIA)/pl/version.pl $(PREFIX)/lib/.stamp
-	-./sepia -e "date(D), substring(D, 1, 16, D1),\
+	./sepia -e "date(D), substring(D, 1, 16, D1),\
 		substring(D, 20, 5, D2), concat_strings(D1, D2, DD),\
 		compile(library(version)),\
 		sepia_patch(Patch), sepia_build(Build),\
@@ -691,24 +718,42 @@ $(PREFIX)/lib/version.pl:	$(SEPIA)/pl/version.pl $(PREFIX)/lib/.stamp
 		writeln(V, .), close(V)"
 	@/bin/chmod $(PERM) $@
 
-$(PREFIX)/lib/kernel.eco:	$(KERNEL_PARTS:%=$(SEPIA)/pl/%) $(PREFIX)/lib/.stamp
-	-./sepia -e 'lib(fcompile),unlock(sepia_kernel, "Sepia"),set_flag(variable_names,off),set_flag(debug_compile,off),fcompile("$(SEPIA)/pl/kernel.pl",[outdir:"$(@D)",compile:no])'
+
+# These boot-files are in the repository in .eco format and are only copied.
+# If you want to re-make them, use make bootfiles
+$(PREFIX)/lib/kernel.eco:		$(SEPIA)/lib/kernel.eco
+$(PREFIX)/lib/suspend.eco:		$(SEPIA)/lib/suspend.eco
+$(PREFIX)/lib/eclipse_language.eco:	$(SEPIA)/lib/eclipse_language.eco
+$(PREFIX)/lib/asm.eco:			$(SEPIA)/lib/asm.eco
+$(PREFIX)/lib/hash.eco:			$(SEPIA)/lib/hash.eco
+$(PREFIX)/lib/module_options.eco:	$(SEPIA)/lib/module_options.eco
+
+$(PREFIX)/lib/%.eco:	$(SEPIA)/lib/%.eco boot_test $(PREFIX)/lib/.stamp
+	/bin/cp $< $@
 	@/bin/chmod $(PERM) $@
 
+
+# This goal tries to make sure that the core system actually boots and that
+# the compiler works (by compiling util.pl).  Could be more thorough!
+boot_test:	sepia$(EXE) $(BOOT_ECOS) $(COMPILER_ECOS)
+	./sepia -e 'lib(ecl_compiler),ecl_compiler:compile("$(SEPIA)/lib/util"),util:compiled'
+	touch $@
+
+
 $(PREFIX)/lib/%.eco:	$(SEPIA)/pl/%.ecl $(PREFIX)/lib/.stamp
-	-./sepia -e 'lib(fcompile),set_flag(variable_names,off), set_flag(debug_compile,off),fcompile("$<",[outdir:"$(@D)"])'
+	./sepia -e 'lib(ecl_compiler),set_flag(debug_compile,off),ecl_compiler:compile("$<",[outdir:"$(@D)",output:eco])'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eco:	$(SEPIA)/pl/%.pl $(PREFIX)/lib/.stamp
-	-./sepia -e 'lib(fcompile),set_flag(variable_names,off),set_flag(debug_compile,off),fcompile("$<",[outdir:"$(@D)"])'
+	./sepia -e 'lib(ecl_compiler),set_flag(debug_compile,off),ecl_compiler:compile("$<",[outdir:"$(@D)",output:eco])'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eci:	$(SEPIA)/pl/%.ecl $(PREFIX)/lib/.stamp
-	-./sepia -e 'lib(document),icompile("$<","$(@D)")'
+	./sepia -e 'lib(document),icompile("$<","$(@D)")'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eci:	$(SEPIA)/pl/%.pl $(PREFIX)/lib/.stamp
-	-./sepia -e 'lib(document),icompile("$<","$(@D)")'
+	./sepia -e 'lib(document),icompile("$<","$(@D)")'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/doc/examples/%.c: %.c $(PREFIX)/doc/examples/.stamp
@@ -722,6 +767,39 @@ $(PREFIX)/doc/examples/%.cc: %.cc $(PREFIX)/doc/examples/.stamp
 $(PREFIX)/include/$(ARCH)/%.h:	%.h $(PREFIX)/include/$(ARCH)/.stamp
 	/bin/cp $< $@
 	@/bin/chmod $(PERM) $@
+
+
+# -----------------------------------------------------------------------------
+# Re-create .eco files that are needed for booting
+# This only needs to be done when the source for these files was changed.
+# The resulting .eco files should must be checked into the repository along
+# with the modified sources. The compiler files also belong into this group,
+# but are created via the Compiler/Makefile
+# -----------------------------------------------------------------------------
+
+STABLE_ECLIPSE = $(PREFIX)/bin/$(ARCH)/eclipse
+
+# force re-making all the bootfiles
+new_bootfiles:
+	rm -f $(BOOT_ECOS)
+	$(MAKE) $(BOOT_ECOS)
+
+bootfiles:	$(BOOT_ECOS)
+
+
+
+$(SEPIA)/lib/kernel.eco:	$(KERNEL_PARTS:%=$(SEPIA)/pl/%)
+	$(STABLE_ECLIPSE) -e 'lib(ecl_compiler),unlock(sepia_kernel,"Sepia"),set_flag(debug_compile,off),ecl_compiler:compile("$(SEPIA)/lib/kernel.pl",[outdir:"$(@D)",load:none,output:eco])'
+	@/bin/chmod $(PERM) $@
+
+$(SEPIA)/lib/%.eco:	$(SEPIA)/pl/%.ecl
+	$(STABLE_ECLIPSE) -e 'lib(ecl_compiler),ecl_compiler:compile("$<", [outdir:"$(@D)",output:eco,load:none])'
+	@/bin/chmod $(PERM) $@
+
+$(SEPIA)/lib/%.eco:	$(SEPIA)/pl/%.pl
+	$(STABLE_ECLIPSE) -e 'lib(ecl_compiler),ecl_compiler:compile("$<", [outdir:"$(@D)",output:eco,load:none])'
+	@/bin/chmod $(PERM) $@
+
 
 # -----------------------------------------------------------------------------
 # how to install the machine dependent stuff
@@ -943,7 +1021,6 @@ lex.o: lex.h io.h emu_export.h module.h property.h os_support.h
 lex.o: rounding_control.h
 main.o: config.h os_support.h sepia.h ec_public.h types.h embed.h error.h
 main.o: mem.h dict.h emu_export.h module.h sav_res.h property.h
-main_wincon.o: eclipse.h config.h ec_public.h types.h embed.h os_support.h
 manual_examples.o: external.h config.h sepia.h ec_public.h types.h error.h
 manual_examples.o: embed.h
 mem.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h io.h

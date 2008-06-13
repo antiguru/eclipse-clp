@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: notify_ports.ecl,v 1.3 2007/05/04 12:17:59 jschimpf Exp $
+% Version:	$Id: notify_ports.ecl,v 1.4 2008/06/13 00:42:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(notify_ports).
@@ -30,7 +30,7 @@
 
 :- comment(summary, "One-to-many and many-to-many notification ports").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/05/04 12:17:59 $").
+:- comment(date, "$Date: 2008/06/13 00:42:39 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- comment(desc, html("<P>
@@ -661,7 +661,7 @@ tr_foreachnotification(
 	RecHead =.. [Name,[Event|Es],RecPosIn,ReceiverIn,StatusIn|Params],
 	RecCall =.. [Name,Es,RecPosIn,ReceiverIn,StatusIn|Params],
 	expand_goal(Goals0, Goals)@Module,
-	compile_term([
+	sepia_kernel:nested_compile_term([
 		(VarHead :- var(EEsIn), !, StatusIn=open, setarg(RecPosIn, ReceiverIn, EEsIn)),
 		(NilHead :- !, StatusIn=closed),
 		(RecHead :- Goals, RecCall)

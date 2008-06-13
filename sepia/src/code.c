@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.5 2008/04/28 18:17:46 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.6 2008/06/13 00:42:39 jschimpf Exp $
  */
 
 /********************************************************************
@@ -101,7 +101,7 @@ vmcode return_code_[2];
 vmcode it_code_[20];
 vmcode it_block_code_[20];
 vmcode recurs_code_[15];
-vmcode boot_code_[17];
+vmcode boot_code_[16];
 vmcode fail_code_[2];
 
 /*
@@ -606,7 +606,8 @@ code_init(int flags)
     Store_2(Allocate, Esize(0))
     Store_3(MoveAMAM, Address(2), Address(3))
     Store_3(Put_integerAM, Address(2), FNOSTAT)
-    Store_3(CallP, DidPtr(d_.pcompile)->procedure, 0)
+    Store_2(Put_variableAM, Address(4))
+    Store_3(CallP, DidPtr(in_dict("load_eco",4))->procedure, 0)
     Store_2(Exit_emulator, PSUCCEED)
     Store_i(Code_end);
 
@@ -1122,8 +1123,8 @@ code_init(int flags)
 
     identical_proc_ = make_test_bip(d_.identical, BI_Identical, 0, 0, -1);
     not_identical_proc_ = make_test_bip(d_.not_identical, BI_NotIdentical, 0, 0, -1);
-    inequality_proc_ = make_test_bip(d_.diff_reg, BI_Inequality, PROC_DEMON, 0, 0);
-    not_ident_list_proc_ = make_test_bip(in_dict("\\==",3), BI_NotIdentList, 0, BoundArg(3, NONVAR), 0);
+    inequality_proc_ = make_test_bip(d_.diff_reg, BI_Inequality, PROC_DEMON, 0, -1);
+    not_ident_list_proc_ = make_test_bip(in_dict("\\==",3), BI_NotIdentList, 0, BoundArg(3, NONVAR), -1);
 #endif
     lt_proc3_ = make_test_bip(in_dict("<",3), BI_Lt, PROC_DEMON, 0, 0);
     gt_proc3_ = make_test_bip(in_dict(">",3), BI_Gt, PROC_DEMON, 0, 0);

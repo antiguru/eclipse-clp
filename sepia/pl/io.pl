@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.7 2007/07/03 00:10:28 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.8 2008/06/13 00:42:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -727,16 +727,13 @@ exec_group(Command, Streams, Pid) :-
 %	Sh
 %
 
-:- get_flag('_system'/1, defined, on) ->
-	compile_term([ :- pragma(system), (
-	    system(X) :- '_system'(X)
-	)])
-    ;
-	compile_term([ :- pragma(system), (
-	    system(X) :-
-		concat_string(['/bin/sh -c "', X, '"'], Command),
-		exec(Command, [])
-	)]).
+system(X) :-
+	( get_flag('_system'/1, defined, on) ->
+	    '_system'(X)
+	;
+	    concat_string(['/bin/sh -c "', X, '"'], Command),
+	    exec(Command, [])
+	).
 
 sh(X) :-
 	system(X).

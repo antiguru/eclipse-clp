@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.13 2008/05/16 10:37:09 kish_shen Exp $
+ * VERSION	$Id: bip_db.c,v 1.14 2008/06/13 00:42:39 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -123,7 +123,7 @@ static int
     p_external(value vp, type tp, value vf, type tf, value vm, type tm),
     p_b_external(value vp, type tp, value vf, type tf, value vm, type tm),
     p_external_body(value vpred, type tpred, value vmod, type tmod),
-    p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod),
+    p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod, value vout, type tout),
 #ifdef PRINTAM
     p_vm_statistics(value v, type t),
 #endif
@@ -196,6 +196,7 @@ static	dident
 		d_source_line_,
 		d_source_offset_,
 		d_tags,
+		d_type0_,
 		d_type_;
 
 
@@ -271,6 +272,7 @@ bip_db_init(int flags)
     d_opc1 = in_dict("o", 1);
     d_functor1 = in_dict("functor", 1);
     d_proc1 = in_dict("proc", 1);
+    d_type0_ = in_dict("type", 0);
     d_type_ = in_dict("type", 1);
     d_init2 = in_dict("init", 2);
     d_ref1 = in_dict("ref", 1);
@@ -307,7 +309,7 @@ bip_db_init(int flags)
 #ifdef PRINTAM
     (void) built_in(in_dict("vm_statistics", 1), p_vm_statistics, B_UNSAFE|U_SIMPLE);
 #endif
-    (void) built_in(in_dict("load_eco", 3), p_load_eco, B_UNSAFE|U_SIMPLE);
+    (void) built_in(in_dict("load_eco", 4), p_load_eco, B_UNSAFE|U_SIMPLE);
     (void) exported_built_in(in_dict("store_pred", 9), p_store_pred, B_UNSAFE);
     exported_built_in(in_dict("retrieve_code", 3), p_retrieve_code, B_UNSAFE)
 	-> mode = BoundArg(2, GROUND);
@@ -505,11 +507,12 @@ p_compile_term(value vl, type tl, value module, type tm)
 
 
 static int
-p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod)
+p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod, value vout, type tout)
 {
     stream_id nst;
     char *file;
     int	res;
+    pword mod_pw;
 
     Get_Name(vfile, tfile, file);
     Check_Integer(topt);
@@ -520,9 +523,13 @@ p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod
     {
 	Bip_Error(res);
     }
-    res = ec_load_eco_from_stream(nst, vopt.nint, vmod, tmod);
+    mod_pw.val.all = vmod.all;
+    mod_pw.tag.all = tmod.all;
+    res = ec_load_eco_from_stream(nst, vopt.nint, &mod_pw);
     (void) ec_close_stream(nst);
-    return res;
+    if (res != PSUCCEED)
+	return res;
+    Return_Unify_Pw(mod_pw.val, mod_pw.tag, vout, tout);
 }
 
 
@@ -2649,6 +2656,15 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 		Bip_Error(RANGE_ERROR);
 	    }
 	}
+	else if (vf.did == d_type0_)	/* set the system-flag */
+	{
+	    Check_Atom(tv)
+	    if (vv.did != d_.built_in) {
+		Bip_Error(RANGE_ERROR);
+	    }
+	    use_local_procedure = 1;
+	    changed_flags = new_flags = SYSTEM;
+	}
 	else if (vf.did == d_source_file_)
 	{
 	    Check_Atom(tv)
@@ -2930,6 +2946,7 @@ _set_did_stability(
 }
 #endif
 
+
 static int
 p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vfid, type tfid, value vlid, type tlid, value vbid, type tbid, value vm, type tm)
 {
@@ -2956,6 +2973,9 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 	Bip_Error(TYPE_ERROR);
     }
     Check_Module(tm, vm);
+    /*
+    Check_Module_And_Access(vm, tm);
+    */
     Get_Proc_Did(vproc, tproc, wdid);
     Check_Integer(tflags);
 
@@ -2967,6 +2987,7 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 	Check_Integer(tlid);
 	Check_Integer(tbid);
 	code = AllocateCodeBlockBTable(vsize.nint, vbrktable.nint, 0L, vbid.nint, vfid.did, vlid.nint, Cid(-1L, wdid));
+	Set_Did_Stability(vfid.did, DICT_CODE_REF);
     }
 
     /*
@@ -3287,14 +3308,18 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 	Get_Bip_Error(err);
 	Bip_Error(err);
     }
-    flags = (uint32)(vflags.nint & ECO_FLAGS); /* just to be sure... */
-    err = pri_compatible_flags(proc, CODETYPE|TOOL|ECO_FLAGS, VMCODE|vflags.nint);
+    /* Set ECO_FLAGS according to flags argument.
+     * Keep DEBUG_SK if set, because it was probably done by a preceding skipped-directive.
+     * Always clear TOOL flag.
+     */
+    flags = (uint32)((vflags.nint & ECO_FLAGS) | (PriFlags(proc) & (DEBUG_SK)));
+    err = pri_compatible_flags(proc, CODETYPE|TOOL|ECO_FLAGS, VMCODE|flags);
     if (err != PSUCCEED)
     {
 	a_mutex_unlock(&ProcedureLock);
 	Bip_Error(err);
     }
-    pri_change_flags(proc, TOOL|ECO_FLAGS, vflags.nint);
+    pri_change_flags(proc, TOOL|ECO_FLAGS, flags);
     pricode.vmc = base;
     pri_define_code(proc, VMCODE, pricode);
     a_mutex_unlock(&ProcedureLock);

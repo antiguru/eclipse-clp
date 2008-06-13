@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.11 2008/03/31 17:14:33 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.1 2008/06/13 00:38:55 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/03/31 17:14:33 $").
+:- comment(date, "$Date: 2008/06/13 00:38:55 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -60,6 +60,7 @@
 	source_close/2.
 
 :- export struct(source_position(
+	filespec,		% Original source location argument
 	stream,			% Eclipse stream
 	file,			% canonical file name
 	line,			% integer
@@ -82,13 +83,14 @@
 
 :- import expand_clause_annotated/4,
           expand_goal_annotated/4,
-	  erase_module_pragmas/1
+	  erase_module_pragmas/1,
+	  register_compiled_stream/1
    from sepia_kernel.
 
 
 :- local struct(options(
     	keep_comments,		% true if set, else variable
-    	filter_conditionals,	% true if set, else variable
+    	ignore_conditionals,	% true if set, else variable
 	recreate_modules,	% erase old module before creating
 	no_macro_expansion,	% true if set, else variable
 	no_clause_expansion,	% true if set, else variable
@@ -152,7 +154,7 @@
     <DT>keep_comments</DT>
 	<DD>treat comments and spacing between source terms as data
 		rather than ignoring it</DD>
-    <DT>filter_conditionals</DT>
+    <DT>ignore_conditionals</DT>
 	<DD>interpret if/1, elif/1, else/0 and endif/0 directives and
 	include or exclude corresponding source parts accordingly, while
 	removing the directives themselves</DD>
@@ -198,6 +200,7 @@
 :- tool(source_open/3,source_open/4).
 source_open(File, OptionList, SourcePos, Module) :-
 	( 
+	    var(SourcePos),
 	    ( foreach(Option,OptionList), param(OptFlags) do
 		set_option(Option, OptFlags)
 	    )
@@ -216,7 +219,10 @@ source_open(File, OptionList, SourcePos, Module) :-
 	nonvar(File),						% may fail
 	getcwd(OldCwd),
 	( File = stream(In) ->
-	    FullFile = File
+	    get_stream_info(In, name, FullFile0),
+	    concat_atom([FullFile0], FullFile)
+	; File == user ->
+	    In = input, FullFile = File
 	; (atom(File) ; string(File)) ->			% may fail
 	    get_flag(prolog_suffix, Suffixes),
 	    once existing_file(File, Suffixes, [readable], GoodFile), % may fail
@@ -225,6 +231,7 @@ source_open(File, OptionList, SourcePos, Module) :-
 	    cd(Dir),
 	    open(FullFile, read, In)
 	),
+	register_compiled_stream(In),
 	( skip_utf8_bom(In) -> true ; true ),
 	OptFlags = options{no_macro_expansion:NoMacroExp},
 	( NoMacroExp == true ->
@@ -234,14 +241,14 @@ source_open(File, OptionList, SourcePos, Module) :-
 	),
 	get_stream_info(In, offset, Offset),
 	get_stream_info(In, line, Line),
-	SourcePos = source_position{
+	SourcePos = source_position{filespec:File,
 		stream:In, module:Module, offset:Offset,options:OptFlags,
 		created_modules:[], oldcwd:OldCwd, ifdefs:[],
 		line:Line,file:FullFile,remaining_files:RF,included_from:IF}.
 
     set_option(Var, _ ) :- var(Var), !, fail.
     set_option(keep_comments, options{keep_comments:true}).
-    set_option(filter_conditionals, options{filter_conditionals:true}).
+    set_option(ignore_conditionals, options{ignore_conditionals:true}).
     set_option(recreate_modules, options{recreate_modules:true}).
     set_option(no_macro_expansion, options{no_macro_expansion:true}).
     set_option(no_clause_expansion, options{no_clause_expansion:true}).
@@ -298,12 +305,13 @@ source_close(SourcePos, Options) :-
 	    )
 	).
 
-    close_streams(source_position{file:File,stream:Stream,included_from:IF,oldcwd:OldCwd}) :-
+    close_streams(source_position{filespec:File,stream:Stream,included_from:IF,oldcwd:OldCwd}) :-
 	cd(OldCwd),
 	close_input(File, Stream),
 	( IF = [] -> true ; close_streams(IF) ).
 
     close_input(File, Stream) :-
+	register_compiled_stream(_),
 	( current_stream(Stream), File \= stream(_) ->
 	    close(Stream)
 	;
@@ -336,10 +344,12 @@ source_close(SourcePos, Options) :-
 	been handled (ignored by source_read/3)</DD>
     <DT>query</DT>
     	<DD>A query (a term with functor ?-/1)</DD>
+    <DT>clause</DT>
+    	<DD>Any other structure, list or atom (usually a clause)</DD>
     <DT>var</DT>
     	<DD>A term consisting of only a variable (very likely an error)</DD>
-    <DT>clause</DT>
-    	<DD>Any other term (usually a clause)</DD>
+    <DT>other</DT>
+    	<DD>A number, string, etc (very likely an error)</DD>
     <DT>comment</DT>
     	<DD>Spacing, layout and comments between source terms
     	(only when keep_comments option is in effect)</DD>
@@ -398,7 +408,7 @@ source_close(SourcePos, Options) :-
     %   directive, handled_directive, query, clause, comment, var, end_include, end
 source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	OldPos = source_position{stream:In,module:Module,oldcwd:OldCwd,
-		options:OptFlags,remaining_files:RF,included_from:IF,file:File},
+		options:OptFlags,remaining_files:RF,included_from:IF,filespec:File},
 
 	read_next_term(In, TermOrEof, AnnTermOrEof, Vars, Error, Comment, OptFlags, Module),
         get_stream_info(In, line, Line),
@@ -436,6 +446,8 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 		update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 		Kind = end
 	    ;
+		IF =  source_position{stream:OldStream},
+		register_compiled_stream(OldStream),
 		SourceTerm = source_term{term:TermOrEof,vars:Vars},
 		NextPos = IF, Kind = end_include
 	    )
@@ -450,12 +462,23 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 	    Kind = query
 
-	;
+	; callable(TermOrEof) ->
 	    apply_clause_expansion(TermOrEof, AnnTermOrEof, TransTerm, 
                                    AnnTransTerm, OptFlags, Module),
-            SourceTerm = source_term{term:TransTerm,vars:Vars, annotated:AnnTransTerm},
+	    % TransTerm may be the empty list - skip unless it was in the source
+	    ( TransTerm == [], TermOrEof \== [] ->
+		update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos0),
+		source_read(NextPos0, NextPos, Kind, SourceTerm)
+	    ;
+		SourceTerm = source_term{term:TransTerm,vars:Vars, annotated:AnnTransTerm},
+		update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
+		Kind = clause
+	    )
+	;
+	    SourceTerm = source_term{term:TermOrEof,vars:Vars,
+                                     annotated:AnnTermOrEof},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
-	    Kind = clause
+	    Kind = other
 	).
 
     read_next_term(In, _Term, _AnnTermOrEof, _Vars, _Error, Comment, options{keep_comments:true}, _Module) ?-
@@ -482,11 +505,15 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	%	term.|%comment	=> don't unget
 	% The point of doing this is so that pretty-printers don't lose
 	% any linefeeds etc that were present in the source.
-	unget(In), 
-	get_cc(In, _C, Class),
-	( Class = blank_space -> unget(In)
-	; Class = end_of_line -> unget(In)
-	; true
+	( TermOrEof == end_of_file ->
+	    true
+	;
+	    unget(In), 
+	    get_cc(In, _C, Class),
+	    ( Class = blank_space -> unget(In)
+	    ; Class = end_of_line -> unget(In)
+	    ; true
+	    )
 	).
 
 
@@ -537,10 +564,11 @@ expand_clause_goals(C, AC, C, AC, _).
 % Directives
 %----------------------------------------------------------------------
 
-handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, options{filter_conditionals:true}) ?- !,
-	handle_ifdef(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm).
-handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm, SourceTerm, _OptFlags) :-
+handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, options{ignore_conditionals:true}) ?- !,
+	SourceTerm = SourceTerm0,
 	handle_directives(Directive, ThisPos, NextPos, Kind).
+handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, _OptFlags) :-
+	handle_ifdef(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm).
 
 
 handle_ifdef(if(Cond), ThisPos, NextPos, Kind, SourceTerm0, SourceTerm) ?- !,
@@ -615,6 +643,7 @@ handle_directives((D1,D2), ThisPos, NextPos, Kind) :- !,
 	    pathname(Path, _Dir, File),
 	    printf(warning_output, "WARNING: Confusing compound directive"
 	    	" in file %w, line %d:%n:- %w.%n", [File,Line,(D1,D2)]),
+	    printf(warning_output, "  Advice: Either break up, or use ?- query%n", []),
 	    Kind = directive
 	).
 
@@ -675,6 +704,20 @@ handle_directives(pragma(Pragma), NextPos, NextPos, handled_directive) :- !,
 	NextPos = source_position{module:Module},
 	error(148, pragma(Pragma), Module).	% record the pragma
 
+    % meta_attribute/2 - partially handled: call without handlers to make
+    % sure the attribute syntax is accepted.  Leave it to the caller to
+    % re-call with handler list after module is loaded and the handlers
+    % are actually available to be called.
+handle_directives(Directive, NextPos, NextPos, handled_directive) :-
+	Directive = meta_attribute(Name, _Handlers),
+	!,
+	NextPos = source_position{module:Module},
+	( block(meta_attribute(Name, [])@Module, _, fail) ->
+	    true
+	;
+	    directive_warning("Directive failed or aborted", Directive, NextPos)
+	).
+
     % other directives
 handle_directives(Directive, NextPos, NextPos, Kind) :-
 	NextPos = source_position{module:Module,file:File},
@@ -691,7 +734,7 @@ handle_directives(Directive, NextPos, NextPos, Kind) :-
 		Back
 	    ;
 		Back,
-		directive_warning("Directive failed", Directive, NextPos)
+		directive_warning("Directive failed or aborted", Directive, NextPos)
 	    ),
 	    Kind = handled_directive
 	; obsolete_directive(Directive), Module \= sepia_kernel ->
@@ -730,7 +773,7 @@ obsolete_directive(bsi).
 obsolete_directive(sicstus).
 obsolete_directive(autoload(_,_)).
 obsolete_directive(autoload_tool(_,_)).
-obsolete_directive(coroutine).
+%obsolete_directive(coroutine).
 obsolete_directive(local_record(_)).
 obsolete_directive(make_array(_)).
 obsolete_directive(make_array(_,_)).

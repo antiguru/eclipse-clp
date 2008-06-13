@@ -25,7 +25,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
+ * VERSION	$Id: main.c,v 1.4 2008/06/13 00:42:39 jschimpf Exp $
  */
 
 /*
@@ -237,12 +237,6 @@ main(int argc, char **argv)
 		eclipsedir = argv[c++];
 		break;
 
-#ifdef PRINTAM
-	    case 'i':		/* to boot something else than kernel.xyz */
-		if (++c + 1 > argc) usage(argv[c-1]);
-		initfile = argv[c++];
-		break;
-#endif
 	    case 'l':				/* -l <size> */
 		argv[new_argc++] = argv[c];		/* shift */
 		if (++c + 1 > argc) usage(argv[c-1]);
@@ -459,40 +453,19 @@ main(int argc, char **argv)
 
     /*
      * If we are not running an already booted eclipse,
-     * compile $ECLIPSEDIR/lib/kernel.eco or $ECLIPSEDIR/lib/kernel.pl
-     * or the explicitly specified initfile (-i option)
+     * compile $ECLIPSEDIR/lib/kernel.eco
      */
     if (init_flags & INIT_SHARED)
     {
 	char msg[1024];
-	if (initfile)
+
+	initfile = strcat(strcpy(bootfile_buf, ec_eclipse_home), "/lib/kernel.eco");
+	if (ec_access(initfile, R_OK) < 0)
 	{
-	    if (ec_access(initfile, R_OK) < 0)
-	    {
-		sprintf(msg, "ECLiPSe: Can't find init file %s!", initfile);
-		ec_bad_exit(msg);
-	    }
-	}
-	else
-	{
-	    initfile = strcat(strcpy(bootfile_buf, ec_eclipse_home), "/lib/kernel.eco");
-	    if (ec_access(initfile, R_OK) < 0)
-	    {
-		int l = strlen(initfile);	/* no .eco, try the .pl file */
-		initfile[l-3] = 'p';
-		initfile[l-2] = 'l';
-		initfile[l-1] = 0;
-		if (ec_access(initfile, R_OK) < 0)
-		{
-		    initfile[l-3] = 'e';
-		    initfile[l-2] = 'c';
-		    initfile[l-1] = 'o';
-		    sprintf(msg, 
-		    	"ECLiPSe: Can't find boot file %s!\nPlease check the setting of your ECLIPSEDIR environment variable.",
-			initfile);
-		    ec_bad_exit(msg);
-		}
-	    }
+	    sprintf(msg, 
+		"ECLiPSe: Can't find boot file %s!\nPlease check the setting of your ECLIPSEDIR environment variable\nor use the -D <dir> command line option.",
+		initfile);
+	    ec_bad_exit(msg);
 	}
 
 	err = eclipse_boot(initfile);
@@ -679,7 +652,6 @@ sizearg(char *arg)
 
 main(int argc, char **argv)
 {
-    char *	initfile = (char *) 0;
     char *	eclipsedir = (char *) 0;
     int		c, new_argc, err;
     int		init_flags = INIT_SHARED|INIT_PRIVATE|INIT_ENGINE|INIT_PROCESS;
@@ -769,12 +741,6 @@ main(int argc, char **argv)
 		eclipsedir = argv[c++];
 		break;
 
-#ifdef PRINTAM
-	    case 'i':		/* to boot something else than kernel.xyz */
-		if (++c + 1 > argc) usage(argv[c-1]);
-		initfile = argv[c++];
-		break;
-#endif
 	    case 'l':				/* -l <size> */
 		argv[new_argc++] = argv[c];		/* shift */
 		if (++c + 1 > argc) usage(argv[c-1]);

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.3 2008/05/12 12:34:59 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.4 2008/06/13 00:42:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -97,26 +97,29 @@
 meta_attributes(Atts) :-
 	recorded_list(meta_attribute, Atts).
 
+
 meta_attribute_body(Name, List, Module) :-
-    make_new_attribute(Name, Index),
-    add_local_handlers(Index, Name, List, Module),
-    recompile_system_handlers,
+    check_atom(Name),
+    meta_name_index(Name, Index),
+    ( Name == suspend, Index == 1 ->
+	% The suspend handlers are handcoded below to avoid use of the
+	% compiler during initial booting
+	check_handlers(List, Module),
+	record_handlers(Index, Name, List, Module)
+    ;
+	check_handlers(List, Module),
+	record_handlers(Index, Name, List, Module),
+	recompile_system_handlers
+    ),
     !.
 meta_attribute_body(Name, List, Module) :-
     bip_error(meta_attribute(Name, List), Module).
 
-make_new_attribute(Name, _) :-
-    var(Name),
-    !,
-    set_bip_error(4).
-make_new_attribute(Name, _) :-
-    not atom(Name),
-    !,
-    set_bip_error(5).
-make_new_attribute(Name, Index) :-
+
+meta_name_index(Name, Index) :-
     recordedchk(meta_attribute, [Name|Index]),
     !.
-make_new_attribute(Name, Index) :-
+meta_name_index(Name, Index) :-
     incval(meta_index),
     getval(meta_index, Index),
     getval(meta_arity, Max),
@@ -127,35 +130,51 @@ make_new_attribute(Name, Index) :-
     ),
     recorda(meta_attribute, [Name|Index]).
 
-add_local_handlers(_, _, L, _) :- var(L), !,
+
+check_handlers(L, _) :- var(L), !,
     set_bip_error(4).
-add_local_handlers(_, _, [], _) :- !.
-add_local_handlers(Index, Name, H:P, Module) :- !,
-    add_local_handlers(Index, Name, [H:P], Module).
-add_local_handlers(Index, Name, [H:P|List], Module) :- !,
+check_handlers([], _) :- !.
+check_handlers([H:P|List], Module) :- !,
     check_predspec(P),
-    P = _/Arity,
-    ( meta_event(H, Arity) ->
-	(get_flag_body(P, visibility, Vis, Module),
-	Vis \== local ->
-	    true
+    ( P = _/Arity, meta_event(H, Arity) ->
+	( get_flag(P, defined, on)@Module ->
+	    get_flag(P, visibility, Vis)@Module,
+	    ( Vis == local ->
+		(export P)@Module
+	    ; Vis == imported ->
+		get_flag(P, definition_module, DM)@Module,
+		(reexport P from DM)@Module
+	    ;
+		true
+	    )
 	;
-	    export_body(P, Module)
+	    % require handler to be defined already
+	    set_bip_error(60)
 	)
-    ; P = true/0 ->
-	true
+    ; P == true/0, meta_event(H,_) ->
+    	true
     ;
 	fail	% with bip_error set from meta_event/2
     ),
+    check_handlers(List, Module).
+check_handlers(_, _) :-
+   set_bip_error(5).
+
+
+record_handlers(_, _, [], _).
+record_handlers(Index, Name, [H:P|List], Module) :-
     (recordedchk(H, t(Index, _, _, _, _), Ref) ->
 	erase(Ref)
     ;
 	true
     ),
-    recordz(H, t(Index, Name, H, P, Module)),
-    add_local_handlers(Index, Name, List, Module).
-add_local_handlers(_, _, _, _) :-
-   set_bip_error(5).
+    ( P == true/0 ->
+	true	% remove the handler
+    ;
+	recordz(H, t(Index, Name, H, P, Module))
+    ),
+    record_handlers(Index, Name, List, Module).
+
 
 recompile_system_handlers :-
     recompile_unify_handler,
@@ -184,36 +203,45 @@ recompile_system_handlers :-
  */
 
 %------------------------------
-recompile_unify_handler :-
-    getval(meta_arity, I),
-    functor(Attr, meta, I),
-    collect_local_handlers(unify, List),
-    local_unify_handlers(List, Attr, Term, Body),
-%    writeclause(unify_attributes(Term, Attr) :- Body),
-    expand_compile_term(unify_attributes(Term, Attr) :- Body).
+:- mode unify_attributes(?,++).
+unify_attributes(Term, Meta) :-
+	arg(1, Meta, SuspAttr),
+    	suspend:unify_suspend(Term , SuspAttr).
 
-local_unify_handlers([], _, _, untraced_true).
-local_unify_handlers([t(I, _, _, N/A, M)], Attr, Term, M:Goal) :-
+recompile_unify_handler :-
+    collect_local_handlers(unify, List),
+    local_unify_handlers(List, Meta, Term, SuspAttr, Body),
+    expand_compile_term((unify_attributes(Term, Meta) :- arg(1,Meta,SuspAttr),Body)).
+
+local_unify_handlers([], _, _, _, untraced_true).
+local_unify_handlers([t(I, _, _, N/A, M)], Meta, Term, SuspAttr, Body) :-
     !,
-    arg(I, Attr, LA),
-    ( A = 3 ->
-	arg(1, Attr, SuspAttr),
-	Goal =.. [N, Term, LA, SuspAttr]
+    ( I = 1 ->
+	Attr = SuspAttr, Body = M:Goal
     ;
-	Goal =.. [N, Term, LA]
-    ).
-local_unify_handlers([t(I, _, _, N/A, M)|List], Attr, Term, Body) :-
-    arg(I, Attr, LA),
-    ( A = 3 ->
-	arg(1, Attr, SuspAttr),
-	Goal =.. [N, Term, LA, SuspAttr]
-    ;
-	Goal =.. [N, Term, LA]
+	Body = (arg(I,Meta,Attr), M:Goal)
     ),
-    Body = (M:Goal, NewBody),
-    local_unify_handlers(List, Attr, Term, NewBody).
+    ( A = 3 ->
+	Goal =.. [N, Term, Attr, SuspAttr]
+    ;
+	Goal =.. [N, Term, Attr]
+    ).
+local_unify_handlers([t(I, _, _, N/A, M)|List], Meta, Term, SuspAttr, Body) :-
+    ( I = 1 ->
+	Attr = SuspAttr, Body = (M:Goal, NewBody)
+    ;
+	Body = (arg(I,Meta,Attr), M:Goal, NewBody)
+    ),
+    ( A = 3 ->
+	Goal =.. [N, Term, Attr, SuspAttr]
+    ;
+	Goal =.. [N, Term, Attr]
+    ),
+    local_unify_handlers(List, Meta, Term, SuspAttr, NewBody).
 
 %------------------------------
+pre_unify_attributes(_AttrVar, _Term, _Pair).
+
 recompile_pre_unify_handler :-
     collect_local_handlers(pre_unify, PreList),
     (PreList = [] ->
@@ -226,9 +254,7 @@ recompile_pre_unify_handler :-
 		pre_unify_attributes(AttrVar, Term, Pair) :- Body]),
 	set_default_error_handler(11, pre_unify_handler/1),
 	set_error_handler(11, pre_unify_handler/1)
-    ),
-    uh(UPred),			% recompile global unification handler
-    expand_compile_term(UPred).
+    ).
 
 undo_meta_bindings([], []).
 undo_meta_bindings([Pair|List], [p(AttrVar, Term, Pair)|PList]) :-
@@ -246,6 +272,9 @@ local_pre_unify_handlers([t(_, _, _, N/_, M)|List], AttrVar, Term, Pair, Body) :
     local_pre_unify_handlers(List, AttrVar, Term, Pair, NewBody).
 
 %------------------------------
+:- mode test_unify_attributes(?, ++).
+test_unify_attributes(_Term, _Attr).
+
 recompile_test_unify_handler :-
     getval(meta_arity, I),
     functor(Attr, meta, I),
@@ -265,6 +294,11 @@ local_test_unify_handlers([t(I, _, _, N/_, M)|List], Attr, Term, Body) :-
     local_test_unify_handlers(List, Attr, Term, NewBody).
 
 %------------------------------
+:- mode compare_instances_attributes(-, ?, ?).
+compare_instances_attributes(Res, TermL, TermR) :-
+	suspend:compare_instances_suspend(Res0, TermL, TermR),
+	Res is x_res(Res0).
+
 recompile_compare_instances_handler :-
     collect_local_handlers(compare_instances, List),
     local_compare_instances_handlers(List, Res, TermL, TermR, Body, _),
@@ -292,6 +326,9 @@ local_compare_instances_handlers([], RR, _, _, true, _) :-
     x_res(=, RR).
 
 %------------------------------
+:- mode copy_term_attributes(?, ?).
+copy_term_attributes(_Meta, _Term).
+
 recompile_copy_term_handler :-
 	collect_local_handlers(copy_term, List),
 	local_copy_term_handlers(List, Meta, Term, Body),
@@ -313,6 +350,9 @@ recompile_copy_term_handler :-
 % return integers.
 % The handlers are only called if the attribute exists!
 
+get_meta_bounds(_Meta, Lower, Upper) ?-
+	Lower = -1.0Inf, Upper = 1.0Inf.
+
 recompile_get_bounds_handler :-
 	collect_local_handlers(get_bounds, List),
 	local_get_bounds_handlers(List, Meta, -1.0Inf, 1.0Inf, Lower, Upper, Body),
@@ -332,6 +372,8 @@ recompile_get_bounds_handler :-
 	).
 
 %------------------------------
+set_meta_bounds(_Meta, _Lwb, _Upb).
+
 recompile_set_bounds_handler :-
 	collect_local_handlers(set_bounds, List),
 	local_set_bounds_handlers(List, Meta, Lwb, Upb, Body),
@@ -353,6 +395,12 @@ recompile_set_bounds_handler :-
 %------------------------------
 % Obsolete delayed_goals handlers
 % (modified to work as well on top of new suspensions-handler)
+:- mode delayed_goals_attributes(?, ?, ?).
+delayed_goals_attributes(Meta, G, G0) :-
+	suspend:suspensions_suspend(Meta, ListOfSuspLists, []),
+	concat_live_suspensions(ListOfSuspLists, Susps, []),
+	suspensions_to_goals(Susps, G, G0).
+
 recompile_delayed_goals_handler :-
     collect_local_handlers(suspensions, ListSH),	% new
     collect_local_handlers(delayed_goals, ListDGH),	% old
@@ -382,6 +430,10 @@ local_delayed_goals_handlers([t(_, _, HandlerType, N/_, M)|List], Meta, G, G0, B
 local_delayed_goals_handlers([], _, G, G, true).
 
 %------------------------------
+:- mode suspensions_attributes(?, ?, ?).
+suspensions_attributes(Meta, S, S0) :-
+	suspend:suspensions_suspend(Meta, S, S0).
+
 recompile_suspensions_handler :-
     collect_local_handlers(suspensions, List),
     local_suspensions_handlers(List, Meta, S, S0, Body),
@@ -399,6 +451,10 @@ local_suspensions_handlers([t(_, _, _, N/_, M)|List], Meta, S, S0, Body) :-
 local_suspensions_handlers([], _, S, S, true).
 
 %------------------------------
+:- mode delayed_goals_number_attributes(?, ?).
+delayed_goals_number_attributes(Meta, NG) :-
+	suspend:delayed_goals_number_suspend(Meta, NG).
+
 recompile_delayed_goals_number_handler :-
     collect_local_handlers(delayed_goals_number, List),
     local_delayed_goals_number_handlers(List, Meta, NG, Body, 0),
@@ -425,6 +481,8 @@ local_delayed_goals_number_handlers([t(_, _, _, N/_, M)|List], Meta, NG, Body, N
 local_delayed_goals_number_handlers([], _, 0, true, _).
 
 %------------------------------
+print_attribute(_, _) :- fail.
+
 recompile_print_handler :-
     collect_local_handlers(print, List),
     local_print_handlers(List, Var, OL, Body),
@@ -494,31 +552,24 @@ meta_event(_, _) :-
 %%%% unification %%%%
 %
 
-% Keep it recompilable for debugging.
-uh([(
-unify_handler([]) :-
-    wake
-),(
+unify_handler([]) :- -?->
+    wake.
 unify_handler([[Term|Attr]|List]) :-
     -?->
     unify_attributes(Term, Attr),
-    unify_handler(List)
-),(
+    unify_handler(List).
+
 pre_unify_handler(List) :-
     undo_meta_bindings(List, NewList),
     pre_unify_pairs(NewList),
-    unify_handler(List)
-),(
-pre_unify_pairs([])
-),(
+    unify_handler(List).
+
+pre_unify_pairs([]).
 pre_unify_pairs([p(Var, Term, Pair)|L]) :-
     pre_unify_attributes(Var, Term, Pair),
-    pre_unify_pairs(L)
-)]).
+    pre_unify_pairs(L).
 
-:- (uh(Pred), expand_compile_term(Pred)) -> true.	% for ptags
 
-:- mode unify_attributes(?,++).
 
 %
 %%%% not_unify/2 %%%%
@@ -534,8 +585,6 @@ test_unify_handler([]).
 test_unify_handler([[Term|Attr]|List]) :-
     test_unify_attributes(Term, Attr),
     test_unify_handler(List).
-
-:- mode test_unify_attributes(?, ++).
 
 %
 %%%% proper_instance/2 %%%%
@@ -569,7 +618,6 @@ instance_handler(Res, [[TermL|TermR]|List], ResL) :-
     Res2 is Res1 /\ Res,
     instance_handler(Res2, List, ResL).
 
-:- mode compare_instances_attributes(-, ?, ?).
 
 %
 %%%% copy_term/2 %%%%
@@ -587,7 +635,6 @@ copy_term_handler([[Meta|Term]|List]) :-
     copy_term_attributes(Meta, Term),
     copy_term_handler(List).
 
-:- mode copy_term_attributes(?, ?).
 
 %
 %%%% retrieve current numeric range %%%%
@@ -625,7 +672,6 @@ delayed_goals(Meta, Goals) :-
 	delayed_goals_attributes(Meta, Goals, []).
 delayed_goals(_free_or_instantiated, []).
 
-:- mode delayed_goals_attributes(?, ?, ?).
 
 %
 %%%% suspensions/2 %%%%
@@ -655,7 +701,6 @@ suspensions(_free_or_instantiated, []).
 	filter_live_suspensions(Ss, Ls0, Ls).
 
 
-:- mode suspensions_attributes(?, ?, ?).
 
 %
 %%%% delayed_goals_number/2 %%%%
@@ -670,7 +715,6 @@ delayed_goals_number(X, N) :-
 	N = 0.
 delayed_goals_number(_, 1000000).
 
-:- mode delayed_goals_number_attributes(?, ?).
 
 %
 %%%% print %%%%
@@ -713,8 +757,6 @@ x_res(=, 3).
 	copy_term_handler/1,
 	instance_handler/3,
 	test_unify_handler/1.
-
-:- local print_attribute/2.	% to be able to set it untraceable
 
 :- untraceable
 	unify_attributes/2,

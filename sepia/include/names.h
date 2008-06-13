@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.11 2008/05/17 00:30:11 jschimpf Exp $
+ * VERSION	$Id: names.h,v 1.12 2008/06/13 00:42:38 jschimpf Exp $
  */
 
 /*
@@ -444,8 +444,8 @@ char * inst_name[] = {
 "Push_local_value2L        ",
 "Put_global_variable2AML   ",
 "Put_variable2AM           ",
-"Get_integer2AM	           ",
 "Get_atom2AM               ",
+"Get_integer2AM	           ",
 "Get_atomintegerAMAM       ",
 "Write_first_structure     ",
 "Write_first_list          ",

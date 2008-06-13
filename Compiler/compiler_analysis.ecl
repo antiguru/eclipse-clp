@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_analysis.ecl,v 1.4 2008/05/17 00:00:40 jschimpf Exp $
+% Version:	$Id: compiler_analysis.ecl,v 1.5 2008/06/13 00:38:55 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_analysis).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - dataflow analysis").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/05/17 00:00:40 $").
+:- comment(date, "$Date: 2008/06/13 00:38:55 $").
 
 :- use_module(compiler_common).
 :- use_module(compiler_map).
@@ -98,11 +98,19 @@ binding_analysis(goal{kind:head,functor:Pred,args:Args,state:State,definition_mo
 	;
 	    mark_args_as(univ, Args, State0, State)
 	).
-binding_analysis(goal{functor:F/A,args:Args,state:State0}, State0, State) :-
+binding_analysis(goal{functor:F/A,args:Args,state:State0,path:File,line:Line}, State0, State) :-
 	( goal_effect(F, A, Args, State0, State) ->
 	    true
 	;
-	    update_struct(state, [determinism:failure], State0, State)
+	    update_struct(state, [determinism:failure], State0, State),
+	    ( expected_failure(F, A) ->
+		true
+	    ;
+		( File == '' -> true
+		; printf(warning_output, "File %w, line %d:%n  ", [File,Line])
+		),
+		printf(warning_output, "WARNING: calling %Kw will always fail%n", [F/A])
+	    )
 	).
 
 
@@ -148,6 +156,8 @@ goal_effect(var, 1, [A1], State0, State) :- !,
 goal_effect(_, _, Args, State0, State) :-
 	mark_args_as(univ, Args, State0, State).
 
+expected_failure(fail, 0).
+expected_failure(false, 0).
 
 mark_args_as(_, [], State, State).
 mark_args_as(Domain, [Arg|Args], State0, State) :-
@@ -200,12 +210,8 @@ constrain_type(variable{varid:VarId}, Domain, State0, State) :- !,
 	enter_binding(VarId, Domain, State0, State).
 constrain_type(X, Domain, State, State) :-
     	term_domain(X, State, XDomain),
-	( domain_intersection(XDomain, Domain, _) ->
-	    true
-	;
-	    printf(warning_output, "WARNING: %w type test will always fail%n", [Domain]),
-	    fail
-	).
+	domain_intersection(XDomain, Domain, _).	% may fail
+
 
 %----------------------------------------------------------------------
 % Compute the effect of the unification.
@@ -221,21 +227,14 @@ unify_effect(NonVar, variable{varid:VarId}, State0, State) :- !,
 unify_effect(S, V, State0, State) :-
 	S = structure{}, V = variable{}, !,
 	unify_effect(V, S, State0, State).
-unify_effect(structure{name:N1,arity:A1,args:Args1},
-	structure{name:N2,arity:A2,args:Args2}, State0, State) :- !,
-	( N1/A1 = N2/A2 ->
-	    % this case should actually be preprocessed away in normalisation
-	    ( foreach(Arg1,Args1),
-	      foreach(Arg2,Args2),
-	      fromto(State0,State1,State2,State)
-	    do
-		unify_effect(Arg1, Arg2, State1, State2)
-	    )
-	;
-	    % sure to fail, unreachable state
-	    printf(warning_output,
-		    "WARNING: unifying %w with %w will always fail%n", [N1/A1,N2/A2]),
-	    fail
+unify_effect(structure{name:N,arity:A,args:Args1},
+	structure{name:N,arity:A,args:Args2}, State0, State) :-
+	% this case should actually be preprocessed away in normalisation
+	( foreach(Arg1,Args1),
+	  foreach(Arg2,Args2),
+	  fromto(State0,State1,State2,State)
+	do
+	    unify_effect(Arg1, Arg2, State1, State2)
 	).
 
 
@@ -255,14 +254,7 @@ binding_effect(VarId, Constant, State0, State) :- !,
 	State0 = state{bindings:Map0},
 	update_struct(state, [bindings:Map1], State0, State),
 	( lookup_binding(Map0, VarId, OldBinding, AliasVarId) ->
-	    ( domain_intersection(OldBinding, NewBinding, Binding) ->
-		true
-	    ;
-		printf(warning_output,
-		    "WARNING: unification of %w with %w will always fail%n",
-		    [OldBinding, NewBinding]),
-		fail
-	    ),
+	    domain_intersection(OldBinding, NewBinding, Binding),	% may fail
 	    compiler_map:det_update(Map0, AliasVarId, Binding, Map1)
 	;
 	    compiler_map:det_insert(Map0, VarId, NewBinding, Map1)
@@ -297,9 +289,9 @@ alias_effect(VarId1, VarId2, State0, State) :-
 		( domain_intersection(Binding1, Binding2, Binding) ->
 		    ( Binding = uninit -> Binding12=univ ; Binding12=Binding )
 		;
-		    printf(warning_output,
-			"WARNING: unification of %w with %w will always fail%n",
-			[Binding1, Binding2]),
+%		    printf(warning_output,
+%			"WARNING: unification of %w with %w will always fail%n",
+%			[Binding1, Binding2]),
 		    fail
 		),
 		compiler_map:det_update(Map0, AliasVarId1, alias(AliasVarId2), Map1),

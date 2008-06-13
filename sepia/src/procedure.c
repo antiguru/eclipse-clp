@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: procedure.c,v 1.2 2007/09/04 16:57:34 jschimpf Exp $
+ * VERSION	$Id: procedure.c,v 1.3 2008/06/13 00:42:39 jschimpf Exp $
  */
 
 /*
@@ -107,6 +107,7 @@ dident
 		d_create_module3_,
 		d_call_susp_,
 		d_erase_module_,
+		d_error3_,
 		d_eclipse_language_,
 		d_insert_susp4_,
 		d_insert_susp3_,
@@ -631,6 +632,7 @@ compiler_init(int flags)
     d_silent_debug = in_dict("silent_debug", 0);
     d_tr_clause = in_dict("tr_clause", 3);
     d_erase_module_ = in_dict("erase_module", 1);
+    d_error3_ = in_dict("error", 3);
     d_create_module3_ = in_dict("create_module", 3);
     d_eclipse_language_ = in_dict("eclipse_language", 0);
 
@@ -1446,28 +1448,32 @@ _args_error(int number, pword *arg1, pword *arg2, pword *arg3, proc_desc *proced
  *
  * An .eco file contains only directives
  * Only module directives are treated specially here
+ * Pragmas are ignored for backward compatibility (they should not occur)
+ * The calling module is passed in *module, and the current module
+ * at the end of the eco file is returned in *module.
  ***********************************************************************/
 
 int
-ec_load_eco_from_stream(stream_id nst, int options, value vmod, type tmod)
+ec_load_eco_from_stream(stream_id nst, int options, pword *module)
 {
     int res;
-    pword *clause, *query;
-    pword query_pw;
-    value vquery;
+    pword *clause, *query, *pw;
+    pword query_pw, kernel_pw;
+    pword top_module = *module;
     int encoded = 0;
-
-    extern p_read3(value vs, type ts, value v, type t, value vm, type tm);
 
     /* we are expecting an eco-encoded file, but we allow text as well */
     res = _read_eco_header(nst);
     encoded = (res == PSUCCEED);
+    StreamMode(nst) |= SNOMACROEXP; /* to avoid problems in text-eco files */
+    kernel_pw.val.did = d_.kernel_sepia;
+    kernel_pw.tag.kernel = ModuleTag(d_.kernel_sepia);
 
     for(;;)
     {
 	int recreate_module = 0;
 	pword exports_pw, language_pw;
-	pword *module_pw = 0;
+	pword *new_module = 0;
 
 	if (encoded)			/* encoded dbformat */
 	{
@@ -1478,7 +1484,7 @@ ec_load_eco_from_stream(stream_id nst, int options, value vmod, type tmod)
 	    if (!(s))
 		return nread;	/* error code */
 	    if (nread < 4L)
-	    	return (nread == 0L) ? PSUCCEED : UNEXPECTED_EOF;
+		return (nread == 0L) ? PSUCCEED : UNEXPECTED_EOF;
 
 	    n = (unsigned char) *s++ << 24;
 	    n |= (unsigned char) *s++ << 16;
@@ -1490,101 +1496,132 @@ ec_load_eco_from_stream(stream_id nst, int options, value vmod, type tmod)
 	    if (nread < n)
 		return UNEXPECTED_EOF;
 
-	    clause = dbformat_to_term(s, vmod.did, tmod);
+	    clause = dbformat_to_term(s, module->val.did, module->tag);
 	    if (!clause)
 		return NOT_DUMP_FILE;
-
 	}
 	else				/* text format, call the parser */
 	{
-	    value vs, vclause;
-	    clause = TG++;
-	    Check_Gc;
-	    Make_Var(clause);
-	    vs.nint = StreamNr(nst);
-	    vclause.ptr = clause;
-	    res = p_read3(vs, tint, vclause, vclause.ptr->tag, vmod, tmod);
+	    res = ec_read_term(nst,
+    		(GlobalFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
+		&query_pw, 0, 0, module->val, module->tag);
 	    if (res != PSUCCEED)
-		return PEOF ? PSUCCEED : NOT_DUMP_FILE;
+	    	return (res == PEOF) ? PSUCCEED : NOT_DUMP_FILE;
+
+	    clause = &query_pw;
 	}
 
-	if (!Query(get_did((proc_desc*) 0, clause)))
+	Dereference_(clause);
+	if (!IsStructure(clause->tag) || !Query(clause->val.ptr->val.did))
 	    return NOT_DUMP_FILE;
 
-	query = clause->val.ptr + 1;
-	if (IsStructure(query->tag))	/* look for special directives */
+	pw = query = clause->val.ptr + 1;
+	Dereference_(pw);
+	if (IsStructure(pw->tag))	/* look for special directives */
 	{
-	    pword *pw = query;
-	    Dereference_(pw);
-	    if (IsStructure(pw->tag) &&
-		pw->val.ptr->val.did == d_.module1)
+	    if (pw->val.ptr->val.did == d_.module1)
 	    {
 		recreate_module = 1;
-		module_pw = &pw->val.ptr[1];
+		new_module = &pw->val.ptr[1];
 		Make_Nil(&exports_pw);
 		Make_Atom(&language_pw, d_eclipse_language_);
 	    }
-	    if (IsStructure(pw->tag) &&
-		pw->val.ptr->val.did == d_module_interface)
+	    if (pw->val.ptr->val.did == d_module_interface)
 	    {
 		recreate_module = 1;
-		module_pw = &pw->val.ptr[1];
+		new_module = &pw->val.ptr[1];
 		Make_Nil(&exports_pw);
 		Make_Atom(&language_pw, d_eclipse_language_);
 	    }
-	    else if (IsStructure(pw->tag) &&
-		pw->val.ptr->val.did == d_module2)
+	    else if (pw->val.ptr->val.did == d_module2)
 	    {
 		recreate_module = 1;
-		module_pw = &pw->val.ptr[1];
+		new_module = &pw->val.ptr[1];
 		exports_pw = pw->val.ptr[2];
 		Make_Atom(&language_pw, d_eclipse_language_);
 	    }
-	    else if (IsStructure(pw->tag) &&
-		pw->val.ptr->val.did == d_module3)
+	    else if (pw->val.ptr->val.did == d_module3)
 	    {
 		recreate_module = 1;
-		module_pw = &pw->val.ptr[1];
+		new_module = &pw->val.ptr[1];
 		exports_pw = pw->val.ptr[2];
 		language_pw = pw->val.ptr[3];
 	    }
-	    else if (IsStructure(pw->tag) &&
-		pw->val.ptr->val.did == d_begin_module)
+	    else if (pw->val.ptr->val.did == d_begin_module)
 	    {
-		module_pw = &pw->val.ptr[1];
+		new_module = &pw->val.ptr[1];
 		query = &query_pw;	/* don't execute anything */
 		Make_Atom(query, d_.true0);
 	    }
+	    else if (pw->val.ptr->val.did == d_.pragma)
+	    {
+		query = &query_pw;	/* ignore pragmas, replace with true */
+		Make_Atom(query, d_.true0);
+	    }
+	}
+	else if (pw->val.did == d_.system || pw->val.did == d_.system_debug)
+	{
+	    query = &query_pw;	/* ignore pragmas, replace with true */
+	    Make_Atom(query, d_.true0);
 	}
 
 	if (recreate_module)		/* build translated module query */
 	{
-	    pword *pw;
+	    pword *pgoal, *pcont;
 	    query = &query_pw;
 	    Make_Struct(query, TG);
+	    /* If module changes, raise CODE_UNIT_LOADED event first */
+	    if (module->val.did != top_module.val.did)
+	    {
+		pcont = TG;
+		Push_Struct_Frame(d_.comma);
+		Make_Struct(&pcont[1], TG);
+		pgoal = TG;
+		Push_Struct_Frame(d_.syserror);
+		Make_Integer(&pgoal[1], CODE_UNIT_LOADED);
+		pgoal[2] = _eof_pw;
+		pgoal[3] = *module;
+		pgoal[4] = *module;
+		Make_Struct(&pcont[2], TG);
+	    }
+	    pcont = TG;
 	    Push_Struct_Frame(d_.comma);
-	    Make_Struct(&query->val.ptr[1], TG);
-	    pw = TG;
+	    Make_Struct(&pcont[1], TG);
+	    pgoal = TG;
 	    Push_Struct_Frame(d_erase_module_);
-	    pw[1] = *module_pw;
-	    Make_Struct(&query->val.ptr[2], TG);
-	    pw = TG;
+	    pgoal[1] = *new_module;
+	    Make_Struct(&pcont[2], TG);
+	    pgoal = TG;
 	    Push_Struct_Frame(d_create_module3_);
-	    pw[1] = *module_pw;
-	    pw[2] = exports_pw;
-	    pw[3] = language_pw;
+	    pgoal[1] = *new_module;
+	    pgoal[2] = exports_pw;
+	    pgoal[3] = language_pw;
+
+	    res = query_emulc(query->val, query->tag, kernel_pw.val, kernel_pw.tag);
 	}
-					/* execute the query/directive */
-	res = query_emulc(query->val, query->tag, vmod, tmod);
+	else
+	{
+	    /* execute the query/directive */
+	    res = query_emulc(query->val, query->tag, module->val, module->tag);
+	}
 
 	if (res != PSUCCEED)
-	    return QUERY_FAILED;
-
-	if (module_pw)			/* change to new context module */
 	{
-	    Dereference_(module_pw);
-	    vmod.all = module_pw->val.all;
-	    tmod.all = module_pw->tag.all;
+	    pw = TG;
+	    Push_Struct_Frame(d_.syserror);
+	    Make_Integer(&pw[1], QUERY_FAILED);
+	    pw[2] = *query;
+	    pw[3] = *module;
+	    pw[4] = *module;
+	    query = &query_pw;
+	    Make_Struct(query, pw);
+	    (void) query_emulc(query->val, query->tag, kernel_pw.val, kernel_pw.tag);
+	}
+
+	if (new_module)			/* change to new context module */
+	{
+	    Dereference_(new_module);
+	    *module = *new_module;
 	}
     }
     return PSUCCEED;

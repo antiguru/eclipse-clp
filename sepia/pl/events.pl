@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.8 2008/05/12 12:34:59 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.9 2008/06/13 00:42:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -596,6 +596,8 @@ record_compiled_file_handler(_, File-Goal, Module) :-
 	record_compiled_file(CanonicalFile, Goal, Module).
 
 
+local_file_name(File:Line, LocalF:Line) :- !,
+	local_file_name(File, LocalF).
 local_file_name(File, LocalF) :-
 	getcwd(Cwd),
 	atom_string(File, FileS),

@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.24 2008/06/04 13:27:07 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.25 2008/06/13 00:38:55 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/06/04 13:27:07 $").
+:- comment(date, "$Date: 2008/06/13 00:38:55 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -704,8 +704,9 @@ subsumed_type_instr(breal, A, [(bi_number(a(A)),next),(bi_real(a(A)),next),
                                (bi_breal(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(double, A, [(bi_number(a(A)),next),(bi_real(a(A)),next),
                                (bi_float(a(A)),next),(bi_nonvar(a(A)),next)]).
+subsumed_type_instr(goal, A, [(bi_atomic(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(handle, A, [(bi_is_handle(a(A)),next),(bi_nonvar(a(A)),next)]).
-subsumed_type_instr(list, A, [(bi_is_list(a(A)),next),(bi_compound(a(A)),next),
+subsumed_type_instr(list, A, [(bi_compound(a(A)),next),
                                 (bi_callable(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(rational, A, [(bi_number(a(A)),next),(bi_rational(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(string, A, [(bi_atomic(a(A)),next),(bi_string(a(A)),next),(bi_nonvar(a(A)),next)]).
@@ -859,8 +860,9 @@ basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
 
 % simplify_chunk leaves the annotations around instructions so that it can be
 % run multiple times on a chunk.
-% Every time we make a simplification, we back up 1 instruction to the
-% left, and try to simplify again. 
+% Every time we make a simplification, we back up 2 instructions to the
+% left, and try to simplify again. These two instructions are in the two
+% (possibly empty) difference lists Rescan1 and Rescan2.
 
 simplify_chunk(Code, SimplifiedCode) :-
 	simplify_chunk(Empty1, Empty1, Empty2, Empty2, Code, SimplifiedCode).
@@ -1006,6 +1008,11 @@ simplify(allocate(N), _, [code{instr:move(a(I),y(J)),regs:Regs}|More], New, More
         More = MoreT,
         New = [code{instr:get_variable(N, a(I), y(J)),regs:Regs}|NewT].
 
+simplify(allocate(N), _, [code{instr:chain(P)}|Rest], New, RestT, NewT) ?- !,
+	verify N==0,
+        New = [code{instr:jmp(P)}|NewT],
+        RestT = Rest.
+
 simplify(space(N), _, [code{instr:branch(L)}|More], New, MoreT, NewT) ?- !,
         More = MoreT,
         New = [code{instr:branchs(N,L)}|NewT].
@@ -1024,7 +1031,6 @@ simplify(space(N), _, [code{instr:jmpd(L)}|More], New, MoreT, NewT) ?- !,
 	%	read_attribute suspend		(where suspend->1)
 	%	read_void*			(N times)
 	%	read_xxx			(match actual attribute)
-	%	read_void*			(M times)
 	% into
 	%	read_attribute name		(where name->N)
 	%	read_xxx			(match actual attribute)
@@ -1034,24 +1040,14 @@ simplify(space(N), _, [code{instr:jmpd(L)}|More], New, MoreT, NewT) ?- !,
 	% compilation scheme with probably new instructions.
 simplify(read_attribute(FirstName), _, More0, New, MoreT, NewT) ?-
 	meta_index(FirstName, I0),
-	count_same_instr(More0, read_void, I0, I, More1),
+	count_same_instr(More0, read_void, I0, I, MoreT),
 	I > I0,
-	More1 = [AnnRead|More2],
-        AnnRead = code{instr:Read},
-	is_read_instruction(Read),
 	!,
-	% we have read_voids followed by another read: simplify
-	(
-	    meta_index(Name, I),
-	    count_same_instr(More2, read_void, 1, _, MoreT),
-	    MoreT = [code{instr:After}|_],
-	    \+ is_read_instruction(After)
-	->
-            New = [code{instr:read_attribute(Name)},AnnRead|NewT]
+	( meta_index(Name, I) ->
+	    New = [code{instr:read_attribute(Name)}|NewT]
 	;
-	    warning("Implementation limit: cannot make attribute matching code"),
-	    warning("session-independent if matching more than one attribute."),
-	    fail
+	    % as many or more read_voids than attributes
+	    New = NewT
 	).
 
 simplify(read_void, _, [code{instr:read_void}|Rest0], New, RestT, NewT) ?- !,
@@ -1175,23 +1171,6 @@ simplify(put_variable(a(A1)), _, [code{instr:put_variable(a(A2))}|Rest], New, Re
         New = [code{instr:put_variable2(a(A1),a(A2))}|NewT],
         RestT = Rest.
 
-simplify(get_atom(a(A1),C1), _, [code{instr:get_atom(a(A2),C2)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:get_atom2(a(A1),C1,a(A2),C2)}|NewT],
-        RestT = Rest.
-
-simplify(get_integer(a(A1),C1), _, [code{instr:get_integer(a(A2),C2)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:get_integer2(a(A1),C1,a(A2),C2)}|NewT],
-        RestT = Rest.
-
-simplify(get_atom(a(A1),C1), _, [code{instr:get_integer(a(A2),C2)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:get_atominteger(a(A1),C1,a(A2),C2)}|NewT],
-        RestT = Rest.
-
-simplify(get_integer(a(A1),C1), _, [code{instr:get_atom(a(A2),C2)}|Rest], New, RestT, NewT) ?- !,
-        A1 \= A2, % just to be sure  
-        New = [code{instr:get_atominteger(a(A2),C2,a(A1),C1)}|NewT],
-        RestT = Rest.
-
 simplify(write_integer(C1), _, [code{instr:write_integer(C2)}|Rest], New, RestT, NewT) ?- !,
         New = [code{instr:write_integer2(C1,C2)}|NewT],
         RestT = Rest.
@@ -1199,10 +1178,6 @@ simplify(write_integer(C1), _, [code{instr:write_integer(C2)}|Rest], New, RestT,
 /* push_integer = write_integer in emu.c */
 simplify(push_integer(C1), _, [code{instr:push_integer(C2)}|Rest], New, RestT, NewT) ?- !,
         New = [code{instr:write_integer2(C1,C2)}|NewT],
-        RestT = Rest.
-
-simplify(read_integer(C1), _, [code{instr:read_integer(C2)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:read_integer2(C1,C2)}|NewT],
         RestT = Rest.
 
 simplify(write_atom(C1), _, [code{instr:write_atom(C2)}|Rest], New, RestT, NewT) ?- !,
@@ -1219,10 +1194,6 @@ simplify(write_did(C1), _, [code{instr:write_did(C2)}|Rest], New, RestT, NewT) ?
 
 simplify(write_did(C1), _, [code{instr:write_atom(C2)}|Rest], New, RestT, NewT) ?- !,
         New = [code{instr:write_didatom(C1,C2)}|NewT],
-        RestT = Rest.
-
-simplify(read_atom(C1), _, [code{instr:read_atom(C2)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:read_atom2(C1,C2)}|NewT],
         RestT = Rest.
 
 simplify(write_atom(C1), _, [code{instr:write_integer(C2)}|Rest], New, RestT, NewT) ?- !,
@@ -1494,10 +1465,6 @@ compact_moves([Instr1,Instr2], [code{instr:move(X1,Y1,X2,Y2)}|CRest], CRest) :-
 compact_moves([Instr], [code{instr:Instr}|CRest], CRest).
 
 
-is_read_instruction(Instr) :-
-	functor(Instr, Name, _),
-    	atom_string(Name, NameS),
-	substring(NameS, "read_", 1).
 
 count_same_instr(Codes, Instr, N0, N, Rest) :-
     	( Codes = [code{instr:Instr}|Codes1] ->

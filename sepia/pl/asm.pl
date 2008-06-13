@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.24 2008/05/16 10:38:26 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.25 2008/06/13 00:42:38 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -142,9 +142,6 @@
    having to compile the source Prolog form of the predicate.
 
 <P>
-   The library asm must be loaded to use diasm/2.
-
-<P>
    If PredSpec is an existing defined predicate, the older definition will
    be replaced. If WAMCode is not in the correct format, an exception will
    be generated and the predicate PredSpec would not be redefined. 
@@ -162,7 +159,7 @@
 predicate PredSpec.  
 
 ",
-	template:"asm(+PredSpec, +WAMCode, +Module)",
+	template:"asm(+PredSpec, +WAMCode, +Flags)",
 	desc:html("   Assembles the WAM instruction WAMCode into the current ECLiPSe session
    in an existing module Module as the predicate PredSpec. The WAM code is
    in the form of a list, with each element representing one WAM
@@ -172,16 +169,15 @@ predicate PredSpec.
    source Prolog form of the predicate.
 
 <P>
-   The library asm must be loaded to use diasm/3.
-
-<P>
    If PredSpec is an existing defined predicate, the older definition will
    be replaced. If WAMCode is not in the correct format, an exception will
    be generated and the predicate PredSpec would not be redefined. 
 
 <P>
 "),
-	args:["+PredSpec" : "Atom/Integer.", "+WAMCode" : "A list of WAM instructions in the right format.", "+Module" : "An atom."],
+	args:["+PredSpec" : "Atom/Integer.",
+		"+WAMCode" : "A list of WAM instructions in the right format.",
+		"+Flags" : "An integer."],
 	resat:"   No.",
 	fail_if:"   None.",
 	exceptions:[5 : "PredSpec or Module is not in correct form.", 6 : "WAMCode is not in correct form.  ", 80 : "Module is not an existing module."],
@@ -284,7 +280,24 @@ abstract machine representation WAMCode.
 		"Object" : "A list of object words in the right format."],
 	resat:"   No.",
 	fail_if:"   If WAMCode is not in correct format.",
-	see_also:[asm / 2, asm / 3, disasm / 2, disasm / 3, fcompile / 1, fcompile / 2]]).
+	see_also:[asm / 2, asm / 3, disasm / 2, disasm / 3, fcompile / 1, fcompile / 2, store_pred/9, portable_object_code/2]]).
+
+:- comment(portable_object_code / 1, [
+	summary:"Check whether abstract machine code is 32/64 bit portable",
+	desc:html("\
+   This check can be run on the output of pasm/4.
+   <P>
+   ECLiPSe runtime engines on 32/64 bit hardware use different abstract
+   machine instructions when processing integers that are between 32 and
+   64 bits in size.  Code (and .eco files) that contain such instructions
+   cannot be used on a runtime with different word-size from where it was
+   assembled.  This predicate prints warnings and fails if the given code
+   contains such constructs.
+"),
+	amode:(portable_object_code(++) is semidet),
+	args:["Object" : "A list of object words, as produced by pasm/4."],
+	fail_if:"If Object is not portable between 32/64 bit.",
+	see_also:[pasm/4, store_pred/9]]).
 
 :- comment(wam / 1, [
 	summary:"Prints the formatted WAM code for predicate PredSpec.
@@ -353,12 +366,14 @@ abstract machine representation WAMCode.
           disasm/2, disasm/3,
 	  wam/1, wam/2,
 	  print_wam/1,
+	  portable_object_code/1,
 	  pasm/4.
 
 :- local struct(label(add,label)), struct(tab(type,table)), 
 	 struct(try(table,size,ref)).
 
-:- tool(asm/2, asm/3), 
+:- tool(asm/2, asm_/3), 
+   tool(asm/3, asm_/4),
    tool(disasm/2, disasm/3),
    tool(wam/1, wam/2).
 
@@ -403,7 +418,7 @@ abstract machine representation WAMCode.
 	t(X) 		 temporary variable X                             1
         pw(N)		 pword offset                                     1
         edesc(EnvDesc)	 environment activity descriptor
-			 (integer N, or eam(Bitmap)
+			 (integer N, or eam(Bitmap)               1[+table]
         i(I)             integer value I                                  1
         f(Z)  		 floating value Z                                 1
         atom(C)          atom did for C                                   1
@@ -777,8 +792,8 @@ instr(bi_is_event(a(A1)),		313, [a(A1)]).
 instr(bi_is_list(a(A1)),		314, [a(A1)]).
 instr(bi_identical(a(A1),a(A2)),	315, [a(A1),a(A2)]).
 instr(bi_not_identical(a(A1),a(A2)),	316, [a(A1),a(A2)]).
-instr(bi_inequality(a(A1),a(A2),0),	317, [a(A1),a(A2),i(0)]).
-instr(bi_not_ident_list(a(A1),a(A2),a(3),0),	318, [a(A1),a(A2),a(3),i(0)]).
+instr(bi_inequality(a(A1),a(A2)),	317, [a(A1),a(A2)]).
+instr(bi_not_ident_list(a(A1),a(A2),a(A3)),	318, [a(A1),a(A2),a(A3)]).
 instr(bi_cont_debug,			319, []).
 instr(bi_minus(a(A1),a(UA2),4),		320, [a(A1),a(UA2),i(4)]).
 instr(bi_addi(a(A1),I,a(A2),24),	321, [a(A1),i(I),a(A2),i(24)]).
@@ -890,6 +905,7 @@ instr(rot(a(A1),a(A2),a(A3)),		400, [a(A1),a(A2),a(A3)]).
 instr(bi_arity(a(A1),a(UA2),4),		401, [a(A1),a(UA2),i(4)]).
 instr(exits(N),                         402, [pw(N)]).
 instr(cut(a(A),O), 			403, [a(A),pw(O)]).
+instr(put_module(a(A),C),		404, [a(A),atom(C)]).
 
 
 /***************************************************************************
@@ -920,30 +936,40 @@ instr(cut(a(A),O), 			403, [a(A),pw(O)]).
 % asm(+PredSpec, +ListOfInstructions, +Module)
 
 
-asm(Pred, WAMList, Module) :-
+asm_(Pred, WAMList, Module) :-
 	asm(Pred, WAMList, 0, Module).
 
-:- export asm/4.
+:- export asm/4.	% temporary
 asm(Pred, WAMList, Flags, Module) :-
+	asm_(Pred, WAMList, Flags, Module).
 
-        (Pred = F/A, is_proc(F/A) ->
-	    pass1(WAMList, _H, WordList0, BrkTable0),
-            (BrkTable0 = [0] ->
-                % no break ports, terminating 0 only
-                BTSize = 0, BTPos = 0, BrkTable = []
-            ;
-                BTPos = CSize, BrkTable = BrkTable0,
-                length(BrkTable, BTSize)
-            ),
-	    link(WordList0, 0, CSize, OutputList, BrkTable),
-            Size is CSize + BTSize,
-	    store_pred(Pred, OutputList, Size, BTPos, Flags, 0, 0, 0, Module), !
-	;   
+asm_(Pred, WAMList, Flags, Module) :-
+	( integer(Flags) ->
+	    (Pred = F/A, is_proc(F/A) ->
+		pass1(WAMList, _H, WordList0, BrkTable0),
+		!,
+		(BrkTable0 = [0] ->
+		    % no break ports, terminating 0 only
+		    BTSize = 0, BTPos = 0, BrkTable = []
+		;
+		    BTPos = CSize, BrkTable = BrkTable0,
+		    length(BrkTable, BTSize)
+		),
+		link(WordList0, 0, CSize, OutputList, BrkTable),
+		Size is CSize + BTSize,
+		store_pred(Pred, OutputList, Size, BTPos, Flags, 0, 0, 0, Module)
+	    ;   
+		set_bip_error(5)
+	    )
+	; atom(Flags) ->
+	    % backward compatibility: allow asm(Pred,WAM,Module)
+	    asm_(Pred, WAMList, 0, Flags)
+	;
 	    set_bip_error(5)
-        ).
-asm(Pred, WAMList, Flags, Module) :-
+	).
+asm_(Pred, WAMList, Flags, Module) :-
 	get_bip_error(E),
-	error(E, asm(Pred,WAMList,Flags,Module)).
+	error(E, asm(Pred,WAMList,Flags), Module).
 
 
 /* pasm(+WAMList, -Size, -BTPos, -OutList)
@@ -956,6 +982,7 @@ asm(Pred, WAMList, Flags, Module) :-
 */
 pasm(WAMList, Size, BTPos, OutList) :-
 	pass1(WAMList, _H, WordList0, BrkTable0),
+	!,
         (BrkTable0 = [0] ->
             % no break ports, terminating 0 only
             BTSize = 0, BTPos = 0, BrkTable = []
@@ -965,6 +992,10 @@ pasm(WAMList, Size, BTPos, OutList) :-
         ),
         link(WordList0, 0, CSize, OutList, BrkTable),
         Size is CSize + BTSize.
+pasm(WAMList, Size, BTPos, OutList) :-
+	get_bip_error(E),
+	error(E, pasm(WAMList, Size, BTPos, OutList)).
+
 
 /* pass1(+WAMList, -Hash, -WordList, -BrkList)
 
@@ -1194,13 +1225,11 @@ asm_arg(brk_port(P), _H, IList0, IList, TList0, TList, BList0, BList) ?-
 	IList0 = [brk_port(P,BLab)|IList].        
 asm_arg(valtag(C), _H, IList0, IList, TList0, TList, BList0, BList) ?- 
 	\+ nonground(C), !,
-	smallbignum_check(C),
 	TList0 = TList,
         BList0 = BList,
 	IList0 = [val(C),tag(C)|IList].
 asm_arg(tagval(C), _H, IList0, IList, TList0, TList, BList0, BList) ?-
 	\+ nonground(C), !,
-	smallbignum_check(C),
 	TList0 = TList,
         BList0 = BList,
 	IList0 = [tag(C),val(C)|IList].
@@ -1253,17 +1282,22 @@ valid_reflab(L) :- var(L), !.
 valid_reflab(I) :- integer(I), !.  % Code segment index (new compiler)
 valid_reflab(L) :- valid_symbol(L).
 
-% smallbignum_check(C) checks and warns if C is a bignum in a 32 bit machine but
-% not a 64 bit machine
-smallbignum_check(C) :- 
-	(integer(C) ->  
-	   % must be a bignum
-	   ((C =< 2^63-1, C >= -2^63) ->
-	       writeln(warning_output, "WARNING: A bignum between -2^63 and 2^63 found in code; this would not be portable between 32 and 64 bit machines")
-	   ;   true
-           )
-       ;   true
-       ).
+
+% Warn and fail if the code contains bignums between 32 and 64 bits
+portable_object_code(Ws) :-
+	portable_object_code(Ws, Res),
+	Res = true.	% fail late
+
+portable_object_code([], true).
+portable_object_code([W|Ws], Result) :-
+	( W = tag(C), integer(C), -2^63 =< C, C =< 2^63-1 ->
+	    Result = false,
+	    printf(warning_output,
+	   	"WARNING: A bignum between -2^63 and 2^63 found in code (%w)%n", [C]),
+	    portable_object_code(Ws, _)
+	;
+	    portable_object_code(Ws, Result)
+	).
 
 
 % encode/decode environment descriptors

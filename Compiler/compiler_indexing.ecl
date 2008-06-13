@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.6 2008/04/21 14:41:20 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.7 2008/06/13 00:38:55 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,10 +30,10 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/21 14:41:20 $").
+:- comment(date, "$Date: 2008/06/13 00:38:55 $").
 
 :- use_module(compiler_common).
-:- use_module(compiler_analysis).
+:- import state_lookup_binding/3 from compiler_analysis.
 
 :- lib(hash).
 
@@ -241,6 +241,20 @@ extract_guards_from_prefix([Goal|Goals], BranchNr, StartState, Info0, Info, End)
 	    % prior to the disjunction
 	    extract_guards_from_prefix(Goals, BranchNr, HeadState, Info0, Info, End)
 %	    extract_guards_from_prefix(Goals, BranchNr, StartState, Info0, Info, End)
+
+	; Goal = disjunction{branches:[SubBranch1|SubBranches]} ->
+	    % look into the prefixes of the branches
+	    extract_guards_from_prefix(SubBranch1, BranchNr, StartState, [], SubInfo1, _End),
+	    (
+		foreach(SubBranch,SubBranches),
+		fromto(SubInfo1,SubInfo2,SubInfo4,SubInfo),
+		param(BranchNr,StartState)
+	    do
+		extract_guards_from_prefix(SubBranch, BranchNr, StartState, [], SubInfo3, _End),
+		or_guards(SubInfo2, SubInfo3, SubInfo4)
+	    ),
+	    and_guards(Info0, SubInfo, Info),
+	    End = end	% not sure about the scope of commits in sub-branches
 	;
 	    % end of guard
 	    Info = Info0,
@@ -399,8 +413,8 @@ single_value([]).
 
 % Compute the tag of a value
 :- mode atomic_tag(+,-).
-atomic_tag(X, Class) :- integer(X),
-	( sepia_kernel:bignum(X) -> Class=bignum ; Class=integer).
+atomic_tag(X, bignum) :- sepia_kernel:bignum(X), !.
+atomic_tag(X, integer) :- integer(X).
 atomic_tag([], '[]') :- !.
 atomic_tag(X, atom) :- atom(X).
 atomic_tag(X, breal) :- breal(X).
@@ -436,6 +450,15 @@ type_test(rational,	[[rational]-t]).
 type_test(real,		[[breal]-t,[double]-t]).
 type_test(string,	[[string]-t]).
 type_test(var,		[[var]-t]).
+
+
+and_guards(Guards1, Guards2, Guards) :-
+	(
+	    foreach(Guard,Guards1),
+	    fromto(Guards2,Guards3,Guards4,Guards)
+	do
+	    and_guard(Guard, Guards3, Guards4)
+	).
 
 
 % OldGuards is a list containing at most one guard{} for each VarId
@@ -484,6 +507,56 @@ and_classes(Ls, Rs, Cs) :-
 	).
 
 
+or_guards(Guards1, Guards2, OrGuards) :-
+	(
+	    foreach(guard{varid:VarId,branchnr:BNr,class:Class1},Guards1),
+	    fromto(Guards2,Guards3,Guards4,_),
+	    fromto(OrGuards,OrGuards1,OrGuards2,[])
+	do
+	    ( VarId \== 0, delete(guard{varid:VarId,branchnr:BNr,class:Class2},Guards3,Guards4) ->
+		or_classes(Class1, Class2, OrClass),
+		OrGuards1 = [guard{varid:VarId,branchnr:BNr,class:OrClass}|OrGuards2]
+	    ;
+		Guards3 = Guards4, OrGuards1 = OrGuards2
+	    )
+	).
+
+
+% Compute the disjunction of the guards, represented as class lists.
+% Class lists are supposed to contain disjoint, alternative classes.
+or_classes(Ls, Rs, Cs) :-
+	sort(1, =<, Ls, Ls1),
+	sort(1, =<, Rs, Rs1),
+	merge(1, =<, Ls1, Rs1, Cs0),
+	( Cs0 = [C1|Cs1] ->
+	    (
+		fromto(C1,C0,C,Cn),
+		fromto(Cs1,[C2|Cs2],Cs2,[]),
+		fromto(Cs,Cs3,Cs4,[Cn])
+	    do
+		( class_subsumes(C0, C2, C) ->
+		    Cs3 = Cs4			% drop C2
+		;
+		    Cs3 = [C0|Cs4], C = C2
+		)
+	    )
+	;
+	    Cs = Cs0
+	).
+
+    class_subsumes(LC-LP, RC-RP, LC-P) :-
+    	append(LC, Rest, RC),
+	( Rest == [] ->
+	    or_pass(LP, RP, P)	% LC==RC: choose stronger pass flag
+	;
+	    P = LP	% LC-LP
+	).
+
+    or_pass(t, _, t) :- !.
+    or_pass(_, t, t) :- !.
+    or_pass(_, _, m).
+
+
 % Check whether Args is a list of disjoint fresh variables
 all_fresh_vars(Args, Arity, State) :-
 	(
@@ -527,9 +600,14 @@ eval_index_quality(Dt, Q) :-
 	),
 	% remove duplicate sets
 	sort(Branches, BranchesSets),
-	flatten(BranchesSets, AllTargetBranches),
+	(
+	    foreach(BranchesSet,BranchesSets) >> foreach(_,BranchesSet),
+	    count(_,1,NTargetBranches)
+	do
+	    true
+	),
 	% This is the quality measure
-	Q is length(AllTargetBranches)/length(BranchesSets).
+	Q is NTargetBranches/length(BranchesSets).
 
 
 % Check if the index makes the disjunction deterministic

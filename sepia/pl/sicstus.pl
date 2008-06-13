@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: sicstus.pl,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+% Version:	$Id: sicstus.pl,v 1.3 2008/06/13 00:42:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -45,7 +45,7 @@
 :- comment(summary, 'SICStus Prolog Compatibility Package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2007/02/23 15:28:34 $').
+:- comment(date, '$Date: 2008/06/13 00:42:39 $').
 :- comment(desc, html('
     ECLiPSe includes a SICStus Prolog compatibility package to ease
     the task of porting SICStus Prolog applications to ECLiPSe Prolog. 
@@ -131,7 +131,6 @@
 :- import
 	(*->)/2,
 	(block)/4,
-	compile_term_/2,
 	compiled_stream/1,
 	suspend_body/4,
 	erase_macro_/2,
@@ -181,7 +180,7 @@ block_body(List, M) :-
 	compiled_stream(S),
 	read_procedure(S, Proc, M),
 	block_to_clause(List, Delays, Proc),
-	compile_term_(Delays, M).
+	@(compile_term(Delays),M).
 
 read_procedure(S, [Clause|List], M) :-
 	read_(S, Clause, M),

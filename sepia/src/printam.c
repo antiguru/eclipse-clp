@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.17 2008/04/23 13:42:01 kish_shen Exp $
+ * VERSION	$Id: printam.c,v 1.18 2008/06/13 00:42:39 jschimpf Exp $
  */
 
 /*
@@ -449,16 +449,19 @@ print_am(register vmcode *code,
 
 	case ShiftAMAMAM:
 	case RotAMAMAM:
+	case BI_NotIdentList:
 	        Am;
 		/* fall through */
 
 	case BI_Identical:
 	case BI_NotIdentical:
+	case BI_Inequality:
 	case SwapAMAM:
 	case Read_variable2AM:
 	case Write_variable2AM:
 	case Write_local_value2AM:
 	case Push_local_value2AM:
+	case Put_variable2AM:
 	        Am;
 	        Am;
 		break;
@@ -488,8 +491,6 @@ print_am(register vmcode *code,
 	        Am;
 		/* fall through */
 
-	case BI_Inequality:
-	case BI_NotIdentList:
 	case BI_Minus:
 	case BI_Bitnot:
 	case BI_CutToStamp:
@@ -799,6 +800,7 @@ print_am(register vmcode *code,
 	case Out_get_atomAM:
 	case In_get_atomAM:
 	case Put_atomAM:
+	case Put_moduleAM:
 		Am;
 		Atom;
 		break;

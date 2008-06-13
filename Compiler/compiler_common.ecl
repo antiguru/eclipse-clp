@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.14 2008/05/16 17:45:45 kish_shen Exp $
+% Version:	$Id: compiler_common.ecl,v 1.15 2008/06/13 00:38:55 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,8 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/05/16 17:45:45 $").
-
+:- comment(date, "$Date: 2008/06/13 00:38:55 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -593,6 +592,31 @@ warning(Message) :-
 	printf(warning_output, "WARNING: %w%n", [Message]).
 
 
+:- export compiler_event/5.
+compiler_event(EventNr, SourcePos, Ann, Term, Module) :-
+	get_error_location(Ann, SourcePos, Location),
+	error(EventNr, Term@Location, Module).
+
+
+:- use_module(source_processor).	% for source_position{}
+
+:- export get_error_location/3.
+get_error_location(Ann, SourcePos, Location) :-
+	( nonvar(Ann), Ann = annotated_term{file:File,line:Line} ->
+	    Location = File:Line
+	; SourcePos = source_position{file:File,line:Line} ->
+	    Location = File:Line
+	; SourcePos = term ->
+	    Location = SourcePos
+	; compiled_stream(Stream) ->
+	    Location = File:Line,
+	    get_stream_info(Stream, name, File),
+	    get_stream_info(Stream, line, Line)
+	;
+	    Location = unknown_location
+	).
+
+
 %----------------------------------------------------------------------
 % Parameters
 %----------------------------------------------------------------------
@@ -601,12 +625,27 @@ warning(Message) :-
 :- export 'tr_#'/2.
 'tr_#'(no_macro_expansion(#Name), Value) :- constant(Name, Value).
 
+% WAM
     constant(wam_registers,		255).		% MAXARITY
     constant(wam_max_global_push,	200).
+% Tracer ports
     constant(no_port,			0).		% NO_PORT
     constant(call_port,			1).		% CALL_PORT
     constant(next_port,			9).		% NEXT_PORT
     constant(else_port,			16'20D).	% INLINE_PORT|ELSE_PORT
+% Events
+    constant(inst_fault,		4).		% INSTANTIATION_FAULT
+    constant(type_error,		5).		% TYPE_ERROR
+    constant(tool_redef,		61).		% TOOL_REDEF
+    constant(illegal_head,		130).		% ILLEGAL_HEAD
+    constant(illegal_goal,		131).		% ILLEGAL_GOAL
+    constant(consecutive,		134).		% CONSECUTIVE
+    constant(compiled_file,		139).		% COMPILED_FILE
+    constant(multifile,			145).		% MULTIFILE
+    constant(start_compiler,		146).		%
+    constant(bad_pragma,		148).		% BAD_PRAGMA
+    constant(code_unit_loaded,		149).		% CODE_UNIT_LOADED
+    constant(record_compiled_file,	166).
 
 
 :- export smallint/1.
@@ -614,6 +653,17 @@ smallint(X) :-
 	integer(X),
 	X =< 16'7fffffff,
 	X+1 >= -16'7fffffff.
+
+
+:- export words_to_bytes/2.
+words_to_bytes(Words, Bytes) :-
+	Bytes is Words*32//(sepia_kernel:decode_code(w(32))).
+
+
+:- export machine_bits/1.
+machine_bits(Bits) :-
+	Bits is 256//(sepia_kernel:decode_code(w(32))).
+
 
 %----------------------------------------------------------------------
 % General auxiliaries
@@ -725,7 +775,6 @@ project_arg(_I, [], []).
 project_arg(I, [X|Xs], [Y|Ys]) :-
 	arg(I, X, Y),
 	project_arg(I, Xs, Ys).
-
 
 
 %----------------------------------------------------------------------
@@ -1105,12 +1154,3 @@ dt_list(dt{values:RevValues,except:ExceptTable}, KeysValues, KeysValues0, Key) :
 	    append(Key, [SubClass], SubKey),
 	    dt_list(SubDt, KeysValues2, KeysValues3, SubKey)
 	).
-
-
-%----------------------------------------------------------------------
-% Debugging support: output transformation for lib(m_map)
-%----------------------------------------------------------------------
-
-:- export portray(two/4,   m_map:to_sorted_assoc_list/2, [protect_arg]).
-:- export portray(three/7, m_map:to_sorted_assoc_list/2, [protect_arg]).
-:- export portray(four/10, m_map:to_sorted_assoc_list/2, [protect_arg]).

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: suspend.pl,v 1.2 2007/05/25 23:09:35 jschimpf Exp $
+% Version:	$Id: suspend.pl,v 1.3 2008/06/13 00:42:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -53,7 +53,7 @@
 
 :- comment(summary,
     "Lazy-checking versions of arithmetic primitives, and the suspend-attribute").
-:- comment(date, "$Date: 2007/05/25 23:09:35 $").
+:- comment(date, "$Date: 2008/06/13 00:42:39 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Micha Meier, ECRC, Joachim Schimpf, ECRC and IC-Parc").
 :- comment(desc, html("\
@@ -101,6 +101,7 @@
 % attribute declaration
 %----------------------------------------------------------------
 
+% CAUTION: when changing handlers, update meta.pl accordingly!!!
 :- meta_attribute(suspend, [
 	unify:			unify_suspend/2,
 	compare_instances:	compare_instances_suspend/3,

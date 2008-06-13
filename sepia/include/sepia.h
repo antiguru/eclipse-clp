@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.9 2008/04/28 18:05:34 jschimpf Exp $
+ * $Id: sepia.h,v 1.10 2008/06/13 00:42:38 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -815,15 +815,20 @@
 
 #define Dbl(v)	(*((double *) (((v).ptr)+1)))
 
-#define	Make_Double_Val(v, /* double */ dexpr) 			\
+/* CAUTION: read input before storing output - may be same location */
+#define	Make_Double_Val(v, /* double */ dexpr) {		\
+	double _d = (dexpr);					\
 	(v).ptr = TG;						\
 	Push_Buffer(sizeof(double));				\
-	*((double *) BufferStart((v).ptr)) = (dexpr);
+	*((double *) BufferStart((v).ptr)) = _d;		\
+    }
 
 #define Make_Checked_Double_Val(v, dexpr) {			\
 	double _d = (dexpr);					\
 	Check_Float_Exception(_d);				\
-	Make_Double_Val(v, _d)					\
+	(v).ptr = TG;						\
+	Push_Buffer(sizeof(double));				\
+	*((double *) BufferStart((v).ptr)) = _d;		\
     }
 
 #endif

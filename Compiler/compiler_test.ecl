@@ -22,10 +22,9 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.13 2008/06/04 13:27:11 kish_shen Exp $
+% Version:	$Id: compiler_test.ecl,v 1.14 2008/06/13 00:38:55 jschimpf Exp $
 % ----------------------------------------------------------------------
 
-:- use_module(compiler_top).
 :- lib(numbervars).
 :- lib(coverage).
 
@@ -72,7 +71,8 @@ testo(Name) :-
 test(Name, Options) :-
 	(
 	    testclause(Name, Pred0),
-	    ( Pred0 = [_|_] -> Pred = Pred0 ; Pred = [Pred0] ),
+	    ( string(Pred0) -> term_string(Pred1, Pred0) ; Pred1 = Pred0 ),
+	    ( Pred1 = [_|_] -> Pred = Pred1 ; Pred = [Pred1] ),
 	    printf("%n------ Test %w -------%n", [Name]),
 	    writeclauses(Pred),
 
@@ -835,6 +835,16 @@ testclause(idx(55), (
 testclause(idx(56), (
 	(p(X,Y) :- ( integer(X), Y=a, p1 ; integer(X), Y=b, p2 ; integer(X), Y=c, p3 ; atom(X), p4))
     )).
+testclause(idx(60), (p(X) :-
+	    ( var(X), p_var
+	    ; (integer(X);float(X);rational(X)), p_intfloatrat
+	    ; breal(X), p_breal
+	    ; nonvar(X), X=[], !, p_nil
+	    ; (string(X)->true ; atom(X)),  p_atomstring
+	    ; nonvar(X), X=[_|_], !, p_list
+	    ; compound(X), p_struct
+	    ; is_handle(X), p_handle
+    ))).
 testclause(idx(100), ([
 	(p(1) :- -?-> p_1),
 	(p(2) :- -?-> p_2)
@@ -855,6 +865,14 @@ testclause(idx(102), ([
 	p(a,1),
 	p(b,2),
 	p(c,3)
+    ])).
+testclause(idx(103), ([
+	( p(1) :- -?-> p_small1),
+	( p(2) :- -?-> p_small2),
+	( p(10000000000) :- -?-> p_medium1),
+	( p(20000000000) :- -?-> p_medium2),
+	( p(10000000000000000000) :- -?-> p_big1),
+	( p(20000000000000000000) :- -?-> p_big2)
     ])).
 testclause(idx(200), ([
 	( p(X,Y,Z) :- var(X), !, Y=Z),
@@ -928,28 +946,28 @@ testclause(match(7), (p(foo(X,X,Y,Y)) ?- q(X),r(Y))).
 testclause(match(8), (p(X,foo(X,Y),Y) ?- true)).
 testclause(match(9), (p(X,foo(X,Y),Y) ?- p(X),r(Y))).
 
-testclause(match(10), (p(X{suspend:S}) ?- p(X,S))).
-testclause(match(11), (p(X{suspend:S}) ?- p(a,X,S))).
-testclause(match(12), (p(X{suspend:S},X) ?- p(a,b,X,S))).
-testclause(match(13), (p(X{suspend:S}) ?- q, p(X,S))).
-testclause(match(14), (p(X{suspend:S},X) ?- q, p(X,S))).
-testclause(match(20), (p(f(X{suspend:S})) ?- p(X,S))).
-testclause(match(21), (p(f(a,X{suspend:S})) ?- p(X,S))).
-testclause(match(22), (p(f(a,X{suspend:S},c)) ?- p(X,S))).
-testclause(match(23), (p(f(bar(baz),X{suspend:S},c)) ?- p(X,S))).
-testclause(match(24), (p(f(X{suspend:S},X)) ?- p(X,S))).	% suboptimal, matches attributes twice
-testclause(match(25), (p(f(bar(baz),a,X{suspend:S},c)) ?- p(X,S))).
-testclause(match(26), (p(f(X{suspend:S},bar(baz),c)) ?- p(X,S))).
-testclause(match(30), [(p(X{suspend:S}) ?- p(X,S)),
-	(p(X) :- integer(X), q(X))]).
-testclause(match(31), [(p(X{suspend:S}) ?- !, p(X,S)),
-	(p(X) :- q(X))]).
-testclause(match(32), [(p(X{suspend:S}) ?- p(X,S)),
-	(p(X) :- free(X), q(X))]).
-testclause(match(33), [(p(X{suspend:S}) ?- p(X,S)),
-	(p(X) :- meta(X), q(X))]).
-testclause(match(34), [(p(X) :- free(X), q(X)),
-	(p(X{suspend:S}) ?- p(X,S))]).
+testclause(match(10), "p(X{suspend:S}) ?- p(X,S)").
+testclause(match(11), "p(X{suspend:S}) ?- p(a,X,S)").
+testclause(match(12), "p(X{suspend:S},X) ?- p(a,b,X,S)").
+testclause(match(13), "p(X{suspend:S}) ?- q, p(X,S)").
+testclause(match(14), "p(X{suspend:S},X) ?- q, p(X,S)").
+testclause(match(20), "p(f(X{suspend:S})) ?- p(X,S)").
+testclause(match(21), "p(f(a,X{suspend:S})) ?- p(X,S)").
+testclause(match(22), "p(f(a,X{suspend:S},c)) ?- p(X,S)").
+testclause(match(23), "p(f(bar(baz),X{suspend:S},c)) ?- p(X,S)").
+testclause(match(24), "p(f(X{suspend:S},X)) ?- p(X,S)").	% suboptimal, matches attributes twice
+testclause(match(25), "p(f(bar(baz),a,X{suspend:S},c)) ?- p(X,S)").
+testclause(match(26), "p(f(X{suspend:S},bar(baz),c)) ?- p(X,S)").
+testclause(match(30), "[(p(X{suspend:S}) ?- p(X,S)),
+	(p(X) :- integer(X), q(X))]").
+testclause(match(31), "[(p(X{suspend:S}) ?- !, p(X,S)),
+	(p(X) :- q(X))]").
+testclause(match(32), "[(p(X{suspend:S}) ?- p(X,S)),
+	(p(X) :- free(X), q(X))]").
+testclause(match(33), "[(p(X{suspend:S}) ?- p(X,S)),
+	(p(X) :- meta(X), q(X))]").
+testclause(match(34), "[(p(X) :- free(X), q(X)),
+	(p(X{suspend:S}) ?- p(X,S))]").
 testclause(match(40), [(p([_,_,_,_,_]) ?- true)]).
 testclause(match(41), [(p(f(_,_,_,_,_)) ?- true)]).
 testclause(match(42), [(p(f(_,s(_,_),_,_)) ?- true)]).
@@ -987,6 +1005,7 @@ testclause(special(11), (p(M) :- call(q)@M)).
 testclause(special(12), (p :- call(q)@lists)).
 testclause(special(13), (p :- call(writeln(hello))@lists)).
 testclause(special(13), (p :- writeln(hello)@lists)).
+testclause(special(14), (p :- (writeln(hello),nl)@lists)).
 
 testclause(tool(1), (p(DM) :- get_flag(p/0,definition_module,DM))).
 testclause(tool(2), (p(DM) :- get_flag(p/0,definition_module,DM)@lists)).
@@ -1559,3 +1578,15 @@ testclause(alloc(12), [(
     % tests go at start, plus after read_value (because unbounded_maybe)
     p(bar(X,X),foo(2,3,4,5))
     )]).
+
+
+%testclause(err(1), [(p :- 3)]).
+%testclause(err(2), [(p :- 3.1)]).
+%testclause(err(3), [(p :- 1_2)]).
+%testclause(err(4), [(p :- 1.0__1.2)]).
+%testclause(err(5), [(p :- "abc")]).
+%testclause(err(6), [(p :- \+ 3)]).
+%testclause(err(7), [(p :- \+ 3.1)]).
+%testclause(err(8), [(p :- \+ 1_2)]).
+%testclause(err(9), [(p :- \+ 1.0__1.2)]).
+%testclause(err(10), [(p :- \+ "abc")]).

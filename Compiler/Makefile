@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile,v 1.5 2008/03/25 19:26:40 jschimpf Exp $
+# $Id: Makefile,v 1.6 2008/06/13 00:38:54 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -25,12 +25,13 @@
 # 
 # END LICENSE BLOCK
 
-ECLIPSEDIR = /vol/Eclipse/prerelease
+ECLIPSEDIR = ..
 PREFIX = $(ECLIPSEDIR)
-AUX_ECLIPSE = $(ECLIPSEDIR)/bin/$(ARCH)/eclipse
-TESTDIR = ~/Tests/Main
+BOOTDIR = $(ECLIPSEDIR)/sepia
+STABLE_ECLIPSE = $(ECLIPSEDIR)/bin/$(ARCH)/eclipse
 
-MODULE_FILES = \
+COMPILER_MODULES = \
+	ecl_compiler.ecl \
 	compiler_analysis.ecl \
 	compiler_codegen.ecl \
 	compiler_common.ecl \
@@ -38,8 +39,9 @@ MODULE_FILES = \
 	compiler_normalise.ecl \
 	compiler_peephole.ecl \
 	compiler_regassign.ecl \
-	compiler_top.ecl \
-	compiler_varclass.ecl
+	compiler_map.ecl \
+	compiler_varclass.ecl \
+	source_processor.ecl
 
 INCLUDE_FILES = \
 	compiler_compound.ecl
@@ -47,20 +49,39 @@ INCLUDE_FILES = \
 OTHER_FILES = \
 	compiler_test.ecl
 
-PRIVATE_ECI = $(MODULE_FILES:%.ecl=%.eci)
+PRIVATE_ECI = \
+	$(COMPILER_MODULES:%.ecl=%.eci)
 
-PUBLIC_ECI =
-PUBLIC_ECO = $(MODULE_FILES:%.ecl=$(PREFIX)/lib/%.eco)
+PUBLIC_ECI = \
+	$(PREFIX)/lib/ecl_compiler.eci \
+	$(PREFIX)/lib/source_processor.eci
 
+LOCAL_ECO = $(COMPILER_MODULES:%.ecl=%.eco)
+
+AUX_ECO = $(COMPILER_MODULES:%.ecl=aux_%.eco)
+
+BOOT_ECO = $(COMPILER_MODULES:%.ecl=$(BOOTDIR)/lib/%.eco)
+
+PUBLIC_ECO =
+
+
+# force deletion of targets when command failed
+.DELETE_ON_ERROR:
 
 default:
 	@echo "You can make the following:"
-	@echo "  make boot		Compile to .eco files"
+	@echo "  make aux_eco		Make stage-1 compiler (aux_xxx.eco files)"
+	@echo "  make eco		Make stage-2 compiler (xxx.eco files) using stage-1"
+	@echo "  make test[o]		Run unit tests (on local xxx.eco files)"
+	@echo "  make bootfiles	Build and install xxx.eco files in kernel lib/"
+	@echo "  make install		Build and install .eci file"
+	@echo "  make test[o]_installed Run unit tests on installed compiler"
+	@echo "  make ecoclean		Remove stage-2 .eco files"
 	@echo "  make doc		Generate documentation in doc/"
-	@echo "  make test		Run unit tests"
 	@echo "  make cover		Run unit tests and produce output in coverage/"
-	@echo "  make test_chat	Test Chat application"
 	@echo "  make pretty		Pretty-print sources in pretty/"
+	@echo "  make xxx.lst		Compile to .lst assembly files"
+	@echo "  make xxx.asm		Compile to .asm loadable files"
 
 
 
@@ -69,7 +90,7 @@ DIRPERM = 2755
 
 .SUFFIXES:	$(SUFFIXES) .ecl .eci .eco
 
-%/.stamp:
+%/.eco/stamp:
 	mkdir -p $(@D)
 	@/bin/chmod $(DIRPERM) $(@D)
 	@touch $@; /bin/chmod $(PERM) $@
@@ -79,64 +100,134 @@ DIRPERM = 2755
 # Cleanup
 #----------------------------------------------------------------------
 
-clean:
-	rm -rf *.eci *.eco *.lst *.res doc pretty coverage
+clean:	ecoclean
+	rm -rf *.eci *.lst .asm *.res doc pretty coverage
+
+# This does NOT remove the boot files in $(BOOTDIR)/lib,
+# nor the aux_*.eco files (because they cannot be remade easily once
+# the compiler sources have been edited)
+ecoclean:
+	rm -f $(LOCAL_ECO)
 
 
 #----------------------------------------------------------------------
-# Bootstrap
+# Build new compiler .eco files using STABLE_ECLIPSE's stable
+# compiler, using a two-stage process. This is necessary if
+# the new code is so incompatible with the stable one that
+# the modules cannot be shared during the compilation process.
+#
+# Stage 1: build the compiler under different module/file names
+#	(aux_ecl_compiler.eco), also using aux_source_processor, etc
+#
+# Stage 2: compile the compiler again with this aux_ecl_compiler.eco,
+#	giving ecl_compiler.eco
+#
 #----------------------------------------------------------------------
 
-boot:
-	rm -f *.eco
-	@$(AUX_ECLIPSE) -e "use_module(compiler_top),comp"
-	
-list:
-	rm -f *.eco
-	@$(AUX_ECLIPSE) -e "use_module(compiler_top),list"
-	
+aux_eco:		$(AUX_ECO)
+
+eco:			$(LOCAL_ECO)
+
+# Replicate all changes here for aux_compiler_xxx below!
+compiler_common.eco:		source_processor.eco
+compiler_analysis.eco:		compiler_common.eco compiler_map.eco
+compiler_codegen.eco:		compiler_common.eco compiler_compound.ecl
+compiler_indexing.eco:		compiler_common.eco
+compiler_normalise.eco:		compiler_common.eco
+compiler_peephole.eco:		compiler_common.eco
+compiler_regassign.eco:		compiler_common.eco
+compiler_varclass.eco:		compiler_common.eco compiler_map.eco
+ecl_compiler.eco:	compiler_common.eco compiler_normalise.eco \
+			compiler_analysis.eco compiler_codegen.eco \
+			compiler_indexing.eco compiler_peephole.eco \
+			compiler_regassign.eco compiler_varclass.eco \
+			source_processor.eco
+
+aux_compiler_common.eco:	aux_source_processor.eco
+aux_compiler_analysis.eco:	aux_compiler_common.eco aux_compiler_map.eco
+aux_compiler_codegen.eco:	aux_compiler_common.eco compiler_compound.ecl
+aux_compiler_indexing.eco:	aux_compiler_common.eco
+aux_compiler_normalise.eco:	aux_compiler_common.eco
+aux_compiler_peephole.eco:	aux_compiler_common.eco
+aux_compiler_regassign.eco:	aux_compiler_common.eco
+aux_compiler_varclass.eco:	aux_compiler_common.eco aux_compiler_map.eco
+aux_ecl_compiler.eco:	aux_compiler_common.eco aux_compiler_normalise.eco \
+			aux_compiler_analysis.eco aux_compiler_codegen.eco \
+			aux_compiler_indexing.eco aux_compiler_peephole.eco \
+			aux_compiler_regassign.eco aux_compiler_varclass.eco \
+			aux_source_processor.eco
+
+
+# Stage 1: build compiler under a different name (aux_ecl_compiler.eco)
+
+aux_%.eco:	%.ecl auxmap.ecl
+	$(STABLE_ECLIPSE) -e 'compile(auxmap),\
+		compile("$<",[output:eco("$@")])'
+	-@/bin/chmod $(PERM) $@
+
+# Stage 2: build compiler_xxx.eco using the aux_ecl_compiler from stage 1
+# Don't add an AUX_ECO dependency here - we want to keep stage-1 stable!
+%.eco:	%.ecl
+	$(STABLE_ECLIPSE) -e 'ensure_loaded(aux_ecl_compiler),\
+		aux_ecl_compiler:compile("$<", [output:eco,load:new])'
+	-@/bin/chmod $(PERM) $@
+
+
+# Single-stage build - can be done if no incompatible changes
+# If using this, comment out the stage-2 rule above!
+#%.eco:	%.ecl
+#	$(STABLE_ECLIPSE) -e 'compile("$<", [output:eco,load:none])'
+#	-@/bin/chmod $(PERM) $@
+
+
+%.lst:	%.ecl
+	$(STABLE_ECLIPSE) -e 'ensure_loaded(aux_ecl_compiler),\
+		aux_ecl_compiler:compile("$<", [output:listing,load:none])'
+
+%.asm:	%.ecl
+	$(STABLE_ECLIPSE) -e 'ensure_loaded(aux_ecl_compiler),\
+		aux_ecl_compiler:compile("$<", [output:asm,load:none])'
+
 
 #----------------------------------------------------------------------
 # Test
 #----------------------------------------------------------------------
 
 # Run unit tests and compare with reference output
+# First compile the test harness using the stable compiler,
+# then run it, testing the compiler in the local .eco files
 
-test:
-	@$(AUX_ECLIPSE) -b compiler_test.ecl -e ftest
+test:	$(LOCAL_ECO) compiler_test.eco
+	$(STABLE_ECLIPSE) -e 'ensure_loaded(ecl_compiler),\
+		ensure_loaded(compiler_test),ftest'
 	@if diff test.ref test.res ; then echo Compiler unit test ok ; \
 	else echo Compiler unit test failed ; false ; fi
 
-testo:
-	@$(AUX_ECLIPSE) -b compiler_test.ecl -e ftesto
+testo:	$(LOCAL_ECO) compiler_test.eco
+	$(STABLE_ECLIPSE) -e 'ensure_loaded(ecl_compiler),\
+		ensure_loaded(compiler_test),ftesto'
 	@if diff testo.ref testo.res ; then echo Optimised Compiler unit test ok ; \
 	else echo Compiler unit test failed ; false ; fi
 
-refs:	test testo
+test_installed:
+	$(STABLE_ECLIPSE) -e 'compile(compiler_test),ftest'
+	@if diff test.ref test.res ; then echo Compiler unit test ok ; \
+	else echo Compiler unit test failed ; false ; fi
+
+testo_installed:
+	$(STABLE_ECLIPSE) -e 'compile(compiler_test),ftesto'
+	@if diff testo.ref testo.res ; then echo Optimised Compiler unit test ok ; \
+	else echo Compiler unit test failed ; false ; fi
+
+refs:
 	mv test.res test.ref
 	mv testo.res testo.ref
 
 
-# Test Chat application
-
-test_chat:
-	@$(AUX_ECLIPSE) -e \
-		'ensure_loaded(compiler_top),\
-		 set_flag(gc_interval,10000),\
-		 cd("$(TESTDIR)/Chatq"),\
-		 [chat],\
-		 open("chat.res",write,output),\
-		 @(call(hi(demo)),chat),\
-		 close(output)'
-	@if diff $(TESTDIR)/Chatq/chat.ref $(TESTDIR)/Chatq/chat.res ; then echo Chat test ok ; \
-	else echo Chat test failed ; fi
-
-
-
 # Run unit tests and generate coverage output in coverage/ subdirectory
 
-cover:
-	@$(AUX_ECLIPSE) -b compiler_test.ecl -e ctest
+cover:	$(LOCAL_ECO) compiler_test.eco
+	@$(STABLE_ECLIPSE) -b compiler_test.eco -e ctest
 
 
 #----------------------------------------------------------------------
@@ -144,36 +235,40 @@ cover:
 #----------------------------------------------------------------------
 
 %.eci:	%.ecl
-	$(AUX_ECLIPSE) -e 'lib(document),icompile("$(*F)","$(@D)")'
+	$(STABLE_ECLIPSE) -e 'ensure_loaded(ecl_compiler),lib(document),icompile("$(*F)","$(@D)")'
+
 
 doc:	doc/index.html
 
 doc/index.html:	$(PRIVATE_ECI)
-	$(AUX_ECLIPSE) -e 'lib(document),ecis_to_htmls(.,doc,"","ECLiPSe III Compiler")'
+	$(STABLE_ECLIPSE) -e 'lib(document),ecis_to_htmls(.,doc,"","ECLiPSe III Compiler")'
 
 
 # Pretty-print the sources
 
 pretty:	pretty/index.html
 
-pretty/index.html: $(MODULE_FILES)
-	-@$(AUX_ECLIPSE) -e \
+pretty/index.html: $(COMPILER_MODULES)
+	-@$(STABLE_ECLIPSE) -e \
 	    "lib(pretty_printer),argv(all,[_|F]),pretty_print(F,[link_back:\"../doc/index.html\"])" \
-	    -- $(MODULE_FILES)
+	    -- $(COMPILER_MODULES)
 
 
 #----------------------------------------------------------------------
 # Installation
 #----------------------------------------------------------------------
 
-install:	$(PUBLIC_ECI) $(PUBLIC_ECO)
+bootfiles:	$(BOOT_ECO)
 
-$(PREFIX)/lib/%.eco:	%.ecl $(PREFIX)/lib/.stamp
-	$(AUX_ECLIPSE) -e 'lib(fcompile), set_flag(variable_names,off), set_flag(debug_compile,off), fcompile("$(*F)", [outdir:"$(@D)"])'
+$(BOOTDIR)/lib/%.eco:	%.eco
+	/bin/cp $< $@
 	-@/bin/chmod $(PERM) $@
 
+
+install:	$(PUBLIC_ECI) $(PUBLIC_ECO)
+
 $(PREFIX)/lib/%.eci:	%.ecl $(PREFIX)/lib/.stamp
-	$(AUX_ECLIPSE) -e 'lib(document),icompile("$(*F)","$(@D)")'
+	$(STABLE_ECLIPSE) -e 'lib(document),icompile("$(*F)","$(@D)")'
 	-@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.ecl:	%.ecl $(PREFIX)/lib/.stamp

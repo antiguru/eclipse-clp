@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cprolog.pl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
+% Version:	$Id: cprolog.pl,v 1.3 2008/06/13 00:42:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'C-Prolog compatibility package').
 :- comment(author, 'Various, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2007/02/23 15:28:33 $').
+:- comment(date, '$Date: 2008/06/13 00:42:39 $').
 :- comment(desc, html('
     One of the requirements during the development of ECLiPSe has been the
     aim of minimising the work required to port traditional Prolog
@@ -199,6 +199,9 @@
 	macro((with)/2, (=)/2, []),
 	macro((of)/2, (=)/2, []).
 
+:- local
+	op(650,   xfx, (@)).
+
 :- export
 	syntax_option(nl_in_quotes),
 	syntax_option(no_blanks),
@@ -282,8 +285,8 @@
 
 :-  tool(assertz/1, assert_/2),
     tool((abolish)/2, abolish_body/3),
-    tool(consult/1, compile/2),
-    tool(reconsult/1, compile/2),
+    tool(consult/1, consult_/2),
+    tool(reconsult/1, reconsult_/2),
     tool(current_predicate/2, current_predicate_body/3).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -385,7 +388,13 @@ current_functor(F, T) :-
 	functor(T, F, A).
 
 abolish_body(N, A, M) :-
-	@(:(sepia_kernel,abolish(N/A)),M).
+	sepia_kernel:abolish(N/A)@M.
+
+consult_(File, Module) :-
+	compile(File)@Module.
+
+reconsult_(File, Module) :-
+	compile(File)@Module.
 
 erased(Ref) :-
 	\+referenced_record(Ref, _).

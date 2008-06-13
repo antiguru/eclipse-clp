@@ -2829,9 +2829,11 @@ p11(A) :-
 p11 / 1:
 label(L0):
 	allocate                 2 
-	put_integer              a(2)     1 
-	move                     a(2)     y(1)     a(1)     y(2) 
-	callf                    true / 0     Y[1,2] 
+	put_integer              a(3)     1 
+	move                     a(3)     y(1)     a(1)     y(2) 
+	put_atom                 a(1)     true 
+	put_module               a(2)     eclipse 
+	callf                    sepia_kernel : untraced_call / 2     Y[1,2] 
 	get_value                y(1)     y(2) 
 	exit                 
 
@@ -2855,7 +2857,9 @@ label(L0):
 	put_integer              a(6)     3 
 	move                     a(6)     y(3) 
 	move                     3     a(1)     y(4) 
-	callf                    true / 0     Y[1,2,3,4,5,6] 
+	put_atom                 a(1)     true 
+	put_module               a(2)     eclipse 
+	callf                    sepia_kernel : untraced_call / 2     Y[1,2,3,4,5,6] 
 	get_value                y(1)     y(4) 
 	get_value                y(2)     y(5) 
 	get_value                y(3)     y(6) 
@@ -2880,7 +2884,7 @@ label(L0):
 	move                     2     a(1)     y(3) 
 	put_variable2            a(1)     a(2) 
 	put_variable             a(3) 
-	put_atom                 a(4)     eclipse 
+	put_module               a(4)     eclipse 
 	callf                    sepia_kernel : current_op_body / 4     Y[1,2,3,4] 
 	get_value                y(1)     y(3) 
 	get_value                y(2)     y(4) 
@@ -3016,7 +3020,7 @@ p :-
 	A = 4,
 	r.
 
-WARNING: unification of value(3) with value(4) will always fail
+WARNING: calling =/2 will always fail
 p / 0:
 label(L0):
 	allocate                 1 
@@ -3035,7 +3039,7 @@ p :-
 	r,
 	B = 4.
 
-WARNING: unification of value(3) with value(4) will always fail
+WARNING: calling =/2 will always fail
 p / 0:
 label(L0):
 	allocate                 2 
@@ -3118,7 +3122,8 @@ p(A, B) :-
 
 p / 2:
 label(L0):
-	get_atom2                a(1)     a     a(2)     b 
+	get_atom                 a(1)     a 
+	get_atom                 a(2)     b 
 	jmp                      q / 0 
 
 ------ Test idx(1) -------
@@ -3279,13 +3284,15 @@ label(L3):
 label(L4):
 	try_me_else              0     2     ref(L6) 
 label(L5):
-	get_atominteger          a(2)     a     a(1)     1 
+	get_atom                 a(2)     a 
+	get_integer              a(1)     1 
 	jmp                      p1 / 0 
 	branch                   ref(L10) 
 label(L6):
 	retry_me_else            0     ref(L8) 
 label(L7):
-	get_atominteger          a(2)     b     a(1)     2 
+	get_integer              a(1)     2 
+	get_atom                 a(2)     b 
 	jmp                      p2 / 0 
 	branch                   ref(L10) 
 label(L8):
@@ -3363,7 +3370,8 @@ label(L2):
 label(L3):
 	try_me_else              0     2     ref(L5) 
 label(L4):
-	get_atominteger          a(2)     a     a(1)     1 
+	get_atom                 a(2)     a 
+	get_integer              a(1)     1 
 	jmp                      p1 / 0 
 	branch                   ref(L9) 
 label(L5):
@@ -3767,7 +3775,8 @@ label(L7):
 	write_integer2           1     2 
 	branch                   ref(L9) 
 label(L8):
-	read_integer2            1     2 
+	read_integer             1 
+	read_integer             2 
 label(L9):
 	jmp                      q / 0 
 	branch                   ref(L12) 
@@ -6278,6 +6287,231 @@ label(L15):
 	try                      0     2     ref(L8) 
 	trust                    0     ref(L10) 
 
+------ Test idx(60) -------
+p(A) :-
+	(
+	    var(A),
+	    p_var
+	;
+	    (
+		(
+		    integer(A)
+		;
+		    (
+			float(A)
+		    ;
+			rational(A)
+		    )
+		),
+		p_intfloatrat
+	    ;
+		(
+		    breal(A),
+		    p_breal
+		;
+		    (
+			nonvar(A),
+			A = [],
+			!,
+			p_nil
+		    ;
+			(
+			    (
+				string(A)
+			    ->
+				true
+			    ;
+				atom(A)
+			    ),
+			    p_atomstring
+			;
+			    (
+				nonvar(A),
+				A = [B|C],
+				!,
+				p_list
+			    ;
+				(
+				    compound(A),
+				    p_struct
+				;
+				    is_handle(A),
+				    p_handle
+				)
+			    )
+			)
+		    )
+		)
+	    )
+	).
+
+INDEXES for (semidet) disjunction [2]
+1. Quality 1.0
+    [] - []
+    [handle] - [8]
+    [list] - [6]
+    [[]] - [4]
+    [structure] - [7]
+    [atom] - [5]
+    [var] - [1]
+    [breal] - [3]
+    [rational] - [2]
+    [integer] - [2]
+    [bignum] - [2]
+    [string] - [5]
+    [double] - [2]
+INDEXES for (semidet) disjunction [2, 2, 2]
+1. Quality 0.8
+    [] - []
+    [rational] - [3]
+    [integer] - [1]
+    [bignum] - [1]
+    [double] - [2]
+INDEXES for (semidet) disjunction [2, 5, 2]
+1. Quality 0.7
+    [] - []
+    [[]] - [2]
+    [atom] - [2]
+    [string] - [1]
+p / 1:
+label(L0):
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(L2)
+		[]: 	ref(L15)
+		atom: 	ref(L17)
+		bignum: 	ref(L4)
+		breal: 	ref(L13)
+		double: 	ref(L4)
+		goal: 	ref(fail)
+		handle: 	ref(L30)
+		integer: 	ref(L4)
+		list: 	ref(L24)
+		rational: 	ref(L4)
+		string: 	ref(L17)
+		structure: 	ref(L28)
+
+	branch                   ref(L2) 
+label(L1):
+	try_me_else              0     2     ref(L3) 
+label(L2):
+	bi_var                   a(1) 
+	jmp                      p_var / 0 
+	branch                   ref(L31) 
+label(L3):
+	retry_me_else            0     ref(L12) 
+label(L4):
+	switch_on_type           a(1) 
+		meta: 	ref(fail)
+		[]: 	ref(fail)
+		atom: 	ref(fail)
+		bignum: 	ref(L6)
+		breal: 	ref(fail)
+		double: 	ref(L8)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		integer: 	ref(L6)
+		list: 	ref(fail)
+		rational: 	ref(L10)
+		string: 	ref(fail)
+		structure: 	ref(fail)
+
+	branch                   ref(fail) 
+label(L5):
+	try_me_else              0     1     ref(L7) 
+label(L6):
+	bi_integer               a(1) 
+	allocate                 0 
+	branch                   ref(L11) 
+label(L7):
+	retry_me_else            0     ref(L9) 
+label(L8):
+	bi_float                 a(1) 
+	allocate                 0 
+	branch                   ref(L11) 
+label(L9):
+	trust_me                 0 
+label(L10):
+	bi_rational              a(1) 
+	allocate                 0 
+label(L11):
+	chain                    p_intfloatrat / 0 
+	branch                   ref(L31) 
+label(L12):
+	retry_me_else            0     ref(L14) 
+label(L13):
+	bi_breal                 a(1) 
+	jmp                      p_breal / 0 
+	branch                   ref(L31) 
+label(L14):
+	retry_me_else            0     ref(L16) 
+label(L15):
+	bi_nonvar                a(1) 
+	get_nil                  a(1) 
+	cut                      a(2) 
+	jmp                      p_nil / 0 
+	branch                   ref(L31) 
+label(L16):
+	retry_me_else            0     ref(L23) 
+label(L17):
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(fail)
+		[]: 	ref(L21)
+		atom: 	ref(L21)
+		bignum: 	ref(fail)
+		breal: 	ref(fail)
+		double: 	ref(fail)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		integer: 	ref(fail)
+		list: 	ref(fail)
+		rational: 	ref(fail)
+		string: 	ref(L19)
+		structure: 	ref(fail)
+
+	branch                   ref(fail) 
+label(L18):
+	try_me_else              0     2     ref(L20) 
+label(L19):
+	bi_string                a(1) 
+	cut                      a(2) 
+	allocate                 0 
+	branch                   ref(L22) 
+label(L20):
+	trust_me                 0 
+label(L21):
+	bi_atom                  a(1) 
+	allocate                 0 
+label(L22):
+	chain                    p_atomstring / 0 
+	branch                   ref(L31) 
+label(L23):
+	retry_me_else            0     ref(L27) 
+label(L24):
+	bi_nonvar                a(1) 
+	get_list                 a(1)     ref(L25) 
+	write_void               2 
+	branch                   ref(L26) 
+label(L25):
+label(L26):
+	cut                      a(2) 
+	jmp                      p_list / 0 
+	branch                   ref(L31) 
+label(L27):
+	retry_me_else            0     ref(L29) 
+label(L28):
+	bi_compound              a(1) 
+	jmp                      p_struct / 0 
+	branch                   ref(L31) 
+label(L29):
+	trust_me                 0 
+label(L30):
+	bi_is_handle             a(1) 
+	jmp                      p_handle / 0 
+label(L31):
+	ret                  
+
 ------ Test idx(100) -------
 p(1) :-
 	-?->
@@ -6487,19 +6721,116 @@ label(L3):
 label(L4):
 	try_me_else              0     2     ref(L6) 
 label(L5):
-	get_atominteger          a(1)     a     a(2)     1 
+	get_atom                 a(1)     a 
+	get_integer              a(2)     1 
 	branch                   ref(L10) 
 label(L6):
 	retry_me_else            0     ref(L8) 
 label(L7):
-	get_atominteger          a(1)     b     a(2)     2 
+	get_atom                 a(1)     b 
+	get_integer              a(2)     2 
 	branch                   ref(L10) 
 label(L8):
 	trust_me                 0 
 label(L9):
-	get_atominteger          a(1)     c     a(2)     3 
+	get_atom                 a(1)     c 
+	get_integer              a(2)     3 
 label(L10):
 	ret                  
+
+------ Test idx(103) -------
+p(1) :-
+	-?->
+	p_small1.
+p(2) :-
+	-?->
+	p_small2.
+p(10000000000) :-
+	-?->
+	p_medium1.
+p(20000000000) :-
+	-?->
+	p_medium2.
+p(10000000000000000000) :-
+	-?->
+	p_big1.
+p(20000000000000000000) :-
+	-?->
+	p_big2.
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 1.5
+    [] - []
+    [bignum] - [3, 4, 5, 6]
+    [integer] - []
+    [integer, 1] - [1]
+    [integer, 2] - [2]
+p / 1:
+label(L0):
+	switch_on_type           a(1) 
+		meta: 	ref(fail)
+		[]: 	ref(fail)
+		atom: 	ref(fail)
+		bignum: 	ref(L14)
+		breal: 	ref(fail)
+		double: 	ref(fail)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		integer: 	ref(L15)
+		list: 	ref(fail)
+		rational: 	ref(fail)
+		string: 	ref(fail)
+		structure: 	ref(fail)
+
+	branch                   ref(fail) 
+label(L1):
+	try_me_else              0     1     ref(L3) 
+label(L2):
+	in_get_integer           a(1)     1 
+	jmp                      p_small1 / 0 
+	branch                   ref(L13) 
+label(L3):
+	retry_me_else            0     ref(L5) 
+label(L4):
+	in_get_integer           a(1)     2 
+	jmp                      p_small2 / 0 
+	branch                   ref(L13) 
+label(L5):
+	retry_me_else            0     ref(L7) 
+label(L6):
+	in_get_constant          a(1)     10000000000 
+	jmp                      p_medium1 / 0 
+	branch                   ref(L13) 
+label(L7):
+	retry_me_else            0     ref(L9) 
+label(L8):
+	in_get_constant          a(1)     20000000000 
+	jmp                      p_medium2 / 0 
+	branch                   ref(L13) 
+label(L9):
+	retry_me_else            0     ref(L11) 
+label(L10):
+	in_get_constant          a(1)     10000000000000000000 
+	jmp                      p_big1 / 0 
+	branch                   ref(L13) 
+label(L11):
+	trust_me                 0 
+label(L12):
+	in_get_constant          a(1)     20000000000000000000 
+	jmp                      p_big2 / 0 
+label(L13):
+	ret                  
+label(L14):
+	try                      0     1     ref(L6) 
+	retry                    0     ref(L8) 
+	retry                    0     ref(L10) 
+	trust                    0     ref(L12) 
+label(L15):
+	integer_switch           a(1) 
+		1: 	ref(L2)
+		2: 	ref(L4)
+		default: 	ref(fail)
+
 
 ------ Test idx(200) -------
 p(A, B, C) :-
@@ -6717,7 +7048,8 @@ p(a, A, 3) :-
 
 p / 3:
 label(L0):
-	get_atominteger          a(1)     a     a(3)     3 
+	get_atom                 a(1)     a 
+	get_integer              a(3)     3 
 	jmp                      q / 0 
 
 ------ Test head(102) -------
@@ -6766,7 +7098,8 @@ label(L0):
 	write_integer2           1     2 
 	branch                   ref(L2) 
 label(L1):
-	read_integer2            1     2 
+	read_integer             1 
+	read_integer             2 
 label(L2):
 	jmp                      q / 0 
 
@@ -7087,7 +7420,8 @@ label(L6):
 	read_integer             3 
 	mode                     t(0) 
 label(L7):
-	read_integer2            7     8 
+	read_integer             7 
+	read_integer             8 
 label(L8):
 	space                    -1 
 	jmp                      q / 0 
@@ -7130,7 +7464,8 @@ label(L6):
 	read_integer             3 
 	mode                     t(0) 
 label(L7):
-	read_integer2            7     8 
+	read_integer             7 
+	read_integer             8 
 label(L8):
 	space                    -1 
 	jmp                      q / 0 
@@ -7169,7 +7504,8 @@ label(L6):
 	read_integer             3 
 	mode                     t(0) 
 label(L7):
-	read_integer2            7     8 
+	read_integer             7 
+	read_integer             8 
 label(L8):
 	space                    -1 
 	jmp                      q / 0 
@@ -7204,7 +7540,8 @@ label(L6):
 	read_integer             3 
 	mode                     t(0) 
 label(L7):
-	read_integer2            7     8 
+	read_integer             7 
+	read_integer             8 
 label(L8):
 	space                    -1 
 	jmp                      q / 0 
@@ -8103,10 +8440,10 @@ label(L0):
 	in_get_meta              a(1)     ref(fail) 
 	read_void            
 	read_attribute           suspend 
-	read_variable            y(2) 
-	move                     a(1)     y(1) 
+	read_variable            y(1) 
+	move                     a(1)     y(2) 
 	callf                    q / 0     Y[1,2] 
-	move                     2     y(1)     a(1) 
+	move                     y(2)     a(1)     y(1)     a(2) 
 	chain                    p / 2 
 
 ------ Test match(14) -------
@@ -8120,11 +8457,11 @@ label(L0):
 	in_get_meta              a(1)     ref(fail) 
 	read_void            
 	read_attribute           suspend 
-	read_variable            y(2) 
+	read_variable            y(1) 
 	get_matched_value        a(2)     a(1) 
-	move                     a(1)     y(1) 
+	move                     a(1)     y(2) 
 	callf                    q / 0     Y[1,2] 
-	move                     2     y(1)     a(1) 
+	move                     y(2)     a(1)     y(1)     a(2) 
 	chain                    ref(L0) 
 
 ------ Test match(20) -------
@@ -9185,7 +9522,7 @@ p(A) :-
 
 p / 1:
 label(L0):
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(2) -------
@@ -9194,7 +9531,7 @@ p(A) :-
 
 p / 1:
 label(L0):
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(3) -------
@@ -9220,7 +9557,7 @@ p(A, B) :-
 
 p / 2:
 label(L0):
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	swap                     a(1)     a(2) 
 	jmp                      sepia_kernel : '[]:@' / 3 
 
@@ -9232,7 +9569,7 @@ p / 1:
 label(L0):
 	move                     a(1)     a(2) 
 	put_atom                 a(1)     lists 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	jmp                      sepia_kernel : '[]:@' / 3 
 
 ------ Test special(7) -------
@@ -9258,7 +9595,9 @@ p :-
 
 p / 0:
 label(L0):
-	jmp                      q / 0 
+	put_atom                 a(1)     q 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(10) -------
 p :-
@@ -9268,12 +9607,15 @@ p :-
 
 p / 0:
 label(L0):
-	allocate                 1 
+	allocate                 0 
 	callf                    q / 0     Y[] 
-	savecut                  y(1) 
-	callf                    a / 0     Y[1] 
-	cut                      y(1)     0 
-	callf                    b / 0     Y[] 
+	put_structure            a(1)     (',') / 2 
+	write_atom               a 
+	push_structure           3 
+	write_didatom            (',') / 2     ! 
+	write_atom               b 
+	put_module               a(2)     eclipse 
+	callf                    sepia_kernel : untraced_call / 2     Y[] 
 	chain                    r / 0 
 
 ------ Test special(11) -------
@@ -9292,7 +9634,9 @@ p :-
 
 p / 0:
 label(L0):
-	jmp                      lists : q / 0 
+	put_atom                 a(1)     q 
+	put_atom                 a(2)     lists 
+	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(13) -------
 p :-
@@ -9300,9 +9644,10 @@ p :-
 
 p / 0:
 label(L0):
-	put_atom                 a(1)     hello 
+	put_structure            a(1)     writeln / 1 
+	write_atom               hello 
 	put_atom                 a(2)     lists 
-	jmp                      sepia_kernel : writeln_body / 2 
+	jmp                      sepia_kernel : untraced_call / 2 
 
 ------ Test special(13) -------
 p :-
@@ -9313,6 +9658,18 @@ label(L0):
 	put_atom                 a(1)     hello 
 	put_atom                 a(2)     lists 
 	jmp                      sepia_kernel : writeln_body / 2 
+
+------ Test special(14) -------
+p :-
+	(writeln(hello), nl) @ lists.
+
+p / 0:
+label(L0):
+	put_atom                 a(1)     hello 
+	put_atom                 a(2)     lists 
+	allocate                 0 
+	callf                    sepia_kernel : writeln_body / 2     Y[] 
+	chain                    lists : nl / 0 
 
 ------ Test tool(1) -------
 p(A) :-
@@ -9325,7 +9682,7 @@ label(L0):
 	write_atom               p 
 	push_integer             0 
 	put_atom                 a(2)     definition_module 
-	put_atom                 a(4)     eclipse 
+	put_module               a(4)     eclipse 
 	jmp                      sepia_kernel : get_flag_body / 4 
 
 ------ Test tool(2) -------
@@ -10422,7 +10779,7 @@ label(L2):
 label(L3):
 	put_atom                 a(2)     true 
 	put_integer              a(3)     3 
-	put_atom                 a(4)     eclipse 
+	put_module               a(4)     eclipse 
 	bi_make_suspension       a(2)     a(3)     a(1)     a(4)     0 
 	branch                   ref(L6) 
 label(L4):
@@ -10430,7 +10787,7 @@ label(L4):
 label(L5):
 	put_atom                 a(2)     true 
 	put_integer              a(3)     3 
-	put_atom                 a(4)     eclipse 
+	put_module               a(4)     eclipse 
 	bi_make_suspension       a(2)     a(3)     a(1)     a(4)     0 
 label(L6):
 	ret                  
@@ -10466,13 +10823,13 @@ label(L5):
 label(L6):
 	retry_me_else            0     ref(L8) 
 label(L7):
-	bi_inequality            a(1)     a(2)     0 
+	bi_inequality            a(1)     a(2) 
 	branch                   ref(L10) 
 label(L8):
 	trust_me                 0 
 label(L9):
 	put_nil                  a(3) 
-	bi_not_ident_list        a(1)     a(2)     a(3)     0 
+	bi_not_ident_list        a(1)     a(2)     a(3) 
 label(L10):
 	ret                  
 
@@ -11203,7 +11560,7 @@ label(L3):
 	push_local_value         a(1) 
 	push_integer             1 
 	put_global_variable      a(1)     y(10) 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	callf                    sepia_kernel : is_body / 3     Y[4,6,7,8,10] 
 	put_global_variable      a(4)     y(3) 
 	move                     y(10)     a(1) 
@@ -11213,7 +11570,7 @@ label(L3):
 	push_local_value         y(7) 
 	push_integer             1 
 	put_global_variable      a(1)     y(9) 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	callf                    sepia_kernel : is_body / 3     Y[3,4,6,7,8,9] 
 	put_global_variable      a(4)     y(2) 
 	move                     y(9)     a(1)     y(8)     a(2)     y(6)     a(3) 
@@ -11222,7 +11579,7 @@ label(L3):
 	push_local_value         y(8) 
 	push_integer             1 
 	put_global_variable      a(1)     y(5) 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	callf                    sepia_kernel : is_body / 3     Y[2,3,4,5,6,7] 
 	put_global_variable      a(4)     y(1) 
 	move                     3     y(5)     a(1) 
@@ -11265,7 +11622,7 @@ label(L3):
 	push_local_value         a(1) 
 	push_integer             1 
 	put_global_variable      a(1)     y(10) 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	callf                    sepia_kernel : is_body / 3     Y[4,6,7,8,10] 
 	put_global_variable      a(4)     y(3) 
 	move                     y(10)     a(1) 
@@ -11275,7 +11632,7 @@ label(L3):
 	push_local_value         y(7) 
 	push_integer             1 
 	put_global_variable      a(1)     y(9) 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	callf                    sepia_kernel : is_body / 3     Y[3,4,6,7,8,9] 
 	put_global_variable      a(4)     y(2) 
 	move                     y(9)     a(1)     y(8)     a(2)     y(6)     a(3) 
@@ -11284,7 +11641,7 @@ label(L3):
 	push_local_value         y(8) 
 	push_integer             1 
 	put_global_variable      a(1)     y(5) 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	callf                    sepia_kernel : is_body / 3     Y[2,3,4,5,6,7] 
 	put_global_variable      a(4)     y(1) 
 	move                     3     y(5)     a(1) 
@@ -11396,7 +11753,7 @@ label(L0):
 	push_local_value         a(4) 
 	put_structure            a(2)     writeln / 1 
 	push_local_value         a(5) 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	jmp                      sepia_kernel : (do) / 3 
 
 ------ Test bug(3) -------
@@ -11656,7 +12013,7 @@ label(L9):
 	push_nil             
 	put_atom                 a(1)     warning_output 
 	put_string               a(2)     " Advice: %w%n" 
-	put_atom                 a(4)     eclipse 
+	put_module               a(4)     eclipse 
 	chain                    sepia_kernel : printf_body / 4 
 	branch                   ref(L16) 
 label(L10):
@@ -11773,7 +12130,7 @@ label(L6):
 	put_structure            a(2)     attach_suspensions / 2 
 	push_local_value2        a(1)     a(4) 
 	put_integer              a(1)     5 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	jmp                      sepia_kernel : error_ / 3 
 	branch                   ref(L9) 
 label(L7):
@@ -11783,7 +12140,7 @@ label(L8):
 	put_structure            a(2)     attach_suspensions / 2 
 	push_local_value2        a(1)     a(4) 
 	put_integer              a(1)     4 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	jmp                      sepia_kernel : error_ / 3 
 label(L9):
 	ret                  
@@ -11882,13 +12239,13 @@ label(L6):
 	put_structure            a(2)     (+) / 2 
 	push_variable            y(5) 
 	push_integer             1 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	move_callf               y(3)     a(1)     sepia_kernel : is_body / 3     Y[3,4,5,6,7] 
 	put_structure            a(2)     (>>) / 2 
 	push_local_value         y(6) 
 	push_integer             1 
 	put_global_variable      a(1)     y(2) 
-	put_atom                 a(3)     eclipse 
+	put_module               a(3)     eclipse 
 	callf                    sepia_kernel : is_body / 3     Y[2,3,4,5,6,7] 
 	savecut                  a(1) 
 	list_switch              y(7)     ref(L7)     ref(L8)     ref(L8) 
@@ -13132,7 +13489,7 @@ label(L0):
 	push_variable            y(2) 
 	callf                    copy_term / 2     Y[2] 
 	savecut                  y(1) 
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	move_callf               y(2)     a(1)     sepia_kernel : untraced_call / 2     Y[1] 
 	cut                      y(1)     0 
 	exit                 
@@ -13176,11 +13533,13 @@ p(A) :-
 	).
 
 INDEXES for (nondet) disjunction [2]
-1. Quality 1.5
-    [] - [1]
+1. Quality 1.3
+    [] - []
     [var] - [1, 2]
-    [integer] - [1]
-    [integer, 4] - [1, 2]
+    [integer] - []
+    [integer, 4] - [2]
+    [integer, 1] - [1]
+    [integer, 2] - [1]
 INDEXES for (semidet) disjunction [2, 1, 2]
 1. Quality 1.0
     [] - []
@@ -13194,8 +13553,10 @@ label(L0):
 	savecut                  y(1) 
 label(L1):
 	integer_switch           a(1) 
-		4: 	ref(L2)
-		default: 	ref(L3)
+		4: 	ref(L11)
+		1: 	ref(L3)
+		2: 	ref(L3)
+		default: 	ref(fail)
 
 label(L2):
 	try_me_else              0     1     ref(L10) 
@@ -13374,7 +13735,7 @@ label(L0):
 	savecut                  a(3) 
 	get_variable             1     a(1)     y(1) 
 	put_atom                 a(1)     clause1 
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	callf                    sepia_kernel : writeln_body / 2     Y[1] 
 	savecut                  a(1) 
 label(L1):
@@ -13390,14 +13751,14 @@ label(L3):
 	get_integer              a(3)     1 
 	cut                      a(1)     0 
 	put_atom                 a(1)     ok 
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	chain                    sepia_kernel : writeln_body / 2 
 	branch                   ref(L6) 
 label(L4):
 	trust_me_inline          0     Y[] 
 label(L5):
 	put_atom                 a(1)     wrong 
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	chain                    sepia_kernel : writeln_body / 2 
 label(L6):
 	ret                  
@@ -13421,11 +13782,11 @@ label(L0):
 	put_global_variable2     a(1)     y(4)     a(2)     y(3) 
 	callf                    getcond / 2     Y[3,4] 
 	savecut                  y(2) 
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	move_callf               y(4)     a(1)     sepia_kernel : untraced_call / 2     Y[2,3] 
 	cut                      y(2)     3 
 	savecut                  y(1) 
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	move_callf               y(3)     a(1)     sepia_kernel : untraced_call / 2     Y[1] 
 	cut                      y(1)     0 
 	exit                 
@@ -13464,7 +13825,7 @@ label(L4):
 	push_variable            a(1) 
 	push_local_value         y(1) 
 	put_global_variable      a(3)     y(2) 
-	put_atom                 a(4)     eclipse 
+	put_module               a(4)     eclipse 
 	callf                    sepia_kernel : findall_body / 4     Y[1,2] 
 	move                     y(2)     a(1) 
 	get_list                 a(1)     ref(L7) 
@@ -13487,9 +13848,9 @@ label(L7):
 label(L8):
 	callf                    nl / 0     Y[1] 
 	put_atom                 a(1)     'L = ' 
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	callf                    sepia_kernel : write_ / 2     Y[1] 
-	put_atom                 a(2)     eclipse 
+	put_module               a(2)     eclipse 
 	move_chain               y(1)     a(1)     sepia_kernel : write_ / 2 
 
 ------ Test disj32 -------
@@ -13609,8 +13970,10 @@ label(L0):
 	write_integer2           4     5 
 	branch                   ref(L2) 
 label(L1):
-	read_integer2            2     3 
-	read_integer2            4     5 
+	read_integer             2 
+	read_integer             3 
+	read_integer             4 
+	read_integer             5 
 label(L2):
 	ret                  
 
@@ -13916,8 +14279,10 @@ label(L0):
 	write_integer2           4     5 
 	branch                   ref(L2) 
 label(L1):
-	read_integer2            2     3 
-	read_integer2            4     5 
+	read_integer             2 
+	read_integer             3 
+	read_integer             4 
+	read_integer             5 
 label(L2):
 	ret                  
 
@@ -13939,7 +14304,9 @@ label(L2):
 	write_integer2           4     5 
 	branch                   ref(L4) 
 label(L3):
-	read_integer2            2     3 
-	read_integer2            4     5 
+	read_integer             2 
+	read_integer             3 
+	read_integer             4 
+	read_integer             5 
 label(L4):
 	ret                  

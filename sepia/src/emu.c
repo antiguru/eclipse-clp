@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.26 2008/05/17 00:29:37 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.27 2008/06/13 00:42:39 jschimpf Exp $
  */
 
 /*
@@ -1659,6 +1659,10 @@ _bip_err_:			/* (err_code, proc), args on local stack */
  *
  * We assume that these predicates have arity>0 and are not tools.
  * We also assume no local stack variables (otherwise need to globalise).
+ * CAUTION: this macro also materialises output variables for
+ * "uninitialised output" arguments, and stores a ref to them in the
+ * output register. This may clobber an input register, which is no
+ * problem as long as they are always last and the input is copied first.
  */
 
 #define Push_Bip_Goal(_did,_i,_mask) { /*(PP)*/ \
@@ -1739,7 +1743,7 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		Export_B_Sp_Tg_Tt_Eb_Gb
 		tmp1 = DidArity(PriDid(proc)) + 1;
 		if (err_code & (PDELAY_1 & PDELAY_MASK)) {
-		    pw1 = PP[-tmp1].arg->val.ptr;
+		    pw1 = &DE[SUSP_GOAL].val.ptr[1];
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
@@ -1748,7 +1752,7 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		    }
 		}
 		if (err_code & (PDELAY_2 & PDELAY_MASK)) {
-		    pw1 = PP[-tmp1+1].arg->val.ptr;
+		    pw1 = &DE[SUSP_GOAL].val.ptr[2];
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
@@ -1757,7 +1761,7 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		    }
 		}
 		if (err_code & (PDELAY_3 & PDELAY_MASK)) {
-		    pw1 = PP[-tmp1+2].arg->val.ptr;
+		    pw1 = &DE[SUSP_GOAL].val.ptr[3];
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
@@ -7589,6 +7593,7 @@ _nun_op_:				/* (err_code,pw1,PP,proc) */
 
 
 	Case(BI_Addi, I_BI_Addi)
+	    proc = add_proc_;
 	    PP += 4;
 	    pw1 = PP[-4].arg;
 	    Dereference_Pw(pw1);
@@ -7601,14 +7606,12 @@ _nun_op_:				/* (err_code,pw1,PP,proc) */
 		if (((n1 >= 0) == (n2 >= 0)) && 
 		    (n1 >= 0) != (tmp1 >= 0)) {
 		    err_code = INTEGER_OVERFLOW;
-		    proc = add_proc_;
 		    goto _nbip_err_;
 		} 
 		Make_Integer(PP[-2].arg, tmp1);
 		Next_Pp;
 	    } else if (IsDouble(pw1->tag)) {
 		dbl_res = Dbl(pw1->val) + (double)PP[-3].nint;
-		proc = add_proc_;
 _nis_float_check_:			/* (dbl_res) */
 		if (!GoodFloat(dbl_res))
 		{
@@ -7621,7 +7624,6 @@ _nis_float_check_:			/* (dbl_res) */
 	    Make_Integer(&scratch_pw, PP[-3].nint);
 	    pw2 = &scratch_pw;
 	    err_code = ARITH_ADD;
-	    proc = add_proc_;
 
 _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	    Export_B_Sp_Tg_Tt_Eb_Gb

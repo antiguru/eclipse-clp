@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.6 2008/04/01 18:16:48 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.7 2008/06/13 00:42:39 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -141,10 +141,6 @@
 :- reexport comment / 2 from sepia_kernel.
 :- reexport compare / 3 from sepia_kernel.
 :- reexport compare_instances / 3 from sepia_kernel.
-:- reexport compile / 1 from sepia_kernel.
-:- reexport compile / 2 from sepia_kernel.
-:- reexport compile_stream / 1 from sepia_kernel.
-:- reexport compile_term / 1 from sepia_kernel.
 :- reexport compiled_stream / 1 from sepia_kernel.
 :- reexport compound / 1 from sepia_kernel.
 :- reexport concat_atom / 2 from sepia_kernel.
@@ -300,7 +296,6 @@
 :- reexport (help) / 0 from sepia_kernel.
 :- reexport (help) / 1 from sepia_kernel.
 :- reexport (import) / 1 from sepia_kernel.
-:- reexport include / 1 from sepia_kernel.
 :- reexport incval / 1 from sepia_kernel.
 :- reexport init_suspension_list / 2 from sepia_kernel.
 :- reexport inline / 2 from sepia_kernel.
@@ -601,6 +596,17 @@
 :- reexport (~) / 1 from sepia_kernel.
 :- reexport (~=) / 2 from sepia_kernel.
 
+:- reexport
+	append/3,
+	delete/3,
+	length/2,
+	member/2,
+	memberchk/2,
+	nonmember/2,
+	subtract/3,
+	reverse/2
+    from sepia_kernel.
+
 :- reexport struct(suspend{}) from sepia_kernel.
 :- reexport struct(annotated_term{}) from sepia_kernel.
 
@@ -610,6 +616,16 @@
     from suspend.
 
 /********* Autoloading library predicates ***************/
+
+:- autoload_system(ecl_compiler, [
+    	compile/1->compile_/2,
+	compile/2->compile_/3,
+	compile_stream/1->compile_stream_/2,
+	compile_term/1->compile_term_/2,
+	compile_term/2->compile_term_/3,
+	compile_term_annotated/3->compile_term_annotated_/4
+    ]).
+:- reexport ecl_compiler.
 
 :- autoload_system(lists, [
 	collection_to_list/2, flatten/2, intersection/3, subset/2, union/3,

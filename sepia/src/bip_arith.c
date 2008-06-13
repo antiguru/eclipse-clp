@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.4 2008/03/31 14:48:49 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.5 2008/06/13 00:42:39 jschimpf Exp $
  */
 
 /*
@@ -130,6 +130,11 @@ p_succ(value x, type tx, value y, type ty)
 {
     pword result;
 
+    if (!(IsRef(tx) || IsNumber(tx))) { Bip_Error(ARITH_TYPE_ERROR) }
+    if (NonIntNum(tx)) { Bip_Error(TYPE_ERROR) }
+    if (!(IsRef(ty) || IsNumber(ty))) { Bip_Error(ARITH_TYPE_ERROR) }
+    if (NonIntNum(ty)) { Bip_Error(TYPE_ERROR) }
+
     result.tag.kernel = TINT;
     if (IsInteger(tx))
     {
@@ -155,7 +160,8 @@ p_succ(value x, type tx, value y, type ty)
 	}
 	return unary_arith_op(y, ty, x, tx, ARITH_PREV, TINT);
     }
-    return unary_arith_op(x, tx, y, ty, ARITH_NEXT, TINT);
+    else
+	return unary_arith_op(x, tx, y, ty, ARITH_NEXT, TINT);
 }
 
 
@@ -592,9 +598,9 @@ p_gcd_ext(value v1, type t1, value v2, type t2, value s, type ts, value t, type 
     Check_Output_Integer_Or_Bignum(tt)
     Check_Output_Integer_Or_Bignum(tg)
     /* we don't have a TINT implementation, always compute via bignums */
-    err = tag_desc[t1.kernel].coerce_to[TBIG](v1, &v1);
+    err = tag_desc[TagType(t1)].coerce_to[TBIG](v1, &v1);
     if (err != PSUCCEED) return(err);
-    err = tag_desc[t2.kernel].coerce_to[TBIG](v2, &v2);
+    err = tag_desc[TagType(t2)].coerce_to[TBIG](v2, &v2);
     if (err != PSUCCEED) return(err);
     err = tag_desc[TBIG].arith_op[ARITH_GCD_EXT](v1, v2, &res1, &res2, &res3);
     if (err != PSUCCEED) return err;
@@ -919,11 +925,11 @@ p_powm(value v1, type t1, value v2, type t2, value v3, type t3, value v, type t)
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
     if (IsRef(t2)) { Bip_Error(PDELAY_2) }
     if (IsRef(t3)) { Bip_Error(PDELAY_3) }
-    err = tag_desc[t1.kernel].coerce_to[TBIG](v1, &v1);
+    err = tag_desc[TagType(t1)].coerce_to[TBIG](v1, &v1);
     if (err != PSUCCEED) return(err);
-    err = tag_desc[t2.kernel].coerce_to[TBIG](v2, &v2);
+    err = tag_desc[TagType(t2)].coerce_to[TBIG](v2, &v2);
     if (err != PSUCCEED) return(err);
-    err = tag_desc[t3.kernel].coerce_to[TBIG](v3, &v3);
+    err = tag_desc[TagType(t3)].coerce_to[TBIG](v3, &v3);
     if (err != PSUCCEED) return(err);
     err = tag_desc[TBIG].arith_op[ARITH_POWM](v1, v2, v3, &result);
     if (err != PSUCCEED) return(err);

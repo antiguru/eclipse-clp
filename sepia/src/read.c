@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.3 2007/11/06 00:12:16 kish_shen Exp $
+ * Version:	$Id: read.c,v 1.4 2008/06/13 00:42:39 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -1673,7 +1673,9 @@ p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, valu
 	Bip_Error(status);
     }
 
-    /* return flag indicating presence of macros */
+    /* return flag indicating request for macro expansion */
+    if (!(GlobalFlags & MACROEXP) || (StreamMode(nst) & SNOMACROEXP))
+    	has_macro = 0;
     Request_Unify_Integer(vf, tf, has_macro)
 
     pw = &result;

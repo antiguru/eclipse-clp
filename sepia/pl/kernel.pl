@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.21 2008/05/16 10:38:27 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.22 2008/06/13 00:42:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1045,46 +1045,17 @@ recordedchk_body(Key, Value, DbRef, Module) :-
 	).
 
 
-%--------------------------------
-% Compiler
-%--------------------------------
-
-
-% compile(FileNameOrList, Module)
-
-compile([H|T], Module) :-
-	-?->
-	!,
-	compile(H, Module),
-	comp_list(T, Module).
-compile(File, Module) :-
-	create_module_if_did_not_exist(Module), % backward compatibility only
-	get_file(File, no, FileAtom),
-	!,
-	do_compile(FileAtom, Module).
-compile(File, Module) :-
-	bip_error(compile(File), Module).
-
-comp_list([], _) :- !.
-comp_list([H|T], M) :-
-	compile(H, M),
-	comp_list(T, M).
-
-compile_stream_(Stream, Module) :-
-	getval(compiled_stream, CS),
-	setval(compiled_stream, Stream),
-	block((compile_stream(Stream, 0, Module) -> true
-		; setval(compiled_stream,CS), fail),
-	    Tag,
-	    (setval(compiled_stream,CS), exit_block(Tag))).
+%----------------------------------------------------------------------
+% Compiling and loading
+%----------------------------------------------------------------------
 
 % ensure_loaded(FileNameOrList, Module)
 
 ensure_loaded([H|T], Module) :-
-    -?->
-    !,
-    ensure_loaded(H, Module),
-    ensure_loaded(T, Module).
+	-?->
+	!,
+	ensure_loaded(H, Module),
+	ensure_loaded(T, Module).
 ensure_loaded([], _) :- -?-> !.
 ensure_loaded(File, Module) :-
 	get_file(File, yes, FileAtom),
@@ -1108,62 +1079,46 @@ ensure_loaded1(FileAtom, Module) :-
 	->
 	    true
 	;
-	    do_compile(FileAtom, Module)
+	    compile_or_load(FileAtom, Module)
 	).
 
 
-do_compile(FileAtom, Module) :-
-	error(146, FileAtom, Module),
-	comp_begin(FileAtom, OldPath, OldPrompt, OldStream, Stream),
-	register_compiler(args(T,_)-(sepia_kernel:compile_term(T))),
-	( block(
-		compile_stream(Stream, 0, Module),
-		Tag,
-		comp_abort(Tag, OldPath, FileAtom, OldStream, Stream, OldPrompt, Module))
+compile_or_load(FileAtom, Module) :-
+	(
+	    get_flag(eclipse_object_suffix, ECO),
+	    suffix(FileAtom, ECO)
 	->
-	    deregister_compiler,
-	    comp_end(FileAtom, OldStream, Stream, OldPath, OldPrompt, Module),
-	    ( var(OldStream) -> declaration_checks ; true )
+	    load_eco(FileAtom, Module)
 	;
-	    comp_end(FileAtom, OldStream, Stream, OldPath, OldPrompt, Module),
-	    fail
+	    ecl_compiler:compile(FileAtom)@Module
 	).
-	
 
-comp_begin(user, OldPath, OldPrompt, OldStream, Stream) :-
-	-?->
-	!,
-	getcwd(OldPath),
-	get_stream(stdin, Stream),
-	getval(compiled_stream, OldStream),
-	setval(compiled_stream, Stream),
-	get_prompt(Stream, OldPrompt, Out),
-	set_prompt(Stream, ' ', Out).
-comp_begin(File, OldPath, _, OldStream, Stream) :-
-	pathname(File, ParentDir),
+
+% For loading kernel.eco at boot time, we use the C-level load_eco/4 directly.
+% Subsequently, we use this code here, which is more complete in the sense
+% that it raises all the events, changes directory, etc.
+
+load_eco(FileAtom, Module) :-
+	error(146, FileAtom, Module),	% COMPILER_START
+	pathname(FileAtom, ParentDir),
 	getcwd(OldPath),
 	cd(ParentDir),
-	open(File, read, Stream),
-	getval(compiled_stream, OldStream),
-	setval(compiled_stream, Stream).
-
-comp_end(File, OldStream, Stream, OldPath, OldPrompt, Module) :-
-	flush(warning_output),	% make sure errors and warnings appear
-	flush(error),
-	setval(compiled_stream, OldStream),
-	cd(OldPath),
-	( get_stream(stdin, Stream) ->
-	    get_prompt(Stream, _, Out),
-	    set_prompt(Stream, OldPrompt, Out)
+	cputime(Time0),
+	( block(load_eco(FileAtom, 0, Module, FileModule),
+		Tag,
+		(cd(OldPath),
+		 (error(147, FileAtom) -> true; true),	% COMPILER_ABORT
+		 exit_block(Tag)))
+	->
+	    Time is cputime - Time0,
+	    error(149, end_of_file, FileModule),	% CODE_UNIT_LOADED
+	    error(139, (FileAtom,-1,Time), FileModule),	% COMPILED_FILE
+	    cd(OldPath),
+	    error(166, FileAtom-(sepia_kernel:load_eco(FileAtom,Module)), Module)
 	;
-	    error(166, File-(sepia_kernel:compile(File)), Module),
-	    close(Stream)
+	    cd(OldPath),
+	    fail
 	).
-
-comp_abort(Tag, Path, File, OldStream, Stream, Old, Module) :-
-	(error(147, File) -> true; true),
-	comp_end(File, OldStream, Stream, Path, Old, Module),
-	exit_block(Tag).
 
 
 compiled_stream(S) :-
@@ -1175,10 +1130,29 @@ compiled_stream(S) :-
 	error(5, compiled_stream(S)).
 
 
-% this is the body of ./2, no module checking necessary
-compile_list_body(H, T, Module):-	%local to the kernel (tool body)
-	compile(H, Module),
-	comp_list(T, Module).
+% This is the body of ./2, no module checking necessary.
+% When ./2 occurs as a directive, it is taken as include/1.
+% If it is called, we use this code here, and either load or compile.
+compile_list_body(H, T, Module) :-	%local to the kernel (tool body)
+	Files = [H|T],
+	is_list(Files), !,
+	comp_or_load_list(Files, Module).
+compile_list_body(H, T, Module) :-
+	error(5, [H|T], Module).
+
+    comp_or_load_list([], _).
+    comp_or_load_list([File|Files], M) :-
+	( get_file(File, yes, FileAtom) ->
+	    compile_or_load(FileAtom, M)
+	;
+	    bip_error([File], M)
+	),
+	comp_or_load_list(Files, M).
+
+
+%----------------------------------------------------------------------
+% File handling primitives
+%----------------------------------------------------------------------
 
 exists(File) :-
 	% the following fails for nonexisting files and
@@ -1410,7 +1384,7 @@ cd_if_possible(Path) :-
 
 
 
-%
+%----------------------------------------------------------------------
 % Checks to be done at the end of a compilation:
 %
 % For all modules into which we have compiled something, check for
@@ -1422,6 +1396,7 @@ cd_if_possible(Path) :-
 % check incomplete modules and get lots of unjustified warnings.
 % Instead compiled_file_handler/3 just records every module and we
 % check them all here in one go.
+%----------------------------------------------------------------------
 
 declaration_checks :-
 	recorded_list(compiled_modules, Modules0),
@@ -1536,13 +1511,18 @@ erase_module_pragmas(Module) :-
 
 % File is assumed to be an atom, and the canonical name
 record_compiled_file(File, Goal, Module) :-
-	get_file_info(File, mtime, Time),
-	(recordedchk(compiled_file, .(File, _, _, _), Ref) ->
-	    erase(Ref)
+	( exists(File) ->
+	    get_file_info(File, mtime, Time),
+	    (recordedchk(compiled_file, .(File, _, _, _), Ref) ->
+		erase(Ref)
+	    ;
+		true
+	    ),
+	    recorda(compiled_file, .(File, Module, Time, Goal))
 	;
+	    % some phony file name, like 'user'
 	    true
-	),
-	recorda(compiled_file, .(File, Module, Time, Goal)).
+	).
 
 
 current_compiled_file(File, Time, Module, Goal) :-
@@ -2564,7 +2544,7 @@ autoload(File, List) :-
 	autoload(File, List, File, []).
 
 autoload_tool(File, List) :-
-	erro(267, autoload_tool(File, List)).
+	error(267, autoload_tool(File, List)).
 
 autoload_system(File, List) :-
 	autoload(File, List, File, [system]).
@@ -3679,7 +3659,6 @@ set_flag_body(Proc, Name, Value, Module) :-
 
 do_set_flag(_, Flag, _, _) :- var(Flag),	!, set_bip_error(4).
 do_set_flag(_, definition_module, _, _) :-	!, set_bip_error(30). %readonly
-do_set_flag(_, type, _, _) :-			!, set_bip_error(30).
 do_set_flag(_, visibility, _, _) :-		!, set_bip_error(30).
 do_set_flag(_, tool, _, _) :-			!, set_bip_error(30).
 do_set_flag(_, call_type, _, _) :-		!, set_bip_error(30).
@@ -3687,6 +3666,7 @@ do_set_flag(_, mode, _, _) :-			!, set_bip_error(30).
 do_set_flag(_, debugged, _, _) :-		!, set_bip_error(30).
 do_set_flag(_, defined, _, _) :-		!, set_bip_error(30).
 do_set_flag(_, declared, _, _) :-		!, set_bip_error(30).
+do_set_flag(_, type, user, _) :-		!, set_bip_error(30). % allow setting to built_in
 do_set_flag(_, invisible, _, Module) :-
 	Module \== sepia_kernel, !,
 	set_bip_error(30).
@@ -3715,10 +3695,7 @@ inline_(Proc, Trans, Module) :-
 	tool(call_boxed/5, call_boxed_/6),
 	tool(call_boxed/6, call_boxed_/7),
 	tool(call_explicit/2, call_explicit_body/3),
-	tool(compile/1, compile/2),
-	tool(compile_stream/1, compile_stream_/2),
 	tool('.'/2, compile_list_body/3),
-	tool(compile_term/1, compile_term_/2),
 	tool(define_macro/3, define_macro_/4),
 	tool(erase_array/1, erase_array_body/2),
 	tool(erase_macro/1, erase_macro_/2),
@@ -3826,11 +3803,7 @@ inline_(Proc, Trans, Module) :-
 	canonical_path_name/2,
 	close_embed_queue_eclipseside/2,
 	comment/2,
-	compile/1, 
-	compile/2, 
-	compile_stream/1,
 	compiled_stream/1,
-	compile_term/1,
 	coroutine/0,
 	create_module/1,
 	create_module/3,
@@ -3898,8 +3871,6 @@ inline_(Proc, Trans, Module) :-
 	incval/1,
 	current_interrupt/2,
 	get_char/1,
-	include/1,
-	include/2,
 	insert_suspension/3,
 	kill_suspension/1,
 	add_attribute/2,
@@ -4025,7 +3996,6 @@ inline_(Proc, Trans, Module) :-
 	compile_list_body/3, 
 	create_module_if_did_not_exist/1,
 	dbgcomp/0,
-	do_compile/2,
 	ensure_loaded/2,
 	eval/3,
 	evaluating_goal/5,
@@ -4043,7 +4013,6 @@ inline_(Proc, Trans, Module) :-
 	new_delays/2,
 	nodbgcomp/0,
 	once_body/2,
-	compile_stream/3,
 %	print_statistics/0,
 	(skipped)/1,
 	syserror/4,
@@ -4074,7 +4043,6 @@ inline_(Proc, Trans, Module) :-
 	canonical_path_name/2,
 	comp_begin/5,
 	comp_end/6,
-	compile_stream/3,
 	coroutine/0,
 	current_interrupt/2,
 	display/1,
@@ -4160,7 +4128,7 @@ prof_predicate_list(Flags, Preds, Fixed) :-
 prof_predicate(Flags, Pred, Module, Start, I) :-
     P = N/A,
     current_module(Module),
-    getval(profile_module, J),
+%   getval(profile_module, J),
     incval(profile_module),
     current_functor(N, A, 2, 0),	% functors with predicates only
     local_proc_flags(P, 0, Module, Module, Private),	% definition_module
@@ -4657,11 +4625,11 @@ expand_clauses(Clause, ExpClauses, Module) :-
 :- tool(expand_compile_term/1, expand_compile_term_/2).
 expand_compile_term_(Clauses, Module) :-
 	expand_clauses(Clauses, ExpClauses, Module),
-	compile_term_(ExpClauses, Module).
+	ecl_compiler:compile_term(ExpClauses)@Module.
 
 :- tool(compile_term_flags/2, compile_term_flags_/3).
 compile_term_flags_(Clauses, Flags, Module) :-
-	compile_term_(Clauses, Module),
+	ecl_compiler:compile_term(Clauses)@Module,
 	( get_predspec(Clauses, Spec) ->
 	    set_flags(Spec, Flags, Module)
 	;
@@ -4679,7 +4647,14 @@ compile_term_flags_(Clauses, Flags, Module) :-
 	set_flags(Spec, Flags, M).
 
 
-:- export register_compiler/1, deregister_compiler/0.
+:- export
+	register_compiled_stream/1,
+	deregister_compiled_stream/0,
+	register_compiler/1,
+	deregister_compiler/0,
+	nested_compile_term/1,
+	nested_compile_term_annotated/2.
+
 register_compiler(NestedCompileSpec) :-
 	getval(compile_stack, Stack),
 	setval(compile_stack, [NestedCompileSpec|Stack]).
@@ -4689,7 +4664,7 @@ deregister_compiler :-
 	( Stack = [_Old|Rest] ->
 	    setval(compile_stack, Rest)
 	;
-	    true
+	    declaration_checks
 	).
 
 :- tool(nested_compile_term/1, nested_compile_term_/2).
@@ -4703,8 +4678,25 @@ nested_compile_term_annotated_(Clauses, AnnClauses, Module) :-
 	    copy_term(Top, args(Clauses,AnnClauses)-Goal),
 	    call(Goal)@Module
 	;
-	    compile_term_(Clauses, Module)
+	    ecl_compiler:compile_term(Clauses)@Module
 	).
+
+register_compiled_stream(Stream) :-
+	setval(compiled_stream, Stream).
+
+/*
+register_compiled_stream(Stream) :-
+	getval(compiled_stream_stack, Stack),
+	setval(compiled_stream_stack, [Stream|Stack]).
+
+deregister_compiled_stream :-
+	getval(compiled_stream_stack, Stack),
+	( Stack = [_Old|Rest] ->
+	    setval(compiled_stream_stack, Rest)
+	;
+	    true
+	).
+*/
 
 
 :- define_macro('with attributes'/2, tr_with_attributes/3, [global]).
@@ -4918,6 +4910,23 @@ tr_at(Goal@CallerModule, NewGoal, ContextModule) ?- !,
 	tr_at(ContextModule:Goal@CallerModule, NewGoal, ContextModule).
 
 ***/
+
+
+% Portray tool bodies as their interfaces
+
+:- define_macro((=:=)/3, portray_builtin/2, [global,write,goal]).
+:- define_macro((=\=)/3, portray_builtin/2, [global,write,goal]).
+:- define_macro((>=)/3, portray_builtin/2, [global,write,goal]).
+:- define_macro((=<)/3, portray_builtin/2, [global,write,goal]).
+:- define_macro((>)/3, portray_builtin/2, [global,write,goal]).
+:- define_macro((<)/3, portray_builtin/2, [global,write,goal]).
+
+portray_builtin(=:=(X,Y,_M), X=:=Y).
+portray_builtin(=\=(X,Y,_M), X=\=Y).
+portray_builtin(>=(X,Y,_M), X>=Y).
+portray_builtin(=<(X,Y,_M), X=<Y).
+portray_builtin(>(X,Y,_M), X>Y).
+portray_builtin(<(X,Y,_M), X<Y).
 
 
 %----------------------------------------------------------------------
@@ -6076,7 +6085,7 @@ t_bips(setarg(Path,T,X), Goal, _) :- -?->		% setarg/3
 :- make_array_(name_ctr, prolog, local, sepia_kernel), setval(name_ctr,0).
 :- local store(name_ctr).
 
-:- global_flags(16'04000000, 0, _). % set_flag(variable_names, off).
+:- global_flags(16'04000000, 0, _). %'% set_flag(variable_names, off).
 
 
 %----------------------------------------------------------------------
@@ -6130,7 +6139,8 @@ t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
 %	printf("Local vars: %w / %vw%n", [LocalVars, LocalVars]),
 %	printf("Loop body: %Vw%n", [LoopBody1]),
         check_singletons(LoopBody1, LocalVars),
-        aux_pred_name(M, Name),
+	length(Lasts, Arity),
+        aux_pred_name(M, Arity, Name),
 	FirstCall =.. [Name|Firsts],		% make replacement goal
         transformed_annotate(FirstCall, AnnDoLoop, AnnFirstCall),
         transformed_annotate(PreGoals, AnnDoLoop, AnnPreGoals),
@@ -6146,7 +6156,6 @@ t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
         inherit_annotation((AnnAuxGoals1,AnnLoopBody1), AnnDoLoop, AnnRecCall0),
         flatten_and_clean((AuxGoals1,LoopBody1), RecCall, AnnRecCall0,
                           AnnRecCall, BodyGoals, AnnBodyGoals), 
-        functor(BaseHead, Name, Arity),
         BHClause = (BaseHead :- true, !),
         RHClause = (RecHead :- BodyGoals),
         Directive = (:- set_flag(Name/Arity, auxiliary, on)),
@@ -6180,11 +6189,16 @@ t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
 t_do(Illformed, _, _, _, M) :-
 	error(123, Illformed, M).
 
-    aux_pred_name(_Module, Name) :- nonvar(Name).
-    aux_pred_name(Module, Name) :- var(Name),
+    aux_pred_name(_Module, _Arity, Name) :- nonvar(Name).
+    aux_pred_name(Module, Arity, Name) :- var(Name),
 	store_inc(name_ctr, Module),
 	store_get(name_ctr, Module, I),
-	concat_atom([do__,I], Name).
+	concat_atom([do__,I], Name0),
+	( is_predicate(Name0/Arity)@Module ->	% avoid name clashes
+	    aux_pred_name(Module, Arity, Name)
+	;
+	    Name = Name0
+	).
 
 
     write_clauses([]).
@@ -6452,7 +6466,7 @@ get_spec('*'(Specs1, Specs2),
 		Goals1, Goals2,
 		RecCalls1, [],
 		Locals, Locals2,
-		Name1, Module),
+		_Name1, Module),
 	get_specs(Specs2,
 		Firsts2, [],
 		Lasts2, [],
@@ -6461,7 +6475,7 @@ get_spec('*'(Specs1, Specs2),
 		Goals2, GoalsTail2,
 		RecCalls2, [],
 		Locals2, LocalsTail,
-		Name2, Module),
+		_Name2, Module),
 	length(Firsts1, N1),
 	length(Firsts2, N2),
 	% Firsts: Firsts1 | Firsts2 | Firsts2
@@ -6529,7 +6543,7 @@ get_spec('>>'(Specs1, Specs2),
 		Goals1, true,
 		RecCalls1, [],
 		Locals1, [],
-		Name1, Module),
+		_Name1, Module),
 	get_specs(Specs2,
 		Firsts2, [],
 		Lasts2, [],
@@ -6538,12 +6552,13 @@ get_spec('>>'(Specs1, Specs2),
 		Goals, GoalsTail2,
 		RecCalls2, [],
 		Locals, LocalsTail,
-		Name2, Module),
+		_Name2, Module),
 	length(RecCalls1, N1),
 	length(Firsts2, N2),
+	Arity is 2*N1 + N2,
 
 	% Set up the auxiliary predicate for iterating Spec1
-	aux_pred_name(Module, NextPredName),
+	aux_pred_name(Module, Arity, NextPredName),
 	append(Lasts1, Lasts2, LastsTail1),
 	append(Lasts1, LastsTail1, Lasts11),
 	NextBaseHead =.. [NextPredName | Lasts11],
@@ -6571,7 +6586,6 @@ get_spec('>>'(Specs1, Specs2),
 		    Firsts21 = Firsts2
 		),
 	flatten_and_clean((Goals11, Pregoals21), NextExtraGoal, _, _, NextGoals, _),
-	Arity is 2*N1 + N2,
 	NextCode = [
 	    (NextBaseHead :- !, true),
 	    (NextRecHead :- NextGoals),
@@ -6755,6 +6769,7 @@ multifor_init(N, From, To, Step, RevFrom, RevTo, RevStep, RevStop) :-
 	( validate_multifor_args(N, From, To, Step, From1, To1, Step1) ->
 	    compute_multifor_stop_list(From1, To1, Step1, RevFrom, RevTo, RevStep, RevStop)
 	;
+	    length(Idx, N),
 	    error(123, multifor(Idx, From, To, Step))
 	).
 
@@ -6856,7 +6871,7 @@ list_length(Xs, N) :-
 
 list_length([], N0, N) :- -?->
 	N = N0.
-list_length([X | Xs], N0, N) :- -?->
+list_length([_ | Xs], N0, N) :- -?->
 	N1 is N0 + 1,
 	list_length(Xs, N1, N).
 
@@ -7185,13 +7200,6 @@ warn(_, _).
 % Include other files that contain parts of the kernel
 %-----------------------------------------------------------------------
 
-:- tool(include/1, include/2).
-include(File, Module) :-		% preliminary include predicate
-	getval(library,Lib),
-	concat_atom([Lib, "/", File], Path),
-	pcompile(Path, 2, Module).
-
-
 :- global_flags(0,16'00000800,_).	% goal_expansion (GOALEXPAND) on
 %:- global_flags(0,16'0c000000,_).	% set_flag(variable_names, check_singletons)
 % Note: to get singleton warnings, also comment out pragmas in the files below
@@ -7208,10 +7216,6 @@ include(File, Module) :-		% preliminary include predicate
 :- include("tconv.pl").
 :- include("kernel_bips.pl").
 :- include("tracer.pl").
-
-:- abolish_(include, 2, sepia_kernel).
-include(Files, Module) :-		% proper definition
-	compile(Files, Module).
 
 
 %--------------------------------------------
@@ -7284,7 +7288,6 @@ include(Files, Module) :-		% proper definition
 :-
 	set_error_handler(139, true/0),		% suppress compiled messages
 	set_flag(variable_names, check_singletons),
-	ensure_loaded(library(suspend)),	% always!
 
 	(extension(mps) ->
 	    ensure_loaded(library(mps)),
