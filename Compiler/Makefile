@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile,v 1.6 2008/06/13 00:38:54 jschimpf Exp $
+# $Id: Makefile,v 1.7 2008/06/16 00:54:36 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -268,7 +268,9 @@ $(BOOTDIR)/lib/%.eco:	%.eco
 install:	$(PUBLIC_ECI) $(PUBLIC_ECO)
 
 $(PREFIX)/lib/%.eci:	%.ecl $(PREFIX)/lib/.stamp
-	$(STABLE_ECLIPSE) -e 'lib(document),icompile("$(*F)","$(@D)")'
+	$(STABLE_ECLIPSE) -e 'lib(document),\
+		get_flag(library_path,P),set_flag(library_path,["."|P]),\
+		icompile("$(*F)","$(@D)")'
 	-@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.ecl:	%.ecl $(PREFIX)/lib/.stamp

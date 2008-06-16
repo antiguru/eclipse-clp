@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.3 2007/07/03 00:10:28 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.4 2008/06/16 00:53:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2007/07/03 00:10:28 $").
+:- comment(date, "$Date: 2008/06/16 00:53:30 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -38,6 +38,9 @@
 :- tool(icompile/1, icompile_body/2).
 
 :- tool(icompile/2, icompile_body/3).
+
+:- lib(source_processor).
+
 
 :- import get_bip_error/1,
 	  set_bip_error/1
@@ -62,6 +65,8 @@
     desc:html("
     Given an ECLiPSe source file (usually a file with a .ecl suffix), this
     tool generates an ECLiPSe interface information file (with .eci suffix).
+    The output file is created in the same directory as the source file.
+    To create it elsewhere, use icompile/2.
     <P>
     The given source file must contain a module definition. icompile then
     extracts all information about this module's interface (in particular
@@ -76,52 +81,79 @@
     summary: "Generates an information file from the ECLiPSe source File in directory Destination.",
     args: ["File":"Name of source file (Atom or string)",
        "Destination":"Destination directory (Atom or string)"], 
+    desc:html("
+    Given an ECLiPSe source file (usually a file with a .ecl suffix), this
+    tool generates an ECLiPSe interface information file (with .eci suffix).
+    The output file is created in the Destination directory.
+    "),
     amode: icompile(+,+),
     see_also:[icompile/1]
     ]).
 
 
 icompile_body(File, M) :-
-	get_flag(cwd, CWD),
-	icompile_body(File, CWD, M).
+	icompile_body(File, "", M).
 
 icompile_body(File, OutDir, M) :-
-	atom_or_string(File),
-	atom_or_string(OutDir),
-	% compile must be done before streams are set
-	get_inout_names(File, OutDir, InDir, InFile, InterFile),
-	ensure_compiled(InFile, M),
-	check_open(read, InFile, In), 
-	( check_open(write, InterFile, Out) -> true ; close(In), fail),
-	getcwd(Cwd), cd(InDir),
-	block( (icompile1(In, Out, InterFile, M) ->
-	            cd(Cwd), close(Out), close(In)
-	       ;
-	            cd(Cwd), close(Out), close(In), fail
-	       ), Tag,
-	       (cd(Cwd), close(Out), close(In), 
-	        printf(error,"icompile(%w, %w) aborted%n", [File,OutDir]),
-	        exit_block(Tag)
-               )
-	), !.
-icompile_body(File, OutDir, _M) :-
-	get_bip_error(E),
-	error(E, icompile(File, OutDir)).
-
-icompile1(In, Out, InterFile, Module0) :-
-	Start is cputime,
-	pathname(InterFile, _, BaseName, _),
-	gather_comments(In, BaseName, Comments0, no, FoundM, Module0, _),
-	(FoundM \== no ->
-	    merge_comments(Comments0, Comments),
-	    arg(1, FoundM, MainModule),
-	    gen_interface_file(Out, Comments, MainModule), !,
-	    Elasped is cputime - Start,
-	    printf(log_output, "%w generated in %.2f seconds.%n", [InterFile, Elasped])
-	;   writeln(error, "Main module not found, no comments file generated.")
+	canonical_path_name(OutDir, CanonOutDir), % before source_open can cd!
+	source_open(File, [no_clause_expansion,include_comment_files], SP0),
+	SP0 = source_position{file:CanonFile},
+	( block(open_eci_file(CanonFile, CanonOutDir, FileModule, EciStream),_,fail) ->
+	    ( ensure_compiled(CanonFile, FileModule, M) ->
+		(
+		    fromto(begin, _, Class, end),
+		    fromto(SP0, SP1, SP2, SPend),
+		    fromto(Comments, C1, C0, []),
+		    param(FileModule)
+		do
+		    source_read(SP1, SP2, Class, SourceTerm),
+		    ( Class = directive ->
+			SP2 = source_position{module:Module},
+			arg(term of source_term, SourceTerm, (:-Directive)),
+			( Directive = comment(_,_) ->
+			    ( Module == FileModule ->
+				C1 = [Directive|C0]
+			    ;
+				printf(warning_output,
+				    "Ignoring comments in module '%w' (expected main module '%w').",
+				    [Module,FileModule]),
+				C1 = C0
+			    )
+			;
+			    C1 = C0
+			)
+		    ;
+			C1 = C0
+		    )
+		),
+		merge_comments(Comments, MergedComments),
+		write_eci_file(EciStream, MergedComments, FileModule),
+		close(EciStream),
+		source_close(SPend, [])
+	    ;
+		close(EciStream),
+		source_close(SP0, []),
+		exit_block(abort)
+	    )
+	;
+	    source_close(SP0, []),
+	    exit_block(abort)
 	).
 
-% merge seperate comment directives for the same predicate into one comment
+
+open_eci_file(EclFile, OutDir, FileModule, EciStream) :-
+	pathname(EclFile, Dir, Base, _Suffix),
+	concat_atom([Base], FileModule),
+	get_flag(eclipse_info_suffix, ECI),
+	( concat_string([OutDir], "") -> 
+	    concat_string([Dir,Base,ECI], EciFile)
+	;
+	    concat_string([OutDir,/,Base,ECI], EciFile)
+	),
+	open(EciFile, write, EciStream).
+
+
+% merge separate comment directives for the same predicate into one comment
 merge_comments(Comments0, Comments) :-
         get_predicate_comments(Comments0, PredComs0, OtherComs),
 	sort(1, =<, PredComs0, PredComs1),
@@ -145,8 +177,8 @@ merge_predcomments([C|Cs], MC) :-
 	merge_predcomments(Cs, MC0).
 
 
-gen_interface_file(Out, Comments, Module) :-
-	(nonvar(Module) ->
+write_eci_file(Out, Comments, Module) :-
+	(current_module(Module) ->
 	    get_module_info(Module, raw_interface, Decls),
 	    printf(Out, ":- module(%Qw).%n", Module),
 	    (foreach(Dec, Decls), param(Out) do
@@ -174,231 +206,37 @@ gen_interface_file(Out, Comments, Module) :-
 	    (foreach(Com, Comments), param(Out) do
                  printf(Out, ":- %QDVw.%n", Com)
 	    )
-	;   true
-        ).
-
-gather_comments(In, BaseName, Comments0, FoundM0, FoundM, Module0, Module) :-
-	read(In, Item)@Module0,
-	process_item(Item, In, BaseName, Comments0, Comments1, FoundM0, FoundM1,
-	   Module0, Module1),
-	((FoundM1 == after ; Item == end_of_file) ->
-	    FoundM1 = FoundM,
-	    Module1 = Module
-	;    
-	    gather_comments(In, BaseName, Comments1, FoundM1, FoundM,
-	        Module1, Module)
+	;
+	    true
         ).
 
 
-process_item(end_of_file, _In, _, Comments0, Comments, FoundM0, FoundM, M0, M) ?- !,
-        Comments0 = [],
-	Comments = Comments0,
-	FoundM0 = FoundM,
-	M0 = M.
-process_item(:-module(M), _In, BaseName, Comments0, Comments, FoundM0, FoundM, _Module0,  Module) ?- !,
-        Comments0 = Comments,
-	set_module(M, BaseName, Module, FoundM0, FoundM).
-process_item(:-module(M,_), _In, BaseName, Comments0, Comments, FoundM0, FoundM, _Module0, Module) ?- !,
-        Comments0 = Comments,
-	set_module(M, BaseName, Module, FoundM0, FoundM).
-process_item(:-module(M,_,_), _In, BaseName, Comments0, Comments, FoundM0,
-    FoundM, _Module0, Module) ?- !,
-	Comments0 = Comments,
-	set_module(M, BaseName, Module, FoundM0, FoundM).
-process_item(:-module_interface(M), _In, BaseName, Comments0, Comments,
-    FoundM0, FoundM, _Module0, Module) ?- !, 
-        Comments0 = Comments,
-	set_module(M, BaseName, Module, FoundM0, FoundM).
-process_item(:-begin_module(M), _In, _BaseName, Comments0, Comments, FoundM0,
-    FoundM, Module0, Module) ?- !,
-        Comments0 = Comments,
-	set_beginmodule(M, Module0, Module, FoundM0, FoundM).
-process_item(:-Directive, In, BaseName, Comments0, Comments, FoundM0,
-    FoundM, Module0, Module) ?- !,
-	process_directives(Directive, In, BaseName, Comments0, Comments,
-            FoundM0, FoundM, Module0, Module).
-process_item(_Item, _In, _BaseName, Comments, Comments, FoundM, FoundM,
-    Module, Module).
-
-
-process_directives((D1,D2), In, BaseName, Comments0, Comments, FoundM0,
-    FoundM, Module0, Module) ?- !,
-	process_directives(D1, In, BaseName, Comments0, Comments1, FoundM0,
-             FoundM1, Module0, Module1),
-	process_directives(D2, In, BaseName, Comments1, Comments, FoundM1,
-             FoundM, Module1, Module).
-process_directives(comment(include,Files0), _In, BaseName, Comments0,
-    Comments, FoundM0, FoundM, Module0, Module) ?- !,
-	(Files0 = [_|_] -> Files = Files0 ; Files = [Files0]),
-	(foreach(F, Files), fromto(Comments0, C1,C2, Comments), 
-         fromto(Module0, M1,M2, Module), fromto(FoundM0, F1,F2, FoundM),
-         param([BaseName]) do
-	    (get_inout_names(F, ".", InDir, InName, _) ->
-		process_include(InName, InDir, BaseName, C1, C2, F1, F2, M1, M2)
-	    ;   get_bip_error(Er),
-	        error(Er, comment(include,F))
+ensure_compiled(File, Module, M) :-
+	% Make sure the compiler's modules are loaded before checking
+	% whether Module exists.  Otherwise we may call e.g. compile(asm)
+	% which recompiles asm while it's being used.
+	ensure_loaded(library(ecl_compiler)),
+	( current_module(Module) ->
+	    ( possibly_incomplete_module(Module) ->
+		ensure_loaded(library(Module))
+	    ;
+		true
+	    )
+	;
+	    block(compile(File),_,fail)@M,
+	    ( current_module(Module) ->
+		true
+	    ;
+	    	printf(error, "Not a module file: %w%n", [File]),
+		fail
 	    )
 	).
-process_directives(comment(T,C), _In, _BaseName, Comments0, Comments,
-    FoundM0, FoundM, Module0, Module) ?- !,
-        FoundM0 = FoundM,
-	Module0 = Module,
-	(FoundM0 = yes(_) ->
-	    Comments0 = [comment(T,C)|Comments]
-	;   % not the main module yet
-	    writeln(warning_output, "Comments not in main module ignored."),
-	    Comments0 = Comments
-	).
-process_directives(include(Files0), _In, BaseName, Comments0, Comments,
-    FoundM0, FoundM, Module0, Module) ?- !,
-	(Files0 = [_|_] -> Files = Files0 ; Files = [Files0]),
-	(foreach(F, Files), fromto(Comments0, C1,C2, Comments), 
-         fromto(Module0, M1,M2, Module), fromto(FoundM0, F1,F2, FoundM),
-         param([BaseName]) do
-	    (get_inout_names(F, ".", InDir, InName, _) ->
-		process_include(InName, InDir, BaseName, C1, C2, F1, F2, M1, M2)
-	    ;   get_bip_error(E),
-	        error(E, include(F))
-	    )
-	).
-process_directives(_Directive, _, _BaseName, Comments, Comments, Found,
-    Found, Module, Module).
 
-
-% set the current module if it is not already set
-set_module(Module, BaseName, NewCurrent, FoundM0, FoundM) :-
-	(nonvar(Module) -> 
-	% this check that Module and BaseName are the same name, regardless
-        % of their types
-	  (FoundM0 == no ->
-	      ((concat_string([Module], StringName),
-	        concat_string([BaseName], StringName)) ->
-		      Module = NewCurrent,
-		      FoundM = yes(Module)
-	       ;      printf(warning_output, "Encountering a module %w different from filename, ignoring...%n", [Module]),
-	              Module = NewCurrent,
-		      FoundM = no
-	      )
-          ;    printf(warning_output, "Encountering a module %w after main module, ignoring...%n", [Module]),
-	       arg(1, FoundM0, Main),
-	       FoundM = after(Main),
-	       Module = NewCurrent
-	  )
-        ; % var(Module)
-	  writeln(warning_output, "Unable to determine new module name..."),
-	  set_bip_error(6)
-	).
-
-set_beginmodule(Module, OldCurrent, NewCurrent, FoundM0, FoundM) :-
-	(nonvar(Module) ->
-	    (FoundM0 == no ->
-	        NewCurrent = Module,
-		FoundM = yes(Module)
-	    ;   
-	        (OldCurrent == Module ->
-		    NewCurrent = OldCurrent,
-		    FoundM = yes(OldCurrent)
-		;
-                    printf(warning_output, "Encountering a module %w after main module, ignoring...%n", [Module]),
-		    arg(1, FoundM0, Main),
-	            FoundM = after(Main),
-	            Module = NewCurrent
-		)
-	  )
-        ; % var(Module)
-	  writeln(warning_output, "Unable to determine new module name..."),
-	  set_bip_error(6)
-	).
-
-
-% get the comments from an included file
-process_include(InFile, InDir, BaseName, Comments0, Comments, FoundM0,
-   FoundM, Module0, Module) :-
-	printf(output, "including %w%n", [InFile]),
-	check_open(read, InFile, In),
-	getcwd(CWD), cd(InDir),
-	(process_include1(In, BaseName, Comments0, Comments, FoundM0, FoundM, Module0, Module) ->
-	    close(In), cd(CWD) ; close(In), cd(CWD), fail
-	).
-
-process_include1(In, BaseName, Comments0, Comments, FoundM0, FoundM, Module0, Module) :-
-	gather_comments(In, BaseName, IncComments, FoundM0, FoundM,
-	   Module0, Module),
-	append(IncComments, Comments, Comments0).
-
-
-
-
-% only compile file if needed. File is a string
-ensure_compiled(File, _M) :-
-	get_file_info(File, mtime, MTime),
-	atomify(File, AFile),
-        % current_compiled_file expects atoms
-	current_compiled_file(AFile, CTime, _),
-	MTime =< CTime, !.  % no need to compile it
-ensure_compiled(File, M) :-
-	compile(File)@M.
-
-
-atom_or_string(Term) :- atom(Term), !.
-atom_or_string(Term) :- string(Term).
-
-
-
-check_open(read, FileName, Stream) ?-
-	((get_file_info(FileName, readable, on),
-	 get_file_info(FileName, mode, Mode),
-	 8'040000 =\= Mode /\ 8'170000 /* not directory*/) ->
-             open(FileName, read, Stream)
-	 ;
-	     set_bip_error(170)
-	).
-check_open(write, FileName, Stream) ?-
-	(exists(FileName) ->
-	    % file exists, check can overwrite it
-	    ((get_file_info(FileName, writable, on), 
-	     get_file_info(FileName, mode, Mode),
-	     8'040000 =\= Mode /\ 8'170000 /*not directory*/) ->
-	         open(FileName, write, Stream)
-	     ;
-	         set_bip_error(170)
-	    )
-        ;
-            % file does not exist, check can write in directory
-	    canonical_path_name(FileName, FullName),
-	    pathname(FullName, ParentDir, _, _),
-	    (get_file_info(ParentDir, writable, on) ->
-		open(FileName, write, Stream)
-	    ;  set_bip_error(170)
-	    )
-	 ).
-
-
-
-try_extension(Base, FullName) :-
-	get_flag(prolog_suffix, PExts),
-	existing_file(Base, PExts, [readable], FullName), !.
-
-
-get_inout_names(File0, OutDir, InDir, IFile, IntFile) :-
-        (File0 = library(FName) -> true ; FName = File0),
-	atom_or_string(FName),
-	pathname(FName, _, Base, Suffix),
-	(Suffix == "" -> 
-	    % need to append extension
-	    try_extension(File0, IFile0)
-	;   existing_file(File0, [""], [readable], IFile0), !
-	), 
-	canonical_path_name(IFile0, IFile), % full path for input file
-	pathname(IFile, InDir, _, _),  
-	get_flag(eclipse_info_suffix, INT),
-	canonical_path_name(OutDir, AbsOutDir),
-	get_file_info(AbsOutDir, mode, DirMode),
-	8'040000 =:= DirMode /\ 8'170000, !, % is a directory...
-	concat_string([AbsOutDir, Base, INT], IntFile).
-get_inout_names(_, _, _, _, _) :-
-	set_bip_error(171).
-
+    % HACK: Because of autoloading, the following modules may exist,
+    % but may not be fully loaded.  They need to be loaded, otherwise
+    % the export list may be incomplete.
+    possibly_incomplete_module(lists).
+    possibly_incomplete_module(profile).
 
 
 %----------------------------------------------------------------------
@@ -1258,6 +1096,10 @@ page_field(_/_,		template:Val,	template of pdoc) :- ground(Val), !.
 page_field(_/_,		tool:Val,	tool of pdoc) :- atom_or_string(Val), !.
 page_field(_/_,		amode:_Val,	0) :- !.	% handled separately
 page_field(_,		index:_Val,	0) :- !.	% handled separately
+
+
+atom_or_string(Term) :- atom(Term).
+atom_or_string(Term) :- string(Term).
 
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 

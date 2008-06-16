@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.25 2008/06/13 00:42:38 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.26 2008/06/16 00:53:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -937,11 +937,8 @@ instr(put_module(a(A),C),		404, [a(A),atom(C)]).
 
 
 asm_(Pred, WAMList, Module) :-
-	asm(Pred, WAMList, 0, Module).
+	asm_(Pred, WAMList, 0, Module).
 
-:- export asm/4.	% temporary
-asm(Pred, WAMList, Flags, Module) :-
-	asm_(Pred, WAMList, Flags, Module).
 
 asm_(Pred, WAMList, Flags, Module) :-
 	( integer(Flags) ->

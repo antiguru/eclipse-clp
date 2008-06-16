@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.22 2008/06/13 00:42:39 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.23 2008/06/16 00:53:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -517,32 +517,6 @@ par_once_body(InitGoal, Goal, Module) :-
 %---------------------------------------------------------
 % defaults handlers for start/restart/end events
 %---------------------------------------------------------
-
-sepia_start :-				% default handler for event 150
-	(is_predicate(user_start/0) ->
-		user_start		% for compatibility
-	;
-		true
-	).
-
-
-sepia_end :-				% default handler for event 152
-	(is_predicate(close_pce/0) ->
-		(close_pce -> true; true)
-	;
-		true
-	),
-	(is_predicate(close_2d/0) ->
-		(close_2d -> true; true)
-	;
-		true
-	),
-	(is_predicate(user_end/0) ->
-		user_end		% for compatibility
-	;
-		true
-	).
-
 
 extension(X):-
 	extension(X,0).
@@ -1405,9 +1379,14 @@ declaration_checks :-
 	declaration_checks(Modules).
 
     declaration_checks([]).
-    declaration_checks([M|_]) :-
+    declaration_checks([M|Ms]) :-
+	declaration_check(M),
+	declaration_checks(Ms).
+
+    declaration_check(M) :-
 	atom(M),
 	current_module(M),
+%	writeln(declaration_check(M)),
 	\+ is_locked(M),
 	predicate_class_and_error(Class, Error, DisablingPragma),
 	\+ current_pragma_(DisablingPragma, M),
@@ -1415,8 +1394,7 @@ declaration_checks :-
 	\+ deprecated_reexported(Class, P, M),
 	error(Error, P, M),
 	fail.
-    declaration_checks([_|Ms]) :-
-	declaration_checks(Ms).
+    declaration_check(_).
 
     predicate_class_and_error(undefined,  76, undefined_warnings(off)).
     predicate_class_and_error(undeclared, 77, undeclared_warnings(off)).
@@ -1825,7 +1803,10 @@ check_module_or_load_library(_, _) :-
 	set_bip_error(173).
 
 
-lib(Library, Module) :-
+lib(Library, Module) :-		% obsolete
+	lib_(Library, Module).
+
+lib_(Library, Module) :-
 	use_module_body(library(Library), Module).
 
 
@@ -2194,7 +2175,11 @@ record_interface_directive(Directive, Module) :-
     init_module_record(N, Value, Module) :-
 	functor(Key, Module, N),
 	( is_record(Key) -> true ; local_record(Module/N) ),
-	recordz(Key, Value).
+	( recorded(Key, Old), variant_simple(Old, Value) -> 
+	    true
+	;
+	    recordz(Key, Value)
+	).
 
 recorded_interface_directive(Module, Directive) :-
 	functor(Key, Module, 1),
@@ -2440,8 +2425,6 @@ create_module(M) :-
 	create_module(M, [], Language).
 
 create_module(M, Exports, Language) :-
-	% if compiling, keep track of created modules (for declaration_checks)
-	( compiled_stream(_) -> record(compiled_modules, M) ; true ),
 	create_module_(M),
 	import_body(Language, M),
 	export_list(Exports, M).
@@ -3720,7 +3703,7 @@ inline_(Proc, Trans, Module) :-
 	tool(get_attributes/3, get_attributes/4),
 	tool(replace_attribute/2, replace_attribute/3),
 	tool(tool_body/3, tool_body_/4),
-	tool(lib/1, lib/2),
+	tool(lib/1, lib_/2),
 	tool(make_suspension/3, make_suspension/4),
 	tool(max/2, max_body/3),
 	tool(min/2, min_body/3),
@@ -3989,10 +3972,6 @@ inline_(Proc, Trans, Module) :-
 	bip_error/2,
 	block/4,
 	block_atomic/4,
-	comp_abort/7,
-	comp_begin/5,
-	comp_end/6,
-	comp_list/2,
 	compile_list_body/3, 
 	create_module_if_did_not_exist/1,
 	dbgcomp/0,
@@ -4041,8 +4020,6 @@ inline_(Proc, Trans, Module) :-
 	(untraceable)/1,
 	abort/0,
 	canonical_path_name/2,
-	comp_begin/5,
-	comp_end/6,
 	coroutine/0,
 	current_interrupt/2,
 	display/1,
@@ -4649,7 +4626,6 @@ compile_term_flags_(Clauses, Flags, Module) :-
 
 :- export
 	register_compiled_stream/1,
-	deregister_compiled_stream/0,
 	register_compiler/1,
 	deregister_compiler/0,
 	nested_compile_term/1,
@@ -4662,9 +4638,11 @@ register_compiler(NestedCompileSpec) :-
 deregister_compiler :-
 	getval(compile_stack, Stack),
 	( Stack = [_Old|Rest] ->
-	    setval(compile_stack, Rest)
+	    setval(compile_stack, Rest),
+	    % If all compilations finished, do checks
+	    ( Rest == [] -> declaration_checks ; true )
 	;
-	    declaration_checks
+	    true
 	).
 
 :- tool(nested_compile_term/1, nested_compile_term_/2).
@@ -4689,6 +4667,7 @@ register_compiled_stream(Stream) :-
 	getval(compiled_stream_stack, Stack),
 	setval(compiled_stream_stack, [Stream|Stack]).
 
+:- export deregister_compiled_stream/0.
 deregister_compiled_stream :-
 	getval(compiled_stream_stack, Stack),
 	( Stack = [_Old|Rest] ->
@@ -4954,7 +4933,7 @@ portray_builtin(<(X,Y,_M), X<Y).
 % Define a new item, Scope is 'local' or 'export'.
 % Allow duplicate, identical definitions.
 % Set bip_error on error.
-:- mode define_item(+,++,+,+,+,-).
+:- mode define_item(+,++,+,+,+,+,-).
 define_item(Name, Definition, DefModule, Scope, DefStore, ImpStore, New) :-
 	check_atom(Name),
 	check_atom(DefModule),
@@ -7026,7 +7005,7 @@ error_if_not_list(.(_,_), _) :-
 error_if_not_list(_, Where) :-
 	exit_block(Where).
 
-:- mode head(+, -, -, -, -, -, ++).
+:- mode head(+, -, ?, -, -, -, -, -, -, ++).
 head((Head , Pushbacklist), NewHead, AnnPHead, AnnNewHead, 
      Pushback, AnnPushback, S0, S, S1, Module) :-
 	!,
@@ -7344,7 +7323,7 @@ present_libraries(Sys, [_|L], T) :-
 	setval(library, Runlib).		% needed for load/2
 
 :-
-%	declaration_checks([sepia_kernel]),	% before locking
+%	declaration_check(sepia_kernel),	% before locking
 	(extension(development) ->
 	    true
 	;

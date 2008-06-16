@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: util.pl,v 1.1 2006/09/23 01:55:40 snovello Exp $
+% Version:	$Id: util.pl,v 1.2 2008/06/16 00:53:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -42,7 +42,7 @@
 :- comment(summary, "Various utility predicates for program development").
 :- comment(author, "Various, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:55:40 $").
+:- comment(date, "$Date: 2008/06/16 00:53:30 $").
 :- comment(add_path/1, [template:"add_path(+Directory)",
     summary:"The directory will be added at the beginning of the library path."
     ]).
@@ -102,12 +102,6 @@
 	read_line/1,
 	read_line/2,
 	time/1.
-
-:- import
-	compile_stream_/2,
-	get_flag_body/4,
-	once_body/2
-    from sepia_kernel.
 
 
 % add_path(+Path) - prepend a directory to the library path
@@ -228,7 +222,7 @@ list_error(String, N, Message) :-
 
 compile_selection(Module) :-
     exec(xv_get_sel, [null, S], Pid),
-    compile_stream_(S, Module),
+    compile_stream(S)@Module,
     wait(Pid, _).
 
 
@@ -237,14 +231,14 @@ compile_selection(Module) :-
 :- tool(edit/1, edit/2).
 
 edit(Pred0, Module0) :-
-        ( get_flag_body(Pred0, tool, on, Module0) ->
+        ( get_flag(Pred0, tool, on)@Module0 ->
 		tool_body(Pred0, Pred, Module)	% edit the tool body instead
 	;
 		Pred = Pred0,
 		Module = Module0
 	),
-        get_flag_body(Pred, source_file, File, Module),
-        get_flag_body(Pred, source_line, Line, Module),
+        get_flag(Pred, source_file, File)@Module,
+        get_flag(Pred, source_line, Line)@Module,
 	( getenv('EDITOR', Editor) -> true ; Editor = "vi"),
         concat_string([Editor, " +", Line, " ", File], Cmd),
 	get_file_info(File, mtime, TimeBefore),

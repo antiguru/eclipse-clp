@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.1 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.2 2008/06/16 00:54:37 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/06/13 00:38:55 $").
+:- comment(date, "$Date: 2008/06/16 00:54:37 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -91,6 +91,7 @@
 :- local struct(options(
     	keep_comments,		% true if set, else variable
     	ignore_conditionals,	% true if set, else variable
+    	include_comment_files,	% true if set, else variable
 	recreate_modules,	% erase old module before creating
 	no_macro_expansion,	% true if set, else variable
 	no_clause_expansion,	% true if set, else variable
@@ -153,7 +154,11 @@
     <DL>
     <DT>keep_comments</DT>
 	<DD>treat comments and spacing between source terms as data
-		rather than ignoring it</DD>
+	rather than ignoring it</DD>
+    <DT>include_comment_files</DT>
+	<DD>interpret the comment(include,Files) directive, including
+	the contents of the given files. By default, these directives
+	are ignored.</DD>
     <DT>ignore_conditionals</DT>
 	<DD>interpret if/1, elif/1, else/0 and endif/0 directives and
 	include or exclude corresponding source parts accordingly, while
@@ -254,6 +259,7 @@ source_open(File, OptionList, SourcePos, Module) :-
     set_option(no_clause_expansion, options{no_clause_expansion:true}).
     set_option(goal_expansion, options{goal_expansion:true}).
     set_option(with_annotations, options{with_annotations:true}).
+    set_option(include_comment_files, options{include_comment_files:true}).
 
     peek(In, C) :- get(In, C).
     peek(In, _) :- unget(In), fail.
@@ -666,6 +672,13 @@ handle_directives(include([File|Files]), ThisPos, NextPos, handled_directive) :-
 	    ;
 		handle_directives(include(Files), ThisPos, NextPos, _)
 	    )
+	).
+handle_directives(comment(include,Files), ThisPos, NextPos, Kind) :- !,
+	ThisPos = source_position{options:options{include_comment_files:WantInclude}},
+	( WantInclude == true ->
+	    handle_directives(include(Files), ThisPos, NextPos, Kind)
+	;
+	    Kind = handled_directive, ThisPos = NextPos
 	).
 
     % module directives

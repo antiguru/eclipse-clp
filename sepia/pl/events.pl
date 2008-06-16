@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.9 2008/06/13 00:42:39 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.10 2008/06/16 00:53:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -98,11 +98,7 @@ gen_valid_errors(Start, Max, N) :-
 
 % The user-definable exit from a non-recoverable error.
 error_exit :-
-	is_predicate(user_error_exit/0) ->
-	    user_error_exit
-	;
-	    exit_block(abort)
-	.
+	exit_block(abort).
 
 %-------------------------------------
 % Here are the default error handlers
@@ -581,9 +577,14 @@ compiled_file_handler(X, File, Size, Time, Module) :-
 
 
 % end of loading a code unit: do any finishing up work
-unit_loaded_handler(_, _, Module) :-
+unit_loaded_handler(_, Options, Module) :-
 	compile_discontiguous_predicates(Module),
-	run_stored_goals(initialization_goals, Module).
+	run_stored_goals(initialization_goals, Module),
+	( memberchk(check, Options) ->
+	    record(compiled_modules, Module)
+	;
+	    true
+	).
 
 
 record_compiled_file_handler(_, File-Goal, Module) :-
@@ -1232,9 +1233,9 @@ postpone_suspensions(Susp) :-
    set_default_error_handler_(147, compiler_abort_handler/3, sepia_kernel),
    set_default_error_handler_(148, pragma_handler/3, sepia_kernel),
    set_default_error_handler_(149, unit_loaded_handler/3, sepia_kernel),
-   set_default_error_handler_(150, sepia_start/0, sepia_kernel),
+   set_default_error_handler_(150, true/0, sepia_kernel),
    set_default_error_handler_(151, true/0, sepia_kernel),
-   set_default_error_handler_(152, sepia_end/0, sepia_kernel),
+   set_default_error_handler_(152, true/0, sepia_kernel),
    set_default_error_handler_(157, error_exit/0, sepia_kernel),
    set_default_error_handler_(160, error_handler/4, sepia_kernel),
    set_default_error_handler_(161, macro_handler/3, sepia_kernel),

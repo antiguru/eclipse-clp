@@ -22,11 +22,11 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: development_support.pl,v 1.1 2006/09/23 01:55:11 snovello Exp $
+% Version:	$Id: development_support.pl,v 1.2 2008/06/16 00:53:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
-% $Id: development_support.pl,v 1.1 2006/09/23 01:55:11 snovello Exp $
+% $Id: development_support.pl,v 1.2 2008/06/16 00:53:30 jschimpf Exp $
 %
 
 %----------------------------------------------------------------------
@@ -103,12 +103,12 @@ named_structure(Struct, Module, Defs, A) :-
 	functor(Struct, F,A),
 	functor(Defs0, F,A),
 	functor(Defs, F,A),
-	current_struct(Defs0)@Module,
+	current_struct(F, Defs0)@Module,
 	(foreacharg(Name0, Defs0), foreacharg(Name, Defs), param(Defs0) do
 	    (atom(Name0) ->
 		Name0 = Name
-	    ; 
-             Name0 = Name:_Substruct
+	    ; Name0 = Name:_Substruct ->
+	    	true
             ;
 	     printf(error, "ERROR: unrecognised format for structure field index: %w in %w.%n", [Name0,Defs0]),
              Name = '%%UNKNOWN%%'

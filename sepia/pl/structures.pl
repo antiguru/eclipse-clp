@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: structures.pl,v 1.1 2006/09/23 01:55:35 snovello Exp $
+% Version:	$Id: structures.pl,v 1.2 2008/06/16 00:53:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -79,7 +79,7 @@ eq_struct(_, _) :-
 portray_struct(Stream, Struct, Module) :-
 	functor(Struct, Functor, Arity),
 	functor(Def, Functor, Arity),
-	current_struct(Def)@Module,
+	current_struct(Functor, Def)@Module,
 	make_list(Def, Struct, Arity, [], List),
 	print(Stream, no_macro_expansion(Functor with List)).
 

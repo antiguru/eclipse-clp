@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.1 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.2 2008/06/16 00:54:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/06/13 00:38:55 $").
+:- comment(date,	"$Date: 2008/06/16 00:54:36 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -322,16 +322,19 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
 
 	% Create our normal form
+	message("Normalize", 2, Options),
 	normalize_clauses_annotated(Clauses, AnnCs, [], NormPred0, _NVars, Module),
 %	print_normalized_clause(output, NormPred0),
 
 	% Do some intra-predicate flow analysis
+	message("Analysis", 2, Options),
 	binding_analysis(NormPred0),
 
 	% Here we could have a simplification pass, exploiting
 	% information from the analysis phase.
 
 	% Indexing_transformation (needs info from binding_analysis)
+	message("Indexing", 2, Options),
 	indexing_transformation(NormPred0, NormPred, Options),
 
 	% Variable classification
@@ -339,6 +342,7 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
 	% indexing_transformation introduces extra variable occurrences.
 	% Classifies void, temp and permanent vaiables, and assigns environment
 	% slots to the permanent ones. Also adds disjunction pseudo-args.
+	message("Varclass", 2, Options),
 	classify_variables(NormPred, 0, Options),
 
 	( Options = options{print_normalised:on} ->
@@ -348,6 +352,7 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
 	),
 
 	% Code generation
+	message("Codegen", 2, Options),
 	generate_code(NormPred, RawCode, AuxCode, Options, Module:Pred),
 	( Options = options{print_raw_code:on} ->
 	    print_annotated_code(RawCode)
@@ -356,6 +361,7 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
 	),
 
 	% Register allocation
+	message("Regassign", 2, Options),
 	assign_am_registers(RawCode, RegCode, AuxCode),
 	( Options = options{print_raw_code:on} ->
 	    print_annotated_code(RegCode)
@@ -364,6 +370,7 @@ compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
 	),
 
 	% WAM level postprocessing
+	message("Simplify", 2, Options),
 	simplify_code(RegCode, FinalCode, Options),
 	( Options = options{print_final_code:on} ->
 	    print_annotated_code(FinalCode)
@@ -437,10 +444,8 @@ print_location(Stream, Location) :-
 local_file_name(File, LocalF) :-
 	getcwd(Cwd),
 	atom_string(File, FileS),
-	(substring(FileS, Cwd, 1) ->
-	    Pos is string_length(Cwd) + 1,
-	    Len is string_length(FileS) - Pos + 1,
-	    once substring(FileS, Pos, Len, LocalF)
+	( append_strings(Cwd, LocalF, FileS) ->
+	    true
 	;
 	    LocalF = File
 	).
@@ -643,8 +648,10 @@ compile_source(Source, OptionListOrModule, CM) :-
 		SourcePosEnd = source_position{module:EndModule},
 		( Options = options{load:none} ->
 		    true
+		; EndModule == Module ->
+		    error(#code_unit_loaded, [], EndModule)
 		;
-		    error(#code_unit_loaded, end_of_file, EndModule)
+		    error(#code_unit_loaded, [check], EndModule)
 		),
 
 		% Raise event 139, which prints the compilation statistics
@@ -783,7 +790,7 @@ handle_module_boundary((:-module(_Module)), Options, OldModule, TopModule) ?- !,
 	; OldModule == TopModule ->
 	    true
 	;
-	    error(#code_unit_loaded, end_of_file, OldModule)
+	    error(#code_unit_loaded, [check], OldModule)
 	).
 
 

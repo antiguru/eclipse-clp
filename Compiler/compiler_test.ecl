@@ -22,37 +22,10 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.14 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.15 2008/06/16 00:54:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
-:- lib(coverage).
-
-
-% Compile everything in coverage mode
-
-ccompile :-
-	coverage:ccompile(compiler_common),
-	coverage:ccompile(compiler_normalise),
-	coverage:ccompile(compiler_analysis),
-	coverage:ccompile(compiler_indexing),
-	coverage:ccompile(compiler_peephole),
-	coverage:ccompile(compiler_codegen),
-	coverage:ccompile(compiler_regassign),
-	coverage:ccompile(compiler_varclass).
-
-
-% Compile everything normally
-
-compile :-
-	eclipse_language:compile(compiler_common),
-	eclipse_language:compile(compiler_normalise),
-	eclipse_language:compile(compiler_analysis),
-	eclipse_language:compile(compiler_indexing),
-	eclipse_language:compile(compiler_peephole),
-	eclipse_language:compile(compiler_codegen),
-	eclipse_language:compile(compiler_regassign),
-	eclipse_language:compile(compiler_varclass).
 
 
 % Run one test (or all matching tests)

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.15 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.16 2008/06/16 00:54:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/13 00:38:55 $").
+:- comment(date, "$Date: 2008/06/16 00:54:36 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -581,6 +581,14 @@ indent(Stream, Indent) :-
 :- export message/2.
 message(Message, options{verbose:Level}) :-
 	( Level > 0 ->
+	    writeln(log_output, Message)
+	;
+	    true
+	).
+
+:- export message/3.
+message(Message, MsgLevel, options{verbose:Level}) :-
+	( Level >= MsgLevel ->
 	    writeln(log_output, Message)
 	;
 	    true

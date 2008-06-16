@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.8 2008/05/16 18:04:46 kish_shen Exp $
+% Version:	$Id: tracer_tty.pl,v 1.9 2008/06/16 00:53:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.8 2008/05/16 18:04:46 kish_shen Exp $
+% $Id: tracer_tty.pl,v 1.9 2008/06/16 00:53:30 jschimpf Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -876,7 +876,7 @@ print_current_summary(Stream, [_|_], _Module) ?- !,
 print_current_summary(Stream, Term, Module) :- compound(Term), !,
 	functor(Term, F, A),
 	functor(Defs, F, A),
-	( current_struct(Defs)@Module ->
+	( current_struct(F, Defs)@Module ->
 	    printf(Stream, "(struct %w/%w)", [F,A])
 	;
 	    printf(Stream, "(%w/%w)", [F,A])
