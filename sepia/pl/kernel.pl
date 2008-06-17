@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.23 2008/06/16 00:53:30 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.24 2008/06/17 16:34:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -6172,12 +6172,7 @@ t_do(Illformed, _, _, _, M) :-
     aux_pred_name(Module, Arity, Name) :- var(Name),
 	store_inc(name_ctr, Module),
 	store_get(name_ctr, Module, I),
-	concat_atom([do__,I], Name0),
-	( is_predicate(Name0/Arity)@Module ->	% avoid name clashes
-	    aux_pred_name(Module, Arity, Name)
-	;
-	    Name = Name0
-	).
+	concat_atom([do__,I], Name).
 
 
     write_clauses([]).

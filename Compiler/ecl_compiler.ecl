@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.3 2008/06/17 01:33:46 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.4 2008/06/17 16:35:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/06/17 01:33:46 $").
+:- comment(date,	"$Date: 2008/06/17 16:35:36 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -193,6 +193,7 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 	    ( Options = options{output:print} ->
                 printf("%w:%n", [Pred]),
 		print_wam(WAM)
+
 	    ; Options = options{output:print(Stream)} ->
                 writeclauses(Stream, Clauses),
 		get_stream(output, OldOut),
@@ -200,6 +201,7 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 		print_wam(WAM),
 		set_stream(output, OldOut),
 		writeln(Stream, --------------------)
+
 	    ; Options = options{output:eco_to_stream(Stream)} ->
                 pasm(WAM, CodeSize, BTPos, Codes),
 		( portable_object_code(Codes) ->
@@ -213,15 +215,16 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 		),
 		CodeArr =.. [[]|Codes],
                 get_pred_pos(SourcePos, Options, File, Line, Offset),
-                ( Module == sepia_kernel ->
-		    % call locally, because :/2 may not be defined yet
-		    StorePred = store_pred(Pred,CodeArr,CodeSize,BTPos,Flags,File,Line,Offset)
-		;
-		    StorePred = sepia_kernel:store_pred(Pred,CodeArr,CodeSize,BTPos,Flags,File,Line,Offset)
-		),
-		printf(Stream, "%ODQKw.%n", [:-StorePred])@Module
+		% In kernel, call locally, because :/2 may not be defined yet
+                ( Module == sepia_kernel -> Quali = "(" ; Quali = ":(sepia_kernel," ),
+		% Print source-location arguments in a separate line because they
+		% can change even when the code is unchanged (better for CVS)
+		printf(Stream, ":-(%sstore_pred(%ODQKw,%ODQKw,%q,%q,%q,%n%q,%q,%q))).%n",
+		    [Quali,Pred,CodeArr,CodeSize,BTPos,Flags,File,Line,Offset])@Module
+
 	    ; Options = options{output:asm_to_stream(Stream)} ->
                 pretty_print_asm(WAM, Stream, Pred, Flags, Module)
+
             ; Options = options{output:none} ->
                 true
 	    ;
