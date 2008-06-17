@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.5 2008/06/13 00:42:39 jschimpf Exp $
+# $Id: Makefile.in,v 1.6 2008/06/17 01:34:19 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -75,8 +75,10 @@ X_SEPIA =	x$(OBJECT)
 
 # *************** Configuration dependent definitions ***************
 
-# These are only the defaults. These macros should be properly
-# defined in the .localdeps file which is included below
+# ECLiPSe compiler flags
+
+ECO_DBG = off
+
 
 # C compiler flags and defines
 
@@ -736,16 +738,16 @@ $(PREFIX)/lib/%.eco:	$(SEPIA)/lib/%.eco boot_test $(PREFIX)/lib/.stamp
 # This goal tries to make sure that the core system actually boots and that
 # the compiler works (by compiling util.pl).  Could be more thorough!
 boot_test:	sepia$(EXE) $(BOOT_ECOS) $(COMPILER_ECOS)
-	./sepia -e 'lib(ecl_compiler),ecl_compiler:compile("$(SEPIA)/lib/util"),util:compiled'
+	./sepia -e 'compile("$(SEPIA)/lib/util"),util:compiled'
 	touch $@
 
 
 $(PREFIX)/lib/%.eco:	$(SEPIA)/pl/%.ecl $(PREFIX)/lib/.stamp
-	./sepia -e 'lib(ecl_compiler),set_flag(debug_compile,off),ecl_compiler:compile("$<",[outdir:"$(@D)",output:eco])'
+	./sepia -e 'compile("$<",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco])'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eco:	$(SEPIA)/pl/%.pl $(PREFIX)/lib/.stamp
-	./sepia -e 'lib(ecl_compiler),set_flag(debug_compile,off),ecl_compiler:compile("$<",[outdir:"$(@D)",output:eco])'
+	./sepia -e 'compile("$<",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco])'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eci:	$(SEPIA)/pl/%.ecl $(PREFIX)/lib/.stamp
@@ -789,15 +791,15 @@ bootfiles:	$(BOOT_ECOS)
 
 
 $(SEPIA)/lib/kernel.eco:	$(KERNEL_PARTS:%=$(SEPIA)/pl/%)
-	$(STABLE_ECLIPSE) -e 'lib(ecl_compiler),unlock(sepia_kernel,"Sepia"),set_flag(debug_compile,off),ecl_compiler:compile("$(SEPIA)/lib/kernel.pl",[outdir:"$(@D)",load:none,output:eco])'
+	$(STABLE_ECLIPSE) -e 'unlock(sepia_kernel,"Sepia"),compile("$(SEPIA)/lib/kernel.pl",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",load:none,output:eco])'
 	@/bin/chmod $(PERM) $@
 
 $(SEPIA)/lib/%.eco:	$(SEPIA)/pl/%.ecl
-	$(STABLE_ECLIPSE) -e 'lib(ecl_compiler),ecl_compiler:compile("$<", [outdir:"$(@D)",output:eco,load:none])'
+	$(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'
 	@/bin/chmod $(PERM) $@
 
 $(SEPIA)/lib/%.eco:	$(SEPIA)/pl/%.pl
-	$(STABLE_ECLIPSE) -e 'lib(ecl_compiler),ecl_compiler:compile("$<", [outdir:"$(@D)",output:eco,load:none])'
+	$(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'
 	@/bin/chmod $(PERM) $@
 
 

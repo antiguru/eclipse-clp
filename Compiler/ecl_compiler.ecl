@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.2 2008/06/16 00:54:36 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.3 2008/06/17 01:33:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/06/16 00:54:36 $").
+:- comment(date,	"$Date: 2008/06/17 01:33:46 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -74,13 +74,9 @@ compiler_options_setup(File, OptionList, Options) :-
 	; term_string(File, FileS)
 	),
 
-	% Consider global settings for the compiler options
-	get_flag(debug_compile, Dbgcomp),
-	set_default_option(debug, Dbgcomp)@compiler_common,
-
 	( OptionList = options{} ->
-	    Options0 = OptionList
-	; get_options(OptionList, Options0)@compiler_common ->
+	    Options00 = OptionList
+	; get_options(OptionList, Options00)@compiler_common ->
 	    true
 	;
 	    printf(error, "Invalid option list: %w%n", [OptionList]),
@@ -88,7 +84,14 @@ compiler_options_setup(File, OptionList, Options) :-
 	    abort
 	),
 
-	Options0 = options{outdir:OutDir},
+	Options00 = options{outdir:OutDir,srcroot:SrcRoot},
+	( SrcRoot == "" ->
+	    Options0 = Options00
+	;
+	    canonical_path_name(SrcRoot, CanSrcRoot),
+	    concat_string([CanSrcRoot], CanSrcRootString),
+	    update_struct(options, [srcroot:CanSrcRootString], Options00, Options0)
+	),
 	( Options0 = options{output:listing(LstFile)} ->
 	    open(LstFile,write,Stream),
 	    update_struct(options, [output:print(Stream)], Options0, Options)
@@ -183,7 +186,7 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 		% double negation, because asm binds the labels
 		\+ \+ block(asm(Pred, WAM, Flags)@Module, _, true),
                 get_flag(Pred, code_size, CodeSize)@Module,
-                set_pred_pos(Pred, SourcePos, Module)
+                set_pred_pos(Pred, SourcePos, Options, Module)
 	    ;
 		true % don't clobber existing code if not loading
 	    ),
@@ -209,7 +212,7 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 			[ECO,BPW])
 		),
 		CodeArr =.. [[]|Codes],
-                get_pred_pos(SourcePos, File, Line, Offset),
+                get_pred_pos(SourcePos, Options, File, Line, Offset),
                 ( Module == sepia_kernel ->
 		    % call locally, because :/2 may not be defined yet
 		    StorePred = store_pred(Pred,CodeArr,CodeSize,BTPos,Flags,File,Line,Offset)
@@ -272,20 +275,29 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 	set_flag(Pred, type, Type)@Module.
 
 
-    set_pred_pos(Pred, source_position{file:File,line:Line,offset:Offset}, Module) :-
-	( string(File), atom_string(FileAtom, File)
-	; atom(File), FileAtom = File
-	),
-	!,
-    	set_flag(Pred, source_file, FileAtom)@Module,
+    set_pred_pos(Pred, source_position{file:File,line:Line,offset:Offset}, Options, Module) :- !,
+	normalised_source_file(File, Options, SrcFile),
+    	set_flag(Pred, source_file, SrcFile)@Module,
     	set_flag(Pred, source_line, Line)@Module,
     	set_flag(Pred, source_offset, Offset)@Module.
-    set_pred_pos(_Pred, _Pos, _Module).
+    set_pred_pos(_Pred, _Pos, _Options, _Module).
 
-    get_pred_pos(none, 0, 0, 0).
-    get_pred_pos(term, 0, 0, 0).
-    get_pred_pos(source_position{file:File0,line:Line,offset:Offset}, File, Line, Offset) :-
-        concat_atom([File0], File).
+
+    get_pred_pos(source_position{file:File,line:Line,offset:Offset}, Options, SrcFile, Line, Offset) :- !,
+	normalised_source_file(File, Options, SrcFile).
+    get_pred_pos(_, _, 0, 0, 0).
+
+
+    normalised_source_file(File, options{srcroot:Root}, NormFileAtom) ?-
+	% File is canonical, and either atom or string
+	concat_string([File], FileS),
+	( substring(FileS, 0, PrefixLen, _, Root) ->
+	    substring(FileS, PrefixLen, _, 0, RelFileS)
+	;
+	    RelFileS = FileS
+	),
+	concat_atom([RelFileS], NormFileAtom).
+
 
     % Fail if this is a redefinition that we want to ignore
     check_redefinition(ModulePred, PredsSeen, SourcePos, Options) :-
@@ -295,12 +307,12 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 	    compiler_event(#consecutive, SourcePos, _Ann, Pred, Module)
 	; 	
 	    get_flag(Pred, source_file, OldFile)@Module,
-	    SourcePos = source_position{file:NewFile,line:Line},
-	    concat_atom([NewFile], NewFileAtom),
+	    SourcePos = source_position{file:NewFile0,line:Line},
+	    normalised_source_file(NewFile0, Options, NewFileAtom),
 	    OldFile \== NewFileAtom
 	->
 	    % Seen in other file: if handler fails, don't redefine
-	    error(#multifile, (Pred,OldFile,NewFile:Line), Module)
+	    error(#multifile, (Pred,OldFile,NewFileAtom:Line), Module)
 	;
 	    true
 	),
@@ -440,16 +452,6 @@ print_location(Stream, File:Line) ?- !,
 print_location(Stream, Location) :-
 	printf(Stream, "In compiling %w:%n  ", [Location]).
     	
-
-local_file_name(File, LocalF) :-
-	getcwd(Cwd),
-	atom_string(File, FileS),
-	( append_strings(Cwd, LocalF, FileS) ->
-	    true
-	;
-	    LocalF = File
-	).
-
 
 %----------------------------------------------------------------------
 % From-file compiler
@@ -690,7 +692,8 @@ compile_source(Source, OptionListOrModule, CM) :-
 
     valid_source(Source) :- atom(Source).
     valid_source(Source) :- string(Source).
-    valid_source(stream(S)) ?- true.
+    valid_source(library(_)) ?- true.
+    valid_source(stream(_)) ?- true.
 
 
 % Add a single clause or a list of clauses to what we already have.

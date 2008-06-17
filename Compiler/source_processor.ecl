@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.2 2008/06/16 00:54:37 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.3 2008/06/17 01:33:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/06/16 00:54:37 $").
+:- comment(date, "$Date: 2008/06/17 01:33:46 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -228,7 +228,7 @@ source_open(File, OptionList, SourcePos, Module) :-
 	    concat_atom([FullFile0], FullFile)
 	; File == user ->
 	    In = input, FullFile = File
-	; (atom(File) ; string(File)) ->			% may fail
+	; (atom(File) ; string(File) ; File = library(_)) ->			% may fail
 	    get_flag(prolog_suffix, Suffixes),
 	    once existing_file(File, Suffixes, [readable], GoodFile), % may fail
 	    canonical_path_name(GoodFile, FullFile),

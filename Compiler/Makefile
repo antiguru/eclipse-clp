@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile,v 1.7 2008/06/16 00:54:36 jschimpf Exp $
+# $Id: Makefile,v 1.8 2008/06/17 01:33:46 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -29,6 +29,8 @@ ECLIPSEDIR = ..
 PREFIX = $(ECLIPSEDIR)
 BOOTDIR = $(ECLIPSEDIR)/sepia
 STABLE_ECLIPSE = $(ECLIPSEDIR)/bin/$(ARCH)/eclipse
+
+DEBUG = off
 
 COMPILER_MODULES = \
 	ecl_compiler.ecl \
@@ -169,24 +171,24 @@ aux_%.eco:	%.ecl auxmap.ecl
 # Don't add an AUX_ECO dependency here - we want to keep stage-1 stable!
 %.eco:	%.ecl
 	$(STABLE_ECLIPSE) -e 'ensure_loaded(aux_ecl_compiler),\
-		aux_ecl_compiler:compile("$<", [output:eco,load:new])'
+		aux_ecl_compiler:compile("$<", [debug:$(DEBUG),output:eco,load:new,srcroot:".."])'
 	-@/bin/chmod $(PERM) $@
 
 
 # Single-stage build - can be done if no incompatible changes
 # If using this, comment out the stage-2 rule above!
 #%.eco:	%.ecl
-#	$(STABLE_ECLIPSE) -e 'compile("$<", [output:eco,load:none])'
+#	$(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(DEBUG),output:eco,load:none,srcroot:".."])'
 #	-@/bin/chmod $(PERM) $@
 
 
 %.lst:	%.ecl
 	$(STABLE_ECLIPSE) -e 'ensure_loaded(aux_ecl_compiler),\
-		aux_ecl_compiler:compile("$<", [output:listing,load:none])'
+		aux_ecl_compiler:compile("$<", [debug:$(DEBUG),output:listing,load:none,srcroot:".."])'
 
 %.asm:	%.ecl
 	$(STABLE_ECLIPSE) -e 'ensure_loaded(aux_ecl_compiler),\
-		aux_ecl_compiler:compile("$<", [output:asm,load:none])'
+		aux_ecl_compiler:compile("$<", [debug:$(DEBUG),output:asm,load:none,srcroot:".."])'
 
 
 #----------------------------------------------------------------------

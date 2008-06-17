@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_analysis.ecl,v 1.5 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: compiler_analysis.ecl,v 1.6 2008/06/17 01:33:46 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_analysis).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - dataflow analysis").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/13 00:38:55 $").
+:- comment(date, "$Date: 2008/06/17 01:33:46 $").
 
 :- use_module(compiler_common).
 :- use_module(compiler_map).
@@ -106,8 +106,9 @@ binding_analysis(goal{functor:F/A,args:Args,state:State0,path:File,line:Line}, S
 	    ( expected_failure(F, A) ->
 		true
 	    ;
-		( File == '' -> true
-		; printf(warning_output, "File %w, line %d:%n  ", [File,Line])
+		( File == '' -> true ;
+		    local_file_name(File, LocalFile),
+		    printf(warning_output, "File %w, line %d:%n  ", [LocalFile,Line])
 		),
 		printf(warning_output, "WARNING: calling %Kw will always fail%n", [F/A])
 	    )

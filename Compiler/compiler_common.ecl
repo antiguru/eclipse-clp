@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.16 2008/06/16 00:54:36 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.17 2008/06/17 01:33:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/16 00:54:36 $").
+:- comment(date, "$Date: 2008/06/17 01:33:46 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -94,6 +94,12 @@
     messages to the log_output stream. Level 1 produces information about
     predicates as they are compiled.
     <P>
+    The 'srcroot' option is used to make the compilation result (e.g. .eco
+    files) independent of absolute source file names: when set, and it is
+    a parent directory is a source file, the source file property of the
+    compiled predicates will be set as a pathname relative to the given
+    root directory.
+    <P>
     Various print_xxx options allow the output of internal compiler data
     structures for debugging purposes.
     "),
@@ -101,20 +107,22 @@
 	"output":"Output format and destination (none, print, eco, asm, listing - default none)",
 	"outdir":"directory in which to place output files (default \"\", same as input)",
 	"load":"load code into memory (none/new/all, default:all).",
-	"debug":"generate code with debug instructions (on/off, default:off).",
+	"debug":"generate code with debug instructions (on/off, default: same as global flag debug_compile).",
 	"system":"mark compiled predicates as type:built_in (on/off, default:off).",
 	"skip":"set the skip-flag in all compiled predciates (on/off, default:off).",
 	"expand_clauses":"expand clause macros, such as DCGs (on/off, default:on).",
-	"expand_goals":"expand goal macros, i.e. do inlining (on/off, default:off).",
+	"expand_goals":"expand goal macros, i.e. do inlining (on/off, default: same as global flag goal_expansion).",
 	"opt_level":"optimization level (0 or 1)",
 	"print_normalised":"print result of the normalisation pass (on/off, default:off).",
 	"print_indexes":"print result of indexing  analysis (on/off, default:off).",
 	"print_lifetimes":"print result of the variable lifetime analysis (on/off, default:off).",
 	"print_raw_code":"print annotated WAM code before register allocation (on/off, default:off).",
 	"print_final_code":"print annotated WAM code after register allocation (on/off, default:off).",
+	"srcroot":"directory prefix that will be stripped from source file paths (default:\"\")",
 	"verbose":"print messages to log_output, according to level (integer (0=silent,1=quiet,2=verbose), default:0).",
 	"warnings":"print warning messages to warning_output, according to level (on/off, default:on)."
-    ]
+    ],
+    see_also:[get_flag/2,set_flag/2]
 ]).
 
 :- export struct(options(
@@ -132,6 +140,7 @@
 	print_lifetimes,
 	print_raw_code,
 	print_final_code,
+	srcroot,
 	verbose,
 	warnings
     )).
@@ -150,6 +159,7 @@ valid_option_field(print_final_code, print_final_code of options).
 valid_option_field(print_indexes, print_indexes of options).
 valid_option_field(verbose, verbose of options).
 valid_option_field(warnings, warnings of options).
+valid_option_field(srcroot, srcroot of options).
 valid_option_field(outdir, outdir of options).
 valid_option_field(output, output of options).
 valid_option_field(load, load of options).
@@ -170,6 +180,7 @@ valid_option_value(print_final_code, Value) :- onoff(Value).
 valid_option_value(print_indexes, Value) :- onoff(Value).
 valid_option_value(verbose, Value) :- integer(Value).
 valid_option_value(warnings, Value) :- onoff(Value).
+valid_option_value(srcroot, Value) :- (string(Value);atom(Value)),!.
 valid_option_value(outdir, Value) :- (string(Value);atom(Value)),!.
 valid_option_value(output, listing(_File)).
 valid_option_value(output, listing).
@@ -186,11 +197,11 @@ onoff(off).
 onoff(on).
 
 default_options(options{
-	debug:off,
+	debug:Debug,
 	system:off,
 	skip:off,
 	expand_clauses:on,
-	expand_goals:on,
+	expand_goals:GoalExp,
 	load:all,
 	opt_level:1,
 	print_normalised:off,
@@ -200,9 +211,12 @@ default_options(options{
 	print_indexes:off,
 	verbose:0,
 	warnings:on,
+	srcroot:"",
 	outdir:"",
 	output:none
-}).
+}) :-
+	get_flag(debug_compile, Debug),
+	get_flag(goal_expansion, GoalExp).
 
 
 %----------------------------------------------------------------------
@@ -622,6 +636,17 @@ get_error_location(Ann, SourcePos, Location) :-
 	    get_stream_info(Stream, line, Line)
 	;
 	    Location = unknown_location
+	).
+
+
+:- export local_file_name/2.
+local_file_name(File, LocalF) :-
+	getcwd(Cwd),
+	concat_string([File], FileS),
+	( append_strings(Cwd, LocalF, FileS) ->
+	    true
+	;
+	    LocalF = File
 	).
 
 
