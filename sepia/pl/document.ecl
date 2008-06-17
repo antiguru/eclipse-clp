@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.4 2008/06/16 00:53:30 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.5 2008/06/17 01:20:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2008/06/16 00:53:30 $").
+:- comment(date, "$Date: 2008/06/17 01:20:36 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -1608,7 +1608,7 @@ write_references(S, LibName, List) :-
 	    true
 	).
 
-:- mode find_ref(?,+,-). % is nondet
+:- mode find_ref(?,+,?). % is nondet
 find_ref(Group:N/A, Lib, bip(N, A, System, Group, File)) ?-
 	( var(Group) ->
 	    not not (bip(N, A, _, Group, _), Group \== Lib), !,
