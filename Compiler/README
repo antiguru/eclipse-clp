@@ -5,7 +5,8 @@ If you are just building ECLiPSe from the repository sources,
 there is no need to (re)build the compiler - the corresponding
 .eco files are already in the repository as "bootfiles" (sepia/lib/*.eco).
 
-The 'make install' command here just builds the compiler documentation.
+The 'make -f Makefile.$ARCH install' command here just builds the
+compiler documentation.
 
 
 
@@ -19,19 +20,19 @@ You need to do this only once, and it should be done from stable
 compiler sources (the build is done using the stable compiler/runtime
 in ../bin)
 
-    % make aux_eco
+    % make -f Makefile.$ARCH aux_eco
 
 Now you can edit the compiler sources and compile the result:
 (this compile is done using the stable runtime in ../bin and the aux_compiler)
 
-    % make eco
+    % make -f Makefile.$ARCH eco
 
 This creates local compiler_XXX.eco files which can be used for testing.
 (testing the stable runtime plus the modified compiler)
 To run the test suite:
 
-    % make test 
-    % make testo
+    % make -f Makefile.$ARCH test 
+    % make -f Makefile.$ARCH testo
 
 Or, to test this compiler manually:
 
@@ -43,7 +44,7 @@ Or, to test this compiler manually:
 
 Then, add the tested compiler to the kernel by copying the .eco files:
 
-    % make bootfiles
+    % make -f Makefile.$ARCH bootfiles
 
 Do not forget to check-in the modified bootfiles along with your
 modified sources!!!!  They are in <eclipsedir>/sepia/lib/*.eco
@@ -75,8 +76,8 @@ The updated system is now in <eclipsedir>/...
 Test the new runtime with the new compiler:
 
     % cd <eclipsedir>/Compiler
-    % make test
-    % make testo
+    % make -f Makefile.$ARCH test
+    % make -f Makefile.$ARCH testo
 
 Repeat all these steps to get the new compiler compiled with itself.
 

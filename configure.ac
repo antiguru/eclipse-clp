@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [5.11])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.13 2008/01/30 17:43:15 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.14 2008/06/18 12:37:25 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1537,6 +1537,7 @@ AC_CONFIG_FILES([
 	JavaInterface/Makefile.$ARCH:JavaInterface/Makefile.in
 	Flexlm/Makefile.$ARCH:Flexlm/Makefile.in
 	Visualisation/Makefile.$ARCH:Visualisation/Makefile.in
+	Compiler/Makefile.$ARCH:Compiler/Makefile.in
 	Contrib/Makefile.$ARCH:Contrib/Makefile.in
 	Mercury/Makefile.$ARCH:Mercury/Makefile.in
 	ecrc_solvers/Makefile.$ARCH:ecrc_solvers/Makefile.in

@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.4 2007/07/03 00:10:21 jschimpf Exp $
+# $Id: Makefile.in,v 1.5 2008/06/18 12:37:25 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -26,6 +26,7 @@ install_cross:	make_sepia \
 install_all:	install_cross \
 		make_ecrc_solvers \
 		make_pt_libraries \
+		make_compiler \
 		make_contrib \
 		make_mercury
 
@@ -76,6 +77,10 @@ make_ecrc_solvers:	make_bin
 make_pt_libraries:	make_bin
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/pt_libraries; $(MAKE) -f Makefile.$(ARCH))
+
+make_compiler:		make_bin
+	@echo ======== $@ ========
+	@(cd $(top_srcdir)/Compiler; $(MAKE) -f Makefile.$(ARCH) install)
 
 make_contrib:		make_bin
 	@echo ======== $@ ========
