@@ -13,6 +13,7 @@ lib/${ARCH}/eregex.${SOSUFFIX}
 lib/anti_unify.eco
 lib/apply.eco
 lib/apply_macros.eco
+lib/asm.eco
 lib/bfs.eco
 lib/bin_info.eco
 lib/branch_and_bound.eco
@@ -20,11 +21,21 @@ lib/b_trees.eco
 lib/calendar.eco
 lib/changeset.eco
 lib/colgen.eco
+lib/compiler_analysis.eco
+lib/compiler_codegen.eco
+lib/compiler_common.eco
+lib/compiler_indexing.eco
+lib/compiler_map.eco
+lib/compiler_normalise.eco
+lib/compiler_peephole.eco
+lib/compiler_regassign.eco
+lib/compiler_varclass.eco
 lib/constraint_pools.eco
 lib/cumulative.eco
 lib/dbi.eco
 lib/dual_var.eco
 lib/ech.eco
+lib/ecl_compiler.eco
 lib/eclipse.jar
 lib/eclipse_language.eco
 lib/edge_finder.eco
@@ -88,6 +99,7 @@ lib/regex.eco
 lib/repair.eco
 lib/sd.eco
 lib/shadow_cons.eco
+lib/source_processor.eco
 lib/suspend.eco
 lib/tentative.eco
 lib/tentative_constraints.eco
