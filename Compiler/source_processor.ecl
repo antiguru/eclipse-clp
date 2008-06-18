@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.3 2008/06/17 01:33:46 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.4 2008/06/18 15:52:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/06/17 01:33:46 $").
+:- comment(date, "$Date: 2008/06/18 15:52:39 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -117,6 +117,7 @@
 	predicate reads a term from a given source position and returns
 	the new source position after the read."),
     fields:[
+	filespec:"the original source file argument used in source_open/3",
 	stream:"the Eclipse stream being read",
 	file:"this file's canonical file name",
 	line:"this position's line number (integer)",
@@ -156,9 +157,9 @@
 	<DD>treat comments and spacing between source terms as data
 	rather than ignoring it</DD>
     <DT>include_comment_files</DT>
-	<DD>interpret the comment(include,Files) directive, including
-	the contents of the given files. By default, these directives
-	are ignored.</DD>
+	<DD>interpret the comment(include,Files) directive and include
+	the contents of the given files, identical to an include(Files)
+	directive. By default, these directives are ignored.</DD>
     <DT>ignore_conditionals</DT>
 	<DD>interpret if/1, elif/1, else/0 and endif/0 directives and
 	include or exclude corresponding source parts accordingly, while
@@ -344,7 +345,8 @@ source_close(SourcePos, Options) :-
     	<DD>A directive (a term with functor :-/1) which has already
 	been handled (interpreted by source_read/3). Such directives are:
 	module/1,3, local/1, export/1, reexport/1, use_module/1, lib/1,
-	pragma/1, include/1, ./2, op/3, meta_attribute/2</DD>
+	pragma/1, include/1, ./2, op/3, meta_attribute/2 and
+	comment(include,...)</DD>
     <DT>directive</DT>
     	<DD>A directive (a term with functor :-/1) which has not
 	been handled (ignored by source_read/3)</DD>
