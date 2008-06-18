@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.5 2008/06/17 01:20:36 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.6 2008/06/18 15:26:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2008/06/17 01:20:36 $").
+:- comment(date, "$Date: 2008/06/18 15:26:07 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -1608,19 +1608,23 @@ write_references(S, LibName, List) :-
 	    true
 	).
 
-:- mode find_ref(?,+,?). % is nondet
-find_ref(Group:N/A, Lib, bip(N, A, System, Group, File)) ?-
+:- mode find_ref(?,+,-). % is nondet
+find_ref(Group:N/A, Lib, Ref) ?-
+	Ref = bip(N, A, System, Group, File),
 	( var(Group) ->
 	    not not (bip(N, A, _, Group, _), Group \== Lib), !,
 	    bip(N, A, System, Group, File), Group \== Lib
 	;
 	    bip(N, A, System, Group, File), !	% exact match - take it
 	).
-find_ref(N/A, Group, bip(N, A, System, Group, File)) ?-
+find_ref(N/A, Group, Ref) ?-
+	Ref = bip(N, A, System, Group, File),
 	bip(N, A, System, Group, File), !.		% match in the group - take it
-find_ref(N/A, _Lib, bip(N, A, kernel, Group, File)) ?-
+find_ref(N/A, _Lib, Ref) ?-
+	Ref = bip(N, A, kernel, Group, File),
 	bip(N, A, kernel, Group, File), !.	% kernel match - take it
-find_ref(N/A, Lib, bip(N, A, System, Group, File)) ?-
+find_ref(N/A, Lib, Ref) ?-
+	Ref = bip(N, A, System, Group, File),
 	not not (bip(N, A, _, Group, _), Group \== Lib), !,
 	bip(N, A, System, Group, File), Group \== Lib.	% take all others
 find_ref(struct(N), Lib, Match) ?- !,
