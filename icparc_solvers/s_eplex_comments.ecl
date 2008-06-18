@@ -4111,7 +4111,7 @@ desc: html("
                "ViolatedCstrs": "List of violated Constraints.", 
                "ViolatedVars": "List of violated variables."
               ],
-        amode: lp_verify_solution(+.-,-),
+        amode: lp_verify_solution(+,-,-),
         desc: html(
 "<P>
  This predicate checks the current solution for the problem associated with
