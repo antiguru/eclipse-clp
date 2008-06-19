@@ -40,13 +40,13 @@ source files.
 <PRE>
     Option     Effect
    ---------------------------------------------------------------
-    debug      debuggable code, no inline compilation
-    nodebug    non-debuggable code, inline compilation done
+    debug      generate debuggable code
+    nodebug    don't
     skip       set the skipped flag for all compiled predicates
     noskip     don't (default)
-    expand     do inline compilation
+    expand     do goal expansion/inline compilation
     noexpand   don't
-    system     set the type of all compiled predicates to built_in
+    system     set the type of all compiled predicates to 'built_in'
 </PRE>
    The default for debug/nodebug depends on the global flag debug_compile.
    The default for expand/noexpand depends on the global flag goal_expansion.
