@@ -194,7 +194,7 @@ I-set.
     L and U as endpoints.
     L and U must be integers, not reals.
 */
-?- op( 31, xfx, -- ).
+:- op( 31, xfx, -- ).
 
 
 /*  PUBLIC intervals_are_disjoint( I1+, I2+ ):
