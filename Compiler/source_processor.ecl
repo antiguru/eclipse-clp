@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.4 2008/06/18 15:52:39 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.5 2008/06/19 15:13:03 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/06/18 15:52:39 $").
+:- comment(date, "$Date: 2008/06/19 15:13:03 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -83,6 +83,7 @@
 
 :- import expand_clause_annotated/4,
           expand_goal_annotated/4,
+          expand_macros_annotated/4,
 	  erase_module_pragmas/1,
 	  register_compiled_stream/1
    from sepia_kernel.
@@ -169,6 +170,8 @@
 	(and do not return a separate variable list)</DD>
     <DT>no_macro_expansion</DT>
 	<DD>do not expand term macros (e.g. with/2 and of/2)</DD>
+    <DT>minimal_macro_expansion</DT>
+	<DD>do not expand term macros except in directives</DD>
     <DT>no_clause_expansion</DT>
 	<DD>do not expand clause macros (e.g. DCGs)</DD>
     <DT>goal_expansion</DT>
@@ -240,10 +243,10 @@ source_open(File, OptionList, SourcePos, Module) :-
 	register_compiled_stream(In),
 	( skip_utf8_bom(In) -> true ; true ),
 	OptFlags = options{no_macro_expansion:NoMacroExp},
-	( NoMacroExp == true ->
-	    set_stream_property(In, macro_expansion, off)
-	;
+	( var(NoMacroExp) ->
 	    true
+	;
+	    set_stream_property(In, macro_expansion, off)
 	),
 	get_stream_info(In, offset, Offset),
 	get_stream_info(In, line, Line),
@@ -257,6 +260,7 @@ source_open(File, OptionList, SourcePos, Module) :-
     set_option(ignore_conditionals, options{ignore_conditionals:true}).
     set_option(recreate_modules, options{recreate_modules:true}).
     set_option(no_macro_expansion, options{no_macro_expansion:true}).
+    set_option(minimal_macro_expansion, options{no_macro_expansion:minimal}).
     set_option(no_clause_expansion, options{no_clause_expansion:true}).
     set_option(goal_expansion, options{goal_expansion:true}).
     set_option(with_annotations, options{with_annotations:true}).
@@ -460,9 +464,18 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 		NextPos = IF, Kind = end_include
 	    )
 
-	; TermOrEof = (:- Directive) ->
-	    SourceTerm0 = source_term{term:TermOrEof,vars:Vars, annotated:AnnTermOrEof},
+	; TermOrEof = (:- _) ->
+	    OptFlags = options{no_macro_expansion:NoMacEx},
+	    ( NoMacEx \== minimal ->
+	    	TermOrEofX=TermOrEof, AnnTermOrEofX=AnnTermOrEof
+	    ; var(AnnTermOrEof) ->
+		expand_macros(TermOrEof, TermOrEofX)@Module, AnnTermOrEofX=AnnTermOrEof
+	    ;
+		expand_macros_annotated(TermOrEof, AnnTermOrEof, TermOrEofX, AnnTermOrEofX)@Module
+	    ),
+	    SourceTerm0 = source_term{term:TermOrEofX,vars:Vars, annotated:AnnTermOrEofX},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, ThisPos),
+	    TermOrEofX = (:- Directive),
 	    handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, OptFlags)
 
 	; TermOrEof = (?- _) ->

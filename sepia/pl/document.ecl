@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.6 2008/06/18 15:26:07 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.7 2008/06/19 15:15:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2008/06/18 15:26:07 $").
+:- comment(date, "$Date: 2008/06/19 15:15:23 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -96,48 +96,74 @@ icompile_body(File, M) :-
 
 icompile_body(File, OutDir, M) :-
 	canonical_path_name(OutDir, CanonOutDir), % before source_open can cd!
-	source_open(File, [no_clause_expansion,include_comment_files], SP0),
+	source_open(File, [minimal_macro_expansion,no_clause_expansion,include_comment_files], SP0),
 	SP0 = source_position{file:CanonFile},
 	( block(open_eci_file(CanonFile, CanonOutDir, FileModule, EciStream),_,fail) ->
-	    ( ensure_compiled(CanonFile, FileModule, M) ->
-		(
-		    fromto(begin, _, Class, end),
-		    fromto(SP0, SP1, SP2, SPend),
-		    fromto(Comments, C1, C0, []),
-		    param(FileModule)
-		do
-		    source_read(SP1, SP2, Class, SourceTerm),
-		    ( Class = directive ->
-			SP2 = source_position{module:Module},
-			arg(term of source_term, SourceTerm, (:-Directive)),
+	    (
+		fromto(begin, _, Class, end),
+		fromto(SP0, SP1, SP2, SPend),
+		fromto(Comments, C1, C2, []),
+		fromto(Decls, Decls1, Decls2, []),
+		param(FileModule)
+	    do
+		source_read(SP1, SP2, Class, SourceTerm),
+		( (Class == directive ; Class == handled_directive) ->
+		    SP2 = source_position{module:Module},
+		    arg(term of source_term, SourceTerm, (:-Directive)),
+		    ( Module == FileModule ->
 			( Directive = comment(_,_) ->
-			    ( Module == FileModule ->
-				C1 = [Directive|C0]
-			    ;
-				printf(warning_output,
-				    "Ignoring comments in module '%w' (expected main module '%w').",
-				    [Module,FileModule]),
-				C1 = C0
-			    )
+			    C1 = [Directive|C2], Decls1 = Decls2
+			; Directive = export(Exports) ->
+			    C1 = C2,
+			    flatten_exports(Exports, Decls1, Decls2)
+			; Directive = reexport(_) ->
+			    Decls1 = [Directive|Decls2], C1 = C2
+			; Directive = tool(_,_) ->
+			    Decls1 = [Directive|Decls2], C1 = C2
+			; Directive = tool(_) ->
+			    Decls1 = [Directive|Decls2], C1 = C2
+			; Directive = module(_,Exports) ->
+			    append_exports(Exports, Decls1, Decls2), C1 = C2
+			; Directive = module(_,Exports,_) ->
+			    append_exports(Exports, Decls1, Decls2), C1 = C2
 			;
-			    C1 = C0
+			    Decls1 = Decls2, C1 = C2
 			)
+		    ; module_directive(Directive) ->
+			C1 = C2, Decls1 = Decls2,
+			printf(warning_output,
+			    "Ignoring module '%w' (expected main module '%w').",
+			    [Module,FileModule])
 		    ;
-			C1 = C0
+			C1 = C2, Decls1 = Decls2
 		    )
-		),
-		merge_comments(Comments, MergedComments),
-		write_eci_file(EciStream, MergedComments, FileModule),
-		close(EciStream),
-		source_close(SPend, [])
-	    ;
-		close(EciStream),
-		source_close(SP0, []),
-		exit_block(abort)
-	    )
+		;
+		    C1 = C2, Decls1 = Decls2
+		)
+	    ),
+	    merge_comments(Comments, MergedComments),
+	    write_eci_file(EciStream, Decls, MergedComments, FileModule),
+	    close(EciStream),
+	    source_close(SPend, [])
 	;
 	    source_close(SP0, []),
 	    exit_block(abort)
+	).
+
+    module_directive(module(_)).
+    module_directive(module(_,_)).
+    module_directive(module(_,_,_)).
+    module_directive(begin_module(_)).
+
+    flatten_exports((Exp,Exps), Decls, Decls0) ?- !,
+   	Decls = [export Exp|Decls1],
+       flatten_exports(Exps, Decls1, Decls0).
+    flatten_exports(Exp, [export Exp|Decls0], Decls0).
+
+    append_exports(Exports, Decls, Decls0) :-
+    	( foreach(Exp,Exports),
+	  fromto(Decls,[export Exp|Decls1],Decls1,Decls0) do
+	    true
 	).
 
 
@@ -177,66 +203,15 @@ merge_predcomments([C|Cs], MC) :-
 	merge_predcomments(Cs, MC0).
 
 
-write_eci_file(Out, Comments, Module) :-
-	(current_module(Module) ->
-	    get_module_info(Module, raw_interface, Decls),
-	    printf(Out, ":- module(%Qw).%n", Module),
-	    (foreach(Dec, Decls), param(Out) do
-	         printf(Out, ":- %QDVw.%n", Dec)
-	    ),
-	    % emit tool declarations
-	    findall(ToolBody, (
-		    current_module_predicate(exported, Pred)@Module,
-		    get_flag(Pred, tool, on)@Module,
-		    tool_body(Pred, ToolBody, _)@Module,
-		    ( get_flag(ToolBody, visibility, exported)@Module ->
-			printf(Out, ":- tool(%Qw,%Qw).%n", [Pred,ToolBody])
-			% succeed and collect ToolBody
-		    ;
-			printf(Out, ":- tool(%Qw).%n", Pred),
-			fail
-		    )
-		),
-		Hidden),
-	    % create 'hidden' comments for all exported tool bodies
-	    (foreach(Pred, Hidden), param(Out) do
-		printf(Out, ":- comment(%Qw, hidden).%n", Pred)
-	    ),
-	    % emit the comments proper (last)
-	    (foreach(Com, Comments), param(Out) do
-                 printf(Out, ":- %QDVw.%n", Com)
-	    )
-	;
-	    true
-        ).
-
-
-ensure_compiled(File, Module, M) :-
-	% Make sure the compiler's modules are loaded before checking
-	% whether Module exists.  Otherwise we may call e.g. compile(asm)
-	% which recompiles asm while it's being used.
-	ensure_loaded(library(ecl_compiler)),
-	( current_module(Module) ->
-	    ( possibly_incomplete_module(Module) ->
-		ensure_loaded(library(Module))
-	    ;
-		true
-	    )
-	;
-	    block(compile(File),_,fail)@M,
-	    ( current_module(Module) ->
-		true
-	    ;
-	    	printf(error, "Not a module file: %w%n", [File]),
-		fail
-	    )
+write_eci_file(Out, Decls, Comments, Module) :-
+	printf(Out, ":- module(%Qw).%n", Module),
+	(foreach(Dec, Decls), param(Out) do
+	     printf(Out, ":- %QDVw.%n", Dec)
+	),
+	% emit the comments proper (last)
+	(foreach(Com, Comments), param(Out) do
+	     printf(Out, ":- %QDVw.%n", Com)
 	).
-
-    % HACK: Because of autoloading, the following modules may exist,
-    % but may not be fully loaded.  They need to be loaded, otherwise
-    % the export list may be incomplete.
-    possibly_incomplete_module(lists).
-    possibly_incomplete_module(profile).
 
 
 %----------------------------------------------------------------------
