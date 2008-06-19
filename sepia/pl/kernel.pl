@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.24 2008/06/17 16:34:40 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.25 2008/06/19 18:00:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -535,7 +535,7 @@ configuration(C) :-
 	    close(S)
 	).
 
-sepia_version(List, Patch, Date) :-
+sepia_version(List, Stage, Date) :-
 	getval(version_cache, Cached),
 	( var(Cached) ->
 	    get_sys_flag(11, MajorMinorVersionAtom),
@@ -543,18 +543,18 @@ sepia_version(List, Patch, Date) :-
 	    concat_string([Lib, "/version.pl"], VersionFile),
 	    open(VersionFile, read, S),
 	    read(S, sepia_date(Date0)),
-	    read(S, sepia_patch(Patch0)),
+	    read(S, sepia_stage(Stage)),
 	    read(S, sepia_build(Build)),
 	    close(S),
-	    concat_string([MajorMinorVersionAtom,Patch0,".",Build], VersionString),
+	    concat_string([MajorMinorVersionAtom,".",Build], VersionString),
 	    split_string(VersionString, ".", " ", List0),
 	    strings_to_numbers(List0, List1),
-	    Cached = version(List1,Patch0,Date0),
+	    Cached = version(List1,Stage,Date0),
 	    setval(version_cache, Cached)
 	;
 	    true
 	),
-	version(List,Patch,Date) = Cached.
+	version(List,Stage,Date) = Cached.
 
     strings_to_numbers([], []).
     strings_to_numbers([S|Ss], [N|Ns]) :-
@@ -564,7 +564,7 @@ sepia_version(List, Patch, Date) :-
 sepia_version_banner(Text, Date) :-
 	get_sys_flag(11, Version),
 	get_sys_flag(8, Arch),
-	sepia_version(List, Patch, Date),
+	sepia_version(List, Stage, Date),
 	append(_, [Build], List), !,
 	configuration(Conf),
 	( extension(development) ->
@@ -586,7 +586,7 @@ sepia_version_banner(Text, Date) :-
 	    "\nSource available at www.sourceforge.org/projects/eclipse-clp",
 	    GmpCopyright,
 	    "\nFor other libraries see their individual copyright notices",
-	    "\nVersion ", Version, Patch, " #", Build, " (", Arch, "), ",
+	    "\nVersion ", Version, Stage, " #", Build, " (", Arch, "), ",
 	    Date, PidInfo, "\n"
 	], Text).
 

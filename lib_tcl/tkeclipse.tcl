@@ -27,13 +27,13 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.5 2007/07/03 00:10:27 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.6 2008/06/19 18:04:11 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
 # Find and load the eclipse package
 #----------------------------------------------------------------------
-set tkecl(version) 5.11	 ;# update also in eclipse_tools and examples!
+set tkecl(version) 6.0	 ;# update also in eclipse_tools and examples!
 
 switch $tcl_platform(platform) {
     unix {

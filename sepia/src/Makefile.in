@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.6 2008/06/17 01:34:19 jschimpf Exp $
+# $Id: Makefile.in,v 1.7 2008/06/19 18:02:30 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -713,9 +713,9 @@ $(PREFIX)/lib/version.pl:	$(SEPIA)/pl/version.pl $(PREFIX)/lib/.stamp
 	./sepia -e "date(D), substring(D, 1, 16, D1),\
 		substring(D, 20, 5, D2), concat_strings(D1, D2, DD),\
 		compile(library(version)),\
-		sepia_patch(Patch), sepia_build(Build),\
+		sepia_stage(Stage), sepia_build(Build),\
 		open(\"$@\", write, V), writeq(V, sepia_date(DD)),\
-		writeln(V, .), writeq(V, sepia_patch(Patch)),\
+		writeln(V, .), writeq(V, sepia_stage(Stage)),\
 		writeln(V, .), writeq(V, sepia_build(Build)),\
 		writeln(V, .), close(V)"
 	@/bin/chmod $(PERM) $@
