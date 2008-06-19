@@ -468,8 +468,7 @@ interested_vis_client_names(ViewableName, InterestedVisClientNames):-
 change_condition_to_susp_list(change_condition(Module, StructName, ArgName),
 			      susp_list(Module, Index)):-
 	current_module(Module), 
-	current_struct(X) @ Module, 
-	functor(X, StructName, _),
+	current_struct(StructName, X) @ Module, 
 	!,
 	(foreacharg(Arg, X), 
 	 param(Index, ArgName), 
