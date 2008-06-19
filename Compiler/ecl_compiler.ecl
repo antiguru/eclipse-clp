@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.4 2008/06/17 16:35:36 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.5 2008/06/19 15:59:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/06/17 16:35:36 $").
+:- comment(date,	"$Date: 2008/06/19 15:59:11 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -40,8 +40,13 @@
     directives and queries.
     <P>
     The top-level interfaces to the compiler are: compile/1,2 for
-    compilation from files, compile_term/1,2 for compiling data.
+    compilation from files, compile_stream/1,2 for compiling from an
+    arbitrary stream, and compile_term/1,2 for compiling data.
+    <P>
+    The predicates themselves are documented in the kernel/database
+    section of the reference manual.
 ")).
+
 
 :- use_module(compiler_common).
 :- use_module(compiler_normalise).
@@ -466,78 +471,24 @@ print_location(Stream, Location) :-
 	compile_stream/1, compile_stream_/2,
 	compile_stream/2, compile_stream_/3.
 
-:- comment(compile/1, [
-    summary:"Compile a file",
-    args:["File":"File name (atom or string) or stream(Stream)"],
-    amode:compile(++),
-    see_also:[compile/2,compile_stream/1,compile_term/1,compile_term/2,struct(options)],
-    desc:html("
-    Compile a file with default options.  The resulting code is directly
-    loaded into memory and ready for execution.  Equivalent to
-    <PRE>
-	compile(File, [])
-    </PRE>
-    ")
-]).
 :- tool(compile/1, compile_/2).
 :- set_flag(compile/1, type, built_in).
 compile_(File, Module) :-
     compile_(File, [], Module).
 
 
-:- comment(compile_stream/1, [
-    summary:"Compile from an input stream",
-    args:["Stream":"Stream name or handle"],
-    amode:compile_stream(++),
-    see_also:[compile/1,compile/2,compile_term/1,compile_term/2,compile_stream/2,struct(options)],
-    desc:html("
-    Compile from an (already opened) input stream with default options.
-    The resulting code is directly loaded into memory and ready for execution.
-    Equivalent to
-    <PRE>
-	compile(stream(Stream), [])
-    </PRE>
-    ")
-]).
 :- tool(compile_stream/1, compile_stream_/2).
 :- set_flag(compile_stream/1, type, built_in).
 compile_stream_(Stream, Module) :-
     compile_stream_(Stream, [], Module).
 
 
-:- comment(compile_stream/2, [
-    summary:"Compile from an input stream",
-    args:["Stream":"Stream name or handle",
-    	"Options":"List of compiler options"],
-    amode:compile_stream(++,++),
-    see_also:[compile/1,compile/2,compile_term/1,compile_term/2,compile_stream/1,struct(options)],
-    desc:html("
-    Compile from an (already opened) input stream with the given options.
-    Equivalent to
-    <PRE>
-	compile(stream(Stream), Options)
-    </PRE>
-    ")
-]).
 :- tool(compile_stream/2, compile_stream_/3).
 :- set_flag(compile_stream/2, type, built_in).
 compile_stream_(Stream, Options, Module) :-
     compile_source(stream(Stream), Options, Module).
 
 
-:- comment(compile/2, [
-    summary:"Compile a file",
-    args:["File":"File name (atom or string) or structure stream(Stream)",
-    	"Options":"List of compiler options"],
-    amode:compile(++,++),
-    see_also:[compile/1,compile_stream/1,compile_term/1,compile_term/2,struct(options)],
-    desc:html("
-    Compile a file, with output according to options.
-    <P>
-    For backward compatibility, we allow a module name in place
-    of the Options-list.
-    ")
-]).
 :- tool(compile/2, compile_/3).
 :- set_flag(compile/2, type, built_in).
 
@@ -873,65 +824,18 @@ emit_directive_or_query(Dir, Options, Module) :-
 	compile_term/2, compile_term_/3,
 	compile_term_annotated/3, compile_term_annotated_/4.
 
-:- comment(compile_term/1, [
-    summary:"Compile a list of terms",
-    args:["Clauses":"List of clauses and/or directives"],
-    amode:compile_term(+),
-    see_also:[compile/1,compile/2,compile_stream/1,compile_term/2],
-    desc:html("
-    Compile a list of clauses and queries.
-    Handling of directives: include/1, ./2 and currently module/1
-    are not allowed.  Pragmas are interpreted. Others are called
-    as goals.
-    ")
-]).
-
 :- tool(compile_term/1, compile_term_/2).
 :- set_flag(compile_term/1, type, built_in).
 compile_term_(Clauses, Module) :-
 	compile_term_(Clauses, [], Module).
 
 
-:- comment(compile_term/2, [
-    summary:"Compile a list of terms",
-    args:["Clauses":"List of clauses and/or directives",
-    	"Options":"List of compiler options"],
-    amode:compile_term(+,++),
-    see_also:[compile/1,compile/2,compile_stream/1,compile_term/1,struct(options)],
-    desc:html("
-    Compile a list of clauses and queries.
-    Handling of directives: include/1, ./2 and currently module/1
-    are not allowed.  Pragmas are interpreted. Others are treated
-    according to the setting of the 'load' option.
-    ")
-]).
 :- tool(compile_term/2, compile_term_/3).
 :- set_flag(compile_term/2, type, built_in).
 
 compile_term_(List, OptionList, Module) :-
         compile_term_annotated_(List, _, OptionList, Module).
 
-:- comment(compile_term_annotated/3, [
-    summary:"Compile a list of terms, possibly annotated with source information",
-    args:["Clauses":"List of clauses and/or directives",
-        "Annotated":"Annotated form of Clauses, or variable",
-    	"Options":"List of compiler options"],
-    amode:compile_term_annotated(+,?,++),
-    see_also:[compile/1,compile_term/2,compile/2,compile_term/1,read_annotated/2,read_annotated/3,struct(options)],
-    desc:html("
-    Compile a list of clauses and queries, possibly with source information,
-    supplied by Annotated. This predicate is provided to allow the user to
-    compile clauses that the user generate from processing some source file,
-    with the mapping to the original unprocessed source information
-    supplied by Annotated. If Annotated is a variable, then no source 
-    information is available, and the predicate behaves exactly like 
-    compile_term/2. If Annotated is instantiated, it must corresponded to
-    the annotated form of Clauses, i.e. as returned by read_annotated/2,3. 
-    Handling of directives: include/1, ./2 and currently module/1
-    are not allowed.  Pragmas are interpreted. Others are treated
-    according to the setting of the 'load' option.
-    ")
-]).
 :- tool(compile_term_annotated/3, compile_term_annotated_/4).
 :- set_flag(compile_term_annotated/3, type, built_in).
 

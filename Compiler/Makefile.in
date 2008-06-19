@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile.in,v 1.1 2008/06/18 12:36:19 jschimpf Exp $
+# $Id: Makefile.in,v 1.2 2008/06/19 15:59:11 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -57,7 +57,6 @@ PRIVATE_ECI = \
 	$(COMPILER_MODULES:%.ecl=%.eci)
 
 PUBLIC_ECI = \
-	$(PREFIX)/lib/ecl_compiler.eci \
 	$(PREFIX)/lib/source_processor.eci
 
 LOCAL_ECO = $(COMPILER_MODULES:%.ecl=%.eco)
@@ -235,11 +234,33 @@ cover:	$(LOCAL_ECO) compiler_test.eco
 
 
 #----------------------------------------------------------------------
+# Installation
+#----------------------------------------------------------------------
+
+bootfiles:	$(BOOT_ECO)
+
+$(BOOTDIR)/lib/%.eco:	%.eco
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+
+install:	$(PUBLIC_ECI) $(PUBLIC_ECO)
+
+$(PREFIX)/lib/%.eci:	%.ecl $(PREFIX)/lib/.stamp
+	$(STABLE_ECLIPSE) -e 'lib(document), icompile("$(*F)","$(@D)")'
+	-@/bin/chmod $(PERM) $@
+
+$(PREFIX)/lib/%.ecl:	%.ecl $(PREFIX)/lib/.stamp
+	/bin/cp $< $@
+	@/bin/chmod $(PERM) $@
+
+
+#----------------------------------------------------------------------
 # Generate internal documentation
 #----------------------------------------------------------------------
 
-%.eci:	%.ecl
-	$(STABLE_ECLIPSE) -e 'ensure_loaded(ecl_compiler),lib(document),icompile("$(*F)","$(@D)")'
+%.eci:	%.ecl $(BOOT_ECO)
+	$(STABLE_ECLIPSE) -e 'lib(document),ensure_loaded(ecl_compiler),icompile("$(*F)","$(@D)")'
 
 
 doc:	doc/index.html
@@ -254,31 +275,7 @@ pretty:	pretty/index.html
 
 pretty/index.html: $(COMPILER_MODULES)
 	-@$(STABLE_ECLIPSE) -e \
-	    "lib(pretty_printer),argv(all,[_|F]),pretty_print(F,[link_back:\"../doc/index.html\"])" \
+	    "lib(pretty_printer),ensure_loaded(ecl_compiler),argv(all,[_|F]),pretty_print(F,[link_back:\"../doc/index.html\"])" \
 	    -- $(COMPILER_MODULES)
-
-
-#----------------------------------------------------------------------
-# Installation
-#----------------------------------------------------------------------
-
-bootfiles:	$(BOOT_ECO)
-
-$(BOOTDIR)/lib/%.eco:	%.eco
-	/bin/cp $< $@
-	-@/bin/chmod $(PERM) $@
-
-
-install:	$(PUBLIC_ECI) $(PUBLIC_ECO)
-
-$(PREFIX)/lib/%.eci:	%.ecl $(PREFIX)/lib/.stamp
-	$(STABLE_ECLIPSE) -e 'lib(document),\
-		get_flag(library_path,P),set_flag(library_path,["."|P]),\
-		icompile("$(*F)","$(@D)")'
-	-@/bin/chmod $(PERM) $@
-
-$(PREFIX)/lib/%.ecl:	%.ecl $(PREFIX)/lib/.stamp
-	/bin/cp $< $@
-	@/bin/chmod $(PERM) $@
 
 
