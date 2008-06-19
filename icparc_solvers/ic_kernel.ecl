@@ -223,26 +223,17 @@
 
 
 %
-% A macro to help us implement some macro transformations without getting
-% tangled up in self-application.
-%
-
-tr_protect(protect_arg(X), X).
-:- local macro(protect_arg/1, tr_protect/2, [protect_arg]).
-
-
-%
 % Export some macros for conveniently referring to the magic numbers used
 % by the IC C functions.
 %
 
-:- export macro(protect_arg(ic_status_failed)/0, tr_ic_c_constant/2, []).
-:- export macro(protect_arg(ic_status_unknown)/0, tr_ic_c_constant/2, []).
-:- export macro(protect_arg(ic_status_entailed)/0, tr_ic_c_constant/2, []).
+:- export macro(no_macro_expansion(ic_status_failed)/0, tr_ic_c_constant/2, []).
+:- export macro(no_macro_expansion(ic_status_unknown)/0, tr_ic_c_constant/2, []).
+:- export macro(no_macro_expansion(ic_status_entailed)/0, tr_ic_c_constant/2, []).
 
-:- export macro(protect_arg(ic_unify_bound_implied)/0, tr_ic_c_constant/2, []).
-:- export macro(protect_arg(ic_unify_bound_tight)/0, tr_ic_c_constant/2, []).
-:- export macro(protect_arg(ic_unify_bound_fuzzy)/0, tr_ic_c_constant/2, []).
+:- export macro(no_macro_expansion(ic_unify_bound_implied)/0, tr_ic_c_constant/2, []).
+:- export macro(no_macro_expansion(ic_unify_bound_tight)/0, tr_ic_c_constant/2, []).
+:- export macro(no_macro_expansion(ic_unify_bound_fuzzy)/0, tr_ic_c_constant/2, []).
 
 :- export tr_ic_c_constant/2.
 
@@ -366,13 +357,13 @@ check_for_conflicting_module.
 % used by the IC C functions.
 %
 
-tr_ic_c_constant(protect_arg(ic_status_failed),		-1).
-tr_ic_c_constant(protect_arg(ic_status_unknown),	0).
-tr_ic_c_constant(protect_arg(ic_status_entailed),	1).
+tr_ic_c_constant(no_macro_expansion(ic_status_failed),		-1).
+tr_ic_c_constant(no_macro_expansion(ic_status_unknown),	0).
+tr_ic_c_constant(no_macro_expansion(ic_status_entailed),	1).
 
-tr_ic_c_constant(protect_arg(ic_unify_bound_implied),	0).
-tr_ic_c_constant(protect_arg(ic_unify_bound_tight),	1).
-tr_ic_c_constant(protect_arg(ic_unify_bound_fuzzy),	2).
+tr_ic_c_constant(no_macro_expansion(ic_unify_bound_implied),	0).
+tr_ic_c_constant(no_macro_expansion(ic_unify_bound_tight),	1).
+tr_ic_c_constant(no_macro_expansion(ic_unify_bound_fuzzy),	2).
 
 
 %---------------------------------------------------------------------
@@ -405,12 +396,12 @@ tr_ria_unop(roundout, 10).
 tr_ria_unop(neg, 11).
 tr_ria_unop(width, 12).
 
-protect_arg(
+no_macro_expansion(
     tr_ria_unop1(ria_unop(OpIn), OpOut) :-
 	    tr_ria_unop(OpIn, OpOut)
 ).
 
-protect_arg(
+no_macro_expansion(
     tr_ria_unop5(ria_unop(OpIn, XL, XU, ZL, ZU),
 		    ria_unop(OpOut, XL, XU, ZL, ZU)) :-
 	    tr_ria_unop(OpIn, OpOut)
@@ -441,12 +432,12 @@ tr_ria_binop(linsplit, 14).
 tr_ria_binop(linsplit_upper, 15).
 tr_ria_binop(logsplit_upper, 16).
 
-protect_arg(
+no_macro_expansion(
     tr_ria_binop1(ria_binop(OpIn), OpOut) :-
 	    tr_ria_binop(OpIn, OpOut)
 ).
 
-protect_arg(
+no_macro_expansion(
     tr_ria_binop7(ria_binop(OpIn, XL, XU, YL, YU, ZL, ZU),
 		    ria_binop(OpOut, XL, XU, YL, YU, ZL, ZU)) :-
 	    tr_ria_binop(OpIn, OpOut)
@@ -464,12 +455,12 @@ tr_ria_ternop(rpow_even, 0).
 tr_ria_ternop(union, 1).
 tr_ria_ternop(div, 2).
 
-protect_arg(
+no_macro_expansion(
     tr_ria_ternop1(ria_ternop(OpIn), OpOut) :-
 	    tr_ria_ternop(OpIn, OpOut)
 ).
 
-protect_arg(
+no_macro_expansion(
     tr_ria_ternop9(ria_ternop(OpIn, XL, XU, YL, YU, ZL, ZU, RL, RU),
 		    ria_ternop(OpOut, XL, XU, YL, YU, ZL, ZU, RL, RU)) :-
 	    tr_ria_ternop(OpIn, OpOut)
