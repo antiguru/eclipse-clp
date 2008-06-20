@@ -32,7 +32,9 @@
 %
 % This module provides the basic constraints of the IC library, a combined
 % finite domain and floating point interval propagation solver.  These
-% constraints are =:=, =<, >=, =\=, #=, #=<, #>=, #<, #>, #\=.
+% constraints are $=, $=<, $>=, $<, $>, $\=, #=, #=<, #>=, #<, #>, #\=.
+% We have aliases =:=, =<, etc for $=, $=<, etc.
+% We still have aliases *=, *=<, as well (for lib(ria) compatibility).
 %---------------------------------------------------------------------
 %
 % TODO:  (from RIA)
@@ -42,7 +44,7 @@
 % - use less expensive, weaker squashing in locate/4
 %
 % - sin, cos, atan do not have reverse functions yet, e.g.
-%   ic:(Y =:= sin(X)) does not propagate from Y to X.
+%   Y $= sin(X) does not propagate from Y to X.
 %
 % - Under some circumstances, piecewise_linear/3 does not propagate as tight
 %   bounds as it could.  Specifically, if a Y bound coincides with an "open"
@@ -714,10 +716,10 @@ op_to_flags(#=<, 6, no).
 op_to_flags(#>=, 6, yes).
 op_to_flags(#=,  7, no).
 
-flags_to_op(0, =\=).
-flags_to_op(1, >).
-flags_to_op(2, =<).
-flags_to_op(3, =:=).
+flags_to_op(0, $\=).
+flags_to_op(1, $>).
+flags_to_op(2, $=<).
+flags_to_op(3, $=).
 flags_to_op(4, #\=).
 flags_to_op(5, #>).
 flags_to_op(6, #=<).
@@ -2326,34 +2328,34 @@ prop_int_list([X | Xs], Z) :-
 % back into readable form.
 
 :- mode tr_op(?, -).
-tr_op(sub(X, Z, _),			ic:(Z =:= sub(X))) :- !.
-tr_op(unop_function(sqr, X, Z, _),	ic:(Z =:= sqr(X))) :- !.
-tr_op(unop(sqrt, X, Z, _),		ic:(Z =:= sqrt(X))) :- !.
-tr_op(unop_function(sin, X, Z, _),	ic:(Z =:= sin(X))) :- !.
-tr_op(unop_function(cos, X, Z, _),	ic:(Z =:= cos(X))) :- !.
-tr_op(unop_function(exp, X, Z, _),	ic:(Z =:= exp(X))) :- !.
-tr_op(unop_function(ln, X, Z, _),	ic:(Z =:= ln(X))) :- !.
-tr_op(unop(atan, X, Z, _),		ic:(Z =:= atan(X))) :- !.
-tr_op(unop_function(abs, X, Z, _),	ic:(Z =:= abs(X))) :- !.
-tr_op(unop_function(neg, X, Z, _),	ic:(Z =:= -X)) :- !.
-tr_op(bi_unop(OpX, _OpZ, X, Z, _),	ic:(Z =:= EX)) :- !, EX =.. [OpX,X].
-tr_op(binop_function(add, X, Y, Z, _),	ic:(Z =:= X+Y)) :- !.
-tr_op(binop_function(sub, X, Y, Z, _),	ic:(Z =:= X-Y)) :- !.
-tr_op(binop_function(mult, X, Y, Z, _),	ic:(Z =:= X*Y)) :- !.
-tr_op(binop(div, X, Y, Z, _),		ic:(Z =:= X/Y)) :- !.
-tr_op(binop_div(div, X, Y, Z, _),	ic:(Z =:= X/Y)) :- !.
-tr_op(bi_prop_mono_func(sqr, sqrt, X, Z, _),	ic:(X =:= sqrt(Z))) :- !.
-tr_op(bi_prop_mono_func(exp, ln, X, Z, _),	ic:(Z =:= exp(X))) :- !.
-tr_op(bi_prop_sign_mono_func(sqr, rsqr, X, Z, _),	ic:(Z =:= sqr(X))) :- !.
-tr_op(bi_prop_sign_mono_func(abs, plusminus, X, Z, _),	ic:(Z =:= abs(X))) :- !.
-tr_op(binop_function(pow_int, X, Y, Z, _),	ic:(Z =:= X^Yi)) :- !, fix(Y, Yi).
-tr_op(rpow(X, Yi, _, _, Z, _),		ic:(Z =:= rpow(X, Yi))) :- !.
-tr_op(binop_function(min, X, Y, Z, _),	ic:(Z =:= min(X, Y))) :- !.
-tr_op(binop_function(max, X, Y, Z, _),	ic:(Z =:= max(X, Y))) :- !.
-tr_op(binop(plusminus, X, _, Z, _),	ic:(Z =:= +-X)) :- !.
-tr_op(ternop(union, X, Y, Z, _),	ic:(Z =:= (X;Y))) :- !.
-tr_op(interval_ge(X, Y, _),		ic:(X >= Y)) :- !.
-tr_op(sumlist(List, Z, _),		ic:(Z =:= sum(List))) :- !.
+tr_op(sub(X, Z, _),			(Z $= sub(X))) :- !.
+tr_op(unop_function(sqr, X, Z, _),	(Z $= sqr(X))) :- !.
+tr_op(unop(sqrt, X, Z, _),		(Z $= sqrt(X))) :- !.
+tr_op(unop_function(sin, X, Z, _),	(Z $= sin(X))) :- !.
+tr_op(unop_function(cos, X, Z, _),	(Z $= cos(X))) :- !.
+tr_op(unop_function(exp, X, Z, _),	(Z $= exp(X))) :- !.
+tr_op(unop_function(ln, X, Z, _),	(Z $= ln(X))) :- !.
+tr_op(unop(atan, X, Z, _),		(Z $= atan(X))) :- !.
+tr_op(unop_function(abs, X, Z, _),	(Z $= abs(X))) :- !.
+tr_op(unop_function(neg, X, Z, _),	(Z $= -X)) :- !.
+tr_op(bi_unop(OpX, _OpZ, X, Z, _),	(Z $= EX)) :- !, EX =.. [OpX,X].
+tr_op(binop_function(add, X, Y, Z, _),	(Z $= X+Y)) :- !.
+tr_op(binop_function(sub, X, Y, Z, _),	(Z $= X-Y)) :- !.
+tr_op(binop_function(mult, X, Y, Z, _),	(Z $= X*Y)) :- !.
+tr_op(binop(div, X, Y, Z, _),		(Z $= X/Y)) :- !.
+tr_op(binop_div(div, X, Y, Z, _),	(Z $= X/Y)) :- !.
+tr_op(bi_prop_mono_func(sqr, sqrt, X, Z, _),	(X $= sqrt(Z))) :- !.
+tr_op(bi_prop_mono_func(exp, ln, X, Z, _),	(Z $= exp(X))) :- !.
+tr_op(bi_prop_sign_mono_func(sqr, rsqr, X, Z, _),	(Z $= sqr(X))) :- !.
+tr_op(bi_prop_sign_mono_func(abs, plusminus, X, Z, _),	(Z $= abs(X))) :- !.
+tr_op(binop_function(pow_int, X, Y, Z, _),	(Z $= X^Yi)) :- !, fix(Y, Yi).
+tr_op(rpow(X, Yi, _, _, Z, _),		(Z $= rpow(X, Yi))) :- !.
+tr_op(binop_function(min, X, Y, Z, _),	(Z $= min(X, Y))) :- !.
+tr_op(binop_function(max, X, Y, Z, _),	(Z $= max(X, Y))) :- !.
+tr_op(binop(plusminus, X, _, Z, _),	(Z $= +-X)) :- !.
+tr_op(ternop(union, X, Y, Z, _),	(Z $= (X;Y))) :- !.
+tr_op(interval_ge(X, Y, _),		(X >= Y)) :- !.
+tr_op(sumlist(List, Z, _),		(Z $= sum(List))) :- !.
 tr_op(unop(..., _, _, _),		'<ic nonlinear unary operator>') :- !.
 tr_op(unop_function(..., _, _, _),		'<ic nonlinear unary operator>') :- !.
 tr_op(bi_unop(..., _, _, _, _),		'<ic nonlinear unary operator>') :- !.
@@ -2409,7 +2411,7 @@ ic_flatten(Integral, eval(EX), Z, Mode) --> !,
             ({Integral=integer} ->
 		[ic:(Z #= eval(EX))]
             ;
-		[ic:(Z =:= eval(EX))]
+		[ic:(Z $= eval(EX))]
             )
 	;
 		ic_flatten(Integral, EX, Z, Mode)
@@ -2417,11 +2419,11 @@ ic_flatten(Integral, eval(EX), Z, Mode) --> !,
 ic_flatten(integer, EX+EY, Z, _Mode) --> !,
 	[ic:(Z #= EX+EY)].
 ic_flatten(real, EX+EY, Z, _Mode) --> !,
-	[ic:(Z =:= EX+EY)].
+	[ic:(Z $= EX+EY)].
 ic_flatten(integer, EX-EY, Z, _Mode) --> !,
 	[ic:(Z #= EX-EY)].
 ic_flatten(real, EX-EY, Z, _Mode) --> !,
-	[ic:(Z =:= EX-EY)].
+	[ic:(Z $= EX-EY)].
 ic_flatten(Integral, EX*EY, Z, Mode) --> {EX \== EY}, !,
 	ic_flatten(Integral, EX, X, Mode),
 	ic_flatten(Integral, EY, Y, Mode),
@@ -2546,11 +2548,11 @@ ic_flatten(Integral, sum(List), Z, Mode) --> !,
                 [ic:(Z #= sum(List))]	% no change: relies on loop
                                         % detection
             ;
-                [ic:(Z =:= sum(List))]	% no change: relies on loop
+                [ic:(Z $= sum(List))]	% no change: relies on loop
                                         % detection
             )
 	;
-            {error(4, ic:(Z =:= sum(List)))}	% should delay...
+            {error(4, ic:(Z $= sum(List)))}	% should delay...
 	).
 ic_flatten(Integral, min(List), Z, Mode) --> !,
 	( ic_flatten_list(Integral, List, Mode, List1) ->
@@ -2562,7 +2564,7 @@ ic_flatten(Integral, min(List), Z, Mode) --> !,
                     ( {Integral=integer} ->
 			[ic:(Z #= X)]
                     ;
-			[ic:(Z =:= X)]
+			[ic:(Z $= X)]
                     )
 		;
 			[ic:min(List1, Z)]
@@ -2572,7 +2574,7 @@ ic_flatten(Integral, min(List), Z, Mode) --> !,
                 [ic:(Z #= min(List))]	% no change: relies on loop
                                         % detection
             ;
-                [ic:(Z =:= min(List))]	% no change: relies on loop
+                [ic:(Z $= min(List))]	% no change: relies on loop
                                         % detection
             )
 	;
@@ -2589,7 +2591,7 @@ ic_flatten(Integral, max(List), Z, Mode) --> !,
                         [ic:(Z #= X)]
                     ;
 			% Only one element, so simply unify it with Z
-                        [ic:(Z =:= X)]
+                        [ic:(Z $= X)]
                     )
 		;
 			[ic:max(List1, Z)]
@@ -2599,7 +2601,7 @@ ic_flatten(Integral, max(List), Z, Mode) --> !,
                 [ic:(Z #= max(List))]	% no change: relies on loop
                                         % detection
             ;
-                [ic:(Z =:= max(List))]	% no change: relies on loop
+                [ic:(Z $= max(List))]	% no change: relies on loop
                                         % detection
             )
 	;
@@ -2647,17 +2649,17 @@ ic_flatten_list(Integral, [EX|EXs], Mode, [X|Xs]) -->
 % shorter lists (of length N).
 sum_as_minilists(List, N, Sum) -->
 	( {take_n(List, N, ListN, Remainder), Remainder = [_|_]} ->
-		[ic:(Sum1 =:= sum(ListN))],
+		[ic:(Sum1 $= sum(ListN))],
 		sum_as_minilists1(Remainder, N, Sums, Remainder1),
 		{append(Remainder1, [Sum1 | Sums], SumList)},
 		sum_as_minilists(SumList, N, Sum)
 	;
-		[ic:(Sum =:= sum(List))]
+		[ic:(Sum $= sum(List))]
 	).
 
 sum_as_minilists1(List, N, Sums, Remainder) -->
 	( {take_n(List, N, ListN, Remainder1)} ->
-		[ic:(Sum =:= sum(ListN))],
+		[ic:(Sum $= sum(ListN))],
 		{Sums = [Sum | Sums1]},
 		sum_as_minilists1(Remainder1, N, Sums1, Remainder)
 	;
@@ -3221,13 +3223,18 @@ do_update(X, L, H, 4) :-
 
 :- local struct(element_data(index_list, value_list)).
 
-element(Index, List, Value):-
-	ground(List),
+element(Index, ListOrVector, Value):-
+	ground(ListOrVector),
 	!,
-	length(List, Length),
+	( ListOrVector = [_|_] ->
+	    ListOrVector = List
+	;
+	    ListOrVector = Vector
+	),
+	Vector =.. [[] | List],
+	functor(Vector, _, Length),
 	Index :: 1..Length,
 	Value :: List,
-	Vector =.. [[] | List],
 	hash:hash_create(Hash),
 	% We do everything in reverse here so that the list entries in the
 	% hash table end up being sorted in ascending order.
@@ -3261,7 +3268,7 @@ element(Index, List, Value):-
 :- demon(element/6).
 element(Index, Vector, Hash, Value, ElementData, Susp) :-
 	( integer(Index) ->
-	    Value is Vector[Index],
+	    arg(Index, Vector, Value),
 	    kill_suspension(Susp)
 	; nonvar(Value) ->
 	    hash:hash_find(Hash, Value, Possible),
@@ -3284,7 +3291,7 @@ element1(Index, Vector, Hash, Value, ElementData) :-
 	    fromto(ValueList0, ValueListIn, ValueListOut, ValueList1),
 	    param(Hash, Vector, Value)
 	do
-	    Val is Vector[I],
+	    arg(I, Vector, Val),
 	    hash:hash_find(Hash, Val, Indices),
 	    once(delete(I, Indices, RestIndices)),
 	    ( RestIndices == [] ->

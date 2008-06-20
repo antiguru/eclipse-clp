@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.7 2008/02/13 21:31:18 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.8 2008/06/20 13:41:14 jschimpf Exp $
  *
  */
 
@@ -58,6 +58,42 @@ char *getenv();
 # define PATH_SEPARATOR ";"
 #else
 # define PATH_SEPARATOR ":"
+#endif
+
+#if defined(__APPLE__) && defined(__MACH__) && !defined(__POWERPC__)
+/* for Intel Mac OS X only -- is there a better way to determine this? */
+/* code modified from koders.com's definition of __eprintf(), which uses
+   fiprintf(), which is also undefined for Intel MacOSX. Here eprintf()
+   is redefined to just the abort. This should be OK, as it is used in 
+   assert.h, which should only be used when debugging
+
+-- Kish Shen 2007-11-22
+*/
+ 
+/* This is an implementation of the __eprintf function which is
+   compatible with the assert.h which is distributed with gcc.
+
+   This function is provided because in some cases libgcc.a will not
+   provide __eprintf.  This will happen if inhibit_libc is defined,
+   which is done because at the time that libgcc2.c is compiled, the
+   correct <stdio.h> may not be available.  newlib provides its own
+   copy of assert.h, which calls __assert, not __eprintf.  However, in
+   some cases you may accidentally wind up compiling with the gcc
+   assert.h.  In such a case, this __eprintf will be used if there
+   does not happen to be one in libgcc2.c.  */
+
+
+void
+__eprintf (format, file, line, expression)
+     const char *format;
+     const char *file;
+     unsigned int line;
+     const char *expression;
+{
+/* (void) fiprintf (stderr, format, file, line, expression);*/
+  abort ();
+ }
+
 #endif
 
 #ifdef XPRESS
@@ -1206,9 +1242,8 @@ _free_lp_handle(lp_desc *lpd)
  */
 
 #ifdef NONLICENCED
-/* NoOps -- No licence needed */
+/* mostly NoOps -- No licence needed */
 
-# ifdef COIN
 int p_cpx_init(value vlicloc, type tlicloc, 
 	       value vserialnum, type tserialnum, 
 	       value vsubdir, type tsubdir)
@@ -1225,7 +1260,6 @@ int p_cpx_init(value vlicloc, type tlicloc,
 
     Succeed;
 }
-# endif
 
 int
 p_cpx_challenge(value v, type t)
@@ -1236,6 +1270,8 @@ p_cpx_challenge(value v, type t)
 int
 p_cpx_exit()
 {
+
+    CallN(coin_free_prob(cpx_env));
     Succeed;
 }
 
@@ -6236,9 +6272,36 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
   
 	} else if (UnboundedState(lpd)) {
 #ifdef UNIFORM_SOL_STAT
+# if defined(CPLEX) && CPLEX >= 8
+	    int meth, type, isprimf, isdualf;
+
+	    /* CPLEX 8+ redefined the `unbounded' state to mean an unbounded
+	       ray is detected, i.e. that solution will be unbounded *if* a
+	       feasible solution exists, but feasiblity may be unproven
+	    */
+	    CPXsolninfo(cpx_env, lpd->lp, &meth, &type, &isprimf, &isdualf);
+	    if (isprimf) {
+		/* is primary feasible, i.e. has feasible solution and is 
+		   unbounded
+		*/
+		lpd->descr_state = DESCR_UNBOUNDED_NOSOL;
+		lpd->abort_ctr++;
+		bestbound = worstbound = (lpd->sense == SENSE_MIN ? -HUGE_VAL : HUGE_VAL);
+	    } else {
+		/* not proven to be primary feasible */
+		lpd->descr_state = DESCR_UNKNOWN_NOSOL;
+		lpd->infeas_ctr++;
+		/* no information on bounds */
+		worstbound = (lpd->sense == SENSE_MIN ?  HUGE_VAL : -HUGE_VAL);
+		bestbound = (lpd->sense ==  SENSE_MIN ? -HUGE_VAL :  HUGE_VAL);
+		lpd->objval = worstbound;
+	    }
+
+# else
 	    lpd->descr_state = DESCR_UNBOUNDED_NOSOL;
 	    lpd->abort_ctr++;
 	    bestbound = worstbound = (lpd->sense == SENSE_MIN ? -HUGE_VAL : HUGE_VAL);
+# endif
 
 #else
 	    if (DualMethod(lpd, meth, auxmeth)) {

@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.12 2008/06/19 18:04:11 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.13 2008/06/20 13:41:15 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -90,10 +90,11 @@ lappend auto_path [file join $tkecl(ECLIPSEDIR) lib_tcl]
 set tkecl(pref,editor) ""
 if [info exists env(VISUAL)] { set tkecl(pref,editor) $env(VISUAL) }
 if {$tkecl(pref,editor) == ""} { 
-    if [file exists "C:\\Program Files\\Windows NT\\Accessories\\wordpad.exe"] {
-	set tkecl(pref,editor) "C:\\Program Files\\Windows NT\\Accessories\\wordpad.exe"
-    } elseif [file exists "C:\\Program Files\\Accessories\\wordpad.exe"] {
-	set tkecl(pref,editor) "C:\\Program Files\\Accessories\\wordpad.exe"
+    if [catch {set pf $env(PROGRAMFILES)}] { set pf "C:\\Program Files" }
+    if [file exists "$pf\\Windows NT\\Accessories\\wordpad.exe"] {
+	set tkecl(pref,editor) "$pf\\Windows NT\\Accessories\\wordpad.exe"
+    } elseif [file exists "$pf\\Accessories\\wordpad.exe"] {
+	set tkecl(pref,editor) "$pf\\Accessories\\wordpad.exe"
     }
 }
 
@@ -2032,16 +2033,6 @@ proc tkecl:check_tracer_interaction {} {
     global tkecl tcl_platform
 
     if {[winfo exists .ec_tools.ec_tracer]} {
-        # for Windows, apparently focus is removed after each timeslice.
-        # so we need to refocus on the buttons for the key shortcuts
-        # to work, when the pointer is within the tracer window
-        # This breaks the `click-to-focus' model of Windows, but I can't
-        # see a way round this as we don't know where the focus was when
-        # exiting the last timeslice
-	if {($tcl_platform(platform) == "windows" &&
-	     [tkecl:pointer_window] == ".ec_tools.ec_tracer")} {
-	    focus .ec_tools.ec_tracer.buttons
-	}
 	if {$tkecl(tracercommand_issued) == 1} {
 	tkecl:handle_tracer_command
 	}

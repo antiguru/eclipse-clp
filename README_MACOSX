@@ -29,7 +29,8 @@ ECLiPSe - Constraint Logic Programming System
 ECLiPSe on MacOSX  (see README_WIN for Windows, README_UNIX for UNIX/Linux)
 ---------------------------------------------------------------------------
 
-***Please read INSTALL first if you are compiling from source.
+***Please read INSTALL first if you are compiling from source. You do not
+need the binary files described here.
 
 Note that the PowerPC and Intel versions of Mac OS X are distinguished by
 ECLiPSe; the Power PC version is ppc_macosx, and the Intel version is 
@@ -59,7 +60,6 @@ Optional:
     eclipse_misc.tgz		Free/3rd party libraries
     if_osiclpcbc.tgz            Interface to COIN-OR's open source solvers 
                                 CLP and CBC
-    eclipse_src.tgz             The source for ECLiPSe
 
 Support:
     tcltk.tgz			A matching Tcl/Tk release (8.4)

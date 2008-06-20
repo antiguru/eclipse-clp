@@ -35,11 +35,7 @@ ECLiPSe on Windows (see README_UNIX for UNIX/Linux, README_MACOSX for MacOSX)
 *** and document/internal/SetupGuide.pdf for more detailed help. 
 
 ECLiPSe for Windows is primarily intended and supported only for
-Windows-NT and later versions (Windows-2000, Windows-XP, ...).
-
-However, it works fine on Windows-9X (with only minor restrictions)
-provided you have all the necessary Microsoft-DLLs.  In particular,
-you need to have Winsock2 installed and you need MSVCRT.DLL.
+Windows-NT/2000/XP,...
 
 
 --------------------------------------
@@ -68,6 +64,9 @@ and the following optional packages:
 For installation, double click on ECLiPSe<Version>_<Build>.exe and
 the install wizard will guide you through the installation.
 
+Then try to launch tkeclipse via the Start menu, or look at the
+documentation, e.g. the tutorial.
+
 
 --------------------------------------
 Manual Installation from .tgz Packages
@@ -75,14 +74,9 @@ Manual Installation from .tgz Packages
 
 You should have gotten the following files for the "i386_nt" architecture:
 There are different versions of these files for different machine
-architectures. These are tar-files compressed with gzip.
-
-If you are downloading from SourceForge, these file names may have
-additional version (and platform) specification like
-
-     eclipse_basic_5_10_57_i386_linux.tgz 
-
-that are required to make the filename unique. 
+architectures. These are tar-files compressed with gzip.  Note that
+these .tgz Packages for Windows may not be available for download via
+SourceForge, but they are available from the www.eclipse-clp.org site.
 
 Base:
     README_WIN.TXT		The file you are reading now
@@ -95,7 +89,7 @@ Optional:
                                 CLP and CBC
 
 Support:
-    tcltk.exe			A matching Tcl/Tk release (8.5)
+    tcltk.tgz			A matching Tcl/Tk release (8.5)
     				(you may have that already).
 				Needed for the tkeclipse development GUI.
     editors_eclipse_support.tgz Support for various editors for editing
@@ -105,9 +99,13 @@ These other files are only needed under special circumstances:
     eclipse_rt.tgz		Runtime only (subset of eclipse_basic.tgz)
     if_xpressXY.tgz		Interface to XPRESS-MP version XY
 
+You can make installations (with reduced functionality) from subsets of
+these files. The minimum you always need is either eclipse_basic (for a
+development system) or eclipse_rt (for embedded applications only).
 
-Installation
-------------
+
+
+Manual Installation steps
 
 1.  Make a folder for ECLiPSe on your machine and move the
     distribution files there.
@@ -134,53 +132,64 @@ Installation
     After unpacking, you should have the ECLiPSe directory structure
     inside the <eclipsedir> folder.
 
-    If you are on  Windows-9X (not NT), you need to make sure you have
+    If you are on  Windows-9X (not NT/XP), you need to make sure you have
     the 3 system DLLs WS2HELP.DLL, WS2_32.DLL (Winsock2) and MSVCRT.DLL.
 
 
-3.  If you don't have Tcl/Tk 8 on your machine yet, or you have a version
-    different from 8.5, install it now.
+3.  Make a registry entry for ECLiPSe:
 
-    It is not absolutely necessary to have Tcl/Tk in order to
-    run ECLiPSe, but it simplifies the installation and allows
-    you to use the tkeclipse development environment.
+    - run regedit (Start->Run...->regedit)
 
+    - create the registry key
+      HKEY_LOCAL_MACHINE\SOFTWARE\IC-Parc\ECLiPSe\<version>
+      where <version> is e.g. 5.10
 
-4.  Execute ecl_inst.tcl in <eclipsedir> by double-clicking
+    - create a "String Value" under this key, with name ECLIPSEDIR and
+      value <eclipsedir>, i.e. the folder where you have unpacked the
+      distribution, e.g. "C:\Program Files\ECLiPSe 5.10"
 
-    This will create the necessary registry and menu entries.
+    You should now be able to run the command line version of eclipse, i.e.
 
-
-5.  You should now have a Start->Programs->ECLiPSe menu that lets
-    you run the command line version and the Tcl/Tk version of
-    ECLiPSe and allows you to browse the documentation.
-
+	<eclipsedir>/lib/i386_nt/eclipse.exe
 
 
-If you don't have Tcl/Tk
-------------------------
+4.  If you have a regular installation of Tcl/Tk, you can now also execute
+    the tkeclipse development environment by simply double-clicking on
 
-After unpacking the distribution files you need to make
-a registry entry for ECLiPSe:
+	<eclipsedir>/lib_tcl/tkeclipse.tcl
 
-   - double-click on <eclipsedir>\lib\i386_nt\eclipse.reg
+    If, however, you have only unpacked the Tcl/Tk that is bundled with
+    ECLiPSe, then this will not work, since no bindings for the .tcl
+    extension have been defined.  You can still execute tkeclipse.tcl
+    (or the tcl examples) by either
 
-     This will create the registry key
-     HKEY_LOCAL_MACHINE\SOFTWARE\IC-Parc\ECLiPSe\<version>
-     with a default value of C:\Eclipse
+     - dragging them onto the wish-executable, which is
+	<eclipsedir>\tcltk\i386_nt\bin\wish<version>.exe
 
-   - If you have unpacked ECLiPSe in C:\Eclipse, you are done. Otherwise:
+     - by running the wish-executable with the .tcl script as its
+       command line argument, e.g.
+       <eclipsedir>\tcltk\i386_nt\bin\wish<version>.exe tkeclipse.tcl
 
-   - run regedit (Start->Run...->regedit)
+     - create a shortcut that invokes the wish-executable with the .tcl
+       script as its argument
 
-   - change the value of the ECLIPSEDIR entry under
-     HKEY_LOCAL_MACHINE\SOFTWARE\IC-Parc\ECLiPSe\<version>
-     from "C:\Eclipse" to <eclipsedir>, ie the folder where
-     you have unpacked the distribution, e.g. "C:\Eclipse"
+    where wish<version>.exe is the actual name of the wish application, e.g.
+    wish85.exe. See the debugdemo.ecl example for how to do this from ECLiPSe
 
-You should then make a shortcut or menu entry for the executable
-<eclipsedir>/lib/eclipse.exe
 
+5.  Some ECLiPSe components, e.g. the Visualisation Tools, need Java.
+    In order for them to find the Java installation, you need to create
+    a further registry entry.  Under the the registry key
+      HKEY_LOCAL_MACHINE\SOFTWARE\IC-Parc\ECLiPSe\<version>
+    create a "String Value" with name JRE_HOME and set it to the folder
+    where the Java runtime environemnt is located, e.g.
+    C:\Program Files\Java\jre1.5.0
+
+
+
+----------------------------------------------
+General Topics
+----------------------------------------------
 
 Directory structure
 -------------------
@@ -192,6 +201,7 @@ Directories in the binary distribution:
     lib_tcl		tcl files for the graphical interface
     include		include files for C/C++ interface
     doc			online documentation, pdf files and example code
+    tcltk		the bundled Tcl/Tk distribution
 
 
 The important files are in <eclipsedir>\lib\i386_nt:
@@ -344,9 +354,6 @@ it.
 
 See the start of the eclipse.el file for some instructions on using this mode.
 
-----------------------------------------------
-General Topics
-----------------------------------------------
 
 Contact Addresses
 -----------------

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.5 2008/06/13 00:42:39 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.6 2008/06/20 13:41:17 jschimpf Exp $
  */
 
 /*
@@ -964,7 +964,10 @@ p_lshift(value v1, type t1, value v2, type t2, value v, type t)
 	    }
 	    else			/* shift right */
 	    {
-		result.val.nint = v1.nint >> -v2.nint;
+		if (-v2.nint >= BITS_PER_WORD)
+		    result.val.nint = v1.nint >> BITS_PER_WORD-1;
+		else
+		    result.val.nint = v1.nint >> -v2.nint;
 	    }
 	    result.tag.kernel = TINT;
 	}
@@ -998,7 +1001,10 @@ p_rshift(value v1, type t1, value v2, type t2, value v, type t)
 	{
 	    if (v2.nint >= 0)	/* shift right */
 	    {
-		result.val.nint = v1.nint >> v2.nint;
+		if (v2.nint >= BITS_PER_WORD)
+		    result.val.nint = v1.nint >> BITS_PER_WORD-1;
+		else
+		    result.val.nint = v1.nint >> v2.nint;
 	    }
 	    else		/* shift left */
 	    {

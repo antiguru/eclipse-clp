@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.7 2008/06/19 15:15:23 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.8 2008/06/20 13:41:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2008/06/19 15:15:23 $").
+:- comment(date, "$Date: 2008/06/20 13:41:15 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -877,10 +877,11 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 		LibStructs4 = LibStructs3,
 	    	OtherExports1 = OtherExports0
 	    ; Export = struct(Struct) ->
-		functor(Struct, Name, _),
+		functor(Struct, Name, Arity),
 		( memberchk(pred(struct2(Name,CommentStruct),_Tmpl,_Summ,_File), LibStructs2) ->
 		    % check whether declaration and comment match
 		    (
+			functor(CommentStruct, _, Arity),
 			(
 			    foreacharg(CommentFieldName,CommentStruct), foreacharg(FieldName,Struct)
 			do

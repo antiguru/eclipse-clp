@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.15 2008/06/20 13:29:09 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.16 2008/06/20 13:41:12 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -143,7 +143,7 @@ fi
 # the flags for OPT_FLAGS_EMU are -O2 optimisations that don't cause problems and do not
 # slow down execution on i386_linux
 OPT_FLAGS="-O2 -fomit-frame-pointer"
-OPT_FLAGS_EMU="-O1 -fomit-frame-pointer -fthread-jumps -fforce-mem -fforce-addr  -fexpensive-optimizations -fdelete-null-pointer-checks -fpeephole2 -falign-functions -falign-jumps  -foptimize-sibling-calls -fregmove  -fsched-interblock -fcaller-saves -funit-at-a-time"
+OPT_FLAGS_EMU="-O1 -fomit-frame-pointer -fthread-jumps -fforce-mem -fforce-addr  -fexpensive-optimizations -fdelete-null-pointer-checks -fpeephole2 -falign-functions -falign-jumps  -foptimize-sibling-calls -fregmove  -fsched-interblock -fcaller-saves"
 
 if test -z "$OS_INCLUDES"; then
     OS_INCLUDES=""
@@ -228,7 +228,11 @@ origostype=$OSTYPE
 #----------------------------------------------------------------------
 case "$ARCH" in
  i386_macosx)
-    GCCLIBDIR=$(ls -d /usr/lib/gcc/i686*/* 2>/dev/null)
+    # it seems that the stdc++/gcc libs that needs to be linked in are at
+    # gcc version dependent directories. The following tries to determine
+    # the exact path using gcc to obtain its version information
+    GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([^ ]*\) .*/\1/'`
+    GCCLIBDIR=$(ls -d /usr/lib/gcc/i686*/$GCC_VERSION 2>/dev/null)
     if test $? -ne 0; then
 	GCCLIBDIR="."
     fi
@@ -253,7 +257,8 @@ case "$ARCH" in
     LOCK=
     ;;
  ppc_macosx)
-    GCCLIBDIR=$(ls -d /usr/lib/gcc/powerpc*/* 2>/dev/null)
+    GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([^ ]*\) .*/\1/'`
+    GCCLIBDIR=$(ls -d /usr/lib/gcc/i686*/$GCC_VERSION 2>/dev/null)
     if test $? -ne 0; then
 	GCCLIBDIR="."
     fi
@@ -314,7 +319,7 @@ case "$ARCH" in
  sparc_sunos5)
     OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
-    DYNLDFLAGS="-G"
+    DYNLDFLAGS="-shared"
     AC_DEFINE(SVR4)
     OBJECT_SUFFIX=so
     OBJECTS_SUFFIX=so
@@ -1058,7 +1063,7 @@ AC_ARG_WITH([tcl], [[  --without-tcl
 
 if test "$tcl_requested" = "yes"; then
 
-    TCL_REQUIRED="8.4 8.5 8.3"
+    TCL_REQUIRED="8.5 8.4 8.3"
 
     if test "$ARCH" != "i386_nt"; then
 	dnl find X includes and libraries
@@ -1234,13 +1239,16 @@ case $ARCH in
     	CPLEX_ARCH_PREFIX=i386_linux
 	;;
     x86_64_linux)
-    	CPLEX_ARCH_PREFIX=x86_64_linux
+    	CPLEX_ARCH_PREFIX=x86_64
 	;;
     sparc_sunos5)
     	CPLEX_ARCH_PREFIX=sparc_sunos5
 	;;
     i386_nt)
     	CPLEX_ARCH_PREFIX=i386_nt
+	;;
+    i386_macosx)
+    	CPLEX_ARCH_PREFIX=i386_macosx
 	;;
     *)
     	CPLEX_ARCH_PREFIX=unsupported
@@ -1256,7 +1264,7 @@ AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
 
 if test "$cplex_versions_requested" != "no"; then
     if test "$cplex_versions_requested" = "yes"; then
-    	cplex_versions_requested="75 81 90 101"
+    	cplex_versions_requested="75 81 90 102 110"
     fi
     for version in $cplex_versions_requested; do
 	CPLEXDIR="$ECLIPSETHIRDPARTY/cplex$version"
@@ -1543,6 +1551,7 @@ AC_CONFIG_FILES([
 	ecrc_solvers/Makefile.$ARCH:ecrc_solvers/Makefile.in
 	pt_libraries/Makefile.$ARCH:pt_libraries/Makefile.in
 	Oci/Makefile.$ARCH:Oci/Makefile.in
+	ZincInterface/Makefile.$ARCH:ZincInterface/Makefile.in
 	])
 AC_CONFIG_HEADERS([
 	sepia/$ARCH/config.h:sepia/src/config.h.in

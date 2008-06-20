@@ -71,16 +71,15 @@ can colour two neighbours the same colour. The map is displayed graphically
 as shown: 
 
 \begin{center}
-\parbox{0.43\textwidth}{\resizebox{0.4\textwidth}{!}{\includegraphics{mapdisplay.ps}}}
 \parbox{0.43\textwidth}{\resizebox{0.4\textwidth}{!}{\includegraphics{mapdisplay2.ps}}}
 
 \vspace{3mm}
-{\bf Map Displays of Program}
+{\bf Map Display of Program}
 \end{center}
 
-The countries are identified by numbers displayed within each country. On the
-left, the map has not yet been coloured. On the right, it has been coloured
-incorrectly by the program (countries 3 and 4 have the same colour).
+The countries are identified by numbers displayed within each country, and 
+in this case, an incorrect colouring for the map is shown, because
+countries 3 and 4 have the same colour. 
 
 This program uses code from the map colouring demo program, and is
 designed to use the GUI to display a map. Most of this is
@@ -116,13 +115,13 @@ working directory to the selected directory.
 Next, compile \verb'debugdemo.ecl'. You can do this by selecting the
 \menuopt{Compile} option from the \menu{File} menu (you can also compile
 the file with the query \verb'[debugdemo]' from the query entry
-window). When the program is compiled, the map display window should
-appear, and the program is  ready to run.
+window). 
 
 \section{Running the Program}
 To start the program, the query `colour' is run: type \verb'colour' 
 into {\tkeclipse}'s query entry window, followed by the
-return key. The program should run, colouring the map, arriving at the
+return key. The program should run, and display the map to be coloured in a
+window, which is then coloured, arriving at the
 incorrect solution as shown previously. The program uses
 the standard `generate-and-test' method, so you will see colour flashing in
 the countries as the program tries different colours for them.
@@ -137,8 +136,6 @@ Press \button{Done} to finish the execution. We will now debug this program.
 
 \section{Debugging the Program}
 
-First type in the query \verb'clear' to clear the map to its
-initial state.
 
 The main tool to debug a program is the {\bf tracer} tool. The tracer is
 one of the development tools, all of which can be accessed from the \menuopt{Tools} menu of

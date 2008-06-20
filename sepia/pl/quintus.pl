@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.5 2008/05/12 12:34:59 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.6 2008/06/20 13:41:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -45,7 +45,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2008/05/12 12:34:59 $').
+:- comment(date, '$Date: 2008/06/20 13:41:16 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -200,6 +200,8 @@
 	macro((with)/2, (=)/2, []),
 	macro((of)/2, (=)/2, []).
 
+:- local
+	op(650, xfx, (@)).
 
 :- export
 	syntax_option(nl_in_quotes),
@@ -219,7 +221,9 @@
 	op(500, fx, (\)),
 	op(900, fy, (spy)),
 	op(900, fy, (nospy)),
-	op(1150, fx, [(meta_predicate), (multifile), (public), (mode), (dynamic)]),
+	op(1150, fx, [(meta_predicate), (multifile), (discontiguous), (public),
+			(mode),
+			(dynamic), (initialization), (volatile)]),
 	op(300, xfx, div).
 
 :- set_flag(macro_expansion, on).
@@ -718,6 +722,24 @@ meta_predicate_body((A,B), M) :-
 	meta_predicate_body(B, M).
 meta_predicate_body(Def, _M) :-
 	printf(error, '*** Warning: the meta_predicate definition %w%n    must be manually replaced by a tool definition%n%b', [Def]).
+
+
+% Support Quintus-style "qualified clauses" (for dynamic predicates only)
+
+:- export macro((:)/2, t_colon_clause/2, [clause]).
+
+t_colon_clause(QualClause, []) :-
+	( QualClause = (Module:Head:-Body) ->
+	    Clause = (Head:-Body),
+	    functor(Head, N, A)
+	;
+	    QualClause = (Module:Clause),
+	    functor(Clause, N, A)
+	),
+	( current_module(Module) -> true ; create_module(Module) ),
+	export(N/A)@Module,
+	assert(Clause)@Module.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *** Dynamic Database ***

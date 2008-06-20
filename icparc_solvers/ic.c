@@ -26,7 +26,7 @@
 ** System:       ECLiPSe Constraint Logic Programming System
 ** Author/s:     Warwick Harvey, IC-Parc
 ** 
-** $Id: ic.c,v 1.1 2006/09/23 01:53:42 snovello Exp $
+** $Id: ic.c,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
 **
 ** This file provides low-level primitives in support of the ic_kernel and
 ** ic_constraints ECLiPSe modules.  This is almost entirely for efficiency
@@ -5281,7 +5281,7 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 	if (constrained1) {
 	    notify_constrained(vvar.ptr);
 	}
-	if (constrained2) {
+	if (constrained2 && IsStructure(tsusp_attr)) {
 	    ec_schedule_susps(vsusp_attr.ptr + CONSTRAINED_OFF);
 	}
 
@@ -5332,7 +5332,7 @@ p_unify_ic(value vterm, type tterm, value vattr, type tattr, value vsusp_attr, t
 	    ** if the first term is an IC variable (other cases covered
 	    ** elsewhere, right?).
 	    */
-	    if (!IsRef(tsusp_attr) && IsRef(tterm)) {
+	    if (IsStructure(tsusp_attr) && IsRef(tterm)) {
 		IC_Var_Get_Attr(vterm.ptr, attr1);
 		if (!IsRef(attr1->tag)) {
 		    ec_schedule_susps(vsusp_attr.ptr + CONSTRAINED_OFF);

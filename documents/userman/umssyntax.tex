@@ -75,12 +75,13 @@ list\_quote     &       LQ      & \\
 radix           &       RA      & \\
 ascii           &       AS      & \\
 solo            &       SL      &\verb+! ; +\\
-special         &       SL      &\verb+( [ { ) ] } , | +\\
+special         &       DS      &\verb+( [ { ) ] } , | +\\
 line\_comment   &       CM      &\verb+%+\\
 escape          &       ES      &\verb+\+\\
 first\_comment  &       CM1     &\verb+/+\\
 second\_comment &       CM2     &\verb+*+\\
 symbol          &       SY      &\verb/# + - . : < = > ? @ ^ ` ~ $ & /\\
+terminator      &       TS      & \\
 \end{tabular}
 
 The character class of any character can be modified by a
@@ -205,7 +206,7 @@ VAR = (UC | UL) ALP*
 
 \subsubsection{End of clause}
 \begin{verbatim}
-EOCL = . (BS | NL | <end of file>) | <end of file>
+EOCL = . (BS | NL | <end of file>) | TS | <end of file>
 \end{verbatim}
 
 
@@ -553,6 +554,19 @@ The following options exist:
     enclosing the true value of the number in decimal notation.
 \item[var_functor_is_apply] allow variables as functors, and parse a term
     like \verb.X(A,B,C). as \verb.apply(X,[A,B,C])..
+\end{description}
+A number of further syntax options is provided for the purpose of parsing
+non-Prolog-like languages, in particular the Zinc family:
+\begin{description}
+\item[atom_subscripts] allow subscripts after atoms, and parse a term
+    like \verb.a[B,C]. as \verb.subscript(a,[B,C])..
+\item[general_subscripts] allow subscripts after atoms, parenthesized
+    subterms and subscripted terms, and parse a term
+    like \verb.a[B][C]. as \verb.subscript(subscript(a,[B]),[C]).,
+    or \verb.(a-b)[C]. as \verb.subscript(a-b,[C])..
+\item[curly_args_as_list] parse the arguments of a term in curly
+    brackets as a list, i.e. parse \verb.{a,b,c}.
+    as \verb.{}([a,b,c]). instead of the default \verb.{}((a,b,c))..
 \end{description}
 Syntax option  settings can be local to a module or exported, e.g.
 \begin{verbatim}

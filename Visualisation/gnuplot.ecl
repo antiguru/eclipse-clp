@@ -22,14 +22,14 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: gnuplot.ecl,v 1.1 2006/09/23 01:56:28 snovello Exp $
+% Version:	$Id: gnuplot.ecl,v 1.2 2008/06/20 13:41:12 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :-module(gnuplot).
 
 :- comment(summary, "Interface to the function and data plotting program - gnuplot").
 :- comment(author, "Andrew J Sadler, IC-Parc").
-:- comment(date, "$Id: gnuplot.ecl,v 1.1 2006/09/23 01:56:28 snovello Exp $").
+:- comment(date, "$Id: gnuplot.ecl,v 1.2 2008/06/20 13:41:12 jschimpf Exp $").
 
 :- comment(desc, html(
 "<P> This library provides an interface to the function and data
@@ -379,7 +379,20 @@ plot(Data,Options):-
         process_data(Data, ProcessedData),
 	get_flag(hostarch, ARCH),
         ( ARCH=="i386_nt" ->
-            exec([pgnuplot,'-'],[S,_,_],_Pid)
+	    (
+		% try to find pgnuplot in a few likely locations
+		get_flag(installation_directory, EclDir),
+		concat_string([EclDir,"/.."], ParentDir),
+	    	member(Dir, [EclDir,ParentDir,"$PROGRAMFILES"]),
+	        concat_string([Dir,"/gnuplot/bin/pgnuplot"], ExeBase),
+		existing_file(ExeBase, [".exe"], [executable], Cmd)
+	    ->
+		true
+	    ;
+		% no luck, hope it's in the PATH
+	    	Cmd = "pgnuplot"
+	    ),
+	    exec([Cmd,'-'],[S,_,_],_Pid)
         ;
             exec([gnuplot,'-persist','-'],[S,_,_],_Pid)
             %S=output

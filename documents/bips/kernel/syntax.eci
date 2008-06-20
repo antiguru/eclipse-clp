@@ -760,6 +760,7 @@ Error:
  first_comment  /
  second_comment *
  symbol         # + - . : &lt; = &gt; ? @ ^ ` ~ &amp; $
+ terminator
 </PRE>
 "),
 	args:["Char" : "Integer in the range 0 to 255.", "Class" : "Atom giving class name or variable."],
@@ -833,6 +834,7 @@ Note
  first_comment  /
  second_comment *
  symbol         # + - . : &lt; = &gt; ? @ ^ ` ~ &amp; $
+ terminator
 </PRE>
 "),
 	args:["Char" : "Integer in range 0 to 255.", "Class" : "Atom indicating the character class."],

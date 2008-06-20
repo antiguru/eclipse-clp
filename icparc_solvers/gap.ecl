@@ -8,7 +8,7 @@
 %   (b) avoid the crippling overhead encountered when using the xgap
 %	interface for robustness.
 %
-% $Id: gap.ecl,v 1.1 2006/10/13 00:41:27 jschimpf Exp $
+% $Id: gap.ecl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
 %
 
 %
@@ -130,15 +130,11 @@
 	gap_query_string/3.
 
 
-:- local variable(gap_pid).
-:- setval(gap_pid, -1).		% No GAP running right now.
+:- local variable(gap_pid, -1).		% No GAP running right now.
 
-:- local variable(pipe_to_gap).	% Name of pipe to use when talking to GAP.
-:- setval(pipe_to_gap, "").
-:- local variable(stream_to_gap).	% Stream to use when talking to GAP.
-:- setval(stream_to_gap, null).
-:- local variable(pipe_from_gap).% Name of pipe to use when listening to GAP.
-:- setval(pipe_from_gap, "").
+:- local variable(pipe_to_gap, "").	% Name of pipe to use when talking to GAP.
+:- local variable(stream_to_gap, null).	% Stream to use when talking to GAP.
+:- local variable(pipe_from_gap, "").	% Name of pipe to use when listening to GAP.
 
 
     % Record which directory this file resides in, since we want to look for
@@ -194,11 +190,32 @@ gap_running :-
 ")
     ]).
 
+% Kish 2008-06-16: added a test for checking that gap can be run.
+% Without this test, gap_ensure_started/0 will succeed because exec/3
+% running gap will succeed even if gap is undefined. 
+% exec/2 should abort when there is an error with the command, and "gap -h"
+% should print help information and quit.
+can_run_gap :-
+        block(( exec(["gap",
+                      "-h"	% print info and quit
+                     ], [I,O,E]),
+                close(I), close(O), close(E)
+              ),
+              _,
+              fail % error occurred - unable to run gap
+        ).
+              
 gap_ensure_started :-
 	( gap_running ->
 	    true
 	;
-	    exec(["gap",
+            ( can_run_gap -> 
+                true 
+            ; 
+                writeln(error, "Unable to run gap."),
+                abort
+            ),
+            exec(["gap",
 		    "-q",	% Be quiet - don't print banner, prompts.
 		    "-A",	% Don't load packages.
 		    "-r",	% Don't read any .gaprc file.
@@ -222,6 +239,7 @@ gap_ensure_started :-
 
 initialise_gap(GapInput, PID) :-
 	setval(gap_pid, PID),
+	get_flag(tmp_dir, TmpDir),
 	get_flag(tmp_dir, TmpDir),
 	concat_string([TmpDir, "/eclipse_pipe_to_gap.", PID], ToGapPipeName),
 	concat_string([TmpDir, "/eclipse_pipe_from_gap.", PID], FromGapPipeName),

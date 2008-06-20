@@ -64,6 +64,7 @@
 	reals/1,		% reals(?Vars)
 	integers/1,		% integers(?Vars)
 	is_solver_var/1,	% is_solver_var(?Var)
+	is_exact_solver_var/1,	% is_exact_solver_var(?Var)
 	is_solver_type/1,	% is_solver_type(?Var)
 	get_solver_type/2,	% get_solver_type(?Var, -Type)
 	get_bounds/3,		% get_bounds(?Var, -Lwb, -Upb)
@@ -77,6 +78,7 @@
 	get_domain_as_list/2,	% get_domain_as_list(?Var, -DomainList)
 	get_median/2,		% get_median(?Var, -Median)
 	get_delta/2,		% get_delta(?Var, -Width)
+	msg/3,			% msg(?X,?Y,-Msg)
 	print_solver_var/2,	% print_solver_var(?Var, -Printed)
 	set_threshold/1,	% set_threshold(++Threshold)
 	set_threshold/2,	% set_threshold(++Threshold, +WakeVars)
@@ -424,6 +426,21 @@ from ic_kernel.
 
 %---------------------------------------------------------------------
 
+:- comment(is_exact_solver_var/1, [
+    amode: is_exact_solver_var(?),
+    args: [
+	"Term": "A Term"
+    ],
+    summary: "Succeeds iff Term is an IC integer variable.",
+    fail_if: "Var is not an IC integer variable.",
+    desc: html("<P>
+   Test if the term Term is an IC integer variable.
+   </P>
+")
+]).
+
+%---------------------------------------------------------------------
+
 :- comment(is_solver_type/1, [
     amode: is_solver_type(?),
     args: [
@@ -717,19 +734,21 @@ from ic_kernel.
     amode: get_median(++, -),
     args: [
 	"Var":    "A variable or a number",
-	"Median": "The median of the interval"
+	"Median": "The median of the interval (float)"
     ],
     summary: "Returns the median of the interval of the IC variable Var.",
-    see_also: [get_delta/2, get_bounds/3],
+    see_also: [get_delta/2, get_bounds/3, get_float_bounds/3],
     desc: html("<P>
    Returns the median of the interval of Var (usually so that the interval
-   can be split).  If Var has not been declared before, it will be turned
-   into an unrestricted real variable.  If Var is a ground number, the
-   median will be calculated appropriately based on its type.</P><P>
+   can be split) as a float value.  If Var has not been declared before,
+   it will be turned into an unrestricted real variable as a side effect.
+   If Var is a ground number, the median is a float equal or near that
+   number.
 
-   If the interval crosses 0, then the median is 0.  Otherwise, the median
-   splits the interval logarithmically so that the two subintervals have the
-   same number of representable floats.</P>
+   Generally, the median splits the interval logarithmically so that the
+   two subintervals have roughly the same number of representable floats.
+   Only in the vicinity of zero, splitting is linear to prevent the sub-
+   intervals from getting too small.</P>
 "),
     eg: "\
 [eclipse 2]: X :: 10..1000, get_median(X, M).
@@ -739,7 +758,11 @@ Yes (0.00s cpu)
 
 [eclipse 3]: X :: -1..1000, get_median(X, M).
 X = X{-1 .. 1000}
-M = 0.0
+M = 11.633369384516794
+Yes (0.00s cpu)
+
+[eclipse 4]: get_median(3, M).
+M = 3.0
 Yes (0.00s cpu)
 "
 ]).
@@ -2369,7 +2392,7 @@ Yes (0.00s cpu)
 	template:"element(?Index, ++List, ?Value)",
 	args:[
 	    "?Index" : "A variable or an integer.",
-	    "++List" : "A non-empty list of integers.",
+	    "++List" : "A non-empty list or array of integers.",
 	    "?Value" : "A variable or an integer."
 	],
 	resat:"No.",

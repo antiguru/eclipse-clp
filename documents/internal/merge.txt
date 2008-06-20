@@ -180,6 +180,28 @@ After resolving the conflicts
   important if the two branches are using different versions of the .eco
   format.
 
+- If any of the "bootfiles" have changed (these are the files that are in
+  CVS as precompiled .eco files because they are needed for bootstrapping
+  the system), their corresponding .eco files have to be remade.
+  The boofiles are (this list may be out of date):
+
+    sepia/pl/kernel.pl and all the files it includes
+    sepia/pl/{asm,suspend,module_options,hash,eclipse_language}.{pl,ecl}
+    Compiler/*.ecl
+
+  Updating these .eco files is itself a bootstrapping problem.  Try first
+  to build the system without updating them (i.e. use the CVS versions).
+  Using the resulting stable eclipse, remake the bootfiles:
+
+    cd Compiler; make aux_eco; make bootfiles
+    cd sepia/$ARCH; make new_bootfiles
+
+  If this doesn't work (e.g. because there are emulator changes that are
+  incompatible with the old .eco files), change the Makefiles to use a
+  working main branch build as STABLE_ECLIPSE to make the new .eco files.
+
+- Rebuild with the updated .eco files
+
 - Run the tests and make sure they pass.
 
 Note that the compile and test should ideally be done on more than one

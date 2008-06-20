@@ -194,7 +194,7 @@ in an IC constraint: this performs an implicit declaration.
 \ignore{
 \begin{code}
 ?- X :: -10 .. 10, get_domain_as_list(X, List).
-   X = X{-10 .. 10}
+   X = X\{-10 .. 10\}
    List = [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 Yes
 
@@ -966,7 +966,7 @@ reduce_demand(
 The constraints imposed on a single bin correspond exactly to the
 problem statement:
 \begin{code}
-constrain_bin(bin{colour:Col, capacity:Cap, contents:C}) :-
+constrain_bin(bin\{colour:Col, capacity:Cap, contents:C\}) :-
         colour_capacity_constraint(Col, Cap),
         capacity_constraint(Cap, C),
         contents_constraints(C),
@@ -1068,13 +1068,16 @@ from their colour and contents, (recall that in defining the bin colours
 as fields of a structure we have encoded them as integers, which allows 
 them to be ordered):
 \begin{code}
-lex_ord(bin{colour:Col1, contents:Conts1},
-        bin{colour:Col2, contents:Conts2}) :-
+lex_ord(bin\{colour:Col1, contents:Conts1\},
+        bin\{colour:Col2, contents:Conts2\}) :-
         % Use `=..' to extract the contents of the bin as a list
         Conts1 =.. [_ | Vars1],
         Conts2 =.. [_ | Vars2],
         lexico_le([Col1 | Vars1], [Col2 | Vars2]).
 \end{code}
+
+The lexicographic order is imposed using \texttt{ic_global}'s
+\biptxtref{lexico_le/2}{lexico_le/2!ic_global}{../bips/lib/ic_global/lexico_le-2.html} constraint.
 
 \subsection{Search}
 
@@ -1082,7 +1085,7 @@ The search is done by first choosing a colour for each bin, and then
 labelling the remaining variables.
 \begin{code}
 bin_label(Bins) :-
-        ( foreach(bin{colour:C} Bins) do indomain(C) ),
+        ( foreach(bin\{colour:C\} Bins) do indomain(C) ),
         term_variables(Bins, Vars),
         search(Vars, 0, first_fail, indomain, complete, []).
 \end{code}

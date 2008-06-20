@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: lex.h,v 1.2 2007/06/01 15:42:07 jschimpf Exp $
+ * VERSION	$Id: lex.h,v 1.3 2008/06/20 13:41:15 jschimpf Exp $
  */
 
 /*
@@ -79,9 +79,10 @@
 #define		LQ	ACH+7	/* list quote delimiter */
 #define		RA	ACH+8	/* radix  character class */
 #define		AS	ACH+9	/* ascii character class */
+#define		TS	ACH+10	/* terminator symbol character class */
 
 /* symbol characters */
-#define 	SCH	ACH+9 	/* to test the five following */
+#define 	SCH	ACH+10 	/* to test the five following */
 
 #define		ES	SCH+1	/* escape char in strings, symbol */
 #define 	CM1	SCH+2	/* comment external delimiter */
@@ -127,7 +128,7 @@
  *	USER DEFINABLE SYNTAX PARAMETERS
  */
 
-#define SYNTAX_FLAGS		18	/* number of flags below	*/
+#define SYNTAX_FLAGS		21	/* number of flags below	*/
 
 #define NEWLINE_IN_QUOTES	0x0001	/* allow newlines in quoted objects */
 #define LIMIT_ARG_PRECEDENCE	0x0002	/* limit argument precedence to 999 */
@@ -147,6 +148,9 @@
 #define	NO_CURLY_ARGUMENTS	0x8000	/* don't allow f{...} for f with ... */
 #define	BLANK_AFTER_SIGN	0x10000	/* allow blank after sign           */
 #define	VAR_FUNCTOR_IS_APPLY	0x20000	/* parse X{Args} as apply(X,[Args]) */
+#define	ATOM_SUBSCRIPTS		0x40000	/* allow subscripts after atoms     */
+#define	GENERAL_SUBSCRIPTS	0x80000	/* allow subscripts almost anywhere */
+#define	CURLY_ARGS_AS_LIST	0x100000/* parse {}(a,b,c) as {}([a,b,c])   */
 
 
 /*

@@ -26,6 +26,8 @@
 #  are supplied by the user, the code then connects to the ECLiPSe side and
 #  calls map_init
 
+set tkecl(version) 6.0	 ;# update also in eclipse_tools and examples!
+
 switch $tcl_platform(platform) {
     unix {
 	set tkecl(ECLIPSEDIR) $env(ECLIPSEDIR)
@@ -33,7 +35,7 @@ switch $tcl_platform(platform) {
     windows {
 	package require registry
 	set tkecl(ECLIPSEDIR) [registry get \
-	    HKEY_LOCAL_MACHINE\\SOFTWARE\\IC-Parc\\Eclipse\\5.8 ECLIPSEDIR]
+	    HKEY_LOCAL_MACHINE\\SOFTWARE\\IC-Parc\\Eclipse\\$tkecl(version) ECLIPSEDIR]
     }
     default {
 	error "$tcl_platform(platform) not supported"
@@ -76,12 +78,15 @@ foreach arg $argv {
 ec_running_set_commands {} {} {} shut_down
 
 proc shut_down {} {
-    if {![ec_running]} {
-	ec_disconnect tcl
-    }
     destroy .
 }
 
+proc disconnect {} {
+    if {![ec_running]} {
+	ec_disconnect tcl
+    }
+    exit
+}
 
 proc setup_map {stream {n {}}} {
 
@@ -158,7 +163,7 @@ proc continue_colouring {n} {
 proc map_demo {} {
     frame  .b
     button .b.more -text More -command "set continue_state yes" -state disabled
-    button .b.done -text Done -command "set continue_state no" -state disabled
+    button .b.done -text Done -command disconnect -state disabled
     pack .b -side top -fill x -expand 1
     pack .b.more -side left -fill x -expand 1
     pack .b.done -side right -fill x -expand 1

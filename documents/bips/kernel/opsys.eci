@@ -566,7 +566,7 @@ Failure:
 
       desc: html("\
 
-    This file will search for any existing files that matches the
+    This predicate will search for any existing files that matches the
     specifications given in the first three arguments: the file starts with
     Base, which is a partial filepath name. Base may have a library/1
     wrapper around the name. A list of possible completions (usually
@@ -576,7 +576,10 @@ Failure:
     permission for this file are checked against the Permissions list --
     the list can contain the atoms readable, writable, executable; each
     specifying that the corresponding permission should be checked. If the
-    permissions match, then the filename is returned in MatchedFile.
+    permissions match, then the filename is returned in MatchedFile. Note 
+    that the executable permission for Windows may be approximate, because
+    Windows (especially Vista) have a different system for dealing with
+    execute permission.
 
 <P>
     If the library/1 wrapper is used, then the file is searched for in the
@@ -1208,7 +1211,10 @@ the value of its attribute Attr unfies with Value.
    attributes.  The time for the *time attributes is measured as seconds
    elapsed since 00:00:00 GMT, Jan.  1, 1970.  The flags readable, writable
    and executable indicate whether the running ECLiPSe process has the
-   corresponding permissions on the file.
+   corresponding permissions on the file. Note that the executable permission 
+   for Windows may be approximate, because Windows (especially Vista) have a
+   different system for dealing with execute permission.
+
    The meaning of the bits in the mode attribute is as follows:
 
 <P>

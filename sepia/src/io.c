@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.2 2007/07/03 00:10:30 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.3 2008/06/20 13:41:17 jschimpf Exp $
  */
 
 /*
@@ -2520,11 +2520,12 @@ ec_tty_outs(stream_id nst, char *s, int n)
     if(!(IsTty(nst)))
 	return(ec_outf(nst,s,n));
 
-#ifdef _WIN32
-    (void) ec_putch_raw(StreamUnit(nst));
-    return PSUCCEED;
-#else
     {
+#ifdef _WIN32
+	for(; n>0; --n)
+	    (void) ec_putch_raw(*s++);
+	return PSUCCEED;
+#else
 	int res;
 	Termio	tbuf;
 
@@ -2538,8 +2539,27 @@ ec_tty_outs(stream_id nst, char *s, int n)
 	res = _unset_raw_tty(StreamUnit(nst), &tbuf);
 	Enable_Int();
 	return(res);
-    }
 #endif
+    }
+}
+
+int
+ec_tty_out(stream_id nst, int c)
+{
+    if(!(IsWriteStream(nst)))
+	return(STREAM_MODE);
+    if(!(IsTty(nst)))
+	return(ec_outfc(nst,c));
+
+    {
+#ifdef _WIN32
+	(void) ec_putch_raw(c);
+	return PSUCCEED;
+#else
+	char s = c;
+	return ec_tty_outs(nst, &s, 1);
+#endif
+    }
 }
 
 

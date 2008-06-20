@@ -29,7 +29,8 @@ ECLiPSe - Constraint Logic Programming System
 ECLiPSe on UNIX/Linux  (see README_WIN for Windows, README_MACOSX for MacOSX)
 -----------------------------------------------------------------------------
 
-***Please read INSTALL first if you are compiling from source.
+***Please read INSTALL first if you are compiling from source. You do not
+need the binary files described here.
 
 Unpacking
 ---------

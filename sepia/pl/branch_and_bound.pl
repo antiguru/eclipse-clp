@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: branch_and_bound.pl,v 1.2 2007/05/25 23:09:35 jschimpf Exp $
+% Version:	$Id: branch_and_bound.pl,v 1.3 2008/06/20 13:41:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(branch_and_bound).
@@ -30,7 +30,7 @@
 :- comment(summary, "Generic branch-and-bound primitives").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, Vassilis Liatsos, IC-Parc, Imperial College, London").
-:- comment(date, "$Date: 2007/05/25 23:09:35 $").
+:- comment(date, "$Date: 2008/06/20 13:41:15 $").
 :- comment(index, ["branch-and-bound","dichotomic search"]).
 :- comment(desc, html("
 	This is a solver-independent library implementing branch-and-bound
@@ -189,9 +189,8 @@ precise_number(X) :- number(X).
 %----------------------------------------------------------------------
 
 bb_delta(From, To, Goal, Template, Cost, Handle, Module, Options) :-
-	( bb_probe(From, To, Goal, Template, Cost, Handle, Module) ->	% may fail
+	( bb_probe(From, To, Goal, Template, Cost, Handle, Module,Options) ->	% may fail
 	    Best is bb_cost(Handle),
-	    report_success(Options, Best, Handle, Module),
 	    step(From, Best, Options, NewTo),		% may fail
 	    bb_delta(From, NewTo, Goal, Template, Cost, Handle, Module, Options)
 	;
@@ -351,9 +350,8 @@ cannot_impose_bound(X) :- meta(X),
 
 bb_dichotomic(From, To, Goal, Template, Cost, Handle, Module, Options) :-
 	% look for an initial solution
-	( bb_probe(From, To, Goal, Template, Cost, Handle, Module) ->	% may fail
+	( bb_probe(From, To, Goal, Template, Cost, Handle, Module, Options) ->	% may fail
 	    Best is bb_cost(Handle),
-	    report_success(Options, Best, Handle, Module),
 	    bb_dichotomic1(From, false, Best, Goal, Template, Cost, Handle, Module, Options)
 	;
 	    report_failure(Options, From..To, Handle, Module),
@@ -364,9 +362,8 @@ bb_dichotomic(From, To, Goal, Template, Cost, Handle, Module, Options) :-
     % If FromNoSol==true then we know there is no solution with cost From
     bb_dichotomic1(From, FromNoSol, Best, Goal, Template, Cost, Handle, Module, Options) :-
 	split(From, FromNoSol, Best, Options, Split), 	% may fail
-	( bb_probe(From, Split, Goal, Template, Cost, Handle, Module) ->
+	( bb_probe(From, Split, Goal, Template, Cost, Handle, Module, Options) ->
 	    NewBest is bb_cost(Handle),
-	    report_success(Options, NewBest, Handle, Module),
 	    bb_dichotomic1(From, FromNoSol, NewBest, Goal, Template, Cost, Handle, Module, Options)
 	;
 	    report_failure(Options, From..Split, Handle, Module),
@@ -449,6 +446,10 @@ bb_finish(Handle) :-
 % If there is no solution, Handle is not changed and bb_probe fails.
 
 bb_probe(From, To, Goal, Template, Cost, Handle, Module) :-
+	bb_probe(From, To, Goal, Template, Cost, Handle, Module,
+		bb_options{report_success:true/0}).
+
+bb_probe(From, To, Goal, Template, Cost, Handle, Module, Options) :-
 	(
 	    call_local((
 		    % impose bounds early if possible
@@ -471,12 +472,13 @@ bb_probe(From, To, Goal, Template, Cost, Handle, Module) :-
 	    copy_term(Template, StrippedSolution),
 	    % Set all shelf fields atomically (timeout!)
 	    shelf_set(Handle, 0, sol(s(StrippedSolution),Cost,Cost)),
+	    report_success(Options, Cost, Handle, Module),
 	    fail	% to undo the call-effect and succeed with 2nd clause
 	;
 	    !,
 	    fail
 	).
-bb_probe(_From, _To, _Goal, _Template, _Cost, _Handle, _Module).
+bb_probe(_From, _To, _Goal, _Template, _Cost, _Handle, _Module, _Options).
 
 
 % Get an initial lower and upper bound for the search by intersecting

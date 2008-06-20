@@ -95,6 +95,8 @@ PRIVATE_EPLEX_SOLVERS="\
 	$I386NT_CPLEX_SOLVER \
 	cplex81 \
         cplex90 \
+	cplex102 \
+	cplex110 \
 	xpress1427 \
 	xpress1427icp \
 	xpress1326icp \
@@ -355,7 +357,7 @@ Version: $ECLIPSE_VERSION
 Release: $BUILD_NUMBER
 Copyright: Cisco Systems, Inc
 Group: Development/Languages
-Source: http://icparc.ic.ac.uk/eclipse
+Source: http://www.eclipse-clp.org
 BuildRoot: $BUILD_ROOT
 Prefix: /usr/lib
 
@@ -544,7 +546,7 @@ SetDateSave on
 !insertmacro MUI_PAGE_INSTFILES
 
 !define MUI_FINISHPAGE_LINK \"Visit the ECLiPSe site for the latest news, FAQs and support\"
-!define MUI_FINISHPAGE_LINK_LOCATION \"http://www.icparc.ic.ac.uk/eclipse\"
+!define MUI_FINISHPAGE_LINK_LOCATION \"http://www.eclipse-clp.org\"
 !define MUI_FINISHPAGE_SHOWREADME \"\$8\\README_WIN.TXT\"
 !define MUI_FINISHPAGE_NOREBOOTSUPPORT
 !insertmacro MUI_PAGE_FINISH
@@ -601,7 +603,7 @@ Section \"Desktop Shortcut\" SecShortcuts
   CreateDirectory \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR}\"
   CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR}\\Readme.lnk\" \"\$8\\README_WIN.TXT\"
 
-  WriteINIStr \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR}\ECLiPSe Homepage.url\" \"InternetShortcut\" \"URL\" \"http://www.icparc.ic.ac.uk/eclipse/\"
+  WriteINIStr \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR}\ECLiPSe Homepage.url\" \"InternetShortcut\" \"URL\" \"http://www.eclipse-clp.org\"
   CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR}\\Uninstall ECLiPSe \${VER_MAJOR}.lnk\" \"\$8\\uninst-eclipse.exe\"
 
   SectionGetFlags \${SecDoc} \$R0
@@ -765,7 +767,7 @@ echo Fixing permissions ...
 find $ALLDIRS \! -perm -a+r -print -exec chmod a+r {} \;
 find $ALLDIRS -perm -u+x \! -perm -a+x -print -exec chmod a+x {} \;
 find $ALLDIRS -perm -go+w -print -exec chmod go-w {} \;
-chmod a+rx UNPACK ARCH RUNME ecl_inst.tcl lib_tcl/shortcut.dll
+chmod a+rx UNPACK ARCH RUNME ecl_inst.tcl 
 chmod a+r README_UNIX README_MACOSX README_WIN.TXT 
 chmod go-w UNPACK ARCH RUNME ecl_inst.tcl README_UNIX README_MACOSX README_WIN.TXT
 rm -f lib/*/SITE_PARAMS
@@ -891,6 +893,8 @@ nsisfinish
 if [ "$make_nsis_installer" = yes ] ; then
     echo "Building NSIS Windoze installer"
     makensis -V4 -OECLiPSe_NSIS.log ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}.nsi
+    # +x needed by Vista!
+    chmod a+x ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}.exe
     mv ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}.exe $DEST_DIR/i386_nt
 fi
 

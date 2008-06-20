@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:       ECLiPSe Constraint Logic Programming System
-% Version:      $Id: propia.pl,v 1.1 2006/09/23 01:52:47 snovello Exp $
+% Version:      $Id: propia.pl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
 %
 % Description:          Propia
 %
@@ -41,7 +41,7 @@
 :- comment(summary, "The Generalised Propagation Library").
 :- comment(author, "Thierry Le Provost, ECRC and Mark Wallace, IC-Parc and ICL").
 :- comment(copyright, "1995-2006 Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:52:47 $").
+:- comment(date, "$Date: 2008/06/20 13:41:14 $").
 
 :- comment(infers / 2, [
     summary:"Do generalized propagation over Goal according to the approximation Language.",
@@ -60,7 +60,7 @@
 	<P>
 	With the language 'most', Goal is bound to the most specific
 	generalization of all its solutions.  This generalisation will
-	depend what solvers are loaded - (ic, fd or several of
+	depend what solvers are loaded - (e.g. ic, fd, sd or several of
 	them).  If one of the solutions is not a variant of this
 	answer, the goal is delayed until one of its variables is
 	bound.  Note that the Goal may have an infinity of solutions.
@@ -71,9 +71,13 @@
 	solution (or the first solution of Goal subsumes all the
 	others).  With the 'consistent' language, infers/2 does not
 	bind the Goal but only checks if Goal has at least one
-	solution.  The languages 'ic' and 'fd' extract the most
-	specific generalisation expresssible using intervals and
-	finite domains respectively.
+	solution.
+	<P>
+	The name of a supported solver (ic, fd, ic_symbolic, sd, ...
+	or a list of them) can also be used to specify the language.
+	In this case, the infers-predicate computes the most specific
+	generalisation expressible in terms of that solver's domain
+	variables (e.g. intervals, finite domains, ...)
 	<P>
 	The language 'ac' implements generalised arc consistency on
 	the table produced by computing all the (finitely) many
@@ -81,7 +85,7 @@
 	implementing the element/3 constraint is loaded (fd, ic_global).
 	"),
     args:["+Goal" : "Callable Term.",
-    	"+Language" : "One of the terms most, unique, consistent, fd, ic or ac"],
+    	"+Language" : "One of the terms most, unique, consistent, ac, or the name of a supported solver (fd, ic, sd, ic_symbolic)"],
     resat:"No.",
     fail_if:"Fails if Goal has no solution.",
     exceptions:[4 : "Goal or Language is not instantiated.", 6 : "Language is not a correct language.", 68 : "Goal is an undefined procedure."],
@@ -148,7 +152,8 @@
 :- tool((infers)/2, (infers)/3).
 
 tr_propia(myinfers(G, _V, L, _M, _S), infers(G, L)).
-tr_propia(myinfers(G, _L, _G, _T, _M, _S), infers(G, most)).
+tr_propia(myinfers(G, _L, _G, T, _M, _S), infers(G, L)) :-
+	( most_type(T) -> L = most ; L = T ).
 
 % From the constraint goal Constraint, propia extracts a single term
 % which generalises all its solutions. The generalisation depends upon
@@ -157,6 +162,7 @@ tr_propia(myinfers(G, _L, _G, _T, _M, _S), infers(G, most)).
 :- mode infers(+, ++, ++).
 infers(Constraint, Language, Module) :-
 %  Check the syntax, and handle any errors.
+%  Also load solvers as a side effect
         check_errors(Constraint, Language, Module).
 
 %  If there are no errors, 
@@ -179,24 +185,11 @@ infers_susp(InGoal,Vars,Language,Module) :- !,
 	),
 	infers2(Goal,Vars,Language,Prior,Cond,Module).
 
-% The most general propagation languages: 
-% most, ic, fd
-% are handled by this clause
-
-:- mode infers2(+,+,++,++,+,++).
-infers2(Goal,Vars,Language,Prior,Cond,Module) :- 
-        most_type(Language,Type), !,
-        shelf_create( propiaVar(Vars,no_delayed), GlobVar ),
-        suspend( myinfers(Goal,most(Vars),GlobVar,Type,Module,Susp),
-		 Prior,
-		 Cond,
-		 Susp
-               ),
-        get_msg_for_goal(Goal,most(Vars),GlobVar,Type,Module,Susp).
 
 % The language ac is handled by this clause
 % Unfortunately the Priority and waking conditions for ac
 % are those of the element constraint, which can't be overridden
+:- mode infers2(+,+,++,++,+,++).
 infers2(Goal,Vars,ac,_Prior,_Cond,Module) :- !,
 	ac(Goal,Vars,Module).
 
@@ -206,17 +199,36 @@ infers2(Goal,Vars,Language,Prior,Cond,Module) :-
 	suspend(myinfers(Goal,vars(Vars),Language,Module,Susp), Prior, Cond, Susp),
         myinfers(Goal,vars(Vars),Language,Module,Susp).
 
-%%%%%%%% Processing language most, fd                %%%%%%%%%%%
-%%%%%%%%                                             %%%%%%%%%%%
-% from the given propagation language, extract a list of one or more
-% solver types. 
-most_type(most,Type) :-
-        (current_module(ic_symbolic) -> Type=[ic_symbolic|Type0] ; Type=Type0),
-        (current_module(ic) -> Type0=[ic|Type1] ; Type0=Type1),
-        (current_module(fd) -> Type1=[fd] ; Type1=[]).
-most_type(ic,[ic]).
-most_type(fd,[fd]).
-most_type(ic_symbolic,[ic_symbolic]).
+% The 'most' propagation language: 
+% construct a list of one or more solver types. 
+infers2(Goal,Vars,most,Prior,Cond,Module) :- !,
+	most_type(Type),
+	infers3(Goal,Vars,Type,Prior,Cond,Module).
+
+infers2(Goal,Vars,Language,Prior,Cond,Module) :- 
+	atom(Language), !,
+	infers3(Goal,Vars,[Language],Prior,Cond,Module).
+
+infers2(Goal,Vars,Type,Prior,Cond,Module) :- 
+	infers3(Goal,Vars,Type,Prior,Cond,Module).
+
+
+infers3(Goal,Vars,Type,Prior,Cond,Module) :- 
+        shelf_create( propiaVar(Vars,no_delayed), GlobVar ),
+        suspend( myinfers(Goal,most(Vars),GlobVar,Type,Module,Susp),
+		 Prior,
+		 Cond,
+		 Susp
+               ),
+        get_msg_for_goal(Goal,most(Vars),GlobVar,Type,Module,Susp).
+
+
+most_type(Type) :-
+	KnownSolvers = [ic_symbolic,ic,sd,fd],
+	( foreach(Solver,KnownSolvers), fromto(Type,Type1,Type2,[]) do
+	    ( current_module(Solver) -> Type1=[Solver|Type2] ; Type1=Type2 )
+	).
+
 
 % myinfers is the propia demon that wakes whenever the Goal becomes
 % more instantiated.  It is killed either when the Goal becomes
@@ -337,9 +349,7 @@ msg(T1,T2,T3,Type,Map,OutMap,Module) :-
 msg(T1,T2,T3,_,Map,Map,_Module) :-
         lookUpMap2(Map,T1,T2,T3), !.
 msg(V1,V2,MSGV,Type,Map,[map(V1,V2,MSGV)|Map],Module) :-
-        (fds(Type,V1,V2)    -> call(dvar_msg(V1,V2,MSGV))@fd ; true),
-        (ics(Type,V1,V2)    -> ic_kernel:msg(V1,V2,MSGV) ; true),
-	(memberchk(ic_symbolic,Type) -> ic_symbolic:msg(V1,V2,MSGV)@Module ; true).
+	Type:msg(V1,V2,MSGV)@Module.
 
 
 lookUpMap2([map(V1,V2,V3)|_],V11,V22,V33) :-
@@ -348,30 +358,6 @@ lookUpMap2([_|Map],V1,V2,V3) :-
         lookUpMap2(Map,V1,V2,V3).
 
 
-fds(Type,V1,V2) :-
-        memberchk(fd,Type),
-        groundOrDomain(V1),
-        groundOrDomain(V2).
-
-groundOrDomain(Var) :-
-        var(Var), !, fd:is_domain(Var).
-groundOrDomain(Val) :-
-        ground(Val).
-
-ics(Type,V1,V2) :-
-        memberchk(ic,Type),
-        test_ic(V1),
-        test_ic(V2).
-
-test_ic(Var) :-
-        var(Var), !,
-	ic:is_solver_var(Var).
-test_ic(Number) :-
-        integer(Number).
-test_ic(Number) :-
-        real(Number).
-test_ic(Number) :-
-        breal(Number).
 
 % A Goal has only one answer left, either when it is instantiated, or,
 % in case the solver type includes fd, when there is just a single
@@ -388,12 +374,9 @@ propia_answer(Vars,Type,GlobVar,Susp) :-
 
 propia_ans([],_Type).
 propia_ans([Var],Type) :-
-            ( memberchk(fd,Type) ->
-		fd:is_domain(Var)
-            ; memberchk(ic,Type),
-		ic:is_solver_var(Var),
-		ic:get_solver_type(Var, integer)
-	    ).
+	    member(Solver, Type),
+	    Solver:is_exact_solver_var(Var),
+	    !.
 
 
 %%%%%%%% Processing languages consistent and unique  %%%%%%%%%%%
@@ -535,29 +518,34 @@ check_ground(Term) :-
 
 
 propia_prior_error(Priority,Goal) :-
-        (not integer(Priority) ; Priority < 5), !,
-        error(4, Goal).
+        ( integer(Priority) ->
+	    ( Priority >= 5 -> true ; error(6, Goal) )
+	; var(Priority) ->
+	    error(4, Goal)
+	;
+	    error(5, Goal)
+	).
 
-is_a_language(most, _).
-is_a_language(ic_symbolic, _) :-  check_solver_loaded(ic_symbolic, ic_symbolic).
-is_a_language(ic, _) :-  check_solver_loaded(ic, ic).
-is_a_language(fd, _) :-  check_solver_loaded(fd, fd).
-is_a_language(consistent, _).
-is_a_language(unique, _).
-is_a_language(ac, Module) :-
+is_a_language(most, _) :- !.
+is_a_language(consistent, _) :- !.
+is_a_language(unique, _) :- !.
+is_a_language(ac, Module) :- !,
 	( is_predicate(element/3)@Module ->
 	    true
 	;
 	    printf(error, "'infers ac' requires a visible predicate element/3%n", []),
 	    fail
 	).
-
-    check_solver_loaded(Language, Solver) :-
-	atom(Solver),
-	( current_module(Solver) -> true ;
-	    printf(error, "'infers %w' can't be used without loading lib(%w)%n",
-		    [Language, Solver]),
+is_a_language(Solver, _) :- atom(Solver), !,
+	ensure_loaded(library(Solver)),
+	( get_flag(msg/3, defined, on)@Solver -> true ;
+	    printf(error, "The '%w' solver does not support generalized propagation.%n", [Solver]),
 	    fail
+	).
+is_a_language(Solvers, Module) :-
+	is_list(Solvers),
+	( foreach(Solver,Solvers), param(Module) do
+	    is_a_language(Solver, Module)
 	).
 
 

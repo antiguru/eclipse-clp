@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.7 2008/06/19 18:02:30 jschimpf Exp $
+# $Id: Makefile.in,v 1.8 2008/06/20 13:41:17 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -789,17 +789,28 @@ new_bootfiles:
 bootfiles:	$(BOOT_ECOS)
 
 
-
 $(SEPIA)/lib/kernel.eco:	$(KERNEL_PARTS:%=$(SEPIA)/pl/%)
-	$(STABLE_ECLIPSE) -e 'unlock(sepia_kernel,"Sepia"),compile("$(SEPIA)/lib/kernel.pl",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",load:none,output:eco])'
+	if test -x $(STABLE_ECLIPSE) ; then \
+	    $(STABLE_ECLIPSE) -e 'unlock(sepia_kernel,"Sepia"),compile("$(SEPIA)/lib/kernel.pl",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",load:none,output:eco])'; \
+	else \
+	    touch $@; echo "WARNING: $@ out-of-date, cannot remake without stable eclipse"; \
+	fi 
 	@/bin/chmod $(PERM) $@
 
 $(SEPIA)/lib/%.eco:	$(SEPIA)/pl/%.ecl
-	$(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'
+	if test -x $(STABLE_ECLIPSE) ; then \
+	    $(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'; \
+	else \
+	    touch $@; echo "WARNING: $@ out-of-date, cannot remake without stable eclipse"; \
+	fi 
 	@/bin/chmod $(PERM) $@
 
 $(SEPIA)/lib/%.eco:	$(SEPIA)/pl/%.pl
-	$(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'
+	if test -x $(STABLE_ECLIPSE) ; then \
+	    $(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'; \
+	else \
+	    touch $@; echo "WARNING: $@ out-of-date, cannot remake without stable eclipse"; \
+	fi 
 	@/bin/chmod $(PERM) $@
 
 

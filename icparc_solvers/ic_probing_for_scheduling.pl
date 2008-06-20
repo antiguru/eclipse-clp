@@ -25,7 +25,7 @@
 %
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Mark Wallace, IC-Parc
-% Version:      $Id: ic_probing_for_scheduling.pl,v 1.1 2006/09/23 01:53:48 snovello Exp $
+% Version:      $Id: ic_probing_for_scheduling.pl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
 %
 %       Many thanks to Hani El Sakkout, on whose ideas this search
 %       implementation is based, and on whose benchmarks it was tested.
@@ -63,7 +63,7 @@ probe_sched(
 	+ Starts,         
 	+ Durations,
 	+ Resources,
-	++MaxResource,
+	+MaxResource,
 	? CostFunction
         )
 
@@ -282,7 +282,7 @@ max_cons(List,Var,ConsList) :-
 
 :- comment(summary, "Probing for Scheduling").
 :- comment(author, "Mark Wallace, Hani El Sakkout").
-:- comment(date, "$Date: 2006/09/23 01:53:48 $").
+:- comment(date, "$Date: 2008/06/20 13:41:14 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("
@@ -375,14 +375,14 @@ fun_to_cons_var(abs(X-10)+abs(Y-3),ConsList,Var)
 :- comment(probe_sched/5, [ 
     summary: "Find a resource-feasible schedule that minimises the
 cost function",
-    amode:probe_sched(+,+,+,++,?),
+    amode:probe_sched(+,+,+,+,?),
     args:["Starts": " a list of (n) task start times (integers or
 finite domain variables)",
           "Durations":"a list of (n) task durations (integers or
 finite domain variables)",
           "Resources":"a list of (n) task resource needs (integers or 
 finite domain variables)",
-          "MaxResource":"The available resource, not to be exceeded",
+          "MaxResource":"The available resource, not to be exceeded (integer)",
           "CostFun":"An expression involving start times and durations
 to be minimised"
         ],

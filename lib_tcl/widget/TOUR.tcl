@@ -1,6 +1,6 @@
 #!/bin/sh
 # The next line is executed by /bin/sh, but not tcl \
-exec wish8.0 $0 ${1+"$@"}
+exec wish $0 ${1+"$@"}
 
 # tour --
 #

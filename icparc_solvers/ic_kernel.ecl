@@ -166,6 +166,7 @@
 	reals/1,		% reals(?Vars)
 	integers/1,		% integers(?Vars)
 	is_solver_var/1,	% is_solver_var(?Var)
+	is_exact_solver_var/1,	% is_exact_solver_var(?Var)
 	is_solver_type/1,	% is_solver_type(?Var)
 	get_solver_type/2,	% get_solver_type(?Var, -Type)
 	get_bounds/3,		% get_bounds(?Var, -Lwb, -Upb)
@@ -200,6 +201,7 @@
 	set_var_type/2,		% set_var_type(?Var, ++Type)
 	impose_min/2,		% impose_min(?Var, ++Bound)
 	impose_max/2,		% impose_max(?Var, ++Bound)
+	impose_domain/2,	% impose_domain(?X, ?Y)
 	impose_bounds/3,	% impose_bounds(?X, ++Lo, ++Hi)
 	exclude/2,		% exclude(?Var, ++Val), Var & Val ints
 	exclude_range/3,	% exclude_range(?Var, ++Lo, ++Hi), all ints
@@ -682,6 +684,38 @@ exclude_range(X, Lo, Hi) :-
 
 
     %
+    % impose_domain(?X, ?Y)
+    %	Imposes the domain of Y onto X.  Like X=Y, but Y is unaffected.
+    %   Lazy person's implementation, basically doing copy_term(Y,T),X=T.
+    %
+    %   This does not call wake/0.  If that is wanted, one can simply
+    %   use normal unification, i.e. X=T instead of unify_any_ic(X, T)
+    %
+impose_domain(X, Y{ic:AttrY}) ?- !,
+	impose_domain(X, Y, AttrY).
+impose_domain(_X, Y) :-
+	var(Y).
+impose_domain(X, Y) :-
+	nonvar(Y),
+	X = Y.
+
+    impose_domain(_X, _Y, AttrY) :-
+    	var(AttrY).
+    impose_domain(X, Y, AttrY) :-
+    	nonvar(AttrY),
+	copy_ic_term(Y, T, AttrY),
+	unify_any_ic(X, T).
+    	
+    % Specialised unification:
+    % - T is assumed to be a domain-only ic variable (no alias, no delays)
+    % - we don't call wake/0
+    unify_any_ic(X, T) :-
+    	free(X), !, X = T.
+    unify_any_ic(X, _T{ic:Attr}) ?-
+	unify_ic(X, Attr, _SuspAttr).	% cannot handle free(X) !
+
+
+    %
     % impose_bounds(?X, ++Lo, ++Hi)
     %	The set_bounds/3 handler for the IC attribute.  Simply imposes the
     %	bounds Lo and Hi on the IC variable X.
@@ -716,6 +750,14 @@ impose_bounds(X, Lo, Hi) :-
     %	Succeeds iff X is a variable with the IC attribute.
     %
 is_solver_var(_{ic:(ic with [])}) :- -?-> true.
+
+    %
+    % is_exact_solver_var(?X)
+    %	Succeeds iff X is a variable with the IC attribute,
+    %	has integer type and sufficiently small bounds to be precise.
+    %
+is_exact_solver_var(_{ic:(ic with [var_type:integer,lo:L,hi:H])}) :- -?->
+    -9.0e15 =< L, H =< 9.0e15.	% about -2^52..2^52 double precision
 
     %
     % is_solver_type(?X)
@@ -832,7 +874,7 @@ wake_and_reget_integer_bounds_if_needed(1, X, _, _, Lo, Hi) :-
     %	Returns the (logarithmic) median of the bounds of X.
     %
 get_median(X, Median) :-
-	get_bounds(X, Lo, Hi),
+	get_float_bounds(X, Lo, Hi),
 	ria_binop(logsplit, Lo, Hi, 0.0, 0.5, Median, _).
 
     %
@@ -1319,14 +1361,13 @@ msg(X,Y{ic:_AttrY},Msg):-  % (Const/Var) + Meta
 	true,                  % compiler bug
 	msg_meta_any(Y,AttrY,X,Msg).
 msg(X,Y,Msg):-   % Const + (Const/Var)
-	nonvar(X),!,
+	number(X),!,
 	msg_const_any(X,Y,Msg).
-msg(_X, _Y, Msg) :-    % Var + (Const/Var)
-	ic_over(Msg, real, -1.0Inf, 1.0Inf).
+msg(_X, _Y, _Msg).    % Var + (Const/Var)
 
 
-msg_const_any(X,Y,Msg):-     % Const + Const
-	nonvar(Y),!,
+msg_const_any(X,Y,Msg):-     % NumConst + NumConst
+	number(Y),!,
 	get_solver_type(X, XT),
 	get_solver_type(Y, YT),
 	get_bounds(X, XL, XH),
@@ -1360,8 +1401,7 @@ msg_const_any(X,Y,Msg):-     % Const + Const
 	;
 		  ic_over(Msg, real, Lo, Hi)
 	).
-msg_const_any(_X, _Y, Msg) :-     % Const + Var
-	ic_over(Msg, real, -1.0Inf, 1.0Inf).
+msg_const_any(_X, _Y, _Msg).    % Const + Free/NonNum
 
 
 msg_non_overlap(XL, XH, YL, YH, Lo, Hi, Msg):-
@@ -1448,8 +1488,8 @@ msg_meta_any(X,AttrX,Y{ic:AttrY},Msg):-  % Meta + Meta
 	;
 	          ic_over(Msg, real, Lo, Hi)
 	).
-msg_meta_any(X,AttrX,Y,Msg):-  % Meta + Const
-	nonvar(Y),!,
+msg_meta_any(X,AttrX,Y,Msg):-  % Meta + NumConst
+	number(Y),!,
 	get_solver_type(X, XT),
 	get_solver_type(Y, YT),
 	get_bounds(X, XL, XH),
@@ -1495,8 +1535,7 @@ msg_meta_any(X,AttrX,Y,Msg):-  % Meta + Const
 	;
 		  ic_over(Msg, real, Lo, Hi)
 	).
-msg_meta_any(_X,_AttrX,_Y,Msg) :-  % Meta + Var
-	ic_over(Msg, real, -1.0Inf, 1.0Inf).
+msg_meta_any(_X,_AttrX,_Y,_Msg).  % Meta + Free/NonNum
 
 
 
@@ -1801,7 +1840,7 @@ which also uses the common numeric variable format provided by IC.</P>
 	"Bound": "Lower bound (number)"
     ],
     summary: "Update (if required) the lower bound of Var.",
-    see_also: [impose_max/2, impose_bounds/3],
+    see_also: [impose_max/2, impose_bounds/3, impose_domain/2, exclude/2, exclude_range/3],
     desc: html("<P>
    Primitive for updating the lower bound of Var so that it is at least
    Bound.  A bound update on a variable may fail (when the update empties
@@ -1858,7 +1897,7 @@ No (0.00s cpu)
 	"Bound": "Upper bound (number)"
     ],
     summary: "Update (if required) the upper bound of Var.",
-    see_also: [impose_min/2, impose_bounds/3],
+    see_also: [impose_min/2, impose_bounds/3, impose_domain/2, exclude/2, exclude_range/3],
     desc: html("<P>
    Primitive for updating the upper bound of Var so that it is at most
    Bound.  A bound update on a variable may fail (when the update empties
@@ -1908,6 +1947,70 @@ No (0.00s cpu)
 
 %---------------------------------------------------------------------
 
+:- comment(impose_domain/2, [
+    amode: impose_domain(?, ?),
+    args: [
+    	"Var":   "Variable or number",
+	"DomVar": "Variable or number"
+    ],
+    summary: "Restrict (if required) the domain of Var t othe domain of DomVar.",
+    see_also: [impose_min/2, impose_max/2, impose_bounds/3, exclude/2, exclude_range/3],
+    desc: html("<P>
+   Primitive for restricting the domain of Var to the domain of DomVar.
+   Any values in the domain of Var, which are not also in the domain of
+   DomVar, are removed.  DomVar remains unaffected.  
+   The domain update on Var may fail (when the update empties the domain),
+   succeed (possibly updating the variable's domain), or instantiate the
+   variable (in the case where the domain gets restricted to a singleton
+   value).  Note that if DomVar's type is integer, the integrality will
+   be imposed on Var as well as the domain values.</P><P>
+
+   Note that this predicate is intended for use only in implementing
+   constraint propagators, and should not be called from ordinary user code.
+   The waking behaviour is the same as discussed for impose_min/2 and
+   impose_max/2.  Apart from this, the effect is similar to unifying
+   Var with a copy of DomVar.
+   </P>
+"),
+    eg: "\
+    ?- X::1..9, Y::5..7, impose_domain(X, Y).
+    X = X{5 .. 7}
+    Y = Y{5 .. 7}
+    Yes (0.00s cpu)
+
+    ?- X::1..9, impose_domain(X, 7).
+    X = 7
+    Yes (0.00s cpu)
+
+    ?- X::1..9, Y::4.1..7.5, impose_domain(X, Y).
+    X = X{5 .. 7}
+    Y = Y{4.1 .. 7.5}
+    Yes (0.00s cpu)
+
+    ?- X::1.0..9.0, Y::5..7, impose_domain(X, Y).
+    X = X{5 .. 7}
+    Y = Y{5 .. 7}
+    Yes (0.00s cpu)
+
+    ?- X::1..3, Y::5..7, impose_domain(X, Y).
+    No (0.00s cpu)
+
+    ?- Y::1..5, impose_domain(3, Y).
+    Y = Y{1 .. 5}
+    Yes (0.00s cpu)
+
+    ?- Y::1..5, impose_domain(6, Y).
+    No (0.00s cpu)
+
+    ?- Y::1..5, impose_domain(X, Y).
+    Y = Y{1 .. 5}
+    X = X{1 .. 5}
+    Yes (0.00s cpu)
+"
+]).
+
+%---------------------------------------------------------------------
+
 :- comment(impose_bounds/3, [
     amode: impose_bounds(?, ++, ++),
     args: [
@@ -1940,7 +2043,7 @@ No (0.00s cpu)
 	"Excl": "Integer value to exclude"
     ],
     summary: "Exclude the element Excl from the domain of Var.",
-    see_also: [exclude_range/3],
+    see_also: [exclude_range/3, impose_min/2, impose_max/2, impose_domain/2],
     desc: html("<P>
    Primitive for excluding an element from the domain of an integer
    variable.  The call may fail (when Var is the same integer as Excl),
@@ -1984,7 +2087,7 @@ Yes (0.00s cpu)
 	"Hi":  "Integer upper bound of range to exclude"
     ],
     summary: "Exclude the elements Lo..Hi from the domain of Var.",
-    see_also: [exclude/2],
+    see_also: [exclude/2, impose_min/2, impose_max/2, impose_domain/2],
     desc: html("<P>
    Primitive for excluding the integers between Lo and Hi (inclusive) from
    the domain of an integer variable.  The call may fail (when the domain of
@@ -2031,14 +2134,14 @@ args:  ["Var1": "A variable or number",
 	"Var2": "A variable or number",
 	"MSG": "Most specific generalisation (variable)"
        ],
-summary: "Computes the most specific generalisation of the intervals in Var1 and Var2.",
+summary: "Computes the most specific generalisation of Var1 and Var2 that is expressible with ic variables.",
 desc: html("\
 <P>
    The most specific generalisation of two intervals is computed and
    returned as MSG.  MSG will interval over the smallest interval enclosing
    the input intervals, and have the more general type of the input types.
-   If either Var1 or Var2 have not been declared before, it will be turned
-   into an unrestricted real variable.
+   If either Var1 or Var2 are domain-less, or have values that cannot be
+   expressed as ic-domains, MSG remains unbound.
 </P>")
 ]).
 

@@ -1,3 +1,6 @@
+****More detailed information for building from source are given in the file
+document/internal/SetupGuide.doc.
+ 
 Building ECLiPSe
 ----------------
 
@@ -68,7 +71,7 @@ The following options are relevant:
  --help
 
  --prefix		where to install everything (not fully supported
- 			at the moment)
+ 			at the moment - use RUNME after compile instead)
 
  --host=i386-mingw32msvc	cross-configure for i386_nt
 
@@ -160,4 +163,12 @@ Known Problems
 
 Some Gnu-make versions older than 3.80 don't work properly with the
 Makefile in icparc_solvers.
+
+Installation using RUNME
+------------------------
+
+After successfully compiling ECLiPSe, you can install your ECLiPSe binaries 
+into a different location from where you compiled it by running RUNME.
+RUNME will also allow you to configure executable files such as tkeclipse
+to your local settings.
 

@@ -45,20 +45,18 @@
 
 %\date{931214}
 
-The {\tt chr} library implements constraint handling rules
-\index{constraint handling rules} (\chrs)\index{CHR@{\sf CHR}}.
-It includes a compiler, which translates \chr\ programs into
-\eclipse\ programs, and a runtime system.
+The {\tt ech} library implements constraint handling rules
+\index{constraint handling rules} (\chrs)\index{CHR@{\sf CHR}},
+which can be mixed with normal \eclipse code.
+%It includes a compiler, which translates \chr\ programs into
+%\eclipse\ programs, and a runtime system.
 %A second library ({\tt
 %chr_opium.op}) is provided for the debugger which uses Opium, the
 %high-level debugging environment of \eclipse.  
 Several constraint handlers are
-provided in example files in the directory {\tt chr}.
+provided in example files in the directory {\tt ech}.
 
-The current {\tt chr} library has now been modified to function correctly
-without the Opium debugger, which is no longer supported. In addition, the
-Prolog code produced by the {\tt chr} command is now more readable.
-
+This library will replace the older {\tt chr} library. 
 In addition, there is now an experimental extended implementation of {\chrs}. 
 This extended implementation is faster than the existing {\tt chr} library,
 and contains some extensions and changes. This is described in 
@@ -70,9 +68,8 @@ section~\ref{newchr}.
 CHR home page \ahrefurl{\url{http://www.cs.kuleuven.ac.be/~dtai/projects/CHR/}})
 \cite{fru92}
 are a high-level language
-extension to write {\em user-defined} constraints. \chrs\ are
-essentially a committed-choice language consisting of guarded rules with
-multiple heads.
+extension to write {\em user-defined} constraints. \chrs\ 
+consists of guarded rules with multiple heads.
 %embedded in %a given host language (Prolog, Lisp, ML), in this case \eclipse.
 
 The high-level \chrs\ are an excellent tool for {\em rapid prototyping} and

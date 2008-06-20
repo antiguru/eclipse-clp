@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.4 2008/06/13 00:42:39 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.5 2008/06/20 13:41:17 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -46,16 +46,22 @@
  *
  *	Parse:		as:				syntax_option:
  *
- *	X[Args]		subscript(X, Args)		no_array_subscripts
- *	f(a)[Args]	subscript(X, Args)		no_array_subscripts
+ *	X[Args]		subscript(X, [Args])		no_array_subscripts
+ *	f(a)[Args]	subscript(X, [Args])		no_array_subscripts
+ *	a[Args]		subscript(a, [Args])		atom_subscripts
+ *	(...)[Args]	subscript(..., [Args])		general_subscripts
+ *	[Xs][Args]	subscript([Xs], [Args])		general_subscripts
+ *	Subscript[Args]	subscript(Subscript, [Args])	general_subscripts
  *
  *	X{Args}		X 'with attributes' [Args]	no_attributes
  *	a{Args}		a with [Args]			no_curly_arguments
  *	a{}		a with []			no_curly_arguments
+
+ *	{Args}		{}(Args)			not curly_args_as_list
+ *	{Args}		{}([Args])			curly_args_as_list
  *
  *	X(Args)		apply(X, [Args])		var_functor_is_apply
  *
- *	a[Args]		unused
  *	f(a){Args}	unused
  *	f(a)(Args)	unused
  *	123[Args]	unused
@@ -323,6 +329,8 @@ static int
 #define BAR_TERMINATES		2	/* list elements only */
 #define SUBSCRIPTABLE		4	/* term can be followed by subscript */
 #define PREBINFIRST		8	/* first argument of prefix binary op */
+#define FZINC_SUBSCRIPTABLE	16	/* subscripts after atoms */
+#define ZINC_SUBSCRIPTABLE	32	/* subscripts after almost everything */
 
 
 /*
@@ -1114,7 +1122,7 @@ _treat_as_functor_:
 	/* treat as a simple atom */
 	Build_Atom_Or_Nil(&term, did0, pos);
 	*result = term;
-	return _read_after_term(pd, context_prec, context_flags, 0, result);
+	return _read_after_term(pd, context_prec, context_flags|FZINC_SUBSCRIPTABLE|ZINC_SUBSCRIPTABLE, 0, result);
 
 
     case NUMBER:
@@ -1137,7 +1145,7 @@ _make_number_:
     	_build_list_from_token(pd, &term);
 	Next_Token(pd);
 	*result = term;
-	return _read_after_term(pd, context_prec, context_flags, 0, result);
+	return _read_after_term(pd, context_prec, context_flags|ZINC_SUBSCRIPTABLE, 0, result);
 
 
     case REFERENCE:			/* general variable */
@@ -1190,7 +1198,7 @@ _after_variable_:
 		status = _read_sequence_until(pd, &pw[2], ')');
 		Return_If_Error(status);
 		*result = term;
-		return _read_after_term(pd, context_prec, context_flags, 0, result);
+		return _read_after_term(pd, context_prec, context_flags|ZINC_SUBSCRIPTABLE, 0, result);
 	    }
 	}
 	return _read_after_term(pd, context_prec, context_flags|SUBSCRIPTABLE, 0, result);
@@ -1215,6 +1223,7 @@ _after_variable_:
 		Return_If_Error(status);
 	    }
 	    *result = term;
+	    context_flags |= ZINC_SUBSCRIPTABLE;
 	}
     	else if (IsChar(pd, '('))
 	{
@@ -1228,6 +1237,7 @@ _after_variable_:
 	    	return UNCLOSBR;
 	    Next_Token(pd);
 	    Move_Pword(&term, result);	/* could be a self-ref! */
+	    context_flags |= ZINC_SUBSCRIPTABLE;
 	}
     	else if (IsChar(pd, '{'))
 	{
@@ -1244,13 +1254,22 @@ _after_variable_:
 		/* term in curly brackets: parse as {}/1 structure */
 		pword *pw;
 		Build_Struct(&term, pw, d_.nilcurbr1, pos);
-		status = _read_next_term(pd, 1200, 0, &pw[1]);
-		Return_If_Error(status);
-		if (!IsClass(pd, CLOSING_SOLO))
-		    return UNEXPECTED;
-		if (!IsChar(pd, '}'))
+		if (pd->sd->options & CURLY_ARGS_AS_LIST)
+		{
+		    /* {a,b,c} is read as {}([a,b,c]) */
+		    status = _read_sequence_until(pd, &pw[1], '}');
+		}
+		else
+		{
+		    /* {a,b,c} is read as {}(','(a,','(b,c))) */
+		    status = _read_next_term(pd, 1200, 0, &pw[1]);
+		    Return_If_Error(status);
+		    if (!IsClass(pd, CLOSING_SOLO))
+			return UNEXPECTED;
+		    if (!IsChar(pd, '}'))
 			return UNCLOSBR;
-		Next_Token(pd);
+		    Next_Token(pd);
+		}
 	    }
 	    *result = term;
 	}
@@ -1286,7 +1305,7 @@ _after_variable_:
 
 static int
 _read_after_term(parse_desc *pd, int context_prec,
-	int context_flags,	/* terminators, SUBSCRIPTABLE */
+	int context_flags,	/* terminators, allowed subscripts */
 	int lterm_prec,
 	pword *result)		/* in: lterm, out: result */
 {
@@ -1305,7 +1324,7 @@ _read_after_term(parse_desc *pd, int context_prec,
 	case QIDENTIFIER:
 	    did0 = enter_dict_n(TokenString(pd), TokenStringLen(pd), 0);
 _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
-	    context_flags &= ~SUBSCRIPTABLE;
+	    context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|ZINC_SUBSCRIPTABLE);
 	    in_op = visible_infix_op(did0, pd->module, pd->module_tag, &status);
 	    post_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status);
 	    if (in_op && !(post_op && _delimiter_follows(pd)))
@@ -1372,8 +1391,10 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 
 
 	case SOLO:
-	    if (IsChar(pd, '[') && (context_flags & SUBSCRIPTABLE)
-	    			&& !(pd->sd->options & NO_ARRAY_SUBSCRIPTS))
+	    if (IsChar(pd, '[') && !(pd->sd->options & NO_ARRAY_SUBSCRIPTS)
+	    	&& ((context_flags & SUBSCRIPTABLE) ||
+		    (context_flags & FZINC_SUBSCRIPTABLE) && (pd->sd->options & ATOM_SUBSCRIPTS) ||
+		    (context_flags & ZINC_SUBSCRIPTABLE) && (pd->sd->options & GENERAL_SUBSCRIPTS)))
 	    {
 		/* translate Term[Args] into subscript(Term, [Args]) */
 		pword *pw;
@@ -1382,8 +1403,9 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		Next_Token(pd);
 		status = _read_sequence_until(pd, &pw[2], ']');
 		Return_If_Error(status);
-		/*return _read_after_term(pd, context_prec, context_flags & ~SUBSCRIPTABLE, term, 0, result);*/
-		context_flags &= ~SUBSCRIPTABLE; *result = term; lterm_prec = 0;
+		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE);
+		/*return _read_after_term(pd, context_prec, context_flags, term, 0, result);*/
+		*result = term; lterm_prec = 0;
 		break;	/* tail recursion */
 	    }
 	    return UNEXPECTED;

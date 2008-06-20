@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.4 2007/07/03 00:10:29 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.5 2008/06/20 13:41:17 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -110,6 +110,7 @@ static int p_date(value v, type t),
 	p_argc(value v0, type t0),
 	p_argv(value v0, type t0, value v1, type t1),
 	p_cd(value v, type t),
+	p_cd_if_possible(value v, type t),
 	p_expand_filename(value vin, type tin, value vout, type tout),
 	p_os_file_name(value vecl, type tecl, value vos, type tos),
 	p_getcwd(value sval, type stag),
@@ -186,6 +187,7 @@ bip_misc_init(int flags)
 	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
 	(void) built_in(in_dict("getcwd", 1), 	p_getcwd,  B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("cd", 1),		p_cd, 	B_SAFE);
+	(void) built_in(in_dict("cd_if_possible", 1),	p_cd_if_possible, 	B_SAFE);
 	(void) built_in(in_dict("set_timer", 2), p_set_timer, 	B_SAFE);
 	(void) built_in(in_dict("get_timer", 2),
 				p_get_timer,		B_UNSAFE|U_SIMPLE);
@@ -730,6 +732,9 @@ p_pathname(value sval, type stag, value pathval, type pathtag, value vfile, type
 	Check_Output_String(tfile);
 	t = p = path = expand_filename(path, fullname);
 
+	if (path[0] == '/' && path[1] == '/')
+	    p = &path[2];
+
 	while (c = *p++)
 		if (c == '/' && *p)	/* we ignore trailing '/' */
 			path = p;
@@ -828,6 +833,24 @@ p_cd(value v, type t)
 	}
 	Succeed_;
 }
+
+/* moved into C from ECLiPSe for compatibility with Windows Vista, where
+   checking that a directory has executable flag set does not work
+*/
+static int
+p_cd_if_possible(value v, type t)
+{
+	char   *name;
+	char	buf[MAX_PATH_LEN];
+
+	Get_Name(v,t,name)
+	name = expand_filename(name, buf);
+	if (ec_chdir(name)) {
+	    Fail_;
+	}
+	Succeed_;
+}
+
 
 static int
 p_all_times(value vuser, type tuser, value vsys, type tsys, value vreal, type treal)
@@ -1419,6 +1442,7 @@ _access_:
 	if (!ec_access(name, acc)) {
 	    Return_Unify_Atom(vv, vt, d_.on)
 	} else {
+	    errno = 0;
 	    Return_Unify_Atom(vv, vt, d_.off)
 	}
 

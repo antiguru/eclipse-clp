@@ -21,7 +21,7 @@
 // END LICENSE BLOCK
 
 //Title:        Java/ECLiPSe interface
-//Version:      $Id: OutOfProcessEclipse.java,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
+//Version:      $Id: OutOfProcessEclipse.java,v 1.3 2008/06/20 13:41:12 jschimpf Exp $
 //Author:       Josh Singer
 //Company:      Parc Technologies
 //Description:  ECLiPSe engine run on local machine, separate process
@@ -215,7 +215,7 @@ public class OutOfProcessEclipse implements EclipseConnection, EclipseEngine
     File librarySubdir =
       Platform.getInstance().getLibrarySubdirectory(eclipseDir);
 
-    if (executableSubdir.exists())
+    if (!executableSubdir.equals(librarySubdir) && executableSubdir.exists())
     {
 	// Eclipse has been fully installed, and an 'eclipse' script exists:
 	// run the script because it sets some potentially useful environment

@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: generic_sets.ecl,v 1.1 2006/09/23 01:53:37 snovello Exp $
+% Version:	$Id: generic_sets.ecl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
 %
 %	Many thanks to Neng-Fa Zhou, on whose ideas this solver
 %	implementation is based. We started work on this solver
@@ -676,8 +676,8 @@ unify_meta_set(XSetAttr, YSetAttr, YSuspAttr) :- nonvar(XSetAttr),
 	    suspend(sync_attributes(YSetAttr, XAddEvents, XRemEvents),
 	    	2, [X->add,X->rem], Susp1),
 	    add_attribute(DummyY, YSetAttr, int_sets),
-	    init_event_receiver(added of int_sets, YSetAttr, Susp1, YAddEvents),
-	    init_event_receiver(removed of int_sets, YSetAttr, Susp1, YRemEvents),
+	    init_event_receiver(added of int_sets, YSetAttr, Susp2, YAddEvents),
+	    init_event_receiver(removed of int_sets, YSetAttr, Susp2, YRemEvents),
 	    suspend(sync_attributes(XSetAttr, YAddEvents, YRemEvents),
 	    	2, [DummyY->add,DummyY->rem], Susp2)
 
@@ -1876,7 +1876,7 @@ initial_nonmember_events(XAttr, YAttr, ZAttr, Susp, Receiver) :-
 %----------------------------------------------------------------------
 
 :- comment(author, "Joachim Schimpf, Neng-Fa Zhou").
-:- comment(date, "$Date: 2006/09/23 01:53:37 $").
+:- comment(date, "$Date: 2008/06/20 13:41:14 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("

@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.5 2008/06/18 12:37:25 jschimpf Exp $
+# $Id: Makefile.in,v 1.6 2008/06/20 13:41:12 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -19,6 +19,7 @@ install_cross:	make_sepia \
 		make_icparc_solvers \
 		make_javainterface \
 		make_visualisation \
+		make_zincinterface \
 		make_oci
 
 # include subsystems that can only be made if we are building on target
@@ -65,6 +66,10 @@ make_javainterface:	make_bin
 make_visualisation:	make_bin make_contrib
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/Visualisation; $(MAKE) -f Makefile.$(ARCH) install)
+
+make_zincinterface:	make_bin make_icparc_solvers make_ecrc_solvers
+	@echo ======== $@ ========
+	@(cd $(top_srcdir)/ZincInterface; $(MAKE) -f Makefile.$(ARCH) install)
 
 make_oci:		make_bin
 	@echo ======== $@ ========
@@ -150,7 +155,9 @@ clean_subdirs:
 	# (cd $(top_srcdir)/documents; $(MAKE) clean)
 	(cd $(top_srcdir)/icparc_solvers; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/JavaInterface; $(MAKE) -f Makefile.$(ARCH) clean)
+	(cd $(top_srcdir)/ZincInterface; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/Visualisation; $(MAKE) -f Makefile.$(ARCH) clean)
+	(cd $(top_srcdir)/Oci; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/ecrc_solvers; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/pt_libraries; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/Contrib; $(MAKE) -f Makefile.$(ARCH) clean)
@@ -174,5 +181,7 @@ archclean_subdirs:
 	# (cd $(top_srcdir)/documents; $(MAKE) archclean)
 	(cd $(top_srcdir)/icparc_solvers; $(MAKE) -f Makefile.$(ARCH) archclean)
 	(cd $(top_srcdir)/JavaInterface; $(MAKE) -f Makefile.$(ARCH) archclean)
+	(cd $(top_srcdir)/ZincInterface; $(MAKE) -f Makefile.$(ARCH) archclean)
 	(cd $(top_srcdir)/Visualisation; $(MAKE) -f Makefile.$(ARCH) archclean)
+	(cd $(top_srcdir)/Oci; $(MAKE) -f Makefile.$(ARCH) archclean)
 

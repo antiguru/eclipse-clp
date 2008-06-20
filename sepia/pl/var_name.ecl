@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: var_name.ecl,v 1.1 2006/09/23 01:55:40 snovello Exp $
+% Version:	$Id: var_name.ecl,v 1.2 2008/06/20 13:41:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(var_name).
@@ -107,7 +107,13 @@ set_a_var_name(V, BaseName, C0, C) :-
 
 valid_var_name(BaseName) :-
 	string_code(BaseName, 1, First),
-	(First >= 0'A, First =< 0'Z -> true ; set_bip_error(6)).
+	get_chtab(First, Class),
+	var_class(Class).
+
+    var_class(underline) :- !.
+    var_class(upper_case) :- !.
+    var_class(_) :- set_bip_error(6).
+
 
 has_var_name(_{var_name:Attr}) ?-
 	nonvar(Attr).

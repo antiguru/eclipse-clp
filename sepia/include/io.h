@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: io.h,v 1.2 2007/07/03 00:10:28 jschimpf Exp $
+ * VERSION	$Id: io.h,v 1.3 2008/06/20 13:41:15 jschimpf Exp $
  */
 
 /*
@@ -287,6 +287,7 @@ Extern void		my_io_aport();
 
 Extern	int	ec_pwrite ARGS((int,int,stream_id,value,type,int,int,dident,type));
 Extern	int	ec_tty_in ARGS((stream_id));
+Extern	int	ec_tty_out ARGS((stream_id, int));
 Extern	int	ec_tty_outs ARGS((stream_id, char*, int));
 Extern	int	ec_seek_stream ARGS((stream_id,long,int));
 Extern	int	ec_stream_at ARGS((stream_id,long*));

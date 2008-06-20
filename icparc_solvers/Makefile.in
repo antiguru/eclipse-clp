@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.9 2007/10/26 02:36:13 kish_shen Exp $
+# $Id: Makefile.in,v 1.10 2008/06/20 13:41:14 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -114,7 +114,9 @@ $(ARCH)/seosisymclp.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h
 #----------------------------------------------------------------------
 
 CPLEX90_SUPPORT_i386_nt = $(THIRDPARTY)/cplex90/bin/i386_nt/cplex90.dll
-CPLEX101_SUPPORT_i386_nt = $(THIRDPARTY)/cplex101/bin/i386_nt/cplex101.dll
+CPLEX102_SUPPORT_i386_nt = $(THIRDPARTY)/cplex102/bin/i386_nt/cplex102.dll
+CPLEX110_SUPPORT_i386_nt = $(THIRDPARTY)/cplex110/bin/i386_nt/cplex110.dll
+
 
 sparc_sunos5/secplex65.so: seplex.c eplex_params.h seplex.h
 	$(CC) -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex65 -c seplex.c
@@ -140,11 +142,17 @@ sparc_sunos5/secplex90.so: seplex.c eplex_params.h seplex.h
 	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
 	mv secplex.so sparc_sunos5/secplex90.so
 
-sparc_sunos5/secplex101.so: seplex.c eplex_params.h seplex.h
-	$(CC) -DCPLEX=10 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex101/include/ilcplex -c seplex.c
-	$(CC) -G seplex.o $(THIRDPARTY)/cplex101/lib/sparc_sunos5/static_pic_mt/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+sparc_sunos5/secplex102.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=10 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex102/include/ilcplex -c seplex.c
+	$(CC) -G seplex.o $(THIRDPARTY)/cplex102/lib/sparc_sunos5/static_pic_mt/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
-	mv secplex.so sparc_sunos5/secplex101.so
+	mv secplex.so sparc_sunos5/secplex102.so
+
+sparc_sunos5/secplex110.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c seplex.c
+	$(CC) -G seplex.o $(THIRDPARTY)/cplex110/lib/sparc_sunos5/static_pic_mt/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d sparc_sunos5 ] || mkdir sparc_sunos5
+	mv secplex.so sparc_sunos5/secplex110.so
 
 i386_linux/secplex65.so: seplex.c eplex_params.h seplex.h
 	$(CC) -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex -c seplex.c
@@ -171,11 +179,17 @@ i386_linux/secplex90.so: seplex.c eplex_params.h seplex.h
 	mv secplex.so i386_linux/secplex90.so
 
 
-i386_linux/secplex101.so: seplex.c eplex_params.h seplex.h
-	$(CC) -DCPLEX=10 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex101/include/ilcplex -c seplex.c
-	$(CC) -shared seplex.o $(THIRDPARTY)/cplex101/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+i386_linux/secplex102.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=10 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex102/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex102/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
-	mv secplex.so i386_linux/secplex101.so
+	mv secplex.so i386_linux/secplex102.so
+
+i386_linux/secplex110.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex110/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d i386_linux ] || mkdir i386_linux
+	mv secplex.so i386_linux/secplex110.so
 
 i386_nt/secplex90.dll: seplex_cplex.def seplex.c eplex_params.h seplex.h
 	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c seplex.c
@@ -185,13 +199,21 @@ i386_nt/secplex90.dll: seplex_cplex.def seplex.c eplex_params.h seplex.h
 	cp $(CPLEX90_SUPPORT_i386_nt) i386_nt/
 	cp $(CPLEX90_SUPPORT_i386_nt) ../lib/i386_nt/
 
-i386_nt/secplex101.dll: seplex_cplex.def seplex.c eplex_params.h seplex.h
-	$(CC) -DCPLEX=10 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex101/include/ilcplex -c seplex.c
-	$(DYLD) $(DYNLDFLAGS)  seplex_cplex.def seplex.o $(THIRDPARTY)/cplex101/lib/i386_nt/stat_mda/cplex101.lib $(ECLIBS) -o secplex.dll
+i386_nt/secplex102.dll: seplex_cplex.def seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=10 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex102/include/ilcplex -c seplex.c
+	$(DYLD) $(DYNLDFLAGS)  seplex_cplex.def seplex.o $(THIRDPARTY)/cplex102/lib/i386_nt/cplex102.lib $(ECLIBS) -o secplex.dll
 	[ -d i386_nt ] || mkdir i386_nt
-	mv secplex.dll i386_nt/secplex101.dll
-	cp $(CPLEX101_SUPPORT_i386_nt) i386_nt/
-	cp $(CPLEX101_SUPPORT_i386_nt) ../lib/i386_nt/
+	mv secplex.dll i386_nt/secplex102.dll
+	cp $(CPLEX102_SUPPORT_i386_nt) i386_nt/
+	cp $(CPLEX102_SUPPORT_i386_nt) ../lib/i386_nt/
+
+i386_nt/secplex110.dll: seplex_cplex.def seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c seplex.c
+	$(DYLD) $(DYNLDFLAGS)  seplex_cplex.def seplex.o $(THIRDPARTY)/cplex110/lib/i386_nt/cplex110.lib $(ECLIBS) -o secplex.dll
+	[ -d i386_nt ] || mkdir i386_nt
+	mv secplex.dll i386_nt/secplex110.dll
+	cp $(CPLEX110_SUPPORT_i386_nt) i386_nt/
+	cp $(CPLEX110_SUPPORT_i386_nt) ../lib/i386_nt/
 
 x86_64_linux/secplex90.so: seplex.c eplex_params.h seplex.h
 	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c seplex.c
@@ -199,12 +221,23 @@ x86_64_linux/secplex90.so: seplex.c eplex_params.h seplex.h
 	[ -d x86_64_linux ] || mkdir x86_64_linux
 	mv secplex.so x86_64_linux/secplex90.so
 
-x86_64_linux/secplex101.so: seplex.c eplex_params.h seplex.h
-	$(CC) -DCPLEX=10 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c seplex.c
-	$(CC) -shared seplex.o $(THIRDPARTY)/cplex101/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+x86_64_linux/secplex102.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=10 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex102/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex102/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d x86_64_linux ] || mkdir x86_64_linux
-	mv secplex.so x86_64_linux/secplex101.so
+	mv secplex.so x86_64_linux/secplex102.so
 
+x86_64_linux/secplex110.so: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c seplex.c
+	$(CC) -shared seplex.o $(THIRDPARTY)/cplex110/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	mv secplex.so x86_64_linux/secplex110.so
+
+i386_macosx/secplex110.dylib: seplex.c eplex_params.h seplex.h
+	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c seplex.c
+	$(DYLD) $(DYNLDFLAGS) seplex.o $(THIRDPARTY)/cplex110/lib/i386_macosx/static_pic/libcplex.a $(ECLIBS) $(GMP_LD) -lIOKit -lpthread -o secplex.dylib
+	[ -d i386_linux ] || mkdir i386_linux
+	mv secplex.dylib i386_macosx/secplex110.dylib
 
 #----------------------------------------------------------------------
 # EPLEX/XPRESS
@@ -416,8 +449,8 @@ bug65: bug.c
 	$(CC) -g -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex bug.c /usr/local/cplex/libcplex.a  -lm -o bug65
 
 bugclp: bug.c
-	$(CXX) -DCOIN -DCOIN_USE_CLP -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) -I$(COINARCHDIR)/include -c coinplex.cpp
-	$(CC) coinplex.o $(COINARCHDIR)/lib/CbcBranchUser.o $(COINARCHDIR)/lib/CbcCompareUser.o -L$(COINARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ -DCOIN -DC_TO_COIN -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) bug.c -o bugclp
+	$(CXX) -DCOIN -DCOIN_USE_CLP -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
+	$(CC) coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ -DCOIN -DC_TO_COIN -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) bug.c -o bugclp
 
 
 

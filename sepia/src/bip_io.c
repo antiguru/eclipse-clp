@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.3 2007/07/03 00:10:29 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.4 2008/06/20 13:41:17 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1017,16 +1017,14 @@ p_tyo(value vs, type ts, value v, type t)
 {
     int		res;
     stream_id nst = get_stream_id(vs,ts, SWRITE, &res);
-    char c;
 
     if (nst == NO_STREAM) {
 	Bip_Error(res);
     }
 
     Check_Integer(t)
-    c = v.nint;
     Lock_Stream(nst);
-    res = ec_tty_outs(nst, &c,1);
+    res = ec_tty_out(nst, v.nint);
     Unlock_Stream(nst);
     if (res < 0) {
 	Bip_Error(res)
@@ -3570,16 +3568,18 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
     /* Close the (now inherited) child ends of the pipes in the parent */
     for(i=0; !(pipes[i].flags & EXEC_PIPE_LAST); ++i)
     {
-	switch(i) {
-	case 0:
-	    close(pipes[i].fd[0]);
-	    break;
-	case 1:
-	case 2:
-	    close(pipes[i].fd[1]);
-	    break;
-	default:	/* TODO: can we inherit the other handles? */
-	    Bip_Error(UNIMPLEMENTED);
+	if (pipes[i].flags) {
+	    switch(i) {
+	    case 0:
+		close(pipes[i].fd[0]);
+		break;
+	    case 1:
+	    case 2:
+		close(pipes[i].fd[1]);
+		break;
+	    default:	/* TODO: can we inherit the other handles? */
+		Bip_Error(UNIMPLEMENTED);
+	    }
 	}
     }
     pid = pi.dwProcessId;
@@ -3861,9 +3861,17 @@ _check_streams(value vstr, type tstr, struct pipe_desc *pipes)
 
 
 /*
- * Check the stream argument for exec/3. For null return 0, if atom
- * or variable return 1, if sigio(Atom_Or_Var) return 2. Also set
- * s to the proper stream argument.
+ * Check the stream argument for exec/3.
+ * For error, return negative error code
+ *
+ * For null return 0
+ * if atom or variable set EXEC_PIPE_CON
+ * if sigio(Atom_Or_Var) also set EXEC_PIPE_SIG
+ * Also set s to the proper stream argument.
+ *
+ * If io is nonzero, allow in(S), out(S), or either, depending on io.
+ * if in(Atom_Or_Var) also set EXEC_PIPE_IN in return code
+ * if out(Atom_Or_Var) also set EXEC_PIPE_OUT in return code
  */
 static int
 _check_stream(value v, type t, pword *s, int io)
@@ -3953,14 +3961,15 @@ _connect_pipes(struct pipe_desc *pipes)
 #endif
 
 static int
-_open_pipes(struct pipe_desc *pipes)
+_open_pipes(struct pipe_desc *allpipes)
 {
+    struct pipe_desc *pipes = allpipes;
     while (!(pipes->flags & EXEC_PIPE_LAST)) {
 	if (pipes->flags) {
 	    if (pipe(pipes->fd) == -1) {
 		Set_Errno;
 		pipes->flags |= EXEC_PIPE_LAST;
-		_close_pipes(pipes);
+		_close_pipes(allpipes);
 		return SYS_ERROR;
 	    }
 	}

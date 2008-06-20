@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
+ * $Id: os_support.c,v 1.4 2008/06/20 13:41:17 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -209,11 +209,37 @@ ec_os_fini(void)
 
 #ifdef _WIN32
 
+#ifndef R_OK
+#define R_OK	4
+#define W_OK	2
+#define X_OK	1
+#endif
+
 int
 ec_access(char *name, int amode)
 {
+    /* CAUTION: Windows _access() knows only R_OK and W_OK.
+     * http://msdn.microsoft.com/en-us/library/1w06ktdy.aspx
+     * To simulate X_OK check we use _stat() and check for _S_IEXEC mode,
+     * but even that is fake: it is set when the file name has a .exe
+     * extension, and is always set for directories.
+     * A cleaner implementation would probably use AccessCheck(),
+     * OpenThreadToken(), etc.
+     */
     char winname[MAX_PATH_LEN];
-    return _access(os_filename(name, winname), amode);
+
+    os_filename(name, winname);
+    if (_access(winname, amode & (R_OK|W_OK)))
+	return -1;
+    if (amode & X_OK)
+    {
+	struct _stat buf;
+	if (_stat(winname, &buf))
+	    return -1;
+	if (!(buf.st_mode & _S_IEXEC))
+	    return -1;
+    }
+    return 0;
 }
 
 int
@@ -392,15 +418,13 @@ expand_filename(char *in, char *out)
 
     switch(*inp)
     {
-#ifdef _WIN32
     case '/':
 	if (*++inp == '/')
-	{ /* preserve leading '//' under WIN32 */
+	{ /* preserve leading '//' for WIN32 */
 	    dir = aux;
 	    strcpy(dir, "/\0");
 	}
 	break;
-#endif
     case '~':
 	if (*++inp == '/' || *inp == '\0')
 	{
@@ -513,17 +537,26 @@ os_filename(char *in, char *out)
     char *eos;
     char *t = out;
 
-    /* interpret //?/ as a drive name and treat specially */
-    if (in[0] == '/' && in[1] == '/' && in[2] != 0 && in[3] == '/')
+    /* interpret //? as a drive name and treat specially */
+    if (in[0] == '/' && in[1] == '/' && in[2] != 0 && (in[3] == '/' || in[3] == 0))
     {
-	in += 2;			/* drop // */
-	*t++ = *in++;			/* copy drive letter */
+	*t++ = in[2];			/* copy drive letter */
 	*t++ = ':';			/* followed by : */
-	if (!in[1])
+	*t++ = '\\';
+	if (in[3]==0 || in[4]==0)
 	{
-	    /* special case //D/ -> D:\. rather than simply D:  (bug 465) */
-	    *t++ = '\\'; *t++ = '.'; *t = '\0';
+	    /* special case //D[/] -> D:\. rather than simply D:  (bug 465) */
+	    *t++ = '.'; *t = '\0';
 	    return out;
+	}
+	in += 4;
+    }
+    else if (*in == '/')		/* one or two non-trimmable slashes */
+    {
+	*t++ = '\\'; ++in;
+	if (*in == '/')
+	{
+	    *t++ = '\\'; ++in;
 	}
     }
     eos = t;

@@ -28,7 +28,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: sd.ecl,v 1.1 2006/09/23 01:53:54 snovello Exp $
+% Version:	$Id: sd.ecl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -37,7 +37,7 @@
 
 :- comment(summary, "Simple solver for constraints over unordered symbolic domains").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:53:54 $").
+:- comment(date, "$Date: 2008/06/20 13:41:14 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- lib(ordset).
@@ -177,6 +177,10 @@ exclude_value(Value, X{Attr}) ?-
 
 :- export is_solver_var/1.
 is_solver_var(_{sd{}}) ?- true.
+
+
+:- export is_exact_solver_var/1.
+is_exact_solver_var(_{sd{}}) ?- true.
 
 
 :- export is_solver_type/1.
@@ -974,6 +978,16 @@ outof(X, Left, Right) :-
     see_also:[(&::)/2,is_solver_type/1],
     desc:html("
 	Tests if the argument is a domain variable from this library.
+")]).
+
+:- comment(is_exact_solver_var/1, [
+    summary:"The argument is a domain variable",
+    amode:is_exact_solver_var(?),
+    args:["Term":"A term"],
+    see_also:[is_solver_var/1],
+    desc:html("
+	Tests if the argument is a domain variable from this library.
+	An alias for is_solver_var/1, used by lib(propia).
 ")]).
 
 :- comment(is_solver_type/1, [

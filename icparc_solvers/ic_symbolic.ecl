@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: ic_symbolic.ecl,v 1.2 2007/07/03 00:10:27 jschimpf Exp $
+% Version:	$Id: ic_symbolic.ecl,v 1.3 2008/06/20 13:41:14 jschimpf Exp $
 %
 % Todo:
 %  -	compile time transformation could do all symbolic->int mapping
@@ -45,7 +45,7 @@
 
 :- comment(summary, "Solver for constraints over ordered symbolic domains").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2007/07/03 00:10:27 $").
+:- comment(date, "$Date: 2008/06/20 13:41:14 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 
@@ -338,6 +338,13 @@ symbols_domain_indices_(Xs, Domain, Is, Module) :- Xs = [_|_], !,
 	check_domain(Domain, NoDom, Clash, symbols_domain_indices(Xs, Domain, Is), Module).
 symbols_domain_indices_(Xs, Domain, Is, Module) :-
 	error(5, symbols_domain_indices(Xs, Domain, Is), Module).
+
+
+:- export is_solver_var/1.
+is_solver_var(_{ic_symbolic{}}) ?- true.
+
+:- export is_exact_solver_var/1.
+is_exact_solver_var(_{ic_symbolic{}}) ?- true.
 
 
 %----------------------------------------------------------------------

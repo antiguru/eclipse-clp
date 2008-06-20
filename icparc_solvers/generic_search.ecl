@@ -27,7 +27,7 @@
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 %               Joachim Schimpf, IC-Parc
 %               Kish Shen, IC-Parc
-% Version:	$Id: generic_search.ecl,v 1.2 2008/04/01 18:18:28 jschimpf Exp $
+% Version:	$Id: generic_search.ecl,v 1.3 2008/06/20 13:41:14 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -876,11 +876,12 @@ find_criteria(Term,Arg,Select,Crit,Module):-
 :-mode find_value(?,++,-,++).
 find_value(X,first_fail,Size,_Module):-
 	!,
-	get_size(X,Size).
+	get_size(X,Size0),				% can be 1.0Inf
+	( integer(Size0) -> Size=Size0 ; Size=inf ).	% 99 @< 'inf'
 find_value(X,anti_first_fail,Number,_Module):-
 	!,
-	get_size(X,Size),
-	Number is -Size.
+	get_size(X,Size),				% can be 1.0Inf
+	Number is -Size.				% -1.0Inf @< -99
 find_value(X,smallest,Size,_Module):-
 	!,
 	get_lwb(X,Size).

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_domain.pl,v 1.2 2008/05/12 12:34:59 jschimpf Exp $
+% Version:	$Id: fd_domain.pl,v 1.3 2008/06/20 13:41:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -838,29 +838,24 @@ constraints_number(Var, Number) :-
     delayed_goals_number(Var, Number).
 
 :- mode dvar_msg(?, ?, -).
+dvar_msg(_A{fd:fd{domain:DA}}, B, M) ?- !,
+	msg_domain(DA, B, M).
+dvar_msg(A, _B{fd:fd{domain:DB}}, M) ?- !,
+	msg_domain(DB, A, M).
 dvar_msg(A, B, M) :-
-	is_domain(A), !,
-	msg_domain(A, B, M).
-dvar_msg(A, B, M) :-
-	is_domain(B), !,
-	msg_domain(B, A, M).
-dvar_msg(A, B, M) :-
-	nonvar(A),
+	ground(A), !,
 	msg_atomic(A, B, M).
+dvar_msg(_A, _B, _M).
 
 % even if B is an atomic term, A is neither an atomic term nor a domain variable
 
 % A is a domain variable
-msg_domain(A, B, M) :-
-	is_domain(B), !,
-	get_attribute(A, fd with domain:DA),
-	get_attribute(B, fd with domain:DB),
+msg_domain(DA, _B{fd:fd{domain:DB}}, M) ?- !,
 	dom_union(DA, DB, DM, _),
 	empty_domain(DM, Dom),
 	add_attribute(M, Dom, fd).
-msg_domain(A, B, M) :-
-	nonvar(B),
-	get_attribute(A, fd with domain:DA),
+msg_domain(DA, B, M) :-
+	ground(B), !,
 	( dom_check_in(B, DA) ->
 	    empty_domain(DA, Dom),
 	    add_attribute(M, Dom, fd)
@@ -869,16 +864,18 @@ msg_domain(A, B, M) :-
 	  empty_domain(DM, Dom),
 	  add_attribute(M, Dom, fd)
         ).
+msg_domain(_DA, _B, _M).
 
 % A is a nonvar term
 % B is not a domain variable
 msg_atomic(A, B, M) :-
-	nonvar(B),
+	ground(B), !,
 	( A = B ->
 	    M = A
 	; sort([A, B], D),
 	  M :: D
         ).
+msg_atomic(_A, _B, _M).
 
 indomain(Var{fd:(fd with domain:D)}) :-
     -?->

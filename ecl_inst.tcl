@@ -28,7 +28,7 @@
 #
 # System:	ECLiPSe Constraint Logic Programming System
 # Author/s:	Joachim Schimpf, IC-Parc
-# Version:	$Id: ecl_inst.tcl,v 1.3 2008/06/20 13:29:09 jschimpf Exp $
+# Version:	$Id: ecl_inst.tcl,v 1.4 2008/06/20 13:41:12 jschimpf Exp $
 #
 
 set tkecl(scriptdir) [file dirname [info script]]
@@ -117,7 +117,10 @@ if {$argc >= 1} {
 # We do this here, once we're sure we want to interact with the user.
 set prev [pwd]
 cd [file join $tkecl(scriptdir) lib_tcl]
-load shortcut.dll
+set have_shortcuts [file readable shortcut.dll]
+if {$have_shortcuts} {
+    load shortcut.dll
+}
 cd $prev
 
 wm title . "ECLiPSe $tkecl(eclipseversion) Installation"
@@ -177,47 +180,53 @@ proc do_install {} {
     # create the jeclipse script (an alternative standalone eclipse)
     set jre_home [get_jre_home]
 
-    # make the start menu entries
-    set eclmenu [start_menu_folder 1]
-    if {$eclmenu != ""} {
-	set msg "Installation complete\nECLiPSe is now available from your Start menu"
-    } else {
-	# if not possible, create a local menu directory
-	set eclmenu [file join $tkecl(eclipsedir) Menu]
-	file mkdir $eclmenu
-	set msg "Installation complete\nECLiPSe menu is in [file nativename $eclmenu]\n(Sorry, couldn't create Start menu entry)"
-    }
+    if {$have_shortcuts} {
 
-    # cd to the menu directory because the shortcut command has problems
-    # when the link-name contains non-ascii characters
-    cd $eclmenu
+	# make the start menu entries
+	set eclmenu [start_menu_folder 1]
+	if {$eclmenu != ""} {
+	    set msg "Installation complete\nECLiPSe is now available from your Start menu"
+	} else {
+	    # if not possible, create a local menu directory
+	    set eclmenu [file join $tkecl(eclipsedir) Menu]
+	    file mkdir $eclmenu
+	    set msg "Installation complete\nECLiPSe menu is in [file nativename $eclmenu]\n(Sorry, couldn't create Start menu entry)"
+	}
+
+	# cd to the menu directory because the shortcut command has problems
+	# when the link-name contains non-ascii characters
+	cd $eclmenu
 
 # The following works, but is not too useful and probably just confusing people
-#    if {$jre_home != ""} {
-#	shortcut create JEclipse.lnk \
-#	    -workingDirectory [file nativename $tkecl(workdir)] \
-#	    -objectPath [file nativename [file join $jre_home bin java]] \
-#	    -arguments "-Declipse.directory=\"[file nativename $tkecl(eclipsedir)]\" -classpath \"[file nativename [file join $tkecl(eclipsedir) lib eclipse.jar]]\" com.parctechnologies.eclipse.JEclipse"
-#    }
-    shortcut create DosEclipse.lnk \
-    	-workingDirectory [file nativename $tkecl(workdir)] \
-    	-objectPath [file nativename [file join $tkecl(eclipsedir) lib i386_nt eclipse.exe]]
-    shortcut create TkEclipse.lnk \
-    	-workingDirectory [file nativename $tkecl(workdir)] \
-    	-objectPath [file nativename [info nameofexecutable]] \
-    	-arguments \"[file nativename [file join $tkecl(eclipsedir) lib_tcl tkeclipse.tcl]]\"
-    shortcut create TkRemoteTools.lnk \
-    	-workingDirectory [file nativename $tkecl(workdir)] \
-    	-objectPath [file nativename [info nameofexecutable]] \
-    	-arguments \"[file nativename [file join $tkecl(eclipsedir) lib_tcl tktools.tcl]]\"
-    shortcut create Documentation.lnk \
-    	-objectPath [file nativename [file join $tkecl(eclipsedir) doc index.html]]
-    shortcut create Readme.lnk \
-    	-objectPath [file nativename [file join $tkecl(eclipsedir) README_WIN.TXT]]
-    shortcut create "Uninstall ECLiPSe $tkecl(eclipseversion).lnk" \
-    	-workingDirectory [file nativename $tkecl(eclipsedir)] \
-    	-objectPath [file nativename [info nameofexecutable]] \
-    	-arguments \"[file nativename [file join $tkecl(eclipsedir) ecl_inst.tcl]]\"
+#        if {$jre_home != ""} {
+#	    shortcut create JEclipse.lnk \
+#	        -workingDirectory [file nativename $tkecl(workdir)] \
+#	        -objectPath [file nativename [file join $jre_home bin java]] \
+#	        -arguments "-Declipse.directory=\"[file nativename $tkecl(eclipsedir)]\" -classpath \"[file nativename [file join $tkecl(eclipsedir) lib eclipse.jar]]\" com.parctechnologies.eclipse.JEclipse"
+#        }
+	shortcut create DosEclipse.lnk \
+	    -workingDirectory [file nativename $tkecl(workdir)] \
+	    -objectPath [file nativename [file join $tkecl(eclipsedir) lib i386_nt eclipse.exe]]
+	shortcut create TkEclipse.lnk \
+	    -workingDirectory [file nativename $tkecl(workdir)] \
+	    -objectPath [file nativename [info nameofexecutable]] \
+	    -arguments \"[file nativename [file join $tkecl(eclipsedir) lib_tcl tkeclipse.tcl]]\"
+	shortcut create TkRemoteTools.lnk \
+	    -workingDirectory [file nativename $tkecl(workdir)] \
+	    -objectPath [file nativename [info nameofexecutable]] \
+	    -arguments \"[file nativename [file join $tkecl(eclipsedir) lib_tcl tktools.tcl]]\"
+	shortcut create Documentation.lnk \
+	    -objectPath [file nativename [file join $tkecl(eclipsedir) doc index.html]]
+	shortcut create Readme.lnk \
+	    -objectPath [file nativename [file join $tkecl(eclipsedir) README_WIN.TXT]]
+	shortcut create "Uninstall ECLiPSe $tkecl(eclipseversion).lnk" \
+	    -workingDirectory [file nativename $tkecl(eclipsedir)] \
+	    -objectPath [file nativename [info nameofexecutable]] \
+	    -arguments \"[file nativename [file join $tkecl(eclipsedir) ecl_inst.tcl]]\"
+
+    } else {
+	set msg "Installation complete, but could not create Start menu"
+    }
 
     tk_messageBox -title "ECLiPSe Installation" \
 	-message $msg -type ok

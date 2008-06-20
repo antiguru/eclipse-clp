@@ -27,13 +27,14 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.6 2008/06/19 18:04:11 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.7 2008/06/20 13:41:15 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
 # Find and load the eclipse package
 #----------------------------------------------------------------------
 set tkecl(version) 6.0	 ;# update also in eclipse_tools and examples!
+# including mapdebugdemo.tcl in <ECLiPSe>/document/tutorial/mapdebugdemo.tcl
 
 switch $tcl_platform(platform) {
     unix {
@@ -122,6 +123,7 @@ proc tkecl:get_stack_size {sizespec} {
 	    puts stderr "-$sizespec: $result"
 	    return 0
 	}
+
 	return $result 
     } else {
 	puts stderr "-$sizespec: invalid stack size specification"

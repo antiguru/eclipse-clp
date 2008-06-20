@@ -355,6 +355,9 @@ desc:      html("\
         objective value will be changed by if the variable's value is
         increased by 1 from its solution value.
 
+    <DT><TT>type</TT>
+    <DD>Returns the type the variable Var is constrained to in
+        EplexInstance. Possible values are integer or real.
 </DL>
 <P>
   Note that solution or reduced_cost can only be retrieved
@@ -616,8 +619,8 @@ desc:      html("\
   incrementally. 
 </P><P>
   If the new_constraint trigger option was selected, then the solver will
-  be invoked after the adding of the constraints.  The constraints will be
-  removed on backtracking.
+  be invoked after the adding of the constraints if these constraints are 
+  not already satisfied.  The constraints will be removed on backtracking.
 </P><P>
   The constraints are normalised and simplified before being passed to
   the external solver. If any constraint is ground, they are tested for
@@ -657,8 +660,8 @@ desc:      html("\
   consider as integers  The new constraints will be taken into
   account the next time the solver is run: if the new_constraint option of
   lp_demon_setup was turned on, then the solver will be invoked after the
-  adding of the constraints.  The constraints will be removed on
-  backtracking.
+  adding of the constraints, unless they are already satisfied.  The 
+  constraints will be removed on backtracking.
 </P><P>
   The constraints are normalised and simplified before being passed to
   the external solver. If any constraint is ground, they are tested for
@@ -773,7 +776,7 @@ desc:      html("\
    The default is <TT>1</TT>.
 <DT><STRONG><TT>active</TT></STRONG>
    <DD>specifies if the constraints should be active. Valid values are 
-   <TT>1</TT> for active, and <TT>o</TT> for non-active. The default is <TT>1</TT>.
+   <TT>1</TT> for active, and <TT>0</TT> for non-active. The default is <TT>1</TT>.
 <DT><STRONG><TT>group</TT></STRONG>
    <DD>specifies the cutpool constraints group that the constraints will be
    added to. <TT>Value</TT> must be an existing group name for the cutpool,
@@ -1304,8 +1307,8 @@ ListOfOptions are (such option should occur no more than once):
   <DT><STRONG><TT>new_constraint</TT></STRONG>
   <DD>re-trigger each time a new (arithmetic or integral) constraint is
       added to the solver instance. Note that adding integral constraint
-      on new problem variables, and adding constraints to the cutpool will 
-      *not* re-trigger.
+      on new problem variables, or adding bounds constraint, or adding 
+      constraints to the cutpool will *not* re-trigger.
 
   <DT><STRONG><TT>trigger(Atom)</TT></STRONG>
   <DD>re-trigger each time the symbolic trigger Atom is pulled by invoking 
@@ -1465,8 +1468,9 @@ desc:      html("\
 
   <DT><STRONG><TT>new_constraint</TT></STRONG>
   <DD>re-trigger each time a new (arithmetic or integral) constraint is
-      added to the solver instance. Note that integral constraint on new 
-      problem variables will not re-trigger.
+      added to the solver instance. Note that adding integral constraint
+      on new problem variables, or adding bounds constraint, or adding 
+      constraints to the cutpool will *not* re-trigger.
 
   <DT><STRONG><TT>trigger(Atom)</TT></STRONG>
   <DD>re-trigger each time the symbolic trigger Atom is pulled by invoking 

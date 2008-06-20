@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: tentative.ecl,v 1.1 2006/09/23 01:54:01 snovello Exp $
+% Version:	$Id: tentative.ecl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -34,7 +34,7 @@
 
 :- comment(summary, "A framework for Local Search based on tentative values").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:54:01 $").
+:- comment(date, "$Date: 2008/06/20 13:41:14 $").
 :- comment(copyright, "Cisco Systems").
 
 :- comment(see_also, [library(tentative_constraints)]).
@@ -1158,7 +1158,7 @@ valid_spec(F/N, N1) ?-
 :- comment(cs_create/2, [
     summary:"Create an empty constraint set",
     amode:(cs_create(-,++) is det),
-    args:["Options":"List of options", "CS":"Constraint set (output)"],
+    args:["CS":"Constraint set (output)", "Options":"List of options"],
     see_also:[(:~)/2,cs_clear_all/1,cs_clear_satisfied/1,
     	cs_violations/2, cs_current_violations/2,
 	cs_random_worst/2, cs_all_worst/2, cs_all_violated/2,

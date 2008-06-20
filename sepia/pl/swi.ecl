@@ -1,7 +1,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Copyright:	This file is in the public domain
-% Version:	$Id: swi.ecl,v 1.3 2008/04/01 18:16:48 jschimpf Exp $
+% Version:	$Id: swi.ecl,v 1.4 2008/06/20 13:41:16 jschimpf Exp $
 % Description:	SWI Prolog compatibility package
 % ----------------------------------------------------------------------
 
@@ -10,7 +10,7 @@
 :- comment(summary, 'SWI-Prolog compatibility package').
 :- comment(author, 'J Chamois').
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, '$Date: 2008/04/01 18:16:48 $').
+:- comment(date, '$Date: 2008/06/20 13:41:16 $').
 :- comment(desc, html('
     This library is incomplete, and intended to ease the task of
     porting SWI-Prolog programs to ECLiPSe Prolog, or to add modules
@@ -43,6 +43,7 @@
 
 :- reexport eclipse_language except
 	call/2,
+	dynamic/1,
         ensure_loaded/1,
 	select/3,
 	set_stream/2.
@@ -64,6 +65,9 @@
 
 :- reexport
 	(multifile)/1, op(_,_,(multifile)),
+	public/1, op(_,_,(public)),
+	macro((:)/2,_,[clause]),
+	dynamic/1,
         use_module/2,
         ensure_loaded/1,
 	format/2,
@@ -106,7 +110,6 @@
 	syntax_option(bar_is_no_atom),
 	syntax_option(no_attributes),
 	syntax_option(no_curly_arguments),
-	syntax_option(limit_arg_precedence),
 	syntax_option(nl_in_quotes),
 
 	chtab(0'`, string_quote),

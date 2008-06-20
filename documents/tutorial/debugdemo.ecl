@@ -47,17 +47,15 @@ disconnect_handler :-
 post_attach(S) :-
         set_event_handler(S, disconnect_handler/0).
 
-:- remote_connect_setup(localhost/Port, Peer, Sock),
-   exec_mapdisplay(Pid, Port),
-   (remote_connect_accept(Peer, Sock, 10, post_attach(Peer), "", _) ->
-        true ; close(Sock)
-   ).
-
-clear :-
-        get_map_data(4).
 
 colour :-
-        colouring1(prolog, input_order, indomain, 4, _).
+        remote_connect_setup(localhost/Port, Peer, Sock),
+        exec_mapdisplay(Pid, Port),
+        (remote_connect_accept(Peer, Sock, 10, post_attach(Peer), "", _) ->
+            block(colouring1(prolog, input_order, indomain, 4, _), _,  true)
+        ;
+            close(Sock)
+        ).
 
 
 colourdelay :-

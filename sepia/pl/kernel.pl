@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.25 2008/06/19 18:00:51 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.26 2008/06/20 13:41:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1252,7 +1252,7 @@ normalise_path(Path, Rest, NormFullPath) :-
 
 	;   
 	    pathname(Path, Parent, This),
-	    (Parent == "/"  -> % have reached top-level
+	    (Parent == ""  -> % have reached top-level
 		concat_string([Path|Rest], NormFullPath)
 	    ;	normalise_path(Parent, [This|Rest], NormFullPath)
 	    )
@@ -1348,14 +1348,6 @@ get_file(File, WithObj, FileAtom) :-
 	canonical_plfile_name(File, WithObj, FileAtom), !.
 get_file(_, _, _) :-
 	set_bip_error(5).
-
-
-cd_if_possible(Path) :-
-	sys_file_flag(Path, 0, Mode),
-	Mode /\ 8'170000 =:= 8'40000,
-	sys_file_flag(Path, 19, on),		% executable
-	cd(Path).
-
 
 
 %----------------------------------------------------------------------
@@ -2739,8 +2731,9 @@ evaluating_goal(X, R, CM, LM, _Goal) :-
 evaluating_goal(X, R, CM, LM, Goal) :-
 	nonvar(X),
 	functor(X, F, A),
+	atom(F),			% fails for strings etc.
 	+(A, 1, A1),			% because no inlining yet
-	functor(Goal, F, A1),		% fails for strings etc.
+	functor(Goal, F, A1),
 	( is_predicate_(F/A1, LM) ->
 	    unify_args(A, X, Goal),
 	    arg(A1, Goal, R)
@@ -5853,7 +5846,6 @@ peval(R, X, Code, NextCode) :-
 %
 % subscript(+Matrix, +IndexList, ?Element)
 %
-
 subscript(Mat, Index, X, M) :-
 	var(Index), !,
 	error(4, subscript(Mat,Index,X), M).

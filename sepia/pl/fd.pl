@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd.pl,v 1.2 2008/05/12 12:34:59 jschimpf Exp $
+% Version:	$Id: fd.pl,v 1.3 2008/06/20 13:41:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -206,6 +206,21 @@ check_for_conflicting_module :-
 tr_fd_out(element(A, B, C, _, _), element(A, L, C)) :-
     !,
     B =.. [_|L].
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Propia interface
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+:- export msg/3.
+msg(X, Y, Z) :- dvar_msg(X, Y, Z).
+
+:- export is_solver_var/1.
+is_solver_var(X) :- is_domain(X).
+
+:- export is_exact_solver_var/1.
+is_exact_solver_var(X) :- is_domain(X).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %

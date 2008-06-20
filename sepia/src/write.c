@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.3 2007/08/22 23:07:25 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.4 2008/06/20 13:41:17 jschimpf Exp $
  */
 
 /*
@@ -846,7 +846,8 @@ _write_structure_:			/* (d, arg) */
  		Dereference_(arg1);
  		Dereference_(arg2);
  		if (IsList(arg2->tag) && (IsStructure(arg1->tag) ||
- 		    IsRef(arg1->tag) && !IsMeta(arg1->tag)))
+ 		    IsRef(arg1->tag) && !IsMeta(arg1->tag) ||
+ 		    IsAtom(arg1->tag) && (sd->options & ATOM_SUBSCRIPTS)))
  		{
  		    Pwrite(idwrite|CANONICAL, out, arg1->val, arg1->tag, MAXPREC,
  			     depth, module, mod_tag, sd, flags);

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.2 2007/06/01 15:43:48 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.3 2008/06/20 13:41:17 jschimpf Exp $
  */
 
 /*
@@ -211,6 +211,9 @@ lex_init(int flags)	/* initialization: setting the name of types */
     syntax_flags[15] =	in_dict("no_curly_arguments",0);
     syntax_flags[16] =	in_dict("blanks_after_sign",0);
     syntax_flags[17] =	in_dict("var_functor_is_apply",0);
+    syntax_flags[18] =	in_dict("atom_subscripts",0);
+    syntax_flags[19] =	in_dict("general_subscripts",0);
+    syntax_flags[20] =	in_dict("curly_args_as_list",0);
 
     default_syntax_desc.char_class[EOB_MARK] = RE;
 
@@ -229,6 +232,7 @@ lex_init(int flags)	/* initialization: setting the name of types */
     chname_[LQ] = in_dict("list_quote",0);
     chname_[RA] = in_dict("radix",0);
     chname_[AS] = in_dict("ascii",0);
+    chname_[TS] = in_dict("terminator",0);
     chname_[ES] = in_dict("escape",0);
     chname_[CM1] = in_dict("first_comment",0);
     chname_[CM2] = in_dict("second_comment",0);
@@ -712,6 +716,11 @@ _symbol_:
 	break;
 
 
+    case TS:		/* terminator character (non-Prolog extension) */
+	Make_Atom(&token->term, d_.eocl);
+	tok = EOCL;				/* full stop */
+	break;
+
     case SL:		/* like SY, but every character is its own token */
 	StreamLexAux(nst)[0] = cc;
 	StreamLexAux(nst)[1] = 0;
@@ -920,6 +929,9 @@ _need_quotes1_:
 	if (rest == 0)
 	    return IDENTIFIER;	/* ! and ; don't need quotes	*/
 	else return QIDENTIFIER;
+
+    case TS:
+	return QIDENTIFIER;
     }
     return QIDENTIFIER;
 }

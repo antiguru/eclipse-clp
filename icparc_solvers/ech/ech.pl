@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ech.pl,v 1.3 2008/06/13 00:48:22 jschimpf Exp $
+% Version:	$Id: ech.pl,v 1.4 2008/06/20 13:41:14 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %  New CHR implementation
@@ -292,7 +292,7 @@ translate_each_constraint(N, Processed, Constraints, Nprule, Module) :-
           " code\n", [F,A, Module]),
    gen_code_for_constraint(HRuleList, [], F, A, 1, NRule1, Nprule, Code0, Module),
    optimise(Code0, Code), 
-   %printcode(Code), 
+%   printcode(Code), 
    compile_term([(:- pragma(expand))|Code])@Module,
    N1 is N - 1, 
    translate_each_constraint(N1, Processed, Constraints, Nprule, Module).
@@ -785,7 +785,18 @@ construct_find_partners([Partner|Partners],a(Head,CHead,MetaArgs,Nth,AllRest,
        CheckNotAlreadyMatched,
        RestCode0
       ),
-   AllRest = [Rest|AllRest0],
+   % If this is not the first partner, use the original suspension list
+   % instead of Rest (the remaining list after finding he current partner)
+   % This is because there might be dependencies from the earlier partners 
+   % that means subsequent refiring of the (simpogation/propagation) rule
+   % needs to check partners that did not match with the current.
+   % A possible optimisation is to determine the dependencies to see if
+   % Rest can be used.
+   (Cth > 1 ->
+       AllRest = [SuspL|AllRest0]
+   ;
+       AllRest = [Rest|AllRest0]
+   ),
    Cth1 is Cth + 1,
    construct_find_partners(Partners,a(Head,CHead,MetaArgs,Nth,AllRest0,
       PIndecies,_,_,_), Cth1, [PartnerIndex|MatchedPIdxs],
@@ -833,7 +844,12 @@ construct_other_findpartners([Rest|Rests], [Partner|Partners], a(Head,CHead,
       
       RestCode0
    ),
-   AllNRest = [NewRest|NewRests],
+   % use full original list if Cth > 1
+   (Cth > 1 ->
+       AllNRest = [Rest|NewRests]
+   ;
+       AllNRest = [NewRest|NewRests]
+   ),
    Cth1 is Cth + 1,
    construct_other_findpartners(Rests, Partners, a(Head,CHead,MetaArgs,Nth,NewRests,PIndecies,_,_,_), NRule,  
      Cth1, [PartnerIndex|MatchedPIdxs], Nprule, Cans, CIs, RestCode0, RestCode). 

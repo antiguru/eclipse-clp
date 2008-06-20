@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.2 2007/08/22 23:07:24 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.3 2008/06/20 13:41:17 jschimpf Exp $
  */
 
 /*
@@ -167,6 +167,7 @@ p_functor(value vt, type t, value vf, type tf, value va, type ta)
 	}
 	else if (!IsInteger(ta))
 	{
+	    if (IsBignum(ta)) { Bip_Error(RANGE_ERROR) };
 	    Bip_Error(TYPE_ERROR)
 	}
 	else
@@ -180,21 +181,23 @@ p_functor(value vt, type t, value vf, type tf, value va, type ta)
 	    {
 		Bip_Error(PDELAY_1_2);
 	    }
-	    if (IsCompound(tf))
-	    {
-		Bip_Error(TYPE_ERROR)
-	    }
 	}
-	Kill_DE;
 
 	/* if arity = 0, term1 is unified with (atomic) functor1. */
 	if (arity == 0)	
 	{
+	    if (IsCompound(tf))
+	    {
+		Bip_Error(TYPE_ERROR)
+	    }
+	    Kill_DE;
 	    Return_Bind_Var(vt, t, vf.all, tf.kernel); 
 	}
-	else if (!IsAtom(tf) && !IsNil(tf))  
+	Kill_DE;
+
+	if (!IsAtom(tf) && !IsNil(tf))  
 	{	
-	    Fail_;	
+	    Bip_Error(TYPE_ERROR)
 	}
 
 	if (vf.did == d_.eocl && arity == 2)	/* a list functor */
@@ -254,10 +257,13 @@ p_functor(value vt, type t, value vf, type tf, value va, type ta)
     }
     else if (IsRef(tf) && IsRef(ta) && vf.ptr == va.ptr)
     {
-	if (!IsInteger(t) || vt.nint != 0)
+	/* catch functor(Term,F,F) - only call BindVar once! */
+	if (!(IsInteger(t) && vt.nint == 0))
 	{
 	    Fail_;
 	}
+	Bind_Var(va, ta, 0, TINT);
+	Succeed_;
     }
 
     if (IsStructure(t))
@@ -316,13 +322,10 @@ p_functor(value vt, type t, value vf, type tf, value va, type ta)
     {
 	if (!IsInteger(ta))
 	{
+	    if (IsBignum(ta)) { Fail_; }
 	    Bip_Error(TYPE_ERROR);
 	}
-	else if (va.nint < 0)
-	{
-	    Bip_Error(RANGE_ERROR);
-	}
-	else if (va.nint != arity)
+	if (va.nint != arity)
 	    Fail_;
     }
     else
