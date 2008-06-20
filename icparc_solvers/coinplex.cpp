@@ -145,7 +145,7 @@ typedef struct {
     char notfirst; /* has problem been solved? */
     /* solver specific */
 #ifdef COIN_USE_CLP
-    char mipIsShared; /* 1 if shared with Solver, 0 if copied */
+    char mipIsShared;/* 1 if shared with Solver, 0 if copied */ 
     CbcModel* mipmodel;
     ClpInterior* interiormodel;
     //CbcObject** mipobjects; // information such as SOS to be added to mipmodel 
@@ -278,8 +278,8 @@ int coin_branchAndBound(lp_desc* lpd)
 
 # ifdef COIN_USE_CLP
     {
-	int* iparams; 
-	double* dparams; 
+	int* iparams = NULL; 
+	double* dparams = NULL; 
 
 	if (lpd->lp->mipmodel != NULL) 
 	{
@@ -291,26 +291,23 @@ int coin_branchAndBound(lp_desc* lpd)
 		iparams[i] = lpd->lp->mipmodel->getIntParam(cbc_iparam[i]);
 	    for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
 		dparams[i] = lpd->lp->mipmodel->getDblParam(cbc_dparam[i]);
-	    if (!lpd->lp->mipIsShared)
 		delete lpd->lp->mipmodel;
 	}
 	
 	lpd->lp->mipmodel = new CbcModel(static_cast<OsiSolverInterface &>(*mipsolver));
-	if (lpd->presolve && !preprocess_failed)
-	{// preprocessed mipmodel, not shared with Solver
-	    lpd->lp->mipIsShared = 0;
+	// check if mipmodel shared with Solver, e.g. preprocessed mipmodel
+	// is not shared 
+	lpd->lp->mipIsShared = (mipsolver == lpd->lp->Solver);
+	if (lpd->lp->mipIsShared == 0)
+	{
 	    for (int i=0; i<NUMSOLVERINTPARAMS; i++)
 		lpd->lp->mipmodel->setIntParam(cbc_iparam[i], iparams[i]);
 	    for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
 		lpd->lp->mipmodel->setDblParam(cbc_dparam[i], dparams[i]);
-	    delete [] iparams;
-	    delete [] dparams;
+	}
 
-	}
-	else
-	{
-	    lpd->lp->mipIsShared = 1;
-	}
+	if (iparams) { delete [] iparams; iparams = NULL; }
+	if (dparams) { delete [] dparams; dparams = NULL; }
     }
 	
     CbcModel* model = lpd->lp->mipmodel;
@@ -328,6 +325,10 @@ int coin_branchAndBound(lp_desc* lpd)
 	result and return
      */
 	model->branchAndBound();
+	delete model->messageHandler();
+	delete process.messageHandler(); // preprocess only if presolving
+	delete [] lws;
+	delete [] ups;
 	return 0;
     }
     model->initialSolve();
@@ -482,10 +483,18 @@ int coin_branchAndBound(lp_desc* lpd)
     if (mac != lpd->mac) 
     {
 	eclipse_out(ErrType, "Eplex Error: columns number in original model does not match eplex.\n");
+	delete model->messageHandler();
+	delete [] lws;
+	delete [] ups;
+	if (lpd->presolve) delete process.messageHandler(); 
 	return -1;
     }
 
-    if (lpd->presolve) process.postProcess(*model->solver());
+    if (lpd->presolve) 
+    {
+	process.postProcess(*model->solver());
+	delete process.messageHandler();
+    }
 # ifdef COIN_USE_CLP
     else 
 	lpd->lp->Solver = dynamic_cast< OsiXxxSolverInterface*>(model->solver());
@@ -502,8 +511,12 @@ int coin_branchAndBound(lp_desc* lpd)
     for (int i=0; i<mac; i++) 
 	lpd->lp->Solver->setColBounds(i,lws[i],ups[i]);
 
+    delete [] lws;
+    delete [] ups;
+
     //std::cout<< lpd->lp->Solver->getIterationCount();
 
+    delete model->messageHandler();
     return 0;
 }
 
@@ -604,6 +617,11 @@ int coin_branchAndBound(lp_desc *lpd)
 	    memcpy(lws, lpd->lp->Solver->getColLower(), mac*sizeof(double));
 	    //fix
 	    lpd->lp->Solver->initialSolve();
+	    // restore original bounds
+	    for (int i=0; i<mac; i++) 
+		lpd->lp->Solver->setColBounds(i,lws[i],ups[i]);
+	    delete [] lws;
+	    delete [] ups;
 
 	}
     }
@@ -690,6 +708,7 @@ void coin_set_solver_outputs(OsiXxxSolverInterface* Solver)
 
 void coin_free_solver_handlers(OsiXxxSolverInterface* Solver)
 {
+    delete Solver->getModelPtr()->messageHandler();
 }
 
 
@@ -1492,6 +1511,13 @@ int coin_solve_problem(lp_desc* lpd,
 #ifdef COIN_USE_CLP
 	/* turn off timeout in CLP (otherwise may cause problems for MIP */
 	lpd->lp->Solver->getModelPtr()->setMaximumSeconds(-1);
+	/* turn off OSI presolve hint, as this may casue CLP to presolve the
+           problem without synchronising it with CBC, as suggested by 
+	   John Forrest @ IBM (main author of CLP and CBC)
+	*/
+	lpd->lp->Solver->setHintParam(OsiDoPresolveInInitial, false, OsiHintDo, NULL);
+	lpd->lp->Solver->setHintParam(OsiDoPresolveInResolve, false, OsiHintDo, NULL);
+	
 #endif
 	lpd->lp->Solver->setHintParam(OsiDoInBranchAndCut, true, OsiHintDo);
 	coin_branchAndBound(lpd);
@@ -1755,7 +1781,7 @@ bool coin_read_prob_file(OsiXxxSolverInterface* Solver,
 			 const char* ext,
 			 int format)
 {
-    char* file1 = new char[strlen(file)+strlen(ext)];
+    char* file1 = new char[strlen(file)+strlen(ext)+1];
     int err = 0;
     try
     {
@@ -1763,7 +1789,11 @@ bool coin_read_prob_file(OsiXxxSolverInterface* Solver,
 	strcat(file1, ext);
 	// check for file existance as exit() is called if there is anything
 	// wrong with the file!
-	if (!fileExists(file1)) return false;
+	if (!fileExists(file1)) 
+	{
+	    delete [] file1;
+	    return false;
+	}
 	switch (format)
 	{
 	case 1: // LP
@@ -1911,5 +1941,7 @@ int coin_free_prob(COINprob* lp)
 #endif
     delete lp->Solver;
     delete lp;
+    lp = NULL;
+
     return 0;
 }
