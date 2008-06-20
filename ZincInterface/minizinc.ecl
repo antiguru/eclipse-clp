@@ -25,7 +25,7 @@
 
 :- module(minizinc).
 
-:- comment(date, "$Date: 2008/06/20 13:41:13 $").
+:- comment(date, "$Date: 2008/06/20 17:33:41 $").
 :- comment(summary, "Utilities for using MiniZinc with ECLiPSe").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
@@ -106,6 +106,8 @@ ECLiPSe strings, the backslashes had to be doubled!
 Installation
 </H3>
 <P>
+This version is intended to to work with Minizinc 0.8 or later!
+<P>
 In order to be found by lib(minizinc), the Melbourne Minizinc-to-Flatzinc
 converter mzn2fzn must be installed in a directory called <CODE>minizinc-&lt;version&gt;</CODE>
 in one of the following locations (where we write &lt;ECLIPSEDIR&gt; for
@@ -122,7 +124,7 @@ for Linux):
 <LI>Parent of <CODE>&lt;ECLIPSEDIR&gt;</CODE> (e.g. \"C:/Program Files\" on Windows)</LI>
 </OL>
 <P>
-For MiniZinc 0.7 on Windows, it may be necessary to copy a cygwin1.dll into
+For MiniZinc on Windows, it may be necessary to copy a cygwin1.dll into
 the MiniZinc distribution's bin/private folder.
 
 
@@ -250,7 +252,7 @@ solver mapping. The following table shows the mapping used with fzn_ic
 	e.g.	{1,5,4}			[1,4,5]
 		1..3			[1,2,3]
 
-	array[0..N-1] of T		structure with functor []/N
+	array[1..N] of T		structure with functor []/N
 	e.g.	[23,54,0]		[](23,54,0)
 
 	var bool			lib(ic) integer variable
@@ -824,8 +826,10 @@ mzn2fzn(ModelFile0, DataFile0, zn_options{solver:Solver,fzn_tmp:OutFlag}, FznStr
 	),
 	( OutFlag==file ->
 	    % use intermediate fzn file, and echo any stderr on error
-%	    writeln(exec([Mzn2Fzn|Params], [null,null,Err], Pid)),
-	    exec([Mzn2Fzn|Params], [null,null,Err], Pid),
+	    pathname(ModelFile, Path, Base, _Mzn),
+	    concat_string([Path,Base,".fzn"], PidOrFile),
+%	    writeln(exec([Mzn2Fzn,"--output-to-file",PidOrFile|Params], [null,null,Err], Pid)),
+	    exec([Mzn2Fzn,"--output-to-file",PidOrFile|Params], [null,null,Err], Pid),
 	    read_stream(Err, Message),
 	    write(error, Message),
 	    wait(Pid, Status),
@@ -836,8 +840,6 @@ mzn2fzn(ModelFile0, DataFile0, zn_options{solver:Solver,fzn_tmp:OutFlag}, FznStr
 	    ;
 		true
 	    ),
-	    pathname(ModelFile, Path, Base, _Mzn),
-	    concat_string([Path,Base,".fzn"], PidOrFile),
 	    open(PidOrFile, read, FznStream)
 	;
 	    % pipe the fzn - we can't easily handle the error output

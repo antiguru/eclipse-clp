@@ -25,7 +25,7 @@
 
 :- module(flatzinc).
 
-:- comment(date, "$Date: 2008/06/20 13:41:12 $").
+:- comment(date, "$Date: 2008/06/20 17:33:41 $").
 :- comment(summary, "Interpreter for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
@@ -651,7 +651,7 @@ interpret(annotation(Ann) , _State) :- !,
 interpret(Type:IdentAnns, State) :- !,
 	detach_annotations(IdentAnns, Ident, Anns),
 	check_annotations(Anns),
-	( Type = no_macro_expansion(array([0..Max]) of ElemInstType) ->
+	( Type = no_macro_expansion(array([1..Max]) of ElemInstType) ->
 	    % an uninitialised array
 	    declare_array(Type, Max, ElemInstType, Ident, Anns, _Init, State)
 	; Type = var(VarType) ->
@@ -667,7 +667,7 @@ interpret(Type:IdentAnns, State) :- !,
 interpret(Type:IdentAnns=Init, State) :- !,
 	detach_annotations(IdentAnns, Ident, Anns),
 	check_annotations(Anns),
-	( Type = no_macro_expansion(array([0..Max]) of ElemInstType) ->
+	( Type = no_macro_expansion(array([1..Max]) of ElemInstType) ->
 	   % initialised array-of-par, or partially initialised array-of-var
 	   declare_array(Type, Max, ElemInstType, Ident, Anns, Init, State)
 	;
@@ -708,8 +708,7 @@ interpret(output(Elems), State) :- !,
 % Declarations ---------------------------------
 
 declare_array(Type, Max, ElemInstType, Ident, Anns, Init, State) :-
-	Max1 is Max+1,
-	dim(EclVar, [Max1]),
+	dim(EclVar, [Max]),
 	State = state{dict:Dict},
 	( ElemInstType = var(ElemType) ->
 	    Group = InitGroup,
@@ -795,14 +794,16 @@ eval_expr([], _State, _) :- !,
 eval_expr(Ident, State, Result) :-
 	atom(Ident), !,
 	fzn_var_lookup(State, Ident, Result).	% takes care of bools
-eval_expr(X, _State, X) :-
-	integer(X), !.
+eval_expr(X, _State, Result) :-
+	integer(X), !,
+	Result = X.
 eval_expr(X, State, Real) :-
 	float(X), !,
 	State = state{solver:Solver},
 	Solver:float_fzn_to_solver(X, Real).
-eval_expr(X, _State, X) :-
-	string(X), !.
+eval_expr(X, _State, Result) :-
+	string(X), !,
+	Result = X.
 eval_expr(FZElems, State, Array) :-
 	FZElems = [_|_], !,
 	length(FZElems, N),
@@ -818,9 +819,9 @@ eval_expr(Min..Max, State, Set) :- !,
 	Solver:range_fzn_to_solver(Min, Max, Set).
 eval_expr(Ident[I0], State, Elem) :- !,
 	eval_expr(I0, State, I),
-	( integer(I) -> I1 is I+1 ; fzn_error("Non-integer subscript %w", [I0->I])),
+	( integer(I) -> true ; fzn_error("Non-integer subscript %w", [I])),
 	fzn_var_lookup(State, Ident, Array),
-	arg(I1, Array, Elem).
+	arg(I, Array, Elem).
 eval_expr(Expr, State, _Elem) :-
 	compound(Expr), !,
 	State = state{solver:Solver},
@@ -960,6 +961,14 @@ fzn_output(State) :-
 	    ( foreach(Elem,Elems), param(State) do
 		( Elem = show(Expr) ->
 		    eval_expr(Expr, State, Value),
+		    fzn_write(output, Value)
+		; Elem = show_cond(Cond,Then,Else) ->
+		    eval_expr(Cond, State, Bool),
+		    ( eval_expr(true, State, Bool) ->
+			eval_expr(Then, State, Value)
+		    ;
+			eval_expr(Else, State, Value)
+		    ),
 		    fzn_write(output, Value)
 		;
 		    write(Elem)

@@ -28,7 +28,7 @@
 :- comment(summary, "A parser for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2008/06/20 13:41:13 $").
+:- comment(date, "$Date: 2008/06/20 17:33:41 $").
 :- comment(see_also, [library(flatzinc_syntax)]).
 :- comment(desc, html("
 <P>
@@ -88,8 +88,8 @@ items can be processed one at a time by ECLiPSe to set up the model.
     Yes (0.05s cpu)
 
     ?- read_item(input, Item).
-    > array [0..3] of var int: a;
-    Item = (array([0 .. 3]) of var(int)) : a
+    > array [1..3] of var int: a;
+    Item = (array([1 .. 3]) of var(int)) : a
     Yes (0.03s cpu)
 
     ?- read_item(input, Item).
@@ -123,10 +123,10 @@ item(Type:IdentAnns=Value) -->
 	non_array_flat_expr(Value).
 item(Decl) -->
 	[array], !,
-	expect_list(['[',i(0),(..)]),
+	expect_list(['[',i(1),(..)]),
 	int_literal(Max),
 	expect_list([']',of]),
-	array_decl_tail(no_macro_expansion(array([0..Max]) of ElemType), ElemType, Decl).
+	array_decl_tail(no_macro_expansion(array([1..Max]) of ElemType), ElemType, Decl).
 
 item(constraint(ElemAnns)) -->
 	[constraint], !,

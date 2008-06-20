@@ -32,7 +32,7 @@
 :- comment(summary, "Mapping from FlatZinc to lib(ic) and lib(ic_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Australia").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2008/06/20 13:41:13 $").
+:- comment(date, "$Date: 2008/06/20 17:33:41 $").
 :- comment(see_also, [library(flatzinc),
 	library(ic),library(ic_sets),library(ic_global),
 	library(propia),library(branch_and_bound)]).
@@ -57,7 +57,7 @@ the underlying solvers.
 	current_module_predicate(local, Pred),
 	get_flag(Pred, auxiliary, off),
 	nonmember(Pred, [
-		arg0/3,
+		arg_nd/3,
 		array_any_element/3,
 		vector_sum/3,
 		search_ann/1,
@@ -281,23 +281,22 @@ set_in_reif(I, S, B) :- in(I, S, B).
 % Array operations -----------------------------------------------
 
 % array_xx_yy_element(var int, array[int] of xx yy, var yy)
-array_bool_element(I0, Array, E) :- Array =.. [_|List], I#=I0+1, element(I, List, E).
-array_int_element(I0, Array, E) :- Array =.. [_|List], I#=I0+1, element(I, List, E).
-array_float_element(I0, Array, E) :- array_any_element(I0, Array, E).
-%array_set_element(I0, Array, E) :- array_any_element(I0, Array, E).
-array_var_bool_element(I0, Array, E) :- array_any_element(I0, Array, E).
-array_var_int_element(I0, Array, E) :- array_any_element(I0, Array, E).
-array_var_float_element(I0, Array, E) :- array_any_element(I0, Array, E).
-%array_var_set_element(I0, Array, E) :- array_any_element(I0, Array, E).
+array_bool_element(I, Array, E) :- element(I, Array, E).
+array_int_element(I, Array, E) :- element(I, Array, E).
+array_float_element(I, Array, E) :- array_any_element(I, Array, E).
+%array_set_element(I, Array, E) :- array_any_element(I, Array, E).
+array_var_bool_element(I, Array, E) :- array_any_element(I, Array, E).
+array_var_int_element(I, Array, E) :- array_any_element(I, Array, E).
+array_var_float_element(I, Array, E) :- array_any_element(I, Array, E).
+%array_var_set_element(I, Array, E) :- array_any_element(I, Array, E).
 
-    array_any_element(I0, Array, E) :-
+    array_any_element(I, Array, E) :-
 	functor(Array, _, N),
-	I0 #:: 0..N-1,
-	arg0(I0, Array, E) infers ic.
+	I #:: 1..N,
+	arg_nd(I, Array, E) infers ic.
 
-    arg0(I0, Array, E) :-
-	indomain(I0),
-	I is I0+1,
+    arg_nd(I, Array, E) :-
+	indomain(I),
 	arg(I, Array, E).
 
 

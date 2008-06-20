@@ -59,14 +59,22 @@ fzn_test :-
 
 	true.
 
+/*
+mzn_run(File, Options) :-
+	subcall(minizinc:mzn_run(File, Options), DG),
+	writeln(DG).
+*/
+
 mzn_test :-
-	IntSolver = fzn_ic,
+%	IntSolver = zn_options{solver:fzn_ic,setup_prio:2},
+	IntSolver = zn_options{solver:fzn_ic,var_names:on},
+%	IntSolver = fzn_ic,
 %	IntSolver = fzn_fd,
 	mzn_run("mzn_examples/2DPacking", IntSolver),
 	mzn_run("mzn_examples/alpha", IntSolver),
 %	mzn_run("mzn_examples/blocksworld_instance_1", IntSolver),
 %	mzn_run("mzn_examples/blocksworld_instance_2", IntSolver),
-	mzn_run("mzn_examples/domino", IntSolver),
+%	mzn_run("mzn_examples/domino", IntSolver),
 	mzn_run("mzn_examples/eq20", IntSolver),
 %	mzn_run("mzn_examples/factory_planning_instance", IntSolver),
 	mzn_run("mzn_examples/golomb", IntSolver),
@@ -84,7 +92,7 @@ mzn_test :-
 	mzn_run("mzn_examples/photo", IntSolver),
 	mzn_run("mzn_examples/product", fzn_ic),	% floats
 	%mzn_run("mzn_examples/product_fd", IntSolver),	% long
-	mzn_run("mzn_examples/product_lp", fzn_eplex),
+%	mzn_run("mzn_examples/product_lp", fzn_eplex),
 
 	mzn_run("mzn_examples/queen_cp2", IntSolver),
 	mzn_run("mzn_examples/queen_ip", IntSolver),
@@ -206,7 +214,7 @@ mzn_test3(M, Mark) :-
 
 		output ["golomb ", show(mark), "\\n"];
 	    '],
-	    zn_options{solver:fzn_ic,parser:strict},
+	    zn_options{solver:fzn_ic,parser:strict,var_names:on},
 	    [],
 	    [],
 	    State
@@ -277,6 +285,12 @@ queens(N, Q) :-
 	labeling(Q),
 	fzn_output(FznState).
 
+queen8(Q) :-
+	mzn_load("mzn_examples/queen_cp2",
+		zn_options{solver:fzn_ic,var_names:on},
+		[], [q=Q], FznState),
+	labeling(Q),
+	fzn_output(FznState).
 
 steiner :-
 	mzn_run_string("

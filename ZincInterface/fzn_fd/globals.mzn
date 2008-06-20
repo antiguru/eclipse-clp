@@ -317,43 +317,79 @@ predicate partition_set(array[int] of var set of int: S,
     all_disjoint(S) /\ universe == array_union(i in index_set(S)) ( S[i] );
 
 %-----------------------------------------------------------------------------%
-% Requires that the image of function 'x' (represented as an array) on
-% set of values 's' is 't'.
+% Requires that the image of function 'x' (represented as an array) on set
+% of values 's' is 't'.  ub(s) must be a subset of index_set(x) otherwise an
+% assertion failure will occur.
 %-----------------------------------------------------------------------------%
 predicate range(array[int] of var int: x, var set of int: s,
                                           var set of int: t) =
-    forall(i in ub(t)) (
-        i in t -> exists(j in ub(s)) ( j in s -> x[j] == i )
+    assert(ub(s) subset index_set(x),
+        "range: upper bound of 's' must be a subset of the index set of 'x'",
+    
+        % All values in 's' must map to a value in 't'.
+        forall(i in ub(s)) (
+            i in s -> x[i] in t
+        ) /\
+        % All values in 't' must be mapped from a value in 's'.
+        forall(i in ub(t)) (
+            i in t -> exists(j in ub(s)) ( j in s /\ x[j] == i )
+        )
     );
 
 %-----------------------------------------------------------------------------%
-% The sequence of values in array 'x' is accepted by the DFA of 'Q' states
-% with input 1..S and transition function 'd' and initial state 'q0' and
-% accepting states 'F'.  We reserve state 0 to be an always failing state.
+% The sequence of values in array 'x' (which must all be in the range 1..S)
+% is accepted by the DFA of 'Q' states with input 1..S and transition
+% function 'd' (which maps (1..Q, 1..S) -> 0..Q)) and initial state 'q0'
+% (which must be in 1..Q) and accepting states 'F' (which all must be in
+% 1..Q).  We reserve state 0 to be an always failing state.
 %-----------------------------------------------------------------------------%
 predicate regular(array[int] of var int: x, int: Q, int: S,
                   array[int,int] of int: d, int: q0, set of int: F) =
+    assert(Q > 0,
+        "regular: 'Q' must be greater than zero",
+    
+    assert(S > 0,
+        "regular: 'S' must be greater than zero",
+    
     assert(index_set_1of2(d) = 1..Q /\ index_set_2of2(d) == 1..S,
         "regular: the transition function 'd' must be [1..Q,1..S]",
-        let { int: l = min(index_set(x)),
-	      int: u = max(index_set(x)),
-              array[l-1..u,0..Q] of var bool: p } in
-        % initialize the fail states
-        forall(i in l-1..u) ( p[i,0] = false ) /\
-        % initialize the start states
-        forall(i in 1..Q diff {q0}) ( p[l-1,i] = false ) /\
-        p[l-1,q0] = true /\
-        forall(i in l..u-1, q in 1..Q) (
-            p[i,q] <-> (exists(j in 1..Q) ( p[i-1,j] /\ d[j,x[i]] == q )
-                        /\
-                        p[i+1,d[q,x[i+1]]])
+
+    assert(forall([d[i, j] in 0..Q | i in 1..Q, j in 1..S]),
+        "regular: transition function 'd' points to states outside 0..Q",
+
+        % Nb: we need the parentheses around the expression otherwise the
+        % parser thinks it's a generator call!
+    assert((q0 in 1..Q),
+        "regular: start state 'q0' not in 1..Q",
+    
+    assert(F subset 1..Q,
+        "regular: final states in 'F' contain states outside 1..Q",
+
+        let {
+            % d2 is the same as d, except we add one extra transition for
+            % each possible input;  each extra transition is from state zero
+            % to state zero.  This allows us to continue even if we hit a
+            % non-accepted input.
+            array[0..Q, 1..S] of int: d2 =
+                array2d(0..Q, 1..S,
+                  [if i == 0 then 0 else d[i, j] endif | i in 0..Q, j in 1..S]),
+        
+            % If x has index set m..n, then a[m-1] holds the initial state
+            % (q0), and a[i+1] holds the state we're in after processing
+            % x[i].  If a[n] is in F, then we succeed (ie. accept the
+            % string).
+              int: m = min(index_set(x)),
+              int: n = max(index_set(x)) + 1,
+              array[m..n] of var 0..Q: a
+            } in
+        a[m] = q0 /\                    % Set a[0].
+        forall(i in index_set(x)) (
+            x[i] in 1..S /\             % Do this in case it's a var.
+            a[i+1] = d2[a[i], x[i]]     % Determine a[i+1].
         ) /\
-        % set the final states
-        forall(i in 1..Q diff F) ( p[u,i] = false ) /\
-        forall(i in F) (
-            p[u,i] = exists(j in 1..Q) ( p[u-1,j] /\ d[j,x[u]] == i )
-        )
-    );
+        a[n] in F                       % Check the final state is in F.
+
+    ))))));
 
 %-----------------------------------------------------------------------------%
 % Requires that 'x[i] in t' for all 'i in s'
@@ -447,3 +483,31 @@ predicate element(var int: i, array[int] of var set of int: x,
                   var set of int: y) =
     y = x[i];
 
+%-----------------------------------------------------------------------------%
+% Reflect an array of comparison values onto a comparison value variable using
+% a lexicographic interpretation of the array.  The comparison values are
+% encoded as follows:  > | = | <  as  -1 | 0 | +1.
+% Uses of this constraint are generated by Cadmium transformations that
+% simplify ordering constraints on expressions of complex types.
+%-----------------------------------------------------------------------------%
+
+predicate comparison_rel_array(array[int] of var -1..1: rels, var -1..1: rel) =
+    let { int: l = min(index_set(rels)),
+          int: u = max(index_set(rels)),
+          array[l-1..u] of var -1..1: r }
+    in
+        r[l-1] = 0  % initial state (before first array position) is 'equal'
+        /\
+        forall (i in l..u) (
+            % new state: as given array at current position if
+            % previous state is 'equal', otherwise previous state
+            %
+            % r[i] = (if r[i-1] = 0 then rels[i] else r[i-1] endif)
+            (r[i-1]  = 0 -> r[i] = rels[i])
+            /\
+            (r[i-1] != 0 -> r[i] = r[i-1])
+        )
+        /\
+        r[u] = rel; % final state (at last array position)
+
+%-----------------------------------------------------------------------------%
