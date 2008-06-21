@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.16 2008/06/20 13:41:12 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.17 2008/06/21 23:12:15 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -231,7 +231,7 @@ case "$ARCH" in
     # it seems that the stdc++/gcc libs that needs to be linked in are at
     # gcc version dependent directories. The following tries to determine
     # the exact path using gcc to obtain its version information
-    GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([^ ]*\) .*/\1/'`
+    GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([[^ ]]*\) .*/\1/'`
     GCCLIBDIR=$(ls -d /usr/lib/gcc/i686*/$GCC_VERSION 2>/dev/null)
     if test $? -ne 0; then
 	GCCLIBDIR="."
@@ -257,7 +257,7 @@ case "$ARCH" in
     LOCK=
     ;;
  ppc_macosx)
-    GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([^ ]*\) .*/\1/'`
+    GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([[^ ]]*\) .*/\1/'`
     GCCLIBDIR=$(ls -d /usr/lib/gcc/i686*/$GCC_VERSION 2>/dev/null)
     if test $? -ne 0; then
 	GCCLIBDIR="."
