@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.6 2008/06/23 15:17:33 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.7 2008/06/23 22:11:46 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -951,7 +951,7 @@ install_archives() {	# installation number
 		    for arch in $archs ; do
 			if [ \"\$arch\" = i386_nt ] ; then
 			    tar xfpz $PREFIX/$TMP_ARCHIVE_DIR/\$arch/eclipse_basic.tgz \
-				    ecl_inst.tcl lib/test_util.eco lib/mip.eco &&
+				    ecl_inst.js lib/test_util.eco lib/mip.eco &&
 			    break
 			fi
 			# If the loop terminates normally, make sure it
@@ -967,7 +967,7 @@ install_archives() {	# installation number
 	" &&
 
 	# Now run the bits that need to be done on the architecture machine.
-	# Note that there's no point running ecl_inst.tcl for i386_nt now ---
+	# Note that there's no point running ecl_inst for i386_nt now ---
 	# we need to run it just before each test or it may point to the wrong
 	# installation.
 	(
@@ -1273,8 +1273,7 @@ run_test_i386_nt() {
 	# This destroys the registry settings on the local machine, but
 	# is necessary for the tests to work.
 	#cd \"$remote_prefix/$install_dir\" &&
-	wish $remote_prefix/$install_dir/ecl_inst.tcl \
-		--registry-eclipsedir --create-jeclipse \
+	cscript $remote_prefix/$install_dir/ecl_inst.js $ECLIPSE_VERSION \
 		>> $remote_prefix/$test_logfile 2>&1 &&
 	if [ \"$test_embedding\" = \"java\" ] ; then
 	    # Run eclipse to get the JRE location

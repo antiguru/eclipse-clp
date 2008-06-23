@@ -767,9 +767,9 @@ echo Fixing permissions ...
 find $ALLDIRS \! -perm -a+r -print -exec chmod a+r {} \;
 find $ALLDIRS -perm -u+x \! -perm -a+x -print -exec chmod a+x {} \;
 find $ALLDIRS -perm -go+w -print -exec chmod go-w {} \;
-chmod a+rx UNPACK ARCH RUNME ecl_inst.tcl 
+chmod a+rx UNPACK ARCH RUNME ecl_inst.js
 chmod a+r README_UNIX README_MACOSX README_WIN.TXT 
-chmod go-w UNPACK ARCH RUNME ecl_inst.tcl README_UNIX README_MACOSX README_WIN.TXT
+chmod go-w UNPACK ARCH RUNME ecl_inst.js README_UNIX README_MACOSX README_WIN.TXT
 rm -f lib/*/SITE_PARAMS
 
 
@@ -796,8 +796,8 @@ if [ "$pack_archs" = yes ] ; then
 		LIBSUFFIX=dll
 		SOSUFFIX=dll
 		AUXOBJ=
-		INSTALL_FILES="README_WIN.TXT ecl_inst.tcl"
-		INSTALL_FILES_RT=
+		INSTALL_FILES="README_WIN.TXT ecl_inst.js"
+		INSTALL_FILES_RT="ecl_inst.js"
 		;;
 	    sun4)
 		LIBPREFIX=lib
