@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.5 2008/01/22 15:14:10 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.6 2008/06/23 15:17:33 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -1296,7 +1296,7 @@ run_test_i386_nt() {
 	    \"$remote_prefix/$test_dir/test_eclipse\" \
 		--test-dir \"$remote_prefix/$test_dir\" \
 		$test_flags \
-		\"$standalone_binary\"
+		\"$standalone_binary\" -D \"$remote_prefix/$install_dir\"
 	fi >> $remote_prefix/$test_logfile 2>&1
     "
     this_test_result=$?
@@ -1331,6 +1331,7 @@ run_test() {	# test number
 
     if [ -e "$ABORT_FLAG" ] ; then
 	echo "$ABORT_FLAG found, aborting prematurely"
+	false
     elif [ -e $LOCAL_PREFIX/$test_result_file ] && milestone_already_achieved tested_$test_milestone_key ; then
 	echo "Milestone: Skipping testing for $test_milestone_key"
     else
@@ -1535,11 +1536,12 @@ increment_build_number() {
 	    # contained in the archives.
 	    $PREFIX/$install_dir/bin/$arch/eclipse -e \"\
 		File = \\\"$VERSION_FILE\\\",\
-		compile(File), sepia_date(Date), sepia_patch(Patch),\
-		sepia_build(CurrBuild),\
+		compile(File), sepia_date(Date), sepia_build(CurrBuild),\
 		NextBuild is CurrBuild + 1,\
-		open(File, write, V), writeq(V, sepia_date(Date)),\
-		writeln(V, .), writeq(V, sepia_patch(Patch)),\
+		open(File, write, V), writeq(V, sepia_date(Date)),writeln(V, .),\
+		( is_predicate(sepia_patch/1) ->\
+		    sepia_patch(Patch), writeq(V, sepia_patch(Patch))\
+		;   sepia_stage(Stage), writeq(V, sepia_stage(Stage))),\
 		writeln(V, .), writeq(V, sepia_build(NextBuild)),\
 		writeln(V, .), close(V),\
 		get_flag(version, Ver),\
@@ -2032,7 +2034,7 @@ fi || everything_ok=1
 # Only copy distribution archives to FTP site and make "stable"
 # symlinks if the build number was incremented --- otherwise the
 # build number still can't be used to uniquely identify a version.
-if [ "$everything_ok" = 0 ] ; then
+if [ "$everything_ok" = 0 ] && milestone_already_achieved incremented_build_number ; then
     if ! update_symlinks >> $MASTER_LOG_FILE 2>&1 ; then
 	echo "Updating symlinks failed." >> $MASTER_LOG_FILE 2>&1
 	SUMMARY="${SUMMARY}
@@ -2049,7 +2051,7 @@ Skipping updating of symlinks.
 fi || everything_ok=1
 
 
-if [ "$everything_ok" = 0 ] ; then
+if [ "$everything_ok" = 0 ] && milestone_already_achieved incremented_build_number ; then
     if copy_to_ftps >> $MASTER_LOG_FILE 2>&1 ; then
 	true
     else
