@@ -66,7 +66,7 @@
 
 
 ",
-	see_also:[concat_string / 2, term_string / 2, atom_string / 2, number / 1, split_string / 4]]).
+	see_also:[concat_string / 2, term_string / 2, atom_string / 2, number / 1, sprintf/3, split_string / 4]]).
 
 :- comment(integer_atom / 2, [
 	summary:"Conversion between an integer and an atom.
@@ -111,7 +111,7 @@ It is more efficient to use number_string/2 wherever possible.
 
 
 ",
-	see_also:[integer / 1, atom / 1, number_string / 2]]).
+	see_also:[integer / 1, atom / 1, number_string / 2, sprintf/3]]).
 
 :- comment(string_list / 2, [
 	summary:"Succeeds if List is a list whose elements are the ascii codes of the
@@ -250,7 +250,7 @@ characters of String.
 
 
 ",
-	see_also:[append_strings / 3, integer_atom / 2, term_string / 2]]).
+	see_also:[append_strings / 3, integer_atom / 2, sprintf/3, term_string / 2]]).
 
 :- comment(append_strings / 3, [
 	summary:"Succeeds if String3 is the concatenation of String1 and String2.
@@ -287,7 +287,7 @@ Error:
 
 
 ",
-	see_also:[concat_strings / 3, concat_string / 2, join_string / 3]]).
+	see_also:[concat_strings / 3, concat_string / 2, join_string / 3, sprintf/3]]).
 
 :- comment(substring / 4, [
 	summary:"Succeeds if String2 is the substring of String1 starting at position
@@ -604,7 +604,7 @@ Error:
 
 
 ",
-	see_also:[append_strings / 3, concat_atoms / 3]]).
+	see_also:[append_strings / 3, concat_atoms / 3, sprintf/3]]).
 
 :- comment(string_length / 2, [
 	summary:"Succeeds if Length is the length of the string String.
@@ -828,7 +828,7 @@ Error:
 
 
 ",
-	see_also:[concat_atom / 2, concat_strings / 3, append_strings / 3, atom_string / 2, join_string / 3, split_string / 4]]).
+	see_also:[concat_atom / 2, concat_strings / 3, append_strings / 3, atom_string / 2, join_string / 3, split_string / 4, sprintf/3]]).
 
 :- comment(join_string / 3, [
 	summary:"String is the string formed by concatenating the elements of List with
@@ -866,7 +866,7 @@ Error:
 
 
 ",
-	see_also:[concat_string / 2, concat_strings / 3, append_strings / 3, atom_string / 2, split_string / 4]]).
+	see_also:[concat_string / 2, concat_strings / 3, append_strings / 3, atom_string / 2, split_string / 4, sprintf/3]]).
 
 
 :- comment(string_code / 3, [

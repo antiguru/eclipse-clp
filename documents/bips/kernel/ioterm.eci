@@ -36,6 +36,7 @@
 :- tool(read_term / 2).
 :- tool(read_term / 3).
 :- tool(readvar / 3).
+:- tool(sprintf / 3).
 :- tool(write / 1).
 :- tool(write / 2).
 :- tool(write_canonical / 1).
@@ -848,14 +849,14 @@ Format string and the result is printed to the output stream.
 </DL>
 "),
 	args:["Format" : "String or Atom.", "ArgList" : "List or any Term."],
-	exceptions:[5 : "Format is not an atom or a string.", 5 : "ArgList contains argument whose type does not correspond to    the control sequence.", 7 : "Format is not correct, it contains too many asterisks or a    control character is missing or there is a redundant character before    the control character.", 8 : "ArgList has not enough arguments."],
+	exceptions:[5 : "Format is not an atom or a string.", 5 : "ArgList contains argument whose type does not correspond to    the control sequence.", 7 : "Format is not correct, it contains too many asterisks or a    control character is missing or there is a redundant character before    the control character.", 8 : "ArgList has not enough or too many arguments."],
 	eg:"   Equivalent to printf(output, Format, ArgList).  (see printf/3 for
    details).
 
 
 
 ",
-	see_also:[display / 1, display / 2, print / 1, print / 2, printf / 3, write / 1, write / 2, writeq / 1, writeq / 2]]).
+	see_also:[display / 1, display / 2, print / 1, print / 2, printf / 3, sprintf/3, write / 1, write / 2, writeq / 1, writeq / 2]]).
 
 :- comment(printf / 3, [
 	summary:"The arguments in the argument list ArgList are interpreted according to the
@@ -1108,7 +1109,7 @@ Format string and the result is printed on the output Stream.
 </DL>
 "),
 	args:["Stream" : "Integer (stream number) or Atom (reserved or user-defined                symbolic stream name).", "Format" : "String or Atom.", "ArgList" : "List or any Term."],
-	exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is not an atom or an integer.", 5 : "Format is not an atom or a string.", 5 : "ArgList contains argument whose type does not correspond to    the control sequence.", 7 : "Format is not correct, it contains too many asterisks or a    control character is missing or there is a redundant character before    the control character.", 8 : "ArgList has not enough arguments.", 192 : "Stream is not an output stream.", 193 : "Stream is not a stream specification."],
+	exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is not an atom or an integer.", 5 : "Format is not an atom or a string.", 5 : "ArgList contains argument whose type does not correspond to    the control sequence.", 7 : "Format is not correct, it contains too many asterisks or a    control character is missing or there is a redundant character before    the control character.", 8 : "ArgList has not enough or too many arguments.", 192 : "Stream is not an output stream.", 193 : "Stream is not a stream specification."],
 	eg:"
 Success:
 [eclipse]: printf(output, \"abc %s ghi %+*.*E...\",
@@ -1151,9 +1152,49 @@ Error:
 
 
 ",
-    see_also:[display / 1, display / 2, print / 1, print / 2, printf / 2,
+    see_also:[display / 1, display / 2, print / 1, print / 2, printf / 2, sprintf/3,
 	write / 1, write / 2, write_term/2, write_term/3, writeq / 1,
 	writeq / 2]]).
+
+
+:- comment(sprintf / 3, [
+	summary:"The arguments in the argument list ArgList are interpreted according to the
+Format string and the formatted result is unified with String.",
+	amode:(sprintf(-,+,?) is det),
+	desc:html("\
+    This predicate works exactly like printf/2,3 except that the formatted
+    result is delivered in the form of a string.  See printf/2,3 for details.
+<P>
+    Note that for simple cases it is usually more efficient to use
+    primitives like concat_string/2, join_string/3 or number_string/2.
+<P>
+"),
+	args:[
+	    "String" : "Variable or String.",
+	    "Format" : "String or Atom.",
+	    "ArgList" : "List or any Term."],
+	exceptions:[
+	    5 : "String is instantiated to something other than a string.",
+	    5 : "Format is not an atom or a string.",
+	    5 : "ArgList contains argument whose type does not correspond to the control sequence.",
+	    7 : "Format is not correct, it contains too many asterisks or a control character is missing or there is a redundant character before the control character.",
+	    8 : "ArgList has not enough or too many arguments."],
+	eg:"
+Success:
+?- sprintf(String, \"abc %s ghi %+*.*E...\", [\"def\", 2, 3, 12.34]).
+String = \"abc def ghi +1.234E+01...\"
+yes.
+
+?- sprintf(String, \"abc %12c %*n\", [77, 3]).
+String = \"abc MMMMMMMMMMMM \\n\\n\\n\"
+yes.
+
+?- sprintf(\"x9\", \"x%d\", [3]).
+no.
+",
+    see_also:[concat_string/2, join_string/3, number_string/2, printf/2, printf/3]
+]).
+
 
 :- comment(read / 1, [
 	summary:"Succeeds if the next term from the input stream is successfully read and

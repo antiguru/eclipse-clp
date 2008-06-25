@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.26 2008/06/20 13:41:16 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.27 2008/06/25 12:02:02 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -197,6 +197,7 @@
    tool(par_once/2, par_once_body/3),
    tool(printf/2, printf_body/3),
    tool(printf/3, printf_body/4),
+   tool(sprintf/3, sprintf_/4),
    tool(is_predicate/1, is_predicate_/2),
    tool(is_record/1, is_record_body/2),
    tool(incval/1, incval_body/2),
@@ -2566,6 +2567,7 @@ get_char(X) :- get_char(input, X).
 put_char(X) :- put_char(output, X).
 display(X) :- display(output, X).
 
+
 printf_body(Format, List, Module) :- 
 	printf_(output, Format, List, Module, 0'%, ErrF, ErrL, Res),
 	(Res = 0 ->
@@ -2581,6 +2583,23 @@ printf_body(Stream, Format, List, Module) :-
 	;
 		error(Res, printf(Stream, ErrF, ErrL), Module)
 	).
+
+sprintf_(String, Format, List, Module) :-
+	( check_var_or_string(String) ->
+	    open(string(""), write, Stream),
+	    printf_(Stream, Format, List, Module, 0'%, ErrF, ErrL, Res),
+	    (Res == 0 ->
+		get_stream_info(Stream, name, Written),
+		close(Stream),
+		String = Written
+	    ;
+		close(Stream),
+		error(Res, sprintf(String, ErrF, ErrL), Module)
+	    )
+	;
+	    bip_error(sprintf(String, Format, List), Module)
+	).
+
 
 read_token_(Token, Class, Module) :-
 	read_token_(input, Token, Class, Module).
@@ -3885,6 +3904,7 @@ inline_(Proc, Trans, Module) :-
 	print/2,
 	printf/2,
 	printf/3,
+	sprintf/3,
 	put_char/1,
 	read/1,
 	read/2,
@@ -4042,6 +4062,7 @@ inline_(Proc, Trans, Module) :-
 	printf/2,
 	printf/3,
 	printf_goal_body/3,
+	sprintf/3,
 	proc_flags/4,
 	put_char/1,
 	read_string/3,
