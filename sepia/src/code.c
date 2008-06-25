@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.6 2008/06/13 00:42:39 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.7 2008/06/25 23:36:52 jschimpf Exp $
  */
 
 /********************************************************************
@@ -99,7 +99,7 @@ vmcode restore_debug_code_[3];
 vmcode trace_exit_code_[3];
 vmcode return_code_[2];
 vmcode it_code_[20];
-vmcode it_block_code_[20];
+vmcode it_block_code_[21];
 vmcode recurs_code_[15];
 vmcode boot_code_[16];
 vmcode fail_code_[2];
