@@ -23,7 +23,7 @@
 /*
  * ECLiPSe C SOURCE MODULE
  *
- * $Id: eclipsedir.c,v 1.2 2007/07/03 00:10:30 jschimpf Exp $
+ * $Id: eclipsedir.c,v 1.3 2008/06/25 18:42:23 jschimpf Exp $
  *
  * Note that this file is used by different executables
  * (eclipse, worker manager)
@@ -60,6 +60,13 @@ eclipsehome(void)
 	    if (ec_env_lookup("ECLIPSEDIR", buf1, &size))
 	    {
 		(void) canonical_filename(buf1, buf);
+		if (buf[0] != '/')
+		{
+		    char buf2[MAX_PATH_LEN];
+		    strcpy(buf2, buf);
+		    get_cwd(buf, MAX_PATH_LEN);
+		    strcat(buf, buf2);
+		}
 		eclipsehome_ = buf;
 	    }
 	    else

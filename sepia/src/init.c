@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.3 2007/07/03 00:10:30 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.4 2008/06/25 18:42:23 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -267,7 +267,18 @@ eclipse_global_init(int init_flags)
     {
 	char buf[MAX_PATH_LEN];
 	(void) canonical_filename(ec_options.eclipse_home, buf);
-	ec_eclipse_home = strcpy((char*) hp_alloc(strlen(buf)+1), buf);
+	if (buf[0] != '/')
+	{
+	    /* This is mainly to enable the use of -D with relative path */
+	    char buf2[MAX_PATH_LEN];
+	    get_cwd(buf2, MAX_PATH_LEN);
+	    strcat(buf2, buf);
+	    ec_eclipse_home = strcpy((char*) hp_alloc(strlen(buf2)+1), buf2);
+	}
+	else
+	{
+	    ec_eclipse_home = strcpy((char*) hp_alloc(strlen(buf)+1), buf);
+	}
     }
     else
     {
