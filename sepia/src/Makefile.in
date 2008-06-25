@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.8 2008/06/20 13:41:17 jschimpf Exp $
+# $Id: Makefile.in,v 1.9 2008/06/25 18:44:47 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -169,15 +169,6 @@ DEVSYS_OBJECTS = main.o
 
 SEPIA_OBJECTS =	$(DEVSYS_OBJECTS) $(COMMON_OBJECTS) $(EXT_OBJECTS)
 
-KB_OBJECTS =	b_interface.o b_builtins.o \
-		b_heap.o b_multi_db.o b_network.o \
-		b_access.o b_auxiliary.o b_bang_builtins.o \
-		b_general_bangdb.o b_file_access.o b_insert.o \
-		b_join_project.o b_recovery.o b_retrieve.o
-
-BS_OBJECTS =	b_bang_server.o b_heap.o b_bang_lock.o \
-		b_recovery.o b_file_access.o
-
 PAR_OBJECTS =	bip_parallel.o emu_par.o scheduler.o sch_util.o \
 		trace.o worker.o
 
@@ -234,14 +225,24 @@ EG_SRC	=	Makefile.external eg.cc minimain.c
 
 # *************** Development Targets ***************
 
+default:	sepia$(EXE)
+
 # A statically linked standard development system, sepia kernel only
 # This is used during installation, e.g. for making .eco and .eci files
-sepia$(EXE):		$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) whereami.o libdummies.a ../lib $(BOOT_ECOS)
+sepia:		$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.a whereami.o libdummies.a ../lib $(BOOT_ECOS)
 	$(CC) $(OPT_FLAGS) $(LDFLAGS) $(DEVSYS_OBJECTS) \
-		$(COMMON_OBJECTS) $(EXT_OBJECTS) whereami.o \
+		 $(LIB_PREFIX)eclipse.a $(EXT_OBJECTS) whereami.o \
 		-L$(SYS_LIB) \
 		$(RUNPATH_LDFLAG)$(GMP_LIBDIR) \
 		libdummies.a $(BASIC_EXE_LIBS) $(LIBS) -o ./sepia$(EXE)
+
+# Similar for Windows
+sepia.exe:	$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.dll whereami.o libdummies.a ../lib $(BOOT_ECOS)
+	$(CC) $(OPT_FLAGS) $(LDFLAGS) $(DEVSYS_OBJECTS) \
+		$(LIB_PREFIX)eclipse.dll $(EXT_OBJECTS) whereami.o \
+		-L$(SYS_LIB) \
+		$(RUNPATH_LDFLAG)$(GMP_LIBDIR) \
+		libdummies.a $(BASIC_EXE_LIBS) $(LIBS) -o ./sepia.exe
 
 # The sepia executable needs this link to find its prolog files
 ../lib:	../pl
@@ -250,41 +251,28 @@ sepia$(EXE):		$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) whereami.o libd
 # The default executable for the distribution (preferably dynamic, else static)
 # This requires an LD_LIBRARY_PATH, cannot give a meaningful run-path.
 # Order important: first RUN_LIB, then SYS_LIB (so we prefer dynamic libs)!
-eclipse.exe:	$(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.$(OBJECTS_SUFFIX) libdummies.a
+eclipse$(EXE):	$(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.$(OBJECTS_SUFFIX) libdummies.a
 	$(CC) $(LDFLAGS) $(DEVSYS_OBJECTS) \
 		$(LIB_PREFIX)eclipse.$(OBJECTS_SUFFIX) libdummies.a \
 		-L$(RUN_LIB) -L$(SYS_LIB) \
-		$(BASIC_LIBS) $(LIBS) -o ./eclipse.exe
+		$(BASIC_LIBS) $(LIBS) -o ./eclipse$(EXE)
 
 
 # A sepia with mps
 msepia$(EXE):		$(DEVSYS_OBJECTS) $(COMMON_OBJECTS) mps.o whereami.o libdummies.a
 		$(CC) $(LDFLAGS) -L$(SYS_LIB) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) mps.o whereami.o $(PAR_LIBS) $(BASIC_LIBS) libdummies.a $(LIBS) -o ./msepia$(EXE)
 
-# A sepia parallel worker (includes mps)
-wsepia$(EXE):		$(DEVSYS_OBJECTS) $(COMMON_OBJECTS) parallel.o mps.o whereami.o libdummies.a
-		$(CC) $(LDFLAGS) -L$(SYS_LIB) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) parallel.o mps.o whereami.o $(PAR_LIBS) $(BASIC_LIBS) libdummies.a $(LIBS) -o ./wsepia$(EXE)
-
 # An eclipse parallel worker (includes mps)
-weclipse:	$(DEVSYS_OBJECTS) $(COMMON_OBJECTS) megalog.o parallel.o mps.o whereami.o libdummies.a
-		$(CC) $(LDFLAGS) -L$(SYS_LIB) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) megalog.o parallel.o mps.o whereami.o $(PAR_LIBS) $(BASIC_LIBS) libdummies.a $(LIBS) -o ./weclipse
-
-
-# A development eclipse (with megalog)
-eclipse:	$(DEVSYS_OBJECTS) $(COMMON_OBJECTS) megalog.o whereami.o libdummies.a
-		$(CC) $(LDFLAGS) -L$(SYS_LIB) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) megalog.o whereami.o $(BASIC_LIBS) libdummies.a $(LIBS) -o ./eclipse
+weclipse:	$(DEVSYS_OBJECTS) $(COMMON_OBJECTS) o parallel.o mps.o whereami.o libdummies.a
+		$(CC) $(LDFLAGS) -L$(SYS_LIB) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) parallel.o mps.o whereami.o $(PAR_LIBS) $(BASIC_LIBS) libdummies.a $(LIBS) -o ./weclipse
 
 # The worker manager
 peclipse:	wm.o whereami.o wm_interface.o eclipsedir.o os_support.o
 		$(CC) $(LDFLAGS) -L$(SYS_LIB) wm.o wm_interface.o whereami.o \
 		    eclipsedir.o os_support.o $(PAR_LIBS) $(BASIC_LIBS) $(GRAPHLIBS) $(LIBS) -o ./peclipse
 
-# The BANG server
-bang_server:	bang_server.o
-		$(CC) $(LDFLAGS) bang_server.o -L$(SYS_LIB) $(BASIC_LIBS) $(LIBS) -o ./bang_server
 
-saved_sepia:	sepia$(EXE)
-		`pwd|sed s-auto/--`/sepia -s ./saved_sepia
+# Embedding test programs
 
 eg_c_test:	$(EXT_INCLUDES) eg_c_test.o libeclipse.a libdummies.a
 		$(CC) -o eg_c_test eg_c_test.o \
@@ -408,6 +396,9 @@ $(LIB_PREFIX)eclipse.dll: $(COMMON_OBJECTS) $(DUMMYLIBS)
 			-L$(RUN_LIB) -L$(SYS_LIB) \
 			$(BASIC_LIBS) $(LIBS)
 
+$(LIB_PREFIX)eclipse.dll.a: $(LIB_PREFIX)eclipse.dll
+
+
 libdummies.a:	$(ALLDUMMYLIBS) 
 		ar rc ./libdummies.a $(ALLDUMMYLIBS)
 		$(RANLIB) ./libdummies.a
@@ -418,14 +409,6 @@ sepia.o:	$(COMMON_OBJECTS)
 
 standalone.o:	$(DEVSYS_OBJECTS)
 		$(LD) -r $(DEVSYS_OBJECTS) -o ./standalone.o
-
-
-megalog.o:	$(KB_OBJECTS)
-		$(LD) -r $(KB_OBJECTS) -o megalog.o
-
-
-bang_server.o:	$(BS_OBJECTS)
-		$(LD) -r $(BS_OBJECTS) -o bang_server.o
 
 
 parallel.o:	$(PAR_OBJECTS)
@@ -519,11 +502,11 @@ Makefile:	Makefile.in
 # ECLiPSe INSTALLATION
 # -----------------------------------------------------------------------------
 
-AUX_SEPIA = sepia$(EXE)
+AUX_SEPIA = ./sepia$(EXE) -D $(SEPIA)
 
 # install is configured as either install_all or install_cross
 install:	@MAKE_TARGET@
-install_all:	$(AUX_SEPIA) install_common install_machine
+install_all:	sepia$(EXE) install_common install_machine
 install_cross:	install_machine
 
 
@@ -710,7 +693,7 @@ $(PREFIX)/lib/%.tcl:	$(SEPIA)/pl/%.tcl $(PREFIX)/lib/.stamp
 
 # copy the version file, replacing the date with the current one
 $(PREFIX)/lib/version.pl:	$(SEPIA)/pl/version.pl $(PREFIX)/lib/.stamp
-	./sepia -e "date(D), substring(D, 1, 16, D1),\
+	$(AUX_SEPIA) -e "date(D), substring(D, 1, 16, D1),\
 		substring(D, 20, 5, D2), concat_strings(D1, D2, DD),\
 		compile(library(version)),\
 		sepia_stage(Stage), sepia_build(Build),\
@@ -738,24 +721,24 @@ $(PREFIX)/lib/%.eco:	$(SEPIA)/lib/%.eco boot_test $(PREFIX)/lib/.stamp
 # This goal tries to make sure that the core system actually boots and that
 # the compiler works (by compiling util.pl).  Could be more thorough!
 boot_test:	sepia$(EXE) $(BOOT_ECOS) $(COMPILER_ECOS)
-	./sepia -e 'compile("$(SEPIA)/lib/util"),util:compiled'
+	$(AUX_SEPIA) -e 'compile("$(SEPIA)/lib/util"),util:compiled'
 	touch $@
 
 
 $(PREFIX)/lib/%.eco:	$(SEPIA)/pl/%.ecl $(PREFIX)/lib/.stamp
-	./sepia -e 'compile("$<",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco])'
+	$(AUX_SEPIA) -e 'compile("$<",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco])'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eco:	$(SEPIA)/pl/%.pl $(PREFIX)/lib/.stamp
-	./sepia -e 'compile("$<",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco])'
+	$(AUX_SEPIA) -e 'compile("$<",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco])'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eci:	$(SEPIA)/pl/%.ecl $(PREFIX)/lib/.stamp
-	./sepia -e 'lib(document),icompile("$<","$(@D)")'
+	$(AUX_SEPIA) -e 'lib(document),icompile("$<","$(@D)")'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eci:	$(SEPIA)/pl/%.pl $(PREFIX)/lib/.stamp
-	./sepia -e 'lib(document),icompile("$<","$(@D)")'
+	$(AUX_SEPIA) -e 'lib(document),icompile("$<","$(@D)")'
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/doc/examples/%.c: %.c $(PREFIX)/doc/examples/.stamp
@@ -788,28 +771,30 @@ new_bootfiles:
 
 bootfiles:	$(BOOT_ECOS)
 
-
 $(SEPIA)/lib/kernel.eco:	$(KERNEL_PARTS:%=$(SEPIA)/pl/%)
-	if test -x $(STABLE_ECLIPSE) ; then \
-	    $(STABLE_ECLIPSE) -e 'unlock(sepia_kernel,"Sepia"),compile("$(SEPIA)/lib/kernel.pl",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",load:none,output:eco])'; \
+	@if test -x $(STABLE_ECLIPSE) ; then \
+	    echo "Rebuilding bootfile $@ [debug:$(ECO_DBG)]"; \
+	    $(STABLE_ECLIPSE) -D $(PREFIX) -e 'unlock(sepia_kernel,"Sepia"),compile("$(SEPIA)/lib/kernel.pl",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",load:none,output:eco])'; \
 	else \
-	    touch $@; echo "WARNING: $@ out-of-date, cannot remake without stable eclipse"; \
+	    touch $@; echo "WARNING: $@ out-of-date, but cannot rebuild without stable eclipse"; \
 	fi 
 	@/bin/chmod $(PERM) $@
 
 $(SEPIA)/lib/%.eco:	$(SEPIA)/pl/%.ecl
-	if test -x $(STABLE_ECLIPSE) ; then \
-	    $(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'; \
+	@if test -x $(STABLE_ECLIPSE) ; then \
+	    echo "Rebuilding bootfile $@ [debug:$(ECO_DBG)]"; \
+	    $(STABLE_ECLIPSE) -D $(PREFIX) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'; \
 	else \
-	    touch $@; echo "WARNING: $@ out-of-date, cannot remake without stable eclipse"; \
+	    touch $@; echo "WARNING: $@ out-of-date, but cannot rebuild without stable eclipse"; \
 	fi 
 	@/bin/chmod $(PERM) $@
 
 $(SEPIA)/lib/%.eco:	$(SEPIA)/pl/%.pl
-	if test -x $(STABLE_ECLIPSE) ; then \
-	    $(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'; \
+	@if test -x $(STABLE_ECLIPSE) ; then \
+	    echo "Rebuilding bootfile $@ [debug:$(ECO_DBG)]"; \
+	    $(STABLE_ECLIPSE) -D $(PREFIX) -e 'compile("$<", [debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco,load:none])'; \
 	else \
-	    touch $@; echo "WARNING: $@ out-of-date, cannot remake without stable eclipse"; \
+	    touch $@; echo "WARNING: $@ out-of-date, but cannot rebuild without stable eclipse"; \
 	fi 
 	@/bin/chmod $(PERM) $@
 
