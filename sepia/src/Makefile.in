@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.10 2008/06/26 08:25:11 jschimpf Exp $
+# $Id: Makefile.in,v 1.11 2008/06/26 09:58:52 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -234,7 +234,7 @@ sepia:		$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.a whereami.o libdu
 		 $(LIB_PREFIX)eclipse.a $(EXT_OBJECTS) whereami.o \
 		-L$(SYS_LIB) \
 		$(RUNPATH_LDFLAG)$(GMP_LIBDIR) \
-		libdummies.a $(BASIC_EXE_LIBS) $(LIBS) -o ./sepia$(EXE)
+		libdummies.a $(BASIC_EXE_LIBS) $(LIBS) -o $@
 
 # Similar for Windows
 sepia.exe:	$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.dll whereami.o libdummies.a ../lib $(BOOT_ECOS)
@@ -242,7 +242,7 @@ sepia.exe:	$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.dll whereami.o 
 		$(LIB_PREFIX)eclipse.dll $(EXT_OBJECTS) whereami.o \
 		-L$(SYS_LIB) \
 		$(RUNPATH_LDFLAG)$(GMP_LIBDIR) \
-		libdummies.a $(BASIC_EXE_LIBS) $(LIBS) -o ./sepia.exe
+		libdummies.a $(BASIC_EXE_LIBS) $(LIBS) -o $@
 
 # The sepia executable needs this link to find its prolog files
 ../lib:	../pl
@@ -256,33 +256,33 @@ eclipse.exe:	$(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.$(OBJECTS_SUFFIX) libdummies
 	$(CC) $(LDFLAGS) $(DEVSYS_OBJECTS) \
 		$(LIB_PREFIX)eclipse.$(OBJECTS_SUFFIX) libdummies.a \
 		-L$(RUN_LIB) -L$(SYS_LIB) \
-		$(BASIC_LIBS) $(LIBS) -o ./eclipse$(EXE)
+		$(BASIC_LIBS) $(LIBS) -o $@
 
 
 # A sepia with mps
 msepia$(EXE):		$(DEVSYS_OBJECTS) $(COMMON_OBJECTS) mps.o whereami.o libdummies.a
-		$(CC) $(LDFLAGS) -L$(SYS_LIB) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) mps.o whereami.o $(PAR_LIBS) $(BASIC_LIBS) libdummies.a $(LIBS) -o ./msepia$(EXE)
+		$(CC) $(LDFLAGS) -L$(SYS_LIB) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) mps.o whereami.o $(PAR_LIBS) $(BASIC_LIBS) libdummies.a $(LIBS) -o $@
 
 # An eclipse parallel worker (includes mps)
 weclipse:	$(DEVSYS_OBJECTS) $(COMMON_OBJECTS) o parallel.o mps.o whereami.o libdummies.a
-		$(CC) $(LDFLAGS) -L$(SYS_LIB) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) parallel.o mps.o whereami.o $(PAR_LIBS) $(BASIC_LIBS) libdummies.a $(LIBS) -o ./weclipse
+		$(CC) $(LDFLAGS) -L$(SYS_LIB) $(DEVSYS_OBJECTS) $(COMMON_OBJECTS) parallel.o mps.o whereami.o $(PAR_LIBS) $(BASIC_LIBS) libdummies.a $(LIBS) -o $@
 
 # The worker manager
 peclipse:	wm.o whereami.o wm_interface.o eclipsedir.o os_support.o
 		$(CC) $(LDFLAGS) -L$(SYS_LIB) wm.o wm_interface.o whereami.o \
-		    eclipsedir.o os_support.o $(PAR_LIBS) $(BASIC_LIBS) $(GRAPHLIBS) $(LIBS) -o ./peclipse
+		    eclipsedir.o os_support.o $(PAR_LIBS) $(BASIC_LIBS) $(GRAPHLIBS) $(LIBS) -o $@
 
 
 # *************** Embedding test programs ***************
 
 eg_c_test:	$(EXT_INCLUDES) eg_c_test.o libeclipse.a libdummies.a
-		$(CC) -o eg_c_test eg_c_test.o \
+		$(CC) -o $@ eg_c_test.o \
 			-L$(RUN_LIB) -L$(SYS_LIB) -L. \
 			$(RUNPATH_LDFLAG)$(RUN_LIB) \
 			-leclipse -ldummies $(BASIC_LIBS) $(LIBS)
 
 eg_cc_test:	$(EXT_INCLUDES) eg_cc_test.o libeclipse.a libdummies.a
-		$(CXX) -o eg_cc_test eg_cc_test.o \
+		$(CXX) -o $@ eg_cc_test.o \
 			-L$(RUN_LIB) -L$(SYS_LIB) -L. \
 			$(RUNPATH_LDFLAG)$(RUN_LIB) \
 			-leclipse -ldummies $(BASIC_LIBS) $(LIBS)
@@ -333,14 +333,14 @@ tkexdr.a: tkexdr.o
 
 tkexdr.so:	tkexdr.o
 		$(DYLD) $(DYNLDFLAGS) -L$(SYS_LIB) tkexdr.o \
-			$(LIBS) -lc -o ./tkexdr.so
+			$(LIBS) -lc -o $@
 
 tkexdr.dylib:	tkexdr.o
 		$(DYLD) $(DYNLDFLAGS) -L$(SYS_LIB) tkexdr.o \
 			$(LIBS) $(LDTCL) -o ./tkexdr.dylib
 
 tkexdr.dll:	tkexdr.def tkexdr.o
-		$(DYLD) $(DYNLDFLAGS) -o ./tkexdr.dll \
+		$(DYLD) $(DYNLDFLAGS) -o $@ \
 			-Wl,--out-implib,tkexdr.dll.a \
 			$< tkexdr.o \
 			-L$(SYS_LIB) $(GRAPHLIBS) $(LIBS)
@@ -356,7 +356,7 @@ tkeclipse.so: tkeclipse.o tkexdr.so $(LIB_PREFIX)eclipse.so
 			-L$(RUN_LIB) -L$(SYS_LIB) \
                         $(RUNPATH_DYLDFLAG)$(RELRUNPATH) \
 			tkeclipse.o tkexdr.so $(LIB_PREFIX)eclipse.so \
-                        $(LIBS) -lc -o ./tkeclipse.so
+                        $(LIBS) -lc -o $@
 
 # $(GMP_LD)  $(LDTCL) needed for MacOSX
 tkeclipse.dylib: tkeclipse.o tkexdr.dylib $(LIB_PREFIX)eclipse.dylib
@@ -364,10 +364,10 @@ tkeclipse.dylib: tkeclipse.o tkexdr.dylib $(LIB_PREFIX)eclipse.dylib
 			-L$(RUN_LIB) -L$(SYS_LIB) \
                         $(RUNPATH_DYLDFLAG)$(RELRUNPATH) \
 			tkeclipse.o tkexdr.dylib $(LIB_PREFIX)eclipse.dylib \
-                        $(LIBS)  $(GMP_LD) $(LDTCL) -o ./tkeclipse.dylib
+                        $(LIBS)  $(GMP_LD) $(LDTCL) -o $@
 
 tkeclipse.dll: tkeclipse.def tkeclipse.o tkexdr.dll $(LIB_PREFIX)eclipse.dll
-		$(DYLD) $(DYNLDFLAGS) -o ./tkeclipse.dll \
+		$(DYLD) $(DYNLDFLAGS) -o $@ \
 			-L$(RUN_LIB) -L$(SYS_LIB) \
 			$< tkeclipse.o tkexdr.dll $(LIB_PREFIX)eclipse.dll \
 			$(GRAPHLIBS) $(LIBS)
@@ -377,20 +377,20 @@ tkeclipse.dll: tkeclipse.def tkeclipse.o tkexdr.dll $(LIB_PREFIX)eclipse.dll
 # to reduce the number of exported symbols, but we don't always
 # use Gnu ld, and it breaks on Solaris even with Gnu ld
 $(LIB_PREFIX)eclipse.so: $(COMMON_OBJECTS) $(DUMMYLIBS)
-		$(DYLD) $(DYNLDFLAGS) -o $(LIB_PREFIX)eclipse.so \
+		$(DYLD) $(DYNLDFLAGS) -o $@ \
 			$(COMMON_OBJECTS) $(DUMMYLIBS) \
 			-L$(RUN_LIB) -L$(SYS_LIB) \
 			$(RUNPATH_DYLDFLAG)$(RELRUNPATH) \
 			$(BASIC_LIBS) $(LIBS)
 
 $(LIB_PREFIX)eclipse.dylib: $(COMMON_OBJECTS) $(DUMMYLIBS)
-		$(DYLD) $(DYNLDFLAGS) -o $(LIB_PREFIX)eclipse.dylib \
+		$(DYLD) $(DYNLDFLAGS) -o $@ \
 			$(COMMON_OBJECTS) $(DUMMYLIBS) \
 			-L$(RUN_LIB) -L$(SYS_LIB) \
 			$(BASIC_LIBS) $(LIBS)
 
 $(LIB_PREFIX)eclipse.dll: $(COMMON_OBJECTS) $(DUMMYLIBS)
-		$(DYLD) $(DYNLDFLAGS) -o $(LIB_PREFIX)eclipse.dll \
+		$(DYLD) $(DYNLDFLAGS) -o $@ \
 			-Wl,--out-implib,$(LIB_PREFIX)eclipse.dll.a \
 			-Wl,--output-def,$(LIB_PREFIX)eclipse.def \
 			$(COMMON_OBJECTS) $(DUMMYLIBS) \
@@ -405,18 +405,18 @@ libdummies.a:	$(ALLDUMMYLIBS)
 		$(RANLIB) ./libdummies.a
 
 sepia.o:	$(COMMON_OBJECTS)
-		$(LD) -r $(COMMON_OBJECTS) -o ./sepia.o
+		$(LD) -r $(COMMON_OBJECTS) -o $@
 
 
 standalone.o:	$(DEVSYS_OBJECTS)
-		$(LD) -r $(DEVSYS_OBJECTS) -o ./standalone.o
+		$(LD) -r $(DEVSYS_OBJECTS) -o $@
 
 
 parallel.o:	$(PAR_OBJECTS)
-		$(LD) -r $(PAR_OBJECTS) -o parallel.o
+		$(LD) -r $(PAR_OBJECTS) -o $@
 
 mps.o:		$(MPS_OBJECTS)
-		$(LD) -r $(MPS_OBJECTS) -o mps.o
+		$(LD) -r $(MPS_OBJECTS) -o $@
 
 
 libeclipsemps.a:	mps.o
