@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.9 2008/06/25 18:44:47 jschimpf Exp $
+# $Id: Makefile.in,v 1.10 2008/06/26 08:25:11 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -251,7 +251,8 @@ sepia.exe:	$(EXT_OBJECTS) $(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.dll whereami.o 
 # The default executable for the distribution (preferably dynamic, else static)
 # This requires an LD_LIBRARY_PATH, cannot give a meaningful run-path.
 # Order important: first RUN_LIB, then SYS_LIB (so we prefer dynamic libs)!
-eclipse$(EXE):	$(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.$(OBJECTS_SUFFIX) libdummies.a
+# Note that we call this .exe even on Unix!
+eclipse.exe:	$(DEVSYS_OBJECTS) $(LIB_PREFIX)eclipse.$(OBJECTS_SUFFIX) libdummies.a
 	$(CC) $(LDFLAGS) $(DEVSYS_OBJECTS) \
 		$(LIB_PREFIX)eclipse.$(OBJECTS_SUFFIX) libdummies.a \
 		-L$(RUN_LIB) -L$(SYS_LIB) \
@@ -272,7 +273,7 @@ peclipse:	wm.o whereami.o wm_interface.o eclipsedir.o os_support.o
 		    eclipsedir.o os_support.o $(PAR_LIBS) $(BASIC_LIBS) $(GRAPHLIBS) $(LIBS) -o ./peclipse
 
 
-# Embedding test programs
+# *************** Embedding test programs ***************
 
 eg_c_test:	$(EXT_INCLUDES) eg_c_test.o libeclipse.a libdummies.a
 		$(CC) -o eg_c_test eg_c_test.o \
