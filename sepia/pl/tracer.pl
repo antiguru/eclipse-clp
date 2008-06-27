@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer.pl,v 1.9 2008/05/12 12:34:59 jschimpf Exp $
+% Version:	$Id: tracer.pl,v 1.10 2008/06/27 15:38:12 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- Port generation
 %
-% $Id: tracer.pl,v 1.9 2008/05/12 12:34:59 jschimpf Exp $
+% $Id: tracer.pl,v 1.10 2008/06/27 15:38:12 jschimpf Exp $
 %
 % Author:	Joachim Schimpf, IC-Parc
 %
@@ -164,7 +164,9 @@ redo(Stack, FailDrop, RedoLevel, FailLeave, ShowNext) :-
 	diagnostics(redo(Stack, FailDrop, RedoLevel, FailLeave, ShowNext)),
 	trace_fails_redos(Stack, RedoLevel, FailDrop, ShowNext, FailLeave),
 	!, set_priority(P), cont_debug,
-	fail.	% must fail for correct state restoration and continuation!
+	% FAIL port: fail for correct state restoration from choicepoint
+	% LEAVE port: succeed for state restoration from aux. environment
+	FailLeave == (leave of ports).
 
 
 trace_fails_redos(0, RedoLevel, FailDrop, _ShowNext, FailLeave) :-
