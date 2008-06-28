@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.3 2008/06/28 12:31:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.2 2007/02/23 15:28:34 jschimpf Exp $
+% $Id: iso.pl,v 1.3 2008/06/28 12:31:16 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -65,6 +65,9 @@
 	macro((with)/2, (=)/2, []),
 	macro((of)/2, (=)/2, []).
 
+:- local
+	op(650, xfx, (@)).		% allow it locally
+
 :- export
 	syntax_option(iso_escapes),
 	syntax_option(iso_base_prefix),
@@ -83,7 +86,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2007/02/23 15:28:34 $`).
+:- comment(date, `$Date: 2008/06/28 12:31:16 $`).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
     the definition of Standard Prolog as defined in ISO/IEC 13211-1
@@ -180,6 +183,8 @@
 :- tool(catch/3, catch/4).
 :- tool(multifile/1, multifile/2).
 :- tool(initialization/1, initialization/2).
+:- tool(current_prolog_flag/2, current_prolog_flag_/3).
+:- tool(set_prolog_flag/2, set_prolog_flag_/3).
 
 :- pragma(nodebug).
 :- pragma(system).
@@ -191,10 +196,10 @@
 %-----------------------------------------------------------------------
 
 multifile(Preds, Module) :-
-	@(dynamic(Preds), Module).
+	dynamic(Preds)@Module.
 
 initialization(Goal, Module) :-
-	@(local(initialization(Goal)), Module).
+	local(initialization(Goal))@Module.
 
 %-----------------------------------------------------------------------
 % 7.8 Control constructs (ok)
@@ -210,13 +215,13 @@ catch(Goal, Catcher, Recovery, Module) :-
 	getval(ball, Ball),
 	( Catcher = Ball ->
 	    setval(ball, _),
-	    @(call(Recovery),Module)
+	    call(Recovery)@Module
 	;
 	    exit_block(iso_ball_thrown)
 	).
     iso_recover(Tag, Catcher, Recovery, Module) :-
 	( Catcher = Tag ->
-	    @(call(Recovery),Module)
+	    call(Recovery)@Module
 	;
 	    exit_block(Tag)
 	).
@@ -265,9 +270,9 @@ unify_with_occurs_check(X, X).			% 8.2.2
 
 :- tool(abolish/1, abolish_/2).			% 8.9.4
 abolish_(Pred, Module) :-
-	( @(current_predicate(Pred), Module) ->
-	    ( @(is_dynamic(Pred), Module) ->
-		@(eclipse_language:abolish(Pred), Module)
+	( current_predicate(Pred)@Module ->
+	    ( is_dynamic(Pred)@Module ->
+		eclipse_language:abolish(Pred)@Module
 	    ;
 	    	error(63, abolish(Pred), Module)
 	    )
@@ -452,26 +457,27 @@ number_codes(Number, Codes) :-
 % 8.17 Implementation defined hooks (incomplete)
 %-----------------------------------------------------------------------
 
-set_prolog_flag(debug, Value) :- !,
+set_prolog_flag_(debug, Value, M) :- !,
 	( Value == on -> set_flag(debugging, creep)
 	; Value == off -> set_flag(debugging, nodebug)
-	; error(6, set_prolog_flag(debug, Value))).
-set_prolog_flag(double_quotes, Value) :- !,
-	( Value == atom -> set_chtab(0'", atom_quote)
-	; Value == codes -> set_chtab(0'", list_quote)
-	; Value == chars -> error(141, set_prolog_flag(double_quotes, Value))
-	; error(6, set_prolog_flag(double_quotes, Value))).
-set_prolog_flag(unknown, Value) :- !,
+	; error(6, set_prolog_flag(debug, Value), M)).
+set_prolog_flag_(double_quotes, Value, M) :- !,
+	( Value == atom -> set_chtab(0'", atom_quote)@M
+	; Value == string -> set_chtab(0'", string_quote)@M
+	; Value == codes -> set_chtab(0'", list_quote)@M
+	; Value == chars -> error(141, set_prolog_flag(double_quotes, Value), M)
+	; error(6, set_prolog_flag(double_quotes, Value), M)).
+set_prolog_flag_(unknown, Value, M) :- !,
 	( Value == error -> reset_event_handler(68)
 	; Value == fail -> set_event_handler(68, fail/0)
 	; Value == warning -> set_event_handler(68, warn_and_fail/3)
-	; error(6, set_prolog_flag(unknown, Value))).
-set_prolog_flag(Flag, Value) :-
+	; error(6, set_prolog_flag(unknown, Value), M)).
+set_prolog_flag_(Flag, Value, M) :-
 	readonly(Flag),
 	!,
-	error(30, set_prolog_flag(Flag, Value)).
-set_prolog_flag(Flag, Value) :-			% 8.17.1
-	set_flag(Flag, Value).
+	error(30, set_prolog_flag(Flag, Value), M).
+set_prolog_flag_(Flag, Value, M) :-			% 8.17.1
+	set_flag(Flag, Value)@M.
 
     warn_and_fail(_, Goal, Module) :-
     	printf(warning_output,
@@ -480,34 +486,36 @@ set_prolog_flag(Flag, Value) :-			% 8.17.1
 	fail.
 
     readonly(bounded).
+    readonly(dialect).
     readonly(char_conversion).
-    readonly(double_quotes).
     readonly(integer_rounding_function).
     readonly(min_integer).
     readonly(max_integer).
     readonly(max_arity).
 
-current_prolog_flag(bounded, false).
-current_prolog_flag(char_conversion, off).
-current_prolog_flag(debug, Value) :-
+current_prolog_flag_(bounded, false, _M).
+current_prolog_flag_(char_conversion, off, _M).
+current_prolog_flag_(debug, Value, _M) :-
 	get_flag(debugging, D),
 	( D = creep -> Value = on
 	; D = leap -> Value = on
 	; Value = off ).
-current_prolog_flag(double_quotes, Value) :-
-	( get_chtab(0'", atom_quote) -> Value = atom
-	; get_chtab(0'", list_quote) -> Value = codes
+current_prolog_flag_(dialect, eclipse, _M).
+current_prolog_flag_(double_quotes, Value, M) :-
+	( get_chtab(0'", atom_quote)@M -> Value = atom
+	; get_chtab(0'", string_quote)@M -> Value = string
+	; get_chtab(0'", list_quote)@M -> Value = codes
 	; Value = unknown ).
-current_prolog_flag(integer_rounding_function, toward_zero).
-%current_prolog_flag(min_integer, _) :- fail.
-%current_prolog_flag(max_integer, _) :- fail.
-current_prolog_flag(max_arity, unbounded).
-current_prolog_flag(unknown, Value) :-
+current_prolog_flag_(integer_rounding_function, toward_zero, _M).
+%current_prolog_flag_(min_integer, _, _M) :- fail.
+%current_prolog_flag_(max_integer, _, _M) :- fail.
+current_prolog_flag_(max_arity, unbounded, _M).
+current_prolog_flag_(unknown, Value, _M) :-
 	( get_event_handler(68, fail/0, _) -> Value = fail
 	; get_event_handler(68, warn_and_fail/3, _) -> Value = warning
 	; Value = error
 	).
-current_prolog_flag(Flag, Value) :- get_flag(Flag, Value).
+current_prolog_flag_(Flag, Value, M) :- get_flag(Flag, Value)@M.
 
 halt(X) :- exit(X).				% 8.17.4
 
@@ -521,9 +529,9 @@ halt(X) :- exit(X).				% 8.17.4
 **(X,Y,Z) :- Z is eval(X)^eval(Y).
 sign(X,Y) :- Y is sgn(eval(X)).
 log(X,Y) :- Y is ln(eval(X)).
-floor(X,Y) :- X1 is X, Y is fix(sepia_kernel:floor(X1)).
-ceiling(X,Y) :- X1 is X, Y is fix(sepia_kernel:ceiling(X1)).
-round(X,Y) :- X1 is X, Y is fix(sepia_kernel:round(X1)).
-truncate(X,Y) :- X1 is X, Y is fix(sepia_kernel:truncate(X1)).
+floor(X,Y) :- X1 is X, Y is integer(sepia_kernel:floor(X1)).
+ceiling(X,Y) :- X1 is X, Y is integer(sepia_kernel:ceiling(X1)).
+round(X,Y) :- X1 is X, Y is integer(sepia_kernel:round(X1)).
+truncate(X,Y) :- X1 is X, Y is integer(sepia_kernel:truncate(X1)).
 float_integer_part(X,Y) :- X1 is X, Y is sepia_kernel:truncate(X1).
 float_fractional_part(X,Y) :- X1 is X, Y is X1-truncate(X1).
