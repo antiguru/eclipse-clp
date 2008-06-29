@@ -32,7 +32,7 @@
 :- comment(summary, "Mapping from FlatZinc to lib(ic) and lib(ic_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Australia").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2008/06/20 17:33:41 $").
+:- comment(date, "$Date: 2008/06/29 10:10:28 $").
 :- comment(see_also, [library(flatzinc),
 	library(ic),library(ic_sets),library(ic_global),
 	library(propia),library(branch_and_bound)]).
@@ -424,7 +424,7 @@ maximum(Min, Xs) :- ic:max(Xs, Min).
 sort(Xs,Ss) :- ic_global:sorted(Xs, _Ps, Ss).
 
 
-:- reexport disjoint/2 from fd_sets.
+:- reexport disjoint/2 from ic_sets.
 
 :- export all_disjoint/1.
 all_disjoint(Array) :- Array =.. [[]|List], ic_sets:all_disjoint(List).
