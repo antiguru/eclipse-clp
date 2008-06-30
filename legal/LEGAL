@@ -48,7 +48,7 @@ config/install-sh
     See file header. Can be freely distributed.
 _______________________________________________________________________________
 
-sepia/pl/{heaps.pl ordset.pl queues.pl}
+Kernel/lib/{heaps.pl ordset.pl queues.pl}
 Contrib/{applic.hlp applic.pl arrays.pl assoc.pl bags.hlp bags.pl
 	between.pl distfix.pl flat.pl graphs.pl heaps.pl intervals.pl
 	listut.hlp listut.pl logarr.pl map.pl metutl.pl occur.pl order.pl
@@ -120,8 +120,7 @@ Contrib/{xml.ecl xml.pl xml_acquisition.pl xml_diagnosis.pl xml_pp.pl
     claims against you.
 _______________________________________________________________________________
 
-sepia/src/dlfcn_simple.c
-sepia/include/dlfcn_simple.h
+Kernel/src/dlfcn_simple.[ch]
 
     Copyright (c) 2002 Jorge Acereda  <jacereda@users.sourceforge.net> &
 	Peter O'Gorman <ogorman@users.sourceforge.net>
@@ -147,7 +146,7 @@ sepia/include/dlfcn_simple.h
 
 _______________________________________________________________________________
 
-sepia/src/sha.c
+Kernel/src/sha.c
 
     Copyright 1993, Dr. James J. Gillogly
     This code may be freely used in any application.

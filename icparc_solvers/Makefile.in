@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.10 2008/06/20 13:41:14 jschimpf Exp $
+# $Id: Makefile.in,v 1.11 2008/06/30 17:44:00 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -50,7 +50,7 @@ EXEEXT = @EXEEXT@
 GMP_LD = @GMP_LD@
 FLOAT_ROUND_FLAGS = @FLOAT_ROUND_FLAGS@
 
-CPPFLAGS  = -I. -I$(ECLIPSEDIR)/include/$(ARCH) -I$(ECLIPSEDIR)/sepia/include -I- $(OS_INCLUDES)
+CPPFLAGS  = -I. -I$(ECLIPSEDIR)/include/$(ARCH) -I$(ECLIPSEDIR)/Kernel/src -I- $(OS_INCLUDES)
 ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse @LIBS@
 
 

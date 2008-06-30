@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.6 2008/06/20 13:41:12 jschimpf Exp $
+# $Id: Makefile.in,v 1.7 2008/06/30 17:43:41 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -14,7 +14,7 @@ install:	@MAKE_TARGET@
 
 # the subsystems that can be made even if cross-building
 # (e.g. because they test for cross-building themselves)
-install_cross:	make_sepia \
+install_cross:	make_kernel \
 		make_flexlm \
 		make_icparc_solvers \
 		make_javainterface \
@@ -39,15 +39,15 @@ install_documents:	@MAKE_DOCUMENTS@ install_all
 
 # --- subdirectories ---
 
-make_sepia:		make_shm
+make_kernel:		make_shm
 	@echo ======== $@ ========
-	@(cd $(top_srcdir)/sepia/$(ARCH); $(MAKE) install)
+	@(cd $(top_srcdir)/Kernel/$(ARCH); $(MAKE) install)
 
 make_shm:
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/Shm/$(ARCH); $(MAKE) install)
 
-make_flexlm:		make_sepia
+make_flexlm:		make_kernel
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/Flexlm; $(MAKE) -f Makefile.$(ARCH) install)
 
@@ -97,7 +97,7 @@ make_mercury:		make_bin
 
 make_internal_doc:	make_bin
 	@echo ======== $@ ========
-	( cd $(top_srcdir)/sepia/$(ARCH) ; make pretty )
+	( cd $(top_srcdir)/Kernel/$(ARCH) ; make pretty )
 	( cd $(top_srcdir)/icparc_solvers ; make -f Makefile.$(ARCH) pretty )
 	( cd $(top_srcdir)/ecrc_solvers ; make -f Makefile.$(ARCH) pretty )
 	( cd $(top_srcdir)/pt_libraries ; make -f Makefile.$(ARCH) pretty )
@@ -114,8 +114,8 @@ COPYFILES = RUNME README_UNIX README_WIN.TXT README_MACOSX UNPACK \
 	legal lib_tcl
 
 # build executables by running the RUNME script
-make_bin:		make_sepia make_copies
-	@(cd $(PREFIX); ARCH=$(ARCH) TCL_VERSION=$(TCL_VERSION) TCL_DIR=$(TCL_DIR) TCL_ARCH_DIR=$(TCL_ARCH_DIR) ./RUNME < /dev/null)
+make_bin:		make_kernel make_copies
+	@(cd $(PREFIX); ARCH=$(ARCH) TCL_VERSION=$(TCL_VERSION) TCL_DIR=$(TCL_DIR) TCL_ARCH_DIR=$(TCL_ARCH_DIR) ./RUNME --no-docs < /dev/null)
 
 make_copies:	$(PREFIX)/tcltk/$(ARCH)
 	@if test "$(PREFIX)" != "$(top_srcdir)" ; then \
@@ -149,7 +149,7 @@ clean:	clean_subdirs
 	rm -rf $(top_srcdir)/sys_lib
 
 clean_subdirs:
-	(cd $(top_srcdir)/sepia/$(ARCH); $(MAKE) clean)
+	(cd $(top_srcdir)/Kernel/$(ARCH); $(MAKE) clean)
 	(cd $(top_srcdir)/Shm/$(ARCH); $(MAKE) clean)
 	(cd $(top_srcdir)/Flexlm; $(MAKE) -f Makefile.$(ARCH) clean)
 	# (cd $(top_srcdir)/documents; $(MAKE) clean)
@@ -175,7 +175,7 @@ archclean:	archclean_subdirs
 	rm -rf $(top_srcdir)/sys_lib/$(ARCH)
 
 archclean_subdirs:
-	(cd $(top_srcdir)/sepia/$(ARCH); $(MAKE) archclean)
+	(cd $(top_srcdir)/Kernel/$(ARCH); $(MAKE) archclean)
 	(cd $(top_srcdir)/Shm/$(ARCH); $(MAKE) archclean)
 	(cd $(top_srcdir)/Flexlm; $(MAKE) -f Makefile.$(ARCH) archclean)
 	# (cd $(top_srcdir)/documents; $(MAKE) archclean)

@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.17 2008/06/21 23:12:15 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.18 2008/06/30 17:43:41 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -464,7 +464,7 @@ case "$ARCH" in
     OPT_FLAGS_ARITH=" "
     OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
-    LDFLAGS="-Xlinker -bexport:../../sepia/src/expsymtab"
+    LDFLAGS="-Xlinker -bexport:../../Kernel/src/expsymtab"
     AC_DEFINE(AIX)
     AC_DEFINE(_BSD,44)
     AC_DEFINE(_ALL_SOURCE)
@@ -478,7 +478,7 @@ case "$ARCH" in
     OPT_FLAGS_EMU=" "
     OPT_FLAGS_ARITH=" "
     LOCAL_FLAGS="-DD_LOAD"
-    LDFLAGS="-Wl,-bexport:../../sepia/src/expsymtab"
+    LDFLAGS="-Wl,-bexport:../../Kernel/src/expsymtab"
     AC_DEFINE(AIX)
     AC_DEFINE(_BSD,44)
     AC_DEFINE(_ALL_SOURCE)
@@ -492,7 +492,7 @@ case "$ARCH" in
     OPT_FLAGS_ARITH=" "
     OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
-    LDFLAGS="-Xlinker -bexport:../../sepia/src/expsymtab"
+    LDFLAGS="-Xlinker -bexport:../../Kernel/src/expsymtab"
     AC_DEFINE(AIX)
     AC_DEFINE(_BSD,44)
     AC_DEFINE(_ALL_SOURCE)
@@ -1537,9 +1537,9 @@ LIBS="-L. $SYSLIBS $LIBS"
 
 AC_CONFIG_FILES([
 	Makefile.$ARCH:Makefile.in
-	sepia/$ARCH/Makefile:sepia/src/Makefile.in
-	sepia/$ARCH/INST_PARAMS:sepia/src/INST_PARAMS.in
-	sepia/$ARCH/Makefile.external:sepia/src/Makefile.external.in
+	Kernel/$ARCH/Makefile:Kernel/src/Makefile.in
+	Kernel/$ARCH/INST_PARAMS:Kernel/src/INST_PARAMS.in
+	Kernel/$ARCH/Makefile.external:Kernel/src/Makefile.external.in
 	Shm/$ARCH/Makefile:Shm/src/Makefile.in
 	icparc_solvers/Makefile.$ARCH:icparc_solvers/Makefile.in
 	JavaInterface/Makefile.$ARCH:JavaInterface/Makefile.in
@@ -1554,9 +1554,9 @@ AC_CONFIG_FILES([
 	ZincInterface/Makefile.$ARCH:ZincInterface/Makefile.in
 	])
 AC_CONFIG_HEADERS([
-	sepia/$ARCH/config.h:sepia/src/config.h.in
+	Kernel/$ARCH/config.h:Kernel/src/config.h.in
 	Shm/$ARCH/config.h:Shm/src/config.h.in],
-	[echo timestamp > sepia/$ARCH/stamp-h])
+	[echo timestamp > Kernel/$ARCH/stamp-h])
 
 
 dnl Words to substitute in the Makefiles

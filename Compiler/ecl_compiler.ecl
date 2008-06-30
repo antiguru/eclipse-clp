@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.5 2008/06/19 15:59:11 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.6 2008/06/30 17:43:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/06/19 15:59:11 $").
+:- comment(date,	"$Date: 2008/06/30 17:43:41 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -220,12 +220,15 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 		),
 		CodeArr =.. [[]|Codes],
                 get_pred_pos(SourcePos, Options, File, Line, Offset),
-		% In kernel, call locally, because :/2 may not be defined yet
-                ( Module == sepia_kernel -> Quali = "(" ; Quali = ":(sepia_kernel," ),
-		% Print source-location arguments in a separate line because they
-		% can change even when the code is unchanged (better for CVS)
-		printf(Stream, ":-(%sstore_pred(%ODQKw,%ODQKw,%q,%q,%q,%n%q,%q,%q))).%n",
-		    [Quali,Pred,CodeArr,CodeSize,BTPos,Flags,File,Line,Offset])@Module
+		StorePred = store_pred(Pred,CodeArr,CodeSize,BTPos,Flags,File,Line,Offset),
+                ( Module == sepia_kernel ->
+		    % call locally, because :/2 may not be defined yet
+		    QStorePred = StorePred
+		;
+		    QStorePred = sepia_kernel:StorePred
+		),
+		printf(Stream, "%ODQKw.%n", [:-QStorePred])@Module
+	
 
 	    ; Options = options{output:asm_to_stream(Stream)} ->
                 pretty_print_asm(WAM, Stream, Pred, Flags, Module)
@@ -286,12 +289,23 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
     set_pred_pos(Pred, source_position{file:File,line:Line,offset:Offset}, Options, Module) :- !,
 	normalised_source_file(File, Options, SrcFile),
     	set_flag(Pred, source_file, SrcFile)@Module,
-    	set_flag(Pred, source_line, Line)@Module,
-    	set_flag(Pred, source_offset, Offset)@Module.
+	( Options = options{debug:on} ->
+	    set_flag(Pred, source_line, Line)@Module,
+	    set_flag(Pred, source_offset, Offset)@Module
+	;
+	    set_flag(Pred, source_line, 0)@Module,
+	    set_flag(Pred, source_offset, 0)@Module
+	).
     set_pred_pos(_Pred, _Pos, _Options, _Module).
 
 
-    get_pred_pos(source_position{file:File,line:Line,offset:Offset}, Options, SrcFile, Line, Offset) :- !,
+    get_pred_pos(source_position{file:File,line:Line0,offset:Offset0}, Options, SrcFile, Line, Offset) ?- !,
+	( Options = options{debug:on} ->
+	    Line = Line0, Offset = Offset0
+	;
+	    % hide position in file to avoid irrelevant diffs in .eco files
+	    Line = 0, Offset = 0
+	),
 	normalised_source_file(File, Options, SrcFile).
     get_pred_pos(_, _, 0, 0, 0).
 

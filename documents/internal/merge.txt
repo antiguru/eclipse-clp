@@ -185,8 +185,8 @@ After resolving the conflicts
   the system), their corresponding .eco files have to be remade.
   The boofiles are (this list may be out of date):
 
-    sepia/pl/kernel.pl and all the files it includes
-    sepia/pl/{asm,suspend,module_options,hash,eclipse_language}.{pl,ecl}
+    Kernel/lib/kernel.pl and all the files it includes
+    Kernel/lib/{asm,suspend,module_options,hash,eclipse_language}.{pl,ecl}
     Compiler/*.ecl
 
   Updating these .eco files is itself a bootstrapping problem.  Try first
@@ -194,7 +194,7 @@ After resolving the conflicts
   Using the resulting stable eclipse, remake the bootfiles:
 
     cd Compiler; make aux_eco; make bootfiles
-    cd sepia/$ARCH; make new_bootfiles
+    cd Kernel/$ARCH; make new_bootfiles
 
   If this doesn't work (e.g. because there are emulator changes that are
   incompatible with the old .eco files), change the Makefiles to use a
@@ -210,7 +210,7 @@ likely one to behave differently to the others.  Also, the more problems you
 have getting the merged version built and running, the more architectures it
 should be tested on.  :)
 
-- Make sure the build number in sepia/pl/version.pl has not been modified;
+- Make sure the build number in Kernel/lib/version.pl has not been modified;
   it should keep its old value rather than inheriting it from the patch
   branch.
 

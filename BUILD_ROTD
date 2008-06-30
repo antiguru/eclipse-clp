@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.7 2008/06/23 22:11:46 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.8 2008/06/30 17:43:41 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -1519,7 +1519,14 @@ increment_build_number() {
 
     VERSION_LOGFILE=$PREFIX/$LOG_DIR/log.version
     LOCAL_VERSION_LOGFILE=$LOCAL_PREFIX/$LOG_DIR/log.version
-    VERSION_FILE=sepia/pl/version.pl
+    # In release 6.0, the version.pl file moved to Kernel/lib
+    VERSION_FILE=`remote_commands "$machine" "$PREFIX/$BUILD_DIR" "
+	if [ -d Kernel ] ; then
+	    echo Kernel/lib/version.pl
+	else
+	    echo sepia/pl/version.pl
+	fi
+    "`
     COMMENT_FILE=version.commit
 
     if milestone_already_achieved incremented_build_number ; then

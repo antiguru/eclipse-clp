@@ -108,14 +108,15 @@ Overview of the source tree, and content of directories:
 \item[toplevel directory] Configuration and install scripts
 \item[legal/] Licence texts.
 
-\item[sepia/] The kernel of the {\eclipse}, for historical reasons called {\em sepia}.
+\item[Kernel/] The kernel of the {\eclipse}, for historical reasons sometime
+	called {\em sepia}.
 	This consists of C code and Prolog/{\eclipse} code for runtime
 	system, built-in predicates, and core libraries.
     \begin{description}
-    \item[src/, include/] C sources and header files for the runtime
+    \item[src/] C sources and header files for the runtime
     	core of {\eclipse}: virtual machine emulator, most built-in predicates,
 	memory management, runtime tables and data structures, I/O.
-    \item[pl/] Prolog and {\eclipse} sources
+    \item[lib/] Prolog and {\eclipse} sources
 	\begin{description}
 	\item[kernel.pl,events.pl,...] Built-in predicate implementation
 	\item[lists.pl,calendar.ecl,...] Basic libraries

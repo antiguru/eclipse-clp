@@ -109,7 +109,7 @@ ECLiPSe Kernel Components</h1>
 for Eclipse bignums and rationals</td>
 
 <td>Gmp/*
-<br>sepia/src/{emu,bip_arith,bigrat,intervals}.c</td>
+<br>Kernel/src/{emu,bip_arith,bigrat,intervals}.c</td>
 
 <td>Internals Manual</td>
 
@@ -212,8 +212,8 @@ for Eclipse bignums and rationals</td>
 
 <td>All solutions, suspensions, priorities, events etc</td>
 
-<td>sepia/src/emu*, bip_control
-<br>sepia/pl/setof</td>
+<td>Kernel/src/emu*, bip_control
+<br>Kernel/lib/setof</td>
 
 <td>Internals Manual</td>
 
@@ -233,7 +233,7 @@ for Eclipse bignums and rationals</td>
 
 <td>Micha Meier's compiler, implemented in C</td>
 
-<td>sepia/head,body,pass*,procedure,section</td>
+<td>sepia/src/head,body,pass*,procedure,section</td>
 
 <td>source
 <br>Micha's papers</td>
@@ -254,7 +254,7 @@ for Eclipse bignums and rationals</td>
 
 <td>New compiler, implemented in Eclipse</td>
 
-<td>sepia/pl/compiler*</td>
+<td>Compiler/*</td>
 
 <td>Implementation Report</td>
 
@@ -274,7 +274,7 @@ for Eclipse bignums and rationals</td>
 
 <td>Everything related to nonlogical storage</td>
 
-<td>sepia/src/bip_record, property, proc_desc, bip_array, dynamic</td>
+<td>Kernel/src/bip_record, property, proc_desc, bip_array, dynamic</td>
 
 <td>Internals Manual</td>
 
@@ -294,7 +294,7 @@ for Eclipse bignums and rationals</td>
 
 <td>All non-numeric operations (strings etc)</td>
 
-<td>sepia/src/bip_strings,tconv,comp</td>
+<td>Kernel/src/bip_strings,tconv,comp</td>
 
 <td>Internals Manual</td>
 
@@ -314,7 +314,7 @@ for Eclipse bignums and rationals</td>
 
 <td>Buffers, files, sockets, streams</td>
 
-<td>sepia/src/io, bip_io</td>
+<td>Kernel/src/io, bip_io</td>
 
 <td NOSAVE>Internals Manual</td>
 
@@ -334,7 +334,7 @@ for Eclipse bignums and rationals</td>
 
 <td>lexer, parser, writer</td>
 
-<td>sepia/src/lex, read, write, operator</td>
+<td>Kernel/src/lex, read, write, operator</td>
 
 <td>Internals Manual</td>
 
@@ -354,7 +354,7 @@ for Eclipse bignums and rationals</td>
 
 <td>dictionary, procedure and property descriptors</td>
 
-<td>sepia/src/proc_desc,bip_module,dict</td>
+<td>Kernel/src/proc_desc,bip_module,dict</td>
 
 <td>Internals Manual</td>
 
@@ -374,7 +374,7 @@ for Eclipse bignums and rationals</td>
 
 <td>Emulator, garbage collector, stack management</td>
 
-<td>sepia/src/emu*, gc*, mem*</td>
+<td>Kernel/src/emu*, gc*, mem*</td>
 
 <td>Internals Manual</td>
 
@@ -395,7 +395,7 @@ for Eclipse bignums and rationals</td>
 
 <td>Operating system interface predicates</td>
 
-<td>sepia/src/os_support, bip_misc</td>
+<td>Kernel/src/os_support, bip_misc</td>
 
 <td>source</td>
 
@@ -415,7 +415,7 @@ for Eclipse bignums and rationals</td>
 
 <td>Assembler, compiled file storage</td>
 
-<td>sepia/pl/fcompile,asm</td>
+<td>Kernel/lib/fcompile,asm</td>
 
 <td>source,eci</td>
 
@@ -436,7 +436,7 @@ for Eclipse bignums and rationals</td>
 <td>Test harness and utilities</td>
 
 <td>Tests/aitch, test_eclipse
-<br>sepia/pl/t_all,test_util,timelog</td>
+<br>Kernel/lib/t_all,test_util,timelog</td>
 
 <td>source</td>
 
@@ -867,7 +867,7 @@ ECLiPSe Libraries</h1>
 
 <td>Various small libraries</td>
 
-<td>sepia/pl/calendar, lists, shadow_cons, var_names</td>
+<td>Kernel/lib/calendar, lists, shadow_cons, var_names</td>
 
 <td>source</td>
 
@@ -888,7 +888,7 @@ ECLiPSe Libraries</h1>
 
 <td>Finite domain solver</td>
 
-<td>sepia/pl/fd</td>
+<td>Kernel/lib/fd</td>
 
 <td>source</td>
 
@@ -908,7 +908,7 @@ ECLiPSe Libraries</h1>
 
 <td>Abstract data types for collections</td>
 
-<td>sepia/pl/hash
+<td>Kernel/lib/hash
 <br>mercury/m_map, m_tree234</td>
 
 <td>source</td>
@@ -930,7 +930,7 @@ ECLiPSe Libraries</h1>
 
 <td>Compatility packages for other, mainly Prolog systems</td>
 
-<td>sepia/pl/bsi,cprolog,quintus,sicstus,iso</td>
+<td>Kernel/lib/bsi,cprolog,quintus,sicstus,iso</td>
 
 <td>source,eci</td>
 
@@ -1055,7 +1055,7 @@ ECLiPSe Interfacing</h1>
 
 <td>Generic remote interface</td>
 
-<td>sepia/pl/</td>
+<td>Kernel/lib/</td>
 
 <td>Embedding Manual</td>
 
@@ -1073,10 +1073,9 @@ ECLiPSe Interfacing</h1>
 <tr>
 <td>C/C++ Interface</td>
 
-<td>Low level embedding and externa predicate interface</td>
+<td>Low level embedding and external predicate interface</td>
 
-<td>sepia/src/embed,eclipse_cc
-<br>sepia/include/external,embed</td>
+<td>Kernel/src/embed,eclipse_cc,external,embed</td>
 
 <td>Embedding Manual</td>
 
@@ -1141,7 +1140,7 @@ ECLiPSe Development Tools</h1>
 
 <td>Interactive toplevel</td>
 
-<td>sepia/pl/toplevel</td>
+<td>Kernel/lib/toplevel</td>
 
 <td>source</td>
 
@@ -1161,7 +1160,7 @@ ECLiPSe Development Tools</h1>
 
 <td>The box model tracer with its user interfaces</td>
 
-<td>sepia/pl/tracer*, profile,
+<td>Kernel/lib/tracer*, profile,
 <br>lib_tcl/eclipse_tools</td>
 
 <td>source</td>
@@ -1182,7 +1181,7 @@ ECLiPSe Development Tools</h1>
 
 <td>Tools to extract interfaces and generate documentation</td>
 
-<td>sepia/pl/document</td>
+<td>Kernel/lib/document</td>
 
 <td>source</td>
 

@@ -72,7 +72,7 @@ dev only
 Build/Pack process:
 
 1.  The source of a library is initially located somewhere in the
-    Eclipse source tree (under CVS control), e.g. in Eclipse/sepia/pl/
+    Eclipse source tree (under CVS control), e.g. in Eclipse/Kernel/lib/
     or Eclipse/icparc_solvers/.
 
 2. Every source directory has an INSTALL script (which often invokes

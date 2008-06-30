@@ -3,7 +3,7 @@ Standard installation
 
 If you are just building ECLiPSe from the repository sources,
 there is no need to (re)build the compiler - the corresponding
-.eco files are already in the repository as "bootfiles" (sepia/lib/*.eco).
+.eco files are already in the repository as "bootfiles" (Kernel/lib/*.eco).
 
 The 'make -f Makefile.$ARCH install' command here just builds the
 compiler documentation.
@@ -47,7 +47,7 @@ Then, add the tested compiler to the kernel by copying the .eco files:
     % make -f Makefile.$ARCH bootfiles
 
 Do not forget to check-in the modified bootfiles along with your
-modified sources!!!!  They are in <eclipsedir>/sepia/lib/*.eco
+modified sources!!!!  They are in <eclipsedir>/Kernel/lib/*.eco
 
 
 
@@ -56,7 +56,7 @@ Making changes to the compiler AND the runtime system
 
 Edit/build copy the compiler sources as above.  Then go to
 
-    % cd ../sepia/$ARCH
+    % cd ../Kernel/$ARCH
 
 Here, edit the runtime, e.g. emulator sources and build it
 

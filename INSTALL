@@ -128,13 +128,12 @@ Makefiles
 
 For historical reasons, there are two variants:
 
-For Shm and sepia, a Makefile is created in their $ARCH
+For Shm and Kernel, a Makefile is created in their $ARCH
 subdirectory (from src/Makefile.in). To run the local build,
-cd to {Shm,sepia}/$ARCH and invoke
+cd to {Shm,Kernel}/$ARCH and invoke
 	make install
-as before. Note that the $ARCH directories here do no longer
-have symlinks to the sources, we use VPATH instead. There is
-no longer a local configure!
+The intermediate objects are built in the $ARCH directories,
+from the sources found using make's VPATH.
 
 Other directories (icparc_solvers etc) have a Makefile.$ARCH
 (generated from Makefile.in). To run the local build there,
@@ -144,11 +143,11 @@ you need to call
 There is also a Makefile.$ARCH (generated from Makefile.in)
 in the toplevel directory which builds everything.
 
-All makefiles implement the targets:
+Most makefiles implement the targets:
 	install
 	clean
-	archclean
-apart from that, they are still somewhat non-uniform.
+	archclean	% clean up machine-dependent targets
+	ecoclean	% remove .eco files (needed when format changed)
 
 After changing a Makefile.in or a config.h.in you can
 regenerate the Makefiles or config.h by invoking

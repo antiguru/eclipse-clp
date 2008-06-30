@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile.in,v 1.2 2008/06/19 15:59:11 jschimpf Exp $
+# $Id: Makefile.in,v 1.3 2008/06/30 17:43:41 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -29,7 +29,7 @@ ARCH = @ARCH@
 top_srcdir = @top_srcdir@
 PREFIX = @prefix@
 
-BOOTDIR = $(top_srcdir)/sepia
+BOOTDIR = $(top_srcdir)/Kernel
 STABLE_ECLIPSE = $(PREFIX)/bin/$(ARCH)/eclipse
 
 DEBUG = off

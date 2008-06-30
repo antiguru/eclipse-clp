@@ -99,8 +99,8 @@ Before building the final release
 	lib_tcl/mapremote.tcl
 	lib_tcl/tkeclipse.tcl
 	lib_tcl/tktools.tcl
-	sepia/src/eclipse.reg
-	sepia/src/os_support.c
+	Kernel/src/eclipse.reg
+	Kernel/src/os_support.c
 
 - Check NSIS Windows Installer version and package includes. The PACK 
   script specifies which packages should be included in the installer 
@@ -171,7 +171,7 @@ Forking a new patch branch
   the /usr/local/eclipse/Download/ directory.
 
 - Update all the version numbers in the ECLiPSe source (see above) to the
-  next version, resetting the build number counter in sepia/pl/version.pl.
+  next version, resetting the build number counter in Kernel/lib/version.pl.
   Note that this should be done before the next successful main branch build
   or else one will end up with builds from the main and patch branches with
   the same version and build numbers.
