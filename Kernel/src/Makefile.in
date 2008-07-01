@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+# $Id: Makefile.in,v 1.2 2008/07/01 00:27:44 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -130,7 +130,7 @@ OPTIMIZE = @OPTIMIZE@
 # *************** FLAGS ***************
 
 # Separator -I- needed to resolve the conflict between <io.h> and "io.h"
-CPPFLAGS  = $(LOCAL_FLAGS) -I. -I$(SEPIA)/src -I$(SYS_INCL) -I- @OS_INCLUDES@ -DDEBUG_COMP -DOC -DDFID
+CPPFLAGS  = $(LOCAL_FLAGS) -I. -I$(SEPIA)/src -I$(SYS_INCL) -I- @OS_INCLUDES@ -DOC -DDFID
 LINTFLAGS = -b -h -x -DNEW_ORACLE
 
 
@@ -585,7 +585,7 @@ ECI_PL_LIBRARIES =	anti_unify.pl apply.pl apply_macros.pl \
 		matrix_util.pl notinstance.pl numbervars.pl \
 		ordset.pl par_util.pl \
 		pretty_print.pl profile.pl queues.pl quintus.pl \
-		quintus_util.pl remote_tools.pl scattered.pl sepia.pl \
+		quintus_util.pl remote_tools.pl sepia.pl \
 		sicstus.pl sockets.pl spell.pl \
 		suspend.pl util.pl \
 		test_util.pl toplevel.pl \

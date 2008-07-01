@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cprolog.pl,v 1.1 2008/06/30 17:43:44 jschimpf Exp $
+% Version:	$Id: cprolog.pl,v 1.2 2008/07/01 00:27:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'C-Prolog compatibility package').
 :- comment(author, 'Various, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2008/06/30 17:43:44 $').
+:- comment(date, '$Date: 2008/07/01 00:27:16 $').
 :- comment(desc, html('
     One of the requirements during the development of ECLiPSe has been the
     aim of minimising the work required to port traditional Prolog
@@ -84,8 +84,8 @@
     arise from the different meaning of quotes in Eclipse vs C-Prolog.
     <P>
     Note that the C-Prolog compatibility package includes the <EM>cio</EM>
-    (for see/1, seeing/1, seen/0, skip/1, tab/1, tell/1, telling/1, told/0)
-    and the <EM>scattered</EM> library.
+    library (for see/1, seeing/1, seen/0, skip/1, tab/1, tell/1, telling/1,
+    told/0).
     <P>
     The following C-Prolog predicates are not available in ECLiPSe, or
     the corresponding predicates have a different semantics: 
@@ -272,8 +272,6 @@
 	system_error_handler / 4,
 	undef_dynamic_handler / 3
     from sepia_kernel.
-
-:- use_module(library(scattered)).	% handler settings only
 
 :- system.		% compiler directive to add the SYSTEM flag
 
