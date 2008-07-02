@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.3 2008/07/02 16:25:06 jschimpf Exp $
  */
 
 /*
@@ -684,121 +684,6 @@ int bt_max = MAX_BACKTRACE;
 
 #endif /* PRINTAM */
 
-/*
- * Arithmetic BIPs
- */
-
-#define Delay_Check_1			\
-	if (IsRef(SP->tag)) {	\
-		err_code = PDELAY_1;	\
-		goto _pdelay_;		\
-	}
-
-#define Delay_Check_2			\
-	if (IsRef((SP+1)->tag)) {	\
-		err_code = PDELAY_2;	\
-		goto _pdelay_;		\
-	}
-
-#define Compare_Bip(BIxx, Op) \
-	Delay_Check_1\
-	Delay_Check_2\
-	/* don't Kill_DE here since arith_compare() can return PDELAY */\
-	if (IsInteger(SP->tag)) {\
-	    if (IsInteger((SP+1)->tag))\
-		if (SP->val.nint Op (SP+1)->val.nint)\
-		    { goto _bip_kill_succeed_;}\
-		else\
-		    { goto _bip_fail_; }\
-	    else if (IsDouble((SP+1)->tag))\
-		if ((double)SP->val.nint Op Dbl((SP+1)->val))\
-		    { goto _bip_kill_succeed_;}\
-		else\
-		    { goto _bip_fail_; }\
-	}\
-	else if (IsDouble(SP->tag)) {\
-	    if (IsInteger((SP+1)->tag))\
-		if (Dbl(SP->val) Op (double)(SP+1)->val.nint)\
-		    { goto _bip_kill_succeed_;}\
-		else\
-		    { goto _bip_fail_; }\
-	    else if (IsDouble((SP+1)->tag))\
-		if (Dbl(SP->val) Op Dbl((SP+1)->val))\
-		    { goto _bip_kill_succeed_;}\
-		else\
-		    { goto _bip_fail_; }\
-	}\
-	if (IsNumber(SP->tag) && IsNumber((SP+1)->tag)) {\
-	    int relation = BIxx; /* don't use a register */ \
-	    Export_B_Sp_Tg_Tt\
-	    err_code = (long) arith_compare(SP->val, SP->tag,\
-		(SP+1)->val, (SP+1)->tag, &relation);\
-	    Import_Tg_Tt\
-	    if (err_code == PDELAY){\
-		SV = (pword *) 0;\
-		goto _pdelay_always_;\
-	    }\
-	    if (err_code != PSUCCEED)\
-		goto _bip_err_;\
-	    if (relation Op 0) {\
-	    	goto _bip_kill_succeed_;\
-	    } else {\
-		goto _bip_fail_;\
-	    }\
-	}\
-	err_code = COMPARE_TRAP;\
-	goto _bip_err_;
-
-
-#define Generic_Arith_Overflow_Bip(BIxx, Op, SignOp, OpNr) \
-	Delay_Check_1\
-	Delay_Check_2\
-	Kill_DE;\
-	pw1 = SP+2;\
-	if (IsInteger(SP->tag)) {\
-	    if (IsInteger((SP+1)->tag)) {\
-		register word	n1 = SP->val.nint;\
-		register word	n2 = (SP+1)->val.nint;\
-						\
-		scratch_pw.val.nint = n1 Op n2;\
-		if (((n1 >= 0) SignOp (n2 >= 0)) && \
-		    (n1 >= 0) != (scratch_pw.val.nint >= 0)) {\
-		    err_code = INTEGER_OVERFLOW;\
-		    goto _bip_err_;\
-		} else \
-		    goto _is_integer_;\
-	    }\
-	    if (IsDouble((SP+1)->tag)) {\
-		dbl_res = (double)SP->val.nint Op Dbl((SP+1)->val);\
-		goto _is_float_check_;\
-	    }\
-	}\
-	else if (IsDouble(SP->tag)) {\
-	    if (IsInteger((SP+1)->tag)) {\
-		dbl_res = Dbl(SP->val) Op (double)(SP+1)->val.nint;\
-		goto _is_float_check_;\
-	    }\
-	    if (IsDouble((SP+1)->tag)) {\
-		dbl_res = Dbl(SP->val) Op Dbl((SP+1)->val);\
-		goto _is_float_check_;\
-	    }\
-	}\
-	err_code = OpNr;\
-	goto _bin_op_;
-
-
-#define Int_Arith_Bip(BIxx, Op, OpNr) \
-	Delay_Check_1\
-	Delay_Check_2\
-	Kill_DE;\
-	if (IsInteger(SP->tag) && IsInteger((SP+1)->tag)) {\
-	    pw1 = SP+2;\
-	    scratch_pw.val.nint = SP->val.nint Op (SP+1)->val.nint;\
-	    goto _is_integer_;\
-	}\
-	err_code = OpNr;\
-	goto _bin_op_;
-
 
 /*
  * stack overflow handling
@@ -1388,250 +1273,6 @@ _bind_nonstandard_:			/* *pw1 = (pw2,tmp1) */
 
 
 
-/*******************************************
-	BIP Result management
-*******************************************/
-
-_bip_res_:		/* (err_code,proc), args on local stack */
-	Mark_Prof(_bip_res_)
-	Occur_Check_Boundary(0)
-	if (err_code == PSUCCEED)
-	{
-_bip_succeed_:
-	    Reset_DE;	/* demons are responsible to Kill_DE if appropriate */
-	    Next_Pp;
-_bip_kill_succeed_:
-	    Kill_DE;
-	    Next_Pp;
-	}
-	else if (err_code == PFAIL)
-	{
-_bip_fail_:
-	    Fail;
-	}
-	else if ((err_code & ~PDELAY_MASK) == PDELAY)
-	{
-
-_pdelay_:				/* (err_code, proc)	*/
-	    if (!(GlobalFlags & CORTN))
-	    {
-		SV = (pword *) 0;
-		err_code = INSTANTIATION_FAULT;
-		goto _bip_err_;
-	    }
-_pdelay_always_:			/* (err_code, proc)	*/
-	    Mark_Prof(_pdelay_always_)
-	    if (!DE)			/* make a suspension structure */
-	    {
-		val_did = PriDid(proc);
-		tmp1 = DidArity(val_did);
-		DE = pw1 = TG;
-		TG += SUSP_SIZE + 1 + tmp1;
-		Init_Susp_Header(pw1, proc);
-		Init_Susp_State(pw1, PriPriority(proc));
-		pw1[SUSP_GOAL].val.ptr = pw1 + SUSP_SIZE;	/* goal */
-		pw1[SUSP_GOAL].tag.kernel = TCOMP;
-		if (PriFlags(proc) & TOOL) {
-		    pw1[SUSP_MODULE] = SP[tmp1];
-		} else {
-		    pw1[SUSP_MODULE].tag.kernel = TDICT;
-		    pw1[SUSP_MODULE].val.did = PriModule(proc);
-		}
-
-		S = pw1 + SUSP_SIZE;	/* build goal structure */
-		S->val.did = val_did;
-		(S++)->tag.kernel = TDICT;
-		pw2 = SP;
-		for(; tmp1 > 0; tmp1--)
-		{
-		    pw1 = pw2++;
-		    Move_Pw_To_Global_Stack(pw1, S, ;);
-		    /* unnecessary dereferencing in this macro! */
-		}
-		Check_Gc
-	    }
-
-	    /*
-	     * DE now points to the suspension
-	     * Link it to the suspending variables
-	     */
-
-	    if (err_code & PDELAY_MASK)	/* delay on argument(s) 1-3 */
-	    {
-		Export_B_Sp_Tg_Tt_Eb_Gb
-		if (err_code & (PDELAY_1 & PDELAY_MASK)) {
-		    pw1 = SP[0].val.ptr;
-		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
-		    if (tmp1 < 0) {
-			err_code = tmp1;
-			goto _bip_err_;
-		    }
-		}
-		if (err_code & (PDELAY_2 & PDELAY_MASK)) {
-		    pw1 = SP[1].val.ptr;
-		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
-		    if (tmp1 < 0) {
-			err_code = tmp1;
-			goto _bip_err_;
-		    }
-		}
-		if (err_code & (PDELAY_3 & PDELAY_MASK)) {
-		    pw1 = SP[2].val.ptr;
-		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
-		    if (tmp1 < 0) {
-			err_code = tmp1;
-			goto _bip_err_;
-		    }
-		}
-		Import_Tg_Tt
-	    }
-	    else	/* suspending_variables points to a list of	*/
-	    {		/* pointers to suspending variables		*/
-		pw2 = SV;
-		Export_B_Sp_Tg_Tt_Eb_Gb
-		while (pw2)
-		{
-		    pw1 = pw2[0].val.ptr;
-		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1,
-			    err_code & PDELAY_BOUND ? DELAY_BOUND: DELAY_INST,
-			    DE, DELAY_SLOT);
-		    if (tmp1 < 0) {
-			err_code = tmp1;
-			goto _bip_err_;
-		    }
-		    if (!IsList(pw2[1].tag))
-			break;
-		    pw2 = pw2[1].val.ptr;
-		}
-		Import_Tg_Tt
-		SV = (pword *) 0;
-	    }
-	    Reset_DE;
-	    Next_Pp;
-	}
-	else if (err_code == PTHROW)
-	{
-	    Reset_DE;
-	    PP = (emu_code) do_exit_block_code_; /* Ball should be in A[1] */
-	    Next_Pp;
-	}
-	else if (err_code > 0)
-	{
-	    err_code = ILLEGAL_RETURN;
-	}
-	/* goto _bip_err_; */
-
-
-/*******************************************************************
- * Builtin returned an error code
- *******************************************************************/
-
-_bip_err_:			/* (err_code, proc), args on local stack */
-	Mark_Prof(_bip_err_)
-	Kill_DE;
-	err_code = -err_code;
-	val_did = PriDid(proc);
-	tmp1 = DidArity(val_did);
-	if (PriFlags(proc) & TOOL)
-	    scratch_pw = SP[tmp1];
-	else {
-	    Make_Marked_Module(&scratch_pw, PriModule(proc));
-	}
-
-	if (!(procb = error_handler_[err_code]))	/* get the handler */
-	    procb = error_handler_[0];
-
-	if (procb->did == d_.true0 && procb->module_ref == d_.kernel_sepia) {
-	    Next_Pp;
-	}
-	else if (procb->did == d_.fail && procb->module_ref == d_.kernel_sepia)
-	{
-	    Fail
-	}
-	else
-	{
-	/* create an exception frame to be able to restore the machine
-	 * state partially on SUCCESSful return from error handler.
-	 * ( the handler call should behave like a builtin call,
-	 * i.e. being determinate, preserving arg regs and DET )
-	 * If handler succeeds, restoring is done by Continue_after_exception.
-	 * If handler fails, Refail pops the frame and fails again.
-	 * MU is saved/restored and WP (priority) is set to 1 in order to
-	 * make the exception handler not interfere with waking.
-	 */
-		Push_Ret_Code(PP)
-		pw1 = B.args;
-		Exception(pw1)->sp = SP;
-		Exception(pw1)->tg = TG;
-		Exception(pw1)->tt = TT;
-		Exception(pw1)->e = E;
-		Exception(pw1)->ld = LD;
-		Exception(pw1)->eb = EB;
-		Exception(pw1)->gb = GB;
-		EB = SP;
-		GB = TG;
-		Push_Witness
-		Exception(pw1)->flags = emu_flags;
-		Exception(pw1)->de = DE;
-#define STRICT_EXCEPTION
-#ifdef STRICT_EXCEPTION
-		Exception(pw1)->mu = MU;
-		MU = (pword *) 0;
-		Exception(pw1)->wp = WP;
-		Set_WP(1);
-#endif
-		Save_Tg_Soft_Lim(Exception(pw1)->tg_soft_lim);
-		pw1 = (pword *) (Exception(pw1) + 1);
-		pw2 = &A[1];	/* save arguments	*/
-		for(i = 1; i < MAXARITY; i++) {
-		    *pw1 = *pw2++;
-		    if((pw1++)->tag.kernel == TEND)
-		        break;
-		}
-		Top(pw1)->backtrack = exception_fail_code_;
-		Top(pw1)->frame.exception = B.exception;
-		B.top = Top(pw1) + 1;
-		Check_Control_Overflow
-
-	/* now setup arguments for syserror(Err, Goal, ContextMod, LookupMod)	*/
-		pw1 = &A[1];
-		pw1->val.nint = err_code;
-		(pw1++)->tag.kernel = TINT;
-		if (tmp1 > 0)			/* error goal	*/
-		{
-		    pw1->val.ptr = TG;
-		    (pw1++)->tag.kernel = TCOMP;
-		    S = TG;		/* space for goal structure */
-		    TG += tmp1 + 1;
-		} else
-		    S = pw1++;
-		*pw1++ = scratch_pw;	/* context module */
-		Check_Gc;
-		Make_Lookup_Module(pw1, proc);
-		(++pw1)->tag.kernel = TEND;
-
-		S->val.did = val_did;	/* build the goal structure */
-		(S++)->tag.kernel = TDICT;
-		pw1 = (pword *)((emu_code *)SP + 1);
-		for (i=0; i<tmp1; i++) {
-		    pw2 = pw1++;
-		    Move_Pw_To_Global_Stack(pw2,S, ;)
-		    /* Next line is to make sure that the local stack arguments
-		     * stay dereferenced. Needed when the builtin still needs
-		     * to be executed after return from the handler, e.g.
-		     * when the event was raised by Debug_esc */
-		    *(pw1-1) = *(S-1);
-		}
-
-		PP = (emu_code) bip_error_code_;
-		Next_Pp;			/* jump into syserror/4	*/
-	}
-
-
 /*****************************************************************
      BIP Result management (new abstract machine instr version)
 ******************************************************************/
@@ -1684,7 +1325,7 @@ _bip_err_:			/* (err_code, proc), args on local stack */
 
 
 _nbip_res_:	     /* (err_code,proc), args at *PP[-arity-1..-2] */
-	Mark_Prof(_bip_res_)
+	Mark_Prof(_nbip_res_)
 	Occur_Check_Boundary(0)
 	if (err_code == PSUCCEED)
 	{
@@ -1711,7 +1352,7 @@ _npdelay_:				/* (err_code, proc)	*/
 		goto _nbip_err_;
 	    }
 _npdelay_always_:			/* (err_code, proc)	*/
-	    Mark_Prof(_pdelay_always_)
+	    Mark_Prof(_npdelay_always_)
 	    if (!DE)			/* make a suspension structure */
 	    {
 		val_did = PriDid(proc);
@@ -1811,7 +1452,7 @@ _ndelay_de_sv_:
  *******************************************************************/
 
 _nbip_err_:		/* (err_code, proc), args at *PP[-arity-1..-2] */
-	Mark_Prof(_bip_err_)
+	Mark_Prof(_nbip_err_)
 	Kill_DE;
 	err_code = -err_code;
 	if (PriFlags(proc) & TOOL)
