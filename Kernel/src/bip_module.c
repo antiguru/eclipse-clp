@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
  */
 
 /*
@@ -171,14 +171,6 @@ _tool_body(pri *proci, dident *pdid, int *parity, dident *pmodule)
 	*pdid = procb->did;
 	*parity = DidArity(procb->did);
 	*pmodule = procb->module_def;
-    }
-    else if (PriCodeType(proci) == BIPNO) /* we have a builtin tool */
-    {   /* we don't have a reference to the body, but we know it
-	 * has the same name with arity + 1
-	 */
-	*pdid = proci->did;
-	*parity = DidArity(proci->did) + 1;
-	*pmodule = proci->module_ref;
     }
     else /* don't know how to get the tool body */
     {
@@ -466,9 +458,6 @@ p_pr(value v, type t)
 	    (void) ec_outfs(log_output_, "static ");
 	}
 	switch(proc->flags & CODETYPE) {
-	case BIPNO:
-	    (void) ec_outfs(log_output_, "bipno ");
-	    break;
 	case VMCODE:
 	    (void) ec_outfs(log_output_, "vmcode ");
 	    break;
@@ -483,8 +472,8 @@ p_pr(value v, type t)
 	case ARGFIXEDWAM:
 	    (void) ec_outfs(log_output_, "argfixedwam ");
 	    break;
-	case ARGSTACK:
-	    (void) ec_outfs(log_output_, "argstack ");
+	case ARGFLEXWAM:
+	    (void) ec_outfs(log_output_, "argflexwam ");
 	    break;
 	default:
 	    (void) ec_outfs(log_output_, "? ");

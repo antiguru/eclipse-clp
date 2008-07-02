@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.2 2008/07/02 15:47:21 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -149,6 +149,12 @@
    tool(setval/2, setval_body/3),
    tool(getval/2, getval_body/3),
    tool(use_module/1, use_module_body/2),
+   tool((<)/2, (<)/3),
+   tool((>)/2, (>)/3),
+   tool((=<)/2, (=<)/3),
+   tool((>=)/2, (>=)/3),
+   tool((=:=)/2, (=:=)/3),
+   tool((=\=)/2, (=\=)/3),
    tool(is/2, is_body/3),
    tool((^)/2, exquant_body/3),
    tool(bagof/3, bagof_body/4),

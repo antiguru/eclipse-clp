@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -304,13 +304,11 @@ typedef struct pri
  * VMCODE	ARGFIXEDWAM	-		static Prolog predicate
  * VMCODE	ARGFIXEDWAM	PROC_DYNAMIC	dynamic Prolog predicate
  * VMCODE	ARGFIXEDWAM	EXTERN		C external with WAM wrapper
- * BIPNO	ARGSTACK	EXTERN		C external (in emulator)
  * VMCODE	ARGFLEXWAM	EXTERN		C external (in emulator)
  */
 
 /* CODETYPE describes the contents of the .code field (a union) */
 #define CODETYPE	0X00000300L
-#define	BIPNO		0X00000100L	/* builtin number		*/
 #define	VMCODE		0X00000200L	/* virtual machine code		*/
 #define	FUNPTR		0X00000300L	/* function pointer		*/
 
@@ -323,8 +321,8 @@ typedef struct pri
 /* ARGPASSING describes the calling convention of the predicate */
 #define ARGPASSING	0X00000003L
 #define ARGFIXEDWAM	0X00000000L	/* Args in A[1]..A[n]		*/
-#define ARGSTACK	0X00000001L	/* Args on local stack		*/
-#define ARGFLEXWAM 	0X00000002L	/* various regs and immediate args */
+#define ARGFLEXWAM 	0X00000001L	/* various regs and immediate args */
+/* #define ARGSTACK	0X00000002L	Args on local stack (obsolete)	*/
 /* #define ARGSTRUCT	0X00000003L	future extension */
 
 

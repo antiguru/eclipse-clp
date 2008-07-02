@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -446,10 +446,9 @@ print_pri(pri *pd)
 	pd->flags&DEBUG_ST	? 'S' : '_',
 
 	(pd->flags&(CODETYPE)) == VMCODE ? 'v' :
-	    (pd->flags&(CODETYPE)) == BIPNO ? 'n' :
 	    (pd->flags&(CODETYPE)) == FUNPTR ? 'f' : '?',
 	(pd->flags&(ARGPASSING)) == ARGFIXEDWAM ? 'a' :
-	    (pd->flags&(ARGPASSING)) == ARGSTACK ? 's' : '?',
+	    (pd->flags&(ARGPASSING)) == ARGFLEXWAM ? 'f' : '?',
 	pd->flags&EXTERN	? 'X' : '_',
 
 	pd->flags&(UNIFTYPE),
@@ -1495,7 +1494,7 @@ qualified_procedure(dident functor, dident lookup_module, dident ref_module, typ
     }
     else	/* undefined procedure for now*/
     {
-	pd->flags |= VMCODE;
+	pd->flags = (pd->flags & ~CODETYPE)|VMCODE;
 	_pri_init_vmcode(pd, 0);
     }
 
@@ -1858,13 +1857,7 @@ _define_built_in(dident did1, int (*function) (/* ??? */), long int flags, diden
 	/* by default all simples bind the last argument */
 	pd->mode = BoundArg(DidArity(PriDid(pd)), CONSTANT);
 
-    if ((flags & CODETYPE) == BIPNO)
-    {
-	pd->flags |= EXTERN|ARGSTACK;
-	pricode.func = function;
-	pri_define_code(pd, BIPNO, pricode);
-    }
-    else if ((flags & CODETYPE) == VMCODE)
+    if ((flags & CODETYPE) == VMCODE)
     {
 	(void) b_built_code(pd, (word) function, nondet);
     }

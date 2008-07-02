@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
  */
 
 /********************************************************************
@@ -162,9 +162,44 @@ vmcode	*bip_error_code_,
 pri	*true_proc_,
 	*arity_proc_,
 	*softcut_proc_,
-	*cut_to_proc_;
+	*cut_to_proc_,
+	*identical_proc_,
+        *not_identical_proc_,
+        *inequality_proc_,
+        *not_ident_list_proc_,
+        *minus_proc_,
+        *add_proc_,
+        *sub_proc_,
+        *mul_proc_,
+        *quot_proc_,
+        *div_proc_,
+        *rem_proc_,
+        *fdiv_proc_,
+        *mod_proc_,
+        *and_proc_,
+        *or_proc_,
+        *xor_proc_,
+        *bitnot_proc_,
+	*lt_proc3_,
+	*le_proc3_,
+	*gt_proc3_,
+	*ge_proc3_,
+	*eq_proc3_,
+	*ne_proc3_,
+        *arg_proc_,
+        *make_suspension_proc_,
+	*cut_to_stamp_proc_,
+	*fail_proc_;
 
 
+/*
+ * make_function_bip()
+ * make_test_bip()
+ *
+ * Create descriptor and code stubs for those built-ins that are implemented
+ * by a single abstract machine instruction.  The code sequence is only used
+ * for metacalling and waking.  Other calls are inlined by the compiler.
+ */
 
 pri *
 make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
@@ -175,7 +210,7 @@ make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
     pri		*pd;
     word	 i, arity = DidArity(did1);
     Allocate_Default_Procedure(arity+7, did1);
-    Exported_Kernel_Proc(did1, flags|EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF|DEBUG_SK, code);
+    Exported_Kernel_Proc(did1, flags|EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF, code);
     PriMode(pd) = mode;
     Store_i(opc);
 	for(i=1; i<arity; ++i) {
@@ -185,14 +220,20 @@ make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
 	if (argdesc >= 0) {
 	    Store_d(argdesc);
 	}
+    /*
+     * The previous instruction leaves the function result in argument
+     * register A[arity+1], which then needs to be unified with A[arity].
+     * CAUTION: if the built-in re-delays, the previous instruction
+     * executes a Retd_nowake internally, and the following code is skipped!
+     */
     Store_3(Get_valueAMAM,Address(arity),Address(arity+1))
-    Store_i(Retd);
+    Store_i(Retd_nowake);	/* because inlined calls don't wake either */
     Store_i(Code_end);
     return pd;
 }
 
 pri *
-make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
+make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, int vis)
 {
     vmcode	*code;
     type	tm;
@@ -200,7 +241,11 @@ make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
     pri		*pd;
     word	 i, arity = DidArity(did1);
     Allocate_Default_Procedure(arity+4, did1);
-    Exported_Kernel_Proc(did1, flags|EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF|DEBUG_SK, code);
+    if (vis == EXPORT) {
+	Exported_Kernel_Proc(did1, flags|EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF, code);
+    } else {
+	Local_Kernel_Proc(did1, flags|EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF, code);
+    }
     PriMode(pd) = mode;
     Store_i(opc);
 	for(i=1; i<=arity; ++i) {
@@ -209,7 +254,7 @@ make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
 	if (argdesc >= 0) {
 	    Store_d(argdesc);
 	}
-    Store_i(Retd);
+    Store_i(Retd_nowake);	/* because inlined calls don't wake either */
     Store_i(Code_end);
     return pd;
 }
@@ -1090,72 +1135,71 @@ code_init(int flags)
     Store_i(Code_end);
 
 
-#ifdef NEW_BIP_CONVENTION
-    /* some of these could be defined in Prolog! */
-    fail_proc_ = make_test_bip(d_.fail, Failure, 0, 0, -1);
-    make_test_bip(d_.unify, Get_valueAMAM, U_UNIFY, BoundArg(1, NONVAR) | BoundArg(2, NONVAR), -1);
+/*
+ * Create the built-ins that are implemented by a single abstract machine instruction
+ */
+    make_test_bip(d_.fail, Failure, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.unify, Get_valueAMAM, U_UNIFY|DEBUG_SK, BoundArg(1, NONVAR) | BoundArg(2, NONVAR), -1, EXPORT);
 
-    make_test_bip(in_dict("set_bip_error",1), BI_SetBipError, 0, 0, -1);
-    make_function_bip(in_dict("get_bip_error",1), BI_GetBipError, U_SIMPLE, BoundArg(1,CONSTANT), -1);
-    make_function_bip(in_dict("get_cut",1), SavecutAM, U_SIMPLE, BoundArg(1,CONSTANT), -1);
+    make_test_bip(in_dict("set_bip_error",1), BI_SetBipError, DEBUG_SK, 0, -1, EXPORT);
+    make_function_bip(in_dict("get_bip_error",1), BI_GetBipError, U_SIMPLE|DEBUG_SK, BoundArg(1,CONSTANT), -1);
+    make_function_bip(in_dict("get_cut",1), SavecutAM, U_SIMPLE|DEBUG_SK, BoundArg(1,CONSTANT), -1);
 
-    make_test_bip(in_dict("sys_return",1), BI_Exit, 0, 0, -1);
-    cut_to_stamp_proc_ = make_test_bip(in_dict("cut_to_stamp",2), BI_CutToStamp, 0, 0, 0);
-    make_test_bip(in_dict("cont_debug",0), BI_ContDebug, 0, 0, -1);
+    make_test_bip(in_dict("sys_return",1), BI_Exit, DEBUG_SK, 0, -1, LOCAL);
+    make_test_bip(in_dict("cut_to_stamp",2), BI_CutToStamp, DEBUG_SK, 0, 0, EXPORT);
+    make_test_bip(in_dict("cont_debug",0), BI_ContDebug, DEBUG_SK, 0, -1, LOCAL);
 
-    make_test_bip(d_.free1, BI_Free, 0, 0, -1);
-    make_test_bip(d_.is_suspension, BI_IsSuspension, 0, 0, -1);
-    make_test_bip(d_.is_event, BI_IsEvent, 0, 0, -1);
-    make_test_bip(d_.is_handle, BI_IsHandle, 0, 0, -1);
-    make_test_bip(d_.var, BI_Var, 0, 0, -1);
-    make_test_bip(d_.nonvar, BI_NonVar, 0, 0, -1);
-    make_test_bip(d_.meta, BI_Meta, 0, 0, -1);
-    make_test_bip(d_.atom, BI_Atom, 0, 0, -1);
-    make_test_bip(d_.integer, BI_Integer, 0, 0, -1);
-    make_test_bip(d_.rational, BI_Rational, 0, 0, -1);
-    make_test_bip(d_.real, BI_Real, 0, 0, -1);
-    make_test_bip(d_.float1, BI_Float, 0, 0, -1);
-    make_test_bip(d_.breal, BI_Breal, 0, 0, -1);
-    make_test_bip(d_.string, BI_String, 0, 0, -1);
-    make_test_bip(d_.number, BI_Number, 0, 0, -1);
-    make_test_bip(d_.atomic, BI_Atomic, 0, 0, -1);
-    make_test_bip(d_.compound, BI_Compound, 0, 0, -1);
-    make_test_bip(d_.is_list, BI_IsList, 0, 0, -1);
+    make_test_bip(d_.free1, BI_Free, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.is_suspension, BI_IsSuspension, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.is_event, BI_IsEvent, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.is_handle, BI_IsHandle, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.var, BI_Var, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.nonvar, BI_NonVar, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.meta, BI_Meta, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.atom, BI_Atom, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.integer, BI_Integer, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.rational1, BI_Rational, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.real, BI_Real, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.float1, BI_Float, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.breal, BI_Breal, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.string, BI_String, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.number, BI_Number, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.atomic, BI_Atomic, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.compound, BI_Compound, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.is_list, BI_IsList, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.bignum, BI_Bignum, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(in_dict("callable",1), BI_Callable, DEBUG_SK, 0, -1, EXPORT);
 
-    minus_proc_ = make_function_bip(in_dict("-",2), BI_Minus, U_SIMPLE, BoundArg(2,CONSTANT), 4);
-    add_proc_ = make_function_bip(in_dict("+",3), BI_Add, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    sub_proc_ = make_function_bip(in_dict("-",3), BI_Sub, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    mul_proc_ = make_function_bip(in_dict("*",3), BI_Mul, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    quot_proc_ = make_function_bip(in_dict("/",3), BI_Quot, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    div_proc_ = make_function_bip(in_dict("//",3), BI_Div, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    rem_proc_ = make_function_bip(in_dict("rem",3), BI_Rem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    fdiv_proc_ = make_function_bip(in_dict("div",3), BI_FloorDiv, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    mod_proc_ = make_function_bip(in_dict("mod",3), BI_FloorRem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    and_proc_ = make_function_bip(in_dict("/\\",3), BI_And, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    or_proc_ = make_function_bip(in_dict("\\/",3), BI_Or, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    xor_proc_ = make_function_bip(in_dict("xor", 3), BI_Xor, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    bitnot_proc_ = make_function_bip(in_dict("\\",2), BI_Bitnot, U_SIMPLE, BoundArg(2,CONSTANT), 4);
-    arg_proc_ = make_function_bip(in_dict("arg",3), BI_Arg, PROC_DEMON|U_UNIFY, BoundArg(2, NONVAR) | BoundArg(3, NONVAR), 16);
+    make_function_bip(in_dict("-",2), BI_Minus, U_SIMPLE|DEBUG_SK, BoundArg(2,CONSTANT), 4);
+    make_function_bip(in_dict("+",3), BI_Add, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("-",3), BI_Sub, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("*",3), BI_Mul, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("/",3), BI_Quot, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("//",3), BI_Div, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("rem",3), BI_Rem, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("div",3), BI_FloorDiv, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("mod",3), BI_FloorRem, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("/\\",3), BI_And, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("\\/",3), BI_Or, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("xor", 3), BI_Xor, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("\\",2), BI_Bitnot, U_SIMPLE|DEBUG_SK, BoundArg(2,CONSTANT), 4);
 
-    make_suspension_proc_ = make_test_bip(in_dict("make_suspension",4), I_BIMakeSuspension, U_UNIFY, BoundArg(3, NONVAR), 0);
-	PriFlags(make_suspension_proc_) |= DEBUG_INVISIBLE;
+    make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE|DEBUG_SK, BoundArg(2,CONSTANT), 4);
+    make_function_bip(in_dict("arg",3), BI_Arg, PROC_DEMON|U_UNIFY|DEBUG_SK, BoundArg(2, NONVAR) | BoundArg(3, NONVAR), 16);
 
-    identical_proc_ = make_test_bip(d_.identical, BI_Identical, 0, 0, -1);
-    not_identical_proc_ = make_test_bip(d_.not_identical, BI_NotIdentical, 0, 0, -1);
-    inequality_proc_ = make_test_bip(d_.diff_reg, BI_Inequality, PROC_DEMON, 0, -1);
-    not_ident_list_proc_ = make_test_bip(in_dict("\\==",3), BI_NotIdentList, 0, BoundArg(3, NONVAR), -1);
-#endif
-    lt_proc3_ = make_test_bip(in_dict("<",3), BI_Lt, PROC_DEMON, 0, 0);
-    gt_proc3_ = make_test_bip(in_dict(">",3), BI_Gt, PROC_DEMON, 0, 0);
-    le_proc3_ = make_test_bip(in_dict("=<",3), BI_Le, PROC_DEMON, 0, 0);
-    ge_proc3_ = make_test_bip(in_dict(">=",3), BI_Ge, PROC_DEMON, 0, 0);
-    eq_proc3_ = make_test_bip(in_dict("=:=",3), BI_Eq, PROC_DEMON, 0, 0);
-    ne_proc3_ = make_test_bip(in_dict("=\\=",3), BI_Ne, PROC_DEMON, 0, 0);
+    make_test_bip(in_dict("make_suspension",4), BI_MakeSuspension, U_UNIFY|DEBUG_INVISIBLE, BoundArg(3, NONVAR), 0, EXPORT);
 
-    make_test_bip(d_.bignum, BI_Bignum, 0, 0, -1);
-    make_test_bip(in_dict("callable",1), BI_Callable, 0, 0, -1);
+    make_test_bip(d_.identical, BI_Identical, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.not_identical, BI_NotIdentical, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.diff_reg, BI_Inequality, PROC_DEMON|DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(in_dict("\\==",3), BI_NotIdentList, DEBUG_SK, BoundArg(3, NONVAR), -1, EXPORT);
 
-    arity_proc_ = make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE, BoundArg(2,CONSTANT), 4);
+    make_test_bip(in_dict("<",3), BI_Lt, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
+    make_test_bip(in_dict(">",3), BI_Gt, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
+    make_test_bip(in_dict("=<",3), BI_Le, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
+    make_test_bip(in_dict(">=",3), BI_Ge, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
+    make_test_bip(in_dict("=:=",3), BI_Eq, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
+    make_test_bip(in_dict("=\\=",3), BI_Ne, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
 
   } /* end if (flags & INIT_SHARED) */
 
@@ -1169,7 +1213,6 @@ code_init(int flags)
     true_proc_ = KernelProc(d_.true0);
     cut_to_proc_ = KernelProc(d_.cut_to);
     softcut_proc_ = KernelProc(d_.softcut);
-#ifdef NEW_BIP_CONVENTION
     cut_to_stamp_proc_ = KernelProc(in_dict("cut_to_stamp", 2));
     fail_proc_ = KernelProc(d_.fail);
     identical_proc_ = KernelProc(d_.identical);
@@ -1188,17 +1231,16 @@ code_init(int flags)
     and_proc_ = KernelProc(in_dict("/\\",3));
     or_proc_ = KernelProc(in_dict("\\/",3));
     xor_proc_ = KernelProc(in_dict("xor",3));
-    bitnot_proc_ = KernelProc(in_dict("\\",3));
-    lt_proc_ = KernelProc(d_.inf);
-    le_proc_ = KernelProc(d_.infq);
-    gt_proc_ = KernelProc(d_.sup);
-    ge_proc_ = KernelProc(d_.supq);
-    eq_proc_ = KernelProc(d_.equal);
-    ne_proc_ = KernelProc(d_.not_equal);
+    bitnot_proc_ = KernelProc(in_dict("\\",2));
+    lt_proc3_ = KernelProc(in_dict("<",3));
+    gt_proc3_ = KernelProc(in_dict(">",3));
+    le_proc3_ = KernelProc(in_dict("=<",3));
+    ge_proc3_ = KernelProc(in_dict(">=",3));
+    eq_proc3_ = KernelProc(in_dict("=:=",3));
+    ne_proc3_ = KernelProc(in_dict("=\\=",3));
     arg_proc_ = KernelProc(in_dict("arg",3));
     arity_proc_ = KernelProc(in_dict("arity",2));
     make_suspension_proc_ = KernelProc(in_dict("make_suspension",4));
-#endif
 }
 
 

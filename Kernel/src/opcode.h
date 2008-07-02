@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * VERSION	$Id: opcode.h,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
  */
 
 /*
@@ -57,13 +57,9 @@ extern vmcode op_addr[];
 #define Op_Value(x)	op_addr[x]
 #define Get_Int_Opcode(code)	((vmcode) get_int_opcode(code))
 
-extern vmcode bi_addr[];
-#define Es_Value(x)	bi_addr[((int) (x))]
-
 #else /* THREADED */
 
 #define Op_Value(x)	(x)
-#define Es_Value(x)	(x)
 #define Get_Int_Opcode(code)	*(code)
 
 #endif /* THREADED */
@@ -633,67 +629,6 @@ extern vmcode bi_addr[];
 #define Get_matched_valueARTR			(BLOCK4 + 3)
 #define OPCODES_ARTR				(BLOCK4 + 4)
 
-/*
- * Expanded built-in predicate opcodes
- */
-#define BIExit			1
-#define BIGetCut		2
-#define BIFloorDiv		3
-#define BIFloorRem		4
-#define BIParentCreep		5	/* unused */
-#define BIGetParentDebug	6	/* unused */
-#define BISetBipError		7
-#define BIGetBipError		8
-#define BIFail			9
-#define BIVar			10
-#define BINonVar		11
-#define BIAtom			12
-#define BIInteger		13
-#define BIReal			14
-#define BIString		15
-#define BINumber		16
-#define BIAtomic		17
-#define BICompound		18
-#define BIIdentical		19
-#define BINotIdentical		20
-#define	BISucc			21
-#define BIUnify			22
-#define BISave			23
-#define BIRestore		24
-#define	BIMinus			25
-#define	BIAdd			26
-#define	BISub			27
-#define	BIMul			28
-#define	BIQuot			29
-#define	BIDiv			30
-#define	BIRem			31
-#define	BIAnd			32
-#define	BIOr			33
-#define	BIXor			34
-#define	BIRshift		35
-#define	BILshift		36
-#define	BIBitnot		37
-#define	BIFloat			38
-#define	BILt			39
-#define	BILe			40
-#define	BIGt			41
-#define	BIGe			42
-#define	BIEq			43
-#define	BINe			44
-#define	BIArg			45
-#define	BIMeta			46
-#define	BIInequality		47
-#define	BIFree			48
-#define	BIMakeSuspension	49
-#define	BIRational		50
-#define	BINotIdentList		51
-#define	BIIsSuspension		52
-#define	BIContDebug		53
-#define	BICutToStamp		54
-#define	BIIsEvent		55
-#define	BIIsHandle		56
-#define	BIBreal			57
-#define	BIIsList		58
-#define LAST_EXPANDED_OPCODE	58 /* used in printam.c */
 
 #define NUMBER_OP				(Inst_Error + 1)
+

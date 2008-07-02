@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
  */
 
 /*
@@ -1445,6 +1445,18 @@ extern dident transf_did ARGS((long));
 
 #define RESUME_CONT		0
 #define RESUME_SIMPLE		1
+
+
+/*---------------------------------------------------------------------------
+ * Aritmetic comparisons, for arith_compare()
+ *---------------------------------------------------------------------------*/
+
+#define BILt	1
+#define BIGt	2
+#define BILe	3
+#define BIGe	4
+#define BIEq	5
+#define BINe	6
 
 /*---------------------------------------------------------------------------
  * Prototypes
