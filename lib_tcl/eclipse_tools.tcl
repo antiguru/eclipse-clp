@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.13 2008/06/20 13:41:15 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.14 2008/07/04 17:14:15 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3349,7 +3349,7 @@ proc tkecl:setup_source_debug_window {} {
     combobox $ec_source.control.select -click single -bg white -listheight 16 -editable 0 \
         -postcommand [list tkecl:get_source_debug_filenames $ec_source.control.select] \
 	-textvariable tkecl(source_debug,file) -labeltext "File:" \
-	-command tkecl:load_source_debug_file
+	-command tkecl:load_source_debug_file 
 
     pack $ec_source.control.select -side left -fill x -expand 1
     pack $ec_source.control -side bottom -fill x -expand 1
@@ -3398,7 +3398,7 @@ proc tkecl:toggle_breakpoint {t} {
     global tkecl
 
     set line [tkecl:get_current_text_line $t]
-    tkecl:set_breakpoint toggle $tkecl(source_debug,file) $line
+    eval [list tkecl:set_breakpoint toggle $tkecl(source_debug,file) $line]
 
 }
 
@@ -3416,8 +3416,8 @@ proc tkecl:popup_sourcetext_menu {t x y} {
     }
 
     set line [tkecl:get_current_text_line $t]
-    $m add command -label "Set breakpoint near line $line" -command "tkecl:set_breakpoint on $tkecl(source_debug,file) $line" 
-    $m add command -label "Unset breakpoint near line $line" -command "tkecl:set_breakpoint off $tkecl(source_debug,file) $line"
+    $m add command -label "Set breakpoint near line $line" -command [list tkecl:set_breakpoint on $tkecl(source_debug,file) $line] 
+    $m add command -label "Unset breakpoint near line $line" -command [tkecl:set_breakpoint off $tkecl(source_debug,file) $line]
     $m add separator
     $m add command -label "Find..." -command "tkecl:show-find source_debug .ec_tools.ec_tracer.tab.source.context.text .ec_tools.ec_tracer"
 #    menu $ec_source.control.preds.menu
@@ -3425,7 +3425,7 @@ proc tkecl:popup_sourcetext_menu {t x y} {
 #    $m.preds add command -label "blah" -command
     $m add separator
     $m add command -label "Refresh this file" -command \
-	"tkecl:load_source_debug_file {$tkecl(source_debug,file)} [$t xview] [$t yview]"
+	[list tkecl:load_source_debug_file $tkecl(source_debug,file) [$t xview] [$t yview]]
     $m add command -label "Edit this file" -command "tkecl:edit_file $tkecl(source_debug,file)  $line" 
     tk_popup $m $x $y
 }
@@ -3435,7 +3435,7 @@ proc tkecl:set_breakpoint {tostate file line} {
     set result [ec_rpc [list : tracer_tcl [list set_source_breakpoint $tostate $file $line _ _ _]] {(()(()()I___))}]
     switch $result {
 	fail {
-	    tk_messageBox -type ok -message "No breaklines found in file"
+	    tk_messageBox -type ok -message "No breaklines found in file $file"
 
 	}
 	throw {
@@ -3544,11 +3544,11 @@ proc tkecl:update_source_debug {style from to fpath_info} {
     }
 
      if {$tkecl(source_debug,file) != $fpath} {
-	 tkecl:load_source_debug_file $fpath
+	 eval [list tkecl:load_source_debug_file $fpath]
     } else {
-	if {$style != "ancestor_style"} {
-	    $ec_sourcetext tag remove debug_line 1.0 end
-	}
+		if {$style != "ancestor_style"} {
+			$ec_sourcetext tag remove debug_line 1.0 end
+		}	
     }
 
     # assume $from, $to -- position information on an annotated term from

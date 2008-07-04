@@ -10,6 +10,9 @@ package provide Combobox 2.0
 ## Modified by Kish Shen, 99-3-12, to allow listbox to be closed if cursor
 ## leaves the window (-closeonleave option)
 ##
+## Kish 2008-07-04: Added [list..] for -command so that the argument can 
+## have spaces.
+##
 ##------------------------------------------------------------------------
 ## PROCEDURE
 ##	combobox
@@ -448,7 +451,7 @@ bind Combobox <Destroy>		{ catch {grab release %W} }
 	$e insert end $i
 	$e config -state $state
 	if {[string compare $data(-command) {}]} {
-	    uplevel \#0 $data(-command) $i
+	    uplevel \#0 [list $data(-command) $i]
 	}
     }
     wm withdraw $data(toplevel)
