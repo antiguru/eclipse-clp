@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.14 2008/07/04 17:14:15 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.15 2008/07/04 21:24:39 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3571,11 +3571,13 @@ proc tkecl:get_current_text_line {t} {
 }
 
 
-proc tkecl:load_source_debug_file {fpath {xfrac 0} {xfracend 1} {yfrac 0}  {yfracend 0}} {
+proc tkecl:load_source_debug_file {fpath {xfracs "0 1"} {yfracs "0 1"}} {
     global tkecl
 
     set ec_source .ec_tools.ec_tracer.tab.source
     set ec_sourcetext $ec_source.context.text
+    set xfrac [lindex $xfracs 0]
+    set yfrac [lindex $yfracs 0]
 
     $ec_sourcetext delete 1.0 end
     switch [ec_rpc [list : tracer_tcl [list read_file_for_gui $fpath]] \
