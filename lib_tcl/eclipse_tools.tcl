@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.16 2008/07/06 07:17:46 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.17 2008/07/06 13:22:17 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3339,6 +3339,7 @@ proc tkecl:setup_source_debug_window {} {
     $ec_source.context.text tag configure ancestor_style -background lightblue \
 	-relief raised -borderwidth 1
     $ec_source.context.text tag configure debug_line -background beige -relief raised -borderwidth 1
+    $ec_source.context.text tag configure hidden_cr -elide 1
     $ec_source.context.text configure -cursor left_ptr 
 
     $ec_source.context.status tag configure on -foreground red 
@@ -3478,6 +3479,19 @@ proc tkecl:handle_source_debug_print {stream {length {}}} {
 	$ec_sourcecon.text insert end $part
     } else {
 #	pack $ec_sourcecon.text -fill both -expand 1
+
+	# Find and hide CR characters (for Windows) - we can't delete them
+	# because that would break our offset-based positioning within the
+	# file (we are getting the file in binary from ECLiPSe).
+	set i 1.0
+	while {1} {
+	    set i [$ec_sourcecon.text search "\r" $i]
+	    if {$i == ""} { break }
+	    $ec_sourcecon.text tag add hidden_cr $i
+	    set i "$i+1chars"
+	}
+
+	# Initialise the line and breakpoint columns
 	$ec_sourcecon.status delete 1.0 end
 	$ec_sourcecon.lineno delete 1.0 end
 	regexp {^[0-9]+} [$ec_sourcecon.text index end] lastline
