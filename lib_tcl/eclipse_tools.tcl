@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.15 2008/07/04 21:24:39 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.16 2008/07/06 07:17:46 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3398,7 +3398,7 @@ proc tkecl:toggle_breakpoint {t} {
     global tkecl
 
     set line [tkecl:get_current_text_line $t]
-    eval [list tkecl:set_breakpoint toggle $tkecl(source_debug,file) $line]
+    tkecl:set_breakpoint toggle $tkecl(source_debug,file) $line
 
 }
 
@@ -3417,7 +3417,7 @@ proc tkecl:popup_sourcetext_menu {t x y} {
 
     set line [tkecl:get_current_text_line $t]
     $m add command -label "Set breakpoint near line $line" -command [list tkecl:set_breakpoint on $tkecl(source_debug,file) $line] 
-    $m add command -label "Unset breakpoint near line $line" -command [tkecl:set_breakpoint off $tkecl(source_debug,file) $line]
+    $m add command -label "Unset breakpoint near line $line" -command [list tkecl:set_breakpoint off $tkecl(source_debug,file) $line]
     $m add separator
     $m add command -label "Find..." -command "tkecl:show-find source_debug .ec_tools.ec_tracer.tab.source.context.text .ec_tools.ec_tracer"
 #    menu $ec_source.control.preds.menu
@@ -3544,7 +3544,7 @@ proc tkecl:update_source_debug {style from to fpath_info} {
     }
 
      if {$tkecl(source_debug,file) != $fpath} {
-	 eval [list tkecl:load_source_debug_file $fpath]
+	 tkecl:load_source_debug_file $fpath
     } else {
 		if {$style != "ancestor_style"} {
 			$ec_sourcetext tag remove debug_line 1.0 end
