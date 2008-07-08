@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.6 2008/06/30 17:43:41 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.7 2008/07/08 19:40:29 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/06/30 17:43:41 $").
+:- comment(date,	"$Date: 2008/07/08 19:40:29 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -110,7 +110,7 @@ compiler_options_setup(File, OptionList, Options) :-
 	    open(LstFile,write,Stream),
 	    update_struct(options, [output:print(Stream)], Options0, Options)
 	; Options0 = options{output:eco(EcoFile)} ->
-	    open(EcoFile,write,Stream),
+	    open(EcoFile,write,Stream,[end_of_line(lf)]),
 	    update_struct(options, [output:eco_to_stream(Stream)], Options0, Options)
 	; Options0 = options{output:eco} ->
 	    pathname(FileS, Dir, Base, _Suffix),
@@ -120,7 +120,7 @@ compiler_options_setup(File, OptionList, Options) :-
 	    ;
 		concat_string([OutDir,/,Base,ECO], EcoFile)
 	    ),
-	    open(EcoFile,write,Stream),
+	    open(EcoFile,write,Stream,[end_of_line(lf)]),
 	    update_struct(options, [output:eco_to_stream(Stream)], Options0, Options)
 	; Options0 = options{output:asm} ->
 	    concat_string([File], FileS),
