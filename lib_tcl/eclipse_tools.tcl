@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.17 2008/07/06 13:22:17 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.18 2008/07/08 17:21:52 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3549,7 +3549,7 @@ proc tkecl:update_source_debug {style from to fpath_info} {
     }
     $ec_sourcetext tag remove ancestor_style 1.0 end
 
-    if {$fpath_info == "no"} {
+    if {$fpath_info == "no" || $from < 0} {
 	# .ec_tools.ec_tracer.tab itemconfigure "Source Context" -state disabled
 	return
     } else {

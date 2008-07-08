@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.2 2008/07/08 17:24:00 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -194,10 +194,11 @@ trace_line_handler_tcl(_, Current) :-
 	!,
 	flush(debug_output),
 	open(string(""), write, SS),
-	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, FPath, _Linum, From, To),
+	make_trace_line(SS, Current, Depth, Port, Invoc, Prio, FPath, _Linum, From0, To0),
 	get_stream_info(SS, name, Line),
 	close(SS),
 	port_style(Port, Style),
+        check_if_source_should_update(Port, From0, To0, From, To),
 	write_exdr(debug_traceline, [Depth, Style, Line, Invoc, Port, Prio,
                                      FPath, From, To]),
 	flush(debug_traceline),	% may not work in nested emulator...
@@ -268,6 +269,12 @@ port_style(fail, "fail_style") :- !.
 port_style(exit, "exit_style") :- !.
 port_style('*exit', "exit_style") :- !.
 port_style(_, "call_style").
+
+% set From/To to -1 if source display should not be updated to new positions
+:- mode check_if_source_should_update(+,+,+,-,-).
+check_if_source_should_update(next, _, _, -1, -1) :- !.
+check_if_source_should_update(else, _, _, -1, -1) :- !.
+check_if_source_should_update(_, From, To, From, To).
 
 set_tracer_command(Cmd) :-
         setval(tracer_command, Cmd).
