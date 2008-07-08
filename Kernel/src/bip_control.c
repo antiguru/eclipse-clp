@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -103,7 +103,6 @@ static dident
 	d_current_,
 	d_objects_,
 	d_development_,
-	d_ellipsis,
 	d_seduce_,
 	d_opium_,
 	d_occur_check_,
@@ -127,7 +126,6 @@ bip_control_init(int flags)
     d_megalog_ = in_dict("megalog",0);
     d_parallel_ = in_dict("parallel",0);
     d_mps_ = in_dict("mps",0);
-    d_ellipsis = in_dict("...",0);
     d_current_ = in_dict("current",0);
     d_old_ = in_dict("old",0);
 
@@ -945,8 +943,8 @@ p_get_fail_info(value vi, type ti, value vf, type tf)
 	if (pdid == d_.list)
 	{
 	    Push_List_Frame();
-	    Make_Atom(pw+0, d_ellipsis);
-	    Make_Atom(pw+1, d_ellipsis);
+	    Make_Atom(pw+0, d_.ellipsis);
+	    Make_Atom(pw+1, d_.ellipsis);
 	    Make_List(&goal,pw);
 	}
 	else
@@ -954,7 +952,7 @@ p_get_fail_info(value vi, type ti, value vf, type tf)
 	    Push_Struct_Frame(pdid);
 	    for(i=1; i <= DidArity(pdid); ++i)
 	    {
-		Make_Atom(pw+i, d_ellipsis);
+		Make_Atom(pw+i, d_.ellipsis);
 	    }
 	    Make_Struct(&goal,pw);
 	}

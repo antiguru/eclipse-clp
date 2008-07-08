@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /*
@@ -1282,6 +1282,7 @@ _std_did_init(void)
 	d_.spy = 		in_dict("spy", 0);
 	d_.leash = 		in_dict("leash", 0);
 	d_.command = 		in_dict("command", 0); 
+	d_.ellipsis =		in_dict("...",0);
 
 		/* modes */
 	d_.plus0 =		in_dict("+", 0);

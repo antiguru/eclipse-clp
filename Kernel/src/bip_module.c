@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.3 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /*
@@ -577,8 +577,10 @@ _tool_code(pri *procb, int debug)
     {
 	Allocate_Default_Procedure(3L + debug * DEBUG_LENGTH, PriDid(procb));
 	save = code;
-	if (debug)
-	    {Store_3(Debug_call, procb, CALL_PORT|FIRST_CALL|LAST_CALL);}
+	if (debug) {
+	    Store_3(Debug_call, procb, CALL_PORT|FIRST_CALL|LAST_CALL);
+	    Store_4d(d_.empty,0,0,0);
+	}
 	Store_i(JmpdP);
 	Store_d(procb);
 	Store_i(Code_end);

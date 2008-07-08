@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * VERSION	$Id: names.h,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /*
@@ -237,9 +237,9 @@ char * inst_name[] = {
 "List_switchL              ",
 "External                  ",
 "Puts_proc                 ",
-"Debug_esc                 ",
+"Debug_call_simple         ",
 "Gc                        ",
-"Debug_call                ",
+"Debug_exit_simple         ",
 "Refail                    ",
 "Exit_emulator             ",
 "Debug_exit                ",
@@ -257,7 +257,7 @@ char * inst_name[] = {
 "Puts_constant             ",
 "Get_matched_valueAMAM     ",
 "Get_matched_valueAMTM     ",
-"Puts_variableAM           ",
+"Debug_exit_simple_args    ",
 "Put_unsafe_valueAMTM      ",
 "Branchs                   ",
 "Gc_test                   ",
@@ -409,7 +409,7 @@ char * inst_name[] = {
 "BI_Ne                     ",
 "BI_Arg                    ",
 "BI_MakeSuspension         ",
-"Debug_scall               ",
+"Debug_call               ",
 "Retry_inline              ",
 "Trust_inline              ",
 "Put_named_variableAM      ",

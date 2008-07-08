@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.3 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /********************************************************************
@@ -789,7 +789,14 @@ code_init(int flags)
     Store_3(Fastcall, NO_PORT, 0)
     Store_i(Continue_after_exception)
     Store_i(Retd_nowake);
+    Store_i(Code_end)	/* continues below */
+#if SIMPLIFY
+    Store_d(Esize(0))
+   exception_cont_code_ = code;
+    Store_i(Continue_after_exception)
+    Store_i(Retd_nowake);
     Store_i(Code_end);
+#endif
 
 
 /*

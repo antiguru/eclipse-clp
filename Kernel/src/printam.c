@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /*
@@ -379,7 +379,6 @@ print_am(register vmcode *code,
 	case Push_variableAM:
 	case Push_valueAM:
 	case Push_local_valueAM:
-	case Puts_variableAM:
 	case Puts_valueAM:
 	case SavecutAM:
 	case BI_Exit:
@@ -1380,18 +1379,25 @@ print_am(register vmcode *code,
 		break;
 
 	case Debug_call:
-	case Debug_esc:
-		Proc;
-		Port;
-		break;
-
-	case Debug_scall:
 	        Proc;
 		Port;
 		Atom;
 		Integer;
 		Integer;
 		Integer;
+		break;
+
+	case Debug_call_simple:
+	        Proc;
+		Port;
+		Atom;
+		Integer;
+		Integer;
+		Integer;
+	case Debug_exit_simple_args:
+		Integer;	/* argument descriptor minitags */
+		Integer;	/* offset */
+	case Debug_exit_simple:
 		break;
 
 	case List_switchL:

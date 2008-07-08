@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.1 2008/06/30 17:43:59 jschimpf Exp $
+ * $Id: types.h,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -793,6 +793,7 @@ typedef struct
 	dynamic,
 	e,
 	eclipse_home,
+	ellipsis,
 	empty,
 	eocl,
 	eof,

@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.3 2008/07/02 16:25:06 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.4 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /*
@@ -1298,7 +1298,7 @@ _bind_nonstandard_:			/* *pw1 = (pw2,tmp1) */
  * problem as long as they are always last and the input is copied first.
  */
 
-#define Push_Bip_Goal(_did,_i,_mask) { /*(PP)*/ \
+#define Push_Bip_Goal(_did,_i,_mask) { \
 	(_i) = DidArity(_did)+1;\
 	TG->val.did = (_did);\
 	TG++->tag.kernel = TDICT;\
@@ -1322,7 +1322,6 @@ _bind_nonstandard_:			/* *pw1 = (pw2,tmp1) */
 	    ++TG; (_mask) >>= 2;\
 	} while (--(_i)>1);\
 }
-
 
 _nbip_res_:	     /* (err_code,proc), args at *PP[-arity-1..-2] */
 	Mark_Prof(_nbip_res_)
@@ -1475,8 +1474,12 @@ _nbip_err_:		/* (err_code, proc), args at *PP[-arity-1..-2] */
 
 	/* Build culprit goal (before saving argument registers!) */
 	    val_did = PriDid(proc);
-	    pw3 = TG;
-	    Push_Bip_Goal(val_did, i, tmp1)
+	    if (DidArity(val_did) > 0) {
+		Make_Struct(&scratch_pw, TG);
+		Push_Bip_Goal(val_did, i, tmp1);
+	    } else {
+		Make_Atom(&scratch_pw, val_did);
+	    }
 
 	/* create an exception frame to be able to restore the machine
 	 * state partially on SUCCESSful return from error handler.
@@ -1524,12 +1527,19 @@ _nbip_err_:		/* (err_code, proc), args at *PP[-arity-1..-2] */
 
 	/* Now call syserror(Err, Goal, ContextMod, LookupMod) */
 	    Make_Integer(&A[1], err_code);	/* error code */
-	    Make_Struct(&A[2], pw3);		/* culprit goal */
+	    A[2] = scratch_pw;			/* culprit goal */
 	    Make_Marked_Module(&A[3], PriModule(proc)); /* context module */
 	    Make_Lookup_Module(&A[4], proc);	/* lookup module */
 	    A[5].tag.kernel = TEND;
 
+#ifdef SIMPLIFY
+	    Set_Det /* ? */
+	    Push_Ret_Code(PP)
+	    Check_Local_Overflow;
+	    PP = (emu_code) PriCode(procb);
+#else
 	    PP = (emu_code) bip_error_code_;
+#endif
 	    Next_Pp;				/* jump into syserror/4	*/
 	}
 
@@ -1537,7 +1547,7 @@ _nbip_err_:		/* (err_code, proc), args at *PP[-arity-1..-2] */
 
 /*----------------------------------------------------------------------
  * Externals with args in A[i]
- * Args are now dereferenced in A[i] (CAUTION: TMUT-non-self-refs)
+ * Args are now dereferenced in A[i]
  * Apart from that, we are in a return state.
  * There may be events pending.
  * proc can't be a tool.
@@ -1780,12 +1790,20 @@ _handle_events_at_res_:				/* (tmp1) */
 	    DynEnvDbgPri(E)->val.wptr = (uword *) DBG_PRI;
 	    Make_Integer(DynEnvDbgPort(E), DBG_PORT);
 	    Make_Integer(DynEnvDbgInvoc(E), DBG_INVOC);
-	    Make_Atom(DynEnvDbgPath(E), DBG_PATH);
-	    Make_Integer(DynEnvDbgLine(E), DBG_LINE);
-	    Make_Integer(DynEnvDbgFrom(E), DBG_FROM);
-	    Make_Integer(DynEnvDbgTo(E), DBG_TO);
+	    DBG_PRI = 0;	/* DBG_{PRI,PORT,INVOC} now invalid */
+	    if (DBG_LINE) {
+		Make_Atom(DynEnvDbgPath(E), DBG_PATH);
+		Make_Integer(DynEnvDbgLine(E), DBG_LINE);
+		Make_Integer(DynEnvDbgFrom(E), DBG_FROM);
+		Make_Integer(DynEnvDbgTo(E), DBG_TO);
+		DBG_LINE = 0;	/* DBG_{PATH,LINE,FROM,TO} now invalid */
+	    } else {
+		Make_Atom(DynEnvDbgPath(E), d_.empty);
+		Make_Integer(DynEnvDbgLine(E), 0);
+		Make_Integer(DynEnvDbgFrom(E), 0);
+		Make_Integer(DynEnvDbgTo(E), 0);
+	    }
 	    PP = (emu_code) &restore_debug_code_[1];
-	    DBG_PRI = 0;
 	}
 	else
 	{
@@ -5259,6 +5277,7 @@ _match_values_:
 	    if (DynEnvFlags(E) & WAS_NONDET) {Clr_Det;} else {Set_Det;}
 	    if ((emu_code) DynEnvVal(E) == (emu_code) return_code_)
 	    {
+		(void) ec_panic("Debug Assertion Failed", "Emulator");
 		/* can't handle the port, it's inlined */
 		DynEnvDbgPort(E)->val.nint &= ~LAST_CALL;	/* port */
 		PP = (emu_code) &restore_code_[1];
@@ -5319,12 +5338,11 @@ _match_values_:
 		DynEnvDbgLine(E)->val.nint,
 		DynEnvDbgFrom(E)->val.nint,
 		DynEnvDbgTo(E)->val.nint, val_did)
-#if (TF_BREAK == BREAKPOINT)
-	    err_code &= BREAKPOINT;
-	    Set_Tf_Flag(TD, err_code)
-#else
+#if (TF_BREAK != BREAKPOINT)
 Please make sure that TF_BREAK == BREAKPOINT
 #endif
+	    err_code &= BREAKPOINT;	/* == TF_BREAK */
+	    Set_Tf_Flag(TD, err_code)
 	    if (OfInterest(PriFlags(proc), DBG_INVOC, tmp1, err_code))
 	    {
 		A[2] = TAGGED_TD;			/* New call stack */
@@ -5341,30 +5359,6 @@ Please make sure that TF_BREAK == BREAKPOINT
 	    {
 		PP = (emu_code) &restore_code_[1];
 	    }
-	    Next_Pp;
-
-
-	Case(Debug_exit, I_Debug_exit)
-	    if(E < EB) {			/* like Chain */
-		Pop_Env
-		if(EB == SP) {Repush_Ret_Code}
-	    } else {
-		Push_Ret_Code_To_Eb(ERetCode)
-	        Check_Local_Overflow
-		E = ERetEnv;
-	    }
-	    A[1] = TAGGED_TD;			/* Old call stack */
-	    Pop_Dbg_Frame();
-	    pw1 = A[1].val.ptr;
-	    if (ExitPortWanted && OfInterest(PriFlags(DProc(pw1)), DInvoc(pw1), DLevel(pw1), 0))
-	    {
-		/* call debug event(OldStack) */
-		proc = error_handler_[-(DEBUG_EXIT_EVENT)];
-		PP = (emu_code) PriCode(proc);
-	    } else {
-		PP = (emu_code) return_code_;
-	    }
-	    Set_Det
 	    Next_Pp;
 
 
@@ -5593,8 +5587,7 @@ _exec_prolog_:		/* (DBG_INVOC, DBG_PORT, proc, PP) */
 		    if (TD) {
 			if (((DBG_PORT&PORT_MASK) == WAKE_PORT ? TracingWakes : Tracing)
 				&& AnyPortWanted && !InvisibleProc(proc)) {
-			    DBG_PRI = proc;
-			    Fake_Overflow;
+			    goto _metacall_port_;	/* (proc) */
 			}
 		    } else /* if (PriFlags(proc) & DEBUG_ST) */ {
 			if (TRACEMODE & TR_STARTED) {
@@ -5603,8 +5596,7 @@ _exec_prolog_:		/* (DBG_INVOC, DBG_PORT, proc, PP) */
 					    TR_TRACING : TR_LEAPING;
 			}
 			if (AnyPortWanted) {
-			    DBG_PRI = proc;
-			    Fake_Overflow;
+			    goto _metacall_port_;	/* (proc) */
 			}
 		    }
 		}
@@ -5613,6 +5605,40 @@ _exec_prolog_:		/* (DBG_INVOC, DBG_PORT, proc, PP) */
 		}
 		Next_Pp;
 	    }
+
+
+_metacall_port_:	/* (proc) */
+	    tmp1 = CodeArity(PP);		/* number of valid arguments */
+	    Push_Env				/* allocate an environment */
+	    PushDynEnvHdr(tmp1+DYNENVDBGSIZE, WAS_CALL, PP);	/* save arity, PP */
+	    SP -= DYNENVDBGSIZE;
+	    DynEnvDbgPri(E)->tag.kernel = TPTR;		/* ... and debug info */
+	    DynEnvDbgPri(E)->val.wptr = (uword *) proc;
+	    Make_Integer(DynEnvDbgPort(E), DBG_PORT);
+	    Make_Integer(DynEnvDbgInvoc(E), DBG_INVOC);
+	    /* If we have source info in the DBG_ fields from a preceding
+	     * Debug_esc instruction, use it */
+	    if (DBG_LINE) {
+		Make_Atom(DynEnvDbgPath(E), DBG_PATH);
+		Make_Integer(DynEnvDbgLine(E), DBG_LINE);
+		Make_Integer(DynEnvDbgFrom(E), DBG_FROM);
+		Make_Integer(DynEnvDbgTo(E), DBG_TO);
+		DBG_LINE = 0;	/* DBG_{PATH,LINE,FROM,TO} now invalid */
+	    } else {
+		Make_Atom(DynEnvDbgPath(E), d_.empty);
+		Make_Integer(DynEnvDbgLine(E), 0);
+		Make_Integer(DynEnvDbgFrom(E), 0);
+		Make_Integer(DynEnvDbgTo(E), 0);
+	    }
+	    PP = (emu_code) &restore_debug_code_[1];
+	    pw1 = &A[1];	/* save the argument registers */
+	    for (; tmp1; --tmp1)
+		*(--SP) = *pw1++;
+	    Check_Local_Overflow
+	    if (PriArgPassing(proc) != ARGFLEXWAM) {
+		goto _handle_events_at_return_;
+	    }
+	    Next_Pp;
 
 _metacall_err_in_goal_:	/* (err_code, goal in A1, caller in A2, lookup in A3) */
 	    pw1 = TG;		/* error(N, call(Goal), Caller, Lookup) */
@@ -6073,64 +6099,20 @@ _end_external_:
 
 #endif /* SPLIT_SWITCH */
 
-/*
+
+/*----------------------------------------------------------------------
  * Debug instructions
+ *----------------------------------------------------------------------*/
+
+/*
+ * Raise a debug-event, i.e. trigger a debugger call
+ * in the subsequent Call/Jmp/Chain instruction. Source
+ * information may be supplied as quadruple (file,line,from,to)
+ * The breakpoint manipulation mechanism relies on the exact
+ * order of the [port, file, line, from, to] parameter group!
  */
 
-	    /*
-	     * raise a debug-event, i.e. trigger a debugger call
-	     * in the subsequent Call/Jmp/Chain instruction
-	     */
-	Case(Debug_call, I_Debug_call)		/* proc, port */
-	    if (TD || (PriFlags(PP[0].proc_entry) & DEBUG_ST)) {
-		if (TD) {
-#ifdef UNTESTED_FIX
-		    if (PriFlags(PP[0].proc_entry) & DEBUG_ST)
-		    {
-			/* we abuse the DEBUG_SP bit to reinit creep/leap mode */
-			if (PriFlags(PP[0].proc_entry) & DEBUG_SP)
-			    TRACEMODE &= ~TR_LEAPING;
-		    }
-#endif
-		    if (Tracing && AnyPortWanted && !InvisibleProc(PP[0].proc_entry)) {
-			DBG_PRI = PP[0].proc_entry;
-			DBG_PORT = PP[1].nint;
-			DBG_INVOC = 0L;
-			/* indicate source not used */
-			DBG_PATH = d_.empty;
-			DBG_LINE = 0L;
-			DBG_FROM = 0L;
-			DBG_TO = 0L;
-			Fake_Overflow;
-		    }
-		} else /* if (PriFlags(proc) & DEBUG_ST) */ {
-		    if (TRACEMODE & TR_STARTED) {
-			/* we abuse the DEBUG_SP bit to init creep/leap mode */
-			TRACEMODE |= (PriFlags(PP[0].proc_entry) & DEBUG_SP) ?
-					    TR_TRACING : TR_LEAPING;
-		    }
-		    if (AnyPortWanted) {
-			DBG_PRI = PP[0].proc_entry;
-			DBG_PORT = PP[1].nint;
-			DBG_INVOC = 0L;
-			DBG_PATH = d_.empty;
-			DBG_LINE = 0L;
-			DBG_FROM = 0L;
-			DBG_TO = 0L;
-			Fake_Overflow;
-		    }
-		}
-	    }
-	    PP += 2;
-	    Next_Pp;
-
-
-	    /*
-	     * raise a debug-event, i.e. trigger a debugger call
-	     * in the subsequent Call/Jmp/Chain instruction. Source
-             * information may be supplied as quadruple (file,line,from,to)
-	     */
-	Case(Debug_scall, I_Debug_scall)	/* proc, port, file, line, from, to */
+	Case(Debug_call, I_Debug_call)	/* proc, port, file, line, from, to */
 	    if (TD || (PriFlags(PP[0].proc_entry) & DEBUG_ST)) {
 		if (TD) {
 #ifdef UNTESTED_FIX
@@ -6173,102 +6155,216 @@ _end_external_:
 	    Next_Pp;
 
 
-	Case(Debug_esc, I_Debug_esc)		/* proc, port */
-#if 0
-	    if (TD)
+	Case(Debug_exit, I_Debug_exit)
+	    if(E < EB) {			/* like Chain */
+		Pop_Env
+		if(EB == SP) {Repush_Ret_Code}
+	    } else {
+		Push_Ret_Code_To_Eb(ERetCode)
+	        Check_Local_Overflow
+		E = ERetEnv;
+	    }
+	    A[1] = TAGGED_TD;			/* Old call stack */
+	    Pop_Dbg_Frame();
+	    pw1 = A[1].val.ptr;
+	    if (ExitPortWanted && OfInterest(PriFlags(DProc(pw1)), DInvoc(pw1), DLevel(pw1), 0))
 	    {
-		/* Tracing of simple builtins called via the Escape instruction:
-		 * They have explicit EXIT_PORT instructions, and all shallow
-		 * if-then-elses have explicit FAIL_PORT instructions to catch
-		 * their failures. The problem is to establish whether an EXIT
-		 * or FAIL belongs to the current topmost trace frame because:
-		 * - the EXIT/FAIL port instruction may be inside an exception
-		 *   handler raised by the builtin: this is checked using the
-		 *   trace frame timestamp
-		 * - the CALL port may decide not to push a frame: this is
-		 *   checked by looking whether the frame is for a predicate
-		 *   with ARGSTACK calling convention
-		 */
-		switch(PP[1].nint & PORT_MASK)
+		/* call debug event(OldStack) */
+		proc = error_handler_[-(DEBUG_EXIT_EVENT)];
+		PP = (emu_code) PriCode(proc);
+	    } else {
+		PP = (emu_code) return_code_;
+	    }
+	    Set_Det
+	    Next_Pp;
+
+
+/*
+ * Tracing of simple (i.e. implemented via instructions) builtins.
+ * They have explicit EXIT_PORT instructions, and all shallow
+ * if-then-elses have explicit FAIL_PORT instructions to catch
+ * their failures. The problem is to establish whether an EXIT
+ * or FAIL belongs to the current topmost trace frame because:
+ * - the EXIT/FAIL port instruction may be inside an exception
+ *   handler raised by the builtin: this is checked using the
+ *   trace frame timestamp
+ * - the CALL port may decide not to push a frame: this is
+ *   checked by looking whether the frame has the TF_SIMPLE flag
+ *   (we can't have nested TF_SIMPLEs without exception frame between)
+ * The breakpoint manipulation mechanism relies on the exact
+ * order of the [port, file, line, from, to] parameter group!
+ */
+
+#define Push_Bip_Debug_Goal(_pp,_did,_i,_mask) { \
+	(_i) = DidArity(_did);\
+	TG->val.did = (_did);\
+	TG++->tag.kernel = TDICT;\
+	do {\
+	    switch((_mask) & 3) {\
+	    case 0:\
+		*TG = *(_pp[-(_i)].ptr);\
+		break;\
+	    case 1:\
+		Make_Atom(TG,d_.ellipsis);\
+		break;\
+	    case 2:\
+		TG->val.nint = _pp[-(_i)].nint; TG->tag.kernel=TINT;\
+		break;\
+	    case 3:\
+		Make_Atom(TG, _pp[-(_i)].did);\
+		break;\
+	    }\
+	    ++TG; (_mask) >>= 2;\
+	} while (--(_i)>0);\
+}
+
+#define Update_Bip_Debug_Goal(_pp,_i,_mask,_pgoal) { \
+	(_i) = DidArity(_pgoal[0].val.did);\
+	while (_mask) {\
+	    ++(_pgoal);\
+	    switch((_mask) & 3) {\
+	    case 1:\
+		*(_pgoal) = *(_pp[-(_i)].ptr);\
+		break;\
+	    }\
+	    --(_i); (_mask) >>= 2;\
+	}\
+}
+
+	Case(Debug_call_simple, I_Debug_call_simple)	/* proc, port, file, line, from, to, argdesc, argref */
+	    if (!Tracing || !AnyPortWanted
+			|| (PP[1].nint & NO_ARGS)
+			|| InvisibleProc(PP[0].proc_entry))
+	    {
+		PP += 8;
+		Next_Pp;	/* debugger is off */
+	    }
+	    /*
+	     * Construct the called goal: use the information provided by
+	     * the (usually subsequent) bi_xxx A_i1...A_iArity instruction,
+	     * referenced by the argdesc/argref parameters.
+	     */
+	    proc = PP[0].proc_entry;
+	    val_did = PriDid(proc);
+	    tmp1 = DidArity(val_did);
+	    if (tmp1 > 0) {
+		Make_Struct(&scratch_pw, TG);
+		if (PP[6].nint < 0) {
+		    back_code = PP[7].code - 1;	/* bi_xxx instruction arguments */
+		    i = back_code[0].nint;	/* bi_xxx instruction's argdesc */
+		} else {
+		    i = PP[6].nint;		/* debug instruction's argdesc */
+		    back_code = PP[7].code;	/* bi_xxx instruction arguments */
+		}
+		Push_Bip_Debug_Goal(back_code,val_did,tmp1,i);
+	    } else {
+		Make_Atom(&scratch_pw, val_did);
+	    }
+	    err_code = PP[1].val.nint;	/* port */
+	    back_code = PP;
+	    PP += 8;
+
+	    /* Push a trace frame */
+	    if (TD < GB) { Trail_Pword(&TAGGED_TD); }
+#ifdef USE_FIRST_FLAG
+	    /* we'd need to pass the old TD to the handler somehow */
+	    ec_panic("USE_FIRST_FLAG unsupported", "emulator");
+	    if (!(err_code & FIRST_CALL))
+	    {
+		tmp1 = DLevel(TD);		/* depth */
+		TAGGED_TD = TD[TF_ANCESTOR];	/* pop exited frame */
+	    }
+	    else
+#endif
+	    {
+		tmp1 = TD ? DLevel(TD)+1 : 0;	/* depth */
+	    }
+
+	    Push_Dbg_Frame(pw1, NINVOC, scratch_pw.val, scratch_pw.tag,
+		tmp1, WP, proc,
+		back_code[2].did, back_code[3].nint, back_code[4].nint, back_code[5].nint, PriModule(proc))
+	    NINVOC++;
+
+	    /* Raise an exception to trace the call port, if it is of interest  */
+	    err_code &= BREAKPOINT;	/* == TF_BREAK */
+	    Set_Tf_Flag(TD, TF_SIMPLE|err_code)
+	    if (OfInterest(PriFlags(proc), NINVOC-1, tmp1, err_code))
+	    {
+		err_code = DEBUG_BIPCALL_EVENT;
+		proc = true_proc_;	/* dummy culprit */
+		goto _nbip_err_;	/* (err_code, proc) */
+	    }
+	    Next_Pp;
+
+
+	Case(Debug_exit_simple_args, I_Debug_exit_simple_args)	/* argdesc, argref */
+	    if (TD  &&  (TfFlags(TD) & TF_SIMPLE)  &&  !OldStamp(&TD[TF_CHP_STAMP]))
+	    {
+		if (!(TfFlags(TD) & TF_NOGOAL) 
+		  && ExitPortWanted
+		  && OfInterest(PriFlags(DProc(TD)), DInvoc(TD), DLevel(TD), 0))
 		{
-		case CALL_PORT:
-		    if (Tracing && AnyPortWanted
-				&& !(PP[1].nint & NO_ARGS)
-				&& !InvisibleProc(PP[0].proc_entry))
-		    {
-			proc = PP[0].proc_entry;
-			if (!(PriFlags(proc) & DEBUG_SK)
-			    || OfInterest(PriFlags(proc), NINVOC, DLevel(TD)+1, PP[1].nint & BREAKPOINT) )
-			{
-			    /*
-			     * Raise a DEBUG_BIPCALL_EVENT whose handler will
-			     * push a full trace frame and possibly generate
-			     * a CALL port.
-			     */
-			    err_code = DEBUG_BIPCALL_EVENT;
-			    PP += 2;
-			    goto _bip_err_;	/* (err_code,proc) */
-			} else {
-			    /*
-			     * The built-in is skipped and we don't need to
-			     * generate a port: save overhead by only pushing
-			     * a dummy frame. It is only needed to determine
-			     * the failure culprit in case the builtin fails,
-			     * i.e. only the invoc field is important, the
-			     * rest (in particular the goal field) is bogus.
-			     */
-			    if (TD < GB) { Trail_Pword(&TAGGED_TD); }
-			    scratch_pw.tag.kernel = TNIL;
-			    Push_Dbg_Frame(pw1, NINVOC,
-			    	scratch_pw.val, scratch_pw.tag,
-				DLevel(TD)+1, 1, proc, 
-				d_.empty, 0, 0, 0, d_.kernel_sepia)
-			    Set_Tf_Flag(TD, TF_NOGOAL);
-			    NINVOC++;
-			}
+		    /* If the goal had any uninitialised arguments, fill them in now */
+		    if (PP[0].nint < 0) {
+			back_code = PP[1].code - 1;	/* bi_xxx instruction arguments */
+			i = back_code[0].nint;		/* bi_xxx instruction's argdesc */
+		    } else {
+			i = PP[0].nint;			/* debug instruction's argdesc */
+			back_code = PP[1].code;		/* bi_xxx instruction arguments */
 		    }
-		    break;
-		case EXIT_PORT:
-		    if (!(TfFlags(TD) & TF_INTRACER)
-			    && !OldStamp(&TD[TF_CHP_STAMP])
-			    && (proc = DProc(TD))	/* assign and test */
-			    && (PriArgPassing(proc) == ARGSTACK))
-		    {
-			if (!(TfFlags(TD) & TF_NOGOAL)
-			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD), 0))
-			{
-			    err_code = DEBUG_BIPEXIT_EVENT;
-			    PP += 2;
-			    goto _bip_err_;	/* (err_code,proc) */
-			} else {
-			    Pop_Dbg_Frame();
-			}
-		    }
-		    break;
-		case FAIL_PORT:
-		    if (!(TfFlags(TD) & TF_INTRACER)
-			    && !OldStamp(&TD[TF_CHP_STAMP])
-			    && (proc = DProc(TD))	/* assign and test */
-			    && (PriArgPassing(proc) == ARGSTACK))
-		    {
-			FCULPRIT = DInvoc(TD);
-			if (!(TfFlags(TD) & TF_NOGOAL)
-			    && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD), 0) )
-			{
-			    err_code = DEBUG_BIPFAIL_EVENT;
-			    PP += 2;
-			    goto _bip_err_;	/* (err_code,proc) */
-			} else {
-			    Pop_Dbg_Frame();
-			}
-		    }
-		    break;
+		    pw1 = DGoal(TD).val.ptr;
+		    Update_Bip_Debug_Goal(back_code,tmp1,i,pw1);
+
+		    /* handler will trace the exit and pop the frame */
+		    err_code = DEBUG_BIPEXIT_EVENT;
+		    proc = true_proc_;	/* dummy culprit */
+		    PP += 2;
+		    goto _nbip_err_;	/* (err_code, proc) */
+		} else {
+		    Pop_Dbg_Frame();
 		}
 	    }
-#endif
 	    PP += 2;
 	    Next_Pp;
 
+
+	Case(Debug_exit_simple, I_Debug_exit_simple)
+	    if (TD  &&  (TfFlags(TD) & TF_SIMPLE)  &&  !OldStamp(&TD[TF_CHP_STAMP]))
+	    {
+		if (!(TfFlags(TD) & TF_NOGOAL) 
+		  && ExitPortWanted
+		  && OfInterest(PriFlags(DProc(TD)), DInvoc(TD), DLevel(TD), 0))
+		{
+		    /* handler will trace the exit and pop the frame */
+		    err_code = DEBUG_BIPEXIT_EVENT;
+		    proc = true_proc_;	/* dummy culprit */
+		    goto _nbip_err_;	/* (err_code, proc) */
+		} else {
+		    Pop_Dbg_Frame();
+		}
+	    }
+	    Next_Pp;
+
+#if 0
+	Case(Debug_fail_simple, I_Debug_fail_simple)
+	    if (TD  &&  (TfFlags(TD) & TF_SIMPLE)  &&  !OldStamp(&TD[TF_CHP_STAMP]))
+	    {
+		FCULPRIT = DInvoc(TD);
+		if (!(TfFlags(TD) & TF_NOGOAL)
+		  && OfInterest(PriFlags(proc), DInvoc(TD), DLevel(TD), 0) )
+		{
+		    err_code = DEBUG_BIPFAIL_EVENT;
+		    proc = true_proc_;	/* dummy culprit */
+		    goto _nbip_err_;	/* (err_code,proc) */
+		} else {
+		    Pop_Dbg_Frame();
+		}
+	    }
+	    Next_Pp;
+#endif
+
+
+/*----------------------------------------------------------------------*/
 
 	Case(Undefined, I_Undefined)		/* (proc) */
 	    proc = PP->proc_entry;

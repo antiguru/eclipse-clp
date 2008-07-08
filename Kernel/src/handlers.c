@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.1 2008/06/30 17:43:56 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /*
@@ -1014,6 +1014,7 @@ _set_error_array(pri **arr, long int n, dident w, value vm, type tm)
 	Get_Bip_Error(err);
 	Bip_Error(err);
     }
+    /* disallow tools here */
     arr[n] = proc;
     Succeed_;
 }

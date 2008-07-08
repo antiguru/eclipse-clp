@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
+ * VERSION	$Id: opcode.h,v 1.3 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /*
@@ -274,9 +274,9 @@ extern vmcode op_addr[];
 #define List_switchL				(BLOCK1 + 167)
 #define External				(BLOCK1 + 168)
 #define Puts_proc				(BLOCK1 + 169)
-#define Debug_esc				(BLOCK1 + 170)
+#define Debug_call_simple			(BLOCK1 + 170)
 #define Gc					(BLOCK1 + 171)
-#define Debug_call				(BLOCK1 + 172)
+#define Debug_exit_simple			(BLOCK1 + 172)
 #define Refail					(BLOCK1 + 173)
 #define Exit_emulator				(BLOCK1 + 174)
 #define Debug_exit				(BLOCK1 + 175)
@@ -294,7 +294,7 @@ extern vmcode op_addr[];
 #define Puts_constant				(BLOCK1 + 187)
 #define Get_matched_valueAMAM                   (BLOCK1 + 188)
 #define Get_matched_valueAMTM                   (BLOCK1 + 189)
-#define Puts_variableAM                   	(BLOCK1 + 190)
+#define Debug_exit_simple_args                 	(BLOCK1 + 190)
 #define Put_unsafe_valueAMTM                   	(BLOCK1 + 191)
 #define Branchs		                   	(BLOCK1 + 192)
 #define Gc_test					(BLOCK1 + 193)
@@ -446,7 +446,7 @@ extern vmcode op_addr[];
 #define BI_Ne					(BLOCK1 + 339)
 #define BI_Arg					(BLOCK1 + 340)
 #define BI_MakeSuspension			(BLOCK1 + 341)
-#define Debug_scall				(BLOCK1 + 342)
+#define Debug_call				(BLOCK1 + 342)
 #define Retry_inline				(BLOCK1 + 343)
 #define Trust_inline				(BLOCK1 + 344)
 #define Put_named_variableAM			(BLOCK1 + 345)
@@ -513,7 +513,7 @@ extern vmcode op_addr[];
 
 /*
  * Don't forget to update the following files:
- * names.h emu_op_addr.h printam.c pass4.c asm.pl
+ * names.h emu_op_addr.h printam.c asm.pl
  */
 
 #define Escapes					Escapeu

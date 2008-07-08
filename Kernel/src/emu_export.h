@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.3 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /*
@@ -1428,6 +1428,7 @@ extern dident transf_did ARGS((long));
 #define TF_REDO		0x0800	/* we are tracing a REDO (retry/trust)	*/
 #define TF_BREAK	0x1000	/* this frame's CALL had a breakpoint	*/
 #define TF_SYSTRACE	0x2000	/* abstract instruction trace disabled	*/
+#define TF_SIMPLE	0x4000	/* it is a simple goal's trace frame	*/
 
 #define TfFlags(td)		(td)[TF_HEADER].tag.kernel
 #define Set_Tf_Flag(td,flag)	{ TfFlags(td) |= (flag); }

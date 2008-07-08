@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: gencode.h,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * VERSION	$Id: gencode.h,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
  */
 
 /*
@@ -67,7 +67,7 @@
 #define HasArgReg		0
 #endif
 
-#define DEBUG_LENGTH		3
+#define DEBUG_LENGTH		7
 
 #define FailCode		fail_code_
 
