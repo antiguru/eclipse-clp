@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.17 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.18 2008/07/08 22:32:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/13 00:38:55 $").
+:- comment(date, "$Date: 2008/07/08 22:32:20 $").
 
 
 :- lib(hash).
@@ -179,7 +179,7 @@ generate_chunk([], [], HeadPerms, ChunkData0, ChunkData, AuxCode, AuxCode, Code,
 generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCode, AuxCode0, Code, Code0, Options, SelfInfo) :-
 	( Goal = goal{kind:simple} ->		 % special goals
 	    SelfInfo = Module:_@_,
-	    generate_simple_goal(Goal, ChunkData0, ChunkData1, Code, Code1, Module),
+	    generate_simple_goal(Goal, ChunkData0, ChunkData1, Code, Code1, Options, Module),
 	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData1, ChunkData, AuxCode, AuxCode0, Code1, Code0, Options, SelfInfo)
 
 	; Goal = goal{kind:head,args:Args} ->	% clause-head or pseudo-head
@@ -208,8 +208,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 	    	Pred = P, Dest = Pred		% calling visible pred
 	    ),
 	    call_instr(ESize, Dest, EAM, ChunkData2, ChunkData3, Code2, Code3, CallInstr),
-	    emit_debug_call_port(Options, Pred, OutArgs, OutArgs1, Goal, Code3, Code4),
-	    Code4 = [code{instr:CallInstr,regs:OutArgs1}|Code0],
+	    emit_call_regular(CallInstr, OutArgs, Pred, Goal, Code3, Code0, Options),
 	    NextChunk = Goals,
 	    AuxCode = AuxCode0,
 	    % end of chunk
@@ -377,10 +376,14 @@ generate_head_info(HeadArgsArray, BranchI, ChunkData0, ChunkData3, HeadPerms3, H
 	).
 
 
-% Optionally generate a call-port debug instruction
-emit_debug_call_port(options{debug:off}, _Pred, OutArgs, OutArgs, _Goal, Code, Code) :- !.
-emit_debug_call_port(options{debug:on}, Pred, OutArgs, [], goal{path:Path,line:Line,from:From,to:To}, Code, Code0) :-
-	Code = [code{instr:debug_scall(Pred,#call_port,Path,Line,From,To),regs:OutArgs}|Code0].
+emit_call_regular(CallInstr, RegDescs, QPred, Goal, Code, Code0, options{debug:Debug}) :-
+	    ( Debug == off ->
+		Code = [code{instr:CallInstr,regs:RegDescs}|Code0]
+	    ;
+		Goal = goal{path:Path,line:Line,from:From,to:To},
+		Code = [code{instr:debug_call(QPred,#call_port,Path,Line,From,To),regs:RegDescs},
+			code{instr:CallInstr,regs:OutArgs1}|Code0]
+	    ).
 
 
 %----------------------------------------------------------------------
@@ -1031,20 +1034,20 @@ generate_regular_puts(goal{args:Args,functor:F/N},
 %	instr Ai ... Ak
 %----------------------------------------------------------------------
 
-generate_simple_goal(goal{functor: (=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, Module) ?-
+generate_simple_goal(goal{functor: (=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, _Options, Module) ?-
 	generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code, Module), % may fail
 	!.
 
-generate_simple_goal(goal{functor: (==)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, _Module) ?-
+generate_simple_goal(goal{functor: (==)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, _Options, _Module) ?-
 	generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code), % may fail
 	!.
 
-generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, _Module) :-
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, _Options, _Module) :-
 	Goal = goal{functor: (?=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel},
 	!,
 	generate_in_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code).
 
-generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, _Module) ?- !,
+generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, _Options, _Module) ?- !,
 	Arg = variable{varid:VarId},
 	variable_occurrence(Arg, ChunkData0, ChunkData, Code0, Code1, VarOccDesc),
 	( VarOccDesc = void ->
@@ -1057,7 +1060,7 @@ generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia
 	    verify false	% require a first occurrence!
 	).
 
-generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_kernel,envsize:ESize}, ChunkData0, ChunkData, Code0, Code, _Module) ?- !,
+generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_kernel,envsize:ESize}, ChunkData0, ChunkData, Code0, Code, _Options, _Module) ?- !,
 	Arg = variable{varid:VarId},
 	variable_occurrence(Arg, ChunkData0, ChunkData1, Code0, Code1, VarOccDesc),
 	ChunkData1 = chunk_data{allocated:ExistingESize},
@@ -1107,21 +1110,22 @@ generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_
 	    )
 	).
 
-generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Module) ?-
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) ?-
 	Goal = goal{functor: (-)/3, args:[A1,A2in,A3], definition_module:sepia_kernel},
 	integer(A2in), A2 is -A2in, smallint(A2),
 	!,
 	update_struct(goal, [functor:(+)/3,args:[A1,A2,A3]], Goal, Goal1),
-	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code, Module).
+	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code, Options, Module).
 
-generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Module) ?-
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) ?-
 	Goal = goal{functor: (+)/3, args:[A1,A2,A3], definition_module:sepia_kernel},
 	smallint(A1), \+smallint(A2),
 	!,
 	update_struct(goal, [args:[A2,A1,A3]], Goal, Goal1),
-	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code, Module).
+	generate_simple_goal(Goal1, ChunkData0, ChunkData, Code0, Code, Options, Module).
 
-generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, Module) ?-
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) ?-
+	Goal = goal{functor:Name/Arity, args:Args,definition_module:sepia_kernel},
 	inlined_builtin(Name, Arity, GlobalAlloc, InstrTemplate),	% nondet
 	functor(InstrTemplate, InstrName, N),
 	functor(Instr, InstrName, N),
@@ -1155,7 +1159,8 @@ generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia
 	    )
 	),
 	!,	% Commit to this instruction variant and emit it
-	Code3 = [code{instr:Instr,regs:RegDescs}|Code4],
+	( N>0, arg(N, InstrTemplate, desc) -> arg(N, Instr, ArgDesc), DbgArgDesc = -1 ; DbgArgDesc = ArgDesc ),
+	emit_call_simple(Instr, InstrTemplate, DbgArgDesc, RegDescs, Goal, Code3, Code4, ArgLabel, Options, Module),
 	alloc_check_after(GlobalAlloc, ChunkData3, ChunkData4, Code4, Code5),
 	% Now generate code for result unification, if necessary
 	(
@@ -1163,7 +1168,7 @@ generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia
 	    count(I,1,_),
 	    fromto(RegDescs3,RegDescs4,RegDescs5,[]),
 	    fromto(ChunkData4, ChunkData5, ChunkData7, ChunkData),
-	    fromto(Code5, Code6, Code8, Code),
+	    fromto(Code5, Code6, Code8, Code9),
 	    param(Instr,InstrTemplate)
 	do
 	    arg(I, Instr, Reg),
@@ -1177,13 +1182,9 @@ generate_simple_goal(goal{functor: Name/Arity, args:Args,definition_module:sepia
 		RegDescs4=RegDescs5, ChunkData5=ChunkData7, Code6=Code8
 	    )
 	),
-	( N>0, arg(N, InstrTemplate, desc) ->
-	    arg(N, Instr, ArgDesc)
-	;
-	    true
-	).
+	emit_exit_simple(InstrTemplate, DbgArgDesc, ArgLabel, Code9, Code, Options).
 
-generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, Code, Module) ?-
+generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, Code, _Options, Module) ?-
 	P = _/Arity,
 	dim(RegArr, [Arity]),
 	dim(RegDescs, [Arity]),
@@ -1293,6 +1294,75 @@ add_arg_desc(I,  int, Desc0, Desc) :- Desc is Desc0 + 2 << (2*(I-1)).
 add_arg_desc(I,  mod, Desc0, Desc) :- Desc is Desc0 + 3 << (2*(I-1)).
 
 
+% Tracing inlined builtins:
+% A fundamental problem with generating a trace that is close to the source code
+% is that for inlined predicates the arguments (especially output) do not exist
+% at call time, and may well never exist (e.g. when the result unification is
+% compiled into a get_structure-sequence). We could have a debug-compilation
+% mode that generates completely different unoptimized code, but we are concerned
+% here with generating a usable trace for optimized code, by just adding extra
+% debug information.  Because of the output argument problem, we display those
+% arguments at call ports as '...', but show them at exit ports.
+% To generate the ports, we rely on the argument positions of the main instruction
+% implementing the builtin. The debug_call/exit instructions have a reference
+% that points *behind* this argument block, possibly terminated by an argument
+% descriptor (desc).  If the instruction has no argument descriptor itself,
+% we supply one in the debug instruction itself.
+%
+% Builtins without output arguments:
+% 
+%	debug_call_simple ... -1 ref(L)
+%	bi_xxx  a1 ... an desc			e.g. >/2
+% L:	debug_exit_simple
+% 
+%	debug_call_simple ... desc ref(L)
+%	bi_xxx  a1 ... an			e.g. atom/1
+% L:	debug_exit_simple
+%
+% Instructions with uninitialised output registers: the debug_exit instruction
+% receives additional parameters, used to display output values at exit ports.
+%
+%	debug_call_simple ... -1 ref(L)
+%	bi_xxx  a1 ... uan desc			e.g. +/3, arg/3
+% L:	<possible output unifications>
+%	debug_exit_simple -1 ref(L)
+%
+%	debug_call_simple ... desc ref(L)
+%	bi_xxx  a1 ... uan			e.g. get_bip_error/1
+% L:	<possible output unifications>
+%	debug_exit_simple desc ref(L)
+%
+
+emit_call_simple(BiInstr, _InstrTmpl, DbgArgDesc, RegDescs, Goal, Code, Code0, ArgLabel, options{debug:Debug}, Module) :-
+	( Debug == off ->
+	    Code = [code{instr:BiInstr,regs:RegDescs}|Code0]
+	;
+	    % CAUTION: the RegDescs must be given to the debug instruction instead
+	    % of the bi_xxx instructions to make sure that the register allocator
+	    % (which may need to insert moves) puts all values in place *before*
+	    % the debug instruction is executed.
+	    Goal = goal{functor:Pred,lookup_module:LM,path:Path,line:Line,from:From,to:To},
+	    ( LM\==Module -> QPred = LM:Pred ; QPred = Pred ),
+	    Code = [code{instr:debug_call_simple(QPred,#call_port,Path,Line,From,To,DbgArgDesc,ref(ArgLabel)),regs:RegDescs},
+		    code{instr:BiInstr,regs:[]},
+		    code{instr:label(ArgLabel)}|Code0]
+	).
+
+
+emit_exit_simple(InstrTmpl, DbgArgDesc, ArgLabel, Code, Code0, options{debug:Debug}) :-
+	( Debug == off ->
+	    Code = Code0
+	; (foreacharg(Arg,InstrTmpl) do Arg \= uarg) ->
+	    Code = [code{instr:debug_exit_simple}|Code0]
+	;
+	    % The instruction has uninitialised output arguments: Improve the
+	    % trace for this special case by giving extra parameters to
+	    % debug_exit_simple that allow "patching" the debug-exit frame.
+	    Code = [code{instr:debug_exit_simple(DbgArgDesc,ref(ArgLabel))}|Code0]
+	).
+
+
+%----------------------------------------------------------------------
 % The special case of =/2 goal
 % Due to normalisation, all should be in the form Var=Term!
 % Fail if no special treatment possible (shouldn't happen)

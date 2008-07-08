@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.2 2008/07/08 22:31:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -552,12 +552,14 @@ meta_event(_, _) :-
 %%%% unification %%%%
 %
 
+:- pragma(debug).
 unify_handler([]) :- -?->
-    wake.
+    wake.	% we want to trace this call (only)
 unify_handler([[Term|Attr]|List]) :-
     -?->
     unify_attributes(Term, Attr),
     unify_handler(List).
+:- pragma(nodebug).
 
 pre_unify_handler(List) :-
     undo_meta_bindings(List, NewList),
@@ -741,10 +743,10 @@ x_res(=, 3).
 :- set_default_error_handler(11, unify_handler/1),
    set_error_handler(11, unify_handler/1).
    
-
+:- skipped unify_attributes/2.
+:- set_flag(unify_handler/1, invisible, on).
 
 :- unskipped
-	unify_attributes/2,
 	test_unify_attributes/2,
 	compare_instances_attributes/3,
 	copy_term_attributes/2,

@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: tracer.pl,v 1.2 2008/07/08 22:31:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- Port generation
 %
-% $Id: tracer.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% $Id: tracer.pl,v 1.2 2008/07/08 22:31:23 jschimpf Exp $
 %
 % Author:	Joachim Schimpf, IC-Parc
 %
@@ -108,7 +108,7 @@ resume(OldStack, NewStack) :-
 	disable_tracing,
 	get_priority(P), % Don't wake anything
 	set_priority(1),
-	diagnostics(ncall(OldStack, NewStack)),
+	diagnostics(ncall(NewStack, OldStack)),
 	CurrentB = chp(_),
 	timestamp_update(CurrentB, 1),
 
@@ -258,36 +258,42 @@ bip_delay :-
 :- set_flag(bip_delay/0, invisible, on).
 
 
-% Tracing of simple emulator builtins like +/3, arg/3, =/2, ...
-% Done via exception-events raised by the Debug_esc instruction.
-% The handler pushes (call) or pops (exit/fail) a frame and generates the 
-% corresponding port. Fail ports are explicitly generated only in shallow-
-% fail situations (which are caught by a "simple" choicepoint restore_bp
-% instruction) which cannot raise the normal redo-notification-event.
+% Tracing of inline-compiled builtins like +/3, arg/3, =/2, ...
+% Done via exception-events raised by the debug_call_simple and
+% debug_exit_simple instructions.
+% These handlers are executed under priority 1 because of exception mechanism.
 
-:- export bip_port/4.
-:- set_flag(bip_port/4, invisible, on).
-bip_port(258, Goal, M, LM) :-		% CALL
-	disable_tracing,
-	make_tf(1, _Invoc, Goal, M, LM, 12, Stack),	% 12 is wrong!
-	port(call of ports, Stack),
-	!,
-	cont_debug.
-bip_port(259, _Goal, _M, _LM) :-	% EXIT
+:- export bip_call/0.
+:- set_flag(bip_call/0, invisible, on).
+bip_call :-
+	% CALL port, frame already pushed
+	% If we had the OldStack, we'd call ncall(OldStack,TD)
+	current_td(TD),
+	( TD = tf{parent:Parent} ->		% call port
+	    ncall(Parent,TD)
+	;
+	    writeln(error, "Illegal state in bip_call handler - ignored"),
+	    cont_debug
+	).
+
+:- export bip_exit/0.
+:- set_flag(bip_exit/0, invisible, on).
+bip_exit :-
 	disable_tracing,
 	current_td(Stack),
 	port(exit of ports, Stack),
 	pop_tf,
-	!,
 	cont_debug.
-bip_port(251, _Goal, _M, _LM) :-	% FAIL
+
+/* might be needed if we re-introduce shallow choicepoints
+bip_fail :-
 	disable_tracing,
 	current_td(Stack),
 	port(fail of ports, Stack),
 	pop_tf,
 	!,
 	cont_debug.
-
+*/
 
 
 % Builtins for generating user-defined debugger ports
@@ -429,14 +435,14 @@ monitor_term(Invoc, Term, Module, Susp) :-
 port(PortNr, Stack) :-
 	Stack = tf{invoc:Invoc,depth:Depth,proc:Proc},
 	get_tf_prop(Stack, break, BrkPt),
-	diagnostics( of_interest(PortNr, Invoc, Depth, Proc, BrkPt)),
+%	diagnostics( of_interest(PortNr, Invoc, Depth, Proc, BrkPt)),
 	( of_interest(PortNr, Invoc, Depth, Proc, BrkPt) ->
 	    port_name(PortNr, Port),
 	    Current = trace_line{port:Port,frame:Stack},
 	    % This handler is allowed to cut_to, fail and abort
 	    error(252, Current)		% trace line event
 	;
-	    diagnostics(no_interest),
+%	    diagnostics(no_interest),
 	    true
 	).
 
@@ -611,8 +617,8 @@ find_goal(Invoc, _Stack, Frame) :-
 :- set_default_error_handler(255, redo/5), reset_error_handler(255).
 :- set_default_error_handler(256, ndelay/2), reset_error_handler(256).
 :- set_default_error_handler(257, resume/2), reset_error_handler(257).
-:- set_default_error_handler(258, bip_port/4), reset_error_handler(258).
-:- set_default_error_handler(259, bip_port/4), reset_error_handler(259).
-:- set_default_error_handler(251, bip_port/4), reset_error_handler(251).
+:- set_default_error_handler(258, bip_call/0), reset_error_handler(258).
+:- set_default_error_handler(259, bip_exit/0), reset_error_handler(259).
+%:- set_default_error_handler(251, bip_fail/0), reset_error_handler(251).
 :- set_default_error_handler(249, bip_delay/0), reset_error_handler(249).
 

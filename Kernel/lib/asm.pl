@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.1 2008/06/30 17:43:42 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.2 2008/07/08 22:31:22 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -635,9 +635,10 @@ instr(list_switch(y(Y),ref(Ll),ref(Ln),ref(Ld)),
                                         167, [y(Y),ref(Ll),ref(Ln),ref(Ld)]).
 instr(external(P,CFun), 		168, [proc(P),i(CFun)]).
 instr(puts_proc(P),			169, [proc(P)]).
-instr(debug_esc(D,Port), 		170, [proc(D),port(Port)]).
+instr(debug_call_simple(P,Port,Path,L,F,T,MT,ref(Args)), 170,
+		[proc(P),port(Port),atom(Path),i(L),i(F),i(T),i(MT),ref(Args)]).
 instr(gc,		 		171, []).
-instr(debug_call(P,Port), 		172, [proc(P),port(Port)]).
+instr(debug_exit_simple,		172, []).
 instr(refail, 				173, []).
 instr(exit_emulator(N), 		174, [i(N)]).
 instr(debug_exit, 			175, []).
@@ -657,7 +658,7 @@ instr(put_constant(a(A),C), 		186, [a(A),tagval(C)]).
 instr(puts_constant(C), 		187, [tagval(C)]).
 instr(get_matched_value(a(A1),a(A2)), 	188, [a(A1),a(A2)]).
 instr(get_matched_value(a(A),t(X)), 	189, [a(A),t(X)]).
-%instr(puts_variable(a(A)), 		190, [a(A)]).	% unimplemented
+instr(debug_exit_simple(MT,ref(Args)),	190, [i(MT),ref(Args)]).
 instr(put_unsafe_value(a(A),t(X)), 	191, [a(A),t(X)]).
 instr(branchs(N,ref(L)),		192, [pw(N),ref(L)]).
 instr(gc_test(M), 			193, [pw(M)]).
@@ -825,7 +826,7 @@ instr(bi_arg(a(A1),a(A2),a(UA3),16),	340, [a(A1),a(A2),a(UA3),i(16)]).
 instr(bi_arg(I,a(A2),a(UA3),18),	340, [i(I),a(A2),a(UA3),i(18)]).
 instr(bi_make_suspension(a(A1),a(A2),a(A3),a(A4),0),	    
 					341, [a(A1),a(A2),a(A3),a(A4),i(0)]).	
-instr(debug_scall(P,Port,Path,L,F,T),	342, [proc(P),brk_port(Port),atom(Path),i(L),i(F),i(T)]).
+instr(debug_call(P,Port,Path,L,F,T),	342, [proc(P),brk_port(Port),atom(Path),i(L),i(F),i(T)]).
                                              /* caution: p_proc_flags() and p_proc_set_flags()
                                                 in bip_db.c relies on the above argument order!
                                              */
@@ -1221,12 +1222,12 @@ asm_arg(brk_port(P), _H, IList0, IList, TList0, TList, BList0, BList) ?-
         BList0 = [ref(BLab)|BList],
 	IList0 = [brk_port(P,BLab)|IList].        
 asm_arg(valtag(C), _H, IList0, IList, TList0, TList, BList0, BList) ?- 
-	\+ nonground(C), !,
+	ground(C), !,
 	TList0 = TList,
         BList0 = BList,
 	IList0 = [val(C),tag(C)|IList].
 asm_arg(tagval(C), _H, IList0, IList, TList0, TList, BList0, BList) ?-
-	\+ nonground(C), !,
+	ground(C), !,
 	TList0 = TList,
         BList0 = BList,
 	IList0 = [tag(C),val(C)|IList].
