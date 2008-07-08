@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.11 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.12 2008/07/08 22:33:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/06/13 00:38:55 $").
+:- comment(date, "$Date: 2008/07/08 22:33:20 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -485,15 +485,16 @@ normalize_clause_list(Clauses, AnnClauses, NormClauses, CM, Vs0, Vs) :-
 	normalize_body(Body, AnnBody, Branch, CallNr, _CallNr, Cut, Vs1, Vs, Goals1, [], CM-any, CM, CM).
 
     :- mode clause_head_body(+,?,-,-,-,-,-).
-    clause_head_body(H0:- -?->B0, Ann, H, B, AH, AB, HeadType) ?- !,
+    clause_head_body((H0:- -?->B0), Ann, H, B, AH, AB, HeadType) ?- !,
         Ann =: annotated_term{term:(AH:-AnnMatch)},
         AnnMatch =: annotated_term{term:(-?->AB)},
 	H=H0, B=B0, HeadType = (?=).
-    clause_head_body(H0:-B0, Ann, H, B, AH, AB, HeadType) ?- !,
+    clause_head_body((H0:-B0), Ann, H, B, AH, AB, HeadType) ?- !,
         Ann =: annotated_term{term:(AH:-AB)},
 	H=H0, B=B0, HeadType = (=).
-%    clause_head_body(H?-B, Ann, H, B, AH, AB, ?=) :- !,
-%        Ann =: annotated_term{term:(AH?-AB)}.
+    clause_head_body((H0?-B0), Ann, H, B, AH, AB, HeadType) ?- !,
+        Ann =: annotated_term{term:(AH?-AB)},
+	H=H0, B=B0, HeadType = (?=).
     clause_head_body(H, AH, H, '', AH, '', =).
 
 
