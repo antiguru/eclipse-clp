@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: tracer_tty.pl,v 1.2 2008/07/08 20:04:27 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% $Id: tracer_tty.pl,v 1.2 2008/07/08 20:04:27 jschimpf Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -406,6 +406,17 @@ do_tracer_command(0'w, Current, N0, Cont) :- !,
             writeln(debug_output, "No source information.")
         ),
         interact(Current, Cont).
+
+do_tracer_command(0'=, Current, N0, Cont) :- !,
+        Current = trace_line{frame:tf{path:File,line:Line}},
+        ( File \== '' ->
+            writeln(debug_output, "Source position:"),
+	    printf(debug_output, "%w:%w%n", [File,Line])
+        ;
+            writeln(debug_output, "No source information.")
+        ),
+        interact(Current, Cont).
+
 do_tracer_command(0'z, Current, _N, true) :- !,
 	get_goal_stack(Current, ThisPort, _),
 	printf(debug_output, "zap to port: [%w] %b", [~(ThisPort)]),
@@ -414,6 +425,7 @@ do_tracer_command(0'z, Current, _N, true) :- !,
 		( var(Ports) -> Ports = ~(ThisPort) ; true ),
 		configure_prefilter(_, _, Ports, _, dontcare)
 	    ), abort, fail).
+
 do_tracer_command(0'<, Current, _, Cont) :- !,
 	getval(dbg_print_depth, N0),
 	get_param_default("set print_depth", N0, N),
@@ -572,6 +584,7 @@ Print data:\n\
        G	print ancestors (call stack)\n\
        u[N]	print scheduled goals [of priority N]\n\
        .	print predicate source or structure definition\n\
+       =	print source file name and line number for current goal\n\
     [N]w        print +/-N surrounding source lines for current goal\n\
 \n\
 Navigate/inspect:\n\
@@ -696,7 +709,10 @@ print_trace_stack(Frame) :-
 	( get_tf_prop(Frame, skip, on) -> Prop = 0'S ; Prop = 0'  ),
 	( get_tf_prop(Frame, spy, on) -> Spied = 0'+ ; Spied = 0'  ),
 	get_tf_prop(Frame, ?, FF),
-	printf(debug_output, ">> [%2r] %c%c(%d) %d %w%n", [FF,Prop,Spied,Invoc,D,Goal]),
+	printf(debug_output, ">> [%2r] %c%c(%d) %d ", [FF,Prop,Spied,Invoc,D]),
+	getval(dbg_goal_format_string, Format),
+	printf(debug_output, Format, Goal),
+	nl(debug_output),
 	print_trace_stack(Parent).
 
 % returns the goal stack from both trace_line and inspect frames
@@ -923,13 +939,13 @@ print_one_position(Pos, T, Mod) :-
 write_n_lines_around_current(File, CurrentLN, N) :-
         get_file_info(File, readable, on),
         open(File, read, S),
-        printf(debug_output, "Source file: %w%n", [File]),
+        printf(debug_output, "%w:%n", [File]),
 	( 
-	    FirstLN is CurrentLN - N,
+	    FirstLN is max(CurrentLN - N,1),
 	    ( for(_,2,FirstLN), param(S) do
 		read_string(S, end_of_line, _, _)
 	    ),
-	    ( for(I,FirstLN,CurrentLN-1), param(S) do
+	    ( for(I,FirstLN,max(CurrentLN-1,1)), param(S) do
 		read_string(S, end_of_line, _, Line),
 		printf(debug_output, "%5d  %w%n", [I, Line])
 	    ),
