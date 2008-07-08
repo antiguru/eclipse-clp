@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cprolog.pl,v 1.2 2008/07/01 00:27:16 jschimpf Exp $
+% Version:	$Id: cprolog.pl,v 1.3 2008/07/08 20:05:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'C-Prolog compatibility package').
 :- comment(author, 'Various, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2008/07/01 00:27:16 $').
+:- comment(date, '$Date: 2008/07/08 20:05:51 $').
 :- comment(desc, html('
     One of the requirements during the development of ECLiPSe has been the
     aim of minimising the work required to port traditional Prolog
@@ -362,7 +362,7 @@ sh :-
 primitive(X) :- atom(X), !, fail.
 primitive(X) :- atomic(X).
 
-db_reference(X) :- type_of(X, db_reference).
+db_reference(X) :- type_of(X, handle).
 
 get0(X):- get(input, X).
 

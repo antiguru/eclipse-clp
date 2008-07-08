@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.2 2008/07/02 15:47:21 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.3 2008/07/08 20:05:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -2515,7 +2515,7 @@ current_type(goal).
 current_type(integer).
 current_type(float).
 current_type(atom).
-current_type(db_reference).
+current_type(handle).
 
 
 %-----------------------------
