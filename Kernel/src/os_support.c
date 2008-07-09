@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * $Id: os_support.c,v 1.2 2008/07/09 16:52:35 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -50,6 +50,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <math.h>	/* for floor() */
+#include <ctype.h>	/* for toupper() etc */
 
 #ifdef _WIN32
 /* FILETIMEs are in 100 nanosecond units */
@@ -608,6 +609,12 @@ get_cwd(char *buf, int size)
     int		len;
     char	buf1[MAX_PATH_LEN];
 
+#ifdef _WIN32
+    s = _getcwd(buf1, MAX_PATH_LEN);
+    /* Make sure drive letter is upper case (bug under cygwin) */
+    if (islower(buf1[0]) && buf1[1] == ':')
+    	buf1[0] = toupper(buf1[0]);
+#else
 #ifdef HAVE_GETCWD
     /* Signal blocking here is to work around a bug that occurred
      * on Suns when the profiler signal interupts getcwd()
@@ -630,9 +637,6 @@ get_cwd(char *buf, int size)
     (void) sigsetmask(old_mask);
 #  endif
 # endif
-#else
-#ifdef _WIN32
-    s = _getcwd(buf1, MAX_PATH_LEN);
 #else
     s = getwd(buf1);	/* system or our own definition from getwd.c */
 #endif
