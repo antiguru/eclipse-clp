@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.18 2008/07/08 17:21:52 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.19 2008/07/09 15:13:21 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3494,9 +3494,15 @@ proc tkecl:handle_source_debug_print {stream {length {}}} {
 	# Initialise the line and breakpoint columns
 	$ec_sourcecon.status delete 1.0 end
 	$ec_sourcecon.lineno delete 1.0 end
+	# find out the actual number of lines in the file. 
 	regexp {^[0-9]+} [$ec_sourcecon.text index end] lastline
-	# actual number of lines is one less than end
-	incr lastline -1 
+	# check if the actual last line (lastline-1) has a newline or not. 
+	# If it does, the last char position will be 0
+	regexp {^[0-9]+[.]([0-9]+)} [$ec_sourcecon.text index [expr $lastline-1].end] whole  lastchar
+	# actual number of lines is one less than end if there is a newline
+	if {$lastchar == 0} {
+	    incr lastline -1 
+	}
 	set sstuff {}
 	set lstuff {}
 	for {set i 1} {$i < $lastline} {incr i} {
