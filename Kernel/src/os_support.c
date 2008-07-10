@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.2 2008/07/09 16:52:35 jschimpf Exp $
+ * $Id: os_support.c,v 1.3 2008/07/10 18:37:53 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -403,12 +403,13 @@ ec_rename(char *old, char *new)
  *
  * No errors are returned. When there was a problem, we just
  * return a copy of the original string.
+ * The result is truncated to MAX_PATH_LEN, without warning!
  */
 
-#define Str_Cpy(to, from) \
-	{ while(*(from)) *(to)++ = *(from)++; }
-#define Str_Cpy_Until(to, from, delim) \
-	{ while(*(from) && *(from) != (delim)) *(to)++ = *(from)++; }
+#define Str_Cpy(to, from, to_last) \
+	{ while(*(from) && (to)<(to_last)) *(to)++ = *(from)++; }
+#define Str_Cpy_Until(to, from, delim, to_last) \
+	{ while(*(from) && *(from) != (delim) && (to) < (to_last)) *(to)++ = *(from)++; }
 
 char *
 expand_filename(char *in, char *out)
@@ -416,6 +417,8 @@ expand_filename(char *in, char *out)
     register char *auxp, *inp = in, *outp = out;
     char *dir = (char *) 0;
     char aux[MAX_PATH_LEN];
+    char *aux_last = &aux[MAX_PATH_LEN-1];
+    char *out_last = outp+MAX_PATH_LEN-1;
 
     switch(*inp)
     {
@@ -432,9 +435,7 @@ expand_filename(char *in, char *out)
 	    dir = getenv("HOME");
 	    if (!dir)
 		dir = getenv("HOMEPATH");	/* WinNT */
-	    if (dir && strlen(dir) + strlen(inp) >= MAX_PATH_LEN)
-		dir = (char *) 0;
-	    else if (dir) /* make sure it is in ECLiPSe format */
+	    if (dir) /* make sure it is in ECLiPSe format */
 		dir = canonical_filename(dir, aux);  
 	}
 #ifndef _WIN32
@@ -442,7 +443,7 @@ expand_filename(char *in, char *out)
 	{
 	    struct passwd *pass;
 	    auxp = aux;
-	    Str_Cpy_Until(auxp, inp, '/');
+	    Str_Cpy_Until(auxp, inp, '/', aux_last);
 	    *auxp = '\0';
 	    if (pass = getpwnam(aux))
 		dir = pass->pw_dir;
@@ -452,26 +453,24 @@ expand_filename(char *in, char *out)
     case '$':
 	++inp;
 	auxp = aux;
-	Str_Cpy_Until(auxp, inp, '/');
+	Str_Cpy_Until(auxp, inp, '/', aux_last);
 	*auxp = '\0';
 	dir = getenv(aux);
-	if (dir && strlen(dir) + strlen(inp) >= MAX_PATH_LEN)
-	    dir = (char *) 0;
-	else if (dir) /* make sure it is in ECLiPSe format */
+	if (dir) /* make sure it is in ECLiPSe format */
 	    dir = canonical_filename(dir, aux); 
 	break;
     }
     if (dir)
     {
-	Str_Cpy(outp, dir);
+	Str_Cpy(outp, dir, out_last);
     }
     else	/* directory could not be expanded */
 	inp = in;
 
-    while(*inp)
+    while(*inp && outp < out_last)
     {
-	Str_Cpy_Until(outp, inp, '/');
-	if (*inp == '/')
+	Str_Cpy_Until(outp, inp, '/', out_last);
+	if (*inp == '/' && outp < out_last)
 	{
 	    *outp++ = *inp++; /* copy the / */
 	    while(*inp)  /* edit the path following a / */
