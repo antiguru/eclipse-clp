@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
+ * $Id: types.h,v 1.3 2008/07/10 00:33:06 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -519,7 +519,7 @@ struct machine
     struct eclipse_ref_ allrefs;
 
     pword	*global_variable;
-    pword	emu_args[MAXARITY + 1];
+    pword	emu_args[NARGREGS];
 
     dyn_event_q_t dyn_event_q; /* Dynamic synchronous event queue */
 };

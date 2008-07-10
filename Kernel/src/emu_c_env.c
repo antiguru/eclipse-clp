@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.2 2008/07/10 00:33:05 jschimpf Exp $
  */
 
 /*
@@ -234,7 +234,7 @@ save_vm_status(vmcode *fail_code, int options)
      * frames identical size for all parallel engines */
     if (g_emu_.nesting_level > 0)
     {
-	for(i = 1; i < MAXARITY; i++) {
+	for(i = 1; i < NARGREGS; i++) {
 	    if(pw1->tag.kernel != TEND) {
 		*(b_aux.args)++ = *pw1++;
 	    } else break;

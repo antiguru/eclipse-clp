@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.3 2008/07/10 00:33:05 jschimpf Exp $
  */
 
 /*
@@ -157,8 +157,6 @@ static void	_print_edesc(uword);
 		uword		*ptr = (uword *) *code++;	\
 		uword		*end;				\
 								\
-		if (*ptr == Label)				\
-		    ptr += LABEL_SIZE;				\
 		end = (uword *) ((pword *) ptr + *code++);	\
 		do						\
 		{						\
@@ -204,8 +202,6 @@ static void	_print_edesc(uword);
 		uword		*ptr = (uword *) *code++;	\
 		uword		*end;				\
 								\
-		if (*ptr == Label && *(ptr + 1) == 0)		\
-		    ptr += LABEL_SIZE;				\
 		end = (uword *) ((pword *) ptr + *code++);	\
 		do						\
 		{						\
@@ -224,8 +220,6 @@ static void	_print_edesc(uword);
 		uword		*ptr = (uword *) *code++;	\
 		uword		*end;				\
 								\
-		if (*ptr == Label)				\
-		    ptr += LABEL_SIZE;				\
 		end = (uword *) ((pword *) ptr + *code++);	\
 		do						\
 		{						\
@@ -1249,11 +1243,6 @@ print_am(register vmcode *code,
 	        Perm;
 		Addr;
 		EnvDesc;
-		break;
-
-	case Label:
-		Addr;
-		Addr;
 		break;
 
 	case JmpdAs:

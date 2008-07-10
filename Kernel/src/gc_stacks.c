@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.2 2008/07/10 00:33:05 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -762,7 +762,7 @@ pop_choicepoint(void)
     /* Now mark the other arguments invalid (for recursive emulators).
      * Caution: There may be a module argument which must be skipped first.
      */
-    while(++pw <= &g_emu_.emu_args[MAXARITY] && pw->tag.kernel != TEND)
+    while(++pw < &g_emu_.emu_args[NARGREGS] && pw->tag.kernel != TEND)
     {
 	pw->tag.kernel = TEND;
 	pw->val.nint = 0x11111111;

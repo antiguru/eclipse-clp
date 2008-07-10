@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.1 2008/06/30 17:43:58 jschimpf Exp $
+ * $Id: sepia.h,v 1.2 2008/07/10 00:33:06 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1031,7 +1031,7 @@
 		pw = v.ptr + 2;				\
 		Dereference_(pw)			\
 		Check_Integer(pw->tag)			\
-		if (pw->val.nint < 0 || pw->val.nint >= MAXARITY) \
+		if (pw->val.nint < 0 || pw->val.nint > MAXARITY) \
 		    { Bip_Error(RANGE_ERROR) }          \
 		wdid = add_dict(wdid, (int) pw->val.nint);\
 	}						\

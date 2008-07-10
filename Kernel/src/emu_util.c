@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.3 2008/07/10 00:33:05 jschimpf Exp $
  */
 
 /*
@@ -109,7 +109,7 @@ allocate_stacks(void)
      *   room left for one frame of the biggest size (invocation frame))
      */
 
-    bmax_ = (pword *) ((char *) g_emu_.blimit - MAXARITY * sizeof(pword)
+    bmax_ = (pword *) ((char *) g_emu_.blimit - NARGREGS * sizeof(pword)
             - sizeof(struct invocation_frame));
 
 #if defined(RLIMIT_STACK)
@@ -242,7 +242,7 @@ emu_init(int flags, int vm_options)
     PARSENV = NULL;
     Set_Bip_Error(0);
 
-    for(i = 0; i <= MAXARITY; i++)
+    for(i = 0; i < NARGREGS; i++)
     {
 	A[i].val.all = 0;
 	A[i].tag.kernel = TEND;
@@ -480,7 +480,7 @@ find_word(uword w)	/* scan Prolog data areas for a particular uword */
     for(p = g_emu_.control_local[1].end; p < g_emu_.control_local[1].start; p++)
 	if (*p == w) p_fprintf(current_err_, "local 0x%x\n", p);
     for(p = (uword *) &g_emu_.emu_args[0];
-				p < (uword *) &g_emu_.emu_args[MAXARITY]; p++)
+				p < (uword *) &g_emu_.emu_args[NARGREGS]; p++)
 	if (*p == w) p_fprintf(current_err_, "arg 0x%x\n", p);
     ec_flush(current_err_);
 }

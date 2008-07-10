@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.4 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.5 2008/07/10 00:33:05 jschimpf Exp $
  */
 
 /*
@@ -1515,7 +1515,7 @@ _nbip_err_:		/* (err_code, proc), args at *PP[-arity-1..-2] */
 	    Save_Tg_Soft_Lim(Exception(pw1)->tg_soft_lim);
 	    pw1 = (pword *) (Exception(pw1) + 1);
 	    pw2 = &A[1];	/* save arguments	*/
-	    for(i = 1; i < MAXARITY; i++) {
+	    for(i = 1; i < NARGREGS; i++) {
 		*pw1 = *pw2++;
 		if((pw1++)->tag.kernel == TEND)
 		    break;

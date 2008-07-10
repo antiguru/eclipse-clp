@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.3 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.4 2008/07/10 00:33:05 jschimpf Exp $
  */
 
 /*
@@ -200,7 +200,7 @@ extern int	control_ov ARGS((void)), local_ov ARGS((void));
 	{ Export_B_Sp_Tg_Tt global_ov(); Import_None }
 #endif
 
-#define LOCAL_CONTROL_GAP (SAFE_B_AREA+MAXARITY+sizeof(struct invocation_frame))
+#define LOCAL_CONTROL_GAP (SAFE_B_AREA+NARGREGS+sizeof(struct invocation_frame))
 
 
 /*
@@ -219,7 +219,7 @@ extern int	control_ov ARGS((void)), local_ov ARGS((void));
  * It should be greater or equal to the maximum of
  * MAXARITY, GC_MAX_HEAD and the size of the largest trail frame.
  */
-#define GLOBAL_TRAIL_GAP	MAXARITY
+#define GLOBAL_TRAIL_GAP	NARGREGS
 
 
 /*

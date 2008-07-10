@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.3 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.4 2008/07/10 00:33:05 jschimpf Exp $
  */
 
 /********************************************************************
@@ -66,11 +66,10 @@
 	pri_define_code(pd, VMCODE, pricode);
 
 #define Store_Var_Alloc(size, arg, var)				\
-				Store_Rev_Arg_3(		\
+				Store_4(			\
 					Get_variableNAML,	\
-					Get_variableNARL,	\
 					Esize(size),		\
-					arg,			\
+					Address(arg),		\
 					Esize(var))
 
 #define KernelPri(d) \
@@ -419,14 +418,14 @@ code_init(int flags)
 	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB, code);
     }
     Store_Var_Alloc(3, 2, 3);				/* Goal2 -> Y3 */
-    Store_Arg_2(MoveAML, MoveARL, 3, Esize(2))		/* Module -> Y2 */
-    Store_Arg_2(MoveAML, MoveARL, 4, Esize(1))		/* Cut -> Y1 */
+    Store_3(MoveAML, Address(3), Esize(2))		/* Module -> Y2 */
+    Store_3(MoveAML, Address(4), Esize(1))		/* Cut -> Y1 */
     Store_3(MoveAMAM, Address(3), Address(2))
     Store_2(Metacall,Esize(3))
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(3), 1)
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(2), 2)
+    Store_3(MoveLAM, Esize(3), Address(1))
+    Store_3(MoveLAM, Esize(2), Address(2))
     Store_3(MoveAMAM, Address(2), Address(3))
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(1), 4)
+    Store_3(MoveLAM, Esize(1), Address(4))
     Store_i(Deallocate)
     Store_i(Meta_jmp)
     Store_i(Code_end)
@@ -446,17 +445,17 @@ code_init(int flags)
 	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB, code);
     }
     Store_Var_Alloc(4, 2, 4);				/* Goal2 -> Y4 */
-    Store_Arg_2(MoveAML, MoveARL, 3, Esize(3))		/* Module -> Y3 */
-    Store_Arg_2(MoveAML, MoveARL, 4, Esize(2))		/* Cut -> Y2 */
+    Store_3(MoveAML, Address(3), Esize(3))		/* Module -> Y3 */
+    Store_3(MoveAML, Address(4), Esize(2))		/* Cut -> Y2 */
     Store_i(Savecut)
     Store_3(MoveAMAM, Address(3), Address(2))
     Store_2(Put_nilAM, Address(4))
     Store_2(Metacall,Esize(4))
     Store_2(Cut, Esize(4))
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(4), 1)
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(3), 2)
+    Store_3(MoveLAM, Esize(4), Address(1))
+    Store_3(MoveLAM, Esize(3), Address(2))
     Store_3(MoveAMAM, Address(2), Address(3))
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(2), 4)
+    Store_3(MoveLAM, Esize(2), Address(4))
     Store_i(Deallocate)
     Store_i(Meta_jmp)
     Store_i(Code_end)
@@ -481,7 +480,7 @@ code_init(int flags)
     Store_i(Meta_jmp)
     *(vmcode**)aux = code;
     Store_2(Trust_me, NEXT_PORT)
-    Store_Rev_Arg_2(MoveAMAM, MoveAMAR, Address(2), 1)
+    Store_3(MoveAMAM, Address(2), Address(1))
     Store_3(MoveAMAM, Address(3), Address(2))
     Store_i(Meta_jmp)
     Store_i(Code_end);
@@ -505,22 +504,22 @@ code_init(int flags)
     Store_3(Try_me_else, NO_PORT, 5)
     aux = code++;
     Store_Var_Alloc(4, 2, 4);				/* Goal2 -> Y4 */
-    Store_Arg_2(MoveAML, MoveARL, 4, Esize(3))		/* Cut -> Y3 */
-    Store_Arg_2(MoveAML, MoveARL, 3, Esize(2))		/* Module -> Y2 */
+    Store_3(MoveAML, Address(4), Esize(3))		/* Cut -> Y3 */
+    Store_3(MoveAML, Address(3), Esize(2))		/* Module -> Y2 */
     Store_i(Savecut)
     Store_3(MoveAMAM, Address(3), Address(2))
     Store_2(Put_nilAM, Address(4))
     Store_2(Metacall,Esize(4))
     Store_2(Cut, Esize(4))
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(4), 1)
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(2), 2)
+    Store_3(MoveLAM, Esize(4), Address(1))
+    Store_3(MoveLAM, Esize(2), Address(2))
     Store_3(MoveAMAM, Address(2), Address(3))
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(3), 4)
+    Store_3(MoveLAM, Esize(3), Address(4))
     Store_i(Deallocate)
     Store_i(Meta_jmp)
     *(vmcode**)aux = code;
     Store_2(Trust_me, NEXT_PORT)
-    Store_Rev_Arg_2(MoveAMAM, MoveAMAR, Address(5), 1)
+    Store_3(MoveAMAM, Address(5), Address(1))
     Store_3(MoveAMAM, Address(3), Address(2))
     Store_i(Meta_jmp)
     Store_i(Code_end);
@@ -545,22 +544,22 @@ code_init(int flags)
     Store_3(Try_me_else, NO_PORT, 5)
     aux = code++;
     Store_Var_Alloc(4, 2, 4);				/* Goal2 -> Y4 */
-    Store_Arg_2(MoveAML, MoveARL, 4, Esize(3))		/* Cut -> Y3 */
-    Store_Arg_2(MoveAML, MoveARL, 3, Esize(2))		/* Module -> Y2 */
+    Store_3(MoveAML, Address(4), Esize(3))		/* Cut -> Y3 */
+    Store_3(MoveAML, Address(3), Esize(2))		/* Module -> Y2 */
     Store_2(SavecutL, Esize(1))
     Store_3(MoveAMAM, Address(3), Address(2))
     Store_2(Put_nilAM, Address(4))
     Store_2(Metacall,Esize(4))
     Store_2(SoftcutL, Esize(1))
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(4), 1)
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(2), 2)
+    Store_3(MoveLAM, Esize(4), Address(1))
+    Store_3(MoveLAM, Esize(2), Address(2))
     Store_3(MoveAMAM, Address(2), Address(3))
-    Store_Rev_Arg_2(MoveLAM, MoveLAR, Esize(3), 4)
+    Store_3(MoveLAM, Esize(3), Address(4))
     Store_i(Deallocate)
     Store_i(Meta_jmp)
     *(vmcode**)aux = code;
     Store_2(Trust_me, NEXT_PORT)
-    Store_Rev_Arg_2(MoveAMAM, MoveAMAR, Address(5), 1)
+    Store_3(MoveAMAM, Address(5), Address(1))
     Store_3(MoveAMAM, Address(3), Address(2))
     Store_i(Meta_jmp)
     Store_i(Code_end);
@@ -1095,7 +1094,7 @@ code_init(int flags)
     Store_Var_Alloc(2, 2, 1)	/* 4 words */
     aux = code+1;
     Store_2(Set_bp, 0);
-    Store_Arg_2(Get_integerAM, Get_integerAR, 1, 170);
+    Store_3(Get_integerAM, Address(1), 170);
 
     Store_i(Restore_bp);
     Store_3(Put_variableAML, Address(1), Esize(2))
