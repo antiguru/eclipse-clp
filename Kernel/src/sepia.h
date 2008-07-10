@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.2 2008/07/10 00:33:06 jschimpf Exp $
+ * $Id: sepia.h,v 1.3 2008/07/10 01:08:47 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -77,28 +77,26 @@
 
 /* internal tags, not unifiable */
 
-#define TTVV		13	/* for the code generator, the val is a	*/
-				/* (var_desc *)				*/
-				/* TTVV must be one after NTYPES	*/
-#define TPROC		14 	/* goal tag, val is a (pri *)		*/
-#define TEND		15	/* to mark the first unused argument	*/
+#define TPROC		13 	/* goal tag, val is a (pri *)		*/
+#define TEND		14	/* to mark the first unused argument	*/
 
 /* tags for identifying special global stack structures */
 
-#define TCLDESC		16 	/* clause descriptor when compiling	*/
-#define TVARDESC	17	/* compiler structures			*/
-#define TBLSIZE		18
-#define TDE     	19	/* delay environment			*/
-#define TGRS		20	/* ground body structure (codegen)	*/
-#define TGRL		21	/* ground body list (codegen)		*/
-#define TEXTERN		22	/* a stack anchor for external data,	*/
+#define TDE     	15	/* delay environment			*/
+#define TGRS		16	/* ground body structure (codegen)	*/
+#define TGRL		17	/* ground body list (codegen)		*/
+#define TEXTERN		18	/* a stack anchor for external data,	*/
 				/* referenced by THANDLE pwords.      	*/
 				/* Value part is pointer to type desc.	*/
 				/* Next pword is TPTR | &data.		*/
-#define TBUFFER		23	/* a buffer on the global stack, used	*/
+#define TBUFFER		19	/* a buffer on the global stack, used	*/
 				/* for strings, bignums, doubles etc.	*/
 				/* The value part gives the number of	*/
 				/* bytes - 1 that follow		*/
+#define TVARNUM		20	/* for temporarily numbering variables	*/
+
+/* If modifying tags, update tag names in printam.c */
+
 
 /*
  * variables and references:

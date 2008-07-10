@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.3 2008/07/10 01:08:46 jschimpf Exp $
  */
 
 /*
@@ -301,7 +301,6 @@ dict_init(int flags)
 	tag_desc[TINT].tag_name = d_.integer0;
 	tag_desc[TDICT].tag_name = d_.atom0;
 	tag_desc[TPTR].tag_name = d_.meta0;
-	tag_desc[TTVV].tag_name = d_.var0;
 
 	tag_desc[TLIST].super = TCOMP;
 	tag_desc[TCOMP].type_name = d_.compound0;
@@ -315,7 +314,6 @@ dict_init(int flags)
 	tag_desc[TNIL].super = TDICT;
 	tag_desc[TDICT].type_name = d_.atom0;
 	tag_desc[TPTR].type_name = d_.meta0;
-	tag_desc[TTVV].type_name = d_.var0;
     }
 
     _constant_table_init(flags);

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.3 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: opcode.h,v 1.4 2008/07/10 01:08:47 jschimpf Exp $
  */
 
 /*
@@ -30,16 +30,6 @@
  * DESCRIPTION	
  *	
  *	Here are defined the opcode values for the C emulator.
- *	They are defined in several blocks, the entries in each block
- *	are defined relative to the block beginning so that it is easy to
- *	insert new items inside a block. The blocks are:
- *	 - instructions without hardware registers, they are always defined
- *	   they range from 0 to OPCODES_WITHOUT_REGS
- *	 - instructions with AR registers (and no TR), they range
- *	   from BLOCK2 up to OPCODES_AR
- *	 - instructions with TR registers (and no AR), range
- *	   from BLOCK3 up to OPCODES_TR
- *	 - instructions with both AR and TR registers, range from BLOCK4
  *
  *	Note that the order of Write_, Read_ and Read_matched_ is significant.
  *
@@ -69,29 +59,9 @@ extern vmcode op_addr[];
 
 /*
  * To have consecutive blocks of real instructions, we must set the
- * block beginnings properly.
+ * block beginnings properly.  Currently only one block.
  */
 #define BLOCK1					0
-#define BLOCK2					OPCODES_WITHOUT_REGS
-#define BLOCK4					OPCODES_TR
-
-#if (NREGARG == 0)
-#if (NREGTMP == 0)
-#define BLOCK3					OPCODES_AR
-#define Inst_Error				OPCODES_WITHOUT_REGS
-#else /* TR */
-#define BLOCK3					OPCODES_WITHOUT_REGS
-#define Inst_Error				OPCODES_TR
-#endif
-#else /* AR */
-#if (NREGTMP == 0)
-#define BLOCK3					OPCODES_WITHOUT_REGS
-#define Inst_Error				OPCODES_WITHOUT_REGS
-#else /* AR, TR */
-#define BLOCK3					OPCODES_AR
-#define Inst_Error				OPCODES_ARTR
-#endif
-#endif
 
 
 /*
@@ -509,126 +479,12 @@ extern vmcode op_addr[];
 #define Exits					(BLOCK1 + 402)
 #define CutAMN					(BLOCK1 + 403)
 #define Put_moduleAM				(BLOCK1 + 404)
-#define OPCODES_WITHOUT_REGS			(BLOCK1 + 405)
 
 /*
- * Don't forget to update the following files:
+ * Insert new instructions here.  Don't forget to update the following files:
  * names.h emu_op_addr.h printam.c asm.pl
  */
 
-#define Escapes					Escapeu
-
-#define MoveAR					BLOCK2
-#define MoveARAM				(BLOCK2 + 1)
-#define MoveARL					(BLOCK2 + 2)
-#define MoveAMAR				(BLOCK2 + 3)
-#define MoveLAR					(BLOCK2 + 4)
-#define MoveTMAR				(BLOCK2 + 5)
-#define Get_variableNARL			(BLOCK2 + 6)
-#define Get_valueAMAR				(BLOCK2 + 7)
-#define Get_valueARL				(BLOCK2 + 8)
-#define Get_valueARTM				(BLOCK2 + 9)
-#define Get_nilAR				(BLOCK2 + 10)
-#define Get_integerAR				(BLOCK2 + 11)
-#define Get_floatAR				(BLOCK2 + 12)
-#define Get_atomAR				(BLOCK2 + 13)
-#define Get_stringAR				(BLOCK2 + 14)
-#define Get_listAR				(BLOCK2 + 15)
-#define Get_structureAR				(BLOCK2 + 16)
-#define In_get_nilAR				(BLOCK2 + 17)
-#define In_get_integerAR			(BLOCK2 + 18)
-#define In_get_floatAR				(BLOCK2 + 19)
-#define In_get_atomAR				(BLOCK2 + 20)
-#define In_get_stringAR				(BLOCK2 + 21)
-#define In_get_listAR				(BLOCK2 + 22)
-#define In_get_structureAR			(BLOCK2 + 23)
-#define Out_get_nilAR				(BLOCK2 + 24)
-#define Out_get_integerAR			(BLOCK2 + 25)
-#define Out_get_floatAR				(BLOCK2 + 26)
-#define Out_get_atomAR				(BLOCK2 + 27)
-#define Out_get_stringAR			(BLOCK2 + 28)
-#define Out_get_listAR				(BLOCK2 + 29)
-#define Out_get_structureAR			(BLOCK2 + 30)
-#define Get_list_argumentsAR			(BLOCK2 + 31)
-#define Get_structure_argumentsAR		(BLOCK2 + 32)
-#define Write_variableAR			(BLOCK2 + 33)
-#define Read_variableAR				(BLOCK2 + 34)
-#define Write_valueAR				(BLOCK2 + 35)
-#define Read_valueAR				(BLOCK2 + 36)
-#define Read_matched_valueAR			(BLOCK2 + 37)
-#define Write_local_valueAR			(BLOCK2 + 38)
-#define Push_variableAR				(BLOCK2 + 39)
-#define Push_valueAR				(BLOCK2 + 40)
-#define Push_local_valueAR			(BLOCK2 + 41)
-#define Put_variableARL				(BLOCK2 + 42)
-#define Put_variableAR				(BLOCK2 + 43)
-#define Put_unsafe_valueARL			(BLOCK2 + 44)
-#define Put_nilAR				(BLOCK2 + 45)
-#define Put_integerAR				(BLOCK2 + 46)
-#define Put_floatAR				(BLOCK2 + 47)
-#define Put_atomAR				(BLOCK2 + 48)
-#define Put_stringAR				(BLOCK2 + 49)
-#define Put_listAR				(BLOCK2 + 50)
-#define Put_structureAR				(BLOCK2 + 51)
-#define Puts_valueAR				(BLOCK2 + 52)
-#define Integer_switchAR			(BLOCK2 + 53)
-#define Atom_switchAR				(BLOCK2 + 54)
-#define List_switchAR				(BLOCK2 + 55)
-#define Functor_switchAR			(BLOCK2 + 56)
-#define Switch_on_typeAR			(BLOCK2 + 57)
-#define Atom_switch_seqAR			(BLOCK2 + 58)
-#define Functor_switch_seqAR			(BLOCK2 + 59)
-#define Integer_switch_seqAR			(BLOCK2 + 60)
-#define Get_matched_valueARL			(BLOCK2 + 61)
-#define Test_varAR				(BLOCK2 + 62)
-#define Test_groundAR				(BLOCK2 + 63)
-#define Get_matched_valueAMAR                   (BLOCK2 + 64)
-#define Get_matched_valueARTM                   (BLOCK2 + 65)
-#define Get_constantAR				(BLOCK2 + 66)
-#define In_get_constantAR			(BLOCK2 + 67)
-#define Out_get_constantAR			(BLOCK2 + 68)
-#define Put_constantAR				(BLOCK2 + 69)
-#define Puts_variableAR				(BLOCK2 + 70)
-#define Put_unsafe_valueARTM                   	(BLOCK2 + 71)
-#define Write_named_variableAR			(BLOCK2 + 72)
-#define Put_named_variableAR			(BLOCK2 + 73)
-#define Put_named_variableARL			(BLOCK2 + 74)
-#define Push_referenceAR			(BLOCK2 + 75)
-#define OPCODES_AR				(BLOCK2 + 76)
-
-#define Write_variableTR			BLOCK3
-#define Read_variableTR				(BLOCK3 + 1)
-#define Write_valueTR				(BLOCK3 + 2)
-#define Read_valueTR				(BLOCK3 + 3)
-#define Read_matched_valueTR			(BLOCK3 + 4)
-#define Write_local_valueTR			(BLOCK3 + 5)
-#define Read_listTR				(BLOCK3 + 6)
-#define Read_next_listTR			(BLOCK3 + 7)
-#define Read_structureTR			(BLOCK3 + 8)
-#define Read_next_structureTR			(BLOCK3 + 9)
-#define Push_variableTR				(BLOCK3 + 10)
-#define Push_valueTR				(BLOCK3 + 11)
-#define Push_local_valueTR			(BLOCK3 + 12)
-#define Puts_valueTR				(BLOCK3 + 13)
-#define FirstTR					(BLOCK3 + 14)
-#define NextTR					(BLOCK3 + 15)
-#define ModeTR					(BLOCK3 + 16)
-#define NextTRlab				(BLOCK3 + 17)
-#define ModeTRlab				(BLOCK3 + 18)
-#define Get_matched_valueAMTR			(BLOCK3 + 19)
-#define MoveAMTR				(BLOCK3 + 20)
-#define MoveTRAM				(BLOCK3 + 21)
-#define Get_valueAMTR				(BLOCK3 + 22)
-#define Write_named_variableTR			(BLOCK3 + 23)
-#define Push_referenceTR			(BLOCK3 + 24)
-#define OPCODES_TR				(BLOCK3 + 25)
-
-#define MoveARTR				BLOCK4
-#define MoveTRAR				(BLOCK4 + 1)
-#define Get_valueARTR				(BLOCK4 + 2)
-#define Get_matched_valueARTR			(BLOCK4 + 3)
-#define OPCODES_ARTR				(BLOCK4 + 4)
-
-
+#define Inst_Error				(BLOCK1 + 405)
 #define NUMBER_OP				(Inst_Error + 1)
 

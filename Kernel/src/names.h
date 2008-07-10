@@ -21,49 +21,17 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: names.h,v 1.3 2008/07/10 01:08:47 jschimpf Exp $
  */
 
 /*
  * IDENTIFICATION		names.h
  *
- * DESCRIPTION	
- *	
+ * DESCRIPTION
  *
- *
- * CONTENTS:
- *
- *
- * REVISION HISTORY:
- *
- * AUTHOR	VERSION	 DATE	REASON
- */
-
-/*
- * INCLUDES:
- */
-
-/*
- * DEFINES:
- */
-
-/*
- * TYPEDEFS:
- */
-
-/*
- * EXTERNAL FUNCTION DECLARATIONS: 
- */
-
-/*
- * EXTERNAL VARIABLE DECLARATIONS: 
- */
-
-/*
  * This array contains the mnemonics of all abstract instructions.
  * It has to be maintained together with opcode.h - if some opcodes
  * are changed the array has to be changed as well.
- *	SCCSid = "%W%	%G%"
  */
  
 char * inst_name[] = {
@@ -473,129 +441,6 @@ char * inst_name[] = {
 "CutAMN                    ",
 "Put_moduleAM              ",
 
-#if (NREGARG > 0)
-"MoveAR                    ",
-"MoveARAM                  ",
-"MoveARL                   ",
-"MoveAMAR                  ",
-"MoveLAR                   ",
-"MoveTMAR                  ",
-"Get_variableNARL          ",
-"Get_valueAMAR             ",
-"Get_valueARL              ",
-"Get_valueARTM             ",
-"Get_nilAR                 ",
-"Get_integerAR             ",
-"Get_floatAR               ",
-"Get_atomAR                ",
-"Get_stringAR              ",
-"Get_listAR                ",
-"Get_structureAR           ",
-"In_get_nilAR              ",
-"In_get_integerAR          ",
-"In_get_floatAR            ",
-"In_get_atomAR             ",
-"In_get_stringAR           ",
-"In_get_listAR             ",
-"In_get_structureAR        ",
-"Out_get_nilAR             ",
-"Out_get_integerAR         ",
-"Out_get_floatAR           ",
-"Out_get_atomAR            ",
-"Out_get_stringAR          ",
-"Out_get_listAR            ",
-"Out_get_structureAR       ",
-"Get_list_argumentsAR      ",
-"Get_structure_argumentsAR ",
-"Write_variableAR          ",
-"Read_variableAR           ",
-"Write_valueAR             ",
-"Read_valueAR              ",
-"Read_matched_valueAR      ",
-"Write_local_valueAR       ",
-"Push_variableAR           ",
-"Push_valueAR              ",
-"Push_local_valueAR        ",
-"Put_variableARL           ",
-"Put_variableAR            ",
-"Put_unsafe_valueARL       ",
-"Put_nilAR                 ",
-"Put_integerAR             ",
-"Put_floatAR               ",
-"Put_atomAR                ",
-"Put_stringAR              ",
-"Put_listAR                ",
-"Put_structureAR           ",
-"Puts_valueAR              ",
-"Integer_switchAR          ",
-"Atom_switchAR             ",
-"List_switchAR             ",
-"Functor_switchAR          ",
-"Switch_on_typeAR          ",
-"Atom_switch_seqAR         ",
-"Functor_switch_seqAR      ",
-"Integer_switch_seqAR      ",
-"Get_matched_valueARL      ",
-"Test_varAR                ",
-"Test_groundAR             ",
-"Get_matched_valueAMAR     ",
-"Get_matched_valueARTM     ",
-"Get_constantAR            ",
-"In_get_constantAR         ",
-"Out_get_constantAR        ",
-"Put_constantAR            ",
-"Puts_variableAR           ",
-"Put_unsafe_valueARTM      ",
-"Write_named_variableAR    ",
-"Put_named_variableAR      ",
-"Put_named_variableARL     ",
-"Push_referenceAR          ",
-#endif
-
-#if (NREGTMP > 0)
-"Write_variableTR          ",
-"Read_variableTR           ",
-"Write_valueTR             ",
-"Read_valueTR              ",
-"Read_matched_valueTR      ",
-"Write_local_valueTR       ",
-"Read_listTR               ",
-"Read_next_listTR          ",
-"Read_structureTR          ",
-"Read_next_structureTR     ",
-"Push_variableTR           ",
-"Push_valueTR              ",
-"Push_local_valueTR        ",
-"Puts_valueTR              ",
-"FirstTR                   ",
-"NextTR                    ",
-"ModeTR                    ",
-"NextTRlab                 ",
-"ModeTRlab                 ",
-"Get_matched_valueAMTR     ",
-"MoveAMTR                  ",
-"MoveTRAM                  ",
-"Get_valueAMTR             ",
-"Write_named_variableTR    ",
-"Push_referenceTR          ",
-#endif
-
-
-#if (NREGARG > 0) && (NREGTMP > 0)
-"MoveARTR                  ",
-"MoveTRAR                  ",
-"Get_valueARTR             ",
-"Get_matched_valueARTR     ",
-#endif
-
-#ifdef CHIP
-#include "Cnames.h"
-#endif /* CHIP */
-
-#ifdef OBJECTS
-/* additional machine instruction names for the objects extension */
-#include "names_ob.h"
-#endif /* OBJECTS */
 
 "Inst_Error                "
 };

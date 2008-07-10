@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.3 2008/07/10 00:33:05 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.4 2008/07/10 01:08:47 jschimpf Exp $
  */
 
 /*
@@ -499,6 +499,7 @@ print_am(register vmcode *code,
 	        ArgDesc;
 		break;
 
+#define NREGARG 0
 #if (NREGARG > 0)
 	case MoveAR:
 	case Get_nilAR:
@@ -1048,6 +1049,16 @@ print_am(register vmcode *code,
 		TempR;
 		Code_Label;
 		break;
+	case Get_constantAR:
+        case Out_get_constantAR:
+	case In_get_constantAR:
+	       Ar; Const; Consttag; 
+	       break;
+        case Put_constantAR:
+	       Ar; Consttag; Const; 
+	       break;
+
+
 #endif /* NREGTMP */
 
 	case Puts_constant:
@@ -1066,18 +1077,8 @@ print_am(register vmcode *code,
 	       Am; Const; Consttag; 
 	       break;
 
-	case Get_constantAR:
-        case Out_get_constantAR:
-	case In_get_constantAR:
-	       Ar; Const; Consttag; 
-	       break;
-
         case Put_constantAM:
 	       Am; Consttag; Const; 
-	       break;
-
-        case Put_constantAR:
-	       Ar; Consttag; Const; 
 	       break;
 
 	case Retry_me_else:
@@ -1710,17 +1711,14 @@ static char * tag_string[] = {
     "TINT    ",
     "TDICT   ",
     "TPTR    ",
-    "TTVV    ",
     "TPROC   ",
     "TEND    ",
-    "TCLDESC ",
-    "TVARDESC",
-    "TBLSIZE ",
     "TDE     ",
     "TGRS    ",
     "TGRL    ",
     "TEXTERN ",
     "TBUFFER "
+    "TVARNUM ",
     };
 
 p_pw(value v, type t)
@@ -1809,15 +1807,11 @@ ppw(pword *pw)				/* print prolog words */
 	    break;
 	case TPTR:
 	    break;
-	case TTVV:
 	case TPROC:
 	case TEND:
-	case TCLDESC:
-	case TVARDESC:
-	case TBLSIZE:
+	case TVARNUM:
 	case TGRS:
 	case TGRL:
-	    break;
 	case TEXTERN:
 	case TBUFFER:
 	    break;

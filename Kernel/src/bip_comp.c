@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.2 2008/07/10 01:08:46 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -497,8 +497,6 @@ occurs_compound(pword *comp, pword *term)
  *
  *	instance(f(X), X)	succeeds iff occur check disabled
  */
-
-#define TVARNUM	TCLDESC
 
 #define ANY_INST	7
 #define LT		4
