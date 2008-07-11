@@ -62,7 +62,7 @@ Optional:
                                 CLP and CBC
 
 Support:
-    tcltk.tgz			A matching Tcl/Tk release (8.4)
+    tcltk.tgz			A matching Tcl/Tk release (8.5)
     				(you may have that already).
 				Needed for the tkeclipse development GUI.
     editors_eclipse_support.tgz Support for various editors for editing
