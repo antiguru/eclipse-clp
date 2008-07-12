@@ -438,9 +438,9 @@ Abort
    This predicate is used to declare a variable attribute and/or the
    corresponding handlers.  The Name is usually the name of module where
    this attribute is being defined and used.  The unqualified use of
-   attributed variables, i.e.  terms in the form VarAttr is allowed only in
+   attributed variables, i.e.  terms in the form Var{Attr} is allowed only in
    modules which have a defined attribute name, otherwise the qualified
-   usage VarName:Attr is required.
+   usage Var{Name:Attr} is required.
 <P>
    The Handlers argument specifies a list of handler predicates for several
    built-in operations which require user-defined actions whenever an

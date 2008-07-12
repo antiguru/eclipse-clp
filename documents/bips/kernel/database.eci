@@ -40,9 +40,7 @@
 :- tool(is_predicate / 1).
 :- tool(deprecated / 2).
 :- tool(discontiguous / 1).
-:- tool(compile / 1).
 :- tool(compile_stream / 1).
-:- tool(compile_term / 1).
 :- tool(inline / 2).
 :- tool(get_flag / 3).
 :- tool(set_flag / 3).
@@ -76,16 +74,30 @@ make.
 	see_also:[compile / 1, compile / 2, ensure_loaded / 1, make / 0]]).
 
 :- comment('.' / 2, [
-	summary:"Compile file or list of files --- shorthand for compile/1.
-
-",
+	summary:"Compile source file or load precompiled file, or list of files",
 	template:"[+File_1, ...., +File_N]",
 	amode:([+] is det),
-	desc:html("   Used to compile file or list of files.  The ``square bracket'' notation
-   is used as a shorthand notation for compile/1.  See the specification of
-   compile/1 for details.
-
+	desc:html("
+   The behaviour of this construct is different according to where it is used:
+   As a directive in a source file, e.g.
+<PRE>
+	:- [auxiliaries,tools].
+</PRE>
+   it behaves like an include/1 directive, i.e. it instructs the compiler (or
+   any other source-processing tool) to process the given files as if they were
+   part of the file containing the directive.
 <P>
+   When called as a query (e.g. at the interactive toplevel) or goal, it will
+   compile source files or load precompiled files.  If a precompiled file
+   exists (usually characterized by a .eco file suffix), then this file is
+   loaded, otherwise a source file is expected and compiled using compile/1.
+   See the specification of compile/1 for details.
+<P>
+   A particular common use at the toplevel is the special form:
+<PRE>
+	?- [user].
+</PRE>
+   which is used for interactively compiling code from the standard input.
 "),
 	args:["File_i" : "Atom or string."],
 	exceptions:[4 : "File_n is not instantiated.", 5 : "File_n is instantiated, but not to an atom or string.", 171 : "File_n does not exist."],
@@ -161,6 +173,7 @@ Error:
 ",
 	see_also:[get_flag / 3, pred / 1, current_predicate / 1, current_built_in / 1]]).
 
+
 :- comment(lib / 1, [
 	summary:"Makes the library LibraryName available in the current module if not loaded
 already.
@@ -168,6 +181,8 @@ already.
 ",
 	amode:(lib(+) is det),
 	desc:html("
+   This is a shorthand: lib(Lib) is identical to use_module(library(Lib)).
+<P>
    Used to load the library LibraryName into the system if it has not
    already been loaded.  The currently used Prolog suffix(es) is appended
    to LibraryName and the resulting library is loaded if it exists.
@@ -179,8 +194,6 @@ already.
    may be added to the system simply by copying the desired file into the
    ECLiPSe library directory.  Alternatively the library_path flag may be
    updated to point at a number of user specific directories.
-<P>
-   lib(Lib) is identical to use_module(library(Lib)).
 <P>
 "),
 	args:["LibraryName" : "String or atom."],
@@ -239,7 +252,7 @@ Error:
 
 
 ",
-	see_also:[asm:disasm/2]]).
+	see_also:[asm:disasm/2,asm:wam/1]]).
 
 :- comment(compiled_stream / 1, [
 	summary:"Succeeds if the I/O stream currently being compiled is Stream.
@@ -247,9 +260,13 @@ Error:
 ",
 	amode:(compiled_stream(-) is semidet),
 	desc:html("   Used to find the stream that is currently being compiled.
+   The stream handle can be used to get other information about the source
+   being compiled, e.g. file name and position.  If nothing is currently being
+   compiled, or if a non-textual source is being compiled (compile_term/1,2),
+   this predicate fails.
+<P>
    compiled_stream/1 is meaningful mainly in queries inside a compiled
    file, or in event handlers for compilation events.
-
 <P>
 "),
 	args:["Stream" : "Atom, Integer or variable."],
@@ -346,7 +363,7 @@ Error:
 	see_also:[kill_suspension / 1, make_suspension / 3, notify_constrained / 1, schedule_suspensions / 2, set_suspension_data / 3, get_suspension_data / 3]]).
 
 :- comment(ensure_loaded / 1, [
-	summary:"Compile the specified Files if necessary.
+	summary:"Compile or load the specified Files if necessary.
 
 ",
 	amode:(ensure_loaded(++) is det),
@@ -509,360 +526,6 @@ executing :
     yes.
 ",
 	see_also:[retract_all / 1]]).
-
-:- comment(compile / 1, [
-	summary:"Compile specified file or list of files File.
-
-",
-	amode:(compile(++) is det),
-	desc:html("   Compiles the specified Prolog source file or list of source files.  The
-   atom or string File must be instantiated to a legitimate specification
-   for an existing file except for the suffix.
-<P>
-   The predicate tries to add to it the Prolog suffixes from the list
-   specified in the Prolog flag prolog_suffix and look for an existing and
-   readable file.  As soon as a file is found which exists, it is taken as
-   the input file name.  The default Prolog suffixes are empty suffix,
-   .ecl and .pl.
-<P>
-   If File is of the form library(Name), the predicates looks for the file
-   in the directories from the library_path flag.
-<P>
-   When File is not in the current directory, ECLiPSe first changes the
-   current directory to that of the file.  Consequently, recursive
-   compile/1 calls inside compiled files can use relative pathnames.  This
-   makes it possible to compile the program top files from any directory
-   and still use only local file names.  At the end of the compilation, the
-   current directory is changed back to the initial one.  This has the side
-   effect that all calls to cd/1 in queries in the compiled file are
-   ignored.
-<P>
-   Compiling a file which contains a module/1 or module/3 directive
-   completely redefines an existing module of the same name.  Otherwise,
-   static procedures are redefined by those occurring in the compiled file,
-   the clauses of dynamic procedures are appended to the existing ones.  To
-   add new procedures to an existing module without erasing the whole
-   module the predicate compile/2 is to be used.
-<P>
-   Note that the alternative notation [File1, File2, ...  , FileN] may be
-   used instead of compile([File1, File2,...  , FileN]).
-
-<P>
-   In addition to the exceptions listed below, any exception can occur during
-   compilation, because general code may be executed in directives (:-/2), file
-   queries (?-/2), macro transformations and inline expansion code.
-"),
-	args:["File" : "Atom, structure or string, or a list of them."],
-	exceptions:[4 : "File is not instantiated.",
-	    5 : "File is instantiated, but not to an atom or string, or a list of atoms or strings.",
-	    61 : "A predicate that was already defined is later declared to be a tool.",
-	    62 : "Illegal attempt to change a predicate's properties like: tool, dynamic, demon, parallel, calling convention.",
-	    82 : "The module in which the clauses should be compiled is locked.",
-	    94 : "There is already am imported predicate of the same name.",
-	    130 : "The head of a clause is not an atom or a compound term.",
-	    131 : "A subgoal in the body of a clause is not an atom, a compound term or a variable.",
-	    134 : "The clauses of a procedure are not consecutive.",
-	    137 : "A procedure which was previously referenced as built-in or external is now defined as a regular one, or vice versa.",
-	    139 : "This event is invoked at the end of each compiled file, by default it prints the compilation time and size of compiled code.",
-	    143 : "A query in the compiled file has failed. This is by default ignored and the compilation continues.",
-	    145 : "A procedure is being redefined in another file than the original one.",
-	    147 : "This event is raised just before a compilation is aborted because of an error.",
-	    148 : "An unrecognised pragma was used in the code.",
-	    171 : "File does not exist."
-	    ],
-
-	eg:"
-Success:
-   [hanoi].         % compiles the file hanoi.pl
-
-   [eclipse]: sh('cat file1').
-   p:-q(hello).
-   yes.
-   [eclipse]: sh('cat file2').
-   q(X) :- writeln(X).
-   yes.
-   [eclipse]: compile(user), p.
-    p :- writeln(hi).
-    user compiled 92 bytes in 0.00 seconds
-   hi
-   yes.
-   [eclipse]: compile([file1, file2]), p.
-   /home/lp/user/file1 compiled 32 bytes in 0.02 seconds
-   /home/lp/user/file2 compiled 92 bytes in 0.00 seconds
-   hello
-   yes.
-
-
-   % example showing use of relative pathnames.
-   [eclipse]: sh('ls -FR /home/lp/user/pl').
-   a.pl        util/
-
-   /home/lp/user/pl/util:
-   b.pl        c.pl
-
-   yes.
-   [eclipse]: sh('cat /home/lp/user/pl/a.pl').
-   :- compile('util/b').
-   p.
-
-   yes.
-   [eclipse]: compile('/home/lp/user/pl/a').
-   /home/lp/user/pl/util/b.pl compiled 92 bytes in 0.00 seconds
-   /home/lp/user/pl/a.pl compiled 28 bytes in 0.00 seconds
-   yes.
-
-Error:
-   compile(F).            (Error 4).
-   compile(file1/1).      (Error 5).
-   compile(file).         (Error 171).
-
-
-
-",
-	see_also:[ensure_loaded / 1, compile / 2, '.' / 2, compile_stream / 1, compile_term / 1, lib / 1, set_flag / 2, use_module / 1, pragma/1, fcompile:fcompile / 1]]).
-
-:- comment(compile / 2, [
-	summary:"Compiles specified file or list of files File into the specified module
-Module.
-
-",
-	amode:(compile(++,+) is det),
-	desc:html("   Similar to compile/1 except that the specified file or list of files is
-   compiled into the specified module Module.
-
-<P>
-   If the file contains no module/1 or module/3 directive,
-   procedures that occur in File are written to the module Module
-   (overwriting if necessary); the rest of the module remains unchanged.  If
-   the file contains a module directive it works like compile/1.
-
-<P>
-   If Module does not exist, compile/2 will create such a module and
-   compile File into it.
-
-<P>
-   In addition to the exceptions listed below, any exception can occur during
-   compilation, because general code may be executed in directives (:-/2), file
-   queries (?-/2), macro transformations and inline expansion code.
-"),
-	args:["File" : "Atom or string, or list of atoms or strings.", "Module" : "Atom."],
-	exceptions:[4 : "Either File or Module is not instantiated.",
-	    5 : "File is instantiated, but not to an atom or string, or a list of atoms or strings.",
-	    5 : "Module is instantiated, but not to    an atom.",
-	    61 : "A predicate that was already defined is later declared to be a tool.",
-	    62 : "Illegal attempt to change a predicate's properties like: tool, dynamic, demon, parallel, calling convention.",
-	    82 : "The module in which the clauses should be compiled is locked.",
-	    94 : "There is already am imported predicate of the same name.",
-	    130 : "The head of a clause is not an atom or a compound term.",
-	    131 : "A subgoal in the body of a clause is not an atom, a compound term or a variable.",
-	    134 : "The clauses of a procedure are not consecutive.",
-	    136 : "Attempt to redefine a built-in predicate without declaring it first.",
-	    137 : "A procedure which was previously referenced as built-in or external is now defined as a regular one, or vice versa.",
-	    139 : "This event is invoked at the end of each compiled file, by default it prints the compilation time and size of compiled code.",
-	    143 : "A query in the compiled file has failed. This is by default ignored and the compilation continues.",
-	    145 : "A procedure is being redefined in another file than the original one.",
-	    147 : "This event is raised just before a compilation is aborted because of an error.",
-	    148 : "An unrecognised pragma was used in the code.",
-	    171 : "File does not exist."
-	    ],
-
-	eg:"
-Success:
-   [hanoi].         % compiles the file hanoi.pl
-
-   [eclipse]: sh('cat file1').
-   p.
-   yes.
-   [eclipse]: sh('cat file2').
-   q(X) :- write(X).
-   yes.
-   [eclipse]: [user], p.
-    p :- write(hi).
-    user compiled 92 bytes in 0.00 seconds
-   hi
-   yes.
-   [eclipse]: compile([file1, file2],b), p.
-   /home/lp/user/file1 compiled 32 bytes in 0.02 seconds
-   /home/lp/user/file2 compiled 92 bytes in 0.00 seconds
-   hi               % p/0 not compiled into module eclipse
-   yes.
-   [eclipse]: module(b).
-   [b]: p.
-   yes.
-   [b]: q(ho).
-   ho.
-   yes.
-
-
-   % example showing use of relative pathnames.
-   [eclipse]: sh('ls -FR /home/lp/user/pl').
-   a.pl        util/
-
-   /home/lp/user/pl/util:
-   b.pl        c.pl
-
-   yes.
-   [eclipse]: sh('cat /home/lp/user/pl/a.pl').
-   :- compile('util/b').
-   p.
-
-   yes.
-   [eclipse]: compile('/home/lp/user/pl/a', b).
-   /home/lp/user/pl/util/b.pl compiled 92 bytes in 0.00 seconds
-
-   /home/lp/user/pl/a.pl compiled 28 bytes in 0.00 seconds
-   yes.
-
-Error:
-   compile(file1,M).         (Error 4).
-   compile(F,eclipse).         (Error 4).
-   compile(file1, \"b\").      (Error 5).
-   compile(file1/1, b).      (Error 5).
-   compile(file,eclipse).      (Error 171).
-
-
-
-",
-	see_also:[compile / 1, compile_stream / 1, compile_term / 1, set_flag / 2, use_module / 1, pragma/1, fcompile:fcompile / 1]]).
-
-:- comment(compile_stream / 1, [
-	summary:"Compile the given stream Stream.
-
-",
-	amode:(compile_stream(+) is det),
-	desc:html("   Used to compile from an arbitrary input stream Stream.
-
-<P>
-   Stream may be a physical stream number or a reserved or user-defined
-   symbolic stream name.  The stream can be of any type, e.g. file, tty,
-   socket, queue, string, etc.
-
-<P>
-   If Stream is an opened input stream, its content is read and compiled as
-   in compile/1.  The compilation stops at the stream end, but the stream
-   remains open.
-
-<P>
-"),
-	args:["Stream" : "Integer or atom."],
-	exceptions:[4 : "Stream is not instantiated.",
-		5 : "Stream is instantiated, but not to an atom or integer.",
-		192 : "Stream is in an illegal stream mode.",
-		193 : "Stream is an illegal stream specification."],
-	eg:"
-compile_string(String) :-
-	open(string(String), read, S),
-	compile_stream(S),
-	close(S).
-
-
-Error:
-     compile_stream(X).      (Error 4).
-     compile_stream(1.0).    (Error 5).
-     compile_stream(1).      (Error 192).
-     compile_stream(2).      (Error 192).
-     compile_stream(20).     (Error 192).
-     compile_stream(a).      (Error 193).
-
-
-
-",
-	see_also:[compile / 1, compile / 2, compiled_stream / 1, compile_term / 1, current_compiled_file / 3, set_flag / 2, pragma/1]]).
-
-:- comment(compile_term / 1, [
-	summary:"Compile specified clause or list of clauses Clause.
-
-",
-	amode:(compile_term(+) is det),
-	desc:html("\
-   Compiles the specified clause, or list of clauses, similar to
-   compilation from a file.  If the clauses are for a predicate that
-   was undefined so far, a new static predicate will be created.  If
-   the clauses are for an existing static predicate, the new clauses
-   will replace the old definition of the predicate.  If the clauses
-   are for an existing dynamic predicate, the new clauses will be
-   added to the exiting ones for the dynamic predicate.
-<P>
-   If Clause is a list, the list elements are interpreted as consecutive
-   clauses.  Otherwise, Clause will be taken as a single clause.
-   Each clause may be a fact or a rule.
-<P>
-   This predicate works almost as if all the clauses in the list
-   were written into a file and this file was then compiled using
-   compile/1. It does however not perform any inline expansion on
-   the goals in the clause bodies. To do this, explicit preprocessing
-   of the clauses is required (e.g. using expand_goal/2). This may
-   change in a future release.
-<P>
-   The difference between compile_term/1 and assert/1 is that
-   the predicates for which clauses are compiled are not necessarily
-   dynamic with compile_term/1, unless explicitly declared as such.
-   Therefore clauses compiled with compile_term/1 usually replace the
-   existing ones for the same predicate, moreover their source form is not
-   available.  Therefore, it can be used instead of assert/1 if the
-   properties of dynamic procedures are not required.
-<P>
-   Unlike compiling a file, when an event occurs which is not just a
-   warning, the following clauses are not compiled, the compilation is
-   aborted.
-<P>
-   See compile/1 for a more complete list of exceptions that can occur
-   during compilation.
-"),
-	args:["Clause" : "A valid Prolog clause, or list of clauses."],
-	exceptions:[4 : "Clause is a partial list.",
-	    5 : "Clause is a list whose tail is neither nil nor a variable.",
-	    82 : "The module in which the clauses should be compiled is locked.",
-	    94 : "There is already am imported predicate of the same name.",
-	    130 : "The head of a clause is not an atom or a compound term.",
-	    131 : "A subgoal in the body of a clause is not an atom, a compound term or a variable.",
-	    134 : "The clauses of a procedure are not consecutive.",
-	    136 : "Trying to redefine a built-in predicate without having declared it.",
-	    137 : "A procedure which was previously referenced as built-in or external is now defined as a regular one, or vice versa.",
-	    143 : "One of the clauses was a query and it failed."],
-
-	eg:"
-Success:
-   % several facts for different predicates
-   ?- compile_term([p(a), p(b), q(1), r(\"abc\")]).
-
-   % a single clause
-   ?- compile_term(p(X) :- q(X)).
-
-   % two clauses for the same predicate
-   ?- compile_term([p([]), (p([X|Xs]) :- writeln(X), p(Xs))]).
-
-   % a declaration and two clauses
-   ?- compile_term([(:- export p/1), p(a), p(b)]).
-
-
-
-   % Compile_term/1 can be used for conditional compilation:
-   :- (exists('/usr/ucb') -> S = bsd; S = sysV),
-      compile_term(os(S)).
-
-   % Even a whole procedure can be conditionally compiled:
-   :- os(bsd) ->
-    compile_term([
-        (pred1(X) :- pred2(X), pred3(X)),
-        (pred1(Y) :- ...           )]).
-
-
-Error:
-
-   compile_term([p|X]).          (Error 4).
-   compile_term([a|b]).          (Error 5).
-   compile_term([[a]]).          (Error 94).
-   compile_term([(p :- write(a)), write(b)]).      (Error 94).
-   compile_term(\"a\").          (Error 130).
-   compile_term([\"a\" :- b]).   (Error 130).
-   compile_term([p(X) :- 1]).    (Error 131).
-   compile_term([a, b, a]).      (Error 134).
-   compile_term(!).              (Error 135).
-   compile_term(:- var(a)).      (Error 143).
-",
-	see_also:[compile / 1, compile / 2, '.' / 2, compile_stream / 1,
-	assert / 1, expand_goal/2, set_flag / 2, pragma/1]]).
 
 :- comment(current_built_in / 1, [
 	summary:"Succeeds if the predicate defined by PredSpec is a visible built-in
@@ -1611,93 +1274,445 @@ transformation (e.g. inlining) of calls to Pred.
 :- tool(compile/1).
 :- tool(compile/2).
 :- tool(compile_stream/1).
-:- tool(compile_stream/2).
 :- tool(compile_term/1).
 :- tool(compile_term/2).
 :- tool(compile_term_annotated/3).
 
-:- comment(compile/1, [
-    summary:"Compile a file",
-    args:["File":"File name (atom or string) or stream(Stream)"],
-    amode:compile(++),
-    see_also:[compile/2,compile_stream/1,compile_term/1,compile_term/2,struct(options)],
-    desc:html("
-    Compile a file with default options.  The resulting code is directly
-    loaded into memory and ready for execution.  Equivalent to
-    <PRE>
-	compile(File, [])
-    </PRE>
-    ")
-]).
+
+:- comment(compile / 1, [
+	summary:"Compile specified file, or list of files, with default options",
+	amode:(compile(++) is det),
+	desc:html("
+    Compiles the specified ECLiPSE source file or list of source files.
+    The default options are used, and the resulting code is directly
+    loaded into memory and ready for execution.  See compile/2 for details.
+"),
+	args:["File" : "Atom, structure or string, or a list of them."],
+	exceptions:[4 : "File is not instantiated.",
+	    5 : "File is instantiated, but not to an atom or string, or a list of atoms or strings.",
+	    61 : "A predicate that was already defined is later declared to be a tool.",
+	    62 : "Illegal attempt to change a predicate's properties like: tool, dynamic, demon, parallel, calling convention.",
+	    82 : "The module in which the clauses should be compiled is locked.",
+	    94 : "There is already am imported predicate of the same name.",
+	    130 : "The head of a clause is not an atom or a compound term.",
+	    131 : "A subgoal in the body of a clause is not an atom, a compound term or a variable.",
+	    134 : "The clauses of a procedure are not consecutive.",
+	    137 : "A procedure which was previously referenced as built-in or external is now defined as a regular one, or vice versa.",
+	    139 : "This event is invoked at the end of each compiled file, by default it prints the compilation time and size of compiled code.",
+	    143 : "A query in the compiled file has failed. This is by default ignored and the compilation continues.",
+	    145 : "A procedure is being redefined in another file than the original one.",
+	    147 : "This event is raised just before a compilation is aborted because of an error.",
+	    148 : "An unrecognised pragma was used in the code.",
+	    171 : "File does not exist."
+	    ],
+
+	eg:"
+Success:
+   [hanoi].         % compiles the file hanoi.pl
+
+   [eclipse]: sh('cat file1').
+   p:-q(hello).
+   yes.
+   [eclipse]: sh('cat file2').
+   q(X) :- writeln(X).
+   yes.
+   [eclipse]: compile(user), p.
+    p :- writeln(hi).
+    user compiled 92 bytes in 0.00 seconds
+   hi
+   yes.
+   [eclipse]: compile([file1, file2]), p.
+   /home/lp/user/file1 compiled 32 bytes in 0.02 seconds
+   /home/lp/user/file2 compiled 92 bytes in 0.00 seconds
+   hello
+   yes.
+
+
+   % example showing use of relative pathnames.
+   [eclipse]: sh('ls -FR /home/lp/user/pl').
+   a.pl        util/
+
+   /home/lp/user/pl/util:
+   b.pl        c.pl
+
+   yes.
+   [eclipse]: sh('cat /home/lp/user/pl/a.pl').
+   :- compile('util/b').
+   p.
+
+   yes.
+   [eclipse]: compile('/home/lp/user/pl/a').
+   /home/lp/user/pl/util/b.pl compiled 92 bytes in 0.00 seconds
+   /home/lp/user/pl/a.pl compiled 28 bytes in 0.00 seconds
+   yes.
+
+Error:
+   compile(F).            (Error 4).
+   compile(file1/1).      (Error 5).
+   compile(file).         (Error 171).
+",
+    see_also:[compile/2,compile_stream/1,compile_term/1,compile_term/2,
+    	ensure_loaded/1,lib/1,use_module/1,pragma/1,
+	fcompile:fcompile / 1]]).
+
 
 :- comment(compile/2, [
-    summary:"Compile a file",
-    args:["File":"File name (atom or string) or structure stream(Stream)",
+    summary:"Compile specified file, or list of files, with given options",
+    args:["Source":"Source file name (atom or string) or structure stream(Stream)",
     	"Options":"List of compiler options"],
     amode:compile(++,++),
-    see_also:[compile/1,compile_stream/1,compile_term/1,compile_term/2,struct(options)],
     desc:html("
-    Compile a file, with output according to options.
-    <P>
-    For backward compatibility, we allow a module name in place
-    of the Options-list.
-    ")
-]).
+   Compiles the specified ECLiPSE source file or list of source files,
+   with the given options.  See below for a detailed description of the
+   options.
+<P>
+<h3>Source Location</h3>
+   The atom or string File must be instantiated to a legitimate
+   specification for an existing file except for the suffix.
+   The predicate tries to add to it the source suffixes from the list
+   specified in the global flag prolog_suffix, and look for an existing and
+   readable file.  As soon as a file is found which exists, it is taken as
+   the input file name.  The default source suffixes are empty suffix,
+   .ecl and .pl.
+<P>
+   If File is of the form library(Name), the predicates looks for the file
+   in the directories from the library_path flag.
+<P>
+   If File is the special atom 'user', the source will be taken from
+   the current 'input' stream, i.e. will usually generate a prompt
+   at which clauses can be typed in.  In this case, input must be
+   terminated either by typing CTRL-D (on Unix), CTRL-Z + RETURN
+   (on Windows), or with the single atom end_of_file, followed by
+   a fullstop/period.
+<P>
+   If File is the special form stream(Stream), then the source is taken
+   from the given stream (which must be already opened).  The stream
+   content is compiled until the end of stream, but the stream is not
+   closed.
+<P>
+   When File is not in the current directory, ECLiPSe first changes the
+   current directory to that of the file.  Consequently, recursive
+   compile/1 calls inside compiled files can use relative pathnames.  This
+   makes it possible to compile the top program files from any directory
+   and still use only local file names inside.  At the end of the compilation,
+   the current directory is changed back to the initial one.  This has the
+   side effect that all calls to cd/1 in queries in the compiled file are
+   ignored.
+<P>
 
-:- comment(compile_stream/1, [
-    summary:"Compile from an input stream",
-    args:["Stream":"Stream name or handle"],
-    amode:compile_stream(++),
-    see_also:[compile/1,compile/2,compile_term/1,compile_term/2,compile_stream/2,struct(options)],
-    desc:html("
+<h3>Common Compilation Options</h3>
+<DL>
+<DT>debug:</DT><DD>
+    This option (off/on) determines whether the resulting code contains
+    debugging information.  If off, subgoals of the compiled predicates will
+    not be visible to the debugger, the code will be significantly smaller,
+    and slightly faster.
+    The default value is taken from the global flag debug_compile.
+</DD>
+<DT>expand_goals:</DT><DD>
+    This option (off/on, default taken from global flag goal_expansion)
+    determines whether inlining (a.k.a. goals macros) is performed.
+    Should only be switched off if a problem with inlining is suspected.
+</DD>
+<DT>load:</DT><DD>
+    When loading is requested, the abstract machine code produced by the
+    compiler gets assembled and loaded into memory as executable code.
+    Values for the 'load' option are:
+    <DL>
+    <DT>none</DT><DD>
+	Do not load any code into memory, do not execute queries 
+	nor directives, but interpret pragmas.
+    </DD><DT>new</DT><DD>
+	Do not overwrite any code in memory, but load new predicates.
+	Do not re-create modules, but create new ones and erase them
+	again after compilation. For existing modules, erase pragmas.
+	Do not execute queries, but call directives and interpret pragmas.
+    </DD><DT>all (default)</DT><DD>
+	Load and replace code in memory, create/re-create all modules, 
+	interpret pragmas, call directives, execute queries.
+    </DD></DL>
+</DD>
+<DT>opt_level:</DT><DD>
+    Currently the integer 0 or 1, with 1 the default. Setting this to 0
+    will disable certain compiler optimizations and usually reduce performance.
+</DD>
+<DT>outdir:</DT><DD>
+    The destination directory for output files is determined by the 'outdir'
+    option. The default is to place output files in the same directory as
+    the corresponding input file (\"\").
+</DD>
+<DT>output:</DT><DD>
+    The abstract machine code which is the result of the compilation can
+    be output in various forms.  Values for 'output' option (default: none):
+    <DL>
+    <DT>none</DT><DD>
+	no output (but code may be loaded, see load option),
+    </DD><DT>asm</DT><DD>
+	output compiled code in asm format to input file with .asm suffix.
+        This format represents the code as WAM code that can be loaded back
+        into ECLiPSe using the assembler (lib(asm)).  
+    </DD><DT>asm(File)</DT><DD>
+	output compiled code in asm format to File.
+    </DD><DT>eco</DT><DD>
+	output compiled code in eco format to input file with .eco suffix
+	This format can be loaded using ensure_loaded/1 or the compiler
+	itself.
+    </DD><DT>eco(File)</DT><DD>
+	output compiled code in eco format,
+    </DD><DT>print</DT><DD>
+	print resulting WAM code to the output stream,
+    </DD><DT>print(Stream)</DT><DD>
+	print WAM code to Stream,
+    </DD><DT>listing</DT><DD>
+	print WAM code to input file with .lst suffix,
+    </DD><DT>listing(File)</DT><DD>
+	print WAM code to File,
+    </DD></DL>
+</DD>
+<DT>verbose:</DT><DD>
+    This option controls whether the compiler produces any log messages to
+    the log_output stream. The value is a positive integer. Level 0 is the
+    most silent, 1 is quiet, 2 is verbose.  Level 1 produces a log of all
+    compiled predicates. Default: 0.
+</DD>
+<DT>warnings:</DT><DD>
+    Various print_xxx options allow the output of internal compiler data
+    structures for debugging purposes.
+</DD>
+</DL>
+<h3>Expert Options</h3>
+<DL>
+<DT>expand_clauses:</DT><DD>
+    This option (off/on, default:on) determines whether clause macros, such
+    as DCGs and delay clauses are being expanded.  Should not be switched off.
+</DD>
+<DT>print_normalised:</DT><DD>
+    Print result of the normalisation pass (on/off, default:off).
+</DD>
+<DT>print_indexes:</DT><DD>
+    Print result of indexing  analysis (on/off, default:off).
+</DD>
+<DT>print_lifetimes:</DT><DD>
+    Print result of the variable lifetime analysis (on/off, default:off).
+</DD>
+<DT>print_raw_code:</DT><DD>
+    Print annotated WAM code before register allocation (on/off, default:off).
+</DD>
+<DT>print_final_code:</DT><DD>
+    Print annotated WAM code after register allocation (on/off, default:off).
+</DD>
+<DT>skip:</DT><DD>
+    This option (off/on, default:off) determines whether all compiled
+    predicates have their 'skip' flag set by default.  This means that
+    subgoals of these predicates will be hidden in the debugger trace,
+    unless the flag is reset at runtime.
+</DD>
+<DT>srcroot:</DT><DD>
+    This is used to make the compilation result (e.g. .eco files) independent
+    of absolute source file names: when the option is set to a non-empty string,
+    wich is a parent directory of a source file, the source file property of the
+    compiled predicates will be set as a pathname relative to the given
+    root directory.
+</DD>
+<DT>system:</DT><DD>
+    This option (off/on, default:off) causes all compiled predicates to
+    have their type-flag set to 'built_in'.  This is used for compiling
+    system files.
+</DD>
+</DL>
+
+<h3>Compiling Modules</h3>
+   In the absence of module-directives (module/1,3) within the file, the
+   file content is compiled into the module from which compile/2 itself
+   was called.  This context module may be modified using the @/2 notation,
+   i.e. compile(File,Options)@Module.  Existing static predicates will
+   be redefined, and clauses for dynamic predicates appended to the
+   existing ones (unless the 'load' option requests otherwise).
+<P>
+   If the compiled file contains module directives (module/1,3), these
+   specify to which module(s) the compiled code belongs.  Module directives
+   are effective from the point where they occur until the next module
+   directive, or until the end of file.  If a module directive refers
+   to a module that exists already, this module is erased and redefined
+   (unless the 'load' option requests otherwise).
+<P>
+   For backward compatibility with older ECLiPSe versions, we allow a
+   module name in place of the Options-list.  If this module does not exist,
+   compile/2 will create such a module and compile the content of file
+   into this module, as with compile(File)@Module.
+<P>
+   In addition to the exceptions listed below, any exception can occur during
+   compilation, because general code may be executed in directives (:-/2), file
+   queries (?-/2), macro transformations and inline expansion code.
+    "),
+	exceptions:[4 : "Either File or Options is not instantiated.",
+	    5 : "File is instantiated, but not to a valid source specification.",
+	    5 : "Options is not a valid options list, nor a module name.",
+	    61 : "A predicate that was already defined is later declared to be a tool.",
+	    62 : "Illegal attempt to change a predicate's properties like: tool, dynamic, demon, parallel, calling convention.",
+	    82 : "The module in which the clauses should be compiled is locked.",
+	    94 : "There is already am imported predicate of the same name.",
+	    130 : "The head of a clause is not an atom or a compound term.",
+	    131 : "A subgoal in the body of a clause is not an atom, a compound term or a variable.",
+	    134 : "The clauses of a procedure are not consecutive.",
+	    136 : "Attempt to redefine a built-in predicate without declaring it first.",
+	    137 : "A procedure which was previously referenced as built-in or external is now defined as a regular one, or vice versa.",
+	    139 : "This event is invoked at the end of each compiled file, by default it prints the compilation time and size of compiled code.",
+	    143 : "A query in the compiled file has failed. This is by default ignored and the compilation continues.",
+	    145 : "A procedure is being redefined in another file than the original one.",
+	    147 : "This event is raised just before a compilation is aborted because of an error.",
+	    148 : "An unrecognised pragma was used in the code.",
+	    171 : "File does not exist."
+	    ],
+
+	eg:"
+",
+    see_also:[compile/1,compile_stream/1,compile_term/1,compile_term/2,
+    	ensure_loaded/1,lib/1,use_module/1,pragma/1,
+	fcompile:fcompile / 1]]).
+
+
+:- comment(compile_stream / 1, [
+	summary:"Compile the given stream Stream with default options",
+	amode:(compile_stream(+) is det),
+	desc:html("
     Compile from an (already opened) input stream with default options.
     The resulting code is directly loaded into memory and ready for execution.
     Equivalent to
     <PRE>
 	compile(stream(Stream), [])
     </PRE>
-    ")
-]).
+   Stream may be a physical stream number or a reserved or user-defined
+   symbolic stream name.  The stream can be of any type, e.g. file, tty,
+   socket, queue, string, etc.
+<P>
+   If Stream is an opened input stream, its content is read and compiled as
+   in compile/1.  The compilation stops at the stream end, but the stream
+   remains open.
+<P>
+"),
+	args:["Stream" : "Integer or atom."],
+	exceptions:[4 : "Stream is not instantiated.",
+		5 : "Stream is instantiated, but not to an atom or integer.",
+		192 : "Stream is in an illegal stream mode.",
+		193 : "Stream is an illegal stream specification."],
+	eg:"
+compile_string(String) :-
+	open(string(String), read, S),
+	compile_stream(S),
+	close(S).
 
-:- comment(compile_stream/2, [
-    summary:"Compile from an input stream",
-    args:["Stream":"Stream name or handle",
-    	"Options":"List of compiler options"],
-    amode:compile_stream(++,++),
-    see_also:[compile/1,compile/2,compile_term/1,compile_term/2,compile_stream/1,struct(options)],
-    desc:html("
-    Compile from an (already opened) input stream with the given options.
-    Equivalent to
-    <PRE>
-	compile(stream(Stream), Options)
-    </PRE>
-    ")
-]).
 
-:- comment(compile_term/1, [
-    summary:"Compile a list of terms",
-    args:["Clauses":"List of clauses and/or directives"],
-    amode:compile_term(+),
-    see_also:[compile/1,compile/2,compile_stream/1,compile_term/2],
-    desc:html("
-    Compile a list of clauses and queries.
-    Handling of directives: include/1, ./2 and currently module/1
-    are not allowed.  Pragmas are interpreted. Others are called
-    as goals.
-    ")
-]).
+Error:
+     compile_stream(X).      (Error 4).
+     compile_stream(1.0).    (Error 5).
+     compile_stream(1).      (Error 192).
+     compile_stream(2).      (Error 192).
+     compile_stream(20).     (Error 192).
+     compile_stream(a).      (Error 193).
+",
+	see_also:[compile / 1, compile / 2, compile_term / 1, pragma/1]]).
 
-:- comment(compile_term/2, [
-    summary:"Compile a list of terms",
+
+:- comment(compile_term / 2, [
+	summary:"Compile specified clause or list of clauses, with the given options",
+	amode:(compile_term(+,++) is det),
     args:["Clauses":"List of clauses and/or directives",
     	"Options":"List of compiler options"],
-    amode:compile_term(+,++),
-    see_also:[compile/1,compile/2,compile_stream/1,compile_term/1,struct(options)],
+	desc:html("\
+   Compiles the specified clause, or list of clauses, similar to
+   compilation from a file.  If the clauses are for a predicate that
+   was undefined so far, a new static predicate will be created.  If
+   the clauses are for an existing static predicate, the new clauses
+   will replace the old definition of the predicate.  If the clauses
+   are for an existing dynamic predicate, the new clauses will be
+   added to the exiting ones for the dynamic predicate.
+<P>
+   If Clause is a list, the list elements are interpreted as consecutive
+   clauses.  Otherwise, Clause will be taken as a single clause.
+   Each clause may be a fact or a rule.
+<P>
+   As with source files, the list may also contain directives (:- xxx)
+   but their handling is slightly different: include/1, if/1, elif/1,
+   else/0, endif/0 and module directives are not allowed.  Pragmas are
+   interpreted.  All others, as well as file queries (?- xxx) are
+   called as goals.
+<P>
+   This predicate works almost as if all the clauses in the list
+   were written into a file and this file was then compiled using
+   compile/1.  Unlike in earlier releases, clause and goal expansion
+   is performed, according to the default compiler options.
+   General macro-expansion is not performed, since this is normally
+   the responsibility of the parser.  If required, it must be done
+   explicitly via expand_macros/2.
+<P>
+   The difference between compile_term/1 and assert/1 is that
+   the predicates for which clauses are compiled are not necessarily
+   dynamic with compile_term/1, unless explicitly declared as such.
+   Therefore clauses compiled with compile_term/1 usually replace the
+   existing ones for the same predicate, moreover their source form is not
+   available.  Therefore, it can be used instead of assert/1 if the
+   properties of dynamic procedures are not required.
+<P>
+   Unlike compiling a file, when an event occurs which is not just a
+   warning, the following clauses are not compiled, the compilation is
+   aborted.
+<P>
+   See compile/2 for a description of compiler options and a exceptions.
+"),
+	exceptions:[4 : "Clause is a partial list.",
+	    5 : "Clause is a list whose tail is neither nil nor a variable.",
+	    82 : "The module in which the clauses should be compiled is locked.",
+	    94 : "There is already am imported predicate of the same name.",
+	    130 : "The head of a clause is not an atom or a compound term.",
+	    131 : "A subgoal in the body of a clause is not an atom, a compound term or a variable.",
+	    134 : "The clauses of a procedure are not consecutive.",
+	    136 : "Trying to redefine a built-in predicate without having declared it.",
+	    137 : "A procedure which was previously referenced as built-in or external is now defined as a regular one, or vice versa.",
+	    143 : "One of the clauses was a query and it failed."],
+
+	eg:"
+Success:
+   % several facts for different predicates
+   ?- compile_term([p(a), p(b), q(1), r(\"abc\")]).
+
+   % a single clause
+   ?- compile_term(p(X) :- q(X)).
+
+   % two clauses for the same predicate
+   ?- compile_term([p([]), (p([X|Xs]) :- writeln(X), p(Xs))]).
+
+   % a declaration and two clauses
+   ?- compile_term([(:- export p/1), p(a), p(b)]).
+
+
+Error:
+
+   compile_term([p|X]).          (Error 4).
+   compile_term([a|b]).          (Error 5).
+   compile_term([[a]]).          (Error 94).
+   compile_term([(p :- write(a)), write(b)]).      (Error 94).
+   compile_term(\"a\").          (Error 130).
+   compile_term([\"a\" :- b]).   (Error 130).
+   compile_term([p(X) :- 1]).    (Error 131).
+   compile_term([a, b, a]).      (Error 134).
+   compile_term(!).              (Error 135).
+   compile_term(:- var(a)).      (Error 143).
+",
+	see_also:[compile / 1, compile / 2, '.' / 2, compile_stream / 1,
+	compile_term/2, compile_term_annotated/3,
+	assert / 1, expand_macros/2, set_flag / 2, pragma/1]]).
+
+
+:- comment(compile_term/1, [
+    summary:"Compile a list of clauses using the default options",
+    args:["Clauses":"List of clauses and/or directives"],
+    amode:compile_term(+),
+    see_also:[compile/1,compile/2,compile_stream/1,compile_term/2,
+	    compile_term_annotated/3],
     desc:html("
-    Compile a list of clauses and queries.
-    Handling of directives: include/1, ./2 and currently module/1
-    are not allowed.  Pragmas are interpreted. Others are treated
-    according to the setting of the 'load' option.
+    Compile a list of clauses and directives/queries using the default compiler
+    options. See compile_term/2 for details.
     ")
 ]).
 
@@ -1707,18 +1722,20 @@ transformation (e.g. inlining) of calls to Pred.
         "Annotated":"Annotated form of Clauses, or variable",
     	"Options":"List of compiler options"],
     amode:compile_term_annotated(+,?,++),
-    see_also:[compile/1,compile_term/2,compile/2,compile_term/1,read_annotated/2,read_annotated/3,struct(options)],
+    see_also:[compile/1,compile_term/2,compile/2,compile_term/1,read_annotated/2,read_annotated/3],
     desc:html("
-    Compile a list of clauses and queries, possibly with source information,
-    supplied by Annotated. This predicate is provided to allow the user to
-    compile clauses that the user generate from processing some source file,
-    with the mapping to the original unprocessed source information
-    supplied by Annotated. If Annotated is a variable, then no source 
-    information is available, and the predicate behaves exactly like 
-    compile_term/2. If Annotated is instantiated, it must corresponded to
-    the annotated form of Clauses, i.e. as returned by read_annotated/2,3. 
-    Handling of directives: include/1, ./2 and currently module/1
-    are not allowed.  Pragmas are interpreted. Others are treated
-    according to the setting of the 'load' option.
+    Compile a list of clauses and queries, when source location information
+    is available.  Such annotated source clauses occur inside inlining
+    transformations (inline/2) or macro transformations (macro/3), when
+    using library(source_processor), or when using read_annotated/3.
+    Code compiled with source location annotations can be traced more
+    easily in the debugger.
+<P>
+    If Annotated is a variable, then no source information is available,
+    and the predicate behaves exactly like compile_term/2. If Annotated
+    is instantiated, it must corresponded to the annotated form of Clauses,
+    i.e. as if returned by read_annotated/2,3.
+<P>
+    See compile_term/2 for details.
     ")
 ]).
