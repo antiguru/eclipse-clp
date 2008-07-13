@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.4 2008/07/10 00:33:05 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.5 2008/07/13 13:40:31 jschimpf Exp $
  */
 
 /*
@@ -115,14 +115,15 @@ extern vmcode	it_fail_code_[],
 #define DynEnvSize(e)	(((((e)-1)->tag.kernel >> 8) & 0xffff) + 1)
 #define DynEnvFlags(e)	(((e)-1)->tag.kernel)
 #define DynEnvVal(e)	(((e)-1)->val.wptr)
-#define DynEnvDbgPri(e) ((e)-2)
-#define DynEnvDbgPort(e) ((e)-3)
-#define DynEnvDbgInvoc(e) ((e)-4)
-#define DynEnvDbgPath(e) ((e)-5)
-#define DynEnvDbgLine(e) ((e)-6)
-#define DynEnvDbgFrom(e) ((e)-7)
-#define DynEnvDbgTo(e)   ((e)-8)
-#define DYNENVDBGSIZE   7
+#define DynEnvDE(e)	((e)-2)
+#define DynEnvDbgPri(e) ((e)-3)
+#define DynEnvDbgPort(e) ((e)-4)
+#define DynEnvDbgInvoc(e) ((e)-5)
+#define DynEnvDbgPath(e) ((e)-6)
+#define DynEnvDbgLine(e) ((e)-7)
+#define DynEnvDbgFrom(e) ((e)-8)
+#define DynEnvDbgTo(e)   ((e)-9)
+#define DYNENVDBGSIZE   8
 
 #define PushDynEnvHdr(NrSlots, Flags, Val) \
 	    (--SP)->tag.all = ((NrSlots) << 8) | Flags | TPTR;\
@@ -1437,7 +1438,7 @@ extern dident transf_did ARGS((long));
 
 #define Unskipped(td)	((TfFlags(td) & (TF_SKIPPED|TF_INTRACER)) == 0)
 #define Tracing		(TD && Unskipped(TD))
-#define TracingWakes	(TD && (TfFlags(TD) & (TF_INTRACER)) == 0)
+#define TracingWakes(invoc)	(TD && !(TfFlags(TD) & (TF_INTRACER)) && (!(TfFlags(TD) & TF_SKIPPED) || (invoc)))
 
 
 /*---------------------------------------------------------------------------

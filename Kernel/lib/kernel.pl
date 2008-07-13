@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.3 2008/07/08 20:05:51 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.4 2008/07/13 13:43:42 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -3785,6 +3785,8 @@ inline_(Proc, Trans, Module) :-
 	(\+)/1,
 	abort/0, 
 	abolish_record/1,
+	add_attribute/2,
+	add_attribute/3,
 	autoload/2,
 	autoload_tool/2,
 	autoload_system/2,
@@ -3810,14 +3812,16 @@ inline_(Proc, Trans, Module) :-
 	create_module/3,
 	current_error/1,
 	current_pragma/1,
-	current_suspension/1,
 	current_after_event/1,
 	current_after_events/1,
+	current_interrupt/2,
 	current_record/1,
+	current_suspension/1,
 	debug/1,
 	decval/1,
 	define_macro/3,
 	(delay)/1,
+	(demon)/1,
 	dim/2,
 	handle_discontiguous_clause/3,
 	discontiguous/1,
@@ -3856,6 +3860,7 @@ inline_(Proc, Trans, Module) :-
 	false/0,
 	flatten_array/2,
 	get_attribute/2,
+	get_char/1,
 	get_chtab/2,
 	get_error_handler/3, 
 	get_event_handler/3, 
@@ -3870,17 +3875,14 @@ inline_(Proc, Trans, Module) :-
 	(help)/0, 
 	(import)/1,
 	incval/1,
-	current_interrupt/2,
-	get_char/1,
 	insert_suspension/3,
-	kill_suspension/1,
-	add_attribute/2,
-	add_attribute/3,
 	inline/2,
 	(is)/2,
 	is_predicate/1,
+	kill_suspension/1,
 	lib/1,
 	lib/2,
+	load_eco/2,
 	(local)/1,
 	local_record/1,
 	lock/0,
@@ -3898,7 +3900,6 @@ inline_(Proc, Trans, Module) :-
 	new_socket_server/3,
 	(not)/1,
 	(once)/1,
-	(demon)/1,
 	(parallel)/1,
 %	par_all/2,
 %	par_findall/4,

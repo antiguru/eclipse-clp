@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.4 2008/07/10 00:33:05 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.5 2008/07/13 13:40:31 jschimpf Exp $
  */
 
 /********************************************************************
@@ -222,8 +222,6 @@ make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
     /*
      * The previous instruction leaves the function result in argument
      * register A[arity+1], which then needs to be unified with A[arity].
-     * CAUTION: if the built-in re-delays, the previous instruction
-     * executes a Retd_nowake internally, and the following code is skipped!
      */
     Store_3(Get_valueAMAM,Address(arity),Address(arity+1))
     Store_i(Retd_nowake);	/* because inlined calls don't wake either */
@@ -882,7 +880,7 @@ code_init(int flags)
     Make_Default_Prefix(did1)
     if (flags & INIT_SHARED)
     {
-	Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF|DEBUG_SK, code);
+	Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF, code);
     }
     Store_2(Gc, 1);
     Store_i(Ret)
@@ -906,7 +904,7 @@ code_init(int flags)
     Make_Default_Prefix(did1)
     if (flags & INIT_SHARED)
     {
-	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF|DEBUG_SK, code);
+	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF, code);
     }
     do_idle_code_ = code;
     Store_2(JmpdA, do_idle_code_);
@@ -1144,68 +1142,68 @@ code_init(int flags)
 /*
  * Create the built-ins that are implemented by a single abstract machine instruction
  */
-    make_test_bip(d_.fail, Failure, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.unify, Get_valueAMAM, U_UNIFY|DEBUG_SK, BoundArg(1, NONVAR) | BoundArg(2, NONVAR), -1, EXPORT);
+    make_test_bip(d_.fail, Failure, 0, 0, -1, EXPORT);
+    make_test_bip(d_.unify, Get_valueAMAM, U_UNIFY, BoundArg(1, NONVAR) | BoundArg(2, NONVAR), -1, EXPORT);
 
-    make_test_bip(in_dict("set_bip_error",1), BI_SetBipError, DEBUG_SK, 0, -1, EXPORT);
-    make_function_bip(in_dict("get_bip_error",1), BI_GetBipError, U_SIMPLE|DEBUG_SK, BoundArg(1,CONSTANT), -1);
-    make_function_bip(in_dict("get_cut",1), SavecutAM, U_SIMPLE|DEBUG_SK, BoundArg(1,CONSTANT), -1);
+    make_test_bip(in_dict("set_bip_error",1), BI_SetBipError, 0, 0, -1, EXPORT);
+    make_function_bip(in_dict("get_bip_error",1), BI_GetBipError, U_SIMPLE, BoundArg(1,CONSTANT), -1);
+    make_function_bip(in_dict("get_cut",1), SavecutAM, U_SIMPLE, BoundArg(1,CONSTANT), -1);
 
-    make_test_bip(in_dict("sys_return",1), BI_Exit, DEBUG_SK, 0, -1, LOCAL);
-    make_test_bip(in_dict("cut_to_stamp",2), BI_CutToStamp, DEBUG_SK, 0, 0, EXPORT);
-    make_test_bip(in_dict("cont_debug",0), BI_ContDebug, DEBUG_SK, 0, -1, LOCAL);
+    make_test_bip(in_dict("sys_return",1), BI_Exit, 0, 0, -1, LOCAL);
+    make_test_bip(in_dict("cut_to_stamp",2), BI_CutToStamp, 0, 0, 0, EXPORT);
+    make_test_bip(in_dict("cont_debug",0), BI_ContDebug, 0, 0, -1, LOCAL);
 
-    make_test_bip(d_.free1, BI_Free, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.is_suspension, BI_IsSuspension, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.is_event, BI_IsEvent, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.is_handle, BI_IsHandle, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.var, BI_Var, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.nonvar, BI_NonVar, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.meta, BI_Meta, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.atom, BI_Atom, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.integer, BI_Integer, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.rational1, BI_Rational, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.real, BI_Real, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.float1, BI_Float, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.breal, BI_Breal, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.string, BI_String, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.number, BI_Number, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.atomic, BI_Atomic, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.compound, BI_Compound, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.is_list, BI_IsList, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.bignum, BI_Bignum, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(in_dict("callable",1), BI_Callable, DEBUG_SK, 0, -1, EXPORT);
+    make_test_bip(d_.free1, BI_Free, 0, 0, -1, EXPORT);
+    make_test_bip(d_.is_suspension, BI_IsSuspension, 0, 0, -1, EXPORT);
+    make_test_bip(d_.is_event, BI_IsEvent, 0, 0, -1, EXPORT);
+    make_test_bip(d_.is_handle, BI_IsHandle, 0, 0, -1, EXPORT);
+    make_test_bip(d_.var, BI_Var, 0, 0, -1, EXPORT);
+    make_test_bip(d_.nonvar, BI_NonVar, 0, 0, -1, EXPORT);
+    make_test_bip(d_.meta, BI_Meta, 0, 0, -1, EXPORT);
+    make_test_bip(d_.atom, BI_Atom, 0, 0, -1, EXPORT);
+    make_test_bip(d_.integer, BI_Integer, 0, 0, -1, EXPORT);
+    make_test_bip(d_.rational1, BI_Rational, 0, 0, -1, EXPORT);
+    make_test_bip(d_.real, BI_Real, 0, 0, -1, EXPORT);
+    make_test_bip(d_.float1, BI_Float, 0, 0, -1, EXPORT);
+    make_test_bip(d_.breal, BI_Breal, 0, 0, -1, EXPORT);
+    make_test_bip(d_.string, BI_String, 0, 0, -1, EXPORT);
+    make_test_bip(d_.number, BI_Number, 0, 0, -1, EXPORT);
+    make_test_bip(d_.atomic, BI_Atomic, 0, 0, -1, EXPORT);
+    make_test_bip(d_.compound, BI_Compound, 0, 0, -1, EXPORT);
+    make_test_bip(d_.is_list, BI_IsList, 0, 0, -1, EXPORT);
+    make_test_bip(d_.bignum, BI_Bignum, 0, 0, -1, EXPORT);
+    make_test_bip(in_dict("callable",1), BI_Callable, 0, 0, -1, EXPORT);
 
-    make_function_bip(in_dict("-",2), BI_Minus, U_SIMPLE|DEBUG_SK, BoundArg(2,CONSTANT), 4);
-    make_function_bip(in_dict("+",3), BI_Add, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("-",3), BI_Sub, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("*",3), BI_Mul, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("/",3), BI_Quot, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("//",3), BI_Div, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("rem",3), BI_Rem, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("div",3), BI_FloorDiv, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("mod",3), BI_FloorRem, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("/\\",3), BI_And, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("\\/",3), BI_Or, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("xor", 3), BI_Xor, PROC_DEMON|U_SIMPLE|DEBUG_SK, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("\\",2), BI_Bitnot, U_SIMPLE|DEBUG_SK, BoundArg(2,CONSTANT), 4);
+    make_function_bip(in_dict("-",2), BI_Minus, U_SIMPLE, BoundArg(2,CONSTANT), 4);
+    make_function_bip(in_dict("+",3), BI_Add, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("-",3), BI_Sub, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("*",3), BI_Mul, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("/",3), BI_Quot, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("//",3), BI_Div, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("rem",3), BI_Rem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("div",3), BI_FloorDiv, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("mod",3), BI_FloorRem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("/\\",3), BI_And, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("\\/",3), BI_Or, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("xor", 3), BI_Xor, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
+    make_function_bip(in_dict("\\",2), BI_Bitnot, U_SIMPLE, BoundArg(2,CONSTANT), 4);
 
-    make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE|DEBUG_SK, BoundArg(2,CONSTANT), 4);
-    make_function_bip(in_dict("arg",3), BI_Arg, PROC_DEMON|U_UNIFY|DEBUG_SK, BoundArg(2, NONVAR) | BoundArg(3, NONVAR), 16);
+    make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE, BoundArg(2,CONSTANT), 4);
+    make_function_bip(in_dict("arg",3), BI_Arg, PROC_DEMON|U_UNIFY, BoundArg(2, NONVAR) | BoundArg(3, NONVAR), 16);
 
     make_test_bip(in_dict("make_suspension",4), BI_MakeSuspension, U_UNIFY|DEBUG_INVISIBLE, BoundArg(3, NONVAR), 0, EXPORT);
 
-    make_test_bip(d_.identical, BI_Identical, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.not_identical, BI_NotIdentical, DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(d_.diff_reg, BI_Inequality, PROC_DEMON|DEBUG_SK, 0, -1, EXPORT);
-    make_test_bip(in_dict("\\==",3), BI_NotIdentList, DEBUG_SK, BoundArg(3, NONVAR), -1, EXPORT);
+    make_test_bip(d_.identical, BI_Identical, 0, 0, -1, EXPORT);
+    make_test_bip(d_.not_identical, BI_NotIdentical, 0, 0, -1, EXPORT);
+    make_test_bip(d_.diff_reg, BI_Inequality, PROC_DEMON, 0, -1, EXPORT);
+    make_test_bip(in_dict("\\==",3), BI_NotIdentList, 0, BoundArg(3, NONVAR), -1, EXPORT);
 
-    make_test_bip(in_dict("<",3), BI_Lt, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
-    make_test_bip(in_dict(">",3), BI_Gt, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
-    make_test_bip(in_dict("=<",3), BI_Le, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
-    make_test_bip(in_dict(">=",3), BI_Ge, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
-    make_test_bip(in_dict("=:=",3), BI_Eq, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
-    make_test_bip(in_dict("=\\=",3), BI_Ne, PROC_DEMON|DEBUG_SK, 0, 0, EXPORT);
+    make_test_bip(in_dict("<",3), BI_Lt, PROC_DEMON, 0, 0, EXPORT);
+    make_test_bip(in_dict(">",3), BI_Gt, PROC_DEMON, 0, 0, EXPORT);
+    make_test_bip(in_dict("=<",3), BI_Le, PROC_DEMON, 0, 0, EXPORT);
+    make_test_bip(in_dict(">=",3), BI_Ge, PROC_DEMON, 0, 0, EXPORT);
+    make_test_bip(in_dict("=:=",3), BI_Eq, PROC_DEMON, 0, 0, EXPORT);
+    make_test_bip(in_dict("=\\=",3), BI_Ne, PROC_DEMON, 0, 0, EXPORT);
 
   } /* end if (flags & INIT_SHARED) */
 

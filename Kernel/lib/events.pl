@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.2 2008/07/13 13:43:42 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -547,32 +547,18 @@ compiled_file_handler(N, Goal, Module) :-
 	error_handler(N, Goal, Module).
 
 compiled_file_handler(_, term, _, _, _) :- !.
-compiled_file_handler(X, File, Size, Time, Module) :-
-	error_id(X, Mess),
-	getval(eclipse_object_suffix, ECO),
-	(suffix(File, ECO) ->
-	    Type = loaded
+compiled_file_handler(_, File, Size, Time, Module) :-
+	( File = source(Source) ->
+	    Source = string
 	;
-	    Type = compiled
+	    local_file_name(File, Source)
 	),
-	local_file_name(File, FileP),
-	(Time == [] ->		% dump error
-	    printf(log_output, "%s%a\n%b", [Mess, File])
+	( Size < 0 ->
+	    printf(log_output, "%-10s loaded in %.2f seconds\n%b",
+	    	[Source, Time])
 	;
-	Time == dumped ->	% dumped file
-	    open(Size, read, S),
-	    seek(S, end_of_file),
-	    at(S, At),
-	    close(S),
-	    printf(log_output, "%-10s dumped %d bytes into %s\n%b",
-		[FileP, At, Size])
-	;			% compiled/loaded
-	Size < 0 ->
-	    printf(log_output, "%-10s %a in %.2f seconds\n%b",
-		[FileP, Type, Time])
-	;
-	    printf(log_output, "%-10s %a %d bytes in %.2f seconds\n%b",
-		[FileP, Type, Size, Time])
+	    printf(log_output, "%-10s compiled %d bytes in %.2f seconds\n%b",
+		[Source, Size, Time])
 	).
 
 

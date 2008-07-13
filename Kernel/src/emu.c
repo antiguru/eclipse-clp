@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.5 2008/07/10 00:33:05 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.6 2008/07/13 13:40:31 jschimpf Exp $
  */
 
 /*
@@ -1058,7 +1058,7 @@ _diff_delay_:				/* (SV, proc, pw3 points to args) */
 	    Check_Gc
 	}
 	err_code = PDELAY | PDELAY_BOUND;
-	goto _ndelay_de_sv_;		/* (de, sv, args?) */
+	goto _ndelay_de_sv_;		/* (proc, de, sv, args?) */
     }
     else /* IsNotIdentListProc(proc) */
     {
@@ -1323,6 +1323,21 @@ _bind_nonstandard_:			/* *pw1 = (pw2,tmp1) */
 	} while (--(_i)>1);\
 }
 
+#define Push_Dummy_Results(_did,_i,_mask) { \
+	(_i) = DidArity(_did)+1;\
+	(_mask) = PP[-1].nint;\
+	while ((_mask) && (_i)>1) {\
+	    switch((_mask) & 3) {\
+	    case 1:\
+		PP[-(_i)].ptr->val.ptr=TG; PP[-(_i)].ptr->tag.kernel=TREF;\
+		TG->val.ptr=TG; TG++->tag.kernel=TREF;\
+		break;\
+	    }\
+	    (_mask) >>= 2; --(_i);\
+	}\
+}
+
+
 _nbip_res_:	     /* (err_code,proc), args at *PP[-arity-1..-2] */
 	Mark_Prof(_nbip_res_)
 	Occur_Check_Boundary(0)
@@ -1352,9 +1367,9 @@ _npdelay_:				/* (err_code, proc)	*/
 	    }
 _npdelay_always_:			/* (err_code, proc)	*/
 	    Mark_Prof(_npdelay_always_)
+	    val_did = PriDid(proc);
 	    if (!DE)			/* make a suspension structure */
 	    {
-		val_did = PriDid(proc);
 		DE = pw1 = TG;
 		TG += SUSP_SIZE;
 		Init_Susp_Header(pw1, proc);
@@ -1362,13 +1377,17 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		Make_Struct(&pw1[SUSP_GOAL], TG);	/* goal */
 		Make_Atom(&pw1[SUSP_MODULE], PriModule(proc));
 		Push_Bip_Goal(val_did, i, tmp1)
-		Check_Gc
 	    }
 	    else
 	    {
-		/* skip uninit output unification, if any */
-		Pop_Ret_Code
+		/* When we redelay a builtin that uses uninitialised output convention,
+		 * we have to create a dummy result, which can be unified (without
+		 * any effect) with the caller's result argument by the subsequent
+		 * get_value instruction(s).
+		 */
+		Push_Dummy_Results(val_did, i, tmp1)
 	    }
+	    Check_Gc
 
 	    /*
 	     * DE now points to the suspension
@@ -1384,8 +1403,8 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
-			err_code = tmp1;
-			goto _nbip_err_;
+			err_code = -tmp1;
+			goto _ndelay_err_;
 		    }
 		}
 		if (err_code & (PDELAY_2 & PDELAY_MASK)) {
@@ -1393,8 +1412,8 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
-			err_code = tmp1;
-			goto _nbip_err_;
+			err_code = -tmp1;
+			goto _ndelay_err_;
 		    }
 		}
 		if (err_code & (PDELAY_3 & PDELAY_MASK)) {
@@ -1402,15 +1421,15 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
-			err_code = tmp1;
-			goto _nbip_err_;
+			err_code = -tmp1;
+			goto _ndelay_err_;
 		    }
 		}
 		Import_Tg_Tt
 	    }
 	    else	/* suspending_variables points to a list of	*/
 	    {		/* pointers to suspending variables		*/
-_ndelay_de_sv_:
+_ndelay_de_sv_:		/* (proc,de,sv,args) */
 		pw2 = SV;
 		Export_B_Sp_Tg_Tt_Eb_Gb
 		while (pw2)
@@ -1421,8 +1440,8 @@ _ndelay_de_sv_:
 			    err_code & PDELAY_BOUND ? DELAY_BOUND: DELAY_INST,
 			    DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
-			err_code = tmp1;
-			goto _nbip_err_;
+			err_code = -tmp1;
+			goto _ndelay_err_;
 		    }
 		    if (!IsList(pw2[1].tag))
 			break;
@@ -1430,6 +1449,23 @@ _ndelay_de_sv_:
 		}
 		Import_Tg_Tt
 		SV = (pword *) 0;
+	    }
+	    if (Tracing && AnyPortWanted)
+	    {
+		/* the tracer is on, assign an invocation number if not yet done */
+		tmp1 = SuspDebugInvoc(DE);
+		if (!tmp1) {
+		    tmp1 = NINVOC++;
+		    Set_Susp_DebugInvoc(DE, tmp1);
+		}
+		/* only if the port is of interest, raise the debug event */
+		if (Tracing && PortWanted(DELAY_PORT) && OfInterest(PriFlags(((pri*)proc)), tmp1, DLevel(TD)+1, 0)) {
+		    err_code = -(DEBUG_SUSP_EVENT);
+_ndelay_err_:	/* (err_code,proc,DE) */
+		    scratch_pw = DE[SUSP_GOAL];
+		    Reset_DE;
+		    goto _nbip_err_goal_;
+		}
 	    }
 	    Reset_DE;
 	    Next_Pp;
@@ -1481,6 +1517,7 @@ _nbip_err_:		/* (err_code, proc), args at *PP[-arity-1..-2] */
 		Make_Atom(&scratch_pw, val_did);
 	    }
 
+_nbip_err_goal_:	/* (err_code, proc,scratch_pw) */
 	/* create an exception frame to be able to restore the machine
 	 * state partially on SUCCESSful return from error handler.
 	 * ( the handler call should behave like a builtin call,
@@ -1784,8 +1821,10 @@ _handle_events_at_res_:				/* (tmp1) */
 
 	if (DBG_PRI)
 	{
-	    PushDynEnvHdr(tmp1+DYNENVDBGSIZE, WAS_CALL, PP);	/* save arity, PP */
+	    PushDynEnvHdr(tmp1+DYNENVDBGSIZE, WAS_CALL, PP);	/* save arity, PP, DE */
 	    SP -= DYNENVDBGSIZE;
+	    DynEnvDE(e)->tag.kernel = DE?TSUSP:TNIL;
+	    DynEnvDE(e)->val.ptr = DE;
 	    DynEnvDbgPri(E)->tag.kernel = TPTR;		/* ... and debug info */
 	    DynEnvDbgPri(E)->val.wptr = (uword *) DBG_PRI;
 	    Make_Integer(DynEnvDbgPort(E), DBG_PORT);
@@ -5241,6 +5280,7 @@ _match_values_:
 	    if (DynEnvFlags(E) & WAS_NONDET) {Clr_Det;} else {Set_Det;}
 
 	    if (DynEnvFlags(E) & WAS_CALL) {		/* debug event frame */
+		if (DynEnvDE(E)->tag.kernel == TSUSP) DE = DynEnvDE(E)->val.ptr;
 		err_code = DynEnvDbgPort(E)->val.nint;		/* port */
 		pw1 = E-DYNENVDBGSIZE-1;
 		tmp1 = DynEnvSize(E)-DYNENVDBGSIZE-1;
@@ -5341,16 +5381,16 @@ _match_values_:
 #if (TF_BREAK != BREAKPOINT)
 Please make sure that TF_BREAK == BREAKPOINT
 #endif
-	    err_code &= BREAKPOINT;	/* == TF_BREAK */
-	    Set_Tf_Flag(TD, err_code)
-	    if (OfInterest(PriFlags(proc), DBG_INVOC, tmp1, err_code))
+	    tmp1 = err_code&BREAKPOINT;	/* == TF_BREAK */
+	    Set_Tf_Flag(TD, tmp1)
+	    if (OfInterest(PriFlags(proc), DBG_INVOC, tmp1, tmp1))
 	    {
 		A[2] = TAGGED_TD;			/* New call stack */
 
 		/* if stop point:
 		 * call debug event(OldStack,NewStack)
 		 */
-		proc = error_handler_[DBG_INVOC+1 == NINVOC ? -(DEBUG_CALL_EVENT) : -(DEBUG_WAKE_EVENT)];
+		proc = error_handler_[(err_code&PORT_MASK) == WAKE_PORT ? -(DEBUG_WAKE_EVENT) : -(DEBUG_CALL_EVENT)];
 		PP = (emu_code) PriCode(proc);
 		Push_Ret_Code((emu_code) &restore_code_[1]);
 		Check_Local_Overflow
@@ -5585,9 +5625,9 @@ _exec_prolog_:		/* (DBG_INVOC, DBG_PORT, proc, PP) */
 
 		if ((TD || (PriFlags(proc) & DEBUG_ST)) && DBG_PORT) {
 		    if (TD) {
-			if (((DBG_PORT&PORT_MASK) == WAKE_PORT ? TracingWakes : Tracing)
+			if (((DBG_PORT&PORT_MASK) == WAKE_PORT ? TracingWakes(DBG_INVOC) : Tracing)
 				&& AnyPortWanted && !InvisibleProc(proc)) {
-			    goto _metacall_port_;	/* (proc) */
+			    goto _metacall_port_;	/* (proc,DBG_XXX) */
 			}
 		    } else /* if (PriFlags(proc) & DEBUG_ST) */ {
 			if (TRACEMODE & TR_STARTED) {
@@ -5596,7 +5636,7 @@ _exec_prolog_:		/* (DBG_INVOC, DBG_PORT, proc, PP) */
 					    TR_TRACING : TR_LEAPING;
 			}
 			if (AnyPortWanted) {
-			    goto _metacall_port_;	/* (proc) */
+			    goto _metacall_port_;	/* (procDBG_XXX) */
 			}
 		    }
 		}
@@ -5612,6 +5652,8 @@ _metacall_port_:	/* (proc) */
 	    Push_Env				/* allocate an environment */
 	    PushDynEnvHdr(tmp1+DYNENVDBGSIZE, WAS_CALL, PP);	/* save arity, PP */
 	    SP -= DYNENVDBGSIZE;
+	    DynEnvDE(e)->tag.kernel = DE?TSUSP:TNIL;
+	    DynEnvDE(e)->val.ptr = DE;
 	    DynEnvDbgPri(E)->tag.kernel = TPTR;		/* ... and debug info */
 	    DynEnvDbgPri(E)->val.wptr = (uword *) proc;
 	    Make_Integer(DynEnvDbgPort(E), DBG_PORT);
