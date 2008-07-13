@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.7 2008/07/08 19:40:29 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.8 2008/07/13 13:50:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/07/08 19:40:29 $").
+:- comment(date,	"$Date: 2008/07/13 13:50:17 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -101,39 +101,34 @@ compiler_options_setup(File, OptionList, Options) :-
 	    open(LstFile,write,Stream),
 	    update_struct(options, [output:print(Stream)], Options0, Options)
 	; Options0 = options{output:listing} ->
-	    pathname(FileS, Dir, Base, _Suffix),
-	    ( concat_string([OutDir], "") -> 
-		concat_string([Dir,Base,'.lst'], LstFile)
-	    ;
-		concat_string([OutDir,/,Base,'.lst'], LstFile)
-	    ),
+	    default_output_file(FileS, OutDir, '.lst', LstFile),
 	    open(LstFile,write,Stream),
 	    update_struct(options, [output:print(Stream)], Options0, Options)
 	; Options0 = options{output:eco(EcoFile)} ->
 	    open(EcoFile,write,Stream,[end_of_line(lf)]),
 	    update_struct(options, [output:eco_to_stream(Stream)], Options0, Options)
 	; Options0 = options{output:eco} ->
-	    pathname(FileS, Dir, Base, _Suffix),
 	    get_flag(eclipse_object_suffix, ECO),
-	    ( concat_string([OutDir], "") -> 
-		concat_string([Dir,Base,ECO], EcoFile)
-	    ;
-		concat_string([OutDir,/,Base,ECO], EcoFile)
-	    ),
+	    default_output_file(FileS, OutDir, ECO, EcoFile),
 	    open(EcoFile,write,Stream,[end_of_line(lf)]),
 	    update_struct(options, [output:eco_to_stream(Stream)], Options0, Options)
+	; Options0 = options{output:asm(AsmFile)} ->
+	    open(AsmFile,write,Stream),
+	    update_struct(options, [output:asm_to_stream(Stream)], Options0, Options)
 	; Options0 = options{output:asm} ->
-	    concat_string([File], FileS),
-	    pathname(FileS, Dir, Base, _Suffix),
-	    ( concat_string([OutDir], "") -> 
-		concat_string([Dir,Base,'.asm'], AsmFile)
-	    ;
-		concat_string([OutDir,/,Base,'.asm'], AsmFile)
-	    ),
+	    default_output_file(FileS, OutDir, '.asm', AsmFile),
 	    open(AsmFile,write,Stream),
 	    update_struct(options, [output:asm_to_stream(Stream)], Options0, Options)
 	;
 	    Options = Options0
+	).
+
+    default_output_file(InFile, OutDir, Suffix, OutFile) :-
+	pathname(InFile, Dir, Base, _Suffix),
+	( concat_string([OutDir], "") -> 
+	    concat_string([Dir,Base,Suffix], OutFile)
+	;
+	    concat_string([OutDir,/,Base,Suffix], OutFile)
 	).
 
 
@@ -310,10 +305,10 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
     get_pred_pos(_, _, 0, 0, 0).
 
 
-    normalised_source_file(File, options{srcroot:Root}, NormFileAtom) ?-
+    normalised_source_file(File, options{srcroot:Root,debug:Debug}, NormFileAtom) ?-
 	% File is canonical, and either atom or string
 	concat_string([File], FileS),
-	( substring(FileS, 0, PrefixLen, _, Root) ->
+	( Debug==off, substring(FileS, 0, PrefixLen, _, Root) ->
 	    substring(FileS, PrefixLen, _, 0, RelFileS)
 	;
 	    RelFileS = FileS
@@ -536,6 +531,8 @@ compile_source(Source, OptionListOrModule, CM) :-
 	error(#start_compiler, Source, CM),
 	cputime(Tstart),
 	( source_open(Source, [with_annotations,goal_expansion|OpenOptions], SourcePos0)@Module ->
+	    SourcePos0 = source_position{stream:Stream,file:CanonicalFile},
+	    get_stream_info(Stream, device, Device),
 	    sepia_kernel:register_compiler(args(Term,Ann)-(ecl_compiler:compile_term_annotated(Term,Ann,Options))),
 	    hash_create(PredsSeen),
 	    (
@@ -627,16 +624,21 @@ compile_source(Source, OptionListOrModule, CM) :-
 		% Raise event 139, which prints the compilation statistics
 		Tcompile is cputime-Tstart,
 		words_to_bytes(Size, SizeInBytes),
-		SourcePos0 = source_position{file:File},
-		concat_atom([File], FileAtom),
-		error(#compiled_file, (FileAtom, SizeInBytes, Tcompile), EndModule),
+		( Device == file ->
+		    concat_atom([CanonicalFile], CanonicalSource)
+		;
+		    CanonicalSource = source(Device)
+		),
+		error(#compiled_file, (CanonicalSource, SizeInBytes, Tcompile), EndModule),
 
 		% Raise event 166, which records the compiled_file information
 		% (used for recompilation, make/0 etc)
 		( Options = options{load:none} ->
 		    true
+		; atom(CanonicalSource) ->
+		    error(#record_compiled_file, CanonicalSource-(ecl_compiler:compile(CanonicalSource, OptionList)), Module)
 		;
-		    error(#record_compiled_file, File-(ecl_compiler:compile(File, OptionList)), Module)
+		    true
 		)
 	    ;
 		true
@@ -703,7 +705,9 @@ accumulate_clauses(Term, AnnTerm, Module, Options, ClausePos, PredsSeen,
 		Size, Pred, PredPos, PredCl, PredClTl, PredClAnn, PredClAnnTl).
 
     extract_pred((Head :- _), N/A) :- !,
-    	functor(Head, N, A).
+    	( var(Head) -> A=0 ; functor(Head, N, A) ).
+    extract_pred((Head ?- _), NA) :- !,
+	extract_pred((Head :- _), NA).
     extract_pred(Fact, N/A) :-
     	functor(Fact, N, A).
 

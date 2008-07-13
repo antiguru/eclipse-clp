@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.15 2008/06/16 00:54:36 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.16 2008/07/13 13:50:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1347,6 +1347,26 @@ testclause(bug(12), [
 	(i_np_head0(np_head(_Noun), Type-X,Type-X,void)),
 	(i_np_head0(name(Name), Type-Name,Type-Name,id)),
 	(i_np_head0(wh(X),X,X,id))
+     ]).
+
+testclause(bugzilla(68), [
+	(xgt0(pinf) :- !),
+	(xgt0(I) :- integer(I), I>0)
+     ]).
+
+testclause(bugzilla(165), [
+	(compute_stop(Step) :- var(Step), !, writeln(var)),
+	(compute_stop(1) :- !, writeln(1)),
+	(compute_stop(-1) :- !, writeln(-1)),
+	(compute_stop(Step) :- integer(Step), Step > 1, !, writeln(pos)),
+	(compute_stop(Step) :- integer(Step), Step < 0, !, writeln(neg)),
+	%(compute_stop(Step) :- integer(Step), Step < -1, !, writeln(neg)), % works
+	(compute_stop(_StepExpr) :- writeln(other))
+     ]).
+
+testclause(bugzilla(408), [
+	(dan :- X = Y, X = 2, write(Y)),
+	(b :- a, F1 = 2, F2 = 3, writeln(F1), c(F2))
      ]).
 
 %----------------------------------------------------------------------

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.17 2008/06/17 01:33:46 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.18 2008/07/13 13:50:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/17 01:33:46 $").
+:- comment(date, "$Date: 2008/07/13 13:50:16 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -191,6 +191,7 @@ valid_option_value(output, eco).
 valid_option_value(output, eco(_)).
 valid_option_value(output, eco_to_stream(_)).
 valid_option_value(output, asm).
+valid_option_value(output, asm(_)).
 valid_option_value(output, asm_to_stream(_)).
 
 onoff(off).
@@ -643,7 +644,7 @@ get_error_location(Ann, SourcePos, Location) :-
 local_file_name(File, LocalF) :-
 	getcwd(Cwd),
 	concat_string([File], FileS),
-	( append_strings(Cwd, LocalF, FileS) ->
+	( substring(FileS, "/", 1), append_strings(Cwd, LocalF, FileS) ->
 	    true
 	;
 	    LocalF = File
@@ -659,7 +660,7 @@ local_file_name(File, LocalF) :-
 'tr_#'(no_macro_expansion(#Name), Value) :- constant(Name, Value).
 
 % WAM
-    constant(wam_registers,		255).		% MAXARITY
+    constant(wam_registers,		265).		% NARGREGS-1
     constant(wam_max_global_push,	200).
 % Tracer ports
     constant(no_port,			0).		% NO_PORT

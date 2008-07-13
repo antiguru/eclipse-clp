@@ -11479,6 +11479,156 @@ label(5):
 
 	branch                   ref(6) 
 
+------ Test bugzilla(68) -------
+xgt0(pinf) :- !
+xgt0(_110) :- integer(_110), _110 > 0
+
+INDEXES for (semidet) disjunction [2]
+1. Quality 1.0
+    [] - []
+    [atom] - []
+    [atom, pinf] - [1]
+    [var] - [1]
+    [integer] - [2]
+    [bignum] - [2]
+xgt0 / 1:
+label(1):
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(3)
+		[]: 	ref(fail)
+		atom: 	ref(3)
+		bignum: 	ref(7)
+		breal: 	ref(fail)
+		double: 	ref(fail)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		integer: 	ref(7)
+		list: 	ref(fail)
+		rational: 	ref(fail)
+		string: 	ref(fail)
+		structure: 	ref(fail)
+
+label(3):
+	get_atom                 a(1)     pinf 
+	cut                      a(2) 
+	ret                  
+label(5):
+	bi_integer               a(1) 
+label(7):
+	put_integer              a(2)     0 
+	bi_gt                    a(1)     a(2)     eclipse     48 
+	ret                  
+
+------ Test bugzilla(165) -------
+compute_stop(_103) :- var(_103), !, writeln(var)
+compute_stop(1) :- !, writeln(1)
+compute_stop(-1) :- !, writeln(-1)
+compute_stop(_103) :- integer(_103), _103 > 1, !, writeln(pos)
+compute_stop(_103) :- integer(_103), _103 < 0, !, writeln(neg)
+compute_stop(_190) :- writeln(other)
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 1.4
+    [] - [6]
+    [var] - [1]
+    [bignum] - [4, 5, 6]
+    [integer] - [4, 5, 6]
+    [integer, 1] - [2]
+    [integer, -1] - [3]
+compute_stop / 1:
+label(1):
+	savecut                  a(2) 
+	switch_on_type           a(1) 
+		meta: 	ref(17)
+		[]: 	ref(13)
+		atom: 	ref(13)
+		bignum: 	ref(15)
+		breal: 	ref(13)
+		double: 	ref(13)
+		goal: 	ref(13)
+		handle: 	ref(13)
+		integer: 	ref(16)
+		list: 	ref(13)
+		rational: 	ref(13)
+		string: 	ref(13)
+		structure: 	ref(13)
+
+	branch                   ref(17) 
+label(3):
+	bi_var                   a(1) 
+label(17):
+	cut                      a(2) 
+	put_atom                 a(1)     var 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : writeln_body / 2 
+label(5):
+	get_integer              a(1)     1 
+label(18):
+	cut                      a(2) 
+	put_integer              a(1)     1 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : writeln_body / 2 
+label(7):
+	get_integer              a(1)     -1 
+label(19):
+	cut                      a(2) 
+	put_integer              a(1)     -1 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : writeln_body / 2 
+label(9):
+	bi_integer               a(1) 
+	put_integer              a(3)     1 
+	bi_gt                    a(1)     a(3)     eclipse     48 
+	cut                      a(2) 
+	put_atom                 a(1)     pos 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : writeln_body / 2 
+label(11):
+	bi_integer               a(1) 
+	put_integer              a(3)     0 
+	bi_lt                    a(1)     a(3)     eclipse     48 
+	cut                      a(2) 
+	put_atom                 a(1)     neg 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : writeln_body / 2 
+label(13):
+	put_atom                 a(1)     other 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : writeln_body / 2 
+label(15):
+	try                      0     2     ref(9) 
+	retry                    0     ref(11) 
+	trust                    0     ref(13) 
+label(16):
+	integer_switch           a(1) 
+		1: 	ref(18)
+		-1: 	ref(19)
+		default: 	ref(15)
+
+
+------ Test bugzilla(408) -------
+dan :- _106 = _107, _106 = 2, write(_107)
+b :- a, _128 = 2, _134 = 3, writeln(_128), c(_134)
+
+dan / 0:
+label(1):
+	put_variable             a(3) 
+	move                     a(3)     a(1) 
+	get_integer              a(3)     2 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : write_ / 2 
+b / 0:
+label(1):
+	allocate                 1 
+	callf                    a / 0     Y[] 
+	put_integer              a(1)     2 
+	put_integer              a(3)     3 
+	move                     a(3)     y(1) 
+	put_module               a(2)     eclipse 
+	callf                    sepia_kernel : writeln_body / 2     Y[1] 
+	move_chain               y(1)     a(1)     c / 1 
+
 ------ Test at1 -------
 at1 :-
 	var(f(A)),

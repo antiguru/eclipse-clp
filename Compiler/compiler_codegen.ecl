@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.18 2008/07/08 22:32:20 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.19 2008/07/13 13:50:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/07/08 22:32:20 $").
+:- comment(date, "$Date: 2008/07/13 13:50:16 $").
 
 
 :- lib(hash).
@@ -1034,12 +1034,16 @@ generate_regular_puts(goal{args:Args,functor:F/N},
 %	instr Ai ... Ak
 %----------------------------------------------------------------------
 
-generate_simple_goal(goal{functor: (=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, _Options, Module) ?-
-	generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code, Module), % may fail
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) :-
+	Goal = goal{functor: (=)/2, args:[Arg1,Arg2],definition_module:sepia_kernel},
+	generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code1, Code2, Module), % may fail
+	emit_debug_noarg(Goal, Code0, Code1, Code2, Code, Options, Module),
 	!.
 
-generate_simple_goal(goal{functor: (==)/2, args:[Arg1,Arg2],definition_module:sepia_kernel}, ChunkData0, ChunkData, Code0, Code, _Options, _Module) ?-
-	generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code), % may fail
+generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) :-
+	Goal = goal{functor: (==)/2, args:[Arg1,Arg2],definition_module:sepia_kernel},
+	generate_identity(Arg1, Arg2, ChunkData0, ChunkData, Code1, Code2), % may fail
+	emit_debug_noarg(Goal, Code0, Code1, Code2, Code, Options, Module),
 	!.
 
 generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, _Options, _Module) :-
@@ -1359,6 +1363,28 @@ emit_exit_simple(InstrTmpl, DbgArgDesc, ArgLabel, Code, Code0, options{debug:Deb
 	    % trace for this special case by giving extra parameters to
 	    % debug_exit_simple that allow "patching" the debug-exit frame.
 	    Code = [code{instr:debug_exit_simple(DbgArgDesc,ref(ArgLabel))}|Code0]
+	).
+
+emit_debug_noarg(Goal, CallCode, CallCode0, ExitCode, ExitCode0, options{debug:Debug}, Module) :-
+	( Debug == off ->
+	    CallCode = CallCode0, ExitCode = ExitCode0
+	;
+	    Goal = goal{functor:Pred,lookup_module:LM,path:Path,line:Line,from:From,to:To},
+	    ( LM == sepia_kernel ->
+		% If the LM is sepia_kernel, it is most likely a goal that was
+		% inserted by the normalisation phase - don't trace it!
+		CallCode = CallCode0, ExitCode = ExitCode0
+	    ;
+		% Create debug instructions with all arguments hidden (by
+		% pretending they are all uargs - hack)
+		( LM\==Module -> QPred = LM:Pred ; QPred = Pred ),
+		Pred = _/N,
+		( for(I,1,N), fromto(0,ArgDesc1,ArgDesc2,ArgDesc) do
+		    add_arg_desc(I, uarg, ArgDesc1, ArgDesc2)
+		),
+		CallCode = [code{instr:debug_call_simple(QPred,#call_port,Path,Line,From,To,ArgDesc,ref(fail)),regs:[]}|CallCode0],
+		ExitCode = [code{instr:debug_exit_simple}|ExitCode0]
+	    )
 	).
 
 
