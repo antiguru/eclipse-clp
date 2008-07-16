@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * VERSION	$Id: bip_record.c,v 1.2 2008/07/16 17:12:32 kish_shen Exp $
  */
 
 /* ********************************************************************
@@ -525,6 +525,115 @@ _rec_all(t_heap_rec *header, int dbrefs_only, pword *result)
     Succeed_;
 }
 
+/* filter for recorded terms: simple tests to reduce the recorded terms
+   returned to the ECLiPSe level, which needs to be unified with the filter
+   term. The filter test performs simple comparison on the arguments of the first
+   argument of a recorded term against the filter, This is designed to
+   speed up the matching of dynamic predicates, which are recorded as (H ?- B),
+   so that `filtering' is performed on the head H
+*/
+static int
+_filtered_rec_term(uword ftag, pword *farg, dident fdid, pword *term)
+{
+    pword *f, *targ;
+    int i;
+    if (ftag == TCOMP)
+    {
+	targ = term->val.ptr;
+	if (fdid != (targ++)->val.did) return 0;
+    } else if (ftag == TLIST)
+    {
+	targ = term->val.ptr;
+    } else
+	return 1;
+
+    if (IsRef(farg->tag)) return 1;
+    if (IsRef(targ->tag)) return 1;
+    if (DifferType(farg->tag, targ->tag)) return 0;
+    switch (TagType(farg->tag))
+    {
+    case TINT:
+    case TDICT:
+	if (targ->val.all != farg->val.all) return 0;
+	break;
+    case TNIL:
+	return 1;
+	break;
+    case TCOMP:
+	targ = targ->val.ptr;
+	farg = farg->val.ptr;
+	if (farg->val.did != targ->val.did) return 0;
+	i = DidArity(farg->val.did);
+    _check_rec_args:
+	do
+	{
+	    f = ++farg;
+	    ++targ;
+	    Dereference_(f);
+	    if (IsRef(f->tag)) continue;
+	    if (IsRef(targ->tag)) continue;
+	    if (DifferType(f->tag, targ->tag)) return 0;
+	    switch (TagType(f->tag))
+	    {
+	    case TINT:
+	    case TDICT:
+		if (f->val.all != targ->val.all) return 0;
+		break;
+	    case TCOMP:
+		if (f->val.ptr->val.did != targ->val.ptr->val.did) return 0;
+		break;
+	    default:
+		continue;
+	    }
+	} while (--i > 0);
+	break;
+    case TLIST:
+	targ = targ->val.ptr-1;
+	farg = farg->val.ptr-1;
+	i = 1; /* just check the head */
+	goto _check_rec_args;
+    }
+    return 1;
+}
+
+static int
+_rec_all_filtered(t_heap_rec *header, value vfilter, type tfilter, pword *result)
+{
+    t_heap_rec *el;
+    pword *farg = NULL;
+    dident fdid = NULL;
+    uword ftag = TagType(tfilter);
+
+    if (ftag == TCOMP)
+    {
+	farg = vfilter.ptr;
+	fdid = (farg++)->val.did;
+	Dereference_(farg);
+    } else if (ftag == TLIST)
+    { 
+	farg = vfilter.ptr;
+	Dereference_(farg);
+    }
+
+    for (el = header->next; el != header; el = el->next)
+    {
+	if (IsRef(tfilter) || IsRef(el->term.tag) || 
+	    (SameType(tfilter, el->term.tag) && (
+	     (!ISPointer(el->term.tag.kernel) && vfilter.all == el->term.val.all) 
+	     ||  _filtered_rec_term(ftag, farg, fdid, &(el->term))) )
+	   )
+	{
+	    pword *car = TG;
+	    Make_List(result, car);
+	    Push_List_Frame();
+	    *car = ec_handle(&heap_rec_tid, (t_ext_ptr) _rec_copy_elem(el));
+	    result = car+1;
+	}
+    }
+    Make_Nil(result);
+    Succeed_;
+}
+
 
 static int
 p_recorded_list_body(value vrec, type trec, value vl, type tl, value vmod, type tmod)
@@ -555,10 +664,10 @@ p_recorded_list_body(value vrec, type trec, value vl, type tl, value vmod, type 
 }
 
 
-/* recorded_refs(+Key, -Refs)@Module */
+/* recorded_refs(+Key, ?Filter, -Refs)@Module */
 
 static int
-p_recorded_refs_body(value vrec, type trec, value vl, type tl, value vmod, type tmod)
+p_recorded_refs_body(value vrec, type trec, value vfilter, type tfilter, value vl, type tl, value vmod, type tmod)
 {
     t_heap_rec *header;
     pword list;
@@ -569,7 +678,7 @@ p_recorded_refs_body(value vrec, type trec, value vl, type tl, value vmod, type 
     err = _get_rec_list(vrec, trec, vmod, tmod, &header);
     if (err == PSUCCEED)
     {
-	_rec_all(header, 1, &list);
+	_rec_all_filtered(header, vfilter, tfilter, &list);
 	a_mutex_unlock(&PropertyLock);
 	Return_Unify_Pw(vl, tl, list.val, list.tag);
     }
@@ -810,7 +919,7 @@ bip_record_init(int flags)
 	exported_built_in(in_dict("recorded_list_body", 3),
 			p_recorded_list_body, B_UNSAFE|U_FRESH)
 	    -> mode = BoundArg(2, NONVAR);
-	exported_built_in(in_dict("recorded_refs_body", 3),
+	exported_built_in(in_dict("recorded_refs_body", 4),
 			p_recorded_refs_body, B_UNSAFE|U_FRESH)
 	    -> mode = BoundArg(2, NONVAR);
 	exported_built_in(in_dict("referenced_record", 2),
