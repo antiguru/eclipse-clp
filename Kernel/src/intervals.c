@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.1 2008/06/30 17:43:56 jschimpf Exp $
+* Version:	$Id: intervals.c,v 1.2 2008/07/16 23:58:32 kish_shen Exp $
 *
 
 Supported operations:
@@ -1942,8 +1942,8 @@ static int
 _ivl_ceil(value v1, pword *pres)
 {
     double lwb, upb;
-    lwb = ceil(IvlLwb(v1.ptr));		/* integers, no inaccuracy */
-    upb = ceil(IvlUpb(v1.ptr));
+    lwb = Ceil(IvlLwb(v1.ptr));		/* integers, no inaccuracy */
+    upb = Ceil(IvlUpb(v1.ptr));
     Make_Interval(pres, lwb, upb);
     Succeed_;
 }
@@ -1958,9 +1958,9 @@ _ivl_truncate(value v1, pword *pres)
     upb = trunc(IvlUpb(v1.ptr));
 #else
     lwb = IvlLwb(v1.ptr);
-    lwb = lwb < 0 ? ceil(lwb) : floor(lwb);
+    lwb = lwb < 0 ? Ceil(lwb) : floor(lwb);
     upb = IvlUpb(v1.ptr);
-    upb = upb < 0 ? ceil(upb) : floor(upb);
+    upb = upb < 0 ? Ceil(upb) : floor(upb);
 #endif
     Make_Interval(pres, lwb, upb);
     Succeed_;
@@ -1993,10 +1993,10 @@ _ivl_round(value v1, pword *pres)
      * Round to even number if we are exactly in the middle.
      * Make sure we round to -0.0 if between -0.5 and -0.0
      */
-    lwb = ceil(IvlLwb(v1.ptr));
+    lwb = Ceil(IvlLwb(v1.ptr));
     if (lwb - IvlLwb(v1.ptr) > 0.5 || (lwb - IvlLwb(v1.ptr) == 0.5 && ((long)lwb & 1)))
 	lwb -= 1.0;
-    upb = ceil(IvlUpb(v1.ptr));
+    upb = Ceil(IvlUpb(v1.ptr));
     if (upb - IvlUpb(v1.ptr) > 0.5 || (upb - IvlUpb(v1.ptr) == 0.5 && ((long)upb & 1)))
 	upb -= 1.0;
 #endif /* rint */

@@ -345,6 +345,9 @@
 #undef HAVE_FLEXLM
 
 /* What suffix is used for dynamic loading */
+/* Define if ceil() doesn't correctly return -0.0 for argument >-1.0 <-0.0 */
+#undef HAVE_CEIL_NEGZERO_BUG                                                    
+
 /*#define O o */
 #undef OBJECT_SUFFIX_STRING
 #undef AIX

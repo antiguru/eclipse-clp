@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.1 2008/06/30 17:43:58 jschimpf Exp $
+** $Id: rounding_control.h,v 1.2 2008/07/16 23:58:32 kish_shen Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -454,4 +454,17 @@
 
 extern double ec_ieee_up ARGS((double));
 extern double ec_ieee_down ARGS((double));
+
+#ifdef HAVE_CEIL_NEGZERO_BUG
+/* workaround for bug that incorrectly returns 0.0
+   instead of -0.0 when argument is >-1.0 and <-0.0
+*/
+#define Ceil(x) \
+  ( ceil(x) == 0.0 && x != -0.0 ? ceil(x)*x : ceil(x))
+
+#else
+
+#define Ceil(x) ceil(x)
+
+#endif
 

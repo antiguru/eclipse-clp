@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.2 2008/07/16 23:58:33 kish_shen Exp $
  */
 
 /*
@@ -1677,7 +1677,7 @@ _dbl_round(value v1, pword *pres)
      * Round to even number we are exactly in the middle.
      * Make sure we round to -0.0 if between -0.5 and -0.0
      */
-    x = ceil(Dbl(v1));
+    x = Ceil(Dbl(v1));
     if (x - Dbl(v1) > 0.5 ||
         (x - Dbl(v1) == 0.5 && ((long)x & 1)))
 	    x -= 1.0;
@@ -1696,7 +1696,7 @@ _dbl_floor(value v1, pword *pres)
 static int
 _dbl_ceil(value v1, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, ceil(Dbl(v1)))
+    Make_Checked_Double_Val(pres->val, Ceil(Dbl(v1)))
     Succeed_;
 }
 
@@ -1707,7 +1707,7 @@ _dbl_truncate(value v1, pword *pres)
     Make_Checked_Double_Val(pres->val, trunc(Dbl(v1)))
 #else
     double f = Dbl(v1);
-    Make_Checked_Double_Val(pres->val, f < 0 ? ceil(f) : floor(f));
+    Make_Checked_Double_Val(pres->val, f < 0 ? Ceil(f) : floor(f));
 #endif
     Succeed_;
 }
