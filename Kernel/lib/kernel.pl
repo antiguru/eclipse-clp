@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.4 2008/07/13 13:43:42 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.5 2008/07/16 17:17:53 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -220,7 +220,7 @@
    tool(recordedchk/2, recordedchk_body/3),
    tool(recordedchk/3, recordedchk_body/4),
    tool(recorded_list/2, recorded_list_body/3),
-   tool(recorded_refs/2, recorded_refs_body/3),
+   tool(recorded_refs/3, recorded_refs_body/4),
    tool(recordz/2, recordz_body/3),
    tool(recordz/3, recordz_body/4),
    tool(rerecord/2, rerecord_body/3),
@@ -994,7 +994,8 @@ recorded_body(Key, Value, Module) :-
 
 recorded_body(Key, Value, DbRef, Module) :-
 	( valid_key(Key) ->
-	    recorded_refs_body(Key, DbRefs, Module),
+            /* Value used as a filter to reduce DbRef returned */
+	    recorded_refs_body(Key, Value, DbRefs, Module),
 	    member(DbRef, DbRefs),
 	    referenced_record(DbRef, Value)
 	;
