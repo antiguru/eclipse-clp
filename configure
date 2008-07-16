@@ -1692,6 +1692,10 @@ case "$ARCH" in
     RUNPATH_DYLDFLAG="-executable_path "
     # RUNPATH_LDLAG is really a noop here
     RUNPATH_LDFLAG="-L"
+    cat >>confdefs.h <<\_ACEOF
+#define HAVE_CEIL_NEGZERO_BUG 1
+_ACEOF
+
     LOCK=
     ;;
  ppc_macosx)

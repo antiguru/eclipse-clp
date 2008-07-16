@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.19 2008/07/02 04:56:40 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.20 2008/07/16 23:51:34 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -254,6 +254,7 @@ case "$ARCH" in
     RUNPATH_DYLDFLAG="-executable_path "
     # RUNPATH_LDLAG is really a noop here
     RUNPATH_LDFLAG="-L"
+    AC_DEFINE(HAVE_CEIL_NEGZERO_BUG)
     LOCK=
     ;;
  ppc_macosx)
