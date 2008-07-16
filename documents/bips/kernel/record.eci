@@ -350,9 +350,13 @@ the key Key.
 
 ",
 	amode:(recorded(+,-) is nondet),
+	amode:(recorded(+,+) is nondet),
 	desc:html("   Used to find all values associated with a key.  Unifies Value with the
    first term that has been associated with Key.  In the case of compound
-   terms, all keys of the same name and arity are treated as equal.
+   terms, all keys of the same name and arity are treated as equal. If
+   Value is instantiated, the instantiated term is used as a filter to reduce 
+   the number of terms returned by the recorded database and unified with Value,
+   thus improving the speed of retrieving the term.
 
 <P>
    Backtracking will unify Value with successive values associated with Key
@@ -602,11 +606,15 @@ the key Key and DBRef is its unique reference.
 
 ",
 	amode:(recorded(+,-,-) is nondet),
+	amode:(recorded(+,+,-) is nondet),
 	desc:html("   Used to find all values associated with a key.  Value is unified with
    the first term that is associated with Key.  DBRef is unified with the
    unique database reference of this database entry.  In the case of
    compound terms, all keys of the same name and arity are treated as
-   equal.
+   equal. If Value is instantiated, the instantiated term is used as a
+   filter to reduce the number of terms returned by the recorded database
+   and unified with Value, thus improving the speed of retrieving the term.
+
 
 <P>
    Backtracking will unify Value and DBRef with the value resp.  the
