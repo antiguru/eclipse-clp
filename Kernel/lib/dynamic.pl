@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dynamic.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: dynamic.pl,v 1.2 2008/07/17 15:32:35 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -102,10 +102,9 @@
 % must cut the recorded-choicepoint that backtracks over the clauses!
 
 call_dynamic_(SrcHandle, Goal, Module) :-
-%	get_cut(Cut),
-%	recorded(SrcHandle, (Goal:-Body)),
-%	call(Body, Module, Module, Cut).
-	untraced_call((recorded(SrcHandle, (Goal:-Body)), Body), Module).
+	get_cut(Cut),
+	recorded(SrcHandle, (Goal:-Body)),
+	call_with_cut(Body, Module, Module, Cut).
 
 
 

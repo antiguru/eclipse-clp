@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.5 2008/07/13 13:40:31 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.6 2008/07/17 15:36:35 kish_shen Exp $
  */
 
 /********************************************************************
@@ -131,6 +131,7 @@ vmcode cond_body_code_[PROC_PREFIX_SIZE+35];
 vmcode cond3_body_code_[PROC_PREFIX_SIZE+49];
 vmcode softcut5_body_code_[PROC_PREFIX_SIZE+50];
 vmcode call2_code_[PROC_PREFIX_SIZE+10];
+vmcode call_with_cut_code_[PROC_PREFIX_SIZE+2];
 vmcode call_at_code_[PROC_PREFIX_SIZE+4];
 vmcode gc_code_[PROC_PREFIX_SIZE+8];
 vmcode exit_block_code_[PROC_PREFIX_SIZE+8];
@@ -361,6 +362,20 @@ code_init(int flags)
    meta_last_exit_simple_code_ = code;
     Store_i(Exitd);		/* Do wake */
     Store_i(Code_end);
+
+/*
+ *	call_with_cut(Goal,CallerModule,LookupModule,SaveCut) 
+ */
+    did1 = in_dict("call_with_cut", 4);
+    code = &call_with_cut_code_[0];
+    Make_Default_Prefix(did1);
+    if (flags & INIT_SHARED)
+    {
+	Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
+    }
+    do_call_code_ = code;
+    Store_i(Meta_jmp)		/* (Goal,CallerMod,LookupMod,Cut) */
+    Store_i(Code_end)
 
 /*
  *	@(Goal,CallerModule,LookupModule) - the tool body of @/2
