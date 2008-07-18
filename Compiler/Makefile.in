@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile.in,v 1.3 2008/06/30 17:43:41 jschimpf Exp $
+# $Id: Makefile.in,v 1.4 2008/07/18 11:32:44 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -164,32 +164,37 @@ aux_ecl_compiler.eco:	aux_compiler_common.eco aux_compiler_normalise.eco \
 # Stage 1: build compiler under a different name (aux_ecl_compiler.eco)
 
 aux_%.eco:	%.ecl auxmap.ecl
-	$(STABLE_ECLIPSE) -e 'compile(auxmap),\
-		compile("$<",[output:eco("$@")])'
+	$(STABLE_ECLIPSE) -e "compile(auxmap),\
+		compile(\"$<\",\
+		[output:eco(\"$@\")])"
 	-@/bin/chmod $(PERM) $@
 
 # Stage 2: build compiler_xxx.eco using the aux_ecl_compiler from stage 1
 # Don't add an AUX_ECO dependency here - we want to keep stage-1 stable!
 %.eco:	%.ecl
-	$(STABLE_ECLIPSE) -e 'ensure_loaded(aux_ecl_compiler),\
-		aux_ecl_compiler:compile("$<", [debug:$(DEBUG),output:eco,load:new,srcroot:".."])'
+	$(STABLE_ECLIPSE) -e "ensure_loaded(aux_ecl_compiler),\
+		aux_ecl_compiler:compile(\"$<\",\
+		[debug:$(DEBUG),output:eco,load:new,srcroot:\"..\"])"
 	-@/bin/chmod $(PERM) $@
 
 
 # Single-stage build - can be done if no incompatible changes
 # If using this, comment out the stage-2 rule above!
 #%.eco:	%.ecl
-#	$(STABLE_ECLIPSE) -e 'compile("$<", [debug:$(DEBUG),output:eco,load:none,srcroot:".."])'
+#	$(STABLE_ECLIPSE) -e "compile(\"$<\",\
+#		[debug:$(DEBUG),output:eco,load:none,srcroot:\"..\"])"
 #	-@/bin/chmod $(PERM) $@
 
 
 %.lst:	%.ecl
-	$(STABLE_ECLIPSE) -e 'ensure_loaded(aux_ecl_compiler),\
-		aux_ecl_compiler:compile("$<", [debug:$(DEBUG),output:listing,load:none,srcroot:".."])'
+	$(STABLE_ECLIPSE) -e "ensure_loaded(aux_ecl_compiler),\
+		aux_ecl_compiler:compile(\"$<\",\
+		[debug:$(DEBUG),output:listing,load:none,srcroot:\"..\"])"
 
 %.asm:	%.ecl
-	$(STABLE_ECLIPSE) -e 'ensure_loaded(aux_ecl_compiler),\
-		aux_ecl_compiler:compile("$<", [debug:$(DEBUG),output:asm,load:none,srcroot:".."])'
+	$(STABLE_ECLIPSE) -e "ensure_loaded(aux_ecl_compiler),\
+		aux_ecl_compiler:compile(\"$<\",\
+		[debug:$(DEBUG),output:asm,load:none,srcroot:\"..\"])"
 
 
 #----------------------------------------------------------------------
@@ -201,24 +206,24 @@ aux_%.eco:	%.ecl auxmap.ecl
 # then run it, testing the compiler in the local .eco files
 
 test:	$(LOCAL_ECO) compiler_test.eco
-	$(STABLE_ECLIPSE) -e 'ensure_loaded(ecl_compiler),\
-		ensure_loaded(compiler_test),ftest'
+	$(STABLE_ECLIPSE) -e "ensure_loaded(ecl_compiler),\
+		ensure_loaded(compiler_test),ftest"
 	@if diff test.ref test.res ; then echo Compiler unit test ok ; \
 	else echo Compiler unit test failed ; false ; fi
 
 testo:	$(LOCAL_ECO) compiler_test.eco
-	$(STABLE_ECLIPSE) -e 'ensure_loaded(ecl_compiler),\
-		ensure_loaded(compiler_test),ftesto'
+	$(STABLE_ECLIPSE) -e "ensure_loaded(ecl_compiler),\
+		ensure_loaded(compiler_test),ftesto"
 	@if diff testo.ref testo.res ; then echo Optimised Compiler unit test ok ; \
 	else echo Compiler unit test failed ; false ; fi
 
 test_installed:
-	$(STABLE_ECLIPSE) -e 'compile(compiler_test),ftest'
+	$(STABLE_ECLIPSE) -e "compile(compiler_test),ftest"
 	@if diff test.ref test.res ; then echo Compiler unit test ok ; \
 	else echo Compiler unit test failed ; false ; fi
 
 testo_installed:
-	$(STABLE_ECLIPSE) -e 'compile(compiler_test),ftesto'
+	$(STABLE_ECLIPSE) -e "compile(compiler_test),ftesto"
 	@if diff testo.ref testo.res ; then echo Optimised Compiler unit test ok ; \
 	else echo Compiler unit test failed ; false ; fi
 
@@ -247,7 +252,7 @@ $(BOOTDIR)/lib/%.eco:	%.eco
 install:	$(PUBLIC_ECI) $(PUBLIC_ECO)
 
 $(PREFIX)/lib/%.eci:	%.ecl $(PREFIX)/lib/.stamp
-	$(STABLE_ECLIPSE) -e 'lib(document), icompile("$(*F)","$(@D)")'
+	$(STABLE_ECLIPSE) -e "lib(document), icompile(\"$(*F)\",\"$(@D)\")"
 	-@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.ecl:	%.ecl $(PREFIX)/lib/.stamp
@@ -260,13 +265,13 @@ $(PREFIX)/lib/%.ecl:	%.ecl $(PREFIX)/lib/.stamp
 #----------------------------------------------------------------------
 
 %.eci:	%.ecl $(BOOT_ECO)
-	$(STABLE_ECLIPSE) -e 'lib(document),ensure_loaded(ecl_compiler),icompile("$(*F)","$(@D)")'
+	$(STABLE_ECLIPSE) -e "lib(document),ensure_loaded(ecl_compiler),icompile(\"$(*F)\",\"$(@D)\")"
 
 
 doc:	doc/index.html
 
 doc/index.html:	$(PRIVATE_ECI)
-	$(STABLE_ECLIPSE) -e 'lib(document),ecis_to_htmls(.,doc,"","ECLiPSe III Compiler")'
+	$(STABLE_ECLIPSE) -e "lib(document),ecis_to_htmls(.,doc,\"\",\"ECLiPSe III Compiler\")"
 
 
 # Pretty-print the sources
