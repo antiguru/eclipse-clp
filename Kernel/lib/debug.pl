@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: debug.pl,v 1.2 2008/07/18 02:13:06 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -245,15 +245,15 @@ nospy_body(F/N, M) ?- !,
 	nospy_body(_Any:F/N, M).
 nospy_body(PM:F, M) ?- atom(F), !,
 	nospy_body(PM:F/_, M).
-nospy_body(F:L, _M) ?- integer(L), !,
+nospy_body(F:L, M) ?- integer(L), !,
         ( check_atom_string(F) -> true ; error(5, spy(F:L), M) ),
         ( find_matching_breakport(F, L, FullName, DM, PortPred, PortLine),
           get_flag(PortPred, break_lines, PInfo)@DM,
-          memberchk(File:PortLine, PInfo)
+          memberchk(FullName:PortLine, PInfo)
 	->
             set_proc_flags(PortPred, break, PortLine, DM),
             printf(log_output, "breakpoint removed from line %d of file %w in"
-                               " predicate %w%n", [PortLine,File,PortPred])
+                               " predicate %w%n", [PortLine,FullName,PortPred])
         ;
             true
         ).

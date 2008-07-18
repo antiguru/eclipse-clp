@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.2 2008/07/18 02:13:06 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -848,7 +848,7 @@ print_headers([BipInfo|Preds]) :-
 % checks if the bip description is for a library, in which case
 % construct appropriate library info file name (summary or desc)
 % Library index has form bip(Name, index, System, Name, '')
-get_bip_file_name(InfoType, bip(Name, index, System, Name, ''), File) ?-
+get_bip_file_name(InfoType, bip(Name, index, _System, Name, ''), File) ?-
         !,
         concat_string([Name, "_", InfoType], File).
 get_bip_file_name(_, bip(_,_,_,_,File0), File) ?- File0 = File.
