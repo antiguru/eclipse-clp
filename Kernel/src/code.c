@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.6 2008/07/17 15:36:35 kish_shen Exp $
+ * VERSION	$Id: code.c,v 1.7 2008/07/18 17:14:14 kish_shen Exp $
  */
 
 /********************************************************************
@@ -373,7 +373,6 @@ code_init(int flags)
     {
 	Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
     }
-    do_call_code_ = code;
     Store_i(Meta_jmp)		/* (Goal,CallerMod,LookupMod,Cut) */
     Store_i(Code_end)
 
