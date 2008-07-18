@@ -1197,6 +1197,10 @@ be unified with the caller, one-way matching will be used instead.
    is an attributed variable and to fail if it is not.
 
 <P>
+   Clause matching is not supported by dynamic predicates. A run-time exception
+   will be raised when executing a matching clause head that is dynamic.
+
+<P>
 "),
 	args:["Body" : "Callable term or a variable."]
 	]).

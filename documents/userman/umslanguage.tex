@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: umslanguage.tex,v 1.1 2006/09/23 01:50:45 snovello Exp $
+% $Id: umslanguage.tex,v 1.2 2008/07/18 17:17:18 kish_shen Exp $
 %
 % AUTHOR        Joachim Schimpf, IC-Parc, Imperial College, London
 %
@@ -994,6 +994,11 @@ p(f(X)) ?-
     q(X).
 \end{verbatim}
 \end{quote}
+
+Matching clauses are not supported in dynamic clauses. A runtime error
+(calling an undefined procedure $-\query->$/1) will be raised when
+executing dynamic code that has a matching clause head.
+
 Pattern matching can be used for several purposes:
 \begin{itemize}
 \item Generic pattern matching when looking for clauses

@@ -232,6 +232,10 @@ Error:
    backtracking.
 
 <P>
+   No clause transformation is performed on Clause. Use expand_clause/2 to
+   explicitly expand the clause before calling this predicate if clause
+   expansion is rquired.
+<P>
 "),
 	args:["Clause" : "Atom or compound term"],
 	exceptions:[4 : "Clause is a free variable.", 4 : "The head of Clause is a free variable.", 5 : "Clause is not a valid Prolog clause.", 63 : "The procedure is not dynamic.", 70 : "The procedure is undefined.  However, the default error    handler for this exception simply declares the procedure dynamic and    asserts the clause, if the error was caused by an assert."],
@@ -307,6 +311,10 @@ existing clauses.
    uses a new, virtual, copy of the modified database.
 
 <P>
+   No clause transformation is performed on Clause. Use expand_clause/2 to
+   explicitly expand the clause before calling this predicate if clause
+   expansion is rquired.
+<P>
 "),
 	args:["Clause" : "Atom or compound term"],
 	fail_if:"Fails if no dynamic clause unifies with Clause",
@@ -348,6 +356,11 @@ database.
    started executing do not, in any way, affect its behaviour.  A
    subsequent call, however, makes and uses a new, virtual, copy of the
    modified database.
+
+<P>
+   No clause transformation is performed on Clause. Use expand_clause/2 to
+   explicitly expand the clause before calling this predicate if clause
+   expansion is rquired.
 
 <P>
 "),

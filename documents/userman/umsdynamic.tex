@@ -26,6 +26,11 @@
 %------------------------------------------------------------------------
 \label{chapdynamic}
 
+Support for dynamic code is provided partly for compatibility with
+Prolog. Note that \eclipse provides much better primitives (see
+chapter~\ref{chaparrays}) to support the non-logical storage of information
+-- a major use for dynamic  predicates in Prolog. 
+
 An {\eclipse} predicate can be made \emph{dynamic}.
 That is, it can have clauses added and removed from its definition at run
 time.
@@ -222,4 +227,23 @@ affects only those goals that start executing
 afterwards. For every call to a dynamic procedure, the procedure is
 virtually frozen at call time.
 
+\section{Differences between static and dynamic code}
+
+\begin{itemize}
+\item Only dynamic procedures can have clauses added or removed at run time.
+\item Matching clauses (section~\ref{matching}) are not supported by dynamic
+  code. A runtime error (calling an undefined procedure $-\query->$/1) will
+  be raised when executing dynamic code that has a matching clause head.
+\item Clauses for a dynamic procedure need not be consecutive.
+\item Source tracing is not supported for dynamic procedures.
+\item assert/1, retract/1 and clause/1 does not perform clause
+  transformation on the clause. If clause transformation is required,
+  this can be done explicitly with 
+  bipref{expand_clause/2}{../bips/kernel/database/expand_clause-2.html}
+  before.
+\item Internally, dynamic procedures are represented differently from static
+  procedures. The execution of dynamic procedures will generally be slower
+  than for static procedures.
+\end{itemize}
+   
 %HEVEA\cutend
