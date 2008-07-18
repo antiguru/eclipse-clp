@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.2 2008/07/18 13:38:08 kish_shen Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -30,6 +30,7 @@
 
 :- pragma(deprecated_warnings(off)).
 
+:- reexport (?-) / 2 from sepia_kernel. % dummy
 :- reexport (!) / 0 from sepia_kernel.
 :- reexport (*) / 3 from sepia_kernel.
 :- reexport (+) / 2 from sepia_kernel.
@@ -38,6 +39,7 @@
 :- reexport (-) / 2 from sepia_kernel.
 :- reexport (-) / 3 from sepia_kernel.
 :- reexport (->) / 2 from sepia_kernel.
+:- reexport (-->) / 2 from sepia_kernel. % dummy
 :- reexport (*->) / 2 from sepia_kernel.
 :- reexport '.' / 2 from sepia_kernel.
 :- reexport (/) / 3 from sepia_kernel.

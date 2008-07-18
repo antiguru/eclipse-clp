@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.5 2008/07/16 17:17:53 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.6 2008/07/18 13:38:06 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -877,6 +877,10 @@ untraced_true.
 !.
 
 (delay X) :- error(78, delay X).
+
+'?-'(H, B) :- error(78, (H ?- B)). % dummy
+
+'-->'(A, B) :- error(78, (A --> B)). % dummy
 
 X \= X :- true, !, fail.
 _ \= _.
@@ -3746,7 +3750,7 @@ inline_(Proc, Trans, Module) :-
 	printf_with_current_modes/2,
 	proc_flags/4,
 	sepia_version_banner/2,
-	tr_match/2,
+	tr_match/4,
 	trprotect/2,
 	trdcg/5,
 	call_local/1,
@@ -3784,7 +3788,9 @@ inline_(Proc, Trans, Module) :-
 	'C'/3, 
 	!/0,
 	(\+)/1,
-	abort/0, 
+        (?-)/2,
+        (-->)/2,
+        abort/0, 
 	abolish_record/1,
 	add_attribute/2,
 	add_attribute/3,
@@ -4232,9 +4238,12 @@ trprotect(In, Out) :- arg(1, In, Out).
 
 /* Backward-compatibility transformation for matching clauses */
 
-tr_match((Head ?- Body), (Head :- -?-> Body)).
+tr_match((Head ?- Body), (Head :- -?-> Body), AnnMatch, AnnTrans) :-
+        same_annotation((AnnHead ?- AnnBody), AnnMatch, 
+                        (AnnHead :- AnnMatchBody), AnnTrans),
+        inherit_annotation(-?-> AnnBody, AnnMatch, AnnMatchBody). 
 
-:- define_macro((?-)/2, tr_match/2, [clause, global]).
+:- define_macro((?-)/2, tr_match/4, [clause, global]).
 
 
 %
@@ -5085,9 +5094,9 @@ erase_module_item(Module, DefStore, ImpStore) :-
 %	ImpModule	importing module (atom)
 %----------------------------------------------------------------------
 
-:- export tr_with/3, tr_of/3.
+:- export tr_with/5, tr_of/3.
 
-:- define_macro((with)/2, tr_with/3, [global]),
+:- define_macro((with)/2, tr_with/5, [global]),
    define_macro((of)/2,	  tr_of/3,   [global]).
 
 :- store_create_named(struct_def).
@@ -5168,15 +5177,17 @@ current_struct_(Name, ProtoStruct, M) :-
 
 % the macro transformation for with/2
 
-tr_with(Term, Struct, M) :-
+tr_with(Term, Struct, AnnTerm, AnnStruct, M) :-
 	Term = no_macro_expansion(Functor with Args),
 	atom(Functor),
 	visible_struct(Functor, ProtoStruct, M, _Scope), !,
+        annotated_match(AnnTerm, TermAnn),
+        TermAnn = no_macro_expansion(AnnFunctor with _AnnArgs),
 	functor(ProtoStruct, Functor, Arity),
 	functor(Struct, Functor, Arity),
 	(tr_and(Args, ProtoStruct, Struct, M) ->
 	    ( no_duplicates(Args) ->
-		 true 
+		 transformed_annotate(Struct, AnnFunctor, AnnStruct) 
 	    ;
 		 printf(warning_output,
 		    "WARNING: Duplicate struct field name in module %w in%n    %w%n", [M,Term]),
@@ -5187,7 +5198,7 @@ tr_with(Term, Struct, M) :-
 		"WARNING: Unrecognised or missing struct field name in module %w in%n	 %w%n", [M,Term]),
 	     fail
 	).
-tr_with(Term, _Struct, M) :-
+tr_with(Term, _Struct, _AnnTerm, _AnnStruct, M) :-
 	printf(warning_output,
 	    "WARNING: Unrecognized structure name in module %w in%n    %w%n", [M,Term]),
 	fail.
