@@ -24,7 +24,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: operator.c,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * VERSION	$Id: operator.c,v 1.2 2008/07/20 17:05:47 jschimpf Exp $
  */
 
 /*
@@ -456,7 +456,12 @@ _insert_op(int scope, long int preced, long int assoc, dident oper, dident modul
 
     if (operator_prop)		/* same scope operator exists already */
     {
-	res = preced ? REDEF_OPERATOR : PSUCCEED;
+	if (preced && (GetOpiAssoc(operator_prop) != assoc ||
+			GetOpiPreced(operator_prop) != preced)) {
+	    res = REDEF_OPERATOR;
+	} else {
+	    res = PSUCCEED;
+	}
     }
     else
     {
