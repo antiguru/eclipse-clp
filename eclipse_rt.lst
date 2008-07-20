@@ -84,6 +84,7 @@ lib/lists.eco
 lib/make_overlap_bivs.eco
 lib/matrix_util.eco
 lib/module_options.eco
+lib/multifile.eco
 lib/notify_ports.eco
 lib/notinstance.eco
 lib/numbervars.eco

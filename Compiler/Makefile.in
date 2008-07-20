@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile.in,v 1.4 2008/07/18 11:32:44 jschimpf Exp $
+# $Id: Makefile.in,v 1.5 2008/07/20 18:22:58 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -174,7 +174,7 @@ aux_%.eco:	%.ecl auxmap.ecl
 %.eco:	%.ecl
 	$(STABLE_ECLIPSE) -e "ensure_loaded(aux_ecl_compiler),\
 		aux_ecl_compiler:compile(\"$<\",\
-		[debug:$(DEBUG),output:eco,load:new,srcroot:\"..\"])"
+		[debug:$(DEBUG),output:eco,srcroot:\"..\"])"
 	-@/bin/chmod $(PERM) $@
 
 
@@ -189,12 +189,12 @@ aux_%.eco:	%.ecl auxmap.ecl
 %.lst:	%.ecl
 	$(STABLE_ECLIPSE) -e "ensure_loaded(aux_ecl_compiler),\
 		aux_ecl_compiler:compile(\"$<\",\
-		[debug:$(DEBUG),output:listing,load:none,srcroot:\"..\"])"
+		[debug:$(DEBUG),output:listing,srcroot:\"..\"])"
 
 %.asm:	%.ecl
 	$(STABLE_ECLIPSE) -e "ensure_loaded(aux_ecl_compiler),\
 		aux_ecl_compiler:compile(\"$<\",\
-		[debug:$(DEBUG),output:asm,load:none,srcroot:\"..\"])"
+		[debug:$(DEBUG),output:asm,srcroot:\"..\"])"
 
 
 #----------------------------------------------------------------------

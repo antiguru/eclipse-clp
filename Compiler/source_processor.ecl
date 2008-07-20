@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.5 2008/06/19 15:13:03 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.6 2008/07/20 18:23:04 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/06/19 15:13:03 $").
+:- comment(date, "$Date: 2008/07/20 18:23:04 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -564,6 +564,7 @@ expand_clause_and_goals_(Term, AnnTerm, TransTerm, AnnTransTerm, CFlag, GFlag, M
             AnnTransTerm = AnnTerm
 	).
 
+:- export expand_clause_goals/5.
 expand_clause_goals(C, AC, TC, ATC, _M) :- var(C), !,
 	TC = C, ATC = AC.
 expand_clause_goals(H :- B, Ann, H :- BC, AnnExp, M) :-
@@ -571,10 +572,8 @@ expand_clause_goals(H :- B, Ann, H :- BC, AnnExp, M) :-
         Ann = annotated_term{term:(AH:-AB),type:Type,from:From,to:To},
         AnnExp = annotated_term{term:(AH:-ABC),type:Type,from:From,to:To},
 	expand_goal_annotated(B, AB, BC, ABC)@M.
-expand_clause_goals([H|T], Ann, [HC|TC], AnnExp, M) :-
+expand_clause_goals([H|T], [AH|AT], [HC|TC], [AHC|ATC], M) :-
 	!,
-        Ann = annotated_term{term:[AH|AT],type:Type,from:From,to:To},
-        AnnExp = annotated_term{term:[AHC|ATC],type:Type,from:From,to:To},
 	expand_clause_goals(H, AH, HC, AHC, M),
 	expand_clause_goals(T, AT, TC, ATC, M).
 expand_clause_goals(C, AC, C, AC, _).

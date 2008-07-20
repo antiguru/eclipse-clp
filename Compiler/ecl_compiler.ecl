@@ -1,4 +1,4 @@
-
+% BEGIN LICENSE BLOCK
 % Version: CMPL 1.1
 %
 % The contents of this file are subject to the Cisco-style Mozilla Public
@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.8 2008/07/13 13:50:17 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.9 2008/07/20 18:23:03 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/07/13 13:50:17 $").
+:- comment(date,	"$Date: 2008/07/20 18:23:03 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -63,6 +63,7 @@
 :- lib(module_options).
 
 :- import
+	expand_clause_annotated/4,
 	set_default_error_handler/2
    from sepia_kernel.
 
@@ -151,92 +152,144 @@ compiler_options_cleanup(Options) :-
 % In case of error, succeed with Size = -1.0Inf.
 % ----------------------------------------------------------------------
 
-compile_predicate(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Options, Size) ?-
+compile_predicate(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Options, Size) :-
 	block(
 	    compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos,
-                               PredsSeen, Options, Size),
+				PredsSeen, Options, Size),
 	    abort_compile_predicate,
 	    Size = -1.0Inf),
-	( var(Size) -> Size = 0 ; true ).
+	( var(Size) -> Size=0 ; true ).
 
 
 compile_predicate1(_, [], _, _, _, _, CodeSize) :- !, CodeSize = 0.
-compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Options, CodeSize) :-
+compile_predicate1(ModulePred, Clauses0, AnnClauses0, SourcePos, PredsSeen, Options, CodeSize) :-
 	message(compiling(ModulePred), Options),
 	ModulePred = Module:Pred,
 	Pred = N/A,
 	( atom(N), integer(A) -> true
 	; compiler_event(#illegal_head, SourcePos, _Ann, N, Module)
 	),
-	verify (Clauses = [Clause|_], extract_pred(Clause, Pred)),
-	check_flags(Pred, Module, Options),
-	( get_flag(Pred, stability, dynamic)@Module ->
-	    % preliminary handling of dynamic code
+	verify (Clauses0 = [Clause|_], extract_pred(Clause, Pred)),
+	legal_pred_definition(Pred, Module, Options),
+	% Do inlining/goal expansion. This is done here rather than in the
+	% source_processor to make it controllable via pragmas.
+	( Options = options{expand_goals:on} ->
+	    expand_clause_goals(Clauses0, AnnClauses0, Clauses, AnnClauses, Module)
+	;
+	    Clauses = Clauses0, AnnClauses = AnnClauses0
+	),
+	% Distinguish dynamic/discontiguous/static
+	( local_get_flag(Pred, stability, dynamic, Module) ->
 	    CodeSize = 0,
-	    ( foreach(Clause, Clauses), param(Module) do
-		assert(Clause)@Module
+	    ( foreach(Clause, Clauses), param(SourcePos,Options,Module) do
+		process_query(SourcePos, (?-assert(Clause)), Options, Module)
 	    )
 
-	% treat non-consecutive and multifile here
+	; sepia_kernel:record_discontiguous_predicate(Pred, Clauses, AnnClauses, Module) ->
+	    % will be compiled later via compile_discontiguous_preds/5
+	    CodeSize = 0
 
 	; check_redefinition(ModulePred, PredsSeen, SourcePos, Options) ->
-	    compile_pred_to_wam(Clauses, AnnClauses, WAM, Options, ModulePred),
-	    pred_flags(Options, Flags),
-	    ( ( Options = options{load:all} ; Options = options{load:new}, \+ is_predicate(Pred)@Module) ->
-		% double negation, because asm binds the labels
-		\+ \+ block(asm(Pred, WAM, Flags)@Module, _, true),
-                get_flag(Pred, code_size, CodeSize)@Module,
-                set_pred_pos(Pred, SourcePos, Options, Module)
-	    ;
-		true % don't clobber existing code if not loading
-	    ),
-	    ( Options = options{output:print} ->
-                printf("%w:%n", [Pred]),
-		print_wam(WAM)
-
-	    ; Options = options{output:print(Stream)} ->
-                writeclauses(Stream, Clauses),
-		get_stream(output, OldOut),
-		set_stream(output, Stream),
-		print_wam(WAM),
-		set_stream(output, OldOut),
-		writeln(Stream, --------------------)
-
-	    ; Options = options{output:eco_to_stream(Stream)} ->
-                pasm(WAM, CodeSize, BTPos, Codes),
-		( portable_object_code(Codes) ->
-		    true
-		;
-		    get_flag(eclipse_object_suffix, ECO),
-		    machine_bits(BPW),
-		    printf(warning_output,
-			"WARNING: the generated %w file will only work reliably on %w bit machines!%n",
-			[ECO,BPW])
-		),
-		CodeArr =.. [[]|Codes],
-                get_pred_pos(SourcePos, Options, File, Line, Offset),
-		StorePred = store_pred(Pred,CodeArr,CodeSize,BTPos,Flags,File,Line,Offset),
-                ( Module == sepia_kernel ->
-		    % call locally, because :/2 may not be defined yet
-		    QStorePred = StorePred
-		;
-		    QStorePred = sepia_kernel:StorePred
-		),
-		printf(Stream, "%ODQKw.%n", [:-QStorePred])@Module
-	
-
-	    ; Options = options{output:asm_to_stream(Stream)} ->
-                pretty_print_asm(WAM, Stream, Pred, Flags, Module)
-
-            ; Options = options{output:none} ->
-                true
-	    ;
-		Options = options{output:Junk},
-		printf(error, "Invalid output option: %w%n", [Junk]),
-		abort
-	    )
+	    compile_static_predicate(Pred, Clauses, AnnClauses, SourcePos, Options, CodeSize, Module)
 	;
 	    CodeSize = 0
+	).
+
+
+compile_static_predicate(Pred, Clauses, AnnClauses, SourcePos, Options, CodeSize, Module) :-
+	compile_pred_to_wam(Pred, Clauses, AnnClauses, WAM, Options, Module),
+	pred_flags(Options, Flags),
+	load_compiled_code(Pred, WAM, CodeSize, Flags, SourcePos, Options, Module),
+	output_compiled_code(Pred, WAM, Clauses, CodeSize, Flags, SourcePos, Options, Module),
+	( var(CodeSize) -> CodeSize=0 ; true ).
+
+
+compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
+	sepia_kernel:collect_discontiguous_predicates(Module, NonContigPreds),
+	(
+	    foreach(Pred-ClausePairs,NonContigPreds),
+	    fromto(Size0,Size1,Size2,Size),
+	    param(Module, SourcePos, Options)
+	do
+	    (
+		local_get_flag(Pred, source_file, OldFile, Module),
+		SourcePos = source_position{file:NewFile0,line:Line},
+		normalised_source_file(NewFile0, Options, NewFileAtom),
+		OldFile \== NewFileAtom,
+		\+ error(#multifile, (Pred,OldFile,NewFileAtom:Line), Module)
+	    ->
+		% Seen in other file: if handler fails, don't redefine
+		Size2 = Size1
+	    ;
+		( foreach(Clause-AnnClause,ClausePairs),
+		  foreach(Clause,Clauses), foreach(AnnClause,AnnClauses)
+		do
+		    true
+		),
+		block(compile_static_predicate(Pred, Clauses, AnnClauses, SourcePos, Options, CodeSize, Module),
+			abort_compile_predicate,
+			CodeSize = -1.0Inf),
+		Size2 is Size1 + CodeSize
+	    )
+	).
+
+
+    load_compiled_code(Pred, WAM, CodeSize, Flags, SourcePos, Options, Module) :-
+	( ( Options = options{load:all} ; Options = options{load:new}, \+ is_predicate(Pred)@Module) ->
+	    % double negation, because asm binds the labels
+	    \+ \+ block(asm(Pred, WAM, Flags)@Module, _, true),
+	    get_flag(Pred, code_size, CodeSize)@Module,
+	    set_pred_pos(Pred, SourcePos, Options, Module)
+	;
+	    true % don't clobber existing code if not loading
+	).
+
+
+    output_compiled_code(Pred, WAM, Clauses, CodeSize, Flags, SourcePos, Options, Module) :-
+	( Options = options{output:print} ->
+	    printf("%w:%n", [Pred]),
+	    print_wam(WAM)
+
+	; Options = options{output:print(Stream)} ->
+	    writeclauses(Stream, Clauses),
+	    get_stream(output, OldOut),
+	    set_stream(output, Stream),
+	    print_wam(WAM),
+	    set_stream(output, OldOut),
+	    writeln(Stream, --------------------)
+
+	; Options = options{output:eco_to_stream(Stream)} ->
+	    pasm(WAM, CodeSize, BTPos, Codes),
+	    ( portable_object_code(Codes) ->
+		true
+	    ;
+		get_flag(eclipse_object_suffix, ECO),
+		machine_bits(BPW),
+		printf(warning_output,
+		    "WARNING: the generated %w file will only work reliably on %w bit machines!%n",
+		    [ECO,BPW])
+	    ),
+	    CodeArr =.. [[]|Codes],
+	    get_pred_pos(SourcePos, Options, File, Line, Offset),
+	    StorePred = store_pred(Pred,CodeArr,CodeSize,BTPos,Flags,File,Line,Offset),
+	    ( Module == sepia_kernel ->
+		% call locally, because :/2 may not be defined yet
+		QStorePred = StorePred
+	    ;
+		QStorePred = sepia_kernel:StorePred
+	    ),
+	    printf(Stream, "%ODQKw.%n", [:-QStorePred])@Module
+    
+
+	; Options = options{output:asm_to_stream(Stream)} ->
+	    pretty_print_asm(WAM, Stream, Pred, Flags, Module)
+
+	; Options = options{output:none} ->
+	    true
+	;
+	    Options = options{output:Junk},
+	    printf(error, "Invalid output option: %w%n", [Junk]),
+	    abort
 	).
 
 
@@ -323,7 +376,7 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 	    % Non-consecutive clauses: if handler fails, don't redefine
 	    compiler_event(#consecutive, SourcePos, _Ann, Pred, Module)
 	; 	
-	    get_flag(Pred, source_file, OldFile)@Module,
+	    local_get_flag(Pred, source_file, OldFile, Module),
 	    SourcePos = source_position{file:NewFile0,line:Line},
 	    normalised_source_file(NewFile0, Options, NewFileAtom),
 	    OldFile \== NewFileAtom
@@ -336,19 +389,43 @@ compile_predicate1(ModulePred, Clauses, AnnClauses, SourcePos, PredsSeen, Option
 	hash_set(PredsSeen, ModulePred, []).
 
 
-    check_flags(Pred, Module, Options) :-
-    	( get_flag(Pred, tool, on)@Module ->
+    % Make sure we can define this predicate
+    legal_pred_definition(Pred, Module, Options) :-
+	( Options = options{load:all} ->
+	    local(Pred)@Module	% does all checks, hiding imports, etc
+	;
+	    % If not loading, don't create the local predicate.  Problem:
+	    % subsequent calls to get_flag/3 may trigger lazy imports for
+	    % preds that would be hidden when loading, and so give wrong
+	    % flags. That's why we have to use local_get_flag/3 instead.
+	    true
+	),
+	( local_get_flag(Pred, tool, on, Module) ->
 	    error(#tool_redef, Pred, Module)
 	; true ),
-    	( get_flag(Pred, parallel, on)@Module,  Options = options{warnings:on} ->
+	( local_get_flag(Pred, parallel, on, Module),  Options = options{warnings:on} ->
 	    printf(warning_output, "Parallel-declaration ignored for %w%n", [Module:Pred])
 	; true ).
+
+
+    % Use this for looking up properties of the predicate being compiled
+    local_get_flag(Pred, Property, Value, Module) :-
+    	( get_flag(Pred, definition_module, Module)@Module ->
+	    get_flag(Pred, Property, Value)@Module
+	; 
+	    get_flag_default(Property, Value)
+	).
+
+	get_flag_default(tool, off).
+	get_flag_default(parallel, off).
+	get_flag_default(stability, static).
+	%get_flag_default(source_file, _) :- fail.
 
 
 % Compile a predicate (list of clauses) to WAM code list
 % This chains together the various stages of the comiler
 
-compile_pred_to_wam(Clauses, AnnCs, FinalCode, Options, Module:Pred) :-
+compile_pred_to_wam(Pred, Clauses, AnnCs, FinalCode, Options, Module) :-
 
 	% Create our normal form
 	message("Normalize", 2, Options),
@@ -521,16 +598,10 @@ compile_source(Source, OptionListOrModule, CM) :-
 	
 	),
 	compiler_options_setup(Source, OptionList, Options),
-	( Options = options{load:all} ->
-	    OpenOptions = [recreate_modules],
-	    CloseOptions = [keep_modules]
-	;
-	    OpenOptions = [],
-	    CloseOptions = []
-	),
+	source_processor_options_setup(Options, OpenOptions, CloseOptions),
 	error(#start_compiler, Source, CM),
 	cputime(Tstart),
-	( source_open(Source, [with_annotations,goal_expansion|OpenOptions], SourcePos0)@Module ->
+	( source_open(Source, [with_annotations|OpenOptions], SourcePos0)@Module ->
 	    SourcePos0 = source_position{stream:Stream,file:CanonicalFile},
 	    get_stream_info(Stream, device, Device),
 	    sepia_kernel:register_compiler(args(Term,Ann)-(ecl_compiler:compile_term_annotated(Term,Ann,Options))),
@@ -543,7 +614,7 @@ compile_source(Source, OptionListOrModule, CM) :-
 		fromto(ClauseTail, ClauseTail0, ClauseTail1, []),
 		fromto(AnnClauseTail, AnnClauses0, AnnClauses1, []),
 		fromto(AnnClauseTail, AnnClauseTail0, AnnClauseTail1, []),
-                fromto(0, Size0, Size2, Size), 
+                fromto(0, Size0, Size2, Size3), 
 		fromto(none, Pred0, Pred1, none),
 		param(PredsSeen,Options,Module)
 	    do
@@ -575,44 +646,20 @@ compile_source(Source, OptionListOrModule, CM) :-
 		    Pred1 = none,
 		    PredPos2 = none,
 
-		    ( Class = directive ->
-			Size2 = Size1,
-			( old_compiler_directive(Term, Options) ->
-			    true
-			;
-			    process_directive(SourcePos1, Term, Options, PosModule)
-			)
-		    ; Class = query ->
-			Size2 = Size1,
-			process_query(SourcePos1, Term, Options, PosModule)
-		    ; Class = handled_directive ->
-			Size2 = Size1,
-			( consider_pragmas(Term, Options, PosModule) ->
-			    emit_directive_or_query(Term, Options, PosModule)
-			; handle_module_boundary(Term, Options, PosModule, Module) ->
-			    emit_directive_or_query(Term, Options, PosModule)
-			; Term = (:-meta_attribute(Name,Handlers)) ->
-			    % already partially handled in source_processor
-			    emit_directive_or_query((:-meta_attribute(Name,[])), Options, PosModule),
-			    process_directive(SourcePos1, (:-local initialization(meta_attribute(Name,Handlers))), Options, PosModule)
-			;
-			    emit_directive_or_query(Term, Options, PosModule)
-			)
-		    ; (Class = var ; Class = other) ->
-			( block(compiler_event(#illegal_head, SourcePos1, Ann, Term, Module), abort_compile_predicate, true) -> true ; true ),
-			Size2 = -1.0Inf
-		    ;
-			Size2 = Size0
-		    )
+		    block(handle_nonclause(Class, Term, Ann, SourcePos1, Size1, Size2, Options, PosModule, Module),
+		    	abort_compile_predicate, Size2 = -1.0Inf)
 		)
 	    ),
+
+	    % Deal with discontiguous clauses collected above
+	    SourcePosEnd = source_position{module:EndModule},
+	    compile_discontiguous_preds(EndModule, SourcePosEnd, Options, Size3, Size),
 
 	    % If the compilation was successful, raise various events
 	    ( Size >= 0 ->
 		% Raise event 149, which executes initialization goals, etc.
 		% This must be done before cd-ing back in source_close below.
 		% This event is also raised when the module changes mid-file!
-		SourcePosEnd = source_position{module:EndModule},
 		( Options = options{load:none} ->
 		    true
 		; EndModule == Module ->
@@ -666,6 +713,19 @@ compile_source(Source, OptionListOrModule, CM) :-
     valid_source(stream(_)) ?- true.
 
 
+source_processor_options_setup(options{load:Load,expand_clauses:ClauseExp}, OpenOptions, CloseOptions) :-
+	( Load == all ->
+	    OpenOptions = [recreate_modules|OO], CloseOptions = [keep_modules]
+	;
+	    OpenOptions = OO, CloseOptions = []
+	),
+	( ClauseExp == on ->
+	    OO = []
+	;
+	    OO = [no_clause_expansion]
+	).
+
+
 % Add a single clause or a list of clauses to what we already have.
 % If a predicate is finished, compile it.
 :- mode accumulate_clauses(+,+,+,+,+,+,+,+,+,?,-,?,-,-,-,-,-,-,-,-).
@@ -717,13 +777,46 @@ accumulate_clauses(Term, AnnTerm, Module, Options, ClausePos, PredsSeen,
 % Queries, directives and pragmas
 %----------------------------------------------------------------------
 
+handle_nonclause(Class, Term, Ann, SourcePos1, Size0, Size, Options, PosModule, Module) :-
+	( Class = directive ->
+	    Size = Size0,
+	    ( old_compiler_directive(Term, Options) ->
+		true
+	    ;
+		process_directive(SourcePos1, Term, Options, PosModule)
+	    )
+
+	; Class = query ->
+	    Size = Size0,
+	    process_query(SourcePos1, Term, Options, PosModule)
+
+	; Class = handled_directive ->
+	    ( consider_pragmas(Term, Options, PosModule) ->
+		Size = Size0,
+		emit_directive_or_query(Term, Options, PosModule)
+	    ; handle_module_boundary(Term, Options, PosModule, SourcePos1, Module, Size0, Size) ->
+		emit_directive_or_query(Term, Options, PosModule)
+	    ; Term = (:-meta_attribute(Name,Handlers)) ->
+		% already partially handled in source_processor
+		Size = Size0,
+		emit_directive_or_query((:-meta_attribute(Name,[])), Options, PosModule),
+		process_directive(SourcePos1, (:-local initialization(meta_attribute(Name,Handlers))), Options, PosModule)
+	    ;
+		Size = Size0,
+		emit_directive_or_query(Term, Options, PosModule)
+	    )
+
+	; (Class = var ; Class = other) ->
+	    compiler_event(#illegal_head, SourcePos1, Ann, Term, Module),
+	    Size = -1.0Inf
+
+	; % Class = end_include,end
+	    Size = Size0
+	).
+
+
 process_directive(SourcePos, Term, Options, Module) :-
-	( Options = options{load:none} ->
-	    true
-	;
-	    % new/all
-	    call_directive(SourcePos, Term, Module)
-	),
+	call_directive(SourcePos, Term, Module),
 	emit_directive_or_query(Term, Options, Module).
 
 
@@ -753,18 +846,18 @@ call_directive(SourcePos, Dir, Module) :-
 	).
 
 
-
 % If we see the beginning of a new module, then finalize OldModule
 % (unless it is the compilation's context module, in which case this
 % is the first module directive we encounter)
-handle_module_boundary((:-module(Module,_,_)), Options, OldModule, TopModule) ?- !,
-	handle_module_boundary((:-module(Module)), Options, OldModule, TopModule).
-handle_module_boundary((:-module(_Module)), Options, OldModule, TopModule) ?- !,
+handle_module_boundary((:-module(Module,_,_)), Options, OldModule, SourcePos, TopModule, Size0, Size) ?- !,
+	handle_module_boundary((:-module(Module)), Options, OldModule, SourcePos, TopModule, Size0, Size).
+handle_module_boundary((:-module(_Module)), Options, OldModule, SourcePos, TopModule, Size0, Size) ?- !,
 	( Options = options{load:none} ->
-	    true
+	    Size = Size0
 	; OldModule == TopModule ->
-	    true
+	    Size = Size0
 	;
+	    compile_discontiguous_preds(OldModule, SourcePos, Options, Size0, Size),
 	    error(#code_unit_loaded, [check], OldModule)
 	).
 
@@ -806,6 +899,13 @@ old_compiler_directive((:-system_debug), Options) :- !,
 	setarg(system of options, Options, on),
 	setarg(debug of options, Options, on),
 	setarg(skip of options, Options, off).
+old_compiler_directive((:-dbgcomp), Options) :- !,
+	set_flag(debug_compile, on),
+	setarg(debug of options, Options, on).
+old_compiler_directive((:-nodbgcomp), Options) :- !,
+	set_flag(debug_compile, off),
+	setarg(expand_goals of options, Options, on),
+	setarg(debug of options, Options, off).
 
 
 % copy directives and queries to the eco file
@@ -913,7 +1013,7 @@ compile_list([Term|Terms], AnnTermList, Pred, Clauses, Tail, AnnC, AnnCTail, Siz
 	    compile_list(Terms, AnnTerms, none, Clauses1, Clauses1,
                          AnnC1, AnnC1, Size2, Size, PredsSeen, Options, Module)
 	; callable(Term) ->
-	    optional_expansion(Term, AnnTerm, TransTerm, AnnTrans, Options, Module),
+	    optional_clause_expansion(Term, AnnTerm, TransTerm, AnnTrans, Options, Module),
 	    % TransTerm may be a list of clauses!
 	    accumulate_clauses(TransTerm, AnnTrans, Module, Options, term, PredsSeen,
 		    Size0, Pred, term, Clauses, Tail, AnnC, AnnCTail,
@@ -937,6 +1037,11 @@ compile_list(Term, AnnTerm, Pred, Clauses, Tail, AnnC, AnnCTail, Size0, Size, Pr
 	    error(#type_error, compile_term(Term, Options), Module)
 	).
 
-    optional_expansion(Term, AnnTerm, TransTerm, AnnTransTerm, options{expand_clauses:CFlag,expand_goals:GFlag}, Module) :-
-	expand_clause_and_goals(Term, AnnTerm, TransTerm, AnnTransTerm, CFlag, GFlag)@Module.
+
+    optional_clause_expansion(Term, AnnTerm, TransTerm, AnnTransTerm, options{expand_clauses:CFlag}, Module) :-
+	( CFlag == on ->
+	    expand_clause_annotated(Term, AnnTerm, TransTerm, AnnTransTerm)@Module
+	;
+	    TransTerm=Term, AnnTransTerm=AnnTerm
+	).
 

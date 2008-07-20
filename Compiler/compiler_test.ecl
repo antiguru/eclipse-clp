@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.16 2008/07/13 13:50:17 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.17 2008/07/20 18:22:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1516,9 +1516,6 @@ testclause(disj31, [(go(L) :-
 	L = [_Aa, _Bb, _Cc],
 	findall( X, member(X, L), L0),
 	L0 = [1,2,3], nl, write('L = '), write(L))]).
-
-testclause(disj32, [(append([X|L1], L2, [X|L3]) :- append(L1, L2, L3))]).
-
 
 testclause(disj33, [(c(X, Y) :- (X=Y->a;b),c)]).
 

@@ -12941,27 +12941,6 @@ label(8):
 	read_nil             
 	branch                   ref(9) 
 
------- Test disj32 -------
-append([A|B], C, [A|D]) :-
-	append(B, C, D).
-
-append / 3:
-label(1):
-	get_list                 a(1)     ref(2) 
-	write_variable2          a(4)     a(1) 
-label(3):
-	get_list                 a(3)     ref(4) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	jmp                      ref(1) 
-label(2):
-	read_variable2           a(4)     a(1) 
-	branch                   ref(3) 
-label(4):
-	read_value               a(4) 
-	read_variable            a(3) 
-	jmp                      ref(1) 
-
 ------ Test disj33 -------
 c(A, B) :-
 	(

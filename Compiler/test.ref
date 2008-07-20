@@ -14051,28 +14051,6 @@ label(L8):
 	put_module               a(2)     eclipse 
 	move_chain               y(1)     a(1)     sepia_kernel : write_ / 2 
 
------- Test disj32 -------
-append([A|B], C, [A|D]) :-
-	append(B, C, D).
-
-append / 3:
-label(L0):
-	get_list                 a(1)     ref(L1) 
-	write_variable2          a(4)     a(1) 
-	branch                   ref(L2) 
-label(L1):
-	read_variable2           a(4)     a(1) 
-label(L2):
-	get_list                 a(3)     ref(L3) 
-	write_local_value        a(4) 
-	write_variable           a(3) 
-	branch                   ref(L4) 
-label(L3):
-	read_value               a(4) 
-	read_variable            a(3) 
-label(L4):
-	jmp                      ref(L0) 
-
 ------ Test disj33 -------
 c(A, B) :-
 	(

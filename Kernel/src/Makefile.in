@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.2 2008/07/01 00:27:44 jschimpf Exp $
+# $Id: Makefile.in,v 1.3 2008/07/20 18:20:10 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -540,7 +540,7 @@ PL_LIBRARIES =	version.pl
 #
 
 ECL_ECO_LIBRARIES =	constraint_pools.ecl document.ecl fcompile.ecl \
-		notify_ports.ecl port_profiler.ecl \
+		multifile.ecl notify_ports.ecl port_profiler.ecl \
 		swi.ecl time_log.ecl timeout.ecl var_name.ecl
 
 PL_ECO_LIBRARIES =	anti_unify.pl apply.pl \
@@ -573,7 +573,7 @@ BOOT_ECO_LIBRARIES = \
 ECI_ECL_LIBRARIES =	hash.ecl document.ecl \
 		var_name.ecl flexlm.ecl time_log.ecl module_options.ecl \
 		notify_ports.ecl constraint_pools.ecl port_profiler.ecl \
-		swi.ecl timeout.ecl fcompile.ecl
+		swi.ecl timeout.ecl fcompile.ecl multifile.ecl
 
 
 ECI_PL_LIBRARIES =	anti_unify.pl apply.pl apply_macros.pl \
@@ -724,11 +724,13 @@ boot_test:	sepia$(EXE) $(BOOT_ECOS) $(COMPILER_ECOS)
 
 
 $(PREFIX)/lib/%.eco:	$(SEPIA)/lib/%.ecl $(PREFIX)/lib/.stamp
-	$(AUX_SEPIA) -e 'compile("$<",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco])'
+	$(AUX_SEPIA) -e "compile(\"$<\",\
+		[debug:$(ECO_DBG),srcroot:\"$(top_srcdir)\",outdir:\"$(@D)\",output:eco])"
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eco:	$(SEPIA)/lib/%.pl $(PREFIX)/lib/.stamp
-	$(AUX_SEPIA) -e 'compile("$<",[debug:$(ECO_DBG),srcroot:"$(top_srcdir)",outdir:"$(@D)",output:eco])'
+	$(AUX_SEPIA) -e "compile(\"$<\",\
+		[debug:$(ECO_DBG),srcroot:\"$(top_srcdir)\",outdir:\"$(@D)\",output:eco])"
 	@/bin/chmod $(PERM) $@
 
 $(PREFIX)/lib/%.eci:	$(SEPIA)/lib/%.ecl $(PREFIX)/lib/.stamp
