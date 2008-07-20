@@ -15,11 +15,11 @@
 :-(:(sepia_kernel,store_pred(/(to_assoc_list,2),[](o(151),proc(/(array_to_list,2)),o(0)),3,0,0,'Compiler/compiler_map.ecl',0,0))).
 :-(export(/(keys,2))).
 :-(:(sepia_kernel,store_pred(/(do__1,2),[](o(136),pw(1),o(203),y(1),o(122),a(1),ref(56),ref(20),ref(fail),o(122),a(2),ref(32),ref(18),ref(fail),o(128),0,2,ref(29),o(10),a(1),o(10),a(2),o(143),proc(/(true,0)),3,o(204),y(1),pw(0),o(154),o(199),0,1,o(15),a(1),ref(56),o(380),functor(/(-,2)),o(37),a(3),o(33),o(97),t(0),ref(63),o(37),a(1),o(137),pw(-1),o(15),a(2),ref(67),o(46),a(3),o(37),a(2),o(144),ref(0),o(71),functor(/(-,2)),ref(37),o(38),a(3),o(95),t(0),o(38),a(1),o(139),ref(45),o(44),a(3),o(38),a(2),o(144),ref(0),o(0)),74,0,0,0,0,0))).
-:-(set_flag(/(do__1,2),auxiliary,on)).
+?-(set_flag(/(do__1,2),auxiliary,on)).
 :-(:(sepia_kernel,store_pred(/(keys,2),[](o(6),pw(2),a(2),y(2),o(399),a(2),y(1),proc(/(array_to_list,2)),7,o(351),2,y(1),a(1),o(145),proc(/(do__1,2)),o(0)),16,0,0,'Compiler/compiler_map.ecl',0,0))).
 :-(export(/(from_sorted_assoc_list,2))).
 :-(:(sepia_kernel,store_pred(/(do__2,3),[](o(136),pw(4),o(203),y(1),o(122),a(1),ref(61),ref(15),ref(fail),o(128),0,3,ref(25),o(10),a(1),o(7),a(3),a(2),o(143),proc(/(true,0)),3,o(204),y(1),pw(0),o(154),o(199),0,1,o(15),a(1),ref(61),o(380),functor(/(-,2)),o(37),a(1),o(2),a(3),a(5),o(37),a(3),o(97),t(0),ref(73),o(41),y(2),o(137),pw(-1),o(3),a(5),y(4),o(399),a(4),y(3),proc(/(aset,4)),29,o(351),3,y(2),a(1),o(144),ref(0),o(71),functor(/(-,2)),ref(33),o(38),a(1),o(2),a(3),a(5),o(38),a(3),o(95),t(0),o(42),y(2),o(139),ref(45),o(0)),78,0,0,0,0,0))).
-:-(set_flag(/(do__2,3),auxiliary,on)).
+?-(set_flag(/(do__2,3),auxiliary,on)).
 :-(:(sepia_kernel,store_pred(/(from_sorted_assoc_list,2),[](o(6),pw(3),a(1),y(2),o(3),a(2),y(3),o(399),a(1),y(1),proc(/(new_array,1)),15,o(354),y(2),a(1),y(1),a(2),y(3),a(3),o(145),proc(/(do__2,3)),o(0)),22,0,0,'Compiler/compiler_map.ecl',0,0))).
 :-(export(/(det_insert,4))).
 :-(:(sepia_kernel,store_pred(/(det_insert,4),[](o(361),a(1),a(2),o(151),proc(/(aset,4)),o(0)),6,0,0,'Compiler/compiler_map.ecl',0,0))).

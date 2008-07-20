@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.2 2008/07/20 18:16:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% $Id: iso.pl,v 1.2 2008/07/20 18:16:49 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -86,7 +86,8 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2008/06/30 17:43:47 $`).
+:- comment(date, `$Date: 2008/07/20 18:16:49 $`).
+:- comment(see_also, [library(multifile)]).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
     the definition of Standard Prolog as defined in ISO/IEC 13211-1
@@ -154,8 +155,6 @@
 	initialization/1,
 	iso_recover/4,
 	log/2,
-	multifile/1,
-	multifile/2,
 	number_chars/2,
 	number_codes/2,
 	peek_byte/1,
@@ -181,7 +180,6 @@
 	unify_with_occurs_check/2.
 
 :- tool(catch/3, catch/4).
-:- tool(multifile/1, multifile/2).
 :- tool(initialization/1, initialization/2).
 :- tool(current_prolog_flag/2, current_prolog_flag_/3).
 :- tool(set_prolog_flag/2, set_prolog_flag_/3).
@@ -195,8 +193,7 @@
 % 7.4 Directives
 %-----------------------------------------------------------------------
 
-multifile(Preds, Module) :-
-	dynamic(Preds)@Module.
+:- reexport multifile.
 
 initialization(Goal, Module) :-
 	local(initialization(Goal))@Module.
@@ -253,9 +250,8 @@ throw(Ball) :-
 % 8.2 Term Unification (ok)
 %-----------------------------------------------------------------------
 
-:- set_flag(occur_check, on).
-unify_with_occurs_check(X, X).			% 8.2.2
-:- set_flag(occur_check, off).
+unify_with_occurs_check(X, X) :-		% 8.2.2
+	acyclic_term(X).
 
 
 %-----------------------------------------------------------------------

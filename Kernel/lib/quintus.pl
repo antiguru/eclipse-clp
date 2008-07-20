@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.2 2008/07/01 00:27:16 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.3 2008/07/20 18:16:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -45,7 +45,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2008/07/01 00:27:16 $').
+:- comment(date, '$Date: 2008/07/20 18:16:51 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -148,10 +148,12 @@
 	    comma-separated terms like in ECLiPSe. 
     </UL>
     ')).
-:- comment(see_also, [library(cio),library(cprolog),library(sicstus),library(swi)]).
+:- comment(see_also, [library(cio),library(cprolog),library(sicstus),library(swi),
+	library(multifile)]).
 
 :- reexport cio.
 :- reexport foreign.
+:- reexport multifile.
 
 % suppress deprecation warnings for reexported builtins
 :- pragma(deprecated_warnings(not_reexports)).
@@ -279,7 +281,6 @@
 	line_count/2,
 	manual/0,
 	(meta_predicate)/1,
-	(multifile)/1,
 	no_style_check/1,
 	nogc/0,
 	nospyall/0,
@@ -372,7 +373,6 @@ tr_lib(L, L) :-
 	tool(incore/1, untraced_call/2),
 	tool(format/2, format_body/3),
 	tool(format/3, format_body/4),
-	tool((multifile)/1, multifile_body/2),
 	tool(nospyall/0, nospyall_body/1),
 	tool(predicate_property/2, predicate_property_body/3),
 	tool(prolog_flag/2, prolog_flag_body/3),
@@ -406,10 +406,6 @@ style_check(multiple).
 style_check(all) :- 
 	style_check(single_var).
 
-multifile_body(Files, M) :-
-	write('WARNING: declaring multifile procedure(s) as dynamic in '),
-	writeln(multifile(Files)),
-	qdynamic_body(Files, M).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *** Online help ***
@@ -721,23 +717,6 @@ meta_predicate_body((A,B), M) :-
 	meta_predicate_body(B, M).
 meta_predicate_body(Def, _M) :-
 	printf(error, '*** Warning: the meta_predicate definition %w%n    must be manually replaced by a tool definition%n%b', [Def]).
-
-
-% Support Quintus-style "qualified clauses" (for dynamic predicates only)
-
-:- export macro((:)/2, t_colon_clause/2, [clause]).
-
-t_colon_clause(QualClause, []) :-
-	( QualClause = (Module:Head:-Body) ->
-	    Clause = (Head:-Body),
-	    functor(Head, N, A)
-	;
-	    QualClause = (Module:Clause),
-	    functor(Clause, N, A)
-	),
-	( current_module(Module) -> true ; create_module(Module) ),
-	export(N/A)@Module,
-	assert(Clause)@Module.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

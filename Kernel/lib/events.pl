@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.2 2008/07/13 13:43:42 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.3 2008/07/20 18:16:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -497,12 +497,13 @@ past_eof_handler(N, Goal) :-
 
 
 compiler_warning_handler(N, Proc) :-
-	(compiled_file(File, Line) ->
+	( ( nonvar(Proc), Proc=Term@File:Line
+	  ; compiled_file(File, Line), Term=Proc) ->
 	    write(error, '\n*** '),
 	    error_id(N, M), 
 	    write(error, M), 
 	    write(error, ': '),
-	    printf_with_current_modes(error, Proc), 
+	    printf_with_current_modes(error, Term), 
 	    (Line > 0 ->
 		    printf(error, "\n\tbefore line %d in the file %s",
 			[Line, File])
@@ -549,7 +550,7 @@ compiled_file_handler(N, Goal, Module) :-
 compiled_file_handler(_, term, _, _, _) :- !.
 compiled_file_handler(_, File, Size, Time, Module) :-
 	( File = source(Source) ->
-	    Source = string
+	    true
 	;
 	    local_file_name(File, Source)
 	),
@@ -564,7 +565,6 @@ compiled_file_handler(_, File, Size, Time, Module) :-
 
 % end of loading a code unit: do any finishing up work
 unit_loaded_handler(_, Options, Module) :-
-	compile_discontiguous_predicates(Module),
 	run_stored_goals(initialization_goals, Module),
 	( memberchk(check, Options) ->
 	    record(compiled_modules, Module)
@@ -841,7 +841,7 @@ macro_handler(N, define_macro_(T, QP, F, M), _) :-
 	get_flag_body(P, definition_module, DM, M2).
 
 
-:- make_array_(autoload_lock, prolog, local, sepia_kernel),
+?- make_array_(autoload_lock, prolog, local, sepia_kernel),
    mutex_init(autoload_lock).
 
 autoload_handler(_, Goal, CallerModule, LookupModule) :-
@@ -966,7 +966,7 @@ cost_handler(_, no(Cost, _)) :-
 % Symbolic waking triggers
 %-------------------------------------
 
-:- make_array_(trigger_suspensions, global_reference, local, sepia_kernel).
+?- make_array_(trigger_suspensions, global_reference, local, sepia_kernel).
 
 % The postponed list is separate because it is also accessed from C
 % Moreover, the postponed list is emptied on waking. This makes a difference
@@ -1111,7 +1111,7 @@ postpone_suspensions(Susp) :-
 % default error handler definitions
 %-------------------------------------
 
-:- set_default_error_handler_(1, error_handler/2, sepia_kernel),
+?- set_default_error_handler_(1, error_handler/2, sepia_kernel),
    set_default_error_handler_(2, error_handler/2, sepia_kernel),
    set_default_error_handler_(4, error_handler/4, sepia_kernel),
    set_default_error_handler_(5, error_handler/4, sepia_kernel),
@@ -1223,7 +1223,7 @@ postpone_suspensions(Susp) :-
    set_default_error_handler_(151, true/0, sepia_kernel),
    set_default_error_handler_(152, true/0, sepia_kernel),
    set_default_error_handler_(157, error_exit/0, sepia_kernel),
-   set_default_error_handler_(160, error_handler/4, sepia_kernel),
+   set_default_error_handler_(160, macro_handler/3, sepia_kernel),
    set_default_error_handler_(161, macro_handler/3, sepia_kernel),
    set_default_error_handler_(162, warning_handler/2, sepia_kernel),
    set_default_error_handler_(163, error_handler/2, sepia_kernel),
@@ -1282,7 +1282,7 @@ postpone_suspensions(Susp) :-
 
 '$transaction_deadlock'(317,_) :- exit_block(abort_transaction).
 
-:- set_default_error_handler_(300, error_handler/2, sepia_kernel),
+?- set_default_error_handler_(300, error_handler/2, sepia_kernel),
    set_default_error_handler_(301, error_handler/2, sepia_kernel),
    set_default_error_handler_(302, error_handler/2, sepia_kernel),
    set_default_error_handler_(303, error_handler/2, sepia_kernel),
@@ -1308,7 +1308,7 @@ postpone_suspensions(Susp) :-
    set_default_error_handler_(329, warning_handler/2, sepia_kernel),
    set_default_error_handler_(333, warning_handler/2, sepia_kernel).
 
-:- set_event_handler(postponed, trigger/1),
+?- set_event_handler(postponed, trigger/1),
    set_event_handler(requested_fail_event, trigger/1),
    set_event_handler(garbage_collect_dictionary, garbage_collect_dictionary/0),
    set_event_handler(abort, exit_block/1).
@@ -1319,7 +1319,7 @@ reset_error_handlers :-
 	fail.
 reset_error_handlers.
 
-:- reset_error_handlers.		% set up the handlers
+?- reset_error_handlers.		% set up the handlers
 
 %-------------------------------------
 % interrupt handling builtins
@@ -1410,7 +1410,7 @@ io_event_handler :-
 	select([S], 0, [_]).			% it has data
 
 
-:- ( current_interrupt(_, io) -> 
+?- ( current_interrupt(_, io) -> 
 	set_interrupt_handler(io, event/1),
 	set_event_handler(io, defers(io_event_handler/0))
 %	set_interrupt_handler(io, internal/0)	% if socket events not needed
@@ -1418,7 +1418,7 @@ io_event_handler :-
 	true
    ).
 
-:- ( current_interrupt(_, poll) -> 
+?- ( current_interrupt(_, poll) -> 
 	set_interrupt_handler(poll, event/1),
 	set_event_handler(poll, defers(io_event_handler/0))
 %	set_interrupt_handler(poll, internal/0)	% if socket events not needed
@@ -1461,7 +1461,7 @@ post_events_from_stream(Stream) :-
 % saving the Tag and setting the WAS_EXIT flag.
 %----------------------------------------------------------------------
 
-:- make_array_(postpone_exit, prolog, local, sepia_kernel).
+?- make_array_(postpone_exit, prolog, local, sepia_kernel).
 
 postpone_exit(Tag) :-
 	setval(postpone_exit, Tag),
@@ -1489,7 +1489,7 @@ exit_postponed :-
 % After modifying the variable, call adjust_after_timer/1
 % to make sure the next alarm occurs in time for the next event.
 :- local variable(after_events).
-:- setval(after_events, []).
+?- setval(after_events, []).
 
 % The physical timer used for after events: 'real' or 'virtual'
 :- local variable(after_event_timer).
@@ -1548,7 +1548,7 @@ after_handler :-
 
 % Default timer is real. 
 
-:-  ( current_interrupt(_, alrm) ->
+?-  ( current_interrupt(_, alrm) ->
 	set_interrupt_handler(alrm, event/1)
     ;
 	true
@@ -1557,7 +1557,7 @@ after_handler :-
     set_event_handler(alrm, defers(after_handler/0)).
 
 % Stop timer events before exiting eclipse
-:- local finalization((
+?- local finalization((
 	get_flag(after_event_timer, Timer),
 	stop_timer(Timer, _, _)
     )).

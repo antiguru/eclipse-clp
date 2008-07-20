@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.2 2008/07/18 02:13:06 kish_shen Exp $
+% Version:	$Id: environment.pl,v 1.3 2008/07/20 18:16:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -504,7 +504,7 @@ valid_debug_mode(leap) ?- true.
 
 %---------------------------------------------------------------------------
 
-:- make_local_array(wm_window), setval(wm_window, off).
+?- make_local_array(wm_window), setval(wm_window, off).
 
 %----------------------------------------
 % print the current environment settings
@@ -608,7 +608,7 @@ long_flag(workers).
 % statistics(+Name, ?Value)
 %-------------------------------------
 
-:- make_array_(runtime, prolog, local, sepia_kernel), setval(runtime, 0).
+?- make_array_(runtime, prolog, local, sepia_kernel), setval(runtime, 0).
 
 statistics(Name, Value) :-
 	var(Name),
@@ -943,8 +943,5 @@ more_page(N, S) :-
 
 :- untraceable
 	statistics/0.
-
-% Some Prolog operators declarations
-:- op_(global, 1190,  fy, (help), sepia_kernel).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

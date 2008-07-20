@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.2 2008/07/08 22:31:23 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.3 2008/07/20 18:16:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -61,7 +61,7 @@
 	unify_attributes/2,
 	test_unify_handler/1.
 
-:- make_array_(meta_index, prolog, local, sepia_kernel),
+?- make_array_(meta_index, prolog, local, sepia_kernel),
 	setval(meta_index, 0).
 
 
@@ -211,7 +211,7 @@ unify_attributes(Term, Meta) :-
 recompile_unify_handler :-
     collect_local_handlers(unify, List),
     local_unify_handlers(List, Meta, Term, SuspAttr, Body),
-    expand_compile_term((unify_attributes(Term, Meta) :- arg(1,Meta,SuspAttr),Body)).
+    compile_term((unify_attributes(Term, Meta) :- arg(1,Meta,SuspAttr),Body)).
 
 local_unify_handlers([], _, _, _, untraced_true).
 local_unify_handlers([t(I, _, _, N/A, M)], Meta, Term, SuspAttr, Body) :-
@@ -245,12 +245,12 @@ pre_unify_attributes(_AttrVar, _Term, _Pair).
 recompile_pre_unify_handler :-
     collect_local_handlers(pre_unify, PreList),
     (PreList = [] ->
-	expand_compile_term([pre_unify_attributes(_,_,_)]),
+	compile_term([pre_unify_attributes(_,_,_)]),
 	set_default_error_handler(11, unify_handler/1),
 	set_error_handler(11, unify_handler/1)
     ;
 	local_pre_unify_handlers(PreList, AttrVar, Term, Pair, Body),
-	expand_compile_term([:- pragma(nodebug),
+	compile_term([:- pragma(nodebug),
 		pre_unify_attributes(AttrVar, Term, Pair) :- Body]),
 	set_default_error_handler(11, pre_unify_handler/1),
 	set_error_handler(11, pre_unify_handler/1)
@@ -280,7 +280,7 @@ recompile_test_unify_handler :-
     functor(Attr, meta, I),
     collect_local_handlers(test_unify, List),
     local_test_unify_handlers(List, Attr, Term, Body),
-    expand_compile_term(test_unify_attributes(Term, Attr) :- Body).
+    compile_term(test_unify_attributes(Term, Attr) :- Body).
 
 local_test_unify_handlers([], _, _, untraced_true).
 local_test_unify_handlers([t(I, _, _, N/_, M)], Attr, Term, M:Goal) :-
@@ -302,7 +302,7 @@ compare_instances_attributes(Res, TermL, TermR) :-
 recompile_compare_instances_handler :-
     collect_local_handlers(compare_instances, List),
     local_compare_instances_handlers(List, Res, TermL, TermR, Body, _),
-    expand_compile_term(compare_instances_attributes(Res, TermL, TermR) :- Body).
+    compile_term(compare_instances_attributes(Res, TermL, TermR) :- Body).
 
 local_compare_instances_handlers([t(_, _, _, N/_, M)|List], Res, TermL, TermR,
 	Body, ResL) :-
@@ -332,7 +332,7 @@ copy_term_attributes(_Meta, _Term).
 recompile_copy_term_handler :-
 	collect_local_handlers(copy_term, List),
 	local_copy_term_handlers(List, Meta, Term, Body),
-	expand_compile_term(copy_term_attributes(Meta, Term) :- Body).
+	compile_term(copy_term_attributes(Meta, Term) :- Body).
 
     local_copy_term_handlers([t(_, _, _, N/_, M)|List], Meta, Term, Body) :-
 	Goal =.. [N, Meta, Term],
@@ -356,7 +356,7 @@ get_meta_bounds(_Meta, Lower, Upper) ?-
 recompile_get_bounds_handler :-
 	collect_local_handlers(get_bounds, List),
 	local_get_bounds_handlers(List, Meta, -1.0Inf, 1.0Inf, Lower, Upper, Body),
-	expand_compile_term(get_meta_bounds(Meta, Lower, Upper) ?- Body).
+	compile_term(get_meta_bounds(Meta, Lower, Upper) ?- Body).
 
     local_get_bounds_handlers([], _Meta, L0, U0, L, U, (L=L0,U=U0)).
     local_get_bounds_handlers([t(AttrSlot, _, _, N/_, M)|List], Meta, L0, U0, L, U, Body) :-
@@ -377,7 +377,7 @@ set_meta_bounds(_Meta, _Lwb, _Upb).
 recompile_set_bounds_handler :-
 	collect_local_handlers(set_bounds, List),
 	local_set_bounds_handlers(List, Meta, Lwb, Upb, Body),
-	expand_compile_term(set_meta_bounds(Meta, Lwb, Upb) ?- Body).
+	compile_term(set_meta_bounds(Meta, Lwb, Upb) ?- Body).
 
     :- mode local_set_bounds_handlers(+,?,?,?,-).
     local_set_bounds_handlers([], _, _, _, true).
@@ -407,7 +407,7 @@ recompile_delayed_goals_handler :-
     append(ListSH, ListDGH, List0),
     sort(1 /*index of t*/, <, List0, List), % keep only SH if both are there
     local_delayed_goals_handlers(List, Meta, G, G0, Body),
-    expand_compile_term(delayed_goals_attributes(Meta, G, G0) :- Body).
+    compile_term(delayed_goals_attributes(Meta, G, G0) :- Body).
 
 local_delayed_goals_handlers([t(_, _, HandlerType, N/_, M)|List], Meta, G, G0, Body) :-
     ( HandlerType == delayed_goals ->
@@ -437,7 +437,7 @@ suspensions_attributes(Meta, S, S0) :-
 recompile_suspensions_handler :-
     collect_local_handlers(suspensions, List),
     local_suspensions_handlers(List, Meta, S, S0, Body),
-    expand_compile_term(suspensions_attributes(Meta, S, S0) :- Body).
+    compile_term(suspensions_attributes(Meta, S, S0) :- Body).
 
 local_suspensions_handlers([t(_, _, _, N/_, M)|List], Meta, S, S0, Body) :-
     Goal =.. [N, Meta, S, S1],
@@ -458,7 +458,7 @@ delayed_goals_number_attributes(Meta, NG) :-
 recompile_delayed_goals_number_handler :-
     collect_local_handlers(delayed_goals_number, List),
     local_delayed_goals_number_handlers(List, Meta, NG, Body, 0),
-    expand_compile_term(delayed_goals_number_attributes(Meta, NG) :- Body).
+    compile_term(delayed_goals_number_attributes(Meta, NG) :- Body).
 
 local_delayed_goals_number_handlers([t(_, _, _, N/_, M)|List], Meta, NG, Body, NG0) :-
     Goal =.. [N, Meta, NG1],
@@ -487,9 +487,9 @@ recompile_print_handler :-
     collect_local_handlers(print, List),
     local_print_handlers(List, Var, OL, Body),
     (Body == (_ = []) ->
-	expand_compile_term(print_attribute(_, _) :- fail)
+	compile_term(print_attribute(_, _) :- fail)
     ;
-	expand_compile_term(print_attribute(Var, OL) :- Body)
+	compile_term(print_attribute(Var, OL) :- Body)
     ).
 
 local_print_handlers([], _, L, L = []).
@@ -740,7 +740,7 @@ x_res(>, 1).
 x_res(<, 2).
 x_res(=, 3).
 
-:- set_default_error_handler(11, unify_handler/1),
+?- set_default_error_handler(11, unify_handler/1),
    set_error_handler(11, unify_handler/1).
    
 :- skipped unify_attributes/2.

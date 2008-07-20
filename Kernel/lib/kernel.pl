@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.6 2008/07/18 13:38:06 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.7 2008/07/20 18:16:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -37,6 +37,9 @@
 %		Note that the sepia_kernel module already exists: it
 %		is created in C and already contains external predicates.
 %
+%		In this file, the difference between :- (directive) and
+%		?- (query) matters: if something only makes sense at load-time,
+%		use a query.
 
 :-(begin_module(sepia_kernel)).
 
@@ -51,6 +54,7 @@
    op_(global, 1200, xfx, :-	, sepia_kernel),
    op_(global, 1200, xfx, -->	, sepia_kernel),
    op_(global, 1200, xfx, if	, sepia_kernel),
+   op_(global, 1190,  fy, help	, sepia_kernel),
 %   op_(global, 1180, xfx, -?-> , sepia_kernel),
    op_(global, 1180,  fx, -?->	, sepia_kernel),
    op_(global, 1190,  fx, delay , sepia_kernel),
@@ -134,14 +138,13 @@
    op_(global,	200,  fx, \	, sepia_kernel).
 
 
+% Everything is this module is marked as 'built_in'
 :- pragma(system).
 :- pragma(nodebug).
 :- pragma(noexpand).
 
-:- global_flags(0,16'00000200,_).	% incremental gc off (buggy)
-
-% for the tools:
-:- global_flags(16'00000080,0,_).	% debug_compile (DBGCOMP) off
+% Set debug mode for the following tool declarations:
+:- global_flags(16'00000080,0,_).		% debug_compile (DBGCOMP) off
 
 :- tool_(tool/2, tool_/3, sepia_kernel).	% tool declarations
 :- tool(store_pred/8, store_pred/9).		% needed when loading kernel.eco
@@ -198,6 +201,8 @@
    tool(mutex_init/1, mutex_init_body/2),
    tool(mutex/2, mutex_body/3),
    tool(mutex_one/2, mutex_one_body/3),
+   tool(nested_compile_term/1, nested_compile_term_/2),
+   tool(nested_compile_term_annotated/2, nested_compile_term_annotated_/3),
    tool(par_all/2, par_all_body/3),
    tool(par_findall/4, par_findall_body/5),
    tool(par_once/2, par_once_body/3),
@@ -257,7 +262,8 @@
    tool(write_canonical/1, write_canonical_/2),
    tool(write_canonical/2, write_canonical_/3),
    tool((mode)/1, mode_/2).
-:- dbgcomp.
+
+:- global_flags(0,16'00000880,_).	% debug_compile (GOALEXPAND|DBGCOMP) on
 :- tool(trace/1, trace_body/2).		% must be traceable
 :- tool(debug/1, debug_body/2).		% must be traceable
 :- set_proc_flags(trace/1, spy, off, sepia_kernel). % spy was inherited...
@@ -267,14 +273,14 @@
 % basic system initialisation
 %------------------------------
 
-:-	getval(sepiadir, Sepiadir),	% initialized in C
+?-	getval(sepiadir, Sepiadir),	% initialized in C
 	concat_strings(Sepiadir, "/lib", Lib),
 	make_array_(library, prolog, local, sepia_kernel),
 	setval(library, Lib),
 	make_array_(library_path, prolog, local, sepia_kernel),
 	setval(library_path, [Lib]).
 
-:-	argv(0, Sepia),			% set up some global variables
+?-	argv(0, Sepia),			% set up some global variables
 	setval(whoami, Sepia),		% 'whoami' is created in bip_load.c
 	setval(binary, Sepia),		% 'binary' is created in bip_load.c
 	make_array_(break_level, prolog, local, sepia_kernel),
@@ -292,17 +298,17 @@
    local_record(compiled_modules/0).
 
 
-:- make_array_(toplevel_module, prolog, local, sepia_kernel).
-:- make_array_(default_language, prolog, local, sepia_kernel),
+?- make_array_(toplevel_module, prolog, local, sepia_kernel).
+?- make_array_(default_language, prolog, local, sepia_kernel),
     setval(default_language, eclipse_language).
-:- make_array_(toplevel_trace_mode, prolog, local, sepia_kernel),
+?- make_array_(toplevel_trace_mode, prolog, local, sepia_kernel),
     setval(toplevel_trace_mode, nodebug).
-:- make_array_(compiled_stream, prolog, local, sepia_kernel),
+?- make_array_(compiled_stream, prolog, local, sepia_kernel),
     setval(compiled_stream, _).
-:- make_array_(compile_stack, reference([]), local, sepia_kernel).
+?- make_array_(compile_stack, reference([]), local, sepia_kernel).
 
 % ignore_eof is on on Windows because ^C acts like end_of_file
-:- make_array_(ignore_eof, prolog, local, sepia_kernel),
+?- make_array_(ignore_eof, prolog, local, sepia_kernel),
    (get_sys_flag(8, "i386_nt") -> setval(ignore_eof, on) ; setval(ignore_eof, off)).
 
 
@@ -386,8 +392,8 @@ yield(YieldType,ToC,FromC) :-
 
 
 %  open(queue(""),read,ec_rpc_in,[event(ec_rpc)])
-:- open(queue(""),read,ec_rpc_in), set_stream_prop_(ec_rpc_in, 17, ec_rpc).
-:- open(queue(""),update,ec_rpc_out).
+?- open(queue(""),read,ec_rpc_in), set_stream_prop_(ec_rpc_in, 17, ec_rpc).
+?- open(queue(""),update,ec_rpc_out).
 
 
 ec_rpc_in_handler(Base) :-
@@ -430,7 +436,7 @@ ec_rpc_in_handler1(In, Out) :-
 	fail.
     execute_rpc(_, _, _).
 
-:- set_error_handler_(ec_rpc,ec_rpc_in_handler/1,sepia_kernel).
+?- set_error_handler_(ec_rpc,ec_rpc_in_handler/1,sepia_kernel).
 
 startup_init :-
 	error(150, M),			% extension hook: startup
@@ -1069,6 +1075,11 @@ ensure_loaded1(FileAtom, Module) :-
 	).
 
 
+% Load compiler predicates lazily
+% We can't use import-from currently because they are tools.
+compile_term(Term) :- ecl_compiler:compile_term(Term).	% @sepia_kernel
+
+
 compile_or_load(FileAtom, Module) :-
 	(
 	    get_flag(eclipse_object_suffix, ECO),
@@ -1076,7 +1087,7 @@ compile_or_load(FileAtom, Module) :-
 	->
 	    load_eco(FileAtom, Module)
 	;
-	    ecl_compiler:compile(FileAtom)@Module
+	    ecl_compiler:compile_(FileAtom,Module)
 	).
 
 
@@ -1588,14 +1599,15 @@ forget_stored_goals(Which, Module) :-
 %----------------------------------------------------------------------
 % Discontiguous predicates (ISO)
 %
-% Discontiguous predicates are handled by defining a clause macro for them.
-% The clause macro handler allows us to intercept the clauses during
-% compilation and store them, rather than compiling them immediately.
+% Discontiguous predicates are handled by initially recording their
+% (annotated) source, rather than compiling them immediately.
 % Clauses are stored in a bag which itself is stored in a hash store
 % which maps:	 module:name/arity -> BagHandle
-% At the end of compilation, compile_discontiguous_predicates/1 must be
-% invoked (via an end-of-compilation handler). It compiles the collected
-% clauses, cleans up the store and erases the macro.
+% At the end of a compilation unit, collect_discontiguous_predicates/2
+% is invoked, and all discontiguous clauses for this unit compiled.
+% The source store entries are removed.  We could make it possible to
+% call the predicates (e.g. in a file query) before the end of file
+% is reached by invoking demand-driven compilation in the undefined-handler.
 %----------------------------------------------------------------------
 
 :- store_create_named(discontiguous_clauses).
@@ -1632,7 +1644,7 @@ discontiguous_(X, Module) :-
 	PredSpec = _/_,
 	!,
 	( get_flag(PredSpec, defined, on)@Module ->
-	    % predicate already defined
+	    % predicate already defined (static or dynamic)
 	    error(65, discontiguous(PredSpec), Module)
 	;
 	    local(PredSpec)@Module,
@@ -1642,44 +1654,37 @@ discontiguous_(X, Module) :-
 		true
 	    ;
 		bag_create(Bag),
-		store_set(discontiguous_clauses, Key, Bag),
-		define_macro_(PredSpec, sepia_kernel:handle_discontiguous_clause/3, [local,clause], Module)
+		store_set(discontiguous_clauses, Key, Bag)
 	    )
 	).
     discontiguous1(PredSpec, Module) :-
 	error(5, discontiguous(PredSpec), Module).
 
+record_discontiguous_predicate(Pred, Clauses, AnnClauses, Module) :-
+	store_get(discontiguous_clauses, Module:Pred, Bag),	% may fail
+	record_discontiguous_clauses(Bag, Clauses, AnnClauses).
 
-% handler invoked for each clause of a discontiguous predicate
-handle_discontiguous_clause(Clause, [], Module) :-
-	clause_head(Clause, Head),
-	functor(Head, Name, Arity),
-	( store_get(discontiguous_clauses, Module:Name/Arity, Bag) ->
-	    bag_enter(Bag, Clause)
-	;
-	    % this should never happen
-	    writeln(error, "Internal error in handle_discontiguous_clause/3")
-	).
+    record_discontiguous_clauses(Bag, [], _).
+    record_discontiguous_clauses(Bag, [Clause|Clauses], AnnClauses0) :-
+	( nonvar(AnnClauses0) -> AnnClauses0 = [AnnClause|AnnClauses1] ; true ),
+	bag_enter(Bag, Clause-AnnClause),
+	record_discontiguous_clauses(Bag, Clauses, AnnClauses1).
 
-% end-of-compilation handler
-compile_discontiguous_predicates(Module) :-
+collect_discontiguous_predicates(Module, Preds) :-
 	stored_keys(discontiguous_clauses, Keys),
-	compile_discontiguous_predicates(Keys, Module).
+	collect_discontiguous_predicates(Keys, Module, Preds, []).
 
-    compile_discontiguous_predicates([], _Module).
-    compile_discontiguous_predicates([Key|Keys], Module) :-
-	( Key = Module:NameArity ->
-	    % need to erase the macro, otherwise compile_term won't work
-	    erase_macro_(NameArity, [local,clause], Module),
+    collect_discontiguous_predicates([], _Module, Preds, Preds).
+    collect_discontiguous_predicates([Key|Keys], Module, Preds0, Preds) :-
+	( Key = Module:Pred ->
 	    store_get(discontiguous_clauses, Key, Bag),
 	    store_delete(discontiguous_clauses, Key),
 	    bag_dissolve(Bag, Clauses),
-	    expand_compile_term_(Clauses, Module)
+	    Preds0 = [Pred-Clauses|Preds1]
 	;
-	    true	% other module, ignore
+	    Preds0 = Preds1
 	),
-	compile_discontiguous_predicates(Keys, Module).
-	
+	collect_discontiguous_predicates(Keys, Module, Preds1, Preds).
 
 % module has been erased: forget the declarations and bagged clauses
 forget_discontiguous_predicates(Module) :-
@@ -3745,6 +3750,8 @@ inline_(Proc, Trans, Module) :-
 
 
 :- export				% undocumented exports
+	record_discontiguous_predicate/4,
+	collect_discontiguous_predicates/2,
 	valid_signature/2,
 	reset/0,
 	printf_with_current_modes/2,
@@ -3830,7 +3837,6 @@ inline_(Proc, Trans, Module) :-
 	(delay)/1,
 	(demon)/1,
 	dim/2,
-	handle_discontiguous_clause/3,
 	discontiguous/1,
 	display/1,
 	e/1,
@@ -4123,7 +4129,7 @@ inline_(Proc, Trans, Module) :-
 %		Pred,		Name/Arity or ' '
 %		Module)
 %
-:- make_array_(profile_module, prolog, local, sepia_kernel).
+?- make_array_(profile_module, prolog, local, sepia_kernel).
 prof_predicate_list(Flags, Preds, Fixed) :-
     prof_fixed_entries(F),
     setval(profile_module, F),
@@ -4205,7 +4211,7 @@ help :-
 	After the prompt [<module>]: ECLiPSe waits for a goal.\n\
 	Don't forget to terminate your input with a full stop.\n\
 	To type in clauses, call [user] or compile(user), and then\n\
-	enter the clauses ended by ^D (EOF).\n\n\
+	enter the clauses, ended by ^D (Unix) or ^Z (Windows).\n\n\
 	Call help(Pred/Arity) or help(Pred) or help(String)\n\
 	to get help on a specific built-in predicate."),
     getval(sepiadir, Eclipsedir),
@@ -4305,7 +4311,7 @@ same_annotation(_TermIn, In, _TermOut, _Out) :- var(In), !.
 same_annotation(TermIn, annotated_term(TermIn,Type,File,Line,From,To),
 	TermOut, annotated_term(TermOut,Type,File,Line,From,To)).
 
-% Make annotated term for TermOut, inheriting locating from In. Similar to:
+% Make annotated term for TermOut, inheriting location from In. Similar to:
 %   update_struct(annotated_term, [term:TermOut,type:TypeOut], In, Out)
 % but leave Out uninstantiated if In was.
 inherit_annotation(_TermOut, In, _Out) :- var(In), !.
@@ -4630,31 +4636,6 @@ expand_clauses(Clause, ExpClauses, Module) :-
     expand_clause_body(Clause, Clause, _Module).
 
 
-:- tool(expand_compile_term/1, expand_compile_term_/2).
-expand_compile_term_(Clauses, Module) :-
-	expand_clauses(Clauses, ExpClauses, Module),
-	ecl_compiler:compile_term(ExpClauses)@Module.
-
-:- tool(compile_term_flags/2, compile_term_flags_/3).
-compile_term_flags_(Clauses, Flags, Module) :-
-	ecl_compiler:compile_term(Clauses)@Module,
-	( get_predspec(Clauses, Spec) ->
-	    set_flags(Spec, Flags, Module)
-	;
-	    true
-	).
-
-    get_predspec([Clause|_], N/A) :-
-	clause_head(Clause, Head),
-	functor(Head, N, A).
-
-    set_flags(_Spec, [], _).
-    set_flags(Spec, [FlagVal|Flags], M) :-
-	FlagVal =.. [Flag,Val],
-	set_flag(Spec, Flag, Val)@M,
-	set_flags(Spec, Flags, M).
-
-
 :- export
 	register_compiled_stream/1,
 	register_compiler/1,
@@ -4676,18 +4657,16 @@ deregister_compiler :-
 	    true
 	).
 
-:- tool(nested_compile_term/1, nested_compile_term_/2).
 nested_compile_term_(Clauses, Module) :-
         nested_compile_term_annotated_(Clauses, _, Module).
 
-:- tool(nested_compile_term_annotated/2, nested_compile_term_annotated_/3).
 nested_compile_term_annotated_(Clauses, AnnClauses, Module) :-
 	getval(compile_stack, Stack),
 	( Stack = [Top|_] ->
 	    copy_term(Top, args(Clauses,AnnClauses)-Goal),
 	    call(Goal)@Module
 	;
-	    ecl_compiler:compile_term(Clauses)@Module
+	    ecl_compiler:compile_term_(Clauses, Module)
 	).
 
 register_compiled_stream(Stream) :-
@@ -6093,11 +6072,7 @@ t_bips(setarg(Path,T,X), Goal, _) :- -?->		% setarg/3
 :- tool((do)/2, (do)/3).
 :- inline((do)/2, t_do/5).
 
-:- make_array_(name_ctr, prolog, local, sepia_kernel), setval(name_ctr,0).
 :- local store(name_ctr).
-
-:- global_flags(16'04000000, 0, _). %'% set_flag(variable_names, off).
-
 
 %----------------------------------------------------------------------
 % Definition for metacall
@@ -6169,7 +6144,7 @@ t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
                           AnnRecCall, BodyGoals, AnnBodyGoals), 
         BHClause = (BaseHead :- true, !),
         RHClause = (RecHead :- BodyGoals),
-        Directive = (:- set_flag(Name/Arity, auxiliary, on)),
+        Directive = (?- set_flag(Name/Arity, auxiliary, on)),
 	Code = [
 	    BHClause,
 	    RHClause,
@@ -6595,7 +6570,7 @@ get_spec('>>'(Specs1, Specs2),
 	NextCode = [
 	    (NextBaseHead :- !, true),
 	    (NextRecHead :- NextGoals),
-	    (:- set_flag(NextPredName/Arity, auxiliary, on))
+	    (?- set_flag(NextPredName/Arity, auxiliary, on))
 	],
 	%printf("Creating auxiliary predicate %w\n", NextPredName/Arity),
 	%write_clauses(NextCode),
@@ -7206,10 +7181,6 @@ warn(_, _).
 % Include other files that contain parts of the kernel
 %-----------------------------------------------------------------------
 
-:- global_flags(0,16'00000800,_).	% goal_expansion (GOALEXPAND) on
-%:- global_flags(0,16'0c000000,_).	% set_flag(variable_names, check_singletons)
-% Note: to get singleton warnings, also comment out pragmas in the files below
-
 :- include("events.pl").
 :- include("meta.pl").
 :- include("array.pl").
@@ -7244,7 +7215,7 @@ warn(_, _).
 :- deprecated(current_after_event/1,	"Use current_after_events/1").
 :- deprecated(current_stream/3,		"Use current_stream/1 and get_stream_info/3").
 :- deprecated(current_struct/1,		"Use current_struct/2").
-%:- deprecated(dbgcomp/0,		"").
+:- deprecated(dbgcomp/0,		"").
 :- deprecated(date/1,			"Use local_time_string/3").
 :- deprecated(pause/0,			"Use current_interrupt/2 and kill/2 (UNIX only)").
 :- deprecated(define_error/2,		"Use atomic event names").
@@ -7272,7 +7243,7 @@ warn(_, _).
 :- deprecated(make_local_array/2,	"Use :- local array(...)").
 %:- deprecated(meta_bind/2,		"").	% needed???
 :- deprecated(name/2,			"Use string_list/2 with atom_string/2 or number_string/2").
-%:- deprecated(nodbgcomp/0,		"").
+:- deprecated(nodbgcomp/0,		"").
 :- deprecated(pathname/2,		"Use pathname/3,4").
 :- deprecated(portray_goal/2,		"Use portray_term/3").
 :- deprecated(reset_error_handler/1,	"Use reset_event_handler/1").
@@ -7315,7 +7286,7 @@ present_libraries(Sys, [_|L], T) :-
 
 
 % set the eclipse temporary directory
-:-	make_array_(eclipse_tmp_dir, prolog, local, sepia_kernel),
+?-	make_array_(eclipse_tmp_dir, prolog, local, sepia_kernel),
 	(	
 	    getenv("ECLIPSETMP",OsTDir),
 	    os_file_name(TDir, OsTDir)
@@ -7342,15 +7313,14 @@ present_libraries(Sys, [_|L], T) :-
 
 % Now set the default library path
 
-:-	getval(sepiadir, Sepiadir),
+?-	getval(sepiadir, Sepiadir),
 	read_directory(Sepiadir, "", Files, _),
 	present_libraries(Sepiadir, Files, Path),
 	concat_strings(Sepiadir, "/lib", Runlib),
 	setval(library_path, [Runlib|Path]),
 	setval(library, Runlib).		% needed for load/2
 
-:-
-%	declaration_check(sepia_kernel),	% before locking
+?-
 	(extension(development) ->
 	    true
 	;

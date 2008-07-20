@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: modes.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: modes.pl,v 1.2 2008/07/20 18:16:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -50,7 +50,7 @@
 :- comment(summary, "An abstract interpreter for mode ananlysis").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:47 $").
+:- comment(date, "$Date: 2008/07/20 18:16:51 $").
 :- comment(desc, html("
     This library provides a static mode analysis tool for ECLiPSe
     programs.  It takes as input a Prolog program and a goal pattern, and
@@ -1069,7 +1069,7 @@ map_modes(ground, ++).
 
 %-----------------------------------------------------------------------
 
-:- nl,
+?- nl,
 writeln("Mode Analysis"), nl,
 writeln("1. read a source file (e.g. src.pl):       read_source(src)."),
 writeln("2. analyze a call pattern (e.g. p/2):      analyze(p(++,-))"),
