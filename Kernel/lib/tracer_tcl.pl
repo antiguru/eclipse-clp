@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.2 2008/07/08 17:24:00 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.3 2008/07/22 16:00:26 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -101,7 +101,7 @@
 	gui_help_string/2,
 	gui_dg/3,
         get_triggers/1,
-	print_source_string/3,
+        get_source_info/4,
 	flag_value/4,
 	record_source_file/1,
 	register_inspected_term/2,
@@ -172,7 +172,10 @@
 trace_start_handler_tcl :-
 	setval(filter_status, off),
         setval(filter_hits, 0),
-        setval(filter_counts, 1).
+        setval(filter_counts, 1),
+        % inform GUI of start of tracing
+        write_exdr(debug_traceline, []), 
+        flush(debug_traceline).
 
 
 trace_line_handler_tcl(_, Current) :-
@@ -1594,11 +1597,15 @@ record_source_file(XFile) :-
 	( recorded(new_source_files, File3) -> true
 	; record(new_source_files, File3) ).
 
-print_source_string(PredS, SourceStream, M) :-
-	term_string(Pred, PredS),
-	print_source(SourceStream, Pred, M),
-	flush(SourceStream).
-
+get_source_info(PredS, M, OSFile, Offset) :-
+        term_string(N/A, PredS),
+        atom(N),
+        integer(A),
+        % source_line and source_offset are for end of last predicate
+        get_flag(N/A, source_file, File)@M,
+        get_flag(N/A, source_offset, Offset)@M,
+        os_file_name(File, OSFile).
+        
 
 % list_files/1 returns a list of lists of strings of the form
 % ["filename", "status", "module"] where the filename is in the
