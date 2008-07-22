@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.19 2008/07/09 15:13:21 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.20 2008/07/22 15:44:35 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -655,47 +655,39 @@ proc tkecl:set_pred_flag {pred module name value} {
 proc tkecl:display_source {} {
     global tkecl
 
-    set ec_source .ec_tools.ec_source
-    if ![winfo exists $ec_source] {
-	toplevel $ec_source
-	wm title $ec_source "ECLiPSe Predicate Source Viewer"
+    if {$tkecl(predproppred) == ""} return
 
-	text $ec_source.text -bg white -yscrollcommand "$ec_source.vscroll set" -wrap none -xscrollcommand "$ec_source.hscroll set" 
-	$ec_source.text tag configure highlight -foreground blue
-	scrollbar $ec_source.vscroll -command "$ec_source.text yview"
-	scrollbar $ec_source.hscroll -command "$ec_source.text xview" -orient horizontal
-
-	frame $ec_source.buttons
-	button $ec_source.buttons.refresh -text Refresh -command {tkecl:display_source}
-	    pack $ec_source.buttons.refresh -side left -fill x -expand 1
-	button $ec_source.buttons.close -text Close -command "destroy $ec_source"
-	    pack $ec_source.buttons.close -side left -fill x -expand 1
-
-	pack $ec_source.buttons -side bottom -fill x
-	pack $ec_source.vscroll -side left -fill y
-	pack $ec_source.hscroll -side bottom -fill x
-	pack $ec_source.text -expand 1 -fill both
-	balloonhelp $ec_source.buttons "Try to view source of selected predicate (from predicates or tracer window)"
-	bind $ec_source <Alt-h> "tkecl:Get_helpfileinfo sour $ec_source"
-    } else {
-	tkinspect:RaiseWindow $ec_source
+    set res [ec_rpc [list : tracer_tcl [list get_source_info $tkecl(predproppred) $tkecl(predpropmodule) _ _]] (()(S()__))]
+    switch $res {
+	throw -
+	fail {
+	    tk_messageBox -type ok -icon info -message "No souece information found for $tkecl(predproppred)." 
+	    return
+	}
+	default {
+	    set file [lindex [lindex $res 2] 3]
+	    set offset [lindex [lindex $res 2] 4]
+	}
     }
-    $ec_source.text delete 1.0 end
-    if {$tkecl(predproppred) != ""} {
-	ec_rpc [list : tracer_tcl [list print_source_string "$tkecl(predproppred)" gui_source_output $tkecl(predpropmodule)]] (()(S()()))
+
+    tkecl:popup_tracer
+    if {$tkecl(source_debug,file) != $file} {
+	tkecl:load_source_debug_file $file
     }
-    ;# ec_stream_to_window {} $ec_source.text gui_source_output called
+
+    set ec_tracer .ec_tools.ec_tracer.tab
+    $ec_tracer activate "Source Context"
+    incr offset   ;# increment to get pass newline normally at end of last item
+    set idx [$ec_tracer.source.context.text index "1.0 + $offset chars"] 
+    $ec_tracer.source.context.text see $idx
 }
+
 
 proc tkecl:set_and_display_source {pred module} {
     global tkecl
     set tkecl(predproppred) $pred
     set tkecl(predpropmodule) $module
     tkecl:display_source
-}
-
-proc tkecl:display_source_output {stream {length {}}} {
-    ec_stream_to_window {} .ec_tools.ec_source.text $stream
 }
 
 #----------------------------------------------------------------------
@@ -1583,7 +1575,7 @@ proc tkecl:popup_tracer {} {
 	frame $ec_tracertab.trace
 	$ec_tracertab add "Trace Log" -window $ec_tracertab.trace
 #	$ec_tracertab activate "Trace Log"
-	label $ec_tracertab.trace.label -text "Trace Log"
+#	label $ec_tracertab.trace.label -text "Trace Log"
 	text $ec_tracertab.trace.text -bg white -yscrollcommand "$ec_tracertab.trace.vscroll set" -wrap none -xscrollcommand "$ec_tracertab.trace.hscroll set"
 	$ec_tracertab.trace.text tag configure call_style -foreground blue
 	$ec_tracertab.trace.text tag configure exit_style -foreground #00b000
@@ -1594,7 +1586,7 @@ proc tkecl:popup_tracer {} {
 	pack $ec_tracertab.trace.vscroll -side left -fill y
 	pack $ec_tracertab.trace.hscroll -side bottom -fill x
 	pack $ec_tracertab.trace.text -side bottom -expand 1 -fill both
-	pack $ec_tracertab.trace.label -side left -expand 1 -fill x
+#	pack $ec_tracertab.trace.label -side left -expand 1 -fill x
 
 	bind $ec_tracertab.trace.text <Any-Key> "tkecl:readonly_keypress %A"
 	bind $ec_tracertab.trace.text <ButtonRelease-2> {break}
@@ -1696,7 +1688,7 @@ proc tkecl:popup_tracer {} {
    Calls for current goal in blue, failure in red, success in green. \ 
    Ancestors printed with non-current bindings in black\n \
    Press right (or control-left) mouse button over a stack item for popup menu related to that goal/predicate.\n Double-click left mouse button over a stack item to inspect it.\n Single click left mouse button to show source contxt\n "
-       balloonhelp $ec_tracertab.trace.label "Trace log: chronological log of traced goals.\n Calls in blue, successes in green, failures in red\n Leading indentation indicates depth"
+       balloonhelp $ec_tracertab.trace "Trace log: chronological log of traced goals.\n Calls in blue, successes in green, failures in red\n Leading indentation indicates depth"
        balloonhelp $ec_tracer.buttons.creep "Creep to next tracable goal's debug port.\n\
    Keyboard shortcut: `c'\nPress and hold button for continuous creep."
        balloonhelp $ec_tracer.buttons.skip "Skip to exit/fail port of goal (creep\
@@ -1752,6 +1744,12 @@ proc tkecl:handle_trace_line {stream {length {}}} {
     }
     set tkecl(tracercommand_issued) 0
     set trace_info [ec_read_exdr [ec_streamnum_to_channel $stream]]
+    if {[llength $trace_info] == 0} {
+	# start of new trace session
+	# make sure source file is reloaded
+	set tkecl(source_debug,file) ""
+	return
+    }
     set depth [lindex $trace_info 0]
     set style [lindex $trace_info 1]
     set line [lindex $trace_info 2]
@@ -3302,12 +3300,12 @@ proc tkecl:setup_source_debug_window {} {
     set tkecl(source_debug,file) ""
 
     .ec_tools.ec_tracer.tab add "Source Context" -window [frame $ec_source] 
-    label $ec_source.label -text "Source Context"
+#    label $ec_source.label -text "Source Context"
     frame $ec_source.context -relief sunken -borderwidth 1 -bg white
     frame $ec_source.control
 
     pack $ec_source.context -side bottom -fill both -expand 1
-    pack $ec_source.label -side top  -fill x
+#    pack $ec_source.label -side top  -fill x
     scrollbar $ec_source.context.vscroll -command "$ec_source.context.text yview" 
     scrollbar $ec_source.context.hscroll -command "$ec_source.context.text xview" -orient horizontal
     text $ec_source.context.lineno -borderwidth 0  -bg white -width 5 -wrap none -yscrollcommand [list tkecl:vscroll-sync "$ec_source.context.status $ec_source.context.text"]
@@ -3323,7 +3321,7 @@ proc tkecl:setup_source_debug_window {} {
 
     bind $ec_source.context.status <Any-Key> "tkecl:readonly_keypress %A"
     bind $ec_source.context.status <ButtonRelease-2> {break}
-    bind $ec_source.context.status <Double-Button-1> "tkecl:toggle_breakpoint $ec_source.context.status; break"
+    bind $ec_source.context.status <Button-1> "tkecl:toggle_breakpoint $ec_source.context.status; break"
 
     menu $ec_source.context.text.popupmenu -tearoff 0
     menu $ec_source.context.text.popupmenu.predmenu
@@ -3357,10 +3355,9 @@ proc tkecl:setup_source_debug_window {} {
 
     .ec_tools.ec_tracer.tab activate "Source Context"
 
-    balloonhelp $ec_source.label "Source context for execution traced by the tracer"
-    balloonhelp $ec_source.context.text "Display source file for debugging.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue.\nUse right mouse button to popup window to set/unset breakpoints,\nnavigate the file, via text search or jumoing to predicates, and\nto start an editor to edit file, starting at the\nselected line if possible.\n"
+    balloonhelp $ec_source.context.text "Source context for execution traced by the tracer\nDisplay source file for debugging.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue.\nUse right mouse button to popup window to navigate the file, via text search or jumoing to predicates, and\nto start an editor to edit file, starting at the\nselected line if possible.\n"
 
-    balloonhelp $ec_source.context.status "Show port status for line in selected source file:zna light gray '#' indicates a port line (not active)\n a red '#' indicates an active breakpoint\nDouble-click left mouse button to toggle the setting of a nearby breakpoint."
+    balloonhelp $ec_source.context.status "Show port status for line in selected source file:zna light gray '#' indicates a port line (not active)\n a red '#' indicates an active breakpoint\nClick left mouse button to toggle the setting of a nearby breakpoint."
     balloonhelp $ec_source.context.lineno "Show line numbers for selected source line"
     balloonhelp $ec_source.control.select "Select from popup list the source file to display"
 
@@ -3417,9 +3414,9 @@ proc tkecl:popup_sourcetext_menu {t x y} {
     }
 
     set line [tkecl:get_current_text_line $t]
-    $m add command -label "Set breakpoint near line $line" -command [list tkecl:set_breakpoint on $tkecl(source_debug,file) $line] 
-    $m add command -label "Unset breakpoint near line $line" -command [list tkecl:set_breakpoint off $tkecl(source_debug,file) $line]
-    $m add separator
+#    $m add command -label "Set breakpoint near line $line" -command [list tkecl:set_breakpoint on $tkecl(source_debug,file) $line] 
+#    $m add command -label "Unset breakpoint near line $line" -command [list tkecl:set_breakpoint off $tkecl(source_debug,file) $line]
+#    $m add separator
     $m add command -label "Find..." -command "tkecl:show-find source_debug .ec_tools.ec_tracer.tab.source.context.text .ec_tools.ec_tracer"
 #    menu $ec_source.control.preds.menu
     $m add cascade -label "Display Predicate..." -menu $m.predmenu
@@ -4335,7 +4332,6 @@ proc ec_tools_init {w} {
     ec_queue_create matrix_out_queue r tkecl:handle_mat_flush
     ec_queue_create gui_dg_info r tkecl:handle_dg_print
     ec_queue_create statistics_out_queue r tkecl:handle_stats_report
-    ec_async_queue_create gui_source_output r tkecl:display_source_output
     set tkecl(toplevel_module) [lindex [ec_rpc_check get_flag(toplevel_module,_)] 2]
     set tkecl(predpropmodule) $tkecl(toplevel_module)
 
@@ -4350,8 +4346,6 @@ proc ec_tools_init {w} {
     lappend tkecl(helpfiles) file {Source Files Tool} sourcehelp.txt
     $w add command -label "Predicate Browser" -command tkecl:popup_pred_prop
     lappend tkecl(helpfiles) pred {Predicates Property Tool} predprophelp.txt
-#    $w add command -label "Source Viewer" -command tkecl:display_source
-    lappend tkecl(helpfiles) sour {Source Viewer} sourceviewhelp.txt
     $w add separator
     $w add command -label "Delayed Goals" -command tkecl:popup_dg_window
     lappend tkecl(helpfiles) dela {Delayed Goals Viewer} delayhelp.txt

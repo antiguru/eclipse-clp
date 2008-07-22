@@ -174,7 +174,7 @@ coloured light gray if no breakpoint have been set on it, and red if a
 breakpoint is set on it. A set breakpoint will cause the tracer to stop
 when execution reaches the goal on the source line. Note that if there
 is more than one goal on the source line, the breakpoint will only be set
-on one of the goal. Double clicking the left mouse button on a line in the
+on one of the goal. Clicking the left mouse button on a line in the
 status pane will toggle the breakpoint setting of a breakpoint near the
 line in the source file.
 
@@ -188,8 +188,6 @@ compiled with source debug information will be available for selection.
 Right-click and hold the mouse button on the source text window to popup a menu 
 with the following  option:
 
-    - Set a breakppint near the line where the mouse button was clicked  
-    - Unset a breakppint near the line where the mouse button was clicked  
     - Find a specific text in the source file and display the line with the text
       in the source text window
     - select a predicate from the source file to display in the source text window.

@@ -109,7 +109,6 @@ clicking on the appropriate check button.
 
 Show source button: clicking on this button will cause ECLiPSe to try to
 display the source of the predicate. If it is able to display the source,
-this will be shown in the predicate source tool's window.
-
+this will be shown in the tracer's source context display.
 Close button: closes this window.
 
