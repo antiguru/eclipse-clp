@@ -284,9 +284,11 @@ Peer Interface for Debugger GUI (lib(tracer_tcl))
 
 Date: July 2003
 Version: 5.6 onwards
-
+Updated: July 2008, version 6.0
 
 The Eclipse-side code is in lib(tracer_tcl), the Tcl code in eclipse_tools.tcl.
+
+The same Eclipse-side code is used for Saros (5.10).
 
 The protocol uses the following facilities:
 
@@ -297,13 +299,20 @@ The protocol uses the following facilities:
 
 Sequence of events roughly:
 
+    Trace starts, and event 250 is raised.
+
+    tracer_tcl:trace_start_handler_tcl/0 is called, initialises Eclipse
+    side, and sends [] in exdr format to GUI via debug_traceline. GUI does
+    initialisation for start tracing, and returns control to Eclipse.
+
     Eclipse hits trace port, and event 252 is raised.
 
     tracer_tcl:trace_line_handler_tcl/2 is called.
 
     Trace line information is written to the debug_traceline queue.
     This is a list [Depth, Style, Line, Invoc, Port, Prio, Path, From, To] 
-    in exdr format.
+    in exdr format. From and To are set to -1 to indicate that source 
+    display should not be updated.
 
     peer_do_multitask(tracer) is called, which blocks.
 
@@ -325,6 +334,9 @@ The GUI side is completely event/handler based. In principle:
 	Set up multitask handlers.
 
     Queue handler for 'debug_traceline':
+
+        Start of tracing session, indicated by [] sent from ECLiPSe side. 
+        This ensures that any source file is refreshed when the new trace.
 
 	The trace line information is read from the debug_traceline-queue,
 	and displayed in the GUI.
