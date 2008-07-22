@@ -1,5 +1,5 @@
 #
-# $Id: eclipse.tcl,v 1.1 2006/09/23 01:54:15 snovello Exp $
+# $Id: eclipse.tcl,v 1.2 2008/07/22 14:37:55 kish_shen Exp $
 # 
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -56,7 +56,7 @@ proc ec_resume {{async 0}} {
 	    while 1 {
 		set reslist [ec_resume_status 100]
 		if {$reslist != "running"} break
-		update
+		catch update
 	    }
 	}
 	set res [lindex $reslist 0]
@@ -64,14 +64,21 @@ proc ec_resume {{async 0}} {
 	    flushio {
 		set stream [lindex $reslist 1]
 		if [catch "ec_flushio_stream $stream" err] {
-		   tk_messageBox -icon error -type ok -message $err
+		    if [catch  "tk_messageBox -icon error -type ok -message" $err"] {
+			return
+		    }
+
 		}
-		update
+		catch update
 	    }
 	    waitio {
 		set stream [lindex $reslist 1]
 		if [catch "ec_waitio_stream $stream" err] {
-		    tk_messageBox -icon error -type ok -message $err
+		    if [catch "tk_messageBox -icon error -type ok -message" $err"] {
+			# unable to display messageBox, tk process gone
+			return
+		    }
+
 		}
 	    }
 	    success -
