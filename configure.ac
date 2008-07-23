@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.20 2008/07/16 23:51:34 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.21 2008/07/23 02:43:19 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -434,6 +434,8 @@ case "$ARCH" in
     dnl wsock32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lwsock32 -lnetapi32 $LIBS"
+    dnl compiling for WIN NT > 4; comment out for older Windows
+    AC_DEFINE(_WIN32_WINNT, 0x500)
     OSTYPE="win32"
 
     ;;
