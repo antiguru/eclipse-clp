@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.4 2008/07/23 02:49:12 kish_shen Exp $
+ * $Id: os_support.c,v 1.5 2008/07/23 20:37:09 kish_shen Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -523,7 +523,7 @@ canonical_filename(char *in, char *out)
 	*t = (*s == '\\') ? '/' : *s;
 	++s; ++t;
     }
-    if (*(t-1) == '.') t--; /* remove any trailing . (ignored by Windows */
+
     *t = '\0';
     return out;
 #else
