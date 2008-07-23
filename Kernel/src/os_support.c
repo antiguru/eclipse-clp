@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.3 2008/07/10 18:37:53 jschimpf Exp $
+ * $Id: os_support.c,v 1.4 2008/07/23 02:49:12 kish_shen Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -523,6 +523,7 @@ canonical_filename(char *in, char *out)
 	*t = (*s == '\\') ? '/' : *s;
 	++s; ++t;
     }
+    if (*(t-1) == '.') t--; /* remove any trailing . (ignored by Windows */
     *t = '\0';
     return out;
 #else
@@ -609,10 +610,24 @@ get_cwd(char *buf, int size)
     char	buf1[MAX_PATH_LEN];
 
 #ifdef _WIN32
+    char	buf2[MAX_PATH_LEN];
     s = _getcwd(buf1, MAX_PATH_LEN);
     /* Make sure drive letter is upper case (bug under cygwin) */
     if (islower(buf1[0]) && buf1[1] == ':')
     	buf1[0] = toupper(buf1[0]);
+#if _WIN32_WINNT > 0x400
+    /* Get `normalised' path with correct cases for characters in path.
+       GetLongPathName() is supported only by Windows NT > 4 
+       XP seems to require a call to GetShortPathName(), otherwise
+       GetLongPathName() does not always behave correctly.
+    */ 
+    len = GetShortPathName(buf1, buf2, MAX_PATH_LEN);
+    if (len > 0) 
+    {
+	len = GetLongPathName(buf2, buf1, MAX_PATH_LEN);
+	if (len == 0) s = _getcwd(buf1, MAX_PATH_LEN);
+    }
+#endif
 #else
 #ifdef HAVE_GETCWD
     /* Signal blocking here is to work around a bug that occurred

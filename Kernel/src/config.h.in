@@ -384,6 +384,9 @@
 #define gettimeofday(tp,tzp)	gettimeofday(tp)
 #endif
 
+/* define if compiling for Windows NT -- specifies NT version */
+#undef _WIN32_WINNT
+
 /* to deal with OS's that define it but don't implement it */
 #undef HAVE_MAP_NORESERVE
 
