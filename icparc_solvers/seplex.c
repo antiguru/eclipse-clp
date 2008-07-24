@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.8 2008/06/20 13:41:14 jschimpf Exp $
+ * Version:	$Id: seplex.c,v 1.9 2008/07/24 15:22:11 kish_shen Exp $
  *
  */
 
@@ -60,17 +60,18 @@ char *getenv();
 # define PATH_SEPARATOR ":"
 #endif
 
-#if defined(__APPLE__) && defined(__MACH__) && !defined(__POWERPC__)
-/* for Intel Mac OS X only -- is there a better way to determine this? */
-/* code modified from koders.com's definition of __eprintf(), which uses
+
+/* Kish 2008-07-24: define __eprintf() for all cases -- Cisco lab Solaris
+   has older libraries that does not have __eprintf() defined
+
+   code modified from koders.com's definition of __eprintf(), which uses
    fiprintf(), which is also undefined for Intel MacOSX. Here eprintf()
    is redefined to just the abort. This should be OK, as it is used in 
    assert.h, which should only be used when debugging
 
 -- Kish Shen 2007-11-22
-*/
- 
-/* This is an implementation of the __eprintf function which is
+
+   This is an implementation of the __eprintf function which is
    compatible with the assert.h which is distributed with gcc.
 
    This function is provided because in some cases libgcc.a will not
@@ -94,7 +95,6 @@ __eprintf (format, file, line, expression)
   abort ();
  }
 
-#endif
 
 #ifdef XPRESS
 # include "xprs.h"
