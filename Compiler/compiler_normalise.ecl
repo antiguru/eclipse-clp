@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.12 2008/07/08 22:33:20 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.13 2008/07/24 13:58:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/07/08 22:33:20 $").
+:- comment(date, "$Date: 2008/07/24 13:58:23 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -380,7 +380,7 @@ normalize_goal(G, AnnG, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goals], Go
 	).
 normalize_goal(G, AnnG, _, _, _, _, _, _, _, _, LM, _) :-
 	compiler_event(#illegal_goal, term, AnnG, G, LM).
-
+%	compiler_error(AnnG, term, "Illegal goal: %QVw", [G]).
 
     % Look up relevant properties of the called predicate.
     % If it is not known yet, assume defaults (regular, non-tool, []-module).

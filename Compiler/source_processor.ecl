@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.6 2008/07/20 18:23:04 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.7 2008/07/24 13:58:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/07/20 18:23:04 $").
+:- comment(date, "$Date: 2008/07/24 13:58:23 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -171,7 +171,7 @@
     <DT>no_macro_expansion</DT>
 	<DD>do not expand term macros (e.g. with/2 and of/2)</DD>
     <DT>minimal_macro_expansion</DT>
-	<DD>do not expand term macros except in directives</DD>
+	<DD>do not expand term macros except in :- directives</DD>
     <DT>no_clause_expansion</DT>
 	<DD>do not expand clause macros (e.g. DCGs)</DD>
     <DT>goal_expansion</DT>
@@ -502,14 +502,18 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	    Kind = other
 	).
 
+
     read_next_term(In, _Term, _AnnTermOrEof, _Vars, _Error, Comment, options{keep_comments:true}, _Module) ?-
 	read_comment(In, Comment),	% may fail
 	!.
-    read_next_term(In, TermOrEof, AnnTermOrEof, Vars, Error, _Comment, OptFlags, Module) :-
-	block(read_special(In, TermOrEof, AnnTermOrEof, Vars, OptFlags, Module),
-		Error, skip_to_fullstop(In)).
+    read_next_term(In, TermOrEof, AnnTermOrEof, Vars, _Error, _Comment, OptFlags, Module) :-
+	read_special(In, TermOrEof, AnnTermOrEof, Vars, OptFlags, Module),
+	!.
+    read_next_term(In, _TermOrEof, _AnnTermOrEof, [], error, _Comment, _OptFlags, _Module) :-
+	skip_to_fullstop(In).		% syntax error
 
 
+    % read one term, fail if syntax error
     read_special(In, TermOrEof, AnnTermOrEof, Vars, options{with_annotations:WithAnn}, Module) ?- !,
 	( WithAnn == true ->
 	    Vars = [],

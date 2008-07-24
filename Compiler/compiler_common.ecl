@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.18 2008/07/13 13:50:16 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.19 2008/07/24 13:58:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/07/13 13:50:16 $").
+:- comment(date, "$Date: 2008/07/24 13:58:23 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -615,10 +615,51 @@ warning(Message) :-
 	printf(warning_output, "WARNING: %w%n", [Message]).
 
 
+%----------------------------------------------------------------------
+% Errors and warnings
+%----------------------------------------------------------------------
+
+:- export compiler_warning/5.
+compiler_warning(Ann, SourcePos, String, Params, options{warnings:on}) :- !,
+	compiler_message('WARNING', Ann, SourcePos, String, Params).
+compiler_warning(_, _, _, _, _).
+
+
+:- export compiler_error/4.
+compiler_error(_Ann, SourcePos, String, Params) :-
+	compiler_message('ERROR', _Ann, SourcePos, String, Params),
+	exit_block(abort_compile_predicate).
+
+
 :- export compiler_event/5.
 compiler_event(EventNr, SourcePos, Ann, Term, Module) :-
 	get_error_location(Ann, SourcePos, Location),
 	error(EventNr, Term@Location, Module).
+
+
+    compiler_message(Severity, Ann, SourcePos, String, Params) :-
+	severity_stream(Severity, Stream),
+	printf(Stream, "%w: ", [Severity]),
+	print_error_location(Stream, Ann, SourcePos),
+	printf(Stream, String, Params),
+	nl(Stream),
+	flush(Stream).
+
+    severity_stream('WARNING', warning_output).
+    severity_stream('ERROR', error).
+
+
+:- export print_error_location/3.
+print_error_location(Stream, Ann, SourcePos) :-
+	get_error_location(Ann, SourcePos, Location),
+	print_location(Stream, Location).
+
+
+:- export print_location/2.
+print_location(Stream, File:Line) ?- !,
+	printf(Stream, "%w:%d:%n  ", [File,Line]).
+print_location(Stream, Location) :-
+	printf(Stream, "In compiling %w:%n  ", [Location]).
 
 
 :- use_module(source_processor).	% for source_position{}
@@ -626,14 +667,28 @@ compiler_event(EventNr, SourcePos, Ann, Term, Module) :-
 :- export get_error_location/3.
 get_error_location(Ann, SourcePos, Location) :-
 	( nonvar(Ann), Ann = annotated_term{file:File,line:Line} ->
-	    Location = File:Line
-	; SourcePos = source_position{file:File,line:Line} ->
-	    Location = File:Line
+	    local_file_name(File, LocalFile),
+	    Location = LocalFile:Line
+	; SourcePos = source_position{stream:Stream,file:File,line:Line} ->
+	    ( current_stream(Stream) ->
+		get_stream_info(Stream, device, Device),
+		( Device == file ->
+		    local_file_name(File, LocalFile),
+		    Location = LocalFile:Line
+		;
+		    concat_string([Device," stream ",Stream], PseudoFile),
+		    Location = PseudoFile:Line
+		)
+	    ;
+		concat_string(["Stream ",Stream], PseudoFile),
+		Location = PseudoFile:Line
+	    )
 	; SourcePos = term ->
 	    Location = SourcePos
 	; compiled_stream(Stream) ->
-	    Location = File:Line,
+	    Location = LocalFile:Line,
 	    get_stream_info(Stream, name, File),
+	    local_file_name(File, LocalFile),
 	    get_stream_info(Stream, line, Line)
 	;
 	    Location = unknown_location

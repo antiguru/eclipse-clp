@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.9 2008/07/20 18:23:03 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.10 2008/07/24 13:58:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/07/20 18:23:03 $").
+:- comment(date,	"$Date: 2008/07/24 13:58:23 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -63,7 +63,13 @@
 :- lib(module_options).
 
 :- import
+	collect_discontiguous_predicates/2,
+	deregister_compiler/0,
 	expand_clause_annotated/4,
+	implicit_local/2,
+	bip_error/1,
+	record_discontiguous_predicate/4,
+	register_compiler/1,
 	set_default_error_handler/2
    from sepia_kernel.
 
@@ -170,7 +176,7 @@ compile_predicate1(ModulePred, Clauses0, AnnClauses0, SourcePos, PredsSeen, Opti
 	; compiler_event(#illegal_head, SourcePos, _Ann, N, Module)
 	),
 	verify (Clauses0 = [Clause|_], extract_pred(Clause, Pred)),
-	legal_pred_definition(Pred, Module, Options),
+	legal_pred_definition(Pred, SourcePos, Module, Options),
 	% Do inlining/goal expansion. This is done here rather than in the
 	% source_processor to make it controllable via pragmas.
 	( Options = options{expand_goals:on} ->
@@ -185,7 +191,7 @@ compile_predicate1(ModulePred, Clauses0, AnnClauses0, SourcePos, PredsSeen, Opti
 		process_query(SourcePos, (?-assert(Clause)), Options, Module)
 	    )
 
-	; sepia_kernel:record_discontiguous_predicate(Pred, Clauses, AnnClauses, Module) ->
+	; record_discontiguous_predicate(Pred, Clauses, AnnClauses, Module) ->
 	    % will be compiled later via compile_discontiguous_preds/5
 	    CodeSize = 0
 
@@ -205,7 +211,7 @@ compile_static_predicate(Pred, Clauses, AnnClauses, SourcePos, Options, CodeSize
 
 
 compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
-	sepia_kernel:collect_discontiguous_predicates(Module, NonContigPreds),
+	collect_discontiguous_predicates(Module, NonContigPreds),
 	(
 	    foreach(Pred-ClausePairs,NonContigPreds),
 	    fromto(Size0,Size1,Size2,Size),
@@ -390,9 +396,15 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
 
 
     % Make sure we can define this predicate
-    legal_pred_definition(Pred, Module, Options) :-
+    legal_pred_definition(Pred, SourcePos, Module, Options) :-
 	( Options = options{load:all} ->
-	    local(Pred)@Module	% does all checks, hiding imports, etc
+	    % does all checks, hiding imports, etc
+	    ( implicit_local(Pred, Module) ->
+		true
+	    ;
+		print_error_location(error, _Ann, SourcePos),
+		bip_error(Pred)@Module
+	    )
 	;
 	    % If not loading, don't create the local predicate.  Problem:
 	    % subsequent calls to get_flag/3 may trigger lazy imports for
@@ -489,22 +501,27 @@ compile_pred_to_wam(Pred, Clauses, AnnCs, FinalCode, Options, Module) :-
 % Error handling
 %----------------------------------------------------------------------
 
-:- set_default_error_handler(#consecutive, compiler_err_fail_handler/2).
-:- set_default_error_handler(#illegal_head, compiler_err_abort_handler/2).
-:- set_default_error_handler(#illegal_goal, compiler_err_abort_handler/2).
+?- set_default_error_handler(#consecutive, compiler_err_fail_handler/2).
+?- reset_event_handler(#consecutive).
+?- set_default_error_handler(#illegal_head, compiler_err_abort_handler/2).
+?- reset_event_handler(#illegal_head).
+?- set_default_error_handler(#illegal_goal, compiler_err_abort_handler/2).
+?- reset_event_handler(#illegal_goal).
 
 compiler_err_abort_handler(Error, Culprit) :-
-	print_compiler_message(error, Error, Culprit),
+	print_compiler_message('ERROR', Error, Culprit),
 	exit_block(abort_compile_predicate).
 
 compiler_err_fail_handler(Error, Culprit) :-
-	print_compiler_message(error, Error, Culprit),
+	print_compiler_message('ERROR', Error, Culprit),
 	fail.
 
 compiler_warn_cont_handler(Error, Culprit) :-
-	print_compiler_message(warning_output, Error, Culprit).
+	print_compiler_message('WARNING', Error, Culprit).
 
-    print_compiler_message(Stream, Error, Term@Location) ?-
+    print_compiler_message(Severity, Error, Term@Location) ?-
+	severity_stream(Severity, Stream),
+	printf(Stream, "%w: ", [Severity]),
 	print_location(Stream, Location),
 	error_id(Error, Message), 
 	printf(Stream, "%w: ", [Message]),
@@ -513,39 +530,19 @@ compiler_warn_cont_handler(Error, Culprit) :-
 	nl(Stream),
 	flush(Stream).
 
+    severity_stream('WARNING', warning_output).
+    severity_stream('ERROR', error).
+
 
 :- set_default_error_handler(#multifile, redef_other_file_handler/2).
+?- reset_event_handler(#multifile).
 
-redef_other_file_handler(_, (Pred, OldFile0, Location)) :-
+redef_other_file_handler(_, (Pred, OldFile, Location)) :-
 	print_location(warning_output, Location),
-	local_file_name(OldFile0, OldFile),
+%	local_file_name(OldFile0, OldFile),
 	printf(warning_output, "WARNING: %Kw replaces previous definition in file %w%n",
 		 [Pred,OldFile]).
 
-
-compiler_warning(Ann, SourcePos, String, Params, options{warnings:on}) :- !,
-	compiler_message(warning_output, Ann, SourcePos, String, Params).
-compiler_warning(_, _, _, _, _).
-
-
-compiler_error(_Ann, SourcePos, String, Params) :-
-	compiler_message(error, _Ann, SourcePos, String, Params),
-	exit_block(abort_compile_predicate).
-
-
-compiler_message(Stream, Ann, SourcePos, String, Params) :-
-	get_error_location(Ann, SourcePos, Location),
-	print_location(Stream, Location),
-	printf(Stream, String, Params),
-	nl(Stream).
-
-
-print_location(Stream, File:Line) ?- !,
-	local_file_name(File, LocalFile),
-	printf(Stream, "File %w, line %d:%n  ", [LocalFile,Line]).
-print_location(Stream, Location) :-
-	printf(Stream, "In compiling %w:%n  ", [Location]).
-    	
 
 %----------------------------------------------------------------------
 % From-file compiler
@@ -604,7 +601,7 @@ compile_source(Source, OptionListOrModule, CM) :-
 	( source_open(Source, [with_annotations|OpenOptions], SourcePos0)@Module ->
 	    SourcePos0 = source_position{stream:Stream,file:CanonicalFile},
 	    get_stream_info(Stream, device, Device),
-	    sepia_kernel:register_compiler(args(Term,Ann)-(ecl_compiler:compile_term_annotated(Term,Ann,Options))),
+	    register_compiler(args(Term,Ann)-(ecl_compiler:compile_term_annotated(Term,Ann,Options))),
 	    hash_create(PredsSeen),
 	    (
 		fromto(begin, _, Class, end),
@@ -690,11 +687,11 @@ compile_source(Source, OptionListOrModule, CM) :-
 	    ;
 		true
 	    ),
-	    sepia_kernel:deregister_compiler,
+	    deregister_compiler,
 	    source_close(SourcePosEnd, CloseOptions),
             compiler_options_cleanup(Options),
 	    ( Size >= 0 -> true ;
-		printf(error, "Error(s) occurred during %Qw%n", [compile(Source)]),
+		printf(error, "Error(s) occurred while compiling %w%n", [Source]),
 		abort
 	    )
 	;
@@ -816,13 +813,13 @@ handle_nonclause(Class, Term, Ann, SourcePos1, Size0, Size, Options, PosModule, 
 
 
 process_directive(SourcePos, Term, Options, Module) :-
-	call_directive(SourcePos, Term, Module),
+	call_directive(SourcePos, Term, Options, Module),
 	emit_directive_or_query(Term, Options, Module).
 
 
 process_query(SourcePos, Term, Options, Module) :-
 	( Options = options{load:all} ->
-	    call_directive(SourcePos, Term, Module)
+	    call_directive(SourcePos, Term, Options, Module)
 	;
 	    % new/none
 	    true
@@ -830,19 +827,17 @@ process_query(SourcePos, Term, Options, Module) :-
 	emit_directive_or_query(Term, Options, Module).
 
 
-call_directive(SourcePos, Dir, Module) :-
+call_directive(SourcePos, Dir, Options, Module) :-
 	arg(1, Dir, Goal),
     	block(
 	    % negate the Goal - don't bind variables!
 	    ( \+ call(Goal)@Module ->
-		compiler_message(warning_output, _Ann, SourcePos,
-		    "Compiler warning: query failed: %w", Dir)
+		compiler_warning(_Ann, SourcePos, "Query failed: %w", Dir, Options)
 	    ;
 	    	true
 	    ),
 	    Tag,
-	    compiler_error(_Ann, SourcePos,
-		    "Compiler error: query exited (%w)%n%w%n", [Tag,Dir])
+	    compiler_error(_Ann, SourcePos, "Query exited (%w): %w", [Tag,Dir])
 	).
 
 
@@ -958,7 +953,6 @@ compile_term_(List, OptionList, Module) :-
 :- set_flag(compile_term_annotated/3, type, built_in).
 
 compile_term_annotated_(List, AnnList, OptionList, Module) :-
-%	writeln(compile_term(List,OptionList)),
 	compiler_options_setup('_term', OptionList, Options),
 	hash_create(PredsSeen),
 	compile_list(List, AnnList, first, Clauses, Clauses, AnnC, AnnC,

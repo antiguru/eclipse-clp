@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.3 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.4 2008/07/24 13:58:13 jschimpf Exp $
  */
 
 /*
@@ -62,6 +62,7 @@ static int
     p_tool2(value vi, type ti, value vb, type tb, value vm, type tm),
     p_tool_body(value vi, type ti, value vb, type tb, value vmb, type tmb, value vm, type tm),
     p_local(value v, type t, value vm, type tm),
+    p_implicit_local(value v, type t, value vm, type tm),
     p_export(value v, type t, value vm, type tm),
     p_reexport_from(value vim, type tim, value v, type t, value vm, type tm),
     p_import_from(value vim, type tim, value v, type t, value vm, type tm),
@@ -122,6 +123,7 @@ bip_module_init(int flags)
     exported_built_in(in_dict("tool_body_", 4), p_tool_body, B_UNSAFE|U_GROUND)
 	-> mode = BoundArg(2, GROUND) | BoundArg(3, CONSTANT);
     (void) local_built_in(d_.localb, p_local, B_UNSAFE);
+    (void) exported_built_in(in_dict("implicit_local",2), p_implicit_local, B_UNSAFE);
     (void) local_built_in(d_.exportb, p_export, B_UNSAFE);
     (void) local_built_in(in_dict("reexport_from_",3), p_reexport_from, B_UNSAFE);
     (void) local_built_in(d_.import_fromb, p_import_from, B_UNSAFE);
@@ -733,6 +735,27 @@ _add_module(dident module, didlist **start)
 	new_mod->name = module;
 	new_mod->next = *start;
 	*start = new_mod;
+}
+
+
+/*
+ * Implicit local declaration,
+ * used by the compiler to prepare for the subsequent definition of a predicate
+ */
+
+static int
+p_implicit_local(value v, type t, value vm, type tm)
+{
+    dident	d;
+
+    Check_Module(tm, vm);
+    Get_Proc_Did(v, t, d);
+
+    if (!local_procedure(d, vm.did, tm, PRI_CREATE))
+    {
+	Fail_;	/* with bip_error */
+    }
+    Succeed_;
 }
 
 
