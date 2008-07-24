@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: t_all.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: t_all.pl,v 1.2 2008/07/24 16:26:31 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %-----------------------------------------------------------------------
@@ -39,9 +39,7 @@
 :- module(t_all).
 
 :-
-	import at/2,
-	       open/3,
-	       seek/2,
+	import
 	       set_default_error_handler/2,
 	       trimcore/0
 	from sepia_kernel.
@@ -163,8 +161,8 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	concat_string([File,'.ref'], Reference),
 	del_if_exists(FileErr),
 	del_if_exists(FileOut),
-	open(FileErr, write, ErrorStream),
-	open(FileOut, write, OutputStream),
+	open(FileErr, write, ErrorStream, [end_of_line(lf)]),
+	open(FileOut, write, OutputStream, [end_of_line(lf)]),
 	set_stream(error, OutputStream),  % normal error messages to output
 
 	set_flag(variable_names, off),		% prepare for compile
@@ -192,7 +190,7 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	    set_flag(strip_variables, on),
 	    set_flag(variable_names, off),
 	    set_flag(print_depth, 100000),
-	    sepia_kernel:cputime(StartTime),
+	    cputime(StartTime),
 	    get_priority(OldPrio),
 
 	    block(
@@ -203,7 +201,7 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 		    check_state(OldPrio)
 		->
 		    set_flag(prefer_rationals, off),	% set by some tests
-		    sepia_kernel:cputime(EndTime),
+		    cputime(EndTime),
 		    Time is fix((EndTime - StartTime) * 10)/10,
 		    RunOk = true
 		;
@@ -273,8 +271,8 @@ find_t(I, N, X) :-
 	I1 is I + 1,
 	(I1 < N ->
 	    argv(I1, A),
-	    open(A, string, S), 
-	    sepia_kernel:read(S, X),
+	    open(string(A), read, S), 
+	    read(S, X),
 	    close(S)
 	;
 	    X = true
