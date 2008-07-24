@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.2 2008/07/24 16:21:33 jschimpf Exp $
  */
 
 /*
@@ -236,7 +236,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 "unimplemented functionality",			/* UNIMPLEMENTED	*/
 "built-in predicate not available on this system",/* NOT_AVAILABLE	*/
 "compiled query failed",			/* QUERY_FAILED		*/
-"a cut is not allowed in a condition",		/* IF_CUT		*/
+0,						/* was IF_CUT		*/
 "procedure being redefined in another file",	/* MULTIFILE		*/
 "start of compilation",
 "compilation aborted",

@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.6 2008/07/13 13:40:31 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.7 2008/07/24 16:21:33 jschimpf Exp $
  */
 
 /*
@@ -5582,10 +5582,6 @@ _anycall_:				/* (pw1,DBG_PORT,i) */
 		goto _exec_prolog_;
 	    } else if(val_did == d_.cut) {	/* !/0 ==> cut_to(Cut) */
 		pw2 = &A[4];
-		if (IsNil(pw2->tag)) {
-		    err_code = IF_CUT;
-		    goto _metacall_err_;
-		}
 		A[1] = *pw2;
 		Push_Ret_Code(PP)
 		Check_Local_Overflow;

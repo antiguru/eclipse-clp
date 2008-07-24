@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.7 2008/07/18 17:14:14 kish_shen Exp $
+ * VERSION	$Id: code.c,v 1.8 2008/07/24 16:21:33 jschimpf Exp $
  */
 
 /********************************************************************
@@ -461,7 +461,7 @@ code_init(int flags)
     Store_3(MoveAML, Address(4), Esize(2))		/* Cut -> Y2 */
     Store_i(Savecut)
     Store_3(MoveAMAM, Address(3), Address(2))
-    Store_2(Put_nilAM, Address(4))
+    Store_2(SavecutAM, Address(4))
     Store_2(Metacall,Esize(4))
     Store_2(Cut, Esize(4))
     Store_3(MoveLAM, Esize(4), Address(1))
@@ -520,7 +520,7 @@ code_init(int flags)
     Store_3(MoveAML, Address(3), Esize(2))		/* Module -> Y2 */
     Store_i(Savecut)
     Store_3(MoveAMAM, Address(3), Address(2))
-    Store_2(Put_nilAM, Address(4))
+    Store_2(SavecutAM, Address(4))
     Store_2(Metacall,Esize(4))
     Store_2(Cut, Esize(4))
     Store_3(MoveLAM, Esize(4), Address(1))
@@ -560,7 +560,7 @@ code_init(int flags)
     Store_3(MoveAML, Address(3), Esize(2))		/* Module -> Y2 */
     Store_2(SavecutL, Esize(1))
     Store_3(MoveAMAM, Address(3), Address(2))
-    Store_2(Put_nilAM, Address(4))
+    Store_2(SavecutAM, Address(4))
     Store_2(Metacall,Esize(4))
     Store_2(SoftcutL, Esize(1))
     Store_3(MoveLAM, Esize(4), Address(1))

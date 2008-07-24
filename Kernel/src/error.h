@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: error.h,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * VERSION	$Id: error.h,v 1.2 2008/07/24 16:21:34 jschimpf Exp $
  *
  * IDENTIFICATION		error.h
  *
@@ -165,7 +165,6 @@
 #define UNIMPLEMENTED		-141
 #define NOT_AVAILABLE		-142
 #define QUERY_FAILED		-143
-#define IF_CUT			-144	/* cut inside condition	*/
 #define MULTIFILE		-145
 #define BAD_PRAGMA		-148
 #define CODE_UNIT_LOADED	-149

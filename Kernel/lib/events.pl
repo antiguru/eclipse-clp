@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.3 2008/07/20 18:16:49 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.4 2008/07/24 16:24:47 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1213,7 +1213,6 @@ postpone_suspensions(Susp) :-
    set_default_error_handler_(141, error_handler/2, sepia_kernel),
    set_default_error_handler_(142, error_handler/2, sepia_kernel),
    set_default_error_handler_(143, compiler_error_handler/2, sepia_kernel),
-   set_default_error_handler_(144, compiler_error_handler/2, sepia_kernel),
    set_default_error_handler_(145, redef_other_file_handler/2, sepia_kernel),
    set_default_error_handler_(146, true/0, sepia_kernel),
    set_default_error_handler_(147, compiler_abort_handler/3, sepia_kernel),
