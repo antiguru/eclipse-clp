@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.7 2008/06/20 13:41:15 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.8 2008/07/24 15:45:57 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -1167,6 +1167,7 @@ ec_queue_create answer_output r "ec_stream_to_window highlight .tkecl.pane.answe
 ec_queue_create warning_output r "tkecl:tkec_stream_to_window warning .tkecl.pane.stdio.tout $tkecl(stop_scrolling)"
 ec_queue_create toplevel_out r tkecl:toplevel_out_handler
 ec_queue_create toplevel_in w tkecl:toplevel_in_handler
+ec_rpc "set_stream_property(warning_output,flush,end_of_line)" 
 
 if {![string match $tkecl(version) [lindex [ec_rpc_check "get_flag(version, V)"] 2]]} {
     tk_messageBox -icon warning -message "Version differences detected between Tcl and ECLiPSe codes" -type ok
