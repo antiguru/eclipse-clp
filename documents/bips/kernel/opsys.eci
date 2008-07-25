@@ -469,7 +469,11 @@ Success:
       removed/replaced. 
 
    <LI> the non-aliased path is returned, i.e. any symbolic links are
-   replaced by the non-symbolic linked version of the path.
+   replaced by the non-symbolic linked version of the path. On Windows,
+   where different cases of letters in path names are allowed but ignored 
+   (so e.g. "foo" and "Foo" are aliases), the `normalised' version of the
+   name, using the letter cases when each file/directory was created, is
+   returned (not supported in older versions of Windows before 2000).
 
    <LI> if the path is a directory, a terminating '/' is always returned.
 </UL>
