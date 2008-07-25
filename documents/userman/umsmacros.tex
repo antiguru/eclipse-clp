@@ -61,6 +61,14 @@ they are expanded just before a Prolog term is printed by one of the
 output predicates
 
 \end{description}
+
+In addition to transforming a term, macros can also be {\it source annotation
+ aware}, and provide source annotation information for the transformed term if
+supplied with source annotation information for the orginal term.  Source annotation
+ information provide source and position information for a term, and is
+provided by predicate such as
+ \bipref{read_annotated/3}{../bips/kernel/ioterm/read_annotated-3.html}.
+
 Macros are attached to classes of terms specified by their functors
 or by their type.
 Macros obey the module system's visibility rules.
@@ -100,16 +108,27 @@ is one of {\tt compound, string, integer, rational, float, breal, atom,
 goal}\footnote{type(goal) stands for suspensions.}.
 \end{description}
 The {+TransPred} argument specifies the predicate that will perform the
-transformation. It has to be of arity 2 or 3 and should have the form:
+transformation. It has to be either of arity 2 or 3 and should have the form:
 \begin{quote}\begin{verbatim}
 trans_function(OldTerm, NewTerm [, Module]) :- ... .
+\end{verbatim}\end{quote}
+or it can be source annotation aware, and be of arity 4 or 5, as follows:
+\begin{quote}\begin{verbatim}
+trans_function(OldTerm, NewTerm, OldAnn, NewAnn [, Module]) :- ... .
 \end{verbatim}\end{quote}
 At transformation time, the system will call {\it TransPred} in the module
 where \bipref{macro/3}{../bips/kernel/syntax/macro-3.html} was invoked.
 The term to transform is passed as the first argument, the second is a free
-variable which the transformation predicate should bind to the
-transformed term, and the optional
-third argument is the module where the term is read or written.
+variable which the transformation predicate should bind to the transformed
+term. In the case of the source annotation aware version of TransPred, if
+the term was read in by read_annotated/2,3, the annotated version of the
+term to transformed is passed in the third argument, and the transformation
+should bind the fourth argument to the annotated transformed term;
+otherwise, if no source annotation information is available, the third
+argument is passed in as a free variable, and the transformation should not
+bind the fourth argument. In both TransPred cases, the optional last
+argument is the module where the term was being read in. See
+section~\ref{annotated} for more details on annotated terms.
 
 {\it Options} is a list which may be empty (in this case the macro defaults
 to a local read term macro) or contain specifications from
@@ -268,6 +287,126 @@ yes.
 3
 yes.
 \end{verbatim} \end{quote}
+
+\subsection{Source Annotation-aware macro transformations}
+\label{annotated}
+When the macro transformation predicate has 4 or 5 arguments, it is termed
+source annotation aware, and the extra
+arguments are used to specify how source information from the 
+original term should be mapped to the transformed term.
+
+An annotated term provides the source information about a term. It
+is structurally similar to the original term and
+contains all information about the term, plus additional type information,
+variable names, and source position annotations for all subterms.
+
+The structure of the descriptive terms is as follows:
+
+\begin{verbatim}    
+        :- export struct(annotated_term(
+                term,                   % var, atomic or compound
+                type,                   % term type (see below)
+                file,                   % source file name (atom)
+                line,                   % source line (integer)
+                from, to                % source position (integers)
+                ...
+        )).
+\end{verbatim}    
+
+The type-field describes the type of the original term and provide type
+information similar to those used in \bipref{type_of/2}{../bips/kernel/typetest/type_of-2.html}, except that they convey additional information about variables and {\tt end_of_file}.
+
+    In the case of atomic terms and variables, the term-field simply
+    contains the plain original term. For compound terms, the term-field
+    contains a structure whose functor is the functor of the plain term,
+    but whose arguments are annotated versions of the plain term arguments.
+
+    For example, the annotated term representing the source term  {\tt foo(bar, X, _, 3)} is:
+
+\begin{verbatim}
+        annotated_term(foo(
+            annotated_term(bar, atom, ...),
+            annotated_term(X, var('X'), ...),
+            annotated_term(_, anonymous, ...),
+            annotated_term(3, integer, ...)),
+        compound, ...)
+\end{verbatim}
+
+The file/line/from/to-fields of an annotated term describe the
+"source position" of the term, as follows:
+
+\begin{description}
+\item[file]
+    The canonical file name of the source file (an atom), or the
+    empty atom '' if the source is not a file or not known.
+
+\item[line]
+    The line number in the source stream (positive integer).
+
+\item[from, to]
+    The exact term position as integer offsets in the source stream,
+    starting at from and ending at to-1.
+\end{description}
+
+The extra arguments for the transformation predicate are a pair of
+annotated terms for the original and transformed term. The predicate will
+be supplied with the annotated term for the original term if available,
+and the predicate is responsible for specifying the annotated term for the
+transformed term -- the structure of the transformed annotated term must
+match the annotated term structure expected for the transformed term. If
+no annotated information is available, the original annotated term will be
+a variable, and the predicate must not bind the transformed annotated term.
+
+For an example, here is a source annotation aware version of the previous
+ \verb'trans_a/2' example:
+
+\begin{verbatim}
+[eclipse 1]: [user].
+...
+
+ trans_a(a(X,Y), b(Y), AnnA, AnnTrans) :-    
+        number(X),           
+        X > 0,
+        ( var(AnnA) ->
+              true      % no source information, leave AnnTrans as var
+        ;
+              AnnA = annotated_term{term:a(_AnnX, AnnY),
+                                    file:File, line:Line,
+                                    from:From,to:To},
+              AnnTrans = annotated_term{term:b(AnnY),
+                                    type: compound,
+                                    file:File, line:Line,
+                                    from:From,to:To}
+         ).               
+
+:- local macro(a/2, trans_a/4, []).
+
+Yes (0.23s cpu)
+[eclipse 2]: read_annotated(user, X, Y).   
+ a(3,bar(X)).
+
+X = b(bar(X))
+Y = annotated_term(b(annotated_term(bar(annotated_term(X, var('X'), user, 18, 654, 655)), compound, user, 18, 650, 654)), compound, user, 18, 646, 648)
+
+\end{verbatim}
+
+In the example, the main functor of the transformed predicate, \verb'b/1',
+inherits the annotation information for the original tern's principle
+functor, \verb'a/2'. The argument Y in the transformed term takes the 
+annotation information from the corresponding argument in the original
+term. 
+
+
+
+   The source annotation aware transformation predicate facility is provided to
+   allow the user to detail how the subterms of the original term is mapped
+   to the transformed term. Without this extra information, the whole of
+   the transformed term is given the source information (source position,
+   source file etc.) of the original source term. This extra information is
+   useful when the subterms are goals, because without the extra
+   information, source tracing of these goals during debugging will not be
+   done.
+
 
 %----------------------------------------------------------------------
 \section{Definite Clause Grammars --- DCGs}
