@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.7 2008/07/20 18:16:50 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.8 2008/07/27 12:25:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -119,8 +119,6 @@
    op_(global,	650, xfx, @	, sepia_kernel),
    op_(global,	600, xfy, :	, sepia_kernel),
    op_(global,	600, xfx, ..	, sepia_kernel),
-   op_(global,	500,  fx, +	, sepia_kernel),
-   op_(global,	500,  fx, -	, sepia_kernel),
    op_(global,	500, yfx, +	, sepia_kernel),
    op_(global,	500, yfx, -	, sepia_kernel),
    op_(global,	500, yfx, /\	, sepia_kernel),
@@ -135,7 +133,9 @@
    op_(global,	400, yfx, mod	, sepia_kernel),
 %  op_(global,	300,  fx, *	, sepia_kernel),
    op_(global,	200, xfy, ^	, sepia_kernel),
-   op_(global,	200,  fx, \	, sepia_kernel).
+   op_(global,	200,  fy, +	, sepia_kernel),
+   op_(global,	200,  fy, -	, sepia_kernel),
+   op_(global,	200,  fy, \	, sepia_kernel).
 
 
 % Everything is this module is marked as 'built_in'

@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.2 2008/07/20 18:16:49 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.3 2008/07/27 12:25:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.2 2008/07/20 18:16:49 jschimpf Exp $
+% $Id: iso.pl,v 1.3 2008/07/27 12:25:05 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -86,7 +86,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2008/07/20 18:16:49 $`).
+:- comment(date, `$Date: 2008/07/27 12:25:05 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
@@ -118,8 +118,6 @@
     in different language dialects into different modules.')).
 
 :- export
-	op(200, fy, (-)),
-	op(200, fy, (\)),
 	op(200, xfx, (**)).
 
 :- export

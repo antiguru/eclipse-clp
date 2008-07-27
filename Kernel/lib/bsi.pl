@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: bsi.pl,v 1.1 2008/06/30 17:43:42 jschimpf Exp $
+% Version:	$Id: bsi.pl,v 1.2 2008/07/27 12:25:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -48,8 +48,6 @@
 	op(1000, xfy, '&'),
 	op(500, xfy, (\/)),
 	op(500, xfy, (/\)),
-	op(200, fy, '-'),
-	op(200, fy, '+'),
 	op(0, fy, (nospy)).
 
 :- system.		% compiler directive to add the SYSTEM flag
