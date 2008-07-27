@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.10 2008/07/24 13:58:23 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.11 2008/07/27 23:20:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/07/24 13:58:23 $").
+:- comment(date,	"$Date: 2008/07/27 23:20:15 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -403,7 +403,7 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
 		true
 	    ;
 		print_error_location(error, _Ann, SourcePos),
-		bip_error(Pred)@Module
+		block(bip_error(Pred)@Module, _Any, exit_block(abort_compile_predicate))
 	    )
 	;
 	    % If not loading, don't create the local predicate.  Problem:
@@ -413,7 +413,7 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
 	    true
 	),
 	( local_get_flag(Pred, tool, on, Module) ->
-	    error(#tool_redef, Pred, Module)
+	    block(error(#tool_redef, Pred, Module), _Any, exit_block(abort_compile_predicate))
 	; true ),
 	( local_get_flag(Pred, parallel, on, Module),  Options = options{warnings:on} ->
 	    printf(warning_output, "Parallel-declaration ignored for %w%n", [Module:Pred])
@@ -537,9 +537,9 @@ compiler_warn_cont_handler(Error, Culprit) :-
 :- set_default_error_handler(#multifile, redef_other_file_handler/2).
 ?- reset_event_handler(#multifile).
 
-redef_other_file_handler(_, (Pred, OldFile, Location)) :-
+redef_other_file_handler(_, (Pred, OldFile0, Location)) :-
 	print_location(warning_output, Location),
-%	local_file_name(OldFile0, OldFile),
+	local_file_name(OldFile0, OldFile),
 	printf(warning_output, "WARNING: %Kw replaces previous definition in file %w%n",
 		 [Pred,OldFile]).
 
