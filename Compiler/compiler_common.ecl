@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.19 2008/07/24 13:58:23 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.20 2008/07/28 23:55:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/07/24 13:58:23 $").
+:- comment(date, "$Date: 2008/07/28 23:55:07 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -657,7 +657,8 @@ print_error_location(Stream, Ann, SourcePos) :-
 
 :- export print_location/2.
 print_location(Stream, File:Line) ?- !,
-	printf(Stream, "%w:%d:%n  ", [File,Line]).
+	local_file_name(File, LocalFile),
+	printf(Stream, "%w:%d:%n  ", [LocalFile,Line]).
 print_location(Stream, Location) :-
 	printf(Stream, "In compiling %w:%n  ", [Location]).
 
