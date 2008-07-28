@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.8 2008/07/27 12:25:05 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.9 2008/07/28 14:32:19 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -4323,7 +4323,7 @@ inherit_annotation(TermOut,
 
 tr_goals_annotated(Var, Ann, Var, Ann, _) :- var(Var), !.
 tr_goals_annotated((G1, G2), Ann, (GC1, GC2), AnnExp, M) :- !,
-	same_annotation((AnnG1,AnnG2), Ann, (AnnGC1,AnnGC2), AnnExp),
+        same_annotation((AnnG1,AnnG2), Ann, (AnnGC1,AnnGC2), AnnExp),
 	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
 	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M).
 tr_goals_annotated((G1; G2), Ann, (GC1; GC2), AnnExp, M) :- !,
@@ -4368,7 +4368,7 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
 	NewG = true,
 	inherit_annotation(NewG, AnnG, AnnNewG).
     tr_colon(G, AnnG, NewG, AnnNewG, M, [LM|LMs]) :- !,
-	( try_tr_goal(G, AnnG, LMG0, AnnLMG0, LM, M) ->
+        ( try_tr_goal(G, AnnG, LMG0, AnnLMG0, LM, M) ->
 	    tr_goals_annotated(LMG0, AnnLMG0, LMG, AnnLMG, M)
 	;
 	    LMG = LM:G,
@@ -4379,12 +4379,15 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
 	    NewG = LMG,
 	    AnnNewG = AnnLMG
 	;
-	    NewG = (LMG,LMsG),
+            NewG = (LMG,LMsG),
 	    % make sure AnnLMsG inherits source position
 	    inherit_annotation((AnnLMG,AnnLMsG), AnnG, AnnNewG),
-	    inherit_annotation(_, AnnG, AnnLMsG),
+            % like inherit_annotation(LMsG, AnnG, AnnLMsG) but no setting
+            % of type for AnnLMsG, as LMsG not constructed yet
+            AnnG = annotated_term(_,_,File,Line,From,To),
+            AnnLMsG = annotated_term(_,_,File,Line,From,To),
 	    copy_structure(G, GCopy),	% compiler bug workaround
-	    tr_colon(GCopy, AnnG, LMsG, AnnLMsG, M, LMs)
+            tr_colon(GCopy, AnnG, LMsG, AnnLMsG, M, LMs)
 	).
     tr_colon(G, AnnG, NewG, AnnNewG, M, LM) :-
 	( try_tr_goal(G, AnnG, LMG, AnnLMG, LM, M) -> 
