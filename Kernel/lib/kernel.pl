@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.9 2008/07/28 14:32:19 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.10 2008/07/28 19:02:05 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -4384,10 +4384,13 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
 	    inherit_annotation((AnnLMG,AnnLMsG), AnnG, AnnNewG),
             % like inherit_annotation(LMsG, AnnG, AnnLMsG) but no setting
             % of type for AnnLMsG, as LMsG not constructed yet
-            AnnG = annotated_term(_,_,File,Line,From,To),
-            AnnLMsG = annotated_term(_,_,File,Line,From,To),
-	    copy_structure(G, GCopy),	% compiler bug workaround
-            tr_colon(GCopy, AnnG, LMsG, AnnLMsG, M, LMs)
+            (nonvar(AnnG) ->
+                AnnG = annotated_term(_,_,File,Line,From,To),
+                AnnLMsG = annotated_term(_,_,File,Line,From,To)
+            ;
+                true
+            ),
+            tr_colon(G, AnnG, LMsG, AnnLMsG, M, LMs)
 	).
     tr_colon(G, AnnG, NewG, AnnNewG, M, LM) :-
 	( try_tr_goal(G, AnnG, LMG, AnnLMG, LM, M) -> 
