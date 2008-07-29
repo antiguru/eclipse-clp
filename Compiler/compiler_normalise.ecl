@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.13 2008/07/24 13:58:23 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.14 2008/07/29 18:00:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/07/24 13:58:23 $").
+:- comment(date, "$Date: 2008/07/29 18:00:43 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -89,11 +89,10 @@
 
 
 % Utilities to deal with (optionally uninstantiated) annotated terms
-% TODO: inline these
 :- local op(700, xfx, =:).
 Var =: _Template :- var(Var), !.
-%Term =: Term.
-Term =: Term2 :- verify instance(Term, Term2), Term = Term2.
+%Term =: Term2 :- verify instance(Term, Term2), Term = Term2.	% SLOW!
+Term =: Term.
 
 varg(I, T, A) :- ( var(T) -> true ; arg(I, T, A) ).
 

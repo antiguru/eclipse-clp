@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.11 2008/07/27 23:20:15 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.12 2008/07/29 18:00:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/07/27 23:20:15 $").
+:- comment(date,	"$Date: 2008/07/29 18:00:43 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -243,6 +243,7 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
     load_compiled_code(Pred, WAM, CodeSize, Flags, SourcePos, Options, Module) :-
 	( ( Options = options{load:all} ; Options = options{load:new}, \+ is_predicate(Pred)@Module) ->
 	    % double negation, because asm binds the labels
+	    message("Assemble and load", 2, Options),
 	    \+ \+ block(asm(Pred, WAM, Flags)@Module, _, true),
 	    get_flag(Pred, code_size, CodeSize)@Module,
 	    set_pred_pos(Pred, SourcePos, Options, Module)
@@ -252,6 +253,7 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
 
 
     output_compiled_code(Pred, WAM, Clauses, CodeSize, Flags, SourcePos, Options, Module) :-
+	message("Output", 2, Options),
 	( Options = options{output:print} ->
 	    printf("%w:%n", [Pred]),
 	    print_wam(WAM)
