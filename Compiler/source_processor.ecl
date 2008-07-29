@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.7 2008/07/24 13:58:23 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.8 2008/07/29 17:13:58 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/07/24 13:58:23 $").
+:- comment(date, "$Date: 2008/07/29 17:13:58 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -150,7 +150,7 @@
     <LI>syntax settings
     <LI>comments (optional)
     <LI>changing the current directory to the opened file's directory
-    <LI>handling of if-endif directives
+    <LI>handling of if-elif-else-endif directives
     </UL>
     OptionList can contain the following:
     <DL>
@@ -162,9 +162,11 @@
 	the contents of the given files, identical to an include(Files)
 	directive. By default, these directives are ignored.</DD>
     <DT>ignore_conditionals</DT>
-	<DD>interpret if/1, elif/1, else/0 and endif/0 directives and
-	include or exclude corresponding source parts accordingly, while
-	removing the directives themselves</DD>
+	<DD>Ignore any special meaning of conditional directives (if/1,
+	elif/1, else/0, endif/0) and just return them as a source term.
+	The default is to interpret these directives, including or
+	excluding corresponding source parts accordingly, while removing
+	the directives themselves</DD>
     <DT>with_annotations</DT>
 	<DD>return an annotated source term with every source term
 	(and do not return a separate variable list)</DD>
