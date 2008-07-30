@@ -15,7 +15,7 @@
 :- comment(summary, "List processing utilities").
 :- comment(author, "Bob Welham, Lawrence Byrd, R.A.O'Keefe, Joachim Schimpf").
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, "$Date: 2007/07/03 00:10:23 $").
+:- comment(date, "$Date: 2008/07/30 12:13:00 $").
 
 :- export
 	append/3,			%   List x List -> List
@@ -173,9 +173,8 @@ nth0(I, Xs, X) :-
 	nonvar(I), 
 	nth0_det(I, Xs, X).
 
-    nth0_det(0, [X|_], X).
+    nth0_det(0, [X|_], El) :- !, El=X.
     nth0_det(I, [_|Xs], El) :-
-	integer(I), I>0,	% redundant, for indexing
 	succ(I1, I),
 	nth0_det(I1, Xs, El).
 
@@ -201,9 +200,8 @@ nth1(I, Xs, X) :-
 	nonvar(I), 
 	nth1_det(I, Xs, X).
 
-    nth1_det(1, [X|_], X).
+    nth1_det(1, [X|_], El) :- !, El=X.
     nth1_det(I, [_|Xs], El) :-
-	integer(I), I>1,	% for indexing
 	succ(I1, I),
 	nth1_det(I1, Xs, El).
 
@@ -247,9 +245,8 @@ nth0(I, Xs, X, Rest) :-
 	nonvar(I), 
 	nth0_det(I, Xs, X, Rest).
 
-    nth0_det(0, [X|Xs], X, Xs).
+    nth0_det(0, [X|Xs], El, Rs) :- !, El=X, Rs=Xs.
     nth0_det(I, [X|Xs], El, [X|Rs]) :-
-	integer(I), I>0,	% redundant, for indexing
 	succ(I1, I),
 	nth0_det(I1, Xs, El, Rs).
 
@@ -280,9 +277,8 @@ nth1(I, Xs, X, Rest) :-
 	nonvar(I), 
 	nth1_det(I, Xs, X, Rest).
 
-    nth1_det(1, [X|Xs], X, Xs).
+    nth1_det(1, [X|Xs], El, Rs) :- !, El=X, Rs=Xs.
     nth1_det(I, [X|Xs], El, [X|Rs]) :-
-	integer(I), I>1,	% for indexing
 	succ(I1, I),
 	nth1_det(I1, Xs, El, Rs).
 
