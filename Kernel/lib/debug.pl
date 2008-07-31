@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.2 2008/07/18 02:13:06 kish_shen Exp $
+% Version:	$Id: debug.pl,v 1.3 2008/07/31 03:18:27 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -56,6 +56,7 @@
 
 % for tracer_*
 :- export 
+	current_predicate_with_port/4,
         get_portlist_from_file/4,
         find_matching_breakport/6,
         current_files_with_port_lines/1.

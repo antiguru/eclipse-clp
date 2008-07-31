@@ -184,16 +184,19 @@ another source file to display using the 'File:' combobox at the top of the
 source display window. Use the popdown list to select source file to display,
 so that the user can add/remove break-point from the file. Only source file 
 compiled with source debug information will be available for selection. 
+Double-click the left mouse botton on a line with a port will cause the 
+source context display to show the source of the predicate defining the 
+body goal at the port.
 
-Right-click and hold the mouse button on the source text window to popup a menu 
+Right-click and hold the mouse button on the source context window to popup a menu
 with the following  option:
 
-    - Find a specific text in the source file and display the line with the text
-      in the source text window
-    - select a predicate from the source file to display in the source text window.
-      Only predicates with ports will be shown in the selection, and the list
-      can be "torn off" (by selecting the dotted line at the top of the list)
-      to be displayed as a separate window
+    - Find a specific text in the source file and display the line with the 
+      text in the source text window
+    - select a predicate from the source file to display in the source text
+      window.  Only predicates with ports will be shown in the selection,
+      and the list can be "torn off" (by selecting the dotted line at the
+      top of the list) to be displayed as a separate window
     - refresh/reload the source file. This can be used to update the breakpoint
       status information, which may need updating if the user set/unset 
       breakpoints without using the GUI. 
@@ -202,6 +205,15 @@ with the following  option:
       available (as specified by the edit_line_option in the Preference
       editor), the editor will start showing the line where the mouse
       button was clicked. 
+If there are ports where breakpoints can be added, the menu has the following 
+additional entry:
+    - information on this nearest port: the Name/Arity and definition module
+      of the call, the predicate where the call is in.
+    - show the source for the predicate being called. This source is shown
+      in a new window, to allow the user to see both the source of the
+      called predicate, and the source context for the call. 
+
+
 
 Source will only be shown if the code was compiled with source support. The
 full path name is used to find the source file, so it should be in the same

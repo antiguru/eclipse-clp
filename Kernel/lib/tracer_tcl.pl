@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.3 2008/07/22 16:00:26 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.4 2008/07/31 03:18:26 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -101,6 +101,7 @@
 	gui_help_string/2,
 	gui_dg/3,
         get_triggers/1,
+	print_source_string/3,
         get_source_info/4,
 	flag_value/4,
 	record_source_file/1,
@@ -118,8 +119,11 @@
         reenable_usepred/0,
         set_tracer_command/1,
 	set_source_breakpoint/6,
+	file_is_readable/1,
 	read_file_for_gui/1,
         breakpoints_for_file/4,
+	find_exact_callinfo/3,
+	find_matching_callinfo/4,
         is_current_goal/2,
 	saros_get_library_path/1,
 	saros_set_library_path/1,
@@ -152,6 +156,7 @@
 	find_goal/3,
 	get_attribute/3,
 	get_tf_prop/3,
+	current_predicate_with_port/4,
         get_portlist_from_file/4,
         find_matching_breakport/6
     from sepia_kernel.
@@ -1597,10 +1602,15 @@ record_source_file(XFile) :-
 	( recorded(new_source_files, File3) -> true
 	; record(new_source_files, File3) ).
 
+print_source_string(Pred, SourceStream, M) :-
+	print_source(SourceStream, Pred, M),
+	flush(SourceStream).
+
 get_source_info(PredS, M, OSFile, Offset) :-
         term_string(N/A, PredS),
         atom(N),
         integer(A),
+        current_module(M), % may fail
         % source_line and source_offset are for end of last predicate
         get_flag(N/A, source_file, File)@M,
         get_flag(N/A, source_offset, Offset)@M,
@@ -1891,29 +1901,28 @@ report_stats_text_summary :-
 
 
 %----------------------------------------------------------------------
-% source debugging/btrakpoints
+% source debugging/breakpoints
 %----------------------------------------------------------------------
+
+file_is_readable(OSFile) :-
+        os_file_name(File, OSFile),
+        get_file_info(File, readable, on). % may fail
+
 read_file_for_gui(OSFile) :-
         os_file_name(File, OSFile),
-        (get_file_info(File, readable, on) ->
-            open(File, read, S),
-            repeat,
-            ( read_string(S, end_of_file, 32000, Part) ->
-                write_exdr(gui_source_file, Part),
-                flush(gui_source_file),
-                fail
-            ;
-                !
-            ),
-            write_exdr(gui_source_file, ""),
+        get_file_info(File, readable, on), % may fail
+        open(File, read, S),
+        repeat,
+        ( read_string(S, end_of_file, 32000, Part) ->
+            write_exdr(gui_source_file, Part),
             flush(gui_source_file),
-            close(S)
-        ;
-            concat_string(["File ", File, " cannot be read.%n"], Msg),
-            write_exdr(gui_source_file, Msg),
-            write_exdr(gui_source_file, end_of_file),
             fail
-        ).
+        ;
+            !
+        ),
+        write_exdr(gui_source_file, ""),
+        flush(gui_source_file),
+        close(S).
 
 set_source_breakpoint(ChangeToType, OSFile, Line, PortLine, From, To) :-
         os_file_name(File, OSFile),
@@ -1945,7 +1954,27 @@ breakpoints_for_file(OSFile, BreakLines, PortLines, Preds) :-
         ),
         ( foreach(port(BL,_,_), Breaks), foreach(BL, BreakLines) do true),
         sort(1, <, Preds0, Preds).
-        
+
+find_matching_callinfo(OSFile, Line, PortPredS, CallSpec) :-
+        os_file_name(File, OSFile),
+        find_matching_breakport(File, Line, FullName, DM, PortPred, PortLine),
+        get_flag(PortPred, port_lines, LInfos)@DM,
+        get_flag(PortPred, port_calls, CInfos)@DM,
+        term_string(PortPred, PortPredS),
+        get_callinfo(FullName:PortLine, LInfos, CInfos, CallSpec).
+
+find_exact_callinfo(OSFile, Line, CallSpec) :-
+        % OSFile must be `canonical' [may be in OS format] and is an atom
+        os_file_name(File, OSFile),
+        current_predicate_with_port(port_lines, PredSpec, Module, File:Line),
+        get_flag(PredSpec, port_lines, LInfos)@Module,
+        get_flag(PredSpec, port_calls, CInfos)@Module,
+        get_callinfo(File:Line, LInfos, CInfos, CallSpec).
+                
+get_callinfo(File:Line, [File:Line|_], [CallSpec|_], CallSpec) :- !.
+get_callinfo(PredPos, [_|PInfos], [_|CInfos], CallSpec) :-
+        get_callinfo(PredPos, PInfos, CInfos, CallSpec).
+
 %----------------------------------------------------------------------
 % Initialise toplevel module
 %----------------------------------------------------------------------

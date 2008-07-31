@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.20 2008/07/22 15:44:35 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.21 2008/07/31 03:22:08 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -248,7 +248,7 @@ proc tkecl:rpc {} {
     global tkecl
 
     set ec_rpc .ec_tools.ec_rpc
-    if ![winfo exists $ec_rpc] {
+   if ![winfo exists $ec_rpc] {
 	toplevel $ec_rpc
 	wm title $ec_rpc "ECLiPSe Simple Query"
 	pack [label $ec_rpc.entrylabel -justify left -text "Enter a goal in ECLiPSe syntax:"] -fill x
@@ -661,7 +661,12 @@ proc tkecl:display_source {} {
     switch $res {
 	throw -
 	fail {
-	    tk_messageBox -type ok -icon info -message "No souece information found for $tkecl(predproppred)." 
+	    if [winfo exists .ec_tools.ec_tracer] {
+		set parent .ec_tools.ec_tracer
+	    } else {
+		set parent .
+	    }
+	    tk_messageBox -type ok -parent $parent -icon info -message "No source information found for $tkecl(predproppred) in module $tkecl(predpropmodule)." 
 	    return
 	}
 	default {
@@ -672,7 +677,7 @@ proc tkecl:display_source {} {
 
     tkecl:popup_tracer
     if {$tkecl(source_debug,file) != $file} {
-	tkecl:load_source_debug_file $file
+	if {[tkecl:load_source_debug_file $file] == 0} return
     }
 
     set ec_tracer .ec_tools.ec_tracer.tab
@@ -688,6 +693,32 @@ proc tkecl:set_and_display_source {pred module} {
     set tkecl(predproppred) $pred
     set tkecl(predpropmodule) $module
     tkecl:display_source
+}
+
+proc tkecl:display_source_for_callport {t} {
+    global tkecl
+
+    if {$tkecl(source_debug,file) == ""} return
+    set line [tkecl:get_current_text_line $t]
+    set res [ec_rpc [list : tracer_tcl [list find_exact_callinfo $tkecl(source_debug,file) $line _]] {(()(()I_))}] 
+
+    switch $res {
+	throw -
+	fail {
+	    # no port at line, no action
+	    return
+	}
+	default {
+	    set callport [lindex [lindex $res 2] 3]
+	}
+    }
+    set calldefmodule [lindex $callport 1]
+    set callspec [lindex $callport 2]
+    # need to convert spec to a string as that is expected
+    # no modle needed for call as only need '/'/2 to be defined normally
+    set predspecs [lindex [ec_rpc \
+	[list term_string $callspec _] {((()I)_)}] 2]
+    tkecl:set_and_display_source $predspecs $calldefmodule
 }
 
 #----------------------------------------------------------------------
@@ -1060,8 +1091,7 @@ proc tkecl:edit_new_popup {} {
 proc tkecl:edit_file {file {line -1}} {
     global tkecl
 
-    puts "s-$file-$line-$tkecl(pref,edit_line_option)"
-    if {![file exists $file]} {
+   if {![file exists $file]} {
 	# Create the file (some editors require it)
 	close [open $file w]
     }
@@ -3316,6 +3346,8 @@ proc tkecl:setup_source_debug_window {} {
     pack $ec_source.context.lineno -side left -fill y 
     pack $ec_source.context.status -side left -fill y 
     pack $ec_source.context.text -side right -fill both -expand 1
+    bind $ec_source.context.text <Double-Button-1> \
+	"tkecl:display_source_for_callport $ec_source.context.text; break"
     bind $ec_source.context.lineno <Any-Key> "tkecl:readonly_keypress %A"
     bind $ec_source.context.lineno <ButtonRelease-2> {break}
 
@@ -3355,9 +3387,8 @@ proc tkecl:setup_source_debug_window {} {
 
     .ec_tools.ec_tracer.tab activate "Source Context"
 
-    balloonhelp $ec_source.context.text "Source context for execution traced by the tracer\nDisplay source file for debugging.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue.\nUse right mouse button to popup window to navigate the file, via text search or jumoing to predicates, and\nto start an editor to edit file, starting at the\nselected line if possible.\n"
-
-    balloonhelp $ec_source.context.status "Show port status for line in selected source file:zna light gray '#' indicates a port line (not active)\n a red '#' indicates an active breakpoint\nClick left mouse button to toggle the setting of a nearby breakpoint."
+    balloonhelp $ec_source.context.text "Source context for execution traced by the tracer\nDisplay source file for debugging.\nSource line for most recent goal is highlighted, and the current\ngoal is coloured in blue (call), green (success), or red(failure).\nSource context for ancestor goals can also be shown, highlighted in blue.\nUse right mouse button to popup window to navigate the file, via text search or jumoing to predicates, \nto start an editor to edit file, starting at the\nselected line if possible, and\nto popup a window to show the source for the predicate called in the nearest port line.\nDouble-click left mouse button on a port line will display the source for the predicate called.\n"
+    balloonhelp $ec_source.context.status "Show port status for line in selected source file: a light gray '#' indicates a port line (not active)\n a red '#' indicates an active breakpoint\nClick left mouse button to toggle the setting of a nearby breakpoint."
     balloonhelp $ec_source.context.lineno "Show line numbers for selected source line"
     balloonhelp $ec_source.control.select "Select from popup list the source file to display"
 
@@ -3413,6 +3444,7 @@ proc tkecl:popup_sourcetext_menu {t x y} {
 	menu $m -tearoff 0
     }
 
+    set xypos [winfo pointerxy .ec_tools.ec_tracer]
     set line [tkecl:get_current_text_line $t]
 #    $m add command -label "Set breakpoint near line $line" -command [list tkecl:set_breakpoint on $tkecl(source_debug,file) $line] 
 #    $m add command -label "Unset breakpoint near line $line" -command [list tkecl:set_breakpoint off $tkecl(source_debug,file) $line]
@@ -3424,16 +3456,115 @@ proc tkecl:popup_sourcetext_menu {t x y} {
     $m add separator
     $m add command -label "Refresh this file" -command \
 	[list tkecl:load_source_debug_file $tkecl(source_debug,file) [$t xview] [$t yview]]
-    $m add command -label "Edit this file" -command "tkecl:edit_file $tkecl(source_debug,file)  $line" 
+    $m add command -label "Edit this file" -command [list tkecl:edit_file $tkecl(source_debug,file)  $line]
+    set callinfo [tkecl:get_nearest_port_call $tkecl(source_debug,file) $line]
+    if {$callinfo != ""} {
+	$m add separator
+	set parent [lindex $callinfo 0]
+	set callport [lindex $callinfo 1]
+	set calldefmodule [lindex $callport 1]
+	set callspec [lindex $callport 2]
+	set callname [lindex $callspec 1]
+	set callarity [lindex $callspec 2]
+	$m add command -state disabled -label "Nearest tracable call:\n$callname/$callarity in $parent"
+	$m add command -label "Show source for the predicate called" -command \
+	    "tkecl:display_port_call_source $calldefmodule {$callspec} $xypos"
+    }
     tk_popup $m $x $y
+}
+
+proc tkecl:display_port_call_source {module callspec x y} {
+    if {[tkecl:check_port_call_source $module $callspec] == 0} {
+	# something went wrong...
+	return
+    }
+    set subtext .ec_tools.ec_tracer.tab.source.context.text.subtext
+
+    if [winfo exists $subtext] {
+	$subtext.text delete 1.0 end
+    } else {
+	# try to position window near when mouse cursor was
+	toplevel $subtext
+	wm positionfrom $subtext user
+	pack [button $subtext.close -text Close -command "destroy $subtext"] -side bottom -fill x
+	pack [scrollbar $subtext.vscroll -command "$subtext.text yview"] -fill y -side left
+	pack [scrollbar $subtext.hscroll -command "$subtext.text xview" -orient horizontal] -fill x -side bottom
+	pack [text $subtext.text -yscrollcommand "$subtext.vscroll set" \
+	    -wrap none -xscrollcommand "$subtext.hscroll set"] -side bottom -expand 1 -fill both
+
+	wm title $subtext "Predicate source"
+	wm geometry $subtext +$x+$y
+    }
+    raise $subtext
+    ec_rpc [list : tracer_tcl [list print_source_string $callspec gui_source_output  $module ]] (()((()I)()()))
+
+}
+
+proc tkecl:check_port_call_source {module callspec} {
+
+    if [winfo exists .ec_tools.ec_tracer] {
+	set parent .ec_tools.ec_tracer
+    } else {
+	set parent .
+    }
+
+    switch [ec_rpc [list current_module $module] {(())}] {
+	fail -
+	throw {
+	    tk_messageBox -parent $parent -type ok -message "Definition module $module for call $callspec does not exist" 
+	    return 0
+	}
+    }
+    switch [ec_rpc [list @ [list is_predicate $callspec] $module] {(((()I))())}] {
+	fail -
+	throw {
+	    tk_messageBox -parent $parent -type ok -message "$callspec is not a user defined predicate in module $module"
+	    return 0
+	}
+    }
+    switch [ec_rpc [list @ [list get_flag $callspec source_file _] $module] {(((()I)()_)())}] {
+	fail -
+	throw {
+	    tk_messageBox -parent $parent -type ok -message "Unable to access source information for $callspec defined in module $module"
+	    return 0
+	}
+    }
+
+    return 1
+
+}
+
+proc tkecl:get_nearest_port_call {file line} {
+
+    set result [ec_rpc [list : tracer_tcl [list find_matching_callinfo $file $line _ _]] {(()(()I__))}]
+
+    switch $result {
+	throw -
+	fail {
+	    return ""
+	}
+	default {
+	    return [lrange [lindex $result 2] 3 4]
+	}
+    }
+}
+
+proc tkecl:display_source_output {stream {length {}}} {
+    ec_stream_to_window {} .ec_tools.ec_tracer.tab.source.context.text.subtext.text $stream
 }
 
 proc tkecl:set_breakpoint {tostate file line} {
 
     set result [ec_rpc [list : tracer_tcl [list set_source_breakpoint $tostate $file $line _ _ _]] {(()(()()I___))}]
+    if [winfo exists .ec_tools.ec_tracer] {
+	set parent .ec_tools.ec_tracer
+    } else {
+	set parent .
+    }
+
     switch $result {
 	fail {
-	    tk_messageBox -type ok -message "No breaklines found in file $file"
+	    tk_messageBox  -parent $parent -type ok -message "No breaklines found in file $file"
 
 	}
 	throw {
@@ -3561,11 +3692,11 @@ proc tkecl:update_source_debug {style from to fpath_info} {
     }
 
      if {$tkecl(source_debug,file) != $fpath} {
-	 tkecl:load_source_debug_file $fpath
+	 if {[tkecl:load_source_debug_file $fpath] == 0} return
     } else {
-		if {$style != "ancestor_style"} {
-			$ec_sourcetext tag remove debug_line 1.0 end
-		}	
+	if {$style != "ancestor_style"} {
+	    $ec_sourcetext tag remove debug_line 1.0 end
+	}	
     }
 
     # assume $from, $to -- position information on an annotated term from
@@ -3596,16 +3727,17 @@ proc tkecl:load_source_debug_file {fpath {xfracs "0 1"} {yfracs "0 1"}} {
     set xfrac [lindex $xfracs 0]
     set yfrac [lindex $yfracs 0]
 
-    $ec_sourcetext delete 1.0 end
-    switch [ec_rpc [list : tracer_tcl [list read_file_for_gui $fpath]] \
+    switch [ec_rpc [list : tracer_tcl [list file_is_readable $fpath]] \
 		{(()(()))}] {
 	    fail -
 	    throw {
-		# problem reading source, no display
-		return
+		# source not readable, no display
+		return 0
 	    }
      }
 
+    $ec_sourcetext delete 1.0 end
+    ec_rpc [list : tracer_tcl [list read_file_for_gui $fpath]] {(()(()))}
     set tkecl(source_debug,file) $fpath
     $ec_source.context.text xview moveto $xfrac 
     $ec_source.context.text yview moveto $yfrac 
@@ -3614,7 +3746,7 @@ proc tkecl:load_source_debug_file {fpath {xfracs "0 1"} {yfracs "0 1"}} {
     switch $result {
 	fail -
 	throw {
-	    return
+	    return 0
 	}
 	default {
 	    set actives [lindex [lindex $result 2] 2]
@@ -3643,6 +3775,7 @@ proc tkecl:load_source_debug_file {fpath {xfracs "0 1"} {yfracs "0 1"}} {
 	}
     }
 
+    return 1
 #    $ec_source.control.load configure -state normal
 }
 
@@ -4332,6 +4465,7 @@ proc ec_tools_init {w} {
     ec_queue_create matrix_out_queue r tkecl:handle_mat_flush
     ec_queue_create gui_dg_info r tkecl:handle_dg_print
     ec_queue_create statistics_out_queue r tkecl:handle_stats_report
+    ec_async_queue_create gui_source_output r tkecl:display_source_output
     set tkecl(toplevel_module) [lindex [ec_rpc_check get_flag(toplevel_module,_)] 2]
     set tkecl(predpropmodule) $tkecl(toplevel_module)
 
