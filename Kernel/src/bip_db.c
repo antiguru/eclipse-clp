@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.2 2008/07/20 17:06:34 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.3 2008/07/31 03:13:00 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -1188,6 +1188,40 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 		    */ 
 		    Make_Atom(&s[3], ((dident*)(*(vmcode**)code))[1]);	/* file */
 		    Make_Integer(&s[4], (*(vmcode**)code)[2]);		/* line */
+		    s = &s[1];
+		}
+	    }
+	}
+	Make_Nil(s);
+	Request_Unify_Pw(vf, tf, result.val, result.tag);
+    	break;
+
+    case 32:		/* port_calls */
+	if (!source || PriCodeType(proc) != VMCODE) {
+	    Fail_;
+	}
+	s = &result;
+	brk_table_offset = ProcBrkTableOffset(code);
+	if (brk_table_offset)
+	{
+	    for(code += brk_table_offset; *code; ++code)
+	    {
+		if (((*(vmcode**)code)[0] & brk_filter) == brk_filter)
+		{
+		    Make_List(s, TG);
+		    s = TG;
+		    Push_List_Frame();
+		    Make_Struct(&s[0], TG);
+		    Push_Struct_Frame(d_.colon);
+		    /* this relies on the order of words from a break-port word as follows:
+		       Proc, break-port word
+		    */
+		    /* module:name/arity */
+		    Make_Atom(&s[3], PriHomeModule((pri*)(*(vmcode**)code)[-1])); 
+		    Make_Struct(&s[4], TG);
+		    Push_Struct_Frame(d_.quotient);
+		    Make_Atom(&s[6], add_dict(PriDid((pri*)(*(vmcode**)code)[-1]),0)); 
+		    Make_Integer(&s[7], DidArity(PriDid((pri*)(*(vmcode**)code)[-1])));
 		    s = &s[1];
 		}
 	    }
