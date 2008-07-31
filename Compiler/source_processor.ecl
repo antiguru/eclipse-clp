@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.8 2008/07/29 17:13:58 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.9 2008/07/31 21:45:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/07/29 17:13:58 $").
+:- comment(date, "$Date: 2008/07/31 21:45:40 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -421,7 +421,7 @@ source_close(SourcePos, Options) :-
     % Term classes:
     %   directive, handled_directive, query, clause, comment, var, end_include, end
 source_read(OldPos, NextPos, Kind, SourceTerm) :-
-	OldPos = source_position{stream:In,module:Module,oldcwd:OldCwd,
+	OldPos = source_position{stream:In,module:Module,oldcwd:OldCwd,created_modules:CMs1,
 		options:OptFlags,remaining_files:RF,included_from:IF,filespec:File},
 
 	read_next_term(In, TermOrEof, AnnTermOrEof, Vars, Error, Comment, OptFlags, Module),
@@ -460,10 +460,13 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 		update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 		Kind = end
 	    ;
-		IF =  source_position{stream:OldStream},
+		IF =  source_position{stream:OldStream,created_modules:CMs0},
 		register_compiled_stream(OldStream),
 		SourceTerm = source_term{term:TermOrEof,vars:Vars},
-		NextPos = IF, Kind = end_include
+		% go back to source position before include, but update module information
+		append(CMs0, CMs1, CMs),
+		update_struct(source_position, [created_modules:CMs,module:Module], IF, NextPos),
+		Kind = end_include
 	    )
 
 	; TermOrEof = (:- _) ->
