@@ -738,8 +738,18 @@ value Value.
 
     parallel           on, off          clauses may be executed in parallel
 
+    port_calls         list of          list of DefModule:Name/Arity for
+                       atom:atom/int    the predicate's body goals where 
+                                        breakpoints can be added. The 
+                                        port_lines option returns the source
+                                        information for these ports, in the 
+                                        same order
+
     port_lines         list of          list of predicate source File:Line
-                       atom:integer     where breakpoints can be added
+                       atom:integer     where breakpoints can be added. The
+                                        port_calls option returns the goal
+                                        information for these ports, in the 
+                                        same order 
 
     priority           1..12            waking priority
 
