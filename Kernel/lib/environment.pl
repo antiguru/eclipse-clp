@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.3 2008/07/20 18:16:49 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.4 2008/07/31 16:55:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -75,8 +75,7 @@ get_flag_body(Name, Value, M) :-
 	    error(5, get_flag(Name, Value)).
 
 
-%do_get_flag(all_dynamic,X, _) :-
-%	(getval(alldynamic,0) -> X=off ; X=on).
+do_get_flag(all_dynamic,X, off).
 do_get_flag(break_level, X, _) :- getval(break_level, X).
 do_get_flag(coroutine,X, _) :-
 	global_flags(0,0,F),
@@ -270,8 +269,8 @@ do_set_flag(publishing_parameter,X, _) :- !,
 	(integer(X) -> sys_flags(3, X) ; set_bip_error(5)).
 do_set_flag(break_level, X, _) :- !,
 	(integer(X) -> setval(break_level, X) ; set_bip_error(5)).
-do_set_flag(all_dynamic, _X, _) :- !,
-	set_bip_error(141).	% unimplemented
+do_set_flag(all_dynamic, X, _) :- !,
+	( X == off -> true ; set_bip_error(141) ).	% unimplemented
 do_set_flag(after_event_timer, T, _) :-
 	(
 	    try_set_after_timer(T) -> true ;
@@ -349,7 +348,8 @@ do_set_flag(occur_check,X, _) :-
 	get_flag(extension, occur_check),
 	!,
 	(
-	    X == on ->	global_flags(0,16'02000000,_) ;
+	    X == on ->  set_bip_error(141) ;
+%	    X == on ->	global_flags(0,16'02000000,_) ;
 	    X == off ->	global_flags(16'02000000,0,_) ;
 	    wrong_atom(X)
 	).
@@ -357,7 +357,8 @@ do_set_flag(dfid_compile,X, _) :-
 	get_flag(extension, dfid),
 	!,
 	(
-	    X == on ->	global_flags(0,16'01000000,_) ;
+	    X == on ->  set_bip_error(141) ;
+%	    X == on ->	global_flags(0,16'01000000,_) ;
 	    X == off ->	global_flags(16'01000000,0,_) ;
 	    wrong_atom(X)
 	).
@@ -514,14 +515,13 @@ valid_debug_mode(leap) ?- true.
 
 env_body(M) :-
 	nl(output),
-	setof(Flag, V^(get_flag(Flag, V), fail_if(long_flag(Flag))), FList),
+	setof(Flag, V^(get_flag(Flag, V), \+long_flag(Flag), \+obsolete_flag(Flag)), FList),
 	Half is (length(FList) + 1) // 2,
 	halve(Half, FList, L1, L2),
 	splice(L1, L2, NewList),
 	open(_, string, env_stream),
 	member(Flag, NewList),
 	get_flag_body(Flag,Value,M),		% first the deterministic flags
-	fail_if(long_flag(Flag)),
 	Fill is 23 - atom_length(Flag),
 	printf(env_stream, "%w:%*c%QDvw", [Flag, Fill, 0' , Value]),
 	at(env_stream, At),
@@ -546,6 +546,7 @@ env_body(M) :-
 	),
 	close(env_stream),
 	long_flag(Flag),		% then the nondeterministic flags
+	\+obsolete_flag(Flag),
 	once(get_flag_body(Flag,_,M)),
 	Fill is 23 - atom_length(Flag),
 	printf(output, "\n%w:%*c", [Flag, Fill, 0' ]),
@@ -603,6 +604,14 @@ long_flag(syntax_option).	% nondet
 long_flag(variable_names).
 long_flag(workerids).
 long_flag(workers).
+
+obsolete_flag(all_dynamic).
+obsolete_flag(dfid_compile).
+obsolete_flag(occur_check).
+obsolete_flag(worker).
+obsolete_flag(workerids).
+obsolete_flag(workers).
+obsolete_flag(wm_window).
 
 %-------------------------------------
 % statistics(+Name, ?Value)
