@@ -1410,7 +1410,7 @@ Error:
    ignored.
 <P>
 
-<h3>Common Compilation Options</h3>
+<h3>Code Generation Options</h3>
 <DL>
 <DT>debug:</DT><DD>
     This option (off/on) determines whether the resulting code contains
@@ -1418,38 +1418,42 @@ Error:
     not be visible to the debugger, the code will be significantly smaller,
     and slightly faster.
     The default value is taken from the global flag debug_compile.
+    The setting can be changed via a pragma (debug/nodebug) in the code.
 </DD>
 <DT>expand_goals:</DT><DD>
     This option (off/on, default taken from global flag goal_expansion)
     determines whether inlining (a.k.a. goals macros) is performed.
-    Should only be switched off if a problem with inlining is suspected.
-</DD>
-<DT>load:</DT><DD>
-    When loading is requested, the abstract machine code produced by the
-    compiler gets assembled and loaded into memory as executable code.
-    Values for the 'load' option are:
-    <DL>
-    <DT>none</DT><DD>
-	Do not load any code into memory, do not execute queries 
-	nor directives, but interpret pragmas.
-    </DD><DT>new</DT><DD>
-	Do not overwrite any code in memory, but load new predicates.
-	Do not re-create modules, but create new ones and erase them
-	again after compilation. For existing modules, erase pragmas.
-	Do not execute queries, but call directives and interpret pragmas.
-    </DD><DT>all (default)</DT><DD>
-	Load and replace code in memory, create/re-create all modules, 
-	interpret pragmas, call directives, execute queries.
-    </DD></DL>
+    The default value is taken from the global flag {\bf goal_expansion}.
+    The setting can be changed via a pragma (expand/noexpand) in the code.
+    Should only be switched off if a problem with inlining is suspected,
+    or to get a debugger trace that is closer to the source code.
 </DD>
 <DT>opt_level:</DT><DD>
     Currently the integer 0 or 1, with 1 the default. Setting this to 0
     will disable certain compiler optimizations and usually reduce performance.
 </DD>
-<DT>outdir:</DT><DD>
-    The destination directory for output files is determined by the 'outdir'
-    option. The default is to place output files in the same directory as
-    the corresponding input file (\"\").
+</DL>
+<h3>Output Options</h3>
+<DL>
+<DT>load:</DT><DD>
+    When loading is requested, the abstract machine code produced by the
+    compiler gets assembled and loaded into memory as executable code.
+    Values for the 'load' option are:
+    <DL>
+    </DD><DT>all (default)</DT><DD>
+        Load and replace code in memory, create/re-create all modules,
+	interpret pragmas, and execute all directives and queries.
+    <DT>none</DT><DD>
+        Do not load any code into memory, do not execute queries,
+	but interpret pragmas and execute directives.
+        Do not re-create modules, but create new ones and erase them
+        again after compilation.
+    </DD><DT>new</DT><DD>
+        Do not overwrite any code in memory, but load new predicates.
+        Do not execute queries, but interpret pragmas and execute directives.
+        Do not re-create modules, but create new ones and erase them
+        again after compilation. For existing modules, erase pragmas.
+    </DD></DL>
 </DD>
 <DT>output:</DT><DD>
     The abstract machine code which is the result of the compilation can
@@ -1479,6 +1483,14 @@ Error:
 	print WAM code to File,
     </DD></DL>
 </DD>
+<DT>outdir:</DT><DD>
+    Value is the destination directory for all output files.
+    The default is the empty string \"\", meaning that all output files
+    go into the same directory as the corresponding input file.
+</DD>
+</DL>
+<h3>Information Options</h3>
+<DL>
 <DT>verbose:</DT><DD>
     This option controls whether the compiler produces any log messages to
     the log_output stream. The value is a positive integer. Level 0 is the
@@ -1486,8 +1498,8 @@ Error:
     compiled predicates. Default: 0.
 </DD>
 <DT>warnings:</DT><DD>
-    Various print_xxx options allow the output of internal compiler data
-    structures for debugging purposes.
+    Controls (on/off) whether warnings are printed during compilation.
+    Default: on.
 </DD>
 </DL>
 <h3>Expert Options</h3>
