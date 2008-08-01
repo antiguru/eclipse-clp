@@ -26,6 +26,7 @@
 %
 % REL	 DATE		BY		DESCRIPTION	
 % 3.0.17 10.10.91	Micha Meier	Created the file
+% 6.0	 2008		Joachim Schimpf Update for new compiler
 %
 %----------------------------------------------------------------------
 \chapter{The Compiler}
@@ -33,268 +34,714 @@
 %HEVEA\cutdef[1]{section}
 %----------------------------------------------------------------------
 
-{\eclipse} has an efficient incremental compiler which compiles
-Prolog source into the instructions of an abstract machine
-and they are then executed by an emulator.
-The compiler is very fast, it compiles about 1000 lines/sec.
-on a Sun-4, and this makes the usual debugging cycle acceptably short.
-Unlike other Prolog systems, the {\eclipse} compiler generates
-code that can be used for debugging, so that no separate
-interpreter is necessary, and also the debugged code runs faster.
+%----------------------------------------------------------------------
+\section{Summary}
+%----------------------------------------------------------------------
+The {\eclipse} compiler compiles {\eclipse} source (or Prolog source in
+various dialects) into the instructions of an abstract machine, which
+are then executed by an emulator.
 
-The {\eclipse} compiler is interactive and incremental, which means
-that Prolog programs are compiled during a {\eclipse} session
-directly into the Prolog database.
+Program source can either be read in text form from files, console,
+strings and general input streams.  Alternatively, it can be provided
+in the form of a data structure (list of clause terms).
 
-In addition, object code of {\eclipse} programs can be generated and stored
-into a file, which can then be loaded into a different session of
-{\eclipse}. See section~\ref{fcompile} for more details.
+The smallest program unit the compiler can meaningfully process is a
+predicate. In practice it is best to compile modules as a whole, since
+this allows for better consistency checks.
+
+Usually, the generated code is immediately loaded into main memory and
+ready for execution.
+This method is the most convenient during program development.
+In addition, compiled code can be output to a file ({\eclipse}
+object format, or {\it eco}), from which it can later be loaded more quickly.
+
+Compiled code optionally contains debugging information, allowing a
+source-oriented trace of program execution.
+
 
 %----------------------------------------------------------------------
-\section{Program Source}
+\section{Compiler Invocation}
 %----------------------------------------------------------------------
-When reading the input source, the compiler distinguishes
-{\it clauses} and {\it directives}.
-Directives are terms with main functor
-{\bf :-/1}
-or
-{\bf ?-/1}.
-When the compiler encounters them, it executes immediately
-their first argument as a Prolog goal.
-If this goal succeeds, the compiler continues to the next
-input term without reporting the answer to the user.
-If the directive fails, an event is raised.
 
-All other input terms are interpreted as clauses to be compiled.
-A sequence of consecutive clauses whose heads have the same
-functor is interpreted as one procedure, and so e.g.
-if the clauses of one procedure are mixed with directives or
-with clauses for another procedure, the compiler
-takes them as several different procedures.
-To allow the user to write non-consecutive procedures,
-the compiler raises an event whenever it
-encounters several procedures with the same name and arity
-in one file, or when a procedure defined in one file
-is being redefined in another file.
-Default action for the former is to emit a warning,
-for the latter the new procedure just replaces the old one.
-The library {\bf scattered} redefines the former handler
-\index{scattered (library)}
-so that procedures which are scattered in one file are accepted
-as normal static procedures.
-
-%----------------------------------------------------------------------
-\section{Procedure Types}
-%----------------------------------------------------------------------
-Procedures can be {\bf static} and {\bf dynamic}
-and this feature can be queried with the {\tt stability} flag
-of \bipref{get_flag/3}{../bips/kernel/database/get_flag-3.html}.
-
-Static procedures are compiled as one unit, they are thus executed
-more efficiently, and they can be modified only by replacing
-them by another procedure.
-By contrast, dynamic procedures are compiled clause-wise,
-they are executed slightly less efficiently, but their source
-form can also be retrieved, and they can be modified
-by adding or removing single clauses or clause sequences.
-
-By default all procedures are static, dynamic procedures
-must be declared by the \bipref{dynamic/1}{../bips/kernel/dynamic/dynamic-1.html} declaration,
-except that undefined procedures for which \bipref{assert/1,2}{../bips/kernel/dynamic/assert-1.html}
-is called are silently declared as dynamic by the event handler,
-and so no declaration is needed.
-
-When compiling static procedures, the compiler remembers
-their position in the file, which can be then queried
-by \bipref{get_flag/3}{../bips/kernel/database/get_flag-3.html}.
-The library {\bf scattered} actually uses this feature
-to retrieve predicates whose clauses are not consecutive.
-
-%----------------------------------------------------------------------
-\section{Compiler Modes}
-%----------------------------------------------------------------------
-The compiler has several modes of operation, each mode
-generating code with different properties.
-The operating mode is controlled by a set of global flags,
-which may be modified at any time, even during the compilation
-so that a part of the program is compiled in a different mode.
-These flags and the associated modes are listed below.
-
+The compiler is usually invoked by calling one of the following built-in
+predicates:
 \begin{description}
-\item [] \biptxtref{debug_compile}{get_flag/2}{../bips/kernel/env/get_flag-2.html}
-When this flag is {\bf on}, the compiler generates code which can
-be traced with the debugger.
-To generate optimised (untraceable) code, this flag must be switched off.
-This can also be achieved by the use of nodebug compiler pragma in the
-program:
-
-\begin{quote}
-\begin{verbatim}
-:- pragma(nodebug).
-\end{verbatim}
-\end{quote}
-
-\item[] {\bf occur_check}
-\index{occur check}
-When this flag is {\bf on}, the compiled code will perform
-the {\it occur check} if necessary.
-This means that every time a variable will be unified
-with a compound term that might already contain a reference
-to this variable, the compound term will be scanned for this occurrence
-and if it is found, the unification fails.
-In this way, the creation of infinite (cyclic) terms is impossible
-and thus the behaviour of the system is closer
-to the first order logic theory.
-Unifications with the occur check may sometimes be very slow,
-and most Prolog programs do not need it, because
-no cyclic terms are created.
-Note that this flag must be set both at compile time and at runtime in order
-to actually perform the checks. In particular, as {\eclipse} built-ins are
-compiled without this flag set, the builtins will not perform the check.
-
-\item [] \biptxtref{variable_names}{get_flag/2}{../bips/kernel/env/get_flag-2.html}
-\index{variable names}
-{\eclipse} can remember the source variable names of the input variables.
-When this flag is {\bf on}, the compiled predicates
-will keep the names of the source variables and will display
-them whenever the variables are printed.
-In this case the usage of the global stack and code space is slightly higher
-(to store the name), and the efficiency of the code is marginally lower.
-\index{singleton variables}
-Setting this flag to \biptxtref{check_singletons}{get_flag/2}{../bips/kernel/env/get_flag-2.html} has the same effect as {\bf on},
-but additionally, the compiler will issue warnings about variables which occur
-only once in a clause and whose names do not start with an underscore character.
-
-\item [] \biptxtref{macro_expansion}{get_flag/2}{../bips/kernel/env/get_flag-2.html}
-This is in fact a parser flag, is enables or disables the macro transformation
-(see Chapter \ref{chapmacros}) for the input source.
-
-\item [] \biptxtref{goal_expansion}{get_flag/2}{../bips/kernel/env/get_flag-2.html}
-Specifies whether to apply goal-macros or not (see Chapter \ref{chapmacros}).
-\end{description}
-
-%----------------------------------------------------------------------
-\section{Compiler Input}
-%----------------------------------------------------------------------
-The compiler normally reads a file up to its end.
-The file end can also be simulated with a clause
-\begin{verbatim}
-end_of_file.
-\end{verbatim}
-The file is normally read consecutively, however
-the compiler uses the normal {\eclipse} I/O streams,
-and so if during the compilation the stream pointer is modified
-(e.g. by \bipref{seek/2}{../bips/kernel/iostream/seek-2.html} or \bipref{read/2}{../bips/kernel/ioterm/read-2.html}), the compiler continues
-at the specified place\footnote{An example of using this feature
-\index{ifdef (library)}
-is the library {\bf ifdef}.}.
-
-There are several built-in predicates which invoke the compiler:
-
-\begin{description}
-\item[] \biptxtref{compile(File)}{compile/1}{../bips/kernel/database/compile-1.html}
+\item[\biptxtref{compile(Source)}{compile/1}{../bips/kernel/database/compile-1.html}]
 \index{compile/1}
 This is the standard compiler predicate.
-The contents of the file is compiled according to the current
-state of the global flags.
+Source is usually a file name, other forms are detailed below.
+The contents of the file is compiled with the default compiler options.
 
-\item[] \biptxtref{compile(File, Module)}{compile/2}{../bips/kernel/database/compile-2.html}
+\item[\biptxtref{compile(Source, Options)}{compile/2}{../bips/kernel/database/compile-2.html}]
 \index{compile/2}
-This predicate is used to compile the contents of a file into
-a specified module, without having to use the module declaration
-in the file itself.
+This is the standard compiler predicate.
+Source is usually a file name, other forms are detailed below.
+Options is a list of options to control the compilation process, see details below.
 
-\item[] \biptxtref{include(File)}{include/1}{../bips/kernel/directives/include-1.html}
-\index{include/1}
-This predicate is similar to the {\bf compile} predicate, except that it is
-treated as an in place inclusion of {\bf File} by \bipref{fcompile/1}{../bips/lib/fcompile/fcompile-1.html} (see 
-section~\ref{fcompile}). Like {\bf compile}, {\bf File} can be a single
-file, or a list of files.
+\item[\biptxtref{[File1,...,FileN]}{'.'/2}{../bips/kernel/database/D-2.html}]
+\index{'.'/2}
+This predicate can be used as a shorthand for the
+\bipref{compile/1}{../bips/kernel/database/compile-1.html}
+predicate.
+It accepts a list of files, which can be source files or precompiled files.
 
-\item[] \biptxtref{compile_stream(Stream)}{compile_stream/1}{../bips/kernel/database/compile_stream-1.html}
+\item[\biptxtref{compile_stream(Stream)}{compile_stream/1}{../bips/kernel/database/compile_stream-1.html}]
 \index{compile_stream/1}
-This predicate compiles a given stream up to its end
+This predicate compiles a given, open stream up to its end
 or to the {\tt end_of_file} clause.
 It can be used when the input file is already open,
 e.g. when the beginning of the file does not contain
-compiler input, or when the input has to be processed
-in a non-consecutive way.
+compiler input.
 
-\item[] \biptxtref{compile_term(Clauses)}{compile_term/1}{../bips/kernel/database/compile_term-1.html}
+\item[\biptxtref{compile_stream(Stream,Options)}{compile_stream/2}{../bips/kernel/database/compile_stream-2.html}]
+\index{compile_stream/2}
+Like compile_stream/1 but with options list.
+
+\item[\biptxtref{compile_term(Clauses)}{compile_term/1}{../bips/kernel/database/compile_term-1.html}]
 \index{compile_term/1}
 This predicate is used to compile a given term,
 usually a list of clauses and directives.
-Unlike \bipref{assert/1}{../bips/kernel/dynamic/assert-1.html} it compiles a static procedure,
+Unlike \bipref{assert/1}{../bips/kernel/dynamic/assert-1.html} it compiles
+a static procedure,
 and so it can be used to compile a procedure which is dynamically
 created and then used as a static one.
-For more information please refer to \cite{sepcustom}.
 
-\item[] \biptxtref{ensure_loaded(File)}{ensure_loaded/1}{../bips/kernel/database/ensure_loaded-1.html}
+\item[\biptxtref{compile_term(Clauses,Options)}{compile_term/2}{../bips/kernel/database/compile_term-2.html}]
+\index{compile_term/2}
+Like compile_stream/2 but with options list.
+\end{description}
+
+When using a development environment like
+\index{tkeclipse}
+\index{Saros}
+TkEclipse or Saros, the compiler is usually invoked implicitly via
+menu options or buttons.
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Source Files}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+Program source is usually contained in files.  The recommended file
+\index{extension}
+\index{suffix}
+suffixes (extensions) are
+\begin{itemize}
+\item {\bf .ecl} for {\eclipse} specific source
+\item {\bf .pl} for Prolog source
+\end{itemize}
+To compile a source files solver.ecl, any of the following forms is
+acceptable:
+\begin{quote}\begin{verbatim}
+?- compile('solver.ecl').
+?- compile("solver.ecl").
+?- compile("/home/joe/solver.ecl").
+?- compile("/home/joe/solver").
+?- compile(solver).
+\end{verbatim}
+\end{quote}
+File names need to be single quoted (atom) or double quoted (string)
+if they contain punctuation, blank space, or start with an upper case letter.
+The {\bf .ecl} extension can be omitted as long as no file without extension
+is present. A {\bf .pl} extension can be omitted as long as no file without
+extension and no file with {\bf .ecl} extension is present. The list of
+accepted suffixes and their precedence is given by the global flag
+\index{prolog_suffix}
+{\bf prolog_suffix}, see
+\bipref{get_flag/3}{../bips/kernel/database/get_flag-3.html}.
+
+The following shorthands can be used, but note that the last two forms
+will load precompiled .eco files by preference, should they be present:
+\begin{quote}\begin{verbatim}
+?- ['solver.ecl'].
+?- ["solver.ecl"].
+?- ["/home/joe/solver.ecl"].
+?- ["/home/joe/solver"].
+?- [solver].
+\end{verbatim}
+\end{quote}
+
+If the source is given as library(Name), the predicates looks for the file
+in the directories from the global flag {\bf library_path}.
+
+If File is the special atom 'user', the source will be taken from
+the current 'input' stream, i.e. will usually generate a prompt
+at which clauses can be typed in.  In this case, input must be
+terminated either by typing CTRL-D (on Unix), CTRL-Z + RETURN
+(on Windows), or with the single atom end_of_file, followed by
+a fullstop/period.
+\begin{quote}\begin{verbatim}
+?- [user].
+ main :- writeln(hello).
+^D
+tty        compiled 72 bytes in 0.01 seconds
+Yes (0.01 cpu)
+?- main.
+hello
+Yes (0.00s cpu)
+\end{verbatim}
+\end{quote}
+
+If File is the special form stream(Stream), then the source is taken
+from the given stream (which must be already opened).  The stream
+content is compiled until the end of stream (or the end_of_file marker).
+Using this feature, any {\eclipse} stream (file, socket, tty, string,
+queue, pipe) can be used as the source for program text.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Main Compiler Options}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+The following compiler options affect the generated code:
+\begin{description}
+\item[{\bf debug}]
+    This option ({\bf off}/{\bf on}) determines whether the resulting code contains
+    debugging information.  If {\bf off}, subgoals of the compiled predicates will
+    not be visible to the debugger, the code will be significantly smaller,
+    and slightly faster.
+    The default value is taken from the global flag {\bf debug_compile}.
+    The setting can be changed via a pragma (debug/nodebug) in the code.
+
+\item[{\bf opt_level}:]
+    Currently the integer 0 or 1, with 1 the default. Setting this to 0
+    will disable certain compiler optimizations and usually reduce performance.
+    The setting can be changed via an opt_level(Level) pragma in the code.
+\end{description}
+The following options determine what is being done with the compilation result:
+\begin{description}
+\item[{\bf load}:]
+    Determines whether the generated code is immediately loaded into memory,
+    ready for execution.  Values for the 'load' option are:
+    \begin{description}
+    \item[{\bf all} (default)]
+        Load and replace code in memory, create/re-create all modules,
+	interpret pragmas, and execute all directives and queries.
+    \item[{\bf none}]
+        Do not load any code into memory, do not execute queries,
+	but interpret pragmas and execute directives.
+        Do not re-create modules, but create new ones and erase them
+        again after compilation.
+    \item[{\bf new}]
+        Do not overwrite any code in memory, but load new predicates.
+        Do not execute queries, but interpret pragmas and execute directives.
+        Do not re-create modules, but create new ones and erase them
+        again after compilation. For existing modules, erase pragmas.
+    \end{description}
+
+\item[{\bf output}:]
+    The abstract machine code which is the result of the compilation can
+    be output in various forms.  Possible values are:
+    \begin{description}
+    \item[{\bf none} (default)]
+        no output (but code may be loaded, see load option),
+    \item[{\bf eco}]
+        output compiled code in eco format to input file with .eco suffix
+        This format can be loaded using ensure_loaded/1 or the compiler
+        itself.
+    \item[{\bf eco(File)}]
+        output compiled code in eco format to File.
+    \item[{\bf asm}]
+        output compiled code in asm format to input file with .asm suffix.
+        This format represents the code as WAM code that can be loaded back
+        into ECLiPSe using the assembler (lib(asm)).  
+    \item[{\bf asm(File)}]
+        output compiled code in asm format to File.
+    \end{description}
+
+\item[{\bf outdir}:]
+    Value is the destination directory for all output files.
+    The default is the empty string "", meaning that all output files
+    go into the same directory as the corresponding input file.
+\end{description}
+For other options see
+\bipref{compile/2}{../bips/kernel/database/compile-2.html}.
+
+For example, to compile a program without debugging support directly into
+memory, use
+\begin{quote}\begin{verbatim}
+?- compile(myprogram, [debug:off]).
+\end{verbatim}
+\end{quote}
+The following command will create a precompiled file myprogram.eco from a
+source file called myprogram.ecl (or myprogram.pl):
+\begin{quote}\begin{verbatim}
+?- compile(myprogram, [output:eco]).
+\end{verbatim}
+\end{quote}
+
+
+%----------------------------------------------------------------------
+\section{Source Structure}
+%----------------------------------------------------------------------
+
+The compiler normally reads files from beginning to end, but the
+file end can also be simulated with a clause
+\begin{verbatim}
+end_of_file.
+\end{verbatim}
+When reading from a terminal/console, the end of the input can be
+marked by CTRL-D (in Unix-like systems) or CTRL-Z+RETURN on Windows.
+
+When reading program source, the compiler distinguishes
+{\it clauses}, {\it directives} and {\it file queries}.
+Directives are terms with main functor
+{\bf :-/1}
+while file queries have the main functor
+{\bf ?-/1}.  Everything else is a program clause (see Appendix \ref{chapsyntax})
+
+The differences between a directive and a file query are as follows:
+\begin{itemize}
+\item File queries are general goals, and are executed when the program
+	is loaded, i.e. when compiling with the load-option set to {\bf all},
+	or when loading a compiled file.  When compiling without loading,
+	they are ignored.
+\item Directives can be general goals, in which case they are executed
+	while the program is being compiled, and also when a compiled
+	program is loaded.
+\item Some directives are not goals, but are interpreted by the compiler
+	(or other source processing tool), e.g. module-directives or
+	pragmas.  These should not be combined with general goals in
+	the same directive.
+\end{itemize}
+Directives and file queries should succeed and should only have a single
+solution. No results are printed by the system, failure leads to a warning,
+and an error condition will cause compilation to abort.
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Clauses and Predicates}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+All other input terms are interpreted as clauses to be compiled.
+A sequence of consecutive clauses whose heads have the same
+functor is interpreted as one predicate.  Normally, all clauses for
+one predicate should be consecutive in the source.  If this is not the
+case, the compiler issues a warning and ignores the new clauses.
+
+To change this behaviour, a
+\bipref{discontiguous/1}{../bips/kernel/database/discontiguous-1.html}
+declaration must be used.  The clauses are then collected and compiled
+as a whole once the end of the source unit (file or module) has been reached.
+
+To add clauses for a predicate incrementally though several independent
+compiler invocations is only possible by declaring the corresponding
+predicate as \bipref{dynamic/1}{../bips/kernel/dynamic/dynamic-1.html},
+see Chapter \ref{chapdynamic}.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Compilation and Modules}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+In the absence of module-directives
+(\bipref{module/1}{../bips/kernel/modules/module-1.html},
+\bipref{module/3}{../bips/kernel/modules/module-3.html})
+within the file, the
+file content is compiled into the module from which compile/1,2 itself
+was called.  This context module may be modified using the @/2 notation,
+i.e. compile(File,Options)@Module.  Existing static predicates will
+be redefined, and clauses for dynamic predicates appended to the
+existing ones (unless the 'load' option requests otherwise).
+
+If the compiled file contains module directives (module/1,3), these
+specify to which module(s) the subsequent code belongs.  Module directives
+are effective from the point where they occur until the next module
+directive, or until the end of file.  If a module directive refers
+to a module that already exists, this module is erased and redefined
+(unless the 'load' option requests otherwise).
+
+It is generally recommended to follow the {\em one file - one module}
+convention, and to make the base name of the file identical to the
+module name.  In rare cases, it may make sense to have an auxiliary
+module in the same file as the main module.  This is allowed, and
+every new module directive terminates the previous module.
+
+To spread the code for one module over several files, use a top-level
+file containing the module directive plus one or more include-directives
+(section \ref{secinclude}) for the component files.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Incrementality}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+When it encounters a
+\bipref{module/1}{../bips/kernel/modules/module-1.html}/
+\bipref{module/3}{../bips/kernel/modules/module-3.html} directive
+the compiler first erases previous contents of this module,
+if there was any, before starting to compile predicates
+into it.  This means that in order to incrementally add predicates
+to a module, the module directive cannot be used
+because the previous contents of the module would be destroyed.
+Instead, the construct {\bf compile(File)@Module} must be used.
+
+
+
+
+%----------------------------------------------------------------------
+\section{Directives}
+%----------------------------------------------------------------------
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Modules and Declarations}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+The following is a list of the directives most commonly used in source files:
+\begin{description}
+\item[\biptxtref{:- module(Name).}{module/1}{../bips/kernel/modules/module-1.html}]
+Beginning of a module.
+
+\item[\biptxtref{:- module(Name,Exports,Dialect).}{module/3}{../bips/kernel/modules/module-3.html}]
+Beginning of a module in a given dialect.
+
+\item[\biptxtref{:- local Specs.}{local/1}{../bips/kernel/modules/local-1.html}]
+Declaration of local items, e.g. syntax settings, operators, global storage, etc.
+
+\item[\biptxtref{:- export Specs.}{export/1}{../bips/kernel/modules/export-1.html}]
+Declaration of local items, e.g. predicates, syntax settings, operators, etc.
+
+\item[\biptxtref{:- reexport Specs.}{reexport/1}{../bips/kernel/modules/reexport-1.html}]
+Declaration of reexported items.
+
+\item[\biptxtref{:- import Specs.}{import/1}{../bips/kernel/modules/import-1.html}]
+Declaration of imported modules or predciates.
+
+\item[\biptxtref{:- use_module(Mods).}{use_module/1}{../bips/kernel/modules/use_module-1.html}]
+Loading and importing of modules or libraries.
+
+\item[\biptxtref{:- lib(Libs).}{lib/1}{../bips/kernel/modules/lib-1.html}]
+Loading and importing of libraries.
+
+\item[\biptxtref{:- meta_attriute(Name,Handlers)}{meta_attribute/2}{../bips/kernel/termmanip/meta_attribute-2.html}]
+Declare a variable attribute.
+
+\item[\biptxtref{:- comment(Type,Info)}{comment/2}{../bips/kernel/directives/comment-2.html}]
+Structured program documentation.
+\end{description}
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Conditional Compilation}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+The compiler and other source-processing tools recognise the conditional
+compilation directives if/1, elif/1, else/0 and endif/0. The first two
+take a goal as their argument, and parts of the program source can be
+included or excluded depending of the satisfiability of that goal. E.g.
+\begin{quote}\begin{verbatim}
+:- if(get_flag(hostarch,"i386_nt")).
+    ...Windows-specific code...
+:- elif( (get_flag(version_as_list,Version), Version @>= [6,0]) ).
+    ...code for version 6.0 and later...
+:- else.
+    ...alternative code...
+:- endif.
+\end{verbatim}
+\end{quote}
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Include Directives}
+\label{secinclude}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+Generally, it is best to use the module system to structure {\eclipse}
+applications, and to use one module per file.  The modules then refer
+to each other via use_module/1, lib/1, or import/1 directives.
+In rare cases it can make sense to split a single module into several
+files, which can then be pulled together using the following include
+directives:
+\begin{description}
+\item[\biptxtref{:- include(Files).}{include/1}{../bips/kernel/directives/include-1.html}]
+The contents of the given Files are treated as if they occurred in place of
+the include directive.  Files is a single file name or a list of them.
+
+\item[\biptxtref{:- [Files].}{'.'/2}{../bips/kernel/directives/D-2.html}]
+A synonym for the include/1 directive.  Note that the semantics of this
+construct when used as a directive (include semantics) differs slightly
+from its use as a goal or query (compiler/loader invocation).
+\end{description}
+Included files can contain clauses, directives and queries, but should
+not contain module/1,3 directives, since they would be interpreted as
+occurring within the including file, and the included module would
+not end at the end of the included file.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Compiler Pragmas}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\index{pragma}
+Compiler pragmas are compiler directives which instruct the compiler
+to emit a particular code type, overriding the options given to the compiler.
+Their syntax is similar to directives:
+\begin{quote}
+\begin{verbatim}
+:- pragma(Option).
+\end{verbatim}
+\end{quote}
+It is not possible to have several pragmas grouped together and separated
+by commas like goals, every pragma must be specified separately.
+{\it Option} can be one of the following:
+\begin{description}
+\item[{\bf debug}] - generate code which can be inspected with the
+debugger.
+This overrides the global setting of the {\tt debug_compile} flag,
+and any debug-option given to the compiler..
+
+\item[{\bf nodebug}] - generate optimized code with no debugger support.
+This overrides the global setting of the {\tt debug_compile} flag,
+and any debug-option given to the compiler..
+
+\item[{\bf expand}] - do in-line expansion of built-ins 
+like \bipref{is/2}{../bips/kernel/arithmetic/is-2.html} and user-defined
+inline predicates.
+This code can still be inspected with the debugger but the expanded
+subgoals look differently than in the normal debugged code,
+or their arguments cannot be seen.
+This pragma overrides the global setting of the {\tt goal_expansion} flag,
+and any expand-option given to the compiler.
+
+\item[{\bf noexpand}] - inhibit the in-line goal expansion.
+This pragma overrides the global setting of the {\tt goal_expansion} flag,
+and any expand-option given to the compiler.
+
+\item[{\bf opt_level(Level)}] - override the opt_level option given to the
+compiler. Level is an integer greater or equal to 0.  A zero setting disables
+all optional optimization.
+
+\item[{\bf skip}] - set the {\tt skip} flag of all following
+predicates to {\tt on}.
+
+\item[{\bf noskip}] - set the {\tt skip} flag of all following
+predicates to {\tt off}.
+
+\item[{\bf system}] - set the {\tt type} flag of all following
+predicates to {\tt built_in}.
+Moreover, all following predicates will have unspecified
+{\tt source_file} and {\tt source_line} flags.
+
+\item[{\bf warnings}] - enable compiler warnings, overriding any
+warnings-option given to the compiler..
+
+\item[{\bf nowarnings}] - disable compiler warnings, overriding any
+warnings-option given to the compiler..
+
+\end{description}
+
+A pragma is active from its specification in the file
+until the file end or until it is disabled by another pragma.
+Recursive compilations or calls to other compiling predicates
+are not affected by the pragma.
+
+The pragmas are  useful mainly for libraries and other programs
+that should be always compiled in a particular mode
+independently of the global flags or compiler option settings.
+
+
+%----------------------------------------------------------------------
+\section{Precompiled (ECO) Files}
+%----------------------------------------------------------------------
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Making Precompiled Files}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+{\eclipse} source files can be compiled into {\eclipse} object files,
+\index{object code}
+for subsequent loading. These files have the {\bf .eco} suffix
+by default.
+This facility is mainly intended for module files.
+To create such a file, call the compiler with the
+appropriate output-option, e.g.
+\begin{quote}\begin{verbatim}
+?- compile(myprogram, [output:eco]).
+\end{verbatim}
+\end{quote}
+This create a precompiled file myprogram.eco from a source file called
+myprogram.ecl (or myprogram.pl).  If the source file contained
+include directives, the result will be a single object file containing
+the compiled code of all included files.
+In ealier releases of {\eclipse} this was done using the
+\bipref{fcompile/1}{../bips/lib/fcompile/fcompile-1.html}
+predicate from the fcompile library,
+which is still supported for compatibility.
+
+Loading of {\eclipse} object files is significantly faster than compilation
+from source.  In {\eclipse} 6.0, {\eclipse} object files are text files
+containing a representation of the compiled abstract machine code, and
+can be used to deploy application code without revealing the source.
+The precompiled code is hardware and operating system independent.
+It may however not be portable between different versions of {\eclipse}
+if details of the abstract machine were modified between releases.
+
+The file suffix used for {\eclipse} object files is the value of the
+global flag {\bf eclipse_object_suffix}\index{eclipse_object_suffix}.
+
+
+\subsection{Restrictions}
+
+Currently, the compiler generates the auxiliary predicates for the do
+iterator using a module-wide counter to name the predicates. Unfortunately this
+means that if an object file with auxiliary predicates is loaded into a
+module that already has existing code that contains auxiliary predicates, 
+naming conflict can occur and the old auxiliaries may be replaced. It is
+thus strongly recommended that object files should not be loaded into an
+existing module. This will only be a problem if the file does not contain
+any module declarations that redefines the module (i.e. \bipref{module/1}{../bips/kernel/modules/module-1.html}),
+as these redefinition will erase the old copy of
+the module.
+
+%The predicate generates the object code by first compiling the program and
+%then outputting the object code. Directives, which are executed in a normal
+%compilation process, will not be executed during the output of the object
+%code (but the directives themselves will be added to the object code so
+%that they will be executed when the code is loaded). This can lead to
+%differences between loading the object code and compiling the program if
+%the directive affects the compiled code during the compilation
+%(e.g. determining which files to load by a conditional in a
+%directive). 
+
+%If macro transformation is defined (via \bipref{macro/3}{../bips/kernel/syntax/macro-3.html}
+%declarations) in the module that is fcompiled, then
+%the ``protecting functor'' {\tt no_macro_expansion}
+%\index{no_macro_expansion/1} \index{macro!no_macro_expansion} (see
+%section~\ref{usingmacros}) should be used to prevent the macro definition
+%itself from being transformed when the definition is generated by
+%fcompile. For example:
+%
+%\begin{quote}\begin{verbatim}
+%:- local macro(no_marco_transformation(foo/1), trans_foo/2, []).
+%\end{verbatim}\end{quote}
+%
+%\noindent
+%the {\tt no_macro_transformation/1} wrapper prevents this instance of {\tt
+%foo/1} from being transformed when the directive is generated by fcompile.
+%Note that this is only needed if all terms are transformed, and not for
+%goals or clause transformation.
+
+One restriction does apply between platforms of different
+word sizes: integers which fit in the word size of one platform
+but not the other are represented differently internally in {\eclipse}. 
+Specifically, integers which takes between 32 and 64
+bits to represent are treated as normal integers on a 64 bit machine,
+but as bignums (see section~\ref{intrep}) on 32 bit machines. This
+difference is normally invisible, but if
+such numbers occur as constants in the program code (i.e. their values appear
+textually), they can lead to different low-level compiled abstract code on
+the different platforms. Avoid using such constants if you want
+the object code to be portable across different word sizes (they can always
+be computed at run-time, e.g. writing \verb'2^34' instead of {\tt 17179869184}).
+
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Loading Precompiled Files}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+The following predicates either invoke the compiler or load precompiled .eco files.
+If the source specification does not specify the file type, precompiled files
+are preferred if they can be found in the search path:
+\begin{description}
+\item[\biptxtref{[File1,...,FileN]}{'.'/2}{../bips/kernel/database/D-2.html}]
+\index{'.'/2}
+This predicate can be used as a shorthand for the {\bf compile} predicate,
+usually in the interactive toplevel.
+It accepts a list of files, which can be source files or precompiled files.
+
+\item[\biptxtref{ensure_loaded(Files)}{ensure_loaded/1}{../bips/kernel/database/ensure_loaded-1.html}]
 \index{ensure_loaded/1}
 This predicate compiles the specified file if it has not been compiled
 yet or if it has been modified since the last compilation.
+It can be used to load application code or system libraries.
 
-\item[] \biptxtref{make}{make/0}{../bips/kernel/env/make-0.html}
-\index{make/0}
-This predicate recompiles all files that have been modified since their
-last compilation.
+\item[\biptxtref{use_module(Files)}{use_module/1}{../bips/kernel/modules/use_module-1.html}]
+\index{use_module/1}
+A combinaton of ensure_loaded/1 and import/1.
 
-\item[] \biptxtref{lib(File)}{lib/1}{../bips/kernel/database/lib-1.html}
+\item[\biptxtref{lib(Lib)}{lib/1}{../bips/kernel/database/lib-1.html}]
 \index{lib/1}
-This predicate is used to ensure that a specified library
-file is loaded.
-If this library is not yet compiled, the system will look
-in all directories in the {\tt library_path} flag for
-a file with this name.
-When the file is found, it is compiled and the system remembers it.
+This predicate is used to ensure that a specified library file is loaded.
+It is equivalent to ensure_loaded(library(Lib)).
+If this library is not yet compiled or loaded, the system will look
+in all directories in the {\tt library_path} flag for a file with this name,
+which is either a source file or a precompiled file, and compile or load it.
 
-\item[] \biptxtref{current_compiled_file(File, Time, Module)}{current_compiled_file/3}{../bips/kernel/database/current_compiled_file-3.html}
-\index{current_compiled_file/3}
-This predicate returns on backtracking all files that have been compiled
-in this session, together with the module from where the compilation was
-done and the modification time stamp of the file at the time it was compiled.
-
-\item[] \biptxtref{compiled_file(File, Line)}{compiled_file/2}{../bips/lib/sepia/index.html}
-\index{compiled_file/2}
-This predicate allows to access the compiled file during the compilation.
-If it is called during the compilation, it returns the name
-of the file being compiled and the current line in it\footnote{
-This is in fact ambiguous; the system predicate \bipref{compiled_stream/1}{../bips/kernel/database/compiled_stream-1.html}
-which is exported from the module {\bf sepia_kernel}
-is more precise.}.
-If some I/O operations are performed on the compiler stream,
-it influences the compiler, e.g. some procedures can be omitted
-and some compiled several times.
-An example of its use is the library {\bf ifdef}
-which implements a C-like conditional compilation.
-
-\item[] \biptxtref{assert(Clause)}{assert/1}{../bips/kernel/dynamic/assert-1.html}
-\index{assert/1}
-This predicate compiles the given clause of a dynamic predicate.
+\item[\biptxtref{make}{make/0}{../bips/kernel/env/make-0.html}]
+\index{make/0}
+This predicate recompiles or reloads all files that have been modified
+since their last compilation or loading.
 \end{description}
 
-%----------------------------------------------------------------------
-\section{Module Compilation}
-%----------------------------------------------------------------------
-One source file can contain several modules and one module
-may spread over several files\footnote{This style is not recommended.}.
-The module structure is controlled by the \bipref{module/1}{../bips/kernel/modules/module-1.html}
-directive which tells the compiler that all subsequent input
-up to the end of file or another module directive will
-be part of the given module.
+To implement reloading/recompiling when needed, the system keeps track of
+when a particular source files was compiled or precompiled file was loaded
+into memory.  This information can be accessed explicitly through
+\bipref{current_compiled_file/3}{../bips/kernel/database/current_compiled_file-3.html}.
 
-When it encounters the \bipref{module/1}{../bips/kernel/modules/module-1.html} directive,
-the compiler first erases previous contents of this module,
-if there was any, before starting to compile predicates
-into it.
-This means that if the contents of a module has to be
-generated incrementally, the module directive cannot be used
-because the previous contents of the module would be destroyed.
-In this case the predicate {\bf compile(File, Module)}
-should be used.
+%\item[\biptxtref{assert(Clause)}{assert/1}{../bips/kernel/dynamic/assert-1.html}]
+%\index{assert/1}
+%This predicate compiles the given clause of a dynamic predicate.
+
+
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Using the Compiler with a Makefile}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+To generate .eco file from source files, the compiler can be run from the
+command line using the -e option.
+To invoke it from a makefile, use the following suffix rule
+\begin{quote}\begin{verbatim}
+.SUFFIXES:  $(SUFFIXES) .ecl .eco
+.ecl.eco:
+        eclipse -e "compile(\"$<\",[output:eco])"
+\end{verbatim}
+\end{quote}
+or a pattern rule for Gnu make:
+\begin{quote}\begin{verbatim}
+%.eco:  %.ecl
+        eclipse -e "compile(\"$<\",[output:eco])"
+\end{verbatim}
+\end{quote}
+
+
 
 %----------------------------------------------------------------------
-\section{Mode Declarations}
+\section{Special Compiler Features}
+%----------------------------------------------------------------------
+
+%----------------------------------------------------------------------
+\subsection{Compiling Non-Textual Source}
+%----------------------------------------------------------------------
+A characteristic feature of Prolog and {\eclipse} is, that programs can
+be represented as data structures in a straightforward way.
+The compiler therefore provides the
+\bipref{compile_term/1}{../bips/kernel/database/compile_term-1.html}/
+\bipref{compile_term/2}{../bips/kernel/database/compile_term-2.html}
+interface, which allows to compile a list of terms.  The compiler
+interprets these as clauses, directives and queries, similar to program
+source being read from a file.  For program generators, it is therefore
+not necessary to create a textual representation of generated code -
+the data structures can be compiled directly.
+
+There are the following minor differences between compilation from
+textual sources and term compilation:
+\begin{itemize}
+\item Module directives are not supported - to compile code into a certain
+    module, use the construct compile_term(Clauses,Options)@Module, and use
+    \bipref{create_module/1}{../bips/kernel/modules/create_module-1.html}
+    to create modules beforehand if necessary.
+\item Include directives do not make sense and are not supported.
+\item No end-of-compilation events are raised - compile_term/1 behaves more
+    like the compilation of an included file in this respect. This implies
+    that discontiguous predicates are not supported.
+\end{itemize}
+
+A variant of compile_term/2 is
+\bipref{compile_term_annotated/3}{../bips/kernel/database/compile_term_annotated-3.html}
+which takes source terms with source position annotations.
+This can be used when compiling auxiliary code within inlining/goal
+expansions transformations, without losing the source position information
+which is needed by the debugger.
+
+
+%----------------------------------------------------------------------
+\subsection{Mode Declarations}
 %----------------------------------------------------------------------
 \index{mode/1}
 \index{mode declaration}
@@ -328,7 +775,7 @@ its mode declaration, the behaviour is undefined.
 Usually, an unexpected failure occurs in this case.
 
 %----------------------------------------------------------------------
-\section{Inlining}
+\subsection{Inlining}
 %----------------------------------------------------------------------
 \index{inline/2}
 \index{inlining}
@@ -338,7 +785,8 @@ preprocessed and transformed at compile time.  The directive
 \bipref{inline/2}{../bips/kernel/database/inline-2.html}, e.g.
 \begin{quote} \begin{verbatim}
 :- inline(mypred/1, mytranspred/2).
-\end{verbatim} \end{quote}
+\end{verbatim}
+\end{quote}
 arranges for mytranspred/2 to be invoked at compile time for each 
 call to the predicate mypred/1 before this call is being compiled.
 
@@ -361,21 +809,24 @@ double(X, Y) :-
 trans_double(double(X, Y), Y=Result) :-
         not nonground(X),    % if X already known at compile time:
         Result is 2*X.       % do calculation at compile time!
-\end{verbatim} \end{quote}
+\end{verbatim}
+\end{quote}
 All compiled calls to double/2 will now be preprocessed by being passed
 to trans_double/2.
 E.g.\ if we now compile the following predicate involving double/2
 \begin{quote} \begin{verbatim}
 sample :-
         double(12,Y), ...,  double(Y,Z).
-\end{verbatim} \end{quote}
+\end{verbatim}
+\end{quote}
 the first call to double will be replaced by \verb+Y=24+ while the
 second one will be unaffected. The code that the compiler sees and
 compiles is therefore
 \begin{quote} \begin{verbatim}
 sample :-
         Y=24, ...,  double(Y,Z).
-\end{verbatim} \end{quote}
+\end{verbatim}
+\end{quote}
 Note that meta-calls (e.g.\ via
 \bipref{call/1}{../bips/kernel/control/call-1.html}) are never
 preprocessed, they always go directly to the definition of double/2.
@@ -383,114 +834,54 @@ preprocessed, they always go directly to the definition of double/2.
 Transformation can be disabled for debugging purposes by adding
 \begin{quote} \begin{verbatim}
 :- pragma(noexpand).
-\end{verbatim} \end{quote}
+\end{verbatim}
+\end{quote}
 to the compiled file, or by setting the global flag
 \begin{quote} \begin{verbatim}
 :- set_flag(goal_expansion, off).
-\end{verbatim} \end{quote}
-
-
-
-%----------------------------------------------------------------------
-\section{Compiler Pragmas}
-%----------------------------------------------------------------------
-\index{pragma}
-Compiler pragmas are compiler directives which instruct the compiler
-to emit a particular code type.
-Their syntax is similar to directives:
-\begin{quote}
-\begin{verbatim}
-:- pragma(Option).
 \end{verbatim}
 \end{quote}
-It is not possible to have several pragmas grouped together and separated
-by commas like goals, every pragma must be specified separately.
-{\it Option} can be one of the following:
-\begin{itemize}
-\item {\bf debug} - generate code which can be inspected with the
-debugger.
-This overrides the global setting of the {\tt debug_compile} flag.
 
-\item {\bf nodebug} - generate optimized code with no debugger support.
-This overrides the global setting of the {\tt debug_compile} flag.
 
-\item {\bf silent_debug} - generate code which cannot be inspected
-by the debugger, but which allows to debug predicates called
-by it.
-This is similar to setting the {\tt leash} flag
-of all subgoals in the following clauses
-to {\tt notrace}.
-This option is useful e.g. for library predicates which call other
-Prolog predicates: the user wants to see in the debugger the
-call to the library predicate and to the invoked predicate,
-but no internal calls in the library predicates.
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+\subsection{Clause Expansion}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Before compilation, the compiler also performs clause macro expansion
+(\bipref{macro/3}{../bips/kernel/syntax/macro-3.html}.  This includes
+the DCG grammar rule expansion (section \ref{dcg}).
 
-\item {\bf expand} - do in-line expansion of some subgoals,
-like {$=$/2}, \bipref{is/2}{../bips/kernel/arithmetic/is-2.html} and others.
-This code can still be inspected with the debugger but the expanded
-subgoals look differently than in the normal debugged code,
-or their arguments cannot be seen.
-This pragma overrides the global setting of the {\tt goal_expansion} flag.
 
-\item {\bf noexpand} - inhibit the in-line goal expansion.
-This pragma overrides the global setting of the {\tt goal_expansion} flag.
-
-\item {\bf skip} - set the {\tt skip} flag of all following
-predicates to {\tt on}.
-
-\item {\bf noskip} - set the {\tt skip} flag of all following
-predicates to {\tt off}.
-
-\item {\bf system} - set the {\tt type} flag of all following
-predicates to {\tt built_in}.
-Moreover, all following predicates will have unspecified
-{\tt source_file} and {\tt source_line} flags.
-\end{itemize}
-By default, the compiler works as if the pragmas {\bf debug}, {\bf expand}
-and {\bf noskip} were specified.
-
-The pragma is active from its specification in the file
-until the file end or until it is disabled by another pragma.
-Recursive compilations or calls to other compiling predicates
-are not affected by the pragma.
-Pragmas which have the same effect as global flags override
-the global flags if they specify more optimized code.
-For instance, the pragma {\bf debug} has no effect if the
-global flag {\tt debug_compile} is {\tt off},
-but the pragma {\bf nodebug} overrides the global
-flag {\tt debug_compile} being {\tt on}.
-
-The pragmas are  useful mainly for libraries and other programs
-that should be always compiled in a particular mode
-independently of the global flags setting.
 
 %----------------------------------------------------------------------
 \section{Writing Efficient Code}
 \label{secefficientcode}
 %----------------------------------------------------------------------
-The {\eclipse} compiler tries its best, however there are some
+Even with a declarative language, there are certain
 constructs which can be compiled more efficiently than others.
-On the other hand, many Prolog programmers overemphasize
-the importance of efficient code and write completely unreadable
-programs which can be only hardly maintained and which are only
-marginally faster than simple, straightforward and readable
-programs.
+It is however not recommended to write unreadable code with the aim
+of achieving faster execution - intuition is often wrong about which
+particular construct will execute more efficiently in the end.
 The advice is therefore {\bf Try the simple and straightforward
-solution first!}
+solution first!} This will keep code maintainable, and will often be
+as fast or marginally slower than elaborate tricks.
 The second rule is to keep this original program even if you try
 to optimise it. You may find out that the optimisation
 was not worth the effort.
+{\eclipse} provides some support for finding those program parts
+that are worth optimizing.
 
-To achieve the maximum speed of your programs, you must
-produce the optimised code with the flag {\tt debug_compile}
-being off, e.g. 
-by calling {\bf set_flag(debug_compile, off)},
-or using the pragma {\bf nodebug}.
-Setting the flag {\tt variable_names} can also cause slight
-performance degradations and it is thus better to have
-it off, unless variable names have to be kept.
-Unlike in the previous releases, the flag {\tt coroutine}
-has now no influence on the execution speed.
+To achieve the maximum speed of your programs, chose the following compiler
+options:
+\begin{itemize}
+\item debug:off
+\item opt_level:2 (the default)
+\item expand:on (the default)
+\end{itemize}
+%Setting the flag {\tt variable_names} can also cause slight
+%performance degradations and it is thus better to have
+%it off, unless variable names have to be kept.
+%Unlike in the previous releases, the flag {\tt coroutine}
+%has now no influence on the execution speed.
 Some programs spend a lot of time in the garbage collection,
 collecting the stacks and/or the dictionary.
 If the space is known to be deallocated anyway, e.g. on failure,
@@ -507,7 +898,7 @@ are the most expensive ones, and the statistics tool
 tells you why.
 A program may spend its time in a predicate because the predicate
 itself is very time consuming, or because it was frequently executed.
-The statistics tool gives you this information.
+The port profiling tool gives you this information.
 It can also tell whether the predicate was slow because it
 has created a choice point or because there was too much
 backtracking due to bad indexing.
@@ -574,12 +965,12 @@ that appears at the beginning of the clause body:
 \item Combinations of tests with \txtbipref{,/2}{','/2}{../bips/kernel/control/C-2.html}, \bipref{;/2}{../bips/kernel/control/O-2.html},
 \bipref{not/1}{../bips/kernel/control/not-1.html}, \txtbipref{$->$/2}{(->)/2}{../bips/kernel/control/-G-2.html}.
 
-\item Arithmetic testing predicates
-\txtbipref{$<$/2}{(<)/2}{../bips/kernel/arithmetic/L-2.html},
-\txtbipref{=$<$/2}{(=<)/2}{../bips/kernel/arithmetic/EL-2.html},
-\txtbipref{$>$/2}{(>)/2}{../bips/kernel/arithmetic/G-2.html},
-\txtbipref{$>=$/2}{(>=)/2}{../bips/kernel/arithmetic/GE-2.html} if one argument is an integer constant and the
-other one known to be of the integer type.
+%\item Arithmetic testing predicates
+%\txtbipref{$<$/2}{(<)/2}{../bips/kernel/arithmetic/L-2.html},
+%\txtbipref{=$<$/2}{(=<)/2}{../bips/kernel/arithmetic/EL-2.html},
+%\txtbipref{$>$/2}{(>)/2}{../bips/kernel/arithmetic/G-2.html},
+%\txtbipref{$>=$/2}{(>=)/2}{../bips/kernel/arithmetic/GE-2.html} if one argument is an integer constant and the
+%other one known to be of the integer type.
 
 \item A cut after the type tests.
 \end{itemize}
@@ -610,17 +1001,17 @@ Another example:
     p([]) :- ...
 \end{verbatim}
 
-Integers less than or greater than a constant can also be
-recognised by the compiler:
-\begin{verbatim}
-    p(X) :- integer(X), X < 5, ...
-    p(7) :- ...
-    p(9) :- ...
-    p(X) :- integer(X), X >= 15, ...
-\end{verbatim}
+%Integers less than or greater than a constant can also be
+%recognised by the compiler:
+%\begin{verbatim}
+%    p(X) :- integer(X), X < 5, ...
+%    p(7) :- ...
+%    p(9) :- ...
+%    p(X) :- integer(X), X >= 15, ...
+%\end{verbatim}
 
-If the clause contains tests of several head arguments, only the
-first one is taken into account for indexing.
+%If the clause contains tests of several head arguments, only the
+%first one is taken into account for indexing.
 
 Here are some more hints for efficient coding with {\eclipse}:
 \begin{itemize}
@@ -650,203 +1041,75 @@ is significantly more expensive.
 \item When accessing an argument of a
 structure whose functor is known, unification
 is better than \bipref{arg/3}{../bips/kernel/termmanip/arg-3.html}.
-Note, however, that for better maintainability the {\bf structure
+For better maintainability and readability, the {\bf structure
 notation} (see section~\ref{chapstruct})
-should be used to define the structures.
 \index{structures}
+should be used for these unifications, e.g.
+\begin{quote}
+\begin{verbatim}
+..., Struct = emp{salary:S}, ...
+\end{verbatim}
+\end{quote}
 
 \item Tests are generally rather slow unless they can be compiled away
 (see {\it indexing}).
-\item When processing all arguments of a structure, using \txtbipref{=../2}{(=..)/2}{../bips/kernel/termmanip/EDD-2.html}
-and list predicates is always faster, more readable
-and easier analyzable by automated tools than using \bipref{functor/3}{../bips/kernel/termmanip/functor-3.html}
-and \bipref{arg/3}{../bips/kernel/termmanip/arg-3.html} loops.
+%\item When processing all arguments of a structure, using \txtbipref{=../2}{(=..)/2}{../bips/kernel/termmanip/EDD-2.html}
+%and list predicates is always faster, more readable
+%and easier analyzable by automated tools than using \bipref{functor/3}{../bips/kernel/termmanip/functor-3.html}
+%and \bipref{arg/3}{../bips/kernel/termmanip/arg-3.html} loops.
 
-\item Similarly, when adding one new element to a structure, using {\bf =../2}
-and \bipref{append/3}{../bips/lib/lists/append-3.html} is faster than functor/arg.
+%\item Similarly, when adding one new element to a structure, using {\bf =../2}
+%and \bipref{append/3}{../bips/lib/lists/append-3.html} is faster than functor/arg.
 
-\item Waking is less expensive than metacalling and more expensive
-than direct calling.
-Metacalls, although generally slow, are still a lot faster than
-in some other Prolog systems.
+\item Waking is more expensive (due to the priority mechanism) than metacalling
+which is more expensive than compiled calls.
+Metacalls however do not carry as heavy a penalty as in 
+some other Prolog systems.
 
 \item Sorting using \bipref{sort/2}{../bips/kernel/termcomp/sort-2.html} is very efficient and it does not use
 much space.
 Using \bipref{setof/3}{../bips/kernel/allsols/setof-3.html}, \bipref{findall/3}{../bips/kernel/allsols/findall-3.html} etc. is also efficient enough
 to be used every time a list of all solutions is needed.
 
-\item using {\bf not not Goal} is optimised in the compiler
-to use only one choice point.
+%\item using {\bf not not Goal} is optimised in the compiler
+%to use only one choice point.
 
-\item \txtbipref{=/2}{(=)/2}{../bips/kernel/termcomp/E-2.html}, when expanded by the compiler, is faster than \txtbipref{==/2}{(==)/2}{../bips/kernel/termcomp/EE-2.html}
-or \txtbipref{=:=/2}{(=:=)/2}{../bips/kernel/arithmetic/ENE-2.html}.
+\item \txtbipref{=/2}{(=)/2}{../bips/kernel/termcomp/E-2.html} and
+\txtbipref{==/2}{(==)/2}{../bips/kernel/termcomp/EE-2.html}
+are faster than \txtbipref{=:=/2}{(=:=)/2}{../bips/kernel/arithmetic/ENE-2.html}.
 
 \item \txtbipref{:/2}{: /2}{../bips/kernel/control/N-2.html} is optimised away by the compiler
 if both argument are known.
 
-\item Using several clauses is much more efficient than using
-a disjunction if the clause heads contain nonvariables
-which can be used for indexing.
-If no indexing can be made anyway, using a disjunction
-is slightly faster.
+\item Starting from {\eclipse} 6.0, there is no performance difference between
+using multiple clauses or using disjunction or if-then-else cascades.
+In fact, the compiler normalises multiple clause predicates into
+a single-clause representation with inline disjunctions.
+Disjunctions are indexed.
 
 \item Conditionals with {\bf $-> ;$} are compiled more efficiently
-if the condition is a simple built-in test.
-However, using several clauses can be faster if the compiler
-optimises the test away.
+if the condition is an indexable built-in test.
 
 \end{itemize}
 
-%----------------------------------------------------------------------
-\section{Compiling and loading object code}
-%----------------------------------------------------------------------
-\index{object code}
-\index{fcompile/1}
-\label{fcompile}
-
-Traditionally when an {\eclipse} file is compiled, it is loaded immediately
-into the system. Sometime it is useful to generate `object code' which can
-then be loaded later, perhaps even in a different session of \eclipse,
-maybe on a different platform. This functionality is provided by the
-fcompile library.
-
-In order to use this facility, the fcompile library should be loaded first:
-
-\begin{verbatim}
-:- lib(fcompile).
-\end{verbatim}
-
-\noindent
-\biptxtref{fcompile(+File)}{fcompile:fcompile/1}{../bips/lib/fcompile/fcompile-1.html} can then be used to generate an object file from an
-{\eclipse} source file. The object file has the same base name as the source
-file {\bf File}, but with the suffix {\bf .eco} attached. 
-
-{\bf fcompile} generates an object file by compiling an {\eclipse} source
-file normally, and then disassembling the compiled code into an object
-form, which is written to the object file. This object form is platform
-independent and can be loaded into {\eclipse} running on a different
-platform from the one that generated it (see section~\ref{objectport} for 
-restrictions). 
-
-The object file is generated in the current working directory.
-
-Options can be specified for fcompile by using \bipref{fcompile/2}{../bips/lib/fcompile/fcompile-2.html}. 
-
-
-{\bf fcompile} is designed mainly for generating an object file for a whole
-module. 
-The \biptxtref{include}{include/1}{../bips/kernel/directives/include-1.html} directive allows multiple source files to be compiled
-into one object file. When {\bf fcompile} encounters an include directive
-in the source file:
-
-\begin{verbatim}
-:- include(File).
-\end{verbatim}
-
-\noindent
-it will generate the object code for the file(s) in {\bf File} in place of
-the directive. The effect is as if the actual source code for file(s) was
-written at the point of the {\bf include} directive. Note that this can
-have a different semantics from recursively compiling files using the {\bf
-compile} directive, because any new module in a recursively compiled file
-ends with the end of that file. With {\bf include}, any new modules defined
-in that file will not end with the file. Thus, a {\bf compile}
-directive should not be changed to an {\bf include} directive if the
-target file contains definitions for a separate module.
-
-The object code file (with {\bf .eco} suffix) will be loaded in preference
-to the Prolog source file by \bipref{use_module/1}{../bips/kernel/modules/use_module-1.html} and \bipref{lib/1,2}{../bips/kernel/database/lib-1.html} if both
-files are present. On the other hand, the compile predicates expect a
-source file and will normally not load an object code file. 
-
-The compiler generates different object code depending on the settings of
-various pragmas. It is the settings of the pragmas at the time the object
-code is generated that determines what codes are generated, rather than at
-load time. The load time pragma settings have no effect on the object code
-that is loaded in, so for example, if the code was generated while the
-debug pragma is on, but loaded while the nodebug pragma is on, the loaded
-code is still the debuggable, non-optimised code.
- 
-Note that in addition to generating the object code for predicates found in
-the source file, {\bf fcompile} also generates the object code of any 
-auxiliary predicates that are called in the source file.
-These are the
-predicates that are generated by the compiler (such as the \bipref{do/2}{../bips/kernel/control/do-2.html}
-iterator). A warning is 
-generated if a file contains more than one module. These warnings often
-indicates that files have been incorrectly omitted or included in the
-include directive. 
-
-
-
-fcompile/1,2 can be used to
-generate non-source versions of programs for delivery. 
-
-\subsection{Restrictions}
-
-Currently, the compiler generates the auxiliary predicates for the do
-iterator using a global counter to name the predicates. Unfortunately this
-means that if an object file with auxiliary predicates is loaded into a
-module that already has existing code that contains auxiliary predicates, 
-naming conflict can occur and the old auxiliaries may be replaced. It is
-thus strongly recommended that object files should not be loaded into an
-existing module. This will only be a problem if the file does not contain
-any module declarations that redefines the module (i.e. \bipref{module/1}{../bips/kernel/modules/module-1.html}),
-as these redefinition will erase the old copy of
-the module.
-
-The predicate generates the object code by first compiling the program and
-then outputting the object code. Directives, which are executed in a normal
-compilation process, will not be executed during the output of the object
-code (but the directives themselves will be added to the object code so
-that they will be executed when the code is loaded). This can lead to
-differences between loading the object code and compiling the program if
-the directive affects the compiled code during the compilation
-(e.g. determining which files to load by a conditional in a
-directive). 
-
-If macro transformation is defined (via \bipref{macro/3}{../bips/kernel/syntax/macro-3.html}
-declarations) in the module that is fcompiled, then
-the ``protecting functor'' {\tt no_macro_expansion}
-\index{no_macro_expansion/1} \index{macro!no_macro_expansion} (see
-section~\ref{usingmacros}) should be used to prevent the macro definition
-itself from being transformed when the definition is generated by
-fcompile. For example:
-
-\begin{quote}\begin{verbatim}
-:- local macro(no_marco_transformation(foo/1), trans_foo/2, []).
-\end{verbatim}\end{quote}
-
-\noindent
-the {\tt no_macro_transformation/1} wrapper prevents this instance of {\tt
-foo/1} from being transformed when the directive is generated by fcompile.
-Note that this is only needed if all terms are transformed, and not for
-goals or clause transformation.
-
-\subsubsection{Object file portability}
-\label{objectport}
-
-One restriction does apply between platforms of different
-word sizes: integers which fit in the word size of one platform
-but not the other are represented differently internally in {\eclipse}. 
-Specifically, integers which takes between 32 and 64
-bits to represent are treated as normal integers on a 64 bit machine,
-but as bignums (see section~\ref{intrep}) on 32 bit machines. This
-difference is normally invisible, but if
-such numbers occur as constants in the program code (i.e. their values appear
-textually), they can lead to different low-level compiled abstract code on
-the different platforms. Avoid using such constants if you want
-the object code to be portable across different word sizes (they can always
-be computed at run-time, e.g. writing \verb'2^34' instead of {\tt 17179869184}).
-
-
 
 %----------------------------------------------------------------------
-\section{Abstract Code Listing}
+\section{Implementation Notes}
 %----------------------------------------------------------------------
-The built-in predicate \bipref{als/1}{../bips/kernel/database/als-1.html} lists the abstract code
-of the given predicate and it can thus be used by experts
+
+The {\eclipse} compiler is actually contained in the eclipse library
+lib(ecl_compiler) which relies on a number of auxiliary modules.
+It uses
+\biptxtref{lib(source_processor)}{library(source_processor)}{../bips/lib/source_processor/index.html}
+to read programs, and produces abstract
+machine code that is assembled using
+\biptxtref{lib(asm)}{library(asm)}{../bips/lib/asm/index.html}.
+
+The built-in predicate \bipref{als/1}{../bips/kernel/database/als-1.html}
+or \bipref{asm:wam/1}{../bips/lib/asm/wam-1.html}
+lists the abstract code of the given predicate and it can thus be used by experts
 to check if the predicate was compiled as expected.
+
 
 
 %HEVEA\cutend
