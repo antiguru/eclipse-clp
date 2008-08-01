@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.11 2008/07/31 03:18:27 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.12 2008/08/01 15:44:52 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -181,6 +181,7 @@
    tool((\+)/1, fail_if_body/2),
    tool(call/1, untraced_call/2),
    tool(call_local/1, call_local/2),
+   tool(call_relaxed_prio/2, call_relaxed_prio_/3),
    tool(current_record/1, current_record_body/2),
    tool(set_syntax/2, set_syntax_/3),
    tool(ensure_loaded/1, ensure_loaded/2),
@@ -1949,6 +1950,18 @@ call_local(Goal, Module) :-
 	call(Goal, Module),
 	trigger_postponed,
 	reset_postponed(OldPL).
+
+
+% Run a goal in a relaxed priority context >= Prio.  If the current priority
+% is anyway >= Prio, we do nothing and it is the same as call(Goal).
+% If current priority is < Prio, we save the woken goals, relax the priority
+% to Prio, call Goal, and reset everything afterwards.  Needed if Goal
+% requires some internal wakings to work, but we are in a high-priority
+% context.  Goal should be completely independent of its execution context.
+call_relaxed_prio_(Goal, Prio, Module) :-
+	relax_priority(Prio, Old),
+	call(Goal)@Module,
+	restore_relaxed_priority(Old).
 
 
 call_explicit_body(Goal, DefMod, CallerMod) :-
