@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.21 2008/07/31 03:22:08 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.22 2008/08/01 10:46:27 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -1593,7 +1593,6 @@ proc tkecl:popup_tracer {} {
 	$tmbar.opt add check -label "Refresh goal stack at every trace line" -variable tkecl(pref,trace_refresh_stack)
 	$tmbar.opt add check -label "Refresh delayed goals at every trace line" -variable tkecl(pref,trace_refresh_dg)
 	$tmbar.opt add check -label "Raise tracer window at every trace line" -variable tkecl(pref,trace_raise_tracer)
-	$tmbar.opt add check -label "Show source while tracing" -variable tkecl(pref,trace_source)
 	$tmbar add cascade -label "Help" -menu $tmbar.help -underline 0
 	menu $tmbar.help
         $tmbar.help add command -label "Tracer Help" -command "tkecl:Get_helpfileinfo trac $ec_tracer"
@@ -1859,7 +1858,7 @@ proc tkecl:handle_trace_line {stream {length {}}} {
     	tkecl:refresh_goal_stack
     }
     if {$tkecl(pref,trace_refresh_dg)} { tkecl:refresh_dg }
-    if {$tkecl(pref,trace_source)} { tkecl:update_source_debug $style $from $to $fpath_info }
+    tkecl:update_source_debug $style $from $to $fpath_info 
 }
 
 proc tkecl:handle_tracer_port_start {} {
