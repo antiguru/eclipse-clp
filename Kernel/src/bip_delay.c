@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.2 2008/08/01 15:53:31 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -79,6 +79,8 @@ static int	p_delayed_goals(value vres, type tres),
 		p_postpone_suspensions(value vpos, type tpos, value vattr, type tattr),
 		p_reinit_postponed(value vold, type told),
 		p_reset_postponed(value vold, type told),
+		p_relax_priority(value vp, type tp, value vwl, type twl),
+		p_restore_relaxed_priority(value vwl, type twl),
 		p_set_priority(value vp, type tp),
 		p_set_priority2(value vp, type tp, value vt, type tt),
 		p_get_priority(value vp, type tp),
@@ -215,6 +217,8 @@ bip_delay_init(int flags)
 	(void) built_in(in_dict("get_priority", 1), p_get_priority, B_UNSAFE);
 	(void) exported_built_in(in_dict("set_priority", 1), p_set_priority, B_UNSAFE);
 	(void) exported_built_in(in_dict("set_priority", 2), p_set_priority2, B_UNSAFE);
+	(void) local_built_in(in_dict("relax_priority", 2), p_relax_priority, B_UNSAFE);
+	(void) local_built_in(in_dict("restore_relaxed_priority", 1), p_restore_relaxed_priority, B_UNSAFE);
 	(void) exported_built_in(in_dict("add_attribute", 3), p_add_attribute,
 		B_UNSAFE);
 	exported_built_in(in_dict("get_attribute", 3), p_get_attribute,
@@ -1842,6 +1846,44 @@ p_set_priority2(value vp, type tp, value vt, type tt)
 	WP = prio;
     Succeed_
 }
+
+
+p_relax_priority(value vp, type tp, value vwl, type twl)
+{
+    int prio;
+    Check_Integer(tp)
+    prio = vp.nint > SUSP_MAX_PRIO ? SUSP_MAX_PRIO : vp.nint;
+    if (WP >= prio) {
+	Return_Unify_Nil(vwl, twl)	/* nothing to do */
+    }
+
+    if (WL < GB) {
+	Trail_Pword(&TAGGED_WL)
+    }
+    wl_init(SUSP_MAX_PRIO);		/* saves old WP and WL, sets new WL */
+    Set_WP(prio)
+    Return_Unify_Pw(vwl, twl, TAGGED_WL.val, TAGGED_WL.tag)
+}
+
+p_restore_relaxed_priority(value vwl, type twl)
+{
+    if (IsStructure(twl)) {
+	int i;
+	pword *p = WLFirst(vwl.ptr);
+	for (i=0; i<SUSP_MAX_PRIO; ++i) {
+	    if (!IsNil(p[i].tag)) {
+		Bip_Error(BAD_RESTORE_WL);
+	    }
+	}
+	Set_WP(WLPreviousWP(WL)->val.nint);
+	if (WL < GB) {
+	    Trail_Pword(&TAGGED_WL)
+	}
+	TAGGED_WL = *WLPrevious(WL);
+    }
+    Succeed_;
+}
+
 
 static
 p_first_woken(value pv, type pt, value v, type t)

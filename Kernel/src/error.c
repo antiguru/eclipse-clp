@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.2 2008/07/24 16:21:33 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.3 2008/08/01 15:53:32 jschimpf Exp $
  */
 
 /*
@@ -397,7 +397,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 "bad format of the variable attribute",		/* ATTR_FORMAT		*/
 "delay clause may cause indefinite delay",
 "delayed goals left",				/* LEFT_DELAYED_GOAL	*/
-"stack of woken lists empty",	 		/* BAD_RESTORE_WL	*/
+"woken lists not empty",	 		/* BAD_RESTORE_WL	*/
 0,					 	/* was DELAY_SIMPLE	*/
 0,
 0,

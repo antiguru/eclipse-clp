@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.19 2008/07/13 13:50:16 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.20 2008/08/01 15:54:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/07/13 13:50:16 $").
+:- comment(date, "$Date: 2008/08/01 15:54:05 $").
 
 
 :- lib(hash).
@@ -143,6 +143,11 @@ new_aux_temp(ChunkData0, ChunkData, aux(AuxCount)) :-
 :- export generate_code/5.
 
 generate_code(Clause, Code, AuxCode, Options, ModPred) :-
+	% Execute under priority 3 or less to make sure delayed goals exeute
+	sepia_kernel:call_relaxed_prio(
+		generate_code1(Clause, Code, AuxCode, Options, ModPred), 3).
+
+generate_code1(Clause, Code, AuxCode, Options, ModPred) :-
 	init_chunk_data(0, -1, ChunkData0),
 	Code = [code{instr:label(Start)}|Code1],
 	alloc_check_start(ChunkData0, ChunkData1, Code1, Code2),
