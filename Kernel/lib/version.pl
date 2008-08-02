@@ -1,3 +1,3 @@
 sepia_date("development").
 sepia_stage("beta").
-sepia_build(25).
+sepia_build(26).
