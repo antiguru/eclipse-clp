@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.3 2008/07/31 03:13:00 kish_shen Exp $
+ * VERSION	$Id: bip_db.c,v 1.4 2008/08/03 14:13:43 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -77,9 +77,8 @@
 
 #define Get_Macro_Did(vproc, tproc, wd)		\
 	if (IsStructure(tproc) && vproc.ptr->val.did == d_type_) {\
-	    if (!(wd = _type_did(vproc.ptr[1].val.did))) {\
-		Bip_Error(RANGE_ERROR)\
-	    }\
+	    int res = _type_did(vproc.ptr+1, &(wd));\
+	    Return_If_Error(res);\
 	} else {\
 	    Get_Functor_Did(vproc, tproc, wd)\
 	}
@@ -133,7 +132,7 @@ static int
     p_mode(value pv, type pt, value mv, type mt),
     p_bound_arg(value vproc, type tproc, value va, type ta, value vb, type tb, value mv, type mt);
 
-static dident	_type_did(dident d);
+static int	_type_did(pword*, dident*);
 
 static	dident
 		d_autoload_,
@@ -1679,16 +1678,20 @@ p_erase_macro3(value vproc, type tproc, value vprop, type tprop, value vmod, typ
 }
 
 
-static dident
-_type_did(dident d)
+static int
+_type_did(pword *pw, dident *pd)
 {
-    register int i;
+    int i;
+    Dereference_(pw);
+    Check_Atom_Or_Nil(pw->val, pw->tag);
     for (i=0; i<= NTYPES; i++)
     {
-	if (i != TPTR && d == tag_desc[i].type_name)
-	    return TransfDid(i);
+	if (i != TPTR && pw->val.did == tag_desc[i].type_name) {
+	    *pd = TransfDid(i);
+	    Succeed_;
+	}
     }
-    return 0;
+    Bip_Error(RANGE_ERROR);
 }
 
 /* Check the arguments of current_macro_body/5
@@ -1720,7 +1723,7 @@ p_illegal_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v
 
 	pw = v1.ptr + 1;
 	Dereference_(pw)
-	if (!IsRef(pw->tag) && !IsAtom(pw->tag)) {
+	if (!IsRef(pw->tag) && !IsAtom(pw->tag) && !IsNil(pw->tag)) {
 	    Return_Unify_Integer(v5, t5, -(TYPE_ERROR))
 	}
     }
