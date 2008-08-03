@@ -21,17 +21,13 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: procedure.c,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
- */
-
-/*
+ * VERSION	$Id: procedure.c,v 1.2 2008/08/03 22:13:51 jschimpf Exp $
+ *
  * IDENTIFICATION		procedure.c
  *
  * DESCRIPTION	
  *
- *	SEPIA COMPILER
- *
- * This file contains the main routines of Prolog procedure compilation.
+ *	Used to contain the ECLiPSe compiler, now only .eco boot loader.
  *
  * CONTENTS:
  *
@@ -44,7 +40,6 @@
   * INCLUDES:
   */
 #include	"config.h"
-#include	<fcntl.h>
 #include	"sepia.h"
 #include	"types.h"
 #include        "embed.h"
@@ -53,13 +48,9 @@
 #include	"dict.h"
 #include	"emu_export.h"
 #include	"property.h"
-#include	"opcode.h"
-#include	"gencode.h"
 #include	"io.h"
-#include	"database.h"
-#include	"module.h"
 #include	"read.h"
-#include	"os_support.h"
+#include	"module.h"
 
 
 /*
@@ -67,80 +58,24 @@
  */
 #define Query(did)		((did == d_.rulech1 || did == d_.goalch))
 
-/* Macro expansion flags */
-#define FOUND_MACRO		1
-#define GOAL_MACRO		2
-
-#define Transformed(cd)	((cd)->macro & FOUND_MACRO)
-
-
-/*
- * EXTERNAL VARIABLE DECLARATIONS:
- */
-
-#ifdef OLD_DYNAMIC
-extern vmcode	*init_dynamic(pri *pd);
-#endif
-
-extern pword	*move_term(pword *pw, pword *dest);
-extern void	remove_procedure(pri*);
-
 
  /*
   * EXTERNAL VARIABLE DEFINITIONS: 
   */
 
-int		debug_pass3 = 0;	/* to debug the compiler */
-
-dident
+static dident
 		d_module2,
 		d_module3,
 		d_module_interface,
 		d_begin_module,
-		d_begin_module2,
 		d_create_module3_,
-		d_call_susp_,
 		d_erase_module_,
-		d_error3_,
-		d_eclipse_language_,
-		d_insert_susp4_,
-		d_insert_susp3_,
-		d_add_attribute2_,
-		d_add_attribute3_,
-		d_get_attribute2_,
-		d_get_attribute3_,
-		d_get_attributes4_,
-		d_replace_attribute2_,
-		d_replace_attribute3_,
-		d_matching_guard1,
-		d_matching_guard,
-		d_noskip,
-		d_expand,
-		d_noexpand,
-		d_record_interface,
-		d_silent_debug,
-		d_tr_clause,
-		d_untraced_call;
+		d_eclipse_language_;
+
+dident
+		d_call_susp_;
 
 pword		woken_susp_;
-
-
-#ifdef PRINTAM
-void		print_procedure(dident wdid, vmcode *code);
-#endif
-
- /*
-  * STATIC VARIABLE DEFINITIONS: 
-  */
-static pword	_eof_pw;
-
-#ifdef lint
-#define calloc(a, b)	0
-#endif
-
- /*
-  * FUNCTION DEFINITIONS: 
-  */
 
 
 /*
@@ -186,7 +121,7 @@ static char utf8_bom[UTF8_BOM_LENGTH] = {'\357','\273','\277'};
  * Current eco file version. This must correspond to
  * the number in dump_header/1 in the file io.pl.
  */
-#define ECO_CURRENT_VERSION	0x16
+#define ECO_CURRENT_VERSION	0x17
 
 #define MAGIC_LEN 3
 static char eco_magic[MAGIC_LEN] = {'\354','\034','\051'};
@@ -228,48 +163,20 @@ _read_eco_header(stream_id nst)
 void
 compiler_init(int flags)
 {
-    value	vval;
-
     if (flags & INIT_SHARED)
     {
 	CompileId = 0;
     }
 
     d_call_susp_ = in_dict("call_suspension", 1);
-    d_untraced_call = in_dict("untraced_call", 2);
-    d_insert_susp4_ = in_dict("insert_suspension", 4);
-    d_insert_susp3_ = in_dict("insert_suspension", 3);
-    d_add_attribute2_ = in_dict("add_attribute", 2);
-    d_add_attribute3_ = in_dict("add_attribute", 3);
-    d_get_attribute2_ = in_dict("get_attribute", 2);
-    d_get_attribute3_ = in_dict("get_attribute", 3);
-    d_get_attributes4_ = in_dict("get_attributes", 4);
-    d_replace_attribute2_ = in_dict("replace_attribute", 2);
-    d_replace_attribute3_ = in_dict("replace_attribute", 3);
     d_module2 = in_dict("module", 2);
     d_module3 = in_dict("module", 3);
     d_module_interface = in_dict("module_interface", 1);
     d_begin_module = in_dict("begin_module", 1);
-    d_begin_module2 = in_dict("begin_module", 2);
-    d_record_interface = in_dict("record_interface", 2);
-    d_matching_guard1 = in_dict("-?->", 1);
-    d_matching_guard = in_dict("-?->", 2);
-    d_noskip = in_dict("noskip", 0);
-    d_expand = in_dict("expand", 0);
-    d_noexpand = in_dict("noexpand", 0);
-    d_silent_debug = in_dict("silent_debug", 0);
-    d_tr_clause = in_dict("tr_clause", 3);
     d_erase_module_ = in_dict("erase_module", 1);
-    d_error3_ = in_dict("error", 3);
     d_create_module3_ = in_dict("create_module", 3);
     d_eclipse_language_ = in_dict("eclipse_language", 0);
 
-
-    /*
-     * The eof atom
-     */
-    _eof_pw.tag.kernel = TDICT;
-    _eof_pw.val.did = d_.eof;
 
     /*
      * A suspension which is marked as dead. Any suspension that occurs 
@@ -433,7 +340,7 @@ ec_load_eco_from_stream(stream_id nst, int options, pword *module)
 		pgoal = TG;
 		Push_Struct_Frame(d_.syserror);
 		Make_Integer(&pgoal[1], CODE_UNIT_LOADED);
-		pgoal[2] = _eof_pw;
+		Make_Atom(&pgoal[2], d_.eof);
 		pgoal[3] = *module;
 		pgoal[4] = *module;
 		Make_Struct(&pcont[2], TG);
