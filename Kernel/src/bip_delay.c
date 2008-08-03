@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.2 2008/08/01 15:53:31 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.3 2008/08/03 09:57:16 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1871,7 +1871,9 @@ p_restore_relaxed_priority(value vwl, type twl)
 	int i;
 	pword *p = WLFirst(vwl.ptr);
 	for (i=0; i<SUSP_MAX_PRIO; ++i) {
-	    if (!IsNil(p[i].tag)) {
+	    pword *plist = &p[i];
+	    Dereference_(plist);
+	    if (!IsNil(plist->tag)) {
 		Bip_Error(BAD_RESTORE_WL);
 	    }
 	}
