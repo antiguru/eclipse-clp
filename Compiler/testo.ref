@@ -11480,8 +11480,11 @@ label(5):
 	branch                   ref(6) 
 
 ------ Test bugzilla(68) -------
-xgt0(pinf) :- !
-xgt0(_110) :- integer(_110), _110 > 0
+xgt0(pinf) :-
+	!.
+xgt0(A) :-
+	integer(A),
+	A > 0.
 
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
@@ -11521,12 +11524,28 @@ label(7):
 	ret                  
 
 ------ Test bugzilla(165) -------
-compute_stop(_103) :- var(_103), !, writeln(var)
-compute_stop(1) :- !, writeln(1)
-compute_stop(-1) :- !, writeln(-1)
-compute_stop(_103) :- integer(_103), _103 > 1, !, writeln(pos)
-compute_stop(_103) :- integer(_103), _103 < 0, !, writeln(neg)
-compute_stop(_190) :- writeln(other)
+compute_stop(A) :-
+	var(A),
+	!,
+	writeln(var).
+compute_stop(1) :-
+	!,
+	writeln(1).
+compute_stop(-1) :-
+	!,
+	writeln(-1).
+compute_stop(A) :-
+	integer(A),
+	A > 1,
+	!,
+	writeln(pos).
+compute_stop(A) :-
+	integer(A),
+	A < 0,
+	!,
+	writeln(neg).
+compute_stop(A) :-
+	writeln(other).
 
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.4
@@ -11608,8 +11627,16 @@ label(16):
 
 
 ------ Test bugzilla(408) -------
-dan :- _106 = _107, _106 = 2, write(_107)
-b :- a, _128 = 2, _134 = 3, writeln(_128), c(_134)
+dan :-
+	A = B,
+	A = 2,
+	write(B).
+b :-
+	a,
+	A = 2,
+	B = 3,
+	writeln(A),
+	c(B).
 
 dan / 0:
 label(1):
