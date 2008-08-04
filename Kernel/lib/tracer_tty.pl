@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.2 2008/07/08 20:04:27 jschimpf Exp $
+% Version:	$Id: tracer_tty.pl,v 1.3 2008/08/04 17:55:47 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.2 2008/07/08 20:04:27 jschimpf Exp $
+% $Id: tracer_tty.pl,v 1.3 2008/08/04 17:55:47 jschimpf Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -445,7 +445,7 @@ do_tracer_command(0'>, Current, _, Cont) :- !,
 do_tracer_command(0'+, Current, _N, Cont) :- !,
 	writeln(debug_output, "spy"),
 	get_goal_stack(Current, _, Frame),
-	Frame = tf{goal:Goal,module:M},
+	Frame = tf{goal:Goal},
 	functor(Goal, F, A),
 	get_tf_prop(Frame, module, DM),
 	block(set_flag(F/A, spy, on)@DM, abort, true ) ,
@@ -455,7 +455,7 @@ do_tracer_command(0'+, Current, _N, Cont) :- !,
 do_tracer_command(0'-, Current, _N, Cont) :- !,
 	writeln(debug_output, "nospy"),
 	get_goal_stack(Current, _, Frame),
-	Frame = tf{goal:Goal,module:M},
+	Frame = tf{goal:Goal},
 	functor(Goal, F, A),
 	get_tf_prop(Frame, module, DM),
 	block(set_flag(F/A, spy, off)@DM, abort, true ) ,
