@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.3 2008/07/31 03:18:27 kish_shen Exp $
+% Version:	$Id: debug.pl,v 1.4 2008/08/04 01:52:18 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -174,15 +174,20 @@ set_spypoints(PM:F, M) ?- atom(F), !,
 	set_spypoints(PM:F/_, M).
 set_spypoints(F:L, M) ?- integer(L),  !,
         ( check_atom_string(F) -> true ; error(5, spy(F:L), M) ),
-        ( find_matching_breakport(F, L, FullName, DM, PortPred, PortLine),
-          get_flag(PortPred, break_lines, PInfo)@DM
-	->
-            ( nonmember(FullName:PortLine, PInfo) -> 
-                set_proc_flags(PortPred, break, PortLine, DM),
-                printf(log_output, "breakpoint added to line %d of file %w in"
-                                   " predicate %w%n", [PortLine,FullName,PortPred])
-            ;
-                true
+        ( find_matching_breakport(F, L, FullName, DMs, PortPreds, PortLine) ->
+            ( foreach(DM, DMs), foreach(PortPred, PortPreds),
+              param(PortLine,FullName)
+            do
+                ( get_flag(PortPred, break_lines, PInfo)@DM,
+                  member(FullName0:PortLine, PInfo),
+                  canonical_path_name(FullName0, FullName)
+                ->
+                    true
+                ;
+                    set_proc_flags(PortPred, break, PortLine, DM),
+                    printf(log_output, "breakpoint added to line %d of file %w in"
+                                   " predicate %w%n", [PortLine,FullName,DM:PortPred])
+                )
             )
         ;
             error(6, spy(F:L), M)
@@ -248,13 +253,21 @@ nospy_body(PM:F, M) ?- atom(F), !,
 	nospy_body(PM:F/_, M).
 nospy_body(F:L, M) ?- integer(L), !,
         ( check_atom_string(F) -> true ; error(5, spy(F:L), M) ),
-        ( find_matching_breakport(F, L, FullName, DM, PortPred, PortLine),
-          get_flag(PortPred, break_lines, PInfo)@DM,
-          memberchk(FullName:PortLine, PInfo)
-	->
-            set_proc_flags(PortPred, break, PortLine, DM),
-            printf(log_output, "breakpoint removed from line %d of file %w in"
-                               " predicate %w%n", [PortLine,FullName,PortPred])
+        ( find_matching_breakport(F, L, FullName, DMs, PortPreds, PortLine) ->
+            ( foreach(DM, DMs), foreach(PortPred, PortPreds),
+              param(PortLine,FullName)
+            do
+                ( get_flag(PortPred, break_lines, PInfo)@DM,
+                  member(FullName0:PortLine, PInfo),
+                  canonical_path_name(FullName0, FullName)
+                ->
+                    set_proc_flags(PortPred, break, PortLine, DM),
+                    printf(log_output, "breakpoint removed from line %d of file %w in"
+                                       " predicate %w%n", [PortLine,FullName,DM:PortPred])
+                ;
+                    true
+                )
+            )
         ;
             true
         ).
@@ -332,45 +345,51 @@ current_predicate_with_port(PortType, PredSpec, Module, PortInfo) :-
 	member(PortInfo, PortInfos).
         
 ports_in_file(File, PortType, List) :-
-        findall(port(Line,M,P), (
-                current_predicate_with_port(PortType, P, M, File:Line)
+        % use Line-M to allow different modules to reuse the file
+        findall(port(Line-M,P), (
+                current_predicate_with_port(PortType, P, M, File0:Line),
+                % make sure we are comparing canonical names for this machine
+                canonical_path_name(File0, File)
              ), List0),
         sort(1,<, List0, List).
 
 current_files_with_port_lines(Files) :-
         findall(OSF, (
-                current_predicate_with_port(port_lines, _, _, F:_),
+                current_predicate_with_port(port_lines, _, _, F0:_),
+                canonical_path_name(F0, F),
                 os_file_name(F, OSF)
               ), Files0),
         sort(0, <, Files0, Files).
 
-find_best_port([], Line, File, LastPort, DM, PortPred, PortLine) :-
-        LastPort = port(PortLine,DM,PortPred).
-find_best_port([Port0|PortList0], Line, File, LastPort, DM, PortPred, PortLine) :-
-        Port0 = port(Line0,DM0,Pred0),
+find_best_port([], Line, File, LastPort, PortLine) :-
+        LastPort = port(PortLine-_DM,_PortPred).
+find_best_port([Port0|PortList0], Line, File, LastPort, PortLine) :-
+        Port0 = port(Line0-_DM0,Pred0),
         ( Line0 =:= Line ->
-            DM = DM0, PortPred = Pred0, PortLine = Line0
+            PortLine = Line0
         ; Line0 > Line ->
            /* decide if LastPort or Port0 is the better port */
-            ( LastPort = port(LastLine,LastDM,LastPred) ->
-                ( Pred0 \= LastPred, get_flag(Pred0, source_file, File) ->
+            ( LastPort = port(LastLine-_LastDM,LastPred) ->
+                ( Pred0 \= LastPred, get_flag(Pred0, source_file, File0),
+                  canonical_path_name(File0, File)
+                ->
                     % start of predicate is in same file as Port0 
                     get_flag(Pred0, source_line, StartLine0),
                     (StartLine0 > Line ->
                         /* assume Pred0 starts after Line, use LastPort */
-                        DM = LastDM, PortPred = LastPred, PortLine = LastLine
+                        PortLine = LastLine
                                                                    
                     ;
-                        DM = DM0, PortPred = Pred0, PortLine = Line0
+                        PortLine = Line0
                     )
                 ;
-                    DM = DM0, PortPred = Pred0, PortLine = Line0
+                    PortLine = Line0
                 )
             ;
-                DM = DM0, PortPred = Pred0, PortLine = Line0
+                PortLine = Line0
             )
         ; /* Line0 < Line */
-           find_best_port(PortList0, Line, File, Port0, DM, PortPred, PortLine)
+           find_best_port(PortList0, Line, File, Port0, PortLine)
         ).
 
 get_portlist_from_file(F, PortType, File, PortsList) :-
@@ -380,9 +399,21 @@ get_portlist_from_file(F, PortType, File, PortsList) :-
         once(existing_file(File1, Ss, [readable], File)), 
         ports_in_file(File, PortType, PortsList).
 
-find_matching_breakport(File, Line, FullFile, DM, PortPred, PortLine) :-
+find_matching_breakport(File, Line, FullFile, DMs, PortPreds, PortLine) :-
         get_portlist_from_file(File, port_lines, FullFile, PortsList),
-        find_best_port(PortsList, Line, FullFile, none, DM, PortPred, PortLine).
+        find_best_port(PortsList, Line, FullFile, none, PortLine), 
+        find_all_ports_at_line(PortsList, PortLine, DMs, PortPreds).
+
+find_all_ports_at_line([port(Line0-DM0,Pred0)|Ports], Line, DMs, Preds) :-
+        ( Line0 < Line ->
+            find_all_ports_at_line(Ports, Line, DMs, Preds)
+        ; Line0 == Line ->
+            DMs =[DM0|DMs1], 
+            Preds = [Pred0|Preds1],
+            find_all_ports_at_line(Ports, Line, DMs1, Preds1)
+        ; /* Line0 > Line */
+            DMs = [], Preds = []
+        ).
 
 %--------------------------------------------------------
 

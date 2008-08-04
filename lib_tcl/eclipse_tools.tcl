@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.22 2008/08/01 10:46:27 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.23 2008/08/04 01:53:56 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3421,15 +3421,6 @@ proc tkecl:vscroll-sync {windowlist y0 y1} {
     after idle {catch {unset tkecl(disableSyncing)}}
 }
 
-
-proc tkecl:toggle_breakpoint {t} {
-    global tkecl
-
-    set line [tkecl:get_current_text_line $t]
-    tkecl:set_breakpoint toggle $tkecl(source_debug,file) $line
-
-}
-
 proc tkecl:popup_sourcetext_menu {t x y} {
     global tkecl
 
@@ -3445,9 +3436,6 @@ proc tkecl:popup_sourcetext_menu {t x y} {
 
     set xypos [winfo pointerxy .ec_tools.ec_tracer]
     set line [tkecl:get_current_text_line $t]
-#    $m add command -label "Set breakpoint near line $line" -command [list tkecl:set_breakpoint on $tkecl(source_debug,file) $line] 
-#    $m add command -label "Unset breakpoint near line $line" -command [list tkecl:set_breakpoint off $tkecl(source_debug,file) $line]
-#    $m add separator
     $m add command -label "Find..." -command "tkecl:show-find source_debug .ec_tools.ec_tracer.tab.source.context.text .ec_tools.ec_tracer"
 #    menu $ec_source.control.preds.menu
     $m add cascade -label "Display Predicate..." -menu $m.predmenu
@@ -3552,9 +3540,11 @@ proc tkecl:display_source_output {stream {length {}}} {
     ec_stream_to_window {} .ec_tools.ec_tracer.tab.source.context.text.subtext.text $stream
 }
 
-proc tkecl:set_breakpoint {tostate file line} {
+proc tkecl:toggle_breakpoint {t} {
+    global tkecl
 
-    set result [ec_rpc [list : tracer_tcl [list set_source_breakpoint $tostate $file $line _ _ _]] {(()(()()I___))}]
+    set line [tkecl:get_current_text_line $t]
+    set result [ec_rpc [list : tracer_tcl [list toggle_source_breakpoint $tkecl(source_debug,file) $line _ _ _]] {(()(()I___))}]
     if [winfo exists .ec_tools.ec_tracer] {
 	set parent .ec_tools.ec_tracer
     } else {
@@ -3572,9 +3562,9 @@ proc tkecl:set_breakpoint {tostate file line} {
 	}
 	default {
 	    set returned [lindex $result 2]
-	    set breakline [lindex $returned 4]
-	    set old_style [lindex $returned 5]
-	    set new_style [lindex $returned 6]
+	    set breakline [lindex $returned 3]
+	    set old_style [lindex $returned 4]
+	    set new_style [lindex $returned 5]
 	    set ec_breakstatus .ec_tools.ec_tracer.tab.source.context.status
 
 	    $ec_breakstatus tag remove $old_style $breakline.0 $breakline.end

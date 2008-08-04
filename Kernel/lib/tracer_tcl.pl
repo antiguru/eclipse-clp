@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.4 2008/07/31 03:18:26 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.5 2008/08/04 01:52:18 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -118,7 +118,7 @@
         set_usepred_info/5,
         reenable_usepred/0,
         set_tracer_command/1,
-	set_source_breakpoint/6,
+	toggle_source_breakpoint/5,
 	file_is_readable/1,
 	read_file_for_gui/1,
         breakpoints_for_file/4,
@@ -1924,54 +1924,63 @@ read_file_for_gui(OSFile) :-
         flush(gui_source_file),
         close(S).
 
-set_source_breakpoint(ChangeToType, OSFile, Line, PortLine, From, To) :-
+toggle_source_breakpoint(OSFile, Line, PortLine, From, To) :-
         os_file_name(File, OSFile),
-        find_matching_breakport(File, Line, FullName, DM, PortPred, PortLine),
-        get_flag(PortPred, break_lines, PInfo)@DM,
-        portline_state(FullName:PortLine, PInfo, From), 
-        ( portline_state_should_toggle(ChangeToType, From) ->
-            (From == on -> To = off ; To = on),
-            set_proc_flags(PortPred, break, PortLine, DM)
-        ;
-            From = To
+        find_matching_breakport(File, Line, FullName, DMs, PortPreds, PortLine),
+        ( foreach(PortPred, PortPreds), foreach(DM, DMs),
+          param(FullName, PortLine, From, To)
+        do
+            get_flag(PortPred, break_lines, PInfo)@DM,
+            ( portline_state(FullName, PortLine, PInfo, From) ->
+                (From == on -> To = off ; To = on),
+                set_proc_flags(PortPred, break, PortLine, DM)
+            ;
+                % don't toggle if there is a difference in break status 
+                true 
+            )
         ).
 
-    portline_state(PortSpec, PInfo, From) :-
-        (memberchk(PortSpec, PInfo) -> From = on ; From = off).
-
-    portline_state_should_toggle(toggle, _).
-    portline_state_should_toggle(off, on).
-    portline_state_should_toggle(on, off).
+    portline_state(File,Line, PInfo, From) :-
+        (member(File0:Line, PInfo), canonical_path_name(File0,File) -> 
+            From = on 
+        ; 
+            From = off
+        ).
 
 breakpoints_for_file(OSFile, BreakLines, PortLines, Preds) :-
         os_file_name(File, OSFile),
         get_portlist_from_file(File, port_lines, _, Ports),
         get_portlist_from_file(File, break_lines, _, Breaks),
-        ( foreach(port(PL,_,PredSpec), Ports), 
+        ( foreach(port(PL-_,PredSpec), Ports), 
           foreach(PL, PortLines), foreach((PredString,PL), Preds0) 
         do 
             term_string(PredSpec, PredString)
         ),
-        ( foreach(port(BL,_,_), Breaks), foreach(BL, BreakLines) do true),
+        ( foreach(port(BL-_,_), Breaks), foreach(BL, BreakLines) do true),
         sort(1, <, Preds0, Preds).
 
 find_matching_callinfo(OSFile, Line, PortPredS, CallSpec) :-
         os_file_name(File, OSFile),
-        find_matching_breakport(File, Line, FullName, DM, PortPred, PortLine),
+        % ignore problem with possible multiple modules for the same file
+        find_matching_breakport(File, Line, FullName, [DM|_], [PortPred|_], PortLine),
         get_flag(PortPred, port_lines, LInfos)@DM,
         get_flag(PortPred, port_calls, CInfos)@DM,
-        term_string(PortPred, PortPredS),
+        term_string(PortPred, PortPredS), 
         get_callinfo(FullName:PortLine, LInfos, CInfos, CallSpec).
 
 find_exact_callinfo(OSFile, Line, CallSpec) :-
-        % OSFile must be `canonical' [may be in OS format] and is an atom
-        os_file_name(File, OSFile),
-        current_predicate_with_port(port_lines, PredSpec, Module, File:Line),
+        % OSFile must be an atom
+        os_file_name(File0, OSFile),
+        canonical_path_name(File0, File),
+        current_predicate_with_port(port_lines, PredSpec, Module, File1:Line),
+        canonical_path_name(File1, File),
+        !,
         get_flag(PredSpec, port_lines, LInfos)@Module,
         get_flag(PredSpec, port_calls, CInfos)@Module,
         get_callinfo(File:Line, LInfos, CInfos, CallSpec).
                 
-get_callinfo(File:Line, [File:Line|_], [CallSpec|_], CallSpec) :- !.
+get_callinfo(File:Line, [File0:Line|_], [CallSpec|_], CallSpec) :- 
+        canonical_path_name(File0, File), !.
 get_callinfo(PredPos, [_|PInfos], [_|CInfos], CallSpec) :-
         get_callinfo(PredPos, PInfos, CInfos, CallSpec).
 
