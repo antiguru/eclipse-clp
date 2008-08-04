@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: paddy.pl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% Version:	$Id: paddy.pl,v 1.2 2008/08/04 10:28:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %                   The PADDY system.
@@ -33,6 +33,7 @@
 
 :- pragma(deprecated_warnings(off)).
 :- pragma(undeclared_warnings(off)).
+:- pragma(nowarnings).	% lots of singleton variables in this file!
 
 :- local (help)/0.
 
