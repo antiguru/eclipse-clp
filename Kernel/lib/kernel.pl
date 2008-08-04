@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.12 2008/08/01 15:44:52 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.13 2008/08/04 17:51:31 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -4332,7 +4332,12 @@ inherit_annotation(_TermOut, In, _Out) :- var(In), !.
 inherit_annotation(TermOut,
 	    annotated_term(_TermIn,_TypeIn,File,Line,From,To),
 	    annotated_term(TermOut,TypeOut,File,Line,From,To)) :-
-	type_of(TermOut, TypeOut).
+	( var(TermOut), get_var_info(TermOut, name, Name) ->
+	    % try to add the variable name if it is available from the parser
+	    TypeOut = var(Name)
+	;
+	    type_of(TermOut, TypeOut)
+	).
 
 
 tr_goals_annotated(Var, Ann, Var, Ann, _) :- var(Var), !.
@@ -4683,10 +4688,20 @@ nested_compile_term_(Clauses, Module) :-
 nested_compile_term_annotated_(Clauses, AnnClauses, Module) :-
 	getval(compile_stack, Stack),
 	( Stack = [Top|_] ->
-	    copy_term(Top, args(Clauses,AnnClauses)-Goal),
+	    copy_term(Top, Args-Goal),
+	    arg(1, Args, Clauses),
+	    arg(2, Args, AnnClauses),
 	    call(Goal)@Module
 	;
 	    ecl_compiler:compile_term_(Clauses, Module)
+	).
+
+nested_compile_load_flag(Loading) :-
+	getval(compile_stack, Stack),
+	( Stack = [Args-_Goal|_], arity(Args) >= 3 ->
+	    arg(3, Args, Loading)
+	;
+	    Loading = all
 	).
 
 register_compiled_stream(Stream) :-
@@ -6199,7 +6214,17 @@ t_do(Illformed, _, _, _, M) :-
     aux_pred_name(Module, Arity, Name) :- var(Name),
 	store_inc(name_ctr, Module),
 	store_get(name_ctr, Module, I),
-	concat_atom([do__,I], Name).
+	concat_atom([do__,I], Name0),
+	( nested_compile_load_flag(all), is_predicate(Name0/Arity)@Module ->
+	    % Avoid name clashes (should only happen when a .eco file
+	    % has been loaded into this module earlier)
+	    aux_pred_name(Module, Arity, Name)
+	;
+	    % No name clash: ok.
+	    % Name clash, but not loading: use same name to get reproducible
+	    % .eco files when using compile(..., [output:eco,load:none])
+	    Name = Name0
+	).
 
 
     write_clauses([]).

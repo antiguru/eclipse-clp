@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.12 2008/07/29 18:00:43 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.13 2008/08/04 17:48:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/07/29 18:00:43 $").
+:- comment(date,	"$Date: 2008/08/04 17:48:30 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -243,8 +243,8 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
     load_compiled_code(Pred, WAM, CodeSize, Flags, SourcePos, Options, Module) :-
 	( ( Options = options{load:all} ; Options = options{load:new}, \+ is_predicate(Pred)@Module) ->
 	    % double negation, because asm binds the labels
-	    message("Assemble and load", 2, Options),
-	    \+ \+ block(asm(Pred, WAM, Flags)@Module, _, true),
+	    message("Asm and load", 2, Options),
+	    \+ \+ asm(Pred, WAM, Flags)@Module,
 	    get_flag(Pred, code_size, CodeSize)@Module,
 	    set_pred_pos(Pred, SourcePos, Options, Module)
 	;
@@ -253,7 +253,6 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
 
 
     output_compiled_code(Pred, WAM, Clauses, CodeSize, Flags, SourcePos, Options, Module) :-
-	message("Output", 2, Options),
 	( Options = options{output:print} ->
 	    printf("%w:%n", [Pred]),
 	    print_wam(WAM)
@@ -267,6 +266,7 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
 	    writeln(Stream, --------------------)
 
 	; Options = options{output:eco_to_stream(Stream)} ->
+	    message("Asm", 2, Options),
 	    pasm(WAM, CodeSize, BTPos, Codes),
 	    ( portable_object_code(Codes) ->
 		true
@@ -286,10 +286,12 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
 	    ;
 		QStorePred = sepia_kernel:StorePred
 	    ),
+	    message("Output", 2, Options),
 	    printf(Stream, "%ODQKw.%n", [:-QStorePred])@Module
     
 
 	; Options = options{output:asm_to_stream(Stream)} ->
+	    message("Output", 2, Options),
 	    pretty_print_asm(WAM, Stream, Pred, Flags, Module)
 
 	; Options = options{output:none} ->
@@ -603,7 +605,8 @@ compile_source(Source, OptionListOrModule, CM) :-
 	( source_open(Source, [with_annotations|OpenOptions], SourcePos0)@Module ->
 	    SourcePos0 = source_position{stream:Stream,file:CanonicalFile},
 	    get_stream_info(Stream, device, Device),
-	    register_compiler(args(Term,Ann)-(ecl_compiler:compile_term_annotated(Term,Ann,Options))),
+	    Options = options{load:Loading},
+	    register_compiler(args(Term,Ann,Loading)-(ecl_compiler:compile_term_annotated(Term,Ann,Options))),
 	    hash_create(PredsSeen),
 	    (
 		fromto(begin, _, Class, end),
