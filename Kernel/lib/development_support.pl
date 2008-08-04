@@ -22,11 +22,11 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: development_support.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: development_support.pl,v 1.2 2008/08/04 01:13:40 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
-% $Id: development_support.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% $Id: development_support.pl,v 1.2 2008/08/04 01:13:40 kish_shen Exp $
 %
 
 %----------------------------------------------------------------------
@@ -167,6 +167,7 @@ print_source(Stream, N/A, M) :-
 	!.
 
     same_functor(Head :- _, N, A) ?- functor(Head, N, A).
+    same_functor(Head ?- _, N, A) ?- functor(Head, N, A).
     same_functor(Head, N, A) ?- functor(Head, N, A).
 
     echo_source(InStream, From, To, OutStream) :-
