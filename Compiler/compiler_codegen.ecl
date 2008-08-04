@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.20 2008/08/01 15:54:05 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.21 2008/08/04 17:46:37 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/08/01 15:54:05 $").
+:- comment(date, "$Date: 2008/08/04 17:46:37 $").
 
 
 :- lib(hash).
@@ -221,7 +221,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 	    start_new_chunk(EAM, ChunkData3, ChunkData)
 
 	; Goal = disjunction{branches:Branches, branchlabels:BranchLabelArray, determinism:Det,
-		entrymap:EAM, entrysize:EntryESize, exitmap: DisjExitEAM, exitsize:ExitESize,
+		entrymap:_EAM, entrysize:EntryESize, exitmap: DisjExitEAM, exitsize:ExitESize,
 		arity:TryArity, args:Args, branchheadargs:HeadArgsArray,
 		branchentrymaps:BranchEamArray, branchinitmaps:BranchExitInits,
 		indexes:IndexDescs} ->
@@ -387,7 +387,7 @@ emit_call_regular(CallInstr, RegDescs, QPred, Goal, Code, Code0, options{debug:D
 	    ;
 		Goal = goal{path:Path,line:Line,from:From,to:To},
 		Code = [code{instr:debug_call(QPred,#call_port,Path,Line,From,To),regs:RegDescs},
-			code{instr:CallInstr,regs:OutArgs1}|Code0]
+			code{instr:CallInstr,regs:[]}|Code0]
 	    ).
 
 
