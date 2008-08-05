@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.24 2008/08/05 02:13:48 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.25 2008/08/05 14:11:33 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3634,13 +3634,22 @@ proc tkecl:handle_source_debug_print {stream {length {}}} {
 	regexp {^[0-9]+[.]([0-9]+)} [$ec_sourcecon.text index [expr $lastline-1].end] whole  lastchar
 	# actual number of lines is one less than end if there is a newline
 	if {$lastchar == 0} {
+	    set terminating_nl 1
 	    incr lastline -1 
+	} else {
+	    set terminating_nl 0
 	}
+        # this only works if the source has at least 1 line!
 	set sstuff {}
-	set lstuff {}
-	for {set i 1} {$i < $lastline} {incr i} {
+	set lstuff {1}
+	for {set i 2} {$i < $lastline} {incr i} {
 	    append sstuff "\n"
-	    append lstuff "$i\n"
+	    append lstuff "\n$i"
+	}
+	# only add a terminating  newline if the source file has one
+	if {$terminating_nl == 1} {
+	    append sstuff "\n"
+	    append lstuff "\n"
 	}
 
 	$ec_sourcecon.status insert end $sstuff
