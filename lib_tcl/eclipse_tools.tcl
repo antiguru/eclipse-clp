@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.23 2008/08/04 01:53:56 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.24 2008/08/05 02:13:48 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3359,6 +3359,7 @@ proc tkecl:setup_source_debug_window {} {
     bind $ec_source.context.text <Any-Key> "tkecl:readonly_keypress %A"
     bind $ec_source.context.text <ButtonRelease-2> {break}
     bind $ec_source.context.text <Button-3> "tkecl:popup_sourcetext_menu $ec_source.context.text %X %Y; break"
+    bind $ec_source.context.text <Control-Button-1> "tkecl:popup_sourcetext_menu $ec_source.context.text %X %Y; break"
     $ec_source.context.text tag configure call_style -foreground #7070ff \
 	-underline 1 -font tkeclmonobold
     $ec_source.context.text tag configure exit_style -foreground #00b000 \
@@ -3453,12 +3454,27 @@ proc tkecl:popup_sourcetext_menu {t x y} {
 	set callspec [lindex $callport 2]
 	set callname [lindex $callspec 1]
 	set callarity [lindex $callspec 2]
-	$m add command -state disabled -label "Nearest tracable call:\n$callname/$callarity in $parent"
-	$m add command -label "Show source for the predicate called" -command \
+	$m add command -state disabled -label "Nearest tracable call\n$callname/$callarity in $parent"
+	$m add command -label "Show source for this predicate" -command \
 	    "tkecl:display_port_call_source $calldefmodule {$callspec} $xypos"
+	$m add command -label "Show predicate property for ths predicate" \
+	    -command [list tkecl:show_pred_prop $calldefmodule $callspec]
     }
     tk_popup $m $x $y
 }
+
+proc tkecl:show_pred_prop {module callspec} {
+    global tkecl
+
+    set tkecl(predproppred) [lindex [ec_rpc [list term_string $callspec _] {((()I)_)}] 2]
+puts pred-$tkecl(predproppred)
+    set tkecl(predpropmodule) $module
+
+    tkecl:popup_pred_prop
+    tkecl:display_predicates dummy
+    tkecl:display_predprops .ec_tools.predprop.preds
+}
+
 
 proc tkecl:display_port_call_source {module callspec x y} {
     if {[tkecl:check_port_call_source $module $callspec] == 0} {
