@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: umsdebug.tex,v 1.3 2007/02/24 05:07:54 kish_shen Exp $
+% $Id: umsdebug.tex,v 1.4 2008/08/05 02:05:05 kish_shen Exp $
 %
 
 \chapter{Debugging}
@@ -207,6 +207,30 @@ commands are explained using an excerpt of a debugger session.  In
 these examples, the user input is always underlined (it is in fact
 not always output as typed) to distinguish it from the computer output.
 
+\subsection{Breakpoints}
+
+Breakpoints can be set on specific calls to a predicate, i.e. on a specific
+body goal in the source, so that the
+debugger will stop only at a CALL port only when that specific body goal is 
+executed. A breakpoint is specify by giving the source file and the line
+number where the body goal is. 
+
+For example, if the following predicate is in a file called \verb'newtop',
+with the following line numbers:
+
+\begin{verbatim}
+  243  check_words([],[]).
+  244  check_words([Word|Words],[RevWord|RevWords]) :-
+  245     check_words(Words,RevWords).
+\end{verbatim}
+
+The breakpoint for the body goal verb'check_words(Words,RevWords)' would be
+\verb'newtop:245'. Note that the file name must be sufficiently specified 
+for ECLiPSe to find the file from your current working directory.
+
+For a call that has a breakpoint set, the execution will stop when the call
+is made, i.e. at the CALL port for that specific body goal.
+
 \section{Format of the Tracing Messages}
 All trace messages are output to the
 {\bf debug_output} stream.
@@ -231,7 +255,8 @@ subgoals are not traced
 %\item N - a procedure compiled in non-debug mode, i.e. behaves like skipped.
 \end{itemize}
 
-\item A '+' displayed here shows that the procedure has a spy point set.
+\item A '+' displayed here shows that the procedure has a spy point set,
+  and a '\#' shows that the specific call has a break-point set..
 \index{spy point}
 
 \item The number between parentheses shows the box invocation number
@@ -445,7 +470,7 @@ from the toplevel with the commands
 \bipref{notrace/0}{../bips/kernel/debug/notrace-0.html}, or by
 typing {\bf n} or {\bf N} to the debugger prompt.
 
-A spy point can be set on a procedure using
+A spy point can be set on a procedure, or a breakpoint on a specific call,  using
 \bipref{spy/1}{../bips/kernel/debug/spy-1.html} (which will
 \index{spy point} also switch the debugger to {\it leap})
 and removed
