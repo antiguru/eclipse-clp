@@ -90,14 +90,14 @@ debugging session as debugging someone else's code, not all of which
 needs to be understood.
 
 The program used here is included with your {\eclipse} distribution. You
-should find it under the \texttt{Examples/tutorial} directory. You can
-change to the \texttt{Examples} directory in {\tkeclipse} using the
+should find it under the \texttt{doc/examples/tutorial} directory. You can
+change to the \texttt{examples} directory in {\tkeclipse} using the
 \menuopt{Change to example directory} option from the \menu{File} menu.
 
 The final step in this debug tutorial is to edit the buggy program and
 correct it. If you want to do this, you should copy the distributed version
 of the program elsewhere so that you don't edit the original. You need to
-copy the following files from \verb'Examples/tutorial' to another directory:
+copy the following files from \verb'examples/tutorial' to another directory:
 
 \begin{quote}\begin{verbatim}
 debugdemo.ecl  mapcolour.ecl mapdebugdemo.tcl buggy_data.map
@@ -155,7 +155,7 @@ Type return when  \verb'colour' appears in the query window again.
 \begin{latexonly}
 \begin{figure}
 \begin{center}
-\resizebox{0.4\textwidth}{!}{\includegraphics{tktracer.ps}}
+\resizebox{0.35\textwidth}{!}{\includegraphics{tktracer.ps}}
 \end{center}
 \caption{The Tracer Tool}
 \label{tktracer}
@@ -185,7 +185,9 @@ The trace lines displayed by the tracer has the following:
 
 \end{code}
 \begin{enumerate}
-\item A '+' displayed here shows that the procedure has a spy point set.
+\item A '+' displayed here shows that the procedure has a spy point
+  set. For a CALL port, a '\#' could be displayed in this position, which
+  shows a breakpoint is set for the call.
 \item The invocation number of this goal, which uniquely
   identifies it. The `To Invoc:' button can be used to jump to the next port with
   the specified invocation number. 
@@ -210,13 +212,14 @@ Prolog debugger, it stops at  `debug ports' of predicates that are
 executed.
 \See{See the Debugging chapter in the User Manual for more details on the
   model used in Prolog debuggers.}
-Currently,
+At the start of tracing,
 it is stopped at the call port of the query \verb'colour'. The buttons in
 the middle of the tool are for debugger commands. Try pressing
 \button{Creep} several times, and you should observe something similar to
 Figure~\ref{tktracer}. Unlike the traditional debugger, the execution trace
-is shown on two text windows: the bottom `Trace Log' window, which shows
-a log of the debugger ports much as a traditional debugger does; and the
+is shown on two text windows: the bottom `Source Context' view, showing the
+execution of the program in the context of the source, highlighting the
+body goal that corresponds to the goal at the debug port; and the
 top `Call Stack' window, showing the ancestors (`call stack') of the
 current goal, which is updated at each debug port. The goals are
 displayed with different colours: blue for a call port, green (success) for
@@ -224,7 +227,9 @@ an exit port. Red (failure) for a fail port. Note that in the call
 stack, the ancestor goals are displayed in black: this indicates that the
 goal is not `current', i.e.\ the bindings shown are as they were when the
 goal was called, and not necessarily what they are now. We will show how
-these bindings can be `refreshed' later on.
+these bindings can be `refreshed' later on. Note that the bottom windowc
+can ne switched between the source context view, and a more traditional
+`Trace Log' view, which shows a log of the debugger ports much as a traditional Prolog debugger does.
 
 To avoid stepping through the whole program, we will add a spy-point to a
 predicate that may be causing the problem. Spy-points can be added in the
@@ -250,8 +255,8 @@ hand side should display the properties of this predicate:
 \index{predicate browser, development tool}
 
 We can now view the source code for the predicate by clicking on the
-\button{Show source} button, which opens a source display window to show the
-source of the selected predicate. The code for the predicate is:
+\button{Show source} button, which will show the selected predicate's source in
+the source context view. The code for the predicate is:
 
 \begin{code}
 not_same_colour(Solver, C1-C2, Countries) :-
@@ -394,8 +399,8 @@ display in the right panel below. You may need to scroll
 down to see the whole list:
 
 \begin{center}
-\parbox{0.5\textwidth}{\resizebox{0.48\textwidth}{!}{\includegraphics{tkinspect.ps}}}
-\parbox{0.5\textwidth}{\resizebox{0.48\textwidth}{!}{\includegraphics{tkinspect2.ps}}}
+\parbox{0.49\textwidth}{\resizebox{0.48\textwidth}{!}{\includegraphics{tkinspect.ps}}}
+\parbox{0.49\textwidth}{\resizebox{0.48\textwidth}{!}{\includegraphics{tkinspect2.ps}}}
 
 \vspace{3mm}
 {\bf Using the Inspector}
@@ -485,7 +490,36 @@ between countries 3 and 4.
 \begin{sloppypar}
  We can fix the program by editing
 the file \verb'buggy_data.map' and adding the neighbour(4, 3) line back.
-First, we end our current debugging session by
+TkECLiPSe does not provide an integrated editor itself, so you need to use
+some external editor, such as emacs, vi, or wordpad to edit the program. 
+You can tell \eclipse which editor you want to use, so that you can invoke
+the editor from within \eclipse. For example, from the source context view
+window of the tracer, you can invoke an editor to edit the file being
+\begin{figure}
+\begin{center}
+\resizebox{0.3\textwidth}{!}{\includegraphics{tksoucontext.ps}}
+\end{center}
+\caption{Invoking an editor}
+\label{tkeditor}
+\end{figure}
+displayed. Holding down your right mouse button in the source context
+window will popup a menu, as shown in figure~\ref{tkeditor}. Select ``Edit
+this file'' option will invoke your specified editor to edit the file, and if
+possible, the file will be opened showing the line where your mouse pointer
+was when you popup the menu (line 24 in this example).
+
+\Note{
+You can specify an editor to use with \eclipse using the Tkpreference
+editor tool from the Tools menu. Fill in the entry for ``Text editor to use''
+with the editor you want to use -- this should be the command that you will
+type in a command line to invoke your editor. In addition, if your editor
+supports it, you can fill in
+the ``Editor's command line option to start at a specific line'' with the
+command line option that will cause the editor to open the file at a
+certain line.
+}
+
+To run the corrected program, we first end our current debugging session by
 closing the tracer window. You can see from the map display that the
 execution continues until a solution is produced. 
 Pressing \button{Done} on the map display will return control to
@@ -509,7 +543,8 @@ while the mouse cursor is over it:
 \item[left-click] selects the object. 
 \item[double (left)-click] `opens' the object. This can mean expanding it
 (e.g. in the inspector), or calling the inspector on it (e.g.\ on a goal in
-the call stack).
+the call stack), or showing the source for a goal (e.g. in the source
+context view).
 \item[Right-click and hold]  Opens a menu which gives
 further option/information on the object.
 \end{description}
@@ -548,9 +583,11 @@ compiled. Equivalent to {\tt [user]} in command line {\eclipse}.
 \subsection{Delayed Goals Viewer}
 \index{delayed goals viewer, development tool}
 
-\resizebox{0.8\textwidth}{!}{\includegraphics{tkdelayedann.eps}}
+\resizebox{0.7\textwidth}{!}{\includegraphics{tkdelayedann.eps}}
 \subsection{Tracer}
 \index{tracer, development tool}
+\resizebox{0.75\textwidth}{!}{\includegraphics{tktracersourceann.eps}}
+
 \resizebox{0.8\textwidth}{!}{\includegraphics{tktracerann.eps}}
 
 \menu{Options} menu options:

@@ -165,9 +165,10 @@ A3 + B3 + C3 + D3 & \leq & 40\\
 
 \section{How to load the library}
 
-To use the library, you must have an MP solver that eplex can use 
-(for example,
-XPRESS-MP or CPLEX). Your {\eclipse} should be configured to load in a
+To use the library, you must have an MP solver that eplex can use. This
+can be an open-source solver such as the COIN-OR project's CLP/CBC solvers,
+which is distributed with ECLiPSe, or a commercial solver such as 
+XPRESS-MP or CPLEX. Your {\eclipse} should be configured to load in a
 `default' solver if there is more than one available. 
 
 \See{See the library
@@ -182,11 +183,7 @@ When configured properly, the library can be loaded with the directive:
 \noindent
 This will load the library with the default external MP solver.
 
-You may need a valid license in order to use an external solver. With your
-{\eclipse} license, you can obtain a full OEM version of
-XPRESS-MP\footnote{XPRESS-MP is a product from Dash Associates
-Ltd. (www.dashoptimization.com)} that
-runs with {\eclipse} version 5.5 and later from {\eclipse}'s ftp site.
+You probably need a valid license in order to use an external commercial solver.
 
 \section{Modelling MP problems in {\eclipse}}
 \label{mpmodelling}
