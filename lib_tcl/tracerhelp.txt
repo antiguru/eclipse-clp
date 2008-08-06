@@ -209,11 +209,9 @@ If there are ports where breakpoints can be added, the menu has the following
 additional entry:
     - information on this nearest port: the Name/Arity and definition module
       of the call, the predicate where the call is in.
-    - show the source for the predicate being called. This source is shown
-      in a new window, to allow the user to see both the source of the
-      called predicate, and the source context for the call. 
-
-
+    - show predicate property for the predicate being called: select and
+      display the predicate representing the call in the Predicate Property 
+      tool.
 
 Source will only be shown if the code was compiled with source support. The
 full path name is used to find the source file, so it should be in the same

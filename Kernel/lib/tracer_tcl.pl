@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.5 2008/08/04 01:52:18 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.6 2008/08/06 14:27:05 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -101,7 +101,6 @@
 	gui_help_string/2,
 	gui_dg/3,
         get_triggers/1,
-	print_source_string/3,
         get_source_info/4,
 	flag_value/4,
 	record_source_file/1,
@@ -1601,10 +1600,6 @@ record_source_file(XFile) :-
 	atom_string(File3, File2),
 	( recorded(new_source_files, File3) -> true
 	; record(new_source_files, File3) ).
-
-print_source_string(Pred, SourceStream, M) :-
-	print_source(SourceStream, Pred, M),
-	flush(SourceStream).
 
 get_source_info(PredS, M, OSFile, Offset) :-
         term_string(N/A, PredS),
