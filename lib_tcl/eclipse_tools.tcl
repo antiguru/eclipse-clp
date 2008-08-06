@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.26 2008/08/06 14:25:45 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.27 2008/08/06 16:12:07 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -1775,8 +1775,12 @@ proc tkecl:handle_trace_line {stream {length {}}} {
     set trace_info [ec_read_exdr [ec_streamnum_to_channel $stream]]
     if {[llength $trace_info] == 0} {
 	# start of new trace session
-	# make sure source file is reloaded
-	set tkecl(source_debug,file) ""
+	# make sure current source file is reloaded
+	# cannot simply set file to "" as we may need the file name (for
+        # placing breakpoints etc.)
+	if {$tkecl(source_debug,file) != ""} {
+	    tkecl:load_source_debug_file $tkecl(source_debug,file)
+	}
 	return
     }
     set depth [lindex $trace_info 0]
@@ -3547,7 +3551,7 @@ proc tkecl:toggle_breakpoint {t} {
 
     switch $result {
 	fail {
-	    tk_messageBox  -parent $parent -type ok -message "No breaklines found in file $file"
+	    tk_messageBox  -parent $parent -type ok -message "No break ports found in file $tkecl(source_debug,file)"
 
 	}
 	throw {

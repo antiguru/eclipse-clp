@@ -41,7 +41,7 @@ init(N) :-
         (for(I,1,N) do 
              remote_connect_setup(localhost/Port, Peer, Sock),
              % start the remote peer program...
-             exec(["example_multi.tcl", "--", "-h", "localhost", "-p", Port],
+             exec([wish,"example_multi.tcl", "--", "-h", "localhost", "-p", Port],
                   [], _Pid),
              (remote_connect_accept(Peer, Sock, 10, post_attach(Peer), "", _) ->
                   true ; close(Sock)
