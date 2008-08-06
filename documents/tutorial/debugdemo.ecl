@@ -50,7 +50,7 @@ post_attach(S) :-
 
 colour :-
         remote_connect_setup(localhost/Port, Peer, Sock),
-        exec_mapdisplay(Pid, Port),
+        exec_mapdisplay(_Pid, Port),
         (remote_connect_accept(Peer, Sock, 10, post_attach(Peer), "", _) ->
             block(colouring1(prolog, input_order, indomain, 4, _), _,  true)
         ;
