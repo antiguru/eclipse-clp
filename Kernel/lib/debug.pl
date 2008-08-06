@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.4 2008/08/04 01:52:18 kish_shen Exp $
+% Version:	$Id: debug.pl,v 1.5 2008/08/06 16:32:02 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -361,10 +361,10 @@ current_files_with_port_lines(Files) :-
               ), Files0),
         sort(0, <, Files0, Files).
 
-find_best_port([], Line, File, LastPort, PortLine) :-
+find_best_port([], _Line, _File, LastPort, PortLine) :-
         LastPort = port(PortLine-_DM,_PortPred).
 find_best_port([Port0|PortList0], Line, File, LastPort, PortLine) :-
-        Port0 = port(Line0-_DM0,Pred0),
+        Port0 = port(Line0-DM0,Pred0),
         ( Line0 =:= Line ->
             PortLine = Line0
         ; Line0 > Line ->
@@ -374,8 +374,9 @@ find_best_port([Port0|PortList0], Line, File, LastPort, PortLine) :-
                   canonical_path_name(File0, File)
                 ->
                     % start of predicate is in same file as Port0 
-                    get_flag(Pred0, source_line, StartLine0),
-                    (StartLine0 > Line ->
+                    ( current_module(DM0),
+                      get_flag(Pred0, source_line, StartLine0)@DM0,
+                      StartLine0 > Line ->
                         /* assume Pred0 starts after Line, use LastPort */
                         PortLine = LastLine
                                                                    
@@ -404,6 +405,7 @@ find_matching_breakport(File, Line, FullFile, DMs, PortPreds, PortLine) :-
         find_best_port(PortsList, Line, FullFile, none, PortLine), 
         find_all_ports_at_line(PortsList, PortLine, DMs, PortPreds).
 
+find_all_ports_at_line([], _Line, [], []) :- !.
 find_all_ports_at_line([port(Line0-DM0,Pred0)|Ports], Line, DMs, Preds) :-
         ( Line0 < Line ->
             find_all_ports_at_line(Ports, Line, DMs, Preds)
