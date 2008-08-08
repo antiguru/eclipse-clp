@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.2 2008/08/08 14:20:27 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -382,26 +382,34 @@ p_setenv(value v0, type t0, value v1, type t1)
    {
 	/*
 	 * With putenv(), the "name=value" string becomes part of the
-	 * environment.  We put it into our dictionary to make it permanent,
-	 * which has the advantage that we won't get multiple copies of it.
+	 * environment.  We use malloc to allocate the string, as it needs
+         * to persist after ECLiPSe ends. We check to see that the 
+	 * environment variable is not already set to the same value to avoid 
+         * multiple copies
 	 */
-	int len = strlen(name) + 1 + strlen(new_value); /* "name=value" */
-	value v_tmp, v_perm;
+	int len = strlen(name) + 2 + strlen(new_value); /* "name=value\0" */
+	char *envstring;
+
 	if (strchr(name, '='))	/* emulate setenv() behaviour */
 	{
 	    Set_Sys_Errno(EINVAL, ERRNO_UNIX);
 	    Bip_Error(SYS_ERROR);
 	}
-	v_tmp.ptr = TG;
-	Push_Buffer(len+1);		/* make temporary buffer */
-	strcat(strcat(strcpy(StringStart(v_tmp), name), "="), new_value);
-	v_perm.ptr = enter_string_n(StringStart(v_tmp), len, DICT_PERMANENT);
-	if (putenv(StringStart(v_perm)))
+	/* check if the environment variable is already set to new_value */
+	if ((envstring = getenv(name)) && !strcmp(envstring, new_value))
 	{
+	    Succeed_;
+	}
+	/* the memory associated with envstring is leaked! */
+	envstring = (char *)malloc(len); 
+	strcat(strcat(strcpy(envstring, name), "="), new_value);
+	if (putenv(envstring))
+	{
+	    free(envstring);
 	    Set_Errno
 	    Bip_Error(SYS_ERROR);
 	}
-    }
+   }
 #else
     /* setenv() copies the strings, old strings are leaked! */
     if (setenv(name, new_value, 1))
