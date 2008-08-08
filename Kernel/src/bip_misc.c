@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.2 2008/08/08 14:20:27 kish_shen Exp $
+  VERSION	$Id: bip_misc.c,v 1.3 2008/08/08 15:37:37 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -396,18 +396,18 @@ p_setenv(value v0, type t0, value v1, type t1)
 	    Bip_Error(SYS_ERROR);
 	}
 	/* check if the environment variable is already set to new_value */
-	if ((envstring = getenv(name)) && !strcmp(envstring, new_value))
+	envstring = getenv(name);
+	if (!envstring || strcmp(envstring, new_value))
 	{
-	    Succeed_;
-	}
-	/* the memory associated with envstring is leaked! */
-	envstring = (char *)malloc(len); 
-	strcat(strcat(strcpy(envstring, name), "="), new_value);
-	if (putenv(envstring))
-	{
-	    free(envstring);
-	    Set_Errno
-	    Bip_Error(SYS_ERROR);
+	    /* the memory associated with envstring is leaked! */
+	    envstring = (char *)malloc(len); 
+	    strcat(strcat(strcpy(envstring, name), "="), new_value);
+	    if (putenv(envstring))
+	    {
+		free(envstring);
+		Set_Errno
+		Bip_Error(SYS_ERROR);
+	    }
 	}
    }
 #else
