@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.27 2008/08/06 16:12:07 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.28 2008/08/08 17:26:24 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -937,12 +937,12 @@ proc tkecl:edit_output_mode {which} {
     set occ [string first "D" $oldmode]
     if {$occ >= 0} {
 	set oldmode [string replace $oldmode $occ $occ {}]
-	set tkecl(om_$which$row) D
+	set tkecl(om_fullpd$which) D
     } else {
-	set tkecl(om_$which$row) {}
+	set tkecl(om_fullpd$which) {}
     }
     checkbutton $w.fulldepth -text full -offvalue {} -onvalue D \
-    	-variable tkecl(om_$which$row) -command "tkecl:toggle_scale om_$which$row $w.scale"
+    	-variable tkecl(om_fullpd$which) -command "tkecl:toggle_scale om_fullpd$which $w.scale"
 
     frame $w.buttons
     pack [button $w.buttons.apply -text Apply -command [list tkecl:apply_output_mode $which $oldmode]] -side left -expand 1 -fill both
@@ -972,6 +972,8 @@ proc tkecl:apply_output_mode {which newmode} {
     for {set i 0} {$i <= $tkecl(output_mode_spec_nr)} {incr i} {
         append newmode $tkecl(om_$which$i)
     }
+    append newmode $tkecl(om_fullpd$which)
+
     switch -- $which {
 	tracer {
 	    ec_rpc_check [list : tracer_tcl [list set_tracer_output_modes $newmode]] (()(S))
