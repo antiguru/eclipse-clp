@@ -1070,10 +1070,10 @@ p(A) :-
 
 p / 1:
 label(1):
-	get_variable             2     a(1)     y(1) 
-	move                     a(1)     y(2) 
+	get_variable             2     a(1)     y(2) 
+	move                     a(1)     y(1) 
 	callf                    p / 0     Y[1,2] 
-	move                     y(2)     a(1)     y(1)     a(2) 
+	move                     2     y(1)     a(1) 
 	chain                    p / 2 
 
 ------ Test 59 -------
@@ -1623,13 +1623,13 @@ sentence(A, B, C, D, E) :-
 
 sentence / 5:
 label(1):
-	get_variable             4     a(3)     y(3) 
-	move                     a(5)     y(4) 
-	put_global_variable2     a(3)     y(1)     a(5)     y(2) 
+	get_variable             4     a(3)     y(1) 
+	move                     a(5)     y(2) 
+	put_global_variable2     a(3)     y(3)     a(5)     y(4) 
 	callf                    declarative / 5     Y[1,2,3,4] 
 	put_atom                 a(1)     . 
-	move                     y(1)     a(2)     y(3)     a(3)     y(2)     a(4) 
-	move_chain               y(4)     a(5)     terminator / 5 
+	move                     y(3)     a(2)     y(1)     a(3)     y(4)     a(4) 
+	move_chain               y(2)     a(5)     terminator / 5 
 
 ------ Test 130 -------
 p(A, B) :-
@@ -2667,9 +2667,9 @@ label(1):
 	allocate                 2 
 	move                     a(1)     a(2) 
 	put_integer              a(1)     1 
-	move                     2     a(1)     y(1) 
+	move                     a(1)     y(2)     a(2)     y(1) 
 	callf                    p1 / 1     Y[1,2] 
-	move_callf               y(1)     a(1)     p1 / 1     Y[1,2] 
+	move_callf               y(2)     a(1)     p1 / 1     Y[1,2] 
 	get_value                y(1)     y(2) 
 	exit                 
 
@@ -2705,9 +2705,9 @@ label(1):
 	allocate                 2 
 	move                     a(1)     a(2) 
 	put_integer              a(1)     1 
-	move                     2     a(1)     y(1) 
+	move                     a(1)     y(2)     a(2)     y(1) 
 	callf                    p1 / 1     Y[1,2] 
-	move_callf               y(1)     a(1)     p1 / 1     Y[1,2] 
+	move_callf               y(2)     a(1)     p1 / 1     Y[1,2] 
 	get_value                y(1)     y(2) 
 	exit                 
 
@@ -2739,7 +2739,7 @@ p11 / 1:
 label(1):
 	allocate                 2 
 	put_integer              a(3)     1 
-	move                     a(3)     y(1)     a(1)     y(2) 
+	move                     a(3)     y(2)     a(1)     y(1) 
 	put_atom                 a(1)     true 
 	put_module               a(2)     eclipse 
 	callf                    sepia_kernel : untraced_call / 2     Y[1,2] 
@@ -2760,12 +2760,12 @@ p12 / 3:
 label(1):
 	allocate                 6 
 	put_integer              a(4)     1 
-	move                     a(4)     y(1) 
+	move                     a(4)     y(4) 
 	put_integer              a(5)     2 
-	move                     a(5)     y(2) 
+	move                     a(5)     y(5) 
 	put_integer              a(6)     3 
-	move                     a(6)     y(3) 
-	move                     3     a(1)     y(4) 
+	move                     a(6)     y(6) 
+	move                     3     a(1)     y(1) 
 	put_atom                 a(1)     true 
 	put_module               a(2)     eclipse 
 	callf                    sepia_kernel : untraced_call / 2     Y[1,2,3,4,5,6] 
@@ -2787,10 +2787,10 @@ p13 / 2:
 label(1):
 	allocate                 4 
 	put_integer              a(5)     1 
-	move                     a(5)     y(1) 
+	move                     a(5)     y(3) 
 	put_integer              a(6)     2 
-	move                     a(6)     y(2) 
-	move                     2     a(1)     y(3) 
+	move                     a(6)     y(4) 
+	move                     2     a(1)     y(1) 
 	put_variable2            a(1)     a(2) 
 	put_variable             a(3) 
 	put_module               a(4)     eclipse 
@@ -7802,10 +7802,10 @@ label(1):
 	in_get_meta              a(1)     ref(fail) 
 	read_void            
 	read_attribute           suspend 
-	read_variable            y(1) 
-	move                     a(1)     y(2) 
+	read_variable            y(2) 
+	move                     a(1)     y(1) 
 	callf                    q / 0     Y[1,2] 
-	move                     y(2)     a(1)     y(1)     a(2) 
+	move                     2     y(1)     a(1) 
 	chain                    p / 2 
 
 ------ Test match(14) -------
@@ -7819,11 +7819,11 @@ label(1):
 	in_get_meta              a(1)     ref(fail) 
 	read_void            
 	read_attribute           suspend 
-	read_variable            y(1) 
+	read_variable            y(2) 
 	get_matched_value        a(2)     a(1) 
-	move                     a(1)     y(2) 
+	move                     a(1)     y(1) 
 	callf                    q / 0     Y[1,2] 
-	move                     y(2)     a(1)     y(1)     a(2) 
+	move                     2     y(1)     a(1) 
 	chain                    ref(1) 
 
 ------ Test match(20) -------
@@ -10136,9 +10136,9 @@ p(A) :-
 
 p / 1:
 label(1):
-	get_variable             2     a(1)     y(2) 
-	put_global_variable_callf     a(1)     y(1)     get_bip_error / 1     Y[1,2] 
-	move                     y(1)     a(1) 
+	get_variable             2     a(1)     y(1) 
+	put_global_variable_callf     a(1)     y(2)     get_bip_error / 1     Y[1,2] 
+	move                     y(2)     a(1) 
 	bi_minus                 a(1)     a(2)     4 
 	bi_addi                  a(2)     1     a(3)     24 
 	bi_add                   a(1)     a(2)     a(1)     16 
@@ -10174,7 +10174,7 @@ label(1):
 	write_atom2              a     b 
 	write_atom               c 
 	bi_arg                   a(1)     a(2)     a(1)     16 
-	get_value                a(1)     y(2) 
+	get_value                a(1)     y(1) 
 	exit                 
 
 ------ Test bip(1) -------
@@ -10271,13 +10271,13 @@ p(A, B) :-
 
 p / 2:
 label(1):
-	get_variable             3     a(1)     y(2) 
-	move                     a(2)     y(3) 
-	put_global_variable_callf     a(1)     y(1)     q / 1     Y[1,2,3] 
-	move                     2     y(2)     a(2) 
+	get_variable             3     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	put_global_variable_callf     a(1)     y(3)     q / 1     Y[1,2,3] 
+	move                     2     y(1)     a(2) 
 	bi_add                   a(2)     a(3)     a(2)     16 
-	get_value                a(2)     y(1) 
-	move_chain               y(1)     a(1)     p / 1 
+	get_value                a(2)     y(3) 
+	move_chain               y(3)     a(1)     p / 1 
 
 ------ Test bip(9) -------
 p(A, B) :-
@@ -10288,15 +10288,15 @@ p(A, B) :-
 
 p / 2:
 label(1):
-	get_variable             3     a(1)     y(2) 
-	move                     a(2)     y(3) 
-	put_global_variable_callf     a(1)     y(1)     q / 1     Y[1,2,3] 
-	move                     2     y(2)     a(2) 
+	get_variable             3     a(1)     y(1) 
+	move                     a(2)     y(2) 
+	put_global_variable_callf     a(1)     y(3)     q / 1     Y[1,2,3] 
+	move                     2     y(1)     a(2) 
 	bi_add                   a(2)     a(3)     a(4)     16 
-	get_value                a(4)     y(1) 
+	get_value                a(4)     y(3) 
 	bi_sub                   a(2)     a(3)     a(2)     16 
-	get_value                a(2)     y(1) 
-	move_chain               y(1)     a(1)     p / 1 
+	get_value                a(2)     y(3) 
+	move_chain               y(3)     a(1)     p / 1 
 
 ------ Test bip(10) -------
 p(A, B) :-
@@ -10701,8 +10701,8 @@ label(4):
 	bi_addi                  a(1)     -1     a(5)     24 
 	get_variable             7     a(1)     y(5) 
 	move                     2     a(2)     y(6) 
-	move                     a(4)     y(4) 
-	put_global_variable      a(4)     y(3) 
+	move                     a(4)     y(3) 
+	put_global_variable      a(4)     y(4) 
 	move                     a(5)     a(1) 
 	callf                    ref(1)     Y[3,4,5,6,7] 
 	move                     y(6)     a(5) 
@@ -10715,8 +10715,8 @@ label(4):
 	put_global_variable      a(4)     y(1) 
 	move                     2     y(5)     a(2) 
 	callf                    ref(1)     Y[1,2,3,4] 
-	move                     y(3)     a(1)     y(2)     a(2)     y(1)     a(3) 
-	move_chain               y(4)     a(4)     ref(1) 
+	move                     y(4)     a(1)     y(2)     a(2)     y(1)     a(3) 
+	move_chain               y(3)     a(4)     ref(1) 
 
 ------ Test bench(takc) -------
 tak(A, B, C, D) :-
@@ -10747,8 +10747,8 @@ label(4):
 	bi_addi                  a(1)     -1     a(5)     24 
 	get_variable             7     a(1)     y(5) 
 	move                     2     a(2)     y(6) 
-	move                     a(4)     y(4) 
-	put_global_variable      a(4)     y(3) 
+	move                     a(4)     y(3) 
+	put_global_variable      a(4)     y(4) 
 	move                     a(5)     a(1) 
 	callf                    ref(1)     Y[3,4,5,6,7] 
 	move                     y(6)     a(5) 
@@ -10761,8 +10761,8 @@ label(4):
 	put_global_variable      a(4)     y(1) 
 	move                     2     y(5)     a(2) 
 	callf                    ref(1)     Y[1,2,3,4] 
-	move                     y(3)     a(1)     y(2)     a(2)     y(1)     a(3) 
-	move_chain               y(4)     a(4)     ref(1) 
+	move                     y(4)     a(1)     y(2)     a(2)     y(1)     a(3) 
+	move_chain               y(3)     a(4)     ref(1) 
 
 ------ Test bug(1) -------
 simplify_code([], []).
@@ -10820,11 +10820,11 @@ label(10):
 label(11):
 	try_me_else              0     3     ref(13) 
 label(12):
-	move                     a(2)     y(3) 
+	move                     a(2)     y(2) 
 	shift                    a(2)     a(1)     a(3) 
-	put_global_variable_callf     a(3)     y(2)     simplify / 3     Y[1,2,3] 
+	put_global_variable_callf     a(3)     y(3)     simplify / 3     Y[1,2,3] 
 	cut                      y(1)     3 
-	move                     2     y(2)     a(1) 
+	move                     y(3)     a(1)     y(2)     a(2) 
 	chain                    ref(1) 
 label(8):
 	read_structure           code / 3     ref(7) 
@@ -11272,39 +11272,39 @@ label(6):
 	trust_me                 0 
 label(7):
 	allocate                 7 
-	put_global_variable      a(5)     y(5) 
+	put_global_variable      a(5)     y(7) 
 	bi_addi                  a(5)     1     a(5)     24 
 	get_value                a(5)     a(3) 
-	move                     2     a(1)     y(6) 
-	move                     2     a(3)     y(3) 
+	move                     2     a(1)     y(5) 
+	move                     2     a(3)     y(2) 
 	put_integer              a(2)     1 
-	put_global_variable_callf     a(3)     y(2)     sepia_kernel : (>>) / 3     Y[2,3,4,5,6,7] 
+	put_global_variable_callf     a(3)     y(4)     sepia_kernel : (>>) / 3     Y[2,3,4,5,6,7] 
 	savecut                  a(1) 
-	list_switch              y(7)     ref(8)     ref(9)     ref(9) 
+	list_switch              y(6)     ref(8)     ref(9)     ref(9) 
 label(8):
 	try_me_else              0     1     ref(10) 
 label(9):
 	put_integer              a(2)     1 
-	move                     y(6)     a(3) 
+	move                     y(5)     a(3) 
 	bi_and                   a(3)     a(2)     a(2)     16 
 	put_integer              a(3)     0 
 	bi_eq                    a(2)     a(3)     eclipse     48 
-	cut                      a(1)     7 
-	move                     y(7)     y(1) 
+	cut                      a(1)     6 
+	move                     y(6)     y(1) 
 label(13):
-	move                     y(2)     a(1)     y(1)     a(2) 
-	move                     2     y(3)     a(3) 
+	move                     y(4)     a(1) 
+	move                     3     y(1)     a(2) 
 	chain                    ref(1) 
 label(10):
-	trust_me_inline          0     Y[2,3,4,5,7] 
+	trust_me_inline          0     Y[2,3,4,6,7] 
 label(11):
-	move                     y(7)     a(1) 
+	move                     y(6)     a(1) 
 	get_list                 a(1)     ref(12) 
-	write_local_value        y(5) 
+	write_local_value        y(7) 
 	write_variable           y(1) 
 	branch                   ref(13) 
 label(12):
-	read_value               y(5) 
+	read_value               y(7) 
 	read_variable            y(1) 
 	branch                   ref(13) 
 
@@ -12651,18 +12651,19 @@ label(1):
 	allocate                 3 
 	get_list                 a(1)     ref(2) 
 	write_void           
-	write_variable           y(1) 
+	write_variable           y(3) 
 label(3):
-	move                     2     a(2)     y(2) 
+	move                     2     a(2)     y(1) 
 	put_structure            a(3)     (/) / 2 
 	push_void                2 
 	move                     a(2)     a(1) 
-	move_callf               y(3)     a(2)     l / 3     Y[1,2,3] 
-	move                     3     y(1)     a(1) 
+	move_callf               y(2)     a(2)     l / 3     Y[1,2,3] 
+	move                     y(3)     a(1) 
+	move                     2     y(1)     a(2) 
 	chain                    q / 3 
 label(2):
 	read_void            
-	read_variable            y(1) 
+	read_variable            y(3) 
 	branch                   ref(3) 
 
 ------ Test disj25 -------
@@ -13015,18 +13016,18 @@ INDEXES for (nondet) disjunction [3]
     [var] - [1, 2]
 producer / 1:
 label(1):
-	get_variable             3     a(1)     y(3) 
-	put_global_variable_callf     a(1)     y(2)     random / 1     Y[2,3] 
+	get_variable             3     a(1)     y(2) 
+	put_global_variable_callf     a(1)     y(3)     random / 1     Y[2,3] 
 	savecut                  a(1) 
-	list_switch              y(3)     ref(2)     ref(3)     ref(3) 
+	list_switch              y(2)     ref(2)     ref(3)     ref(3) 
 label(2):
 	try_me_else              0     1     ref(5) 
 label(3):
 	put_integer              a(2)     0 
-	move                     y(2)     a(3) 
+	move                     y(3)     a(3) 
 	bi_gt                    a(3)     a(2)     eclipse     48 
 	cut                      a(1)     3 
-	move                     y(3)     a(1) 
+	move                     y(2)     a(1) 
 	get_list                 a(1)     ref(4) 
 	write_local_value        a(3) 
 	write_variable           y(1) 
@@ -13036,9 +13037,9 @@ label(4):
 	read_variable            y(1) 
 	move_chain               y(1)     a(1)     ref(1) 
 label(5):
-	trust_me_inline          0     Y[3] 
+	trust_me_inline          0     Y[2] 
 label(6):
-	move                     y(3)     a(1) 
+	move                     y(2)     a(1) 
 	get_list                 a(1)     ref(7) 
 	write_atom               zero 
 	write_variable           y(1) 

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.13 2008/08/04 17:48:30 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.14 2008/08/09 00:40:29 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/08/04 17:48:30 $").
+:- comment(date,	"$Date: 2008/08/09 00:40:29 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -445,7 +445,7 @@ compile_pred_to_wam(Pred, Clauses, AnnCs, FinalCode, Options, Module) :-
 
 	% Create our normal form
 	message("Normalize", 2, Options),
-	normalize_clauses_annotated(Clauses, AnnCs, [], NormPred0, _NVars, Module),
+	normalize_clauses_annotated(Clauses, AnnCs, NormPred0, _NVars, Options, Module),
 %	print_normalized_clause(output, NormPred0),
 
 	% Do some intra-predicate flow analysis

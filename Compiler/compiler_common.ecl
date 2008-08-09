@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.20 2008/07/28 23:55:07 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.21 2008/08/09 00:40:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/07/28 23:55:07 $").
+:- comment(date, "$Date: 2008/08/09 00:40:28 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -120,7 +120,7 @@
 	"print_final_code":"print annotated WAM code after register allocation (on/off, default:off).",
 	"srcroot":"directory prefix that will be stripped from source file paths (default:\"\")",
 	"verbose":"print messages to log_output, according to level (integer (0=silent,1=quiet,2=verbose), default:0).",
-	"warnings":"print warning messages to warning_output, according to level (on/off, default:on)."
+	"warnings":"print warning messages to warning_output (on/off, default:on)."
     ],
     see_also:[get_flag/2,set_flag/2]
 ]).
@@ -440,7 +440,7 @@ var_source_name(variable{source_info:name(Name0)}, Name) ?- !, Name=Name0.
 % Get a descriptor for an additional occurrence of existing variable
 % This can only be used _before_ compute_lifetimes!
 :- export new_vardesc/2.
-new_vardesc(VarId, variable{varid:VarId}).
+new_vardesc(VarId, variable{varid:VarId,source_info:none}).
 
 /*
 % Introduce a new, auxiliary source variable into normalised code
@@ -613,6 +613,17 @@ message(Message, MsgLevel, options{verbose:Level}) :-
 :- export warning/1.
 warning(Message) :-
 	printf(warning_output, "WARNING: %w%n", [Message]).
+
+
+:- export singleton_warning/2.
+%singleton_warning(+VarSourceInfo, +Options).
+singleton_warning(annotated_term{type:var(Name),file:Path,line:Line}, options{warnings:on}) ?-
+	atom_string(Name, NameS), \+ substring(NameS,"_",1),
+	get_flag(variable_names, check_singletons),	% preliminary
+	!,
+	pathname(Path, _, File),
+	printf(warning_output, "File %w, line %d: Singleton variable %w%n", [File,Line,Name]).
+singleton_warning(_, _).
 
 
 %----------------------------------------------------------------------

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.14 2008/07/29 18:00:43 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.15 2008/08/09 00:40:29 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/07/29 18:00:43 $").
+:- comment(date, "$Date: 2008/08/09 00:40:29 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -106,30 +106,25 @@ ann_location(annotated_term{file:File,line:Line,from:From,to:To}, File, Line, Fr
 		
 
 %----------------------------------------------------------------------
-:- export
-	normalize_clauses_noshare/5,
-        normalize_clauses_noshare_annotated/6,
-	normalize_clauses/5,
-        normalize_clauses_annotated/6.
-%----------------------------------------------------------------------
 
-:- comment(normalize_clauses_annotated/6, hidden).
-
-:- comment(normalize_clauses/5, [
+:- export normalize_clauses_annotated/6.
+:- comment(normalize_clauses_annotated/6, [
     summary:"Transforms a list of clauses into the normalised predicate representation",
     args:[
 	"Clauses":"A list of clauses for a single predicate",
-	"VarNames":"A list of [Name|Var] pairs (like in readvar/3)",
+	"AnnClauses":"A corresponding list of annotated clauses (or uninstantated)",
 	"Normalised":"The normalised, ground form of the predicate",
 	"VarCount":"Number of distinct variables in the normalised code",
+	"Options":"Options",
 	"Module":"Context module"
     ],
-    amode:normalize_clauses(+,+,-,-,+),
+    amode:normalize_clauses_annotated(+,+,-,-,+,+),
     desc:ascii("
 	Build the ground representation of a single predicate (clause list).
 
 	This deals with:
 	    -	replacing variables with descriptors (struct variable())
+	    	and assigning an integer variable identifier.
 		There is a fresh descriptor for every occurrence!
 	    -	wrapping structures into descriptors (struct structure())
 	    -	flattening conjunctions and disjunctions
@@ -143,42 +138,8 @@ ann_location(annotated_term{file:File,line:Line,from:From,to:To}, File, Line, Fr
     ")
 ]).
 
-normalize_clauses(Clauses, VarNames, NormClauses, VarCount, Module) :-
-        normalize_clauses_annotated(Clauses, _Ann, VarNames, NormClauses, VarCount, Module).
-
-normalize_clauses_annotated(Clauses, AnnClauses, VarNames, NormClauses, VarCount, Module) :-
-	% We need to rename the (immediate) head variables apart,
-	% because the normalisation will unify the head vars of the
-	% different clauses (necessary for indexing analysis).
-	% Fortunately, copy_term_vars preserves our variable names...
-	(
-	    foreach(OrigClause,Clauses),
-	    foreach(NewClause,NewClauses),
-	    foreach(OrigAnnClause,AnnClauses),
-	    foreach(NewAnnClause,NewAnnClauses)
-	do
-	    head_arg_vars(OrigClause, HeadArgVars),
-	    copy_term_vars(HeadArgVars, OrigClause-OrigAnnClause, NewClause-NewAnnClause)
-	),
-	normalize_clauses_noshare_annotated(NewClauses, NewAnnClauses, VarNames, NormClauses, VarCount, Module).
-
-    head_arg_vars(Clause, HeadArgVars) :-
-	clause_head_body(Clause, _, Head, _, _, _, _),
-	( foreacharg(Arg,Head), fromto(HeadArgVars,Vars1,Vars0,[]) do
-	    % BUG: we cannot copy metas because we'd lose the attributes!
-%	    ( var(Arg) -> Vars1=[Arg|Vars0] ; Vars1=Vars0 )
-	    ( free(Arg) -> Vars1=[Arg|Vars0] ; Vars1=Vars0 )
-	).
-
-
-% This can be used directly if it is known that the clauses
-% don't have shared variables, e.g. when they come from the parser.
-normalize_clauses_noshare(Clauses, VarNames, NormClauses, VarCount, Module) :-
-	normalize_clauses_noshare_annotated(Clauses, _Ann, VarNames, NormClauses, VarCount, Module).
-
-normalize_clauses_noshare_annotated(Clauses, AnnClauses, VarNames, NormClauses, VarCount, Module) :-
-	normalize_clause_list(Clauses, AnnClauses, NormClauses, Module, Vs, []),
-	assign_varids(Vs, VarNames, VarCount).
+normalize_clauses_annotated(Clauses, AnnClauses, NormClauses, VarCount, Options, Module) :-
+	normalize_clause_list(Clauses, AnnClauses, NormClauses, VarCount, Options, Module).
 %	reorder_goals(NormClauses0, NormClauses).
 
 
@@ -445,21 +406,24 @@ normalize_right_branch(G1, Ann, DisjCallPos, BranchNr0, BranchNr, Cut, _LocalCut
 
 % Normalise a list of standard clauses, facts, etc
 
-% normalize_clause_list(+Clauses, ?AnnClauses, -NormClause, +CM, +Vs0, -Vs)
-normalize_clause_list([Clause], [AnnClause], NormClause, CM, Vs0, Vs) :- !,
+% normalize_clause_list(+Clauses, ?AnnClauses, -NormClause, -VarCount, +Options, +CM)
+normalize_clause_list([Clause], [AnnClause], NormClause, VarCount, Options, CM) :- !,
 	NormClause = [HeadMarker, SavecutGoal |NormClause1],
 	same_call_pos([], 1, _CallNr, CallPos),
-	savecut_goal(CallPos, Vs0, Vs1, Cut, SavecutGoal),
-	normalize_clause(Clause, AnnClause, [], NormClause1, CM, Cut, Vs1, Vs2, HeadVars),
-	head_marker(Clause, CM, CallPos, HeadVars, Vs2, Vs, HeadMarker).
-normalize_clause_list(Clauses, AnnClauses, NormClauses, CM, Vs0, Vs) :-
+	head_marker(Clause, CM, CallPos, HeadMarker, Arity),
+	savecut_goal(CallPos, Vs, Vs1, Cut, SavecutGoal),
+	normalize_clause(Clause, AnnClause, [], NormClause1, CM, Cut, Vs1, []),
+	assign_varids(Vs, Arity, VarCount, Options).
+normalize_clause_list(Clauses, AnnClauses, NormClauses, VarCount, Options, CM) :-
+	Clauses = [SomeClause|_],
 	NormClauses = [
 	    HeadMarker,
 	    SavecutGoal, 
 	    disjunction{callpos:CallPos,branches:NormBranches}
 	],
 	same_call_pos([], 1, CallNr1, CallPos0),
-	savecut_goal(CallPos0, Vs0, Vs1, Cut, SavecutGoal),
+	head_marker(SomeClause, CM, CallPos0, HeadMarker, Arity),
+	savecut_goal(CallPos0, Vs0, [], Cut, SavecutGoal),
 	new_call_pos([], CallNr1, CallNr2, _CallPos),
 	new_call_pos([], CallNr2, _CallNr, CallPos),
 %	new_call_pos([], CallNr1, _CallNr, CallPos),
@@ -468,20 +432,19 @@ normalize_clause_list(Clauses, AnnClauses, NormClauses, CM, Vs0, Vs) :-
             foreach(AnnClause,AnnClauses),
 	    foreach(Goals,NormBranches),
 	    fromto(1,BranchNr1,BranchNr2,_BranchNr),
-	    fromto(Vs1,Vs2,Vs3,Vs4),
-	    param(CallPos,CM,Cut,HeadVars)
+	    fromto(Arity,VarId1,VarId2,VarCount),
+	    param(CallPos,CM,Cut,Vs0,Options)
 	do
 	    new_branch(CallPos, BranchNr1, BranchNr2, ClauseBranch),
-	    normalize_clause(Clause, AnnClause, ClauseBranch, Goals, CM, Cut, Vs2, Vs3, HeadVars)
-	),
-	Clauses = [SomeClause|_],
-	head_marker(SomeClause, CM, CallPos0, HeadVars, Vs4, Vs, HeadMarker).
+	    normalize_clause(Clause, AnnClause, ClauseBranch, Goals, CM, Cut, Vs, Vs0),
+	    assign_varids(Vs, VarId1, VarId2, Options)
+	).
 
-    normalize_clause(Clause, AnnClause, Branch, Goals, CM, Cut, Vs0, Vs, HeadVars) :-
+    normalize_clause(Clause, AnnClause, Branch, Goals, CM, Cut, Vs, Vs0) :-
 	clause_head_body(Clause, AnnClause, Head, Body, AnnHead, AnnBody, HeadType),
 	same_call_pos(Branch, 1, CallNr, CallPos),
-	normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals1, Vs0, Vs1, HeadVars),
-	normalize_body(Body, AnnBody, Branch, CallNr, _CallNr, Cut, Vs1, Vs, Goals1, [], CM-any, CM, CM).
+	normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals1, Vs, Vs1),
+	normalize_body(Body, AnnBody, Branch, CallNr, _CallNr, Cut, Vs1, Vs0, Goals1, [], CM-any, CM, CM).
 
     :- mode clause_head_body(+,?,-,-,-,-,-).
     clause_head_body((H0:- -?->B0), Ann, H, B, AH, AB, HeadType) ?- !,
@@ -497,20 +460,19 @@ normalize_clause_list(Clauses, AnnClauses, NormClauses, CM, Vs0, Vs) :-
     clause_head_body(H, AH, H, '', AH, '', =).
 
 
-head_marker(Clause, CM, CallPos, HeadVars, Vs0, Vs, Goal) :-
-	(
-	    foreach(HeadVar,HeadVars),
-	    foreach(HeadArg,HeadArgs),
-	    fromto(Vs0,Vs1,Vs2,Vs)
-	do
-	    new_aux_variable(HeadVar, HeadArg, Vs1, Vs2)
-	),
+head_marker(Clause, CM, CallPos, Goal, Arity) :-
 	Goal = goal{
 	    kind:head, callpos:CallPos,
 	    lookup_module:CM, definition_module:CM,
-	    functor:N/A, args:HeadArgs},
+	    functor:N/Arity, args:HeadArgs},
     	clause_head_body(Clause, _, H, _, _, _, _),
-	functor(H, N, A).
+	functor(H, N, Arity),
+	(
+	    for(I,1,Arity),
+	    foreach(HeadArg,HeadArgs)
+	do
+	    new_vardesc(I, HeadArg)
+	).
 
 
 % Create a goal to save the cut position in a new variable
@@ -551,23 +513,9 @@ cutto_goal(CallPos, Vs0, Vs1, CutVar, Goal) :-
 %	ground struct	ground_structure(ground)   TODO
 
 :- mode normalize_term(?,?,-,-,+,+).
-normalize_term(X, AnnX, Desc, [X-VarDesc|Vs1], Vs0, AttrFlag) :-
+normalize_term(X, AnnX, Desc, Vs, Vs0, AttrFlag) :-
 	var(X), !,
-	( nonvar(AnnX) ->
-	    VarDesc = variable{source_info:AnnX}
-	; get_var_info(X, name, Name) ->
-	    VarDesc = variable{source_info:name(Name)}
-	;
-	    VarDesc = variable{source_info:none}
-	),
-	( meta(X), AttrFlag = (?=) ->
-	    Desc = attrvar{variable:VarDesc,meta:NormMeta},
-	    meta_attr_struct(X, Meta),
-	    normalize_term(Meta, _Ann, NormMeta, Vs1, Vs0, AttrFlag)
-	;
-	    % treat as plain variable when not in matching-clause head
-	    Desc = VarDesc, Vs1 = Vs0
-	).
+	normalize_var(X, AnnX, Desc, Vs, Vs0, AttrFlag, _VarId).
 normalize_term([X|Xs], Ann, [Y|Ys], Vs, Vs0, AttrFlag) :- !,
 	Ann =: annotated_term{term:[AnnX|AnnXs]},
 	normalize_term(X, AnnX, Y, Vs, Vs1, AttrFlag),
@@ -601,6 +549,31 @@ normalize_term(X, Ann, _, _, _, _) :-
 	exit_block(abort_compile_predicate).
 
 
+normalize_var(X, AnnX, Desc, [X-VarDesc|Vs1], Vs0, AttrFlag, VarId) :-
+	( nonvar(AnnX) ->
+	    VarDesc = variable{source_info:AnnX,varid:VarId}
+	; get_var_info(X, name, Name) ->
+	    % reconstruct some source information if not available
+	    VarDesc = variable{source_info:annotated_term{type:var(Name),file:File,line:Line},varid:VarId},
+	    ( compiled_stream(Stream) ->
+		get_stream_info(Stream, name, File),
+		get_stream_info(Stream, line, Line)
+	    ;
+	    	File = unknown_location, Line = 0
+	    )
+	;
+	    VarDesc = variable{source_info:none,varid:VarId}
+	),
+	( meta(X), AttrFlag = (?=) ->
+	    Desc = attrvar{variable:VarDesc,meta:NormMeta},
+	    meta_attr_struct(X, Meta),
+	    normalize_term(Meta, _Ann, NormMeta, Vs1, Vs0, AttrFlag)
+	;
+	    % treat as plain variable when not in matching-clause head
+	    Desc = VarDesc, Vs1 = Vs0
+	).
+
+
 % Build a structure meta/N with all attributes of X
 meta_attr_struct(X, Meta) :-
 	meta_attributes(X, 1, Attrs),
@@ -626,57 +599,59 @@ new_aux_variable(X, VarDesc, [X-VarDesc|Vs], Vs) :-
 
 
 % Fill in the variable{varid:} fields with a unique integer >= 1
-% for every distinct variable.  Note that we have not yet separated
+% for every distinct variable.  Variables that occur in argument positions
+% will already have numbers assigned - simply copy that to every
+% descriptor for that variable.  Note that we have not yet separated
 % identical variables that occur in parallel branches of a disjunction,
 % that is taken care of in the variable classification pass.
 
-assign_varids(Vs, _VarNames, N) :-
+assign_varids(Vs, N0, N, Options) :-
 	keysort(Vs, SortedVs),
 	(
-	    foreach(X-variable{varid:I},SortedVs),
+	    foreach(X-variable{varid:VarId,source_info:Source},SortedVs),
 	    fromto(_OtherVar,X0,X,_),
-	    fromto(0,I0,I,N)
+	    fromto(0,VarId0,VarId,VarIdN),
+	    fromto(none,Source0,Source,SourceN),
+	    fromto(multi,Occ0,Occ,OccN),
+	    fromto(N0,N1,N2,N3),
+	    param(Options)
 	do
-	    ( X == X0 -> I = I0 ; I is I0+1 )
-	).
-
-/*
-% Fill in the variable{varid:} fields with
-% a unique integer >= 1 for every distinct variable
-% Also fill in source_name fields according to VarNames list.
-% If name information is missing, set source_name to the source variable.
-
-assign_varids(Vs, VarNames, N) :-
-	keysort(Vs, SortedVs),
-	sort(2, <, VarNames, SortedNames),
-	assign_varids_names(SortedVs, _OtherVar, SortedNames, 0, N).
-
-    assign_varids_names([], _X, _Names, I, I).
-    assign_varids_names([X-variable{varid:I,source_name:Name}|List], X0, Names0, I0, IN) :-
-    	( X == X0 -> I = I0 ; I is I0+1 ),
-	lookup_name(X, Names0, Names, Name),
-	assign_varids_names(List, X, Names, I, IN).
-
-    % If we don't have a name, use X itself
-    lookup_name(X, [], [], X).
-    lookup_name(X, Names, Names2, Name) :-
-    	Names = [[VName|V]|Names1],
-    	( X == V ->
-	    Name = VName, Names2 = Names
-	; X @> V ->
-	    lookup_name(X, Names1, Names2, Name)
+	    ( X == X0 ->	% same variable, unify IDs
+		N2 = N1,
+		VarId = VarId0,
+		Occ = multi
+	    ; var(VarId0) ->
+		N2 is N1+1,
+		VarId0 = N2,	% assign next number
+		Occ = single
+	    ;
+		head_singleton_check(Occ0, Source0, Options),
+		N2 = N1,	% was already numbered
+		Occ = single
+	    )
+	),
+	( var(VarIdN) ->
+	    N is N3+1,
+	    VarIdN = N		% assign next number
 	;
-	    Name = X, Names2 = Names
+	    head_singleton_check(OccN, SourceN, Options),
+	    N = N3		% was already numbered
 	).
-*/
-    	
-    	
+
+
+    % Report only singleton head arguments here (because this is the
+    % last time we have the necessary information).
+    % Other singletons are reported in the variable classification phase.
+    head_singleton_check(single, Source, Options) ?-
+	singleton_warning(Source, Options).
+    head_singleton_check(multi, _, _).
+
+
 
 % From a head, construct a normalised head, which is a pseudo
-% goal of kind:head. The normalised head contains distinct variables.
+% goal of kind:head. The normalised head contains distinct variables
+% these already get their VarIds (1..Arity) assigned here.
 % Head unifications get flattened into a sequence of =/2 goals.
-% NOTE: the HeadVars list is shared between all heads and causes the
-% head variables of all clauses to be unified (for indexing analysis)!
 %
 % p(a) :- ...	is normalised into p(T) :- T?=a, ...
 % p(X,X) :- ...	is normalised into p(X,T) :- X=T, ...
@@ -687,14 +662,13 @@ assign_varids(Vs, VarNames, N) :-
 % attrvar{} descriptors are only created on the rhs of ?=/2, in all other
 % locations, we use simple variable{} descriptors for attributed variables.
 
-normalize_head(HeadType, Head, AnnHead, CallPos, Goals1, Goals, Vs0, Vs, HeadVars) :-
+normalize_head(HeadType, Head, AnnHead, CallPos, Goals1, Goals, Vs0, Vs) :-
 	AnnHead =: annotated_term{term:HeadAnn},
 	(
 	    foreacharg(Arg,Head,I),
 	    fromto(Vs0,Vs1,Vs3,Vs),
 	    fromto([],Seen1,Seen2,_),
 	    fromto(Goals1,Goals2,Goals3,Goals),
-	    foreach(HeadVar,HeadVars),
 	    param(HeadType,HeadAnn,CallPos)
 	do
 	    Goal = goal{
@@ -715,32 +689,31 @@ normalize_head(HeadType, Head, AnnHead, CallPos, Goals1, Goals, Vs0, Vs, HeadVar
 		% p(nonvar) :-  becomes  p(T) :- T=nonvar
 		% p(nonvar) ?-  becomes  p(T) :- T?=nonvar
 		Goals2 = [Goal|Goals3],
-		normalize_term(Arg, AnnArg, NormArg, Vs1,Vs2, HeadType),
+		normalize_term(Arg, AnnArg, NormArg, Vs1, Vs3, HeadType),
 		Seen2 = Seen1,
 		Op = HeadType,
-		new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)
+		new_vardesc(I, HeadArg)
 	    ; varnonmember(Arg,Seen1) ->
 		Seen2 = [Arg|Seen1],
 		( meta(Arg), HeadType = (?=) ->
 		    % p(X{A}) ?-  becomes  p(X) :- X?=X{A}
 		    Goals2 = [Goal|Goals3],
 		    Op = HeadType,
-		    normalize_term(Arg, AnnArg, NormArg, Vs1, Vs3, ?=),
-		    NormArg = attrvar{variable:HeadArg},
-		    HeadVar = Arg
+		    normalize_var(Arg, AnnArg, NormArg, Vs1, Vs3, ?=, I),
+		    NormArg = attrvar{variable:HeadArg}
 		;
 		    % Don't create a new variable for the first occurrence.
-		    HeadVar = Arg,
-		    normalize_term(Arg, AnnArg, HeadArg, Vs1, Vs3, =),
+		    % p(X) :- ...  remains  p(X) :- ...
+		    normalize_var(Arg, AnnArg, HeadArg, Vs1, Vs3, =, I),
 		    Goals2 = Goals3
 		)
 	    ;
-		% repeat occurence: T=X (or T==X for matching)
+		% repeat occurrence: T=X (or T==X for matching)
 		Goals2 = [Goal|Goals3],
-		normalize_term(Arg, AnnArg, NormArg, Vs1,Vs2, =),
+		normalize_var(Arg, AnnArg, NormArg, Vs1, Vs3, =, _VarId),
 		Seen2 = Seen1,
 		headtype_varop(HeadType, Op),
-		new_aux_variable(HeadVar, HeadArg, Vs2, Vs3)
+		new_vardesc(I, HeadArg)
 	    )
 	).
 
