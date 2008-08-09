@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.15 2008/08/09 00:40:29 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.16 2008/08/09 23:47:00 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/08/09 00:40:29 $").
+:- comment(date, "$Date: 2008/08/09 23:47:00 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -552,15 +552,6 @@ normalize_term(X, Ann, _, _, _, _) :-
 normalize_var(X, AnnX, Desc, [X-VarDesc|Vs1], Vs0, AttrFlag, VarId) :-
 	( nonvar(AnnX) ->
 	    VarDesc = variable{source_info:AnnX,varid:VarId}
-	; get_var_info(X, name, Name) ->
-	    % reconstruct some source information if not available
-	    VarDesc = variable{source_info:annotated_term{type:var(Name),file:File,line:Line},varid:VarId},
-	    ( compiled_stream(Stream) ->
-		get_stream_info(Stream, name, File),
-		get_stream_info(Stream, line, Line)
-	    ;
-	    	File = unknown_location, Line = 0
-	    )
 	;
 	    VarDesc = variable{source_info:none,varid:VarId}
 	),

@@ -9,8 +9,6 @@
 :-(export(struct(index(quality,variable,partition)))).
 :-(export(struct(structure(name,arity,args)))).
 :-(export(struct(variable(varid,class,source_info)))).
-:-(export(/(var_source_name,2))).
-:-(:(sepia_kernel,store_pred(/(var_source_name,2),[](o(212),a(3),o(123),a(1),ref(58),1,ref(fail),o(139),ref(fail),o(128),0,3,ref(38),o(23),a(1),functor(/(variable,3)),ref(17),o(265),pw(2),o(74),functor(/(annotated_term,6)),ref(fail),o(34),o(71),functor(/(var,1)),ref(fail),o(38),a(1),o(95),t(0),o(137),pw(-1),o(251),a(3),o(7),a(2),a(1),o(157),o(134),0,o(23),a(1),functor(/(variable,3)),ref(44),o(265),pw(2),o(74),functor(/(name,1)),ref(fail),o(38),a(1),o(251),a(3),o(7),a(2),a(1),o(157),o(0),table([-(/(variable,3),ref(9))],2)),60,0,0,'Compiler/compiler_common.ecl',0,0))).
 :-(export(struct(attrvar(variable,meta)))).
 :-(export(/(new_vardesc,2))).
 :-(:(sepia_kernel,store_pred(/(new_vardesc,2),[](o(16),a(2),functor(/(variable,3)),ref(10),o(46),a(1),o(33),o(61),none,o(157),o(44),a(1),o(34),o(62),none,o(157),o(0)),17,0,0,'Compiler/compiler_common.ecl',0,0))).

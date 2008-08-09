@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.21 2008/08/09 00:40:28 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.22 2008/08/09 23:47:00 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/08/09 00:40:28 $").
+:- comment(date, "$Date: 2008/08/09 23:47:00 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -407,11 +407,6 @@ default_options(options{
 				%	nonvoid(y(I))
 	source_info		% struct(annotated_term) or uninstantiated
     )).
-
-
-:- export var_source_name/2.
-var_source_name(variable{source_info:annotated_term{type:var(Name0)}}, Name) ?- !, Name=Name0.
-var_source_name(variable{source_info:name(Name0)}, Name) ?- !, Name=Name0.
 
 
 
