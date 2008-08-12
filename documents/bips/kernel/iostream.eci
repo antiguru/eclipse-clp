@@ -640,15 +640,6 @@ Error:
 "),
         args:["Stream" : "Atom or integer.", "Address" : "Atom, integer or structure."],
         exceptions:[4 : "Stream or Address is not instantiated.", 5 : "Stream is instantiated, but not to an atom or an integer.", 5 : "Address is instantiated but not to the form accepted by the    socket domain.", 6 : "Address is a nonzero integer.", 170 : "It was not possible to connect the socket."],
-        eg:"Success:
-
-Error:
-      bind(s, Host/p)               (Error 5).
-      bind(s, '/usr/bin')           (Error 170).
-
-
-
-",
         see_also:[socket / 3, listen / 2, accept / 3, connect / 2, current_stream / 1, get_stream_info / 3]]).
 
 :- comment(flush / 1, [
