@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.28 2008/08/08 17:26:24 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.29 2008/08/12 01:48:37 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -1718,7 +1718,10 @@ proc tkecl:popup_tracer {} {
    shows the current goal and its ancestors.\n \
    Calls for current goal in blue, failure in red, success in green. \ 
    Ancestors printed with non-current bindings in black\n \
-   Press right (or control-left) mouse button over a stack item for popup menu related to that goal/predicate.\n Double-click left mouse button over a stack item to inspect it.\n Single click left mouse button to show source contxt\n "
+   Press right (or control-left) mouse button over a stack item for popup \
+ menu related to that goal/predicate.\n Double-click left mouse button over \
+ a stack item to inspect it.\n Single click left mouse button on the \
+ information (left) part of\n the stack item to show source contxt\n "
        balloonhelp $ec_tracertab.trace "Trace log: chronological log of traced goals.\n Calls in blue, successes in green, failures in red\n Leading indentation indicates depth"
        balloonhelp $ec_tracer.buttons.creep "Creep to next tracable goal's debug port.\n\
    Keyboard shortcut: `c'\nPress and hold button for continuous creep."
@@ -1846,7 +1849,7 @@ proc tkecl:handle_trace_line {stream {length {}}} {
 	    $ec_tracer.stack.text insert end "..." truncate_style
 	}
 	$ec_tracer.stack.text insert end "\n" $style
-	tkecl:set_goalpopup $depth $invoc $prio 
+	tkecl:set_goalpopup $depth $invoc $prio $line
 	$ec_tracer.stack.text see end
 	if {$style == "call_style"} {
 	    ;# extract into tkecl(next_trace_line_depth) the line number 
@@ -2210,13 +2213,13 @@ proc tkecl:refresh_goal_stack {} {
 	    .ec_tools.ec_tracer.stack.text insert $stdepth.0 "\n"
 	    .ec_tools.ec_tracer.stack.text insert $stdepth.0 $line call_style
 	}
-	tkecl:set_goalpopup $depth $invoc $prio 
+	tkecl:set_goalpopup $depth $invoc $prio $line
     }
 
     .ec_tools.ec_tracer.stack.text see end
 }
 
-proc tkecl:set_goalpopup {depth invoc prio} {
+proc tkecl:set_goalpopup {depth invoc prio line} {
 # print goal line in the stack display and set up the tag for it
     set ec_tracer .ec_tools.ec_tracer
     set rpc_result [ec_rpc_check [list : tracer_tcl \
@@ -2225,12 +2228,28 @@ proc tkecl:set_goalpopup {depth invoc prio} {
     $ec_tracer.stack.text tag bind $invoc <Button-3> \
 	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio {$greturn} %X %Y; break"
     $ec_tracer.stack.text tag bind $invoc <Control-Button-1> \
-	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio {$greturn} %X %Y; break"
+	"tkecl:popup_goalmenu $ec_tra\cer.stack.text $invoc $depth $prio {$greturn} %X %Y; break"
+    $ec_tracer.stack.text tag bind info$invoc <Button-3> \
+	"tkecl:popup_goalmenu $ec_tracer.stack.text info$invoc $depth $prio {$greturn} %X %Y; break"
+    $ec_tracer.stack.text tag bind info$invoc <Control-Button-1> \
+	"tkecl:popup_goalmenu $ec_tracer.stack.text info$invoc $depth $prio {$greturn} %X %Y; break"
     $ec_tracer.stack.text tag bind $invoc <Double-Button-1> "tkinspect:Inspect_term_init invoc($invoc); break"
-    $ec_tracer.stack.text tag bind $invoc <Button-1> "tkecl:show_source_context $invoc {$greturn}; break"
+    $ec_tracer.stack.text tag bind info$invoc <Button-1> "tkecl:show_source_context $invoc {$greturn}; break"
 
+    # find the information part (the part before the goal) of the line
+    # if the format for this part changes, the regexp may also need to change
+    if {[regexp {[^)]+\) [^ ]+ [^ ]+} $line info] == 1} {
+	set length [string length $info]
+    } else {
+	# this probably shouldn't happen
+	set length 0
+    }
     set stdepth [expr $depth + 1]
-    $ec_tracer.stack.text tag add $invoc $stdepth.0 $stdepth.end
+    # $stdepth.$length is one char after the port name
+    $ec_tracer.stack.text tag add info$invoc $stdepth.0 $stdepth.$length
+    $ec_tracer.stack.text tag raise info$invoc
+    incr length
+    $ec_tracer.stack.text tag add $invoc $stdepth.$length $stdepth.end
     $ec_tracer.stack.text tag raise $invoc
 }
 

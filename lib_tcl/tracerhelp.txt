@@ -146,8 +146,9 @@ and a few options are available from the menu:
         cause the call stack to be refreshed
 	   (same as Refresh goal stack option in the Options menu)
 
-Single left click on a goal will display the source context for the goal
-in the Source Tracing tab.
+Single left click on the information part of a stack goal entry (i.e. left
+of the goal) will display the source context for the goal in the Source 
+Tracing tab.
 
 Double left clicking on a goal will directly invoke the inspector to allow
 the user to examine the goal.
