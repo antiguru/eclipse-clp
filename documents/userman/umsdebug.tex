@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: umsdebug.tex,v 1.5 2008/08/05 02:08:39 kish_shen Exp $
+% $Id: umsdebug.tex,v 1.6 2008/08/13 01:53:16 kish_shen Exp $
 %
 
 \chapter{Debugging}
@@ -1009,7 +1009,10 @@ Source file: /homes/user/EclipseTests/Chatq/newtop
    %> 
 \end{verbatim}\end{quote}
 
-Source is only shown if the code was compiled with source tracing enabled.
+Source is only shown if the source information is available -- that is, 
+the code has to be compiled debuggable from a file, and not all goals have 
+source information; for example, goals in meta-calls (e.g. those inside a 
+{\tt block/3}). Also, source context cannot be shown at a RESUME port.
 
 \cmd{h}{help}
 Print a summary of the debugger commands.
