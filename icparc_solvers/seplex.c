@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.9 2008/07/24 15:22:11 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.10 2008/08/14 02:42:33 kish_shen Exp $
  *
  */
 
@@ -61,7 +61,13 @@ char *getenv();
 #endif
 
 
-/* Kish 2008-07-24: define __eprintf() for all cases -- Cisco lab Solaris
+/* Kish 2008-08-13:
+   Cannot define __eprintf() here for PPC Mac OS X -- at least version 10.4
+   we have access to. It is defined in stdc++, and Mac OS X does not allow 
+   multiple definitions of symbols during linking (for flat_namespace). 
+   versions, 
+
+   Kish 2008-07-24: define __eprintf() for all cases -- Cisco lab Solaris
    has older libraries that does not have __eprintf() defined
 
    code modified from koders.com's definition of __eprintf(), which uses
@@ -83,6 +89,7 @@ char *getenv();
    assert.h.  In such a case, this __eprintf will be used if there
    does not happen to be one in libgcc2.c.  */
 
+#if !(defined(__APPLE__) && defined(__ppc__))
 
 void
 __eprintf (format, file, line, expression)
@@ -95,6 +102,7 @@ __eprintf (format, file, line, expression)
   abort ();
  }
 
+#endif
 
 #ifdef XPRESS
 # include "xprs.h"
