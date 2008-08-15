@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.29 2008/08/12 01:48:37 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.30 2008/08/15 16:43:35 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -2228,7 +2228,7 @@ proc tkecl:set_goalpopup {depth invoc prio line} {
     $ec_tracer.stack.text tag bind $invoc <Button-3> \
 	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio {$greturn} %X %Y; break"
     $ec_tracer.stack.text tag bind $invoc <Control-Button-1> \
-	"tkecl:popup_goalmenu $ec_tra\cer.stack.text $invoc $depth $prio {$greturn} %X %Y; break"
+	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio {$greturn} %X %Y; break"
     $ec_tracer.stack.text tag bind info$invoc <Button-3> \
 	"tkecl:popup_goalmenu $ec_tracer.stack.text info$invoc $depth $prio {$greturn} %X %Y; break"
     $ec_tracer.stack.text tag bind info$invoc <Control-Button-1> \
