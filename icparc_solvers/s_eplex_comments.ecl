@@ -3632,7 +3632,8 @@ desc:      html("\
     <DT><TT>optimizer_version</TT>
 	<DD>Returns an integer derived from the version of the
 	external solver (for osi, the version is the actual solvers
-        used)
+        used, including any significant third-party packages such as 
+        sparse matrix ordering packages required by the barrier solver)
     <DT><TT>presolve</TT>
 	<DD>Returns the default presolve setting for solver setup, i.e. the
         presolve setting that a solver state would be given if it was not

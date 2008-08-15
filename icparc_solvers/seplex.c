@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.10 2008/08/14 02:42:33 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.11 2008/08/15 22:49:57 kish_shen Exp $
  *
  */
 
@@ -1747,7 +1747,16 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 	Return_Unify_Integer(vval, tval, XPRESS);
 #endif
 #ifdef COIN
-	Return_Unify_Integer(vval, tval, 1);
+      {
+	  char * ver = Malloc(32*sizeof(char));
+	  pword pw;
+
+	  coin_get_solver_info(ver);
+	  Make_String(&pw, ver);
+	  Free(ver);
+
+	  Return_Unify_Pw(vval, tval, pw.val, pw.tag);
+      }
 #endif
     default:
 	Bip_Error(RANGE_ERROR);

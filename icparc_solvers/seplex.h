@@ -309,6 +309,7 @@ int coin_get_dual_infeas(COINprob* lp, int* infeas);
 int coin_get_primal_infeas(COINprob* lp, int* infeas);
 int coin_bar_is_primal_feas(COINprob* lp);
 int coin_bar_is_dual_feas(COINprob* lp);
+int coin_get_solver_info(char* info);
 
 #endif
 

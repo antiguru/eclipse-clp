@@ -1945,3 +1945,26 @@ int coin_free_prob(COINprob* lp)
 
     return 0;
 }
+
+extern "C"
+void coin_get_solver_info(char* info)
+{
+#ifdef COIN_USE_CLP
+# ifdef UFL_BARRIER
+    strcpy(info, "clp(uflamd)-cbc");
+# else
+    strcpy(info, "clp-cbc");
+# endif
+#endif
+
+#ifdef COIN_USE_CBC
+    strcpy(info, "cbc-clp");
+#endif
+
+#ifdef COIN_USE_SYM
+    strcpy(info, "symphony");
+#endif
+
+
+}
+

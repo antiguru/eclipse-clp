@@ -34,6 +34,11 @@ from within {\eclipse}. It provides a largely solver-independent API
 to the programmer, so many programs will run with any supported external
 solver.
 
+The library interfaces to both commercial and open-source
+solvers. Commercial solver will probably require a license to use the
+solver, while the open-source solvers are available free of charge, but are
+govererned by their own open-source licenses separate from {\eclipse}'s.
+
 %With the kind agreement of Dash Associates Ltd., the
 %XPRESS-MP\footnote{XPRESS-MP is a product from Dash Associates
 %Ltd. (www.dashoptimization.com)} solver is now included with the library,
@@ -1241,7 +1246,10 @@ COIN-OR project (www.coin-or.org). Various solvers are supported via OSI
 using the generic interface. The following are currently distributed:
 \begin{itemize}
 \item clpcbc: COIN-OR's CLP linear solver in combination with the CBC
-branch and cut framework for MIP problems. Eplex provides specialised
+branch and cut framework for MIP problems. The CLP solver may be compiled
+with third-party open-source packages, such as University of Florida's 
+AMD package (www.cise.ufl.edu/research/sparse/amd/), used by CLP barrier
+solve. Eplex provides specialised
 support for this combination, which enhance the features provided and
 improve performance for solving larger MIP problems. 
 \item symclp: COIN-OR's SYMPHONY MILP solver (with CLP as the linear
@@ -1285,7 +1293,8 @@ releases of {\eclipse}; please refer to the release notes.
 %for XPRESS-MP, we distinguish versions included with {\eclipse}: the `OEM'
 %versions, from versions obtained independently by the user. 
 
-Depending on which solver licence you have (for the commercial solvers), 
+For commercial solvers, you may require solver licence to use the solver, and
+depending on which solver licence you have (for the commercial solvers), 
 which version of it, and which hardware and operating system,
 you need to use the matching version of this interface.\footnote{Note that
 it is {\bf not} sufficient that you have a valid license and solver
@@ -1394,11 +1403,13 @@ supportable via OSI. Note however the OSI API is constantly evolving and
 improving, so some of the features may be directly supported via OSI in the
 future. 
 
+The sources for the porjects in COIN-OR can be downloaded from {\tt
+www.coin-or.org/download.html}. 
 Features {\bf not} supported by OSI: 
 \begin{itemize}
 \item changing of solving method (it does support specifying if the problem
 should be solved as a primal or dual)
-\item problems with a quadratic objective
+\item MIP problems with a quadratic objective
 \item time-outs from solving a problem.
 \item obtaining detailed information about the MIP solving process,
 especially when the MIP search was not complete, such as
@@ -1407,8 +1418,10 @@ the best MIP objective bound.
 \item use of Special Order Set (SOS)
 \end{itemize}
 
-\paragraph{osi_clpcbc} Supports primal and dual simplex methods for
-solving linear and MILP problems. It also supports time-outs, and is better 
+\paragraph{osi_clpcbc} Supports primal, dual simplex and barrier (interior
+point) methods for
+solving linear and MIP problems with linear objective function, and linear
+problems with a quadratic objective function. It also supports time-outs, and is better 
 at determining the state of an aborted problem than using OSI on its own.
 For the MIP related functionality, the MIP solver CBC is accessed directly
 rather than through OSI, and this 
@@ -1416,6 +1429,14 @@ provides better MIP support: more information on the MIP
 solver state is available, and a more sophisticated MIP search (based on
 sample code supplied with CBC) than the default is performed, generally
 leading to faster MIP solves.
+
+For the barrier/interior point method, CLP can take advantage of
+third-party packages to order a sparse matrix prior to Cholesky
+factorisation. Such packages are crucial to the performance of the
+barrier method, and currently the binary distribution of CLP is compiled
+with University of Florida's AMD (Approximate Minimum Degree ordering) 
+package. The source for this package needs to be downloaded separately from
+the COIN-OR project at {\tt www.cise.ufl.edu/research/sparse/amd/}. 
 
 The problem representation is stored by CLP, and one performance issue 
 when using CLP is that incrementally adding new constraints to
