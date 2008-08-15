@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.6 2008/08/06 14:27:05 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.7 2008/08/15 17:08:40 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -177,9 +177,17 @@ trace_start_handler_tcl :-
 	setval(filter_status, off),
         setval(filter_hits, 0),
         setval(filter_counts, 1),
-        % inform GUI of start of tracing
-        write_exdr(debug_traceline, []), 
-        flush(debug_traceline).
+        ( peer_queue_get_property(debug_traceline, peer_name, Name),
+          peer_get_property(Name, language, "java") ->
+            /* this is a hopefully temporary way to detect we are using Saros
+               and avoid making changes to the Java side for now
+            */
+            true
+        ;
+            % inform GUI of start of tracing
+            write_exdr(debug_traceline, []), 
+            flush(debug_traceline)
+        ).
 
 
 trace_line_handler_tcl(_, Current) :-
