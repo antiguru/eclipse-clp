@@ -826,12 +826,12 @@ remote_connect(_Address, Peer, set_event_handler(Control, disconnect/0)).
 
 <P>
 <PRE>
-   type     peer type (remote or embed)
-   lang     peer language (e.g. \"tcl\" or \"java\")
-   connect  connection information. Either:
-               remote(LocalHost,PeerHost,TimeOut) or
-               embed(Host,Host,block)
-   queues   current peer queues (list of stream ids)
+   type       peer type (remote or embed)
+   language   peer language (e.g. \"tcl\" or \"java\")
+   connect    connection information. Either:
+                remote(LocalHost,PeerHost,TimeOut) or
+                embed(Host,Host,block)
+   queues     current peer queues (list of stream ids)
 </PRE>
 <P>
    'connect' returns the information on the connection for the peer. This
