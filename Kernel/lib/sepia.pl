@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: sepia.pl,v 1.2 2008/07/27 12:25:06 jschimpf Exp $
+% Version:	$Id: sepia.pl,v 1.3 2008/08/20 17:48:13 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %--------------------------------------------------------------------
@@ -40,7 +40,7 @@
 :- system.		% compiler directive to add the SYSTEM flag
 
 :- comment(summary, "A number of obsolete SEPIA built-ins").
-:- comment(date, "$Date: 2008/07/27 12:25:06 $").
+:- comment(date, "$Date: 2008/08/20 17:48:13 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(status, deprecated).
 
@@ -303,7 +303,7 @@ wm_set0(window,OnOff)        :- set_flag(wm_window,OnOff).
 :- tool((delay)/2, (delay)/3).
 
 delay(Term, Goal, Module) :-
-	suspend(Goal, 2, Term->bound).
+	suspend(Goal, 2, Term->bound)@Module.
 
 :- untraceable (delay)/3.
 
