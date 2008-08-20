@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.3 2008/07/20 18:16:51 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.4 2008/08/20 17:46:13 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -45,7 +45,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2008/07/20 18:16:51 $').
+:- comment(date, '$Date: 2008/08/20 17:46:13 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -820,9 +820,8 @@ recordz_body(Key, Term, '$ref'(DbRef, 0), Module) :-
 erase_body('$ref'(DbRef, 0), Module) :-
 	@(sepia_kernel:erase(DbRef), Module).
 
-:- tool(instance/2, instance_body/3).
-instance_body('$ref'(DbRef, 0), Term, Module) :-
-	@(referenced_record(DbRef, Term), Module).
+instance('$ref'(DbRef, 0), Term) :-
+	referenced_record(DbRef, Term).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *** Grammar Rules ***
