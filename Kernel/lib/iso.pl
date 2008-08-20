@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.3 2008/07/27 12:25:05 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.4 2008/08/20 18:03:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.3 2008/07/27 12:25:05 jschimpf Exp $
+% $Id: iso.pl,v 1.4 2008/08/20 18:03:28 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -86,7 +86,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2008/07/27 12:25:05 $`).
+:- comment(date, `$Date: 2008/08/20 18:03:28 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
@@ -345,7 +345,7 @@ peek_code(Byte) :- peek_code(input, Byte).
 % 8.14 Term input/output (incomplete)
 %-----------------------------------------------------------------------
 
-char_conversion(C1, C2) :-			% 8.14.5
+char_conversion(_C1, _C2) :-			% 8.14.5
 	writeln(warning_output,
 	    'WARNING: char_conversion/2 not implemented, ignored.').
 

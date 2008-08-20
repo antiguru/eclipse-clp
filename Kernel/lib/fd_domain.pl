@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_domain.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: fd_domain.pl,v 1.2 2008/08/20 18:04:18 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -400,7 +400,7 @@ compare_instances_domain(Res, X, Y{fd:AttrY}) :- -?-> not meta(X),
 
 compare_instances_meta_any(Res, X, Y{fd:AttrY}, AttrX) :- -?->
     compare_instances_meta_meta(Res, X, Y, AttrX, AttrY).
-compare_instances_meta_any(Res, X, Y, AttrX) :- not meta(Y),
+compare_instances_meta_any(Res, _X, Y, AttrX) :- not meta(Y),
     /*** META + ANY ***/
     /* can succeed only if Y is a variable */
     var(Y),

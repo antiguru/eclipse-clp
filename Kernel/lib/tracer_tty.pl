@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.3 2008/08/04 17:55:47 jschimpf Exp $
+% Version:	$Id: tracer_tty.pl,v 1.4 2008/08/20 18:03:27 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.3 2008/08/04 17:55:47 jschimpf Exp $
+% $Id: tracer_tty.pl,v 1.4 2008/08/20 18:03:27 jschimpf Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -407,7 +407,7 @@ do_tracer_command(0'w, Current, N0, Cont) :- !,
         ),
         interact(Current, Cont).
 
-do_tracer_command(0'=, Current, N0, Cont) :- !,
+do_tracer_command(0'=, Current, _N0, Cont) :- !,
         Current = trace_line{frame:tf{path:File,line:Line}},
         ( File \== '' ->
             writeln(debug_output, "Source position:"),
