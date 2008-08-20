@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.4 2008/08/20 18:03:28 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.5 2008/08/20 22:57:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.4 2008/08/20 18:03:28 jschimpf Exp $
+% $Id: iso.pl,v 1.5 2008/08/20 22:57:33 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -86,7 +86,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2008/08/20 18:03:28 $`).
+:- comment(date, `$Date: 2008/08/20 22:57:33 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
@@ -123,7 +123,6 @@
 :- export
 	(**)/3,
 	abolish/1,
-	assertz/1,
 	at_end_of_stream/0,
 	at_end_of_stream/1,
 	atom_concat/3,
@@ -255,9 +254,6 @@ unify_with_occurs_check(X, X) :-		% 8.2.2
 %-----------------------------------------------------------------------
 % 8.9 Clause creation and destruction (ok)
 %-----------------------------------------------------------------------
-
-:- import assert_/2 from sepia_kernel.
-:- tool(assertz/1, assert_/2).			% 8.9.2
 
 % don't retract all on a subsequent dynamic/1 declaration
 :- set_event_handler(64, true/0).

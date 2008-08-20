@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.2 2008/07/18 13:38:08 kish_shen Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.3 2008/08/20 22:57:32 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -91,6 +91,7 @@
 :- reexport asin / 2 from sepia_kernel.
 :- reexport assert / 1 from sepia_kernel.
 :- reexport asserta / 1 from sepia_kernel.
+:- reexport assertz / 1 from sepia_kernel.
 :- reexport at / 2 from sepia_kernel.
 :- reexport at_eof / 1 from sepia_kernel.
 :- reexport atan / 2 from sepia_kernel.
@@ -462,6 +463,7 @@
 :- reexport reset_event_handler / 1 from sepia_kernel.
 :- reexport retract / 1 from sepia_kernel.
 :- reexport retract_all / 1 from sepia_kernel.
+:- reexport retractall / 1 from sepia_kernel.
 :- reexport round / 2 from sepia_kernel.
 :- reexport schedule_suspensions / 1 from sepia_kernel.
 :- reexport schedule_suspensions / 2 from sepia_kernel.

@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: elipsys.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: elipsys.pl,v 1.2 2008/08/20 22:57:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -70,7 +70,6 @@
 	alldifferent/1,
 	(mode)/1,
 	(abolish)/1,
-	assertz/1,
 	block/3,
 	chdir/1,
 	clauses/2,
@@ -333,9 +332,6 @@ abolish_b([], _) :- !.
 abolish_b([H|T], M) :- !, abolish_b(H,M), abolish_b(T,M).
 abolish_b(P, M)  :- is_predicate_(P, M), !, abolish_body(P,M).
 abolish_b(_, _).	% succeed if it doesn't exist
-
-:- tool(assertz/1, assertz_body/2).
-assertz_body(Clause, M) :- assert_(Clause, M).
 
 :- tool(clauses/2,clauses_body/3).
 clauses_body(Name/Arity,Clauses,Module) :-

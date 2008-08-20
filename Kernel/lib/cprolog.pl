@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cprolog.pl,v 1.4 2008/07/27 12:25:05 jschimpf Exp $
+% Version:	$Id: cprolog.pl,v 1.5 2008/08/20 22:57:32 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'C-Prolog compatibility package').
 :- comment(author, 'Various, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2008/07/27 12:25:05 $').
+:- comment(date, '$Date: 2008/08/20 22:57:32 $').
 :- comment(desc, html('
     One of the requirements during the development of ECLiPSe has been the
     aim of minimising the work required to port traditional Prolog
@@ -227,7 +227,6 @@
 :- export
 	(.)/3,		% to evaluate lists in arithmetic expressions
 	(abolish)/2,
-	assertz/1,
 	consult/1,
 	current_functor/2,
 	current_predicate/2,
@@ -250,7 +249,6 @@
 
 :- skipped
 	(abolish)/2,
-	assertz/1,
 	consult/1,
 	current_functor/2,
 	erased/1,
@@ -266,7 +264,6 @@
 	reconsult/1.
 
 :- import
-	assert_/2,
 	current_predicate_body / 2,
 	error_handler / 2,
 	get_flag_body/4,
@@ -283,8 +280,7 @@
  */
 
 
-:-  tool(assertz/1, assert_/2),
-    tool((abolish)/2, abolish_body/3),
+:-  tool((abolish)/2, abolish_body/3),
     tool(consult/1, consult_/2),
     tool(reconsult/1, reconsult_/2),
     tool(current_predicate/2, current_predicate_body/3).
@@ -307,6 +303,7 @@ cp_type_error(X, Y) :- error_handler(X, Y).
 
 % This simulates Quintus' behaviour
 cp_undef_dynamic_handler(_, retract_all(_), _) :- !.
+cp_undef_dynamic_handler(_, retractall(_), _) :- !.
 cp_undef_dynamic_handler(_, listing(_), _) :- !.
 cp_undef_dynamic_handler(_, retract(_), _) :- !, fail.
 cp_undef_dynamic_handler(_, clause(_), _) :- !, fail.

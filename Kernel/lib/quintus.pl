@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.4 2008/08/20 17:46:13 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.5 2008/08/20 22:57:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -45,7 +45,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2008/08/20 17:46:13 $').
+:- comment(date, '$Date: 2008/08/20 22:57:33 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -231,7 +231,6 @@
 
 :- reexport
 	(.)/3,		% to evaluate lists in arithmetic expressions
-	assertz/1,
 	consult/1,
 	current_functor/2,
 	current_predicate/2,
@@ -299,7 +298,6 @@
 	recorda/3,
 	recorded/3,
 	recordz/3,
-	retractall/1,
 	set_input/1,
 	set_output/1,
 	source_file/1,
@@ -368,7 +366,6 @@ tr_lib(L, L) :-
    from sepia_kernel.
 
 :-
-	tool(retractall/1, retract_all_body/2),
 	tool((abolish)/1, q_abolish_body/2),
 	tool(incore/1, untraced_call/2),
 	tool(format/2, format_body/3),

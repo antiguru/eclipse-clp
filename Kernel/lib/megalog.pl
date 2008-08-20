@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: megalog.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: megalog.pl,v 1.2 2008/08/20 22:57:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 
@@ -153,8 +153,6 @@ abolish [] :- !.
 abolish [H|T] :- !, abolish H, abolish T.
 abolish P  :- is_predicate(P), !, sepia_kernel::abolish(P).
 abolish _.	% succeed if it doesn't exist
-
-assertz(Clause) :- assert(Clause).
 
 clauses(Name/Arity,Clauses) :-
 	length(List,Arity),

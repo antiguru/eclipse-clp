@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dynamic.pl,v 1.2 2008/07/17 15:32:35 kish_shen Exp $
+% Version:	$Id: dynamic.pl,v 1.3 2008/08/20 22:57:32 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -62,6 +62,7 @@
 	(listing)/0,(listing)/1,
 	retract/1,
 	retract_all/1,
+	retractall/1,
 	writeclause/1,
 	writeclause/2.
 
@@ -83,6 +84,7 @@
 :- tool(listing/0, listing_body/1).
 :- tool(retract/1, retract_body/2).
 :- tool(retract_all/1, retract_all_body/2).
+:- tool(retractall/1, retract_all_body/2).
 :- tool(write_goal/3, write_goal/4).		% exported, for opium
 
 
