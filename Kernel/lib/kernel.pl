@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.13 2008/08/04 17:51:31 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.14 2008/08/20 23:07:37 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -7292,6 +7292,7 @@ warn(_, _).
 :- deprecated(pathname/2,		"Use pathname/3,4").
 :- deprecated(portray_goal/2,		"Use portray_term/3").
 :- deprecated(reset_error_handler/1,	"Use reset_event_handler/1").
+:- deprecated(retract_all/1,		"Use retractall/1").
 %:- deprecated(schedule_woken/1,		"").
 :- deprecated(set_chtab/2,		"Use local chtab declaration").
 :- deprecated(set_error_handler/2,	"Use set_event_handler/2").
