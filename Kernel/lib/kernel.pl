@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.14 2008/08/20 23:07:37 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.15 2008/08/21 18:07:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1665,7 +1665,7 @@ record_discontiguous_predicate(Pred, Clauses, AnnClauses, Module) :-
 	store_get(discontiguous_clauses, Module:Pred, Bag),	% may fail
 	record_discontiguous_clauses(Bag, Clauses, AnnClauses).
 
-    record_discontiguous_clauses(Bag, [], _).
+    record_discontiguous_clauses(_Bag, [], _).
     record_discontiguous_clauses(Bag, [Clause|Clauses], AnnClauses0) :-
 	( nonvar(AnnClauses0) -> AnnClauses0 = [AnnClause|AnnClauses1] ; true ),
 	bag_enter(Bag, Clause-AnnClause),
@@ -4328,11 +4328,14 @@ same_annotation(TermIn, annotated_term(TermIn,Type,File,Line,From,To),
 % Make annotated term for TermOut, inheriting location from In. Similar to:
 %   update_struct(annotated_term, [term:TermOut,type:TypeOut], In, Out)
 % but leave Out uninstantiated if In was.
-inherit_annotation(_TermOut, In, _Out) :- var(In), !.
+inherit_annotation(TermOut, In, Out) :-
+	inherit_annotation(TermOut, In, Out, true).
+
+inherit_annotation(_TermOut, In, _Out, _UseVarNames) :- var(In), !.
 inherit_annotation(TermOut,
 	    annotated_term(_TermIn,_TypeIn,File,Line,From,To),
-	    annotated_term(TermOut,TypeOut,File,Line,From,To)) :-
-	( var(TermOut), get_var_info(TermOut, name, Name) ->
+	    annotated_term(TermOut,TypeOut,File,Line,From,To), UseVarNames) :-
+	( var(TermOut), UseVarNames==true, get_var_info(TermOut, name, Name) ->
 	    % try to add the variable name if it is available from the parser
 	    TypeOut = var(Name)
 	;
@@ -4589,26 +4592,34 @@ transform(Term, Ann, Expanded, AnnExpanded, TN/TA, TLM, ContextModule) :-
 
 % Deeply annotate Term, inheriting all source positions from Template
 transformed_annotate(_Term, Template, _Ann) :-
+	transformed_annotate(_Term, Template, _Ann, true).
+
+% The same, but do not try to add variable names. This is useful to suppress
+% singleton warnings when the annotated term gets compiled.
+transformed_annotate_anon(_Term, Template, _Ann) :-
+	transformed_annotate(_Term, Template, _Ann, false).
+
+transformed_annotate(_Term, Template, _Ann, _UseVarNames) :-
 	var(Template), !.
-transformed_annotate(Term, Template, Ann) :-
+transformed_annotate(Term, Template, Ann, UseVarNames) :-
 	( compound(Term) ->
 	    functor(Term, F, A), 
 	    functor(TermAnn, F, A),
-	    inherit_annotation(TermAnn, Template, Ann),
-	    transformed_annotate_args(1, A, Template, Term, TermAnn)
+	    inherit_annotation(TermAnn, Template, Ann, UseVarNames),
+	    transformed_annotate_args(1, A, Template, Term, TermAnn, UseVarNames)
 	;
-	    inherit_annotation(Term, Template, Ann)
+	    inherit_annotation(Term, Template, Ann, UseVarNames)
 	).
 
-transformed_annotate_args(N, A, Template, Term, TermAnn) :-
+    transformed_annotate_args(N, A, Template, Term, TermAnn, UseVarNames) :-
 	( N > A ->
 	    true
 	;
 	    arg(N, Term, Arg),
 	    arg(N, TermAnn, AnnArg),
-	    transformed_annotate(Arg, Template, AnnArg),
+	    transformed_annotate(Arg, Template, AnnArg, UseVarNames),
 	    N1 is N + 1,
-	    transformed_annotate_args(N1, A, Template, Term, TermAnn)
+	    transformed_annotate_args(N1, A, Template, Term, TermAnn, UseVarNames)
 	).
 
 	
@@ -6187,7 +6198,8 @@ t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
 	],
         
         (nonvar(AnnDoLoop) ->
-            transformed_annotate(BHClause, AnnDoLoop, AnnBHClause),
+	    % Use anonymous variables in the base clause to avoid singleton warnings
+            transformed_annotate_anon(BHClause, AnnDoLoop, AnnBHClause),
             transformed_annotate(Directive, AnnDoLoop, AnnDirective),
             inherit_annotation((AnnRecHead :- AnnBodyGoals), AnnDoLoop, AnnRHClause),
             /* create a annotated list of Code  [
