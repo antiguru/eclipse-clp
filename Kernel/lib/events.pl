@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.4 2008/07/24 16:24:47 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.5 2008/08/21 18:08:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -88,7 +88,7 @@ current_error(N) :-
 		error(5, current_error(N))
 	).
 
-gen_valid_errors(Start, Max, Start) :-
+gen_valid_errors(Start, _Max, Start) :-
 	error_id(Start, _).
 gen_valid_errors(Start, Max, N) :-
 	Start < Max,
@@ -217,7 +217,7 @@ undef_array_handler(N, setval_body(Name, Value, Module), _) :- !,
 	undef_array_handler(N, setval(Name, Value), Module).
 undef_array_handler(N, getval_body(Name, Value, Module), _) :- !,
 	undef_array_handler(N, getval(Name, Value), Module).
-undef_array_handler(N, setval(Name, Value), Module) :-
+undef_array_handler(_N, setval(Name, Value), Module) :-
 	atom(Name),
 	!,
     	( current_module(M), not is_locked(M), current_array(Name, _)@M ->
@@ -262,7 +262,7 @@ make_array_handler(N, Culprit, Module, LM) :-
     make_array_args(global(array(Array)), Array, prolog, global) :- !.
 
 
-undef_record_handler(N, Culprit) :-
+undef_record_handler(_N, Culprit) :-
 	extract_record_key(Culprit, Key, Module),
 	!,
 	( current_module(M), not is_locked(M), current_record(Key)@M ->
@@ -520,7 +520,7 @@ compiler_error_handler(N, Proc) :-
 	compiler_warning_handler(N, Proc),
 	fail.
 
-compiler_abort_handler(N, File, Module) :-
+compiler_abort_handler(N, File, _Module) :-
 	error_id(N, M), 
 	printf(error, "\n*** %s", M),
 	(compiled_file(File, Line) ->
@@ -548,7 +548,7 @@ compiled_file_handler(N, Goal, Module) :-
 	error_handler(N, Goal, Module).
 
 compiled_file_handler(_, term, _, _, _) :- !.
-compiled_file_handler(_, File, Size, Time, Module) :-
+compiled_file_handler(_, File, Size, Time, _Module) :-
 	( File = source(Source) ->
 	    true
 	;
@@ -813,7 +813,7 @@ dynamic_handler(_, dynamic(Name/Arity), Module) :-
 	functor(F, Name, Arity),
 	retract_all_body(F, Module).
 dynamic_handler(N, Proc, Module) :-
-	error_handler(N, Proc).
+	error_handler(N, Proc, Module).
 
 macro_handler(N, define_macro(T, P, F), M) :- !,
 	macro_handler(N, define_macro_(T, P, F, M), _).
@@ -1066,7 +1066,7 @@ attach_suspensions(Trigger, Susp) :-
 attach_suspensions1(Trigger, Susp) :-
 	var(Susp), !,
 	error(4, attach_suspensions(Trigger, Susp)).
-attach_suspensions1(Trigger, []) :- !.
+attach_suspensions1(_Trigger, []) :- !.
 attach_suspensions1(Trigger, Susps) :-
 	Susps = [_|_], !,
 	enter_trigger(Trigger, Entry),

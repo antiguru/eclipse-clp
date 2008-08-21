@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dynamic.pl,v 1.3 2008/08/20 22:57:32 jschimpf Exp $
+% Version:	$Id: dynamic.pl,v 1.4 2008/08/21 18:08:29 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -195,12 +195,12 @@ clause_info(Head, N, A, NormClause) :-
 
 undef_dynamic_handler(N, assert(Clause), Module) :- !,
 	undef_dynamic_handler(N, assertz(Clause), Module).
-undef_dynamic_handler(N, asserta(Clause), Module) :-
+undef_dynamic_handler(_N, asserta(Clause), Module) :-
 	clause_info(Clause, Name, Arity, _NormClause),
 	dynamic_create_(Name, Arity, Module),
 	!,
 	asserta(Clause)@Module.
-undef_dynamic_handler(N, assertz(Clause), Module) :-
+undef_dynamic_handler(_N, assertz(Clause), Module) :-
 	clause_info(Clause, Name, Arity, _NormClause),
 	dynamic_create_(Name, Arity, Module),
 	!,

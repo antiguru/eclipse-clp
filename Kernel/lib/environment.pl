@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.4 2008/07/31 16:55:24 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.5 2008/08/21 18:08:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -75,7 +75,7 @@ get_flag_body(Name, Value, M) :-
 	    error(5, get_flag(Name, Value)).
 
 
-do_get_flag(all_dynamic,X, off).
+do_get_flag(all_dynamic, _X, off).
 do_get_flag(break_level, X, _) :- getval(break_level, X).
 do_get_flag(coroutine,X, _) :-
 	global_flags(0,0,F),
@@ -408,7 +408,7 @@ do_set_flag(enable_interrupts, X, _) :- !,
 	    X == on ->	vm_flags(16'00000002, 0, _) ;
 	    wrong_atom(X)
 	).
-do_set_flag(debugger_warnings, X, _) :- !,
+do_set_flag(debugger_warnings, _X, _) :- !,
 %	(
 %	    X == off ->	sys_flags(4, 0) ;
 %	    X == on ->	sys_flags(4, 1) ;
@@ -446,7 +446,7 @@ do_set_flag(output_options,Options, _) :- !,
 	output_mode_mask(On),
 	% don't change depth when 0 or not specified
 	( Depth = 0 -> true ; sys_flags(1, Depth) ).
-do_set_flag(statistics, X, _) :- !,
+do_set_flag(statistics, _X, _) :- !,
 	set_bip_error(141).	% obsolete
 do_set_flag(syntax_option, X, M) :- !,
 	( X = not(Flag) -> Switch = off

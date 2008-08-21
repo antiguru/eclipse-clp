@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: suspend.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: suspend.pl,v 1.2 2008/08/21 18:08:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -53,7 +53,7 @@
 
 :- comment(summary,
     "Lazy-checking versions of arithmetic primitives, and the suspend-attribute").
-:- comment(date, "$Date: 2008/06/30 17:43:50 $").
+:- comment(date, "$Date: 2008/08/21 18:08:28 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Micha Meier, ECRC, Joachim Schimpf, ECRC and IC-Parc").
 :- comment(desc, html("\
@@ -562,14 +562,14 @@ check_range(List, From, To, Type) :- List = [_|_], !,
 check_range(subscript(Array,Index), From, To, Type) :- !,
 	subscript(Array, Index, Elems),
 	check_range(Elems, From, To, Type).
-check_range(X, From, To, Type) :- !,
+check_range(X, From, To, _Type) :- !,
 	error(5, X::From..To).
 
     check_range_list([], _From, _To, _Type) :- !.
     check_range_list([X|Xs], From, To, Type) :- !,
 	check_range_number(X, From, To, Type),
 	check_range_list(Xs, From, To, Type).
-    check_range_list(X, From, To, Type) :-
+    check_range_list(X, From, To, _Type) :-
     	error(5, X::From..To).
 
     check_range_number(X, From, To, integer) :-

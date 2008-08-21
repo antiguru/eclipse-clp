@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.1 2008/06/30 17:43:46 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.2 2008/08/21 18:08:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -253,7 +253,7 @@ set_stream_options(_, _) :-
 	stream_info_nr(Name, Nr),
 	!,
 	set_stream_prop_(Stream, Nr, Value).
-    set_stream_option(Option, _) :- set_bip_error(6).
+    set_stream_option(_Option, _) :- set_bip_error(6).
 
 
 
@@ -328,7 +328,7 @@ read_term_(Stream, Term, Options, Module) :-
     handle_read_options([O|Os], Term, Vars) :- !,
 	handle_read_option(O, Term, Vars),
 	handle_read_options(Os, Term, Vars).
-    handle_read_options(Options, _, _) :-
+    handle_read_options(_Options, _, _) :-
     	set_bip_error(5).
 
     handle_read_option(Option, _, _) :- var(Option), !,

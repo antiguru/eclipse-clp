@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tconv.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: tconv.pl,v 1.2 2008/08/21 18:08:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -124,7 +124,7 @@ term_string_body(T, S, Module) :- string(S), !,
 	;
 	    error(7, term_string(T, S))
 	).
-term_string_body(T, S, Module) :-
+term_string_body(T, S, _Module) :-
 	error(5, term_string(T, S)).
 
 
