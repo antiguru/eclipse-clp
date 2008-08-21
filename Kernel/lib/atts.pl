@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: atts.pl,v 1.1 2008/06/30 17:43:42 jschimpf Exp $
+% Version:	$Id: atts.pl,v 1.2 2008/08/21 17:36:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -35,7 +35,7 @@
 :- comment(summary, "Variable attributes compatible with SICStus v3").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Micha Meier, ECRC Munich").
-:- comment(date, "$Date: 2008/06/30 17:43:42 $").
+:- comment(date, "$Date: 2008/08/21 17:36:33 $").
 
 :- export op(1150, fx, [attribute]).
 
@@ -323,7 +323,7 @@ atts_subset([Att|Atts1], Mask, Present) :-
 
 compute_att_mask(Atts, Module, Vector) -->
     {arg(1, Vector, Mask),
-    retract_all(t2v(_, _, _, Module))},
+    retractall(t2v(_, _, _, Module))},
     [t2v('$bitv'(Mask),Vector,0, Module)],
     compute_att_mask(Atts, Module, Vector, 1, 1),
     {compile_term('$v2l'(Vector,Atts))@Module}.
