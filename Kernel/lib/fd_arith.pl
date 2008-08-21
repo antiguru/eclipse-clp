@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_arith.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: fd_arith.pl,v 1.2 2008/08/21 17:54:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -328,7 +328,7 @@ conv_pred(#\+(A, Bool), Mode) -->
 
 conv_sub_pred(Goal, Mode) -->
     conv_pred(Goal, Mode), !.
-conv_sub_pred(Goal, Mode) -->
+conv_sub_pred(Goal, _Mode) -->
     [Goal].
 
 %
@@ -468,9 +468,9 @@ conv_sum([A|As], Sum, Mode, K) -->
     { Sum = AC+AsC },
     conv_expr(A, AC, Mode, K),
     conv_sum(As, AsC, Mode, K).
-conv_sum(subscript(Array,Index), Sum, run, K) -->
+conv_sum(subscript(Array,Index), Sum, Mode, K) -->
     -?->
-    { subscript(Array,Index,Elem) },
+    { Mode==run, subscript(Array,Index,Elem) },
     ( { number(Elem) } -> conv_expr(Elem, Sum, Mode, K)
     ; { var(Elem) } -> conv_expr(Elem, Sum, Mode, K)
     ; conv_sum(Elem, Sum, Mode, K)
