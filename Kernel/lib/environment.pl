@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.5 2008/08/21 18:08:28 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.6 2008/08/22 15:04:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -75,7 +75,7 @@ get_flag_body(Name, Value, M) :-
 	    error(5, get_flag(Name, Value)).
 
 
-do_get_flag(all_dynamic, _X, off).
+do_get_flag(all_dynamic, off, _).
 do_get_flag(break_level, X, _) :- getval(break_level, X).
 do_get_flag(coroutine,X, _) :-
 	global_flags(0,0,F),
