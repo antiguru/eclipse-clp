@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: exthsusp.tex,v 1.1 2006/09/23 01:50:23 snovello Exp $
+% $Id: exthsusp.tex,v 1.2 2008/08/22 14:05:34 kish_shen Exp $
 %
 
 \chapter{Advanced Control Features}
@@ -1146,7 +1146,7 @@ report(X) :-
       suspend(report(X, Susp), 1, X->constrained, Susp).
 
 :- demon(report/2).
-report(X, _Susp) :-
+report(X, Susp) :-
       ( var(X) ->
           writeln(constrained(X))   % implicitly re-suspend
       ;
