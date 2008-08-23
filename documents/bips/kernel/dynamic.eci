@@ -25,6 +25,7 @@
 
 :- tool(assert / 1).
 :- tool(asserta / 1).
+:- tool(assertz / 1).
 :- tool(clause / 1).
 :- tool(clause / 2).
 :- tool(is_dynamic / 1).
@@ -32,7 +33,7 @@
 :- tool((listing) / 0).
 :- tool((listing) / 1).
 :- tool(retract / 1).
-:- tool(retract_all / 1).
+:- tool(retractall / 1).
 
 :- comment((dynamic) / 1, [
 	summary:"Declares the procedures specified by SpecList as dynamic.
@@ -208,29 +209,26 @@ Error:
 ",
 	see_also:[assert / 1, clause / 1, clause / 2, (listing) / 0, writeclause / 1]]).
 
-:- comment(assert / 1, [
-	summary:"Add specified clause at the end of the dynamic procedure to the database.
 
-",
-	amode:(assert(+) is det),
-	desc:html("   Adds the specified clause for a dynamic procedure to the database.  The
-   clause is added AFTER any existing clauses for the procedure.
-
+:- comment(assertz / 1, [
+	summary:"Add specified clause at the end of the dynamic procedure to the database",
+	amode:(assertz(+) is det),
+	desc:html("\
+   Adds the specified clause for a dynamic procedure to the database.]
+   The clause is added AFTER any existing clauses for the procedure.
+   This is an alias for assert/1.
 <P>
    The procedure must be declared to be dynamic using the dynamic/1
    built-in.  If the procedure is undefined an exception is raised.
    However, the default error handler for this exception simply declares
    the procedure dynamic and asserts the clause.
-
 <P>
    The asserted clause is NOT removed from the database on backtracking
-   through the call to assert/1.
-
+   through the call to assertz/1.
 <P>
-   assert/1 satisfies the logical update semantics.  Asserting a clause to
+   assertz/1 satisfies the logical update semantics.  Asserting a clause to
    a procedure will not, in any way, affect previous calls to it when
    backtracking.
-
 <P>
    No clause transformation is performed on Clause. Use expand_clause/2 to
    explicitly expand the clause before calling this predicate if clause
@@ -238,10 +236,100 @@ Error:
 <P>
 "),
 	args:["Clause" : "Atom or compound term"],
-	exceptions:[4 : "Clause is a free variable.", 4 : "The head of Clause is a free variable.", 5 : "Clause is not a valid Prolog clause.", 63 : "The procedure is not dynamic.", 70 : "The procedure is undefined.  However, the default error    handler for this exception simply declares the procedure dynamic and    asserts the clause, if the error was caused by an assert."],
+	exceptions:[4 : "Clause is a free variable.",
+	    4 : "The head of Clause is a free variable.",
+	    5 : "Clause is not a valid Prolog clause.",
+	    63 : "The procedure is not dynamic.",
+	    70 : "The procedure is undefined.  However, the default error handler for this exception simply declares the procedure dynamic and    asserts the clause, if the error was caused by an assert."
+	],
 	eg:"   Success:
-    assert(city(munich)).
-    assert((likes(X,Y):-man(X),woman(Y)).
+    ?- assertz(city(london)), assertz(city(munich)), assertz(city(paris)).
+    yes.
+    ?- listing.
+    city(london).
+    city(munich).
+    city(paris).
+    yes.
+
+    ?- assertz((likes(X,Y) :- man(X), woman(Y))).
+    yes.
+    ?- listing.
+    likes(_186, _187) :-
+        man(_186),
+        woman(_187).
+    yes.
+
+
+   Error:
+    assertz(X).                        - gives error 4.
+    assertz(\"the man\").                - gives error 5.
+    assertz(1).                        - gives error 5.
+    assertz((my_static(X):-write(X))). - gives error 63.
+                                        if my_static/1 is not
+                                        dynamic.
+   Logical semantics :
+
+   If the following clauses are in the database :
+p :- assertz(p), fail.
+p :- fail.
+
+q :- fail.
+q :- assertz(q), fail.
+
+   The queries p.  and q.  will both fail.
+",
+	see_also:[(dynamic) / 1, asserta / 1, assert/1, retract / 1, compile_term / 1]]).
+
+
+:- comment(assert / 1, [
+	summary:"Add specified clause at the end of the dynamic procedure to the database",
+	amode:(assert(+) is det),
+	desc:html("\
+   Adds the specified clause for a dynamic procedure to the database.]
+   The clause is added AFTER any existing clauses for the procedure.
+   This is an alias for assertz/1.
+<P>
+   The procedure must be declared to be dynamic using the dynamic/1
+   built-in.  If the procedure is undefined an exception is raised.
+   However, the default error handler for this exception simply declares
+   the procedure dynamic and asserts the clause.
+<P>
+   The asserted clause is NOT removed from the database on backtracking
+   through the call to assert/1.
+<P>
+   assert/1 satisfies the logical update semantics.  Asserting a clause to
+   a procedure will not, in any way, affect previous calls to it when
+   backtracking.
+<P>
+   No clause transformation is performed on Clause. Use expand_clause/2 to
+   explicitly expand the clause before calling this predicate if clause
+   expansion is rquired.
+<P>
+"),
+	args:["Clause" : "Atom or compound term"],
+	exceptions:[4 : "Clause is a free variable.",
+	    4 : "The head of Clause is a free variable.",
+	    5 : "Clause is not a valid Prolog clause.",
+	    63 : "The procedure is not dynamic.",
+	    70 : "The procedure is undefined.  However, the default error handler for this exception simply declares the procedure dynamic and    asserts the clause, if the error was caused by an assert."
+	],
+	eg:"   Success:
+    ?- assert(city(london)), assert(city(munich)), assert(city(paris)).
+    yes.
+    ?- listing.
+    city(london).
+    city(munich).
+    city(paris).
+    yes.
+
+    ?- assert((likes(X,Y) :- man(X), woman(Y))).
+    yes.
+    ?- listing.
+    likes(_186, _187) :-
+        man(_186),
+        woman(_187).
+    yes.
+
 
    Error:
     assert(X).                        - gives error 4.
@@ -260,29 +348,80 @@ q :- fail.
 q :- assert(q), fail.
 
    The queries p.  and q.  will both fail.
-
-
-
 ",
-	see_also:[(dynamic) / 1, asserta / 1, retract / 1, compile_term / 1]]).
+	see_also:[(dynamic) / 1, asserta / 1, assertz/1, retract / 1, compile_term / 1]]).
+
 
 :- comment(asserta / 1, [
-	summary:"Add specified clause for a dynamic procedure to the database before any
-existing clauses.
-
-",
+	summary:"Add specified clause for a dynamic procedure to the database before any existing clauses",
 	amode:(asserta(+) is det),
-	desc:html("   Adds the specified clause for a dynamic procedure to the database.  This
-   is similar to the action of assert/1 except that the clause is added
-   BEFORE any existing clauses for the procedure.
-
+	desc:html("\
+   Adds the specified clause for a dynamic procedure to the database.]
+   The clause is added BEFORE any existing clauses for the procedure.
 <P>
-   Apart from that, its behaviour is identical to assert/1.
-
+   The procedure must be declared to be dynamic using the dynamic/1
+   built-in.  If the procedure is undefined an exception is raised.
+   However, the default error handler for this exception simply declares
+   the procedure dynamic and asserts the clause.
+<P>
+   The asserted clause is NOT removed from the database on backtracking
+   through the call to asserta/1.
+<P>
+   asserta/1 satisfies the logical update semantics.  Asserting a clause to
+   a procedure will not, in any way, affect previous calls to it when
+   backtracking.
+<P>
+   No clause transformation is performed on Clause. Use expand_clause/2 to
+   explicitly expand the clause before calling this predicate if clause
+   expansion is rquired.
 <P>
 "),
-	args:["Clause" : "Clause to be added to the database"],
-	see_also:[(dynamic) / 1, assert / 1, retract / 1, compile_term / 1]]).
+	args:["Clause" : "Atom or compound term"],
+	exceptions:[4 : "Clause is a free variable.",
+	    4 : "The head of Clause is a free variable.",
+	    5 : "Clause is not a valid Prolog clause.",
+	    63 : "The procedure is not dynamic.",
+	    70 : "The procedure is undefined.  However, the default error handler for this exception simply declares the procedure dynamic and    asserts the clause, if the error was caused by an assert."
+	],
+	eg:"   Success:
+    ?- asserta(city(london)), asserta(city(munich)), asserta(city(paris)).
+    yes.
+    ?- listing.
+    city(paris).
+    city(munich).
+    city(london).
+    yes.
+
+    ?- asserta((likes(X,Y) :- man(X), woman(Y))).
+    yes.
+    ?- listing.
+    likes(_186, _187) :-
+        man(_186),
+        woman(_187).
+    yes.
+
+
+   Error:
+    asserta(X).                        - gives error 4.
+    asserta(\"the man\").                - gives error 5.
+    asserta(1).                        - gives error 5.
+    asserta((my_static(X):-write(X))). - gives error 63.
+                                        if my_static/1 is not
+                                        dynamic.
+   Logical semantics :
+
+   If the following clauses are in the database :
+p :- asserta(p), fail.
+p :- fail.
+
+q :- fail.
+q :- asserta(q), fail.
+
+   The queries p.  and q.  will both fail.
+",
+	see_also:[(dynamic) / 1, assert / 1, assertz/1, retract / 1, compile_term / 1]]).
+
+
 
 :- comment(clause / 1, [
 	summary:"Succeeds if Clause unifies with a clause of a dynamic procedure.
@@ -398,27 +537,25 @@ Error:
 
 
 ",
-	see_also:[asserta / 1, (dynamic) / 1, (listing) / 1]]).
+	see_also:[assert / 1, (dynamic) / 1, (listing) / 1]]).
 
-:- comment(retract_all / 1, [
-	summary:"Succeeds if all the clauses whose heads match Head are successfully removed
-from the database.
-
-",
-	amode:(retract_all(+) is det),
+:- comment(retractall / 1, [
+	summary:"Removes from the database all clauses whose heads match Head",
+	amode:(retractall(+) is det),
 	desc:html("   Retracts from the database all clauses whose heads match the argument.
    The argument must be sufficiently instantiated otherwise an error is
-   signalled.  retract_all/1 never fails.  The clauses are not reasserted
-   when backtracking through the call of retract_all/1.
+   signalled.  retractall/1 never fails.  The clauses are not reasserted
+   when backtracking through the call of retractall/1.
 
 <P>
    The functor and the arity of Head must be that of a predicate declared
-   as dynamic.
+   as dynamic (or implicitly declared as dynamic by asserting).
 
 <P>
-   retract_all/1 satisfies the logical update semantics.  Using it to
+   retractall/1 satisfies the logical update semantics.  Using it to
    retract all the clauses of a predicate will not, in any way, affect
-   previous calls to the predicate.
+   previous calls to the predicate, i.e. they will still see all the clauses
+   that existed at call time.
 
 <P>
 "),
@@ -428,22 +565,24 @@ from the database.
 Success:
     [eclipse]: assert(city(munich)), assert(city(london)).
     yes.
-    [eclipse]: retract_all(city(_)).
+    [eclipse]: retractall(city(_)).
     yes.
     [eclipse]: city(X).
     no (more) solution.
+    [eclipse]: retractall(city(_)).
+    yes.
 Error:
-    retract_all(X).                  (Error 4).
-    retract_all(\"x\").                (Error 5).
+    retractall(X).                  (Error 4).
+    retractall(\"x\").                (Error 5).
 
 
    % if h/0 is defined, but not as dynamic..
-    retract_all(h).                  (Error 63).
+    retractall(h).                  (Error 63).
 
-    retract_all(z/0).                (Error 70).
+    retractall(z/0).                (Error 70).
 
 
 
 ",
-	see_also:[(dynamic) / 1, asserta / 1, retract / 1]]).
+	see_also:[(dynamic) / 1, assert / 1, retract / 1]]).
 

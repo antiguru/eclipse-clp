@@ -40,6 +40,7 @@
 :- tool(current_struct / 1).
 :- tool(portray_goal / 2).
 :- tool(tool / 1).
+:- tool(retract_all / 1).
 
 :- comment(lib / 2, [
 	summary:"The library LibraryName is loaded into the module ModuleName if not loaded
@@ -2898,4 +2899,12 @@ Error:
 ",
 	see_also:[tool / 2, tool_body / 3]]).
 
+
+:- comment(retract_all / 1, [
+	summary:"Removes from the database all clauses whose heads match Head",
+	amode:(retract_all(+) is det),
+	desc:html("An obsolete synonym for retractall/1."),
+	args:["Head" : "Atom, variable or compound term."],
+	exceptions:[4 : "Head is not instantiated", 5 : "Head is not a callable term", 63 : "Procedure is not dynamic", 70 : "Procedure is undefined"],
+	see_also:[retractall / 1]]).
 

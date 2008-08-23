@@ -462,8 +462,8 @@ Error:
    affected, i.e. if the predicate was exported, it will remain exported.
 <P>
    Predicates can be abolished, no matter whether they are static or
-   dynamic. For dynamic predicates, the difference between retract_all/1
-   and abolish/1 is that retract_all/1 leaves the predicates with no
+   dynamic. For dynamic predicates, the difference between retractall/1
+   and abolish/1 is that retractall/1 leaves the predicates with no
    clauses (call of the predicate will fail) and the predicate retains
    its dynamic-property.  In contrast, abolish/1 makes the predicates
    undefined (calls will raise and error) and the predicate loses its
@@ -525,7 +525,7 @@ executing :
     X = 2
     yes.
 ",
-	see_also:[retract_all / 1]]).
+	see_also:[retractall / 1]]).
 
 :- comment(current_built_in / 1, [
 	summary:"Succeeds if the predicate defined by PredSpec is a visible built-in
