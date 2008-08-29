@@ -25,7 +25,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * VERSION	$Id: main.c,v 1.2 2008/08/29 17:50:41 kish_shen Exp $
  */
 
 /*
@@ -283,8 +283,8 @@ main(int argc, char **argv)
 		    argv[new_argc++] = argv[c++];
 		break;
 
-	    default:				/* skip unknown */
-		argv[new_argc++] = argv[c++];
+	    default:				/* unknown: error */
+		usage(argv[c]);
 		break;
 	    }
 	}
@@ -322,9 +322,9 @@ main(int argc, char **argv)
 	    argv[new_argc++] = argv[c++];		/* shift */
 	    ec_options.rl = 0;
 	}
-	else /* ignore/shift bad arguments unless there is a -- option */
+	else /* raise error unless preceeded by a -- option */
 	{
-	    argv[new_argc++] = argv[c++];
+	    usage(argv[c]);
 	}
     }
 
