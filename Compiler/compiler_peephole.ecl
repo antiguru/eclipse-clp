@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.25 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.26 2008/08/29 15:26:46 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/06/13 00:38:55 $").
+:- comment(date, "$Date: 2008/08/29 15:26:46 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -141,7 +141,7 @@ simplify_code(CodeList, WamList, options{opt_level:OptLevel}) :-
                     true
                 )
             ),
-	    basic_blocks_to_flat_code(BasicBlockArray, Branches, CodeList1),
+	    basic_blocks_to_flat_code(BasicBlockArray, Branches, JoinedArray, ReachedArray, CodeList1),
             simplify_chunk(CodeList1, SimpCodeList)  % run simplify again on entire code list
 	;
 	    simplify_chunk(CodeList, SimpCodeList)
@@ -814,13 +814,13 @@ join_short_continuations(BasicBlockArray, ReachedArray, NonRepArray, ContArray, 
 % The done-flag in the array indicates whether the chunk has already been
 % processed.
 
-basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
+basic_blocks_to_flat_code(BasicBlockArray, Reached, JoinedArray, ReachedArray, Code) :-
 	(
 	    fromto(1,I,NextI,0),			% current chunk
 	    fromto(1,PrevCont,Cont,_),			% prev. chunk's continuation
 	    fromto(Reached,Reached1,Reached2,_),	% branches (queue)
-	    fromto(Code,Code0,Code2,[]),		% result list
-	    param(BasicBlockArray)
+	    fromto(Code,Code0,Code3,[]),		% result list
+	    param(BasicBlockArray, JoinedArray, ReachedArray)
 	do
 	    arg(I, BasicBlockArray, Chunk),
 	    Chunk = chunk{code:ChunkCode,done:Done,cont:Cont0},
@@ -845,14 +845,42 @@ basic_blocks_to_flat_code(BasicBlockArray, Reached, Code) :-
 	    % Choose the next chunk to process: prefer the current chunk's
 	    % continuation, otherwise pick one from the queue
 	    ( Cont > 0 ->
-		NextI = Cont, Reached1 = Reached2	% use continuation
+               ( should_continue_branch(Cont, I, BasicBlockArray, JoinedArray, ReachedArray) ->
+                   Code2 = [code{instr:branch(ref(Cont))}|Code3],   
+                   Reached1 = [NextI|Reached2]		% don't use continuation
+               ;
+                   Code2 = Code3,
+                   NextI = Cont, Reached1 = Reached2	% use continuation
+               )
 	    ; Reached1 == [] ->
+                Code2 = Code3,
 	    	NextI = 0				% queue empty, finished
 	    ;
+                Code2 = Code3,
 		Reached1 = [NextI|Reached2]		% pick from queue
 	    )
 	).
 
+/* should_continue_branch(Cont, Current, BasicBlockArray, JoinArraye, ReachedArray)
+   determines if the continuation chunk should be appended to the 
+   current one, or if a new branch started. The idea is to preserve
+   the original branching if possible, to preserve any optimisation
+   performed by the compiler. However, if a chunk is already joined
+   (e.g. by joing short continuations), then do not try to preserve
+   original branching as chunk may be replicated
+*/
+should_continue_branch(Cont, Current, BasicBlockArray, JoinedArray, ReachedArray) :-
+        Cont =\= Current + 1, % Continuation is not next chunk
+        BeforeCont is Cont - 1, 
+        BeforeCont \== 0,
+        arg(BeforeCont, BasicBlockArray, BeforeChunk),
+        BeforeChunk = chunk{done:Done,cont:Cont}, 
+        % BeforeChunk continues into Continue (i.e. original branching)
+        var(Done),
+        arg(BeforeCont, JoinedArray, BeforeJoined),
+        var(BeforeJoined),    % BeforeChunk was not joined early
+        arg(BeforeCont, ReachedArray, BeforeReached),
+        nonvar(BeforeReached). % check that BeforeChunk is not dead code 
 
 %----------------------------------------------------------------------
 % simplify a basic block
