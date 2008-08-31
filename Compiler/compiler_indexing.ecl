@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.7 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.8 2008/08/31 21:57:15 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/13 00:38:55 $").
+:- comment(date, "$Date: 2008/08/31 21:57:15 $").
 
 :- use_module(compiler_common).
 :- import state_lookup_binding/3 from compiler_analysis.
@@ -119,7 +119,7 @@ index_disjunction(disjunction{branches:Branches,branchlabels:BranchLabelArray,
 	    fromto(GuardsByBranch,Guards0,Guards1,[]),
 	    param(StartState,VaridsInCommittedGuards)
 	do
-	    extract_guards_from_prefix(Branch, I, StartState, [], GuardInfo0, End),
+	    extract_guards_from_prefix(Branch, I, StartState, [], GuardInfo0, false, _UnifyFlag, End),
 	    ( End == commit ->
 		% remember the varids that occur in committed guards
 		( foreach(guard{varid:VarId},GuardInfo0), param(VaridsInCommittedGuards) do
@@ -220,61 +220,66 @@ index_disjunction(disjunction{branches:Branches,branchlabels:BranchLabelArray,
 % Takes the goals that start the given branch, and a starting state.
 % Computes a representation of the guard goals, plus a flag indicating
 % whether the guard ends with or without a commit.
-extract_guards_from_prefix([], _BranchNr, _StartState, Info, Info, end).
-extract_guards_from_prefix([Goal|Goals], BranchNr, StartState, Info0, Info, End) :-
+extract_guards_from_prefix([], _BranchNr, _StartState, Info, Info, UnifyFlag, UnifyFlag, end).
+extract_guards_from_prefix([Goal|Goals], BranchNr, StartState, Info0, Info, UnifyFlag0, UnifyFlag, End) :-
 	(
 	    % consider only builtin predicates
 	    % caution: regular preds can wake (and fail!)
 	    Goal = goal{kind:simple,definition_module:sepia_kernel},
-	    extract_guards_from_goal(Goal, BranchNr, StartState, Guard, End)
+	    extract_guards_from_goal(Goal, BranchNr, StartState, UnifyFlag0, UnifyFlag1, Guard, End)
 	->
 	    and_guard(Guard, Info0, Info1),
 	    ( var(End) ->
-		extract_guards_from_prefix(Goals, BranchNr, StartState, Info1, Info, End)
+		extract_guards_from_prefix(Goals, BranchNr, StartState, Info1, Info, UnifyFlag1, UnifyFlag, End)
 	    ;
 		% end of guard detected
-	    	Info = Info1
+	    	Info = Info1, UnifyFlag = UnifyFlag0
 	    )
 
 	; Goal = goal{kind:head,state:HeadState} ->
 	    % Use the head's binding information instead of what was known
 	    % prior to the disjunction
-	    extract_guards_from_prefix(Goals, BranchNr, HeadState, Info0, Info, End)
-%	    extract_guards_from_prefix(Goals, BranchNr, StartState, Info0, Info, End)
+	    extract_guards_from_prefix(Goals, BranchNr, HeadState, Info0, Info, UnifyFlag0, UnifyFlag, End)
+%	    extract_guards_from_prefix(Goals, BranchNr, StartState, Info0, Info, UnifyFlag0, UnifyFlag, End)
 
 	; Goal = disjunction{branches:[SubBranch1|SubBranches]} ->
 	    % look into the prefixes of the branches
-	    extract_guards_from_prefix(SubBranch1, BranchNr, StartState, [], SubInfo1, _End),
+	    extract_guards_from_prefix(SubBranch1, BranchNr, StartState, [], SubInfo1, UnifyFlag0, UnifyFlag1, _End),
 	    (
 		foreach(SubBranch,SubBranches),
 		fromto(SubInfo1,SubInfo2,SubInfo4,SubInfo),
-		param(BranchNr,StartState)
+		fromto(UnifyFlag1,UnifyFlag2,UnifyFlag3,UnifyFlag),
+		param(BranchNr,StartState, UnifyFlag0)
 	    do
-		extract_guards_from_prefix(SubBranch, BranchNr, StartState, [], SubInfo3, _End),
-		or_guards(SubInfo2, SubInfo3, SubInfo4)
+		extract_guards_from_prefix(SubBranch, BranchNr, StartState, [], SubInfo3, UnifyFlag0, UnifyFlagI, _End),
+		or_guards(SubInfo2, SubInfo3, SubInfo4),
+		or_flags(UnifyFlagI, UnifyFlag2, UnifyFlag3)
 	    ),
 	    and_guards(Info0, SubInfo, Info),
 	    End = end	% not sure about the scope of commits in sub-branches
 	;
 	    % end of guard
-	    Info = Info0,
-	    End = end
+	    Info = Info0, UnifyFlag = UnifyFlag0, End = end
 	).
 
-	
+
 % PRE: the goal is a builtin from sepia_kernel.
 % Fail if encountering a goal that signals end-of-guard.
 % Regular goal can cause waking (and therefore insert failures).
 % StartState is the analysis state at the beginning of the disjunction.
+% UnifyFlag is true if goals between switch and the current goal might
+% have unified any switch variables (and thus weakened the guards).
+% Additionally, we set UnifyFlagAfter iff the current goal can unify a
+% switch variable (and thus weaken the switch conditions for subsequent guards).
 
 extract_guards_from_goal(goal{functor:get_cut/1},
-		_BranchNr, _StartState, true, _) :- !.
+		_BranchNr, _StartState, UnifyFlag, UnifyFlag, true, _) :- !.
 
 extract_guards_from_goal(goal{functor:cut_to/1},
-		_BranchNr, _StartState, true, commit) :- !.
+		_BranchNr, _StartState, UnifyFlag, UnifyFlag, true, commit) :- !.
 
 extract_guards_from_goal(goal{functor:(=)/2, args:[Lhs,Rhs], state:GoalState},
-		BranchNr, StartState, Guard, _) :- !,
+		BranchNr, StartState, _UnifyFlag, UnifyFlagAfter, Guard, _) :- !,
 	% unifications should be normalised and always
 	% have a variable on the left hand side
 	certainly_once Lhs = variable{varid:VarId},
@@ -303,25 +308,44 @@ extract_guards_from_goal(goal{functor:(=)/2, args:[Lhs,Rhs], state:GoalState},
 %		Guard = guard{branchnr:BranchNr,varid:VarId,class:[[]-m,[var]-t]}
 %		Guard = guard{branchnr:BranchNr,varid:VarId,class:[[]-m]}
 		Guard = guard{branchnr:BranchNr,varid:0,class:[]}
-	    )
+	    ),
+	    % Conservatively assume that the goal may (directly, via aliasing,
+	    % or via occurrences in the Rhs) unify this or another switch variable
+	    UnifyFlagAfter = true
+	    % This could be more precise, using binding information:
+	    % A = X				false
+	    % A = f(X,X)			false
+	    % X = f(A,B)	with inst(X)	false
+	    % X = f(A,B)	with univ(X)	true
+	    % X = f(A,A)			true
+	    % X = f(Y)			true
+	    % X = f(a)			true
+	    % X = f(g(_))			true
+	    %	state_lookup_binding(GoalState, VarId, LhsBinding),
+	    %	( binding_inst(LhsBinding) -> \+all_fresh_term(Rhs) ; true ).
 	;
 	    % Nothing known about the variable at switch time, so it can't be
 	    % used for indexing. Check whether it can fail at call time.
 	    ( state_lookup_binding(GoalState, VarId, _Binding) ->
 		% insert marker for possibly failing goal
-		Guard = guard{branchnr:BranchNr,varid:0,class:[]}
+		Guard = guard{branchnr:BranchNr,varid:0,class:[]},
+		% Conservatively assume that the goal may (via aliasing or
+		% occurrences in Rhs) unify another switch variable
+		UnifyFlagAfter = true
 	    ;
 		% a fresh variable, goal will always succeed
-		Guard = true
+		Guard = true,
+		% No danger of the guard unifying a switch variable
+		UnifyFlagAfter = false
 	    )
 	).
 
 extract_guards_from_goal(goal{functor:(==)/2, args:[Lhs,Rhs]},
-		BranchNr, StartState, Guard, _) :- !,
+		BranchNr, StartState, UnifyFlag, UnifyFlag, Guard, _) :- !,
 	( Lhs = variable{varid:VarId}, Rhs \= variable{} ->
-	    extract_guards_from_identity(VarId, Rhs, BranchNr, StartState, Guard)
+	    extract_guards_from_identity(VarId, Rhs, BranchNr, StartState, UnifyFlag, Guard)
 	; Rhs = variable{varid:VarId}, Lhs \= variable{} ->
-	    extract_guards_from_identity(VarId, Lhs, BranchNr, StartState, Guard)
+	    extract_guards_from_identity(VarId, Lhs, BranchNr, StartState, UnifyFlag, Guard)
 	; Lhs = variable{varid:VarId}, Rhs = variable{varid:VarId} ->
 	    Guard = true
 	;
@@ -330,7 +354,9 @@ extract_guards_from_goal(goal{functor:(==)/2, args:[Lhs,Rhs]},
 	).
 
 extract_guards_from_goal(goal{functor:(?=)/2, args:[Lhs,Rhs], state:GoalState},
-		BranchNr, StartState, Guard, _) :- !,
+		BranchNr, StartState, UnifyFlag, UnifyFlag, Guard, _) :- !,
+	% matchings should not be preceded by unifications
+	verify UnifyFlag == false,
 	% matchings should be normalised and always
 	% have a variable on the left hand side
 	certainly_once Lhs = variable{varid:VarId},
@@ -364,39 +390,41 @@ extract_guards_from_goal(goal{functor:(?=)/2, args:[Lhs,Rhs], state:GoalState},
 
 extract_guards_from_goal(goal{
     		functor:Test/1, args:[variable{varid:VarId}] },
-		BranchNr, StartState, Guard, _) :-
-	type_test(Test, Classes),
+		BranchNr, StartState, UnifyFlag, UnifyFlag, Guard, _) :-
+	type_test(Test, TestClasses),
 	!,
 	( state_lookup_binding(StartState, VarId, _Binding) ->
+	    binding_effect_on_guard(UnifyFlag, TestClasses, Classes),
 	    Guard = guard{branchnr:BranchNr,varid:VarId,class:Classes}
 	;
-	    % nothing known about the variable, 
+	    % nothing known about the variable,
 	    % goal may fail, but can't be used for indexing
 	    % (we could probably be more precise here)
 	    Guard = guard{branchnr:BranchNr,varid:0,class:[]}
 	).
 
     % For the ==/2 predicate, matching, etc
-    extract_guards_from_identity(VarId, Rhs, BranchNr, StartState, Guard) :-
+    extract_guards_from_identity(VarId, Rhs, BranchNr, StartState, UnifyFlag, Guard) :-
 	% state_lookup_binding should succeed iff the variable was known
 	% before the start of the disjunction
 	( state_lookup_binding(StartState, VarId, _Binding) ->
+	    % Binding after switch can make guard true in var case!
+	    binding_effect_on_guard(UnifyFlag, [], VarClass),
 	    ( atomic_tag(Rhs, Tag) ->
 		( value_indexable(Tag) ->
-		    Guard = guard{branchnr:BranchNr,varid:VarId,class:[[Tag,Rhs]-t]}
+		    Guard = guard{branchnr:BranchNr,varid:VarId,class:[[Tag,Rhs]-t|VarClass]}
 		; single_value(Tag) ->
-		    Guard = guard{branchnr:BranchNr,varid:VarId,class:[[Tag]-t]}
+		    Guard = guard{branchnr:BranchNr,varid:VarId,class:[[Tag]-t|VarClass]}
 		;
-		    Guard = guard{branchnr:BranchNr,varid:VarId,class:[[Tag]-m]}
+		    Guard = guard{branchnr:BranchNr,varid:VarId,class:[[Tag]-m|VarClass]}
 		)
 	    ; Rhs = structure{name:F,arity:A} ->
-		Guard = guard{branchnr:BranchNr,varid:VarId,class:[[structure,F/A]-m]}
+		Guard = guard{branchnr:BranchNr,varid:VarId,class:[[structure,F/A]-m|VarClass]}
 	    ; verify Rhs = [_|_],
-		Guard = guard{branchnr:BranchNr,varid:VarId,class:[[list]-m]}
+		Guard = guard{branchnr:BranchNr,varid:VarId,class:[[list]-m|VarClass]}
 	    )
 	;
-	    % nothing known about the variable, can't be used for indexing,
-	    % in fact guaranteed to fail
+	    % nothing known about the variable at switch time, can't be used for indexing,
 	    Guard = guard{branchnr:BranchNr,varid:0,class:[]}
 	).
 
@@ -450,6 +478,13 @@ type_test(rational,	[[rational]-t]).
 type_test(real,		[[breal]-t,[double]-t]).
 type_test(string,	[[string]-t]).
 type_test(var,		[[var]-t]).
+
+
+% A unification of the switch-argument in between the switch and the
+% guard test can make the guard true in the var-case as well.
+binding_effect_on_guard(true, TestClasses, Classes) ?-
+	or_classes(TestClasses, [[var]-m], Classes).
+binding_effect_on_guard(false, Classes, Classes).
 
 
 and_guards(Guards1, Guards2, Guards) :-
@@ -557,6 +592,12 @@ or_classes(Ls, Rs, Cs) :-
     or_pass(_, _, m).
 
 
+or_flags(false, false, false) :- !.
+or_flags(false, true, true) :- !.
+or_flags(true, false, true) :- !.
+or_flags(true, true, true) :- !.
+
+
 % Check whether Args is a list of disjoint fresh variables
 all_fresh_vars(Args, Arity, State) :-
 	(
@@ -568,6 +609,17 @@ all_fresh_vars(Args, Arity, State) :-
 	),
 	sort(VarIds, UniqVarIds),
 	length(UniqVarIds, Arity).
+
+
+% Succeed iff term does not contain old variables or internal aliasing
+all_fresh_term(Term, _State) :- atomic(Term).
+all_fresh_term(structure{arity:Arity,args:Args}, State) ?- !,
+	all_fresh_vars(Args, Arity, State).
+all_fresh_term([A1|A2], State) ?- !,
+	all_fresh_vars([A1,A2], 2, State).
+all_fresh_term(variable{varid:VarId}, State) ?- !,
+	\+ state_lookup_binding(State, VarId, _Binding).
+%all_fresh_term(attrvar{}, _State) ?- fail.
 
 
 % If we had only one guarded variable followed by commit,

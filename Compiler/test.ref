@@ -3509,8 +3509,9 @@ p :-
 	).
 
 INDEXES for (semidet) disjunction [3]
-1. Quality 0.7
+1. Quality 1.0
     [] - []
+    [var] - [2]
     [atom] - []
     [atom, a] - [1]
     [atom, b] - [2]
@@ -3531,7 +3532,7 @@ label(L1):
 		b: 	ref(L7)
 		default: 	ref(fail)
 
-	branch                   ref(fail) 
+	branch                   ref(L7) 
 label(L2):
 label(L3):
 	integer_switch           y(1) 
@@ -3871,8 +3872,9 @@ p :-
 	).
 
 INDEXES for (semidet) disjunction [3]
-1. Quality 0.7
+1. Quality 1.0
     [] - []
+    [var] - [2]
     [atom] - []
     [atom, a] - [1]
     [atom, b] - [2]
@@ -3893,7 +3895,7 @@ label(L1):
 		b: 	ref(L7)
 		default: 	ref(fail)
 
-	branch                   ref(fail) 
+	branch                   ref(L7) 
 label(L2):
 label(L3):
 	integer_switch           y(1) 
@@ -3940,8 +3942,9 @@ p :-
 	).
 
 INDEXES for (nondet) disjunction [3]
-1. Quality 1.2
+1. Quality 1.7
     [] - [3]
+    [var] - [2, 3]
     [atom] - [3]
     [atom, a] - [1, 3]
     [atom, b] - [2, 3]
@@ -3962,7 +3965,7 @@ label(L1):
 		b: 	ref(L12)
 		default: 	ref(L9)
 
-	branch                   ref(L9) 
+	branch                   ref(L12) 
 label(L2):
 label(L3):
 	integer_switch           y(1) 
@@ -6510,6 +6513,170 @@ label(L30):
 	bi_is_handle             a(1) 
 	jmp                      p_handle / 0 
 label(L31):
+	ret                  
+
+------ Test idx(70) -------
+p(f(A), A) :-
+	atom(A).
+p(g(A), A) :-
+	atom(A).
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 1.3
+    [] - []
+    [structure] - []
+    [structure, f / 1] - [1]
+    [structure, g / 1] - [2]
+    [var] - [1, 2]
+2. Quality 2.0
+    [] - []
+    [[]] - [1, 2]
+    [var] - [1, 2]
+    [atom] - [1, 2]
+p / 2:
+label(L0):
+label(L1):
+	functor_switch           a(1) 
+		f / 1: 	ref(L3)
+		g / 1: 	ref(L7)
+		default: 	ref(fail)
+
+label(L2):
+	try_me_else              0     2     ref(L6) 
+label(L3):
+	get_structure            a(1)     f / 1     ref(L4) 
+	write_local_value        a(2) 
+	branch                   ref(L5) 
+label(L4):
+	read_value               a(2) 
+label(L5):
+	bi_atom                  a(2) 
+	branch                   ref(L10) 
+label(L6):
+	trust_me                 0 
+label(L7):
+	get_structure            a(1)     g / 1     ref(L8) 
+	write_local_value        a(2) 
+	branch                   ref(L9) 
+label(L8):
+	read_value               a(2) 
+label(L9):
+	bi_atom                  a(2) 
+label(L10):
+	ret                  
+
+------ Test idx(71) -------
+p(A, B) :-
+	A = B,
+	atom(B).
+p(A, B) :-
+	A = B,
+	integer(B).
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 1.3
+    [] - []
+    [[]] - [1]
+    [var] - [1, 2]
+    [atom] - [1]
+    [integer] - [2]
+    [bignum] - [2]
+p / 2:
+label(L0):
+	switch_on_type           a(2) 
+		meta: 	ref(L1)
+		[]: 	ref(L2)
+		atom: 	ref(L2)
+		bignum: 	ref(L4)
+		breal: 	ref(fail)
+		double: 	ref(fail)
+		goal: 	ref(fail)
+		handle: 	ref(fail)
+		integer: 	ref(L4)
+		list: 	ref(fail)
+		rational: 	ref(fail)
+		string: 	ref(fail)
+		structure: 	ref(fail)
+
+label(L1):
+	try_me_else              0     2     ref(L3) 
+label(L2):
+	get_value                a(1)     a(2) 
+	bi_atom                  a(2) 
+	branch                   ref(L5) 
+label(L3):
+	trust_me                 0 
+label(L4):
+	get_value                a(1)     a(2) 
+	bi_integer               a(2) 
+label(L5):
+	ret                  
+
+------ Test idx(72) -------
+p(A / B, A, B) :-
+	atom(A),
+	integer(B),
+	B >= 0.
+p(A // B, A, B) :-
+	atom(A),
+	integer(B),
+	B >= 0.
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 1.3
+    [] - []
+    [structure] - []
+    [structure, / / 2] - [1]
+    [structure, // / 2] - [2]
+    [var] - [1, 2]
+2. Quality 2.0
+    [] - []
+    [[]] - [1, 2]
+    [var] - [1, 2]
+    [atom] - [1, 2]
+3. Quality 2.0
+    [] - []
+    [var] - [1, 2]
+    [integer] - [1, 2]
+    [bignum] - [1, 2]
+p / 3:
+label(L0):
+label(L1):
+	functor_switch           a(1) 
+		(/) / 2: 	ref(L3)
+		(//) / 2: 	ref(L7)
+		default: 	ref(fail)
+
+label(L2):
+	try_me_else              0     3     ref(L6) 
+label(L3):
+	get_structure            a(1)     (/) / 2     ref(L4) 
+	write_local_value2       a(2)     a(3) 
+	branch                   ref(L5) 
+label(L4):
+	read_value               a(2) 
+	read_value               a(3) 
+label(L5):
+	bi_atom                  a(2) 
+	bi_integer               a(3) 
+	put_integer              a(1)     0 
+	bi_ge                    a(3)     a(1)     eclipse     48 
+	branch                   ref(L10) 
+label(L6):
+	trust_me                 0 
+label(L7):
+	get_structure            a(1)     (//) / 2     ref(L8) 
+	write_local_value2       a(2)     a(3) 
+	branch                   ref(L9) 
+label(L8):
+	read_value               a(2) 
+	read_value               a(3) 
+label(L9):
+	bi_atom                  a(2) 
+	bi_integer               a(3) 
+	put_integer              a(1)     0 
+	bi_ge                    a(3)     a(1)     eclipse     48 
+label(L10):
 	ret                  
 
 ------ Test idx(100) -------

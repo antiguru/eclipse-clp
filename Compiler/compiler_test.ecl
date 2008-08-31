@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.17 2008/07/20 18:22:59 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.18 2008/08/31 21:57:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -818,6 +818,26 @@ testclause(idx(60), (p(X) :-
 	    ; compound(X), p_struct
 	    ; is_handle(X), p_handle
     ))).
+testclause(idx(70), ([
+	p(f(X), X) :- atom(X),
+	p(g(X), X) :- atom(X)
+    ])).
+testclause(idx(71), ([(
+	p(X, Y) :- X=Y, atom(Y)
+	),(
+	p(X, Y) :- X=Y, integer(Y)
+    )])).
+testclause(idx(72), ([(
+	p(Functor/Arity, Functor, Arity) :-
+	    atom(Functor),
+	    integer(Arity),
+	    Arity >= 0
+	),(
+	p(Functor//Arity, Functor, Arity) :-
+	    atom(Functor),
+	    integer(Arity),
+	    Arity >= 0
+    )])).
 testclause(idx(100), ([
 	(p(1) :- -?-> p_1),
 	(p(2) :- -?-> p_2)
