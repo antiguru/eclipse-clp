@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.5 2008/08/06 16:32:02 kish_shen Exp $
+% Version:	$Id: debug.pl,v 1.6 2008/08/31 20:47:31 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -172,8 +172,10 @@ set_spypoints(F/N, M) ?- !,
 	set_spypoints(M:F/N, M).
 set_spypoints(PM:F, M) ?- atom(F), !,
 	set_spypoints(PM:F/_, M).
-set_spypoints(F:L, M) ?- integer(L),  !,
-        ( check_atom_string(F) -> true ; error(5, spy(F:L), M) ),
+set_spypoints(F:L, M) ?-
+	integer(L),
+	check_atom_string(F),
+	!,
         ( find_matching_breakport(F, L, FullName, DMs, PortPreds, PortLine) ->
             ( foreach(DM, DMs), foreach(PortPred, PortPreds),
               param(PortLine,FullName)
@@ -251,8 +253,10 @@ nospy_body(F/N, M) ?- !,
 	nospy_body(_Any:F/N, M).
 nospy_body(PM:F, M) ?- atom(F), !,
 	nospy_body(PM:F/_, M).
-nospy_body(F:L, M) ?- integer(L), !,
-        ( check_atom_string(F) -> true ; error(5, spy(F:L), M) ),
+nospy_body(F:L, _M) ?-
+	integer(L),
+	check_atom_string(F),
+	!,
         ( find_matching_breakport(F, L, FullName, DMs, PortPreds, PortLine) ->
             ( foreach(DM, DMs), foreach(PortPred, PortPreds),
               param(PortLine,FullName)
