@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.5 2008/09/01 11:44:54 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.6 2008/09/01 23:56:07 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1168,7 +1168,7 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 	/* fall through */
 
     case 31:		/* port_lines */
-	if (!source || PriCodeType(proc) != VMCODE) {
+	if (!(flags & DEBUG_DB) || PriCodeType(proc) != VMCODE) {
 	    Fail_;
 	}
 	s = &result;
@@ -1198,7 +1198,7 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
     	break;
 
     case 32:		/* port_calls */
-	if (!source || PriCodeType(proc) != VMCODE) {
+	if (!(flags & DEBUG_DB) || PriCodeType(proc) != VMCODE) {
 	    Fail_;
 	}
 	s = &result;
