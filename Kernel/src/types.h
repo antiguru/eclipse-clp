@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.3 2008/07/10 00:33:06 jschimpf Exp $
+ * $Id: types.h,v 1.4 2008/09/01 11:44:54 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -300,6 +300,7 @@ typedef struct			/* debugger registers */
     HIDE_EXT(struct pri *, void_ptr) call_proc;
     word	call_port;
     word	call_invoc;
+    word	first_delay_invoc;
 
     word	redo_level;	/* level at which failure was caught */
     word	fail_drop;	/* number of failed levels */

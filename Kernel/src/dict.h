@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.3 2008/09/01 11:44:54 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -273,13 +273,14 @@ typedef struct pri
 
 
 /* Debugger flags */
-#define DEBUG_TYPES	0X081F0000L
+#define DEBUG_TYPES	0X081F0100L
 #define DEBUG_TR	0X00010000L	/* traceable 		*/
 #define DEBUG_SP	0X00020000L	/* has a spy point	*/
 #define DEBUG_SK	0X00040000L	/* skipped		*/
 #define DEBUG_DB	0x00080000L	/* in debugging mode	*/
 #define DEBUG_ST	0x00100000L	/* start debugger	*/
 #define DEBUG_INVISIBLE	0x08000000L	/* not even a box	*/
+#define DEBUG_TRMETA	0X00000100L	/* always trace metacalled subgoals */
 /* default flags for a traceable procedure */
 #define DEBUG_DF	DEBUG_TR
 
@@ -308,9 +309,9 @@ typedef struct pri
  */
 
 /* CODETYPE describes the contents of the .code field (a union) */
-#define CODETYPE	0X00000300L
+#define CODETYPE	0X00000200L
 #define	VMCODE		0X00000200L	/* virtual machine code		*/
-#define	FUNPTR		0X00000300L	/* function pointer		*/
+#define	FUNPTR		0X00000000L	/* function pointer		*/
 
 #define B_SAFE		VMCODE		/* obsolete built-in classification */
 #define B_UNSAFE	VMCODE		/* obsolete built-in classification */
@@ -319,7 +320,7 @@ typedef struct pri
 
 
 /* ARGPASSING describes the calling convention of the predicate */
-#define ARGPASSING	0X00000003L
+#define ARGPASSING	0X00000001L
 #define ARGFIXEDWAM	0X00000000L	/* Args in A[1]..A[n]		*/
 #define ARGFLEXWAM 	0X00000001L	/* various regs and immediate args */
 /* #define ARGSTACK	0X00000002L	Args on local stack (obsolete)	*/

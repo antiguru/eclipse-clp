@@ -25,7 +25,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.2 2008/08/29 17:50:41 kish_shen Exp $
+ * VERSION	$Id: main.c,v 1.3 2008/09/01 11:44:54 jschimpf Exp $
  */
 
 /*
@@ -786,8 +786,8 @@ main(int argc, char **argv)
 		    argv[new_argc++] = argv[c++];
 		break;
 
-	    default:				/* skip unknown */
-		argv[new_argc++] = argv[c++];
+	    default:				/* unknown: error */
+		usage(argv[c]);
 		break;
 	    }
 	}

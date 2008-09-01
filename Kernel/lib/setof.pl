@@ -24,7 +24,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: setof.pl,v 1.1 2008/06/30 17:43:49 jschimpf Exp $
+% Version:	$Id: setof.pl,v 1.2 2008/09/01 11:47:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -313,9 +313,16 @@ explicit_binding(coverof(Var,Goal,Bag),  Bound, Goal-Bag, Bound+Var) :- !.
 	coverof_body/4,
 	findall_body/4.
 
+:- set_flag(setof_body/4, trace_meta, on).
+:- set_flag(bagof_body/4, trace_meta, on).
+:- set_flag(coverof_body/4, trace_meta, on).
+:- set_flag(findall_body/4, trace_meta, on).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % auxiliaries
 
 exquant_body(_, Goal, Module) :-
 	untraced_call(Goal, Module).
 
+:- unskipped exquant_body/3.
+:- set_flag(exquant_body/3, trace_meta, on).

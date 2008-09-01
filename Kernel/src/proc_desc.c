@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.2 2008/07/02 15:43:11 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.3 2008/09/01 11:44:54 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -445,8 +445,7 @@ print_pri(pri *pd)
 	pd->flags&DEBUG_DB	? 'D' : '_',
 	pd->flags&DEBUG_ST	? 'S' : '_',
 
-	(pd->flags&(CODETYPE)) == VMCODE ? 'v' :
-	    (pd->flags&(CODETYPE)) == FUNPTR ? 'f' : '?',
+	(pd->flags&(CODETYPE)) == VMCODE ? 'v' : 'f',
 	(pd->flags&(ARGPASSING)) == ARGFIXEDWAM ? 'a' :
 	    (pd->flags&(ARGPASSING)) == ARGFLEXWAM ? 'f' : '?',
 	pd->flags&EXTERN	? 'X' : '_',

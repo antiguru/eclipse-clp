@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.3 2008/09/01 11:44:54 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1108,9 +1108,10 @@ p_get_tf_prop(value vf, type tf, value vwhat, type twhat, value v, type t)
 
 
 /*
- * Returns a list of all suspension which have been created since the most
- * recent trace frame (provided they had an invocation number assigned).
- * These should be the ones that need to have their DELAY port traced.
+ * Returns a list of the recently created suspensions which have
+ * invocation number DBG_DELAY_INVOC or higher.  DBG_DELAY_INVOC
+ * must always be set when the DEBUG_SUSP_EVENT is raised, to mark
+ * the oldest suspension that needs to be traced.
  * Since the filter conditions can be changed interactively at every
  * DELAY port, we don't prefilter the list here any further!
  */
@@ -1120,17 +1121,28 @@ p_delay_port_susps(value v, type t)
 {
     pword list;
     pword *pld = LD;
-    Make_Nil(&list);
-    while(pld > TD && !SuspDead(pld) && SuspDebugInvoc(pld))
+    if (!DBG_DELAY_INVOC || !LD)
     {
-	pword *pw = TG;
-	Push_List_Frame();
-	pw[0].val.ptr = pld;
-	pw[0].tag.kernel = TSUSP;
-	pw[1] = list;
-	Make_List(&list, pw);
-	pld = SuspPrevious(pld);
+	p_fprintf(current_err_, "\nUnexpected state in delay_port_susps/1");
+	ec_flush(current_err_);
+	Return_Unify_Nil(v, t);
     }
+    Make_Nil(&list);
+    while(pld && SuspDebugInvoc(pld) >= DBG_DELAY_INVOC)
+    {
+	/* if alread dead, it's too late to trace the DELAY */
+	if(!SuspDead(pld))
+	{
+	    pword *pw = TG;
+	    Push_List_Frame();
+	    pw[0].val.ptr = pld;
+	    pw[0].tag.kernel = TSUSP;
+	    pw[1] = list;
+	    Make_List(&list, pw);
+	    pld = SuspPrevious(pld);
+	}
+    }
+    DBG_DELAY_INVOC = 0;
     Return_Unify_Pw(v, t, list.val, list.tag);
 }
 
@@ -1165,7 +1177,12 @@ ec_make_suspension(pword goal, int prio, void *proc, pword *psusp)
 	++NINVOC;
 	/* only if the port is of interest, raise the debug event */
 	if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(((pri*)proc)), NINVOC-1, DLevel(TD)+1, 0))
+	{
+	    if (DBG_DELAY_INVOC == 0) {
+		DBG_DELAY_INVOC = NINVOC-1;
+	    }
 	    return DEBUG_SUSP_EVENT;
+	}
     }
     return PSUCCEED;
 }

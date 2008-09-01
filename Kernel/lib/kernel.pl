@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.15 2008/08/21 18:07:16 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.16 2008/09/01 11:47:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -4128,6 +4128,14 @@ inline_(Proc, Trans, Module) :-
 :- set_flag([trace_body/2,debug_body/2], start_tracing, on).
 :- set_flag(make_suspension/3, invisible, on).
 
+:- set_flag(subcall/3, trace_meta, on).
+:- set_flag(call_local/2, trace_meta, on).
+:- set_flag(fail_if_body/2, trace_meta, on).
+:- set_flag((not)/1, trace_meta, on).
+:- set_flag((\+)/1, trace_meta, on).
+:- set_flag(once_body/2, trace_meta, on).
+:- set_flag(call_priority/3, trace_meta, on).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -5617,6 +5625,7 @@ current_suspension(S) :-
 
 :- export (~)/1.
 :- tool((~)/1, tilde_body/2).
+:- set_flag(tilde_body/2, trace_meta, on).
 
 tilde_body(Goal, Module) :-
 	nonground(Goal, Var),
@@ -6117,6 +6126,7 @@ t_bips(setarg(Path,T,X), Goal, _) :- -?->		% setarg/3
 :- export multifor_init/8.
 :- tool((do)/2, (do)/3).
 :- inline((do)/2, t_do/5).
+:- set_flag(do/3, trace_meta, on).
 
 :- local store(name_ctr).
 

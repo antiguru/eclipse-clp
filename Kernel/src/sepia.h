@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.3 2008/07/10 01:08:47 jschimpf Exp $
+ * $Id: sepia.h,v 1.4 2008/09/01 11:44:54 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1257,6 +1257,7 @@
 #define	DBG_PRI		g_emu_.trace_data.call_proc
 #define	DBG_PORT	g_emu_.trace_data.call_port
 #define	DBG_INVOC	g_emu_.trace_data.call_invoc
+#define	DBG_DELAY_INVOC	g_emu_.trace_data.first_delay_invoc
 #define DBG_SRCPOS	g_emu_.trace_data.source_pos
 #define DBG_PATH        g_emu_.trace_data.source_pos.file
 #define DBG_LINE        g_emu_.trace_data.source_pos.line

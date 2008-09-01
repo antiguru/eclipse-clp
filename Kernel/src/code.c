@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.8 2008/07/24 16:21:33 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.9 2008/09/01 11:44:54 jschimpf Exp $
  */
 
 /********************************************************************
@@ -326,7 +326,7 @@ code_init(int flags)
     pd = global_procedure(d_.cond, d_.kernel_sepia, tm);
     pd->flags |= SYSTEM|TOOL;
     pd = local_procedure(d_.softcut, d_.kernel_sepia, tm, PRI_CREATE);
-    pd->flags |= SYSTEM|TOOL|DEBUG_DB;
+    pd->flags |= SYSTEM|TOOL;
 
   }
 
@@ -341,10 +341,10 @@ code_init(int flags)
     Make_Default_Prefix(did1);
     if (flags & INIT_SHARED)
     {
-	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
-	Kernel_Proc(d_.call_body, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
-	Exported_Kernel_Proc(in_dict("trace_body",2), ARGFIXEDWAM|DEBUG_DB|DEBUG_ST|DEBUG_SP, code);
-	Exported_Kernel_Proc(in_dict("debug_body",2), ARGFIXEDWAM|DEBUG_DB|DEBUG_ST, code);
+	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF|DEBUG_TRMETA, code);
+	Kernel_Proc(d_.call_body, ARGFIXEDWAM|DEBUG_DF, code);
+	Exported_Kernel_Proc(in_dict("trace_body",2), ARGFIXEDWAM|DEBUG_ST|DEBUG_SP|DEBUG_TRMETA, code);
+	Exported_Kernel_Proc(in_dict("debug_body",2), ARGFIXEDWAM|DEBUG_ST|DEBUG_TRMETA, code);
     }
     Store_3(MoveAMAM, Address(2), Address(3))
     Store_2(SavecutAM, Address(4))
@@ -371,7 +371,7 @@ code_init(int flags)
     Make_Default_Prefix(did1);
     if (flags & INIT_SHARED)
     {
-	Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
+	Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF, code);
     }
     Store_i(Meta_jmp)		/* (Goal,CallerMod,LookupMod,Cut) */
     Store_i(Code_end)
@@ -427,7 +427,7 @@ code_init(int flags)
     Make_Default_Prefix(did1);
     if (flags & INIT_SHARED)
     {
-	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB, code);
+	Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
     }
     Store_Var_Alloc(3, 2, 3);				/* Goal2 -> Y3 */
     Store_3(MoveAML, Address(3), Esize(2))		/* Module -> Y2 */
@@ -454,7 +454,7 @@ code_init(int flags)
     Make_Default_Prefix(did1);
     if (flags & INIT_SHARED)
     {
-	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB, code);
+	Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
     }
     Store_Var_Alloc(4, 2, 4);				/* Goal2 -> Y4 */
     Store_3(MoveAML, Address(3), Esize(3))		/* Module -> Y3 */
@@ -484,7 +484,7 @@ code_init(int flags)
     Make_Default_Prefix(did1);
     if (flags & INIT_SHARED)
     {
-	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB, code);
+	Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
     }
     Store_3(Try_me_else, NO_PORT, 4)
     aux = code++;
@@ -511,7 +511,7 @@ code_init(int flags)
     Make_Default_Prefix(did1);
     if (flags & INIT_SHARED)
     {
-	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB, code);
+	Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
     }
     Store_3(Try_me_else, NO_PORT, 5)
     aux = code++;
@@ -551,7 +551,7 @@ code_init(int flags)
     Make_Default_Prefix(did1);
     if (flags & INIT_SHARED)
     {
-	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB, code);
+	Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
     }
     Store_3(Try_me_else, NO_PORT, 5)
     aux = code++;
@@ -734,7 +734,7 @@ code_init(int flags)
   {
     did1 = in_dict("block", 4);
     Allocate_Default_Procedure(16L, did1);
-    Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
+    Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_TRMETA, code);
     Store_2(Catch, 0)
     Store_2(Allocate, Esize(1))
     Store_i(Savecut)
@@ -747,7 +747,7 @@ code_init(int flags)
 
     did1 = in_dict("block_atomic", 4);
     Allocate_Default_Procedure(16L, did1);
-    Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
+    Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_TRMETA, code);
     Store_2(Catch, 1)
     Store_2(Allocate, Esize(1))
     Store_i(Savecut)

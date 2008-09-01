@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.5 2008/07/13 13:40:31 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.6 2008/09/01 11:44:54 jschimpf Exp $
  */
 
 /*
@@ -1322,6 +1322,7 @@ extern dident transf_did ARGS((long));
 	pw = TG; \
 	Push_Struct_Frame(d_.trace_frame); \
 	if (PriFlags(proc) & DEBUG_SK) pw[TF_HEADER].tag.kernel |= TF_SKIPPED; \
+	if (!(PriFlags(proc) & DEBUG_DB) && (PriFlags(proc) & DEBUG_TRMETA) ) pw[TF_HEADER].tag.kernel |= TF_TRMETA; \
 	Make_Integer(&pw[TF_INVOC], tinvoc); \
 	pw[TF_GOAL].val.all = vgoal.all; \
 	pw[TF_GOAL].tag.all = tgoal.all; \
@@ -1344,6 +1345,7 @@ extern dident transf_did ARGS((long));
 	pw = TG; \
 	Push_Struct_Frame(d_.trace_frame); \
 	if (PriFlags(proc) & DEBUG_SK) pw[TF_HEADER].tag.kernel |= TF_SKIPPED; \
+	if (!(PriFlags(proc) & DEBUG_DB) && (PriFlags(proc) & DEBUG_TRMETA) ) pw[TF_HEADER].tag.kernel |= TF_TRMETA; \
 	Make_Integer(&pw[TF_INVOC], tinvoc); \
 	pw[TF_GOAL].val.all = vgoal.all; \
 	pw[TF_GOAL].tag.all = tgoal.all; \
@@ -1365,6 +1367,7 @@ extern dident transf_did ARGS((long));
 	pw = TG; \
 	Push_Struct_Frame(d_.trace_frame); \
 	if (PriFlags(proc) & DEBUG_SK) pw[TF_HEADER].tag.kernel |= TF_SKIPPED; \
+	if (!(PriFlags(proc) & DEBUG_DB) && (PriFlags(proc) & DEBUG_TRMETA) ) pw[TF_HEADER].tag.kernel |= TF_TRMETA; \
 	Make_Integer(&pw[TF_INVOC], tinvoc); \
 	pw[TF_GOAL] = (goal); \
 	Make_Var(&pw[TF_LEVEL]); \
@@ -1430,6 +1433,7 @@ extern dident transf_did ARGS((long));
 #define TF_BREAK	0x1000	/* this frame's CALL had a breakpoint	*/
 #define TF_SYSTRACE	0x2000	/* abstract instruction trace disabled	*/
 #define TF_SIMPLE	0x4000	/* it is a simple goal's trace frame	*/
+#define TF_TRMETA	0x8000	/* trace metacalled subgoals		*/
 
 #define TfFlags(td)		(td)[TF_HEADER].tag.kernel
 #define Set_Tf_Flag(td,flag)	{ TfFlags(td) |= (flag); }
@@ -1438,7 +1442,8 @@ extern dident transf_did ARGS((long));
 
 #define Unskipped(td)	((TfFlags(td) & (TF_SKIPPED|TF_INTRACER)) == 0)
 #define Tracing		(TD && Unskipped(TD))
-#define TracingWakes(invoc)	(TD && !(TfFlags(TD) & (TF_INTRACER)) && (!(TfFlags(TD) & TF_SKIPPED) || (invoc)))
+#define TracingWakes(invoc)	(!(TfFlags(TD) & (TF_INTRACER)) && (!(TfFlags(TD) & TF_SKIPPED) || (invoc)))
+#define TracingMetacalls(port)	(Unskipped(TD) && (TfFlags(TD) & TF_TRMETA))
 
 
 /*---------------------------------------------------------------------------

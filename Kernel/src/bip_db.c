@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.4 2008/08/03 14:13:43 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.5 2008/09/01 11:44:54 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -180,6 +180,7 @@ static	dident
 		d_source_line_,
 		d_source_offset_,
 		d_tags,
+		d_trace_meta_,
 		d_type0_,
 		d_type_;
 
@@ -222,6 +223,7 @@ bip_db_init(int flags)
 
     d_autoload_ = in_dict("autoload", 0);
     d_auxiliary_ = in_dict("auxiliary", 0);
+    d_trace_meta_ = in_dict("trace_meta", 0);
     d_demon_ = in_dict("demon", 0);
     d_deprecated_ = in_dict("deprecated", 0);
     d_static_ = in_dict("static", 0);
@@ -1229,6 +1231,10 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 	Request_Unify_Pw(vf, tf, result.val, result.tag);
     	break;
 
+    case 33:		/* trace_meta */
+	Request_Unify_Atom(vf, tf, flags & DEBUG_TRMETA? d_.on: d_.off);
+    	break;
+
     default:
 	Bip_Error(RANGE_ERROR);
     }
@@ -2227,6 +2233,9 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 		use_local_procedure = 1;
 	    } else if (vf.did == d_.debug) {
 		changed_flags = DEBUG_DB;
+		use_local_procedure = 1;
+	    } else if (vf.did == d_trace_meta_) {
+		changed_flags = DEBUG_TRMETA;
 		use_local_procedure = 1;
 	    } else if (vf.did == d_autoload_) {
 		changed_flags = AUTOLOAD;

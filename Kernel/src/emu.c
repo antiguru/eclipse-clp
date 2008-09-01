@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.7 2008/07/24 16:21:33 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.8 2008/09/01 11:44:54 jschimpf Exp $
  */
 
 /*
@@ -1450,16 +1450,16 @@ _ndelay_de_sv_:		/* (proc,de,sv,args) */
 		Import_Tg_Tt
 		SV = (pword *) 0;
 	    }
-	    if (Tracing && AnyPortWanted)
+	    if (Tracing && AnyPortWanted && !SuspDebugInvoc(DE))
 	    {
-		/* the tracer is on, assign an invocation number if not yet done */
-		tmp1 = SuspDebugInvoc(DE);
-		if (!tmp1) {
-		    tmp1 = NINVOC++;
-		    Set_Susp_DebugInvoc(DE, tmp1);
-		}
+		/* We don't currently have a way to trace re-delays */
+		Set_Susp_DebugInvoc(DE, NINVOC);
+		++NINVOC;
 		/* only if the port is of interest, raise the debug event */
-		if (Tracing && PortWanted(DELAY_PORT) && OfInterest(PriFlags(((pri*)proc)), tmp1, DLevel(TD)+1, 0)) {
+		if (Tracing && PortWanted(DELAY_PORT) && OfInterest(PriFlags(((pri*)proc)), NINVOC-1, DLevel(TD)+1, 0)) {
+		    if (DBG_DELAY_INVOC == 0) {
+			DBG_DELAY_INVOC = NINVOC-1;
+		    }
 		    err_code = -(DEBUG_SUSP_EVENT);
 _ndelay_err_:	/* (err_code,proc,DE) */
 		    scratch_pw = DE[SUSP_GOAL];
@@ -3743,6 +3743,7 @@ _pop_choice_point_:			/* (pw2 points to arguments,DBG_PORT) */
 		    }
 		}
 		RLEVEL = pw1 ? DLevel(pw1) : -1;
+		DBG_DELAY_INVOC = 0;		/* if set for DEBUG_DELAY_EVENT */
 	    }
 	    else { RLEVEL = -1; FDROP = 0; }
 
@@ -4218,6 +4219,7 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT,back_code) */
 		    }
 		}
 		RLEVEL = pw1 ? DLevel(pw1) : -1;
+		DBG_DELAY_INVOC = 0;		/* if set for DEBUG_DELAY_EVENT */
 	    }
 	    else { RLEVEL = -1; FDROP = 0; }
 
@@ -5621,7 +5623,7 @@ _exec_prolog_:		/* (DBG_INVOC, DBG_PORT, proc, PP) */
 
 		if ((TD || (PriFlags(proc) & DEBUG_ST)) && DBG_PORT) {
 		    if (TD) {
-			if (((DBG_PORT&PORT_MASK) == WAKE_PORT ? TracingWakes(DBG_INVOC) : Tracing)
+			if (((DBG_PORT&PORT_MASK) == WAKE_PORT ? TracingWakes(DBG_INVOC) : TracingMetacalls(DBG_PORT))
 				&& AnyPortWanted && !InvisibleProc(proc)) {
 			    goto _metacall_port_;	/* (proc,DBG_XXX) */
 			}
@@ -6595,6 +6597,7 @@ _end_external_:
 		    }
 		}
 		RLEVEL = td ? DLevel(td) : -1;
+		DBG_DELAY_INVOC = 0;		/* if set for DEBUG_DELAY_EVENT */
 	    }
 	    else { RLEVEL = -1; FDROP = 0; }
 
@@ -7841,6 +7844,9 @@ _narg_:
 		if (PortWanted(DELAY_PORT) && OfInterest(PriFlags(procb), NINVOC-1, DLevel(TD)+1, 0) )
 		{
 		    err_code = DEBUG_DELAY_EVENT;
+		    if (DBG_DELAY_INVOC == 0) {
+			DBG_DELAY_INVOC = NINVOC-1;
+		    }
 		    /* to suppress tracing of the event handler call: */
 		    Set_Tf_Flag(TD, TF_INTRACER);
 		    goto _nbip_err_;			/* (proc, err_code) */
