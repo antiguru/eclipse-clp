@@ -302,8 +302,11 @@ Success:
    Note that:
 
 <P>
-   !/0 cuts through ,/2, ;/2 and -&gt;/2, but it does not cut through call/1,
-   not/1 or once/1.
+   !/0 cuts through ,/2, ;/2 and the right hand side of -&gt;/2, i.e. cuts that
+   occur in these positions affect the whole clause and subsequent alternatives.
+   It does NOT cut through call/1, not/1, once/1, the left hand side of -&gt;/2
+   (the condition), or other meta-calling constructs - such cuts only have a
+   local effect.
 
 <P>
 "),
@@ -1436,8 +1439,8 @@ or if Condition fails and Else succeeds.",
    ( Condition -&gt; Then ; true )
    </PRE>
 <P>
-   Also note that Condition must not contain a !/0.  If a !/0 appears in
-   Then or Else, it cuts through the whole construct.
+   Also note that a !/0 inside Condition only has a local effect in Condition.
+   If a !/0 appears in Then or Else, it cuts through the whole construct.
 
 <P>
    Since -&gt;/2 and ;/2 have a lower precedence than ,/2, the whole construct
@@ -1506,8 +1509,8 @@ some solution of Condition, or if Condition fails and Else succeeds",
    Although it is allowed to use *-&gt;/2 without ;/2, this is of little
    use since (Condition *-&gt; Then) is the same as the simple conjunction (Condition , Then).
 <P>
-   Also note that Condition must not contain a !/0.  If a !/0 appears in
-   Then or Else, it cuts through the whole construct.
+   Also note that a !/0 inside Condition only has a local effect in Condition.
+   If a !/0 appears in Then or Else, it cuts through the whole construct.
 <P>
    Since *-&gt;/2 and ;/2 have a lower precedence than ,/2, the whole construct
    should always be enclosed in parentheses:
