@@ -1409,13 +1409,18 @@ Features {\bf not} supported by OSI:
 \begin{itemize}
 \item changing of solving method (it does support specifying if the problem
 should be solved as a primal or dual)
-\item MIP problems with a quadratic objective
+\item problems with a quadratic objective function
 \item time-outs from solving a problem.
 \item obtaining detailed information about the MIP solving process,
 especially when the MIP search was not complete, such as
 the best MIP objective bound.
 \item determining if an aborted solve have a suboptimal solution 
+\item writing out a problem with a maximising objective function in LP or
+MPS format.
+\item writing out or reading in an quadratic objective function in LP or (extended)
+MPS format.
 \item use of Special Order Set (SOS)
+\item extracting an IIS for an infeasible problem
 \end{itemize}
 
 \paragraph{osi_clpcbc} Supports primal, dual simplex and barrier (interior
@@ -1437,6 +1442,11 @@ barrier method, and currently the binary distribution of CLP is compiled
 with University of Florida's AMD (Approximate Minimum Degree ordering) 
 package. The source for this package needs to be downloaded separately from
 the COIN-OR project at {\tt www.cise.ufl.edu/research/sparse/amd/}. 
+
+A quadratic objective needs to be in postive semi-definite form, but
+currently CLP does not check this, and the result of trying to solve a
+problem with a quadratic objective not in positive semi-definite form
+is undefined.
 
 The problem representation is stored by CLP, and one performance issue 
 when using CLP is that incrementally adding new constraints to
