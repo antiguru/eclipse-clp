@@ -25,7 +25,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.3 2008/09/01 11:44:54 jschimpf Exp $
+ * VERSION	$Id: main.c,v 1.4 2008/09/02 09:33:21 kish_shen Exp $
  */
 
 /*
@@ -796,9 +796,9 @@ main(int argc, char **argv)
 	    if (++c + 1 > argc) usage(argv[c-1]);
 	    ec_set_option_int(EC_OPTION_DEBUG_LEVEL, atoi(argv[c++]));
 	}
-	else /* ignore/shift bad arguments unless there is a -- option */
+	else /* raise error unless preceeded by a -- option */
 	{
-	    argv[new_argc++] = argv[c++];
+	    usage(argv[c]);
 	}
     }
 
