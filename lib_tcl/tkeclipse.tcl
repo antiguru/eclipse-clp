@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.8 2008/07/24 15:45:57 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.9 2008/09/03 14:13:23 kish_shen Exp $
 #
 
 #----------------------------------------------------------------------
@@ -227,6 +227,7 @@ proc tkecl:set_toplevel_state {state} {
 	    if [winfo exists .ec_dg] {
 		tkecl:refresh_dg
 	    }
+	    focus [.tkecl.query.goal_entry subwidget entry]
 	}
 	update
     }
