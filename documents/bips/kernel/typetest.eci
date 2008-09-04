@@ -808,7 +808,7 @@ Success:
       type_of(0.99__1.01,breal).
       type_of(a(b),compound).
       record(k, a), recorded(k, _, R), type_of(R, db_reference).
-      make_suspension(true,S), type_of(S, goal).
+      make_suspension(true,3,S), type_of(S, goal).
 Fail:
       type_of(2.0,integer).
       type_of(2.0,float).
