@@ -1763,10 +1763,10 @@ label(L0):
 	push_variable            y(1) 
 	move_callf               y(1)     a(2)     a / 2     Y[1] 
 	put_structure            a(1)     f / 1 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	move_callf               y(1)     a(2)     b / 2     Y[1] 
 	put_structure            a(2)     f / 1 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	move_chain               y(1)     a(1)     c / 2 
 
 ------ Test 203 -------
@@ -1781,19 +1781,19 @@ label(L0):
 	allocate                 1 
 	push_variable            y(1) 
 	put_structure            a(2)     g / 1 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	callf                    a / 2     Y[1] 
 	put_structure            a(1)     f / 2 
 	push_structure           2 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	write_did                g / 1 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	callf                    b / 1     Y[1] 
 	put_structure            a(1)     f / 2 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	push_structure           2 
 	write_did                g / 1 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	chain                    c / 1 
 
 ------ Test 204 -------
@@ -1877,7 +1877,7 @@ p / 1:
 label(L0):
 	move                     a(1)     a(2) 
 	put_structure            a(1)     f / 1 
-	push_local_value         a(2) 
+	push_value               a(2) 
 	jmp                      a / 1 
 
 ------ Test 213 -------
@@ -1897,12 +1897,12 @@ p / 3:
 label(L0):
 	move                     a(1)     a(4) 
 	put_structure            a(1)     f / 1 
-	push_local_value         a(3) 
+	push_value               a(3) 
 	move                     a(2)     a(5) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(4) 
+	push_value               a(4) 
 	put_structure            a(3)     f / 1 
-	push_local_value         a(5) 
+	push_value               a(5) 
 	jmp                      a / 3 
 
 ------ Test 215 -------
@@ -1924,12 +1924,12 @@ label(L0):
 	get_value                a(4)     a(1) 
 	move                     a(1)     a(4) 
 	put_structure            a(1)     f / 1 
-	push_local_value         a(3) 
+	push_value               a(3) 
 	move                     a(2)     a(5) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(4) 
+	push_value               a(4) 
 	put_structure            a(3)     f / 1 
-	push_local_value         a(5) 
+	push_value               a(5) 
 	jmp                      a / 3 
 
 ------ Test 217 -------
@@ -2146,7 +2146,7 @@ p / 1:
 label(L0):
 	move                     a(1)     a(2) 
 	put_list                 a(1) 
-	push_local_value         a(2) 
+	push_value               a(2) 
 	push_nil             
 	jmp                      q / 2 
 
@@ -2157,7 +2157,7 @@ p(A) :-
 p / 1:
 label(L0):
 	put_list                 a(2) 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	push_nil             
 	jmp                      q / 2 
 
@@ -2229,7 +2229,7 @@ p / 3:
 label(L0):
 	get_atom                 a(3)     a 
 	put_structure            a(3)     f / 1 
-	push_local_value         a(2) 
+	push_value               a(2) 
 	put_atom                 a(2)     b 
 	jmp                      q / 3 
 
@@ -2262,7 +2262,8 @@ label(L2):
 label(L3):
 	get_structure            a(1)     t / 3     ref(L4) 
 	write_atom               nil 
-	write_local_value2       a(2)     a(3) 
+	write_value              a(2) 
+	write_value              a(3) 
 	branch                   ref(L5) 
 label(L4):
 	read_atom                nil 
@@ -2274,7 +2275,8 @@ label(L6):
 	retry_me_else            0     ref(L10) 
 label(L7):
 	get_structure            a(1)     t / 3     ref(L8) 
-	write_local_value2       a(3)     a(2) 
+	write_value              a(3) 
+	write_value              a(2) 
 	write_atom               nil 
 	branch                   ref(L9) 
 label(L8):
@@ -2288,7 +2290,7 @@ label(L10):
 label(L11):
 	get_structure            a(1)     t / 3     ref(L12) 
 	write_variable           a(4) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	write_variable           a(1) 
 	branch                   ref(L13) 
 label(L12):
@@ -2297,7 +2299,7 @@ label(L12):
 	read_variable            a(1) 
 label(L13):
 	get_structure            a(3)     r / 3     ref(L14) 
-	write_local_value        a(4) 
+	write_value              a(4) 
 	write_variable2          a(2)     a(3) 
 	branch                   ref(L15) 
 label(L14):
@@ -2318,7 +2320,7 @@ dob / 2:
 label(L0):
 	get_structure            a(1)     person / 4     ref(L1) 
 	write_void               2 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	write_void           
 	branch                   ref(L2) 
 label(L1):
@@ -2418,7 +2420,7 @@ label(L1):
 	read_variable            a(2) 
 label(L2):
 	get_structure            a(3)     g / 1     ref(L3) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	branch                   ref(L4) 
 label(L3):
 	read_value               a(2) 
@@ -2435,7 +2437,7 @@ label(L0):
 	get_structure            a(1)     b / 2     ref(L1) 
 	shift                    a(5)     a(4)     a(2)     a(3) 
 	write_variable           a(3) 
-	write_local_value        a(4) 
+	write_value              a(4) 
 	branch                   ref(L2) 
 label(L1):
 	shift                    a(5)     a(4)     a(2)     a(3) 
@@ -2443,7 +2445,7 @@ label(L1):
 	read_value               a(4) 
 label(L2):
 	get_structure            a(5)     a / 1     ref(L3) 
-	write_local_value        a(3) 
+	write_value              a(3) 
 	branch                   ref(L4) 
 label(L3):
 	read_value               a(3) 
@@ -2472,7 +2474,7 @@ label(L2):
 	write_variable           a(3) 
 	write_structure          h / 1 
 label(L3):
-	write_local_value        a(2) 
+	write_value              a(2) 
 	branch                   ref(L5) 
 label(L4):
 	move                     a(3)     a(4) 
@@ -2481,7 +2483,7 @@ label(L4):
 	read_value               a(2) 
 label(L5):
 	get_structure            a(4)     f / 1     ref(L6) 
-	write_local_value        a(3) 
+	write_value              a(3) 
 	branch                   ref(L7) 
 label(L6):
 	read_value               a(3) 
@@ -5118,7 +5120,7 @@ label(L2):
 	write_variable           a(1) 
 	shift                    a(4)     a(3)     a(2) 
 	write_variable           a(2) 
-	write_local_value        a(1) 
+	write_value              a(1) 
 	branch                   ref(L4) 
 label(L3):
 	read_variable            a(1) 
@@ -5134,7 +5136,7 @@ label(L5):
 label(L6):
 	get_list                 a(1)     ref(L7) 
 	write_variable           a(1) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	branch                   ref(L8) 
 label(L7):
 	read_variable            a(1) 
@@ -6545,7 +6547,7 @@ label(L2):
 	try_me_else              0     2     ref(L6) 
 label(L3):
 	get_structure            a(1)     f / 1     ref(L4) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	branch                   ref(L5) 
 label(L4):
 	read_value               a(2) 
@@ -6556,7 +6558,7 @@ label(L6):
 	trust_me                 0 
 label(L7):
 	get_structure            a(1)     g / 1     ref(L8) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	branch                   ref(L9) 
 label(L8):
 	read_value               a(2) 
@@ -6651,7 +6653,8 @@ label(L2):
 	try_me_else              0     3     ref(L6) 
 label(L3):
 	get_structure            a(1)     (/) / 2     ref(L4) 
-	write_local_value2       a(2)     a(3) 
+	write_value              a(2) 
+	write_value              a(3) 
 	branch                   ref(L5) 
 label(L4):
 	read_value               a(2) 
@@ -6666,7 +6669,8 @@ label(L6):
 	trust_me                 0 
 label(L7):
 	get_structure            a(1)     (//) / 2     ref(L8) 
-	write_local_value2       a(2)     a(3) 
+	write_value              a(2) 
+	write_value              a(3) 
 	branch                   ref(L9) 
 label(L8):
 	read_value               a(2) 
@@ -7756,7 +7760,7 @@ p(A, B) :-
 p / 2:
 label(L0):
 	get_structure            a(1)     f / 2     ref(L1) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	write_variable           a(2) 
 	branch                   ref(L2) 
 label(L1):
@@ -7775,7 +7779,7 @@ label(L0):
 	get_structure            a(1)     f / 2     ref(L1) 
 	move                     a(2)     a(3) 
 	write_variable           a(2) 
-	write_local_value        a(3) 
+	write_value              a(3) 
 	branch                   ref(L2) 
 label(L1):
 	move                     a(2)     a(3) 
@@ -7794,7 +7798,7 @@ label(L0):
 	get_structure            a(1)     f / 2     ref(L2) 
 	write_first_structure     g / 1 
 label(L1):
-	write_local_value        a(2) 
+	write_value              a(2) 
 	mode                     t(0)     ref(L3) 
 	write_variable           a(2) 
 	branch                   ref(L4) 
@@ -7835,7 +7839,7 @@ label(L0):
 	allocate                 1 
 	get_structure            a(1)     f / 2     ref(L1) 
 	write_variable           y(1) 
-	write_local_value        y(1) 
+	write_value              y(1) 
 	branch                   ref(L2) 
 label(L1):
 	read_variable            y(1) 
@@ -9061,13 +9065,14 @@ label(L0):
 	write_integer            1 
 	write_first_structure     g / 2 
 label(L1):
-	write_local_value        y(3) 
+	write_value              y(3) 
 	write_variable           a(2) 
 	mode                     t(0)     ref(L4) 
 	write_variable           y(1) 
 	write_structure          h / 2 
 label(L2):
-	write_local_value2       y(4)     y(3) 
+	write_value              y(4) 
+	write_value              y(3) 
 	branch                   ref(L5) 
 label(L3):
 	read_integer             1 
@@ -11334,7 +11339,7 @@ label(L6):
 	read_variable2           a(4)     a(1) 
 label(L7):
 	get_list                 a(3)     ref(L8) 
-	write_local_value        a(4) 
+	write_value              a(4) 
 	write_variable           a(3) 
 	branch                   ref(L9) 
 label(L8):
@@ -11390,7 +11395,7 @@ label(L6):
 	read_variable2           a(4)     a(1) 
 label(L7):
 	get_list                 a(3)     ref(L8) 
-	write_local_value        a(4) 
+	write_value              a(4) 
 	write_variable           a(3) 
 	branch                   ref(L9) 
 label(L8):
@@ -11439,7 +11444,7 @@ label(L4):
 	read_variable2           a(4)     a(1) 
 label(L5):
 	get_list                 a(3)     ref(L6) 
-	write_local_value        a(4) 
+	write_value              a(4) 
 	write_variable           a(3) 
 	branch                   ref(L7) 
 label(L6):
@@ -11508,7 +11513,7 @@ label(L10):
 	read_variable2           a(4)     a(1) 
 label(L11):
 	get_structure            a(3)     f / 2     ref(L12) 
-	write_local_value        a(4) 
+	write_value              a(4) 
 	write_variable           a(3) 
 	branch                   ref(L13) 
 label(L12):
@@ -11579,7 +11584,7 @@ label(L10):
 	read_variable2           a(4)     a(1) 
 label(L11):
 	get_structure            a(3)     f / 2     ref(L12) 
-	write_local_value        a(4) 
+	write_value              a(4) 
 	write_variable           a(3) 
 	branch                   ref(L13) 
 label(L12):
@@ -11625,7 +11630,7 @@ label(L5):
 	read_variable2           a(4)     a(1) 
 label(L6):
 	get_list                 a(3)     ref(L7) 
-	write_local_value        a(4) 
+	write_value              a(4) 
 	write_variable           a(3) 
 	branch                   ref(L8) 
 label(L7):
@@ -11681,7 +11686,7 @@ label(L6):
 	read_variable2           a(4)     a(1) 
 label(L7):
 	get_list                 a(3)     ref(L8) 
-	write_local_value        a(4) 
+	write_value              a(4) 
 	write_variable           a(3) 
 	branch                   ref(L9) 
 label(L8):
@@ -11724,7 +11729,7 @@ label(L3):
 	move                     2     a(2)     y(7) 
 	move                     a(4)     y(4) 
 	put_structure            a(2)     (-) / 2 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	push_integer             1 
 	put_global_variable      a(1)     y(10) 
 	put_module               a(3)     eclipse 
@@ -11734,7 +11739,7 @@ label(L3):
 	move                     2     y(7)     a(2) 
 	callf                    ref(L0)     Y[3,4,6,7,8] 
 	put_structure            a(2)     (-) / 2 
-	push_local_value         y(7) 
+	push_value               y(7) 
 	push_integer             1 
 	put_global_variable      a(1)     y(9) 
 	put_module               a(3)     eclipse 
@@ -11743,7 +11748,7 @@ label(L3):
 	move                     y(9)     a(1)     y(8)     a(2)     y(6)     a(3) 
 	callf                    ref(L0)     Y[2,3,4,6,7,8] 
 	put_structure            a(2)     (-) / 2 
-	push_local_value         y(8) 
+	push_value               y(8) 
 	push_integer             1 
 	put_global_variable      a(1)     y(5) 
 	put_module               a(3)     eclipse 
@@ -11786,7 +11791,7 @@ label(L3):
 	move                     2     a(2)     y(7) 
 	move                     a(4)     y(4) 
 	put_structure            a(2)     (-) / 2 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	push_integer             1 
 	put_global_variable      a(1)     y(10) 
 	put_module               a(3)     eclipse 
@@ -11796,7 +11801,7 @@ label(L3):
 	move                     2     y(7)     a(2) 
 	callf                    ref(L0)     Y[3,4,6,7,8] 
 	put_structure            a(2)     (-) / 2 
-	push_local_value         y(7) 
+	push_value               y(7) 
 	push_integer             1 
 	put_global_variable      a(1)     y(9) 
 	put_module               a(3)     eclipse 
@@ -11805,7 +11810,7 @@ label(L3):
 	move                     y(9)     a(1)     y(8)     a(2)     y(6)     a(3) 
 	callf                    ref(L0)     Y[2,3,4,6,7,8] 
 	put_structure            a(2)     (-) / 2 
-	push_local_value         y(8) 
+	push_value               y(8) 
 	push_integer             1 
 	put_global_variable      a(1)     y(5) 
 	put_module               a(3)     eclipse 
@@ -11892,7 +11897,7 @@ label(L12):
 	trust_me_inline          0     Y[] 
 label(L13):
 	get_list                 a(2)     ref(L14) 
-	write_local_value        a(3) 
+	write_value              a(3) 
 	write_variable           a(2) 
 	branch                   ref(L15) 
 label(L14):
@@ -11917,9 +11922,9 @@ label(L0):
 	move                     a(1)     a(4) 
 	put_structure            a(1)     foreach / 2 
 	push_variable            a(5) 
-	push_local_value         a(4) 
+	push_value               a(4) 
 	put_structure            a(2)     writeln / 1 
-	push_local_value         a(5) 
+	push_value               a(5) 
 	put_module               a(3)     eclipse 
 	jmp                      sepia_kernel : (do) / 3 
 
@@ -12071,10 +12076,11 @@ label(L5):
 label(L6):
 	cut                      a(4) 
 	get_list                 a(3)     ref(L8) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	write_list           
 label(L7):
-	write_local_value2       a(1)     a(5) 
+	write_value              a(1) 
+	write_value              a(5) 
 	branch                   ref(L9) 
 label(L8):
 	read_value               a(2) 
@@ -12087,7 +12093,8 @@ label(L10):
 	trust_me                 0 
 label(L11):
 	get_list                 a(3)     ref(L12) 
-	write_local_value2       a(1)     a(2) 
+	write_value              a(1) 
+	write_value              a(2) 
 	branch                   ref(L13) 
 label(L12):
 	read_value               a(1) 
@@ -12176,7 +12183,7 @@ label(L9):
 	move                     2     y(2)     a(2) 
 	callf                    warning_handler / 3     Y[1] 
 	put_list                 a(3) 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	push_nil             
 	put_atom                 a(1)     warning_output 
 	put_string               a(2)     " Advice: %w%n" 
@@ -12295,7 +12302,8 @@ label(L6):
 	cut                      a(3) 
 	move                     a(2)     a(4) 
 	put_structure            a(2)     attach_suspensions / 2 
-	push_local_value2        a(1)     a(4) 
+	push_value               a(1) 
+	push_value               a(4) 
 	put_integer              a(1)     5 
 	put_module               a(3)     eclipse 
 	jmp                      sepia_kernel : error_ / 3 
@@ -12305,7 +12313,8 @@ label(L7):
 label(L8):
 	move                     a(2)     a(4) 
 	put_structure            a(2)     attach_suspensions / 2 
-	push_local_value2        a(1)     a(4) 
+	push_value               a(1) 
+	push_value               a(4) 
 	put_integer              a(1)     4 
 	put_module               a(3)     eclipse 
 	jmp                      sepia_kernel : error_ / 3 
@@ -12338,7 +12347,8 @@ label(L1):
 	try_me_else              0     3     ref(L5) 
 label(L2):
 	get_list                 a(3)     ref(L3) 
-	write_local_value2       a(1)     a(2) 
+	write_value              a(1) 
+	write_value              a(2) 
 	branch                   ref(L4) 
 label(L3):
 	read_value               a(1) 
@@ -12409,7 +12419,7 @@ label(L6):
 	put_module               a(3)     eclipse 
 	move_callf               y(3)     a(1)     sepia_kernel : is_body / 3     Y[3,4,5,6,7] 
 	put_structure            a(2)     (>>) / 2 
-	push_local_value         y(5) 
+	push_value               y(5) 
 	push_integer             1 
 	put_global_variable      a(1)     y(2) 
 	put_module               a(3)     eclipse 
@@ -12420,7 +12430,7 @@ label(L7):
 	try_me_else              0     1     ref(L9) 
 label(L8):
 	put_structure            a(2)     (/\) / 2 
-	push_local_value         y(5) 
+	push_value               y(5) 
 	push_integer             1 
 	put_integer              a(3)     0 
 	bi_eq                    a(2)     a(3)     eclipse     48 
@@ -12432,7 +12442,7 @@ label(L9):
 label(L10):
 	move                     y(6)     a(1) 
 	get_list                 a(1)     ref(L11) 
-	write_local_value        y(7) 
+	write_value              y(7) 
 	write_variable           y(1) 
 	branch                   ref(L12) 
 label(L11):
@@ -12572,7 +12582,8 @@ label(L12):
 	read_variable2           a(1)     a(2) 
 label(L13):
 	get_structure            a(3)     (-) / 2     ref(L14) 
-	write_local_value2       a(1)     a(2) 
+	write_value              a(1) 
+	write_value              a(2) 
 	branch                   ref(L15) 
 label(L14):
 	read_value               a(1) 
@@ -12591,14 +12602,15 @@ label(L18):
 label(L19):
 	get_structure            a(2)     (-) / 2     ref(L20) 
 	write_variable           a(2) 
-	write_local_value        a(1) 
+	write_value              a(1) 
 	branch                   ref(L21) 
 label(L20):
 	read_variable            a(2) 
 	read_value               a(1) 
 label(L21):
 	get_structure            a(3)     (-) / 2     ref(L22) 
-	write_local_value2       a(2)     a(1) 
+	write_value              a(2) 
+	write_value              a(1) 
 	branch                   ref(L23) 
 label(L22):
 	read_value               a(2) 
@@ -12610,7 +12622,7 @@ label(L24):
 	trust_me                 0 
 label(L25):
 	get_structure            a(1)     wh / 1     ref(L26) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	branch                   ref(L27) 
 label(L26):
 	read_value               a(2) 
@@ -12834,7 +12846,7 @@ label(L0):
 	bi_var                   a(3) 
 	in_get_atom              a(1)     a 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	jmp                      q / 2 
 
 ------ Test at2 -------
@@ -12868,9 +12880,9 @@ label(L0):
 	get_matched_value        a(3)     a(5) 
 	get_matched_value        a(4)     a(6) 
 	put_structure            a(1)     f / 1 
-	push_local_value         a(4) 
+	push_value               a(4) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(6) 
+	push_value               a(6) 
 	jmp                      q / 2 
 
 ------ Test at4 -------
@@ -12901,10 +12913,10 @@ label(L0):
 	put_structure            a(1)     f / 1 
 	push_variable            a(2) 
 	put_structure            a(3)     f / 1 
-	push_local_value         a(2) 
+	push_value               a(2) 
 	bi_mul                   a(1)     a(3)     a(1)     16 
 	get_structure            a(1)     f / 1     ref(L1) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	branch                   ref(L2) 
 label(L1):
 	read_value               a(2) 
@@ -12920,7 +12932,7 @@ label(L0):
 	put_variable             a(1) 
 	bi_mul                   a(1)     a(1)     a(2)     16 
 	get_structure            a(2)     f / 1     ref(L1) 
-	write_local_value        a(1) 
+	write_value              a(1) 
 	branch                   ref(L2) 
 label(L1):
 	read_value               a(1) 
@@ -12936,7 +12948,7 @@ ag3 / 0:
 label(L0):
 	put_variable             a(1) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	get_matched_value        a(1)     a(2) 
 	jmp                      q / 1 
 
@@ -12949,9 +12961,9 @@ label(L0):
 	put_structure            a(1)     f / 1 
 	push_variable            a(4) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(4) 
+	push_value               a(4) 
 	put_structure            a(3)     f / 1 
-	push_local_value         a(4) 
+	push_value               a(4) 
 	jmp                      p / 3 
 
 ------ Test ag6 -------
@@ -12971,7 +12983,7 @@ label(L0):
 	put_structure            a(1)     f / 1 
 	push_variable            a(3) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(3) 
+	push_value               a(3) 
 	callf                    p / 2     Y[] 
 	put_structure            a(2)     f / 1 
 	push_variable            a(1) 
@@ -12992,7 +13004,7 @@ label(L0):
 	push_list            
 	push_variable            a(3) 
 	push_list            
-	push_local_value         a(3) 
+	push_value               a(3) 
 	push_nil             
 	allocate                 1 
 	put_global_variable_callf     a(1)     y(1)     (=..) / 2     Y[1] 
@@ -13046,7 +13058,7 @@ label(L0):
 	push_variable            a(2) 
 	bi_mul                   a(1)     a(2)     a(1)     16 
 	get_structure            a(1)     f / 1     ref(L1) 
-	write_local_value        a(2) 
+	write_value              a(2) 
 	branch                   ref(L2) 
 label(L1):
 	read_value               a(2) 
@@ -13064,11 +13076,11 @@ label(L0):
 	allocate                 1 
 	put_global_variable_callf     a(1)     y(1)     p / 1     Y[1] 
 	put_structure            a(2)     f / 1 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	move                     y(1)     a(1) 
 	bi_mul                   a(2)     a(1)     a(2)     16 
 	get_structure            a(2)     f / 1     ref(L1) 
-	write_local_value        a(1) 
+	write_value              a(1) 
 	branch                   ref(L2) 
 label(L1):
 	read_value               a(1) 
@@ -13086,7 +13098,7 @@ label(L0):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	bi_mul                   a(1)     a(2)     a(2)     16 
 	get_value                a(2)     a(1) 
 	jmp                      q / 1 
@@ -13102,11 +13114,11 @@ label(L0):
 	allocate                 1 
 	put_global_variable_callf     a(1)     y(1)     p / 1     Y[1] 
 	put_structure            a(2)     f / 1 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	move                     y(1)     a(1) 
 	bi_mul                   a(2)     a(1)     a(2)     16 
 	get_structure            a(2)     f / 1     ref(L1) 
-	write_local_value        a(1) 
+	write_value              a(1) 
 	branch                   ref(L2) 
 label(L1):
 	read_value               a(1) 
@@ -13124,7 +13136,7 @@ label(L0):
 	allocate                 1 
 	put_global_variable_callf     a(1)     y(1)     p / 1     Y[1] 
 	put_structure            a(2)     f / 1 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	move                     y(1)     a(1) 
 	bi_mul                   a(1)     a(2)     a(2)     16 
 	get_value                a(2)     a(1) 
@@ -13141,7 +13153,7 @@ label(L0):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	get_matched_value        a(2)     a(1) 
 	jmp                      q / 1 
 
@@ -13159,7 +13171,7 @@ label(L0):
 	move                     y(1)     a(1) 
 	bi_var                   a(1) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	get_matched_value        a(2)     a(1) 
 	chain                    q / 1 
 
@@ -13173,7 +13185,7 @@ label(L0):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	get_matched_value        a(2)     a(1) 
 	ret                  
 
@@ -13187,7 +13199,7 @@ label(L0):
 	put_variable             a(1) 
 	bi_var                   a(1) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	get_matched_value        a(1)     a(2) 
 	ret                  
 
@@ -13199,7 +13211,7 @@ am13 / 0:
 label(L0):
 	put_variable             a(1) 
 	put_structure            a(2)     f / 1 
-	push_local_value         a(1) 
+	push_value               a(1) 
 	get_matched_value        a(1)     a(2) 
 	ret                  
 
@@ -13214,7 +13226,7 @@ label(L0):
 	allocate                 1 
 	put_global_variable_callf     a(1)     y(1)     eq / 2     Y[1] 
 	put_structure            a(1)     f / 1 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	move                     y(1)     a(2) 
 	get_matched_value        a(1)     a(2) 
 	exit                 
@@ -13849,7 +13861,8 @@ g / 3:
 label(L0):
 	shift                    a(4)     a(1)     a(2) 
 	put_structure            a(2)     d / 3 
-	push_local_value2        a(4)     a(3) 
+	push_value               a(4) 
+	push_value               a(3) 
 	allocate                 2 
 	push_variable            y(2) 
 	callf                    copy_term / 2     Y[2] 
@@ -14189,7 +14202,7 @@ label(L4):
 	get_variable             2     a(1)     y(1) 
 	put_structure            a(2)     member / 2 
 	push_variable            a(1) 
-	push_local_value         y(1) 
+	push_value               y(1) 
 	put_global_variable      a(3)     y(2) 
 	put_module               a(4)     eclipse 
 	callf                    sepia_kernel : findall_body / 4     Y[1,2] 
@@ -14280,7 +14293,7 @@ label(L2):
 	cut                      a(1)     3 
 	move                     y(2)     a(1) 
 	get_list                 a(1)     ref(L3) 
-	write_local_value        a(3) 
+	write_value              a(3) 
 	write_variable           y(1) 
 	branch                   ref(L4) 
 label(L3):
@@ -14637,7 +14650,7 @@ p / 2:
 label(L0):
 	get_structure            a(1)     bar / 2     ref(L1) 
 	write_variable           a(1) 
-	write_local_value        a(1) 
+	write_value              a(1) 
 	branch                   ref(L2) 
 label(L1):
 	read_variable            a(1) 

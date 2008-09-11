@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.11 2008/06/13 00:38:55 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.12 2008/09/11 01:17:29 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -534,19 +534,19 @@ push_va(Var, ChunkData0, ChunkData, Code0, Code) :-
 	Code = [code{instr:push_variable(R),regs:[r(VarId,R,def,_)]}|Code0].
 
     push_va_code(tmp, VarId, Code, Code0) :-
-%	Code = [code{instr:push_value(R),regs:[r(VarId,R,use,_)]}|Code0].
-	Code = [code{instr:push_local_value(R),regs:[r(VarId,R,use,_)]}|Code0].		%%% FOR MIXED CODE ONLY
+	Code = [code{instr:push_value(R),regs:[r(VarId,R,use,_)]}|Code0].
+%	Code = [code{instr:push_local_value(R),regs:[r(VarId,R,use,_)]}|Code0].		%%% WHEN VARS IN ENVIRONMENT
 
     push_va_code(perm_first(Y), VarId, Code, Code0) :-
 	Code = [code{instr:push_variable(Y),regs:[r(VarId,Y,perm,_)]}|Code0].
 
     push_va_code(perm_first_in_chunk(Y), VarId, Code, Code0) :-
-%	Code = [code{instr:push_value(Y),regs:[r(VarId,Y,perm,_)]}|Code0].
-	Code = [code{instr:push_local_value(Y),regs:[r(VarId,Y,perm,_)]}|Code0].		%%% FOR MIXED CODE ONLY
+	Code = [code{instr:push_value(Y),regs:[r(VarId,Y,perm,_)]}|Code0].
+%	Code = [code{instr:push_local_value(Y),regs:[r(VarId,Y,perm,_)]}|Code0].		%%% WHEN VARS IN ENVIRONMENT
 
     push_va_code(perm(_Y), VarId, Code, Code0) :-
-%	Code = [code{instr:push_value(RY),regs:[r(VarId,RY,use,_)]}|Code0].
-	Code = [code{instr:push_local_value(RY),regs:[r(VarId,RY,use,_)]}|Code0].		%%% FOR MIXED CODE ONLY
+	Code = [code{instr:push_value(RY),regs:[r(VarId,RY,use,_)]}|Code0].
+%	Code = [code{instr:push_local_value(RY),regs:[r(VarId,RY,use,_)]}|Code0].		%%% WHEN VARS IN ENVIRONMENT
 
 
 
@@ -576,8 +576,8 @@ unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0) :-
 	RCode = [code{instr:read_variable(R),regs:[r(VarId,R,def,_)]} |RCode0].
 
     unify_va_code(tmp, VarId, WCode, WCode0, RCode, RCode0, unbounded_maybe) :-
-%	WCode = [code{instr:write_value(R),regs:[r(VarId,R,use,_)]}|WCode0],
-	WCode = [code{instr:write_local_value(R),regs:[r(VarId,R,use,_)]}|WCode0],		%%% FOR MIXED CODE ONLY
+	WCode = [code{instr:write_value(R),regs:[r(VarId,R,use,_)]}|WCode0],
+%	WCode = [code{instr:write_local_value(R),regs:[r(VarId,R,use,_)]}|WCode0],		%%% WHEN VARS IN ENVIRONMENT
 	RCode = [code{instr:read_value(R),regs:[r(VarId,R,use,_)]} |RCode0].
 
     unify_va_code(perm_first(Y), VarId, WCode, WCode0, RCode, RCode0, 0) :-
@@ -585,13 +585,13 @@ unify_va(Var, ChunkData0, ChunkData, WCode, WCode0, RCode, RCode0) :-
 	RCode = [code{instr:read_variable(Y),regs:[r(VarId,Y,perm,_)]} |RCode0].
 
     unify_va_code(perm_first_in_chunk(Y), VarId, WCode, WCode0, RCode, RCode0, unbounded_maybe) :-
-%	WCode = [code{instr:write_value(Y),regs:[r(VarId,Y,perm,_)]}|WCode0],
-	WCode = [code{instr:write_local_value(Y),regs:[r(VarId,Y,perm,_)]}|WCode0],		%%% FOR MIXED CODE ONLY
+	WCode = [code{instr:write_value(Y),regs:[r(VarId,Y,perm,_)]}|WCode0],
+%	WCode = [code{instr:write_local_value(Y),regs:[r(VarId,Y,perm,_)]}|WCode0],		%%% WHEN VARS IN ENVIRONMENT
 	RCode = [code{instr:read_value(Y),regs:[r(VarId,Y,perm,_)]} |RCode0].
 
     unify_va_code(perm(_Y), VarId, WCode, WCode0, RCode, RCode0, unbounded_maybe) :-
-%	WCode = [code{instr:write_value(RY),regs:[r(VarId,RY,use,_)]}|WCode0],
-	WCode = [code{instr:write_local_value(RY),regs:[r(VarId,RY,use,_)]}|WCode0],		%%% FOR MIXED CODE ONLY
+	WCode = [code{instr:write_value(RY),regs:[r(VarId,RY,use,_)]}|WCode0],
+%	WCode = [code{instr:write_local_value(RY),regs:[r(VarId,RY,use,_)]}|WCode0],		%%% WHEN VARS IN ENVIRONMENT
 	RCode = [code{instr:read_value(RY),regs:[r(VarId,RY,use,_)]} |RCode0].
 
 
