@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.14 2008/08/09 00:40:29 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.15 2008/09/11 01:15:53 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/08/09 00:40:29 $").
+:- comment(date,	"$Date: 2008/09/11 01:15:53 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -885,6 +885,8 @@ consider_pragma(expand, Options, _) :- !,
 	setarg(expand_goals of options, Options, on).
 consider_pragma(noexpand, Options, _) :- !,
 	setarg(expand_goals of options, Options, off).
+consider_pragma(opt_level(Level), Options, _) :- integer(Level), !,
+	setarg(opt_level of options, Options, Level).
 consider_pragma(Pragma, _, M) :-
 	error(#bad_pragma, pragma(Pragma), M).	% make accessible via current_pragma/1
 
