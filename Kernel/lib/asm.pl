@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.3 2008/07/10 01:12:48 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.4 2008/09/11 00:49:06 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1344,7 +1344,7 @@ encode_edesc(Bits, Is, Is0, Ts, Ts0) :-
 	( X >= 16'40000000 ->
 	    % shift would overflow signed 32 bits: subtract 2^32, i.e.
 	    % R is X<<1 - 2^32, then rewrite to avoid bignums:
-	    R is -2147483648 + (X-16'40000000)<<1
+	    R is -2147483647 - 1 + (X-16'40000000)<<1
 	;
 	    R is X << 1
 	).
