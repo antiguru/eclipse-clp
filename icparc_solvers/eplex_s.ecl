@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.5 2008/06/03 17:36:21 kish_shen Exp $
+% Version:	$Id: eplex_s.ecl,v 1.6 2008/09/12 00:32:40 kish_shen Exp $
 %
 %
 
@@ -4662,6 +4662,7 @@ renormalise_cstrs([C|Cs], [N|Ns]) :-
              true
         ;
              printf(warning_output, "Eplex warning: Unable to linearise %w%n", [Cstr]),
+	     writeln(warning_output, "Constraint is either non-linear, or has incorrect syntax (missing brackets?)"),
              fail
         ).
 

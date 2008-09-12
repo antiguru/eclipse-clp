@@ -137,7 +137,7 @@ when the library is loaded.
 \subsection{Linear Constraints}
 \label{linear-constraints}
 The constraints provided are equalities and inequalities over
-linear expressions.
+linear expressions. 
 Their operational behaviour is as follows:
 \begin{itemize}
 \item When they contain no variables, they simply succeed or fail.
@@ -156,9 +156,10 @@ or to send constraints to the solver in batches
 
 
 As with all predicates defined for an eplex instance, these constraints
-should be module-qualified with the name of the eplex instance. In the following
-they are shown qualified with the {\tt eplex} instance. Other instances can
-be used if they have been declared using {\bf eplex_instance/1}.
+should be module-qualified with the name of the eplex instance. In the 
+following they are shown qualified with the {\tt eplex} instance, and with 
+brackets around the constraints when needed. Other instances can
+be used if they have been declared using {\bf eplex_instance/1}. 
  
 \subsubsection{\biptxtref{EplexInstance: (X \$= Y)}{\$=/2!eplex}{../bips/lib/eplex/SE-2.html}}
 X is equal to Y. X and Y are linear expressions.
