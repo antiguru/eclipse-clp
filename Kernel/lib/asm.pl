@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.4 2008/09/11 00:49:06 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.5 2008/09/12 22:54:48 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -635,8 +635,8 @@ instr(list_switch(y(Y),ref(Ll),ref(Ln),ref(Ld)),
                                         167, [y(Y),ref(Ll),ref(Ln),ref(Ld)]).
 instr(external(P,CFun), 		168, [proc(P),i(CFun)]).
 instr(puts_proc(P),			169, [proc(P)]).
-instr(debug_call_simple(P,Port,Path,L,F,T,MT,ref(Args)), 170,
-		[proc(P),brk_port(Port),atom(Path),i(L),i(F),i(T),i(MT),ref(Args)]).
+instr(debug_call_simple(P,Port,Path,L,F,T,MT,NArgs), 170,
+		[proc(P),brk_port(Port),atom(Path),i(L),i(F),i(T),i(MT),i(NArgs)]).
 instr(gc,		 		171, []).
 instr(debug_exit_simple,		172, []).
 instr(refail, 				173, []).

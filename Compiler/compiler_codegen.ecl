@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.21 2008/08/04 17:46:37 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.22 2008/09/12 22:56:12 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/08/04 17:46:37 $").
+:- comment(date, "$Date: 2008/09/12 22:56:12 $").
 
 
 :- lib(hash).
@@ -1168,8 +1168,12 @@ generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) 
 	    )
 	),
 	!,	% Commit to this instruction variant and emit it
-	( N>0, arg(N, InstrTemplate, desc) -> arg(N, Instr, ArgDesc), DbgArgDesc = -1 ; DbgArgDesc = ArgDesc ),
-	emit_call_simple(Instr, InstrTemplate, DbgArgDesc, RegDescs, Goal, Code3, Code4, ArgLabel, Options, Module),
+	( N>0, arg(N, InstrTemplate, desc) ->
+	    arg(N, Instr, ArgDesc), DbgArgDesc = -1, NArgs is N-1
+	;
+	    DbgArgDesc = ArgDesc, NArgs = N
+	),
+	emit_call_simple(Instr, NArgs, DbgArgDesc, RegDescs, Goal, Code3, Code4, DbgLabel, Options, Module),
 	alloc_check_after(GlobalAlloc, ChunkData3, ChunkData4, Code4, Code5),
 	% Now generate code for result unification, if necessary
 	(
@@ -1191,7 +1195,7 @@ generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) 
 		RegDescs4=RegDescs5, ChunkData5=ChunkData7, Code6=Code8
 	    )
 	),
-	emit_exit_simple(InstrTemplate, DbgArgDesc, ArgLabel, Code9, Code, Options).
+	emit_exit_simple(InstrTemplate, DbgLabel, Code9, Code, Options).
 
 generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, Code, _Options, Module) ?-
 	P = _/Arity,
@@ -1320,29 +1324,31 @@ add_arg_desc(I,  mod, Desc0, Desc) :- Desc is Desc0 + 3 << (2*(I-1)).
 %
 % Builtins without output arguments:
 % 
-%	debug_call_simple ... -1 ref(L)
+% 	debug_call_simple ... -1 NArgs
 %	bi_xxx  a1 ... an desc			e.g. >/2
-% L:	debug_exit_simple
+% 	debug_exit_simple
 % 
-%	debug_call_simple ... desc ref(L)
+% 	debug_call_simple ... desc NArgs
 %	bi_xxx  a1 ... an			e.g. atom/1
-% L:	debug_exit_simple
+% 	debug_exit_simple
 %
 % Instructions with uninitialised output registers: the debug_exit instruction
 % receives additional parameters, used to display output values at exit ports.
 %
-%	debug_call_simple ... -1 ref(L)
+% L:	debug_call_simple ... -1 NArgs
 %	bi_xxx  a1 ... uan desc			e.g. +/3, arg/3
-% L:	<possible output unifications>
-%	debug_exit_simple -1 ref(L)
+% 	<possible output unifications>
+%	debug_exit_simple ref(L)
 %
-%	debug_call_simple ... desc ref(L)
+% L:	debug_call_simple ... desc NArgs
 %	bi_xxx  a1 ... uan			e.g. get_bip_error/1
-% L:	<possible output unifications>
-%	debug_exit_simple desc ref(L)
+% 	<possible output unifications>
+%	debug_exit_simple ref(L)
 %
+% where NArgs indicates the number of arguments to the bi_xxx instruction,
+% and a desc of -1 means that the bi_xxx instruction has its own desc.
 
-emit_call_simple(BiInstr, _InstrTmpl, DbgArgDesc, RegDescs, Goal, Code, Code0, ArgLabel, options{debug:Debug}, Module) :-
+emit_call_simple(BiInstr, NArgs, DbgArgDesc, RegDescs, Goal, Code, Code0, DbgLabel, options{debug:Debug}, Module) :-
 	( Debug == off ->
 	    Code = [code{instr:BiInstr,regs:RegDescs}|Code0]
 	;
@@ -1352,13 +1358,14 @@ emit_call_simple(BiInstr, _InstrTmpl, DbgArgDesc, RegDescs, Goal, Code, Code0, A
 	    % the debug instruction is executed.
 	    Goal = goal{functor:Pred,lookup_module:LM,path:Path,line:Line,from:From,to:To},
 	    ( LM\==Module -> QPred = LM:Pred ; QPred = Pred ),
-	    Code = [code{instr:debug_call_simple(QPred,#call_port,Path,Line,From,To,DbgArgDesc,ref(ArgLabel)),regs:RegDescs},
-		    code{instr:BiInstr,regs:[]},
-		    code{instr:label(ArgLabel)}|Code0]
+	    Code = [
+		    code{instr:label(DbgLabel)},
+		    code{instr:debug_call_simple(QPred,#call_port,Path,Line,From,To,DbgArgDesc,NArgs),regs:RegDescs},
+		    code{instr:BiInstr,regs:[]}|Code0]
 	).
 
 
-emit_exit_simple(InstrTmpl, DbgArgDesc, ArgLabel, Code, Code0, options{debug:Debug}) :-
+emit_exit_simple(InstrTmpl, DbgLabel, Code, Code0, options{debug:Debug}) :-
 	( Debug == off ->
 	    Code = Code0
 	; (foreacharg(Arg,InstrTmpl) do Arg \= uarg) ->
@@ -1367,7 +1374,7 @@ emit_exit_simple(InstrTmpl, DbgArgDesc, ArgLabel, Code, Code0, options{debug:Deb
 	    % The instruction has uninitialised output arguments: Improve the
 	    % trace for this special case by giving extra parameters to
 	    % debug_exit_simple that allow "patching" the debug-exit frame.
-	    Code = [code{instr:debug_exit_simple(DbgArgDesc,ref(ArgLabel))}|Code0]
+	    Code = [code{instr:debug_exit_simple(0/*unused*/,ref(DbgLabel))}|Code0]
 	).
 
 emit_debug_noarg(Goal, CallCode, CallCode0, ExitCode, ExitCode0, options{debug:Debug}, Module) :-
@@ -1387,7 +1394,7 @@ emit_debug_noarg(Goal, CallCode, CallCode0, ExitCode, ExitCode0, options{debug:D
 		( for(I,1,N), fromto(0,ArgDesc1,ArgDesc2,ArgDesc) do
 		    add_arg_desc(I, uarg, ArgDesc1, ArgDesc2)
 		),
-		CallCode = [code{instr:debug_call_simple(QPred,#call_port,Path,Line,From,To,ArgDesc,ref(fail)),regs:[]}|CallCode0],
+		CallCode = [code{instr:debug_call_simple(QPred,#call_port,Path,Line,From,To,ArgDesc,0),regs:[]}|CallCode0],
 		ExitCode = [code{instr:debug_exit_simple}|ExitCode0]
 	    )
 	).
