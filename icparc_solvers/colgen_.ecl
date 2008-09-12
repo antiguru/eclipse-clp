@@ -119,7 +119,7 @@
 :- export cg_solver_setup/8.
 :- export cg_solver_setup/9.
 :- export cg_integers/2.            % should this be a handle predicate?
-:- export cg_add_constraints/3.
+%:- export cg_add_constraints/3.
 :- export cg_sp_count/2.
 :- export cg_valid_columns/2.
 :- export cg_optimal_rc/2.
