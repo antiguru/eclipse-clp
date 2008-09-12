@@ -27,29 +27,32 @@
 :- tool(comment / 2).
 
 :- comment(pragma / 1, [
-	summary:"Enable or disable compiler options.  Can only be used as a directive in
-source files.
-
-",
+	summary:"Enable or disable compilation or other source processing options.",
+	index: [debug,expand,opt_level,system,skip,warnings],
 	amode:(pragma(+) is det),
 	desc:html("\
-   The pragma/1 directive allows to control various compiler options.  The
-   effect of a pragma is local to a source file (unlike set_flag/2).
+   The pragma/1 directive allows to control various compiler options, or
+   other source processing options.  A pragma can only be used as a
+   directive in source files or lists given to compile_term/1,2.
+   The effect of a pragma is local to a source file (unlike set_flag/2).
    Settings are in effect until the next pragma that overrides it or until
    the end of the file.
 <PRE>
     Option     Effect
    ---------------------------------------------------------------
-    debug      generate debuggable code
-    nodebug    don't
-    skip       set the skipped flag for all compiled predicates
-    noskip     don't (default)
-    expand     do goal expansion/inline compilation
-    noexpand   don't
-    system     set the type of all compiled predicates to 'built_in'
+    [no]debug        generate debuggable code
+    [no]expand       do goal expansion/inline compilation
+    opt_level(N)     set optimizer level (N>=0)
+    [no]skip         set the skipped flag for all compiled predicates
+    system           set the type of all compiled predicates to 'built_in'
+    [no]warnings     generate compiler warnings
 </PRE>
-   The default for debug/nodebug depends on the global flag debug_compile.
-   The default for expand/noexpand depends on the global flag goal_expansion.
+   The default for debug/nodebug depends on the global flag debug_compile
+   and the debug compiler option.
+   The default for expand/noexpand depends on the global flag goal_expansion
+   and the expand_goals compiler option.
+   The default for opt_level depends on the opt_level compiler option.
+   The default for skip is off. The default for warnings is on.
    The global flags are set with set_flag/2 and tested with get_flag/2.
 <P>
    Pragmas which the compiler does not recognise are silently ignored by

@@ -1368,6 +1368,7 @@ Error:
 
 :- comment(compile/2, [
     summary:"Compile specified file, or list of files, with given options",
+    index: [debug,expand_goals,opt_level,warnings],
     args:["Source":"Source file name (atom or string) or structure stream(Stream)",
     	"Options":"List of compiler options"],
     amode:compile(++,++),
