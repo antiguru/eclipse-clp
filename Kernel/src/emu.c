@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.8 2008/09/01 11:44:54 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.9 2008/09/13 11:01:47 jschimpf Exp $
  */
 
 /*
@@ -6289,12 +6289,11 @@ _end_external_:
 	    tmp1 = DidArity(val_did);
 	    if (tmp1 > 0) {
 		Make_Struct(&scratch_pw, TG);
+		back_code = PP + 9 + PP[7].nint;	/* bi_xxx instruction arguments */
 		if (PP[6].nint < 0) {
-		    back_code = PP[7].code - 1;	/* bi_xxx instruction arguments */
 		    i = back_code[0].nint;	/* bi_xxx instruction's argdesc */
 		} else {
 		    i = PP[6].nint;		/* debug instruction's argdesc */
-		    back_code = PP[7].code;	/* bi_xxx instruction arguments */
 		}
 		Push_Bip_Debug_Goal(back_code,val_did,tmp1,i);
 	    } else {
@@ -6337,7 +6336,7 @@ _end_external_:
 	    Next_Pp;
 
 
-	Case(Debug_exit_simple_args, I_Debug_exit_simple_args)	/* argdesc, argref */
+	Case(Debug_exit_simple_args, I_Debug_exit_simple_args)	/* unused, <ref to debug_call_simple> */
 	    if (TD  &&  (TfFlags(TD) & TF_SIMPLE)  &&  !OldStamp(&TD[TF_CHP_STAMP]))
 	    {
 		if (!(TfFlags(TD) & TF_NOGOAL) 
@@ -6345,12 +6344,13 @@ _end_external_:
 		  && OfInterest(PriFlags(DProc(TD)), DInvoc(TD), DLevel(TD), 0))
 		{
 		    /* If the goal had any uninitialised arguments, fill them in now */
-		    if (PP[0].nint < 0) {
-			back_code = PP[1].code - 1;	/* bi_xxx instruction arguments */
+		    back_code = PP[1].code + 1;		/* debug_call_simple instruction */
+		    if (back_code[6].nint < 0) {
+			back_code = back_code + 9 + back_code[7].nint;	/* bi_xxx instruction arguments */
 			i = back_code[0].nint;		/* bi_xxx instruction's argdesc */
 		    } else {
-			i = PP[0].nint;			/* debug instruction's argdesc */
-			back_code = PP[1].code;		/* bi_xxx instruction arguments */
+			i = back_code[6].nint;		/* debug_call_simple instruction's argdesc */
+			back_code = back_code + 9 + back_code[7].nint;	/* bi_xxx instruction arguments */
 		    }
 		    pw1 = DGoal(TD).val.ptr;
 		    Update_Bip_Debug_Goal(back_code,tmp1,i,pw1);
