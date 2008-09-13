@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.22 2008/09/12 22:56:12 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.23 2008/09/13 00:16:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/09/12 22:56:12 $").
+:- comment(date, "$Date: 2008/09/13 00:16:46 $").
 
 
 :- lib(hash).
@@ -1143,7 +1143,7 @@ generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) 
 	(
 	    foreach(Arg,Args),
 	    count(I,1,_),
-	    fromto(RegDescs,RegDescs1,RegDescs2,RegDescs3),
+	    fromto(InRegDescs,RegDescs1,RegDescs2,RegDescs3),
 	    fromto(ChunkData0, ChunkData1, ChunkData2, ChunkData3),
 	    fromto(Code0, Code1, Code2, Code3),
 	    fromto(0,ArgDesc1,ArgDesc2,ArgDesc),
@@ -1173,13 +1173,13 @@ generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) 
 	;
 	    DbgArgDesc = ArgDesc, NArgs = N
 	),
-	emit_call_simple(Instr, NArgs, DbgArgDesc, RegDescs, Goal, Code3, Code4, DbgLabel, Options, Module),
+	emit_call_simple(Instr, NArgs, DbgArgDesc, InRegDescs, RegDescs3, OutRegDescs, Goal, Code3, Code4, DbgLabel, Options, Module),
 	alloc_check_after(GlobalAlloc, ChunkData3, ChunkData4, Code4, Code5),
 	% Now generate code for result unification, if necessary
 	(
 	    foreach(Arg,Args),
 	    count(I,1,_),
-	    fromto(RegDescs3,RegDescs4,RegDescs5,[]),
+	    fromto(OutRegDescs,RegDescs4,RegDescs5,[]),
 	    fromto(ChunkData4, ChunkData5, ChunkData7, ChunkData),
 	    fromto(Code5, Code6, Code8, Code9),
 	    param(Instr,InstrTemplate)
@@ -1348,20 +1348,23 @@ add_arg_desc(I,  mod, Desc0, Desc) :- Desc is Desc0 + 3 << (2*(I-1)).
 % where NArgs indicates the number of arguments to the bi_xxx instruction,
 % and a desc of -1 means that the bi_xxx instruction has its own desc.
 
-emit_call_simple(BiInstr, NArgs, DbgArgDesc, RegDescs, Goal, Code, Code0, DbgLabel, options{debug:Debug}, Module) :-
+emit_call_simple(BiInstr, NArgs, DbgArgDesc, InRegDescs, InRegDescsTail, OutRegDescs, Goal, Code, Code0, DbgLabel, options{debug:Debug}, Module) :-
 	( Debug == off ->
-	    Code = [code{instr:BiInstr,regs:RegDescs}|Code0]
+	    InRegDescsTail = OutRegDescs,
+	    Code = [code{instr:BiInstr,regs:InRegDescs}|Code0]
 	;
-	    % CAUTION: the RegDescs must be given to the debug instruction instead
+	    % CAUTION: the InRegDescs must be given to the label instruction instead
 	    % of the bi_xxx instructions to make sure that the register allocator
 	    % (which may need to insert moves) puts all values in place *before*
-	    % the debug instruction is executed.
+	    % the debug instruction is executed, and to make sure nothing goes
+	    % between the label and the actual debug_call_simple instruction.
 	    Goal = goal{functor:Pred,lookup_module:LM,path:Path,line:Line,from:From,to:To},
 	    ( LM\==Module -> QPred = LM:Pred ; QPred = Pred ),
+	    InRegDescsTail = [],
 	    Code = [
-		    code{instr:label(DbgLabel)},
-		    code{instr:debug_call_simple(QPred,#call_port,Path,Line,From,To,DbgArgDesc,NArgs),regs:RegDescs},
-		    code{instr:BiInstr,regs:[]}|Code0]
+		    code{instr:label(DbgLabel),regs:InRegDescs},
+		    code{instr:debug_call_simple(QPred,#call_port,Path,Line,From,To,DbgArgDesc,NArgs)},
+		    code{instr:BiInstr,regs:OutRegDescs}|Code0]
 	).
 
 
