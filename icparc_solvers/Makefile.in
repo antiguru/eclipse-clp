@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.11 2008/06/30 17:44:00 jschimpf Exp $
+# $Id: Makefile.in,v 1.12 2008/09/15 12:35:52 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -574,7 +574,7 @@ endif
 # This is only ok as long as rxspencer is only used on a single architecture!
 rxspencer/libregex.a:
 	( cd rxspencer ; \
-	  CC=$(CC) AR=$(AR) $(MAKE) lib)
+	  CC="$(CC)" AR="$(AR)" $(MAKE) lib)
 
 
 #----------------------------------------------------------------------
