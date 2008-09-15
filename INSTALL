@@ -51,7 +51,9 @@ Cross build, e.g. for Windows on Linux:
 Build for Windows on Windows/Cygwin:
 
 	export ARCH=i386_nt
-	CONFIG_SITE=config.i386_nt.cygwin ./configure
+	cp config.i386_nt config.i386_nt.cross
+	cp config.i386_nt.cygwin config.i386_nt
+	CONFIG_SITE=config.i386_nt ./configure
 	make -f Makefile.$ARCH
 
 To build the documentation:
