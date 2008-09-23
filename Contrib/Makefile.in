@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.3 2008/09/22 00:46:49 kish_shen Exp $
+# $Id: Makefile.in,v 1.4 2008/09/23 11:00:11 kish_shen Exp $
 #
 
 ARCH = @ARCH@
@@ -18,7 +18,9 @@ PL_ECI_FILES =	applic.pl arrays.pl assoc.pl bags.pl between.pl distfix.pl \
 		project.pl random.pl rdtok.pl read.pl struct.pl \
 		tidy.pl trees.pl
 
-ECL_ECI_FILES =	cardinal.ecl ic_global_gac.ecl grasper.ecl xml.ecl
+ECL_ECI_FILES =	all_min_cuts.ecl all_min_cuts_eplex.ecl cardinal.ecl \
+		ic_global_gac.ecl grasper.ecl max_flow.ecl \
+		max_flow_eplex.ecl xml.ecl
 
 PL_FILES =	xml.pl xml_diagnosis.pl xml_pp.pl xml_acquisition.pl \
 		xml_generation.pl xml_utilities.pl \
