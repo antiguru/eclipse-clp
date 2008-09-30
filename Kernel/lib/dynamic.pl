@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dynamic.pl,v 1.5 2008/09/08 17:08:42 kish_shen Exp $
+% Version:	$Id: dynamic.pl,v 1.6 2008/09/30 08:01:38 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -253,8 +253,8 @@ clause_body(Head, Body, Module) :-
 retract_body(Clause, Module) :-
 	( clause_info(Clause, N, A, NormClause),
 	  dynamic_source_(N, A, SrcHandle, Module) ->
-	    recorded(SrcHandle, NormClause),
-	    ( erase(SrcHandle, NormClause) -> true ; true)
+	    recorded(SrcHandle, NormClause, DbRef),
+	    erase(DbRef)
 	;
 	    bip_error(retract(Clause), Module)
 	).
