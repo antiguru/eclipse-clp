@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.3 2008/08/08 15:37:37 kish_shen Exp $
+  VERSION	$Id: bip_misc.c,v 1.4 2008/10/15 10:09:26 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -127,6 +127,7 @@ static int p_date(value v, type t),
 	p_setenv(value v0, type t0, value v1, type t1),
 	p_suffix(value sval, type stag, value sufval, type suftag),
 	p_session_time(value vtime, type ttime),
+	p_get_hr_time(value vtime, type ttime),
 	p_set_timer(value vtimer, type ttimer, value vinterv, type tinterv),
 	p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv),
 	p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinterv, type tinterv),
@@ -160,6 +161,11 @@ extern int      ec_sigalrm;
 
 static int32	seed;	/* for random generator */
 
+#ifdef _WIN32
+static LARGE_INTEGER ticks_per_sec_;
+static int have_perf_counter_ = 0;
+#endif
+
 
 void
 bip_misc_init(int flags)
@@ -188,6 +194,7 @@ bip_misc_init(int flags)
 	(void) built_in(in_dict("getcwd", 1), 	p_getcwd,  B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("cd", 1),		p_cd, 	B_SAFE);
 	(void) built_in(in_dict("cd_if_possible", 1),	p_cd_if_possible, 	B_SAFE);
+	(void) built_in(in_dict("get_hr_time", 1), p_get_hr_time, 	B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("set_timer", 2), p_set_timer, 	B_SAFE);
 	(void) built_in(in_dict("get_timer", 2),
 				p_get_timer,		B_UNSAFE|U_SIMPLE);
@@ -238,6 +245,10 @@ bip_misc_init(int flags)
 	srandom((unsigned) rand_init);
 #else
 	srand((unsigned) rand_init);
+#endif
+#ifdef _WIN32
+	if (QueryPerformanceFrequency(&ticks_per_sec_))
+	    have_perf_counter_ = 1;
 #endif
     }
 }
@@ -1013,6 +1024,38 @@ p_alarm(value v, type t)
 #endif
     Succeed_;
 }
+
+
+/*
+ * Return time in seconds with a high resolution, but undefined epoch.
+ * Only good to measure the difference between two time points.
+ * This is currently real time on Unix and Windows, not cputime.
+ */
+
+static int
+p_get_hr_time(value v, type t)
+{
+    double seconds;
+#ifdef _WIN32
+    LARGE_INTEGER ticks;
+    if (!have_perf_counter_)
+	return p_session_time(v, t);
+
+    if (!QueryPerformanceCounter(&ticks))
+    {
+	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	Bip_Error(SYS_ERROR);
+    }
+    seconds = (double)ticks.QuadPart/(double)ticks_per_sec_.QuadPart;
+#else
+    struct timeval ticks;
+    if (gettimeofday(&ticks, NULL))
+    	{ Bip_Error(SYS_ERROR); }
+    seconds = ticks.tv_sec + ticks.tv_usec/1000000.0;
+#endif
+    Return_Unify_Float(v, t, seconds);
+}
+
 
 /*
  * set_timer(+Timer, +TimeBetweenInterrupts)
