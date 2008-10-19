@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.22 2008/10/09 19:28:36 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.23 2008/10/19 04:17:25 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -349,6 +349,7 @@ case "$ARCH" in
     PD_O_SO="$LD_C_SO"
     DYLD="\$(CC)"
     WANT_MPS=y
+    OSTYPE="solaris"
     AC_DEFINE(HAVE_MAP_NORESERVE)
     ;;
  x86_64_sunos5)
