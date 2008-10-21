@@ -215,7 +215,7 @@ Number and of the same numeric type as Number.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable or number."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result and Number are numbers of different types.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       ceiling(1.8, 2.0).
@@ -224,10 +224,10 @@ Success:
       ceiling(-6.4, Result).      (gives Result = -6.0)
 Fail:
       ceiling(0.0, 1.0).
+      ceiling(0.5, 0).
+      ceiling(1, r).
 Error:
       ceiling(A, 6.0).                   (Error 4).
-      ceiling(0.5, 0).                   (Error 5).
-      ceiling(1, r).                     (Error 24).
       ceiling(4 + 2.3, 6.0).             (Error 24).
 
 
@@ -257,7 +257,8 @@ Error:
 <P>
 "),
 	args:["Number" : "Integer.", "Index" : "Non-negative integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number or Index is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number or Index is a number but not an integer.", 24 : "Number or Index is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number or Index is not instantiated (non-coroutining mode    only).", 5 : "Number or Index is a number but not an integer.",
+	24 : "Number or Index is not of a numeric type."],
 	eg:"
 Success:
       clrbit(15, 3, 7).
@@ -289,7 +290,7 @@ integer with Result.
 <P>
 "),
 	args:["Number" : "An integer or rational number.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Number is a float or breal.", 5 : "Result is a number but not an integer.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Number is a float or breal.", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       denominator(3_4, 4).
@@ -298,11 +299,11 @@ Success:
       denominator(25, 1).
 Fail:
       denominator(3_4, 3).
+      denominator(3.1, 3).
+      denominator(3_4, 3_1).
+      denominator(3_4, r).
 Error:
       denominator(A, 3).                     (Error 4).
-      denominator(3.1, 3).                   (Error 5).
-      denominator(3_4, 3_1).                 (Error 5).
-      denominator(3_4, r).                   (Error 24).
       denominator(1_3 + 3_4, 12).            (Error 24).
 
 
@@ -328,8 +329,6 @@ Error:
 "),
 	args:["Expression" : "An arithmetic expression.", "Result" : "A variable or a number."],
 	exceptions:[4 : "Expression is uninstantiated.",
-		5:"Result is neither a number nor a variable.",
-		5 : "Evaluation of Expression gives a different type than Result.",
 		21 : "An evaluation predicate in the expression is not defined.",
 		24 : "Expression is not a valid arithmetic expression."],
 	eg:"
@@ -366,7 +365,7 @@ Number and of the same numeric type as Number.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable or number."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result and Number are numbers of different types.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       floor(1.8, 1.0).
@@ -375,10 +374,10 @@ Success:
       floor(-6.4, Result).      (gives Result = -7.0)
 Fail:
       floor(1.0, 0.0).
+      floor(0.5, 0).
+      floor(1, r).
 Error:
       floor(A, 6.0).                   (Error 4).
-      floor(0.5, 0).                   (Error 5).
-      floor(1, r).                     (Error 24).
       floor(4 + 2.3, 6.0).             (Error 24).
 
 
@@ -412,7 +411,7 @@ Number, and of the same numeric type as Number.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable or number."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result and Number are numbers of different types.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       X is truncate(1.8).	   (gives Result = 1.0)
@@ -423,10 +422,10 @@ Success:
       truncate(-6.4, Result).      (gives Result = -6.0)
 Fail:
       truncate(1.0, 0.0).
+      truncate(0.5, 0).
+      truncate(1, r).
 Error:
       truncate(A, 6.0).                   (Error 4).
-      truncate(0.5, 0).                   (Error 5).
-      truncate(1, r).                     (Error 24).
       truncate(4 + 2.3, 6.0).             (Error 24).
 ",
 	see_also:[(is) / 2, floor/2, ceiling/2, round/2, integer/2, fix/2]]).
@@ -453,7 +452,8 @@ Error:
 <P>
 "),
 	args:["Number" : "Integer.", "Index" : "Non-negative integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number or Index is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number or Index is a number but not an integer.", 24 : "Number or Index is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number or Index is not instantiated (non-coroutining mode    only).", 5 : "Number or Index is a number but not an integer.",
+		24 : "Number or Index is not of a numeric type."],
 	eg:"
 Success:
       getbit(10, 3, 1).
@@ -472,7 +472,6 @@ value with Result.
 ",
 	template:"?Result is +Expression",
 	amode:(is(-,+) is det),
-	amode:(is(+,+) is det),	% can make extra errors!
 	desc:html("\
    is/2 is used to evaluate arithmetic expressions.  An arithmetic
    expression is a Prolog term that is made up of variables, numbers,
@@ -500,9 +499,7 @@ value with Result.
 	Operations on breals are safe in the sense that the resulting
 	bounds always enclose the precise result (interval arithmetic).
 </DL>
-   Numbers of different types do not unify.  To help bug detection,
-   the arithmetic predicates raise events when an attempt is made to
-   unify numbers of different types.
+   Numbers of different types do not unify!
 <P>
    The system performs automatic type conversions in the direction
 <BLOCKQUOTE>
@@ -614,9 +611,9 @@ value with Result.
 "),
 	args:["Result" : "A variable or a number.", "Expression" : "An arithmetic expression."],
 	fail_if:"Fails if a user-defined evaluation predicate fails",
-	exceptions:[4 : "Expression is uninstantiated", 
-		5:"Result is neither a number nor a variable.", 5 : "Evaluation of Expression gives a different type than Result.", 21 : "An evaluation predicate in the expression is not defined.",
-24 : "Expression is not a valid arithmetic expression."],
+	exceptions:[4 : "Expression is uninstantiated",
+		21 : "An evaluation predicate in the expression is not defined.",
+		24 : "Expression is not a valid arithmetic expression."],
 	eg:"
    Success:
      103 is 3 + 4 * 5 ^ 2.
@@ -632,10 +629,10 @@ value with Result.
      yes.
 Fail:
      3.14 is pi.                    % different values
+     atom is 4.
+     1 is 1.0.
 Error:
      X is _.                        (Error 4)
-     atom is 4.                     (Error 5)
-     1 is 1.0.                      (Error 5)
      X is \"s\".                      (Error 24)
 
      [eclipse]: X is undef(1).
@@ -680,7 +677,8 @@ integer with Result.
 <P>
 "),
 	args:["Number" : "An integer or rational number.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Number is a float or breal.", 5 : "Result is a number but not an integer.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Number is a float or breal.",
+		24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       numerator(3_4, 3).
@@ -689,11 +687,11 @@ Success:
       numerator(25, 25).
 Fail:
       numerator(3_4, 4).
+      numerator(3_4, 3_1).
+      numerator(3_4, r).
 Error:
       numerator(A, 3).                     (Error 4).
       numerator(3.1, 3).                   (Error 5).
-      numerator(3_4, 3_1).                 (Error 5).
-      numerator(3_4, r).                   (Error 24).
       numerator(1_3 + 3_4, 13).            (Error 24).
 
 
@@ -732,9 +730,7 @@ Error:
 "),
 	args:["Number" : "A number.", "Result" : "A variable or rational number."],
 	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).",
-	    5 : "Result is a number but not of type rational.",
 	    24 : "Number is not of a numeric type.",
-	    24 : "Result is neither a number nor a variable.",
 	    141 : "Number is a bounded real"],
 	eg:"
 Success:
@@ -746,10 +742,10 @@ Success:
       rational(0.1, Result).     (gives Result = 3602879701896397_36028797018963968)
 Fail:
       rational(1, 2_1).
+      rational(3, 3).
+      rational(1, r).
 Error:
       rational(A, 1_3).                   (Error 4).
-      rational(3, 3).                     (Error 5).
-      rational(1, r).                     (Error 24).
       rational(4 + 2, 6_1).               (Error 24).
       rational(0.9__1.1, X).              (Error 141).
 
@@ -788,9 +784,7 @@ Error:
 "),
 	args:["Number" : "A number.", "Result" : "A variable or rational number."],
 	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).",
-	    5 : "Result is a number but not of type rational.",
 	    24 : "Number is not of a numeric type.",
-	    24 : "Result is neither a number nor a variable.",
 	    141 : "Number is a bounded real"],
 	eg:"
 Success:
@@ -802,10 +796,10 @@ Success:
       rationalize(0.1, Result).     (gives Result = 1_10)
 Fail:
       rationalize(1, 2_1).
+      rationalize(3, 3).
+      rationalize(1, r).
 Error:
       rationalize(A, 1_3).                   (Error 4).
-      rationalize(3, 3).                     (Error 5).
-      rationalize(1, r).                     (Error 24).
       rationalize(4 + 2, 6_1).               (Error 24).
       rationalize(0.9__1.1, X).              (Error 141).
 
@@ -833,7 +827,8 @@ Error:
    is delayed until these variables are instantiated.
 "),
 	args:["Number" : "Integer.", "Index" : "Non-negative integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number or Index is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number or Index is a number but not an integer.", 24 : "Number or Index is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number or Index is not instantiated (non-coroutining mode    only).", 5 : "Number or Index is a number but not an integer.",
+		24 : "Number or Index is not of a numeric type."],
 	eg:"
 Success:
       setbit(0, 3, 8).
@@ -867,7 +862,7 @@ Success:
    delayed until this variable is instantiated.
 "),
 	args:["Number" : "A number.", "Result" : "A variable or an integer."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a non-integer number.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       sgn(42, 1).
@@ -876,11 +871,11 @@ Success:
       sgn(0.0, 0).
 Fail:
       sgn(1, 0).
+      sgn(1, 1.0).
+      sgn(1, r).
 Error:
       sgn(A, 6).                   (Error 4).
-      sgn(1, 1.0).                 (Error 5).
       sgn(4 + 2, 6).               (Error 24).
-      sgn(1, r).                   (Error 24).
 
 
 
@@ -905,7 +900,7 @@ with Result.
    predicate delays until the list is complete.
 "),
 	args:["ExprList" : "A list of arithmetic expressions.", "Result" : "A variable or number."],
-	exceptions:[4 : "ExprList is a partial list (non-coroutining mode only).", 5 : "ExprList is not a proper list.", 5 : "Result is not a number."],
+	exceptions:[4 : "ExprList is a partial list (non-coroutining mode only).", 5 : "ExprList is not a proper list."],
 	eg:"
 Success:
       X is sum([1,2,3]).  % gives X = 6
@@ -933,7 +928,7 @@ with Result.
    predicate delays until the list is complete.
 "),
 	args:["ExprList" : "A list of arithmetic expressions.", "Result" : "A variable or number."],
-	exceptions:[4 : "ExprList is a partial list (non-coroutining mode only).", 5 : "ExprList is not a proper list.", 5 : "Result is not a number."],
+	exceptions:[4 : "ExprList is a partial list (non-coroutining mode only).", 5 : "ExprList is not a proper list."],
 	eg:"
 Success:
       X is min([1,2,3]).    % gives X = 1
@@ -959,7 +954,7 @@ with Result.
    predicate delays until the list is complete.
 "),
 	args:["ExprList" : "A list of arithmetic expressions.", "Result" : "A variable or number."],
-	exceptions:[4 : "ExprList is a partial list (non-coroutining mode only).", 5 : "ExprList is not a proper list.", 5 : "Result is not a number."],
+	exceptions:[4 : "ExprList is a partial list (non-coroutining mode only).", 5 : "ExprList is not a proper list."],
 	eg:"
 Success:
       X is max([1,2,3]).    % gives X = 3
@@ -986,7 +981,7 @@ Success:
    delayed until this variable is instantiated.
 "),
 	args:["Number" : "A number.", "Result" : "A variable or a number."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result and Number are numbers of different types.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       abs(1, 1).
@@ -994,12 +989,12 @@ Success:
       abs(-6.2, Result).           (gives Result = 6.2)
 Fail:
       abs(1, 0).
+      abs(1, 1.0).
+      abs(-1.0, 1).
+      abs(1, r).
 Error:
       abs(A, 6).                   (Error 4).
-      abs(1, 1.0).                 (Error 5).
-      abs(-1.0, 1).                (Error 5).
       abs(4 + 2, 6).               (Error 24).
-      abs(1, r).                   (Error 24).
 
 
 
@@ -1025,9 +1020,7 @@ value with Result.
 "),
 	args:["Number" : "A number.", "Result" : "A variable or float."],
 	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).",
-	    5 : "Result is a number but not a float",
 	    24 : "Number is not of a numeric type.",
-	    24 : "Result is neither a number nor a variable.",
 	    20 : "Illegal arithmetic operation: Number is greater than 1 or less than -1.",
 	    141 : "Argument is of type breal"],
 	eg:"
@@ -1037,10 +1030,10 @@ Success:
       acos(0, Result).          (gives Result = 1.5708)
 Fail:
       acos(1, 1.0).
+      acos(1, r).
+      acos(1, 0).
 Error:
       acos(A, 6.0).             (Error 4).
-      acos(1, r).               (Error 5).
-      acos(1, 0).               (Error 5).
       acos(2, Result).          (Error 20).
       acos(4 - 3, 0.0).         (Error 24).
 
@@ -1070,17 +1063,18 @@ resulting value with Result.
    to /\\/3 is delayed until these variables are instantiated.
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).",
+		5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       /\\(11, 7, 3).
       /\\(-11, 7, Result).       (gives Result = 5)
 Fail:
       /\\(1, 2, 3).
+      /\\(5, 2, r).
+      /\\(6, 2.0, 2.0).
 Error:
       /\\(A, 2, 6).              (Error 4).
-      /\\(5, 2, r).              (Error 5).
-      /\\(6, 2.0, 2.0).          (Error 5).
       /\\(4 + 2, 2, 2).          (Error 24).
 
 
@@ -1109,9 +1103,7 @@ value with Result.
 "),
 	args:["Number" : "A number.", "Result" : "A variable or float."],
 	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).",
-	    5 : "Result is a number but not a float",
 	    24 : "Number is not of a numeric type.",
-	    24 : "Result is neither a number nor a variable.",
 	    20 : "Illegal arithmetic operation: Number is greater than 1 or less than -1.",
 	    141 : "Argument is of type breal"],
 	eg:"
@@ -1120,12 +1112,12 @@ Success:
       asin(-0,5, Result).          (gives Result = -0.523599)
 Fail:
       asin(1, 0.0).
+      asin(1, 3).
+      asin(1, r).
 Error:
       asin(A, 6.0).                  (Error 4).
-      asin(1, 3).                    (Error 5).
       asin(2, Result).               (Error 20).
       asin(4 + 2, -0.279415).        (Error 24).
-      asin(1, r).                    (Error 24).
 
 
 
@@ -1152,7 +1144,7 @@ value with Result.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable, float or breal."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not a float or breal", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       atan(0.0, 0.0).
@@ -1160,11 +1152,11 @@ Success:
       atan(-8, Result).        (gives Result = -1.44644)
 Fail:
       atan(1, 0.0).
+      atan(1.55741, 1).
+      atan(5, r).
 Error:
       atan(A, 6.0).                   (Error 4).
-      atan(1.55741, 1).               (Error 5).
       atan(1 + 0.55741, 1.0).         (Error 24).
-      atan(5, r).                     (Error 24).
 
 
 
@@ -1195,7 +1187,7 @@ Error:
 <P>
 "),
 	args:["Y" : "A number.", "X":"A number.", "Result" : "A variable, float or breal."],
-	exceptions:[4 : "X or Y is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not a float or breal", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "X or Y is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       atan( 0.0, -1.0, Result).	(gives Result =  3.141592)
@@ -1210,9 +1202,11 @@ Success:
 
       atan( 7.0,  7.0, Result).	(gives Result =  0.785398)
 
+Fail:
+      atan(1.55741, 0.0, 1).
+
 Error:
       atan(A, 0.0, 6.0).              (Error 4).
-      atan(1.55741, 0.0, 1).          (Error 5).
       atan(1 + 0.55741, 1.0, R).      (Error 24).
 ",
 	see_also:[(is) / 2]]).
@@ -1240,7 +1234,7 @@ with Result.
 <P>
 "),
 	args:["Number" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not an integer.", 5 : "Number is a number but not an integer.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Number is a number but not an integer.", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       \\(1, -2).
@@ -1248,11 +1242,11 @@ Success:
       \\(-6, Result).           (gives Result = 5)
 Fail:
       \\(1, 0).
+      \\(1, r).
 Error:
       \\(A, 6).                   (Error 4).
       \\(0.0, 0.0).               (Error 5).
       \\(4 + 2, -7).              (Error 24).
-      \\(1, r).                   (Error 24).
 
 
 
@@ -1279,7 +1273,7 @@ value with Result.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable, float or breal."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not a float or breal", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       cos(0, 1.0).
@@ -1287,11 +1281,11 @@ Success:
       cos(-33, Result).        (gives Result = -0.0132767)
 Fail:
       cos(1, 0.0).
+      cos(0, 1).
+      cos(5, r).
 Error:
       cos(A, 6.0).                   (Error 4).
-      cos(0, 1).                     (Error 5).
       cos(4 + 2, 0.96017).           (Error 24).
-      cos(5, r).                     (Error 24).
 
 
 
@@ -1321,7 +1315,7 @@ with Result.
 <P>
 "),
 	args:["Number1" : "A number.", "Number2" : "A number.", "Result" : "A variable or float (resp. rational)."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not a float (resp. rational).", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable.", 20 : "Illegal arithmetic operation:  division by 0"],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 24 : "Number1 or Number2 is not of a numeric type.", 20 : "Illegal arithmetic operation:  division by 0"],
 	eg:"
 Success:
     /(10, 2, 5.0).
@@ -1329,10 +1323,10 @@ Success:
     /(9, 12, 3_4).      (with set_flag(prefer_rationals, on))
 Fail:
     /(1, 2, 1.0).
+    /(5, 2, r).
+    /(6, 2, 3).
 Error:
     /(A, 2, 6.0).            (Error 4).
-    /(5, 2, r).              (Error 5).
-    /(6, 2, 3).              (Error 5).
     /(2, 0, Result).         (Error 20).
     /(4 + 2, 2, 12).         (Error 24).
 
@@ -1396,18 +1390,18 @@ and unifies the resulting value with Result.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable, float or breal."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not a float or breal.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       exp(0.0, Result).       (gives Result = 1.0)
       exp(-6, Result).        (gives Result = 0.00247875)
 Fail:
       exp(1, 0.0).
+      exp(0, 1).
+      exp(1, r).
 Error:
       exp(A, 6.0).                   (Error 4).
-      exp(0, 1).                     (Error 5).
       exp(4 + 2, 403.429).           (Error 24).
-      exp(1, r).                     (Error 24).
 
 
 
@@ -1440,20 +1434,18 @@ Error:
 	args:["Number" : "A number.", "Result" : "A variable or integer."],
 	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).",
 	    5 : "Number is of type breal.",
-	    5 : "Result is a number but not an integer.",
-	    24 : "Number is not of a numeric type.",
-	    24 : "Result is neither a number nor a variable."],
+	    24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       fix(1.5, 1).
       fix(-6.4, -6).
 Fail:
       fix(1, 0).
+      fix(0.0, 0.0).
+      fix(1, r).
 Error:
       fix(A, 6.0).                 (Error 4).
-      fix(0.0, 0.0).               (Error 5).
       fix(4 + 2.3, 6).             (Error 24).
-      fix(1, r).                   (Error 24).
 
 
 
@@ -1484,10 +1476,8 @@ Error:
 	args:["Number" : "A number.", "Result" : "A variable or integer."],
 	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).",
 	    5 : "Number is of type breal.",
-	    5 : "Result is a number but not an integer.",
 	    20 : "Number is not integral.",
-	    24 : "Number is not of a numeric type.",
-	    24 : "Result is neither a number nor a variable."],
+	    24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       X is integer(5.0).               (gives X = 5)
@@ -1497,14 +1487,16 @@ Success:
       integer(5_1, 5).
       integer(5.0__5.0, 5).
 
+Fail:
+      integer(0.0, 0.0).
+      integer(1, r).
+
 Error:
       integer(1.1, X).                 (Error 20)
       integer(5_4, X).                 (Error 20)
       integer(0.99__1.01, X).          (Error 20)
       integer(A, 6.0).                 (Error 4).
-      integer(0.0, 0.0).               (Error 5).
       integer(4 + 2.3, 6).             (Error 24).
-      integer(1, r).                   (Error 24).
 ",
         see_also:[(is) / 2, floor/2, ceiling/2, round/2, truncate/2]]).
 
@@ -1528,18 +1520,18 @@ Result.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable or float."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not a float.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       float(1, 1.0).
       float(-6, Result).         (gives Result = -6.0)
 Fail:
       float(1, 0.0).
+      float(0, 0).
+      float(1, r).
 Error:
       float(A, 6.0).                   (Error 4).
-      float(0, 0).                     (Error 5).
       float(4 + 2, 6.0).               (Error 24).
-      float(1, r).                     (Error 24).
 
 
 
@@ -1644,7 +1636,7 @@ value with Result.
 <P>
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 5 : "Result is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable.", 20 : "Illegal arithmetic operation:  division by 0"],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 20 : "Illegal arithmetic operation:  division by 0"],
 	eg:"
 Success:
       X is 10 // 3.		( gives X = 3)
@@ -1656,9 +1648,10 @@ Success:
 
 Fail:
       //(1, 2, 3).
+      //(5, 2, 2.0).
+      //(5, 2, r).
 Error:
       //(A, 2, 6).              (Error 4).
-      //(5, 2, r).              (Error 5).
       //(6, 2.0, 3.0).          (Error 5).
       //(2, 0, Result).        (Error 20).
       //(4 + 2, 2, 12).        (Error 24).
@@ -1693,7 +1686,8 @@ value with Result.
 <P>
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 5 : "Result is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable.", 20 : "Illegal arithmetic operation:  division by 0"],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.",
+		24 : "Number1 or Number2 is not of a numeric type.", 20 : "Illegal arithmetic operation:  division by 0"],
 	eg:"
 Success:
       X is 10 div 3.		( gives X = 3)
@@ -1704,9 +1698,10 @@ Success:
       div(-10, -3,  3).
 Fail:
       div(1, 2, 3).
+      div(6, 2, 3.0).
+      div(5, 2, r).
 Error:
       div(A, 2, 6).              (Error 4).
-      div(5, 2, r).              (Error 5).
       div(6, 2.0, 3.0).          (Error 5).
       div(2, 0, Result).        (Error 20).
       div(4 + 2, 2, 12).        (Error 24).
@@ -1860,20 +1855,20 @@ with Result.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable float or breal."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not a float or breal.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable.", 20 : "Illegal arithmetic operation:  Number is 0 or less."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type.", 20 : "Illegal arithmetic operation:  Number is 0 or less."],
 	eg:"
 Success:
       ln(2.0, Result).          (gives Result = 0.693147)
       ln(1, Result).            (gives Result = 0.0)
 Fail:
       ln(1, 1.0).
+      ln(1, 0).
+      ln(1, r).
 Error:
       ln(A, 6.0).                   (Error 4).
-      ln(1, 0).                     (Error 5).
       ln(-2, Result).               (Error 20).
       ln(0, Result).                (Error 20).
       ln(4 + 2, 1.79176).           (Error 24).
-      ln(1, r).                     (Error 24).
 
 
 
@@ -1899,7 +1894,7 @@ Error:
 <P>
 "),
 	args:["Number1" : "A number.", "Number2" : "A number.", "Maximum" : "A variable or number."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is of a different type than the evaluation result.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       max(5, 2, 5).
@@ -1909,12 +1904,12 @@ Success:
       max(5, 2_0, 5_0).         (The types are adjusted)
 Fail:
       max(1, 2, 3).
+      max(1, 2, 2.0).
+      max(5, 2, r).
+      max(5, 2.0, 5).
 Error:
       max(A, 2, 6).             (Error 4).
-      max(1, 2, 2.0).           (Error 5).
-      max(5, 2.0, 5).           (Error 5).
       max(4 - 2, 3, 3).         (Error 24).
-      max(5, 2, r).             (Error 24).
 
 
 
@@ -1940,7 +1935,7 @@ Error:
 <P>
 "),
 	args:["Number1" : "A number.", "Number2" : "A number.", "Minimum" : "A variable or a number."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is of a different type than the evaluation result.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       min(5, 2, 2).
@@ -1950,12 +1945,12 @@ Success:
       min(5_0, 2, 2_0).         (The types are adjusted)
 Fail:
       min(1, 2, 3).
+      min(1, 2, 2.0).
+      min(5, 2.0, 5).
+      min(5, 2, r).
 Error:
       min(A, 2, 6).             (Error 4).
-      min(1, 2, 2.0).           (Error 5).
-      min(5, 2.0, 5).           (Error 5).
       min(4 - 2, 3, 3).         (Error 24).
-      min(5, 2, r).             (Error 24).
 
 
 
@@ -1988,18 +1983,18 @@ with Result.
 <P>
 "),
 	args:["Number1" : "A number.", "Number2" : "A number.", "Result" : "A variable or a number."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is of a different type than the evaluation result.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       -(5, 2, 3).            (gives Result = 3)
       -(5, -2.0, Result).    (gives Result = 7.0)
 Fail:
       -(1, 2, 3).
+      -(1, 2, 3.0).
+      -(5, 2, r).
 Error:
       -(A, 2, 6).             (Error 4).
-      -(1, 2, 3.0).           (Error 5).
       -(4 + 1, 2, 3).         (Error 24).
-      -(5, 2, r).             (Error 24).
 
 
 
@@ -2036,11 +2031,9 @@ with Result.
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
 	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).",
-		5 : "Result is a number but not an integer.",
 		5 : "Number1 or Number2 is a number but not an integer.",
 		20 : "Illegal arithmetic operation: Number2 is zero", 
-		24 : "Number1 or Number2 is not of a numeric type.",
-		24 : "Result is neither a number nor a variable."],
+		24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       X is 10 rem 3.		(gives X = 1)
@@ -2053,12 +2046,12 @@ Success:
       rem( 11,  3,  2).
 Fail:
       rem(1, 2, 3).
+      rem(6, 2.0, 3.0).
+      rem(5, 2, r).
 Error:
       rem(A, 2, 6).              (Error 4).
-      rem(6, 2.0, 3.0).          (Error 5).
       rem(2, 0, Result).         (Error 20).
       rem(4 + 2, 2, 12).         (Error 24).
-      rem(5, 2, r).              (Error 24).
 ",
 	see_also:[(is) / 2, (//)/3, (mod)/3]]).
 
@@ -2095,11 +2088,9 @@ with Result.
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
 	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).",
-	    5 : "Result is a number but not an integer.",
 	    5 : "Number1 or Number2 is a number but not an integer.",
 	    20 : "Illegal arithmetic operation: Number2 is zero",
-	    24 : "Number1 or Number2 is not of a numeric type.",
-	    24 : "Result is neither a number nor a variable."],
+	    24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       X is 10 mod 3.		(gives X = 1)
@@ -2112,12 +2103,12 @@ Success:
       mod( 11,  3,  2).
 Fail:
       mod(1, 2, 3).
+      mod(6, 2.0, 3.0).
+      mod(5, 2, r).
 Error:
       mod(A, 2, 6).              (Error 4).
-      mod(6, 2.0, 3.0).          (Error 5).
       mod(2, 0, Result).         (Error 20).
       mod(4 + 2, 2, 12).         (Error 24).
-      mod(5, 2, r).              (Error 24).
 ",
 	see_also:[(is) / 2, (div)/3, (rem)/3]]).
 
@@ -2147,7 +2138,7 @@ with Result.
 <P>
 "),
 	args:["Number1" : "A number.", "Number2" : "A number.", "Result" : "A variable or a number."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is of a different type than the evaluation result.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       *(5, 2, 10).
@@ -2156,11 +2147,11 @@ Fail:
       *(1, 2, 3).
       *(5, 2, 10.0).
       *(5, 2.0, 10).
+      *(1, 2, 3.0).
+      *(5, 2, r).
 Error:
       *(A, 2, 6).             (Error 4).
-      *(1, 2, 3.0).           (Error 5).
       *(4 + 2, 2, 12).        (Error 24).
-      *(5, 2, r).             (Error 24).
 
 
 
@@ -2186,16 +2177,17 @@ Error:
 <P>
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       gcd(9, 15, 3).
       gcd(-9, 15, 3).
       gcd(2358352782,97895234896224,X).  ( gives X = 6 )
 
+Fail:
+      gcd(1, 2, 3.0).
 Error:
       gcd(A, 2, 6).             (Error 4).
-      gcd(1, 2, 3.0).           (Error 5).
       gcd(1.0, 2, 3.0).         (Error 5).
       gcd(4 + 2, 2, 12).        (Error 24).
 ",
@@ -2222,16 +2214,17 @@ Error:
 	args:["Number1" : "Integer.", "Number2" : "Integer.",
 		"U" : "A variable of integer.","V" : "A variable or integer.",
 		"GCD" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       gcd(9, 15, 2, -1, 3).
       gcd(-9, 15, -2, -1, 3).
       gcd(2358352782,97895234896224,U,V,G).  ( gives U = 2130001290117, V = -51312962, G = 6 )
 
+Fail:
+      gcd(1, 2, U, V, 3.0).
 Error:
       gcd(A, 2, U, V, 6).             (Error 4).
-      gcd(1, 2, U, V, 3.0).           (Error 5).
       gcd(1.0, 2, U, V, 3.0).         (Error 5).
       gcd(4 + 2, 2, U, V, 12).        (Error 24).
 ",
@@ -2256,16 +2249,17 @@ Error:
 <P>
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       lcm(9, 15, 45).
       lcm(-9, 15, 45).
       lcm(2358352782,97895234896224,X).  ( gives X = 38478583260342225282528 )
 
+Fail:
+      lcm(1, 2, 3.0).
 Error:
       lcm(A, 2, 6).             (Error 4).
-      lcm(1, 2, 3.0).           (Error 5).
       lcm(1.0, 2, 3.0).         (Error 5).
       lcm(4 + 2, 2, 12).        (Error 24).
 ",
@@ -2332,18 +2326,18 @@ resulting value with Result.
 <P>
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       \\/(11, 7, 15).
       \\/(11, -7, Result).     (gives Result = -5)
 Fail:
       \\/(1, 2, 4).
+      \\/(6, 2.0, 6.0).
+      \\/(5, 2, r).
 Error:
       \\/(A, 2, 6).              (Error 4).
-      \\/(6, 2.0, 6.0).          (Error 5).
       \\/(4 + 2, 2, 6).          (Error 24).
-      \\/(5, 2, r).              (Error 24).
 
 
 
@@ -2376,18 +2370,18 @@ Result.
 <P>
 "),
 	args:["Number1" : "A number.", "Number2" : "A number.", "Result" : "A variable or a number."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is of a different type than the evaluation result.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       +(5, 2, 7).
       +(5, -2.0, 3.0).
 Fail:
       +(1, 2, 7).
+      +(1, 2, 3.0).
+      +(5, 2, r).
 Error:
       +(A, 2, 6).             (Error 4).
-      +(1, 2, 3.0).           (Error 5).
       +(7 - 4, 2, 3).         (Error 24).
-      +(5, 2, r).             (Error 24).
 
 
 
@@ -2421,7 +2415,7 @@ resulting value with Result.
 <P>
 "),
 	args:["Number1" : "A number.", "Number2" : "A number.", "Result" : "A variable or a number."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is of a different type than the evaluation result.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable.", 20 : "Illegal arithmetic operation:  Number1 is negative and    Number2 is no integral number.", 20 : "Illegal arithmetic operation:  Number1 and Number2 are both    zero."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 24 : "Number1 or Number2 is not of a numeric type.", 20 : "Illegal arithmetic operation:  Number1 is negative and    Number2 is no integral number.", 20 : "Illegal arithmetic operation:  Number1 and Number2 are both    zero."],
 	eg:"
 Success:
       ^(5, 3, 125).
@@ -2431,12 +2425,12 @@ Success:
       ^(5.0, 2, 25.0).
 Fail:
       ^(1, 2, 3).
+      ^(1, 2, 3.0).
+      ^(5, 2, r).
 Error:
       ^(A, 2, 6).             (Error 4).
-      ^(1, 2, 3.0).           (Error 5).
       ^(-5, 0.5, X).          (Error 20).
       ^(2 + 3, 2, 25).        (Error 24).
-      ^(5, 2, r).             (Error 24).
 
 
 
@@ -2468,7 +2462,7 @@ Error:
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable or number."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Number and Result are numbers of different type.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       round(1.49, 1.0).
@@ -2480,11 +2474,11 @@ Success:
       round(3, 3).
 Fail:
       round(1, 0.0).
+      round(0.5, 0).
+      round(1, r).
 Error:
       round(A, 6.0).                   (Error 4).
-      round(0.5, 0).                   (Error 5).
       round(4 + 2.3, 6.0).             (Error 24).
-      round(1, r).                     (Error 24).
 
 
 
@@ -2515,17 +2509,17 @@ resulting value with Result.
 <P>
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       <<(1, 3, 8).
 Fail:
       <<(1, 2, 3).
+      <<(6, 2.0, 24.0).
+      <<(5, 2, r).
 Error:
       <<(A, 2, 6).              (Error 4).
-      <<(6, 2.0, 24.0).         (Error 5).
       <<(4 + 2, 2, 24).         (Error 24).
-      <<(5, 2, r).              (Error 24).
 
 
 
@@ -2556,18 +2550,18 @@ resulting value with Result.
 <P>
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       >>(8, 3, 1).
       >>(17, 3, X).          (gives X = 2)
 Fail:
       >>(1, 2, 3).
+      >>(16, 2.0, 4.0).
+      >>(5, 2, r).
 Error:
       >>(A, 2, 6).              (Error 4).
-      >>(16, 2.0, 4.0).         (Error 5).
       >>(4 + 12, 2, 4).         (Error 24).
-      >>(5, 2, r).              (Error 24).
 
 
 
@@ -2594,7 +2588,7 @@ value with Result.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable, float or breal."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not a float or breal.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       sin(1.5708, 1.0).
@@ -2602,11 +2596,11 @@ Success:
       sin(0, Result).           (gives Result = 0.0)
 Fail:
       sin(1, 0.0).
+      sin(6, 3).
+      sin(5, r).
 Error:
       sin(A, 6.0).                   (Error 4).
-      sin(6, 3).                     (Error 5).
       sin(4 + 2, -0.279415).         (Error 24).
-      sin(5, r).                     (Error 24).
 
 
 
@@ -2633,7 +2627,7 @@ Result.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable, float or breal."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not a float or breal.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable.", 20 : "Illegal arithmetic operation:  Number is negative."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type.", 20 : "Illegal arithmetic operation:  Number is negative."],
 	eg:"
 Success:
       sqrt(1.0, 1.0).
@@ -2641,12 +2635,12 @@ Success:
       sqrt(49, Result).       (gives Result = 7.0)
 Fail:
       sqrt(1, 0.0).
+      sqrt(1, 1).
+      sqrt(1, r).
 Error:
       sqrt(A, 6.0).                   (Error 4).
-      sqrt(1, 1).                     (Error 5).
       sqrt(-2, Result).               (Error 20).
       sqrt(4 + 2, 2.44949).           (Error 24).
-      sqrt(1, r).                     (Error 24).
 
 
 
@@ -2673,7 +2667,7 @@ value with Result.
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable, float or breal."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result is a number but not a float or breal.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable.", 20 : "Illegal arithmetic operation:  Number is (2k +1) * pi/2 for    every integer k."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type.", 20 : "Illegal arithmetic operation:  Number is (2k +1) * pi/2 for    every integer k."],
 	eg:"
 Success:
       tan(0, 0.0).
@@ -2681,12 +2675,12 @@ Success:
       tan(-1, Result).        (gives Result = -1.55741)
 Fail:
       tan(1, 0.0).
+      tan(0, 0).
+      tan(5, r).
 Error:
       tan(A, 6.0).                      (Error 4).
-      tan(0, 0).                        (Error 5).
       X is pi/2, tan(X, Result).        (Error 20).
       tan(10.3 + 2, -0.272854).         (Error 24).
-      tan(5, r).                        (Error 24).
 
 
 
@@ -2715,7 +2709,7 @@ Error:
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable or a number."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result and Number are numbers of different types.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       -(1, -1).
@@ -2723,12 +2717,12 @@ Success:
       -(-6.2, Result).     (gives Result = 6.2)
 Fail:
       -(1, 0).
+      -(1, -1.0).
+      -(1.0, -1).
+      -(1, r).
 Error:
       -(A, 6).                   (Error 4).
-      -(1, -1.0).                (Error 5).
-      -(1.0, -1).                (Error 5).
       -(4 + 2, -6).              (Error 24).
-      -(1, r).                   (Error 24).
 
 
 
@@ -2757,7 +2751,7 @@ Error:
 <P>
 "),
 	args:["Number" : "A number.", "Result" : "A variable or a number."],
-	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 5 : "Result and Number are numbers of different types.", 24 : "Number is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number is not instantiated (non-coroutining mode only).", 24 : "Number is not of a numeric type."],
 	eg:"
 Success:
       +(1, 1).
@@ -2765,12 +2759,12 @@ Success:
       +(-6.2, Result).     (gives Result = -6.2)
 Fail:
       +(1, 0).
+      +(1.0, 1).
+      +(1, 1.0).
+      +(1, r).
 Error:
       +(A, 6).                   (Error 4).
-      +(1.0, 1).                 (Error 5).
-      +(1, 1.0).                 (Error 5).
       +(4 + 2, 6).               (Error 24).
-      +(1, r).                   (Error 24).
 
 
 
@@ -2797,18 +2791,19 @@ the resulting value with Result.
 <P>
 "),
 	args:["Number1" : "Integer.", "Number2" : "Integer.", "Result" : "A variable or integer."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Result is a number but not an integer.", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type.", 24 : "Result is neither a number nor a variable."],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 5 : "Number1 or Number2 is a number but not an integer.", 24 : "Number1 or Number2 is not of a numeric type."],
 	eg:"
 Success:
       xor(11, 7, 12).
       xor(11, -7, Result).     (gives Result = -14)
 Fail:
       xor(1, 2, 4).
+      xor(6, 2, 4.0).
+      xor(5, 2, r).
 Error:
       xor(A, 2, 6).              (Error 4).
       xor(6, 2.0, 4.0).          (Error 5).
       xor(4 + 2, 2, 4).          (Error 24).
-      xor(5, 2, r).              (Error 24).
 
 
 
@@ -2915,8 +2910,7 @@ Success:
     args:["Number" : "A number.",
 	"Result" : "A variable or float."],
     exceptions:[4 : "Number is not instantiated",
-	5 : "Number is a not a number.",
-	5 : "Result is neither a variable nor a float."],
+	24 : "Number is a not a number."],
     eg:"
 Success:
       ?- breal_min(0.99__1.01, X).
@@ -2933,10 +2927,10 @@ Success:
 
 Error:
       ?- breal_min(\"a\", Z).
-      type error in breal_min(\"a\", Z)
+      number expected in breal_min(\"a\", Z)
 
       ?- breal_min(2 + 4, Z).
-      type error in breal_min(2 + 4, Z)
+      number expected in breal_min(2 + 4, Z)
 ",
 	see_also:[breal_max/2, breal/1, breal/2, breal_bounds/3,
 		breal_from_bounds/3, (is) / 2]]).
@@ -2962,8 +2956,7 @@ Error:
     args:["Number" : "A number.",
 	"Result" : "A variable or float."],
     exceptions:[4 : "Number is not instantiated",
-	5 : "Number is a not a number.",
-	5 : "Result is neither a variable nor a float."],
+	24 : "Number is a not a number."],
     eg:"
 Success:
       ?- breal_max(0.99__1.01, X).
@@ -2980,10 +2973,10 @@ Success:
 
 Error:
       ?- breal_max(\"a\", Z).
-      type error in breal_max(\"a\", Z)
+      number expected in breal_max(\"a\", Z)
 
       ?- breal_max(2 + 4, Z).
-      type error in breal_max(2 + 4, Z)
+      number expected in breal_max(2 + 4, Z)
 ",
 	see_also:[breal_min/2, breal/1, breal/2, breal_bounds/3,
 		breal_from_bounds/3, (is) / 2]]).
@@ -3003,9 +2996,7 @@ Error:
 	"Min" : "A variable or float.",
 	"Max" : "A variable or float."],
     exceptions:[4 : "Number is not instantiated",
-	5 : "Number is a not a number.",
-	5 : "Min is neither a variable nor a float.",
-	5 : "Max is neither a variable nor a float."],
+	24 : "Number is a not a number."],
     eg:"
 Success:
     ?- breal_bounds(0.99__1.01, Min, Max).
@@ -3036,10 +3027,10 @@ Success:
 
 Error:
     ?- breal_bounds(\"a\", Min, Max).
-    type error in breal_bounds(\"a\", Min, Max)
+    number expected in breal_bounds(\"a\", Min, Max)
 
     ?- breal_bounds(2 + 4, Min, Max).
-    type error in breal_bounds(2 + 4, Min, Max)
+    number expected in breal_bounds(2 + 4, Min, Max)
 ",
     see_also:[breal/1, breal/2, breal_min/2, breal_max/2,
 	    breal_from_bounds/3, (is) / 2]]).
@@ -3060,9 +3051,7 @@ Error:
     args:["Number" : "A number.",
 	"Result" : "A variable or bounded real number."],
     exceptions:[4 : "Number is not instantiated (non-coroutining mode only).",
-    5 : "Result is a number but not of type breal.",
-    24 : "Number is not of a numeric type.",
-    24 : "Result is neither a number nor a variable."],
+    24 : "Number is not of a numeric type."],
     eg:"
 Success:
     ?- breal(25, X).
@@ -3078,18 +3067,18 @@ Success:
     X = 1.0__1.01
 
 Fail:
-    ?- breal(1.0, 1.0__1.0).
+    ?- breal(1.0, 0.9__1.1).
+    No (0.00s cpu)
+
+    ?- breal(3, 3).
+    No (0.00s cpu)
+
+    ?- breal(1, r).
     No (0.00s cpu)
 
 Error:
     ?- breal(A, X).
     instantiation fault in breal(A, X)
-
-    ?- breal(3, 3).
-    type error in breal(3, 3)
-
-    ?- breal(1, r).
-    number expected in breal(1, r)
 
     ?- breal(4 + 2, X).
     number expected in breal(4 + 2, X)
@@ -3118,7 +3107,6 @@ Error:
 	"Hi" : "A number.",
 	"Result" : "A variable."],
     exceptions:[4 : "Lo or Hi are not instantiated.",
-	5 : "Result is not a variable.",
 	20 : "The lower bound of Lo is greater than the upper bound of Hi.",
 	24 : "Lo or Hi are not numbers."],
     eg:"
