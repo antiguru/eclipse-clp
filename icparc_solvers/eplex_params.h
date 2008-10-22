@@ -24,7 +24,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
- * Version:	$Id: eplex_params.h,v 1.3 2008/06/20 13:41:14 jschimpf Exp $
+ * Version:	$Id: eplex_params.h,v 1.4 2008/10/22 16:26:24 kish_shen Exp $
  *
  */
 
@@ -1502,7 +1502,7 @@ static struct param_desc params[NUMPARAMS+NUMALIASES] = {
 #define OsiMaxNumIterationHotStart 	1
 /* Solver dependent parameters - these define the positions in the arrays
    that maps to the corresponding actual paramters of the solver
-   (e.g. cbc_iparam[] and cbc_dparam[]) in coinplex.c
+   (e.g. cbc_iparam[] and cbc_dparam[]) in coinplex.cpp
 */
 #define SolverMaxNumNode		0
 #define SolverMaxNumSol			1
@@ -1521,7 +1521,6 @@ static struct param_desc params[NUMPARAMS+NUMALIASES] = {
 {"maxnumiteration", OsiMaxNumIteration, 0},
 {"maxnumiterationhotstart", OsiMaxNumIterationHotStart, 0},
 /* the following are solver dependent (i.e. non-OSI)
-   the Solver* are defined in seplex.h
 */
 {"node_limit", SolverMaxNumNode,  3},
 {"solution_limit", SolverMaxNumSol, 3},

@@ -300,13 +300,10 @@ int coin_branchAndBound(lp_desc* lpd)
 	
 	lpd->lp->mipmodel = new CbcModel(static_cast<OsiSolverInterface &>(*mipsolver));
 
-	if (lpd->lp->mipIsShared == 0)
-	{
-	    for (int i=0; i<NUMSOLVERINTPARAMS; i++)
-		lpd->lp->mipmodel->setIntParam(cbc_iparam[i], iparams[i]);
-	    for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
-		lpd->lp->mipmodel->setDblParam(cbc_dparam[i], dparams[i]);
-	}
+	for (int i=0; i<NUMSOLVERINTPARAMS; i++)
+	    lpd->lp->mipmodel->setIntParam(cbc_iparam[i], iparams[i]);
+	for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
+	    lpd->lp->mipmodel->setDblParam(cbc_dparam[i], dparams[i]);
 
 	if (iparams) { delete [] iparams; iparams = NULL; }
 	if (dparams) { delete [] dparams; dparams = NULL; }

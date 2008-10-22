@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.11 2008/08/15 22:49:57 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.12 2008/10/22 16:26:24 kish_shen Exp $
  *
  */
 
@@ -1829,11 +1829,11 @@ p_cpx_set_param(value vlpd, type tlpd, value vp, type tp, value vval, type tval)
     /* Solver dependent parameters */
     else if (params[i].type == 3 && IsInteger(tval))
     {
-	err = coin_set_solver_intparam(lpd->lp, params[i].num, vval.nint);
+	err = coin_set_solver_intparam((lpd == NULL ? cpx_env : lpd->lp), params[i].num, vval.nint);
     }
     else if (params[i].type == 4 && IsDouble(tval))
     {
-        err = coin_set_solver_dblparam(lpd->lp, params[i].num, Dbl(vval));
+        err = coin_set_solver_dblparam((lpd == NULL ? cpx_env : lpd->lp), params[i].num, Dbl(vval));
     }
 #endif
     if (err) {
