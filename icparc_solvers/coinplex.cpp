@@ -281,6 +281,10 @@ int coin_branchAndBound(lp_desc* lpd)
 	int* iparams = NULL; 
 	double* dparams = NULL; 
 
+	// check if mipmodel shared with Solver, e.g. preprocessed mipmodel
+	// is not shared 
+	lpd->lp->mipIsShared = (mipsolver == lpd->lp->Solver);
+
 	if (lpd->lp->mipmodel != NULL) 
 	{
 	    // copy the parameters
@@ -291,13 +295,11 @@ int coin_branchAndBound(lp_desc* lpd)
 		iparams[i] = lpd->lp->mipmodel->getIntParam(cbc_iparam[i]);
 	    for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
 		dparams[i] = lpd->lp->mipmodel->getDblParam(cbc_dparam[i]);
-		delete lpd->lp->mipmodel;
+	    if (lpd->lp->mipIsShared == 0) delete lpd->lp->mipmodel;
 	}
 	
 	lpd->lp->mipmodel = new CbcModel(static_cast<OsiSolverInterface &>(*mipsolver));
-	// check if mipmodel shared with Solver, e.g. preprocessed mipmodel
-	// is not shared 
-	lpd->lp->mipIsShared = (mipsolver == lpd->lp->Solver);
+
 	if (lpd->lp->mipIsShared == 0)
 	{
 	    for (int i=0; i<NUMSOLVERINTPARAMS; i++)
@@ -473,7 +475,7 @@ int coin_branchAndBound(lp_desc* lpd)
     model->setStrategy(strategy);
 
     // Do complete search
-    //CbcModel *model2 = model.integerPresolve();
+    //CbcModel *model2 = model->integerPresolve();
     //model2->branchAndBound();
     model->branchAndBound();
 
@@ -483,7 +485,9 @@ int coin_branchAndBound(lp_desc* lpd)
     if (mac != lpd->mac) 
     {
 	eclipse_out(ErrType, "Eplex Error: columns number in original model does not match eplex.\n");
-	delete model->messageHandler();
+#ifdef COIN_USE_CLP
+	if (lpd->lp->mipIsShared == 0) delete model->messageHandler();
+#endif
 	delete [] lws;
 	delete [] ups;
 	if (lpd->presolve) delete process.messageHandler(); 
@@ -496,7 +500,7 @@ int coin_branchAndBound(lp_desc* lpd)
 	delete process.messageHandler();
     }
 # ifdef COIN_USE_CLP
-    else 
+    else if (lpd->lp->mipIsShared == 0)
 	lpd->lp->Solver = dynamic_cast< OsiXxxSolverInterface*>(model->solver());
 # endif
 
@@ -516,7 +520,7 @@ int coin_branchAndBound(lp_desc* lpd)
 
     //std::cout<< lpd->lp->Solver->getIterationCount();
 
-    delete model->messageHandler();
+    if (lpd->lp->mipIsShared == 0) delete model->messageHandler();
     return 0;
 }
 
