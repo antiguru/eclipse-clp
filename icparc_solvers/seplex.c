@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.12 2008/10/22 16:26:24 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.13 2008/10/25 03:41:10 kish_shen Exp $
  *
  */
 
@@ -420,6 +420,7 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
    CPXsetintparam(cpx_env, CPX_PARAM_PREIND, state); \
 }
 
+#define Get_Feasibility_Tolerance(E,L,T) CPXgetdblparam(E,CPX_PARAM_EPRHS,T)
 
 #define Get_Int_Param(E,L,A1,A2) 	CPXgetintparam(E,A1,A2)
 #define Get_Dbl_Param(E,L,A1,A2)	CPXgetdblparam(E,A1,A2)
@@ -502,6 +503,8 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 
 # define Get_Conflict(L, Status, RowIdxs, RowStat, Nrows_p, ColIdxs, ColStat, Ncols_p)  \
 	Status = XPRSgetiis(L, Ncols_p, Nrows_p,  ColIdxs, RowIdxs)
+
+# define Get_Feasibility_Tolerance(E,L,T) XPRSgetdblcontrol((L)->lp, XPRS_FEASTOL, T)
 
 # define Get_Int_Param(E,L,A1,A2) \
    ((L) == NULL ? XPRSgetintcontrol(E,A1,A2) : XPRSgetintcontrol((L)->lp,A1,A2))
@@ -677,6 +680,8 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define Get_Primal_Infeas(lp, v) coin_get_primal_infeas(lp, v)
 
 # define SetPreSolve(state)
+
+# define Get_Feasibility_Tolerance(E,L,T) coin_getdblparam((L)->lp, OsiPrimalTolerance, T)
 
 # define Get_Int_Param(E,L,A1,A2) \
    coin_getintparam(((L) == NULL ? E : (L)->lp),A1,A2)
@@ -3182,7 +3187,15 @@ p_cpx_impose_col_lwb(value vhandle, type thandle,
     if ((newlo = Dbl(vlo)) < -CPX_INFBOUND) newlo = -CPX_INFBOUND; 
 
     Get_Col_Bounds(j, lo0, hi0);    
-    if (newlo > hi0) { Fail;}
+    if (newlo > hi0) 
+    { 
+	double ftol;
+	
+	Get_Feasibility_Tolerance(cpx_env, lpd, &ftol);
+	if (newlo <= hi0 + ftol) newlo = hi0;
+	else { Fail; }
+    }
+
     if (lo0 < newlo) 
     {
 	Change_Col_Bound(j, "L", lo0, hi0, newlo, vatt.ptr+COL_STAMP, changed);
@@ -3218,7 +3231,15 @@ p_cpx_impose_col_upb(value vhandle, type thandle,
     if ((newhi = Dbl(vhi)) > CPX_INFBOUND) newhi = CPX_INFBOUND;
 
     Get_Col_Bounds(j, lo0, hi0);
-    if (newhi < lo0) { Fail;}
+    if (newhi < lo0) 
+    { 
+	double ftol;
+	
+	Get_Feasibility_Tolerance(cpx_env, lpd, &ftol);
+	if (newhi >= lo0 - ftol) newhi = lo0;
+	else { Fail; }
+    }
+
     if (hi0 > newhi) 
     {
 	Change_Col_Bound(j, "U", lo0, hi0, newhi, vatt.ptr+COL_STAMP, changed);
@@ -3283,7 +3304,38 @@ p_cpx_impose_col_bounds(value vhandle, type thandle,
     }
 
     Get_Col_Bounds(j, lo0, hi0);
-    if (newhi < newlo || (flag && (newhi < lo0 || newlo > hi0))) { Fail; }
+    if (newhi < newlo) { Fail; } 
+    if (flag && (newhi < lo0)) 
+    {
+	double ftol;
+	
+	/* if new bound outside but within tolerance of old bound, ignore change */
+	Get_Feasibility_Tolerance(cpx_env, lpd, &ftol);
+	if (newhi >= lo0 - ftol) 
+	{
+	    newhi = lo0;
+	    if (newlo > newhi) newlo = lo0; /* make sure other bound is consistent! */
+	}
+	else 
+	{ 
+	    Fail; 
+	}
+    }
+
+    if (flag && (newlo > hi0)) 
+    { 
+	double ftol;
+	
+	Get_Feasibility_Tolerance(cpx_env, lpd, &ftol);
+	if (newlo <= hi0 + ftol) 
+	{
+	    newlo = hi0;
+	    if (newhi < newlo) newhi = hi0;
+	} else 
+	{ 
+	    Fail; 
+	}
+    }
     
     if (newhi == newlo) 
     {
