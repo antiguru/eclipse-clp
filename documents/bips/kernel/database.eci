@@ -1424,7 +1424,7 @@ Error:
 <DT>expand_goals:</DT><DD>
     This option (off/on, default taken from global flag goal_expansion)
     determines whether inlining (a.k.a. goals macros) is performed.
-    The default value is taken from the global flag {\bf goal_expansion}.
+    The default value is taken from the global flag goal_expansion.
     The setting can be changed via a pragma (expand/noexpand) in the code.
     Should only be switched off if a problem with inlining is suspected,
     or to get a debugger trace that is closer to the source code.
@@ -1443,10 +1443,10 @@ Error:
     <DL>
     </DD><DT>all (default)</DT><DD>
         Load and replace code in memory, create/re-create all modules,
-	interpret pragmas, and execute all directives and queries.
+        interpret pragmas, and execute all directives and queries.
     <DT>none</DT><DD>
         Do not load any code into memory, do not execute queries,
-	but interpret pragmas and execute directives.
+        but interpret pragmas and execute directives.
         Do not re-create modules, but create new ones and erase them
         again after compilation.
     </DD><DT>new</DT><DD>
@@ -1461,27 +1461,27 @@ Error:
     be output in various forms.  Values for 'output' option (default: none):
     <DL>
     <DT>none</DT><DD>
-	no output (but code may be loaded, see load option),
+        no output (but code may be loaded, see load option),
     </DD><DT>asm</DT><DD>
-	output compiled code in asm format to input file with .asm suffix.
+        output compiled code in asm format to input file with .asm suffix.
         This format represents the code as WAM code that can be loaded back
         into ECLiPSe using the assembler (lib(asm)).  
     </DD><DT>asm(File)</DT><DD>
-	output compiled code in asm format to File.
+        output compiled code in asm format to File.
     </DD><DT>eco</DT><DD>
-	output compiled code in eco format to input file with .eco suffix
-	This format can be loaded using ensure_loaded/1 or the compiler
-	itself.
+        output compiled code in eco format to input file with .eco suffix
+        This format can be loaded using ensure_loaded/1 or the compiler
+        itself.
     </DD><DT>eco(File)</DT><DD>
-	output compiled code in eco format,
+        output compiled code in eco format,
     </DD><DT>print</DT><DD>
-	print resulting WAM code to the output stream,
+        print resulting WAM code to the output stream,
     </DD><DT>print(Stream)</DT><DD>
-	print WAM code to Stream,
+        print WAM code to Stream,
     </DD><DT>listing</DT><DD>
-	print WAM code to input file with .lst suffix,
+        print WAM code to input file with .lst suffix,
     </DD><DT>listing(File)</DT><DD>
-	print WAM code to File,
+        print WAM code to File,
     </DD></DL>
 </DD>
 <DT>outdir:</DT><DD>
