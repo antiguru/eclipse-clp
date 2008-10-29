@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_analysis.ecl,v 1.6 2008/06/17 01:33:46 jschimpf Exp $
+% Version:	$Id: compiler_analysis.ecl,v 1.7 2008/10/29 03:13:44 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_analysis).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - dataflow analysis").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/17 01:33:46 $").
+:- comment(date, "$Date: 2008/10/29 03:13:44 $").
 
 :- use_module(compiler_common).
 :- use_module(compiler_map).
@@ -98,8 +98,8 @@ binding_analysis(goal{kind:head,functor:Pred,args:Args,state:State,definition_mo
 	;
 	    mark_args_as(univ, Args, State0, State)
 	).
-binding_analysis(goal{functor:F/A,args:Args,state:State0,path:File,line:Line}, State0, State) :-
-	( goal_effect(F, A, Args, State0, State) ->
+binding_analysis(goal{functor:F/A,args:Args,state:State0,path:File,line:Line,callpos:Pos}, State0, State) :-
+	( goal_effect(F, A, Args, Pos, State0, State) ->
 	    true
 	;
 	    update_struct(state, [determinism:failure], State0, State),
@@ -118,43 +118,43 @@ binding_analysis(goal{functor:F/A,args:Args,state:State0,path:File,line:Line}, S
 % Analyse the effect of an individual goal
 % Fail if the goal would certainly fail at runtime
 
-goal_effect((=), 2, [A1,A2], State0, State) :- !,
+goal_effect((=), 2, [A1,A2], _, State0, State) :- !,
 	unify_effect(A1, A2, State0, State).
-goal_effect(atom, 1, [A1], State0, State) :- !,
+goal_effect(atom, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, atom, State0, State).
-goal_effect(atomic, 1, [A1], State0, State) :- !,
+goal_effect(atomic, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, atomic, State0, State).
-goal_effect(breal, 1, [A1], State0, State) :- !,
+goal_effect(breal, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, breal, State0, State).
-goal_effect(compound, 1, [A1], State0, State) :- !,
+goal_effect(compound, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, compound, State0, State).
-goal_effect(float, 1, [A1], State0, State) :- !,
+goal_effect(float, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, float, State0, State).
-goal_effect(free, 1, [A1], State0, State) :- !,
+goal_effect(free, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, uninit, State0, State).
-goal_effect(get_cut, 1, [A1], State0, State) :- !,
-	constrain_type(A1, cutpoint, State0, State).
-goal_effect(ground, 1, [A1], State0, State) :- !,
+goal_effect(get_cut, 1, [A1], Pos, State0, State) :- !,
+	constrain_type(A1, cutpoint(Pos), State0, State).
+goal_effect(ground, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, nonvar, State0, State).
-goal_effect(integer, 1, [A1], State0, State) :- !,
+goal_effect(integer, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, integer, State0, State).
-goal_effect(is_handle, 1, [A1], State0, State) :- !,
+goal_effect(is_handle, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, handle, State0, State).
-goal_effect(meta, 1, [A1], State0, State) :- !,
+goal_effect(meta, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, univ, State0, State).
-goal_effect(nonvar, 1, [A1], State0, State) :- !,
+goal_effect(nonvar, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, nonvar, State0, State).
-goal_effect(number, 1, [A1], State0, State) :- !,
+goal_effect(number, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, number, State0, State).
-goal_effect(rational, 1, [A1], State0, State) :- !,
+goal_effect(rational, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, rational, State0, State).
-goal_effect(real, 1, [A1], State0, State) :- !,
+goal_effect(real, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, number, State0, State).
-goal_effect(string, 1, [A1], State0, State) :- !,
+goal_effect(string, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, string, State0, State).
-goal_effect(var, 1, [A1], State0, State) :- !,
+goal_effect(var, 1, [A1], _, State0, State) :- !,
 	constrain_type(A1, uninit, State0, State).
-goal_effect(_, _, Args, State0, State) :-
+goal_effect(_, _, Args, _, State0, State) :-
 	mark_args_as(univ, Args, State0, State).
 
 expected_failure(fail, 0).
@@ -344,7 +344,7 @@ supertype(breal, 7, number).
 supertype(_/_, 6, compound).
 supertype(number, 6, atomic).
 supertype(handle, 6, atomic).
-supertype(cutpoint, 6, atomic).
+supertype(cutpoint(_), 6, atomic).
 supertype(string, 6, atomic).
 supertype(atom, 6, atomic).
 supertype(compound, 5, nonvar).

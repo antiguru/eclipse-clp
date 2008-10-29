@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.18 2008/08/31 21:57:15 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.19 2008/10/29 03:13:45 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1457,7 +1457,8 @@ testclause(disj7, [(p :- (var(_A); var(_B)), c, d)]).
 
 % Blocks and cuts
 
-testclause(disj8, [(p :- once(true)->fail; true)]).
+testclause(disj8, [(p :- once(t)->fail; true)]).
+testclause(disj8a, [(p :- once(true)->fail; true)]).
 
 testclause(disj9, [(p :- q, once(var(_X)), p)]).
 
@@ -1482,7 +1483,8 @@ testclause(disj18, [(p1(A, B, f(C)) :- A = B, A = C, a = b, q, argc(X), X = a)])
 
 testclause(disj19, [(t :- not(not((!, fail))))]).
 
-testclause(disj20, [(t :- true->not(true->fail))]).
+testclause(disj20, [(t :- tt->not(tt->fail))]).
+testclause(disj20a, [(t :- true->not(true->fail))]).
 
 testclause(disj21, [(t :- q, var(A) -> p(A))]).
 
@@ -1545,6 +1547,22 @@ testclause(disj34, [(producer(S) :-
 	->      S = [N|S1]
 	;       S = [zero|S1]),
 	producer(S1))]).
+
+testclause(disj35, [(
+    nm(Arg,[Arg|_]) :- true, !, fail
+    ),(
+    nm(Arg,[_|Tail]) :- !, nm(Arg,Tail)
+    ),(
+    nm(_,[])
+    )]).
+
+testclause(disj36, [(
+    nm(Arg,[Arg|_]) :- !, fail
+    ),(
+    nm(Arg,[_|Tail]) :- !, nm(Arg,Tail)
+    ),(
+    nm(_,[])
+    )]).
 
 
 %-------- checks for gc_test --------------------------

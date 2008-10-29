@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.16 2008/08/09 23:47:00 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.17 2008/10/29 03:13:45 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/08/09 23:47:00 $").
+:- comment(date, "$Date: 2008/10/29 03:13:45 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -842,9 +842,12 @@ print_normalized_goal(_Stream, _Indent, []).
 print_normalized_goal(Stream, Indent, [Goal|Goals]) :-
 	print_normalized_goal(Stream, Indent, Goal),
 	print_normalized_goal(Stream, Indent, Goals).
-print_normalized_goal(Stream, Indent, disjunction{determinism:Det,arity:A,
+print_normalized_goal(Stream, Indent, disjunction{determinism:BranchDets,arity:A,
 		args:Args,indexvars:IndexVars,callpos:P,branches:Bs,branchheadargs:BHA}) :-
 	indent(Stream, Indent),
+	( foreacharg(BrDet,BranchDets), fromto(semidet,Det1,Det2,Det) do
+	    ( (BrDet==det;BrDet==failure) -> Det2=Det1 ; Det2=nondet )
+	),
 	printf(Stream, "DISJ/%w  (%w, callpos:", [A,Det]),
 	print_call_pos(Stream, P),
 	writeln(Stream, ")"),
@@ -857,10 +860,12 @@ print_normalized_goal(Stream, Indent, disjunction{determinism:Det,arity:A,
 	( foreach(Arg,IndexVars), param(Stream,ArgIndent) do
 	    indent(Stream, ArgIndent), writeln(Stream, Arg)
 	),
-	( foreach(Branch,Bs), fromto("TRY",T,"RETRY",_), count(BranchI,1,_), param(Stream,Indent,P,A,BHA) do
+	arity(BranchDets, NBranches),
+	( foreach(Branch,Bs), count(BranchI,1,_), param(Stream,Indent,P,A,BHA,BranchDets,NBranches) do
 	    Indent1 is Indent+1,
 	    indent(Stream, Indent),
-	    printf(Stream, "%w/%w  (callpos:", [T,A]),
+	    arg(BranchI, BranchDets, BranchDet),
+	    printf(Stream, "BRANCH/%w (%d of %d, %w, callpos:", [A,BranchI,NBranches,BranchDet]),
 	    append(P, [BranchI], PB),
 	    print_call_pos(Stream, PB),
 	    writeln(Stream, ")"),

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.13 2008/08/09 00:40:29 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.14 2008/10/29 03:13:45 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/08/09 00:40:29 $").
+:- comment(date, "$Date: 2008/10/29 03:13:45 $").
 
 :- comment(desc, html("
     This pass (consisting of several phases) does the following jobs:
@@ -183,8 +183,7 @@ compute_lifetimes(disjunction{branches:Branches,callpos:DisjPos,
 	prev_call_pos(DisjPos, PreDisjPos),
 	compute_lifetimes_term(PreDisjPos, IndexArgs, Map0, Map1),
 	% Select pseudo-arguments to pass into the disjunction
-	vars_in_first_chunks(Branches, CandidateVarIdTable),
-	select_pseudo_arguments(CandidateVarIdTable, PredHead, PreDisjPos, Map1, Map2, DisjArgs, Arity),
+	select_pseudo_arguments(Branches, PredHead, PreDisjPos, Map1, Map2, DisjArgs, Arity),
 	( DisjArgs == [] ->
 	    HeadArgsArray = []	% instead of []([],...,[]), save some space
 	;
@@ -376,7 +375,8 @@ merge_branches(DisjPos, BranchMaps, MergedMap) :-
 
 % From the candidates in VarIdTable, pick those that (so far) have their only occurrences
 % in the chunk before the disjunction at PreDisjPos. 
-select_pseudo_arguments(VarIdTable, PredHead, PreDisjPos, Map0, Map, DisjArgs, DisjArity) :-
+select_pseudo_arguments(Branches, PredHead, PreDisjPos, Map0, Map, DisjArgs, DisjArity) :-
+	vars_in_first_chunks(Branches, VarIdTable),
 	hash_list(VarIdTable, VarIds, _),
 	(
 	    foreach(VarId,VarIds),
@@ -441,7 +441,8 @@ select_pseudo_arguments(VarIdTable, PredHead, PreDisjPos, Map0, Map, DisjArgs, D
 
 
 % Build a hash map of all VarIds that occur in first chunks of
-% the given disjunctive branches
+% the given disjunctive branches. This is just a heuristic, and we do in fact
+% look beyond true/0 to catch some special cases like true,cut_to(C) sequences.
 vars_in_first_chunks(Branches, Occurs) :-
 	hash_create(Occurs),
 	(
@@ -453,9 +454,9 @@ vars_in_first_chunks(Branches, Occurs) :-
 
     vars_in_first_chunk([], _Occurs).
     vars_in_first_chunk([Goal|Goals], Occurs) :-
-	( Goal = goal{kind:Kind,args:Args} ->
+	( Goal = goal{kind:Kind,args:Args,functor:F} ->
 	    vars_in_term(Args, Occurs),
-	    ( Kind == regular ->
+	    ( Kind == regular, F \== true/0 ->
 	    	true
 	    ;
 		vars_in_first_chunk(Goals, Occurs)

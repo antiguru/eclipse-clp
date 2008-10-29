@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.22 2008/08/09 23:47:00 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.23 2008/10/29 03:13:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/08/09 23:47:00 $").
+:- comment(date, "$Date: 2008/10/29 03:13:44 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -279,14 +279,14 @@ default_options(options{
 	in the source (;/2) or from multiple clauses.
     "),
     fields:[
-	determinism:	"'nondet' or 'semidet' (for switches)",
+	determinism:	"array[NBranches] of (det|try|retry|trust|failure)",
 	callpos:	"identifier for the chunk it occurs in",
 	arity:		"pseudo-arity (valid arguments at retry time)",
 	args:		"the disjunction's pseudo-arguments",
 	branchheadargs:	"the pseudo-head arguments for each branch",
 	indexvars:	"list of variable{}s to which the indexes apply",
 	indexes:	"list of index{} corresponding to indexvars",
-	branches:	"list of normalised goals (at least 2 elements)",
+	branches:	"list of list of normalised goals (at least 2 elements)",
 	branchlabels:	"array[NBranches] of Labels",
 	branchentrymaps:"list of envmaps for each branch start (used in retry/trust instructions)",
 	branchinitmaps:	"list of envmaps for end-of-branch inits",
@@ -300,7 +300,7 @@ default_options(options{
 ]).
 
 :- export struct(disjunction(
-	determinism,	% semidet or nondet
+	determinism,	% determinism information for each branch
 	callpos,
 	arity,		% arity for try instructions (number of pseudo-arguments)
 	args,		% the disjunction's pseudo-arguments
@@ -523,6 +523,18 @@ new_aux_variable_norm(VarDesc, VId0, VId) :-
 	bindings	% a map varid->binding
     )).
 
+
+% Determinism of branch entries are: (det|try|retry|trust|failure)
+
+:- export first_alternative/1.
+first_alternative(det).
+first_alternative(try).
+first_alternative(failure).
+
+:- export last_alternative/1.
+last_alternative(det).
+last_alternative(trust).
+last_alternative(failure).
 
 
 %----------------------------------------------------------------------
@@ -947,6 +959,7 @@ top_sort(Adj, PreOrdered, Ordered, UpEdges) :-
 	compare_pos/3,
 	common_pos/3,
 	init_branch/1,
+	in_following_branch_guard/2,
 	parallel_branch/2,
 	same_call_pos/4,
 	new_call_pos/4,
@@ -988,6 +1001,12 @@ compare_pos([L|Ls], [R|Rs], Result) :-	% fails if not ordered
     compare_branches([], [], =).
     compare_branches([Branch|Ls], [Branch|Rs], Res) :-
     	compare_pos(Ls, Rs, Res).
+
+% Test if CutPos is in a first chunk of a disjunction following SaveCutPos
+in_following_branch_guard(SaveCutPos, CutPos) :-
+	once append(CommonBranch, [Pos], SaveCutPos),
+	DisjPos is Pos+1,
+	append(CommonBranch, [DisjPos,_,1], CutPos).
 
 
 % The positions are definitely in parallel branches

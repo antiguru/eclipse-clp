@@ -24,6 +24,7 @@ in ../bin)
 
 Now you can edit the compiler sources and compile the result:
 (this compile is done using the stable runtime in ../bin and the aux_compiler)
+If you want the compiler to be debuggable, set DEBUG=on in Makefile.$ARCH.
 
     % make -f Makefile.$ARCH eco
 

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.8 2008/08/31 21:57:15 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.9 2008/10/29 03:13:44 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/08/31 21:57:15 $").
+:- comment(date, "$Date: 2008/10/29 03:13:44 $").
 
 :- use_module(compiler_common).
 :- import state_lookup_binding/3 from compiler_analysis.
@@ -59,22 +59,38 @@
 
 :- export indexing_transformation/3.
 
-indexing_transformation(Goals, Goals, Options) :-
-	% currently no actual modification, just annotation!
-	indexing_transformation(Goals, Options).
+indexing_transformation(Goals, OutGoals, Options) :-
+	indexing_transformation(Goals, OutGoals, det, Options).
 
-indexing_transformation([], _).
-indexing_transformation([Goal|Goals], Options) :-
-	( Goal = disjunction{branches:Branches} ->
+indexing_transformation([], [], _Det, _Options).
+indexing_transformation([Goal|Goals], OutGoals, Det, Options) :-
+	( Goal = disjunction{branches:Branches,determinism:BranchDets} ->
+	    OutGoals = [OutGoal|OutGoals1],
+	    update_struct(disjunction, [branches:OutBranches], Goal, OutGoal),
 	    index_disjunction(Goal),
 	    dump_indexes(Goal, Options),
-	    ( foreach(Branch,Branches), param(Options) do
-		indexing_transformation(Branch, Options)
+	    (
+		foreach(Branch,Branches),
+		foreach(OutBranch,OutBranches),
+		foreacharg(BranchDet,BranchDets),
+		param(Options)
+	    do
+		indexing_transformation(Branch, OutBranch, BranchDet, Options)
+	    )
+
+	; Goal = goal{functor:cut_to/1,kind:simple,definition_module:sepia_kernel,
+			args:[variable{varid:VarId}],state:State,callpos:CutPos} ->
+	    % Eliminate cuts that are always in the last (or only) alternative
+	    certainly_once state_lookup_binding(State, VarId, cutpoint(SaveCutPos)),
+	    ( in_following_branch_guard(SaveCutPos, CutPos), last_alternative(Det) ->
+		OutGoals = OutGoals1		% eliminate the cut!
+	    ;
+		OutGoals = [Goal|OutGoals1]
 	    )
 	;
-	    true
+	    OutGoals = [Goal|OutGoals1]
 	),
-	indexing_transformation(Goals, Options).
+	indexing_transformation(Goals, OutGoals1, Det, Options).
 
 
 /*
@@ -213,7 +229,7 @@ index_disjunction(disjunction{branches:Branches,branchlabels:BranchLabelArray,
 	    eval_index_quality(Dt, Q)
 	),
 	sort(quality of index, =<, Indexes, OrderedIndexes),
-	eval_index_det(OrderedIndexes, Determinism).
+	eval_index_det(OrderedIndexes, NBranches, Determinism).
 
 
 
@@ -662,23 +678,81 @@ eval_index_quality(Dt, Q) :-
 	Q is NTargetBranches/length(BranchesSets).
 
 
-% Check if the index makes the disjunction deterministic
+%
+% Compute determinacy information after indexing analysis
+% (we only look at the first index, and assume it is going to be
+% implemented accurately by the generated indexing code)
+%
+% BranchDets: For each branch of the disjunction, which position it can take:
+%	det - never one of several matching alternatives
+%	try - always the first of several matching alternatives
+%	trust - always the last of several matching alternatives
+%	retry - can be anywhere in try sequence
+%	failure - never matches (dead code)
+%
+% DisjDet: The whole disjunction is classified as:
+%	semidet - if it never creates a choicepoint
+%	nondet - otherwise
+%
 
-eval_index_det([index{partition:Dt}|_], semidet) :-
+eval_index_det([index{partition:Dt}|_], NBranches, BranchDets) :- !,
 	dt_list(Dt, Parts),
-	( foreach(_Key-Branches,Parts) do
-	    (Branches==[] -> true ; Branches = [_] )
+	hash_create(NonLasts),
+	hash_create(Dets),
+	hash_create(NonFirsts),
+	(
+	    foreach(_Key-Branches,Parts),
+	    param(NonLasts,Dets,NonFirsts)
+	do
+	    ( Branches = [] ->
+		true
+	    ;
+	    	Branches = [B1|Bs],
+		( Bs = [] ->
+		    hash_set(Dets, B1, true)
+		;
+		    hash_set(NonLasts, B1, true),
+		    ( fromto(Bs,[Bi|Bs1],Bs1,[Bn]), param(NonFirsts,NonLasts) do
+			hash_set(NonFirsts, Bi, true),
+			hash_set(NonLasts, Bi, true)
+		    ),
+		    hash_set(NonFirsts, Bn, true)
+		)
+	    )
 	),
-	!.
-eval_index_det(_, nondet).
-	
-	
+	dim(BranchDets, [NBranches]),
+	( foreacharg(BranchDet,BranchDets,I), param(NonLasts,Dets,NonFirsts) do
+	    ( hash_contains(NonFirsts, I) ->
+		( hash_contains(NonLasts, I) ->
+		    BranchDet = retry
+		;
+		    BranchDet = trust
+		)
+	    ; hash_contains(NonLasts, I) ->
+		BranchDet = try
+	    ; hash_contains(Dets, I) ->
+		BranchDet = det
+	    ;
+		BranchDet = failure
+	    )
+	).
+eval_index_det([], NBranches, BranchDets) :-
+	verify NBranches >= 2,
+	dim(BranchDets, [NBranches]),
+	arg(1, BranchDets, try),
+	arg(NBranches, BranchDets, trust),
+	( for(I,2,NBranches-1), param(BranchDets) do
+	    arg(I, BranchDets, retry)
+	).
 
 
 % Debugging: print readable summary of index
 
-dump_indexes(disjunction{callpos:CallPos,determinism:Det,indexes:Indexes}, options{print_indexes:Flag}) :-
+dump_indexes(disjunction{callpos:CallPos,determinism:BranchDets,indexes:Indexes}, options{print_indexes:Flag}) :-
 	( Flag==on, Indexes = [_|_] ->
+	    ( foreacharg(BrDet,BranchDets), fromto(semidet,Det1,Det2,Det) do
+	    	( (BrDet==det;BrDet==failure) -> Det2=Det1 ; Det2=nondet )
+	    ),
 	    printf("INDEXES for (%w) disjunction %w%n", [Det,CallPos]),
 	    (
 		count(I,1,_),
@@ -692,10 +766,11 @@ dump_indexes(disjunction{callpos:CallPos,determinism:Det,indexes:Indexes}, optio
 		( foreach(Part,Parts) do
 		    printf("    %w%n", [Part])
 		)
+	    ),
+	    printf("Branch determinisms for disjunction %w%n", [CallPos]),
+	    ( foreacharg(BranchDet,BranchDets,I) do
+		printf("    Branch %d: %w%n", [I,BranchDet])
 	    )
 	;
 	    true
 	).
-
-
-

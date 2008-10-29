@@ -238,6 +238,9 @@ INDEXES for (nondet) disjunction [2]
     [atom, a] - [1]
     [atom, b] - [2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 2:
 label(L0):
 label(L1):
@@ -2250,6 +2253,10 @@ INDEXES for (nondet) disjunction [2]
     [structure] - []
     [structure, t / 3] - [1, 2, 3]
     [var] - [1, 2, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
 del / 3:
 label(L0):
 label(L1):
@@ -2931,6 +2938,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [1]
     [list] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 do_x / 1:
 label(L0):
 	list_switch              a(1)     ref(L1)     ref(L2)     ref(L2) 
@@ -3093,6 +3103,9 @@ INDEXES for (nondet) disjunction [2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 0:
 label(L0):
 	put_variable             a(1) 
@@ -3146,6 +3159,9 @@ INDEXES for (nondet) disjunction [3]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [3]
+    Branch 1: try
+    Branch 2: trust
 p / 0:
 label(L0):
 	allocate                 1 
@@ -3198,6 +3214,9 @@ INDEXES for (nondet) disjunction [3]
     [atom, a] - [1]
     [atom, b] - [2]
     [var] - [1, 2]
+Branch determinisms for disjunction [3]
+    Branch 1: try
+    Branch 2: trust
 p / 0:
 label(L0):
 	allocate                 2 
@@ -3267,6 +3286,10 @@ INDEXES for (nondet) disjunction [2]
     [integer] - [3]
     [integer, 1] - [1, 3]
     [integer, 2] - [2, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
 p / 2:
 label(L0):
 label(L1):
@@ -3344,6 +3367,10 @@ INDEXES for (nondet) disjunction [2]
     [atom, a] - [1, 3]
     [atom, b] - [2, 3]
     [var] - [1, 2, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
 p / 2:
 label(L0):
 	switch_on_type           a(1) 
@@ -3433,6 +3460,11 @@ INDEXES for (nondet) disjunction [2]
     [integer, 1] - [1, 3, 4]
     [integer, 2] - [2, 3, 4]
     [double] - [4]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: retry
+    Branch 4: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -3523,6 +3555,9 @@ INDEXES for (semidet) disjunction [3]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [3]
+    Branch 1: det
+    Branch 2: det
 p / 0:
 label(L0):
 	allocate                 2 
@@ -3578,6 +3613,9 @@ INDEXES for (nondet) disjunction [2]
     [list] - [2]
     [[]] - [1]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	list_switch              a(1)     ref(L4)     ref(L2)     ref(fail) 
@@ -3613,9 +3651,11 @@ INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - [2]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(L4)
@@ -3633,10 +3673,9 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	bi_var                   a(1) 
-	cut                      a(2) 
 	jmp                      p / 0 
 	branch                   ref(L5) 
 label(L3):
@@ -3661,6 +3700,9 @@ INDEXES for (nondet) disjunction [2]
     [] - []
     [var] - [1, 2]
     [double] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	try_me_else              0     1     ref(L2) 
@@ -3695,6 +3737,10 @@ INDEXES for (nondet) disjunction [2]
     [] - [3]
     [var] - [1, 2, 3]
     [string] - [1, 2, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -3752,6 +3798,10 @@ INDEXES for (nondet) disjunction [2]
     [structure, g / 2] - [2, 3]
     [structure, f / 1] - [1, 3]
     [var] - [1, 2, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
 p / 1:
 label(L0):
 label(L1):
@@ -3810,6 +3860,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [[]] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	list_switch              a(1)     ref(L4)     ref(L1)     ref(L4) 
@@ -3841,16 +3894,17 @@ INDEXES for (semidet) disjunction [2]
     [] - [2]
     [[]] - [1]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	list_switch              a(1)     ref(L4)     ref(L2)     ref(L4) 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	get_nil                  a(1) 
-	cut                      a(2) 
 	jmp                      p / 0 
 	branch                   ref(L5) 
 label(L3):
@@ -3886,6 +3940,9 @@ INDEXES for (semidet) disjunction [3]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [3]
+    Branch 1: det
+    Branch 2: det
 p / 0:
 label(L0):
 	allocate                 2 
@@ -3956,6 +4013,10 @@ INDEXES for (nondet) disjunction [3]
     [integer] - [3]
     [integer, 1] - [1, 3]
     [integer, 2] - [2, 3]
+Branch determinisms for disjunction [3]
+    Branch 1: try
+    Branch 2: try
+    Branch 3: trust
 p / 0:
 label(L0):
 	allocate                 2 
@@ -4050,6 +4111,9 @@ INDEXES for (semidet) disjunction [2]
     [] - []
     [list] - [2]
     [[]] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
 	list_switch              a(1)     ref(L4)     ref(L2)     ref(fail) 
@@ -4087,6 +4151,9 @@ INDEXES for (semidet) disjunction [2]
     [structure] - []
     [structure, f / 1] - [1]
     [string] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -4143,6 +4210,10 @@ INDEXES for (semidet) disjunction [2]
     [[]] - [1]
     [structure] - []
     [structure, f / 1] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -4234,9 +4305,12 @@ INDEXES for (semidet) disjunction [2]
     [structure] - [3]
     [structure, f / 1] - [1]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(fail)
@@ -4254,14 +4328,13 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L5) 
+	try_me_else              0     1     ref(L5) 
 label(L2):
 	get_structure            a(1)     f / 1     ref(L3) 
 	write_void           
 	branch                   ref(L4) 
 label(L3):
 label(L4):
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L11) 
 label(L5):
@@ -4272,7 +4345,6 @@ label(L6):
 	branch                   ref(L8) 
 label(L7):
 label(L8):
-	cut                      a(2) 
 	jmp                      p2 / 0 
 	branch                   ref(L11) 
 label(L9):
@@ -4355,6 +4427,17 @@ INDEXES for (nondet) disjunction [2]
     [integer, 1] - [1]
     [string] - [6]
     [double] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: retry
+    Branch 4: retry
+    Branch 5: retry
+    Branch 6: retry
+    Branch 7: retry
+    Branch 8: retry
+    Branch 9: retry
+    Branch 10: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -4517,9 +4600,20 @@ INDEXES for (semidet) disjunction [2]
     [bignum] - [2]
     [string] - [6]
     [double] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
+    Branch 4: det
+    Branch 5: det
+    Branch 6: det
+    Branch 7: det
+    Branch 8: det
+    Branch 9: det
+    Branch 10: det
+    Branch 11: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(L14)
@@ -4537,7 +4631,7 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	bi_var                   a(1) 
 	jmp                      p_var / 0 
@@ -4577,7 +4671,6 @@ label(L13):
 label(L14):
 	bi_nonvar                a(1) 
 	get_nil                  a(1) 
-	cut                      a(2) 
 	jmp                      p_nil / 0 
 	branch                   ref(L25) 
 label(L15):
@@ -4595,7 +4688,6 @@ label(L18):
 	branch                   ref(L20) 
 label(L19):
 label(L20):
-	cut                      a(2) 
 	jmp                      p_list / 0 
 	branch                   ref(L25) 
 label(L21):
@@ -4629,6 +4721,9 @@ INDEXES for (nondet) disjunction [2]
     [var] - [2]
     [atom] - [1]
     [atom, hello] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -4688,6 +4783,10 @@ INDEXES for (nondet) disjunction [2]
     [atom, ghi] - [3]
     [var] - [1, 2, 3]
     [string] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -4745,6 +4844,9 @@ INDEXES for (nondet) disjunction [2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 label(L1):
@@ -4794,9 +4896,12 @@ INDEXES for (semidet) disjunction [2]
     [integer] - [3]
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 label(L1):
 	integer_switch           a(1) 
 		1: 	ref(L3)
@@ -4805,17 +4910,15 @@ label(L1):
 
 	branch                   ref(L3) 
 label(L2):
-	try_me_else              0     2     ref(L4) 
+	try_me_else              0     1     ref(L4) 
 label(L3):
 	get_integer              a(1)     1 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L8) 
 label(L4):
 	retry_me_else            0     ref(L6) 
 label(L5):
 	get_integer              a(1)     2 
-	cut                      a(2) 
 	jmp                      p2 / 0 
 	branch                   ref(L8) 
 label(L6):
@@ -4850,9 +4953,12 @@ INDEXES for (semidet) disjunction [2]
     [integer] - [3]
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(fail)
@@ -4870,17 +4976,15 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	get_integer              a(1)     1 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_else            0     ref(L5) 
 label(L4):
 	get_integer              a(1)     2 
-	cut                      a(2) 
 	jmp                      p2 / 0 
 	branch                   ref(L7) 
 label(L5):
@@ -4928,9 +5032,13 @@ INDEXES for (semidet) disjunction [2]
     [structure, f / 1] - [1]
     [structure, g / 1] - [2]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
+    Branch 4: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(fail)
@@ -4948,14 +5056,13 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L5) 
+	try_me_else              0     1     ref(L5) 
 label(L2):
 	get_structure            a(1)     f / 1     ref(L3) 
 	write_void           
 	branch                   ref(L4) 
 label(L3):
 label(L4):
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L15) 
 label(L5):
@@ -4966,7 +5073,6 @@ label(L6):
 	branch                   ref(L8) 
 label(L7):
 label(L8):
-	cut                      a(2) 
 	jmp                      p2 / 0 
 	branch                   ref(L15) 
 label(L9):
@@ -4977,7 +5083,6 @@ label(L10):
 	branch                   ref(L12) 
 label(L11):
 label(L12):
-	cut                      a(2) 
 	jmp                      p3 / 0 
 	branch                   ref(L15) 
 label(L13):
@@ -5012,9 +5117,12 @@ INDEXES for (semidet) disjunction [2]
     [structure] - [3]
     [structure, f / 3] - [1]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(fail)
@@ -5032,35 +5140,27 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L5) 
+	try_me_else              0     1     ref(L5) 
 label(L2):
 	get_structure            a(1)     f / 3     ref(L3) 
-	write_variable           a(1) 
-	move                     a(2)     a(4) 
-	write_variable2          a(2)     a(3) 
+	write_variable2          a(1)     a(2) 
+	write_variable           a(3) 
 	branch                   ref(L4) 
 label(L3):
-	read_variable            a(1) 
-	move                     a(2)     a(4) 
-	read_variable2           a(2)     a(3) 
+	read_variable2           a(1)     a(2) 
+	read_variable            a(3) 
 label(L4):
-	cut                      a(4) 
 	jmp                      p1 / 3 
 	branch                   ref(L11) 
 label(L5):
 	retry_me_else            0     ref(L9) 
 label(L6):
 	get_list                 a(1)     ref(L7) 
-	write_variable           a(1) 
-	move                     a(2)     a(3) 
-	write_variable           a(2) 
+	write_variable2          a(1)     a(2) 
 	branch                   ref(L8) 
 label(L7):
-	read_variable            a(1) 
-	move                     a(2)     a(3) 
-	read_variable            a(2) 
+	read_variable2           a(1)     a(2) 
 label(L8):
-	cut                      a(3) 
 	jmp                      p2 / 2 
 	branch                   ref(L11) 
 label(L9):
@@ -5094,6 +5194,10 @@ INDEXES for (nondet) disjunction [2]
     [structure] - [3]
     [structure, f / 3] - [1, 3]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: try
+    Branch 3: trust
 p / 2:
 label(L0):
 	savecut                  a(3) 
@@ -5183,9 +5287,12 @@ INDEXES for (semidet) disjunction [2]
     [list] - [2]
     [structure] - [3]
     [structure, f / 3] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(fail)
 		[]: 	ref(fail)
@@ -5203,14 +5310,12 @@ label(L0):
 
 	branch                   ref(fail) 
 label(L1):
-	try_me_else              0     2     ref(L4) 
+	try_me_else              0     1     ref(L4) 
 label(L2):
 	in_get_structure         a(1)     f / 3     ref(L3) 
 label(L3):
-	read_variable            a(1) 
-	move                     a(2)     a(4) 
-	read_variable2           a(2)     a(3) 
-	cut                      a(4) 
+	read_variable2           a(1)     a(2) 
+	read_variable            a(3) 
 	jmp                      p1 / 3 
 	branch                   ref(L9) 
 label(L4):
@@ -5218,10 +5323,7 @@ label(L4):
 label(L5):
 	in_get_list              a(1)     ref(L6) 
 label(L6):
-	read_variable            a(1) 
-	move                     a(2)     a(3) 
-	read_variable            a(2) 
-	cut                      a(3) 
+	read_variable2           a(1)     a(2) 
 	jmp                      p2 / 2 
 	branch                   ref(L9) 
 label(L7):
@@ -5256,6 +5358,10 @@ INDEXES for (nondet) disjunction [2]
     [list] - [2, 3]
     [structure] - [3]
     [structure, f / 3] - [1, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: try
+    Branch 3: trust
 p / 2:
 label(L0):
 	savecut                  a(3) 
@@ -5336,6 +5442,10 @@ INDEXES for (nondet) disjunction [2]
     [var] - [3]
     [var, free] - [1, 3]
     [var, meta] - [2, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: try
+    Branch 3: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -5401,9 +5511,12 @@ INDEXES for (semidet) disjunction [2]
     [var] - [3]
     [var, free] - [1]
     [var, meta] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L4)
 		[]: 	ref(L6)
@@ -5421,17 +5534,15 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	bi_free                  a(1) 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_else            0     ref(L5) 
 label(L4):
 	bi_meta                  a(1) 
-	cut                      a(2) 
 	jmp                      p2 / 0 
 	branch                   ref(L7) 
 label(L5):
@@ -5464,6 +5575,10 @@ INDEXES for (semidet) disjunction [2]
     [var] - []
     [var, free] - [1]
     [var, meta] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -5516,6 +5631,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [var] - [2]
     [var, free] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -5561,9 +5679,11 @@ INDEXES for (semidet) disjunction [2]
     [] - [2]
     [var] - [2]
     [var, free] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L4)
 		[]: 	ref(L4)
@@ -5581,10 +5701,9 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	bi_free                  a(1) 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L5) 
 label(L3):
@@ -5608,6 +5727,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [var] - [2]
     [var, free] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -5652,6 +5774,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [var] - [2]
     [var, meta] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -5698,9 +5823,11 @@ INDEXES for (semidet) disjunction [2]
     [] - [2]
     [var] - [2]
     [var, meta] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(L4)
@@ -5718,10 +5845,9 @@ label(L0):
 
 	branch                   ref(L4) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	bi_meta                  a(1) 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L5) 
 label(L3):
@@ -5745,6 +5871,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [var] - [2]
     [var, meta] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -5795,6 +5924,10 @@ INDEXES for (nondet) disjunction [2]
     [] - [3]
     [var] - [2, 3]
     [var, free] - [1, 2, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -5855,9 +5988,12 @@ INDEXES for (semidet) disjunction [2]
     [] - [3]
     [var] - [2]
     [var, free] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L4)
 		[]: 	ref(L6)
@@ -5875,17 +6011,15 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	bi_free                  a(1) 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_else            0     ref(L5) 
 label(L4):
 	bi_var                   a(1) 
-	cut                      a(2) 
 	jmp                      p2 / 0 
 	branch                   ref(L7) 
 label(L5):
@@ -5917,6 +6051,10 @@ INDEXES for (nondet) disjunction [2]
     [atom] - [3]
     [var] - [2]
     [var, free] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
+    Branch 3: det
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -5972,9 +6110,11 @@ INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - [2]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(L4)
@@ -5992,10 +6132,9 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	bi_var                   a(1) 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L5) 
 label(L3):
@@ -6028,9 +6167,12 @@ INDEXES for (semidet) disjunction [2]
     [integer] - []
     [integer, 1] - [2]
     [integer, 2] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 label(L1):
 	integer_switch           a(1) 
 		1: 	ref(L5)
@@ -6039,10 +6181,9 @@ label(L1):
 
 	branch                   ref(L3) 
 label(L2):
-	try_me_else              0     2     ref(L4) 
+	try_me_else              0     1     ref(L4) 
 label(L3):
 	bi_var                   a(1) 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L8) 
 label(L4):
@@ -6084,9 +6225,12 @@ INDEXES for (semidet) disjunction [2]
     [integer] - []
     [integer, 1] - [2]
     [integer, 2] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 label(L1):
 	integer_switch           a(1) 
 		1: 	ref(L5)
@@ -6095,10 +6239,9 @@ label(L1):
 
 	branch                   ref(L3) 
 label(L2):
-	try_me_else              0     2     ref(L4) 
+	try_me_else              0     1     ref(L4) 
 label(L3):
 	bi_var                   a(1) 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L8) 
 label(L4):
@@ -6141,9 +6284,12 @@ INDEXES for (semidet) disjunction [2]
     [bignum] - [3]
     [integer] - [3]
     [integer, 1] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(fail)
@@ -6161,17 +6307,15 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	bi_var                   a(1) 
-	cut                      a(2) 
 	jmp                      p1 / 0 
 	branch                   ref(L7) 
 label(L3):
 	retry_me_else            0     ref(L5) 
 label(L4):
 	get_integer              a(1)     1 
-	cut                      a(2) 
 	jmp                      p2 / 0 
 	branch                   ref(L7) 
 label(L5):
@@ -6224,6 +6368,11 @@ INDEXES for (nondet) disjunction [2]
     [atom, b] - [2, 4]
     [atom, c] - [3, 4]
     [var] - [1, 2, 3, 4]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
+    Branch 4: det
 p / 2:
 label(L0):
 	switch_on_type           a(1) 
@@ -6365,6 +6514,15 @@ INDEXES for (semidet) disjunction [2]
     [bignum] - [2]
     [string] - [5]
     [double] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
+    Branch 4: det
+    Branch 5: det
+    Branch 6: det
+    Branch 7: det
+    Branch 8: det
 INDEXES for (semidet) disjunction [2, 2, 2]
 1. Quality 0.8
     [] - []
@@ -6372,15 +6530,21 @@ INDEXES for (semidet) disjunction [2, 2, 2]
     [integer] - [1]
     [bignum] - [1]
     [double] - [2]
+Branch determinisms for disjunction [2, 2, 2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 INDEXES for (semidet) disjunction [2, 5, 2]
 1. Quality 0.7
     [] - []
     [[]] - [2]
     [atom] - [2]
     [string] - [1]
+Branch determinisms for disjunction [2, 5, 2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(L15)
@@ -6398,7 +6562,7 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	bi_var                   a(1) 
 	jmp                      p_var / 0 
@@ -6453,13 +6617,11 @@ label(L14):
 label(L15):
 	bi_nonvar                a(1) 
 	get_nil                  a(1) 
-	cut                      a(2) 
 	jmp                      p_nil / 0 
 	branch                   ref(L31) 
 label(L16):
 	retry_me_else            0     ref(L23) 
 label(L17):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(fail)
 		[]: 	ref(L21)
@@ -6477,10 +6639,9 @@ label(L17):
 
 	branch                   ref(fail) 
 label(L18):
-	try_me_else              0     2     ref(L20) 
+	try_me_else              0     1     ref(L20) 
 label(L19):
 	bi_string                a(1) 
-	cut                      a(2) 
 	allocate                 0 
 	branch                   ref(L22) 
 label(L20):
@@ -6500,7 +6661,6 @@ label(L24):
 	branch                   ref(L26) 
 label(L25):
 label(L26):
-	cut                      a(2) 
 	jmp                      p_list / 0 
 	branch                   ref(L31) 
 label(L27):
@@ -6535,6 +6695,9 @@ INDEXES for (nondet) disjunction [2]
     [[]] - [1, 2]
     [var] - [1, 2]
     [atom] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 2:
 label(L0):
 label(L1):
@@ -6583,6 +6746,9 @@ INDEXES for (nondet) disjunction [2]
     [atom] - [1]
     [integer] - [2]
     [bignum] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 2:
 label(L0):
 	switch_on_type           a(2) 
@@ -6641,6 +6807,9 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2]
     [integer] - [1, 2]
     [bignum] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 3:
 label(L0):
 label(L1):
@@ -6697,6 +6866,9 @@ INDEXES for (semidet) disjunction [2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
 label(L1):
@@ -6768,6 +6940,17 @@ INDEXES for (semidet) disjunction [2]
     [integer, 1] - [1]
     [string] - [6]
     [double] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
+    Branch 4: det
+    Branch 5: det
+    Branch 6: det
+    Branch 7: det
+    Branch 8: det
+    Branch 9: det
+    Branch 10: det
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -6872,6 +7055,10 @@ INDEXES for (nondet) disjunction [2]
     [integer, 1] - [1]
     [integer, 2] - [2]
     [integer, 3] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
 p / 2:
 label(L0):
 label(L1):
@@ -6936,6 +7123,13 @@ INDEXES for (nondet) disjunction [2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: try
+    Branch 4: retry
+    Branch 5: retry
+    Branch 6: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -7020,9 +7214,12 @@ INDEXES for (semidet) disjunction [2]
     [atom] - [3]
     [atom, a] - [2]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 3:
 label(L0):
-	savecut                  a(4) 
 label(L1):
 	atom_switch              a(1) 
 		a: 	ref(L5)
@@ -7030,17 +7227,15 @@ label(L1):
 
 	branch                   ref(L3) 
 label(L2):
-	try_me_else              0     4     ref(L4) 
+	try_me_else              0     3     ref(L4) 
 label(L3):
 	bi_var                   a(1) 
-	cut                      a(4) 
 	get_value                a(2)     a(3) 
 	branch                   ref(L8) 
 label(L4):
 	retry_me_else            0     ref(L6) 
 label(L5):
 	get_atom                 a(1)     a 
-	cut                      a(4) 
 	shift                    a(1)     a(2)     a(3) 
 	jmp                      a / 2 
 	branch                   ref(L8) 
@@ -7180,6 +7375,9 @@ INDEXES for (nondet) disjunction [2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 label(L1):
@@ -8792,6 +8990,9 @@ INDEXES for (semidet) disjunction [2]
     [var, meta] - [1]
     [integer] - [2]
     [bignum] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -8839,6 +9040,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [var] - [2]
     [var, meta] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	savecut                  a(2) 
@@ -8889,6 +9093,9 @@ INDEXES for (semidet) disjunction [2]
     [var] - []
     [var, free] - [2]
     [var, meta] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -8936,6 +9143,9 @@ INDEXES for (nondet) disjunction [2]
     [] - []
     [var] - []
     [var, meta] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 p / 1:
 label(L0):
 	try_me_else              0     1     ref(L2) 
@@ -8967,6 +9177,9 @@ INDEXES for (semidet) disjunction [2]
     [var] - []
     [var, free] - [1]
     [var, meta] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -10202,6 +10415,11 @@ INDEXES for (nondet) disjunction [2]
     [atom, a] - [1, 2, 4]
     [atom, b] - [3]
     [var] - [1, 2, 3, 4]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: retry
+    Branch 4: trust
 p / 5:
 label(L0):
 	get_variable             4     a(2)     y(1) 
@@ -10277,6 +10495,11 @@ INDEXES for (nondet) disjunction [2]
     [atom, a] - [1, 2, 3]
     [atom, b] - [4]
     [var] - [1, 2, 3, 4]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: retry
+    Branch 4: trust
 p / 5:
 label(L0):
 	get_variable             4     a(2)     y(1) 
@@ -10352,6 +10575,11 @@ INDEXES for (nondet) disjunction [2]
     [atom, a] - [1, 3]
     [atom, b] - [2, 4]
     [var] - [1, 2, 3, 4]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: retry
+    Branch 4: trust
 p / 5:
 label(L0):
 	get_variable             4     a(2)     y(1) 
@@ -10497,6 +10725,9 @@ INDEXES for (semidet) disjunction [2]
     [breal] - [2]
     [bignum] - [2]
     [double] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -10724,6 +10955,28 @@ INDEXES for (nondet) disjunction [2]
     [breal] - [5, 12, 14, 16, 17, 21]
     [integer] - [5, 9, 16, 17, 21]
     [string] - [5, 15, 17, 21]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: try
+    Branch 3: try
+    Branch 4: retry
+    Branch 5: retry
+    Branch 6: retry
+    Branch 7: retry
+    Branch 8: retry
+    Branch 9: retry
+    Branch 10: retry
+    Branch 11: retry
+    Branch 12: retry
+    Branch 13: retry
+    Branch 14: retry
+    Branch 15: retry
+    Branch 16: retry
+    Branch 17: retry
+    Branch 18: retry
+    Branch 19: retry
+    Branch 20: retry
+    Branch 21: trust
 p / 1:
 label(L0):
 	switch_on_type           a(1) 
@@ -11318,6 +11571,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [1]
     [list] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 conc / 3:
 label(L0):
 	list_switch              a(1)     ref(L5)     ref(L3)     ref(fail) 
@@ -11373,6 +11629,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [1]
     [list] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 conc / 3:
 label(L0):
 	list_switch              a(1)     ref(L5)     ref(L3)     ref(fail) 
@@ -11429,6 +11688,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [list] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 conc / 3:
 label(L0):
 	list_switch              a(1)     ref(L3)     ref(L9)     ref(fail) 
@@ -11479,6 +11741,9 @@ INDEXES for (nondet) disjunction [2]
     [structure] - [1]
     [structure, f / 2] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 conc / 3:
 label(L0):
 label(L1):
@@ -11549,6 +11814,9 @@ INDEXES for (nondet) disjunction [2]
     [structure] - [1]
     [structure, f / 2] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 conc / 3:
 label(L0):
 label(L1):
@@ -11608,16 +11876,17 @@ INDEXES for (semidet) disjunction [2]
     [list] - [2]
     [[]] - [1]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 conc / 3:
 label(L0):
-	savecut                  a(4) 
 	list_switch              a(1)     ref(L4)     ref(L2)     ref(fail) 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     4     ref(L3) 
+	try_me_else              0     3     ref(L3) 
 label(L2):
 	get_nil                  a(1) 
-	cut                      a(4) 
 	get_value                a(2)     a(3) 
 	branch                   ref(L9) 
 label(L3):
@@ -11659,6 +11928,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [1]
     [list] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 conc / 3:
 label(L0):
 	allocate                 3 
@@ -11845,11 +12117,17 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [[]] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 INDEXES for (nondet) disjunction [2, 2, 2]
 1. Quality 1.5
     [] - [1]
     [list] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2, 2, 2]
+    Branch 1: try
+    Branch 2: trust
 simplify_code / 2:
 label(L0):
 	list_switch              a(1)     ref(L5)     ref(L3)     ref(fail) 
@@ -12000,6 +12278,9 @@ INDEXES for (semidet) disjunction [2]
     [structure] - [2]
     [structure, disjunction / 1] - [1]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 indexing_transformation / 2:
 label(L0):
 	get_list                 a(1)     ref(L1) 
@@ -12009,7 +12290,6 @@ label(L0):
 label(L1):
 	read_variable            a(1) 
 label(L2):
-	savecut                  a(3) 
 label(L3):
 	functor_switch           a(1) 
 		disjunction / 1: 	ref(L5)
@@ -12017,14 +12297,13 @@ label(L3):
 
 	branch                   ref(L5) 
 label(L4):
-	try_me_else              0     3     ref(L8) 
+	try_me_else              0     2     ref(L8) 
 label(L5):
 	get_structure            a(1)     disjunction / 1     ref(L6) 
 	write_void           
 	branch                   ref(L7) 
 label(L6):
 label(L7):
-	cut                      a(3) 
 	jmp                      (then) / 0 
 	branch                   ref(L12) 
 label(L8):
@@ -12054,6 +12333,9 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [list] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 insert_after_head / 3:
 label(L0):
 	savecut                  a(4) 
@@ -12134,6 +12416,12 @@ INDEXES for (nondet) disjunction [2]
     [integer] - [1, 2, 5]
     [integer, 85] - [1, 2, 4, 5]
     [integer, 75] - [1, 2, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: try
+    Branch 4: retry
+    Branch 5: trust
 declaration_warning_handler / 3:
 label(L0):
 	savecut                  a(4) 
@@ -12156,13 +12444,11 @@ label(L4):
 	try_me_else              0     4     ref(L6) 
 label(L5):
 	get_atom                 a(3)     lists 
-	cut                      a(4) 
 	branch                   ref(L16) 
 label(L6):
 	retry_me_else            0     ref(L8) 
 label(L7):
 	get_atom                 a(3)     profile 
-	cut                      a(4) 
 	branch                   ref(L16) 
 label(L8):
 	retry_me_else            0     ref(L10) 
@@ -12261,9 +12547,13 @@ INDEXES for (semidet) disjunction [2]
     [string] - [3]
     [double] - [3]
     [goal] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
+    Branch 4: det
 attach_suspensions / 2:
 label(L0):
-	savecut                  a(3) 
 	switch_on_type           a(1) 
 		meta: 	ref(L8)
 		[]: 	ref(L4)
@@ -12281,10 +12571,9 @@ label(L0):
 
 	branch                   ref(L8) 
 label(L1):
-	try_me_else              0     3     ref(L3) 
+	try_me_else              0     2     ref(L3) 
 label(L2):
 	in_get_atom              a(1)     postponed 
-	cut                      a(3) 
 	move                     a(2)     a(1) 
 	jmp                      postpone_suspensions / 1 
 	branch                   ref(L9) 
@@ -12292,14 +12581,12 @@ label(L3):
 	retry_me_else            0     ref(L5) 
 label(L4):
 	bi_atom                  a(1) 
-	cut                      a(3) 
 	jmp                      attach_suspensions1 / 2 
 	branch                   ref(L9) 
 label(L5):
 	retry_me_else            0     ref(L7) 
 label(L6):
 	bi_nonvar                a(1) 
-	cut                      a(3) 
 	move                     a(2)     a(4) 
 	put_structure            a(2)     attach_suspensions / 2 
 	push_value               a(1) 
@@ -12340,6 +12627,9 @@ INDEXES for (nondet) disjunction [2]
     [[]] - [2]
     [list] - [1]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 execute / 3:
 label(L0):
 	list_switch              a(3)     ref(L2)     ref(L6)     ref(fail) 
@@ -12386,11 +12676,17 @@ INDEXES for (nondet) disjunction [2]
     [] - [2]
     [[]] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 INDEXES for (nondet) disjunction [2, 2, 4]
 1. Quality 1.5
     [] - [1]
     [list] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [2, 2, 4]
+    Branch 1: try
+    Branch 2: trust
 do_x / 4:
 label(L0):
 label(L1):
@@ -12472,10 +12768,12 @@ INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - [2]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 add_incoming / 4:
 label(L0):
 	bi_arg                   a(1)     a(3)     a(5)     16 
-	savecut                  a(6) 
 	switch_on_type           a(5) 
 		meta: 	ref(L2)
 		[]: 	ref(L4)
@@ -12493,10 +12791,9 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     6     ref(L3) 
+	try_me_else              0     5     ref(L3) 
 label(L2):
 	bi_var                   a(5) 
-	cut                      a(6) 
 	bi_arg                   a(1)     a(2)     a(6)     16 
 	get_value                a(6)     a(5) 
 	move                     a(5)     a(1) 
@@ -12539,6 +12836,10 @@ INDEXES for (nondet) disjunction [2]
     [atom, id] - [2, 3]
     [atom, void] - [1]
     [var] - [1, 2, 3]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: retry
+    Branch 3: trust
 i_np_head0 / 4:
 label(L0):
 label(L1):
@@ -12650,9 +12951,11 @@ INDEXES for (semidet) disjunction [2]
     [var] - [1]
     [integer] - [2]
     [bignum] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 xgt0 / 1:
 label(L0):
-	savecut                  a(2) 
 	switch_on_type           a(1) 
 		meta: 	ref(L2)
 		[]: 	ref(fail)
@@ -12670,10 +12973,9 @@ label(L0):
 
 	branch                   ref(L2) 
 label(L1):
-	try_me_else              0     2     ref(L3) 
+	try_me_else              0     1     ref(L3) 
 label(L2):
 	get_atom                 a(1)     pinf 
-	cut                      a(2) 
 	branch                   ref(L5) 
 label(L3):
 	trust_me                 0 
@@ -12716,6 +13018,13 @@ INDEXES for (nondet) disjunction [2]
     [integer] - [4, 5, 6]
     [integer, 1] - [2]
     [integer, -1] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
+    Branch 4: try
+    Branch 5: retry
+    Branch 6: trust
 compute_stop / 1:
 label(L0):
 	savecut                  a(2) 
@@ -12739,7 +13048,6 @@ label(L1):
 	try_me_else              0     2     ref(L3) 
 label(L2):
 	bi_var                   a(1) 
-	cut                      a(2) 
 	put_atom                 a(1)     var 
 	put_module               a(2)     eclipse 
 	jmp                      sepia_kernel : writeln_body / 2 
@@ -12748,7 +13056,6 @@ label(L3):
 	retry_me_else            0     ref(L5) 
 label(L4):
 	get_integer              a(1)     1 
-	cut                      a(2) 
 	put_integer              a(1)     1 
 	put_module               a(2)     eclipse 
 	jmp                      sepia_kernel : writeln_body / 2 
@@ -12757,7 +13064,6 @@ label(L5):
 	retry_me_else            0     ref(L7) 
 label(L6):
 	get_integer              a(1)     -1 
-	cut                      a(2) 
 	put_integer              a(1)     -1 
 	put_module               a(2)     eclipse 
 	jmp                      sepia_kernel : writeln_body / 2 
@@ -13472,7 +13778,7 @@ label(L4):
 ------ Test disj8 -------
 p :-
 	(
-	    once true
+	    once t
 	->
 	    fail
 	;
@@ -13486,7 +13792,7 @@ label(L0):
 	try_me_else              0     0     ref(L2) 
 label(L1):
 	savecut                  y(2) 
-	callf                    true / 0     Y[1,2] 
+	callf                    t / 0     Y[1,2] 
 	cut                      y(2)     1 
 	cut                      y(1)     0 
 	failure              
@@ -13496,6 +13802,36 @@ label(L2):
 	trust_me_inline          0     Y[] 
 label(L3):
 	deallocate           
+label(L4):
+	ret                  
+
+------ Test disj8a -------
+p :-
+	(
+	    once true
+	->
+	    fail
+	;
+	    true
+	).
+
+p / 0:
+label(L0):
+	savecut                  a(1) 
+	try_me_else              0     1     ref(L2) 
+label(L1):
+	allocate                 2 
+	savecut                  y(2) 
+	move                     a(1)     y(1) 
+	callf                    true / 0     Y[1,2] 
+	cut                      y(2)     1 
+	cut                      y(1)     0 
+	failure              
+	deallocate           
+	branch                   ref(L4) 
+label(L2):
+	trust_me                 0 
+label(L3):
 label(L4):
 	ret                  
 
@@ -13666,9 +14002,8 @@ label(L3):
 label(L4):
 	trust_me                 0 
 label(L5):
-	put_variable             a(2) 
-	bi_var                   a(2) 
-	cut                      a(1) 
+	put_variable             a(1) 
+	bi_var                   a(1) 
 label(L6):
 	ret                  
 
@@ -13786,6 +14121,38 @@ label(L8):
 ------ Test disj20 -------
 t :-
 	(
+	    tt
+	->
+	    not (tt -> fail)
+	).
+
+t / 0:
+label(L0):
+	allocate                 3 
+	savecut                  y(3) 
+	callf                    tt / 0     Y[3] 
+	cut                      y(3)     2 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	savecut                  y(2) 
+	callf                    tt / 0     Y[1,2] 
+	cut                      y(2)     1 
+	failure              
+	cut                      y(1)     0 
+	failure              
+	deallocate           
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     Y[] 
+label(L3):
+	deallocate           
+label(L4):
+	ret                  
+
+------ Test disj20a -------
+t :-
+	(
 	    true
 	->
 	    not (true -> fail)
@@ -13797,10 +14164,11 @@ label(L0):
 	savecut                  y(3) 
 	callf                    true / 0     Y[3] 
 	cut                      y(3)     2 
-	savecut                  y(1) 
-	try_me_else              0     0     ref(L2) 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(L2) 
 label(L1):
 	savecut                  y(2) 
+	move                     a(1)     y(1) 
 	callf                    true / 0     Y[1,2] 
 	cut                      y(2)     1 
 	failure              
@@ -13919,6 +14287,9 @@ INDEXES for (nondet) disjunction [2]
     [integer, 4] - [2]
     [integer, 1] - [1]
     [integer, 2] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
 INDEXES for (semidet) disjunction [2, 1, 2]
 1. Quality 1.0
     [] - []
@@ -13926,6 +14297,9 @@ INDEXES for (semidet) disjunction [2, 1, 2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+Branch determinisms for disjunction [2, 1, 2]
+    Branch 1: det
+    Branch 2: det
 p / 1:
 label(L0):
 	allocate                 1 
@@ -14017,9 +14391,11 @@ INDEXES for (semidet) disjunction [2]
     [atom] - [2]
     [atom, ] - [1]
     [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
 p3 / 3:
 label(L0):
-	savecut                  a(2) 
 label(L1):
 	atom_switch              a(1) 
 		'': 	ref(L3)
@@ -14027,10 +14403,9 @@ label(L1):
 
 	branch                   ref(L3) 
 label(L2):
-	try_me_else              0     2     ref(L4) 
+	try_me_else              0     1     ref(L4) 
 label(L3):
 	get_atom                 a(1)     '' 
-	cut                      a(2) 
 	branch                   ref(L6) 
 label(L4):
 	trust_me                 0 
@@ -14109,6 +14484,9 @@ INDEXES for (semidet) disjunction [3]
     [var] - [1]
     [integer] - [2]
     [integer, 1] - [1]
+Branch determinisms for disjunction [3]
+    Branch 1: det
+    Branch 2: det
 test / 1:
 label(L0):
 	savecut                  a(3) 
@@ -14116,7 +14494,6 @@ label(L0):
 	put_atom                 a(1)     clause1 
 	put_module               a(2)     eclipse 
 	callf                    sepia_kernel : writeln_body / 2     Y[1] 
-	savecut                  a(1) 
 label(L1):
 	integer_switch           y(1) 
 		1: 	ref(L3)
@@ -14124,11 +14501,10 @@ label(L1):
 
 	branch                   ref(L3) 
 label(L2):
-	try_me_else              0     1     ref(L4) 
+	try_me_else              0     0     ref(L4) 
 label(L3):
 	move                     y(1)     a(3) 
 	get_integer              a(3)     1 
-	cut                      a(1)     0 
 	put_atom                 a(1)     ok 
 	put_module               a(2)     eclipse 
 	chain                    sepia_kernel : writeln_body / 2 
@@ -14278,6 +14654,9 @@ INDEXES for (nondet) disjunction [3]
     [] - [1]
     [list] - [1, 2]
     [var] - [1, 2]
+Branch determinisms for disjunction [3]
+    Branch 1: try
+    Branch 2: trust
 producer / 1:
 label(L0):
 	get_variable             3     a(1)     y(2) 
@@ -14315,6 +14694,130 @@ label(L7):
 label(L8):
 label(L9):
 	move_chain               y(1)     a(1)     ref(L0) 
+
+------ Test disj35 -------
+nm(A, [A|B]) :-
+	true,
+	!,
+	fail.
+nm(A, [B|C]) :-
+	!,
+	nm(A, C).
+nm(A, []).
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 1.5
+    [] - []
+    [[]] - [3]
+    [list] - [1, 2]
+    [var] - [1, 2]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
+    Branch 3: det
+nm / 2:
+label(L0):
+	savecut                  a(3) 
+	list_switch              a(2)     ref(L12)     ref(L10)     ref(fail) 
+	branch                   ref(L12) 
+label(L1):
+	try_me_else              0     3     ref(L5) 
+label(L2):
+	get_list                 a(2)     ref(L3) 
+	write_value              a(1) 
+	write_void           
+	branch                   ref(L4) 
+label(L3):
+	read_value               a(1) 
+label(L4):
+	get_variable             1     a(3)     y(1) 
+	callf                    true / 0     Y[1] 
+	cut                      y(1)     0 
+	failure              
+	deallocate           
+	branch                   ref(L11) 
+label(L5):
+	retry_me_else            0     ref(L9) 
+label(L6):
+	get_list                 a(2)     ref(L7) 
+	write_void           
+	write_variable           a(2) 
+	branch                   ref(L8) 
+label(L7):
+	read_void            
+	read_variable            a(2) 
+label(L8):
+	jmp                      ref(L0) 
+	branch                   ref(L11) 
+label(L9):
+	trust_me                 0 
+label(L10):
+	get_nil                  a(2) 
+label(L11):
+	ret                  
+label(L12):
+	try                      0     3     ref(L2) 
+	trust                    0     ref(L6) 
+
+------ Test disj36 -------
+nm(A, [A|B]) :-
+	!,
+	fail.
+nm(A, [B|C]) :-
+	!,
+	nm(A, C).
+nm(A, []).
+
+INDEXES for (nondet) disjunction [2]
+1. Quality 1.3
+    [] - []
+    [[]] - [3]
+    [list] - [1, 2]
+    [var] - [1]
+Branch determinisms for disjunction [2]
+    Branch 1: try
+    Branch 2: trust
+    Branch 3: det
+nm / 2:
+label(L0):
+	savecut                  a(3) 
+	list_switch              a(2)     ref(L12)     ref(L10)     ref(fail) 
+	branch                   ref(L2) 
+label(L1):
+	try_me_else              0     3     ref(L5) 
+label(L2):
+	get_list                 a(2)     ref(L3) 
+	write_value              a(1) 
+	write_void           
+	branch                   ref(L4) 
+label(L3):
+	read_value               a(1) 
+label(L4):
+	cut                      a(3) 
+	failure              
+	branch                   ref(L11) 
+label(L5):
+	retry_me_else            0     ref(L9) 
+label(L6):
+	get_list                 a(2)     ref(L7) 
+	write_void           
+	write_variable           a(2) 
+	branch                   ref(L8) 
+label(L7):
+	read_void            
+	read_variable            a(2) 
+label(L8):
+	jmp                      ref(L0) 
+	branch                   ref(L11) 
+label(L9):
+	trust_me                 0 
+label(L10):
+	get_nil                  a(2) 
+label(L11):
+	ret                  
+label(L12):
+	try                      0     3     ref(L2) 
+	trust                    0     ref(L6) 
 
 ------ Test alloc(1) -------
 p(A) :-
@@ -14487,6 +14990,10 @@ INDEXES for (semidet) disjunction [2]
     [atom, a] - [1]
     [atom, b] - [2]
     [atom, c] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
 label(L1):
@@ -14553,6 +15060,10 @@ INDEXES for (semidet) disjunction [2]
     [atom, a] - [1]
     [atom, b] - [2]
     [atom, c] - [3]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
 p / 1:
 label(L0):
 label(L1):

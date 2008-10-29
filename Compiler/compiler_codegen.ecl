@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.24 2008/09/13 10:46:41 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.25 2008/10/29 03:13:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/09/13 10:46:41 $").
+:- comment(date, "$Date: 2008/10/29 03:13:44 $").
 
 
 :- lib(hash).
@@ -220,7 +220,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 	    alloc_check_end(ChunkData3),
 	    start_new_chunk(EAM, ChunkData3, ChunkData)
 
-	; Goal = disjunction{branches:Branches, branchlabels:BranchLabelArray, determinism:Det,
+	; Goal = disjunction{branches:Branches, branchlabels:BranchLabelArray, determinism:BranchDets,
 		entrymap:_EAM, entrysize:EntryESize, exitmap: DisjExitEAM, exitsize:ExitESize,
 		arity:TryArity, args:Args, branchheadargs:HeadArgsArray,
 		branchentrymaps:BranchEamArray, branchinitmaps:BranchExitInits,
@@ -244,11 +244,12 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 	    BranchExitInits = [BranchExitInit1|BranchExitInits2toN],
 	    arg(1, BranchLabelArray, BrLabel1),
 	    arg(1, BranchEamArray, EAM1),
+	    arg(1, BranchDets, Det1),
 	    Code104 = [
 		code{instr:try_me_else(#no_port,TryArity,ref(Label2)),regs:ArgOrigs},
 		code{instr:label(BrLabel1),regs:[]}|Code106],
 	    start_new_chunk(EAM1, ChunkData1, ChunkData2),
-	    alloc_check_start_branch(det, ChunkData2, ChunkData3, Code106, Code107, GAlloc1),
+	    alloc_check_start_branch(Det1, ChunkData2, ChunkData3, Code106, Code107, GAlloc1),
 	    generate_head_info(HeadArgsArray, 1, ChunkData3, ChunkData4, PseudoHeadPerms, [], ArgOrigs),
 	    generate_branch(Branch1, PseudoHeadPerms, ChunkData4, ChunkDataE1, BranchExitInit1, ExitESize, AuxCode1, AuxCode2, Code107, Code2, Options, SelfInfo),
 	    Code2 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code3],
@@ -263,11 +264,12 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 		fromto(Code3, Code4, Code7, Code8),
 		fromto(AuxCode2, AuxCode3, AuxCode4, AuxCode5),
 		fromto(Label2, LabelI, LabelI1, LabelN),
-		param(LabelJoin,BranchLabelArray,BranchEamArray,RetryEamArray,Options,SelfInfo,Det,ChunkData1,HeadArgsArray,ActualESize,ExitESize)
+		param(LabelJoin,BranchLabelArray,BranchEamArray,RetryEamArray,Options,SelfInfo,BranchDets,ChunkData1,HeadArgsArray,ActualESize,ExitESize)
 	    do
 		arg(I, BranchLabelArray, BrLabelI),
 		arg(I, BranchEamArray, EAM),
 		arg(I, RetryEamArray, RetryEAM),
+		arg(I, BranchDets, DetI),
 		retry_me_instr(Options, ActualESize, ref(LabelI1), eam(RetryEAM), RetryMeInstr),
 		Code4 = [
 		    code{instr:label(LabelI),regs:[]},
@@ -275,7 +277,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 		    code{instr:label(BrLabelI),regs:[]}
 		    |Code5],
 		start_new_chunk(EAM, ChunkData1, ChunkData2),
-		alloc_check_start_branch(Det, ChunkData2, ChunkData3, Code5, Code51, GAllocI),
+		alloc_check_start_branch(DetI, ChunkData2, ChunkData3, Code5, Code51, GAllocI),
 		generate_head_info(HeadArgsArray, I, ChunkData3, ChunkData4, PseudoHeadPerms, [], ArgOrigs),
 		generate_branch(Branch, PseudoHeadPerms, ChunkData4, ChunkDataE, BranchExitInit, ExitESize, AuxCode3, AuxCode4, Code51, Code6, Options, SelfInfo),
 		Code6 = [code{instr:branch(ref(LabelJoin)),regs:[]}|Code7]
@@ -285,6 +287,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 	    arg(NBranches, BranchLabelArray, BrLabelN),
 	    arg(NBranches, BranchEamArray, EAMN),
 	    arg(NBranches, RetryEamArray, RetryEAMN),
+	    arg(NBranches, BranchDets, DetN),
 	    trust_me_instr(Options, ActualESize, eam(RetryEAMN), TrustMeInstr),
 	    Code8 = [
 		code{instr:label(LabelN),regs:[]},
@@ -292,7 +295,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 		code{instr:label(BrLabelN),regs:[]}
 		|Code9],
 	    start_new_chunk(EAMN, ChunkData1, ChunkData2N),
-	    alloc_check_start_branch(Det, ChunkData2N, ChunkData3N, Code9, Code91, GAllocN),
+	    alloc_check_start_branch(DetN, ChunkData2N, ChunkData3N, Code9, Code91, GAllocN),
 	    generate_head_info(HeadArgsArray, NBranches, ChunkData3N, ChunkData4N, PseudoHeadPermsN, [], ArgOrigsN),
 	    generate_branch(BranchN, PseudoHeadPermsN, ChunkData4N, ChunkDataEN, BranchExitInitN, ExitESize, AuxCode5, AuxCode0, Code91, Code10, Options, SelfInfo),
 
@@ -1735,11 +1738,11 @@ move_head_perms(HeadPerms, ChunkData0, ChunkData, Code0, Code) :-
 % split: before a disjunction - we promote the max allocation
 %	requirement of the branches left over split-point.
 
-% start_branch(det):
+% start_branch({det,try}):
 %	promote check to the left. This is used for the first branch,
 %	or all branches in case of deterministic switch.
 %
-% start_branch(nondet):
+% start_branch({retry,trust}):
 %	If less than margin needed, promote check to the left (because
 %	we may enter the branch directly via switch). If more than
 %	margin needed, insert check here (because we may enter
@@ -1772,7 +1775,7 @@ alloc_check_split(chunk_data{need_global:N}, Ms) :-
 	N is max(Ms).
 
 alloc_check_start_branch(Det, ChunkData0, ChunkData, Code, Code0, NeedBefore) :-
-	( Det == det ->
+	( first_alternative(Det) ->
 	    % we have come here directly via switch from code before,
 	    % so promote left.
 	    Code = Code0,
