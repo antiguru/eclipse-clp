@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.23 2008/10/19 04:17:25 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.24 2008/10/31 18:39:16 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1218,6 +1218,7 @@ if test "$osi_versions_requested" != "no"; then
 	    AC_MSG_NOTICE([Using OSI $version in $OSIDIR])
             ls -d $OSIDIR/$ARCH/lib/*amd* >/dev/null 2>/dev/null
             if test $? -eq 0; then
+	         AC_MSG_NOTICE([Found AMD support for $version])
 	         OSICLP_ADDLIB="-lamd"
 		 OSICLP_ADDDEF="-DUFL_BARRIER"
 	    fi
