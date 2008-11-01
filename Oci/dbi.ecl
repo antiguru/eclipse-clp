@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.5 2007/08/12 19:51:30 jschimpf Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.6 2008/11/01 07:11:01 kish_shen Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -50,7 +50,7 @@
 
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2007/08/12 19:51:30 $").
+:- comment(date, "$Date: 2008/11/01 07:11:01 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
@@ -352,8 +352,8 @@ session_retrieve_tuple(Session,SQL,Template,Tuple) :-
 	session_sql_query(Session,Template,SQL,10,Cursor),
 	handle_free_eagerly(Cursor),
 	repeat,
-	( cursor_next_tuple(Cursor,Tuple) ->
-		true
+	( cursor_next_tuple(Cursor,Tuple0) ->
+		Tuple0 = Tuple
 	;
 		!,fail
 	).
@@ -1280,6 +1280,7 @@ make_accounts(Session) :-
         summary: "Retrieve the next result tuple from the SQL query in"
                  " ResultTuple",
         fail_if: "No more results are available for the SQL query",
+        resat: no,
         exceptions: [5: "Cursor is not a valid cursor handle", 
                      5: "Unable to convert tuple result to ECLiPSe type",
                      dbi_error: "Error from DBMS while executing SQL"
@@ -1316,7 +1317,19 @@ make_accounts(Session) :-
 </P><P>
  cursor_next_tuple/2 will fail when all the results tuples for the query
  have been returned. If it is then called again for the same SQL query,
- this cancels the cursor, and raise the cursor cancelled error. 
+ this cancels the cursor, and raise the cursor cancelled error.
+</P><P>
+ cursor_next_tuple/2 is not resatisfiable, so to return successive tuples
+ on backtracking, use repeat/0 to re-execute cursor_next_tuple/2:
+<TT><PRE>
+  match_tuple(Cursor, Tuple) :-
+        repeat,
+        ( cursor_next_tuple(Cursor, Tuple0) ->
+             Tuple0 = Tuple
+        ;
+             !, fail
+        ).
+</PRE></TT>
 ")
 ]).
 
