@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.12 2008/09/15 12:35:52 jschimpf Exp $
+# $Id: Makefile.in,v 1.13 2008/11/05 18:48:52 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -236,7 +236,7 @@ x86_64_linux/secplex110.so: seplex.c eplex_params.h seplex.h
 i386_macosx/secplex110.dylib: seplex.c eplex_params.h seplex.h
 	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c seplex.c
 	$(DYLD) $(DYNLDFLAGS) seplex.o $(THIRDPARTY)/cplex110/lib/i386_macosx/static_pic/libcplex.a $(ECLIBS) $(GMP_LD) -lIOKit -lpthread -o secplex.dylib
-	[ -d i386_linux ] || mkdir i386_linux
+	[ -d i386_macosx ] || mkdir i386_macosx
 	mv secplex.dylib i386_macosx/secplex110.dylib
 
 #----------------------------------------------------------------------
@@ -449,8 +449,8 @@ bug65: bug.c
 	$(CC) -g -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex bug.c /usr/local/cplex/libcplex.a  -lm -o bug65
 
 bugclp: bug.c
-	$(CXX) -DCOIN -DCOIN_USE_CLP -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
-	$(CC) coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCLPLIBS) -lCbc $(COINOSILIBS) -lstdc++ -DCOIN -DC_TO_COIN -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) bug.c -o bugclp
+	$(CXX) -g -DCOIN -DCOIN_USE_CLP -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
+	$(CC) -g coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCLPLIBS) @OSICLP_ADDLIB@ -lCbc $(COINOSILIBS) -lstdc++ -DCOIN -DC_TO_COIN -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) bug.c -o bugclp
 
 
 
