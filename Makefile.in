@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.7 2008/06/30 17:43:41 jschimpf Exp $
+# $Id: Makefile.in,v 1.8 2008/11/13 22:06:03 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -31,10 +31,8 @@ install_all:	install_cross \
 		make_contrib \
 		make_mercury
 
-# build the reference manual only after all eci files have been installed
 # MAKE_DOCUMENTS is either make_documents, or nothing if no tools available
-install_documents:	@MAKE_DOCUMENTS@ install_all
-	(cd $(PREFIX); bin/$(ARCH)/eclipse -e 'lib(document),ecis_to_htmls')
+install_documents:	@MAKE_DOCUMENTS@ make_reference_doc
 
 
 # --- subdirectories ---
@@ -103,6 +101,10 @@ make_internal_doc:	make_bin
 	( cd $(top_srcdir)/pt_libraries ; make -f Makefile.$(ARCH) pretty )
 	( cd $(top_srcdir)/documents/internal ; ./INSTALL )
 
+# build the reference manual only after all eci files have been installed
+make_reference_doc:	install_all
+	(cd $(top_srcdir)/documents/bips; ./INSTALL)
+	(cd $(PREFIX); bin/$(ARCH)/eclipse -e 'lib(document),ecis_to_htmls')
 
 
 # --- toplevel installation ---
