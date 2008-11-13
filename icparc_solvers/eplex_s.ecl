@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.6 2008/09/12 00:32:40 kish_shen Exp $
+% Version:	$Id: eplex_s.ecl,v 1.7 2008/11/13 16:01:21 kish_shen Exp $
 %
 %
 
@@ -4173,7 +4173,7 @@ lp_verify_solution(Handle, VCs, VVs) :-
         ),
         cplex_get_prob_param(CPH, 1, Cols),
         ( foreacharg(V, VArr, I), param(CPH, Cols, Base, Tol, IntTol, SolArr), 
-          fromto([], VV0,VV1, VVs) 
+          fromto([], VV0,VV1, VVs0) 
         do
             VIdx is Cols - I + Base, %Vars are in reverse column order
             cplex_get_col_bounds(CPH, VIdx, Lo, Hi),
@@ -4190,8 +4190,10 @@ lp_verify_solution(Handle, VCs, VVs) :-
             ; 
                 (Val < Lo - Tol -> VioBound = lower ; VioBound = upper),
                 (Val < Lo -> Diff is Lo - Val ; Diff is Val - Hi),
-                VV1 = [vio(VioBound,Diff,VIdx,V)|VV0])
-        ).
+                VV1 = [vio(VioBound,Diff,VIdx,V)|VV0]
+            )
+        ),
+        VVs0 = VVs. % avoid failure in loop termination test if VVs is instantiated
 
    construct_and_verify_one_constraint(I, VArr, CPH, Type, Tol, Handle, VC0, VC1) :-
         constraint_type_code(Type, TypeCode),
