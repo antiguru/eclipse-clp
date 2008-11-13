@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.9 2008/09/13 11:01:47 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.10 2008/11/13 14:44:58 jschimpf Exp $
  */
 
 /*
@@ -874,8 +874,8 @@ _regular_err_2_: /* (err_code), goal A2, context module A3, lookup module A4 */
  * uncertain		succeed	succeed	delay	succeed with list
  *
  * It works on the terms whose addresses are held by pw1 and pw2,
- * In addition, ~=/2 expects a pointer to its arguments in pw3,
- * while \==/3 expects a pointer the its output argument in pw3.
+ * In addition, ~=/2 expects PP to point behind a BI_Inequality,
+ * and \==/3 expects PP to point to the last word of a BI_NotIdentList.
  * The value matching instructions are handled like ==/2..
  ******************************************************************/
 
@@ -884,7 +884,7 @@ _regular_err_2_: /* (err_code), goal A2, context module A3, lookup module A4 */
 #define IsInequalityProc(proc) (proc == inequality_proc_)
 #define IsNotIdentListProc(proc) (proc == not_ident_list_proc_)
 
-_diff_:					/* (pw1, pw2, [pw3,] proc) */
+_diff_:					/* (pw1, pw2, [PP,] proc) */
     Mark_Prof(_diff_)
     pdl = SP;
 _do_diff_:
@@ -1021,7 +1021,7 @@ _diff_different_:			/* the terms are different */
 	Fail
     else if (IsNotIdentListProc(proc)) 
     {
-	pw1 = pw3;			/* unify 3rd argument with [] */
+	Get_Argument(pw1)		/* unify last argument with [] */
 	Dereference_Pw(pw1)
 	if (IsVar(pw1->tag))
 	{
@@ -1033,9 +1033,9 @@ _diff_different_:			/* the terms are different */
 	pw2 = &scratch_pw;
 	goto _unify_;			/* (pw1, pw2) */
     }
-    Kill_DE;	/* this is for BIInequality only! */
+    Kill_DE;	/* this is for BI_Inequality only! */
     Next_Pp; 
-_diff_delay_:				/* (SV, proc, pw3 points to args) */
+_diff_delay_:				/* (SV, proc, PP points behind args) */
     SP = pdl;				/* remove PDL and delay */
     if (IsInequalityProc(proc)) 
     {
@@ -1051,9 +1051,9 @@ _diff_delay_:				/* (SV, proc, pw3 points to args) */
 	    Make_Atom(TG, val_did);
 	    S = TG+1;
 	    TG += 3;
-	    pw1 = pw3;
+	    pw1 = PP[-2].ptr;
 	    Move_Pw_To_Global_Stack(pw1, S, ;);
-	    pw1 = pw3+1;
+	    pw1 = PP[-1].ptr;
 	    Move_Pw_To_Global_Stack(pw1, S, ;);
 	    Check_Gc
 	}
@@ -1062,7 +1062,7 @@ _diff_delay_:				/* (SV, proc, pw3 points to args) */
     }
     else /* IsNotIdentListProc(proc) */
     {
-	pw1 = pw3;			/* unify 3rd argument with SV list */
+	Get_Argument(pw1)		/* unify last argument with SV list */
 	Dereference_Pw(pw1)
 	if (IsVar(pw1->tag))
 	{
@@ -7120,16 +7120,15 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
          Case(BI_Inequality, I_BI_Inequality)
 	    Get_Argument(pw1)
 	    Get_Argument(pw2) 
-	    pw3 = pw1;
 	    proc = inequality_proc_;
-	    goto _diff_;			/* (proc, pw1, pw2, pw3) */
+	    goto _diff_;			/* (proc, pw1, pw2, PP) */
 
          Case(BI_NotIdentList, I_BI_NotIdentList)
 	    Get_Argument(pw1)
 	    Get_Argument(pw2)
-	    Get_Argument(pw3)
+	    /* 3rd argument read later! */
 	    proc = not_ident_list_proc_;
-	    goto _diff_;			/* (proc, pw1, pw2, pw3) */
+	    goto _diff_;			/* (proc, pw1, pw2, PP) */
 
          Case(BI_ContDebug, I_BI_ContDebug)
 	    /* Allow normal tracing again, except pred is skipped.
