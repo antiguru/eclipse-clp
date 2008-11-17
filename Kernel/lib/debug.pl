@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.6 2008/08/31 20:47:31 jschimpf Exp $
+% Version:	$Id: debug.pl,v 1.7 2008/11/17 13:49:18 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -347,20 +347,33 @@ current_predicate_with_port(PortType, PredSpec, Module, PortInfo) :-
         get_flag(PredSpec, debugged, on)@Module,
         get_flag(PredSpec, PortType, PortInfos)@Module,
 	member(PortInfo, PortInfos).
-        
+
+% On Windows, canonical_path_name can be really slow!
+% We cannot cache more permanently because cwd and file system may change.
+cached_canonical_path_name(Path, CanPath, Cache) :-
+	( store_get(Cache, Path, CanPath0) ->
+	    true
+	;
+	    canonical_path_name(Path, CanPath0),
+	    store_set(Cache, Path, CanPath0)
+	),
+	CanPath0 = CanPath.
+
 ports_in_file(File, PortType, List) :-
         % use Line-M to allow different modules to reuse the file
+	store_create(Cache),
         findall(port(Line-M,P), (
                 current_predicate_with_port(PortType, P, M, File0:Line),
                 % make sure we are comparing canonical names for this machine
-                canonical_path_name(File0, File)
+                cached_canonical_path_name(File0, File, Cache)
              ), List0),
         sort(1,<, List0, List).
 
 current_files_with_port_lines(Files) :-
+	store_create(Cache),
         findall(OSF, (
                 current_predicate_with_port(port_lines, _, _, F0:_),
-                canonical_path_name(F0, F),
+                cached_canonical_path_name(F0, F, Cache),
                 os_file_name(F, OSF)
               ), Files0),
         sort(0, <, Files0, Files).

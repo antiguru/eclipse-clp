@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.7 2008/08/15 17:08:40 kish_shen Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.8 2008/11/17 13:49:19 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -1944,7 +1944,8 @@ toggle_source_breakpoint(OSFile, Line, PortLine, From, To) :-
         ).
 
     portline_state(File,Line, PInfo, From) :-
-        (member(File0:Line, PInfo), canonical_path_name(File0,File) -> 
+	store_create(Cache),
+        (member(File0:Line, PInfo), cached_canonical_path_name(File0,File,Cache) -> 
             From = on 
         ; 
             From = off
@@ -1974,9 +1975,10 @@ find_matching_callinfo(OSFile, Line, PortPredS, CallSpec) :-
 find_exact_callinfo(OSFile, Line, CallSpec) :-
         % OSFile must be an atom
         os_file_name(File0, OSFile),
-        canonical_path_name(File0, File),
+	store_create(Cache),
+        cached_canonical_path_name(File0, File, Cache),
         current_predicate_with_port(port_lines, PredSpec, Module, File1:Line),
-        canonical_path_name(File1, File),
+        cached_canonical_path_name(File1, File, Cache),
         !,
         get_flag(PredSpec, port_lines, LInfos)@Module,
         get_flag(PredSpec, port_calls, CInfos)@Module,
@@ -1986,6 +1988,16 @@ get_callinfo(File:Line, [File0:Line|_], [CallSpec|_], CallSpec) :-
         canonical_path_name(File0, File), !.
 get_callinfo(PredPos, [_|PInfos], [_|CInfos], CallSpec) :-
         get_callinfo(PredPos, PInfos, CInfos, CallSpec).
+
+% On Windows, canonical_path_name can be really slow!
+cached_canonical_path_name(Path, CanPath, Cache) :-
+	( store_get(Cache, Path, CanPath0) ->
+	    true
+	;
+	    canonical_path_name(Path, CanPath0),
+	    store_set(Cache, Path, CanPath0)
+	),
+	CanPath0 = CanPath.
 
 %----------------------------------------------------------------------
 % Initialise toplevel module
