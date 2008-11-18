@@ -28,11 +28,11 @@
 #
 # System:	ECLiPSe Constraint Logic Programming System
 # Author/s:	Joachim Schimpf, IC-Parc
-# Version:	$Id: ecl_inst.tcl,v 1.4 2008/06/20 13:41:12 jschimpf Exp $
+# Version:	$Id: ecl_inst.tcl,v 1.5 2008/11/18 05:44:16 jschimpf Exp $
 #
 
 set tkecl(scriptdir) [file dirname [info script]]
-set tkecl(eclipseversion) "6.0"
+set tkecl(eclipseversion) "6.1"
 
 # Path name syntax: Tcl commands can handle both native (backslash)
 # or generic (unix-like) syntax. But when we give a path to Windows

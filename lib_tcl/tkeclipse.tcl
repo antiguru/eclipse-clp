@@ -27,13 +27,13 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.9 2008/09/03 14:13:23 kish_shen Exp $
+# $Id: tkeclipse.tcl,v 1.10 2008/11/18 05:44:16 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
 # Find and load the eclipse package
 #----------------------------------------------------------------------
-set tkecl(version) 6.0	 ;# update also in eclipse_tools and examples!
+set tkecl(version) 6.1	 ;# update also in eclipse_tools and examples!
 # including mapdebugdemo.tcl in <ECLiPSe>/document/tutorial/mapdebugdemo.tcl
 
 switch $tcl_platform(platform) {

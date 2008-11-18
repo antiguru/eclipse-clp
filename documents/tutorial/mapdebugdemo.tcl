@@ -26,7 +26,7 @@
 #  are supplied by the user, the code then connects to the ECLiPSe side and
 #  calls map_init
 
-set tkecl(version) 6.0	 ;# update also in eclipse_tools and examples!
+set tkecl(version) 6.1	 ;# update also in eclipse_tools and examples!
 
 switch $tcl_platform(platform) {
     unix {

@@ -86,21 +86,22 @@ Before building the final release
   centralised, but until that is done, here is a (possibly out-of-date) list
   of places it occurs (look for X.Y and X_Y):
 
-	Contrib/eclipse.el
+	configure.ac
+	configure (run autoconf after changing configure.ac)
 	WinMSC/Eclipse/Eclipse.dsp
 	WinMSC/Eclipse/Eclipse.mak
 	documents/texinputs/sepiachiphtml.tex
+	documents/tutorial/mapdebugdemo.tcl
 	ecl_inst.tcl
+	ecl_inst.js
 	lib_tcl/eclipse_tools.tcl
 	lib_tcl/example.tcl
 	lib_tcl/example1.tcl
-	lib_tcl/mapdebugdemo.tcl
 	lib_tcl/mapembed.tcl
 	lib_tcl/mapremote.tcl
 	lib_tcl/tkeclipse.tcl
 	lib_tcl/tktools.tcl
 	Kernel/src/eclipse.reg
-	Kernel/src/os_support.c
 
 - Check NSIS Windows Installer version and package includes. The PACK 
   script specifies which packages should be included in the installer 
