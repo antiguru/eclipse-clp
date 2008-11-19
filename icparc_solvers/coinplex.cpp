@@ -467,7 +467,8 @@ int coin_branchAndBound(lp_desc* lpd)
     // printLevel (4) defaults (0)
     CbcStrategyDefault strategy(true,5,5);
     // Set up pre-processing to find sos if wanted
-    if (lpd->presolve) strategy.setupPreProcessing(2);
+    // don't setupPreProcessing as well as well as preprocess - this is generally slower
+    //if (lpd->presolve) strategy.setupPreProcessing(2);
     //strategy.setupPrinting(*model, 0);
     model->setStrategy(strategy);
 
