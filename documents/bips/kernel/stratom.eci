@@ -295,6 +295,7 @@ Position and of length Length.
 
 ",
 	amode:(substring(+, +, +, -) is semidet),
+	amode:(substring(+, +, -, +) is semidet),
 	amode:(substring(+, +, -, -) is nondet),
 	amode:(substring(+, -, +, -) is nondet),
 	amode:(substring(+, -, -, +) is nondet),
@@ -402,6 +403,8 @@ Note:
 	amode:(substring(+, +, +, -, -) is semidet),
 	amode:(substring(+, -, +, +, -) is semidet),
 	amode:(substring(+, +, -, +, -) is semidet),
+	amode:(substring(+, +, -, -, +) is semidet),
+	amode:(substring(+, -, -, +, +) is semidet),
 	amode:(substring(+, +, -, -, -) is nondet),
 	amode:(substring(+, -, +, -, -) is nondet),
 	amode:(substring(+, -, -, +, -) is nondet),
