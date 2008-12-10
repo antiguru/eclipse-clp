@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.1 2008/06/30 17:43:58 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.2 2008/12/10 05:18:56 jschimpf Exp $
  */
 
 /*
@@ -2811,7 +2811,7 @@ _fill_procedures(register pword *env, dident mod, type tmod)
     {
 	if (!(SuspDead(env))) 
 	{
-	    proc = DelayProc(env);
+	    proc = SuspProc(env);
 	    if (!proc) {
 		p = env + SUSP_GOAL;
 		Dereference_(p);
@@ -2835,7 +2835,7 @@ _fill_procedures(register pword *env, dident mod, type tmod)
 		env[SUSP_PRI].val.wptr = (uword *) proc;
 	    }
 	}
-	env = DelayPrevious(env);
+	env = SuspPrevious(env);
     }
     return PSUCCEED;
 }
