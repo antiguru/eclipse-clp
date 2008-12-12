@@ -754,6 +754,88 @@ yes.
 ",
 	see_also:[(demon) / 1, insert_suspension / 3, insert_suspension / 4, make_suspension / 3, get_suspension_data / 3, wake / 0]]).
 
+:- comment(unschedule_suspension / 1, [
+	summary:"Undo the scheduling of a suspension, preventing the delayed goal from actually being executed",
+	amode:(unschedule_suspension(+) is det),
+	desc:html("
+   Suspensions in ECLiPSe go through several stages: They are created,
+   attached to variables or symbolic triggers, later scheduled for execution,
+   and finally executed.  This predicate affects suspensions that are in the
+   scheduled state, and causes them to pass into the executed state without
+   actually being executed.
+<P>
+   Normally, scheduling a suspension leads to the execution of its associated
+   goal, which in turn leads to the suspension passing either into the dead
+   state (normal goals), or back into the suspended state (demons).
+<P>
+   Under special circumstances, it may be known that exection of a
+   scheduled goal would not have any further effect, and in that case
+   unschedule_suspension/1 can be used to pretend that the execution
+   has already happened.
+<P>
+   One example is a propagator for a global constraint, which touches the
+   variables it delays on, and thus wakes itself.  This self-waking is
+   redundant if it is known that the propagation algorithm computes all
+   consequences (i.e. a fixpoint) internally.  Self-waking can the be
+   prevented by calling unschedule_suspension/1 just before the propagator
+   terminates.
+<P>
+   Another example is a binary constraint, implemented via two uni-directional
+   propagators:  the propagator for one direction may redundantly wake the
+   reverse propagator.  This can be prevented by unscheduling the respective
+   reverse propagator (whose suspension can be passed as an argument). Of
+   course the programmer has to be careful only to cancel truly redundant
+   execution.
+<P>
+   This predicate is mainly useful in connection with demons: these go
+   back to suspended state if they were currently scheduled.  Non-demons
+   get killed if they were currently scheduled.  Suspensions that are
+   not currently scheduled (supendede or already dead) are unaffected.
+<P>
+"),
+	args:["Susp" : "A suspension"],
+	exceptions:[4 : "Susp is not instatiated.",
+		5 : "Susp is not a suspension."],
+	eg:"
+:- demon prop/3.
+prop(X, Y, RevSusp) :-
+	writeln(prop(X,Y)),
+	unschedule_suspension(RevSusp).
+	
+
+% Despite waking both goals, only the first one is executed:
+?- suspend(prop(X,Y,SB),0,X->inst,SF),
+   suspend(prop(Y,X,SF),0,Y->inst,SB),
+   [X,Y] = [1,2].
+
+prop(1, 2)	% only forward demon wakes
+
+    X = 1
+    Y = 2
+    Delayed goals:
+	    prop(1, 2, 'SUSP-_752-susp')
+	    prop(2, 1, 'SUSP-_734-susp')
+    Yes (0.00s cpu)
+
+
+?- suspend(prop(X,Y,SB),0,X->inst,SF),
+   suspend(prop(Y,X,SF),0,Y->inst,SB),
+   [Y,X] = [2,1].
+
+prop(2, 1)	% only backward demon wakes
+
+    X = 1
+    Y = 2
+    Delayed goals:
+	    prop(1, 2, 'SUSP-_752-susp')
+	    prop(2, 1, 'SUSP-_734-susp')
+    Yes (0.00s cpu)
+
+",
+	see_also:[(demon) / 1, make_suspension / 3,
+		schedule_suspensions/2, kill_suspension/1,
+		get_suspension_data / 3]]).
+
 :- comment(set_suspension_data / 3, [
 	summary:"Modify properties of suspended goals.
 

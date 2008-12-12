@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.6 2008/09/01 11:44:54 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.7 2008/12/12 05:50:38 jschimpf Exp $
  */
 
 /*
@@ -845,7 +845,7 @@ extern pword	*spmax_;
  *	|- - -  GOAL - - -|
  *	|                 |
  *	|-----------------|
- *	|     PRIO  S TREF|	<= these are mutable fields
+ *	|     PRIO WS TREF|	<= these are mutable fields
  *	|- - - STATE - - -|
  *	|    timestamp    |
  *	|-----------------|
@@ -871,6 +871,28 @@ extern pword	*spmax_;
  *	|- - - - - - - - -|       |- - - - -|
  *	|       NULL      |    /-------     |
  *	|-----------------|<--/   |---------|
+ *
+ *
+ * Suspension states (non-demon):
+ *   ________         _________                             ____
+ *  |   00   |       |   11    |                           |    |
+ *  |Sleeping|--sch->|Scheduled|--------uns---exe--------->|Dead|<--kill
+ *  |________|       |_________|                           |____|
+ *
+ * Suspension states (demon):
+ *   ________         _________         ___________         ____
+ *  |   00   |--sch->|   11    |--uns->|    10     |       |    |
+ *  |Sleeping|       |Scheduled|       |Unscheduled|       |Dead|<--kill
+ *  |________|<-exe--|_________|<-sch--|___________|       |____|
+ *               |                            |
+ *               \----------------------------/
+ *
+ * An unscheduled suspension is one that had been scheduled, but some other
+ * code made its actual execution redundant and called unschedule_suspension/1.
+ * The difference between 'unscheduled' and 'sleeping' is that unscheduled
+ * suspensions are still in the WL lists. From there it can either be
+ * rescheduled cheaply, or go to dead/sleeping state at the time it gets
+ * taken out of the WL lists.
  */
 
 
@@ -880,7 +902,8 @@ extern pword	*spmax_;
 
 /* In the SUSP_STATE tag: */
 #define SUSP_FLAG_PRIO		0x0FF00000
-#define SUSP_STATE_SCHED	0x00000100
+#define SUSP_STATE_SCHED	0x00000100	/* scheduled */
+#define SUSP_STATE_INWL		0x00000200	/* in woken lists */
 
 #define SUSP_PRIO_SHIFT		20
 #define SUSP_MAX_PRIO		12	/* could be as much as 0xFF */
@@ -899,15 +922,11 @@ extern pword	*spmax_;
 #define SUSP_MODULE	4
 #define SUSP_SIZE	5
 
-/* obsolete */
-#define DelayPrevious(p)	SuspPrevious(p)
-#define DelayProc(p)		SuspProc(p)
-#define DelayDebugInvoc(p)	SuspDebugInvoc(p)
-
 /* field access macros */
 #define SuspDemon(p)		((p)[SUSP_FLAGS].tag.kernel & SUSP_FLAG_DEMON)
 #define SuspDead(p)		((p)[SUSP_FLAGS].tag.kernel & SUSP_FLAG_DEAD)
 #define SuspScheduled(p)	((p)[SUSP_STATE].tag.kernel & SUSP_STATE_SCHED)
+#define SuspInWL(p)		((p)[SUSP_STATE].tag.kernel & SUSP_STATE_INWL)
 #define SuspPrio(p)		(((unsigned) ((p)[SUSP_STATE].tag.kernel) & SUSP_FLAG_PRIO)>>SUSP_PRIO_SHIFT)
 #define SuspStamp(p)		((p)[SUSP_STATE].val.ptr)
 #define SuspPrevious(p)		(((pword *) p)[SUSP_LD].val.ptr)
@@ -918,8 +937,10 @@ extern pword	*spmax_;
 #define SuspTagDead(t)		((t) & SUSP_FLAG_DEAD)
 
 /* field update macros */
-#define Set_Susp_Scheduled(p)	Set_Susp_State(p, SUSP_STATE_SCHED)
-#define Set_Susp_Delayed(p)	Reset_Susp_State(p, SUSP_STATE_SCHED)
+#define Set_Susp_Scheduled(p)	Set_Susp_State(p, (SUSP_STATE_SCHED|SUSP_STATE_INWL))
+#define Set_Susp_Delayed(p)	Reset_Susp_State(p, (SUSP_STATE_SCHED|SUSP_STATE_INWL))
+#define Set_Susp_Rescheduled(p)	Set_Susp_State(p, SUSP_STATE_SCHED)
+#define Set_Susp_Unscheduled(p)	Reset_Susp_State(p, SUSP_STATE_SCHED)
 #define Set_Susp_Dead(p)	Set_Susp_Flag(p, SUSP_FLAG_DEAD)
 #define Set_Susp_Dead_Untrailed(p)	Set_Susp_Flag_Untrailed(p, SUSP_FLAG_DEAD)
 #define Set_Susp_DebugInvoc(p,i)	p[SUSP_INVOC].tag.kernel = (i);

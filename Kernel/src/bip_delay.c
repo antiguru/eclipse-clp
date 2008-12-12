@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.3 2008/08/03 09:57:16 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.4 2008/12/12 05:50:38 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -63,6 +63,7 @@ static int	p_delayed_goals(value vres, type tres),
 		p_term_variables(value vterm, type tterm, value vlist, type tlst),
 		p_replace_attribute(value vmeta, type tmeta, value vterm, type tterm, value vm, type tm),
 		p_kill_suspension(value vsusp, type tsusp, value vt, type tt),
+		p_unschedule_suspension(value vsusp, type tsusp),
 		p_setuniv(value v, type t),
 		p_suspensions(value vres, type tres),
 		p_new_suspensions(value vlast, type tlast, value vres, type tres),
@@ -169,8 +170,10 @@ bip_delay_init(int flags)
 	built_in(in_dict("suspension_to_goal", 3), p_suspension_to_goal,
 		B_UNSAFE|U_UNIFY)
 	    -> mode = BoundArg(2, NONVAR) | BoundArg(3, CONSTANT);
-	(void) exported_built_in(in_dict("kill_suspension", 2), p_kill_suspension,
-		B_UNSAFE);
+	(void) exported_built_in(in_dict("kill_suspension", 2),
+		p_kill_suspension, B_UNSAFE);
+	(void) exported_built_in(in_dict("unschedule_suspension", 1),
+		p_unschedule_suspension, B_SAFE);
 	(void) exported_built_in(in_dict("replace_attribute", 3),
 		p_replace_attribute,	B_UNSAFE);
 	(void) exported_built_in(in_dict("last_suspension", 1),
@@ -611,6 +614,30 @@ p_kill_suspension(value vsusp, type tsusp, value vt, type tt)
 	    Set_Susp_Dead(susp);
 	} else {
 	    Set_Susp_Dead_Untrailed(susp);
+	}
+    }
+    Succeed_;
+}
+
+
+/*
+ * unschedule_suspension(+Susp)
+ * If suspension is already dead or unscheduled: do nothing.
+ * Otherwise, unschedule, but leave physically in woken list.
+ * Non-demons get killed instead. The assumption here is that everything the
+ * woken goal was supposed to do has become redundant in the current situation.
+ */
+static int
+p_unschedule_suspension(value vsusp, type tsusp)
+{
+    pword *susp;
+    Get_Suspension(vsusp, tsusp, susp)
+    if (!SuspDead(susp) && SuspScheduled(susp))
+    {
+	if (SuspDemon(susp)) {
+	    Set_Susp_Unscheduled(susp);
+	} else {
+	    Set_Susp_Dead(susp);
 	}
     }
     Succeed_;
@@ -1242,17 +1269,20 @@ p_schedule_woken(value vl, type tl)
 
 	if (!SuspDead(p) && !SuspScheduled(p))
 	{
-	    /* schedule this suspension */
-	    pword *q = WLFirst(WL) + SuspPrio(p) - 1;
-	    pword *new = TG;
-	    Push_List_Frame()
-	    new[0].val.ptr = p;
-	    new[0].tag.kernel = TSUSP;
-	    new[1] = *q;
-	    if (IsNil(q->tag) || q->val.ptr < GB) {
-		Trail_Pword(q)
+	    /* schedule this suspension (it may already be in WL!) */
+	    if (!SuspInWL(p))
+	    {
+		pword *q = WLFirst(WL) + SuspPrio(p) - 1;
+		pword *new = TG;
+		Push_List_Frame()
+		new[0].val.ptr = p;
+		new[0].tag.kernel = TSUSP;
+		new[1] = *q;
+		if (IsNil(q->tag) || q->val.ptr < GB) {
+		    Trail_Pword(q)
+		}
+		Make_List(q, new);
 	    }
-	    Make_List(q, new);
 	    Set_Susp_Scheduled(p);
 	}
 	Dereference_(next);
@@ -1590,20 +1620,22 @@ ec_schedule_susp(pword *susp)
 {
     if (!SuspDead(susp) && !SuspScheduled(susp))
     {
-	/* schedule this suspension */
-	pword *q = WLFirst(WL) + SuspPrio(susp) - 1;
-	pword *new = TG;
-	Push_List_Frame()
-	new[0].val.ptr = susp;
-	new[0].tag.kernel = TSUSP;
-	new[1] = *q;
-	if (IsNil(q->tag) || q->val.ptr < GB) {
-	    Trail_Pword(q)
+	/* schedule this suspension (it may already be in WL!) */
+	if (!SuspInWL(susp))
+	{
+	    pword *q = WLFirst(WL) + SuspPrio(susp) - 1;
+	    pword *new = TG;
+	    Push_List_Frame()
+	    new[0].val.ptr = susp;
+	    new[0].tag.kernel = TSUSP;
+	    new[1] = *q;
+	    if (IsNil(q->tag) || q->val.ptr < GB) {
+		Trail_Pword(q)
+	    }
+	    Make_List(q, new);
 	}
-	Make_List(q, new);
 	Set_Susp_Scheduled(susp);
     }
-
     Succeed_
 }
 
@@ -1644,17 +1676,20 @@ ec_schedule_susps(pword *next)
 
 	if (!SuspDead(p) && !SuspScheduled(p))
 	{
-	    /* schedule this suspension */
-	    pword *q = WLFirst(WL) + SuspPrio(p) - 1;
-	    pword *new = TG;
-	    Push_List_Frame()
-	    new[0].val.ptr = p;
-	    new[0].tag.kernel = TSUSP;
-	    new[1] = *q;
-	    if (IsNil(q->tag) || q->val.ptr < GB) {
-		Trail_Pword(q)
+	    /* schedule this suspension (it may already be in WL!) */
+	    if (!SuspInWL(p))
+	    {
+		pword *q = WLFirst(WL) + SuspPrio(p) - 1;
+		pword *new = TG;
+		Push_List_Frame()
+		new[0].val.ptr = p;
+		new[0].tag.kernel = TSUSP;
+		new[1] = *q;
+		if (IsNil(q->tag) || q->val.ptr < GB) {
+		    Trail_Pword(q)
+		}
+		Make_List(q, new);
 	    }
-	    Make_List(q, new);
 	    Set_Susp_Scheduled(p);
 	}
 

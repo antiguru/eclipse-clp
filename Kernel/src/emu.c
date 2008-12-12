@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.10 2008/11/13 14:44:58 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.11 2008/12/12 05:50:38 jschimpf Exp $
  */
 
 /*
@@ -5233,7 +5233,17 @@ _match_values_:
 			pw2 = (pw1++)->val.ptr;	/* TSUSP pword */
 			Dereference_(pw1);	/* list tail */
 			if (!SuspDead(pw2))
-			    break;		/* found one! */
+			{
+			    if (SuspScheduled(pw2))
+				break;		/* found one to execute! */
+
+			    /* An 'unscheduled' demon, re-delay */
+#ifdef PRINTAM
+			    if (!SuspDemon(pw2))
+				(void) ec_panic("Assertion Failed", "unscheduled non-demon");
+#endif
+			    Set_Susp_Delayed(pw2);
+			}
 			if (IsNil(pw1->tag)) {
 			    pw2 = 0;		/* end of this list */
 			    break;
@@ -5254,27 +5264,25 @@ _match_values_:
 			Make_Stamp(S);
 		    }
 		    if (pw2)
-		    	break;
+		    {
+			/* We did find a suspension to wake: set priority and call it! */
+			Set_WP(i);
+			PP -= 1;				/* wake loop */
+			if(E >= EB) {
+			    Push_Ret_Code_To_Eb(ERetCode)
+			    E = ERetEnv;
+			    Push_Env
+			    (--SP)->tag.all = TINT;
+			    SP->val.nint = tmp1;
+			    Check_Local_Overflow
+			}
+			goto _susp_wake_;			/* (pw2) */
+		    }
 		}
 	    }
-	    if (!pw2)
-	    {
-		/* no woken goal found, continue */
-		Set_WP(tmp1);
-		Next_Pp;
-	    }
-	    /* We did find a suspension to wake: set priority and call it! */
-	    Set_WP(i);
-	    PP -= 1;				/* wake loop */
-	    if(E >= EB) {
-		Push_Ret_Code_To_Eb(ERetCode)
-		E = ERetEnv;
-		Push_Env
-		(--SP)->tag.all = TINT;
-		SP->val.nint = tmp1;
-		Check_Local_Overflow
-	    }
-	    goto _susp_wake_;			/* (pw2) */
+	    /* no woken goal found, continue */
+	    Set_WP(tmp1);
+	    Next_Pp;
 
 
  	Case(Continue_after_event, I_Continue_after_event)
