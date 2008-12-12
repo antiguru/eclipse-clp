@@ -1256,7 +1256,7 @@ tr_lin_terms_out([A0 * X0 | AXs], Expr) :-
     %	Expr.
     %
 tr_lin_vec_out(Coefs, Vars, Expr) :-
-	functor(Coefs, _, N),
+	arity(Coefs, N),
 	( N = 0 ->
 	    Expr = 0
 	;
@@ -3232,30 +3232,29 @@ element(Index, ListOrVector, Value):-
 	    ListOrVector = Vector
 	),
 	Vector =.. [[] | List],
-	functor(Vector, _, Length),
+	arity(Vector, Length),
 	Index :: 1..Length,
-	Value :: List,
+	sort(List, ValueList0),
+	Value :: ValueList0,
 	hash:hash_create(Hash),
 	% We do everything in reverse here so that the list entries in the
 	% hash table end up being sorted in ascending order.
-	reverse(List, RevList),
 	(
 	    for(I, Length, 1, -1),  % Count down so the hash entries are sorted
-	    foreach(Val, RevList),
 	    fromto([], Tail, [I | Tail], IndexList0),
-	    param(Hash)
+	    param(Hash,Vector)
 	do
+	    arg(I, Vector, Val),
 	    ( hash:hash_find(Hash, Val, L) ->
 		hash:hash_add(Hash, Val, [I | L])
 	    ;
 		hash:hash_add(Hash, Val, [I])
 	    )
 	),
-	sort(List, ValueList0),
-	ElementData = element_data with [
+	ElementData = element_data{
 		    index_list:IndexList0,
 		    value_list:ValueList0
-		],
+		},
 	Vars = [Index|Value],
 	suspend(element(Index, Vector, Hash, Value, ElementData, Susp), 3,
 		[Vars->min, Vars->max, Vars->hole], Susp),
@@ -3275,14 +3274,16 @@ element(Index, Vector, Hash, Value, ElementData, Susp) :-
 	    Index :: Possible,
 	    kill_suspension(Susp)
 	;
-	    element1(Index, Vector, Hash, Value, ElementData)
+	    call_priority(
+		element1(Index, Vector, Hash, Value, ElementData, Susp),
+		2)
 	).
 
-element1(Index, Vector, Hash, Value, ElementData) :-
-	ElementData = element_data with [
+element1(Index, Vector, Hash, Value, ElementData, Susp) :-
+	ElementData = element_data{
 		    index_list:IndexList0,
 		    value_list:ValueList0
-		],
+		},
 	% Propagate from Index to Value.
 	get_domain_as_list(Index, IndexList1),
 	ord_subtract(IndexList0, IndexList1, IndexDiff),
@@ -3319,9 +3320,14 @@ element1(Index, Vector, Hash, Value, ElementData) :-
 	    ),
 	    ord_subtract(IndexListIn, NotEq, IndexListOut)
 	),
-	setarg(index_list of element_data, ElementData, IndexList2),
-	setarg(value_list of element_data, ElementData, ValueList2),
-	wake.
+	% redelay or die
+	( var(Index), var(Value) ->
+	    setarg(index_list of element_data, ElementData, IndexList2),
+	    setarg(value_list of element_data, ElementData, ValueList2),
+	    unschedule_suspension(Susp)
+	;
+	    kill_suspension(Susp)
+	).
 
 
 %---------------------------------------------------------------------
@@ -3706,7 +3712,7 @@ process_chunk(chunk with [points:Points, left:EndLeft, right:EndRight],
     % XH and YH are variables whose upper bounds correspond to the upper
     % bounds of X and Y, respectively.
 piecewise_chunk(Points, EndLeft, EndRight, XL, XH, YL, YH) :-
-	functor(Points, _, N),
+	arity(Points, N),
 	( N =< 0 ->
 	    printf(error, "piecewise_linear: internal error: piecewise_chunk: no points.%n"),
 	    abort
