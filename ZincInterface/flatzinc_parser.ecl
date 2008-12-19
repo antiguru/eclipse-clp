@@ -28,7 +28,7 @@
 :- comment(summary, "A parser for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2008/06/20 17:33:41 $").
+:- comment(date, "$Date: 2008/12/19 05:56:37 $").
 :- comment(see_also, [library(flatzinc_syntax)]).
 :- comment(desc, html("
 <P>
@@ -110,11 +110,17 @@ read_item(Stream, Term) :-
 
 % Items --------------------------------
 
-item(var(Type):IdentAnns) -->
+item(VarDecl) -->
 	[var], !,
 	non_array_ti_expr_tail(Type),
 	expect(:),
-	ident_anns(IdentAnns).
+	ident_anns(IdentAnns),
+	( [=] ->
+	    { VarDecl = (var(Type):IdentAnns=Value) },
+	    non_array_flat_expr(Value)
+	;
+	    { VarDecl = (var(Type):IdentAnns) }
+	).
 item(Type:IdentAnns=Value) -->
 	non_array_ti_expr_tail(Type),
 	[:], !,

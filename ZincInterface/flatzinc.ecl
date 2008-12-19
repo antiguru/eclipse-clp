@@ -25,7 +25,7 @@
 
 :- module(flatzinc).
 
-:- comment(date, "$Date: 2008/06/20 17:33:41 $").
+:- comment(date, "$Date: 2008/12/19 05:56:37 $").
 :- comment(summary, "Interpreter for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
@@ -241,7 +241,7 @@ TODO
 	the ECLiPSe priorities 1 to 12, or 0 (the default) which stands
 	for the current priority of the calling code.  A sensible value
 	for this option is 2, which means that the setup code is executed
-	under high priority (still allowing debug/visuialisation goals).
+	under high priority (still allowing debug/visualisation goals).
 	The effect of such a setting is that no propagation occurs until
 	all constraints are fully set up, possibly leading to time savings.",
     "solutions":"
@@ -489,7 +489,7 @@ zn_options(SolverOrOptions, Options) :-
 	    Solver = SolverOrOptions,
 	    Options = zn_options{solver:Solver},
 	    default_options(Options)
-	; SolverOrOptions = zn_options{solver:Solver} ->
+	; SolverOrOptions = zn_options{} ->
 	    Options = SolverOrOptions,
 	    default_options(Options),
 	    valid_options(Options)
@@ -670,6 +670,13 @@ interpret(Type:IdentAnns=Init, State) :- !,
 	( Type = no_macro_expansion(array([1..Max]) of ElemInstType) ->
 	   % initialised array-of-par, or partially initialised array-of-var
 	   declare_array(Type, Max, ElemInstType, Ident, Anns, Init, State)
+	; Type = var(VarType) ->
+	    eval_expr(Init, State, EclVar),
+	    State = state{dict:Dict},
+	    new_varnum(State, N),
+	    hash_insert(Dict, Ident,
+		zn_var{id:Ident,ann:Anns,type:Type,group:Group,eclvar:EclVar,num:N}),
+	    declare_var(VarType, EclVar, Ident, Anns, State, Group)
 	;
 	    % a simple parameter
 	    eval_expr(Init, State, EclVar),
@@ -693,13 +700,13 @@ interpret(minimize(SolveAnns,Expr), State) :- !,
 	State = state{solve_goal:minimize(Obj, Anns, Cost),cost:Cost},
 	detach_annotations(SolveAnns, _solve, UserAnns),
 	add_default_anns(State, UserAnns, Anns),
-	eval_expr(Expr, State, Obj).
+	eval_lin_expr(Expr, State, Obj).
 
 interpret(maximize(SolveAnns,Expr), State) :- !,
 	State = state{solve_goal:maximize(Obj, Anns, Cost),cost:Cost},
 	detach_annotations(SolveAnns, _solve, UserAnns),
 	add_default_anns(State, UserAnns, Anns),
-	eval_expr(Expr, State, Obj).
+	eval_lin_expr(Expr, State, Obj).
 
 interpret(output(Elems), State) :- !,
 	State = state{output_elems:Elems}.
@@ -838,6 +845,36 @@ eval_args(FZGoal, State, Goal) :-
 	    arg(I, Goal, Arg),
 	    eval_expr(FZArg, State, Arg)
 	).
+
+
+% Version 0.8 extension: allow special int_float_lin() function.
+% Convert to standard ECLiPSe linear expression.
+eval_lin_expr(int_float_lin(Ints,Floats,IntVars,FloatVars), State, Result) ?- !,
+	(
+	    ( Ints==[], IntVars==[] ->
+		nonempty_lists_to_linex(Floats, FloatVars, State, Result)
+	    ;
+		nonempty_lists_to_linex(Ints, IntVars, State, LinInts),
+		lists_to_linex(Ints, IntVars, State, LinInts, Result)
+	    )
+	->
+	    true
+	;
+	    fzn_error("Illegal arguments: %w", [int_float_lin(Ints,Floats,IntVars,FloatVars)])
+	).
+eval_lin_expr(Expr, State, Result) :-
+	eval_expr(Expr, State, Result).
+
+    nonempty_lists_to_linex([C|Cs], [V|Vs], State, Expr) ?-
+    	eval_expr(C, State, Ceval),
+    	eval_expr(V, State, Veval),
+	lists_to_linex(Cs, Vs, State, (Ceval*Veval), Expr).
+
+    lists_to_linex([], [], _State, Expr0, Expr) ?- Expr=Expr0.
+    lists_to_linex([C|Cs], [V|Vs], State, Expr0, Expr) ?-
+    	eval_expr(C, State, Ceval),
+    	eval_expr(V, State, Veval),
+	lists_to_linex(Cs, Vs, State, Expr0+(Ceval*Veval), Expr).
 
 
 % Generate new variable number

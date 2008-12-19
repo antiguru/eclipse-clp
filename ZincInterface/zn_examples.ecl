@@ -1,5 +1,6 @@
-:- use_module(flatzinc).
-:- use_module(minizinc).
+:- getcwd(D), get_flag(library_path, P), set_flag(library_path, [D|P]).
+:- lib(flatzinc).
+:- lib(minizinc).
 
 :- lib(document).
 
@@ -16,7 +17,7 @@ fzn_test(OutFile) :-
 	close(Out).
 
 fzn_test :-
-	fzn_run("test", fzn_ic),
+%	fzn_run("test", fzn_ic),
 	fzn_run("mzn_examples/2DPacking", fzn_ic),
 	fzn_run("mzn_examples/alpha", fzn_ic),
 	fzn_run("mzn_examples/blocksworld_instance_1", fzn_ic),
@@ -59,11 +60,11 @@ fzn_test :-
 
 	true.
 
-/*
 mzn_run(File, Options) :-
+	printf("---------- %s ----------%n", [File]),
 	subcall(minizinc:mzn_run(File, Options), DG),
-	writeln(DG).
-*/
+	length(DG, NDG),
+	( NDG > 0 -> printf("There are %d delayed goals%n", [NDG]) ; true ).
 
 mzn_test :-
 %	IntSolver = zn_options{solver:fzn_ic,setup_prio:2},
@@ -96,7 +97,7 @@ mzn_test :-
 
 	mzn_run("mzn_examples/queen_cp2", IntSolver),
 	mzn_run("mzn_examples/queen_ip", IntSolver),
-	mzn_run("mzn_examples/queen_ip", fzn_eplex),
+%	mzn_run("mzn_examples/queen_ip", fzn_eplex),
 
 	mzn_run("mzn_examples/radiation", fzn_ic),
 	mzn_run("mzn_examples/simple_sat", IntSolver),
@@ -332,4 +333,17 @@ params :-
 	fzn_search(FznState),
 	fzn_output(FznState).
 
+
+
+% minizinc 0.8 extensions
+
+mzn_test5 :-
+	mzn_run_string(
+	    "
+		var int: m = 3;
+
+		solve satisfy;
+
+	    ",
+	    fzn_ic).
 

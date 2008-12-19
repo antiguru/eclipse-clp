@@ -25,7 +25,7 @@
 
 :- module(minizinc).
 
-:- comment(date, "$Date: 2008/06/20 17:33:41 $").
+:- comment(date, "$Date: 2008/12/19 05:56:37 $").
 :- comment(summary, "Utilities for using MiniZinc with ECLiPSe").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
@@ -207,8 +207,8 @@ customize the behaviour further, e.g.
     Determines which ECLiPSe solvers are used.
 </DD>
 <DT>solutions (default: 1)</DT><DD>
-    The maximum number of solutions computed is using builtin search.
-    (0 = all)
+    The maximum number of solutions computed. Only effective if using
+    builtin search and not optimizing. (0 = all)
 </DD>
 <DT>parser (default: fast)</DT><DD>
     Whether to use a 'strict' or 'fast' parser for FlatZinc input.
@@ -271,6 +271,7 @@ solver mapping. The following table shows the mapping used with fzn_ic
 % We try a couple of locations heuristically
 :- local
 	variable(minizinc_dir, ''),
+	variable(mzn2fzn_exe, "mzn2fzn"),
 	initialization((
 	    get_flag(installation_directory, EclDir),
 	    get_flag(hostarch, Arch),
@@ -293,14 +294,19 @@ solver mapping. The following table shows the mapping used with fzn_ic
 		read_directory(Dir, "", SubDirs0, _),
 		sort(0, >=, SubDirs0, SubDirs),	% attempt to prefer newer ones
 		member(Sub, SubDirs),
-		substring(Sub, "minizinc-", 1)
+		substring(Sub, "minizinc-", 1),
+		concat_string([Dir,Sub,/], MznDir),
+		( concat_string([MznDir,"bin/actual/mzn2fzn"], Mzn2Fzn)
+		; concat_string([MznDir,"bin/private/mzn2fzn-actual"], Mzn2Fzn)
+		),
+		existing_file(Mzn2Fzn, ["",".exe"], [readable], _Mzn2FznExe)
 	    ->
-		concat_string([Dir,Sub,/], Dir3),
-		setval(minizinc_dir, Dir3),
-		os_file_name(Dir3, Dir3OS),
-		printf(log_output, "Using minizinc installation at %w%n", [Dir3OS])
+		setval(minizinc_dir, MznDir),
+		setval(mzn2fzn_exe, Mzn2Fzn),
+		os_file_name(MznDir, MznDirOS),
+		printf(log_output, "Using minizinc installation at %w%n", [MznDirOS])
 	    ;
-		printf(log_output, "No minizinc installation found in either of:%n", []),
+		printf(log_output, "No usable minizinc installation found in either of:%n", []),
 		( foreach(Dir,Dirs) do writeln(log_output, Dir) ),
 		printf(log_output, "Will rely on PATH instead%n", [])
 	    )
@@ -815,11 +821,10 @@ mzn2fzn(ModelFile0, DataFile0, zn_options{solver:Solver,fzn_tmp:OutFlag}, FznStr
 	concat_string([EclZincLib,Solver], EclZincSolverSpecificLib),
 	os_file_name(EclZincSolverSpecificLib, EclZincSolverSpecificLibOS),
 	getval(minizinc_dir, MznDir),
+	getval(mzn2fzn_exe, Mzn2Fzn),
 	( MznDir == '' ->
-	    Mzn2Fzn = "mzn2fzn",	% rely on PATH
 	    Params = ["-I",EclZincSolverSpecificLibOS|Params0]
 	;
-	    concat_string([MznDir, "bin/private/mzn2fzn-actual"], Mzn2Fzn),
 	    concat_string([MznDir, "lib/zinc"], ZincDefaultLib),
 	    os_file_name(ZincDefaultLib, ZincDefaultLibOS),
 	    Params = ["-I",EclZincSolverSpecificLibOS,"-I",ZincDefaultLibOS|Params0]
@@ -828,8 +833,9 @@ mzn2fzn(ModelFile0, DataFile0, zn_options{solver:Solver,fzn_tmp:OutFlag}, FznStr
 	    % use intermediate fzn file, and echo any stderr on error
 	    pathname(ModelFile, Path, Base, _Mzn),
 	    concat_string([Path,Base,".fzn"], PidOrFile),
-%	    writeln(exec([Mzn2Fzn,"--output-to-file",PidOrFile|Params], [null,null,Err], Pid)),
-	    exec([Mzn2Fzn,"--output-to-file",PidOrFile|Params], [null,null,Err], Pid),
+	    os_file_name(PidOrFile, FznFileOS),
+%	    writeln(exec([Mzn2Fzn,"--output-to-file",FznFileOS|Params], [null,null,Err], Pid)),
+	    exec([Mzn2Fzn,"--output-to-file",FznFileOS|Params], [null,null,Err], Pid),
 	    read_stream(Err, Message),
 	    write(error, Message),
 	    wait(Pid, Status),
