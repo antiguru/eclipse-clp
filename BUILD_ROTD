@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.8 2008/06/30 17:43:41 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.9 2009/01/22 06:39:36 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -67,6 +67,7 @@
 # installed_(all|<arch>)_(standard|runtime)
 # tested_(all|<arch>)_(standard|runtime)_(standalone|java)_(<machine>|<class>)
 # incremented_build_number
+# committed_build_number
 # packed_source
 # updated_symlinks
 # copied_to_ftp_<machine>
@@ -226,6 +227,7 @@ DATE_OPTIONS="-D \"$DATE_TAG\""
 
 clean_up=yes
 increment_buildnum=no
+commit_buildnum=no
 install_archives=yes
 jeclipse_tests=yes
 resume_build=no
@@ -1512,56 +1514,42 @@ choose_working_eclipse() {
 # Increment the build number.
 increment_build_number() {
 
-    if ! choose_working_eclipse ; then
-	echo "Unable to find a working ECLiPSe for incrementing version number."
-	return 1
-    fi
-
+    # These settings will also be used later in commit_build_number
     VERSION_LOGFILE=$PREFIX/$LOG_DIR/log.version
     LOCAL_VERSION_LOGFILE=$LOCAL_PREFIX/$LOG_DIR/log.version
     # In release 6.0, the version.pl file moved to Kernel/lib
-    VERSION_FILE=`remote_commands "$machine" "$PREFIX/$BUILD_DIR" "
-	if [ -d Kernel ] ; then
-	    echo Kernel/lib/version.pl
-	else
-	    echo sepia/pl/version.pl
-	fi
-    "`
-    COMMENT_FILE=version.commit
+    if [ -d "$LOCAL_PREFIX/$BUILD_DIR/Kernel" ] ; then
+	VERSION_FILE="Kernel/lib/version.pl"
+    else
+	VERSION_FILE="sepia/lib/version.pl"
+    fi
 
     if milestone_already_achieved incremented_build_number ; then
 	echo "Milestone: Skipping incrementing build number"
     else
-	remote_commands "$machine" "$PREFIX/$BUILD_DIR" "
-	    echo \"Incrementing build number on $machine.\" | tee $VERSION_LOGFILE
-	    echo \"See $VERSION_LOGFILE for details.\"
+	LOCAL_VERSION_FILE="$LOCAL_PREFIX/$BUILD_DIR/$VERSION_FILE"
+	OLD_BUILD=`grep sepia_build < "$LOCAL_VERSION_FILE" | tr -cd 0123456789` &&
+	NEW_BUILD=`expr $OLD_BUILD + 1` &&
+	sed "s/sepia_build(.*)/sepia_build($NEW_BUILD)/" "$LOCAL_VERSION_FILE" \
+			> "$LOCAL_VERSION_FILE.new" &&
+	mv "$LOCAL_VERSION_FILE.new" "$LOCAL_VERSION_FILE" &&
+	chmod a+r,ug+w "$LOCAL_VERSION_FILE" &&
+	mark_milestone_achieved incremented_build_number
+    fi
 
-	    # Run an eclipse to rewrite the version.pl file with the build
-	    # number incremented, and write a cvs commit comment.
-	    # Also create a file in the archive directory specifying the version
-	    # contained in the archives.
-	    $PREFIX/$install_dir/bin/$arch/eclipse -e \"\
-		File = \\\"$VERSION_FILE\\\",\
-		compile(File), sepia_date(Date), sepia_build(CurrBuild),\
-		NextBuild is CurrBuild + 1,\
-		open(File, write, V), writeq(V, sepia_date(Date)),writeln(V, .),\
-		( is_predicate(sepia_patch/1) ->\
-		    sepia_patch(Patch), writeq(V, sepia_patch(Patch))\
-		;   sepia_stage(Stage), writeq(V, sepia_stage(Stage))),\
-		writeln(V, .), writeq(V, sepia_build(NextBuild)),\
-		writeln(V, .), close(V),\
-		get_flag(version, Ver),\
-		open(\\\"$COMMENT_FILE\\\", write, C),\
-		printf(C, \\\"Ready for build %w #%d%n\\\", [Ver, NextBuild]),\
-		close(C),\
-		concat_string([\\\"$PREFIX/$TMP_ARCHIVE_DIR/This is ECLiPSe \\\",\
-			    Ver, #, CurrBuild], Name),\
-		open(Name, write, S),\
-		close(S)\
-	    \" >> $VERSION_LOGFILE 2>&1
-	" &&
+}
 
-	# If the previous command succeeded, check in the updated version.pl
+
+# CVS-commit the build number.
+commit_build_number() {
+
+    if milestone_already_achieved committed_build_number ; then
+	echo "Milestone: Skipping commit build number"
+    else
+	echo \"Committing build number.\" | tee $VERSION_LOGFILE
+	echo \"See $VERSION_LOGFILE for details.\"
+
+	# Check in the updated version.pl
 	# file, making sure we update to the head of the appropriate branch
 	# first (since the main branch versions are checked out with a sticky
 	# date, which prevents commits).  Also update the last successful build
@@ -1575,7 +1563,7 @@ increment_build_number() {
 	    (
 		cvs -d \"$CVSDIR\" update -A $PATCH_OPTIONS \
 			\"$VERSION_FILE\" &&
-		cvs -d \"$CVSDIR\" commit -F \"$COMMENT_FILE\" \
+		cvs -d \"$CVSDIR\" commit -m \"Successfully built $ECLIPSE_VERSION #$BUILD_NUMBER\" \
 			\"$VERSION_FILE\" &&
 		cvs -d \"$CVSDIR\" rtag -a -d $LAST_SUCCESSFUL_BUILD_TAG Eclipse &&
 		cvs -d \"$CVSDIR\" tag -F $LAST_SUCCESSFUL_BUILD_TAG &&
@@ -1583,12 +1571,12 @@ increment_build_number() {
 	    ) >> $VERSION_LOGFILE 2>&1
 	" &&
 
-	mark_milestone_achieved incremented_build_number &&
+	mark_milestone_achieved committed_build_number &&
 
-	echo "Build number incremented successfully." \
+	echo "Build number committed successfully." \
 	    | tee -a $LOCAL_VERSION_LOGFILE \
 	|| (
-	    echo "Couldn't increment build number." \
+	    echo "Couldn't commit build number." \
 		| tee -a $LOCAL_VERSION_LOGFILE
 	    false
 	)
@@ -1858,6 +1846,32 @@ fi
 everything_ok=0
 
 
+# Increment the build number in the checked out version.pl file
+# (only if anything has changed since the last successful build)
+
+if [ "$increment_buildnum" = no ] ; then
+    echo "Increment of build number was not requested." >> $MASTER_LOG_FILE 2>&1
+    SUMMARY="${SUMMARY}
+Increment of build number was not requested.
+"
+elif anything_changed >> $MASTER_LOG_FILE 2>&1 ; then
+    if increment_build_number >> $MASTER_LOG_FILE 2>&1 ; then
+        commit_buildnum=yes
+    else
+	echo "Failed to increment build number." >> $MASTER_LOG_FILE 2>&1
+	SUMMARY="${SUMMARY}
+Failed to increment build number.
+"
+	everything_ok=1
+    fi
+else
+    echo "Skipping increment of build number since nothing has changed." >> $MASTER_LOG_FILE 2>&1
+    SUMMARY="${SUMMARY}
+Skipping increment of build number since nothing has changed.
+"
+fi
+
+
 # We check out the template test directory now so that it is more likely to
 # be in sync with the sources we just checked out than if we wait several
 # hours until it's actually required.
@@ -2006,34 +2020,30 @@ SUMMARY="${SUMMARY}\
 # change since the last successful build. Also pack corresponding sources.
 
 [ "$everything_ok" = 0 ] &&
-if anything_changed >> $MASTER_LOG_FILE 2>&1 ; then
-    if [ "$increment_buildnum" = no ] ; then
-	echo "Increment of build number was not requested." >> $MASTER_LOG_FILE 2>&1
-	SUMMARY="${SUMMARY}
-Increment of build number was not requested.
-"
-    elif increment_build_number >> $MASTER_LOG_FILE 2>&1 ; then
-	SUMMARY="${SUMMARY}
+
+# create a file in the archive directory specifying the version
+remote_commands "$DISK_MACHINE" "$PREFIX/$TMP_ARCHIVE_DIR" "
+    touch \"This is ECLiPSe $ECLIPSE_VERSION#$BUILD_NUMBER\"
+" &&
+
+if [ "$commit_buildnum" = no ] ; then
+    true
+elif commit_build_number >> $MASTER_LOG_FILE 2>&1 ; then
+    SUMMARY="${SUMMARY}
 This is ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
 "
-	if ! pack_source_archive >> $MASTER_LOG_FILE 2>&1 ; then
-	    echo "Packing source failed.  Continuing anyway." >> $MASTER_LOG_FILE
-	    SUMMARY="${SUMMARY}
+    if ! pack_source_archive >> $MASTER_LOG_FILE 2>&1 ; then
+	echo "Packing source failed.  Continuing anyway." >> $MASTER_LOG_FILE
+	SUMMARY="${SUMMARY}
 Packing source failed.  Continuing anyway.
 "
-	fi
-    else
-	echo "Failed to increment build number." >> $MASTER_LOG_FILE 2>&1
-	SUMMARY="${SUMMARY}
-Failed to increment build number.
-"
-	false
     fi
 else
-    echo "Skipping increment of build number since nothing has changed." >> $MASTER_LOG_FILE 2>&1
+    echo "Failed to commit build number." >> $MASTER_LOG_FILE 2>&1
     SUMMARY="${SUMMARY}
-Skipping increment of build number since nothing has changed.
+Failed to commit build number.
 "
+    false
 fi || everything_ok=1
 
 
