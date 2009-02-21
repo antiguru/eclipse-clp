@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.9 2009/01/22 06:39:36 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.10 2009/02/21 05:03:20 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -1215,10 +1215,13 @@ rsync_out() {		# ($machine, $arch -> $remote_prefix)
 	eval remote_prefix=\"'$ROTD_DIR_'$machine\"
 	(
 	    cd "$PREFIX"
-	    files="$ROTD_SUBDIR/all/install.* $ROTD_SUBDIR/all/test.*.$machine $ROTD_SUBDIR/$arch"
-	    # echo "rsync -aRu $files $rsync_machine_name:$remote_prefix"
 	    remote_commands "$DISK_MACHINE" "$PREFIX" "
-		rsync -aRu --rsh=ssh --timeout=60 --exclude 'aux.*' --exclude '*::*' $files $rsync_machine_name:$remote_prefix
+		rsync -aRu --rsh=ssh --timeout=60 \
+			--exclude 'aux.*' --exclude '*::*' \
+			--include 'test.*.$machine/' \
+			--exclude 'test.*/' \
+			$ROTD_SUBDIR/all $ROTD_SUBDIR/$arch \
+			$rsync_machine_name:$remote_prefix
 	    " &&
 	    remote_commands "$machine" "$remote_prefix/$ROTD_SUBDIR" "
 		mkdir -p logs
@@ -1244,9 +1247,8 @@ rsync_in() {	# ($machine)
     eval is_remote_machine=\"'$REMOTE_MACHINE_'$machine\"
     if [ -n "$is_remote_machine" ] ; then
 	eval remote_prefix=\"'$ROTD_DIR_'$machine\"
-	# echo "rsync -a --ignore-existing $rsync_machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX"
 	remote_commands "$DISK_MACHINE" "$PREFIX" "
-	    rsync -a --rsh=ssh --timeout=60 --ignore-existing $rsync_machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX
+	    rsync -rl --rsh=ssh --timeout=60 --ignore-existing $rsync_machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX
 	" || (
 	   echo "Failed to rsync back from $rsync_machine_name"
 	   false
@@ -1263,7 +1265,7 @@ run_test_i386_nt() {
     # command with all its options, since attempts to use jeclipse.bat did
     # not work.
 
-    rsync_out	# ($machine, $arch -> $remote_prefix)
+    rsync_out || return 1	# ($machine, $arch -> $remote_prefix)
 
     standalone_binary="$remote_prefix/$install_dir/lib/$arch/eclipse"
 
@@ -1546,8 +1548,8 @@ commit_build_number() {
     if milestone_already_achieved committed_build_number ; then
 	echo "Milestone: Skipping commit build number"
     else
-	echo \"Committing build number.\" | tee $VERSION_LOGFILE
-	echo \"See $VERSION_LOGFILE for details.\"
+	echo "Committing build number." | tee $VERSION_LOGFILE
+	echo "See $VERSION_LOGFILE for details."
 
 	# Check in the updated version.pl
 	# file, making sure we update to the head of the appropriate branch
