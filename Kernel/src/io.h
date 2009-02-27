@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: io.h,v 1.1 2008/06/30 17:43:56 jschimpf Exp $
+ * VERSION	$Id: io.h,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -312,7 +312,7 @@ Extern void	init_stream ARGS((stream_id,int unit,int mode,dident name,
 			dident prompt,stream_id pstream, int size));
 Extern stream_id ec_open_file ARGS((char*,int,int*));
 Extern stream_id get_stream_id ARGS((value,type,int,int*));
-Extern char	*ec_getstring ARGS((stream_id,long,long*));
+Extern char	*ec_getstring ARGS((stream_id,word,word*));
 Extern char	*string_to_number ARGS((char *start, pword *result, stream_id nst, int syntax));
 
 

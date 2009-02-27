@@ -24,7 +24,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: operator.c,v 1.2 2008/07/20 17:05:47 jschimpf Exp $
+ * VERSION	$Id: operator.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -75,8 +75,8 @@ static dident	didassoc[MAX_ASSOC+1];
 
 static int
     _get_assoc(dident assoc),
-    _insert_op(int scope, long int preced, long int assoc, dident oper, dident module, type mod_tag),
-    _erase_op(dident oper, long int assoc, int scope, dident module, type mod_tag),
+    _insert_op(int scope, word preced, word assoc, dident oper, dident module, type mod_tag),
+    _erase_op(dident oper, word assoc, int scope, dident module, type mod_tag),
     p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, value v_op, type t_op, value vm, type tm),
     p_is_prefix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm),
     p_is_postfix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm),
@@ -130,7 +130,7 @@ bip_op_init(int flags)
 static int
 _get_assoc(dident assoc)
 {
-    long iassoc = MAX_ASSOC;
+    word iassoc = MAX_ASSOC;
     
     while (iassoc > NIL_OP && didassoc[iassoc] != assoc)
 	iassoc--;
@@ -354,7 +354,7 @@ is_visible_op(dident atom, dident module, type mod_tag)
 static int
 p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, value v_op, type t_op, value vm, type tm)
 {
-    long	iassoc;
+    word	iassoc;
     int		scope = (vi.did == d_.local0 ? LOCAL_PROP : GLOBAL_PROP);
 
     /* vi is supplied by the system so no need to test it.		*/
@@ -389,7 +389,7 @@ p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, val
 static int
 p_abolish_op_(value v_op, type t_op, value v_assoc, type t_assoc, value v_mod, type t_mod)
 {
-    long	iassoc;
+    word	iassoc;
 
     Check_Atom_Or_Nil(v_op, t_op);
     Check_Atom_Or_Nil(v_assoc, t_assoc);
@@ -415,7 +415,7 @@ p_abolish_op_(value v_op, type t_op, value v_assoc, type t_assoc, value v_mod, t
   The precedence 0 is used to hide a global operator.
 */
 static int
-_insert_op(int scope, long int preced, long int assoc, dident oper, dident module, type mod_tag)
+_insert_op(int scope, word preced, word assoc, dident oper, dident module, type mod_tag)
 {
     opi		*operator_prop;
     int		prop_type;
@@ -504,7 +504,7 @@ _insert_op(int scope, long int preced, long int assoc, dident oper, dident modul
  * _erase_op(oper, module) erase the definition of an operator
  */
 static int
-_erase_op(dident oper, long int assoc, int scope, dident module, type mod_tag)
+_erase_op(dident oper, word assoc, int scope, dident module, type mod_tag)
 {
     opi		*operator_prop;
     int		prop_type;

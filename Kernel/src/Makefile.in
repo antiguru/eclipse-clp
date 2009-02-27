@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.3 2008/07/20 18:20:10 jschimpf Exp $
+# $Id: Makefile.in,v 1.4 2009/02/27 21:01:04 kish_shen Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -147,6 +147,9 @@ BASIC_LIBS =	@GMP_LD@ -lshm
 BASIC_EXE_LIBS = @GMP_EXE_LD@ -lshm
 PAR_LIBS =	-lnsrv -lpds
 
+# *************** BUILDING OPTIONS **********
+
+BUILD_WITH_TCL = @BUILD_WITH_TCL@
 
 # *************** OBJECTS ***************
 
@@ -615,14 +618,24 @@ COMPILER_MODULES = \
 BOOT_EXEC =	INST_PARAMS Makefile.external eclipse.exe
 
 # Library-related files only needed on certain architectures
+ifeq ($(BUILD_WITH_TCL),yes)
+LIB_OBJECTS_TCL_NT = tkexdr.dll.a tkexdr.def
+LIB_OBJECTS_TCL =  tkeclipse.$(OBJECTS_SUFFIX) tkexdr.$(OBJECTS_SUFFIX)
+else
+LIB_OBJECTS_TCL_NT =
+LIB_OBJECTS_TCL = 
+endif
+
 LIB_OBJECTS_i386_nt = $(LIB_PREFIX)eclipse.dll.a $(LIB_PREFIX)eclipse.def \
-		tkexdr.dll.a tkexdr.def
+		$(LIB_OBJECTS_TCL_NT)
+
+LIB_OBJECTS_x86_64_nt = $(LIB_PREFIX)eclipse.dll.a $(LIB_PREFIX)eclipse.def \
+		$(LIB_OBECTS_TCL_NT)
 
 LIB_OBJECTS_ARCH = $(LIB_OBJECTS_$(ARCH))
 
 LIB_OBJECTS =	$(LIB_PREFIX)eclipse.$(OBJECTS_SUFFIX) \
-		tkeclipse.$(OBJECTS_SUFFIX) \
-		tkexdr.$(OBJECTS_SUFFIX) \
+		$(LIB_OBJECTS_TCL) \
 		$(LIB_OBJECTS_ARCH)
 
 # add these to LIB_OBJECTS if you want to have the parallel stuff:
@@ -823,6 +836,26 @@ $(PREFIX)/lib/i386_nt/%.def:	%.def $(PREFIX)/lib/i386_nt/.stamp
 
 # this also copies from ../src/%.reg because of VPATH
 $(PREFIX)/lib/i386_nt/%.reg:	%.reg $(PREFIX)/lib/i386_nt/.stamp
+	/bin/cp $(@F) $@
+	@/bin/chmod $(PERM) $@
+
+# the .dll.a file is created as a side effect of making the .dll
+$(PREFIX)/lib/x86_64_nt/%.dll.a:	%.dll $(PREFIX)/lib/x86_64_nt/.stamp
+	/bin/cp $(@F) $@
+	@/bin/chmod $(PERM) $@
+
+# the .def file is created as a side effect of making the .dll
+$(PREFIX)/lib/x86_64_nt/eclipse.def:	eclipse.dll $(PREFIX)/lib/x86_64_nt/.stamp
+	/bin/cp $(@F) $@
+	@/bin/chmod $(PERM) $@
+
+# this also copies from ../src/%.def because of VPATH
+$(PREFIX)/lib/x86_64_nt/%.def:	%.def $(PREFIX)/lib/x86_64_nt/.stamp
+	/bin/cp $< $@
+	@/bin/chmod $(PERM) $@
+
+# this also copies from ../src/%.reg because of VPATH
+$(PREFIX)/lib/x86_64_nt/%.reg:	%.reg $(PREFIX)/lib/x86_64_nt/.stamp
 	/bin/cp $(@F) $@
 	@/bin/chmod $(PERM) $@
 

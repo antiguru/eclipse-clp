@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.13 2008/11/05 18:48:52 kish_shen Exp $
+# $Id: Makefile.in,v 1.14 2009/02/27 21:04:28 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -37,6 +37,7 @@ top_srcdir = @top_srcdir@
 PREFIX = @prefix@
 ECLIPSEDIR = $(PREFIX)
 MAKEFILE = Makefile.$(ARCH)
+OSCLASS = @OSCLASS@
 
 CC = @CC@
 CXX = @CXX@
@@ -98,7 +99,7 @@ SYMCLPARCHDIR = $(OSIBASEDIR)symclp$(OSIBUILD)/$(ARCH)
 $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
 	$(CXX) -DCOIN -DCOIN_USE_CLP @OSICLP_ADDDEF@ $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCLPLIBS) @OSICLP_ADDLIB@ -lCbc $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCLPLIBS) @OSICLP_ADDLIB@ -lCbcSolver -lCbc -lCgl -lClp $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	mv seosiclpcbc.$(OBJ_SUFFIX) $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX)
 
@@ -458,10 +459,10 @@ bugclp: bug.c
 # Edge finder
 #----------------------------------------------------------------------
 
-ifeq ($(ARCH),i386_nt)
+ifeq ($(OSCLASS),win)
 
-i386_nt/edge_finder.dll: edge_finder.c
-	[ -d i386_nt ] || mkdir i386_nt
+$(ARCH)/edge_finder.dll: edge_finder.c
+	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
 		$(<:.c=.def) $< $(ECLIBS)
 
@@ -475,10 +476,10 @@ $(ARCH)/edge_finder.$(OBJ_SUFFIX): edge_finder.c
              $(ARCH)/edge_finder.o -o $(ARCH)/edge_finder.$(OBJ_SUFFIX)
 endif
 
-ifeq ($(ARCH),i386_nt)
+ifeq ($(OSCLASS),win)
 
-i386_nt/edge_finder3.dll: edge_finder.c
-	[ -d i386_nt ] || mkdir i386_nt
+$(ARCH)/edge_finder3.dll: edge_finder.c
+	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) -DSTRONG $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
 		$(<:.c=.def) $< $(ECLIBS)
 
@@ -497,10 +498,10 @@ endif
 # Bitmaps
 #----------------------------------------------------------------------
 
-ifeq ($(ARCH),i386_nt)
+ifeq ($(OSCLASS),win)
 
-i386_nt/bitmap.dll: bitmap.c
-	[ -d i386_nt ] || mkdir i386_nt
+$(ARCH)/bitmap.dll: bitmap.c
+	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
 		$(<:.c=.def) $< $(ECLIBS)
 
@@ -519,12 +520,12 @@ endif
 # Interval constraints
 #----------------------------------------------------------------------
 
-ifeq ($(ARCH),i386_nt)
+ifeq ($(OSCLASS),win)
 
-i386_nt/ic.dll: ic.c i386_nt/bitmap.dll
-	[ -d i386_nt ] || mkdir i386_nt
+$(ARCH)/ic.dll: ic.c $(ARCH)/bitmap.dll
+	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -o $@ \
-		$(<:.c=.def) $< i386_nt/bitmap.dll $(ECLIBS)
+		$(<:.c=.def) $< $(ARCH)/bitmap.dll $(ECLIBS)
 else
 
 $(ARCH)/ic.$(OBJ_SUFFIX): ic.c $(ARCH)/bitmap.$(OBJ_SUFFIX)
@@ -552,10 +553,10 @@ RXINCDIR = rxspencer-alpha3.8.g3
 RXLIBDIR = rxspencer-alpha3.8.g3/.libs
 RXNAME	= rxspencer
 
-ifeq ($(ARCH),i386_nt)
+ifeq ($(OSCLASS),win)
 
-i386_nt/eregex.dll: eregex.c rxspencer/libregex.a
-	[ -d i386_nt ] || mkdir i386_nt
+$(ARCH)/eregex.dll: eregex.c rxspencer/libregex.a
+	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -Irxspencer -shared -o $@ \
 		$(<:.c=.def) $< rxspencer/libregex.a $(ECLIBS)
 

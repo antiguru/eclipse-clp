@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.4 2008/07/10 01:08:47 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -66,7 +66,7 @@ static void	_print_edesc(uword);
 #define H_did(start)	*((start) - 1)
 #define Arg(addr)	((pword *) addr - g_emu_.emu_args)
 #define Atom		{p_fprintf(current_output_,"%s ", DidName(*code)); code++;}
-#define VarOffset	p_fprintf(current_output_,"%d ", (int)(*code++)/(long)sizeof(pword))
+#define VarOffset	p_fprintf(current_output_,"%d ", (int)(*code++)/(word)sizeof(pword))
 #define Integer		p_fprintf(current_output_,"%d ", (int)(*code++))
 #define ArgDesc		p_fprintf(current_output_,"<%x> ", (int)(*code++))
 #define Float		p_fprintf(current_output_,"%f ", * (float *) code++)
@@ -125,9 +125,9 @@ static void	_print_edesc(uword);
 #undef Ar
 #endif
 #define Ar		(void) ec_outfs(current_output_,"rA1 ")
-#define Temp		p_fprintf(current_output_,"T%d ", (*code++)/(long)sizeof(pword))
+#define Temp		p_fprintf(current_output_,"T%d ", (*code++)/(word)sizeof(pword))
 #define TempR		(void) ec_outfs(current_output_,"rT ")
-#define Perm		p_fprintf(current_output_,"Y%d ", (*code++)/(long)sizeof(pword))
+#define Perm		p_fprintf(current_output_,"Y%d ", (*code++)/(word)sizeof(pword))
 #define Nl		(void) ec_newline(current_output_);
 #define Else		(void) ec_outfs(current_output_,"Else ");
 #ifdef PRINTAM
@@ -1136,10 +1136,10 @@ print_am(register vmcode *code,
 
 	case Try_parallel:
 		{
-		    long	nalt;
+		    word	nalt;
 		    uword	*ptr;
 
-		    nalt = (long) *code;
+		    nalt = (word) *code;
 		    Integer;
 		    Integer;
 		    ptr = (uword *) *code++;
@@ -1584,7 +1584,7 @@ _print_label(vmcode **ptr)
 static vmcode *
 _print_init_mask(vmcode *code, int name)
 {
-    long	pos = (*code++)/(long)sizeof(pword);
+    word	pos = (*code++)/(word)sizeof(pword);
     unsigned	init_mask = *code++;
 
     if (name)

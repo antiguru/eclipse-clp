@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.1 2008/06/30 17:43:59 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -134,15 +134,15 @@ static int
 		    _num_string_size(value v, type t, int quoted),
 		    _int_to_string(value v, type t, char *buf, int quoted_or_base),
 		    _float_to_string(value v, type t, char *buf, int precise),
-		    _printf_asterisk(long int asterisk, pword **list, type arg_type, stream_id nst, char *par),
+		    _printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char *par),
 		    _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd),
 		    _pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, register int flags),
 		    _is_proper_list(pword *list),
 		    _write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int flags),
-		    _write_quoted(int idwrite, stream_id out, char *name, register long int len, char quotechar, syntax_desc *sd, int depth),
+		    _write_quoted(int idwrite, stream_id out, char *name, register word len, char quotechar, syntax_desc *sd, int depth),
 		    _write_infix(int idwrite, stream_id out, dident d, register int flags, dident module, type mod_tag, syntax_desc *sd, pword *right, int depth),
 		    _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth),
-		    _write_string(int idwrite, stream_id out, char *start, long int length, int depth),
+		    _write_string(int idwrite, stream_id out, char *start, word length, int depth),
 		    _portray_term(int idwrite, stream_id out, value val, type tag, dident module, type mod_tag);
 
 static void	_output_mode_string(char *s, int mask);
@@ -678,9 +678,9 @@ _pwrite_:
     case TINT:
 	Handle_Type_Macro(TINT)
 	if NumberNeedsBrackets(val.nint)
-	    return (p_fprintf(out, "(%ld)", val.nint));
+	    return (p_fprintf(out, "(%" W_MOD "d)", val.nint));
 	else
-	    return (p_fprintf(out, "%ld", val.nint));
+	    return (p_fprintf(out, "%" W_MOD "d", val.nint));
 
     case TDBL:
 	Handle_Type_Macro(TDBL)
@@ -712,10 +712,10 @@ _pwrite_:
 	return (ec_outf(out, "[]", 2));
 
     case TEXTERN:	/* shouldn't occur */
-        return p_fprintf(out, "EXTERN_%lx", val.nint);
+        return p_fprintf(out, "EXTERN_%" W_MOD "x", val.nint);
 
     case TPTR:
-        return p_fprintf(out, "PTR_%lx", val.ptr);
+        return p_fprintf(out, "PTR_%" W_MOD "x", val.ptr);
 
     case TSUSP:
 	Handle_Type_Macro(TSUSP)
@@ -760,7 +760,7 @@ _pwrite_:
     case TCOMP:
     case TGRS:		/* a ground structure in the compiler */
 	if (val.ptr == 0) {	/* e.g. default WL */
-	    return p_fprintf(out, "BAD_TERM_0x%lx_0x%lx", val.all, tag.all);
+	    return p_fprintf(out, "BAD_TERM_0x%" W_MOD "x_0x%" W_MOD "x", val.all, tag.all);
 	}
 	Handle_Type_Macro(TCOMP)
 	if (SameTypeC(val.ptr->tag, TPROC))
@@ -813,7 +813,7 @@ _write_structure_:			/* (d, arg) */
 		    if ((status = ec_outfc(out, 'A' + (char)(narg->val.nint % 26))) < 0)
 			return (status);
 		    if (narg->val.nint / 26)
-			return p_fprintf(out, "%ld", narg->val.nint / 26);
+			return p_fprintf(out, "%" W_MOD "d", narg->val.nint / 26);
 		    return PSUCCEED;
 		case TSTRG:
 		    return ec_outf(out, StringStart(narg->val),
@@ -912,7 +912,7 @@ _write_structure_:			/* (d, arg) */
 	    {			/* val is an operator */
 		int		prec;
 		int		openpar = NO;
-		long		assoc;
+		word		assoc;
 		opi		*post_infix = 0;
 		pword		*narg;
 
@@ -1142,7 +1142,7 @@ _write_args_:				/* (arg,arity) */
 	    return tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag);
 	}
 	else
-	    p_fprintf(out, "BAD_TERM_0x%lx_0x%lx", val.all, tag.all);
+	    p_fprintf(out, "BAD_TERM_0x%" W_MOD "x_0x%" W_MOD "x", val.all, tag.all);
 	Succeed_
     }
     return (PSUCCEED);
@@ -1336,7 +1336,7 @@ _write_infix(int idwrite, stream_id out, dident d, register int flags, dident mo
 #define STRING_PLUS	10
 /*ARGSUSED*/
 static int
-_write_string(int idwrite, stream_id out, char *start, long int length, int depth)
+_write_string(int idwrite, stream_id out, char *start, word length, int depth)
 {
 /* It is not obvious what is the best way to avoid long strings
     if (UseDepth(idwrite) && depth > 0 &&
@@ -1355,7 +1355,7 @@ static int
 _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth)
 {
     int	    status;
-    long    length = DidLength(d);
+    word    length = DidLength(d);
     char    *name = DidName(d);
 
     if (DidArity(d) < 0)
@@ -1446,7 +1446,7 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
  */
 /*ARGSUSED*/
 static int
-_write_quoted(int idwrite, stream_id out, char *name, register long int len, char quotechar, syntax_desc *sd, int depth)
+_write_quoted(int idwrite, stream_id out, char *name, register word len, char quotechar, syntax_desc *sd, int depth)
 {
     int			status;
     int			cut;
@@ -1581,7 +1581,7 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
 			    Dereference_(t2);
 			    if (IsString(t1->tag) && IsInteger(t2->tag)) 
 			    {
-				p_fprintf(str, "%s#%ld", StringStart(t1->val), t2->val.nint);
+				p_fprintf(str, "%s#%" W_MOD "d", StringStart(t1->val), t2->val.nint);
 				name_printed = 2; 
 			    }
 			}
@@ -1606,25 +1606,25 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
 	    {
 	    case TVAR_TAG:
 		if (B_ORIG < v.ptr && v.ptr <= SP_ORIG) /* local */
-		    p_fprintf(str, "l%ld", SP_ORIG - v.ptr);
+		    p_fprintf(str, "l%" W_MOD "d", SP_ORIG - v.ptr);
 		else
 	    case TNAME:
 		if (TG_ORIG <= v.ptr && v.ptr < B_ORIG)	/* global */
-		    p_fprintf(str, "%ld", v.ptr - TG_ORIG);
+		    p_fprintf(str, "%" W_MOD "d", v.ptr - TG_ORIG);
 		else			/* heap */
-		    p_fprintf(str, "h%ld", v.ptr - B_ORIG);
+		    p_fprintf(str, "h%" W_MOD "d", v.ptr - B_ORIG);
 		break;
 
 	    case TUNIV:
-		p_fprintf(str, "%ld", v.ptr - TG_ORIG);
+		p_fprintf(str, "%" W_MOD "d", v.ptr - TG_ORIG);
 		break;
 
 	    case TMETA:
-		p_fprintf(str, "%ld", v.ptr - TG_ORIG);
+		p_fprintf(str, "%" W_MOD "d", v.ptr - TG_ORIG);
 		break;
 
 	    default:
-		p_fprintf(str, "BAD_VAR_0x%lx_0x%lx", v.all, t.all);
+		p_fprintf(str, "BAD_VAR_0x%" W_MOD "x_0x%" W_MOD "x", v.all, t.all);
 		break;
 	    }
 	}
@@ -1762,7 +1762,7 @@ static int
 _num_string_size(value v, type t, int quoted)
 {
     /* enough space for an integer in base 2 + sign */
-    return 8*SIZEOF_LONG + 1;
+    return 8*SIZEOF_WORD + 1;
 }
 
 /*ARGSUSED*/
@@ -2283,7 +2283,7 @@ _return_res_:
 #define Bip_Error(N) Bip_Error_Fail(N)
 
 static int
-_printf_asterisk(long int asterisk, pword **list, type arg_type, stream_id nst, char *par)
+_printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char *par)
 {
     pword	*elem;
     pword	*elem2;

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.4 2008/09/01 11:44:54 jschimpf Exp $
+ * $Id: sepia.h,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -107,14 +107,14 @@
 
 #define TREFBIT		SIGN_BIT
 
-#define TVAR_TAG	-1	/* simple variable			*/
-#define TNAME		-2	/* named variable			*/
-#define TMETA		-3	/* attributed variable (metaterm)	*/
-#define TUNIV		-4	/* explictly quantified variable	*/
-#define TSTAMP		-5	/* time stamp (never self reference)	*/
+#define TVAR_TAG	-1	/* simple variable		     */
+#define TNAME		-2	/* named variable		     */
+#define TMETA		-3	/* attributed variable (metaterm)    */
+#define TUNIV		-4	/* explictly quantified variable     */
+#define TSTAMP		-5	/* time stamp (never self reference) */
 
-#define TFORWARD	-6	/* used internally for heap copying	*/
-#define TFORWARD2	-7	/* used internally for heap copying	*/
+#define TFORWARD	-6	/* used internally for heap copying  */
+#define TFORWARD2	-7	/* used internally for heap copying  */
 
 
 /* some aliases */
@@ -205,7 +205,7 @@
 
 #define TagNameField(t)		((t) & TAG_NAME_MASK)
 #define IsNamed(t)		TagNameField(t)
-#define TagDid(t)	((dident) bitfield_did((long)(TagNameField(t)>>8)))
+#define TagDid(t)	((dident) bitfield_did((word)(TagNameField(t)>>8)))
 
 #define TagTypeC(t)		((int8) (t))
 #define TagType(item_tag)	TagTypeC((item_tag).kernel)
@@ -631,9 +631,9 @@
 	(pw)->tag.kernel = TDICT; \
 	(pw)->val.did = wdid;
 
-#define Make_Integer(pw, /* long */ n) \
+#define Make_Integer(pw, /* word */ n) \
 	(pw)->tag.kernel = TINT; \
-	(pw)->val.nint = (long) n;
+	(pw)->val.nint = (word) n;
 
 #define Make_Double(pw, /* double */ dbl) \
 	(pw)->tag.kernel = TDBL; \
@@ -718,7 +718,7 @@
 	Set_Buffer_Size(pw, size_bytes); \
 	TG = (pw) + BufferSizePwords(size_bytes); }
 
-#define Set_Buffer_Size(pw, size_bytes) (pw)->val.nint = (size_bytes)-1L;
+#define Set_Buffer_Size(pw, size_bytes) (pw)->val.nint = (size_bytes) - 1;
 #define BufferSize(pw) ((int) (pw)->val.nint + 1)
 #define BufferStart(pw) ((pw) + 1)
 #define BufferPwords(pw) ((int) (pw)->val.nint / sizeof(pword) + 2)
@@ -788,7 +788,7 @@
 #define Copy_Bytes(dest, source, len) \
 	{   register char *dp = dest;\
 	    register char *sp = source;\
-	    register long ctr = len;\
+	    register word ctr = len;\
 	    while (ctr-- > 0) *dp++ = *sp++;\
 	}
 

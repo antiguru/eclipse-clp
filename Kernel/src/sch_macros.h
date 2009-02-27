@@ -87,21 +87,21 @@ int global_flags();
 }
 #define Sch_Event_Notify1(name, type, t1) {				\
     if (sch_trace_on)							\
-	printf( "%s %s ' %lx %lx %lx '\n", name, type,			\
-	   (unsigned long)Site(t1),(unsigned long)Knot(t1),(unsigned long)Edge(t1));	\
+	printf( "%s %s ' %" W_MOD "x %" W_MOD "x %" W_MOD "x '\n", name, type,			\
+	   (uword)Site(t1),(uword)Knot(t1),(uword)Edge(t1));	\
 }
 #define Sch_Event_Notify2(name, type, t1, t2) {				\
     if (sch_trace_on)							\
-	printf("%s %s ' %lx %lx %lx '  ' %lx %lx %lx '\n", name, type,	\
-	   (unsigned long)Site(t1),(unsigned long)Knot(t1),(unsigned long)Edge(t1),	\
-	   (unsigned long)Site(t2),(unsigned long)Knot(t2),(unsigned long)Edge(t2));	\
+	printf("%s %s ' %" W_MOD "x %" W_MOD "x %" W_MOD "x '  ' %" W_MOD "x %" W_MOD "x %" W_MOD "x '\n", name, type,	\
+	   (uword)Site(t1),(uword)Knot(t1),(uword)Edge(t1),	\
+	   (uword)Site(t2),(uword)Knot(t2),(uword)Edge(t2));	\
 }
 #define Sch_Event_Notify3(name, type, t1, t2, t3) {			\
     if (sch_trace_on)							\
-	printf("%s %s ' %lx %lx %lx '  ' %lx %lx %lx '  ' %lx %lx %lx '\n", name, type, \
-	   (unsigned long)Site(t1),(unsigned long)Knot(t1),(unsigned long)Edge(t1),	\
-	   (unsigned long)Site(t2),(unsigned long)Knot(t2),(unsigned long)Edge(t2),	\
-	   (unsigned long)Site(t3),(unsigned long)Knot(t3),(unsigned long)Edge(t3));	\
+	printf("%s %s ' %" W_MOD "x %" W_MOD "x %" W_MOD "x '  ' %" W_MOD "x %" W_MOD "x %" W_MOD "x '  ' %" W_MOD "x %" W_MOD "x %" W_MOD "x '\n", name, type, \
+	   (uword)Site(t1),(uword)Knot(t1),(uword)Edge(t1),	\
+	   (uword)Site(t2),(uword)Knot(t2),(uword)Edge(t2),	\
+	   (uword)Site(t3),(uword)Knot(t3),(uword)Edge(t3));	\
 }
 #endif /* SDEBUG || NSHDLNOTICE */
 
@@ -146,8 +146,8 @@ int global_flags();
 
 /* (st_id_t *) '(t)' */ 
 #define PackSite(t,s)	(Site(t) = (s))
-#define PackKnot(t,k) ((t)->knot = (unsigned long)(k)-Scheduler(Site(t))->sch_base)
-#define PackEdge(t,e) ((t)->edge = (unsigned long)(e)-Scheduler(Site(t))->sch_base)
+#define PackKnot(t,k) ((t)->knot = (uword)(k)-Scheduler(Site(t))->sch_base)
+#define PackEdge(t,e) ((t)->edge = (uword)(e)-Scheduler(Site(t))->sch_base)
 
 #define Site(t) ((t)->site)
 #define Knot(t) ((st_knot_t *)(Scheduler(Site(t))->sch_base + (t)->knot))

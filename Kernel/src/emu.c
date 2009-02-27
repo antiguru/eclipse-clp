@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.11 2008/12/12 05:50:38 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.12 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -113,16 +113,16 @@
 
 typedef union s_code_item {
     vmcode		inst;
-    long		offset;
+    word		offset;
     pword		*arg;
     pword               *ptr;
-    long		nint;
+    word		nint;
     char		*str;
     float		real;
     dident		did;
     value		val;
     uword		all;		/* as for value */
-    long                kernel;         /* for tags */
+    word                kernel;         /* for tags */
     pri			*proc_entry;
     int			(*func)();
     union s_code_item	*code;
@@ -565,7 +565,7 @@ extern pri	**default_error_handler_,
  */
 
 #define Find_Alternative(n) {					\
-	int alt; long tmp2;					\
+	int alt; word tmp2;					\
 	for (alt = (n)-1; alt; --alt) {				\
 	    tmp2 = back_code->inst;				\
 	    if (SameCode(tmp2, Retry_me_else)) {		\
@@ -4491,9 +4491,9 @@ _integer_range_switch_:
 		{
 		    i = pw1->val.nint;
 		    pw1 = (PP++)->ptr;
-		    if ((long) i < pw1->val.nint)
+		    if ((word) i < pw1->val.nint)
 		        PP = (emu_code) (pw1->tag.all);
-		    else if ((long) i > (++pw1)->val.nint)
+		    else if ((word) i > (++pw1)->val.nint)
 		        PP = (emu_code) (pw1->tag.all);
 		    else if (PP->nint == 0)	/* no further table */
 		        PP = (PP + 1)->code;
@@ -5529,7 +5529,7 @@ _anycall_:				/* (pw1,DBG_PORT,i) */
 		    err_code = CALLING_UNDEFINED;
 		goto _metacall_err_;
 	    }
-	    DBG_INVOC = 0L;
+	    DBG_INVOC = 0;
 
 	    /* first check for special goals ,/2 ;/2 ->/2 !/0	*/
 	if (proc->module_ref == d_.kernel_sepia)
@@ -5799,7 +5799,7 @@ _susp_wake_:					/* suspension in pw2 */
 	    PP++;			/* skip environment size	*/
 
 _handler_call_:				/* (proc,DBG_PORT) */
-	    DBG_INVOC = 0L;
+	    DBG_INVOC = 0;
 	    val_did = PriDid(proc);
 	    tmp1 = DidArity(val_did);
 	    Set_Det
@@ -6178,7 +6178,7 @@ _end_external_:
 			DBG_LINE = PP[3].nint;
 			DBG_FROM = PP[4].nint;
 			DBG_TO = PP[5].nint;
-			DBG_INVOC = 0L;
+			DBG_INVOC = 0;
 			Fake_Overflow;
 		    }
 		} else /* if (PriFlags(proc) & DEBUG_ST) */ {
@@ -6194,7 +6194,7 @@ _end_external_:
 			DBG_LINE = PP[3].nint;
 			DBG_FROM = PP[4].nint;
 			DBG_TO = PP[5].nint;
-			DBG_INVOC = 0L;
+			DBG_INVOC = 0;
 			Fake_Overflow;
 		    }
 		}
@@ -6795,7 +6795,7 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	Case(Gc, I_Gc)			/* (forceflag) */
 	    tmp1 = PP++->offset;
 	    Export_B_Sp_Tg_Tt_Eb_Gb
-	    err_code = collect_stacks(0L, tmp1);
+	    err_code = collect_stacks(0, tmp1);
 	    Import_B_Sp_Tg_Tt_Eb_Gb
 #if 0
 	    if (err_code > 0)		/* request to leave a choicepoint */
@@ -7221,7 +7221,7 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	if (IsNumber(pw1->tag) && IsNumber(pw2->tag)) {\
 	    int relation = BIxx; /* don't use a register */ \
 	    Export_B_Sp_Tg_Tt\
-	    err_code = (long) arith_compare(pw1->val, pw1->tag,\
+	    err_code = (word) arith_compare(pw1->val, pw1->tag,\
 		pw2->val, pw2->tag, &relation);\
 	    Import_Tg_Tt\
 	    if (err_code == PDELAY){\
@@ -7514,7 +7514,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		PP[-2].arg->val.nint =
 #if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
 		    /* need to check this, causes arith exception on i386 */
-		    (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) ? 0L :
+		    (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) ? 0 :
 #endif
 		    /* Assume % truncates towards zero */
 		       pw1->val.nint % pw2->val.nint;
@@ -7579,7 +7579,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 #if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
 		/* need to check this, causes arith exception on i386 */
 		} else if (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) {
-		    tmp1 = 0L;
+		    tmp1 = 0;
 #endif
 		} else {
 		    /* Assume % truncates towards zero */

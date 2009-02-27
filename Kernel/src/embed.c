@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.1 2008/06/30 17:43:54 jschimpf Exp $
+ * $Id: embed.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -87,11 +87,11 @@ static void *resume_thread = NULL;
 int Winapi
 ec_set_option_int(int opt, int val)
 {
-    return ec_set_option_long(opt, (long) val);
+    return ec_set_option_long(opt, (word) val);
 }
 
 int Winapi
-ec_set_option_long(int opt, long val)
+ec_set_option_long(int opt, word val)
 {
     switch (opt) {
     case EC_OPTION_PARALLEL_WORKER:	ec_options.parallel_worker = (int) val; break;
@@ -822,7 +822,7 @@ pword Winapi
 ec_long(const long int l)
 {
 	pword w;
-	Make_Integer(&w,l);
+	Make_Integer(&w,(word)l);
 	return w;
 }
 
@@ -833,8 +833,14 @@ ec_get_long(const pword w, long int *l)
     Dereference_(pw);
 
     if (IsInteger(pw->tag)) 
+    {
+#if SIZEOF_WORD > SIZEOF_LONG
+	/* range error if val.nint is too large for long */
+	if (pw->val.nint > __LONG_MAX__ || pw->val.nint <= -(__LONG_MAX__))
+	    return RANGE_ERROR;
+#endif
 	*l = pw->val.nint;
-    else if (IsBignum(pw->tag)) 
+    } else if (IsBignum(pw->tag)) 
 	return RANGE_ERROR;
     else if (IsRef(pw->tag))
 	return INSTANTIATION_FAULT;

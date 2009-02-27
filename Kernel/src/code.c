@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.9 2008/09/01 11:44:54 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.10 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /********************************************************************
@@ -259,7 +259,7 @@ make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, int 
 
 
 vmcode *
-allocate_code_block(long int size, uword btablepos, uword link, uword bid, uword fid, uword btype, uword cid)
+allocate_code_block(word size, uword btablepos, uword link, uword bid, uword fid, uword btype, uword cid)
 {
     vmcode	*code;
 
@@ -395,7 +395,7 @@ code_init(int flags)
  *	:@(LookupModule,Goal,CallerModule) - the tool body of :/2
  */
     did1 = in_dict(":@", 3);
-    Allocate_Default_Procedure(4L, did1);
+    Allocate_Default_Procedure(4, did1);
     Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
     Store_2(SavecutAM, Address(4))
     Store_i(Explicit_jmp)	/* (LookupMod,Goal,CallerMod,Cut) */
@@ -733,7 +733,7 @@ code_init(int flags)
   if (flags & INIT_SHARED)
   {
     did1 = in_dict("block", 4);
-    Allocate_Default_Procedure(16L, did1);
+    Allocate_Default_Procedure(16, did1);
     Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_TRMETA, code);
     Store_2(Catch, 0)
     Store_2(Allocate, Esize(1))
@@ -746,7 +746,7 @@ code_init(int flags)
     Store_i(Code_end);
 
     did1 = in_dict("block_atomic", 4);
-    Allocate_Default_Procedure(16L, did1);
+    Allocate_Default_Procedure(16, did1);
     Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_TRMETA, code);
     Store_2(Catch, 1)
     Store_2(Allocate, Esize(1))
@@ -1010,7 +1010,7 @@ code_init(int flags)
  * reduce the amount of incremental stack copying.
  */
     did1 = in_dict("par_true", 0);
-    Allocate_Default_Procedure(15L, did1);
+    Allocate_Default_Procedure(15, did1);
     Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
     aux = code;
     Store_3(Try_parallel, 1, 0)
@@ -1032,7 +1032,7 @@ code_init(int flags)
 /*
  *	call_suspension(+Suspension)
  */
-    Allocate_Default_Procedure(2L, d_call_susp_);
+    Allocate_Default_Procedure(2, d_call_susp_);
     Exported_Kernel_Proc(d_call_susp_, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
     Store_i(Suspension_jmp)
     Store_i(Code_end)
@@ -1041,7 +1041,7 @@ code_init(int flags)
  * repeat/0
  */
     did1 = in_dict("repeat", 0);
-    Allocate_Default_Procedure(9L, did1);
+    Allocate_Default_Procedure(9, did1);
     Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
     aux = code;
     Store_4(Try, NO_PORT, 0, aux + 7)
@@ -1053,7 +1053,7 @@ code_init(int flags)
  * clause/5
  */
     did1 = in_dict("clause",5);
-    Allocate_Default_Procedure(4L, did1);
+    Allocate_Default_Procedure(4, did1);
     Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
     Store_i(Clause);
     Store_i(Retd);
@@ -1090,7 +1090,7 @@ code_init(int flags)
  * dummy code for checking the module in top.pl until this procedure is
  * really defined
  */
-    Allocate_Default_Procedure(2L, d_.module_directive);
+    Allocate_Default_Procedure(2, d_.module_directive);
     Local_Kernel_Proc(d_.module_directive, ARGFIXEDWAM, code);
     Store_i(Retd);
     Store_i(Code_end);
@@ -1099,7 +1099,7 @@ code_init(int flags)
  * boot_error/2
  */
     did1 = in_dict("boot_error", 2);
-    Allocate_Default_Procedure(70L, did1);
+    Allocate_Default_Procedure(70, did1);
     Local_Kernel_Proc(did1, ARGFIXEDWAM , code);
     pd = KernelPri(in_dict("write_", 2));
 
@@ -1143,7 +1143,7 @@ code_init(int flags)
  * yield/4
  */
     did1 = in_dict("yield", 4);
-    Allocate_Default_Procedure(13L, did1);
+    Allocate_Default_Procedure(13, did1);
     Local_Kernel_Proc(did1, ARGFIXEDWAM , code);
     Store_3(Put_integerAM, Address(0), PYIELD)
     Store_2(Bounce, 0); /* exits the emulator and bounce over the trampoline */
@@ -1277,7 +1277,7 @@ b_built_code(pri *pd, word function, int nondet)
 	dident		did1 = pd->did;
 
 	arity = DidArity(did1);
-	Allocate_Default_Procedure((long) (4 + (nondet?7:0)), did1);
+	Allocate_Default_Procedure((word) (4 + (nondet?7:0)), did1);
 	pricode.vmc = code;
 	pd->flags |= EXTERN;
 	pri_define_code(pd, VMCODE, pricode);

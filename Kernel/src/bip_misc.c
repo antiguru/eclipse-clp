@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.4 2008/10/15 10:09:26 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -141,7 +141,7 @@ static int p_date(value v, type t),
 
 static void
 	_fseed(uint32),
-	_post_alarm(long);
+	_post_alarm(long int);
 
 
 int	p_heap_stat(value vwhat, type twhat, value vval, type tval);
@@ -1343,7 +1343,7 @@ p_kill(value pv, type pt, value sv, type st)
 #else
 	if (kill((int) pv.nint, (int) sv.nint) < 0)
 	{
-	    if (sv.nint == 0L && errno == ESRCH)
+	    if (sv.nint == 0 && errno == ESRCH)
 	    {
 		Fail_;		/* just checking for process existence */
 	    }

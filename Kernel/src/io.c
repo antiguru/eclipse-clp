@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.1 2008/06/30 17:43:56 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -1255,12 +1255,12 @@ ec_ungetch(stream_id nst)
 
 char *
 ec_getstring(stream_id nst,
-	long int n,		/* number of bytes requested */
-	long int *res)		/* number of bytes read, or error code */
+	word n,		/* number of bytes requested */
+	word *res)	/* number of bytes read, or error code */
 {
     register unsigned char	*pbuf, *paux;
-    long			avail, nleft;
-    long			lex_aux_size;
+    word			avail, nleft;
+    word			lex_aux_size;
     int				err;
 
     pbuf = StreamPtr(nst);
@@ -1304,7 +1304,7 @@ ec_getstring(stream_id nst,
 	    *res = n - nleft;
 	    return (char *) StreamLexAux(nst);
 	default:
-	    *res = (long) err;
+	    *res = (word) err;
 	    return NULL;
 	}
 	pbuf = StreamPtr(nst);
@@ -1459,7 +1459,7 @@ static int
 _queue_write(stream_id nst, char *s, int count)
 {
     unsigned char *wptr, *wbuf, *new_buf;
-    long i, bfree;
+    word i, bfree;
 
     if (count == 0)
 	return PSUCCEED;
@@ -1750,9 +1750,9 @@ ec_flush(stream_id nst)
  * This function may modify StreamBuf, StreamPtr, StreamSize
  */
 static void
-_resize_stream_buffer(stream_id nst, long newsize)
+_resize_stream_buffer(stream_id nst, word newsize)
 {
-    register long ptr_off = StreamPtr(nst) - StreamBuf(nst);
+    register word ptr_off = StreamPtr(nst) - StreamBuf(nst);
 
     StreamBuf(nst) = (unsigned char *) (
 			(linked_io_buffer_t*) hg_resize(
@@ -1814,7 +1814,7 @@ _local_io_flush_out(stream_id nst)
     *(StreamBuf(nst) - 1) = *(StreamPtr(nst) - 1);
     if (StreamMode(nst) & MREAD && !IsTty(nst))
     {
-	if (lseek(StreamUnit(nst), (long) - StreamCnt(nst), LSEEK_INCR) == -1L)
+	if (lseek(StreamUnit(nst), (long) - StreamCnt(nst), LSEEK_INCR) == -1)
 	{
 	    Set_Errno;
 	    return(OUT_ERROR);
@@ -2095,7 +2095,7 @@ _socket_at(stream_id nst, long int *pos)
 static int
 _dummy_at(stream_id nst, long int *pos)
 {
-    *pos = 0L;
+    *pos = 0;
     Succeed_;
 }
 
@@ -2112,7 +2112,7 @@ _queue_at(stream_id nst, long int *pos)
     if (IsWriteStream(nst))	/* write and read/write queues */
 	*pos = _queue_size(nst);
     else
-	*pos = 0L;
+	*pos = 0;
     Succeed_;
 }
 

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.3 2008/09/01 11:44:54 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.4 2009/02/27 21:01:04 kish_shen Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -125,7 +125,7 @@
 typedef union
 {
     vmcode	*vmc;		/* pointer to virtual machine code	*/
-    long	cint;		/* builtin number in emulator		*/
+    word	cint;		/* builtin number in emulator		*/
     int		(*func)();	/* address of C function		*/
 } pri_code_t;
 
@@ -241,46 +241,46 @@ typedef struct pri
 /* The descriptor was not yet referenced (from code, or equivalent).
  * This implies that it can still be changed rather freely.
  */
-#define NOREFERENCE	0x20000000L
+#define NOREFERENCE	0x20000000
 
 
 /* Procedure visibility */
-#define PREDSCOPE	0x07000000L
-#define QUALI		0x00000000L
-#define LOCAL		0x01000000L
-#define EXPORT		0x02000000L
-#define IMPORT		0x03000000L
-#define DEFAULT		0x04000000L
-#define IMPEXP		0x05000000L
+#define PREDSCOPE	0x07000000
+#define QUALI		0x00000000
+#define LOCAL		0x01000000
+#define EXPORT		0x02000000
+#define IMPORT		0x03000000
+#define DEFAULT		0x04000000
+#define IMPEXP		0x05000000
 
-#define TO_EXPORT	0X10000000L	/* always together with LOCAL */
-#define DONT_REEXPORT	0X10000000L	/* together with EXPORT/IMPEXP */
+#define TO_EXPORT	0X10000000	/* always together with LOCAL */
+#define DONT_REEXPORT	0X10000000	/* together with EXPORT/IMPEXP */
 
 
 /* Various predicate properties (set via declarations or by the compiler) */
-#define SYSTEM		0x40000000L	/* was compiled with system-pragma */
-#define PROC_PARALLEL	0x00400000L	/* has been declared parallel	*/
-#define PROC_DEMON	0x00200000L	/* has been declared a demon	*/
-#define PROC_DYNAMIC	0x80000000L	/* has been declared dynamic	*/
-#define EXTERN		0X00000080L	/* has been declared external	*/
-#define TOOL		0x00000040L	/* it is a tool interface */
-#define AUTOLOAD	0X00000400L	/* autoload flag, causes autoload
+#define SYSTEM		0x40000000	/* was compiled with system-pragma */
+#define PROC_PARALLEL	0x00400000	/* has been declared parallel	*/
+#define PROC_DEMON	0x00200000	/* has been declared a demon	*/
+#define PROC_DYNAMIC	0x80000000	/* has been declared dynamic	*/
+#define EXTERN		0X00000080	/* has been declared external	*/
+#define TOOL		0x00000040	/* it is a tool interface */
+#define AUTOLOAD	0X00000400	/* autoload flag, causes autoload
 					 * event rather than undefined
 					 * procedure event */
-#define PROC_AUXILIARY	0X00000800L	/* it is a compiler auxiliary, ie. it
+#define PROC_AUXILIARY	0X00000800	/* it is a compiler auxiliary, ie. it
 					   needs to be saved in .eco files */
-#define PROC_DEPRECATED	0x00000020L	/* deprecated, warn if used	*/
+#define PROC_DEPRECATED	0x00000020	/* deprecated, warn if used	*/
 
 
 /* Debugger flags */
-#define DEBUG_TYPES	0X081F0100L
-#define DEBUG_TR	0X00010000L	/* traceable 		*/
-#define DEBUG_SP	0X00020000L	/* has a spy point	*/
-#define DEBUG_SK	0X00040000L	/* skipped		*/
-#define DEBUG_DB	0x00080000L	/* in debugging mode	*/
-#define DEBUG_ST	0x00100000L	/* start debugger	*/
-#define DEBUG_INVISIBLE	0x08000000L	/* not even a box	*/
-#define DEBUG_TRMETA	0X00000100L	/* always trace metacalled subgoals */
+#define DEBUG_TYPES	0X081F0100
+#define DEBUG_TR	0X00010000	/* traceable 		*/
+#define DEBUG_SP	0X00020000	/* has a spy point	*/
+#define DEBUG_SK	0X00040000	/* skipped		*/
+#define DEBUG_DB	0x00080000	/* in debugging mode	*/
+#define DEBUG_ST	0x00100000	/* start debugger	*/
+#define DEBUG_INVISIBLE	0x08000000	/* not even a box	*/
+#define DEBUG_TRMETA	0X00000100	/* always trace metacalled subgoals */
 /* default flags for a traceable procedure */
 #define DEBUG_DF	DEBUG_TR
 
@@ -294,7 +294,7 @@ typedef struct pri
 
 /* Scheduling priority */
 #define PROC_PRIO_SHIFT	12
-#define PROC_PRIORITY	0X0000F000L	/* default suspension priority */
+#define PROC_PRIORITY	0X0000F000	/* default suspension priority */
 
 
 /*
@@ -309,22 +309,22 @@ typedef struct pri
  */
 
 /* CODETYPE describes the contents of the .code field (a union) */
-#define CODETYPE	0X00000200L
-#define	VMCODE		0X00000200L	/* virtual machine code		*/
-#define	FUNPTR		0X00000000L	/* function pointer		*/
+#define CODETYPE	0X00000200
+#define	VMCODE		0X00000200	/* virtual machine code		*/
+#define	FUNPTR		0X00000000	/* function pointer		*/
 
 #define B_SAFE		VMCODE		/* obsolete built-in classification */
 #define B_UNSAFE	VMCODE		/* obsolete built-in classification */
 
-#define CODE_DEFINED	0x00800000L	/* has non-default code		*/
+#define CODE_DEFINED	0x00800000	/* has non-default code		*/
 
 
 /* ARGPASSING describes the calling convention of the predicate */
-#define ARGPASSING	0X00000001L
-#define ARGFIXEDWAM	0X00000000L	/* Args in A[1]..A[n]		*/
-#define ARGFLEXWAM 	0X00000001L	/* various regs and immediate args */
-/* #define ARGSTACK	0X00000002L	Args on local stack (obsolete)	*/
-/* #define ARGSTRUCT	0X00000003L	future extension */
+#define ARGPASSING	0X00000001
+#define ARGFIXEDWAM	0X00000000	/* Args in A[1]..A[n]		*/
+#define ARGFLEXWAM 	0X00000001	/* various regs and immediate args */
+/* #define ARGSTACK	0X00000002	Args on local stack (obsolete)	*/
+/* #define ARGSTRUCT	0X00000003	future extension */
 
 
 
@@ -333,15 +333,15 @@ typedef struct pri
    for Prolog ones.
    ***The order is important!
  */
-#define UNIFTYPE	0X0000001cL /* Unification type field */
+#define UNIFTYPE	0X0000001c /* Unification type field */
 
-#define U_NONE		0x00000000L /* no unification at all, must be 0!      */
-#define U_SIMPLE	0x00000004L /* unify 1 arg with a simple term	      */
-#define U_GROUND	0x00000008L /* unify args with ground terms+functor/3 */
-#define U_FRESH		0x0000000cL /* unify to a term with fresh variables   */
-#define U_UNIFY		0x0000000cL /* general unification		      */
-#define U_GLOBAL	0x00000010L /* binds to a term with other variables   */
-#define U_DELAY		0x00000014L /* a delay condition */
+#define U_NONE		0x00000000 /* no unification at all, must be 0!      */
+#define U_SIMPLE	0x00000004 /* unify 1 arg with a simple term	      */
+#define U_GROUND	0x00000008 /* unify args with ground terms+functor/3 */
+#define U_FRESH		0x0000000c /* unify to a term with fresh variables   */
+#define U_UNIFY		0x0000000c /* general unification		      */
+#define U_GLOBAL	0x00000010 /* binds to a term with other variables   */
+#define U_DELAY		0x00000014 /* a delay condition */
 
 
 
@@ -476,8 +476,8 @@ typedef struct macro_desc
 typedef pword opi;
 
 /* access thru *opi							*/
-#define		ASSOC_MASK	0X00000F00L /* mask the assoc bits	*/
-#define		PRECED_MASK	0X07FF0000L /* mask the preced bits	*/
+#define		ASSOC_MASK	0X00000F00 /* mask the assoc bits	*/
+#define		PRECED_MASK	0X07FF0000 /* mask the preced bits	*/
 #define		ASSOC_SHIFT	8
 #define		PRECED_SHIFT	16
 #define		SHIFTED_ASSOC_MASK	(ASSOC_MASK >> ASSOC_SHIFT)
@@ -494,17 +494,17 @@ typedef pword opi;
     (O)->tag.kernel = ((O)->tag.kernel & ~PRECED_MASK) | ((V) << PRECED_SHIFT)
 
 /* Operator Associativities						*/
-#define		NIL_OP		0L
-#define		FX		1L
-#define		FY		2L
-#define		XF		3L
-#define		YF		4L
-#define		XFX		5L
-#define		XFY		6L
-#define		YFX		7L
-#define		FXX		8L
-#define		FXY		9L
-#define		MAX_ASSOC	9L
+#define		NIL_OP		0
+#define		FX		1
+#define		FY		2
+#define		XF		3
+#define		YF		4
+#define		XFX		5
+#define		XFY		6
+#define		YFX		7
+#define		FXX		8
+#define		FXY		9
+#define		MAX_ASSOC	9
 
 /* Tests for Associativity */
 
@@ -544,17 +544,17 @@ typedef pword opi;
 /* dictionary */
 Extern dident	in_dict ARGS((char*,int));
 Extern dident	enter_dict ARGS((char*,int));
-Extern dident	enter_dict_n ARGS((char*,long,int));
+Extern dident	enter_dict_n ARGS((char*,word,int));
 Extern dident	add_dict ARGS((dident,int));
 Extern dident	check_did ARGS((dident,int));
-Extern dident	check_did_n ARGS((char*,long,int));
-Extern dident	bitfield_did ARGS((long));
+Extern dident	check_did_n ARGS((char*,word,int));
+Extern dident	bitfield_did ARGS((word));
 
 Extern int	next_functor ARGS((int *index, dident *did));
 Extern int	ec_gc_dictionary ARGS((void));
 Extern int	ec_dict_param ARGS((value,type,value,type));
 
-Extern pword	*enter_string_n ARGS((char*,long,int));
+Extern pword	*enter_string_n ARGS((char*,word,int));
 
 Extern int	ec_constant_table_enter ARGS((value,type,pword*));
 
@@ -574,9 +574,9 @@ Extern void	pri_define_code ARGS((pri*,int,pri_code_t));
 Extern int	pri_change_trans_function ARGS((pri*,dident));
 Extern int	pri_change_mode ARGS((pri*,uint32));
 
-Extern pri *	built_in(dident did1, int (*func) (/* ??? */), long int flags);
-Extern pri *	local_built_in(dident did1, int (*func) (/* ??? */), long int flags);
-Extern pri *	exported_built_in(dident did1, int (*func) (/* ??? */), long int flags);
+Extern pri *	built_in(dident did1, int (*func) (/* ??? */), word flags);
+Extern pri *	local_built_in(dident did1, int (*func) (/* ??? */), word flags);
+Extern pri *	exported_built_in(dident did1, int (*func) (/* ??? */), word flags);
 Extern pri *	b_built_in(dident did1, int (*func) (/* ??? */), dident module);
 Extern word	ec_getaddress ARGS((char*));
 

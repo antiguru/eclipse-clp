@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_shelf.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * Version:	$Id: bip_shelf.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  *
  * Contents:	Built-ins for the shelf-primitives
  *
@@ -47,7 +47,7 @@
 /* INSTANCE TYPE DECLARATION */
 
 typedef struct {
-    long		ref_ctr;
+    word		ref_ctr;
     pword		array[ 1 /* + arity */ ];
 } t_heap_array;
 

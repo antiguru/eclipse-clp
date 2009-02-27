@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.2 2008/07/10 01:08:46 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -223,7 +223,7 @@ p_compare(value vr, type tr, value v1, type t1, value v2, type t2)
 int
 compare_strings(value v1, value v2)
 {
-    register long		len = StringLength(v1);
+    register word		len = StringLength(v1);
     register unsigned char	*s1 = (unsigned char *) StringStart(v1);
     register unsigned char	*s2 = (unsigned char *) StringStart(v2);
     register int		res;

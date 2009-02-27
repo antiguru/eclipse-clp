@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.2 2008/07/16 23:58:33 kish_shen Exp $
+ * VERSION	$Id: bip_arith.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -107,10 +107,10 @@
 
 #define NonIntNum(t) (IsDouble(t) || IsRational(t) || IsInterval(t))
 
-#define BITS_PER_WORD (8*SIZEOF_LONG)
+#define BITS_PER_WORD (8*SIZEOF_WORD)
 
 static int
-	_reverse_times(long int x, long int y, value zval, type ztag);
+	_reverse_times(word x, word y, value zval, type ztag);
 
 #if defined(i386) && defined(__GNUC__)
 #define Pow (*pow_ptr_to_avoid_buggy_inlining)
@@ -299,7 +299,7 @@ p_times(value x, type tx, value y, type ty, value z, type tz)
  */
 
 static int
-_reverse_times(long int x, long int y, value zval, type ztag)
+_reverse_times(word x, word y, value zval, type ztag)
 {
     if (y == 0) 
         if (x == 0) 
@@ -390,7 +390,7 @@ p_is_zero(value v, type t)
 {
     pword result;
     Succeed_If(tag_desc[TagType(t)].arith_op[ARITH_SGN](v, &result) == PSUCCEED
-	    && result.val.nint == 0L);
+	    && result.val.nint == 0);
 }
 
 
@@ -417,7 +417,7 @@ p_collect(value vin, type tin, value vout, type tout, value vzero, type tzero)
     zero_tail = &zero_list;
 
     new_coeff.tag.kernel = TINT;
-    new_coeff.val.nint = 0L;
+    new_coeff.val.nint = 0;
     curr_var = 0;			/* 0 stands for constant sequence */
 
     while (IsList(curr_tail->tag))
@@ -1170,13 +1170,13 @@ _strg_setbit(value v1, value v2, pword *pres)	/* string x int -> string */
     int i;
 
     pres->val.ptr = TG;
-    Push_Buffer(words_new * SIZEOF_LONG);
+    Push_Buffer(words_new * SIZEOF_WORD);
     to = (word *) BufferStart(pres->val.ptr);
     from = (word *) BufferStart(v1.ptr);
     for (i = 0; i < words_old; i++)
     	to[i] = from[i];
     for (; i < words_offset; i++)
-    	to[i] = 0L;
+    	to[i] = 0;
     to[words_offset] |= 1 << (v2.nint % BITS_PER_WORD);
     Succeed_;
 }
@@ -1331,8 +1331,8 @@ _arith_compare_int(value v1, value v2, int *res)
 static int
 _int_add(value v1, value v2, pword *pres)	/* int x int -> int/big */
 {
-    register long   n1 = v1.nint;
-    register long   n2 = v2.nint;
+    register word   n1 = v1.nint;
+    register word   n2 = v2.nint;
 
     pres->val.nint = n1 + n2;
     if (((n1 >= 0) == (n2 >= 0)) && (n1 >= 0) != (pres->val.nint >= 0))
@@ -1345,8 +1345,8 @@ _int_add(value v1, value v2, pword *pres)	/* int x int -> int/big */
 static int
 _int_sub(value v1, value v2, pword *pres)	/* int x int -> int/big */
 {
-    register long   n1 = v1.nint;
-    register long   n2 = v2.nint;
+    register word   n1 = v1.nint;
+    register word   n2 = v2.nint;
 
     pres->val.nint = n1 - n2;
     if (((n1 >= 0) != (n2 >= 0)) && (n1 >= 0) != (pres->val.nint >= 0))
@@ -1359,9 +1359,9 @@ _int_sub(value v1, value v2, pword *pres)	/* int x int -> int/big */
 static int
 _int_mul(value v1, value v2, pword *pres)	/* int x int -> int/big */
 {
-    register long   n1 = v1.nint;
-    register long   n2 = v2.nint;
-    register long   n3;
+    register word   n1 = v1.nint;
+    register word   n2 = v2.nint;
+    register word   n3;
 
     if (n1 == 0) {
     	pres->val.nint = 0;
@@ -1390,7 +1390,7 @@ _int_neg(value v1, pword *pres)	/* needed in the parser to evaluate signs */
 static int
 _int_sgn(value v1, pword *pres)
 {
-    pres->val.nint = (long) (v1.nint > 0 ? 1 : v1.nint < 0 ? -1: 0);
+    pres->val.nint = (word) (v1.nint > 0 ? 1 : v1.nint < 0 ? -1: 0);
     Succeed_;
 }
 
@@ -1504,7 +1504,7 @@ _dbl_neg(value v1, pword *pres)	/* needed in the parser to evaluate signs */
 static int
 _dbl_sgn(value v1, pword *pres)
 {
-    pres->val.nint = (long)
+    pres->val.nint = (word)
 	(Dbl(v1) == 0.0 ? 0 : Dbl(v1) > 0.0 ? 1: -1);
     Succeed_;
 }
@@ -1679,7 +1679,7 @@ _dbl_round(value v1, pword *pres)
      */
     x = Ceil(Dbl(v1));
     if (x - Dbl(v1) > 0.5 ||
-        (x - Dbl(v1) == 0.5 && ((long)x & 1)))
+        (x - Dbl(v1) == 0.5 && ((word)x & 1)))
 	    x -= 1.0;
 #endif /* rint */
     Make_Checked_Double_Val(pres->val, x)

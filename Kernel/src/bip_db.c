@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.6 2008/09/01 23:56:07 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.7 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -342,7 +342,7 @@ bip_db_init(int flags)
     local_built_in(in_dict("module_predicates", 3), p_module_predicates, B_UNSAFE)
 	-> mode = BoundArg(2, GROUND);
 #ifdef lint
-    (void) als((long)0);
+    (void) als((word)0);
 #endif
 }
 
@@ -466,7 +466,7 @@ p_als(value val, type tag, value vm, type tm)
 
 #if defined(PRINTAM) || defined(LASTPP)
 int
-als(long int addr)	/* for use with dbx */
+als(word addr)	/* for use with dbx */
 {
     value vaddr, vmod;
     vaddr.nint = addr;
@@ -681,9 +681,9 @@ p_current_functor(value valn, type tagn, value vala, type taga, value vopt, type
     {
 	while (next_functor((int *) &vnext.nint, &functor))
 	{
-	    if (vopt.nint == 1L && !DidProperties(functor))
+	    if (vopt.nint == 1 && !DidProperties(functor))
 		continue;
-	    if (vopt.nint == 2L && !DidProc(functor))
+	    if (vopt.nint == 2 && !DidProc(functor))
 		continue;
 
 	    if (IsRef(taga))
@@ -725,9 +725,9 @@ p_current_functor(value valn, type tagn, value vala, type taga, value vopt, type
 	    while (functor != valn.did)
 	    {
 		if (DidString(functor) == DidString(valn.did)
-		    && (vopt.nint == 0L
-		     || vopt.nint == 1L && DidProperties(functor)
-		     || vopt.nint == 2L && DidProc(functor)))
+		    && (vopt.nint == 0
+		     || vopt.nint == 1 && DidProperties(functor)
+		     || vopt.nint == 2 && DidProc(functor)))
 		    break;
 		functor = (dident) DidNext(functor);
 	    }
@@ -870,7 +870,7 @@ _init_dynamic1(pri *pd, t_ext_ptr source_record)
 	pword		*pw;
 	pri_code_t	pricode;
 
-	Allocate_Default_Procedure((long) (4/*code*/ + 4/*anchor*/), PriDid(pd));
+	Allocate_Default_Procedure((word) (4/*code*/ + 4/*anchor*/), PriDid(pd));
 	pw = (pword *)(code + 4);
 	/* commented out 2008-04 -- does not seem to be needed
 	  if ((uword)pw % sizeof(pword) != 0)
@@ -1255,7 +1255,7 @@ static int
 p_mode(value pv, type pt, value mv, type mt)
 {
 	int	arity, i, err, mode;
-	long	mode_decl;
+        word	mode_decl;
 	pword	*arg, *term, *pred;
 	pri	*proc;
 	dident	wd;
@@ -2517,7 +2517,7 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 	Check_Atom(tfid);
 	Check_Integer(tlid);
 	Check_Integer(tbid);
-	code = AllocateCodeBlockBTable(vsize.nint, vbrktable.nint, 0L, vbid.nint, vfid.did, vlid.nint, Cid(-1L, wdid));
+	code = AllocateCodeBlockBTable(vsize.nint, vbrktable.nint, 0, vbid.nint, vfid.did, vlid.nint, Cid(WSUF(-1), wdid));
 	Set_Did_Stability(vfid.did, DICT_CODE_REF);
     }
 

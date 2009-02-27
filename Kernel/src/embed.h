@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * $Id: embed.h,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -90,7 +90,7 @@ Extern DLLEXP t_ext_type		ec_xt_char_arr;
  * Initialisation options
  */
 Extern DLLEXP int	Winapi	ec_set_option_int ARGS((int, int));
-Extern DLLEXP int	Winapi	ec_set_option_long ARGS((int, long));
+Extern DLLEXP int	Winapi	ec_set_option_long ARGS((int, word));
 Extern DLLEXP int	Winapi	ec_set_option_ptr ARGS((int, void *));
 
 /*

@@ -23,7 +23,7 @@
 /*
  *      System: Eclipse
  *
- *	$Id: tkexdr.c,v 1.1 2008/06/30 17:43:58 jschimpf Exp $
+ *	$Id: tkexdr.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  *
  *	Code for exdr communications with ECLiPSe in a tcl program
  */
@@ -41,11 +41,15 @@
 
 /* define a pointer-sized integer type */
 #if (SIZEOF_CHAR_P == SIZEOF_INT)
+typedef int		word;			/* pointer-sized */
 typedef unsigned int	uword;
-#else
-#if (SIZEOF_CHAR_P == SIZEOF_LONG)
+#elif (SIZEOF_CHAR_P == SIZEOF_LONG)
+typedef long		word;			/* pointer-sized */
 typedef unsigned long	uword;
-#endif
+#elif (SIZEOF_CHAR_P == __SIZEOF_LONG_LONG__)
+/* ASSUMES HAVE_LONG_LONG! */
+typedef long long 		word;		/* pointer-sized */
+typedef unsigned long long 	uword;
 #endif
 
 #ifdef __STDC__
@@ -130,8 +134,8 @@ static char exdr_header[EXDR_COMPRESSED_HEADER_LEN] = {'V',EXDR_VERSION,'C'};
 	    *dest++ = (char) (aux >> 8);			\
 	    *dest++ = (char) (aux);				\
 	}
-#define Store_DWord(word) {\
-	    register unsigned long aux = (word);		\
+#define Store_DWord(myword) {\
+	    register uword aux = (myword);			\
 	    *dest++ = (char) (aux >> 56);			\
 	    *dest++ = (char) (aux >> 48);			\
 	    *dest++ = (char) (aux >> 40);			\

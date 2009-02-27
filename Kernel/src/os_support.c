@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.5 2008/07/23 20:37:09 kish_shen Exp $
+ * $Id: os_support.c,v 1.6 2009/02/27 21:01:04 kish_shen Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -293,7 +293,7 @@ ec_unlink(char *name)
 }
 
 #ifndef __GNUC__
-int
+long
 lseek(int handle, long offset, int whence)
 {
     return _lseek(handle, offset, whence);
@@ -314,11 +314,16 @@ isatty(int handle)
     return _isatty(handle);
 }
 
+#ifndef isascii 
+/* isascii is defined as a macro (as __isascii)  in newer versions of MSVC,
+   and also in more recent versions of MinGW 
+*/ 
 int
 isascii(int c)
 {
     return __isascii(c);
 }
+#endif
 
 int
 ec_open(const char *name, int oflag, int pmode)
@@ -751,7 +756,7 @@ all_times(double *user, double *sys, double *elapsed)	/* in seconds */
     else
     {
 	*user = ((double) clock() / CLOCKS_PER_SEC);
-	*sys = 0L;
+	*sys = 0;
     }
     GetSystemTimeAsFileTime(&now_time);
     *elapsed = FileTimeToDouble(now_time) - start_time;

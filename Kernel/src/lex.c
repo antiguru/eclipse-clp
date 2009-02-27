@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.1 2008/06/30 17:43:56 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -1267,7 +1267,7 @@ p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, t
     char	*s;
     token_desc	token;
     stream_id	nst = get_stream_id(vs,ts, SREAD, &res);
-    register long len;
+    register word len;
     syntax_desc	*sd = ModuleSyntax(vm.did);
     dident	tname;
     Prepare_Requests;
@@ -1509,7 +1509,7 @@ _start_:
 	if (base == 0)			/* ascii */
 	{
 	    Get_Ch(c)
-	    result->val.nint = (long) c;
+	    result->val.nint = (word) c;
 	    result->tag.kernel = TINT;
 	    goto return_ok;
 	}

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.4 2008/09/01 11:44:54 jschimpf Exp $
+ * $Id: types.h,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -77,17 +77,21 @@ typedef unsigned int	uint32;
 #if (SIZEOF_CHAR_P == SIZEOF_INT)
 typedef int		word;			/* pointer-sized */
 typedef unsigned int	uword;
-#else
-#if (SIZEOF_CHAR_P == SIZEOF_LONG)
+#elif (SIZEOF_CHAR_P == SIZEOF_LONG)
 typedef long		word;			/* pointer-sized */
 typedef unsigned long	uword;
-#endif
+#elif (defined(HAVE_LONG_LONG) || defined(__GNUC__)) && (SIZEOF_CHAR_P == __SIZEOF_LONG_LONG__)
+typedef long long 		word;		/* pointer-sized */
+typedef unsigned long long 	uword;
+#elif defined(HAVE___INT64) && SIZEOF_CHAR_P == 8
+typedef __int64          word;
+typedef unsigned __int64 uword;
 #endif
 
 #endif /* __ECLIPSE_MEMMAN_H */
 
 #ifndef _PDS_TYPES_H_
-typedef long		*void_ptr;
+typedef word		*void_ptr;
 #endif /* _PDS_TYPES_H */
 
 
@@ -102,7 +106,7 @@ typedef int		a_mutex_t;
 
 struct dict_item
 {
-    long		arity;		/* functor arity		     */
+    word		arity;		/* functor arity		     */
     struct s_pword	*string;	/* functor name string		     */
 #ifndef EC_EXTERNAL
     unsigned		macro:1;	/* maybe a macro		     */
@@ -234,16 +238,16 @@ typedef struct stream_d {
     dident		name;		/* did of the file name		*/
     unsigned char 	*buf;		/* buffer address		*/
     unsigned char 	*wbuf;		/* write buffer (queues only)	*/
-    long		size;		/* max size of the buffer	*/
-    long 		cnt;		/* actual used buffer size	*/
+    word		size;		/* max size of the buffer	*/
+    word 		cnt;		/* actual used buffer size	*/
     unsigned char 	*ptr;		/* next char to be read or written */
     unsigned char 	*lex_aux;	/* lexical analyser aux buffer	*/
-    long		line;		/* number of read lines, if File */
-    long		lex_size;	/* lex_aux buffer size		*/
+    word		line;		/* number of read lines, if File */
+    word		lex_size;	/* lex_aux buffer size		*/
     uword		offset;		/* current offset in the file	*/
     struct stream_d	*prompt_stream;	/* input: the stream to output  */
     dident		prompt;		/* did of the prompt string	*/
-    long		nr;		/* the stream number		*/
+    word		nr;		/* the stream number		*/
     int			fd_pid;		/* process that owns the fd	*/
     a_mutex_t		lock;		/* shared memory lock (par)	*/
     aport_handle_t	aport;		/* stream handler's address (par) */
@@ -339,7 +343,7 @@ typedef union control {
 	pword		**tt;
 	pword		*e;
 	pword		*ld;
-	long		alt;	/* currently executing alternative */
+	word		alt;	/* currently executing alternative */
 	pword		*ppb;
 	st_handle_t	node;
 	/* arguments */
@@ -350,7 +354,7 @@ typedef union control {
 	pword		**tt;
 	pword		*e;
 	pword		*ld;
-	long		alt;	/* currently executing alternative */
+	word		alt;	/* currently executing alternative */
 	pword		*ppb;
 	st_handle_t	node;
 	pword		*eb;
@@ -441,8 +445,8 @@ typedef struct _dyn_event_q_slot_t {
 typedef struct {
     dyn_event_q_slot_t *prehead;
     dyn_event_q_slot_t *tail;
-    unsigned long total_event_slots;
-    unsigned long free_event_slots;
+    uword total_event_slots;
+    uword free_event_slots;
 } dyn_event_q_t;
 
 
@@ -507,7 +511,7 @@ struct machine
     stack_pair	global_trail;	/* stack allocation descriptors */
     stack_pair	control_local;
 
-    long	segment_size;	/* garbage collection interval */
+    word	segment_size;	/* garbage collection interval */
     int		nesting_level;	/* of recursive emulator invovations */
 
     void_ptr	parser_env;	/* parser data structure */
@@ -532,7 +536,7 @@ struct machine
 
 struct tag_descriptor {
 	type			tag;		/* tag bit pattern */
-	long			super;		/* is subtype of ... */
+	word			super;		/* is subtype of ... */
 	dident			tag_name;	/* did */
 	dident			type_name;	/* did */
 	int			numeric;	/* numeric type and order  */

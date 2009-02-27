@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.2 2008/07/10 00:33:05 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -94,7 +94,7 @@
  * global variables
  */
 
-unsigned long
+uword
 #ifdef DEBUG_GC
 	stop_at_ = MAX_U_WORD,
 #endif
@@ -112,12 +112,12 @@ double	average_ratio_ = 1.0,
  */
 
 static void
-	make_choicepoint(long int ar),
+	make_choicepoint(word ar),
 	pop_choicepoint(void),
 	non_marking_reference(pword **ref),
 	mark_from_trail(control_ptr GCB),
 	_mark_from_global_variables(void),
-	mark_from(long int tag, pword *ref, int ref_in_segment),
+	mark_from(word tag, pword *ref, int ref_in_segment),
 	compact_and_update(void),
 	compact_trail(register pword **garbage_list),
 	reset_env_marks(control_ptr GCB),
@@ -125,8 +125,8 @@ static void
 	ov_reset(void);
 
 static pword
-	** early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garbage_list, long int *trail_garbage),
-	** mark_from_control_frames(control_ptr GCB, long int *trail_garb_count);
+	** early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garbage_list, word *trail_garbage),
+	** mark_from_control_frames(control_ptr GCB, word *trail_garb_count);
 
 
 /*
@@ -180,15 +180,15 @@ static pword
 
 #define Mark_from_pointer(tag, ref, in_seg) \
 {\
-    mark_from((long) (tag),(pword *)(ref),in_seg);\
+    mark_from((word) (tag),(pword *)(ref),in_seg);\
 }
 
 
 #define PointerToLink(oldtag,ptr) \
-    ((oldtag) & MARK | (long)ptr >> 2 | LINK)
+    ((oldtag) & MARK | (word)ptr >> 2 | LINK)
 
 #define PointerToMarkedLink(ptr) \
-    ((long)ptr >> 2 | (MARK|LINK))
+    ((word)ptr >> 2 | (MARK|LINK))
 
 
 #define LinkToPointer(link) \
@@ -248,9 +248,9 @@ static pword
 	_gc_error("invalid suspension pointer\n");
 
 #define Check_Size(esize) \
-    if ((unsigned long)esize > 1000000) {\
+    if ((uword)esize > 1000000) {\
 	p_fprintf(current_err_,\
-		"GC warning: unlikely environment size (%lx %lx)\n",\
+		"GC warning: unlikely environment size (%" W_MOD "x %" W_MOD "x)\n",\
 			edesc,esize);\
 	ec_flush(current_err_);\
     }
@@ -278,7 +278,7 @@ _gc_error(char *msg)
 }
 
 static void
-_gc_error1(char *msg, long int arg)
+_gc_error1(char *msg, word arg)
 {
     (void) ec_outfs(current_err_,"GC internal error: ");
     p_fprintf(current_err_, msg, arg);
@@ -448,9 +448,9 @@ p_stat_reset(void)
  *------------------------------------------------------------------*/
 
 
-collect_stacks(long int arity, long int gc_forced)
+collect_stacks(word arity, word gc_forced)
 {
-    long total, garbage, trail_garb_count, gc_time;
+    word total, garbage, trail_garb_count, gc_time;
     pword **trail_garb_list;
     pword *ideal_gc_trigger, *min_gc_trigger, *max_gc_trigger;
     control_ptr GCB;
@@ -642,7 +642,7 @@ collect_stacks(long int arity, long int gc_forced)
 
 	if (GlobalFlags & GC_VERBOSE)
 	{
-	    long trail_total = Chp_Tt(GCB) - TT + trail_garb_count;
+	    word trail_total = Chp_Tt(GCB) - TT + trail_garb_count;
 
 	    p_fprintf(log_output_,
 		". global: %d - %d (%.1f %%), trail: %d - %d (%.1f %%), time: %.3f\n",
@@ -702,7 +702,7 @@ collect_stacks(long int arity, long int gc_forced)
  */
 
 static void
-make_choicepoint(long int ar)
+make_choicepoint(word ar)
 {
     chp_ptr chp;
     top_ptr top;
@@ -782,10 +782,10 @@ pop_choicepoint(void)
  * - link other entries into relocation chains
  */
 static pword **
-early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garbage_list, long int *trail_garbage)
+early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garbage_list, word *trail_garbage)
 {
     register pword *trailed_item;
-    register long i, what, trailed_tag;
+    register word i, what, trailed_tag;
     register pword **prev_tt = fp.chp->tt;
     register pword *prev_tg = fp.chp->tg;
     pword *prev_sp = fp.chp->sp;
@@ -794,7 +794,7 @@ early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garb
 
     while (tr < prev_tt)		/* partial untrailing */
     {
-	switch ((long) *tr & 3)
+	switch ((word) *tr & 3)
 	{
 	case TRAIL_ADDRESS:
 	    trailed_item = *tr;
@@ -908,7 +908,7 @@ early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garb
 	    break;
 
 	case TRAIL_MULT:
-	    i = (long) *tr;
+	    i = (word) *tr;
 	    what = TrailedType(i);
 	    trailed_item = *(tr+1);
 	    if (trailed_item >= prev_tg && trailed_item < prev_sp
@@ -938,7 +938,7 @@ early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garb
 		 */
 		if (what == TRAILED_WORD32 &&
 		    TrailedOffset(i) == 1 &&
-		    TagTypeC((long) *(tr+2)) == TDE)
+		    TagTypeC((word) *(tr+2)) == TDE)
 		{
 		    /* The flag MARK_FULL_DE is used to tell the
 		     * marking routine to ignore the WAKE bit and to
@@ -1061,9 +1061,9 @@ early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garb
 		else	/* mark from the old value */
 		{
 		    /* CAUTION: see above */
-		    trailed_tag = (what == TRAILED_COMP) ? (long) TCOMP
-		    	: (*(tr+2) == trailed_item) ? (long) (TREF & ~TREFBIT)
-			: (long) TREF;
+		    trailed_tag = (what == TRAILED_COMP) ? (word) TCOMP
+		    	: (*(tr+2) == trailed_item) ? (word) (TREF & ~TREFBIT)
+			: (word) TREF;
 		    Mark_from(trailed_tag, (pword *)(tr+2), NO);
 		}
 		/* reset ALREADY_MARKED_FROM, it was set in mark_from_trail */
@@ -1099,7 +1099,7 @@ early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garb
 	    break;
 
 	case TRAIL_EXT:
-	    i = (long) tr[TRAIL_UNDO_FLAGS];
+	    i = (word) tr[TRAIL_UNDO_FLAGS];
 	    trailed_item = tr[TRAIL_UNDO_ADDRESS];
 	    switch(TrailedEtype(i))
 	    {
@@ -1126,7 +1126,7 @@ early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garb
 		 */
 		if (TrailedType(i) == TRAILED_PWORD)
 		{
-		    long n_pwords = (TrailedEsize(i) - TRAIL_UNDO_SIMPLE_HEADER_SIZE)/2;
+		    word n_pwords = (TrailedEsize(i) - TRAIL_UNDO_SIMPLE_HEADER_SIZE)/2;
 		    pword *pdata = (pword *) (tr + TRAIL_UNDO_SIMPLE_HEADER_SIZE);
 		    for(; n_pwords > 0; --n_pwords, ++pdata)
 		    {
@@ -1197,7 +1197,7 @@ early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garb
 		     */
 		    if (TrailedType(i) == TRAILED_PWORD)
 		    {
-			long n_pwords = (TrailedEsize(i) - TRAIL_UNDO_STAMPED_HEADER_SIZE)/2;
+			word n_pwords = (TrailedEsize(i) - TRAIL_UNDO_STAMPED_HEADER_SIZE)/2;
 			pword *pdata = (pword *) (tr + TRAIL_UNDO_STAMPED_HEADER_SIZE);
 			for(; n_pwords > 0; --n_pwords, ++pdata)
 			{
@@ -1313,7 +1313,7 @@ Code Template:
  */
 
 static pword **
-mark_from_control_frames(control_ptr GCB, long int *trail_garb_count)
+mark_from_control_frames(control_ptr GCB, word *trail_garb_count)
 {
     control_ptr		fp, top, pfp;
     register pword	*env, *pw, *prev_de;
@@ -1616,10 +1616,10 @@ mark_from_trail(control_ptr GCB)
     pword *gc_sp = Chp_Sp(GCB);
     register pword **tr = TT;
     register pword *trailed_item;
-    long i, what;
+    word i, what;
 
     while (tr < limit_tt)
-	switch ((long) *tr & 3)
+	switch ((word) *tr & 3)
 	{
 	case TRAIL_ADDRESS:
 	    trailed_item = *tr++;
@@ -1643,7 +1643,7 @@ mark_from_trail(control_ptr GCB)
 	    }
 	    break;
 	case TRAIL_MULT:
-	    i = (long) *tr++;
+	    i = (word) *tr++;
 	    trailed_item = (pword *)((uword *)(*tr++) + TrailedOffset(i));
 	    what = TrailedType(i);
 	    i = TrailedNumber(i);
@@ -1681,7 +1681,7 @@ mark_from_trail(control_ptr GCB)
 		}
 		else if (what == TRAILED_REF || what == TRAILED_COMP)
 		{
-		    long trailed_tag = trailed_item->tag.kernel;
+		    word trailed_tag = trailed_item->tag.kernel;
 #ifdef DEBUG_GC
 		    if ((what == TRAILED_REF && !IsTag(trailed_tag,TVAR_TAG))
 			|| (what == TRAILED_COMP && !IsTag(trailed_tag,TCOMP)))
@@ -1716,7 +1716,7 @@ mark_from_trail(control_ptr GCB)
 		else
 		    Print_Err1(
 			"bad extension trail entry in mark_from_trail: %x\n",
-			(long) *tr);
+			(word) *tr);
 	    }
 	    else	/* skip the trail entry */
 		tr += i + 1;
@@ -1811,12 +1811,12 @@ _mark_from_global_variables(void)
 
 static void
 mark_from(
-	long int tag,		/* type of the reference */
+	word tag,		/* type of the reference */
 	pword *ref,		/* location of the reference */
 	int ref_in_segment)	/* true if ref is in the current segment */
 {
     register pword *target;
-    register long target_tag;
+    register word target_tag;
     register int i;
 
     Pdl_Init();
@@ -1943,7 +1943,7 @@ Desc:	The target item is referenced by a TEXTENSION_POINTER pointer.
 	referenced by the pointed-to item.
 
 Parameters:
-	long target_tag		Tag and address of the first pword
+	word target_tag		Tag and address of the first pword
 	pword *target			referenced by the typed pointer
 
 Code Template:
@@ -2017,7 +2017,7 @@ static void
 compact_and_update(void)
 {
     register pword *current, *compact, *ref;
-    register long link_or_tag, current_tag;
+    register word link_or_tag, current_tag;
 
     current = compact = GCTG;
     while (current < TG)
@@ -2129,7 +2129,7 @@ Code Template:
 
 	    default:
 		Print_Err1("illegal tag (%d) in compact_and_update\n",
-		    (long) TagTypeC(link_or_tag));
+		    (word) TagTypeC(link_or_tag));
 		ec_flush(current_err_);
 		current++;
 		break;
@@ -2183,7 +2183,7 @@ update_trail_ptrs(control_ptr GCB)
     do {
 	top.top = (fp.top - 1);
 	fp.any_frame.chp = top.top->frame.chp;
-	fp.chp->tt = TT + (long)(fp.chp->tt);
+	fp.chp->tt = TT + (word)(fp.chp->tt);
     } while (fp.top > GCB.top);
 }
 
@@ -2500,7 +2500,7 @@ Code Template:
 
 
 void
-mark_dids_from_stacks(long int arity)
+mark_dids_from_stacks(word arity)
 {
     make_choicepoint(arity);
 
@@ -2513,11 +2513,11 @@ mark_dids_from_stacks(long int arity)
 
     {
 	register pword **tt = TT;
-	long	i;
+	word	i;
 
 	while(tt < TT_ORIG)
 	{
-	    switch((((long) *tt) & 3))
+	    switch((((word) *tt) & 3))
 	    {
 	    case TRAIL_ADDRESS:
 		break;
@@ -2528,7 +2528,7 @@ mark_dids_from_stacks(long int arity)
 		}
 		break;
 	    case TRAIL_MULT:
-		i = (long) *tt;
+		i = (word) *tt;
 		switch (TrailedType(i))
 		{
 		case TRAILED_PWORD:
@@ -2538,7 +2538,7 @@ mark_dids_from_stacks(long int arity)
 		}
 		break;
 	    case TRAIL_EXT:
-		i = (long) *tt;
+		i = (word) *tt;
 		switch (TrailedEtype(i))
 		{
 		case TRAIL_UNDO:

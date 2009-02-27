@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.2 2008/12/10 05:18:56 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -857,7 +857,7 @@ static pword *
 _copy_term_to_heap(value v, type t, register pword *top, value **handle_slot, register pword *dest)
 {
     register pword *pw, *arg_pw;
-    register long arity;
+    register word arity;
     dident fdid;
     int dead;
 
@@ -962,7 +962,7 @@ _copy_term_to_heap(value v, type t, register pword *top, value **handle_slot, re
 	    dest[SUSP_FLAGS].tag.all = arg_pw[SUSP_FLAGS].tag.all;
 	    /* should not put the pri into the heap, but did and module */
 	    dest[SUSP_PRI].val.all = arg_pw[SUSP_PRI].val.all;
-	    dest[SUSP_INVOC].tag.all = 0L;
+	    dest[SUSP_INVOC].tag.all = 0;
 	    if (t.kernel & NEED_FWD)
 	    {
 		Trail_Pword(arg_pw);
@@ -1203,11 +1203,11 @@ _copy_heap_error_:
  * carefully in _copy_term_to_heap(), even in the case of an error!
  */
 
-static long
+static word
 _copy_size(value v, type t, word size, word *num_handles, int *perr)
 {
     register pword *pw, *arg_pw;
-    register long arity;
+    register word arity;
 
     for(;;)			/* tail recursion loop	*/
     {
@@ -1240,7 +1240,7 @@ _copy_size(value v, type t, word size, word *num_handles, int *perr)
 		return size;
 	    }
 	    v.ptr->tag.kernel |= ALREADY_SEEN;
-	    size += 2L * sizeof(pword);
+	    size += 2 * sizeof(pword);
 	    arg_pw = MetaTerm(v.ptr);
 	    arity = 1;
 	    break;
@@ -1255,8 +1255,8 @@ _copy_size(value v, type t, word size, word *num_handles, int *perr)
 	    Assert(SameTypeC(arg_pw->tag, TDE));
 	    arg_pw->tag.kernel |= ALREADY_SEEN;
 	    if (SuspDead(arg_pw))
-		return size + ((long) SUSP_HEADER_SIZE * sizeof(pword));
-	    size += (long) SUSP_SIZE * sizeof(pword);
+		return size + ((word) SUSP_HEADER_SIZE * sizeof(pword));
+	    size += (word) SUSP_SIZE * sizeof(pword);
 	    arity = SUSP_SIZE - SUSP_GOAL;
 	    arg_pw += SUSP_GOAL;
 	    break;
@@ -1313,7 +1313,7 @@ _copy_size(value v, type t, word size, word *num_handles, int *perr)
 	    }
 	    arg_pw->tag.kernel |= ALREADY_SEEN;
 	    arity = 2;
-	    size += 2L * sizeof(pword);
+	    size += 2 * sizeof(pword);
 	    break;
 
 	case TCOMP:
@@ -1372,7 +1372,7 @@ _copy_block(register pword *from, register pword *to, word size)
     word offset = (char *) to - (char *) from;
     pword *start = from;
     pword *end = from + size/sizeof(pword);
-    register long i;
+    register word i;
 
     while(from < end)
     {
@@ -1399,7 +1399,7 @@ _copy_block(register pword *from, register pword *to, word size)
 		    to[SUSP_LD].val.ptr = LD;
 		    to[SUSP_FLAGS].tag.all = from[SUSP_FLAGS].tag.all;
 		    to[SUSP_PRI].val.all = from[SUSP_PRI].val.all;
-		    to[SUSP_INVOC].tag.all = 0L;
+		    to[SUSP_INVOC].tag.all = 0;
 		    Init_Susp_State(to, SuspPrio(from));
 		    Update_LD(to)
 		    to += SUSP_GOAL;
@@ -1410,7 +1410,7 @@ _copy_block(register pword *from, register pword *to, word size)
 		    to[SUSP_LD].val.ptr = (pword *) 0;
 		    to[SUSP_FLAGS].tag.all = from[SUSP_FLAGS].tag.all;
 		    to[SUSP_PRI].val.all = from[SUSP_PRI].val.all;
-		    to[SUSP_INVOC].tag.all = 0L;
+		    to[SUSP_INVOC].tag.all = 0;
 		    to += SUSP_HEADER_SIZE;
 		    from += SUSP_HEADER_SIZE;
 		}
@@ -1522,7 +1522,7 @@ static int
 _copy_term(value v, type t, register pword *dest, register pword *meta, int marked_vars_only)
 {
 	register pword *pw, *arg_pw, *arg;
-	register long arity;
+	register word arity;
 	dident fdid;
 	int	copied = 0;
 	pword *save_tg = TG;
@@ -1614,7 +1614,7 @@ _copy_term(value v, type t, register pword *dest, register pword *meta, int mark
 		    arg[SUSP_LD].val.ptr = LD;
 		    arg[SUSP_FLAGS].tag.all = v.ptr[SUSP_FLAGS].tag.all;
 		    arg[SUSP_PRI].val.all = v.ptr[SUSP_PRI].val.all;
-		    arg[SUSP_INVOC].tag.all = 0L;
+		    arg[SUSP_INVOC].tag.all = 0;
 		    Init_Susp_State(arg, SuspPrio(v.ptr));
 		    Update_LD(arg)
 		    Trail_Pword(v.ptr);
@@ -1788,7 +1788,7 @@ create_heapterm(pword *root, value v, type t)
     Disable_Exit();
 
     /* Find out how much space we are going to need, and allocate it */
-    size = _copy_size(v, t, 0L, &num_handles, &err);
+    size = _copy_size(v, t, 0, &num_handles, &err);
     Assert(TT == old_tt);
     if (size > 0)
     {
@@ -2025,7 +2025,7 @@ p_copy_term_vars(value vvars, type tvars, value v, type t, value vc, type tc, va
 static int
 p_term_size(value v, type t, value vs, type ts)
 {
-    long size;
+    word size;
     pword root;
 
     Check_Output_Integer(ts);
@@ -2213,11 +2213,11 @@ move_term(pword *pw, pword *dest)
 #else
 #define Store_String(length, string) {		\
 	register char *source = (string);	\
-	register long ctr = (length);		\
+	register word ctr = (length);		\
 	while (ctr-- > 0) *dest++ = *source++;	\
 }
 #endif
-#define Align() while ((long) dest % sizeof(pword)) *dest++ = (char) 0;
+#define Align() while ((word) dest % sizeof(pword)) *dest++ = (char) 0;
 
 #define LoadByte	*buf++
 #define Load_Byte(n)	(n) = LoadByte
@@ -2227,7 +2227,7 @@ move_term(pword *pw, pword *dest)
 	(n) = ((n) << 8) | ((LoadByte) & 0xff);	\
 	(n) = ((n) << 8) | ((LoadByte) & 0xff);	\
 }
-#define BITS_PER_WORD (8*SIZEOF_LONG)
+#define BITS_PER_WORD (8*SIZEOF_CHAR_P)
 #ifdef OLD_FORMAT
 #define Load_Int(n)				\
 	{ if (((n) = (unsigned char)(LoadByte)) == 0xff) Load_Int32(n); }
@@ -2331,8 +2331,8 @@ pword *
 term_to_dbformat(pword *parg, dident mod)
 {
     pword **save_tt = TT;
-    register long arity = 1, len;
-    register long curr_offset = 0, top_offset = 2;	/* in 'word's */
+    register word arity = 1, len;
+    register word curr_offset = 0, top_offset = 2;	/* in 'word's */
     register pword *queue_tail = (pword *) 0;
     pword *queue_head = (pword *) 0;
     register pword *pw;
@@ -2404,7 +2404,7 @@ term_to_dbformat(pword *parg, dident mod)
 	    {
 	    case TINT:
 #if SIZEOF_CHAR_P > 4
-		if (pw->val.nint < -2147483648 || 2147483648 <= pw->val.nint)
+		if (pw->val.nint <  WSUF(-2147483648) || WSUF(2147483648) <= pw->val.nint)
 		{
 		    /* store as a bignum (to be readable on 32bit machines) */
 		    len = tag_desc[pw->tag.kernel].string_size(pw->val, pw->tag, 1);
@@ -2740,7 +2740,7 @@ dbformat_to_term(register char *buf, dident mod, type tmod)
 	    Load_Int32(n);
 	    pw[SUSP_FLAGS].tag.kernel = n;
 	    pw[SUSP_PRI].val.ptr = (pword *) 0;		/* missing */
-	    pw[SUSP_INVOC].tag.kernel = 0L;
+	    pw[SUSP_INVOC].tag.kernel = 0;
 	    if (!SuspDead(pw)) {
 		Load_Byte(n);
 		Init_Susp_State(pw, n);
@@ -2988,7 +2988,7 @@ _write_exdr(stream_id nst, pword *pw, t_heap_htable *strhm, int *perr)
 		Store_Byte(pw->val.nint);
 		return ec_outf(nst, buf, 2);
 	    }
-#if (SIZEOF_LONG > 4)
+#if (SIZEOF_WORD > 4)
 	    if ((int32) pw->val.nint != pw->val.nint)	/* need 'J' format */
 	    {
 		int32 lo, hi;
@@ -3004,7 +3004,7 @@ _write_exdr(stream_id nst, pword *pw, t_heap_htable *strhm, int *perr)
 	    Store_Int32(pw->val.nint);
 	    return ec_outf(nst, buf, 5);
 
-#if SIZEOF_LONG <= 4
+#if SIZEOF_WORD <= 4
 	case TBIG:
 	{
 	    int32 *limbs = (int32*) BufferStart(pw->val.ptr);
@@ -3015,7 +3015,7 @@ _write_exdr(stream_id nst, pword *pw, t_heap_htable *strhm, int *perr)
 		return ec_outfc(nst, '_');
 	    }
 	    lo = limbs[0];
-	    hi = BufferSize(pw->val.ptr) > 4 ? limbs[1] : 0L;
+	    hi = BufferSize(pw->val.ptr) > 4 ? limbs[1] : 0;
 	    if (BigNegative(pw->val.ptr))
 	    {
 		Negate_32_32(lo, hi);
@@ -3110,7 +3110,7 @@ int p_write_exdr(value vs, type ts, value v, type t)
     if (StreamBuf(nst) + StreamCnt(nst) >= (unsigned char*) (buf + n))	\
 	StreamPtr(nst) = (unsigned char*) (buf + n);	\
     else {						\
-	long _l;					\
+	word _l;					\
     	buf = ec_getstring(nst, n, &_l);		\
 	if (_l < n) buf = 0;				\
     }							\
@@ -3119,7 +3119,7 @@ int p_write_exdr(value vs, type ts, value v, type t)
 static int
 _read_exdr(stream_id nst, t_heap_htable *strhm, pword *pw)
 {
-    long arity, len;
+    word arity, len;
     char *buf;
     ieee_double d;
     pword *arg, key, valpw;
@@ -3153,8 +3153,8 @@ _read_exdr(stream_id nst, t_heap_htable *strhm, pword *pw)
 	    Get_Next(8);
 	    Load_Int32(hi);
 	    Load_Int32(lo);
-#if (SIZEOF_LONG >= 8)
-	    Make_Integer(pw, ((long) hi << 32) + (uint32) lo);
+#if (SIZEOF_WORD >= 8)
+	    Make_Integer(pw, ((word) hi << 32) + (uint32) lo);
 #else
 	    arg = TG;
 	    Push_Buffer(8);

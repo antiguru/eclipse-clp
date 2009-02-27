@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.4 2008/08/20 18:03:27 jschimpf Exp $
+% Version:	$Id: tracer_tty.pl,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.4 2008/08/20 18:03:27 jschimpf Exp $
+% $Id: tracer_tty.pl,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -1163,7 +1163,8 @@ it_overflow:-
 	flush(error),
 	reset.
 
-:- get_flag(hostarch, "i386_nt") ->
+:- get_flag(hostarch, Arch),
+   ( Arch == "i386_nt" ; Arch == "x86_64_nt" ->
 	% Handle interrupt at least synchronously
 	set_interrupt_handler(int, event/1),
 	set_event_handler(int, interrupt_prolog/0)
@@ -1191,5 +1192,6 @@ it_overflow:-
 	    try_set_interrupt_handler(term, abort/0),
 	    try_set_interrupt_handler(urg, it_handler/1),
 	    try_set_interrupt_handler(ttou, true/0)
-	).
+	)
+   ).
 

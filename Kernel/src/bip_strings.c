@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_strings.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * VERSION	$Id: bip_strings.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -88,7 +88,7 @@ bip_strings_init(int flags)
 {
     if (flags & INIT_PRIVATE)
     {
-	empty_string = enter_string_n("", 0L, DICT_PERMANENT);
+	empty_string = enter_string_n("", 0, DICT_PERMANENT);
 	d_sha_ = in_dict("sha", 0);
     }
 
@@ -497,7 +497,7 @@ p_concat_atoms(value v1, type t1, value v2, type t2, value vconc, type tconc)
 	dident		cdid;
 	register char	*s, *t;
 	value		v;
-	register long	l1, l2;
+	register word	l1, l2;
 	pword		*old_tg = Gbl_Tg;
 
         Check_Output_Atom_Or_Nil(vconc, tconc);	
@@ -628,10 +628,10 @@ _concat_string(value v1, type t1, value vsep, pword **conc)
 	pword		*cst;
 	char		*pa;
 	char		*pc;
-	long		length = 0;
+	word		length = 0;
 	value		v;
 	int		parts = 0;
-	long		cst_tag;
+	word		cst_tag;
 
 	if (IsNil(t1))
 	{
@@ -1192,7 +1192,7 @@ p_hash_secure(value v, type t, value vhash, type thash, value vmethod, type tmet
     if (vmethod.did == d_sha_)
     {
 	pword result;
-	unsigned long hash[5];
+	uword hash[5];
 
 	if (IsString(t))
 	{
@@ -1210,13 +1210,13 @@ p_hash_secure(value v, type t, value vhash, type thash, value vmethod, type tmet
 	    sha_memory(StringStart(vstring), StringLength(vstring), hash);
 	}
 
-	ec_array_to_big((const void *) hash, 5, 1, sizeof(long),
+	ec_array_to_big((const void *) hash, 5, 1, sizeof(word),
 #ifdef WORDS_BIGENDIAN
 		1,
 #else
 		0,
 #endif
-#if (SIZEOF_LONG == 8)
+#if (SIZEOF_WORD == 8)
 		32,
 #else
 		0,

@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.7 2008/12/12 05:50:38 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.8 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -254,10 +254,10 @@ extern int	control_ov ARGS((void)), local_ov ARGS((void));
 /*
  * an extended trail is further specified by the Etype Field:
  */
-#define TrailedEtype(x)          (((long)(x) >> 4) & 0x0f)
-#define TrailedEtypeField(x)     ((long)(x) << 4)
-#define TrailedEsize(x)          (((long)(x) >> 8) & 0xffffff)
-#define TrailedEsizeField(x)     (((long)(x) & 0xffffff) << 8)
+#define TrailedEtype(x)          (((word)(x) >> 4) & 0x0f)
+#define TrailedEtypeField(x)     ((word)(x) << 4)
+#define TrailedEsize(x)          (((word)(x) >> 8) & 0xffffff)
+#define TrailedEsizeField(x)     (((word)(x) & 0xffffff) << 8)
 
 #define TRAIL_UNDO		0x0
 #define TRAIL_UNDO_STAMPED	0x1
@@ -279,15 +279,15 @@ extern int	control_ov ARGS((void)), local_ov ARGS((void));
  * x is casted to preserve the sign bit in the shift,
  * 0x9fffffff is casted because ansi C treats it as unsigned.
  */
-#define TrailedTag(x)           (((long)(x) >> 2) & (long)(~(MARK|LINK)))
+#define TrailedTag(x)           (((word)(x) >> 2) & (word)(~(MARK|LINK)))
 
 /*
  * the following macros are used in value trails
  * the argument is the first word of the trail frame
  */
-#define TrailedOffset(x)        ((long)(x)>>8)
-#define TrailedNumber(x)        ((long)(x)>>4 & 0xf)
-#define TrailedType(x)          ((long)(x) & 0xc)
+#define TrailedOffset(x)        ((word)(x)>>8)
+#define TrailedNumber(x)        ((word)(x)>>4 & 0xf)
+#define TrailedType(x)          ((word)(x) & 0xc)
 
 #define TRAILED_TYPE_MASK 0xc
 
@@ -301,7 +301,7 @@ Trailed type macros not defined correctly!!!
  * Extract the adress of the trailed location from an arbitrary trail frame.
  * tr is a pointer to the first word of the frame
  */
-#define TrailedLocation(tr)     (((long) *(tr) & 3) ? *((tr)+1) : *(tr))
+#define TrailedLocation(tr)     (((word) *(tr) & 3) ? *((tr)+1) : *(tr))
 
 /*
  * Skip a trail frame
@@ -309,16 +309,16 @@ Trailed type macros not defined correctly!!!
  * end is set to the beginning of the next trail frame
  */
 #define End_Of_Frame(tr, end) \
-    switch(((long) *(tr) & 3)) {\
+    switch(((word) *(tr) & 3)) {\
     default:\
     case TRAIL_ADDRESS:\
         end = (tr)+1; break;\
     case TRAIL_TAG:\
         end = (tr)+2; break;\
     case TRAIL_MULT:\
-        end = (tr) + TrailedNumber((long)*(tr)) + 3; break;\
+        end = (tr) + TrailedNumber((word)*(tr)) + 3; break;\
     case TRAIL_EXT:\
-        end = (tr) + TrailedEsize((long)*(tr)); break;\
+        end = (tr) + TrailedEsize((word)*(tr)); break;\
     }
 
 
@@ -511,13 +511,13 @@ extern pword	*spmax_;
  * The Untrailing Routine
  *
  * top		Where to stop untrailing (previous TT value)
- * ctr		an auxiliary variable of type long
+ * ctr		an auxiliary variable of type word
  * pw		an auxiliary pointer of type pword *
  */
 
 #define Untrail_(ttptr, top, ctr, pw) \
       while(ttptr < top) {\
-	  switch((((long) *ttptr) & 3)) {\
+	  switch((((word) *ttptr) & 3)) {\
 	  case TRAIL_ADDRESS:\
 		pw = *ttptr++;\
 		Ignore_If_Above_Sp(pw);\
@@ -531,7 +531,7 @@ extern pword	*spmax_;
 		ttptr += 2;\
 		break;\
 	  case TRAIL_MULT:\
-		ctr = (long) *ttptr++;\
+		ctr = (word) *ttptr++;\
 		pw = (pword *)((uword *) *(ttptr++) + TrailedOffset(ctr));\
 		ctr = TrailedNumber(ctr);\
 		do {\
@@ -563,7 +563,7 @@ extern pword	*spmax_;
 #define Untrail_Import
 
 #define Untrail_Variables(top) {\
-	long n; pword *pw1;\
+	word n; pword *pw1;\
 	Untrail_(TT, top, n, pw1);\
 	}
 
@@ -684,7 +684,7 @@ extern pword	*spmax_;
 	(pw)->val.all = (uword) (v);
 
 /*
- * Return_Bind_Var(value, type, (uword), long)
+ * Return_Bind_Var(value, type, (uword), word)
  * 	Bind a free (maybe mutable) variable to a term which is known
  *	not to be a reference or a mutable object and then return
  *	from the built-in. This macro can be used instead of Return_Unify().
@@ -713,7 +713,7 @@ extern pword	*spmax_;
     }
 
 /*
- * Bind_Var(value, type, (uword), long)
+ * Bind_Var(value, type, (uword), word)
  * 	Bind a free (maybe mutable) variable to a term which is known
  *	not to be a reference or a mutable object. This macro can be
  *	used instead of Request_Unify().
@@ -950,7 +950,7 @@ extern pword	*spmax_;
 	Update_LD(p);\
 	(p)[SUSP_FLAGS].tag.kernel = TDE|(PriFlags(proc) & PROC_DEMON ? SUSP_FLAG_DEMON : 0);\
 	(p)[SUSP_PRI].val.wptr = (uword *)(proc);\
-	(p)[SUSP_INVOC].tag.kernel = 0L;
+	(p)[SUSP_INVOC].tag.kernel = 0;
 #define Init_Susp_Dead(p) \
 	(p)[SUSP_LD].val.ptr = (pword *)0;\
 	(p)[SUSP_FLAGS].tag.kernel = TDE|SUSP_FLAG_DEAD;
@@ -1244,7 +1244,7 @@ extern int	occur_check_read_ = 0, occur_check_write_ = 0;
 #define Write_Stop(p)	*--(p) = 0;
 
 #define Write_Count(p,n) {				\
-	unsigned long _i = n;				\
+	uword _i = n;				        \
 	while (_i > 127)				\
 	    { *--(p) = 127<<CNT_SHIFT; _i -= 127; }	\
 	*--(p) = _i<<CNT_SHIFT;				\
@@ -1254,7 +1254,7 @@ extern int	occur_check_read_ = 0, occur_check_write_ = 0;
 
 /* CAUTION: this scheme cannot handle n==0 */
 #define Write_Alt(p, n, fl) {				\
-	long _i = (n) < 16 ? (n) : 0;			\
+	word _i = (n) < 16 ? (n) : 0;			\
 	*--(p) = (_i<<ALT_SHIFT)|(fl)|ALT_FLAG;		\
 	if (_i == 0) {					\
 	    *--(p) = (n) >> 24;				\
@@ -1305,8 +1305,8 @@ extern char *read_node();
  * Get DID for a type
  *---------------------------------------------------------------------------*/
 
-#define TransfDid(t)	transf_did((long) t)
-extern dident transf_did ARGS((long));
+#define TransfDid(t)	transf_did((word) t)
+extern dident transf_did ARGS((word));
 
 
 /*---------------------------------------------------------------------------
@@ -1347,16 +1347,16 @@ extern dident transf_did ARGS((long));
 	Make_Integer(&pw[TF_INVOC], tinvoc); \
 	pw[TF_GOAL].val.all = vgoal.all; \
 	pw[TF_GOAL].tag.all = tgoal.all; \
-	Make_Integer(&pw[TF_LEVEL], (long) (depth)); \
+	Make_Integer(&pw[TF_LEVEL], (word) (depth)); \
 	Make_Stamp(&pw[TF_CHP_STAMP]); \
 	pw[TF_ANCESTOR] = TAGGED_TD; \
 	pw[TF_PROC].val.priptr = proc; \
 	pw[TF_PROC].tag.kernel = TPTR; \
-        Make_Integer(&pw[TF_PRIO], (long) (prio)); \
+        Make_Integer(&pw[TF_PRIO], (word) (prio)); \
 	Make_Atom(&pw[TF_PATH], filedid); \
-        Make_Integer(&pw[TF_LINE], (long) (line)); \
-        Make_Integer(&pw[TF_FROM], (long) (from)); \
-        Make_Integer(&pw[TF_TO], (long) (to)); \
+        Make_Integer(&pw[TF_LINE], (word) (line)); \
+        Make_Integer(&pw[TF_FROM], (word) (from)); \
+        Make_Integer(&pw[TF_TO], (word) (to)); \
 	pw[TF_MODULE].val.did = mod; \
 	pw[TF_MODULE].tag.kernel = ModuleTag(mod); \
 	Make_Struct(&TAGGED_TD, pw); \
@@ -1370,16 +1370,16 @@ extern dident transf_did ARGS((long));
 	Make_Integer(&pw[TF_INVOC], tinvoc); \
 	pw[TF_GOAL].val.all = vgoal.all; \
 	pw[TF_GOAL].tag.all = tgoal.all; \
-	Make_Integer(&pw[TF_LEVEL], (long) (depth)); \
+	Make_Integer(&pw[TF_LEVEL], (word) (depth)); \
 	Make_Stamp(&pw[TF_CHP_STAMP]); \
 	Make_Var(&pw[TF_ANCESTOR]); \
 	pw[TF_PROC].val.priptr = proc; \
 	pw[TF_PROC].tag.kernel = TPTR; \
-        Make_Integer(&pw[TF_PRIO], (long) (prio)); \
+        Make_Integer(&pw[TF_PRIO], (word) (prio)); \
 	Make_Atom(&pw[TF_PATH], filedid); \
-        Make_Integer(&pw[TF_LINE], (long) (line)); \
-        Make_Integer(&pw[TF_FROM], (long) (from)); \
-        Make_Integer(&pw[TF_TO], (long) (to)); \
+        Make_Integer(&pw[TF_LINE], (word) (line)); \
+        Make_Integer(&pw[TF_FROM], (word) (from)); \
+        Make_Integer(&pw[TF_TO], (word) (to)); \
 	pw[TF_MODULE].val.did = mod; \
 	pw[TF_MODULE].tag.kernel = ModuleTag(mod); \
     }
@@ -1396,11 +1396,11 @@ extern dident transf_did ARGS((long));
 	Make_Var(&pw[TF_ANCESTOR]); \
 	pw[TF_PROC].val.priptr = proc; \
 	pw[TF_PROC].tag.kernel = TPTR; \
-        Make_Integer(&pw[TF_PRIO], (long) (prio)); \
+        Make_Integer(&pw[TF_PRIO], (word) (prio)); \
 	Make_Atom(&pw[TF_PATH], filedid); \
-        Make_Integer(&pw[TF_LINE], (long) (line)); \
-        Make_Integer(&pw[TF_FROM], (long) (from)); \
-        Make_Integer(&pw[TF_TO], (long) (to)); \
+        Make_Integer(&pw[TF_LINE], (word) (line)); \
+        Make_Integer(&pw[TF_FROM], (word) (from)); \
+        Make_Integer(&pw[TF_TO], (word) (to)); \
 	pw[TF_MODULE].val.did = mod; \
 	pw[TF_MODULE].tag.kernel = ModuleTag(mod); \
     }
@@ -1514,7 +1514,7 @@ Extern	int	return_throw ARGS((value, type));
 Extern	int	longjmp_throw ARGS((value, type));
 Extern	void	next_posted_event ARGS((pword *));
 Extern	int	deep_suspend ARGS((value, type, int, pword*, int));
-Extern	DLLEXP	pword *	add_attribute ARGS((long, pword*, long, int));
+Extern	DLLEXP	pword *	add_attribute ARGS((word, pword*, word, int));
 Extern	DLLEXP	int	insert_suspension ARGS((pword*, int, pword*, int));
 Extern	DLLEXP	int	notify_constrained ARGS((pword*));
 Extern	pword *	first_woken ARGS((int));

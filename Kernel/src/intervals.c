@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.2 2008/07/16 23:58:32 kish_shen Exp $
+* Version:	$Id: intervals.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
 *
 
 Supported operations:
@@ -1971,11 +1971,11 @@ static int
 _ivl_sgn(value v1, pword *pres)
 {
     if (IvlLwb(v1.ptr) > 0.0)
-    	pres->val.nint = 1L;
+    	pres->val.nint = 1;
     else if (IvlUpb(v1.ptr) < 0.0)
-    	pres->val.nint = -1L;
+    	pres->val.nint = -1;
     else if (IvlLwb(v1.ptr) == 0.0  &&  IvlUpb(v1.ptr) == 0.0)
-    	pres->val.nint = 0L;
+    	pres->val.nint = 0;
     else { Bip_Error(ARITH_EXCEPTION); }
     Succeed_;
 }

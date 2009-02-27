@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.2 2008/06/20 13:41:12 jschimpf Exp $
+# $Id: Makefile.in,v 1.3 2009/02/27 21:03:35 kish_shen Exp $
 #
 
 ARCH = @ARCH@
@@ -28,8 +28,8 @@ EXTRA_DEST =	$(EXTRA_FILES:%=$(DESTDIR)/%)
 
 
 install:	@MAKE_TARGET@
-install_cross:	$(ECL_DEST) $(ECI_DEST) $(EXTRA_DEST)
-install_all:	install_cross
+install_cross:	$(ECL_DEST) $(EXTRA_DEST)
+install_all:	install_cross $(ECI_DEST)
 
 
 clean:

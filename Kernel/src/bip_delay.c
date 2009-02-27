@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.4 2008/12/12 05:50:38 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -469,14 +469,14 @@ int
 global_stat(void)
 {
     pword	*tg = TG_ORIG;
-    long	arity;
-    long	gsize = 2 * (Gbl_Tg - tg);
-    long	size_de = 0;	/* delayed goals */
-    long	size_mt = 0;	/* metaterms */
-    long	size_hb = 0;	/* heap buffers and strings */
-    long	size_st = 0;	/* structures */
-    long	size_ls = 0;	/* lists */
-    long	size_re = 0;	/* rest */
+    word	arity;
+    word	gsize = 2 * (Gbl_Tg - tg);
+    word	size_de = 0;	/* delayed goals */
+    word	size_mt = 0;	/* metaterms */
+    word	size_hb = 0;	/* heap buffers and strings */
+    word	size_st = 0;	/* structures */
+    word	size_ls = 0;	/* lists */
+    word	size_re = 0;	/* rest */
 
     while (tg < Gbl_Tg)
     {
@@ -709,7 +709,7 @@ p_nonground2(value val, type tag, value vvar, type tvar)
 static int
 _collect_vars(
     	value val, type tag,
-	long int vars_needed,		/* > 0 */
+	word vars_needed,		/* > 0 */
 	pword *list)
 {
     register int arity;
@@ -768,7 +768,7 @@ p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst)
 
     Check_Integer(tn)
     Check_Output_List(tlst)
-    if (vn.nint <= 0L)
+    if (vn.nint <= 0)
 	{ Bip_Error(RANGE_ERROR); }
 
     list.tag.kernel = TNIL;
@@ -907,7 +907,7 @@ modify_attribute(value vv, type tv, value va, type ta, value vm, type tm, int re
     pword	*attr;
     pword	*mt;
     pword	*nva;
-    long	nta;
+    word	nta;
 
     if (IsInteger(tm))
     {
@@ -1144,7 +1144,7 @@ p_set_suspension_number(value vs, type ts, value vn, type tn)
 static int
 p_get_suspension_number(value vs, type ts, value vn, type tn)
 {
-    long	n;
+    word	n;
 
     Check_Type(ts, TSUSP)
     Check_Output_Integer(tn)
@@ -1163,7 +1163,7 @@ p_get_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type 
 	{ Fail_; }
     if (vwhat.did == d_.state)
     {
-	long n = SuspDead(vs.ptr) ? 2 : SuspScheduled(vs.ptr) ? 1 : 0;
+	word n = SuspDead(vs.ptr) ? 2 : SuspScheduled(vs.ptr) ? 1 : 0;
 	Return_Unify_Integer(v, t, n);
     }
     if (SuspDead(vs.ptr))
@@ -1985,7 +1985,7 @@ p_new_scheduled(value vold, type told, value vl, type tl)
     pword		*save_l;
     pword		*save_tg;
     int			i;
-    long		max;
+    word		max;
 
     Check_Structure(told);
 #if 0

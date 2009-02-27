@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.1 2008/06/30 17:43:58 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -252,7 +252,7 @@ typedef struct parse_desc {
 
 	vword		*var_table;	/* hash table for variable names */
 	int		var_table_size;	/* the table's size		*/
-	long		counter;	/* its generation counter	*/
+	word		counter;	/* its generation counter	*/
 
 	int		macro;		/* term may contain a macro	*/
 	pword		*var_list_tail;	/* tail of varlist (readvar)	*/
@@ -291,7 +291,7 @@ static int
 	p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, value vm, type tm),
 	p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type tm);
 
-static unsigned long
+static uword
 	hashfunction(char *id);
 
 static vword
@@ -310,7 +310,7 @@ static int
 */
 
 /* size of the variable hash table (should be a prime) */
-#define NUMBER_VAR 1009L
+#define NUMBER_VAR 1009
 
 
 
@@ -2028,10 +2028,10 @@ transf_meta_out(value val,	/* attribute term to transform */
 
 /********************* VARIABLE NAME HASHING *******************************/
 
-static unsigned long
+static uword
 hashfunction(char *id)
 {
-	register unsigned long	hash;
+	register uword	hash;
 	register int		length, shift, ival;
 	register char		*str;
 

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -146,7 +146,7 @@ static int
 p_functor(value vt, type t, value vf, type tf, value va, type ta)
 {
     int             i;
-    register long	arity;
+    register word	arity;
     pword           *p;
 
     if (IsRef(t))
@@ -641,7 +641,7 @@ p_char_code(value v1, type t1, value v2, type t2)
 static int
 p_univ(value tv, type tt, value lv, type lt)
 {
-long     arity, i;
+word     arity, i;
 pword   *tail, *head, *newel, *tvptr, *elem;
 dident  fd;
 

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_array.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * VERSION	$Id: bip_array.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -79,7 +79,7 @@
 
 extern char	*inst_name[];
 char		*vm_inst_flag_;
-unsigned long	*vm_inst_ctr_;
+uword	        *vm_inst_ctr_;
 
 #endif /* PRINTAM */
 
@@ -131,7 +131,7 @@ pword	*p_installation_dir_;	/* accessed from megalog! */
 
 typedef union {
     uword	w;
-    long	l;
+    word	l;
     double	d;
 } maxelsize;
 
@@ -238,7 +238,7 @@ bip_array_init(int flags, char *installation_dir)
     }
     vm_inst_flag_ = (char*)
 	(get_kernel_array(in_dict("vm_inst_flag",1))->val.ptr + 1);
-    vm_inst_ctr_ = (unsigned long*)
+    vm_inst_ctr_ = (uword*)
 	(get_kernel_array(in_dict("vm_inst_ctr",1))->val.ptr + 1);
 #endif /* PRINTAM */
 
@@ -310,7 +310,7 @@ make_kernel_array(dident adid, int length, dident atype, dident avisib)
     buf[2].tag.kernel = TDICT;
     buf[3].val.did = adid;		/*  must be arity 1 !!! */
     buf[3].tag.kernel = TDICT;
-    buf[4].val.nint = (long) length;
+    buf[4].val.nint = (word) length;
     buf[4].tag.kernel = TINT;
     return p_make_array_(buf[0].val, buf[0].tag, buf[1].val, buf[1].tag,
 		    buf[2].val, buf[2].tag, module.val, module.tag);

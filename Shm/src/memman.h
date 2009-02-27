@@ -60,12 +60,21 @@ typedef unsigned int	uint32;
 #if (SIZEOF_CHAR_P == SIZEOF_INT)
 typedef int		word;			/* pointer-sized */
 typedef unsigned int	uword;
-#else
-#if (SIZEOF_CHAR_P == SIZEOF_LONG)
+#define WSUF(X) X
+#elif (SIZEOF_CHAR_P == SIZEOF_LONG)
 typedef long		word;			/* pointer-sized */
 typedef unsigned long	uword;
-#endif
-#endif
+#define WSUF(X) (X##L)
+#elif (defined(HAVE_LONG_LONG) || defined(__GNUC__)) && \
+   (SIZEOF_CHAR_P == __SIZEOF_LONG_LONG__)
+typedef long long 		word;		/* pointer-sized */
+typedef unsigned long long 	uword;
+#define WSUF(X) (X##LL)
+#elif (defined(HAVE___INT64) && SIZEOF_CHAR_P == 8)
+typedef __int64          word;
+typedef unsigned __int64 uword;
+#define WSUF(X) (X##I64)
+#endif  /* no code for dealing with word size > long long/__int64! */
 
 
 #if (SIZEOF_CHAR_P == 8)
@@ -73,7 +82,7 @@ typedef unsigned long	uword;
 /* For -taso we address only the 32-bit memory */
 #define MAX_ADDRESS_BYTE	0x20000000
 #ifndef SIGN_BIT
-#define SIGN_BIT		((uword) 0x8000000000000000L)
+#define SIGN_BIT		((uword) WSUF(0x8000000000000000))
 #endif
 #else
 #define MAX_ADDRESS_BYTE	0x20000000

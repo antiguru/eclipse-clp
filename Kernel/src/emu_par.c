@@ -1024,7 +1024,7 @@ struct copy_data
     pword *	gctg;		/* tg after last gc */
     pword *	gcb;		/* last garbage collected choice point */
     pword *	tg_soft_lim;	/* garbage collection trigger point */
-    long	segment_size;	/* garbage collection interval */
+    word	segment_size;	/* garbage collection interval */
     pword *	bcommon;
     pword *	global_variable;
     st_handle_t	new_anc_branch;	/* node field of topmost common par chp */

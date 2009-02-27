@@ -315,7 +315,7 @@ print_trace(trace_header)
 trace_header_t * trace_header;
 {
   hrtime_t trace_start;
-  long utime, hrtime_to_usec();
+  word utime, hrtime_to_usec();
   int i;
   trace_event_t evt;
   FILE *tf, *temp_log;
@@ -344,13 +344,13 @@ trace_header_t * trace_header;
 	{
 	  for(i = 0; i < theader.entries ; i++)  {
 	    read(temp_fd, &evt, sizeof(trace_event_t));
-	    utime = (long) hrtime_to_usec(evt.time - trace_start);
+	    utime = (word) hrtime_to_usec(evt.time - trace_start);
 	    if (utime < 0 )
 	      {
 		printf("%d:Error in logfile utime = %d", ParallelWorker, utime);
-		printf(" start_time = %lld, evt = %d, evt_time = %lld\n",
+		printf(" start_time = %" W_MOD "d, evt = %d, evt_time = %" W_MOD "d\n",
 		       trace_start, evt.event, evt.time);
-		printf("i = %d entries = %d local_trace_start = %lld \n", 
+		printf("i = %d entries = %d local_trace_start = %" W_MOD "d \n", 
 		       i, theader.entries, theader.start_time);
 	      }
 	    else
@@ -391,14 +391,14 @@ __psunsigned_t phys_addr, raddr;
 
 }
 /* convert time returned by high-resolution  clock to microseconds */
-long hrtime_to_usec(hrtime)
+word hrtime_to_usec(hrtime)
 hrtime_t hrtime;
 {
-  unsigned long long temp;
+    unsigned long long temp; /* just in case unsinged long long > 64 bits */
   
   temp = hrtime;
   temp = temp * cycleval / 1000000;  /* cycleval is in picoseconds */
-  return((long) temp);
+  return((word) temp);
 }
 
 double hrtime_to_msec(hrtime)
@@ -415,10 +415,10 @@ void init_hrclock()
 { }
 
 /* convert time returned by high-resolution  clock to microseconds */
-long hrtime_to_usec(hrtime)
+word hrtime_to_usec(hrtime)
 hrtime_t hrtime;
 {
-  return((long) (hrtime / 1000));
+  return((word) (hrtime / 1000));
 }
 
 double hrtime_to_msec(hrtime)

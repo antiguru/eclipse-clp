@@ -162,6 +162,11 @@ if test $ARCH = "i386_nt" ; then
     exit 0
 fi
 
+if test $ARCH = "x86_64_nt" ; then
+    echo "Nothing to do for $ARCH"
+    exit 0
+fi
+
 # directory defaults
 ECLIPSEDIR=`pwd`
 EXE_DIR="\$ECLIPSEDIR/bin/$ARCH"

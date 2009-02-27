@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -54,7 +54,7 @@ ec_double_to_int_or_bignum(double f, pword *pres)
 {
 	if (MIN_S_WORD_DBL <= (f) && (f) < MAX_S_WORD_1_DBL)
 	{
-	    pres->val.nint = (long) (f);
+	    pres->val.nint = (word) (f);
 	    pres->tag.kernel = TINT;
 	}
 	else
@@ -218,7 +218,7 @@ typedef __int64 long_long;
  * For 64 bit architectures an mp_limb_t is 64 bit so 
  * Push_Big_Int/Push_Big_PosInt suffices. 
  */
-#if SIZEOF_LONG == 4	/* should test sizeof(mp_limb_t) */
+#if __GMP_BITS_PER_MP_LIMB == 32	
 
 #define Push_Big_Int64(neg, n) {			\
 	pword *_pbig = TG;				\
@@ -238,10 +238,14 @@ typedef __int64 long_long;
 	((mp_limb_t *) BufferStart(_pbig))[0] = (n & 0xFFFFFFFF);	\
 	((mp_limb_t *) BufferStart(_pbig))[1] = ((n >> 32) & 0xFFFFFFFF); \
 	}
-#else /* Assume a 64 bit mp_limb_t */
+#elif __GMP_BITS_PER_MP_LIMB == 64
 
 #define Push_Big_Int64(neg, n) Push_Big_Int(neg, n)
 #define Push_Big_PosInt64(neg, n) Push_Big_PosInt(neg, n)
+
+#else
+
+PROBLEM: No code to cope with MP_LIMB size for this platform!
 
 #endif
 
@@ -339,7 +343,7 @@ mpn_to_double(mp_ptr d, mp_size_t size)
 {
     double res = 0.0;
     int i = ABS(size);
-#if SIZEOF_LONG == 4	/* should test sizeof(mp_limb_t) */
+#if __GMP_BITS_PER_MP_LIMB == 32
     switch (i)
     {
     case 3:
@@ -395,16 +399,15 @@ mpz_to_double(MP_INT *z)
 }
 
 static int
-mpz_getbit(MP_INT *z, unsigned long bit)
+mpz_getbit(MP_INT *z, uword bit)
 {
 
-#define BITS_PER_MP_LIMB (sizeof(mp_limb_t)*8)
 
     mp_size_t size = z->_mp_size;
-    mp_size_t offs = bit / BITS_PER_MP_LIMB;
+    mp_size_t offs = bit / __GMP_BITS_PER_MP_LIMB;
 
     if (size > 0)
-	return offs >= size ? 0 : (z->_mp_d[offs] >> (bit%BITS_PER_MP_LIMB)) & 1;
+	return offs >= size ? 0 : (z->_mp_d[offs] >> (bit%__GMP_BITS_PER_MP_LIMB)) & 1;
 /*
     else if (size < 0)
     {
@@ -542,7 +545,7 @@ mpq_set_double(MP_RAT *q, double f)
 
 	if (x < MAX_S_WORD_1_DBL)
 	{
-	    unsigned long int_xi = (unsigned long) xi;
+	    uword int_xi = (uword) xi;
 	    mpz_mul_ui(&na, &tmpn, int_xi);
 	    mpz_mul_ui(&da, &tmpd, int_xi);
 	}
@@ -624,7 +627,7 @@ _pw_from_mpi(pword *pw, MP_INT *mpi)
     } else if (mpi->_mp_size == -1) {
 	if (mpi->_mp_d[0] <= MIN_S_WORD) {
 	    pw->tag.kernel = TINT;
-	    pw->val.nint = - (long) mpi->_mp_d[0];
+	    pw->val.nint = - (word) mpi->_mp_d[0];
 	    mpz_clear(mpi);
 	    return;
 	}
@@ -648,7 +651,7 @@ _pw_from_big(pword *pw, pword *pbig)
 	if (BigNegative(pbig)) {
 	    if (i <= (mp_limb_t) MIN_S_WORD) {
 		pw->tag.kernel = TINT;
-		pw->val.nint = - (long)i;
+		pw->val.nint = - (word)i;
 		return;
 	    }
 	} else {
@@ -1220,7 +1223,7 @@ _big_pow(value v1, value v2, pword *pres)
     Big_To_Mpi(v1.ptr, &a);
     if (v2.nint < 0)	/* big x neg_int -> rat */
     {
-	mpz_pow_ui(&c, &a, (unsigned long) (-v2.nint));
+	mpz_pow_ui(&c, &a, (uword) (-v2.nint));
 	Make_Rat(pres, TG);
 	Push_Rat_Frame();
 	Make_Big(Numer(pres->val.ptr), TG);
@@ -1230,7 +1233,7 @@ _big_pow(value v1, value v2, pword *pres)
     }
     else		/* big x int -> big */
     {
-	mpz_pow_ui(&c, &a, (unsigned long) v2.nint);
+	mpz_pow_ui(&c, &a, (uword) v2.nint);
 	Pw_From_Mpi(pres, &c);
     }
     Succeed_;
@@ -1293,7 +1296,7 @@ static int
 _big_sgn(value v1,	/* can't be zero */
 	pword *pres)
 {
-    pres->val.nint = (long) (BigNegative(v1.ptr) ? -1: 1);
+    pres->val.nint = (word) (BigNegative(v1.ptr) ? -1: 1);
     Succeed_;
 }
 
@@ -1355,9 +1358,9 @@ _big_shl(value v1, value v2, pword *pres)	/* big x int -> big */
     mpz_init(&c);
     Big_To_Mpi(v1.ptr, &a);
     if (v2.nint >= 0)
-	mpz_mul_2exp(&c, &a, (unsigned long) v2.nint);
+	mpz_mul_2exp(&c, &a, (uword) v2.nint);
     else
-	mpz_div_2exp(&c, &a, (unsigned long) -v2.nint);
+	mpz_div_2exp(&c, &a, (uword) -v2.nint);
     Pw_From_Mpi(pres, &c);
     Succeed_;
 }
@@ -1369,9 +1372,9 @@ _big_shr(value v1, value v2, pword *pres)	/* big x int -> big */
     mpz_init(&c);
     Big_To_Mpi(v1.ptr, &a);
     if (v2.nint >= 0)
-	mpz_div_2exp(&c, &a, (unsigned long) v2.nint);
+	mpz_div_2exp(&c, &a, (uword) v2.nint);
     else
-	mpz_mul_2exp(&c, &a, (unsigned long) -v2.nint);
+	mpz_mul_2exp(&c, &a, (uword) -v2.nint);
     Pw_From_Mpi(pres, &c);
     Succeed_;
 }
@@ -1382,7 +1385,7 @@ _big_setbit(value v1, value v2, pword *pres)	/* big x int -> big */
     MP_INT a,c;
     Big_To_Mpi(v1.ptr, &a);
     mpz_init_set(&c, &a);
-    mpz_setbit(&c, (unsigned long) v2.nint);
+    mpz_setbit(&c, (uword) v2.nint);
     Pw_From_Mpi(pres, &c);
     Succeed_;
 }
@@ -1393,7 +1396,7 @@ _big_clrbit(value v1, value v2, pword *pres)	/* big x int -> big */
     MP_INT a,c;
     Big_To_Mpi(v1.ptr, &a);
     mpz_init_set(&c, &a);
-    mpz_clrbit(&c, (unsigned long) v2.nint);
+    mpz_clrbit(&c, (uword) v2.nint);
     Pw_From_Mpi(pres, &c);
     Succeed_;
 }
@@ -1504,7 +1507,7 @@ _int_neg(value v1, pword *pres)
 #define Dbl_Fix(f, pres) {						\
 	if (MIN_S_WORD_DBL <= (f) && (f) < MAX_S_WORD_1_DBL)		\
 	{								\
-	    pres->val.nint = (long) (f);				\
+	    pres->val.nint = (word) (f);				\
 	    pres->tag.kernel = TINT;					\
 	}								\
 	else if (finite(f))	/* convert to a bignum */		\
@@ -1604,7 +1607,7 @@ _rat_abs(value v1, pword *pres)
 static int
 _rat_sgn(value v1, pword *pres)
 {
-    pres->val.nint = (long) (RatNegative(v1.ptr) ? -1: RatZero(v1.ptr)? 0: 1);
+    pres->val.nint = (word) (RatNegative(v1.ptr) ? -1: RatZero(v1.ptr)? 0: 1);
     Succeed_;
 }
 
@@ -1706,7 +1709,7 @@ _rat_pow(value v1, value v2, pword *pres)		/* rat x int -> rat */
     }
     else
     {
-	long exp = v2.nint < 0 ? -v2.nint : v2.nint;
+	word exp = v2.nint < 0 ? -v2.nint : v2.nint;
 	MP_RAT a,b;
 	Rat_To_Mpr(v1.ptr, &b);
 	mpq_init(&a);

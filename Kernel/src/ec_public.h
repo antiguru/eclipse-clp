@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_public.h,v 1.2 2008/07/10 00:33:05 jschimpf Exp $
+ * $Id: ec_public.h,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
  *
  * Macro definitions needed for the ECLiPSe embedding interface.
  *
@@ -52,32 +52,57 @@
 /*		Machine-dependent definitions			 */
 /******************************************************************/
 
-#if (SIZEOF_CHAR_P != SIZEOF_LONG)
-PROBLEM: Code assumes that SIZEOF_CHAR_P == SIZEOF_LONG
-#endif
-
 /* A "word" is a pointer-sized integer.
  * The following size/min/max definitions are all about "words",
  * even when they say "int".
  */
 #define SIZEOF_WORD	SIZEOF_CHAR_P
 
-/* Important:  SIGN_BIT is unsigned! */
-#if (SIZEOF_WORD == 8)
-#define SIGN_BIT	((unsigned long) 0x8000000000000000L)
-#define MAX_NUMBER	"9223372036854775807"
+/* suffix needed for word-sized constants */
+#if (SIZEOF_WORD == SIZEOF_INT)
+#define WSUF(X) X
+#define UWSUF(X) X
+#define W_MOD ""
+#elif (SIZEOF_WORD == SIZEOF_LONG)
+#define WSUF(X) (X##L)
+#define UWSUF(X) (X##UL)
+#define W_MOD "l"
+#elif (defined(HAVE_LONG_LONG) || defined(__GNUC__)) && \
+     (SIZEOF_WORD == __SIZEOF_LONG_LONG__)
+#define WSUF(X) (X##LL)
+#define UWSUF(X) (X##ULL)
+# ifdef _WIN32
+/* MSVC did not support long long until V8 (2005). Cross-compiling with
+   MingGW can use long long, but as calling printf/scanf will use MS
+   rather than GNU libc, we need to use MS's 64 bit integer modifier
+*/ 
+# define W_MOD "I64"
+# else
+# define W_MOD "ll"
+# endif
+#elif (defined(HAVE___INY64) && SIZEOF_WORD == 8)
+#define WSUF(X) (X##I64)
+#define UWSUF(X) (X##UI64)
+#define W_MOD "I64"
 #else
-#if (SIZEOF_WORD == 4)
-#define SIGN_BIT	((unsigned) 0x80000000L)
+PROBLEM: word size do not correspond to size of common integer types
+#endif
+
+/* Important:  SIGN_BIT is unsigned! */
+#if (SIZEOF_WORD ==  8)
+#define SIGN_BIT	((uword) UWSUF(0x8000000000000000))
+#define MAX_NUMBER	"9223372036854775807"
+#elif (SIZEOF_WORD == 4)
+#define SIGN_BIT	((uword) UWSUF(0x80000000))
 #define MAX_NUMBER	"2147483647"
 #else
 PROBLEM: Cannot deal with word size SIZEOF_WORD.
 #endif
-#endif
 
-#define MAX_U_WORD	((unsigned long) -1)
-#define MAX_S_WORD	((long) ~SIGN_BIT)
-#define MIN_S_WORD      ((long) SIGN_BIT)
+
+#define MAX_U_WORD	((uword) -1)
+#define MAX_S_WORD	((word) ~SIGN_BIT)
+#define MIN_S_WORD      ((word) SIGN_BIT)
 
 /*
  * Min/max words as doubles.
@@ -119,7 +144,7 @@ PROBLEM: Cannot deal with word size SIZEOF_WORD.
  */
 #define DOUBLE_SIGNIFICANT_BITS	53
 #if (SIZEOF_WORD >= SIZEOF_DOUBLE)
-#define DOUBLE_INT_LIMIT	(1L << DOUBLE_SIGNIFICANT_BITS)
+#define DOUBLE_INT_LIMIT	(WSUF(1) << DOUBLE_SIGNIFICANT_BITS)
 #endif
 #define DOUBLE_INT_LIMIT_AS_DOUBLE	9007199254740992.0
 

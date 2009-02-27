@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.16 2008/09/01 11:47:33 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.17 2009/02/27 21:01:04 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -310,7 +310,8 @@
 
 % ignore_eof is on on Windows because ^C acts like end_of_file
 ?- make_array_(ignore_eof, prolog, local, sepia_kernel),
-   (get_sys_flag(8, "i386_nt") -> setval(ignore_eof, on) ; setval(ignore_eof, off)).
+   get_sys_flag(8, Arch),
+   (Arch == "i386_nt" ; Arch == "x86_64_nt -> setval(ignore_eof, on) ; setval(ignore_eof, off)).
 
 
 %------------------------------------
@@ -7359,7 +7360,8 @@ present_libraries(Sys, [_|L], T) :-
 	    getenv("ECLIPSETMP",OsTDir),
 	    os_file_name(TDir, OsTDir)
 	;
-	    (get_sys_flag(8, "i386_nt") ->
+	    get_sys_flag(8, Arch),
+            (Arch == "i386_nt" ; Arch == "x86_64_nt" ->
 		(
 		    getenv("TMP", OsTDir)
 		;

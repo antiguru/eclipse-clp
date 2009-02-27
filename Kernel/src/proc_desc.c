@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.3 2008/09/01 11:44:54 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.4 2009/02/27 21:01:04 kish_shen Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -778,7 +778,7 @@ _undef_code(pri *pd)
     vmcode *code, *start;
     code = (vmcode *) hg_alloc_size(sizeof(vmcode) * (UNDEF_CODE_SIZE + PROC_PREFIX_SIZE));
     /* Make_Procedure_Prefix(link, size, bid, fid, lid, cid, did) */
-    Make_Procedure_Prefix(0L, UNDEF_CODE_SIZE, -1L, D_UNKNOWN, UNDEFINED_PROC, -1L, PriDid(pd));
+    Make_Procedure_Prefix(0L, UNDEF_CODE_SIZE, (uword)-1, D_UNKNOWN, UNDEFINED_PROC, (uword)-1, PriDid(pd));
     start = code;
     Store_2(Undefined, pd);
     Store_i(Code_end);
@@ -1837,7 +1837,7 @@ pri *ec_code_procedure(vmcode *code)
  *----------------------------------------------------------------------*/
 
 static pri *
-_define_built_in(dident did1, int (*function) (/* ??? */), long int flags, dident mod, uint32 vis, int nondet)
+_define_built_in(dident did1, int (*function) (/* ??? */), word flags, dident mod, uint32 vis, int nondet)
 {
     pri	*pd;
     pri_code_t pricode;
@@ -1871,7 +1871,7 @@ _define_built_in(dident did1, int (*function) (/* ??? */), long int flags, diden
  * A global built_in in sepia_kernel.
  */
 pri *
-built_in(dident did1, int (*func) (/* ??? */), long int flags)
+built_in(dident did1, int (*func) (/* ??? */), word flags)
 {
     return _define_built_in(did1, func, flags, d_.kernel_sepia, EXPORT, 0);
 }
@@ -1880,7 +1880,7 @@ built_in(dident did1, int (*func) (/* ??? */), long int flags)
  * A local built_in in sepia_kernel.
  */
 pri *
-local_built_in(dident did1, int (*func) (/* ??? */), long int flags)
+local_built_in(dident did1, int (*func) (/* ??? */), word flags)
 {
     return _define_built_in(did1, func, flags, d_.kernel_sepia, LOCAL, 0);
 }
@@ -1889,7 +1889,7 @@ local_built_in(dident did1, int (*func) (/* ??? */), long int flags)
  * An exported built_in in sepia_kernel.
  */
 pri *
-exported_built_in(dident did1, int (*func) (/* ??? */), long int flags)
+exported_built_in(dident did1, int (*func) (/* ??? */), word flags)
 {
     return _define_built_in(did1, func, flags, d_.kernel_sepia, EXPORT, 0);
 }

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -1810,7 +1810,7 @@ p_seek(value vs, type ts, value vp, type tp)
     }
     if (IsAtom(tp) && vp.did == d_.eof)
     {
-	return ec_seek_stream(nst, 0L, LSEEK_END);
+	return ec_seek_stream(nst, 0, LSEEK_END);
     }
     Check_Integer(tp);
     return ec_seek_stream(nst, vp.nint, LSEEK_SET);
@@ -1879,7 +1879,7 @@ p_getw(value vs, type ts, value val, type tag)
 {
     int			res;
     register char	*p;
-    long		l;
+    word		l;
     word		w;
     char		*pw;
     int			i;
@@ -2074,7 +2074,7 @@ p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value
     int			isref, status;
     int			res;
     char		*c, *d, *delim;
-    long		ndelim, dellength, length = 0L;
+    long		ndelim, dellength, length = 0;
     pword		*pw;
     static char *	nl = "\n";
     Prepare_Requests

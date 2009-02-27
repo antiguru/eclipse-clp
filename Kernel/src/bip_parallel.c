@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_parallel.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * VERSION	$Id: bip_parallel.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /* ********************************************************************
@@ -141,7 +141,7 @@ p_dbag_create(value vbag, type tbag)
 				(aport_optval_t) dbag_descr) != AMSG_OK)
 	{ Bip_Error(MPS_ERROR); }
 
-    Return_Unify_Integer(vbag, tbag, (long) bag_aport_id);
+    Return_Unify_Integer(vbag, tbag, (word) bag_aport_id);
 }
 
 static int
@@ -274,7 +274,7 @@ p_get_oracle3(value vfrom, type tfrom, value vto, type tto, value v, type t)
     buf = (char *) hp_alloc(size);
     retrieve_oracle(buf, size, vfrom.ptr, b_aux);
 
-    Return_Unify_Integer(v, t, (long) buf);
+    Return_Unify_Integer(v, t, (word) buf);
 }
 
 static int

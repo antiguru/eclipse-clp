@@ -167,7 +167,7 @@ static void byteReverse( unsigned long *buffer, int byteCount )
     for( count = 0; count < byteCount; count++ )
 	{
 	value = ( buffer[ count ] << 16 ) | ( buffer[ count ] >> 16 );
-	buffer[ count ] = ( ( value & 0xFF00FF00L ) >> 8 ) | ( ( value & 0x00FF00FFL ) << 8 );
+	buffer[ count ] = ( ( value & 0xFF00FF00 ) >> 8 ) | ( ( value & 0x00FF00FF ) << 8 );
 	}
     }
 #endif /* LITTLE_ENDIAN */

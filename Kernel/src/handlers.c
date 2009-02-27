@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.2 2008/07/08 22:24:13 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -253,7 +253,7 @@ static int
 	p_set_interrupt_handler_nr(value vn, type tn, value vp, type tp, value vm, type tm),
 	p_valid_error(value vn, type tn);
 static int
-	_set_error_array(pri **arr, long int n, dident w, value vm, type tm);
+	_set_error_array(pri **arr, word n, dident w, value vm, type tm);
 
 static RETSIGTYPE
 	_abort_handler(int),
@@ -745,6 +745,7 @@ _install_int_handler(int i, int how, pri *proc)
 #ifdef HAVE_SIGVEC
     res = sigvec(i, &action, (struct sigvec *) 0);
 #else
+    /* casting from void * to int for returned value */
     res = (int) signal(i, action.sa_handler);
 #endif
 #endif
@@ -991,7 +992,7 @@ p_set_default_error_handler(value vn, type tn, value vp, type tp, value vm, type
 
 /*ARGSUSED*/
 static int
-_set_error_array(pri **arr, long int n, dident w, value vm, type tm)
+_set_error_array(pri **arr, word n, dident w, value vm, type tm)
 {
     pri		*proc;
     int		err;

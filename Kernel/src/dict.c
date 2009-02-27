@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.3 2008/07/10 01:08:46 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.4 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -233,7 +233,7 @@ static struct dictionary {
 	int	gc_countdown;	/* remaining allocations before triggering gc */
 	int	gc_interval;	/* remaining allocations before triggering gc */
 	int	gc_number;	/* number of garbage collections so far */
-	long	gc_time;	/* and the time they took */
+	word	gc_time;	/* and the time they took */
 	int	string_used;
 	int	string_free;
 } *dict;
@@ -283,7 +283,7 @@ dict_init(int flags)
 	for (i=0; i <= NTYPES; i++)
 	{
 	    tag_desc[i].super =
-	    tag_desc[i].tag.kernel = (long) i;
+	    tag_desc[i].tag.kernel = (word) i;
 	    tag_desc[i].order = 0;
 	    tag_desc[i].type_name =
 	    tag_desc[i].tag_name = D_UNKNOWN;
@@ -326,7 +326,7 @@ dict_init(int flags)
  */
 
 dident
-transf_did(long int t)
+transf_did(word t)
 {
     return (dident) &dict->tag_did[tag_desc[TagTypeC(t)].super];
 }
@@ -445,7 +445,7 @@ enter_dict(char *name, int arity)
 }
 
 dident
-enter_dict_n(char *name, register long int len, int arity)
+enter_dict_n(char *name, register word len, int arity)
 {
     register int hval;
     Hashl(name, hval, len);
@@ -453,7 +453,7 @@ enter_dict_n(char *name, register long int len, int arity)
 }
 
 dident
-check_did_n(char *name, long int len, int arity)
+check_did_n(char *name, word len, int arity)
 {
     register int hval;
     Hashl(name, hval, len);
@@ -461,7 +461,7 @@ check_did_n(char *name, long int len, int arity)
 }
 
 pword *
-enter_string_n(char *name, long int len, int stability)
+enter_string_n(char *name, word len, int stability)
 {
     register int hval;
     register dident dip;
@@ -472,7 +472,7 @@ enter_string_n(char *name, long int len, int stability)
 }
 
 dident
-bitfield_did(long int bf)
+bitfield_did(word bf)
 {
     return (dident) (dict->directory[DidBlock(bf)] + DidOffset(bf));
 }
@@ -511,7 +511,7 @@ _in_dict_opt(char *name,	/* might not be NUL-terminated! */
 	    {
 		if (DidLength(dip) == length)
 		{
-		    register long cmp = length;
+		    register word cmp = length;
 		    Compare_N_Chars(cmp, name, DidName(dip));
 		    if (!cmp)		/* name found */
 		    {
@@ -858,10 +858,10 @@ ec_gc_dictionary(void)
 {
     int		usage_before, garbage, idx = 0;
     dident	d;
-    long	gc_time;
+    word	gc_time;
     extern int	in_exception(void);
     extern void mark_dids_from_properties(property *prop_list),
-		mark_dids_from_stacks(long int arity),
+		mark_dids_from_stacks(word arity),
 		mark_dids_from_streams(void);
 
     dict->gc_countdown = dict->gc_interval;

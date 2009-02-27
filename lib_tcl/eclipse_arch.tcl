@@ -20,15 +20,20 @@
 # 
 # END LICENSE BLOCK
 #
-# $Id: eclipse_arch.tcl,v 1.2 2007/07/03 00:10:27 jschimpf Exp $
+# $Id: eclipse_arch.tcl,v 1.3 2009/02/27 21:05:43 kish_shen Exp $
 #
 # compute the ECLiPSe architecture name using Tcl primitives
 #
 
 proc ec_arch {} {
-    global tcl_platform
+    global tcl_platform tcl_version
     switch -glob $tcl_platform(os) {
 	Windows* {
+	    if { $tcl_version >= 8.5} {
+		# use pointerSize if possible - wordSize returns 4
+		if { $tcl_platform(pointerSize) == 8 } { return x86_64_nt }
+	    } elseif { $tcl_platform(wordSize) == 8 } { return x86_64_nt }
+
 	    return i386_nt
 	}
 	SunOS {

@@ -276,7 +276,7 @@ msb(uword bits)
 	    return -1;
 	}
 #if (SIZEOF_WORD > 4)
-	if (bits & 0xffffffff00000000) {
+	if (bits & UWSUF(0xffffffff00000000)) {
 	    pos += 32;
 	    bits >>= 32;
 	}
@@ -2240,7 +2240,7 @@ bitmap_contains_range(uword *bitmap, word min, word max)
 int
 p_compare_bitmaps(value vres, type tres, value vbm, type tbm, value vbm2, type tbm2)
 {
-	word	res;
+	int	res;
 	dident	result;
 
 	Check_Bitmap(tbm);
@@ -2261,7 +2261,7 @@ p_compare_bitmaps(value vres, type tres, value vbm, type tbm, value vbm2, type t
 }
 
 word
-compare_bitmaps(uword *bitmap, uword *bitmap2, word *res_ptr)
+compare_bitmaps(uword *bitmap, uword *bitmap2, int *res_ptr)
 {
 	uword	*bits_ptr;
 	uword	*bits_ptr2;
@@ -2271,7 +2271,7 @@ compare_bitmaps(uword *bitmap, uword *bitmap2, word *res_ptr)
 	word	low2, high2, offset2;
 	word	pos;
 	word	delta;
-	word	res;
+	int	res;
 
 	if (bitmap == bitmap2)
 	{

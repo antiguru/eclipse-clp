@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: procedure.c,v 1.2 2008/08/03 22:13:51 jschimpf Exp $
+ * VERSION	$Id: procedure.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
  *
  * IDENTIFICATION		procedure.c
  *
@@ -191,12 +191,12 @@ compiler_init(int flags)
 void
 print_procedure(dident wdid, vmcode *code)
 {
-	extern int	als(long int addr);
+	extern int	als(word addr);
 
 	p_fprintf(current_output_, "\n%s/", DidName(wdid));
 	p_fprintf(current_output_, "%d:\n", DidArity(wdid));
 
-	(void) als((long) code);
+	(void) als((word) code);
 	ec_flush(current_output_);
 }
 #endif
@@ -239,13 +239,13 @@ ec_load_eco_from_stream(stream_id nst, int options, pword *module)
 	if (encoded)			/* encoded dbformat */
 	{
 	    int n;
-	    long nread;
+	    word nread;
 
-	    char *s = ec_getstring(nst, 4L, &nread);
+	    char *s = ec_getstring(nst, 4, &nread);
 	    if (!(s))
 		return nread;	/* error code */
-	    if (nread < 4L)
-		return (nread == 0L) ? PSUCCEED : UNEXPECTED_EOF;
+	    if (nread < 4)
+		return (nread == 0) ? PSUCCEED : UNEXPECTED_EOF;
 
 	    n = (unsigned char) *s++ << 24;
 	    n |= (unsigned char) *s++ << 16;

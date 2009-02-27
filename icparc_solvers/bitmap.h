@@ -130,5 +130,5 @@ extern	word	bitmap_contains(uword *bitmap, word el);
 extern	int	p_bitmap_contains_range(value vbm, type tbm, value vmin, type tmin, value vmax, type tmax);
 extern	word	bitmap_contains_range(uword *bitmap, word min, word max);
 extern	int	p_compare_bitmaps(value vres, type tres, value vbm, type tbm, value vbm2, type tbm2);
-extern	word	compare_bitmaps(uword *bitmap, uword *bitmap2, word *res_ptr);
+extern	word	compare_bitmaps(uword *bitmap, uword *bitmap2, int *res_ptr);
 

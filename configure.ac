@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.25 2008/11/18 05:44:16 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.26 2009/02/27 20:58:09 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -69,6 +69,9 @@ case $host in
 	;;
     i?86-*-mingw32* | i?86-*-cygwin*)
     	arch=i386_nt
+	;;
+    x86_64-*-mingw32* | x86_64-*-cygwin*)
+    	arch=x86_64_nt
 	;;
     sparc*-*-sunos[1-4]*)
     	arch=sun4
@@ -222,6 +225,10 @@ fi
 CXXSUFFIX=cc
 
 origostype=$OSTYPE
+
+# define the broad type of os -- unix is the default, and currently the only
+# other supported class is win
+OSCLASS="unix"
 
 #----------------------------------------------------------------------
 # Explicit settings - things that can't be figured out automatically
@@ -438,6 +445,23 @@ case "$ARCH" in
     dnl compiling for WIN NT > 4; comment out for older Windows
     AC_DEFINE(_WIN32_WINNT, 0x500)
     OSTYPE="win32"
+    OSCLASS="win"
+
+    ;;
+ x86_64_nt)
+    CFLAGS="$CFLAGS"
+    OPT_LOCAL_FLAGS="-DTHREADED"
+    LOCAL_FLAGS="-DREMOTE_TESTS"
+    OBJECT_SUFFIX=dll
+    OBJECTS_SUFFIX=dll
+    LIB_PREFIX=
+    DYLD="\$(CC)"
+    dnl ws2_32 is for select(), gethostname() and sockets
+    dnl netapi32 is for the Netbios() function
+    LIBS="-lws2_32 -lnetapi32 $LIBS"
+    dnl No definition for WIN32_WINNT needed here, >= version 5 for Mingw-w64
+    OSTYPE="win64"
+    OSCLASS="win"
 
     ;;
  i386_dynix3)
@@ -1069,7 +1093,7 @@ if test "$tcl_requested" = "yes"; then
 
     TCL_REQUIRED="8.5 8.4 8.3"
 
-    if test "$ARCH" != "i386_nt"; then
+    if test "$OSCLASS" != "win" ; then
 	dnl find X includes and libraries
 	AC_PATH_X
 	if test ! -z "$x_libraries"; then
@@ -1083,7 +1107,7 @@ if test "$tcl_requested" = "yes"; then
     fi
     found_tcl=
     for TCL_VERSION in $TCL_REQUIRED; do
-	if test "$ARCH" != "i386_nt"; then
+	if test "$OSCLASS" != "win"; then
 	    tcl_lib_version=$TCL_VERSION
 	else
 	    tcl_lib_version=`echo $TCL_VERSION|tr -d .`
@@ -1096,7 +1120,7 @@ if test "$tcl_requested" = "yes"; then
 	    break
 	fi
 	# check in standard locations
-	if test "$ARCH" = "i386_nt"; then
+	if test "$OSCLASS" = "win"; then
 	    TCL_DIR="$PROGRAMFILES/Tcl"
 	    if test -d "$TCL_DIR/lib/tcl$TCL_VERSION" ; then
 		found_tcl=yes
@@ -1120,12 +1144,14 @@ if test "$tcl_requested" = "yes"; then
     done
     if test -z "$found_tcl"; then
 	AC_MSG_WARN([Could not find usable Tcl ($TCL_REQUIRED) in $ECLIPSETHIRDPARTY or elsewhere])
+	BUILD_WITH_TCL="no"
     else
 	AC_MSG_NOTICE([Using Tcl $TCL_VERSION in $TCL_DIR])
 	AC_DEFINE(HAVE_TCL)
 	AC_DEFINE(HAVE_TK)
 	GRAPHLIBS="-L\"$TCL_ARCH_DIR/lib\" -ltcl$tcl_lib_version -ltk$tcl_lib_version $GRAPHLIBS"
 	OS_INCLUDES="-I\"$TCL_DIR/include\" $OS_INCLUDES"
+	BUILD_WITH_TCL="yes"
     fi
 
 else
@@ -1144,16 +1170,19 @@ AC_ARG_WITH([gmp], [[  --without-gmp
     [gmp_requested="$withval"], [gmp_requested=yes])
 
 if test "$gmp_requested" = "yes"; then
-    GMP_REQUIRED="4.1 4.2"
+    GMP_REQUIRED="4.2 4.1"
     for gmp_version in $GMP_REQUIRED; do
 	GMP_DIR=$ECLIPSETHIRDPARTY/gmp$gmp_version
 	if test -d $GMP_DIR/$ARCH/lib; then
 	    found_gmp=yes
 	    AC_DEFINE(HAVE_LIBGMP)
-	    OS_INCLUDES="-I$GMP_DIR/include $OS_INCLUDES"
+	    OS_INCLUDES="-I$GMP_DIR/$ARCH/include $OS_INCLUDES"
 	    GMP_LIBDIR="$GMP_DIR/$ARCH/lib"
 	    if test "$ARCH" = "i386_nt"; then
 		GMP_LIB="gmp33"
+	    elif test "$ARCH" = "x86_64_nt"; then
+		# mingw build has lib prefix unlike normal Windows dlls
+		GMP_LIB="libgmp-3"
 	    else
 		GMP_LIB="gmp"
 	    fi
@@ -1583,6 +1612,7 @@ AC_SUBST(OPT_FLAGS)
 AC_SUBST(OPT_FLAGS_ARITH)
 AC_SUBST(OPT_FLAGS_EMU)
 AC_SUBST(OSTYPE)
+AC_SUBST(OSCLASS)
 AC_SUBST(FLOAT_ROUND_FLAGS)
 AC_SUBST(CFLAGS)
 AC_SUBST(LOCAL_FLAGS)
@@ -1604,6 +1634,7 @@ AC_SUBST(DYLD)
 AC_SUBST(LDTCL)
 AC_SUBST(TCL_DIR)
 AC_SUBST(TCL_ARCH_DIR)
+AC_SUBST(BUILD_WITH_TCL)
 AC_SUBST(TCL_VERSION)
 AC_SUBST(BUILDO)
 AC_SUBST(GRAPHLIBS)

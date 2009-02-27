@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * VERSION	$Id: mem.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -285,11 +285,7 @@ _report_adjustment(char *change, char *name, word bytes)
     if (GlobalFlags & GC_VERBOSE)
     {
 	p_fprintf(log_output_,
-#if SIZEOF_CHAR_P==SIZEOF_LONG
-	    "GC: %s %s stack by %ld bytes\n",
-#else
-	    "GC: %s %s stack by %d bytes\n",
-#endif
+	    "GC: %s %s stack by %" W_MOD "d bytes\n",
 	    change, name, bytes);
 	ec_flush(log_output_);
     }
@@ -980,14 +976,14 @@ calloc(unsigned n, unsigned size)
 {
     int			nb = n * size;
     char		*start;
-    register long	*p;
-    register long	*end;
+    register word	*p;
+    register word	*end;
 
     if (!mem_is_initialized)
 	    malloc_init();
-    p = (long *) hp_alloc(nb);
+    p = (word *) hp_alloc(nb);
     start = (char *) p;
-    end = p + nb/sizeof(long);
+    end = p + nb/sizeof(word);
     while (p < end)
 	*p++ = 0;
     return (start);

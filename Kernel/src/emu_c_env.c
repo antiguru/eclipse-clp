@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.2 2008/07/10 00:33:05 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -618,12 +618,12 @@ void
 print_dynamic_queued_events(void)
 {
     dyn_event_q_slot_t *slot;
-    unsigned long cnt = 0, total;
+    uword cnt = 0, total;
 
     Disable_Int();
     slot = g_emu_.dyn_event_q.prehead->next; /* get */
     total = g_emu_.dyn_event_q.total_event_slots - g_emu_.dyn_event_q.free_event_slots;
-    p_fprintf(current_err_, "Dynamic event queue: Total: %ld Free: %ld:", 
+    p_fprintf(current_err_, "Dynamic event queue: Total: %" W_MOD "d Free: %" W_MOD "d:", 
 	g_emu_.dyn_event_q.total_event_slots, g_emu_.dyn_event_q.free_event_slots);
     for( cnt = 0; cnt < total; cnt++, slot = slot->next )
     {
@@ -723,7 +723,7 @@ _post_event_dynamic(pword event, int no_duplicates)
 
     if (no_duplicates)
     {
-	unsigned long cnt, total;
+	uword cnt, total;
 	/* if this event is already posted, don't do it again */
 	dyn_event_q_slot_t *slot = g_emu_.dyn_event_q.prehead->next; /* get */
 	
@@ -928,7 +928,7 @@ void
 purge_disabled_dynamic_events(t_heap_event *event)
 {
     dyn_event_q_slot_t *slot, *prev;
-    unsigned long cnt = 0, total;
+    uword cnt = 0, total;
     pword *pevent;
 
     Disable_Int();
@@ -1049,7 +1049,7 @@ trim_dynamic_event_queue(void)
     if (g_emu_.dyn_event_q.free_event_slots > MIN_DYNAMIC_EVENT_SLOTS)
     {
 	dyn_event_q_slot_t *slot = g_emu_.dyn_event_q.tail->next; /* put */
-	unsigned long new_free_slots =	g_emu_.dyn_event_q.free_event_slots / 
+	uword new_free_slots =	g_emu_.dyn_event_q.free_event_slots / 
 					DYNAMIC_EVENT_Q_SHRINK_FACTOR;
 	if (new_free_slots < MIN_DYNAMIC_EVENT_SLOTS) {
 	    new_free_slots = MIN_DYNAMIC_EVENT_SLOTS;
@@ -1057,8 +1057,8 @@ trim_dynamic_event_queue(void)
 
 	if (GlobalFlags & GC_VERBOSE) {
 	    p_fprintf(log_output_,	
-		      "shrink dynamic event queue from Total: %lu"
-		      " Free: %lu to Total: %lu Free: %lu (elements)\n", 
+		      "shrink dynamic event queue from Total: %" W_MOD "u"
+		      " Free: %" W_MOD "u to Total: %" W_MOD "u Free: %" W_MOD "u (elements)\n", 
 		      g_emu_.dyn_event_q.total_event_slots, 
 		      g_emu_.dyn_event_q.free_event_slots, 
 		      g_emu_.dyn_event_q.total_event_slots - 
@@ -1216,7 +1216,7 @@ ec_unify_(value v1, type t1,
 	{
 	    if (v1.ptr->val.did != v2.ptr->val.did)
 		return PFAIL;
-	    if ((arity = DidArity(v1.ptr->val.did)) == 0L)
+	    if ((arity = DidArity(v1.ptr->val.did)) == 0)
 		return PSUCCEED;
 	    v1.ptr++;
 	    v2.ptr++;
@@ -1249,7 +1249,7 @@ ec_unify_(value v1, type t1,
 	    pw2 = v2.ptr++;
 	    Dereference_(pw1);
 	    Dereference_(pw2);
-	    if (--arity == 0L)
+	    if (--arity == 0)
 		break;
 	    if (ec_unify_(pw1->val, pw1->tag, pw2->val, pw2->tag, list) == PFAIL)
 		return PFAIL;
@@ -1308,7 +1308,7 @@ deep_suspend(value val, type tag,
 
 
 pword *
-add_attribute(long int tv, pword *va, long int ta, int slot)
+add_attribute(word tv, pword *va, word ta, int slot)
 {
     register pword *s, *t;
 
@@ -1423,7 +1423,7 @@ insert_suspension(pword *var,
 	t = _suspension_attribute(susp, position);
 	if (!t)
 	    return RANGE_ERROR;
-	s = add_attribute(var->tag.kernel, t, (long) TCOMP, slot);
+	s = add_attribute(var->tag.kernel, t, (word) TCOMP, slot);
 	Bind_Var(var->val, var->tag, s, TREF);
     }
     Check_Gc;
@@ -2192,7 +2192,7 @@ check_pword(pword *ref)
 	ref = ref->val.ptr;
 	if (!(GlobalRef(ref) || address_in_heap(&global_heap, ref->val.ptr)))
 	    return 0;
-	if (bitfield_did((long) DidBitField(ref->val.did)) != ref->val.did)
+	if (bitfield_did((word) DidBitField(ref->val.did)) != ref->val.did)
 	    return 0;
 	arity = DidArity(ref->val.did);
 	for (ref++; arity; arity--, ref++)
@@ -2230,7 +2230,7 @@ check_pword(pword *ref)
 	return 1;
 
     case TDICT:
-	return bitfield_did((long) DidBitField(ref->val.did)) == ref->val.did;
+	return bitfield_did((word) DidBitField(ref->val.did)) == ref->val.did;
 
     case TVAR_TAG:
 	if (ref->val.ptr != ref)
@@ -2442,7 +2442,7 @@ find_in_trail(pword *addr)
 
     while(tr < TT_ORIG)
     {
-	switch((((long) *tr) & 3))
+	switch((((word) *tr) & 3))
 	{
 	case TRAIL_ADDRESS:
 	    trailed_item = *tr++;
@@ -2451,7 +2451,7 @@ find_in_trail(pword *addr)
 	    trailed_item = *(tr+1);
 	    break;
 	case TRAIL_MULT:
-	    i = (long) *tr;
+	    i = (word) *tr;
 	    trailed_item = (pword *)((uword *)(*(tr+1)) + TrailedOffset(i));
 	    break;
 	case TRAIL_EXT:
@@ -2504,11 +2504,11 @@ check_trail1(int print)
 
 check_trail2(int print, pword **ttptr, pword **ttend, pword *min_tg_when_failing)
 {
-    long ctr;
+    word ctr;
     pword *pw;
     while(ttptr < ttend) {
 	if (print) p_fprintf(current_err_, "TT=0x%08x: ", ttptr);
-	switch((((long) *ttptr) & 3)) {
+	switch((((word) *ttptr) & 3)) {
 	case TRAIL_ADDRESS:
 	    pw = *ttptr++;
 	    if (print) p_fprintf(current_err_, "ADDRESS 0x%08x\n", pw);
@@ -2523,7 +2523,7 @@ check_trail2(int print, pword **ttptr, pword **ttend, pword *min_tg_when_failing
 	    ttptr += 2;
 	    break;
 	case TRAIL_MULT:
-	    ctr = (long) *ttptr++;
+	    ctr = (word) *ttptr++;
 	    pw = *ttptr++;
 	    ctr = TrailedNumber(ctr);
 	    if (print) p_fprintf(current_err_, "MULT    0x%08x %d\n", pw, ctr);
@@ -2557,7 +2557,7 @@ check_trail2(int print, pword **ttptr, pword **ttend, pword *min_tg_when_failing
 #endif
 		if (TrailedType(*ttptr) == TRAILED_PWORD)
 		{
-		    long n_pwords = (TrailedEsize(*ttptr) - TRAIL_UNDO_STAMPED_HEADER_SIZE)/2;
+		    word n_pwords = (TrailedEsize(*ttptr) - TRAIL_UNDO_STAMPED_HEADER_SIZE)/2;
 		    pw = (pword *) (ttptr + TRAIL_UNDO_STAMPED_HEADER_SIZE);
 		    for(; n_pwords > 0; --n_pwords, ++pw)
 		    {

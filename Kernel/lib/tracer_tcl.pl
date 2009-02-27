@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.8 2008/11/17 13:49:19 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.9 2009/02/27 21:01:04 kish_shen Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -2025,7 +2025,8 @@ install_guitools :-
 	    set_default_error_handler(252, trace_line_handler_tcl/2),
 	    reset_event_handler(252),
 
-	    ( get_flag(hostarch, "i386_nt") ->
+	    get_flag(hostarch, Arch),
+            ( Arch == "i386_nt" ; Arch == "x86_64_nt" ->
 		true
 	    ;
 		% Catch fatal signals - this is mainly intended for tkeclipse, 

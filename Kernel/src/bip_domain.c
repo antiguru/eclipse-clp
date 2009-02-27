@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_domain.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * VERSION	$Id: bip_domain.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -123,13 +123,13 @@ static int	p_dom_range(value vd, type td, value vmi, type tmi, value vma, type t
 		p_sdelta(value l1, type t1, value l2, type t2, value l3, type t3),
 		p_remove_element(value vvar, type tvar, value vel, type tel, value vres, type tres);
 
-static int	dom_remove_smaller(pword*,long);
-static int	dom_remove_greater(pword*,long);
-static pword	*insert_interval(long,long,pword*);
+static int	dom_remove_smaller(pword*,word);
+static int	dom_remove_greater(pword*,word);
+static pword	*insert_interval(word,word,pword*);
 static pword	*_dom_intersection(pword*,pword*,word*);
 static word	_dom_value(pword*);
-static int	_domain_changed(pword*,long,int);
-static int	_remove_element(pword*,long,long);
+static int	_domain_changed(pword*,word,int);
+static int	_remove_element(pword*,word,word);
 
 static dident	d_interval,
 		d_delay,
@@ -236,7 +236,7 @@ p_fd_init(void)
 static int
 p_dom_range(value vd, type td, value vmi, type tmi, value vma, type tma)
 {
-    long		min, max;
+    word		min, max;
     Prepare_Requests;
 
     Check_Domain(vd, td)
@@ -264,7 +264,7 @@ static int
 p_attr_instantiate(value va, type ta, value vc, type tc)
 {
     register pword	*d;
-    long		min, max;
+    word		min, max;
     int			res;
     int			atomic;
 
@@ -313,7 +313,7 @@ p_attr_instantiate(value va, type ta, value vc, type tc)
 static int
 p_lt_test(value vh, type th, value vmi, type tmi, value vma, type tma)
 {
-    long	min, max, n, n1, k;
+    word	min, max, n, n1, k;
     pword	*p;
     pword	*var;
     int		res = RES_NO_CHANGE;
@@ -423,7 +423,7 @@ p_make_extreme(value vt, type tt, value vm, type tm)
     pword		*unif1, *l1, *unif2, *l2;
     pword		*var;
     word		k;
-    long		min, max;
+    word		min, max;
     int			minimize;
 
     if (IsNil(tt)) {
@@ -552,7 +552,7 @@ _linear_term_range(value vt, type tt, value vres, type tres, value vmi, type tmi
 		    constno++;
 		}
 		else {
-		    long	mi, ma;
+		    word	mi, ma;
 
 		    if (k) {
 			if (!(vars++)) {
@@ -707,7 +707,7 @@ _linear_term_range(value vt, type tt, value vres, type tres, value vmi, type tmi
 
 /* p is the val.ptr of dom/2 */
 int
-dom_range(register pword *p, long int *mi, long int *ma)
+dom_range(register pword *p, word *mi, word *ma)
 {
     register pword	*s;
     register pword	*t;
@@ -906,12 +906,12 @@ _gec_ent_err_:
 static int
 p_gec_comp(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres)
 {
-    register long	c;
+    register word	c;
     register pword	*dom1, *dom2;
-    register long	k = vk.nint;
-    register long	m;
-    long		minx, maxx, miny, maxy;
-    long		newminx;
+    register word	k = vk.nint;
+    register word	m;
+    word		minx, maxx, miny, maxy;
+    word		newminx;
     int			ret = RES_SOLVED;
 
     if (IsInteger(tx)) {
@@ -1034,7 +1034,7 @@ _y_inst_:
     newminx = -k * (k > 0 ? maxy : miny) - c;
     if (m > miny && m < maxy)
     {
-	register long	s;
+	register word	s;
 
 	if (k > 0)
 	    s = dom_remove_smaller(dom2, m);
@@ -1100,12 +1100,12 @@ _y_inst_:
 static int
 p_gec_test(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres)
 {
-    register long	c;
+    register word	c;
     register pword	*dom1, *dom2;
-    register long	k = vk.nint;
-    register long	m;
-    long		minx, maxx, miny, maxy;
-    long		newminx;
+    register word	k = vk.nint;
+    register word	m;
+    word		minx, maxx, miny, maxy;
+    word		newminx;
     int			ret = RES_SOLVED;
 
     if (IsInteger(tx)) {
@@ -1264,7 +1264,7 @@ p_ineq_test(value vt, type tt, value vres, type tres, value vvar, type tvar, val
     }
     k = sum/kvar;
     if (k * kvar == sum) {
-	k = _remove_element(var, -k, (long) TINT);
+	k = _remove_element(var, -k, (word) TINT);
 	Check_Return(k);
 	if (k == RES_FAIL) {
 	    Fail_
@@ -1296,7 +1296,7 @@ p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vs
     pword	*vlist, *ilist;
     word	from, to;
     word	i;
-    long	firsti, lasti;
+    word	firsti, lasti;
     int		updi, updv;
     word	isize, vsize;
     int		res = 0;
@@ -1487,7 +1487,7 @@ p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vs
 
 /* p is the val.ptr of dom/2 */
 int
-dom_check_in(long int e, type tag, register pword *p)
+dom_check_in(word e, type tag, register pword *p)
 {
     register pword	*s;
     register pword	*t;
@@ -1551,7 +1551,7 @@ dom_check_in(long int e, type tag, register pword *p)
 }
 
 pword *
-insert_interval(long int first, long int last, pword *newi)
+insert_interval(word first, word last, pword *newi)
 {
     newi->val.ptr = Gbl_Tg;
     newi->tag.kernel = TLIST;
@@ -1636,9 +1636,9 @@ _dom_intersection(
     register pword	*s1, *s2;
     register pword	*t1, *t2;
     register pword	*p;
-    long		from1, from2, fromi, fromj;
-    long		to1, to2, toi, toj;
-    long		tag1, tag2;
+    word		from1, from2, fromi, fromj;
+    word		to1, to2, toi, toj;
+    word		tag1, tag2;
     word		size = 0;
     pword		*ints;		/* result */
     int			res;
@@ -1791,9 +1791,9 @@ p_dom_compare(value vc, type tc, value vd1, type td1, value vd2, type td2)
     register pword	*d1, *d2;	/* list pointers */
     register pword	*s1, *s2;
     register pword	*t1, *t2;
-    register long	tag1, tag2;
-    long		from1, from2;
-    long		to1, to2;
+    register word	tag1, tag2;
+    word		from1, from2;
+    word		to1, to2;
     int			res = EQ;
     int			comp;
     int			next = 0;
@@ -1974,9 +1974,9 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
     register pword	*s1, *s2;
     register pword	*t1, *t2;
     register pword	*p;
-    long		from1, from2, fromi;
-    long		to1, to2, toi;
-    register long	tag1, tag2;
+    word		from1, from2, fromi;
+    word		to1, to2, toi;
+    register word	tag1, tag2;
     word		size = 0;
     word		size1, size2;
     pword		*ints;		/* result */
@@ -2228,9 +2228,9 @@ p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, va
     register pword	*s1, *s2;
     register pword	*t1, *t2;
     register pword	*p;
-    register long	tag1, tag2;
-    long		from1, from2;
-    long		to1, to2, toi;
+    register word	tag1, tag2;
+    word		from1, from2;
+    word		to1, to2, toi;
     word		size = 0;
     word		size1;
     pword		*diff;		/* result */
@@ -2420,7 +2420,7 @@ p_dvar_remove_smaller(value vvar, type tvar, value vm, type tm)
 {
     register pword	*v;
     register pword	*p;
-    long		oldsize, size;
+    word		oldsize, size;
 
     Check_Integer(tm)
     if (!IsMeta(tvar)) {
@@ -2449,7 +2449,7 @@ p_dvar_remove_greater(value vvar, type tvar, value vm, type tm)
 {
     register pword	*v;
     register pword	*p;
-    long		oldsize, size;
+    word		oldsize, size;
 
     Check_Integer(tm)
     if (!IsMeta(tvar)) {
@@ -2473,7 +2473,7 @@ p_dvar_remove_greater(value vvar, type tvar, value vm, type tm)
 }
 
 int
-dom_remove_greater(register pword *p, register long int max)
+dom_remove_greater(register pword *p, register word max)
 {
     register pword	*s;
     register pword	*t;
@@ -2547,7 +2547,7 @@ dom_remove_greater(register pword *p, register long int max)
 
 /* p is the val.ptr of dom/2 */
 int
-dom_remove_smaller(register pword *p, register long int min)
+dom_remove_smaller(register pword *p, register word min)
 {
     register pword	*s;
     register pword	*t;
@@ -2632,7 +2632,7 @@ p_dvar_remove_element(value vvar, type tvar, value vel, type tel)
 }
 
 static int
-_remove_element(pword *var, long int el, long int tag)
+_remove_element(pword *var, word el, word tag)
 {
     int			res;
     register pword	*v;
@@ -2654,15 +2654,15 @@ _remove_element(pword *var, long int el, long int tag)
 
     case RES_MIN:
 	/* We don't know the size, but we know it is > 1 */
-	res = _domain_changed(var, 2L, RES_MIN);
+	res = _domain_changed(var, 2, RES_MIN);
 	return res < 0 ? res : RES_WAKE;
 
     case RES_MAX:
-	res = _domain_changed(var, 2L, RES_MAX);
+	res = _domain_changed(var, 2, RES_MAX);
 	return res < 0 ? res : RES_WAKE;
 
     case RES_ANY:
-	res = _domain_changed(var, 2L, 0);
+	res = _domain_changed(var, 2, 0);
 	return res < 0 ? res : RES_WAKE;
 
     default:
@@ -2692,7 +2692,7 @@ p_remove_element(value vvar, type tvar, value vel, type tel, value vres, type tr
 }
 
 int
-dom_remove_element(register pword *p, register long int el, long int tag, pword *inst)
+dom_remove_element(register pword *p, register word el, word tag, pword *inst)
 {
     register pword	*s;
     register pword	*t;
@@ -2878,7 +2878,7 @@ _dom_value(register pword *p)
  * the appropriate lists and reset them in the domain.
  */
 static int
-_domain_changed(pword *var, long int size, int which)
+_domain_changed(pword *var, word size, int which)
 {
     register pword	*attr;
     register pword	*p;
@@ -3048,7 +3048,7 @@ p_integer_list_to_dom(value vl, type tl, value vd, type td)
 		if (num == to + 1)
 		    to = num;
 		else if (num > to) {
-		    p = insert_interval((long) from, (long) to, p);
+		    p = insert_interval((word) from, (word) to, p);
 		    size += to - from + 1;
 		    from = to = num;
 		} else {
@@ -3068,7 +3068,7 @@ p_integer_list_to_dom(value vl, type tl, value vd, type td)
 		if (num == to + 1)
 		    to = s->val.nint;
 		else if (num > to) {
-		    p = insert_interval((long) from, (long) to, p);
+		    p = insert_interval((word) from, (word) to, p);
 		    size += to - from + 1;
 		    from = num;
 		    to = s->val.nint;
@@ -3092,7 +3092,7 @@ p_integer_list_to_dom(value vl, type tl, value vd, type td)
 	}
     }
     if (!IsNil(tl)) {
-	p = insert_interval((long) from, (long) to, p);
+	p = insert_interval((word) from, (word) to, p);
 	p->tag.kernel = TNIL;
 	size += to - from + 1;
     }

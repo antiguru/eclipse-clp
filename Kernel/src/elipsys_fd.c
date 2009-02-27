@@ -111,8 +111,8 @@
 #define IsDomVar(p) IsMeta((p)->tag)
 #define IsDvar(p) IsMeta((p)->tag)
 #define IsStruct(p) IsCompound((p)->tag)
-#define Unsigned unsigned long
-#define Int long
+#define Unsigned uword
+#define Int word
 #define BOOLEAN int
 #define PrologWord pword
 #define MetaTerm(pw)                       ((pw) + 1)
@@ -188,7 +188,7 @@ bip_elipsys_fd_init(int flags)
 }
 
 static void
-FunifyIntLocal(pword *p, long int i)
+FunifyIntLocal(pword *p, word i)
 {
   PrologWord temp_unify_int;                                                              
   Make_Integer(&temp_unify_int,(i));
@@ -233,7 +233,7 @@ static INLINE Int dmin(pword *p)
 }
 
 static INLINE BOOLEAN
-dupdate_min(pword *p, long int newmin, pword **list)
+dupdate_min(pword *p, word newmin, pword **list)
 {
   Append_List(d_update_min,TINT,newmin,p->tag.kernel,p->val.all, list);
   return TRUE;
@@ -241,7 +241,7 @@ dupdate_min(pword *p, long int newmin, pword **list)
 
 
 static INLINE BOOLEAN
-dupdate_max(pword *p, long int newmax, pword **list)
+dupdate_max(pword *p, word newmax, pword **list)
 {
     Append_List(d_update_max,TINT,newmax,p->tag.kernel,p->val.all, list);
     return TRUE;
@@ -259,7 +259,7 @@ static BOOLEAN setup_domain_greatereq(pword *ArgX, pword *ArgY, pword *ArgNb, pw
 
 
 static INLINE BOOLEAN
-dremove_value(pword *p, long int v, pword **list)
+dremove_value(pword *p, word v, pword **list)
 {
   int res;
   PrologWord *domain;
@@ -267,7 +267,7 @@ dremove_value(pword *p, long int v, pword **list)
 
   domain = _Ptrbody(p);
 
-  res = dom_remove_element(domain, v, (long) TINT, &inst);
+  res = dom_remove_element(domain, v, (word) TINT, &inst);
 
   /* Debbugging phase only */
   Assert(res == RES_ANY || res == RES_MIN || res == RES_MAX || res == RES_INSTANTIATED);
@@ -294,7 +294,7 @@ dremove_value(pword *p, long int v, pword **list)
 }
 
 
-static INLINE BOOLEAN present(pword *domain, long int v)
+static INLINE BOOLEAN present(pword *domain, word v)
 {
   int res;
 
@@ -384,7 +384,7 @@ Int      increasing_ends[MAX_NUMBER_TASKS*4];
 #define  _Index(i)           (4*(i) + 2)
 
 static void
-siftup(long int *array, long int i, long int n)
+siftup(word *array, word i, word n)
 {
   Int j;
   Int loc;
@@ -527,7 +527,7 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
   for (i = n_tasks_to_schedule; i >= 1; i --)  {
     Int loc;
 
-    siftup(increasing_starts,1L,i);
+    siftup(increasing_starts,1,i);
 
     loc = increasing_starts[_KeyDate(1)];
     increasing_starts[_KeyDate(1)] = increasing_starts[_KeyDate(i)];
@@ -541,7 +541,7 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
     increasing_starts[_Index(1)] = increasing_starts[_Index(i)];
     increasing_starts[_Index(i)] = loc;
 
-    siftup(increasing_ends,1L,i);
+    siftup(increasing_ends,1,i);
 
     loc = increasing_ends[_KeyDate(1)];
     increasing_ends[_KeyDate(1)] = increasing_ends[_KeyDate(i)];
@@ -1163,7 +1163,7 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
 
 /* i before j */
 /*ARGSUSED*/
-BOOLEAN schedule_as_before(pword *StructOrientations, pword *StructStarts, pword *StructDurations, long int i, long int j)
+BOOLEAN schedule_as_before(pword *StructOrientations, pword *StructStarts, pword *StructDurations, word i, word j)
 {
   Int index;
   Int arity;
@@ -1179,7 +1179,7 @@ BOOLEAN schedule_as_before(pword *StructOrientations, pword *StructStarts, pword
   if (j < i) {
     index = j*arity + i;
 
-    FunifyIntLocal(StrArg(StructOrientations,index),2L);
+    FunifyIntLocal(StrArg(StructOrientations,index),2);
     if (_False(UNI_RESULT))
        return false();
 
@@ -1189,7 +1189,7 @@ BOOLEAN schedule_as_before(pword *StructOrientations, pword *StructStarts, pword
   else  {
     index = i*arity + j;
 
-    FunifyIntLocal(StrArg(StructOrientations,index),1L);
+    FunifyIntLocal(StrArg(StructOrientations,index),1);
     if (_False(UNI_RESULT))
        return false();
 
@@ -1199,7 +1199,7 @@ BOOLEAN schedule_as_before(pword *StructOrientations, pword *StructStarts, pword
 
 /* i after j */
 /*ARGSUSED*/
-BOOLEAN schedule_as_after(pword *StructOrientations, pword *StructStarts, pword *StructDurations, long int i, long int j)
+BOOLEAN schedule_as_after(pword *StructOrientations, pword *StructStarts, pword *StructDurations, word i, word j)
 {
   Int index;
   Int arity;
@@ -1214,7 +1214,7 @@ BOOLEAN schedule_as_after(pword *StructOrientations, pword *StructStarts, pword 
   /* j < i */
   if (j < i) {
     index = j*arity + i;
-    FunifyIntLocal(StrArg(StructOrientations,index),1L);
+    FunifyIntLocal(StrArg(StructOrientations,index),1);
     if (_False(UNI_RESULT))
        return false();
 
@@ -1225,7 +1225,7 @@ BOOLEAN schedule_as_after(pword *StructOrientations, pword *StructStarts, pword 
   else {
     index = i*arity + j;
 
-    FunifyIntLocal(StrArg(StructOrientations,index),2L);
+    FunifyIntLocal(StrArg(StructOrientations,index),2);
     if (_False(UNI_RESULT))
        return false();
 
@@ -2681,7 +2681,7 @@ static BOOLEAN disjunction_choose(pword *x, pword *Dx, pword *y, pword *Dy, pwor
      return FAIL;
   
   if (_False(y_after_x)) {
-    FunifyIntLocal(Branch,2L);
+    FunifyIntLocal(Branch,2);
 
     res = setup_domain_greatereq(x,y,dy, list);
 
@@ -2692,7 +2692,7 @@ static BOOLEAN disjunction_choose(pword *x, pword *Dx, pword *y, pword *Dy, pwor
   }
 
   if (_False(x_after_y)) {
-    FunifyIntLocal(Branch,1L);
+    FunifyIntLocal(Branch,1);
 
     res = setup_domain_greatereq(y,x,dx, list);
 

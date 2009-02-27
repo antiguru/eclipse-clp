@@ -25,7 +25,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.4 2008/09/02 09:33:21 kish_shen Exp $
+ * VERSION	$Id: main.c,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
  */
 
 /*
@@ -298,7 +298,7 @@ main(int argc, char **argv)
 	    int	lflags = 0;
 	    char	*from = 0;
 	    char	*to = 0;
-	    long	increment = 0L;
+	    long	increment = 0;
 
 	    if (++c + 1 <= argc)
 		lflags = (int) strtol(argv[c++], (char **) 0, 16);
