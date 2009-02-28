@@ -1,0 +1,21 @@
+#
+# This is a site-defaults file for configure
+# It contains defaults cache values for WIN64
+#
+ECLIPSETOOLS=$HOME/root-x86_64-pc-linux
+CC=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-gcc
+CXX=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-c++
+LD=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-ld
+AR=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-ar
+AS=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-as
+NM=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-nm
+STRIP=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-strip
+RANLIB=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-ranlib
+DLLTOOL=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-dlltool
+OBJDUMP=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-objdump
+RESCOMP=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-windres
+RC=$ECLIPSETOOLS/bin/x86_64-pc-mingw32-windres
+OS_INCLUDES="-isystem $ECLIPSETOOLS/x86_64-pc-mingw32/include"
+ac_cv_func_select='yes'
+ac_cv_func_gethostname='yes'
+ac_cv_func_getpagesize='yes'
