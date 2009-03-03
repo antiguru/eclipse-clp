@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.17 2009/02/27 21:01:04 kish_shen Exp $
+% Version:	$Id: kernel.pl,v 1.18 2009/03/03 23:41:47 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -308,10 +308,9 @@
     setval(compiled_stream, _).
 ?- make_array_(compile_stack, reference([]), local, sepia_kernel).
 
-% ignore_eof is on on Windows because ^C acts like end_of_file
+% This used to be 'on' for Windows, but apparently no longer necessary.
 ?- make_array_(ignore_eof, prolog, local, sepia_kernel),
-   get_sys_flag(8, Arch),
-   (Arch == "i386_nt" ; Arch == "x86_64_nt -> setval(ignore_eof, on) ; setval(ignore_eof, off)).
+   setval(ignore_eof, off).
 
 
 %------------------------------------
@@ -7361,7 +7360,7 @@ present_libraries(Sys, [_|L], T) :-
 	    os_file_name(TDir, OsTDir)
 	;
 	    get_sys_flag(8, Arch),
-            (Arch == "i386_nt" ; Arch == "x86_64_nt" ->
+            ( (Arch == "i386_nt" ; Arch == "x86_64_nt") ->
 		(
 		    getenv("TMP", OsTDir)
 		;
