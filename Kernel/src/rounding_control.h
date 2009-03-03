@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+** $Id: rounding_control.h,v 1.4 2009/03/03 23:35:27 jschimpf Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -282,17 +282,17 @@
     */
 
     #define Declare_Rounding_Control_State \
-	uword ec_fpu_control_orig_; \
-	uword ec_fpu_control_up_; \
-	uword ec_fpu_control_down_;
+	unsigned long ec_fpu_control_orig_; \
+	unsigned long ec_fpu_control_up_; \
+	unsigned long ec_fpu_control_down_;
 
-    extern uword ec_fpu_control_orig_;
-    extern uword ec_fpu_control_up_;
-    extern uword ec_fpu_control_down_;
+    extern unsigned long ec_fpu_control_orig_;
+    extern unsigned long ec_fpu_control_up_;
+    extern unsigned long ec_fpu_control_down_;
 
-    #define EC_FPU_RC_MASK	WSUF(0x0C00000000000000)
-    #define EC_FPU_RC_UP	WSUF(0x0C00000000000000)
-    #define EC_FPU_RC_DOWN	WSUF(0x0400000000000000)
+    #define EC_FPU_RC_MASK	0x0C00000000000000L
+    #define EC_FPU_RC_UP	0x0C00000000000000L
+    #define EC_FPU_RC_DOWN	0x0400000000000000L
 
     #define init_rounding_modes() { \
 		__asm__ ("mf_fpcr %0" : "=f" (*&ec_fpu_control_orig_)); \
