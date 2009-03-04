@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.6 2009/02/27 21:01:04 kish_shen Exp $
+ * $Id: os_support.c,v 1.7 2009/03/04 03:56:23 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -53,6 +53,11 @@
 #include <ctype.h>	/* for toupper() etc */
 
 #ifdef _WIN32
+#if (HAVE_WIN32_WINNT >= 0x500)
+#define _WIN32_WINNT 0x500	/* for GetLongPathName() */
+#else
+#define _WIN32_WINNT HAVE_WIN32_WINNT
+#endif
 /* FILETIMEs are in 100 nanosecond units */
 #define FileTimeToDouble(t) ((double) (t).dwHighDateTime * 429.4967296 \
 			    + (double) (t).dwLowDateTime * 1e-7)
