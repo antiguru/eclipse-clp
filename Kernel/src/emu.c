@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.12 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.13 2009/03/04 01:11:24 jschimpf Exp $
  */
 
 /*
@@ -6578,8 +6578,8 @@ _end_external_:
  * pw2: points to dereferenced Catcher
  * scratch_pw: copy of dereferenced Ball,
  */
-	    // If the frame indicates that events are to be deferred
-	    // then set the flag
+	    /* If the frame indicates that events are to be deferred
+	     * then set the flag */
 	    if (IsCatchEventsDeferredFrame(BTop(pw1)))
 	    {
 		VM_FLAGS |= EVENTS_DEFERRED;
