@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_public.h,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+ * $Id: ec_public.h,v 1.4 2009/03/04 18:16:56 kish_shen Exp $
  *
  * Macro definitions needed for the ECLiPSe embedding interface.
  *
@@ -80,7 +80,7 @@
 # else
 # define W_MOD "ll"
 # endif
-#elif (defined(HAVE___INY64) && SIZEOF_WORD == 8)
+#elif (defined(HAVE___INT64) && SIZEOF_WORD == 8)
 #define WSUF(X) (X##I64)
 #define UWSUF(X) (X##UI64)
 #define W_MOD "I64"
