@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.26 2009/02/27 20:58:09 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.27 2009/03/04 03:44:15 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -442,8 +442,9 @@ case "$ARCH" in
     dnl wsock32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lwsock32 -lnetapi32 $LIBS"
-    dnl compiling for WIN NT > 4; comment out for older Windows
-    AC_DEFINE(_WIN32_WINNT, 0x500)
+    dnl Set to the oldest Windows version you want it to work on.
+    dnl 0x500=Win2000 - you may lose functionality if chosing an older version.
+    AC_DEFINE(HAVE_WIN32_WINNT, 0x500)
     OSTYPE="win32"
     OSCLASS="win"
 
@@ -459,7 +460,9 @@ case "$ARCH" in
     dnl ws2_32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lws2_32 -lnetapi32 $LIBS"
-    dnl No definition for WIN32_WINNT needed here, >= version 5 for Mingw-w64
+    dnl Set to the oldest Windows version you want it to work on.
+    dnl 0x500=Win2000 - you may lose functionality if chosing an older version.
+    AC_DEFINE(HAVE_WIN32_WINNT, 0x500)
     OSTYPE="win64"
     OSCLASS="win"
 
