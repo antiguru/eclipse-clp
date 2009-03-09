@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.4 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: dict.c,v 1.5 2009/03/09 05:29:48 jschimpf Exp $
  */
 
 /*
@@ -1305,6 +1305,7 @@ _std_did_init(void)
 	d_.globalb = in_dict("global_", 2);
 	d_.exportb = in_dict("export_", 2);
 	d_.import_fromb = in_dict("import_from_", 3);
+	d_.woken = in_dict("woken", WL_ARITY);
 	d_.write1 = in_dict("write", 1);
 	d_.write2 = in_dict("write", 2);
 	d_.writeq1 = in_dict("writeq", 1);

@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.13 2009/03/04 01:11:24 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.14 2009/03/09 05:29:48 jschimpf Exp $
  */
 
 /*
@@ -1045,7 +1045,7 @@ _diff_delay_:				/* (SV, proc, PP points behind args) */
 	    DE = pw1 = TG;
 	    TG += SUSP_SIZE;
 	    Init_Susp_Header(pw1, proc);
-	    Init_Susp_State(pw1, PriPriority(proc));
+	    Init_Susp_State(pw1, PriPriority(proc), PriRunPriority(proc));
 	    Make_Struct(&pw1[SUSP_GOAL], TG);	/* goal */
 	    Make_Atom(&pw1[SUSP_MODULE], PriModule(proc));
 	    Make_Atom(TG, val_did);
@@ -1373,7 +1373,7 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		DE = pw1 = TG;
 		TG += SUSP_SIZE;
 		Init_Susp_Header(pw1, proc);
-		Init_Susp_State(pw1, PriPriority(proc));
+		Init_Susp_State(pw1, PriPriority(proc), PriRunPriority(proc));
 		Make_Struct(&pw1[SUSP_GOAL], TG);	/* goal */
 		Make_Atom(&pw1[SUSP_MODULE], PriModule(proc));
 		Push_Bip_Goal(val_did, i, tmp1)
@@ -1618,7 +1618,7 @@ _bip_res1_:				/* (err_code,proc) */
 		DE = pw1 = TG;
 		TG += SUSP_SIZE + 1 + tmp1;
 		Init_Susp_Header(pw1, proc);
-		Init_Susp_State(pw1, PriPriority(proc));
+		Init_Susp_State(pw1, PriPriority(proc), PriRunPriority(proc));
 		pw1[SUSP_GOAL].val.ptr = pw1 + SUSP_SIZE;	/* goal */
 		pw1[SUSP_GOAL].tag.kernel = TCOMP;
 		pw1[SUSP_MODULE].tag.kernel = TDICT;
@@ -5266,7 +5266,7 @@ _match_values_:
 		    if (pw2)
 		    {
 			/* We did find a suspension to wake: set priority and call it! */
-			Set_WP(i);
+			Set_WP(SuspRunPrio(pw2));
 			PP -= 1;				/* wake loop */
 			if(E >= EB) {
 			    Push_Ret_Code_To_Eb(ERetCode)
@@ -7840,7 +7840,7 @@ _narg_:
 		goto _nbip_err_;			/* (proc, err_code) */
 	    }
 	    Init_Susp_Header(pw2, procb);
-	    Init_Susp_State(pw2, tmp1);		/* priority */
+	    Init_Susp_State(pw2, tmp1, PriRunPriority(procb));
 	    pw2[SUSP_GOAL] = *pw1;		/* deref'ed arg 1: goal */
 
 

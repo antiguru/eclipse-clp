@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
+ * $Id: types.h,v 1.6 2009/03/09 05:29:48 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -470,13 +470,13 @@ struct machine
     vmcode	*pp;		/* code pointer */
 
     pword *	de;		/* current suspension */
-    pword *	ld;		/* list of all suspended goals */
+    pword *	ld;		/* list of all suspended goals (last delayed) */
     pword *	mu;		/* list of meta-unifications */
     pword *	sv;		/* list of suspending variables */
     pword 	wl;		/* global woken lists. This register has a
 				 * tag because it is value-trailed, and the
 				 * GC requires a tag in this case. */
-    int		wp;		/* woken goal priority */
+    int		wp;		/* current running priority */
     pword	wp_stamp;	/* and its time-stamp */
     pword	postponed_list;	/* postponed goals */
 
@@ -990,6 +990,7 @@ typedef struct
 	wake,
 	with2,
 	with_attributes2,
+	woken,
 	write,
 	write1,
 	write2,

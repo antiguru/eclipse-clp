@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.4 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: dict.h,v 1.5 2009/03/09 05:29:48 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -134,6 +134,8 @@ typedef union
  * The actual procedure descriptor (pri)
  */
 
+#define PRIMODEBITS	24		/* bits used for storing mode	*/
+
 typedef struct pri
 {
     pri_code_t		code;		/* code (multiple types)	*/
@@ -143,7 +145,9 @@ typedef struct pri
     dident		module_ref;	/* home module of the procedure	*/
     dident		did;		/* this procedure's functor	*/
     uint32		flags;		/* various flags, see below	*/
-    uint32		mode;		/* the mode declaration		*/
+    unsigned		prio:4;		/* the schedule priority	*/
+    unsigned		run_prio:4;	/* the run priority		*/
+    unsigned		mode:PRIMODEBITS;	/* the mode declaration	*/
     dident		trans_function;	/* did of the transformation procedure*/
 } pri;
 
@@ -152,31 +156,28 @@ typedef struct pri
  * Access macros for procedure descriptor
  */
 
-#define	PriCode(P)		(P)->code.vmc
-#define	PriCint(P)		(P)->code.cint
-#define	PriFunc(P)		(P)->code.func
-#define	PriNext(P)		(P)->nextproc
-#define	PriModule(P)		(P)->module_def
-#define	PriHomeModule(P)	(P)->module_ref
-#define	PriFlags(P)		(P)->flags
-#define PriDid(P)		(P)->did
-#define PriMode(P)		(P)->mode
+#define	PriCode(pd)		(pd)->code.vmc
+#define	PriCint(pd)		(pd)->code.cint
+#define	PriFunc(pd)		(pd)->code.func
+#define	PriNext(pd)		(pd)->nextproc
+#define	PriModule(pd)		(pd)->module_def
+#define	PriHomeModule(pd)	(pd)->module_ref
+#define	PriFlags(pd)		(pd)->flags
+#define PriDid(pd)		(pd)->did
+#define PriMode(pd)		(pd)->mode
+#define PriPriority(pd)		(pd)->prio
+#define PriRunPriority(pd)	(pd)->run_prio
 #define PriScope(pd)		(PriFlags(pd) & PREDSCOPE)
 #define	PriCodeType(pd)		(PriFlags(pd) & CODETYPE)
 #define	PriArgPassing(pd)	(PriFlags(pd) & ARGPASSING)
-#define UnifType(proc)		(PriFlags(proc) & UNIFTYPE)
-#define StaticProc(Gproc)	(!DynamicProc(Gproc))
-#define DynamicProc(Gproc)	(PriFlags(Gproc) & PROC_DYNAMIC)
-#define SystemProc(proc)	(PriFlags(proc) & SYSTEM)
-#define ToolProc(proc)		(PriFlags(proc) & TOOL)
-#define DebugProc(proc)		(PriFlags(proc) & DEBUG_DB)
-#define ParallelProc(proc)	(PriFlags(proc) & PROC_PARALLEL)
-#define InvisibleProc(proc)	(PriFlags(proc) & DEBUG_INVISIBLE)
-
-#define PriPriority(pd)	\
-	(((pd)->flags & PROC_PRIORITY) >> PROC_PRIO_SHIFT)	
-#define PriPriorityFlags(newprio)	\
-	(((newprio) << PROC_PRIO_SHIFT) & PROC_PRIORITY)
+#define UnifType(pd)		(PriFlags(pd) & UNIFTYPE)
+#define StaticProc(pd)		(!DynamicProc(pd))
+#define DynamicProc(pd)		(PriFlags(pd) & PROC_DYNAMIC)
+#define SystemProc(pd)		(PriFlags(pd) & SYSTEM)
+#define ToolProc(pd)		(PriFlags(pd) & TOOL)
+#define DebugProc(pd)		(PriFlags(pd) & DEBUG_DB)
+#define ParallelProc(pd)	(PriFlags(pd) & PROC_PARALLEL)
+#define InvisibleProc(pd)	(PriFlags(pd) & DEBUG_INVISIBLE)
 
 #define Pri_Set_Scope(pd,newscope) \
  	PriFlags(pd) = (PriFlags(pd) & ~PREDSCOPE) | (newscope);
@@ -291,10 +292,9 @@ typedef struct pri
 #define TR_LEAPING	DEBUG_SP	/* must match, see OfInterest() */
 #define TR_STARTED	DEBUG_ST	/* arbitrary */
 
-
-/* Scheduling priority */
-#define PROC_PRIO_SHIFT	12
-#define PROC_PRIORITY	0X0000F000	/* default suspension priority */
+/*
+#define UNUSED_BITS	0X0000F000
+*/
 
 
 /*
@@ -346,32 +346,33 @@ typedef struct pri
 
 
 /*
- * The mode declarations are stored as a m_item, the mode
- * specification for one argument consists of 3 bits.
- * This means that up to arity 10 the declaration
+ * The mode declarations are stored in a bitfield of PRIMODEBITS,
+ * the mode specification for one argument consists of PMODEBITS bits.
+ * This means that up to arity MAX_MODES the declaration
  * can be taken into account, higher arguments are ignored.
  */
 
-/* modes: */
+#undef EXTENDED_MODES		/* set this to allow -+ and +- modes */
+
 #define ANY			0		/* (?)	must be 0!	    */
 #define OUTPUT                  1		/* (-)	actually uninit	    */
-#define CONSTANT                1		/* for binding		    */
 #define NONVAR                  2		/* (+)	nonground structure */
 #define GROUND                  3		/* (++)			    */
+#ifdef EXTENDED_MODES
 #define NOALIAS                 5		/* (-+) term without aliases*/
 #define NOALIAS_INST            7		/* (+-) no aliases, inst.   */
-#define InputMode(M)		((M) & 2)	/* means +, ++, +-	    */
-#define OutputMode(M)		((M) == OUTPUT)
-#define GroundMode(M)		((M) == GROUND)
-#define NoaliasMode(M)		((M) & 1)	/* means ++, +-, -+, -	    */
+#endif
+
 /* simulate an array of n-bit elements */
-/* There is place for 10 args in 32 bits since the highest bit must remain
- * free, otherwise we could not use shifting. All access is done using these
- * macros, so it is easy to change for exotic machines
- */
+#ifdef EXTENDED_MODES
 #define PMODEBITS		3
 #define PMODEMASK		7
-#define MAX_MODES		(31/PMODEBITS)
+#else
+#define PMODEBITS		2
+#define PMODEMASK		3
+#endif
+#define MAX_MODES		(PRIMODEBITS/PMODEBITS)
+
 /* Mode() and Next_Mode() must work even for arities bigger than MAX_MODES */
 #define Mode(i, mode_decl)	\
         ((i) > MAX_MODES ? ANY :        \
@@ -384,25 +385,10 @@ typedef struct pri
 		    (val) << (((i) - 1) * PMODEBITS);\
 	    }
 
-/*
- * For builtin simple goals with arity less than 7, the high part of the
- * mode mask stores the information which argument are bound by the predicate.
- */
-#define ArgBoundSimple(M)	((M) == CONSTANT)
-#define ArgBound(M)		(M)
-#define ArgBoundGroundArg(M)	((M) == GROUND)
-/* simulate an array of n-bit elements */
-/* There is place for 10 args in 32 bits since the highest bit must remain
- * free, otherwise we could not use shifting. All access is done using these
- * macros, so it is easy to change for exotic machines
- */
-#define ARGMODEBITS		2
-#define ARGMODEMASK		3
-#define ArgModeShift(i)		(((i)*ARGMODEBITS) + 6*PMODEBITS-ARGMODEBITS)
-#define ArgBinding(i, decl)	(((decl) >> ArgModeShift(i)) & ARGMODEMASK)
-#define BoundArg(i, val)	((val) << ArgModeShift(i))
-#define Set_Arg_Binding(proc, mask)	(proc)->mode = (mask);
 
+/* Obsolete built-in binding information - being phased out */
+#define CONSTANT                1
+#define BoundArg(i, val)	0
 
 
 /* ------------------------- PROPERTIES TABLE -----------------------	*/
@@ -573,6 +559,8 @@ Extern void	pri_init_code ARGS((pri*,int));
 Extern void	pri_define_code ARGS((pri*,int,pri_code_t));
 Extern int	pri_change_trans_function ARGS((pri*,dident));
 Extern int	pri_change_mode ARGS((pri*,uint32));
+Extern int	pri_change_prio ARGS((pri*,int));
+Extern int	pri_change_run_prio ARGS((pri*,int));
 
 Extern pri *	built_in(dident did1, int (*func) (/* ??? */), word flags);
 Extern pri *	local_built_in(dident did1, int (*func) (/* ??? */), word flags);

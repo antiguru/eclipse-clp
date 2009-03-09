@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.7 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: bip_db.c,v 1.8 2009/03/09 05:29:48 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -129,8 +129,7 @@ static int
     p_visible_term_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6),
     p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value vlm, type tlm, value vcm, type tcm),
     p_trimcore(void),
-    p_mode(value pv, type pt, value mv, type mt),
-    p_bound_arg(value vproc, type tproc, value va, type ta, value vb, type tb, value mv, type mt);
+    p_mode(value pv, type pt, value mv, type mt);
 
 static int	_type_did(pword*, dident*);
 
@@ -146,9 +145,12 @@ static	dident
 		d_reexported_,
 		d_exported_,
 		d_parallel_,
+		d_run_priority_,
 		d_start_tracing_,
+#ifdef EXTENDED_MODES
 		d_plusminus,
 		d_minusplus,
+#endif
 		d_constant,
 		d_constant2,
 		d_nonvar,
@@ -233,9 +235,12 @@ bip_db_init(int flags)
     d_reexported_ = in_dict("reexported", 0);
     d_exported_ = in_dict("exported", 0);
     d_parallel_ = in_dict("parallel", 0);
+    d_run_priority_ = in_dict("run_priority", 0);
     d_start_tracing_ = in_dict("start_tracing", 0);
+#ifdef EXTENDED_MODES
     d_plusminus = in_dict("+-", 0);
     d_minusplus = in_dict("-+", 0);
+#endif
     d_constant = in_dict("constant", 0);
     d_constant2 = in_dict("constant", 2);
     d_nonvar = in_dict("nonvar", 0);
@@ -330,8 +335,6 @@ bip_db_init(int flags)
     (void) exported_built_in(in_dict("garbage_collect_dictionary", 0),
 					ec_gc_dictionary, B_SAFE);
     (void) exported_built_in(in_dict("mode_", 2), p_mode, B_SAFE|U_SIMPLE);
-    exported_built_in(in_dict("bound_arg_", 4), p_bound_arg, B_SAFE|U_SIMPLE)
-	-> mode = BoundArg(3, NONVAR);
     (void) exported_built_in(in_dict("define_macro_", 4), p_define_macro, B_UNSAFE);
     (void) exported_built_in(in_dict("erase_macro_", 2), p_erase_macro, B_UNSAFE);
     (void) exported_built_in(in_dict("erase_macro_", 3), p_erase_macro3, B_UNSAFE);
@@ -1235,6 +1238,10 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 	Request_Unify_Atom(vf, tf, flags & DEBUG_TRMETA? d_.on: d_.off);
     	break;
 
+    case 34:		/* run_priority */
+	Request_Unify_Integer(vf, tf, PriRunPriority(proc));
+    	break;
+
     default:
 	Bip_Error(RANGE_ERROR);
     }
@@ -1255,7 +1262,7 @@ static int
 p_mode(value pv, type pt, value mv, type mt)
 {
 	int	arity, i, err, mode;
-        word	mode_decl;
+	uint32	mode_decl;
 	pword	*arg, *term, *pred;
 	pri	*proc;
 	dident	wd;
@@ -1329,10 +1336,12 @@ p_mode(value pv, type pt, value mv, type mt)
 		    mode = OUTPUT;
 		else if (arg->val.did == d_.question)
 		    mode = ANY;
+#ifdef EXTENDED_MODES
 		else if (arg->val.did == d_plusminus)
 		    mode = NOALIAS_INST;
 		else if (arg->val.did == d_minusplus)
 		    mode = NOALIAS;
+#endif
 		else
 		{
 		    Bip_Error(TYPE_ERROR);
@@ -1344,47 +1353,6 @@ p_mode(value pv, type pt, value mv, type mt)
 	}
 	while (pred);
 	Succeed_;
-}
-
-/*
- *	bound_arg(F/A, Arg, Bound, Module)
- * Return the built-in binding property for the given argument, fail if
- * this argument is not changed by the builtin.
- */
-static int
-p_bound_arg(value vproc, type tproc, value va, type ta, value vb, type tb, value mv, type mt)
-{
-	pri	*proc;
-	dident	wd;
-	int	err;
-
-	Check_Module(mt, mv);
-	Check_Integer(ta);
-	Check_Output_Atom(tb);
-	Get_Proc_Did(vproc, tproc, wd);
-	if (!(proc = visible_procedure(wd, mv.did, mt, 0)))
-	{
-	    Get_Bip_Error(err);
-	    Bip_Error(err);
-	}
-	if (DidArity(wd) > 6) {
-	    Fail_;
-	}
-	switch (ArgBinding(va.nint, proc->mode))
-	{
-	case ANY:
-		Fail_;
-
-	case CONSTANT:
-		Return_Unify_Atom(vb, tb, d_constant);
-
-	case NONVAR:
-		Return_Unify_Atom(vb, tb, d_nonvar);
-
-	case GROUND:
-		Return_Unify_Atom(vb, tb, d_ground);
-	}
-	Fail_;
 }
 
 
@@ -2141,7 +2109,9 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	uint32	new_flags = 0, changed_flags = 0;
 	dident	wdid;
 	pri	*proc;
-	int	err, use_local_procedure = 0;
+	int	err;
+	int	use_local_procedure = 0;
+	int	change_code_block = 0;
 
 	Check_Module(tm, vm);
 	Get_Proc_Did(vproc, tproc, wdid);
@@ -2169,8 +2139,17 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	    {
 		Bip_Error(RANGE_ERROR);
 	    }
-	    changed_flags = PROC_PRIORITY;
-	    new_flags = PriPriorityFlags(vv.nint);
+	    /* we allow changing from anywhere (useful?) */
+	}
+	else if (vf.did == d_run_priority_)
+	{
+	    Check_Integer(tv);
+	    if (vv.nint < 1 || vv.nint > SUSP_MAX_PRIO)
+	    {
+		Bip_Error(RANGE_ERROR);
+	    }
+	    /* only changeable from definition module */
+	    use_local_procedure = 1;
 	}
 	else if (vf.did == d_.spy)
 	{
@@ -2197,6 +2176,7 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	{
 	    Check_Atom(tv)
 	    use_local_procedure = 1;
+	    change_code_block = 1;
 	}
 	else if (vf.did == d_source_line_ || vf.did == d_source_offset_)
 	{
@@ -2206,6 +2186,7 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 		Bip_Error(RANGE_ERROR);
 	    }
 	    use_local_procedure = 1;
+	    change_code_block = 1;
 	}
 	else if (vf.did == d_.break0)
 	{
@@ -2214,6 +2195,7 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	    {
 		Bip_Error(RANGE_ERROR);
 	    }
+	    change_code_block = 1;
 	}
 	else
 	{
@@ -2267,6 +2249,9 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	    }
 	}
 
+	/*
+	 * Now get the procedure descriptor that needs to be changed
+	 */
 	a_mutex_lock(&ProcedureLock);
 	proc = visible_procedure(wdid, vm.did, tm, 0);
 	if (!proc)
@@ -2317,8 +2302,9 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 
 	    pri_change_flags(proc, changed_flags, new_flags);
 	}
-	else /* changing information stored in code header or breakport */
+	else if (change_code_block)
 	{
+	    /* changing information stored in code header or breakport */
 	    if (!(PriFlags(proc) & CODE_DEFINED))
 	    {
 		err = NOENTRY;
@@ -2369,6 +2355,20 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 		}
 	    }
 	}
+	else if (vf.did == d_.priority)
+	{
+	    pri_change_prio(proc, vv.nint);
+	}
+	else if (vf.did == d_run_priority_)
+	{
+	    pri_change_run_prio(proc, vv.nint);
+	}
+	else	/* should not happen */
+	{
+	    err = RANGE_ERROR;
+	    goto _unlock_return_err_;
+	}
+
 	a_mutex_unlock(&ProcedureLock);
 	Succeed_;
 
@@ -3273,6 +3273,7 @@ get_mode(uint32 mode_decl, dident wd)
 	    p->val.did = d_.minus0;
 	    break;
 
+#ifdef EXTENDED_MODES
 	case NOALIAS_INST:
 	    p->val.did = d_plusminus;
 	    break;
@@ -3280,6 +3281,7 @@ get_mode(uint32 mode_decl, dident wd)
 	case NOALIAS:
 	    p->val.did = d_minusplus;
 	    break;
+#endif
 
 	default:
 	    p->val.did = d_.question;

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
+ * $Id: sepia.h,v 1.6 2009/03/09 05:29:48 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -682,6 +682,10 @@
 	_pstruct->val.did = (wdid); \
 	_pstruct->tag.kernel = TDICT; }
 
+#define Make_Susp(pw, p) \
+	(pw)->tag.kernel = TSUSP; \
+	(pw)->val.ptr = (p);
+
 #define Make_Ref(pw, p) \
 	(pw)->tag.kernel = TREF; \
 	(pw)->val.ptr = (p);
@@ -1223,23 +1227,57 @@
 /*	Abstract machine registers				*/
 /****************************************************************/
 
-#define	SP	g_emu_.sp
-#define	TT	g_emu_.tt
-#define	TG	g_emu_.tg
-#define	E	g_emu_.e
-#define	EB	g_emu_.eb
-#define	GB	g_emu_.gb
-#define	S	g_emu_.s
-#define	B	g_emu_.b
-#define	PPB	g_emu_.ppb
-#define	PB	g_emu_.pb
-#define	ORA	g_emu_.oracle
-#define	NTRY	g_emu_.ntry
-#define	LEAF	g_emu_.leaf
-#define	LOAD	g_emu_.load
-#define	GCTG	g_emu_.gctg
-#define	ORC	g_emu_.oracle
-#define	PP	g_emu_.pp
+#define	SP		g_emu_.sp
+#define	TT		g_emu_.tt
+#define	TG		g_emu_.tg
+#define	E		g_emu_.e
+#define	EB		g_emu_.eb
+#define	GB		g_emu_.gb
+#define	S		g_emu_.s
+#define	B		g_emu_.b
+#define	PPB		g_emu_.ppb
+#define	PB		g_emu_.pb
+#define	ORA		g_emu_.oracle
+#define	NTRY		g_emu_.ntry
+#define	LEAF		g_emu_.leaf
+#define	LOAD		g_emu_.load
+#define	GCTG		g_emu_.gctg
+#define	ORC		g_emu_.oracle
+#define	PP		g_emu_.pp
+#define	LCA		g_emu_.lca
+#define	VM_FLAGS	g_emu_.vm_flags
+#define	EVENT_FLAGS	g_emu_.event_flags
+#define	DE		g_emu_.de
+#define	LD		g_emu_.ld
+#define	MU		g_emu_.mu
+#define	SV		g_emu_.sv
+#define WP		g_emu_.wp
+#define WP_STAMP	g_emu_.wp_stamp
+#define WL		g_emu_.wl.val.ptr
+#define TAGGED_WL	g_emu_.wl
+#define TO		g_emu_.oracle
+#define FO		g_emu_.followed_oracle
+#define PO		g_emu_.pending_oracle
+#define	OCB		g_emu_.occur_check_boundary
+#define	TCS		g_emu_.top_constructed_structure
+#define	TG_SL		g_emu_.tg_soft_lim
+#define	TG_SLS		g_emu_.tg_soft_lim_shadow
+#define	IFOFLAG		g_emu_.irq_faked_overflow
+#define	TG_SEG		g_emu_.segment_size
+#define	TG_LIM		g_emu_.tg_limit
+#define	TT_LIM		g_emu_.tt_limit
+#define	TG_ORIG		((pword *) g_emu_.global_trail[0].start)
+#define	TT_ORIG		((pword **) g_emu_.global_trail[1].start)
+#define	B_ORIG		((pword *) g_emu_.control_local[0].start)
+#define	SP_ORIG		((pword *) g_emu_.control_local[1].start)
+#define	IT_BUF		g_emu_.it_buf
+#define	PARSENV		g_emu_.parser_env
+#define POSTED  	g_emu_.posted
+#define POSTED_LAST	g_emu_.posted_last
+#define	GLOBVAR		(g_emu_.global_variable+1)
+#define	A		g_emu_.emu_args
+#define PostponedList	g_emu_.postponed_list
+
 
 #define	TD		g_emu_.trace_data.debug_top.val.ptr
 #define	TAGGED_TD	g_emu_.trace_data.debug_top
@@ -1263,40 +1301,6 @@
 #define DBG_LINE        g_emu_.trace_data.source_pos.line
 #define DBG_FROM        g_emu_.trace_data.source_pos.from
 #define DBG_TO          g_emu_.trace_data.source_pos.to
-
-#define	LCA	g_emu_.lca
-#define	VM_FLAGS	g_emu_.vm_flags
-#define	EVENT_FLAGS	g_emu_.event_flags
-#define	DE	g_emu_.de
-#define	LD	g_emu_.ld
-#define	MU	g_emu_.mu
-#define	SV	g_emu_.sv
-#define WP	g_emu_.wp
-#define WP_STAMP	g_emu_.wp_stamp
-#define WL	g_emu_.wl.val.ptr
-#define TAGGED_WL	g_emu_.wl
-#define TO	g_emu_.oracle
-#define FO	g_emu_.followed_oracle
-#define PO	g_emu_.pending_oracle
-#define	OCB	g_emu_.occur_check_boundary
-#define	TCS	g_emu_.top_constructed_structure
-#define	TG_SL	g_emu_.tg_soft_lim
-#define	TG_SLS	g_emu_.tg_soft_lim_shadow
-#define	IFOFLAG	g_emu_.irq_faked_overflow
-#define	TG_SEG	g_emu_.segment_size
-#define	TG_LIM	g_emu_.tg_limit
-#define	TT_LIM	g_emu_.tt_limit
-#define	TG_ORIG	((pword *) g_emu_.global_trail[0].start)
-#define	TT_ORIG	((pword **) g_emu_.global_trail[1].start)
-#define	B_ORIG	((pword *) g_emu_.control_local[0].start)
-#define	SP_ORIG	((pword *) g_emu_.control_local[1].start)
-#define	IT_BUF	g_emu_.it_buf
-#define	PARSENV	g_emu_.parser_env
-#define POSTED  g_emu_.posted
-#define POSTED_LAST  g_emu_.posted_last
-#define	GLOBVAR	(g_emu_.global_variable+1)
-#define	A	g_emu_.emu_args
-#define PostponedList	g_emu_.postponed_list
 
 
 /*
@@ -1469,3 +1473,26 @@
 #define MAX_STATIC_EVENT_SLOTS 		32
 #define MIN_DYNAMIC_EVENT_SLOTS 	32
 #define DYNAMIC_EVENT_Q_SHRINK_FACTOR	2
+
+/****************************************************************/
+/*		Priorities					*/
+/****************************************************************/
+
+#define PRIORITY_DEBUG		1
+#define PRIORITY_CHECK		2
+#define PRIORITY_UNARY		3
+#define PRIORITY_BINARY		4
+#define PRIORITY_TERNARY	5
+#define PRIORITY_LINEAR		6
+#define PRIORITY_QUADRATIC	7
+#define PRIORITY_CUBIC		8
+#define PRIORITY_SLOW		9
+#define PRIORITY_MOPUP		10
+#define PRIORITY_NONDET		11
+#define PRIORITY_MAIN		12
+
+#define PRIORITY_DEFAULT	PRIORITY_CHECK
+#define PRIORITY_RUN_DEFAULT	PRIORITY_CHECK
+#define PRIORITY_MIN		PRIORITY_DEBUG
+#define PRIORITY_MAX		PRIORITY_MAIN
+

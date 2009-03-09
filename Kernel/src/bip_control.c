@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.3 2008/09/01 11:44:54 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.4 2009/03/09 05:29:48 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1121,7 +1121,7 @@ p_delay_port_susps(value v, type t)
 {
     pword list;
     pword *pld = LD;
-    if (!DBG_DELAY_INVOC || !LD)
+    if (!DBG_DELAY_INVOC || !(LD > LD_END))
     {
 	p_fprintf(current_err_, "\nUnexpected state in delay_port_susps/1");
 	ec_flush(current_err_);
@@ -1167,7 +1167,7 @@ ec_make_suspension(pword goal, int prio, void *proc, pword *psusp)
     if (prio == 0)
     	prio = PriPriority(((pri*)proc));	/* use procedure's setting */
     Init_Susp_Header(susp, ((pri*)proc));
-    Init_Susp_State(susp, prio);		/* priority */
+    Init_Susp_State(susp, prio, PriRunPriority((pri*)proc));		/* priority */
     susp[SUSP_GOAL].val.all = goal.val.all;
     susp[SUSP_GOAL].tag.all = goal.tag.all;
     if (Tracing && AnyPortWanted)

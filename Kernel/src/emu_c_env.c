@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.4 2009/03/09 05:29:48 jschimpf Exp $
  */
 
 /*
@@ -53,8 +53,6 @@ extern pword		*p_meta_arity_;
 extern void		msg_nopoll();
 extern void		ec_init_globvars(void);
 extern int		ec_init_postponed(void);
-
-void			wl_init(int prio);
 
 #define Bind_Named(pwn, pw)\
                          Trail_Tag_If_Needed_Gb(pwn); \
@@ -167,9 +165,10 @@ save_vm_status(vmcode *fail_code, int options)
     if (options & EMU_INIT_WL)
     {
 	/* wl_init() must be done between saving tg_before and tg */
-	wl_init(SUSP_MAX_PRIO);		/* pushes stuff on TG, sets WL */
+	/* it saves WL, LD, WP */
+	Make_Struct(&TAGGED_WL, wl_init());
 	/* don't update timestamp, WP must look "old" */
-	WP = DEFAULT_PRIO;
+	WP = PRIORITY_MAIN;
     }
 
 #ifdef NEW_ORACLE
@@ -256,9 +255,6 @@ save_vm_status(vmcode *fail_code, int options)
     g_emu_.nesting_level++;
 
     DE = MU = SV = (pword *) 0;
-
-    if (options & EMU_INIT_LD)
-	LD = (pword *) 0;
 
 #ifdef OC
     OCB = (pword *) 0;
@@ -417,28 +413,6 @@ restart_emulc(void)
 {
     Disable_Int();
     return emulc();
-}
-
-debug_emulc(value v_goal, type t_goal, value v_mod, type t_mod)
-{
-    int		result;
-
-    /* we want to see the delayed goals, don't reset LD */
-    save_vm_status(&stop_fail_code_[0], EMU_INIT_WL);
-    PP = &eval_code_[0];
-
-    _start_goal(v_goal, t_goal, v_mod, t_mod);
-    result = emulc();
-    while (result == PYIELD)
-    {
-	Make_Atom(&A[1], in_dict("Nested emulator yielded",0));
-	Make_Integer(&A[2], RESUME_CONT);
-    	result = restart_emulc();
-    }
-
-    if (result == PTHROW)
-	longjmp(*g_emu_.it_buf, PTHROW);
-    return result;
 }
 
 
@@ -1580,7 +1554,7 @@ first_woken(register int prio)
 		Make_Stamp(p);
 	    }
 	    if (s) {
-		Set_WP(i)
+		Set_WP(SuspRunPrio(s))
 		return s;
 	    }
 	}
@@ -1591,25 +1565,19 @@ first_woken(register int prio)
 /*
  * Initialize the WL structure
  */
-void
-wl_init(int prio)
+pword *
+wl_init()
 {
-    register pword	*p = TG;
+    pword	*p = TG;
     int	i;
 
-    if (prio < DEFAULT_PRIO)
-	prio = DEFAULT_PRIO;
-    i = WLArity(prio);
-    TG += i + 1;		/* + functor */
-    Check_Gc
-    p->val.did = in_dict("woken", i);
-    p->tag.kernel = TDICT;
+    Push_Struct_Frame(d_.woken);
     *WLPrevious(p) = TAGGED_WL;
-    WLPreviousWP(p)->val.nint = WP;
-    WLPreviousWP(p)->tag.kernel = TINT;
-    for (; i >= WL_FIRST; i--)
+    Make_Integer(WLPreviousWP(p), WP);
+    Make_Susp(WLPreviousLD(p), LD);
+    for (i=WL_FIRST; i <= WL_ARITY; i++)
 	p[i].tag.kernel = TNIL;
-    Make_Struct(&TAGGED_WL, p);
+    return p;
 }
 
 /*

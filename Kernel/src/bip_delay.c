@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: bip_delay.c,v 1.6 2009/03/09 05:29:48 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -80,8 +80,8 @@ static int	p_delayed_goals(value vres, type tres),
 		p_postpone_suspensions(value vpos, type tpos, value vattr, type tattr),
 		p_reinit_postponed(value vold, type told),
 		p_reset_postponed(value vold, type told),
-		p_relax_priority(value vp, type tp, value vwl, type twl),
-		p_restore_relaxed_priority(value vwl, type twl),
+		p_subcall_init(),
+		p_subcall_fini(value vs, type ts),
 		p_set_priority(value vp, type tp),
 		p_set_priority2(value vp, type tp, value vt, type tt),
 		p_get_priority(value vp, type tp),
@@ -93,6 +93,7 @@ static int	p_delayed_goals(value vres, type tres),
 		p_undo_meta_bind(value vp, type tp, value vv, type tv),
 		p_do_meta_bind(value vp, type tp, value vt, type tt),
 		p_meta_index(value vname, type tname, value vi, type ti),
+		p_set_suspension_arg(value vs, type ts, value vi, type tn, value v, type t),
 		p_get_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type t),
 		p_set_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type t),
 		p_get_suspension_number(value vs, type ts, value vn, type tn),
@@ -154,6 +155,8 @@ bip_delay_init(int flags)
 		B_UNSAFE);
 	(void) built_in(in_dict("enter_suspension_list", 3), p_enter_suspension_list,
 		B_UNSAFE);
+	built_in(in_dict("set_suspension_arg", 3),
+		p_set_suspension_arg, B_SAFE);
 	built_in(in_dict("set_suspension_data", 3),
 		p_set_suspension_data, B_SAFE);
 	built_in(in_dict("get_suspension_data", 3),
@@ -220,8 +223,8 @@ bip_delay_init(int flags)
 	(void) built_in(in_dict("get_priority", 1), p_get_priority, B_UNSAFE);
 	(void) exported_built_in(in_dict("set_priority", 1), p_set_priority, B_UNSAFE);
 	(void) exported_built_in(in_dict("set_priority", 2), p_set_priority2, B_UNSAFE);
-	(void) local_built_in(in_dict("relax_priority", 2), p_relax_priority, B_UNSAFE);
-	(void) local_built_in(in_dict("restore_relaxed_priority", 1), p_restore_relaxed_priority, B_UNSAFE);
+	(void) exported_built_in(in_dict("subcall_init", 0), p_subcall_init, B_SAFE);
+	(void) exported_built_in(in_dict("subcall_fini", 1), p_subcall_fini, B_UNSAFE);
 	(void) exported_built_in(in_dict("add_attribute", 3), p_add_attribute,
 		B_UNSAFE);
 	exported_built_in(in_dict("get_attribute", 3), p_get_attribute,
@@ -251,7 +254,7 @@ p_delayed_goals(value vres, type tres)
     /* if invoked with [], do a more efficient check only */
     if (IsNil(tres)) {
 	pword *env = LD;
-	while (env) {
+	while (env > LD_END) {
 	    if(!SuspDead(env)) {
 		Fail_
 	    }
@@ -259,7 +262,7 @@ p_delayed_goals(value vres, type tres)
 	}
 	Succeed_;
     }
-    if (result.val.ptr = _make_goal_list((pword *) 0, 0))
+    if (result.val.ptr = _make_goal_list(LD_END, 0))
 	result.tag.kernel = TLIST;
     else
 	result.tag.kernel = TNIL;
@@ -273,12 +276,71 @@ p_delayed_goals(value vres, type tres)
 
 static int
 p_last_suspension(value v, type t)
-{  value v2;
-   type  t2;
-   Check_Ref(t)
-   v2.ptr = LD;
-   t2.kernel = TSUSP;
-   Return_Unify_Pw(v,t,v2,t2);
+{
+    pword	result;
+    Check_Ref(t)
+    Make_Susp(&result, LD);
+    Return_Unify_Pw(v,t,result.val,result.tag);
+}
+
+
+/*
+ * Save and re-init WP, LD_END and the woken lists.
+ */
+
+static int
+p_subcall_init()
+{
+    if (WL < GB) {
+	Trail_Pword(&TAGGED_WL)
+    }
+    WL = wl_init();		/* saves old WP, WL, LD */
+    Set_WP(PRIORITY_MAIN)
+    Succeed_;
+}
+
+
+/*
+ * Restore saved WP, LD_END, and woken lists.
+ * Kill and collect all newly delayed goals.
+ */
+
+static int
+p_subcall_fini(value vres, type tres)
+{
+    pword	result;
+    if (IsNil(tres))	/* just check for delayed goals */
+    {
+	register pword *env = LD;
+	while (env > LD_END) 
+	{
+	    if(!SuspDead(env)) 
+	    {
+		Fail_;
+	    }
+	    env = SuspPrevious(env);
+	}
+	Succeed_;
+    }
+    else if (IsRef(tres) || IsList(tres))
+    {
+	if (result.val.ptr = _make_goal_list(LD_END, 1))
+	    result.tag.kernel = TLIST;
+	else
+	    result.tag.kernel = TNIL;
+    }
+    else
+    {
+	Bip_Error(TYPE_ERROR);
+    }
+
+    Set_WP(WLPreviousWP(WL)->val.nint);
+    if (WL < GB) {
+	Trail_Pword(&TAGGED_WL)
+    }
+    WL = WLPrevious(WL)->val.ptr;
+
+    Return_Unify_Pw(result.val, result.tag, vres, tres);
 }
 
 
@@ -286,6 +348,7 @@ p_last_suspension(value v, type t)
  * new_delays(+Old_LD, -List)
  * return list of delayed goals created since Old_LD was saved
  * the goals are marked as woken!
+ * We assume that Old_LD >= LD_END
  */
 
 /*ARGSUSED*/
@@ -393,8 +456,7 @@ _suspensions(value vres, type tres, pword *last)
 	{
 	    register pword *pw = TG;
 	    Push_List_Frame();
-	    pw[0].val.ptr = env;
-	    pw[0].tag.kernel = TSUSP;
+	    Make_Susp(&pw[0], env);
 	    pw[1] = result;
 	    Make_List(&result, pw);
 	}
@@ -406,7 +468,7 @@ _suspensions(value vres, type tres, pword *last)
 static int
 p_suspensions(value vres, type tres)
 {
-    return _suspensions(vres, tres, (pword *) 0);
+    return _suspensions(vres, tres, LD_END);
 }
 
 /*
@@ -417,16 +479,14 @@ static int
 p_current_suspension(value vres, type tres, value vlast, type tlast)
 {
     pword *de = IsTag(tlast.kernel, TSUSP) ? SuspPrevious(vlast.ptr) : LD;
-    while (de)
+    while (de > LD_END)
     {
 	if (!SuspDead(de))
 	{
-	    value vsusp;
-	    type tsusp;
-	    vsusp.ptr = de;
-	    tsusp.kernel = TSUSP;
-	    Remember(2, vsusp, tsusp);
-	    Return_Unify_Pw(vres, tres, vsusp, tsusp);
+	    pword result;
+	    Make_Susp(&result, de);
+	    Remember(2, result.val, result.tag);
+	    Return_Unify_Pw(vres, tres, result.val, result.tag);
 	}
 	de = SuspPrevious(de);
     }
@@ -1163,7 +1223,10 @@ p_get_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type 
 	{ Fail_; }
     if (vwhat.did == d_.state)
     {
-	word n = SuspDead(vs.ptr) ? 2 : SuspScheduled(vs.ptr) ? 1 : 0;
+	word n = vs.ptr < LD_END ? -1
+		: SuspDead(vs.ptr) ? 2
+		: SuspScheduled(vs.ptr) ? 1
+		: 0;
 	Return_Unify_Integer(v, t, n);
     }
     if (SuspDead(vs.ptr))
@@ -1230,6 +1293,51 @@ p_set_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type 
 
 
 /*
+ * set_suspension_arg(+Suspension, +Index, +Argument)
+ * same as 
+ * get_suspension_data(Susp, goal, Goal), setarg(Index, Goal, Argument)
+ */
+
+static int
+p_set_suspension_arg(value vs, type ts, value vn, type tn, value va, type ta)
+{
+    pword *argp;
+    word arity;
+
+    Check_Type(ts, TSUSP)
+    Check_Integer(tn);
+
+    /*
+     * This should better be an error rather than failure.
+     * For dead suspensions definitely, for scheduled ones probably...
+     */
+    if (SuspDead(vs.ptr))
+	{ Fail_; }
+
+    if (IsStructure(vs.ptr[SUSP_GOAL].tag))
+    {
+	argp = vs.ptr[SUSP_GOAL].val.ptr;
+	arity = DidArity(argp->val.did);
+    }
+    else if (IsList(vs.ptr[SUSP_GOAL].tag))
+    {
+	argp = vs.ptr[SUSP_GOAL].val.ptr - 1;
+	arity = 2;
+    }
+    else
+    {
+	Bip_Error(IsRef(vs.ptr[SUSP_GOAL].tag) ? INSTANTIATION_FAULT : TYPE_ERROR);
+    }
+    if (vn.nint < 1 || vn.nint > arity)
+    {
+	Bip_Error(RANGE_ERROR);
+    }
+    argp += vn.nint;
+    return ec_assign(argp, va, ta);	/* succeeds */
+}
+
+
+/*
  * Distribute the suspensions in the list to the global woken lists
  */
 int
@@ -1275,8 +1383,7 @@ p_schedule_woken(value vl, type tl)
 		pword *q = WLFirst(WL) + SuspPrio(p) - 1;
 		pword *new = TG;
 		Push_List_Frame()
-		new[0].val.ptr = p;
-		new[0].tag.kernel = TSUSP;
+		Make_Susp(&new[0], p);
 		new[1] = *q;
 		if (IsNil(q->tag) || q->val.ptr < GB) {
 		    Trail_Pword(q)
@@ -1474,8 +1581,7 @@ p_schedule_postponed(value vl, type tl)
 	{
 	    pword *new = TG;
 	    Push_List_Frame()
-	    new[0].val.ptr = p;
-	    new[0].tag.kernel = TSUSP;
+	    Make_Susp(&new[0], p);
 	    new[1] = newpp;
 	    Make_List(&newpp, new);
 	    change = 1;
@@ -1626,8 +1732,7 @@ ec_schedule_susp(pword *susp)
 	    pword *q = WLFirst(WL) + SuspPrio(susp) - 1;
 	    pword *new = TG;
 	    Push_List_Frame()
-	    new[0].val.ptr = susp;
-	    new[0].tag.kernel = TSUSP;
+	    Make_Susp(&new[0], susp);
 	    new[1] = *q;
 	    if (IsNil(q->tag) || q->val.ptr < GB) {
 		Trail_Pword(q)
@@ -1680,15 +1785,40 @@ ec_schedule_susps(pword *next)
 	    if (!SuspInWL(p))
 	    {
 		pword *q = WLFirst(WL) + SuspPrio(p) - 1;
+#ifdef SCHEDULE_FIFO
+		pword *new = TG;
+		if (q->val.ptr < GB) {
+		    Trail_Pword(q)
+		}
+		if (IsTag(q->tag.kernel, TLIST)) {
+		    pword *last = q->val.ptr + 1;
+		    Make_List(q, new);
+		    if (!ISPointer(last->tag.kernel)) (void) ec_panic("Illegal WL", "schedule_woken()");
+		    if (last->val.ptr < GB) {
+			Trail_Pword(q)
+		    }
+		    q = last->val.ptr;	/* first elememt */
+		    Make_List(last, new);
+		    Push_List_Frame()
+		    Make_Susp(&new[0], p);
+		    Make_List(new+1, q);
+		} else {
+		    if (!IsRef(q->tag)) (void) ec_panic("Illegal WL", "schedule_woken()");
+		    Make_List(q, new);
+		    Push_List_Frame()
+		    Make_Susp(&new[0], p);
+		    Make_List(new+1, new);
+		}
+#else
 		pword *new = TG;
 		Push_List_Frame()
-		new[0].val.ptr = p;
-		new[0].tag.kernel = TSUSP;
+		Make_Susp(&new[0], p);
 		new[1] = *q;
 		if (IsNil(q->tag) || q->val.ptr < GB) {
 		    Trail_Pword(q)
 		}
 		Make_List(q, new);
+#endif
 	    }
 	    Set_Susp_Scheduled(p);
 	}
@@ -1881,46 +2011,6 @@ p_set_priority2(value vp, type tp, value vt, type tt)
 	WP = prio;
     Succeed_
 }
-
-
-p_relax_priority(value vp, type tp, value vwl, type twl)
-{
-    int prio;
-    Check_Integer(tp)
-    prio = vp.nint > SUSP_MAX_PRIO ? SUSP_MAX_PRIO : vp.nint;
-    if (WP >= prio) {
-	Return_Unify_Nil(vwl, twl)	/* nothing to do */
-    }
-
-    if (WL < GB) {
-	Trail_Pword(&TAGGED_WL)
-    }
-    wl_init(SUSP_MAX_PRIO);		/* saves old WP and WL, sets new WL */
-    Set_WP(prio)
-    Return_Unify_Pw(vwl, twl, TAGGED_WL.val, TAGGED_WL.tag)
-}
-
-p_restore_relaxed_priority(value vwl, type twl)
-{
-    if (IsStructure(twl)) {
-	int i;
-	pword *p = WLFirst(vwl.ptr);
-	for (i=0; i<SUSP_MAX_PRIO; ++i) {
-	    pword *plist = &p[i];
-	    Dereference_(plist);
-	    if (!IsNil(plist->tag)) {
-		Bip_Error(BAD_RESTORE_WL);
-	    }
-	}
-	Set_WP(WLPreviousWP(WL)->val.nint);
-	if (WL < GB) {
-	    Trail_Pword(&TAGGED_WL)
-	}
-	TAGGED_WL = *WLPrevious(WL);
-    }
-    Succeed_;
-}
-
 
 static
 p_first_woken(value pv, type pt, value v, type t)

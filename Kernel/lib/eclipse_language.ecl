@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.4 2008/12/12 05:52:35 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.5 2009/03/09 05:31:41 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -481,6 +481,7 @@
 :- reexport set_prompt / 3 from sepia_kernel.
 :- reexport set_stream / 2 from sepia_kernel.
 :- reexport set_stream_property / 3 from sepia_kernel.
+:- reexport set_suspension_arg / 3 from sepia_kernel.
 :- reexport set_suspension_data / 3 from sepia_kernel.
 :- reexport set_suspension_priority / 2 from sepia_kernel.
 :- reexport set_timer / 2 from sepia_kernel.

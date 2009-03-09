@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.8 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: emu_export.h,v 1.9 2009/03/09 05:29:48 jschimpf Exp $
  */
 
 /*
@@ -845,7 +845,7 @@ extern pword	*spmax_;
  *	|- - -  GOAL - - -|
  *	|                 |
  *	|-----------------|
- *	|     PRIO WS TREF|	<= these are mutable fields
+ *	| RP/PRIO  WS TREF|	<= these are mutable fields
  *	|- - - STATE - - -|
  *	|    timestamp    |
  *	|-----------------|
@@ -893,6 +893,10 @@ extern pword	*spmax_;
  * suspensions are still in the WL lists. From there it can either be
  * rescheduled cheaply, or go to dead/sleeping state at the time it gets
  * taken out of the WL lists.
+ *
+ * Priorities:
+ * We store both priority and run_priority in the suspension.
+ * The run-priority is always equal or higher than the schedule-priority.
  */
 
 
@@ -901,16 +905,14 @@ extern pword	*spmax_;
 #define SUSP_FLAG_DEAD		0x00000200
 
 /* In the SUSP_STATE tag: */
-#define SUSP_FLAG_PRIO		0x0FF00000
+#define SUSP_FLAG_PRIO		0x00F00000
+#define SUSP_FLAG_RUNPRIO	0x0F000000
 #define SUSP_STATE_SCHED	0x00000100	/* scheduled */
 #define SUSP_STATE_INWL		0x00000200	/* in woken lists */
 
 #define SUSP_PRIO_SHIFT		20
-#define SUSP_MAX_PRIO		12	/* could be as much as 0xFF */
-#define SUSP_EAGER_PRIO		2
-#define SUSP_LAZY_PRIO		4
-#define PROGRAM_PRIO		6
-#define DEFAULT_PRIO		SUSP_MAX_PRIO	/* is that right? */
+#define SUSP_RUNPRIO_SHIFT	24
+#define SUSP_MAX_PRIO		PRIORITY_MAX
 
 #define SUSP_LD		0	/* offsets in suspensions */
 #define SUSP_FLAGS	0
@@ -928,6 +930,7 @@ extern pword	*spmax_;
 #define SuspScheduled(p)	((p)[SUSP_STATE].tag.kernel & SUSP_STATE_SCHED)
 #define SuspInWL(p)		((p)[SUSP_STATE].tag.kernel & SUSP_STATE_INWL)
 #define SuspPrio(p)		(((unsigned) ((p)[SUSP_STATE].tag.kernel) & SUSP_FLAG_PRIO)>>SUSP_PRIO_SHIFT)
+#define SuspRunPrio(p)		(((unsigned) ((p)[SUSP_STATE].tag.kernel) & SUSP_FLAG_RUNPRIO)>>SUSP_RUNPRIO_SHIFT)
 #define SuspStamp(p)		((p)[SUSP_STATE].val.ptr)
 #define SuspPrevious(p)		(((pword *) p)[SUSP_LD].val.ptr)
 #define SuspProc(p)		((pri*)(((pword *) p)[SUSP_PRI].val.wptr))
@@ -984,9 +987,12 @@ extern pword	*spmax_;
 	(p)->val.ptr = BChp(B.args)->tg;\
     }
 
-#define Init_Susp_State(p, prio) \
+#define Init_Susp_State(p, prio, runprio) { \
     (p)[SUSP_STATE].val.ptr = BChp(B.args)->tg;\
-    (p)[SUSP_STATE].tag.kernel = TREF | ((prio) << SUSP_PRIO_SHIFT)
+    (p)[SUSP_STATE].tag.kernel = TREF | \
+    	((prio) << SUSP_PRIO_SHIFT) | \
+	(((prio) < (runprio) ? prio : runprio) << SUSP_RUNPRIO_SHIFT); \
+}
 
 #define Set_Susp_State(p, f) \
     Trail_State(&(p)[SUSP_STATE]);\
@@ -996,9 +1002,14 @@ extern pword	*spmax_;
     Trail_State(&(p)[SUSP_STATE]);\
     (p)[SUSP_STATE].tag.kernel &= ~(f)
 
-#define Set_Susp_Prio(p, n) \
+#define Set_Susp_Prio(p, prio) { \
+    int _runprio = SuspRunPrio(p); \
     Trail_State(&(p)[SUSP_STATE]);\
-    (p)[SUSP_STATE].tag.kernel = ((p)[SUSP_STATE].tag.kernel & ~SUSP_FLAG_PRIO) | ((n) << SUSP_PRIO_SHIFT)
+    (p)[SUSP_STATE].tag.kernel = \
+    	((p)[SUSP_STATE].tag.kernel & ~(SUSP_FLAG_PRIO|SUSP_FLAG_RUNPRIO)) | \
+	((prio) << SUSP_PRIO_SHIFT) | \
+	(((prio) < _runprio ? prio : _runprio) << SUSP_RUNPRIO_SHIFT); \
+}
 
 
 #define Set_Susp_Flag_Untrailed(p, f) \
@@ -1035,6 +1046,10 @@ extern pword	*spmax_;
  *	|- List for #1 - -|
  *	|                 |
  *	|-----------------|
+ *	|    TSUSP	  |
+ *	|- - - - - - - - -|
+ *	|    previous LD  |
+ *	|-----------------|
  *	|    TINT	  |
  *	|- - - - - - - - -|
  *	|    previous WP  |
@@ -1052,7 +1067,11 @@ extern pword	*spmax_;
 
 #define WL_PREVIOUS		1
 #define WL_PREVIOUS_WP		2
-#define WL_FIRST		3
+#define WL_PREVIOUS_LD		3
+#define WL_FIRST		4
+#define WL_ARITY		(WL_FIRST + PRIORITY_MAX - 1)
+
+#define LD_END			WL[WL_PREVIOUS_LD].val.ptr
 
 #define Init_WP(prio) {\
 	Make_Stamp(&g_emu_.wp_stamp);\
@@ -1072,6 +1091,7 @@ extern pword	*spmax_;
 
 #define WLPrevious(wl)		((wl) + WL_PREVIOUS)
 #define WLPreviousWP(wl)	((wl) + WL_PREVIOUS_WP)
+#define WLPreviousLD(wl)	((wl) + WL_PREVIOUS_LD)
 #define WLFirst(wl)		((wl) + WL_FIRST)
 #define WLArity(maxprio)	((maxprio) + WL_FIRST - 1)
 #define WLMaxPrio(wl)		(DidArity(wl->val.did) - WL_FIRST + 1)
@@ -1518,7 +1538,7 @@ Extern	DLLEXP	pword *	add_attribute ARGS((word, pword*, word, int));
 Extern	DLLEXP	int	insert_suspension ARGS((pword*, int, pword*, int));
 Extern	DLLEXP	int	notify_constrained ARGS((pword*));
 Extern	pword *	first_woken ARGS((int));
-Extern	void 	wl_init ARGS((int));
+Extern	pword *	wl_init ARGS((void));
 Extern	DLLEXP	int 	bind_c ARGS((pword*, pword*, pword**));
 Extern	int 	meta_bind ARGS((pword*, value, type));
 Extern	DLLEXP	int 	ec_assign ARGS((pword*, value, type));

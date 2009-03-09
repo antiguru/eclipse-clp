@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: property.c,v 1.4 2009/03/09 05:29:48 jschimpf Exp $
  */
 
 /*
@@ -92,7 +92,7 @@ extern pword		*transf_meta_out(value val, type tag, pword *top, dident mod, pwor
 
 extern pword		*p_meta_arity_;
 
-static int		_fill_procedures(register pword *env, dident mod, type tmod);
+static int		_fill_procedures(pword *prev_ld, dident mod, type tmod);
 
 #define Property_Error(err_ptr, err_no)	\
     *err_ptr = err_no;			\
@@ -972,7 +972,7 @@ _copy_term_to_heap(value v, type t, register pword *top, value **handle_slot, re
 	    if (dead)
 		return top;
 	    top += SUSP_SIZE - SUSP_HEADER_SIZE;
-	    Init_Susp_State(dest, SuspPrio(arg_pw));
+	    Init_Susp_State(dest, SuspPrio(arg_pw), SuspRunPrio(arg_pw));
 	    dest += SUSP_GOAL;		/* copy goal and module */
 	    arg_pw += SUSP_GOAL;
 	    arity = SUSP_SIZE - SUSP_GOAL;
@@ -1400,7 +1400,7 @@ _copy_block(register pword *from, register pword *to, word size)
 		    to[SUSP_FLAGS].tag.all = from[SUSP_FLAGS].tag.all;
 		    to[SUSP_PRI].val.all = from[SUSP_PRI].val.all;
 		    to[SUSP_INVOC].tag.all = 0;
-		    Init_Susp_State(to, SuspPrio(from));
+		    Init_Susp_State(to, SuspPrio(from), SuspRunPrio(from));
 		    Update_LD(to)
 		    to += SUSP_GOAL;
 		    from += SUSP_GOAL;
@@ -1615,7 +1615,7 @@ _copy_term(value v, type t, register pword *dest, register pword *meta, int mark
 		    arg[SUSP_FLAGS].tag.all = v.ptr[SUSP_FLAGS].tag.all;
 		    arg[SUSP_PRI].val.all = v.ptr[SUSP_PRI].val.all;
 		    arg[SUSP_INVOC].tag.all = 0;
-		    Init_Susp_State(arg, SuspPrio(v.ptr));
+		    Init_Susp_State(arg, SuspPrio(v.ptr), SuspRunPrio(v.ptr));
 		    Update_LD(arg)
 		    Trail_Pword(v.ptr);
 		    v.ptr->val.ptr = arg;
@@ -1624,6 +1624,7 @@ _copy_term(value v, type t, register pword *dest, register pword *meta, int mark
 		    arg_pw = v.ptr += SUSP_GOAL;
 		    arity = SUSP_SIZE-SUSP_GOAL;
 		    copied = 1;
+		    /* copy remaining pwords in the suspension */
 		}
 	    }
 	    else if (IsForward(v.ptr->tag))	/* already copied */
@@ -2371,7 +2372,7 @@ term_to_dbformat(pword *parg, dident mod)
 			parg += SUSP_HEADER_SIZE-1;
 			arity -= SUSP_HEADER_SIZE-1;
 		    } else {
-			Store_Byte(SuspPrio(pw));
+			Store_Byte(SuspPrio(pw) + (SuspRunPrio(pw) << 4));
 			curr_offset += Words(SUSP_GOAL-1);
 			parg += SUSP_GOAL-1;
 			arity -= SUSP_GOAL-1;
@@ -2609,6 +2610,7 @@ dbformat_to_term(register char *buf, dident mod, type tmod)
     register pword *pw;
     pword	*p;
     pword *base, *top;
+    pword *prev_ld = LD;
     pword	*r;
     pword	meta;
     word	n, t;
@@ -2743,7 +2745,7 @@ dbformat_to_term(register char *buf, dident mod, type tmod)
 	    pw[SUSP_INVOC].tag.kernel = 0;
 	    if (!SuspDead(pw)) {
 		Load_Byte(n);
-		Init_Susp_State(pw, n);
+		Init_Susp_State(pw, n & 0xF, (n>>4) & 0xF);
 		pw += SUSP_GOAL;
 	    } else {
 		pw += SUSP_HEADER_SIZE;
@@ -2792,7 +2794,7 @@ dbformat_to_term(register char *buf, dident mod, type tmod)
 	}
 	pw->val.ptr = r;
     }
-    res = _fill_procedures(LD, mod, tmod);
+    res = _fill_procedures(prev_ld, mod, tmod);
     return (res == PSUCCEED) ? base : 0;
 }
 
@@ -2800,14 +2802,14 @@ dbformat_to_term(register char *buf, dident mod, type tmod)
  * Fill in pri's in the newly read suspensions
  */
 static int
-_fill_procedures(register pword *env, dident mod, type tmod)
+_fill_procedures(pword *prev_ld, dident mod, type tmod)
 {
-    register pword	*p;
-    dident		pd;
-    dident		module_ref;
-    pri			*proc;
+    pword	*p, *env;
+    dident	pd;
+    dident	module_ref;
+    pri		*proc;
 
-    while (env > (pword *)0) 
+    for(env=LD; env > prev_ld; env = SuspPrevious(env))
     {
 	if (!(SuspDead(env))) 
 	{
@@ -2835,7 +2837,6 @@ _fill_procedures(register pword *env, dident mod, type tmod)
 		env[SUSP_PRI].val.wptr = (uword *) proc;
 	    }
 	}
-	env = SuspPrevious(env);
     }
     return PSUCCEED;
 }

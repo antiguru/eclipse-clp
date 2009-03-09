@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.18 2009/03/03 23:41:47 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.19 2009/03/09 05:31:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -181,7 +181,6 @@
    tool((\+)/1, fail_if_body/2),
    tool(call/1, untraced_call/2),
    tool(call_local/1, call_local/2),
-   tool(call_relaxed_prio/2, call_relaxed_prio_/3),
    tool(current_record/1, current_record_body/2),
    tool(set_syntax/2, set_syntax_/3),
    tool(ensure_loaded/1, ensure_loaded/2),
@@ -1830,10 +1829,11 @@ current_module_predicate(Which, Pred, M) :-
 % trans_term( <trans_pred>(OldTerm, NewTerm, Module), <trans_module>)
 
 trans_term(Goal, Module) :-
-	last_suspension(LD),		% expanded subcall, so that
-	untraced_call(Goal, Module),	%    suspensions are not marked
+	subcall_init,			% expanded subcall
+	untraced_call(Goal, Module),
 	!,
-	(new_delays(LD, []) ->
+	subcall_fini(DG),
+	( DG == [] ->
 	    true
 	;
 	    error(129, Goal, Module)
@@ -1850,10 +1850,10 @@ trans_term(Goal, _) :-
 :- tool(subcall/2, subcall/3).
 
 subcall(Goal, Delayed,	Module) :-
-	last_suspension(LD),
+	subcall_init,
 	untraced_call(Goal, Module),
 	true,			% force all wakings
-	new_delays(LD, Delayed).
+	subcall_fini(Delayed).
 
 % call_priority(Goal, Prio, Module)
 % call the specified goal with the given priority, on return force waking
@@ -1882,10 +1882,10 @@ inline_calls(subcall(Goal, Delayed), Inlined, Module) :- -?->
 	nonvar(Goal),
 	tr_goals(Goal, TrGoal, Module),
 	Inlined = (
-	    sepia_kernel:last_suspension(LD),
+	    sepia_kernel:subcall_init,
 	    TrGoal,
 	    true,			% force all wakings
-	    sepia_kernel:new_delays(LD, Delayed)
+	    sepia_kernel:subcall_fini(Delayed)
 	).
 inline_calls(call_priority(Goal, Prio), Inlined, Module) :- -?->
 	nonvar(Goal),
@@ -1950,18 +1950,6 @@ call_local(Goal, Module) :-
 	call(Goal, Module),
 	trigger_postponed,
 	reset_postponed(OldPL).
-
-
-% Run a goal in a relaxed priority context >= Prio.  If the current priority
-% is anyway >= Prio, we do nothing and it is the same as call(Goal).
-% If current priority is < Prio, we save the woken goals, relax the priority
-% to Prio, call Goal, and reset everything afterwards.  Needed if Goal
-% requires some internal wakings to work, but we are in a high-priority
-% context.  Goal should be completely independent of its execution context.
-call_relaxed_prio_(Goal, Prio, Module) :-
-	relax_priority(Prio, Old),
-	call(Goal)@Module,
-	restore_relaxed_priority(Old).
 
 
 call_explicit_body(Goal, DefMod, CallerMod) :-
@@ -3640,6 +3628,7 @@ pri_flag_code(inline,		 8).
 pri_flag_code(invisible,	27).
 pri_flag_code(parallel,		26).
 pri_flag_code(priority,		24).
+pri_flag_code(run_priority,	34).
 pri_flag_code(stability,	20).
 pri_flag_code(tool,		21).
 pri_flag_code(type,		22).
@@ -4037,6 +4026,8 @@ inline_(Proc, Trans, Module) :-
 	make_suspension/3,	% to hide it in delay clauses
 	make_suspension/4,
 	new_delays/2,
+%	subcall_init/0,
+%	subcall_fini/1,
 	nodbgcomp/0,
 	once_body/2,
 %	print_statistics/0,

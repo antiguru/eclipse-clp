@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.15 2008/09/11 01:15:53 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.16 2009/03/09 05:32:53 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/09/11 01:15:53 $").
+:- comment(date,	"$Date: 2009/03/09 05:32:53 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -586,7 +586,13 @@ compile_(Sources, OptionListOrModule, CM) :- Sources = [_|_], !,
 compile_(Source, OptionListOrModule, CM) :-
 	compile_source(Source, OptionListOrModule, CM).
 
+
 compile_source(Source, OptionListOrModule, CM) :-
+	% The subcall is needed to make coroutining in the compiler work,
+	% and to give compiled queries a standard environment to run in.
+	subcall(compile_source1(Source, OptionListOrModule, CM), _Delayed).
+
+compile_source1(Source, OptionListOrModule, CM) :-
 	valid_source(Source),
 	!,
 	% for backward compatibility, allow compile(Source, Module)
@@ -704,9 +710,9 @@ compile_source(Source, OptionListOrModule, CM) :-
 	    printf(error, "No such file in %Qw%n", [compile(Source)]),
 	    abort
 	).
-compile_source(Source, OptionListOrModule, CM) :- var(Source), !,
+compile_source1(Source, OptionListOrModule, CM) :- var(Source), !,
 	error(#inst_fault, compile(Source, OptionListOrModule), CM).
-compile_source(Source, OptionListOrModule, CM) :-
+compile_source1(Source, OptionListOrModule, CM) :-
 	error(#type_error, compile(Source, OptionListOrModule), CM).
 
     valid_source(Source) :- atom(Source).
@@ -962,8 +968,10 @@ compile_term_(List, OptionList, Module) :-
 compile_term_annotated_(List, AnnList, OptionList, Module) :-
 	compiler_options_setup('_term', OptionList, Options),
 	hash_create(PredsSeen),
-	compile_list(List, AnnList, first, Clauses, Clauses, AnnC, AnnC,
-                     0, Size, PredsSeen, Options, Module),
+	% The subcall is needed to make coroutining in the compiler work,
+	% and to give compiled queries a standard environment to run in.
+	subcall(compile_list(List, AnnList, first, Clauses, Clauses, AnnC, AnnC,
+                     0, Size, PredsSeen, Options, Module), _Delays),
 %	compiler_options_cleanup(Options).	% don't close files
 	( Size < 0 ->
 	    exit_block(abort)	% because of errors during compile

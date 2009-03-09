@@ -451,6 +451,7 @@
 :-(reexport(from(/(set_prompt,3),sepia_kernel))).
 :-(reexport(from(/(set_stream,2),sepia_kernel))).
 :-(reexport(from(/(set_stream_property,3),sepia_kernel))).
+:-(reexport(from(/(set_suspension_arg,3),sepia_kernel))).
 :-(reexport(from(/(set_suspension_data,3),sepia_kernel))).
 :-(reexport(from(/(set_suspension_priority,2),sepia_kernel))).
 :-(reexport(from(/(set_timer,2),sepia_kernel))).
@@ -572,9 +573,9 @@
 :-(reexport(from(/(~,1),sepia_kernel))).
 :-(reexport(from(/(~=,2),sepia_kernel))).
 :-(reexport(from(','(/(append,3),','(/(delete,3),','(/(length,2),','(/(member,2),','(/(memberchk,2),','(/(nonmember,2),','(/(subtract,3),/(reverse,2)))))))),sepia_kernel))).
-:-(reexport(from(struct(suspend(_29423,_29424,_29425)),sepia_kernel))).
-:-(reexport(from(struct(annotated_term(_32255,_32256,_32257,_32258,_32259,_32260)),sepia_kernel))).
-:-(reexport(from(','(/(tr_if_suspend,3),macro(/(if,2),_34914,_34923)),suspend))).
+:-(reexport(from(struct(suspend(_638032,_638033,_638034)),sepia_kernel))).
+:-(reexport(from(struct(annotated_term(_640883,_640884,_640885,_640886,_640887,_640888)),sepia_kernel))).
+:-(reexport(from(','(/(tr_if_suspend,3),macro(/(if,2),_643546,_643555)),suspend))).
 :-(autoload_system(ecl_compiler,[->(/(compile,1),/(compile_,2)),->(/(compile,2),/(compile_,3)),->(/(compile_stream,1),/(compile_stream_,2)),->(/(compile_term,1),/(compile_term_,2)),->(/(compile_term,2),/(compile_term_,3)),->(/(compile_term_annotated,3),/(compile_term_annotated_,4))])).
 :-(reexport(ecl_compiler)).
 :-(autoload_system(lists,[/(collection_to_list,2),/(flatten,2),/(intersection,3),/(subset,2),/(union,3),->(/(checklist,2),/(checklist_body,3)),->(/(maplist,3),/(maplist_body,4)),->(/(print_list,1),/(print_list_,2))])).

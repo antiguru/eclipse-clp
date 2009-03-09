@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.4 2009/02/27 21:01:04 kish_shen Exp $
+ * Version:	$Id: proc_desc.c,v 1.5 2009/03/09 05:29:48 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -46,6 +46,8 @@
  *	pri_init_code
  *	pri_define_code
  *	pri_change_mode
+ *	pri_change_prio
+ *	pri_change_run_prio
  *	pri_change_trans_function
  *	Pri_Set_Reference
  *
@@ -152,6 +154,8 @@ _new_pri(dident functor, dident module)
     pd->module_ref = pd->trans_function = D_UNKNOWN;
     pd->nextproc = pd->next_in_mod = 0;
     pd->mode = 0;
+    pd->prio = PRIORITY_DEFAULT;
+    pd->run_prio = PRIORITY_RUN_DEFAULT;
     pd->code.vmc = 0;
     return pd;
 }
@@ -179,8 +183,7 @@ static pri*
 _new_visible_pri(dident functor, dident module, module_item *module_property, int visibility)
 {
     pri *pd = _new_pri(functor, module);
-    pd->flags |= VMCODE|ARGFIXEDWAM|visibility
-    	|PriPriorityFlags(SUSP_EAGER_PRIO);
+    pd->flags |= VMCODE|ARGFIXEDWAM|visibility;
 
     /* insert it at the beginning of the functor list	     */
     pd->nextproc = DidPtr(functor)->procedure;
@@ -214,7 +217,7 @@ pri_home(pri *pd)
     	return 0;
     }
     tm.kernel = ModuleTag(pd->module_ref);
-    return visible_procedure(pd->did, pd->module_ref, tm, PRI_DONTIMPORT);
+    return visible_procedure(pd->did, pd->module_ref, tm, PRI_DONTIMPORT|PRI_EXPORTEDONLY);
 }
 
 
@@ -632,6 +635,8 @@ _update_def_use(pri *def, pri *use)
     }
     use->module_ref = def->module_def;
     use->mode = def->mode;
+    use->prio = def->prio;
+    use->run_prio = def->run_prio;
     use->trans_function = def->trans_function;
     use->flags = (use->flags & DESCRIPTOR_FLAGS) | (def->flags & COMMON_FLAGS);
 }
@@ -867,6 +872,38 @@ pri_change_mode(pri *pd,			/* any descriptor */
 	return pd->mode == new_mode ? PSUCCEED : ACCESSING_NON_LOCAL;
     }
     pd->mode = new_mode;
+    _update_all_uses(pd);
+    return PSUCCEED;
+}
+    
+
+/* Change a procedure's priorities */
+
+int
+pri_change_prio(pri *pd, int new_prio)
+{
+    if (ShadowDescriptor(pd))
+    {
+	/* allow no changes */
+	return pd->prio == new_prio ? PSUCCEED : ACCESSING_NON_LOCAL;
+    }
+    pd->prio = new_prio;
+    /* make sure run prio does not get lower than prio */
+    if (new_prio < pd->run_prio) pd->run_prio = new_prio;
+    _update_all_uses(pd);
+    return PSUCCEED;
+}
+    
+int
+pri_change_run_prio(pri *pd, int new_prio)
+{
+    if (ShadowDescriptor(pd))
+    {
+	/* allow no changes */
+	return pd->run_prio == new_prio ? PSUCCEED : ACCESSING_NON_LOCAL;
+    }
+    /* make sure run prio does not get lower than prio */
+    pd->run_prio = pd->prio < new_prio ? pd->prio : new_prio;
     _update_all_uses(pd);
     return PSUCCEED;
 }
