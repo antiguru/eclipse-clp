@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.6 2008/08/22 15:04:46 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.7 2009/03/09 01:14:22 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -642,6 +642,7 @@ get_stat(event_time, EventTime, seconds, sepia) :-
 	;
 	    cputime(EventTime)
 	).
+get_stat(hr_time, HiresTime, seconds, sepia) :- get_hr_time(HiresTime).
 
 get_stat(global_stack_used, X, bytes, sepia) :-		gc_stat(8, X).
 get_stat(global_stack_allocated, X, bytes, sepia) :-	gc_stat(9, X).
