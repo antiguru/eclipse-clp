@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+* Version:	$Id: intervals.c,v 1.4 2009/03/14 19:10:13 kish_shen Exp $
 *
 
 Supported operations:
@@ -173,18 +173,20 @@ static dident d_undecidable;
 
 typedef union {
 	double	as_dbl;
-#if (SIZEOF_LONG == 8)
-	unsigned long as_int;
-#else
+#if (SIZEOF_WORD == 8)
+	uword as_int;
+#elif (SIZEOF_WORD == 4)
 	struct ieee_parts {
-#ifdef WORDS_BIGENDIAN 
+# ifdef WORDS_BIGENDIAN 
 		uint32 mant1;
 		uint32 mant0;
-#else
+# else
 		uint32 mant0;
 		uint32 mant1;
-#endif
+# endif
 	} as_struct;
+#else
+  PROBLEM: no code for this SIZEOF_WORD
 #endif
 } ieee_double;
 
@@ -195,14 +197,14 @@ samesign(double x, double y)
     ieee_double dx, dy;
     dx.as_dbl = x;
     dy.as_dbl = y;
-#if (SIZEOF_LONG == 8)
+#if (SIZEOF_WORD == 8)
     return (dx.as_int & SIGN_BIT) == (dy.as_int & SIGN_BIT);
-#else
+#else /* assume SIZEOF_WORD == 4 */
     return (dx.as_struct.mant1 & SIGN_BIT) == (dy.as_struct.mant1 & SIGN_BIT);
 #endif
 }
 
-#if (SIZEOF_LONG == 8)
+#if (SIZEOF_WORD == 8)
 
 double
 ec_ieee_up(double x)
@@ -213,15 +215,15 @@ ec_ieee_up(double x)
     {
 	return MINDOUBLE;
     }
-    else if ((long) res.as_int >= 0)			/* x > 0 */
+    else if ((word) res.as_int >= 0)			/* x > 0 */
     {
-	if (res.as_int < 0x7ff0000000000000UL)		/* x < Inf */
+	if (res.as_int < UWSUF(0x7ff0000000000000))		/* x < Inf */
 	{
 	    res.as_int += 1;
 	    return res.as_dbl;
 	}
     }
-    else if (res.as_int <= 0xfff0000000000000UL)	/* -Inf <= x < 0 */
+    else if (res.as_int <= UWSUF(0xfff0000000000000))	/* -Inf <= x < 0 */
     {
 	res.as_int -= 1;
 	return res.as_dbl;
@@ -239,15 +241,15 @@ ec_ieee_down(double x)
     {
 	return -MINDOUBLE;
     }
-    else if ((long) res.as_int > 0)			/* x > 0 */
+    else if ((word) res.as_int > 0)			/* x > 0 */
     {
-	if (res.as_int <= 0x7ff0000000000000UL)		/* x <= Inf */
+	if (res.as_int <= UWSUF(0x7ff0000000000000))		/* x <= Inf */
 	{
 	    res.as_int -= 1;
 	    return res.as_dbl;
 	}
     }
-    else if (res.as_int < 0xfff0000000000000UL)		/* -Inf < x < 0 */
+    else if (res.as_int < UWSUF(0xfff0000000000000))		/* -Inf < x < 0 */
     {
 	res.as_int += 1;
 	return res.as_dbl;
@@ -255,7 +257,7 @@ ec_ieee_down(double x)
     return x;						/* NaN */
 }
 
-#else
+#else /* assume SIZEOF_WORD == 4 */
 
 #define Inc64(h,l) { \
 	if ((l += 1) == 0) \
@@ -283,7 +285,7 @@ ec_ieee_up(double x)
     {
 	return MINDOUBLE;
     }
-    else if (((long) m1) >= 0)				/* x > 0 */
+    else if (((word) m1) >= 0)				/* x > 0 */
     {
 	if (m1 < 0x7ff00000)				/* x < Inf */
 	{
@@ -317,7 +319,7 @@ ec_ieee_down(double x)
     {
 	return -MINDOUBLE;
     }
-    else if ((long) m1 > 0 || m1 == 0 && m0 > 0)	/* x > 0 */
+    else if ((word) m1 > 0 || m1 == 0 && m0 > 0)	/* x > 0 */
     {
 	if (m1 < 0x7ff00000
 	    || m1 == 0x7ff00000 && m0 == 0)		/* x <= Inf */
@@ -1056,7 +1058,7 @@ ec_ria_binop(int op, double xl, double xu, double yl, double yu, double *zl_ptr,
     }
     case RIA_BIN_POW_INT:			/* pow(X,int) */
     {
-	int n = (long) yl;
+	word n = (word) yl;
 	if (n > 0)
 	{
 	    if (n&1) {				/* odd */
@@ -1994,10 +1996,10 @@ _ivl_round(value v1, pword *pres)
      * Make sure we round to -0.0 if between -0.5 and -0.0
      */
     lwb = Ceil(IvlLwb(v1.ptr));
-    if (lwb - IvlLwb(v1.ptr) > 0.5 || (lwb - IvlLwb(v1.ptr) == 0.5 && ((long)lwb & 1)))
+    if (lwb - IvlLwb(v1.ptr) > 0.5 || (lwb - IvlLwb(v1.ptr) == 0.5 && ((word)lwb & 1)))
 	lwb -= 1.0;
     upb = Ceil(IvlUpb(v1.ptr));
-    if (upb - IvlUpb(v1.ptr) > 0.5 || (upb - IvlUpb(v1.ptr) == 0.5 && ((long)upb & 1)))
+    if (upb - IvlUpb(v1.ptr) > 0.5 || (upb - IvlUpb(v1.ptr) == 0.5 && ((word)upb & 1)))
 	upb -= 1.0;
 #endif /* rint */
     Make_Interval(pres, lwb, upb);
