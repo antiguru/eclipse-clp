@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.6 2009/03/09 05:29:48 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.7 2009/03/15 09:12:10 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -309,9 +309,11 @@ static int
 p_subcall_fini(value vres, type tres)
 {
     pword	result;
-    if (IsNil(tres))	/* just check for delayed goals */
+
+    if (IsNil(tres))
     {
-	register pword *env = LD;
+	/* just check for delayed goals, fail if a live one found */
+	pword *env = LD;
 	while (env > LD_END) 
 	{
 	    if(!SuspDead(env)) 
@@ -320,10 +322,11 @@ p_subcall_fini(value vres, type tres)
 	    }
 	    env = SuspPrevious(env);
 	}
-	Succeed_;
+	result.tag.kernel = TNIL;
     }
     else if (IsRef(tres) || IsList(tres))
     {
+	/* collect, kill, and return the delayed goals */
 	if (result.val.ptr = _make_goal_list(LD_END, 1))
 	    result.tag.kernel = TLIST;
 	else
@@ -334,6 +337,7 @@ p_subcall_fini(value vres, type tres)
 	Bip_Error(TYPE_ERROR);
     }
 
+    /* reset WL and WP, leave LD to the garbage collector */
     Set_WP(WLPreviousWP(WL)->val.nint);
     if (WL < GB) {
 	Trail_Pword(&TAGGED_WL)
