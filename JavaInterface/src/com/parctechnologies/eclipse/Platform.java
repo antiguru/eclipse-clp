@@ -21,7 +21,7 @@
 // END LICENSE BLOCK
 
 //Title:        Java/ECLiPSe interface
-//Version:      $Id: Platform.java,v 1.5 2008/08/12 15:13:27 kish_shen Exp $
+//Version:      $Id: Platform.java,v 1.6 2009/03/27 01:55:49 kish_shen Exp $
 //Author:       Josh Singer
 //Company:      Parc Technologies
 //Description:  Encapsulated Singleton for platform-dependent code.
@@ -74,6 +74,10 @@ abstract class Platform
        {
 	  return(new Platform_i386_nt());
        }
+      else if(arch.equals("x86_64") || arch.equals("amd64"))
+      {
+	return(new Platform_x86_64_nt());
+      }
     }
 
     // Linux on intels
