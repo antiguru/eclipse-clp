@@ -26,6 +26,7 @@
 
 ARCH = @ARCH@
 OSTYPE = @OSTYPE@
+OSCLASS = @OSCLASS@
 top_srcdir = @top_srcdir@
 PREFIX = @prefix@
 MAKEFILE = Makefile.$(ARCH)
@@ -170,7 +171,7 @@ eclipse.jar: $(SOURCEDIR)/*.java
 #	Containing just chdir() functions (Java has no chdir), which are
 #	used to change the current directory while loading libec_java.so
 
-ifneq "$(ARCH)" "i386_nt"
+ifneq "$(OSCLASS)" "win"
 
 # -lc needed for MacOS X
  ifeq "$(ARCH)" "i386_macosx"
@@ -196,14 +197,14 @@ $(ARCH)/libec_java_load.$(OBJECTS_SUFFIX): ec_java_load.c com_parctechnologies_e
 	rm ec_java_load.o
 
 else
-# ARCH = i386_nt
+# OSCLASS = win, i.e. ARCH = i386_nt/x86_64_nt
 # CAUTION: for the case that $(JAVA_HOME)/include/win32 does not exist
 # (because we are cross-compiling) we have our own include/win32/jni_md.h
 # It's a simple file that will hopefully not change much between Java versions.
 # MinGW FAQ says we should use -D_JNI_IMPLEMENTATION -Wl,--kill-at
 
-i386_nt/ec_java.dll: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p i386_nt
+$(ARCH)/ec_java.dll: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
+	mkdir -p $(ARCH)
 	$(CC) -shared -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include \
 		-I$(JAVA_HOME)/include/win32 -Iinclude/win32 \
 		-D_JNI_IMPLEMENTATION -Wl,--kill-at \
@@ -212,8 +213,8 @@ i386_nt/ec_java.dll: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h
 		-L$(REL_EC_DIR)/lib/$(ARCH) -leclipse \
 		-o $(ARCH)/ec_java.dll
 
-i386_nt/ec_java_load.dll: ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
-	mkdir -p i386_linux
+$(ARCH)/ec_java_load.dll: ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
+	mkdir -p $(ARCH)
 	$(CC) -shared -I$(JAVA_HOME)/include \
 		-I$(JAVA_HOME)/include/win32 -Iinclude/win32 \
 		-D_JNI_IMPLEMENTATION -Wl,--kill-at \
