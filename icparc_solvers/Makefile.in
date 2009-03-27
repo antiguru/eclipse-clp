@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.14 2009/02/27 21:04:28 kish_shen Exp $
+# $Id: Makefile.in,v 1.15 2009/03/27 02:18:19 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -707,11 +707,11 @@ archclean:
 ecoclean:
 	rm -rf *.eco $(ECO_DEST)
 
-install_all:	install_cross $(SOURCE_DEST) $(ECO_DEST) \
-		$(EXAMPLE_DEST) $(ECH_EXAMPLE_DEST) $(ECI_DEST) \
+install_all:	install_cross  $(ECO_DEST) $(ECI_DEST) \
 		$(NON_ECLIPSE_DEST)
 
-install_cross:	$(XPRESS_DEST_DIRS) $(OBJ_DEST)
+install_cross:	$(XPRESS_DEST_DIRS) $(OBJ_DEST) $(SOURCE_DEST) \
+	        $(EXAMPLE_DEST) $(ECH_EXAMPLE_DEST) 
 
 
 
