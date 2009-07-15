@@ -454,20 +454,19 @@ check_pruning_ok([T|Ts], [O|Os], PruningOk) :-
           ).
 
 % Succeeds if two variables are ground and equal, or both non-ground.
-% Works for sets too.
+% Works for sets too, but in the case of set variables, checks that
+% their domains are equal.
 ground_and_equal(X, Y) :-
-        % test for sets
-        ( ic_sets : is_solver_type(X), ic_sets : is_solver_type(Y) -> ground_and_equal_sets(X,Y)
-          % are they both variables?
+        % are they both set variables?
+        ( ic_sets : is_solver_var(X), ic_sets : is_solver_var(Y) ->
+          % if both set variables, are their domains equal?
+          set_range(X, L, U), set_range(Y, L, U),
+          card(X, XC), card(Y, YC), get_domain(XC, D), get_domain(YC, D)
+          % are they both integer variables?
         ; ( ic : is_solver_var(X), ic : is_solver_var(Y) -> true
             % are they both ground and equal?
           ; ( nonvar(X), nonvar(Y), X = Y -> true
             ; fail ))).
-
-ground_and_equal_sets(X, Y) :-
-        ( is_list(X), is_list(Y) -> X = Y
-        ; ( nonvar(X), nonvar(Y) -> true
-          ; fail )).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Utilities for list processing.
