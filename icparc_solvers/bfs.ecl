@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Andrew Eremin, IC-Parc
-% Version:      $Id: bfs.ecl,v 1.1 2006/09/23 01:53:20 snovello Exp $
+% Version:      $Id: bfs.ecl,v 1.2 2009/07/15 07:29:02 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -1195,7 +1195,7 @@ bfs_solver_setup_body(Handle, Sense, Solver, OptionList, Pool, Module) :-
         % make a suspension for the node processing
         % and insert it in the node_susp suspension list of Handle
         make_suspension(bfs_body(Handle, Solve, Separation1, Pool),
-                        8, Susp),
+                        0, Susp),
         enter_suspension_list(node_susp of bfs_tree, Handle, Susp).
 
 bfs_solver_cleanup(Pool) :-
@@ -1459,6 +1459,8 @@ bfs_integral_objective([J:C|Rest], VarArr, Handle) :-
         bfs_integral_objective(Rest, VarArr, Handle).
 
 :- demon bfs_body/4.
+:- set_flag(bfs_body/4, priority, 8).
+:- set_flag(bfs_body/4, run_priority, 8).
 bfs_body(Handle, Solve, Separation, Pool) :-
         Handle = bfs_tree{module:Module,
                           solve_time:TSolve,
@@ -3221,7 +3223,7 @@ get_pool_handle(Handle, Pool) :-
 :- comment(summary, "Best-first search library").
 :- comment(author, "Andrew Eremin").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:20 $").
+:- comment(date, "$Date: 2009/07/15 07:29:02 $").
 :- comment(status, prototype).
 
 :- comment(include, bfs_comments).

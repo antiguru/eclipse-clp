@@ -2069,11 +2069,11 @@ cg_solver_setup_body(Handle, MPCstrs, MPIdxs, MPSPCstrs, MPSPIdxs, CoeffVars,
         ( NormObj == [] -> Dummy = 0 ; true ),
         % make a suspension for the MP iterator
         % and insert it in the suspension list of Handle
-        make_suspension(cg_iteration(Handle), 7, MPSusp),
+        make_suspension(cg_iteration(Handle), 0, MPSusp),
         enter_suspension_list(mp_susp of cg_prob, Handle, MPSusp),
         % make a suspension for the SP iterator
         % and insert it in the suspension lists of the dual val vars
-        make_suspension(solveSPs(Handle), 6, SPSusp),
+        make_suspension(solveSPs(Handle), 0, SPSusp),
         insert_suspension([OptVar|DualVars], SPSusp, susps of dual_var,
                           dual_var).
 
@@ -2241,7 +2241,7 @@ add_new_solver_rowcols(Handle) :-
             ),
             % insert the SP iterator suspension in the suspension lists of
             % the dual val vars
-            make_suspension(solveSPs(Handle), 6, SPSusp),
+            make_suspension(solveSPs(Handle), 0, SPSusp),
             insert_suspension(CoeffVars, SPSusp, susps of dual_var,
                               dual_var)
         ).
@@ -2609,7 +2609,7 @@ amalgamate(N, List, Coeffs, Vars, NewN, [[N1, Susps]-NewCoeffs|NewList]) :-
 	param(OrFlag)
     do
 	( Coeff = [_|_] -> ListTerm = l(Coeff) ; ListTerm = l([Coeff]) ),
-	suspend(not_among(Var, ListTerm, Flag, OrFlag, Susp), 4, [Var->constrained, [Flag, OrFlag]->inst], Susp),
+	suspend(not_among(Var, ListTerm, Flag, OrFlag, Susp), 0, [Var->constrained, [Flag, OrFlag]->inst], Susp),
 	not_among(Var, ListTerm, Flag, OrFlag, Susp)
     ),
     ( AndFlags = [AndFlag] ->
@@ -2622,7 +2622,7 @@ amalgamate(N, List, Coeffs, Vars, NewN, [[N1, Susps]-NewCoeffs|NewList]) :-
 	N1 = NSusps,
 	Susps = [OrSusp|AndSusps],
 	AndFlagTerm = l(AndFlags),
-	suspend(or(OrFlag, AndFlagTerm, OrSusp), 3, [OrFlag|AndFlags]->inst, OrSusp),
+	suspend(or(OrFlag, AndFlagTerm, OrSusp), 0, [OrFlag|AndFlags]->inst, OrSusp),
 	or(OrFlag, AndFlagTerm, OrSusp)
     ).
 
@@ -2708,6 +2708,7 @@ overlapping_ranges(Lo1, Hi1, Lo2, Hi2) :-
 
 % suspend this on [OrFlag|AndFlags]->inst
 :- demon or/3.
+:- set_flag(or/3, priority, 3).
 or(OrFlag, AndFlagTerm, Susp) :-
     ( OrFlag == 1 ->
 	kill_suspension(Susp)
@@ -2726,6 +2727,7 @@ or(OrFlag, AndFlagTerm, Susp) :-
 
 % suspend this on Var->any, [Flag, OrFlag]->inst
 :- demon not_among/5.
+:- set_flag(not_among/5, priority, 4).
 not_among(Var, ListTerm, Flag, OrFlag, Susp) :-
     ( OrFlag == 1 ->
 	% some other variable has been
@@ -2913,6 +2915,8 @@ cg_new_MP_columns(Handle, VarCols) :-
         setarg(new_columns of cg_prob, Handle, []).
 
 :- demon cg_iteration/1.
+:- set_flag(cg_iteration/1, priority, 7).
+:- set_flag(cg_iteration/1, run_priority, 7).
 %cg_iteration(+Handle)
 %
 % perform one column generation iteration:
@@ -3707,6 +3711,8 @@ fractional_vars(Vars, FracVars, Vals, Diffs, Fracs, L, U, Pool) :-
         ).
 
 :- demon solveSPs/1.
+:- set_flag(solveSPs/1, priority, 6).
+:- set_flag(solveSPs/1, run_priority, 6).
 solveSPs(Handle) :-
         Handle = cg_prob{sp_solution_call:SolveSubProblem},
         solveSP(SolveSubProblem).
