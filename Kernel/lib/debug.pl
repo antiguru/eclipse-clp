@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.7 2008/11/17 13:49:18 jschimpf Exp $
+% Version:	$Id: debug.pl,v 1.8 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -275,6 +275,15 @@ nospy_body(F:L, _M) ?-
         ;
             true
         ).
+nospy_body(F:L, _M) ?-
+        var(L),
+        check_atom_string(F),
+        !,
+        get_portlist_from_file(F, break_lines, FullName, BreakPoints),
+        ( foreach(port(Line-DM,Pred), BreakPoints) do
+	    set_proc_flags(Pred, break, Line, DM)
+	),
+        printf(log_output, "All breakpoints removed from file %w%n", [FullName]).
 nospy_body(QualPredSpec, M) :-
 	check_partial_qualpredspec(QualPredSpec),
 	!,

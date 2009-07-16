@@ -1,7 +1,7 @@
 %
 % Module for managing configuration options for other modules.
 %
-% $Id: config_opts.ecl,v 1.1 2006/10/13 00:41:27 jschimpf Exp $
+% $Id: config_opts.ecl,v 1.2 2009/07/16 09:11:25 jschimpf Exp $
 %
 
 %
@@ -67,6 +67,7 @@
 %   request_notification Ask to be notified when a given option changes
 %
 
+:- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Library for managing configuration options for libraries and applications").
 :- comment(desc, html("\
    This library provides a centralised mechanism for managing configuration

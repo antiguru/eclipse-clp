@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eplex_xpress.pl,v 1.1 2006/09/23 01:53:30 snovello Exp $
+% Version:	$Id: eplex_xpress.pl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % Description:		ECLiPSe/XPRESS-MP interface
 %
@@ -30,10 +30,11 @@
 
 :- module(eplex_xpress, [], [empty_language]).
 
+:- comment(categories, ["Constraints","Interfacing"]).
 :- comment(summary, "Load lib(eplex) with the XPRESS-MP solver").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:30 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 
 % eplex setup checks for existence of module eplex_xpress!
 :- local initialization(ensure_loaded(eplex)).

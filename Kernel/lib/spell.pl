@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: spell.pl,v 1.1 2008/06/30 17:43:49 jschimpf Exp $
+% Version:	$Id: spell.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -42,10 +42,11 @@
 :- module(spell).
 :- system.
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Predicate name spelling correction").
 :- comment(author, "Stefano Novello, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:49 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("
     The effect of loading this library is to modify the event handler
     for calling an undefined procedure.  A spelling correction

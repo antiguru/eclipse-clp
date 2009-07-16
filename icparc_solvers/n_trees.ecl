@@ -223,6 +223,7 @@ next(dfs(Id), Node, Next) ?-
 
 % ----------------------------------------------------------------------
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "n-ary search tree library").
 :- comment(author, "Andrew Eremin").
 :- comment(copyright, "Cisco Systems, INc.").

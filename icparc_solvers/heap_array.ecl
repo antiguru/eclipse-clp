@@ -22,6 +22,7 @@
 % END LICENSE BLOCK
 :- module(heap_array).
 
+:- comment(categories, ["Data Structures"]).
 :- comment(summary, "Implements a fixed size heap structure using an array.").
 :- comment(desc,html("\
     This library implements a fixed size heap (priority queue).
@@ -51,7 +52,7 @@
 
 :- comment(author,"Vassilis Liatsos and Joachim Schimpf").
 :- comment(copyright,"Cisco Systems, Inc.").
-:- comment(date,"$Date: 2006/09/23 01:53:40 $").
+:- comment(date,"$Date: 2009/07/16 09:11:27 $").
 
 /*
 

@@ -22,6 +22,7 @@
 
 :- comment(alias, "Debugging").
 :- comment(summary, "Built-ins and command related to debugging").
+:- comment(categories, ["Built-In Predicates","Development Tools"]).
 
 :- tool((spy) / 1).
 :- tool((nospy) / 1).
@@ -82,22 +83,24 @@ Success:
 	see_also:[notrace / 0, trace / 0, trace / 1, debug / 0, debug / 1]]).
 
 :- comment((nospy) / 1, [
-	summary:"All spypoints are removed from all the procedures given by SpecList.  If
-SpecList is a variable, remove all spypoints.
+	summary:"All spypoints or breakpoints are removed from all the procedures given by 
+SpecList.  If SpecList is a variable, remove all spypoints.
 
 ",
 	template:"nospy ?Speclist",
 	amode:(nospy(?) is det),
-	desc:html("   Removes spypoints from all procedures given by SpecList.
+	desc:html("   Removes spypoints or breakpoints from all procedures given by SpecList.
 
 <P>
-   If SpecList is of the form name, then spypoints are removed from
-   procedures with name name and of any arity.
+   If SpecList is of the form Name or Module:Name, where Name is an atom, then 
+   spypoints are removed from procedures from module Moudle (if given) with 
+   name Name and of any arity.
 
 <P>
    If SpecList is of the form File:Line, where File is a file name and Line is
    an integer, the the closest matching breakpoint to line Line in the file 
-   File is removed.
+   File is removed. If Line is a variable, then all breakpoints in file File
+   are removed.
   
 <P>
    If SpecList is a variable, all spypoints of visible procedures are
@@ -108,37 +111,41 @@ SpecList is a variable, remove all spypoints.
 
 <P>
 "),
-	args:["SpecList" : "Sequence of expressions of the form Atom/Integer, Module:Atom/Integer, Atom, File:Line or Variable."],
-	exceptions:[4 : "SpecList is not instantiated.", 5 : "SpecList is neither of the form Atom/Integer, nor of the    form atom.", 60 : "SpecList is an undefined procedure."],
+	args:["SpecList" : "Sequence of expressions of the form Atom/Integer, Module:Atom/Integer, Module:Atom, Atom, File:Line or Variable."],
+	exceptions:[5 : "SpecList is not in the correct form.", 60 : "SpecList is an undefined procedure."],
 	eg:"
+
 Success:
-    [eclipse]: [user].
+    [eclipse 1]: [user].
      q.
      p :- q, writeln(hi).
-     user compiled 112 bytes in 0.00 seconds
-    yes.
-    [eclipse]: debug.
-    Leap mode switched on
-    yes.
-    [eclipse]: spy writeln/1.
-    spypoint added to writeln / 1.
-    yes.
-    [eclipse]: p.
-    B+(3) 1  CALL   writeln(hi) (dbg)?- leap    % type l
+     tty        compiled 132 bytes in 0.00 seconds
+
+    Yes (0.15s cpu)
+    [eclipse 2]: spy q.
+    spypoint added to q/0.
+    Debugger switched on - leap mode
+
+    Yes (0.00s cpu)
+    [eclipse 3]: p.
+
+     +(2) 2 CALL  q   %> leap
+     +(2) 2 EXIT  q   %> leap
     hi
-    B+(3) 1  EXIT   writeln(hi) (dbg)?- leap
-    yes.
-    [eclipse]: nospy writeln/1.
-    spypoint removed from writeln / 1.
-    yes.
-    [eclipse]: p.
+
+    Yes (0.00s cpu)
+    [eclipse 4]: nospy q.
+    spypoint removed from q/0.
+
+    Yes (0.00s cpu)
+    [eclipse 5]: p.
     hi
-    yes.
+
+    Yes (0.00s cpu)
+    [eclipse 6]: 
 
 Error:
-    nospy(I).         (Error 4).
     nospy(\"l\").       (Error 5).
-    nospy(foo).       (Error 60).
 
 
 

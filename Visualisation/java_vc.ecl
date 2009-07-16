@@ -26,6 +26,7 @@
 
 :- export start_vc/1, stop_vc/1, find_java/1.
 
+:- comment(categories, ["Interfacing","Visualisation"]).
 :- comment(summary, 
 	   "Module for the Java Visualisation Client").
 

@@ -1,4 +1,4 @@
-.\"	$Id: tkeclipse.l,v 1.1 2006/09/23 01:49:35 snovello Exp $
+.\"	$Id: tkeclipse.l,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 .\" BEGIN LICENSE BLOCK
 .\" Version: CMPL 1.1
 .\"
@@ -135,7 +135,7 @@ temporary file created by ECLiPSe, e.g. for the profiler.
 .IR eclipse (1), tktools (1)
 .sp
 .I "ECLiPSe Web Site"
-http://www.icparc.ic.ac.uk/eclipse
+http://www.eclipse-clp.org
 .sp
 .I "Online Documentation"
 In $ECLIPSEDIR/doc/index.html, containing the following:
@@ -159,7 +159,7 @@ Kish Shen, Josh Singer and Andrew Sadler, IC-PARC.
 .SH BUGS
 Bugs should be reported via the web site or by email
 .IP
-http://www.icparc.ic.ac.uk/eclipse/bugs.html
-mailto:eclipse-bugs@icparc.ic.ac.uk
+http://www.eclipse-clp.org/bugs.html
+mailto:eclipse-clp-bugs@lists.sourceforge.net
 .br
 .LP

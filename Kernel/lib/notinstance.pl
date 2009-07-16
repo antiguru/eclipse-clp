@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: notinstance.pl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% Version:	$Id: notinstance.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -41,17 +41,16 @@
 
 :- module(notinstance).
 
+:- comment(categories, ["Algorithms"]).
 :- comment(summary, "Constraints for structural equality and subsumption").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:48 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 
 :- export op(700, xfx, (~=<)).
 
 :- export (~=<)/2, (~=)/2.
 
-
-:- use_module(library(fd)).
 
 :- pragma(nodebug).
 
@@ -64,7 +63,7 @@
 %-----------------------------------------------------------------
 
 :- comment((~=)/2, [template:"X ~= Y",
-    summary:"Constraints X and Y to be different",
+    summary:"Constrains X and Y to be different",
     desc:html("Fails if X and Y are non-unifiable, otherwise succeeds
     or delays.  Unlike the implementation of the same predicate in the
     kernel, this one maintains and explicit wavefront and has only one
@@ -162,7 +161,7 @@ ni_wf(X ~=< Y, WF0, V) :-
 	    WF2 = [First|WF3],
 	    make_suspension(ni_wf(First, WF3, V), 2, Susp),
 	    ( First = (Lhs ~=< _) ->
-		insert_suspension_into_constrained_lists(Lhs, Susp)
+		insert_suspension(Lhs, Susp, constrained of suspend, suspend)
 	    ; % First = (_ ~= _)
 		insert_suspension(First, Susp, bound of suspend, suspend)
 	    )
@@ -237,21 +236,3 @@ lookup(Key, [Key0-Entry0|Tail], Entry) :-
 	;
 	    lookup(Key, Tail, Entry).
 
-
-%-----------------------------------------------------------------
-% insert_suspension_into_constrained_lists
-%-----------------------------------------------------------------
-
-insert_suspension_into_constrained_lists(Term, Susp) :-
-	term_variables(Term, Vars),
-	insert_in_proper_lists(Vars, Susp).
-
-insert_in_proper_lists([], _Susp).
-insert_in_proper_lists([Var|Vars], Susp) :-
-	( is_domain(Var) ->
-	    insert_suspension(Var, Susp, any of fd, fd)
-	;
-	     true
-	),
-	insert_suspension(Var, Susp, constrained of suspend, suspend),
-	insert_in_proper_lists(Vars, Susp).

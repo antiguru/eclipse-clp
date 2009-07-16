@@ -23,6 +23,7 @@
 :- comment(alias, "Modules").
 :- comment(summary, "Directives and built-ins related to the module system").
 :- comment(desc, html("See also the User Manual chapter about the module system.")).
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool((export) / 1).
 :- tool((import) / 1).

@@ -26,7 +26,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ic_global.ecl,v 1.1 2006/09/23 01:53:46 snovello Exp $
+% Version:	$Id: ic_global.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	ic_global.ecl
@@ -44,10 +44,11 @@
 
 :- module(ic_global).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Various global constraints over lists of IC variables").
 :- comment(author, "J.Schimpf, V.Liatsos, S.Novello, M.Wallace, A.Sadler, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:46 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 
 :- use_module(ic).
 :- use_module(ic_kernel).

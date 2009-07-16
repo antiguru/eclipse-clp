@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lips.pl,v 1.2 2008/08/31 23:10:45 jschimpf Exp $
+% Version:	$Id: lips.pl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -40,10 +40,11 @@
 
 :- module(lips).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Measure the system's speed using the naive reverse benchmark").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/08/31 23:10:45 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("
     Measure the system's speed in logical inferences per second, using
     the infamous naive reverse program. This test does not say very much

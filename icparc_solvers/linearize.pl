@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: linearize.pl,v 1.1 2006/09/23 01:53:50 snovello Exp $
+% Version:	$Id: linearize.pl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % Description:		Expression simplifier
 %
@@ -61,9 +61,10 @@
 :- module(linearize).
 % ----------------------------------------------------------------------
 
+:- comment(categories, ["Data Structures"]).
 :- comment(summary, "Normalizers for arithmetic expressions").
 :- comment(author, "Joachim Schimpf, IC-Parc").
-:- comment(date, "$Date: 2006/09/23 01:53:50 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- export

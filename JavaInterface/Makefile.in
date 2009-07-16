@@ -70,8 +70,14 @@ install:	@MAKE_TARGET@
 install_all:	@ALL_WITH_JAVA@
 install_cross:	@ALL_CROSS_WITH_JAVA@
 
-all_with_java: all_cross_with_java $(JAVA_CLASSES) $(REL_EC_DIR)/lib/joop_boot.eco $(JAVA_DOCS) $(JAVA_EXAMPLES) 
-all_cross_with_java: $(REL_EC_DIR)/lib/$(ARCH)/$(LIB_PREFIX)ec_java.$(OBJECTS_SUFFIX) $(REL_EC_DIR)/lib/$(ARCH)/$(LIB_PREFIX)ec_java_load.$(OBJECTS_SUFFIX)
+all_with_java:  all_cross_with_java \
+	$(JAVA_CLASSES) $(JAVA_DOCS) $(JAVA_EXAMPLES) \
+	$(REL_EC_DIR)/lib/joop_boot.eco \
+	$(REL_EC_DIR)/lib/joop_boot.pl
+
+all_cross_with_java: \
+	$(REL_EC_DIR)/lib/$(ARCH)/$(LIB_PREFIX)ec_java.$(OBJECTS_SUFFIX) \
+	$(REL_EC_DIR)/lib/$(ARCH)/$(LIB_PREFIX)ec_java_load.$(OBJECTS_SUFFIX)
 
 $(JAVA_CLASSES): eclipse.jar
 	$(CP) eclipse.jar $(JAVA_CLASSES)
@@ -85,6 +91,10 @@ $(REL_EC_DIR)/lib/$(ARCH)/$(LIB_PREFIX)ec_java_load.$(OBJECTS_SUFFIX): $(ARCH)/$
 $(REL_EC_DIR)/lib/joop_boot.eco: joop_boot.pl
 	$(AUX_ECLIPSE) -e 'lib(fcompile), set_flag(variable_names,off), fcompile("joop_boot", [outdir:"$(REL_EC_DIR)/lib"])'
 	-@/bin/chmod $(PERM) $(REL_EC_DIR)/lib/joop_boot.eco
+
+$(REL_EC_DIR)/lib/joop_boot.pl: joop_boot.pl
+	$(CP) joop_boot.pl $(REL_EC_DIR)/lib/joop_boot.pl
+	-@/bin/chmod $(PERM) $(REL_EC_DIR)/lib/joop_boot.pl
 
 $(JAVA_DOCS): $(DOCSDIR)/index.html
 	# make sure directories are set up for the API documentation

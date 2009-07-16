@@ -23,12 +23,13 @@
 %author) and The University of Huddersfield (second author) during the
 %development of this library.
 
-% $Id: generic_sbds.ecl,v 1.1 2006/09/23 01:53:35 snovello Exp $
+% $Id: generic_sbds.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Symmetry Breaking During Search (SBDS)").
 :- comment(desc, "Symmetry Breaking During Search (SBDS) library, provides predicates to initalise symmetry breaking during search search and to perform the search, as well as utility functions for prining and unification.").
 :- comment(author, "Warwick Harvey & Karen Petrie").
-:- comment(date, "$Date: 2006/09/23 01:53:35 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
     
 %The predicates that the user may need to call, 
 % see definitions with predicate

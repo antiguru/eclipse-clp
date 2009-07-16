@@ -1,6 +1,6 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: queues.pl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% Version:	$Id: queues.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 %
 % Copyright:	This library has been adapted from code from the Edinburgh
 %		DEC-10 Prolog Library, whose copyright notice says:
@@ -54,6 +54,7 @@
 	queue_to_list(?, ?, -).
 
 
+:- comment(categories, ["Data Structures"]).
 :- comment(summary, "define queue operations").
 :- comment(author, "R.A.O'Keefe").
 :- comment(copyright, 'This file is in the public domain').

@@ -22,6 +22,7 @@
 
 :- comment(alias, "Strings and Atoms").
 :- comment(summary, "Built-ins to create, convert and decompose strings and atoms").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- comment(number_string / 2, [
 	summary:"Conversion between any number and a string.",

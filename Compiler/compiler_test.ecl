@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.19 2008/10/29 03:13:45 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.20 2009/07/16 09:11:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1073,6 +1073,21 @@ testclause(env(30), [(p(X) :- p, q(X), atom(a), !)]).
 testclause(env(31), [(p(X) :- p, q(X), atom(X), !)]).
 testclause(env(32), [(p(X) :- p(X), q(X), atom(a), ( var(_) -> integer(3);atom(b)))]).
 
+% Elimination of true/0
+testclause(true(1), [(p :- true)]).
+testclause(true(2), [(p :- true,true,true)]).
+testclause(true(3), [(p :- true,a,true,b,true)]).
+testclause(true(4), [(p :- a,true,true,true,b,true,true,true)]).
+testclause(true(5), [(p :- a,true,var(_),b)]).	% keep
+testclause(true(6), [(p :- a,true,!,b),p]).	% keep
+testclause(true(7), [(p :- true,!,b),p]).	% keep
+testclause(true(8), [(p :- true,true,!),p]).	% keep one
+testclause(true(9), [(p :- (var(_),true->true;true),p)]).
+testclause(true(10), [(p :- q,(true->r;s))]).
+testclause(true(11), [(p(X) :- true,q(X))]).
+testclause(true(12), [(p(X) :- q(X),true)]).
+testclause(true(13), [(p :- (true;true),(true;true))]).	% bug 662
+testclause(true(14), [(p :- a,(true;true))]).		% bug 662
 
 % Inlined builtins
 testclause(bip(type_tests), [
@@ -1388,6 +1403,16 @@ testclause(bugzilla(408), [
 	(dan :- X = Y, X = 2, write(Y)),
 	(b :- a, F1 = 2, F2 = 3, writeln(F1), c(F2))
      ]).
+
+testclause(bugzilla(642), [(
+	q(A, C) :-
+	  equal([A], [B]),
+	  (B=b, C=1 ->
+	    then
+	  ;
+	    else
+	  )
+     )]).
 
 %----------------------------------------------------------------------
 % The following are tests from the old compiler test suite

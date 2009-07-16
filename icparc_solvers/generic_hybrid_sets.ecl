@@ -17,14 +17,14 @@
 % Copyright (C) 2000 - 2006 Cisco Systems, Inc.  All Rights Reserved.
 % 
 % Contributor(s): Joachim Schimpf, IC-Parc
+% Contributor(s): Andrew Sadler, IC-Parc
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % 
 % Solver for constraints over finite sets of integers
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: generic_hybrid_sets.ecl,v 1.1 2006/09/23 01:53:35 snovello Exp $
+% Version:	$Id: generic_hybrid_sets.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 %	Many thanks to Neng-Fa Zhou, on whose ideas this solver
 %	implementation is based. We started work on this solver
@@ -3343,7 +3343,7 @@ all_ordered_demon((>=), SsDesc, FlagsDesc, SsAsc, FlagsAsc, Susp):-
 %----------------------------------------------------------------------
 
 :- comment(author, "Joachim Schimpf, Neng-Fa Zhou, Andrew Sadler").
-:- comment(date, "$Date: 2006/09/23 01:53:35 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("

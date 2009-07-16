@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: pretty_print.pl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% Version:	$Id: pretty_print.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -39,10 +39,11 @@
 
 :- module(pretty_print).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Pretty-printing of complex terms").
 :- comment(author, "Micha Meier, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:48 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(pretty_print/3, [template:"pretty_print(+Stream, +Term, +Max)",
     summary:"Print a term on the given stream, split it if its width exceeds Max"
     ]).

@@ -41,6 +41,7 @@
 
 :- module(cardinal).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Finite Set Constraints Library").
 :- comment(author, "Francisco Azevedo, CENTRIA").
 :- comment(status, evolving).

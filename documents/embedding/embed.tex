@@ -834,16 +834,16 @@ This is called by {\eclipse} if it loses a reference to the external
 data. This could happen if the {\eclipse} execution were to fail
 to a point before the external object was created, or if a
 permanent copy was explicitly removed with built-ins like
-\bipref{setval/2}{../bips/kernel/arrays/setval-2.html},
+\bipref{setval/2}{../bips/kernel/storage/setval-2.html},
 \bipref{erase/2}{../bips/kernel/record/erase-2.html}
-or \bipref{bag_dissolve/2}{../bips/kernel/arrays/bag_dissolve-2.html}.
+or \bipref{bag_dissolve/2}{../bips/kernel/storage/bag_dissolve-2.html}.
 Note that an invocation of this function only means that {\em one}
 reference has been deleted (while the copy function indicates that
 a reference is added).
 
 \item[t_ext_ptr copy(t_ext_ptr obj)]
 This is called by {\eclipse} when it wants to make a copy of an object.
-This happens when calling {\eclipse} built-ins like \bipref{setval/2}{../bips/kernel/arrays/setval-2.html} or
+This happens when calling {\eclipse} built-ins like \bipref{setval/2}{../bips/kernel/storage/setval-2.html} or
 \bipref{recordz/2}{../bips/kernel/record/recordz-2.html} which make permanent copies of data. The return value is
 the copy.
 If no copy-method is specified, these operations will not be possible
@@ -879,18 +879,19 @@ object in another worker. If the object is in shared memory, this method
 can be the same as the copy method.
 
 \item[EC_Word get(t_ext_ptr obj, int idx)]
-Returns the value of a field of the C++ object.
+Returns the value of a field of the C/C++ object.
 This methods gets invoked when the {\eclipse} predicate \bipref{xget/3}{../bips/kernel/externals/xget-3.html} is called.
-The mapping of index values to fields is defined by the get/set-method pair.
+The get/set method pair determines the mapping of index values to fields.
 
 \item[int set(t_ext_ptr obj, int idx, EC_word data)]
-Set the value of a field of the C++ object.
+Set the value of a field of the C/C++ object.
 This methods gets invoked when the {\eclipse} predicate \bipref{xset/3}{../bips/kernel/externals/xset-3.html} is called.
-The mapping of index values to fields is defined by the get/set-method pair.
+The get/set method pair determines the mapping of index values to fields.
 \end{description}
 
 Example of the simplest possible user-defined method table:
 \begin{verbatim}
+    /* the initializer is actually not needed, NULLs are the default */
     t_ext_type my_type = {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
     my_struct data_in;
     ...

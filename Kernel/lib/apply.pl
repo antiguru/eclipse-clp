@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: apply.pl,v 1.1 2008/06/30 17:43:41 jschimpf Exp $
+% Version:	$Id: apply.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -42,10 +42,11 @@
 
 :- export syntax_option(var_functor_is_apply).
 
+:- comment(categories, ["Algorithms"]).
 :- comment(summary, "The apply/2 higher-order predicate").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
-:- comment(date, "$Date: 2008/06/30 17:43:41 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("
     This library defines the apply/2 predicate which constructs a goal
     from a term and a list of additional arguments:

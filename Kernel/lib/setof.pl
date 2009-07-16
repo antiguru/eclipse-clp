@@ -24,7 +24,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: setof.pl,v 1.2 2008/09/01 11:47:33 jschimpf Exp $
+% Version:	$Id: setof.pl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -280,7 +280,7 @@ free_variables(Term, Bound, OldList, NewList) :-
 	!,
 	free_variables(NewTerm, NewBound, OldList, NewList).
 free_variables(Term, Bound, OldList, NewList) :-
-	functor(Term, _, N),
+	arity(Term, N),
 	free_variables(N, Term, Bound, OldList, NewList).
 
 :- mode	free_variables(+,+,+,+,-).

@@ -42,6 +42,11 @@ Or, to test this compiler manually:
     ?- use_module(compiler_top).
     ?- ...<you are now working with your modified compiler>...
 
+If this works, and if you had set DEBUG=on in Makefile.$ARCH, set it
+to DEBUG=off now and re-make the eco files in nodebug mode:
+
+    % make -f Makefile.$ARCH ecoclean
+    % make -f Makefile.$ARCH eco
 
 Then, add the tested compiler to the kernel by copying the .eco files:
 
@@ -55,7 +60,7 @@ modified sources!!!!  They are in <eclipsedir>/Kernel/lib/*.eco
 Making changes to the compiler AND the runtime system
 -----------------------------------------------------
 
-Edit/build copy the compiler sources as above.  Then go to
+Edit/build/copy the compiler sources as above.  Then go to
 
     % cd ../Kernel/$ARCH
 
@@ -67,7 +72,7 @@ You can then run the local sepia executable, giving you the modified
 runtime (assuming the modified runtime can still boot the old .eco files)
 and the modified compiler
 
-    % ./sepia
+    % ./sepia -D ..
     ?- ...<you are now working with your modified compiler>...
 
 Once things seem to work:
@@ -107,7 +112,7 @@ Second, rebuild the kernel bootfiles:
     % cd <eclipsedir>/Kernel/$ARCH
     % make new_bootfiles
 
-Now we have rebuild all eco files that need to be checked in!
+Now we have rebuilt all eco files that need to be checked in!
 
 Third, rebuild all the libray eco files:
 

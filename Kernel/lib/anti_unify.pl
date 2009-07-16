@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: anti_unify.pl,v 1.1 2008/06/30 17:43:41 jschimpf Exp $
+% Version:	$Id: anti_unify.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -44,10 +44,11 @@
 :- module(anti_unify).
 :- export anti_unify/3.
 
+:- comment(categories, ["Algorithms"]).
 :- comment(summary, "Computes the most specific generalization of two terms").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:41 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 
 :- comment(anti_unify/3, [
     template:"anti_unify(Term1, Term2, General)",

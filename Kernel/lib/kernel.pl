@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.19 2009/03/09 05:31:41 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.20 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1643,16 +1643,28 @@ discontiguous_(X, Module) :-
     discontiguous1(PredSpec, Module) :-
 	PredSpec = _/_,
 	!,
-	( get_flag(PredSpec, defined, on)@Module ->
-	    % predicate already defined (static or dynamic)
-	    error(65, discontiguous(PredSpec), Module)
+	( get_flag(PredSpec, stability, dynamic)@Module ->
+	    true	% ignore discontiguous declaration
 	;
-	    local(PredSpec)@Module,
+	    % Various cases:
+	    % - already declared (ok)
+	    % - has clauses from previous compilation of the same file
+	    %   (silently replace)
+	    % - has clauses that were compiled earlier in this file
+	    %   (silently replace, since we can't distinguish from previous case)
+	    % - already has clauses from other file
+	    %   (will raise multifile-event when compiled later)
+	    ( get_flag(PredSpec, declared, on)@Module ->
+		true
+	    ;
+		local(PredSpec)@Module
+	    ),
 	    Key = Module:PredSpec,
 	    ( store_contains(discontiguous_clauses, Key) ->
 		% ISO allows multiple declarations for the same predicate
 		true
 	    ;
+		% Start collecting clauses from now on
 		bag_create(Bag),
 		store_set(discontiguous_clauses, Key, Bag)
 	    )
@@ -2250,6 +2262,7 @@ erase_module(Mod, From_mod) :-
 % may fail with bip_error set
 erase_module_unchecked(Mod, From_mod) :-
 	run_stored_goals(finalization_goals, Mod),
+	erase_module_attribute_handlers(Mod),
 	erase_module_(Mod, From_mod),
 	erase_module_related_records(Mod).
 
@@ -2263,6 +2276,7 @@ erase_modules :-
 	(
 	    current_module(Module), Module \== Self,
 	    run_stored_goals(finalization_goals, Module),
+	    erase_module_attribute_handlers(Module),
 	    fail
 	;
 	    current_module(Module), Module \== Self,
@@ -5136,7 +5150,7 @@ define_struct(Definition, DefModule, Scope) :-
 
     check_struct_def(X) :- var(X), !, set_bip_error(4).
     check_struct_def(X) :- compound(X), !,
-	functor(X, _, N),
+	arity(X, N),
 	check_struct_def_arg(N, X, FieldNames),
 	sort(0, <, FieldNames, FieldNamesNoDuplicates),
 	( length(FieldNamesNoDuplicates, N) -> true ; set_bip_error(6) ).
@@ -5270,13 +5284,13 @@ tr_of(Term, _N, M) :-
 
 
 struct_lookup_index(ProtoStruct, FieldName, Index, M) :-
-	functor(ProtoStruct, _, Arity),
+	arity(ProtoStruct, Arity),
 	( proto_lookup_index(ProtoStruct, FieldName, Index, Arity) -> true
 	; substruct_lookup_index(ProtoStruct, FieldName, Index, Arity, M)
 	).
 
     struct_lookup_property(ProtoStruct, arity, Arity) :- -?->
-	functor(ProtoStruct, _, Arity).
+	arity(ProtoStruct, Arity).
     struct_lookup_property(ProtoStruct, functor, Functor) :- -?->
 	Functor = Name/Arity,
 	functor(ProtoStruct, Name, Arity).
@@ -5310,7 +5324,7 @@ struct_lookup_index(ProtoStruct, FieldName, Index, M) :-
 
 
 struct_insert_field(ProtoStruct, FieldName, FieldValue, Struct, M) :-
-	functor(ProtoStruct, _, Arity),
+	arity(ProtoStruct, Arity),
 	( proto_insert_field(ProtoStruct, FieldName, FieldValue, Struct, Arity) -> true
 	; substruct_insert_field(ProtoStruct, FieldName, FieldValue, Struct, Arity, M)
 	).
@@ -5501,7 +5515,7 @@ define_domain(Definition, DefModule, Scope) :-
 	ValueArray =.. [Name|Symbols],
 	check_domain_def_args(Symbols, DefModule:Name, Module), 
 	sort(0, <, Symbols, SymbolsNoDuplicates),
-	functor(ValueArray, _, N),
+	arity(ValueArray, N),
 	( length(SymbolsNoDuplicates, N) -> true ; set_bip_error(6) ).
     check_domain_def(_ValueArray, _DefModule, _Module) :-
 	set_bip_error(5).
@@ -5840,6 +5854,7 @@ trans_list_op(Goal, Code) :-
 % - they are currently always qualified with sepia_kernel:...
 %   because that's the semantics when the expression is interpreted in is/2
 
+:- export arith_builtin/1.
 arith_builtin(eval(_)).
 arith_builtin(+_).
 arith_builtin(-_).
@@ -6300,7 +6315,7 @@ get_spec(foreach(E,List),
 get_spec(foreacharg(A,Struct),
 	[Struct,1,N1|Firsts], Firsts,
 	[_,I0,I0|Lasts], Lasts,
-	(functor(Struct,_,N),+(N,1,N1),Pregoals), Pregoals,
+	(arity(Struct,N),+(N,1,N1),Pregoals), Pregoals,
 	[S,I0,I2|RecHeads], RecHeads,
 	(+(I0,1,I1),arg(I0,S,A),Goals), Goals,
 	[S,I1,I2|RecCalls], RecCalls,
@@ -6310,7 +6325,7 @@ get_spec(foreacharg(A,Struct),
 get_spec(foreacharg(A,Struct,I),
 	[Struct,1,N1|Firsts], Firsts,
 	[_,I,I|Lasts], Lasts,
-	(functor(Struct,_,N),+(N,1,N1),Pregoals), Pregoals,
+	(arity(Struct,N),+(N,1,N1),Pregoals), Pregoals,
 	[S,I,I2|RecHeads], RecHeads,
 	(+(I,1,I1),arg(I,S,A),Goals), Goals,
 	[S,I1,I2|RecCalls], RecCalls,

@@ -209,7 +209,7 @@ directive of the form
 If the module is in a file and has to be compiled first, then
 \bipref{use_module/1}{../bips/kernel/modules/use_module-1.html}
 can be used, which is a combination of
-\bipref{ensure_loaded/1}{../bips/kernel/database/ensure_loaded-1.html}
+\bipref{ensure_loaded/1}{../bips/kernel/compiler/ensure_loaded-1.html}
 (see chapter \ref{chapcompiler}) and
 \bipref{import/1}{../bips/kernel/modules/import-1.html}:
 \begin{quote}\begin{verbatim}
@@ -221,7 +221,7 @@ then it can be loaded and imported by
 :- use_module(library(hash)).
 \end{verbatim}\end{quote}
 or simply using
-\bipref{lib/1}{../bips/kernel/database/lib-1.html} as in
+\bipref{lib/1}{../bips/kernel/compiler/lib-1.html} as in
 \begin{quote}\begin{verbatim}
 :- lib(hash).
 \end{verbatim}\end{quote}
@@ -579,7 +579,7 @@ Many of the system built-in predicates are in fact tools, e.g.
 \bipref{read/1}{../bips/kernel/ioterm/read-1.html},
 \bipref{write/1}{../bips/kernel/ioterm/write-1.html},
 \bipref{record/2}{../bips/kernel/record/record-2.html},
-\bipref{compile/1}{../bips/kernel/database/compile-1.html}, etc.
+\bipref{compile/1}{../bips/kernel/compiler/compile-1.html}, etc.
 All predicates which handle modular items must be tools
 so that they know from which module they have been called.
 In case that the built-in predicate has to be executed in
@@ -645,7 +645,7 @@ modules it uses and whether it is locked (see~\ref{locking}).
 %----------------------------------------------------------------------
 Information about a predicate's properties can be retrieved using the 
 \index{properties!predicate}
-\bipref{get_flag/3}{../bips/kernel/database/get_flag-3.html} primitive
+\bipref{get_flag/3}{../bips/kernel/compiler/get_flag-3.html} primitive
 or printed using \bipref{pred/1}{../bips/kernel/env/pred-1.html}.
 The module-related predicate properties are
 \begin{description}

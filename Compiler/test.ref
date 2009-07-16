@@ -10893,6 +10893,279 @@ label(L3):
 label(L4):
 	ret                  
 
+------ Test true(1) -------
+p.
+
+p / 0:
+label(L0):
+	ret                  
+
+------ Test true(2) -------
+p :-
+	true,
+	true,
+	true.
+
+p / 0:
+label(L0):
+	ret                  
+
+------ Test true(3) -------
+p :-
+	true,
+	a,
+	true,
+	b,
+	true.
+
+p / 0:
+label(L0):
+	allocate                 0 
+	callf                    a / 0     Y[] 
+	chain                    b / 0 
+
+------ Test true(4) -------
+p :-
+	a,
+	true,
+	true,
+	true,
+	b,
+	true,
+	true,
+	true.
+
+p / 0:
+label(L0):
+	allocate                 0 
+	callf                    a / 0     Y[] 
+	chain                    b / 0 
+
+------ Test true(5) -------
+p :-
+	a,
+	true,
+	var(A),
+	b.
+
+p / 0:
+label(L0):
+	allocate                 0 
+	callf                    a / 0     Y[] 
+	callf                    true / 0     Y[] 
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	chain                    b / 0 
+
+------ Test true(6) -------
+p :-
+	a,
+	true,
+	!,
+	b.
+p.
+
+p / 0:
+label(L0):
+	allocate                 1 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	callf                    a / 0     Y[1] 
+	callf                    true / 0     Y[1] 
+	cut                      y(1)     0 
+	chain                    b / 0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     Y[] 
+label(L3):
+	deallocate           
+label(L4):
+	ret                  
+
+------ Test true(7) -------
+p :-
+	true,
+	!,
+	b.
+p.
+
+p / 0:
+label(L0):
+	savecut                  a(1) 
+	try_me_else              0     1     ref(L2) 
+label(L1):
+	get_variable             1     a(1)     y(1) 
+	callf                    true / 0     Y[1] 
+	cut                      y(1)     0 
+	chain                    b / 0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me                 0 
+label(L3):
+label(L4):
+	ret                  
+
+------ Test true(8) -------
+p :-
+	true,
+	true,
+	!.
+p.
+
+p / 0:
+label(L0):
+	savecut                  a(1) 
+	try_me_else              0     1     ref(L2) 
+label(L1):
+	get_variable             1     a(1)     y(1) 
+	callf                    true / 0     Y[1] 
+	cut                      y(1)     0 
+	deallocate           
+	branch                   ref(L4) 
+label(L2):
+	trust_me                 0 
+label(L3):
+label(L4):
+	ret                  
+
+------ Test true(9) -------
+p :-
+	(
+	    var(A),
+	    true
+	->
+	    true
+	;
+	    true
+	),
+	p.
+
+p / 0:
+label(L0):
+	savecut                  a(1) 
+	try_me_else              0     1     ref(L2) 
+label(L1):
+	put_variable             a(2) 
+	bi_var                   a(2) 
+	get_variable             1     a(1)     y(1) 
+	callf                    true / 0     Y[1] 
+	cut                      y(1)     0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me                 0 
+label(L3):
+	allocate                 0 
+label(L4):
+	chain                    ref(L0) 
+
+------ Test true(10) -------
+p :-
+	q,
+	(
+	    true
+	->
+	    r
+	;
+	    s
+	).
+
+p / 0:
+label(L0):
+	allocate                 1 
+	callf                    q / 0     Y[] 
+	savecut                  a(1) 
+	try_me_else              0     1     ref(L2) 
+label(L1):
+	move                     a(1)     y(1) 
+	callf                    true / 0     Y[1] 
+	cut                      y(1)     0 
+	chain                    r / 0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     Y[] 
+label(L3):
+	chain                    s / 0 
+label(L4):
+	ret                  
+
+------ Test true(11) -------
+p(A) :-
+	true,
+	q(A).
+
+p / 1:
+label(L0):
+	jmp                      q / 1 
+
+------ Test true(12) -------
+p(A) :-
+	q(A),
+	true.
+
+p / 1:
+label(L0):
+	jmp                      q / 1 
+
+------ Test true(13) -------
+p :-
+	(
+	    true
+	;
+	    true
+	),
+	(
+	    true
+	;
+	    true
+	).
+
+p / 0:
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	allocate                 0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me                 0 
+label(L3):
+	allocate                 0 
+label(L4):
+	try_me_else              0     0     ref(L6) 
+label(L5):
+	deallocate           
+	branch                   ref(L8) 
+label(L6):
+	trust_me_inline          0     Y[] 
+label(L7):
+	deallocate           
+label(L8):
+	ret                  
+
+------ Test true(14) -------
+p :-
+	a,
+	(
+	    true
+	;
+	    true
+	).
+
+p / 0:
+label(L0):
+	allocate                 0 
+	callf                    a / 0     Y[] 
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	deallocate           
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     Y[] 
+label(L3):
+	deallocate           
+label(L4):
+	ret                  
+
 ------ Test bip(type_tests) -------
 p(A) :-
 	free(A).
@@ -13138,6 +13411,72 @@ label(L0):
 	put_module               a(2)     eclipse 
 	callf                    sepia_kernel : writeln_body / 2     Y[1] 
 	move_chain               y(1)     a(1)     c / 1 
+
+------ Test bugzilla(642) -------
+q(A, B) :-
+	equal([A], [C]),
+	(
+	    C = b,
+	    B = 1
+	->
+	    then
+	;
+	    else
+	).
+
+INDEXES for (nondet) disjunction [3]
+1. Quality 1.5
+    [] - [2]
+    [var] - [1, 2]
+    [integer] - [2]
+    [integer, 1] - [1, 2]
+2. Quality 1.5
+    [] - [2]
+    [atom] - [2]
+    [atom, b] - [1, 2]
+    [var] - [1, 2]
+Branch determinisms for disjunction [3]
+    Branch 1: try
+    Branch 2: trust
+q / 2:
+label(L0):
+	get_variable             2     a(2)     y(1) 
+	move                     a(1)     a(3) 
+	put_list                 a(1) 
+	push_value               a(3) 
+	push_nil             
+	put_list                 a(2) 
+	push_variable            y(2) 
+	push_nil             
+	callf                    equal / 2     Y[1,2] 
+	savecut                  a(1) 
+label(L1):
+	integer_switch           y(1) 
+		1: 	ref(L2)
+		default: 	ref(L7)
+
+label(L2):
+label(L3):
+	atom_switch              y(2) 
+		b: 	ref(L4)
+		default: 	ref(L7)
+
+label(L4):
+	try_me_else              0     1     ref(L6) 
+label(L5):
+	move                     y(2)     a(2) 
+	get_atom                 a(2)     b 
+	move                     y(1)     a(2) 
+	get_integer              a(2)     1 
+	cut                      a(1)     0 
+	chain                    (then) / 0 
+	branch                   ref(L8) 
+label(L6):
+	trust_me_inline          0     Y[] 
+label(L7):
+	chain                    (else) / 0 
+label(L8):
+	ret                  
 
 ------ Test at1 -------
 at1 :-

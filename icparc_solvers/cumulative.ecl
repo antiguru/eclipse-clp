@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cumulative.ecl,v 1.1 2006/09/23 01:53:25 snovello Exp $
+% Version:	$Id: cumulative.ecl,v 1.2 2009/07/16 09:11:25 jschimpf Exp $
 %
 % Specialise the generic code of generic_cumulative.ecl to
 % create the FD cumulative library.
@@ -29,10 +29,11 @@
 
 :- module(cumulative).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Cumulative scheduling constraint library for FD").
 :- comment(author, "Vassilis Liatsos").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:25 $").
+:- comment(date, "$Date: 2009/07/16 09:11:25 $").
 :- comment(desc, "\
     This library implements the cumulative scheduling constraint for the
     FD solver.  It provides weaker propagation than the two edge finder

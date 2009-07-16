@@ -24,10 +24,11 @@
 :- export initialization(use_module(set)).
 :- use_module(set).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Finite Set Constraints Library - obsolescent, use library(fd_sets) instead").
 :- comment(author, "Carmen Gervet and Pascal Brisset, ECRC").
 :- comment(copyright, "1995-2006 Cisco Systems, Inc").
-:- comment(date, "$Date: 2006/09/23 01:52:46 $").
+:- comment(date, "$Date: 2009/07/16 09:11:25 $").
 :- comment(status, deprecated).
 
 :- comment(/(all_disjoint, 1), [

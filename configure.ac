@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.27 2009/03/04 03:44:15 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.28 2009/07/16 09:11:23 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -230,6 +230,11 @@ origostype=$OSTYPE
 # other supported class is win
 OSCLASS="unix"
 
+LDD="noldd"
+LDDFLAG=
+
+CFLAGS="-fPIC $CFLAGS"
+
 #----------------------------------------------------------------------
 # Explicit settings - things that can't be figured out automatically
 #----------------------------------------------------------------------
@@ -256,11 +261,14 @@ case "$ARCH" in
     PL_O_SO=".o.dylib:"
     PD_O_SO="$LD_C_SO"
     DYLD="libtool"
+    LDYLD="libtool -dynamic -L$GCCLIBDIR"
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     LDTCL="-framework Tcl"
     RUNPATH_DYLDFLAG="-executable_path "
     # RUNPATH_LDLAG is really a noop here
     RUNPATH_LDFLAG="-L"
+    LDD="otool"
+    LDDFLAG="-L"
     AC_DEFINE(HAVE_CEIL_NEGZERO_BUG)
     LOCK=
     ;;
@@ -294,6 +302,7 @@ case "$ARCH" in
     PL_O_SO=".o.dylib:"
     PD_O_SO="$LD_C_SO"
     DYLD="libtool"
+    LDYLD="libtool -dynamic -L$GCCLIBDIR"
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     #LDTCL="-framework tcl"
     LDTCL=" -framework Tcl"
@@ -302,6 +311,8 @@ case "$ARCH" in
     RUNPATH_DYLDFLAG="-executable_path "
     # RUNPATH_LDLAG is really a noop here
     RUNPATH_LDFLAG="-L"
+    LDD="otool"
+    LDDFLAG="-L"
     LOCK=
     ;;
  sun4)
@@ -337,11 +348,14 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
     DYLD="\$(CC)"
+    LDYLD="\$CC -shared"
+    LDD="ldd"
+    LDDFLAG=
     WANT_MPS=y
     AC_DEFINE(HAVE_MAP_NORESERVE)
     ;;
  i386_sunos5)
-    CFLAGS="-m32 -fPIC"
+    CFLAGS="-m32 $CFLAGS"
     LDFLAGS="-m32"
     DYNLDFLAGS="-m32 -G"
     OPT_LOCAL_FLAGS="-DTHREADED"
@@ -355,12 +369,15 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
     DYLD="\$(CC)"
+    LDYLD="\$CC -shared"
+    LDD="ldd"
+    LDDFLAG=
     WANT_MPS=y
     OSTYPE="solaris"
     AC_DEFINE(HAVE_MAP_NORESERVE)
     ;;
  x86_64_sunos5)
-    CFLAGS="-m64 -fPIC"
+    CFLAGS="-m64 $CFLAGS"
     LDFLAGS="-m64 "
     DYNLDFLAGS="-m64 -shared"
     OPT_LOCAL_FLAGS="-DTHREADED"
@@ -375,6 +392,9 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
     DYLD="\$(CC)"
+    LDYLD="\$CC -shared"
+    LDD="ldd"
+    LDDFLAG=
     WANT_MPS=y
     AC_DEFINE(HAVE_MAP_NORESERVE)
     ;;
@@ -391,8 +411,12 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
     DYLD="\$(CC)"
+    LDYLD="\$CC -shared"
+    LDD="ldd"
+    LDDFLAG=
     ;;
  i386_linux)
+    # -fPIC needed for Security-Enhanced Linux
     OPTIMIZE="sh ../src/opt_i386_linux.sh"
     OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
@@ -404,8 +428,11 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
     DYLD="\$(CC)"
+    LDYLD="\$CC -shared"
     RUNPATH_LDFLAG="-Wl,-rpath "
     RUNPATH_DYLDFLAG="-Wl,-rpath "
+    LDD="ldd"
+    LDDFLAG=
     WANT_MPS=y
     # the check for mman.h does not work in my linux release because
     # of a compiler warning. The following fix fakes the cache value:
@@ -416,7 +443,6 @@ case "$ARCH" in
     OSTYPE="linux"  
     ;;
  x86_64_linux)
-    CFLAGS="-fPIC $CFLAGS"
     OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     OBJECT_SUFFIX=so
@@ -427,18 +453,21 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
     DYLD="\$(CC)"
+    LDYLD="\$CC -shared"
+    LDD="ldd"
+    LDDFLAG=
     WANT_MPS=y
     # some bash shell set OSTYPE to gnu-linux
     OSTYPE="linux"  
     ;;
  i386_nt)
-    CFLAGS="$CFLAGS"
     OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
     LIB_PREFIX=
     DYLD="\$(CC)"
+    LDYLD="\$CC -shared"
     dnl wsock32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lwsock32 -lnetapi32 $LIBS"
@@ -487,6 +516,7 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="ld -shared \$< -o \$@"
     DYLD = "\$(CC)"
+    LDYLD="\$CC -G -taso"
     WANT_MPS=y
     ;;
  rs_aix32)
@@ -558,6 +588,7 @@ case "$ARCH" in
     PD_O_SO="ld -shared \$< -o \$@"
     DYNLDFLAGS = "-shared"
     DYLD="ld"
+    LDYLD="ld -shared"
     WANT_MPS=y
     ;;
  next_mach)
@@ -581,6 +612,7 @@ case "$ARCH" in
     PD_O_SO="$LD_C_SO"
     DYNLDFLAGS="\$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared"
     DYLD = "\$(CC)"
+    LDYLD="\$CC -shared"
     WANT_MPS=y
     # FIND_X is buggy, but not path is needed, so the default one will do
     x_libraries=/usr/lib
@@ -637,7 +669,16 @@ AC_CHECK_SIZEOF(char *,4)
 AC_CHECK_SIZEOF(long *,4)
 
 AC_CHECK_TYPES([long long, __int64])
-AC_CHECK_TYPES([long long])
+
+dnl -fstrict-overflow breaks some code that does integer overflow detection
+dnl but the option is only present starting from gcc 4.2
+AC_MSG_CHECKING(for version-dependent compiler options)
+SAVED_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fno-strict-overflow"
+AC_TRY_COMPILE([] , [int main(void) {return 0;}],
+    [AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no)
+    CFLAGS="$SAVED_CFLAGS"])
+
 
 dnl Check for void pointers
 AC_CACHE_CHECK(for void pointer, ec_cv_c_void_p,
@@ -1072,6 +1113,30 @@ if test "$ec_cv_ucontextgregs" = yes; then
     AC_DEFINE(HAVE_UCONTEXTGREGS)
 fi
 
+#----------------------------------------------------------------------
+# Linking libstdc++ 
+#----------------------------------------------------------------------
+
+dnl Did not find a way of doing this test in a less low-level way:
+dnl try to link stdc++ statically into a shared library 
+AC_MSG_CHECKING(test whether we can statically link lstdc++ into a shared library)
+rm -f conftest.cc conftest.o conftest.so
+cat > conftest.cc <<EOF
+#include "confdefs.h"
+#include <iostream>
+void p(void) { std::cout << "hello"; }
+EOF
+
+$CXX $CPPFLAGS $CFLAGS -c conftest.cc
+STDCXXLIB="-Wl,-Bstatic -lstdc++ -Wl,-Bdynamic"
+if $CC $DYNLDFLAGS -o conftest.so conftest.o $STDCXXLIB >/dev/null 2>&1; then
+    AC_MSG_RESULT(yes)
+else
+    STDCXXLIB="-lstdc++"
+    AC_MSG_RESULT(no)
+fi
+rm -f conftest.cc conftest.o conftest.so
+
 
 #----------------------------------------------------------------------
 # Check for various third party components
@@ -1120,6 +1185,7 @@ if test "$tcl_requested" = "yes"; then
 	if test -d "$TCL_ARCH_DIR/lib" ; then
 	    found_tcl=yes
 	    TCL_DIR="$TCL_ARCH_DIR"
+	    TCL_INCL_DIR="$TCL_DIR/include"
 	    break
 	fi
 	# check in standard locations
@@ -1128,6 +1194,7 @@ if test "$tcl_requested" = "yes"; then
 	    if test -d "$TCL_DIR/lib/tcl$TCL_VERSION" ; then
 		found_tcl=yes
 		TCL_ARCH_DIR="$TCL_DIR"
+		TCL_INCL_DIR="$TCL_DIR/include"
 		break
 	    fi
 	else
@@ -1136,6 +1203,7 @@ if test "$tcl_requested" = "yes"; then
 		if test -d "$TCL_DIR/lib/tcl$TCL_VERSION" ; then
 		    found_tcl=yes
 		    TCL_ARCH_DIR="$TCL_DIR"
+		    TCL_INCL_DIR="$TCL_DIR/include/tcl$TCL_VERSION"
 		    GRAPHLIBS="-L$TCL_ARCH_DIR/lib -ltcl$tcl_lib_version -ltk$tcl_lib_version $GRAPHLIBS"
 		    break
 		fi
@@ -1153,7 +1221,7 @@ if test "$tcl_requested" = "yes"; then
 	AC_DEFINE(HAVE_TCL)
 	AC_DEFINE(HAVE_TK)
 	GRAPHLIBS="-L\"$TCL_ARCH_DIR/lib\" -ltcl$tcl_lib_version -ltk$tcl_lib_version $GRAPHLIBS"
-	OS_INCLUDES="-I\"$TCL_DIR/include\" $OS_INCLUDES"
+	OS_INCLUDES="-I\"$TCL_INCL_DIR\" $OS_INCLUDES"
 	BUILD_WITH_TCL="yes"
     fi
 
@@ -1234,8 +1302,6 @@ AC_ARG_WITH([osi], [[  --with-osi[=versions]
     [osi_versions_requested="$withval"], [osi_versions_requested=yes])
 
 OSIBASEDIR="$ECLIPSETHIRDPARTY/coin"
-OSIBUILD="amd"   # which Coin build? (normally set to ""), but use amd here
-                 # (with UFL AMD support) 
 OSICLP_ADDLIB=""
 OSICLP_ADDDEF=""
 if test "$osi_versions_requested" != "no"; then
@@ -1243,19 +1309,29 @@ if test "$osi_versions_requested" != "no"; then
     	osi_versions_requested="clpcbc symclp"
     fi
     for version in $osi_versions_requested; do
-        OSIDIR="$OSIBASEDIR$version$OSIBUILD"
-	ls -d $OSIDIR/$ARCH/lib/$version >/dev/null 2>/dev/null
-	if test $? -eq 0; then
-	    OSI_VERSIONS="$OSI_VERSIONS $version"
-	    AC_MSG_NOTICE([Using OSI $version in $OSIDIR])
-            ls -d $OSIDIR/$ARCH/lib/*amd* >/dev/null 2>/dev/null
-            if test $? -eq 0; then
-	         AC_MSG_NOTICE([Found AMD support for $version])
-	         OSICLP_ADDLIB="-lamd"
-		 OSICLP_ADDDEF="-DUFL_BARRIER"
+	found_osi_version=
+	dnl For backward compatibility, allow ${version}amd as well
+	OSIDIRS="$OSIBASEDIR${version}amd $OSIBASEDIR$version"
+	for OSIDIR in $OSIDIRS; do
+	    if test -d "$OSIDIR/$ARCH/lib"; then
+		found_osi_version=yes
+		OSI_VERSIONS="$OSI_VERSIONS $version"
+		AC_MSG_NOTICE([Using OSI $version in $OSIDIR])
+		case $version in
+		clpcbc) CLPCBCDIR="$OSIDIR" ;;
+		symclp) SYMCLPDIR="$OSIDIR" ;;
+		esac
+		ls -d $OSIDIR/$ARCH/lib/*amd* >/dev/null 2>/dev/null
+		if test $? -eq 0; then
+		     AC_MSG_NOTICE([Found AMD support for $version])
+		     OSICLP_ADDLIB="-lamd"
+		     OSICLP_ADDDEF="-DUFL_BARRIER"
+		fi
+		break
 	    fi
-	else
-	    AC_MSG_WARN([Could not find $ARCH support for $version in $OSIDIR])
+	done
+	if test -z "$found_osi_version"; then
+	    AC_MSG_WARN([Could not find $ARCH support for $version in $OSIDIRS])
 	fi
     done
 fi
@@ -1362,6 +1438,7 @@ JAVA_SEARCH_PATH="\
     /usr/java \
     /usr/lib/java \
     /usr/lib/jvm \
+    /usr/lib/jvm/java \
     /usr/j2se\
     /Library/Java/Home \
 "
@@ -1435,16 +1512,19 @@ if test "$flexlm_versions" != "no"; then
     if test -z "$FLEXLMDIR"; then
 	CPPFLAGS_WITH_WITHOUT_FLEXLM=CPPFLAGS_WITHOUT_FLEXLM
 	LIBS_WITH_WITHOUT_FLEXLM=LIBS_WITHOUT_FLEXLM
+	FILES_WITH_WITHOUT_FLEXLM=FILES_WITHOUT_FLEXLM
 	AC_MSG_WARN([Could not find FlexLM $flexlm_versions])
     else
 	AC_DEFINE(HAVE_FLEXLM)
 	CPPFLAGS_WITH_WITHOUT_FLEXLM=CPPFLAGS_WITH_FLEXLM
 	LIBS_WITH_WITHOUT_FLEXLM=LIBS_WITH_FLEXLM
+	FILES_WITH_WITHOUT_FLEXLM=FILES_WITH_FLEXLM
 	AC_MSG_NOTICE([Using FlexLM in $FLEXLMDIR])
     fi
 else
     CPPFLAGS_WITH_WITHOUT_FLEXLM=CPPFLAGS_WITHOUT_FLEXLM
     LIBS_WITH_WITHOUT_FLEXLM=LIBS_WITHOUT_FLEXLM
+    FILES_WITH_WITHOUT_FLEXLM=FILES_WITHOUT_FLEXLM
     AC_MSG_NOTICE([Not building the FlexLM interface])
 fi
 
@@ -1636,12 +1716,15 @@ AC_SUBST(PD_O_SO)
 AC_SUBST(DYLD)
 AC_SUBST(LDTCL)
 AC_SUBST(TCL_DIR)
+AC_SUBST(BUILD_WITH_TCL)
 AC_SUBST(TCL_ARCH_DIR)
 AC_SUBST(BUILD_WITH_TCL)
 AC_SUBST(TCL_VERSION)
 AC_SUBST(BUILDO)
 AC_SUBST(GRAPHLIBS)
 AC_SUBST(LIBS)
+AC_SUBST(LDD)
+AC_SUBST(LDDFLAG)
 AC_SUBST(WANT_MPS)
 AC_SUBST(OBJECT_SUFFIX)
 AC_SUBST(OBJECTS_SUFFIX)
@@ -1653,8 +1736,8 @@ AC_SUBST(GMP_LIB)
 AC_SUBST(INSTALL_GMP)
 AC_SUBST(LOCK)
 AC_SUBST(OSI_VERSIONS)
-AC_SUBST(OSIBASEDIR)
-AC_SUBST(OSIBUILD)
+AC_SUBST(CLPCBCDIR)
+AC_SUBST(SYMCLPDIR)
 AC_SUBST(OSICLP_ADDLIB)
 AC_SUBST(OSICLP_ADDDEF)
 AC_SUBST(CPLEX_VERSIONS)
@@ -1664,6 +1747,7 @@ AC_SUBST(ALL_CROSS_WITH_JAVA)
 AC_SUBST(JAVA_HOME)
 AC_SUBST(CPPFLAGS_WITH_WITHOUT_FLEXLM)
 AC_SUBST(LIBS_WITH_WITHOUT_FLEXLM)
+AC_SUBST(FILES_WITH_WITHOUT_FLEXLM)
 AC_SUBST(FLEXLMDIR)
 AC_SUBST(GRAPPA_DIR)
 AC_SUBST(GRAPPA_JAR)
@@ -1675,5 +1759,6 @@ AC_SUBST(ALL_CROSS_WITH_MYSQL)
 AC_SUBST(MYSQLDIR)
 AC_SUBST(GRAPHVIZ_TARGET)
 AC_SUBST(GRAPHVIZ_DIR)
+AC_SUBST(STDCXXLIB)
 
 AC_OUTPUT

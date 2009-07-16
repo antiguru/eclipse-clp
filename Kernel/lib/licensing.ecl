@@ -26,16 +26,17 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: licensing.ecl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: licensing.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
 :- module(licensing).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Eclipse Licencing Facility").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:47 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 
 :- comment(desc, html("
     <h3>ECLiPSe Licencing Facility</h3>

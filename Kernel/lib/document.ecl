@@ -22,13 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.2 2008/08/20 18:03:28 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2008/08/20 18:03:28 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -40,6 +41,7 @@
 :- tool(icompile/2, icompile_body/3).
 
 :- lib(source_processor).
+:- lib(hash).
 
 
 :- import get_bip_error/1,
@@ -176,7 +178,7 @@ open_eci_file(EclFile, OutDir, FileModule, EciStream) :-
 	;
 	    concat_string([OutDir,/,Base,ECI], EciFile)
 	),
-	open(EciFile, write, EciStream).
+	open(EciFile, write, EciStream, [end_of_line(lf)]).
 
 
 % merge separate comment directives for the same predicate into one comment
@@ -353,6 +355,7 @@ ecis_to_htmls(LibDirs0, HtmlTopDir, LinkBack, SystemName) :-
 	gen_prolog_index(HtmlTopDir, SortedIndexList),
 	compile_term(SortedIndexList),
 	( Groups = [_] ->
+	    % Simple form, only one global library index
 	    GroupSummary = SystemName,
 	    GroupedFiles = [EciFiles],
 	    concat_string(["<A HREF=\"../index.html\">",GroupSummary,
@@ -365,35 +368,38 @@ ecis_to_htmls(LibDirs0, HtmlTopDir, LinkBack, SystemName) :-
 		param(GroupDir,Header)
 	    do
 		writeln(log_output, processing:EciFile),
-		eci_to_html(EciFile, GroupDir, Header, LibDesc)
+		eci_to_html(EciFile, GroupDir, Header, LibDesc),
+		LibDesc = lib(_,_,_,_,".")	% no group-subdirectory
 	    ),
 	    concat_string(["[ ",LinkBack," | <A HREF=\"fullindex.html\">Alphabetic Index</A> ]"], SubHeader),
-	    gen_library_index(GroupDir, GroupSummary, Libs, SubHeader),
+	    gen_library_index(HtmlTopDir, ".", "index.html", GroupSummary, Libs, SubHeader),
 	    gen_full_index(HtmlTopDir, LinkBack, SystemName, nogroups)
 	;
+	    % Complex form, with extra level of group and category index
+	    hash_create(CatHash),
 	    (
 		foreach(Group,Groups),			% Pass 2
 		foreach(EciFiles,GroupedFiles),
-		param(HtmlTopDir,SystemName)
+		param(HtmlTopDir,SystemName,CatHash)
 	    do
 		group_summary(SystemName, Group,GroupSummary),
-		concat_string(["<A HREF=\"../index.html\">",GroupSummary,
-		    "</A> | <A HREF=\"../../index.html\">Reference Manual</A> | <A HREF=\"../../fullindex.html\">Alphabetic Index</A>"
-		    ], Header),
+		Header = "<A HREF=\"../../index.html\">Reference Manual</A> | <A HREF=\"../../fullindex.html\">Alphabetic Index</A>",
 		concat_string([HtmlTopDir,/,Group], GroupDir),
 		makedir(GroupDir),
 		(
 		    foreach(EciFile,EciFiles),			% Pass 2
 		    foreach(LibDesc,Libs),
-		    param(GroupDir,Header)
+		    param(Group,GroupDir,Header,CatHash)
 		do
 		    writeln(log_output, processing:EciFile),
-		    eci_to_html(EciFile, GroupDir, Header, LibDesc)
+		    eci_to_html(EciFile, GroupDir, Header, LibDesc),
+		    LibDesc = lib(_,_,_,_,Group),	% set group subdir
+		    assign_to_categories(LibDesc, CatHash)
 		),
 		SubHeader = "[ <A HREF=\"../index.html\">Reference Manual</A> | <A HREF=\"../fullindex.html\">Alphabetic Index</A> ]",
-		gen_library_index(GroupDir, GroupSummary, Libs, SubHeader)
+		gen_library_index(HtmlTopDir, Group, "index.html", GroupSummary, Libs, SubHeader)
 	    ),
-	    gen_group_index(HtmlTopDir, Groups, LinkBack, SystemName),
+	    gen_group_categories_index(HtmlTopDir, Groups, CatHash, LinkBack, SystemName),
 	    gen_full_index(HtmlTopDir, LinkBack, SystemName, groups)
 	).
 
@@ -413,6 +419,22 @@ ecis_to_htmls(LibDirs0, HtmlTopDir, LinkBack, SystemName) :-
     remove_group_name([], []).
     remove_group_name([bip(N,A,_G,L,F)|Bips], [bip(N,A,'.',L,F)|RBips]) :-
 	remove_group_name(Bips, RBips).
+
+    assign_to_categories(LibDesc, CatHash) :-
+	LibDesc = lib(_,_,_,Categories0,_),
+	( Categories0 == [] ->
+	    category_name(default, DefaultCat),
+	    Categories = [DefaultCat]
+	;
+	    Categories = Categories0
+	),
+	( foreach(Cat,Categories), param(CatHash,LibDesc) do
+	    ( hash_get(CatHash, Cat, Descs) ->
+		hash_set(CatHash, Cat, [LibDesc|Descs])
+	    ;
+		hash_set(CatHash, Cat, [LibDesc])
+	    )
+	).
 
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -545,7 +567,7 @@ eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0) :-
 eci_to_html(FullEciFile, HtmlTopDir, Header) :-
 	eci_to_html(FullEciFile, HtmlTopDir, Header, _).
 
-eci_to_html(EciFile0, HtmlTopDir, Header, lib(LibName,LibSumm,LibTitle)) :-
+eci_to_html(EciFile0, HtmlTopDir, Header, lib(LibName,LibSumm,LibTitle,Categories,_RelDir)) :-
 	existing_file(EciFile0, [".eci",""], [readable], FullEciFile),
 	!,
 	pathname(FullEciFile, _, LibNameString, EciSuffix),
@@ -558,6 +580,8 @@ eci_to_html(EciFile0, HtmlTopDir, Header, lib(LibName,LibSumm,LibTitle)) :-
 	    close(EciStream),
 	    ( gen_library_page_html(HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherComments, OtherExports, ReExports, Header, EciFile) -> true
 	    ; printf(error, "Error in generating toplevel html page for %w%n", [LibTitle]) ),
+	    ( memberchk(comment(categories,Categories), OtherComments) -> true
+	    ; Categories=[] ),
 	    ( memberchk(comment(summary,LibSumm), OtherComments) -> true
 	    ; LibSumm="No description available" )
 	;
@@ -569,7 +593,7 @@ eci_to_html(EciFile0, _, _, _) :-
 
 gen_library_page_html(HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherComments, OtherExports, ReExports, Header, EciFile) :-
 	concat_string([HtmlDir,/,"index.html"], IndexFile),
-	open(IndexFile, write, Stream),
+	open(IndexFile, write, Stream, [end_of_line(lf)]),
 	chmod644(IndexFile),
 %	writeln(log_output, making:IndexFile),
 	printf(Stream, "<HTML><HEAD><TITLE>%w</TITLE></HEAD><BODY>%n", [LibTitle]),
@@ -668,7 +692,7 @@ gen_library_page_html(HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherCom
 
     gen_library_ascii_file(Type, Dir, LibName, Info) :-
         concat_string([Dir,/,LibName,"_", Type, ".txt"], AsciiFile),
-        open(AsciiFile, write, S),
+        open(AsciiFile, write, S, [end_of_line(lf)]),
         chmod644(AsciiFile),
         concat_string(["lib(", LibName, ")"], LibString),
         ascii_write_par(S, LibString, 0),
@@ -803,7 +827,12 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 		Hidden1 = Hidden0,
 		Tools1 = Tools0,
 		( What == alias -> LibTitle2 = Comm ; LibTitle2 = LibTitle1 ),
-		Other1 = [comment(What,Comm)|Other0]
+		( valid_lib_commment(What, Comm) ->
+		    Other1 = [comment(What,Comm)|Other0]
+		;
+		    printf(error, "Error in comment syntax, ignoring: %w%n", [comment(What,Comm)]),
+		    Other1 = Other0
+		)
 
 	    ;  Directive = (:- export Something) ->
 		Exports1 = [Something|Exports0],
@@ -908,6 +937,22 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 		LibStructs4 = LibStructs3
 	    )
 	).
+
+
+valid_lib_commment(summary, Comm) ?- !, atom_or_string(Comm).
+valid_lib_commment(alias, Comm) ?- !, atom_or_string(Comm).
+valid_lib_commment(status, Comm) ?- !, atom_or_string(Comm).
+valid_lib_commment(author, Comm) ?- !, atom_or_string(Comm).
+valid_lib_commment(copyright, Comm) ?- !, atom_or_string(Comm).
+valid_lib_commment(date, Comm) ?- !, atom_or_string(Comm).
+valid_lib_commment(desc, Comm) ?- !, is_simple_description(Comm).
+valid_lib_commment(eg, Comm) ?- !, is_simple_description(Comm).
+valid_lib_commment(index, Strings) ?- !, is_list(Strings),
+	( foreach(String,Strings) do string(String) ).
+valid_lib_commment(categories, Strings) ?- !, is_list(Strings),
+	( foreach(String,Strings) do string(String) ).
+valid_lib_commment(see_also, Things) ?- !, is_list(Things).
+valid_lib_commment(_, _).
 
 
 %
@@ -1082,12 +1127,12 @@ atom_or_string(Term) :- string(Term).
 % Pass 3 - generate the indices
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-% Libs is a list of lib(Libname, LibSummary, LibTitle)
+% Libs is a list of lib(Libname, LibSummary, LibTitle, Categories, RelDir)
 % LibPreds is a list of pred(N/A, Template, Summary, RelHtmlFileRoot)
 
-gen_library_index(HtmlTopDir, GroupSummary, Libs, Header) :-
-	concat_string([HtmlTopDir,/,"index.html"], IndexFile),
-	open(IndexFile, write, Stream),
+gen_library_index(HtmlTopDir, RelIndexDir, IndexName, GroupSummary, Libs, Header) :-
+	concat_string([HtmlTopDir,/,RelIndexDir,/,IndexName], IndexFile),
+	open(IndexFile, write, Stream, [end_of_line(lf)]),
 	chmod644(IndexFile),
 %	writeln(log_output, making:IndexFile),
 	printf(Stream, "<HTML><HEAD><TITLE>%w</TITLE></HEAD><BODY>", [GroupSummary]),
@@ -1096,13 +1141,19 @@ gen_library_index(HtmlTopDir, GroupSummary, Libs, Header) :-
 	writeln(Stream, "<DL>"),
 	sort(1, =<, Libs, SortedLibs),
 	(
-	    foreach(lib(LibName, LibSummary, LibTitle),SortedLibs),
-	    param(Stream)
+	    foreach(lib(LibName, LibSummary, LibTitle, _Cats, RelDir),SortedLibs),
+	    param(Stream,RelIndexDir)
 	do
 	    ( LibTitle = library(LibTitle1) -> true ; LibTitle1=LibTitle ),
-	    printf(Stream,
-		"<DT><A HREF=\"%w/index.html\"><STRONG>%w</STRONG></A></DT>%n<DD>%w</DD>%n",
-		[LibName,LibTitle1,LibSummary])
+	    ( RelIndexDir == RelDir ->
+		printf(Stream,
+		    "<DT><A HREF=\"%w/index.html\"><STRONG>%w</STRONG></A></DT>%n<DD>%w</DD>%n",
+		    [LibName,LibTitle1,LibSummary])
+	    ;
+		printf(Stream,
+		    "<DT><A HREF=\"%w/%w/index.html\"><STRONG>%w</STRONG></A></DT>%n<DD>%w</DD>%n",
+		    [RelDir,LibName,LibTitle1,LibSummary])
+	    )
 	),
 	writeln(Stream, "</DL>"),
 	date(Date),
@@ -1110,9 +1161,9 @@ gen_library_index(HtmlTopDir, GroupSummary, Libs, Header) :-
 	writeln(Stream, "</BODY></HTML>"),
 	close(Stream).
 
-gen_group_index(HtmlTopDir, Groups, LinkBack, SystemName) :-
+gen_group_categories_index(HtmlTopDir, Groups, CatHash, LinkBack, SystemName) :-
 	concat_string([HtmlTopDir,/,"index.html"], IndexFile),
-	open(IndexFile, write, Stream),
+	open(IndexFile, write, Stream, [end_of_line(lf)]),
 	chmod644(IndexFile),
 %	writeln(log_output, making:IndexFile),
 	printf(Stream, "<HTML><HEAD><TITLE>%w Reference Manual</TITLE></HEAD><BODY>", [SystemName]),
@@ -1123,7 +1174,8 @@ gen_group_index(HtmlTopDir, Groups, LinkBack, SystemName) :-
 	;
 	    printf(Stream, "<H1>%w Reference Manual</H1>", [SystemName])
 	),
-	writeln(Stream, "<DL>"),
+
+	% List the groups
 	msort(Groups, SortedGroups),
 	writeln(Stream, "<OL>"),
 	(
@@ -1136,20 +1188,68 @@ gen_group_index(HtmlTopDir, Groups, LinkBack, SystemName) :-
 		[Group,GroupSummary])
 	),
 	writeln(Stream, "</OL>"),
+
+	% Then the categories, if any
+	hash_count(CatHash, NumCategories),
+	( NumCategories > 1 ->
+	    hash_list(CatHash, Categories0, _AllCatsLibs),
+	    msort(Categories0, Categories1),
+	    category_name(bips, BipCat),
+	    ( delete(BipCat, Categories1, Categories2) -> Categories3 = [BipCat|Categories2]
+	    ; Categories3 = Categories1),
+	    category_name(default, DefCat),
+	    ( delete(DefCat, Categories3, Categories4) -> append(Categories4, [DefCat], Categories)
+	    ; Categories = Categories3),
+
+	    printf(Stream, "<H2>Built-Ins and Libraries by Categories</H2>", []),
+	    writeln(Stream, "<DL>"),
+	    (
+		foreach(Category,Categories),
+		count(I,1,_),
+		param(HtmlTopDir,Stream,CatHash)
+	    do
+		hash_get(CatHash, Category, CatLibs),
+		gen_category_item(Stream, I, Category, HtmlTopDir, CatLibs, true)
+	    ),
+	    writeln(Stream, "</DL>")
+	;
+	    true
+	),
 	date(Date),
 	printf(Stream, "<HR>Generated %w%n", [Date]),
 	writeln(Stream, "</BODY></HTML>"),
 	close(Stream).
+
+    gen_category_item(Stream, I, Category, HtmlTopDir, CatLibs, QuickIndex) :-
+	printf(Stream,
+	    "<DT><A HREF=\"index%w.html\"><STRONG>%w</STRONG></A></DT><DD>%n",
+	    [I,Category]),
+	SubHeader = "[ <A HREF=\"index.html\">Reference Manual</A> | <A HREF=\"fullindex.html\">Alphabetic Index</A> ]",
+	sort(CatLibs, CatLibsSorted),
+	( QuickIndex == true ->
+	    ( foreach(lib(LibName,_,_,_,RelDir),CatLibsSorted), param(Stream) do
+		printf(Stream, "<A HREF=\"%w/%w/index.html\">%w</A>|%n",
+		    [RelDir,LibName,LibName])
+	    )
+	;
+	    true
+	),
+	printf(Stream, "</DD>%n", []),
+	concat_string(["index",I,".html"], CatIndexFile),
+	gen_library_index(HtmlTopDir, ".", CatIndexFile, Category, CatLibsSorted, SubHeader).
+
 
 group_summary("ECLiPSe", "kernel", "The ECLiPSe Built-In Predicates") :- !.
 group_summary("ECLiPSe", "lib", "The ECLiPSe Libraries") :- !.
 group_summary("ECLiPSe", "lib_public", "Third Party Libraries") :- !.
 group_summary(_, Other, Other).
 
+category_name(bips, "Built-In Predicates").
+category_name(default, "Unclassified").
 
 gen_full_index(HtmlTopDir, LinkBack, SystemName, GroupFlag) :-
 	concat_string([HtmlTopDir,/,"fullindex.html"], IndexFile),
-	open(IndexFile, write, Stream),
+	open(IndexFile, write, Stream, [end_of_line(lf)]),
 	chmod644(IndexFile),
 %	writeln(log_output, making:IndexFile),
 	printf(Stream, "<HTML><HEAD><TITLE>%w Alphabetic Predicate Index</TITLE></HEAD><BODY>", [SystemName]),
@@ -1205,7 +1305,7 @@ gen_full_index(HtmlTopDir, LinkBack, SystemName, GroupFlag) :-
 gen_prolog_index(HtmlTopDir, SortedIndexList) :-
 	concat_string([HtmlTopDir,"/index.pl"], IndexFile),
 %	writeln(log_output, making:IndexFile),
-	open(IndexFile, write, S),
+	open(IndexFile, write, S, [end_of_line(lf)]),
 	chmod644(IndexFile),
 	printf(S, "%%%n%% This file is generated - do not edit%n", []),
 	printf(S, "%% bip(Name, Arity, Group, Library, Filename)%n%%%n%n", []),
@@ -1365,7 +1465,8 @@ string_to_sorting_key(S, K) :- string(S),
 
 date(String) :-
 	get_flag(unix_time, T),
-	local_time_string(T, "%c", String).
+%	local_time_string(T, "%c", String).
+	local_time_string(T, "%Y-%m-%d %H:%M", String).
 
 
 %----------------------------------------------------------------------
@@ -1378,7 +1479,7 @@ gen_html_file(Header, HtmlDir, LibTitle, LibName, Page, HtmlFile) :-
 	object_spec_to_filename(Spec, FileName),
 	concat_string([FileName,.,html], HtmlFile),
 	concat_string([HtmlDir,/,HtmlFile], FullHtmlFile),
-	open(FullHtmlFile, write, S),
+	open(FullHtmlFile, write, S, [end_of_line(lf)]),
 	chmod644(FullHtmlFile),
 %	writeln(log_output, making:FullHtmlFile),
 	printf(S, "<HTML><HEAD>", []),
@@ -1720,7 +1821,7 @@ gen_ascii_file(HtmlDir, LibTitle, LibName, Page) :-
 	object_spec_to_filename(Spec, FileName),
 	concat_string([FileName,.,txt], TxtFile),
 	concat_string([HtmlDir,/,TxtFile], FullTxtFile),
-	open(FullTxtFile, write, TxtStream),
+	open(FullTxtFile, write, TxtStream, [end_of_line(lf)]),
 	chmod644(FullTxtFile),
 %	writeln(log_output, making:FullTxtFile),
 	( gen_ascii(TxtStream, LibTitle, LibName, Page) ->

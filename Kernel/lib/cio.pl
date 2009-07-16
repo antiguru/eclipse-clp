@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cio.pl,v 1.1 2008/06/30 17:43:42 jschimpf Exp $
+% Version:	$Id: cio.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,10 +46,11 @@
 
 :- module(cio).
 
+:- comment(categories, ["Compatibility"]).
 :- comment(summary, "Predicates for C-Prolog style I/O (see/tell family)").
 :- comment(author, "Micha Meier, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:42 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("
     This library provides C-Prolog compatible I/O predicates. It is included
     in the C-Prolog compatibility package, but can be used independently.

@@ -25,7 +25,7 @@
 % ECLiPSe II remote development tools ECLiPSe side interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: remote_tools.pl,v 1.1 2008/06/30 17:43:49 jschimpf Exp $
+% Version:	$Id: remote_tools.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % Authors:	Kish Shen, IC-Parc
 %
 %----------------------------------------------------------------------
@@ -95,6 +95,7 @@ disconnect_handler :-
 :- skipped tools/0, attach_tools/0.
 
 %----------------------------------------------------
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Allow the Tk development tools to be used remotely").
 
 :- comment(desc, 

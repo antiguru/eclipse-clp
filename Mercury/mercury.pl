@@ -23,6 +23,7 @@ report_lookup_error(String, Key, Value) :-
 	write(error, "Value: "), writeq(error, Value), nl(error),
 	abort.
 
+:- comment(categories, ["Compatibility"]).
 :- comment(summary, "Mercury compatibility predicates.").
 :- comment(author, "Warwick Harvey").
 :- comment(desc, html("\

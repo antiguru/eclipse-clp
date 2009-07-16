@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: sockets.pl,v 1.1 2008/06/30 17:43:49 jschimpf Exp $
+% Version:	$Id: sockets.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -40,10 +40,11 @@
 
 :- module(sockets).
 
+:- comment(categories, ["Compatibility"]).
 :- comment(summary, "Sicstus compatible sockets interface").
 :- comment(author, "Kish Shen, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:49 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("
     Note that ECLiPSe provides its own built-in socket manipulation
     predicates which provides similar functionality to this library.

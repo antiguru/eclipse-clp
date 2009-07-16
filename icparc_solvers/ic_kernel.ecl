@@ -1106,7 +1106,7 @@ test_unify_ic_ic(_Y, AttrX, AttrY) :-
 
 	% At least one of TermL or TermR is meta.
 	% Metas with empty attribute slot are treated like free.
-compare_ic_instances(Res, X{ic:AttrX}, Y) :- -?->
+compare_ic_instances(Res, _X{ic:AttrX}, Y) :- -?->
 	compare_instances_meta_any(Res, AttrX, Y).
 compare_ic_instances(Res, X, Y) :- free(X),
 	compare_instances_free_meta(Res, X, Y).		% Y must be meta!
@@ -1116,7 +1116,7 @@ compare_ic_instances(Res, X, Y) :- nonvar(X),
 compare_instances_free_meta(Res, _X, _Y{ic:AttrY}) :- -?->
 	compare_instances_free_ic(Res, AttrY).
 
-compare_instances_meta_any(Res, AttrX, Y{ic:AttrY}) :- -?->
+compare_instances_meta_any(Res, AttrX, _Y{ic:AttrY}) :- -?->
 	compare_instances_meta_meta(Res, AttrX, AttrY).
 compare_instances_meta_any(Res, AttrX, Y) :- free(Y),
 	compare_ic_instances_free(Res, AttrX).
@@ -1718,7 +1718,7 @@ wake_bounds(WakeVars) :-
 	),
 	wake.
 
-schedule_bounds(X{ic:Attr}) :-
+schedule_bounds(_X{ic:Attr}) :-
 	-?->
 	Attr = ic with [min:Lo, max:Hi],
 	!,
@@ -1800,6 +1800,7 @@ result_is_slack(Result) :-
 % User documentation for the IC kernel module.
 %
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Low-level interface to the common kernel of the IC solver").
 :- comment(author, "Warwick Harvey").
 

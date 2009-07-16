@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_arith.pl,v 1.2 2008/08/21 17:54:49 jschimpf Exp $
+% Version:	$Id: fd_arith.pl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -77,7 +77,9 @@
 
 :- export macro(fd_eq/1, tr_fd_arith_out/2, [write, goal]).
 :- export macro(fd_eq/2, tr_fd_arith_out/2, [write, goal]).
-:- export macro(fd_abs/2, tr_fd_arith_out/2, [write, goal]).
+:- export macro(fd_abs/3, tr_fd_arith_out/2, [write, goal]).
+:- export macro(fd_min/4, tr_fd_arith_out/2, [write, goal]).
+:- export macro(fd_max/4, tr_fd_arith_out/2, [write, goal]).
 :- export macro(fd_ge/1, tr_fd_arith_out/2, [write, goal]).
 :- export macro(fd_ge/2, tr_fd_arith_out/2, [write, goal]).
 :- export macro(fd_gec/5, tr_fd_arith_out/2, [write, goal]).
@@ -361,7 +363,7 @@ conv_bool_var(Var, Val, compile, _) -->
 
 %
 % transform an arithmetic expression into its compiled/executable form
-%
+% conv_expr(+Expr, -LinExpr, +RunCompile)
 conv_expr(Expr, Val, Mode) -->
     conv_expr(Expr, Val, Mode, 1).
 
@@ -388,6 +390,22 @@ conv_expr(A * B, Val, Mode, K) -->
 conv_expr(A / B, K*X, Mode, K) -->
     !,
     conv_sub_pred(X * B #= A, Mode).
+conv_expr(abs(A), K*B, Mode, K) -->
+    !,
+    conv_sub_expr(A, AC, Mode),
+    [fd_arith:fd_abs(AC, B)].
+conv_expr(min(A,B), K*C, Mode, K) -->
+    !,
+    conv_sub_expr(A, AC, Mode),
+    conv_sub_expr(B, BC, Mode),
+    conv_sub_expr(C, CC, Mode),
+    [fd_arith:fd_min(AC, BC, CC, _Susp)].
+conv_expr(max(A,B), K*C, Mode, K) -->
+    !,
+    conv_sub_expr(A, AC, Mode),
+    conv_sub_expr(B, BC, Mode),
+    conv_sub_expr(C, CC, Mode),
+    [fd_arith:fd_max(AC, BC, CC, _Susp)].
 conv_expr(sum(List), Val, Mode, K) -->
     !,
     conv_sum(List, Val, Mode, K).
@@ -403,6 +421,16 @@ conv_expr(N, Val, _, K) -->
 	{ Val is Expr }.
     conv_arith(Expr, Val, compile) -->
 	peval(Val, Expr).
+
+conv_sub_expr(Var, Var, Mode) -->
+    {var(Var)}, !,
+    ( {Mode == run} ->
+	{check_dom(Var)}
+    ;
+	[fd_arith:check_dom(Var)]
+    ).
+conv_sub_expr(Expr, Result, Mode) -->
+    conv_pred(Result #= Expr, Mode).
 
 conv_mult(A, B, K*Val, Mode, K) -->
     {var(A),
@@ -726,6 +754,9 @@ tr_fd_arith_out_(eq_ent(X, Y, B), #=(X, Y, B)) :-
 tr_fd_arith_out_(eq(List, B), #=(Expr, 0, B)) :-
     !,
     list_to_expr(List, Expr).
+tr_fd_arith_out_(fd_abs(A, B, _Susp), B#=abs(A)) :- !.
+tr_fd_arith_out_(fd_min(A, B, C, _Susp), C#=min(A,B)) :- !.
+tr_fd_arith_out_(fd_max(A, B, C, _Susp), C#=max(A,B)) :- !.
 
 :- mode tr_fd_arith_out_dummy(+, -).
 tr_fd_arith_out_dummy(fd_eq(_List), ... #= 0).
@@ -745,6 +776,9 @@ tr_fd_arith_out_dummy(qeq(_X, _Y, _Z), ... * ... #= ...).
 tr_fd_arith_out_dummy(qeqsquare(_X, _Y,_Susp), ... ^2 #= ...).
 tr_fd_arith_out_dummy(eq_ent(_X, _Y, _B), #=(..., ..., ...)).
 tr_fd_arith_out_dummy(eq(_List, _B), #=(..., 0, ...)).
+tr_fd_arith_out_dummy(fd_abs(_A,_B,_), ... #= abs(...)).
+tr_fd_arith_out_dummy(fd_min(_A,_B,_C,_), ... #= min(...,...)).
+tr_fd_arith_out_dummy(fd_max(_A,_B,_C,_), ... #= max(...,...)).
 
 list_to_expr([F], Expr) :-
     !,
@@ -1848,25 +1882,20 @@ default_domain(V) :-
     V :: -10000000..10000000.
 
 
-% We must skip them explicitly because call/1 is not properly traced (?)
-/*
-:- skipped
-    #=  /2,
-    #\= /2,
-    ##  /2,
-    #=  /3,
-    #/\ /3,
-    #>= /2,
-    #>= /3.
-    */
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%	abs(X)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+:- export fd_abs/2.
 fd_abs(X,A) :-
 	A #>= 0,
-	suspend(abs(X,A,Susp),3,[X->any,A->min,A->max],Susp),
-	abs(X,A,Susp).
+	suspend(fd_abs(X,A,Susp),3,[X->any,A->min,A->max],Susp),
+	fd_abs(X,A,Susp).
 
-:- demon abs/3.
-abs(X,A,Susp):-
+:- demon fd_abs/3.
+fd_abs(X,A,Susp):-
 	fd_util:dvar_range(A,AMin,AMax),
 	MAMax is -AMax,
 	MAMin is -AMin,
@@ -1888,9 +1917,11 @@ abs(X,A,Susp):-
 	    	true
 	    ;
 	    	kill_suspension(Susp)
-	    )
+	    ),
+	    wake
 	).
 		
+% Find the smallest absolute value in the domain of X
 dom_min_abs(dom(List,_), MinAbs) :-
         dom_min_abs(List, -10000000, MaxNeg, MinPos),
         MinAbs is min(-MaxNeg, MinPos).
@@ -1912,6 +1943,86 @@ dom_min_abs(dom(List,_), MinAbs) :-
         ).
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%	min(X,Y) and max(X,Y)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+:- export fd_min/4.
+:- demon(fd_min/4).
+fd_min(A, B, M, Susp):-
+	call_priority((
+	    fd_util:dvar_range(A, MinA, MaxA),
+	    fd_util:dvar_range(B, MinB, MaxB),
+	    fd_util:dvar_range(M, MinM, MaxM),
+	    Max is min(MaxA, MaxB),
+	    Min is min(MinA, MinB),
+	    dvar_remove_smaller(M, Min),	% M :: Min..Max
+	    dvar_remove_greater(M, Max),
+
+	    dvar_remove_smaller(A, MinM),	% A #>= MinM
+	    dvar_remove_smaller(B, MinM),	% B #>= MinM
+
+	    ( MaxA =< MinB ->
+		kill_suspension(Susp),
+		A = M
+	    ; MaxB =< MinA ->
+		kill_suspension(Susp),
+		B = M
+	    ; MaxM < MinB ->
+		kill_suspension(Susp),
+		A = M
+	    ; MaxM < MinA ->
+		kill_suspension(Susp),
+		B = M
+	    ; Vars=v(A,B,M), nonground(2,Vars,_) ->
+		( nonvar(Susp) ->
+		    true	% re-suspend
+		;
+		    suspend(fd_min(A, B, M, Susp), 3, [Vars->min,Vars->max], Susp)
+		)
+	    ;
+		kill_suspension(Susp)
+	    )
+	), 2).
 
 
+:- export fd_max/4.
+:- demon(fd_max/4).
+fd_max(A, B, M, Susp):-
+	call_priority((
+	    fd_util:dvar_range(A, MinA, MaxA),
+	    fd_util:dvar_range(B, MinB, MaxB),
+	    fd_util:dvar_range(M, MinM, MaxM),
+	    Max is max(MaxA, MaxB),
+	    Min is max(MinA, MinB),
+	    dvar_remove_smaller(M, Min),	% M :: Min..Max
+	    dvar_remove_greater(M, Max),
+
+	    dvar_remove_greater(A, MaxM),	% A #=< MaxM
+	    dvar_remove_greater(B, MaxM),	% B #=< MaxM
+
+	    ( MinA >= MaxB ->
+		kill_suspension(Susp),
+		A = M
+	    ; MinB >= MaxA ->
+		kill_suspension(Susp),
+		B = M
+	    ; MinM > MaxB ->
+		kill_suspension(Susp),
+		A = M
+	    ; MinM > MaxA ->
+		kill_suspension(Susp),
+		B = M
+	    ; Vars=v(A,B,M), nonground(2,Vars,_) ->
+		( nonvar(Susp) ->
+		    true	% re-suspend
+		;
+		    suspend(fd_max(A, B, M, Susp), 3, [Vars->min,Vars->max], Susp)
+		)
+	    ;
+		kill_suspension(Susp)
+	    )
+	), 2).
 

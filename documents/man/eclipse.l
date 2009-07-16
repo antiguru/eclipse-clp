@@ -1,4 +1,4 @@
-.\"	$Id: eclipse.l,v 1.1 2006/09/23 01:49:35 snovello Exp $
+.\"	$Id: eclipse.l,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 .\" BEGIN LICENSE BLOCK
 .\" Version: CMPL 1.1
 .\"
@@ -143,7 +143,7 @@ ECLiPSe's list of library directories.
 .SH FILES
 .TP 20
 .B $ECLIPSEDIR
-usually /usr/local/eclipse, the ECLiPSe installation directory
+the ECLiPSe installation directory
 .TP
 .B $ECLIPSEDIR/bin/`arch`/eclipse
 an executable eclipse (console interface)
@@ -207,7 +207,7 @@ using appropriate defaults.
 .SH BUGS
 Bugs should be reported via the web site or by email
 .IP
-http://www.icparc.ic.ac.uk/eclipse/bugs.html
-mailto:eclipse-bugs@icparc.ic.ac.uk
+http://www.eclipse-clp.org/bugs.html
+mailto:eclipse-clp-bugs@lists.sourceforge.net
 .br
 .LP

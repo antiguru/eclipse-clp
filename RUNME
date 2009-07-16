@@ -179,13 +179,13 @@ TCL_LIBRARY="$TCL_DIR/lib/tcl$TCL_VERSION"
 TK_LIBRARY="$TCL_DIR/lib/tk$TCL_VERSION"
 DAVINCIHOME="${DAVINCIHOME:-\$ECLIPSEDIR/daVinci/$ARCH}"
 USER_OBJECTS=""
-TCL_FRAMEWORK="/System/Library/Frameworks"
+TCL_FRAMEWORK="$TCL_ARCH_DIR/Library/Frameworks"
 case $ARCH in
     *_macosx)
 # name of environment variable for specifying library paths
 	LD_LIB_PATH_NAME=DYLD_LIBRARY_PATH
 	FRAMEWORK_PATH_NAME=DYLD_FRAMEWORK_PATH
-	XWISH_DIRECTORY="\$WISH_DIRECTORY"
+	XWISH_DIRECTORY="$WISH_DIRECTORY"
 	XWISH_EXEC="xwish$TCL_VERSION"
 	;;
     *)
@@ -252,15 +252,23 @@ echo "environment, just hit return."
 echo "If you want to use your existing Tcl/Tk installation (e.g. on Linux)"
 echo "please specify the corresponding information here:"
 
+case $ARCH in
+    *_macosx)
+ask "What is the version number of your Tcl/Tk installation (8.X) \n[Note that 8.5 prior to 8.5.7 was broken for ECLiPSe]"  TCL_VERSION "8.3 8.4 8.5" 
+      ;;
+    *)
 ask "What is the version number of your Tcl/Tk installation (8.X)" TCL_VERSION "8.3 8.4 8.5"
+      ;;
+esac
 ask "In which directory is the wish$TCL_VERSION executable" WISH_DIRECTORY
 
 case $ARCH in
     *_macosx)
 	echo "On MacOSX, the native Aqua Tcl/Tk is packaged using Frameworks."
 	ask "In which directory is the Tcl Framework (where Tcl.framework is)" TCL_FRAMEWORK
-	echo "If you have an X11 version of Tcl/Tk $TCL_VERSION, you can also"
-	echo "setup xtkeclipse (and xtktools) to run the X version of TkECLiPSe."
+	echo "MacOSX can also run Tk in the X11 windowing system.  If you want"
+        echo "to use the X11 version of Tcl/Tk $TCL_VERSION, you can also"
+	echo "setup xtkeclipse (and xtktools) to run the X11 version of TkECLiPSe."
 	ask "In which directory is the wish$TCL_VERSION executable for X11 (none if you don't have it)" XWISH_DIRECTORY
 
 	if test $XWISH_DIRECTORY != "none"; then
@@ -475,7 +483,7 @@ EOF
 case $ARCH in 
     *_macosx)
 	cat >> "$dest" <<EOF
-DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMWORK_PATH"
+DYLD_FRAMEWORK_PATH="$TCL_FRAMEWORK:\$DYLD_FRAMWORK_PATH"
 EOF
 	;;
 esac
@@ -500,7 +508,7 @@ EOF
 case $ARCH in 
     *_macosx)
 	cat >> "$dest" <<EOF
-DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMWORK_PATH"
+$FRAMEWORK_PATH_NAME="$TCL_FRAMEWORK:\$$FRAMEWORK_PATH_NAME"
 EOF
 	;;
 esac
@@ -595,9 +603,7 @@ EOF
 	;;
     *)
 	cat >> "$dest" <<EOF
-# No longer necessary to set the LD_LIBRARY_PATH as this is hacked around
-# in java.
-# LD_LIBRARY_PATH="\$ECLIPSEDIR/lib/$ARCH:\$LD_LIBRARY_PATH"
+LD_LIBRARY_PATH="\$ECLIPSEDIR/lib/$ARCH:\$LD_LIBRARY_PATH"
 EOF
 	;;
 esac

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe SAMPLE CODE
  *
- * $Id: eg_cc_test.cc,v 1.1 2008/06/30 17:43:54 jschimpf Exp $
+ * $Id: eg_cc_test.cc,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf
  *
@@ -119,6 +119,10 @@ main(int argc, char **argv)
     	goto _problem_;
 
   {
+    /*
+     * All EC_refs must be in a scope that is entered after ec_init()
+     * and exited before ec_cleanup()!
+     */
     EC_ref	X;
     EC_refs	YZ(2);
 
@@ -247,10 +251,10 @@ main(int argc, char **argv)
     if (EC_handle_events_flush() != EC_succeed)
     	goto _problem_;
 
+  }
 
     ec_cleanup();
     return 0;
-  }
 
 _problem_:
     std::cout << "PROBLEM!!!\n";

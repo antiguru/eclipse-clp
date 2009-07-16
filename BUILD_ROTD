@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.10 2009/02/21 05:03:20 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.11 2009/07/16 09:11:23 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -1288,11 +1288,12 @@ run_test_i386_nt() {
 
 	    # Use javaw rather than java in order to avoid silly \"DOS boxes\"
 	    # popping up on the screen while the tests are running.
+            # -Xss flag is used to increase the default stack size
 	    \"$remote_prefix/$test_dir/test_eclipse\" \
 		--test-dir \"$remote_prefix/$test_dir\" \
 		$test_flags \
 		\"\$JRE_DIR_WIN/bin/javaw\" \
-		    \"-Declipse.directory=$remote_prefix/$install_dir\" \
+		    \"-Xss3000k -Declipse.directory=$remote_prefix/$install_dir\" \
 		    -classpath \"$remote_prefix/$install_dir/lib/eclipse.jar;\$JRE_DIR_WIN/rt.jar\" \
 		    com.parctechnologies.eclipse.JEclipse
 	else

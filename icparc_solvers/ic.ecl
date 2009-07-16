@@ -159,6 +159,7 @@ from ic_kernel.
 % defined in `ic_constraints' or `ic_search' or whereever.
 %
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Hybrid integer/real interval arithmetic constraint solver").
 :- comment(author, "Warwick Harvey, Andrew Sadler, Andrew Cheadle").
 
@@ -367,9 +368,8 @@ from ic_kernel.
 %
 
 :- comment(reals/1, [
-    amode: reals(-),
-    amode: reals(?),
-    amode: reals(+),
+    amode: (reals(-) is det),
+    amode: (reals(+) is det),
 %    template: "reals(?Vars)",
     args: [
 	"Vars": "Variable or number, or a list or submatrix of variables/numbers"
@@ -383,8 +383,8 @@ from ic_kernel.
 
    Note that the notion of real numbers is used here in the pure
    mathematical sense, where real numbers subsume the integers.  A variable
-   of type real can therefore be instantated to either a floating point or
-   an integer number (or a bounded real).  If the variables are already
+   of type real can therefore be instantated to either a real number (floating
+   point or bounded real) or an integer number.  If the variables are already
    instantiated, this call checks that the variable is instantiated to a
    number.</P>
 ")
@@ -393,9 +393,8 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(integers/1, [
-    amode: integers(-),
-    amode: integers(?),
-    amode: integers(+),
+    amode: (integers(-) is det),
+    amode: (integers(+) is semidet),
 %    template: "integers(?Vars)",
     args: [
 	"Vars": "Variable or integer, or a list or submatrix of variables/integers"
@@ -412,7 +411,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(is_solver_var/1, [
-    amode: is_solver_var(?),
+    amode: (is_solver_var(?) is semidet),
     args: [
 	"Term": "A Term"
     ],
@@ -427,7 +426,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(is_exact_solver_var/1, [
-    amode: is_exact_solver_var(?),
+    amode: (is_exact_solver_var(?) is semidet),
     args: [
 	"Term": "A Term"
     ],
@@ -442,7 +441,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(is_solver_type/1, [
-    amode: is_solver_type(?),
+    amode: (is_solver_type(?) is semidet),
     args: [
 	"Term": "A Term"
     ],
@@ -457,9 +456,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(get_solver_type/2, [
-    amode: get_solver_type(-, -),
-    amode: get_solver_type(?, -),
-    amode: get_solver_type(++, -),
+    amode: (get_solver_type(?, -) is semidet),
     args: [
 	"Var":  "A variable or a number",
 	"Type": "Type of Var (real or integer)"
@@ -478,9 +475,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(get_bounds/3, [
-    amode: get_bounds(-, -, -),
-    amode: get_bounds(?, -, -),
-    amode: get_bounds(++, -, -),
+    amode: (get_bounds(?, -, -) is det),
     args: [
 	"Var": "A variable or a number",
 	"Lo":  "Lower bound",
@@ -507,9 +502,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(get_min/2, [
-    amode: get_min(-, -),
-    amode: get_min(?, -),
-    amode: get_min(++, -),
+    amode: (get_min(?, -) is det),
     args: [
 	"Var": "A variable or a number",
 	"Lo":  "Lower bound"
@@ -533,9 +526,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(get_max/2, [
-    amode: get_max(-, -),
-    amode: get_max(?, -),
-    amode: get_max(++, -),
+    amode: (get_max(?, -) is det),
     args: [
 	"Var": "A variable or a number",
 	"Hi":  "Upper bound"
@@ -559,9 +550,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(get_float_bounds/3, [
-    amode: get_float_bounds(-, -, -),
-    amode: get_float_bounds(?, -, -),
-    amode: get_float_bounds(++, -, -),
+    amode: (get_float_bounds(?, -, -) is det),
     args: [
 	"Var": "A variable or a number",
 	"Lo":  "Lower bound",
@@ -586,9 +575,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(get_integer_bounds/3, [
-    amode: get_integer_bounds(-, -, -),
-    amode: get_integer_bounds(?, -, -),
-    amode: get_integer_bounds(++, -, -),
+    amode: (get_integer_bounds(?, -, -) is det),
     args: [
 	"Var": "A variable or a number",
 	"Lo":  "Lower bound",
@@ -613,9 +600,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(get_finite_integer_bounds/3, [
-    amode: get_finite_integer_bounds(-, -, -),
-    amode: get_finite_integer_bounds(?, -, -),
-    amode: get_finite_integer_bounds(++, -, -),
+    amode: (get_finite_integer_bounds(?, -, -) is det),
     args: [
 	"Var": "A variable or a number",
 	"Lo":  "Lower bound",
@@ -642,10 +627,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(get_domain_size/2, [
-    amode: get_domain_size(?, -),
-    amode: get_domain_size(?, ++),
-    amode: get_domain_size(++, -),
-    amode: get_domain_size(++, ++),
+    amode: (get_domain_size(?, -) is det),
     args: [
 	"Var":   "An IC variable or a number",
         "Size":  "A variable (or integer)"
@@ -669,8 +651,7 @@ from ic_kernel.
 
 %---------------------------------------------------------------------
 :- comment(get_domain/2, [
-    amode: get_domain(?, -),
-    amode: get_domain(?, ++),
+    amode: (get_domain(?, -) is det),
     args: [
 	"Var":    "An IC variable or a number.",
         "Domain": "A ground representation of the domain of Var."
@@ -703,8 +684,7 @@ from ic_kernel.
 
 %---------------------------------------------------------------------
 :- comment(get_domain_as_list/2, [
-    amode: get_domain_as_list(?, -),
-    amode: get_domain_as_list(?, ++),
+    amode: (get_domain_as_list(?, -) is det),
     args: [
 	"Var":   "An IC variable or a number",
         "DomainList":  "The domain of Var as a list of elements."
@@ -729,9 +709,7 @@ from ic_kernel.
 %---------------------------------------------------------------------
 
 :- comment(get_median/2, [
-    amode: get_median(-, -),
-    amode: get_median(?, -),
-    amode: get_median(++, -),
+    amode: (get_median(?, -) is det),
     args: [
 	"Var":    "A variable or a number",
 	"Median": "The median of the interval (float)"
@@ -770,9 +748,7 @@ Yes (0.00s cpu)
 %---------------------------------------------------------------------
 
 :- comment(get_delta/2, [
-    amode: get_delta(-, -),
-    amode: get_delta(?, -),
-    amode: get_delta(++, -),
+    amode: (get_delta(?, -) is det),
     args: [
 	"Var":   "A variable or a number",
 	"Width": "Width of the interval"
@@ -790,7 +766,7 @@ Yes (0.00s cpu)
 %---------------------------------------------------------------------
 
 :- comment(is_in_domain/2, [
-    amode: is_in_domain(++,?),
+    amode: (is_in_domain(++,?) is semidet),
     args: [
         "Val": "A number",
         "Var": "An IC variable or a number"
@@ -811,7 +787,7 @@ Yes (0.00s cpu)
 %---------------------------------------------------------------------
 
 :- comment(is_in_domain/3, [
-    amode: is_in_domain(++,?,?),
+    amode: (is_in_domain(++,?,-) is det),
     args: [
         "Val": "A number",
     	"Var": "An IC variable or a number",
@@ -836,7 +812,7 @@ Yes (0.00s cpu)
 %---------------------------------------------------------------------
 
 :- comment(get_threshold/1, [
-    amode: get_threshold(-),
+    amode: (get_threshold(-) is det),
     args: [
 	"Threshold": "Current threshold"
     ],
@@ -859,7 +835,7 @@ Yes (0.00s cpu)
 %---------------------------------------------------------------------
 
 :- comment(set_threshold/1, [
-    amode: set_threshold(++),
+    amode: (set_threshold(++) is det),
     args: [
 	"Threshold": "New threshold (float)"
     ],
@@ -889,7 +865,7 @@ Yes (0.00s cpu)
 %---------------------------------------------------------------------
 
 :- comment(set_threshold/2, [
-    amode: set_threshold(++, +),
+    amode: (set_threshold(++, +) is semidet),
     args: [
 	"Threshold": "New threshold (float)",
 	"WakeVars":  "Collection (a la collection_to_list/2) of IC variables to \"wake\""
@@ -920,7 +896,7 @@ Yes (0.00s cpu)
 
 
 :- comment(print_solver_var/2, [
-    amode: print_solver_var(?, -),
+    amode: (print_solver_var(?, -) is det),
     args: [
 	"Var":     "An IC variable (or IC attribute)",
 	"Printed": "A printable representation of Var"
@@ -938,7 +914,7 @@ Yes (0.00s cpu)
 %---------------------------------------------------------------------
 
 :- comment(delayed_goals_number/2, [
-amode:     delayed_goals_number(?,-),
+amode:     (delayed_goals_number(?,-) is det),
 args:      ["Var":    "Variable or term",
             "Number": "Number of goals delayed on the ic attribute of Var."],
 summary:   "Returns the number of goals delayed on the ic attribute of Var.",
@@ -962,7 +938,7 @@ see_also:[_:delayed_goals_number/2]
 %---------------------------------------------------------------------
 
 :- comment(unify_ic/2, [
-amode:     unify_ic(+,?),
+amode:     (unify_ic(+,?) is semidet),
 args:      ["Term": "",
             "Attribute":""
            ],
@@ -984,7 +960,7 @@ desc:      html("\
 %---------------------------------------------------------------------
 
 :- comment(test_unify_ic/2, [
-amode:     test_unify_ic(+,?),
+amode:     (test_unify_ic(+,?) is semidet),
 args:      ["Term": "",
             "Attribute":""
            ],
@@ -1006,8 +982,7 @@ desc:      html("\
 %---------------------------------------------------------------------
 
 :- comment(compare_ic_instances/3, [
-amode:		compare_ic_instances(-,?,+),
-amode:          compare_ic_instances(-,+,?),
+amode:		(compare_ic_instances(-,?,?) is det),
 args:           ["Res":   "Result (set to '<','>', or '=')",
                  "TermL": "Term (one must be attributed variable)",
                  "TermR": "Term (one must be attributed variable)"
@@ -1028,7 +1003,7 @@ desc:           html("\
 %---------------------------------------------------------------------
 
 :- comment(copy_ic_term/2, [
-amode:     copy_ic_term(?,?),
+amode:     (copy_ic_term(?,-) is det),
 args:      ["Meta": "",
             "Copy":""
            ],
@@ -1048,7 +1023,7 @@ desc:      html("\
 %---------------------------------------------------------------------
 
 :- comment(ic_suspensions/3, [
-amode:     ic_suspensions(?,?,-),
+amode:     (ic_suspensions(?,-,-) is det),
 args:      ["Meta":     "Attributed variable",
             "SuspLists": "List of suspension lists",
             "SuspListsTail": "Tail of SuspLists"

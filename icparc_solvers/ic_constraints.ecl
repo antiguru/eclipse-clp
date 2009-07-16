@@ -1077,13 +1077,13 @@ elim_non_lin_terms(TermIn, TermOut, NonLinTermsIn, NonLinTermsOut,
 	    ( var(Arg0) ->
 		TermIn = TermOut,
 		NonLinTermsIn = NonLinTermsOut,
-		SubsVarsIn = SubstVarsOut
+		SubstVarsIn = SubstVarsOut
 	    ;
 		% Otherwise, drop the 'eval' and attempt subterm 
 		% elimination.
 		Changed = true,
 		elim_non_lin_terms(Arg0, TermOut, NonLinTermsIn,
-			NonLinTermsOut, SubsVarsIn, SubstVarsOut, Changed)
+			NonLinTermsOut, SubstVarsIn, SubstVarsOut, Changed)
 	    )
 	;
 	    % Leave the term in the result and process only its 
@@ -3217,9 +3217,6 @@ do_update(X, L, H, 4) :-
 
 % Don't load lib(hash) unless element/3 is actually called...
 %:- lib(hash).
-% Can't do deferred-loading trick with ordset due to ordset's use of mode
-% declarations...
-:- lib(ordset).
 
 :- local struct(element_data(index_list, value_list)).
 
@@ -3234,32 +3231,31 @@ element(Index, ListOrVector, Value):-
 	Vector =.. [[] | List],
 	arity(Vector, Length),
 	Index :: 1..Length,
-	sort(List, ValueList0),
-	Value :: ValueList0,
+	sort(List, ValueList),
+	Value :: ValueList,
+	% Make a hash table that stores the supports Val->SupportingIndexes
 	hash:hash_create(Hash),
 	% We do everything in reverse here so that the list entries in the
 	% hash table end up being sorted in ascending order.
 	(
 	    for(I, Length, 1, -1),  % Count down so the hash entries are sorted
-	    fromto([], Tail, [I | Tail], IndexList0),
 	    param(Hash,Vector)
 	do
 	    arg(I, Vector, Val),
-	    ( hash:hash_find(Hash, Val, L) ->
-		hash:hash_add(Hash, Val, [I | L])
+	    ( hash:hash_update(Hash, Val, L, L1) ->
+		L1 = [I|L]
 	    ;
 		hash:hash_add(Hash, Val, [I])
 	    )
 	),
+	% Store the initial index and value domains
+	length(ValueList, NValues),
 	ElementData = element_data{
-		    index_list:IndexList0,
-		    value_list:ValueList0
+		    index_list:dom([1..Length],Length),
+		    value_list:dom(ValueList,NValues)
 		},
-	Vars = [Index|Value],
-	suspend(element(Index, Vector, Hash, Value, ElementData, Susp), 3,
-		[Vars->min, Vars->max, Vars->hole], Susp),
-	schedule_suspensions(1, s([Susp])),
-	wake.
+	% Call propagator in case Index or Value had a previous domain
+	element(Index, Vector, Hash, Value, ElementData, _Susp).
 element(Index, List, Value):-
 	error(4, element(Index, List, Value)).
 
@@ -3267,67 +3263,116 @@ element(Index, List, Value):-
 :- demon(element/6).
 element(Index, Vector, Hash, Value, ElementData, Susp) :-
 	( integer(Index) ->
-	    arg(Index, Vector, Value),
-	    kill_suspension(Susp)
+	    kill_suspension(Susp),
+	    arg(Index, Vector, Value)
+
 	; nonvar(Value) ->
+	    kill_suspension(Susp),
 	    hash:hash_find(Hash, Value, Possible),
-	    Index :: Possible,
-	    kill_suspension(Susp)
+	    Index :: Possible
+
 	;
-	    call_priority(
-		element1(Index, Vector, Hash, Value, ElementData, Susp),
-		2)
+	    ElementData = element_data{
+			index_list:IndexDom0,
+			value_list:ValueDom0
+		    },
+
+	    % Propagate from Index to Value.
+	    get_canonical_domain(Index, IndexDom1),
+	    ( sepia_kernel:dom_difference(IndexDom0, IndexDom1, IndexDiffDom, _) ->
+		IndexDiffDom = dom(IndexDiff,_),
+		(
+		    fromto(IndexDiff,[IR|IRs0],IRs,[]),
+		    param(Hash, Vector, Value)
+		do
+		    ( IR = I..IH ->
+			I1 is I+1,
+			( I1 < IH -> IRs = [I1..IH|IRs0] ; IRs = [IH|IRs0] )
+		    ;
+			I = IR, IRs = IRs0
+		    ),
+		    % Value I was removed from the domain of Index
+		    % Update the support table
+		    arg(I, Vector, Val),
+		    hash:hash_update(Hash, Val, Indices, RestIndices),
+		    once delete(I, Indices, RestIndices),
+		    ( RestIndices == [] ->
+			% Val lost all supports, we can prune Value's domain
+			exclude(Value, Val)
+		    ;
+			true
+		    )
+		)
+	    ;
+		true
+	    ),
+
+	    % Propagate from Value to Index.
+	    get_canonical_domain(Value, ValueDom2),
+	    ( sepia_kernel:dom_difference(ValueDom0, ValueDom2, ValueDiffDom, _) ->
+		ValueDiffDom = dom(ValueDiff,_),
+		(
+		    fromto(ValueDiff,[VR|VRs0],VRs,[]),
+		    param(Hash, Index, IndexReduced)
+		do
+		    ( VR = Val..VH ->
+			V1 is Val+1,
+			( V1 < VH -> VRs = [V1..VH|VRs0] ; VRs = [VH|VRs0] )
+		    ;
+			Val = VR, VRs = VRs0
+		    ),
+		    % Val was removed from Value's domain
+		    hash:hash_find(Hash, Val, NotEq),
+		    ( NotEq == [] ->
+			% Val was just deleted by the forward pass above!
+			true
+		    ;
+		        % we can prune all the corresponding Index values
+			IndexReduced = true,
+			(
+			    foreach(N, NotEq),
+			    param(Index)
+			do
+			    exclude(Index, N)
+			)
+		    )
+		)
+	    ;
+		true
+	    ),
+
+	    % kill or re-suspend
+	    ( nonvar(Index) ->
+		kill_suspension(Susp)
+	    ; nonvar(Value) ->
+		kill_suspension(Susp)
+	    ;
+		( var(Susp) ->
+		    Vars = [Index|Value],
+		    suspend(element(Index, Vector, Hash, Value, ElementData, Susp),
+			    3, [Vars->min, Vars->max, Vars->hole], Susp)
+		;
+		    unschedule_suspension(Susp)	% undo any self-waking
+		),
+		% remember the new current domains
+		( var(IndexReduced) ->
+		    IndexDom2 = IndexDom1
+		;
+		    get_canonical_domain(Index, IndexDom2)
+		),
+		setarg(index_list of element_data, ElementData, IndexDom2),
+		setarg(value_list of element_data, ElementData, ValueDom2)
+	    ),
+	    wake
 	).
 
-element1(Index, Vector, Hash, Value, ElementData, Susp) :-
-	ElementData = element_data{
-		    index_list:IndexList0,
-		    value_list:ValueList0
-		},
-	% Propagate from Index to Value.
-	get_domain_as_list(Index, IndexList1),
-	ord_subtract(IndexList0, IndexList1, IndexDiff),
-	(
-	    foreach(I, IndexDiff),
-	    fromto(ValueList0, ValueListIn, ValueListOut, ValueList1),
-	    param(Hash, Vector, Value)
-	do
-	    arg(I, Vector, Val),
-	    hash:hash_find(Hash, Val, Indices),
-	    once(delete(I, Indices, RestIndices)),
-	    ( RestIndices == [] ->
-		exclude(Value, Val),
-		once(delete(Val, ValueListIn, ValueListOut))
-	    ;
-		hash:hash_add(Hash, Val, RestIndices),
-		ValueListIn = ValueListOut
-	    )
-	),
-	% Propagate from Value to Index.
-	get_domain_as_list(Value, ValueList2),
-	ord_subtract(ValueList1, ValueList2, ValueDiff),
-	(
-	    foreach(Val, ValueDiff),
-	    fromto(IndexList1, IndexListIn, IndexListOut, IndexList2),
-	    param(Hash, Index)
-	do
-	    hash:hash_find(Hash, Val, NotEq),
-	    (
-		foreach(N, NotEq),
-		param(Index)
-	    do
-		exclude(Index, N)
-	    ),
-	    ord_subtract(IndexListIn, NotEq, IndexListOut)
-	),
-	% redelay or die
-	( var(Index), var(Value) ->
-	    setarg(index_list of element_data, ElementData, IndexList2),
-	    setarg(value_list of element_data, ElementData, ValueList2),
-	    unschedule_suspension(Susp)
-	;
-	    kill_suspension(Susp)
-	).
+
+% return a lib(fd)-compatible domain representation
+% for use with dom_difference/4
+get_canonical_domain(Value, dom(Dom,Size)) :-
+    	get_domain(Value, Dom0),
+    	get_domain_size(Value, Size),
+	( Dom0 = [_|_] -> Dom = Dom0 ; Dom = [Dom0] ).
 
 
 %---------------------------------------------------------------------

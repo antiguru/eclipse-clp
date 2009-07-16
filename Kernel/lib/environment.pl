@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.7 2009/03/09 01:14:22 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.8 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -76,6 +76,8 @@ get_flag_body(Name, Value, M) :-
 
 
 do_get_flag(all_dynamic, off, _).
+do_get_flag(bounded, Bounded, _) :-
+        (bignum(0, _) -> Bounded = false ; Bounded = true).
 do_get_flag(break_level, X, _) :- getval(break_level, X).
 do_get_flag(coroutine,X, _) :-
 	global_flags(0,0,F),
@@ -137,9 +139,15 @@ do_get_flag(tmp_dir, TmpDir, _) :-
 do_get_flag(macro_expansion,X, _) :-
 	global_flags(0,0,F),
 	(F /\ 16'00000400 =:= 0 -> X=off ; X=on).
+do_get_flag(max_integer,N, _) :-
+        \+ bignum(0, _), % fails if no bignums
+        maxint(N).
 do_get_flag(max_global_trail,X, _) :- gc_stat(15,X).
 do_get_flag(max_local_control,X, _) :- gc_stat(23,X).
 do_get_flag(max_predicate_arity,255, _).	% keep consistent with MAX_ARITY !
+do_get_flag(min_integer,N, _) :-
+        \+ bignum(0, _), % fails if no bignums
+        minint(N).
 do_get_flag(object_suffix,X, _) :-	get_sys_flag(9, X).
 do_get_flag(occur_check,X, _) :-
 	get_flag(extension, occur_check),

@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: lex.h,v 1.1 2008/06/30 17:43:56 jschimpf Exp $
+ * VERSION	$Id: lex.h,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 #define 	RE	NBCH	/* end of buffer */
 
 #define Symbol(c)		((c) > SCH)
-#define Alphanum(c)		((c) < ACH)
+#define Alphanum(c)		((c) > 0 && (c) < ACH)
 
 /* recognize an octal digit */
 #define		octal(C)	(((C) >= '0') && ((C) <= '7'))

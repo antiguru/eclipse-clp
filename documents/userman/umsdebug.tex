@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: umsdebug.tex,v 1.6 2008/08/13 01:53:16 kish_shen Exp $
+% $Id: umsdebug.tex,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
 %
 
 \chapter{Debugging}
@@ -369,7 +369,7 @@ predicate is traced by the debugger:
         The value of this property can be changed with
         \bipref{traceable/1}{../bips/kernel/debug/traceable-1.html},
         \bipref{untraceable/1}{../bips/kernel/debug/untraceable-1.html} or
-        \bipref{set_flag/3}{../bips/kernel/database/set_flag-3.html}.
+        \bipref{set_flag/3}{../bips/kernel/compiler/set_flag-3.html}.
 
 \item[spy]\ \\
         If {\bf on}, the predicate has a spy-point and the debugger will
@@ -377,7 +377,7 @@ predicate is traced by the debugger:
         The value of this property can be changed with
         \bipref{spy/1}{../bips/kernel/debug/spy-1.html},
         \bipref{nospy/1}{../bips/kernel/debug/nospy-1.html} or
-        \bipref{set_flag/3}{../bips/kernel/database/set_flag-3.html}.
+        \bipref{set_flag/3}{../bips/kernel/compiler/set_flag-3.html}.
         
 \item[skipped]\ \\
         If {\bf on}, the predicate's subgoal will not be traced even
@@ -385,7 +385,7 @@ predicate is traced by the debugger:
         The value of this property can be changed with
         \bipref{skipped/1}{../bips/kernel/debug/skipped-1.html},
         \bipref{unskipped/1}{../bips/kernel/debug/unskipped-1.html} or
-        \bipref{set_flag/3}{../bips/kernel/database/set_flag-3.html}.
+        \bipref{set_flag/3}{../bips/kernel/compiler/set_flag-3.html}.
 
 \item[start_tracing]\ \\
         If {\bf on}, a call to the predicate will activate the debugger if it
@@ -422,7 +422,7 @@ predicate is traced by the debugger:
 %\end{verbatim}\end{quote}
 %will suppress printing of all NEXT ports.
 %To change the leash mode for a certain procedure,
-%the predicate \bipref{set_flag/3}{../bips/kernel/database/set_flag-3.html} or the debugger command {\bf t}
+%the predicate \bipref{set_flag/3}{../bips/kernel/compiler/set_flag-3.html} or the debugger command {\bf t}
 %\index{t --- procedure trace mode (debugger cmd)}
 %are used. For instance
 %\begin{quote}\begin{verbatim}
@@ -476,7 +476,7 @@ A spy point can be set on a procedure, or a breakpoint on a specific call,  usin
 and removed
 with \bipref{nospy/1}{../bips/kernel/debug/nospy-1.html}.  They
 both accept a {\it SpecList} as argument.  Note that
-\bipref{set_flag/3}{../bips/kernel/database/set_flag-3.html} can
+\bipref{set_flag/3}{../bips/kernel/compiler/set_flag-3.html} can
 be used to set and reset spy points without switching the debugger on
 and without printing messages.
 
@@ -573,7 +573,7 @@ to trace the argument goal.
 \end{itemize}
 
 Setting a procedure to skipped (with
-\bipref{set_flag/3}{../bips/kernel/database/set_flag-3.html} or
+\bipref{set_flag/3}{../bips/kernel/compiler/set_flag-3.html} or
 \bipref{skipped/1}{../bips/kernel/debug/skipped-1.html}
 )
 %or using the fast skip command of the debugger ({\bf F}) are also ways
@@ -611,7 +611,7 @@ yes.
 
 It is also possible to enable the debugger in the middle of execution
 without changing the code.  To do so, use
-\bipref{set_flag/3}{../bips/kernel/database/set_flag-3.html}
+\bipref{set_flag/3}{../bips/kernel/compiler/set_flag-3.html}
 \index{start_tracing}
 to set the {\bf start_tracing} flag of the predicate of interest.
 Tracing will then start (in leap mode) at every call of this

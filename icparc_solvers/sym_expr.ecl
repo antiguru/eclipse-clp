@@ -1,7 +1,7 @@
 %
 % Library for expressing the symmetries of a CSP.
 %
-% $Id: sym_expr.ecl,v 1.1 2006/10/13 00:41:27 jschimpf Exp $
+% $Id: sym_expr.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 
 %
@@ -34,6 +34,7 @@
 
 :- module(sym_expr).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Library for expressing the symmetries of a CSP").
 :- comment(desc, html("\
    This library provides a convenient way to express the symmetries of a

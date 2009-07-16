@@ -66,26 +66,26 @@ source-oriented trace of program execution.
 The compiler is usually invoked by calling one of the following built-in
 predicates:
 \begin{description}
-\item[\biptxtref{compile(Source)}{compile/1}{../bips/kernel/database/compile-1.html}]
+\item[\biptxtref{compile(Source)}{compile/1}{../bips/kernel/compiler/compile-1.html}]
 \index{compile/1}
 This is the standard compiler predicate.
 Source is usually a file name, other forms are detailed below.
 The contents of the file is compiled with the default compiler options.
 
-\item[\biptxtref{compile(Source, Options)}{compile/2}{../bips/kernel/database/compile-2.html}]
+\item[\biptxtref{compile(Source, Options)}{compile/2}{../bips/kernel/compiler/compile-2.html}]
 \index{compile/2}
 This is the standard compiler predicate.
 Source is usually a file name, other forms are detailed below.
 Options is a list of options to control the compilation process, see details below.
 
-\item[\biptxtref{[File1,...,FileN]}{'.'/2}{../bips/kernel/database/D-2.html}]
+\item[\biptxtref{[File1,...,FileN]}{'.'/2}{../bips/kernel/compiler/D-2.html}]
 \index{'.'/2}
 This predicate can be used as a shorthand for the
-\bipref{compile/1}{../bips/kernel/database/compile-1.html}
+\bipref{compile/1}{../bips/kernel/compiler/compile-1.html}
 predicate.
 It accepts a list of files, which can be source files or precompiled files.
 
-\item[\biptxtref{compile_stream(Stream)}{compile_stream/1}{../bips/kernel/database/compile_stream-1.html}]
+\item[\biptxtref{compile_stream(Stream)}{compile_stream/1}{../bips/kernel/compiler/compile_stream-1.html}]
 \index{compile_stream/1}
 This predicate compiles a given, open stream up to its end
 or to the {\tt end_of_file} clause.
@@ -93,11 +93,11 @@ It can be used when the input file is already open,
 e.g. when the beginning of the file does not contain
 compiler input.
 
-\item[\biptxtref{compile_stream(Stream,Options)}{compile_stream/2}{../bips/kernel/database/compile_stream-2.html}]
+\item[\biptxtref{compile_stream(Stream,Options)}{compile_stream/2}{../bips/kernel/compiler/compile_stream-2.html}]
 \index{compile_stream/2}
 Like compile_stream/1 but with options list.
 
-\item[\biptxtref{compile_term(Clauses)}{compile_term/1}{../bips/kernel/database/compile_term-1.html}]
+\item[\biptxtref{compile_term(Clauses)}{compile_term/1}{../bips/kernel/compiler/compile_term-1.html}]
 \index{compile_term/1}
 This predicate is used to compile a given term,
 usually a list of clauses and directives.
@@ -106,7 +106,7 @@ a static procedure,
 and so it can be used to compile a procedure which is dynamically
 created and then used as a static one.
 
-\item[\biptxtref{compile_term(Clauses,Options)}{compile_term/2}{../bips/kernel/database/compile_term-2.html}]
+\item[\biptxtref{compile_term(Clauses,Options)}{compile_term/2}{../bips/kernel/compiler/compile_term-2.html}]
 \index{compile_term/2}
 Like compile_stream/2 but with options list.
 \end{description}
@@ -147,7 +147,7 @@ extension and no file with {\bf .ecl} extension is present. The list of
 accepted suffixes and their precedence is given by the global flag
 \index{prolog_suffix}
 {\bf prolog_suffix}, see
-\bipref{get_flag/3}{../bips/kernel/database/get_flag-3.html}.
+\bipref{get_flag/3}{../bips/kernel/compiler/get_flag-3.html}.
 
 The following shorthands can be used, but note that the last two forms
 will load precompiled .eco files by preference, should they be present:
@@ -254,7 +254,7 @@ The following options determine what is being done with the compilation result:
     go into the same directory as the corresponding input file.
 \end{description}
 For other options see
-\bipref{compile/2}{../bips/kernel/database/compile-2.html}.
+\bipref{compile/2}{../bips/kernel/compiler/compile-2.html}.
 
 For example, to compile a program without debugging support directly into
 memory, use
@@ -318,7 +318,7 @@ one predicate should be consecutive in the source.  If this is not the
 case, the compiler issues a warning and ignores the new clauses.
 
 To change this behaviour, a
-\bipref{discontiguous/1}{../bips/kernel/database/discontiguous-1.html}
+\bipref{discontiguous/1}{../bips/kernel/compiler/discontiguous-1.html}
 declaration must be used.  The clauses are then collected and compiled
 as a whole once the end of the source unit (file or module) has been reached.
 
@@ -403,7 +403,7 @@ Declaration of local items, e.g. predicates, syntax settings, operators, etc.
 Declaration of reexported items.
 
 \item[\biptxtref{:- import Specs.}{import/1}{../bips/kernel/modules/import-1.html}]
-Declaration of imported modules or predciates.
+Declaration of imported modules or predicates.
 
 \item[\biptxtref{:- use_module(Mods).}{use_module/1}{../bips/kernel/modules/use_module-1.html}]
 Loading and importing of modules or libraries.
@@ -411,7 +411,7 @@ Loading and importing of modules or libraries.
 \item[\biptxtref{:- lib(Libs).}{lib/1}{../bips/kernel/modules/lib-1.html}]
 Loading and importing of libraries.
 
-\item[\biptxtref{:- meta_attriute(Name,Handlers)}{meta_attribute/2}{../bips/kernel/termmanip/meta_attribute-2.html}]
+\item[\biptxtref{:- meta_attribute(Name,Handlers)}{meta_attribute/2}{../bips/kernel/termmanip/meta_attribute-2.html}]
 Declare a variable attribute.
 
 \item[\biptxtref{:- comment(Type,Info)}{comment/2}{../bips/kernel/directives/comment-2.html}]
@@ -437,6 +437,8 @@ included or excluded depending of the satisfiability of that goal. E.g.
 :- endif.
 \end{verbatim}
 \end{quote}
+Note however, that only complete clauses or directives can be
+conditionally included.
 
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -479,7 +481,7 @@ Their syntax is similar to directives:
 \end{verbatim}
 \end{quote}
 It is not possible to have several pragmas grouped together and separated
-by commas like goals, every pragma must be specified separately.
+by commas, every pragma must be specified separately.
 {\it Option} can be one of the following:
 \begin{description}
 \item[{\bf debug}] - generate code which can be inspected with the
@@ -489,7 +491,7 @@ and any debug-option given to the compiler..
 
 \item[{\bf nodebug}] - generate optimized code with no debugger support.
 This overrides the global setting of the {\tt debug_compile} flag,
-and any debug-option given to the compiler..
+and any debug-option given to the compiler.
 
 \item[{\bf expand}] - do in-line expansion of built-ins 
 like \bipref{is/2}{../bips/kernel/arithmetic/is-2.html} and user-defined
@@ -520,10 +522,10 @@ Moreover, all following predicates will have unspecified
 {\tt source_file} and {\tt source_line} flags.
 
 \item[{\bf warnings}] - enable compiler warnings, overriding any
-warnings-option given to the compiler..
+warnings-option given to the compiler.
 
 \item[{\bf nowarnings}] - disable compiler warnings, overriding any
-warnings-option given to the compiler..
+warnings-option given to the compiler.
 
 \end{description}
 
@@ -559,7 +561,7 @@ This create a precompiled file myprogram.eco from a source file called
 myprogram.ecl (or myprogram.pl).  If the source file contained
 include directives, the result will be a single object file containing
 the compiled code of all included files.
-In ealier releases of {\eclipse} this was done using the
+In earlier releases of {\eclipse} this was done using the
 \bipref{fcompile/1}{../bips/lib/fcompile/fcompile-1.html}
 predicate from the fcompile library,
 which is still supported for compatibility.
@@ -639,13 +641,13 @@ The following predicates either invoke the compiler or load precompiled .eco fil
 If the source specification does not specify the file type, precompiled files
 are preferred if they can be found in the search path:
 \begin{description}
-\item[\biptxtref{[File1,...,FileN]}{'.'/2}{../bips/kernel/database/D-2.html}]
+\item[\biptxtref{[File1,...,FileN]}{'.'/2}{../bips/kernel/compiler/D-2.html}]
 \index{'.'/2}
 This predicate can be used as a shorthand for the {\bf compile} predicate,
 usually in the interactive toplevel.
 It accepts a list of files, which can be source files or precompiled files.
 
-\item[\biptxtref{ensure_loaded(Files)}{ensure_loaded/1}{../bips/kernel/database/ensure_loaded-1.html}]
+\item[\biptxtref{ensure_loaded(Files)}{ensure_loaded/1}{../bips/kernel/compiler/ensure_loaded-1.html}]
 \index{ensure_loaded/1}
 This predicate compiles the specified file if it has not been compiled
 yet or if it has been modified since the last compilation.
@@ -653,9 +655,9 @@ It can be used to load application code or system libraries.
 
 \item[\biptxtref{use_module(Files)}{use_module/1}{../bips/kernel/modules/use_module-1.html}]
 \index{use_module/1}
-A combinaton of ensure_loaded/1 and import/1.
+A combination of ensure_loaded/1 and import/1.
 
-\item[\biptxtref{lib(Lib)}{lib/1}{../bips/kernel/database/lib-1.html}]
+\item[\biptxtref{lib(Lib)}{lib/1}{../bips/kernel/compiler/lib-1.html}]
 \index{lib/1}
 This predicate is used to ensure that a specified library file is loaded.
 It is equivalent to ensure_loaded(library(Lib)).
@@ -672,7 +674,7 @@ since their last compilation or loading.
 To implement reloading/recompiling when needed, the system keeps track of
 when a particular source files was compiled or precompiled file was loaded
 into memory.  This information can be accessed explicitly through
-\bipref{current_compiled_file/3}{../bips/kernel/database/current_compiled_file-3.html}.
+\bipref{current_compiled_file/3}{../bips/kernel/compiler/current_compiled_file-3.html}.
 
 %\item[\biptxtref{assert(Clause)}{assert/1}{../bips/kernel/dynamic/assert-1.html}]
 %\index{assert/1}
@@ -711,8 +713,8 @@ or a pattern rule for Gnu make:
 A characteristic feature of Prolog and {\eclipse} is, that programs can
 be represented as data structures in a straightforward way.
 The compiler therefore provides the
-\bipref{compile_term/1}{../bips/kernel/database/compile_term-1.html}/
-\bipref{compile_term/2}{../bips/kernel/database/compile_term-2.html}
+\bipref{compile_term/1}{../bips/kernel/compiler/compile_term-1.html}/
+\bipref{compile_term/2}{../bips/kernel/compiler/compile_term-2.html}
 interface, which allows to compile a list of terms.  The compiler
 interprets these as clauses, directives and queries, similar to program
 source being read from a file.  For program generators, it is therefore
@@ -733,7 +735,7 @@ textual sources and term compilation:
 \end{itemize}
 
 A variant of compile_term/2 is
-\bipref{compile_term_annotated/3}{../bips/kernel/database/compile_term_annotated-3.html}
+\bipref{compile_term_annotated/3}{../bips/kernel/compiler/compile_term_annotated-3.html}
 which takes source terms with source position annotations.
 This can be used when compiling auxiliary code within inlining/goal
 expansions transformations, without losing the source position information
@@ -782,7 +784,7 @@ Usually, an unexpected failure occurs in this case.
 \index{goal expansion}
 To improve efficiency, calls to user-defined predicates can be
 preprocessed and transformed at compile time.  The directive
-\bipref{inline/2}{../bips/kernel/database/inline-2.html}, e.g.
+\bipref{inline/2}{../bips/kernel/compiler/inline-2.html}, e.g.
 \begin{quote} \begin{verbatim}
 :- inline(mypred/1, mytranspred/2).
 \end{verbatim}
@@ -874,7 +876,7 @@ To achieve the maximum speed of your programs, chose the following compiler
 options:
 \begin{itemize}
 \item debug:off
-\item opt_level:2 (the default)
+\item opt_level:1 (the default)
 \item expand:on (the default)
 \end{itemize}
 %Setting the flag {\tt variable_names} can also cause slight
@@ -885,7 +887,7 @@ options:
 Some programs spend a lot of time in the garbage collection,
 collecting the stacks and/or the dictionary.
 If the space is known to be deallocated anyway, e.g. on failure,
-the programs can be often speeded up considerably
+the programs can be often sped up considerably
 by switching the garbage collector off or by increasing
 the {\tt gc_interval} flag.
 As the global stack expands automatically, this does not cause
@@ -916,10 +918,7 @@ argument of the predicate\footnote{The standard approach
 is to index only on the first argument}.
 It is therefore not necessary to reorder the predicate
 arguments so that the first one is the crucial argument
-for indexing.
-However, the decision is still based only on one argument.
-If it is necessary to look at two arguments
-in order to select the matching clause, e.g. in
+for indexing. For example, in a predicate like
 \begin{quote}
 \begin{verbatim}
 p(a, a) :- a.
@@ -929,9 +928,16 @@ p(d, b) :- d.
 p(b, c) :- e.
 \end{verbatim}
 \end{quote}
-and if it is crucial that this procedure is executed
-as fast as possible, it is necessary to define
-an auxiliary procedure which can be indexed on the other argument:
+calls where the first argument is instantiated, like {\tt p(d,Y)}, will be
+indexed on the first argument, while calls where the second argument is
+instantiated, like {\tt p(X,b)}, will be indexed on the second.
+
+However, the decision is still based on only one argument at a time:
+a call like {\tt p(d,b)} will be indexed on the first argument only
+(not because it is the first, but because it is more discriminating
+than the second).  If it is crucial that such a procedure is executed
+as fast as possible with such a calling pattern, it can help to define
+an auxiliary procedure which will be indexed on the other argument:
 \begin{quote}
 \begin{verbatim}
 p(X, a) :- pa(X).
@@ -945,7 +951,7 @@ pb(a) :- c. pb(d) :- d.
 \end{quote}
 
 The compiler also tries to use for indexing all type-testing information
-that appears at the beginning of the clause body:
+that appears at the beginning of the clause body (or beginning of a disjunction):
 \begin{itemize}
 
 \item Type testing predicates \bipref{free/1}{../bips/kernel/typetest/free-1.html}, \bipref{var/1}{../bips/kernel/typetest/var-1.html}, \bipref{meta/1}{../bips/kernel/typetest/meta-1.html},
@@ -1024,7 +1030,7 @@ they do not cost anything. For example,
 p(X, Y, Z, T, U) :- q(X, Y, Z, T, U).
 \end{verbatim}
 \end{quote}
-is as expensive as
+is just as cheap as
 \begin{quote}
 \begin{verbatim}
 p :- q.
@@ -1036,20 +1042,19 @@ On the other hand, switching arguments requires data moves and so
 p(A, B, C) :- q(B, C, A).
 \end{verbatim}
 \end{quote}
-is significantly more expensive.
+is somewhat more expensive.
 
 \item When accessing an argument of a
-structure whose functor is known, unification
-is better than \bipref{arg/3}{../bips/kernel/termmanip/arg-3.html}.
-For better maintainability and readability, the {\bf structure
-notation} (see section~\ref{chapstruct})
+structure whose functor is known, unification and 
+\bipref{arg/3}{../bips/kernel/termmanip/arg-3.html} are both similarly
+efficient, so whether to write {\tt Struct=emp(_,X,_)} or 
+{\tt arg(2,Struct,X)} is just a matter of taste and style.
+
+In eiter case, the structure notation (see section~\ref{chapstruct})
 \index{structures}
-should be used for these unifications, e.g.
-\begin{quote}
-\begin{verbatim}
-..., Struct = emp{salary:S}, ...
-\end{verbatim}
-\end{quote}
+should be used, as it improves readability without adding any overhead.
+So, for example {\tt Struct=emp\{salary:X\}} or
+{\tt arg(salary of emp,Struct,X)}.
 
 \item Tests are generally rather slow unless they can be compiled away
 (see {\it indexing}).
@@ -1079,7 +1084,7 @@ to be used every time a list of all solutions is needed.
 are faster than \txtbipref{=:=/2}{(=:=)/2}{../bips/kernel/arithmetic/ENE-2.html}.
 
 \item \txtbipref{:/2}{: /2}{../bips/kernel/control/N-2.html} is optimised away by the compiler
-if both argument are known.
+if both arguments are known.
 
 \item Starting from {\eclipse} 6.0, there is no performance difference between
 using multiple clauses or using disjunction or if-then-else cascades.
@@ -1105,7 +1110,7 @@ to read programs, and produces abstract
 machine code that is assembled using
 \biptxtref{lib(asm)}{library(asm)}{../bips/lib/asm/index.html}.
 
-The built-in predicate \bipref{als/1}{../bips/kernel/database/als-1.html}
+The built-in predicate \bipref{als/1}{../bips/kernel/compiler/als-1.html}
 or \bipref{asm:wam/1}{../bips/lib/asm/wam-1.html}
 lists the abstract code of the given predicate and it can thus be used by experts
 to check if the predicate was compiled as expected.

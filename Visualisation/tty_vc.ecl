@@ -30,6 +30,7 @@
 :- export stop_tty_vc/0.
 
 
+:- comment(categories, ["Interfacing","Visualisation"]).
 :- comment(summary, 
 	   "Simple TTY visualisation client").
 

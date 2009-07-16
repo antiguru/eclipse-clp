@@ -25,7 +25,7 @@
 % Port Counting Profiler
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: port_profiler.ecl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% Version:	$Id: port_profiler.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %
 %----------------------------------------------------------------------
@@ -529,10 +529,11 @@ save_results(_Options, S) :-
 % User documentation
 %----------------------------------------------------------------------
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Port Counting Profiler").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:48 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 
 :- comment(desc, html("<P>
     This is a performance analysis tool based on counting of events during

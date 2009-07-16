@@ -22,6 +22,7 @@
 
 :- comment(alias, "Control").
 :- comment(summary, "Built-ins and language constructs to control execution").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool((~) / 1).
 :- tool((^) / 2).

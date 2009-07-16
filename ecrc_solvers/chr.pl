@@ -28,10 +28,11 @@
 
 :- pragma(deprecated_warnings(off)).
 
+:- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Constraint Handling Rules Library - obsolescent, use library(ech) instead").
 :- comment(author, "Pascal Brisset and Thom Fruehwirth, ECRC").
 :- comment(copyright, "1994-2006 Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/05/12 13:23:31 $").
+:- comment(date, "$Date: 2009/07/16 09:11:25 $").
 :- comment(status, deprecated).
 :- comment(include, "chr_doc.pl").
 

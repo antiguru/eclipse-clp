@@ -22,15 +22,16 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler - backward compatibility
-% Version:	$Id: fcompile.ecl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: fcompile.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(fcompile).
 
+:- comment(categories, ["Development Tools","Compatibility"]).
 :- comment(summary,	"ECLiPSe III compiler - backward compatibility").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2008/06/30 17:43:45 $").
+:- comment(date,	"$Date: 2009/07/16 09:11:24 $").
 :- comment(status,	obsolete).
 
 :- comment(desc, html("

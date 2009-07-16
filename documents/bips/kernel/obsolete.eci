@@ -22,6 +22,7 @@
 
 :- comment(alias, "Obsolete").
 :- comment(summary, "Obsolete built-ins which should not be used in new code").
+:- comment(categories, ["Built-In Predicates","Compatibility"]).
 
 :- tool(abolish_op / 2).
 :- tool(call_explicit / 2).

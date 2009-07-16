@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eclipse_cc.cc,v 1.1 2008/06/30 17:43:53 jschimpf Exp $
+ * $Id: eclipse_cc.cc,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	eclipse_cc.cc
@@ -68,7 +68,7 @@ class EC_word;
 class EC_ref;
 class EC_refs;
 
-
+/*----------------------------------------------------------------------*/
 class EC_atom
 {
     public:
@@ -89,6 +89,7 @@ class EC_atom
 	char * name() { return DidName(d); }
 };
 
+/*----------------------------------------------------------------------*/
 class EC_functor
 {
     public:
@@ -117,6 +118,7 @@ class EC_functor
 };
 
 
+/*----------------------------------------------------------------------*/
 class EC_word
 {
 	friend class EC_ref;
@@ -175,20 +177,7 @@ class EC_word
     	EC_word(const EC_ref& ref);
 
     	friend EC_word
-	term(const EC_functor functor,const EC_word args[])
-	{
-	    EC_word t(ec_term_array(functor.d,(pword *) args));
-	    return t;
-	}
-
-	/*
-    	EC_word&
-	list(const EC_word hd, const EC_word tl)
-	{
-	    w = ec_list(hd.w,tl.w);
-	    return *this;
-	}
-	*/
+	term(const EC_functor functor,const EC_word args[]);
 
 	friend EC_word
 	term(const EC_functor functor,	const EC_word arg1,
@@ -208,68 +197,17 @@ class EC_word
 					const EC_word arg10);
 
 	friend EC_word
+	list(const EC_word hd, const EC_word tl);
+
+	/*
+    	EC_word&
 	list(const EC_word hd, const EC_word tl)
 	{
-	    EC_word t(ec_list(hd.w,tl.w));
-	    return t;
+	    w = ec_list(hd.w,tl.w);
+	    return *this;
 	}
+	*/
 
-	friend
-	EC_word
-	list(int size, double* array)
-	{
-		return EC_word(ec_listofdouble(size, array));
-	}
-
-	friend
-	EC_word
-	list(int size, long* array)
-	{
-		return EC_word(ec_listoflong(size, array));
-	}
-
-	friend
-	EC_word
-	list(int size, char* array)
-	{
-		return EC_word(ec_listofchar(size, array));
-	}
-
-	friend
-	EC_word
-	array(int size, double* array)
-	{
-		return EC_word(ec_arrayofdouble(size, array));
-	}
-
-	friend
-	EC_word
-	matrix(int rows, int cols, double* array)
-	{
-		return EC_word(ec_matrixofdouble(rows, cols, array));
-	}
-
-
-	friend EC_word
-	handle(const t_ext_type *cl, const t_ext_ptr data)
-	{
-	    return ec_handle(cl, data);
-	}
-
-	friend EC_word
-    	newvar()
-	{
-	    EC_word t(ec_newvar());
-	    return t;
-	}
-	
-	friend EC_word
-    	nil()
-	{
-	    EC_word t(ec_nil());
-	    return t;
-	}
-	
 
     /* Type testing */
 
@@ -352,23 +290,13 @@ class EC_word
 	}
 
 	friend int
-	compare(const EC_word& term1, const EC_word& term2)
-	{
-	    return ec_compare(term1.w, term2.w);
-	}
+	compare(const EC_word& term1, const EC_word& term2);
 
 	friend int
-	operator==(const EC_word& term1, const EC_word& term2)
-	{
-	    return ec_compare(term1.w, term2.w) == 0;
-	}
+	operator==(const EC_word& term1, const EC_word& term2);
 
-	friend
-	int
-	unify(EC_word term1, EC_word term2)
-	{
-	    return ec_unify(term1.w, term2.w);
-	}
+	friend int
+	unify(EC_word term1, EC_word term2);
 
 	int
 	unify(EC_word term)
@@ -383,29 +311,55 @@ class EC_word
 	}
 
 	friend void
-	post_goal(const EC_word term)
-	{
-		ec_post_goal(term.w);
-	}
+	post_goal(const EC_word term);
 
-	friend
-	int
+	friend int
 	EC_resume(EC_word term, EC_ref& chp);
 
-	friend
-	int
-	EC_resume(EC_word term)
-	{
-	    return ec_resume2(term.w,0);
-	}
+	friend int
+	EC_resume(EC_word term);
 	
-	friend
-	int
-	post_event(EC_word term)
-	{
-	    return ec_post_event(term.w);
-	}
+	friend int
+	post_event(EC_word term);
+
 };
+
+
+inline int
+compare(const EC_word& term1, const EC_word& term2)
+{
+    return ec_compare(term1.w, term2.w);
+}
+
+inline int
+operator==(const EC_word& term1, const EC_word& term2)
+{
+    return ec_compare(term1.w, term2.w) == 0;
+}
+
+inline int
+unify(EC_word term1, EC_word term2)
+{
+    return ec_unify(term1.w, term2.w);
+}
+
+inline void
+post_goal(const EC_word term)
+{
+	ec_post_goal(term.w);
+}
+
+inline int
+EC_resume(EC_word term)
+{
+    return ec_resume2(term.w,0);
+}
+
+inline int
+post_event(EC_word term)
+{
+    return ec_post_event(term.w);
+}
 
 inline void
 post_goal(const char * s)
@@ -413,6 +367,8 @@ post_goal(const char * s)
 	ec_post_string(s);
 }
 
+
+/*----------------------------------------------------------------------*/
 class EC_refs
 {
 
@@ -446,12 +402,8 @@ class EC_refs
 		return EC_word(ec_refs_get(r,index));
 	}
 
-	friend
-	EC_word
-	list(EC_refs& array)
-	{
-		return EC_word(ec_listofrefs(array.r));
-	}
+	friend EC_word
+	list(EC_refs& array);
 
 	void set(int index, EC_word new_value)
 	{
@@ -460,6 +412,15 @@ class EC_refs
 
 };
 
+
+inline EC_word
+list(EC_refs& array)
+{
+	return EC_word(ec_listofrefs(array.r));
+}
+
+
+/*----------------------------------------------------------------------*/
 class EC_ref
 {
 	friend class EC_word;
@@ -491,19 +452,11 @@ class EC_ref
 	    ec_cut_to_chp(r);
 	}
 
-	friend
-	int
-	EC_resume(EC_ref& chp)
-	{
-	    return ec_resume1(chp.r);
-	}
+	friend int
+	EC_resume(EC_ref& chp);
 
-	friend
-	int
-	EC_resume(EC_word term, EC_ref& chp)
-	{
-	    return ec_resume2(term.w,chp.r);
-	}
+	friend int
+	EC_resume(EC_word term, EC_ref& chp);
 
 };
 
@@ -512,6 +465,18 @@ inline int
 EC_resume()
 {
     return ec_resume1(0);
+}
+
+inline int
+EC_resume(EC_ref& chp)
+{
+    return ec_resume1(chp.r);
+}
+
+inline int
+EC_resume(EC_word term, EC_ref& chp)
+{
+    return ec_resume2(term.w,chp.r);
 }
 
 inline EC_word
@@ -532,6 +497,18 @@ EC_ref::operator=(const EC_word word)
 	return *this;
 }
 	
+
+/*----------------------------------------------------------------------
+ * More EC_word constructors
+ *----------------------------------------------------------------------*/
+
+inline EC_word
+term(const EC_functor functor,const EC_word args[])
+{
+    EC_word t(ec_term_array(functor.d,(pword *) args));
+    return t;
+}
+
 inline EC_word
 term(const EC_functor functor,	const EC_word arg1,
 				const EC_word arg2 = 0,
@@ -559,6 +536,65 @@ term(const EC_functor functor,	const EC_word arg1,
     return the_term;
 }
 
+inline EC_word
+list(const EC_word hd, const EC_word tl)
+{
+    EC_word t(ec_list(hd.w,tl.w));
+    return t;
+}
+
+inline EC_word
+list(int size, double* array)
+{
+	return EC_word(ec_listofdouble(size, array));
+}
+
+inline EC_word
+list(int size, long* array)
+{
+	return EC_word(ec_listoflong(size, array));
+}
+
+inline EC_word
+list(int size, char* array)
+{
+	return EC_word(ec_listofchar(size, array));
+}
+
+inline EC_word
+array(int size, double* array)
+{
+	return EC_word(ec_arrayofdouble(size, array));
+}
+
+inline EC_word
+matrix(int rows, int cols, double* array)
+{
+	return EC_word(ec_matrixofdouble(rows, cols, array));
+}
+
+
+inline EC_word
+handle(const t_ext_type *cl, const t_ext_ptr data)
+{
+    return ec_handle(cl, data);
+}
+
+inline EC_word
+newvar()
+{
+    EC_word t(ec_newvar());
+    return t;
+}
+
+inline EC_word
+nil()
+{
+    EC_word t(ec_nil());
+    return t;
+}
+
+	
 #define OP2(CNAME,DID)					\
 inline EC_word CNAME(const EC_word a,const EC_word b)	\
 {							\

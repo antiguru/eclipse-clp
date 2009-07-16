@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: sicstus.pl,v 1.1 2008/06/30 17:43:49 jschimpf Exp $
+% Version:	$Id: sicstus.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -42,10 +42,11 @@
 
 :- module(sicstus).
 
+:- comment(categories, ["Compatibility"]).
 :- comment(summary, 'SICStus Prolog Compatibility Package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2008/06/30 17:43:49 $').
+:- comment(date, '$Date: 2009/07/16 09:11:24 $').
 :- comment(desc, html('
     ECLiPSe includes a SICStus Prolog compatibility package to ease
     the task of porting SICStus Prolog applications to ECLiPSe Prolog. 
@@ -123,6 +124,9 @@
 :- export
         chtab(0'\,escape).  % character escapes are on by default in SICStus
 
+:- local
+	op(1100,  xfy, (do)),
+	op(650,   xfx, (@)).
 
 :- system.		% compiler directive to add the SYSTEM flag
 
@@ -171,41 +175,54 @@ dif(A, B) :-
 	A ~= B.
 
 
-% We simulate block by reading the following procedure, converting the
-% block declaration into normal clauses and compiling these two together.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Sicstus's block-directives are translated as follows:
+%	:- block p(-,?).
+%	p(a,b).
+% into
+%	p(A,B) :- var(A), !, make_suspension(p(A,B),0,S), insert_suspension([A],S,1,suspend).
+%	p(A,B) :- 'p unblocked'(A,B).
+%	'p unblocked'(a,b).
+% i.e. new clauses are generated to implement the delay conditions, and
+% the original predicate is renamed with the help of a clause macro.
 
 :- tool((block)/1, block_body/2).
-
 block_body(List, M) :-
-	compiled_stream(S),
-	read_procedure(S, Proc, M),
-	block_to_clause(List, Delays, Proc),
-	@(compile_term(Delays),M).
-
-read_procedure(S, [Clause|List], M) :-
-	read_(S, Clause, M),
-	clause_id(Clause, Id),
-	at(S, At),
-	read_clauses(S, Id, At, List, M).
-
-read_clauses(S, Id, _, [Clause|List], M) :-
-	read_(S, Clause, M),
-	clause_id(Clause, Id),
+	block_to_clauses(List, Clauses, [(Head:-Call)], Name/Arity),
 	!,
-	at(S, At1),
-	read_clauses(S, Id, At1, List, M).
-read_clauses(S, _, At, [], _) :-
-	seek(S, At).
+	functor(Head, Name, Arity),
+	rename_functor(Head, Call),
+	compile_term(Clauses)@M,
+	local(macro(Name/Arity,sicstus:rename_head/2,[clause]))@M.
+block_body(List, M) :-
+	printf(error, '*** Error in block-declaration %w%n', [block(List)])@M,
+	fail.
 
-block_to_clause((B1,B2), D1, C) :-
+:- export rename_head/2.
+rename_head((OldHead:-Body), Renamed) ?- !,
+	Renamed = (NewHead:-Body),
+	rename_functor(OldHead, NewHead).
+rename_head(OldHead, NewHead) :-
+	rename_functor(OldHead, NewHead).
+
+    rename_functor(Term, NewTerm) :-
+	functor(Term, OldName, Arity),
+	concat_atoms(OldName, ' unblocked', NewName),
+	functor(NewTerm, NewName, Arity),
+	( for(I,1,Arity), param(Term,NewTerm) do
+	    arg(I,Term,Arg), arg(I,NewTerm,Arg)
+	).
+	
+block_to_clauses((B1,B2), D1, C, Pred) :-
 	!,
-	block_to_clause(B1, D1, C0),
-	block_to_clause(B2, C0, C).
-block_to_clause(B, [(Head:-Body)|C], C) :-
+	block_to_clauses(B1, D1, C0, Pred),
+	block_to_clauses(B2, C0, C, Pred).
+block_to_clauses(B, [(Head:-Body)|C], C, Name/Arity) :-
+	functor(B, Name, Arity),
 	B =.. [Name|Args],
 	arg_and_body(Args, H, Body, BC, Vars, []),
 	Head =.. [Name|H],
-	BC = (!, make_suspension(Head, S), insert_suspension(Vars, S, 1, suspend)).
+	BC = (!, make_suspension(Head,0,S), insert_suspension(Vars, S, 1, suspend)).
 
 :- mode arg_and_body(+, -, -, ?, -, ?).
 arg_and_body([], [], BC, BC, V, V).
@@ -215,13 +232,8 @@ arg_and_body([?|A], [_|H], B, BC, V, VC) :-
 arg_and_body([-|A], [X|H], (var(X),B), BC, [X|V], VC) :-
 	arg_and_body(A, H, B, BC, V, VC).
 
-clause_id((H:-_), N/A) :-
-	!,
-	functor(H, N, A).
-clause_id(H, N/A) :-
-	functor(H, N, A).
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 :- tool(when/2, when_body/3).
 
 :- system_debug.
@@ -281,7 +293,7 @@ load_body(File, M) :-
 :- export fcompile/1.
 :- tool(fcompile/1, fcompile/2).
 fcompile(File, Module) :-
-	@(fcompile:fcompile(File),Module).
+	fcompile:fcompile(File)@Module.
 
 :- tool(on_exception/3, on_exception_body/4).
 

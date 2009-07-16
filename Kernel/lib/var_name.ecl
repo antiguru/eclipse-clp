@@ -22,11 +22,12 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: var_name.ecl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: var_name.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(var_name).
 
+:- comment(categories, ["Data Structures"]).
 :- comment(summary, "Allows variables to be given stable and unique names.").
 
 :- comment(desc, html("\

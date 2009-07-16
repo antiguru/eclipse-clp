@@ -22,14 +22,15 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: gnuplot.ecl,v 1.2 2008/06/20 13:41:12 jschimpf Exp $
+% Version:	$Id: gnuplot.ecl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :-module(gnuplot).
 
+:- comment(categories, ["Interfacing","Visualisation"]).
 :- comment(summary, "Interface to the function and data plotting program - gnuplot").
 :- comment(author, "Andrew J Sadler, IC-Parc").
-:- comment(date, "$Id: gnuplot.ecl,v 1.2 2008/06/20 13:41:12 jschimpf Exp $").
+:- comment(date, "$Id: gnuplot.ecl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $").
 
 :- comment(desc, html(
 "<P> This library provides an interface to the function and data
@@ -51,7 +52,12 @@
 
 <P> For a complete description of the avilable options we refer the
  user to the excellent documentation which accompanies gnuplot.  
- Most features have an obvious analogue in this library.")).
+ Most features have an obvious analogue in this library.
+ 
+<P> Syntax note: wherever gnuplot expects a string as an option value,
+ use a double-quoted ECLiPSe string - unquoted or single-quoted atoms
+ will not work!.
+ ")).
 
 :- comment(eg,"
 :-lib(gnuplot).
@@ -347,6 +353,10 @@ plot(Data):-
 
 <P> The options correspond directly to the options of the gnuplot
  'plot' command.
+
+<P> Syntax note: wherever gnuplot expects a string as an option value,
+ use a double-quoted ECLiPSe string - unquoted or single-quoted atoms
+ will not work!.
 "),
         fail_if: "Options are malformed, or data is not in a valid format.",
         resat: false,
@@ -412,7 +422,7 @@ plot(Data,Options):-
         args:[
                  "Data": "The data to be plotted, array or list.",
                  "Options": "Options list",
-                 "OutputFile": "Name of file to store plot in"
+                 "OutputFile": "Name of file to store plot in (atom or string)"
              ],
         desc: html("
 <P> Plots the data to a file as Postscript (by default).
@@ -422,6 +432,10 @@ plot(Data,Options):-
 
 <P> The output format can be changed either by explicitly setting the
  'terminal' variable using the 'set' option, or by calling plot/4.
+
+<P> Syntax note: wherever gnuplot expects a string as an option value,
+ use a double-quoted ECLiPSe string - unquoted or single-quoted atoms
+ will not work!.
 "),
         fail_if: "Options are malformed, or data is not in a valid format.",
         resat:false,
@@ -443,8 +457,8 @@ plot(Data, Options, OutputFile) :-
         args:[
                  "Data": "The data to be plotted, array or list.",
                  "Options": "Options list",
-                 "Format": "Output file format",
-                 "OutputFile": "Name fo file to store plot in"
+                 "Format": "Output file format (atom or string)",
+                 "OutputFile": "Name fo file to store plot in (atom or string)"
              ],
         desc: html("
 <P> Plots the data to a file in the specified format.
@@ -454,6 +468,10 @@ plot(Data, Options, OutputFile) :-
 
 <P> The output format is defined as being the 'terminal' setting for
  gnuplot.
+
+<P> Syntax note: wherever gnuplot expects a string as an option value,
+ use a double-quoted ECLiPSe string - unquoted or single-quoted atoms
+ will not work!.
 "),
         fail_if: "Options are malformed, or data is not in a valid format.",
         resat:false,
@@ -480,8 +498,9 @@ plot(Data, Options, OutputFile) :-
 ",
         see_also: [plot/1, plot/2, plot/3]]).
 plot(Data, Options, Format, OutputFile) :-
-        TerminalTerm=(terminal=Format),
-        concat_string(["\"", OutputFile, "\""], OutputStr),
+	concat_atom([Format], FormatAtom),
+        TerminalTerm=(terminal=FormatAtom),
+        concat_string([OutputFile], OutputStr),
         OutputTerm=(output=OutputStr),
         (lists:delete(set:Value, Options, Options1) ->
             (Value=[_|_] ->
@@ -528,10 +547,9 @@ output_preamble(_Datas, plot_options with [set:KeyValueList], S):-
             write(S, "set "),
             write(S, Key), write(S, " "),
             (string(Value) ->
-                writeq(S, Value)
+                writeq(S, Value)	% double-quote strings
             ;
-                term_string(Value,ValueStr),
-                writeq(S, ValueStr)
+		write(S, Value)
             ),
             write(S,"; ")
         ).
@@ -620,11 +638,7 @@ output_field_prefix(Field, S):-
 
 output_field_value(Field,Value, S):-
         memberchk(Field, [datafile, title]),!,
-        (string(Value) ->
-            Str=Value
-        ;
-            term_string(Value,Str)
-        ),
+	concat_string([Value], Str),
         writeq(S, Str).
 output_field_value(_Field,Value, S):-
         write(S, Value).

@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: ic_sets.ecl,v 1.1 2006/09/23 01:53:48 snovello Exp $
+% Version:	$Id: ic_sets.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -44,6 +44,7 @@ tr_generic_sets(sbds_module, ic_sbds).
 
 % ----------------------------------------------------------------------
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Solver over sets of integers (cooperates with lib(ic))").
 :- comment(eg, "
 % Example program: Steiner triplets

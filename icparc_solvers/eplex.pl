@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex.pl,v 1.1 2006/09/23 01:53:26 snovello Exp $
+% Version:	$Id: eplex.pl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 
 :- module(eplex). % needed to keep comment processing happy
 
@@ -45,9 +45,10 @@
 
 %------------------------------------------------------------------------
 
+:- comment(categories, ["Constraints","Interfacing"]).
 :- comment(summary, "Interface to external Simplex or MIP solvers").
 :- comment(author, "Joachim Schimpf and Kish Shen").
-:- comment(date, "$Date: 2006/09/23 01:53:26 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(include, s_eplex_comments).

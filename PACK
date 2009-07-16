@@ -129,6 +129,9 @@ pack_rpm=yes
 pack_nsis_installer=yes
 make_nsis_installer=no
 
+# This isn't used systematically yet
+everything_ok=0
+
 ECLIPSE_VERSION="X.X"
 BUILD_NUMBER="X"
 
@@ -355,7 +358,7 @@ Summary: ECLiPSe Constraint Logic Programming System ($NAME)
 Name: $NAME
 Version: $ECLIPSE_VERSION
 Release: $BUILD_NUMBER
-Copyright: Cisco Systems, Inc
+License: Cisco Systems, Inc 
 Group: Development/Languages
 Source: http://www.eclipse-clp.org
 BuildRoot: $BUILD_ROOT
@@ -587,7 +590,7 @@ Section \"Install GraphViz\" SecGraphviz
   DetailPrint \"Extracting Graphviz....\"
   SetDetailsPrint textonly
   SetOutPath \$8
-  File $NSIS_GRAPHVIZ_EXE
+  File /nonfatal $NSIS_GRAPHVIZ_EXE
   SetDetailsPrint both
 SectionEnd
 
@@ -691,7 +694,7 @@ Section -post
   IntOp \$R0 \$R0 & \${SF_SELECTED}
   IntCmp \$R0 \${SF_SELECTED} \"\" lbl_no_graphviz
 
-  Exec \"\$8\\graphviz-1.10.exe\"
+  Exec \"\$8\\$NSIS_GRAPHVIZ_EXE\"
 
   lbl_no_graphviz:
  
@@ -836,7 +839,7 @@ if [ "$pack_archs" = yes ] ; then
 
 
 	# The "runtime" package (eclipse_basic without development stuff,
-	# no sources, but with pteclipse licencing support)
+	# and no sources)
 	# The content of this package is defined in eclipse_rt.lst
 	packarch $arch eclipse_rt "" "$INSTALL_FILES_RT $RT_FILES"
 
@@ -892,12 +895,13 @@ nsisfinish
 
 if [ "$make_nsis_installer" = yes ] ; then
     echo "Building NSIS Windoze installer"
-    makensis -V4 -OECLiPSe_NSIS.log ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}.nsi
-    # +x needed by Vista!
-    chmod a+x ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}.exe
-    mv ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}.exe $DEST_DIR/i386_nt
+    nsis_basename=ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}
+    makensis -V4 -OECLiPSe_NSIS.log ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}.nsi &&
+	# +x needed by Vista!
+	chmod a+x $nsis_basename.exe &&
+	mv $nsis_basename.exe $DEST_DIR/i386_nt \
+    || everything_ok=1
 fi
 
-# Assume everything went OK...
-exit 0
+exit $everything_ok
 

@@ -12,10 +12,11 @@
 
 :- module(listut).			% SEPIA header
 
+:-comment(categories, ["Data Structures"]).
 :- comment(summary, "List processing utilities").
 :- comment(author, "Bob Welham, Lawrence Byrd, R.A.O'Keefe, Joachim Schimpf").
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, "$Date: 2008/07/30 12:13:00 $").
+:- comment(date, "$Date: 2009/07/16 09:11:23 $").
 
 :- export
 	append/3,			%   List x List -> List

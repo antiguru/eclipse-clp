@@ -22,6 +22,7 @@
 
 :- comment(alias, "Dynamic Predicates").
 :- comment(summary, "Built-ins to create and manipulate dynamic procedures").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool(assert / 1).
 :- tool(asserta / 1).

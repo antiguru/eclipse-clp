@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: generic_sets.ecl,v 1.3 2008/12/09 01:00:12 jschimpf Exp $
+% Version:	$Id: generic_sets.ecl,v 1.4 2009/07/16 09:11:27 jschimpf Exp $
 %
 %	Many thanks to Neng-Fa Zhou, on whose ideas this solver
 %	implementation is based. We started work on this solver
@@ -55,15 +55,18 @@
 
 :- export
 	op(500, yfx, (\)),
+	op(700, xfx, in_set_range),
 	op(700, xfx, disjoint),
 	op(700, xfx, sameset),
 	op(700, xfx, in),
 	op(700, xfx, notin),
 	op(700, xfx, includes),
-	op(700, xfx, subset).
+	op(700, xfx, subset),
+	op(700, xfx, subsetof).
 
 :- export
 	(::)/2,			% ?Set1 :: +Gset..+Gset
+	(in_set_range)/2,	% ?Set1 in_set_range +Gset..+Gset
 	intset/3,		% intset(?Set, +Min, +Max)
 	intsets/4,		% intsets(-Sets, ?N, +Min, +Max)
 	(in)/2,			% ?X in ?Set		membership
@@ -76,6 +79,7 @@
 	all_intersection/2,	% all_intersection(+Sets, +Intersection)
 	(includes)/2,		% ?Set1 includes Set2	superset
 	(subset)/2,		% ?Set1 subset Set2	subset
+	(subsetof)/2,		% ?Set1 subsetof Set2	subset
 	union/3,		% union(?Set1, ?Set2, ?Set3)
 	intersection/3,		% intersection(?Set1, ?Set2, ?Set3)
 	difference/3,		% difference(?Set1, ?Set2, ?Set3)
@@ -266,17 +270,33 @@ intset(X, MinUniv, MaxUniv) :-
 intset(X, MinUniv, MaxUniv) :-
 	error(5, intset(X, MinUniv, MaxUniv)).
 
-X :: L..LU ?-
-	set_or_var(X),
-	!,
-	intset_domain_from_lists(SetAttr, L, LU),
-	add_set_attribute(X, SetAttr).
-X :: Dom :-
-	error(5, X :: Dom).
+X :: Lwb..Upb ?- !,
+	impose_set_bounds(X, Lwb, Upb).
+X :: Range :-
+	error(5, X :: Range).
 
-subsetof(X, List) :-
-	intset_domain_from_lists(SetAttr, [], List),
-	add_set_attribute(X, SetAttr).
+subscript(A,I) in_set_range Lwb..Upb ?- !,
+	subscript(A, I, X),
+	impose_set_bounds(X, Lwb, Upb).
+X in_set_range Lwb..Upb ?- !,
+	impose_set_bounds(X, Lwb, Upb).
+X in_set_range Range :-
+	error(5, X in_set_range Range).
+
+impose_set_bounds(_X{int_sets:SetAttr}, Lwb, Upb) ?- nonvar(SetAttr), !,
+	intset_union_lwb(Lwb, SetAttr, _SuspAttr),
+	intset_intersect_upb(Upb, SetAttr, _SuspAttr).
+impose_set_bounds(X, Lwb, Upb) :- set_or_var(X), !,
+	intset_domain_from_lists(SetAttr, Lwb, Upb),
+	( var(X) ->
+	    add_set_attribute(X, SetAttr)
+	;
+	    add_set_attribute(New, SetAttr),
+	    X=New
+	).
+impose_set_bounds(X, Lwb, Upb) :-
+	error(5, X in_set_range Lwb..Upb).
+	
 
 % Make the link between a (non-set-attribute) variable
 % and a newly constructed set-attribute
@@ -347,6 +367,10 @@ seteval(S1 /\ S2, S) ?- !,
 	intersection(S1, S2, S).
 seteval(S1 \ S2, S) ?- !,
 	difference(S1, S2, S).
+seteval(subscript(Array,Index), S) ?- !,
+	% allow array access in set expressions
+	subscript(Array, Index, Element),
+	seteval(Element, S).
 seteval(S , S).
 
 set_or_var(X) :- var(X), !.
@@ -586,20 +610,30 @@ all_disjoint(List) :-
 %----------------------------------------------------------------------
 
 X0 includes Y0 :-
-	Y0 subset X0.
+	Y0 subsetof X0.
 
 X0 subset Y0 :-
-	seteval(Y0, Y), get_set_attribute(Y, YAttr),
-	seteval(X0, X), get_new_set_attribute(X, [YAttr], XAttr),
+	X0 subsetof Y0.
 
-	suspend(add_demon(YAttr, Events1), 3, X->add, Susp1),
-	suspend(remove_demon(XAttr, Events2), 3, Y->rem, Susp2),
+X0 subsetof Y0 :-
+	seteval(Y0, Y),
+	seteval(X0, X),
+	( nonvar(Y) ->
+	    % special case: subset of ground set (avoid delayed goals)
+	    impose_set_bounds(X, [], Y)
+	;
+	    get_set_attribute(Y, YAttr),
+	    get_new_set_attribute(X, [YAttr], XAttr),
 
-	initial_member_events(XAttr, Susp1, Events1),
-	initial_nonmember_events(YAttr, XAttr, Susp2, Events2),
-	schedule_suspensions(1,s([Susp1,Susp2])), wake,
+	    suspend(add_demon(YAttr, Events1), 3, X->add, Susp1),
+	    suspend(remove_demon(XAttr, Events2), 3, Y->rem, Susp2),
 
-	verify check_instantiation((X subset Y)).
+	    initial_member_events(XAttr, Susp1, Events1),
+	    initial_nonmember_events(YAttr, XAttr, Susp2, Events2),
+	    schedule_suspensions(1,s([Susp1,Susp2])), wake,
+
+	    verify check_instantiation((X subset Y))
+	).
 
 :- demon add_demon/2.
 add_demon(XAttr, Receiver) :-
@@ -1901,7 +1935,7 @@ initial_nonmember_events(XAttr, YAttr, ZAttr, Susp, Receiver) :-
 %----------------------------------------------------------------------
 
 :- comment(author, "Joachim Schimpf, Neng-Fa Zhou").
-:- comment(date, "$Date: 2008/12/09 01:00:12 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("
@@ -1958,6 +1992,7 @@ initial_nonmember_events(XAttr, YAttr, ZAttr, Susp, Receiver) :-
     Set1 \\/ Set2       % union
     Set1 \\ Set2        % difference
     </PRE>
+    as well as references to array elements like Set[3].
     </P>
 
 <H3>Search</H3>
@@ -2088,7 +2123,25 @@ initial_nonmember_events(XAttr, YAttr, ZAttr, Susp, Receiver) :-
     summary:"Set1 is a (non-strict) subset of the integer set Set2",
     args:["Set1":"a set, set variable, free variable or set expression",
 	"Set2":"a set, set variable or set expression"],
+    see_also:[subsetof/2],
     template:"?Set1 subset ?Set2"
+]).
+:- comment((subsetof)/2, [
+    summary:"Set1 is a (non-strict) subset of the integer set Set2",
+    args:["Set1":"a set, set variable, free variable or set expression",
+	"Set2":"a set, set variable or set expression"],
+    template:"?Set1 subsetof ?Set2",
+    eg:"
+    	?- X subset [1,2,3].
+	X = X{([] .. [1, 2, 3]) : _398{0 .. 3}}
+
+	?- X subsetof [1,2,3], Y subsetof X.
+	X = X{([] .. [1, 2, 3]) : _398{0 .. 3}}
+	Y = Y{([] .. [1, 2, 3]) : _531{0 .. 3}}
+
+	?- [1,2,3] subsetof Y.
+	instantiation fault
+    "
 ]).
 :- comment((includes)/2, [
     summary:"Set1 includes (is a superset of) the integer set Set2",
@@ -2348,6 +2401,21 @@ no (more) solution.
     	"Lwb..Upb":"Structure holding two lists of integers"],
     fail_if:"Lwb is not a sublist of Upb",
     exceptions:[5:"Set is not a variable or list, or Lwb..Upb is not a ../2 structure"],
+    see_also:[in_set_range/2,intset/3,intsets/4],
+    desc:html("<P>
+    Lwb and Upb are two lists of integers. Lwb must be a sublist of
+    Upb. Set is unified with a set variable whose lower bound is the
+    set of list elements of Lwb, and whose upper bound is the set of
+    list elements of Upb.
+</P>")
+]).
+:- comment((in_set_range)/2, [
+    summary:"Set is an integer set within the given bounds",
+    template:"?Set in_set_range ++Lwb..++Upb",
+    args:["Set":"A free variable, set variable, array reference, or an integer list",
+    	"Lwb..Upb":"Structure holding two lists of integers"],
+    fail_if:"Lwb is not a sublist of Upb",
+    exceptions:[5:"Set is not a variable, array reference, or list, or Lwb..Upb is not a ../2 structure"],
     see_also:[intset/3,intsets/4],
     desc:html("<P>
     Lwb and Upb are two lists of integers. Lwb must be a sublist of

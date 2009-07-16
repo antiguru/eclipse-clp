@@ -63,7 +63,9 @@ Optional:
 
 Support:
     tcltk.tgz			A matching Tcl/Tk release (8.5)
-    				(you may have that already).
+    				(you may have that already, but note Tcl/Tk
+				8.5 prior to 8.5.7 has a bug and does not work
+                                with ECLiPSe)
 				Needed for the tkeclipse development GUI.
     editors_eclipse_support.tgz Support for various editors for editing
                                 ECLiPSe code.       
@@ -196,9 +198,13 @@ these functions with control-clicking the mouse button instead.
 On MacOSX, TkEclipse is available in both the native Aqua and X11 windowing
 environments. You need to have X11 installed to run the X11 version. In
 recent versions of MacOSX, Tcl/Tk (for Aqua) is installed by default. The
-tcltk.tgz package contains the X11 version of Tcl/Tk, which is not
-available by default. If you don't have the Aqua version of Tcl/Tk, you can
-download it in either source or binary form from links at www.tcl.tk.
+tcltk.tgz package includes X11 version of Tcl/Tk, which is not available
+by default. The Aqua version of Tcl/Tk included in tcltk.tgz may also
+be newer than the default version, and is known to work with ECLiPSe 
+(Tcl/Tk 8.5 for Mac OS X prior to 8.5.7 has a known bug that prevents it 
+from working with ECLiPSe). If you want to use your own version of Tcl/Tk, 
+you can also download Tcl/Tk in either source or binary form from links at 
+www.tcl.tk.
 
 X11 is shipped with recent versions of MacOSX, and can be downloaded free
 of charge for older versions of MacOSX. 

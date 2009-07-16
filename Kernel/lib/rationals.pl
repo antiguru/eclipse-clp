@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: rationals.pl,v 1.1 2008/06/30 17:43:49 jschimpf Exp $
+% Version:	$Id: rationals.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -45,7 +45,7 @@
 	tr_rat_in/2,
 	tr_rat_out/2.
 
-:- set_flag(prefer_rationals, on).
+:- (get_flag(max_integer, _) -> true ; set_flag(prefer_rationals, on)).
 
 
 % parse N/D as a rational if N and D are integers or rationals

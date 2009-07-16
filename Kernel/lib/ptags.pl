@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ptags.pl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% Version:	$Id: ptags.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -45,10 +45,11 @@
 
 :- module(ptags).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tags file creator").
 :- comment(author, " Joachim Witte, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:48 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("
     This library provides a program that checks the source form of a
     Prolog program and creates a tags file for use with the UNIX

@@ -22,6 +22,7 @@
 
 :- comment(alias, "Term I/O").
 :- comment(summary, "Built-ins for input/output of complex terms").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool(expand_macros / 2).
 :- tool(portray_term / 3).

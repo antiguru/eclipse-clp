@@ -1,12 +1,12 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ordset.pl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% Version:	$Id: ordset.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: ordset.pl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% $Id: ordset.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 %
 % IDENTIFICATION:       ordset.pl
 %
@@ -50,10 +50,11 @@
 
 :- module(ordset).
 
+:- comment(categories, ["Data Structures"]).
 :- comment(summary, "Ordered set manipulation utilities").
 :- comment(author, "R.A.O'Keefe and Joachim Schimpf").
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, "$Date: 2008/06/30 17:43:48 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("<P>\
 	In this module, sets are represented by ordered lists with no
 	duplicates.  Thus the set {c,r,a,f,t} would be [a,c,f,r,t].  The

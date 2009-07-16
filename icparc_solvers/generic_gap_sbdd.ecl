@@ -3,7 +3,7 @@
 % See SBDDa.g for the GAP side.
 % IPG, WH, TK, SAL
 %
-% $Id: generic_gap_sbdd.ecl,v 1.3 2008/05/12 13:30:19 jschimpf Exp $
+% $Id: generic_gap_sbdd.ecl,v 1.4 2009/07/16 09:11:27 jschimpf Exp $
 %
 
 %
@@ -29,6 +29,7 @@
 % for the FD and IC wrappers, respectively.
 %
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "GAP-based Symmetry Breaking via Dominance Detection (SBDD)").
 :- comment(desc, html("\
    This library provides a GAP-based Symmetry Breaking via Dominance

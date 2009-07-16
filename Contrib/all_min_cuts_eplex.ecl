@@ -23,6 +23,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 :-module(all_min_cuts_eplex).
+:-comment(categories, ["Algorithms"]).
 :-comment(summary,"Mixed integer programming solution for generating all minimum-cost cuts").
 :-comment(desc,"Mixed integer programming solution for generating all"
                " minimum-cost cuts between given source and sink nodes."

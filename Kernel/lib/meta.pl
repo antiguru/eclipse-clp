@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.3 2008/07/20 18:16:50 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.4 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -136,7 +136,7 @@ check_handlers(L, _) :- var(L), !,
 check_handlers([], _) :- !.
 check_handlers([H:P|List], Module) :- !,
     check_predspec(P),
-    ( P = _/Arity, meta_event(H, Arity) ->
+    ( P = _/Arity, is_meta_event(H, Arity) ->
 	( get_flag(P, defined, on)@Module ->
 	    get_flag(P, visibility, Vis)@Module,
 	    ( Vis == local ->
@@ -151,10 +151,10 @@ check_handlers([H:P|List], Module) :- !,
 	    % require handler to be defined already
 	    set_bip_error(60)
 	)
-    ; P == true/0, meta_event(H,_) ->
+    ; P == true/0, is_meta_event(H,_) ->
     	true
     ;
-	fail	% with bip_error set from meta_event/2
+	fail	% with bip_error set from is_meta_event/2
     ),
     check_handlers(List, Module).
 check_handlers(_, _) :-
@@ -174,6 +174,21 @@ record_handlers(Index, Name, [H:P|List], Module) :-
 	recordz(H, t(Index, Name, H, P, Module))
     ),
     record_handlers(Index, Name, List, Module).
+
+
+% remove all calls to handlers in the erased module
+erase_module_attribute_handlers(suspend) :- !.
+erase_module_attribute_handlers(Module) :-
+    findall(H, (
+	    meta_event(H, _),
+	    recorded(H, t(_, _, _, _, Module), Ref),
+	    erase(Ref)
+	), Erased),
+    ( Erased = [_|_] ->
+	recompile_system_handlers
+    ;
+	true
+    ).
 
 
 recompile_system_handlers :-
@@ -517,28 +532,32 @@ collect_local_handlers(I, Key, List) :-
     ).
 collect_local_handlers(_, _, []).
 
-meta_event(Var, _) :-
+
+is_meta_event(Var, _) :-
     var(Var),
     !,
     set_bip_error(4).
-meta_event(Var, _) :-
+is_meta_event(Var, _) :-
     not atom(Var),
     !,
     set_bip_error(5).
-meta_event(pre_unify, 2) :- !.
-meta_event(unify, 2) :- !.
-meta_event(unify, 3) :- !.
-meta_event(test_unify, 2) :- !.
-meta_event(compare_instances, 3) :- !.
-meta_event(copy_term, 2) :- !.
-meta_event(delayed_goals, 3) :- !.
-meta_event(suspensions, 3) :- !.
-meta_event(delayed_goals_number, 2) :- !.
-meta_event(get_bounds, 3) :- !.
-meta_event(set_bounds, 3) :- !.
-meta_event(print, 2) :- !.
-meta_event(_, _) :-
+is_meta_event(H, A) :-
+    meta_event(H, A), !.
+is_meta_event(_, _) :-
     set_bip_error(6).
+
+meta_event(pre_unify, 2).
+meta_event(unify, 2).
+meta_event(unify, 3).
+meta_event(test_unify, 2).
+meta_event(compare_instances, 3).
+meta_event(copy_term, 2).
+meta_event(delayed_goals, 3).
+meta_event(suspensions, 3).
+meta_event(delayed_goals_number, 2).
+meta_event(get_bounds, 3).
+meta_event(set_bounds, 3).
+meta_event(print, 2).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

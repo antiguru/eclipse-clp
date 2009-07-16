@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.26 2008/08/29 15:26:46 kish_shen Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.27 2009/07/16 09:11:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2008/08/29 15:26:46 $").
+:- comment(date, "$Date: 2009/07/16 09:11:23 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -1232,9 +1232,10 @@ simplify(write_did(C1), _, [code{instr:write_integer(C2)}|Rest], New, RestT, New
         New = [code{instr:write_didinteger(C1,C2)}|NewT],
         RestT = Rest.
 
-simplify(read_atom(C1), _, [code{instr:read_integer(C2)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:read_atominteger(C1,C2)}|NewT],
-        RestT = Rest.
+% broken instruction
+%simplify(read_atom(C1), _, [code{instr:read_integer(C2)}|Rest], New, RestT, NewT) ?- !,
+%        New = [code{instr:read_atominteger(C1,C2)}|NewT],
+%        RestT = Rest.
 
 simplify(write_integer(C1), _, [code{instr:write_atom(C2)}|Rest], New, RestT, NewT) ?- !,
         New = [code{instr:write_integeratom(C1,C2)}|NewT],
@@ -1244,9 +1245,10 @@ simplify(write_integer(C1), _, [code{instr:write_did(C2)}|Rest], New, RestT, New
         New = [code{instr:write_integerdid(C1,C2)}|NewT],
         RestT = Rest.
 
-simplify(read_integer(C1), _, [code{instr:read_atom(C2)}|Rest], New, RestT, NewT) ?- !,
-        New = [code{instr:read_integeratom(C1,C2)}|NewT],
-        RestT = Rest.
+% broken instruction
+%simplify(read_integer(C1), _, [code{instr:read_atom(C2)}|Rest], New, RestT, NewT) ?- !,
+%        New = [code{instr:read_integeratom(C1,C2)}|NewT],
+%        RestT = Rest.
 
 
 /* extract consecutive move a(_) a(_) insturctions for further optimisation 

@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ech.pl,v 1.4 2008/06/20 13:41:14 jschimpf Exp $
+% Version:	$Id: ech.pl,v 1.5 2009/07/16 09:11:27 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %  New CHR implementation
@@ -1719,8 +1719,18 @@ initialise_module_for_chr(Module) :-
    (erase('CHRprule_count', count(Module, _)) -> true ; true),
    recorda('CHRprule_count', count(Module,0)),
    
-   local(record('CHRcode'))@Module, local(record('CHRconstraints'))@Module.
-
+   local(record('CHRcode'))@Module, local(record('CHRconstraints'))@Module,
+   
+   % define a finalization goal for Module that make sure any stray record
+   % for Module in the ech module is properly removed.
+   local(finalization((
+                          ( current_module(ech) -> % may be erased!
+                              (erase('CHRconst_count', count(Module,_))@ech->true;true)
+                          ;
+                              true   % nothing to be done if ech erased
+                          )
+                      ))
+        )@Module.
 
 redefine_cdelete_count(Error, Culprit, Module, LM) :-
     (Culprit = local(array('CHRcdelete_count'(_N), integer)) -> 
@@ -2313,8 +2323,8 @@ chr_clear :-
 
 clean_each_module([]) :- !.
 clean_each_module([count(Module,_)|L]) :-
-   abolish_record('CHRcode')@Module,
-   abolish_record('CHRconstraints')@Module,
+   erase_all('CHRcode')@Module,
+   erase_all('CHRconstraints')@Module,
    % get around bug b91: reset the store so a new store will not inherit 
    % incorrect value 
    setval_body('CHRcstore', 0, Module), 
@@ -2425,6 +2435,7 @@ may_erase(_, _).
 
 %-----------------------------------------------------------------------
 
+:- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Extended constraint handling rules library").
 
 :- comment(desc, html("\

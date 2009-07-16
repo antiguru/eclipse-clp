@@ -74,6 +74,7 @@
 :- include(ve_storage).
 :- include(graph_support).
 
+:- comment(categories, ["Development Tools","Visualisation"]).
 :- comment(summary, 
 	   "Library to support implementation of visualisation clients").
 

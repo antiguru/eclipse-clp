@@ -22,6 +22,7 @@
 
 :- comment(alias, "Operating System").
 :- comment(summary, "Built-ins to access operating-system services").
+:- comment(categories, ["Built-In Predicates","Interfacing"]).
 
 :- comment(alarm / 1, [
 	summary:"The operating system will send the signal 14 to the ECLiPSe system Clock

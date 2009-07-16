@@ -23,15 +23,16 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: http.pl,v 1.1 2008/06/30 17:43:46 jschimpf Exp $
+% Version:	$Id: http.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(http).
 
+:- comment(categories, ["Interfacing"]).
 :- comment(summary, "HTTP library").
 :- comment(author, "Ph. Bonnet, S. Bressan and M. Meier, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:46 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("
     The HTTP library contains an extensible server and a client for the
     Hyper Text Transfer Protocol.  The library is entirely written in ECLiPSe. 

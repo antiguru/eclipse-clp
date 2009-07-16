@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.4 2007/07/03 20:42:47 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.5 2009/07/16 09:11:24 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -92,9 +92,23 @@
 
 #define BUFINT long long int
 
+typedef long long long_long;
+
+#define HAVE_MYSQLBIGINT  
+
+#elif defined(HAVE__INT64)
+
+typedef __int64 long_long;
+
+#define BUFINT __int64
+
+#define HAVE_MYSQLBIGINT
+
 #else
 
 #define BUFINT int
+
+#undef HAVE_MYSQLBIGINT
 
 #endif
 
@@ -243,7 +257,7 @@ template_get(value v,type t,template_t * * template_out)
 	    	break;
 	    case TINT:
 		/* signed integer */
-#ifdef HAVE_LONG_LONG /* buffer for 64 bit integers if available */
+#ifdef HAVE_MYSQLBIGINT /* buffer for 64 bit integers if available */
 		template->map[i].ext_type = MYSQL_TYPE_LONGLONG;
 #else
 		template->map[i].ext_type = MYSQL_TYPE_LONG;
@@ -353,17 +367,21 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 	    /* signed integer */
 	    if (sql_type == prepared)
 	    {
-#if defined(HAVE_LONG_LONG)
+#if defined(HAVE_MYSQLBIGINT)
 		/* may convert to ECLiPSe TBIG if required */
-		tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](*(long long int *)argbuf, &pw[arg+1]);
+		tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](*(long_long *)argbuf, &pw[arg+1]);
 #else
 		Make_Integer( &pw[arg+1], *(word *)argbuf);
 #endif
 	    } else
 	    {
-#if defined(HAVE_LONG_LONG) 
-		long long int i; 
-		sscanf(((MYSQL_ROW)buffer)[arg],"%Ld",&i);
+#if defined(HAVE_MYSQLBIGINT) 
+		long_long i;
+#ifdef _WIN32
+		sscanf(((MYSQL_ROW)buffer)[arg],"%I64d",&i);
+#else
+		sscanf(((MYSQL_ROW)buffer)[arg],"%lld",&i);
+#endif
 		/* may convert to ECLiPSe TBIG if required */
 		tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](i, &pw[arg+1]);
 #else
@@ -538,7 +556,7 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
 	    fprintf(stderr,"DEBUG bind int argbuf 0x%x int %d\n",
 	    				argbuf, arg->val.nint);
 #endif
-#if defined(HAVE_LONG_LONG) && SIZEOF_LONG == 4
+#if defined(HAVE_MYSQLLONGLONG) && SIZEOF_LONG == 4
 	    if (TagType(arg->tag) == TBIG)
 	    {/* convert TBIG integers of between 33 and 64 bits to long long */
 		int res;

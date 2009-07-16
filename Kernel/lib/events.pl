@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.5 2008/08/21 18:08:28 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.6 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -466,8 +466,8 @@ eof_handler(_, read_(end_of_file, _)).
 eof_handler(_, read(_, end_of_file)).
 eof_handler(_, read_(_, end_of_file, _)).
 eof_handler(_, read_exdr(_, _)) :- fail.
-eof_handler(_, readvar(_, end_of_file, _)).
-eof_handler(_, readvar(_, end_of_file, _, _)).
+eof_handler(_, readvar(_, end_of_file, [])).
+eof_handler(_, readvar(_, end_of_file, [], _)).
 eof_handler(_, read_token(_, end_of_file, end_of_file)).
 eof_handler(_, read_token_(_, end_of_file, end_of_file, _)).
 eof_handler(_, read_string(_, _, _)) :- fail.

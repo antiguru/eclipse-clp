@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.8 2008/11/13 22:06:03 jschimpf Exp $
+# $Id: Makefile.in,v 1.9 2009/07/16 09:11:23 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -45,7 +45,7 @@ make_shm:
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/Shm/$(ARCH); $(MAKE) install)
 
-make_flexlm:		make_kernel
+make_flexlm:		make_bin
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/Flexlm; $(MAKE) -f Makefile.$(ARCH) install)
 
@@ -139,14 +139,14 @@ $(PREFIX)/tcltk/$(ARCH):
 # --- cleaning rules ---
 
 clean:	clean_subdirs
-	rm -rf $(PREFIX)/bin
-	rm -rf $(PREFIX)/lib
-	rm -rf $(PREFIX)/lib_public
-	rm -rf $(PREFIX)/lib_noncom
-	rm -rf $(PREFIX)/doc
-	rm -rf $(PREFIX)/man
-	rm -rf $(PREFIX)/include
-	rm -rf $(PREFIX)/tcltk
+	rm -rf $(top_srcdir)/bin
+	rm -rf $(top_srcdir)/lib
+	rm -rf $(top_srcdir)/lib_public
+	rm -rf $(top_srcdir)/lib_noncom
+	rm -rf $(top_srcdir)/doc
+	rm -rf $(top_srcdir)/man
+	rm -rf $(top_srcdir)/include
+	rm -rf $(top_srcdir)/tcltk
 	rm -rf $(top_srcdir)/sys_include
 	rm -rf $(top_srcdir)/sys_lib
 
@@ -167,12 +167,12 @@ clean_subdirs:
 
 
 archclean:	archclean_subdirs
-	rm -rf $(PREFIX)/bin/$(ARCH)
-	rm -rf $(PREFIX)/lib/$(ARCH)
-	rm -rf $(PREFIX)/lib_public/$(ARCH)
-	rm -rf $(PREFIX)/lib_noncom/$(ARCH)
-	rm -rf $(PREFIX)/include/$(ARCH)
-	rm -f $(PREFIX)/tcltk/$(ARCH)
+	rm -rf $(top_srcdir)/bin/$(ARCH)
+	rm -rf $(top_srcdir)/lib/$(ARCH)
+	rm -rf $(top_srcdir)/lib_public/$(ARCH)
+	rm -rf $(top_srcdir)/lib_noncom/$(ARCH)
+	rm -rf $(top_srcdir)/include/$(ARCH)
+	rm -f $(top_srcdir)/tcltk/$(ARCH)
 	rm -rf $(top_srcdir)/sys_include/$(ARCH)
 	rm -rf $(top_srcdir)/sys_lib/$(ARCH)
 

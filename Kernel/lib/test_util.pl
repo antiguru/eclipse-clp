@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: test_util.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: test_util.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(test_util).
@@ -75,10 +75,11 @@
 :- set_stream(testlog, output).
 :- set_stream(test_csv_log, null).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Utilities for automated program tests").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:50 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("
     Use this library as follows: Write a file with test patterns, using
     the primitives should_fail/1, should_give/2, should_throw/2 and

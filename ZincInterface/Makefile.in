@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.3 2009/02/27 21:03:35 kish_shen Exp $
+# $Id: Makefile.in,v 1.4 2009/07/16 09:11:24 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -17,7 +17,22 @@ ECL_ECI_FILES =	flatzinc.ecl flatzinc_parser.ecl \
 
 ECL_FILES =	flatzinc_syntax.ecl
 
-EXTRA_FILES = fzn_eplex/globals.mzn fzn_fd/globals.mzn fzn_ic/globals.mzn
+EXTRA_FILES = \
+	fzn_eplex/eclipse.mzn fzn_fd/eclipse.mzn fzn_ic/eclipse.mzn \
+	fzn_fd/all_different_int.mzn fzn_ic/all_different_int.mzn \
+	fzn_fd/all_disjoint.mzn fzn_ic/all_disjoint.mzn \
+	fzn_fd/at_least_int.mzn fzn_ic/at_least_int.mzn \
+	fzn_fd/at_most_int.mzn fzn_ic/at_most_int.mzn \
+	fzn_fd/count.mzn fzn_ic/count.mzn \
+	fzn_fd/cumulative.mzn fzn_ic/cumulative.mzn \
+	fzn_fd/disjoint.mzn fzn_ic/disjoint.mzn \
+	fzn_fd/exactly_int.mzn fzn_ic/exactly_int.mzn \
+	fzn_fd/link_set_to_booleans.mzn fzn_ic/link_set_to_booleans.mzn \
+	fzn_ic/maximum_float.mzn \
+	fzn_ic/maximum_int.mzn \
+	fzn_ic/minimum_float.mzn \
+	fzn_ic/minimum_int.mzn \
+	fzn_fd/sort.mzn fzn_ic/sort.mzn
 
 
 ECL_DEST =	$(ECL_ECI_FILES:%.ecl=$(DESTDIR)/%.ecl) \

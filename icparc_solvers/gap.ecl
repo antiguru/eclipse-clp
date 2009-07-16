@@ -8,7 +8,7 @@
 %   (b) avoid the crippling overhead encountered when using the xgap
 %	interface for robustness.
 %
-% $Id: gap.ecl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
+% $Id: gap.ecl,v 1.3 2009/07/16 09:11:27 jschimpf Exp $
 %
 
 %
@@ -62,6 +62,7 @@
 % gap_query_string	As above, but returned as string (for non-ECLiPSe terms)
 %
 
+:- comment(categories, ["Interfacing"]).
 :- comment(summary, "Library for interfacing with the GAP computational algebra system").
 :- comment(desc, html("\
    This library provides an interface to the GAP computational algebra

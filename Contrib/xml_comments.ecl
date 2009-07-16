@@ -1,3 +1,4 @@
+:-comment(categories, ["Interfacing"]).
 :- comment(summary,'A bi-directional XML parser').
 :- comment(author, "John Fletcher, ECLiPSe wrapper by Joachim Schimpf").
 :- comment(copyright, "Copyright (C) 2001-2005 Binding Time Limited, 2005,2006 John Fletcher").
@@ -18,8 +19,8 @@ xml_parse_file(File, Document) :-
 </pre><p>
 This is Revision 2.0 of John Fletcher's code.
 Most of the subsequent text is taken literally from
-<a href=\"http://www.zen37763.zen.co.uk/xml.pl.html\">
-http://www.zen37763.zen.co.uk/xml.pl.html</a>.
+<a href=\"http://www.binding-time.co.uk/xmlpl.html\">
+http://www.binding-time.co.uk/xmlpl.html</a>.
 </p>
 
 <h2>TERMS AND CONDITIONS</h2>
@@ -36,6 +37,15 @@ for a particular purpose.
 <pre>
 History:
 $Log: xml_comments.ecl,v $
+Revision 1.4  2009/07/16 09:11:23  jschimpf
+Merged patches_6_0 branch up to merge_2009_07_16
+
+Revision 1.3.2.2  2009/04/09 02:11:38  jschimpf
+Updated the url in documentation
+
+Revision 1.3.2.1  2009/02/19 06:26:40  jschimpf
+Added comment(categories,...) annotations for better documentation
+
 Revision 1.3  2006/10/17 22:06:22  jschimpf
 Reinserted lost licensing paragraph.
 
@@ -69,7 +79,7 @@ where the XML specification makes provision for more or less complete <acronym t
 document, xml.pl actions the local definition of ENTITIES only. Other <acronym title=\"Document Type Declaration\">DTD</acronym> extensions are treated as
 commentary.</p>
   <p>
-   <a href=\"http://www.zen37763.zen.co.uk/xml_download.html\">The code, and a
+   <a href=\"http://www.binding-time.co.uk/xml_download.html\">The code, and a
 small Windows application which embodies it</a>, has been placed into the public domain, to
 encourage the use of Prolog with XML.</p>
   <p>I hope that they will be useful to
@@ -344,16 +354,16 @@ or <code>false</code></dd>
    with a sub-term
 of <var>Term</var>. This can be especially
 useful when trying to test or retrieve a deeply-nested subterm from a document
-- as demonstrated in this <a href=\"http://www.zen37763.zen.co.uk/xml_example.html\">example program</a>.
+- as demonstrated in this <a href=\"http://www.binding-time.co.uk/xml_example.html\">example program</a>.
 Note that <var>XMLTerm</var> is a sub-term of itself.</p>
   <p>
    <dfn>xml_pp( +XMLDocument )</dfn>&nbsp;\"pretty
 prints\" <var>XMLDocument</var> on the
 current output stream.</p>
   <h2>Availability</h2>
-  <p>The module is available from <a href=\"http://www.zen37763.zen.co.uk/xml_download.html\">this site</a>, and is supplied as a library with the following Prologs:</p>
+  <p>The module is available from <a href=\"http://www.binding-time.co.uk/xml_download.html\">this site</a>, and is supplied as a library with the following Prologs:</p>
   <ul>
-   <li>It is available in the <a href=\"http://eclipse.crosscoreop.com/eclipse/\">ECLiPSe Constraint Programming System</a>, as a
+   <li>It is available in the <a href=\"http://eclipse-clp.org\">ECLiPSe Constraint Programming System</a>, as a
 third-party library;</li>
    <li>It has been ported to <a href=\"http://www.probp.com/\">B-Prolog</a>
 by Neng-Fa Zhou.</li>
@@ -445,7 +455,7 @@ namespace nodes means that Namespaces, which are useful in combining
 specifications developed separately, have similar usefulness in combining
 applications developed separately.</p>
   <p>
-   <a href=\"http://www.zen37763.zen.co.uk/xml_download.html\">The source code is available here</a>.
+   <a href=\"http://www.binding-time.co.uk/xml_download.html\">The source code is available here</a>.
 Although it is unsupported, please feel free to <a href=\"mailto:john_fletcher@tesco.net\">e-mail queries and suggestions</a>. I
 will respond as time allows.</p>
 ")).
@@ -547,7 +557,7 @@ is not well-formed, diagnosis tries to identify the specific culprit term.
 	desc:html("
     This can be especially useful when trying to test or retrieve a
     deeply-nested subterm from a document - as demonstrated in this
-    <a href=\"http://www.zen37763.zen.co.uk/xml_example.html\">example
+    <a href=\"http://www.binding-time.co.uk/xml_example.html\">example
     program</a>.  Note that <code>XMLTerm</code> is a sub-term of itself."),
 	see_also:[xml_parse/2,xml_parse/3,xml_pp/1]
 ]).

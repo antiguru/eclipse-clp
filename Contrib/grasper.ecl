@@ -40,11 +40,34 @@
 
 :- module(grasper).
 
-%:- comment(desc,html("This is a description of GRASPER")).
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Finite Graphs Constraints Library").
 :- comment(author, "Ruben Duarte Viegas, CENTRIA").
 :- comment(status, prototype).
 :- comment(date, "$DATE$").
+:- comment(desc,html("<P>
+    Graph-based constraint programming can be declaratively used for path
+    and circuit finding problems, to routing, scheduling and allocation
+    problems, among others.  CP(Graph) was proposed by G.  Dooms et al. 
+    as a general approach to solve graph-based constraint problems.  It
+    provides a key set of basic constraints which represent the
+    framework's core, and higher level constraints for solving path
+    finding and optimization problems, and to enforce graph properties.
+    </P><P>
+    The GRASPER (GRAph constraint Satisfaction Problem solvER) library
+    is an alternative framework for graph-based constraint solving
+    based on Cardinal, a finite sets constraint solver with extra
+    inferences developed in Universidade Nova de Lisboa.  It provides
+    a set of basic constraints which represent the core of our
+    framework and functionality for directed graphs, graph weighting,
+    graph matching, graph path optimization problems and some of the
+    most common graph properties.
+    </P><P>
+    More information in this
+    <A HREF=\"http://www.springerlink.com/content/553x1733661l6k31/fulltext.pdf\">background paper</A>.
+    </P>
+")).
+:- comment(see_also, [library(cardinal)]).
 
 %%%
 %

@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION		$Id: bigrat.c,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -67,6 +67,12 @@ ec_double_to_int_or_bignum(double f, pword *pres)
 
 extern int
 ec_array_to_big(const void *p, int count, int order, int size, int endian, unsigned nails, pword *result)
+{
+    Bip_Error(ARITH_EXCEPTION);
+}
+
+extern int
+ec_big_to_chunks(pword *pw1, uword chunksize, pword *result)
 {
     Bip_Error(ARITH_EXCEPTION);
 }
@@ -808,6 +814,55 @@ ec_array_to_big(const void *p, int count, int order, int size, int endian, unsig
 }
 
 
+/*
+ * Break a bignum into integers of chunksize bits
+ */
+
+#ifndef ULONG_MAX
+#define ULONG_MAX ((unsigned long) -1)
+#endif
+
+extern int
+ec_big_to_chunks(pword *pw1, uword chunksize, pword *result)
+{
+    unsigned long pos = 0;
+    unsigned long offset = 0;
+    MP_INT z;
+
+    if (chunksize > SIZEOF_WORD*8)
+    {
+	Bip_Error(RANGE_ERROR)
+    }
+    if (BigNegative(pw1))
+    {
+    	Bip_Error(UNIMPLEMENTED);
+    }
+    Big_To_Mpi(pw1, &z);
+    while (pos < ULONG_MAX)
+    {
+	pword *pw = TG;
+	uword chunk = 0;
+	for(;;)
+	{
+	    unsigned long lpos;
+	    pos = mpz_scan1(&z, pos);
+	    lpos = pos-offset;
+	    if (lpos >= chunksize)
+		break;
+	    chunk |= 1<<lpos;
+	    ++pos;
+	}
+	Make_List(result, pw);
+	Push_List_Frame();
+	Make_Integer(pw, chunk);
+	result = pw+1;
+	offset += chunksize;
+    }
+    Make_Nil(result);
+    Succeed_;
+}
+
+
 /*--------------------------------------------------------------------------
  * methods for the TRAT type
  *--------------------------------------------------------------------------*/
@@ -1063,6 +1118,8 @@ static int
 _dbl_rat(value in, value *out)	/* CAUTION: we allow out == &in */
 {
     MP_RAT c;
+    if (!finite(Dbl(in)))
+	{ Bip_Error(ARITH_EXCEPTION); }
     mpq_init(&c);
     mpq_set_d(&c, Dbl(in));
     out->ptr = TG;
@@ -1074,6 +1131,8 @@ static int
 _dbl_nicerat(value in, pword *pres)
 {
     MP_RAT c;
+    if (!finite(Dbl(in)))
+	{ Bip_Error(ARITH_EXCEPTION); }
     mpq_init(&c);
     mpq_set_double(&c, Dbl(in));
     pres->tag.kernel = TRAT;

@@ -22,15 +22,16 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: notify_ports.ecl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: notify_ports.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(notify_ports).
 
 
+:- comment(categories, ["Data Structures","Techniques"]).
 :- comment(summary, "One-to-many and many-to-many notification ports").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/30 17:43:47 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- comment(desc, html("<P>

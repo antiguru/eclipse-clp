@@ -51,6 +51,7 @@
 	assoc_list_to_tree234/2,
 	tree234_to_assoc_list/2.
 
+:- comment(categories, ["Data Structures"]).
 :- comment(summary, "A map (dictionary) implemented using 2-3-4 trees").
 :- comment(author, "Thomas Conway (Mercury) and Warwick Harvey (ECLiPSe)").
 :- comment(desc, html("\

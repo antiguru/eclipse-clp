@@ -20,10 +20,11 @@
 % 
 % END LICENSE BLOCK
 
+:- comment(categories, ["Algorithms","Constraints"]).
 :- comment(summary, "Column generation library").
 :- comment(author, "Andrew Eremin").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:25 $").
+:- comment(date, "$Date: 2009/07/16 09:11:25 $").
 :- comment(status, prototype).
 
 :- comment(desc, html("\

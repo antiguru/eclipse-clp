@@ -25,16 +25,17 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: tentative_constraints.ecl,v 1.1 2006/09/23 01:54:01 snovello Exp $
+% Version:	$Id: tentative_constraints.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
 
 :- module(tentative_constraints).
 
+:- comment(categories, ["Algorithms","Techniques","Constraints"]).
 :- comment(summary, "Tentative value implementations for some basic constraints").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:54:01 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems").
 
 :- comment(desc, html("
@@ -83,7 +84,7 @@
 		fromto(V0,_V1,V2,0),		% until no violations left
 		param(Vars,N,SampleSize,Violations)
 	    do
-		vs_worst(Vars, X),		% get a most violated variable
+		vs_random_worst(Vars, X),	% get a most violated variable
 		tent_minimize_random(		% find a best neighbour
 		    (				% nondeterministic move
 			random_sample(1..N,SampleSize,I),
@@ -126,7 +127,7 @@
 	The violatedness of the constraint is 0 if the disequality holds,
 	1 otherwise.
 	</P><P>
-	The following declaration is in effect, meaning that eq_t/3
+	The following declaration is in effect, meaning that neq_t/3
 	is used whenever $\\= /2 is added to a constraint set:
 	<PRE>
 	:- neq_t/3 tent_implements $\\= /2.
@@ -236,7 +237,7 @@ eq_t(X, Y, Monitor) :-
 	tolerance Epsilon of the nearest integers, 1 otherwise.
 	</P><P>
 	The following declaration is in effect, meaning that integral_t/3
-	is used whenever alldifferent/1 is added to a constraint set:
+	is used whenever integral/2 is added to a constraint set:
 	<PRE>
 	:- integral_t/3 tent_implements integral/2.
 	</PRE>

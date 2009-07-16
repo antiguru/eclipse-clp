@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.5 2008/09/12 22:54:48 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.6 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -119,6 +119,7 @@
 
 :- module(asm).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Assemble and disassemble predicates").
 
 :- comment(desc, "\
@@ -280,7 +281,7 @@ abstract machine representation WAMCode.
 		"Object" : "A list of object words in the right format."],
 	resat:"   No.",
 	fail_if:"   If WAMCode is not in correct format.",
-	see_also:[asm / 2, asm / 3, disasm / 2, disasm / 3, fcompile / 1, fcompile / 2, store_pred/9, portable_object_code/2]]).
+	see_also:[asm / 2, asm / 3, disasm / 2, disasm / 3, fcompile / 1, fcompile / 2, portable_object_code/1]]).
 
 :- comment(portable_object_code / 1, [
 	summary:"Check whether abstract machine code is 32/64 bit portable",
@@ -297,7 +298,7 @@ abstract machine representation WAMCode.
 	amode:(portable_object_code(++) is semidet),
 	args:["Object" : "A list of object words, as produced by pasm/4."],
 	fail_if:"If Object is not portable between 32/64 bit.",
-	see_also:[pasm/4, store_pred/9]]).
+	see_also:[pasm/4]]).
 
 :- comment(wam / 1, [
 	summary:"Prints the formatted WAM code for predicate PredSpec.
@@ -387,6 +388,7 @@ abstract machine representation WAMCode.
           retrieve_code/3, 
           meta_index/2, 
 	  decode_code/2, 
+	  integer_list/3,
           functor_did/2 
    from sepia_kernel.
 
@@ -871,9 +873,9 @@ instr(push_local_value2(y(Y1),y(Y2)),	374, [y(Y1),y(Y2)]).
 instr(put_global_variable2(a(A1),y(Y1),a(A2),y(Y2)),	
       	                                375, [a(A1),y(Y1),a(A2),y(Y2)]).
 instr(put_variable2(a(A1),a(A2)),       376, [a(A1),a(A2)]).
-instr(get_atom2(a(A1),C1,a(A2),C2),     377, [a(A1),atom(C1),a(A2),atom(C2)]).
-instr(get_integer2(a(A1),C1,a(A2),C2),  378, [a(A1),i(C1),a(A2),i(C2)]).
-instr(get_atominteger(a(A1),C,a(A2),I), 379, [a(A1),atom(C),a(A2),i(I)]).
+%instr(get_atom2(a(A1),C1,a(A2),C2),     377, [a(A1),atom(C1),a(A2),atom(C2)]).
+%instr(get_integer2(a(A1),C1,a(A2),C2),  378, [a(A1),i(C1),a(A2),i(C2)]).
+%instr(get_atominteger(a(A1),C,a(A2),I), 379, [a(A1),atom(C),a(A2),i(I)]).
 instr(write_first_structure(D),         380, [func(D)]).
 instr(write_first_list,                 381, []).
 instr(write_next_structure(D,t(X)),     382, [func(D),t(X)]).
@@ -881,10 +883,10 @@ instr(write_next_list(t(X)),            383, [t(X)]).
 instr(write_next_structure(D,t(X),ref(L)),     
        					384, [func(D),t(X),ref(L)]).
 instr(write_next_list(t(X),ref(L)),     385, [t(X),ref(L)]).
-instr(read_atom2(C1,C2),		386, [atom(C1),atom(C2)]).
-instr(read_integer2(C1,C2),		387, [i(C1),i(C2)]).
-instr(read_integeratom(C1,C2),		388, [i(C1),atom(C2)]).
-instr(read_atominteger(C1,C2),		389, [atom(C1),i(C2)]).
+%instr(read_atom2(C1,C2),		386, [atom(C1),atom(C2)]).
+%instr(read_integer2(C1,C2),		387, [i(C1),i(C2)]).
+%instr(read_integeratom(C1,C2),		388, [i(C1),atom(C2)]).
+%instr(read_atominteger(C1,C2),		389, [atom(C1),i(C2)]).
 instr(write_did2(C1,C2),		390, [func(C1),func(C2)]).
 instr(write_atom2(C1,C2),		390, [atom(C1),atom(C2)]).  %=write_did2
 instr(write_atomdid(C1,C2),		390, [atom(C1),func(C2)]).  %=write_did2
@@ -1288,14 +1290,18 @@ portable_object_code(Ws) :-
 
 portable_object_code([], true).
 portable_object_code([W|Ws], Result) :-
-	( W = tag(C), integer(C), -2^63 =< C, C =< 2^63-1 ->
+	( ( unsafe_integer(W), C=W ; W=tag(C), unsafe_bignum(C)) ->
 	    Result = false,
 	    printf(warning_output,
-	   	"WARNING: A bignum between -2^63 and 2^63 found in code (%w)%n", [C]),
+	   	"WARNING: integer between 32 and 64 bit found in code (%w)%n", [C]),
 	    portable_object_code(Ws, _)
 	;
 	    portable_object_code(Ws, Result)
 	).
+
+    unsafe_integer(I) :- integer(I), ( I < -2^31 -> true ; I >= 2^31 ).
+
+    unsafe_bignum(I)  :- integer(I), -2^63 =< I, I < 2^63.
 
 
 % encode/decode environment descriptors
@@ -1317,19 +1323,14 @@ encode_edesc(eam(EAM), Is, Is0, Ts, Ts0) ?- !,
 	    % The pointer is tagged by adding 2.
 	    Is = [refm(BigMap,2)|Is0],
 	    Ts = [label(BigMap)|Ts1],
+	    integer_list(EAM, 31, Chunks),		% make 31-bit chunks
 	    (
-		fromto(EAM,EAM1,EAM2,0),
-		fromto(Ts1,[MarkedChunk|Ts2],Ts2,Ts0)
+		fromto(Chunks,[Chunk|Chunks1],Chunks1,[ChunkN]),
+		fromto(Ts1,[ShiftedChunk|Ts2],Ts2,[MarkedChunkN|Ts0])
 	    do
-		EAM2 is EAM1 >> 31,
-		Chunk is EAM1 /\ 16'7fffffff,		% lowest 31 bits
-		shl_32bit(Chunk, ShiftedChunk),
-		( EAM2 =:= 0 ->
-		    MarkedChunk is ShiftedChunk+1	% mark as last chunk
-		;
-		    MarkedChunk = ShiftedChunk
-		)
-	    )
+		shl_32bit(Chunk, ShiftedChunk)
+	    ),
+	    MarkedChunkN is shl_32bit(ChunkN) + 1	% mark as last chunk
 	).
 encode_edesc(Bits, Is, Is0, Ts, Ts0) :-
 	is_list(Bits),

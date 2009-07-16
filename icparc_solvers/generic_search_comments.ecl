@@ -52,8 +52,9 @@ args:[
 	    arity 3.  Some names are already predefined as special
 	    cases and are handled without a meta-call:  indomain,
 	    indomain_min, indomain_max, indomain_middle,
-	    indomain_median, indomain_split, indomain_random,
-	    indomain_interval",
+	    indomain_reverse_min, indomain_reverse_max,
+	    indomain_median, indomain_split, indomain_reverse_split,
+	    indomain_random, indomain_interval",
 
       "Method" :  "is one of the following:  complete,
 	    bbs(Steps:integer), lds(Disc:integer),
@@ -128,6 +129,16 @@ for <b>indomain</b>, but backtracking may occur earlier.</li>
 Values are tried in decreasing order.  On failure, the previously
 tested value is removed.</li>
 
+<li><b>indomain_reverse_min</b>
+Like indomain_min, but the alternatives are tried in reverse order.
+I.e. the smallest value is first removed from the domain, and only
+if that fails, the value is assigned.
+
+<li><b>indomain_reverse_max</b>
+Like indomain_max, but the alternatives are tried in reverse order.
+I.e. the largest value is first removed from the domain, and only
+if that fails, the value is assigned.
+
 <li><b>indomain_middle</b>
 Values are tried beginning from the middle of the domain.  On failure,
 the previously tested value is removed.</li>
@@ -137,9 +148,16 @@ Values are tried beginning from the median value of the domain.  On
 failure, the previously tested value is removed.</li>
 
 <li><b>indomain_split</b>
-Values are tried by succesive domain splitting.  On failure, the
-previously tried interval is removed.  This enumerates values in the
-same order as indomain or indomain_min, but may fail earlier.</li>
+Values are tried by succesive domain splitting, trying the lower half
+of the domain first.  On failure, the tried interval is removed.  This
+enumerates values in the same order as indomain or indomain_min, but
+may fail earlier.</li>
+
+<li><b>indomain_reverse_split</b>
+Values are tried by succesive domain splitting, trying the upper half
+of the domain first.  On failure, the tried interval is removed.  This
+enumerates values in the same order as indomain or indomain_max, but
+may fail earlier.</li>
 
 <li><b>indomain_random</b>
 Values are tried in a random order.  On backtracking, the previously
@@ -577,12 +595,21 @@ desc:html("This predicate provides a flexible way to assign values to finite
 domain variables.<p>
 The available methods are:
 <ul>
+<li><b>enum</b> Identical to indomain/1. Start enumeration from the smallest
+    value upwards, without first removing previously tried values.</li>
+
 <li><b>min</b> Start the enumeration from the smallest value upwards. 
     This behaves like the built-in <b>indomain/1</b>, except that it
     removes previously tested values on backtracking.</li>
 
 <li><b>max</b> Start the enumeration from the largest value
     downwards.</li>
+
+<li><b>reverse_min</b> Like min, but tries the alternatives in opposite
+    order, i.e. values are excluded first, then assigned.</li>
+
+<li><b>reverse_max</b> Like max, but tries the alternatives in opposite
+    order, i.e. values are excluded first, then assigned.</li>
 
 <li><b>middle</b> Try the enumeration starting from the middle of the
     domain.  On backtracking, this chooses alternatively values above and
@@ -597,6 +624,9 @@ The available methods are:
     successively into halves until a ground value is reached.  This
     sometimes can detect failure earlier than the normal enumeration
     methods, but enumerates the values in the same order as min.</li>
+
+<li><b>reverse_split</b> Like split, but tries the upper half of the
+    domain first.</li>
 
 <li><b>interval</b> If the domain consists of several intervals, then
     we branch first on the choice of the interval.  For one interval, we

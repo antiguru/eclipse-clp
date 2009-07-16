@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.15 2009/03/27 02:18:19 kish_shen Exp $
+# $Id: Makefile.in,v 1.16 2009/07/16 09:11:25 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -52,6 +52,7 @@ GMP_LD = @GMP_LD@
 FLOAT_ROUND_FLAGS = @FLOAT_ROUND_FLAGS@
 
 CPPFLAGS  = -I. -I$(ECLIPSEDIR)/include/$(ARCH) -I$(ECLIPSEDIR)/Kernel/src -I- $(OS_INCLUDES)
+STDCXXLIB = @STDCXXLIB@
 ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse @LIBS@
 
 
@@ -87,26 +88,26 @@ all:	$(OBJ_FILES)
 # EPLEX/OSI
 #----------------------------------------------------------------------
 
-OSIBASEDIR = @OSIBASEDIR@
-OSIBUILD = @OSIBUILD@
+CLPCBCDIR = @CLPCBCDIR@
+SYMCLPDIR = @SYMCLPDIR@
+
+CLPCBCARCHDIR = $(CLPCBCDIR)/$(ARCH)
+SYMCLPARCHDIR = $(SYMCLPDIR)/$(ARCH)
 
 COINOSILIBS = -lOsi -lCoinUtils
 COINCLPLIBS = -lOsiClp -lCgl -lClp 
 
-CLPCBCARCHDIR = $(OSIBASEDIR)clpcbc$(OSIBUILD)/$(ARCH)
-SYMCLPARCHDIR = $(OSIBASEDIR)symclp$(OSIBUILD)/$(ARCH)
-
 $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
 	$(CXX) -DCOIN -DCOIN_USE_CLP @OSICLP_ADDDEF@ $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCLPLIBS) @OSICLP_ADDLIB@ -lCbcSolver -lCbc -lCgl -lClp $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  -lCbcSolver -lCbc $(COINCLPLIBS) @OSICLP_ADDLIB@ $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	mv seosiclpcbc.$(OBJ_SUFFIX) $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX)
 
 $(ARCH)/seosisymclp.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
 	$(CXX) -DCOIN -DCOIN_USE_SYM $(CPPFLAGS) $(CFLAGS) -I$(SYMCLPARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o -L$(SYMCLPARCHDIR)/lib -lOsiSym -lSym $(COINCLPLIBS) $(COINOSILIBS) -lstdc++ $(ECLIBS) $(GMP_LD) -o seosisymclp.$(OBJ_SUFFIX)
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o -L$(SYMCLPARCHDIR)/lib -lOsiSym -lSym $(COINCLPLIBS) $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o seosisymclp.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	mv seosisymclp.$(OBJ_SUFFIX) $(ARCH)/seosisymclp.$(OBJ_SUFFIX)
 

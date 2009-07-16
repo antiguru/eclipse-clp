@@ -27,7 +27,7 @@
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Andrew Cheadle, IC-Parc
 %               Joachim Schimpf, IC-Parc
-% Version:      $Id: timeout.ecl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:      $Id: timeout.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -37,9 +37,10 @@
 
 :- module(timeout).
 
+:- comment(categories, ["Programming Utilities"]).
 :- comment(summary, "Impose time limit for goals").
 :- comment(author, "Andrew Cheadle, Joachim Schimpf, IC-Parc").
-:- comment(date, "$Date: 2008/06/30 17:43:50 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- import request_fail_event/3, timestamp_init/2, timestamp_update/2 from sepia_kernel.

@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 % Author/s:	Joachim Schimpf, IC-Parc, Imperial College
-% Version:	$Id: pretty_printer.ecl,v 1.2 2007/08/12 19:58:01 jschimpf Exp $
+% Version:	$Id: pretty_printer.ecl,v 1.3 2009/07/16 09:11:27 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :-module(pretty_printer).
@@ -49,6 +49,7 @@
 %:-pragma(nodebug). % to avoid variable names being used in the compiled code
 
 
+:- comment(categories, ["Development Tools"]).
 :-comment(summary,"This library pretty-prints a file in different formats.").
 
 :-comment(desc,html(
@@ -63,7 +64,7 @@
 
 :-comment(author,"H. Simonis").
 :-comment(copyright,"Cisco Systems, Inc.").
-:-comment(date,"$Date: 2007/08/12 19:58:01 $").
+:-comment(date,"$Date: 2009/07/16 09:11:27 $").
 
 
 %----------------------------------------------------------------------

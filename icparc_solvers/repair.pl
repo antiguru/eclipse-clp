@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Hani El-Sakkout, Stefano Novello, Joachim Schimpf, IC-Parc
-% Version:	$Id: repair.pl,v 1.1 2006/09/23 01:53:53 snovello Exp $
+% Version:	$Id: repair.pl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 %
 % EXTENSIONS
@@ -123,10 +123,11 @@ tr_monitors(monitor_tenable(V,_,T), monitor_tenable(V,T)).
 tr_monitors(monitor_conflict with [constraint:C], monitor_conflict(C)).
 
 
+:- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Repair library: support for local search via tentative assignments and repair constraints").
 :- comment(author, "Hani El-Sakkout, Stefano Novello, Joachim Schimpf").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:53 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 
 :- comment(desc, html("\
 The repair library provides a framework for the integration of repair-based

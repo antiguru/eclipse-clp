@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: mip.pl,v 1.1 2006/09/23 01:53:51 snovello Exp $
+% Version:	$Id: mip.pl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % MIP branch and bound in ECLiPSe using lib(eplex)
 %
@@ -32,9 +32,10 @@
 :- module(mip).
 % ----------------------------------------------------------------------
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "An example implementing MIP-style branch-and-bound").
 :- comment(author, "Joachim Schimpf, IC-Parc").
-:- comment(date, "$Date: 2006/09/23 01:53:51 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- use_module(library(eplex)).

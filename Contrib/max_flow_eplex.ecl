@@ -23,6 +23,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 :-module(max_flow_eplex).
+:-comment(categories, ["Algorithms"]).
 :-comment(summary,"Linear programming solution for maximum flow problem").
 :-comment(author,"CrossCore Optimization Ltd").
 :-comment(copyright,"2007, CrossCore Optimization Ltd").

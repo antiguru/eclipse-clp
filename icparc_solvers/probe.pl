@@ -208,9 +208,10 @@ deviating_bounds_demon(X, Handle, Susp, OwnSusp) :-
             true  % no solution yet
         ).
 
+:- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Probing").
 :- comment(author, "Mark Wallace, Hani El Sakkout").
-:- comment(date, "$Date: 2006/09/23 01:53:51 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("<P>

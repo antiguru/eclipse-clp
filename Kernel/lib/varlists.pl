@@ -22,14 +22,15 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: varlists.pl,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+% Version:	$Id: varlists.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(varlists).
 
+:- comment(categories, ["Data Structures"]).
 :- comment(summary, "Predicates to manipulate lists containing variables").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:51 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 
 
 :- export

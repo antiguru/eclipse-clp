@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
-% Version:	$Id: daVinci.ecl,v 1.1 2006/09/23 01:54:55 snovello Exp $
+% Version:	$Id: daVinci.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -48,6 +48,7 @@
 :-local variable(daVinciEdge).
 :-local variable(daVinciAttribute).
 
+:- comment(categories, ["Visualisation","Interfacing"]).
 :-comment(summary,"This library provides a simple interface to the daVinci graph drawing tool").
 
 :-comment(desc,html("
@@ -75,7 +76,7 @@ mode and connect the stream to the socket connection on the port
 2542.<p> ")).
 
 :-comment(author,"H. Simonis").
-:-comment(date,"$Date: 2006/09/23 01:54:55 $").
+:-comment(date,"$Date: 2009/07/16 09:11:27 $").
 
 /************************************************************************
 

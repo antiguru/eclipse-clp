@@ -21,9 +21,10 @@
 % END LICENSE BLOCK
 :- module(regex).
 
+:- comment(categories, ["Algorithms","Programming Utilities"]).
 :- comment(summary, "Interface to POSIX regular expression handling").
 :- comment(author, "J Chamois").
-:- comment(date, "$Date: 2007/02/23 15:28:33 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Public domain").
 
 :- export

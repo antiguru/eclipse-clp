@@ -25,16 +25,17 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: tentative.ecl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
+% Version:	$Id: tentative.ecl,v 1.3 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
 
 :- module(tentative).
 
+:- comment(categories, ["Techniques","Constraints"]).
 :- comment(summary, "A framework for Local Search based on tentative values").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/20 13:41:14 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems").
 
 :- comment(see_also, [library(tentative_constraints)]).
@@ -324,7 +325,7 @@ print_tentative(_{tentative{tentval:Val,violations:Viol}}, Print) ?-
     "
 ]).
 
-has_tent_value(X{tentative{}}) ?- !.
+has_tent_value(_X{tentative{}}) ?- !.
 has_tent_value(X) :- nonvar(X).
 
 
@@ -384,7 +385,7 @@ get_attribute(_{Attr0}, Attr) ?-
     "
 ]).
 
-tent_get(X{tentative{tentval:V0}}, TVal) ?- !,
+tent_get(_X{tentative{tentval:V0}}, TVal) ?- !,
 	TVal = V0.
 tent_get(X, _TVal) :-
 	var(X),
@@ -438,7 +439,7 @@ tent_get(X, TVal) :-
     "
 ]).
 
-var_get_violations(X{tentative{violations:Vio0}}, Vio) ?- !,
+var_get_violations(_X{tentative{violations:Vio0}}, Vio) ?- !,
 	Vio = Vio0.
 var_get_violations(X, _TVal) :-
 	var(X), !,
@@ -776,7 +777,7 @@ unify_tentative(_Y, AttrX) :-
 % to the sum Sum, i.e. when the TV of X increases by N, the Sum
 % increases by N*Coeff. Sum need not have a TV yet!
 
-register_for_sum(X{Attr}, Coeff, Sum) ?- !,
+register_for_sum(_X{Attr}, Coeff, Sum) ?- !,
 	( nonvar(Attr) ->
 	    Attr = tentative{tentval:Xt,sums:Sums},
 	    % nonvar(Coeff), var(Sum)
@@ -802,7 +803,7 @@ update_sums([Summand|Sums], New) :-
 % register for updates
 
 %:- export extend_sum/3.
-extend_sum(X{Attr}, Coeff, Sum) ?- !,
+extend_sum(_X{Attr}, Coeff, Sum) ?- !,
 	( nonvar(Attr) ->
 	    Attr = tentative{tentval:Xt, sums:Sums},
 	    % nonvar(Coeff), var(Sum), Sum need not have TV yet
@@ -874,7 +875,7 @@ extend_sum(X, Coeff, Sum) :-
     "
 ]).
 
-register_for_notification(X{Attr}, Tag, Receiver) ?- !,
+register_for_notification(_X{Attr}, Tag, Receiver) ?- !,
 	( nonvar(Attr) ->
 	    Attr = tentative{send_port:SendPort},
 	    ( var(SendPort) -> open_tagging_sender(SendPort) ; true ),

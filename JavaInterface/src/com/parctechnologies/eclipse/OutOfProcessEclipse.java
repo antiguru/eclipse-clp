@@ -21,7 +21,7 @@
 // END LICENSE BLOCK
 
 //Title:        Java/ECLiPSe interface
-//Version:      $Id: OutOfProcessEclipse.java,v 1.3 2008/06/20 13:41:12 jschimpf Exp $
+//Version:      $Id: OutOfProcessEclipse.java,v 1.4 2009/07/16 09:11:24 jschimpf Exp $
 //Author:       Josh Singer
 //Company:      Parc Technologies
 //Description:  ECLiPSe engine run on local machine, separate process
@@ -110,6 +110,10 @@ public class OutOfProcessEclipse implements EclipseConnection, EclipseEngine
     stdout = eclipseConnection.getFromEclipseQueue("joop_stdout");
     stderr = eclipseConnection.getFromEclipseQueue("joop_stderr");
     stdin = eclipseConnection.getToEclipseQueue("joop_stdin");
+
+    // make sure these get flushed eagerly, so users see error messages
+    eclipseConnection.rpc("set_stream_property(joop_stdout,flush,end_of_line)");
+    eclipseConnection.rpc("set_stream_property(joop_stderr,flush,end_of_line)");
 
     // now redirect Eclipse streams to write to / read from these queues
     eclipseConnection.rpc("set_stream(stdin, joop_stdin)");

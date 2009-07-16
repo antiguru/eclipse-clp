@@ -437,6 +437,7 @@ next(dfs(Id), Node, Next) ?-
 
 % ----------------------------------------------------------------------
 
+:- comment(categories, ["Algorithms","Constraints"]).
 :- comment(summary, "binary search tree library").
 :- comment(author, "Andrew Eremin").
 :- comment(copyright, "Cisco Systems, INc.").

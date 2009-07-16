@@ -287,9 +287,10 @@ add_olap_key(List,OlapList) :-
 
 
 
+:- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Probe Search").
 :- comment(author, "Mark Wallace, Hani El Sakkout").
-:- comment(date, "$Date: 2006/09/23 01:53:47 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("

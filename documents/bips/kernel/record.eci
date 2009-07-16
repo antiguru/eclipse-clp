@@ -22,6 +22,7 @@
 
 :- comment(alias, "Recorded Database").
 :- comment(summary, "The record-family of built-ins to store data across failures").
+:- comment(categories, ["Built-In Predicates","Data Structures"]).
 
 :- tool(erase / 2).
 :- tool(erase_all / 1).

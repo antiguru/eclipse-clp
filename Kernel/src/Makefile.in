@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.4 2009/02/27 21:01:04 kish_shen Exp $
+# $Id: Makefile.in,v 1.5 2009/07/16 09:11:24 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -562,19 +562,25 @@ PL_ECO_LIBRARIES =	anti_unify.pl apply.pl \
 		systools.pl t_all.pl test_util.pl toplevel.pl \
 		tracer_tcl.pl tracer_tty.pl util.pl
 
-BOOT_ECO_LIBRARIES = \
+BOOT_ECL_ECO_LIBRARIES = \
+		hash.ecl \
+		module_options.ecl \
+		eclipse_language.ecl
+
+BOOT_PL_ECO_LIBRARIES = \
+		asm.pl \
+		suspend.pl
+
+BOOT_ECO_MODULES = \
 		kernel \
-		asm \
-		hash \
-		module_options \
-		suspend \
-		eclipse_language
+		$(BOOT_PL_ECO_LIBRARIES:%.pl=%) \
+		$(BOOT_ECL_ECO_LIBRARIES:%.ecl=%)
 
 
 # Files from which .eci files will be produced (.ecl,.pl)
 
 ECI_ECL_LIBRARIES =	hash.ecl document.ecl \
-		var_name.ecl flexlm.ecl time_log.ecl module_options.ecl \
+		var_name.ecl time_log.ecl module_options.ecl \
 		notify_ports.ecl constraint_pools.ecl port_profiler.ecl \
 		swi.ecl timeout.ecl fcompile.ecl multifile.ecl
 
@@ -630,7 +636,7 @@ LIB_OBJECTS_i386_nt = $(LIB_PREFIX)eclipse.dll.a $(LIB_PREFIX)eclipse.def \
 		$(LIB_OBJECTS_TCL_NT)
 
 LIB_OBJECTS_x86_64_nt = $(LIB_PREFIX)eclipse.dll.a $(LIB_PREFIX)eclipse.def \
-		$(LIB_OBECTS_TCL_NT)
+		$(LIB_OBJECTS_TCL_NT)
 
 LIB_OBJECTS_ARCH = $(LIB_OBJECTS_$(ARCH))
 
@@ -658,14 +664,16 @@ EG_SOURCES =	eg_c_main.c eg_cc_main.cc \
 # -----------------------------------------------------------------------------
 
 PL_DEST =	$(PL_LIBRARIES:%.pl=$(PREFIX)/lib/%.pl) \
-		$(PL_ECO_LIBRARIES:%.pl=$(PREFIX)/lib/%.pl)
+		$(PL_ECO_LIBRARIES:%.pl=$(PREFIX)/lib/%.pl) \
+		$(BOOT_PL_ECO_LIBRARIES:%.pl=$(PREFIX)/lib/%.pl)
 ECI_DEST =	$(ECI_PL_LIBRARIES:%.pl=$(PREFIX)/lib/%.eci) \
 		$(ECI_ECL_LIBRARIES:%.ecl=$(PREFIX)/lib/%.eci)
-ECL_DEST =	$(ECL_ECO_LIBRARIES:%.ecl=$(PREFIX)/lib/%.ecl)
+ECL_DEST =	$(ECL_ECO_LIBRARIES:%.ecl=$(PREFIX)/lib/%.ecl) \
+		$(BOOT_ECL_ECO_LIBRARIES:%.ecl=$(PREFIX)/lib/%.ecl)
 TCL_DEST =	$(TCL_LIBRARIES:%.tcl=$(PREFIX)/lib/%.tcl)
 ECO_LIB_DEST =	$(ECL_ECO_LIBRARIES:%.ecl=$(PREFIX)/lib/%.eco) \
 		$(PL_ECO_LIBRARIES:%.pl=$(PREFIX)/lib/%.eco)
-ECO_BOOT_DEST = $(BOOT_ECO_LIBRARIES:%=$(PREFIX)/lib/%.eco) \
+ECO_BOOT_DEST = $(BOOT_ECO_MODULES:%=$(PREFIX)/lib/%.eco) \
 		$(COMPILER_MODULES:%=$(PREFIX)/lib/%.eco)
 SYSLIB_DEST =	$(SYSLIB_OBJECTS:%=$(PREFIX)/lib/$(ARCH)/%)
 BOOT_EXE_DEST =	$(BOOT_EXEC:%=$(PREFIX)/lib/$(ARCH)/%)
@@ -674,7 +682,7 @@ EG_SOURCES_DEST = $(EG_SOURCES:%=$(PREFIX)/doc/examples/%)
 EXT_INC_DEST =	$(EXT_INCLUDES:%=$(PREFIX)/include/$(ARCH)/%)
 
 # These files are in the repository, so the system can be bootstrapped:
-BOOT_ECOS =	$(BOOT_ECO_LIBRARIES:%=$(SEPIA)/lib/%.eco)
+BOOT_ECOS =	$(BOOT_ECO_MODULES:%=$(SEPIA)/lib/%.eco)
 COMPILER_ECOS:	$(COMPILER_MODULES:%=$(SEPIA)/lib/%.eco)
 
 

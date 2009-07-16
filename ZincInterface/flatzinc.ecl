@@ -25,11 +25,13 @@
 
 :- module(flatzinc).
 
-:- comment(date, "$Date: 2008/12/19 05:56:37 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Interpreter for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
 :- comment(see_also, [
+	library(minizinc),
 	library(flatzinc_parser),
 	library(fzn_ic),
 	library(fzn_fd),
@@ -42,7 +44,7 @@ Overview
 </H3>
 <P>
 The core of this module is an interpreter for FlatZinc models, based
-on 'Specification of FlatZinc' (Nov 7 2007).  It uses
+on 'Specification of FlatZinc 1.0' (May 2009).  It uses
 lib(flatzinc_parser) to read a FlatZinc model one item at a time, and
 immediately interprets it.  The mapping from FlatZinc built-in
 operations to actual ECLiPSe solver operations is in separate modules
@@ -58,10 +60,10 @@ executed from ECLiPSE by calling
 <PRE>
     ?- fzn_run(\"model.fzn\", fzn_ic).
 </PRE>
-where model.fzn is the file name and fzn_ic is the name of the chosen
-solver mapping. It is also possible to read a model from the standard
-input using fzn_run/1, or from an arbitrary ECLiPSe input stream using
-fzn_run_stream/2.
+where model.fzn is the file name (the .fzn extension can be omitted)
+and fzn_ic is the name of the chosen solver mapping.  It is also
+possible to read a model from the standard input using fzn_run/1, or
+from an arbitrary ECLiPSe input stream using fzn_run_stream/2.
 </P>
 If finer control is needed, the processing of a FlatZinc model can be
 split up into initialization, loading and constraint-set-up, search,
@@ -91,8 +93,8 @@ Creating FlatZinc Models
 Note that FlatZinc is not intended to be written by humans, but
 created by translating models written in Zinc or MiniZinc.  A
 translator for MiniZinc to FlatZinc called mzn2fzn is available at
-<A HREF=\"http://nicta.com.au/research/projects/constraint_programming_platform/minizinc\">
-http://nicta.com.au/research/projects/constraint_programming_platform/minizinc</A>
+<A HREF=\"http://www.g12.csse.unimelb.edu.au/minizinc\">
+http://www.g12.csse.unimelb.edu.au/minizinc</A>
 </P>
 <P>
 The use of an intermediate FlatZinc file can be avoided by
@@ -167,11 +169,6 @@ range_fzn_to_solver(+min, +max, -set).
 </CODE>
 </P>
 <P>
-<H3>
-Further Details
-</H3>
-By default, the 'output' primitive suppresses all variables with
-the var_is_introduced annotation.
 <H3>
 TODO
 </H3>
@@ -249,7 +246,7 @@ TODO
 	Only effective if no minimization/maximization is done.
 	Only effective for toplevel predicates like fzn_run/mzn_run
 	that are deterministic and do not succeed once per solution.
-	Default is 1, zero means no limit.",
+	Default is 1, 'all' or 0 means no limit.",
     "var_names":"
 	If this option is set to 'on', the ECLiPSe variables representing
 	Zinc variables will be marked with their Zinc names, using the
@@ -297,7 +294,7 @@ TODO
 	dict,			% hash table of all identifiers in the model
 	id_count,		% identifier counter (to track input order)
 	solve_goal,		% goal resulting from solve item
-	output_elems,		% argument of output item
+	output_elems,		% argument of output item (obsolete)
 	init_time,		% time we started
 	start_setup_time,	% time we started loading the model
 	end_setup_time,		% time we finished loading the model
@@ -339,7 +336,7 @@ default_options(zn_options{solver:Solver,parser:Parser,var_names:VNames,
 valid_options(zn_options{solver:Solver,parser:Parser,var_names:VNames,
 			fzn_tmp:FznTmp,solutions:N,setup_prio:Prio}) :-
 	atom(Solver),
-	integer(N), N>=0,
+	(integer(N), N>=0 ; N==all),
 	integer(Prio), Prio>=0, Prio=<12,
 	(Parser==strict;Parser==fast),
 	(FznTmp==pipe;FznTmp==file),
@@ -363,9 +360,10 @@ valid_options(Options) :-
     desc:html("<P>
 	Reads a FlatZinc model from the input stream, and interprets it using
 	the solver mapping defined in SolverOrOptions.  At the end of
-	solving, resuls and timings are printed to the output stream. 
-	Error messages may be printed to the error stream.  This
-	predicate always succeeds. It is equivalent to:
+	solving, results are printed to the output stream, timing and
+	progress messages are printed to the log_output stream, warnings
+	to the warning_output stream, and error messages the error stream.
+	This predicate always succeeds. It is equivalent to:
     <PRE>
     fzn_run(SolverOrOptions) :-
 	fzn_run_stream(input, SolverOrOptions).
@@ -389,9 +387,10 @@ fzn_run(SolverOrOptions) :-
     desc:html("<P>
 	Reads a FlatZinc model from a file, and interprets it using
 	the solver mapping defined in SolverOrOptions.  At the end of
-	solving, resuls and timings are printed to the output stream. 
-	Error messages may be printed to the error stream.  This
-	predicate always succeeds.
+	solving, results are printed to the output stream, timing and
+	progress messages are printed to the log_output stream, warnings
+	to the warning_output stream, and error messages the error stream.
+	This predicate always succeeds.
     </P>"),
     eg:"
     ?- fzn_run(\"mymodel.fzn\", fzn_ic).
@@ -426,9 +425,10 @@ fzn_run(File, SolverOrOptions) :-
     desc:html("<P>
 	Reads a FlatZinc model from a stream, and interprets it using
 	the solver mapping defined in SolverOrOptions.  At the end of
-	solving, resuls and timings are printed to the output stream. 
-	Error messages may be printed to the error stream.  This
-	predicate always succeeds and closes the stream.
+	solving, results are printed to the output stream, timing and
+	progress messages are printed to the log_output stream, warnings
+	to the warning_output stream, and error messages the error stream.
+	This predicate always succeeds and closes the stream.
     </P>"),
     eg:"
     ?- open(\"mymodel.fzn\",read,S), fzn_run_stream(S, fzn_ic).
@@ -448,10 +448,11 @@ fzn_run_stream(Stream, SolverOrOptions) :-
 	    fzn_load_stream(Stream, State),
 	    fzn_search(State),
 	    fzn_output(State),
+	    writeln(----------),
 	    fzn_last(State),
 	    !
 	;
-	    printf("No solution found%n", [])
+	    writeln(==========)
 	).
 
 
@@ -525,7 +526,7 @@ fzn_init(SolverOrOptions,
 	Options = zn_options{solver:Solver,solutions:SolMax},
 
 	% solution counter
-	( SolMax > 0 -> C0 is SolMax-1 ; C0 = 999999999 ),
+	( SolMax > 0 -> C0 is eval(SolMax)-1 ; C0 is all-1 ),
 	shelf_create(c(C0), SolCnt),
 
 	% load solver here, so it doesn't affect the timings
@@ -540,8 +541,10 @@ fzn_init(SolverOrOptions,
 
 	cputime(T0).
 
+    all(1000000000).	% default solution counter
+
     register_start_search(state{start_search_time:T,dict:_Dict}) :-
-	writeln(log_output, "Starting search"),
+	writeln(log_output, "% Starting search"),
 	cputime(T).
 
     register_end_search(state{end_search_time:T}) :-
@@ -552,9 +555,9 @@ fzn_init(SolverOrOptions,
 		start_search_time:T3,end_search_time:T4}) :-
 	cputime(T5),
 	Tall is T5-T0,
-	printf(log_output, "Total time %.3fs cpu ", [Tall]),
+	printf(log_output, "%% Total time %.3fs cpu ", [Tall]),
 	( var(T2) ->
-	    printf(log_output, "Total time %.3fs cpu (failure)%n", [Tall])
+	    printf(log_output, "(failure)%n", [])
 	;
 	    Tsetup is T2-T1,
 	    printf(log_output, "(%.3f setup", [Tsetup]),
@@ -603,7 +606,7 @@ fzn_load_stream(Stream, State) :-
 	    close(Stream)
 	;
 	    get_stream_info(Stream, line, Line),
-	    printf("No solution found (during setup, FlatZinc line %w)%n", [Line]),
+	    printf("%% Failure during constraint setup, FlatZinc model line %w%n", [Line]),
 	    close(Stream),
 	    fail
 	).
@@ -635,7 +638,7 @@ fzn_load_stream(Stream, State) :-
 
     report_abort(Stream, Tag) :-
 	get_stream_info(Stream, line, Line),
-	printf("Aborted in line %w%n", [Line]),
+	printf(error, "Aborted in line %w%n", [Line]),
 	close(Stream),
 	exit_block(Tag).
 
@@ -711,6 +714,8 @@ interpret(maximize(SolveAnns,Expr), State) :- !,
 interpret(output(Elems), State) :- !,
 	State = state{output_elems:Elems}.
 
+interpret(predicate(_Elems), _State) :- !.	% ignore for now
+
 
 % Declarations ---------------------------------
 
@@ -757,8 +762,12 @@ declare_var(Min..Max, EclVar, _, _Anns, state{solver:Solver}, float) :-
 declare_var({}(Elems), EclVar, _, _Anns, state{solver:Solver}, int) :-
 	%is_list(Elems),
 	Solver:int_declare(EclVar, Elems).
-declare_var(no_macro_expansion(of(set,int)), _EclVar, Ident, _Anns, _State, _set) :- !,
-	fzn_error("Set of int not allowed: %w", [Ident]).
+declare_var(no_macro_expansion(of(set,int)), EclVar, Ident, _Anns, _State, set) :- !,
+	( var(EclVar) ->
+	    fzn_error("Set of int not allowed: %w", [Ident])
+	;
+	    true
+	).
 declare_var(no_macro_expansion(of(set,Min..Max)), EclVar, _, _Anns, state{solver:Solver}, set) :- !,
 	Solver:set_declare(EclVar, Min, Max).
 declare_var(no_macro_expansion(of(set,Elems)), EclVar, _, _Anns, state{solver:Solver}, set) :-
@@ -782,8 +791,12 @@ declare_vars(Min..Max, EclVars, _, _Anns, state{solver:Solver}, arr_float) :-
 declare_vars({}(Elems), EclVars, _, _Anns, state{solver:Solver}, arr_int) :-
 	%is_list(Elems),
 	Solver:int_declare_array(EclVars, Elems).
-declare_vars(no_macro_expansion(of(set,int)), _EclVar, Ident, _Anns, _State, arr_set) :- !,
-	fzn_error("Set of int not allowed: %w", [Ident]).
+declare_vars(no_macro_expansion(of(set,int)), EclVar, Ident, _Anns, _State, arr_set) :- !,
+	( var(EclVar) ->
+	    fzn_error("Set of int not allowed: %w", [Ident])
+	;
+	    true
+	).
 declare_vars(no_macro_expansion(of(set,Min..Max)), EclVars, _, _Anns, state{solver:Solver}, arr_set) :- !,
 	Solver:set_declare_array(EclVars, Min, Max).
 declare_vars(no_macro_expansion(of(set,Elems)), EclVars, _, _Anns, state{solver:Solver}, arr_set) :-
@@ -798,6 +811,9 @@ declare_vars(no_macro_expansion(of(set,Elems)), EclVars, _, _Anns, state{solver:
 :- mode eval_expr(+,+,-).
 eval_expr([], _State, _) :- !,
 	fzn_error("Illegal empty array: %w", [[]]).
+eval_expr({}, State, Set) :- !,
+	State = state{solver:Solver},
+	Solver:set_fzn_to_solver([], Set).
 eval_expr(Ident, State, Result) :-
 	atom(Ident), !,
 	fzn_var_lookup(State, Ident, Result).	% takes care of bools
@@ -909,6 +925,68 @@ check_annotations([A|As]) :-
 	check_annotations(As).
 
     silent(var_is_introduced).
+    silent(output_var).
+    silent(output_array(_)).
+    silent(is_defined_var).
+    silent(defines_var(_)).
+
+
+% Evaluate annotation terms. This is similar to evaluating expressions,
+% but we do not invoke any constraints/functions, we just do name lookups
+% and Zinc->ECLiPSe type conversions.
+
+:- mode eval_ann(+,+,-).
+eval_ann([], _State, _) :- !,
+	fzn_error("Illegal empty array: %w", [[]]).
+eval_ann({}, State, Set) :- !,
+	State = state{solver:Solver},
+	Solver:set_fzn_to_solver([], Set).
+eval_ann(Ident, State, Result) :-
+	atom(Ident), !,
+	( fzn_var_lookup(State, Ident, Result) ->
+	    true		% takes care of variables, pars, true/false
+	;
+	    Result = Ident	% leave the atom unevaluated
+	).
+eval_ann(X, _State, Result) :-
+	integer(X), !,
+	Result = X.
+eval_ann(X, State, Real) :-
+	float(X), !,
+	State = state{solver:Solver},
+	Solver:float_fzn_to_solver(X, Real).
+eval_ann(X, _State, Result) :-
+	string(X), !,
+	Result = X.
+eval_ann(FZElems, State, Array) :-
+	FZElems = [_|_], !,
+	length(FZElems, N),
+	dim(Array, [N]),
+	( foreach(FZElem,FZElems), foreacharg(Elem,Array), param(State) do
+	    eval_ann(FZElem, State, Elem)
+	).
+eval_ann({}(List), State, Set) :- !,
+	State = state{solver:Solver},
+	Solver:set_fzn_to_solver(List, Set).
+eval_ann(Min..Max, State, Set) :- !,
+	State = state{solver:Solver},
+	Solver:range_fzn_to_solver(Min, Max, Set).
+eval_ann(Ident[I0], State, Elem) :- !,
+	eval_ann(I0, State, I),
+	( integer(I) -> true ; fzn_error("Non-integer subscript %w", [I])),
+	fzn_var_lookup(State, Ident, Array),	% array should exist
+	arg(I, Array, Elem).
+eval_ann(Expr, State, Result) :-
+	compound(Expr), !,
+	functor(Expr, Name, Arity),
+	functor(Result, Name, Arity),
+	( for(I,1,Arity), param(Expr,Result,State) do
+	    arg(I, Expr, FZArg),
+	    arg(I, Result, Arg),
+	    eval_ann(FZArg, State, Arg)
+	).
+eval_ann(Expr, _State, _Elem) :-
+	fzn_error("Illegal annotation expression: %w", [Expr]).
 
 
 % Search ---------------------------------------
@@ -954,15 +1032,15 @@ add_default_anns(State, UserAnns, Anns) :-
 	    fromto(Anns,[EvalUserAnn|Anns1],Anns1,DefaultAnns),
 	    param(State)
 	do
-	    eval_args(UserAnn, State, EvalUserAnn)
+	    eval_ann(UserAnn, State, EvalUserAnn)
 	),
 	% add default search annotations
 	extract_problem_vars(State, Ints, Floats, Bools, Sets),
 	DefaultAnns = [
-	    bool_search(Bools, "input_order", "indomain", "complete"),
-	    int_search(Ints, "first_fail", "indomain", "complete"),
-	    set_search(Sets, "input_order", "indomain_min", "complete"),
-	    float_search(Floats, 0.0001, "input_order", "indomain_split", "complete")
+	    bool_search(Bools, input_order, indomain, complete),
+	    int_search(Ints, first_fail, indomain, complete),
+	    set_search(Sets, input_order, indomain_min, complete),
+	    float_search(Floats, 0.0001, input_order, indomain_split, complete)
 	].
 
 
@@ -977,9 +1055,8 @@ add_default_anns(State, UserAnns, Anns) :-
     desc:html("<P>
 	Assuming that a FlatZinc model has previously been set up
 	and solved, this predicate will perform the output actions
-	specified in the model's output item.  If no output item
-	was specified, a default output will be generated, consisting
-	of the display of values of all model variables in input order.
+	specified by the model's output annotations.  If no output
+	annotations were given, no variable bindings will be printed.
 	In addition, statistics information will be printed to the
 	log_output stream.
     </P>"),
@@ -995,6 +1072,7 @@ fzn_output(State) :-
 	( var(Elems) ->
 	    default_output(State)
 	;
+	    % obsolete - there should be no output items
 	    ( foreach(Elem,Elems), param(State) do
 		( Elem = show(Expr) ->
 		    eval_expr(Expr, State, Value),
@@ -1016,7 +1094,9 @@ fzn_output(State) :-
 
 
 default_output(state{solver:Solver,dict:Dict,solve_goal:Solve,cost:Cost}) :-
-	hash_list(Dict, _Keys, Entries),
+	hash_list(Dict, Keys, Entries),
+/*
+	% Old code (pre output annotations)
 	sort(num of zn_var, =<, Entries, Sorted),
 	( foreach(zn_var{id:Ident,eclvar:X,type:Type,ann:Ann}, Sorted), param(Solver) do
 	    ( memberchk(var_is_introduced, Ann) ->
@@ -1029,11 +1109,39 @@ default_output(state{solver:Solver,dict:Dict,solve_goal:Solve,cost:Cost}) :-
 		true
 	    )
 	),
+*/
+	% sort alphabetically
+	( foreach(K,Keys),foreach(E,Entries),foreach(K-E,KEntries) do true ),
+	keysort(KEntries, KSorted),
+	( foreach(_-E,KSorted),foreach(E,Sorted) do true ),
+	( foreach(zn_var{id:Ident,eclvar:X,type:Type,ann:Ann,group:Group}, Sorted), param(Solver) do
+	    ( memberchk(output_var, Ann) ->
+		( Type = var(_) ->
+		    printf("%w = ", [Ident]),
+		    fzn_write(output, X, Type, Solver),
+		    writeln(";")
+		;
+		    fzn_error("output_var cannot output %w", [Group])
+		)
+	    ; memberchk(output_array(Ranges), Ann) ->
+		( Type = no_macro_expansion(array(_) of var(_)) ->
+		    length(Ranges, Dim),
+		    printf("%w = array%dd(", [Ident,Dim]),
+		    ( foreach(Range,Ranges) do printf("%Kw, ", [Range])),
+		    fzn_write(output, X, Type, Solver),
+		    writeln(");")
+		;
+		    fzn_error("output_array cannot output %w", [Group])
+		)
+	    ;
+		true
+	    )
+	),
 	( number(Cost) ->
 	    ( Solve = minimize(_,_,_) ->
-		printf("Minimum objective value = %q%n", [Cost])
+		printf(log_output, "%% Minimum objective value = %q%n", [Cost])
 	    ;
-		printf("Maximum objective value = %q%n", [Cost])
+		printf(log_output, "%% Maximum objective value = %q%n", [Cost])
 	    )
 	;
 	    true

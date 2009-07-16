@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: numbervars.pl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% Version:	$Id: numbervars.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -38,10 +38,11 @@
 
 :- module(numbervars).
 
+:- comment(categories, ["Algorithms","Compatibility"]).
 :- comment(summary, "C-Prolog style numbervars predicate").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:48 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("
     Implements the numbervars(Term, From, To) predicate of C-Prolog.  Term
     is any term, From and To are integer numbers.  All variables in Term
@@ -67,7 +68,7 @@
 numbervars('$VAR'(N), N, N1) :- !,
 	N1 is N + 1.
 numbervars(Term, N, Next) :-
-	functor(Term, _, Arity),
+	arity(Term, Arity),
 	numbervars(0, Arity, Term, N, Next).
 
 numbervars(Arity, Arity, _, N, Next) :- !, N = Next.

@@ -23,6 +23,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 :-module(all_min_cuts).
+:-comment(categories, ["Algorithms"]).
 :-comment(summary,"Curet et al, algorithm for generating all minimum-cost cuts").
 :-comment(desc,"Algorithm for generating all minimum-cost cuts"
                " between source and sink. From Norman D. Curet,"

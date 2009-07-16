@@ -22,6 +22,7 @@
 
 :- comment(alias, "Directives").
 :- comment(summary, "Directives that can only appear in compiled files").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool(include / 1).
 :- tool(comment / 2).
@@ -164,6 +165,15 @@ The documentation tools recognise the following module-level comments:
    the index pointing at the module description. This is used to add extra
    entries in the index in addition to the ones that are automatically
    generated.
+
+<DT><STRONG>comment(categories, ListOfStrings)</STRONG>
+   <DD>A list of strings describing into which categories the library
+   belongs.  This is used to generate a classified index page.
+   While the category names can be freely chosen, it is recommended
+   to stick to the predefined ones: \"Algorithms\", \"Compatibility\",
+   \"Constraints\", \"Data Structures\", \"Development Tools\",
+   \"Interfacing\", \"Programming Utilities\", \"Techniques\",
+   \"Visualisation\".
 </DL>
 In addition, it is possible to comment individual predicates and
 structures, using comment directives of the form:

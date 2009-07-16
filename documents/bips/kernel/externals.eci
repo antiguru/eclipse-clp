@@ -23,6 +23,7 @@
 :- comment(alias, "External Interface").
 :- comment(summary, "Built-ins to access functions and data from foreign languages").
 :- comment(desc, html("For more information, see the Embedding and Interfacing Manual")).
+:- comment(categories, ["Built-In Predicates","Interfacing"]).
 
 :- tool(b_external / 1).
 :- tool(b_external / 2).

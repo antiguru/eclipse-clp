@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.1 2006/09/23 01:53:32 snovello Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -73,6 +73,7 @@
 :- export portray(atmost1/3, tr_global_out/2, [goal]).
 
 tr_global_out(atmost1(N, List, Val), atmost(N, List, Val)).
+tr_global_out(occurrences(Val, Vars, N, _, _), occurrences(Val, Vars, N)).
 
 
 %----------------------------------------------------------------------
@@ -84,16 +85,19 @@ tr_global_out(atmost1(N, List, Val), atmost(N, List, Val)).
     amode:ordered(++,+),
     args:[
 	"Relation":"One of the atoms <, =<, >, >=, =",
-	"List":"List of integers or domain variables"
+	"List":"Collection of integers or domain variables"
     ],
-    see_also:[lexico_le/2,ordered_sum/2,sorted/2]
+    see_also:[lexico_le/2,ordered_sum/2,sorted/2,collection_to_list/2]
     ]).
 
 ordered(Order, Xs) :- var(Xs), !,
 	suspend(ordered(Order, Xs), 4, Xs->inst).
-ordered(_, []).
-ordered(Order, [X1|Xs]) :-
+ordered(_, []) :- !.
+ordered(Order, [X1|Xs]) :- !,
 	ordered1(Order, X1, Xs).
+ordered(Order, Xs) :-
+	collection_to_list(Xs, List),
+	ordered(Order, List).
 
 ordered1(Order, X1, Xs) :- var(Xs), !,
 	suspend(ordered(Order, [X1|Xs]), 4, Xs->inst).
@@ -124,7 +128,7 @@ ordered1(Order, X1, X2Xs) :-
     summary:"Min is the minimum of the values in List",
     amode:minlist(+,?),
     args:[
-	"List":"List of integers or domain variables",
+	"List":"Collection of integers or domain variables",
 	"Min":"Variable or integer"
     ],
     desc:html("\
@@ -132,10 +136,11 @@ ordered1(Order, X1, X2Xs) :-
 	Min gets updated to reflect the current range of the minimum
 	of variables and values in List.  Likewise, the list
 	elements get constrained to the minimum given"),
-    see_also:[maxlist/2,sumlist/2]
+    see_also:[maxlist/2,sumlist/2,collection_to_list/2]
     ]).
 
-minlist(List, Min) :-
+minlist(Xs, Min) :-
+	collection_to_list(Xs, List),
 	call_priority(minlist_atomic(List, Min), 2).
 
     minlist_atomic(Xs, Min) :-
@@ -191,7 +196,7 @@ minlist(List, Min) :-
     summary:"Max is the maximum of the values in List",
     amode:maxlist(+,?),
     args:[
-	"List":"List of integers or domain variables",
+	"List":"Collection of integers or domain variables",
 	"Max":"Variable or integer"
     ],
     desc:html("\
@@ -199,10 +204,11 @@ minlist(List, Min) :-
 	Max gets updated to reflect the current range of the maximum
 	of variables and values in List.  Likewise, the list
 	elements get constrained to the maximum given."),
-    see_also:[minlist/2,sumlist/2]
+    see_also:[minlist/2,sumlist/2,collection_to_list/2]
     ]).
 
-maxlist(List, Max) :-
+maxlist(Xs, Max) :-
+	collection_to_list(Xs, List),
 	call_priority(maxlist_atomic(List, Max), 2).
 
     maxlist_atomic(Xs, Max) :-
@@ -287,11 +293,17 @@ occurrences1(Value, List, N) :-
 	suspend(occurrences1(Value, List, N), 3, Value->inst).
 occurrences1(Value, List, N) :-
 	nonvar(Value),
-	occurrences(Value, List, N, 0),
+        occurrences(Value, List, N, state(0,List), _Susp),
 	wake.
 
-occurrences(Value, List, N, Occ) :-
-	count_vars(Value, List, Occ, Lower, Occ, Upper, VarsWithValue),
+
+:- demon occurrences/5.
+:- export portray(occurrences/5, tr_global_out/2, [goal]).
+
+occurrences(Value, List, N, State, Susp) :-
+        arg(1, State, Occ),
+        arg(2, State, RestList),
+	count_vars(Value, RestList, Occ, Lower, Occ, Upper, VarsWithValue),
 	get_priority(P),			% make updates atomic
 	set_priority(2),
 	lwb(N, Lower),
@@ -299,16 +311,25 @@ occurrences(Value, List, N, Occ) :-
 	( N == Lower ->
 	    ( foreach(X, VarsWithValue), param(Value) do
 		excl(X, Value)
-	    )
+	    ),
+            kill_suspension(Susp),
+	    set_priority(P)
 	; N == Upper ->
 	    ( foreach(X, VarsWithValue), param(Value) do
 	    	X = Value
-	    )
+	    ),
+            kill_suspension(Susp),
+	    set_priority(P)
+	; var(Susp) ->
+	    generic_suspend(
+		    occurrences(Value, List, N, state(Lower,VarsWithValue), Susp),
+		    4, [VarsWithValue->any, N->min, N->max], Susp),
+	    set_priority(P)
 	;
-	    generic_suspend(occurrences(Value, VarsWithValue, N, Lower), 4,
-	    	[VarsWithValue->any, N->min, N->max])
-	),
-	set_priority(P).
+            setarg(1, State, Lower),
+            setarg(2, State, VarsWithValue),
+	    set_priority(P)
+	).
 
 
 % count_vars(+Value,+Vars,-Lower,-Upper,-VarsWithValue)
@@ -327,16 +348,15 @@ occurrences(Value, List, N, Occ) :-
 
 count_vars(_,[],Lower,Lower,Upper,Upper,[]).
 count_vars(Value,[H|T],Lower1,Lower,Upper1,Upper,VarsWithValue) :-
-	( check_in(Value,H) ->
+	( H == Value ->
+	    Upper2 is Upper1 + 1,		% H is instantiated to Value!
+	    Lower2 is Lower1 + 1,
+	    count_vars(Value,T,Lower2,Lower,Upper2,Upper,VarsWithValue)
+
+	; check_in(Value,H) ->
 	    Upper2 is Upper1 + 1,		% Value in domain
-	    ( H == Value ->
-		Lower2 is Lower1 + 1,		% H is instantiated to Value!
-		VarsWithValue = MoreWithValue
-	    ;   
-                Lower2 = Lower1,
-		VarsWithValue = [H|MoreWithValue]
-	    ),
-	    count_vars(Value,T,Lower2,Lower,Upper2,Upper,MoreWithValue)
+	    VarsWithValue = [H|MoreWithValue],
+	    count_vars(Value,T,Lower1,Lower,Upper2,Upper,MoreWithValue)
 	;
 	    count_vars(Value,T,Lower1,Lower,Upper1,Upper,VarsWithValue)
 	).

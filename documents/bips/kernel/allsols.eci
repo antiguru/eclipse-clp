@@ -22,6 +22,7 @@
 
 :- comment(alias, "All Solutions").
 :- comment(summary, "Built-ins to collect all solutions to nondeterministic goals").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool(bagof / 3).
 :- tool(coverof / 3).

@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: ic_symbolic.ecl,v 1.3 2008/06/20 13:41:14 jschimpf Exp $
+% Version:	$Id: ic_symbolic.ecl,v 1.4 2009/07/16 09:11:27 jschimpf Exp $
 %
 % Todo:
 %  -	compile time transformation could do all symbolic->int mapping
@@ -43,9 +43,10 @@
 
 :- module(ic_symbolic).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Solver for constraints over ordered symbolic domains").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/20 13:41:14 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 

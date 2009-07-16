@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:       ECLiPSe Constraint Logic Programming System
-% Version:      $Id: propia.pl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
+% Version:      $Id: propia.pl,v 1.3 2009/07/16 09:11:25 jschimpf Exp $
 %
 % Description:          Propia
 %
@@ -38,10 +38,11 @@
 
 :- module(propia).
 
+:- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "The Generalised Propagation Library").
 :- comment(author, "Thierry Le Provost, ECRC and Mark Wallace, IC-Parc and ICL").
 :- comment(copyright, "1995-2006 Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/20 13:41:14 $").
+:- comment(date, "$Date: 2009/07/16 09:11:25 $").
 
 :- comment(infers / 2, [
     summary:"Do generalized propagation over Goal according to the approximation Language.",
@@ -180,7 +181,7 @@ infers(Constraint,Language,Module) :-
 %  Condition is the most general wakeup condition, 'constrained'.
 infers_susp(InGoal,Vars,Language,Module) :- !,
         ( InGoal = suspend(Goal,Prior,Cond) ->
-	     not propia_prior_error(Prior,(InGoal infers Language)) 
+	     check_priority(Prior, InGoal, Language)
 	  ;  InGoal = Goal, Prior=5, Cond= (Goal->constrained)
 	),
 	infers2(Goal,Vars,Language,Prior,Cond,Module).
@@ -230,6 +231,10 @@ most_type(Type) :-
 	).
 
 
+%----------------------------------------------------------------------
+% Topological Branch-and-bound
+%----------------------------------------------------------------------
+
 % myinfers is the propia demon that wakes whenever the Goal becomes
 % more instantiated.  It is killed either when the Goal becomes
 % ground, or when the Goal has only one answer left.
@@ -245,6 +250,8 @@ myinfers(Goal, Most,GlobVar, Type, Module,Susp) :-
               setarg(1,Most,Vars),
               get_msg_for_goal(Goal,Most,GlobVar,Type,Module,Susp)
         ).
+
+% We make a fresh copy of the Goal (using the current, updated domains)
 
 get_msg_for_goal(Goal,most(Vars),GlobVar,Type,Module,Susp) :-
         copy_term((Goal,Vars),(CopyGoal,CopyVars)),
@@ -262,15 +269,15 @@ no_new_info(Vars,GlobVar) :-
         xget(GlobVar,1,NewVars),
         instance(Vars,NewVars).
 
-% First a new global variable (GlobVar) is set up 
-% (it should be local to the module propia)
 % GlobVar contains the term which currently captures the "most
 % specific generalisation" (msg) of the solutions to the goal Goal found so
 % far.  This msg depends upon the solver types.  The first msg is
 % simply the generalisation of the first solution.  Normally the new
 % msg is constructed from the previous msg and the new solution.
 % However on initialisation there is only a new solution, so this is
-% generalised with itself (hence Most appears twice as an argument to newmsg)
+% generalised with itself (hence Most appears twice as an argument to newmsg).
+% [this basically makes a term copy, using only the copy_term handler
+% for the approximation language Type].
 
 init_domains(Goal,Vars,GlobVar,Type,Module) :-
         not not
@@ -379,8 +386,9 @@ propia_ans([Var],Type) :-
 	    !.
 
 
+%----------------------------------------------------------------------
 %%%%%%%% Processing languages consistent and unique  %%%%%%%%%%%
-%%%%%%%%                                             %%%%%%%%%%%
+%----------------------------------------------------------------------
 
 
 :- demon myinfers/5.
@@ -441,7 +449,7 @@ cons_diff_2(Vars,OldVars,Susp) :-
 % represent the tuple in each element constraint
 ac(Goal, Args,Module) :-
      copy_term((Args,Goal),(Vars,VarGoal)),
-     findall(Vars,(call(VarGoal)@Module,check_ground(VarGoal)),Matrix),
+     findall(Vars,(call(VarGoal)@Module,check_ground(Vars)),Matrix),
      transpose(Matrix,Matrix1),
      (foreach(Arg,Args), % foreach(Var,Vars), 
       foreach(List,Matrix1), param(_I,Module) do
@@ -516,14 +524,13 @@ check_ground(Term) :-
 	    true
 	).
 
-
-propia_prior_error(Priority,Goal) :-
+check_priority(Priority, Goal, Language) :-
         ( integer(Priority) ->
-	    ( Priority >= 5 -> true ; error(6, Goal) )
+	    ( Priority >= 5 -> true ; error(6, Goal infers Language) )
 	; var(Priority) ->
-	    error(4, Goal)
+	    error(4, Goal infers Language)
 	;
-	    error(5, Goal)
+	    error(5, Goal infers Language)
 	).
 
 is_a_language(most, _) :- !.

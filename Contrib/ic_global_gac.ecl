@@ -25,6 +25,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 :-module(ic_global_gac).
+:- comment(categories, ["Constraints","Algorithms"]).
 :-comment(summary,"Library of global constraints which achieve"
                         " generalized arc consistency").
 :-comment(desc,"This library is intended for global constraints for"

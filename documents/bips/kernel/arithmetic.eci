@@ -23,6 +23,7 @@
 :- comment(alias, "Arithmetic").
 :- comment(summary, "Built-ins for arithmetic computations").
 :- comment(desc, html("See also the User Manual chapter on Arithmetic")).
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool((<) / 2).
 :- tool((=:=) / 2).
@@ -1630,6 +1631,10 @@ value with Result.
 <PRE>
     X =:= (X rem Y) + (X // Y) * Y.
 </PRE>
+    The relationship with floating-point division is:
+<PRE>
+    X // Y =:= integer(truncate(X/Y)).
+</PRE>
 <P>
    In coroutining mode, if Number1 or Number2 are uninstantiated, the call
    to (//)/3 is delayed until these variables are instantiated.
@@ -1678,6 +1683,10 @@ value with Result.
     that the following equivalence always holds:
 <PRE>
     X =:= (X mod Y) + (X div Y) * Y.
+</PRE>
+    The relationship with floating-point division is:
+<PRE>
+    X div Y =:= integer(floor(X/Y)).
 </PRE>
 <P>
    In coroutining mode, if Number1 or Number2 are uninstantiated, the call
@@ -2040,8 +2049,8 @@ Success:
 
       rem( 10,  3,  1).
       rem(-10,  3, -1).
-      rem( 10, -3, -1).
-      rem(-10, -3,  1).
+      rem( 10, -3,  1).
+      rem(-10, -3, -1).
 
       rem( 11,  3,  2).
 Fail:
@@ -2098,7 +2107,7 @@ Success:
       mod( 10,  3,  1).
       mod(-10,  3,  2).
       mod( 10, -3, -2).
-      mod(-10, -3,  1).
+      mod(-10, -3, -1).
 
       mod( 11,  3,  2).
 Fail:
@@ -2822,7 +2831,9 @@ Error:
 <P>
    If it is required that the sequence produced by successive calls of
    random/1 be reproducible, seed(Seed) can be called to initialise the
-   calls with the integer Seed.
+   calls with the integer Seed. Do not assume that the same sequence will
+   be produced for the same seed on different platforms, because the C 
+   library's implementation of random() may differ.
 
 <P>
 "),

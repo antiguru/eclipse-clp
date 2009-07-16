@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ic_cumulative.ecl,v 1.1 2006/09/23 01:53:45 snovello Exp $
+% Version:	$Id: ic_cumulative.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % Specialise the generic code of generic_cumulative.ecl to
 % create the IC cumulative library.
@@ -29,9 +29,10 @@
 
 :- module(ic_cumulative).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Cumulative scheduling constraint library for IC").
 :- comment(author, "Vassilis Liatsos").
-:- comment(date, "$Date: 2006/09/23 01:53:45 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(desc, "\
     This library implements the cumulative scheduling constraint for the
     IC solver.  It provides weaker propagation than the two edge finder

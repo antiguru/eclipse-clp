@@ -25,7 +25,7 @@
 %
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Mark Wallace, IC-Parc
-% Version:      $Id: ic_probing_for_scheduling.pl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
+% Version:      $Id: ic_probing_for_scheduling.pl,v 1.3 2009/07/16 09:11:27 jschimpf Exp $
 %
 %       Many thanks to Hani El Sakkout, on whose ideas this search
 %       implementation is based, and on whose benchmarks it was tested.
@@ -280,9 +280,10 @@ max_cons(List,Var,ConsList) :-
 % User documentation
 %----------------------------------------------------------------------
 
+:- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Probing for Scheduling").
 :- comment(author, "Mark Wallace, Hani El Sakkout").
-:- comment(date, "$Date: 2008/06/20 13:41:14 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("

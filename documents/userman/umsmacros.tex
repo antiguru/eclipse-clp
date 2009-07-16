@@ -152,7 +152,7 @@ a term.
 
 \index{macros!clause}
 \item[clause:] Transform only if the term is a program clause,
-i.e. inside \bipref{compile/1}{../bips/kernel/database/compile-1.html},
+i.e. inside \bipref{compile/1}{../bips/kernel/compiler/compile-1.html},
 etc.\footnote{Note that clause transformation is {\em not} performed
 with \bipref{assert/1}{../bips/kernel/dynamic/assert-1.html}, 
 \bipref{retract/1}{../bips/kernel/dynamic/retract-1.html} and 
@@ -183,7 +183,7 @@ The following shorthands exist:
     \bipref{macro/3}{../bips/kernel/syntax/macro-3.html},
     but the write-option is implied.
 \item[inline(+PredSpec, +TransPred)]
-    \bipref{inline/2}{../bips/kernel/database/inline-2.html}
+    \bipref{inline/2}{../bips/kernel/compiler/inline-2.html}
     is the same as a goal-read-macro. The visibility is inherited
     from the transformed predicate.
 \end{description}
@@ -548,7 +548,7 @@ no (more) solution.
 Grammar rule are translated to Prolog clauses by adding two arguments
 which represent the input before and after the nonterminal which is
 represented by the rule.
-The effect of the transformation can be observed, e.g.\ by calling bipref{expand_clause/2}{../bips/kernel/database/expand_clause-2.html}:
+The effect of the transformation can be observed, e.g.\ by calling bipref{expand_clause/2}{../bips/kernel/compiler/expand_clause-2.html}:
 \begin{quote} \begin{verbatim}
 [eclipse 1]: expand_clause(p(X) --> q(X), Expanded).
 

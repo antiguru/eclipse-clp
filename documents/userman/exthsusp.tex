@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: exthsusp.tex,v 1.2 2008/08/22 14:05:34 kish_shen Exp $
+% $Id: exthsusp.tex,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
 %
 
 \chapter{Advanced Control Features}
@@ -1123,7 +1123,7 @@ To better support this type of goals, {\eclipse} provides a special type
 of predicate, called a {\bf demon}. A predicate is turned into a
 \index{demon}
 demon by annotating it with a
-\bipref{demon/1}{../bips/kernel/database/demon-1.html}
+\bipref{demon/1}{../bips/kernel/compiler/demon-1.html}
 declaration.
 A demon goal differs from a normal goal only in its behaviour on
 waking. While a normal goal disappears from the resolvent when it is
@@ -1361,7 +1361,7 @@ of simple goals.
 Simple goals are a subset of the built-ins and
 can be recognised by their {\bf call_type}
 flag as returned by
-\bipref{get_flag/3}{../bips/kernel/database/get_flag-3.html},
+\bipref{get_flag/3}{../bips/kernel/compiler/get_flag-3.html},
 simple goals having the type {\tt external}.
 Note also that some predicates, e.g.\ \bipref{is/2}{../bips/kernel/arithmetic/is-2.html},
 are normally in-line expanded and thus simple, but can be regular when

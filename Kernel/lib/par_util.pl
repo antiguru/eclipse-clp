@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: par_util.pl,v 1.1 2008/06/30 17:43:48 jschimpf Exp $
+% Version:	$Id: par_util.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -53,10 +53,11 @@
 :- module(par_util).
 :- pragma(nodebug).
 
+:- comment(categories, ["Algorithms"]).
 :- comment(summary, "Parallel versions of various predicates").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:48 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(par_member/2, [template:"par_member(?Element, +List)",
     summary:"Parallel version of member/2",
     desc:html("Parallel version of member/2, i.e.  selects elements from

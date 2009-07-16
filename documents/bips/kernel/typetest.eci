@@ -22,6 +22,7 @@
 
 :- comment(alias, "Type Testing").
 :- comment(summary, "Meta-logical built-ins to test the type of terms").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- comment(nonground / 2, [
 	summary:"Succeeds if Term is not a ground term and binds Variable to one of the
@@ -784,7 +785,7 @@ Fail:
 
 <P>
    The types are atoms from the set: string, atom, var, integer, rational,
-   float, breal, compound, handle, db_reference, goal.
+   float, breal, compound, handle, goal.
 
 <P>
 "),
@@ -807,7 +808,8 @@ Success:
       type_of(1.0,float).
       type_of(0.99__1.01,breal).
       type_of(a(b),compound).
-      record(k, a), recorded(k, _, R), type_of(R, db_reference).
+      bag_create(B), type_of(B, handle).
+      record(k, a), recorded(k, _, R), type_of(R, handle).
       make_suspension(true,3,S), type_of(S, goal).
 Fail:
       type_of(2.0,integer).

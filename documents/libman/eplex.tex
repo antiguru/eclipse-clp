@@ -1431,9 +1431,9 @@ problems with a quadratic objective function. It also supports time-outs, and is
 at determining the state of an aborted problem than using OSI on its own.
 For the MIP related functionality, the MIP solver CBC is accessed directly
 rather than through OSI, and this 
-provides better MIP support: more information on the MIP
-solver state is available, and a more sophisticated MIP search (based on
-sample code supplied with CBC) than the default is performed, generally
+provides better MIP support: SOS (both SOS 1 and 2) are supported, and more information on the MIP
+solver state is available, and a more sophisticated MIP search (using the
+standalone CBC Solver) than the default is performed, generally
 leading to faster MIP solves.
 
 For the barrier/interior point method, CLP can take advantage of

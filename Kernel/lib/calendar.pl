@@ -23,15 +23,16 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: calendar.pl,v 1.1 2008/06/30 17:43:42 jschimpf Exp $
+% Version:	$Id: calendar.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(calendar).
 
+:- comment(categories, ["Algorithms"]).
 :- comment(summary,
     "Routines for calendar computations, based on modified julian dates (MJD).").
 
-:- comment(date, "$Date: 2008/06/30 17:43:42 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(index, ["date and time","julian date","ISO 8601"]).

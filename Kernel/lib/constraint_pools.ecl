@@ -23,7 +23,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Kish Shen and Joachim Schimpf, IC-Parc, Imperial College
-% Version:	$Id: constraint_pools.ecl,v 1.1 2008/06/30 17:43:44 jschimpf Exp $
+% Version:	$Id: constraint_pools.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(constraint_pools).
@@ -51,6 +51,7 @@
 :- local struct(pool_data(store,item)).
 
 
+:- comment(categories, ["Constraints","Data Structures"]).
 :- comment(summary, "Support for the creation of constraint pools").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc, Imperial College").
 :- comment(copyright, "Cisco Systems, Inc").

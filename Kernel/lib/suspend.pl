@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: suspend.pl,v 1.2 2008/08/21 18:08:28 jschimpf Exp $
+% Version:	$Id: suspend.pl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -51,9 +51,10 @@
 % This structure is already defined and exported in the kernel
 %:- export struct(suspend(inst, constrained, bound)).
 
+:- comment(categories, ["Constraints","Algorithms"]).
 :- comment(summary,
     "Lazy-checking versions of arithmetic primitives, and the suspend-attribute").
-:- comment(date, "$Date: 2008/08/21 18:08:28 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Micha Meier, ECRC, Joachim Schimpf, ECRC and IC-Parc").
 :- comment(desc, html("\

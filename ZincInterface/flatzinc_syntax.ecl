@@ -28,7 +28,8 @@
 :-(call(op(1200, fx, (:-)))).
 :-(call(op(1200, xfx, (:-)))).
 
-:- comment(date, "$Date: 2008/06/20 13:41:13 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(categories, ["Interfacing"]).
 :- comment(summary, "Configure ECLiPSe parser to accept FlatZinc syntax").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
@@ -149,7 +150,7 @@ read_item(Stream, Term) :-
     local(op(700, xfy, of)),
     local(op(1000, fy, output)),
     local(op(600, xfy, par)),
-%    local(op(1000, fx, predicate)),
+    local(op(1000, fx, predicate)),
 %    local(op(1000, xfy, record)),
     local(op(1000, xf, satisfy)),
 %    local(op(0, xfy, set)),

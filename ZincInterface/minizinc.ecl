@@ -25,11 +25,13 @@
 
 :- module(minizinc).
 
-:- comment(date, "$Date: 2008/12/19 05:56:37 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Utilities for using MiniZinc with ECLiPSe").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
 :- comment(see_also, [
+	flatzinc:struct(zn_options),
 	library(flatzinc),
 	library(fzn_ic),
 	library(fzn_fd),
@@ -64,8 +66,9 @@ into the ECLiPSe-FlatZinc interpreter using e.g.
 This should work as long as the mzn2fzn command is in your PATH.
 Note that mzn2fzn is currently not included with ECLiPSe but comes
 with the Melbourne MiniZinc distribution.  You must also make sure that
-the specialised globals.mzn file is used, by including e.g. lib/fzn_ic
-in mzn2fzn's search path.  For more details see lib(flatzinc).
+the correct specialised global constraint definitions are used,
+by including e.g. lib/fzn_ic in mzn2fzn's search path via its -I option.
+For more details see lib(flatzinc).
 </P>
 
 <H3>
@@ -80,7 +83,7 @@ correct arguments.  The model can be contained in a file:
 </PRE>
 or, if a data instance file is used
 <PRE>
-?- mzn_run(\"model.mzn\", \"instance.mzn\", fzn_ic).
+?- mzn_run(\"model.mzn\", \"instance.dzn\", fzn_ic).
 </PRE>
 Since MiniZinc models are typically small, they can also be embedded as
 a string into ECLiPSe code. For example:
@@ -106,7 +109,7 @@ ECLiPSe strings, the backslashes had to be doubled!
 Installation
 </H3>
 <P>
-This version is intended to to work with Minizinc 0.8 or later!
+This version is intended to to work with Minizinc 1.0 or later!
 <P>
 In order to be found by lib(minizinc), the Melbourne Minizinc-to-Flatzinc
 converter mzn2fzn must be installed in a directory called <CODE>minizinc-&lt;version&gt;</CODE>
@@ -122,6 +125,7 @@ for Linux):
 <LI><CODE>&lt;ECLIPSEDIR&gt;/lib/&lt;ECLIPSEARCH&gt;</CODE></LI>
 <LI><CODE>&lt;ECLIPSEDIR&gt;</CODE></LI>
 <LI>Parent of <CODE>&lt;ECLIPSEDIR&gt;</CODE> (e.g. \"C:/Program Files\" on Windows)</LI>
+<LI>Directory specified by <CODE>$PROGRAMFILES</CODE> environment variable</LI>
 </OL>
 <P>
 For MiniZinc on Windows, it may be necessary to copy a cygwin1.dll into
@@ -138,7 +142,7 @@ into an ECLiPSe program:
 <LI>Passing parameters from the ECLiPSe program to the MiniZinc model</LI>
 <LI>Getting the model solutions back into ECLiPSe</LI>
 <LI>Programming custom search in ECLiPSe</LI>
-<LI>Doing custom output beyond what the Zinc output primitive can do</LI>
+<LI>Doing custom output beyond what the Zinc output annotations can do</LI>
 </UL>
 </P><P>
 To pass a parameter into a MiniZinc model, a generic MiniZinc model must
@@ -204,11 +208,23 @@ customize the behaviour further, e.g.
 </PRE>
 <DL>
 <DT>solver (default: fzn_ic)</DT><DD>
-    Determines which ECLiPSe solvers are used.
+    Determines which ECLiPSe solvers are used.  The name is the
+    name of a library implementing the mapping, e.g. fzn_ic,
+    fzn_fd or fzn_eplex.
 </DD>
 <DT>solutions (default: 1)</DT><DD>
     The maximum number of solutions computed. Only effective if using
-    builtin search and not optimizing. (0 = all)
+    builtin search and not optimizing. (0 or all = all solutions)
+</DD>
+<DT>setup_prio (default: 0)</DT><DD>
+    The priority under which the constraint setup will be executed
+    (see call_priority/2 and get_priority/1). Possible values are
+    the ECLiPSe priorities 1 to 12, or 0 (the default) which stands
+    for the current priority of the calling code.  A sensible value
+    for this option is 2, which means that the setup code is executed
+    under high priority (still allowing debug/visualisation goals).
+    The effect of such a setting is that no propagation occurs until
+    all constraints are fully set up, possibly leading to time savings.
 </DD>
 <DT>parser (default: fast)</DT><DD>
     Whether to use a 'strict' or 'fast' parser for FlatZinc input.
@@ -267,6 +283,11 @@ solver mapping. The following table shows the mapping used with fzn_ic
 ")).
 
 
+% The location of this file, when loaded.
+% Used to find the ECLiPSe/Solver specific globals.mzn file
+:- local variable(here).
+?- getcwd(Cwd), setval(here, Cwd).
+
 % Location of MiniZinc installation (with bin and lib subdirectories)
 % We try a couple of locations heuristically
 :- local
@@ -275,16 +296,17 @@ solver mapping. The following table shows the mapping used with fzn_ic
 	initialization((
 	    get_flag(installation_directory, EclDir),
 	    get_flag(hostarch, Arch),
+	    getval(here, Here),
 	    findall(Dir2, (
 		    ( Dir1 = "$ECLIPSEMZN"
 		    ; Dir1 = "$HOME"
 		    ; Dir1 = "$HOMEPATH"
-		    % Note: "." is the directory where minizinc.ecl is!
-		    ; concat_string(["./",Arch,/], Dir1)
+		    ; concat_string([Here,Arch,/], Dir1)
 		    ; concat_string([EclDir,"/lib_public/",Arch,/], Dir1)
 		    ; concat_string([EclDir,"/lib/",Arch,/], Dir1)
 		    ; concat_string([EclDir,"/"], Dir1)
 		    ; concat_string([EclDir,"/../"], Dir1)
+		    ; Dir1 = "$PROGRAMFILES"
 		    ),
 		    canonical_path_name(Dir1, Dir2)
 		), Dirs),
@@ -296,6 +318,12 @@ solver mapping. The following table shows the mapping used with fzn_ic
 		member(Sub, SubDirs),
 		substring(Sub, "minizinc-", 1),
 		concat_string([Dir,Sub,/], MznDir),
+		( substring(Sub, "minizinc-0", 1) -> % require 1.0 at least
+		    printf(warning_output, "Ignoring old version %w%n", [MznDir]),
+		    fail
+		;
+		    true
+		),
 		( concat_string([MznDir,"bin/actual/mzn2fzn"], Mzn2Fzn)
 		; concat_string([MznDir,"bin/private/mzn2fzn-actual"], Mzn2Fzn)
 		),
@@ -312,15 +340,8 @@ solver mapping. The following table shows the mapping used with fzn_ic
 	    )
 	)).
 
-% Used to find the ECLiPSe/Solver specific globals.mzn file from here
-:- local
-	variable(tmpcnt, 1),
-	variable(here),
-	initialization((
-	    getcwd(Cwd),
-	    setval(here, Cwd)
-	)).
-
+% Global counter for generating temp file name
+:- local variable(tmpcnt, 1).
 
 :- lib(lists).
 :- use_module(flatzinc).
@@ -350,9 +371,10 @@ tr_of(OfTerm, Expanded) :-
     desc:html("<P>
 	Reads a MiniZinc model from a file, and interprets it using
 	the solver mapping defined in SolverOrOptions.  At the end of
-	solving, resuls and timings are printed to the output stream. 
-	Error messages may be printed to the error stream.  This
-	predicate always succeeds.
+	solving, results are printed to the output stream, timing and
+	progress messages are printed to the log_output stream, warnings
+	to the warning_output stream, and error messages the error stream.
+	This predicate always succeeds.
     </P>"),
     eg:"
     ?- mzn_run(\"mymodel.mzn\", fzn_ic).
@@ -384,15 +406,17 @@ mzn_run(ModelFile, SolverOrOptions) :-
     summary:"Run a MiniZinc model from a given model and instance file",
     amode:(mzn_run(+,+,++) is det),
     args:["ModelFile":"File name (extension defaults to .mzn)",
-	"InstFileOrParMap":"Instance file name (extension defaults to .mzn), or list of Id=Term correspondences",
+	"InstFileOrParMap":"Instance file name (extension defaults to .dzn, then .mzn), or list of Id=Term correspondences",
 	"SolverOrOptions":"Name of solver mapping module, or zn_options-structure"],
     see_also:[mzn_run/2, mzn_run_string/2, struct(zn_options)],
     desc:html("<P>
 	Reads a MiniZinc model (given a model file and an instance
 	file) and interprets it using the solver mapping defined in
-	SolverOrOptions.  At the end of solving, resuls and timings
-	are printed to the output stream.  Error messages may be
-	printed to the error stream.  This predicate always succeeds.
+	SolverOrOptions.  At the end of solving, results are printed
+	to the output stream, timing and progress messages are printed
+	to the log_output stream, warnings to the warning_output
+	stream, and error messages the error stream.  This predicate
+	always succeeds.
     </P>"),
     eg:"
     ?- mzn_run(\"mymodel.mzn\", \"myinstance.mzn\", fzn_ic).
@@ -496,10 +520,11 @@ mzn_run_string(MznModel, SolverOrOptions, ParMap) :-
 	    mzn_load_string(MznModel, SolverOrOptions, ParMap, [], State),
 	    fzn_search(State),
 	    fzn_output(State),
+	    writeln(----------),
 	    fzn_last(State),
 	    !
 	;
-	    printf("No solution found%n", [])
+	    writeln(==========)
 	).
 
 
@@ -578,8 +603,8 @@ mzn_run_string(MznModel, SolverOrOptions, ParMap) :-
        fzn_output(FznState).
 
     % output from fzn_output:
-    q = [1,5,8,6,3,7,2,4]
-    Total time 0.030s cpu (0.020 setup)
+    q = [1,5,8,6,3,7,2,4];
+    % Total time 0.030s cpu (0.020 setup)
 
     % output from ECLiPSe toplevel:
     Q = [](1, 5, 8, 6, 3, 7, 2, 4)
@@ -664,8 +689,8 @@ mzn_load_string(MznModel, SolverOrOptions, ParMap, VarMap, State) :-
        fzn_output(FznState).
 
     % output from fzn_output:
-    q = [1,5,8,6,3,7,2,4]
-    Total time 0.030s cpu (0.020 setup)
+    q = [1,5,8,6,3,7,2,4];
+    % Total time 0.030s cpu (0.020 setup)
 
     % output from ECLiPSe toplevel:
     Q = [](1, 5, 8, 6, 3, 7, 2, 4)
@@ -808,7 +833,7 @@ mzn2fzn(ModelFile0, DataFile0, zn_options{solver:Solver,fzn_tmp:OutFlag}, FznStr
 	    fzn_error("No such file: %w", [ModelFile0])
 	),
 	( (atom(DataFile0);string(DataFile0)) ->
-	    ( existing_file(DataFile0, ["",".mzn"], [readable], DataFile) ->
+	    ( existing_file(DataFile0, ["",".dzn",".mzn"], [readable], DataFile) ->
 		os_file_name(DataFile, DataFileOS),
 		Params0 = ["--data",DataFileOS,ModelFileOS]
 	    ;
@@ -823,16 +848,24 @@ mzn2fzn(ModelFile0, DataFile0, zn_options{solver:Solver,fzn_tmp:OutFlag}, FznStr
 	getval(minizinc_dir, MznDir),
 	getval(mzn2fzn_exe, Mzn2Fzn),
 	( MznDir == '' ->
+	    % Hope the exectuable knows its stdlib-dir
 	    Params = ["-I",EclZincSolverSpecificLibOS|Params0]
 	;
-	    concat_string([MznDir, "lib/zinc"], ZincDefaultLib),
+	    % Assume we are calling the mzn2fzn-actual exectuable
+	    % without any environment variable setting
+	    concat_string([MznDir, "lib/minizinc"], ZincDefaultLib),
 	    os_file_name(ZincDefaultLib, ZincDefaultLibOS),
-	    Params = ["-I",EclZincSolverSpecificLibOS,"-I",ZincDefaultLibOS|Params0]
+	    Params = ["-I",EclZincSolverSpecificLibOS,
+		      "--stdlib-dir",ZincDefaultLibOS|Params0]
 	),
 	( OutFlag==file ->
 	    % use intermediate fzn file, and echo any stderr on error
-	    pathname(ModelFile, Path, Base, _Mzn),
-	    concat_string([Path,Base,".fzn"], PidOrFile),
+	    ( var(PidOrFile) ->
+		pathname(ModelFile, Path, Base, _Mzn),
+		concat_string([Path,Base,".fzn"], PidOrFile)
+	    ;
+		true
+	    ),
 	    os_file_name(PidOrFile, FznFileOS),
 %	    writeln(exec([Mzn2Fzn,"--output-to-file",FznFileOS|Params], [null,null,Err], Pid)),
 	    exec([Mzn2Fzn,"--output-to-file",FznFileOS|Params], [null,null,Err], Pid),
@@ -866,17 +899,18 @@ mzn2fzn(ModelFile0, DataFile0, zn_options{solver:Solver,fzn_tmp:OutFlag}, FznStr
 :- export mzn2fzn/4.
 :- comment(mzn2fzn/4, [
     summary:"Convert a MiniZinc model into a FlatZinc model",
-    amode:(mzn2fzn(+,+,++,-) is det),
+    amode:(mzn2fzn(+,+,++,?) is det),
     args:["ModelFile":"File name (extension defaults to .mzn)",
-	"InstFileOrParMap":"Instance file name (extension defaults to .mzn), or list of Id=Term correspondences",
+	"InstFileOrParMap":"Instance file name (extension defaults to .dzn, then .mzn), or list of Id=Term correspondences",
 	"SolverOrOptions":"Name of solver mapping module, or zn_options-structure",
-	"FznFile":"Output: name of generated FlatZinc file"],
+	"FznFile":"Name of generated FlatZinc file (will be generated if variable)"],
     see_also:[mzn_run/3, flatzinc:fzn_run/2, struct(zn_options)],
     desc:html("<P>
 	Converts a MiniZinc model (given a model file and an instance
 	file or parameter map) into a FlatZinc model, by invoking the
 	external mzn2fzn converter with the appropriate arguments.
-	The name of the output file is the same as the input file, with
+	If no output file name is specified (FznFile uninstantiated),
+	the name of the output file is the same as the input file, with
 	the extension changed to .fzn.  The options should specify the
 	solver that is intended to be used on the FlatZinc model (so that
 	the correct version of globals.mzn is used), and the fzn_tmp

@@ -24,10 +24,11 @@
 
 :- module(fzn_fd).
 
+:- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Mapping from FlatZinc to lib(fd) and lib(fd_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2008/06/20 17:33:41 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(see_also, [library(flatzinc),
 	library(fd),library(fd_sets),library(fd_global),
 	library(propia),library(branch_and_bound)]).
@@ -42,6 +43,25 @@ This mapping supports bool, integer and set variables.
 It does currently not support all constraints in reified form,
 in particular set constraints, according to the limitations of
 the underlying solvers.
+</P><P>
+The following extra annotations are supported by this mapping:
+<DL>
+<DT>annotation strategy(string:s)</DT>
+    <DD>the branch-and-bound strategy (default: \"continue\"). Valid names
+    are \"continue\", \"restart\", \"dichotomic\", See bb_min/3.</DD>
+<DT>annotation delta(float:f)</DT>
+    <DD>minimal absolute improvement for branch-and-bound steps (default 1.0).
+    See bb_min/3./DD>
+<DT>annotation factor(float:f)</DT>
+    <DD>minimal improvement ratio (with respect to the lower cost bound)
+    for strategies 'continue' and 'restart' (default 1.0), or split factor
+    for strategy 'dichotomic' (default 0.5). See bb_min/3.</DD>
+<DT>annotation timeout(float:f)</DT>
+    <DD>timeout for branch-and-bound in seconds (default: unlimited).
+    See bb_min/3.</DD>
+</DL>
+You must include \"eclipse.mzn\" in your MiniZinc model to use these
+annotations.
 <P>
 ")).
 
@@ -56,7 +76,8 @@ the underlying solvers.
 		array_any_element/3,
 		vector_sum/3,
 		search_ann/1,
-		set_choice/3
+		set_choice/3,
+		termify/2
 	    ]),
 	export(Pred),
 	fail
@@ -184,8 +205,8 @@ int_lin_gt_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #>(sum(CXs), Rhs, B)
 % float_lin_??(array[int] of float, array[int] of var float, float, B)
 
     vector_sum(Cs, Xs, CXs) :-
-	functor(Cs, _, N),
-	( functor(Xs, _, N) ->
+	arity(Cs, N),
+	( arity(Xs, N) ->
 	    ( for(I,1,N), foreach(C*X,CXs), param(Cs,Xs) do
 		arg(I, Cs, C), arg(I, Xs, X)
 	    )
@@ -201,7 +222,9 @@ int_negate(X, Z) :- Z #= -X.
 int_plus(X, Y, Z) :- Z #= X+Y.
 int_minus(X, Y, Z) :- Z #= X-Y.
 int_times(X, Y, Z) :- Z #= X*Y.
-int_div(X, Y, Z) :- Z #= X/Y.
+int_div(Dividend, Divisor, Quotient) :-
+ 	Remainder #>=0, Remainder #< abs(Divisor),
+ 	Dividend #= Quotient*Divisor + Remainder.
 int_mod(Dividend, Divisor, Remainder) :-
  	Remainder #>=0, Remainder #< abs(Divisor),
  	Dividend #= _Quotient*Divisor + Remainder.
@@ -223,8 +246,16 @@ bool_xor(X, Y, Z) :- #\=(X, Y, Z).
 bool_not(X, Z) :- #\+(X, Z).
 
 % array_bool_???(array[int] of var bool, var bool)
-array_bool_and(Xs, B) :- functor(Xs, _, N), B #= min(Xs[1..N]).
-array_bool_or(Xs, B) :- functor(Xs, _, N), B #= max(Xs[1..N]).
+array_bool_and(Xs, B) :- fd_global:minlist(Xs, B).
+array_bool_or(Xs, B) :- fd_global:maxlist(Xs, B).
+
+% bool_clause(array[int] of var bool, array[int] of var bool)
+bool_clause(Ps, Ns) :-
+	bool_clause_reif(Ps, Ns, 1).
+bool_clause_reif(Ps, Ns, B) :-
+	ic_global:maxlist(Ps, B1),
+	ic_global:minlist(Ns, B2),
+	#>=(B1,B2,B).
 
 
 % Set operations -----------------------------------------------
@@ -252,7 +283,7 @@ array_var_int_element(I, Array, E) :- array_any_element(I, Array, E).
 %array_var_set_element(I, Array, E) :- array_any_element(I, Array, E).
 
     array_any_element(I, Array, E) :-
-	functor(Array, _, N),
+	arity(Array, N),
 	I #:: 1..N,
 	arg_nd(I, Array, E) infers fd.
 
@@ -290,32 +321,38 @@ range_fzn_to_solver(Min, Max, Set) :-
 
 satisfy(Anns) :-
 	( foreach(Ann,Anns) do
-	    search_ann(Ann)
+	    termify(Ann, Ann1),	% for Flatzinc<1.0 compatibility
+	    search_ann(Ann1)
 	).
 
 :- export minimize/3.	% silence warning
 minimize(Expr, Anns, Cost) :-
+	extract_bb_anns(Anns, Anns1, BbOptions),
 	Cost #= Expr, 
-	bb_min(satisfy(Anns), Cost, _).
+	bb_min(satisfy(Anns1), Cost, BbOptions).
 
 maximize(Expr, Anns, ObjVal) :-
+	extract_bb_anns(Anns, Anns1, BbOptions),
 	Cost #= -Expr, 
-	bb_min(satisfy(Anns), Cost, _),
+	bb_min(satisfy(Anns1), Cost, BbOptions),
 	ObjVal is -Cost.
 
+    termify(In, Out) :-
+	functor(In, F, N), functor(Out, F, N),
+    	( for(I,1,N),param(In,Out) do
+	    arg(I,In,InI), arg(I,Out,OutI),
+	    ( string(InI) -> term_string(OutI,InI) ; OutI=InI )
+	).
 
-    search_ann(bool_search(Vars, SelectS, ChoiceS, ExploreS)) :- !,
-    	term_string(Select, SelectS),
-    	term_string(Choice, ChoiceS),
-    	term_string(Explore, ExploreS),
+
+    search_ann(seq_search(Searches)) :- !,
+    	( foreach(Search,Searches) do search_ann(Search) ).
+    search_ann(bool_search(Vars, Select, Choice, Explore)) :- !,
 	search(Vars, 0, Select, Choice, Explore, []).
-    search_ann(int_search(Vars, SelectS, ChoiceS, ExploreS)) :- !,
-    	term_string(Select, SelectS),
-    	term_string(Choice, ChoiceS),
-    	term_string(Explore, ExploreS),
+    search_ann(int_search(Vars, Select, Choice, Explore)) :- !,
 	search(Vars, 0, Select, Choice, Explore, []).
     search_ann(float_search([], _Prec, _, _, _)) :- !.
-    search_ann(set_search(Sets, "input_order", Choice, "complete")) :-
+    search_ann(set_search(Sets, input_order, Choice, complete)) :-
 	set_choice(Choice, ElemSel, Order), !,
 	( functor(Sets, [], _) ->
 	    ( foreacharg(Set,Sets), param(ElemSel,Order) do
@@ -331,29 +368,44 @@ maximize(Expr, Anns, ObjVal) :-
 
 
     :- mode set_choice(+,-,-).
-    set_choice("indomain_min", small_first, in_notin).
-    set_choice("indomain_max", big_first, in_notin).
-    set_choice("outdomain_min", small_first, notin_in).
-    set_choice("outdomain_max", big_first, notin_in).
+    set_choice(indomain_min, small_first, in_notin).
+    set_choice(indomain_max, big_first, in_notin).
+    set_choice(outdomain_min, small_first, notin_in).
+    set_choice(outdomain_max, big_first, notin_in).
+
+
+    extract_bb_anns(Anns, RestAnns, BbOptions) :-
+    	(
+	    foreach(Ann,Anns),
+	    fromto(RestAnns,Anns2,Anns1,[]),
+	    param(BbOptions)
+	do
+	    ( bb_ann(Ann, BbOptions) -> Anns2 = Anns1 ; Anns2 = [Ann|Anns1] )
+	).
+
+    % Corresponding annotation-declarations are in eclipse.mzn
+    bb_ann(delta(R), bb_options{delta:F}) :- float(R, F).
+    bb_ann(factor(R), bb_options{factor:F}) :- float(R, F).
+    bb_ann(timeout(R), bb_options{timeout:F}) :- float(R, F).
+    bb_ann(strategy(S), bb_options{strategy:A}) :- atom_string(A, S).
 
 
 % Global Constraints (see fzn_fd/globals.mzn) -------------------
 
-all_different(Xs) :- fd_global:alldifferent(Xs).
+all_different_int(Xs) :- fd_global:alldifferent(Xs).
 
-at_most(N,Xs,V) :- fd_global:atmost(N, Xs, V).
+at_most_int(N,Xs,V) :- fd_global:atmost(N, Xs, V).
 %at_most(N,Xs,V) :- Count #=< N, fd_global:occurrences(V, Xs, Count).
 
-at_least(N,Xs,V) :- Count #>= N, fd_global:occurrences(V, Xs, Count).
+at_least_int(N,Xs,V) :- Count #>= N, fd_global:occurrences(V, Xs, Count).
 
-exactly(N,Xs,V) :- fd_global:occurrences(V, Xs, N).
+exactly_int(N,Xs,V) :- fd_global:occurrences(V, Xs, N).
 
-count(Xs,V,N) :- fd_global:occurrences(V, Xs, N).
+count_avint_int_int(Xs,V,N) :- fd_global:occurrences(V, Xs, N).
 
-:- reexport cumulative/4 from edge_finder.
-%cumulative(Ss,Ds,Rs,B) :- cumulative:cumulative(Ss,Ds,Rs,B).
-%cumulative(Ss,Ds,Rs,B) :- edge_finder:cumulative(Ss,Ds,Rs,B).
-%cumulative(Ss,Ds,Rs,B) :- edge_finder3:cumulative(Ss,Ds,Rs,B).
+%cumulative_avint_aint_aint_vint(Ss,Ds,Rs,B) :- cumulative:cumulative(Ss,Ds,Rs,B).
+cumulative_avint_aint_aint_vint(Ss,Ds,Rs,B) :- edge_finder:cumulative(Ss,Ds,Rs,B).
+%cumulative_avint_aint_aint_vint(Ss,Ds,Rs,B) :- edge_finder3:cumulative(Ss,Ds,Rs,B).
 
 :- export sort/2.	% to resolve ambiguity with sort/2 builtin
 sort(Xs,Ss) :- fd_global:sorted(Xs, _Ps, Ss).

@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: edge_finder.ecl,v 1.1 2006/09/23 01:53:26 snovello Exp $
+% Version:	$Id: edge_finder.ecl,v 1.2 2009/07/16 09:11:25 jschimpf Exp $
 %
 % Description:		Edge-finder, quadratic algorithm
 %
@@ -47,10 +47,11 @@
 
 :- module(edge_finder).
 
+:- comment(categories, ["Algorithms","Constraints"]).
 :- comment(summary, "Quadratic edge-finder algorithm for disjunctive and cumulative constraints for FD").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:26 $").
+:- comment(date, "$Date: 2009/07/16 09:11:25 $").
 :- comment(desc, "\
 
     This library implements the quadratic edge-finder algorithm for the

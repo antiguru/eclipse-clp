@@ -22,6 +22,7 @@
 
 :- comment(alias, "Term Manipulation").
 :- comment(summary, "Built-ins to convert, compose, decompose and modify terms").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool(bytes_to_term / 2).
 :- tool(add_attribute / 2).
@@ -283,7 +284,6 @@ variables in NewTerm.
 
 <P>
    Note that copy_term/2 is implemented as
-
 <P>
 <PRE>
     copy_term(X, Y) :-
@@ -323,8 +323,11 @@ of variables in Vars are replaced by fresh variables.
    by new variables which do not occur elsewhere.
 
 <P>
-   Metaterms are treated like normal variables. Their attributes are
-   copied as specified by the corresponding copy_term handler.
+   Attributed variables are treated like normal variables, except that their
+   attributes are copied as specified by the corresponding copy_term handler.
+   This would usually imply that properties of the variable which can be
+   interpreted as unary constraints (such as its domain) are copied, while
+   attributes that link the variable to other variables or objects are ignored.
 
 <P>
    Subterms that do not contain any of the variables to replace are
@@ -518,13 +521,17 @@ Abort
 <P>
     Handler :   handler(-Res, ?TermL, ?TermR)
 <P>
-    Description :   The handler for the variant/2, instance/2 and other
-        instance-testing predicates.  The handler arguments are similar
-        to those of the compare_instances/3 predicate:  Res is the
-        relation between the two terms TermL and TermR, it can be
-        either = or &lt; (the handler might directly fail if the result is
-        &gt;).  All bindings made in the handler will be undone after
-        processing the local handlers.
+    Description :   The handler for the variant/2, instance/2 and
+	compare_instances/3 instance-testing predicates.  The handler
+	arguments are similar to those of compare_instances/3. At least
+	one of TermL or TermR will be an attributed variable whenever
+	the handler is invoked.  The handler should bind Res to &lt; if
+	the attributes imply that TermL is a proper instance of TermR,
+	&gt; if TermR is a proper instance of TermL, and = if the two
+	attributed variables are variants of each other (e.g. they have
+	identical domains).  If the terms are incomparable, the handler
+	should fail.  If the attribute being declared has no bearing on
+	the instance-relationship, this handler should remain undefined.
 <P>
 
 <DT>copy_term<DD>
@@ -831,26 +838,25 @@ Fail:
 
 ",
 	amode:(copy_term(?,-) is det),
-	desc:html("   A copy of OldTerm is created, ie.  a term that is similar to OldTerm but
+	desc:html("\
+   A copy of OldTerm is created, ie.  a term that is similar to OldTerm but
    the free variables of OldTerm have been replaced by new variables which
    do not occur elsewhere.  In other words, the new term is a most general
-   variant of the old one in the sense of variant/2.
+   variant of the old one, in the sense of variant/2.
 
 <P>
-   Metaterms are treated like normal variables, except that their
+   Attributed variables are treated like normal variables, except that their
    attributes are copied as specified by the corresponding copy_term handler.
+   This would usually imply that properties of the variable which can be
+   interpreted as unary constraints (such as its domain) are copied, while
+   attributes that link the variable to other variables or objects are ignored.
 
 <P>
-   The effect of copy_term/2 is almost the same as of the sequence
-
-<P>
-<PRE>
-    setval(reserved_name, OldTerm),
-    getval(reserved_name, NewTerm)
-</PRE>
-   or a similar application of record/erase or assert/retract.  However,
-   copy_term/2 is faster, handles attributed variables more sensibly and is also
-   more space efficient since it does not physically copy ground subterms.
+   If the term to be copied contains ground subterms (subterms without
+   variables), then these subterms are shared between the original and
+   the copy.  This optimization is only visible when using the nonlogical
+   setarg/3 primitive on such a subterm - the safest way to enforce
+   copying in such circumstances is to add a dummy variable argument.
 
 <P>
    Note that when the structure of the term to be copied is known, then
@@ -863,15 +869,15 @@ Fail:
 	eg:"
    Success:
    copy_term(a, C).          (gives C=a).
-   copy_term(s(X,a,Y,X), C). (gives C=s(_g1, a, _g2, _g1)).
-   copy_term([X,2|Y], C).    (gives C=[_g1, 2| _g2]).
+   copy_term(s(X,a,Y,X), C). (gives C=s(_1, a, _2, _1)).
+   copy_term([X,2|Y], C).    (gives C=[_1, 2| _2]).
    copy_term(X, C).
    copy_term(X, s(1,2,3)).
+
+   X::5..8, copy_term(f(X), C).	(gives C=f(_1{5..8})).
+
    Fail:
    copy_term(s(X,X), s(3,4)).
-
-
-
 ",
 	see_also:[copy_term_vars / 3, copy_term / 3, variant / 2, functor / 3, term_variables / 2]]).
 

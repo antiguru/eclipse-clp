@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: graph_algorithms.ecl,v 1.1 2006/09/23 01:53:39 snovello Exp $
+% Version:	$Id: graph_algorithms.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 % Contents:	Collection of graph algorithms
 % ----------------------------------------------------------------------
 
@@ -34,9 +34,10 @@
 :- lib(heap_array).
 
 
+:- comment(categories, ["Algorithms","Data Structures"]).
 :- comment(summary, "Collection of graph algorithms").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:53:39 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 :- comment(desc, html("<P>
     This library is a collection of graph algorithms.

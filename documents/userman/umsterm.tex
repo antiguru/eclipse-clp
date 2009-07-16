@@ -5,22 +5,22 @@
 % License Version 1.1 (the "License"); you may not use this file except
 % in compliance with the License.  You may obtain a copy of the License
 % at www.eclipse-clp.org/license.
-% 
+%
 % Software distributed under the License is distributed on an "AS IS"
 % basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
 % the License for the specific language governing rights and limitations
-% under the License. 
-% 
-% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
-% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% under the License.
+%
+% The Original Code is  The ECLiPSe Constraint Logic Programming System.
+% The Initial Developer of the Original Code is  Cisco Systems, Inc.
 % Portions created by the Initial Developer are
 % Copyright (C) 1994 - 2006 Cisco Systems, Inc.  All Rights Reserved.
-% 
-% Contributor(s): 
-% 
+%
+% Contributor(s):
+%
 % END LICENSE BLOCK
 %
-% @(#)umsterm.tex	1.3 94/01/11 
+% @(#)umsterm.tex	1.3 94/01/11
 %
 %
 % umsterm.tex
@@ -39,105 +39,94 @@ in related documentation.
 \begin{description}
 
 % -------------------------------------------------------------------
-\item[+X]
-\index{+X}
-This denotes an input argument. Such an argument must be instantiated before 
+\item[\Index{+X}]
+This denotes an input argument. Such an argument must be instantiated before
 a built-in is called.
 
 % -------------------------------------------------------------------
-\item[++X]
-\index{++X}
+\item[\Index{++X}]
 This denotes a ground argument. Such an argument can be complex,
-but must be fully instantiated, i.e.\ not contain any variables.
+but must be fully instantiated, i.e., not contain any variables.
 
 % -------------------------------------------------------------------
-\item[$-$X]
-\index{$-$X}
-This denotes an output argument. Such an argument must be not 
+\item[\Index{$-$X}]
+This denotes an output argument. Such an argument must be not
 instantiated before a built-in is called.
 
 % -------------------------------------------------------------------
-\item[?X]
-\index{$\query$X}
-This denotes an input or an output argument. Such an argument may be either 
+\item[?X\index{$\query$X}]
+This denotes an input or an output argument. Such an argument may be either
 instantiated or not  when a built-in is called.
 
 % -------------------------------------------------------------------
-%\item[Array]	
+%\item[Array]
 %\index{Array}
 %An array specification is a compound term the form Name(Dim_1,...,Dim_n),
-%where Name is the array name, the arity denotes the number of dimensions and 
+%where Name is the array name, the arity denotes the number of dimensions and
 %the arguments are integers indicating the size in each dimension.
 %An array element is selected with a similar term.
 
 % -------------------------------------------------------------------
-\item[Arity]	
-\index{arity}
+\item[Arity\index{arity}]
 Arity is the number of arguments to a term.
 Atoms are considered as functors with zero arity.
-The notation {\it Name/Arity} is used to specify a functor of name 
-{\it Name} with arity {\it Arity}.
-\index{Name/Arity}
+The notation \patternidx{Name/Arity}
+is used to specify a functor by giving its name and arity.
 
 % -------------------------------------------------------------------
-\item[Atom]
-An arbitrary name chosen by the user to represent objects from the 
+\item[Atom\index{atom}]
+An arbitrary name chosen by the user to represent objects from the
 problem domain.
-A Prolog {\it atom} corresponds to an identifier in other languages.
-\index{atom}
+A Prolog atom corresponds to an identifier in other languages.  It can be
+written as a conventional identifier (beginning with a lower-case letter), or
+a character sequnce enclosed in single quotes.
 
 % -------------------------------------------------------------------
-\item[Atomic]
-An atom, string or a number. A terms which does not contain other terms.
-\index{atomic}
+\item[Atomic\index{atomic}]
+An atom, string or a number. A term which does not contain other terms.
 
 % -------------------------------------------------------------------
-\item[Body]
-A clause {\it body} can either be of the form
+\item[Body\index{body of a clause}\index{clause!body}]
+A clause body can either be of the form
 \begin{verbatim}
 Goal_1, Goal_2, ..., Goal_k
 \end{verbatim}
 or simply
-\index{clause!regular}
 \begin{verbatim}
 Goal
 \end{verbatim}
-\index{clause!iterative}
-Each {\it Goal_i} must be  a callable term.
+Each \about{Goal_i} must be a \about{callable term}.
 
 % -------------------------------------------------------------------
-\item[Built-in Procedures]
-\index{procedure!built_in}
+\item[Built-in Procedures\index{built_in procedure}\index{procedure!built_in}]
 These are predicates provided for the user by the
 {\eclipse} system, they are either written in Prolog or in the implementation
-language (usually ``C'').
-
-
-% -------------------------------------------------------------------
-\item[Clause]
-\index{clause}
-See program clause or goal.
+language (usually C).
 
 % -------------------------------------------------------------------
-\item[Callable Term]
-\index{callable term}
-A {\it callable term} is either a compound term or an atom.
+\item[Callable Term\index{callable term}\index{term!callable}]
+A callable term is either a compound term or an atom.
 
 % -------------------------------------------------------------------
-\item[Compound Term]
-\index{compound term}
+\item[Clause\index{clause}]
+See \about{program clause} or \about{goal clause}.
+
+% -------------------------------------------------------------------
+\item[Compound Term\index{compound term}\index{term!compound}]
 Compound terms are of the form
 \begin{verbatim}
 f(t_1, t_2, ..., t_n)
 \end{verbatim}
-where {\it f} is the {\it functor} of the compound term
-\index{functor}
-and {\it t_i} are terms, n is its arity. Lists and Pairs are also 
-compound terms.
+where \about{f} is the \aboutidx{functor} of the compound term, \about{n} is its
+arity and \about{t_i} are terms.
+\about{Lists} and \about{pairs} are also compound terms.
 
 % -------------------------------------------------------------------
-\item[Determinism]
-\index{Determinism}
+\item[Constant\index{constant}\index{term!constant}]
+An \about{atom}, a \about{number} or a \about{string}.
+
+% -------------------------------------------------------------------
+\item[Determinism\index{determinism}]
 The determinism specification of a built-in or library predicate says
 how many solutions the predicate can have, and whether it can fail.
 The six determinism groups are defined as follows:
@@ -153,106 +142,83 @@ but in {\eclipse} only used for the purpose of documentation.
 Note that the determinism of a predicate usually depends on its calling mode.
 
 % -------------------------------------------------------------------
-\item[Mode]
-\index{Mode}
-A predicate mode is a particular instantiation pattern of its arguments
-at call time.  Such a pattern is usually written as a predicate template, e.g.
-\begin{verbatim}
-    p(+,-)
-\end{verbatim}
-where the symbols +, ++, $-$ and ? represent instantiated, ground,
-uninstantiated and unknown arguments repsectively.
-
-% -------------------------------------------------------------------
-\item[DID]
-\index{DID}
+\item[\Index{DID}\index{dictionary identifier}]
 Each atom created within {\eclipse} is assigned a unique
-identifier called the {\it dictionary identifier} or {\it DID}.
+identifier called the \about{dictionary identifier} or \about{DID}.
 
 % -------------------------------------------------------------------
-\item[Difference List]
-\index{difference list}
+\item[Difference List\index{difference list}\index{list!difference}]
 A difference list is a special kind of a list.
-Instead of being ended by {\it nil}, a difference list
+Instead of being ended by \about{nil}, a difference list
 has an uninstantiated tail so that new elements
 can be appended to it in constant time.
-A difference list is written as {\it List - Tail}
-where {\it List} is the beginning of the list and {\it Tail}
+A difference list is written as \about{List - Tail}
+where \about{List} is the beginning of the list and \about{Tail}
 is its uninstantiated tail.
 Programs that use difference lists are usually more efficient
 and always much less readable than programs without them.
 
 % -------------------------------------------------------------------
-\item[Dynamic Procedures]
-\index{procedure!dynamic}
-These are procedures which can be modified clause-wise, by adding or removing 
-one clause at a time. Note that this class of procedure is equivalent to 
-interpreted procedures in other Prolog systems. See also {\it static 
+\item[Dynamic Procedure\index{dynamic procedure}\index{procedure!dynamic}]
+These are procedures which can be modified clause-wise, by adding or removing
+one clause at a time. Note that this class of procedure is equivalent to
+interpreted procedures in other Prolog systems. See also \about{static
 procedures}.
 
 %% -------------------------------------------------------------------
 %\item[ElemSpec]
 %\index{array}
-%An {\it ElemSpec} specifies a global variable (an atom) or an array
+%An \about{ElemSpec} specifies a global variable (an atom) or an array
 %element (a ground compound term with as much arguments (integers) as
 %the number of dimensions of the array).
 
 % -------------------------------------------------------------------
-\item[External Procedures]
-\index{procedure!external}
+\item[External Procedures\index{external procedure}\index{procedure!external}]
 These are procedures which are defined in a language
 other than Prolog, and explicitly connected to Prolog predicates by the user.
 
 % -------------------------------------------------------------------
-\item[Fact]
-\index{fact}
-\index{clause!unit}
-A fact or {\it unit clause} is a term of the form:
+\item[Fact\index{fact}]
+A fact or \aboutidx{unit clause}\index{clause!unit} is a term of the form:
 \begin{verbatim}
 Head.
 \end{verbatim}
-\index{head!clause}
-where {\it Head} is a structure or an atom.
-\index{clause!head}
-A fact may be considered to be a rule whose body is always {\it true}.
+where \notation{Head} is a \about{head}.
+
+A fact may be considered to be a rule whose body is always \about{true}.
 
 % -------------------------------------------------------------------
-\item[Functor]
-\index{functor}
-A functor is characterised by its name which is an atom, and its arity
-which is its number of arguments.
+\item[Functor\index{functor}]
+A functor is characterised by its name (which is an atom), and its arity
+(which is its number of arguments).
 
 % -------------------------------------------------------------------
-\item[Goal Clause]
-\index{clause!goal}
-\index{goal}
-See {\it query}.
+\item[Goal Clause\index{clause!goal}\index{goal}]
+See \about{query}.
 
 % -------------------------------------------------------------------
-\item[Ground]
-\index{ground}
+\item[Ground\index{ground term}\index{term!ground}]
 A term is ground when it does not contain any uninstantiated variables.
 
 % -------------------------------------------------------------------
-\item[Head]
-\index{head}
-A head is a structure or an atom.
+\item[Head\index{head of a clause}\index{clause!head}]
+A clause head is a structure or an atom.
 
 % -------------------------------------------------------------------
-\item[Instantiated]
-\index{instantiated}
-A variable is instantiated when it has been bound to an atomic or a 
-compound term as opposed to 
-being {\it uninstantiated} or {\it free}.  See also {\it ground}. 
-
+\item[Instantiated\index{instantiated variable}\index{variable!instantiated}]
+A variable is instantiated when it has been bound to an atomic or a
+compound term as opposed to being \about{uninstantiated}%
+\index{uninstantiated variable}\index{variable!uninstantiated}
+or \about{free}\index{free variable}\index{variable!free}.
+See also \about{ground}.
 
 
 % -------------------------------------------------------------------
-\item[List]
-\index{list}
-A list is a special type of term within Prolog. It is a 
-recursive data structure consisting of {\it pairs} (whose tails are lists).
-A {\tt list} is either the atom {\tt []} called {\tt nil} as in LISP,
+\item[List\index{list}]
+A list is a special type of term within Prolog. It is a
+recursive data structure consisting of \about{pairs} (whose tails are lists).
+A {\tt list} is either the atom {\tt []}\index{[]} called {\tt nil}\index{nil}
+as in LISP,
 or a pair whose tail is a list.
 The notation :
 \begin{verbatim}
@@ -262,64 +228,67 @@ is shorthand for:
 \begin{verbatim}
 [a | [b | [c | []]]]
 \end{verbatim}
-\index{nil}
-\index{[]}
 
+% -------------------------------------------------------------------
+\item[Mode\index{mode}]
+A predicate mode is a particular instantiation pattern of its arguments
+at call time.  Such a pattern is usually written as a predicate template, e.g.,
+\begin{verbatim}
+    p(+,-)
+\end{verbatim}
+where the symbols \notation{+}, \notation{++}, \notation{-} and \notation{?}
+represent
+instantiated, ground, uninstantiated and unknown arguments respectively.
 
 % -------------------------------------------------------------------
 \item[Name/Arity]
-\index{Name/Arity}
-The notation {\tt Name/Arity} is used to specify a functor of name 
-{\bf Name} with arity {\bf Arity}.
+The notation \patternidx{Name/Arity} is used to specify a functor by giving its
+name and arity.
 
 % -------------------------------------------------------------------
-\item[Pair]
-\index{pair}
+\item[Number\index{number}]
+A number literal denotes a number, more or less like in all programming
+languages.
+
+% -------------------------------------------------------------------
+\item[Pair\index{pair}]
 A pair is a compound term with the functor {\tt ./2} ({\tt dot})
 which is written as :
 \begin{verbatim}
 [H|T]
 \end{verbatim}
-{\tt H} is the {\tt head} of the pair and {\tt T} its {\tt tail}.
-\index{tail}
-\index{head!pair}
+{\tt H} is the {\tt head}\index{head of a pair}\index{pair!head}
+of the pair and {\tt T} its {\tt tail}\index{tail of a pair}\index{pair!tail}.
+
 
 % -------------------------------------------------------------------
 %\item[Permanent Procedures]
 %\index{procedure!permanent}
-%These are procedures which cannot be changed in any way, they are statically 
+%These are procedures which cannot be changed in any way, they are statically
 %linked to other procedure's calls.
 %
 % -------------------------------------------------------------------
-\item[Predicate]
-\index{predicate}
-A predicate is another term for a {\it procedure}.
+\item[Predicate\index{predicate}]
+A predicate is another term for a \about{procedure}.
 
 % -------------------------------------------------------------------
-\item[PredSpec]
-\index{PredSpec}
-This is similar to the notation {\tt Name/Arity}.
-Some built-ins allow the arity to be omitted and to specify
-{\tt Name} only.
-This stands for all (visible) predicates with that name and any arity.
+\item[\Index{PredSpec}]
+This is similar to \pattern{Name/Arity}.
+Some built-ins allow the arity to be omitted and to specify the name only:
+this stands for all (visible) predicates with that name and any arity.
 
 % -------------------------------------------------------------------
-\item[Program Clause]
-A {\it program clause} or {\it clause} is either the term
-\index{clause}
-\index{program clause}
-\index{clause!program}
+\item[Program Clause\index{clause}\index{program clause}\index{clause!program}]
+A program clause (or simply \about{clause}) is either the term
 \begin{verbatim}
 Head :- Body.
 \end{verbatim}
 \index{body}
-i.e. a compound term with the functor {\it :-/2}, or only a fact.
+(i.e., a compound term with the functor \predspec{:-/2}), or only a fact.
 
 % -------------------------------------------------------------------
-\item[Query]
-A query  has the same form as {\it Body} 	
-and is also called a {\it goal}.
-\index{query}
+\item[Query\index{query}]
+A query  has the same form as a \about{body} and is also called a \about{goal}.
 Such clauses occur mainly as input to the top level Prolog loop
 and in files being compiled, then they have the form
 \begin{verbatim}
@@ -329,72 +298,82 @@ or
 \begin{verbatim}
 ?- Goal_1, ..., Goal_k.
 \end{verbatim}
+The first of these two forms is often called a \aboutidx{directive}.
 
 % -------------------------------------------------------------------
-\item[Regular Prolog Procedure]
-\index{procedure!regular}
-A {\it regular (Prolog) procedure} is a sequence of user clauses whose heads
+\item[Regular Prolog Procedure%
+\index{regular procedure}\index{procedure!regular}]
+
+A regular (Prolog) procedure is a sequence of user clauses whose heads
 have the same functor, which then identifies the user procedure.
 
 
 % -------------------------------------------------------------------
-\item[Simple Procedures]
-\index{procedure!simple}
-Apart from regular procedures {\eclipse} recognises {\it simple procedures}
-which are written not in Prolog but in the implementation language, i.e. C
+\item[Simple Procedures\index{simple procedure}\index{procedure!simple}]
+Apart from regular procedures {\eclipse} recognises simple procedures
+which are written not in Prolog but in the implementation language (i.e., C),
 and which are deterministic.
 There is a functor associated with each
 simple procedure, so that
 any procedure recognisable by {\eclipse} is identified by a functor,
-\index{procedure!functor}
-or a compound term with this functor (or atom).
+\index{functor!of a procedure}\index{procedure!functor}
+or by a compound term (or atom) with this functor.
 
 % -------------------------------------------------------------------
-\item[SpecList]
-\index{SpecList}
-The SpecList notation means a sequence of terms of the form:
+\item[\Index{SpecList}]
+The SpecList notation means a sequence of \about{PredSpec} terms of the form:
 \begin{verbatim}
-name_1/a_1, name_2/a_2, ..., name_k/a_k.
+name_1/arity_1, name_2/arity_2, ..., name_k/arity_k.
 \end{verbatim}
-The SpecList notation is used in many built-ins, for example, 
+The SpecList notation is used in many built-ins, for example,
 to specify a list of procedures in the
 \bipref{export/1}{../bips/kernel/modules/export-1.html} predicate.
 
 % -------------------------------------------------------------------
-\item[Static Procedures]
-\index{procedure!static}
-These are procedures which can only be changed as a whole unit, i.e. removed or 
+\item[Static Procedures\index{static procedure}\index{procedure!static}]
+These are procedures which can only be changed as a whole unit, i.e., removed or
 replaced.
 
 % -------------------------------------------------------------------
-\item[Stream]
-\index{stream}
-This is an I/O channel identifier and can be a physical stream number, one of 
-the pre-defined stream identifiers (input, output, error, warning_output, log_output, null)
+\item[Stream\index{stream}]
+This is an I/O channel identifier and can be a physical stream number, one of
+the predefined stream identifiers (\notation{input}, \notation{output},
+\notation{error}, \notation{warning_output}, \notation{log_output},
+\notation{null})
 or a user defined stream name (defined using
-\bipref{set_stream/2}{../bips/kernel/iostream/set_stream-2.html} or \bipref{open/3}{../bips/kernel/iostream/open-3.html}). 
-\index{set_stream/2}
-\index{open/3} 
+\bipref{set_stream/2}{../bips/kernel/iostream/set_stream-2.html} or
+ \bipref{open/3}{../bips/kernel/iostream/open-3.html}).
 
 % -------------------------------------------------------------------
-\item[Structures]
-Compound terms which are not pairs are also called {\it structures}.
-\index{structure}
+\item[String\index{string}]
+A string is similar to those found in all other programming languages.  A string
+is enclosed in double quotes.
 
 % -------------------------------------------------------------------
-\item[Term]
-A {\it term} is the basic data type in Prolog.
-\index{term}
-It is either a {\it variable}, a {\it constant},
-i.e. an {\it atom}, a {\it number} or a {\it string},
-\index{string}
-\index{number}
-or a {\it compound term}.
+\item[Structure\index{structure}]
+Compound terms which are not pairs are also called \about{structures}.
+
+% -------------------------------------------------------------------
+\item[Term\index{term}]
+A term is the basic data type in Prolog.
+It is either a \about{variable}, a \about{constant} or a \about{compound term}.
+
+% -------------------------------------------------------------------
+\item[Variable\index{variable}\index{term!variable}]
+A variable is more similar to a mathematical variable than to a variable in some
+imperative language.  It can be free, or instantiated to a term, but once
+instantiated it becomes indistinguishable from the term to which it was
+instantiated: in particular, it cannot become free again (except upon
+backtracking through the point of instantiation).
+The name of a variable is written in the form of an identifier that begins with
+an upper-case letter or with an underscore.  A single underscore represents an
+\aboutidx{anonymous variable}\index{variable!anonymous} that has only one
+occurrence (i.e., another occurrence of this name represents another variable).
 
 % -------------------------------------------------------------------
 \end{description}
 
-The notation {\it Pred/N1, N2} is often used in this documentation
-as a shorthand for {\it Pred/N1, Pred/N2}.
+The notation \pattern{Pred/N1, N2} is often used in this documentation
+as a shorthand for \pattern{Pred/N1, Pred/N2}.
 
 %HEVEA\cutend

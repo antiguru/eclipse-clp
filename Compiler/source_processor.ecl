@@ -22,13 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.9 2008/07/31 21:45:40 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.10 2009/07/16 09:11:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2008/07/31 21:45:40 $").
+:- comment(date, "$Date: 2009/07/16 09:11:23 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -62,7 +63,7 @@
 :- export struct(source_position(
 	filespec,		% Original source location argument
 	stream,			% Eclipse stream
-	file,			% canonical file name
+	file,			% canonical file name, or 'user'
 	line,			% integer
 	offset,			% integer
         remaining_files,	% list of file names
@@ -758,8 +759,7 @@ handle_directives(Directive, NextPos, NextPos, handled_directive) :-
 handle_directives(Directive, NextPos, NextPos, Kind) :-
 	NextPos = source_position{module:Module,file:File},
 	( handled_directive(Directive, ChangeDir) ->
-	    ( ChangeDir = yes ->
-		pathname(File, Dir, _, _),
+	    ( ChangeDir = yes, pathname(File, Dir, _, _), Dir \== "" ->
 		getcwd(Cwd),
 		cd(Dir),
 		Back = cd(Cwd)

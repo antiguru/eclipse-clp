@@ -166,9 +166,9 @@ The handlers for these events receive the following arguments:
 The second argument for the event 139 depends on the predicate
 where it was raised:
 \begin{itemize}
-\item \bipref{compile/1, 2}{../bips/kernel/database/compile-1.html} - (file name, code size, compile time)
-\item \bipref{compile_stream/1}{../bips/kernel/database/compile_stream-1.html} - ('string', code size, compile time) with a string stream
-\item \bipref{compile_stream/1}{../bips/kernel/database/compile_stream-1.html} - (file name, code size, compile time) with a stream associated to a file
+\item \bipref{compile/1, 2}{../bips/kernel/compiler/compile-1.html} - (file name, code size, compile time)
+\item \bipref{compile_stream/1}{../bips/kernel/compiler/compile_stream-1.html} - ('string', code size, compile time) with a string stream
+\item \bipref{compile_stream/1}{../bips/kernel/compiler/compile_stream-1.html} - (file name, code size, compile time) with a stream associated to a file
 \end{itemize}
 
 \subsection{Top-Level}
@@ -487,9 +487,9 @@ See \bipref{set_event_handler/2}{../bips/kernel/event/set_event_handler-2.html}.
 %\item[undef_array_handler/3]
 %\index{undef_array_handler/3}
 %If the culprit was
-%\bipref{setval/2}{../bips/kernel/arrays/setval-2.html} with an atom as
+%\bipref{setval/2}{../bips/kernel/storage/setval-2.html} with an atom as
 %first argument, a local non-logical variable of that name is created using
-%\bipref{variable/1}{../bips/kernel/arrays/variable-1.html} and
+%\bipref{variable/1}{../bips/kernel/storage/variable-1.html} and
 %the culprit is re-called.  Otherwise like {\bf error_handler/2}.
 %
 %\item[undef_dynamic_handler/3]

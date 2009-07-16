@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.5 2008/08/20 22:57:33 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.6 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.5 2008/08/20 22:57:33 jschimpf Exp $
+% $Id: iso.pl,v 1.6 2009/07/16 09:11:24 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -66,7 +66,8 @@
 	macro((of)/2, (=)/2, []).
 
 :- local
-	op(650, xfx, (@)).		% allow it locally
+	op(650, xfx, (@)),		% allow it locally
+	op(1100, xfy, (do)).
 
 :- export
 	syntax_option(iso_escapes),
@@ -83,10 +84,11 @@
 	chtab(0'`, string_quote),
 	chtab(0'", list_quote).
 
+:- comment(categories, [`Compatibility`]).
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2008/08/20 22:57:33 $`).
+:- comment(date, `$Date: 2009/07/16 09:11:24 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
@@ -249,6 +251,29 @@ throw(Ball) :-
 
 unify_with_occurs_check(X, X) :-		% 8.2.2
 	acyclic_term(X).
+
+
+%-----------------------------------------------------------------------
+% 8.6 Arithmetic evaluation
+%-----------------------------------------------------------------------
+
+% allow expressions built at runtime without an eval wrapper to be evaluated
+
+:- set_event_handler(24, eval_expr/2).
+
+eval_expr(N, ArithGoal) :-
+        functor(ArithGoal, Op, A),
+        NewA is A - 1,
+        functor(Expr, Op, NewA),
+	( sepia_kernel:arith_builtin(Expr) ->
+	    ( foreacharg(X,Expr,I), param(ArithGoal) do
+		arg(I, ArithGoal, X)
+	    ),
+	    arg(A, ArithGoal, Res),
+	    Res is Expr
+	;
+	    error(default(N), ArithGoal)
+	).
 
 
 %-----------------------------------------------------------------------

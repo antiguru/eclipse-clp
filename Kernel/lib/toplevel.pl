@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -118,8 +118,9 @@
 	delayed_goals_handler/3.
 
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2008/06/30 17:43:50 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -207,6 +208,24 @@ toplevel :-
 %----------------------------------------------------------------------
 % Command line based 'tty' toplevel
 %----------------------------------------------------------------------
+
+% A version of tyi/2 which allows an optional newline when used on non-tty
+% streams (for pseudo-terminals that don't have raw mode, e.g. inside emacs)
+:- local tyi/2.
+tyi(S, C) :-
+	eclipse_language:tyi(S, C),
+	( get_stream_info(S, device, tty) ->
+	    true
+	; newline(C) ->
+	    true
+	;
+	    eclipse_language:tyi(S, NL),
+	    ( newline(NL) -> true ; unget(S) )
+	).
+
+newline(10).
+newline(13).
+
 
 tty_toplevel_init :-
 
@@ -362,9 +381,7 @@ tty_ask_more(_, more_answers) :- !,
 		put(toplevel_output, C),
 		nl(toplevel_output),
 		fail
-	; C == 13 ->
-		nl(toplevel_output)
-	; C == 10 ->
+	; newline(C) ->
 		nl(toplevel_output)
 	;
 		put(toplevel_output, C),

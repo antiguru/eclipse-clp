@@ -26,16 +26,17 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Stefano Novello, IC-Parc
-% Version:	$Id: hash.ecl,v 1.1 2008/06/30 17:43:46 jschimpf Exp $
+% Version:	$Id: hash.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
 :- module(hash).
 
+:- comment(categories, ["Data Structures"]).
 :- comment(summary, "Hash table library").
 :- comment(author, "Stefano Novello, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:46 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 
 :- export(hash_create/1).
 :- export(hash_add/3).
@@ -50,8 +51,10 @@
 :- export(hash_iter/2).
 :- export(hash_next/4).
 :- export(hash_last/1).
+:- export(hash_keys/2).
 :- export(hash_list/3).
 :- export(hash_stat/1).
+:- export(hash_update/4).
 :- export(hash_clone/2).
 :- export(hash_entry/3).
 :- export hash_insert_suspension/3.
@@ -257,7 +260,7 @@ hash_clone(Old, New) :-
 :- comment(hash_set/3, [
     amode:(hash_set(+,++,+) is det),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
-    see_also:[hash_get/3],
+    see_also:[hash_get/3,hash_update/4],
     summary:"Add an (or modify the existing) entry with key Key and value Value to the hash table"]).
 
 hash_set(H,Key,Elem) :-
@@ -343,7 +346,7 @@ hash_contains(H,Key) :-
     amode:(hash_get(+,++,-) is semidet),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
     summary:"Find the entry stored under key Key and return its value",
-    see_also:[hash_create/1,hash_set/3,hash_list/3,hash_contains/2],
+    see_also:[hash_create/1,hash_set/3,hash_list/3,hash_contains/2,hash_update/4],
     fail_if:"No entry for Key" ]).
 
 hash_get(H,Key,Elem) :-
@@ -364,6 +367,47 @@ hash_find(H,Key,Elem) :-
 	member(hash_elem{key:Key,elem:E}, Bucket),
 	!,
 	E=Elem.
+
+
+:- comment(hash_update/4, [
+    amode:(hash_update(+,++,-,+) is semidet),
+    args:["Table":"A hash table", "Key":"a ground term",
+    	"OldValue":"Any term", "NewValue":"Any term"],
+    summary:"Lookup and replace the value stored under Key",
+    desc:"A combination of hash_get/3 and hash_set/3, but more efficient
+    	because there is only one hash lookup.",
+    eg:"
+	?- hash_create(H),
+	   hash_set(H, k, hello),
+	   hash_update(H, k, Old, world),
+	   hash_get(H, k, New).
+
+	Old = hello
+	New = world
+	Yes (0.00s cpu)
+
+	% sample code based on hash_update/4:
+    	hash_inc(H, Key) :-
+	    hash_update(H, Key, N0, N1),
+	    N1 is N0+1.
+
+    	hash_addto(H, Key, Value) :-
+	    hash_update(H, Key, Values, [Value|Values]).
+    ",
+    see_also:[hash_get/3, hash_set/3],
+    fail_if:"No entry for Key" ]).
+
+hash_update(H,Key,OldElem,Elem) :-
+	H = hash_table{size:Size,table:T,change:Susps},
+	hash(Key,Size,Index),
+	arg(Index, T, Bucket),
+	member(Entry, Bucket),
+	Entry = hash_elem{key:Key,elem:E},
+	!,
+	E=OldElem,
+	setarg(elems of hash_table,H,0),
+	setarg(elem of hash_elem,Entry,Elem),
+	( var(Susps) -> true ; notify(H, chg(Key,OldElem, Elem))).	% should be last
 
 
     grow(H):-
@@ -477,7 +521,8 @@ hash_next(hash_iter{next_index:S1,bucket:Bucket,table:T,eleft:N},Key,Elem,Iter) 
 
 hash_list(H,Keys,List) :-
 	H = hash_table{table:T,keys:K,elems:E},
-	( K == 0 ->
+	( E == 0 ->
+	    % keys may be cached, but we recompute them anyway
 	    (
 		foreacharg(Bucket,T),
 		fromto(Keys, Keys0, Keys1, []),
@@ -494,8 +539,39 @@ hash_list(H,Keys,List) :-
 	    setarg(keys of hash_table ,H,Keys),
 	    setarg(elems of hash_table ,H,List)
 	;
+	    % if elems are cached, keys are cached as well
 	    Keys = K,
 	    List = E
+	).
+
+
+:- comment(hash_keys/2, [
+    amode:(hash_keys(+,-) is det),
+    args:["Table":"A hash table", "Keys":"a variable or list"],
+    summary:"Retrieve the current hash table keys",
+    desc:html("
+	Retrieve the hash table keys in the form of a list of Keys.
+	This list is cached by the hash table and only recomputed when
+	the table has changed.")
+    ]).
+
+hash_keys(H,Keys) :-
+	H = hash_table{table:T,keys:K},
+	( K == 0 ->
+	    (
+		foreacharg(Bucket,T),
+		fromto(Keys, Keys0, Keys1, [])
+	    do
+	    	(
+		    foreach(hash_elem{key:Key}, Bucket),
+		    fromto(Keys0,[Key|KT],KT,Keys1)
+		do
+		    true
+		)
+	    ),
+	    setarg(keys of hash_table,H,Keys)
+	;
+	    Keys = K
 	).
 
 

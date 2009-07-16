@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cgi.pl,v 1.1 2008/06/30 17:43:42 jschimpf Exp $
+% Version:	$Id: cgi.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: cgi.pl,v 1.1 2008/06/30 17:43:42 jschimpf Exp $
+% $Id: cgi.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 %
 % IDENTIFICATION:	cgi.pl
 %
@@ -45,10 +45,11 @@
 	get_param_value/3,
 	substitute_placeholders/3.
 
+:- comment(categories, ["Interfacing"]).
 :- comment(summary, "Some utilities for writing cgi scripts with ECLiPSe").
 :- comment(author, "Joachim Schimpf, IC-Parc, Imperial College, London").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:42 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 
 :- comment(posted_params/1, [
     template:"posted_params(-NameValuePairs)",

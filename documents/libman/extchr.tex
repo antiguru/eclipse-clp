@@ -107,7 +107,7 @@ reason about their termination and confluence.
 In the next section
 it is explained how to use \chrs.
  Then,
-example constraint handlers and the color graphic
+example constraint handlers and the colour graphic
 demo are listed.
  The next
 section introduces the basics of the \chr\ language and how it works.  
@@ -153,7 +153,7 @@ The files ({\tt .chr, .pl}, examples)
 relevant to a
 particular constraint system can be found by looking at all files that
 match the pattern given in the following listing with each example
-handler.  The examples include a {\em color graphic demo} about
+handler.  The examples include a {\em colour graphic demo} about
 optimal sender placement for wire-less devices in buildings and
 company sites, small constraint handlers for
 \begin{itemize}
@@ -739,7 +739,7 @@ variables are different from each other.  It is more efficient to have
 a single constraint {\tt all\_different(List\_of\_n\_Vars)} than
 $n^2$
 inequality constraints (see handler {\tt domain.chr}).  However, the
-extreme case of having a single constraint modeling the whole
+extreme case of having a single constraint modelling the whole
 constraint store will usually be inefficient.
 
 {\em Rules with two heads} are more efficient, if the two heads of the
@@ -788,7 +788,7 @@ in the guard, but they should be used with care.  The use of other
 control built-in predicates of \eclipse\ is discouraged.  Negation and
 if-then-else can be used if their first arguments are either {\em
 simple goals} (see \eclipse\ user manual) or goals that don't touch
-global variables. Similarly, goals preceding a cut must fulfill this
+global variables. Similarly, goals preceding a cut must fulfil this
 condition.
 %
 {\em Built-in constraints} (e.g. finite domains, rational arithmetic)
@@ -888,7 +888,7 @@ so the clauses of the associated constraint will be used for built-in labeling.
 
 \end{itemize}
 When displayed, each constraint
-is labeled with a unique integer identifier.  Each rule is labeled
+is labelled with a unique integer identifier.  Each rule is labelled
 with its name as given in the {\tt chr} source using the \verb/@/
 operator. If a rule does not have a name, it is displayed together
 with a unique integer identifier.
@@ -980,7 +980,7 @@ After loading the extended {\tt chr} library, programs containing \chr\  code ca
 be compiled directly. Thus, \chr\  code can be freely mixed with normal Prolog
 code in any file. In particular, a compilation may now compile code from 
 different files in different modules which may all contain \chr\  codes. This
-was not a problem with the old library because \chr\  code had to be compile
+was a problem with the old library because \chr\  code had to be compile
 separately. 
 
 In the extended library, \chr\  code can occur anywhere in a particular module, and
@@ -992,14 +992,21 @@ separate and independent from each other.
 
 In order to allow \chr\  code to occur anywhere inside a module, and also 
 because it is difficult to define a meaning for replacing multi-heads rules,
-compilation of \chr\  code is always incremental, i.e. any existing \chr\ 
-code in a module is not replaced by a new compilation. Instead, the rules
-from the new compilation is added to the old ones. 
+compilation of \chr\  code is always incremental when a new file for a
+module is compiled, i.e. any existing \chr\ 
+code in a module is not replaced by those in the newly compiled
+file. However, when the whole module is recompiled  (i.e. compiling a file
+with the \verb'module/1' directive), or if the module is erased,  then any 
+existing CHR code in the module is erased along with the other code in the 
+module.
 
-It is possible to clear out old \chr\  code before compiling a file. This is done
+It is possible to clear out old \chr\  code in all modules when compiling a 
+file. This is done
 with the {\tt chr/1} predicate. This first remove any existing \chr\  code in
 any module before the compilation starts. It thus approximates the semantics
-of {\tt chr/1} of the old library, but no Prolog file is generated.
+of {\tt chr/1} of the old library, but no Prolog file is generated. It is
+mainly intended for compatibility with the old library, and when you are
+using CHR without using the module facilities.
 
 \subsection{Semantics}
 

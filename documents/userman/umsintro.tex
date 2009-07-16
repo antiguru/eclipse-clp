@@ -5,23 +5,23 @@
 % License Version 1.1 (the "License"); you may not use this file except
 % in compliance with the License.  You may obtain a copy of the License
 % at www.eclipse-clp.org/license.
-% 
+%
 % Software distributed under the License is distributed on an "AS IS"
 % basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
 % the License for the specific language governing rights and limitations
-% under the License. 
-% 
-% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
-% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% under the License.
+%
+% The Original Code is  The ECLiPSe Constraint Logic Programming System.
+% The Initial Developer of the Original Code is  Cisco Systems, Inc.
 % Portions created by the Initial Developer are
 % Copyright (C) 1995 - 2006 Cisco Systems, Inc.  All Rights Reserved.
-% 
-% Contributor(s): 
-% 
+%
+% Contributor(s):
+%
 % END LICENSE BLOCK
 %
-% @(#)umsintro.tex	1.11 95/03/17 
-% $Id: umsintro.tex,v 1.1 2006/09/23 01:50:44 snovello Exp $
+% @(#)umsintro.tex	1.11 95/03/17
+% $Id: umsintro.tex,v 1.2 2009/07/16 09:11:25 jschimpf Exp $
 %
 % REL	DATE	AUTHOR		DESCRIPTION
 % 2.10	090589	David Miller	Convert to Latex and update for 2.10
@@ -81,7 +81,7 @@ All the documentation can be accessed using an html browser
 %to many extensions to the basic Prolog language.
 %It can be seen as a generic data type or as an attributed variable.
 %The system calls user-definable event handlers
-%when it encounters metaterms in certain contexts, e.g.\ unification.
+%when it encounters metaterms in certain contexts, e.g., unification.
 %
 %\subsection{Incremental Compiler}
 %{\eclipse} is based on an {\it incremental interactive compiler},
@@ -95,7 +95,7 @@ All the documentation can be accessed using an html browser
 %\subsection{Source Variable Names}
 %\index{variable names}
 %{\eclipse} is able to remember the source names
-%of variables so that e.g.\ debugging programs becomes much easier.
+%of variables so that e.g., debugging programs becomes much easier.
 %By default, the toplevel loop and the debugger print variables with
 %their source names.
 %The compiler by default checks if the compiled clauses contain
@@ -110,7 +110,7 @@ All the documentation can be accessed using an html browser
 %modify the Prolog top-level loop.
 %
 %\subsection{User Interface}
-%The interface is user-friendly, e.g.\ in the top-level and in the debugger
+%The interface is user-friendly, e.g., in the top-level and in the debugger
 %most functionalities can be accessed with a single key stroke.
 %The top-level loop does not ask for displaying more alternatives
 %when it can determine that there are none.
@@ -178,7 +178,7 @@ All the documentation can be accessed using an html browser
 %
 %\subsection{Modules}
 %{\eclipse} has a sophisticated module concept which makes it possible to
-%build large applications, avoid name clashes and to hide information 
+%build large applications, avoid name clashes and to hide information
 %from unauthorised access.
 %The items covered by the module system's visibility rules are predicates,
 %global variables and arrays, indexed database keys, operators and
@@ -196,7 +196,7 @@ All the documentation can be accessed using an html browser
 %would be possible and the user has the possibility to influence
 %it by defining an appropriate event handler.
 %
-%When an interrupt occurs, e.g. a signal, the current execution
+%When an interrupt occurs, e.g., a signal, the current execution
 %is interrupted and the signal is handled immediately in real time.
 %This feature can be used to write real-time applications,
 %for example graphics applications which make use of a mouse etc.
@@ -209,7 +209,7 @@ All the documentation can be accessed using an html browser
 %The delayed predicates are resumed when one of the specified
 %variables is bound and the delay condition is then verified again.
 %This goal suspension can be used to preserve completeness
-%e.g. when avoiding infinite loops, to increase efficiency
+%e.g., when avoiding infinite loops, to increase efficiency
 %by reordering subgoals, to have sound negation
 %and to implement coroutines.
 %
@@ -219,7 +219,7 @@ All the documentation can be accessed using an html browser
 %\subsection{Debugger}
 %{\eclipse} includes a built-in debugger which debugs
 %compiled code without {\it metainterpreting} it
-%(i.e. the debugger is not a Prolog program which would
+%(i.e., the debugger is not a Prolog program which would
 %simulate the execution of another program) and so the
 %debugged code is not considerably slower than the not debugged one
 %as is the case in most other Prolog systems.
@@ -263,7 +263,7 @@ All the documentation can be accessed using an html browser
 %%Constructive negation can be used to generate solutions
 %%for negated goals and thus it is logically complete and sound.
 %%It uses delayed goals to express constraints on
-%%the variables in a negated query, so that e.g.
+%%the variables in a negated query, so that e.g.,
 %%when a fact {\it p(a)} exists, the goal
 %%{\it ?-neg p(X)} will yield a solution {\it X $\neq$ a}
 %%\footnote{

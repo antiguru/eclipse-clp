@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_varclass.ecl,v 1.14 2008/10/29 03:13:45 jschimpf Exp $
+% Version:	$Id: compiler_varclass.ecl,v 1.15 2009/07/16 09:11:23 jschimpf Exp $
 %
 % Related paper (although we haven't used any of their algorithms):
 % H.Vandecasteele,B.Demoen,G.Janssens: Compiling Large Disjunctions
@@ -35,7 +35,7 @@
 :- comment(summary, "ECLiPSe III compiler - variable classification").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/10/29 03:13:45 $").
+:- comment(date, "$Date: 2009/07/16 09:11:23 $").
 
 :- comment(desc, html("
     This pass (consisting of several phases) does the following jobs:
@@ -805,7 +805,9 @@ mark_env_activity_bwd(rev_disj{rev_branches:Branches,
 	    BranchEntryEAM is SeenBeforeDisj /\ BranchAndAfter,
 	    After2 is After1 \/ BranchAndAfter
 	),
-	EntryESize is max(ESize3,MaxYHeads),
+	% EntryESize is at least 0 because disjunctions are assumed
+	% to be regular and require at least an empty environment
+	EntryESize is max(0,max(ESize3,MaxYHeads)),
 	ESize is max(EntryESize,MaxYSetup),
 	% EAM before entering the disjunction
 	DisjEntryEAM is SeenBeforeDisj /\ After,

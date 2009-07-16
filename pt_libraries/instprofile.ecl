@@ -25,7 +25,7 @@
 %
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Andrew Cheadle, IC-Parc
-% Version:      $Id: instprofile.ecl,v 1.1 2006/09/23 01:54:56 snovello Exp $
+% Version:      $Id: instprofile.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -35,9 +35,10 @@
 
 :- module(instprofile).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Instrumentation / sampling based statistics profiler").
 :- comment(author,"Andrew Cheadle").
-:- comment(date, "$Date: 2006/09/23 01:54:56 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(status, prototype).
 
 :- comment(desc, html("<P>

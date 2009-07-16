@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: changeset.pl,v 1.1 2006/09/23 01:53:22 snovello Exp $
+% Version:	$Id: changeset.pl,v 1.2 2009/07/16 09:11:25 jschimpf Exp $
 %
 % Description:		Predicates to efficiently compute the set of
 %			variables modified during a propagation sequence.
@@ -32,10 +32,11 @@
 
 :- module(changeset).
 
+:- comment(categories, ["Algorithms","Constraints"]).
 :- comment(summary, "Compute sets of modified variables").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:22 $").
+:- comment(date, "$Date: 2009/07/16 09:11:25 $").
 
 :- comment(monitor_changes_arr/5, [
     summary:"Monitor variables for modifications",

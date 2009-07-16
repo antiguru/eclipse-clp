@@ -28,7 +28,7 @@
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 %               Joachim Schimpf, IC-Parc
 %               Kish Shen, IC-Parc (Generised to IC)
-% Version:	$Id: fd_search.ecl,v 1.1 2006/09/23 01:53:31 snovello Exp $
+% Version:	$Id: fd_search.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -37,6 +37,7 @@
 :- lib(fd).
 :- use_module(fd_generic_interface).
 
+:- comment(categories, ["Constraints"]).
 :-comment(summary,"This library contains a generic search routine which 
 implements a number of partial search methods (complete, credit, lds, bbs, dbs)").
 
@@ -46,7 +47,7 @@ dbs) and some of their combinations.")).
 
 :-comment(author,"H. Simonis, J. Schimpf").
 :-comment(copyright,"Cisco Systems, Inc.").
-:-comment(date,"$Date: 2006/09/23 01:53:31 $").
+:-comment(date,"$Date: 2009/07/16 09:11:27 $").
 
 :-include(generic_search).
 :-comment(include, generic_search_comments).

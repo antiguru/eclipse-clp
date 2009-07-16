@@ -22,9 +22,10 @@
 
 :- module(conjunto_fd_sets).
 
+:- comment(categories, ["Compatibility","Constraints"]).
 :- comment(summary, "lib(conjunto) compatibility wrapper for lib(fd_sets)").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:53:25 $").
+:- comment(date, "$Date: 2009/07/16 09:11:25 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("<P>

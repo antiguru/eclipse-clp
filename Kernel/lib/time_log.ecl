@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: time_log.ecl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: time_log.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(time_log).
@@ -31,9 +31,10 @@
 :- export log_time_local/2.
 :- export collate_time_logs/4.
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Module for logging and collating test times").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:50 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("\
 	This module is used for logging and collating the times taken to run
 	tests (but could be used for other similar purposes).  Before

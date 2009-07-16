@@ -83,6 +83,7 @@
 	optimize/2,
 	remove_smallest/4.
 
+:- comment(categories, ["Data Structures"]).
 :- comment(summary, "The `map' abstract data type.").
 :- comment(author, "Fergus Henderson and Thomas Conway (Mercury) and Warwick Harvey (ECLiPSe)").
 :- comment(desc, html("\

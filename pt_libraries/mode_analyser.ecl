@@ -25,7 +25,7 @@
 %
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Andrew Cheadle, IC-Parc
-% Version:      $Id: mode_analyser.ecl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
+% Version:      $Id: mode_analyser.ecl,v 1.3 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -35,9 +35,10 @@
 
 :- module(mode_analyser).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Instrumentation based mode analyser").
 :- comment(author,"Andrew Cheadle").
-:- comment(date, "$Date: 2007/02/23 15:28:33 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 :- comment(status, prototype).
 

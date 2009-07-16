@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_shelf.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * Version:	$Id: bip_shelf.c,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
  *
  * Contents:	Built-ins for the shelf-primitives
  *
@@ -59,6 +59,7 @@ static t_heap_array * _copy_heap_array(t_heap_array *obj);
 static void _mark_heap_array(t_heap_array *obj);
 static int _heap_arr_set(t_ext_ptr h, int i, pword pw);
 static pword _heap_arr_get(t_ext_ptr h, int i);
+static int _heap_arr_get1(t_ext_ptr h, int i, pword* pw);
 static int _tostr_heap_arr(t_heap_array *obj, char *buf, int quoted);
 static int _strsz_heap_arr(t_heap_array *obj, int quoted);
 
@@ -264,8 +265,8 @@ p_shelf_get(value vhandle, type thandle, value vi, type ti, value vval, type tva
     Check_Integer(ti);
     if (vi.nint < 0 || vi.nint > DidArity(obj->array[0].val.did))
 	{ Bip_Error(RANGE_ERROR); }
-    pw = _heap_arr_get(obj, vi.nint);
-    if (IsRef(pw.tag))
+    _heap_arr_get1(obj, vi.nint, &pw);
+    if (IsRef(pw.tag) && IsSelfRef(&pw))
     {
 	Succeed_;	/* nothing to unify */
     }
@@ -365,10 +366,23 @@ _heap_arr_set(t_ext_ptr h,
 }
 
 
+/* This should be phased out because of the problem of returning a self-ref */
 static pword
 _heap_arr_get(t_ext_ptr h, int i)	/* assumed to return dereferenced result */
 {
     pword result;
+    _heap_arr_get1(h, i, &result);
+    if (IsRef(result.tag) && IsSelfRef(&result))
+    {
+	result.val.ptr = TG;
+	Push_Var();
+    }
+    return result;
+}
+
+static int
+_heap_arr_get1(t_ext_ptr h, int i, pword *result)	/* assumed to return dereferenced result */
+{
     pword *pheap;
     int arity;
 
@@ -377,19 +391,19 @@ _heap_arr_get(t_ext_ptr h, int i)	/* assumed to return dereferenced result */
     a_mutex_lock(&SharedDataLock);
     if (i > 0  &&  i <= arity)
     {
-	get_heapterm(&pheap[i], &result);
+	get_heapterm(&pheap[i], result);
     }
     else				/* get the whole array-term */
     {
-	Make_Struct(&result,TG);
+	Make_Struct(result,TG);
 	Push_Struct_Frame(pheap[0].val.did);
 	for (i=1; i<=arity; ++i)
 	{
-	    get_heapterm(&pheap[i], &result.val.ptr[i]);
+	    get_heapterm(&pheap[i], &result->val.ptr[i]);
 	}
     }
     a_mutex_unlock(&SharedDataLock);
-    return result;
+    return PSUCCEED;
 }
 
 

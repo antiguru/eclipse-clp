@@ -23,6 +23,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 :-module(max_flow).
+:- comment(categories, ["Algorithms"]).
 :-comment(summary,"Ford-Fulkerson maximum flow algorithm").
 :-comment(author,"CrossCore Optimization Ltd").
 :-comment(copyright,"2007, CrossCore Optimization Ltd").

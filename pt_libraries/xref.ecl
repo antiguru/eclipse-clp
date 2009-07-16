@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: xref.ecl,v 1.1 2006/09/23 01:55:00 snovello Exp $
+% Version:	$Id: xref.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(xref).
@@ -31,10 +31,11 @@
 :- lib(source_processor).
 :- lib(graph_algorithms).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Cross-referencing tool").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:55:00 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(desc, html("
     This library analyses an ECLiPSe source module or file and build
     a call graph. The graph can either be returned in the format of

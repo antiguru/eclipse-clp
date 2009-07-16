@@ -25,15 +25,16 @@
 
 :- module(flatzinc_parser).
 
+:- comment(categories, ["Interfacing"]).
 :- comment(summary, "A parser for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2008/12/19 05:56:37 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(see_also, [library(flatzinc_syntax)]).
 :- comment(desc, html("
 <P>
 A parser for FlatZinc, based on 'Specification of FlatZinc' (Nov 7 2007).
-It reads and returns one item at a time, as am ECLiPSe structure which
+It reads and returns one item at a time, as an ECLiPSe structure which
 closely resembles the FZ input.
 </P>
 <P>
@@ -50,7 +51,7 @@ items can be processed one at a time by ECLiPSe to set up the model.
 :- export read_item/2.
 :- comment(read_item/2, [
     summary:"Read one item from a FlatZinc input stream",
-    amode:(read_item(+,-) is nondet),
+    amode:(read_item(+,-) is semidet),
     args:[
 	"Stream":"ECLiPSe stream name or handle",
 	"Item":"Output: an ECLiPSe term that describes the FlatZinc item"],
@@ -159,6 +160,10 @@ item(output(List)) -->
 	expect('['),
 	nonempty_output_elem_list(List).
 
+item(predicate(Pred)) -->
+	[predicate], !,
+	pred_decl(Pred).
+
 
 array_decl_tail(Type, InstElemType, Decl) -->
 	[var], !,
@@ -179,26 +184,6 @@ array_decl_tail(Type, ElemType, Type:IdentAnns=Value) -->
 	expect(=),
 	array_literal(Value).
 
-	/*
-array_decl_tail(Term) -->
-	[var], !,
-	{Term0 = (var(Type):IdentAnns)},
-	non_array_ti_expr_tail(Type),
-	expect(:),
-	ident_anns(IdentAnns),
-	( [=] ->
-	    { Term = (Term0 = Value) },
-	    array_literal(Value)
-	;
-	    { Term = Term0 }
-	).
-array_decl_tail(var(Type):IdentAnns=Value) -->
-	non_array_ti_expr_tail(Type),
-	[:], !,
-	ident_anns(IdentAnns),
-	expect(=),
-	array_literal(Value).
-*/
 
 constraint_elem(Elem) -->
 	[ident(Ident),'('], !,
@@ -216,10 +201,29 @@ constraint_elem(Elem) -->
 	variable_expr(Elem).
 
 
+solve_kind(SolveAnns, satisfy(SolveAnns)) -->
+	[satisfy], !.
+solve_kind(SolveAnns, minimize(SolveAnns,Expr)) -->
+	[minimize], !,
+	variable_expr(Expr).
+solve_kind(SolveAnns, maximize(SolveAnns,Expr)) -->
+	[maximize], !,
+	variable_expr(Expr).
+
+
+% Output-Item (obsolete)  --------------------------------
+
 output_elem(show(Expr)) -->
 	[show], !,
 	expect('('),
 	flat_expr(Expr),
+	expect(')').
+output_elem(show_cond(E1,E2,E3)) -->
+	[show_cond], !,
+	expect('('),
+	flat_expr(E1), expect(','),
+	flat_expr(E2), expect(','),
+	flat_expr(E3),
 	expect(')').
 output_elem(Expr) -->
 	[str(Expr)].
@@ -232,14 +236,50 @@ output_elem(Expr) -->
 	( [']'] -> {Es = []} ; nonempty_output_elem_list(Es) ).
 
 
-solve_kind(SolveAnns, satisfy(SolveAnns)) -->
-	[satisfy], !.
-solve_kind(SolveAnns, minimize(SolveAnns,Expr)) -->
-	[minimize], !,
-	variable_expr(Expr).
-solve_kind(SolveAnns, maximize(SolveAnns,Expr)) -->
-	[maximize], !,
-	variable_expr(Expr).
+% Predicate-Decl --------------------------------
+
+pred_decl(Pred) -->
+	[ident(Ident),'('],
+	nonempty_pred_args(Params),
+	{ Pred =.. [Ident|Params] }.
+
+    nonempty_pred_args([E|Es]) -->
+	pred_arg(E),
+	( [','] -> pred_args(Es) ; expect(')'), {Es = []} ).
+
+    pred_args(Es) -->
+	( [')'] -> {Es = []} ; nonempty_pred_args(Es) ).
+
+pred_arg(TypeIdent) -->
+	pred_arg_type(Type),
+	( [:] ->
+	    {TypeIdent = Type:Ident},
+	    [ident(Ident)]
+	;
+	    {TypeIdent = Type}
+	).
+
+pred_arg_type(var(Type)) -->
+	[var], !,
+	non_array_ti_expr_tail(Type).
+pred_arg_type(Type) -->
+	non_array_ti_expr_tail(Type).
+pred_arg_type(no_macro_expansion(array([Range]) of VarElemType)) -->
+	[array], !,
+	expect('['),
+	( [int] ->
+	    {Range = int}
+	;
+	    {Range = 1..Max},
+	    expect_list([i(1),(..)]), int_literal(Max)
+	),
+	expect_list([']',of]),
+	( [var] ->
+	    {VarElemType=var(ElemType)}
+	;
+	    {VarElemType=ElemType}
+	),
+	non_array_ti_expr_tail(ElemType).
 
 
 % Type-Inst --------------------------------
@@ -488,6 +528,9 @@ adjust_token(_Class, EclToken, _) :-
 	syntax_error("Illegal Token %w", [EclToken]).
 
 
+% This differs slightly from the keyword list provided in the Flatzinc spec.
+% We do not treat constraint names (like div, intersect) as keywords.
+% We treat relevant punctuation as keywords, everything else is an identifier.
 keyword(..).
 keyword(:).
 keyword(::).
@@ -500,7 +543,6 @@ keyword(array).
 keyword(bool).
 keyword(case).
 keyword(constraint).
-keyword(default).
 keyword(else).
 keyword(elseif).
 keyword(endif).
@@ -512,16 +554,18 @@ keyword(if).
 keyword(include).
 keyword(int).
 keyword(let).
+keyword(list).
 keyword(maximize).
 keyword(minimize).
 keyword(of).
-keyword(output).
+keyword(output).	% obsolete
 keyword(par).
 keyword(predicate).
 keyword(record).
 keyword(satisfy).
 keyword(set).
-keyword(show).
+keyword(show).		% obsolete
+keyword(show_cond).	% obsolete
 keyword(solve).
 keyword(string).
 keyword(test).
@@ -530,7 +574,6 @@ keyword(true).
 keyword(tuple).
 keyword(type).
 keyword(var).
-keyword(variant_record).
 keyword(where).
 
 

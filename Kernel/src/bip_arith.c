@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: bip_arith.c,v 1.4 2009/07/16 09:11:24 jschimpf Exp $
  */
 
 /*
@@ -1182,6 +1182,34 @@ _strg_setbit(value v1, value v2, pword *pres)	/* string x int -> string */
 }
 #endif
 
+
+/*
+ * integer_list(+Integer, +ChunkSizeInBits, -ListOfChunks)
+ *
+ * Takes a (big) integer and splits it up into a list of small integers of
+ * ChunkSizeInBits each. The first list element contains the least
+ * significant bits.  E.g.
+ *	?- X is 8'1234567, sepia_kernel:integer_list(X,3,L).
+ *	X = 342391
+ *	L = [7, 6, 5, 4, 3, 2, 1]
+ * ChunkSizeInBits must not exceed the wordsize.
+ */
+
+p_integer_list(value vi, type ti, value vsz, type tsz, value v, type t)
+{
+    int err;
+    pword result;
+
+    Check_Integer_Or_Bignum(ti)
+    Check_Integer(tsz)
+    err = tag_desc[TagType(ti)].coerce_to[TBIG](vi, &vi);
+    if (err != PSUCCEED) return(err);
+    err = ec_big_to_chunks(vi.ptr, vsz.nint, &result);
+    Return_If_Error(err);
+    Return_Unify_Pw(v, t, result.val, result.tag);
+}
+
+
 /*------------------------------------------------------------------------
  * Generic auxiliary functions
  *-----------------------------------------------------------------------*/
@@ -1965,6 +1993,7 @@ bip_arith_init(int flags)
     (void) exported_built_in(in_dict("bignum", 2), p_bignum2,B_UNSAFE|U_SIMPLE);
     (void) exported_built_in(in_dict("breal", 2), p_breal2,B_UNSAFE|U_SIMPLE);
     (void) exported_built_in(in_dict("is_zero", 1), p_is_zero,B_SAFE);
+    (void) exported_built_in(in_dict("integer_list", 3), p_integer_list,B_UNSAFE|U_SIMPLE);
 
     (void) exported_built_in(in_dict("powm", 4), p_powm, B_UNSAFE|U_SIMPLE|PROC_DEMON);
 }

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: lex.c,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
  */
 
 /*
@@ -493,10 +493,17 @@ _quote_:
 		    case 'v': *pw++ = 0013; break;	/* vertical tab */
 		    case 'f': *pw++ = '\f'; break;	/* form feed */
 		    case 'r': *pw++ = '\r'; break;	/* return */
-		    case 'e': *pw++ = 0033; break;	/* escape */
-		    case 'd': *pw++ = 0177; break;	/* delete */
+
+		    case 'e':				/* escape */
+			if (sd->options & ISO_ESCAPES) goto _return_ill_quoted_;
+			*pw++ = 0033; break;
+
+		    case 'd':				/* delete */
+			if (sd->options & ISO_ESCAPES) goto _return_ill_quoted_;
+			*pw++ = 0177; break;
 
 		    case 'c':		/* Quintus/Sicstus feature */
+			if (sd->options & ISO_ESCAPES) goto _return_ill_quoted_;
 			do {
 			    Get_Ch_Class(cc, ctype);
 			} while (ctype == BS || ctype == NL);

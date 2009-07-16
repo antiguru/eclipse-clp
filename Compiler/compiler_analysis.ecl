@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_analysis.ecl,v 1.7 2008/10/29 03:13:44 jschimpf Exp $
+% Version:	$Id: compiler_analysis.ecl,v 1.8 2009/07/16 09:11:23 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_analysis).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - dataflow analysis").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/10/29 03:13:44 $").
+:- comment(date, "$Date: 2009/07/16 09:11:23 $").
 
 :- use_module(compiler_common).
 :- use_module(compiler_map).
@@ -167,6 +167,9 @@ mark_args_as(Domain, [Arg|Args], State0, State) :-
 
     mark_arg_as(Domain, variable{varid:VarId}, State0, State) :- !,
 	enter_binding(VarId, Domain, State0, State).
+    mark_arg_as(Domain, [Arg1|Arg2], State0, State) :- !,
+	mark_arg_as(Domain, Arg1, State0, State1),
+	mark_arg_as(Domain, Arg2, State1, State).
     mark_arg_as(Domain, structure{args:Args}, State0, State) :- !,
 	mark_args_as(Domain, Args, State0, State).
     mark_arg_as(_, _, State, State).
@@ -225,18 +228,14 @@ unify_effect(variable{varid:VarId}, NonVar, State0, State) :- !,
 	binding_effect(VarId, NonVar, State0, State).
 unify_effect(NonVar, variable{varid:VarId}, State0, State) :- !,
 	binding_effect(VarId, NonVar, State0, State).
-unify_effect(S, V, State0, State) :-
-	S = structure{}, V = variable{}, !,
-	unify_effect(V, S, State0, State).
-unify_effect(structure{name:N,arity:A,args:Args1},
-	structure{name:N,arity:A,args:Args2}, State0, State) :-
-	% this case should actually be preprocessed away in normalisation
-	( foreach(Arg1,Args1),
-	  foreach(Arg2,Args2),
-	  fromto(State0,State1,State2,State)
-	do
-	    unify_effect(Arg1, Arg2, State1, State2)
-	).
+unify_effect(_, _, _State0, _State) :-
+	unreachable("unify_effect/4: unexpected unnormalised unification").
+%unify_effect([Arg1|Args1], [Arg2|Args2], State0, State) :-
+%	unify_effect(Arg1, Arg2, State1, State2),
+%	unify_effect(Args1, Args2, State1, State2).
+%unify_effect(structure{name:N,arity:A,args:Args1},
+%	structure{name:N,arity:A,args:Args2}, State0, State) :-
+%	unify_effect(Args1, Args2, State0, State).
 
 
 % binding_effect(+VarId, +NonVar, +State, -State)
@@ -329,14 +328,14 @@ alias_effect(VarId1, VarId2, State0, State) :-
 % value() value() value()  value()
 % 
 
-% supertype(Domain, Level, SuperDomain)
+% supertype(++Domain, -Level, -SuperDomain)
 
-supertype(value(X), 8, integer) :- integer(X).
-supertype(value(X), 8, float) :- float(X).
-supertype(value(X), 8, rational) :- rational(X).
-supertype(value(X), 8, breal) :- breal(X).
-supertype(value(X), 7, atom) :- atom(X).
-supertype(value(X), 7, string) :- string(X).
+supertype(value(X), 8, integer) :- integer(X), !.
+supertype(value(X), 8, float) :- float(X), !.
+supertype(value(X), 8, rational) :- rational(X), !.
+supertype(value(X), 8, breal) :- breal(X), !.
+supertype(value(X), 7, atom) :- atom(X), !.
+supertype(value(X), 7, string) :- string(X), !.
 supertype(integer, 7, number).
 supertype(float, 7, number).
 supertype(rational, 7, number).

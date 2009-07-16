@@ -23,15 +23,16 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc, Imperial College
-% Version:	$Id: module_options.ecl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: module_options.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(module_options).
 
+:- comment(categories, ["Programming Utilities"]).
 :- comment(summary, "Utility library to manage options within a library module").
 :- comment(author,"Joachim Schimpf").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date,"$Date: 2008/06/30 17:43:47 $").
+:- comment(date,"$Date: 2009/07/16 09:11:24 $").
 :- comment(desc, html("<P>
 	This library provides utilities to manage option settings on behalf
 	of other library modules. The basic idea is that each client module
@@ -181,8 +182,7 @@ get_options(OptionList, Options, Module) :-
 	( current_array(Module, _) ->
 	    getval(Module, DefaultOptions)
 	;
-	    once(default_options(DefaultOptions))@Module,
-	    local(variable(Module, DefaultOptions))
+	    once(default_options(DefaultOptions))@Module
 	).
 
 
@@ -223,12 +223,11 @@ set_default_option(Option, Value, Module) :-
 	    ( atom(Option) ->
 	    	(
 		    once(valid_option_field(Option, Field))@Module,
-		    once(valid_option_value(Option, Value))@Module,
+		    once(valid_option_value(Option, Value))@Module
+		->
 		    get_default_options(DefaultOptions, Module),
 		    setarg(Field, DefaultOptions, Value),
-		    setval(Module, DefaultOptions)
-		->
-		    setval(default_options, DefaultOptions)@Module
+		    setval(Module, DefaultOptions)	% create on first use
 		;
 		    print_default_options(error, Module),
 		    error(6, set_default_option(Option, Value), Module)

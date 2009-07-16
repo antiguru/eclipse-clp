@@ -21,7 +21,7 @@
 // END LICENSE BLOCK
 
 //Title:        Java/ECLiPSe interface
-//Version:      $Id: Platform.java,v 1.6 2009/03/27 01:55:49 kish_shen Exp $
+//Version:      $Id: Platform.java,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
 //Author:       Josh Singer
 //Company:      Parc Technologies
 //Description:  Encapsulated Singleton for platform-dependent code.
@@ -111,7 +111,7 @@ abstract class Platform
     }
 
     // MacOSX on PPC/Intel
-    else if(OSName.equals("Mac OS X"))
+    else if(OSName.equals("Mac OS X") || OSName.equals("Darwin"))
     {
       if(arch.equals("ppc"))
       {

@@ -2076,6 +2076,7 @@ mywriteln(_).
 
 
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Linear constraints over rational numbers (unsupported)").
 :- comment(author, "Pierre Lim, ECRC").
 :- comment(date, "1993").

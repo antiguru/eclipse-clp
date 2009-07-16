@@ -27,7 +27,7 @@
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 %               Joachim Schimpf, IC-Parc
 %               Kish Shen, IC-Parc
-% Version:	$Id: generic_search.ecl,v 1.3 2008/06/20 13:41:14 jschimpf Exp $
+% Version:	$Id: generic_search.ecl,v 1.4 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -532,12 +532,17 @@ utilities
 ************************************************************/
 
 % Translate search/6's indomain choice atoms to those used by indomain/2
-translate_indomain_atom(indomain, min).		% Well, kind of
+translate_indomain_atom(indomain, enum).
 translate_indomain_atom(indomain_min, min).
 translate_indomain_atom(indomain_max, max).
+translate_indomain_atom(outdomain_min, reverse_min).	% Zinc
+translate_indomain_atom(outdomain_max, reverse_max).	% Zinc
+translate_indomain_atom(indomain_reverse_min, reverse_min).
+translate_indomain_atom(indomain_reverse_max, reverse_max).
 translate_indomain_atom(indomain_middle, middle).
 translate_indomain_atom(indomain_median, median).
 translate_indomain_atom(indomain_split, split).
+translate_indomain_atom(indomain_reverse_split, reverse_split).
 translate_indomain_atom(indomain_interval, interval).
 translate_indomain_atom(indomain_random, random).
 translate_indomain_atom(sbds(Choice), Atom) :-
@@ -831,28 +836,44 @@ variable selection
 % a special case for input order to speed up the selection in that case
 %
 :-mode delete(-,+,-,++,++,++).
-delete(H,[H|T],T,_Arg,input_order,_Module):-
-	!.
-delete(X,[H|T],R,Arg,Select,Module):-
+delete(H,List,T,_Arg,input_order,_Module):-
+	!, List = [H|T].
+delete(X,List,R,Arg,Select,Module):-
+	List = [H|T],
 	find_criteria(H,Arg,Select,Crit,Module),
-	find_best_and_rest(T,H,Crit,T,X,Rest,Arg,Select,Module), % scan list once
-	copy_until([H|T],Rest,R). % scan list again
+	( var(Crit) ->
+	    X=H, R=T	% we can't do any better!
+	;
+	    find_best_and_rest(T,List,Crit,X,R,Arg,Select,Module)
+	).
 
-% find_best_and_rest(+List:list,?Old,
-%		     +Old_value:integer or crit(integer,integer),
-%		     +Rest_old:list,-Best,-Rest_best:list,
-%		     ++Arg:integer,++Select:atom,
-%                    ++Module:atom)
+
+% find_best_and_rest(
+%	+List:list,		the unscanned tail
+%	+BestSoFar:list,	the tail starting with the current best
+%	?Crit: variable, number or crit(Crit,Crit),
+%	-Best, -Rest_best:list,	the result
+%	++Arg:integer,++Select:atom,++Module:atom)
 %
-:-mode find_best_and_rest(+,?,++,+,-,-,++,++,++).
-find_best_and_rest([],Old,_Crit_old,Rest_old,Old,Rest_old,_Arg,_,_Module).
-find_best_and_rest([H|T],_Old,Crit_old,_Rest_old,X,R,Arg,Select,Module):-
-	find_criteria(H,Arg,Select,Crit_h,Module),
-	Crit_h @< Crit_old, % sometimes crit values are terms
-	!,
-	find_best_and_rest(T,H,Crit_h,T,X,R,Arg,Select,Module).
-find_best_and_rest([_H|T],Old,Crit_old,Rest_old,X,R,Arg,Select,Module):-
-	find_best_and_rest(T,Old,Crit_old,Rest_old,X,R,Arg,Select,Module).
+:- mode find_best_and_rest(+,+,?,-,-,++,++,++).
+find_best_and_rest([], BestSoFar, _OldCrit, BestVar, Rest, _Arg, _Select, _Module) :- !,
+	BestSoFar = [BestVar|Rest].
+find_best_and_rest(List, BestSoFar, CritOld, BestVar, Rest, Arg, Select, Module) :-
+	List = [Var|Vars],
+	find_criteria(Var, Arg, Select, CritNew, Module),
+	( CritNew @>= CritOld ->	% no better than the old one, continue
+	    find_best_and_rest(Vars, BestSoFar, CritOld, BestVar, Rest, Arg, Select, Module)
+	; nonvar(CritNew) ->		% found a better one, continue
+	    % copy the chunk between old and new best
+	    copy_until_elem(BestSoFar, Var, Rest, Rest0),
+	    find_best_and_rest(Vars, List, CritNew, BestVar, Rest0, Arg, Select, Module)
+	;
+	    % we can't do any better, stop
+	    BestVar = Var,
+	    % copy the chunk between old and new best, and append the unscanned rest
+	    copy_until_elem(BestSoFar, Var, Rest, Vars)
+	).
+
 
 % find_criteria(?Term,++Arg:integer,++Select:atom,
 %		-Crit:integer or crit(integer,integer),
@@ -871,61 +892,74 @@ find_criteria(Term,Arg,Select,Crit,Module):-
 %	     -Crit:integer or crit(integer,integer),
 %            ++Module:atom)
 %
-% find a heuristic value from a domain variable
-% the smaller the value, the better
+% Find a heuristic value from a domain variable: the smaller, the better.
+% Values will be compared using @<, so be aware of standard term ordering!
+% If the Criterion remains uninstantiated, this indicates an optimal value,
+% which will be picked without looking any further down the list.
 :-mode find_value(?,++,-,++).
 find_value(X,first_fail,Size,_Module):-
 	!,
-	get_size(X,Size0),				% can be 1.0Inf
-	( integer(Size0) -> Size=Size0 ; Size=inf ).	% 99 @< 'inf'
+	( nonvar(X) ->
+	    true	% pick constants first and commit
+	;
+	    get_size(X,Size0),
+	    ( integer(Size0) -> Size=Size0 ; Size=inf )	% 99 @< 'inf'
+	).
 find_value(X,anti_first_fail,Number,_Module):-
 	!,
 	get_size(X,Size),				% can be 1.0Inf
 	Number is -Size.				% -1.0Inf @< -99
-find_value(X,smallest,Size,_Module):-
+find_value(X,smallest,Min,_Module):-
 	!,
-	get_lwb(X,Size).
-find_value(X,largest,Size,_Module):-
+	get_lwb(X,Min).
+find_value(X,largest,Number,_Module):-
 	!,
 	get_upb(X,Max),
-	Size is - Max.
+	Number is -Max.
 find_value(X,occurence,Number,Module):-	% mis-spelt in first version
 	!,
 	find_value(X,occurrence,Number,Module).
 find_value(X,occurrence,Number,_Module):-
 	!,
-	get_constraints_number(X,Nr), % this is very heavy
-	Number is -Nr.
-find_value(X,max_regret,0,_Module):-
-	integer(X),
-        !.
-find_value(X,max_regret,Number,_Module):- % you could argue for -inf
+	( nonvar(X) ->
+	    true	% pick constants first and commit
+	;
+	    get_constraints_number(X,Nr), % this is very heavy
+	    Number is -Nr
+	).
+find_value(X,max_regret,Number,_Module):-
 	!,
-	get_compact_domain_rep(X,L),
-	nth_value(L,2,V),
-	get_lwb(X,Min),
-	Number is -(V-Min).
-find_value(X,most_constrained,crit(Size,Number),Module):-
+	( nonvar(X) ->
+	    true	% pick constants first and commit
+	;
+	    get_compact_domain_rep(X,L),
+	    nth_value(L,2,V),
+	    get_lwb(X,Min),
+	    Number is -(V-Min)
+	).
+find_value(X,most_constrained,Crit,Module):-
 	!,
-	find_value(X,first_fail,Size,Module),
-	find_value(X,occurrence,Number,Module).
+	( nonvar(X) ->
+	    true	% pick constants first and commit
+	;
+	    Crit = crit(Size,Number),
+	    find_value(X,first_fail,Size,Module),
+	    find_value(X,occurrence,Number,Module)
+	).
 find_value(X,User_method,Value,Module):-
 	Call =..[User_method,X,Value],
 	once(Call)@Module.	% do not allow backtracking in user routine
 
-% copy_until(+A:non_empty_list,+B:list,-C:list)
-% C is equal to the list A with one element removed
-% B is the tail of A (C)
-% the value removed is the one just before B
-:-mode copy_until(+,+,-).
-copy_until([_H|T],Rest,T):-
-	T == Rest, % this only scans the whole Rest once, when it succeeds
-	!.
-copy_until([H|T],Rest,[H|S]):-
-	copy_until(T,Rest,S).
 
-
-
+% Copy list until first occurrence of K and return as difference list
+:- mode copy_until_elem(+,?,?,?).
+copy_until_elem([X|Xs], K, Ys, Ys0) :-
+	( X==K ->
+	    Ys = Ys0
+	;
+	    Ys = [X|Ys1],
+	    copy_until_elem(Xs, K, Ys1, Ys0)
+	).
 
 
 /****************************************************
@@ -948,6 +982,8 @@ indomain(X,Type):-
 	).
 
 :-mode indomain1(?,++).
+indomain1(X,enum):-
+	indomain(X).
 indomain1(X,min):-
 	get_lwb(X,Min),
 	indomain_min(X,Min).
@@ -966,6 +1002,12 @@ indomain1(X,gap_sbds_max):-
 	gap_sbds_indomain_max(X).
 indomain1(X,gap_sbdd_max):-
 	gap_sbdd_indomain_max(X).
+indomain1(X,reverse_min):-
+	get_lwb(X,Min),
+	outdomain_min(X,Min).
+indomain1(X,reverse_max):-
+	get_upb(X,Max),
+	outdomain_max(X,Max).
 indomain1(X,middle):-
 	select_initial_value_middle(X,Value),
 	indomain1(X,Value).
@@ -992,6 +1034,8 @@ indomain1(X,gap_sbdd_median):-
 	indomain1(X,gap_sbdd(Value)).
 indomain1(X,split):-
 	indomain_split(X).
+indomain1(X,reverse_split):-
+	indomain_reverse_split(X).
 indomain1(X,interval):-
 	indomain_interval(X).
 indomain1(X,random):-
@@ -1140,6 +1184,13 @@ indomain_min(X,Min):-
 	get_lwb(X,New),
 	indomain_min(X,New).
 
+:-mode outdomain_min(?,++).
+outdomain_min(X,Min):-
+	X #> Min,
+	get_lwb(X,New),
+	outdomain_min(X,New).
+outdomain_min(X,X).
+
 sbds_indomain_min(X):-
 	nonvar(X).
 sbds_indomain_min(X):-
@@ -1174,11 +1225,18 @@ indomain_max(X,Max):-
 	get_upb(X,New),
 	indomain_max(X,New).
 
+:-mode outdomain_max(?,++).
+outdomain_max(X,Max):-
+	X #< Max,
+	get_upb(X,New),
+	outdomain_max(X,New).
+outdomain_max(X,X).
+
 sbds_indomain_max(X):-
 	nonvar(X).
 sbds_indomain_max(X):-
 	var(X),
-	get_lwb(X,Max),
+	get_upb(X,Max),
 	sbds_module:sbds_try(X,Max),
 	sbds_indomain_max(X).
 
@@ -1186,7 +1244,7 @@ gap_sbds_indomain_max(X):-
 	nonvar(X).
 gap_sbds_indomain_max(X):-
 	var(X),
-	get_lwb(X,Max),
+	get_upb(X,Max),
 	ic_gap_sbds:sbds_try(X,Max),
 	gap_sbds_indomain_max(X).
 
@@ -1194,7 +1252,7 @@ gap_sbdd_indomain_max(X):-
 	nonvar(X).
 gap_sbdd_indomain_max(X):-
 	var(X),
-	get_lwb(X,Max),
+	get_upb(X,Max),
 	ic_gap_sbdd:sbdd_try(X,Max),
 	gap_sbdd_indomain_max(X).
 
@@ -1205,15 +1263,27 @@ indomain_split(X):-
 	!.
 indomain_split(X):-
 	get_bounds(X,Min,Max),
-	% Note: can't use integer division because it rounds towards zero.
-	% This simple fix from Sebastian Brand <sbrand@cs.mu.OZ.AU>:
-	Middle is (Min+Max) >> 1,
+	Middle is (Min+Max) div 2,
 	(
 	    X #=< Middle
 	;
 	    X #> Middle
 	),
 	indomain_split(X).
+
+:-mode indomain_reverse_split(?).
+indomain_reverse_split(X):-
+	integer(X),
+	!.
+indomain_reverse_split(X):-
+	get_bounds(X,Min,Max),
+	Middle is (Min+Max) div 2,
+	(
+	    X #> Middle
+	;
+	    X #=< Middle
+	),
+	indomain_reverse_split(X).
 
 % assign values by first choosing one interval from the domain and
 % then assigning values from the middle of that domain

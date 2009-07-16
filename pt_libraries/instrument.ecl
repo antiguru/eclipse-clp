@@ -25,7 +25,7 @@
 %
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Andrew Cheadle, IC-Parc
-% Version:      $Id: instrument.ecl,v 1.1 2006/09/23 01:54:58 snovello Exp $
+% Version:      $Id: instrument.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 %
 % NOTES
@@ -47,9 +47,10 @@
 
 :- module(instrument).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Generic tool for code instrumentation").
 :- comment(author,"Andrew Cheadle, based on ideas by Joachim Schimpf").
-:- comment(date, "$Date: 2006/09/23 01:54:58 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(status, prototype).
 
 :- comment(desc, html("<P>

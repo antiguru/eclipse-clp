@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_global.ecl,v 1.1 2006/09/23 01:53:31 snovello Exp $
+% Version:	$Id: fd_global.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	fd_global.ecl
@@ -39,10 +39,11 @@
 
 :- module(fd_global).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Various global constraints over lists of FD variables").
 :- comment(author, "J.Schimpf, V.Liatsos, S.Novello, M.Wallace, A.Sadler, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:31 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 
 :- lib(fd).
 :- use_module(fd_generic_interface).

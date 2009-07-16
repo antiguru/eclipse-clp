@@ -22,7 +22,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Mark Wallaced, ICL/IC-Parc
-% Version:	$Id: shadow_cons.pl,v 1.1 2006/09/23 01:53:57 snovello Exp $
+% Version:	$Id: shadow_cons.pl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % Example:
 % :- lib(fd).
@@ -33,10 +33,11 @@
 
 :- module(shadow_cons).
 
+:- comment(categories, ["Constraints","Data Structures"]).
 :- comment(summary, "A library implementing shadow, or 'local', constraint stores").
 :- comment(author, "Mark Wallace, IC-Parc and ICL").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:53:57 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 
 :- comment(shadow_var / 3, [
     summary:"Finds the shadow variable associated with the input

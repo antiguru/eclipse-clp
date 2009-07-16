@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: fd_sets.ecl,v 1.1 2006/09/23 01:53:31 snovello Exp $
+% Version:	$Id: fd_sets.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -50,6 +50,7 @@ impose_max(Var,Max) :- impose_max(Var,Max).
 
 % ----------------------------------------------------------------------
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Solver over sets of integers (cooperates with lib(fd))").
 :- comment(eg, "
 % Example program: Steiner triplets

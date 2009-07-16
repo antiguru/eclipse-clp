@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.13 2008/10/25 03:41:10 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.14 2009/07/16 09:11:27 jschimpf Exp $
  *
  */
 
@@ -642,7 +642,7 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
           coin_addrows(A1,A3,A4,A5,A6,A7,A8,A9) /* diff args! */
 # define CPXchgobjsen(E,A1,A2) coin_chgobjsen(A1,A2)
 # define CPXchgprobtype(A1, A2, A3)     0 /* 0 for success return code */
-# define CPXcopysos_(E,A1,A2,A3,A4,A5,A6,A7) -1 /* -1 for error */
+# define CPXcopysos_(E,A1,A2,A3,A4,A5,A6,A7) coin_load_sos(A1,A2,A3,A4,A5,A6,A7)
 # define CPXgetrows(E,A1,A2,A3,A4,A5,A6,A7,A8,A9) \
           coin_get_row(A1,A2,A4,A5,A8) /* gets one row only! */
 # define CPXwriteprob(E,A1,A2,A3) coin_writeprob(A1,A2,A3)

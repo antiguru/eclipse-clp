@@ -22,6 +22,7 @@
 
 :- comment(alias, "Event Handling").
 :- comment(summary, "Built-ins to handle events and interrupts").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool(error / 2).
 :- tool(error / 3).

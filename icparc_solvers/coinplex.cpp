@@ -69,6 +69,7 @@
 #include "ClpCholeskyUfl.hpp"
 #endif
 #include "ClpCholeskyDense.hpp"
+#include "CbcSolver.hpp"
 typedef OsiClpSolverInterface OsiXxxSolverInterface;
 
 #endif
@@ -106,6 +107,7 @@ typedef OsiClpSolverInterface OsiXxxSolverInterface;
 #endif
 #include "ClpCholeskyDense.hpp"
 #include "ClpCholeskyWssmp.hpp"
+
 
 typedef OsiCbcSolverInterface OsiXxxSolverInterface;
 
@@ -145,11 +147,11 @@ typedef struct {
     char notfirst; /* has problem been solved? */
     /* solver specific */
 #ifdef COIN_USE_CLP
-    char mipIsShared;/* 1 if shared with Solver, 0 if copied */ 
+    char mipIsShared; /* 1 if shared with Solver, 0 if copied */ 
     CbcModel* mipmodel;
     ClpInterior* interiormodel;
-    //CbcObject** mipobjects; // information such as SOS to be added to mipmodel 
-    // int nsos; // number of SOSs
+    CbcObject** mipobjects; // information such as SOS to be added to mipmodel 
+    int nsos; // number of SOSs
     double timeout;
 #endif
 } COINprob;
@@ -232,14 +234,65 @@ static CbcModel::CbcDblParam cbc_dparam[] = {CbcModel::CbcIntegerTolerance,
 					     CbcModel::CbcCutoffIncrement};
 
 
+/* Meaning of whereFrom:
+   1 after initial solve by dualsimplex etc
+   2 after preprocessing
+   3 just before branchAndBound (so user can override)
+   4 just after branchAndBound (before postprocessing)
+   5 after postprocessing
+*/
+/* Meaning of model status is as normal
+   status
+      -1 before branchAndBound
+      0 finished - check isProvenOptimal or isProvenInfeasible to see if solution found
+      (or check value of best solution)
+      1 stopped - on maxnodes, maxsols, maxtime
+      2 difficulties so run was abandoned
+      (5 event user programmed event occurred) 
+
+      cbc secondary status of problem
+        -1 unset (status_ will also be -1)
+	0 search completed with solution
+	1 linear relaxation not feasible (or worse than cutoff)
+	2 stopped on gap
+	3 stopped on nodes
+	4 stopped on time
+	5 stopped on user event
+	6 stopped on solutions
+	7 linear relaxation unbounded
+
+   but initially check if status is 0 and secondary status is 1 -> infeasible
+   or you can check solver status.
+*/
+/* Return non-zero to return quickly */   
+static int callBack(CbcModel * model, int whereFrom)
+{
+  int returnCode=0;
+  switch (whereFrom) {
+  case 1:
+  case 2:
+    if (!model->status()&&model->secondaryStatus())
+      returnCode=1;
+    break;
+  case 3:
+    {
+      CbcCompareUser compare;
+      model->setNodeComparison(compare);
+    }
+    break;
+  case 4:
+    // If not good enough could skip postprocessing
+    break;
+  case 5:
+    break;
+  default:
+    returnCode=-1;
+  }
+  return returnCode;
+}
+
 int coin_branchAndBound(lp_desc* lpd)
 {
-
-    OsiSolverInterface* mipsolver;
-    lpd->lp->Solver->initialSolve();
-    bool preprocess_failed = false;
-    CglPreProcess process;
-
     // copying original bounds before presolve -- Cbc's integer presolve and
     // MIP branch-and-bound can fix some column bounds. The original bounds
     // needs to be restored before continuing
@@ -249,258 +302,84 @@ int coin_branchAndBound(lp_desc* lpd)
     memcpy(ups, lpd->lp->Solver->getColUpper(), mac*sizeof(double));
     memcpy(lws, lpd->lp->Solver->getColLower(), mac*sizeof(double));
 
-    if (lpd->presolve)
+    // Tell solver to return fast if presolve or initial solve infeasible
+    lpd->lp->Solver->getModelPtr()->setMoreSpecialOptions(3);
+    int* iparams = NULL; 
+    double* dparams = NULL; 
+
+    if (lpd->lp->mipmodel != NULL) 
     {
-	DerivedHandler* cglMessageHandler = new DerivedHandler;
-	process.passInMessageHandler(cglMessageHandler);
-	process.messageHandler()->setLogLevel(1);
-	mipsolver = process.preProcess(*lpd->lp->Solver, false, 5);
-	if (mipsolver == NULL)
-	{// preprocessing failed -- problem infeasible 
-	 //  but we can't simply return, as we need a valid mipmodel
-	    mipsolver = lpd->lp->Solver;
-	    // restore original bounds
-	    for (int i=0; i<mac; i++) 
-		lpd->lp->Solver->setColBounds(i,lws[i],ups[i]);
-	    preprocess_failed = true;
-	}
-	else 
-	    mipsolver->resolve();
-    } 
-    else
-    {
-	mipsolver = lpd->lp->Solver;
-    }
-
-# ifdef COIN_USE_CBC
-    CbcModel* model = lpd->lp->Solver->getModelPtr();
-# endif
-
-# ifdef COIN_USE_CLP
-    {
-	int* iparams = NULL; 
-	double* dparams = NULL; 
-
-	// check if mipmodel shared with Solver, e.g. preprocessed mipmodel
-	// is not shared 
-	lpd->lp->mipIsShared = (mipsolver == lpd->lp->Solver);
-
-	if (lpd->lp->mipmodel != NULL) 
-	{
-	    // copy the parameters
-	    iparams = new int[NUMSOLVERINTPARAMS];
-	    dparams = new double[NUMSOLVERDBLPARAMS];
-
-	    for (int i=0; i<NUMSOLVERINTPARAMS; i++)
-		iparams[i] = lpd->lp->mipmodel->getIntParam(cbc_iparam[i]);
-	    for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
-		dparams[i] = lpd->lp->mipmodel->getDblParam(cbc_dparam[i]);
-	    if (lpd->lp->mipIsShared == 0) delete lpd->lp->mipmodel;
-	}
-	
-	lpd->lp->mipmodel = new CbcModel(static_cast<OsiSolverInterface &>(*mipsolver));
+	// copy the parameters
+	iparams = new int[NUMSOLVERINTPARAMS];
+	dparams = new double[NUMSOLVERDBLPARAMS];
 
 	for (int i=0; i<NUMSOLVERINTPARAMS; i++)
-	    lpd->lp->mipmodel->setIntParam(cbc_iparam[i], iparams[i]);
+	    iparams[i] = lpd->lp->mipmodel->getIntParam(cbc_iparam[i]);
 	for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
-	    lpd->lp->mipmodel->setDblParam(cbc_dparam[i], dparams[i]);
+	    dparams[i] = lpd->lp->mipmodel->getDblParam(cbc_dparam[i]);
+    }
+
+    CbcModel* model = new CbcModel(static_cast<OsiSolverInterface &>(*lpd->lp->Solver));
+
+    CbcMain0(*model);
+
+    /*
+    CbcSolver* control = new CbcSolver(*(lpd->lp->Solver));
+    control->fillValuesInSolver();
+    CbcModel* model = control->model();
+    */
+    if (lpd->lp->mipmodel != NULL)
+    {
+	// if we copied mipmodel's parameters, put them into the new model now
+	for (int i=0; i<NUMSOLVERINTPARAMS; i++)
+	    model->setIntParam(cbc_iparam[i], iparams[i]);
+	for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
+	    model->setDblParam(cbc_dparam[i], dparams[i]);
 
 	if (iparams) { delete [] iparams; iparams = NULL; }
 	if (dparams) { delete [] dparams; dparams = NULL; }
     }
-	
-    CbcModel* model = lpd->lp->mipmodel;
-    if (lpd->lp->timeout > 0) model->setMaximumSeconds(lpd->lp->timeout);
-# endif
-# ifdef COIN_USE_CBC
-    model->saveReferenceSolver();
-# endif
+
+    if (lpd->lp->nsos > 0)
+    {// Add any SOSs
+	model->addObjects(lpd->lp->nsos, lpd->lp->mipobjects);
+    }
+
+    if (!lpd->lp->mipIsShared && lpd->lp->mipmodel != NULL) 
+    {
+	delete lpd->lp->mipmodel->messageHandler();
+	delete lpd->lp->mipmodel;
+    }
     DerivedHandler* mipMessageHandler = new DerivedHandler;
     model->passInMessageHandler(mipMessageHandler);
     model->messageHandler()->setLogLevel(1);
-    model->solver()->setHintParam(OsiDoReducePrint,true,OsiHintTry);
-    if (preprocess_failed)
-    {/* if preprocessing failed, just do branch and bound now to get a MIP
-	result and return
-     */
-	model->branchAndBound();
-	delete model->messageHandler();
-	delete process.messageHandler(); // preprocess only if presolving
-	delete [] lws;
-	delete [] ups;
-	return 0;
-    }
-    model->initialSolve();
+
+    lpd->lp->mipmodel = model;
+    model->solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+
+    if (lpd->lp->timeout > 0) model->setMaximumSeconds(lpd->lp->timeout);
+    //    const char * argv2="-preprocess on -solve ";
+    //control->solve(argv2, 1);
+
+    const char * cbc_args[5];
+    cbc_args[0] = "eplexcbcclpsolver";
+    cbc_args[1] = "-preprocess";
+    cbc_args[2] = (lpd->presolve ? "on" : "off");
+    cbc_args[3] = "-solve";
+    cbc_args[4] = "-quit";
+    CbcMain1(5,cbc_args,*model,callBack);
 
 
-    CglProbing generator1;
-    generator1.setUsingObjective(true);
-    generator1.setMaxPass(1);
-    generator1.setMaxPassRoot(5);
-    // Number of unsatisfied variables to look at
-    generator1.setMaxProbe(10);
-    generator1.setMaxProbeRoot(1000);
-    // How far to follow the consequences
-    generator1.setMaxLook(50);
-    generator1.setMaxLookRoot(500);
-    // Only look at rows with fewer than this number of elements
-    generator1.setMaxElements(200);
-    generator1.setRowCuts(3);
-
-    CglGomory generator2;
-    // try larger limit
-    generator2.setLimit(300);
-
-    CglKnapsackCover generator3;
-    // Decided too slow
-    //CglOddHole generator4;
-    //generator4.setMinimumViolation(0.005);
-    //generator4.setMinimumViolationPer(0.00002);
-    // try larger limit
-    //generator4.setMaximumEntries(200);
-
-    //CglRedSplit generator4;
-    // try larger limit
-    //generator4.setLimit(200);
-
-    CglClique generator5;
-    generator5.setStarCliqueReport(false);
-    generator5.setRowCliqueReport(false);
-
-    CglMixedIntegerRounding2 mixedGen;
-    CglFlowCover flowGen;
-  
-    // Add in generators
-    // Experiment with -1 and -99 etc
-    model->addCutGenerator(&generator1,-5,"Probing");
-    model->addCutGenerator(&generator2,-5,"Gomory");
-    model->addCutGenerator(&generator3,-5,"Knapsack");
-    //model->addCutGenerator(&generator4,-1,"RedSplit");
-    model->addCutGenerator(&generator5,-5,"Clique");
-    model->addCutGenerator(&flowGen,-5,"FlowCover");
-    model->addCutGenerator(&mixedGen,-5,"MixedIntegerRounding");
-    // Say we want timings
-    int numberGenerators = model->numberCutGenerators();
-    int iGenerator;
-    for (iGenerator=0;iGenerator<numberGenerators;iGenerator++) {
-	CbcCutGenerator * generator = model->cutGenerator(iGenerator);
-	generator->setTiming(true);
-    }
-
-    OsiXxxSolverInterface * osiclp = dynamic_cast< OsiXxxSolverInterface*> (model->solver());
-
-    // go faster stripes
-    if (osiclp) {
-	// Turn this off if you get problems
-	// Used to be automatically set
-	osiclp->setSpecialOptions(128);
-	if (osiclp->getNumRows()<300&&osiclp->getNumCols()<500) {
-	    //osiclp->setupForRepeatedUse(2,0);
-
-	    osiclp->setupForRepeatedUse(0,0);
-	}
-    }
-    CbcRounding heuristic1(*model);
-    model->addHeuristic(&heuristic1);
-
-    // And local search when new solution found
-
-    CbcHeuristicLocal heuristic2(*model);
-    model->addHeuristic(&heuristic2);
-
-    // Redundant definition of default branching (as Default == User)
-    CbcBranchUserDecision branch;
-    model->setBranchingMethod(&branch);
-
-    // Definition of node choice
-    CbcCompareUser compare;
-    model->setNodeComparison(compare);
-
-    model->initialSolve();
-
-    // Could tune more
-    double objValue = model->solver()->getObjSense()*model->solver()->getObjValue();
-    double minimumDropA=CoinMin(1.0,fabs(objValue)*1.0e-3+1.0e-4);
-    double minimumDrop= fabs(objValue)*1.0e-4+1.0e-4;
-    model->setMinimumDrop(minimumDrop);
-
-    if (model->getNumCols()<500) {
-	model->setMaximumCutPassesAtRoot(-100); // always do 100 if possible
-    } else if (model->getNumCols()<5000) {
-	model->setMaximumCutPassesAtRoot(100); // use minimum drop
-    } else {
-	model->setMaximumCutPassesAtRoot(20);
-    }
-    model->setMaximumCutPasses(10);
-    //model.setMaximumCutPasses(2);
-
-    // Switch off strong branching if wanted
-    // model.setNumberStrong(0);
-    // Do more strong branching if small
-    if (model->getNumCols()<5000)
-	model->setNumberStrong(10);
-    model->setNumberStrong(20);
-    //model->setNumberStrong(5);
-    model->setNumberBeforeTrust(5);
-
-    model->solver()->setIntParam(OsiMaxNumIterationHotStart,100);
-
-    // Switch off most output
-    /*
-    if (model->getNumCols()<3000) {
-	model->messageHandler()->setLogLevel(1);
-
-	//model.solver()->messageHandler()->setLogLevel(0);
-    } else {
-	model->messageHandler()->setLogLevel(2);
-	model->solver()->messageHandler()->setLogLevel(1);
-    }
-    */
-    //model->messageHandler()->setLogLevel(2);
-    //model->solver()->messageHandler()->setLogLevel(2);
-    model->setPrintFrequency(500);
-
-    // Default strategy will leave cut generators as they exist already
-    // so cutsOnlyAtRoot (1) ignored
-    // numberStrong (2) is 5 (default)
-    // numberBeforeTrust (3) is 5 (default is 0)
-    // printLevel (4) defaults (0)
-    CbcStrategyDefault strategy(true,5,5);
-    // Set up pre-processing to find sos if wanted
-    // don't setupPreProcessing as well as well as preprocess - this is generally slower
-    //if (lpd->presolve) strategy.setupPreProcessing(2);
-    //strategy.setupPrinting(*model, 0);
-    model->setStrategy(strategy);
-
-    // Do complete search
-    //CbcModel *model2 = model->integerPresolve();
-    //model2->branchAndBound();
-    model->branchAndBound();
-
-    //if (model->isProvenOptimal()) fprintf(stdout, "optimal!\n");
-    //if (model->isProvenInfeasible()) fprintf(stdout, "infeasible\n");
-    //if (model->isSecondsLimitReached()) fprintf(stdout, "timeouted\n");
-    if (mac != lpd->mac) 
+    if (lpd->lp->Solver != NULL) 
     {
-	eclipse_out(ErrType, "Eplex Error: columns number in original model does not match eplex.\n");
-#ifdef COIN_USE_CLP
-	if (lpd->lp->mipIsShared == 0) delete model->messageHandler();
-#endif
-	delete [] lws;
-	delete [] ups;
-	if (lpd->presolve) delete process.messageHandler(); 
-	return -1;
+	delete lpd->lp->Solver->getModelPtr()->messageHandler();
+	//coin_free_solver_handlers(lpd->lp->Solver);
+	delete lpd->lp->Solver;
     }
-
-    if (lpd->presolve) 
-    {
-	process.postProcess(*model->solver());
-	delete process.messageHandler();
-    }
-# ifdef COIN_USE_CLP
-    else if (lpd->lp->mipIsShared == 0)
-	lpd->lp->Solver = dynamic_cast< OsiXxxSolverInterface*>(model->solver());
-# endif
+    lpd->lp->Solver = dynamic_cast< OsiXxxSolverInterface*>(model->solver());
+    DerivedHandler* solMessageHandler = new DerivedHandler;
+    lpd->lp->Solver->getModelPtr()->passInMessageHandler(solMessageHandler);
+    lpd->lp->mipIsShared = 1;
 
     if (lpd->prob_type == PROBLEM_FIXEDL && 
 	lpd->lp->Solver->isProvenOptimal())
@@ -516,11 +395,7 @@ int coin_branchAndBound(lp_desc* lpd)
     delete [] lws;
     delete [] ups;
 
-    //std::cout<< lpd->lp->Solver->getIterationCount();
-
-    if (lpd->lp->mipIsShared == 0) delete model->messageHandler();
-    return 0;
-}
+}    
 
 int coin_solveLinear(lp_desc* lpd, int meth, int auxmeth)
 {
@@ -1660,10 +1535,13 @@ int coin_create_prob(COINprob* &lp, COINprob* def)
     lp->vnsize = 0;
 #ifdef COIN_USE_CLP
     lp->mipmodel = new CbcModel(static_cast<OsiSolverInterface &>(*lp->Solver));
-    //lp->mipobjects = NULL;
-    //lp->nsos = 0;
+    lp->mipmodel->passInMessageHandler(coinMessageHandler);
+    lp->mipIsShared = 0;
+    //    lp->control = NULL;
+    lp->mipobjects = NULL;
+    lp->nsos = 0;
     lp->interiormodel = NULL;
-    lp->mipIsShared = 1;
+
     if (def)
     {// copy the parameter values from default
 	for (int i=0; i<NUMSOLVERINTPARAMS; i++)
@@ -1889,30 +1767,24 @@ extern "C"
 int coin_load_sos(COINprob* lp, int nsos, int nsosnz, char* sostype, 
 		  int* sosbeg, int* sosind, double* soswt)
 {
-#ifdef NOT_USED 
-    /*COIN_USE_CLP - not used yet as SOS cannot be added to a preprocessed
-      problem*/
+#ifdef COIN_USE_CLP
     lp->mipobjects = new CbcObject * [nsos];
 
     for (int i=0; i<nsos-1; i++)
     {
 	lp->mipobjects[i] = new CbcSOS(lp->mipmodel, sosbeg[i+1]-sosbeg[i], 
-				       &sosind[i], &soswt[i], i, 
+				       &sosind[sosbeg[i]], &soswt[i], i, 
 				       (sostype[i] == '1' ? 1 : 2));
     }
     if (nsos > 0)
     {// last set
 	int i = nsos - 1;
-	lp->objects[i] = new CbcSOS(lp->mipmodel, nsosnz-sosbeg[i], 
-				    &sosind[i], &soswt[i], i, 
+	lp->mipobjects[i] = new CbcSOS(lp->mipmodel, nsosnz-sosbeg[i], 
+				    &sosind[sosbeg[i]], &soswt[i], i, 
 				    (sostype[i] == '1' ? 1 : 2));
     }
 
     lp->nsos = nsos;
-    lp->mipmodel->addObjects(nsos,objects);
-    for (int i=0; i<nsos; i++) delete objects[i];
-    delete [] objects;
-
     return 0;
 #else
 
@@ -1937,11 +1809,23 @@ int coin_free_prob(COINprob* lp)
     /* solver specific stuff */
     coin_free_solver_handlers(lp->Solver);
 #ifdef COIN_USE_CLP
-    if (!lp->mipIsShared)
-	delete lp->mipmodel;
+
+    if (lp->nsos > 0)
+    {
+	for (int i=0; i<lp->nsos; i++) delete lp->mipobjects[i];
+	delete [] lp->mipobjects;
+    }
+
+    if (!lp->mipIsShared) 
+    {
+	delete lp->Solver;
+	//    delete lp->mipmodel->messageHandler();
+    }
+    delete lp->mipmodel;
+
     if (lp->interiormodel != NULL) delete lp->interiormodel;
 #endif
-    delete lp->Solver;
+
     delete lp;
     lp = NULL;
 

@@ -110,13 +110,18 @@ See the chapter {\bf Common Solver Interface} in the
 \index{integers}
 \index{bignum}
 \index{type!integer}
-The magnitude of integers is only limited by your available memory.
-However, integers that fit into the word size of your computer are
+The magnitude of integers is only limited by your available 
+memory. However, integers that fit into the word size of your computer are
 represented more efficiently (this distinction is invisible to the user).
 Integers are written in decimal notation or in base notation, e.g.:
 \begin{verbatim}
 	0  3  -5  1024  16'f3ae  0'a  15511210043330985984000000
 \end{verbatim}
+
+Note that integer range is unlimited if {\eclipse} was compiled with
+bignum support. Otherwise, integers are restricted to that representable
+in a machine word, and  {\tt max_integer flag} of \bipref{get_flag/2}{../bips/kernel/env/get_flag-2.html} 
+returns the maximum integer value. 
 
 \subsection{Rationals}
 \index{rational numbers}
@@ -136,6 +141,10 @@ Rational arithmetic is arbitrarily precise. When the global flag
 {\tt prefer_rationals} is set, the system uses rational arithmetic
 wherever possible. In particular, dividing two integers then yields a precise
 rational rather than a float result.
+
+Rationals are supported if {\eclipse} is compiled with bignum support. 
+If rationals are not supported, a type error will be raised when a rational is 
+required.
 
 \subsection{Floating Point Numbers}
 \index{floating point numbers}

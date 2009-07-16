@@ -62,8 +62,8 @@ ECLIPSE = $(ECLIPSEDIR)/$(BINORLIB)/$(ARCH)/eclipse
 
 CLASSPATH = $(ECLIPSEDIR)/lib/eclipse.jar$(PATHSEP)$(GRAPPA_DIR)/$(GRAPPA_JAR)$(PATHSEP)$(JAVA_CLASS_DIR)$(PATHSEP)$(JRE_HOME)/lib/rt.jar
 
-ECL_FILES = tty_vc.ecl graphviz_license.ecl vc_support.ecl viewable.ecl batch_goals.ecl java_vc.ecl mutable.ecl graphviz.ecl gnuplot.ecl
-ECL_ECL_FILES = graphviz_license.ecl graphviz.ecl gnuplot.ecl
+ECL_ECO_FILES = tty_vc.ecl graphviz_license.ecl vc_support.ecl viewable.ecl batch_goals.ecl java_vc.ecl mutable.ecl graphviz.ecl gnuplot.ecl
+ECL_ECL_FILES =
 ECL_ECI_FILES = tty_vc.ecl vc_support.ecl viewable.ecl java_vc.ecl graphviz.ecl gnuplot.ecl
 PERM = a+r,u+w,go-w
 
@@ -71,7 +71,7 @@ VC_SUPPORT_ECL_SUB_FILES = vis_client.ecl suspensions.ecl ve_storage.ecl graph_s
 
 ECI_FILES = $(ECL_ECI_FILES:%.ecl=%.eci)
 
-ECO_FILES = $(ECL_FILES:%.ecl=%.eco)
+ECO_FILES = $(ECL_ECO_FILES:%.ecl=%.eco)
 
 JAVA_SRC_FILES = $(JAVA_SRC_DIR)/$(PACKAGE_DIR)/*.java $(JAVA_SRC_DIR)/$(JDOTVIEW_DIR)/*.java
 
@@ -83,7 +83,8 @@ ECO_DEST = $(ECO_FILES:%.eco=$(DESTDIR)/%.eco)
 
 ECI_DEST = $(ECI_FILES:%.eci=$(DESTDIR)/%.eci)
 
-ECL_DEST = $(ECL_ECL_FILES:%.ecl=$(DESTDIR)/%.ecl)
+ECL_DEST = $(ECL_ECL_FILES:%.ecl=$(DESTDIR)/%.ecl) \
+	$(ECL_ECO_FILES:%.ecl=$(DESTDIR)/%.ecl)
 
 JAR_DEST = $(DESTDIR)/$(JAR_FILE) $(DESTDIR)/$(GRAPPA_JAR)
 

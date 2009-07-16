@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lint.ecl,v 1.1 2006/09/23 01:54:58 snovello Exp $
+% Version:	$Id: lint.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 %
 % TODO/ideas:
@@ -48,10 +48,11 @@
 :- lib(module_options).
 :- lib(source_processor).
 
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Heuristic program checker").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2006/09/23 01:54:58 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(desc, html("
     This library analyses an ECLiPSe source module or file and generates
     warning messages for dubious programming constructs and violation

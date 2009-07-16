@@ -1,6 +1,8 @@
 :- getcwd(D), get_flag(library_path, P), set_flag(library_path, [D|P]).
-:- lib(flatzinc).
-:- lib(minizinc).
+:- use_module(flatzinc).
+:- use_module(minizinc).
+%:- lib(flatzinc).
+%:- lib(minizinc).
 
 :- lib(document).
 
@@ -293,6 +295,21 @@ queen8(Q) :-
 	labeling(Q),
 	fzn_output(FznState).
 
+queens8 :-
+	mzn_run_string("
+		int: n = 8;
+		array [1..3,1..n] of var 1..n: q1 :: is_output;
+		array [1..n] of var 1..n: q :: is_output;
+		constraint
+		    forall (i in 1..n, j in i+1..n) (
+			q[i]     != q[j]     /\\
+			q[i] + i != q[j] + j /\\
+			q[i] - i != q[j] - j
+		    );
+		solve satisfy;
+	    ", fzn_ic).
+
+
 steiner :-
 	mzn_run_string("
 	    int : n = 9;
@@ -300,7 +317,8 @@ steiner :-
 	    array [1..nb] of var set of 1..n : sets;
 	    constraint forall (i in 1..nb) (card(sets[i]) = 3);
 	    constraint forall (i in 1..nb, j in (i+1)..nb) (card(sets[i] intersect sets[j]) <= 1);
-	    solve::set_search(sets,\"input_order\",\"indomain_min\",\"complete\") satisfy;
+	    solve::set_search(sets,input_order,indomain_min,complete) satisfy;
+%	    solve::set_search(sets,\"input_order\",\"indomain_min\",\"complete\") satisfy;
 %	    solve satisfy;	% searches on cardinality first, slow
 	", _).
 
@@ -334,7 +352,6 @@ params :-
 	fzn_output(FznState).
 
 
-
 % minizinc 0.8 extensions
 
 mzn_test5 :-
@@ -347,3 +364,47 @@ mzn_test5 :-
 	    ",
 	    fzn_ic).
 
+fzn_test6 :-
+	open(string("
+	    var int: x :: is_defined_var;
+	    constraint int_plus(3, 4, x) :: defines_var(x);
+	    solve satisfy;
+
+	    "), read, Stream),
+	fzn_run_stream(Stream, fzn_ic).
+
+fzn_test7:-
+	open(string("
+	    predicate all_different(array[int] of var int:xs);
+	    solve satisfy;
+	    "), read, Stream),
+	fzn_run_stream(Stream, fzn_ic).
+
+out1 :-
+	mzn_run_string("
+		annotation third;
+		annotation foo;
+		annotation bar(int:i);
+		annotation mya(ann:a1,int:i,ann:a3);
+		var 1..3: x :: is_output :: mya(foo,29,bar(9)) :: third;
+		solve satisfy;
+	    ", zn_options{solver:fzn_ic,solutions:all}).
+
+out2 :-
+	mzn_run_string("
+		var 1..3: x :: is_output;
+		var 1..3: y :: is_output;
+		solve minimize y-x;
+	    ", zn_options{solver:fzn_ic,solutions:0}).
+
+
+clause :-
+	open(string("
+		array[1..3] of var bool : p :: output_array([1..3]);
+		array[1..3] of var bool : n :: output_array([1..3]);
+		var int: cost;
+		constraint bool_clause(p, n);
+		constraint int_lin_eq([1,1,1],n,cost);
+		solve maximize cost;
+	    "), read, Stream),
+	fzn_run_stream(Stream, zn_options{solver:fzn_ic,parser:fast}).

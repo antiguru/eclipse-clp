@@ -33,6 +33,7 @@
              viewable_expand/3,
              viewable_expand/4 from vc_support.
 
+:- comment(categories, ["Development Tools","Visualisation"]).
 :- comment(summary, 
 	   "Module for the management of viewables: arrays for visualisation").
 

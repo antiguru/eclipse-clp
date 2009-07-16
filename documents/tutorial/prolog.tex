@@ -400,7 +400,7 @@ The important difference is that the value of a logical variables is
 typically unknown at the beginning, and only becomes
 known in the course of the computation. Once it is known, the variable is just
 an alias for the value, i.e. it refers to a term.
-Once a value has be assigned to a logical variable, it remains fixed
+Once a value has been assigned to a logical variable, it remains fixed
 and cannot be assigned a different value. 
 
 Logical Variables are written beginning with an upper-case letter or
@@ -757,7 +757,7 @@ L4 = [a, b, c]
 Whenever a new head/tail cell is created,
 the tail is already instantiated to a complete list.
 
-But is is also possible to build the list from the front.
+But it is also possible to build the list from the front.
 The following code, in which the goals have been reordered,
 gives the same final result as the code above:
 \begin{quote}\begin{verbatim}
@@ -966,10 +966,10 @@ non-optimal for two reasons.  Consider the goal {\tt :- min(2,3,M)}.
 Although the first clause succeeds, correctly instantiating $M$ to
 $2$, Prolog leaves an open choice point.  If these clauses and goal
 occur as part of a larger program and goal, a failure might occur
-later, causing backtracking. 
-Prolog would then, vainly, try to find another minimum using the
-second clause for {\tt min}. 
-Firstly the open choice point costs space, and the secondly the
+later, causing backtracking to this open choice point. 
+Prolog would then, in vain, try to find another minimum using the
+second clause for {\tt min}.  So there is a double drawback:
+firstly, an open choice point consumes memory, and secondly the
 unsuccessful evaluation of the second clause costs execution time.
 
 To achieve the same logic, but more efficient behaviour, the
@@ -979,7 +979,10 @@ For example {\tt min} is typically encoded as follows:
 min(X,Y, Min) :- X<Y, !, Min = X.
 min(X,Y, Y).
 \end{code}
-The cut removes the unnecessary choice point and makes the second test redundant.
+The cut removes the unnecessary choice point, which means that the
+second clause will never be executed if the first clause passed the
+cut.  This effectively makes the test in the second clause redundant,
+and it can therefore be removed.
 
   \subsection{Prune alternative solutions}
 \index{prune}

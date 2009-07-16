@@ -16,7 +16,7 @@
 % Portions created by the Initial Developer are
 % Copyright (C) 2000 - 2006 Cisco Systems, Inc.  All Rights Reserved.
 % 
-% Contributor(s): Joachim Schimpf, IC-Parc
+% Contributor(s): Andrew Sadler, IC-Parc
 % 
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
@@ -24,12 +24,14 @@
 % Solver for constraints over finite sets of integers (ic wrapper)
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: ic_hybrid_sets.ecl,v 1.1 2006/09/23 01:53:46 snovello Exp $
+% Version:	$Id: ic_hybrid_sets.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
 :- module(ic_hybrid_sets).
+
+:- comment(categories, ["Constraints"]).
+:- comment(summary, "Solver over sets of integers (lex bounds, cooperates with lib(ic))").
 
 :- lib(ic).
 :- lib(ic_kernel).

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: write.c,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
  */
 
 /*
@@ -1468,6 +1468,10 @@ _write_quoted(int idwrite, stream_id out, char *name, register word len, char qu
 	{
 	    switch(c = *name++)
 	    {
+	    case 0007:
+		c = 'a'; break;
+	    case 0013:
+		c = 'v'; break;
 	    case '\b':
 		c = 'b'; break;
 	    case '\t':
@@ -1500,6 +1504,11 @@ _write_quoted(int idwrite, stream_id out, char *name, register word len, char qu
 			return status;
 		    if ((status = p_fprintf(out, "%03o", c & 0xff)))
 			return status;
+		    if (sd->options & ISO_ESCAPES)
+		    {
+			if ((status = ec_outfc(out, sd->current_escape)))
+			    return status;
+		    }
 		}
 		else			/* normal printable character	*/
 		    if ((status = ec_outfc(out, c)))

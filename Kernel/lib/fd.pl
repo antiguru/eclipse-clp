@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: fd.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,10 +46,74 @@
 
 :- module(fd).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Finite domain library").
 :- comment(author, "Micha Meier, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(date, "$Date").
+:- comment(desc, html("<P>
+    The library fd.pl implements constraints over finite domains that can
+    contain integer as well as atomic elements.  More detailed documentation
+    can be found in the 'Obsolete Libraries Manual', since this library is
+    now largely superseded by library(ic).
+    </P>
+    <H3>Glossary</H3>
+    <DL>
+    <DT>domain variable</DT><DD>
+	A domain variable is a variable which can be instantiated only
+	to a value from a given finite set.  Unification with a term
+	outside of this domain fails.  The domain can be associated
+	with the variable using the predicate ::/2.  Built-in
+	predicates that expect domain variables treat atomic and other
+	ground terms as variables with singleton domains.
+    </DD>
+    <DT>integer domain variable</DT><DD>
+	An integer domain variable is a domain variable whose domain
+	contains only integer numbers.  Only such variables are
+	accepted in inequality constraints and in rational terms. 
+	Note that a non-integer domain variable can become an integer
+	domain variable when the non-integer values are removed from
+	its domain.
+    </DD>
+    <DT>integer interval</DT><DD>
+	An integer interval is written as Min .. Max
+	with integer expressions Min =&lt; Max and it represents the set
+	{Min, Min + 1, ..., Max}.
+    </DD>
+    <DT>linear term</DT><DD>
+	A linear term is a linear integer combination of integer
+	domain variables.  The constraint predicates accept linear
+	terms even in a non-canonical form, containing functors +, -
+	and *, e.g.  5*(3+(4-6)*Y-X*3).
+	If the constraint predicates encounter a variable without a
+	domain, they give it a default domain -10000000..10000000. 
+	Note that arithmetic operations on linear terms are performed
+	with standard machine word integers without any overflow
+	checks.  If the domain ranges or coefficients are too large,
+	the operation will not yield correct results.  Both the
+	maximum and minimum value of a linear term must be
+	representable in a machine word, and so must the maximum and
+	minimum value of every ci xi term.
+    </DD>
+    <DT>rational term</DT><DD>
+	A rational term is a term constructed from integers and integer
+	domain variables using the arithmetic operations +, -, *, /,
+	abs, min and max.  The nonlinear parts are handled by introducing
+	an auxiliary constraint with a new result variable, and using this
+	result variable in the linear term context. Every subexpression
+	of the form VarA/VarB must have an integer value in the solution.
+	The system replaces such a subexpression by a new variable X and
+	adds a new constraint VarA #= VarB * X.  Similarly, all
+	subexpressions of the form VarA*VarB are replaced by a new
+	variable X and a new constraint X #= VarA * VarB is added,
+	and similary for the functions abs/1, min/2 and max/2.
+    </DD>
+    <DT>constraint expression</DT><DD>
+	A constraint expression is either an arithmetic constraint or
+	a combination of constraint expressions using the logical FD
+	connectives #/\\/2, #\\//2, #=&gt;/2, #&lt;=&gt;/2, #\\+/1. 
+    </DL>
+")).
 
 :- reexport fd_arith except
 	fd_eq/1,

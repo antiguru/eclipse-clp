@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: umsusing.tex,v 1.1 2006/09/23 01:50:21 snovello Exp $
+% $Id: umsusing.tex,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 %
 % Imported from the user manual
 
@@ -458,7 +458,7 @@ During the execution of an {\eclipse} program, the system may
 dynamically load files containing library predicates. When this
 happens, the user is informed by a compilation or loading message.  It
 is possible to explicitly force this loading to occur by use of the
-\bipref{lib/1}{../bips/kernel/database/lib-1.html} or
+\bipref{lib/1}{../bips/kernel/compiler/lib-1.html} or
 \bipref{use_module/1}{../bips/kernel/modules/use_module-1.html}
 predicates.  E.g.\ to load the library called {\tt lists}, use one of
 the following goals:
@@ -483,7 +483,7 @@ It is recommended programming practice to give the Prolog source
 programs the suffix {\bf .pl}, or {\bf .ecl} if it contains {\eclipse}
 specific code.  It is not enforced by the system, but it simplifies
 managing the source programs.  The
-\bipref{compile/1}{../bips/kernel/database/compile-1.html} predicate
+\bipref{compile/1}{../bips/kernel/compiler/compile-1.html} predicate
 automatically adds the suffix to the filename, so that it does not
 need to be specified; if the literal filename can not be found, the
 system tries appending each of the valid suffixes in turn and tries to

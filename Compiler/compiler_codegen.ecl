@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.26 2009/03/09 05:32:53 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.27 2009/07/16 09:11:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2009/03/09 05:32:53 $").
+:- comment(date, "$Date: 2009/07/16 09:11:23 $").
 
 
 :- lib(hash).
@@ -189,13 +189,6 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 	    Code = [code{instr:nop,regs:OrigRegDescs}|Code1],
 	    generate_chunk(Goals, NextChunk, HeadPerms3, ChunkData3, ChunkData, AuxCode, AuxCode0, Code1, Code0, Options, SelfInfo)
 
-	; Goal = goal{kind:regular,functor:true/0,definition_module:sepia_kernel}, (Goals = [] ; Goals = [goal{kind:regular}|_] ) ->
-	    % Normally, true/0 should be eliminated in the normalisation phase.
-	    % But due to its legacy semantics (it is a regular goal and can
-	    % cause waking), we only eliminate it here when it occurs at the
-	    % end of a branch or just before another regular goal.
-	    generate_chunk(Goals, NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCode, AuxCode0, Code, Code0, Options, SelfInfo)
-
 	; Goal = goal{kind:regular,functor:P,args:Args,lookup_module:LM,envmap:EAM,envsize:ESize} ->
 	    move_head_perms(HeadPerms0, ChunkData0, ChunkData1, Code, Code1),
 	    SelfInfo = Module:Self@SelfLab,
@@ -230,7 +223,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 	    generate_regular_puts(Args, ChunkData00, ChunkData1, Code101, Code102, ArgDests, []),
 	    Code102 = [code{instr:nop,regs:ArgDests}|Code103],
 	    generate_indexing(IndexDescs, BranchLabelArray, BranchEamArray, TryArity, ChunkData1, Code103, next(Code104), AuxCode, AuxCode1, Options),
-	    alloc_check_split(ChunkData1, [GAlloc1|GAllocs2toN]),
+	    %alloc_check_split(ChunkData1, [GAlloc1|GAllocs2toN]),	% moved down to get less delays
 	    env_set_allocate_size(EntryESize, ChunkData1),
 	    ChunkData1 = chunk_data{allocated:ActualESize},
 
@@ -291,6 +284,7 @@ generate_chunk([Goal|Goals], NextChunk, HeadPerms0, ChunkData0, ChunkData, AuxCo
 		|Code9],
 	    start_new_chunk(EAMN, ChunkData1, ChunkData2N),
 	    alloc_check_start_branch(DetN, ChunkData2N, ChunkData3N, Code9, Code91, GAllocN),
+	    alloc_check_split(ChunkData1, [GAlloc1|GAllocs2toN]),
 	    generate_head_info(HeadArgsArray, NBranches, ChunkData3N, ChunkData4N, PseudoHeadPermsN, [], ArgOrigsN),
 	    generate_branch(BranchN, PseudoHeadPermsN, ChunkData4N, ChunkDataEN, BranchExitInitN, ExitESize, AuxCode5, AuxCode0, Code91, Code10, Options, SelfInfo),
 
@@ -1765,9 +1759,15 @@ alloc_check_pwords(N, ChunkData0, ChunkData) :-
 alloc_check_start(ChunkData0, ChunkData, [code{instr:gc_test(N)}|Code0], Code0) :-
 	update_struct(chunk_data, [need_global:N], ChunkData0, ChunkData).
 
-delay alloc_check_split(_, Ms) if nonground(Ms).
-alloc_check_split(chunk_data{need_global:N}, Ms) :-
-	N is max(Ms).
+alloc_check_split(chunk_data{need_global:Max}, List) :-
+	max_list(List, 0, Max).
+	
+    delay max_list(Xs, _Max0, _Max) if var(Xs).
+    delay max_list([X|_], _Max0, _Max) if var(X).
+    max_list([], Max, Max).
+    max_list([X|Xs], Max0, Max) :-
+	Max1 is max(Max0,X),
+	max_list(Xs, Max1, Max).
 
 alloc_check_start_branch(Det, ChunkData0, ChunkData, Code, Code0, NeedBefore) :-
 	( first_alternative(Det) ->

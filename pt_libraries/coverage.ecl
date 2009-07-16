@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc, Imperial College
-% Version:	$Id: coverage.ecl,v 1.2 2007/02/23 15:28:33 jschimpf Exp $
+% Version:	$Id: coverage.ecl,v 1.3 2009/07/16 09:11:27 jschimpf Exp $
 %
 %
 % TODO
@@ -49,7 +49,8 @@
 
 :- comment(author,"Joachim Schimpf, based on ideas by Helmut Simonis").
 :- comment(copyright,"Cisco Systems, Inc.").
-:- comment(date,"$Date: 2007/02/23 15:28:33 $").
+:- comment(date,"$Date: 2009/07/16 09:11:27 $").
+:- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tool for obtaining code coverage information").
 :- comment(desc, html("<P>
 	This is a tool for obtaining code coverage information, i.e.

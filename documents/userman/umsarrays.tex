@@ -80,12 +80,12 @@ information across failures.
 A bag is unordered and untyped. Any {\eclipse} term can be stored in a bag.
 Bags are referred to by a handle.
 An empty bag is created using
-\bipref{bag_create/1}{../bips/kernel/arrays/bag_create-1.html},
+\bipref{bag_create/1}{../bips/kernel/storage/bag_create-1.html},
 data is stored in the bag by invoking
-\bipref{bag_enter/2}{../bips/kernel/arrays/bag_enter-2.html},
+\bipref{bag_enter/2}{../bips/kernel/storage/bag_enter-2.html},
 and the stored data can be retrieved as a list with
-\bipref{bag_retrieve/2}{../bips/kernel/arrays/bag_retrieve-2.html} or
-\bipref{bag_dissolve/2}{../bips/kernel/arrays/bag_dissolve-2.html}.
+\bipref{bag_retrieve/2}{../bips/kernel/storage/bag_retrieve-2.html} or
+\bipref{bag_dissolve/2}{../bips/kernel/storage/bag_dissolve-2.html}.
 
 A typical application is the
 implementation of the findall/3 predicate or similar functionality. 
@@ -125,12 +125,12 @@ backtracks over its creation, when the shelf handle gets garbage
 collected, or when it is explicitly destroyed. 
 
 A shelf is initialised using
-\bipref{shelf_create/2}{../bips/kernel/arrays/shelf_create-2.html} or
-\bipref{shelf_create/3}{../bips/kernel/arrays/shelf_create-3.html}.
+\bipref{shelf_create/2}{../bips/kernel/storage/shelf_create-2.html} or
+\bipref{shelf_create/3}{../bips/kernel/storage/shelf_create-3.html}.
 Data is stored in the slots (or the shelf as a whole) with
-\bipref{shelf_set/3}{../bips/kernel/arrays/shelf_set-3.html}
+\bipref{shelf_set/3}{../bips/kernel/storage/shelf_set-3.html}
 and retrieved with
-\bipref{shelf_get/3}{../bips/kernel/arrays/shelf_get-3.html}.
+\bipref{shelf_get/3}{../bips/kernel/storage/shelf_get-3.html}.
 
 Example: Counting how many solutions a goal has:
 \begin{verbatim}
@@ -147,7 +147,7 @@ Example: Counting how many solutions a goal has:
         ).
 \end{verbatim}
 In this particular example, we could have used
-\bipref{shelf_inc/2}{../bips/kernel/arrays/shelf_inc-2.html} to
+\bipref{shelf_inc/2}{../bips/kernel/storage/shelf_inc-2.html} to
 increment the counter.
 
 
@@ -171,9 +171,9 @@ looking up information under a key, or retrieving the store contents as
 a whole.
 
 Stores come in two flavours:  anonymous stores are created with
-\bipref{store_create/1}{../bips/kernel/arrays/store_create-1.html}
+\bipref{store_create/1}{../bips/kernel/storage/store_create-1.html}
 and referred to by handle, while named stores are created with a
-\bipref{store/ 1}{../bips/kernel/arrays/store-1.html}
+\bipref{store/ 1}{../bips/kernel/storage/store-1.html}
 declaration and referred to by their name within a module. 
 If possible, anonymous stores should be preferred because they make it
 easier to write robust, reentrant code.  For example, an anonymous store
@@ -183,16 +183,16 @@ other hand, must be explicitly destroyed in order to free the
 associated memory. 
 
 Data is entered into a store using
-\bipref{store_set/3}{../bips/kernel/arrays/store_set-3.html}
+\bipref{store_set/3}{../bips/kernel/storage/store_set-3.html}
 and retrieved using
-\bipref{store_get/3}{../bips/kernel/arrays/store_get-3.html}.
+\bipref{store_get/3}{../bips/kernel/storage/store_get-3.html}.
 It is possible to retrieve all keys with
-\bipref{stored_keys/2}{../bips/kernel/arrays/stored_keys-2.html}
+\bipref{stored_keys/2}{../bips/kernel/storage/stored_keys-2.html}
 or the full contents of the table with
-\bipref{stored_keys_and_values/2}{../bips/kernel/arrays/stored_keys_and_values-2.html}.
+\bipref{stored_keys_and_values/2}{../bips/kernel/storage/stored_keys_and_values-2.html}.
 Entries can be deleted via
-\bipref{store_delete/2}{../bips/kernel/arrays/store_delete-2.html} or
-\bipref{store_erase/1}{../bips/kernel/arrays/store_erase-1.html}.
+\bipref{store_delete/2}{../bips/kernel/storage/store_delete-2.html} or
+\bipref{store_erase/1}{../bips/kernel/storage/store_erase-1.html}.
 
 \index{memoization}
 \index{Fibonacci}
@@ -273,7 +273,7 @@ There are two fundamental operations that can be performed on a non-logical vari
 setting the variable (giving it a value), and referencing the variable
 (finding the value currently associated with it).
 
-The value of a non-logical variable is set using the \bipref{setval/2}{../bips/kernel/arrays/setval-2.html} predicate.
+The value of a non-logical variable is set using the \bipref{setval/2}{../bips/kernel/storage/setval-2.html} predicate.
 \index{setval/2}
 This has the format
 \begin{quote}
@@ -282,21 +282,21 @@ This has the format
 For instance, the goal \begin{quote}\begin{verbatim}
 setval(firm, 3)\end{verbatim}\end{quote}
 gives the non-logical variable {\it firm} the value 3.
-The value of a non-logical variable is retrieved using the \bipref{getval/2}{../bips/kernel/arrays/getval-2.html} predicate.
+The value of a non-logical variable is retrieved using the \bipref{getval/2}{../bips/kernel/storage/getval-2.html} predicate.
 \index{getval/2}
 The goal \begin{quote}\begin{verbatim}
 getval(firm, X)\end{verbatim}\end{quote}
 will unify {\it X} to
 the value of the non-logical variable {\it firm}, which has been previously set by
-\bipref{setval/2}{../bips/kernel/arrays/setval-2.html}.
+\bipref{setval/2}{../bips/kernel/storage/setval-2.html}.
 If no value has been previously set, the call raises an exception.
-If the value of a non-logical variable is an integer, the predicates \bipref{incval/1}{../bips/kernel/arrays/incval-1.html}
-and \bipref{decval/1}{../bips/kernel/arrays/decval-1.html} may be used to increment and decrement the value of the
+If the value of a non-logical variable is an integer, the predicates \bipref{incval/1}{../bips/kernel/storage/incval-1.html}
+and \bipref{decval/1}{../bips/kernel/storage/decval-1.html} may be used to increment and decrement the value of the
 \index{incval/1}
 \index{decval/1}
 variable, respectively.
-The predicates \bipref{incval/1}{../bips/kernel/arrays/incval-1.html} and
-\bipref{decval/1}{../bips/kernel/arrays/decval-1.html} may be used e.g.\ in a failure-driven loop to provide
+The predicates \bipref{incval/1}{../bips/kernel/storage/incval-1.html} and
+\bipref{decval/1}{../bips/kernel/storage/decval-1.html} may be used e.g.\ in a failure-driven loop to provide
 an incremental count across failures as in the example:
 \begin{quote}\begin{verbatim}
 count_solutions(Goal, _) :-
@@ -317,7 +317,7 @@ by an interrupt handler}.
 The visibility of a non-logical variable is local to the module
 where it is first set. It is good style to declare them using
 \bipref{local/1}{../bips/kernel/modules/local-1.html}
-\bipref{variable/1}{../bips/kernel/arrays/variable-1.html}
+\bipref{variable/1}{../bips/kernel/storage/variable-1.html}
 declarations. E.g. in the above example one should use
 \begin{quote}\begin{verbatim}
 :- local variable(count).
@@ -346,7 +346,7 @@ up to {\bf matrix(4,7)}.
 
 An array must be explicitly created using a
 \bipref{local/1}{../bips/kernel/modules/local-1.html}
-\bipref{array/1}{../bips/kernel/arrays/array-1.html}
+\bipref{array/1}{../bips/kernel/storage/array-1.html}
 declaration, e.g.
 \begin{quote}\begin{verbatim}
 :- local array(matrix(5, 8)).
@@ -355,15 +355,15 @@ The array is only accessible from within the module where it was declared.
 The declaration will create a two-dimensional, 5-by-8 array with 40 elements
 matrix(0,0) to matrix(4, 7).
 Arrays can be  erased using the predicate
-\bipref{erase_array/1}{../bips/kernel/arrays/erase_array-1.html}, e.g.
+\bipref{erase_array/1}{../bips/kernel/storage/erase_array-1.html}, e.g.
 \index{erase_array/1}
 \begin{quote}\begin{verbatim}
 erase_array(matrix/2).
 \end{verbatim}\end{quote}
 
-The value of an element of the array is set using the \bipref{setval/2}{../bips/kernel/arrays/setval-2.html}
+The value of an element of the array is set using the \bipref{setval/2}{../bips/kernel/storage/setval-2.html}
 \index{setval/2}
-predicate. The first argument of \bipref{setval/2}{../bips/kernel/arrays/setval-2.html} specifies the element which is
+predicate. The first argument of \bipref{setval/2}{../bips/kernel/storage/setval-2.html} specifies the element which is
 to be set, the second specifies the value to assign to it.
 The goal
 \begin{quote}\begin{verbatim}
@@ -371,9 +371,9 @@ setval(matrix(3, 2), plato)
 \end{verbatim}\end{quote}
 sets the value
 of element (3, 2) of array {\tt matrix} to the atom {\tt plato}.
-Similarly, values of array elements are retrieved by use of the \bipref{getval/2}{../bips/kernel/arrays/getval-2.html}
+Similarly, values of array elements are retrieved by use of the \bipref{getval/2}{../bips/kernel/storage/getval-2.html}
 \index{getval/2}
-predicate. The first argument of \bipref{getval/2}{../bips/kernel/arrays/getval-2.html} specifies the element to be
+predicate. The first argument of \bipref{getval/2}{../bips/kernel/storage/getval-2.html} specifies the element to be
 referenced, the second is unified with the value of that element.
 Thus if the value of matrix(3, 2) had been set as above, the goal
 \begin{quote}\begin{verbatim}
@@ -381,7 +381,7 @@ getval(matrix(3, 2), Val)
 \end{verbatim}\end{quote}
 would unify {\tt Val} with the atom {\tt plato}.
 Similarly to non-logical variables, the value of integer array elements
-can be updated using \bipref{incval/1}{../bips/kernel/arrays/incval-1.html} and \bipref{decval/1}{../bips/kernel/arrays/decval-1.html}.
+can be updated using \bipref{incval/1}{../bips/kernel/storage/incval-1.html} and \bipref{decval/1}{../bips/kernel/storage/decval-1.html}.
 
 It is possible to declare arrays whose elements are
 constrained to belong to certain types. This allows {\eclipse} to increase
@@ -412,7 +412,7 @@ a Cartesian coordinate system.
 \end{verbatim}\end{quote}
 (The other elements of the above array are automatically initialised to zero).
 
-The predicate \bipref{current_array/2}{../bips/kernel/arrays/current_array-2.html}
+The predicate \bipref{current_array/2}{../bips/kernel/storage/current_array-2.html}
 \index{current_array/2}
 is provided to find the size, type and visibility of defined arrays.
 of the array and its type to be found:
@@ -456,8 +456,8 @@ yes.
 %----------------------------------------------------------------------
 \label{globrefs}
 Terms stored in non-logical variables and arrays are copies of the
-\bipref{setval/2}{../bips/kernel/arrays/setval-2.html} arguments,
-and the terms obtained by \bipref{getval/2}{../bips/kernel/arrays/getval-2.html} are thus not identical
+\bipref{setval/2}{../bips/kernel/storage/setval-2.html} arguments,
+and the terms obtained by \bipref{getval/2}{../bips/kernel/storage/getval-2.html} are thus not identical
 to the original terms, in particular their variables are different.
 Sometimes it is necessary to be able
 to access the original term with its variables, i.e. to have
@@ -484,8 +484,8 @@ or
 creates a named reference {\bf p} (with an initial value of {\bf 0})
 which can be used to store references to terms.
 This reference is accessed and modified in the same way as non-logical variables,
-with \bipref{setval/2}{../bips/kernel/arrays/setval-2.html}
-and \bipref{getval/2}{../bips/kernel/arrays/getval-2.html},
+with \bipref{setval/2}{../bips/kernel/storage/setval-2.html}
+and \bipref{getval/2}{../bips/kernel/storage/getval-2.html},
 but the following points are different for references:
 \begin{itemize}
 \item the accessed term is identical to the stored term (with its current
@@ -505,7 +505,7 @@ no (more) solution.
 \end{verbatim}\end{quote}
 
 \item the modifications are backtrackable, when the execution fails
-over the \bipref{setval/2}{../bips/kernel/arrays/setval-2.html} call, the previous value of the global reference is restored
+over the \bipref{setval/2}{../bips/kernel/storage/setval-2.html} call, the previous value of the global reference is restored
 
 \begin{quote}\begin{verbatim}
 [eclipse 4]: setval(a, 1), (setval(a, 2), getval(a, X); getval(a, Y)).

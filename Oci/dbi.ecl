@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.6 2008/11/01 07:11:01 kish_shen Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -48,9 +48,10 @@
 :- module(dbi).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+:- comment(categories, ["Interfacing"]).
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2008/11/01 07:11:01 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).

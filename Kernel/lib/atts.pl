@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: atts.pl,v 1.2 2008/08/21 17:36:33 jschimpf Exp $
+% Version:	$Id: atts.pl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -32,10 +32,11 @@
 
 :- module(atts).
 
+:- comment(categories, ["Compatibility"]).
 :- comment(summary, "Variable attributes compatible with SICStus v3").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Micha Meier, ECRC Munich").
-:- comment(date, "$Date: 2008/08/21 17:36:33 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 
 :- export op(1150, fx, [attribute]).
 

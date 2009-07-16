@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * $Id: embed.c,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -532,13 +532,6 @@ ec_handle_events(long int *to_c)
  *	access to the ec_refs: a global stack arary is allocated and its
  *	slots initialised with the requested init value.
  *
- * EC_REF_P:	hp_allocated, prolog value, in global list
- *
- *	This is an intermediate state that is entered when the C program
- *	destroys the ec_refs. It cannot be deallocated immediately
- *	because it is still referenced by trail entries. We leave it
- *	to untrailing to clean up everything and deallocate the ec_refs.
- *
  * EC_REF_FREE:	deallocated, no value, not in global list
  *
  *	This state only exists temporarily just before deallocation.
@@ -547,9 +540,9 @@ ec_handle_events(long int *to_c)
  * (none)	--create-->	EC_REF_C
  * EC_REF_C	--init-->	EC_REF_C_P
  * EC_REF_C	--destroy-->	EC_REF_FREE
- * EC_REF_C_P	--destroy-->	EC_REF_P
+ * EC_REF_C	--untrail-->	EC_REF_C
+ * EC_REF_C_P	--destroy-->	EC_REF_FREE
  * EC_REF_C_P	--untrail-->	EC_REF_C
- * EC_REF_P	--untrail-->	EC_REF_FREE
  *----------------------------------------------------------------------*/
 
 void Winapi
@@ -557,25 +550,37 @@ ec_refs_destroy(ec_refs variable)
 {
     if (!(variable->refstate & EC_REF_C))
 	ec_panic("ec_ref already freed from C","ec_refs_destroy()");
-    variable->refstate &= ~EC_REF_C;
-    if (variable->refstate == EC_REF_FREE)	
-	hp_free_size((generic_ptr)variable, sizeof(struct eclipse_ref_));
+    if (variable->refstate & EC_REF_P)
+    {
+	/* Unlink the ec_ref to make the global stack array become garbage */
+	variable->next->prev = variable->prev;
+	variable->prev->next = variable->next;
+    }
+    variable->refstate = EC_REF_FREE;
+    hp_free_size((generic_ptr)variable, sizeof(struct eclipse_ref_));
 }
 
 /*ARGSUSED*/
 static void
-_ec_refs_untrail(pword *item, word *pdata, int size, int flags)
+_ec_refs_untrail(pword *parray, word *pdata, int size, int flags)
 {
-    ec_refs variable = (ec_refs) item;
-    if (!(variable->refstate & EC_REF_P))
-	ec_panic("ec_ref already untrailed","_ec_refs_untrail()");
-    variable->refstate &= ~EC_REF_P;
-    variable->next->prev = variable->prev;	/* unlink */
-    variable->prev->next = variable->next;
-    if (variable->refstate == EC_REF_FREE)	
-	hp_free_size((generic_ptr)variable, sizeof(struct eclipse_ref_));
-    else
-        variable->var = *((pword*) pdata);
+    ec_refs variable = g_emu_.allrefs.next;
+    /* Find the ec_ref corresponding to parray in the global list. */
+    /* If it's not in there, then it has already been destroyed! */
+    while (variable != &g_emu_.allrefs)
+    {
+	if (variable->var.val.ptr == parray)
+	{
+	    if (!(variable->refstate == EC_REF_C_P))
+		ec_panic("ec_ref already untrailed","_ec_refs_untrail()");
+	    variable->refstate &= ~EC_REF_P;
+	    variable->next->prev = variable->prev;	/* unlink */
+	    variable->prev->next = variable->next;
+	    variable->var = *((pword*) pdata);		/* reset value */
+	    return;
+	}
+	variable = variable->next;
+    }
 }
 
 int Winapi
@@ -624,9 +629,13 @@ _ec_ref_init(ec_refs variable)
 
     initpw = variable->var;
     variable->refstate = EC_REF_C_P;
-    ec_trail_undo(_ec_refs_untrail, (pword *)variable, NULL,
-	    (word *) &initpw, sizeof(pword)/sizeof(word), TRAILED_PWORD);
+
+    /* Use the global stack array as trail item, so the trail entry */
+    /* gets garbage collected together with it. */
     pw = TG;
+    ec_trail_undo(_ec_refs_untrail, pw, NULL,
+	    (word *) &initpw, sizeof(pword)/sizeof(word), TRAILED_PWORD);
+
     Make_Struct(&(variable->var), pw);
     Push_Struct_Frame(ec_did("",n));
     if (IsRef(initpw.tag))

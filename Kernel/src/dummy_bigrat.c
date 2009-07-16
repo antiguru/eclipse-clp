@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: dummy_bigrat.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * $Id: dummy_bigrat.c,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	dummy_bigrat.c
@@ -69,3 +69,8 @@ ec_array_to_big(const void *p, int count, int order, int size, int endian, unsig
     Bip_Error(ARITH_EXCEPTION);
 }
 
+extern int
+ec_big_to_chunks(pword *pw1, uword chunksize, pword *result)
+{
+    Bip_Error(ARITH_EXCEPTION);
+}

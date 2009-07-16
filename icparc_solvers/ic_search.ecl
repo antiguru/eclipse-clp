@@ -43,6 +43,7 @@
 % Imports and exports.
 %
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "This library provides the search-related components of the IC-library").
 
 :-comment(desc,html("\

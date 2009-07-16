@@ -28,16 +28,17 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: sd.ecl,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
+% Version:	$Id: sd.ecl,v 1.3 2009/07/16 09:11:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
 
 :- module(sd).
 
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Simple solver for constraints over unordered symbolic domains").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/06/20 13:41:14 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- lib(ordset).
@@ -284,23 +285,23 @@ unify_sd(Y, AttrX, SuspAttrX) :-
 	;
 	    true
 	).
-unify_sd(Y, AttrX, _) :-
+unify_sd(Y, AttrX, SuspAttrX) :-
 	compound(AttrX),
-	unify_any_sd(Y, AttrX).
+	unify_any_sd(Y, AttrX, SuspAttrX).
 
-    unify_any_sd(Y{AttrY}, AttrX) ?-
-	unify_sd_sd(Y, AttrX, AttrY).
-    unify_any_sd(Y, AttrX) :-
+    unify_any_sd(Y{AttrY}, AttrX, SuspAttrX) ?-
+	unify_sd_sd(Y, AttrX, AttrY, SuspAttrX).
+    unify_any_sd(Y, AttrX, _SuspAttrX) :-
 	atomic(Y),
 	AttrX = sd{dom:Values},
 	ord_memberchk(Y, Values),
 	schedule_suspensions(any of sd, AttrX).
 
-    unify_sd_sd(Y, AttrX, AttrY) :-
+    unify_sd_sd(Y, AttrX, AttrY, _SuspAttrX) :-
 	var(AttrY),
 	AttrY = AttrX,			% transfer the attribute
 	notify_constrained(Y).		% non-solver var Y unified with X
-    unify_sd_sd(Y, AttrX, AttrY) :-
+    unify_sd_sd(Y, AttrX, AttrY, SuspAttrX) :-
 	compound(AttrY),
 	AttrX = sd{dom:ValuesX},
 	AttrY = sd{dom:ValuesY},
@@ -311,8 +312,16 @@ unify_sd(Y, AttrX, _) :-
 	    schedule_suspensions(any of sd, AttrX),
 	    Y = Val			% wakes inst,bound,constrained,any of Y
 	;
-	    ( OnlyX=[] -> true ; schedule_suspensions(any of sd, AttrX) ),
-	    ( OnlyY=[] -> true ; schedule_suspensions(any of sd, AttrY) )
+	    ( OnlyX=[] -> true ;
+	    	schedule_suspensions(any of sd, AttrX),
+		( var(SuspAttrX) -> true ;
+		    schedule_suspensions(constrained of suspend, SuspAttrX)
+		)
+	    ),
+	    ( OnlyY=[] -> true ;
+	    	schedule_suspensions(any of sd, AttrY),
+		notify_constrained(Y)
+	    )
 	).
 
 

@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.6 2009/03/03 23:41:47 jschimpf Exp $
+% Version:	$Id: tracer_tty.pl,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.6 2009/03/03 23:41:47 jschimpf Exp $
+% $Id: tracer_tty.pl,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -618,6 +618,21 @@ Other:\n\
 %----------------------------------------------------------------------
 % Auxiliary
 %----------------------------------------------------------------------
+
+% A version of tyi/2 which allows an optional newline when used on non-tty
+% streams (for pseudo-terminals that don't have raw mode, e.g. inside emacs)
+:- local tyi/2.
+tyi(S, C) :-
+	eclipse_language:tyi(S, C),
+	( get_stream_info(S, device, tty) ->
+	    true
+	; newline(C) ->
+	    true
+	;
+	    eclipse_language:tyi(S, NL),
+	    ( newline(NL) -> true ; unget(S) )
+	).
+
 
 % read a number and the next non-numeric character
 % the number get echoed, the terminator not

@@ -24,10 +24,11 @@
 
 :- module(fzn_eplex).
 
+:- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Mapping from FlatZinc to lib(eplex)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2008/06/20 13:41:13 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(see_also, [library(flatzinc),library(eplex)]).
 :- comment(desc, html("
 This module defines a mapping from FlatZinc operations to lib(eplex)
@@ -108,8 +109,8 @@ float_lin_le(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $=< Rhs.
 float_lin_ge(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $>= Rhs.
 
     vector_sum(Cs, Xs, CXs) :-
-	functor(Cs, _, N),
-	( functor(Xs, _, N) ->
+	arity(Cs, N),
+	( arity(Xs, N) ->
 	    ( for(I,1,N), foreach(C*X,CXs), param(Cs,Xs) do
 		arg(I, Cs, C), arg(I, Xs, X)
 	    )

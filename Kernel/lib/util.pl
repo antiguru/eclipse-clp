@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: util.pl,v 1.1 2008/06/30 17:43:50 jschimpf Exp $
+% Version:	$Id: util.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -40,9 +40,10 @@
 :- module(util).
 
 :- comment(summary, "Various utility predicates for program development").
+:- comment(categories, ["Programming Utilities"]).
 :- comment(author, "Various, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2008/06/30 17:43:50 $").
+:- comment(date, "$Date: 2009/07/16 09:11:24 $").
 :- comment(add_path/1, [template:"add_path(+Directory)",
     summary:"The directory will be added at the beginning of the library path."
     ]).

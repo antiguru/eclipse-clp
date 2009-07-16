@@ -22,6 +22,7 @@
 
 :- comment(alias, "Character I/O").
 :- comment(summary, "Built-ins to input and output characters or byte strings").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- tool(read_token / 2).
 :- tool(read_token / 3).

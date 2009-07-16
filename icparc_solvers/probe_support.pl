@@ -221,9 +221,10 @@ tent_call_prior(_InVars,_InParams,_NewGoal,GlobVar,_OutParams,OutVars,_Module) :
         shelf_get(GlobVar,1,OutParams),
         (OutVars=nil -> fail ; OutVars tent_set OutParams).
 
+:- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Probe Support Library").
 :- comment(author, "Mark Wallace, Hani El Sakkout").
-:- comment(date, "$Date: 2006/09/23 01:53:52 $").
+:- comment(date, "$Date: 2009/07/16 09:11:27 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("

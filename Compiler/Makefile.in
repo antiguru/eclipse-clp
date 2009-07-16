@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile.in,v 1.5 2008/07/20 18:22:58 jschimpf Exp $
+# $Id: Makefile.in,v 1.6 2009/07/16 09:11:23 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -58,6 +58,9 @@ PRIVATE_ECI = \
 
 PUBLIC_ECI = \
 	$(PREFIX)/lib/source_processor.eci
+
+PUBLIC_ECL = \
+	$(PREFIX)/lib/source_processor.ecl
 
 LOCAL_ECO = $(COMPILER_MODULES:%.ecl=%.eco)
 
@@ -249,7 +252,7 @@ $(BOOTDIR)/lib/%.eco:	%.eco
 	-@/bin/chmod $(PERM) $@
 
 
-install:	$(PUBLIC_ECI) $(PUBLIC_ECO)
+install:	$(PUBLIC_ECI) $(PUBLIC_ECO) $(PUBLIC_ECL)
 
 $(PREFIX)/lib/%.eci:	%.ecl $(PREFIX)/lib/.stamp
 	$(STABLE_ECLIPSE) -e "lib(document), icompile(\"$(*F)\",\"$(@D)\")"

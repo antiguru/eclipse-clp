@@ -22,6 +22,7 @@
 
 :- comment(alias, "Stream I/O").
 :- comment(summary, "Built-ins to open, manipulate and close I/O streams").
+:- comment(categories, ["Built-In Predicates"]).
 
 :- comment(open / 4, [
 	summary:"Opens the I/O source or sink SourceSink in mode Mode and associates it

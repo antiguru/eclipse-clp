@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Andrew Eremin, IC-Parc
-% Version:      $Id: bfs.ecl,v 1.2 2009/07/15 07:29:02 jschimpf Exp $
+% Version:      $Id: bfs.ecl,v 1.3 2009/07/16 09:11:25 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -3220,10 +3220,11 @@ get_pool_handle(Handle, Pool) :-
 
 % ----------------------------------------------------------------------
 
+:- comment(categories, ["Algorithms","Constraints"]).
 :- comment(summary, "Best-first search library").
 :- comment(author, "Andrew Eremin").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2009/07/15 07:29:02 $").
+:- comment(date, "$Date: 2009/07/16 09:11:25 $").
 :- comment(status, prototype).
 
 :- comment(include, bfs_comments).
