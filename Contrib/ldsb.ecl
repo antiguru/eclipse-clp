@@ -461,7 +461,7 @@ ground_and_equal(X, Y) :-
         ( ic_sets : is_solver_var(X), ic_sets : is_solver_var(Y) ->
           % if both set variables, are their domains equal?
           set_range(X, L, U), set_range(Y, L, U),
-          card(X, XC), card(Y, YC), get_domain(XC, D), get_domain(YC, D)
+          #(X, XC), #(Y, YC), get_domain(XC, D), get_domain(YC, D)
           % are they both integer variables?
         ; ( ic : is_solver_var(X), ic : is_solver_var(Y) -> true
             % are they both ground and equal?
