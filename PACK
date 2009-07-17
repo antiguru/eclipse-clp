@@ -518,7 +518,7 @@ Name \"ECLiPSe \${VER_MAJOR}\"
 Caption \"ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) Setup\"
 
 InstallDir \"\${MY_PROGRAMFILES}\\ECLiPSe \${VER_MAJOR}\\\"
-OutFile ECLiPSe\${VER_MAJOR}_\${VER_MINOR}_\${ARCH}.exe
+OutFile ECLiPSe_\${VER_MAJOR}_\${VER_MINOR}_\${ARCH}.exe
 SetCompressor /SOLID lzma
  
 InstType \"Typical\"
