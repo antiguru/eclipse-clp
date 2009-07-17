@@ -961,7 +961,7 @@ if [ "$make_nsis_installer" = yes ] ; then
 	if [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
 	    nsisfinish $arch
 	    echo "Building NSIS Windoze installer"
-	    nsis_basename=ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}_${arch}
+	    nsis_basename=ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_${arch}
 	    makensis -V4 -OECLiPSe_NSIS_${arch}.log $nsis_basename.nsi &&
 	    # +x needed by Vista!
 	    chmod a+x $nsis_basename.exe &&
