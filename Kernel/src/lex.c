@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.4 2009/07/17 15:45:49 kish_shen Exp $
  */
 
 /*
@@ -1476,7 +1476,7 @@ string_to_number(char *start, pword *result, stream_id nst, int syntax)
     register int c;			/* current character */
     int	flags = 0;			/* to remember established facts */
     int base = 10;			/* radix for number reading */
-    register word iresult = 0;		/* accumulator for integer value */
+    register uword iresult = 0;		/* accumulator for integer value */
     double f, low_f;			/* the float result */
     int float_digits = 0;
 
@@ -1502,13 +1502,13 @@ _start_:
 	    c -= '0';
 	    if (iresult <= MAX_S_WORD/10 && ((iresult *= 10) <= MAX_S_WORD - c))
 		iresult += c;
-	    else flags |= BIG;	/* 32 bit overflow */
+	    else flags |= BIG;	/*  word overflow */
 	}
 	Get_Ch(c)
     } while (isdigit(c));
 
     if (c == '\'') {			/* based integer */
-	if ((flags & BIG) || iresult < 0 || iresult > 36)
+	if ((flags & BIG) || iresult > 36)
 	{
 	    goto return_int;
 	}
@@ -1542,16 +1542,16 @@ _based_number_:				/* (base,iresult) */
 		else break;
 		if (!(flags & BIG))
 		{
-		    if ((uword)iresult <= MAX_U_WORD/base &&
-			    (((uword)iresult * base) <= MAX_U_WORD - c))
+		    if (iresult <= MAX_U_WORD/base &&
+			    (iresult * base <= MAX_U_WORD - c))
 			iresult = iresult * base + c;
-		    else flags |= BIG;	/* 32 bit overflow */
+		    else flags |= BIG;	/* word overflow */
 		}
 		Get_Ch(c)
 	    }
 	    if (syntax & BASED_BIGNUMS)
 	    {
-		if (!(flags & BIG) && (uword)iresult > MAX_S_WORD)
+	      if (!(flags & BIG) && iresult > MAX_S_WORD)
 		    flags |= BIG;
 	    }
 	    else if (flags & BIG) {
@@ -1754,7 +1754,7 @@ return_int:				/* (flags, iresult, start, base) */
     }
     else	/* integer */
     {
-	result->val.nint = flags & NEG ? -iresult : iresult;
+	result->val.nint = flags & NEG ? (word)-iresult : (word)iresult;
 	result->tag.kernel = TINT;
     }
 

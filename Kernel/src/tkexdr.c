@@ -23,7 +23,7 @@
 /*
  *      System: Eclipse
  *
- *	$Id: tkexdr.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ *	$Id: tkexdr.c,v 1.3 2009/07/17 15:45:49 kish_shen Exp $
  *
  *	Code for exdr communications with ECLiPSe in a tcl program
  */
@@ -46,10 +46,23 @@ typedef unsigned int	uword;
 #elif (SIZEOF_CHAR_P == SIZEOF_LONG)
 typedef long		word;			/* pointer-sized */
 typedef unsigned long	uword;
-#elif (SIZEOF_CHAR_P == __SIZEOF_LONG_LONG__)
-/* ASSUMES HAVE_LONG_LONG! */
+#elif (defined(HAVE_LONG_LONG) || defined(__GNUC__)) && (SIZEOF_CHAR_P == __SIZEOF_LONG_LONG__)
 typedef long long 		word;		/* pointer-sized */
 typedef unsigned long long 	uword;
+#elif defined(HAVE__INT64) && SIZEOF_CHAR_P == 8
+typedef __int64 		word;		/* pointer-sized */
+typedef unsigned __int64 	uword;
+#else
+PROBLEM: word size not supported!
+#endif
+
+/* suffix needed for 64 bit integer constants */
+#if SIZEOF_LONG >= 8
+# define LSUF(X) (X##L)
+#elif (defined(HAVE_LONG_LONG) || defined(__GNUC__)) 
+# define LSUF(X) (X##LL)
+#elif defined(HAVE_INT64)
+# define LSUF(X) (X##I64)
 #endif
 
 #ifdef __STDC__
@@ -135,7 +148,7 @@ static char exdr_header[EXDR_COMPRESSED_HEADER_LEN] = {'V',EXDR_VERSION,'C'};
 	    *dest++ = (char) (aux);				\
 	}
 #define Store_DWord(myword) {\
-	    register uword aux = (myword);			\
+	    register Tcl_WideUInt aux = (myword);		\
 	    *dest++ = (char) (aux >> 56);			\
 	    *dest++ = (char) (aux >> 48);			\
 	    *dest++ = (char) (aux >> 40);			\
@@ -159,8 +172,8 @@ static char exdr_header[EXDR_COMPRESSED_HEADER_LEN] = {'V',EXDR_VERSION,'C'};
 
 typedef union {
 	double	as_dbl;
-#if (SIZEOF_LONG == 8)
-	unsigned long as_int;
+#if (SIZEOF_CHAR_P == 8)
+	uword as_int;
 #else
 	struct ieee_parts {
 #ifdef WORDS_BIGENDIAN 
@@ -184,6 +197,10 @@ _EcReadExdr(Tcl_Interp *interp, Tcl_Channel channel, int nextch, Tcl_HashTable *
     Tcl_Obj *obj, *elem;
     int err;
     long len, arity;
+#if SIZEOF_LONG < 8
+    /* 64 bit integers. Tcl_WideInt (Tcl >= 8.4) is at least 64 bits */
+    Tcl_WideInt wlen;
+#endif
 
     switch(nextch)
     {
@@ -199,20 +216,21 @@ _EcReadExdr(Tcl_Interp *interp, Tcl_Channel channel, int nextch, Tcl_HashTable *
 	Load_Word(len);
 	return Tcl_NewLongObj(len);
 
-#if SIZEOF_LONG == 8
     case 'J':
 	bp = buf;
 	Tcl_Read_Check(8);
+#if SIZEOF_LONG < 8
+	Load_DWord(wlen);
+	return Tcl_NewWideIntObj(wlen);
+#else
 	Load_DWord(len);
 	return Tcl_NewLongObj(len);
-#else
-	/* not supported */
 #endif
 
     case 'D':
 	bp = buf;
 	Tcl_Read_Check(8);
-#if SIZEOF_LONG == 8
+#if SIZEOF_CHAR_P == 8
 	Load_DWord(d.as_int);
 #else
 	Load_Word(d.as_struct.mant1);
@@ -366,6 +384,9 @@ _EcExdr2Tcl(Tcl_Interp *interp, char *bp, char *stop, Tcl_HashTable *string_tabl
     Tcl_Obj *elem;
     int err;
     long len, arity;
+#if SIZEOF_LONG < 8
+    Tcl_WideInt wlen;
+#endif
 
     Buf_Check(1);
     switch(*bp++)
@@ -382,19 +403,20 @@ _EcExdr2Tcl(Tcl_Interp *interp, char *bp, char *stop, Tcl_HashTable *string_tabl
 	*result = Tcl_NewLongObj(len);
 	return bp;
 
-#if SIZEOF_LONG == 8
     case 'J':
 	Buf_Check(8);
+#if SIZEOF_LONG < 8
+	Load_DWord(wlen);
+	*result = Tcl_NewWideIntObj(wlen);
+#else
 	Load_DWord(len);
 	*result = Tcl_NewLongObj(len);
-	return bp;
-#else
-	/* not supported */
 #endif
+	return bp;
 
     case 'D':
 	Buf_Check(8);
-#if SIZEOF_LONG == 8
+#if SIZEOF_CHAR_P == 8
 	Load_DWord(d.as_int);
 #else
 	Load_Word(d.as_struct.mant1);
@@ -561,7 +583,7 @@ _EcTcl2Exdr(Tcl_Interp *interp,
 	int *pos)		/* next position in the resulting byte array */
 {
     int i, len, res, objc;
-    long n;
+    Tcl_WideInt n;
     ieee_double d;
     char *dest, *s, *subtype;
     char buf[10];
@@ -640,26 +662,24 @@ _EcTcl2Exdr(Tcl_Interp *interp,
     }
 
     case 'I':
-	res = Tcl_GetLongFromObj(interp, obj, &n);
+	res = Tcl_GetWideIntFromObj(interp, obj, &n);
 	if (res != TCL_OK) {
 	    Tcl_SetResult(interp, "ec_tcl2exdr: integer expected", TCL_STATIC);
 	    return TCL_ERROR;
 	}
 	dest = buf;
-	if ((long)(char) n == n)
+	if ((Tcl_WideInt)(char) n == n)
 	{
 	    Store_Byte('B');
 	    Store_Byte((char) n);
 	    Tcl_AppendToByteArray(exdr_obj, buf, 2, pos);
 	}
-#if SIZEOF_LONG == 8
-	else if (n < -2147483648L || n > 2147483647L)
+	else if (n < LSUF(-2147483648) || n > LSUF(2147483647))
 	{
 	    Store_Byte('J');
 	    Store_DWord(n);
 	    Tcl_AppendToByteArray(exdr_obj, buf, 9, pos);
 	}
-#endif
 	else
 	{
 	    Store_Byte('I');
@@ -677,7 +697,7 @@ _EcTcl2Exdr(Tcl_Interp *interp,
 	}
 	dest = buf;
 	Store_Byte('D');
-#if SIZEOF_LONG == 8
+#if SIZEOF_CHAR_P == 8
 	Store_DWord(d.as_int);
 #else
 	Store_Word(d.as_struct.mant1);

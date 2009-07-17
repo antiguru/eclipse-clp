@@ -23,7 +23,7 @@
 /*
  *      System: Eclipse
  *
- *	$Id: tkeclipse.c,v 1.1 2008/06/30 17:43:58 jschimpf Exp $
+ *	$Id: tkeclipse.c,v 1.2 2009/07/17 15:45:49 kish_shen Exp $
  *
  *	Code for embedding eclipse into a tcl program
  */
@@ -97,7 +97,8 @@ EcCleanup(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *const *o
 int
 EcSetOption(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *const *objv)
 {
-    long option_id, option_val;
+    long option_id;
+    uword option_val;
     int err;
 
     if (objc != 3)
@@ -132,7 +133,14 @@ EcSetOption(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *const 
     }
     else			/* it must be an integer option */
     {
-	err = Tcl_GetLongFromObj(interp, objv[2], &option_val);
+#if (SIZEOF_LONG == SIZEOF_CHAR_P)
+	err = Tcl_GetLongFromObj(interp, objv[2], (long *)&option_val);
+#elif (SIZEOF_CHAR_P == __SIZEOF_LONG_LONG__)
+	/* assumes Tcl_WideInt is same size as word */
+	err = Tcl_GetWideIntFromObj(interp, objv[2], (Tcl_WideInt *)&option_val);
+#else
+    PROBLEM: cannot deal with this word size
+#endif
 	if (err != TCL_OK)
 	{
 	    Tcl_SetResult(interp, "integer expected", TCL_STATIC);

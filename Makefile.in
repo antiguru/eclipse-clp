@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.9 2009/07/16 09:11:23 jschimpf Exp $
+# $Id: Makefile.in,v 1.10 2009/07/17 15:42:15 kish_shen Exp $
 #
 
 ARCH = @ARCH@
@@ -18,16 +18,17 @@ install_cross:	make_kernel \
 		make_flexlm \
 		make_icparc_solvers \
 		make_javainterface \
-		make_visualisation \
 		make_zincinterface \
 		make_oci
 
 # include subsystems that can only be made if we are building on target
-# (e.g. because they try to make .eco/.eci files and need to run eclipse)
+# (e.g. because they try to make .eco/.eci files and need to run eclipse,
+# or requires the making of such a subsystem)
 install_all:	install_cross \
 		make_ecrc_solvers \
 		make_pt_libraries \
 		make_compiler \
+		make_visualisation \
 		make_contrib \
 		make_mercury
 

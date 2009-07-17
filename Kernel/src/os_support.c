@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.7 2009/03/04 03:56:23 jschimpf Exp $
+ * $Id: os_support.c,v 1.8 2009/07/17 15:45:49 kish_shen Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -1612,6 +1612,9 @@ ec_terminate_alarm()
  *		HKEY_LOCAL_MACHINE\SOFTWARE\IC-Parc\ECLiPSe\<version>
  *	or else
  *		as environment variable <name>
+ *      Note that 64 bit Windows keeps two sets of registry entries, for
+ *      32 and 64 bit applications, so i386_nt and x86_64_nt ECLiPSe
+ *      running on the same machine will not share their registry entries
  *
  * Unix:
  *	look up <name>

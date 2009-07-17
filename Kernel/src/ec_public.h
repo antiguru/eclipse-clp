@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_public.h,v 1.4 2009/03/04 18:16:56 kish_shen Exp $
+ * $Id: ec_public.h,v 1.5 2009/07/17 15:45:49 kish_shen Exp $
  *
  * Macro definitions needed for the ECLiPSe embedding interface.
  *
@@ -60,7 +60,7 @@
 
 /* suffix needed for word-sized constants */
 #if (SIZEOF_WORD == SIZEOF_INT)
-#define WSUF(X) X
+#define WSUF(X)  X
 #define UWSUF(X) X
 #define W_MOD ""
 #elif (SIZEOF_WORD == SIZEOF_LONG)

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.4 2009/07/17 15:45:49 kish_shen Exp $
  */
 
 /*
@@ -1782,26 +1782,30 @@ _int_to_string(value v, type t, char *buf, int quoted_or_base)
     word number = v.nint;
     word aux = number;
     int	len, pos = 0;
-
-    if (number < 0)
-    {
-	buf[pos++] = '-';
-	number = -number;	/* may overflow, see below */
-    }
+    value vv;
 
     do	/* count digits */
     {
 	++pos;
 	aux /= base;
     } while(aux);
-    len = pos;
 
-    buf[pos--] = '\0';
-    if (number < 0)		/* special case -2^(wordsize-1) */
+    if (number < 0)
     {
-	int ch = (number-base) % base;
-	buf[pos--] = (ch < 10) ? ch + '0' : ch + 'a' - 10;
-	number = -(number/base);
+        len = pos+1;
+	buf[0] = '-';
+	buf[len] = '\0';
+	if (number == MIN_S_WORD)    /* special case -2^(wordsize-1) */
+	{
+	  int ch = (number-base) % base;
+	  buf[pos--] = (ch < 10) ? ch + '0' : ch + 'a' - 10;
+	  number = -(number/base);
+        } else
+	  number = -number;
+    } else
+    {
+        len = pos;
+	buf[pos--] = '\0';
     }
     do
     {

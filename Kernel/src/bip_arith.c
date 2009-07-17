@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.4 2009/07/16 09:11:24 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.5 2009/07/17 15:45:49 kish_shen Exp $
  */
 
 /*
@@ -138,14 +138,14 @@ p_succ(value x, type tx, value y, type ty)
     result.tag.kernel = TINT;
     if (IsInteger(tx))
     {
-	result.val.nint = x.nint + 1;
-	if (result.val.nint <= 0) {
-	    if (result.val.nint == MIN_S_WORD) {
-		Bip_Error(INTEGER_OVERFLOW);
-	    }
-	    Fail_;
+        if (x.nint == MAX_S_WORD) {
+	    Bip_Error(INTEGER_OVERFLOW);
 	}
-	Return_Numeric(y, ty, result);
+	if (x.nint < 0) {
+	    Fail_;
+        }
+        result.val.nint = x.nint + 1;
+        Return_Numeric(y, ty, result);
     }
     else if (IsRef(tx))
     {
@@ -160,7 +160,7 @@ p_succ(value x, type tx, value y, type ty)
 	}
 	return unary_arith_op(y, ty, x, tx, ARITH_PREV, TINT);
     }
-    else
+    else 
 	return unary_arith_op(x, tx, y, ty, ARITH_NEXT, TINT);
 }
 

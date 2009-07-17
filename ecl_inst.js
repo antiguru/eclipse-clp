@@ -19,7 +19,14 @@ function jreHome() {
 	return WshShell.RegRead("HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Runtime Environment\\" + jre_version + "\\JavaHome");
     }
     catch(e) {
-	return null;
+	 try {
+		var jre_version = WshShell.RegRead("HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit\\CurrentVersion");
+		jre_version = WshShell.RegRead("HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit\\" + jre_version + "\\JavaHome");
+	 return jre_version + "\\jre"
+   	 }	
+         catch(e) {
+		return null;
+         }	
     }
 }
 
