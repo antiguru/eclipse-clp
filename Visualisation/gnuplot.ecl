@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: gnuplot.ecl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: gnuplot.ecl,v 1.4 2009/07/17 15:51:33 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :-module(gnuplot).
@@ -30,7 +30,7 @@
 :- comment(categories, ["Interfacing","Visualisation"]).
 :- comment(summary, "Interface to the function and data plotting program - gnuplot").
 :- comment(author, "Andrew J Sadler, IC-Parc").
-:- comment(date, "$Id: gnuplot.ecl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $").
+:- comment(date, "$Id: gnuplot.ecl,v 1.4 2009/07/17 15:51:33 kish_shen Exp $").
 
 :- comment(desc, html(
 "<P> This library provides an interface to the function and data
@@ -388,7 +388,7 @@ plot(Data,Options):-
         validate_options(Options, PlotOptions),
         process_data(Data, ProcessedData),
 	get_flag(hostarch, ARCH),
-        ( ARCH=="i386_nt" ->
+        ( (ARCH=="i386_nt" ; ARCH=="x86_64_nt") ->
 	    (
 		% try to find pgnuplot in a few likely locations
 		get_flag(installation_directory, EclDir),

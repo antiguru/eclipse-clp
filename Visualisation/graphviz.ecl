@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: graphviz.ecl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: graphviz.ecl,v 1.4 2009/07/17 15:51:33 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(graphviz).
@@ -30,7 +30,7 @@
 :- comment(categories, ["Interfacing","Visualisation"]).
 :- comment(summary, "Interface to Graphviz Graph Drawing Programs from AT&T").
 :- comment(author, "Andrew J Sadler and Joachim Schimpf, IC-Parc").
-:- comment(date, "$Id: graphviz.ecl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $").
+:- comment(date, "$Id: graphviz.ecl,v 1.4 2009/07/17 15:51:33 kish_shen Exp $").
 :- comment(desc, html("
     This library provides an interface to the Graphviz Graph Drawing Programs
     from AT&T. Graphviz is subject to the following notice:
@@ -362,7 +362,7 @@ get_layout_command(Layout,[Command,"-Geclipse"]):-
         memberchk(Layout,[dot,neato,twopi]),
         !,
 	get_flag(hostarch, ARCH),
-        ( ARCH=="i386_nt" ->
+        ( (ARCH=="i386_nt" ; ARCH=="x86_64_nt") ->
             atom_string(Layout,Command)
         ;
             get_flag(installation_directory, ECLIPSEDIR),
@@ -580,6 +580,7 @@ get_java_command(MainClass, Args,
 
 
     java_path_sep("i386_nt", (;)) :- !.
+    java_path_sep("x86_64_nt", (;)) :- !.
     java_path_sep(_, (:)).
 
     % max size of the virtual machine in megabytes

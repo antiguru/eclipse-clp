@@ -141,6 +141,7 @@ get_java_command(MainClass, Args,
 
 
     java_path_sep("i386_nt", (;)) :- !.
+    java_path_sep("x86_64_nt", (;)) :- !.
     java_path_sep(_, (:)).
 
     % max size of the virtual machine in megabytes
@@ -151,10 +152,11 @@ get_java_command(MainClass, Args,
 % are available to the embedded Eclipse. 
 
 run_java_command(TestCommand, StdOut):-
-	( get_flag(hostarch, "i386_nt") ->
+	get_flag(hostarch, ARCH),
+	( (ARCH = "i386_nt" ; ARCH = "x86_64_nt") ->
 	    getcwd(CWD),
 	    get_flag(installation_directory, ECLIPSEDIR),
-	    concat_string([ECLIPSEDIR, "/lib/i386_nt"], LIBDIR),
+	    concat_string([ECLIPSEDIR, "/lib/", ARCH], LIBDIR),
 	    cd(LIBDIR), 	
 	    exec(TestCommand, [null, StdOut, null], _),
 	    cd(CWD)

@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.32 2009/07/16 09:11:27 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.33 2009/07/17 15:55:50 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -44,6 +44,10 @@
 
 package provide eclipse_tools 1.0
 
+set tkecl(version) 6.1 ;# update also in tkeclipse and examples!
+# including mapdebugdemo.tcl in <ECLiPSe>/document/tutorial/mapdebugdemo.tcl
+
+
 switch $tcl_platform(platform) {
     unix {
 	set tkecl(ECLIPSEDIR) $env(ECLIPSEDIR)
@@ -58,10 +62,12 @@ switch $tcl_platform(platform) {
                   "Font size used for labels in points (+ integer)" } 
     }
     windows {
+	# For Windows 64 bit, the 64 bit version of Tcl must be run to
+	# access the correct (i.e. 64 bit) set of registry entries!
 	package require registry
 	set tkecl(ECLIPSEDIR) [registry get \
-	    HKEY_LOCAL_MACHINE\\SOFTWARE\\IC-Parc\\Eclipse\\6.1 ECLIPSEDIR]
-	;# fixed does not alias to a mono-spaced font in Windows!
+	    HKEY_LOCAL_MACHINE\\SOFTWARE\\IC-Parc\\Eclipse\\$tkecl(version) ECLIPSEDIR]
+	# fixed does not alias to a mono-spaced font in Windows!
 	set tkecl(windows_registry_path) HKEY_CURRENT_USER\\Software\\IC-Parc\\ECLiPSe\\
 	lappend tkecl(preferences) \
 		{monofont_family   courier       font     tkeclipsetoolsrc \
