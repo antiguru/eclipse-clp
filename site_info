@@ -5,7 +5,8 @@ ARCHITECTURES="\
 	i386_linux \
 	x86_64_linux \
 	sparc_sunos5 \
-	i386_nt
+	i386_nt \
+	x86_64_nt
 "
 
 # Machine names that contain dots or hyphens must be given aliases without,
@@ -80,6 +81,7 @@ MACHINE_ppc_macosx=
 MACHINE_i386_macosx=
 MACHINE_sun4=
 MACHINE_i386_nt=$MACHINE_i386_linux	# Cross-compiler
+MACHINE_x86_64_nt=$MACHINE_i386_linux	# Cross-compiler
 
 
 # List specifying which architectures and machines (do not) support Java.
@@ -116,6 +118,7 @@ TEST_MACHINES_ppc_macosx=
 TEST_MACHINES_i386_macosx=
 TEST_MACHINES_sun4=
 TEST_MACHINES_i386_nt=
+TEST_MACHINES_x86_64_nt=
 
 MACHINE_CLASS_ALIAS_farm=
 
