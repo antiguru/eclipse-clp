@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.16 2009/07/16 09:11:25 jschimpf Exp $
+# $Id: Makefile.in,v 1.17 2009/07/20 15:54:28 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -556,10 +556,10 @@ RXNAME	= rxspencer
 
 ifeq ($(OSCLASS),win)
 
-$(ARCH)/eregex.dll: eregex.c rxspencer/libregex.a
+$(ARCH)/eregex.dll: eregex.c $(ARCH)/libregex.a
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -Irxspencer -shared -o $@ \
-		$(<:.c=.def) $< rxspencer/libregex.a $(ECLIBS)
+		$(<:.c=.def) $< $(ARCH)/libregex.a $(ECLIBS)
 
 else
 
@@ -572,12 +572,13 @@ $(ARCH)/eregex.$(OBJ_SUFFIX): eregex.c
 
 endif
 
-# CAUTION: we build directly in the rxspencer directory!
-# This is only ok as long as rxspencer is only used on a single architecture!
-rxspencer/libregex.a:
+# CAUTION: we build directly in the rxspencer directory, but the binary
+# libregex.a is moved after building to allow different architectures 
+$(ARCH)/libregex.a:
+	[ -d $(ARCH) ] || mkdir $(ARCH)
 	( cd rxspencer ; \
 	  CC="$(CC)" AR="$(AR)" $(MAKE) lib)
-
+	mv rxspencer/libregex.a $(ARCH)/.
 
 #----------------------------------------------------------------------
 # Ilog Solver
