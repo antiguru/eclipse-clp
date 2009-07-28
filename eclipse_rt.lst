@@ -2,7 +2,7 @@ ${AUXOBJ}
 lib/${ARCH}/${LIBPREFIX}ec_java.${LIBSUFFIX}
 lib/${ARCH}/${LIBPREFIX}ec_java_load.${LIBSUFFIX}
 lib/${ARCH}/${LIBPREFIX}eclipse.${LIBSUFFIX}
-lib/${ARCH}/${LIBPREFIX}gmp*.${LIBSUFFIX}*
+lib/${ARCH}/*gmp*.${LIBSUFFIX}*
 lib/${ARCH}/bitmap.${SOSUFFIX}
 lib/${ARCH}/dbi_mysql.${SOSUFFIX}
 lib/${ARCH}/eclipse.exe
