@@ -113,7 +113,7 @@ A ne B \ B ne A <=> true.
 	Mid is (Min+Max)/2,
 	(X::Min:Mid ; X ne Mid, X::Mid:Max).
 
-	ground(X):- not nonground(X).
+%	ground(X):- not nonground(X).
 
 	domain(Kind):- getval(domain,Kind).
 
