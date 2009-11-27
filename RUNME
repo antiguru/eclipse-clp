@@ -25,6 +25,8 @@
 # This is a shell script. Run it to install ECLiPSe.
 #
 
+#set -v
+
 usage="\
 Usage: $0 [options]
 Options:
@@ -80,6 +82,7 @@ else
 fi
 
 # ask <prompt> <variable> [<possible_values>]
+# If possible_values is "", then don't reconfirm input
 ask () {
     eval answer=\$$2
     accept=
@@ -92,6 +95,10 @@ ask () {
 	    accept=y
 	else
 	    if test $# = 3; then
+		if  test -z "$3"; then
+		    answer="$new"
+		    break
+		fi
 		for val in $3; do
 		    if test "$new" = "$val"; then
 			answer="$new"
@@ -116,6 +123,157 @@ have_java_interface () {
     test -f $ECLIPSEDIR/lib/$ARCH/*ec_java.*
 }
 
+
+TCL_REQUIRED="8.5 8.4 8.3"
+
+find_tcl() {
+
+    ecl_tcl_arch="$ECLIPSEDIR/tcltk/$ARCH"
+    TCL_WISH=`echo "$ecl_tcl_arch"/bin/wish*`
+    if [ -x "$TCL_WISH" ]; then
+
+	# We have our private Tcl with fixed structure
+	echo Using bundled Tcl/Tk in $ecl_tcl_arch
+
+	TCL_VERSION=`basename "$TCL_WISH"|sed -e 's/wish//'`
+	TCL_ARCH_LIBRARY="$ecl_tcl_arch/lib"
+	TCL_LIBRARY="$ecl_tcl_arch/lib/tcl$TCL_VERSION"
+	TK_LIBRARY="$ecl_tcl_arch/lib/tk$TCL_VERSION"
+
+	TCL_FRAMEWORK=`dirname "$ecl_tcl_arch"`/Library/Frameworks
+	TCL_XWISH=`echo "$ecl_tcl_arch"/bin/xwish*`
+
+	[ -d "$TCL_ARCH_LIBRARY" ] &&
+	[ -d "$TCL_LIBRARY" ] &&
+	[ -d "$TK_LIBRARY" ] ||
+	    ( echo "Bundled Tcl/Tk in $ecl_tcl_arch corrupted" && return 1 )
+
+    else
+
+	# Find wish in the path, first for the preferred versions
+
+	TCL_WISH=
+	for TCL_VERSION in $TCL_REQUIRED; do
+	    TCL_WISH="`which wish$TCL_VERSION`" && break
+	done || (
+
+	# If nothing found, check without explicit version
+	TCL_WISH="`which wish`" &&
+	TCL_SH="`which tclsh`" &&
+	TCL_VERSION=`echo 'puts $tcl_version'|"$TCL_SH"` ) || (
+	
+	echo "Cannot find wish" && return 1 )
+
+	#echo Found tcl version $TCL_VERSION
+	#echo Found $TCL_WISH
+
+	# Look for (shared/static) libraries
+
+	tcl_dirs="/lib /usr/lib /usr/local/lib"
+	tcl_version_nodot=`echo $TCL_VERSION|tr -d .`
+	tcl_libs="libtcl$TCL_VERSION.$OBJECTS_SUFFIX libtcl$TCL_VERSION.a\
+		tcl$TCL_VERSION.dll\ tcl$tcl_version_nodot.dll"
+
+	for TCL_ARCH_LIBRARY in $tcl_dirs; do
+	    for TCL_LIB in $tcl_libs; do
+	    	[ -f "$TCL_ARCH_LIBRARY/$TCL_LIB" ] && break 2
+	    done
+	done || ( echo "Cannot find tcl binary libraries" && return 1 )
+
+	#echo Found $TCL_ARCH_LIBRARY
+
+
+	# Look for the .tcl libraries
+
+	tcl_dirs="$tcl_dirs /usr/share/tcltk"
+	for tcl_dir in $tcl_dirs; do
+	    TCL_LIBRARY="$tcl_dir/tcl$TCL_VERSION"
+	    [ -f "$TCL_LIBRARY/init.tcl" ] && break
+	done &&
+	for tcl_dir in $tcl_dirs; do
+	    TK_LIBRARY="$tcl_dir/tk$TCL_VERSION"
+	    [ -f "$TK_LIBRARY/console.tcl" ] && break
+	done || ( echo "Cannot find tcl/tk library directories" && return 1 )
+
+	#echo Found $TCL_LIBRARY and $TK_LIBRARY
+
+
+	# Additional stuff for MacOSX
+
+	case $ARCH in
+	    *_macosx)
+		tcl_dirs="/Library/Frameworks /System/Library/Frameworks"
+		for TCL_FRAMEWORK in $tcl_dirs; do
+		    [ -d "$TCL_FRAMEWORK/Tcl.framework" ] && break
+		done || ( echo "ERROR: Cannot find Tcl.framework" && return 1 )
+
+		# There is probably a better way to do this:
+		TCL_XWISH="`which xwish`"
+		;;
+	esac
+
+    fi	
+}
+
+
+specify_tcl() {
+    echo "Specify the Tcl/Tk installation to use."
+
+    case $ARCH in
+	*_macosx)
+	    ask "What is the version number of your Tcl/Tk installation (8.X) \n[Note that 8.5 prior to 8.5.7 was broken for ECLiPSe]"  TCL_VERSION "8.3 8.4 8.5" 
+	    ;;
+	*)
+	    ask "What is the version number of your Tcl/Tk installation (8.X)" TCL_VERSION "8.3 8.4 8.5"
+	    ;;
+    esac
+
+    while true; do
+	ask "What is the full pathname of the wish$TCL_VERSION executable" TCL_WISH ""
+	[ -x "$TCL_WISH" ] && break || echo "ERROR: No such executable: $TCL_WISH"
+    done
+
+    case $ARCH in
+	*_macosx)
+	    echo "On MacOSX, the native Aqua Tcl/Tk is packaged using Frameworks."
+	    ask "In which directory is the Tcl Framework (where Tcl.framework is)" TCL_FRAMEWORK
+
+	    echo "MacOSX can also run Tk in the X11 windowing system.  If you want"
+	    echo "to use the X11 version of Tcl/Tk $TCL_VERSION, you can also"
+	    echo "setup xtkeclipse (and xtktools) to run the X11 version of TkECLiPSe."
+	    ask "Do you want to do this" do_x11 "y n"
+	    if test "$do_x11" = y; then
+		while true; do
+		    ask "What is the full pathname of the wish$TCL_VERSION executable for X11" TCL_XWISH ""
+		    [ -x "$TCL_XWISH" ] && break || echo "ERROR: No such executable: $TCL_XWISH"
+		done
+		while true; do
+		    ask "Where is the X11 Tcl/Tk objects library directory (.dylib files)" TCL_ARCH_LIBRARY ""
+		    [ -d "$TCL_ARCH_LIBRARY" ] && break || echo "ERROR: No such directory: $TCL_ARCH_LIBRARY"
+		done
+	        TK_ARCH_LIBRARY="$TCL_ARCH_LIBRARY"
+	    fi
+	    ;;
+       *)
+	    while true; do
+		ask "Where is the Tcl/Tk objects library directory (.$OBJECTS_SUFFIX/.a files)" TCL_ARCH_LIBRARY ""
+		[ -d "$TCL_ARCH_LIBRARY" ] && break || echo "ERROR: No such directory: $TCL_ARCH_LIBRARY"
+	    done
+	    TK_ARCH_LIBRARY="$TCL_ARCH_LIBRARY"
+	    ;;
+
+    esac 
+
+    while true; do
+	ask "What is the Tcl library directory (.tcl files)" TCL_LIBRARY ""
+	[ -d "$TCL_LIBRARY" ] && break || echo "ERROR: No such directory: $TCL_LIBRARY"
+    done
+    TK_LIBRARY="`dirname $TCL_LIBRARY`/tk$TCL_VERSION"
+    while true; do
+	ask "What is the Tk library directory (.tcl files)" TK_LIBRARY ""
+	[ -d "$TK_LIBRARY" ] && break || echo "ERROR: No such directory: $TK_LIBRARY"
+    done
+}
 
 echo "----------------------------------------------------------------------"
 echo Welcome to the ECLiPSe installation procedure
@@ -170,23 +328,13 @@ fi
 # directory defaults
 ECLIPSEDIR=`pwd`
 EXE_DIR="\$ECLIPSEDIR/bin/$ARCH"
-TCL_DIR="${TCL_DIR:-\$ECLIPSEDIR/tcltk/$ARCH}"
-TCL_ARCH_DIR="${TCL_ARCH_DIR:-\$ECLIPSEDIR/tcltk/$ARCH}"
-TCL_VERSION="${TCL_VERSION:-8.5}"
-WISH_DIRECTORY="$TCL_ARCH_DIR/bin"
-TCL_ARCH_LIBRARY="$TCL_ARCH_DIR/lib"
-TCL_LIBRARY="$TCL_DIR/lib/tcl$TCL_VERSION"
-TK_LIBRARY="$TCL_DIR/lib/tk$TCL_VERSION"
 DAVINCIHOME="${DAVINCIHOME:-\$ECLIPSEDIR/daVinci/$ARCH}"
 USER_OBJECTS=""
-TCL_FRAMEWORK="$TCL_ARCH_DIR/Library/Frameworks"
 case $ARCH in
     *_macosx)
-# name of environment variable for specifying library paths
+	# name of environment variable for specifying library paths
 	LD_LIB_PATH_NAME=DYLD_LIBRARY_PATH
 	FRAMEWORK_PATH_NAME=DYLD_FRAMEWORK_PATH
-	XWISH_DIRECTORY="$WISH_DIRECTORY"
-	XWISH_EXEC="xwish$TCL_VERSION"
 	;;
     *)
 	LD_LIB_PATH_NAME=LD_LIBRARY_PATH
@@ -216,7 +364,7 @@ ask "What is the current directory (ECLIPSEDIR)" ECLIPSEDIR
 while test `cd "$ECLIPSEDIR";/bin/pwd` != `/bin/pwd`; do
     echo
     echo "This is not same as the current directory! Please try again:"
-    ask "What is the current (=installation) directory" ECLIPSEDIR
+    ask "What is the current (=installation) directory" ECLIPSEDIR ""
 done
 
 LIB_ARCH_DIR="$ECLIPSEDIR/lib/$ARCH"
@@ -244,47 +392,26 @@ if test -d "$ECLIPSEDIR/bin"; then chmod 2755 "$ECLIPSEDIR/bin"; fi
 
 
 echo "----------------------------------------------------------------------"
-echo "Now some questions about your Tcl/Tk installation."
-echo "If you have unpacked the tcltk-package that comes with the ECLiPSe"
-echo "distribution, then just accept the defaults by hitting return."
-echo "Also, if you don't want to use the tkeclipse graphical development"
-echo "environment, just hit return."
-echo "If you want to use your existing Tcl/Tk installation (e.g. on Linux)"
-echo "please specify the corresponding information here:"
+echo "For the graphical user interface TkECLiPSe you need Tcl/Tk ($TCL_REQUIRED)."
+[ -d "$TCL_ARCH_LIBRARY" ] || find_tcl || specify_tcl
 
-case $ARCH in
-    *_macosx)
-ask "What is the version number of your Tcl/Tk installation (8.X) \n[Note that 8.5 prior to 8.5.7 was broken for ECLiPSe]"  TCL_VERSION "8.3 8.4 8.5" 
-      ;;
-    *)
-ask "What is the version number of your Tcl/Tk installation (8.X)" TCL_VERSION "8.3 8.4 8.5"
-      ;;
-esac
-ask "In which directory is the wish$TCL_VERSION executable" WISH_DIRECTORY
+ACCEPT=none
+while [ "$ACCEPT" != a ]; do
+    echo "We will use the following Tcl/Tk installation:"
+    echo "  TCL_VERSION:      $TCL_VERSION"
+    echo "  TCL_WISH:         $TCL_WISH"
+    echo "  TCL_ARCH_LIBRARY: $TCL_ARCH_LIBRARY"
+    echo "  TCL_LIBRARY:      $TCL_LIBRARY"
+    echo "  TK_LIBRARY:       $TK_LIBRARY"
+    ACCEPT=a
+    ask "Accept (a), find automatically (f), specify manually (m), skip (s)" ACCEPT "a f m s"
+    case "$ACCEPT" in
+	f) find_tcl;;
+	m) specify_tcl;;
+	s) ACCEPT=a;;
+    esac
+done
 
-case $ARCH in
-    *_macosx)
-	echo "On MacOSX, the native Aqua Tcl/Tk is packaged using Frameworks."
-	ask "In which directory is the Tcl Framework (where Tcl.framework is)" TCL_FRAMEWORK
-	echo "MacOSX can also run Tk in the X11 windowing system.  If you want"
-        echo "to use the X11 version of Tcl/Tk $TCL_VERSION, you can also"
-	echo "setup xtkeclipse (and xtktools) to run the X11 version of TkECLiPSe."
-	ask "In which directory is the wish$TCL_VERSION executable for X11 (none if you don't have it)" XWISH_DIRECTORY
-
-	if test $XWISH_DIRECTORY != "none"; then
-	    ask "What is the name of the wish$TCL_VERSION executable for X11" XWISH_EXEC
-	   ask "Where is the X11 Tcl/Tk objects library directory (.dylib files)" TCL_ARCH_LIBRARY
-           TK_ARCH_LIBRARY="$TCL_ARCH_LIBRARY"
-	fi
-        ;;
-   *)
-        ask "Where is the Tcl/Tk objects library directory (.so/.a files)" TCL_ARCH_LIBRARY
-        TK_ARCH_LIBRARY="$TCL_ARCH_LIBRARY"
-        ;;
-
-esac 
-ask "Where is the Tcl library directory (.tcl files)" TCL_LIBRARY
-ask "Where is the Tk library directory (.tcl files)" TK_LIBRARY
 
 #echo "----------------------------------------------------------------------"
 #echo "ECLiPSe can interface to the daVinci graph drawing package"
@@ -299,7 +426,13 @@ if have_java_interface; then
     echo "ECLiPSe can interface to Java (version 1.2 or later).  If you wish"
     echo "to make use of this interface, please specify the location of your"
     echo "Java Runtime Environment (JRE_HOME)."
-    ask "Where is your Java Runtime Environment installed" JRE_HOME
+    jre="$JRE_HOME"
+    while true; do
+	ask "Where is your Java Runtime Environment installed (s to skip)" jre ""
+	if [ "$jre" = s ]; then break; fi
+	if [ -x "$jre/bin/java" ]; then JRE_HOME="$jre"; break; fi
+	echo "ERROR: Can't find java in $jre"
+    done
 else
     echo "Java interface not supported in this configuration, skipping."
 fi
@@ -518,7 +651,7 @@ TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY $FRAMEWORK_PATH_NAME $LD_LIB_PATH_NAME DAVINCIHOME JRE_HOME
-exec "$WISH_DIRECTORY/wish$TCL_VERSION" "$ECLIPSEDIR/lib_tcl/tkeclipse.tcl" -- "\$@"
+exec "$TCL_WISH" "$ECLIPSEDIR/lib_tcl/tkeclipse.tcl" -- "\$@"
 EOF
 chmod 755 "$dest"
 
@@ -529,7 +662,7 @@ chmod 755 "$dest"
 case $ARCH in
     *_macosx)
 
-	if test $XWISH_DIRECTORY != none; then
+	if test -x "$TCL_XWISH"; then
 
 	    dest="$EXE_DIR/xtkeclipse"
 	    echo Making "$dest"
@@ -544,7 +677,7 @@ TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY DYLD_FRAMEWORK_PATH DYLD_LIBRARY_PATH DAVINCIHOME JRE_HOME
-exec "$XWISH_DIRECTORY/$XWISH_EXEC" "$ECLIPSEDIR/lib_tcl/tkeclipse.tcl" -- "\$@"
+exec "$TCL_XWISH" "$ECLIPSEDIR/lib_tcl/tkeclipse.tcl" -- "\$@"
 EOF
 	    chmod 755 "$dest"
 
@@ -560,7 +693,7 @@ TCL_LIBRARY="\${TCL_LIBRARY:-$TCL_LIBRARY}"
 TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY DYLD_FRAMEWORK_PATH DYLD_LIBRARY_PATH DAVINCIHOME
-exec "$XWISH_DIRECTORY/$XWISH_EXEC" "$ECLIPSEDIR/lib_tcl/tktools.tcl" -- "\$@"
+exec "$TCL_XWISH" "$ECLIPSEDIR/lib_tcl/tktools.tcl" -- "\$@"
 EOF
 	    chmod 755 "$dest"
 
@@ -612,7 +745,7 @@ cat >> "$dest" <<EOF
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
 CLASSPATH="\$ECLIPSEDIR/lib/eclipse.jar:\${JRE_HOME}/lib/rt.jar"
 export ECLIPSEDIR JRE_HOME
-exec "\${JRE_HOME}/bin/java" ${JIT_OPTION} -Declipse.directory="\$ECLIPSEDIR" -classpath "\$CLASSPATH" com.parctechnologies.eclipse.JEclipse "\$@"
+exec "\${JRE_HOME}/bin/java" -Xss2m ${JIT_OPTION} -Declipse.directory="\$ECLIPSEDIR" -classpath "\$CLASSPATH" com.parctechnologies.eclipse.JEclipse "\$@"
 EOF
     chmod 755 "$dest"
 
@@ -643,7 +776,7 @@ TCL_LIBRARY="\${TCL_LIBRARY:-$TCL_LIBRARY}"
 TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY $FRAMEWORK_PATH_NAME $LD_LIB_PATH_NAME DAVINCIHOME 
-exec "$WISH_DIRECTORY/wish$TCL_VERSION" "$ECLIPSEDIR/lib_tcl/tktools.tcl" -- "\$@"
+exec "$TCL_WISH" "$ECLIPSEDIR/lib_tcl/tktools.tcl" -- "\$@"
 EOF
 chmod 755 "$dest"
 
@@ -677,8 +810,8 @@ TCL_LIBRARY='$TCL_LIBRARY'
 TK_LIBRARY='$TK_LIBRARY'
 DAVINCIHOME='$DAVINCIHOME'
 TCL_ARCH_LIBRARY='$TCL_ARCH_LIBRARY'
-WISH_DIRECTORY='$WISH_DIRECTORY'
-XWISH_DIRECTORY='$XWISH_DIRECTORY'
+TCL_WISH='$TCL_WISH'
+TCL_XWISH='$TCL_XWISH'
 TCL_VERSION='$TCL_VERSION'
 TCL_FRAMEWORK='$TCL_FRAMEWORK'
 X_LIBRARIES='$X_LIBRARIES'
