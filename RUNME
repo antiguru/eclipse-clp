@@ -120,7 +120,7 @@ ask () {
 # test whether this configuration has a java interface
 
 have_java_interface () {
-    test -f $ECLIPSEDIR/lib/$ARCH/*ec_java.*
+    test -f "$ECLIPSEDIR/lib/$ARCH/*ec_java.*"
 }
 
 
@@ -145,8 +145,8 @@ find_tcl() {
 
 	[ -d "$TCL_ARCH_LIBRARY" ] &&
 	[ -d "$TCL_LIBRARY" ] &&
-	[ -d "$TK_LIBRARY" ] ||
-	    ( echo "Bundled Tcl/Tk in $ecl_tcl_arch corrupted" && return 1 )
+	[ -d "$TK_LIBRARY" ] || {
+	    echo "Bundled Tcl/Tk in $ecl_tcl_arch corrupted" && return 1; }
 
     else
 
@@ -154,15 +154,16 @@ find_tcl() {
 
 	TCL_WISH=
 	for TCL_VERSION in $TCL_REQUIRED; do
-	    TCL_WISH="`which wish$TCL_VERSION`" && break
-	done || (
+	    # caution: not all which's have a useful return code!
+	    TCL_WISH="`which wish$TCL_VERSION 2>/dev/null`" && [ -x "$TCL_WISH" ] && break
+	done || {
 
 	# If nothing found, check without explicit version
-	TCL_WISH="`which wish`" &&
-	TCL_SH="`which tclsh`" &&
-	TCL_VERSION=`echo 'puts $tcl_version'|"$TCL_SH"` ) || (
+	TCL_WISH=`which wish 2>/dev/null` && [ -x "$TCL_WISH" ] &&
+	TCL_SH=`which tclsh 2>/dev/null` && [ -x "$TCL_SH" ] &&
+	TCL_VERSION=`echo 'puts $tcl_version'|"$TCL_SH"`; } || {
 	
-	echo "Cannot find wish" && return 1 )
+	echo "Cannot find wish" && return 1; }
 
 	#echo Found tcl version $TCL_VERSION
 	#echo Found $TCL_WISH
@@ -172,13 +173,13 @@ find_tcl() {
 	tcl_dirs="/lib /usr/lib /usr/local/lib"
 	tcl_version_nodot=`echo $TCL_VERSION|tr -d .`
 	tcl_libs="libtcl$TCL_VERSION.$OBJECTS_SUFFIX libtcl$TCL_VERSION.a\
-		tcl$TCL_VERSION.dll\ tcl$tcl_version_nodot.dll"
+		tcl$TCL_VERSION.OBJECTS_SUFFIX\ tcl$tcl_version_nodot.OBJECTS_SUFFIX"
 
 	for TCL_ARCH_LIBRARY in $tcl_dirs; do
 	    for TCL_LIB in $tcl_libs; do
 	    	[ -f "$TCL_ARCH_LIBRARY/$TCL_LIB" ] && break 2
 	    done
-	done || ( echo "Cannot find tcl binary libraries" && return 1 )
+	done || { echo "Cannot find tcl binary libraries" && return 1; }
 
 	#echo Found $TCL_ARCH_LIBRARY
 
@@ -193,7 +194,7 @@ find_tcl() {
 	for tcl_dir in $tcl_dirs; do
 	    TK_LIBRARY="$tcl_dir/tk$TCL_VERSION"
 	    [ -f "$TK_LIBRARY/console.tcl" ] && break
-	done || ( echo "Cannot find tcl/tk library directories" && return 1 )
+	done || { echo "Cannot find tcl/tk library directories" && return 1; }
 
 	#echo Found $TCL_LIBRARY and $TK_LIBRARY
 
@@ -205,10 +206,10 @@ find_tcl() {
 		tcl_dirs="/Library/Frameworks /System/Library/Frameworks"
 		for TCL_FRAMEWORK in $tcl_dirs; do
 		    [ -d "$TCL_FRAMEWORK/Tcl.framework" ] && break
-		done || ( echo "ERROR: Cannot find Tcl.framework" && return 1 )
+		done || { echo "ERROR: Cannot find Tcl.framework" && return 1; }
 
-		# There is probably a better way to do this:
-		TCL_XWISH="`which xwish`"
+		# There is probably a better way to locate this:
+		TCL_XWISH=`which xwish 2>/dev/null` && [ -x "$TCL_XWISH" ] || TCL_XWISH=
 		;;
 	esac
 
@@ -268,7 +269,7 @@ specify_tcl() {
 	ask "What is the Tcl library directory (.tcl files)" TCL_LIBRARY ""
 	[ -d "$TCL_LIBRARY" ] && break || echo "ERROR: No such directory: $TCL_LIBRARY"
     done
-    TK_LIBRARY="`dirname $TCL_LIBRARY`/tk$TCL_VERSION"
+    TK_LIBRARY=`dirname $TCL_LIBRARY`/tk$TCL_VERSION
     while true; do
 	ask "What is the Tk library directory (.tcl files)" TK_LIBRARY ""
 	[ -d "$TK_LIBRARY" ] && break || echo "ERROR: No such directory: $TK_LIBRARY"
@@ -315,15 +316,11 @@ fi
 
 ask "Which machine achitecture (ARCH) are we installing for" ARCH
 
-if test $ARCH = "i386_nt" ; then
-    echo "Nothing to do for $ARCH"
-    exit 0
-fi
-
-if test $ARCH = "x86_64_nt" ; then
-    echo "Nothing to do for $ARCH"
-    exit 0
-fi
+case $ARCH in
+    *_nt)
+	echo "Nothing to do for $ARCH"
+	exit 0;;
+esac
 
 # directory defaults
 ECLIPSEDIR=`pwd`
@@ -361,7 +358,7 @@ echo "a symbolic path under which this directory can be found on all"
 echo "the networked machines."
 ask "What is the current directory (ECLIPSEDIR)" ECLIPSEDIR
 
-while test `cd "$ECLIPSEDIR";/bin/pwd` != `/bin/pwd`; do
+while test "`cd \"$ECLIPSEDIR\";/bin/pwd`" != "`/bin/pwd`"; do
     echo
     echo "This is not same as the current directory! Please try again:"
     ask "What is the current (=installation) directory" ECLIPSEDIR ""
