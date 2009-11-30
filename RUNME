@@ -126,6 +126,13 @@ have_java_interface () {
 
 TCL_REQUIRED="8.5 8.4 8.3"
 
+usable_tcl() {
+    [	-x "$TCL_WISH" -a \
+    	-d "$TCL_ARCH_LIBRARY" -a \
+    	-f "$TK_LIBRARY/console.tcl" -a \
+	-f "$TCL_LIBRARY/init.tcl" ]
+}
+
 find_tcl() {
 
     ecl_tcl_arch="$ECLIPSEDIR/tcltk/$ARCH"
@@ -143,9 +150,7 @@ find_tcl() {
 	TCL_FRAMEWORK=`dirname "$ecl_tcl_arch"`/Library/Frameworks
 	TCL_XWISH=`echo "$ecl_tcl_arch"/bin/xwish*`
 
-	[ -d "$TCL_ARCH_LIBRARY" ] &&
-	[ -d "$TCL_LIBRARY" ] &&
-	[ -d "$TK_LIBRARY" ] || {
+	usable_tcl || {
 	    echo "Bundled Tcl/Tk in $ecl_tcl_arch corrupted" && return 1; }
 
     else
@@ -390,22 +395,21 @@ if test -d "$ECLIPSEDIR/bin"; then chmod 2755 "$ECLIPSEDIR/bin"; fi
 
 echo "----------------------------------------------------------------------"
 echo "For the graphical user interface TkECLiPSe you need Tcl/Tk ($TCL_REQUIRED)."
-[ -d "$TCL_ARCH_LIBRARY" ] || find_tcl || specify_tcl
 
-ACCEPT=none
-while [ "$ACCEPT" != a ]; do
+{ usable_tcl || find_tcl; } && ACCEPT=a || ACCEPT=s
+while true; do
     echo "We will use the following Tcl/Tk installation:"
     echo "  TCL_VERSION:      $TCL_VERSION"
     echo "  TCL_WISH:         $TCL_WISH"
     echo "  TCL_ARCH_LIBRARY: $TCL_ARCH_LIBRARY"
     echo "  TCL_LIBRARY:      $TCL_LIBRARY"
     echo "  TK_LIBRARY:       $TK_LIBRARY"
-    ACCEPT=a
-    ask "Accept (a), find automatically (f), specify manually (m), skip (s)" ACCEPT "a f m s"
+    ask "Accept (a), find automatically (f), specify manually (m), or skip (s)" ACCEPT "a f m s"
     case "$ACCEPT" in
-	f) find_tcl;;
-	m) specify_tcl;;
-	s) ACCEPT=a;;
+	a) break;;
+	f) find_tcl && ACCEPT=a || ACCEPT=s;;
+	m) specify_tcl; ACCEPT=a;;
+	s) break;;
     esac
 done
 
@@ -429,6 +433,7 @@ if have_java_interface; then
 	if [ "$jre" = s ]; then break; fi
 	if [ -x "$jre/bin/java" ]; then JRE_HOME="$jre"; break; fi
 	echo "ERROR: Can't find java in $jre"
+	jre=s
     done
 else
     echo "Java interface not supported in this configuration, skipping."
