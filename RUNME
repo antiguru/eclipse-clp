@@ -120,7 +120,7 @@ ask () {
 # test whether this configuration has a java interface
 
 have_java_interface () {
-    test -f "$ECLIPSEDIR/lib/$ARCH/*ec_java.*"
+    test -f "$ECLIPSEDIR"/lib/$ARCH/*ec_java.*
 }
 
 
