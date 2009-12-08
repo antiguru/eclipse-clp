@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.13 2009/07/19 23:34:49 kish_shen Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.14 2009/12/08 05:11:30 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -205,7 +205,7 @@ for param_name in $required_site_params; do
     fi
 done
 
-if [ "$ARCH" = i386_nt ] ; then
+if [ "$ARCH" = i386_nt -o "$ARCH" = x86_64_nt ] ; then
     LOCAL_ROTD_DIR=R:
 else
     LOCAL_ROTD_DIR=$ROTD_DIR
@@ -773,9 +773,9 @@ build_archives() {	# list of achitectures
 	    # Apache http server displays contents of README file,
 	    # but also hides the file.  That's why we create both
 	    # README and Readme ...
-	    if [ \"\$arch\" = i386_nt ] ; then
+	    if [ \"\$arch\" = i386_nt -o \"\$arch\" = x86_64_nt ] ; then
 		# Change Windoze installer permission
-		chmod ug+w,ugo+rx ECLiPSe${ECLIPSE_VERSION}_${BUILD_NUMBER}.exe
+		chmod ug+w,ugo+rx ECLiPSe*.exe
 
 		# Don't include the UNPACK script
 		rm -f UNPACK
@@ -953,7 +953,7 @@ install_archives() {	# installation number
 		# because it has one extra file
 		if [ \"$package_type\" = runtime ] ; then
 		    for arch in $archs ; do
-			if [ \"\$arch\" = i386_nt ] ; then
+			if [ \"\$arch\" = i386_nt -o \"\$arch\" = x86_64_nt ] ; then
 			    tar xfpz $PREFIX/$TMP_ARCHIVE_DIR/\$arch/eclipse_basic.tgz \
 				    ecl_inst.js lib/test_util.eco lib/mip.eco &&
 			    break
@@ -962,7 +962,7 @@ install_archives() {	# installation number
 			# looks like a failure.
 			false
 		    done \
-		    || if [ \"\$arch\" != i386_nt ] ; then
+		    || if [ \"\$arch\" != i386_nt -a \"\$arch\" != x86_64_nt ] ; then
 			tar xfpz $PREFIX/$TMP_ARCHIVE_DIR/\$arch/eclipse_basic.tgz \
 			    lib/test_util.eco lib/mip.eco
 		    fi
@@ -977,7 +977,7 @@ install_archives() {	# installation number
 	(
 	    install_result=0
 	    for arch in $archs ; do
-		[ "$arch" = i386_nt ] && continue	# Skip i386_nt.
+		[ "$arch" = i386_nt -o "$arch" = x86_64_nt ] && continue	# Skip i386_nt.
 
 		eval machine=\"'$MACHINE_'$arch\"
 		remote_commands "$machine" "$PREFIX/$install_dir" "
@@ -1043,13 +1043,13 @@ generate_test_combinations() {	# list of installations
 
 	for arch in $archs ; do
 	    if [ "$install_name" = all ] ; then
-		if [ "$arch" = i386_nt ] ; then
+		if [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
 		    phase=1
 		else
 		    phase=2
 		fi
 	    else
-		if [ "$arch" = i386_nt ] ; then
+		if [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
 		    phase=2
 		else
 		    phase=1
@@ -1202,35 +1202,45 @@ check_out_all_tests() {
 }
 
 
+# Really awful hack to make the remote ROTD_DIR_xxx path acceptable
+# to a remote (cygwin-)rsync on a windows machine.
+
+rsync_path() {
+    echo $1 | sed "s/^[a-zA-Z]:\/cygwin\//\//"
+}
+
+
 # Copy relevant parts (needed for tests) to a remote machine
 # In: $machine $arch
-# Out: $remote_prefix
+# Out: $remote_prefix $is_remote_machine
 
-rsync_out() {		# ($machine, $arch -> $remote_prefix)
-    echo "Called rsync_out($machine,$arch)"
+rsync_out() {		# ($machine, $arch -> $is_remote_machine, $remote_prefix)
     eval rsync_machine_name=\"'$MACHINE_NAME_'$machine\"
     if [ "$rsync_machine_name" = "" ] ; then
 	rsync_machine_name="$machine"
     fi
     eval is_remote_machine=\"'$REMOTE_MACHINE_'$machine\"
     if [ -n "$is_remote_machine" ] ; then
+	echo `date '+%Y-%m-%d %T'` "Commencing rsync to $rsync_machine_name" >> $SSH_LOG_FILE
 	eval remote_prefix=\"'$ROTD_DIR_'$machine\"
+	rsync_prefix=`rsync_path $remote_prefix`
 	(
 	    cd "$PREFIX"
 	    remote_commands "$DISK_MACHINE" "$PREFIX" "
-		rsync -aRu --rsh=ssh --timeout=60 \
+		rsync -aRu --rsh=ssh --timeout=120 \
 			--exclude 'aux.*' --exclude '*::*' \
 			--include 'test.*.$machine/' \
 			--exclude 'test.*/' \
 			$ROTD_SUBDIR/all $ROTD_SUBDIR/$arch \
-			$rsync_machine_name:$remote_prefix
+			$rsync_machine_name:$rsync_prefix
 	    " &&
 	    remote_commands "$machine" "$remote_prefix/$ROTD_SUBDIR" "
 		mkdir -p logs
-	    " || (
-	       echo "Failed to rsync to $rsync_machine_name"
-	       false
-	    )
+	    " && echo `date '+%Y-%m-%d %T'` "Completed rsync to $rsync_machine_name" >> $SSH_LOG_FILE
+	) || (
+	    echo "Failed to rsync to $rsync_machine_name" 
+	    echo `date '+%Y-%m-%d %T'` "Failed rsync to $rsync_machine_name" >> $SSH_LOG_FILE
+	    false
 	)
     else
 	remote_prefix="$PREFIX"
@@ -1241,19 +1251,23 @@ rsync_out() {		# ($machine, $arch -> $remote_prefix)
 # In: $machine
 
 rsync_in() {	# ($machine)
-    echo "Called rsync_in($machine)"
     eval rsync_machine_name=\"'$MACHINE_NAME_'$machine\"
     if [ "$rsync_machine_name" = "" ] ; then
 	rsync_machine_name="$machine"
     fi
     eval is_remote_machine=\"'$REMOTE_MACHINE_'$machine\"
     if [ -n "$is_remote_machine" ] ; then
+	echo `date '+%Y-%m-%d %T'` "Commencing rsync from $rsync_machine_name" >> $SSH_LOG_FILE
 	eval remote_prefix=\"'$ROTD_DIR_'$machine\"
+	rsync_prefix=`rsync_path $remote_prefix`
 	remote_commands "$DISK_MACHINE" "$PREFIX" "
-	    rsync -rl --rsh=ssh --timeout=60 --ignore-existing $rsync_machine_name:$remote_prefix/$ROTD_SUBDIR $PREFIX
-	" || (
-	   echo "Failed to rsync back from $rsync_machine_name"
-	   false
+	    rsync -rl --rsh=ssh --timeout=60 --ignore-existing $rsync_machine_name:$rsync_prefix/$ROTD_SUBDIR $PREFIX
+	" &&
+	echo `date '+%Y-%m-%d %T'` "Completed rsync from $rsync_machine_name" >> $SSH_LOG_FILE ||
+	(
+	    echo "Failed to rsync back from $rsync_machine_name"
+	    echo `date '+%Y-%m-%d %T'` "Failed rsync from $rsync_machine_name" >> $SSH_LOG_FILE
+	    false
 	)
     fi
 }
@@ -1262,10 +1276,10 @@ rsync_in() {	# ($machine)
 # Run the tests for i386_nt
 # Allow for non-shared filesystem
 
-run_test_i386_nt() {
-    # When testing the java embedding on i386_nt, we have to use the java
-    # command with all its options, since attempts to use jeclipse.bat did
-    # not work.
+run_test_win_nt() {
+    # When testing the java embedding on i386_nt/x86_64_nt, we have to use 
+    # the java command with all its options, since attempts to use 
+    # jeclipse.bat did not work.
 
     rsync_out || return 1	# ($machine, $arch -> $remote_prefix)
 
@@ -1275,27 +1289,35 @@ run_test_i386_nt() {
 	ARCH="$arch"
 	export ARCH
 
+	# Use the version of cscript (32/64bit) that corresponds
+	# to the architecture we want to test. We assume that this
+	# shell script is always executed by a 32-bit bash!
+	CSCRIPT=\"\$SYSTEMROOT/Sysnative/cscript.exe\"
+	if [ ! -f \"\$CSCRIPT\" -o $arch = i386_nt ] ; then
+	    CSCRIPT=cscript
+	fi
+
 	# Make sure the registry settings are appropriate for this test.
 	# This destroys the registry settings on the local machine, but
 	# is necessary for the tests to work.
 	#cd \"$remote_prefix/$install_dir\" &&
-	cscript $remote_prefix/$install_dir/ecl_inst.js $ECLIPSE_VERSION \
+	\"\$CSCRIPT\" $remote_prefix/$install_dir/ecl_inst.js $ECLIPSE_VERSION \
 		>> $remote_prefix/$test_logfile 2>&1 &&
 	if [ \"$test_embedding\" = \"java\" ] ; then
 	    # Run eclipse to get the JRE location
 	    JRE_DIR_WIN=\`\"$standalone_binary\" -e \"getenv(\\\"JRE_HOME\\\", WinPath), write(WinPath)\" | tr '\\\\\\\\' /\`
 
-	    PATH=\"\`cygpath -p -u $remote_prefix/$install_dir\`/lib/i386_nt:\$PATH\"
+	    PATH=\"\`cygpath -p -u $remote_prefix/$install_dir\`/lib/$arch:\$PATH\"
 	    export PATH
 
 	    # Use javaw rather than java in order to avoid silly \"DOS boxes\"
 	    # popping up on the screen while the tests are running.
-            # -Xss flag is used to increase the default stack size
+	    # -Xss flag is used to increase the default stack size
 	    \"$remote_prefix/$test_dir/test_eclipse\" \
 		--test-dir \"$remote_prefix/$test_dir\" \
 		$test_flags \
 		\"\$JRE_DIR_WIN/bin/javaw\" \
-		    \"-Xss3000k -Declipse.directory=$remote_prefix/$install_dir\" \
+		    -Xss3000k -Declipse.directory=\"$remote_prefix/$install_dir\" \
 		    -classpath \"$remote_prefix/$install_dir/lib/eclipse.jar;\$JRE_DIR_WIN/rt.jar\" \
 		    com.parctechnologies.eclipse.JEclipse
 	else
@@ -1314,13 +1336,25 @@ run_test_i386_nt() {
 
 # Run the tests on a remote Unix machine.
 run_test_unix() {
-    remote_commands "$machine" "$PREFIX/$test_dir" "
-    	\"$PREFIX/$test_dir/test_eclipse\" \
-		--test-dir \"$PREFIX/$test_dir\" \
-		$test_flags \
-		\"$PREFIX/$install_dir/bin/$arch/$test_shell\" \
-		>> $TEST_LOGFILE 2>&1
+    rsync_out   # ($machine, $arch -> $is_remote_machine, $remote_prefix)
+    if [ -n "$is_remote_machine" ] ; then
+	remote_commands "$machine" "$remote_prefix" "
+	    cd $install_dir &&
+	    rm -f lib/$arch/SITE_PARAMS &&
+	    ./RUNME < /dev/null >> \"$remote_prefix/$test_logfile\" 2>&1
+	"
+    fi
+    remote_commands "$machine" "$remote_prefix" "
+        cd $test_dir &&
+        \"$remote_prefix/$test_dir/test_eclipse\" \
+                --test-dir \"$remote_prefix/$test_dir\" \
+                $test_flags \
+                \"$remote_prefix/$install_dir/bin/$arch/$test_shell\" \
+                >> $remote_prefix/$test_logfile 2>&1
     "
+    this_test_result=$?
+    rsync_in    # ($machine)
+    return $this_test_result
 }
 
 
@@ -1343,8 +1377,8 @@ run_test() {	# test number
     else
 	echo "Running test $test_num ($install_type/$package_type/$test_embedding) on $machine." | tee -a $LOCAL_TEST_LOGFILE
 
-	if [ "$arch" = i386_nt ] ; then
-	    run_test_i386_nt
+	if [ "$arch" = i386_nt  -o "$arch" = x86_64_nt ] ; then
+	    run_test_win_nt
 	else
 	    run_test_unix
 	fi
@@ -1502,7 +1536,7 @@ choose_working_eclipse() {
     # Find an eclipse that is *vaguely working* ---- except we make sure we
     # don't pick a Windows machine because the paths would be wrong.
     for arch in $built_archs ; do
-        if [ "$arch" = i386_nt ] ; then
+        if [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
             continue
         fi
         eval machine=\"'$MACHINE_'$arch\"
@@ -1564,14 +1598,18 @@ commit_build_number() {
 	# rather than just forcing an update to the current versions, in case
 	# files have been removed since they were tagged (otherwise they remain
 	# tagged indefinitely).
-	remote_commands "$CVS_MACHINE" "$PREFIX/$BUILD_DIR" "
+	remote_commands "$CVS_MACHINE" "$PREFIX" "
 	    (
+		cd $PREFIX/$BUILD_DIR &&
 		cvs -d \"$CVSDIR\" update -A $PATCH_OPTIONS \
 			\"$VERSION_FILE\" &&
 		cvs -d \"$CVSDIR\" commit -m \"Successfully built $ECLIPSE_VERSION #$BUILD_NUMBER\" \
 			\"$VERSION_FILE\" &&
 		cvs -d \"$CVSDIR\" rtag -a -d $LAST_SUCCESSFUL_BUILD_TAG Eclipse &&
 		cvs -d \"$CVSDIR\" tag -F $LAST_SUCCESSFUL_BUILD_TAG &&
+		cd $PREFIX/$TEST_TEMPLATE_DIR &&
+		cvs -d \"$CVSDIR_TESTS\" rtag -a -d $LAST_SUCCESSFUL_BUILD_TAG Tests &&
+		cvs -d \"$CVSDIR_TESTS\" tag -F $LAST_SUCCESSFUL_BUILD_TAG &&
 		echo \"Done.\"
 	    ) >> $VERSION_LOGFILE 2>&1
 	" &&
