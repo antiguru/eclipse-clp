@@ -39,7 +39,7 @@ Or, to test this compiler manually:
 
     % ../bin/$ARCH/eclipse
 
-    ?- use_module(compiler_top).
+    ?- use_module(ecl_compiler).
     ?- ...<you are now working with your modified compiler>...
 
 If this works, and if you had set DEBUG=on in Makefile.$ARCH, set it
