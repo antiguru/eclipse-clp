@@ -5,29 +5,28 @@
 % License Version 1.1 (the "License"); you may not use this file except
 % in compliance with the License.  You may obtain a copy of the License
 % at www.eclipse-clp.org/license.
-% 
+%
 % Software distributed under the License is distributed on an "AS IS"
 % basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
 % the License for the specific language governing rights and limitations
-% under the License. 
-% 
-% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
-% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% under the License.
+%
+% The Original Code is  The ECLiPSe Constraint Logic Programming System.
+% The Initial Developer of the Original Code is  Cisco Systems, Inc.
 % Portions created by the Initial Developer are
 % Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
-% 
-% Contributor(s): 
-% 
+%
+% Contributor(s):
+%
 % END LICENSE BLOCK
 %----------------------------------------------------------------------
-\chapter{Development Support Tools}
+\chapter{Development Support Tools\label{chapdevelsupport}}
 %HEVEA\cutdef[1]{section}
-\label{chapdevelsupport}
 \index{program analysis}
 %----------------------------------------------------------------------
 
-This chapter describes some of the tools and libraries provided by 
-\eclipse{} that assist in program development and the analysis of 
+This chapter describes some of the tools and libraries provided by
+\eclipse{} that assist in program development and the analysis of
 program runtime behaviour.
 \index{performance}\index{optimisation}\index{profiling}
 \index{code coverage}
@@ -35,33 +34,34 @@ program runtime behaviour.
 \section{Available Tools and Libraries}
 %----------------------------------------------------------------------
 
-\eclipse{} provides a number of different tools and libraries to assist 
+\eclipse{} provides a number of different tools and libraries to assist
 the programmer with program development:
 
+\begin{quote}
 \begin{description}
-\item[Document] Tools for generating documentation from ECLiPSe
-sources.
-\index{document (library)}
-\item[Lint] Generates warning messages for dubious programming 
-constructs and violation of naming conventions for an ECLiPSe source 
-module or file.
-\index{lint (library)}
-\item[Pretty_printer] Tools for pretty-printing a file in 
-different formats.
-\index{pretty_printer (library)}
-\item[Xref] Enables the analysis of an ECLiPSe source module or
-file for the construction of a predicate call graph.
-\index{xref (library)}
+  \item[Document]\libidx{document}
+    Tools for generating documentation from ECLiPSe sources.
+  \item[Lint]\libidx{lint}
+    Generates warning messages for dubious programming
+    constructs and violation of naming conventions for an ECLiPSe source
+    module or file.
+  \item[Pretty_printer]\libidx{pretty_printer}
+    Tools for pretty-printing a file in different formats.
+  \item[Xref]\libidx{xref}
+    Enables the analysis of an ECLiPSe source module or
+    file for the construction of a predicate call graph.
 \end{description}
+\end{quote}
 
 In addition, \eclipse{} provides several tools that aid in the
 understanding of a programs runtime behaviour:
 
+\begin{quote}
 \begin{description}
 \item[Coverage] Records the frequency at which various parts of the
 program are executed.
 \item[Debugger] Provides a low level view of program
-activity. Chapter~\ref{chapdebug} presents a comprehensive 
+activity. Chapter~\ref{chapdebug} presents a comprehensive
 look at debugging of \eclipse{} programs.
 \item[Display matrix] Shows the values of given terms in a graphical
 window. Chapter~\ref{chaptkeclipse} discusses the use of this tool.
@@ -74,15 +74,16 @@ of box model port counters.
 give a statistical summary of where the execution time is spent.
 \item[Visualisation framework] A graphical environment for the
 visualisation of search and propagation in constraint programs.
-The \emph{Visualisation Tools Manual} discusses the use of this 
+The \about{Visualisation Tools Manual} discusses the use of this
 environment.
 \end{description}
+\end{quote}
 
-This section focuses on the program development libraries and two 
-complementary runtime analysis tools, the \emph{profiler} and the
-\emph{coverage} library.
-Throughout this chapter, the use of each of the tools is demonstrated 
-on the following \textbf{n-queens} code:
+This section focuses on the program development libraries and two
+complementary runtime analysis tools, the \libspec{profiler} and the
+\libspec{coverage} library.
+Throughout this chapter, the use of each of the tools is demonstrated
+on the following \examplename{n-queens} code:
 \begin{quote}
 \begin{verbatim}
 :- module(queen).
@@ -119,8 +120,8 @@ nodiag([N|L], B, D) :-
 \section{Heuristic Program Checker}
 %----------------------------------------------------------------------
 
-The Heuristic Program Checking tool generates warning messages for 
-dubious programming constructs and violation of naming conventions for 
+The Heuristic Program Checking tool generates warning messages for
+dubious programming constructs and violation of naming conventions for
 an ECLiPSe source module or file. It is loaded as follows:
 
 \begin{quote}
@@ -130,12 +131,13 @@ an ECLiPSe source module or file. It is loaded as follows:
 \end{quote}
 
 The heuristic rules currently enforced are based on the style guide of
-Appendix \ref{styleguide}. These rules are somewhat limited in scope. The library 
-is distributed as source and serves to provide a framework for the 
+Appendix \ref{styleguide}. These rules are somewhat limited in scope. The
+library
+is distributed as source and serves to provide a framework for the
 addition of a more comprehensive set of rules that are tailored to each
 individual developer.
 
-Consider the following typographic mistakes in the \textbf{n-queens} 
+Consider the following typographic mistakes in the \examplename{n-queens}
 example:
 
 \begin{quote}
@@ -155,88 +157,91 @@ file specified as an atom or string:
 \begin{quote}
 \begin{verbatim}
 ?- lint(queen).
- 
+
 --- File /tmp/queen.ecl, line 4:
 Singleton variables: [Data, Datas]
- 
+
 --- File /tmp/queen.ecl, line 22:
 Questionable predicate name: n0diag
- 
+
 Yes (0.01s cpu)
 \end{verbatim}
 \end{quote}
 
-The checker identifies {\tt Data} and {\tt Datas} as being singleton variables
-and is dubious of the {\tt n0diag} predicate name. Both are the result of 
-programmer error, {\tt Datas} should read {\tt Data} and {\tt n0diag} 
-as {\tt nodiag}. The \bipref{lint/2}{../bips/lib/lint/lint-2.html} 
-predicate allows a list of options to be specified that turn on 
+The checker identifies \notation{Data} and \notation{Datas} as being singleton
+variables
+and is dubious of the \notation{n0diag} predicate name. Both are the result of
+programmer error, \notation{Datas} should read \notation{Data} and
+\notation{n0diag}
+as \notation{nodiag}. The \bipref{lint/2}{../bips/lib/lint/lint-2.html}
+predicate allows a list of options to be specified that turn on
 and off the heuristic rules.
 
 %----------------------------------------------------------------------
 \section{Document Generation Tools}
 %----------------------------------------------------------------------
 
-The document generation tools library provides a set of predicates for 
-the generation of documentation from \eclipse{} program sources. The 
+The document generation tools library provides a set of predicates for
+the generation of documentation from \eclipse{} program sources. The
 tools generate documentation by processing the
 \bipref{comment/2}{../bips/kernel/directives/comment-2.html}
-directives in each source file. The following is an example comment for 
-the \textbf{n-queens} example:
+directives in each source file. The following is an example comment for
+the \examplename{n-queens} example:
 
 \begin{quote}
 \begin{verbatim}
 % comment for queen/2
 :- comment(queen/2, [
- 
+
     summary: "Program that solves the attacking Queens problem for
               an arbitrary number of queens.",
- 
+
     index: ["NQueens Problem"],
- 
+
     args: ["Data": "List modelling initial state of queens on board.",
-       "Args": "Solution list of Y-coordinate of each queen on the 
+       "Args": "Solution list of Y-coordinate of each queen on the
         board."],
- 
+
     amode: queen(+,-),
     amode: queen(-,+),
     amode: queen(+,+),
- 
+
     resat: yes,
- 
+
     fail_if: "A solution cannot be found where all queens are safe
               from attack by every other.",
- 
+
     see_also:
         [queens8/1, queensN/1],
- 
+
     desc: html("The problem is to arrange a specified number of queens
            on a chessboard such that no queen attacks any other queen
            The predicate takes a list representing the initial state
            of the queens on the board, with each element representing
-           a queen and its current Y-coordinate. If a solution is 
-           found, a list is returned specifying the safe Y-coordinate 
+           a queen and its current Y-coordinate. If a solution is
+           found, a list is returned specifying the safe Y-coordinate
 	   for each queen.")
    ]).  % end of comment directive for queen/2
 \end{verbatim}
 \end{quote}
 
-There are two pertinent predicates for document generation. The first, 
-\bipref{icompile/2}{../bips/lib/document/icompile-2.html} generates an 
-information file (.eci) by extracting information from a source file (.ecl).
+There are two pertinent predicates for document generation. The first,
+\bipref{icompile/2}{../bips/lib/document/icompile-2.html} generates an
+information file (with the extension \notation{.eci}) by extracting information
+from a source file (whose extension is \notation{.ecl}).
 The second,
-\bipref{eci_to_html/3}{../bips/lib/document/eci_to_html-3.html}, 
+\bipref{eci_to_html/3}{../bips/lib/document/eci_to_html-3.html},
 processes this information file to produce readable HTML and plain text files.
-By default, these files are placed in a subdirectory with the 
-same name as the information file, but without the extension. 
-The generated files are {\tt index.html}, containing a summary 
-description of the library, plus one HTML and one plain text file 
-for each predicate that was commented using a comment/2 directive 
+By default, these files are placed in a subdirectory with the
+same name as the information file, but without the extension.
+The generated files are \notation{index.html}, containing a summary
+description of the library, plus one HTML and one plain text file
+for each predicate that was commented using a \predspec{comment/2} directive
 in the source.
 
-The following produces the {\tt queen.eci} file and a {\tt queen}
+The following produces the \notation{queen.eci} file and a \notation{queen}
 directory in the current directory. Within the queen directory reside
-{\tt index.html}, {\tt queen-2.html} and {\tt queen-2.txt}:
+\notation{index.html}, \notation{queen-2.html} and \notation{queen-2.txt}:
 \begin{quote}
 \begin{verbatim}
 ?- lib(document).
@@ -257,38 +262,39 @@ Yes (0.00s cpu)
 \section{Cross Referencing Tool}
 %----------------------------------------------------------------------
 
-The cross referencing library {\bf xref} analyses an ECLiPSe source 
-module or file and builds its predicate call graph. The graph can either 
-be returned in the format of {\tt lib(graph_algorithms)}, as text, or
+The cross referencing library \libspec{xref} analyses an ECLiPSe source
+module or file and builds its predicate call graph. The graph can either
+be returned in the format of \notation{lib(graph_algorithms)}, as text, or
 as a graphical display.
 
-The \bipref{xref/2}{../bips/lib/xref/xref-2.html} predicate generates
-a call graph for the file {\tt File} according to the {\tt Options} 
+The \bipref{xref/2}{../bips/lib/xref/xref-2.html} predicate is invoked
+as \notation{xref(File,~Options)}. This generates
+a call graph for the file \about{File} according to the \about{Options}
 list.  The options specify the format of the graph to be generated, whether
 calls to built in predicates are displayed and whether it is a caller
 or callee graph:
 \begin{quote}
 \begin{verbatim}
 ?- xref:xref(queen, []).
- 
+
 nodiag / 3 calls:
         nodiag / 3
- 
+
 qdelete / 4 calls:
         qdelete / 4
- 
+
 qperm / 2 calls:
         qdelete / 4
         qperm / 2
- 
+
 queen / 2 calls:
         qperm / 2
         safe / 1
- 
+
 safe / 1 calls:
         nodiag / 3
         safe / 1
- 
+
 Yes (0.01s cpu)
 ?- xref:xref(queen,[builtins:on,output:daVinci]).
 WARNING: module 'daVinci' does not exist, loading library...
@@ -296,9 +302,9 @@ daVinci.ecl compiled traceable 5644 bytes in 0.01 seconds
 \end{verbatim}
 \end{quote}
 
-The first {\tt xref} predicate call generates a textual call graph
-for the {\tt queen} module, while the second generates the 
-{\bf daVinci} graph illustrated in figure~\ref{xrefdavinci}.
+The first \notation{xref} predicate call generates a textual call graph
+for the \notation{queen} module, while the second generates the
+\notation{daVinci} graph illustrated in figure~\ref{xrefdavinci}.
 
 \begin{figure}[hbt]
 \begin{center}
@@ -307,7 +313,6 @@ for the {\tt queen} module, while the second generates the
 \caption{Call graph for queen example with built-in predicates}
 \label{xrefdavinci}
 \end{figure}
-
 
 %----------------------------------------------------------------------
 \section{Pretty Printer Tool}
@@ -319,13 +324,13 @@ In particular, an {\eclipse} source file can be converted into an
 HTML document with proper indentation, syntax colouring, hyperlinks
 from predicate uses to definition, and hyperlinks to documentation.
 
-The \bipref{pretty_print/2}{../bips/lib/pretty_printer/pretty_print-2.html} 
+The \bipref{pretty_print/2}{../bips/lib/pretty_printer/pretty_print-2.html}
 predicate is used to print the file, or list of files.
 A list of options can be given which modifies the format of the output
-file, its location, etc.  The following creates a {\tt pretty}
-directory in the current directory. Within the pretty directory reside
-{\tt index.html} and {\tt queen.html}, where {\tt queen.html} is the 
-{\tt queen} module pretty printed in HTML:
+file, its location, etc.  The following creates subdirectory \notation{pretty}
+in the current directory. Within the \notation{pretty} directory reside
+\notation{index.html} and \notation{queen.html}, where \notation{queen.html} is
+the \notation{queen} module pretty printed in HTML:
 
 \begin{quote}
 \begin{verbatim}
@@ -334,22 +339,28 @@ Writing /examples/pretty/queen.html
 \end{verbatim}
 \end{quote}
 
+\vfill %<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 
 %----------------------------------------------------------------------
 \section{Timing Profiler}
 %----------------------------------------------------------------------
 
-\index{profiling} The profiling tool\footnote{The profiler requires a 
-small amount of hardware/compiler dependent code and may therefore not 
-be available on all platforms.} helps to find \emph{hot spots} in
+The \Index{profiling} tool\footnote{%
+  The profiler requires a
+  small amount of hardware/compiler dependent code and may therefore not
+  be available on all platforms.}
+helps to find \emph{hot spots} in
 a program that are worth optimising. It can be used any time with any
 compiled Prolog code, it is not necessary to use a special compilation
 mode or set any flags.  Note however that it is not available on
 Windows\index{windows}.  When
-\begin{quote}\begin{verbatim}
+\begin{quote}
+\begin{verbatim}
 ?- profile(Goal).
-\end{verbatim}\end{quote}
-\index{profile/1} is called, the profiler executes the \emph{Goal} in
+\end{verbatim}
+\end{quote}
+\indextt{profile/1} is called, the profiler executes the \about{Goal} in
 the profiling mode, which means that every 100th of a second the
 execution is interrupted and the profiler records the currently
 executing procedure.
@@ -357,7 +368,8 @@ executing procedure.
 Issuing the following query will result in the profiler recording the
 currently executing goal 100 times a second.
 
-\begin{quote}\begin{verbatim}
+\begin{quote}
+\begin{verbatim}
 ?- profile(queen([1,2,3,4,5,6,7,8,9],Out)).
 goal succeeded
 
@@ -374,34 +386,35 @@ nodiag            /3  eclipse       50.0%   0.01s 100.0%
 
 Out = [1, 3, 6, 8, 2, 4, 9, 7, 5]
 Yes (0.14s cpu)
-\end{verbatim}\end{quote}
+\end{verbatim}
+\end{quote}
 
 From the above result we can see how the profiler output contains four
 important areas of information:
 \begin{enumerate}
 \item The first line of output indicates whether the specified goal
-\textbf{succeeded}, \textbf{failed} or \textbf{aborted}.  The
-\verb+profile/1+ predicate itself always succeeds.
-\item The line beginning \verb+Goal:+ shows the goal which was
+\emph{succeeded}, \emph{failed} or \emph{aborted}.  The
+\predspec{profile/1} predicate itself always succeeds.
+\item The line beginning \notation{Goal:} shows the goal which was
 profiled.
 \item The next line shows the time spent executing the goal.
 \item Finally the predicates which were being executed when the
-profiler sampled, ranked in decreasing sample count order are shown. 
+profiler sampled, ranked in decreasing sample count order are shown.
 \end{enumerate}
 
 Auxiliary system predicates are printed under a
-common name without arity, e.g. {\it arithmetic} or {\it 
-all_solutions}.
+common name without arity, e.g., \notation{arithmetic} or
+\notation{all_solutions}.
 Predicates which are local to locked modules are printed
 together on a single line that contains only the module name.
-By default only predicates written in Prolog are profiled, i.e.
+By default only predicates written in Prolog are profiled, i.e.,
 if a Prolog predicate calls an external or built-in predicate
 written in C, the time will be assigned to the Prolog predicate.
 
-The predicate {\bf profile(Goal, Flags)} can be used to change
-the way profiling is made, {\it Flags} is a list of flags.
-Currently only the flag {\tt simple} is accepted and it
-causes separate profiling of simple predicates, i.e.
+The predicate \predspec{profile(Goal,~Flags)} can be used to change
+the way profiling is made, \about{Flags} is a list of flags.
+Currently only the flag \notation{simple} is accepted and it
+causes separate profiling of simple predicates, i.e.,
 those written in C.
 
 The problem with the results displayed above is that the sampling
@@ -412,7 +425,7 @@ only able to take two samples before the goal terminated.
 The frequency at which the profiler samples is fixed, so in order to
 obtain more representative results one should have an auxiliary
 predicate which calls the goal a number of times, and compile and
-profile a call to this auxiliary predicate. eg.
+profile a call to this auxiliary predicate. e.g.,
 
 \begin{quote}
 \begin{verbatim}
@@ -421,12 +434,15 @@ queen_100 :-
 \end{verbatim}
 \end{quote}
 
-Note that, when compiled, the above \verb+do/2+ loop would be
+Note that, when compiled, the above \predspec{do/2} loop would be
 efficiently implemented and not cause overhead that would distort the
-measurement.  Section \ref{doloops} presents a 
+measurement.  Section \ref{doloops} presents a
 detailed description of logical loops.
 
-\begin{quote}\begin{verbatim}
+\vfill %<<<<<<<<<<<<<<<<<<<<<<<
+
+\begin{quote}
+\begin{verbatim}
 ?- profile(queen_100).
 goal succeeded
 
@@ -445,12 +461,13 @@ safe              /1  eclipse        2.8%   0.09s  99.4%
 queen             /2  eclipse        0.6%   0.02s 100.0%
 
 Yes (3.33s cpu)
-\end{verbatim}\end{quote}
+\end{verbatim}
+\end{quote}
 
 In the above example, the profiler takes over three hundred samples
 resulting in a more accurate view of where the time is being spent in
 the program.  In this instance we can see that more than half of the
-time is spent in the \verb+nodiag/3+ predicate, making it an ideal
+time is spent in the \predspec{nodiag/3} predicate, making it an ideal
 candidate for optimisation.  This is left as an exercise for the
 reader.
 
@@ -458,25 +475,34 @@ reader.
 %----------------------------------------------------------------------
 \section{Port Profiler}
 %----------------------------------------------------------------------
-\index{port_profiler (library)}
+\libidx{port_profiler}
 The port profiler is a performance analysis tool based on the idea of
 counting of events during program execution.  The events that are
-counted are defined in terms of the 'box model' of execution (the same
+counted are defined in terms of the ``box model'' of execution (the same
 model that the debugger uses, see chapter \ref{boxmodel}).  In this
-box model, predicates are entered though {\em call}, {\em redo} or {\em resume} ports,
-and exited through {\em exit}, {\em *exit}, {\em fail} or {\em leave} ports.  In addition, other
-interesting events are indicated by ports as well ({\em next}, {\em else}, {\em delay}). 
+box model, predicates are entered though \about{call}, \about{redo} or
+\about{resume} ports,
+and exited through \about{exit}, \about{*exit}, \about{fail} or \about{leave}
+ports.  Some other interesting events are indicated by ports as well
+(\about{next}, \about{else}, \about{delay}).
 
-The usage is as follows: 
+The usage is as follows:
 \begin{enumerate}
-\item Compile your program in debug mode, as you would normally do during program development.
-\item Load the port_profiler library 
-\item Run the query which you want to examine, using port_profile/2: 
-\begin{quote}\begin{verbatim}
+\item Compile your program in debug mode, as you would normally do during
+program development.
+\item Load the \libspec{port_profiler} library
+\item Run the query which you want to examine, using
+\predspecidx{port_profile/2}:
+\begin{quote}
+\begin{verbatim}
 ?- port_profile(queen([1,2,3,4],Out), []).
-\end{verbatim}\end{quote}
+\end{verbatim}
+\end{quote}
 \end{enumerate}
 This will print the results in a table like the following:
+
+\vfill %<<<<<<<<<<<<<<<<<<<<<<
+
 \begin{verbatim}
 PREDICATE       CALLER               call     exit     fail    *exit     redo
 -           /3  nodiag      /3         46       46        .        .        .
@@ -495,28 +521,31 @@ queen       /2  trace_body  /2          1        .        .        1        .
 Each row of the table shows the information for a particular predicate
 (by default split according to different caller predicates).
 The table is sorted according to entry port count ($call+redo+resume$).
-The port counts give information about
+The port counts give information about:
 \begin{itemize}
-\item what are the most frequently called predicates (call ports)
-\item whether predicates failed unexpectedly (fail ports)
-\item whether predicates exited nondeterministically (*exit ports), i.e.
-    whether they left behind any choice-points for backtracking.
+\item what are the most frequently called predicates (\notation{call} ports);
+\item whether predicates failed unexpectedly (\notation{fail} ports);
+\item whether predicates exited nondeterministically (\notation{*exit} ports),
+  i.e.,
+    whether they left behind any choice-points for backtracking;
 \item whether nondeterministically exited predicates were ever re-entered
-    to find alternative solutions (redo ports).
-\item whether predicates did internal backtracking (next ports) in order
-    to find the right clause. This may indicate suboptimal indexing.
+    to find alternative solutions (\notation{redo} ports);
+\item whether predicates did internal backtracking (\notation{next} ports) in
+  order
+    to find the right clause (this may indicate suboptimal indexing);
 \item how often predicates were delayed and resumed.
 \end{itemize}
 For more details about different options and output formats, see
-the \bipref{Reference Manual}{../bips/lib/port_profiler/index.html}.
+the description of
+\biprefni{port_profiler}{../bips/lib/port_profiler/index.html}%
+\libidx{port_profiler}
+in the \about{Reference Manual}.
 
 
 %----------------------------------------------------------------------
 \section{Line coverage}
 %----------------------------------------------------------------------
-\index{library!coverage}
-\index{coverage}
-\index{line coverage}
+\libidx{coverage}\index{line coverage}
 The line coverage library provides a means to ascertain exactly how
 many times individual clauses are called during the evaluation of a
 query.
@@ -531,34 +560,34 @@ are three locations in which coverage counters can be inserted.
 \item Between predicate calls within a code block.
 \item At the end of a code block.
 \end{enumerate}
-A code block is defined to be a conjunction of predicate calls. ie. a
+A code block is defined to be a conjunction of predicate calls, i.e., a
 sequence of goals separated by commas.
 
-The counter values do not only show whether all code points were 
-reached but also whether subgoals failed or aborted (in which case 
-the counter before a subgoal will have a higher value than the 
+The counter values do not only show whether all code points were
+reached but also whether subgoals failed or aborted (in which case
+the counter before a subgoal will have a higher value than the
 counter after it).
 
 %----------------------------------------------------------------------
 \subsection{Compilation}
 %----------------------------------------------------------------------
-\index{ccompile/1}
+\indextt{ccompile/1}
 \index{ccompile!coverage}
 In order to add the coverage counters to code, it must be compiled with
 the \bipref{ccompile/1}{../bips/lib/coverage/ccompile-1.html}
-predicate which can be found in the 
+predicate which can be found in the
 \bipref{coverage}{../bips/lib/coverage/index.html} library.
 
-The {\tt ccompile/1} predicate (note the initial `c' stands for
-coverage) can be used in place of the normal {\tt compile/1}
+The \predspec{ccompile/1} predicate (note the initial `c' stands for
+coverage) can be used in place of the normal \predspec{compile/1}
 predicate to compile a file with coverage counters.
 
-The following shows the results of compiling the \textbf{n-queens} example:
+The following shows the results of compiling the \examplename{n-queens} example:
 \begin{quote}
 \begin{verbatim}
 ?- coverage:ccompile(queen).
 queen.ecl  compiled traceable 6016 bytes in 0.01 seconds
-coverage: inserted 20 coverage counters into module queen 
+coverage: inserted 20 coverage counters into module queen
 
 Yes (0.14s cpu)
 \end{verbatim}
@@ -567,17 +596,17 @@ Yes (0.14s cpu)
 Once compiled, predicates can be called as usual and will (by default)
 have no visible side effects. Internally however, the counters will
 be incremented as the execution progresses. The following demonstrates
-this for a single solution to the {\tt queen} predicate:
+this for a single solution to the \predspec{queen/2} predicate:
 \begin{quote}
 \begin{verbatim}
 ?- queen:queen([1,2,3,4,5,6,7,8,9], Out).
 \end{verbatim}
 \end{quote}
 The counter results are retrieved as demonstrated in the subsequent section.
-The two argument predicate {\tt ccompile/2} \index{ccompile/2}
-\index{ccompile!coverage} can take a list of {\tt name:value} pairs
+The two argument predicate \predspecidx{ccompile/2}\index{ccompile!coverage}
+can take a list of \notation{name:value} pairs
 which can be used to control the exact manner in which coverage
-counters are inserted. The documentation for the 
+counters are inserted. The documentation for the
 \bipref{ccompile/2}{../bips/lib/coverage/ccompile-2.html} predicate
 provides for a full list of the available flags.
 
@@ -585,9 +614,10 @@ provides for a full list of the available flags.
 \subsection{Results}
 %----------------------------------------------------------------------
 
-\index{result/1} \index{result!coverage} To generate an HTML file
-containing the coverage counter results, the 
-\bipref{result/1}{../bips/lib/coverage/result-1.html} predicate is used:
+To generate an HTML file
+containing the coverage counter results, the
+\bipref{result/1}{../bips/lib/coverage/result-1.html}\index{result!coverage}
+predicate is used:
 \begin{quote}
 \begin{verbatim}
 ?- coverage:result(queen).
@@ -597,7 +627,7 @@ index.pl   compiled traceable 335304 bytes in 0.17 seconds
 Yes (0.18s cpu)
 \end{verbatim}
 \end{quote}
-This creates the result file \texttt{coverage/queens.html} which
+This creates the result file \notation{coverage/queens.html} which
 can be viewed using any browser.  It contains a pretty-printed form of
 the source, annotated with the values of the code coverage counters as
 described above. As a side effect, the coverage counters will be reset.
@@ -605,7 +635,8 @@ described above. As a side effect, the coverage counters will be reset.
 %\index{reset_counters/0} \index{reset_counters!coverage} Having
 %generated and viewed results for one run, the coverage counters can be
 %reset by calling the
-%\bipref{reset_counters/0}{../bips/lib/coverage/reset_counters-0.html} predicate:
+%\bipref{reset_counters/0}{../bips/lib/coverage/reset_counters-0.html}
+%predicate:
 %\begin{quote}
 %\begin{verbatim}
 %?- coverage:reset_counters.
@@ -617,45 +648,54 @@ described above. As a side effect, the coverage counters will be reset.
 %----------------------------------------------------------------------
 \section{Mode analysis}
 %----------------------------------------------------------------------
-The mode_analyser library is a tool that assists in the generation 
-of the mode/1 directive for predicate definitions. This directive informs 
-the compiler that the arguments of the specified predicate will always 
-have the corresponding form when the predicate is called. The compiler 
-utilises this information during compilation of the predicate in order 
-to generate more compact and/or faster code. Specifying the mode of a 
-predicate that has already been compiled has no effect, unless it is 
-recompiled. If the specified procedure does not exist, a local undefined 
+The \libspec{mode_analyser} library is a tool that assists in the generation
+of the \predspec{mode/1} directive for predicate definitions. This directive
+informs
+the compiler that the arguments of the specified predicate will always
+have the corresponding form when the predicate is called. The compiler
+utilises this information during compilation of the predicate in order
+to generate more compact and/or faster code. Specifying the mode of a
+predicate that has already been compiled has no effect, unless it is
+recompiled. If the specified procedure does not exist, a local undefined
 procedure is created.
 
-The mode analyser inserts instrumentation into the clause definitions 
-of predicates during compilation in order to record mode usage of each 
-predicate argument. The code should then be run (as many times as is 
-necessary to capture the most common invocations of each predicate 
+The mode analyser inserts instrumentation into the clause definitions
+of predicates during compilation in order to record mode usage of each
+predicate argument. The code should then be run (as many times as is
+necessary to capture the most common invocations of each predicate
 undergoing analysis). Finally, the results of the analysis are requested
 and the suggested mode annotations for each predicate are displayed.
 
-The usage is as follows: 
+The usage is as follows:
 \begin{enumerate}
-\item Load the mode_analyser library:
-\begin{quote}\begin{verbatim}
+\item Load the \libspec{mode_analyser} library:
+\begin{quote}
+\begin{verbatim}
 ?- lib(mode_analyser).
-\end{verbatim}\end{quote}
+\end{verbatim}
+\end{quote}
 \item Compile your program with the mode analyser:
-\begin{quote}\begin{verbatim}
+\begin{quote}
+\begin{verbatim}
 ?- analyse(queen).
-\end{verbatim}\end{quote}
-\item Run the query which most accurately exercises the 
-invocation modes of the defined predicates: 
-\begin{quote}\begin{verbatim}
+\end{verbatim}
+\end{quote}
+\item Run the query which most accurately exercises the
+invocation modes of the defined predicates:
+\begin{quote}
+\begin{verbatim}
 ?- queen:queen([1,2,3,4],Out).
-\end{verbatim}\end{quote}
-\item Generate the results for the module into which 
+\end{verbatim}
+\end{quote}
+\item Generate the results for the module into which
 the program was compiled:
-\begin{quote}\begin{verbatim}
+\begin{quote}
+\begin{verbatim}
 ?- result([verbose:on])@queen.
 \end{verbatim}\end{quote}
 \end{enumerate}
 This will print the results as follows:
+\begin{quote}
 \begin{verbatim}
 Mode analysis for queen : qdelete / 4:
         Results for argument 1:
@@ -701,6 +741,7 @@ Mode analysis for queen : safe / 1:
 
         safe(++)
 \end{verbatim}
+\end{quote}
 
 NOTE: It is imperative to understand that the results of mode analysis
 are merely suggestions for the invocation modes of a predicate based on
@@ -708,13 +749,16 @@ runtime information. If there are potential predicate invocation modes
 that were not exercised during runtime, the tool is unable to account
 for them in its analysis. For the mode specifier '-' the mode analyser
 does not determine whether the variable occurs in any other argument
-(i.e. is aliased), this must be manually verified.
+(i.e., is aliased), this must be manually verified.
 In summary, the programmer must verify that the suggested modes are correct
 before using the directive in the code.  If the instantiation of the
 predicate call violates its mode declaration, no exception is raised and
 its behaviour is undefined.
 
-For more details about invocation mode analysis see 
-the \bipref{Reference Manual}{../bips/lib/mode_analyser/index.html}.
+For more details about invocation mode analysis see
+the description of
+\biprefni{mode_analyser}{../bips/lib/mode_analyser/index.html}%
+\libidx{mode_analyser}
+in the \about{Reference Manual}.
 
 %HEVEA\cutend

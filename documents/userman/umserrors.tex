@@ -5,22 +5,22 @@
 % License Version 1.1 (the "License"); you may not use this file except
 % in compliance with the License.  You may obtain a copy of the License
 % at www.eclipse-clp.org/license.
-% 
+%
 % Software distributed under the License is distributed on an "AS IS"
 % basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
 % the License for the specific language governing rights and limitations
-% under the License. 
-% 
-% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
-% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% under the License.
+%
+% The Original Code is  The ECLiPSe Constraint Logic Programming System.
+% The Initial Developer of the Original Code is  Cisco Systems, Inc.
 % Portions created by the Initial Developer are
 % Copyright (C) 1996 - 2006 Cisco Systems, Inc.  All Rights Reserved.
-% 
-% Contributor(s): 
-% 
+%
+% Contributor(s):
+%
 % END LICENSE BLOCK
 %
-% @(#)umserrors.tex	1.10 96/01/08 
+% @(#)umserrors.tex	1.10 96/01/08
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % {\eclipse} Documentation
@@ -43,15 +43,16 @@
 
 We list here the {\eclipse} event types together with the default
 event handlers and their description.
-\index{event handlers}
-\index{error handlers}
+\index{event handlers}\index{handler!event}
+\index{error handlers}\index{handler!error}
 Unless otherwise specified, the arguments that the system passes
 to the event handler are
 
 \vspace{0.3cm}
 \noindent
 \begin{tabular}{p{4cm}p{4cm}p{4cm}}
-{\bf First Argument} & {\bf Second Argument} & {\bf Third Argument} \\
+\heading{First Argument} & \heading{Second Argument}
+                                                  & \heading{Third Argument} \\
 \hline
 Event number & Culprit goal & Caller Module \\
 \end{tabular}
@@ -76,16 +77,18 @@ If the caller module is unknown, a free variable is passed.
 \subsection{Argument Types and Values}
 \begin{tabular}{|p{1.2cm}p{8cm}p{5cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err0.tex}
 \hline
 \end{tabular}
 
+\vfill %<<<<<<<<<<<
+
 \subsection{Arithmetic, Environment}
 \begin{tabular}{|p{1.2cm}p{8cm}p{5cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err1.tex}
 \hline
@@ -95,37 +98,42 @@ If the caller module is unknown, a free variable is passed.
 
 
 \subsection{Data and Memory Areas, Predicates, Operators}
-\begin{tabular}{|p{1.2cm}p{8cm}p{5cm}|}
+\begin{tabular}{|p{1.2cm}p{8cm}p{5.4cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err2.tex}
 \hline
 \end{tabular}
 
 \subsection{Modules, Visibility}
-\begin{tabular}{|p{1.2cm}p{8cm}p{5cm}|}
+\begin{tabular}{|p{1.2cm}p{8cm}p{5.4cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err3.tex}
 \hline
 \end{tabular}
 \vspace{0.5cm}
 
+\vfill %<<<<<<<<<<<<<<<<<<<<<<
+
 \subsection{Syntax Errors, Parsing}
 \begin{tabular}{|p{1.2cm}p{8cm}p{4.5cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err4.tex}
 \hline
 \end{tabular}
 
+\vfill %<<<<<<<<<<<<<<<<<<<<<<
+
+
 \subsection{Compilation, Run-Time System, Execution}
 \begin{tabular}{|p{1.2cm}p{8cm}p{4.5cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err5.tex}
 \hline
@@ -137,7 +145,7 @@ The handlers for these events receive the following arguments:
 
 \noindent
 \begin{tabular}{p{1.2cm}p{8cm}p{4.5cm}}
-{\bf Event} & {\bf Second Argument} & {\bf Third Argument}\\
+\heading{Event} & \heading{Second Argument} & \heading{Third Argument}\\
 \hline
 130 & Culprit clause & Module \\
 131 & Culprit clause & Module \\
@@ -153,7 +161,8 @@ The handlers for these events receive the following arguments:
 141 & Goal & Module \\
 142 & Goal & Module \\
 143 & Goal & Module \\
-144 & Goal (if an execution error) or Culprit clause (if compiler error) & Module \\
+144 & Goal (if an execution error) or Culprit clause (if compiler error) &
+      Module \\
 145 & (Name/Arity, OldFile, NewFile) & Module \\
 146 & File & Module \\
 147 & File\\
@@ -166,15 +175,22 @@ The handlers for these events receive the following arguments:
 The second argument for the event 139 depends on the predicate
 where it was raised:
 \begin{itemize}
-\item \bipref{compile/1, 2}{../bips/kernel/compiler/compile-1.html} - (file name, code size, compile time)
-\item \bipref{compile_stream/1}{../bips/kernel/compiler/compile_stream-1.html} - ('string', code size, compile time) with a string stream
-\item \bipref{compile_stream/1}{../bips/kernel/compiler/compile_stream-1.html} - (file name, code size, compile time) with a stream associated to a file
+\item
+  \biprefni{compile/1,2}{../bips/kernel/compiler/compile-1.html}%
+\indextt{compile/1}\indextt{compile/2}
+  - (file name, code size, compile time)
+\item
+  \bipref{compile_stream/1}{../bips/kernel/compiler/compile_stream-1.html} -
+  ('string', code size, compile time) with a string stream
+\item
+  \bipref{compile_stream/1}{../bips/kernel/compiler/compile_stream-1.html} -
+  (file name, code size, compile time) with a stream associated to a file
 \end{itemize}
 
 \subsection{Top-Level}
 \begin{tabular}{|p{1.2cm}p{8cm}p{4.5cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err6.tex}
 \hline
@@ -187,8 +203,8 @@ Therefore the arguments that are passed to the handler are not the
 erroneous goal and the caller module but defined as follows:
 
 \noindent
-\begin{tabular}{p{1.2cm}p{8cm}p{4.5cm}}
-{\bf Event} & {\bf Second Argument} & {\bf Third Argument}\\
+\begin{tabular}{p{1.2cm}p{8.5cm}p{4.5cm}}
+\heading{Event} & \heading{Second Argument} & \heading{Third Argument}\\
 \hline
 150 & A free variable. If the handler binds the variable
 to an atom, this name is used as the toplevel module name
@@ -199,29 +215,35 @@ operating system & undefined \\
 153 & current toplevel module & current toplevel module \\
 154 & a structure of the form
 \begin{center}
-{\it goal(Goal, VarList, NewGoal, NewVarList)},
+\notation{goal(\pattern{Goal},%
+~\pattern{VarList},~\pattern{NewGoal},~\pattern{NewVarList})},
 \end{center}
-where Goal is the goal that is about to be executed and VarList is the list
-that associates the variables in Goal with their names
+where \about{Goal} is the goal that is about to be executed and \about{VarList}
+is the list
+that associates the variables in \about{Goal} with their names
 (like in \bipref{readvar/3}{../bips/kernel/ioterm/readvar-3.html}).
-NewGoal and NewVarList are free variables. If the handler binds NewVarList
-then the toplevel will use NewGoal and NewVarList to replace Goal and VarList
+\about{NewGoal} and \about{NewVarList} are free variables. If the handler binds
+\about{NewVarList}
+then the toplevel will use \about{NewGoal} and \about{NewVarList} to replace
+\about{Goal} and \about{VarList}
 in the current query.
 & current toplevel module \\
 \hline
 \end{tabular}
 \newpage
 \begin{tabular}{p{1.2cm}p{8cm}p{4.5cm}}
-{\bf Event} & {\bf Second Argument} & {\bf Third Argument}\\
+\heading{Event} & \heading{Second Argument} & \heading{Third Argument}\\
 \hline
 155 & A list associating the variable names with their values after the
 query has been executed.
 & current toplevel module \\
 156 & An atom stating the answer to the query that was just executed.
-The possible values are: {\tt yes}, {\tt last_yes} or {\tt no}
+The possible values are: \notation{yes}, \notation{last_yes} or \notation{no}
 if the query had no variables,
-{\tt more_answers}, {\tt last_answer} if the query contained variables and
-bindings were printed, {\tt no_answer} if a query containing variables failed.
+\notation{more_answers}, \notation{last_answer} if the query contained
+variables and
+bindings were printed, \notation{no_answer} if a query containing variables
+failed.
 & current toplevel module \\
 157 & undefined & undefined \\
 158 & break level & current toplevel module \\
@@ -230,15 +252,15 @@ bindings were printed, {\tt no_answer} if a query containing variables failed.
 \end{tabular}
 \medskip
 
-When the handler for event 152 "end of eclipse execution" calls exit_block,
+When the handler for event 152 (``end of eclipse execution'') calls exit_block,
 {\eclipse}
 is not exited. This is a way to prevent
 accidental exits from the system. Failure of the handler is ignored.
 
 \subsection{Macro Transformation Errors, Lexical Analyser}
-\begin{tabular}{|p{1.2cm}p{8cm}p{4.5cm}|}
+\begin{tabular}{|p{1.2cm}p{8cm}p{5.4cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err7.tex}
 \hline
@@ -250,7 +272,7 @@ The event 164 is raised whenever the toplevel loop is restarted.
 
 \noindent
 \begin{tabular}{p{1.2cm}p{8cm}p{4.5cm}}
-{\bf Event} & {\bf Second Argument} & {\bf Third Argument}\\
+\heading{Event} & \heading{Second Argument} & \heading{Third Argument}\\
 \hline
 164 & the banner string \\
 \hline
@@ -260,27 +282,29 @@ The event 164 is raised whenever the toplevel loop is restarted.
 \subsection{I/O, Operating System, External Interface}
 \begin{tabular}{|p{1.2cm}p{8cm}p{4.5cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err8.tex}
 \hline
 \end{tabular}
 
+\vfill %<<<<<<<<<<<<<<<<<<<<<<
+
 \subsection{Debugging, Object Files}
 \begin{tabular}{|p{1.2cm}p{8cm}p{4.5cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err9.tex}
 \hline
 \end{tabular}
+\vspace{0.5cm}
 
-\newpage
 These handlers receive special arguments:
 
 \noindent
 \begin{tabular}{p{1.2cm}p{8cm}p{4.5cm}}
-{\bf Event} & {\bf Second Argument} & {\bf Third Argument}\\
+\heading{Event} & \heading{Second Argument} & \heading{Third Argument}\\
 \hline
 252 & trace_line\{port:Port,frame:Frame\} & undefined \\
 264 & (File, [], []) & undefined \\
@@ -292,7 +316,7 @@ These handlers receive special arguments:
 \subsection{Extensions}
 \begin{tabular}{|p{1.2cm}p{8cm}p{4.5cm}|}
 \hline
-{\bf Event} & {\bf Event Type} & {\bf Default Event Handler}\\
+\heading{Event} & \heading{Event Type} & \heading{Default Event Handler}\\
 \hline
 \input{err10.tex}
 \hline
@@ -304,7 +328,7 @@ The handlers for these events receive the following arguments:
 
 \noindent
 \begin{tabular}{p{1.2cm}p{8cm}p{4.5cm}}
-{\bf Event} & {\bf Second Argument} & {\bf Third Argument}\\
+\heading{Event} & \heading{Second Argument} & \heading{Third Argument}\\
 \hline
 272 & Culprit clause & Module \\
 273 & list of sleeping suspensions & undefined \\
@@ -313,11 +337,11 @@ The handlers for these events receive the following arguments:
 \end{tabular}
 
 \section{Stack Overflows}
-\index{stack overflow}
+\index{stack!overflow}
 \index{overflow, stack}
 When a stack overflows, the system performs an
 \bipref{exit_block/1}{../bips/kernel/control/exit_block-1.html}
-with an appropriate exit tag, ie.
+with an appropriate exit tag, i.e.,
 \begin{description}
 \item[global_trail_overflow] for overflows of the global/trail stack
 	that holds all the program's data structures.
@@ -326,10 +350,12 @@ with an appropriate exit tag, ie.
 \end{description}
 These exits can be caught by wrapping a goal that is likely
 to overflow the stacks into an appropriate
-\bipref{block/3}{../bips/kernel/control/block-3.html}, e.g.
-\begin{quote}\begin{verbatim}
+\bipref{block/3}{../bips/kernel/control/block-3.html}, e.g.,
+\begin{quote}
+\begin{verbatim}
 ..., block(big_goal(X), global_trail_overflow, react_to_overflow), ...
-\end{verbatim}\end{quote}
+\end{verbatim}
+\end{quote}
 In the debugger, you can locate the overflow by jumping to a LEAVE port
 (z command).
 See chapter \ref{chapmemory} for more details on memory usage.
@@ -337,7 +363,7 @@ See chapter \ref{chapmemory} for more details on memory usage.
 
 \section{{\eclipse} Fatal Errors}
 
-\index{fatal errors}
+\index{fatal errors}\index{error!fatal}
 A fatal error cannot be caught by the user.
 When they occur, the system performs a warm restart.
 The following fatal errors may be generated by {\eclipse}:
@@ -355,7 +381,8 @@ external predicate provided by the user.
 
 \section{User-Defined Events}
 User-defined events should use atomic event names rather than numbers.
-See \bipref{set_event_handler/2}{../bips/kernel/event/set_event_handler-2.html}.
+See the description of
+\bipref{set_event_handler/2}{../bips/kernel/event/set_event_handler-2.html}.
 
 
 %\section{System Event Handlers}
@@ -419,7 +446,7 @@ See \bipref{set_event_handler/2}{../bips/kernel/event/set_event_handler-2.html}.
 %\item[eof_handler/2]
 %\index{eof_handler/2}
 %takes the appropriate action for reaching end of file,
-%depending on the culprit goal, e.g. binding the result to {\bf end_of_file}
+%depending on the culprit goal, e.g., binding the result to {\bf end_of_file}
 %if the goal was \bipref{read/1}{../bips/kernel/ioterm/read-1.html}.
 %The handler fails for unknown goals.
 %

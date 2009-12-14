@@ -5,22 +5,22 @@
 % License Version 1.1 (the "License"); you may not use this file except
 % in compliance with the License.  You may obtain a copy of the License
 % at www.eclipse-clp.org/license.
-% 
+%
 % Software distributed under the License is distributed on an "AS IS"
 % basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
 % the License for the specific language governing rights and limitations
-% under the License. 
-% 
-% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
-% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% under the License.
+%
+% The Original Code is  The ECLiPSe Constraint Logic Programming System.
+% The Initial Developer of the Original Code is  Cisco Systems, Inc.
 % Portions created by the Initial Developer are
 % Copyright (C) 1994 - 2006 Cisco Systems, Inc.  All Rights Reserved.
-% 
-% Contributor(s): 
-% 
+%
+% Contributor(s):
+%
 % END LICENSE BLOCK
 %
-% @(#)umsporting.tex	1.1 94/10/07 
+% @(#)umsporting.tex	1.1 94/10/07
 %
 
 \chapter{Porting Applications to {\eclipse}}
@@ -40,50 +40,56 @@ Using a compatibility language dialect, or modifying your program.
 The {\eclipse} compatibility language dialects are the fastest way to get a
 program running that was originally written for a different system.
 To use a particular language dialect, a module
-should be created with that language dialect using \bipref{module/3}{../bips/kernel/modules/module-3.html}.
+should be created with that language dialect using
+\bipref{module/3}{../bips/kernel/modules/module-3.html}.
 The packages contain the necessary code to make {\eclipse} emulate
 the behaviour of the other system to a large extent within the module.
 Compatibility dialects exist for:
 \begin{itemize}
-\item ISO Standard Prolog (module(mymodulename, [], iso))
-\item C-Prolog (module(mymodulename, [], cprolog))
-\item Quintus Prolog (module(mymodulename, [], quintus))
-\item SICStus Prolog, (module(mymodulename, [], sicstus))
+\item ISO Standard Prolog (\notation{module(mymodulename,~[],~iso)});
+\item C-Prolog (\notation{module(mymodulename,~[],~cprolog)});
+\item Quintus Prolog (\notation{module(mymodulename,~[],~quintus)});
+\item SICStus Prolog, (\notation{module(mymodulename,~[],~sicstus)}).
 \end{itemize}
 See the Reference Manual for details on the compatibility provided by the
-language dialects. 
+language dialects.
 The language dialects are just modules which provides the necessary code
 and exports  to emulate a particular Prolog dialect. This module is imported
-instead of the default eclipse_language dialect which provides the
-{\eclipse} language. 
+instead of the default \notation{eclipse_language} dialect which provides the
+{\eclipse} language.
 The source code of the language dialect module is provided in the
 {\eclipse} library directory.
 Using this as a guideline, it should be easy to write similar packages for
 other systems, as long as their syntax does not deviate too much
-from the Edinburgh tradition. 
+from the Edinburgh tradition.
 
 The following problems can occur despite the use of compatibility packages:
 
-\subsection{Compiler versus Interpreter}
-If your program was written for an interpreter, e.g.\ C-Prolog,
+\subsection{Compiler versus interpreter}
+If your program was written for an interpreter, e.g., C-Prolog,
 you have to be aware that {\eclipse} is a compiling system.
-There is a distinction between {\it static} and {\it dynamic} predicates.
+There is a distinction between \emph{static} and \emph{dynamic} predicates.
 By default, a predicate is static. This means that its clauses have to be
 be compiled as a whole (they must not be spread over multiple files),
-its source code is not stored in the system, 
+its source code is not stored in the system,
 and it can not be modified (only recompiled as a whole).
 In contrast, a dynamic predicate may be modified by compiling or
 asserting new clauses and by retracting clauses.
-Its source code can be accessed using \bipref{clause/1,2}{../bips/kernel/dynamic/clause-1.html} or \bipref{listing/0,1}{../bips/kernel/dynamic/listing-0.html}
+Its source code can be accessed using
+\biprefni{clause/1,2}{../bips/kernel/dynamic/clause-1.html}%
+\indextt{clause/1}\indextt{clause/2}
+or
+\biprefni{listing/0,1}{../bips/kernel/dynamic/listing-0.html}.%
+\indextt{listing/0}\indextt{listing/1}
 A predicate is dynamic when it is explicitly declared as such or when
 it was created using \bipref{assert/1}{../bips/kernel/dynamic/assert-1.html}.
 Porting programs from an interpreter usually requires the addition of
-some {\bf dynamic} declarations.
+some \notation{dynamic} declarations.
 In the worst case, when (almost) all procedures have to be dynamic,
-the flag {\bf all\_dynamic} can be set instead.
+the flag \notation{all_dynamic} can be set instead.
 
 
-\section{Porting Programs to plain {\eclipse}}
+\section{Porting programs to plain {\eclipse}}
 If you want to use {\eclipse} to do further development of your application,
 it is probably advantageous to modify it such that it runs under plain
 {\eclipse}.
@@ -95,8 +101,9 @@ when doing so.
 In general, it is almost always possible to add to your program
 a small routine that fixes the problem, rather than to modify
 the source of the application in many places.
-E.g. name clashes are easier fixed
-by using the \bipref{local/1}{../bips/kernel/modules/local-1.html} declaration rather than to rename
+For example, name clashes are fixed more easily
+by using the \bipref{local/1}{../bips/kernel/modules/local-1.html} declaration
+rather than by renaming
 the clashing predicate in the whole application program.
 
 \item
@@ -106,21 +113,21 @@ for details. {\eclipse} has a number of options that make it possible
 to configure its behaviour as desired.
 
 \item
-{\eclipse} has the {\tt string} data type which is not present in Prolog
+{\eclipse} has the \notation{string} data type which is not present in Prolog
 of the Edinburgh family.
 Double-quoted items are parsed as strings in {\eclipse}, while they are
 lists of integers in other systems and when the compatibility
 packages are used (cf.\ chapter \ref{chapstring}).
 
 \item
-I/O predicates of the {\bf see} and {\bf tell} group are not builtins
-in {\eclipse}, but they are provided in the {\bf cio} library.
-Call {\tt lib(cio)} in order to have them available (cf.\ appendix A).
+I/O predicates of the \predspec{see} and \predspec{tell} group are not built-ins
+in {\eclipse}, but they are provided in the \libspec{cio} library.
+Call \notation{lib(cio)} in order to have them available (cf.\ appendix A).
 Similarly for \bipref{numbervars/3}{../bips/lib/numbervars/index.html}.
 
 \item
-In {\eclipse}, some builtins raise events in cases where they just fail
-in other systems, e.g.\ {\tt arg(1,2,X)} fails in C-Prolog, but
+In {\eclipse}, some built-ins raise events in cases where they just fail
+in other systems, e.g., \notation{arg(1,~2,~X)} fails in C-Prolog, but
 raises a type error in {\eclipse}.
 If some code relies on such behaviour, it is best to modify it by
 adding an explicit check like
@@ -128,8 +135,8 @@ adding an explicit check like
         ..., compound(T), arg(N, T, X), ...
 \end{verbatim}
 
-Another alternative is to redefine the arg/3 builtin, using
-:/2 to access the original version:
+Another alternative is to redefine the \predspec{arg/3} built-in, using
+\predspec{:/2} to access the original version:
 \begin{verbatim}
 :- local arg/3.
 arg(N, T, X) :-
@@ -147,30 +154,36 @@ my_type_error(E, Goal) :- error(default(E), Goal).
 \end{verbatim}
 
 \item As the {\eclipse} compiler does not accept procedures whose clauses
-are not consecutive in a file, you have to load the library {\bf scattered.pl}
+are not consecutive in a file, you have to load the library \libspec{scattered}
 if you want to compile such procedures.
 
 \end{itemize}
 
 
-\section{Exploiting {\eclipse} Features}
+\section{Exploiting the features of {\eclipse}}
 When rewriting existing applications as well as when writing new programs,
 it is useful to bear in mind important {\eclipse} features which can make
 programs easier to write and/or faster:
 \begin{itemize}
-\item The maximum performance is obtained when calling \bipref{nodbgcomp/0}{../bips/kernel/obsolete/nodbgcomp-0.html}
+\item The maximum performance is obtained when calling
+  \bipref{nodbgcomp/0}{../bips/kernel/obsolete/nodbgcomp-0.html}
 at the beginning of the session, before compiling any program and loading
 any libraries.
 
-\item {\eclipse} arrays and global variables (\bipref{setval/2, getval/2}{../bips/kernel/storage/setval-2.html}) are usually
-more suitable to store permanent data than \bipref{assert/1}{../bips/kernel/dynamic/assert-1.html} is, and are usually
+\item {\eclipse} arrays and global variables
+(\biprefni{setval/2, getval/2}{../bips/kernel/storage/setval-2.html})%
+\indextt{setval/2}\indextt{getval/2}
+are usually
+more suitable to store permanent data than
+\bipref{assert/1}{../bips/kernel/dynamic/assert-1.html} is, and are usually
 faster.
 
 \item {\eclipse} has a number of language extensions which make programming
 easier, see chapter \ref{chaplanguage}.
 
-\item The predicates {\bf get\_flag/2}, {\bf get\_flag/3},
-{\bf get\_file\_info/3}, {\bf get\_stream\_info/3}, {\bf get\_var\_in\-fo/3}
+\item The predicates \predspec{get_flag/2}, \predspec{get_flag/3},
+\predspec{get_file_info/3}, \predspec{get_stream_info/3} and\\
+\predspec{get_var_info/3}
 give a lot of useful information about the system and the data.
 
 \item The {\eclipse} macros often help to solve syntactic problems
@@ -179,7 +192,7 @@ give a lot of useful information about the system and the data.
 \item The {\tkeclipse} GUI provides many features that should make
 developing programs easier than with the traditional tty interface.
 
-\item It is worth familiarising oneself with the debugger's features, 
+\item It is worth familiarising oneself with the debugger's features,
 see chapter \ref{chapdebug}.
 
 \item {\eclipse} is highly customizable, even problems which seemingly

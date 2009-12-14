@@ -5,22 +5,22 @@
 % License Version 1.1 (the "License"); you may not use this file except
 % in compliance with the License.  You may obtain a copy of the License
 % at www.eclipse-clp.org/license.
-% 
+%
 % Software distributed under the License is distributed on an "AS IS"
 % basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
 % the License for the specific language governing rights and limitations
-% under the License. 
-% 
-% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
-% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% under the License.
+%
+% The Original Code is  The ECLiPSe Constraint Logic Programming System.
+% The Initial Developer of the Original Code is  Cisco Systems, Inc.
 % Portions created by the Initial Developer are
 % Copyright (C) 1994 - 2006 Cisco Systems, Inc.  All Rights Reserved.
-% 
-% Contributor(s): 
-% 
+%
+% Contributor(s):
+%
 % END LICENSE BLOCK
 %
-% @(#)umsflags.tex	1.7 94/12/06 
+% @(#)umsflags.tex	1.7 94/12/06
 %
 
 %----------------------------------------------------------------------
@@ -70,7 +70,7 @@ are equal. This flag does not affect arithmetic comparisons.
 \idxnewitem{coroutine}
 \begin{description}
 \item[Access mode : ] read/write
-\item[Type : ] Atomic constant {\tt on} or {\tt off} 
+\item[Type : ] Atomic constant {\tt on} or {\tt off}
 \item[Default : ] configuration dependent
 \item[Description : ] Specifies whether built-in predicates delay or whether
 they raise instantiation faults.
@@ -79,7 +79,7 @@ they raise instantiation faults.
 \idxnewitem{cwd}
 \begin{description}
 \item[Access mode : ] read/write
-\item[Type : ] String 
+\item[Type : ] String
 \item[Description : ] Specifies the name of the current working directory.
 May also be set using \bipref{cd/1}{../bips/kernel/opsys/cd-1.html} or read using \bipref{getcwd/1}{../bips/kernel/opsys/getcwd-1.html}.
 \end{description}
@@ -87,10 +87,10 @@ May also be set using \bipref{cd/1}{../bips/kernel/opsys/cd-1.html} or read usin
 \pagebreak[3]
 \idxnewitem{debug_compile}
 \begin{description}
-\item[Access mode : ] read/write 
-\item[Type : ] Atomic constant {\tt on} or {\tt off} 
+\item[Access mode : ] read/write
+\item[Type : ] Atomic constant {\tt on} or {\tt off}
 \item[Default : ] {\tt on}
-\item[Description : ] Specifies whether clauses are compiled for debugging or 
+\item[Description : ] Specifies whether clauses are compiled for debugging or
 not. May be set on by \bipref{dbgcomp/0}{../bips/kernel/obsolete/dbgcomp-0.html} or off by \bipref{nodbgcomp/0}{../bips/kernel/obsolete/nodbgcomp-0.html}.
 \end{description}
 
@@ -101,7 +101,7 @@ not. May be set on by \bipref{dbgcomp/0}{../bips/kernel/obsolete/dbgcomp-0.html}
 \item[Default : ] {\tt nodebug}
 \item[Description :] Specifies whether debugging is disabled
 ({\tt nodebug} value)
-or enabled. \bipref{trace/0}{../bips/kernel/debug/trace-0.html} sets the {\tt creep} mode, \bipref{debug/0}{../bips/kernel/debug/debug-0.html} sets the 
+or enabled. \bipref{trace/0}{../bips/kernel/debug/trace-0.html} sets the {\tt creep} mode, \bipref{debug/0}{../bips/kernel/debug/debug-0.html} sets the
 {\tt leap} mode, the other modes are set with the debugger options.
 \end{description}
 
@@ -159,7 +159,7 @@ This flag may contain multiple values and will return them on backtracking.
 \idxnewitem{gc}
 \begin{description}
 \item[Access mode : ] read/write
-\item[Type : ] Atomic constant {\tt on}, {\tt verbose} or {\tt off} 
+\item[Type : ] Atomic constant {\tt on}, {\tt verbose} or {\tt off}
 \item[Default : ] {\tt on}
 \item[Description : ] Specifies whether garbage collection is enabled
 ({\tt on}), disabled ({\tt off}) or enabled and reports every collection
@@ -171,7 +171,7 @@ on {\tt toplevel_output} ({\tt verbose}).
 \item[Access mode : ] read/write
 \item[Type : ] Integer
 \item[Default : ] 1/8 of global stack size
-\item[Description : ] 
+\item[Description : ]
 Specify how often the collector is invoked. Roughly, the argument
 specifies how many bytes a program can use up before
 a garbage collection is triggered.
@@ -185,14 +185,14 @@ of garbage collections.
 \item[Access mode : ] read/write
 \item[Type : ] Integer
 \item[Default : ] 960
-\item[Description : ] 
+\item[Description : ]
 Specify after how many new dictionary entries the dictionary gar\-bage collector is invoked.
 \end{description}
 
 \idxnewitem{goal_expansion}
 \begin{description}
-\item[Access mode : ] read/write 
-\item[Type : ] Atomic constant {\tt on} or {\tt off} 
+\item[Access mode : ] read/write
+\item[Type : ] Atomic constant {\tt on} or {\tt off}
 \item[Default : ] {\tt on}
 \item[Description : ] Specifies whether goal expansion is done by the compiler.
 This includes goal macros and other compiler inlining.
@@ -226,8 +226,8 @@ the system is running on.
 
 \idxnewitem{ignore_eof}
 \begin{description}
-\item[Access mode : ] read/write 
-\item[Type : ] Atomic constant {\tt on} or {\tt off} 
+\item[Access mode : ] read/write
+\item[Type : ] Atomic constant {\tt on} or {\tt off}
 \item[Default : ] Depends on host architecture
 \item[Description : ] Specifies whether {\eclipse} is exited
 when end-of-file is typed to the toplevel prompt or whether this is ignored.
@@ -262,8 +262,8 @@ operating system call returned.
 
 \idxnewitem{library_path}
 \begin{description}
-\item[Access mode :] read/write 
-\item[Type :] List of strings 
+\item[Access mode :] read/write
+\item[Type :] List of strings
 \item[Default : ] the contents of the user's ECLIPSELIBRARYPATH environment
 \index{ECLIPSELIBRARYPATH}
 variable, followed by the system library directories
@@ -276,15 +276,15 @@ library/1 structures in pathnames.
 \idxnewitem{loaded_library}
 \begin{description}
 \item[Access mode : ] read/write
-\item[Type : ] Atom 
+\item[Type : ] Atom
 \item[Description : ] Returns the names of the currently loaded libraries.
 This flag may contain multiple values and will return them on backtracking.
 \end{description}
 
 \idxnewitem{macro_expansion}
 \begin{description}
-\item[Access mode : ] read/write 
-\item[Type : ] Atomic constant {\tt on} or {\tt off} 
+\item[Access mode : ] read/write
+\item[Type : ] Atomic constant {\tt on} or {\tt off}
 \item[Default : ] {\tt on}
 \item[Description : ] Specifies whether macro expansion used by the source
 transformation facility is enabled or disabled.
@@ -309,10 +309,10 @@ in bytes.
 
 \idxnewitem{max_predicate_arity}
 \begin{description}
-\item[Access mode : ] read-only 
-\item[Type : ] Integer 
+\item[Access mode : ] read-only
+\item[Type : ] Integer
 \item[Default : ] 255
-\item[Description : ] Returns the maximum number of arguments allowed for 
+\item[Description : ] Returns the maximum number of arguments allowed for
 an {\eclipse} predicate.
 \end{description}
 
@@ -322,14 +322,14 @@ an {\eclipse} predicate.
 \item[Type : ] String
 \item[Description : ] Returns the suffix of the external
 object files that can be loaded using \bipref{load/1}{../bips/kernel/externals/load-1.html}.
-It is usually "so" for systems that support shared libraries
-and "o" for the others.
+It is usually \notation{so} for systems that support shared libraries
+and \notation{o} for the others.
 \end{description}
- 
+
 \idxnewitem{occur_check}
 \begin{description}
 \item[Access mode :] read/write
-\item[Type : ] Atomic constant {\tt on} or {\tt off} 
+\item[Type : ] Atomic constant {\tt on} or {\tt off}
 \item[Default : ] {\tt off}
 \item[Description :] If the flag is on, occur check is performed
 on uncompiled unifications and the compiler generates code for unifications
@@ -350,7 +350,7 @@ debugger trace lines.
 \idxnewitem{pid}
 \begin{description}
 \item[Access mode : ] read-only
-\item[Type : ] Integer 
+\item[Type : ] Integer
 \item[Description : ] Returns the process identifier of the current {\eclipse}.
 \end{description}
 
@@ -358,7 +358,7 @@ debugger trace lines.
 \idxnewitem{ppid}
 \begin{description}
 \item[Access mode : ] read-only
-\item[Type : ] Integer 
+\item[Type : ] Integer
 \item[Description : ] Returns the process identifier of the current {\eclipse}'s
 parent process.
 \end{description}
@@ -375,8 +375,8 @@ Similar for the result of raising an integer to a negative integral power.
 
 \idxnewitem{print_depth}
 \begin{description}
-\item[Access mode : ] read/write 
-\item[Type : ] Integer 
+\item[Access mode : ] read/write
+\item[Type : ] Integer
 \item[Default : ] 20
 \item[Description : ] Specifies the print depth bound for printing
 compound terms. It can also be set by the '$<$' option of the debugger.
@@ -386,10 +386,10 @@ other I/O built-ins obey this flag.
 
 \idxnewitem{prolog_suffix}
 \begin{description}
-\item[Access mode : ] read/write 
+\item[Access mode : ] read/write
 \item[Type : ] List of strings
 \item[Default : ] {\tt ["", ".sd", ".pl"]}
-\item[Description : ] Specifies the Prolog source file suffix(es) used when 
+\item[Description : ] Specifies the Prolog source file suffix(es) used when
 compiling files or loading libraries.
 The system tries to find the file by appending
 the given suffixes in the order provided.
@@ -397,20 +397,20 @@ the given suffixes in the order provided.
 
 \idxnewitem{statistics}
 \begin{description}
-\item[Access mode : ] read/write 
+\item[Access mode : ] read/write
 \item[Type : ] Atomic constant {\tt off}, {\tt some}, {\tt all} or {\tt mode}
 \item[Default : ] {\tt off}
 \item[Description : ] Used to control the operation of the profiling facility.
 {\tt off} disables profiling, {\tt all} enables counting of all traceable
 procedure ports, {\tt some} restricts this to the ones that have been
-selected with {\bf set\_flag/3} or \bipref{statistics/2}{../bips/kernel/env/statistics-2.html}. {\tt mode} is like
+selected with {\bf set_flag/3} or \bipref{statistics/2}{../bips/kernel/env/statistics-2.html}. {\tt mode} is like
 {\tt all} but it also records the modes of procedure calls.
 \end{description}
 
 \pagebreak[3]
 \idxnewitem{syntax_option}
 \begin{description}
-\item[Access mode : ] read/write 
+\item[Access mode : ] read/write
 \item[Type : ] Atom
 \item[Description : ] Returns the names of the currently enabled syntax options.
 This flag may contain multiple values and will return them on backtracking.
@@ -432,7 +432,7 @@ and vice versa.
 % obsolete:
 %\item {\tt quintus_fmt} - use $\sim$ rather than \% in format strings
 %for printf/2,3.
-\item {\tt \$VAR} - terms of the form '\$VAR'(N) are printed in a special way by all the predicates that obey operator declarations (i.e.\ write, writeq, print and partly printf). '\$VAR'(0) is printed as A, '\$VAR'(25) as Z, '\$VAR'(26) as A1 and so on. 
+\item {\tt \$VAR} - terms of the form '\$VAR'(N) are printed in a special way by all the predicates that obey operator declarations (i.e.\ write, writeq, print and partly printf). '\$VAR'(0) is printed as A, '\$VAR'(25) as Z, '\$VAR'(26) as A1 and so on.
 When the argument is an atom or a string, just this argument is printed.
 \end{itemize}
 \end{description}
@@ -440,7 +440,7 @@ When the argument is an atom or a string, just this argument is printed.
 \idxnewitem{toplevel_module}
 \begin{description}
 \item[Access mode : ] read/write
-\item[Type : ] Atom 
+\item[Type : ] Atom
 \item[Description : ] The name of the current top-level module. This is the
 caller module for all queries entered in the top-level loop.
 By default, this is also shown in the top-level prompt.
@@ -448,7 +448,7 @@ By default, this is also shown in the top-level prompt.
 
 \idxnewitem{unix_time}
 \begin{description}
-\item[Access mode : ] read-only 
+\item[Access mode : ] read-only
 \item[Type : ] Integer
 \item[Description : ] Return the time as given by the UNIX time(3) function,
 ie. seconds since 00:00:00 GMT, Jan 1 1970.
@@ -472,8 +472,8 @@ working directory at start up.
 
 %\idxnewitem{user_options}
 %\begin{description}
-%\item[Access mode : ] read/write 
-%\item[Type : ] String 
+%\item[Access mode : ] read/write
+%\item[Type : ] String
 %\item[Default : ] {\tt ""}
 %\item[Description : ] Specifies which non-standard command line options
 %\index{command line options!nonstandard}
@@ -503,8 +503,8 @@ and then they are kept independently of the value of this flag.
 
 \idxnewitem{version}
 \begin{description}
-\item[Access mode : ] read-only 
-\item[Type : ] Atom 
+\item[Access mode : ] read-only
+\item[Type : ] Atom
 \item[Description : ] Returns the current version number of {\eclipse}.
 \end{description}
 

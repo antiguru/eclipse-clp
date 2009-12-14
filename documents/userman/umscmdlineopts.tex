@@ -5,52 +5,51 @@
 % License Version 1.1 (the "License"); you may not use this file except
 % in compliance with the License.  You may obtain a copy of the License
 % at www.eclipse-clp.org/license.
-% 
+%
 % Software distributed under the License is distributed on an "AS IS"
 % basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
 % the License for the specific language governing rights and limitations
-% under the License. 
-% 
-% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
-% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% under the License.
+%
+% The Original Code is  The ECLiPSe Constraint Logic Programming System.
+% The Initial Developer of the Original Code is  Cisco Systems, Inc.
 % Portions created by the Initial Developer are
 % Copyright (C) 2006 Cisco Systems, Inc.  All Rights Reserved.
-% 
-% Contributor(s): 
-% 
+%
+% Contributor(s):
+%
 % END LICENSE BLOCK
 %------------------------------------------------------------------------
 \chapter{{\eclipse} Command Line Options}
 %------------------------------------------------------------------------
+\index{command line options}
 
 The {\eclipse} system has several parameters which may be specified on the
 command line at invocation time. All the parameters are available with
-the tty {\tt eclipse}; with {\tt tkeclipse}, only the {\tt -g} and {\tt -l}
+the tty \notation{eclipse}; with \notation{tkeclipse}, only the \notation{-g}
+and \notation{-l}
 parameters are available.
 The parameters are as follows:
 
 \begin{description}
-\item[$-$b bootfile] 
-\index{command line options}
-\index{command line options!--b}
-\index{--b (command line option)}
-Compile the file {\it bootfile} before starting the session.
-Multiple -b options are allowed.
+\item[$-$b bootfile]\cmdlineoptionidx{b}
+Compile the file \notation{bootfile} before starting the session.
+Multiple \notation{-b} options are allowed.
 The file name is expected to be in the operating system's syntax.
 The file is processed by
 \bipref{ensure_loaded/1}{../bips/kernel/compiler/ensure_loaded-1.html},
-i.e.\ it can be a precompiled file or a source file, and file extensions
+i.e., it can be a precompiled file or a source file, and file extensions
 are added as specified there.
 %In this case the {\tt .eclipserc} file will not be compiled.
 
-\item[$-$e goal]
-\index{--e (command line option)}
-\index{command line options!--e}
+\item[$-$e goal]\cmdlineoptionidx{e}
 Instead of starting an interactive toplevel, the system will execute the
-goal {\bf goal}. {\bf goal} is given in normal Prolog syntax, and has to be
+goal \notation{goal}. \notation{goal} is given in normal Prolog syntax, and has
+to be
 quoted if it contains any characters that would normally be interpreted by the
-shell. The -e option can be used together with the -b option and is executed
-afterwards. Only one -e option is allowed.
+shell. The \notation{-e} option can be used together with the \notation{-b}
+option and is executed
+afterwards. Only one \notation{-e} option is allowed.
 %If the -e option is used together with the saved state option -s, then the
 %goal will not be executed when making the saved state, but when restoring it.
 
@@ -63,37 +62,35 @@ is compulsory because a runtime system does not have an interactive
 toplevel.
 
 
-\item[$-$g size]
-\index{--g (command line option)}
-This option specifies to which limit the memory consumption of the
+\item[$-$g size]\cmdlineoptionidx{g}
+This option specifies the limit to which the memory consumption of the
 {\eclipse} global/trail stack can grow.
-The size is specified in kilobytes (followed by an optional K), in megabytes
-(followed by M) or in gigabytes (followed by G).
-The default is 128M, ie.\ 128 Megabytes.
+The size is specified in kilobytes (followed by an optional \notation{K}), in
+megabytes
+(followed by \notation{M}) or in gigabytes (followed by \notation{G}).
+The default is \notation{128M}, i.e., 128 megabytes.
 The amount required for this stack depends on the program's data
-structures and may need to be increased for very large applications.
+structures and may have to be increased for very large applications.
 
-\item[$-$l size]
-\index{--l (command line option)}
-This option specifies to which limit the memory consumption of the
+\item[$-$l size]\cmdlineoptionidx{l}
+This option specifies the limit to which the memory consumption of the
 {\eclipse} local/control stack can grow.
-The size is specified in kilobytes (followed by an optional K), in megabytes
-(followed by M) or in gigabytes (followed by G).
-The default is 128M, ie.\ 128 Megabytes.
+The size is specified in kilobytes (followed by an optional \notation{K}), in
+megabytes
+(followed by \notation{M}) or in gigabytes (followed by \notation{G}).
+The default is \notation{128M}, i.e., 128 megabytes.
 The local/control stack is unlikely to require more than this default.
 If it does, it is probably caused by a programming error.
 
-\item[$-$D directory] 
-\index{command line options}
-\index{--D (command line option)}
-This options allows to explicitly specify the {\eclipse} installation
-directory, i.e.\ the directory under which the system tries to find
+\item[$-$D directory]\cmdlineoptionidx{D}
+This options allows one to explicitly specify the {\eclipse} installation
+directory, i.e., the directory in which the system tries to find
 the {\eclipse} runtime system and libraries.  This option overrides
 (and renders unnecessary) any setting of the ECLIPSEDIR environment
 variable (Unix) or, respectively, an ECLIPSEDIR registry entry
 (Windows) that may be in effect.
 
-\item[$-$ $-$]
+\item[$-$ $-$]\cmdlineoptionidx{-}
 The {\eclipse} system will ignore this argument and everything that follows on
 the commmand line. The Prolog program will only see the part of the
 command line that follows this argument.

@@ -5,22 +5,22 @@
 % License Version 1.1 (the "License"); you may not use this file except
 % in compliance with the License.  You may obtain a copy of the License
 % at www.eclipse-clp.org/license.
-% 
+%
 % Software distributed under the License is distributed on an "AS IS"
 % basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
 % the License for the specific language governing rights and limitations
-% under the License. 
-% 
-% The Original Code is  The ECLiPSe Constraint Logic Programming System. 
-% The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+% under the License.
+%
+% The Original Code is  The ECLiPSe Constraint Logic Programming System.
+% The Initial Developer of the Original Code is  Cisco Systems, Inc.
 % Portions created by the Initial Developer are
 % Copyright (C) 1994 - 2006 Cisco Systems, Inc.  All Rights Reserved.
-% 
-% Contributor(s): 
-% 
+%
+% Contributor(s):
+%
 % END LICENSE BLOCK
 %
-% @(#)extsuspend.tex	1.6 94/07/03 
+% @(#)extsuspend.tex	1.6 94/07/03
 %
 
 \chapter{More About Suspension}
@@ -30,15 +30,16 @@
 
 The fundamentals of goal suspension and waking were described in the
 previous chapter.
-This chapter looks at some applications and 
+This chapter looks at some applications and
 examples in greater detail.
 
 \section{Waiting for Instantiation}
 Goals that are to be woken when one or more variables become
-instantiated use the {\bf inst} list.
-For instance, a predicate {\bf freeze(Term, Goal)} which
-delays and is woken as soon as any variable in {\bf Term}
-becomes instantiated can be implemented as follows:
+instantiated use the \notation{inst} list.
+For instance, the following show how to implement a predicate
+\predspec{freeze/2}, such that the call \notation{freeze(Term,~Goal)}
+delays and is woken as soon as any variable in \about{Term}
+becomes instantiated:
 
 \begin{quote}
 \begin{verbatim}
@@ -119,19 +120,21 @@ yes.
 \end{quote}
 
 Another possibility is to wait until a term becomes ground,
-i.e. all its variables become instantiated.
+i.e., all its variables become instantiated.
 In this case, it is not necessary to attach the suspension
-to {\it all} variables in the term.
-The {\bf Goal} has to be called when the last variable in {\bf Term}
+to \emph{all} variables in the term.
+The \about{Goal} has to be called when the last variable in \about{Term}
 is instantiated, and so we can pick up any variable and
 attach the suspension to it.
 We may then save some unnecessary waking when other variables
 are instantiated before the selected one.
 To select a variable from the term,
-we can use the predicate \bipref{term_variables/2}{../bips/kernel/termmanip/term_variables-2.html} which extracts
+we can use the predicate
+\bipref{term_variables/2}{../bips/kernel/termmanip/term_variables-2.html} which
+extracts
 all variables from a term.
 However, when we already have all variables available, we can in fact
-dispose of {\bf Term} which may be huge and have
+dispose of \about{Term} which may be huge and have
 a complicated structure.
 Instead, we pick up one variable from the list until
 we reach its end:
@@ -161,10 +164,10 @@ wait_for_var([X|L], Goal) :-
 
 \section{Waiting for Binding}
 Sometimes we want a goal to be woken when a variable is bound
-to another one, e.g. to check for
+to another one, e.g., to check for
 subsumption or disequality.
 As an example, let us construct the code for the built-in predicate
-${\bf \sim=/2}$.
+\predspec{\tld=/2}.
 This predicate imposes the disequality constraint on its two arguments.
 It works as follows:
 \begin{enumerate}
@@ -173,9 +176,9 @@ If they are identical, it fails.
 
 \item If it finds a pair of different arguments at least one of which is a
 variable, it suspends. If both arguments are variables,
-the suspension is placed on the {\bf bound} suspended list
+the suspension is placed on the \notation{bound} suspended list
 of both variables.
-If only one is a variable, the suspension is placed on its {\bf inst}
+If only one is a variable, the suspension is placed on its \notation{inst}
 list, because in this case the constraint may be falsified
 only if the variable is instantiated.
 
@@ -185,11 +188,11 @@ it succeeds.
 \item Otherwise it means that the two terms are equal and it fails.
 \end{enumerate}
 
-The code looks as follows. {\bf equal_args/3} scans the two
+The code looks as follows. \predspec{equal_args/3} scans the two
 arguments.
-If it finds a pair of unifyable terms, it returns them in
+If it finds a pair of unifiable terms, it returns them in
 its third argument.
-Otherwise, it calls {\bf equal_terms/3} which decomposes
+Otherwise, it calls \predspec{equal_terms/3} which decomposes
 the two terms and scans recursively all their arguments.
 
 \begin{quote}
@@ -205,7 +208,7 @@ dif(T1, T2) :-
         ;
             fail     % nothing to suspend on, they are identical
         )
-    ;    
+    ;
         true         % the terms are different
     ).
 
@@ -242,13 +245,13 @@ equal_lists([X1|A1], [X2|A2], Vars) :-
 \end{verbatim}
 \end{quote}
 
-Note that {\bf equal_args/3} can yield three possible outcomes:
+Note that \predspec{equal_args/3} can yield three possible outcomes:
 success, failure and delay.
 Therefore, if it succeeds,
 we have to make the distinction between a genuine success
 and delay, which is done using its third argument.
 The predicate \bipref{dif/2}{../bips/lib/sicstus/index.html} behaves
-exactly as the built-in predicate ${\bf \sim=/2}$:
+exactly as the built-in predicate \predspec{\tld=/2}:
 
 \begin{quote}
 \begin{verbatim}
@@ -281,7 +284,8 @@ necessary to detect failure -- the two terms can become
 equal only if this variable is bound to a matching term.
 
 This approach has one disadvantage, though.
-We always wake the \bipref{dif/2}{../bips/lib/sicstus/index.html} call with the original terms
+We always wake the \bipref{dif/2}{../bips/lib/sicstus/index.html} call with the
+original terms
 as arguments.
 Each time the suspension is woken, we scan the two terms
 from the beginning and thus repeat the same operations.
@@ -290,35 +294,36 @@ and the first 10000 elements are ground, we spend most of our time
 checking them again and again.
 
 The reason for this handling is that the system cannot suspend
-the execution of \bipref{dif/2}{../bips/lib/sicstus/index.html} while executing its subgoals:
+the execution of \bipref{dif/2}{../bips/lib/sicstus/index.html} while executing
+its subgoals:
 it cannot freeze the state of all the active subgoals and their
 arguments.
 There is however a possibility for us to do this explicitly:
 as soon as we find a variable, we stop scanning the terms
 and return a list of continuations for all ancestor compound arguments.
-In this way, {\bf equal_args} returns a list of pairs
+In this way, \predspec{equal_args} returns a list of pairs
 and their continuations which will then be processed step by step:
 \begin{itemize}
-\item {\bf equal_args/4} scans again the input arguments.
-If it finds a pair of unifyable terms, it inserts it into
+\item \predspec{equal_args/4} scans again the input arguments.
+If it finds a pair of unifiable terms, it inserts it into
 a difference list.
 
-\item {\bf equal_lists/4} processes the arguments of compound terms.
+\item \predspec{equal_lists/4} processes the arguments of compound terms.
 As soon as a variable is found, it stops looking at following
 arguments but it appends them into the difference list.
 
-\item {\bf diff_pairs/2} processes this list.
+\item \predspec{diff_pairs/2} processes this list.
 If it finds an identical pair, it succeeds, the two terms
 are different.
 Otherwise, it suspends itself on the variables in the matched
-pair (here the suspending is simplified to use only the {\bf bound}
+pair (here the suspending is simplified to use only the \notation{bound}
 list).
 
 \item The continuations are just other pairs in the list,
 so that no special treatment is necessary.
 
 \item When the variables suspended upon are instantiated
-to compound terms, the new terms are again scanned by {\bf equal_arg/4},
+to compound terms, the new terms are again scanned by \predspec{equal_arg/4},
 but the new continuations are prepended to the list.
 As a matter of fact, it does not matter if we put the new
 pairs at the beginning or at the end of the list,
@@ -328,15 +333,20 @@ but tracing is more natural when we use the fifo format.
 no potentially non-matching pairs were found, the two
 terms are identical and thus the predicate fails.
 note that this is achieved by a matching clause
-for {\bf diff_pairs/2} which fails if its first
+for \predspec{diff_pairs/2} which fails if its first
 argument is a free variable.
 
-\item Note the optimisation for lists in {\bf equal_terms/4}:
-If one term is a list, we pass it directly to {\bf equal_lists/4}
-instead of decomposing each element with \bipref{functor/3}{../bips/kernel/termmanip/functor-3.html}.
+\item In the following program,
+note the optimisation for lists in \predspec{equal_terms/4}:
+if one term is a list, we pass it directly to \predspec{equal_lists/4}
+instead of decomposing each element with
+\bipref{functor/3}{../bips/kernel/termmanip/functor-3.html}.
 Obviously, this optimisation is applicable only if the input
 terms are known not to contain any pairs which are not proper lists.
 \end{itemize}
+
+\vfill %<<<<<<<<<<<<<<
+
 \begin{quote}
 \begin{verbatim}
 dif2(T1, T2) :-
@@ -346,8 +356,7 @@ dif2(T1, T2) :-
 d2if(_, _).                % succeed if already different
 
 equal_args(A1, A2, L, L) :-
-    A1 == A2,
-    !.
+    A1 == A2,  !.
 equal_args(A1, A2, [A1-A2|Link], Link) :-
     (var(A1);var(A2)),
     !.
@@ -390,6 +399,7 @@ diff_pairs([A1-A2|List], Link) :-
 \end{verbatim}
 \end{quote}
 
+
 Now we can see that compound terms are processed up to the first
 potentially matching pair and then the continuations
 are stored:
@@ -420,12 +430,12 @@ yes.
 \end{verbatim}
 \end{quote}
 
-{\bf dif2/2} does not do any unnecessary processing, so it is
-asymptotically much better than the built-in ${\bf \sim=/2}$.
+\predspec{dif2/2} does not do any unnecessary processing, so it is
+asymptotically much better than the built-in \predspec{\tld=/2}.
 
-This predicate, however, can be used only to {\it impose} a constraint
-on the two terms (i.e. it is a {\it tell} constraint only).
-It uses the approach of {\it eager failure} and {\it lazy success}.
+This predicate, however, can be used only to \emph{impose} a constraint
+on the two terms (i.e., it is a ``tell'' constraint only).
+It uses the approach of ``eager failure'' and ``lazy success''.
 Since it does not process the terms completely, it sometimes
 does not detect success:
 \begin{quote}
@@ -445,34 +455,36 @@ approach.
 The easiest way would be to process both terms completely each
 time the predicate is woken.
 There are, however, better methods.
-We can process the terms once when the predicate \bipref{dif/2}{../bips/lib/sicstus/index.html}
+We can process the terms once when the predicate
+\bipref{dif/2}{../bips/lib/sicstus/index.html}
 is called, filter out all possibly matching pairs
 and then create a suspension for each of them.
 As soon as one of the suspensions is woken and it finds
-an incompatible binding, the \bipref{dif/2}{../bips/lib/sicstus/index.html} predicate
+an incompatible binding, the \bipref{dif/2}{../bips/lib/sicstus/index.html}
+predicate
 can succeed.
 There are two problems:
 \begin{itemize}
-\item How to report the success? There are N suspensions
+\item How to report the success? There are \about{N} suspensions
 and each of them may be able to report success due to its bindings.
 All others should be disposed of.
 
 This can be solved by introducing a new variable
 which will be instantiated when the two terms become
-non-unifyable. Any predicate can then use this variable
+non-unifiable. Any predicate can then use this variable
 to ask or wait for the result.
 At the same time, when it is instantiated, all
 suspensions are woken and finished.
 
 \item How to find out that the predicate has failed?
-We split the whole predicate into N independent suspensions
+We split the whole predicate into \about{N} independent suspensions
 and only if all of them are eventually woken and they find identical
 pairs, the predicate fails. Any single suspension does not
 know if it is the last one or not.
 
-To cope with this problem, we can use the {\it short
-circuit} technique:
-Each suspension will include two additional variables, the first
+To cope with this problem, we can use the ``short
+circuit'' technique:
+each suspension will include two additional variables, the first
 one being shared with the previous suspension and the second
 one with the next suspension.
 All suspensions are thus chained with these variables.
@@ -501,7 +513,7 @@ compare_args(A1, A2, Link, NewLink, Yes) :-
         Link = NewLink            % short-cut the links
     ;
     (var(A1);var(A2)) ->
-        suspend(compare_args(A1, A2, Link, NewLink, Yes), 3, 
+        suspend(compare_args(A1, A2, Link, NewLink, Yes), 3,
 	    [[A1|A2]->bound, Yes->inst])
     ;
         compare_terms(A1, A2, Link, NewLink, Yes)
@@ -523,10 +535,11 @@ compare_lists([X1|A1], [X2|A2], Link, NewLink, Yes) :-
 \end{verbatim}
 \end{quote}
 
-The variable {\bf Yes} is instantiated as soon as the constraint
+The variable \about{Yes} is instantiated as soon as the constraint
 becomes true.
 This will also wake all pending suspensions which then simply succeed.
-The argument {\bf No} of {\bf dif3/4} becomes instantiated to {\tt no}
+The argument \about{No} of \predspec{dif3/4} becomes instantiated to
+\notation{no}
 as soon as all suspensions are woken and their matched pairs
 become identical:
 
@@ -558,7 +571,8 @@ yes.
 
 Now we have a constraint predicate that can be used both to impose
 disequality on two terms and to query it.
-For instance, a condition "if T1 = T2 then X = single else X = double"
+For instance, a condition ``if \about{T1}~=~\about{T2} then
+\about{X}~=~\notation{single} else \about{X}~=~\notation{double}''
 can be expressed as
 \begin{quote}
 \begin{verbatim}
@@ -577,34 +591,34 @@ cond_eval(X, Yes, No) :-
 \end{verbatim}
 \end{quote}
 
-This example could be further extended, e.g. to take care of shared
+This example could be further extended, e.g., to take care of shared
 variables, occur check or propagating from the answer variable
-(e.g. imposing equality on all matched argument pairs when the
-variable {\bf Y} is instantiated).
+(e.g., imposing equality on all matched argument pairs when the
+variable \about{Y} is instantiated).
 We leave this as a (rather advanced) exercise to the reader.
 
 \section{Waiting for other Constraints}
-\index{constrained}
-The {\bf constrained} list in the {\bf suspend} attribute
+The \notationidx{constrained} list in the \notation{suspend} attribute
 is used for instance in generic predicates which have to be
 notified about the possible change of the state of a variable,
-especially its unifyability with other terms.
-Our example with the {\bf dif} predicate could be for instance
+especially its unifiability with other terms.
+Our example with the \predspec{dif} predicate could be for instance
 extended to work with finite domain or other constrained
 variables.
 The modification is fairly simple:
 \begin{itemize}
 \item When a variable in one term is matched against a subterm of the
-other term, it might not necessarily be unifyable with it, because
+other term, it might not necessarily be unifable with it, because
 there might be other constraints imposed on it.
-Therefore, \bipref{not_unify/2}{../bips/kernel/termcomp/not_unify-2.html} must be used to test it explicitly.
+Therefore, \bipref{not_unify/2}{../bips/kernel/termcomp/not_unify-2.html} must
+be used to test it explicitly.
 
 \item The suspension should be woken not only on binding, but
-on any constraining and thus the {\bf constrained} list
+on any constraining and thus the \notation{constrained} list
 has to be used.
 \end{itemize}
 
-The predicate {\bf compare_args/5} is thus changed as follows:
+The predicate \predspec{compare_args/5} is thus changed as follows:
 \begin{quote}
 \begin{verbatim}
 compare_args(_, _, _, _, Yes) :-
@@ -627,7 +641,7 @@ compare_args(A1, A2, Link, NewLink, Yes) :-
 \end{verbatim}
 \end{quote}
 
-Now our {\bf dif3/4} predicate yields correct results even for
+Now our \predspec{dif3/4} predicate yields correct results even for
 constrained variables:
 \begin{quote}
 \begin{verbatim}
@@ -639,7 +653,7 @@ A = A{[1..10]}
 B = B{[20..30]}
 yes.
 [eclipse 2]: dif3(A, B, Y, N), A::1..10, B = 5, A ## 5.
- 
+
 Y = yes
 N = N
 B = 5

@@ -49,12 +49,12 @@ This denotes a ground argument. Such an argument can be complex,
 but must be fully instantiated, i.e., not contain any variables.
 
 % -------------------------------------------------------------------
-\item[\Index{$-$X}]
+\item[\Index{--X}]
 This denotes an output argument. Such an argument must be not
 instantiated before a built-in is called.
 
 % -------------------------------------------------------------------
-\item[?X\index{$\query$X}]
+\item[\Index{?X}]
 This denotes an input or an output argument. Such an argument may be either
 instantiated or not  when a built-in is called.
 
@@ -88,13 +88,17 @@ An atom, string or a number. A term which does not contain other terms.
 % -------------------------------------------------------------------
 \item[Body\index{body of a clause}\index{clause!body}]
 A clause body can either be of the form
+\begin{quote}
 \begin{verbatim}
 Goal_1, Goal_2, ..., Goal_k
 \end{verbatim}
+\end{quote}
 or simply
+\begin{quote}
 \begin{verbatim}
 Goal
 \end{verbatim}
+\end{quote}
 Each \about{Goal_i} must be a \about{callable term}.
 
 % -------------------------------------------------------------------
@@ -114,9 +118,11 @@ See \about{program clause} or \about{goal clause}.
 % -------------------------------------------------------------------
 \item[Compound Term\index{compound term}\index{term!compound}]
 Compound terms are of the form
+\begin{quote}
 \begin{verbatim}
 f(t_1, t_2, ..., t_n)
 \end{verbatim}
+\end{quote}
 where \about{f} is the \aboutidx{functor} of the compound term, \about{n} is its
 arity and \about{t_i} are terms.
 \about{Lists} and \about{pairs} are also compound terms.
@@ -130,6 +136,7 @@ An \about{atom}, a \about{number} or a \about{string}.
 The determinism specification of a built-in or library predicate says
 how many solutions the predicate can have, and whether it can fail.
 The six determinism groups are defined as follows:
+\begin{quote}
 \begin{verbatim}
                 |   Maximum number of solutions
     Can fail?   |   0               1               > 1
@@ -137,6 +144,7 @@ The six determinism groups are defined as follows:
     no          |   erroneous       det             multi
     yes         |   failure         semidet         nondet
 \end{verbatim}
+\end{quote}
 This classification is borrowed from the Mercury programming language,
 but in {\eclipse} only used for the purpose of documentation.
 Note that the determinism of a predicate usually depends on its calling mode.
@@ -180,9 +188,11 @@ other than Prolog, and explicitly connected to Prolog predicates by the user.
 % -------------------------------------------------------------------
 \item[Fact\index{fact}]
 A fact or \aboutidx{unit clause}\index{clause!unit} is a term of the form:
+\begin{quote}
 \begin{verbatim}
 Head.
 \end{verbatim}
+\end{quote}
 where \notation{Head} is a \about{head}.
 
 A fact may be considered to be a rule whose body is always \about{true}.
@@ -217,25 +227,31 @@ See also \about{ground}.
 \item[List\index{list}]
 A list is a special type of term within Prolog. It is a
 recursive data structure consisting of \about{pairs} (whose tails are lists).
-A {\tt list} is either the atom {\tt []}\index{[]} called {\tt nil}\index{nil}
+A \about{list} is either the atom \notationidx{[]} called \notationidx{nil}
 as in LISP,
 or a pair whose tail is a list.
 The notation :
+\begin{quote}
 \begin{verbatim}
 [a , b , c]
 \end{verbatim}
+\end{quote}
 is shorthand for:
+\begin{quote}
 \begin{verbatim}
 [a | [b | [c | []]]]
 \end{verbatim}
+\end{quote}
 
 % -------------------------------------------------------------------
 \item[Mode\index{mode}]
 A predicate mode is a particular instantiation pattern of its arguments
 at call time.  Such a pattern is usually written as a predicate template, e.g.,
+\begin{quote}
 \begin{verbatim}
     p(+,-)
 \end{verbatim}
+\end{quote}
 where the symbols \notation{+}, \notation{++}, \notation{-} and \notation{?}
 represent
 instantiated, ground, uninstantiated and unknown arguments respectively.
@@ -252,13 +268,16 @@ languages.
 
 % -------------------------------------------------------------------
 \item[Pair\index{pair}]
-A pair is a compound term with the functor {\tt ./2} ({\tt dot})
+A pair is a compound term with the functor \predspec{./2} (dot)
 which is written as :
+\begin{quote}
 \begin{verbatim}
 [H|T]
 \end{verbatim}
-{\tt H} is the {\tt head}\index{head of a pair}\index{pair!head}
-of the pair and {\tt T} its {\tt tail}\index{tail of a pair}\index{pair!tail}.
+\end{quote}
+\about{H} is the \defnotionni{head}\index{head of a pair}\index{pair!head}
+of the pair and \about{T} its
+\defnotionni{tail}\index{tail of a pair}\index{pair!tail}.
 
 
 % -------------------------------------------------------------------
@@ -280,9 +299,11 @@ this stands for all (visible) predicates with that name and any arity.
 % -------------------------------------------------------------------
 \item[Program Clause\index{clause}\index{program clause}\index{clause!program}]
 A program clause (or simply \about{clause}) is either the term
+\begin{quote}
 \begin{verbatim}
 Head :- Body.
 \end{verbatim}
+\end{quote}
 \index{body}
 (i.e., a compound term with the functor \predspec{:-/2}), or only a fact.
 
@@ -291,13 +312,17 @@ Head :- Body.
 A query  has the same form as a \about{body} and is also called a \about{goal}.
 Such clauses occur mainly as input to the top level Prolog loop
 and in files being compiled, then they have the form
+\begin{quote}
 \begin{verbatim}
 :- Goal_1, ..., Goal_k.
 \end{verbatim}
+\end{quote}
 or
+\begin{quote}
 \begin{verbatim}
 ?- Goal_1, ..., Goal_k.
 \end{verbatim}
+\end{quote}
 The first of these two forms is often called a \aboutidx{directive}.
 
 % -------------------------------------------------------------------
@@ -322,9 +347,11 @@ or by a compound term (or atom) with this functor.
 % -------------------------------------------------------------------
 \item[\Index{SpecList}]
 The SpecList notation means a sequence of \about{PredSpec} terms of the form:
+\begin{quote}
 \begin{verbatim}
 name_1/arity_1, name_2/arity_2, ..., name_k/arity_k.
 \end{verbatim}
+\end{quote}
 The SpecList notation is used in many built-ins, for example,
 to specify a list of procedures in the
 \bipref{export/1}{../bips/kernel/modules/export-1.html} predicate.

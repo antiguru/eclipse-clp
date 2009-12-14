@@ -95,7 +95,7 @@ in the \menu{Help} menu.
 %------------------------------------------------------------------------
 \section{How do I write an {\eclipse} program?}
 %------------------------------------------------------------------------
-You need to use an editor to write your programs. {\eclipse} does not come
+You must use an editor to write your programs. {\eclipse} does not come
 with an editor, but any editor that can save plain text files can be used.
 Save your program as a plain text file, and you can then compile the
 program into {\eclipse} and run it.
@@ -129,7 +129,7 @@ chapter \ref{chapcompiler}.
 
 To execute a query, first enter it into the \guitext{Query Entry}
 text field.
-You will also need to specify which module the query should be run from, by
+You will also have to specify which module the query should be run from, by
 selecting the appropriate entry from the drop-down list to the left of the
 \guitext{Query Entry} field.
 Normally, the default selection of \guitext{eclipse} will be fine; this will
@@ -137,7 +137,7 @@ allow access to all {\eclipse} built-ins and all predicates that have not
 explicitly been compiled into a different module.
 Selecting another module for the query is only needed if you wish to call a
 predicate which is not visible from the \notation{eclipse} module, in which
-case you need to select that module.
+case you must select that module.
 (For more information about the module system, please see chapter
 \ref{chapmodules}.)
 
@@ -211,7 +211,7 @@ Other {\tkeclipse} tools which are useful while using the tracer are:
 \item the predicate browser (available by selecting the \guitext{Predicate
 Browser} option from the \guitext{Tools} menu), which is useful for setting
 or removing spy points on predicates, or for setting the
-\flagname{start_tracing}
+\notation{start_tracing}
 flag which activates the tracer when a particular predicate is called for
 the first time; and
 
@@ -237,8 +237,7 @@ More information about debugging in {\eclipse} may be found in chapter
 %------------------------------------------------------------------------
 \subsection{Getting help}
 
-More detailed help than is provided here can be obtained online for all
-the features of {\tkeclipse}.
+More detailed help than is provided here can be obtained online.
 Simply select the entry from the \guitext{Help} menu on {\tkeclipse}'s
 top-level window which corresponds to the topic or tool you are interested
 in.
@@ -402,8 +401,8 @@ or to compile a program from a file.
 Goals are entered after the prompt and are terminated by fullstop and
 newline.
 
-The {\eclipse} system may be exited by typing CTRL-D (UNIX) or
-CTRL-Z + RETURN (Windows) at the top level prompt,
+The {\eclipse} system may be exited by typing \notation{CTRL-D} (UNIX) or
+\notation{CTRL-Z} + \notation{RETURN} (Windows) at the top level prompt,
 \index{Exiting {\eclipse}}
 or by calling either the \bipref{halt/0}{../bips/kernel/opsys/halt-0.html}
 or the \bipref{exit/1}{../bips/kernel/opsys/exit-1.html} predicates.
@@ -492,21 +491,19 @@ compiled
 and can be used.
 
 %------------------------------------------------------------------------
-\subsection{Executing a query}
+\subsection{Executing a \Index{query}}
 
 Once a set of clauses has been compiled,
 it may be queried in the usual Prolog manner.
-\index{query}
-If there are uninstantiated variables\index{variables} in the query,
+If there are uninstantiated \Index{variables} in the query,
 the system will attempt to find an instantiation of them which will
 satisfy the query, and if successful it will
 display one such instantiation.
-If potentially there is another solution, the top level 
-will then wait for a further instruction: either a \verb+<CR>+
-(``newline'' or ``return'') or a semi-colon '\textbf{;}'.
+If potentially there is another solution, the top level
+will then wait for a further instruction: either a \notation{<CR>}
+(``newline'' or ``return'') or a semi-colon (\notation{;}).
 A return will end the query successfully.
-A semi-colon will initiate backtracking%
-\index{backtracking}
+A semi-colon will initiate \Index{backtracking}
 in an attempt to find another solution to the query.
 Note that it is not necessary to type a new line after the semicolon
 --- one keystroke is enough.
@@ -546,7 +543,7 @@ By default, the system prints a menu offering some alternatives:
 \begin{quote}
 \begin{verbatim}
 ^C
-interruption: type a, b, c, e, or h for help : ? h            (user types 'h')
+interruption: type a, b, c, e, or h for help : ? h       (user types 'h')
 help
 	a : abort
 	b : break level
@@ -582,7 +579,7 @@ tutorial style tour, and the user manual chapter covers
 general and the command-line debugger in particular.
 
 %------------------------------------------------------------------------
-\subsection{The history mechanism\index{history}}
+\subsection{The \Index{history} mechanism}
 The {\eclipse} toplevel loop provides a simple history mechanism which allows
 the examination and repetition of previous queries.
 The history list is printed with the command \notation{h}.
@@ -599,7 +596,7 @@ The current history can be written using the predicate
 \notation{util} library.
 
 %------------------------------------------------------------------------
-\subsection{Getting help\index{help}}
+\subsection{Getting \Index{help}}
 Detailed documentation about all the predicates in the {\eclipse} libraries
 can be obtained online through the help facility.
 It has two modes of operation.
@@ -626,9 +623,8 @@ specified built-in is displayed, e.g., in
 \section{How do I make things happen at compile time?}
 %------------------------------------------------------------------------
 
-A file being compiled may contain queries.  These are goals
-\index{query}
-preceded by either the symbol ``:-''.
+A file being compiled may contain queries.\index{query}
+These are goals preceded by the symbol ``:-''.
 As soon as a query is encountered in the compilation of a file,
 the {\eclipse} system will try to satisfy it.
 Thus by inserting goals in this fashion, things can be made to happen at
@@ -636,7 +632,7 @@ compile time.
 
 In particular, a file can contain a directive to the system
 to compile another file, and so large programs can be split between files,
-while still only requiring a single simple command to compile them.
+while still only requiring a single simple command to compile them.%
 \index{compilation!nesting compile commands}
 When this happens, {\eclipse} interprets the pathnames of the nested
 compiled files relative to the directory of the parent compiled file;
@@ -664,7 +660,7 @@ files (let alone multiple directories), it is probably worth turning the
 constituent components into modules --- see chapter \ref{chapmodules}.)
 
 %------------------------------------------------------------------------
-\section{How do I use {\eclipse} libraries in my programs?\index{libraries}}
+\section{How do I use {\eclipse} \Index{libraries} in my programs?}
 %------------------------------------------------------------------------
 
 A number of files containing library predicates are supplied with
@@ -694,19 +690,18 @@ In particular, a program can ensure that a given library is loaded when it
 is compiled, by including an appropriate directive in the source, e.g.,
 \notation{:- lib(lists).}
 
-Library files are found by searching the library path and by appending
-a suffix to the library name.
-\index{library_path}
-\index{library search path}
+Library files are found by searching the
+\Index{library path}\index{library search path}
+and by appending a suffix to the library name.
 The search path used when loading libraries is
-specified by the global flag \flagname{library_path} using the
+specified by the global flag \notation{library_path} using the
 \bipref{get_flag/2}{../bips/kernel/env/get_flag-2.html} and
 \bipref{set_flag/2}{../bips/kernel/env/set_flag-2.html} predicates.
 This flag contains a list of strings containing the pathnames of the
 directories to be searched when loading a library file.
 User libraries may be be added to the system simply by copying the
 desired file into the {\eclipse} library directory.
-Alternatively the \flagname{library_path} flag may be updated to point
+Alternatively the \notation{library_path} flag may be updated to point
 at a number of user specific directories. The following example illustrates
 how a directive may be added to a file to add a user-defined library in front
 of any existing system libraries.
@@ -761,7 +756,7 @@ techniques which can be used to optimise your programs.
 %------------------------------------------------------------------------
 
 %------------------------------------------------------------------------
-\subsection{Initialisation at start-up}
+\subsection{Initialization at start-up}
 
 If you wish to have {\eclipse} do or execute things at startup time, you
 can achieve this in {\tkeclipse} by setting the initial query call in the
@@ -770,23 +765,23 @@ Preference editor; and in the command-line \notation{eclipse} by putting via a
 
 For \notation{eclipse},
 before displaying the initial prompt, the system checks whether there is a file
-called \notationidx{.eclipserc}\index{initialisation file}\label{eclipserc}
+called \notationidx{.eclipserc}\index{initialization file}\label{eclipserc}
 in the current directory and if not, in the user's home
 directory.  If such a file is found, {\eclipse} compiles it first.
-Thus it is possible to put various initialisation commands into
+Thus it is possible to put various initialization commands into
 this file.
 {\eclipse} has many possibilities to change its default behaviour and
 setting up a \notation{.eclipserc} file is a convenient way to achieve this.
-A different name for the initialisation file can be specified
+A different name for the initialization file can be specified
 in the environment variable \notationidx{ECLIPSEINIT}.
-If \notation{ECLIPSEINIT} is set to an empty string, no initialisation is done.
+If \notation{ECLIPSEINIT} is set to an empty string, no initialization is done.
 If the system is started with a -e option, then the \notation{.eclipserc} file
 is ignored.
 
 For {\tkeclipse}, the system will make the initial query call as set in the
 Preference Editor before giving control to the user. This call can be set
-to compile an initialisation file. This can be the \notation{.eclipserc} file,
-or some other file if the user wants to initialise the system differently in
+to compile an initialization file. This can be the \notation{.eclipserc} file,
+or some other file if the user wants to initialize the system differently in
 {\tkeclipse}.
 
 %------------------------------------------------------------------------
@@ -799,14 +794,14 @@ It is not enforced by the system, but it simplifies managing the source
 programs.
 The \bipref{compile/1}{../bips/kernel/compiler/compile-1.html} predicate
 automatically adds the suffix to the
-filename, so that it does not need to be specified;
-if the literal filename can not be found, the system tries appending
-each of the valid suffixes in turn and tries to find the resulting filename.
+file name, so that it does not have to be specified;
+if the literal file name can not be found, the system tries appending
+each of the valid suffixes in turn and tries to find the resulting file name.
 The system's list of valid Prolog suffixes is in the global flag
-\flagnameidx{prolog_suffix} and can be examined and modified
+\notationidx{prolog_suffix} and can be examined and modified
 using \bipref{get_flag/2}{../bips/kernel/env/get_flag-2.html} and
 \bipref{set_flag/2}{../bips/kernel/env/set_flag-2.html}.
-For example, to add the new suffix ``.pro'' use:
+For example, to add the new suffix \notation{.pro} use:
 \begin{quote}
 \begin{verbatim}
 get_flag(prolog_suffix, Old), set_flag(prolog_suffix, [".pro"|Old]).
