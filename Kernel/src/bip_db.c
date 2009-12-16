@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.8 2009/03/09 05:29:48 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.9 2009/12/16 13:25:42 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -140,6 +140,7 @@ static	dident
 		d_deprecated_,
 		d_dynamic_,
 		d_static_,
+		d_unfold6_,
 		d_invisible_,
 		d_imported_,
 		d_reexported_,
@@ -274,6 +275,7 @@ bip_db_init(int flags)
     d_source_file_ = in_dict("source_file", 0);
     d_source_line_ = in_dict("source_line", 0);
     d_source_offset_ = in_dict("source_offset", 0);
+    d_unfold6_ = in_dict("unfold", 6);
 
     d_predlist_option[PREDLIST_UNDECLARED] = in_dict("undeclared",0);
     d_predlist_option[PREDLIST_LOCAL] = in_dict("local",0);
@@ -1446,6 +1448,12 @@ _define_goal_macro(dident proc_did, dident trans_did, value vm, type tm)
     pri *proc_pri;
     int err;
 
+    if (!((2 <= DidArity(trans_did) && DidArity(trans_did) <= 5)
+    	|| trans_did == d_unfold6_))
+    {
+	Bip_Error(RANGE_ERROR);
+    } 
+
     /*
      * First look up the predicate proc in module m
 
@@ -1527,10 +1535,6 @@ p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, 
 	    lookup_module = vmod.did;
 	}
 	Get_Proc_Did(vtrans, ttrans, dt)
-	if (DidArity(dt) < 2 || DidArity(dt) > 5)	
-	{
-	    Bip_Error(RANGE_ERROR);
-	} 
 	err = _macro_options(vprop, tprop, &mtype, &flag);
 	if (err != PSUCCEED)
 	{
@@ -1558,6 +1562,10 @@ p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, 
 	}
 	else
 	{
+	    if (DidArity(dt) < 2 || DidArity(dt) > 5)	
+	    {
+		Bip_Error(RANGE_ERROR);
+	    } 
 	    /* we define the source transformation */
 	    prop = set_modular_property(dp, mtype,
 		    vmod.did, tmod,

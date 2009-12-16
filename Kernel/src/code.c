@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.10 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: code.c,v 1.11 2009/12/16 13:25:42 jschimpf Exp $
  */
 
 /********************************************************************
@@ -139,6 +139,7 @@ vmcode wake_code_[PROC_PREFIX_SIZE+5];
 vmcode idle_code_[PROC_PREFIX_SIZE+4];
 vmcode fork_code_[PROC_PREFIX_SIZE+49];
 vmcode wb_code_[PROC_PREFIX_SIZE+15];
+vmcode head_match_code_[PROC_PREFIX_SIZE+15];
 
 /*
  * These are pointers into the arrays above
@@ -584,10 +585,33 @@ code_init(int flags)
     Make_Default_Prefix(d_.cut_to);
     if (flags & INIT_SHARED)
     {
-	Exported_Kernel_Proc(d_.cut_to, ARGFIXEDWAM | DEBUG_DB | DEBUG_DF, code);
+	Exported_Kernel_Proc(d_.cut_to, EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF, code);
     }
     Store_2(CutAM, Address(1))
-    Store_i(Retd);
+    Store_i(Retd_nowake);
+    Store_i(Code_end);
+
+
+/*
+ * ?=/2 (head matching expansion)
+ * This is normally only generated in the compiler's normalisation phase
+ * and then immediately inlined in the code generation phase.  However,
+ * when we store the normalised source (because of inline/1), this can
+ * show up in the result of goal expansion.  In case that expansion is
+ * then metacalled instead of compiled, we need this definition.
+ */
+    code = head_match_code_;
+    did1 = in_dict("?=",2);
+    Make_Default_Prefix(did1);
+    if (flags & INIT_SHARED)
+    {
+	Exported_Kernel_Proc(did1, EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF, code);
+    }
+    Store_Var_Alloc(2, 1, 1);	/* 4 words */
+    Store_3(MoveAML, Address(2), Esize(2))
+    Store_3(CallfP, DidPtr(in_dict("instance_simple",2))->procedure, 0)
+    Store_3(Get_valueLL, Esize(1), Esize(2))
+    Store_i(Exit);
     Store_i(Code_end);
 
 
