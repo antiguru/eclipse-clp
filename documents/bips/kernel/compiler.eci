@@ -1108,7 +1108,72 @@ transformation (e.g. inlining) of calls to Pred.
 
 
 ",
-	see_also:[macro / 3, get_flag / 2, set_flag / 2, pragma / 1, compile / 1]]).
+	see_also:[inline/1, expand_goal/2, macro / 3, get_flag / 2, set_flag / 2, pragma / 1, compile / 1]]).
+
+
+:- comment(inline / 1, [
+	summary:"Declares Pred as a candidate for inlining (unfolding).",
+	amode:(inline(++) is det),
+	desc:html("\
+   If a predicate is declared inline, the compiler will attempt to
+   textually insert the predicate's definition everywhere the
+   predicate is called.  This is also known as unfolding.  
+   Inlining will usually improve efficiency, in particular when the
+   inlined predicate is short or has many arguments.
+<P>
+   If the inlined predicate has multiple clauses, they will be inlined
+   in the form of a disjunction (note that indexing will be preserved).
+<P>
+   If inlining is applied to an exported predicate, one must be aware that
+   the definition will be textually substituted for the original goal in
+   an unknown module context.  Although the expansion mechanism will add
+   module qualifications to the expanded source, it means that all
+   predicates called by the expanded source must be exported from their
+   definition module in order to be accessible from elsewhere.
+<P>
+   The inline/1 directive must be issued from the definition module
+   of Pred, and should occur before Pred's definition.  Only calls that
+   textually follow the definition will be inlined.
+<P>
+   Note that inline/1 is a special system-defined case of inline/2,
+   using a transformation predicate called unfold/6.  Therefore
+   get_flag(Pred, inline, unfold/6) can be used to test whether a
+   predicate has been declared with inline/1.
+<P>
+   Inlining can be disabled for debugging purposes by adding
+<PRE>
+    :- pragma(noexpand).
+</PRE>
+   to the code containing calls, or by setting the global flag
+<PRE>
+    :- set_flag(goal_expansion, off).
+</PRE>
+    The global flag also controls whether transformations are applied
+    to goals entered at the interactive toplevel prompt.
+<P>
+"),
+	args:["Pred" : "Expression of the form Atom/Integer."],
+	exceptions:[4 : "Pred is not fully instantiated.", 5 : "Pred is not of the form Atom/Integer.", 100 : "Pred is not defined is this module."],
+	eg:"
+    :- inline(double/2).
+    double(X, Y) :- Y is 2*X.
+
+    % The predicate
+    sample :- ..., double(A, B), ...
+    % will be compiled as
+    sample :- ..., B is 2*A, ...
+
+    :- inline(yesno/1).
+    yesno(yes).
+    yesno(no).
+
+    % The predicate
+    sample :- ..., yesno(X), ...
+    % will be compiled as
+    sample :- ..., (X=yes;X=no), ...
+
+",
+	see_also:[inline / 2, expand_goal/2, get_flag / 2, pragma / 1, compile / 1]]).
 
 
 :- comment(expand_goal / 2, [
@@ -1116,8 +1181,8 @@ transformation (e.g. inlining) of calls to Pred.
 	amode:(expand_goal(+,-) is det),
 	desc:html("\
     Applies a goal inline expansion to Term, if any is visible in the
-    caller module. If no inline declaration is visible, TransTerm is
-    identical to Term.
+    caller module. If no inline/1 or inline/2 declaration is visible,
+    TransTerm is identical to Term.
     <P>
     Normally, goal inline expansion is performed implicitly by the compiler.
     For certain meta-programming applications (e.g. for writing other
@@ -1138,7 +1203,7 @@ transformation (e.g. inlining) of calls to Pred.
     G = fd_arith : fd_gec(X, -1, Y, -1, 0)
     yes.
 ",
-	see_also:[inline/2, portray/3, expand_clause/2]]).
+	see_also:[inline/1, inline/2, portray/3, expand_clause/2]]).
 
 :- comment(expand_clause / 2, [
 	summary:"Apply clause transformation to Term",
@@ -1275,7 +1340,7 @@ transformation (e.g. inlining) of calls to Pred.
      ?- current_pragma(myoption(off)).
      Yes.
 ",
-    see_also:[compile / 1, inline/2, pragma/1, library(source_processor)]]).
+    see_also:[compile / 1, inline/1, inline/2, pragma/1, library(source_processor)]]).
 
 
 %----------------------------------------------------------------------

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.20 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.21 2009/12/16 13:30:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1716,6 +1716,64 @@ forget_discontiguous_predicates(Module) :-
 	forget_discontiguous_predicates(Keys, Module).
 
 
+%----------------------------------------------------------------------
+% Inlined predicates
+%
+% Inlined predicates are handled by recording their (normalised) source
+% while they are being compiled, and using that via the normal inline
+% (goal expansion) mechanism.  The transformation predicate is unfold/6.
+%----------------------------------------------------------------------
+
+:- store_create_named(inlined_predicates).
+
+inline_(Proc, Module) :-
+	define_macro_(Proc, unfold/6, [goal], Module).
+
+inline_(Proc, Trans, Module) :-
+	define_macro_(Proc, Trans, [goal], Module).
+
+
+unfold(Goal, Unfolded, AnnGoal, AnnUnfolded, _CM, LM) :-
+	functor(Goal, F, N),
+	store_get(inlined_predicates, LM:F/N, Stored), % may fail
+	Stored = source(Head, Body, AnnBody),
+	Unfolded = (Goal=Head, Body),
+	( var(AnnGoal) ->
+	    % leave AnnUnfolded uninstantiated
+	    true
+	; var(AnnBody) ->
+	    % inherit Goal's annotation for everything
+	    transformed_annotate_anon(Unfolded, AnnGoal, AnnUnfolded)
+	;
+	    % Argument unification inherits Goal's annotation
+	    transformed_annotate_anon(Head, AnnGoal, AnnHead),
+	    inherit_annotation(AnnGoal=AnnHead, AnnGoal, AnnUnify),
+	    % Body keeps its annotations, comma inherits Body's annotation,
+	    inherit_annotation((AnnUnify,AnnBody), AnnBody, AnnUnfolded)
+	).
+
+
+% Called by the compiler
+record_inline_source(Head, Body, AnnBody, Module) :-
+	functor(Head, F, N),
+	store_set(inlined_predicates, Module:F/N, source(Head,Body,AnnBody)).
+
+
+% module has been erased: forget the stored source
+forget_inlined_predicates(Module) :-
+	stored_keys(inlined_predicates, Keys),
+	forget_inlined_predicates(Keys, Module).
+
+    forget_inlined_predicates([], _Module).
+    forget_inlined_predicates([Key|Keys], Module) :-
+	( Key = Module:_ ->
+	    store_delete(inlined_predicates, Key)
+	;
+	    true	% other module, ignore
+	),
+	forget_inlined_predicates(Keys, Module).
+
+
 %--------------------------------
 % Environment
 %--------------------------------
@@ -2230,6 +2288,7 @@ erase_module_related_records(Module) :-
 	erase_module_pragmas(Module),
 	erase_deprecation_advice(Module),
 	forget_discontiguous_predicates(Module),
+	forget_inlined_predicates(Module),
 	forget_stored_goals(initialization_goals, Module),
 	forget_stored_goals(finalization_goals, Module),
 	reset_name_ctr(Module),
@@ -3710,10 +3769,6 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	set_proc_flags(Proc, Flag, Value, Module).
 
 
-inline_(Proc, Trans, Module) :-
-	define_macro_(Proc, Trans, [goal], Module).
-
-
 
 /****** Tool declarations *******/
 
@@ -3742,6 +3797,7 @@ inline_(Proc, Trans, Module) :-
 	tool(external/1, external_body/2),
 	tool(b_external/1, b_external_body/2),
 	tool(inline/2, inline_/3),
+	tool(inline/1, inline_/2),
 	tool(insert_suspension/3, insert_suspension/4),
 	tool(add_attribute/2, add_attribute/3),
 	tool(get_attribute/2, get_attribute/3),
@@ -3768,6 +3824,7 @@ inline_(Proc, Trans, Module) :-
 
 :- export				% undocumented exports
 	record_discontiguous_predicate/4,
+	record_inline_source/4,
 	collect_discontiguous_predicates/2,
 	valid_signature/2,
 	reset/0,
@@ -3906,6 +3963,7 @@ inline_(Proc, Trans, Module) :-
 	(import)/1,
 	incval/1,
 	insert_suspension/3,
+	inline/1,
 	inline/2,
 	(is)/2,
 	is_predicate/1,
@@ -4565,27 +4623,34 @@ expand_macros_annotated_(Term, AnnTerm, Expanded, AnnExpanded, ContextModule) :-
 
 
 % var(Ann) => var(AnnExpanded)
-transform(Term, Ann, Expanded, AnnExpanded, TN/TA, TLM, ContextModule) :-
+transform(Term, Ann, Expanded, AnnExpanded, TN/TA, TLM0, ContextModule) :-
 	% construct goal <trans>(<in>, <out>[, <module>]) or
         %                <trans>(<in>, <out>, <inann>, <outann>[, <module>])
 	functor(TransGoal, TN, TA),
 	arg(1, TransGoal, Term),
 	arg(2, TransGoal, Expanded),
-        ( TA > 2 ->
-            (TA == 3 ->
-                arg(3, TransGoal, ContextModule)
-            ; 
-                /* with annotated goal, arity 4 or 5 */
-                arg(3, TransGoal, Ann),
-                arg(4, TransGoal, AnnExpanded),
-                ( TA > 4 ->
-                    arg(5, TransGoal, ContextModule)
-                ;
-                    true
-                )
-            )
-        ;
-            true
+        ( TA =< 2 ->
+	    TLM = TLM0
+        ; TA =< 3 ->
+	    arg(3, TransGoal, ContextModule),
+	    TLM = TLM0
+	; 
+	    /* with annotated goal, arity 4 or 5 */
+	    arg(3, TransGoal, Ann),
+	    arg(4, TransGoal, AnnExpanded),
+	    ( TA =< 4 ->
+		TLM = TLM0
+	    ;
+		arg(5, TransGoal, ContextModule),
+		( TA =< 5 ->
+		    TLM = TLM0
+		;
+		    % Sorry, hack: this only happens for unfold/6, which
+		    % has a known lookup module, and gets an extra argument
+		    arg(6, TransGoal, TLM0),
+		    TLM = sepia_kernel
+		)
+	    )
 	),
 	% call toplevel transformation
 	% TLM:TransGoal@ContextModule

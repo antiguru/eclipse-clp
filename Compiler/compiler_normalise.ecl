@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.18 2009/07/16 09:11:23 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.19 2009/12/16 13:32:02 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2009/07/16 09:11:23 $").
+:- comment(date, "$Date: 2009/12/16 13:32:02 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -918,3 +918,164 @@ print_normalized_goal(Stream, Indent, goal{kind:K,callpos:P,state:State,
 	    indent(Stream, ArgIndent), writeln(Stream, Arg)
 	),
 	print_goal_state(Stream, Indent, State).
+
+
+%----------------------------------------------------------------------
+% Denormalize (obtain a source suitable for inlining)
+% TODO: with annotations
+% TODO: Catch simple cases of recursion
+% TODO: if local predicates from the compilation module are called,
+%	they can only be called via :/2 if they are exported.
+% TODO: purge redundant get_cuts?
+% Note: context modules are handled correctly, since the tool
+%	calls are already expanded at this point!
+% Note: Unfortunately, we can only restore the annotations partially
+%	(per goal, not per term), but enough for tracing
+%----------------------------------------------------------------------
+
+:- export denormalize_pred/3.
+denormalize_pred([NormHead|NormBody], VarCount, (Head:-Body)) :-
+	dim(Vars, [VarCount]),
+	certainly_once denormalize_head(NormHead, Vars, Head),
+	denormalize_conj(NormBody, Vars, Body).
+
+%denormalize_head(goal{kind:head,functor:F/A,args:NormArgs}, Vars, Head) :-
+%	functor(Head, F, A),
+%	( foreach(NormArg,NormArgs), foreacharg(Arg,Head), param(Vars) do
+%	    denormalize_term(NormArg, Vars, Arg)
+%	).
+
+denormalize_conj([], _Vars, true).
+denormalize_conj([NormGoal|NormGoals], Vars, Conj) :-
+	writeln(NormGoal),
+	denormalize_goal(NormGoal, Vars, Goal1),
+	(
+	    foreach(NormGoal,NormGoals),
+	    fromto(Goal1,PrevGoal,Goal,LastGoal),
+	    fromto(Conj,(PrevGoal,Conj2),Conj2,LastGoal),
+	    param(Vars)
+	do
+	    writeln(NormGoal),
+	    denormalize_goal(NormGoal, Vars, Goal)
+	).
+
+denormalize_goal(disjunction{branches:NormBranches}, Vars, Disj) ?-
+	certainly_once NormBranches = [NormBranch1|NormBranches1],
+	denormalize_conj(NormBranch1, Vars, Alt1),
+	(
+	    foreach(NormBranch,NormBranches1),
+	    fromto(Alt1,PrevAlt,Alt,LastAlt),
+	    fromto(Disj,(PrevAlt;Disj2),Disj2,LastAlt),
+	    param(Vars)
+	do
+	    denormalize_conj(NormBranch, Vars, Alt)
+	).
+denormalize_goal(goal{kind:Kind,functor:F/A,args:NormArgs,lookup_module:LM,definition_module:DM}, Vars, QGoal) ?-
+	verify Kind \== head,
+	( DM==[] -> QGoal=LM:Goal ; QGoal=DM:Goal ),
+	functor(Goal, F, A),
+	( foreach(NormArg,NormArgs), foreacharg(Arg,Goal), param(Vars) do
+	    denormalize_term(NormArg, Vars, Arg)
+	).
+
+%denormalize_term(variable{varid:VarId}, Vars, Var) :-
+%	arg(VarId, Vars, Var).
+%denormalize_term(structure{name:F,arity:A,args:NormArgs}, Vars, Term) :-
+%	functor(Term, F, A),
+%	( foreach(NormArg,NormArgs), foreacharg(Arg,Term), param(Vars) do
+%	    denormalize_term(NormArg, Vars, Arg)
+%	).
+%denormalize_term([NormArg|NormArgs], Vars, [Arg|Args]) :-
+%	denormalize_term(NormArg, Vars, Arg),
+%	denormalize_term(NormArgs, Vars, Args).
+%denormalize_term(NormTerm, _Vars, Term) :- atomic(NormTerm),
+%	Term=NormTerm.
+
+
+%----------------------------------------------------------------------
+% This will leave goal arguments unannotated!
+% Problem: goal without source location are intermixed!
+
+
+:- export denormalize_pred/5.
+denormalize_pred([NormHead|NormBody], VarCount, Head, Body, AnnBody) :-
+	dim(Vars, [VarCount]),
+	certainly_once denormalize_head(NormHead, Vars, Head),
+	denormalize_conj(NormBody, Vars, Body, AnnBody).
+
+denormalize_head(goal{kind:head,functor:F/A,args:NormArgs}, Vars, Head) :-
+	functor(Head, F, A),
+	( foreach(NormArg,NormArgs), foreacharg(Arg,Head), param(Vars) do
+	    denormalize_term(NormArg, Vars, Arg)
+	).
+
+denormalize_conj([], _Vars, true, _AnnMissing).
+denormalize_conj([NormGoal|NormGoals], Vars, Conj, AnnConj) :-
+	denormalize_goal(NormGoal, Vars, Goal1, AnnGoal1),
+	(
+	    foreach(NormGoal,NormGoals),
+	    fromto(Goal1,PrevGoal,Goal,LastGoal),
+	    fromto(AnnGoal1,AnnPrevGoal,AnnGoal,AnnLastGoal),
+	    fromto(Conj,(PrevGoal,Conj2),Conj2,LastGoal),
+	    fromto(AnnConj,AnnConj1,AnnConj2,AnnLastGoal),
+	    param(Vars)
+	do
+	    inherit_annotation((AnnPrevGoal,AnnConj2), AnnPrevGoal, AnnConj1),
+	    denormalize_goal(NormGoal, Vars, Goal, AnnGoal)
+	).
+
+denormalize_goal(disjunction{branches:NormBranches}, Vars, Disj, AnnDisj) ?-
+	certainly_once NormBranches = [NormBranch1|NormBranches1],
+	denormalize_conj(NormBranch1, Vars, Alt1, AnnAlt1),
+	(
+	    foreach(NormBranch,NormBranches1),
+	    fromto(Alt1,PrevAlt,Alt,LastAlt),
+	    fromto(AnnAlt1,AnnPrevAlt,AnnAlt,AnnLastAlt),
+	    fromto(Disj,(PrevAlt;Disj2),Disj2,LastAlt),
+	    fromto(AnnDisj,AnnDisj1,AnnDisj2,AnnLastAlt),
+	    param(Vars)
+	do
+	    inherit_annotation((AnnPrevAlt;AnnDisj2), AnnPrevAlt, AnnDisj1),
+	    denormalize_conj(NormBranch, Vars, Alt, AnnAlt)
+	).
+denormalize_goal(NormGoal, Vars, QGoal, AnnQGoal) ?-
+	NormGoal = goal{kind:Kind,functor:F/A,args:NormArgs,lookup_module:LM,definition_module:DM},
+	verify Kind \== head,
+	( DM==[] -> LDM=LM ; LDM=DM ),
+	QGoal=LDM:Goal,
+	functor(Goal, F, A),
+	annotate_from_norm_goal(Goal, NormGoal, AnnGoal),
+	inherit_annotation(LDM, AnnGoal, AnnLDM),
+	inherit_annotation(AnnLDM:AnnGoal, AnnGoal, AnnQGoal),
+	( foreach(NormArg,NormArgs), foreacharg(Arg,Goal), param(Vars) do
+	    denormalize_term(NormArg, Vars, Arg)
+	).
+
+denormalize_term(variable{varid:VarId}, Vars, Var) :-
+	arg(VarId, Vars, Var).
+denormalize_term(structure{name:F,arity:A,args:NormArgs}, Vars, Term) :-
+	functor(Term, F, A),
+	( foreach(NormArg,NormArgs), foreacharg(Arg,Term), param(Vars) do
+	    denormalize_term(NormArg, Vars, Arg)
+	).
+denormalize_term([NormArg|NormArgs], Vars, [Arg|Args]) :-
+	denormalize_term(NormArg, Vars, Arg),
+	denormalize_term(NormArgs, Vars, Args).
+denormalize_term(NormTerm, _Vars, Term) :- atomic(NormTerm),
+	Term=NormTerm.
+
+
+annotate_from_norm_goal(Term, goal{path:P,line:L,from:F,to:T}, Ann) :-
+	( var(P) ->
+	    Ann=annotated_term{term:TermAnn,type:Type,file:'',line:0,from:0,to:0}
+	;
+	    Ann=annotated_term{term:TermAnn,type:Type,file:P,line:L,from:F,to:T}
+	),
+	functor(Term, N, A),
+	functor(TermAnn, N, A),	% annotated arguments remain uninstantiated!
+	type_of(Term, Type).
+
+inherit_annotation(_Term, AnnTmpl, _AnnTerm) :- var(AnnTmpl), !.
+inherit_annotation(Term, AnnTmpl,  AnnTerm) :-
+	update_struct(annotated_term, [term:Term,type:Type], AnnTmpl, AnnTerm),
+	type_of(Term, Type).

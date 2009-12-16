@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.16 2009/03/09 05:32:53 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.17 2009/12/16 13:32:02 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2009/03/09 05:32:53 $").
+:- comment(date,	"$Date: 2009/12/16 13:32:02 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -69,6 +69,7 @@
 	implicit_local/2,
 	bip_error/1,
 	record_discontiguous_predicate/4,
+	record_inline_source/4,
 	register_compiler/1,
 	set_default_error_handler/2
    from sepia_kernel.
@@ -445,8 +446,16 @@ compile_pred_to_wam(Pred, Clauses, AnnCs, FinalCode, Options, Module) :-
 
 	% Create our normal form
 	message("Normalize", 2, Options),
-	normalize_clauses_annotated(Clauses, AnnCs, NormPred0, _NVars, Options, Module),
+	normalize_clauses_annotated(Clauses, AnnCs, NormPred0, NVars, Options, Module),
 %	print_normalized_clause(output, NormPred0),
+
+	% If this predicate is to be unfolded, record its (de)normalised source
+	( get_flag(Pred, inline, unfold/_)@Module ->
+	    denormalize_pred(NormPred0, NVars, Head, SingleClause, AnnSingleClause),
+	    record_inline_source(Head, SingleClause, AnnSingleClause, Module)
+	;
+	    true
+	),
 
 	% Do some intra-predicate flow analysis
 	message("Analysis", 2, Options),

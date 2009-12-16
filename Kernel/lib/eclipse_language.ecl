@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.5 2009/03/09 05:31:41 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.6 2009/12/16 13:30:56 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -301,6 +301,7 @@
 :- reexport (import) / 1 from sepia_kernel.
 :- reexport incval / 1 from sepia_kernel.
 :- reexport init_suspension_list / 2 from sepia_kernel.
+:- reexport inline / 1 from sepia_kernel.
 :- reexport inline / 2 from sepia_kernel.
 :- reexport insert_suspension / 3 from sepia_kernel.
 :- reexport insert_suspension / 4 from sepia_kernel.
