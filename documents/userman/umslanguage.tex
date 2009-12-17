@@ -20,7 +20,7 @@
 %
 % END LICENSE BLOCK
 %
-% $Id: umslanguage.tex,v 1.3 2009/12/14 17:49:16 kish_shen Exp $
+% $Id: umslanguage.tex,v 1.4 2009/12/17 08:22:12 jschimpf Exp $
 %
 % AUTHOR        Joachim Schimpf, IC-Parc, Imperial College, London
 %
@@ -41,12 +41,12 @@ of Prolog.
 %----------------------------------------------------------------------
 
 \index{structures}
-{\eclipse} \Index{extended structure notation}%
-\index{structure notation|see{extended structure notation}}
+{\eclipse} \Index{abstract structure notation}%
+\index{structure notation|see{abstract structure notation}}
 provides a way to use structures with
 field names. It is intended to make programs more readable and easier
 to modify, without compromising efficiency
-(it is implemented by preprocessing).
+(it is implemented by parse-time preprocessing).
 
 A structure is declared by specifying a template like this
 \indextt{local/1}
@@ -101,7 +101,7 @@ which is translated into
 \end{verbatim}
 \end{quote}
 
-If a program is consistently written using the extended structure notation
+If a program is consistently written using the abstract structure notation
 (i.e., with \notation{\{...\}} and \notation{of}), then the struct-declaration
 can be modified (fields added or rearranged) without having to update the code
 anywhere else.
@@ -142,7 +142,7 @@ which is used for the portray-declaration in the example below.
 
 \subsection{Printing Structures}
 When structures are printed, they are not translated back into the
-extended structure syntax by default. The reason this is not done is that this
+abstract structure syntax by default. The reason this is not done is that this
 can
 be bulky if all fields are printed, and often
 it is desirable to hide some of the fields anyway.
@@ -187,7 +187,7 @@ Emp = employee(person(john, _105, _106), 2000)
 yes.
 \end{verbatim}
 \end{quote}
-Note that, as long as the extended structure notation is used,
+Note that, as long as the abstract structure notation is used,
 the \notation{employee} structure can be viewed either as nested or as flat,
 depending on what is more convenient in a given situation.
 In particular, the embedded structure can still be accessed as a whole:
