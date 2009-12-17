@@ -81,8 +81,8 @@ intset(SetVar, 1, 7)
 which is equivalent to the above.    
 \quickref{Declaring Set Variables}{
 \begin{description}
-\item[\biptxtref{?Set :: ++Lwb..++Upb}{::/2!ic_sets}{../bips/lib/ic_sets/NN-2.html}]
-         Set is an integer set within the given bounds 
+\item[\biptxtrefni{?Set :: ++Lwb..++Upb}{::/2!ic_sets}{../bips/lib/ic_sets/NN-2.html}]
+\index{::/2@\texttt{::/2}!ic_sets} Set is an integer set within the given bounds 
 \item[\biptxtref{intset(?Set, +Min, +Max)}{intset/3}{../bips/lib/ic_sets/intset-3.html}]
          Set is a set containing numbers between Min and Max 
 \item[\biptxtref{intsets(?Sets, ?N, +Min, +Max)}{intsets/4}{../bips/lib/ic_sets/intsets-4.html}]
@@ -120,14 +120,14 @@ The membership (in/2, notin/2) and cardinality constraints
 relationships between set variables and integer variables:
 \quickref{Membership and Cardinality Constraints}{
 \begin{description}
-\item[\biptxtref{?X in ?Set}{in/2!ic_sets}{../bips/lib/ic_sets/in-2.html}]
-         The integer X is member of the integer set Set 
-\item[\biptxtref{?X notin ?Set}{notin/2!ic_sets}{../bips/lib/ic_sets/notin-2.html}]
-         The integer X is not a member of the integer set Set 
+\item[\biptxtrefni{?X in ?Set}{in/2!ic_sets}{../bips/lib/ic_sets/in-2.html}]
+         \index{in/2@\texttt{in/2}!ic_sets} The integer X is member of the integer set Set 
+\item[\biptxtrefni{?X notin ?Set}{notin/2!ic_sets}{../bips/lib/ic_sets/notin-2.html}]
+         \index{notin/2@\texttt{notin/2}!ic_sets} The integer X is not a member of the integer set Set 
 %\item[\biptxtref{membership_booleans(?Set, ?BoolArr)}{membership_booleans/2!ic_sets}{../bips/lib/ic_sets/membership_booleans-2.html}]
 %         BoolArr is an array of booleans describing Set 
-\item[\biptxtref{\#(?Set, ?Card)}{\#/2!ic_sets}{../bips/lib/ic_sets/H-2.html}]
-         Card is the cardinality of the integer set Set 
+\item[\biptxtrefni{\#(?Set, ?Card)}{\#/2!ic_sets}{../bips/lib/ic_sets/H-2.html}]
+         \index{\#/2@\texttt{\#/2}!ic_sets} Card is the cardinality of the integer set Set 
 \end{description}
 }
 \begin{quote}\begin{verbatim}
@@ -163,22 +163,22 @@ Yes (0.00s cpu)
 \end{verbatim}\end{quote}
 \quickref{Basic Set Relations}{
 \begin{description}
-\item[\biptxtref{?Set1 sameset ?Set2}{sameset/2!ic_sets}{../bips/lib/ic_sets/sameset-2.html}]
-         The sets Set1 and Set2 are equal 
-\item[\biptxtref{?Set1 disjoint ?Set2}{disjoint/2!ic_sets}{../bips/lib/ic_sets/disjoint-2.html}]
-         The integer sets Set1 and Set2 are disjoint 
-\item[\biptxtref{?Set1 includes ?Set2}{includes/2!ic_sets}{../bips/lib/ic_sets/includes-2.html}]
-         Set1 includes (is a superset) of the integer set Set2 
-\item[\biptxtref{?Set1 subset ?Set2}{subset/2!ic_sets}{../bips/lib/ic_sets/subset-2.html}]
-         Set1 is a (non-strict) subset of the integer set Set2 
-\item[\biptxtref{intersection(?Set1, ?Set2, ?Set3)}{intersection/3!ic_sets}{../bips/lib/ic_sets/intersection-3.html}]
-         Set3 is the intersection of the integer sets Set1 and Set2 
-\item[\biptxtref{union(?Set1, ?Set2, ?Set3)}{union/3!ic_sets}{../bips/lib/ic_sets/union-3.html}]
-         Set3 is the union of the integer sets Set1 and Set2 
-\item[\biptxtref{difference(?Set1, ?Set2, ?Set3)}{difference/3!ic_sets}{../bips/lib/ic_sets/difference-3.html}]
+\item[\biptxtrefni{?Set1 sameset ?Set2}{sameset/2!ic_sets}{../bips/lib/ic_sets/sameset-2.html}]
+         \index{sameset/2@\texttt{sameset/2}!ic_sets} The sets Set1 and Set2 are equal 
+\item[\biptxtrefni{?Set1 disjoint ?Set2}{disjoint/2!ic_sets}{../bips/lib/ic_sets/disjoint-2.html}]
+         \index{disjoint/2@\texttt{disjoint/2}!ic_sets} The integer sets Set1 and Set2 are disjoint 
+\item[\biptxtrefni{?Set1 includes ?Set2}{includes/2!ic_sets}{../bips/lib/ic_sets/includes-2.html}]
+         \index{includes/2@\texttt{includes/2}!ic_sets} Set1 includes (is a superset) of the integer set Set2 
+\item[\biptxtrefni{?Set1 subset ?Set2}{subset/2!ic_sets}{../bips/lib/ic_sets/subset-2.html}]
+         \index{subset/2@\texttt{subset/2}!ic_sets} Set1 is a (non-strict) subset of the integer set Set2 
+\item[\biptxtrefni{intersection(?Set1, ?Set2, ?Set3)}{intersection/3!ic_sets}{../bips/lib/ic_sets/intersection-3.html}]
+         \index{intersection/3@\texttt{intersection/3}!ic_sets} Set3 is the intersection of the integer sets Set1 and Set2 
+\item[\biptxtrefni{union(?Set1, ?Set2, ?Set3)}{union/3!ic_sets}{../bips/lib/ic_sets/union-3.html}]
+         \index{union/3@\texttt{union/3}!ic_sets} Set3 is the union of the integer sets Set1 and Set2 
+\item[\biptxtrefni{difference(?Set1, ?Set2, ?Set3)}{difference/3!ic_sets}{../bips/lib/ic_sets/difference-3.html}]
          Set3 is the difference of the integer sets Set1 and Set2 
-\item[\biptxtref{symdiff(?Set1, ?Set2, ?Set3)}{symdiff/3!ic_sets}{../bips/lib/ic_sets/symdiff-3.html}]
-         Set3 is the symmetric difference of the integer sets Set1 and Set2 
+\item[\biptxtrefni{symdiff(?Set1, ?Set2, ?Set3)}{symdiff/3!ic_sets}{../bips/lib/ic_sets/symdiff-3.html}]
+         \index{symdiff/3@\texttt{symdiff/3}!ic_sets} Set3 is the symmetric difference of the integer sets Set1 and Set2 
 \end{description}
 }
 Possible constraints between three sets are for example
