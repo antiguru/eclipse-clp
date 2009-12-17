@@ -116,7 +116,8 @@ is called, then failure will occur if the bounds are inconsistent between
 the eplex instances.
 
 
-\item \biptxtref{integers/1}{integers/1!eplex}{../bips/lib/eplex/integers-1.html} only indicates that a
+\item \biptxtrefni{integers/1}{integers/1!eplex}{../bips/lib/eplex/integers-1.html} \index{integers/1@\texttt{integers/1}!eplex}
+only indicates that a
 variable should be treated as an integer by the external solver in the
 eplex instance, but does not impose the integer type on the variable. 
 In addition, the type of the solution returned for a variable is determined
@@ -130,7 +131,7 @@ the eplex instances. Instead, the bounds can be transferred explicitly by
 the user (e.g.\ by calling the eplex instance bounds constraints when the
 bounds in the solver changes). To allow for more compatibility with the
 other versions of eplex, the \verb'sync_bounds(yes)' option can be
-specified during solver setup (using \biptxtref{eplex_solver_setup/4}{eplex_solver_setup/4!eplex}{../bips/lib/eplex/eplex_solver_setup-4.html}). This will `synchronise' the bounds of all problem
+specified during solver setup (using \biptxtref{eplex_solver_setup/4}{eplex_solver_setup/4}{../bips/lib/eplex/eplex_solver_setup-4.html}). This will `synchronise' the bounds of all problem
 variables when the external solver is invoked, by calling
 \verb'get_var_bounds/3' for all problem variables. Note that it is the generic
 get bounds handler that is called. 
@@ -147,7 +148,7 @@ extra `self-waking' that needlessly invokes the solver (e.g.\ if the bounds
 trigger option is used). Another solution is to add bounds to the variable
 via some other bounds keeper, e.g. \verb'lib(ic)'. Note that it is always
 possible to retrieve the objective value via the \verb'objective' option of
-\biptxtref{eplex_get/2}{eplex_get/2!eplex}{../bips/lib/eplex/eplex_get-2.html}.
+\biptxtref{eplex_get/2}{eplex_get/2}{../bips/lib/eplex/eplex_get-2.html}.
 
 \item When a constraint is posted to an eplex instance after solver setup,
 that constraint is immediately added to the external solver, rather than

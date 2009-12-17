@@ -117,7 +117,7 @@ Like other solvers, each eplex instance has its own module. To use an eplex
 instance, it must first be declared, so that the module can be created.
 This is done by:
 
-\subsubsection{\biptxtref{eplex_instance(+Name)}{eplex_instance/1!epex}{../bips/lib/eplex/eplex_instance-1.html}}
+\subsubsection{\biptxtref{eplex_instance(+Name)}{eplex_instance/1}{../bips/lib/eplex/eplex_instance-1.html}}
 
 This predicate will initialise an eplex instance {\tt Name}. Once
 initialised, a {\tt Name} module will exist, to which the user can post the 
@@ -161,14 +161,14 @@ following they are shown qualified with the {\tt eplex} instance, and with
 brackets around the constraints when needed. Other instances can
 be used if they have been declared using {\bf eplex_instance/1}. 
  
-\subsubsection{\biptxtref{EplexInstance: (X \$= Y)}{\$=/2!eplex}{../bips/lib/eplex/SE-2.html}}
-X is equal to Y. X and Y are linear expressions.
+\subsubsection{\biptxtrefni{EplexInstance: (X \$= Y)}{\$=/2!eplex}{../bips/lib/eplex/SE-2.html}}
+\index{\$=/2@\texttt{\$=/2}!eplex} X is equal to Y. X and Y are linear expressions.
 
-\subsubsection{\biptxtref{EplexInstance: (X \$>= Y)}{\$$>$=/2!eplex}{../bips/lib/eplex/SGE-2.html}}
-X is greater or equal to Y. X and Y are linear expressions.
+\subsubsection{\biptxtrefni{EplexInstance: (X \$>= Y)}{\$$>$=/2!eplex}{../bips/lib/eplex/SGE-2.html}}
+\index{\$>=/2@\texttt{\$>=/2}!eplex} X is greater or equal to Y. X and Y are linear expressions.
 
-\subsubsection{\biptxtref{EplexInstance: (X  \$=< Y)}{\$=$<$/2!eplex}{../bips/lib/eplex/SEL-2.html}}
-X is less or equal to Y. X and Y are linear expressions.
+\subsubsection{\biptxtrefni{EplexInstance: (X  \$=< Y)}{\$=$<$/2!eplex}{../bips/lib/eplex/SEL-2.html}}
+\index{\$=</2@\texttt{\$=</2}!eplex} X is less or equal to Y. X and Y are linear expressions.
 
 
 \subsection{Linear Expressions}
@@ -209,8 +209,8 @@ elements in the two lists.  The lists must be of equal length.
 Bounds for variables can be given to an eplex instance via the \verb'$::/2'
 constraint:
 \begin{description}
-    \item[\biptxtref{EplexIntance: Vars \$:: Lo..Hi}{\$::/2!eplex}{../bips/lib/eplex/SNN-2.html}]
-    \label{eplex-coloncolon2}
+    \item[\biptxtrefni{EplexIntance: Vars \$:: Lo..Hi}{\$::/2!eplex}{../bips/lib/eplex/SNN-2.html}]
+    \index{\$::/2@\texttt{\$::/2}!eplex}\label{eplex-coloncolon2}
     Restrict the external solver to assign solution values for the eplex
     problem within the bounds specified by Lo..Hi.  
     Passes to the external solver the bounds for the variables in Vars.
@@ -227,8 +227,8 @@ constraint:
 The difference between using an LP vs.\ an MIP solver is made by
 declaring integrality to the solver via the integers/1 constraint:
 \begin{description}
-    \item[\biptxtref{EplexInstance:integers(Vars)}{integers/1!eplex}{../bips/lib/eplex/integers-1.html}]
-    \label{eplex-integers1}
+    \item[\biptxtrefni{EplexInstance:integers(Vars)}{integers/1!eplex}{../bips/lib/eplex/integers-1.html}]
+    \index{\$integers/1@\texttt{integers/1}!eplex}\label{eplex-integers1}
 	Inform the external solver to treat the variables Vars as integral.
 	It does not impose the integer type on Vars. However, when a 
         typed_solution is retrieved (via lp_get/3 or
@@ -1015,7 +1015,7 @@ groups, the group name must first be created with the
 \subsection{Predicate-specific Support}
 Constraints are added to the cutpool using:
 
-\subsubsection{\biptxtref{lp_add_cutpool_constraints/4}{lp_add_cutpool_constraints/4!eplex}{../bips/lib/eplex/lp_add_cutpool_constraints-4.html}}
+\subsubsection{\biptxtref{lp_add_cutpool_constraints/4}{lp_add_cutpool_constraints/4}{../bips/lib/eplex/lp_add_cutpool_constraints-4.html}}
     Add the constraints to the cut-pool associated with the
     problem specified by the handle. By default, the constraints belong to
     the default group, and are active and have the `add initially' status

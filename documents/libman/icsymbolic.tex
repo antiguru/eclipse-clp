@@ -80,26 +80,33 @@ The following constraints implement the basic relationships between
 two domain values.  The constraints require their arguments to come
 from identical domains, otherwise an error is raised.
 \begin{description}
-\item[\biptxtref{?X \&= ?Y}{\&=/2!ic_symbolic}{../bips/lib/ic_symbolic/YE-2.html}]
+\item[\biptxtrefni{?X \&= ?Y}{\&=/2!ic_symbolic}{../bips/lib/ic_symbolic/YE-2.html}]
+\index{\&=/2@\texttt{\&=/2}!ic_symbolic}
     X is the same as Y
 \item[\biprefnoidx{?X \&\bsl= ?Y}{../bips/lib/ic_symbolic/YRE-2.html}]
     \index{\&\bsl=/2!ic_symbolic}
     X is different from Y
-\item[\biptxtref{?X \&$>$ ?Y}{\&</2!ic_symbolic}{../bips/lib/ic_symbolic/YL-2.html}]
+\item[\biptxtrefni{?X \&$<$ ?Y}{\&</2!ic_symbolic}{../bips/lib/ic_symbolic/YL-2.html}]
+\index{\&</2@\texttt{\&</2}!ic_symbolic}
     X is strictly before Y in the domain order
-\item[\biptxtref{?X \&$<$ ?Y}{\&>/2!ic_symbolic}{../bips/lib/ic_symbolic/YG-2.html}]
-    X is strictly after Y in the domain order
-\item[\biptxtref{?X \&=$<$ ?Y}{\&=</2!ic_symbolic}{../bips/lib/ic_symbolic/YEL-2.html}]
+\item[\biptxtrefni{?X \&$>$ ?Y}{\&>/2!ic_symbolic}{../bips/lib/ic_symbolic/YG-2.html}]
+    \index{\&>/2@\texttt{\&>/2}!ic_symbolic} X is strictly after Y in the domain order
+\item[\biptxtrefni{?X \&=$<$ ?Y}{\&=</2!ic_symbolic}{../bips/lib/ic_symbolic/YEL-2.html}]
+\index{\&=</2@\texttt{\&=</2}!ic_symbolic}
     X is the same as Y, or before Y in the domain order
-\item[\biptxtref{?X \&$>$= ?Y}{\&>=/2!ic_symbolic}{../bips/lib/ic_symbolic/YGE-2.html}]
+\item[\biptxtrefni{?X \&$>$= ?Y}{\&>=/2!ic_symbolic}{../bips/lib/ic_symbolic/YGE-2.html}]
+\index{\&>=/2@\texttt{\&>=/2}!ic_symbolic}
     X is the same as Y, or after Y in the domain order
-\item[\biptxtref{shift(?X,?C,?Y)}{shift/1!ic_symbolic}{../bips/lib/ic_symbolic/shift-3.html}]
+\item[\biptxtrefni{shift(?X,?C,?Y)}{shift/1!ic_symbolic}{../bips/lib/ic_symbolic/shift-3.html}]
+\index{shift/2@\texttt{shift/2}!ic_symbolic}
     Y is C places above X in the domain order.
     X and Y have symbolic domains, C has an integer domain.
-\item[\biptxtref{rotate(?X,?C,?Y)}{rotate/3!ic_symbolic}{../bips/lib/ic_symbolic/rotate-3.html}]
+\item[\biptxtrefni{rotate(?X,?C,?Y)}{rotate/3!ic_symbolic}{../bips/lib/ic_symbolic/rotate-3.html}]
+\index{rotate/3@\texttt{rotate/3}!ic_symbolic}
     like shift/3 but wraps at domain boundary.
-\item[\biptxtref{element(?Index,++List,?Value)}{element/3!ic_symbolic}{../bips/lib/ic_symbolic/element-3.html}]
-    Value occurs List at position Index.
+\item[\biptxtrefni{element(?Index,++List,?Value)}{element/3!ic_symbolic}{../bips/lib/ic_symbolic/element-3.html}]
+\index{element/3@\texttt{element/3}!ic_symbolic}
+    Value occurs in List at position Index.
     Value has a symbolic domain, Index has an integer domain.
     List is a number of symbolic domain values.
 \end{description}
@@ -123,11 +130,13 @@ A number of global constraints are available which directly correspond
 (and are in fact implemented via) their counterparts in
 lib(ic_global):
 \begin{description}
-\item[\biptxtref{alldifferent(+List)}{alldifferent/1!ic_symbolic}{../bips/lib/ic_symbolic/alldifferent-1.html}]
+\item[\biptxtrefni{alldifferent(+List)}{alldifferent/1!ic_symbolic}{../bips/lib/ic_symbolic/alldifferent-1.html}]
+\index{alldifferent@\texttt{alldifferent}!ic_symbolic}
     All list elements are different
-\item[\biptxtref{occurrences(++Value,+List,?N)}{occurrences/3!ic_symbolic}{../bips/lib/ic_symbolic/occurrences-3.html}]
+\item[\biptxtrefni{occurrences(++Value,+List,?N)}{occurrences/3!ic_symbolic}{../bips/lib/ic_symbolic/occurrences-3.html}]
     Value occurs N times in List
-\item[\biptxtref{atmost(++N,+List,++Value)}{atmost/3!ic_symbolic}{../bips/lib/ic_symbolic/atmost-3.html}]
+\item[\biptxtrefni{atmost(++N,+List,++Value)}{atmost/3!ic_symbolic}{../bips/lib/ic_symbolic/atmost-3.html}]
+\index{atmost/3@\texttt{atmost/3}!ic_symbolic}
     Value occurs at most N times in List
 \end{description}
 

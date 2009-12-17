@@ -480,7 +480,8 @@ working_sum(Xs,Sum):-
 
 \begin{description}
 
-\item [\biptxtref{Vars :: Domain}{::/2!ic}{../bips/lib/ic/NN-2.html}]
+\item [\biptxtrefni{Vars :: Domain}{::/2!ic}{../bips/lib/ic/NN-2.html}]
+\index{::/2@\texttt{::/2}!ic}
 Constrains Vars to take only integer or real values from the domain
 specified by Domain.  Vars may be a variable or a collection of variables
 (\`a la
@@ -494,7 +495,8 @@ otherwise it is considered a real domain and the type of the variables is
 not constrained.  Also allowed are the (untyped) symbolic bound values {\tt
 inf}, {\tt +inf} and {\tt -inf}.
 
-\item [\biptxtref{::(Var,Domain,Bool)}{::/3!ic}{../bips/lib/ic/NN-3.html}]
+\item [\biptxtrefni{::(Var,Domain,Bool)}{::/3!ic}{../bips/lib/ic/NN-3.html}]
+\index{::/2@\texttt{::/3}!ic}
 
 Provides a reified form of the {\tt ::/2} domain assignment predicate.  This
 reified {\tt ::/3} is defined only to work for one variable and only integer
@@ -524,7 +526,8 @@ infix in an IC expression e.g.\ {\tt B \#= (X :: [1..10])} is equivalent
 to {\tt ::(X, [1..10], B)}. See section~\ref{sec:reified-constraints}
 for more information of reified constraints.
 
-\item [\biptxtref{Vars \#:: Domain}{\#::/2!ic}{../bips/lib/ic/HNN-2.html}]
+\item [\biptxtrefni{Vars \#:: Domain}{\#::/2!ic}{../bips/lib/ic/HNN-2.html}]
+\index{\#::/2@\texttt{\#::/2}!ic}
 Constrains Vars to take only integer values from the domain
 specified by Domain.
 Vars may be a variable or a collection of variables (\`a la
@@ -534,17 +537,20 @@ of subranges and/or individual elements (integer variables only).  Also
 allowed are the (untyped) symbolic bound values {\tt inf}, {\tt +inf} and
 {\tt -inf}.
 
-\item [\biptxtref{Vars \$:: Domain}{\$::/2!ic}{../bips/lib/ic/SNN-2.html}]
+\item [\biptxtrefni{Vars \$:: Domain}{\$::/2!ic}{../bips/lib/ic/SNN-2.html}]
+\index{\$::/2@\texttt{\$::/2}!ic}
 Constrains Vars to take real values from the domain specified by
 Domain.
 Vars may be a variable or a collection of variables (\`a la
 \bipref{collection_to_list/2}{../bips/lib/lists/collection_to_list-2.html}).
 Domain must represent one contiguous interval.
 
-\item [\biptxtref{reals(Vars)}{reals/1!ic}{../bips/lib/ic/reals-1.html}]
+\item [\biptxtrefni{reals(Vars)}{reals/1!ic}{../bips/lib/ic/reals-1.html}]
+\index{reals/1@\texttt{reals/1}!ic}
 Declares that the given variables are IC variables.
 
-\item [\biptxtref{integers(Vars)}{integers/1!ic}{../bips/lib/ic/integers-1.html}]
+\item [\biptxtrefni{integers(Vars)}{integers/1!ic}{../bips/lib/ic/integers-1.html}]
+\index{integers/1@\texttt{integers/1}!ic}
 Constrains the given variables to take integer values only.
 
 \end{description}
@@ -571,26 +577,31 @@ and general (\$) constraints may be used integerchangeably.
 
 \begin{description}
 
-\item [\biptxtref{ExprX \$= ExprY}{\$=/2!ic}{../bips/lib/ic/SE-2.html},
-        \biptxtref{ic:(ExprX =:= ExprY)}{=:=/2!ic}{../bips/lib/ic/ENE-2.html}]
+\item [\biptxtrefni{ExprX \$= ExprY}{\$=/2!ic}{../bips/lib/ic/SE-2.html},
+        \biptxtrefni{ic:(ExprX =:= ExprY)}{=:=/2!ic}{../bips/lib/ic/ENE-2.html}]
+\index{\$=/2@\texttt{\$=/2}!ic}\index{\$=:=/2@\texttt{\$=:=/2}!ic}
 ExprX is equal to ExprY.  ExprX and ExprY are general expressions.
 
-\item [\biptxtref{ExprX \$>= ExprY}{\$$>$=/2!ic}{../bips/lib/ic/SGE-2.html},
-        \biptxtref{ic:(ExprX $>$= ExprY)}{$>$=/2!ic}{../bips/lib/ic/GE-2.html}]
+\item [\biptxtrefni{ExprX \$>= ExprY}{\$$>$=/2!ic}{../bips/lib/ic/SGE-2.html},
+        \biptxtrefni{ic:(ExprX $>$= ExprY)}{$>$=/2!ic}{../bips/lib/ic/GE-2.html}]
+\index{\$>=/2@\texttt{\$>=/2}!ic}
 ExprX is greater than or equal to ExprY.  ExprX and ExprY are general
 expressions.
 
-\item [\biptxtref{ExprX \$=< ExprY}{\$=$<$/2!ic}{../bips/lib/ic/SEL-2.html},
-        \biptxtref{ic:(ExprX =$<$ ExprY)}{=$<$/2!ic}{../bips/lib/ic/EL-2.html}]
+\item [\biptxtrefni{ExprX \$=< ExprY}{\$=$<$/2!ic}{../bips/lib/ic/SEL-2.html},
+        \biptxtrefni{ic:(ExprX =$<$ ExprY)}{=$<$/2!ic}{../bips/lib/ic/EL-2.html}]
+\index{\$=</2@\texttt{\$=</2}!ic}
 ExprX is less than or equal to ExprY.  ExprX and ExprY are general expressions.
 
-\item [\biptxtref{ExprX \$$>$ ExprY}{\$$>$/2!ic}{../bips/lib/ic/SG-2.html},
-        \biptxtref{ic:(ExprX $>$ ExprY)}{$>$/2!ic}{../bips/lib/ic/G-2.html}]
+\item [\biptxtrefni{ExprX \$$>$ ExprY}{\$$>$/2!ic}{../bips/lib/ic/SG-2.html},
+        \biptxtrefni{ic:(ExprX $>$ ExprY)}{$>$/2!ic}{../bips/lib/ic/G-2.html}]
+\index{\$>/2@\texttt{\$>/2}!ic}
 ExprX is strictly greater than ExprY.  ExprX and ExprY are general
 expressions.
 
-\item [\biptxtref{ExprX \$$<$ ExprY)}{\$$<$/2!ic}{../bips/lib/ic/SL-2.html},
-        \biptxtref{ic:(ExprX $<$ ExprY)}{$<$/2!ic}{../bips/lib/ic/L-2.html}]
+\item [\biptxtrefni{ExprX \$$<$ ExprY)}{\$$<$/2!ic}{../bips/lib/ic/SL-2.html},
+        \biptxtrefni{ic:(ExprX $<$ ExprY)}{$<$/2!ic}{../bips/lib/ic/L-2.html}]
+\index{\$</2@\texttt{\$=/2}!ic}
 ExprX is strictly less than ExprY.  ExprX and ExprY are general expressions.
 
 \item [\biprefnoidx{ExprX \$\bsl= ExprY}{../bips/lib/ic/SRE-2.html},
@@ -599,23 +610,28 @@ ExprX is strictly less than ExprY.  ExprX and ExprY are general expressions.
 \index{=\bsl=/2!ic}
 ExprX is not equal to ExprY.  ExprX and ExprY are general expressions.
 
-\item [\biptxtref{ExprX \#= ExprY}{\#=/2!ic}{../bips/lib/ic/HE-2.html}]
+\item [\biptxtrefni{ExprX \#= ExprY}{\#=/2!ic}{../bips/lib/ic/HE-2.html}]
+\index{\#=/2@\texttt{\#=/2}!ic}
 ExprX is equal to ExprY.  ExprX and ExprY are constrained to be integer
 expressions.
 
-\item [\biptxtref{ExprX \#$>$= ExprY}{\#$>$=/2!ic}{../bips/lib/ic/HGE-2.html}]
+\item [\biptxtrefni{ExprX \#$>$= ExprY}{\#$>$=/2!ic}{../bips/lib/ic/HGE-2.html}]
+\index{\$>=/2@\texttt{\$>=/2}!ic}
 ExprX is greater than or equal to ExprY.  ExprX and ExprY are constrained to
 be integer expressions.
 
-\item [\biptxtref{ExprX \#=$<$ ExprY}{\#=$<$/2!ic}{../bips/lib/ic/HEL-2.html}]
+\item [\biptxtrefni{ExprX \#=$<$ ExprY}{\#=$<$/2!ic}{../bips/lib/ic/HEL-2.html}]
+\index{\$=</2@\texttt{\$=</2}!ic}
 ExprX is less than or equal to ExprY.  ExprX and ExprY are constrained to be
 integer expressions.
 
-\item [\biptxtref{ExprX \#$>$ ExprY}{\#$>$/2!ic}{../bips/lib/ic/HG-2.html}]
+\item [\biptxtrefni{ExprX \#$>$ ExprY}{\#$>$/2!ic}{../bips/lib/ic/HG-2.html}]
+\index{\$>/2@\texttt{\$>/2}!ic}
 ExprX is greater than ExprY.  ExprX and ExprY are constrained to be integer
 expressions.
 
-\item [\biptxtref{ExprX \#$<$ ExprY}{\#$<$/2!ic}{../bips/lib/ic/HL-2.html}]
+\item [\biptxtrefni{ExprX \#$<$ ExprY}{\#$<$/2!ic}{../bips/lib/ic/HL-2.html}]
+\index{\$</2@\texttt{\$</2}!ic}
 ExprX is less than ExprY.  ExprX and ExprY are constrained to be integer
 expressions.
 
@@ -765,12 +781,14 @@ propagate its normal semantics.
 \begin{description}
 
 \item
-[\biptxtref{alldifferent(Vars)}{alldifferent/1!ic}{../bips/lib/ic/alldifferent-1.html}]
+[\biptxtrefni{alldifferent(Vars)}{alldifferent/1!ic}{../bips/lib/ic/alldifferent-1.html}]
+\index{alldifferent/1@\texttt{alldifferent/1}!ic}
 Constrains all elements of a list to be different from all other
 elements of the list.
 
 \item
-[\biptxtref{element(Index, List, Value)}{element/3!ic}{../bips/lib/ic/element-3.html}]
+[\biptxtrefni{element(Index, List, Value)}{element/3!ic}{../bips/lib/ic/element-3.html}]
+\index{element/3@\texttt{element/3}!ic}
 Constrains Value to be the Index'th element of the list of integers List.
 
 \end{description}
@@ -784,13 +802,16 @@ over integer variables.  For optimisation, see also the
 
 \begin{description}
 
-\item [\biptxtref{indomain(Var)}{indomain/1!ic}{../bips/lib/ic/indomain-1.html}]
+\item [\biptxtrefni{indomain(Var)}{indomain/1!ic}{../bips/lib/ic/indomain-1.html}]
+\index{indomain/1@\texttt{indomain/1}!ic}
 Instantiates an integer IC variable to an element of its domain.
 
-\item [\biptxtref{labeling(Vars)}{labeling/1!ic}{../bips/lib/ic/labeling-1.html}]
+\item [\biptxtrefni{labeling(Vars)}{labeling/1!ic}{../bips/lib/ic/labeling-1.html}]
+\index{labeling/1@\texttt{labeling/1}!ic}
 Instantiates all IC variables in a list to elements of their domains.
 
-\item [\biptxtref{search(Vars, Arg, Select, Choice, Method, Options)}{search/6!ic}{../bips/lib/ic/search-6.html}]
+\item [\biptxtrefni{search(Vars, Arg, Select, Choice, Method, Options)}{search/6!ic}{../bips/lib/ic/search-6.html}]
+\index{search/6@\texttt{search/6}!ic}
 Instantiates the variables Vars by performing a search based on the
 parameters provided by the user.
 
@@ -806,22 +827,26 @@ section~\ref{sec:real-solving}.
 
 \begin{description}
 
-\item [\biptxtref{locate(Vars, Precision)}{locate/2!ic}{../bips/lib/ic/locate-2.html}]
+\item [\biptxtrefni{locate(Vars, Precision)}{locate/2!ic}{../bips/lib/ic/locate-2.html}]
+\index{locate/2@\texttt{locate/2}!ic}
 Locate solution intervals for Vars by splitting and search.  Precision
 indicates how accurate the intervals have to be (in absolute or relative
 terms) before splitting stops.
 
-\item [\biptxtref{locate(Vars, Precision, LinLog)}{locate/3!ic}{../bips/lib/ic/locate-3.html}]
+\item [\biptxtrefni{locate(Vars, Precision, LinLog)}{locate/3!ic}{../bips/lib/ic/locate-3.html}]
+\index{locate/3@\texttt{locate/3}!ic}
 As per locate/2, but LinLog specifies wither linear (\texttt{lin}) or
 logarithmic (\texttt{log}) splitting should be used.  (\bipref{locate/2}{../bips/lib/ic/locate-2.html} is
 equivalent to calling \bipref{locate/3}{../bips/lib/ic/locate-3.html} with \texttt{log} as the third
 argument.)
 
-\item [\biptxtref{locate(LocateVars, SquashVars, Precision, LinLog)}{locate/4!ic}{../bips/lib/ic/locate-4.html}]
+\item [\biptxtrefni{locate(LocateVars, SquashVars, Precision, LinLog)}{locate/4!ic}{../bips/lib/ic/locate-4.html}]
+\index{locate/4@\texttt{locate/4}!ic}
 As per \bipref{locate/3}{../bips/lib/ic/locate-3.html}, but also applies the squashing algorithm to
 SquashVars both before splitting commences, and then again after each split.
 
-\item [\biptxtref{squash(Vars, Precision, LinLog)}{squash/3!ic}{../bips/lib/ic/squash-3.html}]
+\item [\biptxtrefni{squash(Vars, Precision, LinLog)}{squash/3!ic}{../bips/lib/ic/squash-3.html}]
+\index{squash/3@\texttt{squash/3}!ic}
 Refine the intervals of Vars by the squashing algorithm.
 
 \end{description}
@@ -875,16 +900,20 @@ Returns a ground representation of the current IC domain for Var.
 Returns a list of all the elements in the IC domain for Var.  Currently Var
 needs to be of type integer.
 
-\item [\biptxtref{get_median(Var, Median)}{get_median/2!ic}{../bips/lib/ic/get_median-2.html}]
+\item [\biptxtrefni{get_median(Var, Median)}{get_median/2!ic}{../bips/lib/ic/get_median-2.html}]
+\index{get_median/2@\texttt{get_median/2}!ic}
 Returns the median of the interval of Var.
 
-\item [\biptxtref{get_delta(Var, Delta)}{get_delta/2!ic}{../bips/lib/ic/get_delta-2.html}]
+\item [\biptxtrefni{get_delta(Var, Delta)}{get_delta/2!ic}{../bips/lib/ic/get_delta-2.html}]
+\index{get_delta/2@\texttt{get_delta/2}!ic}
 Returns the width of the interval of Var.
 
-\item [\biptxtref{is_in_domain(Var, Value)}{is_in_domain/2!ic}{../bips/lib/ic/is_in_domain-2.html}]
+\item [\biptxtrefni{is_in_domain(Var, Value)}{is_in_domain/2!ic}{../bips/lib/ic/is_in_domain-2.html}]
+\index{is_in_domain/2@\texttt{is_in_domain/2}!ic}
 Succeeds if and only if Value is contained in the current domain of Var.
 
-\item [\biptxtref{is_in_domain(Var, Value, Result)}{is_in_domain/3!ic}{../bips/lib/ic/is_in_domain-3.html}]
+\item [\biptxtrefni{is_in_domain(Var, Value, Result)}{is_in_domain/3!ic}{../bips/lib/ic/is_in_domain-3.html}]
+\index{is_in_domain/3@\texttt{is_in_domain/3}!ic}
 Binds Result to 'yes', 'no' or 'maybe' depending on whether Value is
 in the current domain of Var.
 
@@ -914,10 +943,12 @@ The default threshold is 1e-8.
 
 \begin{description}
 
-\item [\biptxtref{get_threshold(Threshold)}{get_threshold/1!ic}{../bips/lib/ic/get_threshold-1.html}]
+\item [\biptxtrefni{get_threshold(Threshold)}{get_threshold/1!ic}{../bips/lib/ic/get_threshold-1.html}]
+\index{get_threshold/1@\texttt{get_threshold/1}!ic}
 Returns the current propagation threshold.
 
-\item [\biptxtref{set_threshold(Threshold)}{set_threshold/1!ic}{../bips/lib/ic/set_threshold-1.html}]
+\item [\biptxtrefni{set_threshold(Threshold)}{set_threshold/1!ic}{../bips/lib/ic/set_threshold-1.html}]
+\index{set_threshold/1@\texttt{set_threshold/1}!ic}
 Sets the propagation threshold.  Note that if the threshold is reduced using
 this predicate (requiring a higher level of precision), the current state of
 the system may not be consistent with respect to the new threshold.  If it
@@ -925,7 +956,8 @@ is important that the new level of precision be realised for all or part of
 the system before computation proceeds, \bipref{set_threshold/2}{../bips/lib/ic/set_threshold-2.html} should be used
 instead.
 
-\item [\biptxtref{set_threshold(Threshold, WakeVars)}{set_threshold/2!ic}{../bips/lib/ic/set_threshold-2.html}]
+\item [\biptxtrefni{set_threshold(Threshold, WakeVars)}{set_threshold/2!ic}{../bips/lib/ic/set_threshold-2.html}]
+\index{set_threshold/2@\texttt{set_threshold/2}!ic}
 Sets the propagation threshold, with re-computation.  If the threshold has
 been reduced, all constraints suspended on the bounds of the variables in
 the list WakeVars are woken.
@@ -1122,29 +1154,31 @@ various events occur:
 Users who wish to track activity within their own programs may (if they
 wish) use the same mechanism.  New event types can be registered (see
 below) and actions recorded by calling the
-\biptxtref{ic\_event(Event)}{ic_event/1!ic_kernel}{../bips/lib/ic_kernel/ic_event-1.html}
+\biptxtrefni{ic\_event(Event)}{ic_event/1!ic_kernel}{../bips/lib/ic_kernel/ic_event-1.html}
+\index{ic_event/1@\texttt{ic_event/1}!ic_kernel}
 predicate.
 
 The counters are controlled using the primitives:
 \begin{description}
-\item[\biptxtref{ic\_stat(on)}{ic_stat/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat-1.html}]
-\item[\biptxtref{ic\_stat(off)}{ic_stat/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat-1.html}]
+\item[\biptxtrefni{ic\_stat(on)}{ic_stat/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat-1.html}]
+\index{ic_stat/1@\texttt{ic_stat/1}!ic_kernel}
+\item[\biptxtrefni{ic\_stat(off)}{ic_stat/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat-1.html}]
 Enables/disable collection of statistics.  Default is off.
 
-\item[\biptxtref{ic\_stat(reset)}{ic_stat/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat-1.html}]
+\item[\biptxtrefni{ic\_stat(reset)}{ic_stat/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat-1.html}]
 Reset statistics counters.
 
-\item[\biptxtref{ic\_stat(print)}{ic_stat/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat-1.html}]
+\item[\biptxtrefni{ic\_stat(print)}{ic_stat/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat-1.html}]
 Print statistics counters to the standard output stream.
 
-\item[\biptxtref{ic\_stat_get(-Stat)}{ic_stat_get/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat_get-1.html}]
+\item[\biptxtrefni{ic\_stat_get(-Stat)}{ic_stat_get/1!ic_kernel}{../bips/lib/ic_kernel/ic_stat_get-1.html}]
 Returns a list of CounterName=CounterValue pairs, summarising the
 computation since the last reset.
 
-\item[\biptxtref{ic\_event(+Name)}{ic_event/1!ic_kernel}{../bips/lib/ic_kernel/ic_event-1.html}]
+\item[\biptxtrefni{ic\_event(+Name)}{ic_event/1!ic_kernel}{../bips/lib/ic_kernel/ic_event-1.html}]
 Records the fact that the named event has happened.
 
-\item[\biptxtref{ic_stat\_register\_event(+Name,+Description)}{ic_stat_register_event/2!ic_kernel}{../bips/lib/ic_kernel/ic_stat_register_event-2.html}]
+\item[\biptxtrefni{ic_stat\_register\_event(+Name,+Description)}{ic_stat_register_event/2!ic_kernel}{../bips/lib/ic_kernel/ic_stat_register_event-2.html}]
 Registers a new event type and sets the counter to 0.  This allows
 user-defined predicates to record their own events within the same
 framework.
