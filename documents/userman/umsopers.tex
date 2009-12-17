@@ -54,27 +54,26 @@ Prec  Assoc  Operators
 1190    fy   [help]
 1190    fx   [delay]
 1180    fx   [-?->]
-1170   xfx   [else]
+1170   xfy   [else]
 1160    fx   [if]
 1150   xfx   [then]
 1100   xfy   [;, do, '|']
-1050   xfy   [->, *->]
-1050   xfx   [except, from]
+1050   xfy   [->]
+1050   xfx   [*->, except, from]
 1050    fy   [import, reexport]
 1000   xfy   [,]
-1000    fy   [abolish, demon, dynamic, export, global, 
-              listing, local, mode, nospy, parallel, skipped, 
+1000    fy   [abolish, demon, dynamic, export, global,
+              listing, local, mode, nospy, parallel, skipped,
               spy, traceable, unskipped, untraceable]
  900    fy   [\+, not, once, ~]
- 700   xfx   [#<, #<=, #=, #=<, #>, #>=, #\=, ::, 
-              <, =, =.., =:=, =<, ==, =\=, >, >=, 
+ 700   xfx   [#<, #<=, #=, #=<, #>, #>=, #\=, ::,
+              <, =, =.., =:=, =<, ==, =\=, >, >=,
               @<, @=<, @>, @>=, \=, \==, is, ~=]
  650   xfx   [@, of, with]
  600   xfy   [:]
  600   xfx   [..]
  500   yfx   [+, -, /\, \/]
- 500    fx   [+, -]
- 400   yfx   [*, /, //, rem, div, mod, <<, >>]
+ 400   yfx   [*, /, //, <<, >>, div, mod, rem]
  200   xfy   [^]
- 200    fx   [\]
+ 200    fy   [+, -, \]
 \end{verbatim}
