@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.3 2009/12/20 13:59:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -55,7 +55,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2009/12/20 13:59:15 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -285,7 +285,7 @@ collection_to_list(Collection, List) :-
 collection_to_list(subscript(Array, Indices), List) :-
 	!,
 	subscript(Array, Indices, List0),
-	( is_list(List0) ->
+	( nonvar(List0), List0 =[_|_] ->
 	    List = List0
 	;
 	    % The subscript only returned a single item that wasn't a list.
