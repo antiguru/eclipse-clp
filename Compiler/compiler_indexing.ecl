@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.9 2008/10/29 03:13:44 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.10 2009/12/20 05:00:26 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/10/29 03:13:44 $").
+:- comment(date, "$Date: 2009/12/20 05:00:26 $").
 
 :- use_module(compiler_common).
 :- import state_lookup_binding/3 from compiler_analysis.
@@ -81,8 +81,11 @@ indexing_transformation([Goal|Goals], OutGoals, Det, Options) :-
 	; Goal = goal{functor:cut_to/1,kind:simple,definition_module:sepia_kernel,
 			args:[variable{varid:VarId}],state:State,callpos:CutPos} ->
 	    % Eliminate cuts that are always in the last (or only) alternative
-	    certainly_once state_lookup_binding(State, VarId, cutpoint(SaveCutPos)),
-	    ( in_following_branch_guard(SaveCutPos, CutPos), last_alternative(Det) ->
+	    (
+		state_lookup_binding(State, VarId, cutpoint(SaveCutPos)),
+		in_following_branch_guard(SaveCutPos, CutPos),
+		last_alternative(Det)
+	    ->
 		OutGoals = OutGoals1		% eliminate the cut!
 	    ;
 		OutGoals = [Goal|OutGoals1]

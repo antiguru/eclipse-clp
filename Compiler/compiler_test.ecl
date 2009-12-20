@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.20 2009/07/16 09:11:23 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.21 2009/12/20 05:00:26 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1013,6 +1013,11 @@ testclause(cut(4), [(p :- q, !, r),(p :- s)]).
 testclause(cut(5), [(p :- a),(p :- !,bb),(p:-c,d)]).
 testclause(cut(6), [(p :- a),(p :- b,!,bb),(p:-c,d)]).
 
+testclause(cut_to(1), (p(X) :- q, sepia_kernel:cut_to(X))).
+testclause(cut_to(2), (p(X) :- q, nonvar(X), sepia_kernel:cut_to(X))).
+testclause(cut_to(3), (p(X) :- nonvar(X), sepia_kernel:cut_to(X))).
+testclause(cut_to(4), (p(X) :- sepia_kernel:cut_to(X))).
+
 testclause(env(1), [
 	(p :-
 	    q(A,B,C,D,E,F,G),
@@ -1179,6 +1184,20 @@ testclause(bip(10), [ (p(X,Y) :- +(X,Y,_) )]).
 
 testclause(bip(20), [ (p(X,Y) :- X>Y) ]).
 
+
+testclause(inline(1), [
+    	(:-inline(i1/1)),
+    	i1(1),
+    	i1(2),
+    	(p(X) :- i1(X)),
+    	(q(X) :- r, i1(X), s)
+]).
+testclause(inline(2), [
+    	(:-inline(i2/1)),
+    	(i2(X) :- r(X), !),
+    	(i2(_) :- s),
+    	(p(X) :- q, i2(X), t(X))
+]).
 
 testclause(bench(1), [
     (conc([], Ys, Ys)),

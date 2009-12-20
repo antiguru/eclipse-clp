@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.27 2009/07/16 09:11:23 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.28 2009/12/20 05:00:26 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2009/07/16 09:11:23 $").
+:- comment(date, "$Date: 2009/12/20 05:00:26 $").
 
 
 :- lib(hash).
@@ -1061,54 +1061,68 @@ generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia
 	    verify false	% require a first occurrence!
 	).
 
-generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_kernel,envsize:ESize}, ChunkData0, ChunkData, Code0, Code, _Options, _Module) ?- !,
+generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_kernel,envsize:ESize,state:State}, ChunkData0, ChunkData, Code0, Code, _Options, _Module) ?- !,
 	Arg = variable{varid:VarId},
 	variable_occurrence(Arg, ChunkData0, ChunkData1, Code0, Code1, VarOccDesc),
-	ChunkData1 = chunk_data{allocated:ExistingESize},
-	( ESize >= 0 ->
-	    % cut (and trim if necessary)
-	    ( nonvar(ExistingESize) -> true ;
-		ExistingESize = ESize	% fill in previous alloc
-	    ),
-	    ( ExistingESize >= 0 ->
-		% cut and trim existing environment
-		verify ExistingESize >= ESize,
-		update_struct(chunk_data, [allocated:ESize], ChunkData1, ChunkData),
-		( VarOccDesc = perm_first_in_chunk(Y) ->
-		    Code1 = [code{instr:cut(Y,ESize),regs:[r(VarId,Y,perm,_)]}|Code]
-		; VarOccDesc = perm(_Y) ->
-		    Code1 = [code{instr:cut(RY,ESize),regs:[r(VarId,RY,use,_)]}|Code]
-		; verify VarOccDesc = tmp,
-		    Code1 = [code{instr:cut(RY,ESize),regs:[r(VarId,RY,use,_)]}|Code]
+	( compiler_analysis:state_lookup_binding(State, VarId, cutpoint(_)) ->
+	    ChunkData1 = chunk_data{allocated:ExistingESize},
+	    ( ESize >= 0 ->
+		% cut (and trim if necessary)
+		( nonvar(ExistingESize) -> true ;
+		    ExistingESize = ESize	% fill in previous alloc
+		),
+		( ExistingESize >= 0 ->
+		    % cut and trim existing environment
+		    verify ExistingESize >= ESize,
+		    update_struct(chunk_data, [allocated:ESize], ChunkData1, ChunkData),
+		    ( VarOccDesc = perm_first_in_chunk(Y) ->
+			Code1 = [code{instr:cut(Y,ESize),regs:[r(VarId,Y,perm,_)]}|Code]
+		    ; VarOccDesc = perm(_Y) ->
+			Code1 = [code{instr:cut(RY,ESize),regs:[r(VarId,RY,use,_)]}|Code]
+		    ; verify VarOccDesc = tmp,
+			Code1 = [code{instr:cut(RY,ESize),regs:[r(VarId,RY,use,_)]}|Code]
+		    )
+		;
+		    % no environment, just cut (allocation expected later)
+		    verify VarOccDesc == tmp,
+		    Code1 = [code{instr:cut(R),regs:[r(VarId,R,use,_)]}|Code],
+		    ChunkData1 = ChunkData
 		)
 	    ;
-		% no environment, just cut (allocation expected later)
-		verify VarOccDesc == tmp,
-		Code1 = [code{instr:cut(R),regs:[r(VarId,R,use,_)]}|Code],
-		ChunkData1 = ChunkData
+		% deallocation request
+		( nonvar(ExistingESize) -> true ;
+		    unreachable("unexpected allocate..cut..deallocate sequence"),
+		    ExistingESize = 0	% fill in previous alloc
+		),
+		( ExistingESize >= 0 ->
+		    % cut and deallocate existing environment
+		    update_struct(chunk_data, [allocated: -1], ChunkData1, ChunkData),
+		    ( VarOccDesc = perm_first_in_chunk(Y) ->
+			Code1 = [code{instr:cut(Y,0),regs:[r(VarId,Y,perm,_)]}, code{instr:deallocate}|Code]
+		    ; VarOccDesc = perm(_Y) ->
+			Code1 = [code{instr:cut(RY,0),regs:[r(VarId,RY,use,_)]}, code{instr:deallocate}|Code]
+		    ; verify VarOccDesc = tmp,
+			Code1 = [code{instr:cut(RY,0),regs:[r(VarId,RY,use,_)]}, code{instr:deallocate}|Code]
+		    )
+		; 
+		    % no environment anyway, just cut
+		    verify VarOccDesc == tmp,
+		    Code1 = [code{instr:cut(R),regs:[r(VarId,R,use,_)]}|Code],
+		    ChunkData1 = ChunkData
+		)
 	    )
 	;
-	    % deallocation request
-	    ( nonvar(ExistingESize) -> true ;
-		unreachable("unexpected allocate..cut..deallocate sequence"),
-		ExistingESize = 0	% fill in previous alloc
+	    % If the binding analyser couldn't verify that the argument holds
+	    % a cutpoint, assume it is a non-local cut_to:
+	    % Use cut(R) instruction and don't trim.
+	    ( VarOccDesc = perm_first_in_chunk(Y) ->
+		Code1 = [code{instr:cut(R),regs:[r(VarId,Y,perm,_),r(VarId,R,use_a,_)]}|Code]
+	    ; VarOccDesc = perm(_Y) ->
+		Code1 = [code{instr:cut(R),regs:[r(VarId,R,use_a,_)]}|Code]
+	    ; verify VarOccDesc = tmp,
+		Code1 = [code{instr:cut(R),regs:[r(VarId,R,use_a,_)]}|Code]
 	    ),
-	    ( ExistingESize >= 0 ->
-		% cut and deallocate existing environment
-		update_struct(chunk_data, [allocated: -1], ChunkData1, ChunkData),
-		( VarOccDesc = perm_first_in_chunk(Y) ->
-		    Code1 = [code{instr:cut(Y,0),regs:[r(VarId,Y,perm,_)]}, code{instr:deallocate}|Code]
-		; VarOccDesc = perm(_Y) ->
-		    Code1 = [code{instr:cut(RY,0),regs:[r(VarId,RY,use,_)]}, code{instr:deallocate}|Code]
-		; verify VarOccDesc = tmp,
-		    Code1 = [code{instr:cut(RY,0),regs:[r(VarId,RY,use,_)]}, code{instr:deallocate}|Code]
-		)
-	    ; 
-		% no environment anyway, just cut
-		verify VarOccDesc == tmp,
-		Code1 = [code{instr:cut(R),regs:[r(VarId,R,use,_)]}|Code],
-		ChunkData1 = ChunkData
-	    )
+	    ChunkData1 = ChunkData
 	).
 
 generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) ?-
