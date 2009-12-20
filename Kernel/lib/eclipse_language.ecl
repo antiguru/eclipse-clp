@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.6 2009/12/16 13:30:56 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.7 2009/12/20 14:02:06 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -88,6 +88,10 @@
 :- reexport argc / 1 from sepia_kernel.
 :- reexport argv / 2 from sepia_kernel.
 :- reexport arity / 2 from sepia_kernel.
+:- reexport array_concat / 3 from sepia_kernel.
+:- reexport array_flat / 3 from sepia_kernel.
+:- reexport array_list / 2 from sepia_kernel.
+:- reexport is_array / 1 from sepia_kernel.
 :- reexport asin / 2 from sepia_kernel.
 :- reexport assert / 1 from sepia_kernel.
 :- reexport asserta / 1 from sepia_kernel.

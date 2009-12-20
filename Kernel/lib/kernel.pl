@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.21 2009/12/16 13:30:56 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.22 2009/12/20 14:02:06 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -3893,6 +3893,7 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	cancel_after_event/2,
 	canonical_path_name/2,
 	close_embed_queue_eclipseside/2,
+	collection_to_array/2,
 	comment/2,
 	compiled_stream/1,
 	coroutine/0,
@@ -6028,10 +6029,23 @@ subscript(Mat, Index, X, M) :-
     subscript1(Mat, IExpr, X, M, IExprs) :- integer(IExpr), !,
 	arg(IExpr, Mat, Row),
 	subscript(Row, IExprs, X, M).
-    subscript1(Mat, ..(Min,Max), Xs, M, IExprs) :- -?-> !,
+    subscript1(Mat, Min..Max, Xs, M, IExprs) :- -?-> !,
 	eval(Min, Imin, M),
 	eval(Max, Imax, M),
 	subscript2(Imin, Imax, Mat, IExprs, Xs, M).
+% code for returning sub-arrays
+%	Offset is Imin-1,
+%	N is Imax-Offset,
+%	( N >= 0 ->
+%	    functor(Xs, [], N),
+%	    ( foreacharg(X,Xs,J), param(Offset,Mat,IExprs,M) do
+%		I is J+Offset,
+%		arg(I, Mat, Row),
+%		subscript(Row, IExprs, X, M)
+%	    )
+%	;
+%	    error(6, subscript(Mat,[Min..Max|IExprs],Xs), M)
+%	).
     subscript1(Mat, IExpr, X, M, IExprs) :-
 	eval(IExpr, I, M),
 	arg(I, Mat, Row),
@@ -6142,6 +6156,36 @@ flatten_array(Array, List) :-
 	!,
 	flatten_array(Array, N, List, List0).
     flatten_array(X, [X|List0], List0).
+
+
+collection_to_array(Collection, Arr) :- var(Collection), !,
+	error(4, collection_to_array(Collection, Arr)).
+collection_to_array([], Arr) :- !,
+	Arr = [].
+collection_to_array(Collection, Arr) :- Collection = [_|_], !,
+	% It's a list (or at least, looks that way...)
+	Arr =.. [[]|Collection].
+collection_to_array(subscript(Array, Indices), Arr) :- !,
+	subscript(Array, Indices, Sub),
+	( compound(Sub), is_array(Sub) ->
+	    Arr = Sub
+	;
+	    % The subscript only returned a single item that wasn't a list.
+	    % We need to return an array, and we need to support this case, so
+	    % we make it a singleton array.
+	    Arr = [](Sub)
+	).
+collection_to_array(flatten(Collection), Arr) :- !,
+	collection_to_array(Collection, NestedArr),
+	array_flat(-1, NestedArr, Arr).
+collection_to_array(flatten(N, Collection), Arr) :- !,
+	collection_to_array(Collection, NestedArr),
+	array_flat(N, NestedArr, Arr).
+collection_to_array(Collection, Arr) :- is_array(Collection), !,
+	% It's an array already
+	Arr = Collection.
+collection_to_array(Collection, Arr) :-
+	error(5, collection_to_array(Collection, Arr)).
 
 
 %----------------------------------------------------------------
@@ -7364,6 +7408,7 @@ warn(_, _).
 :- deprecated(event_create/2,		"Use event_create/3").
 :- deprecated(event_retrieve/2,		"Use event_retrieve/3").
 :- deprecated(fail_if/1,		"Use \\+ /1").
+:- deprecated(flatten_array/2,		"Use array_flat/3").
 :- deprecated(get_error_handler/3,	"Use get_event_handler/3").
 :- deprecated(get_prompt/3,		"Use get_stream_info/3").
 :- deprecated(get_timer/2,		"Use after events").

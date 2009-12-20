@@ -122,8 +122,7 @@ det_update(Map0, Key, Value, Map) :-	% no checks
 
 new_array(array($($,$,$,$),2)).
 
-
-is_array(array(_,_)).
+%is_array(array(_,_)).
 
 
 aref(Index, array(Array,Size), Item) :-
