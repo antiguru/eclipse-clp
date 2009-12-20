@@ -2909,3 +2909,38 @@ Error:
 	exceptions:[4 : "Head is not instantiated", 5 : "Head is not a callable term", 63 : "Procedure is not dynamic", 70 : "Procedure is undefined"],
 	see_also:[retractall / 1]]).
 
+
+:- comment(flatten_array / 2, [
+	summary:"Returns a flat list of the elements of a multi-dimensional array.",
+	amode:(flatten_array(+,-) is det),
+	desc:html("\
+   List is unified with a flat list of the elements of the array Array.  The
+   elements are returned in the same order as they would be encountered in a
+   depth-first left-to-right traversal of the array structure.
+"),
+	args:[
+	    "Array" : "Array.",
+	    "List" : "List of terms."],
+	exceptions:[
+	    4 : "Array is a variable.",
+	    5 : "Array is not an array."
+	],
+	eg:"
+?- flatten_array([]([](a,b,c),[](d,e,f)), List).
+List = [a, b, c, d, e, f]
+yes.
+?- flatten_array([](a,b,c), List).
+List = [a, b, c]
+yes.
+?- flatten_array([](a(b),[c,d],[]), List).
+List = [a(b), [c, d], []]
+yes.
+?- flatten_array(Array, List).
+instantiation fault in flatten_array(Array, List)
+Abort
+?- flatten_array([a,b,c], List).
+type error in flatten_array([a,b,c], List)
+Abort
+",
+	see_also:[dim / 2, subscript / 3, flatten / 2]]).
+

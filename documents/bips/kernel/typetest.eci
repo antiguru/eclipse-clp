@@ -218,7 +218,7 @@ Fail:
 
 
 ",
-	see_also:[var / 1, is_list/1, callable/1, type_of / 2]]).
+	see_also:[var / 1, is_list/1, is_array/1,callable/1, type_of / 2]]).
 
 :- comment(atomic / 1, [
 	summary:"Succeeds if Term is an atom, a number, or a string.
@@ -247,7 +247,7 @@ Fail:
 
 
 ",
-	see_also:[atom / 1, compound / 1, is_list/1, var / 1]]).
+	see_also:[atom / 1, compound / 1, is_list/1, is_array/1,var / 1]]).
 
 :- comment(callable / 1, [
 	summary:"Succeeds if Term is callable, i.e. of type atom or compound.",
@@ -283,7 +283,7 @@ Fail:
    callable(42).
    make_suspension(true,0,S), callable(S).
 ",
-	see_also:[atom / 1, compound/1, is_list/1, var / 1]]).
+	see_also:[atom / 1, compound/1, is_list/1, is_array/1,var / 1]]).
 
 :- comment(compound / 1, [
 	summary:"Succeeds if Term is of type compound, i.e.  a structure or a list.
@@ -309,7 +309,7 @@ Fail:
 
 
 ",
-	see_also:[atom / 1, atomic / 1, callable/1, is_list/1, var / 1]]).
+	see_also:[atom / 1, atomic / 1, callable/1, is_list/1, is_array/1, var / 1]]).
 
 :- comment(integer / 1, [
 	summary:"Succeeds if Integer is an integer number.
@@ -561,7 +561,41 @@ Fail:
     ?- is_list(X).
     No (0.00s cpu)
 ",
-	see_also:[atom/1,callable/1, compound/1,ground/1]]).
+	see_also:[atom/1,callable/1, compound/1,is_array/1,ground/1]]).
+
+:- comment(is_array / 1, [
+	summary:"Succeeds if Term is an array.",
+	amode:(is_array(?) is semidet),
+	desc:html("\
+   Used to test whether Term is an array, i.e. a term with functor []/N.
+   Could be defined as:
+<PRE>
+	is_array(X) :- nonvar(X), functor(X, [], _).
+</PRE>
+   Note that this includes the empty array [].
+"),
+	args:["Term" : "Prolog term."],
+	fail_if:"Fails if Term is not an array",
+	eg:"
+    ?- is_array([]).
+    Yes (0.00s cpu)
+
+    ?- is_array([](1,2,3)).
+    Yes (0.00s cpu)
+
+    ?- is_array([1,2,3]).
+    No (0.00s cpu)
+
+    ?- is_array(f(1,2)).
+    No (0.00s cpu)
+
+    ?- is_array(foo).
+    No (0.00s cpu)
+
+    ?- is_array(_).
+    No (0.00s cpu)
+",
+	see_also:[atom/1,callable/1,compound/1,is_list/1,ground/1]]).
 
 :- comment(is_handle / 1, [
 	summary:"Succeeds if Term is an external data handle.

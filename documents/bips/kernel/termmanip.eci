@@ -387,41 +387,145 @@ yes.
 
 
 ",
-	see_also:[arg / 3, arity/2, subscript / 3, flatten_array / 2, functor / 3]]).
+	see_also:[arg / 3, arity/2, subscript / 3, array_flat/3, functor / 3]]).
 
-:- comment(flatten_array / 2, [
-	summary:"Returns a flat list of the elements of a multi-dimensional array.",
-	amode:(flatten_array(+,-) is det),
-	desc:html("\
-   List is unified with a flat list of the elements of the array Array.  The
-   elements are returned in the same order as they would be encountered in a
-   depth-first left-to-right traversal of the array structure.
-"),
+
+:- comment(array_flat / 3, [
+	summary:"Flattens (reduces the number of dimensions) of a multi-dimensional array",
+	amode:(array_flat(+,+,-) is det),
 	args:[
-	    "Array" : "Array.",
-	    "List" : "List of terms."],
+	    "N" : "Integer",
+	    "Array" : "Array, i.e. structure with functor []/?",
+	    "Flat" : "Variable or array"],
+	desc:html("\
+   Constructs an array Flat with the same elements, but N fewer dimensions
+   than Array.  The most common use is to create a flat, one-dimensional
+   array from a multi-dimensional one.  Note that multi-dimensional arrays
+   are in fact nested one-dimensional arrays.
+<P>
+   N specifies how many levels are flattened:  a positive value N means
+   that a M-dimensional array will be reduced to a (M-N)-dimensional one,
+   e.g. a 2-D array gets reduced to a 1-D array.  When N is given as -1,
+   all array nesting is removed, and a 1-D array on the non-array elements
+   is produced.  In practice, it is however recommended to always use a
+   positive value for N, as this avoids ambiguities with respect to the
+   interpretation of subterm as nested array or array element.  With a
+   value of 0 the original array is returned unchanged.
+<P>
+   The elements in the Flat array are in the same order as they would be
+   encountered in a depth-first left-to-right traversal of Array.
+<P>
+   In the top N levels of Array, terms with functor []/M are interpreted
+   as arrays, in particular [] is interpreted as an empty array and thus
+   eliminated.
+"),
 	exceptions:[
-	    4 : "Array is a variable.",
-	    5 : "Array is not an array."
+	    4 : "N or Array is a variable",
+	    5 : "N is not an integer",
+	    5 : "Array is not an array",
+	    6 : "N is less than -1",
+	    24 : "N is not an integer, but possibly an arithmetic expression"
 	],
 	eg:"
-?- flatten_array([]([](a,b,c),[](d,e,f)), List).
-List = [a, b, c, d, e, f]
-yes.
-?- flatten_array([](a,b,c), List).
-List = [a, b, c]
-yes.
-?- flatten_array([](a(b),[c,d],[]), List).
-List = [a(b), [c, d], []]
-yes.
-?- flatten_array(Array, List).
-instantiation fault in flatten_array(Array, List)
-Abort
-?- flatten_array([a,b,c], List).
-type error in flatten_array([a,b,c], List)
-Abort
+?- array_flat(0, []([](a,b,c),[](d,e,f)), A).      % no change
+A = []([](a, b, c), [](d, e, f))
+
+?- array_flat(1, []([](a,b,c),[](d,e,f)), A).      % 2-D to 1-D
+A = [](a, b, c, d, e, f)
+
+?- array_flat(2, []([](a,b,c),[](d,e,f)), A).      % still 2-D to 1-D
+A = [](a, b, c, d, e, f)
+
+?- dim(M, [2,2,2]), array_flat(2, M, A).           % 3-D to 1-D
+M = []([]([](_368,_369), [](_365,_366)), []([](_359,_360), [](_356,_357)))
+A = [](_368, _369, _365, _366, _359, _360, _356, _357)
+
+?- dim(M, [2,2,2]), array_flat(1, M, A).           % 3-D to 2-D
+M = []([]([](_368,_369), [](_365,_366)), []([](_359,_360), [](_356,_357)))
+A = []([](_368,_369), [](_365,_366), [](_359,_360), [](_356,_357))
+
+% mixed-dimensional 3-D to 2-D
+?- array_flat(1, [](a, [](b), []([](c)), [], d), A).
+A = [](a, b, [](c) ,d).
+
+?- array_flat(1, []([],[]), A).                     % empty arrays
+A = []
 ",
-	see_also:[dim / 2, subscript / 3, flatten / 2]]).
+	see_also:[dim/2, subscript/3, array_concat/3, is_array/1, array_list/2, arg/3]]).
+
+
+:- comment(array_list / 2, [
+	summary:"Conversion between array and list",
+	amode:(array_list(+,-) is det),
+	amode:(array_list(-,+) is det),
+	args:[
+	    "Array" : "Array, i.e. structure with functor []/?, or variable",
+	    "List" : "List, or variable"],
+	desc:html("\
+   Converts lists to arrays and vice versa.  The behaviour is identical to
+<PRE>
+    array_list(A, L) :- A =.. [[]|L].
+</PRE>
+   except for error handling.
+<P>
+   The elements in the Array and List are identical and in the same order.
+"),
+	exceptions:[
+	    4 : "Both Array and List are variables (non-coroutining mode only)",
+	    5 : "Array is not an array, or List is not a list"
+	],
+	eg:"
+?- array_list([](a,b,c,d,e,f), L).
+L = [a,b,c,d,e,f]
+
+?- array_list(A, [a,b,c,d,e,f]),
+A = [](a,b,c,d,e,f)
+
+?- array_list([], L).
+L = []
+
+?- array_list(A, []),
+A = []
+
+?- array_list([]([](a,b),[](c,d)), L).
+L = [ [](a,b), [](c,d) ]
+",
+	see_also:[dim/2, subscript/3, array_concat/3, is_array/1, array_flat/3, arg/3]]).
+
+
+:- comment(array_concat / 3, [
+	summary:"Concatenate two arrays into one",
+	amode:(array_concat(+,+,-) is det),
+	args:[
+	    "Front" : "Array, i.e. structure with functor []/M",
+	    "Back" : "Array, i.e. structure with functor []/N",
+	    "Concat" : "Variable or array with functor []/(M+N)"],
+	desc:html("\
+   Succeeds if Concat is the concatenation of arrays Front and Back.
+"),
+	exceptions:[
+	    4 : "Front or Back is a variable (non-coroutining mode only)",
+	    5 : "Front, Back or Concat are neither variables nor arrays"
+	],
+	eg:"
+?- array_concat([](a,b,c), [](d,e), L).
+L = [](a,b,c,d,e)
+
+?- array_concat([](a,b,c), [], L).
+L = [](a,b,c)
+
+?- array_concat([], [](d,e), L).
+L = [](d,e)
+
+?- array_concat([], [], L).
+L = []
+
+?- array_concat([]([](a,b),[](c)), [](d,[](e)), L).
+L = []([](a,b), [](c), d, [](e))
+
+",
+	see_also:[dim/2, subscript/3, array_list/2, is_array/1, array_flat/3, arg/3]]).
+
 
 :- comment(meta_attribute / 2, [
 	index:[
@@ -1201,7 +1305,7 @@ Error:
 
 
 ",
-	see_also:[arg / 3, dim / 2, string_code/3, xget / 3, flatten_array / 2]]).
+	see_also:[arg / 3, dim / 2, string_code/3, xget / 3, array_flat/3]]).
 
 
 :- comment(get_var_bounds / 3, [
