@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: bip_io.c,v 1.3 2009/12/22 02:45:56 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -394,7 +394,7 @@ bip_io_init(int flags)
 	    -> mode = BoundArg(2, GROUND);
 	(void) built_in(in_dict("listen", 2),	p_listen,	B_UNSAFE);
 	(void) built_in(in_dict("accept", 3),	p_accept,	B_UNSAFE|U_SIMPLE);
-	built_in(in_dict("select", 3),		p_select,	B_UNSAFE|U_GROUND)
+	built_in(in_dict("stream_select", 3),	p_select,	B_UNSAFE|U_GROUND)
 	    -> mode = BoundArg(3, GROUND);
 	b_built_in(in_dict("wait", 3), 		p_wait, 	d_.kernel_sepia)
 	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);

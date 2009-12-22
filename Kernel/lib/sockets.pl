@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: sockets.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: sockets.pl,v 1.3 2009/12/22 02:44:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -44,7 +44,7 @@
 :- comment(summary, "Sicstus compatible sockets interface").
 :- comment(author, "Kish Shen, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2009/12/22 02:44:23 $").
 :- comment(desc, html("
     Note that ECLiPSe provides its own built-in socket manipulation
     predicates which provides similar functionality to this library.
@@ -80,13 +80,10 @@
     see_also:[accept/3]]).
 :- comment(socket_select/5, [template:"socket_select(+Socket, -NewStream, +TimeOut0, +Streams, -ReadStreams)",
     summary:"Wait for new connection on Socket, and for data on Streams",
-    see_also:[select/3,stream_select/3]]).
+    see_also:[stream_select/3]]).
 :- comment(current_host/1, [template:"current_host(?HostName)",
     summary:"Get the host machine name",
     see_also:[get_flag/2]]).
-:- comment(stream_select/3, [template:"stream_select(+Streams, +TimeOut0, -ReadStreams)",
-    summary:"Wait for data on Streams",
-    see_also:[select/3]]).
 
 :- export
       socket/2,
@@ -97,6 +94,10 @@
       socket_select/5,
       current_host/1,
       stream_select/3.
+
+:- comment(stream_select/3, [template:"stream_select(+Streams, +TimeOut0, -ReadStreams)",
+    summary:"Wait for data on Streams",
+    see_also:[eclipse_language:stream_select/3,select/3]]).
 
 
 
@@ -123,14 +124,14 @@ socket_accept(Socket, Stream) :-
 
 socket_select(Socket, NewStream, TimeOut0, Streams, ReadStreams) :-
    translate_timeout(TimeOut0, TimeOut, socket_select(Socket,NewStream,TimeOut0,Streams,ReadStreams)),
-   sepia_kernel: select([Socket|Streams], TimeOut, ReadStreams0),
+   sepia_kernel: stream_select([Socket|Streams], TimeOut, ReadStreams0),
    (delete(Socket, ReadStreams0, ReadStreams) ->
        sepia_kernel: accept(Socket, _, NewStream) ; ReadStreams = ReadStreams0
    ).
 
 stream_select(Streams, TimeOut0, ReadStreams) :-
     translate_timeout(TimeOut0, TimeOut, stream_select(Streams,TimeOut0,ReadStreams)),
-    sepia_kernel: select(Streams, TimeOut, ReadStreams).
+    sepia_kernel:stream_select(Streams, TimeOut, ReadStreams).
 
 current_host(HostName) :-
 	get_flag(hostname, Shostname),

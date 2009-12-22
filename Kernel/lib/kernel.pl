@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.22 2009/12/20 14:02:06 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.23 2009/12/22 02:44:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -7381,6 +7381,9 @@ warn(_, _).
 % List of deprecated builtins
 %--------------------------------------------
 
+:- export select/3.
+select(Streams, Timeout, Ready) :- stream_select(Streams, Timeout, Ready).
+
 :- deprecated(abolish_op/2,		"Use :- local op(0,...,...) to hide definition").
 :- deprecated(abolish_record/1,		"Use erase_all/1").
 :- deprecated(alarm/1,			"Use event_after/2").
@@ -7432,6 +7435,7 @@ warn(_, _).
 :- deprecated(reset_error_handler/1,	"Use reset_event_handler/1").
 :- deprecated(retract_all/1,		"Use retractall/1").
 %:- deprecated(schedule_woken/1,		"").
+:- deprecated(select/3,			"Use stream_select/3 or lists:select/3").
 :- deprecated(set_chtab/2,		"Use local chtab declaration").
 :- deprecated(set_error_handler/2,	"Use set_event_handler/2").
 :- deprecated(set_prompt/3,		"Use set_stream_property/3").

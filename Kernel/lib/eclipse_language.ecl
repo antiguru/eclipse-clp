@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.7 2009/12/20 14:02:06 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.8 2009/12/22 02:44:23 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -530,6 +530,7 @@
 :- reexport store_contains / 2 from sepia_kernel.
 :- reexport stored_keys / 2 from sepia_kernel.
 :- reexport stored_keys_and_values / 2 from sepia_kernel.
+:- reexport stream_select / 3 from sepia_kernel.
 :- reexport stream_truncate / 1 from sepia_kernel.
 :- reexport string / 1 from sepia_kernel.
 :- reexport string_code / 3 from sepia_kernel.

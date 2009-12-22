@@ -1,7 +1,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Copyright:	This file is in the public domain
-% Version:	$Id: swi.ecl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: swi.ecl,v 1.4 2009/12/22 02:44:22 jschimpf Exp $
 % Description:	SWI Prolog compatibility package
 % ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@
 :- comment(summary, 'SWI-Prolog compatibility package').
 :- comment(author, 'J Chamois').
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, '$Date: 2009/07/16 09:11:24 $').
+:- comment(date, '$Date: 2009/12/22 02:44:22 $').
 :- comment(desc, html('
     This library is incomplete, and intended to ease the task of
     porting SWI-Prolog programs to ECLiPSe Prolog, or to add modules
@@ -74,6 +74,11 @@
 	format/2,
 	format/3
     from quintus.
+
+:- lib(lists).
+:- reexport
+	select/3
+    from lists.
 
 :- export			% temporary, while op/macros still global
 	op(0,   xfx, (of)),
@@ -329,7 +334,7 @@ set_stream(Stream, buffering(false)) :-	% not implemented
 
 :- export wait_for_input/3.
 wait_for_input(Streams, ReadyStreams, Timeout) :-
-	eclipse_language:select(Streams, Timeout, ReadyStreams).
+	stream_select(Streams, Timeout, ReadyStreams).
 
 :- export byte_count/2.
 byte_count(Stream, Count) :-
@@ -378,10 +383,6 @@ between(Low, High, Value) :-
 :- export merge_set/3.
 merge_set(X, Y, XY) :-
 	merge(0, <, X, Y, XY).
-
-:- export select/3.
-select(X, Y, Z) :-
-	lists:delete(X, Y, Z).
 
 :- export predsort/3.
 :- tool(predsort/3, predsort_/4).

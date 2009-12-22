@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.6 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.7 2009/12/22 02:44:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -804,7 +804,7 @@ system_error_handler(E, Goal, CM, LM):-
     restartable_builtin(open(_,_,_)).
     restartable_builtin(close(_)).
     restartable_builtin(connect(_,_)).
-    restartable_builtin(select(_,_,_)).
+    restartable_builtin(stream_select(_,_,_)).
     restartable_builtin(wait(_,_,_)).
 
 
@@ -1406,7 +1406,7 @@ io_event_handler :-
 	current_stream(S),
 	get_stream_info(S, sigio, on),		% it is a sigio stream
 	get_stream_info(S, event, Event),	% it wants an event
-	select([S], 0, [_]).			% it has data
+	stream_select([S], 0, [_]).		% it has data
 
 
 ?- ( current_interrupt(_, io) -> 
@@ -1435,7 +1435,7 @@ io_event_handler :-
 :- export post_events_from_stream/1.
 
 post_events_from_stream(Stream) :-
-	( select([Stream], 0, [_]), read_exdr(Stream, EventName) ->
+	( stream_select([Stream], 0, [_]), read_exdr(Stream, EventName) ->
 	    ( atom(EventName) ->
 		event(EventName)
 	    ; string(EventName) ->

@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.3 2009/12/22 02:44:19 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -120,7 +120,7 @@
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2009/12/22 02:44:19 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -617,7 +617,7 @@ read_command(C) :-
 
 
 drain_stream(S) :-
-	( select([S], 0, []) -> true ; get(S, _), drain_stream(S) ).
+	( stream_select([S], 0, []) -> true ; get(S, _), drain_stream(S) ).
 	
 
 gui_delayed_goals_handler(_, Susps) :-	% handler for 273

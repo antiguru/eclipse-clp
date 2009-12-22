@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.3 2009/12/20 13:59:15 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.4 2009/12/22 02:44:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -55,7 +55,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/12/20 13:59:15 $").
+:- comment(date, "$Date: 2009/12/22 02:44:23 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -86,6 +86,7 @@
 	intersection/3,
 	maplist/3,
 	print_list/1,
+	select/3,
 	shuffle/2,
 	splice/3,
 	subset/2,
@@ -431,6 +432,61 @@ print_list_([H|T], M) :-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+:- comment(select / 3, [
+	summary:"Succeeds if List2 is List1 less an occurence of Element in List1.\n\n",
+	amode:(select(+,+,-) is nondet),	% redundant, but common
+	amode:(select(-,+,-) is nondet),	% redundant, but common
+	amode:(select(-,-,-) is multi),
+	template:"select(?Element, ?List1, ?List2)",
+	desc:html("\
+   Unifies the list List2 with the list List1 less an occurence of Element.
+   Any alternative solutions are provided on backtracking.
+<P>
+   This predicate can be used to select an element from a list, delete an
+   element or insert it.
+<P>
+   The definition of this Prolog library predicate is:
+<PRE>
+    select(A, [A|B], B).
+    select(A, [B, C|D], [B|E]) :-
+	    select(A, [C|D], E).
+</PRE>
+   This predicate does not perform any type testing functions.
+   "),
+	args:["?Element" : "Prolog term.", "?List1" : "List or variable.", "?List2" : "List or variable."],
+	resat:"   Yes.",
+	fail_if:"   Fails if List2 does not unify with List1 less an occurence of Element.\n\n",
+	eg:"
+Success:
+    [eclipse]: select(X,[1,M,X],L), writeln((M,X,L)), fail.
+    _g66 , 1 , [_g66, 1]
+    _g66 , _g66 , [1, _g66]
+    _g66 , _g72 , [1, _g66]
+    no (more) solution.
+    
+    [eclipse]: select(3,[1,3,5,3],L).
+    L = [1, 5, 3]    More? (;)
+    L = [1, 3, 5]
+    yes.
+    
+    [eclipse]: select(X,L,[a,b]), writeln((X,L)), fail.
+    _g66 , [_g66, a, b]
+    _g66 , [a, _g66, b]
+    _g66 , [a, b, _g66]
+    no (more) solution.
+    
+    select(X,[1,2],L).   (gives X=1 L=[2]; X=2 L=[1]).
+
+Fail:
+    select(1,[1,2,1,3],[2,3]).
+	",
+	see_also:[subtract / 3, member / 2]]).
+
+select(A, [A|C], C).
+select(A, [B|C], [B|D]) :-
+	select(A, C, D).
+
 
 :- comment(delete / 3, [
 	summary:"Succeeds if List2 is List1 less an occurence of Element in List1.\n\n",

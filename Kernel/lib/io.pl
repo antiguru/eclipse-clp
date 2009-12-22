@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.2 2008/08/21 18:08:28 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.3 2009/12/22 02:44:22 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1013,11 +1013,11 @@ check_remote_version(Control) :-
 	).
 
 timed_read_exdr(Stream, TimeOut, Data) :-
-	select([Stream], TimeOut, [Stream]),
+	stream_select([Stream], TimeOut, [Stream]),
 	block(read_exdr(Stream, Data), _, fail).
 
 timed_accept(Server, TimeOut, RemoteHost, NewQueue) :-
-	select([Server], TimeOut, [Server]),
+	stream_select([Server], TimeOut, [Server]),
 	accept(Server, RemoteHost0/_, NewQueue), 
 	(RemoteHost = RemoteHost0 ->
             true ; close(NewQueue), fail
@@ -1331,7 +1331,7 @@ remote_control_read(Control, Message) :-
 
 % catches any prblems before sending control message
 remote_control_send(Control, Message) :-
-	(select([Control], 0, [Control]) ->
+	(stream_select([Control], 0, [Control]) ->
 	    % unexpected message arrived on control stream
 	    remote_control_read(Control, InMessage),
 	    ((InMessage == disconnect_resume; InMessage == end_of_file) ->
@@ -1415,7 +1415,7 @@ remote_rpc_handler(Rpc, Control) :-
 	% The socket rpc can only handle a single rpc 
 	% the rpc goal corresponding to the control message must eventually
         % arrive on the Rpc socket stream
-	select([Rpc], block, [Rpc]), % wait until Rpc stream is ready..
+	stream_select([Rpc], block, [Rpc]), % wait until Rpc stream is ready..
 	block(execute_remote_rpc(Rpc, Control), _, handle_remote_rpc_throw(Rpc, Control)).
 
     execute_remote_rpc(Rpc, Control) :-
