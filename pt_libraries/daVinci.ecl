@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
-% Version:	$Id: daVinci.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: daVinci.ecl,v 1.3 2009/12/22 02:56:23 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -76,7 +76,7 @@ mode and connect the stream to the socket connection on the port
 2542.<p> ")).
 
 :-comment(author,"H. Simonis").
-:-comment(date,"$Date: 2009/07/16 09:11:27 $").
+:-comment(date,"$Date: 2009/12/22 02:56:23 $").
 
 /************************************************************************
 
@@ -451,7 +451,7 @@ da_ack:-
 % check whether daVinci is still there (or was exited by the user)
 da_still_open :-
 	current_stream(daVinciIn),
-	( select([daVinciIn], 0, [_]) ->
+	( stream_select([daVinciIn], 0, [_]) ->
 	    ( read_string(daVinciIn, end_of_line, _, "quit") ->
 	    	close(daVinciIn),
 	    	( current_stream(daVinciOut) -> close(daVinciOut) ; true ),

@@ -2944,3 +2944,11 @@ Abort
 ",
 	see_also:[dim / 2, subscript / 3, flatten / 2]]).
 
+
+:- comment(select / 3, [
+        summary:"Obsolete synonym for stream_select/3",
+        amode:(select(++,+,-) is det),
+        args:["StreamList" : "A list of atoms or integers.",
+	    "Timeout" : "A number or an atom.",
+	    "ReadyStreams" : "A term unifiable with a list of integers and atoms."],
+        see_also:[stream_select/3]]).

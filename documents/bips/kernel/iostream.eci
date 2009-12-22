@@ -148,7 +148,7 @@ with the stream identifier Stream.
 
 
 ",
-	see_also:[set_stream_property/3, at / 2, at_eof / 1, current_stream / 1, get_stream_info / 3, open / 3, pipe / 2, seek / 2, select / 3, stream_truncate/1, flush / 1, write_term/2, write_term/3]]).
+	see_also:[set_stream_property/3, at / 2, at_eof / 1, current_stream / 1, get_stream_info / 3, open / 3, pipe / 2, seek / 2, stream_select / 3, stream_truncate/1, flush / 1, write_term/2, write_term/3]]).
 
 :- comment(get_stream_info / 3, [
 	summary:"Succeeds if the attribute Attr of the open stream Stream has the value
@@ -453,7 +453,7 @@ Error:
 </LI><LI>
    For pipe and socket streams, this condition means that the next read
    operation will either block or return an end-of-file condition.
-   To check whether there is any data to read, use select/3.
+   To check whether there is any data to read, use stream_select/3.
 </LI><LI>
    The null stream is always at end-of-file.
 </LI></UL>
@@ -877,7 +877,7 @@ Error:
 
 
 ",
-        see_also:[at / 2, at_eof / 1, current_stream / 1, get_stream_info / 3, open / 4, pipe / 2, seek / 2, select / 3, stream_truncate/1]]).
+        see_also:[at / 2, at_eof / 1, current_stream / 1, get_stream_info / 3, open / 4, pipe / 2, seek / 2, stream_select / 3, stream_truncate/1]]).
 
 :- comment(pipe / 2, [
         summary:"Creates a pipe and two streams StreamIn and StreamOut to its read and write ends",
@@ -931,7 +931,7 @@ Error:
 
 
 ",
-        see_also:[open / 3, open / 4, close / 1, get_stream_info / 3, select / 3]]).
+        see_also:[open / 3, open / 4, close / 1, get_stream_info / 3, stream_select / 3]]).
 
 :- comment(seek / 2, [
         summary:"The pointer in stream Stream is offset Offset from the start of the file",
@@ -973,14 +973,14 @@ Error:
 ",
         see_also:[at / 2, at_eof / 1, set_stream_property/3]]).
 
-:- comment(select / 3, [
+:- comment(stream_select / 3, [
         summary:"Returns streams from StreamList which are ready for I/O, blocking at most
 Timeout seconds.
 
 ",
-        amode:(select(++,+,-) is det),
+        amode:(stream_select(++,+,-) is det),
         desc:html("\
-   select/3 is modelled after (and partially implemented using) the
+   stream_select/3 is modelled after (and partially implemented using) the
    select() Unix system call.  StreamList is a list of streams where
    input or output is expected to occur.  If I/O is available on some
    streams from the StreamList, ReadyStreams is unified with a list of
@@ -988,11 +988,11 @@ Timeout seconds.
 
 <P>
    If Timeout is a number, it must be non-negative and less than
-   100000000. select/3 then waits for at most Timeout seconds for I/O
+   100000000. stream_select/3 then waits for at most Timeout seconds for I/O
    on these streams and if none is available, it unifies ReadyStreams
-   with nil.  If Timeout is zero, select/3 does not wait but it
+   with nil.  If Timeout is zero, stream_select/3 does not wait but it
    immediately returns the list of streams where I/O is available.  If
-   Timeout is the atom block, select/3 waits until I/O is possible on
+   Timeout is the atom block, stream_select/3 waits until I/O is possible on
    one of the streams in StreamList.
 
 <P>
@@ -1010,8 +1010,8 @@ Notes:
 </LI><LI>
    The null stream is never ready.
 </LI><LI>
-   Unlike the select() system call, select/3 does not test any exceptional
-   pending conditions on sockets.
+   Unlike the select() system call, stream_select/3 does not test any
+   exceptional pending conditions on sockets.
 </LI>
 </UL>
 
@@ -1033,7 +1033,7 @@ Notes:
         eg:"
      [eclipse 1]: socket(internet, datagram, s), bind(s, _/40000),
 \t\t  socket(internet, datagram, r), bind(r, _/40001),
-\t\t  select([s, r], block, Streams).
+\t\t  stream_select([s, r], block, Streams).
 
      <blocks until data arrives>
 
@@ -1041,12 +1041,12 @@ Notes:
 
      [eclipse 1]: open(queue(\"\"), update, q).
      yes.
-     [eclipse 2]: select([q],0,L).
+     [eclipse 2]: stream_select([q],0,L).
      L = []
      yes.
      [eclipse 3]: write(q,hello).
      yes.
-     [eclipse 4]: select([q],0,L).
+     [eclipse 4]: stream_select([q],0,L).
      L = [q]
      yes.
 
