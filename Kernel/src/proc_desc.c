@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.5 2009/03/09 05:29:48 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.6 2010/02/18 05:02:45 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -888,8 +888,6 @@ pri_change_prio(pri *pd, int new_prio)
 	return pd->prio == new_prio ? PSUCCEED : ACCESSING_NON_LOCAL;
     }
     pd->prio = new_prio;
-    /* make sure run prio does not get lower than prio */
-    if (new_prio < pd->run_prio) pd->run_prio = new_prio;
     _update_all_uses(pd);
     return PSUCCEED;
 }
@@ -902,8 +900,7 @@ pri_change_run_prio(pri *pd, int new_prio)
 	/* allow no changes */
 	return pd->run_prio == new_prio ? PSUCCEED : ACCESSING_NON_LOCAL;
     }
-    /* make sure run prio does not get lower than prio */
-    pd->run_prio = pd->prio < new_prio ? pd->prio : new_prio;
+    pd->run_prio = new_prio;
     _update_all_uses(pd);
     return PSUCCEED;
 }
