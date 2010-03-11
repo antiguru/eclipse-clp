@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.3 2009/12/22 02:45:56 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.4 2010/03/11 14:27:12 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -2209,7 +2209,7 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
     {
 	pword	*elem = TG;
 
-	if (dent.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY)
+	if (dent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) 
 	{
 	    if (!strcmp(dent.cFileName, ".") || !strcmp(dent.cFileName, ".."))
 		continue;
