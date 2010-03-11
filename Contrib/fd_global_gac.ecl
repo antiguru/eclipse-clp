@@ -24,7 +24,7 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-:-module(ic_global_gac).
+:-module(fd_global_gac).
 :- comment(categories, ["Constraints","Algorithms"]).
 :-comment(summary,"Library of global constraints which achieve"
                         " generalized arc consistency").
@@ -33,21 +33,20 @@
                " consistency, or domain consistency) is maintained."
                " The first example is a version of the alldifferent"
                " constraint which performs more pruning than the bound"
-               " consistent version in the ic_global library.").
+               " consistent version in the fd_global library.").
 :-comment(author,"H. Simonis, 4C, University College Cork").
 :-comment(copyright,"2008, H. Simonis, 4C, University College Cork").
 :-comment(status,prototype).
 :-comment(date,"2008").
 
-:-lib(ic).
-:-lib(ic_kernel).
+:-lib(fd).
 :-lib(graph_algorithms).
 :- lib(max_flow).
 :-lib(hash).
 :-lib(lists).
-:- lib(ic_generic_interface).
+:- lib(fd_generic_interface).
 
-:- import get_bounds/3 from ic_generic_interface.
+:- import get_bounds/3 from fd_generic_interface.
 
 :- include(generic_global_gac).
 
@@ -55,16 +54,15 @@
           gcc_matrix/3.
 
 alldifferent_matrix(Matrix) :-
-        ic_global:alldifferent_matrix_internal(Matrix,ic_global_gac).
+        fd_global:alldifferent_matrix_internal(Matrix,fd_global_gac).
 
 gcc_matrix(Row,Col,Matrix) :-
-        ic_global:gcc_matrix_internal(Row,Col,Matrix,ic_global_gac).
+        fd_global:gcc_matrix_internal(Row,Col,Matrix,fd_global_gac).
 
-:- lib(ic_sequence).
+:- lib(fd_sequence).
 :- reexport sequence/5,
             sequence/4
-   from ic_sequence.
-
+   from fd_sequence.
 
 :-comment(gcc_matrix/3,[
       summary:"Constrain the cardinality of values taken in the rows and"
@@ -83,7 +81,7 @@ gcc_matrix(Row,Col,Matrix) :-
                         "(High >= Low), and Value must be different from "
                         "other Values in ColBounds",
              "Matrix":"A two dimensional MxN matrix of Variables or integer"],
-      see_also: [ic_global_gac:gcc/2],
+      see_also: [fd_global_gac:gcc/2],
       desc:html("\
     This constraint ensures that the cardinality (the number of occurrences)
     of values in each row and column of Matrix conforms to the specifications
@@ -96,7 +94,7 @@ gcc_matrix(Row,Col,Matrix) :-
     This constraint is logically equivalent to imposing M+N individual gcc
     constraints on each row and column of Matrix, but allows more reasoning
     because of the interaction of the values between the rows and columns.
-    The gcc used is from lib(ic_global_gac), but the extra inferences 
+    The gcc used is from lib(fd_global_gac), but the extra inferences 
     performed between the rows and columns itself may be not fully 
     domain consistent. 
 </P><P>
@@ -112,7 +110,7 @@ gcc_matrix(Row,Col,Matrix) :-
       summary:"Constrain the rows and columns of Matrix to be different values",
       amode:alldifferent_matrix(+),
       args:["Matrix":"A two dimensional square matrix of Variables or integer"],
-      see_also:[ic_global_gac:alldifferent/1,_:alldifferent_matrix/1],
+      see_also:[fd_global_gac:alldifferent/1,_:alldifferent_matrix/1],
       desc:html("\
 <P>
     This constraint is a matrix version of alldifferent. Matrix is a two
@@ -121,10 +119,11 @@ gcc_matrix(Row,Col,Matrix) :-
     value can occur in different rows and columns. It is logically 
     equivalent to imposing 2N alldifferent constraints on each row and column,
     but it allows more reasoning because it consider the rows and columns 
-    together. This version uses alldifferent from lib(ic_global_gac), but the 
-    extra inferences performed between the rows and columns itself may be not
+    together. The version uses alldifferent from lib(fd_global_gac), but the 
+    extra inferences performed between the rows and columns itself not be
     fully domain consistent. The maximum propagation occurs when the 
     variables' domains also have N values. 
+    have N values
 </P><P>
     This is currently a prototype -- the constraint have not been tested
     very extensive and little effort have been spent to optimise performance.
@@ -144,7 +143,7 @@ gcc_matrix(Row,Col,Matrix) :-
               ],
         summary: "The number of values taken from Values is between Low and"
                  " High for all sequences of K variables in Vars.", 
-        see_also: [ic_global_gac:sequence/5,ic:element/3,ic_global:sequence_total/6,ic_global:sequence_total/7],
+        see_also: [fd_global_gac:sequence/5,fd:element/3,fd_global:sequence_total/6,fd_global:sequence_total/7],
         desc: html("\
 <P>
     This constraint ensures that the number of values taken from the set
@@ -172,7 +171,7 @@ gcc_matrix(Row,Col,Matrix) :-
               ],
         summary: "The number of occurrences of the value 1 is between Low and"
                  " High for all sequences of K variables in ZeroOnes", 
-        see_also: [ic_global_gac:sequence/5,ic:element/3,ic_global:sequence_total/6,ic_global:sequence_total/7],
+        see_also: [fd_global_gac:sequence/5,fd:element/3,fd_global:sequence_total/6,fd_global:sequence_total/7],
         desc: html("\
 <P>
     This constraint ensures that the number of occurrences of the value 1
@@ -187,6 +186,8 @@ gcc_matrix(Row,Col,Matrix) :-
     element/3 constraints to constrain the ZeroOnes to be 1 if the 
     corresponding original value takes one of the specified values. The
     ZeroOnes can then be used in further constraint reasoning.
+</P><P>
+    Note: this constraint is different from sequence/4 in lib(fd).
 </P><P>
     This is currently a prototype -- the constraint have not been tested
     very extensive and little effort have been spent to optimise performance.

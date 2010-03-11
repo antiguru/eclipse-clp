@@ -333,6 +333,7 @@ bound(I, B, _Module) :-
         integer(I), !,
         B = I.
 bound(A, B, Module) :-
+        % this assumes none of the /0 functions returns an integer
         compound(A),
         subcall(B is A, [])@Module,
         integer(B).
@@ -475,6 +476,8 @@ post_bool_connectives(H, GBCon) :-
         post_new_event(post_bool_connectives(GBCon), H).
 
 
+ec_to_gecode_connective(E, H, N0,N, ...,GE) :-
+        
 :- tool('#\\='/2, '#\\=_body'/3).
 :- tool('#='/2, '#=_body'/3).
 :- tool('#<'/2, '#<_body'/3).
@@ -777,6 +780,37 @@ do_event1(propagate, SpH, First, DoProp) ?-
 
 mark_var_as_set(_{gfd{set:S}}) ?- S = [].
 
+ec_to_gecode_varlist(L, H, GL) :-
+        H = prob{nvars:N0,min:Min,max:Max},
+        ( foreach(V, L), 
+          fromto(N0, N1,N2, N),
+          fromto([], OGs1,OGs2, _OGs),
+          param(H),
+          foreach([], GV)
+        do
+            ( var(V) ->
+                ec_to_gecode_expr1(V, H, N1,N2, OGs1, OGs2, GV)
+            ; integer(V) ->
+                GV = V,
+                N1=N2,
+                OGs1=OGs2
+            ;
+                fail
+            )
+        ),
+        ( N > N0 ->
+            % have new variables, add them
+            update_newvars_with_domain_interval(H, N, Min, Max)
+        ;
+            true
+        ).
+
+linear_op(_+_) ?- !.
+linear_op(_-_) ?- !.
+linear_op(X*Y) ?- !,
+        ( bound(X, _, Module) -> true ; bound(Y, _, Module) ).
+linear_op(-_) ?- !.
+
 ec_to_gecode_expr(E, H, GE) :-
         H = prob{nvars:N0,min:Min,max:Max},
         ec_to_gecode_expr1(E, H, N0,N, [],_, GE),
@@ -828,7 +862,7 @@ ec_to_gecode_expr1(sum(L0), H, N0,N, OldGVs0,OldGVs, GL) ?- !,
         collection_to_list(flatten(L0),L), 
         ec_to_gecode_sumlist(L, H, N0,N, OldGVs0,OldGVs, GL).
 ec_to_gecode_expr1(E, H, N0,N, OldGVs0,OldGVs, GE) :-
-        compound(E),
+        linear_op(E), !,
         functor(E, Name, Arity),
         functor(GE, Name, Arity),
         ( foreacharg(Arg, E), foreacharg(GArg, GE),
@@ -838,6 +872,18 @@ ec_to_gecode_expr1(E, H, N0,N, OldGVs0,OldGVs, GE) :-
         do
             ec_to_gecode_expr1(Arg, H, N1,N2, OldGVs1,OldGVs2, GArg)
         ).
+ec_to_gecode_expr1(E, H, N0,N, OldGVs0,OldGVs, GE) :-
+        nonlinear(E), !,
+        blah.
+ec_to_gecode_expr1(E, H, N0,N, OldGVs0,OldGVs, GE) :-
+        bool_connective(E),  !,
+        ec_to_gecode_connective(E, H, N0,N, OldGVs0,OldGVs, GE).
+ec_to_gecode_expr1(C, H, No,N, OldGVs,OldGVs, GC) :-
+        reifieable_constraint(C), !,
+        blah.
+ec_to_gecode_expr1(E, H, No,N, OldGVs,OldGVs, GI) :-
+        try_evaluate(E), !,
+        blah.
 
 ec_to_gecode_sumlist([E|L], H, N0,N, OldGVs0,OldGVs, GL) :-
         ec_to_gecode_expr1(E, H, N0,N1, OldGVs0,OldGVs1, GE1),

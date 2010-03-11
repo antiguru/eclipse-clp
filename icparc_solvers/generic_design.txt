@@ -110,6 +110,11 @@ variable, or something else entirely).  The value of Dom should only be used
 with other predicates of this interface.
 
 
+get_full_domain_as_list(?Var, -List)
+
+Should return in List a "full" representation of the domain of the variable
+Var; i.e. an ordered list of all the integers in the domain.
+
 get_compact_domain_as_list(?Var, -List)
 
 Should return in List a compact representation of the domain of the variable
@@ -193,3 +198,9 @@ to go public, we might want to rename the condition specifiers to something
 non-ambiguous (generic_min, etc.) and/or permit a generic module specifier
 or something.)
 
+evalute(Var)
+
+Inside a constraint expression. Specify that Var can be bound to an expression
+at run-time, and so must be evaluated at run-time and not treated as a domain
+variable by the solver. evaluate/1 is used instead of eval/1 because eval/1
+can be used in the context of a constraint and a normal expression.

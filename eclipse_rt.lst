@@ -51,8 +51,10 @@ lib/fd_generic_interface.eco
 lib/fd_global.eco
 lib/fd_sbds.eco
 lib/fd_search.eco
+lib/fd_sequence.eco
 lib/fd_sets.eco
 lib/fd_util.eco
+lib/flow_constraints_support.eco
 lib/fromonto.eco
 lib/graph_algorithms.eco
 lib/heap_array.eco
@@ -74,6 +76,7 @@ lib/ic_probe_support.eco
 lib/ic_probing_for_scheduling.eco
 lib/ic_sbds.eco
 lib/ic_search.eco
+lib/ic_sequence.eco
 lib/ic_sets.eco
 lib/ic_symbolic.eco
 lib/iso.eco
@@ -83,6 +86,7 @@ lib/linearize.eco
 lib/lists.eco
 lib/make_overlap_bivs.eco
 lib/matrix_util.eco
+lib/max_flow.eco
 lib/module_options.eco
 lib/multifile.eco
 lib/notify_ports.eco

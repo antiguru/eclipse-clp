@@ -36,7 +36,7 @@
 :-comment(status,prototype).
 :-comment(date,"2006-2007").
 
-:-use_module(max_flow).
+:-lib(max_flow).
 
 :-lib(graph_algorithms).
 :-lib(hash).

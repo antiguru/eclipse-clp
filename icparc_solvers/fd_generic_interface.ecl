@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_generic_interface.ecl,v 1.1 2006/09/23 01:53:31 snovello Exp $
+% Version:	$Id: fd_generic_interface.ecl,v 1.2 2010/03/11 14:13:37 kish_shen Exp $
 %
 % Description:		Generic interface to FD library
 %
@@ -48,6 +48,7 @@
 	get_domain/2,
 	get_compact_domain_rep/2,
 	get_compact_domain_as_list/2,
+        get_full_domain_as_list/2,
 	get_subtract_domain_rep/2,
 	get_size/2,
 	get_constraints_number/2,
@@ -72,6 +73,14 @@ trans_module_names(sbds_module, fd_sbds).
 :- export trans_module_names/2.
 :- export macro(sbds_module/0, trans_module_names/2, []).
 
+    %
+    % Set up translations of eval/1 
+    % (use evaluate to allow eval/1 in non-constraint context)
+
+trans_eval(evaluate(X), (X)).
+
+:- export trans_eval/2.
+:- export macro(evaluate/1, trans_eval/2, []).
 
     %
     % Define the transformations to be done for the generic interface
@@ -99,6 +108,8 @@ tr_fd_in(get_compact_domain_as_list(Var, Rep),
 		get_compact_domain_rep(Var, Rep)).
 tr_fd_in(get_subtract_domain_rep(Dom, Rep),
 		Rep = Dom).
+tr_fd_in(get_full_domain_as_list(Var, DomList), 
+                fd:dom(Var,DomList)).
 tr_fd_in(get_size(Var, Size), (
 		    fd:dvar_domain(Var, Dom),
 		    fd:dom_size(Dom, Size)
@@ -145,6 +156,7 @@ tr_fd_in(generic_suspend(Goal, Priority, Cond, Susp),
 :- inline(get_compact_domain_rep/2, tr_fd_in/2).
 :- inline(get_compact_domain_as_list/2, tr_fd_in/2).
 :- inline(get_subtract_domain_rep/2, tr_fd_in/2).
+:- inline(get_full_domain_as_list/2, tr_fd_in/2).
 :- inline(get_size/2, tr_fd_in/2).
 :- inline(get_constraints_number/2, tr_fd_in/2).
 :- inline(check_in/2, tr_fd_in/2).
@@ -188,6 +200,10 @@ get_compact_domain_as_list(Var, Rep) :-
 
 get_subtract_domain_rep(Var, Dom) :-
 	get_subtract_domain_rep(Var, Dom).
+
+get_full_domain_as_list(Var, List) :-
+        get_full_domain_as_list(Var, List).
+
 
 get_size(Var, Size) :-
 	get_size(Var, Size).

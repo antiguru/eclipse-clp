@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.3 2010/03/11 14:13:40 kish_shen Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -44,7 +44,8 @@
 :- export
 	alldifferent/1,		% alldifferent(List)
 	alldifferent/2,		% alldifferent(List,Cap)
-	occurrences/3,
+        bool_channeling/3,
+        occurrences/3,
 	ordered/2,
 	ordered_sum/2,
 	lexico_le/2,
@@ -55,7 +56,8 @@
 	sum_ge_zero/1,
 	sumlist/2,
 	atmost/3.
-
+% additional constraints exported from 
+% generic_flow_constraints, generic_bin_packing
 
 :- import
 	setarg/3,
@@ -671,9 +673,9 @@ ordered_sum_l(Xs, N, Sum, Susp) :-
 % lexicographic ordering between two lists
 %----------------------------------------------------------------------
 
-:- comment(lexico_le/2, [
+:- comment(lex_le/2, [
     summary:"List1 is lexicographically less or equal to List2",
-    amode:lexico_le(+,+),
+    amode:lex_le(+,+),
     args:[
 	"List1":"List of integers or domain variables",
 	"List2":"List of integers or domain variables"
@@ -696,37 +698,94 @@ ordered_sum_l(Xs, N, Sum, Susp) :-
     lexico_le([2, 3, 1], [3]).					% true
     " ]).
 
-lexico_le([], []) ?- !, true.
-lexico_le([X], [Y|_]) ?- !, X #=< Y.
-lexico_le(Xs, Ys) :-
-	lexico_le(Xs, Ys, _).
+lex_le(XVector,YVector):-
+        collection_to_list(XVector,XList),
+        collection_to_list(YVector,YList),
+        lex_le1(XList,YList).
+%        lexico_le(XList,YList).
+
+lex_le1([], []) ?- !, true.
+lex_le1([X], [Y|_]) ?- !, X #=< Y.
+lex_le1(Xs, Ys) :-
+	lex_le(Xs, Ys, _).
     	
-    :- demon lexico_le/3.
-    lexico_le([X1|X2Xs], [Y1|Y2Ys], S) ?-
-	X1 #=< Y1,
-	get_bounds(X1, _X1min, X1max),
-	get_bounds(Y1, Y1min, _Y1max),
-	( X1max < Y1min ->		% X1 #< Y1 entailed
-	    kill_suspension(S)
-	; X1 == Y1 ->			% same value or variable
-	    kill_suspension(S),
-	    lexico_le(X2Xs, Y2Ys)
-	; 
-	    X2Xs = [X2|_], Y2Ys = [Y2|_],
-	    get_bounds(X2, X2min, _X2max),
-	    get_bounds(Y2, _Y2min, Y2max),
-	    ( X2min > Y2max ->
-		kill_suspension(S),
-		X1 #< Y1
-	    ; var(S) ->
-	        generic_suspend(lexico_le([X1|X2Xs], [Y1|Y2Ys], S), 3,
-		    [X1->bound,Y1->bound,X1->max,Y1->min,X2->min,Y2->max], S)
-	    ;
-		true	% resuspend
-	    )
-	).
+:- demon lex_le/3.
+lex_le([X1|X2Xs], [Y1|Y2Ys], S) ?-
+        X1 #=< Y1,
+        get_bounds(X1, _X1min, X1max),
+        get_bounds(Y1, Y1min, _Y1max),
+        ( X1max < Y1min ->		% X1 #< Y1 entailed
+            kill_suspension(S)
+        ; X1 == Y1 ->			% same value or variable
+            kill_suspension(S),
+            lex_le1(X2Xs, Y2Ys)
+        ; 
+            (get_next(X2Xs,Y2Ys,X2,Y2) ->
+                get_bounds(X2, X2min, _X2max),
+                get_bounds(Y2, _Y2min, Y2max),
+                ( X2min > Y2max ->
+                    kill_suspension(S),
+                    X1 #< Y1
+                ; var(S) ->
+                    generic_suspend(lex_le([X1|X2Xs], [Y1|Y2Ys], S), 3,
+                        [X1->bound,Y1->bound,X1->max,Y1->min,X2->min,Y2->max], S)
+                ;
+                    true	% resuspend
+                )
+            ;
+                % there is no next element
+                kill_suspension(S)
+            )
+        ).
+
+get_next([X|X1],[Y|Y1],X2,Y2):-
+        X == Y,
+        !,
+        get_next(X1,Y1,X2,Y2).
+get_next([X|_X1],[Y|_Y1],X,Y).
+
+lex_lt(XVector,YVector):-
+        collection_to_list(XVector,XList),
+        collection_to_list(YVector,YList),
+        lex_lt1(XList,YList).
+
+lex_lt1([], []) ?- !, true.
+lex_lt1([X], [Y|_]) ?- !, X #< Y.
+lex_lt1(Xs, Ys) :-
+	lex_lt(Xs, Ys, _).
+    	
+:- demon lex_lt/3.
+lex_lt([X1|X2Xs], [Y1|Y2Ys], S) ?-
+        X1 #=< Y1,
+        get_bounds(X1, _X1min, X1max),
+        get_bounds(Y1, Y1min, _Y1max),
+        ( X1max < Y1min ->		% X1 #< Y1 entailed
+            kill_suspension(S)
+        ; X1 == Y1 ->			% same value or variable
+            kill_suspension(S),
+            lex_lt1(X2Xs, Y2Ys)
+        ; 
+            (get_next(X2Xs,Y2Ys,X2,Y2) ->
+                get_bounds(X2, X2min, _X2max),
+                get_bounds(Y2, _Y2min, Y2max),
+                ( X2min > Y2max ->
+                    kill_suspension(S),
+                    X1 #< Y1
+                ; var(S) ->
+                    generic_suspend(lex_lt([X1|X2Xs], [Y1|Y2Ys], S), 3,
+                            [X1->bound,Y1->bound,X1->max,Y1->min,
+                             X2->min,Y2->max], S)
+                ;
+                    true	% resuspend
+                )
+            ;
+                % there is no next element
+                kill_suspension(S)
+            )
+        ).
 
 
+lexico_le(Xs, Ys) :- lex_le(Xs, Ys).  % backwards compatibility
 
 %----------------------------------------------------------------------
 % sorted(?UnsortedList, ?SortedList)
@@ -1368,6 +1427,7 @@ filter_vars(N, [_|T], Val, R, NewN, V, VarNo) :-
     filter_vars(N, T, Val, R, NewN, V, VarNo).
 
 
+
 %
 % element(Index, List, Value)
 %
@@ -1429,14 +1489,130 @@ filter_vars(N, [_|T], Val, R, NewN, V, VarNo) :-
 %    VV = V,
 %    VI = I.
 
+/************************************************************************
+
+bool_channeling
+
+************************************************************************/
+
+:- comment(bool_channeling/3, [
+        amode: bool_channeling(?, +, +),
+        args: ["Var": "An integer domain variable",
+               "DomainBools": "A collection of N 0/1 domain variables or"
+                           " integers",
+               "Min": "An integer"],
+        summary: "Channel the domain values of Vars to the 0/1 boolean"
+                 " variables in DomainBools",
+        desc: html("\
+<P>
+    Var is an integer domain variable whose initial interval is Min..(Min+N),
+    and this constraint links the domain values of Var with the N 0/1
+    variables in DomainBools such that the i'th variable in DomainBools
+    represents the value Min+i, and its value is 0 if the value is not in
+    Var's domain, and 1 if Var is assigned the value [Thus, only one variable
+    in DomainBools can take the value 1].
+</P><P>
+    A variant of this constraint, calld 'domain_constraint' is in the global 
+    constraint catalog. There, instead of having DomainBools and Min, there
+    is a collection of Value-Bool pairs, representing a possible domain value
+    and its associated 0/1 variable. The impplementation here is described in
+    the graph model for the domain_constraint in the catalog, and is 
+    generalised arc-consistent.")]).
+
+bool_channeling(X,Coll,F):-
+        collection_to_list(Coll,B),
+        length(B,N),
+        X #>= F,
+        X #< F+N,
+%        sumlist(B,1),
+        check_bool_channeling(X,B,F),
+        (ground(X) ->
+            true
+        ;
+            generic_suspend(update_bool_channeling(X,B,F,Susp),3,
+                    [B->min,
+                     B->max,
+                     X->any],Susp)
+        ).
+
+:-demon(update_bool_channeling/4).
+update_bool_channeling(X,B,F,Susp):-
+        check_bool_channeling(X,B,F),
+        (ground(X) ->
+            kill_suspension(Susp)
+        ;
+            true
+        ).
+
+check_bool_channeling(X,B,F):-
+        (foreach(V,B),
+         count(J,F,_),
+         param(X) do
+            (V == 0 ->
+                excl(X,J)
+            ; V == 1 ->
+                X = J
+            ; X == J ->
+                V = 1
+            ; check_in(J,X) ->
+                true
+            ;
+                V = 0
+            )
+        ),
+        (integer(X) ->
+            (foreach(V,B),
+             count(J,F,_),
+             param(X) do
+                (X == J ->
+                    V = 1
+                ;
+                    V = 0
+                )
+            )
+        ;
+            true
+        ),  
+        wake.
+
+/*
+check_bool_channeling(X,B,F):-
+        (foreach(V,B),
+         count(J,F,_),
+         param(X,F,B) do
+            (V == 0 ->
+                exclude(X,J)
+            ; V == 1 ->
+                X = J,
+                set_to_zero_up_to_j(B,F,J)
+            ; X == J ->
+                V = 1
+            ; is_in_domain(J,X) ->
+                true
+            ;
+                V = 0
+            )
+        ),
+        wake.
+*/
+
+set_to_zero_up_to_j(_,J,J):-
+        !.
+set_to_zero_up_to_j([0|B],F,J):-
+        F1 is F+1,
+        set_to_zero_up_to_j(B,F1,J).
 
 
+/*****************************************************************
+bin_packing constraint, contributed by Helmut Simonis
+******************************************************************/
 
+:- include(generic_bin_packing).
 
+/*****************************************************************
+Various non-domain consistent global constraints with flow-based
+algorithms, implemented by Helmut Simonis, 2009
+******************************************************************/
 
-
-
-
-
-
+:- include(generic_flow_constraints).
 

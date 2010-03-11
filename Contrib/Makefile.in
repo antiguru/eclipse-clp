@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.6 2009/07/16 09:11:23 jschimpf Exp $
+# $Id: Makefile.in,v 1.7 2010/03/11 14:11:06 kish_shen Exp $
 #
 
 ARCH = @ARCH@
@@ -19,8 +19,8 @@ PL_ECI_FILES =	applic.pl arrays.pl assoc.pl bags.pl between.pl distfix.pl \
 		tidy.pl trees.pl
 
 ECL_ECI_FILES =	all_min_cuts.ecl all_min_cuts_eplex.ecl cardinal.ecl \
-		ic_global_gac.ecl grasper.ecl ldsb.ecl max_flow.ecl \
-		list_collection.ecl \
+		ic_global_gac.ecl fd_global_gac.ecl generic_global_gac.ecl \
+                grasper.ecl ldsb.ecl list_collection.ecl \
 		max_flow_eplex.ecl xml.ecl
 
 PL_FILES =	xml.pl xml_diagnosis.pl xml_pp.pl xml_acquisition.pl \
@@ -46,10 +46,12 @@ README_DEST =	$(README_FILES:%=$(DESTDIR)/%)
 EMACS_DEST =	$(EMACS_FILES:%=$(DESTDIR)/%)
 
 
-# This file is needed for the visualisation tools. We put a copy
-# in /lib to make it go into the eclipse_basic.tgz package
+# These files are needed for the visualisation tools or ic_global. 
+# We put a copy in /lib to make them go into the eclipse_basic.tgz package
 DESTDIR_EXTRA = $(PREFIX)/lib
-EXTRA_DEST = $(DESTDIR_EXTRA)/logarr.pl $(DESTDIR_EXTRA)/logarr.eco
+EXTRA_DEST = $(DESTDIR_EXTRA)/logarr.pl $(DESTDIR_EXTRA)/logarr.eco \
+	     $(DESTDIR_EXTRA)/listut.pl 
+
 
 
 install:	@MAKE_TARGET@
@@ -97,7 +99,15 @@ $(DESTDIR_EXTRA)/%.pl:	%.pl $(DESTDIR_EXTRA)/.stamp
 	/bin/cp $< $@
 	@/bin/chmod $(PERM) $@
 
+$(DESTDIR_EXTRA)/%.ecl:	%.ecl $(DESTDIR_EXTRA)/.stamp
+	/bin/cp $< $@
+	@/bin/chmod $(PERM) $@
+
 $(DESTDIR_EXTRA)/%.eco:	%.pl $(DESTDIR_EXTRA)/.stamp
+	$(ECLIPSE) -e 'lib(fcompile), set_flag(variable_names,off), set_flag(debug_compile,off), fcompile("$(*F)", [outdir:"$(@D)"])'
+	@/bin/chmod $(PERM) $@
+
+$(DESTDIR_EXTRA)/%.eco:	%.ecl $(DESTDIR_EXTRA)/.stamp
 	$(ECLIPSE) -e 'lib(fcompile), set_flag(variable_names,off), set_flag(debug_compile,off), fcompile("$(*F)", [outdir:"$(@D)"])'
 	@/bin/chmod $(PERM) $@
 

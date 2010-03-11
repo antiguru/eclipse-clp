@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.17 2009/07/20 15:54:28 kish_shen Exp $
+# $Id: Makefile.in,v 1.18 2010/03/11 14:13:35 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -361,10 +361,30 @@ XPRESS1601_SUPPORT_i386_linux = \
 $(ARCH)/express1601:	$(XPRESS1601)
 	mkdir -p $@
 	@/bin/chmod $(DIRPERM) $@
-	/bin/cp $(XPRESS1525_SUPPORT_$(ARCH)) $(XPRESS1525_SUPPORT) $@
+	/bin/cp $(XPRESS1601_SUPPORT_$(ARCH)) $(XPRESS1601_SUPPORT) $@
 	-@/bin/chmod $(PERM) $@/*
 
 $(PREFIX)/lib/$(ARCH)/express1601:	$(ARCH)/express1601
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp -pr $</* $@
+	-@/bin/chmod $(PERM) $@
+
+
+# XPRESS 20
+XPRESS2000 = $(THIRDPARTY)/xosl2000
+XPRESS2000_SUPPORT=
+XPRESS2000_SUPPORT_x86_64_linux = \
+	$(XPRESS2000)/$(ARCH)/lib/libxprs.so \
+	$(XPRESS2000)/$(ARCH)/lib/libxprl.so
+
+$(ARCH)/express2000:	$(XPRESS2000)
+	mkdir -p $@
+	@/bin/chmod $(DIRPERM) $@
+	/bin/cp $(XPRESS2000_SUPPORT_$(ARCH)) $(XPRESS2000_SUPPORT) $@
+	-@/bin/chmod $(PERM) $@/*
+
+$(PREFIX)/lib/$(ARCH)/express2000:	$(ARCH)/express2000
 	mkdir -p $@
 	@/bin/chmod $(DIRPERM) $@
 	/bin/cp -pr $</* $@
@@ -425,6 +445,13 @@ i386_linux/sexpress1601.so: seplex.c $(ARCH)/express1601
 	$(CC) -shared seplex.o $(ARCH)/express1601/libxprs.so.16.01  $(ECLIBS) -o sexpress.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv sexpress.so i386_linux/sexpress1601.so
+
+x86_64_linux/sexpress2000.so: seplex.c $(ARCH)/express2000
+	$(CC) -DXPRESS=20  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS2000)/$(ARCH)/include -c seplex.c
+	$(CC) -shared seplex.o $(ARCH)/express2000/libxprs.so  $(ECLIBS) -o sexpress.so
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	mv sexpress.so x86_64_linux/sexpress2000.so
+
 
 i386_nt/sexpress1427.dll: seplex.c $(ARCH)/express1427
 	[ -d $(ARCH) ] || mkdir $(ARCH)
@@ -637,6 +664,7 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl empty_language.ecl \
 		fd_sbds.ecl ic_sbds.ecl \
 		fd_generic_interface.ecl ic_generic_interface.ecl \
 		fd_global.ecl ic_global.ecl \
+	        fd_sequence.ecl ic_sequence.ecl flow_constraints_support.ecl \
 		cumulative.ecl ic_cumulative.ecl \
 		fd_edge_finder_common.ecl ic_edge_finder_common.ecl \
 		edge_finder.ecl ic_edge_finder.ecl \
@@ -647,7 +675,7 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl empty_language.ecl \
 		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		conjunto_fd_sets.ecl ic_hybrid_sets.ecl lex_set.ecl \
 		eplex_osi.ecl eplex_osi_clpcbc.ecl eplex_osi_symclp.ecl \
-		tentative.ecl tentative_constraints.ecl
+		tentative.ecl tentative_constraints.ecl max_flow.ecl
 PL_ECO_FILES =	changeset.pl linearize.pl shadow_cons.pl ech.pl \
 		repair.pl eplex.pl eplex_relax.pl \
 		eplex_cplex.pl eplex_xpress.pl \
@@ -664,7 +692,9 @@ INCLUDE_ONLY_FILES = colgen_.ecl eplex_s.ecl \
 		generic_hybrid_sets.ecl \
 		generic_cumulative.ecl generic_edge_finder_common.ecl \
 		generic_edge_finder.ecl generic_edge_finder3.ecl \
-		generic_gap_sbdd.ecl generic_gap_sbds.ecl
+		generic_gap_sbdd.ecl generic_gap_sbds.ecl \
+		generic_flow_constraints.ecl generic_bin_packing.ecl \
+	        generic_sequence.ecl
 PL_ECI_FILES =	repair.pl eplex.pl \
 		ech.pl eplex_xpress.pl eplex_cplex.pl \
 		repairfd.pl changeset.pl \
@@ -684,7 +714,7 @@ ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		config_opts.ecl gap.ecl sym_expr.ecl \
 		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		eplex_osi.ecl eplex_osi_clpcbc.ecl eplex_osi_symclp.ecl \
-		tentative.ecl tentative_constraints.ecl
+		tentative.ecl tentative_constraints.ecl max_flow.ecl
 NON_ECLIPSE_FILES = RuntimesList.g SBDDa.g
 
 EXAMPLE_DEST =	$(EXAMPLE_FILES:%=$(PREFIX)/doc/examples/tutorial/%) 
@@ -867,10 +897,12 @@ $(PREFIX)/lib/bfs.eci:		bfs.ecl bfs_comments.ecl
 FD_INTERFACE = fd_generic_interface.ecl
 IC_INTERFACE = ic_generic_interface.ecl
 
-$(PREFIX)/lib/fd_global.eco : generic_global_constraints.ecl $(FD_INTERFACE)
-$(PREFIX)/lib/fd_global.eci : generic_global_constraints.ecl $(FD_INTERFACE)
-$(PREFIX)/lib/ic_global.eco : generic_global_constraints.ecl $(IC_INTERFACE)
-$(PREFIX)/lib/ic_global.eci : generic_global_constraints.ecl $(IC_INTERFACE)
+$(PREFIX)/lib/fd_global.eco : generic_global_constraints.ecl generic_flow_constraints.ecl generic_bin_packing.ecl $(FD_INTERFACE)
+$(PREFIX)/lib/fd_global.eci : generic_global_constraints.ecl generic_flow_constraints.ecl generic_bin_packing.ecl $(FD_INTERFACE)
+$(PREFIX)/lib/ic_global.eco : generic_global_constraints.ecl generic_flow_constraints.ecl generic_bin_packing.ecl $(IC_INTERFACE)
+$(PREFIX)/lib/ic_global.eci : generic_global_constraints.ecl generic_flow_constraints.ecl generic_bin_packing.ecl $(IC_INTERFACE)
+$(PREFIX)/lib/ic_sequence.eco : generic_sequence.ecl $(IC_INTERFACE)
+$(PREFIX)/lib/fd_sequence.eco : generic_sequence.ecl $(FD_INTERFACE)
 
 $(PREFIX)/lib/cumulative.eco : generic_cumulative.ecl $(FD_INTERFACE)
 $(PREFIX)/lib/cumulative.eci : generic_cumulative.ecl $(FD_INTERFACE)

@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ic_generic_interface.ecl,v 1.1 2006/09/23 01:53:46 snovello Exp $
+% Version:	$Id: ic_generic_interface.ecl,v 1.2 2010/03/11 14:13:40 kish_shen Exp $
 %
 % Description:		Generic interface to IC library
 %
@@ -56,6 +56,7 @@
 	get_compact_domain_as_list/2,
 	get_compact_domain_rep/2,
 	get_subtract_domain_rep/2,
+	get_full_domain_as_list/2,
 	get_size/2,
 	get_constraints_number/2,
 	is_integer_type/1,
@@ -80,6 +81,15 @@ trans_module_names(sbds_module, ic_sbds).
 
 
     %
+    % Set up translations of eval/1 
+    % (use evaluate to allow eval/1 in non-constraint context)
+
+trans_eval(evaluate(X), eval(X)).
+
+:- export trans_eval/2.
+:- export macro(evaluate/1, trans_eval/2, []).
+
+    %
     % Define the transformations to be done for the generic interface
     % predicates.
     %
@@ -98,6 +108,8 @@ tr_ic_in(get_compact_domain_rep(Var, Rep),
 		ic:get_domain(Var, Rep)).
 tr_ic_in(get_subtract_domain_rep(Var, Rep),
 		get_compact_domain_as_list(Var, Rep)).
+tr_ic_in(get_full_domain_as_list(Var, DomList),
+		ic:get_domain_as_list(Var, DomList)).
 tr_ic_in(get_size(Handle, Size),
 		ic:get_domain_size(Handle, Size)).
 tr_ic_in(get_constraints_number(Var, Number),
@@ -135,6 +147,7 @@ tr_ic_in(generic_suspend(Goal, Priority, Cond0, Susp),
 :- inline(get_domain/2, tr_ic_in/2).
 :- inline(get_compact_domain_rep/2, tr_ic_in/2).
 :- inline(get_subtract_domain_rep/2, tr_ic_in/2).
+:- inline(get_full_domain_as_list/2, tr_ic_in/2).
 :- inline(get_size/2, tr_ic_in/2).
 :- inline(get_constraints_number/2, tr_ic_in/2).
 :- inline(lwb/2, tr_ic_in/2).
@@ -171,6 +184,9 @@ get_compact_domain_rep(Var, Rep) :-
 
 get_subtract_domain_rep(Var, Rep) :-
 	get_subtract_domain_rep(Var, Rep).
+
+get_full_domain_as_list(Var, DomList) :-
+	get_full_domain_as_list(Var, DomList).
 
 get_size(Var, Size) :-
 	get_size(Var, Size).
