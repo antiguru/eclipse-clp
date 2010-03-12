@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.10 2009/12/20 05:00:26 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.11 2010/03/12 10:22:46 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2009/12/20 05:00:26 $").
+:- comment(date, "$Date: 2010/03/12 10:22:46 $").
 
 :- use_module(compiler_common).
 :- import state_lookup_binding/3 from compiler_analysis.
@@ -82,7 +82,7 @@ indexing_transformation([Goal|Goals], OutGoals, Det, Options) :-
 			args:[variable{varid:VarId}],state:State,callpos:CutPos} ->
 	    % Eliminate cuts that are always in the last (or only) alternative
 	    (
-		state_lookup_binding(State, VarId, cutpoint(SaveCutPos)),
+		state_lookup_binding(State, VarId, ++(cutpoint(SaveCutPos))),
 		in_following_branch_guard(SaveCutPos, CutPos),
 		last_alternative(Det)
 	    ->

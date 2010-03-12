@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.28 2009/12/20 05:00:26 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.29 2010/03/12 10:22:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2009/12/20 05:00:26 $").
+:- comment(date, "$Date: 2010/03/12 10:22:46 $").
 
 
 :- lib(hash).
@@ -1064,7 +1064,7 @@ generate_simple_goal(goal{functor: get_cut/1, args:[Arg],definition_module:sepia
 generate_simple_goal(goal{functor: cut_to/1, args:[Arg],definition_module:sepia_kernel,envsize:ESize,state:State}, ChunkData0, ChunkData, Code0, Code, _Options, _Module) ?- !,
 	Arg = variable{varid:VarId},
 	variable_occurrence(Arg, ChunkData0, ChunkData1, Code0, Code1, VarOccDesc),
-	( compiler_analysis:state_lookup_binding(State, VarId, cutpoint(_)) ->
+	( compiler_analysis:state_lookup_binding(State, VarId, ++(cutpoint(_))) ->
 	    ChunkData1 = chunk_data{allocated:ExistingESize},
 	    ( ESize >= 0 ->
 		% cut (and trim if necessary)

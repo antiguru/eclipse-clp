@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_common.ecl,v 1.23 2008/10/29 03:13:44 jschimpf Exp $
+% Version:	$Id: compiler_common.ecl,v 1.24 2010/03/12 10:22:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_common).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - common data structures and auxiliaries").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/10/29 03:13:44 $").
+:- comment(date, "$Date: 2010/03/12 10:22:46 $").
 
 %----------------------------------------------------------------------
 % Common options-structure
@@ -497,18 +497,29 @@ new_aux_variable_norm(VarDesc, VId0, VId) :-
 	    det
 	    failure
 
-	Possible binding values:
+	Possible binding states:
 
-	    alias(VarId)
-	    type(Type)
-	    value(Constant)		if simple type (ground?)
+	    alias(VarId)  aliased to another variable
+
+	    --type	uninitialised (not aliased, not in a delayed goal)
+	    (-type)	uninstantiated - this is currently unused
+	     ?type	unknown instantiation state
+	     +type	instantiated
+	    ++type	ground
 
 	Possible types:
 
-	    The ones returned by type_of/2 (except 'var')
-	    F/Ar	for a particular functor
-	    []		the empty type (no value possible)
-	    'univ'	anything (the default)
+	    univ
+	      +----------------------------------------------+
+	    atomic                                        compound
+	      +--------+--------+-------------+-------+      |
+	    number   handle   cutpoint      string  atom    N/A
+	      |                               |       |
+	      +-------+-------+--------+    value() value()
+	    integer float   rational breal
+	      |       |       |        |
+	    value() value() value()  value()
+
 
     "),
     see_also:[binding_analysis/1,struct(goal)],
