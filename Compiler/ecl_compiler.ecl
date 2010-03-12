@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.17 2009/12/16 13:32:02 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.18 2010/03/12 10:25:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2009/12/16 13:32:02 $").
+:- comment(date,	"$Date: 2010/03/12 10:25:56 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -310,12 +310,19 @@ compile_discontiguous_preds(Module, SourcePos, Options, Size0, Size) :-
 	set_stream_property(Stream, output_options, [numbervars(true)|Opt0]),
 	( foreach(Clause,Clauses),param(Stream) do
 	    \+ \+ (
-		numbervars:numbervars(Clause, 0, _),
+		numbervars(Clause, 0, _),
 		writeclause(Stream, Clause)
 	    )
 	),
 	nl(Stream),
 	set_stream_property(Stream, output_options, [numbervars(NV)|Opt0]).
+
+    numbervars('$VAR'(N), N, N1) :- !,
+	N1 is N + 1.
+    numbervars(Term, N0, N) :-
+	( foreacharg(Arg,Term), fromto(N0,N1,N2,N) do
+	    numbervars(Arg, N1, N2)
+	).
 
 
     pretty_print_asm(WAM, Stream, Pred, Flags, Module) :-
@@ -933,21 +940,24 @@ emit_directive_or_query((:-comment(_,_)), _Options, _Module) ?- !.
 emit_directive_or_query((:-include(_)), _Options, _Module) ?- !.
 emit_directive_or_query((:-[_|_]), _Options, _Module) ?- !.
 emit_directive_or_query(Dir, Options, Module) :-
+	numbervars(Dir, 0, _),
 	( Options = options{output:print} ->
-	    printf("%w.%n", [Dir])
+	    printf("%Iw.%n", [Dir])
 	; Options = options{output:print(Stream)} ->
-	    printf(Stream, "%w.%n", [Dir])
+	    printf(Stream, "%Iw.%n", [Dir])
 	; Options = options{output:eco_to_stream(Stream)} ->
-	    printf(Stream, "%ODQKw.%n", [Dir])@Module
+	    printf(Stream, "%IODQKw.%n", [Dir])@Module
 	; Options = options{output:asm_to_stream(Stream)} ->
-	    printf(Stream, "%DQKw.%n", [Dir])@Module
+	    printf(Stream, "%IDQKw.%n", [Dir])@Module
 	; Options = options{output:none} ->
 	    true
 	;
 	    Options = options{output:Junk},
 	    printf(error, "Invalid output option: %w%n", [Junk]),
 	    abort
-	).
+	),
+	fail.	% to undo numbervars
+emit_directive_or_query(_, _, _).
 
 
 %----------------------------------------------------------------------
