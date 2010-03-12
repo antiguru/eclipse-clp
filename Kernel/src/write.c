@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.4 2009/07/17 15:45:49 kish_shen Exp $
+ * VERSION	$Id: write.c,v 1.5 2010/03/12 10:16:48 jschimpf Exp $
  */
 
 /*
@@ -773,6 +773,31 @@ _pwrite_:
 	arg = (val.ptr) + 1;
 _write_structure_:			/* (d, arg) */
 	arity = DidArity(d);
+	if (d == d_dollar_var && (idwrite & OUT_DOLLAR_VAR)) /* '$VAR'/1 */
+	{
+	    pword *narg = arg;
+	    Dereference_(narg);
+	    switch (TagType(narg->tag))
+	    {
+	    case TINT:
+		if (narg->val.nint < 0)
+		    break;
+		if ((status = ec_outfc(out, 'A' + (char)(narg->val.nint % 26))) < 0)
+		    return (status);
+		if (narg->val.nint / 26)
+		    return p_fprintf(out, "%" W_MOD "d", narg->val.nint / 26);
+		return PSUCCEED;
+	    case TSTRG:
+		return ec_outf(out, StringStart(narg->val),
+				    (int) StringLength(narg->val));
+	    case TDICT:
+		return ec_outf(out, DidName(narg->val.did),
+				    (int) DidLength(narg->val.did));
+	    case TNIL:
+		return ec_outf(out, "[]", 2);
+	    }
+	    /* else print the structure normally */
+	}
 	if (!(idwrite & CANONICAL))
 	{
 	    dident hd = d;
@@ -801,32 +826,7 @@ _write_structure_:			/* (d, arg) */
 	    /*
 	     * Check for all the functors that can have special syntax
 	     */
-	    if (d == d_dollar_var && (idwrite & OUT_DOLLAR_VAR)) /* '$VAR'/1 */
-	    {
-		pword *narg = arg;
-		Dereference_(narg);
-		switch (TagType(narg->tag))
-		{
-		case TINT:
-		    if (narg->val.nint < 0)
-			break;
-		    if ((status = ec_outfc(out, 'A' + (char)(narg->val.nint % 26))) < 0)
-			return (status);
-		    if (narg->val.nint / 26)
-			return p_fprintf(out, "%" W_MOD "d", narg->val.nint / 26);
-		    return PSUCCEED;
-		case TSTRG:
-		    return ec_outf(out, StringStart(narg->val),
-					(int) StringLength(narg->val));
-		case TDICT:
-		    return ec_outf(out, DidName(narg->val.did),
-					(int) DidLength(narg->val.did));
-		case TNIL:
-		    return ec_outf(out, "[]", 2);
-		}
-		/* else print the structure normally */
-	    }
-	    else if (d == d_.nilcurbr1)	/* special case {}/1 */
+	    if (d == d_.nilcurbr1)	/* special case {}/1 */
 	    {
 		if ((status = ec_outfc(out, '{')) < 0)
 		    return (status);
