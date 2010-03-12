@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.14 2009/12/08 05:11:30 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.15 2010/03/12 10:33:46 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -108,6 +108,11 @@ Options:
 	--date <date>
 		Build a version using sources from the given date, rather
 		than the current time.
+
+	--last-sucessful
+		Re-build the version tagged last_successful_<tag> or the
+		last successful main branch.  You cannot give a --date or
+		--increment-buildnum option at the same time.
 
 	--clean-up
 		After building, testing, etc., delete anything that probably
@@ -218,12 +223,13 @@ UMASK=002
 NICE=
 
 # Default is not to build from a patch branch
-build_patch=no
+BRANCH_TAG=
 PATCH_OPTIONS=
 
 # Default is to build with the current date
-DATE_TAG=`date "+%Y-%m-%d %H:%M"`
-DATE_OPTIONS="-D \"$DATE_TAG\""
+DATE_NOW=`date "+%Y-%m-%d %H:%M"`
+DATE_TAG=$DATE_NOW
+DATE_OPTIONS=
 
 clean_up=yes
 increment_buildnum=no
@@ -231,19 +237,22 @@ commit_buildnum=no
 install_archives=yes
 jeclipse_tests=yes
 resume_build=no
+last_successful=no
 
 while [ $# -gt 0 ]; do
     case "$1" in
 
     --patch)
-	build_patch=yes
-	PATCH_TAG=$2
-	PATCH_OPTIONS="-r \"$2\"" ; shift ;;
+	BRANCH_TAG=$2
+	shift ;;
 
     --date)
 	DATE_TAG="$2"
 	ROTD_NAME=${ROTD_NAME:-`date -d "$DATE_TAG" +%Y-%m-%d`}
-	DATE_OPTIONS="-D \"$DATE_TAG\"" ; shift ;;
+	shift ;;
+
+    --last-successful)
+	last_successful=yes ;;
 
     --clean-up)
 	clean_up=yes ;;
@@ -306,7 +315,7 @@ if [ $# -gt 0 ] ; then
     ARCHITECTURES="$*"
 fi
 
-ROTD_NAME=${ROTD_NAME:-`date +%Y-%m-%d`}
+ROTD_NAME=${ROTD_NAME:-`date -d "$DATE_TAG" +%Y-%m-%d`}
 
 
 # The kinds of tests to run
@@ -326,15 +335,32 @@ umask $UMASK
 PREFIX=$ROTD_DIR
 LOCAL_PREFIX=$LOCAL_ROTD_DIR
 
-if [ "$build_patch" = yes ] ; then
+if [ -n "$BRANCH_TAG" ] ; then
     ROTD_SUBDIR=patch-$ROTD_NAME
     STABLE_DIR=patch
-    LAST_SUCCESSFUL_BUILD_TAG=last_successful_$PATCH_TAG
+    LAST_SUCCESSFUL_BUILD_TAG=last_successful_$BRANCH_TAG
 else
     ROTD_SUBDIR=rotd-$ROTD_NAME
     STABLE_DIR=dev
     LAST_SUCCESSFUL_BUILD_TAG=last_successful_main_branch
 fi
+
+if [ "$last_successful" = no ] ; then
+    # use BRANCH_TAG (empty for main) together with DATE_TAG
+    PATCH_TAG=$BRANCH_TAG
+    if [ -n "$PATCH_TAG" ] ; then
+	PATCH_OPTIONS="-r \"$PATCH_TAG\""
+    fi
+    DATE_OPTIONS="-D \"$DATE_TAG\""
+elif [ -z "$DATE_OPTIONS" -a "$increment_buildnum" = no ] ; then
+    # use non-branch tag LAST_SUCCESSFUL_BUILD_TAG, ignore DATE_TAG
+    PATCH_TAG=$LAST_SUCCESSFUL_BUILD_TAG
+    PATCH_OPTIONS="-r \"$PATCH_TAG\""
+else
+    echo "$0: incompatible options" 1>&2
+    exit 1
+fi
+
 BUILD_DIR=$ROTD_SUBDIR/build
 BUILD_SCRIPT=${BUILD_SCRIPT:-$LOCAL_PREFIX/$BUILD_DIR/BUILD}
 TMP_ARCHIVE_DIR=$ROTD_SUBDIR/archive
@@ -351,7 +377,7 @@ SUMMARY="
 ROTD Build Summary
 ------------------
 
-Patch version:    ${PATCH_TAG:-(main branch)}
+CVS tags used:    ${PATCH_OPTIONS:-(main branch)}  $DATE_OPTIONS
 CVS dir (source): $CVSDIR
 CVS dir (tests):  $CVSDIR_TESTS
 ROTD directory:   $PREFIX/$ROTD_SUBDIR
@@ -370,7 +396,6 @@ fi
 if [ "$resume_build" = "yes" ] ; then
     if [ -d "$LOCAL_PREFIX/$ROTD_SUBDIR" ] ; then
 	SUMMARY="${SUMMARY}\
-
 Resuming/retrying previous build
 "
 	# Save the old logs...
@@ -491,6 +516,7 @@ trap 'release_lock ; exit 1' 1 2 3 13 15
 # version of rsh we can't get the exit status of the remote command without
 # doing a lot of jiggery-pokery.  So we use ssh instead.
 
+SSH_OPTIONS="-A"
 #SSH_OPTIONS="-x"
 #SSH_OPTIONS="-x -o 'BATCHMODE yes'"
 #SSH_OPTIONS="-x -o \"BATCHMODE yes\""
@@ -530,7 +556,7 @@ remote_commands() {
 	done
 	cat > input.$suffix <<END
 	# to be executed on $machine_name
-	. ~/.bashrc
+	echo $SHELL | grep -q bash && . ~/.bashrc
 	umask $UMASK
 
 	timeout=6
@@ -546,7 +572,7 @@ END
 
 	echo `date '+%Y-%m-%d %T'` $remote_command_number \
 		Commencing ssh to $machine_name >> $SSH_LOG_FILE
-	ssh -x -o "BATCHMODE yes" $user_flags "$machine_name" "bash -s" < input.$suffix > output.$suffix 2>&1
+	ssh -A -x -o "BATCHMODE yes" $user_flags "$machine_name" "bash -s" < input.$suffix > output.$suffix 2>&1
 	ssh_result=$?
 	cat output.$suffix
 	rm -f input.$suffix output.$suffix
@@ -667,20 +693,18 @@ check_out_sources() {	# no arguments
 		&& echo \"Using version from repository with date $DATE_TAG\" \
 		| tee -a $CVS_LOGFILE
 
+	    # current directory assumed to be $PREFIX
 	    (
-		# current directory assumed to be $PREFIX
-		(
-		    cd .. &&
-		    cvs -q -d \"$CVSDIR\" checkout -d \"`basename "$BUILD_DIR"`\" \
-			$PATCH_OPTIONS $DATE_OPTIONS Eclipse
-		)
+		cd .. &&
+		cvs -q -d \"$CVSDIR\" checkout -d \"`basename "$BUILD_DIR"`\" \
+		    $PATCH_OPTIONS $DATE_OPTIONS Eclipse
 	    ) >> $CVS_LOGFILE 2>&1 &&
 
 	    echo \"Done.\" | tee -a $CVS_LOGFILE \
-	    || (
+	    || {
 		echo \"CVS checkout failed.\" | tee -a $CVS_LOGFILE
 		false
-	    )
+	    }
 	" && mark_milestone_achieved checked_out_sources
     fi
 }
@@ -723,10 +747,10 @@ build_architecture() {	# architecture
 	" &&
 
 	mark_milestone_achieved built_$arch \
-	|| (
+	|| {
 	    echo "Build failed." | tee -a $LOCAL_BUILD_LOGFILE
 	    false
-	)
+	}
     fi
 }
 
@@ -738,15 +762,13 @@ build_documentation() {	# no arguments
 	echo \"Building documentation on $DOC_MACHINE.\" | tee $DOC_LOGFILE
 	echo \"See $DOC_LOGFILE for details.\"
 
-	(
-	    make -f Makefile.\$ARCH install_documents
-	) >> $DOC_LOGFILE 2>&1 &&
+	make -f Makefile.\$ARCH install_documents >> $DOC_LOGFILE 2>&1 &&
 
 	echo \"Done.\" | tee -a $DOC_LOGFILE \
-	|| (
+	|| {
 	    echo \"Build failed.\" | tee -a $DOC_LOGFILE
 	    false
-	)
+	}
     "
 }
 
@@ -789,10 +811,10 @@ build_archives() {	# list of achitectures
 	done && [ \"\$arch\" = x ] &&
 
 	echo \"Done.\" | tee -a $PACK_LOGFILE \
-	|| (
+	|| {
 	    echo \"Pack failed.\" | tee -a $PACK_LOGFILE
 	    false
-	)
+	}
     "
 }
 
@@ -990,10 +1012,10 @@ install_archives() {	# installation number
 	mark_milestone_achieved installed_$install_milestone_key &&
 
 	echo "Done." | tee -a $LOCAL_INSTALL_LOGFILE \
-	|| (
+	|| {
 	    echo "Install failed." | tee -a $LOCAL_INSTALL_LOGFILE
 	    false
-	)
+	}
     fi
 }
 
@@ -1173,10 +1195,10 @@ check_out_tests() {	# subdirectory (of [LOCAL_]PREFIX)
 	    ) >> $CVS_LOGFILE 2>&1 &&
 
 	    echo \"Done.\" | tee -a $CVS_LOGFILE \
-	    || (
+	    || {
 		echo \"Test checkout failed.\" | tee -a $CVS_LOGFILE
 		false
-	    )
+	    }
 	" && mark_milestone_achieved checked_out_tests
     fi
 }
@@ -1237,11 +1259,11 @@ rsync_out() {		# ($machine, $arch -> $is_remote_machine, $remote_prefix)
 	    remote_commands "$machine" "$remote_prefix/$ROTD_SUBDIR" "
 		mkdir -p logs
 	    " && echo `date '+%Y-%m-%d %T'` "Completed rsync to $rsync_machine_name" >> $SSH_LOG_FILE
-	) || (
+	) || {
 	    echo "Failed to rsync to $rsync_machine_name" 
 	    echo `date '+%Y-%m-%d %T'` "Failed rsync to $rsync_machine_name" >> $SSH_LOG_FILE
 	    false
-	)
+	}
     else
 	remote_prefix="$PREFIX"
     fi
@@ -1264,11 +1286,11 @@ rsync_in() {	# ($machine)
 	    rsync -rl --rsh=ssh --timeout=60 --ignore-existing $rsync_machine_name:$rsync_prefix/$ROTD_SUBDIR $PREFIX
 	" &&
 	echo `date '+%Y-%m-%d %T'` "Completed rsync from $rsync_machine_name" >> $SSH_LOG_FILE ||
-	(
+	{
 	    echo "Failed to rsync back from $rsync_machine_name"
 	    echo `date '+%Y-%m-%d %T'` "Failed rsync from $rsync_machine_name" >> $SSH_LOG_FILE
 	    false
-	)
+	}
     fi
 }
 
@@ -1384,10 +1406,10 @@ run_test() {	# test number
 	fi
 	run_test_result=$?
 
-	(
+	{
 	    echo TEST_RESULT_${install_type}_${package_type}_${test_embedding}_${machine}=$run_test_result
 	    echo TEST_${test_num}_successful=$run_test_result 
-	) > $LOCAL_PREFIX/$test_result_file
+	} > $LOCAL_PREFIX/$test_result_file
 
 	if [ "$run_test_result" = 0 ] ; then
 	    mark_milestone_achieved tested_$test_milestone_key
@@ -1591,38 +1613,70 @@ commit_build_number() {
 	# Check in the updated version.pl
 	# file, making sure we update to the head of the appropriate branch
 	# first (since the main branch versions are checked out with a sticky
-	# date, which prevents commits).  Also update the last successful build
-	# tag to point to the version just built (tagging version.pl after the
-	# increment so it won't register as changed next time).
-	# Note that we have to remove the tag from everything in the repository
-	# rather than just forcing an update to the current versions, in case
-	# files have been removed since they were tagged (otherwise they remain
-	# tagged indefinitely).
-	remote_commands "$CVS_MACHINE" "$PREFIX" "
-	    (
-		cd $PREFIX/$BUILD_DIR &&
+	# date, which prevents commits).
+	remote_commands "$CVS_MACHINE" "$PREFIX/$BUILD_DIR" "
+	    {
 		cvs -d \"$CVSDIR\" update -A $PATCH_OPTIONS \
 			\"$VERSION_FILE\" &&
 		cvs -d \"$CVSDIR\" commit -m \"Successfully built $ECLIPSE_VERSION #$BUILD_NUMBER\" \
-			\"$VERSION_FILE\" &&
-		cvs -d \"$CVSDIR\" rtag -a -d $LAST_SUCCESSFUL_BUILD_TAG Eclipse &&
-		cvs -d \"$CVSDIR\" tag -F $LAST_SUCCESSFUL_BUILD_TAG &&
-		cd $PREFIX/$TEST_TEMPLATE_DIR &&
-		cvs -d \"$CVSDIR_TESTS\" rtag -a -d $LAST_SUCCESSFUL_BUILD_TAG Tests &&
-		cvs -d \"$CVSDIR_TESTS\" tag -F $LAST_SUCCESSFUL_BUILD_TAG &&
-		echo \"Done.\"
-	    ) >> $VERSION_LOGFILE 2>&1
+			\"$VERSION_FILE\"
+	    } >> $VERSION_LOGFILE 2>&1
 	" &&
 
 	mark_milestone_achieved committed_build_number &&
 
 	echo "Build number committed successfully." \
 	    | tee -a $LOCAL_VERSION_LOGFILE \
-	|| (
+	|| {
 	    echo "Couldn't commit build number." \
 		| tee -a $LOCAL_VERSION_LOGFILE
 	    false
-	)
+	}
+    fi
+}
+
+# CVS-tag the repository
+update_lastsucc_tags() {
+
+    if milestone_already_achieved updated_lastsucc_tags ; then
+	echo "Milestone: Skipping update last_successful tags"
+    else
+	echo "Updating last_successful tags." | tee $VERSION_LOGFILE
+	echo "See $VERSION_LOGFILE for details."
+
+	# Update the last successful build
+	# tag to point to the version just built (tagging version.pl after the
+	# increment so it won't register as changed next time).
+	# Note that we have to remove the tag from everything in the repository
+	# rather than just forcing an update to the current versions, in case
+	# files have been removed since they were tagged (otherwise they remain
+	# tagged indefinitely).
+	remote_commands "$CVS_MACHINE" "$PREFIX/$BUILD_DIR" "
+	    {
+		echo \"Sources rtag -d call.\"
+		cvs -d \"$CVSDIR\" rtag -a -d $LAST_SUCCESSFUL_BUILD_TAG Eclipse &&
+		echo \"Sources rtag -d done.\"
+		cvs -d \"$CVSDIR\" tag -F $LAST_SUCCESSFUL_BUILD_TAG &&
+		echo \"Sources done.\"
+	    } >> $VERSION_LOGFILE 2>&1
+	" &&
+	remote_commands "$CVS_MACHINE" "$PREFIX/$TEST_TEMPLATE_DIR" "
+	    {
+		cvs -d \"$CVSDIR_TESTS\" rtag -a -d $LAST_SUCCESSFUL_BUILD_TAG Tests &&
+		cvs -d \"$CVSDIR_TESTS\" tag -F $LAST_SUCCESSFUL_BUILD_TAG &&
+		echo \"Tests done.\"
+	    } >> $VERSION_LOGFILE 2>&1
+	" &&
+
+	mark_milestone_achieved updated_lastsucc_tags &&
+
+	echo "Tags updated successfully." \
+	    | tee -a $LOCAL_VERSION_LOGFILE \
+	|| {
+	    echo "Couldn't update last_successful tags." \
+		| tee -a $LOCAL_VERSION_LOGFILE
+	    false
+	}
     fi
 }
 
@@ -1672,20 +1726,20 @@ pack_source_archive() {
 	    echo \"Packing source archive on $PACK_MACHINE.\" \
 		| tee $PACK_SRC_LOGFILE
 	    echo \"See $PACK_SRC_LOGFILE for details.\"
-	    (
+	    {
 		cvs -q -d \"$CVSDIR\" export -d $clean_source_dir \
 		    -r $LAST_SUCCESSFUL_BUILD_TAG Eclipse &&
 		mkdir -p `dirname $source_archive` &&
 		tar cfz $source_archive $clean_source_dir &&
 		chmod a+r,ug+w $source_archive &&
 		rm -rf $clean_source_dir
-	    ) >> $PACK_SRC_LOGFILE 2>&1 &&
+	    } >> $PACK_SRC_LOGFILE 2>&1 &&
 
 	    echo \"Done.\" | tee -a $PACK_SRC_LOGFILE \
-	    || (
+	    || {
 		echo \"Pack source failed.\" | tee -a $PACK_SRC_LOGFILE
 		false
-	    )
+	    }
 	" &&
 
 	mark_milestone_achieved packed_source
@@ -1708,6 +1762,7 @@ pack_source_archive() {
 copy_to_ftps() {
     # requires: ECLIPSE_VERSION BUILD_NUMBER ARCHIVE_DESTS
 
+    PUBLISH_LOGFILE=$PREFIX/$LOG_DIR/log.publish
     if [ -n "$ARCHIVE_DESTS" ] ; then
 	all_ftps_ok=0
 	for archive_dest in $ARCHIVE_DESTS ; do
@@ -1724,6 +1779,38 @@ copy_to_ftps() {
     fi
 }
 
+
+copy_files_to_ftp() {	# $1=files $2=ftp_dir 
+
+    echo Copying "$1" to "$FTP_MACHINE:$2" >>$PUBLISH_LOGFILE
+
+    # Copy everything across (from DISK_MACHINE to FTP_MACHINE)
+    eval ftp_machine_name=\"'$MACHINE_NAME_'$FTP_MACHINE\" &&
+    if [ "$ftp_machine_name" = "" ] ; then
+	ftp_machine_name="$FTP_MACHINE"
+    fi &&
+    eval ftp_user=\"'$MACHINE_USER_'$FTP_MACHINE\" &&
+    if [ "$ftp_user" = "" ] ; then
+	ftp_user_flags=""
+    else
+	ftp_user_flags="-l $ftp_user"
+    fi &&
+    remote_commands "$DISK_MACHINE" "$PREFIX/$TMP_ARCHIVE_DIR" "
+	umask $UMASK
+
+	#rsync -aR --rsh=ssh $1 $ftp_machine_name:$2
+	tar cf - --exclude=private $1 | \
+	    ssh $ftp_user_flags $ftp_machine_name \
+		    \"cd $2 ; tar xfp -\"
+    " &&
+
+    # Make final adjustments
+    remote_commands "$FTP_MACHINE" "$BASE_ARCHIVE_DIR" "
+	chmod o+rx $2
+    "
+}
+
+
 copy_to_ftp() {
     # requires: ECLIPSE_VERSION BUILD_NUMBER FTP_MACHINE BASE_ARCHIVE_DIR
 
@@ -1736,6 +1823,51 @@ copy_to_ftp() {
 
     if milestone_already_achieved copied_to_ftp_$FTP_MACHINE ; then
 	echo "Milestone: Skipping copying to FTP $FTP_MACHINE"
+
+    elif [ "$last_successful" = yes ] ; then
+	# make a list of the missing architectures on FTP_MACHINE
+	
+	command="
+		[ -d \"$ARCHIVE_DIR\" ] &&
+		for d in $ARCHITECTURES ; do
+		    if [ ! -d \"$ARCHIVE_DIR/\$d\" ]; then echo \$d; fi
+		done
+	    "
+	echo command "$command" && {
+	    MISSING_ARCHS=`remote_commands "$FTP_MACHINE" "$BASE_ARCHIVE_DIR" "$command"` ||
+		{ echo $MISSING_ARCHS; false; }
+	} &&
+	echo missing $MISSING_ARCHS &&
+	# normalise (strip blank space) for the comparisons below
+	MISSING_ARCHS=`echo $MISSING_ARCHS` &&
+	ARCHITECTURES=`echo $ARCHITECTURES` &&
+
+	if [ "$MISSING_ARCHS" = "" ] ; then
+	    MSG="Nothing copied to FTP site $FTP_MACHINE!" &&
+	    echo "$MSG" >> $MASTER_LOG_FILE &&
+	    SUMMARY="${SUMMARY}
+$MSG"
+	else
+	    if [ "$MISSING_ARCHS" != "$ARCHITECTURES" ] ; then
+		MSG="Not all architectures copied to FTP site $FTP_MACHINE!
+Have: $ARCHITECTURES
+Used: $MISSING_ARCHS" &&
+		echo "$MSG" >> $MASTER_LOG_FILE &&
+		SUMMARY="${SUMMARY}
+$MSG"
+	    fi &&
+	    echo copy_files_to_ftp "$MISSING_ARCHS" "$ARCHIVE_DIR" &&
+	    copy_files_to_ftp "$MISSING_ARCHS" "$ARCHIVE_DIR"
+	fi &&
+
+	mark_milestone_achieved copied_to_ftp_$FTP_MACHINE || {
+	    echo "Copying files to FTP site $FTP_MACHINE failed." >> $MASTER_LOG_FILE 2>&1
+	    SUMMARY="${SUMMARY}
+Copying files to FTP site $FTP_MACHINE failed.
+"
+	    false
+	}
+
     else
 	# Remove superseded versions, mark unmarked version(s) as superseded.
 	# Be very careful.  We don't want to accidentally blow away the entire
@@ -1769,37 +1901,14 @@ copy_to_ftp() {
 	    chmod o-rwx $NEW_ARCHIVE_DIR
 	" &&
 
-	# Copy everything across (from DISK_MACHINE to FTP_MACHINE)
-	eval ftp_machine_name=\"'$MACHINE_NAME_'$FTP_MACHINE\" &&
-	if [ "$ftp_machine_name" = "" ] ; then
-	    ftp_machine_name="$FTP_MACHINE"
-	fi &&
-	eval ftp_user=\"'$MACHINE_USER_'$FTP_MACHINE\" &&
-	if [ "$ftp_user" = "" ] ; then
-	    ftp_user_flags=""
-	else
-	    ftp_user_flags="-l $ftp_user"
-	fi &&
-	remote_commands "$DISK_MACHINE" "$PREFIX/$TMP_ARCHIVE_DIR" "
-	    umask $UMASK
+	copy_files_to_ftp '*' $NEW_ARCHIVE_DIR &&
 
-	    #rsync -aR --rsh=ssh * $ftp_machine_name:$NEW_ARCHIVE_DIR
-	    tar cf - --exclude=private * | \
-	    	ssh $ftp_user_flags $ftp_machine_name \
-			\"cd $NEW_ARCHIVE_DIR ; tar xfp -\"
-	" &&
-
-	# Make final adjustments
 	remote_commands "$FTP_MACHINE" "$BASE_ARCHIVE_DIR" "
-	    umask $UMASK
-
-	    chmod o+rx $NEW_ARCHIVE_DIR &&
-
 	    mv $NEW_ARCHIVE_DIR $ARCHIVE_DIR
 	" &&
 
 	mark_milestone_achieved copied_to_ftp_$FTP_MACHINE \
-	|| (
+	|| {
 	    # If something went wrong with the copy, don't delete the old
 	    # directory(s) next time.
 	    remote_commands "$DISK_MACHINE" "$BASE_ARCHIVE_DIR" "
@@ -1812,7 +1921,7 @@ copy_to_ftp() {
 	Copying files to FTP site $FTP_MACHINE failed.
 	"
 	    false
-	)
+	}
     fi
 }
 
@@ -2070,17 +2179,20 @@ remote_commands "$DISK_MACHINE" "$PREFIX/$TMP_ARCHIVE_DIR" "
 " &&
 
 if [ "$commit_buildnum" = no ] ; then
-    true
+    if [ "$last_successful" = no ] ; then
+	SUMMARY="${SUMMARY}
+This would have been ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
+"
+    else
+	SUMMARY="${SUMMARY}
+This is a slave build of ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
+"
+    fi
 elif commit_build_number >> $MASTER_LOG_FILE 2>&1 ; then
     SUMMARY="${SUMMARY}
 This is ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
 "
-    if ! pack_source_archive >> $MASTER_LOG_FILE 2>&1 ; then
-	echo "Packing source failed.  Continuing anyway." >> $MASTER_LOG_FILE
-	SUMMARY="${SUMMARY}
-Packing source failed.  Continuing anyway.
-"
-    fi
+    have_new_version=yes
 else
     echo "Failed to commit build number." >> $MASTER_LOG_FILE 2>&1
     SUMMARY="${SUMMARY}
@@ -2090,10 +2202,20 @@ Failed to commit build number.
 fi || everything_ok=1
 
 
+if [ "$have_new_version" = yes ] ; then
+    if ! update_lastsucc_tags >> $MASTER_LOG_FILE 2>&1 ; then
+	everything_ok=1
+    elif ! pack_source_archive >> $MASTER_LOG_FILE 2>&1 ; then
+	everything_ok=1
+    fi
+fi
+
+
+
 # Only copy distribution archives to FTP site and make "stable"
 # symlinks if the build number was incremented --- otherwise the
 # build number still can't be used to uniquely identify a version.
-if [ "$everything_ok" = 0 ] && milestone_already_achieved incremented_build_number ; then
+if [ "$everything_ok" = 0 -a "$have_new_version" = yes ] ; then
     if ! update_symlinks >> $MASTER_LOG_FILE 2>&1 ; then
 	echo "Updating symlinks failed." >> $MASTER_LOG_FILE 2>&1
 	SUMMARY="${SUMMARY}
@@ -2110,7 +2232,8 @@ Skipping updating of symlinks.
 fi || everything_ok=1
 
 
-if [ "$everything_ok" = 0 ] && milestone_already_achieved incremented_build_number ; then
+if [ "$everything_ok" = 0  -a \
+	\( "$have_new_version" = yes -o "$last_successful" = yes \) ]; then
     if copy_to_ftps >> $MASTER_LOG_FILE 2>&1 ; then
 	true
     else
