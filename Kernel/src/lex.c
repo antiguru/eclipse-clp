@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.4 2009/07/17 15:45:49 kish_shen Exp $
+ * VERSION	$Id: lex.c,v 1.5 2010/03/13 05:42:46 jschimpf Exp $
  */
 
 /*
@@ -571,6 +571,13 @@ _iso_numeric_escape_:
 		default:
 		    goto _return_ill_quoted_;
 		}
+		break;
+
+	    case BS:
+		/* ISO does not allow tabs etc in quoted items */
+		if (cc != ' '  &&  (sd->options & ISO_ESCAPES))
+		    goto _return_ill_quoted_;
+		*pw++ = cc;
 		break;
 
 	    case NL:
