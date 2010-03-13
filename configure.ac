@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.28 2009/07/16 09:11:23 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.29 2010/03/13 05:25:44 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1247,7 +1247,11 @@ if test "$gmp_requested" = "yes"; then
 	if test -d $GMP_DIR/$ARCH/lib; then
 	    found_gmp=yes
 	    AC_DEFINE(HAVE_LIBGMP)
-	    OS_INCLUDES="-I$GMP_DIR/$ARCH/include $OS_INCLUDES"
+	    if test -d "$GMP_DIR/$ARCH/include"; then
+		OS_INCLUDES="-I$GMP_DIR/$ARCH/include $OS_INCLUDES"
+	    else
+		OS_INCLUDES="-I$GMP_DIR/include $OS_INCLUDES"
+	    fi
 	    GMP_LIBDIR="$GMP_DIR/$ARCH/lib"
 	    if test "$ARCH" = "i386_nt"; then
 		GMP_LIB="gmp33"
