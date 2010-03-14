@@ -321,11 +321,6 @@ fi
 
 ask "Which machine achitecture (ARCH) are we installing for" ARCH
 
-case $ARCH in
-    *_nt)
-	echo "Nothing to do for $ARCH"
-	exit 0;;
-esac
 
 # directory defaults
 ECLIPSEDIR=`pwd`
