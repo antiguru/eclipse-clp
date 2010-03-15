@@ -227,7 +227,9 @@ operator declarations and can be read in.
    identifiers.
 
 <P>
-   write_canonical(S, Term) is equivalent to printf(S, \"%MOQ.vDw\", Term).
+   write_canonical(Term) is equivalent to printf(\"%DMOQv.w\", Term)
+   or write_term(Term, [attributes(full),operators(false),quoted(true),
+           dotlists(true),variables(raw),depth(full),transform(false)]).
 
 <P>
    Note that as usual, the output is buffered, so it may need to be flushed
@@ -260,7 +262,9 @@ operator declarations and can be read in.
    identifiers.
 
 <P>
-   write_canonical(S, Term) is equivalent to printf(S, \"%MOQ.vDw\", Term).
+   write_canonical(S,Term) is equivalent to printf(S,\"%DMOQv.w\", Term)
+   or write_term(S,Term, [attributes(full),operators(false),quoted(true),
+           dotlists(true),variables(raw),depth(full),transform(false)]).
 
 <P>
    Note that as usual, the output is buffered, so it may need to be flushed
@@ -374,7 +378,9 @@ definitions.
 	desc:html("   Used to display an expression in standard parenthesised prefix notation,
    onto the current output. This is mainly useful for debugging,
    in order to see how a term has been parsed.
-
+<P>
+   display(Term) is equivalent to write_term(Term, [operators(false),
+   dotlists(true)]).
 <P>
 "),
 	args:["Term" : "Prolog term."],
@@ -393,7 +399,9 @@ operator definitions.
 	amode:(display(+,?) is det),
 	desc:html("   Used to display an expression in standard parenthesised prefix notation,
    onto the output stream Stream.
-
+<P>
+   display(S, Term) is equivalent to write_term(S, Term, [operators(false),
+   dotlists(true)]).
 <P>
    Note that as usual, the output is buffered, so it may need to be flushed
    either by closing the stream, by writing again or by using flush/1.
@@ -437,31 +445,29 @@ exists.
    user has the possibility to influence the way the term is printed.  If
    the predicate portray/2 is visible in the module where print/1 was
    called from, it is used by print/1 in the following way:
-
 <P>
   * If Term is a variable, it is printed using write/1.
-
 <P>
   * If Term is a nonvariable or an attributed variable, then portray(output,
     Term) is called.  If it succeeds, so does print/1.  Otherwise, if Term is
     atomic, it is written using write/1 and the predicate succeeds.  If
     Term is a compound term, its main functor is printed using write/1 and
     print/1 is called recursively on its arguments.
-
 <P>
    If portray/2 is not visible but portray/1 is, it is called instead of
    portray/2.
-
 <P>
    Note that when this predicate is used to print a list, only the elements
    of the list, i.e.  the heads, are passed to the recursive calls of
-   print/1, but not the list tails.
-
+   print/2, but not the list tails.  Thus e.g.  a list [1,2,3] will be
+   passed once to portray/2 as a whole and then the elements 1, 2, 3, but
+   not [2,3], [3] and [].
 <P>
-   portray/1, 2 is used by the system when printing out the answer binding
-   in the top-level loop to the answer_output stream and in the debugger,
-   when the output command is set to print, to the debug_output stream.
-
+   portray/1, 2 is used by the system when printing the answer bindings
+   in the top-level loop, and by the debugger to print trace lines.
+<P>
+   print(Term) is equivalent to write_term(Term, [portrayed(true),
+   numbervars(true)]).
 <P>
    As usual, the output is buffered, so it may need to be flushed (e.g.
    explicitly using flush/1).
@@ -476,37 +482,24 @@ Note
 	args:["Term" : "Prolog term."],
 	eg:"
 Success:
-    [eclipse]: [user].
+    ?- [user].
      portray(S, a) :- write(S, b).
      user   compiled 100 bytes in 0.02 seconds
-
     yes.
-    [eclipse]: print([a, b, c, d]).
+    ?- print([a, b, c, d]).
     [b, b, c, d]
     yes.
-    [eclipse]: [user].
-     portray(S, '$VAR'(X)) :- write(S, a_), write(S, X).
+
+    ?- [user].
+     portray(S, '$VAR'(X)) :- write(S, 'X_'), write(S, X).
      user   compiled 180 bytes in 0.00 seconds
-
     yes.
-    [eclipse]: quintus.
-    loading the library /usr/local/ECLIPSE/lib/quintus.pl
-    loading the library /usr/local/ECLIPSE/lib/cprolog.pl
-    loading the library /usr/local/ECLIPSE/lib/cio.pl
-
+    ?- lib(numbervars).
     yes.
-    [eclipse]: numbervars(f(A, B, A, C), 1, X),
-            write(f(A, B, A, C)).
-    f($VAR(1), $VAR(2), $VAR(1), $VAR(3))
-    B = a_2        % print/2 is used in the top-level loop
-    A = a_1
-    C = a_3
-    X = 4
+    ?- F=f(_,_,_,_), numbervars(F, 0, _), write(F).
+    f(A, B, C, D)                % default printing of '$VAR'/1
+    F = f(X_0, X_1, X_2, X_3)    % toplevel uses portray
     yes.
-
-
-
-
 ",
 	see_also:[display / 1, display / 2, print / 2, write / 1, write / 2, writeq / 1, writeq / 2]]).
 
@@ -522,33 +515,30 @@ if it exists.
    user has the possibility to influence the way the term is printed.  If
    the predicate portray/2 is visible in the module where print/2 was
    called from, it is used by print/2 in the following way:
-
 <P>
   * If Term is a variable, it is printed using write/2.
-
 <P>
   * If Term is a nonvariable or an attributed variable, then portray(Stream,
     Term) is called.  If it succeeds, so does print/2.  Otherwise, if Term is
     atomic, it is written using write/2 and the predicate succeeds.  If
     Term is a compound term, its main functor is printed using write/2 and
     print/2 is called recursively on its arguments.
-
 <P>
    Note that when this predicate is used to print a list, only the elements
    of the list, i.e.  the heads, are passed to the recursive calls of
    print/2, but not the list tails.  Thus e.g.  a list [1,2,3] will be
    passed once to portray/2 as a whole and then the elements 1, 2, 3, but
    not [2,3], [3] and [].
-
 <P>
    If portray/2 is not visible but portray/1 is, it is called instead of
-   portray/2, but then the Stream argument cannot be passed to it, and it
-   is therefore the responsibility of portray/1 itself to print the data to
-   the correct stream.  portray/1, 2 is used by the system when printing
-   out the answer binding in the top-level loop to the answer_output
-   stream) and in the debugger, when the output command is set to print, to
-   the debug_output stream.
-
+   portray/2, with the 'output' stream temporarily redirected to Stream.
+   Because of this side effect, defining portray/2 is preferrable.
+<P>
+   portray/1, 2 is used by the system when printing the answer bindings
+   in the top-level loop, and by the debugger to print trace lines.
+<P>
+   print(S, Term) is equivalent to write_term(S, Term, [portrayed(true),
+   numbervars(true)]).
 <P>
    As usual, the output is buffered, so it may need to be flushed (e.g.
    explicitly using flush/1).
@@ -1379,6 +1369,8 @@ declarations.
    current operator declarations.  Lists and compound terms are only
    printed up to the nesting depth specified by the (stream-specific
    or global) print_depth setting (cf. set_stream_property/3, set_flag/2).
+<P>
+   write(Term) is equivalent to write_term(Term, [numbervars(true)]).
 
 <P>
 Note
@@ -1406,6 +1398,8 @@ current operator declarations.
    current operator declarations.  Lists and compound terms are only
    printed up to the nesting depth specified by the (stream-specific or
    global) print_depth setting (cf. set_stream_property/3, set_flag/2).
+<P>
+   write(Term) is equivalent to write_term(Term, [numbervars(true)]).
 
 <P>
    Note that as usual, the output is buffered, so it may need to be flushed
@@ -1621,7 +1615,11 @@ in.
    (stream-specific or global) print_depth flag is not taken into
    account.  The output of writeq/1 can be read back, provided that
    the same operator declarations are in effect at write and read
-   time.  writeq(Term) is equivalent to printf(\"%QDvw\", Term).
+   time.
+<P>
+   writeq(Term) is equivalent to printf(\"%DIMQvw\", Term)
+   or write_term(Term, [attributes(full),quoted(true),numbervars(true),
+   variables(raw),depth(full),transform(false)]).
 
 <P>
    Note that as usual, the output is buffered, so it may need to be flushed
@@ -1656,7 +1654,11 @@ read in.
    the (stream-specific or global) print_depth flag is not taken into
    account.  The output of writeq/2 can be read back, provided that
    the same operator declarations are in effect at write and read
-   time.  writeq(S, Term) is equivalent to printf(S, \"%QDvw\", Term).
+   time.
+<P>
+   writeq(Term) is equivalent to printf(\"%DIMQvw\", Term)
+   or write_term(Term, [attributes(full),quoted(true),numbervars(true),
+   variables(raw),depth(full),transform(false)]).
 
 <P>
    Note that as usual, the output is buffered, so it may need to be flushed
@@ -1920,12 +1922,12 @@ Error:
     is as follows:
 <DL>
     <DT>write(T)</DT><DD><P>
-	write_term(T, [])
+	write_term(T, [numbervars(true)])
 	</P></DD>
 
     <DT>writeq(T)</DT><DD><P>
 	write_term(T, [variables(raw),attributes(full),transform(false),
-	quoted(true),depth(full)])
+	numbervars(true),quoted(true),depth(full)])
 	</P></DD>
 
     <DT>write_canonical(T)</DT><DD><P>
@@ -1934,7 +1936,7 @@ Error:
 	</P></DD>
 
     <DT>print(T)</DT><DD><P>
-	write_term(T, [portrayed(true)])
+	write_term(T, [portrayed(true),numbervars(true)])
 	</P></DD>
 
     <DT>display(T)</DT><DD><P>
@@ -1997,7 +1999,7 @@ Error:
 	Equivalent to read_term(output, Term, Options).
 	See read_term/3 for examples.
 ",
-	see_also:[read_term/3, read/1, read/2, readvar/3]]).
+	see_also:[read_term/3, read/1, read/2, readvar/3, library(numbervars)]]).
 
 
 

@@ -1073,16 +1073,17 @@ can all be defined in terms of \predspec{write_term/2} (or, similarly
 in terms of \predspec{printf/2}) as follows:
 \begin{quote}
 \begin{verbatim}
-write(X)   :- write_term(X, []).
-writeln(X) :- write_term(X, []), nl.
+write(X)   :- write_term(X, [numbervars(true)]).
+writeln(X) :- write_term(X, [numbervars(true)]), nl.
 writeq(X)  :- write_term(X, [variables(raw), attributes(full),
-              transform(false), quoted(true), depth(full)]).
+              transform(false), quoted(true), depth(full),
+              numbervars(true)]).
 write_canonical(X) :-
               write_term(X, [variables(raw), attributes(full),
               transform(false), quoted(true), depth(full),
               dotlist(true), operators(false)]).
 display(X) :- write_term(X, [dotlist(true), operators(false)]).
-print(X)   :- write_term(X, [portrayed(true)]).
+print(X)   :- write_term(X, [portrayed(true), numbervars(true)]).
 \end{verbatim}
 \end{quote}
 

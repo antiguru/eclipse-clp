@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.5 2010/03/12 10:16:48 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.6 2010/03/15 01:51:56 jschimpf Exp $
  */
 
 /*
@@ -84,8 +84,11 @@
 #define 	ATOM		0
 #define		OPERATOR	1
 
-#define 	NO		0
-#define		YES		1
+#define WRITE_OPTIONS_WRITE	(OUT_DOLLAR_VAR)
+#define WRITE_OPTIONS_PRINT	(OUT_DOLLAR_VAR|PRINT_CALL)
+#define WRITE_OPTIONS_DISPLAY	(CANONICAL|DOTLIST)
+#define WRITE_OPTIONS_WRITEQ	(QUOTED|FULLDEPTH|VAR_NUMBERS|STD_ATTR|NO_MACROS|OUT_DOLLAR_VAR)
+#define WRITE_OPTIONS_CANON	(QUOTED|FULLDEPTH|VAR_NUMBERS|STD_ATTR|NO_MACROS|CANONICAL|DOTLIST)
 
 #define UseDepth(id)		(!((id) & FULLDEPTH))
 
@@ -322,7 +325,7 @@ p_write(value val, type tag, value vm, type tm)
     int		res;
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    res = ec_pwrite(0, 0, current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(0, WRITE_OPTIONS_WRITE, current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -342,7 +345,7 @@ p_writeq(value val, type tag, value vm, type tm)
     if (IsAtom(tag) && val.did == d_.eocl)
 	res = ec_outf(current_output_, "'.'", 3);
     else
-	res = ec_pwrite(0, QUOTED|FULLDEPTH|VAR_NUMBERS|STD_ATTR|NO_MACROS,
+	res = ec_pwrite(0, WRITE_OPTIONS_WRITEQ,
 		    current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
@@ -364,7 +367,7 @@ p_writeq3(value vals, type tags, value val, type tag, value vm, type tm)
     if (IsAtom(tag) && val.did == d_.eocl)
      	res = ec_outf(out, "'.'", 3);
     else
-	res = ec_pwrite(0, QUOTED|FULLDEPTH|VAR_NUMBERS|STD_ATTR|NO_MACROS,
+	res = ec_pwrite(0, WRITE_OPTIONS_WRITEQ,
 		    out, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(out);
     return res;
@@ -382,8 +385,7 @@ p_write_canonical(value val, type tag, value vm, type tm)
     if (IsAtom(tag) && val.did == d_.eocl)
 	res = ec_outf(current_output_, "'.'", 3);
     else
-	res = ec_pwrite(0, QUOTED|FULLDEPTH|VAR_NUMBERS|STD_ATTR|NO_MACROS|
-		    CANONICAL|DOTLIST,
+	res = ec_pwrite(0, WRITE_OPTIONS_CANON,
 		    current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
@@ -405,8 +407,7 @@ p_write_canonical3(value vals, type tags, value val, type tag, value vm, type tm
     Check_Stream(out, res);
     Check_Module(tm, vm);
     Lock_Stream(out);
-    res = ec_pwrite(0, QUOTED|FULLDEPTH|VAR_NUMBERS|STD_ATTR|NO_MACROS|
-		CANONICAL|DOTLIST,
+    res = ec_pwrite(0, WRITE_OPTIONS_CANON,
 		    out, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(out);
     return res;
@@ -428,7 +429,7 @@ p_write3(value vals, type tags, value val, type tag, value vm, type tm)
     Check_Stream(out, res);
     Check_Module(tm, vm);
     Lock_Stream(out);
-    res = ec_pwrite(0, 0, out, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(out);
     return res;
 }
@@ -447,7 +448,7 @@ p_writeln(value vals, type tags, value val, type tag, value vm, type tm)
     Check_Stream(out, res);
     Check_Module(tm, vm);
     Lock_Stream(out);
-    res = ec_pwrite(0, 0, out, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, vm.did, tm);
     if (res == PSUCCEED)
 	res = ec_newline(out);
     Unlock_Stream(out);
@@ -468,7 +469,7 @@ p_print(value val, type tag, value vm, type tm)
 
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    res = ec_pwrite(0, PRINT_CALL, current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(0, WRITE_OPTIONS_PRINT, current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -490,7 +491,7 @@ p_print3(value vals, type tags, value val, type tag, value vm, type tm)
     Check_Stream(out, res);
     Check_Module(tm, vm);
     Lock_Stream(out);
-    res = ec_pwrite(0, PRINT_CALL, out, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(0, WRITE_OPTIONS_PRINT, out, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(out);
     return res;
 }
@@ -510,7 +511,7 @@ p_display(value vs, type ts, value val, type tag)
     Check_Stream(out, res);
     /* the module tag is not meaningful here				*/
     Lock_Stream(out);
-    res = ec_pwrite(0, CANONICAL|DOTLIST,
+    res = ec_pwrite(0, WRITE_OPTIONS_DISPLAY,
 		    out, val, tag, 1200, 0, d_.default_module, tdict);
     Unlock_Stream(out);
     return res;
@@ -911,7 +912,7 @@ _write_structure_:			/* (d, arg) */
 	    if ((d_opi_desc = visible_op(d, module, mod_tag, &res)))
 	    {			/* val is an operator */
 		int		prec;
-		int		openpar = NO;
+		int		openpar = 0;
 		word		assoc;
 		opi		*post_infix = 0;
 		pword		*narg;
@@ -932,7 +933,7 @@ _write_structure_:			/* (d, arg) */
 		   )
 		{
 		    flags = flags  & ~(ARGTERM | ARGLIST | ARGPREF) | ARGLAST;
-		    openpar = YES;
+		    openpar = 1;
 		    Write_Char(out, '(');
 		}
 		Dereference_(arg);
@@ -1024,7 +1025,7 @@ _write_structure_:			/* (d, arg) */
 			break;
 		    }
 		}
-		if (openpar == YES)
+		if (openpar)
 		{
 		    Write_Char(out, ')');
 		}
@@ -2124,8 +2125,8 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 			 Printf_Error(BAD_FORMAT_STRING)
                     }
 		    Next_Element(elem, list, Printf_Error)
-		    res = ec_pwrite(0, PRINT_CALL, nst, elem->val, elem->tag,
-			1200, 0, vm.did, tm);
+		    res = ec_pwrite(0, WRITE_OPTIONS_PRINT, nst,
+			    elem->val, elem->tag, 1200, 0, vm.did, tm);
 		    if (res < 0) {
 			goto _return_res_;
                     }
@@ -2137,9 +2138,8 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 			 Printf_Error(BAD_FORMAT_STRING)
                     }
 		    Next_Element(elem, list, Printf_Error)
-		    res = ec_pwrite(0, QUOTED|FULLDEPTH|VAR_NUMBERS|STD_ATTR|
-			NO_MACROS, nst, elem->val, elem->tag,
-			1200, 0, vm.did, tm);
+		    res = ec_pwrite(0, WRITE_OPTIONS_WRITEQ, nst,
+			    elem->val, elem->tag, 1200, 0, vm.did, tm);
 		    if (res < 0) {
 			goto _return_res_;
                     }
@@ -2151,8 +2151,8 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 			 Printf_Error(BAD_FORMAT_STRING)
                     }
 		    Next_Element(elem, list, Printf_Error)
-		    res = ec_pwrite(0, CANONICAL|DOTLIST, nst, elem->val, elem->tag,
-			1200, 0, vm.did, tm);
+		    res = ec_pwrite(0, WRITE_OPTIONS_DISPLAY, nst,
+			    elem->val, elem->tag, 1200, 0, vm.did, tm);
 		    if (res < 0) {
 		       goto _return_res_;
                     }
@@ -2432,6 +2432,9 @@ p_output_mode(value val, type tag)
 	Get_Name(val, tag, new_output_mode);
 	if ((res = _get_mode_mask(new_output_mode, &mask_clr, &mask)) != PSUCCEED) {
 	    Bip_Error(res)
+	}
+	if (mask_clr) {			/* not supported here */
+	    Bip_Error(RANGE_ERROR)
 	}
 	if (mask & WRITE_GOAL) {	/* must not be set */
 	    Bip_Error(RANGE_ERROR)

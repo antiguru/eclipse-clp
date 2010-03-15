@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.8 2010/03/15 01:55:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2009/07/16 09:11:24 $').
+:- comment(date, '$Date: 2010/03/15 01:55:15 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -210,7 +210,6 @@
         syntax_option(no_array_subscripts),
 	syntax_option(limit_arg_precedence),
 	syntax_option(doubled_quote_is_quote),
-	syntax_option('$VAR'),
 	syntax_option(bar_is_no_atom),
 	syntax_option(no_attributes),
 	syntax_option(no_curly_arguments),
@@ -252,6 +251,8 @@
     op(_,_,_)
     from cprolog.
 
+:- reexport numbervars.
+
 :- export
 	(abolish)/1,
 	(abolish)/2,
@@ -284,7 +285,6 @@
 	nogc/0,
 	nospyall/0,
 	number_chars/2,
-	numbervars/3,
 	op/3,
 	open_null_stream/1,
 	otherwise/0,
@@ -531,22 +531,6 @@ arith_exception_handler(N, Culprit, Module) :-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *** Term Conversion ***
-
-numbervars('$VAR'(N), N, N1) :-
-	!,
-	N1 is N + 1.
-numbervars(Term, N, Next) :-
-	functor(Term, _, Arity),
-	numbervars(0, Arity, Term, N, Next).
-
-:- mode numbervars(++, ++, +, ++, -).
-numbervars(Arity, Arity, _, Next, Next) :- !.
-numbervars(I, Arity, Term, N, Next) :-
-	I1 is I + 1,
-        arg(I1, Term, Arg),
-        numbervars(Arg, N, Mid),
-        !,
-        numbervars(I1, Arity, Term, Mid, Next).
 
 atom_chars(Atom, List) :-
 	var(Atom),
