@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.9 2009/12/16 13:25:42 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.10 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -410,7 +410,6 @@ p_als(value val, type tag, value vm, type tm)
     vmcode	*code = 0;
     vmcode	*label = 0;
     int		res;
-    vmcode	*save_code;
     pri		*proc;
     unsigned	dflags;
     int		err;
@@ -450,12 +449,11 @@ p_als(value val, type tag, value vm, type tm)
     if (code)
     {
 #ifdef PRINTAM
-	p_fprintf(current_output_, " (%d):", code);
+	p_fprintf(current_output_, " (0x%" W_MOD "x):", code);
 #else
 	(void) ec_outfs(current_output_, " :");
 #endif
 	(void) ec_newline(current_output_);
-	save_code = code;
 	do
 	    code = print_am(code, &label, &res, 1);
 	while (code || (code = label));

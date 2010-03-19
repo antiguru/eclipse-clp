@@ -1,12 +1,12 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ordset.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: ordset.pl,v 1.3 2010/03/19 05:53:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: ordset.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% $Id: ordset.pl,v 1.3 2010/03/19 05:53:50 jschimpf Exp $
 %
 % IDENTIFICATION:       ordset.pl
 %
@@ -18,16 +18,8 @@
 %	The predicates have all been rewritten for optimal indexing
 %	and garbage avoidance when used within ECLiPSe. I have kept
 %	the original interface and comments.
+%	2005: added functionality of recent proposals and variants.
 %
-%	Efficiency note: In the cases where a 2 or 3-way comparison is
-%	needed, I have used two comparisons (==, @> or @<) instead of
-%	a single compare/3 + test. In ECLiPSe (at least up to 5.9) this
-%	is significantly more efficient when the set elements are simple
-%	(obviously, with sufficiently complex set elements, the double
-%	comparison will be slower than a single one, but many common
-%	uses are with simple elements).
-%	With a new compiler, this observation may no longer hold, so the
-%	decision should then be reviewed.
 
 
 %   File   : ORDSET.PL
@@ -54,7 +46,7 @@
 :- comment(summary, "Ordered set manipulation utilities").
 :- comment(author, "R.A.O'Keefe and Joachim Schimpf").
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/03/19 05:53:50 $").
 :- comment(desc, html("<P>\
 	In this module, sets are represented by ordered lists with no
 	duplicates.  Thus the set {c,r,a,f,t} would be [a,c,f,r,t].  The
@@ -166,10 +158,9 @@ is_ordset([X|Xs]) ?-
 
 :- mode ord_memberchk(?,+).
 ord_memberchk(X, [Y|Ys]) :-
-	( X @> Y ->
-	    ord_memberchk(X, Ys)
-	;
-	    X == Y	% a la O'Keefe, but different from memberchk/2!
+	compare(R, X, Y),
+	( R == (>), ord_memberchk(X, Ys)
+	; R == (=)	% a la O'Keefe, but different from memberchk/2!
 	).
 
 
@@ -187,10 +178,11 @@ ord_memberchk(X, [Y|Ys]) :-
 ord_del_element([], _, []).
 ord_del_element(YYs, X, Rs) :-
 	YYs = [Y|Ys],
-	( X @> Y ->
+	compare(R, X, Y),
+	( R == (>) ->
 	    Rs = [Y|Rs0],
 	    ord_del_element(Ys, X, Rs0)
-	; X == Y ->
+	; R == (=) ->
 	    Rs = Ys
 	;
 	    Rs = YYs
@@ -210,12 +202,9 @@ ord_del_element(YYs, X, Rs) :-
 
 :- mode ord_selectchk(?,+,?).
 ord_selectchk(X, [Y|Ys], Rs) :-
-	( X @> Y ->
-	    Rs = [Y|Rs0],
-	    ord_selectchk(X, Ys, Rs0)
-	;
-	    X == Y,
-	    Rs = Ys
+	compare(R, X, Y),
+	( R == (>), Rs = [Y|Rs0], ord_selectchk(X, Ys, Rs0)
+	; R == (=), Rs = Ys
 	).
 
 
@@ -230,10 +219,9 @@ ord_selectchk(X, [Y|Ys], Rs) :-
 :- mode ord_nonmember(?,+).
 ord_nonmember(_X, []).
 ord_nonmember(X, [Y|Ys]) :-
-	( X @> Y ->
-	    ord_nonmember(X, Ys)
-	;
-	    X \== Y	% a la O'Keefe, but different from nonmember/2!
+	compare(R, X, Y),
+	( R == (>), ord_nonmember(X, Ys)
+	; R == (<)	% a la O'Keefe, but different from nonmember/2!
 	).
 
 
@@ -268,9 +256,10 @@ ord_compare(R, Xs, Ys) :-
     ord_compare1(R, XXs, YYs, RSofar) :-
 	YYs = [Y|Ys],
 	XXs = [X|Xs],
-	( X == Y ->
+	compare(R1, X, Y),
+	( R1 == (=) ->
 	    ord_compare1(R, Xs, Ys, RSofar)
-	; X @< Y ->
+	; R1 == (<) ->
 	    RSofar \== (<),
 	    ord_compare1(R, Xs, YYs, >)
 	;
@@ -299,11 +288,9 @@ ord_disjoint1(_, []).
 ord_disjoint1(EL1, EL2) :-
 	EL2 = [E2|L2],
 	EL1 = [E1|L1],
-	( E1 @< E2 ->
-	    ord_disjoint(L1, EL2)
-	;
-	    E1\==E2,
-	    ord_disjoint(EL1, L2)
+	compare(R, E1, E2),
+	( R == (<), ord_disjoint(L1, EL2)
+	; R == (>), ord_disjoint(EL1, L2)
 	).
 
 
@@ -338,10 +325,11 @@ ord_add_element(S1, E, S2) :-
 ord_insert([], E, [E]).
 ord_insert(EL1, E, L) :-
 	EL1 = [E1|L1],
-	( E1 @< E ->
+	compare(R, E1, E),
+	( R == (<) ->
 	    L = [E1|L0],
 	    ord_insert(L1, E, L0)
-	; E1==E ->
+	; R == (=) ->
 	    L = EL1
 	;
 	    L = [E|EL1]
@@ -363,9 +351,10 @@ ord_insert(EL1, E, L) :-
 ord_intersect(EL1, EL2) :-
 	EL2 = [E2|L2],
 	EL1 = [E1|L1],
-	( E1==E2 ->
+	compare(R, E1, E2),
+	( R == (=) ->
 	    true
-	; E1 @< E2 ->
+	; R == (<) ->
 	    ord_intersect(L1, EL2)
 	;
 	    ord_intersect(EL1, L2)
@@ -411,10 +400,11 @@ ord_intersection1(_, [], []).
 ord_intersection1(EL1, EL2, L) :-
 	EL2 = [E2|L2],
 	EL1 = [E1|L1],
-	( E1==E2 ->
+	compare(R, E1, E2),
+	( R == (=) ->
 	    L = [E1|L0],
 	    ord_intersection(L1, L2, L0)
-	; E1 @< E2 ->
+	; R == (<) ->
 	    ord_intersection(L1, EL2, L)
 	;
 	    ord_intersection1(EL1, L2, L)
@@ -448,10 +438,11 @@ ord_intersection(Xs, Ys, Cs, Ls, Rs) :-
     ord_intersection1(XXs, YYs, Cs, Ls, Rs) :-
 	YYs = [Y|Ys],
 	XXs = [X|Xs],
-	( X == Y ->
+	compare(R, X, Y),
+	( R == (=) ->
 	    Cs = [X|Cs0],
 	    ord_intersection(Xs, Ys, Cs0, Ls, Rs)
-	; X @< Y ->
+	; R == (<) ->
 	    Ls = [X|Ls0],
 	    ord_intersection(Xs, YYs, Cs, Ls0, Rs)
 	;
@@ -491,12 +482,9 @@ ord_subset([], _).
 ord_subset(EL1, EL2) :-
 	EL1 = [E1|L1],
 	EL2 = [E2|L2],
-	( E1==E2 ->
-	    ord_subset(L1, L2)
-	; E1 @> E2 ->
-	    ord_subset(EL1, L2)
-	;
-	    fail
+	compare(R, E1, E2),
+	( R == (=), ord_subset(L1, L2)
+	; R == (>), ord_subset(EL1, L2)
 	).
 
 
@@ -531,12 +519,9 @@ ord_proper_subset([], [_|_]).
 ord_proper_subset(EL1, EL2) :-
 	EL1 = [E1|L1],
 	EL2 = [E2|L2],
-	( E1==E2 ->
-	    ord_proper_subset(L1, L2)
-	; E1 @> E2 ->
-	    ord_subset(EL1, L2)
-	;
-	    fail
+	compare(R, E1, E2),
+	( R == (=), ord_proper_subset(L1, L2)
+	; R == (>), ord_subset(EL1, L2)
 	).
 
 
@@ -577,9 +562,10 @@ ord_subtract1(L, [], L).
 ord_subtract1(EL1, EL2, L) :-
 	EL2 = [E2|L2],
 	EL1 = [E1|L1],
-	( E1==E2 ->
+	compare(R, E1, E2),
+	( R == (=) ->
 	    ord_subtract(L1, L2, L)
-	; E1 @< E2 ->
+	; R == (<) ->
 	    L = [E1|L0],
 	    ord_subtract(L1, EL2, L0)
 	;
@@ -610,9 +596,10 @@ ord_symdiff1(L, [], L).
 ord_symdiff1(EL1, EL2, L) :-
 	EL2 = [E2|L2],
 	EL1 = [E1|L1],
-	( E1==E2 ->
+	compare(R, E1, E2),
+	( R == (=) ->
 	    ord_symdiff(L1, L2, L)
-	; E1 @< E2 ->
+	; R == (<) ->
 	    L = [E1|L0],
 	    ord_symdiff(L1, EL2, L0)
 	;
@@ -660,10 +647,11 @@ ord_union(Xs, Ys, Us, Rs) :-
     ord_union1(XXs, YYs, Us, Rs) :-
 	YYs = [Y|Ys],
 	XXs = [X|Xs],
-	( X == Y ->
+	compare(R, X, Y),
+	( R == (=) ->
 	    Us = [X|Us0],
 	    ord_union(Xs, Ys, Us0, Rs)
-	; X @< Y ->
+	; R == (<) ->
 	    Us = [X|Us0],
 	    ord_union(Xs, YYs, Us0, Rs)
 	;
@@ -695,13 +683,10 @@ ord_disjoint_union(Xs, Ys, Us) :-
     ord_disjoint_union1(XXs, YYs, Us) :-
 	YYs = [Y|Ys],
 	XXs = [X|Xs],
-	( X @< Y ->
-	    Us = [X|Us0],
-	    ord_disjoint_union(Xs, YYs, Us0)
-	;
-	    X @> Y,		% fail if not disjoint
-	    Us = [Y|Us0],
-	    ord_disjoint_union1(XXs, Ys, Us0)
+	compare(R, X, Y),
+	% fail if not disjoint
+	( R == (<), Us = [X|Us0], ord_disjoint_union(Xs, YYs, Us0)
+	; R == (>), Us = [Y|Us0], ord_disjoint_union1(XXs, Ys, Us0)
 	).
 
 

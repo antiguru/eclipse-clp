@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_array.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: bip_array.c,v 1.3 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -409,7 +409,7 @@ p_test_and_setval_body(value a, type ta, value vc, type tc, value v, type t, val
 	    a_mutex_unlock(&PropertyLock);
 	    Bip_Error(TYPE_ERROR);
 	}
-	if (compare_terms(vc, tc, pw->val, pw->tag))
+	if (ec_compare_terms(vc, tc, pw->val, pw->tag))
 	{
 	    a_mutex_unlock(&PropertyLock);
 	    Fail_;

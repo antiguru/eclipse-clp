@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.4 2009/03/09 05:29:48 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.5 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /*
@@ -771,7 +771,7 @@ type  functorp, propp;
  *   and their variables must never be bound.  Their only use is for
  *   copying back to the global stack.  They can be freed at any time.
  * - Ground heap terms may be compared against stack terms via
- *   compare_terms().
+ *   ec_compare_terms().
  * ---------------------------------------------------------*/
 
 #define IsNonpersistentHeaptermRoot(root) \

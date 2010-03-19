@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+ * $Id: embed.c,v 1.4 2010/03/19 05:52:16 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -1270,7 +1270,7 @@ ec_compare(pword pw1, pword pw2)
     pword *ppw2 =  &pw2;
     Dereference_(ppw1);
     Dereference_(ppw2);
-    return compare_terms(ppw1->val, ppw1->tag, ppw2->val, ppw2->tag);
+    return ec_compare_terms(ppw1->val, ppw1->tag, ppw2->val, ppw2->tag);
 }
 
 pword Winapi

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: printam.c,v 1.6 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /*
@@ -442,6 +442,7 @@ print_am(register vmcode *code,
 	case ShiftAMAMAM:
 	case RotAMAMAM:
 	case BI_NotIdentList:
+	case BI_Compare:
 	        Am;
 		/* fall through */
 

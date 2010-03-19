@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.11 2009/12/16 13:25:42 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.12 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /********************************************************************
@@ -203,29 +203,38 @@ pri	*true_proc_,
  */
 
 pri *
-make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc)
+make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, int store_desc)
 {
     vmcode	*code;
     type	tm;
     pri_code_t	pricode;
     pri		*pd;
-    word	 i, arity = DidArity(did1);
+    word	i, arity = DidArity(did1);
+    word	result_arg = 0;
+    unsigned    currdesc = argdesc;
     Allocate_Default_Procedure(arity+7, did1);
     Exported_Kernel_Proc(did1, flags|EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF, code);
     PriMode(pd) = mode;
     Store_i(opc);
-	for(i=1; i<arity; ++i) {
-	    Store_d(Address(i));
+	for(i=1; i<=arity; ++i) {
+            if ((currdesc & 3) == 1) {
+                result_arg = i;
+                Store_d(Address(arity+1));
+            } else {
+                Store_d(Address(i));
+            }
+            currdesc >>= 2;
 	}
-	Store_d(Address(arity+1));
-	if (argdesc >= 0) {
+	if (store_desc) {
 	    Store_d(argdesc);
 	}
     /*
      * The previous instruction leaves the function result in argument
-     * register A[arity+1], which then needs to be unified with A[arity].
+     * register A[arity+1], which then needs to be unified with A[result_arg].
      */
-    Store_3(Get_valueAMAM,Address(arity),Address(arity+1))
+    if (result_arg) {
+        Store_3(Get_valueAMAM,Address(result_arg),Address(arity+1))
+    }
     Store_i(Retd_nowake);	/* because inlined calls don't wake either */
     Store_i(Code_end);
     return pd;
@@ -1184,8 +1193,8 @@ code_init(int flags)
     make_test_bip(d_.unify, Get_valueAMAM, U_UNIFY, BoundArg(1, NONVAR) | BoundArg(2, NONVAR), -1, EXPORT);
 
     make_test_bip(in_dict("set_bip_error",1), BI_SetBipError, 0, 0, -1, EXPORT);
-    make_function_bip(in_dict("get_bip_error",1), BI_GetBipError, U_SIMPLE, BoundArg(1,CONSTANT), -1);
-    make_function_bip(in_dict("get_cut",1), SavecutAM, U_SIMPLE, BoundArg(1,CONSTANT), -1);
+    make_function_bip(in_dict("get_bip_error",1), BI_GetBipError, U_SIMPLE, BoundArg(1,CONSTANT), 1, 0);
+    make_function_bip(in_dict("get_cut",1), SavecutAM, U_SIMPLE, BoundArg(1,CONSTANT), 1, 0);
 
     make_test_bip(in_dict("sys_return",1), BI_Exit, 0, 0, -1, LOCAL);
     make_test_bip(in_dict("cut_to_stamp",2), BI_CutToStamp, 0, 0, 0, EXPORT);
@@ -1212,22 +1221,24 @@ code_init(int flags)
     make_test_bip(d_.bignum, BI_Bignum, 0, 0, -1, EXPORT);
     make_test_bip(in_dict("callable",1), BI_Callable, 0, 0, -1, EXPORT);
 
-    make_function_bip(in_dict("-",2), BI_Minus, U_SIMPLE, BoundArg(2,CONSTANT), 4);
-    make_function_bip(in_dict("+",3), BI_Add, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("-",3), BI_Sub, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("*",3), BI_Mul, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("/",3), BI_Quot, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("//",3), BI_Div, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("rem",3), BI_Rem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("div",3), BI_FloorDiv, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("mod",3), BI_FloorRem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("/\\",3), BI_And, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("\\/",3), BI_Or, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("xor", 3), BI_Xor, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16);
-    make_function_bip(in_dict("\\",2), BI_Bitnot, U_SIMPLE, BoundArg(2,CONSTANT), 4);
+    make_function_bip(in_dict("-",2), BI_Minus, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
+    make_function_bip(in_dict("+",3), BI_Add, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("-",3), BI_Sub, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("*",3), BI_Mul, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("/",3), BI_Quot, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("//",3), BI_Div, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("rem",3), BI_Rem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("div",3), BI_FloorDiv, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("mod",3), BI_FloorRem, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("/\\",3), BI_And, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("\\/",3), BI_Or, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("xor", 3), BI_Xor, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("\\",2), BI_Bitnot, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
 
-    make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE, BoundArg(2,CONSTANT), 4);
-    make_function_bip(in_dict("arg",3), BI_Arg, PROC_DEMON|U_UNIFY, BoundArg(2, NONVAR) | BoundArg(3, NONVAR), 16);
+    make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
+    make_function_bip(in_dict("arg",3), BI_Arg, PROC_DEMON|U_UNIFY, BoundArg(2, NONVAR) | BoundArg(3, NONVAR), 16, 1);
+
+    make_function_bip(in_dict("compare",3), BI_Compare, U_UNIFY, BoundArg(1, CONSTANT), 1, 0);
 
     make_test_bip(in_dict("make_suspension",4), BI_MakeSuspension, U_UNIFY|DEBUG_INVISIBLE, BoundArg(3, NONVAR), 0, EXPORT);
 

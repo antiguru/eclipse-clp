@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.5 2009/03/09 05:29:48 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.6 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /*
@@ -1541,7 +1541,7 @@ ec_constant_table_enter(value v, type t, pword *presult)
     for(pelem = *pslot; pelem; pslot = &pelem->next, pelem = *pslot)
     {
 	if (pelem->hash == hash
-	 && compare_terms(v, t, pelem->value.val, pelem->value.tag) == 0
+	 && ec_compare_terms(v, t, pelem->value.val, pelem->value.tag) == 0
 	 )
 	{
 	    break;

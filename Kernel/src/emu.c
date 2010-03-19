@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.14 2009/03/09 05:29:48 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.15 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /*
@@ -7881,6 +7881,20 @@ _narg_:
 	    }
 	    else { Fail }
 	    Next_Pp;
+
+
+	Case(BI_Compare, I_BI_Compare)		/* compare(-R, ?X, ?Y) */
+            pw1 = PP[1].arg;
+            pw2 = PP[2].arg;
+	    Dereference_Pw(pw1);
+	    Dereference_Pw(pw2);
+            Export_B_Sp_Tg_Tt
+            err_code = ec_compare_terms(pw1->val, pw1->tag, pw2->val, pw2->tag);
+            Import_None
+            PP[0].arg->val.did = err_code<0 ? d_.inf0 : err_code>0 ? d_.sup0 : d_.unify0;
+            PP[0].arg->tag.kernel = TDICT;
+            PP += 3;
+            Next_Pp;
 
 
 /* the following instructions should be resurrected for double floats */

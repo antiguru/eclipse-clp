@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.4 2008/07/10 01:08:47 jschimpf Exp $
+ * VERSION	$Id: opcode.h,v 1.5 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /*
@@ -479,12 +479,13 @@ extern vmcode op_addr[];
 #define Exits					(BLOCK1 + 402)
 #define CutAMN					(BLOCK1 + 403)
 #define Put_moduleAM				(BLOCK1 + 404)
+#define BI_Compare				(BLOCK1 + 405)
 
 /*
  * Insert new instructions here.  Don't forget to update the following files:
  * names.h emu_op_addr.h printam.c asm.pl
  */
 
-#define Inst_Error				(BLOCK1 + 405)
+#define Inst_Error				(BLOCK1 + 406)
 #define NUMBER_OP				(Inst_Error + 1)
 

@@ -434,3 +434,4 @@ op_addr[i++] = (vmcode) &&I_BI_Arity;
 op_addr[i++] = (vmcode) &&I_Exits;
 op_addr[i++] = (vmcode) &&I_CutAMN;
 op_addr[i++] = (vmcode) &&I_Put_moduleAM;
+op_addr[i++] = (vmcode) &&I_BI_Compare;

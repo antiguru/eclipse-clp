@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.6 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.7 2010/03/19 05:53:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -909,6 +909,7 @@ instr(bi_arity(a(A1),a(UA2),4),		401, [a(A1),a(UA2),i(4)]).
 instr(exits(N),                         402, [pw(N)]).
 instr(cut(a(A),O), 			403, [a(A),pw(O)]).
 instr(put_module(a(A),C),		404, [a(A),atom(C)]).
+instr(bi_compare(a(UA),a(A1),a(A2)),	405, [a(UA),a(A1),a(A2)]).
 
 
 /***************************************************************************

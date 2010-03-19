@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: bip_comp.c,v 1.4 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -39,7 +39,6 @@
  *	@=</2		p_termlesseq	B_FUNCTION
  *	@>/2		p_termgreater	B_FUNCTION
  *	@>=/2		p_termgreatereq	B_FUNCTION
- *	compare/3	p_compare	B_UNSAFE	Quintus-compatible
  *	occurs/2	p_occurs	B_UNSAFE
  *	variant/2	p_variant	B_UNSAFE
  *	instance/2	p_instance	B_UNSAFE
@@ -77,7 +76,6 @@ static int	p_termless(value v1, type t1, value v2, type t2),
 		p_termgreatereq(value v1, type t1, value v2, type t2),
 		p_unify(value v1, type t1, value v2, type t2, value vl, type tl),
 		p_acyclic_term(value v, type t),
-		p_compare(value vr, type tr, value v1, type t1, value v2, type t2),
 		p_ground(value v, type t),
 		p_nonground(value v, type t),
 		p_occurs(value vs, type ts, value vt, type tt),
@@ -105,8 +103,6 @@ bip_comp_init(int flags)
 	exported_built_in(in_dict("unify", 3), p_unify,
 	    B_UNSAFE|U_UNIFY) -> mode =
 	    BoundArg(1, NONVAR) | BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
-	built_in(in_dict("compare", 3),	p_compare,	B_UNSAFE|U_SIMPLE)
-	    -> mode = BoundArg(1, CONSTANT);
 	built_in(in_dict("compare_instances", 3),
 				p_compare_instances,	B_UNSAFE|U_SIMPLE)
 	    -> mode = BoundArg(1, CONSTANT);
@@ -138,7 +134,7 @@ bip_comp_init(int flags)
 static int 
 p_termless(value v1, type t1, value v2, type t2)
 {
-	Succeed_If(compare_terms(v1, t1, v2, t2) < 0);
+	Succeed_If(ec_compare_terms(v1, t1, v2, t2) < 0);
 }
 
 /*
@@ -147,7 +143,7 @@ p_termless(value v1, type t1, value v2, type t2)
 static int 
 p_termlesseq(value v1, type t1, value v2, type t2)
 {
-	Succeed_If(compare_terms(v1, t1, v2, t2) <= 0);
+	Succeed_If(ec_compare_terms(v1, t1, v2, t2) <= 0);
 }
 
 /*
@@ -156,7 +152,7 @@ p_termlesseq(value v1, type t1, value v2, type t2)
 static int
 p_termgreater(value v1, type t1, value v2, type t2)
 {
-	Succeed_If(compare_terms(v1, t1, v2, t2) > 0);
+	Succeed_If(ec_compare_terms(v1, t1, v2, t2) > 0);
 }
 
 /*
@@ -165,7 +161,7 @@ p_termgreater(value v1, type t1, value v2, type t2)
 static int
 p_termgreatereq(value v1, type t1, value v2, type t2)
 {
-	Succeed_If(compare_terms(v1, t1, v2, t2) >= 0);
+	Succeed_If(ec_compare_terms(v1, t1, v2, t2) >= 0);
 }
 
 /*
@@ -189,30 +185,6 @@ p_unify(value v1, type t1, value v2, type t2, value vl, type tl)
 	}
     } else
 	return res;
-}
-
-/*
- *	compare(Res, Term1, Term2)
- *		Res == '<' iff Term1 @< Term2
- *		Res == '>' iff Term1 @> Term2
- *		Res == '=' iff Term1 == Term2
- *	Quintus-compatible, hence no errors.
- */
-static int
-p_compare(value vr, type tr, value v1, type t1, value v2, type t2)
-{
-	int             i;
-	dident 		res;
-
-	i = compare_terms(v1, t1, v2, t2);
-	if (i < 0)
-		res = d_.inf0;
-	else if (i > 0)
-		res = d_.sup0;
-	else
-		res = d_.unify0;
-
-	Return_Unify_Atom(vr,tr,res);
 }
 
 
@@ -241,7 +213,7 @@ compare_strings(value v1, value v2)
  * compare two Prolog terms, returns <0 if T1 < T2, 0 if T1 = T2, >0 if T1 > T2
  */
 int
-compare_terms(value v1, type t1, value v2, type t2)
+ec_compare_terms(value v1, type t1, value v2, type t2)
 {
 	dident          wdid, wdid2;
 	pword		*arg1, *arg2;
@@ -341,7 +313,7 @@ _compare_args_:						/* (arity, v1, v2) */
 			Dereference_(arg2)
 			if (--arity == 0)
 			    break;
-			res = compare_terms
+			res = ec_compare_terms
 				(arg1->val, arg1->tag,
 				 arg2->val, arg2->tag);
 			if (res != EQUAL)
@@ -1106,7 +1078,7 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 		return 0;
 	    }
 	} else {
-	    comp = compare_terms(key_ptr1->val, key_ptr1->tag,
+	    comp = ec_compare_terms(key_ptr1->val, key_ptr1->tag,
 				 key_ptr2->val, key_ptr2->tag); 
 	}
 	key_ptr1 = key_ptr2;
@@ -1243,7 +1215,7 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 			return 0;
 		    }
 		} else {
-		    comp = compare_terms(key_ptr1->val, key_ptr1->tag,
+		    comp = ec_compare_terms(key_ptr1->val, key_ptr1->tag,
 					 key_ptr2->val, key_ptr2->tag);
 		}
 		if(reverse)
@@ -1337,7 +1309,7 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 	/* no need to check that key spec was OK for these terms */
 	key_ptr1 = _get_key(h1, vk, tk, err);
 	key_ptr2 = _get_key(h2, vk, tk, err);
-	comp = compare_terms(key_ptr1->val, key_ptr1->tag,
+	comp = ec_compare_terms(key_ptr1->val, key_ptr1->tag,
 				    key_ptr2->val, key_ptr2->tag);
 	if(reverse)
 	    comp = -comp;
@@ -1469,7 +1441,7 @@ _merge(value vk, type tk, value vo, type to,
 	}
 	else
 	{
-	    comp = compare_terms(key_ptr1->val, key_ptr1->tag,
+	    comp = ec_compare_terms(key_ptr1->val, key_ptr1->tag,
 				key_ptr2->val, key_ptr2->tag);
 	}
 	if(reverse)

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_domain.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: bip_domain.c,v 1.3 2010/03/19 05:52:16 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1511,7 +1511,7 @@ dom_check_in(word e, type tag, register pword *p)
 		    else if (s->val.nint > e)
 			return 1;
 		} else {
-		    res = compare_terms(s->val, s->tag, v1, tag);
+		    res = ec_compare_terms(s->val, s->tag, v1, tag);
 		    if (res == 0)
 			return 0;
 		    else if (res > 0)
@@ -1538,7 +1538,7 @@ dom_check_in(word e, type tag, register pword *p)
 	    s = p++;
 	    Dereference_(s);
 	    if (!IsFdInterval(s->val, s->tag)) {
-		res = compare_terms(s->val, s->tag, v1, tag);
+		res = ec_compare_terms(s->val, s->tag, v1, tag);
 		if (res == 0)
 		    return 0;
 		else if (res > 0)
@@ -1711,7 +1711,7 @@ _dom_intersection(
 		}
 	    }
 	} else {
-	    res = compare_terms(s1->val, s1->tag, s2->val, s2->tag);
+	    res = ec_compare_terms(s1->val, s1->tag, s2->val, s2->tag);
 	    if (!res) {
 		if (was_int) {
 		    p = insert_interval(fromj, toj, p);
@@ -1877,7 +1877,7 @@ p_dom_compare(value vc, type tc, value vd1, type td1, value vd2, type td2)
 		comp = 0;
 	    }
 	} else if (move == DOM_BOTH) {
-	    comp = compare_terms(s1->val, s1->tag, s2->val, s2->tag);
+	    comp = ec_compare_terms(s1->val, s1->tag, s2->val, s2->tag);
 	    if (comp < 0) {
 		if (next == WAIT_2) {
 		    Fail_
@@ -2060,7 +2060,7 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 	    else
 		res = 1;
 	} else if (next == DOM_BOTH)
-	    res = compare_terms(s1->val, s1->tag, s2->val, s2->tag);
+	    res = ec_compare_terms(s1->val, s1->tag, s2->val, s2->tag);
 	else if (next == DOM_1)
 	    res = -1;
 	else
@@ -2319,7 +2319,7 @@ p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, va
 		was_int = 0;
 	    }
 	} else {
-	    res = compare_terms(s1->val, s1->tag, s2->val, s2->tag);
+	    res = ec_compare_terms(s1->val, s1->tag, s2->val, s2->tag);
 	    Dereference_(d2);
 	    if (res < 0 || res > 0 && IsNil(d2->tag)) {
 		if (IsTag(tag1, TINT)) {
@@ -2620,7 +2620,7 @@ p_dvar_remove_element(value vvar, type tvar, value vel, type tel)
     Check_Element(vel, tel)
     if (!IsMeta(tvar)) {
 	Check_Element(vvar, tvar)
-	Succeed_If(compare_terms(vvar, tvar, vel, tel))
+	Succeed_If(ec_compare_terms(vvar, tvar, vel, tel))
     }
     Check_Dvar(vvar.ptr, d);
     res = _remove_element(vvar.ptr, vel.nint, tel.kernel);
@@ -2732,7 +2732,7 @@ dom_remove_element(register pword *p, register word el, word tag, pword *inst)
 		else
 		    comp = 1;
 	    } else
-		comp = compare_terms(s->val, s->tag, v0, t0);
+		comp = ec_compare_terms(s->val, s->tag, v0, t0);
 	    if (!comp) {
 		*r = *p;
 		res = st ? RES_MIN : RES_MAX;
@@ -3141,7 +3141,7 @@ p_sdelta(value l1, type t1, value l2, type t2, value l3, type t3)
     head1 = l1.ptr; Dereference_(head1);
     head2 = l2.ptr; Dereference_(head2);
 
-    comp = compare_terms(head1->val, head1->tag, head2->val, head2->tag);
+    comp = ec_compare_terms(head1->val, head1->tag, head2->val, head2->tag);
     
     if (comp == 0) { /* The element is removed from both lists */
       p = l1.ptr + 1; Dereference_(p); l1 = p->val; t1 = p->tag;

@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_store.c,v 1.1 2008/06/30 17:43:52 jschimpf Exp $
+ * Version:	$Id: bip_store.c,v 1.2 2010/03/19 05:52:16 jschimpf Exp $
  *
  * Contents:	Built-ins for the store-primitives
  *
@@ -308,7 +308,7 @@ _htable_find(t_heap_htable *obj, uword hash, value vkey, type tkey, t_htable_ele
     for(pelem = *pslot; pelem; pslot = &pelem->next, pelem = *pslot)
     {
 	if (pelem->hash == hash
-	 && compare_terms(vkey, tkey, pelem->key.val, pelem->key.tag) == 0)
+	 && ec_compare_terms(vkey, tkey, pelem->key.val, pelem->key.tag) == 0)
 	{
 	    *ppslot = pslot;
 	    return pelem;
