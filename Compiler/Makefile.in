@@ -1,7 +1,7 @@
 #
 # ECLiPSe III Compiler
 #
-# $Id: Makefile.in,v 1.6 2009/07/16 09:11:23 jschimpf Exp $
+# $Id: Makefile.in,v 1.7 2010/03/19 05:55:38 jschimpf Exp $
 #
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -48,6 +48,7 @@ COMPILER_MODULES = \
 	source_processor.ecl
 
 INCLUDE_FILES = \
+	compiler_builtins.ecl \
 	compiler_compound.ecl
 
 OTHER_FILES = \
@@ -137,7 +138,8 @@ eco:			$(LOCAL_ECO)
 # Replicate all changes here for aux_compiler_xxx below!
 compiler_common.eco:		source_processor.eco
 compiler_analysis.eco:		compiler_common.eco compiler_map.eco
-compiler_codegen.eco:		compiler_common.eco compiler_compound.ecl
+compiler_codegen.eco:		compiler_common.eco \
+			compiler_compound.ecl compiler_builtins.ecl
 compiler_indexing.eco:		compiler_common.eco
 compiler_normalise.eco:		compiler_common.eco
 compiler_peephole.eco:		compiler_common.eco
@@ -151,7 +153,8 @@ ecl_compiler.eco:	compiler_common.eco compiler_normalise.eco \
 
 aux_compiler_common.eco:	aux_source_processor.eco
 aux_compiler_analysis.eco:	aux_compiler_common.eco aux_compiler_map.eco
-aux_compiler_codegen.eco:	aux_compiler_common.eco compiler_compound.ecl
+aux_compiler_codegen.eco:	aux_compiler_common.eco \
+			compiler_compound.ecl compiler_builtins.ecl
 aux_compiler_indexing.eco:	aux_compiler_common.eco
 aux_compiler_normalise.eco:	aux_compiler_common.eco
 aux_compiler_peephole.eco:	aux_compiler_common.eco
