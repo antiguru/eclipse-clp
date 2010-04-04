@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: generic_sets.ecl,v 1.5 2010/04/04 08:14:57 jschimpf Exp $
+% Version:	$Id: generic_sets.ecl,v 1.6 2010/04/04 14:05:09 jschimpf Exp $
 %
 %	Many thanks to Neng-Fa Zhou, on whose ideas this solver
 %	implementation is based. We started work on this solver
@@ -156,7 +156,7 @@ replace_with_arg(Stuff, Arg) :- arg(1, Stuff, Arg).
 % uncomment the next line to disable debugger ports
 :- inline(trace_set/3, replace_with_true/2).
 trace_set(_,_,_).
-%trace_set(Port, Elem, X{int_sets:int_sets with invoc:I}) ?-
+%trace_set(Port, Elem, X{int_sets:int_sets{invoc:I}}) ?-
 %	trace_port(I, Port, X).
 	
 % Uncomment one of the next two lines to enable/disable checks
@@ -212,11 +212,11 @@ check_instantiation(Cstr, _Susp) :-
 :- local struct(rec(port,susp)).
 
 init_event_receiver(Pos, Attr, Susp, Receiver) :-
-	Receiver = rec with susp:Susp,
+	Receiver = rec{susp:Susp},
 	open_receiver(Pos, Attr, port of rec, Receiver).
 
 init_event_receiver(Pos, Attr, Susp, InitialEvents, InitialTail, Receiver) :-
-	Receiver = rec with susp:Susp,
+	Receiver = rec{susp:Susp},
 	open_receiver_init(Pos, Attr, InitialEvents, InitialTail, port of rec, Receiver).
 
 receive_events(Receiver, Events) :-
@@ -224,11 +224,11 @@ receive_events(Receiver, Events) :-
 	receive_notifications(port of rec, Receiver, Events, Status),
 	kill_receiver_suspension(Status, Receiver).
 
-kill_receiver_suspension(closed, rec with susp:Susp) :-
+kill_receiver_suspension(closed, rec{susp:Susp}) :-
     	kill_suspension(Susp).
 kill_receiver_suspension(open, _).
 
-kill_receiver_suspension(rec with susp:Susp) :-
+kill_receiver_suspension(rec{susp:Susp}) :-
     	kill_suspension(Susp).
 
 
@@ -301,7 +301,7 @@ impose_set_bounds(X, Lwb, Upb) :-
 % Make the link between a (non-set-attribute) variable
 % and a newly constructed set-attribute
 add_set_attribute(X, SetAttr) :-
-	SetAttr = int_sets with [value:X],
+	SetAttr = int_sets{value:X},
 	( var(X) ->
 	    add_attribute(X, SetAttr, int_sets),
 	    trace_set('NEW_SET', [], X),
@@ -318,7 +318,7 @@ add_set_attribute(X, SetAttr) :-
 
 print_setvar(_{int_sets:Attr}, Pretty) ?-
 	nonvar(Attr),
-	Attr = int_sets with [card:C],
+	Attr = int_sets{card:C},
 	lset_to_list(Attr, LwbList),
 	( LwbList = [] ->
 	    uset_to_list(Attr, UpbList),
@@ -344,11 +344,11 @@ set_range(Set, LwbList, UpbList) :-
 set_card(_{int_sets:int_sets{card:C}}, Card) ?- Card=C.
 set_card(List, Card) :- nonvar(List), length(List, Card).
 
-is_solver_var(_{int_sets:(int_sets with [])}) ?- true.
+is_solver_var(_{int_sets:int_sets{}}) ?- true.
 
-is_exact_solver_var(_{int_sets:(int_sets with [])}) ?- true.
+is_exact_solver_var(_{int_sets:int_sets{}}) ?- true.
 
-is_solver_type(_{int_sets:(int_sets with [])}) ?- true.
+is_solver_type(_{int_sets:int_sets{}}) ?- true.
 is_solver_type([]) ?- true.
 is_solver_type([_|_]) ?- true.
 
@@ -511,7 +511,7 @@ in(E, Set0, Bool) :-
 
     :- demon membership_demon/4.
     membership_demon(E, SetAttr, Bool, Susp) :- var(E),
-	SetAttr = int_sets with value:Set,
+	SetAttr = int_sets{value:Set},
 	( var(Bool) ->
 	    ( var(Susp) ->
 		suspend(membership_demon(E, SetAttr, Bool, Susp), 3,
@@ -531,7 +531,7 @@ in(E, Set0, Bool) :-
 	    ( lset_member(E, SetAttr) -> kill_suspension(Susp), Bool = 1
 	    ; uset_nonmember(E, SetAttr) -> kill_suspension(Susp), Bool = 0
 	    ; var(Susp) ->
-		SetAttr = int_sets with value:Set,
+		SetAttr = int_sets{value:Set},
 	    	suspend(membership_demon(E, SetAttr, Bool, Susp), 3,
 		    [Bool->inst,Set->add,Set->rem], Susp)
 	    ; true
@@ -686,8 +686,8 @@ unify_any_set(X, YSetAttr, _YSuspAttr) :- nonvar(X),
 
 unify_meta_set(XAttr, YSetAttr, _YSuspAttr) :- var(XAttr), XAttr=YSetAttr.
 unify_meta_set(XSetAttr, YSetAttr, YSuspAttr) :- nonvar(XSetAttr),
-	XSetAttr = int_sets with [card:Card,value:X],
-	YSetAttr = int_sets with [card:Card],
+	XSetAttr = int_sets{card:Card,value:X},
+	YSetAttr = int_sets{card:Card},
 
 	% make the lwbs and upbs identical and wake the necessary
 	% suspensions on X and Y
@@ -750,7 +750,7 @@ test_unify_sets(X, YAttr) :- nonvar(YAttr),
 test_unify_any_set(_X{int_sets:XAttr}, YSetAttr) ?-
 	test_unify_meta_set(XAttr, YSetAttr).
 test_unify_any_set(X, YSetAttr) :- nonvar(X),
-	YSetAttr = int_sets with [card:YCard],
+	YSetAttr = int_sets{card:YCard},
 	lset_to_list(YSetAttr, YLwbList),
 	ord_subset(YLwbList, X),
 	uset_to_list(YSetAttr, YUpbList),
@@ -760,8 +760,8 @@ test_unify_any_set(X, YSetAttr) :- nonvar(X),
 
 test_unify_meta_set(XSetAttr, _YSetAttr) :- var(XSetAttr).
 test_unify_meta_set(XSetAttr, YSetAttr) :- nonvar(XSetAttr),
-	XSetAttr = int_sets with [card:XCard],
-	YSetAttr = int_sets with [card:YCard],
+	XSetAttr = int_sets{card:XCard},
+	YSetAttr = int_sets{card:YCard},
 	not not_unify(XCard, YCard),
 	lset_to_list(XSetAttr, XLwbList),
 	uset_to_list(YSetAttr, YUpbList),
@@ -855,12 +855,12 @@ suspensions_set(_{int_sets:Attr}, Susps, Susps0) ?-
 	( var(Attr) ->
 	    Susps=Susps0
 	;
-	    Attr = int_sets with [add:Add, rem:Rem],
+	    Attr = int_sets{add:Add, rem:Rem},
 	    Susps = [Add,Rem|Susps0]
 	).
 
 
-delayed_goals_number_set(_{int_sets:(int_sets with [add:Add,rem:Rem])}, N) ?- !,
+delayed_goals_number_set(_{int_sets:int_sets{add:Add,rem:Rem}}, N) ?- !,
 	count_active_suspensions(Add, 0, N1),
 	count_active_suspensions(Rem, N1, N).
 delayed_goals_number_set(_, 0).
@@ -871,10 +871,10 @@ delayed_goals_number_set(_, 0).
     count_active_suspensions(_, N, N).
 
 
-copy_term_set(_{int_sets:(int_sets with [dom:Dom,off:Off,lcard:LC,ucard:UC,card:Card])}, Copy) ?- !,
+copy_term_set(_{int_sets:int_sets{dom:Dom,off:Off,lcard:LC,ucard:UC,card:Card}}, Copy) ?- !,
 	copy_term(Dom-Card, DomCopy-CardCopy),
-	Attr = int_sets with [dom:DomCopy,off:Off,lcard:LC,ucard:UC,
-				card:CardCopy,value:Copy],
+	Attr = int_sets{dom:DomCopy,off:Off,lcard:LC,ucard:UC,
+				card:CardCopy,value:Copy},
 	open_sender(added of int_sets, Attr),
 	open_sender(removed of int_sets, Attr),
 	init_suspension_list(add of int_sets, Attr),
@@ -1156,7 +1156,7 @@ difference_rem_z_demon(XAttr, YAttr, Receiver) :-
 
 #(Set0, C) :-
 	seteval(Set0, Set), get_set_attribute(Set, SetAttr),
-	SetAttr = int_sets with [card:C],
+	SetAttr = int_sets{card:C},
 	( var(C) ->
 	    suspend(card_demon(SetAttr), 3, [C->inst])
 	;
@@ -1165,7 +1165,7 @@ difference_rem_z_demon(XAttr, YAttr, Receiver) :-
 
 	% woken on C->inst
 card_demon(SetAttr) :-
-	SetAttr = int_sets with [card:C,value:Set,lcard:LCard,ucard:UCard],
+	SetAttr = int_sets{card:C,value:Set,lcard:LCard,ucard:UCard},
 	( C == LCard ->
 	    lset_to_list(SetAttr, List),
 	    Set = List
@@ -1286,7 +1286,7 @@ partition(Xs, Z) ?- Xs = [_|_],
 	    foreach(XAttr, XAttrs),
 	    param(ZAttr)
 	do
-	    XAttr = int_sets with value:X,
+	    XAttr = int_sets{value:X},
 	    suspend(add_demon(ZAttr, AddEvents), 3, X->add, Susp1),
 	    initial_member_events(XAttr, Susp1, AddEvents)
 	),
@@ -1385,7 +1385,7 @@ membership_booleans(Set0, BoolArr) :-
 	    error(4, membership_booleans(Set, BoolArr))
 	),
 	get_set_attribute(Set, SetAttr),
-	SetAttr = int_sets with [booleans:Booleans],
+	SetAttr = int_sets{booleans:Booleans},
 	( nonvar(Booleans) ->
 	    true
 	;
@@ -1554,7 +1554,7 @@ intset_intersect_upb(List, SetAttr, SuspAttr) :-
 	nonvar(DomainChanged),
 	schedule_suspensions(Which, Attr),
 	( var(SuspAttr) ->
-	    Attr = int_sets with [value:X],
+	    Attr = int_sets{value:X},
 	    notify_constrained(X)
 	;
 	    schedule_suspensions(constrained of suspend, SuspAttr)
@@ -1569,7 +1569,7 @@ intset_add(Elem, Attr) :-
 
 intset_add_nowake(Elem, Attr, DomainChanged) :-
 	integer(Elem),
-	Attr = int_sets with [dom:Map,off:Offset,lcard:LCard,value:X,card:C],
+	Attr = int_sets{dom:Map,off:Offset,lcard:LCard,value:X,card:C},
 	I is Elem - Offset,
 	I >= 1, I =< arity(Map),
 	arg(I, Map, Bit),
@@ -1598,7 +1598,7 @@ intset_remove(Elem, Attr) :-
 
 intset_remove_nowake(Elem, Attr, DomainChanged) :-
 	integer(Elem),
-	Attr = int_sets with [dom:Map,off:Offset,ucard:UCard,value:X,card:C],
+	Attr = int_sets{dom:Map,off:Offset,ucard:UCard,value:X,card:C},
 	I is Elem - Offset,
 	arity(Map, Max),
 	( I < 1 ->
@@ -1632,7 +1632,7 @@ wake_if_domain_changed(_Attr, _Which, DomainChanged) :-
 	var(DomainChanged).
 wake_if_domain_changed(Attr, Which, DomainChanged) :-
 	nonvar(DomainChanged),
-	Attr = int_sets with [value:X],
+	Attr = int_sets{value:X},
 	( var(X) ->
 	    schedule_suspensions(Which, Attr),
 	    notify_constrained(X),
@@ -1644,7 +1644,7 @@ wake_if_domain_changed(Attr, Which, DomainChanged) :-
 
 % intset_domain(?,+,+)
 intset_domain(Attr, L, U) :-
-	Attr = int_sets with [dom:Map,off:Offset,lcard:0,ucard:N,card:C,value:V],
+	Attr = int_sets{dom:Map,off:Offset,lcard:0,ucard:N,card:C,value:V},
 	N is max(0,U-L+1),
 	functor(Map, [], N),
 	( N = 0 ->
@@ -1689,7 +1689,7 @@ intset_domain_from_lists(Attr, LowerList, UpperList) :-
 	( foreach(LwbElem,LowerSorted), param(Attr) do
 	    lset_add_nonmember(LwbElem, Attr)
 	),
-	Attr = int_sets with [lcard:LCard,ucard:UCard,card:C,value:Value],
+	Attr = int_sets{lcard:LCard,ucard:UCard,card:C,value:Value},
 	( LCard == UCard ->
 	    C = LCard,
 	    close_sender(added of int_sets, Attr),
@@ -1700,14 +1700,14 @@ intset_domain_from_lists(Attr, LowerList, UpperList) :-
 	).
 
 lset_member(Elem, Attr) :- var(Elem), !,
-	Attr = int_sets with [dom:Map,off:Offset],
+	Attr = int_sets{dom:Map,off:Offset},
 	arity(Map, Arity),
 	between(1, Arity, 1, I),
 	arg(I, Map, Bit),
 	Bit == 1,
 	Elem is I + Offset.
 lset_member(Elem, Attr) :- integer(Elem), !,
-	Attr = int_sets with [dom:Map,off:Offset],
+	Attr = int_sets{dom:Map,off:Offset},
 	I is Elem - Offset,
 	I >= 1, I =< arity(Map),
 	arg(I, Map, Bit),
@@ -1716,21 +1716,21 @@ lset_member(Elem, Attr) :-
 	error(5, lset_member(Elem, Attr)).
 
 uldiff_memberchk(Elem, Attr) :- integer(Elem),
-	Attr = int_sets with [dom:Map,off:Offset],
+	Attr = int_sets{dom:Map,off:Offset},
 	I is Elem - Offset,
 	I >= 1, I =< arity(Map),
 	arg(I, Map, Bit),
 	var(Bit).
 
 uset_member(Elem, Attr) :- var(Elem), !,
-	Attr = int_sets with [dom:Map,off:Offset],
+	Attr = int_sets{dom:Map,off:Offset},
 	arity(Map, Arity),
 	between(1, Arity, 1, I),
 	arg(I, Map, Bit),
 	Bit \== 0,
 	Elem is I + Offset.
 uset_member(Elem, Attr) :- integer(Elem), !,
-	Attr = int_sets with [dom:Map,off:Offset],
+	Attr = int_sets{dom:Map,off:Offset},
 	I is Elem - Offset,
 	I >= 1, I =< arity(Map),
 	arg(I, Map, Bit),
@@ -1739,7 +1739,7 @@ uset_member(Elem, Attr) :-
 	error(5, uset_member(Elem, Attr)).
 
 lset_nonmember(Elem, Attr) :-
-	Attr = int_sets with [dom:Map,off:Offset],
+	Attr = int_sets{dom:Map,off:Offset},
 	I is Elem - Offset,
 	( I < 1 -> true
 	; I > arity(Map) -> true
@@ -1749,7 +1749,7 @@ lset_nonmember(Elem, Attr) :-
 	).
 
 uset_nonmember(Elem, Attr) :-
-	Attr = int_sets with [dom:Map,off:Offset],
+	Attr = int_sets{dom:Map,off:Offset},
 	I is Elem - Offset,
 	( I < 1 -> true
 	; I > arity(Map) -> true
@@ -1759,14 +1759,14 @@ uset_nonmember(Elem, Attr) :-
 	).
 
 uset_remove_member(Elem, Attr) :-
-	Attr = int_sets with [dom:Map,off:Offset,ucard:UCard],
+	Attr = int_sets{dom:Map,off:Offset,ucard:UCard},
 	I is Elem - Offset,
 	arg(I, Map, 0),
 	UCard1 is UCard-1,
 	setarg(ucard of int_sets, Attr, UCard1).
 
 lset_add_nonmember(Elem, Attr) :-
-	Attr = int_sets with [dom:Map,off:Offset,lcard:LCard],
+	Attr = int_sets{dom:Map,off:Offset,lcard:LCard},
 	I is Elem - Offset,
 	arg(I, Map, 1),
 	LCard1 is LCard+1,
@@ -1781,16 +1781,16 @@ set_min_max([First|Rest], Min, Max) ?-
 	Min = First,
 	once append(_, [Max], Rest).
 
-uset_min_max(int_sets with [dom:Map,off:Offset], Min, Max) ?-
+uset_min_max(int_sets{dom:Map,off:Offset}, Min, Max) ?-
 	Min is Offset+1,
 	Max is Offset+arity(Map).
 
 
-lset_card(int_sets with lcard:LCard, Card) ?- Card=LCard.
+lset_card(int_sets{lcard:LCard}, Card) ?- Card=LCard.
 
-uset_card(int_sets with ucard:UCard, Card) ?- Card=UCard.
+uset_card(int_sets{ucard:UCard}, Card) ?- Card=UCard.
 
-uset_to_list(int_sets with [dom:Map,off:Offset], Elements) :-
+uset_to_list(int_sets{dom:Map,off:Offset}, Elements) :-
 	arity(Map, Arity),
 	( for(I,1,Arity), fromto(Elements,E1,E0,[]), param(Map,Offset) do
 	    arg(I, Map, Bit),
@@ -1800,14 +1800,14 @@ uset_to_list(int_sets with [dom:Map,off:Offset], Elements) :-
 lset_to_list(Attr, Elements) :-
 	lset_to_list(Attr, Elements, []).
 
-lset_to_list(int_sets with [dom:Map,off:Offset], Elements, Elements0) :-
+lset_to_list(int_sets{dom:Map,off:Offset}, Elements, Elements0) :-
 	arity(Map, Arity),
 	( for(I,1,Arity), fromto(Elements,E1,E0,Elements0), param(Map,Offset) do
 	    arg(I, Map, Bit),
 	    ( Bit == 1 -> Elem is I+Offset, E1=[Elem|E0] ; E1=E0 )
 	).
 
-uldiff_to_list(int_sets with [dom:Map,off:Offset], Elements) :-
+uldiff_to_list(int_sets{dom:Map,off:Offset}, Elements) :-
 	arity(Map, Arity),
 	( for(I,1,Arity), fromto(Elements,E1,E0,[]), param(Map,Offset) do
 	    arg(I, Map, Bit),
@@ -1815,7 +1815,7 @@ uldiff_to_list(int_sets with [dom:Map,off:Offset], Elements) :-
 	).
 
 uldiff_smallest(Attr, Elem) :-
-	Attr = int_sets with [dom:Map,off:Offset],
+	Attr = int_sets{dom:Map,off:Offset},
 	arity(Map, Arity),
 	between(1, Arity, 1, I),
 	arg(I, Map, Bit),
@@ -1824,7 +1824,7 @@ uldiff_smallest(Attr, Elem) :-
 	Elem is I + Offset.
 
 uldiff_biggest(Attr, Elem) :-
-	Attr = int_sets with [dom:Map,off:Offset],
+	Attr = int_sets{dom:Map,off:Offset},
 	arity(Map, Arity),
 	between(Arity, 1, -1, I),
 	arg(I, Map, Bit),
@@ -1833,7 +1833,7 @@ uldiff_biggest(Attr, Elem) :-
 	Elem is I + Offset.
 
 uldiff_random(Attr, Elem) :-
-	Attr = int_sets with [dom:Map,off:Offset,ucard:UCard,lcard:Lcard],
+	Attr = int_sets{dom:Map,off:Offset,ucard:UCard,lcard:Lcard},
 	Rand is 1 + (random mod (UCard-Lcard)),
 	( fromto(Rand, R0, R1, 0), count(I,1,RandI), param(Map) do
 	    arg(I, Map, Bit),
@@ -1842,7 +1842,7 @@ uldiff_random(Attr, Elem) :-
 	Elem is RandI + Offset.
 
 uldiff_lightest(Attr, Weights, Elem) :-
-	Attr = int_sets with [dom:Map,off:Offset,ucard:UCard,lcard:Lcard],
+	Attr = int_sets{dom:Map,off:Offset,ucard:UCard,lcard:Lcard},
 	DiffCard is UCard-Lcard,
 	(
 	    fromto(DiffCard, R0, R1, 0),
@@ -1867,7 +1867,7 @@ uldiff_lightest(Attr, Weights, Elem) :-
 	Elem is LightestI + Offset.
 
 uldiff_heaviest(Attr, Weights, Elem) :-
-	Attr = int_sets with [dom:Map,off:Offset,ucard:UCard,lcard:Lcard],
+	Attr = int_sets{dom:Map,off:Offset,ucard:UCard,lcard:Lcard},
 	DiffCard is UCard-Lcard,
 	(
 	    fromto(DiffCard, R0, R1, 0),
@@ -1945,7 +1945,7 @@ initial_nonmember_events(XAttr, YAttr, ZAttr, Susp, Receiver) :-
 %----------------------------------------------------------------------
 
 :- comment(author, "Joachim Schimpf, Neng-Fa Zhou").
-:- comment(date, "$Date: 2010/04/04 08:14:57 $").
+:- comment(date, "$Date: 2010/04/04 14:05:09 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("
