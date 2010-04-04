@@ -264,14 +264,22 @@ The handler procedure is
 unify_handler(+\pattern{Term},~?\pattern{Attribute}~[,\pattern{SuspAttr}])}
 \end{quote}
 The first argument is the term that was unified with the attributed variable,
-it is either a nonvariable or an attributed variable.
-The second argument is directly the contents of the attribute slot
-corresponding to the extension, i.e., it is not the whole attributed variable.
-When this handler is invoked, the attributed variable is already bound
-to \about{Term}.
+it is either a non-variable or another attributed variable.
+The second argument is the contents of the attribute slot
+corresponding to the extension.  Note that, at this point in execution,
+the orginal attributed variable no longer exists, because it has already
+been bound to \about{Term}.
 The optional third argument is the suspend-attribute of the former
 variable; it may be needed to wake the variable's 'constrained' suspension
 list.
+
+The handler's job is to determine whether the binding is allowed with
+respect to the attribute.  This could for example involve checking whether
+the bound term is in a domain described by the attribute.
+For variable-variable bindings, typically the remaining attribute must
+be updated to reflect the intersection of the two individual attributes.
+In case of success, suspension lists inside the attributes may need to
+be scheduled for waking.
 
 If an attributed variable is unified with a standard variable, the variable is
 bound
@@ -280,30 +288,34 @@ If an attributed variable is unified with another attributed variable or a
 non-variable,
 the attributed variable is bound (like a standard variable) to the other term
 \emph{and} all handlers for the \notation{unify} operation are invoked.
-Note that several attributed variable bindings can occur, e.g., during a head
-unification
-and also during a single unification of compound terms.
+Note that several attributed variable bindings can occur simultaneously,
+e.g.\ during a head unification or
+during the unification of two compound terms.
 The handlers are only invoked at certain trigger points (usually before the
-next predicate call).
+next regular predicate call).  Woken goals will start executing once all
+unify-handlers have been processed.
 
 %--------------------------
 \item [test_unify:]\handleridx{test_unify}
-  the unification which is not supposed
-to trigger constraints propagation, it is used, e.g.,
-in the \bipref{not_unify/2}{../bips/kernel/termcomp/not_unify-2.html}
+  a unifiability test which is not supposed
+to trigger constraints propagation. It is used
+by the \bipref{not_unify/2}{../bips/kernel/termcomp/not_unify-2.html}
 predicate.
 The handler procedure is
 \begin{quote}
 \predspec{test_unify_handler(+\pattern{Term}, ?\pattern{Attribute})}
 \end{quote}
 where the arguments are the same as for the unify handler.
-During the execution of the handler the attributed variable is bound
-to \about{Term}, however when all local handlers succeed,
-all bindings are undone.
+The handler's job is to determine whether \about{Attribute} allows
+unification with \about{Term} (not considering effects of woken goals).
+During the execution of the handler, the attributed variable may be bound
+to \about{Term}, however when all attribute handlers succeed,
+all bindings are undone again, and no waking occurs.
 
 \item [compare_instances:]\handleridx{compare_instances}
   computation of instance, subsumption
 and variance relationship, as performed by the built-ins
+\bipref{compare_instances/3}{../bips/kernel/termcomp/compare_instances-3.html},
 \bipref{instance/2}{../bips/kernel/termcomp/instance-2.html} and
 \bipref{variant/2}{../bips/kernel/termcomp/variant-2.html}.
 The handler procedure is
@@ -314,14 +326,21 @@ and its arguments are similar to the ones of the
 \bipref{compare_instances/3}{../bips/kernel/termcomp/compare_instances-3.html}
 predicate.
 The handler is invoked with one or both of \about{TermL} and \about{TermR} being
-attributed variables. The task of the handler is to compare the two terms
-and instantiate \about{Res} to either \notation{=} (if the terms are variants)
-or \notation{<}
-(if \about{TermL} is a proper instance of \about{TermR}). If the terms are
-incomparable, the handler should fail. If \about{TermR} is proper instance
-of \about{TermL}, the handler should either return \notation{>} or fail.
-All bindings made in the handler will be undone after processing
-the local handlers.
+attributed variables. The task of the handler is to examine the two terms,
+and compute their instance relationship with respect to the extension
+attribute in question.  The handler must
+bind \about{Res} to \notation{=} iff the terms are variants,
+\notation{<} iff \about{TermL} is a proper instance of TermR, or \notation{>}
+iff \about{TermR} is a proper instance of \about{TermL}) with respect to
+the attribute under consideration. If the terms are not unifiable with respect
+to this attribute, the handler must fail.
+
+Even though one of \about{TermL} and \about{TermR} is guaranteed to be
+an attributed variable, they might not have the particular attribute that
+the handler is concerned with.  The handler must therefore be written to
+correctly deal with all combinations of an attributed (but potentially
+uninstantiated attribute) variable with any other term.
+
 
 \item [copy_term:]\handleridx{copy_term}
   the handler is invoked by either
