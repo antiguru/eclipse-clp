@@ -671,7 +671,7 @@ old_subset_geq_increasing([X|Xs],Glb,Lub,Min,Max,SubSet):-
             Min1 is Min-1,
             Max1 is Max-1,
             lex_diff(Glb,[MinUpper],Glb1),
-            old_subset_geq_increasing_aux(Glb, Lower, Min1, Max1, Ys),
+            old_subset_geq_increasing_aux(Glb1, Lower, Min1, Max1, Ys),
             true
         ).
 
