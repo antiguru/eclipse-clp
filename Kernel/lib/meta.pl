@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.4 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.5 2010/04/04 08:13:37 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -48,6 +48,7 @@
 	suspensions/2,
 	delayed_goals_number/2,
 	instance/2,
+	compare_instances/3,
 	meta_attribute/2,
 	get_var_bounds/3,
 	set_var_bounds/3,
@@ -55,9 +56,7 @@
 	variant/2.
 
 :- export			% export tool bodies and handlers
-	instance_handler/3,
 	meta_attributes/1,
-	proper_instance/2,
 	unify_attributes/2,
 	test_unify_handler/1.
 
@@ -226,7 +225,7 @@ unify_attributes(Term, Meta) :-
 recompile_unify_handler :-
     collect_local_handlers(unify, List),
     local_unify_handlers(List, Meta, Term, SuspAttr, Body),
-    compile_term((unify_attributes(Term, Meta) :- arg(1,Meta,SuspAttr),Body)).
+    compile_term((unify_attributes(Term, Meta) :- arg(1,Meta,SuspAttr),Body), [debug:off]).
 
 local_unify_handlers([], _, _, _, untraced_true).
 local_unify_handlers([t(I, _, _, N/A, M)], Meta, Term, SuspAttr, Body) :-
@@ -260,13 +259,12 @@ pre_unify_attributes(_AttrVar, _Term, _Pair).
 recompile_pre_unify_handler :-
     collect_local_handlers(pre_unify, PreList),
     (PreList = [] ->
-	compile_term([pre_unify_attributes(_,_,_)]),
+	compile_term((pre_unify_attributes(_,_,_)), [debug:off]),
 	set_default_error_handler(11, unify_handler/1),
 	set_error_handler(11, unify_handler/1)
     ;
 	local_pre_unify_handlers(PreList, AttrVar, Term, Pair, Body),
-	compile_term([:- pragma(nodebug),
-		pre_unify_attributes(AttrVar, Term, Pair) :- Body]),
+	compile_term((pre_unify_attributes(AttrVar, Term, Pair) :- Body), [debug:off]),
 	set_default_error_handler(11, pre_unify_handler/1),
 	set_error_handler(11, pre_unify_handler/1)
     ).
@@ -295,7 +293,7 @@ recompile_test_unify_handler :-
     functor(Attr, meta, I),
     collect_local_handlers(test_unify, List),
     local_test_unify_handlers(List, Attr, Term, Body),
-    compile_term(test_unify_attributes(Term, Attr) :- Body).
+    compile_term((test_unify_attributes(Term, Attr) :- Body), [debug:off]).
 
 local_test_unify_handlers([], _, _, untraced_true).
 local_test_unify_handlers([t(I, _, _, N/_, M)], Attr, Term, M:Goal) :-
@@ -309,15 +307,15 @@ local_test_unify_handlers([t(I, _, _, N/_, M)|List], Attr, Term, Body) :-
     local_test_unify_handlers(List, Attr, Term, NewBody).
 
 %------------------------------
-:- mode compare_instances_attributes(-, ?, ?).
-compare_instances_attributes(Res, TermL, TermR) :-
-	suspend:compare_instances_suspend(Res0, TermL, TermR),
-	Res is x_res(Res0).
+:- mode compare_instances_attributes(?, ?, ?).
+compare_instances_attributes(Res, _TermL, _TermR) :-
+	% one or both of TermL, TermR are attributed variables!
+	x_res(=, Res).
 
 recompile_compare_instances_handler :-
     collect_local_handlers(compare_instances, List),
     local_compare_instances_handlers(List, Res, TermL, TermR, Body, _),
-    compile_term(compare_instances_attributes(Res, TermL, TermR) :- Body).
+    compile_term((compare_instances_attributes(Res, TermL, TermR) :- Body), [debug:off]).
 
 local_compare_instances_handlers([t(_, _, _, N/_, M)|List], Res, TermL, TermR,
 	Body, ResL) :-
@@ -347,7 +345,7 @@ copy_term_attributes(_Meta, _Term).
 recompile_copy_term_handler :-
 	collect_local_handlers(copy_term, List),
 	local_copy_term_handlers(List, Meta, Term, Body),
-	compile_term(copy_term_attributes(Meta, Term) :- Body).
+	compile_term((copy_term_attributes(Meta, Term) :- Body), [debug:off]).
 
     local_copy_term_handlers([t(_, _, _, N/_, M)|List], Meta, Term, Body) :-
 	Goal =.. [N, Meta, Term],
@@ -371,7 +369,7 @@ get_meta_bounds(_Meta, Lower, Upper) ?-
 recompile_get_bounds_handler :-
 	collect_local_handlers(get_bounds, List),
 	local_get_bounds_handlers(List, Meta, -1.0Inf, 1.0Inf, Lower, Upper, Body),
-	compile_term(get_meta_bounds(Meta, Lower, Upper) ?- Body).
+	compile_term((get_meta_bounds(Meta, Lower, Upper) ?- Body), [debug:off]).
 
     local_get_bounds_handlers([], _Meta, L0, U0, L, U, (L=L0,U=U0)).
     local_get_bounds_handlers([t(AttrSlot, _, _, N/_, M)|List], Meta, L0, U0, L, U, Body) :-
@@ -392,7 +390,7 @@ set_meta_bounds(_Meta, _Lwb, _Upb).
 recompile_set_bounds_handler :-
 	collect_local_handlers(set_bounds, List),
 	local_set_bounds_handlers(List, Meta, Lwb, Upb, Body),
-	compile_term(set_meta_bounds(Meta, Lwb, Upb) ?- Body).
+	compile_term((set_meta_bounds(Meta, Lwb, Upb) ?- Body), [debug:off]).
 
     :- mode local_set_bounds_handlers(+,?,?,?,-).
     local_set_bounds_handlers([], _, _, _, true).
@@ -422,7 +420,7 @@ recompile_delayed_goals_handler :-
     append(ListSH, ListDGH, List0),
     sort(1 /*index of t*/, <, List0, List), % keep only SH if both are there
     local_delayed_goals_handlers(List, Meta, G, G0, Body),
-    compile_term(delayed_goals_attributes(Meta, G, G0) :- Body).
+    compile_term((delayed_goals_attributes(Meta, G, G0) :- Body), [debug:off]).
 
 local_delayed_goals_handlers([t(_, _, HandlerType, N/_, M)|List], Meta, G, G0, Body) :-
     ( HandlerType == delayed_goals ->
@@ -452,7 +450,7 @@ suspensions_attributes(Meta, S, S0) :-
 recompile_suspensions_handler :-
     collect_local_handlers(suspensions, List),
     local_suspensions_handlers(List, Meta, S, S0, Body),
-    compile_term(suspensions_attributes(Meta, S, S0) :- Body).
+    compile_term((suspensions_attributes(Meta, S, S0) :- Body), [debug:off]).
 
 local_suspensions_handlers([t(_, _, _, N/_, M)|List], Meta, S, S0, Body) :-
     Goal =.. [N, Meta, S, S1],
@@ -473,7 +471,7 @@ delayed_goals_number_attributes(Meta, NG) :-
 recompile_delayed_goals_number_handler :-
     collect_local_handlers(delayed_goals_number, List),
     local_delayed_goals_number_handlers(List, Meta, NG, Body, 0),
-    compile_term(delayed_goals_number_attributes(Meta, NG) :- Body).
+    compile_term((delayed_goals_number_attributes(Meta, NG) :- Body), [debug:off]).
 
 local_delayed_goals_number_handlers([t(_, _, _, N/_, M)|List], Meta, NG, Body, NG0) :-
     Goal =.. [N, Meta, NG1],
@@ -502,9 +500,9 @@ recompile_print_handler :-
     collect_local_handlers(print, List),
     local_print_handlers(List, Var, OL, Body),
     (Body == (_ = []) ->
-	compile_term(print_attribute(_, _) :- fail)
+	compile_term((print_attribute(_, _) :- fail), [debug:off])
     ;
-	compile_term(print_attribute(Var, OL) :- Body)
+	compile_term((print_attribute(Var, OL) :- Body), [debug:off])
     ).
 
 local_print_handlers([], _, L, L = []).
@@ -607,37 +605,68 @@ test_unify_handler([[Term|Attr]|List]) :-
     test_unify_attributes(Term, Attr),
     test_unify_handler(List).
 
-%
-%%%% proper_instance/2 %%%%
-%
-proper_instance(Instance, Term) :-
-    compare_instances(Res, Instance, Term, List),
-    x_res(Res, R),
-    not not instance_handler(R, List, 2).
 
 %
 %%%% variant/2 %%%%
 %
 variant(Term1, Term2) :-
     compare_instances(=, Term1, Term2, List),
-    not not instance_handler(3, List, 3).
+    variant_handler(List).
+
+    variant_handler([]).
+    variant_handler([[TermL|TermR]|List]) :-
+	compare_instances_attributes(3, TermL, TermR),
+	variant_handler(List).
 
 %
 %%%% instance/2 %%%%
 %
 instance(Term1, Term2) :-
     compare_instances(Res, Term1, Term2, List),
-    x_res(Res, R),
-    R >= 2,
-    not not ((instance_handler(R, List, R1),
-	R1 >= 2)).
+    Res \== (>),
+    instance_handler(List).
 
-instance_handler(R, [], R).
-instance_handler(Res, [[TermL|TermR]|List], ResL) :-
-    % one or both of TermL, TermR are attributed variables!
-    compare_instances_attributes(Res1, TermL, TermR),
-    Res2 is Res1 /\ Res,
-    instance_handler(Res2, List, ResL).
+    instance_handler([]).
+    instance_handler([[TermL|TermR]|List]) :-
+	compare_instances_attributes(Res, TermL, TermR),
+	Res >= 2,	% fail early if any L>R
+	instance_handler(List).
+
+%
+%%%% compare_instances/3 %%%%
+% The cases where the first arg is instantiated are handled
+% specially because they may fail early.
+%
+compare_instances(=, Term1, Term2) ?- !,
+    compare_instances(=, Term1, Term2, List),
+    variant_handler(List).
+compare_instances(<, Term1, Term2) ?- !,
+    compare_instances(Res, Term1, Term2, List),
+    x_res(Res, R),
+    proper_instance_handler(R, List, 2).
+compare_instances(>, Term1, Term2) ?- !,
+    compare_instances(Res, Term2, Term1, List), % swap args
+    x_res(Res, R),
+    proper_instance_handler(R, List, 2).
+compare_instances(Res, Term1, Term2) :-
+    compare_instances(Res0, Term1, Term2, List),
+    x_res(Res0, R0),
+    comp_instances_handler(R0, List, R),
+    x_res(Res, R).
+
+    proper_instance_handler(R, [], R).
+    proper_instance_handler(Res, [[TermL|TermR]|List], ResL) :-
+	Res >= 2,	% fail early if any L>R
+	compare_instances_attributes(Res1, TermL, TermR),
+	Res2 is Res1 /\ Res,
+	proper_instance_handler(Res2, List, ResL).
+
+    comp_instances_handler(R, [], R).
+    comp_instances_handler(R1, [[TermL|TermR]|List], R) :-
+	compare_instances_attributes(R2, TermL, TermR),
+	R3 is R1 /\ R2,
+	R3 > 0,		% fail early if incomparable
+	comp_instances_handler(R3, List, R).
 
 
 %
@@ -754,7 +783,6 @@ list_to_attr([A], A) :- !.
 list_to_attr([A|L], (A,B)) :-
     list_to_attr(L, B).
 
-:- mode x_res(++, -).
 x_res(>, 1).
 x_res(<, 2).
 x_res(=, 3).
@@ -776,7 +804,6 @@ x_res(=, 3).
 	delayed_goals_number/2,
 	unify_handler/1,
 	copy_term_handler/1,
-	instance_handler/3,
 	test_unify_handler/1.
 
 :- untraceable
@@ -794,6 +821,5 @@ x_res(=, 3).
 	undo_meta_bindings/2,
 	pre_unify_pairs/1,
 	copy_term_handler/1,
-	instance_handler/3,
 	test_unify_handler/1.
 

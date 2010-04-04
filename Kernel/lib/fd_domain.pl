@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_domain.pl,v 1.2 2008/08/20 18:04:18 jschimpf Exp $
+% Version:	$Id: fd_domain.pl,v 1.3 2010/04/04 08:13:37 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -393,55 +393,52 @@ test_unify_domain_domain(Y, fd with domain:DomX, fd with domain:DomY) :-
 
 % compare_instances_domain(-Res, ?TermL, ?TermR)
 % One or both Terms are attributed variables
-compare_instances_domain(Res, X{fd:AttrX}, Y) :- -?->
-    compare_instances_meta_any(Res, X, Y, AttrX).
-compare_instances_domain(Res, X, Y{fd:AttrY}) :- -?-> not meta(X),
-    compare_instances_term_meta(Res, X, Y, AttrY).
+compare_instances_domain(Res, _X{fd:AttrX}, Y) ?-
+	compare_instances_attr_any(Res, AttrX, Y).
+compare_instances_domain(Res, X, _Y{fd:AttrY}) ?- free(X),
+	compare_instances_free_attr(Res, AttrY).	% Y must be meta!
+compare_instances_domain(Res, X, _Y{fd:AttrY}) ?- nonvar(X),
+	compare_instances_const_attr(Res, X, AttrY).	% Y must be meta!
 
-compare_instances_meta_any(Res, X, Y{fd:AttrY}, AttrX) :- -?->
-    compare_instances_meta_meta(Res, X, Y, AttrX, AttrY).
-compare_instances_meta_any(Res, _X, Y, AttrX) :- not meta(Y),
-    /*** META + ANY ***/
-    /* can succeed only if Y is a variable */
-    var(Y),
-    (var(AttrX) ->
-	Res = (=)
-    ;
-	Res = (<)
-    ).
+    compare_instances_attr_any(Res, AttrX, _Y{fd:AttrY}) ?-
+	compare_instances_attr_attr(Res, AttrX, AttrY).
+    compare_instances_attr_any(Res, AttrX, Y) :- free(Y),
+	compare_instances_attr_free(Res, AttrX).
+    compare_instances_attr_any(Res, AttrX, Y) :- nonvar(Y),
+	compare_instances_attr_const(Res, AttrX, Y).
 
-compare_instances_meta_meta(Res, X, Y, AttrX, AttrY) :-
-    var(AttrX),		% No attribute
-    /*** VAR + META or VAR ***/
-    compare_instances_term_meta(Res, X, Y, AttrY).
-compare_instances_meta_meta(Res, X, Y, AttrX, AttrY) :-
-    nonvar(AttrX),
-    compare_instances_domain_meta(Res, X, Y, AttrX, AttrY).
+    compare_instances_attr_free(Res, AttrX) :- var(AttrX),
+	Res = (=).
+    compare_instances_attr_free(Res, AttrX) :- nonvar(AttrX),
+	Res = (<).
 
-compare_instances_domain_meta(Res, _, _, _, AttrY) :-
-    var(AttrY),
-    /*** META + VAR ***/
-    Res = (<).
-compare_instances_domain_meta(Res, _, _, fd with domain:D1,
-	fd with domain:D2) :-
-    -?->
-    /*** META + META ***/
-    dom_compare(Res, D1, D2).
+    compare_instances_free_attr(Res, AttrY) :- var(AttrY),
+	Res = (=).
+    compare_instances_free_attr(Res, AttrY) :- nonvar(AttrY),
+	Res = (>).
 
-compare_instances_term_meta(Res, TermL, Y, AttrY) :-
-    var(AttrY),
-    /*** TERM + VAR ***/
-    compare_instances(Res, TermL, Y).
-compare_instances_term_meta(Res, TermL, _, fd with domain:D) :-
-    -?->
-    /*** TERM + META ***/
-    nonvar(TermL),	% otherwise Res = >
-    dom_check_in(TermL, D),
-    (dom_size(D, 1) ->
-	Res = (=)
-    ;
-	Res = (<)
-    ).
+    compare_instances_attr_attr(Res, AttrX, AttrY) :- var(AttrX),
+	compare_instances_free_attr(Res, AttrY).
+    compare_instances_attr_attr(Res, AttrX, AttrY) :- nonvar(AttrX),
+	compare_instances_iattr_attr(Res, AttrX, AttrY).
+
+    compare_instances_iattr_attr(Res, _AttrX, AttrY) :- var(AttrY), !,
+	Res = (<).
+    compare_instances_iattr_attr(Res, fd{domain:DX}, fd{domain:DY}) ?-
+	dom_compare(Res, DX, DY).
+
+    compare_instances_const_attr(Res, _X, AttrY) :- var(AttrY), !,
+	Res = (<).
+    compare_instances_const_attr(Res, X, fd{domain:DY}) ?-
+	dom_check_in(X, DY),
+	Res = (<).
+
+    compare_instances_attr_const(Res, AttrX, _Y) :- var(AttrX), !,
+	Res = (>).
+    compare_instances_attr_const(Res, fd{domain:DX}, Y) ?-
+	dom_check_in(Y, DX),
+	Res = (>).
+
 
 %----------------------------------------------------------------
 % copy_term

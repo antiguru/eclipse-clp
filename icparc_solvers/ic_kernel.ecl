@@ -1045,9 +1045,15 @@ test_unify_ic(Term, Attr) :-
 	test_unify_term_ic(Term, Attr).
 
 :- mode test_unify_term_ic(?, +).
-test_unify_term_ic(Term,
-		ic with [var_type:Type, lo:Lo, hi:Hi, bitmap:Bitmap]) :-
+test_unify_term_ic(Term, Attr) :-
 	nonvar(Term),
+	test_unify_const_ic(Term, Attr).
+test_unify_term_ic(Y{ic:AttrY}, AttrX) :-
+	-?->
+	test_unify_ic_ic(Y, AttrX, AttrY).
+
+test_unify_const_ic(Term, ic with [var_type:Type, lo:Lo, hi:Hi, bitmap:Bitmap]) :-
+	-?->
 	/*** NONVAR + META ***/
 	compatible_type(Term, Type),
 	( Bitmap == undefined ->
@@ -1055,9 +1061,6 @@ test_unify_term_ic(Term,
 	;
 	    bitmap_contains(Bitmap, Term)
 	).
-test_unify_term_ic(Y{ic:AttrY}, AttrX) :-
-	-?->
-	test_unify_ic_ic(Y, AttrX, AttrY).
 
 test_unify_ic_ic(_, _AttrX, AttrY) :-
 	/*** VAR + META ***/
@@ -1107,80 +1110,44 @@ test_unify_ic_ic(_Y, AttrX, AttrY) :-
 	% At least one of TermL or TermR is meta.
 	% Metas with empty attribute slot are treated like free.
 compare_ic_instances(Res, _X{ic:AttrX}, Y) :- -?->
-	compare_instances_meta_any(Res, AttrX, Y).
+	compare_instances_attr_any(Res, AttrX, Y).
 compare_ic_instances(Res, X, Y) :- free(X),
-	compare_instances_free_meta(Res, X, Y).		% Y must be meta!
+	compare_instances_free_meta(Res, Y).		% Y must be meta!
 compare_ic_instances(Res, X, Y) :- nonvar(X),
 	compare_instances_const_meta(Res, X, Y).	% Y must be meta!
 
-compare_instances_free_meta(Res, _X, _Y{ic:AttrY}) :- -?->
-	compare_instances_free_ic(Res, AttrY).
+compare_instances_free_meta(Res, _Y{ic:AttrY}) :- -?->
+	( var(AttrY) -> Res = (=) ; Res = (>) ).
 
-compare_instances_meta_any(Res, AttrX, _Y{ic:AttrY}) :- -?->
-	compare_instances_meta_meta(Res, AttrX, AttrY).
-compare_instances_meta_any(Res, AttrX, Y) :- free(Y),
-	compare_ic_instances_free(Res, AttrX).
-compare_instances_meta_any(Res, AttrX, Y) :- nonvar(Y),
-	compare_instances_meta_const(Res, AttrX, Y).
+compare_instances_attr_any(Res, AttrX, _Y{ic:AttrY}) :- -?->
+	compare_instances_attr_attr(Res, AttrX, AttrY).
+compare_instances_attr_any(Res, AttrX, Y) :- free(Y),
+	( var(AttrX) -> Res = (=) ; Res = (<) ).
+compare_instances_attr_any(Res, AttrX, Y) :- nonvar(Y),
+	compare_instances_attr_const(Res, AttrX, Y).
 
 compare_instances_const_meta(Res, X, _Y{ic:AttrY}) :- -?->
-	compare_instances_const_ic(Res, X, AttrY).
+	compare_instances_const_attr(Res, X, AttrY).
 
-compare_instances_meta_const(Res, _X{ic:AttrX}, Y) :- -?->
-	compare_ic_instances_const(Res, AttrX, Y).
+compare_instances_const_attr(Res, _X, AttrY) :- var(AttrY), !,
+	Res = (<).
+compare_instances_const_attr(Res, X, AttrY) :-
+	test_unify_const_ic(X, AttrY),
+	Res = (<).
 
-compare_instances_free_ic(Res, AttrY) :- var(AttrY),
-	Res = (=).
-compare_instances_free_ic(Res, AttrY) :- nonvar(AttrY),
+compare_instances_attr_const(Res, AttrX, _Y) :- var(AttrX), !,
+	Res = (>).
+compare_instances_attr_const(Res, AttrX, Y) :-
+	test_unify_const_ic(Y, AttrX),
 	Res = (>).
 
-compare_ic_instances_free(Res, AttrX) :- var(AttrX),
-	Res = (=).
-compare_ic_instances_free(Res, AttrX) :- nonvar(AttrX),
-	Res = (<).
+compare_instances_attr_attr(Res, AttrX, AttrY) :-
+	( var(AttrX) -> ( var(AttrY) -> Res = (=) ; Res = (>) )
+	; var(AttrY) -> Res = (<)
+	; compare_instances_ic_ic(Res, AttrX, AttrY)
+	).
 
-compare_instances_meta_meta(Res, AttrX, AttrY) :- var(AttrX),
-	compare_instances_free_meta(Res, AttrY).
-compare_instances_meta_meta(Res, AttrX, AttrY) :- nonvar(AttrX),
-	compare_ic_instances_meta(Res, AttrX, AttrY).
-
-compare_instances_free_meta(Res, AttrY) :- var(AttrY),
-	Res = (=).
-compare_instances_free_meta(Res, AttrY) :- nonvar(AttrY),
-	compare_instances_free_ic(Res, AttrY).
-
-
-compare_instances_const_ic(Res, _X, AttrY) :- var(AttrY), !,
-	Res = (<).
-compare_instances_const_ic(Res, X,
-		ic with [var_type:TY, lo:LoY, hi:HiY, bitmap:BitmapY]) :-
-	compatible_type(X, TY),		% may fail
-	LoY =< X, X =< HiY,		% may fail
-	( BitmapY = undefined ->
-	    true
-	;
-	    IntX is fix(X),
-	    bitmap_contains(BitmapY, IntX)	% may fail
-	),
-	Res = (<).
-
-compare_ic_instances_const(Res, AttrX, _Y) :- var(AttrX), !,
-	Res = (>).
-compare_ic_instances_const(Res,
-		ic with [var_type:TX, lo:LoX, hi:HiX, bitmap:BitmapX], Y) :-
-	compatible_type(Y, TX),		% may fail
-	LoX =< Y, Y =< HiX,		% may fail
-	( BitmapX = undefined ->
-	    true
-	;
-	    IntY is fix(Y),
-	    bitmap_contains(BitmapX, IntY)	% may fail
-	),
-	Res = (>).
-
-compare_ic_instances_meta(Res, _AttrX, AttrY) :- var(AttrY),
-	Res = (<).
-compare_ic_instances_meta(Res,
+    compare_instances_ic_ic(Res,
 		ic with [var_type:TX, lo:LoX, hi:HiX, bitmap:BitmapX],
 		ic with [var_type:TY, lo:LoY, hi:HiY, bitmap:BitmapY]) :- -?->
 	( BitmapX \== undefined, BitmapY \== undefined ->

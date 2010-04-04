@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.23 2009/12/22 02:44:23 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.24 2010/04/04 08:13:37 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1078,6 +1078,7 @@ ensure_loaded1(FileAtom, Module) :-
 % Load compiler predicates lazily
 % We can't use import-from currently because they are tools.
 compile_term(Term) :- ecl_compiler:compile_term(Term).	% @sepia_kernel
+compile_term(Term,Options) :- ecl_compiler:compile_term(Term,Options).	% @sepia_kernel
 
 
 compile_or_load(FileAtom, Module) :-
@@ -2255,7 +2256,7 @@ record_interface_directive(Directive, Module) :-
     init_module_record(N, Value, Module) :-
 	functor(Key, Module, N),
 	( is_record(Key) -> true ; local_record(Module/N) ),
-	( recorded(Key, Old), variant_simple(Old, Value) -> 
+	( recorded(Key, Old), compare_instances(=, Old, Value, _) -> 
 	    true
 	;
 	    recordz(Key, Value)

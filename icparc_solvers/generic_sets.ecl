@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: generic_sets.ecl,v 1.4 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: generic_sets.ecl,v 1.5 2010/04/04 08:14:57 jschimpf Exp $
 %
 %	Many thanks to Neng-Fa Zhou, on whose ideas this solver
 %	implementation is based. We started work on this solver
@@ -775,49 +775,59 @@ test_unify_meta_set(XSetAttr, YSetAttr) :- nonvar(XSetAttr),
 % Compare_instances handler
 %----------------------------------------------------------------------
 
-	% Precondition: one of the terms is an attributed variable,
+	% Precondition: one or both of the terms are attributed variables,
 	% (not necessarily with a set attribute).
-	% Handler failure means either not comparable or (>)
 compare_instances_set(Res, _X{int_sets:XAttr}, Y) ?-
 	compare_instances_attr_any(Res, XAttr, Y).
 compare_instances_set(Res, X, _Y{int_sets:YAttr}) ?- nonvar(X),
-	compare_instances_nonvar_attr(Res, X, YAttr).
+	test_unify_sets(X, YAttr),	% may fail (not instance)
+	Res = (<).
 compare_instances_set(Res, X, _Y{int_sets:YAttr}) ?- free(X),
-	( var(YAttr) -> Res = (=) ; fail ).
+	( var(YAttr) -> Res = (=) ; Res = (>) ).
 
-    % nonvar(Y) -> fail, i.e. Res = (>)
     compare_instances_attr_any(Res, XAttr, _Y{int_sets:YAttr}) ?-
     	compare_instances_attr_attr(Res, XAttr, YAttr).
     compare_instances_attr_any(Res, XAttr, Y) :- free(Y),
 	( var(XAttr) -> Res = (=) ; Res = (<) ).
+    compare_instances_attr_any(Res, XAttr, Y) :- nonvar(Y),
+	test_unify_sets(Y, XAttr),	% may fail (not instance)
+	Res = (>).
 
-    compare_instances_nonvar_attr(Res, _X, YAttr) :- var(YAttr), !,
-    	Res = (<).
-    compare_instances_nonvar_attr(Res, X, YAttr) :-
-	test_unify_any_set(X, YAttr),	% may fail (not instance)
-	Res = (<).
-    	
     compare_instances_attr_attr(Res, XSetAttr, YSetAttr) :- var(XSetAttr), !,
-	( var(YSetAttr) -> Res = (=) ; fail ).
+	( var(YSetAttr) -> Res = (=) ; Res = (>) ).
     compare_instances_attr_attr(Res, XSetAttr, YSetAttr) :-
-	( var(YSetAttr) ->
-	    Res = (<)
-	;
-	    lset_to_list(XSetAttr, XLwbList),
-	    lset_to_list(YSetAttr, YLwbList),
-	    ord_subset(YLwbList, XLwbList),	% may fail
-	    uset_to_list(XSetAttr, XUpbList),
-	    uset_to_list(YSetAttr, YUpbList),
-	    ord_subset(XUpbList, YUpbList),	% may fail
-	    XSetAttr = int_sets with [card:XCard],
-	    YSetAttr = int_sets with [card:YCard],
-	    instance(XCard, YCard),
-	    ( XLwbList==YLwbList,XUpbList==YUpbList,variant(XCard,YCard) ->
-	    	Res = (=)
-	    ;
-	    	Res = (<)
+	( var(YSetAttr) -> Res = (<) ; attr_compare(Res, XSetAttr, YSetAttr) ).
+
+    attr_compare(Res, int_sets{dom:XMap,off:XOff,card:XCard},
+		  int_sets{dom:YMap,off:YOff,card:YCard}) ?-
+	% 1..S..T..Arity
+	arity(XMap, XA),
+	arity(YMap, YA),
+	XS is max(0,YOff-XOff),
+	YS is max(0,XOff-YOff),
+	XT is min(XA,YOff+YA-XOff),
+	YT is min(YA,XOff+XA-YOff),
+	( for(I,1,XS), param(XMap,Res) do	% all Ys 0
+	    arg(I, XMap, Bit), ( var(Bit) -> Res=(>) ; Bit == 0 )
+	),
+	( for(I,XT+1,XA), param(XMap,Res) do	% all Ys 0
+	    arg(I, XMap, Bit), ( var(Bit) -> Res=(>) ; Bit == 0 )
+	),
+	( for(I,XS+1,XT), for(J,YS+1,YT), param(XMap,YMap,Res) do
+	    arg(I, XMap, XBit), arg(J, YMap, YBit),
+	    ( XBit==YBit -> true
+	    ; var(XBit) -> ( var(YBit) -> true ; Res=(>) )
+	    ; Res=(<)
 	    )
-	).
+	),
+	( for(I,1,YS), param(YMap,Res) do	% all Xs 0
+	    arg(I, YMap, Bit), ( var(Bit) -> Res=(<) ; Bit == 0 )
+	),
+	( for(I,YT+1,YA), param(YMap,Res) do	% all Xs 0
+	    arg(I, YMap, Bit), ( var(Bit) -> Res=(<) ; Bit == 0 )
+	),
+	% var(Res) iff result so far is =
+	compare_instances(Res, XCard, YCard).
 
 
 %----------------------------------------------------------------------
@@ -1935,7 +1945,7 @@ initial_nonmember_events(XAttr, YAttr, ZAttr, Susp, Receiver) :-
 %----------------------------------------------------------------------
 
 :- comment(author, "Joachim Schimpf, Neng-Fa Zhou").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2010/04/04 08:14:57 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("

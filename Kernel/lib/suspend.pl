@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: suspend.pl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: suspend.pl,v 1.4 2010/04/04 08:13:37 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -54,7 +54,7 @@
 :- comment(categories, ["Constraints","Algorithms"]).
 :- comment(summary,
     "Lazy-checking versions of arithmetic primitives, and the suspend-attribute").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/04/04 08:13:37 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Micha Meier, ECRC, Joachim Schimpf, ECRC and IC-Parc").
 :- comment(desc, html("\
@@ -105,7 +105,6 @@
 % CAUTION: when changing handlers, update meta.pl accordingly!!!
 :- meta_attribute(suspend, [
 	unify:			unify_suspend/2,
-	compare_instances:	compare_instances_suspend/3,
 	suspensions:		suspensions_suspend/3,
 	delayed_goals_number:	delayed_goals_number_suspend/2
 	]).
@@ -214,13 +213,6 @@ merge_intersect(L1, L2, Merged, Common) :-
 
 
 %----------------------------------------------------------------
-% compare_instances handler
-%----------------------------------------------------------------
-
-compare_instances_suspend(Res, T1, T2) :-
-    compare_instances(Res, T1, T2).
-
-%----------------------------------------------------------------
 % suspensions handler
 %----------------------------------------------------------------
 
@@ -266,7 +258,6 @@ count_active_suspensions([Susp|Susps], N0, N) :-
 
 :- untraceable
 	unify_suspend/2,
-	compare_instances_suspend/3,
 	suspensions_suspend/3,
 	delayed_goals_number_suspend/2.
 

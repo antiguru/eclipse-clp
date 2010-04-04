@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.4 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.5 2010/04/04 08:10:14 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -79,9 +79,6 @@ static int	p_termless(value v1, type t1, value v2, type t2),
 		p_ground(value v, type t),
 		p_nonground(value v, type t),
 		p_occurs(value vs, type ts, value vt, type tt),
-		p_variant_simple(value v1, type t1, value v2, type t2),
-		p_instance_simple(value v1, type t1, value v2, type t2),
-		p_compare_instances(value vr, type tr, value v1, type t1, value v2, type t2),
 		p_compare_instances4(value vr, type tr, value v1, type t1, value v2, type t2, value vl, type tl),
 		p_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t),
 		p_number_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t),
@@ -103,16 +100,11 @@ bip_comp_init(int flags)
 	exported_built_in(in_dict("unify", 3), p_unify,
 	    B_UNSAFE|U_UNIFY) -> mode =
 	    BoundArg(1, NONVAR) | BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
-	built_in(in_dict("compare_instances", 3),
-				p_compare_instances,	B_UNSAFE|U_SIMPLE)
-	    -> mode = BoundArg(1, CONSTANT);
 	exported_built_in(in_dict("compare_instances", 4),
 				p_compare_instances4,	B_UNSAFE|U_UNIFY)
 	    -> mode = BoundArg(1, CONSTANT) |
 			BoundArg(4, NONVAR);
 	(void) built_in(in_dict("occurs", 2),	p_occurs,	B_UNSAFE);
-	(void) exported_built_in(in_dict("variant_simple", 2),p_variant_simple,	B_UNSAFE);
-	(void) exported_built_in(in_dict("instance_simple", 2),p_instance_simple,	B_UNSAFE);
 	(void) built_in(d_.nonground,		p_nonground,	B_SAFE);
 	(void) built_in(d_.ground,		p_ground,	B_SAFE);
 	(void) built_in(in_dict("acyclic_term",1),	p_acyclic_term,	B_SAFE);
@@ -441,10 +433,21 @@ occurs_compound(pword *comp, pword *term)
 }
 #endif
 
+
 /*
- * variant(Term1, Term2)
- * instance(Instance, Term)
- * compare_instances(Rel, Term1, Term2)
+ * compare_instances(?Res, ?Term1, ?Term2, -MetaList)
+ *		Res == '<' iff Term1 is an instance of Term2
+ *		Res == '>' iff Term2 is an instance of Term1
+ *		Res == '=' iff Term1 is a variant of Term2
+ *	fails if none of the above applies (terms not unifiable)
+ *	MetaList is a list of all subterm pairs where at least one side
+ *	is an attributed variable - these are handled later by the
+ *	attribute's compare_instances handlers.
+ *
+ * This is the basis for the builtins
+ *	variant(Term1, Term2)
+ *	instance(Instance, Term)
+ *	compare_instances(Rel, Term1, Term2)
  *
  * Uses the common routine _instance(), which does the work in a single
  * pass through the two terms. The complexity is linear in the size of
@@ -476,48 +479,10 @@ occurs_compound(pword *comp, pword *term)
 #define GT		1
 
 static int
-p_variant_simple(value v1, type t1, value v2, type t2)
-{
-	int		code;
-	pword		**save_tt = TT;
-
-	code = _instance(EQ, v1, t1, v2, t2, (pword *) 0);
-	Untrail_Variables(save_tt);
-	Succeed_If(code);
-}
-
-static int
-p_instance_simple(value v1, type t1, value v2, type t2)
-{
-	int		code;
-	pword		**save_tt = TT;
-
-	code = _instance(LT, v1, t1, v2, t2, (pword *) 0);
-	Untrail_Variables(save_tt);
-	Succeed_If(code);
-}
-
-/*
- *	compare_instances(Res, Term1, Term2)
- *	compare_instances(Res, Term1, Term2, MetaList)
- *		Res == '<' iff Term1 is an instance of Term2
- *		Res == '>' iff Term2 is an instance of Term1
- *		Res == '=' iff Term1 is a variant of Term2
- *	fails if none of the above applies
- */
-static int
-p_compare_instances(value vr, type tr, value v1, type t1, value v2, type t2)
-{
-	type	tdummy;
-	tdummy.kernel = TEND;
-	return p_compare_instances4(vr, tr, v1, t1, v2, t2, v2, tdummy);
-}
-
-static int
 p_compare_instances4(value vr, type tr,
 	value v1, type t1,
 	value v2, type t2,
-	value vl, type tl)	/* when tl == TEND we don't want the list */
+	value vl, type tl)
 {
 	int             code;
 	dident 		res;
@@ -528,7 +493,7 @@ p_compare_instances4(value vr, type tr,
 
 	if (IsRef(tr))
 	{
-	    code = _instance(ANY_INST,v1,t1,v2,t2, tl.kernel==TEND ? 0 : &list);
+	    code = _instance(ANY_INST, v1, t1, v2, t2, &list);
 	    if (code == 0)
 		{ Fail_; }
 	    if (code & EQ)
@@ -544,17 +509,17 @@ p_compare_instances4(value vr, type tr,
 	{
 	    if (vr.did == d_.unify0)
 	    {
-		if (!_instance(EQ,v1,t1,v2,t2, tl.kernel==TEND ? 0 : &list))
+		if (!_instance(EQ,v1,t1,v2,t2, &list))
 		    { Fail_; }
 	    }
 	    else if (vr.did == d_.inf0)
 	    {
-		code = _instance(EQ|LT,v1,t1,v2,t2, tl.kernel==TEND? 0: &list);
+		code = _instance(EQ|LT,v1,t1,v2,t2, &list);
 		if (code != LT) {Fail_; }
 	    }
 	    else if (vr.did == d_.sup0)
 	    {
-		code = _instance(EQ|GT,v1,t1,v2,t2, tl.kernel==TEND? 0: &list);
+		code = _instance(EQ|GT,v1,t1,v2,t2, &list);
 		if (code != GT) {Fail_; }
 	    }
 	    else
@@ -564,10 +529,6 @@ p_compare_instances4(value vr, type tr,
 	else
 	    { Bip_Error(TYPE_ERROR); }
 
-	if (tl.kernel==TEND)
-	{
-	    Succeed_
-	}
 	Return_Unify_Pw(vl, tl, list.val, list.tag)
 }
 
@@ -629,7 +590,7 @@ _instance(int rel,		/* relation type asked for */
 
     for (;;)
     {
-	if (meta && (IsMeta(t1) || IsMeta(t2)))	/* make list of meta pairs */
+	if (IsMeta(t1) || IsMeta(t2))	/* make list of meta pairs */
 	{
 	    arg1 = TG;
 	    TG += 4;
