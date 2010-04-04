@@ -583,12 +583,22 @@ L = []([](a,b), [](c), d, [](e))
 <P>
     Description :   The handler for the usual unification.  Term is the
         term that was unified with the attributed variable, it is
-        either a nonvariable or an attributed variable.  Attribute is
-        directly the contents of the attribute slot corresponding to
-        the extension, i.e.  it is not the whole attributed variable.
-        When this handler is invoked, the attributed variable is already 
-        bound to Term.  
-
+	either a nonvariable or an attributed variable.  Attribute is
+	the contents of the attribute slot corresponding to the
+	extension.  Note that, at this point in execution, the orginal
+	attributed variable no longer exists, because it has already
+	been bound to Term.  The optional third argument is the
+	suspend-attribute of the former variable; it may be needed to
+	wake the variable's 'constrained' suspension list.
+<P>
+	The handler's job is to determine whether the binding is
+	allowed with respect to the attribute.  This could for example
+	involve checking whether the bound term is in a domain
+	described by the attribute.  For variable-variable bindings,
+	typically the remaining attribute must be updated to reflect
+	the intersection of the two individual attributes.  In case of
+	success, suspension lists inside the attributes may need to be
+	scheduled for waking.
 <P>
         If an attributed variable is unified with a standard variable, the
         variable is bound to the attributed variable and no handlers are
@@ -599,7 +609,8 @@ L = []([](a,b), [](c), d, [](e))
         variable bindings can occur e.g. during a head unification and also
         during a single unification of compound terms.  The handlers are
         only invoked at certain trigger points (usually before the next
-        predicate call).
+        regular predicate call).  Woken goals will start executing once
+	all unify-handlers are done.
 
 <P>
 
@@ -609,14 +620,17 @@ L = []([](a,b), [](c), d, [](e))
 <P>
     Handler :   handler(+Term, ?Attribute)
 <P>
-    Description :   The handler for the unification which is not
+    Description :   The handler for a unifiability test which is not
         supposed to trigger constraints propagation.  It is used e.g.
-        in the not_unify/2 predicate.  The handler arguments are
-        equivalent to those of the unification handler, Term is the
-        term that was unified with the attributed variable, Attribute
-        is the attribute of this extension.  During the execution of
-        the handler the attributed variable is bound to Term, however
-        when all local handlers succeed, all bindings are undone.
+	in the not_unify/2 predicate.  The handler arguments are
+	equivalent to those of the unification handler, Term is the
+	term that was unified with the attributed variable, Attribute
+	is the attribute of this extension.  The handler's job is to
+	determine whether Attribute allows unification with Term (not
+	considering effects of woken goals).  During the execution of
+	the handler the attributed variable may be bound to Term,
+	however when all local handlers succeed, all bindings are
+	undone, and no waking occurs.
 <P>
 
 <DT>compare_instances<DD>
@@ -633,9 +647,10 @@ L = []([](a,b), [](c), d, [](e))
 	the attributes imply that TermL is a proper instance of TermR,
 	&gt; if TermR is a proper instance of TermL, and = if the two
 	attributed variables are variants of each other (e.g. they have
-	identical domains).  If the terms are incomparable, the handler
-	should fail.  If the attribute being declared has no bearing on
-	the instance-relationship, this handler should remain undefined.
+	identical domains).  If the terms are incomparable (not unifiable),
+	the handler must fail.  If the attribute being declared has no
+	bearing on the instance-relationship, this handler should remain
+	undefined.
 <P>
 
 <DT>copy_term<DD>
