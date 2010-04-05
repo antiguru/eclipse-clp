@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.6 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.7 2010/04/05 04:47:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.6 2009/07/16 09:11:24 jschimpf Exp $
+% $Id: iso.pl,v 1.7 2010/04/05 04:47:17 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -88,7 +88,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2009/07/16 09:11:24 $`).
+:- comment(date, `$Date: 2010/04/05 04:47:17 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
@@ -322,15 +322,40 @@ stream_property(Stream, Property) :-
 	current_stream(Stream),
 	stream_property1(Stream, Property).
 
-stream_property1(Stream, mode(M)) :-		% 8.11.8
-	get_stream_info(Stream, mode, M).
-stream_property1(Stream, file_name(F)) :-
+stream_property1(Stream, file_name(F)) :-	% 8.11.8 and 7.10.2.13
 	get_stream_info(Stream, name, F).
+stream_property1(Stream, mode(M)) :-
+	get_stream_info(Stream, mode, M).	% don't know if append
+stream_property1(Stream, InOut) :-
+	get_stream_info(Stream, mode, Mode),
+	in_out(Mode, InOut).
+stream_property1(Stream, alias(Alias)) :-
+	current_atom(Alias),
+	current_stream(Alias),
+	get_stream(Alias, Stream).
 stream_property1(Stream, position(P)) :-
 	at(Stream, P).
-stream_property1(_Stream, type(binary)).
 stream_property1(Stream, end_of_stream(P)) :-
-	(at_eof(Stream) -> P = at ; P = no).
+	(at_eof(Stream) -> P = at ; P = not).	% 'past' not available
+stream_property1(Stream, eof_action(default)).
+stream_property1(Stream, reposition(B)) :-
+	get_stream_info(Stream, device, D),
+	repositionable(D, B).
+stream_property1(_Stream, type(binary)).
+	
+    repositionable(file, true).
+    repositionable(null, true).
+    repositionable(pipe, false).
+    repositionable(queue, false).
+    repositionable(socket, false).
+    repositionable(string, true).
+    repositionable(tty, false).
+
+    in_out(read, input).
+    in_out(write, output).
+    in_out(append, output).
+    in_out(update, input).
+    in_out(update, output).
 
 at_end_of_stream :-
 	at_eof(input).
