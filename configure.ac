@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.29 2010/03/13 05:25:44 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.30 2010/04/05 04:08:46 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -185,8 +185,8 @@ RUNPATH_LDFLAG="-Wl,-R"
 # use with $DYLD [generating dynamic library]
 RUNPATH_DYLDFLAG=$RUNPATH_LDFLAG
 
-# OPT_LOCALFLAGS will be appended to LOCALFLAGS if not --enable-debug
-OPT_LOCALFLAGS=""
+# OPT_LOCAL_FLAGS will be appended to LOCALFLAGS if not --enable-debug
+OPT_LOCAL_FLAGS="-DTHREADED"
 OPTIMIZE=cp
 
 #
@@ -230,9 +230,6 @@ origostype=$OSTYPE
 # other supported class is win
 OSCLASS="unix"
 
-LDD="noldd"
-LDDFLAG=
-
 CFLAGS="-fPIC $CFLAGS"
 
 #----------------------------------------------------------------------
@@ -248,7 +245,6 @@ case "$ARCH" in
     if test $? -ne 0; then
 	GCCLIBDIR="."
     fi
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
     OBJECT_SUFFIX=dylib
     OBJECTS_SUFFIX=dylib
@@ -278,7 +274,6 @@ case "$ARCH" in
     if test $? -ne 0; then
 	GCCLIBDIR="."
     fi
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
     OBJECT_SUFFIX=dylib
     OBJECTS_SUFFIX=dylib
@@ -316,7 +311,6 @@ case "$ARCH" in
     LOCK=
     ;;
  sun4)
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-Dsun4_0 -DD_LOAD"
     OPT_LDFLAGS="-Xlinker -x"
     LDFLAGS="-static"
@@ -327,7 +321,6 @@ case "$ARCH" in
     ;;
  supersparc_sunos4)
     CFLAGS="-msupersparc $CFLAGS"
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-Dsun4_0 -DD_LOAD"
     LDFLAGS="-Xlinker -Bstatic"
     RUNPATH_LDFLAG="-L"
@@ -336,7 +329,6 @@ case "$ARCH" in
     WANT_MPS=y
     ;;
  sparc_sunos5)
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     DYNLDFLAGS="-shared"
     AC_DEFINE(SVR4)
@@ -347,10 +339,6 @@ case "$ARCH" in
     PD_C_SO="$LD_C_SO"
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
-    DYLD="\$(CC)"
-    LDYLD="\$CC -shared"
-    LDD="ldd"
-    LDDFLAG=
     WANT_MPS=y
     AC_DEFINE(HAVE_MAP_NORESERVE)
     ;;
@@ -358,7 +346,6 @@ case "$ARCH" in
     CFLAGS="-m32 $CFLAGS"
     LDFLAGS="-m32"
     DYNLDFLAGS="-m32 -G"
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     AC_DEFINE(SVR4)
     OBJECT_SUFFIX=so
@@ -368,10 +355,6 @@ case "$ARCH" in
     PD_C_SO="$LD_C_SO"
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
-    DYLD="\$(CC)"
-    LDYLD="\$CC -shared"
-    LDD="ldd"
-    LDDFLAG=
     WANT_MPS=y
     OSTYPE="solaris"
     AC_DEFINE(HAVE_MAP_NORESERVE)
@@ -380,7 +363,6 @@ case "$ARCH" in
     CFLAGS="-m64 $CFLAGS"
     LDFLAGS="-m64 "
     DYNLDFLAGS="-m64 -shared"
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
 
     AC_DEFINE(SVR4)
@@ -391,15 +373,10 @@ case "$ARCH" in
     PD_C_SO="$LD_C_SO"
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
-    DYLD="\$(CC)"
-    LDYLD="\$CC -shared"
-    LDD="ldd"
-    LDDFLAG=
     WANT_MPS=y
     AC_DEFINE(HAVE_MAP_NORESERVE)
     ;;
  alpha_linux)
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     FLOAT_ROUND_FLAGS="-mfp-rounding-mode=d"
     CFLAGS="-mieee $CFLAGS"
@@ -410,15 +387,10 @@ case "$ARCH" in
     PD_C_SO="$LD_C_SO"
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
-    DYLD="\$(CC)"
-    LDYLD="\$CC -shared"
-    LDD="ldd"
-    LDDFLAG=
     ;;
  i386_linux)
     # -fPIC needed for Security-Enhanced Linux
     OPTIMIZE="sh ../src/opt_i386_linux.sh"
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     OBJECT_SUFFIX=so
     OBJECTS_SUFFIX=so
@@ -427,12 +399,8 @@ case "$ARCH" in
     PD_C_SO="$LD_C_SO"
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
-    DYLD="\$(CC)"
-    LDYLD="\$CC -shared"
     RUNPATH_LDFLAG="-Wl,-rpath "
     RUNPATH_DYLDFLAG="-Wl,-rpath "
-    LDD="ldd"
-    LDDFLAG=
     WANT_MPS=y
     # the check for mman.h does not work in my linux release because
     # of a compiler warning. The following fix fakes the cache value:
@@ -443,7 +411,6 @@ case "$ARCH" in
     OSTYPE="linux"  
     ;;
  x86_64_linux)
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     OBJECT_SUFFIX=so
     OBJECTS_SUFFIX=so
@@ -452,22 +419,15 @@ case "$ARCH" in
     PD_C_SO="$LD_C_SO"
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
-    DYLD="\$(CC)"
-    LDYLD="\$CC -shared"
-    LDD="ldd"
-    LDDFLAG=
     WANT_MPS=y
     # some bash shell set OSTYPE to gnu-linux
     OSTYPE="linux"  
     ;;
  i386_nt)
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
     LIB_PREFIX=
-    DYLD="\$(CC)"
-    LDYLD="\$CC -shared"
     dnl wsock32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lwsock32 -lnetapi32 $LIBS"
@@ -480,7 +440,6 @@ case "$ARCH" in
     ;;
  x86_64_nt)
     CFLAGS="$CFLAGS"
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
@@ -500,7 +459,6 @@ case "$ARCH" in
     LOCAL_FLAGS="-DD_LOAD"
     ;;
  dec5000)
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     AC_DEFINE(REMOTE_TESTS)
     ;;
@@ -523,7 +481,6 @@ case "$ARCH" in
     CFLAGS="-fsigned-char $CFLAGS"
     OPT_FLAGS_EMU=" "
     OPT_FLAGS_ARITH=" "
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     LDFLAGS="-Xlinker -bexport:../../Kernel/src/expsymtab"
     AC_DEFINE(AIX)
@@ -551,7 +508,6 @@ case "$ARCH" in
     CFLAGS="-fsigned-char $CFLAGS"
     OPT_FLAGS_EMU=" "
     OPT_FLAGS_ARITH=" "
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     LDFLAGS="-Xlinker -bexport:../../Kernel/src/expsymtab"
     AC_DEFINE(AIX)
@@ -561,7 +517,6 @@ case "$ARCH" in
     AC_DEFINE(SMALL_SPACE)
     ;;
  hp700_ux90)
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     LIBS="-L/lib/pa1.1 $LIBS"
     LDFLAGS="-Xlinker -a -Xlinker archive"
@@ -569,7 +524,6 @@ case "$ARCH" in
     AC_DEFINE(REMOTE_TESTS)
     ;;
  spp_ux90)
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD"
     LIBS="-L/lib/pa1.1 $LIBS"
     LDFLAGS="-Xlinker -a -Xlinker archive"
@@ -597,7 +551,6 @@ case "$ARCH" in
     ;;
  m88k_svr4)
     OPT_FLAGS_EMU=-O
-    OPT_LOCAL_FLAGS="-DTHREADED"
     LOCAL_FLAGS="-DD_LOAD -DGETTIME1"
     SYSLIBS="-ltermcap $SYSLIBS"
     AC_DEFINE(REMOTE_TESTS)
@@ -611,8 +564,6 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
     DYNLDFLAGS="\$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared"
-    DYLD = "\$(CC)"
-    LDYLD="\$CC -shared"
     WANT_MPS=y
     # FIND_X is buggy, but not path is needed, so the default one will do
     x_libraries=/usr/lib
@@ -643,6 +594,16 @@ fi
 if test -z "$CFLAGS"; then
     # stop AC_PROG_CC from initialising CFLAGS
     CFLAGS=" "
+fi
+
+if test -z "$DYLD"; then
+    DYLD="\$(CC)"
+    LDYLD="\$CC -shared"
+fi
+
+if test -z "$LDD"; then
+    LDD="ldd"
+    LDDFLAG=
 fi
 
 # Find compiler, also sets OBJEXT and EXEEXT
