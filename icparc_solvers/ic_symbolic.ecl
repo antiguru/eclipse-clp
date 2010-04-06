@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: ic_symbolic.ecl,v 1.4 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: ic_symbolic.ecl,v 1.5 2010/04/06 06:09:23 jschimpf Exp $
 %
 % Todo:
 %  -	compile time transformation could do all symbolic->int mapping
@@ -46,7 +46,7 @@
 :- comment(categories, ["Constraints"]).
 :- comment(summary, "Solver for constraints over ordered symbolic domains").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2010/04/06 06:09:23 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 
@@ -152,7 +152,7 @@ have_domain(Xs, DomSpec, _Module) :-
 
 
 :- export indomain/1.
-indomain(_{ic_symbolic with [ic_var:X_ic]}) ?- !,
+indomain(_{ic_symbolic{ic_var:X_ic}}) ?- !,
 	ic:indomain(X_ic).
 indomain(X) :-
 	var(X), !,
@@ -197,17 +197,17 @@ add_new_sic_attribute_unchecked(X, X_ic, Domain) :-
 	notify_constrained(X),
 	wake.
 
-new_sic_attribute(_X, X_ic, Domain, ic_symbolic with [
+new_sic_attribute(_X, X_ic, Domain, ic_symbolic{
 		ic_var:X_ic,
 		dom:Domain
-	]).
+	}).
 
 
 % demon to forward updates to the ic variable to the symbolic one
 
 /*
 :- demon(sync_ic_symbolic/3).
-sync_ic_symbolic(_X, ic_symbolic with [ic_var:X_ic, dom:(Module:Name)], Susp) :-
+sync_ic_symbolic(_X, ic_symbolic{ic_var:X_ic, dom:(Module:Name)}, Susp) :-
 	( nonvar(X_ic) ->
 	    kill_suspension(Susp),
 	    current_domain(Name, _DefModule, DomainArray)@Module,
@@ -217,7 +217,7 @@ sync_ic_symbolic(_X, ic_symbolic with [ic_var:X_ic, dom:(Module:Name)], Susp) :-
 	    % need to unify X and Y, but we don't have Y...
 	).
 */
-sync_ic_symbolic(X, ic_symbolic with [ic_var:X_ic, dom:(Module:Name)]) :-
+sync_ic_symbolic(X, ic_symbolic{ic_var:X_ic, dom:(Module:Name)}) :-
 	% This synchronisation would be more efficient if we would keep
 	% the DomainArray directly in the attribute from the start
 	current_domain(Name, _DefModule, DomainArray)@Module,
@@ -249,7 +249,7 @@ sync_ic_symbolic(X, ic_symbolic with [ic_var:X_ic, dom:(Module:Name)]) :-
 % symbol_to_int(?Sym,?Dom,-Int,-DomLessOut,+DomLessIn,-ClashOut,+ClashIn,+Module).
 %	same for a single variable.
 
-symbol_to_int(X{ic_symbolic with [ic_var:X_ic0,dom:DomainX]}, Domain, X_ic, DomLess, DomLess0, Clash, Clash0, _) ?- !,
+symbol_to_int(X{ic_symbolic{ic_var:X_ic0,dom:DomainX}}, Domain, X_ic, DomLess, DomLess0, Clash, Clash0, _) ?- !,
 	( DomainX = Domain ->
 	    % first or same domain as first
 	    X_ic = X_ic0,
@@ -320,7 +320,7 @@ check_domain(XDomain, NoDom, Clash, ErrorGoal, Module) :-
 
 :- export symbol_domain_index/3.
 :- tool(symbol_domain_index/3, symbol_domain_index_/4).
-symbol_domain_index_(_{ic_symbolic with [ic_var:X_ic0,dom:Domain0]}, Domain, X_ic, _Module) ?- !,
+symbol_domain_index_(_{ic_symbolic{ic_var:X_ic0,dom:Domain0}}, Domain, X_ic, _Module) ?- !,
 	Domain = Domain0, X_ic = X_ic0.
 symbol_domain_index_(X, Domain, X_ic, Module) :-
 	atomic(X),
@@ -354,7 +354,7 @@ is_exact_solver_var(_{ic_symbolic{}}) ?- true.
 
 % copy_term handler
 
-copy_term_ic_symbolic(X{ic_symbolic with [dom:D,ic_var:X_ic]}, Copy) ?- !,
+copy_term_ic_symbolic(X{ic_symbolic{dom:D,ic_var:X_ic}}, Copy) ?- !,
 	ic_kernel:copy_ic_term(X_ic, Copy_ic),
 	add_new_sic_attribute(Copy, Copy_ic, D).
 copy_term_ic_symbolic(_, _).
@@ -375,7 +375,7 @@ unify_ic_symbolic(Term, AttrX, _) :-
 
 unify_term_sic(Y{AttrY}, AttrX) ?-
 	unify_sic_sic(Y, AttrX, AttrY).
-unify_term_sic(Y, ic_symbolic with [ic_var:X_ic, dom:Domain]) :-
+unify_term_sic(Y, ic_symbolic{ic_var:X_ic, dom:Domain}) :-
 	nonvar(Y),
 	% Note: for lack of a better module, we use the definition module of
 	% the domain to look up the constant's domain index. This could cause
@@ -389,7 +389,7 @@ unify_sic_sic(Y, AttrX, AttrY) :-
 	var(AttrY),
 	AttrY = AttrX,			% transfer the attribute
 	notify_constrained(Y).
-unify_sic_sic(_, ic_symbolic with [dom:D,ic_var:X_ic], ic_symbolic with [dom:D,ic_var:Y_ic]) ?-
+unify_sic_sic(_, ic_symbolic{dom:D,ic_var:X_ic}, ic_symbolic{dom:D,ic_var:Y_ic}) ?-
 	% head matching fails if domains differ
 	Y_ic = X_ic.
 
@@ -404,7 +404,7 @@ test_unify_ic_symbolic(Term, AttrX) :-
 
 test_unify_term_sic(_Y{AttrY}, AttrX) ?-
 	test_unify_sic_sic(AttrY, AttrX).
-test_unify_term_sic(Y, ic_symbolic with [ic_var:X_ic, dom:Domain]) :-
+test_unify_term_sic(Y, ic_symbolic{ic_var:X_ic, dom:Domain}) :-
 	nonvar(Y),
 	Domain = Module:_,
 	domain_index(Y, Domain, Y_ic)@Module,
@@ -412,7 +412,7 @@ test_unify_term_sic(Y, ic_symbolic with [ic_var:X_ic, dom:Domain]) :-
 
 test_unify_sic_sic(AttrY, _AttrX) :-
 	var(AttrY).
-test_unify_sic_sic(ic_symbolic with [dom:D,ic_var:Y_ic], ic_symbolic with [dom:D,ic_var:X_ic]) ?-
+test_unify_sic_sic(ic_symbolic{dom:D,ic_var:Y_ic}, ic_symbolic{dom:D,ic_var:X_ic}) ?-
 	% head matching fails if domains differ
 	\+ not_unify(Y_ic, X_ic).
 
@@ -423,7 +423,7 @@ get_domain_as_list(Value, [Value]) :-
 	atom(Value).
 	% We could check for valid domain value instead (but would need Module):
 	% domain_index(Value, _Domain, _Index)@Module.
-get_domain_as_list(_{ic_symbolic with [ic_var:X_ic,dom:(Module:Name)]}, Values) ?-
+get_domain_as_list(_{ic_symbolic{ic_var:X_ic,dom:(Module:Name)}}, Values) ?-
 	ic_kernel:get_domain_as_list(X_ic, IcDomain),
 	current_domain(Name, _DefModule, DomainArray)@Module,
 	(
@@ -475,21 +475,21 @@ compare_instances_attr_attr(Res, AttrX, AttrY) :- nonvar(AttrX),
 compare_instances_iattr_attr(Res, _AttrX, AttrY) :- var(AttrY), !,
 	Res = (<).
 compare_instances_iattr_attr(Res,
-		ic_symbolic with [dom:Dom,ic_var:X_ic],
-		ic_symbolic with [dom:Dom,ic_var:Y_ic]) ?-
+		ic_symbolic{dom:Dom,ic_var:X_ic},
+		ic_symbolic{dom:Dom,ic_var:Y_ic}) ?-
 	% head matching fails if different domains
 	ic_kernel:compare_ic_instances(Res, X_ic, Y_ic).
 
 compare_instances_const_attr(Res, _X, AttrY) :- var(AttrY), !,
 	Res = (<).
-compare_instances_const_attr(Res, X, ic_symbolic with [dom:Domain, ic_var:Y_ic]) ?-
+compare_instances_const_attr(Res, X, ic_symbolic{dom:Domain, ic_var:Y_ic}) ?-
 	Domain = Module:_,
 	domain_index(X, Domain, X_ic)@Module, % may fail (X has no/other domain)
 	ic_kernel:compare_ic_instances(Res, X_ic, Y_ic).
 
 compare_instances_attr_const(Res, AttrX, _Y) :- var(AttrX), !,
 	Res = (>).
-compare_instances_attr_const(Res, ic_symbolic with [dom:Domain, ic_var:X_ic], Y) ?-
+compare_instances_attr_const(Res, ic_symbolic{dom:Domain, ic_var:X_ic}, Y) ?-
 	Domain = Module:_,
 	domain_index(Y, Domain, Y_ic)@Module, % may fail (Y has no/other domain)
 	ic_kernel:compare_ic_instances(Res, X_ic, Y_ic).
@@ -531,15 +531,15 @@ msg_const_any(X, Y, G, Module) :- atomic(Y), !,
 msg_const_any(_X, _Y, _G, _Module).	% Y has no domain (not atomic)
 
 msg_const_attr(_X, YAttr, _G, _Module) :- var(YAttr), !.
-msg_const_attr(X, ic_symbolic with [dom:Domain,ic_var:Y_ic], G, Module) ?-
+msg_const_attr(X, ic_symbolic{dom:Domain,ic_var:Y_ic}, G, Module) ?-
 	domain_index(X, Domain, X_ic)@Module, % may fail (X has no/other domain)
 	!,
 	ic_kernel:msg(X_ic, Y_ic, G_ic),
 	add_new_sic_attribute(G, G_ic, Domain).
 msg_const_attr(_X, _YAttr, _G, _Module).	% no or different domains
 
-msg_attr_attr(ic_symbolic with [dom:Domain,ic_var:X_ic],
-		ic_symbolic with [dom:Domain,ic_var:Y_ic], G) ?- !,
+msg_attr_attr(ic_symbolic{dom:Domain,ic_var:X_ic},
+		ic_symbolic{dom:Domain,ic_var:Y_ic}, G) ?- !,
 	ic_kernel:msg(X_ic, Y_ic, G_ic),
 	add_new_sic_attribute(G, G_ic, Domain).
 msg_attr_attr(_XAttr, _YAttr, _G).		% no or different domains

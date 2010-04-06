@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Hani El-Sakkout, Stefano Novello, Joachim Schimpf, IC-Parc
-% Version:	$Id: repair.pl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: repair.pl,v 1.3 2010/04/06 06:09:23 jschimpf Exp $
 %
 %
 % EXTENSIONS
@@ -120,14 +120,14 @@
 :- export portray(monitor_conflict/(property(arity) of monitor_conflict), tr_monitors/2, [goal]).
 
 tr_monitors(monitor_tenable(V,_,T), monitor_tenable(V,T)).
-tr_monitors(monitor_conflict with [constraint:C], monitor_conflict(C)).
+tr_monitors(monitor_conflict{constraint:C}, monitor_conflict(C)).
 
 
 :- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Repair library: support for local search via tentative assignments and repair constraints").
 :- comment(author, "Hani El-Sakkout, Stefano Novello, Joachim Schimpf").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2010/04/06 06:09:23 $").
 
 :- comment(desc, html("\
 The repair library provides a framework for the integration of repair-based
@@ -200,14 +200,14 @@ summary: "Obsolete: use conflict_constraints/2 instead."
 % :- meta_attribute(...)  see above
 
 print_repair(X, TVal) :-
-	get_repair_attr(X, repair with tent:TVal),
+	get_repair_attr(X, repair{tent:TVal}),
 	nonvar(TVal).
 
 repair_suspensions_handler(_{Attr}, Susps, Susps0) ?-
 	( var(Attr) ->
 	    Susps=Susps0
 	;
-	    Attr = repair with [ga_chg:S],
+	    Attr = repair{ga_chg:S},
 	    Susps = [S|Susps0]
 	).
 
@@ -225,8 +225,8 @@ repair_unify_handler1(Var{Attr1}, Attr2) :-
 	( var(Attr1) ->
 	    Attr1 = Attr2	% transfer the whole attribute
 	;
-	    Attr1 = (repair with [tent:TV1,mon:M1]),
-	    Attr2 = (repair with [tent:TV2,mon:M2]),
+	    Attr1 = repair{tent:TV1,mon:M1},
+	    Attr2 = repair{tent:TV2,mon:M2},
 	    'ASSERT'(writeln(unify_var_var(TV1,TV2))),
 	    inc(var_var_unify),
 	    ( TV1 == TV2 ->
@@ -250,7 +250,7 @@ repair_unify_handler1(Var{Attr1}, Attr2) :-
 	    merge_suspension_lists(ga_chg of repair,Attr2,ga_chg of repair,Attr1)
 	).
 repair_unify_handler1(Nonvar, Attr) :-
-	Attr = (repair with [tent:TVal,mon:M]),
+	Attr = repair{tent:TVal,mon:M},
 	'ASSERT'(writeln(unify_nonvar_var(Nonvar,TVal))),
 	inc(nonvar_var_unify),
 	(var(TVal) ->
@@ -290,11 +290,11 @@ get_repair_state(S) :-
 	( compound(RepairState) ->
 		S = RepairState
 	; % needs initialisation
-		S = repair_state with [
+		S = repair_state{
 		    conflict_vars:CVs,
 		    conflict_constraints:CCs,
 		    conflict_hash_constraints:H
-		],
+		},
 		set_new(CVs),
 		set_new(CCs),
 		hash_create(H),
@@ -613,12 +613,12 @@ setup_conflict_monitor(ConfSet,Constraint,Annotation,PropFlag,Module) :-
 	add_repair_attrs(Vars),
 	elem_new(Susp,ConfSet,ConfElem),
 	suspend(
-	    monitor_conflict with [
+	    monitor_conflict{
 		constraint:Constraint,
 	    	annotation:Annotation,
 		conflict:ConfElem,
 		prop:PropFlag,
-		module:Module],
+		module:Module},
 	    8,
 	    [Vars->constrained, Vars->ga_chg],
 	    Susp),
@@ -643,10 +643,9 @@ setup_conflict_monitor(ConfSet,Constraint,Annotation,PropFlag,Module) :-
 % 	unknown		-tentative val change->	sat/unsat
 %       
 
-:- functor(monitor_conflict with [], N, A),
-   demon(N/A).
-monitor_conflict with [constraint:C,annotation:_Annotation,
-			conflict:ConfElem,prop:PropFlag,module:Module] :-
+:- demon(property(functor) of monitor_conflict).
+monitor_conflict{constraint:C,annotation:_Annotation,
+			conflict:ConfElem,prop:PropFlag,module:Module} :-
 	( tentative_ground(C ,AlmostGroundConstraint,Vars),
 	  not not call(AlmostGroundConstraint)@Module ->
 	    elem_del(ConfElem),
@@ -697,7 +696,7 @@ propagate(0,C,M,Elem):-
 :- demon(monitor_tenable/3).
 monitor_tenable(Var, Attr, S) :-
 	S=s(WasTenable),
-	Attr = repair with [tent:TVal,mon:EM],
+	Attr = repair{tent:TVal,mon:EM},
 	'ASSERT'((var(Var),writeln(mon(Var,TVal,WasTenable)))),
 	( not_unify(Var , TVal) ->
 	    ( WasTenable == yes ->
@@ -750,7 +749,7 @@ involving thevariable. Note that variables with no tentative values are
 considered tenable.</P>")
 ]).
 
-tenable(X{repair with tent:TVal}) :-
+tenable(X{repair{tent:TVal}}) :-
 	-?->
 	!,
 	not not_unify(X , TVal).
@@ -772,7 +771,7 @@ tentative_ground(Original,Copy,Vars) :-
 	tentative_ground_pairs([],novars).
 	tentative_ground_pairs([[Original|Copy]|Pairs],vars) :-
 	    get_repair_attr(Original, Attr),
-	    Attr = repair with tent:TVal,
+	    Attr = repair{tent:TVal},
 	    ( var(TVal) ->
 		copy_term(Original,Copy)
 	    ; not_unify(Original , TVal) ->
@@ -823,7 +822,7 @@ tent_set/2 must be used instead.
 Var tent_get TVal :-
 	var(Var),
 	!,
-	get_repair_attr(Var,repair with tent:TVal0),
+	get_repair_attr(Var,repair{tent:TVal0}),
 	( var(TVal0) ->
 	    true
 	;
@@ -900,7 +899,7 @@ Term tent_set GroundTerm :-
 	    % nonvar(NewTVal), is guaranteed by calling via tent_set/2.
 	    !,
 	    get_repair_attr(Var, Attr),
-	    Attr = (repair with [tent:OldTVal,mon:Mon]),
+	    Attr = repair{tent:OldTVal,mon:Mon},
 	    ( var(OldTVal) ->
 		'ASSERT'(var(Mon)),
 		NewTVal = OldTVal,
@@ -983,7 +982,7 @@ get_repair_attr(X, Attr) :-
 	nonvar(A), Attr=A.
 
     new_repair_attr(X, Attr) :-		% make a new repair-variable
-	Attr = (repair with []),
+	Attr = repair{},
 %	init_suspension_list(to_unten of repair,Attr),
 	init_suspension_list(ga_chg of repair,Attr),
 	add_attribute(X, Attr).
@@ -1027,7 +1026,7 @@ tent_is(Sum, Expr, Module) :-
 	    fromto(Cst, In, Out, TentSum),
 	    param(Sum)
 	do
-	    get_repair_attr(V, repair with tent:TV),	% or make attr
+	    get_repair_attr(V, repair{tent:TV}),	% or make attr
 	    ( var(TV) -> T=0 ; T=TV ),	% no tent value treated as zero
 	    Out is In + T * C,
 	    suspend(sum_update(C*V,T,Sum,Susp), 2, [V->inst,V->ga_chg], Susp)
@@ -1248,7 +1247,7 @@ conflict_constraints(SetName, Cs) :-
 extract_annotations([],[]).
 extract_annotations([Susp|Susps],[A|As]) :-
 	get_suspension_data(Susp, goal, Goal),
-	Goal = monitor_conflict with annotation:A,
+	Goal = monitor_conflict{annotation:A},
 	extract_annotations(Susps,As).
 
 :- comment(poss_conflict_vars/2, [
@@ -1305,7 +1304,7 @@ call_satisfied_constraints :-
     call_satisfied_suspensions([]).
     call_satisfied_suspensions([S|Ss]):-
 	( get_suspension_data(S, goal, G),
-	  G = monitor_conflict with [constraint:Constraint,prop:0,module:Module] ->
+	  G = monitor_conflict{constraint:Constraint,prop:0,module:Module} ->
 	    call(Constraint)@Module,
 	    setarg(prop of monitor_conflict,G,1) % set flag to say goal called
 	;
@@ -1320,7 +1319,7 @@ kill_monitor_conflict :-
     kill_suspensions([]).
     kill_suspensions([S|Ss]):-
 	( get_suspension_data(S, goal, G),
-	  G = monitor_conflict with [constraint:Constraint,prop:PropFlag,module:Module] ->
+	  G = monitor_conflict{constraint:Constraint,prop:PropFlag,module:Module} ->
 	    ( PropFlag == 0 ->
 		call(Constraint)@Module
 	    ;
