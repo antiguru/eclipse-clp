@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.8 2010/03/15 01:55:15 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.9 2010/04/09 04:38:38 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2010/03/15 01:55:15 $').
+:- comment(date, '$Date: 2010/04/09 04:38:38 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -115,12 +115,9 @@
     <DT>public/1
 	<DD>synonym for export/1 
     <DT>statistics/0, 2 
-	<DD>these predicates are slightly different than in Quintus,
-	see the description of the ECLiPSe statistics/2 predicate. 
-	The predicate statistics/2 also accepts all Quintus values in
-	the Quintus mode, but for stack_shifts is always returns
-	zeros.  statistics/0 returns only Quintus values when in
-	Quintus mode. 
+	<DD>these predicates are slightly different than in Quintus, in
+	particular the meaning of the memory statistics is approximate,
+	and the output format is different.
     <DT>ttyflush/0, ttyget/1, ttyget0/1, ttynl/0, ttyput/1, ttyskip/1, ttytab/1 
 	<DD>these predicates work with the stdout stream 
     <DT>line_position/2
@@ -174,6 +171,8 @@
 	recorda/3,
 	recordz/3,
 	recorded/3,
+	statistics/0,
+	statistics/2,
 	use_module/1,
 	use_module_body/2.
 
@@ -302,6 +301,8 @@
 	set_output/1,
 	source_file/1,
 	source_file/2,
+	statistics/0,
+	statistics/2,
 	stream_code/2,
 	stream_position/2,
 	stream_position/3,
@@ -988,6 +989,107 @@ absolute_file_name(Rel, Abs) :-
 	  (existing_file(Rel, Sufs, [], ExtRel) -> true ; ExtRel = Rel),
 	  canonical_path_name(ExtRel, Abs)
         ).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% *** Statistics ***
+
+/*
+memory (total)          377000 bytes:     350636 in use,       26364 free
+   program space        219572 bytes
+      atom space         (2804 atoms)      61024 in use,  43104 free
+   global space          65532 bytes:       9088 in use,      56444 free
+      global stack                          6984 bytes
+      trail                                   16 bytes
+      system                                2088 bytes
+   local stack           65532 bytes:        356 in use,      65176 free
+      local stack                            332 bytes
+      system                                  24 bytes
+ 0.000 sec.  for 0 global and 0 local space shifts
+ 0.000 sec.  for 0 garbage collections which collected 0 bytes
+ 0.000 sec.  for 0 atom garbage collections which collected 0 bytes
+ 0.233 sec.  runtime
+*/
+
+:- local variable(systime, 0),
+	variable(realtime, 0),
+	variable(walltime, 0).
+
+statistics(runtime, TotalLast) :-
+	eclipse_language:statistics(runtime, TotalLast).
+statistics(system_time, [Total,Last]) :-
+	eclipse_language:statistics(times, [_User,System,_Real]),
+	Total is fix(System*1000),
+	getval(systime, Prev),
+	Last is Total - Prev,
+	setval(systime, Total).
+statistics(real_time, [Total,Last]) :-
+	eclipse_language:statistics(times, [_User,_System,Real]),
+	Total is fix(Real*1000),
+	getval(realtime, Prev),
+	Last is Total - Prev,
+	setval(realtime, Total).
+statistics(walltime, [Total,Last]) :-		% Sicstus
+	eclipse_language:statistics(times, [_User,_System,Real]),
+	Total is fix(Real*1000),
+	getval(walltime, Prev),
+	Last is Total - Prev,
+	setval(walltime, Total).
+statistics(memory, [Total, 0]) :-
+	Total is  (eclipse_language:statistics(shared_heap_allocated))
+		+ (eclipse_language:statistics(private_heap_allocated))
+		+ (eclipse_language:statistics(global_stack_allocated))
+		+ (eclipse_language:statistics(control_stack_allocated))
+		+ (eclipse_language:statistics(trail_stack_allocated))
+		+ (eclipse_language:statistics(local_stack_allocated)).
+statistics(program, [Used, Free]) :-
+	eclipse_language:statistics(shared_heap_used, Used),
+	Free is (eclipse_language:statistics(shared_heap_allocated)) - Used.
+statistics(global_stack, [Used, Free]) :-
+	eclipse_language:statistics(global_stack_used, Used),
+	Free is (eclipse_language:statistics(global_stack_allocated)) - Used.
+statistics(local_stack, [Used, Free]) :-
+	Used is (eclipse_language:statistics(local_stack_used))
+		+ (eclipse_language:statistics(control_stack_used)),
+	Free is (eclipse_language:statistics(local_stack_allocated))
+		+ (eclipse_language:statistics(control_stack_allocated)) - Used.
+statistics(trail, [Used, Free]) :-
+	eclipse_language:statistics(trail_stack_used, Used),
+	Free is (eclipse_language:statistics(trail_stack_allocated)) - Used.
+statistics(choice, [Used, Free]) :-		% Sicstus
+	eclipse_language:statistics(control_stack_used, Used),
+	Free is (eclipse_language:statistics(control_stack_allocated)) - Used.
+statistics(stacks, [Global, Local]) :-		% Sicstus
+	eclipse_language:statistics(global_stack_used, Global),
+	Local is (eclipse_language:statistics(local_stack_used))
+		+ (eclipse_language:statistics(control_stack_used)).
+statistics(garbage_collection, [Number, Freed, Time]) :-
+	eclipse_language:statistics(gc_number, Number),
+	eclipse_language:statistics(gc_collected, Freed),
+	eclipse_language:statistics(gc_time, Time).
+statistics(stack_shifts, [0, 0, 0.0]).
+statistics(atoms, [Number,Used,Free]) :-
+	eclipse_language:statistics(dictionary_entries, Number),
+	eclipse_language:statistics(dict_hash_usage, Used/Total),
+	Free is Total-Used.
+statistics(atom_garbage_collection, [Number,-1,Time]) :-
+	eclipse_language:statistics(dict_gc_number, Number),
+	eclipse_language:statistics(dict_gc_time, Time).
+statistics(core, List) :-			% DEC-10
+	statistics(memory, List).
+statistics(heap, List) :-			% DEC-10
+	statistics(program, List).
+
+statistics :-
+	nl(log_output),
+	(
+	    statistics(What, Value),
+	    Fill is 24 - atom_length(What),
+	    printf(log_output, '%w:%*c%w%n', [What, Fill, 0' , Value]),
+	    fail
+	;
+	    true
+	).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.8 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.9 2010/04/09 04:38:38 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -689,50 +689,20 @@ get_stat(dict_hash_collisions, C/U, '', sepia) :- dict_param(4, C), dict_param(3
 get_stat(dict_gc_number, X, '', sepia) :-	dict_param(5, X).
 get_stat(dict_gc_time, X, seconds, sepia) :-	dict_param(6, X).
 
-get_stat(runtime, [Total, Last], '', quintus) :-	% compatibility stuff
-% Kish 99-7-2: removed garbage collection time (as done in SICStus)
+get_stat(runtime, [Total, Last], '', quintus) :-	% compatibility, very common
 	gc_stat(4, Gc),
 	Total is fix((cputime - Gc) * 1000),
 	getval(runtime, Old),
 	Last is Total - Old,
 	setval(runtime, Total).
-get_stat(memory, [Total, 0], '', quintus) :-
-	Total is heap_stat(0) + heap_stat(2) + gc_stat(9) + gc_stat(17) +
-             gc_stat(13) + gc_stat(21).
-get_stat(program, [Used, Free], '', quintus) :-
-	heap_stat(1, Used),
-	Free is heap_stat(0) - Used.
-get_stat(global_stack, [Used, Free], '', quintus) :-
-	gc_stat(8, Used),
-	Free is gc_stat(9) - Used.
-get_stat(local_stack, [Used, Free], '', quintus) :-
-	Used is gc_stat(20) + gc_stat(16),
-	Free is gc_stat(21) + gc_stat(17) - Used.
-get_stat(trail, [Used, Free], '', quintus) :-
-	gc_stat(12, Used),
-	Free is gc_stat(13) - Used.
-get_stat(garbage_collection, [Number, Freed, Time], '', quintus) :-
-	gc_stat(0, Number),
-	gc_stat(1, Freed),
-	gc_stat(4, Time).
-get_stat(stack_shifts, [0, 0, 0], '', quintus).
-get_stat(core, List, '', quintus) :-
-	get_stat(memory, List, '', quintus).
-get_stat(heap, List, '', quintus) :-
-	get_stat(program, List, '', quintus).
 
 statistics :-
 	statistics(log_output).
 
 statistics(Stream) :-
 	nl(Stream),
-	(is_a_module(quintus) ->
-		System = quintus
-	;
-		System = sepia
-	),
-	get_stat(What, Value, Unit, System),
-	Fill is 23 - atom_length(What),
+	get_stat(What, Value, Unit, sepia),
+	Fill is 24 - atom_length(What),
 	printf(Stream, "%w:%*c%w %w\n", [What, Fill, 0' , Value, Unit]),
 	fail.
 statistics(Stream) :-
