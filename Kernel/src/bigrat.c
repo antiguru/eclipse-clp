@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.4 2010/04/11 02:36:01 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -874,6 +874,9 @@ _write_rat(int quoted, stream_id stream, value vrat, type trat)
     int res = _write_big(quoted, stream, vrat.ptr[0].val, vrat.ptr[0].tag);
     if (res != PSUCCEED) return res;
     (void) ec_outfc(stream, '_');
+#ifdef ALT_RAT_SYNTAX
+    (void) ec_outfc(stream, '/');
+#endif
     return _write_big(quoted, stream, vrat.ptr[1].val, vrat.ptr[1].tag);
 }
 
@@ -888,7 +891,11 @@ _rat_string_size(value vr, type tr, int quoted)
     len = mpz_sizeinbase(&bign, 10) + (mpz_sgn(&bign) < 0 ? 1 : 0);
     Big_To_Mpi(vr.ptr[1].val.ptr, &bign);
     len += mpz_sizeinbase(&bign, 10);
+#ifdef ALT_RAT_SYNTAX
+    return len + 2;		/* for the "_/" */
+#else
     return len + 1;		/* for the "_" */
+#endif
 }
 
 /*ARGSUSED*/
@@ -902,6 +909,9 @@ _rat_to_string(value vr, type tr, char *buf, int quoted)
     (void) mpz_get_str(s, 10, &bign);
     while (*s) s++;
     *s++ = '_';
+#ifdef ALT_RAT_SYNTAX
+    *s++ = '/';
+#endif
     Big_To_Mpi(vr.ptr[1].val.ptr, &bign);
     (void) mpz_get_str(s, 10, &bign);
     while (*s) s++;
@@ -983,6 +993,9 @@ _rat_from_string(char *s,	/* points to valid rational representation */
 	Bip_Error(BAD_FORMAT_STRING)
     }
     *s1++ = '_';
+#ifdef ALT_RAT_SYNTAX
+    if (*s1 == '/') ++s1;	/* allow 3_4 or 3_/4 */
+#endif
     if (mpz_set_str(mpq_denref(&a), s1, base) || MpiZero(mpq_denref(&a))) {
 	mpq_clear(&a);
 	Bip_Error(BAD_FORMAT_STRING)

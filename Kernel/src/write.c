@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.6 2010/03/15 01:51:56 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.7 2010/04/11 02:36:01 jschimpf Exp $
  */
 
 /*
@@ -1698,13 +1698,19 @@ _float_to_string(value v, type t, char *buf, int precise)
     char *s;
     char *bufp = buf;
     int dot_seen = 0;
+    int is_nan = 0;
     double f = Dbl(v);
 
     if (!GoodFloat(f))
     {
-	s = "1.0NaN";		/* should not occur normally */
+	ieee_double nan;
+	is_nan = 1;
+	nan.as_dbl = f;
+	/* change the exponent to 1 and print as a number */
+	nan.as_struct.mant1 = (nan.as_struct.mant1 & 0x800FFFFF)|0x3FF00000;
+	f = nan.as_dbl;
     }
-    else if (!finite(f))
+    if (!finite(f))
     {
 	s = f < 0 ? "-1.0Inf" : "1.0Inf";
     }
@@ -1755,15 +1761,20 @@ _float_to_string(value v, type t, char *buf, int precise)
 		    *bufp++ = '.';	/* insert .0 */
 		    *bufp++ = '0';
 		}
-		*bufp = 0;
-		return bufp - buf;
+		*bufp++ = 0;
+		goto _return_;
 	    }
 	    *bufp++ = *s++;
 	}
 	/* NOTREACHED */
     }
-    while ((*bufp++ = *s++))
-	;				/* copy the rest */
+    while ((*bufp++ = *s++)) {}		/* copy the rest of sprintf result */
+_return_:
+    if (is_nan) {
+	s = "NaN";
+	--bufp;
+	while ((*bufp++ = *s++)) {}
+    }
     return (bufp - buf) - 1;
 }
 

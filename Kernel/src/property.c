@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.5 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.6 2010/04/11 02:36:01 jschimpf Exp $
  */
 
 /*
@@ -2275,19 +2275,6 @@ move_term(pword *pw, pword *dest)
 #define WordOffset(pw, offset)	((pword*)((uword*)(pw) + (offset)))
 #define Words(pwords)	((sizeof(pword)/sizeof(uword))*(pwords))
 
-
-typedef union {
-	double	as_dbl;
-	struct ieee_parts {
-#ifdef WORDS_BIGENDIAN 
-		uint32 mant1;
-		uint32 mant0;
-#else
-		uint32 mant0;
-		uint32 mant1;
-#endif
-	} as_struct;
-} ieee_double;
 
 /* dest is assumeed to equal buf on entry
  * res is set as the result of operations performed by the macro 

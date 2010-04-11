@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.4 2009/03/14 19:10:13 kish_shen Exp $
+* Version:	$Id: intervals.c,v 1.5 2010/04/11 02:36:01 jschimpf Exp $
 *
 
 Supported operations:
@@ -170,26 +170,6 @@ static dident d_undecidable;
 /* ----------------------------------------------------------------------
  *  Auxiliary functions
  * ---------------------------------------------------------------------- */
-
-typedef union {
-	double	as_dbl;
-#if (SIZEOF_WORD == 8)
-	uword as_int;
-#elif (SIZEOF_WORD == 4)
-	struct ieee_parts {
-# ifdef WORDS_BIGENDIAN 
-		uint32 mant1;
-		uint32 mant0;
-# else
-		uint32 mant0;
-		uint32 mant1;
-# endif
-	} as_struct;
-#else
-  PROBLEM: no code for this SIZEOF_WORD
-#endif
-} ieee_double;
-
 
 static int
 samesign(double x, double y)

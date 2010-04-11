@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.5 2010/03/13 05:42:46 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.6 2010/04/11 02:36:01 jschimpf Exp $
  */
 
 /*
@@ -214,6 +214,7 @@ lex_init(int flags)	/* initialization: setting the name of types */
     syntax_flags[18] =	in_dict("atom_subscripts",0);
     syntax_flags[19] =	in_dict("general_subscripts",0);
     syntax_flags[20] =	in_dict("curly_args_as_list",0);
+    syntax_flags[21] =	in_dict("float_needs_point",0);
 
     default_syntax_desc.char_class[EOB_MARK] = RE;
 
@@ -1604,19 +1605,45 @@ _based_number_:				/* (base,iresult) */
 	    Push_Back();		/* the n position*/
 	    goto return_real;
 	}
+	else if (c == 'N')		/* check for NaN */
+	{
+	    Get_Ch(c)
+	    if (c == 'a')
+	    {
+		Get_Ch(c)
+		if (c == 'N') goto return_nan;
+		Push_Back();		/* the N position*/
+	    }
+	    Push_Back();		/* the a position*/
+	    goto return_real;
+	}
 	else				/* no exponent */
 	    goto return_real;
 	/* go read exponent */ 
     }
-    else if (c == 'e' || c == 'E')
+    else if ((c == 'e' || c == 'E') && !(syntax & FLOAT_NEEDS_POINT))
     	;
     else if (c == '_')			/* could be a rational */
     {
 	Get_Ch(c)
 	if (!isdigit(c))
 	{
-	    Push_Back();		/* the non-digit */
-	    goto return_int;		/* just an integer */
+#ifdef ALT_RAT_SYNTAX
+	    if (c != '/')		/* allow for an optional '/' */
+	    {
+		Push_Back();		/* the non-digit */
+		goto return_int;	/* just an integer */
+	    }
+	    Get_Ch(c)
+#endif
+	    if (!isdigit(c))
+	    {
+		Push_Back();		/* the non-digit */
+#ifdef ALT_RAT_SYNTAX
+		Push_Back();		/* the '/' */
+#endif
+		goto return_int;	/* just an integer */
+	    }
 	}
 	do {				/* definitely a rational */
 	    Get_Ch(c)
@@ -1728,11 +1755,6 @@ return_f:				/* f */
     }
     else
     {
-	/* conversion error in atof() ? */
-	if (!GoodFloat(f))
-	{
-	    goto return_err;
-	}
 	Make_Double(result, f)
     }
     
@@ -1768,6 +1790,23 @@ return_int:				/* (flags, iresult, start, base) */
 return_ok:
     if (nst) StreamPtr(nst) = t;
     return (char *) t;
+
+return_nan:				/* we have a NaN */
+    {
+	ieee_double nan;
+	if (nst) start = (char *) StreamLexAux(nst);
+	nan.as_dbl = atof(start);
+	nan.as_struct.mant1 |= 0x7FF00000;	/* change it into a NaN */
+	/*
+	 * Note that signaling NaNs are immediately turned into quiet NaNs
+	 * here, usually by setting the top bit in the significand.
+	 * E.g. 1.2NaN turns into 1.7NaN, nothing we can do about that.
+	 */
+	f = nan.as_dbl;
+	if (!GoodFloat(f))	/* catch 1.0NaN, which is 1.0Inf */
+	    goto return_f;
+    }
+
 return_err:
     result->tag.kernel = TEND;
     if (nst)
