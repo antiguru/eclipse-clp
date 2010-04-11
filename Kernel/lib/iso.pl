@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.7 2010/04/05 04:47:17 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.8 2010/04/11 03:14:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.7 2010/04/05 04:47:17 jschimpf Exp $
+% $Id: iso.pl,v 1.8 2010/04/11 03:14:51 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -78,6 +78,7 @@
 	syntax_option(no_attributes),
 	syntax_option(no_curly_arguments),
 	syntax_option(blanks_after_sign),
+	syntax_option(float_needs_point),
 	syntax_option(limit_arg_precedence).
 
 :- export
@@ -88,7 +89,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2010/04/05 04:47:17 $`).
+:- comment(date, `$Date: 2010/04/11 03:14:51 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
