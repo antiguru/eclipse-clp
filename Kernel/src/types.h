@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.7 2010/04/11 02:36:01 jschimpf Exp $
+ * $Id: types.h,v 1.8 2010/04/18 14:04:08 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -104,7 +104,7 @@ typedef union {
 	double	as_dbl;
 #if (SIZEOF_WORD == 8)
 	uword as_int;
-#elif (SIZEOF_WORD == 4)
+#endif
 	struct ieee_parts {
 # ifdef WORDS_BIGENDIAN 
 		uint32 mant1;
@@ -114,9 +114,6 @@ typedef union {
 		uint32 mant1;
 # endif
 	} as_struct;
-#else
-  PROBLEM: no code for this SIZEOF_WORD
-#endif
 } ieee_double;
 
 
