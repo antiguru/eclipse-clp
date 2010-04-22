@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: t_all.pl,v 1.2 2008/07/24 16:26:31 jschimpf Exp $
+% Version:	$Id: t_all.pl,v 1.3 2010/04/22 14:12:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %-----------------------------------------------------------------------
@@ -186,7 +186,6 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	    set_stream(error, OutputStream),
 	    set_stream(warning_output, OutputStream),
 	    set_stream(log_output, OutputStream),
-	    set_stream(stdout, OutputStream),
 	    set_flag(strip_variables, on),
 	    set_flag(variable_names, off),
 	    set_flag(print_depth, 100000),
@@ -214,8 +213,7 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 		)
 	    ),
 
-	    close(stdout),			% undo output redirections
-	    close(log_output),
+	    close(log_output),			% undo output redirections
 	    close(warning_output),
 	    close(output)
 	;

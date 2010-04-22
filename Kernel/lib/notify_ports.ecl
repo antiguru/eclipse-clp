@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: notify_ports.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: notify_ports.ecl,v 1.3 2010/04/22 14:12:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(notify_ports).
@@ -31,7 +31,7 @@
 :- comment(categories, ["Data Structures","Techniques"]).
 :- comment(summary, "One-to-many and many-to-many notification ports").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/04/22 14:12:49 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- comment(desc, html("<P>
@@ -628,9 +628,9 @@ receive_notifications(ReceivePos, ReceiveStruct, Events, Status) :-
 	arg(ReceivePos, ReceiveStruct, EventStream),
 	receive_notifications(ReceivePos, ReceiveStruct, Events, Status, EventStream).
 
-    receive_notifications(ReceivePos, ReceiveStruct, [], Status, EventStream) :-
+    receive_notifications(ReceivePos, ReceiveStruct, Events, Status, EventStream) :-
     	var(EventStream), !,
-	Status = open,
+	Status = open, Events = [],
 	setarg(ReceivePos, ReceiveStruct, EventStream).
     receive_notifications(_ReceivePos, _ReceiveStruct, [], closed, []).
     receive_notifications(ReceivePos, ReceiveStruct, [E|REs], Status, [E|Es]) :-
@@ -638,9 +638,12 @@ receive_notifications(ReceivePos, ReceiveStruct, Events, Status) :-
 
 
 
+:- export foreachnotification/6.
 :- inline(foreachnotification/6, tr_foreachnotification/3).	
 :- export foreachnotification/7.
 :- inline(foreachnotification/7, tr_foreachnotification/3).	
+
+% compiled form
 tr_foreachnotification(
 	    foreachnotification(BaseName, Event, Params, Receiver, Status, Goals),
 	    Transformed, Module) :-
@@ -669,16 +672,25 @@ tr_foreachnotification(
 	    ])@Module,
 	set_flag(Name/Arity, auxiliary, on)@Module.
 
-:- export foreachnotification/6.
+
+% definitions for metacall
 :- tool(foreachnotification/6, foreachnotification_/7).
-foreachnotification_(BaseName, Event, Params, Receiver, Status, Goals, Module) :-
-	tr_foreachnotification(foreachnotification(BaseName, Event, Params, Receiver, Status, Goals),
-		Transformed, Module),
-	call(Transformed)@Module.
+foreachnotification_(_BaseName, Event, Params, Receiver, Status, Goals, Module) :-
+	    arg(1, Receiver, EventStream),
+	    foreachnotification_call(EventStream, Event, Params, 1, Receiver, Status, Goals, Module).
 
 :- tool(foreachnotification/7, foreachnotification_/8).
-foreachnotification_(BaseName, Event, Params, RecPos, Receiver, Status, Goals, Module) :-
-	tr_foreachnotification(foreachnotification(BaseName, Event, Params, RecPos, Receiver, Status, Goals),
-		Transformed, Module),
-	call(Transformed)@Module.
+foreachnotification_(_BaseName, Event, Params, RecPos, Receiver, Status, Goals, Module) :-
+	    arg(RecPos, Receiver, EventStream),
+	    foreachnotification_call(EventStream, Event, Params, RecPos, Receiver, Status, Goals, Module).
+
+    foreachnotification_call(EventStream, _Event, _Params, RecPos, Receiver, Status, _Goals, _Module) :-
+	var(EventStream), !,
+	Status = open,
+	setarg(RecPos, Receiver, EventStream).
+    foreachnotification_call([], _Event, _Params, _RecPos, _Receiver, closed, _Goals, _Module).
+    foreachnotification_call([Event|Es], EventParam, Params, RecPos, Receiver, Status, Goals, Module) :-
+	copy_term([EventParam|Params]-Goals, [Event|Params]-Copy),
+	call(Copy)@Module,
+	foreachnotification_call(Es, EventParam, Params, RecPos, Receiver, Status, Goals, Module).
 

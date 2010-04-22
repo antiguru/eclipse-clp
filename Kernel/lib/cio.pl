@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cio.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: cio.pl,v 1.3 2010/04/22 14:12:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -50,7 +50,7 @@
 :- comment(summary, "Predicates for C-Prolog style I/O (see/tell family)").
 :- comment(author, "Micha Meier, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/04/22 14:12:49 $").
 :- comment(desc, html("
     This library provides C-Prolog compatible I/O predicates. It is included
     in the C-Prolog compatibility package, but can be used independently.
@@ -68,6 +68,11 @@
 	telling/1,
 	told/0.
 
+% remember input/output the first time we redirect via see/tell
+:- local
+	variable(old_input, unknown),
+	variable(old_output, unknown).
+
 :- pragma(nodebug).
 
 
@@ -79,7 +84,7 @@
 % be done in Sicstus as well. E.g. see/1 and tell/1 can be called
 % with any stream number or stream name, even one that has not been
 % created with a see/tell. Also, seeing/1 and telling/1 return
-% stream numbers if there is no corresponding see/tell file.
+% stream handles if there is no corresponding see/tell file.
 
 stream_to_cprolog_name(Stream, File) :-
 	get_stream_info(Stream, name, File0),
@@ -100,9 +105,21 @@ cprolog_name_to_stream(File, Stream) :-
 	).
 
 
-see(user) :- !,
-	set_stream(input, stdin).
+see(user) ?- !,
+	getval(old_input, OldInput),
+	( OldInput == unknown ->
+	    true
+	;
+	    setval(old_input, unknown),
+	    set_stream(input, OldInput)
+	).
 see(File) :-
+	( getval(old_input, unknown) ->
+	    get_stream(input, OldInput),
+	    setval(old_input, OldInput)
+	;
+	    true
+	),
 	( cprolog_name_to_stream(File, Stream) ->
 	    true
 	;
@@ -119,13 +136,31 @@ seeing(File) :-
 
 seen :-
 	seeing(File),
-	close(File),
-	set_stream(input, stdin).
+	getval(old_input, OldInput),
+	( OldInput == unknown ->
+	    true
+	;
+	    close(File),
+	    setval(old_input, unknown),
+	    set_stream(input, OldInput)
+	).
 
 
-tell(user) :- !,
-	set_stream(output, stdout).
+tell(user) ?- !,
+	getval(old_output, OldOutput),
+	( OldOutput == unknown ->
+	    true
+	;
+	    setval(old_output, unknown),
+	    set_stream(output, OldOutput)
+	).
 tell(File) :-
+	( getval(old_output, unknown) ->
+	    get_stream(output, OldOutput),
+	    setval(old_output, OldOutput)
+	;
+	    true
+	),
 	( cprolog_name_to_stream(File, Stream) ->
 	    true
 	;
@@ -142,8 +177,14 @@ telling(File) :-
 
 told :-
 	telling(File),
-	close(File),
-	set_stream(output, stdout).
+	getval(old_output, OldOutput),
+	( OldOutput == unknown ->
+	    true
+	;
+	    close(File),
+	    setval(old_output, unknown),
+	    set_stream(output, OldOutput)
+	).
 
 
 skip(S) :-

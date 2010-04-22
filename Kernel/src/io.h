@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: io.h,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: io.h,v 1.3 2010/04/22 14:09:47 jschimpf Exp $
  */
 
 /*
@@ -73,6 +73,10 @@
 #define StreamFILE(nst)		((FILE *) (nst)->stdfile)
 #define StreamMethods(nst)	(* (io_channel_t *) (nst)->methods)
 #define SetStreamMethods(nst,m)	(nst)->methods = (void_ptr) (m);
+
+#define StreamHandle(nst) \
+	( ++StreamNref(nst), ec_handle(&stream_tid, (t_ext_ptr) nst))
+
 
 /* some of the data is used for sockets differently */
 #define SocketInputStream(nst)	StreamPromptStream(nst)
@@ -158,6 +162,7 @@
 #define SNOMACROEXP	0x40000	/* suppress macro expansion	*/
 #define SCOMPRESS	0x80000	/* try to compress output on this stream */
 #define SSELECTABLE	0x100000 /* stream supports select/3 */
+#define SNUMBERUSED	0x200000 /* stream may be referred to by number */
 
 
 /* how many characters can be ungotten */
@@ -190,30 +195,6 @@
 #define RemoteStream(nst) \
 	(nst->fd_pid && nst->fd_pid != own_pid && nst->aport)
 
-/*
- * The stream number can be the $$stream property of some atom. The
- * value of the property stores the stream number and the tag is TINT.
- */
-
-/*
- * Set the stream number as a property of the atom's did. The counter for
- * the previous stream, if any, is decremented, and new new one is incremented.
- */
-#define Set_Stream(sdid, nst)						\
-	{								\
-		pword   *prop;						\
-		prop = get_property(sdid, STREAM_PROP);			\
-		if (prop == (pword *) NULL)				\
-		    prop = set_property(sdid, STREAM_PROP);		\
-		else							\
-		{							\
-		    StreamNref(StreamId(prop->val.nint))--;		\
-		}							\
-		prop->val.nint = StreamNr(nst);				\
-		prop->tag.kernel = TINT;				\
-		if (StreamNref(nst)++ == MAX_NREF)			\
-		    return(TOO_MANY_NAMES);				\
-	}
 
 /* defines for the output functions */
 
@@ -316,3 +297,4 @@ Extern char	*ec_getstring ARGS((stream_id,word,word*));
 Extern char	*string_to_number ARGS((char *start, pword *result, stream_id nst, int syntax));
 
 
+Extern t_ext_type stream_tid;

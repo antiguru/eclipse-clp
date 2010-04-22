@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.4 2010/03/11 14:27:12 kish_shen Exp $
+ * VERSION	$Id: bip_io.c,v 1.5 2010/04/22 14:09:47 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -161,7 +161,8 @@ typedef int socket_t;
 	    if ((_res = set_stream(IsNil(t) ? d_.nil : (v).did, s)) < 0)	\
 		{ Bip_Error(_res); }			\
 	} else {					\
-	    Bind_Var(v, t, StreamNr(s), TINT);		\
+	    pword hstream = StreamHandle(s);		\
+	    Bind_Var(v, t, hstream.val.all, hstream.tag.kernel);	\
 	}
 
 #define MAX_ARGS	30
@@ -267,6 +268,7 @@ static int     		p_nl(value vs, type ts),
 			p_set_prompt(value iv, type it, value pv, type pt, value ov, type ot),
 			p_is_open_stream(value vc, type tc),
 			p_check_valid_stream(value v, type t),
+			p_check_stream_spec(value v, type t),
 			p_set_stream(value ov, type ot, value nv, type nt),
 			p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value val, type tag),
 			p_at(value vs, type ts, value vp, type tp),
@@ -295,6 +297,7 @@ static int     		p_nl(value vs, type ts),
 #endif
 			p_stream_number(value val1, type tag1),
 			p_get_stream(value vi, type ti, value vs, type ts),
+			p_next_open_stream(value v1, type t1, value v2, type t2),
 			p_seek(value vs, type ts, value vp, type tp),
 			p_stream_truncate(value vs, type ts),
 			p_stream_info_(value vs, type ts, value vi, type ti, value v, type t),
@@ -358,6 +361,8 @@ bip_io_init(int flags)
 			p_is_open_stream, B_SAFE);
 	(void) local_built_in(in_dict("check_valid_stream", 1),
 			p_check_valid_stream, B_SAFE);
+	(void) local_built_in(in_dict("check_stream_spec", 1),
+			p_check_stream_spec, B_SAFE);
 	(void) built_in(in_dict("get_stream",2),	p_get_stream, B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("set_stream",2),	p_set_stream, B_SAFE);
 	(void) built_in(in_dict("seek",2),	p_seek, B_SAFE);
@@ -396,6 +401,9 @@ bip_io_init(int flags)
 	(void) built_in(in_dict("accept", 3),	p_accept,	B_UNSAFE|U_SIMPLE);
 	built_in(in_dict("stream_select", 3),	p_select,	B_UNSAFE|U_GROUND)
 	    -> mode = BoundArg(3, GROUND);
+	local_built_in(in_dict("next_open_stream", 2),
+			p_next_open_stream, B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, CONSTANT);
 	b_built_in(in_dict("wait", 3), 		p_wait, 	d_.kernel_sepia)
 	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
 #if defined(HAVE_READLINE)
@@ -403,6 +411,91 @@ bip_io_init(int flags)
 #endif
     }
 }
+
+
+/* METHODS */
+static void _lose_stream(stream_id nst);
+static stream_id _copy_stream(stream_id nst);
+static void _mark_stream(stream_id nst);
+static int _tostr_stream(stream_id nst, char *buf, int quoted);
+static int _strsz_stream(stream_id nst, int quoted);
+
+
+static void
+_lose_stream(stream_id nst)		/* nst != NULL */
+{
+    assert(nst);
+    assert(nst->nref > 0);
+    if (--nst->nref == 0)
+    {
+	if (IsOpened(nst) && !(StreamMode(nst) & SNUMBERUSED))
+	{
+	    /*
+	    p_fprintf(current_output_, "lose_stream(%d)\n", StreamNr(nst));
+	    ec_flush(current_output_);
+	    */
+	    int res = ec_close_stream(nst);
+	    if (res != PSUCCEED)
+	    {
+		p_fprintf(current_err_, "\nError %d during auto-close of stream_%d\n", -res, StreamNr(nst));
+		ec_flush(current_err_);
+	    }
+	}
+	/* once we get rid of the array: */
+	/* hg_free_size(nst, sizeof(stream_desc)); */
+    }
+}
+
+static stream_id
+_copy_stream(stream_id nst)		/* nst != NULL */
+{
+    ++nst->nref;
+    return nst;
+}
+
+static void
+_mark_stream(stream_id nst)		/* nst != NULL */
+{
+    if ((IsOpened(nst) || StreamNref(nst) > 0))
+    {
+	if (StreamPrompt(nst) != D_UNKNOWN)	/* == SocketUnix */
+	    Mark_Did(StreamPrompt(nst));
+	if (StreamName(nst) != D_UNKNOWN)
+	    Mark_Did(StreamName(nst));
+	mark_dids_from_pwords(&StreamEvent(nst), &StreamEvent(nst)+1);
+    }
+}
+
+
+static int
+_tostr_stream(stream_id nst, char *buf, int quoted)	/* nst != NULL */
+{
+#define STRSZ_STREAM 30
+    sprintf(buf, "$&(stream(%d))", StreamNr(nst));
+    return strlen(buf);
+}
+
+
+static int
+_strsz_stream(stream_id nst, int quoted)	/* nst != NULL */
+{
+    return STRSZ_STREAM;
+}
+
+
+/* CLASS DESCRIPTOR (method table) */
+
+t_ext_type stream_tid = {
+    (void (*)(t_ext_ptr)) _lose_stream,
+    (t_ext_ptr (*)(t_ext_ptr)) _copy_stream,
+    (void (*)(t_ext_ptr)) _mark_stream,
+    (int (*)(t_ext_ptr,int)) _strsz_stream,
+    (int (*)(t_ext_ptr,char *,int)) _tostr_stream,
+    0,	/* equal */
+    (t_ext_ptr (*)(t_ext_ptr)) _copy_stream,
+    0,	/* get */
+    0	/* set */
+};
 
 
 /*
@@ -445,9 +538,9 @@ get_stream_id(value v, type t, int mode, int *err)
 	    if (v.did == d_.user)
 	    {
 		if (mode == SREAD)
-		    nst = StreamId(GetStreamProperty(d_.stdin0)->val.nint);
+		    nst = (stream_id) GetStreamProperty(d_.stdin0)->val.wptr;
 		else if (mode == SWRITE)
-		    nst = StreamId(GetStreamProperty(d_.stdout0)->val.nint);
+		    nst = (stream_id) GetStreamProperty(d_.stdout0)->val.wptr;
 		else
 		{
 		    *err = INCORRECT_USER;
@@ -461,17 +554,30 @@ get_stream_id(value v, type t, int mode, int *err)
 	    }
 	}
 	else
-	    nst = StreamId(stream_prop->val.nint);
+	    nst = (stream_id) stream_prop->val.wptr;
 	break;
 
     case TINT:
-	if (v.nint < 0 || v.nint >= NbStreams)
+	/* backward compatibility: allow number iff it was obtained previously */
+	if (v.nint < 0 || v.nint >= NbStreams
+		|| !(StreamMode(StreamId(v.nint)) & SNUMBERUSED))
 	{
 	    *err = STREAM_SPEC;
 	    return NO_STREAM;
 	}
 	nst = StreamId(v.nint);
 	break;
+
+    case THANDLE:
+    {
+	int res;
+	pword hstream;
+	hstream.val.all = v.all;
+	hstream.tag.all = t.all;
+	res = ec_get_handle(hstream, &stream_tid, (t_ext_ptr*) &nst);
+	if (res != PSUCCEED) { *err = res; return NO_STREAM; }
+	break;
+    }
 
     default:
 	*err = TYPE_ERROR;
@@ -490,6 +596,28 @@ get_stream_id(value v, type t, int mode, int *err)
 }
 
 
+/*
+ * next_open_stream(+Stream, -Stream)
+ * Auxiliary for enumerating streams, should start with stdin>
+ * 
+ */
+static int
+p_next_open_stream(value v1, type t1, value v2, type t2)
+{
+    int err, i;
+    pword hstream;
+    stream_id nst = get_stream_id(v1, t1, 0, &err);
+    if (nst == NO_STREAM) { Bip_Error(err); }
+    i = StreamNr(nst);
+    do {
+	if (++i >= NbStreams) { Fail_; }
+	nst = StreamId(i);
+    } while (!IsOpened(nst));
+    hstream = StreamHandle(nst);
+    Return_Unify_Pw(v2, t2, hstream.val, hstream.tag);
+}
+
+
 static int
 p_set_stream(value ov, type ot, value nv, type nt)
 {
@@ -504,7 +632,7 @@ p_set_stream(value ov, type ot, value nv, type nt)
 	{
 	    if (ov.did == d_.input)
 	    {
-		nst = StreamId((GetStreamProperty(d_.stdin0))->val.nint);
+		nst = (stream_id) GetStreamProperty(d_.stdin0)->val.wptr;
 	    }
 	    else if (
 		ov.did == d_.output ||
@@ -512,7 +640,7 @@ p_set_stream(value ov, type ot, value nv, type nt)
 		ov.did == d_.log_output ||
 		ov.did == d_.err)
 	    {
-		nst = StreamId((GetStreamProperty(d_.stdout0))->val.nint);
+		nst = (stream_id) GetStreamProperty(d_.stdout0)->val.wptr;
 	    }
 	    else
 	    {
@@ -544,37 +672,37 @@ p_get_stream(value vi, type ti, value vs, type ts)
     {
 	Bip_Error(STREAM_SPEC);
     }
-    if (IsRef(ts) || IsInteger(ts))
+    if (IsRef(ts))
     {
-	Return_Unify_Integer(vs, ts, StreamNr(nst));
-    }
-    else if (IsAtom(ts) || IsNil(ts))
-    {
-	if ((onst = get_stream_id(vs, ts, 0, &res)) != NO_STREAM)
-	{
-	    Succeed_If(nst == onst);
+	pword hstream;
+	if (IsHandle(ti)) {
+	    hstream.val.all = vi.all;	/* reuse old anchor */
+	    hstream.tag.all = ti.all;
+	} else {
+	    hstream = StreamHandle(nst);
 	}
-	else if (vs.did == d_.user)
+	Return_Unify_Pw(vs, ts, hstream.val, hstream.tag);
+    }
+    if ((onst = get_stream_id(vs, ts, 0, &res)) != NO_STREAM)
+    {
+	Succeed_If(nst == onst);
+    }
+    if (IsAtom(ts) && vs.did == d_.user)
+    {
+	if ((StreamMode(nst) & (SREAD | SWRITE)) == SREAD)
 	{
-	    if ((StreamMode(nst) & (SREAD | SWRITE)) == SREAD)
-	    {
-		Succeed_If(nst == StreamId((GetStreamProperty(d_.stdin0))->val.nint));
-	    }
-	    else if ((StreamMode(nst) & (SREAD | SWRITE)) == SWRITE)
-	    {
-		Succeed_If(nst == StreamId((GetStreamProperty(d_.stdout0))->val.nint));
-	    }
-	    else
-	    {
-		Bip_Error(INCORRECT_USER);
-	    }
+	    Succeed_If(nst == (stream_id) GetStreamProperty(d_.stdin0)->val.wptr);
+	}
+	else if ((StreamMode(nst) & (SREAD | SWRITE)) == SWRITE)
+	{
+	    Succeed_If(nst == (stream_id) GetStreamProperty(d_.stdout0)->val.wptr);
 	}
 	else
 	{
-	    Bip_Error(res);
+	    Bip_Error(INCORRECT_USER);
 	}
     }
-    Bip_Error(TYPE_ERROR);
+    Bip_Error(res);
 }
 
 int Winapi
@@ -587,13 +715,14 @@ ec_stream_nr(char *name)
     nst = get_stream_id(v, tdict, 0, &res);
     if (nst == NO_STREAM  ||  !IsOpened(nst))
 	return -1;
-    return StreamNr(nst);
+    StreamMode(nst) |= SNUMBERUSED;
+    return StreamNr(nst);	/*DEPRECATE*/
 }
 
 stream_id Winapi
 ec_stream_id(int nr)
 {
-    return StreamId(nr);
+    return StreamId(nr);	/*DEPRECATE*/
 }
 
 
@@ -917,9 +1046,15 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
 	Make_Atom(&StreamEvent(nst), d_event);
     }
 
+    if (StreamNref(nst) != 0)
+    {
+	ec_panic("New stream has refs", "p_open()");
+    }
     if (IsRef(tstr))
     {
-	Request_Unify_Integer(vstr, tstr, StreamNr(nst));
+	pword hstream = ec_handle(&stream_tid, (t_ext_ptr) nst);
+	++StreamNref(nst);
+	Request_Unify_Pw(vstr, tstr, hstream.val, hstream.tag);
     }
     else if ((res = set_stream(vstr.did, nst)) < 0)
     {
@@ -971,7 +1106,14 @@ p_close (value v, type t)
     if (IsAtom(t) || IsNil(t))
     {
 	(void) erase_property(v.did, STREAM_PROP);
-	StreamNref(nst)--;
+	stream_tid.free((t_ext_ptr) nst);
+    }
+    else if (IsHandle(t))
+    {
+	pword hstream;
+	hstream.val.all = v.all;
+	hstream.tag.all = t.all;
+	return ec_free_handle(hstream, &stream_tid);
     }
     Succeed_;
 }
@@ -1165,7 +1307,8 @@ p_get_prompt(value iv, type it, value pv, type pt, value ov, type ot)
     }
     if (IsRef(ot))
     {
-	Request_Unify_Integer(ov, ot, StreamNr(ps));
+	pword hstream = StreamHandle(ps);
+	Return_Unify_Pw(ov, ot, hstream.val, hstream.tag);
     }
     else if ((onst = get_stream_id(ov, ot, SWRITE, &res)) == NO_STREAM)
     {		/* stream checking */
@@ -1320,7 +1463,8 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	result.val.nint = StreamNref(nst);
 	result.tag.kernel = TINT;
 	break;
-    case 4:	/* physical_stream */
+    case 4:	/* physical_stream - deprecated */
+	StreamMode(nst) |= SNUMBERUSED;
 	result.val.nint = StreamNr(nst);
 	result.tag.kernel = TINT;
 	break;
@@ -1352,12 +1496,9 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	result.tag.kernel = TDICT;
 	break;
     case 8:	/* prompt_stream */
-	if (IsReadStream(nst) && StreamPromptStream(nst) != NO_STREAM)
-	{
-	    result.val.nint = StreamNr(StreamPromptStream(nst));
-	    result.tag.kernel = TINT;
-	}
-	else { Fail_; }
+	if (!IsReadStream(nst) || StreamPromptStream(nst) == NO_STREAM)
+	    { Fail_; }
+	result = StreamHandle(StreamPromptStream(nst));
 	break;
     case 9:	/* fd */
 	if (StreamUnit(nst) == NO_UNIT)
@@ -1518,6 +1659,10 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	    { Fail_; }
 	Make_Integer(&result, StreamLastWritten(nst));
     	break;
+
+    case 29:		/* handle */
+	result = StreamHandle(nst);
+	break;
 
     default:
 	Fail_;
@@ -2921,7 +3066,7 @@ ec_setup_stream_sigio_thread(stream_id nst)
     {
 	return RANGE_ERROR;
     }
-    if (!ec_start_thread(nst->signal_thread, _sigio_thread_function, nst))
+    if (!ec_start_thread(nst->signal_thread, (int(*) ARGS((void*)))_sigio_thread_function, nst))
 	return SYS_ERROR;
     return PSUCCEED;
 }
@@ -2955,7 +3100,7 @@ ec_reenable_sigio(stream_id nst, int bytes_wanted, int bytes_read)
     /* nothing to read, reenable SIGIO thread */
     if (ec_thread_stopped(nst->signal_thread, &res))
     {
-	if (!ec_start_thread(nst->signal_thread, _sigio_thread_function, nst))
+	if (!ec_start_thread(nst->signal_thread, (int(*) ARGS((void*)))_sigio_thread_function, nst))
 	    return SYS_ERROR;
     }
     return PSUCCEED;
@@ -3416,6 +3561,33 @@ p_check_valid_stream(value v, type t)
 	{ Bip_Error(res); }
     if (!IsOpened(nst))
 	{ Bip_Error(STREAM_SPEC); }
+    Succeed_;
+}
+
+static int
+p_check_stream_spec(value v, type t)
+{
+    if (IsRef(t)) {
+	Bip_Error(INSTANTIATION_FAULT);
+    }
+    switch(TagType(t))
+    {
+    case TNIL:
+    case TDICT:
+	    break;
+
+    case TINT:
+    case TBIG:
+	/* backward compatibility: allow number iff it was obtained previously */
+	break;
+
+    case THANDLE:
+	Check_Typed_Object_Handle(v, t, &stream_tid);
+	break;
+
+    default:
+	Bip_Error(TYPE_ERROR);
+    }
     Succeed_;
 }
 

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.8 2010/04/18 14:04:08 jschimpf Exp $
+ * $Id: types.h,v 1.9 2010/04/22 14:09:47 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -247,8 +247,8 @@ typedef ec_ref ec_refs;
 typedef struct stream_d {
     int			unit;		/* system identifier (fd)	*/
     void_ptr		methods;	/* I/O method table (io_channel_t *) */
-    short		nref;		/* how many DID's point to it	*/
-    short		encoding;	/* bytes, utf8, etc.		*/
+    unsigned int	nref;		/* # refs from handles and dids	*/
+    int			encoding;	/* bytes, utf8, etc.		*/
     int			mode;		/* flags			*/
     int			output_mode;	/* default output mode settings	*/
     int			print_depth;	/* default print depth		*/

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: util.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: util.pl,v 1.3 2010/04/22 14:12:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -43,7 +43,7 @@
 :- comment(categories, ["Programming Utilities"]).
 :- comment(author, "Various, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/04/22 14:12:49 $").
 :- comment(add_path/1, [template:"add_path(+Directory)",
     summary:"The directory will be added at the beginning of the library path."
     ]).
@@ -123,7 +123,7 @@ streams :-
 	get_stream_info(S, device, D),
 	get_stream_info(S, mode, M),
 	get_stream_info(S, name, N),
-	printf("%3d   %6s   %6s   %q ( ", [S,D,M,N]),
+	printf("%w   %6s   %6s   %q ( ", [S,D,M,N]),
 	(
 	    current_atom(Alias),
 	    current_stream(Alias),

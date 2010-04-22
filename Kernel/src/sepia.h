@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.6 2009/03/09 05:29:48 jschimpf Exp $
+ * $Id: sepia.h,v 1.7 2010/04/22 14:09:47 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -34,6 +34,17 @@
  */
 
 #include "ec_public.h"
+
+
+#ifndef assert
+#ifdef NDEBUG
+#define assert(p)  	((void)0)
+#else
+#define assert(e)       ((e) ? (void)0 : p_fprintf(current_err_, \
+	"\nAssertion failed in %s:%d: %s\n", __FILE__, __LINE__, #e))
+#endif
+#endif
+
 
 /*****************************************************************/
 /*								 */

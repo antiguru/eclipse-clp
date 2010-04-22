@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: io.c,v 1.3 2010/04/22 14:09:47 jschimpf Exp $
  */
 
 /*
@@ -136,7 +136,7 @@
  *
  * Queue streams:
  *
- *   String streams have a doubly linked circular list of buffers, all the
+ *   Queue streams have a doubly linked circular list of buffers, all the
  *   same size. Read and write position are separate. The read buffer is
  *   similar to the single buffer in the case of true files:
  *
@@ -251,13 +251,26 @@ extern long		lseek();
 /*
  * DEFINES:
  */
-#define REINIT_SHARED	16	/* should go to sepia.h */
 
-#define STRE_INCREMENT	10	/* 20 maybe better (?) */
+#define STREAM_MIN	32
+#define STREAM_INC	16
 
-#ifndef NB_FILE
-#define NB_FILE		20
-#endif
+
+/*
+ * Set the stream number as a property of the atom's did. The counter for
+ * the previous stream, if any, is decremented, and the new one is incremented.
+ */
+#define Set_Stream(sdid, nst)						\
+	{								\
+		pword   *prop;						\
+		prop = get_property(sdid, STREAM_PROP);			\
+		if (prop == (pword *) NULL)				\
+		    prop = set_property(sdid, STREAM_PROP);		\
+		else							\
+		    stream_tid.free((stream_id) prop->val.wptr);	\
+		prop->tag.kernel = TPTR;				\
+		prop->val.wptr = (uword *) stream_tid.copy(nst);	\
+	}
 
 #define Set_New_Stream(did, nst)		\
     (void) erase_property(did, STREAM_PROP); 	\
@@ -323,19 +336,18 @@ extern long		lseek();
 
 
 /*
- * EXTERNAL VARIABLE DECLARATIONS:
- */
-
-
-/*
  * EXTERNAL VARIABLE DEFINITIONS:
  */
 
 /*
+ * Stream  descriptors
+ */
+stream_id	stream_ids_[STREAM_MIN];
+stream_desc	stream_desc_structs_[STREAM_MIN];
+
+/*
  * System streams. user is a conglomerate of current_input_ and current_output_
  */
-stream_id	stream_ids_[NB_FILE];
-stream_desc	stream_desc_structs_[NB_FILE];
 
 stream_id	current_input_,
 		current_output_,
@@ -386,6 +398,8 @@ static int	_isafifo(int fd),
 		_local_tty_in(stream_id nst);
 static int	_open_by_name(char *path, int mode, int *io_unit, io_channel_t **io_type);
 
+
+
 /*
  * FUNCTION NAME:	io_init()
  *
@@ -415,7 +429,7 @@ io_init(int flags)
 	 * Make a private array of stream descriptors
 	 */
 	StreamDescriptors = stream_ids_;
-	for (i = 0; i < NB_FILE; i++)
+	for (i = 0; i < STREAM_MIN; i++)
 	{
 	    StreamId(i) = &stream_desc_structs_[i];
 	    a_mutex_init(&StreamId(i)->lock);
@@ -423,7 +437,7 @@ io_init(int flags)
 	    StreamNref(StreamId(i)) = 0;
 	    StreamNr(StreamId(i)) = i;
 	}
-	NbStreams = NB_FILE;
+	NbStreams = STREAM_MIN;
     }
     if ((ec_options.io_option != OWN_IO) && (flags & INIT_SHARED))
     {
@@ -431,8 +445,8 @@ io_init(int flags)
 	 * Make a shared array of stream descriptors
 	 */
 	StreamDescriptors = (stream_desc **)
-		hg_alloc_size(NB_FILE * sizeof(stream_desc *));
-	for (i = 0; i < NB_FILE; i++)
+		hg_alloc_size(STREAM_MIN * sizeof(stream_desc *));
+	for (i = 0; i < STREAM_MIN; i++)
 	{
 	    StreamId(i) = (stream_desc *) hg_alloc_size(sizeof(stream_desc));
 	    a_mutex_init(&StreamId(i)->lock);
@@ -440,7 +454,7 @@ io_init(int flags)
 	    StreamNref(StreamId(i)) = 0;
 	    StreamNr(StreamId(i)) = i;
 	}
-	NbStreams = NB_FILE;
+	NbStreams = STREAM_MIN;
     }
     if (flags & INIT_PRIVATE)
     {
@@ -680,8 +694,8 @@ find_free_stream(void)
     StreamDescriptors = (stream_desc **) hg_realloc_size(
 		(generic_ptr) StreamDescriptors,
 		NbStreams * sizeof(stream_desc *),
-		(NbStreams + STRE_INCREMENT) * sizeof(stream_desc *));
-    for (; i < NbStreams + STRE_INCREMENT; i++)
+		(NbStreams + STREAM_INC) * sizeof(stream_desc *));
+    for (; i < NbStreams + STREAM_INC; i++)
     {
 	StreamId(i) = (stream_desc *)  hg_alloc_size(sizeof(stream_desc));
 	StreamMode(StreamId(i)) = SCLOSED;
@@ -690,7 +704,7 @@ find_free_stream(void)
     }
 
     nst = StreamId(NbStreams);
-    NbStreams += STRE_INCREMENT;
+    NbStreams += STREAM_INC;
     return nst;
 }
 
@@ -2585,7 +2599,8 @@ set_stream(dident name, stream_id neww)
 
     /* Check the mode of the new channel for special streams */
 
-    if(name == d_.user || name == d_.null)
+    if(name == d_.user || name == d_.null
+    	|| name == d_.stdin0 || name == d_.stdout0 || name == d_.stderr0)
 	return(SYSTEM_STREAM);
     if(name == d_.input)
     {

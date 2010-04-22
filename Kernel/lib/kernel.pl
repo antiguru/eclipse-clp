@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.24 2010/04/04 08:13:37 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.25 2010/04/22 14:12:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1120,12 +1120,12 @@ load_eco(FileAtom, Module) :-
 
 
 compiled_stream(S) :-
-	(var(S);atom(S);integer(S)), !,
+	check_var_or_stream_spec(S), !,
 	getval(compiled_stream, CS),
 	nonvar(CS),	% fails if nothing is being compiled
 	( var(S) -> S = CS ; get_stream(S, CS) ).
 compiled_stream(S) :-
-	error(5, compiled_stream(S)).
+	bip_error(compiled_stream(S)).
 
 
 % This is the body of ./2, no module checking necessary.
@@ -3081,6 +3081,14 @@ check_var_or_partial_macro_spec(X) :-
 check_var_or_atom(X) :- var(X), !.
 check_var_or_atom(X) :- check_atom(X).
 
+check_var_or_integer(X) :- var(X), !.
+check_var_or_integer(X) :- integer(X), !.
+check_var_or_integer(X) :- set_bip_error(5).
+
+check_var_or_atomic(X) :- var(X), !.
+check_var_or_atomic(X) :- atomic(X), !.
+check_var_or_atomic(X) :- set_bip_error(5).
+
 check_var_or_arity(A) :- var(A), !.
 check_var_or_arity(A) :- check_arity(A).
 
@@ -3097,6 +3105,9 @@ check_fieldspecs(_) :- set_bip_error(5).
 check_nonvar(X) :- var(X), !, set_bip_error(4).
 check_nonvar(_).
 
+check_var(X) :- var(X), !.
+check_var(_) :- set_bip_error(5).
+
 check_arity(A) :- var(A), !, set_bip_error(4).
 check_arity(A) :- integer(A), A >= 0, !.
 check_arity(A) :- integer(A), A < 0, !, set_bip_error(6).
@@ -3105,6 +3116,9 @@ check_arity(_) :- set_bip_error(5).
 check_string(X) :- var(X), !, set_bip_error(4).
 check_string(X) :- string(X), !.
 check_string(_) :- set_bip_error(5).
+
+check_var_or_atom_string(X) :- var(X), !.
+check_var_or_atom_string(X) :- check_atom_string(X).
 
 check_atom_string(X) :- var(X), !, set_bip_error(4).
 check_atom_string(X) :- atom(X), !.
@@ -3130,6 +3144,9 @@ check_var_or_type(X) :-
 check_module(X) :-
 	check_atom(X),
 	( is_a_module(X) -> true ; set_bip_error(80) ).
+
+check_var_or_stream_spec(X) :- var(X), !.
+check_var_or_stream_spec(X) :- check_stream_spec(X).
 
 check_var_or_partial_list(X) :- var(X), !.
 check_var_or_partial_list([]) :- !.

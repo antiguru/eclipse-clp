@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.7 2010/04/11 02:36:01 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.8 2010/04/22 14:09:47 jschimpf Exp $
  */
 
 /*
@@ -1260,8 +1260,7 @@ _portray_term(int idwrite, stream_id out, value val, type tag, dident module, ty
     if (!(idwrite & PRINT1))
     {
 	goal[0].val.did = d_portray2;
-	goal[i].tag = tint;
-	goal[i++].val.nint = StreamNr(out);
+	goal[i++] = StreamHandle(out);
     }
     else
 	goal[0].val.did = d_portray1;

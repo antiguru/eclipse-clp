@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.7 2009/12/22 02:44:23 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.8 2010/04/22 14:12:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -723,21 +723,14 @@ output_error_handler(X, Culprit, CM, LM):-
 	system_error_handler(X, Culprit, CM, LM).
 
 
-/* system_stream(SystemStream,DefaultAssignStream)
- * Order important: stdin,stdout,stderr must be first, so they get redirected
- * first, and then output,etc get redirected to their new values.
- */
+% system_stream(SystemStream,DefaultAssignStream)
 
 :- mode system_stream(?, -).
-system_stream(stdin, 0).
-system_stream(stdout, 1).
-system_stream(stderr, 2).
-system_stream(input, S) :- get_stream(stdin, S).
-system_stream(output, S) :- get_stream(stdout, S).
-system_stream(warning_output, S) :- get_stream(stdout, S).
-system_stream(log_output, S) :- get_stream(stdout, S).
-system_stream(error, S) :- get_stream(stderr, S).
-system_stream(null, 3).
+system_stream(input, stdin).
+system_stream(output, stdout).
+system_stream(warning_output, stdout).
+system_stream(log_output, stdout).
+system_stream(error, stderr).
 
 close_handler(_,close(Stream)) :-
         !,
@@ -756,7 +749,7 @@ close_handler(_,close(Stream)) :-
 	;
 	    close(Num)
 	),
-	(atom(Stream), fail_if(system_stream(Stream, _)) ->
+	(atom(Stream), \+system_stream(Stream, _) ->
 	    erase_stream_property(Stream)
 	;
 	    true

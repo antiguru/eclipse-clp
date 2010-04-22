@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.3 2009/12/22 02:44:22 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.4 2010/04/22 14:12:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -87,44 +87,42 @@
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% current_stream(?File, ?Mode, ?Stream)
-% if Stream is uninstantiated, the stream number is returned.
+% current_stream(?Stream)
+% if Stream is uninstantiated, then stream handles returned.
 % if used for testing, a stream name is accepted as well.
 
+current_stream(Stream) :- var(Stream), !,
+	get_stream(stdin, StdIn),	% stream 1
+	gen_open_stream(StdIn, Stream).
+current_stream(Stream) :- check_stream_spec(Stream), !,
+	is_open_stream(Stream).
+current_stream(Stream) :-
+	bip_error(current_stream(Stream)).
+
+    gen_open_stream(Stream, Stream).
+    gen_open_stream(Prev, Stream) :-
+	next_open_stream(Prev, Next),
+	gen_open_stream(Next, Stream).
+
+
+% current_stream(?File, ?Mode, ?Stream) - DEPRECATED
 current_stream(File, Mode, Stream) :-
 	(
-	    (var(File);atom(File);string(File)),
-	    (var(Mode);atom(Mode)),
-	    (var(Stream);atom(Stream);integer(Stream))
+	    check_var_or_atom_string(File),
+	    check_var_or_atom(Mode),
+	    check_var_or_stream_spec(Stream)
 	->
 		( var(Stream) ->
-		    stream_number(Max),
-		    gen_valid_streams(0, Max, Stream)
+		    get_stream(stdin, StdIn),
+		    gen_open_stream(StdIn, Stream)
 		;
 		    is_open_stream(Stream)	% else fail
 		),
 		stream_info_(Stream, 0, File),
 		stream_info_(Stream, 2, Mode)
 	;
-	    error(5, current_stream(File, Mode, Stream))
+	    bip_error(current_stream(File, Mode, Stream))
 	).
-
-current_stream(Stream) :- var(Stream), !,
-	stream_number(Max),
-	gen_valid_streams(0, Max, Stream).
-current_stream(Stream) :- (atom(Stream);integer(Stream)), !,
-	is_open_stream(Stream).
-current_stream(Stream) :-
-	error(5, current_stream(Stream)).
-
-    % generate integers from Start to Finish, which are existing streams
-    gen_valid_streams(Start, _, Start) :-
-	is_open_stream(Start).
-    gen_valid_streams(Start, Finish, Stream) :-
-	Start =< Finish,
-	NewStart is Start + 1,
-	gen_valid_streams(NewStart, Finish, Stream).
-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -139,6 +137,8 @@ get_stream_info(Stream, Info, Value) :-
 	    ;   atom(Info) ->
 		(   stream_info_nr(Info, N) ->
 			stream_info_wrapper(Stream, N, Value)
+		;   stream_info_nr_hidden(Info, N) ->
+			stream_info_(Stream, N, Value)
 		;    error(6, get_stream_info(Stream, Info, Value))
 		)
 	    ;
@@ -161,7 +161,7 @@ stream_info_wrapper(Stream, N, Value) :-
 :- mode stream_info_nr(?,-).
 stream_info_nr(name, 0).
 %stream_info_nr(mode, 2).	% old-style mode
-stream_info_nr(physical_stream, 4).
+%stream_info_nr(physical_stream, 4).	% hidden
 stream_info_nr(aliases, 3).
 stream_info_nr(system_use, 7).
 stream_info_nr(line, 5).
@@ -186,7 +186,9 @@ stream_info_nr(output_options, 25).
 %stream_info_nr(print_depth, 26).	% hidden
 stream_info_nr(compress, 27).
 stream_info_nr(last_written, 28).
+stream_info_nr(handle, 29).
 
+stream_info_nr_hidden(physical_stream, 4).
 stream_info_nr_hidden(print_depth, 26).
 
 
@@ -319,8 +321,7 @@ read_term_(Stream, Term, Options, Module) :-		% 8.14.1
 	handle_read_options(Options, Term, Vars),
 	!.
 read_term_(Stream, Term, Options, Module) :-
-	get_bip_error(E),
-	error(E, read_term(Stream, Term, Options), Module).
+	bip_error(read_term(Stream, Term, Options), Module).
 
     handle_read_options(Options, _, _) :- var(Options), !,
     	set_bip_error(4).
@@ -769,24 +770,14 @@ phrase_body(Grammar, S, M) :-
 %	FILES
 %
 get_file_info(File, Name, Value) :-
-	var(File), 
-	!,
-	error(4, get_file_info(File, Name, Value)).
-get_file_info(File, Name, Value) :-
-	( atom(File) -> true
-	; string(File) -> true
-	),
-	( var(Value) -> true
-	; atomic(Value) -> true
-	),
-	( atom(Name) -> true
-	; var(Name) -> true
-	),
+	check_atom_string(File),
+	check_var_or_atom(Name),
+	check_var_or_atomic(Value),
 	!,
 	expand_filename(File, ExpandedFile),  % File1 is a string
 	do_get_file_info(ExpandedFile, Name, Value).
 get_file_info(File, Name, Value) :-
-	error(5, get_file_info(File, Name, Value)).
+	bip_error(get_file_info(File, Name, Value)).
 
 
 do_get_file_info(File, device, X) :-
@@ -939,9 +930,10 @@ remote_connect(Address, Control, Init, _Mod) :-
 	error(5, remote_connect(Address, Control, Init)).
 
 remote_connect_setup(Host/Port, Control, Soc) :-
-	(var(Port) ; integer(Port)),
-	(var(Control) ; atom(Control)), 
-	var(Soc), !,
+	check_var_or_integer(Port),
+	check_var_or_atom(Control),
+	check_var(Soc),
+	!,
         copy_term(Host,OrigHost), % OrigHost can be a variable
 	new_socket_server(Soc, Host/Port, 2),
         (var(Control) ->
@@ -951,7 +943,7 @@ remote_connect_setup(Host/Port, Control, Soc) :-
 	),
 	recorda(remote_control_host, Control-OrigHost).
 remote_connect_setup(Address, Control, Soc) :-
-	error(5, remote_connect_setup(Address, Control, Soc)).
+	bip_error(remote_connect_setup(Address, Control, Soc)).
 
 new_remote_peer_name(Name) :-
 	repeat,
@@ -1047,20 +1039,18 @@ peer(Peer) :-
 	( var(Peer) ->
 	     peer_info(Peer, _)
 	; atom(Peer) ->
-	     peer_info(Peer, _), !
+	     once peer_info(Peer, _)
 	; error(5, peer(Peer))
 	).
 
 peer_get_property(Peer, Property, Value) :-
-	(atom(Peer),
-	(var(Property) ; atom(Property)) -> 
-	    true ; set_bip_error(5)
-	), !,
+	check_atom(Peer),
+	check_var_or_atom(Property),
+	!,
 	once(peer_info(Peer, Info)),
 	get_a_peer_property(Property, Info, Value).
 peer_get_property(Peer, Property, Value) :-
-	get_bip_error(Err),
-	error(Err, peer_get_property(Peer,Property,Value)).
+	bip_error(peer_get_property(Peer,Property,Value)).
 
 set_embed_peer(Peer, Lang) :-
 	\+peer(Peer),
@@ -1084,13 +1074,13 @@ get_a_peer_property(queues, peer_info{key:Key}, Qs) :-
 
 
 peer_queue_get_property(Queue, Prop, Value) :- 
-	(atom(Queue);integer(Queue)),
-	(atom(Prop);var(Prop)), 
+	check_stream_spec(Queue),
+	check_var_or_atom(Prop),
 	!,
 	get_queueinfo_st(Queue, _, QueueInfo),
 	get_queueinfo_item(Prop, QueueInfo, Value).
 peer_queue_get_property(Queue, Prop, Value) :- 
-	error(5, peer_queue_get_property(Queue,Prop,Value)).
+	bip_error(peer_queue_get_property(Queue,Prop,Value)).
 
 
 get_queue_info(Name, Nr, Peer, QType, Dir) :-
@@ -1161,13 +1151,13 @@ new_socket_server(Soc, Address, N) :-
 
 
 peer_queue_close(Queue) :-
-	(atom(Queue) ; integer(Queue)), !,
+	check_stream_spec(Queue), !,
 	get_queue_info(Queue, StreamNum, Peer, QType, _Direction),
 	non_interruptable(
 	    close_peer_queue_type(Peer, StreamNum, QType)
 	).
 peer_queue_close(Queue) :-
-	error(5, peer_queue_close(Queue)).
+	bip_error(peer_queue_close(Queue)).
 
 
     close_peer_queue_type(remote(Peer), StreamNum, QType) :-
