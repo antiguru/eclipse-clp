@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.7 2010/03/11 14:11:06 kish_shen Exp $
+# $Id: Makefile.in,v 1.8 2010/04/22 17:12:30 kish_shen Exp $
 #
 
 ARCH = @ARCH@
@@ -55,9 +55,9 @@ EXTRA_DEST = $(DESTDIR_EXTRA)/logarr.pl $(DESTDIR_EXTRA)/logarr.eco \
 
 
 install:	@MAKE_TARGET@
-install_cross:	$(ECL_DEST) $(PL_DEST) $(ECI_DEST) $(README_DEST) \
+install_cross:	$(ECL_DEST) $(PL_DEST) $(README_DEST) \
 		$(EMACS_DEST)
-install_all:	install_cross $(EXTRA_DEST)
+install_all:	install_cross $(ECI_DEST) $(EXTRA_DEST)
 
 
 clean:
