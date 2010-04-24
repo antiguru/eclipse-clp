@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.5 2010/04/22 14:09:47 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.6 2010/04/24 13:45:43 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -593,6 +593,16 @@ get_stream_id(value v, type t, int mode, int *err)
 	    return SocketInputStream(nst);
     }
     return nst;
+}
+
+
+int Winapi
+ec_get_stream(const pword pw, stream_id* nst)
+{
+    int err;
+    if ((*nst = get_stream_id(pw.val, pw.tag, 0, &err)) == NO_STREAM)
+	return err;
+    return PSUCCEED;
 }
 
 

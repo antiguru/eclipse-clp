@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.14 2009/07/16 09:11:27 jschimpf Exp $
+ * Version:	$Id: seplex.c,v 1.15 2010/04/24 13:47:17 jschimpf Exp $
  *
  */
 
@@ -1871,13 +1871,16 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
 {
     stream_id nst;
     CPXCHANNELptr ch;
+    pword pw;
+    int err;
 
     if (!cpx_env)
     {
 	Bip_Error(EC_LICENSE_ERROR);
     }
-    Check_Integer(ts);
-    nst = ec_stream_id(vs.nint);
+    pw.val = vs; pw.tag = ts;
+    err = ec_get_stream(pw, &nst);
+    if (err) { Bip_Error(err); }
     Check_Integer(tc);
     switch (vc.nint) {
     case 0: ch = cpxresults; break;
@@ -1942,6 +1945,8 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
 {
     stream_id nst;
     stream_id *solver_stream;
+    pword pw;
+    int err;
 
 # ifdef XPRESS
     if (!cpx_env)
@@ -1949,8 +1954,9 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
 	Bip_Error(EC_LICENSE_ERROR);
     }
 # endif
-    Check_Integer(ts);
-    nst = ec_stream_id(vs.nint);
+    pw.val = vs; pw.tag = ts;
+    err = ec_get_stream(pw, &nst);
+    if (err) { Bip_Error(err); }
     Check_Integer(tc);
     Check_Integer(twhat);
     switch (vc.nint) {
