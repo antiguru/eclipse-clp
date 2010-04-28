@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.6 2010/04/11 02:36:01 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.7 2010/04/28 13:56:00 jschimpf Exp $
  */
 
 /*
@@ -1476,7 +1476,6 @@ make_heapterm_persistent(pword *root)
 	    if (ISPointer(pw->tag.kernel))
 	    {
 		Assert(!IsRef(pw->tag));	/* no variables */
-		Assert(!IsHandle(pw->tag));	/* no handles */
 		if (!IsPersistent(pw->tag))
 		{
 		    /* no pointers to non-persistent other heapterms */
@@ -1502,6 +1501,10 @@ make_heapterm_persistent(pword *root)
 		Set_Did_Stability(a, DICT_PERMANENT);
 		pw++;
 	    }
+	    else if (IsTag(pw->tag.kernel, TPTR))
+		pw++;
+	    else if (IsTag(pw->tag.kernel, TEXTERN))
+		pw++;
 	    else
 	    {
 		Assert(!ISSpecial(pw->tag.kernel));

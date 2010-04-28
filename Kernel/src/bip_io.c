@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.6 2010/04/24 13:45:43 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.7 2010/04/28 13:56:00 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -428,7 +428,8 @@ _lose_stream(stream_id nst)		/* nst != NULL */
     assert(nst->nref > 0);
     if (--nst->nref == 0)
     {
-	if (IsOpened(nst) && !(StreamMode(nst) & SNUMBERUSED))
+	if (IsOpened(nst) && !(StreamMode(nst) & SSYSTEM)
+                          && !(StreamMode(nst) & SNUMBERUSED))
 	{
 	    /*
 	    p_fprintf(current_output_, "lose_stream(%d)\n", StreamNr(nst));
@@ -622,7 +623,7 @@ p_next_open_stream(value v1, type t1, value v2, type t2)
     do {
 	if (++i >= NbStreams) { Fail_; }
 	nst = StreamId(i);
-    } while (!IsOpened(nst));
+    } while (!IsOpened(nst) || IsInvalidSocket(nst));
     hstream = StreamHandle(nst);
     Return_Unify_Pw(v2, t2, hstream.val, hstream.tag);
 }
@@ -1082,7 +1083,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
  */
 
 static int
-p_close (value v, type t)
+p_close(value v, type t)
 {
     stream_id	nst;
     int		res;
@@ -1098,8 +1099,12 @@ p_close (value v, type t)
     {
 	Bip_Error(res);
     }
-    if (SystemStream(nst))
+    if (SystemStream(nst) && !(StreamMode(nst) & SSYSTEM))
     {
+        /* A system alias (output,log_output,etc) is pointing to it AND it
+         * is not stdin/stdout/stderr/null, i.e. it will really be closed:
+         * Let the close_handler take care of redirecting and closing again.
+         */
 	Bip_Error(SYSTEM_STREAM);
     }
     Lock_Stream(nst);
@@ -1113,7 +1118,7 @@ p_close (value v, type t)
     }
     if (IsNil(t))
 	v.did = d_.nil;
-    if (IsAtom(t) || IsNil(t))
+    if ((IsAtom(t) || IsNil(t)) && !IsOpened(nst))
     {
 	(void) erase_property(v.did, STREAM_PROP);
 	stream_tid.free((t_ext_ptr) nst);
@@ -1381,7 +1386,10 @@ p_set_prompt(value iv, type it, value pv, type pt, value ov, type ot)
     }
     Get_String_Did(pv, pt, d);
     StreamPrompt(nst) = d;
-    StreamPromptStream(nst) = (onst == null_) ? NO_STREAM : onst;
+    if (StreamPromptStream(nst) != NO_STREAM)
+        _lose_stream(StreamPromptStream(nst));
+    StreamPromptStream(nst) = (onst == null_) ? NO_STREAM :
+        _copy_stream(onst);
     Succeed_;
 }
 
@@ -1734,7 +1742,10 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 	{
 	    Bip_Error(STREAM_MODE)
 	}
-	StreamPromptStream(nst) = (onst == null_) ? NO_STREAM : onst;
+        if (StreamPromptStream(nst) != NO_STREAM)
+            _lose_stream(StreamPromptStream(nst));
+        StreamPromptStream(nst) = (onst == null_) ? NO_STREAM :
+            _copy_stream(onst);
 	break;
 
     case 12:	/* reprompt_only */
@@ -2529,7 +2540,7 @@ p_socket(value vdom, type tdom, value vtp, type ttp, value vs, type ts)
     inst = find_free_stream();
     init_stream(inst, s, SREAD | SSOCKET, d_socket, NO_PROMPT, NO_STREAM, 0);
     onst = find_free_stream();
-    init_stream(onst, s, SWRITE | SSOCKET, d_socket, NO_PROMPT, inst, 0);
+    init_stream(onst, s, SWRITE | SSOCKET, d_socket, NO_PROMPT, _copy_stream(inst), 0);
     if (sdomain == AF_UNIX)
 	SocketUnix(onst) = in_dict("",0);	/* to mark AF_UNIX */
     SocketConnection(onst) = 0;
@@ -2885,7 +2896,7 @@ socket_accept(stream_id nst, value vaddr, type taddr, pword p, int sigio)
     inst = find_free_stream();
     init_stream(inst, (uword) res, SREAD | SSOCKET, wn, NO_PROMPT, NO_STREAM, 0);
     onst = find_free_stream();
-    init_stream(onst, (uword) res, SWRITE | SSOCKET, wn, NO_PROMPT, inst, 0);
+    init_stream(onst, (uword) res, SWRITE | SSOCKET, wn, NO_PROMPT, _copy_stream(inst), 0);
     if (SocketUnix(nst))
 	SocketUnix(onst) = in_dict("",0);
     if (sigio) {

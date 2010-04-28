@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.1 2008/06/30 17:43:56 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.2 2010/04/28 13:56:00 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -439,6 +439,8 @@ ec_worker_cleanup(void)
 
     ec_emu_fini();		/* destroy the engine */
     ec_embed_fini();
+
+    /* TODO: find handles stored in the heap, and free them */
 
     bip_load_fini();		/* unload any shared libraries */
 

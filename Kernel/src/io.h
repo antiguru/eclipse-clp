@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: io.h,v 1.3 2010/04/22 14:09:47 jschimpf Exp $
+ * VERSION	$Id: io.h,v 1.4 2010/04/28 13:56:00 jschimpf Exp $
  */
 
 /*
@@ -111,6 +111,18 @@
 				    (nst) == log_output_ ||	\
 				    (nst) == null_		\
 				)
+
+#define SystemStreamAlias(d)	(				\
+                                    (d) == d_.stdin0 ||         \
+                                    (d) == d_.stdout0 ||        \
+                                    (d) == d_.stderr0 ||        \
+                                    (d) == d_.null ||           \
+                                    (d) == d_.input ||          \
+                                    (d) == d_.output ||         \
+                                    (d) == d_.warning_output || \
+                                    (d) == d_.log_output ||     \
+                                    (d) == d_.err               \
+                                )
 
 
 /****

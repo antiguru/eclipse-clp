@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.7 2010/04/22 14:09:47 jschimpf Exp $
+ * $Id: sepia.h,v 1.8 2010/04/28 13:56:00 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -147,7 +147,7 @@
 
 /*
  * The PERSISTENT bit can be set in the following pointer tags:
- * TLIST, TCOMP, TSTRG, TBIG, TIVL, TRAT, TDBL
+ * TLIST, TCOMP, TSTRG, TBIG, TIVL, TRAT, TDBL, THANDLE
  * It indicates that the pointer points to a non-volatile, shareable heap
  * copy of the object (usually an entry in the table of ground constants).
  * Losing the bit will disable sharing-based optimizations, but should

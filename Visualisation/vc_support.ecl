@@ -209,7 +209,9 @@ viewable_create(ViewableName, Elements, Type, LocNamesList):-
 		], 
 		timestamp_init(InterestBookkeeping, 
 			       back_update_stamp of interest_bookkeeping), 
-		open(queue(""), update, BacktrackedElementsQueue),
+		open(queue(""), update, BacktrackedElementsQueueHandle),
+                % next line hopefully temporary fix, should not use number
+                get_stream_info(BacktrackedElementsQueueHandle, physical_stream, BacktrackedElementsQueue),
 		hash_create(CoarseChangedElementsSet), % used only in coarse case
 		sepia_kernel:store_create(TimedChangedElementsSet), % used only in timed case
                 shelf_create(count(0),TimedUpdateCounter), % used only

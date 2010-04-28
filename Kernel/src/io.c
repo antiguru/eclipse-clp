@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.3 2010/04/22 14:09:47 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.4 2010/04/28 13:56:00 jschimpf Exp $
  */
 
 /*
@@ -804,52 +804,48 @@ _free_stream(stream_id nst)
 int
 ec_close_stream(stream_id nst)
 {
-    int err = PSUCCEED;
-
     if(!IsOpened(nst))
 	return(FILE_NOT_OPEN);
 
-    if (nst == null_ || IsStringStream(nst) || IsQueueStream(nst))
+    if (IsWriteStream(nst) && !IsQueueStream(nst))
     {
-	/* nothing to do */
+        int err = ec_flush(nst);
+        if (err != PSUCCEED)
+            return err;
     }
-    else
+    /* Don't close the stdin, stdout and stderr file descriptors (SSYSTEM)
+     * because this very likely hangs the system. Moreover, we would then
+     * need a way to reopen them, e.g. after restoring a saved state.
+     */
+    if (StreamMode(nst) & SSYSTEM)
+        return PSUCCEED;
+
+    if (IsSocket(nst) && IsInvalidSocket(nst))
+        return PSUCCEED;	/* will be closed via paired SWRITE socket */
+
+    if (!(IsNullStream(nst) || IsStringStream(nst) || IsQueueStream(nst)))
     {
-	if (IsWriteStream(nst))
-	{
-	    if ((err = ec_flush(nst)) != PSUCCEED)
-		return err;
-	}
-
-	/* Don't close the stdin, stdout and stderr file descriptors (SSYSTEM)
-	 * because this very likely hangs the system. Moreover, we would then
-	 * need a way to reopen them, e.g. after restoring a saved state.
-	 */
-	if (!(StreamMode(nst) & SSYSTEM))
-	{
-	    if (IsSocket(nst) && IsInvalidSocket(nst))
-		return PSUCCEED;	/* will be closed via paired SWRITE socket */
-
-	    err = RemoteStream(nst) ? io_rpc(nst, IO_CLOSE) : _local_io_close(nst);
-	}
+        int err = RemoteStream(nst) ? io_rpc(nst, IO_CLOSE) : _local_io_close(nst);
+        if (err != PSUCCEED)
+            return err;
     }
 
-    if (err == PSUCCEED)
+    if (IsSocket(nst))
     {
-	if (IsSocket(nst))
-	{
-	    if (SocketInputStream(nst))
-	    {
-		_free_stream(SocketInputStream(nst));
-		StreamMode(SocketInputStream(nst)) = SCLOSED;
-	    }
-	    SocketConnection(nst) = 0;	/* otherwise he would try to free it */
-	}
-	_free_stream(nst);
-	StreamMode(nst) = SCLOSED;
+        if (SocketInputStream(nst))
+        {
+            --StreamNref(SocketInputStream(nst));
+            assert(StreamNref(SocketInputStream(nst)) == 0);
+            _free_stream(SocketInputStream(nst));
+            StreamMode(SocketInputStream(nst)) = SCLOSED;
+        }
+        SocketConnection(nst) = 0;	/* otherwise he would try to free it */
     }
-    return err;
+    _free_stream(nst);
+    StreamMode(nst) = SCLOSED;
+    return PSUCCEED;
 }
+
 
 /* Auxiliary function which has to be executed on the process
  * that owns the file descriptor (possibly via rpc).
@@ -937,10 +933,7 @@ flush_and_close_io(int own_streams_only)
 	Lock_Stream(nst);
 	if (!own_streams_only || !RemoteStream(nst))
 	{
-	    if (StreamMode(nst) & SSYSTEM)
-		(void) ec_flush(nst);
-	    else
-		(void) ec_close_stream(nst);
+            (void) ec_close_stream(nst);
 	}
 	Unlock_Stream(nst);
     }
@@ -2599,8 +2592,7 @@ set_stream(dident name, stream_id neww)
 
     /* Check the mode of the new channel for special streams */
 
-    if(name == d_.user || name == d_.null
-    	|| name == d_.stdin0 || name == d_.stdout0 || name == d_.stderr0)
+    if(name == d_.user || name == d_.null)
 	return(SYSTEM_STREAM);
     if(name == d_.input)
     {
