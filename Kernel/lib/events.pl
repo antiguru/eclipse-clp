@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.8 2010/04/22 14:12:49 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.9 2010/04/28 14:03:10 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -732,30 +732,21 @@ system_stream(warning_output, stdout).
 system_stream(log_output, stdout).
 system_stream(error, stderr).
 
-close_handler(_,close(Stream)) :-
-        !,
-	get_stream(Stream, Num),
+close_handler(_,close(Stream)) ?- !,
+	get_stream(Stream, Handle),
         (
 	    % reset system streams that are redirected to Stream
             system_stream(SysStream,Standard),
-            get_stream(SysStream,Num),
+            get_stream(SysStream,Handle),
             set_stream(SysStream,Standard),
             fail
         ;
             true
         ),
-	(system_stream(SysStream, _), get_stream(SysStream,Num) ->
-	    true		% still a system stream: don't close
-	;
-	    close(Num)
-	),
-	(atom(Stream), \+system_stream(Stream, _) ->
-	    erase_stream_property(Stream)
-	;
-	    true
-	).
+        close(Handle).
 close_handler(ErrorNumber,Goal) :-
         error_handler(ErrorNumber,Goal).
+
 
 % Currently only used for output goals
 io_yield_handler(_, Goal) :-

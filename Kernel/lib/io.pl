@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.4 2010/04/22 14:12:49 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.5 2010/04/28 14:03:10 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1070,7 +1070,7 @@ get_a_peer_property(type, peer_info{type:Type}, Type).
 get_a_peer_property(language, peer_info{lang:Lang}, Lang).
 get_a_peer_property(connect, peer_info{connect:Connect}, Connect).
 get_a_peer_property(queues, peer_info{key:Key}, Qs) :-
-	findall(Queue,recorded(Key,queue(Queue)), Qs).
+	findall(Queue,(recorded(Key,queue(Nr)),get_stream(Nr,Queue)), Qs).
 
 
 peer_queue_get_property(Queue, Prop, Value) :- 
