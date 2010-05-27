@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.15 2010/04/24 13:47:17 jschimpf Exp $
+ * Version:	$Id: seplex.c,v 1.16 2010/05/27 16:52:14 kish_shen Exp $
  *
  */
 
@@ -827,9 +827,12 @@ logged call!)
 
 #include "external.h"
 
-#ifdef WIN32
-/* must be after include of external.h to avoid redefining log_output_ there */
-# define log_output_ ec_stream_id(ec_stream_nr(log_output_))
+
+#if defined(WIN32) && defined(LOG_CALLS)
+/* must be after include of external.h to avoid redefining log_output_ there 
+   Windows workaround for log_output_ not exported in eclipse.def
+*/
+# define log_output_ ec_stream_id(ec_stream_nr("log_output_"))
 #endif
 
 /* should be used only if v,t is a number */
@@ -1042,9 +1045,6 @@ static XPRSprob         cpx_env = 0;  /* != 0 when initialized */
 static void XPRS_CC eclipse_out ARGS((XPRSprob prob, void *obj, const char *msg, int len, int msgtype));
 
 
-# ifdef LOG_CALLS
-extern stream_id log_output_;
-# endif
 
 #endif	/* XPRESS */
 
