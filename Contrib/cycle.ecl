@@ -121,7 +121,7 @@ cycle_example:-
 		"),
 	    %eg:"",
 	    see_also:[cycle/3],
-	    %fail_if:"" ,
+	    fail_if:"It is impossible to find any Hamiltonian cycle in the graph" ,
 		exceptions:[
 			1:"Wrong edge weigh matrix size.",
 			1:"Wrong edge list length.",
@@ -163,7 +163,7 @@ cycle(EdgeDstVertexLi,EdgeWeightMx,CycleCost,ConfigList):-
 		"),
 	    %eg:"",
 	    see_also:[cycle/4],
-	    %fail_if:"" ,
+	    fail_if:"It is impossible to find any Hamiltonian cycle in the graph" ,
 		exceptions:[
 			1:"Wrong edge weigh matrix size.",
 			1:"Wrong edge list length.",
@@ -389,46 +389,14 @@ cycle_lp_filter(EdgeDstVertexLi,EdgeWeightMx,CycleCost,ConfigList):-
 	memberchk(opt_dir:OptDir,ConfigList),
 	(OptDir==min->OppositeDir=max;OppositeDir=min),
 	
-	%update the bound opposite to the optimization direction
+	%update the bound opposite to the optimization direction, do not keep lp config and solution
 	(memberchk(bound_upd:yes,ConfigList)->
-		shelf_create(opposite_bound(0), OppositeBoundSh),
-		(
-			%setup solver
-			LpCostTe=..[OppositeDir,sum(CostLi)],
-			CycleLPInstance:eplex_solver_setup(LpCostTe, OptLpRelaxCost, [sync_bounds(yes), reduced_cost(yes)], []),
-			%solve the linear relaxation
-			cycle_lp_solve(EdgeIsUsedMx,CycleLPInstance,ConfigList),
-			CycleLPInstance:eplex_get(cost,OptLpRelaxCost),
-			to_int(OptLpRelaxCost,OptLpRelaxCostInt),
-			shelf_set(OppositeBoundSh,1,OptLpRelaxCostInt),
-			fail
-		;
-			shelf_get(OppositeBoundSh, 1, CycleCostBound),
-			(OppositeDir == max->
-				ic:(CycleCost #=< CycleCostBound)
-			;
-				ic:(CycleCost #>= CycleCostBound)
-			)
-		),
-		shelf_abolish(OppositeBoundSh)
+		cycle_lp_solve_update_bound(CycleLPInstance,CycleCost,OppositeDir,sum(CostLi),EdgeIsUsedMx,fail,ConfigList)
 	;true),
 	
-	%setup solver
-	LpCostTe=..[OptDir,sum(CostLi)],
-	CycleLPInstance:eplex_solver_setup(LpCostTe, OptLpRelaxCost, [sync_bounds(yes), reduced_cost(yes)], []),
-	
-	%solve the linear relaxation
-	cycle_lp_solve(EdgeIsUsedMx,CycleLPInstance,ConfigList),
-	
+	%solve the lp relaxation, keep lp config and solution
+	cycle_lp_solve_update_bound(CycleLPInstance,CycleCost,OptDir,sum(CostLi),EdgeIsUsedMx,true,ConfigList),
 	CycleLPInstance:eplex_get(cost,OptLpRelaxCost),
-	
-	%update the bound at the optimization direction
-	to_int(OptLpRelaxCost,OptLpRelaxCostInt),
-	(OptDir == max->
-		ic:(CycleCost #=< OptLpRelaxCostInt)
-	;
-		ic:(CycleCost #>= OptLpRelaxCostInt)
-	),
 	
 	(memberchk(rc_varfix:yes,ConfigList)->
 		%post reduced cost variable fixing constraints
@@ -440,10 +408,45 @@ cycle_lp_filter(EdgeDstVertexLi,EdgeWeightMx,CycleCost,ConfigList):-
 	
 	true.
 	
+	
+cycle_lp_solve_update_bound(CycleLPInstance,CycleCost,OptDir,LpCostTe,EdgeIsUsedMx,KeepSolution,ConfigList):-
+		shelf_create(bound(0), BoundSh),
+		(
+			%setup solver
+			LpGoalTe=..[OptDir,LpCostTe],
+			CycleLPInstance:eplex_solver_setup(LpGoalTe, _OptLpRelaxCost, [sync_bounds(yes), reduced_cost(yes)], []),
+			%solve the linear relaxation
+			(cycle_lp_solve(EdgeIsUsedMx,CycleLPInstance,ConfigList)->
+				true
+			;
+				%impossible to find a Hamiltonion cycle in this graph, fail without an alternative
+				!,fail
+			),
+			CycleLPInstance:eplex_get(status,LpStatus),
+			look_at(LpStatus),
+			CycleLPInstance:eplex_get(cost,OptLpRelaxCost),
+			to_int(OptLpRelaxCost,OptLpRelaxCostInt),
+			shelf_set(BoundSh,1,OptLpRelaxCostInt),
+			%fail if solver setup should be backtracked over
+			call(KeepSolution),
+			!
+		;
+			true
+		),
+		
+		shelf_get(BoundSh, 1, CycleCostBound),
+		(OptDir == max->
+			ic:(CycleCost #=< CycleCostBound)
+		;
+			ic:(CycleCost #>= CycleCostBound)
+		),
+		shelf_abolish(BoundSh),
+	true.
+	
 cycle_lp_solve(EdgeIsUsedMx,CycleLPInstance,ConfigList):-	
 	(memberchk(cut_planes:yes,ConfigList)->
 		%strengthen the linear relaxation by cutting planes
-		cycle_lp_solve_inner(EdgeIsUsedMx,CycleLPInstance)
+		cycle_lp_solve_cut_planes(EdgeIsUsedMx,CycleLPInstance)
 	;
 		CycleLPInstance:eplex_solve(_OptLpRelaxCost)
 	),
@@ -451,7 +454,7 @@ cycle_lp_solve(EdgeIsUsedMx,CycleLPInstance,ConfigList):-
 	
 	
 	
-cycle_lp_solve_inner(EdgeIsUsedMx,CycleLPInstance):-
+cycle_lp_solve_cut_planes(EdgeIsUsedMx,CycleLPInstance):-
 
 	%solve
 	CycleLPInstance:eplex_solve(_OptLpRelaxCost),
@@ -468,7 +471,7 @@ cycle_lp_solve_inner(EdgeIsUsedMx,CycleLPInstance):-
 		%add cuts
 		cycle_lp_add_cuts(CycleLPInstance,EdgeIsUsedMx,CyclesLi),
 		%solve again
-		cycle_lp_solve_inner(EdgeIsUsedMx,CycleLPInstance)
+		cycle_lp_solve_cut_planes(EdgeIsUsedMx,CycleLPInstance)
 	),
 	true.
 	
@@ -500,6 +503,10 @@ cycle_lp_add_cuts(CycleLPInstance,EdgeIsUsedMx,CyclesLi):-
 
 		),
 		flatten(EdgeIsUsedLiLi,EdgeIsUsedLi),
+		(EdgeIsUsedLi=[]->
+			%it is impossible to eliminate this subtour, the structure if the problem implies no solution
+			fail
+		;true),
 		%forbid subtour
 		CycleLPInstance:(sum(EdgeIsUsedLi)>=1)
 	),
@@ -553,6 +560,8 @@ int_list(From,To,List):-
 		true
 	),
 	true.
+	
+look_at(_T):- true.
 	
 cycle_lp_dst_vertex(SrcVertexNr,EdgeIsUsedMx,DstVertexNr):-
 	arg(SrcVertexNr,EdgeIsUsedMx,EdgeIsUsedAr),
