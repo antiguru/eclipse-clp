@@ -27,8 +27,14 @@
 
 :- comment(desc,ascii("
 	A configurable constraint that forces the existence of a Hamiltonian cycle in a directed graph.
-	The constraint uses the ic and eplex libraries to achieve different levels of filtering.
-	For more details see cycle/4.
+	The constraint uses the ic and eplex libraries to achieve different levels of filtering. For more 
+	details see cycle/4.
+	Parts of the filtering algorithm have been inspired or are implementations of ideas presented by
+	John H.Hooker in \"Rossi F., van Beek P., Walsh T. (Eds.), Handbook of Constraint Programming, 
+	chap. 15. 2006 Elsevier.\".
+	
+	The constraint will be refined and new filtering techniques will be added as time will allow to
+	work on the subject.
 	")).
 :- comment(eg,"	
 :-lib(cycle).
@@ -98,18 +104,20 @@ cycle_example:-
 	graph, so the domain value j of the i-th variable corresponds to an edge (i,j). 
 
 	EdgeWeights is a square matrix (array of arrays) of size VertexCount*VertexCount of nonnegative 
-	integers. The value indexed [i,j] corresponds to the cost of the edge (i,j). 
+	integers. The value indexed [i,j] corresponds to the cost of the edge (i,j). Values on the diagonal
+	([i,i]) are unimportant since the correspond to edges (i,i) which are automatically removed by
+	the constraint.
 
 	CycleCost is an ic variable that corresponds to the cost of the cycle. 
 
 	Configuration is a list of key:value pairs that configure the filtering level of the constraint. 
-	rc_varfix:yes/no default is yes, enables or disables the propagation of reduced cost variable 
+	rc_varfix:yes/no (default is yes), enables or disables the propagation of reduced cost variable 
 	fixing constraints. These constraints are based on the solution of the LP relaxation for the cycle. 
-	cut_planes:yes/no default is yes, enables or disables the iterative strengthening of the LP 
+	cut_planes:yes/no (default is yes), enables or disables the iterative strengthening of the LP 
 	relaxation by generation of cutting planes for the LP model. 
-	bound_upd:yes/no default is yes, enables or disables the tightening of the upper bound on cost 
+	bound_upd:yes/no (default is yes), enables or disables the tightening of the upper bound on cost 
 	by solving a LP relaxation. 
-	opt_dir:min/max default is min, the propagation is optimised for minimisation (min) 
+	opt_dir:min/max (default is min), the propagation is optimised for minimisation (min) 
 	or maximisation (max) of the CycleCost. 
 
 	The default configuration for the constraint is to use the maximal available propagation 
@@ -154,7 +162,9 @@ cycle(EdgeDstVertexLi,EdgeWeightMx,CycleCost,ConfigList):-
 	graph, so the domain value j of the i-th variable corresponds to an edge (i,j). 
 
 	EdgeWeights is a square matrix (array of arrays) of size VertexCount*VertexCount of nonnegative 
-	integers. The value indexed [i,j] corresponds to the cost of the edge (i,j). 
+	integers. The value indexed [i,j] corresponds to the cost of the edge (i,j). Values on the diagonal
+	([i,i]) are unimportant since the correspond to edges (i,i) which are automatically removed by
+	the constraint.
 
 	CycleCost is an ic variable that corresponds to the cost of the cycle. 
 
@@ -291,8 +301,6 @@ cycle_ic(EdgeDstVertexLi,EdgeWeightMx,CycleCost):-
 	 count(VertexNr,1,VertexCount),
 	 %construct a list of all edge costs
 	 foreach(EdgeWeightVar,EdgeWeightVarLi),
-	 %construct a list of all vertex numbers
-	 foreach(VertexNr,VertexNrLi),
 	 param(EdgeWeightMx) do 	
 		%do not allow an edge from and to the same node
 		ic:(EdgeDstVertex#\=VertexNr),
@@ -304,9 +312,6 @@ cycle_ic(EdgeDstVertexLi,EdgeWeightMx,CycleCost):-
 	
 	%ensures that there is no more than one edge to each node 
 	ic_global:alldifferent(EdgeDstVertexLi),
-	
-	%an edge must exist to each node in the graph 
-	ic_global:sorted(EdgeDstVertexLi, VertexNrLi),
 	
 	%sum of costs of all edges
 	ic_global:sumlist(EdgeWeightVarLi,CycleCost),
@@ -503,7 +508,7 @@ cycle_lp_add_cuts(CycleLPInstance,EdgeIsUsedMx,CyclesLi):-
 
 		),
 		flatten(EdgeIsUsedLiLi,EdgeIsUsedLi),
-		(EdgeIsUsedLi=[]->
+		(EdgeIsUsedLi==[]->
 			%it is impossible to eliminate this subtour, the structure if the problem implies no solution
 			fail
 		;true),
