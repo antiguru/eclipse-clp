@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.16 2010/05/27 16:52:14 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.17 2010/06/08 01:09:27 kish_shen Exp $
  *
  */
 
@@ -832,7 +832,7 @@ logged call!)
 /* must be after include of external.h to avoid redefining log_output_ there 
    Windows workaround for log_output_ not exported in eclipse.def
 */
-# define log_output_ ec_stream_id(ec_stream_nr("log_output_"))
+# define log_output_ ec_stream_id(ec_stream_nr("log_output"))
 #endif
 
 /* should be used only if v,t is a number */
