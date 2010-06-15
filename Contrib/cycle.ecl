@@ -19,7 +19,7 @@
 
 :-module(cycle).
 
-:- comment(categories, ["Global Constraints"]).
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Cycle constraint").
 :- comment(author, "Lukasz Domagala").
 :- comment(copyright, "www.redber.pl").
@@ -29,7 +29,7 @@
 	A configurable constraint that forces the existence of a Hamiltonian cycle in a directed graph.
 	The constraint uses the ic and eplex libraries to achieve different levels of filtering. For more 
 	details see cycle/4.
-	Parts of the filtering algorithm have been inspired or are implementations of ideas presented by
+	Parts of the filtering algorithm have been inspired by or are implementations of ideas presented by
 	John H.Hooker in \"Rossi F., van Beek P., Walsh T. (Eds.), Handbook of Constraint Programming, 
 	chap. 15. 2006 Elsevier.\".
 	
