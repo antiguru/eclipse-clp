@@ -142,7 +142,7 @@ find_tcl() {
 	# We have our private Tcl with fixed structure
 	echo Using bundled Tcl/Tk in $ecl_tcl_arch
 
-	TCL_VERSION=`basename "$TCL_WISH"|sed -e 's/wish//'`
+	TCL_VERSION=`basename "$TCL_WISH" .exe|sed -e 's/wish//'`
 	TCL_ARCH_LIBRARY="$ecl_tcl_arch/lib"
 	TCL_LIBRARY="$ecl_tcl_arch/lib/tcl$TCL_VERSION"
 	TK_LIBRARY="$ecl_tcl_arch/lib/tk$TCL_VERSION"
@@ -522,6 +522,19 @@ echo "----------------------------------------------------------------------"
 # Make a properly configured eclipse executable
 #--------------------------------------------------------------
 
+case $ARCH in 
+    *_nt)
+	OS_ECLIPSEDIR=`cygpath -m "$ECLIPSEDIR"`
+	OS_TCL_LIBRARY=`cygpath -m "$TCL_LIBRARY"`
+	OS_TK_LIBRARY=`cygpath -m "$TK_LIBRARY"`
+	;;
+    *)
+	OS_ECLIPSEDIR="$ECLIPSEDIR"
+	OS_TCL_LIBRARY="$TCL_LIBRARY"
+	OS_TK_LIBRARY="$TK_LIBRARY"
+	;;
+esac
+
 cd "$LIB_ARCH_DIR"
 
 OBJECTS="standalone.o"
@@ -580,9 +593,9 @@ if test "$WANT_PARALLELISM" = "y"; then
     rm -f "$EXE_DIR/peclipse"
     cat > "$EXE_DIR/peclipse" <<EOF
 #! /bin/sh
-ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
-TCL_LIBRARY="\${TCL_LIBRARY:-$TCL_LIBRARY}"
-TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
+ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
+TCL_LIBRARY="\${TCL_LIBRARY:-$OS_TCL_LIBRARY}"
+TK_LIBRARY="\${TK_LIBRARY:-$OS_TK_LIBRARY}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY
 exec "$LIB_ARCH_DIR/peclipse.exe" "\$@"
 EOF
@@ -607,7 +620,7 @@ echo Making "$dest"
 rm -f "$dest"
 cat > "$dest" <<EOF
 #! /bin/sh
-ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
+ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 $LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$$LD_LIB_PATH_NAME"
 EOF
 case $ARCH in 
@@ -618,8 +631,8 @@ EOF
 	;;
 esac
 cat >> "$dest" <<EOF
-TCL_LIBRARY="\${TCL_LIBRARY:-$TCL_LIBRARY}"
-TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
+TCL_LIBRARY="\${TCL_LIBRARY:-$OS_TCL_LIBRARY}"
+TK_LIBRARY="\${TK_LIBRARY:-$OS_TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY $FRAMEWORK_PATH_NAME $LD_LIB_PATH_NAME DAVINCIHOME JRE_HOME
@@ -632,7 +645,7 @@ echo Making "$dest"
 rm -f "$dest"
 cat > "$dest" <<EOF
 #! /bin/sh
-ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
+ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 $LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$$LD_LIB_PATH_NAME"
 EOF
 case $ARCH in 
@@ -643,8 +656,8 @@ EOF
 	;;
 esac
 cat >> "$dest" <<EOF
-TCL_LIBRARY="\${TCL_LIBRARY:-$TCL_LIBRARY}"
-TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
+TCL_LIBRARY="\${TCL_LIBRARY:-$OS_TCL_LIBRARY}"
+TK_LIBRARY="\${TK_LIBRARY:-$OS_TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY $FRAMEWORK_PATH_NAME $LD_LIB_PATH_NAME DAVINCIHOME JRE_HOME
@@ -666,11 +679,11 @@ case $ARCH in
 	    rm -f "$dest"
 	    cat > "$dest" <<EOF
 #! /bin/sh
-ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
+ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 DYLD_LIBRARY_PATH="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$DYLD_LIBRARY_PATH"
 DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMEWORK_PATH"
-TCL_LIBRARY="\${TCL_LIBRARY:-$TCL_LIBRARY}"
-TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
+TCL_LIBRARY="\${TCL_LIBRARY:-$OS_TCL_LIBRARY}"
+TK_LIBRARY="\${TK_LIBRARY:-$OS_TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY DYLD_FRAMEWORK_PATH DYLD_LIBRARY_PATH DAVINCIHOME JRE_HOME
@@ -683,11 +696,11 @@ EOF
 	    rm -f "$dest"
 	    cat > "$dest" <<EOF
 #! /bin/sh
-ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
+ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 DYLD_LIBRARY_PATH="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$DYLD_LIBRARY_PATH"
 DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMEWORK_PATH"
-TCL_LIBRARY="\${TCL_LIBRARY:-$TCL_LIBRARY}"
-TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
+TCL_LIBRARY="\${TCL_LIBRARY:-$OS_TCL_LIBRARY}"
+TK_LIBRARY="\${TK_LIBRARY:-$OS_TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY DYLD_FRAMEWORK_PATH DYLD_LIBRARY_PATH DAVINCIHOME
 exec "$TCL_XWISH" "$ECLIPSEDIR/lib_tcl/tktools.tcl" -- "\$@"
@@ -709,11 +722,11 @@ if have_java_interface; then
     #suppresses a java warning which comes up in linux
 
     JIT_OPTION=""
+    JPSEP=":"
 
     case $ARCH in
-    i386_linux)
-	JIT_OPTION="-Djava.compiler="
-        ;;
+	*_nt) JPSEP=";" ;;
+	i386_linux) JIT_OPTION="-Djava.compiler=" ;;
     esac
     
     dest="$EXE_DIR/jeclipse"
@@ -721,7 +734,7 @@ if have_java_interface; then
     rm -f "$dest"
     cat > "$dest" <<EOF
 #! /bin/sh
-ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
+ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 EOF
 case $ARCH in
     *_macosx)
@@ -730,6 +743,8 @@ DYLD_LIBRARY_PATH="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$DYLD_LIBRARY_PATH"
 DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMEWORK_PATH"
 export DYLD_FRAMEWORK_PATH DYLD_LIBRARY_PATH 
 EOF
+	;;
+    *_nt)
 	;;
     *)
 	cat >> "$dest" <<EOF
@@ -740,7 +755,7 @@ esac
 
 cat >> "$dest" <<EOF
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
-CLASSPATH="\$ECLIPSEDIR/lib/eclipse.jar:\${JRE_HOME}/lib/rt.jar"
+CLASSPATH="\$ECLIPSEDIR/lib/eclipse.jar${JPSEP}\${JRE_HOME}/lib/rt.jar"
 export ECLIPSEDIR JRE_HOME
 exec "\${JRE_HOME}/bin/java" -Xss2m ${JIT_OPTION} -Declipse.directory="\$ECLIPSEDIR" -classpath "\$CLASSPATH" com.parctechnologies.eclipse.JEclipse "\$@"
 EOF
@@ -758,7 +773,7 @@ echo Making "$dest"
 rm -f "$dest"
 cat > "$dest" <<EOF
 #! /bin/sh
-ECLIPSEDIR="\${ECLIPSEDIR:-$ECLIPSEDIR}"
+ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 $LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:$TCL_ARCH_LIBRARY:\$$LD_LIB_PATH_NAME"
 EOF
 case $ARCH in 
@@ -769,8 +784,8 @@ EOF
 	;;
 esac
 cat >> "$dest" <<EOF
-TCL_LIBRARY="\${TCL_LIBRARY:-$TCL_LIBRARY}"
-TK_LIBRARY="\${TK_LIBRARY:-$TK_LIBRARY}"
+TCL_LIBRARY="\${TCL_LIBRARY:-$OS_TCL_LIBRARY}"
+TK_LIBRARY="\${TK_LIBRARY:-$OS_TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY $FRAMEWORK_PATH_NAME $LD_LIB_PATH_NAME DAVINCIHOME 
 exec "$TCL_WISH" "$ECLIPSEDIR/lib_tcl/tktools.tcl" -- "\$@"
