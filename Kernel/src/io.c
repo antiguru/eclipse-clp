@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.4 2010/04/28 13:56:00 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.5 2010/07/10 16:52:30 jschimpf Exp $
  */
 
 /*
@@ -2594,35 +2594,47 @@ set_stream(dident name, stream_id neww)
 
     if(name == d_.user || name == d_.null)
 	return(SYSTEM_STREAM);
-    if(name == d_.input)
+    else if(name == d_.input)
     {
 	if(!IsReadStream(neww))
 	    return(STREAM_MODE);
 	current_input_ = neww;
     }
-    if(name == d_.output)
+    else if(name == d_.output)
     {
 	if(!IsWriteStream(neww))
 	    return(STREAM_MODE);
 	current_output_ = neww;
     }
-    if(name == d_.err)
+    else if(name == d_.err)
     {
 	if(!IsWriteStream(neww))
 	    return(STREAM_MODE);
 	current_err_ = neww;
     }
-    if(name == d_.warning_output)
+    else if(name == d_.warning_output)
     {
 	if(!IsWriteStream(neww))
 	    return(STREAM_MODE);
 	warning_output_ = neww;
     }
-    if(name == d_.log_output)
+    else if(name == d_.log_output)
     {
 	if(!IsWriteStream(neww))
 	    return(STREAM_MODE);
 	log_output_ = neww;
+    }
+    else if(name == d_.stdin0)
+    {
+	if(!IsReadStream(neww))
+	    return(STREAM_MODE);
+	StreamMode(neww) |= SSYSTEM;
+    }
+    else if(name == d_.stdout0 || name == d_.stderr0)
+    {
+	if(!IsWriteStream(neww))
+	    return(STREAM_MODE);
+	StreamMode(neww) |= SSYSTEM;
     }
     /* And now change the stream */
     Set_Stream(name, neww);
