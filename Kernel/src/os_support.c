@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.8 2009/07/17 15:45:49 kish_shen Exp $
+ * $Id: os_support.c,v 1.9 2010/07/11 13:45:54 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -304,6 +304,17 @@ lseek(int handle, long offset, int whence)
     return _lseek(handle, offset, whence);
 }
 #endif
+
+int
+ec_truncate(int fd)
+{
+    if (!SetEndOfFile((HANDLE)_get_osfhandle(fd)))
+    {
+	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	return -1;
+    }
+    return 0;
+}
 
 #ifndef __GNUC__
 int

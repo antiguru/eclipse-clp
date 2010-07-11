@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * $Id: os_support.h,v 1.2 2010/07/11 13:45:54 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -186,6 +186,7 @@ char	*strerror ARGS((int));
 int	putenv ARGS((char *));
 int	lseek ARGS((int, long, int));
 int	fstat ARGS((int handle, struct_stat *buf));
+int	ec_truncate ARGS((int));
 #endif
 int	getpid ARGS((void));
 int	isatty ARGS((int));

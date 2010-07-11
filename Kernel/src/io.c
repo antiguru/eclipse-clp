@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.5 2010/07/10 16:52:30 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.6 2010/07/11 13:45:54 jschimpf Exp $
  */
 
 /*
@@ -2233,19 +2233,27 @@ _string_truncate(stream_id nst)
 static int
 _file_truncate(stream_id nst)
 {
-#ifndef _WIN32
+#ifdef _WIN32
+    /* On windows, we need to flush in order to set
+     * the real file pointer to the truncate position
+     */
+    int res = _buffer_flush(nst);
+    Return_If_Error(res);
+    if (ec_truncate(StreamUnit(nst)))
+    {
+	Bip_Error(SYS_ERROR);
+    }
+#else
     if (ftruncate(StreamUnit(nst),
     	(off_t) StreamOffset(nst) + (StreamPtr(nst) - StreamBuf(nst))))
     {
 	Set_Errno
 	Bip_Error(SYS_ERROR)
     }
+#endif
     StreamCnt(nst) = StreamPtr(nst) - StreamBuf(nst);
     *StreamPtr(nst) = EOB_MARK;
     Succeed_;
-#else
-    Bip_Error(UNIMPLEMENTED);
-#endif
 }
 
 
