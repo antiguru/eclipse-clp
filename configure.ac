@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.30 2010/04/05 04:08:46 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.31 2010/07/12 15:52:27 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1634,6 +1634,7 @@ AC_CONFIG_FILES([
 	pt_libraries/Makefile.$ARCH:pt_libraries/Makefile.in
 	Oci/Makefile.$ARCH:Oci/Makefile.in
 	ZincInterface/Makefile.$ARCH:ZincInterface/Makefile.in
+	GecodeInterface/Makefile.$ARCH:GecodeInterface/Makefile.in
 	])
 AC_CONFIG_HEADERS([
 	Kernel/$ARCH/config.h:Kernel/src/config.h.in

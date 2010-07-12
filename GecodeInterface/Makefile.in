@@ -1,0 +1,85 @@
+# BEGIN LICENSE BLOCK
+# Version: CMPL 1.1
+#
+# The contents of this file are subject to the Cisco-style Mozilla Public
+# License Version 1.1 (the "License"); you may not use this file except
+# in compliance with the License.  You may obtain a copy of the License
+# at www.eclipse-clp.org/license.
+# 
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
+# the License for the specific language governing rights and limitations
+# under the License. 
+# 
+# The Original Code is  The ECLiPSe Constraint Logic Programming System. 
+# The Initial Developer of the Original Code is  Cisco Systems, Inc. 
+# Portions created by the Initial Developer are
+# Copyright (C) 2010 Cisco Systems, Inc.  All Rights Reserved.
+# 
+# Contributor(s): 
+# 
+# END LICENSE BLOCK
+#
+# Makefile for Gecode interface
+# $Id: Makefile.in,v 1.1 2010/07/12 15:52:27 kish_shen Exp $
+#
+
+# The location of third party software releases, e.g. Gecode
+THIRDPARTY=@ECLIPSETHIRDPARTY@
+
+
+ARCH = @ARCH@
+top_srcdir = @top_srcdir@
+PREFIX = @prefix@
+ECLIPSEDIR = $(PREFIX)
+MAKEFILE = Makefile.$(ARCH)
+OSCLASS = @OSCLASS@
+
+CC = @CC@
+CXX = @CXX@
+AR = @AR@
+CFLAGS = @CFLAGS@ @OPT_FLAGS@
+OS_INCLUDES = @OS_INCLUDES@
+OBJ_SUFFIX = @OBJECTS_SUFFIX@
+DYNLDFLAGS = @DYNLDFLAGS@
+DYLD = @DYLD@
+EXEEXT = @EXEEXT@
+GMP_LD = @GMP_LD@
+FLOAT_ROUND_FLAGS = @FLOAT_ROUND_FLAGS@
+
+CPPFLAGS  = -I. -I$(ECLIPSEDIR)/include/$(ARCH) -I$(ECLIPSEDIR)/Kernel/src 
+STDCXXLIB = @STDCXXLIB@
+ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse @LIBS@
+
+GECODE = $(THIRDPARTY)/gecode-3.0.2/$(ARCH)
+
+PERM = a+r,u+w,go-w
+DIRPERM = 2755
+
+.SUFFIXES:	$(SUFFIXES) .$(OBJ_SUFFIX)
+
+.c.o:
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+
+
+# List of shared libraries to build
+
+OBJ_FILES =	\
+	$(ARCH)/gfd.$(OBJ_SUFFIX) 
+
+
+
+GECODELIBS = -lgecodesupport -lgecodekernel -lgecodeint -lgecodesearch \
+	-lgecodeset -lgecodeminimodel
+
+$(ARCH)/gfd.$(OBJ_SUFFIX): gfd.cpp gfd.hpp
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LOCAL_FLAGS) -I$(GECODE)/include gfd.cpp \
+              -c -o $(ARCH)/gfd.o
+	$(DYLD) $(DYNLDFLAGS) $(ECLIBS) -L$(GECODE)/lib $(GECODELIBS) \
+             $(ARCH)/gfd.o -o $(ARCH)/gecode.$(OBJ_SUFFIX)
+
+
+install:	@MAKE_TARGET@
+
+install_all:	$(OBJ_FILES)
