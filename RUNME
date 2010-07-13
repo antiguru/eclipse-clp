@@ -491,6 +491,20 @@ esac
 
 echo "----------------------------------------------------------------------"
 
+
+case $ARCH in 
+    *_nt)
+	OS_ECLIPSEDIR=`cygpath -m "$ECLIPSEDIR"`
+	OS_TCL_LIBRARY=`cygpath -m "$TCL_LIBRARY"`
+	OS_TK_LIBRARY=`cygpath -m "$TK_LIBRARY"`
+	;;
+    *)
+	OS_ECLIPSEDIR="$ECLIPSEDIR"
+	OS_TCL_LIBRARY="$TCL_LIBRARY"
+	OS_TK_LIBRARY="$TK_LIBRARY"
+	;;
+esac
+
 if test $SIMPLE != y; then
 #--------------------------------------------------------------
 # Customised configuration
@@ -521,19 +535,6 @@ echo "----------------------------------------------------------------------"
 #--------------------------------------------------------------
 # Make a properly configured eclipse executable
 #--------------------------------------------------------------
-
-case $ARCH in 
-    *_nt)
-	OS_ECLIPSEDIR=`cygpath -m "$ECLIPSEDIR"`
-	OS_TCL_LIBRARY=`cygpath -m "$TCL_LIBRARY"`
-	OS_TK_LIBRARY=`cygpath -m "$TK_LIBRARY"`
-	;;
-    *)
-	OS_ECLIPSEDIR="$ECLIPSEDIR"
-	OS_TCL_LIBRARY="$TCL_LIBRARY"
-	OS_TK_LIBRARY="$TK_LIBRARY"
-	;;
-esac
 
 cd "$LIB_ARCH_DIR"
 
