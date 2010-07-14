@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.3 2010/03/11 14:13:40 kish_shen Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.4 2010/07/14 06:46:28 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -48,8 +48,10 @@
         occurrences/3,
 	ordered/2,
 	ordered_sum/2,
-	lexico_le/2,
-	minlist/2,
+        lex_le/2,
+        lex_lt/2,
+	lexico_le/2,            % backwards compatibility, alias for lex_le/2
+        minlist/2,
 	maxlist/2,
 	sorted/2,
 	sorted/3,
@@ -89,7 +91,7 @@ tr_global_out(occurrences(Val, Vars, N, _, _), occurrences(Val, Vars, N)).
 	"Relation":"One of the atoms <, =<, >, >=, =",
 	"List":"Collection of integers or domain variables"
     ],
-    see_also:[lexico_le/2,ordered_sum/2,sorted/2,collection_to_list/2]
+    see_also:[lex_le/2,ordered_sum/2,sorted/2,collection_to_list/2]
     ]).
 
 ordered(Order, Xs) :- var(Xs), !,
@@ -686,23 +688,23 @@ ordered_sum_l(Xs, N, Sum, Susp) :-
 	than the first element of List2, or the first elements are
 	equal and the lexicographic order holds between the two list
 	tails."),
-    see_also:[ordered/2],
+    see_also:[ordered/2,_:lex_le/2,lex_lt/2],
     eg:"\
-    L=[X, Y, Z], L :: 0..9, lexico_le(L, [2, 3, 1]).		% X::0..2
-    L=[X, Y, Z], L :: 0..9, lexico_le(L, [2, 3, 1]), X=2.	% Y::0..3
-    L=[X, Y, Z], L :: 0..9, lexico_le(L, [2, 3, 1]), X#>2.	% fail
-    L=[X, Y, Z], L :: 0..9, lexico_le(L, [2, 3, 1]), X#<2.	% true
-    L=[X, Y, Z], L :: 0..9, lexico_le(L, [2, 3, 1]), Y=3.	% X::0..2
-    L=[X, Y, Z], L :: 0..9, lexico_le(L, [2, 3, 1]), Y#>3.	% X::0..1
-    L=[X, Y, Z], L :: 0..9, lexico_le(L, [2, 3, 1]), Y#<3.	% X::0..2
-    lexico_le([2, 3, 1], [3]).					% true
+    L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]).		% X::0..2
+    L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), X=2.	% Y::0..3
+    L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), X#>2.	% fail
+    L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), X#<2.	% true
+    L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), Y=3.	% X::0..2
+    L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), Y#>3.	% X::0..1
+    L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), Y#<3.	% X::0..2
+    lex_le([2, 3, 1], [3]).					% true
     " ]).
 
 lex_le(XVector,YVector):-
         collection_to_list(XVector,XList),
         collection_to_list(YVector,YList),
         lex_le1(XList,YList).
-%        lexico_le(XList,YList).
+%        lex_le(XList,YList).
 
 lex_le1([], []) ?- !, true.
 lex_le1([X], [Y|_]) ?- !, X #=< Y.
@@ -743,6 +745,24 @@ get_next([X|X1],[Y|Y1],X2,Y2):-
         !,
         get_next(X1,Y1,X2,Y2).
 get_next([X|_X1],[Y|_Y1],X,Y).
+
+:- comment(lex_lt/2, [
+    summary:"List1 is lexicographically less than  List2",
+    amode:lex_lt(+,+),
+    args:[
+	"List1":"List of integers or domain variables",
+	"List2":"List of integers or domain variables"
+    ],
+    see_also:[ordered/2,_:lex_lt/2,lex_le/2],
+    desc:html("\
+    	Imposes a lexicographic ordering between the two lists. 
+	I.e.  either is the first element of List1 strictly smaller
+	than the first element of List2, or the first elements are
+	equal and the lexicographic order holds between the two list
+	tails. A non-existing element (i.e. when the end of list is 
+        reached) is strictly smaller than any existing element.
+")
+]).
 
 lex_lt(XVector,YVector):-
         collection_to_list(XVector,XList),
