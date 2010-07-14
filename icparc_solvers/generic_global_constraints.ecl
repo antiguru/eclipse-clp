@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.4 2010/07/14 06:46:28 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.5 2010/07/14 06:54:06 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -804,7 +804,7 @@ lex_lt([X1|X2Xs], [Y1|Y2Ys], S) ?-
             )
         ).
 
-
+:- deprecated(lexico_le/2, "Use lex_le/2").
 lexico_le(Xs, Ys) :- lex_le(Xs, Ys).  % backwards compatibility
 
 %----------------------------------------------------------------------
