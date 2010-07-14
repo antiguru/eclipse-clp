@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.31 2010/07/12 15:52:27 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.32 2010/07/14 16:23:36 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -257,6 +257,7 @@ case "$ARCH" in
     PL_O_SO=".o.dylib:"
     PD_O_SO="$LD_C_SO"
     DYLD="libtool"
+    DYLDCXX="libtool"
     LDYLD="libtool -dynamic -L$GCCLIBDIR"
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     LDTCL="-framework Tcl"
@@ -297,6 +298,7 @@ case "$ARCH" in
     PL_O_SO=".o.dylib:"
     PD_O_SO="$LD_C_SO"
     DYLD="libtool"
+    DYLDCXX="libtool"
     LDYLD="libtool -dynamic -L$GCCLIBDIR"
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     #LDTCL="-framework tcl"
@@ -445,6 +447,7 @@ case "$ARCH" in
     OBJECTS_SUFFIX=dll
     LIB_PREFIX=
     DYLD="\$(CC)"
+    DYLDCXX="\$(CXX)"
     dnl ws2_32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lws2_32 -lnetapi32 $LIBS"
@@ -474,6 +477,7 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="ld -shared \$< -o \$@"
     DYLD = "\$(CC)"
+    DYLDCXX = "\$(CXX)"
     LDYLD="\$CC -G -taso"
     WANT_MPS=y
     ;;
@@ -542,6 +546,7 @@ case "$ARCH" in
     PD_O_SO="ld -shared \$< -o \$@"
     DYNLDFLAGS = "-shared"
     DYLD="ld"
+    DYLDCXX="ld"
     LDYLD="ld -shared"
     WANT_MPS=y
     ;;
@@ -598,6 +603,7 @@ fi
 
 if test -z "$DYLD"; then
     DYLD="\$(CC)"
+    DYLDCXX="\$(CXX)"
     LDYLD="\$CC -shared"
 fi
 
@@ -1680,6 +1686,7 @@ AC_SUBST(PD_C_SO)
 AC_SUBST(PL_O_SO)
 AC_SUBST(PD_O_SO)
 AC_SUBST(DYLD)
+AC_SUBST(DYLDCXX)
 AC_SUBST(LDTCL)
 AC_SUBST(TCL_DIR)
 AC_SUBST(BUILD_WITH_TCL)
