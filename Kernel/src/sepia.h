@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.8 2010/04/28 13:56:00 jschimpf Exp $
+ * $Id: sepia.h,v 1.9 2010/07/16 06:13:10 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1181,6 +1181,7 @@
 #define GlobalProcedures	(*(proc_duet **) &shared_data->global_procedures)
 #define CompiledStructures	(*(proc_duet **) &shared_data->compiled_structures)
 #define NbStreams		(shared_data->nbstreams)
+#define NbStreamsFree		(shared_data->nbstreams_free)
 #define StreamDescriptors	(*(stream_id **) &shared_data->stream_descriptors)
 #define ErrorHandler		(*(pri ***) &shared_data->error_handler)
 #define DefaultErrorHandler	(*(pri ***) &shared_data->default_error_handler)

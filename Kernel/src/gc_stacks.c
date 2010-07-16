@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+ * $Id: gc_stacks.c,v 1.4 2010/07/16 06:13:10 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -489,12 +489,12 @@ collect_stacks(word arity, word gc_forced)
 	p_fprintf(log_output_, "gc because beyond max_gc_trigger\n");
 #endif
 
-    if (!gc_forced &&
-	    ( ( GlobalFlags & GC_ADAPTIVE
-	    	&& TG < ideal_gc_trigger  &&  TG < max_gc_trigger )
-	    || TG < min_gc_trigger
-	    )
-	)
+    if (!gc_forced &&           /* not triggered by garbage_collect/0 */
+        (NbStreamsFree > 0) &&  /* not triggered by running out of streams */
+        ( ( GlobalFlags & GC_ADAPTIVE
+            && TG < ideal_gc_trigger  &&  TG < max_gc_trigger )
+        || TG < min_gc_trigger
+        ))
     {
 	/*
 	 * Try to expand the stack rather than doing gc

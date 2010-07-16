@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.9 2010/04/22 14:09:47 jschimpf Exp $
+ * $Id: types.h,v 1.10 2010/07/16 06:13:10 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -635,6 +635,7 @@ struct shared_data_t {
 		load_release_delay,
 		publishing_param,
 		nbstreams,
+		nbstreams_free,
 		user_error,
 		max_errors,
 		symbol_table_version,

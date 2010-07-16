@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.6 2010/07/11 13:45:54 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.7 2010/07/16 06:13:10 jschimpf Exp $
  */
 
 /*
@@ -437,7 +437,7 @@ io_init(int flags)
 	    StreamNref(StreamId(i)) = 0;
 	    StreamNr(StreamId(i)) = i;
 	}
-	NbStreams = STREAM_MIN;
+	NbStreams = NbStreamsFree = STREAM_MIN;
     }
     if ((ec_options.io_option != OWN_IO) && (flags & INIT_SHARED))
     {
@@ -454,7 +454,7 @@ io_init(int flags)
 	    StreamNref(StreamId(i)) = 0;
 	    StreamNr(StreamId(i)) = i;
 	}
-	NbStreams = STREAM_MIN;
+	NbStreams = NbStreamsFree = STREAM_MIN;
     }
     if (flags & INIT_PRIVATE)
     {
@@ -493,7 +493,6 @@ io_init(int flags)
 	    if (IsOpened(nst))
 	    {
 		_free_stream(nst);
-		StreamMode(StreamId(i)) = SCLOSED;
 	    }
 	}
     }
@@ -556,6 +555,15 @@ void
 init_stream(stream_id nst, int unit, int mode, dident name, dident prompt, stream_id prompt_stream, int size)
 {
     unsigned char *buf;
+
+    if (!IsOpened(nst))
+    {
+        if (--NbStreamsFree <= 0)
+        {
+            NbStreamsFree = 0;  /* just in case it got out of sync */
+            Set_Tg_Soft_Lim(TG) /* initiate GC of stream handles */
+        }
+    }
 
     StreamUnit(nst) = unit;
     if (LocalStreams())
@@ -705,6 +713,7 @@ find_free_stream(void)
 
     nst = StreamId(NbStreams);
     NbStreams += STREAM_INC;
+    NbStreamsFree += STREAM_INC;
     return nst;
 }
 
@@ -754,6 +763,9 @@ ec_open_file(char *path, int mode, int *err)
 static void
 _free_stream(stream_id nst)
 {
+    if (!IsOpened(nst))
+        return;
+
     if (StreamBuf(nst) != NO_BUF)
     {
 	if (IsQueueStream(nst))
@@ -799,6 +811,9 @@ _free_stream(stream_id nst)
 	heap_event_tid.free(StreamEvent(nst).val.wptr);
 	Make_Nil(&StreamEvent(nst));
     }
+
+    StreamMode(nst) = SCLOSED;
+    ++NbStreamsFree;
 }
 
 int
@@ -837,12 +852,10 @@ ec_close_stream(stream_id nst)
             --StreamNref(SocketInputStream(nst));
             assert(StreamNref(SocketInputStream(nst)) == 0);
             _free_stream(SocketInputStream(nst));
-            StreamMode(SocketInputStream(nst)) = SCLOSED;
         }
         SocketConnection(nst) = 0;	/* otherwise he would try to free it */
     }
     _free_stream(nst);
-    StreamMode(nst) = SCLOSED;
     return PSUCCEED;
 }
 
