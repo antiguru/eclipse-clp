@@ -244,6 +244,12 @@ no_sum(_Hash,_Candidates,Sum,_N,Alpha,Beta,feasible,nan,nan):-
         Alpha =< 0,
         Beta >= Sum,
         !.
+no_sum(_Hash,_Candidates,Sum,_N,Alpha,Beta,infeasible,nan,nan):- % new
+        Sum < Alpha,
+        !.
+no_sum(_Hash,_Candidates,_Sum,_N,_Alpha,Beta,infeasible,nan,nan):- 
+        Beta < 0,
+	!.
 no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,Alpha1,Beta1):-
         hash_find(Hash,key(Alpha,Beta,N,Sum,Candidates),
                   result(Result,Alpha1,Beta1)),
