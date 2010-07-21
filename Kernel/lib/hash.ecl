@@ -26,7 +26,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Stefano Novello, IC-Parc
-% Version:	$Id: hash.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: hash.ecl,v 1.3 2010/07/21 04:55:42 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -36,7 +36,7 @@
 :- comment(summary, "Hash table library").
 :- comment(author, "Stefano Novello, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/07/21 04:55:42 $").
 
 :- export(hash_create/1).
 :- export(hash_add/3).
@@ -59,6 +59,7 @@
 :- export(hash_entry/3).
 :- export hash_insert_suspension/3.
 :- export hash_terminate_suspensions/1.
+:- export list_to_hash/4.
 
 %:- lib(notify_ports).	% autoload on demand
 
@@ -573,6 +574,75 @@ hash_keys(H,Keys) :-
 	;
 	    Keys = K
 	).
+
+
+:- comment(list_to_hash/4, [
+    amode:(list_to_hash(+,+,+,-) is det),
+    amode:(list_to_hash(+,+,+,+) is det),
+    args:["KeyPos":"Key position (non-negative integer)",
+        "ValPos":"Value position (non-negative integer)",
+        "List":"List of structures",
+        "Table":"A hash table or variable"],
+    summary:"Enter a list of items into a (new or existing) hash table",
+    desc:html("<P>
+        This predicate takes a list of structures, and makes an entry
+        into a hash table for every list element.  The KeyPos argument 
+        determines which structure argument will be used as the key,
+        and ValPos determines which structure argument will be used as
+        the value.  KeyPos and/or ValPos can be set to 0, indicating that
+        the whole structure should be used, rather than just one argument.
+        This makes this predicate quite versatile and avoids the need
+        to construct auxiliary lists.
+        </P><P>
+        The hash table itself may already exist, in which case the new
+        entries will be added to the table, possibly replacing existing
+        entries with the same key.  If Table is a free variable, a fresh
+        hash table will be implicitly created (as with hash_create/1).
+        </P><P>
+        When working with struct-notation, KeyPos and ValPos can also
+        be symbolic terms like `author of book'.
+        </P>
+        "),
+    see_also:[hash_create/1, hash_set/3, struct/1],
+    eg:"
+        % To enter a Key-Value list, use positions 1 and 2:
+        ?- Data = [a-one,c-three,b-two],
+           list_to_hash(1, 2, Data, Hash),
+           hash_get(Hash, b, X).
+
+        X = two
+        Yes (0.00s cpu)
+
+        % To enter structures using one of their arguments as the key:
+        ?- Data = [emp(jo,12),emp(ed,7),emp(al,4)],
+           list_to_hash(2, 0, Data, Hash),
+           hash_get(Hash, 7, X).
+
+        X = emp(ed, 7)
+        Yes (0.00s cpu)
+
+        % You can incrementally add to/update an existing hash table:
+        ?- hash_create(Hash),
+           hash_set(Hash, d, four),
+           list_to_hash(1, 2, [a-one,c-three,b-two], Hash),
+           list_to_hash(1, 2, [c-new,e-five], Hash),
+           hash_list(Hash, Keys, Values).
+
+        Keys = [d, e, a, b, c]
+        Values = [four, five, one, two, new]
+        Yes (0.00s cpu)
+    "]).
+
+list_to_hash(KeyPos, ValPos, List, Hash) :-
+        ( var(Hash) -> hash_create(Hash) ; true ),
+        ( foreach(Item,List), param(KeyPos,ValPos,Hash) do
+            xarg(KeyPos, Item, Key),
+            xarg(ValPos, Item, Val),
+            hash_set(Hash, Key, Val)
+        ).
+
+xarg(0, S, X) :- !, X=S.
+xarg(I, S, X) :- arg(I, S, X).
 
 
 :- export hash_display/2.
