@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.10 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.11 2010/07/21 23:40:37 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -390,7 +390,7 @@ p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod
     mod_pw.val.all = vmod.all;
     mod_pw.tag.all = tmod.all;
     res = ec_load_eco_from_stream(nst, vopt.nint, &mod_pw);
-    (void) ec_close_stream(nst);
+    (void) ec_close_stream(nst, CLOSE_FORCE);
     if (res != PSUCCEED)
 	return res;
     Return_Unify_Pw(mod_pw.val, mod_pw.tag, vout, tout);

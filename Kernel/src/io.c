@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.7 2010/07/16 06:13:10 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.8 2010/07/21 23:40:37 jschimpf Exp $
  */
 
 /*
@@ -396,7 +396,6 @@ static int	_isafifo(int fd),
 		_queue_fill_buffer(stream_id nst),
 		_string_fill_buffer(stream_id nst),
 		_local_tty_in(stream_id nst);
-static int	_open_by_name(char *path, int mode, int *io_unit, io_channel_t **io_type);
 
 
 
@@ -582,6 +581,7 @@ init_stream(stream_id nst, int unit, int mode, dident name, dident prompt, strea
     StreamPromptStream(nst) = prompt_stream;
     StreamPrompt(nst) = prompt;
     StreamName(nst) = name;
+    StreamPath(nst) = D_UNKNOWN;
     StreamCnt(nst) = 0;
     StreamOffset(nst) = 0;
     Make_Nil(&StreamEvent(nst));
@@ -738,6 +738,8 @@ mark_dids_from_streams(void)
 		Mark_Did(StreamPrompt(nst));
 	    if (StreamName(nst) != D_UNKNOWN)
 		Mark_Did(StreamName(nst));
+	    if (StreamPath(nst) != D_UNKNOWN)
+		Mark_Did(StreamPath(nst));
 	    mark_dids_from_pwords(&StreamEvent(nst), &StreamEvent(nst)+1);
 	}
     }
@@ -745,18 +747,45 @@ mark_dids_from_streams(void)
 
 
 stream_id
-ec_open_file(char *path, int mode, int *err)
+ec_open_file(char *name, int mode, int *err)
 {
+    int		i = 0;
     int		fd;
+    int		smode;
+    char	buf[MAX_PATH_LEN];
     stream_id	nst;
     io_channel_t *io_type;
 
-    if ((*err = _open_by_name(path, mode, &fd, &io_type)) != PSUCCEED)
+    /* translate the user mode to the corresponding system mode smode */
+    switch (mode)
     {
+    case SREAD:			smode = O_RDONLY;			break;
+    case SWRITE:		smode = O_WRONLY | O_CREAT | O_TRUNC;	break;
+    case SRDWR:			smode = O_RDWR | O_CREAT;		break;
+    case SAPPEND:
+    case (SAPPEND|SWRITE):	smode = O_APPEND | O_CREAT | O_WRONLY;	break;
+    case (SAPPEND|SRDWR):	smode = O_APPEND | O_CREAT | O_RDWR;	break;
+    default:			*err = RANGE_ERROR; return NO_STREAM;
+    }
+
+    /* try to open the file */
+    (void) expand_filename(name, buf);
+    if ((fd = ec_open(buf, smode, 0666)) < 0) {
+	Set_Errno;
+	*err = SYS_ERROR;
 	return NO_STREAM;
     }
+    io_type = isatty(fd) ? &ec_tty : &ec_file;
+
+    /* make the stream descriptor */
     nst = find_free_stream();
-    init_stream(nst, fd, mode|io_type->io_type, enter_dict(path, 0), NO_PROMPT, NO_STREAM, 0);
+    init_stream(nst, fd, mode|io_type->io_type, enter_dict(name, 0), NO_PROMPT, NO_STREAM, 0);
+    if (buf[0] != '/')
+    {
+	i = get_cwd(buf, MAX_PATH_LEN);
+    }
+    (void) expand_filename(name, buf+i);
+    StreamPath(nst) = enter_dict(buf, 0);
     return(nst);
 }
 
@@ -816,33 +845,44 @@ _free_stream(stream_id nst)
     ++NbStreamsFree;
 }
 
+/*
+ * Close a stream
+ * Options:
+ *	CLOSE_FORCE: free the stream even if there were errors
+ *	CLOSE_LOST: we are closing because the stream was lost (fail/gc)
+*/
+
 int
-ec_close_stream(stream_id nst)
+ec_close_stream(stream_id nst, int options)
 {
+    int res = PSUCCEED;
+
     if(!IsOpened(nst))
 	return(FILE_NOT_OPEN);
 
     if (IsWriteStream(nst) && !IsQueueStream(nst))
     {
         int err = ec_flush(nst);
-        if (err != PSUCCEED)
+        if ((err != PSUCCEED) && !(options & CLOSE_FORCE))
             return err;
+	res = err;
     }
     /* Don't close the stdin, stdout and stderr file descriptors (SSYSTEM)
      * because this very likely hangs the system. Moreover, we would then
      * need a way to reopen them, e.g. after restoring a saved state.
      */
     if (StreamMode(nst) & SSYSTEM)
-        return PSUCCEED;
+        return res;
 
     if (IsSocket(nst) && IsInvalidSocket(nst))
-        return PSUCCEED;	/* will be closed via paired SWRITE socket */
+        return res;	/* will be closed via paired SWRITE socket */
 
     if (!(IsNullStream(nst) || IsStringStream(nst) || IsQueueStream(nst)))
     {
         int err = RemoteStream(nst) ? io_rpc(nst, IO_CLOSE) : _local_io_close(nst);
-        if (err != PSUCCEED)
+        if ((err != PSUCCEED) && !(options & CLOSE_FORCE))
             return err;
+	res = (res==PSUCCEED ? err : res);
     }
 
     if (IsSocket(nst))
@@ -853,10 +893,21 @@ ec_close_stream(stream_id nst)
             assert(StreamNref(SocketInputStream(nst)) == 0);
             _free_stream(SocketInputStream(nst));
         }
-        SocketConnection(nst) = 0;	/* otherwise he would try to free it */
+        SocketConnection(nst) = 0;	/* otherwise we would try to free it */
+    }
+    else if(IsFileStream(nst) &&
+	( StreamMode(nst) & SDELETECLOSED ||
+	  StreamMode(nst) & SDELETECLOSED && options & CLOSE_LOST))
+    {
+	if (ec_unlink(DidName(StreamPath(nst))) < 0)
+	{
+	    Set_Errno
+	    if (!(options & CLOSE_FORCE)) return SYS_ERROR;
+	    res = (res==PSUCCEED ? SYS_ERROR : res);
+	}
     }
     _free_stream(nst);
-    return PSUCCEED;
+    return res;
 }
 
 
@@ -946,7 +997,7 @@ flush_and_close_io(int own_streams_only)
 	Lock_Stream(nst);
 	if (!own_streams_only || !RemoteStream(nst))
 	{
-            (void) ec_close_stream(nst);
+            (void) ec_close_stream(nst, CLOSE_FORCE|CLOSE_LOST);
 	}
 	Unlock_Stream(nst);
     }
@@ -2198,7 +2249,7 @@ _buffer_at_eof(stream_id nst)
 #if defined(HAVE_FSTAT)
     if(fstat(StreamUnit(nst), &buf) < 0)
 #else
-    if(ec_stat(DidName(StreamName(nst)), &buf) < 0)
+    if(ec_stat(DidName(StreamPath(nst)), &buf) < 0)
 #endif
     {
 	Set_Errno
@@ -2869,48 +2920,6 @@ _dummy_content(stream_id nst, char *buf)
     return 0;
 }
 
-static int
-_open_by_name(char *path, int mode, int *fd, io_channel_t **io_type)
-{
-    int		smode;
-    char	buf[MAX_PATH_LEN];
-
-    /* translate the user mode to the corresponding system mode smode */
-    switch (mode)
-    {
-    case SREAD:
-	smode = O_RDONLY;
-	break;
-
-    case SWRITE:
-	smode = O_WRONLY | O_CREAT | O_TRUNC;
-	break;
-
-    case SRDWR:
-	smode = O_RDWR | O_CREAT;
-	break;
-
-    case (SAPPEND | SWRITE):
-    case SAPPEND:
-	smode = O_APPEND | O_CREAT | O_WRONLY;
-	break;
-
-    case (SAPPEND | SRDWR):
-	smode = O_APPEND | O_CREAT | O_RDWR;
-	break;
-    default:
-	return RANGE_ERROR;
-    }
-
-    /* try to open the file */
-    path = expand_filename(path, buf);
-    if ((*fd = ec_open(path, smode, 0666)) < 0) {
-	Set_Errno;
-	return SYS_ERROR;
-    }
-    *io_type = isatty(*fd) ? &ec_tty : &ec_file;
-    return PSUCCEED;
-}
 
 static int
 _close_fd(int fd)

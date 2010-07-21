@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.5 2010/04/28 14:03:10 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.6 2010/07/21 23:41:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -187,6 +187,8 @@ stream_info_nr(output_options, 25).
 stream_info_nr(compress, 27).
 stream_info_nr(last_written, 28).
 stream_info_nr(handle, 29).
+stream_info_nr(delete_file, 30).
+stream_info_nr(path, 31).
 
 stream_info_nr_hidden(physical_stream, 4).
 stream_info_nr_hidden(print_depth, 26).

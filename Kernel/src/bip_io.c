@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.7 2010/04/28 13:56:00 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.8 2010/07/21 23:40:37 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -227,6 +227,8 @@ static dident		d_pipe,
 			d_end_of_line,
 			d_lf,
 			d_crlf,
+			d_when_lost,
+			d_when_closed,
 			d_reprompt1,
 			d_block;
 
@@ -323,6 +325,8 @@ bip_io_init(int flags)
     d_end_of_line = in_dict("end_of_line", 0);
     d_lf = in_dict("lf", 0);
     d_crlf = in_dict("crlf", 0);
+    d_when_lost = in_dict("when_lost", 0);
+    d_when_closed = in_dict("when_closed", 0);
 
     modes[SCLOSED] = in_dict("closed",0);
     modes[SREAD] = d_.read;
@@ -435,7 +439,7 @@ _lose_stream(stream_id nst)		/* nst != NULL */
 	    p_fprintf(current_output_, "lose_stream(%d)\n", StreamNr(nst));
 	    ec_flush(current_output_);
 	    */
-	    int res = ec_close_stream(nst);
+	    int res = ec_close_stream(nst, CLOSE_FORCE|CLOSE_LOST);
 	    if (res != PSUCCEED)
 	    {
 		p_fprintf(current_err_, "\nError %d during auto-close of stream_%d\n", -res, StreamNr(nst));
@@ -463,6 +467,8 @@ _mark_stream(stream_id nst)		/* nst != NULL */
 	    Mark_Did(StreamPrompt(nst));
 	if (StreamName(nst) != D_UNKNOWN)
 	    Mark_Did(StreamName(nst));
+	if (StreamPath(nst) != D_UNKNOWN)
+	    Mark_Did(StreamPath(nst));
 	mark_dids_from_pwords(&StreamEvent(nst), &StreamEvent(nst)+1);
     }
 }
@@ -1069,7 +1075,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
     }
     else if ((res = set_stream(vstr.did, nst)) < 0)
     {
-	(void) ec_close_stream(nst);
+	(void) ec_close_stream(nst, 0);
 	Bip_Error(res);
     }
     Return_Unify;
@@ -1108,7 +1114,7 @@ p_close(value v, type t)
 	Bip_Error(SYSTEM_STREAM);
     }
     Lock_Stream(nst);
-    res = ec_close_stream(nst);
+    res = ec_close_stream(nst, 0);
     Unlock_Stream(nst);
     if (res < 0)
     {
@@ -1682,6 +1688,20 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	result = StreamHandle(nst);
 	break;
 
+    case 30:		/* delete_file */
+	result.val.did =
+	    StreamMode(nst) & SDELETELOST ? d_when_lost :
+	    StreamMode(nst) & SDELETECLOSED ? d_when_closed : d_.off;
+	result.tag.kernel = TDICT;
+	break;
+
+    case 31:		/* full file path */
+	if ((result.val.did = StreamPath(nst)) == d_.nil)
+	    result.tag.kernel = TNIL;
+	else
+	    result.tag.kernel = TDICT;
+	break;
+
     default:
 	Fail_;
     }
@@ -1916,6 +1936,24 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 	} else if (v.did == d_.on) {
 	    StreamMode(nst) |= SCOMPRESS;
 	} else {
+	    Bip_Error(RANGE_ERROR);
+	}
+	break;
+
+    case 30:		/* delete_file {off|when_closed|when_lost} */
+	Check_Atom(t);
+	if (v.did == d_when_lost) {
+	    StreamMode(nst) &= ~(SDELETELOST|SDELETECLOSED);
+	    StreamMode(nst) |= SDELETELOST;
+	}
+	else if (v.did == d_when_closed) {
+	    StreamMode(nst) &= ~(SDELETELOST|SDELETECLOSED);
+	    StreamMode(nst) |= SDELETECLOSED;
+	}
+	else if (v.did == d_.off) {
+	    StreamMode(nst) &= ~(SDELETELOST|SDELETECLOSED);
+	}
+	else {
 	    Bip_Error(RANGE_ERROR);
 	}
 	break;
@@ -2774,7 +2812,7 @@ socket_connect(stream_id nst, value vaddr, type taddr)
 		 connection refused)
 	      */
 	        Lock_Stream(nst);
-	        ec_close_stream(nst);
+	        ec_close_stream(nst, CLOSE_FORCE);
 		Unlock_Stream(nst);
 	        Bip_Error(SYS_ERROR); 
 	    }

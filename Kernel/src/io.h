@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: io.h,v 1.4 2010/04/28 13:56:00 jschimpf Exp $
+ * VERSION	$Id: io.h,v 1.5 2010/07/21 23:40:37 jschimpf Exp $
  */
 
 /*
@@ -63,6 +63,7 @@
 #define StreamLexAux(nst)	(nst)->lex_aux
 #define StreamLine(nst)		(nst)->line
 #define StreamName(nst)		(nst)->name
+#define StreamPath(nst)		(nst)->pathname
 #define StreamOffset(nst)	(nst)->offset
 #define StreamPrompt(nst)	(nst)->prompt
 #define StreamEncoding(nst)	(nst)->encoding
@@ -175,11 +176,17 @@
 #define SCOMPRESS	0x80000	/* try to compress output on this stream */
 #define SSELECTABLE	0x100000 /* stream supports select/3 */
 #define SNUMBERUSED	0x200000 /* stream may be referred to by number */
+#define SDELETELOST	0x400000 /* delete file when stream handle is lost */
+#define SDELETECLOSED	0x800000 /* delete file when stream is closed */
 
 
 /* how many characters can be ungotten */
 #define LOOKAHEAD		4
 
+
+/* options for ec_close_stream() */
+#define CLOSE_FORCE	1
+#define CLOSE_LOST	2
 
 /*
  * action codes for io_rpc()
@@ -284,7 +291,7 @@ Extern	int	ec_tty_out ARGS((stream_id, int));
 Extern	int	ec_tty_outs ARGS((stream_id, char*, int));
 Extern	int	ec_seek_stream ARGS((stream_id,long,int));
 Extern	int	ec_stream_at ARGS((stream_id,long*));
-Extern	int	ec_close_stream ARGS((stream_id));
+Extern	int	ec_close_stream ARGS((stream_id, int));
 Extern	int	ec_outfw ARGS((stream_id, word));
 Extern	int	ec_outfc ARGS((stream_id, int));
 Extern	int	ec_getch ARGS((stream_id));

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.10 2010/07/16 06:13:10 jschimpf Exp $
+ * $Id: types.h,v 1.11 2010/07/21 23:40:37 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -273,6 +273,7 @@ typedef struct stream_d {
     uint32		rand;		/* random generator state	*/
     int			last_written;	/* last character written	*/
     void_ptr		signal_thread;	/* to simulate sigio on Windows	*/
+    dident		pathname;	/* full file path name		*/
 } stream_desc;
 
 typedef stream_desc	*stream_id;
