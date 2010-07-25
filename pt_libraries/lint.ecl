@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lint.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: lint.ecl,v 1.3 2010/07/25 13:29:05 jschimpf Exp $
 %
 %
 % TODO/ideas:
@@ -52,7 +52,7 @@
 :- comment(summary, "Heuristic program checker").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2010/07/25 13:29:05 $").
 :- comment(desc, html("
     This library analyses an ECLiPSe source module or file and generates
     warning messages for dubious programming constructs and violation
@@ -165,7 +165,8 @@ saros_lint(OSFile) :-
 
 lint(File, OptionList) :-
 	( get_options(OptionList, Options) ->
-	    source_open(File, [no_macro_expansion], SP0),
+	    % keep_comments is to get more accurate clause line numbers
+	    source_open(File, [no_macro_expansion,keep_comments], SP0),
 	    (
 		fromto(begin, _, Class, end),
 		fromto(SP0, SP1, SP2, SPend),
@@ -330,7 +331,7 @@ direct_call(e).
 direct_call(s).
 
 message(String, Args, source_position with [file:F,line:L,module:_M]) :-
-	printf(warning_output, "%n--- File %s, line %d:%n", [F,L]),
+	printf(warning_output, "%n--- File %s, clause line %d:%n", [F,L]),
 	printf(warning_output, String, Args),
 	nl(warning_output).
 

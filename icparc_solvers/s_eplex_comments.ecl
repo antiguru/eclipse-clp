@@ -945,7 +945,7 @@ desc: html("\
   This is a simplified version of eplex_solver_setup/4, it is equivalent to
   calling eplex_solver_setup/4 with the following defaults:
 <PRE>
-       eplex_solver_setup(Objective, _, [], 0, [])
+       eplex_solver_setup(Objective, _, [], [])
 </PRE>
 ")
 ]).
@@ -1333,7 +1333,7 @@ ListOfOptions are (such option should occur no more than once):
       demon used to trigger the solver. Susp is instantiated to
       the suspension that triggers the solver: by waking Susp, the solver
       is triggered. Susp is a demon in that it stays around after being
-      woken. Accessing Susp allows the user to specify orbitally conditions 
+      woken. Accessing Susp allows the user to specify arbitrary conditions 
       for triggering the solver.
 </DL>
 
@@ -1495,7 +1495,7 @@ desc:      html("\
       demon used to trigger the solver. Susp is instantiated to
       the suspension that triggers the solver: by waking Susp, the solver
       is triggered. Susp is a demon in that it stays around after being
-      woken. Accessing Susp allows the user to specify orbitally conditions 
+      woken. Accessing Susp allows the user to specify arbitrary conditions 
       for triggering the solver.
 </DL>
 
@@ -2520,24 +2520,24 @@ desc:      html("\
      <DT><STRONG><TT>best_bound</TT></STRONG>
      <DD>The best bound (for minimisation, the lower bound) on the optimal 
          objective value for the current problem. Together with the
-         worst_bound, this specify the range for the optimal objective
+         worst_bound, this specifies the range for the optimal objective
          value. Note that a non-empty range does not mean that the problem
          is feasible unless an objective value (cost) is also
          available. The best_bound is the same as the current objective
-         value if the problem have been solved to optimality. It can be
+         value if the problem has been solved to optimality. It can be
          better than the objective value either because a) (for MIP
-         problems only) the problem have been optimised to within the
+         problems only) the problem has been optimised to within the
          mipgap tolerance, or b) the problem was not solved to optimality,
          i.e. it was aborted before the optimal solution was found.
 <P>
      <DT><STRONG><TT>worst_bound</TT></STRONG>
      <DD>The worst bound (for minimisation, the upper bound) on the optimal 
          objective value for the current problem. Together with the
-         best_bound, this specify the range for the optimal objective
+         best_bound, this specifies the range for the optimal objective
          value. Note that a non-empty range does not mean that the problem
          is feasible unless an objective value (cost) is also
          available. The worst_bound is the same as the current objective
-         value if a solution have been computed for the problem, whether
+         value if a solution has been computed for the problem, whether
          the problem was solved to optimality or not. Depending on the 
          problem type and method used to solve the problem, a worst bound
          can be returned for a problem even if the solving of the problem
@@ -2912,24 +2912,24 @@ desc:      html("\
      <DT><STRONG><TT>best_bound</TT></STRONG>
      <DD>The best bound (for minimisation, the lower bound) on the optimal 
          objective value for the current problem. Together with the
-         worst_bound, this specify the range for the optimal objective
+         worst_bound, this specifies the range for the optimal objective
          value. Note that a non-empty range does not mean that the problem
          is feasible unless an objective value (cost) is also
          available. The best_bound is the same as the current objective
-         value if the problem have been solved to optimality. It can be
+         value if the problem has been solved to optimality. It can be
          better than the objective value either because a) (for MIP
-         problems only) the problem have been optimised to within the
+         problems only) the problem has been optimised to within the
          mipgap tolerance, or b) the problem was not solved to optimality,
          i.e. it was aborted before the optimal solution was found.
 <P>
      <DT><STRONG><TT>worst_bound</TT></STRONG>
      <DD>The worst bound (for minimisation, the upper bound) on the optimal 
          objective value for the current problem. Together with the
-         best_bound, this specify the range for the optimal objective
+         best_bound, this specifies the range for the optimal objective
          value. Note that a non-empty range does not mean that the problem
          is feasible unless an objective value (cost) is also
          available. The worst_bound is the same as the current objective
-         value if a solution have been computed for the problem, whether
+         value if a solution has been computed for the problem, whether
          the problem was solved to optimality or not. Depending on the 
          problem type and method used to solve the problem, a worst bound
          can be returned for a problem even if the solving of the problem

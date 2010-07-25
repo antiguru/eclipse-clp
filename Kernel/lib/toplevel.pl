@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.3 2009/12/22 02:44:19 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.4 2010/07/25 13:29:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -120,7 +120,7 @@
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2009/12/22 02:44:19 $").
+:- comment(date, "$Date: 2010/07/25 13:29:05 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -824,15 +824,17 @@ compile_rc :-
 compile_rc.
 
 initfile(File) :-
-	getenv("ECLIPSEINIT", File),
-	!, File \= "".
+	getenv("ECLIPSEINIT", OsFile),
+	!,
+        OsFile \= "",   % otherwise ignore all default init files
+        File = "$ECLIPSEINIT".
 initfile(File) :-
-	RcFile = ".eclipserc",
-	( File = RcFile
-	; getenv('HOME', Home),
-	  concat_string([Home,"/",RcFile], File)
-	),
-	exists(File),
+	( Dir = "."
+        ; Dir = "$HOME"
+        ; Dir = "$HOMEPATH"
+        ),
+	concat_string([Dir,"/.eclipserc"], Candidate),
+	existing_file(Candidate, [""], [readable], File),
 	!.
 
 

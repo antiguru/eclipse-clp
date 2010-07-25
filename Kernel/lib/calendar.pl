@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: calendar.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: calendar.pl,v 1.3 2010/07/25 13:29:04 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(calendar).
@@ -32,7 +32,7 @@
 :- comment(summary,
     "Routines for calendar computations, based on modified julian dates (MJD).").
 
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/07/25 13:29:04 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(index, ["date and time","julian date","ISO 8601"]).
@@ -126,7 +126,7 @@
 :- comment(time_to_mjd/2, [
     summary:"Convert the time in H:M:S form to a float MJD <1.0",
     desc:html("Returns a float MJD <1.0 encoding the time of day (UTC/GMT). This can be added to an integral day number to obtain a full MJD."),
-    args:["HMS":"A structure of the form H:M:S where H and M are integers and S is a float",
+    args:["HMS":"A structure of the form H:M:S or H:M, where H and M are integers and S is a float",
 	"MJD":"Variable or float"],
     amode:time_to_mjd(++,?)
     ]).
@@ -317,6 +317,10 @@ month_offset( 3,   0,  0).	% Mar
 
 
 %---------------------------------------------------------------------
+% These have a problem with leap seconds: on these days, the day is
+% 86401 seconds long, but we ignore this.
+% In the mjd_to_time direction, we could stretch the day.
+% In the time_to_mjd direction, we'd need an additional parameter.
 
 mjd_to_time(MJD, H:M:S) :-
 	Frac is MJD-floor(MJD),
@@ -432,6 +436,35 @@ mjd_to_weekday(MJD, WD) :-
 			saturday, sunday, monday, tuesday), WD).
 
 /***
+
+% Table of leap seconds
+
+leap(41498).		% 1972-06-30
+leap(41682).		% 1972-12-31
+leap(42047).		% 1973-12-31
+leap(42412).		% 1974-12-31
+leap(42777).		% 1975-12-31
+leap(43143).		% 1976-12-31
+leap(43508).		% 1977-12-31
+leap(43873).		% 1978-12-31
+leap(44238).		% 1979-12-31
+leap(44785).		% 1981-06-30
+leap(45150).		% 1982-06-30
+leap(45515).		% 1983-06-30
+leap(46246).		% 1985-06-30
+leap(47160).		% 1987-12-31
+leap(47891).		% 1989-12-31
+leap(48256).		% 1990-12-31
+leap(48803).		% 1992-06-30
+leap(49168).		% 1993-06-30
+leap(49533).		% 1994-06-30
+leap(50082).		% 1995-12-31
+leap(50629).		% 1997-06-30
+leap(51178).		% 1998-12-31
+leap(53735).		% 2005-12-31
+leap(54831).		% 2008-12-31
+
+
 %-----------------------------------------------------------------------
 % exhaustive test
 % should only print the 10 missing days 5..14 Oct 1582

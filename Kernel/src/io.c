@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.8 2010/07/21 23:40:37 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -1334,6 +1334,19 @@ ec_getstring(stream_id nst,
     word			lex_aux_size;
     int				err;
 
+    if (StreamPtr(nst) - StreamBuf(nst) >= StreamCnt(nst))
+    {
+	if (fill_buffer(nst) != PSUCCEED)
+	{
+	    if (StreamMode(nst) & MEOF) {
+		*res = IsSoftEofStream(nst) ? PEOF : READ_PAST_EOF;
+	    } else {
+		StreamMode(nst) |= MEOF;
+		*res = PEOF;
+	    }
+	    return NULL;
+	}
+    }
     pbuf = StreamPtr(nst);
     avail = StreamBuf(nst) + StreamCnt(nst) - pbuf;
 

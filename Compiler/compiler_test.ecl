@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.21 2009/12/20 05:00:26 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.22 2010/07/25 13:29:04 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1093,6 +1093,9 @@ testclause(true(11), [(p(X) :- true,q(X))]).
 testclause(true(12), [(p(X) :- q(X),true)]).
 testclause(true(13), [(p :- (true;true),(true;true))]).	% bug 662
 testclause(true(14), [(p :- a,(true;true))]).		% bug 662
+testclause(true(15), [(p :- true,sepia_kernel:var(_),b)]).	% keep
+testclause(true(16), [(p :- true,_:var(_),b)]).
+testclause(true(17), [(p :- true,sepia_kernel:nl,b)]).
 
 % Inlined builtins
 testclause(bip(type_tests), [

@@ -100,6 +100,7 @@ get_java_command(MainClass, Args,
 		%"-Djava.compiler=",	% turn off jit compiler
 		%"-Xrunhprof:cpu=times,heap=all,file=/tmp/java.hprof.txt", % turn on profiler
 		Size,
+		"-Djava.net.preferIPv4Stack=true",
 		"-classpath", ClassPath,
 		%"-Xdebug",
 		%"-Xrunjdwp:transport=dt_socket,address=8000,server=y,suspend=n",

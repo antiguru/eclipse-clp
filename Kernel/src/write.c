@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.8 2010/04/22 14:09:47 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -571,19 +571,19 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
      * syntax, but that may be unnecessarily restrictive.
      */
     if (UnauthorizedAccess(module, mod_tag))
-    	idwrite = idwrite & ~(ATTRIBUTE|PRINT|PRINT1|PRINT_CALL)
+    	idwrite = idwrite & ~(ATTRIBUTE|PORTRAY2|PORTRAY1|PRINT_CALL)
 			|NO_MACROS|CANONICAL;
 
     /*
      * If needed, do the expensive procedure lookups for portray/1,2
-     * here and set PRINT and PRINT1 flags accordingly.
+     * here and set PORTRAY2 and PORTRAY1 flags accordingly.
      */
     if (idwrite & PRINT_CALL)
     {
 	if (visible_d_procedure(d_portray2, module, mod_tag))
-	    idwrite |= PRINT;
-	else if (visible_d_procedure(d_portray1, module, mod_tag))
-	    idwrite |= PRINT | PRINT1;
+	    idwrite |= PORTRAY2;
+	if (visible_d_procedure(d_portray1, module, mod_tag))
+	    idwrite |= PORTRAY1;
     }
 
     result = _pwrite1(idwrite, out, val, tag, maxprec, depth,
@@ -615,8 +615,8 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
  *	ATTRIBUTE	print attributes of metaterms in user format
  *	STD_ATTR	print attributes of metaterms in standard format
  *	NO_MACROS	don't apply write macros
- *	PRINT		a portray predicate exists
- *	PRINT1		only portray/1 exists
+ *	PORTRAY2	a portray/2 predicate exists
+ *	PORTRAY1	a portray/1 predicate exists
  *	VARTERM		print variables as '_'(...)
  * flags: further context information for writeq
  *	ARGOP		immediate argument of any operator
@@ -647,15 +647,17 @@ _pwrite_:
 	return (ec_outf(out, "...", 3));
 
     if (IsRef(tag))
-	if ((idwrite & PRINT) && (idwrite & PORTRAY_VAR || IsMeta(tag)) &&
-			_portray_term(idwrite, out, val, tag, module, mod_tag))
+	if ((idwrite & (PORTRAY2|PORTRAY1))
+		&& (idwrite & PORTRAY_VAR || IsMeta(tag))
+		&& _portray_term(idwrite, out, val, tag, module, mod_tag))
 	    return PSUCCEED;
 	else
 	{
 	    return _print_var(idwrite, val.ptr->val, val.ptr->tag, out, depth,
 					module, mod_tag, sd);
 	}
-    else if (idwrite & PRINT && _portray_term(idwrite, out, val, tag, module, mod_tag))
+    else if ((idwrite & (PORTRAY2|PORTRAY1))
+    		&& _portray_term(idwrite, out, val, tag, module, mod_tag))
 	return PSUCCEED;
 
     switch (TagType(tag))
@@ -1251,25 +1253,37 @@ static int
 _portray_term(int idwrite, stream_id out, value val, type tag, dident module, type mod_tag)
 {
     value		v1, v2;
-    int			status;
+    int			status = PFAIL;
     pword		goal[3];
-    int			i = 1;
 
     v1.ptr = goal;
-    goal[0].tag.kernel = TDICT;
-    if (!(idwrite & PRINT1))
-    {
-	goal[0].val.did = d_portray2;
-	goal[i++] = StreamHandle(out);
-    }
-    else
-	goal[0].val.did = d_portray1;
-    goal[i].tag = tag;
-    goal[i].val = val;
     v2.did = module;
-    Unlock_Stream(out);	/* release the stream lock while executing Prolog */
-    status = query_emulc(v1, tcomp, v2, mod_tag);
-    Lock_Stream(out);
+    if (idwrite & PORTRAY2)
+    {
+	Make_Atom(&goal[0], d_portray2);
+	goal[1] = StreamHandle(out);
+	goal[2].tag = tag;
+	goal[2].val = val;
+	Unlock_Stream(out);	/* release the stream lock while executing Prolog */
+	status = query_emulc(v1, tcomp, v2, mod_tag);
+	Lock_Stream(out);
+	if (status == PSUCCEED) return 1;
+	/* else try portray/1 */
+    }
+    if (idwrite & PORTRAY1)
+    {
+	/* compatibility hack for portray/1: temporarily redirect output */
+	stream_id saved_output = current_output_;
+	if (set_stream(d_.output, out) != PSUCCEED)
+	    return 0;
+	Make_Atom(&goal[0], d_portray1);
+	goal[1].tag = tag;
+	goal[1].val = val;
+	Unlock_Stream(out);	/* release the stream lock while executing Prolog */
+	status = query_emulc(v1, tcomp, v2, mod_tag);
+	Lock_Stream(out);
+	(void) set_stream(d_.output, saved_output);
+    }
     return (status == PSUCCEED) ? 1 : 0;
 }
 
@@ -2315,6 +2329,8 @@ _printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char
     if (asterisk == 0)
     {
 	Next_Element(elem, (*list), return)
+	if (IsRef(elem->tag))
+	    return INSTANTIATION_FAULT;
 	if (!(SameType(elem->tag, arg_type) ||
 	    SameType(arg_type, tstrg) && (IsAtom(elem->tag)||IsNil(elem->tag))
 	))
@@ -2341,6 +2357,8 @@ _printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char
 	else if (!IsInteger(elem->tag))
 	    return TYPE_ERROR;
 	Next_Element(elem2, (*list), return)
+	if (IsRef(elem2->tag))
+	    return INSTANTIATION_FAULT;
 	if (!(SameType(elem2->tag, arg_type) ||
 	    SameType(arg_type, tstrg) && (IsAtom(elem2->tag)||IsNil(elem2->tag))
 	))
@@ -2372,6 +2390,8 @@ _printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char
 	else if (!IsInteger(elem2->tag))
 	    return TYPE_ERROR;
 	Next_Element(elem3, (*list), return)
+	if (IsRef(elem3->tag))
+	    return INSTANTIATION_FAULT;
 	if (!(SameType(elem3->tag, arg_type) ||
 	    SameType(arg_type, tstrg) && (IsAtom(elem3->tag)||IsNil(elem3->tag))
 	))

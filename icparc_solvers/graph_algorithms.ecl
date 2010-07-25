@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: graph_algorithms.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: graph_algorithms.ecl,v 1.3 2010/07/25 13:29:05 jschimpf Exp $
 % Contents:	Collection of graph algorithms
 % ----------------------------------------------------------------------
 
@@ -37,7 +37,7 @@
 :- comment(categories, ["Algorithms","Data Structures"]).
 :- comment(summary, "Collection of graph algorithms").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2010/07/25 13:29:05 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 :- comment(desc, html("<P>
     This library is a collection of graph algorithms.
@@ -2443,13 +2443,7 @@ possible_path(DistanceArg, SourceNode, SinkNode, Tolerance, Lengths, Predecessor
 	    param(Predecessors,Seen,Lengths,MaxLength,DistanceArg)
 	do
 	    arg(To, Predecessors, Edges),
-	    ( var(Edges) ->
-		printf(error, "Dead start edge: %w%n", [Edge]),
-		abort
-	    ; Edges = [] ->
-		printf(error, "Dead start edge: %w%n", [Edge]),
-		abort
-	    ;
+	    ( nonvar(Edges), Edges = [_|_] ->
 		member(Edge, Edges),
 		( Edge = e(From, To, Data) ->
 		    xarg(DistanceArg, Data, Dist),
@@ -2468,6 +2462,11 @@ possible_path(DistanceArg, SourceNode, SinkNode, Tolerance, Lengths, Predecessor
 		    printf(error, "Corrupt egde to %w: %w%n", [To,Edge]),
 		    abort
 		)
+	    ;
+		printf(error, "Node %w has no precedessors!%n"
+			"Mismatched all_short_paths_as_edges/6 and possible_path/7?%n",
+		    [To]),
+		abort
 	    )
 	),
 	% unify after loop, otherwise loop termination is compromised

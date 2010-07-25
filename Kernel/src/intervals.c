@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.5 2010/04/11 02:36:01 jschimpf Exp $
+* Version:	$Id: intervals.c,v 1.6 2010/07/25 13:29:05 jschimpf Exp $
 *
 
 Supported operations:
@@ -149,13 +149,11 @@ int result_inexact;
 #define min(x,y) ((x) < (y) ? (x) : (y))
 #define max(x,y) ((x) > (y) ? (x) : (y))
 
+#define NEGZERO	(-1*(0.0))
 
-#if defined(i386) && defined(__GNUC__)
-#define Pow (*pow_ptr_to_avoid_buggy_inlining)
-static double (*pow_ptr_to_avoid_buggy_inlining)(double,double) = pow;
-#else
-#define Pow pow
-#endif
+#define IsExactIntIvl(pw,_i) \
+	(IvlLwb(pw) == IvlUpb(pw) && (modf(IvlLwb(pw), _i) == 0.0))
+
 
 /* ----------------------------------------------------------------------
  *  Forward declarations
@@ -356,7 +354,7 @@ ec_i_add(
     }
     if (tmp_upb == 0.0 && tmp_lwb < 0.0) {
 	/* ensure upb is negative zero */
-	*upb = -1*(0.0);
+	*upb = NEGZERO;
     } else {
 	*upb = tmp_upb;
     }
@@ -577,7 +575,7 @@ ec_i_div(
     if (yu == 0.0) {
 	/* This will ensure that if yu == 0.0 or yu == -0.0 then
 	   it will be set to -0.0 */
-	yu = -1*(0.0);
+	yu = NEGZERO;
     }
 
     /* If divisor spans zero, nothing to be done */
@@ -934,7 +932,12 @@ ec_ria_unop(int op, double xl, double xu, double *zl_ptr, double *zu_ptr)
     case RIA_UN_SQRT:				/* sqrt */
 	if (xu >= 0.0) {
 	    upb = up(sqrt(xu));
-	    lwb = xl < 0.0 ? 0.0 : down(sqrt(xl));
+	    if (xl < 0.0)
+		lwb = 0.0;
+	    else {
+		lwb = sqrt(xl);
+		if (lwb > 0.0) lwb = down(lwb);
+	    }
 	} else {
 	    Fail_;
 	}
@@ -1064,11 +1067,7 @@ ec_ria_binop(int op, double xl, double xu, double yl, double yu, double *zl_ptr,
 	}
 	else
 	{
-	    if (xl <= 0.0 && xu >= 0.0) {
-		lwb = -HUGE_VAL; upb = HUGE_VAL;
-	    } else {
-		lwb = 1.0; upb = 1.0;
-	    }
+	    lwb = 1.0; upb = 1.0;
 	}
 	break;
     }
@@ -1217,10 +1216,10 @@ ec_ria_ternop(int op, double xl, double xu, double yl, double yu, double zl, dou
     switch (op)
     {
     case RIA_TERN_RPOW_EVEN:			/* rpow_even */
-	/* Reverse of Z^N=X, N even. Computes R = intersect( X^Y, Z), Y=1/N */
+	/* Reverse of Z^N=X, N>=2 and even. Computes R = intersect( X^Y, Z), Y=1/N */
 	if (xu >= 0.0) {
 	    lwb = xl <= 0.0 ? 0.0 : down(Pow(xl, yl));
-	    upb = up(Pow(xu, yu));
+	    upb = up(SafePow(xu, yu));
 	    if (zl > -lwb) {
 		;			/* only positive solution */
 	    } else if (zu < lwb) {
@@ -1769,12 +1768,14 @@ static int
 _ivl_sqrt(value v1, pword *pres)
 {
     double lwb, upb;
-    if (IvlUpb(v1.ptr) >= 0.0) {
-	upb = up(sqrt(IvlUpb(v1.ptr)));
-	lwb = IvlLwb(v1.ptr) < 0.0 ? 0.0 : down(sqrt(IvlLwb(v1.ptr)));
-    } else {
+    if (IvlLwb(v1.ptr) < 0.0) {
+	/* the result could be imaginary and is thus not representable */
 	Bip_Error(ARITH_EXCEPTION);
     }
+    upb = up(sqrt(IvlUpb(v1.ptr)));
+    lwb = sqrt(IvlLwb(v1.ptr));
+    /* don't go below zero, but preserve negative zeros from sqrt() */
+    if (lwb > 0.0) lwb = down(lwb);
     Make_Interval(pres, lwb, upb);
     Succeed_;
 }
@@ -1813,12 +1814,13 @@ static int
 _ivl_ln(value v1, pword *pres)
 {
     double lwb, upb;
-    if (IvlUpb(v1.ptr) >= 0.0) {
-	lwb = IvlLwb(v1.ptr) > 0.0 ? down(log(IvlLwb(v1.ptr))) : -HUGE_VAL;
-	upb = up(log(IvlUpb(v1.ptr)));
-    } else {
+    if (IvlLwb(v1.ptr) < 0.0) {
+	/* result could be undefined, thus not representable as an interval */
 	Bip_Error(ARITH_EXCEPTION);
     }
+    lwb = log(IvlLwb(v1.ptr));
+    if (lwb > 0.0) lwb = down(lwb);	/* don't go below zero */
+    upb = up(log(IvlUpb(v1.ptr)));
     Make_Interval(pres, lwb, upb);
     Succeed_;
 }
@@ -1863,46 +1865,66 @@ _ivl_atan2(value vy, value vx, pword *pres)
     Succeed_;
 }
 
+
+/* TODO: rewrite this with set_round_xxx */
+
 static int
 _ivl_pow(value v1, value v2, pword *pres)
 {
     double	xl, xu, yl, yu;
-    double	lwb, upb;
+    double	lwb, upb, yi;
 
     xl = IvlLwb(v1.ptr);
     xu = IvlUpb(v1.ptr);
     yl = IvlLwb(v2.ptr);
     yu = IvlUpb(v2.ptr);
 
-    if (xu < 0.0) {
-        Bip_Error(RANGE_ERROR);
-    } else {
-	if ( xl < 0.0 ) {
-	    /* If the base lower bound is negative the result could be
-               complex*/
-	    Bip_Error(ARITH_EXCEPTION);
-	}
+    if (xl >= 0.0) {
+	/* base is nonnegative, result as well */
 	if (yl > 0.0) {
-            lwb = (xl == 0.0)?0.0:down(Pow(xl, xl>1? yl: yu));
-            upb = up(Pow(xu, xu>1? yu: yl));
-        } else if (yu < 0.0) {
-            lwb = down(Pow(xu, xu>1? yl: yu));
-            upb = up(Pow(xl, xl>1? yu: yl));
-        } else if (xl == 0.0) {	/* X and Y-range include 0 */
-            lwb = 0.0; upb = HUGE_VAL;
-        } else {				/* Y-range includes 0 */
+	    /* increasing */
+	    lwb = Pow(xl, xl>1? yl: yu);
+	    upb = Pow(xu, xu>1? yu: yl);
+	} else if (yu < 0.0) {
+	    /* decreasing */
+	    lwb = SafePow(xu, xu>1? yl: yu);
+	    upb = SafePow(xl, xl>1? yu: yl);
+	} else {				/* Y-range includes 0 */
 	    double t1, t2;
-            double ll = Pow(xl,yl);
-            double lu = Pow(xl,yu);
-            double ul = Pow(xu,yl);
-            double uu = Pow(xu,yu);
+	    double ll = SafePow(xl,yl);
+	    double lu = Pow(xl,yu);
+	    double ul = SafePow(xu,yl);
+	    double uu = Pow(xu,yu);
 	    t1 = min(ll, lu);
 	    t2 = min(ul, uu);
-            lwb = down(min(t1, t2));
+	    lwb = min(t1, t2);
 	    t1 = max(ll, lu);
 	    t2 = max(ul, uu);
-            upb = up(max(t1, t2));
-        }
+	    upb = max(t1, t2);
+	}
+	if (lwb > 0.0) lwb = down(lwb);	/* don't go below 0.0 */
+	upb = up(upb);
+
+    } else if (IsExactIntIvl(v2.ptr, &yi)) {	 /* xl < 0.0 */
+	/* base may be negative, exponent must be integral */
+	double l = Pow(xl,yi);
+	double u = SafePow(xu,yi);
+	lwb = down(min(l, u));
+	upb = up(max(l, u));
+
+	if (xu >= 0.0) {			/* X-range includes 0 */
+	    l = SafePow(NEGZERO,yi);
+	    u = SafePow(0.0,yi);
+	    /* l,u are +-0, 1, or +-inf, don't round */
+	    lwb = min(lwb,l);
+	    upb = max(upb,l);
+	    lwb = min(lwb,u);
+	    upb = max(upb,u);
+	}
+
+    } else {
+	/* If the base lower bound is negative the result could be complex*/
+	Bip_Error(ARITH_EXCEPTION);
     }
     Make_Interval(pres, lwb, upb);
     Succeed_;
@@ -1991,7 +2013,7 @@ static int
 _ivl_int2(value v1, pword *pres)
 {
     double ipart;
-    if (IvlLwb(v1.ptr) == IvlUpb(v1.ptr) && (modf(IvlLwb(v1.ptr), &ipart) == 0.0))
+    if (IsExactIntIvl(v1.ptr, &ipart))
     {
 	value dval;
 	Make_Double_Val(dval, ipart);

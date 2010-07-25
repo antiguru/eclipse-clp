@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.4 2009/03/03 23:35:27 jschimpf Exp $
+** $Id: rounding_control.h,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -466,5 +466,20 @@ extern double ec_ieee_down ARGS((double));
 
 #define Ceil(x) ceil(x)
 
+#endif
+
+
+/* Use SafePow() if x may be zero and y negative */
+#ifdef HAVE_POW_ZERO_NEG_BUG
+#define SafePow(x,y) ((x)==0.0 && (y)<0 ? 1.0/Pow(x,-(y)) : Pow(x,y))
+#else
+#define SafePow(x,y) Pow(x,y)
+#endif
+
+#if defined(i386) && defined(__GNUC__)
+#define Pow (*pow_ptr_to_avoid_buggy_inlining)
+static double (*pow_ptr_to_avoid_buggy_inlining)(double,double) = pow;
+#else
+#define Pow pow
 #endif
 

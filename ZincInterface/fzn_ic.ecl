@@ -33,7 +33,7 @@
 :- comment(summary, "Mapping from FlatZinc to lib(ic) and lib(ic_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/07/25 13:29:05 $").
 :- comment(see_also, [library(flatzinc),
 	library(ic),library(ic_sets),library(ic_global),
 	library(propia),library(branch_and_bound)]).
@@ -390,7 +390,7 @@ maximize(Expr, Anns, ObjVal) :-
 
     % CAUTION: these must accept both arrays and lists!
     search_ann(seq_search(Searches)) :- !,
-    	( foreach(Search,Searches) do search_ann(Search) ).
+    	( foreacharg(Search,Searches) do search_ann(Search) ).
 
     search_ann(bool_search(Vars, Select, Choice, Explore)) :- !,
 	search(Vars, 0, Select, Choice, Explore, []).
@@ -402,16 +402,21 @@ maximize(Expr, Anns, ObjVal) :-
     	real(Prec), !,
 	FPrec is float(Prec),
 	locate(Vars, Vars, FPrec, log),
-	( functor(Vars, [], _) ->
-	    ( foreacharg(X,Vars), foreach(C,Cs) do
-		C is breal_from_bounds(get_min(X),get_max(X))
-	    )
-	;
-	    ( foreach(X,Vars), foreach(C,Cs) do
-		C is breal_from_bounds(get_min(X),get_max(X))
-	    )
-	),
-	Vars = Cs.	% instantiate atomically
+        % instantiate variables atomically
+        call_priority(
+            ( functor(Vars, [], _) ->
+                ( foreacharg(X,Vars) do
+                    ( nonvar(X) -> true ;
+                        X is breal_from_bounds(get_min(X),get_max(X))
+                    )
+                )
+            ;
+                ( foreach(X,Vars) do
+                    ( nonvar(X) -> true ;
+                        X is breal_from_bounds(get_min(X),get_max(X))
+                    )
+                )
+            ), 2).
 
     search_ann(set_search(Sets, input_order, Choice, complete)) :-
 	set_choice(Choice, ElemSel, Order), !,

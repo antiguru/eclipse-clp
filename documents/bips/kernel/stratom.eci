@@ -115,23 +115,18 @@ It is more efficient to use number_string/2 wherever possible.
 	see_also:[integer / 1, atom / 1, number_string / 2, sprintf/3]]).
 
 :- comment(string_list / 2, [
-	summary:"Succeeds if List is a list whose elements are the ascii codes of the
-characters of String.
-
-",
+	summary:"List is a list whose elements are the integer codes of the bytes in the string",
 	amode:(string_list(+,-) is det),
 	amode:(string_list(-,+) is det),
-	desc:html("   This predicate performs conversion between a string and a list of the
-   ASCII codes of the characters of the string.
-
+	desc:html("
+   This predicate performs conversion between a byte string and the
+   corresponding list of integers in the range 0..255.
 <P>
    If String is instantiated, unifies List with the list whose elements are
-   the ASCII codes for the elements of the string.
-
+   the integer codes for the bytes in the string.
 <P>
-   If List is instantiated, unifies String with the string corresponding to
-   this list of ASCII codes.
-
+   If List is instantiated, unifies String with the string composed from
+   the bytes given by the list elements in range 0..255.
 <P>
 "),
 	args:["String" : "String or variable.", "List" : "List of integers (in the range 0 to 255) and/or variables,                or else a variable."],
@@ -141,7 +136,7 @@ characters of String.
    string_list(S,[65,98,99]).          (gives S=\"Abc\").
    string_list(\"abc\",L).               (gives L=[97,98,99]).
    string_list(\"abc\",[97,A,99]).       (gives A=98).
-   string_list(S,[127]).               (gives S=\"\").
+   string_list(S,[127]).               (gives S=\"\\177\").
    string_list(\"abc\",[97|A]).          (gives A=[98,99]).
    Fail:
    string_list(\"abc\",[98,99,100]).
@@ -372,7 +367,7 @@ Error:
 	see_also:[substring / 3, substring / 5, string_length / 2, split_string / 4]]).
 
 :- comment(substring / 5, [
-	summary:"Succeeds if String2 is a substring of String, with 
+	summary:"Succeeds if SubString is a substring of String, with 
     length Length, preceded by Before, and followed by After characters",
 
 	desc:html("   Succeeds if String can be split into three substrings,

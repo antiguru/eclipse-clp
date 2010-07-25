@@ -55,6 +55,13 @@ det_insert(Map0, Key, Value, Map) :-	% no checks
 det_update(Map0, Key, Value, Map) :-	% no checks
 	aset(Key, Map0, Value, Map).
 
+:- export portray(array/2, array_portray/2, []).
+array_portray(Array, array_portray(List)) :-
+        strict_is_array(Array),
+        array_to_list(Array, List).
+
+strict_is_array(array($(_,_,_,_),D)) ?-
+        integer(D).
 
 
 %   File   : LOGARR.PL

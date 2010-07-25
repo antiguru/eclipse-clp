@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.8 2010/04/11 03:14:51 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.8 2010/04/11 03:14:51 jschimpf Exp $
+% $Id: iso.pl,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -89,7 +89,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2010/04/11 03:14:51 $`).
+:- comment(date, `$Date: 2010/07/25 13:29:05 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html('
     This library provides a reasonable degree of compatibility with
@@ -187,7 +187,6 @@
 :- pragma(nodebug).
 :- pragma(system).
 
-:- import block/4 from sepia_kernel.
 
 %-----------------------------------------------------------------------
 % 7.4 Directives
@@ -205,7 +204,7 @@ initialization(Goal, Module) :-
 :- local variable(ball).
 
 catch(Goal, Catcher, Recovery, Module) :-
-	block(Goal, Tag, iso:iso_recover(Tag, Catcher, Recovery, Module), Module).
+	block(Goal, Tag, iso:iso_recover(Tag, Catcher, Recovery, Module))@Module.
 
 
     iso_recover(iso_ball_thrown, Catcher, Recovery, Module) :- !,
@@ -567,8 +566,13 @@ halt(X) :- exit(X).				% 8.17.4
 % sepia_kernel definitions for the predefined arithmetic functions!
 %-----------------------------------------------------------------------
 
-**(X,Y,Z) :- Z is eval(X)^eval(Y).
-sign(X,Y) :- Y is sgn(eval(X)).
+**(X,Y,Z) :- Z is float(eval(X)^eval(Y)).
+sign(X,Y) :- X1 is eval(X), Yi is sgn(X1),
+	( float(X1) -> Y is float(Yi)		% gives sign(-0.0,0.0)
+	; rational(X1) -> Y is rational(Yi)
+	; breal(X1) -> Y is breal(Yi)
+	; Y = Yi
+	).
 log(X,Y) :- Y is ln(eval(X)).
 floor(X,Y) :- X1 is X, Y is integer(sepia_kernel:floor(X1)).
 ceiling(X,Y) :- X1 is X, Y is integer(sepia_kernel:ceiling(X1)).

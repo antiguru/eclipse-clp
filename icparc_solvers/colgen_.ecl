@@ -20,6 +20,10 @@
 % 
 % END LICENSE BLOCK
 
+% TODO:
+% 	- many integer 0 are used, which should probably be 0.0
+% 	- replace +/2 expressions by lin/1 terms
+
 :- lib(constraint_pools).
 :- lib(linearize).
 :- lib(hash).
@@ -31,10 +35,14 @@
      lp_var_non_monotonic_set_bounds/4
    from eplex_s.
 
+:- inline(verify/1, t_verify/2).
+t_verify(verify(Goal), (Goal->true;writeln(error,verify_failed(Goal)),abort)).
+verify(Goal) :- verify(Goal).
+
 % ----------------------------------------------------------------------
 %
 % Meta-attribute related stuff
-%
+% This is the attribute of the generated MP variables
 % ----------------------------------------------------------------------
 
 :- export cg_var_print/2.
@@ -45,16 +53,17 @@
 
 :- export struct(
                  colgen(
-                        mp_val,
-                        cost,
-                        coeffs,
-                        aux,
-                        lo,
-                        hi,
-                        type,
-                        master_prob,                        
-                        solver,
-                        next
+                        mp_val,		% float (sometimes int 0?)
+                        cost,		% float: MP objective coefficient
+                        coeffs,		% [cstrid-coeff], keysorted
+                        aux,		% 'artificial', 'stabilisation', [],
+					%  or defined by subproblem sp_sol{}
+                        lo,		% float, possibly int??
+                        hi,		% float, possibly int??
+                        type,		% 'real' or 'integer'
+                        master_prob,    % suspension list
+                        solver,		% cg_prob{}
+                        next		% colgen{} or []
                        )
                 ).
 
@@ -143,154 +152,107 @@
 % ----------------------------------------------------------------------
 
 :- export struct(
-                 cg_prob(
-                         % Global State:
-                         master_prob,       % the master problem
-                                            % eplex handle
-                         bfs_tree,          % bfs_tree for branch-and-price
-                         mp_susp,           % suspension list containing the
-                                            % suspension for the MP solver
-                         const_obj,         % real: the constant part of
-                                            %       the cost funciton
-                         phase1_obj,        % Expr: the artificial variable
-                                            %       cost fn for phase 1
-                                            %       of two-phase
-                         sp_solution_call,  % the user supplied subproblem
-                                            % solution predicate
-                         sp_count,          % int: the number of
-                                            %      subproblems
-                                            %      (now unused,
-                                            %       should be removed)
-                         pool,              % the associated constraint pool
-                         tolerance,         % float: tolerance for optimality
-                         info_messages,     % on, off: info message
-                                            % status
-                         on_degeneracy,     % stop, continue: should we
-                                            %                 halt when
-                                            %                 we find
-                                            %                 degeneracy,
-                                            %                 or continue
-                                            %                 (if so the
-                                            %                  sp solver
-                                            %                  is assumed
-                                            %                  to deal
-                                            %                  with it)
-                         stabilisation,     % off,
-                                            % on(BoundIter, BoundUpdate,
-                                            %    CoeffIter, CoeffUpdate),
-                                            % stab_pred(UpdatePred,
-                                            %           StoppingPred):
-                                            %          the policy to
-                                            %          perform basis
-                                            %          stabilisation -
-                                            %          if off then no
-                                            %          stabilisation
-                                            %          is performed,
-                                            %          if on(...) then
-                                            %          the default
-                                            %          policy is used
-                                            %          with var bounds/
-                                            %          coefficients
-                                            %          updated by
-                                            %          BoundUpdate/
-                                            %          CoeffUpdate
-                                            %          after 
-                                            %          BoundIter/
-                                            %          CoeffIter
-                                            %          iterations resp,
-                                            %          otherwise a
-                                            %          user defined
-                                            %          policy is
-                                            %          employed and
-                                            %          UpdatePred/
-                                            %          StoppingPred
-                                            %          should be
-                                            %          predicates that
-                                            %          perform the
-                                            %          updates and
-                                            %          test for
-                                            %          stopping
-                                            %          conditions.
-                         stab_terms,        % [StabTerm1,...,StabTermM]:
-                                            %           list of
-                                            %           stabilisation
-                                            %           terms 
-                         stab_iter_counts,  % stab_counters struct:
-                                            %           record of how
-                                            %           many iterations
-                                            %           since
-                                            %           stabilisation
-                                            %           var bound and
-                                            %           coeff update
-                         disallow,          % lp, clp, off:
-                                            %           policy for
-                                            %           active
-                                            %           prevention of
-                                            %           duplicate
-                                            %           columns
-                         basis_perturbation,% on, off: should we try
-                                            %          and perturb external
-                                            %          solver basis when appear
-                                            %          to be at optimal when
-                                            %          external solver returns
-                                            %          same basis after adding
-                                            %          columns:
-                                            %          off - no
-                                            %          on - temporarily set 
-                                            %               the external solver
-                                            %               to always perturb
-			 upper_bound,       % float: current bounds on solution
-                         lower_bound,       %        objective value
-                         integral_obj,      % atom: yes or no, is the cost
-                                            %       of all feasible
-                                            %       solutions integral?
-                                            %       (currently unused,
-                                            %        but included for later)
-                         duals,             % array: array of current
-                                            %        master problem dual values
-                         idx_lookup,        % hash table: lookup table to
-                                            %             convert master
-                                            %             problem constraint
-                                            %             ids into external
-                                            %             solver row ids
-                         sp_obj_terms,      % array: array of implicit sum
-                                            %        terms forming the obj
-                                            %        function of subproblems
-                                            %        in same order as the
-                                            %        duals array that are
-                                            %        their coeffs in it
-                         mp_cols_added,     % int: total number of columns
-                                            %      added to MP
-			 mp_vars,           % [Var1,...,Varj]:
-                                            %       list of all mp vars
-			 sep_call,          % the user supplied
-                                            % separation predicate
-                         % Column Management:
-			 col_del,           % atom: ?,none:
-                                            %       column deletion
-                                            %       strategy
-                                            %       (currently unused,
-                                            %        but included for later)
-                         shelf,             % store for data that are
-                                            % needed over a failure
-                                            % (either around bp_node
-                                            %  or solveSPs)
-                         phase,             % indicator for current
-                                            % phase in two-phase
-                                            % method:
-                                            %    0 : phase 1
-                                            %   -1 : phase 2
-                                            % this is also used as the
-                                            % "dual" multiplier for
-                                            % cost coefficient of a
-                                            % column in the subproblem
-                                            % objective
-                         optimal_rc,        % best bound on the
-                                            % reduced cost of a new column
-                         new_columns        % columns waiting to be
-                                            % added to the master problem
-                        )
-                ).
+     cg_prob(
+
+    % Global State:
+
+	     master_prob,       % the master problem eplex handle
+	     bfs_tree,          % bfs_tree for branch-and-price
+	     mp_susp,           % suspension list containing the
+				% suspension for the MP solver
+	     const_obj,         % real: the constant part of
+				%       the cost funciton
+	     phase1_obj,        % Expr: the artificial variable cost fn
+				%       for phase 1 of two-phase
+	     sp_solution_call,  % the user supplied subproblem
+				%      solution predicate
+	     pool,              % the associated constraint pool
+	     tolerance,         % float: tolerance for optimality
+	     branch_tolerance,  % float: tolerance for optimality
+	     info_messages,     % on, off: info message status
+	     on_degeneracy,     % stop, continue: should we halt when
+				%     we find degeneracy, or continue
+				%     (if so the sp solver is assumed
+				%      to deal with it)
+	     stabilisation,     % off,
+				% on(BoundIter, BoundUpdate,
+				%     CoeffIter, CoeffUpdate),
+				% stab_pred(UpdatePred, StoppingPred):
+				%     the policy to perform basis
+				%     stabilisation - if off then no
+				%     stabilisation is performed,
+				%     if on(...) then the default policy
+				%     is used with var bounds/coefficients
+				%     updated by BoundUpdate/CoeffUpdate
+				%     after BoundIter/CoeffIter iterations
+				%     resp, otherwise a user defined
+				%     policy is employed and UpdatePred/
+				%     StoppingPred should be predicates
+				%     that perform the updates and test
+				%     for stopping conditions.
+	     stab_terms,        % [StabTerm1,...,StabTermM]:
+				%     list of stabilisation terms 
+	     stab_iter_counts,  % stab_counters struct:
+				%     record of how many iterations
+				%     since stabilisation var bound and
+				%     coeff update
+	     disallow,          % lp, clp, off:
+				%     policy for active prevention of
+				%     duplicate columns
+	     basis_perturbation,% on, off:
+				%     should we try and perturb external
+				%     solver basis when appear to be at
+				%     optimal when external solver returns
+				%     same basis after adding columns:
+				%     off - no
+				%     on - temporarily set the external
+				%          solver to always perturb
+	     upper_bound,       % float: current bounds on solution
+	     lower_bound,       %     objective value
+	     integral_obj,      % atom: yes or no, is the cost of all
+	     			%     feasible solutions integral? (currently
+				%     unused, but included for later)
+	     duals,             % array: array of current
+				%     master problem dual values
+	     idx_lookup,        % hash table: lookup table to
+				%     convert master problem constraint
+				%     ids into external solver row ids
+	     sp_obj_terms,      % array: array of implicit sum terms
+				%     forming the obj function of subproblems
+				%     in same order as the duals array
+				%     that are their coeffs in it
+	     mp_cols_added,     % int: total number of columns added to MP
+	     mp_vars,           % [Var1,...,Varj]: list of all mp vars
+	     sep_call,          % the user supplied separation predicate
+             module,            % module: module in which to call the various
+                                %     user-defined predicates
+
+    % Column Management:
+
+	     col_del,           % atom: ?,none:
+				%     column deletion strategy (currently
+				%     unused, but included for later)
+	     shelf,             % cg_shelf{}: store for data that needs to
+                                %     be preserved across failure
+	     phase,             % indicator for current phase in two-phase
+				%     method:
+				%        0 : phase 1
+				%       -1 : phase 2
+				% this is also used as the "dual" multiplier
+				%     for cost coefficient of a column in the
+				%     subproblem objective
+	     new_columns        % record: columns waiting to be
+				%     added to the master problem
+	    )
+	).
+
+:- local struct(cg_shelf(
+            info,               % data stored around a bp_node
+            optimal_rc,         % best bound on the reduced cost
+                                %       of a new column (or 'none')
+            sp_sol_cnt          % number SP solutions posted via
+                                %      cg_subproblem_solution/1
+        )).
 
 % ----------------------------------------------------------------------
 %
@@ -356,9 +318,11 @@
                          disallow,          % list of cstrs to post if
                                             % actively preventing
                                             % duplicate columns
+					    % 2-elem list [Count,Templates]
                          status,            % phase1, phase2, degenerate
-                         module             % module: module in which
-                                            %         to call sp_call
+                         module,            % obsolete
+                         lo, hi,            % implicit variable default bounds
+                         type               % implicit variable default type
                          )
                 ).
                          
@@ -375,7 +339,8 @@
 :- export struct(
                  sp_sol(
                         cost,              % number: cost coefficient in MP
-                        coeff_vars,        % [Ai,...,An]: list of reals:
+                        coeff_vars,        % [A1,...,An] list of reals
+                                           % or sparse list [Idi-Ai,...]:
                                            %      coefficients in original
                                            %      constraints of MP
                         aux,               % term: arbitrary additional
@@ -733,13 +698,25 @@ new_cg_attr(X, Handle, Attr) :-           % make a new colgen variable:
 
 :- mode new_cg_attrstruct(+,?).
 new_cg_attrstruct(Handle, Attr) :-
+        new_cg_attrstruct(Handle, _, _, _, _, _, _, Attr).
+
+
+%:- mode new_cg_attrstruct(+,?,?,?,?,?,?,-).
+new_cg_attrstruct(Handle, Obj, Coeffs, Lo, Hi, Type, Info, Attr) :-
+        ( Lo = -1.0Inf -> true ; true ),
+        ( Hi = 1.0Inf -> true ; true ),
+        ( Type = real -> true ; true ),
         Attr = colgen{mp_val:0,
                       solver:Handle,
-                      lo: -1.0Inf,
-                      hi: 1.0Inf,
-                      type:real,
+                      cost:Obj,
+                      coeffs:Coeffs,
+                      lo:Lo,
+                      hi:Hi,
+                      type:Type,
+                      aux:Info,
                       next:end},
         init_suspension_list(master_prob of colgen, Attr).
+
 
 % From a cg_attr, searches for the attribute corresponding to that for the
 % first argument. Fails if none found. 
@@ -764,7 +741,10 @@ var_dual1(Var, Dual, Coeff, Idx, Type, Rhs, Pool) :-
 		[Pool:var_dual(Var, Dual, Coeff, Idx, Type, Rhs)]),
 	    abort
 	;
-	    var_dual(Var, Dual, Coeff, Idx, Type, Rhs, Handle)
+            % make sure we consistently have floats in the attribute
+            FDual is float(Dual),
+            FRhs is float(Rhs),
+	    var_dual(Var, FDual, Coeff, Idx, Type, FRhs, Handle)
 	).        
 
 % get_dual/2: for pools
@@ -913,7 +893,7 @@ cg_integers1(Ints, Pool) :-
 cg_integers_body(Handle, Ints) :-
         ( Handle = cg_prob{bfs_tree:[],info_messages:OnOff} ->
               bfs_solver_setup(BfsHandle, min, bp_node(Handle),
-                               [info_messages:OnOff,
+                               [info_messages(OnOff),
                                 separation(bp_separate(Handle))]),
               setarg(bfs_tree of cg_prob, Handle, BfsHandle)
         ; Handle = cg_prob{bfs_tree:BfsHandle} ),
@@ -943,9 +923,9 @@ cg_range(X, Lo..Hi, Pool) :-
         get_cg_attr(X, Handle, _Attr), % make sure it is a var for Pool
         set_var_bounds(X, Lo, Hi).
 
-cg_eq(X, Y, Pool) :- add_cg_pool_constraint(X=:=Y, _Id, Pool).
-cg_ge(X, Y, Pool) :- add_cg_pool_constraint(X>=Y, _Id, Pool).
-cg_le(X, Y, Pool) :- add_cg_pool_constraint(X=<Y, _Id, Pool).
+cg_eq(X, Y, Pool) :- add_cg_pool_constraint(X$=Y, _Id, Pool).
+cg_ge(X, Y, Pool) :- add_cg_pool_constraint(X$>=Y, _Id, Pool).
+cg_le(X, Y, Pool) :- add_cg_pool_constraint(X$=<Y, _Id, Pool).
 
 add_cg_pool_constraint(Cstr, Ident, Pool) :-
 	cg_normalise_cstr(Cstr, Norm0, CoeffVar, Coeff),
@@ -976,8 +956,8 @@ add_cg_pool_constraint(Cstr, Ident, Pool) :-
             % give the CoeffVar of the Lambda vars to be generated
             % a dual_var attribute
             Norm0 = Sense:[Val*_One|_],
-            Rhs is -Val,
-            var_dual(CoeffVar, 0, Coeff, Ident, Sense, Rhs, Handle),
+            Rhs is float(-Val),
+            var_dual(CoeffVar, 0.0, Coeff, Ident, Sense, Rhs, Handle),
             post_typed_pool_constraint(Pool,
                                        mp_sp of cg_constraint_type,
                                        [CoeffVar, Id]:Norm0)
@@ -1009,6 +989,7 @@ try_propagate_bounds(NormIn, NormOut) :-
     swap_sense(_, S, S).
 
 % cg_sp_count/2: for low-level handles
+%:- deprecated(cg_sp_count/2, "No longer necessary").
 cg_sp_count(Handle, P) :-
         ( var(Handle) ->
             error(4, cg_sp_count(Handle, P))
@@ -1031,33 +1012,12 @@ cg_sp_count1(P, Pool) :-
 	    cg_sp_count_body(Handle, P)
 	).
 
-cg_sp_count_body(Handle, P) :-
-        Handle = cg_prob{sp_count:P0},
-        ( P0 = P -> true ; setarg(sp_count of cg_prob, Handle, P) ).
+cg_sp_count_body(_Handle, _P).
 
 :- deprecated(cg_sp_sol/2, "Use valid_columns/1").
 % cg_subproblem_solution/1: for pools
 cg_sp_sol(ColSpecs, Pool) :-
-        get_pool_handle(Handle, Pool), 
-	( Handle == 0 ->
-	    printf(error, "Colgen instance has no solver set up in %w%n",
-		[Pool:cg_subproblem_solution(ColSpecs)]),
-	    abort
-	;
-	    cg_valid_columns(Handle, ColSpecs)
-	).
-
-% cg_valid_columns/2: for low-level handles
-cg_valid_columns(Handle, ColSpecs) :-
-        ( var(Handle) ->
-            error(4, cg_valid_columns(Handle, ColSpecs))
-        ; var(ColSpecs) ->
-            error(4, cg_valid_columns(Handle, ColSpecs))
-        ; Handle = cg_prob{} ->
-            cg_valid_columns_body(Handle, ColSpecs)
-        ;
-            error(5, cg_valid_columns(Handle, ColSpecs))
-        ).
+        cg_valid_columns1(ColSpecs, Pool).
 
 % valid_columns/1: for pools
 cg_valid_columns1(ColSpecs, Pool) :-
@@ -1067,42 +1027,35 @@ cg_valid_columns1(ColSpecs, Pool) :-
 		[Pool:valid_columns(ColSpecs)]),
 	    abort
 	;
+            Handle = cg_prob{shelf:Shelf},
+            shelf_inc(Shelf, sp_sol_cnt of cg_shelf),	% suppress auto-posting
 	    cg_valid_columns(Handle, ColSpecs)
 	).
 
-cg_valid_columns_body(Handle, ColSpecs) :-
-        % get the columns currently awaiting addition
-        Handle = cg_prob{shelf:Shelf},
-        shelf_get(Shelf, 1, OldContents),
-        ( OldContents = RCSum:OldColSpecs ->
-            true
+% cg_valid_columns/2: for low-level handles
+cg_valid_columns(Handle, ColSpecs) :-
+        ( var(Handle) ->
+            error(4, cg_valid_columns(Handle, ColSpecs))
+        ; var(ColSpecs) ->
+            error(4, cg_valid_columns(Handle, ColSpecs))
+        ; Handle = cg_prob{new_columns:NewColRec} ->
+            % recorda for compatibility, should be recordz
+            ( ColSpecs = sp_sol{} ->
+                recorda(NewColRec, ColSpecs)
+            ;
+                ( foreach(ColSpec, ColSpecs), param(NewColRec) do
+                    ColSpec = sp_sol{},
+                    recorda(NewColRec, ColSpecs)
+                )
+            )
         ;
-            RCSum = none,
-            OldColSpecs = []
-        ),
-        % check types
-        cg_col(ColSpecs, NewColSpecs, OldColSpecs),
-        % check for variables within the sp_sol structs
-        ( ground(ColSpecs) -> true
-        ; term_variables(ColSpecs, Vars),
-          cg_info_message(Handle, "%nColumn specs contain variables%n%w%n"
-                          "in %cg_add_columns(%w, %w)%n"
-                          "Corresponding variables in colgen attributes"
-                          " will be copies.%n",
-                          [Vars, Handle, ColSpecs])
-        ),
-        % store the new columns
-        shelf_set(Shelf, 1, RCSum:NewColSpecs).
+            error(5, cg_valid_columns(Handle, ColSpecs))
+        ).
 
-cg_col(ColSpec, [ColSpec|ColSpecs], ColSpecs) :-
-        ColSpec = sp_sol{}, !.
-cg_col(ColSpecList, NewColSpecs, ColSpecs) :-
-        check_list(ColSpecList, NewColSpecs, ColSpecs).
 
-check_list([], ColSpecs, ColSpecs).
-check_list([ColSpec|ColSpecs], [ColSpec|Rest], NewColSpecs) :-
-        ColSpec = sp_sol{},
-        check_list(ColSpecs, Rest, NewColSpecs).
+% Set optimal RC (during SP solution process): the SP solver should
+% do that iff it computes an RC-optimal column, because we can derive
+% an MP lower bound from it.
 
 % cg_optimal_rc/2: for low-level handles
 cg_optimal_rc(Handle, RCOpt) :-
@@ -1110,8 +1063,8 @@ cg_optimal_rc(Handle, RCOpt) :-
             error(4, cg_optimal_rc(Handle, RCOpt))
         ; var(RCOpt) ->
             error(4, cg_optimal_rc(Handle, RCOpt))
-        ; Handle = cg_prob{}, number(RCOpt) ->
-            cg_optimal_rc_body(Handle, RCOpt)
+        ; Handle = cg_prob{shelf:Shelf}, number(RCOpt) ->
+            shelf_set(Shelf, optimal_rc of cg_shelf, RCOpt)
         ;
             error(5, cg_optimal_rc(Handle, RCOpt))
         ).
@@ -1132,10 +1085,6 @@ cg_optimal_rc1(RCOpt, Pool) :-
 cg_sp_rc_sum(SPRCSum, Pool) :-
         cg_optimal_rc1(SPRCSum, Pool).
 
-cg_optimal_rc_body(cg_prob{shelf:Shelf}, RCOpt) :-
-        shelf_get(Shelf, 1, OldContents),
-        ( OldContents = _OldRCOpt:Solns -> true ; Solns = [] ),
-        shelf_set(Shelf, 1, RCOpt:Solns). 
 
 % cg_branch/2: for low-level handles
 cg_branch(Handle, Branch) :-
@@ -1180,8 +1129,8 @@ cg_branch1(Score, Branch, Pool) :-
 	).
 
 cg_branch_body(cg_prob{shelf:Shelf}, Score, Branch) :-
-        shelf_get(Shelf, 1, Branches),
-        shelf_set(Shelf, 1, [Score:Branch|Branches]).
+        shelf_get(Shelf, info of cg_shelf, Branches),
+        shelf_set(Shelf, info of cg_shelf, [Score:Branch|Branches]).
 
 cg_info_message(cg_prob{info_messages:OnOff}, String, Vars) :-
         ( OnOff == on -> printf(String, Vars), flush(output) ; true ).
@@ -1224,18 +1173,20 @@ cg_get_body(Handle, obj_val, ObjVal) ?- !,
                   Out is In + Cost*VarVal
             )
         ).
+cg_get_body(Handle, sp_obj, Val) :- !,
+        cg_get_body(Handle, sp_obj(all), Val).
 cg_get_body(Handle, sp_obj(Idents), Val) :- !,
         Handle = cg_prob{duals:DualArr,
                          idx_lookup:Lookup,
                          sp_obj_terms:TermArr},
         ( Idents == all ->
-              TermArr =.. [[]|Terms],
-              DualArr =.. [[]|Duals],
               (
+                  for(I,1,arity(TermArr)),
                   fromto(Val, Out, In, []),
-                  foreach(Dual, Duals),
-                  foreach(Term, Terms)
+                  param(TermArr,DualArr)
               do
+                  arg(I, TermArr, Term),
+                  arg(I, DualArr, Dual),
                   ( nonvar(Term), Term =:= 0 -> Out = In
                   ; Out = [Dual*Term|In] )
               )
@@ -1558,9 +1509,8 @@ cg_minimize_body(Handle, MPCstrs, MPIdxs, MPSPCstrs, MPSPIdxs, CoeffVars,
         Handle = cg_prob{master_prob:MP,
                          upper_bound:ObjVal},
         lp_get(MP, vars, AllVarArr),
-        AllVarArr =.. [_|AllVars],
         (
-            foreach(Var, AllVars),
+            foreacharg(Var, AllVarArr),
             param(MP, Handle)
         do
             ( nonvar(Var) ->
@@ -1597,7 +1547,7 @@ bp_solve_body(Handle, Obj) :-
         Handle = cg_prob{bfs_tree:BfsHandle0,info_messages:OnOff},
         ( BfsHandle0 == [] ->
             bfs_solver_setup(BfsHandle, min, bp_node(Handle),
-                             [info_messages:OnOff,
+                             [info_messages(OnOff),
                               separation(bp_separate(Handle))]),
             setarg(bfs_tree of cg_prob, Handle, BfsHandle)
         ;
@@ -1699,10 +1649,10 @@ bp_node(Handle) :-
                     )
                 ),
                 Handle = cg_prob{upper_bound:NodeCost},
-                shelf_set(Shelf, 1, [NodeCost, OldVals, NewVals])
+                shelf_set(Shelf, info of cg_shelf, [NodeCost, OldVals, NewVals])
         ),
-        shelf_get(Shelf, 1, [NodeCost, OldVals, NewVals]),
-        shelf_set(Shelf, 1, []),
+        shelf_get(Shelf, info of cg_shelf, [NodeCost, OldVals, NewVals]),
+        shelf_set(Shelf, info of cg_shelf, []),
         cg_get(Handle, vars, OldVars),
         (
             foreach(Var, OldVars),
@@ -1752,7 +1702,7 @@ bp_node(Handle) :-
         setarg(mp_vars of cg_prob, Handle, NewVars),
         lp_add_columns(MP, VarCols),
         lp_get(MP, vars, VarArr),
-        functor(VarArr, _, ColsAdded),
+        arity(VarArr, ColsAdded),
         setarg(mp_cols_added of cg_prob, Handle, ColsAdded),
         bfs_node_cost(BfsHandle, NodeCost).
 
@@ -1823,19 +1773,15 @@ cg_solver_setup_body(Handle, MPCstrs, MPIdxs, MPSPCstrs, MPSPIdxs, CoeffVars,
               % in case we need to use two phase
               NonLinObj = [AuxVar = implicit_sum(OptVar)],
               filter_auxvar(AuxVar, LinObj, NormObj, ObjCoeff),
-              var_dual(OptVar, 0, ObjCoeff, obj, _, 0, Handle)
+              var_dual(OptVar, 0.0, ObjCoeff, obj, _, 0.0, Handle)
         ),
         % process option list and fill in defaults
         process_options(OptionList, Handle, Module, SepGoal, EplexOptions),
         fill_in_defaults(Handle),
         arg(1, SolveSubProblem, SPHandle),
-        SPHandle = sp_prob{master_pool:Pool,
-                           cutoff:1e-05,
-                           cost:OptVar,
-                           disallow:[0, []],
-                           status: phase1,
-                           coeff_vars:DualVars},
+        fill_in_defaults_sp(Pool, SPHandle, Module),
         Handle = cg_prob{master_prob:MPHandle,
+			 module:Module,
                          const_obj:ConstTerm,
                          sp_solution_call:SolveSubProblem,
                          phase1_obj:Phase1Obj,
@@ -1853,7 +1799,7 @@ cg_solver_setup_body(Handle, MPCstrs, MPIdxs, MPSPCstrs, MPSPIdxs, CoeffVars,
         StabIterCounts = stab_counters{bound_counter:1,
                                        coeff_counter:1},
         hash_create(Lookup),
-        ( var(Shelf) -> shelf_create(info([]), Shelf) ; true ),
+        verify(nonvar(Shelf)),
         % create the eplex handle and setup the fixed part of the obj
         ( NormObj == [] ->
               % need a dummy var in the obj fn to force
@@ -2009,9 +1955,8 @@ cg_solver_setup_body(Handle, MPCstrs, MPIdxs, MPSPCstrs, MPSPIdxs, CoeffVars,
         % already and only add attribute/include in vars of cg_prob
         % if it does not
         lp_get(MPHandle, vars, VarArr),
-        VarArr =.. [_|AllVars],
         (
-            foreach(Var, AllVars),
+            foreacharg(Var, VarArr),
             fromto(Vars, Out, In, []),
             param(MPHandle, Handle)
         do
@@ -2048,7 +1993,7 @@ cg_solver_setup_body(Handle, MPCstrs, MPIdxs, MPSPCstrs, MPSPIdxs, CoeffVars,
               lp_add_columns(MPHandle, VarCols),
               % record the total number of columns now in the mp
               lp_get(MPHandle, vars, MPVarArr),
-              functor(MPVarArr, _, ColsAdded)
+              arity(MPVarArr, ColsAdded)
         ),
         (
             foreach(Var, ArtVars)
@@ -2074,6 +2019,7 @@ cg_solver_setup_body(Handle, MPCstrs, MPIdxs, MPSPCstrs, MPSPIdxs, CoeffVars,
         % make a suspension for the SP iterator
         % and insert it in the suspension lists of the dual val vars
         make_suspension(solveSPs(Handle), 0, SPSusp),
+        SPHandle = sp_prob{cost:OptVar, coeff_vars:DualVars},
         insert_suspension([OptVar|DualVars], SPSusp, susps of dual_var,
                           dual_var).
 
@@ -2219,7 +2165,7 @@ add_new_solver_rowcols(Handle) :-
                 ),
                 % record the total number of columns now in the mp
                 lp_get(MPHandle, vars, MPVarArr),
-                functor(MPVarArr, _, NewColsAdded),
+                arity(MPVarArr, NewColsAdded),
                 setarg(mp_vars of cg_prob, Handle, NewVars),
                 setarg(mp_cols_added of cg_prob, Handle, NewColsAdded)
             ),
@@ -2241,6 +2187,8 @@ add_new_solver_rowcols(Handle) :-
             ),
             % insert the SP iterator suspension in the suspension lists of
             % the dual val vars
+            % TODO: this looks wrong - why a new suspension???
+            % also: sp_prob's coeff_vars field hasn't been updated?
             make_suspension(solveSPs(Handle), 0, SPSusp),
             insert_suspension(CoeffVars, SPSusp, susps of dual_var,
                               dual_var)
@@ -2271,13 +2219,11 @@ add_stabilisation_term(Idx, Handle, Expr, StabExpr, StabTerm) :-
 expand_sp_obj_terms([], [], [], _Handle) :- !.
 expand_sp_obj_terms(MPIdxs, Idxs, CoeffVars, Handle) :-
         ( MPIdxs == [] ->
-            sort(0, >, Idxs, [NCstrs|_])
+            NCstrs is max(Idxs)
         ; Idxs == [] ->
-            sort(0, >, MPIdxs, [NCstrs|_])
+            NCstrs is max(MPIdxs)
         ;
-            sort(0, >, MPIdxs, [MaxMPIdx|_]),
-            sort(0, >, Idxs, [MaxIdx|_]),
-            NCstrs is max(MaxMPIdx, MaxIdx)
+            NCstrs is max(max(MPIdxs), max(Idxs))
         ),
         NCstrs1 is NCstrs + 1,
         dim(ExprArr, [NCstrs1]),
@@ -2336,10 +2282,10 @@ process_option(node_select(Val), Handle, Module, Separation, EplexOptions, Eplex
                                     EplexOptions, EplexOptions0))
         ;
             ( Handle = cg_prob{bfs_tree:[], info_messages:OnOff} ->
-                call(bfs_solver_setup(BfsHandle, min, bp_node(Handle),
-                                      [info_messages:OnOff,
+                bfs_solver_setup(BfsHandle, min, bp_node(Handle),
+                                      [info_messages(OnOff),
                                        node_select(Val),
-                                       separation(bp_separate(Handle))]))@Module,
+                                       separation(bp_separate(Handle))]),
                 setarg(bfs_tree of cg_prob, Handle, BfsHandle)
             ;
                 Handle = cg_prob{bfs_tree:BfsHandle},
@@ -2468,7 +2414,8 @@ valid_setting(off).
 
 fill_in_defaults(Handle) :-
         Handle = cg_prob{disallow:DisOnOff,
-                         tolerance:(Tol, BranchTol),
+                         tolerance:Tol,
+                         branch_tolerance:BranchTol,
                          info_messages:MessageOnOff,
                          on_degeneracy:OnDegeneracy,
                          stabilisation:Stabilisation,
@@ -2481,11 +2428,26 @@ fill_in_defaults(Handle) :-
         ( var(Stabilisation) -> Stabilisation = off ; true ),
         ( var(PerturbOnOff) -> PerturbOnOff = off ; true ).
 
+fill_in_defaults_sp(Pool, SPHandle, Module) :-
+        SPHandle = sp_prob{master_pool:Pool,
+                           cutoff:CutOff,
+                           disallow:Disallow,
+                           status: phase1,
+                           module:Module,
+                           lo:Lo, hi:Hi, type:Type
+               },
+        ( var(CutOff) -> CutOff = 1e-05 ; true ),
+        ( var(Disallow) -> Disallow = [0, []] ; true ),
+        ( var(Lo) -> Lo = 0.0 ; true ),         % or -1.0Inf, but 0 more likely
+        ( var(Hi) -> Hi = 1.0Inf ; true ),
+        ( var(Type) -> Type = real ; true ).
+
+
 % ----------------------------------------------------------------------
 % most general instantiation templates to disallow duplicate columns
 % ----------------------------------------------------------------------
 
-% repeatedly amlagamate a new coefficient list with
+% repeatedly amalgamate a new coefficient list with
 % the coefficient list of a member of a list of
 % linearisation-coefficient list pairs, extract
 % linearisation of new most general amalgamation
@@ -2585,9 +2547,10 @@ lin_amalgamate([[L, Cstrs]-Coeffs|List], NewCoeffs, N,
 % repeatedly amlagamate a new coefficient list with
 % the coefficient list of a member of a list of
 % suspension-coefficient list pairs killing any
-% associated suspesnions, suspend disallow demons for
+% associated suspensions, suspend disallow demons for
 % the most general amalgamation and return new
 % suspension-coefficient list pair list
+% The coefficients are numbers or ../2 ranges.
 amalgamate(N, List, Coeffs, Vars, NewN, [[N1, Susps]-NewCoeffs|NewList]) :-
     % try to amalgamate Coeffs with others in list
     % repeatedly until we have most general disallow template
@@ -2628,7 +2591,7 @@ amalgamate(N, List, Coeffs, Vars, NewN, [[N1, Susps]-NewCoeffs|NewList]) :-
 
 % amalgamate a coefficient list with the coefficient list of
 % a member of a list of suspension-coefficient list pairs
-% killing any associated suspesnions and return remaining
+% killing any associated suspensions and return remaining
 % list and amalgamated coefficients
 amalgamate([], Coeffs, N, [], Coeffs, N, yes).
 amalgamate([[L, Susps]-Coeffs|List], NewCoeffs, N,
@@ -2790,12 +2753,15 @@ not_among_body([H|T], VLo, VHi, List, Flag) :-
 	not_among_body(T, VLo, VHi, List1, Flag)
     ).
 
+:- mode cg_new_MP_columns(+,-).
 cg_new_MP_columns(Handle, VarCols) :-
         Handle = cg_prob{sp_solution_call:SolveSubProblem,
                          disallow:DisOnOff,
                          mp_vars:OldVars,
                          idx_lookup:Lookup,
-                         new_columns:Solns},
+                         new_columns:NewColRec},
+        recorded_list(NewColRec, Solns),
+        erase_all(NewColRec),
         arg(1, SolveSubProblem, SPHandle),
         SPHandle = sp_prob{coeff_vars:DualVars,
                            disallow:[Count, Templates]},
@@ -2820,27 +2786,20 @@ cg_new_MP_columns(Handle, VarCols) :-
                           type:Type},
             ( Obj =:= 0 -> ObjCol = BCol ; ObjCol = [obj:Obj|BCol] ),
             BCol = [lo:Lo, hi:Hi|Col],
-            get_cg_attr(Var, Handle, Attr),
-            Attr = colgen{cost:Obj, coeffs:HashCol, aux:Info},
-            ( Lo = -1.0Inf -> true
-            ; Lo =:= -1.0Inf -> true
-            ; setarg(lo of colgen, Attr, Lo) ),
-            ( Hi = 1.0Inf -> true
-            ; Hi =:= 1.0Inf -> true
-            ; setarg(hi of colgen, Attr, Hi) ),
-            ( Type == integer -> setarg(type of colgen, Attr, integer)
-            ; true ),
-            set_var_bounds(Var, Lo, Hi),
+            new_cg_attrstruct(Handle, Obj, HashCol, Lo, Hi, Type, Info, Attr),
+            add_attribute(Var, Attr, colgen),
             ( Coeffs = [_Id-_V|_] ->
+                  % Coeffs is a sparse coefficient list (unordered)
 
                   % most general inst templates for disallowing cols
                   % for thesis results tables
                   ( DisOnOff == off ->
                         CountOut = CountIn, TemplatesOut = TemplatesIn
                   ;
+                        % reconstruct full coefficient list from sparse one
                         (
-                            foreach(Var, DualVars),
-                            foreach(TVal, TCoeffs),
+                            foreach(Var, DualVars),     %+
+                            foreach(TVal, TCoeffs),     %-
                             param(Handle, Coeffs)
                         do
                             get_idx(Var, Id, Handle),
@@ -2858,15 +2817,18 @@ cg_new_MP_columns(Handle, VarCols) :-
                         )
                   ),
 
+                  % make a sparse column representation Col1
                   (
-                      foreach(Id-V, Coeffs),
-                      foreach(I:V, Col1),
+                      foreach(Id-V, Coeffs),    %+
+                      foreach(I:V, Col1),       %-
                       param(Lookup)
                   do
                       hash_get(Lookup, Id, I)
                   ),
                   keysort(Coeffs, HashCol)
+
             ;
+                  % Coeffs is a full list of coefficients (not sparse)
 
                   % most general inst templates for disallowing cols
                   % for thesis results tables
@@ -2884,6 +2846,7 @@ cg_new_MP_columns(Handle, VarCols) :-
                         )
                   ),
 
+                  % make a sparse column representation Col1
                   (
                       foreach(Var, DualVars),
                       foreach(V, Coeffs),
@@ -2911,8 +2874,8 @@ cg_new_MP_columns(Handle, VarCols) :-
         NewCount is max(Count, Count0),
         setarg(disallow of sp_prob,SPHandle, [NewCount, NewTemplates]),
                                  
-        setarg(mp_vars of cg_prob, Handle, NewVars),
-        setarg(new_columns of cg_prob, Handle, []).
+        setarg(mp_vars of cg_prob, Handle, NewVars).
+
 
 :- demon cg_iteration/1.
 :- set_flag(cg_iteration/1, priority, 7).
@@ -2991,8 +2954,12 @@ solve_masterproblem_phase1(Handle, Status, ObjVal) ?-
                          mp_vars:Vars},
         phase_change(Phase1Fn),
         lp_get(MP, objective, ObjExpr),
+%	( lp_get(MP, cbasisarr, CB) -> true ; CB=[] ),
         solve_perturbed_objective_function(Stabilisation, StabTerms,
                                            MP, ObjExpr, ObjVal), !,
+%	( lp_get(MP, cbasisarr, CB1) -> true ; CB1=[] ),
+%	write_term(CB, [compact(true)]), nl,
+%	write_term(CB1, [compact(true)]), nl,
         % phase change and phase 2 solution successful,
         % we have a feasible solution change the phase setting
         setarg(phase of cg_prob, Handle, -1),
@@ -3015,6 +2982,7 @@ solve_masterproblem_phase1(Handle, Status, ObjVal) ?-
                          stab_terms:StabTerms},
         ( lp_get(MP, cbasis, StartCBasis) -> true ; StartCBasis = [] ),
         ( lp_get(MP, rbasis, StartRBasis) -> true ; StartRBasis = [] ),
+%	( lp_get(MP, cbasisarr, CB) -> true ; CB=[] ),
         solve_perturbed_objective_function(Stabilisation, StabTerms,
                                            MP, Phase1Fn, ObjVal), !,
         % phase 1 solution successful, still restricted infeasible
@@ -3023,6 +2991,9 @@ solve_masterproblem_phase1(Handle, Status, ObjVal) ?-
         % different columns
         perturb_if_necessary(Handle, Phase1Fn, StartCBasis, StartRBasis),
         cg_info_message(Handle, "infeasible%n", []),
+%	( lp_get(MP, cbasisarr, CB1) -> true ; CB1=[] ),
+%	write_term(CB, [compact(true)]), nl,
+%	write_term(CB1, [compact(true)]), nl,
         ( lp_get(MP, cbasis, StartCBasis),
           lp_get(MP, rbasis, StartRBasis) ->
             % degenerate so Status is infeasible if not handled,
@@ -3050,11 +3021,15 @@ solve_masterproblem_phase2(Handle, Status, ObjVal) ?-
                          stabilisation:Stabilisation,
                          stab_terms:StabTerms,
                          mp_vars:Vars,
-                         tolerance:(Tolerance, _BranchTolerance),
+                         tolerance:Tolerance,
                          lower_bound:LowerBound},
         ( lp_get(MP, cbasis, StartCBasis) -> true ; StartCBasis = [] ),
         ( lp_get(MP, rbasis, StartRBasis) -> true ; StartRBasis = [] ),
+%	( lp_get(MP, cbasisarr, CB) -> true ; CB=[] ),
+        % TODO: don't zero out when already done
         phase_change(Phase1Fn),
+        % TODO: Don't retrieve and reconstruct potentially big objective
+        % TODO: at least use a sum(List) instead of nested +/2
         lp_get(MP, objective, ObjExpr),
         solve_perturbed_objective_function(Stabilisation, StabTerms,
                                            MP, ObjExpr, ObjVal),
@@ -3068,6 +3043,9 @@ solve_masterproblem_phase2(Handle, Status, ObjVal) ?-
         % different columns
         perturb_if_necessary(Handle, ObjExpr, StartCBasis, StartRBasis),
         cg_info_message(Handle, "done, z_mp = %w%n", [ObjVal]),
+%	( lp_get(MP, cbasisarr, CB1) -> true ; CB1=[] ),
+%	write_term(CB, [compact(true)]), nl,
+%	write_term(CB1, [compact(true)]), nl,
         ( ObjVal - (Tolerance*ObjVal) =< LowerBound ->
             % within Tolerance of lower bound so status is Optimal
             Status = optimal
@@ -3093,6 +3071,7 @@ phase_change(min(sum(ArtVars))) :-
 solve_perturbed_objective_function(off, StabTerms,
                                    MP, ObjExpr, ObjVal) ?-
         % no stabilisation policy, zero out the stabilisation vars ...
+        %TODO: don't do that repeatedly
         (
             foreach(StabTerm, StabTerms)
         do
@@ -3100,6 +3079,10 @@ solve_perturbed_objective_function(off, StabTerms,
         ),
         % ... and solve for the existing objective function
         lp_probe(MP, ObjExpr, ObjVal).
+%        lp_get(MP, constraints, _),
+%        lp_probe(MP, ObjExpr, ObjVal),
+%	lp_get(MP, typed_solution, Sol),
+%	writeln(mp_sol:Sol).
 solve_perturbed_objective_function(on(_,_,_,_), StabTerms,
                                    MP, ObjExpr, ObjVal) ?-
         solve_perturbed_objective_function_(StabTerms, MP, ObjExpr, ObjVal).
@@ -3139,6 +3122,8 @@ set_optimal_mp_vals(Vars, Handle, MP) :-
 
 %solve_subproblems(++Status, +Handle)
 %
+% Status in {phase1,phase2,optimal,suboptimal,infeasible,degenerate}
+%
 % solve subproblems dealing with degeneracy appropriately for the
 % current phase and parameters
 solve_subproblems(infeasible, Handle) ?- !,
@@ -3164,42 +3149,40 @@ solve_subproblems(Status, Handle) :-
         % either degenerate where the user-defined subproblem solution
         % predicate will try to deal with degeneracy, or not
         % degenerate -
-        % flag status, get dual values and upate dual_var attributes,
+        % flag status, get dual values and update dual_var attributes,
         % triggers SP solution
         cg_info_message(Handle, "%tSolving subproblems ... ", []),
         Handle = cg_prob{master_prob:MP,
                          sp_solution_call:SolveSubProblem,
                          idx_lookup:Lookup,
                          shelf:Shelf,
+                         new_columns:NewColRec,
                          phase:OptDual},
         lp_get(MP, dual_solution, Duals),
         DualArr =.. [[]|Duals],
         setarg(duals of cg_prob, Handle, DualArr),
         arg(1, SolveSubProblem, SPHandle),
         setarg(status of sp_prob, SPHandle, Status),
-        shelf_get(Shelf, 1, OldContents),
-        shelf_set(Shelf, 1, none:[]),
+        shelf_set(Shelf, optimal_rc of cg_shelf, none),
+        verify(recorded_list(NewColRec,[])),
         call_priority(update_duals(Handle, SPHandle, OptDual, Lookup, DualArr),
                       2),
-        shelf_get(Shelf, 1, RC:NewColumns),
-        shelf_set(Shelf, 1, OldContents),
-        setarg(optimal_rc of cg_prob, Handle, RC),
-        setarg(new_columns of cg_prob, Handle, NewColumns),
+	% Subproblem solver woken here!!!
         cg_info_message(Handle, "done%n", []).
+
 
 stabilisation_stopping_criteria(Handle, VarCols) :-
         Handle = cg_prob{duals:Duals,
+                         module:Module,
                          master_prob: MPHandle,
                          sp_solution_call: SolveSubProblem,
                          stabilisation: Stabilisation,
                          stab_terms: StabTerms,
-                         tolerance: (Tolerance, _BranchTolerance),
+                         tolerance: Tolerance,
                          phase:OptDual},
         ( Stabilisation == off ->
             VarCols = []
         ; Stabilisation = stab_pred(_, Goal) ->
-            arg(1, SolveSubProblem, SPHandle),
-            SPHandle = sp_prob{module:Module},
             call(Goal)@Module
         ; Stabilisation = on(_BoundIter, _BoundUpdate,
                              _CoeffIter, _CoeffUpdate) ->
@@ -3241,18 +3224,17 @@ stabilisation_stopping_criteria(Handle, VarCols) :-
            
 update_stabilisation(Handle, VarCols) :-
         Handle = cg_prob{duals:Duals,
+                         module:Module,
                          sp_solution_call: SolveSubProblem,
                          master_prob: MPHandle,
                          stabilisation: Stabilisation,
                          stab_terms: StabTerms,
                          stab_iter_counts: StabCounts,
-                         tolerance: (Tolerance, _BranchTolerance),
+                         tolerance: Tolerance,
                          phase:OptDual},
         ( Stabilisation == off ->
             true
         ; Stabilisation = stab_pred(Goal, _) ->
-            arg(1, SolveSubProblem, SPHandle),
-            SPHandle = sp_prob{module:Module},
             call(Goal)@Module
         ; Stabilisation = on(BoundIter, BoundUpdate,
                              CoeffIter, CoeffUpdate) ->
@@ -3342,7 +3324,8 @@ update_masterproblem_lp(Handle, VarCols) :-
         % add new columns to MP
         lp_add_columns(MP, VarCols),
         lp_get(MP, vars, MPVarArr),
-        functor(MPVarArr, _, NewColsAdded),              
+        arity(MPVarArr, NewColsAdded),              
+        %%% WHY not reuse eplex's array here
         MPVarArr =.. [_|NewMPVars],
         setarg(mp_vars of cg_prob, Handle, NewMPVars),
         setarg(mp_cols_added of cg_prob, Handle, NewColsAdded).
@@ -3350,8 +3333,7 @@ update_masterproblem_lp(Handle, VarCols) :-
 update_lower_bound(Handle, ObjVal) :-
         % calculate the Lasdon bound
         ( lasdon_bound(Handle, ObjVal, LasdonBound) ->
-            Handle = cg_prob{tolerance:(Tolerance, _BranchTolerance),
-                             upper_bound:UpperBound},
+            Handle = cg_prob{tolerance:Tolerance, upper_bound:UpperBound},
             ( LasdonBound >= UpperBound - (Tolerance * UpperBound) ->
                 % cannot improve solution, done
                 true
@@ -3381,13 +3363,14 @@ update_lower_bound(Handle, ObjVal) :-
         ).
 
 lasdon_bound(Handle, ObjVal, LasdonBound) :-
-        Handle = cg_prob{lower_bound:LowerBound,
-                         optimal_rc:RCSum},
+        Handle = cg_prob{lower_bound:LowerBound,shelf:Shelf},
         \+ in_phase_1(Handle),
+        shelf_get(Shelf, optimal_rc of cg_shelf, RCSum),
         number(RCSum),
         RCSum < 1.0Inf,
         LasdonBound is max(ObjVal - RCSum, LowerBound),
-        setarg(lower_bound of cg_prob, Handle, LasdonBound).
+        setarg(lower_bound of cg_prob, Handle, LasdonBound),
+        cg_info_message(Handle, "New lower bound: %w%n", [LasdonBound]).
 
 %perturb_if_necessary(+Handle, +ObjExpr, ++CBasis, ++RBasis)
 %
@@ -3411,7 +3394,7 @@ perturb_if_necessary(Handle, ObjExpr, CBasis, RBasis) :- !,
             true
         ).
 
-optimizer_specific_perturbation(cplex, ObjExpr, MPHandle) ?-
+optimizer_specific_perturbation(cplex, ObjExpr, MPHandle) ?- !,
         lp_get(optimizer_param(perind), Ind),
         lp_get(optimizer_param(perlim), Lim),
         lp_set(optimizer_param(perind), 1),
@@ -3419,11 +3402,16 @@ optimizer_specific_perturbation(cplex, ObjExpr, MPHandle) ?-
         lp_probe(MPHandle, ObjExpr, _),
         lp_set(optimizer_param(perind), Ind),
         lp_set(optimizer_param(perlim), Lim).
-optimizer_specific_perturbation(xpress, ObjExpr, MPHandle) ?-
+optimizer_specific_perturbation(xpress, ObjExpr, MPHandle) ?- !,
         lp_get(optimizer_param(perturb), Val),
         lp_set(optimizer_param(perturb), 1.0),
         lp_probe(MPHandle, ObjExpr, _),
         lp_set(optimizer_param(perturb), Val).
+%TODO: parameters for COIN
+optimizer_specific_perturbation(Solver, _ObjExpr, _MPHandle) :-
+	printf(error, "Colgen: %w not supported%n", [Solver]),
+	abort.
+	
 
 update_duals(Handle, SPHandle, OptDual, Lookup, Duals) :-
         SPHandle = sp_prob{cost:OptVar,
@@ -3595,8 +3583,8 @@ bp_separate(Handle) :-
             \+ \+ ( bfs_impose_node_state(other, BfsHandle),
                     call(Goal)
                   ),
-            shelf_get(Shelf, 1, Branches),
-            shelf_set(Shelf, 1, []),
+            shelf_get(Shelf, info of cg_shelf, Branches),
+            shelf_set(Shelf, info of cg_shelf, []),
             (
                 foreach(Score:Branch, Branches),
                 param(BfsHandle, Module)
@@ -3714,19 +3702,37 @@ fractional_vars(Vars, FracVars, Vals, Diffs, Fracs, L, U, Pool) :-
 :- set_flag(solveSPs/1, priority, 6).
 :- set_flag(solveSPs/1, run_priority, 6).
 solveSPs(Handle) :-
-        Handle = cg_prob{sp_solution_call:SolveSubProblem},
-        solveSP(SolveSubProblem).
+        (
+            Handle = cg_prob{sp_solution_call:SolveSubProblem,
+                                shelf:Shelf,module:Module},
+            arg(1, SolveSubProblem, SPHandle),
+            % note SolveSubProblem MUST post at least one positive
+            % reduced cost solution to the MP pool with
+            % cg_subproblem_solution if any exist for any subproblem
+            % otherwise we will terminate early with a suboptimal solution
+            shelf_set(Shelf, sp_sol_cnt of cg_shelf, 0),
 
-solveSP(SolveSubProblem) :-
-        arg(1, SolveSubProblem, SPHandle),
-        SPHandle = sp_prob{module:Module},
-        % note SolveSubProblem MUST post at least one positive
-        % reduced cost solution to the MP pool with
-        % cg_subproblem_solution if any exist for any subproblem
-        % otherwise we will terminal early with a suboptimal solution
-        call(SolveSubProblem)@Module,
-        fail.
-solveSP(_SolveSubProblem).
+            call(SolveSubProblem)@Module,
+
+            % If the SP has not posted solution(s) itself, post the current one
+            ( shelf_get(Shelf, sp_sol_cnt of cg_shelf, 0) ->
+                SPHandle = sp_prob{cost:Cost, coeff_vars:Coeffs,
+                                    lo:Lo, hi:Hi, type:Type},
+                ( ground(Cost-Coeffs) ->
+                    cg_valid_columns(Handle, sp_sol{
+                            cost:Cost, coeff_vars:Coeffs, lo:Lo, hi:Hi, type:Type})
+                ; 
+                    writeln(warning_output, "Warning: subproblem solver "
+                            "succeeded with nonground variables (ignored)")
+                )
+            ;
+                shelf_set(Shelf, sp_sol_cnt of cg_shelf, 0)
+            ),
+            fail
+        ;
+            true
+        ).
+
 
 %-----------------------------------------------------------------------
 % Pools
@@ -3764,7 +3770,7 @@ create_colgen_pool(Pool) :-
                                 branch/1 -> cg_branch1/2,
                                 branch/2 -> cg_branch1/3,
                                 cg_subproblem_count/1 -> cg_sp_count1/2,
-                                cg_subproblem_solution/1 -> cg_sp_sol/2,
+                                cg_subproblem_solution/1 -> cg_valid_columns1/2,
                                 valid_columns/1 -> cg_valid_columns1/2,
                                 cg_subproblem_rc_sum/1 -> cg_sp_rc_sum/2,
                                 optimal_rc/1 -> cg_optimal_rc1/2,
@@ -3796,18 +3802,28 @@ colgen_instance(PoolName) :-
 	).
 
 get_pool_handle(Handle, Pool) :-
-	( get_pool_item(Pool, 0) ->
-            Handle = cg_prob{pool:Pool,bfs_tree:[],shelf:Shelf},
-            shelf_create(info([]), Shelf),
-            init_suspension_list(mp_susp of cg_prob, Handle),
-            set_pool_item(Pool, Handle),
-            (local variable(sp_rc_sum))@Pool,
-            (local variable(mp_solution_info))@Pool
+	( get_pool_item(Pool, Handle), Handle = cg_prob{} ->
+            true
         ;
-            get_pool_item(Pool, Handle),
-            Handle = cg_prob{}
+            get_pool_item(Pool, 0),
+            init_cg_prob(Pool, Handle),
+            set_pool_item(Pool, Handle)
         ).
         
+init_cg_prob(Pool, Handle) :-
+        Handle = cg_prob{
+                pool:Pool,
+                bfs_tree:[],
+                new_columns:NewColRec,
+                shelf:Shelf },
+        record_create(NewColRec),
+        shelf_create(cg_shelf{
+                info:[],
+                optimal_rc:none,
+                sp_sol_cnt:0
+            }, Shelf),
+        init_suspension_list(mp_susp of cg_prob, Handle).
+
 
 % ----------------------------------------------------------------------
 % Expression simplifier (using lib(linearize))
@@ -3829,7 +3845,13 @@ get_pool_handle(Handle, Pool) :-
 % the constraint  -5 + 3*X >= 0.
 % ----------------------------------------------------------------------
 
-cg_normalise_cstr(E1 =:= E2, (=:=):Norm, CoeffVar, Coeff) :- !,
+cg_normalise_cstr(E1 =:= E2, Norm, CoeffVar, Coeff) :- !,
+        cg_normalise_cstr(E1 $= E2, Norm, CoeffVar, Coeff).
+cg_normalise_cstr(E1 >= E2, Norm, CoeffVar, Coeff) :- !,
+        cg_normalise_cstr(E1 $>= E2, Norm, CoeffVar, Coeff).
+cg_normalise_cstr(E1 =< E2, Norm, CoeffVar, Coeff) :- !,
+        cg_normalise_cstr(E1 $=< E2, Norm, CoeffVar, Coeff).
+cg_normalise_cstr(E1 $= E2, (=:=):Norm, CoeffVar, Coeff) :- !,
 	linearize(E1-E2, Lin, NonLin),
         ( NonLin == [] ->
               Norm = Lin,
@@ -3839,7 +3861,7 @@ cg_normalise_cstr(E1 =:= E2, (=:=):Norm, CoeffVar, Coeff) :- !,
               NonLin = [AuxVar = implicit_sum(CoeffVar)],
               filter_auxvar(AuxVar, Lin, Norm, Coeff)
         ).
-cg_normalise_cstr(E1 >= E2, (>=):Norm, CoeffVar, Coeff) :- !,
+cg_normalise_cstr(E1 $>= E2, (>=):Norm, CoeffVar, Coeff) :- !,
 	linearize(E1-E2, Lin, NonLin),
         ( NonLin == [] ->
               Norm = Lin,
@@ -3849,7 +3871,7 @@ cg_normalise_cstr(E1 >= E2, (>=):Norm, CoeffVar, Coeff) :- !,
               NonLin = [AuxVar = implicit_sum(CoeffVar)],
               filter_auxvar(AuxVar, Lin, Norm, Coeff)
         ).
-cg_normalise_cstr(E1 =< E2, (=<):Norm, CoeffVar, Coeff) :- !,
+cg_normalise_cstr(E1 $=< E2, (=<):Norm, CoeffVar, Coeff) :- !,
 	linearize(E1-E2, Lin, NonLin),
         ( NonLin == [] ->
               Norm = Lin,

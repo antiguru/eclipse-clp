@@ -25,7 +25,7 @@
 
 :- module(flatzinc).
 
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/07/25 13:29:05 $").
 :- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Interpreter for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
@@ -1186,41 +1186,68 @@ fzn_write(Stream, X, Type, Solver) :-
     fzn_write1(Stream, Set, no_macro_expansion(set of EType), Solver) ?-
 	Solver:set_solver_to_fzn(Set, Xs),	% may fail
 	write(Stream, '{'),
-	( fromto(Xs,[X|Xs1],Xs1,[Xn]), param(Stream,EType,Solver) do
-	    fzn_write1(Stream, X, EType, Solver),
-	    write(Stream, ',')
-	),
-	fzn_write1(Stream, Xn, EType, Solver),
+        ( Xs = [X1|Xs1] ->
+            fzn_write1(Stream, X1, EType, Solver),
+            ( foreach(X,Xs1), param(Stream,EType,Solver) do
+                write(Stream, ','),
+                fzn_write1(Stream, X, EType, Solver)
+            )
+        ;
+            true
+        ),
 	write(Stream, '}').
 
 
 % Write ECLiPSe data in MiniZinc format, making a guess at the type
 :- export fzn_write/2.
 fzn_write(Stream, X) :- string(X), !, write(Stream, X).
-fzn_write(Stream, []) ?- !, write(Stream, {}).
 fzn_write(Stream, X) :- atom(X), !, write(Stream, X).
 fzn_write(Stream, X) :- number(X), !, writeq(Stream, X).
 fzn_write(Stream, Xs) :- is_list(Xs), !,	% lists are Zinc sets
 	write(Stream, '{'),
-	( fromto(Xs,[X|Xs1],Xs1,[Xn]), param(Stream) do
-	    fzn_write(Stream, X),
-	    write(Stream, ',')
-	),
-	fzn_write(Stream, Xn),
+        ( Xs = [X1|Xs1] ->
+            fzn_write(Stream, X1),
+            ( foreach(X,Xs1), param(Stream) do
+                write(Stream, ','),
+                fzn_write(Stream, X)
+            )
+        ;
+            true
+        ),
 	write(Stream, '}').
 fzn_write(Stream, L..H) ?- integer(L), integer(H), !, write(Stream, L..H).
 fzn_write(Stream, Array) :- functor(Array, [], N), !,
-	write(Stream, '['),
+        % For 2D arrays, write Minizinc 2D syntax, e.g. [|1,2|3,4|].
+        % We can then use it in a Minizinc data file as a parameter.
+        ( arg(1, Array, X1), compound(X1), functor(X1, [], _) ->
+            write(Stream, '[|')
+        ;
+            write(Stream, '[')
+        ),
 	( for(I,1,N-1), param(Array,Stream) do
 	    arg(I, Array, X),
-	    fzn_write(Stream, X),
-	    write(Stream, ',')
+            fzn_write_row(Stream, X)
 	),
 	arg(N, Array, Xn),
-	fzn_write(Stream, Xn),
+	fzn_write_row(Stream, Xn),
 	write(Stream, ']').
 fzn_write(_Stream, X) :-
 	fzn_error("Illegal data in fzn_write(%w)", [X]).
+
+    fzn_write_row(Stream, Row) :-
+        ( compound(Row), functor(Row, [], M) ->
+            ( for(J,1,M-1), param(Row,Stream) do
+                arg(J, Row, X),
+                fzn_write(Stream, X),
+                write(Stream, ',')
+            ),
+            arg(M, Row, X),
+            fzn_write(Stream, X),
+            write(Stream, '|')
+        ;
+            fzn_write(Stream, Row),
+            write(Stream, ',')
+        ).
 
 
 % Attach ECLiPSe var_names ---------------------------------------

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.9 2010/07/16 06:13:10 jschimpf Exp $
+ * $Id: sepia.h,v 1.10 2010/07/25 13:29:05 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -890,7 +890,7 @@
  	(1.0/(d1) == 1.0/(d2))
 
 #define PedanticLess(d1,d2) \
- 	((d1) < (d2) ||  ((d1) == (d2) && PedanticZeroLess(d1,d2)))
+ 	((d1) < (d2) ||  ((d1) == (d2) && (d1 == 0.0) && PedanticZeroLess(d1,d2)))
 
 #define PedanticGreater(d1,d2) \
 	PedanticLess(d2,d1)

@@ -2232,20 +2232,32 @@ Z iis (X;Y) :-
 	schedule_susp(S).
 Z iis X^Yi :-
 	integer(Yi),
-	float(Yi, Y),
-	make_suspension(binop_function(pow_int, X, Y, Z, S), 3, S),
-	insert_suspension(X,S,min of ic,ic),
-	insert_suspension(X,S,max of ic,ic),
-	schedule_susp(S).
+	prop_int(X, Z),
+	( Yi==0 ->
+	    do_update(Z, 1.0, 1.0, 4)	% X^0 is 1
+	;
+	    float(Yi, Y),
+	    make_suspension(binop_function(pow_int, X, Y, Z, S), 3, S),
+	    insert_suspension(X,S,min of ic,ic),
+	    insert_suspension(X,S,max of ic,ic),
+	    schedule_susp(S)
+	).
 Z iis rpow(X, Yi) :-
 	integer(Yi),
-	float(Yi, Y),
-	ria_binop(div, 1.0, 1.0, Y, Y, YinvL, YinvH), % compute 1/Y safely
-	( mod(Yi, 2, 0) -> V = [X|Z] ; V = X ),
-	make_suspension(rpow(X, Yi, YinvL, YinvH, Z, S), 3, S),
-	insert_suspension(V,S,min of ic,ic),
-	insert_suspension(V,S,max of ic,ic),
-	schedule_susp(S).
+	( Yi==0 ->
+	    % Since rpow(1,0)=any and rpow(NotOne,0)=fail, all we can do
+	    % here is wait for X to exclude 1, and then fail.  However this
+	    % is taken care of by the forward propagator binding X to 1.
+	    true
+	;
+	    float(Yi, Y),
+	    ria_binop(div, 1.0, 1.0, Y, Y, YinvL, YinvH), % compute 1/Y safely
+	    ( mod(Yi, 2, 0) -> V = [X|Z] ; V = X ),
+	    make_suspension(rpow(X, Yi, YinvL, YinvH, Z, S), 3, S),
+	    insert_suspension(V,S,min of ic,ic),
+	    insert_suspension(V,S,max of ic,ic),
+	    schedule_susp(S)
+	).
 Z iis sum(X) :-
 	make_suspension(sumlist(X, Z, S), 3, S),
 	insert_suspension(X,S,min of ic,ic), insert_suspension(X,S,max of ic,ic),
@@ -2879,7 +2891,7 @@ ternop_function(Op, X, Y, Z, S) :-		% Z := op(X, Y, Z)
 
 
 :- demon(rpow/6).
-rpow(X, N, YL, YH, Z, S) :-		% reverse of X = Z^N, YL..YH = 1/N
+rpow(X, N, YL, YH, Z, S) :-		% reverse of X = Z^N, YL..YH = 1/N, N\=0
 	ic_event(ic_tern_prop),
 	get_float_bounds(X, XL, XH),
 	get_float_bounds(Z, ZL, ZH),
@@ -2893,14 +2905,16 @@ rpow(X, N, YL, YH, Z, S) :-		% reverse of X = Z^N, YL..YH = 1/N
 	check_update(Z, L, H, F, P),
 	( var(X) -> 
             set_suspension_data(S, priority, P), Flag=F
-        ; ( mod(N, 2, 0), get_threshold(T), H-L > T) ->
+        ; mod(N, 2, 0), get_threshold(T), H-L > T ->
             % do not instantiate to a bounded real if the power is
             % even and the interval is larger than the threshold
+	    % (because we may span 2 solutions)
             set_suspension_data(S, priority, P), Flag=F
         ;
             kill_suspension(S), Flag=4
         ),
 	do_update(Z, L, H, Flag).
+
 
 :- demon(sumlist/3).
 sumlist(List, Z, S) :-			% Z := sum(List)

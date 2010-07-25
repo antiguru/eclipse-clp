@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.4 2009/03/09 05:29:48 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -66,6 +66,7 @@ static int	p_dbgcomp(void),
 		p_timestamp_update(value vstruct, type tstruct, value varg, type targ),
 		p_timestamp_older(value vstruct1, type tstruct1, value varg1, type targ1, value vstruct2, type tstruct2, value varg2, type targ2),
 		p_timestamp_age(value vstruct, type tstruct, value varg, type targ, value vstate, type tstate),
+		p_request_cut_fail_event(value vevent, type tevent),
 		p_request_fail_event(value v, type t, value varg, type targ, value vevent, type tevent),
 		p_request_fail_event4(value v, type t, value varg, type targ, value vevent, type tevent, value vitem, type titem),
 		p_request_fail_write(value v, type t, value varg, type targ, value vstream, type tstream, value vterm, type tterm),
@@ -149,6 +150,7 @@ bip_control_init(int flags)
 	(void) built_in(in_dict("timestamp_update", 2), p_timestamp_update, B_UNSAFE);
 	(void) built_in(in_dict("timestamp_older", 4), p_timestamp_older, B_UNSAFE);
 	(void) built_in(in_dict("timestamp_age", 3), p_timestamp_age, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("request_cut_fail_event", 1), p_request_cut_fail_event, B_SAFE);
 	(void) built_in(in_dict("request_fail_event", 3), p_request_fail_event, B_SAFE);
 	(void) built_in(in_dict("request_fail_event", 4), p_request_fail_event4, B_SAFE);
 	(void) built_in(in_dict("request_fail_write", 4), p_request_fail_write, B_SAFE);
@@ -484,6 +486,47 @@ p_events_nodefer(void)
     }
     Succeed_;
 }
+
+
+/*
+ * request_cut_fail_event(+Event)
+ */
+
+static void
+_post_cut_fail_event(value v, type t)
+{
+    pword event;
+    event.val.all = v.all;
+    event.tag.all = t.all;
+    if (ec_post_event(event) != PSUCCEED)
+	ec_panic("Could not post event", "_post_cut_fail_event()");
+}
+
+static int
+p_request_cut_fail_event(value vevent, type tevent)
+{
+    pword event;
+
+    if (IsAtom(tevent) || IsHandle(tevent))
+    {
+	event.val.all = vevent.all;
+	event.tag.all = tevent.all;
+    }
+    else if (IsRef(tevent))
+    {
+	Bip_Error(INSTANTIATION_FAULT);
+    }
+    else
+    {
+	Bip_Error(TYPE_ERROR);
+    }
+
+    schedule_cut_fail_action((void (*)(value,type)) _post_cut_fail_event,
+    		event.val, event.tag);
+    Succeed_;
+}
+
+
 
 
 /*

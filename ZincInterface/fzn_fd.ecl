@@ -28,7 +28,7 @@
 :- comment(summary, "Mapping from FlatZinc to lib(fd) and lib(fd_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2010/07/25 13:29:05 $").
 :- comment(see_also, [library(flatzinc),
 	library(fd),library(fd_sets),library(fd_global),
 	library(propia),library(branch_and_bound)]).
@@ -346,7 +346,7 @@ maximize(Expr, Anns, ObjVal) :-
 
 
     search_ann(seq_search(Searches)) :- !,
-    	( foreach(Search,Searches) do search_ann(Search) ).
+    	( foreacharg(Search,Searches) do search_ann(Search) ).
     search_ann(bool_search(Vars, Select, Choice, Explore)) :- !,
 	search(Vars, 0, Select, Choice, Explore, []).
     search_ann(int_search(Vars, Select, Choice, Explore)) :- !,

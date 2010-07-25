@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_regassign.ecl,v 1.7 2008/04/28 23:33:40 jschimpf Exp $
+% Version:	$Id: compiler_regassign.ecl,v 1.8 2010/07/25 13:29:04 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_regassign).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III Compiler - register allocator").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2008/04/28 23:33:40 $").
+:- comment(date, "$Date: 2010/07/25 13:29:04 $").
 
 :- lib(hash).
 :- use_module(compiler_common).
@@ -304,17 +304,17 @@ assign_am_registers(AnnotatedCodeList, ACL0, Code, Code0) :-
 		),
 %		( Last == last, Type \= dest, Type \== perm ->
 		( last_occurrence(Type, Last) ->
-		    % No need to clean up the Locations table,
-		    % since VarId won't occur any more
-		    % Next 6 lines are only to make debugging easier!
 		    ( Reg = a(_) ->
+			% No need to clean up the Locations table,
+			% since VarId won't occur any more
+			% Next 2 lines are only to make debugging easier!
 			certainly_once current_content(Contains, Reg, NoLongerUsedVarId),
-			clear_locations(Locations, NoLongerUsedVarId)
+			clear_locations(Locations, NoLongerUsedVarId),
+
+			clear_current_content(Contains, Reg)
 		    ;
 			true
-		    ),
-
-		    clear_current_content(Contains, Reg)
+		    )
 		;
 		    true
 		)
@@ -406,6 +406,7 @@ current_content(Contains, Reg, Content) :-
 	hash_get(Contains, Reg, Content).
 
 set_current_content(Contains, Reg, Content) :-
+	verify functor(Reg, a, 1),
 	hash_set(Contains, Reg, Content).
 
 clear_current_content(Contains, Reg) :-

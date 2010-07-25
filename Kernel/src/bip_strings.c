@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_strings.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: bip_strings.c,v 1.3 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -1154,7 +1154,7 @@ p_string_code(value vs, type ts, value vi, type ti, value vc, type tc)
     }
 #endif
     else { Bip_Error(RANGE_ERROR); }
-    Return_Unify_Integer(vc, tc, StringStart(vs)[i]);
+    Return_Unify_Integer(vc, tc, ((unsigned char *)StringStart(vs))[i]);
 }
 
 

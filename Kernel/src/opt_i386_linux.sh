@@ -52,7 +52,7 @@ BEGIN {
 	jmplabel = ""
 }
 
-/\.L.+:/ {
+/^\.?L[0-9]+:/ {
 	if (jmplabel == "") {
 	    print
 	    thislabel = $1
@@ -65,7 +65,7 @@ BEGIN {
 	}
 }
 
-/jmp	\.L.+/ {
+/jmp	\.?L[0-9]+/ {
 	if ($2 == jmplabel) {
 	    # replace indirect by direct jump
 	    print jmpinstr

@@ -739,54 +739,57 @@ Fail:
 	template:"+IterationSpecs do +Goals",
 	amode:(do(+,+)),
 	desc:html("
-    This is a meta-predicate for writing simple iterations without
-    the need for an auxiliary recursive predicate.
+    The do-loop is a control structure (or meta-predicate) for writing
+    simple iterations without the need for an auxiliary recursive predicate.
 <P>
-    A do-loop corresponds to a call to an auxiliary recursive
-    predicate of the form
-<PRE>	do__n(...).
+    A do-loop corresponds to a call to an auxiliary recursive predicate
+    of the form
+<PRE>	do__n(...) :- !.
 	do__n(...) :- Goals, do__n(...).</PRE>
-    IterationSpecs is one (or a comma-separated sequence) of the following:
+    IterationSpecs specifies the termination condition, and what is being
+    iterated over.  It can be one (or a combination) of the following:
     <DL>
     <DT><STRONG>fromto(First,In,Out,Last)</STRONG><DD>
     	iterate Goals starting with In=First until Out=Last.
-	In and Out are local variables in Goals.
+	In and Out are local loop variables.  For all but the first
+	iteration, the value of In is the same as the value of Out in
+	the previous iteration.
 
     <DT><STRONG>foreach(X,List)</STRONG><DD>
     	iterate Goals with X ranging over all elements of List.
-	X is a local variable in Goals.
+	X is a local loop variable.
 	Can also be used for constructing a list.
 
     <DT><STRONG>foreacharg(X,StructOrArray)</STRONG><DD>
     	iterate Goals with X ranging over all arguments of StructOrArray.
-	X is a local variable in Goals.
+	X is a local loop variable.
 	Cannot be used for constructing a term.
 
     <DT><STRONG>foreacharg(X,StructOrArray,Idx)</STRONG><DD>
 	same as before, but Idx is set to the argument position of X in
 	StructOrArray, i.e. arg(Idx, StructOrArray, X) is true.
-	X and Idx are local variables in Goals.
+	X and Idx are local loop variables.
 
     <DT><STRONG>foreachelem(X,Array)</STRONG><DD>
 	like foreacharg/2, but iterates over all elements of an array
 	of arbitrary dimension.  The order is the natural order, i.e.
 	if Array = []([](a, b, c), [](d, e, f)), then for successive
 	iterations X is bound in turn to a, b, c, d, e and f.
-	X is a local variable in Goals.
+	X is a local loop variable.
 	Cannot be used for constructing a term.
 
     <DT><STRONG>foreachelem(X,Array,Idx)</STRONG><DD>
 	same as before, but Idx is set to the index position of X in
 	Array, i.e. subscript(Array, Idx, X) is true.
-	X and Idx are local variables in Goals.
+	X and Idx are local loop variables.
 
     <DT><STRONG>foreachindex(Idx,Array)</STRONG><DD>
 	like foreachelem/3, but returns just the index position and not the
-	element.  Idx is a local variable in Goals.
+	element.  Idx is a local loop variable.
 
     <DT><STRONG>for(I,MinExpr,MaxExpr)</STRONG><DD>
 	iterate Goals with I ranging over integers from MinExpr to
-	MaxExpr.  I is a local variable in Goals.  MinExpr and MaxExpr
+	MaxExpr.  I is a local loop variable.  MinExpr and MaxExpr
 	can be arithmetic expressions.  Can be used only for
 	controlling iteration, i.e. MaxExpr cannot be uninstantiated. 
 
@@ -799,9 +802,9 @@ Fail:
 	between the corresponding elements in MinList and MaxList.
 	Successive iterations go through the possible combinations of
 	values for List in lexicographic order.  List is a local
-	variable in Goals.  MinList and MaxList must be either
-	lists of arithmetic expressions evaluating to integers, or
-	arithmetic expressions evaluating to integers (in the latter case
+	loop variable.  MinList and MaxList must be either lists of
+	arithmetic expressions evaluating to integers, or arithmetic
+	expressions evaluating to integers (in the latter case
 	they are treated as lists containing the (evaluated) integer
 	repeated an appropriate number of times).  If none of List,
 	MinList and MaxList is a list of fixed length at compile time then
@@ -819,13 +822,16 @@ Fail:
 
     <DT><STRONG>count(I,Min,Max)</STRONG><DD>
     	iterate Goals with I ranging over integers from Min up to Max.
-	I is a local variable in Goals.
+	I is a local loop variable.
 	Can be used for controlling iteration as well as counting,
-	i.e. Max can be a variable.
+	i.e. Max can be a uninstantiated.
 
     <DT><STRONG>param(Var1,Var2,...)</STRONG><DD>
-    	for declaring variables in Goals global, ie shared with the context.
-	CAUTION: By default, variables in Goals are local!
+    	for declaring variables in Goals as global, i.e. as shared with
+	the loop context and shared among all iterations of the loop.
+	CAUTION: By default, variables in Goals have local scope, which means
+	that in every iteration these variables are new (even if a variable
+	of the same name occurs outside the do-construct).
 
     <DT><STRONG>loop_name(Name)</STRONG><DD>
 	This specifier does not affect the semantics of the loop. It allows
@@ -834,7 +840,7 @@ Fail:
 	the loop may be compiled. The name should therefore not clash with
 	other predicate names in the same module.
     </DL>
-    Note that fromto/4 is the most general specifier, but foreach/2,
+    Note that fromto/4 is the most general specifier, while foreach/2,
     foreacharg/2,3, foreachelem/2,3, foreachindex/2, count/3, for/3,4,
     multifor/3,4 and param/N are convenient shorthands.
     <P>
@@ -846,7 +852,7 @@ Fail:
 	iterated synchronously; that is, they all take their first \"value\"
 	for the first execution of Goals, their second \"value\" for the
 	second execution of Goals, etc.  The order in which they are written
-	does not matter, and the set of local variables in Goals is the
+	does not matter, and the set of local loop variables is the
 	union of those of IterSpec1 and IterSpec2.
 
 	When multiple iteration specifiers are given in this way, typically
@@ -862,12 +868,12 @@ Fail:
 	This iterates over the cross product of IterSpec1 and IterSpec2.
 	The sequence of iteration is to iterate IterSpec2 completely for a
 	given \"value\" of IterSpec1 before doing the same with the next
-	\"value\" of IterSpec1, and so on.  The set of local variables in
-	Goals is the union of those of IterSpec1 and IterSpec2.
+	\"value\" of IterSpec1, and so on.  The set of local loop variables
+	is the union of those of IterSpec1 and IterSpec2.
 
     <DT><STRONG>IterSpec1 >> IterSpec2</STRONG> (\"nested iteration\")<DD>
 	Like ( IterSpec1 do ( IterSpec2 do Goals ) ), including with respect
-	to scoping.  The local variables in Goals are those of IterSpec2; in
+	to scoping.  The local loop variables are those of IterSpec2; in
 	particular, those of IterSpec1 are not available unless IterSpec2
 	passes them through, e.g. using a <STRONG>param</STRONG>.
 	Similarly, the only \"external\" variables available as inputs to
@@ -877,12 +883,22 @@ Fail:
     </DL>
     <P>
     Syntax: The do-operator binds like the semicolon, i.e. less than comma.
-    That means that the whole do-construct should always be bracketed.
+    That means that the whole do-construct should always be parenthesised.
     <P>
-    Unless you use :-pragma(noexpand) or :-dbgcomp, the do-construct is
-    compiled into an efficient auxiliary predicate. By default, the name of
-    this predicate is do__nnn (where nnn is a unique integer), unless you
-    have explicitly specified a name using the loop_name(Name) specifier.
+    Do-loops can be used as a control structure in grammar rules as well:
+    A do-loop in a grammar rule context will generate (or parse) the
+    concatenation of the lists of symbols generated (or parsed) by each
+    loop iteration (the grammar rule transformation effectively adds a
+    hidden fromto-iterator to a do-loop).
+    <P>
+    Cuts in the loop body only have a local effect, i.e. they do not cut
+    through the loop.
+    <P>
+    Unless you use :-pragma(noexpand) or the compiler's expand_goals:off
+    option, the do-construct is compiled into an efficient auxiliary
+    predicate.  By default, the name of this predicate is do__nnn
+    (where nnn is a unique integer), unless you have explicitly specified
+    a name using the loop_name(Name) specifier.
 "),
 	args:[
 	    "IterationSpecs" : "a comma-separated sequence of iteration specifiers",
@@ -943,32 +959,40 @@ length(List, N) :- (foreach(_,List), count(_,1,N) do true).
 % iterate over structure arguments
 ?- (foreacharg(X,s(a,b,c,d,e)) do writeln(X)).
 
-% collect args in list
+% collect arguments in a list
 % (bad example, use =.. if you really want to do that!)
 ?- (foreacharg(X,s(a,b,c,d,e)), foreach(X,List) do true).
 
-% collect args reverse
+% collect arguments reverse
 ?- (foreacharg(X,s(a,b,c,d,e)), fromto([],In,[X|In],List) do true).
 
 % or like this:
 ?- S = s(a,b,c,d,e), functor(S, _, N),
     (for(I,N,1,-1), foreach(A,List), param(S) do arg(I,S,A)).
 
-% rotate args in a struct
+% rotate arguments in a struct
 ?- S0 = s(a,b,c,d,e), functor(S0, F, N), functor(S1, F, N),
-    (foreacharg(X,S0,I), param(S1, N) do I1 is (I mod N)+1, arg(I1,S1,X)).
+    ( foreacharg(X,S0,I), param(S1, N) do
+    	I1 is (I mod N)+1, arg(I1,S1,X)
+    ).
 
 % flatten an array into a list
 ?- (foreachelem(X,[]([](5,1,2),[](3,3,2))), foreach(X,List) do true).
 
 % transpose a 2D array
-?- A = []([](5,1,2),[](3,3,2)), dim(A, [R,C]), dim(T, [C,R]),
-    (foreachelem(X,A,[I,J]), param(T) do subscript(T, [J,I], X)).
+?- A = []([](5,1,2),[](3,3,2)),
+   dim(A, [R,C]), dim(T, [C,R]),
+   ( foreachelem(X,A,[I,J]), param(T) do
+      subscript(T, [J,I], X)
+   ).
 
 % same, using foreachindex
-?- A = []([](5,1,2),[](3,3,2)), dim(A, [R,C]), dim(T, [C,R]),
-    (foreachindex([I,J],A), param(A, T) do
-     subscript(A, [I,J], X), subscript(T, [J,I], X)).
+?- A = []([](5,1,2),[](3,3,2)),
+   dim(A, [R,C]), dim(T, [C,R]),
+   ( foreachindex([I,J],A), param(A, T) do
+      subscript(A, [I,J], X),
+      subscript(T, [J,I], X)
+   ).
 
 % The following two are equivalent
 ?- (foreach(X,[1,2,3])        do             writeln(X)).
@@ -986,7 +1010,8 @@ length(List, N) :- (foreach(_,List), count(_,1,N) do true).
 	    writeln(X-Y)
 	)
     ).
-% or
+
+% or using the product combinator:
 ?- Xs = [1,2,3,4],
     ( foreach(X, Xs) * foreach(Y, Xs) do
 	writeln(X-Y)
@@ -999,7 +1024,8 @@ length(List, N) :- (foreach(_,List), count(_,1,N) do true).
 	    writeln(X-Y)
 	)
     ).
-% or
+
+% or using the nesting combinator:
 ?- Xs = [1,2,3,4],
     ( fromto(Xs, [X|Xs1], Xs1, []) >> ( foreach(Y,Xs1), param(X) ) do
 	writeln(X-Y)
@@ -1020,6 +1046,7 @@ pairs(Xs, Ys, Zs) :-
             Zs3 = [X-Y|Zs2]
         )
     ).
+
 % or
 pairs(Xs, Ys, Zs) :-
     (
@@ -1095,13 +1122,18 @@ flatten_array(Array, Xs) :-
 ?- List = [[a,b],[[c,d,e],[f]],[g]],
     (foreach(Xs,List) >> foreach(X,Xs), foreach(X,Ys) do true).
 
-% Iterate over all ordered pairs of integers 1..4 (param(I) required to make
-% I available in body of loop):
+% Iterate over all ordered pairs of integers 1..4
+% (param(I) required to make I available in body of loop):
 ?- (for(I,1,4) >> (for(J,I+1,4), param(I)) do writeln(I-J)).
 
 % Same for general 1..N (param(N) required to make N available to second for):
 ?- N=4,
     ((for(I,1,N), param(N)) >> (for(J,I+1,N), param(I)) do writeln(I-J)).
+
+
+% Do-loop inside a Grammar Rule
+% This rule will accept/generate a list of integers from 1 to N
+intlist(N) --> ( for(I,1,N) do [I] ).
 ",
 	see_also:[pragma / 1]]).
 

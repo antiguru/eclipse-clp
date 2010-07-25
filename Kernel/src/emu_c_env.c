@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.4 2009/03/09 05:29:48 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -910,6 +910,7 @@ purge_disabled_dynamic_events(t_heap_event *event)
     total = g_emu_.dyn_event_q.total_event_slots - g_emu_.dyn_event_q.free_event_slots;
 
     if ( total == 0 ) {
+	Enable_Int();
 	return;
     }
 

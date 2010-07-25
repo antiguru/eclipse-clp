@@ -10423,6 +10423,48 @@ label(3):
 label(4):
 	exit                 
 
+------ Test true(15) -------
+p :-
+	true,
+	sepia_kernel : var(A),
+	b.
+
+p / 0:
+label(1):
+	allocate                 0 
+	callf                    true / 0     Y[] 
+	put_variable             a(1) 
+	bi_var                   a(1) 
+	chain                    b / 0 
+
+------ Test true(16) -------
+p :-
+	true,
+	A : var(B),
+	b.
+
+p / 0:
+label(1):
+	put_variable             a(1) 
+	put_structure            a(2)     var / 1 
+	push_void            
+	put_module               a(3)     eclipse 
+	allocate                 0 
+	callf                    sepia_kernel : '[]:@' / 3     Y[] 
+	chain                    b / 0 
+
+------ Test true(17) -------
+p :-
+	true,
+	sepia_kernel : nl,
+	b.
+
+p / 0:
+label(1):
+	allocate                 0 
+	callf                    sepia_kernel : nl / 0     Y[] 
+	chain                    b / 0 
+
 ------ Test bip(type_tests) -------
 p(A) :-
 	free(A).
@@ -10468,9 +10510,9 @@ p(A) :-
 	fail.
 
 INDEXES for (nondet) disjunction [2]
-1. Quality 4.5
+1. Quality 4.4
     [] - [21]
-    [[]] - [2, 5, 8, 17, 18, 20, 21]
+    [[]] - [5, 8, 17, 18, 20, 21]
     [var] - [6, 21]
     [var, free] - [1, 6, 21]
     [var, meta] - [6, 7, 21]
@@ -10591,8 +10633,7 @@ label(41):
 label(43):
 	failure              
 label(45):
-	try                      0     1     ref(5) 
-	retry                    0     ref(11) 
+	try                      0     1     ref(11) 
 	retry                    0     ref(17) 
 	retry                    0     ref(35) 
 	retry                    0     ref(37) 

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.19 2009/12/16 13:32:02 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.20 2010/07/25 13:29:04 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2009/12/16 13:32:02 $").
+:- comment(date, "$Date: 2010/07/25 13:29:04 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -351,6 +351,8 @@ normalize_goal(G, AnnG, _, _, _, _, _, _, _, _, LM, _) :-
     % Hack: check whether a preceding true/0 can be eliminated
     starts_regular((G,_), LM) ?- !,
 	starts_regular(G, LM).
+    starts_regular(LM:G, _LM) ?- !,
+        ( var(LM) -> true ; starts_regular(G, LM) ).
     starts_regular(!, _) ?- !, fail.
     starts_regular(cut_to(_), _) ?- !, fail.
     starts_regular(Goal, LM) :-

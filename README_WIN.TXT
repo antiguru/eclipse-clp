@@ -136,7 +136,11 @@ Manual Installation steps
     the 3 system DLLs WS2HELP.DLL, WS2_32.DLL (Winsock2) and MSVCRT.DLL.
 
 
-3.  Make a registry entry for ECLiPSe:
+3.  Make a registry entry for ECLiPSe. You can do this by running
+    <eclipsedir>/ecl_inst.js
+
+    Alternatively, you can do this manually, by
+
 
     - run regedit (Start->Run...->regedit)
 

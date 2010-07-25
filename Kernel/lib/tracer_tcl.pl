@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.10 2009/03/03 23:41:47 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.11 2010/07/25 13:29:05 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -157,7 +157,8 @@
 	get_tf_prop/3,
 	current_predicate_with_port/4,
         get_portlist_from_file/4,
-        find_matching_breakport/6
+        find_matching_breakport/6,
+        stack_overflow_message/1
     from sepia_kernel.
 
 :- lib(development_support).
@@ -562,9 +563,9 @@ provide_listnodes(List, ListPos0, LSize, Reply, Module) :-
 
 move_sideways(Dir, N, Path, Term, Reply, Mod) :- 
 	(get_parent_path(Path, PPath, Pos, ArgNo0) ->
-	    get_subterm_from_path(PPath, Term, Term, Parent, Mod),
+            get_subterm_from_path(PPath, Term, Term, Parent, Mod),
 	    (Dir == right -> ArgNo is ArgNo0 + N ; ArgNo is ArgNo0 - N),
-	    get_sibling_arg(Pos, ArgNo, PPath, Parent, Mod, NewPath, Status) 
+            get_sibling_arg(Pos, ArgNo, PPath, Parent, Mod, NewPath, Status) 
 
 	; % can't get parent
 	    Status = "false"
@@ -573,23 +574,34 @@ move_sideways(Dir, N, Path, Term, Reply, Mod) :-
 	Reply = [Status,["1"|NewPath]]. % add back the root node
 
 
-get_sibling_arg(_=_, ArgNo0, PPath, Parent, Module, NewPath, Status) ?-
-% named structure
+get_sibling_arg(Pos=FName0, ArgNo0, PPath, Parent, Module, NewPath, Status) ?-
+% named (or large) structure
 	(named_structure(Parent, Module, Defs, Arity) ->
 	    get_arg(ArgNo0, Arity, ArgNo, Status),
 	    arg(ArgNo, Defs, FName),
             % path position should always be a string
             term_string(ArgNo=FName, PosSpec),
 	    append(PPath, [PosSpec], NewPath)
-	;   % structure not named structure as expected
+	; integer(Pos),integer(FName0), Pos = FName0 ->
+            % a large structure displayed with argument positions
+            arity(Parent, Arity),
+            get_arg(ArgNo0, Arity, ArgNo, Status),
+            term_string(ArgNo=ArgNo, PosSpec),
+            append(PPath, [PosSpec], NewPath)
+        ;
+            % not named nor large structure 
 	    Status = "false"
 	).
 get_sibling_arg(Pos, ArgNo, PPath, Parent, _, NewPath, Status) :-
-	integer(Pos), !, % normal structure
-	functor(Parent, _, A),
-	get_arg(ArgNo, A, N1, Status),
-        term_string(N1, PosSpec),
-	append(PPath, [PosSpec], NewPath).
+	(integer(Pos) -> 
+            % normal structure
+            arity(Parent, A),
+            get_arg(ArgNo, A, N1, Status),
+            term_string(N1, PosSpec),
+            append(PPath, [PosSpec], NewPath)
+        ;
+            Status = "false"
+        ).
 
 get_arg(ArgNo, A, N1, Status) :-
 	(ArgNo >  A ->
@@ -662,7 +674,7 @@ refine_type(Type, _Var, _, Type).
 
 % check that a particular arg position is valid
 valid_pos(N0, N) :- integer(N0), !, N = N0. 
-valid_pos(N0=_, N) ?- integer(N0),  N = N0. %named struct
+valid_pos(N0=_, N) ?- integer(N0),  N = N0. %named struct (or large struct)
 %valid_pos(list(N0), N) ?- integer(N0), !, N = N0.
 %valid_pos(tail(N0), N) ?- integer(N0), !, N = N0.
 
@@ -1543,21 +1555,33 @@ is_lbmodule(Module) :-
 
 compile_os_file(OsFile, Module) :-
 	os_file_name(File, OsFile),
-	block(compile(File, Module), _Tag, true),
+	catchall(compile(File, Module)), 
 	% flush here, because the flushes in the nested emulator
 	% within the compiler are ignored...
 	flush(warning_output),
 	flush(error),
 	flush(output).
 
+
 use_module_os(OsFile, Module) :-
 	os_file_name(File, OsFile),
-	block(use_module(File)@Module, _Tag, true),
+	catchall(use_module(File)@Module),
 	% flush here, because the flushes in the nested emulator
 	% within the compiler are ignored...
 	flush(warning_output),
 	flush(error),
 	flush(output).
+
+catchall(Goal) :-
+        block(Goal, Tag, top_abort(Tag)).
+
+top_abort(abort) ?- !.
+top_abort(Tag) :-
+        stack_overflow_message(Tag), !,
+        top_abort(abort).
+top_abort(Tag) :-
+        block(error(230, exit_block(Tag)), T, true),
+        top_abort(T).
 
 list_predicates(Which, Module, AuxFilter, Sorted) :-
 	( Which = exported ->
@@ -1787,7 +1811,7 @@ check_at_wrapper(Goal, M, Goal, M).
 compile_string(String) :-
 	get_flag(toplevel_module, M),
 	open(String, string, S),
-	block(compile_stream(S)@M, _Tag, true),
+	compile_stream(S)@M,
 	close(S),
 	flush(warning_output), % for warnings
 	flush(error),	       % for errors

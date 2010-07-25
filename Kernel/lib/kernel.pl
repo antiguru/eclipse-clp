@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.25 2010/04/22 14:12:49 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.26 2010/07/25 13:29:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -767,7 +767,7 @@ standalone_toplevel :-
 process_command_line([], _I, _Goal, _M) :- !.
 process_command_line(["-b", Arg |Args], I, Goal, M) :- !,
 	os_file_name(File, Arg),
-	ensure_loaded(File, M),
+	block(ensure_loaded(File, M), Tag, top_throw(Tag)),
 	MI is -I, argv(MI,2),	% delete the 2 arguments
 	process_command_line(Args, I, Goal, M).
 process_command_line(["-e", Arg |Args], I, Goal, M) :- !,
@@ -3083,11 +3083,11 @@ check_var_or_atom(X) :- check_atom(X).
 
 check_var_or_integer(X) :- var(X), !.
 check_var_or_integer(X) :- integer(X), !.
-check_var_or_integer(X) :- set_bip_error(5).
+check_var_or_integer(_) :- set_bip_error(5).
 
 check_var_or_atomic(X) :- var(X), !.
 check_var_or_atomic(X) :- atomic(X), !.
-check_var_or_atomic(X) :- set_bip_error(5).
+check_var_or_atomic(_) :- set_bip_error(5).
 
 check_var_or_arity(A) :- var(A), !.
 check_var_or_arity(A) :- check_arity(A).
@@ -4939,7 +4939,9 @@ portray_goal(Goal, PortrayedGoal, CM) :-
 
     portray_goal(Goal, PortrayedGoal, CM, LM) :-
 	( atom(Goal) ; compound(Goal) ),
-	visible_term_macro(Goal, TransPred, _Options, TLM, LM, 15 /*WRITE_GOAL_TRANS_PROP*/),
+	% if we can't lookup in LM, use at least CM
+	( authorized_module(LM) -> MLM=LM ; MLM=CM ),
+	visible_term_macro(Goal, TransPred, _Options, TLM, MLM, 15 /*WRITE_GOAL_TRANS_PROP*/),
 	transform(Goal, _, PortrayedGoal, _, TransPred, TLM, CM),
 	!.
     portray_goal(Goal, Goal, _, _).
@@ -6012,7 +6014,11 @@ peval(R, X, Code, NextCode) :-
 %
 subscript(Mat, Index, X, M) :-
 	var(Index), !,
-	error(4, subscript(Mat,Index,X), M).
+	( get_flag(coroutine,on) ->
+	    suspend(subscript(Mat, Index, X, M), 2, Index->inst)
+	;
+	    error(4, subscript(Mat,Index,X), M)
+	).
 subscript(Mat, [], X, _M) :- !, X = Mat.
 subscript(Mat, [IExpr|IExprs], X, M) :- !,
 	subscript3(Mat, IExpr, X, M, IExprs).
@@ -6021,7 +6027,11 @@ subscript(Mat, Index, X, M) :-
 
     subscript3(Mat, IExpr, X, M, IExprs) :-
 	var(Mat), !,
-	error(4, subscript(Mat,[IExpr|IExprs],X), M).
+	( get_flag(coroutine,on) ->
+	    suspend(subscript(Mat,[IExpr|IExprs],X,M), 2, Mat->inst)
+	;
+	    error(4, subscript(Mat,[IExpr|IExprs],X), M)
+	).
     subscript3(Mat, IExpr, X, M, IExprs) :-
 	compound(Mat), !,
 	subscript1(Mat, IExpr, X, M, IExprs).

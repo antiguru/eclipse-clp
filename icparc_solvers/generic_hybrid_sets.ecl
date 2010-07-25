@@ -24,7 +24,7 @@
 % Solver for constraints over finite sets of integers
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_hybrid_sets.ecl,v 1.3 2010/04/04 08:14:57 jschimpf Exp $
+% Version:	$Id: generic_hybrid_sets.ecl,v 1.4 2010/07/25 13:29:05 jschimpf Exp $
 %
 %	Many thanks to Neng-Fa Zhou, on whose ideas this solver
 %	implementation is based. We started work on this solver
@@ -43,6 +43,10 @@
 %	- largest(?Set, ?El) and smallest(?Set, ?El)
 %	- n_largest(?Set, ?Elems) and n_smallest(?Set, ?Elems)
 %	- set ordering constraint
+%	- msg/3
+%	- more complete interface for writing your own constraints
+%	- use more efficient algorithms for initial constraint consistency
+%	  (currently done by simulating incremental additions/removals)
 % ----------------------------------------------------------------------
 
 
@@ -51,12 +55,14 @@
 
 :- export
 	op(500, yfx, (\)),
+	op(700, xfx, in_set_range),
 	op(700, xfx, disjoint),
 	op(700, xfx, sameset),
 	op(700, xfx, in),
 	op(700, xfx, notin),
 	op(700, xfx, includes),
 	op(700, xfx, subset),
+	op(700, xfx, subsetof),
         op(700, xfx, less),
         op(700, xfx, satisfies),
         op(700, xfx, leq).
@@ -65,6 +71,7 @@
 
 :- export
 	(::)/2,			% ?Set1 :: +Gset..+Gset
+	(in_set_range)/2,	% ?Set1 in_set_range +Gset..+Gset
 	intset/3,		% intset(?Set, +Min, +Max)
 	intsets/4,		% intsets(-Sets, ?N, +Min, +Max)
 	(in)/2,			% ?X in ?Set		membership
@@ -85,12 +92,15 @@
 	symdiff/3,		% symdiff(?Set1, ?Set2, ?Set3)
 	(#)/2,			% #(?Set, ?Card)	cardinality
 	weight/3,		% weight(?Set, +ElementWeights, ?SetWeight)
-	potential_members/2,	% potential_members(?Set, -UpbMinusLwb)
 	membership_booleans/2,	% membership_booleans(?Set, ?BoolArray)
 	insetdomain/4.		% insetdomain(?Set, +CardSel, +ElemSel, +Order)
 
-:- export	% conjunto compatibility
-	set_range/3.		% set_range(?Set, -Lwb, -Upb)
+:- export			% ------- Low-level interface --------
+	get_set_attribute/2,	% get_set_attribute(?Set, -Attr)
+	is_solver_var/1,	% is_solver_var(?Thing)
+	is_solver_type/1,	% is_solver_type?Thing)
+	potential_members/2,	% potential_members(?Set, -UpbMinusLwb)
+	set_range/3.		% set_range(?Set, -Lwb, -Upb) [conjunto compat]
 
 :-export
   get_set_attribute/2,
@@ -143,8 +153,8 @@
 	    off,	% integer
 	    lcard,	% integer
 	    ucard,	% integer
-	    added,	% stream list
-	    removed,	% stream list
+	    added,	% notification send-port
+	    removed,	% notification send-port
 	    add,	% suspension list
 	    rem,	% suspension list
             min_susp,        % suspension list
@@ -154,6 +164,32 @@
 %	    invoc,	% integer
 	    value	% set variable
     	)).
+
+:- comment(struct(int_sets), [
+    summary:"Attribute structure for set variables (and constants)",
+    fields:[
+	    "dom":"set domain representation (array of booleans)",
+            "lex_min":"lexicographicaly least valid instantiation",
+            "lex_max":"lexicographicaly greatest valid instantiation",
+            "lex_glb":"lex ordered GLB",
+            "lex_lub":"lex ordered GLB",
+            "lex_dirty":"flag which when set will result in lex_glb",
+	    "off":"offset between set element and corresponding array index (integer)",
+	    "lcard":"lower bound cardinality (integer)",
+	    "ucard":"upper bound cardinality (integer)",
+	    "added":"notification send-port for lower bound increases",
+	    "removed":"notification send-port for upper bound decreases",
+	    "add":"suspension list woken when lower bound increases",
+	    "rem":"suspension list woken when upper bound decreases",
+            "min_susp":"suspension list woken when lex_min changes",
+            "max_susp":"suspension list woken when lex_max changes",
+	    "card":"fd/ic variable for cardinality (see #/2)",
+	    "booleans":"array of fd/ic variables (see membership_booleans/2)",
+	    "value":"set variable belonging to this attribute"
+    ],
+    see_also:[library(notify_ports),suspend/3,suspend/4]
+]).
+
 
 :- lib(lists).
 
@@ -207,80 +243,55 @@ check_instantiation(Cstr, _Susp) :-
 	).
 
 %----------------------------------------------------------------------
-% Support for event mechanism (move to separate library)
+% Event notification mechanism
+% We use lib(notify_ports) to implement communication from the variables
+% to the constraints. Each variable has two send ports in its attribute:
+% 'added' where we send the information about added set elements, and
+% 'removed' where we send the information about removed set elements.
+% The messages simply consist of the set element itself (an integer).
+% Receiver ports are usually in a struct(rec), paired with the
+% suspension of a propagator who gets killed after the last message
+% has been processed and the port is closed.
 %----------------------------------------------------------------------
 
-init_sender(Pos, Attr) :-
-	arg(Pos, Attr, []),		% dirty trick to make sure that the
-	setarg(Pos, Attr, _Tail).	% variable is outside the structure
+:- lib(notify_ports).
 
+:- local struct(rec(port,susp)).
 
-terminate_sender(Pos, Attr) :-
-	arg(Pos, Attr, []).
+init_event_receiver(Pos, Attr, Susp, Receiver) :-
+	Receiver = rec with susp:Susp,
+	open_receiver(Pos, Attr, port of rec, Receiver).
 
+init_event_receiver(Pos, Attr, Susp, InitialEvents, InitialTail, Receiver) :-
+	Receiver = rec with susp:Susp,
+	open_receiver_init(Pos, Attr, InitialEvents, InitialTail, port of rec, Receiver).
 
-send_event(Pos, Attr, Event) :-
-	NewFrame = [Event|Tail],
-	arg(Pos, Attr, NewFrame),
-	setarg(Pos, Attr, Tail).
-
-:-export init_event_receiver/4.
-init_event_receiver(Pos, Attr, Susp, e(Events,Susp)) :-
-	arg(Pos, Attr, Events).
-
-init_event_receiver(Pos, Attr, Susp, InitialEvents, InitialTail,
-		e(InitialEvents,Susp)) :-
-	arg(Pos, Attr, InitialTail).
-
-:-export receive_events/2.
 receive_events(Receiver, Events) :-
 	nonvar(Receiver),
-	Receiver = e(EventStream, Susp),
-	receive_events(EventStream, Events, Receiver, Susp).
+	receive_notifications(port of rec, Receiver, Events, Status),
+	kill_receiver_suspension(Status, Receiver).
 
-
-receive_events_nokill(Receiver, Events) :-
-	nonvar(Receiver),
-	Receiver = e(EventStream, _Susp),
-	receive_events(EventStream, Events, Receiver, _DummySusp).
-
-    receive_events(Tail, [], Receiver, _Susp) :- var(Tail), !,
-	setarg(1, Receiver, Tail).
-    receive_events([], [], _Receiver, Susp) :-
+kill_receiver_suspension(closed, rec with susp:Susp) :-
     	kill_suspension(Susp).
-    receive_events([E|Es], [E|List0], Receiver, Susp) :-
-	receive_events(Es, List0, Receiver, Susp).
+kill_receiver_suspension(open, _).
 
-
-kill_receiver_suspension(e(_, Susp)) :-
+kill_receiver_suspension(rec with susp:Susp) :-
     	kill_suspension(Susp).
 
 
-:- inline(foreachevent/5, tr_foreachevent/3).	
-tr_foreachevent(foreachevent(BaseName, Event, Params, Receiver, Goals0),
-	(Receiver=e(EEs,_),call_priority(Call,2)),
-	Module) :-
-    concat_atoms(BaseName, '_foreachevent', Name),
-    Arity is length(Params) + 2,
-    Call =.. [Name,EEs,Receiver|Params],
-    functor(VarHead, Name, Arity),
-    VarHead =.. [Name,EEsIn,ReceiverIn|_Params],
-    functor(NilHead, Name, Arity),
-    NilHead =.. [Name,[],ReceiverIn|_Params],
-    RecHead =.. [Name,[Event|Es],ReceiverIn|Params],
-    RecCall =.. [Name,Es,ReceiverIn|Params],
-    expand_goal(Goals0, Goals)@Module,
-    compile_term([
-	    (VarHead :- var(EEsIn), !, setarg(1, ReceiverIn, EEsIn)),
-	    (NilHead :- !, ReceiverIn=e(_,SuspIn), kill_suspension(SuspIn)),
-	    (RecHead :- Goals, RecCall)
-	])@Module,
-    set_flag(Name/Arity, auxiliary, on).
+:- inline(foreachevent/5, tr_foreachevent/2).	
+tr_foreachevent(foreachevent(BaseName, Event, Params, Receiver, Goals),
+	call_priority((
+	    foreachnotification(BaseName, Event, Params, port of rec, Receiver, Status, Goals),
+	    kill_receiver_suspension(Status, Receiver)
+	), 2)
+    ).
+
 
 :- tool(foreachevent/5, foreachevent/6).
 foreachevent(BaseName, Event, Params, Receiver, Goals, Module) :-
 	tr_foreachevent(foreachevent(BaseName, Event, Params, Receiver, Goals),
-		Transformed, Module),
+		Transformed),
 	call(Transformed)@Module.
 
 %----------------------------------------------------------------------
@@ -306,17 +317,33 @@ intset(X, MinUniv, MaxUniv) :-
 intset(X, MinUniv, MaxUniv) :-
 	error(5, intset(X, MinUniv, MaxUniv)).
 
-X :: L..LU ?-
-	set_or_var(X),
-	!,
-	intset_domain_from_lists(SetAttr, L, LU),
-	add_set_attribute(X, SetAttr).
-X :: Dom :-
-	error(5, X :: Dom).
+X :: Lwb..Upb ?- !,
+	impose_set_bounds(X, Lwb, Upb).
+X :: Range :-
+	error(5, X :: Range).
 
-subsetof(X, List) :-
-	intset_domain_from_lists(SetAttr, [], List),
-	add_set_attribute(X, SetAttr).
+subscript(A,I) in_set_range Lwb..Upb ?- !,
+	subscript(A, I, X),
+	impose_set_bounds(X, Lwb, Upb).
+X in_set_range Lwb..Upb ?- !,
+	impose_set_bounds(X, Lwb, Upb).
+X in_set_range Range :-
+	error(5, X in_set_range Range).
+
+impose_set_bounds(_X{int_sets:SetAttr}, Lwb, Upb) ?- nonvar(SetAttr), !,
+	intset_union_lwb(Lwb, SetAttr),
+	intset_intersect_upb(Upb, SetAttr).
+impose_set_bounds(X, Lwb, Upb) :- set_or_var(X), !,
+	intset_domain_from_lists(SetAttr, Lwb, Upb),
+	( var(X) ->
+	    add_set_attribute(X, SetAttr)
+	;
+	    add_set_attribute(New, SetAttr),
+	    X=New
+	).
+impose_set_bounds(X, Lwb, Upb) :-
+	error(5, X in_set_range Lwb..Upb).
+
 
 % Make the link between a (non-set-attribute) variable
 % and a newly constructed set-attribute
@@ -366,7 +393,11 @@ set_range(Set, LwbList, UpbList) :-
 	%lset_to_list(Attr, LwbList),
 	%uset_to_list(Attr, UpbList).
 
-is_setvar(_{int_sets:(int_sets with [])}) ?- true.
+is_solver_var(_{int_sets:(int_sets with [])}) ?- true.
+
+is_solver_type(_{int_sets:(int_sets with [])}) ?- true.
+is_solver_type([]) ?- true.
+is_solver_type([_|_]) ?- true.
 
 :-export get_set_attribute/2.
 get_set_attribute(_{int_sets:SetAttr0}, SetAttr) ?-
@@ -384,6 +415,10 @@ seteval(S1 /\ S2, S) ?- !,
 	intersection(S1, S2, S).
 seteval(S1 \ S2, S) ?- !,
 	difference(S1, S2, S).
+seteval(subscript(Array,Index), S) ?- !,
+	% allow array access in set expressions
+	subscript(Array, Index, Element),
+	seteval(Element, S).
 seteval(S , S).
 
 set_or_var(X) :- var(X), !.
@@ -997,6 +1032,9 @@ X0 includes Y0 :-
 	Y0 subset X0.
 
 X0 subset Y0 :-
+	X0 subsetof Y0.
+
+X0 subsetof Y0 :-
 	seteval(Y0, Y), get_set_attribute(Y, YAttr),
 	seteval(X0, X), get_new_set_attribute(X, [YAttr], XAttr),
 
@@ -1039,8 +1077,8 @@ unify_any_set(X, YSetAttr) :- nonvar(X),
 	    intset_intersect_upb(X, YSetAttr),
 		% wake both bounds-lists, even if one bound was not touched.
 		% this gives the goals a chance to kill themselves
-	    terminate_sender(added of int_sets, YSetAttr),
-	    terminate_sender(removed of int_sets, YSetAttr),
+	    close_sender(added of int_sets, YSetAttr),
+	    close_sender(removed of int_sets, YSetAttr),
 	    schedule_suspensions(add of int_sets, YSetAttr),
 	    schedule_suspensions(rem of int_sets, YSetAttr)
 	), 2).
@@ -1220,8 +1258,8 @@ copy_term_set(_{int_sets:(int_sets with [dom:Dom,off:Off,lcard:LC,ucard:UC,card:
 	copy_term(Dom-Card, DomCopy-CardCopy),
 	Attr = int_sets with [dom:DomCopy,off:Off,lcard:LC,ucard:UC,
 				card:CardCopy,value:Copy],
-	init_sender(added of int_sets, Attr),
-	init_sender(removed of int_sets, Attr),
+	open_sender(added of int_sets, Attr),
+	open_sender(removed of int_sets, Attr),
 	init_suspension_list(add of int_sets, Attr),
 	init_suspension_list(rem of int_sets, Attr),
 	init_suspension_list(min_susp of int_sets, Attr),
@@ -2035,8 +2073,12 @@ membership_booleans(Set0, BoolArr) :-
 	;
 	    init_event_receiver(added of int_sets, SetAttr, Susp, AddEvents),
 	    init_event_receiver(removed of int_sets, SetAttr, Susp, RemEvents),
-	    suspend(boolean_forward_demon(BoolArr, AddEvents, RemEvents), 3,
-		    [Set->add,Set->rem], Susp),
+	    ( var(Set) ->
+		suspend(boolean_forward_demon(BoolArr, AddEvents, RemEvents), 3,
+			[Set->add,Set->rem], Susp)
+	    ;
+		true
+	    ),
 	    (
 		for(I,1,Max),
 		param(BoolArr,SetAttr)
@@ -2230,7 +2272,7 @@ intset_add(Elem, Attr) :-
 	    trace_set('ADD_ELEM', Elem, X),
             % mark the lex_glb and lex_lub as dirty
             setarg(lex_dirty of int_sets, Attr, 1),
-	    send_event(added of int_sets, Attr, Elem),
+	    send_notification(added of int_sets, Attr, Elem),
 	    schedule_suspensions(add of int_sets, Attr),
 	    impose_min(C, LCard1),		%%% may wake
 	    ( C == LCard1 ->       % set is ground
@@ -2298,7 +2340,7 @@ intset_remove(Elem, Attr) :-
 		trace_set('REM_ELEM', Elem, X),
                 % mark the lex_glb and lex_lub as dirty
                 setarg(lex_dirty of int_sets, Attr, 1),
-		send_event(removed of int_sets, Attr, Elem),
+		send_notification(removed of int_sets, Attr, Elem),
 		schedule_suspensions(rem of int_sets, Attr),
 		impose_max(C, UCard1),		%%% may wake
 		( C == UCard1 ->
@@ -2352,14 +2394,14 @@ intset_domain(Attr, L, U) :-
 	    V = [],
             LexMin = [],
             LexMax = [],
-	    terminate_sender(added of int_sets, Attr),
-	    terminate_sender(removed of int_sets, Attr)
+	    close_sender(added of int_sets, Attr),
+	    close_sender(removed of int_sets, Attr)
 	;
 	    solver_module:(C::0..N),	%%%
             LexMin = [],
             (for(I,U,L,-1), foreach(I,LexMax) do true),  % default domain
-	    init_sender(added of int_sets, Attr),
-	    init_sender(removed of int_sets, Attr)
+	    open_sender(added of int_sets, Attr),
+	    open_sender(removed of int_sets, Attr)
 	),
 	init_suspension_list(add of int_sets, Attr),
 	init_suspension_list(rem of int_sets, Attr),
@@ -2397,8 +2439,8 @@ intset_domain_from_lists(Attr, LowerList, UpperList) :-
         %attr_min_max(Attr,LexMin,LexMax),
 	( LCard == UCard ->
 	    C = LCard,
-	    terminate_sender(added of int_sets, Attr),
-	    terminate_sender(removed of int_sets, Attr),
+	    close_sender(added of int_sets, Attr),
+	    close_sender(removed of int_sets, Attr),
             setarg(lex_min of int_sets, Attr, LowerSorted),
             setarg(lex_max of int_sets, Attr, LowerSorted),
 	    Value = LowerSorted
@@ -2692,9 +2734,6 @@ significant_nonmembers1(Attr, Attr1, Attr2, Elements, Elements0) :-
 
 
 	% send add-events for all current members of X
-%initial_member_events(XAttr, Susp, e(AllEvents,Susp)) :-
-%	XAttr = int_sets with added:Frame,
-%	lset_to_list(XAttr, AllEvents, Frame).
 initial_member_events(XAttr, Susp, Receiver) :-
 	lset_to_list(XAttr, AllEvents, FutureEvents),
 	init_event_receiver(added of int_sets, XAttr, Susp,
@@ -3354,7 +3393,7 @@ all_ordered_demon((>=), SsDesc, FlagsDesc, SsAsc, FlagsAsc, Susp):-
 %----------------------------------------------------------------------
 
 :- comment(author, "Joachim Schimpf, Neng-Fa Zhou, Andrew Sadler").
-:- comment(date, "$Date: 2010/04/04 08:14:57 $").
+:- comment(date, "$Date: 2010/07/25 13:29:05 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("
@@ -3411,6 +3450,7 @@ all_ordered_demon((>=), SsDesc, FlagsDesc, SsAsc, FlagsAsc, Susp):-
     Set1 \\/ Set2       % union
     Set1 \\ Set2        % difference
     </PRE>
+    as well as references to array elements like Set[3].
     </P>
 
 <H3>Search</H3>
@@ -3541,7 +3581,25 @@ all_ordered_demon((>=), SsDesc, FlagsDesc, SsAsc, FlagsAsc, Susp):-
     summary:"Set1 is a (non-strict) subset of the integer set Set2",
     args:["Set1":"a set, set variable, free variable or set expression",
 	"Set2":"a set, set variable or set expression"],
+    see_also:[subsetof/2],
     template:"?Set1 subset ?Set2"
+]).
+:- comment((subsetof)/2, [
+    summary:"Set1 is a (non-strict) subset of the integer set Set2",
+    args:["Set1":"a set, set variable, free variable or set expression",
+	"Set2":"a set, set variable or set expression"],
+    template:"?Set1 subsetof ?Set2",
+    eg:"
+    	?- X subset [1,2,3].
+	X = X{([] .. [1, 2, 3]) : _398{0 .. 3}}
+
+	?- X subsetof [1,2,3], Y subsetof X.
+	X = X{([] .. [1, 2, 3]) : _398{0 .. 3}}
+	Y = Y{([] .. [1, 2, 3]) : _531{0 .. 3}}
+
+	?- [1,2,3] subsetof Y.
+	instantiation fault
+    "
 ]).
 :- comment((includes)/2, [
     summary:"Set1 includes (is a superset of) the integer set Set2",
@@ -3786,6 +3844,21 @@ no (more) solution.
     	"Lwb..Upb":"Structure holding two lists of integers"],
     fail_if:"Lwb is not a sublist of Upb",
     exceptions:[5:"Set is not a variable or list, or Lwb..Upb is not a ../2 structure"],
+    see_also:[in_set_range/2,intset/3,intsets/4],
+    desc:html("<P>
+    Lwb and Upb are two lists of integers. Lwb must be a sublist of
+    Upb. Set is unified with a set variable whose lower bound is the
+    set of list elements of Lwb, and whose upper bound is the set of
+    list elements of Upb.
+</P>")
+]).
+:- comment((in_set_range)/2, [
+    summary:"Set is an integer set within the given bounds",
+    template:"?Set in_set_range ++Lwb..++Upb",
+    args:["Set":"A free variable, set variable, array reference, or an integer list",
+    	"Lwb..Upb":"Structure holding two lists of integers"],
+    fail_if:"Lwb is not a sublist of Upb",
+    exceptions:[5:"Set is not a variable, array reference, or list, or Lwb..Upb is not a ../2 structure"],
     see_also:[intset/3,intsets/4],
     desc:html("<P>
     Lwb and Upb are two lists of integers. Lwb must be a sublist of
@@ -3806,6 +3879,33 @@ no (more) solution.
     the lower and upper bound of the set variable (or the ground set) Set.
     The predicate can also be used as a test for set-variables, since it
     fails for any other (in particular domain-less) variables.
+</P>")
+]).
+:- comment(is_solver_var/1, [
+    summary:"Succeeds if Term is a set variable",
+    args:["Term":"A term"],
+    fail_if:"Set is not a variable, or a non-set variable"
+]).
+:- comment(is_solver_type/1, [
+    summary:"Succeeds if Term is a ground set or a set variable",
+    args:["Term":"A term"],
+    fail_if:"Set is neither a set nor a set variable",
+    desc:html("<P>
+    Succeeds if Term is either a set (represented as a list) or a set
+    variable. For efficiency reasons, lists are not checked for being
+    valid set representations (i.e. strictly sorted lists of integers),
+    the predicate succeeds for any list.
+</P>")
+]).
+:- comment(get_set_attribute/2, [
+    summary:"Get the set-attribute corresponding to Set",
+    args:["Set":"A ground set or a set variable",
+    	"Attr":"A variable, will be bound to a set-attribute structure"
+    ],
+    amode:get_set_attribute(?,-),
+    desc:html("<P>
+    Gets the set-attribute of a set-variable (or computes an attribute
+    structure describing a ground set as if it was a variable).
 </P>")
 ]).
 :- comment(membership_booleans/2, [

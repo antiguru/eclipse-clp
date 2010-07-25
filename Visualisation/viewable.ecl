@@ -155,18 +155,7 @@
        [Note: the node will be labelled with the strings 'n1', 'n2' and 'n3',
        the edges labelled 'e1', 'e2' and 'e3']
 
-       lib(eplex_with_ic),
-       eplex_instance(my_instance),
-       my_instance: eplex_solver_setup(min(X)),
-       viewable_create(eplex,[X,Y],array([fixed],changeable(my_instance,numeric_bounds))),
-       viewable_create(ic,[X,Y],array([fixed],numeric_bounds)),
-       my_instance: (X+Y >= 3),
-       my_instance: (X-2*Y =:= 0),
-       my_instance: eplex_solve(Cost).       
-       [Note: this creates two viewables, one showing the solution as
-        assigned by eplex, the other showing the ic bounds]
-
-       lib(s_eplex),
+       lib(eplex),
        eplex_instance(my_instance),
        my_instance: eplex_solver_setup(min(X)),
        viewable_create(eplex,[X,Y],array([fixed],changeable(my_instance,numeric_bounds))),

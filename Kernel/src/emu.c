@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.15 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.16 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -3994,7 +3994,8 @@ _try_par_1_:	/* (i:alt, tmp1:arity, back_code, err_code) */
 		DBG_PORT = NO_PORT;
 		if (LOAD < 0)
 		    LOAD = LoadReleaseDelay;	/* reinit countdown */
-		goto _read_choice_point_;	/* (pw2,err_code) */
+                back_code = BBp(B.args);        /* backtrack to same point */
+		goto _read_choice_point_;	/* (pw2,err_code,back_code) */
 	    } else {
 #ifdef PB_MAINTAINED
 		PB = ChpPar(pw1)->ppb;

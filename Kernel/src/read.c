@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * Version:	$Id: read.c,v 1.3 2010/07/25 13:29:05 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -328,6 +328,7 @@ static int
 #define PREBINFIRST		8	/* first argument of prefix binary op */
 #define FZINC_SUBSCRIPTABLE	16	/* subscripts after atoms */
 #define ZINC_SUBSCRIPTABLE	32	/* subscripts after almost everything */
+#define ATTRIBUTABLE            64	/* term can be followed by attributes */
 
 
 /*
@@ -382,6 +383,10 @@ static int
 	    s = TokenString(pd); \
 	}
 
+#define Make_Ident_Token(pd, s, l) \
+        pd->token.string = (s); \
+        pd->token.term.val.nint = (l); \
+        pd->token.class = IDENTIFIER;
 
 /*
  * Macros (read/clause/goal-macros)
@@ -1171,34 +1176,19 @@ _make_number_:
 
 _after_variable_:
 	Next_Token(pd);
-	if (IsClass(pd, SOLO))
-	{
-	    if (IsChar(pd, '{') && !(pd->sd->options & NO_ATTRIBUTES))
-	    {
-		/* Attribute follows */
-		pword *pw;
-		Build_Struct(&term, pw, d_.with_attributes2, pd->token.pos);
-		Move_Pword(result, pw+1);
-		Next_Token(pd);
-		status = _read_sequence_until(pd, &pw[2], '}');
-		Return_If_Error(status);
-		*result = term;
-		return _read_after_term(pd, context_prec, context_flags, 0, result);
-	    }
-	    else if (IsChar(pd, '(') && (pd->sd->options & VAR_FUNCTOR_IS_APPLY))
-	    {
-		/* Arguments follow */
-		pword *pw;
-		Build_Struct(&term, pw, d_.apply2, pd->token.pos);
-		Move_Pword(result, pw+1);
-		Next_Token(pd);
-		status = _read_sequence_until(pd, &pw[2], ')');
-		Return_If_Error(status);
-		*result = term;
-		return _read_after_term(pd, context_prec, context_flags|ZINC_SUBSCRIPTABLE, 0, result);
-	    }
-	}
-	return _read_after_term(pd, context_prec, context_flags|SUBSCRIPTABLE, 0, result);
+        if (IsToken(pd,SOLO,'(') && (pd->sd->options & VAR_FUNCTOR_IS_APPLY))
+        {
+            /* Arguments follow */
+            pword *pw;
+            Build_Struct(&term, pw, d_.apply2, pd->token.pos);
+            Move_Pword(result, pw+1);
+            Next_Token(pd);
+            status = _read_sequence_until(pd, &pw[2], ')');
+            Return_If_Error(status);
+            *result = term;
+            return _read_after_term(pd, context_prec, context_flags|ZINC_SUBSCRIPTABLE, 0, result);
+        }
+	return _read_after_term(pd, context_prec, context_flags|SUBSCRIPTABLE|ATTRIBUTABLE, 0, result);
 
 
     case SOLO:				/* {[( */
@@ -1341,7 +1331,7 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		Next_Token(pd);
 		status = _read_next_term(pd, rprec, context_flags, &pw[2]);
 		Return_If_Error(status);
-		/*return _read_after_term(pd, context_prec, context_flags, term, oprec, result);*/
+		/*return _read_after_term(pd, context_prec, context_flags, oprec, result);*/
 		*result = term; lterm_prec = oprec;
 		break;	/* tail recursion */
 	    }
@@ -1360,7 +1350,7 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		 * (because we are going to reuse result!) */
 		Move_Pword(result, pw+1);
 		Next_Token(pd);
-		/*return _read_after_term(pd, context_prec, context_flags, term, oprec, result);*/
+		/*return _read_after_term(pd, context_prec, context_flags, oprec, result);*/
 		*result = term; lterm_prec = oprec;
 		break;	/* tail recursion */
 	    }
@@ -1401,12 +1391,50 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		status = _read_sequence_until(pd, &pw[2], ']');
 		Return_If_Error(status);
 		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE);
-		/*return _read_after_term(pd, context_prec, context_flags, term, 0, result);*/
+		/*return _read_after_term(pd, context_prec, context_flags, 0, result);*/
 		*result = term; lterm_prec = 0;
 		break;	/* tail recursion */
 	    }
-	    return UNEXPECTED;
-
+	    else if (IsChar(pd, '{') && !(pd->sd->options & NO_ATTRIBUTES)
+	    	&& (context_flags & ATTRIBUTABLE))
+	    {
+		/* Attribute follows */
+		pword *pw;
+		Build_Struct(&term, pw, d_.with_attributes2, pd->token.pos);
+		Move_Pword(result, pw+1);
+		Next_Token(pd);
+		status = _read_sequence_until(pd, &pw[2], '}');
+		Return_If_Error(status);
+		/*return _read_after_term(pd, context_prec, context_flags, 0, result);*/
+		*result = term; lterm_prec = 0;
+		break;	/* tail recursion */
+	    }
+            /* fall through */
+	case SPACE_SOLO:
+	    if (IsChar(pd, '[')) {
+		source_pos_t pos = pd->token.pos;
+		Lookahead_Next_Token(pd);
+		if (IsToken(pd, CLOSING_SOLO, ']'))
+		{
+		    did0 = d_.nil;	/* the atom or functor '[]' */
+		    Merge_Source_Pos(pos, pd->token.pos, pd->token.pos);
+                    Make_Ident_Token(pd, "[]", 2);
+		    goto _treat_like_atom_;	/* (pd,did0) */
+		}
+                Prev_Token(pd);
+	    } else if (IsChar(pd, '{')) {
+		source_pos_t pos = pd->token.pos;
+		Lookahead_Next_Token(pd);
+		if (IsToken(pd, CLOSING_SOLO, '}'))
+		{
+		    did0 = d_.nilcurbr;	/* the atom or functor '{}' */
+		    Merge_Source_Pos(pos, pd->token.pos, pd->token.pos);
+                    Make_Ident_Token(pd, "{}", 2);
+		    goto _treat_like_atom_;	/* (pd,did0) */
+		}
+                Prev_Token(pd);
+	    }
+	    return context_flags & PREBINFIRST ? PSUCCEED : UNEXPECTED;
 
 	case EOI:
 	case EOCL:

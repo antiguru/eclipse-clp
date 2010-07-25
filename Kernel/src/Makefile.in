@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.5 2009/07/16 09:11:24 jschimpf Exp $
+# $Id: Makefile.in,v 1.6 2010/07/25 13:29:05 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -451,6 +451,7 @@ emu.o:		emu.c
 		$(CC) $(OPT_FLAGS_EMU) $(CFLAGS) $(CPPFLAGS) -S $<
 		/bin/mv -f emu.s emu.no.s
 		-$(OPTIMIZE) ./emu.no.s ./emu.s
+		@cmp -s ./emu.no.s ./emu.s || echo "Assembly code patched"
 		$(CC) $(CFLAGS) -c emu.s
 
 emu.obj:	emu.o

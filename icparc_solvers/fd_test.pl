@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Author:	Joachim Schimpf, IC-Parc, Imperial College, London
-% Version:	$Id: fd_test.pl,v 1.1 2006/09/23 01:53:31 snovello Exp $
+% Version:	$Id: fd_test.pl,v 1.2 2010/07/25 13:29:05 jschimpf Exp $
 %
 % IDENTIFICATION:	fd_test.pl
 %
@@ -50,6 +50,11 @@
 
 :- lib(fd).
 
+constraint(Vars) :-
+	fd_global:sum_ge_zero(Vars).
+%	sum(Vars) #>= 0.
+    	
+
 %----------------------------------------------------------------------
 
 rtest :-
@@ -57,7 +62,7 @@ rtest :-
 
 rtest(N, File) :-
 	seed(12345),
-	open(File, write, Out),
+	open(File, write, Out, [output_options([variables(anonymous)])]),
 	( count(I,1,N), param(Out) do
 	    printf(Out, "----- %d -----%n", [I]),
 	    rtest_stream(Out)
@@ -66,18 +71,19 @@ rtest(N, File) :-
 
 rtest(N) :-
 	seed(12345),
-	( count(I,1,N) do
+	( count(_I,1,N) do
 	    rtest_stream(null)
 	).
 
 rtest_stream(Out) :-
 	make_random_variables(Vars),
-	printf(Out, "%mw%n", [Vars]),
+	set_stream_property(Out, output_options, [variables(anonymous)]),
+	printf(Out, "%mW%n", [Vars]),
 	(
-	    sum_ge_zero(Vars),
+	    constraint(Vars),
 	    random_reduce_until_ground(Out, Vars, Vars)
 	->
-	    printf(Out, "%mw%nyes.%n", [Vars])
+	    printf(Out, "%mW%nyes.%n", [Vars])
 	;
 	    printf(Out, "no.%n", [])
 	),
@@ -87,14 +93,14 @@ rtest_stream(_).
 
 benchmark(N) :-
 	seed(12345),
-	( count(I,1,N) do
+	( count(_I,1,N) do
 	    benchmark_one
 	).
 
 benchmark_one(Seed) :-
 	seed(Seed),
 	make_n_random_variables(100, -10, 10, Vars),
-	sum_ge_zero(Vars),
+	constraint(Vars),
 	labeling(Vars),
 	!,
 	fail.
@@ -102,8 +108,7 @@ benchmark_one(_).
 
 benchmark_one :-
 	make_n_random_variables(1000, -10, 10, Vars),
-	sum_ge_zero(Vars),
-%	sum(Vars) #>= 0,
+	constraint(Vars),
 	once labeling(Vars),
 	fail.
 benchmark_one.
@@ -119,10 +124,10 @@ random_reduce_until_ground(Out, OriginalVars, Remaining) :-
 	    pick_randomly(N, Vars, PickedVars),
 	    call_priority((
 		    random_reduce(PickedVars),
-		    printf(Out, "L %mw%n", [OriginalVars])
+		    printf(Out, "L %mW%n", [OriginalVars])
 	    ), 2),
 	    % propagation happens here!
-	    printf(Out, "P %mw%n", [OriginalVars]),
+	    printf(Out, "P %mW%n", [OriginalVars]),
 	    random_reduce_until_ground(Out, OriginalVars, Vars)
 	).
 

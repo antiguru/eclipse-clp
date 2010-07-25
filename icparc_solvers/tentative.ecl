@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: tentative.ecl,v 1.3 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: tentative.ecl,v 1.4 2010/07/25 13:29:05 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -35,7 +35,7 @@
 :- comment(categories, ["Techniques","Constraints"]).
 :- comment(summary, "A framework for Local Search based on tentative values").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2010/07/25 13:29:05 $").
 :- comment(copyright, "Cisco Systems").
 
 :- comment(see_also, [library(tentative_constraints)]).
@@ -90,11 +90,11 @@
     The primitives related to tentative values are:
 <blockquote><dl>
     <dt>has_tent_value(?X)</dt>
-	<dd>X has a tentative (of definitive) value</dd>
+	<dd>X has a tentative (or definitive) value</dd>
     <dt>tent_get(?X, -Val)</dt>
-	<dd>get tentative values</dd>
+	<dd>get tentative value</dd>
     <dt>tent_set(?X, -Val)</dt>
-	<dd>set tentative values</dd>
+	<dd>set tentative value</dd>
     <dt>tent_set_all(?Xs, +Val)</dt>
 	<dd>set multiple identical tentative values</dd>
     <dt>tent_set_random(?Xs, +Range)</dt>

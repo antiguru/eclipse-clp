@@ -52,13 +52,18 @@
 % lib(eplex_cplex) or lib(eplex_xpress)) the first one will be loaded.
 %
 
+% Examples
+licence('breeze.icparc.ic.ac.uk', cplex, '90', '', 0).
+licence('morden.icparc.ic.ac.uk', xpress, '1427', default, 0).
+
+% Insert your hosts here
 
 % By default, use COIN/OR OSI solvers
 licence(_, osi, clpcbc, '', 0).
 licence(_, osi, symclp, '', 0).
 %licence(_, osi, glpk, '', 0).
 
-% Try to use XPRESS-MP (OEM or old student mode)
-% Note that on Linux, 1427icp will only load with glibc > 2.0
+% Defaults for other solvers
+licence(_Default, xpress, '2000', '/opt/xpressmp/bin', 0).
 licence(_Default, xpress, '1427icp', default, 0).
 licence(_Default, xpress, '1326icp', default, 0).

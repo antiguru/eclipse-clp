@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.3 2009/12/20 14:03:11 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.4 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -259,11 +259,7 @@ p_functor(value vt, type t, value vf, type tf, value va, type ta)
     /* Case of: term1 instantiated. */	
 
     Kill_DE;
-    if (IsCompound(tf))
-    {
-	Bip_Error(TYPE_ERROR);
-    }
-    else if (IsRef(tf) && IsRef(ta) && vf.ptr == va.ptr)
+    if (IsRef(tf) && IsRef(ta) && vf.ptr == va.ptr)
     {
 	/* catch functor(Term,F,F) - only call BindVar once! */
 	if (!(IsInteger(t) && vt.nint == 0))
@@ -328,13 +324,10 @@ p_functor(value vt, type t, value vf, type tf, value va, type ta)
     /* arity1 must be a variable or a positive integer */
     if (!IsRef(ta))
     {
-	if (!IsInteger(ta))
+	if (!IsInteger(ta) || va.nint != arity)
 	{
-	    if (IsBignum(ta)) { Fail_; }
-	    Bip_Error(TYPE_ERROR);
-	}
-	if (va.nint != arity)
 	    Fail_;
+	}
     }
     else
     {
@@ -614,7 +607,7 @@ p_char_code(value v1, type t1, value v2, type t2)
 	} else {
 	    Bip_Error(TYPE_ERROR)
 	}
-	Return_Unify_Integer(v2, t2, *s);
+	Return_Unify_Integer(v2, t2, *(unsigned char *)s);
     }
 }
 

@@ -84,9 +84,13 @@ distribution files there.
 
 Uncompress and untar the files in this directory using tar, e.g.
 
-    % tar -zxvf eclipse_basic.tgz
+    % tar xpfz eclipse_basic.tgz
 
-for each file downloaded.
+or, if your version of tar doesn't support the z option, use
+
+    % gunzip -c eclipse_basic.tgz | tar xpf -
+
+Do the same for all the .tgz files you have downloaded.
 
 This will create the ECLiPSe directory structure below the
 current directory. [replace eclipse_basic.tgz with the name of the package

@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.10 2009/07/16 09:11:23 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.11 2010/07/25 13:29:04 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2009/07/16 09:11:23 $").
+:- comment(date, "$Date: 2010/07/25 13:29:04 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -63,7 +63,7 @@
 :- export struct(source_position(
 	filespec,		% Original source location argument
 	stream,			% Eclipse stream
-	file,			% canonical file name, or 'user'
+	file,			% canonical file name, 'user', or device name (tty,string,etc)
 	line,			% integer
 	offset,			% integer
         remaining_files,	% list of file names
@@ -72,7 +72,9 @@
 	created_modules,	% list of modules
 	oldcwd,			% current directory before opening
 	module,			% module
-	ifdefs			% list of nested ifdefs (then/else atoms)
+	ifdefs,			% list of nested ifdefs (then/else atoms)
+	old_compiled_stream	% the previous value of compiled_stream/1
+				% (only used when included_from==[])
     )).
 
 :- export struct(source_term(
@@ -115,7 +117,7 @@
     summary:"Current source position",
     desc:html("This structure describes a particular position that has been
     	reached during processing of an ECLiPSe source file. It also describes
-	what has to be done when this file is finished. The source_read/3
+	what has to be done when this file is finished. The source_read/4
 	predicate reads a term from a given source position and returns
 	the new source position after the read."),
     fields:[
@@ -130,7 +132,8 @@
 	created_modules:"list of modules created so far",
 	oldcwd:"current directory before opening this file",
 	module:"read-module at this source position",
-	ifdefs:"list of atoms (then|else) describing nesting of if-directives"
+	ifdefs:"list of atoms (then|else) describing nesting of if-directives",
+	old_compiled_stream:"value of compiled_stream/1 when toplevel file was opened"
     ],
     see_also:[source_open/3,source_close/2,source_read/4]
 ]).
@@ -231,8 +234,13 @@ source_open(File, OptionList, SourcePos, Module) :-
 	nonvar(File),						% may fail
 	getcwd(OldCwd),
 	( File = stream(In) ->
-	    get_stream_info(In, name, FullFile0),
-	    concat_atom([FullFile0], FullFile)
+	    get_stream_info(In, device, Device),
+	    ( Device == file ->
+		get_stream_info(In, name, FullFile0),
+		concat_atom([FullFile0], FullFile)
+	    ;
+		FullFile = Device
+	    )
 	; File == user ->
 	    In = input, FullFile = File
 	; (atom(File) ; string(File) ; File = library(_)) ->			% may fail
@@ -243,6 +251,7 @@ source_open(File, OptionList, SourcePos, Module) :-
 	    cd(Dir),
 	    open(FullFile, read, In)
 	),
+	( IF==[], compiled_stream(SavedStream) -> true ; true ),
 	register_compiled_stream(In),
 	( skip_utf8_bom(In) -> true ; true ),
 	OptFlags = options{no_macro_expansion:NoMacroExp},
@@ -256,7 +265,8 @@ source_open(File, OptionList, SourcePos, Module) :-
 	SourcePos = source_position{filespec:File,
 		stream:In, module:Module, offset:Offset,options:OptFlags,
 		created_modules:[], oldcwd:OldCwd, ifdefs:[],
-		line:Line,file:FullFile,remaining_files:RF,included_from:IF}.
+		line:Line,file:FullFile,remaining_files:RF,included_from:IF,
+		old_compiled_stream:SavedStream}.
 
     set_option(Var, _ ) :- var(Var), !, fail.
     set_option(keep_comments, options{keep_comments:true}).
@@ -319,15 +329,19 @@ source_close(SourcePos, Options) :-
 	    )
 	).
 
-    close_streams(source_position{filespec:File,stream:Stream,included_from:IF,oldcwd:OldCwd}) :-
-	cd(OldCwd),
+    close_streams(source_position{filespec:File,stream:Stream,included_from:IF,
+    		oldcwd:OldCwd,old_compiled_stream:SavedStream}) :-
 	close_input(File, Stream),
-	( IF = [] -> true ; close_streams(IF) ).
+	( IF == [] ->
+	    cd(OldCwd),
+	    register_compiled_stream(SavedStream)
+	;
+	    close_streams(IF)
+	).
 
     close_input(File, Stream) :-
-	register_compiled_stream(_),
 	( current_stream(Stream), File \= stream(_) ->
-	    close(Stream)
+	    block(close(Stream), abort, true)
 	;
 	    true
 	).
@@ -350,13 +364,13 @@ source_close(SourcePos, Options) :-
     <DL>
     <DT>handled_directive</DT>
     	<DD>A directive (a term with functor :-/1) which has already
-	been handled (interpreted by source_read/3). Such directives are:
+	been handled (interpreted by source_read/4). Such directives are:
 	module/1,3, local/1, export/1, reexport/1, use_module/1, lib/1,
 	pragma/1, include/1, ./2, op/3, meta_attribute/2 and
 	comment(include,...)</DD>
     <DT>directive</DT>
     	<DD>A directive (a term with functor :-/1) which has not
-	been handled (ignored by source_read/3)</DD>
+	been handled (ignored by source_read/4)</DD>
     <DT>query</DT>
     	<DD>A query (a term with functor ?-/1)</DD>
     <DT>clause</DT>
@@ -406,7 +420,7 @@ source_close(SourcePos, Options) :-
     If the with_annotations-option is not set, the annotated-field remains
     uninstantiated, and the vars-field is a list as detailed in readvar/3.
     <P>
-    Notes on module handling:  When source_read/3 encounters a
+    Notes on module handling:  When source_read/4 encounters a
     module-directive (which is a handled_directive), the corresponding
     module is implicitly created (unless it exists already, in which
     case it is either reused or erased and re-created, depending on
@@ -447,21 +461,25 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	; TermOrEof = end_of_file ->
 	    close_input(File, In),
 	    cd(OldCwd),
-	    ( RF = [RF0|RFs] ->
-	        ( source_open(RF0, RFs, IF, OptFlags, NextPos0, Module) ->
-		    source_read(NextPos0, NextPos, Kind, SourceTerm)
-		;
-		    printf(warning_output, "WARNING: Could not open include file \"%w\"%n", [RF]),
-		    update_struct(source_position, [remaining_files:RFs], OldPos, OldPos1),
-		    source_read(OldPos1, NextPos, Kind, SourceTerm)
+	    (
+		% open next include file that can be opened
+		append(_, [RF0|RFs], RF),
+	        ( source_open(RF0, RFs, IF, OptFlags, NextPos0, Module) -> true ;
+		    printf(warning_output, "WARNING: Could not open include file \"%w\"%n", [RF0]),
+		    fail
 		)
+	    ->
+		source_read(NextPos0, NextPos, Kind, SourceTerm)
+
 	    ; IF = [] ->
 		warn_ifdef(OldPos),
+		OldPos = source_position{old_compiled_stream:OldStream},
+		register_compiled_stream(OldStream),
 		SourceTerm = source_term{term:TermOrEof,vars:Vars},
 		update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 		Kind = end
 	    ;
-		IF =  source_position{stream:OldStream,created_modules:CMs0},
+		IF = source_position{stream:OldStream,created_modules:CMs0},
 		register_compiled_stream(OldStream),
 		SourceTerm = source_term{term:TermOrEof,vars:Vars},
 		% go back to source position before include, but update module information

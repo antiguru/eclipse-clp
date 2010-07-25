@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: io.h,v 1.5 2010/07/21 23:40:37 jschimpf Exp $
+ * VERSION	$Id: io.h,v 1.6 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -238,8 +238,8 @@
 #define	PORTRAY_VAR	  0x10000	/* call portray even for variables */
 #define	OUTPUT_MODES	       17
 
-#define	PRINT		  0x20000	/* a portray predicate exists	*/
-#define	PRINT1		  0x40000	/* only portray/1 exists	*/
+#define	PORTRAY2	  0x20000	/* a portray/2 predicate exists	*/
+#define	PORTRAY1	  0x40000	/* a portray/1 predicate exists	*/
 #define	VARTERM		  0x80000	/* print variables as '_'(...)	*/
 
 /* context of the term being written */
@@ -314,6 +314,6 @@ Extern stream_id ec_open_file ARGS((char*,int,int*));
 Extern stream_id get_stream_id ARGS((value,type,int,int*));
 Extern char	*ec_getstring ARGS((stream_id,word,word*));
 Extern char	*string_to_number ARGS((char *start, pword *result, stream_id nst, int syntax));
-
+Extern 	int	set_stream(dident, stream_id);
 
 Extern t_ext_type stream_tid;

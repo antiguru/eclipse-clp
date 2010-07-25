@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.6 2010/07/21 23:41:56 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.7 2010/07/25 13:29:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -275,14 +275,14 @@ local_op_body(Preced, Assoc, Op, Module):-
 global_op_body(Preced, Assoc, Op, Module):-
 	op_body(global, Preced, Assoc, Op, Module).
 
+% Note: unfortunately, according to ISO, op(P,A,[]) means op(P,A,[[]]).
 op_body(Visible,Preced,Assoc,Op,Module):-
 	var(Op), !,
 	op_body1(Visible,Preced,Assoc,Op,Module).
-op_body(_,_,_,[],_):-!.
 op_body(Visible,Preced,Assoc,[Op|T],Module):-
 	!,
 	op_body1(Visible,Preced,Assoc,Op,Module),
-	op_body(Visible,Preced,Assoc,T,Module).
+        ( T==[] -> true ; op_body(Visible,Preced,Assoc,T,Module) ).
 op_body(Visible,Preced,Assoc,Op,Module):-
 	op_body1(Visible,Preced,Assoc,Op,Module).
 
@@ -734,8 +734,7 @@ system(X) :-
 	( get_flag('_system'/1, defined, on) ->
 	    '_system'(X)
 	;
-	    concat_string(['/bin/sh -c "', X, '"'], Command),
-	    exec(Command, [])
+	    exec(['/bin/sh', '-c', X], [])
 	).
 
 sh(X) :-
@@ -1508,7 +1507,7 @@ deal_with_remote_flush(Device, Queue, Len) :-
 		deal_with_remote_flush1(Device, Queue, Len) -> true ; true
 		), _, true)	% ignore any problems with the handler
 
-	; events_nodefer ->
+	; events_nodefer ->     %%%% this can't fail!
 	    % handle events during remote flush
 	    block((
 		deal_with_remote_flush1(Device, Queue, Len) -> true ; true
@@ -1579,10 +1578,12 @@ remote_yield(Control, ResumeMessage) :-
 	remote_control_send(Control, yield),
 	remote_control_read(Control, ResumeMessage).
 
-% events deferred!
+% events deferred or undeferred!
 remote_yield(Control) :-
-	remote_yield(Control, ResumeMessage),
-	handle_ec_resume(ResumeMessage, Control).
+        ( events_defer -> Reset=events_nodefer ; Reset=true ),
+        remote_yield(Control, ResumeMessage),
+        handle_ec_resume(ResumeMessage, Control),
+        Reset.
 
 
 get_rpcstream_names(Control, Rpc) :-

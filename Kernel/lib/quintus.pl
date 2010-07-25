@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.10 2010/04/11 03:14:51 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.11 2010/07/25 13:29:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2010/04/11 03:14:51 $').
+:- comment(date, '$Date: 2010/07/25 13:29:05 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -158,6 +158,20 @@
 
 :- reexport eclipse_language except
 
+	(\=)/2,                         % hide (e.g. for Press)
+%	append/3, % in QP 3.6
+	delete/3,
+	gcd/3,
+%	ground/1, % in QP 3.6
+	select/3,
+        memberchk/2,
+	maplist/3,
+	member/2,
+	(not)/1,
+	union/3,
+	eval/2,
+	pathname/2,
+
 	get/1,				% redefined predicates
 	put/1,
 	put/2,
@@ -167,6 +181,7 @@
 	display/1,
 	ensure_loaded/1,
 	erase/1,
+	name/2,
 	op/3,
 	recorda/3,
 	recordz/3,
@@ -258,6 +273,7 @@
 	(abolish)/2,
 	absolute_file_name/2,
 	atom_chars/2,
+        break/0,
 	character_count/2,
 	current_input/1,
 	current_output/1,
@@ -281,6 +297,7 @@
 	line_count/2,
 	manual/0,
 	(meta_predicate)/1,
+	name/2,
 	no_style_check/1,
 	nogc/0,
 	nospyall/0,
@@ -298,6 +315,7 @@
 	recorda/3,
 	recorded/3,
 	recordz/3,
+	save/1,
 	set_input/1,
 	set_output/1,
 	source_file/1,
@@ -309,6 +327,7 @@
 	stream_position/3,
 	style_check/1,
 	term_expansion/2,
+        trace/0,
 	ttyflush/0,
 	ttyget/1,
 	ttyget0/1,
@@ -320,7 +339,8 @@
 	unknown/2,
 	use_module/1,
 	use_module/2,
-	version/0.
+	version/0,
+	version/1.
 
 
 :- export
@@ -405,6 +425,14 @@ style_check(multiple).
 style_check(all) :- 
 	style_check(single_var).
 
+save(File) :-
+	printf(error, 'Saved states not supported: %w%n', [save(File)]).
+
+trace :-
+	printf(error, 'trace/0 only allowed as a toplevel command%n', []).
+
+break :-
+        toplevel:break.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *** Online help ***
@@ -570,6 +598,31 @@ is_white_space(C) :-
 	% this assumes ASCII as character escapes are off by default
 	WhtSpaces = [9,10,13,32], 
 	memberchk(C, WhtSpaces).
+
+
+name(Name, Codes) :-
+	var(Codes),
+	( number(Name) ->
+	    number_string(Name, String),
+	    string_list(String, Codes)
+	; atom(Name) ->
+	    atom_string(Name, String),
+	    string_list(String, Codes)
+	; string(Name) ->       % convenience extension
+	    string_list(Name, Codes)
+	;
+	    error(5, name(Name, Codes))
+	).
+name(Name, Codes) :-
+	nonvar(Codes),
+	string_list(String, Codes),
+	( number_string(Number, String) ->
+	    Name = Number
+	;
+	    atom_string(Name, String)
+	).
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *** Term Comparison ***
@@ -924,6 +977,9 @@ prolog_flag_body(typein_module, M, _) :-
 
 
 version.
+
+version(Message) :-
+	write(Message), nl.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % *** System Dependent ***

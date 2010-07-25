@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.11 2010/07/21 23:40:37 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.12 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1212,6 +1212,7 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 	    {
 		if (((*(vmcode**)code)[0] & brk_filter) == brk_filter)
 		{
+                    dident lm;
 		    Make_List(s, TG);
 		    s = TG;
 		    Push_List_Frame();
@@ -1221,7 +1222,8 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 		       Proc, break-port word
 		    */
 		    /* module:name/arity */
-		    Make_Atom(&s[3], PriHomeModule((pri*)(*(vmcode**)code)[-1])); 
+                    lm = PriHomeModule((pri*)(*(vmcode**)code)[-1]);
+		    Make_Atom(&s[3], lm == D_UNKNOWN ? vm.did : lm); 
 		    Make_Struct(&s[4], TG);
 		    Push_Struct_Frame(d_.quotient);
 		    Make_Atom(&s[6], add_dict(PriDid((pri*)(*(vmcode**)code)[-1]),0)); 

@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.8 2008/11/14 18:21:49 kish_shen Exp $
+% Version:	$Id: eplex_s.ecl,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
 %
 %
 
@@ -228,14 +228,10 @@ valid_cp_optval(add_initially, InVal, _, OutVal) ?-
 	replace_attribute/3
     from sepia_kernel.
 
-:- local variable(licence_data).	% 'none' or held(LicStr,LicNum)
-:- local variable(loaded_solver).	% 'none' or loaded(Solver,Version)
-:- local variable(presolve_default).    % 1 or 0
-:- local variable(timeout_default).     % non-negative number
-:- setval(loaded_solver, none).
-:- setval(licence_data, none).
-:- setval(presolve_default, 1).
-:- setval(timeout_default, 0).          % 0 for no timeouts
+:- local variable(licence_data, none).	% 'none' or held(LicStr,LicNum)
+:- local variable(loaded_solver, none).	% 'none' or loaded(Solver,Version)
+:- local variable(presolve_default, 1).	% 1 or 0
+:- local variable(timeout_default, 0).	% non-negative number, 0 no timeout
 
 :- pragma(nodebug).		% the licensing code should be untraceable!
 
@@ -420,8 +416,9 @@ load_external_solver(_, _, _, _).
 
         external(create_extended_iarray/3, p_create_extended_iarray),
         external(create_extended_darray/3, p_create_extended_darray),
-        external(copy_extended_column_basis/2, p_copy_extended_column_basis),
+        external(copy_extended_column_basis/4, p_copy_extended_column_basis),
         external(copy_extended_arrays/6, p_copy_extended_arrays),
+        external(decode_basis/2, p_decode_basis),
         
         % external(cplex_get_feas_result_array/3, p_cpx_get_feas_result_array),
         external(create_iarray/2, p_create_iarray),
@@ -773,7 +770,7 @@ lp_var_set_bounds(Handle, V, Lo0, Hi0) :-
             V >= Lo0,
             V =< Hi0
         ;
-            printf(error: "Eplex error: variable %w is not a problem"
+            printf(error, "Eplex error: variable %w is not a problem"
                           " variable for handle %w:%n",[V,Handle]),
             error(6, lp_var_set_bounds(Handle, V, Lo0, Hi0))
 
@@ -2640,7 +2637,7 @@ lp_add_columns(Handle, VarCols) :-
         cplex_flush_new_rowcols(Handle, 1),
         set_var_names(VNames, AddedCols, CPH, SId, Vars1),
         ( array(CBase) ->
-              extend_array(CBase, AddedCols, NewCBase),
+              extend_array(CBase, AddedCols, NewLos, NewHis, NewCBase),
               cplex_loadbase(CPH, NewCBase, RBase),
               setarg(cbase of prob, Handle, NewCBase)
         ;
@@ -2679,9 +2676,9 @@ setup_new_cols(Handle, NewObjCoeffs, NewLos, NewHis, NewColCoeffs, OldCols, Adde
         ).
 
 
-    extend_array(Array, Added, ExtendedArray) :-
+    extend_array(Array, Added, NewLos, NewHis, ExtendedArray) :-
         create_extended_iarray(Array, Added, ExtendedArray),
-        copy_extended_column_basis(Array, ExtendedArray).
+        copy_extended_column_basis(Array, NewLos, NewHis, ExtendedArray).
 
     extend_primal_arrays(OldBase, OldSol, OldDjs, AddedCols,
                          ExtendedBase, ExtendedSol, ExtendedDjs) :-
@@ -3476,6 +3473,10 @@ lp_get1(Handle, ints, Ints) :- !,
 lp_get1(Handle, solution, RawArr) :- !,		% undocumented
 	Handle = prob{sols:RawArr},
 	array(RawArr).
+lp_get1(Handle, cbasisarr, Arr) :- !,		% undocumented
+	Handle = prob{cbase:RawArr},
+	array(RawArr),
+	decode_basis(RawArr, Arr).
 lp_get1(Handle, cbasis, RawArr) :- !,		% undocumented
 	Handle = prob{cbase:RawArr},
 	array(RawArr).

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.18 2010/03/12 10:25:56 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.19 2010/07/25 13:29:04 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2010/03/12 10:25:56 $").
+:- comment(date,	"$Date: 2010/07/25 13:29:04 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -203,6 +203,8 @@ compile_predicate1(ModulePred, Clauses0, AnnClauses0, SourcePos, PredsSeen, Opti
 	).
 
 
+compile_static_predicate(_Pred, [], _AnnClauses, _SourcePos, _Options, CodeSize, _Module) ?- !,
+	CodeSize = 0.
 compile_static_predicate(Pred, Clauses, AnnClauses, SourcePos, Options, CodeSize, Module) :-
 	compile_pred_to_wam(Pred, Clauses, AnnClauses, WAM, Options, Module),
 	pred_flags(Options, Flags),

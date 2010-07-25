@@ -1,7 +1,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Copyright:	This file is in the public domain
-% Version:	$Id: swi.ecl,v 1.4 2009/12/22 02:44:22 jschimpf Exp $
+% Version:	$Id: swi.ecl,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
 % Description:	SWI Prolog compatibility package
 % ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@
 :- comment(summary, 'SWI-Prolog compatibility package').
 :- comment(author, 'J Chamois').
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, '$Date: 2009/12/22 02:44:22 $').
+:- comment(date, '$Date: 2010/07/25 13:29:05 $').
 :- comment(desc, html('
     This library is incomplete, and intended to ease the task of
     porting SWI-Prolog programs to ECLiPSe Prolog, or to add modules
@@ -451,4 +451,40 @@ convert_time(Time, Year, Month, Day, Hour, Minute, Second, MilliSeconds) :-
 convert_time(Time, String) :-
 	Seconds is fix(Time),
 	local_time_string(Seconds, `%c`, String).
+
+
+%-----------------------------------------------------------------------
+% Proposed ISO extension
+% In our implementation, Cleanup is executed with the instantiations
+% that are in place after Setup, any remaining variables are copies.
+%-----------------------------------------------------------------------
+
+:- export setup_call_cleanup/3.
+:- tool(setup_call_cleanup/3, setup_call_cleanup_/4).
+
+setup_call_cleanup_(Setup, Call, Cleanup, Module) :-
+	once(Setup)@Module,
+	( callable(Cleanup) ->
+	    event_create(cleanup(Cleanup, Module), [defers], CleanupEvent),
+	    sepia_kernel:request_cut_fail_event(CleanupEvent),
+	    (
+		sepia_kernel:get_cut(Before),
+		call(Call)@Module,
+		sepia_kernel:get_cut(After),
+		( Before == After -> ! ; true )
+	    ;
+		fail
+	    )
+	;
+	    ( var(Cleanup) -> Error=4 ; Error=5 ),
+	    error(Error, setup_call_cleanup(Setup, Call, Cleanup), Module)
+	).
+
+    cleanup(Cleanup, Module) :-
+	(
+	    once block(Cleanup, _Ignore, fail)@Module,
+	    fail
+	;
+	    events_nodefer
+	).
 

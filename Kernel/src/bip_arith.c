@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.5 2009/07/17 15:45:49 kish_shen Exp $
+ * VERSION	$Id: bip_arith.c,v 1.6 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -111,13 +111,6 @@
 
 static int
 	_reverse_times(word x, word y, value zval, type ztag);
-
-#if defined(i386) && defined(__GNUC__)
-#define Pow (*pow_ptr_to_avoid_buggy_inlining)
-static double (*pow_ptr_to_avoid_buggy_inlining)(double,double) = pow;
-#else
-#define Pow pow
-#endif
 
 
 /*------------------------------------------------------------------------
@@ -822,34 +815,62 @@ p_float2(value v1, type t1, value v, type t)
 
 /* auxiliary function for power operation */
 
+#if (SIZEOF_WORD == 4)
+#define MAX_SQUAREABLE_WORD	46340
+#else
+#if (SIZEOF_WORD == 8)
+#define MAX_SQUAREABLE_WORD	3037000499
+#else
+PROBLEM: Cannot deal with word size SIZEOF_WORD.
+#endif
+#endif
+
 static int
 _int_pow(word x,
-	word y,		/* y >= 0 */
+	uword y,		/* y >= 0 */
 	word *r)
 {
-    word result = 1;
+    word result;
     int	neg = 0;
-    word rs;
 
-    if (x < 0)
-    {
-	if (y & 1)
-	    neg = 1;
+    if (y <= 1) {
+	/* 0^0 is 1 to be consistent with float pow() */
+	*r = (y == 1) ? x : 1;				/* x^0 x^1 */
+	return PSUCCEED;
+    }
+    if (x <= 1) {
+	if (x >= -1) {
+	    *r = (x >= 0 || (y&1)) ? x : 1;		/* -1^y 0^y 1^y */
+	    return PSUCCEED;
+	}
 	x = -x;
+	if (x < 0) return INTEGER_OVERFLOW;		/* we had MININT */
+	if (y & 1) neg = 1;
     }
-    if (x > 0xffff || (y > BITS_PER_WORD && x > 1))
-	return INTEGER_OVERFLOW;
-    while (y-- > 0)
-    {
-	if ((rs = ((result >> 16) & 0xffff) * x) > 0xffff ||
-	    (result = (rs << 16) + (result & 0xffff) * x) < 0)
+
+    /* Now x>=2 and y>=2 */
+    while(!(y&1)) {
+	if (x > MAX_SQUAREABLE_WORD)
 	    return INTEGER_OVERFLOW;
+	x *= x;
+	y >>= 1;
     }
-    if (neg)
-	result = -result;
-    *r = result;
-    return 0;
+    result = x;
+    while(y>>=1) {
+	if (x > MAX_SQUAREABLE_WORD)
+	    return INTEGER_OVERFLOW;
+	x *= x;
+	if (y&1) {
+	    word tmp = result*x;
+	    if (tmp/x != result)
+		return INTEGER_OVERFLOW;
+	    result = tmp;
+	}
+    }
+    *r = neg ? -result : result;
+    return PSUCCEED;
 }
+
 
 static int
 p_power(value v1, type t1, value v2, type t2, value v, type t)
@@ -871,15 +892,13 @@ p_power(value v1, type t1, value v2, type t2, value v, type t)
 		else
 		{
 		    Make_Checked_Float(&result,
-				Pow((double)(v1.nint),(double)v2.nint));
+				SafePow((double)(v1.nint),(double)v2.nint));
 		}
 	    }
-	    else if(v1.nint == 0 && v2.nint == 0)
-		{ Bip_Error(ARITH_EXCEPTION) }
 	    else
 	    {
 		result.tag.kernel = TINT;
-		err = _int_pow(v1.nint, v2.nint, &result.val.nint);
+		err = _int_pow(v1.nint, (uword) v2.nint, &result.val.nint);
 		if (err) { Bip_Error(err); }
 	    }
 	}
@@ -1540,14 +1559,18 @@ _dbl_sgn(value v1, pword *pres)
 static int
 _dbl_min(value v1, value v2, pword *pres)
 {
-    pres->val.all = Dbl(v1) > Dbl(v2) ? v2.all : v1.all;
+    double d1 = Dbl(v1);
+    double d2 = Dbl(v2);
+    pres->val.all = PedanticLess(d1,d2) ? v1.all : v2.all;
     Succeed_;
 }
 
 static int
 _dbl_max(value v1, value v2, pword *pres)
 {
-    pres->val.all = Dbl(v1) > Dbl(v2) ? v1.all : v2.all;
+    double d1 = Dbl(v1);
+    double d2 = Dbl(v2);
+    pres->val.all = PedanticGreater(d1,d2) ? v1.all : v2.all;
     Succeed_;
 }
 
@@ -1690,7 +1713,7 @@ _dbl_sqrt(value v1, pword *pres)
 static int
 _dbl_pow(value v1, value v2, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, Pow(Dbl(v1), Dbl(v2)))
+    Make_Checked_Double_Val(pres->val, SafePow(Dbl(v1), Dbl(v2)))
     Succeed_;
 }
 

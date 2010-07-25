@@ -82,8 +82,8 @@ ALLDIRS="include legal lib lib_tcl lib_public doc man tcltk"
 # Eplex interfaces
 # NOTE: PLEASE UPDATE I386NT_<solver>_PACKAGE WITH LATEST i386_nt 
 #       SOLVER INTERFACES
-I386NT_CPLEX_SOLVER="cplex75"
-I386NT_XPRESS_SOLVER="xpress1525"
+I386NT_CPLEX_SOLVER="cplex121"
+I386NT_XPRESS_SOLVER="xpress2000"
 I386NT_CLPCBC_SOLVER="osiclpcbc"
 EPLEX_SOLVERS="\
 	$I386NT_CLPCBC_SOLVER \
@@ -91,16 +91,17 @@ EPLEX_SOLVERS="\
 	osisymclp \
 "
 PRIVATE_EPLEX_SOLVERS="\
-	cplex65 \
 	cplex71 \
-	$I386NT_CPLEX_SOLVER \
+	cplex75 \
 	cplex81 \
         cplex90 \
 	cplex102 \
 	cplex110 \
+	$I386NT_CPLEX_SOLVER \
 	xpress1427 \
 	xpress1427icp \
 	xpress1326icp \
+	xpress2000 \
 "
 
 # Eplex interfaces for runtime versions only
@@ -127,8 +128,7 @@ NSIS_PACKAGES=" \
 pack_common=yes
 pack_archs=yes
 pack_rpm=yes
-pack_nsis_installer=yes
-make_nsis_installer=no
+pack_nsis_installer=maybe
 
 # This isn't used systematically yet
 everything_ok=0
@@ -183,6 +183,24 @@ else
 	echo "$usage" 1>&2
 	exit 1
 fi
+
+winarch () {
+    case $1 in
+	*_nt) true ;;
+	*) false ;;
+    esac
+}
+
+# Enable NSIS only for Windows
+if [ "$pack_nsis_installer" = maybe ] ; then
+    pack_nsis_installer=no
+    for arch in $ARCHITECTURES; do
+	if winarch $arch ; then
+	    pack_nsis_installer=yes
+	fi
+    done
+fi
+nsis_spec_created=no
 
 
 TAR=tar
@@ -282,18 +300,16 @@ packarch ()	# $1=arch $2=name $3=subdir $4=files $5=excludedfiles $6=excludepatt
 
     # Generate the NSIS Windoze installer script
     if [ "$pack_nsis_installer" = yes -a "$3" != private ] ; then 
-	if [ "$arch" = common ] ; then
+	if [ "$1" = common ] ; then
 	    for ARCH in $ARCHITECTURES; do
-		if [ "$ARCH" = i386_nt -o "$ARCH" = x86_64_nt ] ; then
-		    nsispack $2 $SELECTEDFILES $ARCH
-		fi
+		nsispack $2 $SELECTEDFILES $ARCH
 	    done
-	elif [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
-	    nsispack $2 $SELECTEDFILES $arch
+	else
+	    nsispack $2 $SELECTEDFILES $1
 	fi
     fi
 
-    if [ "$pack_rpm" = yes -a ! \( "$1" = "i386_nt" -o "$1" = "x86_64_nt" \) ] ; then
+    if [ "$pack_rpm" = yes -a ! winarch $1 ] ; then
 
         # write DEST_DIR into the ".mymacros" file
         echo "%_topdir $DEST_DIR/$3" > .mymacros
@@ -405,7 +421,11 @@ $POST_SPEC
 
 nsispack ()	# $1=name $2=selectedfiles $3=arch
 {
-    make_nsis_installer=yes
+    if [ "$pack_nsis_installer" = no || ! winarch $3 ] ; then
+    	return 0
+    fi
+
+    nsis_spec_created=yes
 
     for NSIS_PACKAGE in $NSIS_PACKAGES ; do
         if [ $NSIS_PACKAGE = $1 ] ; then
@@ -434,50 +454,50 @@ nsispack ()	# $1=name $2=selectedfiles $3=arch
   SectionIn 1 2 3 4 RO
   DetailPrint \"Extracting ECLiPSe Development environment...\"
   SetOutPath \$8
-  SetDetailsPrint textonly" >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi ;;
+  SetDetailsPrint textonly" ;;
 		eclipse_misc) 
 		    echo \
 "Section \"3rd Party Libraries\" SecContrib
   SectionIn 1 2 3
   DetailPrint \"Extracting 3rd party libraries...\"
   SetOutPath \$8
-  SetDetailsPrint textonly" >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi ;;
+  SetDetailsPrint textonly" ;;
 		eclipse_doc)
 		    echo \
 "Section \"Documentation\" SecDoc
   SectionIn 1 2 3
   DetailPrint \"Extracting documentation...\"
   SetOutPath \$8
-  SetDetailsPrint textonly" >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi ;;
+  SetDetailsPrint textonly" ;;
 		$NSIS_CPLEX_PACKAGE)
 		    echo \
 "Section \"CPLEX Interface\" SecCPLEX
   SectionIn 3
   DetailPrint \"Extracting CPLEX interface...\"
   SetOutPath \$8
-  SetDetailsPrint textonly" >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi ;;
+  SetDetailsPrint textonly" ;;
 		$NSIS_XPRESS_PACKAGE)
 		    echo \
 "Section \"XPRESS-MP Interface\" SecXPRESS
   SectionIn 3
   DetailPrint \"Extracting XPRESS-MP interface...\"
   SetOutPath \$8
-  SetDetailsPrint textonly" >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi ;;
+  SetDetailsPrint textonly" ;;
 		$NSIS_CLPCBC_PACKAGE)
 		    echo \
 "Section \"COIN-OR CLP/CBC Interface\" SecCLPCBC
   SectionIn 1 2 3
   DetailPrint \"Extracting COIN-OR CLP/CBC interface...\"
   SetOutPath \$8
-  SetDetailsPrint textonly" >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi ;;
+  SetDetailsPrint textonly" ;;
 		tcltk)
 		    echo \
 "Section \"Use bundled Tcl/Tk\" SecTclTk
   SectionIn 1 2 3
   DetailPrint \"Extracting Tcl/Tk....\"
   SetOutPath \$8
-  SetDetailsPrint textonly" >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi ;;
-	    esac
+  SetDetailsPrint textonly" ;;
+	    esac >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi
 	    # Specify the files with Windoze path delimiters
 	    cat $NSIS_SELECTED_FILES | sed -e 's/\//\\/g' \
 			>> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi
@@ -493,16 +513,25 @@ nsispack ()	# $1=name $2=selectedfiles $3=arch
 
 nsisheader()	# $1=arch
 {
-    if [ "$pack_nsis_installer" = yes ] ; then
-	if [ "$1" = i386_nt ] ; then 
+    if [ "$pack_nsis_installer" = no || ! winarch $1 ] ; then
+    	return 0
+    fi
+
+    case $1 in
+    	i386_nt)
 	    WORDLEN=32
 	    PROGFILES="\$PROGRAMFILES"
-	else
+	    ;;
+    	x86_64_nt)
 	    WORDLEN=64
 	    PROGFILES="\$PROGRAMFILES64"
-	fi
+	    ;;
+	*)
+	    return 0
+	    ;;
+    esac
 
-	echo \
+    echo \
 ";NSIS Setup Script for ECLiPSe Constraint Logic Programming System
  
 !define VER_MAJOR $ECLIPSE_VERSION
@@ -599,13 +628,15 @@ LicenseData \"legal\\cmpl.txt\"
 ;Installer Sections 
 
 " > ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi
-    fi
 }
 
 nsisfinish()	# $1=arch
 {
-    if [ "$pack_nsis_installer" = yes ] ; then
-	echo \
+    if [ "$pack_nsis_installer" = no || ! winarch $1 ] ; then
+    	return 0
+    fi
+
+    echo \
 "
 Section \"Install GraphViz\" SecGraphviz
   SectionIn 1 3
@@ -791,8 +822,9 @@ Function WorkDirectoryLeave
   StrCpy \$7 \$INSTDIR
 FunctionEnd
 " >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi
+
 # x86_64_nt's initialisation checks that it is not running on Win32
-	if [ "$1" = x86_64_nt ] ; then 
+    if [ "$1" = x86_64_nt ] ; then 
 	echo \
 "
 Function .onInit
@@ -809,7 +841,8 @@ Function .onInit
 \${EndIf}
 FunctionEnd
 " >>  ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi
-        else
+
+    else
 	echo \
 "
 Function .onInit
@@ -822,7 +855,7 @@ Function .onInit
    Abort
 FunctionEnd
 " >>  ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi
-        fi
+
     fi
 }
 
@@ -889,9 +922,7 @@ if [ "$pack_archs" = yes ] ; then
 
 	RT_FILES=`expand_file_list eclipse_rt.lst`
 
-	if [ "$pack_nsis_installer" = yes -a \( "$arch" = i386_nt -o "$arch" = x86_64_nt \) ] ; then
-	    nsisheader $arch
-	fi
+	nsisheader $arch
 
 	# The "basic" (development) package: everything with the exception
 	# of eplex (packed separately) and some sources.
@@ -954,19 +985,17 @@ if [ "$pack_common" = yes ] ; then
     cp README_UNIX README_MACOSX README_WIN.TXT UNPACK $DEST_DIR/common
 fi
 
-nsisfinish
-
-if [ "$make_nsis_installer" = yes ] ; then
+if [ "$nsis_spec_created" = yes ] ; then
     for arch in $ARCHITECTURES; do
-	if [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
+	if winarch $arch ; then
 	    nsisfinish $arch
 	    echo "Building NSIS Windoze installer"
 	    nsis_basename=ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_${arch}
 	    makensis -V4 -OECLiPSe_NSIS_${arch}.log $nsis_basename.nsi &&
-	    # +x needed by Vista!
-	    chmod a+x $nsis_basename.exe &&
-	    mv $nsis_basename.exe $DEST_DIR/$arch \
-		|| everything_ok=1
+		# +x needed by Vista!
+		chmod a+x $nsis_basename.exe &&
+		mv $nsis_basename.exe $DEST_DIR/$arch \
+	    || everything_ok=1
 	fi
     done
 fi

@@ -20,7 +20,7 @@
 %
 % END LICENSE BLOCK
 %
-% $Id: umslanguage.tex,v 1.4 2009/12/17 08:22:12 jschimpf Exp $
+% $Id: umslanguage.tex,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
 %
 % AUTHOR        Joachim Schimpf, IC-Parc, Imperial College, London
 %
@@ -239,6 +239,7 @@ iteration construct
 \bipref{do/2}{../bips/kernel/control/do-2.html},
 which can be understood either by itself
 or by its translation to an equivalent recursion.
+More background can be found in \cite{loops02}.
 
 A simple example is the traversal of a list
 \begin{quote}
@@ -284,7 +285,7 @@ and it corresponds to a call to an auxiliary recursive
 predicate of the form
 \begin{quote}
 \begin{verbatim}
-    do__n(...).
+    do__n(...) :- !.
     do__n(...) :- Goals, do__n(...).
 \end{verbatim}
 \end{quote}
@@ -293,15 +294,14 @@ The \about{IterationSpecs} determine the number of times the loop is executed
 (i.e., the termination condition), and the way information is passed
 into the loop, from one iteration to the next, and out of the loop.
 
-\about{IterationSpecs} is one (or a comma-separated sequence) of the following:
-
+\about{IterationSpecs} is one (or a combination) of the following:
 \begin{quote}
 \begin{description}
 \item[fromto(\pattern{First},~\pattern{In},~\pattern{Out},~\pattern{Last})]%
 \index{fromto@\notation{fromto}---iterator construct}\mbox{}\\
     iterate \about{Goals} starting with \about{In=First} until
     \about{Out=Last}.
-    \about{In} and \about{Out} are local variables in \about{Goals}.
+    \about{In} and \about{Out} are local loop variables.
     For all but the first iteration, the value of \about{In} is the same as the
     value of \about{Out} in the previous iteration.
 
@@ -309,21 +309,21 @@ into the loop, from one iteration to the next, and out of the loop.
 \index{foreach@\notation{foreach}---iterator construct}\mbox{}\\
     iterate \about{Goals} with \about{X} ranging over all elements of
     \about{List}.
-    \about{X} is a local variable in \about{Goals}.
+    \about{X} is a local loop variable.
     Can also be used for constructing a list.
 
 \item[foreacharg(\pattern{X},~\pattern{Struct})]%
 \index{foreacharg@\notation{foreacharg}---iterator construct}\mbox{}\\
     iterate \about{Goals} with \about{X} ranging over all elements of
     \about{Struct}.
-    \about{X} is a local variable in \about{Goals}.
+    \about{X} is a local loop variable.
     Cannot be used for constructing a term.
 
 \item[foreacharg(\pattern{X},~\pattern{Struct},~\pattern{Idx})]
 \index{foreacharg@\notation{foreacharg}---iterator construct}\mbox{}\\
     same as before, but \about{Idx} is set to the argument position of \about{X}
     in \about{Struct}. (In other words, \notation{arg(Idx,~Struct,~X)} is true.)
-    \about{Idx} is a local variable in \about{Goals}.
+    \about{X} and \about{Idx} are local loop variables.
 
 \item[foreachelem(\pattern{X},~\pattern{Array})]%
 \index{foreachelem@\notation{foreachelem}---iterator construct}\mbox{}\\
@@ -334,7 +334,7 @@ into the loop, from one iteration to the next, and out of the loop.
     then for successive
     iterations \about{X} is bound in turn to \about{a}, \about{b}, \about{c},
     \about{d}, \about{e} and \about{f}.
-    \about{X} is a local variable in \about{Goals}.
+    \about{X} is a local loop variable.
     Cannot be used for constructing a term.
 
 \item[foreachelem(\pattern{X},~\pattern{Array},~\pattern{Idx})]%
@@ -342,7 +342,7 @@ into the loop, from one iteration to the next, and out of the loop.
     same as before, but \about{Idx} is set to the index position of \about{X} in
     \about{Array}. (In other words, \notation{subscript(Array,~Idx,~X)} is
     true.)
-    \about{Idx} is a local variable in \about{Goals}.
+    \about{X} and \about{Idx} are local loop variables.
 
 \item[foreachindex(\pattern{Idx},~\pattern{Array})]%
 \index{foreachindex@\notation{foreachindex}---iterator construct}\mbox{}\\
@@ -353,7 +353,7 @@ into the loop, from one iteration to the next, and out of the loop.
 \index{for@\notation{for}---iterator construct}\mbox{}\\
     iterate \about{Goals} with \about{I} ranging over integers from
     \about{MinExpr} to \about{MaxExpr}.
-    \about{I} is a local variable in \about{Goals}.
+    \about{I} is a local loop variable.
     \about{MinExpr} and \about{MaxExpr} can be arithmetic expressions.
     Can be used only for controlling iteration, i.e., \about{MaxExpr} cannot
     be uninstantiated.
@@ -370,8 +370,7 @@ into the loop, from one iteration to the next, and out of the loop.
     between the corresponding elements in \about{MinList} and \about{MaxList}.
     Successive iterations go through the possible combinations of
     values for \about{List} in lexicographic order.  \about{List} is a local
-    variable in \about{Goals}.
-    \about{MinList} and \about{MaxList} must be either lists of
+    loop variable.  \about{MinList} and \about{MaxList} must be either lists of
     arithmetic expressions evaluating to integers, or arithmetic
     expressions evaluating to integers (in the latter case they are
     treated as lists containing the (evaluated) integer repeated an
@@ -395,22 +394,24 @@ into the loop, from one iteration to the next, and out of the loop.
 \index{count@\notation{count}---iterator construct}\mbox{}\\
     iterate \about{Goals} with \about{I} ranging over integers from \about{Min}
     up to \about{Max}.
-    \about{I} is a local variable in \about{Goals}.
+    \about{I} is a local loop variable.
     Can be used for controlling iteration as well as counting,
     i.e., \about{Max} can be a variable.
 
 \item[param(\pattern{Var1},~\pattern{Var2},~...)]%
 \index{param@\notation{param}---iterator construct}\mbox{}\\
-    for declaring variables in \about{Goals} global, i.e., shared with the
-    context.
+    for declaring variables in \about{Goals} as global, i.e., as shared with
+    the loop context, and shared among all iterations of the loop.
     \begin{quotation}
-      CAUTION: By default, variables in \about{Goals} are local!
+    CAUTION: By default, variables in \about{Goals} have local scope.
+    This means that, in every iteration, these variables are new (even if a variable
+    of the same name occurs outside the do-construct).
     \end{quotation}
 \end{description}
 \end{quote}
 
-Note that \predspec{fromto/4} is the most general specifier (subsuming the
-functionality of all the others), but \predspec{foreach/2},
+Note that \predspec{fromto/4} is the most general specifier (all the others
+could be implemented on top of it), while \predspec{foreach/2},
 \predspec{foreacharg/2,3},
 \predspec{foreachelem/2,3}, \predspec{foreachindex/2}, \predspec{count/3},
 \predspec{for/3,4}, \predspec{multifor/3,4} and
@@ -427,9 +428,8 @@ There are three ways to combine the above specifiers in a single do loop:
     iterated synchronously; that is, they all take their first
     ``value'' for the first execution of \about{Goals}, their second ``value''
     for the second execution of \about{Goals}, etc.  The order in which they
-    are written does not matter, and the set of local variables in
-    \about{Goals} is the union of those of \about{IterSpec1} and
-    \about{IterSpec2}.
+    are written does not matter, and the set of local loop variables
+    is the union of those of \about{IterSpec1} and \about{IterSpec2}.
 
     When multiple iteration specifiers are given in this way,
     typically not all of them will impose a termination condition on
@@ -445,13 +445,13 @@ There are three ways to combine the above specifiers in a single do loop:
     \about{IterSpec2}.
     The sequence of iteration is to iterate \about{IterSpec2} completely for a
     given ``value'' of \about{IterSpec1} before doing the same with the next
-    ``value'' of \about{IterSpec1}, and so on.  The set of local variables in
-    Goals is the union of those of \about{IterSpec1} and \about{IterSpec2}.
+    ``value'' of \about{IterSpec1}, and so on.  The set of local loop variables
+    is the union of those of \about{IterSpec1} and \about{IterSpec2}.
 
 \item[\pattern{IterSpec1}~$>>$~\pattern{IterSpec2}] (``nested iteration'')%
 \index{>>@\notation{>}\notation{>}---compound iterator construct}\\
     Like \notation{( IterSpec1 do ( IterSpec2 do Goals ) )}, including with
-    respect to scoping.  The local variables in \about{Goals} are those of
+    respect to scoping.  The local loop variables are those of
     \about{IterSpec2}; in particular, those of \about{IterSpec1} are not
     available
     unless \about{IterSpec2} passes them through, e.g., using  \predspec{param}.
@@ -467,8 +467,8 @@ Syntactically, the do-operator binds like the semicolon, i.e., less than comma.
 That means that the whole do-construct should always be enclosed in
 parentheses (see examples).
 
-Unless you use \notation{:-pragma(noexpand)} or \notation{:-dbgcomp},
-the do-construct is
+Unless you use \notation{:-pragma(noexpand)} or
+the compiler's \notation{expand_goals:off} option, the do-construct is
 compiled into an efficient auxiliary predicate named \about{do__nnn}, where
 \about{nnn} is a unique integer. This will be visible during debugging.
 To make debugging easier, it is possible to give the loop a
@@ -479,6 +479,15 @@ name of the auxiliary predicate into which the loop is compiled
 (instead of \about{do__nnn}).  The name should therefore not clash with other
 predicate names in the same module.
 
+Finally, do-loops can be used as a control structure in grammar rules as well:
+A do-loop in a grammar rule context will generate (or parse) the
+concatenation of the lists of symbols generated (or parsed) by each
+loop iteration (the grammar rule transformation effectively adds a
+hidden fromto-iterator to a do-loop).
+The following rule will generate (or parse) a list of integers from 1 to N
+\begin{quote}\begin{verbatim}
+intlist(N) --> ( for(I,1,N) do [I] ).
+\end{verbatim}\end{quote}
 
 
 \subsection{Examples}

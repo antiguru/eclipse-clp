@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.5 2010/07/14 06:54:06 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.6 2010/07/25 13:29:05 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -1532,10 +1532,10 @@ bool_channeling
     Var's domain, and 1 if Var is assigned the value [Thus, only one variable
     in DomainBools can take the value 1].
 </P><P>
-    A variant of this constraint, calld 'domain_constraint' is in the global 
+    A variant of this constraint, called 'domain_constraint' is in the global 
     constraint catalog. There, instead of having DomainBools and Min, there
     is a collection of Value-Bool pairs, representing a possible domain value
-    and its associated 0/1 variable. The impplementation here is described in
+    and its associated 0/1 variable. The implementation here is described in
     the graph model for the domain_constraint in the catalog, and is 
     generalised arc-consistent.")]).
 
@@ -1546,22 +1546,20 @@ bool_channeling(X,Coll,F):-
         X #< F+N,
 %        sumlist(B,1),
         check_bool_channeling(X,B,F),
-        (ground(X) ->
-            true
-        ;
+        (  var(X) ->
             generic_suspend(update_bool_channeling(X,B,F,Susp),3,
-                    [B->min,
-                     B->max,
-                     X->any],Susp)
+                    [B->inst, X->any],Susp)
+        ;
+            true
         ).
 
 :-demon(update_bool_channeling/4).
 update_bool_channeling(X,B,F,Susp):-
         check_bool_channeling(X,B,F),
-        (ground(X) ->
-            kill_suspension(Susp)
-        ;
+        ( var(X) ->
             true
+        ;
+            kill_suspension(Susp)
         ).
 
 check_bool_channeling(X,B,F):-
@@ -1614,13 +1612,13 @@ check_bool_channeling(X,B,F):-
             )
         ),
         wake.
-*/
 
 set_to_zero_up_to_j(_,J,J):-
         !.
 set_to_zero_up_to_j([0|B],F,J):-
         F1 is F+1,
         set_to_zero_up_to_j(B,F1,J).
+*/
 
 
 /*****************************************************************

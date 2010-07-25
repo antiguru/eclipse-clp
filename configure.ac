@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.32 2010/07/14 16:23:36 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.33 2010/07/25 13:29:04 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -332,7 +332,6 @@ case "$ARCH" in
     ;;
  sparc_sunos5)
     LOCAL_FLAGS="-DD_LOAD"
-    DYNLDFLAGS="-shared"
     AC_DEFINE(SVR4)
     OBJECT_SUFFIX=so
     OBJECTS_SUFFIX=so
@@ -391,7 +390,6 @@ case "$ARCH" in
     PD_O_SO="$LD_C_SO"
     ;;
  i386_linux)
-    # -fPIC needed for Security-Enhanced Linux
     OPTIMIZE="sh ../src/opt_i386_linux.sh"
     LOCAL_FLAGS="-DD_LOAD"
     OBJECT_SUFFIX=so
@@ -413,6 +411,7 @@ case "$ARCH" in
     OSTYPE="linux"  
     ;;
  x86_64_linux)
+    OPTIMIZE="sh ../src/opt_i386_linux.sh"
     LOCAL_FLAGS="-DD_LOAD"
     OBJECT_SUFFIX=so
     OBJECTS_SUFFIX=so
@@ -426,6 +425,7 @@ case "$ARCH" in
     OSTYPE="linux"  
     ;;
  i386_nt)
+    OPTIMIZE="sh ../src/opt_i386_linux.sh"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
@@ -544,7 +544,6 @@ case "$ARCH" in
     LD_C_SO=""
     PL_O_SO=".o.so:"
     PD_O_SO="ld -shared \$< -o \$@"
-    DYNLDFLAGS = "-shared"
     DYLD="ld"
     DYLDCXX="ld"
     LDYLD="ld -shared"
@@ -656,7 +655,7 @@ if test "$ec_cv_c_void_p" = no; then
 fi
 
 
-AC_CHECK_LIB(ieee,main)
+AC_CHECK_FUNC(__fpu_control, [], [AC_CHECK_LIB(ieee,main)])
 AC_CHECK_LIB(dl,dlopen)
 AC_CHECK_LIB(nsl,main)
 AC_CHECK_LIB(socket,socket)
@@ -795,6 +794,19 @@ dnl this doesn't work: AC_SEARCH_LIBS(gethostname, wsock32)
 AC_CHECK_FUNCS(select gethostname)
 
 AC_FUNC_MMAP
+
+AC_MSG_CHECKING([for pow(zero,neg) bug])
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[
+#include <math.h>
+double (*ppow)(double,double) = pow;
+]],[[
+return (*ppow)(0.0,-2.0) < 0.0 ? 0 : 1;
+]])],
+[AC_MSG_RESULT(yes)
+ AC_DEFINE(HAVE_POW_ZERO_NEG_BUG)],
+[AC_MSG_RESULT(no)],
+[AC_MSG_RESULT(maybe)]
+)
 
 AC_MSG_CHECKING(for working rint)
 AC_RUN_IFELSE([AC_LANG_PROGRAM([[
@@ -1320,23 +1332,29 @@ fi
 case $ARCH in
 
     i386_linux)
-    	CPLEX_ARCH_PREFIX=i386_linux
-	;;
+        CPLEX_ARCH_PREFIX=x86_debian
+        ;;
     x86_64_linux)
-    	CPLEX_ARCH_PREFIX=x86_64
-	;;
+        CPLEX_ARCH_PREFIX=x86-64_debian
+        ;;
     sparc_sunos5)
-    	CPLEX_ARCH_PREFIX=sparc_sunos5
-	;;
+        CLEX_ARCH_PREFIX=ultrasparc32
+        ;;
     i386_nt)
-    	CPLEX_ARCH_PREFIX=i386_nt
-	;;
+        CPLEX_ARCH_PREFIX=x86_windows
+        ;;
+    x86_64_nt)
+        CPLEX_ARCH_PREFIX=x64_windows
+        ;;
     i386_macosx)
-    	CPLEX_ARCH_PREFIX=i386_macosx
-	;;
+        CPLEX_ARCH_PREFIX=x86_darwin
+        ;;
+    x86_64_macosx)
+        CPLEX_ARCH_PREFIX=x86-64_darwin
+        ;;
     *)
-    	CPLEX_ARCH_PREFIX=unsupported
-	;;
+        CPLEX_ARCH_PREFIX=unsupported
+        ;;
 esac
 
 AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
@@ -1348,11 +1366,11 @@ AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
 
 if test "$cplex_versions_requested" != "no"; then
     if test "$cplex_versions_requested" = "yes"; then
-    	cplex_versions_requested="75 81 90 102 110"
+    	cplex_versions_requested="75 81 90 102 110 121"
     fi
     for version in $cplex_versions_requested; do
 	CPLEXDIR="$ECLIPSETHIRDPARTY/cplex$version"
-	ls -d $CPLEXDIR/lib/$CPLEX_ARCH_PREFIX* >/dev/null 2>/dev/null
+	ls -d $CPLEXDIR/lib/$ARCH >/dev/null 2>/dev/null
 	if test $? -eq 0; then
 	    CPLEX_VERSIONS="$CPLEX_VERSIONS $version"
 	    AC_MSG_NOTICE([Using Cplex in $CPLEXDIR])
@@ -1381,7 +1399,7 @@ AC_ARG_WITH([xpress], [[  --with-xpress[=versions]
 
 if test "$xpress_versions_requested" != "no"; then
     if test "$xpress_versions_requested" = "yes"; then
-    	xpress_versions_requested="1326icp 1427icp 1427 1525"
+    	xpress_versions_requested="1326icp 1427icp 1427 1525 2000"
     fi
     for version in $xpress_versions_requested; do
 	XPRESSDIR="$ECLIPSETHIRDPARTY/xosl$version"

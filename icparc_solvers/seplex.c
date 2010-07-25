@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.17 2010/06/08 01:09:27 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.18 2010/07/25 13:29:05 jschimpf Exp $
  *
  */
 
@@ -168,6 +168,9 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define CPX_COL_AT_UPPER   CPX_AT_UPPER
 # define CPX_COL_BASIC      CPX_BASIC
 # define CPX_COL_FREE_SUPER CPX_FREE_SUPER
+/* next two not tested */
+# define CPX_COL_NONBASIC_ZERO_BOUNDED	CPX_COL_AT_LOWER
+# define CPX_COL_NONBASIC_ZERO_UNBOUNDED CPX_COL_FREE_SUPER
 
 #define SUPPORT_IIS
 
@@ -457,15 +460,12 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 
 
 # define CPX_INFBOUND			XPRS_PLUSINFINITY
-# define CPX_AT_LOWER                   0
-# define CPX_BASIC                      1
-# define CPX_AT_UPPER                   2
-# define CPX_FREE_SUPER                 0
-# define CPX_COL_AT_LOWER               CPX_AT_LOWER
-# define CPX_COL_AT_UPPER               CPX_AT_UPPER
-# define CPX_COL_BASIC                  CPX_BASIC
-/* XPRESS has no separate code for super-basic variables */
-# define CPX_COL_FREE_SUPER             CPX_FREE_SUPER
+# define CPX_COL_AT_LOWER               0
+# define CPX_COL_BASIC                  1
+# define CPX_COL_AT_UPPER               2
+# define CPX_COL_FREE_SUPER             3
+# define CPX_COL_NONBASIC_ZERO_BOUNDED	CPX_COL_AT_LOWER
+# define CPX_COL_NONBASIC_ZERO_UNBOUNDED CPX_COL_FREE_SUPER
 # define CPXgetrhs(E,A1,A2,A3,A4)	XPRSgetrhs(A1,A2,A3,A4)
 # define CPXgetsense(E,A1,A2,A3,A4)	XPRSgetrowtype(A1,A2,A3,A4)
 # define CPXgetlb(E,A1,A2,A3,A4)	XPRSgetlb(A1,A2,A3,A4)
@@ -705,15 +705,13 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 
 #define HAS_QUADRATIC /* CLP has quadratic */
 
-# define CPX_AT_LOWER                   3
-# define CPX_BASIC                      1
-# define CPX_AT_UPPER                   2
-# define CPX_FREE_SUPER                 0
-# define CPX_COL_AT_LOWER               CPX_AT_LOWER
-# define CPX_COL_AT_UPPER               CPX_AT_UPPER
-# define CPX_COL_BASIC                  CPX_BASIC
-/* COIN has no separate code for super-basic variables */
-# define CPX_COL_FREE_SUPER             CPX_FREE_SUPER
+# define CPX_COL_AT_LOWER                   3
+# define CPX_COL_BASIC                      1
+# define CPX_COL_AT_UPPER                   2
+# define CPX_COL_FREE_SUPER                 0
+# define CPX_COL_NONBASIC_ZERO_BOUNDED	CPX_COL_AT_LOWER
+# define CPX_COL_NONBASIC_ZERO_UNBOUNDED CPX_COL_FREE_SUPER
+
 # define CPX_INFBOUND coin_infinity(cpx_env) /* use the default cpx_env */
 
 # define CPXPROB_MILP	PROBLEM_MIP
@@ -1403,8 +1401,6 @@ p_cpx_init(value vlicloc, type tlicloc,
 #  ifdef XPRESS_OEM_ICPARC_2002
 	Handle_OEM_ICPARC
 #  endif
-	{
-	    int ndays;
 #  if (XPRESS == 15) 
 	    {/* Xpress 15 requires the PATH environment variable to be set
                 to where the license manager lmgrd is, as it execs an
@@ -1423,7 +1419,22 @@ p_cpx_init(value vlicloc, type tlicloc,
 	    }
 #  endif
 		
-	    err = XPRSinit(licloc);
+	err = XPRSinit(licloc);
+
+#  if (XPRESS >= 20) 
+	if (err != 0  &&  err != 32 /* Student mode */)
+	{
+	    char msg[512];
+	    XPRSgetlicerrmsg(msg, 512);
+	    Fprintf(Current_Error, "%s", msg);
+	    ec_flush(Current_Error);
+	    Fail;
+	}
+	XPRSgetbanner(banner);
+	Fprintf(Current_Output, "%s\n", banner);
+#  else
+	{
+	    int ndays;
 	    /* no banner printed in XPRESS 13, print it now as it may contain
 	       extra error information
 	    */
@@ -1442,8 +1453,6 @@ p_cpx_init(value vlicloc, type tlicloc,
 	    }
 	    ec_flush(Current_Output);
 	}
-	/* use cpx_env to store the `default problem' */
-	CallN(XPRScreateprob(&cpx_env));
 	if (err != 0  &&  err != 32 /* Student mode */)
 	{
 	    if (err != 8 || oem_xpress == XP_OEM_YES)	/* suppress message for OEM library */
@@ -1459,6 +1468,11 @@ p_cpx_init(value vlicloc, type tlicloc,
 	    Fprintf(Current_Output, slicmsg);
 	    (void) ec_newline(Current_Output);
 	}
+#  endif
+
+	/* use cpx_env to store the `default problem' */
+	CallN(XPRScreateprob(&cpx_env));
+
 # endif /* XPRESS */
     }
 # ifdef LOG_CALLS
@@ -4893,7 +4907,11 @@ p_cpx_lpread(value vfile, type tfile,
     {
     case 2: /* compatibility with CPLEX */
     case 8:
+#if XPRESS < 20
 	Call(res, XPRSrestore(lpd->lp, file));
+#else
+	Call(res, XPRSrestore(lpd->lp, file, ""));
+#endif
 	break;
     case 0:
 	Call(res, XPRSreadprob(lpd->lp, file, "l"));
@@ -7668,7 +7686,25 @@ p_create_extended_darray(value varr, type tarr, value vi, type ti, value vxarr, 
 }
 
 int
-p_copy_extended_column_basis(value varr, type tarr, value vxarr, type txarr)
+p_decode_basis(value varr, type tarr, value vout, type tout)
+{
+    int i,n;
+    int *v;
+    pword *pw = TG;
+    Check_Array(tarr);
+    v = IArrayStart(varr.ptr);
+    n = IArraySize(varr.ptr);
+    Push_Struct_Frame(Did("[]",n));
+    for (i = 0; i < n; ++i)
+    {
+	Make_Integer(&pw[i+1], v[i]);
+    }
+    Return_Unify_Structure(vout, tout, pw);
+}
+
+int
+p_copy_extended_column_basis(value varr, type tarr, value vlos, type tlos,
+	value vhis, type this, value vxarr, type txarr)
 {
     unsigned i;
     int      *v;
@@ -7676,6 +7712,8 @@ p_copy_extended_column_basis(value varr, type tarr, value vxarr, type txarr)
 
     Check_Array(tarr);
     Check_Array(txarr);
+    Check_List(tlos);
+    Check_List(this);
 
     v = IArrayStart(varr.ptr);
     vx = IArrayStart(vxarr.ptr);
@@ -7694,8 +7732,30 @@ p_copy_extended_column_basis(value varr, type tarr, value vxarr, type txarr)
     }
     for (i = IArraySize(varr.ptr); i < IArraySize(vxarr.ptr); ++i)
     {
-      vx[i] = CPX_COL_FREE_SUPER;
+      if (IsList(tlos) && IsList(this))
+      {
+	double lo, hi;
+	pword *car = vlos.ptr;
+	pword *cdr = car + 1;
+	Dereference_(car); Check_Double(car->tag);
+	lo = Dbl(car->val);
+	Dereference_(cdr); tlos = cdr->tag; vlos = cdr->val;
+	car = vhis.ptr;
+	cdr = car + 1;
+	Dereference_(car); Check_Double(car->tag);
+	hi = Dbl(car->val);
+	Dereference_(cdr); this = cdr->tag; vhis = cdr->val;
+	/* The following are the settings determined by experimentation */
+	if (hi <= 0.0)
+	    vx[i] = CPX_COL_AT_UPPER;
+	else if (lo > -CPX_INFBOUND)
+	    vx[i] = CPX_COL_AT_LOWER;
+	else
+	    vx[i] = CPX_COL_FREE_SUPER;
+      }
+      else { Bip_Error(TYPE_ERROR); }
     }
+    Check_Nil(tlos);
     Succeed;
 }
 

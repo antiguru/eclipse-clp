@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.6 2010/04/11 02:36:01 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.7 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -38,6 +38,8 @@
 /*
  * INCLUDES:
  */
+#include <math.h>
+
 #include	"config.h"
 #include	"sepia.h"	/* to be able to have built-ins */
 #include	"types.h"	/* to have the standard types (for BIP) */
@@ -52,8 +54,6 @@
 #include	"property.h"	/* for MODULE_PROP */
 #include	"os_support.h"
 #include	"rounding_control.h"
-
-#include <math.h>
 
 #ifdef HAVE_STRING_H
 #include <string.h>

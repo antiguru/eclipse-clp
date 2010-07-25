@@ -24,7 +24,7 @@
 :- comment(summary, "Column generation library").
 :- comment(author, "Andrew Eremin").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2009/07/16 09:11:25 $").
+:- comment(date, "$Date: 2010/07/25 13:29:05 $").
 :- comment(status, prototype).
 
 :- comment(desc, html("\
@@ -38,7 +38,7 @@
    particular instantiations of the variables of a subproblem. The
    predicate to find profitable subproblem variable instantiations is
    supplied by the user. When a user-defined branching predicate is
-   provided the library can also be sued for hybrid branch-and-price.
+   provided, the library can also be used for hybrid branch-and-price.
 </P><P>
    The library uses the eplex library to solve LP master
    problems, from which dual values are used to create cost functions
@@ -63,9 +63,44 @@ template:  "ColgenInstance:minimize(+SolveSubProblem, +Obj, -ObjVal)",
   unified with <TT>ObjVal</TT>.
   </P><P>
   The first argument of the subproblem solution predicate must be a
+  subproblem structure, as specified in solver_setup/3.
+  </P>
+  "),
+  see_also:[solver_setup/3]
+]).
+
+:- comment(solver_setup/2, [
+template:  "ColgenInstance:solver_setup(+SolveSubProblem, +Obj)",
+    args:  ["SolveSubProblem": "Subproblem solution predicate",
+            "Obj": "The objective function to minimize"
+           ],
+    summary: "Define subproblem and objective for ColgenInstance.",
+    desc: html("\
+    Equivalent to solver_setup/3 with default options.
+    "),
+    see_also:[colgen:solver_setup/3]
+]).
+
+:- comment(solver_setup/3, [
+template:  "ColgenInstance:solver_setup(+SolveSubProblem, +Obj, +Options)",
+    args:  ["SolveSubProblem": "Subproblem solution predicate",
+            "Obj": "The objective function to minimize",
+            "Options": "A list of options"
+           ],
+    summary: "Define subproblem, objective and options for ColgenInstance.",
+    desc: html("\
+  <P>
+  Define the partial linear expression <TT>Obj</TT> as the objective to
+  minimize for the problem associated with the colgen instance
+  <TT>ColgenInstance</TT>.  It will typically contain implicit_sum terms.
+  </P><P>
+  Associate the user-defined predicate <TT>SolveSubProblem</TT> to provide
+  profitable variables during the solution process.
+  </P><P>
+  The first argument of the subproblem solution predicate must be a
   subproblem structure:
  <PRE>
-      sp_prob(master_pool, cutoff, cost, coeff_vars, aux, module)
+      sp_prob(master_pool, cutoff, cost, coeff_vars, aux, ...)
  </PRE>
   where and <TT>master_pool</TT> will be unified with the colgen
   instance <TT>ColgenInstance</TT> so that solutions can be posted to
@@ -76,10 +111,50 @@ template:  "ColgenInstance:minimize(+SolveSubProblem, +Obj, -ObjVal)",
   representing the contribution of new subproblem solutions to the
   master problem solution cost, <TT>coeff_vars</TT> is a list of all
   subproblem variables occurring in the implicit sum terms of master
-  problem constraints, and <TT>module</TT> is the module in which the
-  solution predicate should be called.
+  problem constraints.
   </P>
-  ")
+  <P>
+  The following options are accepted:
+    <DL>
+    <DT><TT>separate(+SeparationGoal)</TT><DD>
+	a user-specified separation goal (XXX).
+    <DT><TT>node_select(+Val)</TT><DD>
+	node selection criterion passed to bfs instance
+	<TT>(best_first|depth_first|best_estimate)</TT>.
+    <DT><TT>eplex_option(+EplexOption)</TT><DD>
+	Option to be passed to the associated eplex solver instance.
+    <DT><TT>disallow(+Policy)</TT><DD>
+	policy for active prevention of duplicate columns <TT>(off|lp|clp)</TT>.
+    <DT><TT>int_tolerance(+Tol)</TT><DD>
+	tolerance for optimality <TT>(1e-5|float)</TT>.
+    <DT><TT>basis_perturbation(+OffOn)</TT><DD>
+	should we try and perturb the external solver basis when we appear
+	to be at optimal and external solver returns same basis after adding
+	columns  ('off' - no, 'on' - temporarily set the external solver
+	to always perturb)
+    <DT><TT>info_messages(+OffOn)</TT><DD>
+	print messages while solving.
+    <DT><TT>on_degeneracy(+Action)</TT><DD>
+	should we halt when we find degeneracy (default 'stop'), or
+	continue and let the subproblem solver deal with it ('continue').
+    <DT><TT>stabilisation(+Policy)</TT><DD>
+	the policy to perform basis stabilisation:
+	<DL>
+	<DT><TT>off</TT><DD>
+	    no stabilisation is performed.
+	<DT><TT>on(BoundIter, BoundUpdate, CoeffIter, CoeffUpdate)</TT><DD>
+	    then the default policy is used with var bounds/coefficients
+	    updated by BoundUpdate/CoeffUpdate after BoundIter/CoeffIter
+	    iterations respectively.
+	<DT><TT>stab_pred(UpdatePred, StoppingPred)</TT><DD>
+	    a user defined policy is employed and UpdatePred/ StoppingPred
+	    should be predicates that perform the updates and test for
+	    stopping conditions.
+	</DL>
+    </DL>
+  <P>
+  "),
+    see_also: [colgen:set/2]
 ]).
 
 :- comment(cg_subproblem_solution/1, [
@@ -172,6 +247,32 @@ desc:      html("\
       the colgen instance <TT>ColgenInstance</TT> that have a
       fractional optimal solution. This is intended for use primarily
       in user-defined problem branching predicates.
+<P>
+    <DT><TT>column_count</TT><DD>
+      Number of generated columns.
+<P>
+    <DT><TT>obj_val</TT><DD>
+      Current objective value.
+<P>
+    <DT><TT>unsatisfiable_cstrs</TT><DD>
+<P>
+    <DT><TT>satisfiable_cstrs</TT><DD>
+<P>
+    <DT><TT>generated_non_zero_vars</TT><DD>
+<P>
+    <DT><TT>non_zero_vars</TT><DD>
+<P>
+    <DT><TT>vars</TT><DD>
+<P>
+    <DT><TT>sep_goal</TT><DD>
+      Separation goal.
+<P>
+    <DT><TT>sp_solver</TT><DD>
+      Subproblem solver goal.
+<P>
+    <DT><TT>stab_coeff/bound_minus/plus(Ident)</TT><DD>
+      Stabilisation parameters per constraint.
+
 </DL>") ]).
 
 :- comment(var_get/3, [
@@ -232,64 +333,64 @@ desc:      html("\
     see_also:   [(>=)/2,(=:=)/2,(=<)/2,($>=)/2,($=)/2,($=<)/2,var_get/3]
 ]).
 
-:- comment((>=)/2,  [
-    template:  "ColgenInstance:(?X >= ?Y)",
-    args:      ["X":    "Partial linear expression",
-		"Y":    "Partial linear expression"
-	       ],
-    see_also:  [(=:=)/2,(=<)/2,($=)/2,($=<)/2,($>=)/2,var_get/3], 
-
-    summary:   "Constrains X to be greater than or equal to Y.",
-    desc:      html("\
-	Logically: Constrains X to be greater than or equal to Y. X
-	and Y are partial linear expressions. Partial linear
-	expressions may contain terms of the form
-	<TT>implicit_sum(+Var)</TT> in addition to any terms allowed
-	within a standard linear expression. Variables occurring
-	inside <TT>implicit_sum/1</TT> terms are taken to be
-	subproblem variables whose instantiation will correspond to
-	the coefficient of a generated master problem variable in this
-	constraint. Operationally, the constraint gets delayed until
-	the external solver state for ColgenInstance is invoked.")
-    ]).
-
-:- comment((=<)/2,  [
-    template:  "ColgenInstance:(?X =< ?Y)",
-    args:      ["X":    "Partial linear expression",
-		"Y":    "Partial linear expression"
-	       ],
-    see_also:  [(=:=)/2,(>=)/2,($=)/2,($=<)/2,($>=)/2,var_get/3],
-    summary:   "Constrains X to be less than or equal to Y.",
-    desc:      html("\
-	Logically: Constrains X to be less than or equal to Y. X and
-	Y are partial linear expressions. Partial linear expressions
-	may contain terms of the form <TT>implicit_sum(+Var)</TT> in
-	addition to any terms allowed within a standard linear
-	expression. Variables occurring inside <TT>implicit_sum/1</TT>
-	terms are taken to be subproblem variables whose instantiation
-	will correspond to the coefficient of a generated master
-	problem variable in this constraint. Operationally, the
-	constraint gets delayed until the external solver state for
-	ColgenInstance is invoked.")  ]).
-
-:- comment((=:=)/2,  [
-    template:  "ColgenInstance:(?X =:= ?Y)",
-    args:      ["X":    "Partial linear expression",
-		"Y":    "Partial linear expression"
-	       ],
-    see_also:  [(=<)/2,(>=)/2,($=)/2,($=<)/2,($>=)/2,var_get/3],
-    summary:   "Constrains X to be equal to Y.",
-    desc:      html("\
-	Logically: Constrains X to be equal to Y. X and Y are partial
-	linear expressions. Partial linear expressions may contain
-	terms of the form <TT>implicit_sum(+Var)</TT> in addition to
-	any terms allowed within a standard linear
-	expression. Variables occurring inside <TT>implicit_sum/1</TT>
-	terms are taken to be subproblem variables whose instantiation
-	will correspond to the coefficient of a generated master
-	problem variable in this constraint. Operationally, the
-	constraint gets delayed until the external solver state for
-	ColgenInstance is invoked.")  ]).
+%:- comment((>=)/2,  [
+%    template:  "ColgenInstance:(?X >= ?Y)",
+%    args:      ["X":    "Partial linear expression",
+%		"Y":    "Partial linear expression"
+%	       ],
+%    see_also:  [(=:=)/2,(=<)/2,($=)/2,($=<)/2,($>=)/2,var_get/3], 
+%
+%    summary:   "Constrains X to be greater than or equal to Y.",
+%    desc:      html("\
+%	Logically: Constrains X to be greater than or equal to Y. X
+%	and Y are partial linear expressions. Partial linear
+%	expressions may contain terms of the form
+%	<TT>implicit_sum(+Var)</TT> in addition to any terms allowed
+%	within a standard linear expression. Variables occurring
+%	inside <TT>implicit_sum/1</TT> terms are taken to be
+%	subproblem variables whose instantiation will correspond to
+%	the coefficient of a generated master problem variable in this
+%	constraint. Operationally, the constraint gets delayed until
+%	the external solver state for ColgenInstance is invoked.")
+%    ]).
+%
+%:- comment((=<)/2,  [
+%    template:  "ColgenInstance:(?X =< ?Y)",
+%    args:      ["X":    "Partial linear expression",
+%		"Y":    "Partial linear expression"
+%	       ],
+%    see_also:  [(=:=)/2,(>=)/2,($=)/2,($=<)/2,($>=)/2,var_get/3],
+%    summary:   "Constrains X to be less than or equal to Y.",
+%    desc:      html("\
+%	Logically: Constrains X to be less than or equal to Y. X and
+%	Y are partial linear expressions. Partial linear expressions
+%	may contain terms of the form <TT>implicit_sum(+Var)</TT> in
+%	addition to any terms allowed within a standard linear
+%	expression. Variables occurring inside <TT>implicit_sum/1</TT>
+%	terms are taken to be subproblem variables whose instantiation
+%	will correspond to the coefficient of a generated master
+%	problem variable in this constraint. Operationally, the
+%	constraint gets delayed until the external solver state for
+%	ColgenInstance is invoked.")  ]).
+%
+%:- comment((=:=)/2,  [
+%    template:  "ColgenInstance:(?X =:= ?Y)",
+%    args:      ["X":    "Partial linear expression",
+%		"Y":    "Partial linear expression"
+%	       ],
+%    see_also:  [(=<)/2,(>=)/2,($=)/2,($=<)/2,($>=)/2,var_get/3],
+%    summary:   "Constrains X to be equal to Y.",
+%    desc:      html("\
+%	Logically: Constrains X to be equal to Y. X and Y are partial
+%	linear expressions. Partial linear expressions may contain
+%	terms of the form <TT>implicit_sum(+Var)</TT> in addition to
+%	any terms allowed within a standard linear
+%	expression. Variables occurring inside <TT>implicit_sum/1</TT>
+%	terms are taken to be subproblem variables whose instantiation
+%	will correspond to the coefficient of a generated master
+%	problem variable in this constraint. Operationally, the
+%	constraint gets delayed until the external solver state for
+%	ColgenInstance is invoked.")  ]).
 
 :- comment(($>=)/2,  [
     template:  "ColgenInstance:(?X $>= ?Y)",
@@ -311,11 +412,6 @@ desc:      html("\
     variable in this constraint. Operationally, the constraint gets
     delayed until the external solver state for ColgenInstance is
     invoked.
-    </P><P>
-    The $ version of the arithmetic constraints are
-    provided to allow code to be written which does not specify the
-    solver. They are equivalent to their colgen instance counterparts
-    without the $ prefix.
     </P>
  ")
 ]).
@@ -339,11 +435,6 @@ desc:      html("\
     variable in this constraint. Operationally, the constraint gets
     delayed until the external solver state for ColgenInstance is
     invoked.
-    </P><P>
-    The $ version of the arithmetic constraints are provided to allow
-    code to be written which does not specify the solver. They are
-    equivalent to their colgen instance counterparts without the $
-    prefix.
     </P>
  ")
 ]).
@@ -367,11 +458,83 @@ desc:      html("\
     variable in this constraint. Operationally, the constraint gets
     delayed until the external solver state for ColgenInstance is
     invoked.
-    </P><P>
-    The $ version of the arithmetic constraints are provided to allow
-    code to be written which does not specify the solver. They are
-    equivalent to their colgen instance counterparts without the $
-    prefix.
     </P>
  ")
 ]).
+
+
+:- comment(set/2,  [
+    template:  "ColgenInstance:set(+What,++Value)",
+    args:      ["What": "Parameter name",
+		"Value":"Parameter value"
+	       ],
+    see_also:  [colgen:get/2, colgen:solver_setup/3],
+    summary:   "Set parameters for column generation instance.",
+    desc:      html("\
+    <P>
+    Set parameters for the give column generation instance:
+    </P>
+<DL>
+<DT><TT>disallow (off|lp|clp)</TT><DD>
+    policy for active preventions of duplicate columns.
+<DT><TT>int_tolerance (1e-5|float)</TT><DD>
+    tolerance for optimality.
+<DT><TT>basis_perturbation (off|on)</TT><DD>
+    should we try and perturb the external solver basis when we appear
+    to be at optimal and external solver returns same basis after adding
+    columns  ('off' - no, 'on' - temporarily set the external solver
+    to always perturb)
+<DT><TT>info_messages (off|on)</TT><DD>
+    print messages while solving.
+<DT><TT>on_degeneracy (stop|continue)</TT><DD>
+    should we halt when we find degeneracy (default 'stop'), or
+    continue and let the subproblem solver deal with it ('continue').
+<DT><TT>stabilisation (off|on()|stab_pred())</TT><DD>
+    the policy to perform basis stabilisation:
+    <DL>
+    <DT><TT>off</TT><DD>
+	no stabilisation is performed.
+    <DT><TT>on(BoundIter, BoundUpdate, CoeffIter, CoeffUpdate)</TT><DD>
+	then the default policy is used with var bounds/coefficients
+	updated by BoundUpdate/CoeffUpdate after BoundIter/CoeffIter
+	iterations respectively.
+    <DT><TT>stab_pred(UpdatePred, StoppingPred)</TT><DD>
+	a user defined policy is employed and UpdatePred/ StoppingPred
+	should be predicates that perform the updates and test for
+	stopping conditions.
+    </DL>
+<DT><TT>stab_coeff/bound_minus/plus(Ident)</TT><DD>
+    parameters for stabilisation, per constraint.
+</DL>
+ ")
+]).
+
+
+
+/*
+:- comment(integers/1,  [
+    template:  "ColgenInstance:integers(?Vars)",
+    args:      ["Vars":    "Variable or a list or variables"],
+    see_also:  [_:integers/1,reals/1,(::)/2],
+    summary:   "Constrains Vars to integers for ColgenInstance.",
+    desc:      html("<P>\
+	Constrains list Vars to integers in the eplex instance
+        EplexInstance. If a variable in Vars is not already a problem
+        variable for EplexInstance, it will be added as a new problem
+        variable. The external solver will then take the integrality into
+        account, i.e. to solve a MIP/MIQP rather than a relaxed LP/QP
+        problem.  Unlike integers/1 constraints from other solvers, the
+        variables are not constrained to be integer type at the ECLiPSe
+        level. However, when a typed_solution is retrieved (e.g. via
+        eplex_var_get/3), this will be rounded to the nearest integer.
+	<P>
+	Note that even when problem variables have been declared as
+        integers in other solvers (ic or other external solver
+        states), if the integrality constraint is not made known to this
+        EplexInstance, any invocation of the eplex external solver (e.g. via
+        eplex_solve/1) will only solve a continuous relaxation.
+	<P>
+	")
+    ]).
+
+*/

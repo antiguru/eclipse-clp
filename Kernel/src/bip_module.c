@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.6 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: bip_module.c,v 1.7 2010/07/25 13:29:05 jschimpf Exp $
  */
 
 /*
@@ -386,8 +386,8 @@ p_is_module(value v, type t)
 static int
 p_authorized_module(value v, type t)
 {
-    Check_Module_And_Access(v, t);
-    Succeed_;
+    Check_Atom_Or_Nil(v, t);
+    Succeed_If(IsModule(v.did) && (!IsLocked(v.did) || IsModuleTag(v.did, t)));
 }
 
 
