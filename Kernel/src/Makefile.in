@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.6 2010/07/25 13:29:05 jschimpf Exp $
+# $Id: Makefile.in,v 1.7 2010/07/27 13:36:17 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -544,6 +544,7 @@ PL_LIBRARIES =	version.pl
 #
 
 ECL_ECO_LIBRARIES =	constraint_pools.ecl document.ecl fcompile.ecl \
+		lazy_io.ecl \
 		multifile.ecl notify_ports.ecl port_profiler.ecl \
 		swi.ecl time_log.ecl timeout.ecl var_name.ecl
 
@@ -580,7 +581,7 @@ BOOT_ECO_MODULES = \
 
 # Files from which .eci files will be produced (.ecl,.pl)
 
-ECI_ECL_LIBRARIES =	hash.ecl document.ecl \
+ECI_ECL_LIBRARIES =	hash.ecl document.ecl lazy_io.ecl \
 		var_name.ecl time_log.ecl module_options.ecl \
 		notify_ports.ecl constraint_pools.ecl port_profiler.ecl \
 		swi.ecl timeout.ecl fcompile.ecl multifile.ecl
