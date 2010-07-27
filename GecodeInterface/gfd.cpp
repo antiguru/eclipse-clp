@@ -40,13 +40,25 @@ EC_argument(EC_word t, int i)
   return e;
 }
 
+// Arg is an integer domain variable with index Idx 
+#define ArgIsVarIdx(Arg, Idx)			\
+    (EC_arg(Arg).functor(&f) == EC_succeed &&	\
+	strcmp(f.name(),"_ivar") ==0 && \
+	EC_argument(EC_arg(Arg),1).is_long(&Idx) == EC_succeed)
+
+// Arg is an integer domain variable with associated boolean with index BIdx
+#define ArgIsVarBoolIdx(Arg, BIdx)		     \
+    (EC_arg(Arg).functor(&f) == EC_succeed &&	     \
+	strcmp(f.name(),"_ivar") ==0 && \
+	EC_argument(EC_arg(Arg),2).is_long(&BIdx) == EC_succeed)
+
 extern "C" stream_id log_output_, warning_output_, current_err_;
 
 extern "C" void ec_trail_undo(void(*f)(pword*,word*,int,int), pword*, pword*, word*, int, int);
 
 extern "C" int ec_flush(stream_id);
 
-extern "C" int p_fprintf(stream_id, char*, ...);
+extern "C" int p_fprintf(stream_id, const char*, ...);
 
 using namespace Gecode;
 
@@ -152,7 +164,7 @@ void cache_domain_sizes(GecodeSpace* solver) {
     if (varsize > snapshotsize) {
 	solver->dom_snapshot.reserve(varsize);
     }
-    if (solver->snapshot_valid()) {
+    if (!solver->snapshot_valid()) {
 	for (int i=1; i < snapshotsize; i++) {
 	    solver->dom_snapshot[i] = solver->vInt[i].size();
 	}
@@ -190,6 +202,22 @@ int p_g_trail_undo_for_event()
 
     ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, ec_arg(1).val.ptr+SPACE_STAMP_POS, NULL, 0, TRAILED_WORD32);
     return EC_succeed;
+}
+
+extern "C"
+int p_g_state_is_stable()
+{
+    GecodeSpace** solverp;
+    EC_functor f;
+    EC_word w;
+
+    if (EC_arg(1).functor(&f) != EC_succeed) return TYPE_ERROR;
+    EC_arg(1).arg(SPACE_HANDLE_POS, w);
+    if (w.is_handle(&gfd_method, (void**)&solverp) != EC_succeed) 
+	return TYPE_ERROR;
+
+    return ((*solverp)->stable() ? EC_succeed : EC_fail);
+
 }
 
 extern "C"
@@ -343,19 +371,41 @@ int p_g_get_var_lwb_after_update()
     long val;
     if (EC_succeed != EC_arg(3).is_long(&val)) return(TYPE_ERROR);
 
-    rel(*solver, solver->vInt[(int)idx], IRT_GR, val);
-
     // update lower bound before getting it
     long doprop;
     if (EC_succeed != EC_arg(4).is_long(&doprop)) return(TYPE_ERROR);
+
+    if (doprop == 1) cache_domain_sizes(solver); // get snapshot if needed
+
+
+    rel(*solver, solver->vInt[(int)idx], IRT_GR, (int)val);
+
     if (doprop == 0) {
 	if (solver->failed()) return EC_fail;
     } else {
 	if (!solver->status()) return EC_fail;
     }
 
+
     return unify(EC_arg(5), EC_word(solver->vInt[(int)idx].min()));
 
+}
+
+extern "C"
+int p_g_get_var_upb()
+{
+    long idx;
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (EC_succeed != EC_arg(2).is_long(&idx)) return(TYPE_ERROR);
+
+    if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
+
+    return unify(EC_arg(3), EC_word(solver->vInt[(int)idx].max()));
 }
 
 extern "C"
@@ -425,6 +475,7 @@ int p_g_add_newvars_interval()
     return EC_succeed;
 }
 
+
 extern "C"
 int p_g_add_newbool()
 {
@@ -477,6 +528,7 @@ int p_g_add_newvars_dom()
 
     return EC_succeed;
 }
+
 
 LinExpr<IntVar>
 ec2linexpr(EC_word e, GecodeSpace* solver)
@@ -671,6 +723,7 @@ int p_g_post_bool_connectives()
     }
 }
 
+
 extern "C"
 int p_g_post_linrel_cstr()
 {
@@ -698,7 +751,7 @@ int p_g_post_linrel_cstr()
 }
 
 extern "C"
-int p_g_setvar()
+int p_g_post_setvar()
 {
     GecodeSpace** solverp;
     GecodeSpace* solver;
@@ -722,11 +775,27 @@ int p_g_setvar()
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
     if (first) cache_domain_sizes(solver);
 
-    dom(*solver, solver->vInt[idx], val);
+    dom(*solver, solver->vInt[idx], (int)val);
+//    rel(*solver, solver->vInt[idx], IRT_EQ, (int)val);
     if (first) solver->dom_snapshot[idx] = 1; // just assigned!
 
     return (solver->failed() ? EC_fail : EC_succeed);
 
+}
+
+#define CheckAndMakeChanged(snapshotsolver, tail, chgtail) \
+{ \
+    int dsize; \
+    for (int i=1; i<snapshotsize; i++) { \
+	dsize = solver->vInt[i].size();  \
+	if (snapshotsolver->dom_snapshot[i] > dsize) { \
+	    if (dsize == 1) { \
+		tail = list(i,tail); \
+	    } else { \
+		chgtail = list(i,chgtail); \
+	    } \
+	} \
+    } \
 }
 
 extern "C"
@@ -749,33 +818,25 @@ int p_g_propagate()
 //    if (first == 0) return EC_succeed;
 
 
-    EC_word tail = nil();
+    EC_word tail = nil(), chgtail = nil();
 
-    if (first == 1) {
-    int dsize;
+    if (first == 1 && solver->snapshot_valid()) {
 //    int res;
-    int snapshotsize = solver->dom_snapshot.size();
+	int snapshotsize = solver->dom_snapshot.size();
 
 //    printf("size: %d,%d\n",EC_arg(2).arity(), snapshotsize);
 //    if (EC_arg(3).arity() < snapshotsize) return RANGE_ERROR; 
 
-    for (int i=1; i<snapshotsize; i++) {
-
-	dsize = solver->vInt[i].size();
-	if (solver->dom_snapshot[i] > dsize) {
-	    if (dsize == 1) {
-		tail = list(i,tail);
-//		res = unify(EC_argument(EC_arg(3), i), EC_word(solver->vInt[i].val()));
-//		if (res != EC_succeed) return res;
-	    }
-	}
+	CheckAndMakeChanged(solver, tail, chgtail);
     }
     solver->clear_snapshot();
+
+    if (unify(EC_arg(3), tail) != EC_succeed) {
+	return EC_fail;
+    } else {
+	return unify(EC_arg(4), chgtail);
     }
 
-    return unify(EC_arg(3), tail);
-
-//    return EC_succeed;
 }
 
 extern "C"
@@ -813,6 +874,68 @@ int p_g_post_interval()
 }
 
 extern "C"
+int p_g_post_var_interval_reif()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    long min, max;
+
+    if (EC_succeed != EC_arg(4).is_long(&min)) return(TYPE_ERROR);
+    if (EC_succeed != EC_arg(5).is_long(&max)) return(TYPE_ERROR);
+    if (min > max) return RANGE_ERROR;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    long xidx;
+    IntVar x;
+    EC_functor f;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    long b;
+    BoolVar reif;
+    bool bool_is_set;
+
+    if (ArgIsVarBoolIdx(6, b)) {
+	reif = solver->vBool[(int)b];
+	bool_is_set = false;
+    } else if (EC_arg(6).is_long(&b) == EC_succeed) {
+	    if (b < 0 || b > 1) return RANGE_ERROR;
+	    bool_is_set = true;
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    // Gecode does not seem to have the following:
+    // dom(*solver, vars, min, max, reif);
+    if (bool_is_set) {
+	if (b == 1) {
+	    dom(*solver, x, (int)min, (int)max);
+	    return (solver->failed() ? EC_fail : EC_succeed);
+	} else if (b == 0) 
+	    reif.init(*solver, 0, 0);
+	else
+	    return RANGE_ERROR;
+    }
+
+    dom(*solver, x, min, max, reif);
+    return (solver->failed() ? EC_fail : EC_succeed);
+
+}
+
+extern "C"
 int p_g_post_dom()
 {
     GecodeSpace** solverp;
@@ -846,6 +969,127 @@ int p_g_post_dom()
 
     dom(*solver, vars, domset);
 
+    return (solver->failed() ? EC_fail : EC_succeed);
+}
+
+extern "C"
+int p_g_post_var_dom_reif()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    long xidx;
+    IntVar x;
+    EC_functor f;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    EC_word darr = EC_arg(4);
+    int dsize = darr.arity();
+    int ranges[dsize][2];
+    if (dsize == 0) return TYPE_ERROR;
+
+    int res = get_domain_intervals_from_ec_array(dsize, darr, ranges);
+    if (res != EC_succeed) return res;
+    IntSet domset(ranges, dsize);
+
+    long b;
+    BoolVar reif;
+    bool bool_is_set;
+
+    if (ArgIsVarBoolIdx(5, b)) {
+	reif = solver->vBool[(int)b];
+	bool_is_set = false;
+    } else if (EC_arg(5).is_long(&b) == EC_succeed) {
+	    if (b < 0 || b > 1) return RANGE_ERROR;
+	    bool_is_set = true;
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    if (bool_is_set) {
+	if (b == 1) {
+	    dom(*solver, x, domset);
+	    return (solver->failed() ? EC_fail : EC_succeed);
+	} else if (b == 0) 
+	    reif.init(*solver, 0, 0);
+	else 
+	    return RANGE_ERROR;
+    }
+
+    dom(*solver, x, domset, reif);
+    return (solver->failed() ? EC_fail : EC_succeed);
+}
+
+extern "C"
+int p_g_post_var_val_reif()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    long xidx;
+    IntVar x;
+    EC_functor f;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    long val;
+
+    if (EC_succeed != EC_arg(4).is_long(&val)) return(TYPE_ERROR);
+
+    long b;
+    BoolVar reif;
+    bool bool_is_set;
+
+    if (ArgIsVarBoolIdx(5, b)) {
+	reif = solver->vBool[(int)b];
+	bool_is_set = false;
+    } else if (EC_arg(5).is_long(&b) == EC_succeed) {
+	    if (b < 0 || b > 1) return RANGE_ERROR;
+	    bool_is_set = true;
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    if (bool_is_set) {
+	if (b == 1) {
+	    dom(*solver, x, (int)val);
+	    return (solver->failed() ? EC_fail : EC_succeed);
+	} else if (b == 0) 
+	    reif.init(*solver, 0, 0);
+	else 
+	    return RANGE_ERROR;
+    }
+
+    dom(*solver, x, (int)val, reif);
     return (solver->failed() ? EC_fail : EC_succeed);
 }
 
@@ -970,6 +1214,501 @@ int p_g_post_count()
 
     if (n_is_int) count(*solver, vars, (int)val, rel, n);
     else count(*solver, vars, (int)val, rel, solver->vInt[(int)n]);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_element()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    long v, i;
+    bool v_is_int;
+    IntVar vvar, ivar;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+
+    if (ArgIsVarIdx(5, v)) {
+	if (v < 1 || v >= solver->vInt.size()) return RANGE_ERROR;
+	vvar = solver->vInt[(int)v];
+	v_is_int = false;
+    } else if (EC_arg(5).is_long(&v) == EC_succeed) {
+	v_is_int = true;
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(3, i)) {
+	if (i < 1 || i >= solver->vInt.size()) return RANGE_ERROR;
+	ivar = solver->vInt[(int)i];
+    } else if (EC_arg(3).is_long(&i) == EC_succeed) {
+	ivar.init(*solver, (int)i, (int)i);
+    } else
+	return TYPE_ERROR;
+
+    EC_word arr = EC_arg(4);
+    int size = arr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs vals(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, arr, vals);
+    if (res != EC_succeed) return res;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    if (v_is_int)
+	element(*solver, vals, ivar, v);
+    else
+	element(*solver, vals, ivar, vvar);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_sqrt()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx, yidx;
+    IntVar x, y;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(4, yidx)) {
+	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
+	y = solver->vInt[(int)yidx];
+    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
+	y.init(*solver, (int)yidx, (int)yidx);
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    sqrt(*solver, y, x);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_sq()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx, yidx;
+    IntVar x, y;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(4, yidx)) {
+	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
+	y = solver->vInt[(int)yidx];
+    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
+	y.init(*solver, (int)yidx, (int)yidx);
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    sqr(*solver, y, x);
+
+    return EC_succeed;
+}
+
+
+extern "C"
+int p_g_post_abs()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx, yidx;
+    IntVar x, y;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(4, yidx)) {
+	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
+	y = solver->vInt[(int)yidx];
+    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
+	y.init(*solver, (int)yidx, (int)yidx);
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    abs(*solver, y, x);
+
+    return EC_succeed;
+}
+
+
+extern "C"
+int p_g_post_mult()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx, yidx, zidx;
+    IntVar x, y, z;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(4, yidx)) {
+	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
+	y = solver->vInt[yidx];
+    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
+	y.init(*solver, (int)yidx, (int)yidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(5, zidx)) {
+	if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
+	z = solver->vInt[zidx];
+    } else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
+	z.init(*solver, (int)zidx, (int)zidx);
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    mult(*solver, y, z, x);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_div()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx, yidx, zidx;
+    IntVar x, y, z;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(4, yidx)) {
+	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
+	y = solver->vInt[(int)yidx];
+    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
+	y.init(*solver, (int)yidx, (int)yidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(5, zidx)) {
+	if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
+	z = solver->vInt[(int)zidx];
+    } else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
+	z.init(*solver, (int)zidx, (int)zidx);
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    div(*solver, y, z, x);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_mod()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx, yidx, zidx;
+    IntVar x, y, z;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(4, yidx)) {
+	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
+	y = solver->vInt[(int)yidx];
+    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
+	y.init(*solver, (int)yidx, (int)yidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(5, zidx)) {
+	if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
+	z = solver->vInt[(int)zidx];
+    } else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
+	z.init(*solver, (int)zidx, (int)zidx);
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    mod(*solver, y, z, x);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_max2()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx, yidx, zidx;
+    IntVar x, y, z;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(4, yidx)) {
+	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
+	y = solver->vInt[(int)yidx];
+    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
+	y.init(*solver, (int)yidx, (int)yidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(5, zidx)) {
+	if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
+	z = solver->vInt[(int)zidx];
+    } else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
+	z.init(*solver, (int)zidx, (int)zidx);
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    max(*solver, y, z, x);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_min2()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx, yidx, zidx;
+    IntVar x, y, z;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(4, yidx)) {
+	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
+	y = solver->vInt[(int)yidx];
+    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
+	y.init(*solver, (int)yidx, (int)yidx);
+    } else
+	return TYPE_ERROR;
+
+    if (ArgIsVarIdx(5, zidx)) {
+	if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
+	z = solver->vInt[(int)zidx];
+    } else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
+	z.init(*solver, (int)zidx, (int)zidx);
+    } else
+	return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    min(*solver, y, z, x);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_maxlist()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx;
+    IntVar x;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    EC_word varr = EC_arg(4);
+    int size = varr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs vars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+    if (res != EC_succeed) return res;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    max(*solver, vars, x);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_minlist()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_functor f;
+    long xidx;
+    IntVar x;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+
+    EC_word varr = EC_arg(4);
+    int size = varr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs vars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+    if (res != EC_succeed) return res;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    min(*solver, vars, x);
 
     return EC_succeed;
 }
@@ -1182,21 +1921,15 @@ int p_g_do_search()
 
     int snapshotsize = presearch->dom_snapshot.size();
     int dsize;
-    EC_word tail = nil();
+    EC_word tail = nil(),chgtail = nil();
 
-    for (int i=1; i<snapshotsize; i++) {
+    CheckAndMakeChanged(presearch, tail, chgtail);
 
-	dsize = solver->vInt[i].size();
-	if (presearch->dom_snapshot[i] > dsize) {
-	    if (dsize == 1) {
-		tail = list(i,tail);
-//		res = unify(EC_argument(EC_arg(5), i), EC_word(solver->vInt[i].val()));
-//		if (res != EC_succeed) return res;
-	    }
-	}
+    if (unify(EC_arg(5), tail) != EC_succeed) {
+	return EC_fail;
+    } else {
+	return unify(EC_arg(6), chgtail);
     }
-
-    return unify(EC_arg(5), tail);
 }
 
     

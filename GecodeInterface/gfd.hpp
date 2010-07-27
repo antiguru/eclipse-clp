@@ -44,12 +44,15 @@ public:
     void clear_snapshot() {valid_snapshot = false;}
     bool snapshot_valid() {return valid_snapshot;}
 
-    GecodeSpace(bool share, GecodeSpace& s) : valid_snapshot(0), 
-					      booltrue(*this, 1, 1), boolfalse(*this, 0, 0),
+    GecodeSpace(bool share, GecodeSpace& s) : valid_snapshot(s.valid_snapshot),
+	                                      booltrue(*this, 1, 1), boolfalse(*this, 0, 0),
 					      Gecode::MinimizeSpace(share,s) {
+//	valid_snapshot = s.valid_snapshot;
+	if (snapshot_valid()) dom_snapshot = s.dom_snapshot;
 	vInt.update(*this, share, s.vInt);
 	vBool.update(*this, share, s.vBool);
 	vCost.update(*this, share, s.vCost);
+	
     }
 
     virtual Gecode::MinimizeSpace*
