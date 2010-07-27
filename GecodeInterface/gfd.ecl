@@ -52,8 +52,7 @@
 :- export (and)/2, (or)/2, (xor)/2, (<=>)/2, (=>)/2, neg/1.
 
 :- export get_min/2, get_max/2.
-:- export exclude/2.
-   
+
 :- tool('#\\='/2, '#\\=_body'/3).
 :- tool('#='/2, '#=_body'/3).
 :- tool('#<'/2, '#<_body'/3).
@@ -109,7 +108,7 @@
         external(g_post_mod/5, p_g_post_mod),
         external(g_post_min2/5, p_g_post_min2),
         external(g_post_max2/5, p_g_post_max2),
-        external(g_propagate/4, p_g_propagate),
+        external(g_propagate/3, p_g_propagate),
         external(g_check_val_is_in_var_domain/3, p_g_check_val_is_in_var_domain),
         external(g_get_var_bounds/4, p_g_get_var_bounds),
         external(g_get_var_value/3, p_g_get_var_value),
@@ -118,7 +117,7 @@
         external(g_get_var_lwb_after_update/5, p_g_get_var_lwb_after_update),
         external(g_get_var_upb/3, p_g_get_var_upb),
         external(g_setup_search/7, p_g_setup_search),
-        external(g_do_search/6, p_g_do_search).
+        external(g_do_search/5, p_g_do_search).
 
 :- export struct(
         gfd_prob(
@@ -144,7 +143,6 @@
             idx,
             bool,
             prob,
-            any,
             set
         )
    ).
@@ -260,16 +258,11 @@ unify_term_gfd(Y{gfd:AttrY}, AttrX) ?-
         unify_gfd_gfd(Y, AttrX, AttrY).
 unify_term_gfd(X, Attr) :-
         integer(X),
-%        Attr = gfd{prob:H,idx:I},
+        Attr = gfd{prob:H,idx:I},
         Attr = gfd{prob:H,set:S,idx:I},
 %        post_new_event(setvar(I, X), H).
 %        check_and_update_handle(H),
-        schedule_suspensions(any of gfd, Attr),
-        ( S == [] -> 
-            true 
-        ; 
-            post_new_event_no_wake(setvar(I, X), H)
-        ).
+        ( S == [] -> true ; post_new_event(setvar(I, X), H)).
 /*        H = gfd_prob{space:gfd_space{handle:SpH}},
         ( g_get_var_value(SpH, I, Y) -> % fail if not assigned
             X == Y
@@ -297,11 +290,10 @@ unify_gfd_gfd(_Y, AttrX, AttrY) :-
             ;
                 BX = BY
             ),
-            merge_suspension_lists(any of gfd, AttrY, any of gfd, AttrX),
             % post an equality constraint for the two variables to gecode
             gfdvar(IdxX,BX,GX),
             gfdvar(IdxY,BY,GY),
-            post_new_event_no_wake(post_rc(GX #= GY), HY)
+            post_new_event(post_rc(GX #= GY), HY)
         ).
 
 gfd_set_var_bounds(_{gfd:Attr}, Lo0, Hi0) ?-
@@ -881,7 +873,6 @@ gfd_var_print(X, Domain) :-
 :- mode new_gecode_attr(?,+,+,?,-).
 new_gecode_attr(X, H, N, BN, Attr) :-
         Attr = gfd{prob:H,idx:N, bool:BN},
-        init_suspension_list(any of gfd, Attr),
         add_attribute(X, Attr, gfd).
 
 update_space_with_events(H) :-
@@ -924,7 +915,7 @@ post_new_event_with_aux(Es, EsTail, H) :-
         set_new_event(Es, EsTail0, H),
         post_new_events1(Es, H, _First, DoProp),
         EsTail = EsTail0, % join posted events to head of events list 
-        ( var(DoProp) -> true ; try_propagate(1, H), wake ).
+        ( var(DoProp) -> true ; try_propagate(1, H) ).
 
 
 post_new_events1(Es, H, First, DoProp) :-
@@ -940,16 +931,8 @@ post_new_events1(Es, H, First, DoProp) :-
             (DoProp0 == 1 -> DoProp = 1 ; true)
         ).
 
-/* post_nrw_event call wake at the end, so that gfd_do_propagate will
-   be woken and executed. This may not be appropriate if the posted 
-   event is part of an atomic operation, e.g. in the unify handler, when
-   goals only woken later when all the handlers have been executed
-*/
-post_new_event(E, H) :-
-        post_new_event_no_wake(E, H),
-        wake.
 
-post_new_event_no_wake(E, H) :-
+post_new_event(E, H) :-
         Es = [E|ET],
         set_new_event(Es, ET, H),
         do_event(E, H, 1, DoProp), % First = 1 (not recomputing)
@@ -958,8 +941,8 @@ post_new_event_no_wake(E, H) :-
 try_propagate(0, _).
 try_propagate(1, H) ?-
         H = gfd_prob{prop:Susp},
-        schedule_suspensions(1, s([Susp])).
-
+        schedule_suspensions(1, s([Susp])),
+        wake.
 
 :- demon gfd_do_propagate/1.
 gfd_do_propagate(H) :-
@@ -1138,41 +1121,19 @@ do_event1(propagate, SpH, First, DoProp) ?-
 %        g_propagate(SpH).
         get_prob_handle(gfd_prob{vars:VArr}),
 %        g_propagate(SpH, First, VArr).
-        g_propagate(SpH, First, InstList, ChgList),
-        propagate_gecode_changes(SpH, VArr, InstList, ChgList).
-
-
-propagate_gecode_changes(SpH, VArr, InstList, ChgList) :-
+        g_propagate(SpH, First, InstList),
         ( InstList == [] ->
 %            store_inc(stats, pg0)
             true
         ;
 %            length(InstList, Len), concat_atom([pg, Len], Key), store_inc(stats, Key), 
+%            get_prob_handle(gfd_prob{vars:VArr}),
             ( foreach(Idx, InstList), param(VArr, SpH) do
                 arg(Idx, VArr, V),
-                mark_var_as_set(V),g_get_var_value(SpH, Idx, V)
-%                (integer(V) -> true ; mark_var_as_set(V),g_get_var_value(SpH, Idx, V))
+                (integer(V) -> true ; mark_var_as_set(V),g_get_var_value(SpH, Idx, V))
 %                (integer(V) -> true ; g_get_var_value(SpH, Idx, V))
             )
-        ),
-        ( ChgList == [] ->
-            true
-        ;
-            ( foreach(CIdx, ChgList), param(VArr) do
-                arg(CIdx, VArr, U),
-/*                ( integer(U) -> 
-                    % may be integer from previous unifications not yet
-                    % sync'ed with Gecode
-                    true
-                ;
-*/
-                    get_gecode_attr(U, _H, Attr),
-                    % assuming only one single problem, otherwise need H
-                    schedule_suspensions(any of gfd, Attr)
-%                )
-            )
         ).
-           
 
 mark_var_as_set(_{gfd{set:S}}) ?- S = [].
 
@@ -1581,14 +1542,22 @@ do_search(LastSpH, EngH, MethodCode, H) :-
         mark_handle_for_ancestor_update(H),
         H = gfd_prob{space:SP},
         repeat,
-        (g_do_search(SP, EngH, MethodCode, LastSpH, InstList, ChgList) -> % fails if no more solution
+        (g_do_search(SP, EngH, MethodCode, LastSpH, InstList) -> % fails if no more solution
             % a clone is created automatically by gecode's search
             % make sure an ancestor will be created on new event
 %            writeln(succ:g_do_search(SP, EngH, MethodCode, LastSpH, InstList)),
             H = gfd_prob{vars:VArr},
             SP = gfd_space{handle:SpH},
-            propagate_gecode_changes(SpH, VArr, InstList, ChgList),
-            wake % need wake here -- search is not an event
+            ( InstList == [] ->
+                %store_inc(stats, pg0)
+                true
+            ;
+                %length(InstList, Len), concat_atom([pg, Len], Key), store_inc(stats, Key), 
+                ( foreach(Idx, InstList), param(VArr, SpH) do
+                    arg(Idx, VArr, V),
+                    (integer(V) -> true ; mark_var_as_set(V),g_get_var_value(SpH, Idx, V))
+                )
+            )
         ;
 %            writeln(failed:g_do_search(SP, EngH, MethodCode, LastSpH, InstList)),
             !, fail
@@ -1614,11 +1583,3 @@ get_max(_{gfd:Attr}, Hi) ?-
         g_get_var_upb(SpH, Idx, Hi).
 
 
-exclude(I, Excl) ?-
-        integer(I), !,
-        I \= Excl.
-exclude(V{gfd:Attr}, I) ?- 
-        nonvar(Attr),
-        Attr = gfd{prob:H, idx:Idx,bool:BI},
-        gfdvar(Idx,BI, GV),
-        post_new_event_no_wake(post_var_val_reif(GV, Value, 0), H).

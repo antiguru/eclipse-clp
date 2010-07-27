@@ -58,7 +58,7 @@ extern "C" void ec_trail_undo(void(*f)(pword*,word*,int,int), pword*, pword*, wo
 
 extern "C" int ec_flush(stream_id);
 
-extern "C" int p_fprintf(stream_id, const char*, ...);
+extern "C" int p_fprintf(stream_id, char*, ...);
 
 using namespace Gecode;
 
@@ -783,21 +783,6 @@ int p_g_post_setvar()
 
 }
 
-#define CheckAndMakeChanged(snapshotsolver, tail, chgtail) \
-{ \
-    int dsize; \
-    for (int i=1; i<snapshotsize; i++) { \
-	dsize = solver->vInt[i].size();  \
-	if (snapshotsolver->dom_snapshot[i] > dsize) { \
-	    if (dsize == 1) { \
-		tail = list(i,tail); \
-	    } else { \
-		chgtail = list(i,chgtail); \
-	    } \
-	} \
-    } \
-}
-
 extern "C"
 int p_g_propagate()
 {
@@ -818,25 +803,33 @@ int p_g_propagate()
 //    if (first == 0) return EC_succeed;
 
 
-    EC_word tail = nil(), chgtail = nil();
+    EC_word tail = nil();
 
     if (first == 1 && solver->snapshot_valid()) {
+	int dsize;
 //    int res;
 	int snapshotsize = solver->dom_snapshot.size();
 
 //    printf("size: %d,%d\n",EC_arg(2).arity(), snapshotsize);
 //    if (EC_arg(3).arity() < snapshotsize) return RANGE_ERROR; 
 
-	CheckAndMakeChanged(solver, tail, chgtail);
+	for (int i=1; i<snapshotsize; i++) {
+
+	    dsize = solver->vInt[i].size();
+	    if (solver->dom_snapshot[i] > dsize) {
+		if (dsize == 1) {
+		    tail = list(i,tail);
+//		res = unify(EC_argument(EC_arg(3), i), EC_word(solver->vInt[i].val()));
+//		if (res != EC_succeed) return res;
+		}
+	    }
+	}
     }
     solver->clear_snapshot();
 
-    if (unify(EC_arg(3), tail) != EC_succeed) {
-	return EC_fail;
-    } else {
-	return unify(EC_arg(4), chgtail);
-    }
+    return unify(EC_arg(3), tail);
 
+//    return EC_succeed;
 }
 
 extern "C"
@@ -1921,15 +1914,21 @@ int p_g_do_search()
 
     int snapshotsize = presearch->dom_snapshot.size();
     int dsize;
-    EC_word tail = nil(),chgtail = nil();
+    EC_word tail = nil();
 
-    CheckAndMakeChanged(presearch, tail, chgtail);
+    for (int i=1; i<snapshotsize; i++) {
 
-    if (unify(EC_arg(5), tail) != EC_succeed) {
-	return EC_fail;
-    } else {
-	return unify(EC_arg(6), chgtail);
+	dsize = solver->vInt[i].size();
+	if (presearch->dom_snapshot[i] > dsize) {
+	    if (dsize == 1) {
+		tail = list(i,tail);
+//		res = unify(EC_argument(EC_arg(5), i), EC_word(solver->vInt[i].val()));
+//		if (res != EC_succeed) return res;
+	    }
+	}
     }
+
+    return unify(EC_arg(5), tail);
 }
 
     
