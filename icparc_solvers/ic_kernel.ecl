@@ -883,7 +883,9 @@ get_median(X, Median) :-
     %
 get_delta(X, Width) :-
 	get_bounds(X, Lo, Hi),
-	ria_unop(width, Lo, Hi, _, Width).
+        Width is Hi-Lo.
+        % this currently does Hi-Lo (no breal result), but only works with floats
+	%ria_unop(width, Lo, Hi, _, Width).
 
 
 %---------------------------------------------------------------------
