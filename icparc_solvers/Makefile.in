@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.20 2010/07/28 03:53:00 jschimpf Exp $
+# $Id: Makefile.in,v 1.21 2010/07/29 04:05:13 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -241,7 +241,7 @@ i386_nt/secplex121.dll: seplex_cplex.def seplex.c eplex_params.h seplex.h
 
 x86_64_nt/secplex121.dll: seplex_cplex.def seplex.c eplex_params.h seplex.h
 	$(CC) -DCPLEX=12 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex121/include/ilcplex -c seplex.c
-	$(DYLD) $(DYNLDFLAGS)  seplex_cplex.def seplex.o $(THIRDPARTY)/cplex121/lib/x64_windows_vs2008/stat_mda/cplex121.lib $(ECLIBS) -o secplex.dll
+	$(DYLD) $(DYNLDFLAGS)  seplex_cplex.def seplex.o $(THIRDPARTY)/cplex121/bin/x64_win64/cplex121.dll $(ECLIBS) -o secplex.dll
 	[ -d x86_64_nt ] || mkdir x86_64_nt
 	mv secplex.dll x86_64_nt/secplex121.dll
 	cp $(CPLEX121_SUPPORT_x86_64_nt) x86_64_nt/
