@@ -64,6 +64,7 @@ licence(_, osi, symclp, '', 0).
 %licence(_, osi, glpk, '', 0).
 
 % Defaults for other solvers
+licence(_Default, cplex, '121', '', 0).
 licence(_Default, xpress, '2000', '/opt/xpressmp/bin', 0).
 licence(_Default, xpress, '1427icp', default, 0).
 licence(_Default, xpress, '1326icp', default, 0).
