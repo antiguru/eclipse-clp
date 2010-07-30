@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_strings.c,v 1.3 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: bip_strings.c,v 1.4 2010/07/30 10:36:28 jschimpf Exp $
  */
 
 /*
@@ -665,6 +665,10 @@ _concat_string(value v1, type t1, value vsep, pword **conc)
 	    case TNIL:
 		length += 2;
 		break;
+	    case THANDLE:
+                if (ExternalData(cst->val.ptr))
+                    length += ExternalClass(cst->val.ptr)->string_size(ExternalData(cst->val.ptr), 0);
+		break;
 	    default:	/* handles all the numeric types */
 		if (IsNumber(cst->tag))
 		    length += tag_desc[cst_tag].string_size(cst->val, cst->tag, 0);
@@ -713,6 +717,10 @@ _concat_string(value v1, type t1, value vsep, pword **conc)
 		break;
 	    case TNIL:
 		*pa++ = '['; *pa++ = ']';
+		break;
+	    case THANDLE:
+                if (ExternalData(cst->val.ptr))
+                    pa += ExternalClass(cst->val.ptr)->to_string(ExternalData(cst->val.ptr), pa, 0);
 		break;
 	    default:	/* handles all the numeric types */
 		pa += tag_desc[cst_tag].to_string(cst->val, cst->tag, pa, 0);
