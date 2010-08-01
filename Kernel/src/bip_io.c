@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.8 2010/07/21 23:40:37 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.9 2010/08/01 03:48:48 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1689,6 +1689,8 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 30:		/* delete_file */
+	if (!IsFileStream(nst))
+	    { Fail_; }
 	result.val.did =
 	    StreamMode(nst) & SDELETELOST ? d_when_lost :
 	    StreamMode(nst) & SDELETECLOSED ? d_when_closed : d_.off;
@@ -1696,6 +1698,8 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 31:		/* full file path */
+	if ((StreamPath(nst)) == D_UNKNOWN)
+	    { Fail_; }
 	if ((result.val.did = StreamPath(nst)) == d_.nil)
 	    result.tag.kernel = TNIL;
 	else

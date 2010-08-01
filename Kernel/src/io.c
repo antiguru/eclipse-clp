@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.10 2010/08/01 03:48:48 jschimpf Exp $
  */
 
 /*
@@ -897,7 +897,7 @@ ec_close_stream(stream_id nst, int options)
     }
     else if(IsFileStream(nst) &&
 	( StreamMode(nst) & SDELETECLOSED ||
-	  StreamMode(nst) & SDELETECLOSED && options & CLOSE_LOST))
+	  StreamMode(nst) & SDELETELOST && options & CLOSE_LOST))
     {
 	if (ec_unlink(DidName(StreamPath(nst))) < 0)
 	{
