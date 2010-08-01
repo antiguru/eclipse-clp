@@ -270,9 +270,9 @@ Error:
    file, or in event handlers for compilation events.
 <P>
 "),
-	args:["Stream" : "Atom, Integer or variable."],
+	args:["Stream" : "Atom, stream handle or variable."],
 	fail_if:"Fails if no compilation from a stream is currently active",
-	exceptions:[5 : "Stream is instantiated, but not to an atom or integer."],
+	exceptions:[5 : "Stream is instantiated, but not to an atom or stream handle."],
 	eg:"
     [eclipse]: [user].
      a.
@@ -1671,7 +1671,7 @@ Error:
     <PRE>
 	compile(stream(Stream), [])
     </PRE>
-   Stream may be a physical stream number or a reserved or user-defined
+   Stream may be a stream handle or a reserved or user-defined
    symbolic stream name.  The stream can be of any type, e.g. file, tty,
    socket, queue, string, etc.
 <P>
@@ -1680,9 +1680,9 @@ Error:
    remains open.
 <P>
 "),
-	args:["Stream" : "Integer or atom."],
+	args:["Stream" : "Stream handle or alias (atom)"],
 	exceptions:[4 : "Stream is not instantiated.",
-		5 : "Stream is instantiated, but not to an atom or integer.",
+		5 : "Stream is instantiated, but not to an atom or stream handle.",
 		192 : "Stream is in an illegal stream mode.",
 		193 : "Stream is an illegal stream specification."],
 	eg:"
