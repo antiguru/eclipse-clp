@@ -1018,7 +1018,8 @@ desc: html("\
   specified in ECLiPSe's tmp_dir setting (get_flag/2, set_flag/2).
 
 </P><P>
-ListOfOptions are (such option should occur no more than once):
+ListOfOptions are (unless explicitly specified otherwise, each option should 
+occur no more than once):
 
 <DL>
 
@@ -1144,13 +1145,15 @@ ListOfOptions are (such option should occur no more than once):
 <DT><STRONG><TT>sos1(VarList)</TT></STRONG>
     <DD><TT>VarList</TT> is a list of variables which the solver should
     treat as variables of a type 1 special ordered set (SOS), i.e. at most
-    one of the variables in the set can be non-zero.
+    one of the variables in the set can be non-zero. This can occur multiple
+    times, for different sets of variables.
 
 <P>
 <DT><STRONG><TT>sos2(VarList)</TT></STRONG>
     <DD><TT>VarList</TT> is a list of variables which the solver should
     treat as variables of a type 2 special ordered set (SOS), i.e. at most
-    two of the variables in the set can be non-zero.
+    two of the variables in the set can be non-zero. This can occur multiple
+    times, for different sets of variables.
 
 <P>
 <DT><STRONG><TT>presolve(+YesNo)</TT></STRONG>
@@ -1212,10 +1215,11 @@ ListOfOptions are (such option should occur no more than once):
 <DT><STRONG><TT>use_var_names(+YesNo)</TT></STRONG>
     <DD>Specify if variable names (set using <TT>set_var_name/2</TT> of the 
     var_name library) should be passed to the external solver. If a 
-    particular variable does not have a name, a solver's default name 
-    would be used. Note that for XPRESS-MP, there is a limit on the length
-    of the name, which can be changed between 8 and 64 in steps of 8 with
-    the parameter <TT>mpsnamelength (XPRS_MPSNAMELENGTH)</TT>. Variable 
+    particular variable does not have a name when it is first passed to the
+    external solver, a default name determined by the solver would be used.
+    Note that for XPRESS-MP, there is a limit on the length of the name,
+    which can be changed between 8 and 64 in steps of 8 with the 
+    parameter <TT>mpsnamelength (XPRS_MPSNAMELENGTH)</TT>. Variable 
     names longer than this limit are truncated to the limit. 
     YesNo is one of the atoms <TT>yes</TT> or <TT>no</TT>, the default is 
     <TT>no</TT>.
@@ -1588,8 +1592,8 @@ desc:      html("\
     (or quadratic if supported by the external solver).
 
 </P><P>
-    Options is a list of options (see below). Each option should occur no
-    more than once.
+    Options is a list of options (see below). Unless explicitly specified
+    otherwise, each option should occur no more than once.
 
 
 </P><P>
@@ -1735,13 +1739,15 @@ The solver Options are:
 <DT><STRONG><TT>sos1(VarList)</TT></STRONG>
     <DD><TT>VarList</TT> is a list of variables which the solver should
     treat as variables of a type 1 special ordered set (SOS), i.e. at most
-    one of the variables in the set can be non-zero.
+    one of the variables in the set can be non-zero. This can occur multiple
+    times, for different sets of variables.
 
 <P>
 <DT><STRONG><TT>sos2(VarList)</TT></STRONG>
     <DD><TT>VarList</TT> is a list of variables which the solver should
     treat as variables of a type 2 special ordered set (SOS), i.e. at most
-    two of the variables in the set can be non-zero.
+    two of the variables in the set can be non-zero. This can occur multiple
+    times, for different sets of variables.
 
 <P>
 <DT><STRONG><TT>presolve(+YesNo)</TT></STRONG>
@@ -1803,11 +1809,12 @@ The solver Options are:
 <DT><STRONG><TT>use_var_names(+YesNo)</TT></STRONG>
     <DD>Specify if variable names (set using <TT>set_var_name/2</TT> of the 
     var_name library) should be passed to the external solver. If a 
-    particular variable does not have a name, a solver's default name 
-    would be used. Note that for XPRESS-MP, there is a limit on the length
-    of the name, which can be changed between 8 and 64 in steps of 8 with
-    the parameter <TT>N_NAMLEN</TT>. Variable names longer than this limit 
-    are truncated to the limit. 
+    particular variable does not have a name when it is first passed to the
+    external solver, a default name determined by the solver would be used.
+    Note that for XPRESS-MP, there is a limit on the length of the name,
+    which can be changed between 8 and 64 in steps of 8 with the 
+    parameter <TT>mpsnamelength (XPRS_MPSNAMELENGTH)</TT>. Variable 
+    names longer than this limit are truncated to the limit. 
     YesNo is one of the atoms <TT>yes</TT> or <TT>no</TT>, the default is 
     <TT>no</TT>.
 <P>
@@ -3299,16 +3306,16 @@ even after setup.
 
 <P>
     <DT><STRONG><TT>use_var_names</TT></STRONG>
-        <DD>Specify if variable names (set using <TT>set_var_name/2</TT> of the
-        var_name library) should be passed to the external solver. If a
+        <DD>Specify if variable names (set using <TT>set_var_name/2</TT> of
+        the var_name library) should be passed to the external solver. If a
         particular variable does not have a name, a solver's default name
-        would be used. Note that for XPRESS-MP, there is a limit on the
-        length of the name, which can be changed between 8 and 64 in steps
-        of 8 with the parameter <TT>N_NAMLEN</TT>. Variable names longer
-        than this limit are truncated to the limit. Note also that only 
-        new variables from constraints added after the <TT>lp_set/3</TT> call 
-        will pass their names to the external solver.
-        Value is one of the atoms <TT>yes</TT> or <TT>no</TT>.
+        would be used. Note that for XPRESS-MP, there is a limit on the length
+        of the name, which can be changed between 8 and 64 in steps of 8 with
+        the parameter <TT>N_NAMLEN</TT>. Variable names longer than this limit
+        are truncated to the limit.  
+        Value is one of the atoms <TT>yes</TT> or <TT>no</TT>, the default 
+        is <TT>no</TT>.
+
 <P>
     <DT><STRONG><TT>timeout</TT></STRONG>
         <DD>Set the external solver to time-out after <TT>Value</TT>
