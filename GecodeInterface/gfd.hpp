@@ -23,7 +23,11 @@
 #include <gecode/int.hh>
 #include <gecode/minimodel.hh>
 #include <gecode/search.hh>
+#include <gecode/graph.hh>
+//#include <gecode/scheduling.hh>
 #include <vector>
+
+using namespace Gecode;
 
 class GecodeSpace : public Gecode::MinimizeSpace {
 public:
@@ -68,4 +72,112 @@ private:
     bool valid_snapshot;
 };
 
+enum SearchMethod {METHOD_COMPLETE, 
+		   METHOD_LDS, 
+		   METHOD_BAB,
+		   METHOD_RESTART};
+
+// taken from gecode/driver/script.hpp, by Christian Schulte
+class Cutoff : public Gecode::Search::Stop {
+private:
+    Search::NodeStop* ns; ///< Used node stop object
+    Search::FailStop* fs; ///< Used fail stop object
+    Search::TimeStop* ts; ///< Used time stop object
+    Search::MemoryStop* ms; ///< Used memory stop object
+    long stop_reason;
+public:
+    /// Initialize stop object
+    Cutoff(unsigned int node, unsigned int fail, unsigned int time, size_t mem)
+	: ns((node > 0) ? new Search::NodeStop(node) : NULL),
+	  fs((fail > 0) ? new Search::FailStop(fail) : NULL),
+	  ts((time > 0) ? new Search::TimeStop(time) : NULL),
+	  ms((mem  > 0) ? new Search::MemoryStop(mem) : NULL),
+	  stop_reason(0) {}
+    /// Reason why search has been stopped
+    enum {
+	SR_NODE = 1 << 2, ///< Node limit reached
+	SR_FAIL = 1 << 3, ///< Fail limit reached
+	SR_TIME = 1 << 4, ///< Time limit reached
+	SR_MEM  = 1 << 5  ///< Memory limit reached
+    };
+    /// Test whether search must be stopped
+    virtual bool stop(const Search::Statistics& s, const Search::Options& o) {
+	bool stopping;
+	stopping =
+	    ((ns != NULL) && ns->stop(s,o)) ||
+	    ((fs != NULL) && fs->stop(s,o)) ||
+	    ((ts != NULL) && ts->stop(s,o)) ||
+	    ((ms != NULL) && ms->stop(s,o));
+	if (stopping) {
+	    this->stop_reason =
+		(((ns != NULL) && ns->stop(s,o)) ? SR_NODE : 0) |
+		(((fs != NULL) && fs->stop(s,o)) ? SR_FAIL : 0) |
+		(((ts != NULL) && ts->stop(s,o)) ? SR_TIME : 0) |
+		(((ms != NULL) && ms->stop(s,o)) ? SR_MEM  : 0);
+	}
+	return stopping;
+    }
+    /// Report reason why search has been stopped
+    long reason(void) {
+	return this->stop_reason;
+    }
+    /// Reset (currently only for timer)
+    void reset(void) {
+	if (ts != NULL) ts->reset();
+    }
+    /// Destructor
+    ~Cutoff(void) {
+	delete ns; delete fs; delete ts; delete ms;
+    }
+};
+
+
+class GecodeSearch {
+private:
+    Search::Engine* sengine;
+public:
+    SearchMethod method;
+    Cutoff* stopp;
+
+    GecodeSearch(GecodeSpace* solver, Search::Options o, unsigned extra,
+		 Cutoff* cutoffp, 
+		 const SearchMethod& m) : stopp(cutoffp), method(m) {
+	switch (m) {
+	    case METHOD_COMPLETE:
+		sengine = Search::dfs(solver,sizeof(GecodeSpace),o);
+		break;
+	    case METHOD_LDS:
+		o.d = extra;
+		sengine = Search::lds(solver,sizeof(GecodeSpace),o);
+		break;
+	    case METHOD_BAB:
+		solver->vCost = solver->vInt[extra];
+		sengine = Search::bab(solver,sizeof(GecodeSpace),o);
+		break;
+	    case METHOD_RESTART:
+		solver->vCost = solver->vInt[extra];
+		sengine = Search::restart(solver,sizeof(GecodeSpace),o);
+		break;
+	}
+    }
+
+    GecodeSpace* next(void) {
+	return static_cast<GecodeSpace*>(sengine->next());
+    }
+
+    Search::Statistics statistics(void) const {
+	return sengine->statistics();
+    }
+
+    bool stopped(void) const {
+	return sengine->stopped();
+    }
+
+    ~GecodeSearch(void) {
+	delete sengine;
+	if (stopp != NULL) delete stopp;
+    }
+};
+							       
+                                        
 class Ec2gcException {};

@@ -58,7 +58,7 @@ extern "C" void ec_trail_undo(void(*f)(pword*,word*,int,int), pword*, pword*, wo
 
 extern "C" int ec_flush(stream_id);
 
-extern "C" int p_fprintf(stream_id, char*, ...);
+extern "C" int p_fprintf(stream_id, const char*, ...);
 
 using namespace Gecode;
 
@@ -87,8 +87,9 @@ t_ext_type gfd_method = {
     NULL, /* set */
 };
 
-static void _free_search_handle(GecodeSpace** solverp)
+static void _free_search_handle(GecodeSearch* searchp)
 {
+    delete searchp;
 }
 
 t_ext_type gfdsearch_method = {
@@ -151,6 +152,22 @@ int assign_IntVarArgs_from_ec_array(GecodeSpace* solver, int size,
 		return RANGE_ERROR;
 	} else if (arg.is_long(&l) == EC_succeed) {
 	    vargs[i].init(*solver,(int)l,(int)l);
+	} else
+	    return TYPE_ERROR;
+    }
+    return EC_succeed;
+}
+
+int assign_IntArgs_from_ec_array(GecodeSpace* solver, int size, 
+				 EC_word ecarr, IntArgs& vargs)
+{
+    EC_word arg;
+    long l;
+
+    for(int i=0; i<size; i++) {
+	arg = EC_argument(ecarr, i+1);
+	if (arg.is_long(&l) == EC_succeed) {
+	    vargs[i] = (int)l;
 	} else
 	    return TYPE_ERROR;
     }
@@ -356,14 +373,22 @@ int p_g_get_var_lwb()
 }
 
 extern "C"
-int p_g_get_var_lwb_after_update()
+int p_g_update_and_get_var_bound()
 {
     long idx;
+    EC_functor f;
+    EC_word w;
     GecodeSpace** solverp;
     GecodeSpace* solver;
 
-    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+    if (EC_arg(1).functor(&f) != EC_succeed) return TYPE_ERROR;
+    if (strcmp(f.name(), "gfd_space") != 0) return TYPE_ERROR;
+    EC_arg(1).arg(SPACE_HANDLE_POS, w);
+    if (w.is_handle(&gfd_method, (void**)&solverp) != EC_succeed) 
 	return TYPE_ERROR;
+
+    if (*solverp == NULL) return TYPE_ERROR; 
+
     solver = *solverp;
     if (EC_succeed != EC_arg(2).is_long(&idx)) return(TYPE_ERROR);
 
@@ -372,22 +397,23 @@ int p_g_get_var_lwb_after_update()
     if (EC_succeed != EC_arg(3).is_long(&val)) return(TYPE_ERROR);
 
     // update lower bound before getting it
-    long doprop;
-    if (EC_succeed != EC_arg(4).is_long(&doprop)) return(TYPE_ERROR);
+    long which;
+    if (EC_succeed != EC_arg(4).is_long(&which)) return(TYPE_ERROR);
+    IntRelType relop = (which == -1 ? IRT_GR : IRT_LE);
 
-    if (doprop == 1) cache_domain_sizes(solver); // get snapshot if needed
+    cache_domain_sizes(solver); // get snapshot 
 
+    rel(*solver, solver->vInt[(int)idx], relop, (int)val);
 
-    rel(*solver, solver->vInt[(int)idx], IRT_GR, (int)val);
+    // we need to do trail undo here so that if failure occurs before
+    // an event is executed, the current space is correctly discarded
+    ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, ec_arg(1).val.ptr+SPACE_STAMP_POS, NULL, 0, TRAILED_WORD32);
 
-    if (doprop == 0) {
-	if (solver->failed()) return EC_fail;
-    } else {
-	if (!solver->status()) return EC_fail;
-    }
+    if (!solver->status()) return EC_fail;
 
-
-    return unify(EC_arg(5), EC_word(solver->vInt[(int)idx].min()));
+    return (which == -1 ? 
+	    unify(EC_arg(5), EC_word(solver->vInt[(int)idx].min())) :
+	    unify(EC_arg(5), EC_word(solver->vInt[(int)idx].max())));
 
 }
 
@@ -406,6 +432,125 @@ int p_g_get_var_upb()
     if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
 
     return unify(EC_arg(3), EC_word(solver->vInt[(int)idx].max()));
+}
+
+extern "C"
+int p_g_get_var_domain_size()
+{
+    long idx;
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (EC_succeed != EC_arg(2).is_long(&idx)) return(TYPE_ERROR);
+
+    if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
+
+    return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].size()));
+}
+
+extern "C"
+int p_g_get_var_domain_width()
+{
+    long idx;
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (EC_succeed != EC_arg(2).is_long(&idx)) return(TYPE_ERROR);
+
+    if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
+
+    return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].width()));
+}
+
+extern "C"
+int p_g_get_var_median()
+{
+    long idx;
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (EC_succeed != EC_arg(2).is_long(&idx)) return(TYPE_ERROR);
+
+    if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
+
+    return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].med()));
+}
+
+extern "C"
+int p_g_get_var_degree()
+{
+    long idx;
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (EC_succeed != EC_arg(2).is_long(&idx)) return(TYPE_ERROR);
+
+    if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
+
+    return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].degree()));
+}
+
+extern "C"
+int p_g_get_var_afc()
+{
+    long idx;
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (EC_succeed != EC_arg(2).is_long(&idx)) return(TYPE_ERROR);
+
+    if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
+
+    return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].afc()));
+}
+
+extern "C"
+int p_g_get_var_regret_lwb()
+{
+    long idx;
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (EC_succeed != EC_arg(2).is_long(&idx)) return(TYPE_ERROR);
+
+    if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
+
+    return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].regret_min()));
+}
+
+extern "C"
+int p_g_get_var_regret_upb()
+{
+    long idx;
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (EC_succeed != EC_arg(2).is_long(&idx)) return(TYPE_ERROR);
+
+    if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
+
+    return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].regret_max()));
 }
 
 extern "C"
@@ -428,6 +573,7 @@ int p_g_get_var_domain()
        has not yet been added to the solver space. Normally the domain of 
        such variables cannot be accessed, but exceptions such as the tracer
        tracing the ECLiPSe level code can occur internally. Just return []
+       Also return [] if solver not defined -- state have not been recomputed
     */
     if (solver == NULL || idx >= solver->vInt.size()) return unify(EC_arg(3), nil());
  
@@ -530,13 +676,21 @@ int p_g_add_newvars_dom()
 }
 
 
+#if 0
 LinExpr<IntVar>
+#else
+LinExpr
+#endif
 ec2linexpr(EC_word e, GecodeSpace* solver)
 {
     long l;
     int i;
     EC_functor f;
+#if 0
     LinExpr<IntVar> arg1, arg2;
+#else
+    LinExpr arg1(BoolVar(*solver,1,1)), arg2(BoolVar(*solver,1,1));
+#endif
     if (e.functor(&f) == EC_succeed) {
 	if (strcmp(f.name(), "_ivar") == 0 && 
 	    EC_argument(e, 1).is_long(&l) == EC_succeed) {
@@ -606,15 +760,23 @@ ec2linexpr(EC_word e, GecodeSpace* solver)
     }
 }
 
+#if 0
 LinRel<IntVar>
+#else
+LinRel
+#endif
 ec2linrel(EC_word c, GecodeSpace* solver)
 {
     EC_functor f;
 
     if (c.functor(&f) == EC_succeed && f.arity() == 2) {
+#if 0
 	LinExpr<IntVar> arg1 = ec2linexpr(EC_argument(c,1), solver);
 	LinExpr<IntVar> arg2 = ec2linexpr(EC_argument(c,2), solver);
-	
+#else
+	LinExpr arg1 = ec2linexpr(EC_argument(c,1), solver);
+	LinExpr arg2 = ec2linexpr(EC_argument(c,2), solver);
+#endif	
 	if (strcmp(f.name(), "#=") == 0) { return (arg1 == arg2); };
 	if (strcmp(f.name(), "#\\=") == 0) { return (arg1 != arg2); };
 	if (strcmp(f.name(), "#>") == 0) { return (arg1 > arg2); };
@@ -624,33 +786,18 @@ ec2linrel(EC_word c, GecodeSpace* solver)
 	
 	// Unknown binary constraint
 	throw Ec2gcException();
-    }
+    } else 
+	throw Ec2gcException();
 }
 
 BoolExpr
 ec2boolexpr(EC_word c, GecodeSpace*solver)
 {
     EC_functor f;
+    long l;
 
     if (c.functor(&f) == EC_succeed) { 
 	switch (f.arity()) {
-	    case 0: {
-		long l;
-		if (c.is_long(&l) == EC_succeed) {
-		    switch (l) {
-			case 0: 
-			    return solver->boolfalse;
-			    break;
-			case 1:
-			    return solver->booltrue;
-			    break;
-			default:
-			    throw Ec2gcException();
-			    break;
-		    }
-		}
-		break;
-	    }
 	    case 1: {
 		if (strcmp(f.name(), "neg") == 0)
 		    return ec2boolexpr(EC_argument(c,1), solver);
@@ -682,17 +829,29 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
 			       ec2boolexpr(EC_argument(c,2), solver));
 		};
 		if (strcmp(f.name(), "_ivar") == 0) {
-		    long bidx;
-		    if (EC_argument(c,2).is_long(&bidx) != EC_succeed)
+		    if (EC_argument(c,2).is_long(&l) != EC_succeed)
 			throw Ec2gcException();
-		    return solver->vBool[(int)bidx];
+		    return solver->vBool[(int)l];
 		}
 		break;
 	    }
-	}
+	} 
 	// otherwise, treat as linear relation
 	return (~(ec2linrel(c, solver)));
+    } else if (c.is_long(&l) == EC_succeed) {
+	switch (l) {
+	    case 0: 
+		return solver->boolfalse;
+		break;
+	    case 1:
+		return solver->booltrue;
+		break;
+	    default:
+		throw Ec2gcException();
+		break;
+	}
     }
+
     // Unknown boolean expression
     throw Ec2gcException();
     }
@@ -735,8 +894,11 @@ int p_g_post_linrel_cstr()
     solver = *solverp;
     if (solver == NULL) return TYPE_ERROR;
     try {
+#if 0
 	LinRel<IntVar> c = ec2linrel(EC_arg(3), solver);
-
+#else
+	LinRel c = ec2linrel(EC_arg(3), solver);
+#endif
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
 	if (first) cache_domain_sizes(solver);
@@ -783,6 +945,21 @@ int p_g_post_setvar()
 
 }
 
+#define CheckAndMakeChanged(snapshotsolver, tail, chgtail) \
+{ \
+    int dsize; \
+    for (int i=1; i<snapshotsize; i++) { \
+	dsize = solver->vInt[i].size();  \
+	if (snapshotsolver->dom_snapshot[i] > dsize) { \
+	    if (dsize == 1) { \
+		tail = list(i,tail); \
+	    } else { \
+		chgtail = list(i,chgtail); \
+	    } \
+	} \
+    } \
+}
+
 extern "C"
 int p_g_propagate()
 {
@@ -803,33 +980,25 @@ int p_g_propagate()
 //    if (first == 0) return EC_succeed;
 
 
-    EC_word tail = nil();
+    EC_word tail = nil(), chgtail = nil();
 
     if (first == 1 && solver->snapshot_valid()) {
-	int dsize;
 //    int res;
 	int snapshotsize = solver->dom_snapshot.size();
 
 //    printf("size: %d,%d\n",EC_arg(2).arity(), snapshotsize);
 //    if (EC_arg(3).arity() < snapshotsize) return RANGE_ERROR; 
 
-	for (int i=1; i<snapshotsize; i++) {
-
-	    dsize = solver->vInt[i].size();
-	    if (solver->dom_snapshot[i] > dsize) {
-		if (dsize == 1) {
-		    tail = list(i,tail);
-//		res = unify(EC_argument(EC_arg(3), i), EC_word(solver->vInt[i].val()));
-//		if (res != EC_succeed) return res;
-		}
-	    }
-	}
+	CheckAndMakeChanged(solver, tail, chgtail);
     }
     solver->clear_snapshot();
 
-    return unify(EC_arg(3), tail);
+    if (unify(EC_arg(3), tail) != EC_succeed) {
+	return EC_fail;
+    } else {
+	return unify(EC_arg(4), chgtail);
+    }
 
-//    return EC_succeed;
 }
 
 extern "C"
@@ -1212,6 +1381,51 @@ int p_g_post_count()
 }
 
 extern "C"
+int p_g_post_gcc()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    long val, n;
+    bool n_is_int;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word pvals = EC_arg(3);
+    int specsize = pvals.arity();
+    if (specsize == 0) return TYPE_ERROR;
+
+    IntArgs vals(specsize);
+    int res = assign_IntArgs_from_ec_array(solver, specsize, pvals, vals);
+    if (res != EC_succeed) return res;
+
+    EC_word poccurs = EC_arg(4);
+    if (specsize != poccurs.arity()) return RANGE_ERROR;
+
+    IntVarArgs occurs(specsize);
+    res = assign_IntVarArgs_from_ec_array(solver, specsize, poccurs, occurs);
+    if (res != EC_succeed) return res;
+
+    EC_word varr = EC_arg(5);
+    int size = varr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs vars(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+    if (res != EC_succeed) return res;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    count(*solver, vars, occurs, vals);
+
+    return EC_succeed;
+}
+
+extern "C"
 int p_g_post_element()
 {
     GecodeSpace** solverp;
@@ -1260,6 +1474,147 @@ int p_g_post_element()
 	element(*solver, vals, ivar, v);
     else
 	element(*solver, vals, ivar, vvar);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_sorted2()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word uarr = EC_arg(3);
+    int size = uarr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs unsort(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, uarr, unsort);
+    if (res != EC_succeed) return res;
+
+    EC_word sarr = EC_arg(4);
+    if (sarr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs sort(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, sarr, sort);
+    if (res != EC_succeed) return res;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    sorted(*solver, unsort, sort);
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_sorted()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word uarr = EC_arg(3);
+    int size = uarr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs unsort(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, uarr, unsort);
+    if (res != EC_succeed) return res;
+
+    EC_word sarr = EC_arg(4);
+    if (sarr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs sort(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, sarr, sort);
+    if (res != EC_succeed) return res;
+
+    EC_word parr = EC_arg(5);
+    if (parr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs pos(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, parr, pos);
+    if (res != EC_succeed) return res;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    sorted(*solver, unsort, sort, pos);
+
+    return EC_succeed;
+}
+
+/* not suported in 3.3
+extern "C"
+int p_g_post_disj()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word sarr = EC_arg(3);
+    int size = sarr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs starts(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, sarr, starts);
+    if (res != EC_succeed) return res;
+
+    EC_word darr = EC_arg(4);
+    if (darr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs durations(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, darr, durations);
+    if (res != EC_succeed) return res;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    unary(*solver, starts, durations);
+
+    return EC_succeed;
+}
+*/
+extern "C"
+int p_g_post_circuit()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word arr = EC_arg(3);
+    int size = arr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs succ(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, arr, succ);
+    if (res != EC_succeed) return res;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    circuit(*solver, succ);
 
     return EC_succeed;
 }
@@ -1706,10 +2061,8 @@ int p_g_post_minlist()
     return EC_succeed;
 }
 
-enum SearchMethod {METHOD_COMPLETE, 
-		   METHOD_LDS, 
-		   METHOD_BAB,
-		   METHOD_RESTART};
+#define GFDSTATSIZE    5
+#define GFDCONTROLSIZE 2
 
 extern "C"
 int p_g_setup_search()
@@ -1723,37 +2076,94 @@ int p_g_setup_search()
     solver = *solverp;
     if (solver == NULL) return TYPE_ERROR;
 
-    EC_word varr = EC_arg(2);
-    int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
-
     EC_atom atm;
 
-    IntVarBranch varselect;
+    bool do_tiebreak = false;
+    IntVarBranch varselect, tiebreakselect;
+
+    if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
+    if (strcmp(atm.name(), "none") != 0) {
+	do_tiebreak = true;
+	if (strcmp(atm.name(), "input_order") == 0) 
+	    tiebreakselect = INT_VAR_NONE;
+	else if (strcmp(atm.name(), "first_fail") == 0) 
+	    tiebreakselect = INT_VAR_SIZE_MIN;
+	else if (strcmp(atm.name(), "anti_first_fail") == 0) 
+	    tiebreakselect = INT_VAR_SIZE_MAX;
+	else if (strcmp(atm.name(), "occurrence") == 0) 
+	    tiebreakselect = INT_VAR_DEGREE_MAX;
+	else if (strcmp(atm.name(), "anti_occurrence") == 0) 
+	    tiebreakselect = INT_VAR_DEGREE_MIN;
+	else if (strcmp(atm.name(), "largest") == 0) 
+	    tiebreakselect = INT_VAR_MAX_MAX;
+	else if (strcmp(atm.name(), "smallest") == 0) 
+	    tiebreakselect = INT_VAR_MIN_MIN;
+	else if (strcmp(atm.name(), "most_constrained_per_value") == 0) 
+	    tiebreakselect = INT_VAR_SIZE_DEGREE_MAX;
+	else if (strcmp(atm.name(), "least_constrained_per_value") == 0) 
+	    tiebreakselect = INT_VAR_SIZE_DEGREE_MIN;
+	else if (strcmp(atm.name(), "max_regret") == 0) 
+	    tiebreakselect = INT_VAR_REGRET_MIN_MAX;
+	else if (strcmp(atm.name(), "max_regret_lwb") == 0) 
+	    tiebreakselect = INT_VAR_REGRET_MIN_MAX;
+	else if (strcmp(atm.name(), "min_regret_lwb") == 0) 
+	    tiebreakselect = INT_VAR_REGRET_MIN_MIN;
+	else if (strcmp(atm.name(), "max_regret_upb") == 0) 
+	    tiebreakselect = INT_VAR_REGRET_MAX_MAX;
+	else if (strcmp(atm.name(), "min_regret_upb") == 0) 
+	    tiebreakselect = INT_VAR_REGRET_MAX_MIN;
+	else if (strcmp(atm.name(), "random") == 0) 
+	    tiebreakselect = INT_VAR_RND;
+	else return RANGE_ERROR;
+    }
+
     if (EC_arg(3).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     if (strcmp(atm.name(), "input_order") == 0) varselect = INT_VAR_NONE;
     else if (strcmp(atm.name(), "first_fail") == 0) varselect = INT_VAR_SIZE_MIN;
     else if (strcmp(atm.name(), "anti_first_fail") == 0) varselect = INT_VAR_SIZE_MAX;
     else if (strcmp(atm.name(), "occurrence") == 0) varselect = INT_VAR_DEGREE_MAX;
+    else if (strcmp(atm.name(), "anti_occurrence") == 0) varselect = INT_VAR_DEGREE_MIN;
     else if (strcmp(atm.name(), "largest") == 0) varselect = INT_VAR_MAX_MAX;
     else if (strcmp(atm.name(), "smallest") == 0) varselect = INT_VAR_MIN_MIN;
-//    else if (strcmp(atm.name(), "max_regret") == 0) varselect = INT_VAR_REGRET_MIN__MAX;
+    else if (strcmp(atm.name(), "most_constrained") == 0) {
+	varselect = INT_VAR_SIZE_MIN;
+	do_tiebreak = true;
+	tiebreakselect = INT_VAR_DEGREE_MAX;
+    } else if (strcmp(atm.name(), "most_constrained_per_value") == 0) varselect = INT_VAR_SIZE_DEGREE_MAX;
+    else if (strcmp(atm.name(), "least_constrained_per_value") == 0) varselect = INT_VAR_SIZE_DEGREE_MIN;
+    else if (strcmp(atm.name(), "max_regret") == 0) varselect = INT_VAR_REGRET_MIN_MAX;
+    else if (strcmp(atm.name(), "max_regret_lwb") == 0) varselect = INT_VAR_REGRET_MIN_MAX;
+    else if (strcmp(atm.name(), "min_regret_lwb") == 0) varselect = INT_VAR_REGRET_MIN_MIN;
+    else if (strcmp(atm.name(), "max_regret_upb") == 0) varselect = INT_VAR_REGRET_MAX_MAX;
+    else if (strcmp(atm.name(), "min_regret_upb") == 0) varselect = INT_VAR_REGRET_MAX_MIN;
+    else if (strcmp(atm.name(), "random") == 0) varselect = INT_VAR_RND;
+    else if (strcmp(atm.name(), "max_weighted_degree") == 0) varselect = INT_VAR_AFC_MAX; 
+    else if (strcmp(atm.name(), "min_weighted_degree") == 0) varselect = INT_VAR_AFC_MIN; 
+    else if (strcmp(atm.name(), "max_weighted_degree_per_value") == 0) varselect = INT_VAR_SIZE_AFC_MAX; 
+    else if (strcmp(atm.name(), "min_weighted_degree_per_value") == 0) varselect = INT_VAR_SIZE_AFC_MIN; 
     else return RANGE_ERROR;
 
     IntValBranch valchoice;
     if (EC_arg(4).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     if (strcmp(atm.name(), "indomain_min") == 0) valchoice = INT_VAL_MIN;
     else if (strcmp(atm.name(), "indomain_max") == 0) valchoice = INT_VAL_MAX;
-    else if (strcmp(atm.name(), "indomain_med") == 0) valchoice = INT_VAL_MED;
+    else if (strcmp(atm.name(), "indomain_median") == 0) valchoice = INT_VAL_MED;
+    else if (strcmp(atm.name(), "indomain_random") == 0) valchoice = INT_VAL_RND;
+    else if (strcmp(atm.name(), "indomain_split") == 0) valchoice = INT_VAL_SPLIT_MIN;
+    else if (strcmp(atm.name(), "indomain_reverse_split") == 0) valchoice = INT_VAL_SPLIT_MAX;
+    else if (strcmp(atm.name(), "indomain") == 0) valchoice = INT_VALUES_MIN;
+    else if (strcmp(atm.name(), "indomain_from_max") == 0) valchoice = INT_VALUES_MAX;
+    else if (strcmp(atm.name(), "indomain_interval") == 0) valchoice = INT_VAL_RANGE_MIN;
+    else if (strcmp(atm.name(), "indomain_interval_min") == 0) valchoice = INT_VAL_RANGE_MIN;
+    else if (strcmp(atm.name(), "indomain_interval_max") == 0) valchoice = INT_VAL_RANGE_MAX;
     else return RANGE_ERROR;
 
     EC_functor f;
-    long l;
+    long l = 0;
     SearchMethod method;
 
     switch (EC_arg(5).arity()) {
-	case 0: 
-	    if (EC_arg(5).is_atom(&atm) == EC_succeed) {
+	case 0: 	    if (EC_arg(5).is_atom(&atm) == EC_succeed) {
 		if (strcmp(atm.name(), "complete") == 0) {
 		    method = METHOD_COMPLETE;
 		} else return RANGE_ERROR;
@@ -1779,47 +2189,64 @@ int p_g_setup_search()
 	    return RANGE_ERROR; 
 	}
 
-    int res = unify(EC_arg(7), EC_word(method));
-    if (res != EC_succeed) return res;
-
+    EC_word varr = EC_arg(2);
+    int res, size = varr.arity();
+    if (size == 0) return TYPE_ERROR;
     IntVarArgs vars(size);
     res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
     if (res != EC_succeed) return res;
 
-    cache_domain_sizes(solver);
-    branch(*solver, vars, varselect, valchoice);
+    long timeout;
+    if (EC_succeed != EC_arg(7).is_long(&timeout)) return TYPE_ERROR;
 
-    void* senginep;
-    switch (method) {
-	case METHOD_COMPLETE: {
-	    DFS<GecodeSpace>* sengine = new  DFS<GecodeSpace>(solver);
-	    senginep = (void*)sengine;
-	    return unify(EC_arg(6), handle(&gfdsearch_method, senginep));
-	    break;
-	}
-	case METHOD_LDS: {
-	    Search::Options o; o.d = (unsigned)l;
-	    LDS<GecodeSpace>* sengine = new LDS<GecodeSpace>(solver, o);
-	    senginep = (void*)sengine;
-	    return unify(EC_arg(6), handle(&gfdsearch_method, senginep));
-	    break;
-	}
-	case METHOD_BAB: {
-	    solver->vCost = solver->vInt[(int)l];
-	    BAB<GecodeSpace>* sengine = new BAB<GecodeSpace>(solver);
-	    senginep = (void*)sengine;
-	    return unify(EC_arg(6), handle(&gfdsearch_method, senginep));
-	    break;
-	}
-	case METHOD_RESTART: {
-	    solver->vCost = solver->vInt[(int)l];
-	    Restart<GecodeSpace>* sengine = new Restart<GecodeSpace>(solver);
-	    senginep = (void*)sengine;
-	    return unify(EC_arg(6), handle(&gfdsearch_method, senginep));
-	    break;
-	}
+    // these positions must correspond to gfd.ecl's struct:
+    // struct(gfd_stats(prop,fail,node,depth,mem)).
+    long fail_lim = 0, node_lim = 0, mem_lim = 0;
+    if ((EC_arg(8).functor(&f) == EC_succeed) && (f.arity() == GFDSTATSIZE)
+	&& (strcmp(f.name(), "gfd_stats") == 0)) {
+	if (EC_argument(EC_arg(8),2).is_long(&fail_lim) != EC_succeed)
+	    fail_lim = 0;
+	if (EC_argument(EC_arg(8),3).is_long(&node_lim) != EC_succeed)
+	    node_lim = 0;
+	if (EC_argument(EC_arg(8),5).is_long(&mem_lim) != EC_succeed)
+	    mem_lim = 0;
     }
+
+    long adaptived = 0, commitd = 0;
+    if ((EC_arg(9).functor(&f) == EC_succeed) && (f.arity() == GFDCONTROLSIZE)
+	&& (strcmp(f.name(), "gfd_control") == 0)) {
+	if (EC_argument(EC_arg(9),1).is_long(&commitd) != EC_succeed)
+	    commitd = 0;
+	if (EC_argument(EC_arg(9),2).is_long(&adaptived) != EC_succeed)
+	    adaptived = 0;
+    }
+
+    solver->clear_snapshot(); // make sure we do cache the current values!
+    cache_domain_sizes(solver);
+    if (!do_tiebreak) {
+	branch(*solver, vars, varselect, valchoice);
+    } else {
+	branch(*solver, vars, tiebreak(varselect, tiebreakselect), valchoice);
+    }
+
+    Search::Options o;
+
+    Cutoff* cutoffp;
+    if (timeout > 0 || fail_lim > 0 || node_lim > 0 || mem_lim > 0) {
+	cutoffp = new Cutoff((unsigned)node_lim,(unsigned)fail_lim,
+			     (unsigned)timeout,(size_t)mem_lim);
+	o.stop = cutoffp;
+    } else
+	cutoffp = NULL;
+
+    if (adaptived > 0) o.a_d = adaptived;
+    if (commitd > 0) o.c_d = commitd;
+
+    GecodeSearch* searchp = new GecodeSearch(solver, o, (unsigned) l, cutoffp, method);
+
+    return unify(EC_arg(10), handle(&gfdsearch_method, searchp));
 }
+
 
 extern "C"
 int p_g_do_search()
@@ -1838,97 +2265,99 @@ int p_g_do_search()
     solver = *solverp;
     if (solver != NULL) delete solver;  
 
-    SearchMethod method;
-    if (EC_arg(3).is_long((long*)&method) != EC_succeed) return TYPE_ERROR;
-
     GecodeSpace** presearchp;
     GecodeSpace* presearch;
 
-    if (EC_succeed != get_handle_from_arg(4, &gfd_method, (void**)&presearchp))
+    if (EC_succeed != get_handle_from_arg(3, &gfd_method, (void**)&presearchp))
 	return TYPE_ERROR;
     presearch = *presearchp;
 
-    switch (method) {
-	case METHOD_COMPLETE: {
-	    DFS<GecodeSpace>* sengine;
-	    if (EC_succeed != get_handle_from_arg(2, &gfdsearch_method, (void**)&sengine))
-		return TYPE_ERROR;
-	    *solverp = sengine->next(); 
-	    break;
-	}
-	case METHOD_LDS: {
-	    LDS<GecodeSpace>* sengine;
-	    if (EC_succeed != get_handle_from_arg(2, &gfdsearch_method, (void**)&sengine))
-		return TYPE_ERROR;
-	    *solverp = sengine->next(); 
-	    break;
-	}
-	case METHOD_BAB: {
-	    BAB<GecodeSpace>* sengine;
-	    if (EC_succeed != get_handle_from_arg(2, &gfdsearch_method, (void**)&sengine))
-		return TYPE_ERROR;
-	    GecodeSpace* last_sol;
-	    do {
-		solver = sengine->next(); 
-		if (solver != NULL) {
-		    p_fprintf(log_output_,"Found a solution with cost %d\n", solver->vCost.val());
-		    ec_flush(log_output_);
-		    last_sol = solver;
-		} else
-		    *solverp = last_sol;
-	    } while (solver != NULL);
-	    if (last_sol == NULL) return EC_fail;
+    unsigned long nprop, nfail, nnode, depth;
+    size_t mem;
 
+    GecodeSearch* searchp;
+    if (EC_succeed != get_handle_from_arg(2, &gfdsearch_method, (void**)&searchp))
+	return TYPE_ERROR;
+
+    long status;
+
+    if (searchp->stopp != NULL) searchp->stopp->reset();
+    switch (searchp->method) {
+	case METHOD_COMPLETE: 
+	case METHOD_LDS: 
+
+	    *solverp = searchp->next();
+	    status = (*solverp == NULL ? 0 : 1); 
 	    break;
-	}
+
+	case METHOD_BAB:
 	case METHOD_RESTART: {
-	    Restart<GecodeSpace>* sengine;
-	    if (EC_succeed != get_handle_from_arg(2, &gfdsearch_method, (void**)&sengine))
-		return TYPE_ERROR;
 	    GecodeSpace* last_sol = NULL;
+	    bool has_aborted = false;
 	    do {
-		solver = sengine->next(); 
+		solver = searchp->next();
 		if (solver != NULL) {
-		    p_fprintf(log_output_,"Found a solution with cost %d\n", solver->vCost.val());
+		    if (solver->vCost.assigned()) {
+			p_fprintf(log_output_,"Found a solution with cost %d\n", solver->vCost.val());
+		    } else {
+			p_fprintf(log_output_, "Cost variable not instantiated.\n");
+			has_aborted = true;
+			break;
+		    }
 		    ec_flush(log_output_);
 		    last_sol = solver;
 		} else
 		    *solverp = last_sol;
 	    } while (solver != NULL);
-	    if (last_sol == NULL) return EC_fail;
-
+	    status =  (has_aborted ? 2/*1<<2*/ : (last_sol == NULL ? 0 : 1)); 
 	    break;
 	}
-	default: {
+
+	default: 
 	    return RANGE_ERROR;
 	    break;
-	}
+
     }
 
-    solver = *solverp;
+    Search::Statistics stat = searchp->statistics();
+    nprop = stat.propagate;
+    nfail = stat.fail;
+    nnode = stat.node;
+    depth = stat.depth;
+    mem = stat.memory;
 
-    if (*solverp == NULL) return EC_fail;
-    // unlike normal creation of a cloned space, here it is not done immediately
-    // before an event, so just trail the undo function unconditionally
-    ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, NULL, NULL, 0, TRAILED_WORD32);
+    // these must correspond to gfd_stats struct in gfd.ecl
+    EC_functor sf("gfd_stats", GFDSTATSIZE);
+    EC_word stats = term(sf, (long)nprop, (long)nfail, (long)nnode,
+			 (long)depth, (long)mem);
+    if (unify(EC_arg(6), stats) != EC_succeed) return EC_fail;
 
-    int snapshotsize = presearch->dom_snapshot.size();
-    int dsize;
-    EC_word tail = nil();
-
-    for (int i=1; i<snapshotsize; i++) {
-
-	dsize = solver->vInt[i].size();
-	if (presearch->dom_snapshot[i] > dsize) {
-	    if (dsize == 1) {
-		tail = list(i,tail);
-//		res = unify(EC_argument(EC_arg(5), i), EC_word(solver->vInt[i].val()));
-//		if (res != EC_succeed) return res;
-	    }
-	}
+    if (searchp->stopped()) {
+	status |=  searchp->stopp->reason();
     }
 
-    return unify(EC_arg(5), tail);
+    if (unify(EC_arg(7), EC_word(status)) != EC_succeed) return EC_fail;
+
+    if (*solverp != NULL) {// there is a solution
+	solver = *solverp;
+	// unlike normal creation of a cloned space, here it is not done immediately
+	// before an event, so just trail the undo function unconditionally
+	ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, NULL, NULL, 0, TRAILED_WORD32);
+
+	int snapshotsize = presearch->dom_snapshot.size();
+	int dsize;
+	EC_word tail = nil(),chgtail = nil();
+
+	CheckAndMakeChanged(presearch, tail, chgtail);
+
+
+	if (unify(EC_arg(4), tail) != EC_succeed) {
+	    return EC_fail;
+	} else {
+	    return unify(EC_arg(5), chgtail);
+	}
+    } else {
+	return unify(EC_arg(4), nil());
+    }
 }
-
     

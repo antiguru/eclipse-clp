@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.3 2010/07/14 16:24:51 kish_shen Exp $
+# $Id: Makefile.in,v 1.4 2010/08/18 18:14:19 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -46,12 +46,13 @@ DYLDCXX = @DYLDCXX@
 EXEEXT = @EXEEXT@
 GMP_LD = @GMP_LD@
 FLOAT_ROUND_FLAGS = @FLOAT_ROUND_FLAGS@
+DESTDIR = $(PREFIX)/lib
 
 CPPFLAGS  = -I. -I$(ECLIPSEDIR)/include/$(ARCH) -I$(ECLIPSEDIR)/Kernel/src 
 STDCXXLIB = @STDCXXLIB@
 ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse @LIBS@
 
-GECODE = $(THIRDPARTY)/gecode-3.0.2/$(ARCH)
+GECODE = $(THIRDPARTY)/gecode-3.3.1/$(ARCH)
 
 PERM = a+r,u+w,go-w
 DIRPERM = 2755
@@ -61,6 +62,13 @@ DIRPERM = 2755
 .c.o:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
+ECL_ECI_FILES =	
+
+ECL_FILES =	gfd.ecl gfd_generic_interface.ecl
+
+ECL_DEST =	$(ECL_ECI_FILES:%.ecl=$(DESTDIR)/%.ecl) \
+		$(ECL_FILES:%.ecl=$(DESTDIR)/%.ecl)
+OBJ_DEST =	$(OBJ_FILES:%=$(PREFIX)/lib/%)
 
 # List of shared libraries to build
 
@@ -68,19 +76,35 @@ OBJ_FILES =	\
 	$(ARCH)/gfd.$(OBJ_SUFFIX) 
 
 
+install:	@MAKE_TARGET@
+
+install_all:	$(ECL_DEST) $(OBJ_DEST)
 
 GECODELIBS = -lgecodesupport -lgecodekernel -lgecodeint -lgecodesearch \
-	-lgecodeset -lgecodeminimodel
+	-lgecodegraph -lgecodeset -lgecodeminimodel
 
 $(ARCH)/gfd.$(OBJ_SUFFIX): gfd.cpp gfd.hpp
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LOCAL_FLAGS) -I$(GECODE)/include gfd.cpp \
               -c -o $(ARCH)/gfd.o
-	$(DYLDCXX) $(DYNLDFLAGS) $(ECLIBS) -L$(GECODE)/lib \
+	$(DYLDCXX) $(DYNLDFLAGS) $(ECLIBS) -lpthread -L$(GECODE)/lib \
 	     -Wl,--whole-archive $(GECODELIBS) \
              $(ARCH)/gfd.o -o $(ARCH)/gfd.$(OBJ_SUFFIX)
 
 
-install:	@MAKE_TARGET@
+$(PREFIX)/lib/$(ARCH)/%.$(OBJ_SUFFIX):	$(ARCH)/%.$(OBJ_SUFFIX) $(PREFIX)/lib/$(ARCH)/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
 
-install_all:	$(OBJ_FILES)
+%/.stamp:
+	mkdir -p $(@D)
+	@/bin/chmod $(DIRPERM) $(@D)
+	@touch $@; /bin/chmod $(PERM) $@
+
+$(DESTDIR)/$(ARCH)/%.$(OBJ_SUFFIX):	$(ARCH)/%.$(OBJ_SUFFIX) $(PREFIX)/lib/$(ARCH)/.stamp
+	/bin/cp $< $@
+	-@/bin/chmod $(PERM) $@
+
+$(DESTDIR)/%.ecl:	%.ecl $(DESTDIR)/.stamp
+	/bin/cp $< $@
+	@/bin/chmod $(PERM) $@
