@@ -572,7 +572,8 @@ args:[
 desc:html("
 This predicate chooses one entry in a list of variables or terms based
 on some selection criteria.  The criteria are explained in detail in
-the <b>search/6</b> predicate.<p>
+the <b>search/6</b> predicate. The selected entry is returned in X, with
+the rest of the list without X returned in R.<p>
 "),
 fail_if:"fails if the list is empty",
 resat:no,
