@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.22 2010/08/18 18:16:05 kish_shen Exp $
+# $Id: Makefile.in,v 1.23 2010/08/19 13:47:05 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -750,7 +750,6 @@ ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		fd_search.ecl ic_symbolic.ecl \
 		fd_sbds.ecl ic_sbds.ecl \
 		fd_global.ecl ic_global.ecl \
-		gfd_for_search.ecl gfd_search.ecl gfd_sbds.ecl \
 		cumulative.ecl ic_cumulative.ecl \
 		edge_finder.ecl ic_edge_finder.ecl \
 		edge_finder3.ecl ic_edge_finder3.ecl bfs.ecl colgen.ecl \
