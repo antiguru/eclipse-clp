@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.6 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.7 2010/08/20 09:32:43 jschimpf Exp $
  */
 
 /*
@@ -1000,7 +1000,17 @@ p_lshift(value v1, type t1, value v2, type t2, value v, type t)
 	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHL);
     }
     else if (IsBignum(t2))
-	{ Bip_Error(RANGE_ERROR); }
+    {
+        if (!BigNegative(v2.ptr))
+            { Bip_Error(RANGE_ERROR); }
+        result.tag.kernel = TINT;
+	if (IsInteger(t1))
+            result.val.nint = v1.nint < 0 ? -1 : 0;
+	else if (IsBignum(t1))
+            result.val.nint = BigNegative(v1.ptr) ? -1 : 0;
+	else
+	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHL);
+    }
     else
 	return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHL);
 
@@ -1045,7 +1055,17 @@ p_rshift(value v1, type t1, value v2, type t2, value v, type t)
 	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHR);
     }
     else if (IsBignum(t2))
-	{ Bip_Error(RANGE_ERROR); }
+    {
+        if (BigNegative(v2.ptr))
+            { Bip_Error(RANGE_ERROR); }
+        result.tag.kernel = TINT;
+	if (IsInteger(t1))
+            result.val.nint = v1.nint < 0 ? -1 : 0;
+	else if (IsBignum(t1))
+            result.val.nint = BigNegative(v1.ptr) ? -1 : 0;
+	else
+	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHR);
+    }
     else
 	return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHR);
 
