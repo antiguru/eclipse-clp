@@ -801,6 +801,7 @@ inverse(XL,YL):-
         length(Vars1,N),
         length(Vars2,N),
         append(Vars1,Vars2,Variables),
+        Variables :: 1..N,
         check_inverse(Vars1,Vars2,N),
         (ground(Variables) ->
             true
