@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.4 2010/08/18 18:14:19 kish_shen Exp $
+# $Id: Makefile.in,v 1.5 2010/08/23 02:13:04 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -81,7 +81,7 @@ install:	@MAKE_TARGET@
 install_all:	$(ECL_DEST) $(OBJ_DEST)
 
 GECODELIBS = -lgecodesupport -lgecodekernel -lgecodeint -lgecodesearch \
-	-lgecodegraph -lgecodeset -lgecodeminimodel
+	-lgecodegraph -lgecodeset -lgecodescheduling -lgecodeminimodel
 
 $(ARCH)/gfd.$(OBJ_SUFFIX): gfd.cpp gfd.hpp
 	[ -d $(ARCH) ] || mkdir $(ARCH)

@@ -24,7 +24,7 @@
 #include <gecode/minimodel.hh>
 #include <gecode/search.hh>
 #include <gecode/graph.hh>
-//#include <gecode/scheduling.hh>
+#include <gecode/scheduling.hh>
 #include <vector>
 
 using namespace Gecode;
