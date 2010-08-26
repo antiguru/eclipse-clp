@@ -53,6 +53,24 @@ EC_argument(EC_word t, int i)
 	strcmp(f.name(),"_ivar") ==0 && \
 	EC_argument(EC_arg(Arg),2).is_long(&BIdx) == EC_succeed)
 
+// report any exceptions from Gecode - must be preceeded by a try {...}
+#define CatchAndReportGecodeExceptions \
+    catch(Exception& err) {            \
+	p_fprintf(current_err_, "Gecode exception: %s\n", err.what()); \
+	return EC_EXTERNAL_ERROR; \
+    }
+
+#define Get_Consistency_Level(N, cl) {		\
+    EC_atom atm;   \
+    if (EC_arg(N).is_atom(&atm) != EC_succeed) return TYPE_ERROR; \
+    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;         \
+    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;    \
+    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;     \
+    else if (strcmp(atm.name(), "gfd_vc") == 0) cl = ICL_VAL;     \
+    else return RANGE_ERROR; \
+}
+
+
 extern "C" stream_id log_output_, warning_output_, current_err_;
 
 extern "C" void ec_trail_undo(void(*f)(pword*,word*,int,int), pword*, pword*, word*, int, int);
@@ -143,20 +161,23 @@ int assign_IntVarArgs_from_ec_array(GecodeSpace* solver, int size,
     EC_word arg;
     long l;
 
-    for(int i=0; i<size; i++) {
-	arg = EC_argument(ecarr, i+1);
-	if (arg.functor(&f) == EC_succeed) {
-	    if  (strcmp(f.name(), "_ivar") == 0
-		 && EC_argument(arg, 1).is_long(&l) == EC_succeed) {
-		vargs[i] = solver->vInt[(int)l];
+    try {
+	for(int i=0; i<size; i++) {
+	    arg = EC_argument(ecarr, i+1);
+	    if (arg.functor(&f) == EC_succeed) {
+		if  (strcmp(f.name(), "_ivar") == 0
+		     && EC_argument(arg, 1).is_long(&l) == EC_succeed) {
+		    vargs[i] = solver->vInt[(int)l];
+		} else
+		    return RANGE_ERROR;
+	    } else if (arg.is_long(&l) == EC_succeed) {
+		vargs[i].init(*solver,(int)l,(int)l);
 	    } else
-		return RANGE_ERROR;
-	} else if (arg.is_long(&l) == EC_succeed) {
-	    vargs[i].init(*solver,(int)l,(int)l);
-	} else
-	    return TYPE_ERROR;
+		return TYPE_ERROR;
+	}
+	return EC_succeed;
     }
-    return EC_succeed;
+    CatchAndReportGecodeExceptions
 }
 
 int assign_IntArgs_from_ec_array(GecodeSpace* solver, int size, 
@@ -165,14 +186,17 @@ int assign_IntArgs_from_ec_array(GecodeSpace* solver, int size,
     EC_word arg;
     long l;
 
-    for(int i=0; i<size; i++) {
-	arg = EC_argument(ecarr, i+1);
-	if (arg.is_long(&l) == EC_succeed) {
-	    vargs[i] = (int)l;
-	} else
-	    return TYPE_ERROR;
+    try {
+	for(int i=0; i<size; i++) {
+	    arg = EC_argument(ecarr, i+1);
+	    if (arg.is_long(&l) == EC_succeed) {
+		vargs[i] = (int)l;
+	    } else
+		return TYPE_ERROR;
+	}
+	return EC_succeed;
     }
-    return EC_succeed;
+    CatchAndReportGecodeExceptions
 }
 
 int assign_BoolVarArgs_from_ec_array(GecodeSpace* solver, int size, 
@@ -182,22 +206,25 @@ int assign_BoolVarArgs_from_ec_array(GecodeSpace* solver, int size,
     EC_word arg;
     long l;
 
-    for(int i=0; i<size; i++) {
-	arg = EC_argument(ecarr, i+1);
-	if (arg.functor(&f) == EC_succeed) {
-	    if  (strcmp(f.name(), "_ivar") == 0
-		 && EC_argument(arg, 2).is_long(&l) == EC_succeed) {
-		vargs[i] = solver->vBool[(int)l];
-	    } else
-		return RANGE_ERROR;
-	} else if (arg.is_long(&l) == EC_succeed) {
-	    if (l < 0 || l > 1) return RANGE_ERROR;
-	    vargs[i].init(*solver,(int)l,(int)l);
-	} else {
-	    return TYPE_ERROR;
+    try {
+	for(int i=0; i<size; i++) {
+	    arg = EC_argument(ecarr, i+1);
+	    if (arg.functor(&f) == EC_succeed) {
+		if  (strcmp(f.name(), "_ivar") == 0
+		     && EC_argument(arg, 2).is_long(&l) == EC_succeed) {
+		    vargs[i] = solver->vBool[(int)l];
+		} else
+		    return RANGE_ERROR;
+	    } else if (arg.is_long(&l) == EC_succeed) {
+		if (l < 0 || l > 1) return RANGE_ERROR;
+		vargs[i].init(*solver,(int)l,(int)l);
+	    } else {
+		return TYPE_ERROR;
+	    }
 	}
+	return EC_succeed;
     }
-    return EC_succeed;
+    CatchAndReportGecodeExceptions
 }
 
 void cache_domain_sizes(GecodeSpace* solver) {
@@ -261,10 +288,7 @@ int p_g_state_is_stable()
     try {
 	return ((*solverp)->stable() ? EC_succeed : EC_fail);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
 }
 
@@ -337,10 +361,7 @@ int p_g_get_var_value()
     catch(Int::ValOfUnassignedVar) {
 	return EC_fail;
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -364,10 +385,7 @@ int p_g_check_val_is_in_var_domain()
 	    return EC_succeed; 
 	else return EC_fail;
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
 }
 
@@ -395,10 +413,7 @@ int p_g_get_var_bounds()
 	if (res != EC_succeed) return res;
 	return unify(EC_arg(4), EC_word(solver->vInt[(int)idx].max()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
 }
 
@@ -419,10 +434,7 @@ int p_g_get_var_lwb()
     try {
 	return unify(EC_arg(3), EC_word(solver->vInt[(int)idx].min()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -470,10 +482,7 @@ int p_g_update_and_get_var_bound()
 		unify(EC_arg(5), EC_word(solver->vInt[(int)idx].max())));
 
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -493,10 +502,7 @@ int p_g_get_var_upb()
     try {
 	return unify(EC_arg(3), EC_word(solver->vInt[(int)idx].max()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -516,10 +522,7 @@ int p_g_get_var_domain_size()
     try {
 	return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].size()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -539,10 +542,7 @@ int p_g_get_var_domain_width()
     try {
 	return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].width()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -562,10 +562,7 @@ int p_g_get_var_median()
     try {
 	return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].med()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -585,10 +582,7 @@ int p_g_get_var_degree()
     try {
 	return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].degree()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -608,10 +602,7 @@ int p_g_get_var_afc()
     try {
 	return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].afc()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -631,10 +622,7 @@ int p_g_get_var_regret_lwb()
     try {
 	return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].regret_min()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -654,10 +642,7 @@ int p_g_get_var_regret_upb()
     try {
 	return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].regret_max()));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -701,10 +686,7 @@ int p_g_get_var_domain()
 	    oldtail = tail;
 	}
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     unify(oldtail, nil());
 
@@ -733,10 +715,7 @@ int p_g_add_newvars_interval()
 	for (int i=oldsize; i < (int)newsize; i++)
 	    solver->vInt[i].init(*solver, (int)min, (int)max);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -763,10 +742,7 @@ int p_g_add_newbool()
 	channel(*solver, solver->vInt[(int)i], solver->vBool[bidx]);
 	return unify(EC_arg(3), EC_word(bidx));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
 }
 
@@ -800,10 +776,7 @@ int p_g_add_newvars_dom()
 	for (int i=oldsize; i < (int)newsize; i++)
 	    solver->vInt[i].init(*solver, domset);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -999,13 +972,8 @@ int p_g_post_bool_connectives()
 	return TYPE_ERROR;
     solver = *solverp;
     if (solver == NULL) return TYPE_ERROR;
-    EC_atom atm;
-    if (EC_arg(4).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(4, cl);
 
     try {
 	BoolExpr c = ec2boolexpr(EC_arg(3), solver);
@@ -1021,10 +989,7 @@ int p_g_post_bool_connectives()
     catch(Ec2gcException) {
 	return TYPE_ERROR;
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 
@@ -1039,13 +1004,8 @@ int p_g_post_linrel_cstr()
     solver = *solverp;
     if (solver == NULL) return TYPE_ERROR;
 
-    EC_atom atm;
-    if (EC_arg(4).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(4, cl);
 
     try {
 #if 0
@@ -1064,10 +1024,7 @@ int p_g_post_linrel_cstr()
     catch(Ec2gcException) {
 	return TYPE_ERROR;
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -1102,10 +1059,7 @@ int p_g_post_setvar()
 
 	return (solver->failed() ? EC_fail : EC_succeed);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
 }
 
@@ -1141,10 +1095,7 @@ int p_g_propagate()
     try {
 	if (!solver->status()) return EC_fail;
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 //    return EC_succeed;
 
 //    if (first == 0) return EC_succeed;
@@ -1203,10 +1154,7 @@ int p_g_post_interval()
     try {
 	dom(*solver, vars, min, max);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return (solver->failed() ? EC_fail : EC_succeed);
 }
@@ -1220,7 +1168,7 @@ int p_g_post_var_interval_reif()
 
     if (EC_succeed != EC_arg(4).is_long(&min)) return(TYPE_ERROR);
     if (EC_succeed != EC_arg(5).is_long(&max)) return(TYPE_ERROR);
-    if (min > max) return RANGE_ERROR;
+//    if (min > max) return RANGE_ERROR;
 
     if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
 	return TYPE_ERROR;
@@ -1272,10 +1220,7 @@ int p_g_post_var_interval_reif()
 	dom(*solver, x, min, max, reif);
 	return (solver->failed() ? EC_fail : EC_succeed);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
 }
 
@@ -1316,10 +1261,7 @@ int p_g_post_dom()
 
 	return (solver->failed() ? EC_fail : EC_succeed);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -1385,10 +1327,7 @@ int p_g_post_var_dom_reif()
 	dom(*solver, x, domset, reif);
 	return (solver->failed() ? EC_fail : EC_succeed);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -1449,10 +1388,7 @@ int p_g_post_var_val_reif()
 	dom(*solver, x, (int)val, reif);
 	return (solver->failed() ? EC_fail : EC_succeed);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 extern "C"
@@ -1488,13 +1424,8 @@ int p_g_post_sum()
     long l;
     if (EC_arg(5).is_long(&l) != EC_succeed) return TYPE_ERROR;
 
-    EC_atom atm;
-    if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM; 
-    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(6, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -1504,10 +1435,7 @@ int p_g_post_sum()
 	linear(*solver, vars, rel, (int)l, cl);
 	return EC_succeed;
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
  
 extern "C"
@@ -1529,14 +1457,8 @@ int p_g_post_alldiff()
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, alldiff);
     if (res != EC_succeed) return res;
 
-    EC_atom atm;
-    if (EC_arg(4).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-    else if (strcmp(atm.name(), "gfd_vc") == 0) cl = ICL_VAL;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(4, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -1545,10 +1467,7 @@ int p_g_post_alldiff()
     try {
 	distinct(*solver, alldiff, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
     return EC_succeed;
 }
 
@@ -1578,14 +1497,9 @@ int p_g_post_alldiff_offsets()
     res = assign_IntArgs_from_ec_array(solver, size, oarr, offsets);
     if (res != EC_succeed) return res;
 
-    EC_atom atm;
-    if (EC_arg(4).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
+
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-    else if (strcmp(atm.name(), "gfd_vc") == 0) cl = ICL_VAL;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(5, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -1594,10 +1508,7 @@ int p_g_post_alldiff_offsets()
     try {
 	distinct(*solver, offsets, alldiff, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -1648,12 +1559,8 @@ int p_g_post_count()
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
     if (res != EC_succeed) return res;
 
-    EC_atom atm;
-    if (EC_arg(7).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(7, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -1663,10 +1570,7 @@ int p_g_post_count()
 	if (n_is_int) count(*solver, vars, (int)val, rel, n);
 	else count(*solver, vars, (int)val, rel, solver->vInt[(int)n], cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -1707,14 +1611,8 @@ int p_g_post_gcc()
     res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
     if (res != EC_succeed) return res;
 
-    EC_atom atm;
-    if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-    else if (strcmp(atm.name(), "gfd_vc") == 0) cl = ICL_VAL;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(6, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -1723,10 +1621,7 @@ int p_g_post_gcc()
     try {
 	count(*solver, vars, occurs, vals, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -1773,13 +1668,8 @@ int p_g_post_element()
 	int res = assign_IntVarArgs_from_ec_array(solver, size, arr, vals);
 	if (res != EC_succeed) return res;
 
-	EC_atom atm;
-	if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
 	IntConLevel cl;
-	if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-	else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-	else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-	else return RANGE_ERROR;
+	Get_Consistency_Level(6, cl);
 
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -1790,10 +1680,7 @@ int p_g_post_element()
 	else
 	    element(*solver, vals, ivar, vvar, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -1833,12 +1720,8 @@ int p_g_post_sequence()
     if (EC_succeed != EC_arg(4).is_long(&hi)) return TYPE_ERROR;
     if (EC_succeed != EC_arg(5).is_long(&k)) return TYPE_ERROR;
 
-    EC_atom atm;
-    if (EC_arg(8).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(8, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -1847,10 +1730,7 @@ int p_g_post_sequence()
     try {
 	sequence(*solver, vars, valset, k, lo, hi, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -1883,12 +1763,8 @@ int p_g_post_sequence_01()
     if (EC_succeed != EC_arg(4).is_long(&hi)) return TYPE_ERROR;
     if (EC_succeed != EC_arg(5).is_long(&k)) return TYPE_ERROR;
 
-    EC_atom atm;
-    if (EC_arg(7).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(7, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -1897,10 +1773,7 @@ int p_g_post_sequence_01()
     try {
 	sequence(*solver, vars, valset, k, lo, hi, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -1931,12 +1804,8 @@ int p_g_post_sorted2()
     res = assign_IntVarArgs_from_ec_array(solver, size, sarr, sort);
     if (res != EC_succeed) return res;
 
-    EC_atom atm;
-    if (EC_arg(5).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_BND;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(5, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -1945,10 +1814,7 @@ int p_g_post_sorted2()
     try {
 	sorted(*solver, unsort, sort, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -1986,12 +1852,8 @@ int p_g_post_sorted()
     res = assign_IntVarArgs_from_ec_array(solver, size, parr, pos);
     if (res != EC_succeed) return res;
 
-    EC_atom atm;
-    if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_BND;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(6, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2000,10 +1862,7 @@ int p_g_post_sorted()
     try {
 	sorted(*solver, unsort, sort, pos, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2059,10 +1918,7 @@ int p_g_post_disj()
 	    unary(*solver, starts, durations);
 	}
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2118,17 +1974,19 @@ int p_g_post_cumulatives()
     res = assign_IntArgs_from_ec_array(solver, nmachines, larr, limits);
     if (res != EC_succeed) return res;
 
+    long ec_atmost;
+    bool atmost;
+    if (EC_succeed != EC_arg(9).is_long(&ec_atmost)) return TYPE_ERROR;
+    atmost = (ec_atmost ? true : false);
+
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
     if (first) cache_domain_sizes(solver);
 
     try {
-	cumulatives(*solver, used, starts, durations, ends, usages, limits, true);
+	cumulatives(*solver, used, starts, durations, ends, usages, limits, ec_atmost);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2152,13 +2010,8 @@ int p_g_post_circuit()
     int res = assign_IntVarArgs_from_ec_array(solver, size, arr, succ);
     if (res != EC_succeed) return res;
 
-    EC_atom atm;
-    if (EC_arg(4).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else if (strcmp(atm.name(), "gfd_vc") == 0) cl = ICL_VAL;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(4, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2167,10 +2020,7 @@ int p_g_post_circuit()
     try {
 	circuit(*solver, succ, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2215,13 +2065,8 @@ int p_g_post_circuit_cost()
     } else
 	return TYPE_ERROR;
 
-    EC_atom atm;
-    if (EC_arg(7).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-    else if (strcmp(atm.name(), "gfd_vc") == 0) cl = ICL_VAL;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(7, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2238,10 +2083,7 @@ int p_g_post_circuit_cost()
 	} else 
 	    circuit(*solver, cm, succ, c, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2278,13 +2120,8 @@ int p_g_post_sqrt()
 	} else
 	    return TYPE_ERROR;
 
-	EC_atom atm;
-	if (EC_arg(5).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
 	IntConLevel cl;
-	if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-	else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-	else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-	else return RANGE_ERROR;
+	Get_Consistency_Level(5, cl);
 
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2292,10 +2129,7 @@ int p_g_post_sqrt()
 
 	sqrt(*solver, y, x, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2332,13 +2166,8 @@ int p_g_post_sq()
 	} else
 	    return TYPE_ERROR;
 
-	EC_atom atm;
-	if (EC_arg(5).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
 	IntConLevel cl;
-	if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-	else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-	else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-	else return RANGE_ERROR;
+	Get_Consistency_Level(5, cl);
 
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2346,10 +2175,7 @@ int p_g_post_sq()
 
 	sqr(*solver, y, x, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2393,10 +2219,7 @@ int p_g_post_abs()
 
 	abs(*solver, y, x);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2442,13 +2265,8 @@ int p_g_post_mult()
 	} else
 	    return TYPE_ERROR;
 
-	EC_atom atm;
-	if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
 	IntConLevel cl;
-	if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-	else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;
-	else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-	else return RANGE_ERROR;
+	Get_Consistency_Level(6, cl);
 
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2456,10 +2274,7 @@ int p_g_post_mult()
 
 	mult(*solver, y, z, x, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2510,10 +2325,7 @@ int p_g_post_div()
 
 	div(*solver, y, z, x);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2564,10 +2376,7 @@ int p_g_post_mod()
 
 	mod(*solver, y, z, x);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2626,10 +2435,7 @@ int p_g_post_divmod()
 
 	divmod(*solver, y, z, q, m);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2674,13 +2480,8 @@ int p_g_post_max2()
 	} else
 	    return TYPE_ERROR;
 
-	EC_atom atm;
-	if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
 	IntConLevel cl;
-	if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-	else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM; 
-	else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-	else return RANGE_ERROR;
+	Get_Consistency_Level(6, cl);
 
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2688,10 +2489,7 @@ int p_g_post_max2()
 
 	max(*solver, y, z, x, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2736,13 +2534,8 @@ int p_g_post_min2()
 	} else
 	    return TYPE_ERROR;
 
-	EC_atom atm;
-	if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
 	IntConLevel cl;
-	if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-	else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM; 
-	else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-	else return RANGE_ERROR;
+	Get_Consistency_Level(6, cl);
 
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2750,10 +2543,7 @@ int p_g_post_min2()
 
 	min(*solver, y, z, x, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2790,13 +2580,8 @@ int p_g_post_maxlist()
 	int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
 	if (res != EC_succeed) return res;
 
-	EC_atom atm;
-	if (EC_arg(5).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
 	IntConLevel cl;
-	if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-	else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM; 
-	else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-	else return RANGE_ERROR;
+	Get_Consistency_Level(5, cl);
 
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2804,10 +2589,7 @@ int p_g_post_maxlist()
 
 	max(*solver, vars, x, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2844,13 +2626,8 @@ int p_g_post_minlist()
 	int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
 	if (res != EC_succeed) return res;
 
-	EC_atom atm;
-	if (EC_arg(5).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
 	IntConLevel cl;
-	if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-	else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM; 
-	else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-	else return RANGE_ERROR;
+	Get_Consistency_Level(5, cl);
 
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2858,10 +2635,7 @@ int p_g_post_minlist()
 
 	min(*solver, vars, x, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2901,16 +2675,16 @@ int p_g_post_boolchannel()
 	long min;
 	if (EC_succeed != EC_arg(5).is_long(&min)) return TYPE_ERROR;
 
+	IntConLevel cl;
+	Get_Consistency_Level(5, cl);
+
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
 	if (first) cache_domain_sizes(solver);
 
-	channel(*solver, vars, x, min);
+	channel(*solver, vars, x, min, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2941,13 +2715,8 @@ int p_g_post_inverse()
     res = assign_IntVarArgs_from_ec_array(solver, size, arr2, vars2);
     if (res != EC_succeed) return res;
 
-    EC_atom atm;
-    if (EC_arg(5).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM; 
-    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(5, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -2956,10 +2725,7 @@ int p_g_post_inverse()
     try {
 	channel(*solver, vars1, vars2, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -2996,13 +2762,8 @@ int p_g_post_inverse_offset()
     res = assign_IntVarArgs_from_ec_array(solver, size, arr2, vars2);
     if (res != EC_succeed) return res;
 
-    EC_atom atm;
-    if (EC_arg(7).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
     IntConLevel cl;
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM; 
-    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;
-    else return RANGE_ERROR;
+    Get_Consistency_Level(7, cl);
 
     long first;
     if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -3011,10 +2772,7 @@ int p_g_post_inverse_offset()
     try {
 	channel(*solver, vars1, off1, vars2, off2, cl);
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 
     return EC_succeed;
 }
@@ -3084,6 +2842,8 @@ int p_g_setup_search()
 	else if (strcmp(atm.name(), "anti_occurrence") == 0) varselect = INT_VAR_DEGREE_MIN;
 	else if (strcmp(atm.name(), "largest") == 0) varselect = INT_VAR_MAX_MAX;
 	else if (strcmp(atm.name(), "smallest") == 0) varselect = INT_VAR_MIN_MIN;
+	else if (strcmp(atm.name(), "largest_lwb") == 0) varselect = INT_VAR_MAX_MIN;
+	else if (strcmp(atm.name(), "smallest_upb") == 0) varselect = INT_VAR_MIN_MAX;
 	else if (strcmp(atm.name(), "most_constrained") == 0) {
 	    varselect = INT_VAR_SIZE_MIN;
 	    do_tiebreak = true;
@@ -3206,10 +2966,7 @@ int p_g_setup_search()
 
 	return unify(EC_arg(10), handle(&gfdsearch_method, searchp));
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
 
 
@@ -3325,9 +3082,17 @@ int p_g_do_search()
 	    return unify(EC_arg(4), nil());
 	}
     }
-    catch(Exception& err) {
-	p_fprintf(current_err_, "Gecode exception: %s\n", err.what());
-	return EC_EXTERNAL_ERROR;
-    }
+    CatchAndReportGecodeExceptions
 }
     
+extern "C"
+int p_g_get_gfd_maxint()
+{
+    return unify(EC_arg(1), EC_word(Int::Limits::max));
+}
+
+extern "C"
+int p_g_get_gfd_minint()
+{
+    return unify(EC_arg(1), EC_word(Int::Limits::min));
+}

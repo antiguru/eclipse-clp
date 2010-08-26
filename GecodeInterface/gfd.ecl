@@ -48,26 +48,33 @@
 :- export (#::)/3, (::)/3.
 :- export (#\=)/2, (#=)/2, (#<)/2, (#>)/2, (#>=)/2, (#=<)/2.
 :- export (#\=)/3, (#=)/3, (#<)/3, (#>)/3, (#>=)/3, (#=<)/3.
+
 :- export alldifferent/1, alldifferent_offsets/2, 
           occurrences/3, atmost/3, count/4, element/3, gcc/2,
           sorted/2, sorted/3, circuit/1, circuit/3, circuit/4, 
-          disjunctive/2, disjunctive_optional/3, cumulatives/5, cumulative/4, 
+          disjunctive/2, disjunctive_optional/3, 
+          cumulatives/5, cumulatives_min/5, cumulative/4, 
           sequence/5, sequence/4.
-:- export minlist/2, maxlist/2, sumlist/2.
+:- export minlist/2, maxlist/2, sumlist/2, max/2, min/2.
 :- export bool_channeling/3, inverse/2, inverse/4.
 :- export ordered/2.
 :- export labeling/1, indomain/1, indomain/2, delete/5.
 :- export is_in_domain/2, is_in_domain/3.
 :- export search/6.
 :- export (and)/2, (or)/2, (xor)/2, (<=>)/2, (=>)/2, neg/1.
+:- export (and)/3, (or)/3, (xor)/3, (<=>)/3, (=>)/3, neg/2.
 
 :- export get_min/2, get_max/2.
 :- export get_bounds/3, get_integer_bounds/3, get_finite_integer_bounds/3.
-:- export get_domain/2, get_domain_size/2, get_delta/2, get_median/2.
+:- export get_domain/2, get_domain_as_list/2, get_domain_size/2, 
+          get_delta/2, get_median/2.
 :- export get_constraints_number/2, get_weighted_degree/2.
 :- export get_regret_lwb/2, get_regret_upb/2.
-:- export impose_min/2, impose_max/2, exclude/2.
-:- export is_solver_type/1.
+:- export impose_min/2, impose_max/2, impose_bounds/3, 
+          exclude/2, exclude_range/3.
+:- export is_solver_type/1, is_solver_var/1, is_exact_solver_var/1, integers/1.
+
+:- export gfd_maxint/1, gfd_minint/1.
 
 :- tool('#\\='/2, '#\\=_body'/3).
 :- tool('#='/2, '#=_body'/3).
@@ -96,6 +103,24 @@
 :- tool('#>_reif_c'/4, '#>_reif_c'/5).
 :- tool('#>=_reif_c'/4, '#>=_reif_c'/5).
 :- tool('#=<_reif_c'/4, '#=<_reif_c'/5).
+
+/*
+:- tool((=\=)/2, '#\\=_body'/3).
+:- tool((=:=)/2, '#=_body'/3).
+:- tool((<)/2, '#<_body'/3).
+:- tool((>)/2, '#>_body'/3).
+:- tool((>=)/2, '#>=_body'/3).
+:- tool((=<)/2, '#=<_body'/3).
+
+:- tool((=\=)/3, '#\\=_reif_body'/4).
+:- tool((=:=)/3, '#=_reif_body'/4).
+:- tool((<)/3, '#<_reif_body'/4).
+:- tool((>)/3, '#>_reif_body'/4).
+:- tool((>=)/3, '#>=_reif_body'/4).
+:- tool((=<)/3, '#=<_reif_body'/4).
+*/
+
+:- tool(delete/5, delete/6).
 
 :- local reference(prob_handle).
 :- local variable(varray_size, 100).
@@ -143,7 +168,7 @@
         external(g_post_circuit/4, p_g_post_circuit),
         external(g_post_circuit_cost/7, p_g_post_circuit_cost),
         external(g_post_disj/5, p_g_post_disj),
-        external(g_post_cumulatives/8, p_g_post_cumulatives),
+        external(g_post_cumulatives/9, p_g_post_cumulatives),
         external(g_post_sum/6, p_g_post_sum),
         external(g_post_maxlist/5, p_g_post_maxlist),
         external(g_post_minlist/5, p_g_post_minlist),
@@ -156,7 +181,7 @@
         external(g_post_min2/6, p_g_post_min2),
         external(g_post_max2/6, p_g_post_max2),
         external(g_post_divmod/6, p_g_post_divmod),
-        external(g_post_boolchannel/5, p_g_post_boolchannel),
+        external(g_post_boolchannel/6, p_g_post_boolchannel),
         external(g_post_inverse/5, p_g_post_inverse),
         external(g_post_inverse_offset/7, p_g_post_inverse_offset),
         external(g_propagate/4, p_g_propagate),
@@ -175,7 +200,9 @@
         external(g_get_var_regret_lwb/3, p_g_get_var_regret_lwb),
         external(g_get_var_regret_upb/3, p_g_get_var_regret_upb),
         external(g_setup_search/10, p_g_setup_search),
-        external(g_do_search/7, p_g_do_search).
+        external(g_do_search/7, p_g_do_search),
+        external(g_get_gfd_maxint/1, p_g_get_gfd_maxint),
+        external(g_get_gfd_minint/1, p_g_get_gfd_minint).
 
 :- export struct(
         gfd_prob(
@@ -371,7 +398,7 @@ gfd_set_var_bounds(_{gfd:Attr}, Lo0, Hi0) ?-
         Hi is fix(Hi0),
         Attr = gfd{prob:H, idx:I, bool:BI},
         gfdvar(I,BI,GV),
-        post_new_event(post_interval([](GV), Lo, Hi), H).
+        post_new_event_no_wake(post_interval([](GV), Lo, Hi), H).
 
 gfd_get_var_bounds(_{gfd:Attr}, Lo, Hi) ?-
         nonvar(Attr),
@@ -426,7 +453,11 @@ expand_and_copy_array(Old, New) :-
         ;
             process_domain_vars(NX, NormalDomain, H, NV0,NV, [],OldGVs),
             assign_domain(NormalDomain, H, NV, OldGVs)
-        ).
+        ), !.
+'::_body'(X, Domain, _Module) :-
+        get_bip_error(E),
+        error(E,(X :: Domain)).
+
 
 :- tool('::'/3, '::_body'/4).
 :- tool('#::'/3, '::_body'/4).
@@ -542,7 +573,9 @@ bound(I, B, _Module) :-
 bound(A, B, Module) :-
 %        ground(A),
         subcall(B is A, [])@Module,
-        integer(B).
+        integer(B), !.
+bound(_A, _B, _M) :-
+        set_bip_error(5).
 
 subdomain(Lo..Hi, Lo1, Hi1, Module) ?- !,
         bound(Lo, Lo1, Module),
@@ -559,6 +592,8 @@ process_domain_vars([I|Vs], Domain, H, NV0,NV, OldGVs0,OldGVs) :-
         integer(I), !,
         is_in_given_domain(I, Domain),
         process_domain_vars(Vs, Domain, H, NV0,NV, OldGVs0,OldGVs).
+process_domain_vars([_|_], _,_,_,_,_,_) :- !,
+        set_bip_error(5).
 process_domain_vars([], _D, _H, NV,NV, OldGVs,OldGVs).
 
 is_in_given_domain(I, [Lo..Hi|Ds]) :-
@@ -630,7 +665,7 @@ link_var_to_boolvar(V, H) :-
         
 
 is_in_domain(Val, Var) :-
-        integer(Val),
+        integer(Val), !,
         ( var(Var) ->
             get_gecode_attr(Var, H, Attr),
             Attr = gfd{idx:Idx},
@@ -671,12 +706,26 @@ post_connectives(Conn, ConLev, Module) :-
 :- tool('<=>'/2, '<=>_body'/3).
 :- tool('=>'/2, '=>_body'/3).
 
+:- tool((and)/3, and_reif_body/4).
+:- tool((or)/3, or_reif_body/4).
+:- tool((xor)/3, xor_reif_body/4).
+:- tool(neg/2, neg_reif_body/3).
+:- tool('<=>'/3, '<=>_reif_body'/4).
+:- tool('=>'/3, '=>_reif_body'/4).
+
 :- tool(and_c/3, and_c/4).
 :- tool(or_c/3, or_c/4).
 :- tool(xor_c/3, xor_c/4).
 :- tool(neg_c/2, neg_c/3).
 :- tool('<=>_c'/3, '<=>_c'/4).
 :- tool('=>_c'/3, '=>_c'/4).
+
+:- tool(and_reif_c/4, and_reif_c/5).
+:- tool(or_reif_c/4, or_reif_c/5).
+:- tool(xor_reif_c/4, xor_reif_c/5).
+:- tool(neg_reif_c/3, neg_reif_c/4).
+:- tool('<=>_reif_c'/4, '<=>_reif_c'/5).
+:- tool('=>_reif_c'/4, '=>_reif_c'/5).
 
 and_body(EX, EY, Module) :-
         and_c(EX, EY, default, Module).
@@ -715,7 +764,43 @@ neg_c(EX, ConLev, Module) :-
         post_connectives(neg(EX), ConLev, Module).
 
 
-        
+and_reif_body(EX, EY, Bool, Module) :-
+        and_reif_c(EX, EY, Bool, default, Module).
+
+and_reif_c(EX, EY, Bool, ConLev, Module) :-
+        post_connectives((Bool <=> (EX and EY)), ConLev, Module).
+
+or_reif_body(EX, EY, Bool, Module) :-
+        or_reif_c(EX, EY, Bool, default, Module).
+
+or_reif_c(EX, EY, Bool, ConLev, Module) :-
+        post_connectives((Bool <=> (EX or EY)), ConLev, Module).
+
+xor_reif_body(EX, EY, Bool, Module) :-
+        xor_reif_c(EX, EY, Bool, default, Module).
+
+xor_reif_c(EX, EY, Bool, ConLev, Module) :-
+        post_connectives((Bool <=> (EX xor EY)), ConLev, Module).
+
+'<=>_reif_body'(EX, EY, Bool, Module) :-
+        '<=>_reif_c'(EX, EY, Bool, default, Module).
+
+'<=>_reif_c'(EX, EY, Bool, ConLev, Module) :-
+        post_connectives((Bool <=> (EX <=> EY)), ConLev, Module).
+
+'=>_reif_body'(EX, EY, Bool, Module) :-
+        '=>_reif_c'(EX, EY, Bool, default, Module).
+
+'=>_reif_c'(EX, EY, Bool, ConLev, Module) :-
+        post_connectives((Bool <=> (EX => EY)), ConLev, Module).
+
+neg_reif_body(EX, Bool, Module) :-
+        neg_reif_c(EX, Bool, default, Module).
+
+neg_reif_c(EX, Bool, ConLev, Module) :-
+        post_connectives((Bool <=> neg(EX)), ConLev, Module).
+
+
 '#\\=_body'(EX, EY, Module) :-
         '#\\=_c'(EX, EY, default, Module).
 
@@ -1010,6 +1095,11 @@ element(Index, Collection, Value) :-
         element_c(Index, Collection, Value, default).
 
 element_c(Index, Collection, Value, ConLev) :-
+        collection_to_list(Collection, List),
+        get_prob_handle(H),
+        ec_to_gecode_varlist([Value|List], H, [GValue|GList]),
+        Array =.. [[]|GList],
+        Index :: 1..arity(Array),
         % Gecode's element constraint index starts from 0!
         ( integer(Index) ->
             GIndex is Index - 1
@@ -1019,10 +1109,6 @@ element_c(Index, Collection, Value, ConLev) :-
         ;
             fail
         ),
-        collection_to_list(Collection, List),
-        get_prob_handle(H),
-        ec_to_gecode_varlist([Value|List], H, [GValue|GList]),
-        Array =.. [[]|GList],
         post_new_event(post_element(ConLev, GIndex, Array, GValue), H).
 
 :- export struct(gcc(low,high,value)),
@@ -1105,18 +1191,22 @@ sorted_c(Us0, Ss0, Ps0, ConLev) :-
         ;
             collection_to_list(Ps0, Ps)
         ),
-	( foreach(_,Us), foreach(_,Ss), foreach(P,Ps), foreach(P1,P1s) do 
-            % positions in gecode's sort starts from 0, ECLiPSe from 1
-            connect_ecl_to_gecode_indices(P, P1)
+        gfd_maxint(Max),
+	( foreach(U,Us), foreach(_,Ss), foreach(_,Ps),
+          fromto(Max, Min0,Min1, Min)
+        do 
+           get_min(U, UMin),
+           (UMin < Min0 -> Min1 is UMin - 1 ; Min1 = Min0)
         ),
         Ss \== [],
         get_prob_handle(H),
         ec_to_gecode_varlist(Ss, H, GSs),
-        SsArr =.. [[]|GSs],
+        SsArr =.. [[],Min|GSs],
         ec_to_gecode_varlist(Us, H, GUs),
-        UsArr =.. [[]|GUs],
-        ec_to_gecode_varlist(P1s, H, GP1s),
-        PsArr =.. [[]|GP1s],
+        UsArr =.. [[],Min|GUs],
+        ec_to_gecode_varlist(Ps, H, GPs),
+        PsArr =.. [[],0|GPs],
+        Ps :: [1..(arity(PsArr)-1)],
         post_new_event(post_sorted(ConLev, UsArr, SsArr, PsArr), H).
 
 circuit(Succ) :-
@@ -1125,6 +1215,8 @@ circuit(Succ) :-
 circuit_c(Succ, ConLev) :-
         collection_to_list(Succ, SList),
         SList \== [],
+        length(SList, N), 
+        SList :: 1..N,
         get_prob_handle(H),
         ( foreach(V,SList), foreach(V1,SList1) do
             connect_ecl_to_gecode_indices(V,V1)
@@ -1148,6 +1240,8 @@ circuit_c(Succ, CostMatrix, ArcCosts, Cost, ConLev) :-
         CMArr =.. [[]|CMList],
         collection_to_list(Succ, SList),
         SList \== [],
+        length(SList, N), 
+        SList :: 1..N,
         get_prob_handle(H),
         ( foreach(V,SList), foreach(V1,SList1) do
             connect_ecl_to_gecode_indices(V,V1)
@@ -1209,8 +1303,19 @@ sequence_c(Lo, Hi, K, ZeroOneVars, ConLev) :-
         K =< arity(VarArr),
         post_new_event(post_sequence_01(ConLev, Lo, Hi, K, VarArr), H).
 
+cumulatives_min(Starts, Durations, Usages, UsedMachines, MachineMin) :-
+        cumulatives_c(Starts, Durations, Usages, UsedMachines, MachineMin, 0, default).
 
 cumulatives(Starts, Durations, Usages, UsedMachines, MachineLimits) :-
+        cumulatives_c(Starts, Durations, Usages, UsedMachines, MachineLimits, 1, default).
+
+cumulatives_min_c(Starts, Durations, Usages, UsedMachines, MachineMin, ConLev) :-
+        cumulatives_c(Starts, Durations, Usages, UsedMachines, MachineMin, 0, ConLev).
+
+cumulatives_c(Starts, Durations, Usages, UsedMachines, MachineMin, ConLev) :-
+        cumulatives_c(Starts, Durations, Usages, UsedMachines, MachineMin, 1, ConLev).
+
+cumulatives_c(Starts, Durations, Usages, UsedMachines, Limits, AtMost, ConLev) :-
         collection_to_list(Starts, StartsL),
         ec_to_gecode_varlist(StartsL, H, GStartsL),
         StartsArr =.. [[]|GStartsL],
@@ -1238,13 +1343,16 @@ cumulatives(Starts, Durations, Usages, UsedMachines, MachineLimits) :-
             S + D #= E
         ),
 
-        collection_to_list(MachineLimits, LimitsL),
+        collection_to_list(Limits, LimitsL),
         LimitsArr =.. [[]|LimitsL],
-        post_new_event(post_cumulatives(default, StartsArr, DurationsArr, EndsArr,
-                                        UsagesArr, UsedArr, LimitsArr), H).
+        post_new_event(post_cumulatives(ConLev, StartsArr, DurationsArr, EndsArr,
+                                        UsagesArr, UsedArr, LimitsArr, AtMost), H).
 
 % compatibility for 3.3 -- no specialised cumulative
 cumulative(Starts, Durations, Usages, Limit) :-
+        cumulative_c(Starts, Durations, Usages, Limit, default).
+
+cumulative_c(Starts, Durations, Usages, Limit, ConLev) :-
         collection_to_list(Starts, StartsL),
         ec_to_gecode_varlist(StartsL, H, GStartsL),
         StartsArr =.. [[]|GStartsL],
@@ -1268,7 +1376,7 @@ cumulative(Starts, Durations, Usages, Limit) :-
         ),
         integer(Limit),
         LimitsArr = [](Limit),
-        post_new_event(post_cumulatives(default, StartsArr, DurationsArr, EndsArr,
+        post_new_event(post_cumulatives(ConLev, StartsArr, DurationsArr, EndsArr,
                                         UsagesArr, UsedArr, LimitsArr), H).
 
 % gecode 3.3 allows ground Durations only
@@ -1306,6 +1414,9 @@ disjunctive_optional(Starts, Durations, Scheduled) :-
 
 
 bool_channeling(V, Bools, Min) :-
+        bool_channeling_c(V, Bools, Min, default).
+
+bool_channeling_c(V, Bools, Min, ConLev) :-
         integer(Min),
         collection_to_list(Bools, BList),
         BList :: [0..1],
@@ -1331,7 +1442,7 @@ bool_channeling(V, Bools, Min) :-
         ; % V must be integer as :: succeeded 
             GV = V
         ),
-        post_new_event(post_boolchannel(GV,GBArr,Min), H). 
+        post_new_event(post_boolchannel(ConLev,GV,GBArr,Min), H). 
 
 inverse(XL, YL) :-
         inverse_c(XL, YL, default).
@@ -1386,6 +1497,9 @@ inverse_c(Vs1, Off1, Vs2, Off2, ConLev) :-
         Arr2 =.. [[]|GVars2],
         post_new_event(post_inverse_offset(ConLev, Arr1, GOff1, Arr2, GOff2), H).
 
+min(Xs, Min) :-
+        minlist_c(Xs, Min, default).
+
 minlist(Xs, Min) :-
         minlist_c(Xs, Min, default).
 
@@ -1395,6 +1509,9 @@ minlist_c(Xs, Min, ConLev) :-
         ec_to_gecode_varlist([Min|XLs], H, [GMin|GLs]),
         GArray =.. [[]|GLs],
         post_new_event(post_minlist(ConLev, GMin, GArray), H).
+
+max(Xs, Max) :-
+        maxlist_c(Xs, Max, default).
 
 maxlist(Xs, Max) :-
         maxlist_c(Xs, Max, default).
@@ -1669,9 +1786,9 @@ do_event1(post_disj(_ConLev,StartArray,DurArray,SchArray), SpH, First, DoProp) ?
         DoProp = 1,
         % ConLev not supported for this constraint
         g_post_disj(SpH, First, StartArray, DurArray,SchArray).
-do_event1(post_cumulatives(_ConLev,Starts,Durations,Ends,Usages,Used,Limits), SpH, First, DoProp) ?-
+do_event1(post_cumulatives(_ConLev,Starts,Durations,Ends,Usages,Used,Limits,AtMost), SpH, First, DoProp) ?-
         DoProp = 1,
-        g_post_cumulatives(SpH, First, Starts, Durations, Ends, Usages, Used, Limits).
+        g_post_cumulatives(SpH, First, Starts, Durations, Ends, Usages, Used, Limits, AtMost).
 do_event1(post_interval(GArray,Lo,Hi), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_interval(SpH, First, GArray, Lo, Hi).
@@ -1743,9 +1860,9 @@ do_event1(newbool(V), SpH, _First, DoProp) ?-
         get_gecode_attr(V, _H, Attr),
         Attr = gfd{idx:Idx,bool:BIdx},
         g_add_newbool(SpH, Idx, BIdx).
-do_event1(post_boolchannel(GV,GBArr,Min), SpH, First, DoProp) ?-
+do_event1(post_boolchannel(ConLev,GV,GBArr,Min), SpH, First, DoProp) ?-
         DoProp = 1,
-        g_post_boolchannel(SpH, First, GV, GBArr, Min).
+        g_post_boolchannel(SpH, First, GV, GBArr, Min, ConLev).
 do_event1(post_inverse(ConLev,Arr1,Arr2), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_inverse(SpH, First, Arr1, Arr2, ConLev).
@@ -2232,10 +2349,10 @@ do_indomain_from_value(V{gfd:Attr}, Value) ?-
    are used to record the last Hi and Lo values tried.
 */
 indomain_from(V, Val, H, Sp, Idx) :- 
-        Val0 is Val - 1,
-        shelf_create(last(Val0), OldHi),
-        shelf_create(last(Val), OldLo),
-        indomain_from1(-1, V, H, Sp, Idx, OldHi, OldLo).
+        Val0 is Val + 1,
+        shelf_create(last(Val), OldHi),
+        shelf_create(last(Val0), OldLo),
+        indomain_from1(1, V, H, Sp, Idx, OldHi, OldLo).
 
 indomain_from1(-1, V, H, Sp, Idx, OldHi, OldLo) :-
         % trying larger values
@@ -2272,21 +2389,21 @@ indomain_from1(Which, V, H, Sp, Idx, OldHi, OldLo) :-
         indomain_from1(NewWhich, V, H, Sp, Idx, OldHi, OldLo).
 
 % Based on delete/5 in generic_search.ecl
-% delete(-X,+List:non_empty_list,-R:list,++Arg:integer,++Select:atom)
+% delete(-X,+List:non_empty_list,-R:list,++Arg:integer,++Select:atom,++Module:atom)
 % choose one entry in the list based on a heuristic
 % this is a deterministic selection
 % a special case for input order to speed up the selection in that case
 %
-:-mode delete(-,+,-,++,++).
-delete(H,List,T,_Arg,input_order):-
+:-mode delete(-,+,-,++,++,++).
+delete(H,List,T,_Arg,input_order, _Module):-
 	!, List = [H|T].
-delete(X,List,R,Arg,Select):-
+delete(X,List,R,Arg,Select, Module):-
 	List = [H|T],
-	find_criteria(H,Arg,Select,Crit),
+	find_criteria(H,Arg,Select,Crit, Module),
 	( var(Crit) ->
 	    X=H, R=T	% we can't do any better!
 	;
-	    find_best_and_rest(T,List,Crit,X,R,Arg,Select)
+	    find_best_and_rest(T,List,Crit,X,R,Arg,Select, Module)
 	).
 
 
@@ -2295,20 +2412,20 @@ delete(X,List,R,Arg,Select):-
 %	+BestSoFar:list,	the tail starting with the current best
 %	?Crit: variable, number or crit(Crit,Crit),
 %	-Best, -Rest_best:list,	the result
-%	++Arg:integer,++Select:atom)
+%	++Arg:integer,++Select:atom,++Module:atom)
 %
-:- mode find_best_and_rest(+,+,?,-,-,++,++).
-find_best_and_rest([], BestSoFar, _OldCrit, BestVar, Rest, _Arg, _Select) :- !,
+:- mode find_best_and_rest(+,+,?,-,-,++,++,++).
+find_best_and_rest([], BestSoFar, _OldCrit, BestVar, Rest, _Arg, _Select, _Module) :- !,
 	BestSoFar = [BestVar|Rest].
-find_best_and_rest(List, BestSoFar, CritOld, BestVar, Rest, Arg, Select) :-
+find_best_and_rest(List, BestSoFar, CritOld, BestVar, Rest, Arg, Select, Module) :-
 	List = [Var|Vars],
-	find_criteria(Var, Arg, Select, CritNew),
+	find_criteria(Var, Arg, Select, CritNew, Module),
 	( CritNew @>= CritOld ->	% no better than the old one, continue
-	    find_best_and_rest(Vars, BestSoFar, CritOld, BestVar, Rest, Arg, Select)
+	    find_best_and_rest(Vars, BestSoFar, CritOld, BestVar, Rest, Arg, Select, Module)
 	; nonvar(CritNew) ->		% found a better one, continue
 	    % copy the chunk between old and new best
 	    copy_until_elem(BestSoFar, Var, Rest, Rest0),
-	    find_best_and_rest(Vars, List, CritNew, BestVar, Rest0, Arg, Select)
+	    find_best_and_rest(Vars, List, CritNew, BestVar, Rest0, Arg, Select, Module)
 	;
 	    % we can't do any better, stop
 	    BestVar = Var,
@@ -2318,26 +2435,28 @@ find_best_and_rest(List, BestSoFar, CritOld, BestVar, Rest, Arg, Select) :-
 
 
 % find_criteria(?Term,++Arg:integer,++Select:atom,
-%		-Crit:integer or crit(integer,integer))
+%		-Crit:integer or crit(integer,integer),
+%               ++Module:atom)
 %
 % find a heuristic value from a term
-:-mode find_criteria(?,++,++,-).
-find_criteria(Term,0,Select,Crit):-
+:-mode find_criteria(?,++,++,-,++).
+find_criteria(Term,0,Select,Crit, Module):-
 	!,
-	find_value(Term,Select,Crit).
-find_criteria(Term,Arg,Select,Crit):-
+	find_value(Term,Select,Crit, Module).
+find_criteria(Term,Arg,Select,Crit, Module):-
 	arg(Arg,Term,X),
-	find_value(X,Select,Crit).
+	find_value(X,Select,Crit, Module).
 
 % find_value(?X:dvarint,++Select:atom,
-%	     -Crit:integer or crit(integer,integer))
+%	     -Crit:integer or crit(integer,integer),
+%            ++Module:atom)
 %
 % Find a heuristic value from a domain variable: the smaller, the better.
 % Values will be compared using @<, so be aware of standard term ordering!
 % If the Criterion remains uninstantiated, this indicates an optimal value,
 % which will be picked without looking any further down the list.
-:-mode find_value(?,++,-).
-find_value(X,first_fail,Size):-
+:-mode find_value(?,++,-,++).
+find_value(X,first_fail,Size, _Module):-
 	!,
 	( nonvar(X) ->
 	    true	% pick constants first and commit
@@ -2345,18 +2464,18 @@ find_value(X,first_fail,Size):-
 	    get_domain_size(X,Size0),
 	    ( integer(Size0) -> Size=Size0 ; Size=inf )	% 99 @< 'inf'
 	).
-find_value(X,anti_first_fail,Number):-
+find_value(X,anti_first_fail,Number, _Module):-
 	!,
 	get_domain_size(X,Size),				% can be 1.0Inf
 	Number is -Size.				% -1.0Inf @< -99
-find_value(X,smallest,Min):-
+find_value(X,smallest,Min, _Module):-
 	!,
 	get_min(X,Min).
-find_value(X,largest,Number):-
+find_value(X,largest,Number, _Module):-
 	!,
 	get_max(X,Max),
 	Number is -Max.
-find_value(X,occurrence,Number):-
+find_value(X,occurrence,Number, _Module):-
 	!,
 	( nonvar(X) ->
 	    true	% pick constants first and commit
@@ -2364,7 +2483,7 @@ find_value(X,occurrence,Number):-
 	    get_constraints_number(X,Nr), 
 	    Number is -Nr
 	).
-find_value(X,max_regret,Number):-
+find_value(X,max_regret,Number, _Module):-
 	!,
 	( nonvar(X) ->
 	    true	% pick constants first and commit
@@ -2372,7 +2491,7 @@ find_value(X,max_regret,Number):-
 	    get_regret_lwb(X, Regret),
 	    Number is -Regret
 	).
-find_value(X,max_regret_upb,Number):-
+find_value(X,max_regret_upb,Number, _Module):-
 	!,
 	( nonvar(X) ->
 	    true	% pick constants first and commit
@@ -2380,7 +2499,7 @@ find_value(X,max_regret_upb,Number):-
 	    get_regret_upb(X, Regret),
 	    Number is -Regret
 	).
-find_value(X,max_weighted_degree, Number):-
+find_value(X,max_weighted_degree, Number, _Module):-
         !,
 	( nonvar(X) ->
 	    true	% pick constants first and commit
@@ -2388,16 +2507,16 @@ find_value(X,max_weighted_degree, Number):-
 	    get_weighted_degree(X, AFC),
 	    Number is -AFC
 	).
-find_value(X,most_constrained,Crit):-
+find_value(X,most_constrained,Crit, Module):-
 	!,
 	( nonvar(X) ->
 	    true	% pick constants first and commit
 	;
 	    Crit = crit(Size,Number),
-	    find_value(X,first_fail,Size),
-	    find_value(X,occurrence,Number)
+	    find_value(X,first_fail,Size, Module),
+	    find_value(X,occurrence,Number, Module)
 	).
-find_value(X,most_constrained_per_value,Number):-
+find_value(X,most_constrained_per_value,Number, _Module):-
         !,
 	( nonvar(X) ->
 	    true	% pick constants first and commit
@@ -2406,7 +2525,7 @@ find_value(X,most_constrained_per_value,Number):-
             get_domain_size(X, Size),
             Number is fix(round(Size/AFC))
         ).
-find_value(X,max_weighted_degree_per_value,Number) :-
+find_value(X,max_weighted_degree_per_value,Number, _Module) :-
         !,
 	( nonvar(X) ->
 	    true	% pick constants first and commit
@@ -2415,6 +2534,10 @@ find_value(X,max_weighted_degree_per_value,Number) :-
             get_domain_size(X, Size),
             Number is fix(round(Size/AFC))
         ).
+find_value(X,User_method,Value,Module):-
+	Call =..[User_method,X,Value],
+	once(Call)@Module.	% do not allow backtracking in user routine
+
 
 % Copy list until first occurrence of K and return as difference list
 :- mode copy_until_elem(+,?,?,?).
@@ -2507,6 +2630,8 @@ var_selection(occurrence).
 var_selection(anti_occurrence).
 var_selection(largest).
 var_selection(smallest).
+var_selection(largest_uwb).
+var_selection(smallest_upb).
 var_selection(most_constrained).
 var_selection(most_constrained_per_value).
 var_selection(least_constrained_per_value).
@@ -2664,18 +2789,44 @@ get_domain(I, Dom) :-
         Dom = [I].
 get_domain(_{gfd:Attr}, Dom) ?-
         nonvar(Attr),
-        Attr = gfd{prob:H, idx:Idx},
+        Attr = gfd{prob:H, idx:Idx}, !,
         restore_space_if_needed(H, SpH),
         g_get_var_domain(SpH, Idx, Dom).
+get_domain(X, Dom) :-
+        error(5, get_domain(X, Dom)).
+
+
+get_domain_as_list(V, DomList) :-
+        get_domain(V, Dom),
+        translate_domain_to_list(Dom, DomList).
+
+  translate_domain_to_list([], DomList) ?- !,
+        DomList = [].
+  translate_domain_to_list([X|Xs], DomList) ?-
+        ( integer(X) ->
+            DomList = [X|DomList0]
+        ; X = Lo..Hi ->
+            ( for(I, Lo, Hi), 
+              fromto(DomList, [I|DomList1],DomList1, DomList0)
+            do
+                true
+            )
+        ;
+            fail
+        ),
+        translate_domain_to_list(Xs, DomList0).
 
 get_domain_size(I, Size) :-
         integer(I), !,
         Size = 1.
-get_domain_size(_{gfd:Attr}, Size) ?-
+get_domain_size(_{gfd:Attr}, Size) ?- 
         nonvar(Attr),
-        Attr = gfd{prob:H, idx:Idx},
+        Attr = gfd{prob:H, idx:Idx}, !,
         restore_space_if_needed(H, SpH),
         g_get_var_domain_size(SpH, Idx, Size).
+get_domain_size(X, Size) :-
+        error(5, get_domain_size(X, Size)).
+
 
 get_delta(I, Width) :-
         integer(I), !,
@@ -2730,7 +2881,6 @@ get_regret_upb(_{gfd:Attr}, Count) ?-
 
 impose_min(I, Min) :-
         integer(I), !,
-        integer(Min),
         Min =< I.
 impose_min(_{gfd:Attr}, Min) ?- 
         integer(Min),
@@ -2750,22 +2900,71 @@ impose_max(_{gfd:Attr}, Max) ?-
         gfdvar(Idx,BI, GV),
         post_new_event_no_wake(post_rc(default,GV #=< Max), H).
 
+impose_bounds(I, Min, Max) :-
+        integer(I), !,
+        (integer(Min) -> true ; error(5, impose_bounds(I, Min, Max))),
+        (integer(Max) -> true ; error(5, impose_bounds(I, Min, Max))),
+        Max >= I, Min =< I.
+impose_bounds(V, Min, Max) :-
+        (integer(Min) -> true ; error(5, impose_bounds(I, Min, Max))),
+        (integer(Max) -> true ; error(5, impose_bounds(I, Min, Max))),
+        gfd_set_var_bounds(V, Min, Max), 
+        wake.
 
 exclude(I, Excl) ?-
         integer(I), !,
-        I \= Excl.
-exclude(_{gfd:Attr}, I) ?- 
+        I =\= Excl.
+exclude(V{gfd:Attr}, I) ?- 
         nonvar(Attr),
-        integer(I),
+        (integer(I) -> true ; error(5, exclude(V, I))),
         Attr = gfd{prob:H, idx:Idx,bool:BI},
         gfdvar(Idx,BI, GV),
         post_new_event_no_wake(post_var_val_reif(GV, I, 0), H).
+
+
+exclude_range(V{gfd:Attr}, Lo, Hi) ?-
+        nonvar(Attr), !,
+        (integer(Hi) -> true ; error(5, exclude_range(V, Lo, Hi))),
+        (integer(Lo) -> true ; error(5, exclude_range(V, Lo, Hi))),
+        Attr = gfd{prob:H, idx:Idx,bool:BI},
+        gfdvar(Idx,BI, GV),
+        post_new_event_no_wake(post_var_interval_reif(GV, Lo, Hi, 0), H).
+exclude_range(X, Lo, Hi) :-
+	integer(X),
+	integer(Lo),
+	integer(Hi),
+	!,
+	\+ ( Lo =< X, X =< Hi).
+exclude_range(X, Lo, Hi) :-
+	error(6, exclude_range(X, Lo, Hi)).
+
 
 is_solver_type(I) :- integer(I), !.
 is_solver_type(_{gfd:Attr}) ?- 
         nonvar(Attr),
         Attr = gfd{}.
 
+is_solver_var(_{gfd:Attr}) ?-
+        nonvar(Attr),
+        Attr = gfd{}.
+
+is_exact_solver_var(V) :-
+        is_solver_var(V).
+
+integers(V) :-
+        get_prob_handle(H),
+        ( var(V) ->
+            ec_to_gecode_var(V, H, _)
+        ;
+            collection_to_list(V, VList),
+            ec_to_gecode_varlist(VList, H, _)
+        ).
+
+gfd_maxint(X) :-
+        g_get_gfd_maxint(X).
+
+gfd_minint(X) :-
+        g_get_gfd_minint(X).
 
 %----------------------------------------------------------------------
 % ic compatibility
@@ -2807,7 +3006,8 @@ ordered1(Order, X1, X2Xs) :-
 
 
 
-:- create_constraint_pool(gfd_gac, 0, [
+:- erase_module(gfd_gac),
+   create_constraint_pool(gfd_gac, 0, [
       (#\=)/2 -> '#\\=_c'/3,
       (#=)/2 -> '#=_c'/3,
       (#<)/2 -> '#<_c'/3,
@@ -2820,14 +3020,22 @@ ordered1(Order, X1, X2Xs) :-
       neg/1 -> neg_c/2,
       '<=>'/2 -> '<=>_c'/3,
       '=>'/2 -> '=>_c'/3,
+/* currently gecode does not support gac for reified expressions    
       (#\=)/3 -> '#\\=_reif_c'/4,
       (#=)/3 -> '#=_reif_c'/4,
       (#<)/3 -> '#<_reif_c'/4,
       (#>)/3 -> '#>_reif_c'/4,
       (#>=)/3 -> '#>=_reif_c'/4,
       (#=<)/3 -> '#=<_reif_c'/4,
+      (and)/3 -> and_reif_c/4,
+      (or)/3 -> or_reif_c/4,
+      (xor)/3 -> xor_reif_c/4,
+      neg/2 -> neg_c/3,
+      '<=>'/3 -> '<=>_reif_c'/4,
+      '=>'/3 -> '=>_reif_c'/4, */
       alldifferent/1 -> alldifferent_c/2,
       alldifferent_offsets/2 -> alldifferent_offsets_c/3,
+      bool_channeling/3 -> bool_channeling_c/4,
       count/4 -> count_c/5,
       occurrences/3 -> occurrences_c/4,
       atmost/3 -> atmost_c/4,
@@ -2846,7 +3054,8 @@ ordered1(Order, X1, X2Xs) :-
       sequence/5 -> sequence_c/6
    ]).
 
-:- create_constraint_pool(gfd_bc, 0, [
+:- erase_module(gfd_bc),
+   create_constraint_pool(gfd_bc, 0, [
       (#\=)/2 -> '#\\=_c'/3,
       (#=)/2 -> '#=_c'/3,
       (#<)/2 -> '#<_c'/3,
@@ -2865,6 +3074,12 @@ ordered1(Order, X1, X2Xs) :-
       (#>)/3 -> '#>_reif_c'/4,
       (#>=)/3 -> '#>=_reif_c'/4,
       (#=<)/3 -> '#=<_reif_c'/4,
+      (and)/3 -> and_reif_c/4,
+      (or)/3 -> or_reif_c/4,
+      (xor)/3 -> xor_reif_c/4,
+      neg/2 -> neg_c/3,
+      '<=>'/3 -> '<=>_reif_c'/4,
+      '=>'/3 -> '=>_reif_c'/4,
       alldifferent/1 -> alldifferent_c/2,
       alldifferent_offsets/2 -> alldifferent_offsets_c/3,
       element/3 -> element_c/4,
@@ -2876,13 +3091,20 @@ ordered1(Order, X1, X2Xs) :-
       sorted/3 -> sorted_c/4
   ]).
 
-:- create_constraint_pool(gfd_vc, 0, [
+:- erase_module(gfd_vc),
+   create_constraint_pool(gfd_vc, 0, [
       alldifferent/1 -> alldifferent_c/2,
       alldifferent_offsets/2 -> alldifferent_offsets_c/3,
+      bool_channeling/3 -> bool_channeling_c/4,
       circuit/1 -> circuit_c/2,
       circuit/3 -> circuit_c/4,
       circuit/4 -> circuit_c/5,
+      cumulative/4 -> cumulative_c/5,
+      cumulatives/5 -> cumulatives_c/6,
+      cumulatives_min/5 -> cumulatives_min_c/6,
       inverse/2 -> inverse_c/3,
       inverse/4 -> inverse_c/5,
       gcc/2 -> gcc_c/3
   ]).
+
+:- comment(include, "gfd_comments.ecl").
