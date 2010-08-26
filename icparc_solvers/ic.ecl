@@ -676,8 +676,7 @@ from ic_kernel.
    any of the intervals Lo..Hi.</P>
 "),
    exceptions: [
-        5: "Var is neither an IC variable or number.",
-	6: "Var is a IC variable of type real."
+        5: "Var is neither an IC variable or number."
    ],
    fail_if: "The initial value of DomainList fails to unify with the returned value."
 ]).

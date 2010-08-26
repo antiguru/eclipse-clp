@@ -708,10 +708,10 @@ The available methods are:
     to make choices (for use in conjunction with the GAP-based SBDD symmetry
     breaking library, lib(ic_gap_sbdd)).</li>
 </ul>
-On backtracking, all methods first remove the previously tested value
-before choosing a new one.  This sometimes can have a huge impact on
-the constraint propagation, and normally does not cause much overhead,
-even if no additional propagation occurs.
+On backtracking, all methods except enum first remove the previously tested
+value before choosing a new one.  This sometimes can have a huge impact on the
+constraint propagation, and normally does not cause much overhead, even if no
+additional propagation occurs.
 "),
 fail_if:"No",
 resat:yes,
