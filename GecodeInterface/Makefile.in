@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.5 2010/08/23 02:13:04 kish_shen Exp $
+# $Id: Makefile.in,v 1.6 2010/08/27 01:32:56 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -54,6 +54,8 @@ ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse @LIBS@
 
 GECODE = $(THIRDPARTY)/gecode-3.3.1/$(ARCH)
 
+ECLIPSE = $(ECLIPSEDIR)/bin/$(ARCH)/eclipse
+
 PERM = a+r,u+w,go-w
 DIRPERM = 2755
 
@@ -62,12 +64,13 @@ DIRPERM = 2755
 .c.o:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
-ECL_ECI_FILES =	
+ECL_ECI_FILES =	gfd.ecl 
 
 ECL_FILES =	gfd.ecl gfd_generic_interface.ecl
 
 ECL_DEST =	$(ECL_ECI_FILES:%.ecl=$(DESTDIR)/%.ecl) \
 		$(ECL_FILES:%.ecl=$(DESTDIR)/%.ecl)
+ECI_DEST =	$(ECL_ECI_FILES:%.ecl=$(PREFIX)/lib/%.eci)
 OBJ_DEST =	$(OBJ_FILES:%=$(PREFIX)/lib/%)
 
 # List of shared libraries to build
@@ -78,7 +81,7 @@ OBJ_FILES =	\
 
 install:	@MAKE_TARGET@
 
-install_all:	$(ECL_DEST) $(OBJ_DEST)
+install_all:	$(OBJ_DEST) $(ECL_DEST) $(ECI_DEST) 
 
 GECODELIBS = -lgecodesupport -lgecodekernel -lgecodeint -lgecodesearch \
 	-lgecodegraph -lgecodeset -lgecodescheduling -lgecodeminimodel
@@ -108,3 +111,7 @@ $(DESTDIR)/$(ARCH)/%.$(OBJ_SUFFIX):	$(ARCH)/%.$(OBJ_SUFFIX) $(PREFIX)/lib/$(ARCH
 $(DESTDIR)/%.ecl:	%.ecl $(DESTDIR)/.stamp
 	/bin/cp $< $@
 	@/bin/chmod $(PERM) $@
+
+$(DESTDIR)/%.eci: %.ecl %_comments.ecl $(PREFIX)/lib/.stamp
+	$(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(document),icompile("$(*F)","$(@D)")'
+	-@/bin/chmod $(PERM) $@

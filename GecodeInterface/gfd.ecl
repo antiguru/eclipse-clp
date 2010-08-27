@@ -25,8 +25,9 @@
 :- module(gfd).
 
 :- lib(lists).
-
 :- lib(constraint_pools).
+:- lib(module_options).
+
 
 :- import set_bip_error/1, get_bip_error/1 from sepia_kernel.
 
@@ -76,6 +77,8 @@
 
 :- export gfd_maxint/1, gfd_minint/1.
 
+:- export gfd_get_default/2, gfd_set_default/2.
+
 :- tool('#\\='/2, '#\\=_body'/3).
 :- tool('#='/2, '#=_body'/3).
 :- tool('#<'/2, '#<_body'/3).
@@ -123,7 +126,6 @@
 :- tool(delete/5, delete/6).
 
 :- local reference(prob_handle).
-:- local variable(varray_size, 100).
 :- local store(stats).
 
 :- export gfd_var_print/2.
@@ -237,26 +239,53 @@ gfd_handle_tr_out(gfd_prob{nvars:N},gfd_prob(nvars(N))).
         )
    ).
 
-:- local 
-     variable(interval_min, -1000000), 
-     variable(interval_max,1000000).
+:- local struct(options(interval_min,
+                        interval_max,
+                        array_size,
+                        cloning_distance)
+               ).
 
-:- export gfd_set_default_interval/2.
+valid_option_field(interval_min, interval_min of options).
+valid_option_field(interval_max, interval_max of options).
+valid_option_field(array_size,   array_size of options).
+valid_option_field(cloning_distance, cloning_distance of options).
 
-gfd_set_default_interval(min, Min) ?-
-        integer(Min), !,
-        setval(interval_min, Min).
-gfd_set_default_interval(max, Max) ?-
-        integer(Max), !,
-        setval(interval_max, Max).
+valid_option_value(interval_min, Min) :- integer(Min), Min >= gfd_minint.
+valid_option_value(interval_max, Max) :- integer(Max), Max =< gfd_maxint.
+valid_option_value(array_size, Size) :- integer(Size), Size > 0.
+valid_option_value(cloning_distance, D) :- integer(D), D > 0.
 
-:- export gfd_get_default_interval/2.
+default_options(options{interval_min: -1000000,
+                        interval_max:  1000000,
+                        array_size: 100,
+                        cloning_distance: 2}
+               ).
 
-gfd_get_default_interval(min, Min) ?- !,
-        getval(interval_min, Min).
-gfd_get_default_interval(max, Max) ?- !,
-        getval(interval_max, Max).
 
+gfd_get_default(Option, Value) :-
+        valid_option_field(Option, OptPos),
+        get_options([], Defaults),
+        arg(OptPos, Defaults, Value).
+
+gfd_set_default(Option, Value) :-
+        set_default_option(Option, Value),
+        ( Option == cloning_distance ->
+            % cloning distance is treated specially, as it is used often
+            % and need to be accessed quickly
+            setval(cloning_distance, Value)
+        ;
+            true
+        ).
+
+?- gfd_get_default(cloning_distance, Dist), 
+   (local variable(cloning_distance, Dist)).
+
+gfd_default_interval(Min, Max) :-
+        valid_option_field(interval_min, MinPos),
+        valid_option_field(interval_max, MaxPos),
+        get_options([], Defaults),
+        arg(MinPos, Defaults, Min),
+        arg(MaxPos, Defaults, Max).
 
 
 boolean_expr(E) :-
@@ -431,9 +460,7 @@ addto_varray(H, Idx, V) :-
 
 expand_and_copy_array(Old, New) :-
         arity(Old, OldSize),
-        NewInc is getval(varray_size)*2,
-        setval(varray_size, NewInc),
-        NewSize is OldSize + NewInc,  
+        NewSize is OldSize*2,
         dim(New, [NewSize]),
         ( foreacharg(A, Old, Idx), param(New) do
             arg(Idx, New, A)
@@ -465,7 +492,8 @@ expand_and_copy_array(Old, New) :-
 
 '::_body'(X, Domain, Bool, Module):-
         get_prob_handle(H),
-        H = gfd_prob{nvars:N0,min:Min,max:Max},
+        H = gfd_prob{nvars:N0},
+        gfd_default_interval(Min, Max),
         ec_to_gecode_domain_reified1(X, Domain, Bool, H, N0,N, [],Bs, Event, _, Module),
         update_vars_for_gecode(N0, N, Bs, H, Min, Max),
         post_new_event(Event, H).
@@ -645,7 +673,8 @@ update_newvars_with_multi_domain_intervals(H, NV, DArray) :-
         ).
 
 create_and_add_default_gfdvar(V, H) :-
-        H = gfd_prob{nvars:N0,min:Min,max:Max},
+        H = gfd_prob{nvars:N0},
+        gfd_default_interval(Min, Max),
         new_gfdvar(V, H, N0,N1, _),
         update_newvars_with_domain_interval(H, N1, Min, Max).
 
@@ -692,7 +721,8 @@ update_vars_for_gecode(N0, N, Bs, H, Min, Max) :-
 
 post_connectives(Conn, ConLev, Module) :-
         get_prob_handle(H),
-        H = gfd_prob{nvars:N0,min:Min,max:Max},
+        H = gfd_prob{nvars:N0},
+        gfd_default_interval(Min, Max),
         ec_to_gecode_bool_expr1(Conn, H, N0,N, [],Bs, Auxs0,AuxsT, GConn, ConLev, Module),
 %        ec_to_gecode_connectives1(Conn, H, N0,N, [],Bs, Auxs0,AuxsT, GConn, Module),
         update_vars_for_gecode(N0, N, Bs, H, Min, Max),
@@ -886,7 +916,8 @@ neg_reif_c(EX, Bool, ConLev, Module) :-
 post_nonlin_eq(NLExpr, NLType, NLEvent, Expr2, ConLev, Module) :-
         ( nonlin_op(Expr2, E2Event, E2Type, ConLev) ->
             get_prob_handle(H),
-            H = gfd_prob{nvars:N0,min:Min,max:Max},
+            H = gfd_prob{nvars:N0},
+            gfd_default_interval(Min, Max),
             new_gfdvar(_NewV, H, N0,N1, GNewV),
             arg(2, E2Event, GNewV),
             arg(2, NLEvent, GNewV),
@@ -902,7 +933,8 @@ post_nonlin_eq(NLExpr, NLType, NLEvent, Expr2, ConLev, Module) :-
 
 post_nonlinlin_eq(NLExpr, NLType, NLEvent, LinOpExpr, ConLev, Module) :-
         get_prob_handle(H),
-        H = gfd_prob{nvars:N0,min:Min,max:Max},
+        H = gfd_prob{nvars:N0},
+        gfd_default_interval(Min, Max),
         ( var(LinOpExpr) ->
             ec_to_gecode_var1(LinOpExpr, H, N0,N1, [],_, GV),
             arg(2, NLEvent, GV),
@@ -928,7 +960,8 @@ post_nonlinlin_eq(NLExpr, NLType, NLEvent, LinOpExpr, ConLev, Module) :-
 
 post_rel_cons(RelOp, EX, EY, ConLev, Module) :-
         get_prob_handle(H),
-        H = gfd_prob{nvars:N0,min:Min,max:Max},
+        H = gfd_prob{nvars:N0},
+        gfd_default_interval(Min, Max),
         ec_to_gecode_expr1(EX, H, N0,N1, [],Bs1, Auxs0,Auxs1, GEX, ConLev, Module),
         ec_to_gecode_expr1(EY, H, N1,N2, Bs1,Bs2, Auxs1,Auxs2, GEY, Module, ConLev),
         construct_relcons_event1(RelOp, EX, EY, GEX, GEY, H, N2,N, Bs2,Bs,
@@ -1592,12 +1625,10 @@ update_space_with_events1([E|Es], H) :-
 
 new_prob_handle(H) :-
         new_solver_id(I),
-        getval(varray_size, VSz),
+        gfd_get_default(array_size, VSz),
         dim(VArr, [VSz]),
-        getval(interval_min, Min),
-        getval(interval_max, Max),
         H = gfd_prob{id:I,nvars:0,last_anc:[],space:Sp,events:[],vars:VArr,
-                 nlevels:0,nevents:0,min: Min,max:Max, prop:Susp}, 
+                 nlevels:0,nevents:0, prop:Susp}, 
         timestamp_update(H, cp_stamp of gfd_prob),
         make_suspension(gfd_do_propagate(H), 10, Susp),
         new_space_handle(Sp).
@@ -1708,7 +1739,7 @@ check_and_update_ancestors1(H, old) :-
 
 
 consider_update_ancestor(H, NL, E) :-
-        ( NL mod 1 =:= 0 ->
+        ( NL mod getval(cloning_distance) =:= 0 ->
             do_update_ancestor(H)
         ; E == update ->
             do_update_ancestor(H)
@@ -1913,7 +1944,8 @@ propagate_gecode_changes(SpH, VArr, InstList, ChgList) :-
 mark_var_as_set(_{gfd{set:S}}) ?- S = [].
 
 ec_to_gecode_var(V, H, GV) :-
-        H = gfd_prob{nvars:N0,min:Min,max:Max},
+        H = gfd_prob{nvars:N0},
+        gfd_default_interval(Min, Max),
         ec_to_gecode_var1(V, H, N0,N, [],_, GV),
         ( N > N0 ->
             % V is a new gecode var, add it to gecode
@@ -1923,7 +1955,8 @@ ec_to_gecode_var(V, H, GV) :-
         ).
 
 ec_to_gecode_varlist(L, H, GL) :-
-        H = gfd_prob{nvars:N0,min:Min,max:Max},
+        H = gfd_prob{nvars:N0},
+        gfd_default_interval(Min, Max),
         ec_to_gecode_varlist1(L, H, N0,N, GL),
         ( N > N0 ->
             % have new variables, add them
@@ -2115,7 +2148,8 @@ ec_to_gecode_reifiedrc1(RelOp, E1, E2, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GRC, ConLev
 
 
 ec_to_gecode_arith_expr(E, H, Auxs0,AuxsT, GE, ConLev, Module) :-
-        H = gfd_prob{nvars:N0,min:Min,max:Max},
+        H = gfd_prob{nvars:N0},
+        gfd_default_interval(Min, Max),
         ec_to_gecode_arith_expr1(E, H, 0, N0,N, [],Bs, Auxs0,AuxsT, GE, ConLev, Module),
         update_vars_for_gecode(N0, N, Bs, H, Min, Max).
 
@@ -2744,7 +2778,7 @@ get_min(V, Lo) :-
             g_get_var_lwb(SpH, Idx, Lo)
         ;
             create_and_add_default_gfdvar(V, H),
-            H = gfd_prob{min:Lo}
+            gfd_get_default(interval_min, Lo)
         ).
 
 get_max(I, Hi) :- 
@@ -2759,7 +2793,7 @@ get_max(V, Hi) :-
             g_get_var_upb(SpH, Idx, Hi)
         ;
             create_and_add_default_gfdvar(V, H),
-            H = gfd_prob{max:Hi}
+            gfd_get_default(interval_max, Hi)
         ).
 
 get_bounds(I, Lo, Hi) :-
@@ -2775,7 +2809,7 @@ get_bounds(V, Lo, Hi) :-
             get_prob_handle(H),
             restore_space_if_needed(H, _SpH),
             create_and_add_default_gfdvar(V, H),
-            H = gfd_prob{min:Lo,max:Hi}
+            gfd_default_interval(Lo, Hi)
         ).
 
 get_integer_bounds(V, Lo, Hi) :- % ic compatibility
@@ -2960,6 +2994,7 @@ integers(V) :-
             ec_to_gecode_varlist(VList, H, _)
         ).
 
+% note these don't need a space, so no need to update handle
 gfd_maxint(X) :-
         g_get_gfd_maxint(X).
 

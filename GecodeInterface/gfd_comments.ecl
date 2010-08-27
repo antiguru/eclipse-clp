@@ -17,11 +17,24 @@
 
    The main differences from the IC library are:
 <UL>
-       <LI>Real interval arithmetic is not supported.
+       <LI>Real interval arithmetic and variables are not supported.
 
        <LI>Domain variables have finite bounds, and the maximum bounds are
        deterermined by gecode. Like FD, default finite bounds are given to 
        domain variables that are not explicitly given bounds.
+
+       <LI>Constraint propagation is performed in gecode, and each propagation
+       phase is atomic at the ECLiPSe level. Posting of constraints and 
+       propagation of their consequences are separate in gecode. GFD use a
+       demon suspended goal to perform the propagation: after the posting
+       of any constraint (and other changes to the problem that needs 
+       propagation), the suspended goal is scheduled and woken. When the
+       woken goal is executed, propagation is perform. The goal is suspended
+       at priority 10, so if the posting of the constraint is executed at
+       normal priority (12), the propagation will happen immediately. However,
+       if the posting is done at a priority 10 or higher, then the propagation
+       is delayed, allowing multiple constraints to be posted without
+       propagation. 
 
        <LI>GFD supports constraints that are supported by the gecode library,
        so the exact set of constraints supported is different from IC> 
@@ -1649,7 +1662,7 @@ V = V{[1, 2, 4 .. 10]}
 
 %----------------------------------------------------------------------
 
-:- comment(count/3, [
+:- comment(count/4, [
 	summary: "Constrain the number of occurrence of Value in Vars (Occ) to satisfy  the relation N Rel Occ",
 	template:"<ConsistencyModule:> count(+Value, ?Vars, +Rel, ?N)",
 	args:["+Value" : "An integer",
@@ -2841,3 +2854,185 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 ")
 ]).
 
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_maxint/1, [
+     amode: gfd_maxint(-),
+     args: ["Var": "Variable"],
+     summary: "Returns the maximum value allowed in gecode's domain.",
+     see_also: [gfd_minint/1],
+     desc: html("<P>\
+   Returns the maximum value allowed in gecode's domain. It is strongly
+   recommended that the user values used in the domain to not approach
+   this value, because propagation can easily lead to values outside
+   what gecode can support.")]
+ ).
+
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_minint/1, [
+     amode: gfd_minint(-),
+     args: ["Var": "Variable"],
+     summary: "Returns the minimum value allowed in gecode's domain.",
+     see_also: [gfd_minint/1],
+     desc: html("<P>\
+   Returns the minimum value allowed in gecode's domain. It is strongly
+   recommended that the user values used in the domain to not approach
+   this value, because propagation can easily lead to values outside
+   what gecode can support.")]
+ ).
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_set_default/2, [
+     amode: gfd_set_default(+,+),
+     args: ["Parameter": "GFD parameter to set (atom).",
+            "DefaultValue": "Default value for Parameter."
+           ],
+     summary: "Set the default value for GFD Parameter.",
+     see_also: [gfd_set_default/2],
+     desc: html("<P>\
+   Set the default value for parameters:
+ <UL>
+    <li><b>interval_min</b>
+          Minimum for the default interval for domain variables. When a domain
+          variable is created implicitly in a constraint, it is given a
+          default interval, and this interval should be as small as possible.
+          as the efficiency of various propagator depends on the domain
+          size. (integer).</li>
+    <li><b>interval_max</b>
+          Maximum for the default interval for domain variables. (integer).</li>
+    <li><b>array_size</b>
+          Initial size for the variable array for storing domain variables
+          When more variables than can be accomodated in the array is required,
+          a new array double the size is created, and the old variables copied
+          to the new. Changing the initial size can reduce or avoid this 
+          copying overhead. (positive integer).</li>
+    <li><b>cloning_distance</b>
+          This controls how often the gecode state is cloned. The smaller
+          the distance, the more frequent the cloning. Cloning is only done
+          at places where the nre clone might be useful, roughly there are
+          changes to the state since the last clone, and it is possible to 
+          backtrack and make use of the new clone (i.e. there should be
+          at least one choicepoint between the last clone and the current
+          one. Distance is a measure of such points, so a distance of 1 is 
+          the minimal distance where a clone may be needed. (positive 
+          integer).</li>
+</ul>")]
+).
+
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_get_default/2, [
+     amode: gfd_get_default(+,-),
+     args: ["Parameter": "GFD parameter (atom).",
+            "DefaultValue": "Current default value for Parameter."
+           ],
+     summary: "Get the current default value for GFD Parameter.",
+     see_also: [gfd_set_default/2],
+     desc: html("<P>\
+   Get the default value for parameters:
+ <UL>
+    <li><b>interval_min</b>
+          Minimum for the default interval for domain variables. 
+          Initial value: -1000000.</li>
+    <li><b>interval_max</b>
+          Maximum for the default interval for domain variables. 
+          Initial value: 1000000.</li>
+    <li><b>array_size</b>
+          Initial size for the variable array for storing domain variables
+          Initial value: 100.</li>
+    <li><b>cloning_distance</b>
+          This controls how often the gecode state is cloned. The smaller
+          the distance, the more frequent the cloning. Initial value: 2.</li>
+</ul>")]
+).
+
+
+%---------------------------------------------------------------------
+:- comment(gfd_var_print/2, hidden).
+:- comment(gfd_handle_tr_out/2, hidden).
+
+
+%---------------------------------------------------------------------
+%
+% Named struct documentation
+%
+%---------------------------------------------------------------------
+
+:- comment(struct(gfd_stats), [
+        summary: "Structure for obtaining statistics or providing stopping"
+                 " limits for gecode search-engines",
+        amode: gfd_stats(-,?,?,-,?),
+        amode: gfd_stats(-,-,-,-,-),
+        desc: "\
+  This structure is used in search/6 predicate, which interface to gecode's
+  search-engines. The structure can be used to obtain statistics of the
+  search via the stats option, in this case the fields of the structure 
+  should be uninstantiated, and search/6 will instantiate it when a solution
+  is returned. Secondly, the struct can be used in the limits option, to
+  specify limits for the search, such that the search will be terminated when 
+  the specified limit is exceeded. In this case, the fields for which limits 
+  are required should be set. Note that not all fields can be used as lmits.
+  If the field cannot be used as a limit, it will be ignored.",
+        fields: [
+            "prop" : "Number of propagations performed. (stats only)",
+            "fail":  "Number of failed nodes.",
+            "nodes": "Number of nodes expanded.",
+            "depth": "Maximum depth of search stack. (stats only)",
+            "mem": "peak memory usage (in bytes) by gecode." 
+                ]
+         ]).
+
+:- comment(struct(gfd_control), [
+        summary: "Structure for passing low-level control parameters to gecode"
+                 " search-engines.",
+        amode: gfd_control(?,?),
+        desc: "\
+  This structure is used in search/6 predicate, which interface to gecode's
+  search-engines. The structure is used by the control option to pass values
+  for low-level parameters that control the behaviour gecode search-engine.
+  See the gecode documentation for more details explanation of the
+  parameters.",
+        fields: [
+            "commit_distance": "the commit recomputation distance "
+                               "(member c_d of Gecode::Search::Options)",
+            
+            "commit_distance": "the adaptive recomputation distance "
+                               "(member a_d of Gecode::Search::Options)"
+        ]
+  ]).
+
+
+:- comment(struct(gcc), [
+        summary: "Bounds specification for gcc constraint.",
+        amode: gcc(+,+,+),
+        desc: html("\
+    This structure is used to specify the cardinality (number of occurrences)
+    of one value for the gcc constraint."),
+        fields: ["Low": "Lower bound on the cardinality of Value (integer).",
+                 "Hi": "Upper bound on the cardinality of Value (integer).",
+                 "Value": "Value whose cardinality is being specified."
+        ]
+   ]).
+
+
+:- comment(struct(occ), [
+        summary: "Bounds specification for gcc constraint.",
+        amode: occ(?,+),
+        desc: html("\
+    This structure is used to specify the cardinality (number of occurrences)
+    of one value for the gcc constraint."),
+        fields: ["Occ": "Domain variable or integer specifying the cardinality of Value.",
+                 "Value": "Value whose cardinality is being specified."
+        ]
+   ]).
+
+:- comment(struct(gfd), hidden).
+
+:- comment(struct(gfd_prob), hidden).
+
+:- comment(struct(gfd_space), hidden).
