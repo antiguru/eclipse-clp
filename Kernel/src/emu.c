@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.16 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.17 2010/09/14 07:03:38 jschimpf Exp $
  */
 
 /*
@@ -3708,7 +3708,8 @@ _globalize_if_needed_:
 	 * Trust_inline, because the opcodes must remain distinguishable! */
 	Case(Trust_inline, I_Trust_inline)		/* debug,alt,envsize */
 	    back_code = PP;
-	    DBG_PORT = PP->nint;
+            /* next line has redundant | to make code different from Trust */
+	    DBG_PORT = PP->nint | INLINE_PORT;
 	    PP = PP[1].code;
 	    goto _trust_me_;
 
