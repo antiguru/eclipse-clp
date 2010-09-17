@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.15 2010/03/12 10:33:46 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.16 2010/09/17 07:40:26 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -556,7 +556,7 @@ remote_commands() {
 	done
 	cat > input.$suffix <<END
 	# to be executed on $machine_name
-	echo $SHELL | grep -q bash && . ~/.bashrc
+	echo $SHELL | grep bash >/dev/null && . ~/.bashrc
 	umask $UMASK
 
 	timeout=6
@@ -572,7 +572,7 @@ END
 
 	echo `date '+%Y-%m-%d %T'` $remote_command_number \
 		Commencing ssh to $machine_name >> $SSH_LOG_FILE
-	ssh -A -x -o "BATCHMODE yes" $user_flags "$machine_name" "bash -s" < input.$suffix > output.$suffix 2>&1
+	ssh -A -x -o "BatchMode yes" $user_flags "$machine_name" "bash -s" < input.$suffix > output.$suffix 2>&1
 	ssh_result=$?
 	cat output.$suffix
 	rm -f input.$suffix output.$suffix
@@ -1653,9 +1653,9 @@ update_lastsucc_tags() {
 	# tagged indefinitely).
 	remote_commands "$CVS_MACHINE" "$PREFIX/$BUILD_DIR" "
 	    {
-		echo \"Sources rtag -d call.\"
-		cvs -d \"$CVSDIR\" rtag -a -d $LAST_SUCCESSFUL_BUILD_TAG Eclipse &&
-		echo \"Sources rtag -d done.\"
+		{ cvs -d \"$CVSDIR\" rtag -a -d $LAST_SUCCESSFUL_BUILD_TAG Eclipse ||
+		  echo \"Sources rtag -d returned\" \$? \"(ignoring)\"
+		} &&
 		cvs -d \"$CVSDIR\" tag -F $LAST_SUCCESSFUL_BUILD_TAG &&
 		echo \"Sources done.\"
 	    } >> $VERSION_LOGFILE 2>&1
