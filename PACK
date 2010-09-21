@@ -184,6 +184,7 @@ else
 	exit 1
 fi
 
+# Test for Windows architectures
 winarch () {
     case $1 in
 	*_nt) true ;;
@@ -421,7 +422,7 @@ $POST_SPEC
 
 nsispack ()	# $1=name $2=selectedfiles $3=arch
 {
-    if [ "$pack_nsis_installer" = no || ! winarch $3 ] ; then
+    if [ "$pack_nsis_installer" = no -o ! winarch $3 ] ; then
     	return 0
     fi
 
@@ -513,7 +514,7 @@ nsispack ()	# $1=name $2=selectedfiles $3=arch
 
 nsisheader()	# $1=arch
 {
-    if [ "$pack_nsis_installer" = no || ! winarch $1 ] ; then
+    if [ "$pack_nsis_installer" = no -o ! winarch $1 ] ; then
     	return 0
     fi
 
@@ -632,7 +633,7 @@ LicenseData \"legal\\cmpl.txt\"
 
 nsisfinish()	# $1=arch
 {
-    if [ "$pack_nsis_installer" = no || ! winarch $1 ] ; then
+    if [ "$pack_nsis_installer" = no -o ! winarch $1 ] ; then
     	return 0
     fi
 
