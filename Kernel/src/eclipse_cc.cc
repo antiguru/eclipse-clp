@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eclipse_cc.cc,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+ * $Id: eclipse_cc.cc,v 1.3 2010/09/24 20:08:53 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	eclipse_cc.cc
@@ -97,7 +97,7 @@ class EC_functor
 
 	EC_functor() {}
 
-	EC_functor(char * s,int arity)
+	EC_functor(const char * s,int arity)
 	{
 	    if (!arity)
 		ec_panic("functor arity == 0", "EC_functor::EC_functor(char*,int)");

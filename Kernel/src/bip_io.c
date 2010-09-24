@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.9 2010/08/01 03:48:48 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.10 2010/09/24 20:08:53 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -723,7 +723,7 @@ p_get_stream(value vi, type ti, value vs, type ts)
 }
 
 int Winapi
-ec_stream_nr(char *name)
+ec_stream_nr(const char *name)
 {
     stream_id	nst;
     int		res;

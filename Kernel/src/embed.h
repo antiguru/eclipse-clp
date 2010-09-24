@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.3 2010/04/24 13:45:43 jschimpf Exp $
+ * $Id: embed.h,v 1.4 2010/09/24 20:08:53 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -219,7 +219,7 @@ Extern DLLEXP int	Winapi	ec_free_handle ARGS((const pword, const t_ext_type*));
 
 Extern DLLEXP int	Winapi	ec_get_stream ARGS((const pword,stream_id*));
 
-Extern DLLEXP int	Winapi	ec_stream_nr ARGS((char *name));
+Extern DLLEXP int	Winapi	ec_stream_nr ARGS((const char *name));
 Extern DLLEXP int	Winapi	ec_queue_write ARGS((int stream, char *data, int size));
 Extern DLLEXP int	Winapi	ec_queue_read ARGS((int stream, char *data, int size));
 Extern DLLEXP int	Winapi	ec_queue_avail ARGS((int stream));
