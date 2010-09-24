@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
+** $Id: rounding_control.h,v 1.6 2010/09/24 20:03:16 kish_shen Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -123,8 +123,13 @@
     #define DLLEXP __declspec(dllimport)
     #endif
 
+    /* added = 0 assignment on declaration to work around MinGW bug 
+       with gcc 4.2 that only seem to generate entry for DATA items
+       in .def file if variable is assigned during declaration
+                      Kish Shen 2010-09-24
+    */
     #define Declare_Rounding_Control_State \
-	unsigned int ec_fpu_control_orig_;
+	unsigned int ec_fpu_control_orig_ = 0;
 
     extern DLLEXP unsigned int ec_fpu_control_orig_;
     #define init_rounding_modes() { \

@@ -3,18 +3,18 @@
 # It contains defaults cache values for WIN32
 #
 ECLIPSETOOLS=${ECLIPSETOOLS:-/vol/Eclipse/tools}
-CC=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-gcc
-CXX=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-c++
-LD=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-ld
-AR=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-ar
-AS=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-as
-NM=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-nm
-STRIP=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-strip
-RANLIB=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-ranlib
-DLLTOOL=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-dlltool
-OBJDUMP=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-objdump
-RESCOMP=$ECLIPSETOOLS/i386_linux/cross-tools/bin/i386-mingw32msvc-windres
-OS_INCLUDES="-isystem $ECLIPSETOOLS/i386_linux/cross-tools/i386-mingw32msvc/include"
+CC=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-gcc
+CXX=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-c++
+LD=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-ld
+AR=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-ar
+AS=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-as
+NM=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-nm
+STRIP=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-strip
+RANLIB=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-ranlib
+DLLTOOL=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-dlltool
+OBJDUMP=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-objdump
+RESCOMP=$ECLIPSETOOLS/i386_linux/cross-tools42/bin/i386-mingw32-windres
+OS_INCLUDES="-isystem $ECLIPSETOOLS/i386_linux/cross-tools42/i386-mingw32/include"
 ac_cv_func_select='yes'
 ac_cv_func_gethostname='yes'
 ac_cv_func_getpagesize='yes'

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.2 2010/04/28 13:56:00 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.3 2010/09/24 20:03:16 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -145,7 +145,11 @@ static char * arg1 = "Embedded ECLiPSE";
  * GLOBAL variable definitions
  */
 
-t_eclipse_data	ec_;
+/* added = {} initialisation (which does nothing) to work around MinGW bug
+   with gcc 4.2 so that entry for ec_ will be generated for eclipse.def
+   (Kish Shen 2010-09-24)
+*/
+t_eclipse_data	ec_ = {};
 
 /* TODO: move the following into ec_ on main branch */
 char *ec_eclipse_home;		/* canonical, hp_allocated */
