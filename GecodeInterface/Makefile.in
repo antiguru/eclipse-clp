@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.6 2010/08/27 01:32:56 kish_shen Exp $
+# $Id: Makefile.in,v 1.7 2010/09/29 15:33:09 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -44,15 +44,15 @@ OBJ_SUFFIX = @OBJECTS_SUFFIX@
 DYNLDFLAGS = @DYNLDFLAGS@
 DYLDCXX = @DYLDCXX@
 EXEEXT = @EXEEXT@
+STRIP = @STRIP@
 GMP_LD = @GMP_LD@
-FLOAT_ROUND_FLAGS = @FLOAT_ROUND_FLAGS@
 DESTDIR = $(PREFIX)/lib
 
 CPPFLAGS  = -I. -I$(ECLIPSEDIR)/include/$(ARCH) -I$(ECLIPSEDIR)/Kernel/src 
 STDCXXLIB = @STDCXXLIB@
 ECLIBS	= -L$(ECLIPSEDIR)/lib/$(ARCH) -leclipse @LIBS@
 
-GECODE = $(THIRDPARTY)/gecode-3.3.1/$(ARCH)
+GECODE = @GECODEDIR@
 
 ECLIPSE = $(ECLIPSEDIR)/bin/$(ARCH)/eclipse
 
@@ -81,19 +81,36 @@ OBJ_FILES =	\
 
 install:	@MAKE_TARGET@
 
-install_all:	$(OBJ_DEST) $(ECL_DEST) $(ECI_DEST) 
+install_all:	@ALL_WITH_GECODE@
 
-GECODELIBS = -lgecodesupport -lgecodekernel -lgecodeint -lgecodesearch \
-	-lgecodegraph -lgecodeset -lgecodescheduling -lgecodeminimodel
+install_cross:	@ALL_CROSS_WITH_GECODE@
 
+all_with_gecode:	install_cross $(ECI_DEST) 
+all_cross_with_gecode: $(OBJ_DEST) $(ECL_DEST)
+
+GECODELIBS = -lgecodeminimodel -lgecodeset -lgecodegraph -lgecodescheduling \
+	   -lgecodeint -lgecodesearch -lgecodekernel -lgecodesupport    
+
+ifeq ($(OSCLASS),win)
+
+THREADLIB = 
+EXTRAFILES = gfd.def
+
+else
+
+THREADLIB = -lpthread 
+EXTRAFILES = 
+
+endif
+
+# gfd.so is stripped because file is very large before stripping 
 $(ARCH)/gfd.$(OBJ_SUFFIX): gfd.cpp gfd.hpp
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LOCAL_FLAGS) -I$(GECODE)/include gfd.cpp \
               -c -o $(ARCH)/gfd.o
-	$(DYLDCXX) $(DYNLDFLAGS) $(ECLIBS) -lpthread -L$(GECODE)/lib \
-	     -Wl,--whole-archive $(GECODELIBS) \
-             $(ARCH)/gfd.o -o $(ARCH)/gfd.$(OBJ_SUFFIX)
-
+	$(DYLDCXX) $(DYNLDFLAGS)  -L$(GECODE)/lib $(ARCH)/gfd.o $(EXTRAFILES) \
+             $(GECODELIBS) $(ECLIBS) $(THREADLIB) -o $(ARCH)/gfd.$(OBJ_SUFFIX)
+	$(STRIP) $(ARCH)/gfd.$(OBJ_SUFFIX)
 
 $(PREFIX)/lib/$(ARCH)/%.$(OBJ_SUFFIX):	$(ARCH)/%.$(OBJ_SUFFIX) $(PREFIX)/lib/$(ARCH)/.stamp
 	/bin/cp $< $@
@@ -115,3 +132,8 @@ $(DESTDIR)/%.ecl:	%.ecl $(DESTDIR)/.stamp
 $(DESTDIR)/%.eci: %.ecl %_comments.ecl $(PREFIX)/lib/.stamp
 	$(ECLIPSE) -e 'get_flag(library_path,P),set_flag(library_path,["."|P]),lib(document),icompile("$(*F)","$(@D)")'
 	-@/bin/chmod $(PERM) $@
+
+clean:	archclean
+
+archclean:
+	rm -rf $(ARCH)

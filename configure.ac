@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.33 2010/07/25 13:29:04 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.34 2010/09/29 15:31:47 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -621,6 +621,7 @@ AC_PATH_PROG(AR,ar,ar,[$PATH:/usr/ccs/bin])
 AC_PROG_RANLIB
 AC_PROG_LN_S
 AC_CHECK_PROG(SED,sed,sed,false)
+AC_CHECK_TOOL([STRIP],[strip])
 
 # Compiler characteristics
 
@@ -1419,6 +1420,34 @@ fi
 
 
 #----------
+# Gecode
+#----------
+
+AC_ARG_WITH([gfd], [[  --with-gfd
+			Build ECLiPSe interface to Gecode Solover.
+			Default is to build the interface.
+    ]],
+    [gfd_requested="$withval"], [gfd_requested=yes])
+
+ALL_WITH_GECODE=
+ALL_CROSS_WITH_GECODE=
+GECODE_BASEDIR="$ECLIPSETHIRDPARTY/gecode-"
+GECODE_REQUIRED="3.3"
+
+if test "$gfd_requested" = "yes"; then
+   GECODEDIR=$(ls -d $GECODE_BASEDIR$GECODE_REQUIRED*/$ARCH  2>/dev/null)
+   if test -d "$GECODEDIR"; then
+      ALL_WITH_GECODE=all_with_gecode
+      ALL_CROSS_WITH_GECODE=all_cross_with_gecode
+      AC_MSG_NOTICE([Using Gecode in $GECODEDIR])
+      AC_MSG_NOTICE([Will build Gecode Interface for Gecode version $GECODE_REQUIRED])
+   fi
+fi
+if test -z "$ALL_WITH_GECODE"; then
+    AC_MSG_NOTICE([Not building Gecode interface])
+fi
+
+#----------
 # Java
 #----------
 
@@ -1679,6 +1708,7 @@ AC_SUBST(CXXSUFFIX)
 AC_SUBST(LD)
 AC_SUBST(AR)
 AC_SUBST(RANLIB)
+AC_SUBST(STRIP)
 AC_SUBST(EXEEXT)
 AC_SUBST(NICE)
 AC_SUBST(OPT_FLAGS)
@@ -1733,6 +1763,9 @@ AC_SUBST(OSICLP_ADDLIB)
 AC_SUBST(OSICLP_ADDDEF)
 AC_SUBST(CPLEX_VERSIONS)
 AC_SUBST(XPRESS_VERSIONS)
+AC_SUBST(ALL_WITH_GECODE)
+AC_SUBST(ALL_CROSS_WITH_GECODE)
+AC_SUBST(GECODEDIR)
 AC_SUBST(ALL_WITH_JAVA)
 AC_SUBST(ALL_CROSS_WITH_JAVA)
 AC_SUBST(JAVA_HOME)

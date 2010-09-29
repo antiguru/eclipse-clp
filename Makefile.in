@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.11 2010/03/14 10:36:34 jschimpf Exp $
+# $Id: Makefile.in,v 1.12 2010/09/29 15:31:47 kish_shen Exp $
 #
 
 ARCH = @ARCH@
@@ -19,7 +19,8 @@ install_cross:	make_kernel \
 		make_icparc_solvers \
 		make_javainterface \
 		make_zincinterface \
-		make_oci
+		make_oci \
+		make_gecodeinterface 
 
 # include subsystems that can only be made if we are building on target
 # (e.g. because they try to make .eco/.eci files and need to run eclipse,
@@ -57,6 +58,10 @@ make_documents:		make_bin
 make_icparc_solvers:	make_bin
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/icparc_solvers; $(MAKE) -f Makefile.$(ARCH) install)
+
+make_gecodeinterface:	make_bin
+	@echo ======== $@ ========
+	@(cd $(top_srcdir)/GecodeInterface; $(MAKE) -f Makefile.$(ARCH) install)
 
 make_javainterface:	make_bin
 	@echo ======== $@ ========
@@ -167,6 +172,7 @@ clean_subdirs:
 	(cd $(top_srcdir)/pt_libraries; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/Contrib; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/Mercury; $(MAKE) -f Makefile.$(ARCH) clean)
+	(cd $(top_srcdir)/GecodeInterface; $(MAKE) -f Makefile.$(ARCH) clean)
 
 
 archclean:	archclean_subdirs
@@ -189,4 +195,5 @@ archclean_subdirs:
 	(cd $(top_srcdir)/ZincInterface; $(MAKE) -f Makefile.$(ARCH) archclean)
 	(cd $(top_srcdir)/Visualisation; $(MAKE) -f Makefile.$(ARCH) archclean)
 	(cd $(top_srcdir)/Oci; $(MAKE) -f Makefile.$(ARCH) archclean)
+	(cd $(top_srcdir)/GecodeInterface; $(MAKE) -f Makefile.$(ARCH) archclean)
 
