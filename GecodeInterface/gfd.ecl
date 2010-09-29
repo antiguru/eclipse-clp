@@ -74,6 +74,7 @@
 :- export impose_min/2, impose_max/2, impose_bounds/3, 
           exclude/2, exclude_range/3.
 :- export is_solver_type/1, is_solver_var/1, is_exact_solver_var/1, integers/1.
+:- export msg/3.
 
 :- export gfd_maxint/1, gfd_minint/1.
 
@@ -129,18 +130,31 @@
 :- local store(stats).
 
 :- export gfd_var_print/2.
+:- export gfd_copy_var/2.
+
+load_gfd_solver(Arch) :- 
+        get_flag(object_suffix, O),
+        ( Arch = "x86_64_linux" ->
+            concat_string(["gfd.", O], SolverObj),
+            getcwd(Current),
+            cd(Arch),
+            block((load(SolverObj) -> cd(Current) ; cd(Current), fail), Tag,
+                  (cd(Current), exit_block(Tag)))
+        ;
+            concat_string([Arch,/,"gfd.", O], SolverObj),
+            load(SolverObj)
+        ).
 
 :- meta_attribute(gfd, [
         set_bounds:gfd_set_var_bounds/3,  
         get_bounds:gfd_get_var_bounds/3,  
         print:gfd_var_print/2,
-        unify:gfd_unify/2]).
+        unify:gfd_unify/2,
+        copy_term:gfd_copy_var/2]).
 
 :- 
         get_flag(hostarch, Arch),
-        get_flag(object_suffix, O),
-        concat_string([Arch,/,"gfd.", O], SolverObj),
-        load(SolverObj),
+        load_gfd_solver(Arch),
         writeln(log_output, "Loaded Gecode solver"),
         external(g_init/1, p_g_init),
         external(g_state_is_stable/1, p_g_state_is_stable),
@@ -150,6 +164,8 @@
         external(g_add_newbool/3, p_g_add_newbool),
         external(g_add_newvars_interval/4, p_g_add_newvars_interval),
         external(g_add_newvars_dom/3, p_g_add_newvars_dom),
+        external(g_add_newvars_dom_union/4, p_g_add_newvars_dom_union),
+        external(g_add_newvar_copy/3, p_g_add_newvar_copy),
         external(g_post_interval/5, p_g_post_interval),
         external(g_post_var_interval_reif/6, p_g_post_var_interval_reif),
         external(g_post_dom/4, p_g_post_dom),
@@ -204,18 +220,16 @@
         external(g_setup_search/10, p_g_setup_search),
         external(g_do_search/7, p_g_do_search),
         external(g_get_gfd_maxint/1, p_g_get_gfd_maxint),
-        external(g_get_gfd_minint/1, p_g_get_gfd_minint).
+        external(g_get_gfd_minint/1, p_g_get_gfd_minint),
+        external(g_get_var_domain_handle/3, p_g_get_var_domain_handle).
 
 :- export struct(
         gfd_prob(
              cp_stamp,
-             id,
              nvars,
              nlevels,
              nevents,
              vars,
-             min,
-             max,
              prop,
              last_anc,
              space,
@@ -366,6 +380,20 @@ get_gecode_var(_{gfd:Attr}, GV) ?-
         gfdvar(I, B, GV).
 
 
+gfd_copy_var(_X{gfd:AttrX}, Copy) ?-
+        ( var(AttrX) ->
+            true
+        ;
+            AttrX = gfd{prob:H,idx:XIdx},
+            restore_space_if_needed(H, _),
+            H = gfd_prob{nvars:N0},
+            new_gfdvar(Copy0, H, N0,N, _GCopy0),
+            setarg(nvars of gfd_prob, H, N),
+            post_new_event(copyvar(N,XIdx), H),
+            Copy0 = Copy
+        ).
+
+
 gfd_unify(_Term, Attr) :-
         var(Attr).
 gfd_unify(Term, Attr) :-
@@ -399,11 +427,9 @@ unify_gfd_gfd(_Y, AttrX, AttrY) :-
         AttrX = AttrY.
 unify_gfd_gfd(_Y, AttrX, AttrY) :-
         nonvar(AttrY),
-        AttrX = gfd{idx:IdxX,bool:BX,prob:HX},
-        AttrY = gfd{idx:IdxY,bool:BY,prob:HY},
+        AttrX = gfd{idx:IdxX,bool:BX,prob:H},
+        AttrY = gfd{idx:IdxY,bool:BY,prob:H},
         % the variables must belong to the same problem, else fail
-        HX = gfd_prob{id:Id}, 
-        HY = gfd_prob{id:Id},
         ( IdxX == IdxY ->
             true   % same variable, do nothing
         ;
@@ -418,7 +444,7 @@ unify_gfd_gfd(_Y, AttrX, AttrY) :-
             % post an equality constraint for the two variables to gecode
             gfdvar(IdxX,BX,GX),
             gfdvar(IdxY,BY,GY),
-            post_new_event_no_wake(post_rc(default,GX #= GY), HY)
+            post_new_event_no_wake(post_rc(default,GX #= GY), H)
         ).
 
 gfd_set_var_bounds(_{gfd:Attr}, Lo0, Hi0) ?-
@@ -1567,6 +1593,48 @@ sumlist_c(Xs, Sum, ConLev) :-
         post_new_event(post_sum(ConLev, GSum, (#=), GArray), H).
 
 
+sqrt_c(X, Y, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([X,Y], H, [GX,GY]),
+        post_new_event(post_sqrt(ConLev, GY,GX), H).
+
+
+sqr_c(X, Y, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([X,Y], H, [GX,GY]),
+        post_new_event(post_sq(ConLev, GY,GX), H).
+
+
+abs_c(X, Y, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([X,Y], H, [GX,GY]),
+        post_new_event(post_abs(ConLev, GY,GX), H).
+
+
+div_c(X, Y, Z, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        post_new_event(post_div(ConLev, GZ, GX,GY), H).
+
+
+mult_c(X, Y, Z, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        post_new_event(post_mult(ConLev, GZ, GX,GY), H).
+
+
+mod_c(X, Y, Z, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        post_new_event(post_mod(ConLev, GZ, GX,GY), H).
+
+
+plus_c(X, Y, Z, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        post_new_event(post_plus(ConLev, GZ, GX,GY), H).
+
+
 % utility predicate for connecting indices/positions in ECLiPSe tradition
 % (which starts from 1) to that used by Gecode (which starts from 0)
 connect_ecl_to_gecode_indices(EV, GV) :-
@@ -1578,7 +1646,6 @@ connect_ecl_to_gecode_indices(EV, GV) :-
             fail
         ).
 
-new_solver_id(1).    %DUMMY FOR NOW
 
 get_gecode_attr(_{gfd:Attr0}, H, Attr) ?-
         nonvar(Attr0),
@@ -1624,10 +1691,9 @@ update_space_with_events1([E|Es], H) :-
 
 
 new_prob_handle(H) :-
-        new_solver_id(I),
         gfd_get_default(array_size, VSz),
         dim(VArr, [VSz]),
-        H = gfd_prob{id:I,nvars:0,last_anc:[],space:Sp,events:[],vars:VArr,
+        H = gfd_prob{nvars:0,last_anc:[],space:Sp,events:[],vars:VArr,
                  nlevels:0,nevents:0, prop:Susp}, 
         timestamp_update(H, cp_stamp of gfd_prob),
         make_suspension(gfd_do_propagate(H), 10, Susp),
@@ -1841,6 +1907,12 @@ do_event1(newvars_interval(NV,Lo,Hi), SpH, _First, DoProp) ?-
 do_event1(newvars_dom(NV,DArray), SpH, _First, DoProp) ?-
         DoProp = 0,
         g_add_newvars_dom(SpH, NV, DArray).
+do_event1(newvars_dom_union(GX,GY,NV), SpH, _First, DoProp) ?-
+        DoProp = 0,
+        g_add_newvars_dom_union(SpH, NV, GX, GY).
+do_event1(copyvar(NV,OldIdx), SpH, _First, DoProp) ?-
+        DoProp = 0,
+        g_add_newvar_copy(SpH, NV, OldIdx).
 do_event1(setvar(Idx, Val), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_setvar(SpH, First, Idx, Val).
@@ -1917,8 +1989,7 @@ propagate_gecode_changes(SpH, VArr, InstList, ChgList) :-
 %            length(InstList, Len), concat_atom([pg, Len], Key), store_inc(stats, Key), 
             ( foreach(Idx, InstList), param(VArr, SpH) do
                 arg(Idx, VArr, V),
-                mark_var_as_set(V),g_get_var_value(SpH, Idx, V)
-%                (integer(V) -> true ; mark_var_as_set(V),g_get_var_value(SpH, Idx, V))
+                (integer(V) -> true ; mark_var_as_set(V),g_get_var_value(SpH, Idx, V))
 %                (integer(V) -> true ; g_get_var_value(SpH, Idx, V))
             )
         ),
@@ -1941,7 +2012,7 @@ propagate_gecode_changes(SpH, VArr, InstList, ChgList) :-
         ).
            
 
-mark_var_as_set(_{gfd{set:S}}) ?- S = [].
+mark_var_as_set(_{gfd{set:S}}) ?- !, S = [].
 
 ec_to_gecode_var(V, H, GV) :-
         H = gfd_prob{nvars:N0},
@@ -2152,6 +2223,16 @@ ec_to_gecode_arith_expr(E, H, Auxs0,AuxsT, GE, ConLev, Module) :-
         gfd_default_interval(Min, Max),
         ec_to_gecode_arith_expr1(E, H, 0, N0,N, [],Bs, Auxs0,AuxsT, GE, ConLev, Module),
         update_vars_for_gecode(N0, N, Bs, H, Min, Max).
+
+% convert existing gfd variable (or integer) to gecode representation
+ec_to_gecode_oldvar(V, H, GV) :-
+        ( integer(V) ->
+            GV = V
+        ; get_gecode_attr(V, H, gfd{idx:I,bool:B}) ->
+            gfdvar(I, B, GV)
+        ;
+            fail
+        ).
 
 ec_to_gecode_var1(V, H, N0,N, OldGVs0,OldGVs, GV) :-
         ( get_gecode_attr(V, H, Attr) ->
@@ -3001,6 +3082,24 @@ gfd_maxint(X) :-
 gfd_minint(X) :-
         g_get_gfd_minint(X).
 
+msg(X, Y, Dom) :-
+        get_prob_handle(H),
+        ( ec_to_gecode_oldvar(X, H, GX),
+          ec_to_gecode_oldvar(Y, H, GY) ->
+            restore_space_if_needed(H, _),
+            H = gfd_prob{nvars:N0},
+            % The new domain must be added to a new gfd var
+            % use Dom0 in case Dom is an exising Domain var
+            new_gfdvar(Dom0, H, N0,N, _GDom0),
+            setarg(nvars of gfd_prob, H, N),
+            % we follow Gecode's recomputation style, the
+            % union will be recomputated, rather than storing it 
+            post_new_event(newvars_dom_union(GX,GY,N), H),
+            Dom0 = Dom
+        ;
+            true
+        ).
+
 %----------------------------------------------------------------------
 % ic compatibility
 % ordered(+Relation, List) -- naive implementation
@@ -3141,5 +3240,13 @@ ordered1(Order, X1, X2Xs) :-
       inverse/4 -> inverse_c/5,
       gcc/2 -> gcc_c/3
   ]).
+
+:- create_constraint_pool(gfd, 0, [
+       sqrt/2 -> sqrt_c/3,
+       sqr/2 -> sqr_c/3,
+       abs/2 -> abs_c/3,
+       mod/3 -> mod_c/4,
+       (/)/3 -> div_c/4
+   ]).
 
 :- comment(include, "gfd_comments.ecl").

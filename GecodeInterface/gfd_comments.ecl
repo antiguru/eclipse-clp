@@ -2953,6 +2953,26 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 
 
 %---------------------------------------------------------------------
+
+:- comment(msg/3, [
+amode: msg(-,-,?), amode:msg(++,++,?),
+args:  ["Var1": "A variable or number",
+	"Var2": "A variable or number",
+	"MSG": "Most specific generalisation (variable)"
+       ],
+summary: "Computes the most specific generalisation of Var1 and Var2 that is expressible with GFD variables.",
+desc: html("\
+<P>
+   The most specific generalisation of two intervals is computed and
+   returned as MSG.  MSG will be the union of the domains of the two
+   variables, with integers treated as a singleton domain.
+   If either Var1 or Var2 are domain-less, or have values that cannot be
+   expressed as domains, MSG remains unbound.
+</P>")
+]).
+
+
+%---------------------------------------------------------------------
 :- comment(gfd_var_print/2, hidden).
 :- comment(gfd_handle_tr_out/2, hidden).
 

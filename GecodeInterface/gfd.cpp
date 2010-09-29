@@ -79,6 +79,14 @@ extern "C" int ec_flush(stream_id);
 
 extern "C" int p_fprintf(stream_id, const char*, ...);
 
+#if defined(WIN32)
+
+extern "C" stream_id Winapi ec_stream_id(int);
+# define log_output_ ec_stream_id(ec_stream_nr("log_output"))
+# define current_err_ ec_stream_id(ec_stream_nr("current_err"))
+
+#endif
+
 using namespace Gecode;
 
 
@@ -134,6 +142,22 @@ static void _g_delete_space(pword* phandle, word * dummy, int size, int flags)
     }
 }
 
+static void _free_domain_handle(IntSet* domainp)
+{
+    if (domainp != NULL) delete domainp;
+}
+
+t_ext_type domain_method = {
+    (void (*)(t_ext_ptr)) _free_domain_handle, /* free */
+    NULL, /* copy */ 
+    NULL, /* mark_dids */
+    NULL, /* string_size */
+    NULL, /* to_string */
+    NULL, /* equal */
+    NULL, /* remote_copy */
+    NULL, /* get */
+    NULL, /* set */
+};
 
 int get_domain_intervals_from_ec_array(int size, EC_word ecarr, int r[][2])
 {
@@ -745,7 +769,6 @@ int p_g_add_newbool()
     CatchAndReportGecodeExceptions
 
 }
-
 
 extern "C"
 int p_g_add_newvars_dom()
@@ -2742,10 +2765,10 @@ int p_g_post_inverse_offset()
     if (solver == NULL) return TYPE_ERROR;
 
     long off1;
-    if (EC_succeed != EC_arg(2).is_long(&off1)) return TYPE_ERROR;
+    if (EC_succeed != EC_arg(4).is_long(&off1)) return TYPE_ERROR;
 
     long off2;
-    if (EC_succeed != EC_arg(2).is_long(&off2)) return TYPE_ERROR;
+    if (EC_succeed != EC_arg(6).is_long(&off2)) return TYPE_ERROR;
 
     EC_word arr1 = EC_arg(3);
     int size = arr1.arity();
@@ -3096,3 +3119,124 @@ int p_g_get_gfd_minint()
 {
     return unify(EC_arg(1), EC_word(Int::Limits::min));
 }
+
+
+extern "C"
+int p_g_get_var_domain_handle()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    long xidx;
+    IntVar x;
+    EC_functor f;
+
+    if (ArgIsVarIdx(2, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+    
+    IntVarRanges r(x);
+
+    IntSet* setp = new IntSet(r);
+
+    return unify(EC_arg(3), handle(&domain_method, setp));
+
+}
+
+extern "C"
+int p_g_add_newvars_dom_union()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    long newsize;
+    int oldsize;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+    if (EC_succeed != EC_arg(2).is_long(&newsize)) return(TYPE_ERROR);
+    oldsize = solver->vInt.size();
+
+    long xidx;
+    IntVar x;
+    EC_functor f;
+
+    if (ArgIsVarIdx(3, xidx)) {
+	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
+	x = solver->vInt[(int)xidx];
+    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
+	x.init(*solver, (int)xidx, (int)xidx);
+    } else
+	return TYPE_ERROR;
+    
+    long yidx;
+    IntVar y;
+
+    if (ArgIsVarIdx(4, yidx)) {
+	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
+	y = solver->vInt[(int)yidx];
+    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
+	y.init(*solver, (int)yidx, (int)yidx);
+    } else
+	return TYPE_ERROR;
+
+    try {
+	IntVarRanges rx(x);
+	IntVarRanges ry(y);
+
+	Iter::Ranges::Union<IntVarRanges, IntVarRanges> unioniter(rx, ry);
+
+	IntSet  newdom(unioniter);
+
+	solver->vInt.resize(*solver, (int)++newsize); // ++ to skip over idx 0
+	for (int i=oldsize; i < (int)newsize; i++)
+	    solver->vInt[i] = IntVar(*solver, newdom);
+
+	return EC_succeed;
+    }
+    CatchAndReportGecodeExceptions
+}
+
+extern "C"
+int p_g_add_newvar_copy()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    long newsize;
+    int oldsize;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+    if (EC_succeed != EC_arg(2).is_long(&newsize)) return(TYPE_ERROR);
+    oldsize = solver->vInt.size();
+
+    long oldidx;
+
+    if (EC_succeed != EC_arg(3).is_long(&oldidx)) return TYPE_ERROR;
+
+    try {
+	IntVar y(*solver, Int::Limits::min, Int::Limits::max);
+	Int::IntView yv(y);
+	IntVarRanges iter(solver->vInt[(int)oldidx]);
+	(void) yv.narrow_r(*solver, iter, false);
+
+	solver->vInt.resize(*solver, (int)++newsize); // ++ to skip over idx 0
+	solver->vInt[oldsize] = y;
+
+	return EC_succeed;
+    }
+    CatchAndReportGecodeExceptions
+}
+

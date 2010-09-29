@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: gfd_generic_interface.ecl,v 1.1 2010/08/18 18:14:19 kish_shen Exp $
+% Version:	$Id: gfd_generic_interface.ecl,v 1.2 2010/09/29 15:43:05 kish_shen Exp $
 %
 % Description:		Generic interface to gfd library
 %
@@ -100,9 +100,9 @@ tr_gfd_in(get_compact_domain_rep(Var, Rep),
 tr_gfd_in(get_compact_domain_as_list(Var, Rep),
 		get_domain(Var, Rep)).
 /*tr_gfd_in(get_subtract_domain_rep(Var, Rep),
-		get_compact_domain_as_list(Var, Rep)).
+		get_compact_domain_as_list(Var, Rep)).*/
 tr_gfd_in(get_full_domain_as_list(Var, DomList),
-		ic:get_domain_as_list(Var, DomList)).*/
+		gfd:get_domain_as_list(Var, DomList)).
 tr_gfd_in(get_size(Var, Size),
 		get_domain_size(Var, Size)).
 tr_gfd_in(lwb(Var, Val),
@@ -136,7 +136,7 @@ tr_gfd_in(generic_suspend(Goal, Priority, Cond0, Susp),
 :- inline(get_compact_domain_rep/2, tr_gfd_in/2).
 :- inline(get_compact_domain_as_list/2, tr_gfd_in/2).
 %:- inline(get_subtract_domain_rep/2, tr_gfd_in/2).
-%:- inline(get_full_domain_as_list/2, tr_gfd_in/2).
+:- inline(get_full_domain_as_list/2, tr_gfd_in/2).
 :- inline(get_size/2, tr_gfd_in/2).
 %:- inline(get_constraints_number/2, tr_gfd_in/2).
 :- inline(lwb/2, tr_gfd_in/2).
@@ -177,13 +177,14 @@ get_compact_domain_as_list(Var, Rep) :-
 /*
 get_subtract_domain_rep(Var, Rep) :-
 	get_subtract_domain_rep(Var, Rep).
-
+*/
 get_full_domain_as_list(Var, DomList) :-
 	get_full_domain_as_list(Var, DomList).
-*/
+
 get_size(Var, Size) :-
 	get_size(Var, Size).
-/*
+
+/* implemented directly in gfd
 get_constraints_number(Var, Number) :-
 	get_constraints_number(Var, Number).
 */
@@ -219,14 +220,14 @@ generic_suspend(Goal, Priority, Cond0, Susp) :-
     %
 
 
-/*
+
 domain_union(Dom1, Dom2, DomUnion, DomUnionSize) :-
 	msg(Dom1, Dom2, DomUnion),
         get_size(DomUnion, DomUnionSize).
 
 domain_to_list(Dom, List) :-
 	get_domain_as_list(Dom, List).
-
+/*
 subtract_domain(Var, DomList) :-
 	(
 	    foreach(X, DomList),
