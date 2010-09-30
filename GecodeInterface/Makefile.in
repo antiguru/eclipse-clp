@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.7 2010/09/29 15:33:09 kish_shen Exp $
+# $Id: Makefile.in,v 1.8 2010/09/30 14:18:56 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -109,7 +109,7 @@ $(ARCH)/gfd.$(OBJ_SUFFIX): gfd.cpp gfd.hpp
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LOCAL_FLAGS) -I$(GECODE)/include gfd.cpp \
               -c -o $(ARCH)/gfd.o
 	$(DYLDCXX) $(DYNLDFLAGS)  -L$(GECODE)/lib $(ARCH)/gfd.o $(EXTRAFILES) \
-             $(GECODELIBS) $(ECLIBS) $(THREADLIB) -o $(ARCH)/gfd.$(OBJ_SUFFIX)
+             $(GECODELIBS) $(STDCXXLIB) $(ECLIBS) $(THREADLIB) -o $(ARCH)/gfd.$(OBJ_SUFFIX)
 	$(STRIP) $(ARCH)/gfd.$(OBJ_SUFFIX)
 
 $(PREFIX)/lib/$(ARCH)/%.$(OBJ_SUFFIX):	$(ARCH)/%.$(OBJ_SUFFIX) $(PREFIX)/lib/$(ARCH)/.stamp
