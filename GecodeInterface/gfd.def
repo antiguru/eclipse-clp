@@ -66,3 +66,4 @@ EXPORTS
         p_g_get_gfd_minint		@64
         p_g_add_newvars_dom_union	@65
         p_g_get_var_domain_handle	@66
+        p_g_add_newvar_copy		@67
