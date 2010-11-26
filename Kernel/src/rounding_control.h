@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.6 2010/09/24 20:03:16 kish_shen Exp $
+** $Id: rounding_control.h,v 1.7 2010/11/26 04:22:56 kish_shen Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -147,7 +147,7 @@
 
 #elif defined(_FPU_SETCW)
 
-#if defined(__x86_64) && defined(__SSE_MATH__)
+# if defined(__x86_64) && defined(__SSE_MATH__)
 
     /* 
     ** On x86_64, gcc by default uses the SSE unit to compile floating
@@ -193,7 +193,7 @@
 		EC_FPU_SETCW(ec_fpu_control_orig_); \
 	    }
 
-#else
+# else
 
     /* e.g. i386_linux, or x86_64_linux compiled with -mfpmath=387 */
 
@@ -241,7 +241,7 @@
 		_FPU_SETCW(ec_fpu_control_orig_); \
 	    }
 
-#endif
+# endif
 
 #elif defined(HAVE_FPSETROUND)
 
@@ -341,6 +341,7 @@
    with interaction with gcc's optimisation.
    Intel Macs are only publicly available from 10.5, so assume this code will work.
 */
+
 
     #include <fenv.h>
 
@@ -463,9 +464,10 @@ extern double ec_ieee_down ARGS((double));
 #ifdef HAVE_CEIL_NEGZERO_BUG
 /* workaround for bug that incorrectly returns 0.0
    instead of -0.0 when argument is >-1.0 and <-0.0
+   Need to use signbit() as 0.0 and -0.0 are equal
 */
 #define Ceil(x) \
-  ( ceil(x) == 0.0 && x != -0.0 ? ceil(x)*x : ceil(x))
+  ( ceil(x) == 0.0 && signbit(x) && !signbit(ceil(x)) ? ceil(x)*x : ceil(x))
 
 #else
 

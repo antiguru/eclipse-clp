@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.4 2010/04/11 02:36:01 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.5 2010/11/26 04:22:56 kish_shen Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -88,6 +88,16 @@ ec_big_to_chunks(pword *pw1, uword chunksize, pword *result)
 
 #include	<math.h>
 #include	"gmp.h"
+
+#ifdef USING_MPIR
+/* MP_INT and MP_RAT are from gmp 1, and gmp provides the
+   following compatibility macros, but MPIR does not.
+   This is a qick work-around, a proper fix would be to update
+   our code to use the more current GMP defs 
+*/
+typedef __mpz_struct MP_INT;
+typedef __mpq_struct MP_RAT;
+#endif
 
 
 #if defined(HAVE_LONG_LONG) || defined(__GNUC__)
@@ -1432,7 +1442,11 @@ _big_shl(value v1, value v2, pword *pres)	/* big x int -> big */
     if (v2.nint >= 0)
 	mpz_mul_2exp(&c, &a, (uword) v2.nint);
     else
+#if __GNU_MP_VERSION < 3
 	mpz_div_2exp(&c, &a, (uword) -v2.nint);
+#else
+        mpz_fdiv_q_2exp(&c, &a, (uword) -v2.nint);
+#endif
     Pw_From_Mpi(pres, &c);
     Succeed_;
 }
@@ -1444,7 +1458,11 @@ _big_shr(value v1, value v2, pword *pres)	/* big x int -> big */
     mpz_init(&c);
     Big_To_Mpi(v1.ptr, &a);
     if (v2.nint >= 0)
+#if __GNU_MP_VERSION < 3
 	mpz_div_2exp(&c, &a, (uword) v2.nint);
+#else
+        mpz_fdiv_q_2exp(&c, &a, (uword) v2.nint);
+#endif
     else
 	mpz_mul_2exp(&c, &a, (uword) -v2.nint);
     Pw_From_Mpi(pres, &c);

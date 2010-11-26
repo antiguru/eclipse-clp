@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.7 2010/08/20 09:32:43 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.8 2010/11/26 04:22:56 kish_shen Exp $
  */
 
 /*
@@ -843,8 +843,9 @@ _int_pow(word x,
 	    *r = (x >= 0 || (y&1)) ? x : 1;		/* -1^y 0^y 1^y */
 	    return PSUCCEED;
 	}
+	/* explicit test for MIN_S_WORD to avoid a compiler bug on MacOS X */
+	if (x == MIN_S_WORD) return INTEGER_OVERFLOW;
 	x = -x;
-	if (x < 0) return INTEGER_OVERFLOW;		/* we had MININT */
 	if (y & 1) neg = 1;
     }
 
@@ -1741,7 +1742,7 @@ static int
 _dbl_round(value v1, pword *pres)
 {
     double x;
-#if defined(HAVE_RINT) && !defined(HP_RINT)
+#if defined(HAVE_RINT) && !defined(HP_RINT) && !defined(HAVE_RINT_BUG)
     x = rint(Dbl(v1));
 #else
     /*

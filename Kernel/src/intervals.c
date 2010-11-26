@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.6 2010/07/25 13:29:05 jschimpf Exp $
+* Version:	$Id: intervals.c,v 1.7 2010/11/26 04:22:56 kish_shen Exp $
 *
 
 Supported operations:
@@ -1989,7 +1989,7 @@ static int
 _ivl_round(value v1, pword *pres)
 {
     double lwb, upb;
-#if defined(HAVE_RINT) && !defined(HP_RINT)
+#if defined(HAVE_RINT) && !defined(HP_RINT) && !defined(HAVE_RINT_BUG)
     lwb = rint(IvlLwb(v1.ptr));
     upb = rint(IvlUpb(v1.ptr));
 #else

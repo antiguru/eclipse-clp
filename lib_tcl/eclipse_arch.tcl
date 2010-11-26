@@ -20,7 +20,7 @@
 # 
 # END LICENSE BLOCK
 #
-# $Id: eclipse_arch.tcl,v 1.3 2009/02/27 21:05:43 kish_shen Exp $
+# $Id: eclipse_arch.tcl,v 1.4 2010/11/26 04:26:45 kish_shen Exp $
 #
 # compute the ECLiPSe architecture name using Tcl primitives
 #
@@ -63,7 +63,18 @@ proc ec_arch {} {
 	Darwin {
 	    switch -glob $tcl_platform(machine) {
 		Power*	{ return ppc_macosx }
-		i?86	{ return i386_macosx }
+		i?86	{ 
+		    # This requires tcl8.4 or later:
+		    switch -glob $tcl_platform(wordSize) {
+			4 { return i386_macosx }
+			8 { # 32 bit kernel
+			    return x86_64_macosx 
+			} 
+		    }
+		}
+		x86_64  { # 64 bit kernel
+		    return x86_64_macosx 
+}
 	    }
 	}
     }

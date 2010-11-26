@@ -338,14 +338,19 @@
 /* On some machines struct nlist uses n_un.n_name, on others it does not */
 #undef N_NAME
 
-/* Do we have the GMP multi precision library */
+/* Do we have the GMP (or compatible) multi precision library */
 #undef HAVE_LIBGMP
+
+/* Are we using MPIR as the GMP compatible multi precision library */
+#undef USING_MPIR
 
 /* Do we have the FLEXlm licence manager */
 #undef HAVE_FLEXLM
 
 /* Define if ceil() doesn't correctly return -0.0 for argument >-1.0 <-0.0 */
 #undef HAVE_CEIL_NEGZERO_BUG                                                    
+/* Define if rint() doesn't behave correctly */
+#undef HAVE_RINT_BUG                                                 
 
 /* Define if pow() gives incorrect results for 0.0^negint */
 #undef HAVE_POW_ZERO_NEG_BUG                                                    
