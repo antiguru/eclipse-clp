@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.34 2010/09/29 15:31:47 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.35 2010/11/26 04:17:09 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -84,6 +84,9 @@ case $host in
 	;;
     i?86-*-darwin*)
 	arch=i386_macosx
+	;;
+    x86_64-*-darwin*)
+        arch=x86_64_macosx
 	;;
     alpha*-*-linux*)
 	arch=alpha_linux
@@ -232,6 +235,9 @@ OSCLASS="unix"
 
 CFLAGS="-fPIC $CFLAGS"
 
+# needed for strip on Mac OS X 
+STRIPFLAGS=
+
 #----------------------------------------------------------------------
 # Explicit settings - things that can't be figured out automatically
 #----------------------------------------------------------------------
@@ -245,37 +251,76 @@ case "$ARCH" in
     if test $? -ne 0; then
 	GCCLIBDIR="."
     fi
+    CFLAGS="-m32  -mmacosx-version-min=10.4 $CFLAGS"
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
     OBJECT_SUFFIX=dylib
     OBJECTS_SUFFIX=dylib
     # these needed to be changed to build at SourceForge
-    LDFLAGS=
-    DYNLDFLAGS="-dynamic -single_module -flat_namespace -search_paths_first -L$GCCLIBDIR"
+    LDFLAGS="-m32 -mmacosx-version-min=10.4"
+    DYNLDFLAGS="-shared -single_module -flat_namespace -search_paths_first -m32 -mmacosx-version-min=10.4 -L$GCCLIBDIR"
     LD_C_SO=""
     PL_C_SO=".c.dylib:"
     PD_C_SO="$LD_C_SO"
     PL_O_SO=".o.dylib:"
     PD_O_SO="$LD_C_SO"
-    DYLD="libtool"
-    DYLDCXX="libtool"
+    DYLD="gcc"
+    DYLDCXX="g++"
     LDYLD="libtool -dynamic -L$GCCLIBDIR"
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     LDTCL="-framework Tcl"
-    RUNPATH_DYLDFLAG="-executable_path "
-    # RUNPATH_LDLAG is really a noop here
+    # RUNPATH_LDLAG is really a noop here (-rpath not supported pre 10.5)
+    RUNPATH_DYLDFLAG="-L"
     RUNPATH_LDFLAG="-L"
     LDD="otool"
     LDDFLAG="-L"
-    AC_DEFINE(HAVE_CEIL_NEGZERO_BUG)
+    STRIPFLAGS="-u -i -S"
+    AC_DEFINE(HAVE_CEIL_NEGZERO_BUG) # bug fixed sometime in 10.5
     LOCK=
     ;;
- ppc_macosx)
+ x86_64_macosx)
+    # it seems that the stdc++/gcc libs that needs to be linked in are at
+    # gcc version dependent directories. The following tries to determine
+    # the exact path using gcc to obtain its version information
     GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([[^ ]]*\) .*/\1/'`
-    GCCLIBDIR=$(ls -d /usr/lib/gcc/powerpc*/$GCC_VERSION 2>/dev/null)
+    GCCLIBDIR=$(ls -d /usr/lib/gcc/i686*/$GCC_VERSION/x86_64 2>/dev/null)
+    CFLAGS="-m64  -mmacosx-version-min=10.4 $CFLAGS"
     if test $? -ne 0; then
 	GCCLIBDIR="."
     fi
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
+    OBJECT_SUFFIX=dylib
+    OBJECTS_SUFFIX=dylib
+    # these needed to be changed to build at SourceForge
+    LDFLAGS="-m64 -mmacosx-version-min=10.4"
+    DYNLDFLAGS="-shared -single_module -flat_namespace -search_paths_first -m64 -mmacosx-version-min=10.4 -L$GCCLIBDIR"
+    LD_C_SO=""
+    PL_C_SO=".c.dylib:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.dylib:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="gcc"
+    DYLDCXX="g++"
+    LDYLD="libtool -dynamic -L$GCCLIBDIR"
+    # LDTCL for loading Tcl/Tk, implemented as a Framework
+    LDTCL="-framework Tcl"
+    # RUNPATH_LDLAG is really a noop here (-rpath not supported pre 10.5)
+    RUNPATH_DYLDFLAG="-L"
+    RUNPATH_LDFLAG="-L"
+    LDD="otool"
+    LDDFLAG="-L"
+    STRIPFLAGS="-u -i -S"
+    AC_DEFINE(HAVE_CEIL_NEGZERO_BUG) # bug fixed sometime in 10.5
+    AC_DEFINE(HAVE_RINT_BUG)
+    LOCK=
+    ;;
+ ppc_macosx)
+    GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([[^ ]]*\) .*/\1/'`
+    GCCLIBDIR=$(./configls -d /usr/lib/gcc/powerpc*/$GCC_VERSION 2>/dev/null)
+    if test $? -ne 0; then
+	GCCLIBDIR="."
+    fi
+    CFLAGS="-m32  -mmacosx-version-min=10.3 $CFLAGS"
+    LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic -m32"
     OBJECT_SUFFIX=dylib
     OBJECTS_SUFFIX=dylib
     # these needed to be changed to build at SourceForge
@@ -290,7 +335,7 @@ case "$ARCH" in
     # /usr/lib/gcc, which the script tries to determine. The flag
     # -arch_only ppc is also required, as the libgcc.a cannot be linked 
     # for ppc64 or Intel
-    LDFLAGS=
+    LDFLAGS="-m32"
     DYNLDFLAGS="-dynamic -single_module -flat_namespace  -search_paths_first -L$GCCLIBDIR  -lgcc -arch_only ppc"
     LD_C_SO=""
     PL_C_SO=".c.dylib:"
@@ -310,6 +355,7 @@ case "$ARCH" in
     RUNPATH_LDFLAG="-L"
     LDD="otool"
     LDDFLAG="-L"
+    STRIPFLAGS="-u -i -S"
     LOCK=
     ;;
  sun4)
@@ -1216,6 +1262,7 @@ fi
 
 AC_ARG_WITH([gmp], [[  --without-gmp
 			Build ECLiPSe without bignum/rational support.
+			(Not recommended - compiler will be restricted)
 			Default is to try finding GMP to build this support.
     ]],
     [gmp_requested="$withval"], [gmp_requested=yes])
@@ -1225,7 +1272,7 @@ if test "$gmp_requested" = "yes"; then
     for gmp_version in $GMP_REQUIRED; do
 	GMP_DIR=$ECLIPSETHIRDPARTY/gmp$gmp_version
 	if test -d $GMP_DIR/$ARCH/lib; then
-	    found_gmp=yes
+	    found_mp=gmp
 	    AC_DEFINE(HAVE_LIBGMP)
 	    if test -d "$GMP_DIR/$ARCH/include"; then
 		OS_INCLUDES="-I$GMP_DIR/$ARCH/include $OS_INCLUDES"
@@ -1242,11 +1289,14 @@ if test "$gmp_requested" = "yes"; then
 		GMP_LIB="gmp"
 	    fi
 	    GMP_LD="-L$GMP_LIBDIR -l$GMP_LIB"
-            # MacOS X does not support -rpath; link in static GMP for sepia
+            # MacOS X does not support -rpath until 10.5; so to run on
+            # earlier Mac OS X, we link in static GMP for sepia
 	    # executable to avoid setting DYLD_LIBRARY_PATH
 	    if test "$ARCH" = "i386_macosx"; then
 		GMP_EXE_LD="$GMP_LIBDIR/lib$GMP_LIB.a"
 	    elif test "$ARCH" = "ppc_macosx"; then
+		GMP_EXE_LD="$GMP_LIBDIR/lib$GMP_LIB.a"
+	    elif test "$ARCH" = "x86_64_macosx"; then
 		GMP_EXE_LD="$GMP_LIBDIR/lib$GMP_LIB.a"
 	    else
 		GMP_EXE_LD="$GMP_LD"
@@ -1255,7 +1305,41 @@ if test "$gmp_requested" = "yes"; then
 	    break
 	fi
     done
-    if test -z "$found_gmp"; then
+    if test -z "$found_mp"; then
+        # try finding MPIR instead
+	MPIR_REQUIRED="1.3.1"
+    	for mpir_version in $MPIR_REQUIRED; do
+	    MPIR_DIR=$ECLIPSETHIRDPARTY/mpir$mpir_version
+	    if test -d $MPIR_DIR/$ARCH/lib; then
+	        found_mp=mpir
+	    	AC_DEFINE(HAVE_LIBGMP)
+	    	AC_DEFINE(USING_MPIR)
+	    	if test -d "$MPIR_DIR/$ARCH/include"; then
+		    OS_INCLUDES="-I$MPIR_DIR/$ARCH/include $OS_INCLUDES"
+	       	else
+		    OS_INCLUDES="-I$MPIR_DIR/include $OS_INCLUDES"
+	    	fi
+	    	GMP_LIBDIR="$MPIR_DIR/$ARCH/lib"
+		GMP_LIB="gmp"
+	    	GMP_LD="-L$GMP_LIBDIR -l$GMP_LIB"
+	        # MacOS X does not support -rpath until 10.5; so to run on
+                # earlier Mac OS X, we link in static GMP for sepia
+	        # executable to avoid setting DYLD_LIBRARY_PATH
+		if test "$ARCH" = "i386_macosx"; then
+		    GMP_EXE_LD="$GMP_LIBDIR/lib$GMP_LIB.a"
+	        elif test "$ARCH" = "ppc_macosx"; then
+		    GMP_EXE_LD="$GMP_LIBDIR/lib$GMP_LIB.a"
+	        elif test "$ARCH" = "x86_64_macosx"; then
+		    GMP_EXE_LD="$GMP_LIBDIR/lib$GMP_LIB.a"
+	        else
+		    GMP_EXE_LD="$GMP_LD"
+	        fi
+	    	INSTALL_GMP=install_gmp
+		break
+	    fi
+	done
+    fi	
+    if test -z "$found_mp"; then
 	AC_MSG_WARN([Could not find Gmp ($GMP_REQUIRED) in $ECLIPSETHIRDPARTY])
 	# set to something, so we can use -R$(GMP_LIBDIR) without syntax error
 	GMP_LIBDIR="."
@@ -1264,8 +1348,10 @@ if test "$gmp_requested" = "yes"; then
 	# Defines only -lgmp and HAVE_LIBGMP, no attempts to package the gmp lib
 	# with ECLiPSe.  Check for mpz_import to require a new enough version.
 	AC_CHECK_LIB(gmp, __gmpz_import)
-    else
+    elif test "$found_mp" = "gmp"; then
 	AC_MSG_NOTICE([Using Gmp in $GMP_DIR])
+    else		     
+	AC_MSG_NOTICE([Using MPIR in $MPIR_DIR])
     fi
 else
     AC_MSG_NOTICE([Not using Gmp, not building bignum/rational support])
@@ -1592,7 +1678,7 @@ GRAPHVIZ_TARGET=
 GRAPHVIZ_DIR=
 if test "$graphviz_versions_requested" != "no"; then
     if test "$graphviz_versions_requested" = "yes"; then
-    	graphviz_versions_requested="1.10"
+    	graphviz_versions_requested="2.26 1.10"
     fi
     for version in $graphviz_versions_requested; do
 	GRAPHVIZ_DIR="$ECLIPSETHIRDPARTY/graphviz$version/$ARCH"
@@ -1625,7 +1711,7 @@ ALL_WITH_MYSQL=
 ALL_CROSS_WITH_MYSQL=
 if test "$mysql_versions_requested" != "no"; then
     if test "$mysql_versions_requested" = "yes"; then
-	mysql_versions_requested="50"
+	mysql_versions_requested="51 50"
     fi
     for version in $mysql_versions_requested; do
 	MYSQLDIR="$ECLIPSETHIRDPARTY/mysql$version/$ARCH"
@@ -1725,6 +1811,7 @@ AC_SUBST(LDFLAGS)
 AC_SUBST(DYNLDFLAGS)
 AC_SUBST(RUNPATH_LDFLAG)
 AC_SUBST(RUNPATH_DYLDFLAG)
+AC_SUBST(STRIPFLAGS)
 AC_SUBST(S_TO_O)
 AC_SUBST(C_TO_I)
 AC_SUBST(LL_C_SO)

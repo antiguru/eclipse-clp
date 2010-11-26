@@ -69,6 +69,7 @@ ALLARCHS="
 	alpha_linux \
 	ppc_macosx \
 	i386_macosx \
+	x86_64_macosx \
 	x86_64_linux \
 	x86_64_nt \
 	i386_nt

@@ -156,6 +156,7 @@ ecoclean:
 
 archclean:
 	rm -rf $(ARCH)
+	rm -f *.o
 	rm -f $(REL_EC_DIR)/lib/$(ARCH)/$(LIB_PREFIX)ec_java.$(OBJECTS_SUFFIX) 
 	rm -f $(REL_EC_DIR)/lib/$(ARCH)/$(LIB_PREFIX)ec_java_load.$(OBJECTS_SUFFIX) 
 
@@ -187,10 +188,14 @@ ifneq "$(OSCLASS)" "win"
  ifeq "$(ARCH)" "i386_macosx"
     LIBC="-lc"
  else
-  ifeq "$(ARCH)" "ppc_macosx"
+  ifeq "$(ARCH)" "x86_64_macosx"
     LIBC="-lc"
   else
-    LIBC=
+   ifeq "$(ARCH)" "ppc_macosx"
+     LIBC="-lc"
+   else
+     LIBC=
+   endif
   endif
  endif
 

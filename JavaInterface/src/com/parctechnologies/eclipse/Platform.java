@@ -21,7 +21,7 @@
 // END LICENSE BLOCK
 
 //Title:        Java/ECLiPSe interface
-//Version:      $Id: Platform.java,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
+//Version:      $Id: Platform.java,v 1.8 2010/11/26 04:15:13 kish_shen Exp $
 //Author:       Josh Singer
 //Company:      Parc Technologies
 //Description:  Encapsulated Singleton for platform-dependent code.
@@ -121,6 +121,8 @@ abstract class Platform
       {
 	  return(new Platform_i386_macosx());
       }
+      else if(arch.equals("x86_64") || arch.equals("amd64"))
+	  return(new Platform_x86_64_macosx());
     }
 
     throw new RuntimeException("Unsupported platform: " + OSName + "/" + arch);
