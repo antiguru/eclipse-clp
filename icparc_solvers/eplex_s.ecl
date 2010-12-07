@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: eplex_s.ecl,v 1.10 2010/12/07 15:57:01 kish_shen Exp $
 %
 %
 
@@ -4013,10 +4013,9 @@ retrieve_constraints(Handle, Rows, Constraints) :-
         cplex_matrix_base(Base),
         MaxRow is Rows - cplex_matrix_offset,
         constraint_type_code(norm, CType),
-        (for(I,Base,MaxRow), param(VArr,CPH,CType), 
-         fromto([], Constraints0,Constraints1, Constraints) do
-            construct_one_constraint(CPH, CType, I, VArr, C),
-            Constraints1 = [C|Constraints0]
+        (for(I,Base,MaxRow), param(VArr,CPH,CType),
+	 foreach(C, Constraints) do 
+            construct_one_constraint(CPH, CType, I, VArr, C)
         ).
 
 
