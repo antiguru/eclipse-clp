@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.35 2010/11/26 04:17:09 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.36 2010/12/13 17:50:22 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -315,7 +315,7 @@ case "$ARCH" in
     ;;
  ppc_macosx)
     GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([[^ ]]*\) .*/\1/'`
-    GCCLIBDIR=$(./configls -d /usr/lib/gcc/powerpc*/$GCC_VERSION 2>/dev/null)
+    GCCLIBDIR=$(ls -d /usr/lib/gcc/powerpc*/$GCC_VERSION 2>/dev/null)
     if test $? -ne 0; then
 	GCCLIBDIR="."
     fi
