@@ -312,9 +312,14 @@ else
 	    fi
 	done
 	if test $ARCH != $guess; then
-	    # An end user's $ARCH may have an unrelated setting - ignore it
-	    echo WARNING: Ignoring your ARCH environment variable
-	    ARCH=$guess
+	    if test $ARCH = i386_macosx -a $guess=x86_64_macosx; then
+		# assume we are building 32 bit on 64 bit Mac OS X
+		ARCH=$ARCH
+	    else
+	        # An end user's $ARCH may have an unrelated setting - ignore it
+		echo WARNING: Ignoring your ARCH environment variable
+		ARCH=$guess
+	    fi
 	fi
     fi
 fi
