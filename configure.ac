@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.36 2010/12/13 17:50:22 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.37 2011/01/03 02:10:18 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -101,8 +101,14 @@ if test -z "$ARCH" ; then
     ARCH=$arch
 else
     if test "$ARCH" != "$arch" ; then
-	AC_MSG_ERROR([Your ARCH=$ARCH setting is incompatible with
+        # config.guess does not seem to distinguish 32/64 bit PPC for the Mac
+        # assume ARCH setting is what the user wants to build
+        if test "$ARCH" == "ppc64_macosx" ; then
+            arch=$ARCH
+        else
+	    AC_MSG_ERROR([Your ARCH=$ARCH setting is incompatible with
 		--host=$host, change or unset ARCH])
+        fi
     fi
 fi
 
@@ -337,6 +343,51 @@ case "$ARCH" in
     # for ppc64 or Intel
     LDFLAGS="-m32"
     DYNLDFLAGS="-dynamic -single_module -flat_namespace  -search_paths_first -L$GCCLIBDIR  -lgcc -arch_only ppc"
+    LD_C_SO=""
+    PL_C_SO=".c.dylib:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.dylib:"
+    PD_O_SO="$LD_C_SO"
+    DYLD="libtool"
+    DYLDCXX="libtool"
+    LDYLD="libtool -dynamic -L$GCCLIBDIR"
+    # LDTCL for loading Tcl/Tk, implemented as a Framework
+    #LDTCL="-framework tcl"
+    LDTCL=" -framework Tcl"
+    # -lSystemStubs needed for PPC MacOs X 10.4.9 we built on
+    LIBS="$LIBS -lSystemStubs"
+    RUNPATH_DYLDFLAG="-executable_path "
+    # RUNPATH_LDLAG is really a noop here
+    RUNPATH_LDFLAG="-L"
+    LDD="otool"
+    LDDFLAG="-L"
+    STRIPFLAGS="-u -i -S"
+    LOCK=
+    ;;
+ ppc64_macosx)
+    GCC_VERSION=`gcc -v 2>&1 | sed -n 's/gcc version //p' | sed -e 's/\([[^ ]]*\) .*/\1/'`
+    GCCLIBDIR=$(ls -d /usr/lib/gcc/powerpc*/$GCC_VERSION/ppc64 2>/dev/null)
+    if test $? -ne 0; then
+	GCCLIBDIR="."
+    fi
+    CFLAGS="-m64  -mmacosx-version-min=10.4 $CFLAGS"
+    LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic -m64"
+    OBJECT_SUFFIX=dylib
+    OBJECTS_SUFFIX=dylib
+    # these needed to be changed to build at SourceForge
+    #LDFLAGS="-Wl,-search_paths_first"
+    #DYNLDFLAGS="-dynamic -single_module -flat_namespace -search_paths_first -lgcc"
+    # It seems that PPC MacOSX have some problems linking that requires 
+    # libgcc to be linked in to define some undefined symbols, but the 
+    # method to do this varies with the OS versions:
+    # -lgcc (10.2)
+    # -lcc_dynamic (10.3? -- suggested on the web, but not tested by us)
+    # -L$GCCLIBDIR -lgcc (10.4), where $GCCLIBDIR is a directory in 
+    # /usr/lib/gcc, which the script tries to determine. The flag
+    # -arch_only ppc is also required, as the libgcc.a cannot be linked 
+    # for ppc64 or Intel
+    LDFLAGS="-m64"
+    DYNLDFLAGS="-dynamic -single_module -flat_namespace  -search_paths_first -L$GCCLIBDIR  -lgcc -arch_only ppc64"
     LD_C_SO=""
     PL_C_SO=".c.dylib:"
     PD_C_SO="$LD_C_SO"
