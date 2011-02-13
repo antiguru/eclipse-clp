@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.37 2011/01/03 02:10:18 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.38 2011/02/13 03:15:32 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -739,7 +739,7 @@ dnl but the option is only present starting from gcc 4.2
 AC_MSG_CHECKING(for version-dependent compiler options)
 SAVED_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -fno-strict-overflow"
-AC_TRY_COMPILE([] , [int main(void) {return 0;}],
+AC_TRY_COMPILE([] , [return 0;],
     [AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no)
     CFLAGS="$SAVED_CFLAGS"])
 

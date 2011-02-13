@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.8 2010/11/26 04:22:56 kish_shen Exp $
+ * VERSION	$Id: bip_arith.c,v 1.9 2011/02/13 03:18:35 kish_shen Exp $
  */
 
 /*
@@ -843,9 +843,8 @@ _int_pow(word x,
 	    *r = (x >= 0 || (y&1)) ? x : 1;		/* -1^y 0^y 1^y */
 	    return PSUCCEED;
 	}
-	/* explicit test for MIN_S_WORD to avoid a compiler bug on MacOS X */
-	if (x == MIN_S_WORD) return INTEGER_OVERFLOW;
 	x = -x;
+	if (x < 0) return INTEGER_OVERFLOW;		/* we had MININT */
 	if (y & 1) neg = 1;
     }
 
