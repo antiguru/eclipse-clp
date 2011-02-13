@@ -347,6 +347,13 @@ case $ARCH in
 	;;
 esac
 
+if test ! -d "lib/$ARCH"; then
+    echo "Aborting: cannot find the directory lib/$ARCH."
+    echo "If you are installing from binaries, make sure you have downloaded"
+    echo "and unpacked the package eclipse_basic_$ARCH."
+    exit 1
+fi
+
 # read the architecture's defaults
 . "lib/$ARCH/INST_PARAMS"
 
