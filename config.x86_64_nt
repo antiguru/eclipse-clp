@@ -3,19 +3,21 @@
 # It contains defaults cache values for WIN64
 #
 ECLIPSETOOLS=$HOME/tools
-CC=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-gcc
-CXX=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-c++
-LD=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-ld
-AR=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-ar
-AS=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-as
-NM=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-nm
-STRIP=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-strip
-RANLIB=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-ranlib
-DLLTOOL=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-dlltool
-OBJDUMP=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-objdump
-RESCOMP=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-windres
-RC=$ECLIPSETOOLS/i386_linux/w64-cross-tools/bin/x86_64-pc-mingw32-windres
-OS_INCLUDES="-isystem $ECLIPSETOOLS/i386_linux/w64-cross-tools/x86_64-pc-mingw32/include"
+MINGW64ROOT=/usr/local/mingw64
+CROSS=x86_64-w64-mingw32
+CC=$MINGW64ROOT/bin/$CROSS-gcc
+CXX=$MINGW64ROOT/bin/$CROSS-c++
+LD=$MINGW64ROOT/bin/$CROSS-ld
+AR=$MINGW64ROOT/bin/$CROSS-ar
+AS=$MINGW64ROOT/bin/$CROSS-as
+NM=$MINGW64ROOT/bin/$CROSS-nm
+STRIP=$MINGW64ROOT/bin/$CROSS-strip
+RANLIB=$MINGW64ROOT/bin/$CROSS-ranlib
+DLLTOOL=$MINGW64ROOT/bin/$CROSS-dlltool
+OBJDUMP=$MINGW64ROOT/bin/$CROSS-objdump
+RESCOMP=$MINGW64ROOT/bin/$CROSS-windres
+RC=$MINGW64ROOT/bin/$CROSS-windres
+OS_INCLUDES="-isystem $MINGW64ROOT/$CROSS/include"
 ac_cv_func_select='yes'
 ac_cv_func_gethostname='yes'
 ac_cv_func_getpagesize='yes'
