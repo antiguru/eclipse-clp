@@ -23,7 +23,7 @@
 # 
 # END LICENSE BLOCK
 #
-# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.4 2008/04/27 23:12:47 jschimpf Exp $
+# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.5 2011/03/04 17:18:25 kish_shen Exp $
 #
 
 #ORACLE_HOME=/home/mac/oracle
@@ -72,7 +72,7 @@ ELIBS	= -L$(PREFIX)/lib/$(ARCH) -L$(MYSQLDIR)/lib -leclipse @GMP_LD@ $(LIBS)
 # We've tried lots of other tricks, but this is the one that worked.
 
 MLIBS_i386_nt      = $(MYSQLDIR)/lib/libmysql.dll.a
-MLIBS_unix	   = -lmysqlclient -lz
+MLIBS_unix	   = -lmysqlclient -lz -lpthread
 ifeq "$(ARCH)" "i386_nt"
    MLIBS = $(MLIBS_i386_nt)
 else 
