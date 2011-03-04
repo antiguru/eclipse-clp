@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.17 2010/09/14 07:03:38 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.18 2011/03/04 05:18:04 kish_shen Exp $
  */
 
 /*
@@ -163,8 +163,15 @@ typedef code_item	*emu_code;
 #define Int_Pp		0
 #endif
 #  else
-#  ifdef sparc
-register emu_code	pp	asm("%g5");
+#  if defined(sparc) 
+/* Register choice for Sparc:
+ * Refer to developers.sum.com/solaris/articles/sparcv9abi.html
+ * Also the -mapp-regs gcc options is relevant for g2-4
+ * Experimentaly, this is (as of 2011) the only choice that works out of g1-5
+ * but of dubiouos reliability, as any callee could presumably clobber
+ * the register 
+ */
+register emu_code	pp	asm("%g4");
 #define Declare_Pp
 #define Restore_Pp	pp = (emu_code) g_emu_.pp;
 #define Import_Pp
@@ -7514,7 +7521,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		    goto _nbip_err_;
 		}
 		PP[-2].arg->val.nint =
-#if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
+#if defined(i386) || defined(__x86_64) || defined(__POWERPC__) || defined(sparc)
 		    /* need to check this, causes arith exception on i386 */
 		    (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) ? 0 :
 #endif
@@ -7578,7 +7585,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		    err_code = ARITH_EXCEPTION;
 		    goto _nbip_err_;
 #endif
-#if defined(i386) || defined(__x86_64) || defined(__POWERPC__)
+#if defined(i386) || defined(__x86_64) || defined(__POWERPC__) || defined(sparc)
 		/* need to check this, causes arith exception on i386 */
 		} else if (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) {
 		    tmp1 = 0;

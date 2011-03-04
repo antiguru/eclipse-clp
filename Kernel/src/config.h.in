@@ -354,6 +354,9 @@
 
 /* Define if pow() gives incorrect results for 0.0^negint */
 #undef HAVE_POW_ZERO_NEG_BUG                                                    
+/* Define if compiler may be generating code with strict-overflow optmisation
+   that breaks some code that does integer overflow detection */
+#undef MAY_HAVE_STRICT_OVERFLOW
 
 /*#define O o */
 #undef OBJECT_SUFFIX_STRING

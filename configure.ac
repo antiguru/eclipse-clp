@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.38 2011/02/13 03:15:32 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.39 2011/03/04 05:21:17 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -152,10 +152,14 @@ fi
 # -O2 for OPT_FLAGS_EMU leads to not distinguishable emu instructions for threaded code
 #     due to -freorder-blocks optimisation
 # -fomit-frame-pointer gives faster code for x86
-# the flags for OPT_FLAGS_EMU are -O2 optimisations that don't cause problems and do not
-# slow down execution on i386_linux
+# the flags for OPT_FLAGS_EMU are -O2 optimisations that don't cause problems 
+# and do not slow down execution on i386_linux
+# no -fomit-frame-pointer from optimised debugging -- it makes debugging
+# impossible on some machines (otherwise -O1+ will turn it on) 
 OPT_FLAGS="-O2 -fomit-frame-pointer"
 OPT_FLAGS_EMU="-O1 -fomit-frame-pointer -fthread-jumps -fforce-addr  -fexpensive-optimizations -fdelete-null-pointer-checks -fpeephole2 -falign-functions -falign-jumps  -foptimize-sibling-calls -fregmove  -fsched-interblock -fcaller-saves"
+OPTDBG_FLAGS="-O2"
+OPTDBG_FLAGS_EMU="-O1 -fthread-jumps -fforce-addr  -fexpensive-optimizations -fdelete-null-pointer-checks -fpeephole2 -falign-functions -falign-jumps  -foptimize-sibling-calls -fregmove  -fsched-interblock -fcaller-saves"
 
 if test -z "$OS_INCLUDES"; then
     OS_INCLUDES=""
@@ -164,14 +168,6 @@ fi
 # OPT_LDFLAGS will be prefixed to LDFLAGS if not --enable-debug
 OPT_LDFLAGS="-s"
 
-# LDFLAGS is used when linking executables
-# --export-dynamic replaces obsolete -rdynamic option
-# It is only meaningful when linking an executable, and makes executable's
-# symbols visible in the dynamic symbol table (which would otherwise only
-# contain symbols exported from dynamically linked libraries). It is
-# probably only useful when making a statically linked eclipse, rather
-# than one using libeclipse.so, but probably doesn't hurt otherwise.
-LDFLAGS="-Wl,--export-dynamic"
 
 # DYNLDFLAGS is used when linking shared libraries
 # In principle, we should also use -Wl,-Bsymbolic here, to link the
@@ -438,6 +434,8 @@ case "$ARCH" in
     PL_O_SO=".o.so:"
     PD_O_SO="$LD_C_SO"
     WANT_MPS=y
+    # some bash shell set OSTYPE to solaris2.10
+    OSTYPE="solaris"
     AC_DEFINE(HAVE_MAP_NORESERVE)
     ;;
  i386_sunos5)
@@ -736,12 +734,15 @@ AC_CHECK_TYPES([long long, __int64])
 
 dnl -fstrict-overflow breaks some code that does integer overflow detection
 dnl but the option is only present starting from gcc 4.2
+dnl gcc 4.1 does not have the flag, but the strict-overflow optimisation
+dnl still seem to be done for some platforms (e.g. i386_linux)
 AC_MSG_CHECKING(for version-dependent compiler options)
 SAVED_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -fno-strict-overflow"
 AC_TRY_COMPILE([] , [return 0;],
     [AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no)
-    CFLAGS="$SAVED_CFLAGS"])
+    CFLAGS="$SAVED_CFLAGS" 
+    AC_DEFINE(MAY_HAVE_STRICT_OVERFLOW)])
 
 
 dnl Check for void pointers
@@ -758,14 +759,34 @@ AC_CHECK_LIB(dl,dlopen)
 AC_CHECK_LIB(nsl,main)
 AC_CHECK_LIB(socket,socket)
 
+# LDFLAGS is used when linking executables
+# Check to see if we can include GNU linker's specific flags:
+# --export-dynamic replaces obsolete -rdynamic option
+# It is only meaningful when linking an executable, and makes executable's
+# symbols visible in the dynamic symbol table (which would otherwise only
+# contain symbols exported from dynamically linked libraries). It is
+# probably only useful when making a statically linked eclipse, rather
+# than one using libeclipse.so, but probably doesn't hurt otherwise.
+AC_MSG_CHECKING(for version-dependent linker options)
+SAVED_LDFLAGS="$LDFLAGS"
+LDFLAGS="-Wl,--export-dynamic $LDFLAGS"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([],[return0;])], 
+	[AC_MSG_RESULT(yes)], [AC_MSG_RESULT(no) 
+	LDFLAGS="$SAVED_LDFLAGS"])
 
 #----------------------------------------------------------------------
 # The --enable-debug option
 #----------------------------------------------------------------------
 AC_ARG_ENABLE(debug,
-	[  --enable-debug          compile with all debugging features],
-	OPTIMIZE=cp OPT_FLAGS_EMU=-g OPT_FLAGS_ARITH=-g OPT_FLAGS=-g LOCAL_FLAGS="$LOCAL_FLAGS -DPRINTAM",
-	NICE=nice LDFLAGS="$OPT_LDFLAGS $LDFLAGS" LOCAL_FLAGS="$LOCAL_FLAGS $OPT_LOCAL_FLAGS")
+	[  --enable-debug          compile with debugging features (ARG=opt for debugging optimised code)],
+	AC_MSG_RESULT(Configuring for debug=$enable_debug)
+	[if test "x$enable_debug" != "xopt"; then 
+	    [OPTIMIZE=cp OPT_FLAGS_EMU=-g OPT_FLAGS_ARITH=-g OPT_FLAGS=-g LOCAL_FLAGS="$LOCAL_FLAGS -DPRINTAM"]
+         else
+	    [OPTIMIZE=cp OPT_FLAGS_EMU="$OPTDBG_FLAGS_EMU -g" OPT_FLAGS_ARITH="$OPT_FLAGS_ARITH -g" OPT_FLAGS="$OPTDBG_FLAGS -g" LOCAL_FLAGS="$LOCAL_FLAGS -DPRINTAM"]
+        fi],
+	[NICE=nice LDFLAGS="$OPT_LDFLAGS $LDFLAGS" LOCAL_FLAGS="$LOCAL_FLAGS $OPT_LOCAL_FLAGS"]
+)
 
 if test -z "$OPT_FLAGS_EMU"; then
 	OPT_FLAGS_EMU="$OPT_FLAGS"
@@ -1762,7 +1783,7 @@ ALL_WITH_MYSQL=
 ALL_CROSS_WITH_MYSQL=
 if test "$mysql_versions_requested" != "no"; then
     if test "$mysql_versions_requested" = "yes"; then
-	mysql_versions_requested="51 50"
+	mysql_versions_requested="55 54 53 52 51 50"
     fi
     for version in $mysql_versions_requested; do
 	MYSQLDIR="$ECLIPSETHIRDPARTY/mysql$version/$ARCH"

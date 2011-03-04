@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.7 2010/07/27 13:36:17 jschimpf Exp $
+# $Id: Makefile.in,v 1.8 2011/03/04 05:18:04 kish_shen Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -88,6 +88,7 @@ CPP = @CPP@
 CXX = @CXX@
 CXXCPP = @CXXCPP@
 LD = @LD@
+AR = @AR@
 OPT_FLAGS = @OPT_FLAGS@ 
 OPT_FLAGS_EMU = @OPT_FLAGS_EMU@ 
 OPT_FLAGS_ARITH = @OPT_FLAGS_ARITH@ 
@@ -324,11 +325,11 @@ winecl.tgz:	$(COMMON_OBJECTS) $(DEVSYS_OBJECTS)
 		gtar cvfz eclipse.tgz $(COMMON_OBJECTS) $(DEVSYS_OBJECTS)
 
 libeclipse.a:	$(COMMON_OBJECTS)
-		ar rc ./libeclipse.a $(COMMON_OBJECTS)
+		$(AR) rc ./libeclipse.a $(COMMON_OBJECTS)
 		$(RANLIB) ./libeclipse.a
 
 tkexdr.a: tkexdr.o
-		ar rc ./tkexdr.a tkexdr.o
+		$(AR) rc ./tkexdr.a tkexdr.o
 		$(RANLIB) ./tkexdr.a
 
 tkexdr.so:	tkexdr.o
@@ -347,7 +348,7 @@ tkexdr.dll:	tkexdr.def tkexdr.o
 
 
 tkeclipse.a: tkeclipse.o
-		ar rc ./tkeclipse.a tkeclipse.o
+		$(AR) rc ./tkeclipse.a tkeclipse.o
 		$(RANLIB) ./tkeclipse.a
 
 # the -lc works around a linker problem on linux
@@ -401,7 +402,7 @@ $(LIB_PREFIX)eclipse.dll.a: $(LIB_PREFIX)eclipse.dll
 
 
 libdummies.a:	$(ALLDUMMYLIBS) 
-		ar rc ./libdummies.a $(ALLDUMMYLIBS)
+		$(AR) rc ./libdummies.a $(ALLDUMMYLIBS)
 		$(RANLIB) ./libdummies.a
 
 sepia.o:	$(COMMON_OBJECTS)
@@ -420,7 +421,7 @@ mps.o:		$(MPS_OBJECTS)
 
 
 libeclipsemps.a:	mps.o
-		ar rc ./libeclipsemps.a mps.o
+		$(AR) rc ./libeclipsemps.a mps.o
 		$(RANLIB) ./libeclipsemps.a
 
 whereami.c:

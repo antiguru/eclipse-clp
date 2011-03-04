@@ -8,7 +8,7 @@ ECLiPSe - Constraint Logic Programming System
 # The contents of this file are subject to the Cisco-style Mozilla Public
 # License Version 1.1 (the "License"); you may not use this file except
 # in compliance with the License.  You may obtain a copy of the License
-# at www.eclipse-clp.org/license.
+# at www.eclipseclp.org/license.
 # 
 # Software distributed under the License is distributed on an "AS IS"
 # basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
@@ -76,7 +76,7 @@ You should have gotten the following files for the "i386_nt" architecture:
 There are different versions of these files for different machine
 architectures. These are tar-files compressed with gzip.  Note that
 these .tgz Packages for Windows may not be available for download via
-SourceForge, but they are available from the www.eclipse-clp.org site.
+SourceForge, but they are available from the www.eclipseclp.org site.
 
 Base:
     README_WIN.TXT		The file you are reading now
@@ -364,13 +364,13 @@ Contact Addresses
 
 News about ECLiPSe are available from the following sources
 
-    http://www.eclipse-clp.org
+    http://www.eclipseclp.org
 
     http://www.sourceforge.net/projects/eclipse-clp
 
     comp.constraints    (via news server or e.g. groups.google.com)
 
-Via http://www.eclipse-clp.org/mailinglist.html you can subscribe to
+Via http://www.eclipseclp.org/mailinglist.html you can subscribe to
 one of the ECLiPSe mailing lists
 
     eclipse-clp-announce@lists.sf.net	(release announcements)
@@ -382,7 +382,7 @@ Alternatively, you can use the forums on
 
 Problem and bug reports can be submitted via the web site
 
-    http://www.eclipse-clp.org/bugs.html
+    http://www.eclipseclp.org/bugs.html
 
 Please take the time to report problems. Your feedback helps us to
 make ECLiPSe more reliable!

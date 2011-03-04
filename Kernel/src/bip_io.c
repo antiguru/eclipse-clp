@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.10 2010/09/24 20:08:53 kish_shen Exp $
+ * VERSION	$Id: bip_io.c,v 1.11 2011/03/04 05:18:04 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -3904,7 +3904,8 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 #else
 	    (void) setpgrp(0, getpid());
 #endif
-	(void) execvp(cmd, argv);
+	errno = 0;
+	(void)  execvp(cmd, argv);
 	{
 	    /* Explicitly send error to child's error stream. If
 	     * we send to current_err_ on most architectures the
@@ -3921,6 +3922,10 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 		    strerror(errno), cmd);
 		fflush(stderr);
 	    }
+	    /* buggy behaviour in some cases mean errno may not be set with
+               an error, reutrn a fake errno
+	    */
+	    if (errno == 0) errno = ENOEXEC;
 	    _exit(errno + 128);  /* not exit() inside vfork, as per man page */
 	}
 
