@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.8 2010/09/30 14:18:56 kish_shen Exp $
+# $Id: Makefile.in,v 1.9 2011/03/05 22:58:02 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -95,6 +95,15 @@ ifeq ($(OSCLASS),win)
 
 THREADLIB = 
 EXTRAFILES = gfd.def
+
+ifeq ($(ARCH),x86_64_nt)
+
+# For w64-mingw cross-compiler (downloaded Feb 2011), using g++ to link
+# seem to require libgcc_s_sjlj-1.dll at run-time. We avoid this by
+# using gcc to do the linking
+DYLDCXX = @DYLD@
+
+endif
 
 else
 
