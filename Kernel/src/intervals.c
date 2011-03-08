@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.7 2010/11/26 04:22:56 kish_shen Exp $
+* Version:	$Id: intervals.c,v 1.8 2011/03/08 12:13:47 kish_shen Exp $
 *
 
 Supported operations:
@@ -953,8 +953,8 @@ ec_ria_unop(int op, double xl, double xu, double *zl_ptr, double *zu_ptr)
 	break;
     case RIA_UN_LN:				/* ln */
 	if (xu >= 0.0) {
-	    lwb = xl > 0.0 ? down(log(xl)) : -HUGE_VAL;
-	    upb = up(log(xu));
+	    lwb = xl > 0.0 ? down(Log(xl)) : -HUGE_VAL;
+	    upb = up(Log(xu));
 	} else {
 	    Fail_;
 	}
@@ -1814,13 +1814,15 @@ static int
 _ivl_ln(value v1, pword *pres)
 {
     double lwb, upb;
-    if (IvlLwb(v1.ptr) < 0.0) {
+    lwb = IvlLwb(v1.ptr);
+    if (lwb < 0.0) {
 	/* result could be undefined, thus not representable as an interval */
 	Bip_Error(ARITH_EXCEPTION);
     }
-    lwb = log(IvlLwb(v1.ptr));
+    lwb = Log(lwb);
     if (lwb > 0.0) lwb = down(lwb);	/* don't go below zero */
-    upb = up(log(IvlUpb(v1.ptr)));
+    upb = IvlUpb(v1.ptr);
+    upb = up(Log(upb));
     Make_Interval(pres, lwb, upb);
     Succeed_;
 }

@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.7 2010/11/26 04:22:56 kish_shen Exp $
+** $Id: rounding_control.h,v 1.8 2011/03/08 12:13:15 kish_shen Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -486,7 +486,21 @@ extern double ec_ieee_down ARGS((double));
 #if defined(i386) && defined(__GNUC__)
 #define Pow (*pow_ptr_to_avoid_buggy_inlining)
 static double (*pow_ptr_to_avoid_buggy_inlining)(double,double) = pow;
+#elif defined(__WIN64)
+/* MinGW-w64's pow() seem to be buggy and returns an answer with insufficent
+   precision. Use powl() instead */ 
+#define Pow powl
 #else
 #define Pow pow
 #endif
 
+#ifdef __WIN64
+/* MinGW-w64 had a bug log(-0.0) returns NaN. This have been fixed, so hopefully
+   this work around can be removed when we update the cross-compiler
+   Testing for == -0.0 will catch 0.0, but that's OK here
+*/
+#define Log(x) (x == -0.0 ? log(0.0) : log(x)) 
+
+#else
+#define Log(x) log(x)
+#endif
