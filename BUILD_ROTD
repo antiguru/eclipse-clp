@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.16 2010/09/17 07:40:26 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.17 2011/03/11 00:50:39 kish_shen Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -556,7 +556,7 @@ remote_commands() {
 	done
 	cat > input.$suffix <<END
 	# to be executed on $machine_name
-	echo $SHELL | grep bash >/dev/null && . ~/.bashrc
+	echo \$SHELL | grep bash >/dev/null && . ~/.bashrc
 	umask $UMASK
 
 	timeout=6
@@ -1249,7 +1249,7 @@ rsync_out() {		# ($machine, $arch -> $is_remote_machine, $remote_prefix)
 	(
 	    cd "$PREFIX"
 	    remote_commands "$DISK_MACHINE" "$PREFIX" "
-		rsync -aRu --rsh=ssh --timeout=120 \
+		rsync -aRu --rsh=ssh --timeout=240 \
 			--exclude 'aux.*' --exclude '*::*' \
 			--include 'test.*.$machine/' \
 			--exclude 'test.*/' \
