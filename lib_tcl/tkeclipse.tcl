@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.10 2008/11/18 05:44:16 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.11 2011/03/14 13:04:46 kish_shen Exp $
 #
 
 #----------------------------------------------------------------------
@@ -400,7 +400,7 @@ proc tkecl:Update_current_module {name dummy op} {
 
 proc tkecl:About {} {
     global tkecl
-    global tcl_version
+    global tcl_patchLevel
 
     set w .tkecl.tkecl_about
 
@@ -412,7 +412,7 @@ proc tkecl:About {} {
 	wm resizable $w 0 0
 	set t [frame $w.f] 
 	pack [label $t.ec -image $tkecl(ec_image)] -side top
-	pack [label $t.n -text "$name (Tcl/Tk GUI using Tcl $tcl_version)"] -side top
+	pack [label $t.n -text "$name (Tcl/Tk GUI using Tcl $tcl_patchLevel)"] -side top
 	pack $t -side top -padx 10 -pady 10
 	pack [button $w.ok -text OK -command "destroy $w"] \
 		-ipady 10 -padx 10 -pady 10 -side bottom -fill x -expand 1
