@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.11 2011/03/08 12:13:47 kish_shen Exp $
+ * VERSION	$Id: bip_arith.c,v 1.12 2011/03/15 00:32:20 kish_shen Exp $
  */
 
 /*
@@ -1723,7 +1723,7 @@ _dbl_ln(value v1, pword *pres)
     double y = Dbl(v1);
     if (!NonNegative(y))
 	{ Bip_Error(ARITH_EXCEPTION); }
-    Make_Double_Val(pres->val, Log(y))
+    Make_Double_Val(pres->val, log(y))
     Succeed_;
 }
 
