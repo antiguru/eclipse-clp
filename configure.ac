@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.39 2011/03/04 05:21:17 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.40 2011/03/19 05:03:12 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -67,10 +67,10 @@ case $host in
     x86_64-*-solaris2.*)
     	arch=x86_64_sunos5
 	;;
-    i?86-*-mingw32* | i?86-*-cygwin*)
+    i?86-*-mingw* | i?86-*-cygwin*)
     	arch=i386_nt
 	;;
-    x86_64-*-mingw32* | x86_64-*-cygwin*)
+    x86_64-*-mingw* | x86_64-*-cygwin*)
     	arch=x86_64_nt
 	;;
     sparc*-*-sunos[1-4]*)
@@ -106,8 +106,7 @@ else
         if test "$ARCH" == "ppc64_macosx" ; then
             arch=$ARCH
         else
-	    AC_MSG_ERROR([Your ARCH=$ARCH setting is incompatible with
-		--host=$host, change or unset ARCH])
+		AC_MSG_WARN([Cross-compiling without site config file $CONFIG_SITE!!!])
         fi
     fi
 fi
@@ -161,6 +160,8 @@ OPT_FLAGS_EMU="-O1 -fomit-frame-pointer -fthread-jumps -fforce-addr  -fexpensive
 OPTDBG_FLAGS="-O2"
 OPTDBG_FLAGS_EMU="-O1 -fthread-jumps -fforce-addr  -fexpensive-optimizations -fdelete-null-pointer-checks -fpeephole2 -falign-functions -falign-jumps  -foptimize-sibling-calls -fregmove  -fsched-interblock -fcaller-saves"
 
+# For some cross-compilations, gcc's include path is in the wrong order.
+# We can fix this by adding an explicit -isystem <dir> argument.
 if test -z "$OS_INCLUDES"; then
     OS_INCLUDES=""
 fi
@@ -259,12 +260,15 @@ case "$ARCH" in
     OBJECTS_SUFFIX=dylib
     # these needed to be changed to build at SourceForge
     LDFLAGS="-m32 -mmacosx-version-min=10.4"
-    DYNLDFLAGS="-shared -single_module -flat_namespace -search_paths_first -m32 -mmacosx-version-min=10.4 -L$GCCLIBDIR"
+    # -dynamiclib is the official Apple way of producing dynamic libraries
+    # -shared works on 10.6, but apparently not 10.5
+    DYNLDFLAGS="-dynamiclib -single_module -flat_namespace -search_paths_first -m32 -mmacosx-version-min=10.4 -L$GCCLIBDIR"
     LD_C_SO=""
     PL_C_SO=".c.dylib:"
     PD_C_SO="$LD_C_SO"
     PL_O_SO=".o.dylib:"
     PD_O_SO="$LD_C_SO"
+    # gcc can be used in recent Mac OS X
     DYLD="gcc"
     DYLDCXX="g++"
     LDYLD="libtool -dynamic -L$GCCLIBDIR"
@@ -294,7 +298,9 @@ case "$ARCH" in
     OBJECTS_SUFFIX=dylib
     # these needed to be changed to build at SourceForge
     LDFLAGS="-m64 -mmacosx-version-min=10.4"
-    DYNLDFLAGS="-shared -single_module -flat_namespace -search_paths_first -m64 -mmacosx-version-min=10.4 -L$GCCLIBDIR"
+    # -dynamiclib is the official Apple way of producing dynamic libraries
+    # -shared works on 10.6, but apparently not 10.5
+    DYNLDFLAGS="-dynamiclib -single_module -flat_namespace -search_paths_first -m64 -mmacosx-version-min=10.4 -L$GCCLIBDIR"
     LD_C_SO=""
     PL_C_SO=".c.dylib:"
     PD_C_SO="$LD_C_SO"
@@ -520,6 +526,10 @@ case "$ARCH" in
     OSTYPE="linux"  
     ;;
  i386_nt)
+    ac_cv_func_select=yes
+    ac_cv_func_gethostname=yes
+    ac_cv_func_getpagesize=yes
+
     OPTIMIZE="sh ../src/opt_i386_linux.sh"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
@@ -536,6 +546,10 @@ case "$ARCH" in
 
     ;;
  x86_64_nt)
+    ac_cv_func_select=yes
+    ac_cv_func_gethostname=yes
+    ac_cv_func_getpagesize=yes
+
     CFLAGS="$CFLAGS"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
@@ -1855,6 +1869,8 @@ AC_CONFIG_HEADERS([
 
 dnl Words to substitute in the Makefiles
 AC_SUBST(ARCH)
+AC_SUBST(host)
+AC_SUBST(build)
 AC_SUBST(ECLIPSETHIRDPARTY)
 AC_SUBST(top_srcdir)
 AC_SUBST(top_builddir)

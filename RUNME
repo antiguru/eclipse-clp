@@ -147,7 +147,7 @@ find_tcl() {
 	TCL_LIBRARY="$ecl_tcl_arch/lib/tcl$TCL_VERSION"
 	TK_LIBRARY="$ecl_tcl_arch/lib/tk$TCL_VERSION"
 
-	TCL_FRAMEWORK=`dirname "$ecl_tcl_arch"`/Library/Frameworks
+	TCL_FRAMEWORK="$ecl_tcl_arch/Library/Frameworks"
 	TCL_XWISH=`echo "$ecl_tcl_arch"/bin/xwish*`
 
 	usable_tcl || {
@@ -242,11 +242,12 @@ specify_tcl() {
     case $ARCH in
 	*_macosx)
 	    echo "On MacOSX, the native Aqua Tcl/Tk is packaged using Frameworks."
-	    ask "In which directory is the Tcl Framework (where Tcl.framework is)" TCL_FRAMEWORK
+	    ask "In which directory is the Tcl (and Tk) Framework (where Tcl.framework is)" TCL_FRAMEWORK ""
 
 	    echo "MacOSX can also run Tk in the X11 windowing system.  If you want"
 	    echo "to use the X11 version of Tcl/Tk $TCL_VERSION, you can also"
 	    echo "setup xtkeclipse (and xtktools) to run the X11 version of TkECLiPSe."
+	    do_x11="n"
 	    ask "Do you want to do this" do_x11 "y n"
 	    if test "$do_x11" = y; then
 		while true; do
@@ -414,6 +415,12 @@ while true; do
     echo "  TCL_ARCH_LIBRARY: $TCL_ARCH_LIBRARY"
     echo "  TCL_LIBRARY:      $TCL_LIBRARY"
     echo "  TK_LIBRARY:       $TK_LIBRARY"
+case "$ARCH" in
+    *_macosx)
+    echo "  FRAMEWORK_PATH:   $TCL_FRAMEWORK"
+    echo "  TCL_XWISH:        $TCL_XWISH"
+    ;;
+esac
     ask "Accept (a), find automatically (f), specify manually (m), or skip (s)" ACCEPT "a f m s"
     case "$ACCEPT" in
 	a) break;;
@@ -639,21 +646,10 @@ rm -f "$dest"
 cat > "$dest" <<EOF
 #! /bin/sh
 ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
-$LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:\$$LD_LIB_PATH_NAME:$TCL_ARCH_LIBRARY"
-EOF
-case $ARCH in 
-    *_macosx)
-	cat >> "$dest" <<EOF
-DYLD_FRAMEWORK_PATH="$TCL_FRAMEWORK:\$DYLD_FRAMWORK_PATH"
-EOF
-	;;
-esac
-cat >> "$dest" <<EOF
-TCL_LIBRARY="\${TCL_LIBRARY:-$OS_TCL_LIBRARY}"
-TK_LIBRARY="\${TK_LIBRARY:-$OS_TK_LIBRARY}"
+$LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:\$$LD_LIB_PATH_NAME"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
-export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY $FRAMEWORK_PATH_NAME $LD_LIB_PATH_NAME DAVINCIHOME JRE_HOME
+export ECLIPSEDIR $LD_LIB_PATH_NAME DAVINCIHOME JRE_HOME
 exec "$LIB_ARCH_DIR/eclipse.exe" "\$@"
 EOF
 chmod 755 "$dest"
@@ -661,15 +657,21 @@ chmod 755 "$dest"
 dest="$EXE_DIR/tkeclipse"
 echo Making "$dest"
 rm -f "$dest"
-cat > "$dest" <<EOF
+case $ARCH in 
+    *_macosx)
+	# For Aqua Tk, don't pass TCL_ARCH_LIBRARY (for X11 only) 
+	cat > "$dest" <<EOF
+#! /bin/sh
+ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
+$LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:\$$LD_LIB_PATH_NAME"
+$FRAMEWORK_PATH_NAME="$TCL_FRAMEWORK:\$$FRAMEWORK_PATH_NAME"
+EOF
+	;;
+    *)
+	cat > "$dest" <<EOF
 #! /bin/sh
 ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 $LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:\$$LD_LIB_PATH_NAME:$TCL_ARCH_LIBRARY"
-EOF
-case $ARCH in 
-    *_macosx)
-	cat >> "$dest" <<EOF
-$FRAMEWORK_PATH_NAME="$TCL_FRAMEWORK:\$$FRAMEWORK_PATH_NAME"
 EOF
 	;;
 esac
@@ -699,12 +701,11 @@ case $ARCH in
 #! /bin/sh
 ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 DYLD_LIBRARY_PATH="\$ECLIPSEDIR/lib/$ARCH:\$DYLD_LIBRARY_PATH:$TCL_ARCH_LIBRARY"
-DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMEWORK_PATH"
 TCL_LIBRARY="\${TCL_LIBRARY:-$OS_TCL_LIBRARY}"
 TK_LIBRARY="\${TK_LIBRARY:-$OS_TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
 JRE_HOME="\${JRE_HOME:-$JRE_HOME}"
-export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY DYLD_FRAMEWORK_PATH DYLD_LIBRARY_PATH DAVINCIHOME JRE_HOME
+export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY DYLD_LIBRARY_PATH DAVINCIHOME JRE_HOME
 exec "$TCL_XWISH" "$ECLIPSEDIR/lib_tcl/tkeclipse.tcl" -- "\$@"
 EOF
 	    chmod 755 "$dest"
@@ -716,11 +717,10 @@ EOF
 #! /bin/sh
 ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 DYLD_LIBRARY_PATH="\$ECLIPSEDIR/lib/$ARCH:\$DYLD_LIBRARY_PATH:$TCL_ARCH_LIBRARY"
-DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMEWORK_PATH"
 TCL_LIBRARY="\${TCL_LIBRARY:-$OS_TCL_LIBRARY}"
 TK_LIBRARY="\${TK_LIBRARY:-$OS_TK_LIBRARY}"
 DAVINCIHOME="\${DAVINCIHOME:-$DAVINCIHOME}"
-export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY DYLD_FRAMEWORK_PATH DYLD_LIBRARY_PATH DAVINCIHOME
+export ECLIPSEDIR TCL_LIBRARY TK_LIBRARY DYLD_LIBRARY_PATH DAVINCIHOME
 exec "$TCL_XWISH" "$ECLIPSEDIR/lib_tcl/tktools.tcl" -- "\$@"
 EOF
 	    chmod 755 "$dest"
@@ -789,15 +789,20 @@ fi
 dest="$EXE_DIR/tktools"
 echo Making "$dest"
 rm -f "$dest"
-cat > "$dest" <<EOF
+case $ARCH in 
+    *_macosx)
+	cat > "$dest" <<EOF
+#! /bin/sh
+ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
+$LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:\$$LD_LIB_PATH_NAME"
+DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMWORK_PATH"
+EOF
+	;;
+    *)
+	cat > "$dest" <<EOF
 #! /bin/sh
 ECLIPSEDIR="\${ECLIPSEDIR:-$OS_ECLIPSEDIR}"
 $LD_LIB_PATH_NAME="\$ECLIPSEDIR/lib/$ARCH:\$$LD_LIB_PATH_NAME:$TCL_ARCH_LIBRARY"
-EOF
-case $ARCH in 
-    *_macosx)
-	cat >> "$dest" <<EOF
-DYLD_FRAMEWORK_PATH="\$TCL_FRAMEWORK:\$DYLD_FRAMWORK_PATH"
 EOF
 	;;
 esac
