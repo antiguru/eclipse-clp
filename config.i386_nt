@@ -19,7 +19,4 @@ OBJDUMP=$MINGW32ROOT/bin/$CROSS-objdump
 RESCOMP=$MINGW32ROOT/bin/$CROSS-windres
 RC=$MINGW32ROOT/bin/$CROSS-windres
 OS_INCLUDES="-isystem $MINGW32ROOT/include"
-ac_cv_func_select='yes'
-ac_cv_func_gethostname='yes'
-ac_cv_func_getpagesize='yes'
 
