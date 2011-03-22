@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.10 2011/03/22 23:25:00 jschimpf Exp $
  */
 
 /*
@@ -137,6 +137,7 @@ static int
 		    _num_string_size(value v, type t, int quoted),
 		    _int_to_string(value v, type t, char *buf, int quoted_or_base),
 		    _float_to_string(value v, type t, char *buf, int precise),
+		    _float_to_string_opt(value v, type t, char *buf, int precise, int options),
 		    _printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char *par),
 		    _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd),
 		    _pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, register int flags),
@@ -689,7 +690,7 @@ _pwrite_:
 	Handle_Type_Macro(TDBL)
 	{
 	    char fbuf[32];
-	    int size = _float_to_string(val, tag, fbuf, idwrite & QUOTED);
+	    int size = _float_to_string_opt(val, tag, fbuf, idwrite & QUOTED, sd->options);
 	    if (NumberNeedsBrackets(Dbl(val)))
 	    {
 		if ((status = ec_outfc(out, '(')) < 0 ||
@@ -1707,6 +1708,13 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
 static int
 _float_to_string(value v, type t, char *buf, int precise)
 {
+    return _float_to_string_opt(v, t, buf, precise, 0);
+}
+
+
+static int
+_float_to_string_opt(value v, type t, char *buf, int precise, int syntax_options)
+{
     char aux[32];
     char *s;
     char *bufp = buf;
@@ -1756,6 +1764,11 @@ _float_to_string(value v, type t, char *buf, int precise)
 	    {
 	    case 'e':
 	    case 'E':
+		if (!dot_seen && (syntax_options & FLOAT_NEEDS_POINT))
+                {
+		    *bufp++ = '.';	/* insert .0 */
+		    *bufp++ = '0';
+                }
 		dot_seen = 1;
 		*bufp++ = *s++;
 		if (*s == '+' || *s == '-')	/* copy sign if any */
