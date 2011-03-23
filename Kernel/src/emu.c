@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.18 2011/03/04 05:18:04 kish_shen Exp $
+ * VERSION	$Id: emu.c,v 1.19 2011/03/23 05:04:17 jschimpf Exp $
  */
 
 /*
@@ -678,7 +678,7 @@ int bt_max = MAX_BACKTRACE;
 	if(VM_FLAGS & STATISTICS)				\
 	    vm_inst_ctr_[iptr->inst]++;			\
 	if(VM_FLAGS & TRACE)					\
-	    (void) print_am((vmcode *) iptr, &dummy_l, &dummy_r, 0);\
+	    (void) print_am((vmcode *) iptr, &dummy_l, &dummy_r, 2);\
     }							\
     if (iptr == stop_address) {emu_break();}		\
     ec_backtrace[bt_index] = (vmcode *) iptr;		\
@@ -4161,6 +4161,9 @@ _try_1_:
 	    Record_Alternative(i, err_code & O_FROM_ORACLE? 0 : O_SHALLOW);
 	    if (err_code & O_NOCREATE) { Next_Pp; }
 #endif
+            if (!Deterministic) {
+                Repush_Ret_Code;        /* multiple try's in a first chunk */
+            }
 	    Clr_Det
 	    pw1 = B.args;
 	    Chp(pw1)->sp = EB = SP;
@@ -4874,6 +4877,7 @@ _switch_on_type_:
 
 	Case(Savecut, I_Savecut)
 	    pw1 = E - 1;
+            /* CAUTION: this works only if there is at most 1 choicepoint! */
 	    pw1->val.ptr = Deterministic ? B.args : BPrev(B.args);
 	    pw1->tag.kernel = TCUT; 
 	    Next_Pp;
@@ -4888,20 +4892,6 @@ _switch_on_type_:
 	    Get_Argument(pw1)
 	    pw1->val.ptr = B.args;
 	    pw1->tag.kernel = TCUT; 
-	    Next_Pp;
-
-	Case(Neckcut_par, I_Neckcut_par)
-	    if (Deterministic) Next_Pp;
-	    Set_Det
-	    pw1 = (B.top - 1)->frame.args;
-	    Cut_To(pw1)
-	    Next_Pp;
-
-	Case(Neckcut, I_Neckcut)
-	    if (Deterministic) Next_Pp;
-	    Set_Det
-_neckcut_:
-	    Cut_Last(pw1)
 	    Next_Pp;
 
 	Case(Cut_single, I_Cut_single)
@@ -4940,13 +4930,16 @@ _cut_and_trim_if_environment_exposed_:
 	    Dereference_Pw(pw1)
 	    pw1 = pw1->val.ptr;
 	    Cut_To(pw1)
+	    Set_Det     /* CAUTION: assumes we cut at least one chpt! */
 	    Next_Pp;
 
 	Case(SoftcutL, I_SoftcutL)
 	    Get_Local(pw1)
 	    pw1 = pw1->val.ptr;
-	    if (B.args == pw1)
-		goto _neckcut_;
+	    if (B.args == pw1) {
+                Cut_Last(pw1)
+                Next_Pp;
+            }
 	    (Top(pw1) - 1)->backtrack = soft_cut_code_;
 	    Next_Pp;
 
@@ -7922,6 +7915,9 @@ _narg_:
         Case(Retry_me_dynamic, I_Retry_me_dynamic)
         Case(Clause, I_Clause)
 #endif
+/***** obsolete/unused *****/
+	Case(Neckcut_par, I_Neckcut_par)
+	Case(Neckcut, I_Neckcut)
 /***** not yet implemented *****/
 	Case(Escapef, I_Escapef)
 	Case(Escape, I_Escape)
