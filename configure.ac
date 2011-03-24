@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.40 2011/03/19 05:03:12 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.41 2011/03/24 02:21:35 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1476,6 +1476,7 @@ if test "$osi_versions_requested" != "no"; then
 		case $version in
 		clpcbc) CLPCBCDIR="$OSIDIR" ;;
 		symclp) SYMCLPDIR="$OSIDIR" ;;
+		glpk)  OSIGLPKDIR="$OSIDIR" ;;
 		esac
 		ls -d $OSIDIR/$ARCH/lib/*amd* >/dev/null 2>/dev/null
 		if test $? -eq 0; then
@@ -1934,6 +1935,7 @@ AC_SUBST(LOCK)
 AC_SUBST(OSI_VERSIONS)
 AC_SUBST(CLPCBCDIR)
 AC_SUBST(SYMCLPDIR)
+AC_SUBST(OSIGLPKDIR)
 AC_SUBST(OSICLP_ADDLIB)
 AC_SUBST(OSICLP_ADDDEF)
 AC_SUBST(CPLEX_VERSIONS)
