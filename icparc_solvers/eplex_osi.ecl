@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eplex_osi.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: eplex_osi.ecl,v 1.3 2011/03/24 02:45:38 kish_shen Exp $
 %
 % Description:		ECLiPSe/CPLEX interface
 %
@@ -31,9 +31,9 @@
 
 :- comment(categories, ["Constraints","Interfacing"]).
 :- comment(summary, "Load lib(eplex) with COIN-OR's OSI with a default solver").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2011/03/24 02:45:38 $").
 
 % eplex setup checks for existence of module eplex_cplex!
-:- local initialization(ensure_loaded(eplex)).
+:- local initialization(ensure_loaded(library(eplex))).
 :- export initialization(import(eplex)).
 
