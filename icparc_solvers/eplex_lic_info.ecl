@@ -61,7 +61,7 @@ licence('morden.icparc.ic.ac.uk', xpress, '1427', default, 0).
 % By default, use COIN/OR OSI solvers
 licence(_, osi, clpcbc, '', 0).
 licence(_, osi, symclp, '', 0).
-%licence(_, osi, glpk, '', 0).
+licence(_, osi, glpk, '', 0).
 
 % Defaults for other solvers
 licence(_Default, cplex, '121', '', 0).

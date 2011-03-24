@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.23 2010/08/19 13:47:05 kish_shen Exp $
+# $Id: Makefile.in,v 1.24 2011/03/24 02:39:54 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -90,9 +90,11 @@ all:	$(OBJ_FILES)
 
 CLPCBCDIR = @CLPCBCDIR@
 SYMCLPDIR = @SYMCLPDIR@
+OSIGLPKDIR = @OSIGLPKDIR@
 
 CLPCBCARCHDIR = $(CLPCBCDIR)/$(ARCH)
 SYMCLPARCHDIR = $(SYMCLPDIR)/$(ARCH)
+OSIGLPKARCHDIR = $(OSIGLPKDIR)/$(ARCH)
 
 COINOSILIBS = -lOsi -lCoinUtils
 COINCLPLIBS = -lOsiClp -lCgl -lClp 
@@ -110,6 +112,13 @@ $(ARCH)/seosisymclp.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h
 	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o -L$(SYMCLPARCHDIR)/lib -lOsiSym -lSym $(COINCLPLIBS) $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o seosisymclp.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	mv seosisymclp.$(OBJ_SUFFIX) $(ARCH)/seosisymclp.$(OBJ_SUFFIX)
+
+$(ARCH)/seosiglpk.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
+	$(CXX) -DCOIN -DCOIN_USE_GLPK $(CPPFLAGS) $(CFLAGS) -I$(OSIGLPKARCHDIR)/include -c coinplex.cpp
+	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o -L$(OSIGLPKARCHDIR)/lib -lOsiGlpk -lglpk  $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o seosiglpk.$(OBJ_SUFFIX)
+	[ -d $(ARCH) ] || mkdir $(ARCH)
+	mv seosiglpk.$(OBJ_SUFFIX) $(ARCH)/seosiglpk.$(OBJ_SUFFIX)
 
 #----------------------------------------------------------------------
 # EPLEX/CPLEX
@@ -716,7 +725,8 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl empty_language.ecl \
 		config_opts.ecl gap.ecl sym_expr.ecl \
 		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		conjunto_fd_sets.ecl ic_hybrid_sets.ecl lex_set.ecl \
-		eplex_osi.ecl eplex_osi_clpcbc.ecl eplex_osi_symclp.ecl \
+		eplex_osi.ecl eplex_osi_clpcbc.ecl \
+		eplex_osi_symclp.ecl  eplex_osi_glpk.ecl \
 		tentative.ecl tentative_constraints.ecl max_flow.ecl
 PL_ECO_FILES =	changeset.pl linearize.pl shadow_cons.pl ech.pl \
 		repair.pl eplex.pl eplex_relax.pl \
@@ -755,7 +765,8 @@ ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		edge_finder3.ecl ic_edge_finder3.ecl bfs.ecl colgen.ecl \
 		config_opts.ecl gap.ecl sym_expr.ecl \
 		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
-		eplex_osi.ecl eplex_osi_clpcbc.ecl eplex_osi_symclp.ecl \
+		eplex_osi.ecl eplex_osi_clpcbc.ecl \
+		eplex_osi_symclp.ecl  eplex_osi_glpk.ecl \
 		tentative.ecl tentative_constraints.ecl max_flow.ecl
 NON_ECLIPSE_FILES = RuntimesList.g SBDDa.g
 
