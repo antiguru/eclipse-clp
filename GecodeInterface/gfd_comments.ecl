@@ -1111,8 +1111,8 @@ X = X{[-1000000 .. 1000000]}
 
 %---------------------------------------------------------------------
 
-:- comment(alldifferent_offsets/2, [
-    amode: alldifferent_offsets(+,++),
+:- comment(alldifferent_cst/2, [
+    amode: alldifferent_cst(+,++),
     template: "<ConsistencyModule:> alldifferent_offsets(+Vars,++Offsets)",
     args: [
     	"Vars": "A collection (a la collection_to_list/2) of variables or integers",
@@ -1130,7 +1130,7 @@ X = X{[-1000000 .. 1000000]}
    where Vari, Offseti are the i'th element of Vars and Offsets, and
    Varj, Offsetj are the j'th element.</P><P>
 
-   This constraint is known as alldifferent_cst in the global constraints 
+   This constraint is also known as alldifferent_cst in the global constraints 
    catalog.</P><P>
 
    ConsistencyModule is the optional module specification to give the 
@@ -1567,8 +1567,9 @@ X = X{[-1000000 .. 1000000]}
 <P>
    Note that unlike the element constraint in IC, the values in Collection 
    can be domain variables as well as integers. Also note that the actual
-   gecode constraint has an index (GIndex) that starts from 0, and Index is
-   constrained to be GIndex + 1.
+   Gecode constraint has an index (GIndex) that starts from 0, and Index is
+   constrained to be GIndex + 1. A version of this constraint that uses the 
+   native Gecode indexing is element_g/3. 
 <P>
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
@@ -1596,9 +1597,33 @@ V = V{[1, 2, 4 .. 10]}
 
 
 ",
-	see_also:[/(::, 2)]
+	see_also:[/(::, 2), element_g/3]
     ]).
 
+
+:- comment(element_g/3, [
+	summary:"Value is the Index'th element of the integer list List, with native Gecode indexing.",
+	template:"<ConsistencyModule:> element_g(?Index, ++List, ?Value)",
+	args:[
+	    "?Index" : "A domain variable or an integer.",
+	    "+Collection" : "A non-empty collection of integers or domain variable.",
+	    "?Value" : "A domain variable or an integer."
+	],
+	resat:"No.",
+	fail_if:"Fails if Value is not the Index'th element of Collection.",
+	see_also: [element/3],
+	desc:html("\
+  This version of element/3 uses the native Gecode indexing, which starts 
+  from 0, i.e. the first element of Collection has index 0. This is different 
+  from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps more directly to Gecode's native implementation of 
+  the constraint, without the conversion between Gecode and ECLiPSe
+  indexing of element/3. It may therefore be more efficient, but could also
+  be incompatible with existing ECLiPSe code. 
+</p><p>
+  See element/3 for a more detailed description of this predicate.")
+]).   
 
 %----------------------------------------------------------------------
 
@@ -1765,7 +1790,8 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
    of the algorithm used by gecode is linear in time with respect to 
    Max - Min, where Max and Min are the Maximum and Minimum possible values
    for elements in List, respectively. Therefore, this constraint will 
-   behave badly for variables with large domain widths.
+   behave badly for variables with large domain widths. For a version of this
+   constraint that uses native Gecode indexing, see sorted_g/3.
 <P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
@@ -1779,8 +1805,31 @@ Ys = [_804{[1 .. 8]}, _824{[1 .. 20]}, _844{[8 .. 100]}, _864{[20 .. 100]}]
 Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
     ",
-    see_also:[sorted/2,ordered/2]
+    see_also:[sorted/2,ordered/2,sorted_g/3]
     ]).
+
+:- comment(sorted_g/3, [
+    summary:"Sorted is a sorted permutation (described by Positions) of List, with native Gecode indexing.",
+    amode:sorted(+,?,?),
+    amode:sorted(?,+,?),
+    amode:sorted(?,?,+),
+    template:"<ConsistencyModule:> sorted_g(?List, ?Sorted, ?Positions)",
+    args:["List":"Collection of domain variables or integers",
+    	"Sorted":"Collection of domain variables or integers",
+    	"Positions":"Collection of domain variables or integers"],
+    see_also: [sorted/3],	
+    desc:html("\
+  This version of sorted/3 uses the native Gecode indexing, which starts 
+  from 0, i.e. the first element of the collections has index 0. This is 
+  different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps more directly to Gecode's native implementation of 
+  the constraint, without the conversion between Gecode and ECLiPSe
+  indexing of sorted/3. It may therefore be more efficient, but could also
+  be incompatible with existing ECLiPSe code. 
+</p><p>
+  See sorted/3 for a more detailed description of this predicate.")
+]).   
 
 %----------------------------------------------------------------------
 
@@ -1863,6 +1912,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
         template:"<ConsistencyModule:> inverse(+Succ,+Pred)",
         summary: "Constrains elements of Succ to be the successors and"
                  " Pred to be the predecessors of nodes in a digraph",
+	see_also:[inverse_g/2],
         desc: html("\
 <P>
      Succ and Pred are collections of N elements, representing a digraph of 
@@ -1878,9 +1928,11 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
      This constraint is known as inverse in the global constraint catalog,
      but with implicit node index based on the position in the list.  
 </P><P>
-     Note that the gecode implementation of this constraint actually index
+     Note that the Gecode implementation of this constraint actually index
      from 0. A dummy element is added to the start of Succ and Pred so that
-     the indices returned corresponds to ECLiPSe's (starting from 1).
+     the indices returned corresponds to ECLiPSe's (starting from 1). A
+     version of this constraint using native Gecode indexing is available
+     as inverse_g/2.
 </P><P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
@@ -1888,6 +1940,29 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     and gfd_vc for value consistency.
 
 ")]).
+
+:- comment(inverse_g/2, [
+        amode: inverse_g(+,+),
+        args: ["Succ":"A collection of N different variables or integers",
+               "Pred":"A collection  of N different variables or integers"
+              ],
+        template:"<ConsistencyModule:> inverse_g(+Succ,+Pred)",
+        summary: "Constrains elements of Succ to be the successors and"
+                 " Pred to be the predecessors of nodes in a digraph, using"
+		 " native Gecode indexing.",
+	see_also:[inverse/2],
+        desc: html("\
+  This version of inverse/2 uses the native Gecode indexing, which starts 
+  from 0, i.e. the first elements in Succ and Pred has position 0. This is 
+  different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps more directly to Gecode's native implementation of 
+  the constraint, without the conversion between Gecode and ECLiPSe
+  indexing of inverse/2. It may therefore be more efficient, but could also
+  be incompatible with existing ECLiPSe code. 
+</p><p>
+  See inverse/2 for a more detailed description of this predicate.")
+]).   
 
 :- comment(inverse/4, [
         amode: inverse(+,+,+,+),
@@ -1935,23 +2010,44 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
               ],
         template:"<ConsistencyModule:> circuit(+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit.", 
+	see_also: [circuit_g/1],
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where
   the i'th element of Succ represents the successor to node i. The constraint
   enforces Succ to form a Hamiltonian circuit, a path through every node in
   the graph, visiting each node once and forming a circuit.</P><P>
 
-  Note that the gecode implementation of this constraint has index (node id)
+  Note that the Gecode implementation of this constraint has index (node id)
   starting from 0, rather than 1. These indecies are constrained to 
-  ECLiPSe node id with a constraint for each element.</P><P>
+  ECLiPSe node id with a constraint for each element. A version of this
+  constraint with native Gecode indexing is available as circuit_g/1.
+</P><P>
 
-    ConsistencyModule is the optional module specification to give the 
-    consistency level for the propagation for this constraint: 
-    gfd_gac for generalised arc consistency (domain consistency), 
-    and gfd_vc for value consistency.
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
 ")
                       ]).
 
+:- comment(circuit_g/1, [
+        amode: circuit_g(+),
+        args: ["Succ":"A collection of different variables or integers"
+              ],
+        template:"<ConsistencyModule:> circuit_g(+Succ)",
+        summary: "Constrains elements in Succ to form a Hamiltonian circuit, with native Gecode indexing.", 
+	see_also: [circuit/1],
+        desc: html("<P>\
+  This version of circuit/1 uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps more directly to Gecode's native implementation of 
+  the constraint, without the conversion between Gecode and ECLiPSe
+  indexing of circuit/1. It may therefore be more efficient, but could also
+  be incompatible with existing ECLiPSe code. 
+</p><p>
+  See circuit/1 for a more detailed description of this predicate.")
+]).   
 
 %----------------------------------------------------------------------
 
@@ -1973,9 +2069,11 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
   Cost is constrained to the total cost for the circuit.
 </P><P>
 
-  Note that the gecode implementation of this constraint has index (node id)
+  Note that the Gecode implementation of this constraint has index (node id)
   starting from 0, rather than 1. These indecies are constrained to 
-  ECLiPSe node id with a constraint for each element.</P><P>
+  ECLiPSe node id with a constraint for each element. A version of this
+  constraint with native Gecode indexing is available as circuit_g/3,
+</P><P>
 
   ConsistencyModule is the optional module specification to give the 
   consistency level for the propagation for this constraint: 
@@ -1984,6 +2082,26 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 ")
                       ]).
 
+:- comment(circuit_g/3, [
+        amode: circuit_g(+,++,?),
+        args: ["Succ":"A collection of N different variables or integers",
+               "CostMatrix":"A NxN matrix of integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> circuit_g(+Succ,++CostMatrix,?Cost)",
+        summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost. This version uses native Gecode indexing.", 
+	see_also: [circuit/3],
+        desc: html("<P>\
+  This version of circuit/3 uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps more directly to Gecode's native implementation of 
+  the constraint, without the conversion between Gecode and ECLiPSe
+  indexing of circuit/3. It may therefore be more efficient, but could also
+  be incompatible with existing ECLiPSe code. 
+</p><p>
+  See circuit/3 for a more detailed description of this predicate.")
+]).   
 
 %----------------------------------------------------------------------
 
@@ -1995,6 +2113,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
                "Cost": "An domain variable or integer."
               ],
         template:"<ConsistencyModule:> circuit(+Succ,++CostMatrix,?Cost)",
+	see_also:[circuit/1,circuit/3,circuit_g/4],
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost.", 
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where
@@ -2009,7 +2128,9 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
   Note that the gecode implementation of this constraint has index (node id)
   starting from 0, rather than 1. These indecies are constrained to 
-  ECLiPSe node id with a constraint for each element.</P><P>
+  ECLiPSe node id with a constraint for each element.A version of this
+  constraint with native Gecode indexing is available as circuit_g/4.
+</P><P>
 
   ConsistencyModule is the optional module specification to give the 
   consistency level for the propagation for this constraint: 
@@ -2018,6 +2139,27 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 ")
                       ]).
 
+:- comment(circuit_g/4, [
+        amode: circuit_g(+,++,+,?),
+        args: ["Succ":"A collection of N different variables or integers",
+               "CostMatrix":"A NxN matrix of integers",
+               "ArcCosts": "A collection of N variables or integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> circuit_g(+Succ,++CostMatrix,?Cost)",
+        summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost, using native Gecode indexing.", 
+	see_also:[circuit/4],
+        desc: html("<P>\
+  This version of circuit/4 uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps more directly to Gecode's native implementation of 
+  the constraint, without the conversion between Gecode and ECLiPSe
+  indexing of circuit/4. It may therefore be more efficient, but could also
+  be incompatible with existing ECLiPSe code. 
+</p><p>
+  See circuit/4 for a more detailed description of this predicate.")
+]).   
 
 %----------------------------------------------------------------------
 
@@ -2118,7 +2260,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 " available for machines (integers)"
          ],
   summary: "Multi-resource cumulatives constraint on specified tasks.",
-  see_also: [disjunctive/2, cumulative/5, collection_to_list/2, _:cumulative/4],
+  see_also: [disjunctive/2, cumulative/5, collection_to_list/2, _:cumulative/4,cumulatives_g/5],
   desc:    html("\
 <P>
    A multi-resource cumulatives scheduling constraint - scheduling of M
@@ -2137,13 +2279,43 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
    Any input variables which are not already domain variables are turned
    into domain variables with default domain.
 </P><P>
+    Note that the Gecode implementation of this constraint has index starting
+    from 0, i.e. the numbering for the machines and tasks start from 0. These 
+    native indecies are mapped to the  ECLiPSe indecies starting from 1 with 
+    additional constraints. A version of this constraint that uses native
+    Gecode indexing is available as cumulatives_g/5.
+</P><P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
-    gfd_gac for generalised arc consistency (domain consistency), 
     gfd_vc for value consistency.
 </P>")
 ]).
 
+:- comment(cumulatives_g/5, [
+  amode: cumulatives_g(+,+,+,+,++),
+  template:"<ConsistencyModule:> cumulatives_g(+StartTimes, +Durations +Hights, +Assigned, +MachineCapacities)",
+  args:  ["StartTimes":  "Collection of N start times for tasks (integer variables or integers)",
+          "Durations":   "Collection of N duration for tasks (integer variables or integers)",
+          "Hights":   "Collection of N resource usages (positive) or productions"
+" (negative) by tasks (integer variables or integers) with the assigned machine",
+          "Assigned": "Collection of N ID of machine assigned to tasks"
+" (integer variables or integers)",
+          "MachineCapacities": "Collection of M maximum amount of resource"
+" available for machines (integers)"
+         ],
+  summary: "Multi-resource cumulatives constraint on specified tasks, using native Gecide indexing.",
+  see_also: [cumulatives/5],
+  desc:    html("\
+  This version of the constraint uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps more directly to Gecode's native implementation of 
+  the constraint, without the conversion between Gecode and ECLiPSe
+  indexing of cumulatives/5. It may therefore be more efficient, but could also
+  be incompatible with existing ECLiPSe code. 
+</p><p>
+  See cumulatives/5 for a more detailed description of this predicate.")
+]).   
 
 :- comment(cumulatives_min/5, [
   amode: cumulatives_min(+,+,+,+,++),
@@ -2178,12 +2350,44 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
    Any input variables which are not already domain variables are turned
    into domain variables with default domain.
 </P><P>
+    Note that the Gecode implementation of this constraint has index starting
+    from 0, i.e. the numbering for the machines and tasks start from 0. These 
+    native indecies are mapped to the  ECLiPSe indecies starting from 1 with 
+    additional constraints. A version of this constraint that uses native
+    Gecode indexing is available as cumulatives_min_g/5.
+</P><P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
     gfd_vc for value consistency.
 </P>")
 ]).
 
+:- comment(cumulatives_min_g/5, [
+  amode: cumulatives_min_g(+,+,+,+,++),
+  template:"<ConsistencyModule:> cumulatives_min_g(+StartTimes, +Durations +Hights, +Assigned, +MachineConsumptions)",
+  args:  ["StartTimes":  "Collection of N start times for tasks (integer variables or integers)",
+          "Durations":   "Collection of N duration for tasks (integer variables or integers)",
+          "Hights":   "Collection of N resource usages (positive) or productions"
+" (negative) by tasks (integer variables or integers) with the assigned machine",
+          "Assigned": "Collection of N ID of machine assigned to tasks"
+" (integers variables or integers)",
+          "MachineConsumptions": "Collection of M minimum amount of resource"
+" consumptions for machines (integers)"
+         ],
+  summary: "Multi-resource cumulatives constraint on specified tasks with"
+" required minimum resource consumptions, using native Gecode indexing.",
+  see_also: [cumulatives_min/5],
+  desc:    html("\
+  This version of the constraint uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps more directly to Gecode's native implementation of 
+  the constraint, without the conversion between Gecode and ECLiPSe
+  indexing of cumulatives_min/5. It may therefore be more efficient, but could 
+  also be incompatible with existing ECLiPSe code. 
+</p><p>
+  See cumulatives_min/5 for a more detailed description of this predicate.")
+]).   
 
 % ----------------------------------------------------------------------
 
