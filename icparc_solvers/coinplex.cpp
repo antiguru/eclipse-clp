@@ -69,7 +69,7 @@
 #include "ClpCholeskyUfl.hpp"
 #endif
 #include "ClpCholeskyDense.hpp"
-#include "ClpCholeskyWssmp.hpp"
+//#include "ClpCholeskyWssmp.hpp"
 #include "CbcSolver.hpp"
 typedef OsiClpSolverInterface OsiXxxSolverInterface;
 
@@ -107,7 +107,7 @@ typedef OsiClpSolverInterface OsiXxxSolverInterface;
 #include "ClpCholeskyUfl.hpp"
 #endif
 #include "ClpCholeskyDense.hpp"
-#include "ClpCholeskyWssmp.hpp"
+//#include "ClpCholeskyWssmp.hpp"
 
 
 typedef OsiCbcSolverInterface OsiXxxSolverInterface;
@@ -367,7 +367,7 @@ int coin_branchAndBound(lp_desc* lpd)
     if (lpd->lp->timeout > 0) model->setMaximumSeconds(lpd->lp->timeout);
     //    const char * argv2="-preprocess on -solve ";
     //control->solve(argv2, 1);
-    model->setPrintFrequency(5);
+    //model->setPrintFrequency(5);
     const char * cbc_args[5];
     cbc_args[0] = "eplexcbcclpsolver";
     cbc_args[1] = "-preprocess";
