@@ -69,6 +69,7 @@
 #include "ClpCholeskyUfl.hpp"
 #endif
 #include "ClpCholeskyDense.hpp"
+#include "ClpCholeskyWssmp.hpp"
 #include "CbcSolver.hpp"
 typedef OsiClpSolverInterface OsiXxxSolverInterface;
 
@@ -352,7 +353,13 @@ int coin_branchAndBound(lp_desc* lpd)
     }
     DerivedHandler* mipMessageHandler = new DerivedHandler;
     model->passInMessageHandler(mipMessageHandler);
-    model->messageHandler()->setLogLevel(1);
+    // From John Forrest 2011-03-13, to get message logging with CbcSolver: 
+    model->messageHandler()->setLogLevel(0,1); // CBC -- set back to 1
+    /* these are for the other components, which we don't set back to 1
+    model->messageHandler()->setLogLevel(1,1); // CLP
+    model->messageHandler()->setLogLevel(2,1); // Coin
+    model->messageHandler()->setLogLevel(3,1); // CGL
+    */
 
     lpd->lp->mipmodel = model;
     model->solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
@@ -360,7 +367,7 @@ int coin_branchAndBound(lp_desc* lpd)
     if (lpd->lp->timeout > 0) model->setMaximumSeconds(lpd->lp->timeout);
     //    const char * argv2="-preprocess on -solve ";
     //control->solve(argv2, 1);
-
+    model->setPrintFrequency(5);
     const char * cbc_args[5];
     cbc_args[0] = "eplexcbcclpsolver";
     cbc_args[1] = "-preprocess";
