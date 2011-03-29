@@ -354,15 +354,13 @@ int coin_branchAndBound(lp_desc* lpd)
     DerivedHandler* mipMessageHandler = new DerivedHandler;
     model->passInMessageHandler(mipMessageHandler);
     // From John Forrest 2011-03-13, to get message logging with CbcSolver: 
-    model->messageHandler()->setLogLevel(0,1); // CBC -- set back to 1
-    /* these are for the other components, which we don't set back to 1
-    model->messageHandler()->setLogLevel(1,1); // CLP
+    model->messageHandler()->setLogLevel(0,1); // CBC
+    model->messageHandler()->setLogLevel(1,0); // CLP  -- set to 0 
     model->messageHandler()->setLogLevel(2,1); // Coin
     model->messageHandler()->setLogLevel(3,1); // CGL
-    */
 
     lpd->lp->mipmodel = model;
-    model->solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+    //model->solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
     if (lpd->lp->timeout > 0) model->setMaximumSeconds(lpd->lp->timeout);
     //    const char * argv2="-preprocess on -solve ";
