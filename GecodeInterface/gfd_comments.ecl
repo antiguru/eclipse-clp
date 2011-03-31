@@ -1547,7 +1547,7 @@ X = X{[-1000000 .. 1000000]}
 
 :- comment(element/3, [
 	summary:"Value is the Index'th element of the integer list List.",
-	template:"<ConsistencyModule:> element(?Index, ++List, ?Value)",
+	template:"<ConsistencyModule:> element(?Index, +Collection, ?Value)",
 	args:[
 	    "?Index" : "A domain variable or an integer.",
 	    "+Collection" : "A non-empty collection of integers or domain variable.",
@@ -1567,9 +1567,10 @@ X = X{[-1000000 .. 1000000]}
 <P>
    Note that unlike the element constraint in IC, the values in Collection 
    can be domain variables as well as integers. Also note that the actual
-   Gecode constraint has an index (GIndex) that starts from 0, and Index is
-   constrained to be GIndex + 1. A version of this constraint that uses the 
-   native Gecode indexing is element_g/3. 
+   Gecode constraint has an index that starts from 0 - a dummy element
+   is added to start of Collection to map Index to ECLiPSe style index
+   starting from 1. A version of this constraint that uses the native 
+   Gecode indexing is element_g/3. 
 <P>
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
@@ -1617,10 +1618,9 @@ V = V{[1, 2, 4 .. 10]}
   from 0, i.e. the first element of Collection has index 0. This is different 
   from normal ECLiPSe's indexing, which starts from 1.
 </p><p>
-  This predicate maps more directly to Gecode's native implementation of 
-  the constraint, without the conversion between Gecode and ECLiPSe
-  indexing of element/3. It may therefore be more efficient, but could also
-  be incompatible with existing ECLiPSe code. 
+  This predicate maps directly to Gecode's native implementation of the
+  constraint, and may therefore be more efficient, but could also be
+  incompatible with existing ECLiPSe code. 
 </p><p>
   See element/3 for a more detailed description of this predicate.")
 ]).   
@@ -1722,8 +1722,8 @@ V = V{[1, 2, 4 .. 10]}
     amode:sorted(+,-),
     amode:sorted(-,+),
     template:"<ConsistencyModule:> sorted(?List, ?Sorted)",
-    args:["List":"List or collection of domain variables or integers",
-    	"Sorted":"List or collection of domain variables or integers"],
+    args:["List":"List or collection of N domain variables or integers",
+    	"Sorted":"List or collection of N domain variables or integers"],
     desc:html("\
     Declaratively: The two lists have the same length and Sorted is a
     sorted permutation of List.
@@ -1763,9 +1763,9 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
     amode:sorted(?,+,?),
     amode:sorted(?,?,+),
     template:"<ConsistencyModule:> sorted(?List, ?Sorted, ?Positions)",
-    args:["List":"Collection of domain variables or integers",
-    	"Sorted":"Collection of domain variables or integers",
-    	"Positions":"Collection of domain variables or integers"],
+    args:["List":"Collection of N domain variables or integers",
+    	"Sorted":"Collection of N domain variables or integers",
+    	"Positions":"Collection of N domain variables or integers"],
     desc:html("\
     Declaratively:  Sorted is a sorted permutation of List.  Positions
     is a collection whose elements range from 1 to N (where N is the 
@@ -1814,9 +1814,9 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     amode:sorted(?,+,?),
     amode:sorted(?,?,+),
     template:"<ConsistencyModule:> sorted_g(?List, ?Sorted, ?Positions)",
-    args:["List":"Collection of domain variables or integers",
-    	"Sorted":"Collection of domain variables or integers",
-    	"Positions":"Collection of domain variables or integers"],
+    args:["List":"Collection of N domain variables or integers",
+    	"Sorted":"Collection of N domain variables or integers",
+    	"Positions":"Collection of N domain variables or integers"],
     see_also: [sorted/3],	
     desc:html("\
   This version of sorted/3 uses the native Gecode indexing, which starts 
@@ -1974,6 +1974,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
         template:"<ConsistencyModule:> inverse(+Succ,+SuccOffset,+Pred,+PredOffset)",
         summary: "Constrains elements of Succ to be the successors and"
                  " Pred to be the predecessors of nodes in a digraph",
+	see_also:[inverse_g/4],
         desc: html("\
 <P>
      Succ and Pred are list of N elements, representing a digraph of N nodes,
@@ -2001,6 +2002,27 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 ")]).
 
+:- comment(inverse_g/4, [
+        amode: inverse_g(+,+,+,+),
+        args: ["Succ":"A collection of N different variables or integers",
+               "SuccOffset":"An integer.",
+               "Pred":"A collection  of N different variables or integers",
+               "PredOffset":"An integer."
+              ],
+        template:"<ConsistencyModule:> inverse_g(+Succ,+SuccOffset,+Pred,+PredOffset)",
+        summary: "Constrains elements of Succ to be the successors and"
+                 " Pred to be the predecessors of nodes in a digraph",
+	see_also:[inverse/4],
+        desc: html("\
+  This version of inverse/4 uses the native Gecode indexing, which starts 
+  from 0, i.e. the first elements in Succ and Pred has position 0. This is 
+  different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps directly to Gecode's native implementation of 
+  the constraint, without the offset adjustments of inverse/4.
+</p><p>
+  See inverse/4 for a more detailed description of this predicate.")
+]).   
 
 %----------------------------------------------------------------------
 
@@ -2074,7 +2096,8 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
   ECLiPSe node id with a constraint for each element. A version of this
   constraint with native Gecode indexing is available as circuit_g/3,
 </P><P>
-
+  This constraint is known as circuit in the global constraint catalog.
+</P><P>
   ConsistencyModule is the optional module specification to give the 
   consistency level for the propagation for this constraint: 
   gfd_gac for generalised arc consistency (domain consistency), 
@@ -2249,13 +2272,13 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 :- comment(cumulatives/5, [
   amode: cumulatives(+,+,+,+,++),
-  template:"<ConsistencyModule:> cumulatives(+StartTimes, +Durations +Hights, +Assigned, +MachineCapacities)",
-  args:  ["StartTimes":  "Collection of N start times for tasks (integer variables or integers)",
-          "Durations":   "Collection of N duration for tasks (integer variables or integers)",
+  template:"<ConsistencyModule:> cumulatives(+StartTimes, +Durations, +Hights, +Assigned, +MachineCapacities)",
+  args:  ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
+          "Durations":   "Collection of N duration for tasks (domain variables or integers)",
           "Hights":   "Collection of N resource usages (positive) or productions"
-" (negative) by tasks (integer variables or integers) with the assigned machine",
+" (negative) by tasks (domain variables or integers) with the assigned machine",
           "Assigned": "Collection of N ID of machine assigned to tasks"
-" (integer variables or integers)",
+" (domain variables or integers)",
           "MachineCapacities": "Collection of M maximum amount of resource"
 " available for machines (integers)"
          ],
@@ -2266,7 +2289,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
    A multi-resource cumulatives scheduling constraint - scheduling of M
    machines providing resources for N tasks. StartTimes, Durations, Heights 
    and Assigned are collections (a la collection_to_list/2) of equal size N 
-   of integer variables or integers. MachineLimits is a collection of M 
+   of domain variables or integers. MachineLimits is a collection of M 
    integers. The declarative meaning is:
    If there are N tasks and M machines, each machine having a limit of 
    resource that can be consumed at any single time-point, and each task 
@@ -2280,10 +2303,11 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
    into domain variables with default domain.
 </P><P>
     Note that the Gecode implementation of this constraint has index starting
-    from 0, i.e. the numbering for the machines and tasks start from 0. These 
-    native indecies are mapped to the  ECLiPSe indecies starting from 1 with 
-    additional constraints. A version of this constraint that uses native
-    Gecode indexing is available as cumulatives_g/5.
+    from 0, i.e. the numbering for the machines starts from 0. These native 
+    indecies are mapped to the  ECLiPSe indecies starting from 1 with an 
+    additional dummy \"zero\'th\" machine that is not used. A version of this 
+    constraint that uses native Gecode indexing is available 
+    as cumulatives_g/5.
 </P><P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
@@ -2293,13 +2317,13 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 :- comment(cumulatives_g/5, [
   amode: cumulatives_g(+,+,+,+,++),
-  template:"<ConsistencyModule:> cumulatives_g(+StartTimes, +Durations +Hights, +Assigned, +MachineCapacities)",
-  args:  ["StartTimes":  "Collection of N start times for tasks (integer variables or integers)",
-          "Durations":   "Collection of N duration for tasks (integer variables or integers)",
+  template:"<ConsistencyModule:> cumulatives_g(+StartTimes, +Durations, +Hights, +Assigned, +MachineCapacities)",
+  args:  ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
+          "Durations":   "Collection of N duration for tasks (domain variables or integers)",
           "Hights":   "Collection of N resource usages (positive) or productions"
-" (negative) by tasks (integer variables or integers) with the assigned machine",
+" (negative) by tasks (domain variables or integers) with the assigned machine",
           "Assigned": "Collection of N ID of machine assigned to tasks"
-" (integer variables or integers)",
+" (domain variables or integers)",
           "MachineCapacities": "Collection of M maximum amount of resource"
 " available for machines (integers)"
          ],
@@ -2311,21 +2335,21 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 </p><p>
   This predicate maps more directly to Gecode's native implementation of 
   the constraint, without the conversion between Gecode and ECLiPSe
-  indexing of cumulatives/5. It may therefore be more efficient, but could also
-  be incompatible with existing ECLiPSe code. 
+  indexing of cumulatives/5. It may therefore be more efficient, but could 
+  also be incompatible with existing ECLiPSe code. 
 </p><p>
   See cumulatives/5 for a more detailed description of this predicate.")
 ]).   
 
 :- comment(cumulatives_min/5, [
   amode: cumulatives_min(+,+,+,+,++),
-  template:"<ConsistencyModule:> cumulatives_min(+StartTimes, +Durations +Hights, +Assigned, +MachineConsumptions)",
-  args:  ["StartTimes":  "Collection of N start times for tasks (integer variables or integers)",
-          "Durations":   "Collection of N duration for tasks (integer variables or integers)",
+  template:"<ConsistencyModule:> cumulatives_min(+StartTimes, +Durations, +Hights, +Assigned, +MachineConsumptions)",
+  args:  ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
+          "Durations":   "Collection of N duration for tasks (domain variables or integers)",
           "Hights":   "Collection of N resource usages (positive) or productions"
-" (negative) by tasks (integer variables or integers) with the assigned machine",
+" (negative) by tasks (domain variables or integers) with the assigned machine",
           "Assigned": "Collection of N ID of machine assigned to tasks"
-" (integers variables or integers)",
+" (domains variables or integers)",
           "MachineConsumptions": "Collection of M minimum amount of resource"
 " consumptions for machines (integers)"
          ],
@@ -2337,7 +2361,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
    A multi-resource cumulatives scheduling constraint - scheduling of M
    machines providing resources for N tasks. StartTimes, Durations, Heights 
    and Assigned are collections (a la collection_to_list/2) of equal size N 
-   of integer variables or integers. MinUsages is a collection of M 
+   of domain variables or integers. MinUsages is a collection of M 
    integers. The declarative meaning is:
    If there are N tasks and M machines, each machine having a minimum of 
    produce that must be consumed at any single time-point, and each task 
@@ -2351,10 +2375,11 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
    into domain variables with default domain.
 </P><P>
     Note that the Gecode implementation of this constraint has index starting
-    from 0, i.e. the numbering for the machines and tasks start from 0. These 
-    native indecies are mapped to the  ECLiPSe indecies starting from 1 with 
-    additional constraints. A version of this constraint that uses native
-    Gecode indexing is available as cumulatives_min_g/5.
+    from 0, i.e. the numbering for the machines starts from 0. These native 
+    indecies are mapped to the  ECLiPSe indecies starting from 1 with an 
+    additional dummy \"zero\'th\" machine that is not used. A version of this 
+    constraint that uses native Gecode indexing is available 
+    as cumulatives_min_g/5.
 </P><P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
@@ -2364,13 +2389,13 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 :- comment(cumulatives_min_g/5, [
   amode: cumulatives_min_g(+,+,+,+,++),
-  template:"<ConsistencyModule:> cumulatives_min_g(+StartTimes, +Durations +Hights, +Assigned, +MachineConsumptions)",
-  args:  ["StartTimes":  "Collection of N start times for tasks (integer variables or integers)",
-          "Durations":   "Collection of N duration for tasks (integer variables or integers)",
+  template:"<ConsistencyModule:> cumulatives_min_g(+StartTimes, +Durations, +Hights, +Assigned, +MachineConsumptions)",
+  args:  ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
+          "Durations":   "Collection of N duration for tasks (domain variables or integers)",
           "Hights":   "Collection of N resource usages (positive) or productions"
-" (negative) by tasks (integer variables or integers) with the assigned machine",
+" (negative) by tasks (domain variables or integers) with the assigned machine",
           "Assigned": "Collection of N ID of machine assigned to tasks"
-" (integers variables or integers)",
+" (domains variables or integers)",
           "MachineConsumptions": "Collection of M minimum amount of resource"
 " consumptions for machines (integers)"
          ],
@@ -2383,8 +2408,8 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 </p><p>
   This predicate maps more directly to Gecode's native implementation of 
   the constraint, without the conversion between Gecode and ECLiPSe
-  indexing of cumulatives_min/5. It may therefore be more efficient, but could 
-  also be incompatible with existing ECLiPSe code. 
+  indexing of cumulatives_min/5. It may therefore be more efficient, but 
+  could also be incompatible with existing ECLiPSe code. 
 </p><p>
   See cumulatives_min/5 for a more detailed description of this predicate.")
 ]).   

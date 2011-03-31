@@ -59,7 +59,7 @@
 	  cumulatives_g/5, cumulatives_min_g/5, 
           sequence/5, sequence/4.
 :- export minlist/2, maxlist/2, sumlist/2, max/2, min/2.
-:- export bool_channeling/3, inverse/2, inverse/4, inverse_g/2.
+:- export bool_channeling/3, inverse/2, inverse/4, inverse_g/2, inverse_g/4.
 :- export ordered/2.
 :- export labeling/1, indomain/1, indomain/2, delete/5.
 :- export is_in_domain/2, is_in_domain/3.
@@ -1168,17 +1168,21 @@ element_body(Index, Collection, Value, IndexType, ConLev) :-
         collection_to_list(Collection, List),
         get_prob_handle(H),
         ec_to_gecode_varlist([Value|List], H, [GValue|GList]),
-        Array =.. [[]|GList],
-        Index :: 1..arity(Array),
-        convert_index_vars(IndexType, [Index], [Index0]),
+	(IndexType == ecl ->
+	    Array =.. [[],0|GList],  % add a dummy first element for index 0
+            Index :: 1..(arity(Array)-1)
+	;
+	    Array =.. [[]|GList],
+            Index :: 0..(arity(Array)-1)
+	),
         ( integer(Index) ->
-            GIndex0 is Index0
+            GIndex is Index
         ; var(Index) ->
-            get_gecode_var(Index0, GIndex0) 
+            get_gecode_var(Index, GIndex) 
         ;
             fail
         ),
-        post_new_event(post_element(ConLev, GIndex0, Array, GValue), H).
+        post_new_event(post_element(ConLev, GIndex, Array, GValue), H).
 
 :- export struct(gcc(low,high,value)),
           struct(occ(occ,value)).
@@ -1269,10 +1273,11 @@ sorted_body(Us0, Ss0, Ps0, IndexType, ConLev) :-
         ;
             collection_to_list(Ps0, Ps)
         ),
-        convert_sorted_lists(IndexType, Us,Ss,Ps, UsArr,SsArr,PsArr), 
+	get_prob_handle(H),
+        convert_sorted_lists(IndexType, H, Us,Ss,Ps, UsArr,SsArr,PsArr), 
         post_new_event(post_sorted(ConLev, UsArr, SsArr, PsArr), H).
 
-  convert_sorted_lists(ecl, Us, Ss, Ps,  UsArr, SSArr, PsArr) :-
+  convert_sorted_lists(ecl, H, Us, Ss, Ps,  UsArr, SsArr, PsArr) :-
         gfd_maxint(Max),
 	( foreach(U,Us), foreach(_,Ss), foreach(_,Ps),
           fromto(Max, Min0,Min1, Min)
@@ -1281,7 +1286,6 @@ sorted_body(Us0, Ss0, Ps0, IndexType, ConLev) :-
            (UMin < Min0 -> Min1 is UMin - 1 ; Min1 = Min0)
         ),
         Ss \== [],
-        get_prob_handle(H),
         ec_to_gecode_varlist(Ss, H, GSs),
         SsArr =.. [[],Min|GSs],
         ec_to_gecode_varlist(Us, H, GUs),
@@ -1289,10 +1293,9 @@ sorted_body(Us0, Ss0, Ps0, IndexType, ConLev) :-
         ec_to_gecode_varlist(Ps, H, GPs),
         PsArr =.. [[],0|GPs],
         Ps :: [1..(arity(PsArr)-1)].
-  convert_sorted_lists(gc, Us, Ss, Ps,  UsArr, SSArr, PsArr) :-
+  convert_sorted_lists(gc, H, Us, Ss, Ps,  UsArr, SsArr, PsArr) :-
 	( foreach(_,Us), foreach(_,Ss), foreach(_,Ps) do true),
         Ss \== [],
-        get_prob_handle(H),
         ec_to_gecode_varlist(Ss, H, GSs),
         SsArr =.. [[]|GSs],
         ec_to_gecode_varlist(Us, H, GUs),
@@ -1320,7 +1323,7 @@ circuit_body(Succ, IndexType, ConLev) :-
         length(SList, N), 
         SList :: 1..N,
         get_prob_handle(H),
-        convert_index_vars(IndexType, SList, SList1),
+        convert_index_vars(IndexType, ConLev, SList, SList1),
         ec_to_gecode_varlist(SList1, H, GSs),
         SArr =.. [[]|GSs],
         post_new_event(post_circuit(ConLev,SArr), H).
@@ -1358,7 +1361,7 @@ circuit_body(Succ, CostMatrix, ArcCosts, Cost, IndexType, ConLev) :-
         length(SList, N), 
         SList :: 1..N,
         get_prob_handle(H),
-        convert_index_vars(IndexType, SList, SList1),
+        convert_index_vars(IndexType, ConLev, SList, SList1),
         ec_to_gecode_varlist([Cost|SList1], H, [GCost|GSs]),
         SArr =.. [[]|GSs],
         ( ArcCosts == [] ->
@@ -1458,11 +1461,9 @@ cumulatives_c(Starts, Durations, Usages, UsedMachines, Limits, AtMost, IndexType
         UsagesArr =.. [[]|GUsagesL],
         arity(UsagesArr,N),
         collection_to_list(UsedMachines, UsedL),
-        convert_index_vars(IndexType, UsedL, GecodeUsedL),
-        ec_to_gecode_varlist(GecodeUsedL, H, GUsedL),
+        ec_to_gecode_varlist(UsedL, H, GUsedL),
         UsedArr =.. [[]|GUsedL],
         arity(UsedArr,N),
-
         functor(EndsArr, [], N),
         ( foreacharg(S, StartsArr), foreacharg(D, DurationsArr),
           foreacharg(E, EndsArr)
@@ -1471,7 +1472,14 @@ cumulatives_c(Starts, Durations, Usages, UsedMachines, Limits, AtMost, IndexType
         ),
 
         collection_to_list(Limits, LimitsL),
-        LimitsArr =.. [[]|LimitsL],
+	(IndexType == ecl ->
+            LimitsArr =.. [[],0|LimitsL], % dummy limit for 0'th machine 
+	    First = 1
+        ;
+            LimitsArr =.. [[]|LimitsL],
+	    First = 0
+	),
+	UsedL :: First..arity(LimitsArr) - 1,
         post_new_event(post_cumulatives(ConLev, StartsArr, DurationsArr, EndsArr,
                                         UsagesArr, UsedArr, LimitsArr, AtMost), H).
 
@@ -1610,14 +1618,28 @@ inverse_body(Vs1, Vs2, IndexType, ConLev) :-
         ),
         post_new_event(post_inverse(ConLev, Arr1, Arr2), H).
 
-inverse(XL, XOffset, YL, YOff) :-
-        inverse_c(XL, XOffset, YL, YOff, default).
+inverse(XL, XOff, YL, YOff) :-
+        inverse_body(XL, XOff, YL, YOff, ecl, default).
 
-inverse_c(Vs1, Off1, Vs2, Off2, ConLev) :-
+inverse_c(XL, XOff, YL, YOff, ConLev) :-
+        inverse_body(XL, XOff, YL, YOff, ecl, ConLev).
+
+inverse_g(XL, XOff, YL, YOff) :-
+        inverse_body(XL, XOff, YL, YOff, gc, default).
+
+inverse_g_c(XL, XOff, YL, YOff, ConLev) :-
+        inverse_body(XL, XOff, YL, YOff, gc, ConLev).
+
+inverse_body(Vs1, Off1, Vs2, Off2, IndexType, ConLev) :-
         integer(Off1),
         integer(Off2),
-        GOff1 is Off1 - 1,
-        GOff2 is Off2 - 1,
+	(IndexType == ecl ->
+	    GOff1 is Off1 - 1,
+            GOff2 is Off2 - 1
+	;
+	    GOff1 is Off1,
+	    GOff2 is Off2
+	),
         ( var(Vs1) -> 
             Vs1 = Vars1
         ;
@@ -1719,21 +1741,22 @@ plus_c(X, Y, Z, ConLev) :-
 
 % utility predicate for connecting indices/positions in ECLiPSe tradition
 % (which starts from 1) to that used by Gecode (which starts from 0)
-connect_ecl_to_gecode_indices(EV, GV) :-
+connect_ecl_to_gecode_indices(ConLev, EV, GV) :-
         ( var(EV) -> 
-            '#=_c'(GV, (EV - 1), gfd_gac)
+            '#=_c'(GV, (EV - 1), ConLev)
         ; integer(EV) ->
             GV is EV -1
         ;
             fail
         ).
 
-:- mode convert_index_vars(+, +, -).
-convert_index_vars(ecl, SList, SList1) ?-
-        ( foreach(V,SList), foreach(V1,SList1) do
-            connect_ecl_to_gecode_indices(V,V1)
+:- mode convert_index_vars(+, +, +, -).
+convert_index_vars(ecl, ConLev, SList, SList1) ?-
+        ( foreach(V,SList), foreach(V1,SList1),
+	  param(ConLev) do
+            connect_ecl_to_gecode_indices(ConLev,V,V1)
         ).
-convert_index_vars(gc, SList, SList1) ?-
+convert_index_vars(gc, _, SList, SList1) ?-
         SList = SList1.
 
 
@@ -3276,6 +3299,7 @@ ordered1(Order, X1, X2Xs) :-
       inverse/2 -> inverse_c/3,
       inverse_g/2 -> inverse_g_c/3,
       inverse/4 -> inverse_c/5,
+      inverse_g/4 -> inverse_g_c/5,
       minlist/2 -> minlist_c/3,
       maxlist/2 -> maxlist_c/3,
       sumlist/2 -> sumlist_c/3,
@@ -3341,6 +3365,7 @@ ordered1(Order, X1, X2Xs) :-
       inverse/2 -> inverse_c/3,
       inverse_g/2 -> inverse_g_c/3,
       inverse/4 -> inverse_c/5,
+      inverse_g/4 -> inverse_g_c/5,
       gcc/2 -> gcc_c/3
   ]).
 
