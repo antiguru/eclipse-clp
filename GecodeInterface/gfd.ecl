@@ -715,7 +715,9 @@ is_not_boolvar(_).
 link_var_to_boolvar(V, H) :-
         ( (var(V), is_not_boolvar(V)) ->
             V :: [0,1],
-            post_new_event(newbool(V), H)
+	    get_gecode_attr(V, H, Attr),
+            Attr = gfd{idx:Idx,bool:BIdx},
+            post_new_event(newbool(Idx,BIdx), H)
         ;
             true
         ).
@@ -1946,6 +1948,13 @@ update_space_if_cloned(1, H) :-
         update_space_with_events(H).
 update_space_if_cloned(0, _H).
 
+/* do_event execute a Gecode event. This can be when the event is first
+   executed (First = 1), or when the state is being recomputed (First = 0).
+   DoProp is returned to indicate if propagation should be done after the
+   event (on first execution only). 
+   Handling of events should not assume that any arguments that are 
+   variables in first execution will be variables during recomputation
+*/
 do_event(E, H, First, DoProp) :-
 %        writeln(doing-E-First),
         H = gfd_prob{space:gfd_space{handle:SpH}},
@@ -2071,10 +2080,8 @@ do_event1(post_min2(ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
 do_event1(post_max2(ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_max2(SpH, First, GRes, GX, GY, ConLev).
-do_event1(newbool(V), SpH, _First, DoProp) ?-
+do_event1(newbool(Idx,BIdx), SpH, _First, DoProp) ?-
         DoProp = 0,
-        get_gecode_attr(V, _H, Attr),
-        Attr = gfd{idx:Idx,bool:BIdx},
         g_add_newbool(SpH, Idx, BIdx).
 do_event1(post_boolchannel(ConLev,GV,GBArr,Min), SpH, First, DoProp) ?-
         DoProp = 1,
