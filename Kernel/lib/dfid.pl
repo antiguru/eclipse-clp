@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dfid.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: dfid.pl,v 1.2 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -123,13 +123,13 @@ call_depth(G, DepthLimit, M) :-
     % Initialize parameters
     setval(max_depth, DepthLimit),
     setval(depth_limit, DepthLimit),
-    call(G, M),
+    call(G)@M,
     % Restore original values
     parms_out(Depth, MaxDepth, Limit, OV).
 
 dfid_ex(G, From, Limit, _, _, M) :-
     setval(depth_limit, Limit),
-    call(G, M),
+    call(G)@M,
     new_solution(From, Limit).
 dfid_ex(G, From, Limit, MaxLimit, Increment, M) :-
     increment_depth(Limit, Increment, NewLimit, MaxLimit),

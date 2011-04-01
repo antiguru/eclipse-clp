@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.26 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.27 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -370,7 +370,7 @@ main(Restart) :-
 
 		    call_loop([],_M).
 		    call_loop([G|Gs],M) :-
-			call(G,M),
+			call(G)@M,
 			call_loop(Gs,M).
 
 
@@ -425,7 +425,7 @@ ec_rpc_in_handler1(In, Out) :-
 	execute_rpc(Out, Goal, Extra).
     execute_rpc(Out, Goal, Extra) :-
 	default_module(M),
-	( call(Goal, M) ->
+	( call(Goal)@M ->
 	    call(Extra),
 	    % write_exdr might fail if Goal is not valid EXDR!
 	    (write_exdr(Out, Goal) -> true;true), flush(Out)
@@ -476,7 +476,7 @@ slave :-
 	fail.
 
 all_sol(Goal, Module) :-
-	call(Goal, Module),
+	call(Goal)@Module,
 	fail.
 
 par_all_body(InitGoal, Goal, Module) :-
@@ -490,7 +490,7 @@ par_all_body(InitGoal, Goal, Module) :-
 
 
 gather_instances(Template, Generator, Module, Ref) :-
-	call(Generator, Module),
+	call(Generator)@Module,
 	true,				% force waking before recording
 	dbag_enter(Ref, Template),
 	fail.
@@ -509,7 +509,7 @@ par_findall_body(InitGoal, Template, Generator, List, Module) :-
 
 
 find_solution(Goal, Module, Ref) :-
-	call(Goal, Module),
+	call(Goal)@Module,
 	true,				% force waking before recording
 	!,
 	dbag_enter(Ref, Goal),
@@ -817,7 +817,7 @@ mutex_init_body(Mutex, Module) :-
 mutex_body(Mutex, Goal, Module) :-
 	get_sys_flag(10, Worker),
 	( getval_body(Mutex, Worker, Module) -> % already ours (if nested)
-	    ( call(Goal, Module) -> true ; fail )
+	    ( call(Goal)@Module -> true ; fail )
 	;
 	    block(mutex_body(Mutex, Goal, Module, Worker), T,
 		mutex_exit(T, Mutex, Worker, Module))
@@ -825,7 +825,7 @@ mutex_body(Mutex, Goal, Module) :-
 
 mutex_body(Mutex, Goal, Module, Worker) :-
 	( test_and_setval_body(Mutex, 0, Worker, Module) ->
-	    ( call(Goal, Module) ->
+	    ( call(Goal)@Module ->
 		setval_body(Mutex, 0, Module)
 	    ;
 		setval_body(Mutex, 0, Module),
@@ -839,7 +839,7 @@ mutex_body(Mutex, Goal, Module, Worker) :-
 mutex_one_body(Mutex, Goal, Module) :-
 	get_sys_flag(10, Worker),
 	( getval_body(Mutex, Worker, Module) -> % already ours (if nested)
-	    ( call(Goal, Module) -> true ; fail )
+	    ( call(Goal)@Module -> true ; fail )
 	;
 	    block(mutex_one_body(Mutex, Goal, Module, Worker), T,
 		mutex_exit(T, Mutex, Worker, Module))
@@ -847,7 +847,7 @@ mutex_one_body(Mutex, Goal, Module) :-
 
 mutex_one_body(Mutex, Goal, Module, Worker) :-
 	( test_and_setval_body(Mutex, 0, Worker, Module) ->
-	    ( call(Goal, Module) ->
+	    ( call(Goal)@Module ->
 		setval_body(Mutex, abort, Module) % abort the other workers
 	    ;
 		setval_body(Mutex, 0, Module),
@@ -870,11 +870,11 @@ mutex_exit(T, Mutex, Worker, Module) :-
 %--------------------------------
 
 :- tool(fail_if/1, fail_if_body/2).
-fail_if_body(X, M) :- call(X, M), !, fail.
+fail_if_body(X, M) :- call(X)@M, !, fail.
 fail_if_body(_, _).
 
 :- tool((once)/1, once_body/2).
-once_body(X, M):- call(X, M), !.
+once_body(X, M):- call(X)@M, !.
 
 default.		% dummy definition
 
@@ -901,7 +901,7 @@ exec_string(GoalString,Vars,Module) :-
 	open(GoalString,string,Stream),
 	readvar(Stream,Goal,Vars,Module),
 	close(Stream),
-	call(Goal,Module).
+	call(Goal)@Module.
 
 exec_exdr(GoalString,Module) :-
 	open(string(GoalString),read,Stream),
@@ -911,9 +911,9 @@ exec_exdr(GoalString,Module) :-
 
     call_any(String, Module) :- string(String), !,
 	term_string(Goal, String)@Module,
-	call(Goal,Module).
+	call(Goal)@Module.
     call_any(Goal, Module) :-
-	call(Goal,Module).
+	call(Goal)@Module.
 
 %------------------------------------------
 % Some aliases (aliases for tools should
@@ -1934,7 +1934,7 @@ call_priority(Goal, Prio, Module) :-
 	get_priority(P),
 	( Prio < P ->
 	    set_priority(Prio, 1),
-	    call(Goal, Module),
+	    call(Goal)@Module,
 	    set_priority(P, 1),
 	    wake
 	; Prio > P ->
@@ -1942,7 +1942,7 @@ call_priority(Goal, Prio, Module) :-
 	    schedule_suspensions(1, s([S]))
 	    % no wake/0 necessary
 	;
-	    call(Goal, Module)
+	    call(Goal)@Module
 	).
 call_priority(Goal, Prio, Module) :-
 	( var(Prio) -> E=4 ; E=5 ),
@@ -2018,7 +2018,7 @@ inline_calls(call_explicit(Goal, LM), Inlined, Module) :- -?->
 % We are now just creating a local postponed-list.
 call_local(Goal, Module) :-
 	reinit_postponed(OldPL),
-	call(Goal, Module),
+	call(Goal)@Module,
 	trigger_postponed,
 	reset_postponed(OldPL).
 
@@ -2196,12 +2196,12 @@ record_interface(Goal, Module) :-
 	;
 	    record_interface_directive(IGoal, Module)
 	),
-	call(Goal, Module).
+	call(Goal)@Module.
 record_interface(Goal, Module) :-
 %	printf(warning_output,
 %	    "WARNING: not a proper interface query in interface of %w: %w%n",
 %	    [Module,Goal]),
-	call(Goal, Module).
+	call(Goal)@Module.
 
 
     % How to interpret queries in old-style module interfaces
@@ -2826,7 +2826,7 @@ eval(LM:X, R, CM) :-	!, (evaluating_goal(X, R, CM, LM, Goal) ->
 			;
 			    R=LM:X).
 eval(X, R, M) :-	evaluating_goal(X, R, M, M, Goal) ->
-			    @(Goal,M,M)		% same as call(Goal)@M
+			    call(Goal)@M
 			;
 			    R=X.
 
@@ -5812,7 +5812,7 @@ suspend_body(Goal, Prio, List, Module) :-
 suspend_body(Goal, Prio, List, Susp, Module) :-
     make_suspension(Goal, Prio, Susp, Module),
     ( tr_suspend1(Susp, List, Module, Goals) ->
-	call(Goals, Module)
+	call(Goals)@Module
     ;
 	error(6, suspend(Goal, Prio, List, Susp), Module)
     ).
@@ -6282,7 +6282,7 @@ do(Specs, LoopBody, M) :-
 	!,
 	( AuxGoals = true -> BodyGoals = LoopBody
 	; BodyGoals = (AuxGoals,LoopBody) ),
-	call(PreGoals, M),
+	call(PreGoals)@M,
 	forallc(Firsts, body(RecHead,BodyGoals,RecCall), BaseHead, M).
 do(Specs, LoopBody, M) :-
 	error(123, do(Specs, LoopBody), M).
@@ -6293,7 +6293,7 @@ do(Specs, LoopBody, M) :-
     forallc(Args, BodyTemplate, BaseHead, M) :-
 	copy_term(BodyTemplate, Copy, _),
 	Copy = body(Args, Goal, RecArgs),
-	call(Goal, M),
+	call(Goal)@M,
 	forallc(RecArgs, BodyTemplate, BaseHead, M).
 
 

@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: elipsys.pl,v 1.2 2008/08/20 22:57:33 jschimpf Exp $
+% Version:	$Id: elipsys.pl,v 1.3 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -388,7 +388,7 @@ error_handler_63(Culprit,Module) :-
 	    true
 	),
 	dynamic_body(F/Arity, Module),
-	call(Culprit, Module).
+	call(Culprit)@Module.
 error_handler_63(retract_all(Head),Module) :-
 	!,
 	functor(Head,F,Arity),
@@ -603,11 +603,11 @@ writeqvar(Term,VariableList,Stream) :-
 %--------------------------------------------------------------------------
 
 :- tool(once_not_fail/1, once_not_fail/2).
-once_not_fail(Goal, Module) :- call(Goal, Module), !.
+once_not_fail(Goal, Module) :- call(Goal)@Module, !.
 once_not_fail(_, _).
 
 :- tool(oneof/1, oneof/2).
-oneof(Goal, Module) :- nonvar(Goal), call(Goal, Module), !.
+oneof(Goal, Module) :- nonvar(Goal), call(Goal)@Module, !.
 
 /*
 MegaLog : debugger related, mentioned in manual therefore may be used
@@ -797,7 +797,7 @@ us_clock(Time) :-
 
 time_tool(Goal,Time,Module) :-
 	statistics(session_time,T0),
-	(call(Goal,Module), fail ;true),
+	(call(Goal)@Module, fail ;true),
 	statistics(session_time,T1),
 	Time is fix((T1 - T0) * 1000.0 + 0.5).
 
@@ -805,7 +805,7 @@ time_tool(Goal,Time,Module) :-
 
 time_tool(Goal,Time,Template,Solutions,Module) :-
 	statistics(session_time,T0),
-	findall(Template,call(Goal,Module),Solutions),
+	findall(Template,Goal,Solutions)@Module,
 	statistics(session_time,T1),
 	Time is fix((T1 - T0) * 1000.0 + 0.5).
 
@@ -931,8 +931,8 @@ MegaLog : this was added by the EKS team
 
 :- tool(do/2, do/3).
 do(foreach Firstgoal, SecondGoal, Module) :-
-        call(Firstgoal, Module),
-	( call(SecondGoal, Module) ->
+        call(Firstgoal)@Module,
+	( call(SecondGoal)@Module ->
 	    fail
 	;
 	    !, fail
@@ -993,7 +993,7 @@ map_elements(Pred, In, I-Xout, Module) :-
 	fork(N, I),
 	I1 is N1-I,
 	arg(I1, InArr, Xin),
-	( call(Call, Module), true -> true ).
+	( call(Call)@Module, true -> true ).
 
 strip_key([], []).
 strip_key([_-X|Xs], [X|Ys]) :- strip_key(Xs, Ys).
@@ -1065,7 +1065,7 @@ freeze_body(X, Goal, Module) :-
 	make_suspension(Goal, Susp, Module),
 	insert_suspension(X, Susp, 1, top).
 freeze_body(_, Goal, Module) :-
-	call(Goal, Module).
+	call(Goal)@Module.
 
 
 % deepwait(Term, Goal) -- the same as delay/2 in ECLiPSe
@@ -1087,7 +1087,7 @@ deepfreeze_body(Term, Goal, Module) :-
 deepfreeze_body(VCopy, Vars, Goal, Module) :-
 	compare_instances(R, Vars, VCopy),
 	( R == '<' ->
-	    call(Goal, Module)
+	    call(Goal)@Module
 	;
 	    % redelay
 	    % (we could filter out nonvariables from VCopy and Vars)

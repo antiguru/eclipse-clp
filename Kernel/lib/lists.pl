@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.4 2009/12/22 02:44:23 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.5 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -55,7 +55,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/12/22 02:44:23 $").
+:- comment(date, "$Date: 2011/04/01 07:12:07 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -161,7 +161,7 @@ maplist_body(Pred, [H1|T1], [H2|T2], M) :-
 	Pred =.. PL,
 	append(PL, [H1, H2], NewPred),
 	Call =.. NewPred,
-	call(Call, M),
+	call(Call)@M,
 	maplist_body(Pred, T1, T2, M).
 
 checklist_body(_, [], _).
@@ -169,7 +169,7 @@ checklist_body(Pred, [Head|Tail], M) :-
 	Pred =.. PL,
 	append(PL, [Head], NewPred),
 	Call =.. NewPred,
-	call(Call, M),
+	call(Call)@M,
 	checklist_body(Pred, Tail, M).
 
 flatten(List, Flat) :-
@@ -782,7 +782,7 @@ checklist_body(Pred, [Head|Tail], M) :-
     Pred =.. PL,
     append(PL, [Head], NewPred),
     Call =.. NewPred,
-    call(Call, M),
+    call(Call)@M,
     checklist_body(Pred, Tail, M).
 </PRE>
    This predicate does not perform any type testing functions.
@@ -882,7 +882,7 @@ maplist_body(Pred, [H1|T1], [H2|T2], M) :-
     Pred =.. PL,
     append(PL, [H1, H2], NewPred),
     Call =.. NewPred,
-    call(Call, M),
+    call(Call)@M,
     maplist_body(Pred, T1, T2, M).
 </PRE>
    This predicate does not perform any type testing functions.

@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: mixtus.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: mixtus.pl,v 1.2 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -95,7 +95,7 @@ wait_body(X, _) :-
 % call_residue/2 is not quite ok, after executing the call the
 % suspended goals should be removed from the suspending variables
 call_residue_body(Goal, Delayed, Module) :-
-	eclipse_language:call(Goal, Module),
+	call(Goal)@Module,
 	delayed_goals(Delayed).
 
 :- tool((wait)/1, wait_body/2),

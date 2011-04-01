@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kb.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: kb.pl,v 1.2 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*******************************************************************
@@ -93,7 +93,7 @@ Usage  : In client module do
 /* create the knowledge base module, and import deductive relations there */
 
 :- current_module(knowledge_base) -> true ; create_module(knowledge_base).
-:- call(import kb, knowledge_base).
+:- import(kb)@knowledge_base.
 
 /**********************************************************************************
 **
@@ -114,7 +114,7 @@ list([_|_]) ?- true.
 'KB_exec_clause'((Head :- Body),Goal) :-
 	!,
 	Head = Goal,
-	call(Body, knowledge_base).
+	call(Body)@knowledge_base.
 'KB_exec_clause'(Goal,Goal).
 
 /*
@@ -320,7 +320,7 @@ define(File) :-
 
 
 define_implicit( P/Ary) :-
-	call(is_predicate(P/Ary), knowledge_base),
+	is_predicate(P/Ary)@knowledge_base,
 	% already defined
 	!.
 
@@ -333,7 +333,7 @@ define_implicit( P/Ary) :-
 
 	functor(Head, P, Ary),
 	Clause = (Head :- retrieve_clause(Head :- Body), call(Body)),
-	call(compile_term([Clause]), knowledge_base),
+	compile_term([Clause])@knowledge_base,
 
 	definitons_file_name(FullName),
         open(FullName, update, Stream),
@@ -348,7 +348,7 @@ define_implicit( P/Ary) :-
 	!,
 	functor(Head, P, Ary),
 	Clause = (Head :- retrieve_clause(Head :- Body), call(Body)),
-	call(compile_term([Clause]), knowledge_base).
+	compile_term([Clause])@knowledge_base.
 
 define_implicit(P/Ary) :-
 	error(303,define_implicit(P/Ary)),
@@ -456,8 +456,8 @@ insert_clauses_from(user) :-  /* default: user tty */
         repeat,
         read(Clause),
         ( ( Clause == end_of_file       , !    ) ;
-	  ( Clause = (:- Query), !, call(Query, knowledge_base), !, fail ) ;
-	  ( Clause = (?- Query), !, call(Query, knowledge_base), !, fail ) ;
+	  ( Clause = (:- Query), !, call(Query)@knowledge_base, !, fail ) ;
+	  ( Clause = (?- Query), !, call(Query)@knowledge_base, !, fail ) ;
           ( 'KB_store_cl_random'(Clause), fail ) ).
 
 insert_clauses_from(File) :-
@@ -465,8 +465,8 @@ insert_clauses_from(File) :-
         repeat,
         read(Stream,Clause),
         ( ( Clause == end_of_file       , !    ) ;
-	  ( Clause = (:- Query), !, call(Query, knowledge_base), !, fail ) ;
-	  ( Clause = (?- Query), !, call(Query, knowledge_base), !, fail ) ;
+	  ( Clause = (:- Query), !, call(Query)@knowledge_base, !, fail ) ;
+	  ( Clause = (?- Query), !, call(Query)@knowledge_base, !, fail ) ;
           ( 'KB_store_cl_random'(Clause), fail ) ),
         close(Stream),
 	write(File), writeln(' inserted into knowledge base').

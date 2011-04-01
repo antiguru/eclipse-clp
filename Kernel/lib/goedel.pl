@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: goedel.pl,v 1.1 2008/06/30 17:43:46 jschimpf Exp $
+% Version:	$Id: goedel.pl,v 1.2 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -119,7 +119,7 @@ evaluate_delay_aux(Delay, X):-
 	( var(NewDelay)
 	  -> X = 1
 	  ;  prolog:'$disjunctive_geler'(Var_list, 
-				call(evaluate_delay_aux(NewDelay, X), user) )
+				call(evaluate_delay_aux(NewDelay, X))@user )
 	).
 
 translate_stream('IO.InputStreamDescriptor.F1'(List), Stream) :-
@@ -145,7 +145,7 @@ disjunctive_geler_body(List, Goal, M) :-
 	make_suspension(Goal, S, M),
 	insert_suspension(List, S, 1, top).
 disjunctive_geler_body(_, Goal, M) :-
-	call(Goal, M).
+	call(Goal)@M.
 
 check_vars([]).
 check_vars([V|L]) :-

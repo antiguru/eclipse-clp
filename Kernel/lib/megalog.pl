@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: megalog.pl,v 1.2 2008/08/20 22:57:33 jschimpf Exp $
+% Version:	$Id: megalog.pl,v 1.3 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 
@@ -1008,7 +1008,7 @@ insert_clauses_silent_from(File) :- insert_clauses_from(File).
 
 exec(Goal) :-
 	retrieve_clause((Goal :- Body)),
-	call(Body, knowledge_base).
+	call(Body)@knowledge_base.
 
 /*
 Start and End Handling

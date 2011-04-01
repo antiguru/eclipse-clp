@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.7 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.8 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -598,7 +598,7 @@ write_integer(Out, N) :-
 :- mode file_query_body(++, +, +).
 file_query_body(call(Goal), _, M) :-		% call/1 forces execution
 	!,
-	call(Goal, M).
+	call(Goal)@M.
 file_query_body((A, B), Proc, M) :-
 	!,
 	file_query_body(A, Proc, M),
@@ -650,7 +650,7 @@ file_query_body(meta_attribute(_, _), _, M) :-
         meta_attribute(M, []).
 file_query_body(Goal, _Proc, M) :-
 	execute(Goal) ->
-	    call(Goal, M)
+	    call(Goal)@M
 	;
 	    true.
 
@@ -685,7 +685,7 @@ allowed_flag(prolog_suffix).
 call_proc(Proc, File, M) :-
 	copy_term(Proc, Copy),
 	arg(1, Copy, File),
-	call(Copy, M).
+	call(Copy)@M.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -751,7 +751,7 @@ phrase_body(Grammar, S, R, M) :-
 	error(4, phrase(Grammar, S, R), M).
 phrase_body(Grammar, S, R, M) :-
 	check_grammar(Grammar, S, R, M, NewGr),
-	call(NewGr, M).
+	call(NewGr)@M.
 
 check_grammar(Grammar, S, R, M, NewGr) :-
 	((number(Grammar) ; string(Grammar)) ->

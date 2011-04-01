@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cp_min.pl,v 1.1 2008/06/30 17:43:44 jschimpf Exp $
+% Version:	$Id: cp_min.pl,v 1.2 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -189,7 +189,7 @@ exhaustive_search(SearchType,Index,Goal,Cost,P,L,_H,Factor,CostMonitor,
 		   CostMonitor = cons(Cost,P100)),
         anti_thrashing(CostMonitor),
         set_list_gt(Cost, L), 
-	call(Goal,Module),
+	call(Goal)@Module,
 	anti_thrashing(CostMonitor),
 	max_list_domain(Cost, Max),
 	NewMax is Max - 1,

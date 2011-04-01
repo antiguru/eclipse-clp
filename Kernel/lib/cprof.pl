@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cprof.pl,v 1.1 2008/06/30 17:43:44 jschimpf Exp $
+% Version:	$Id: cprof.pl,v 1.2 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -51,7 +51,7 @@
 cprof(N, Goal, Mod) :-
 	cprof_on,
 	n_times(N),
-	call(Goal, Mod),
+	call(Goal)@Mod,
 	fail.
 cprof(_, _, _) :-
 	cprof_off.

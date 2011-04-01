@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: define.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: define.pl,v 1.2 2011/04/01 07:12:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -131,27 +131,27 @@ defined(Term, Value, Module) :-
 	functor(Term, F, A),
 	(
 	    (
-		call(is_predicate(is_defined_macro/2), Module),
-		call(is_defined_macro(Term, _), Module)
+		is_predicate(is_defined_macro/2)@Module,
+		call(is_defined_macro(Term, _))@Module
 	    )
 	    ->
 	    (
 		getval(redef, Err),
 		error(Err, define(Term, Value)),
-		call(retract(is_defined_macro(Term, _)), Module),
-		call(erase_macro(F/A), Module)
+		retract(is_defined_macro(Term, _))@Module,
+		erase_macro(F/A)@Module
 	    )
 	    ;
 		true
 	),
-	call(assert(is_defined_macro(Term, Value)), Module),
-	call(define_macro(F/A, is_defined_macro/2, []), Module),
+	assert(is_defined_macro(Term, Value))@Module,
+	define_macro(F/A, is_defined_macro/2, [])@Module,
 	getval(verbose, Verbose),
 	error(Verbose, define(Term, Value)).
 
 :- tool(define/3, define_exec/4).
 define_exec(Term, Value, Goal, Module) :-
-	call(Goal, Module),
+	call(Goal)@Module,
 	defined(Term, Value, Module).
 
 :- tool(define_eval/2, define_eval/3).
@@ -160,12 +160,12 @@ define_eval(Term, Expression, Module) :-
 
 :- tool(define_erased/0, define_erased/1).
 define_erased(Module) :-
-	call(is_defined_macro(Term, _), Module),
+	call(is_defined_macro(Term, _)@Module,
 	functor(Term, F, A),
-	call(erase_macro(F/A), Module),
+	erase_macro(F/A)@Module,
 	fail.
 define_erased(Module) :-
-	call(abolish(is_defined_macro/2), Module).
+	abolish(is_defined_macro/2)@Module.
 
 define_verbose(X) :-
 	var(X), !,
