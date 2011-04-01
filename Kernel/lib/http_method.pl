@@ -23,12 +23,12 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: http_method.pl,v 1.1 2008/06/30 17:43:46 jschimpf Exp $
+% Version:	$Id: http_method.pl,v 1.2 2011/04/01 05:58:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 
 /*
-$Id: http_method.pl,v 1.1 2008/06/30 17:43:46 jschimpf Exp $
+$Id: http_method.pl,v 1.2 2011/04/01 05:58:07 jschimpf Exp $
 */
 
 :- module(http_method).
@@ -46,6 +46,20 @@ executes the method on the object and return:
 
 */
 
+/*
+http_method("GET", Url, _, Contents, 200, [contentLength(CL)]):-
+        append_strings("~/httpdocs/", FileName, Url),
+        getContents(FileName, Contents),
+        !,
+        string_length(Contents, CL).
+http_method("GET", _, _, "", 404, []).
+        
+    getContents(Url, Contents):-
+        open(Url, read, S),
+        read_string(S, "", _, Contents),
+        close(S).
+*/
+
 
 http_method(_,_,_,_,_,_):-
 	http_method(_,_,_,_,_,_).
@@ -53,6 +67,4 @@ http_method(Method, Url, _ObjectBody, Output, 200, [contentLength(CL)]):-
 	concat_string(["You asked for method ", Method, 
 	"on object ", Url], Output),
 	string_length(Output, CL).
-	
 
-	
