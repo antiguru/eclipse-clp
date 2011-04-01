@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.41 2011/03/24 02:21:35 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.42 2011/04/01 03:36:40 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1343,6 +1343,23 @@ fi
 
 
 #----------
+# PTHREADS
+#----------
+
+AC_ARG_WITH([pthreads], [[  --without-pthreads
+			Build ECLiPSe without using pthreads.
+    ]],
+    [pthreads_requested="$withval"], [pthreads_requested=yes])
+
+if test "$pthreads_requested" = "yes"; then
+    AC_CHECK_HEADERS(pthread.h)
+    AC_CHECK_LIB(pthread,pthread_create)
+else
+    AC_MSG_NOTICE([Not using pthreads])
+fi
+
+
+#----------
 # GMP
 #----------
 
@@ -1512,7 +1529,7 @@ case $ARCH in
         CPLEX_ARCH_PREFIX=x86-64_debian
         ;;
     sparc_sunos5)
-        CLEX_ARCH_PREFIX=ultrasparc32
+        CPLEX_ARCH_PREFIX=ultrasparc32
         ;;
     i386_nt)
         CPLEX_ARCH_PREFIX=x86_windows

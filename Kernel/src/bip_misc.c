@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
+  VERSION	$Id: bip_misc.c,v 1.6 2011/04/01 03:38:45 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -155,9 +155,6 @@ static dident	d_virtual,
  */
 
 static dident	d_hostid_ = D_UNKNOWN;	/* cache for hostid atom */
-
-extern char	ec_version[];
-extern int      ec_sigalrm;
 
 static int32	seed;	/* for random generator */
 
@@ -1016,7 +1013,7 @@ static int
 p_alarm(value v, type t)
 {
     Check_Integer(t);
-#ifdef _WIN32
+#ifdef USE_TIMER_THREAD
     if (!ec_set_alarm((double) v.nint, 0.0, _post_alarm, ec_sigalrm, 0, 0))
     	{ Bip_Error(SYS_ERROR); }
 #else
@@ -1058,119 +1055,71 @@ p_get_hr_time(value v, type t)
 
 
 /*
+ * start_timer(+Timer, +TimeToFirstSignal, +TimeBetweenSignals)
+ * stop_timer(+Timer, -RemainingTimeToNext, -TimeBetweenSignals)
+ * obsolete:
  * set_timer(+Timer, +TimeBetweenInterrupts)
+ * get_timer(+Timer, -TimeBetweenInterrupts) fail if it was off
  *
- * Generate a sequence of signals, occuring in
- * intervals specified by the argument.
+ * Generate one (or a sequence of) signals, occuring in
+ * intervals specified by the arguments.
  * Time is given in seconds.
- * Use set_timer(+Timer, 0) to switch it off.
  */
-#ifdef _WIN32
+
+#ifndef HAVE_SETITIMER
+#define ITIMER_REAL     0
+#define ITIMER_VIRTUAL  0       /* do the same as ITIMER_REAL */
+#define ITIMER_PROF     0       /* do the same as ITIMER_REAL */
+#endif
 
 static int
 p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinterv, type tinterv)
 {
-    double first, interv;
-
-    if (IsInteger(tfirst))
-	first = (double) vfirst.nint;
-    else if (IsDouble(tfirst))
-	first = Dbl(vfirst);
-    else if (IsRef(tfirst))
-	{ Bip_Error(INSTANTIATION_FAULT); }
-    else
-	{ Bip_Error(TYPE_ERROR); }
-
-    if (IsInteger(tinterv))
-	interv = (double) vinterv.nint;
-    else if (IsDouble(tinterv))
-	interv = Dbl(vinterv);
-    else if (IsRef(tinterv))
-	{ Bip_Error(INSTANTIATION_FAULT); }
-    else
-	{ Bip_Error(TYPE_ERROR); }
+    int timer;
 
     Check_Atom(ttimer)
     if (vtimer.did == d_.real0)
-	;
+        timer = ITIMER_REAL;
     else if (vtimer.did == d_virtual)
-	; /* { Bip_Error(UNIMPLEMENTED); } */
+        timer = ITIMER_VIRTUAL;
     else if (vtimer.did == d_profile)
-	; /* { Bip_Error(UNIMPLEMENTED); } */
+        timer = ITIMER_PROF;
     else {
-	Bip_Error(RANGE_ERROR)
+        Bip_Error(RANGE_ERROR)
     }
 
-    if (!ec_set_alarm(first, interv, _post_alarm, ec_sigalrm, 0, 0))
-	{ Bip_Error(SYS_ERROR); }
-    Succeed_;
-}
+#ifdef USE_TIMER_THREAD
+    if (timer == ITIMER_REAL)   /* or any timer ifndef HAVE_SETITIMER */
+    {
+        double first, interv;
 
-static int
-p_set_timer(value vtimer, type ttimer, value vinterv, type tinterv)
-{
-    return p_start_timer(vtimer, ttimer, vinterv, tinterv, vinterv, tinterv);
-}
+        if (IsInteger(tfirst))
+            first = (double) vfirst.nint;
+        else if (IsDouble(tfirst))
+            first = Dbl(vfirst);
+        else if (IsRef(tfirst))
+            { Bip_Error(INSTANTIATION_FAULT); }
+        else
+            { Bip_Error(TYPE_ERROR); }
 
-static int
-p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinterv, type tinterv)
-{
-    double	remain, old_interv;
-    Prepare_Requests
+        if (IsInteger(tinterv))
+            interv = (double) vinterv.nint;
+        else if (IsDouble(tinterv))
+            interv = Dbl(vinterv);
+        else if (IsRef(tinterv))
+            { Bip_Error(INSTANTIATION_FAULT); }
+        else
+            { Bip_Error(TYPE_ERROR); }
 
-    Check_Output_Float(tremain)
-    Check_Output_Float(tinterv)
-    Check_Atom(ttimer)
-    if (vtimer.did == d_.real0)
-	;
-    else if (vtimer.did == d_virtual)
-	; /* { Bip_Error(UNIMPLEMENTED); } */
-    else if (vtimer.did == d_profile)
-	; /* { Bip_Error(UNIMPLEMENTED); } */
-    else {
-	Bip_Error(RANGE_ERROR)
+        if (!ec_set_alarm(first, interv, _post_alarm, ec_sigalrm, 0, 0))
+            { Bip_Error(SYS_ERROR); }
+        Succeed_
     }
+#endif
 
-    if (!ec_set_alarm(0.0, 0.0, _post_alarm, ec_sigalrm, &remain, &old_interv))
-	{ Bip_Error(SYS_ERROR); }
-    Request_Unify_Float(vinterv, tinterv, old_interv) 
-    Request_Unify_Float(vremain, tremain, remain)
-    Return_Unify
-}
-
-static int
-p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv)	/* obsolete */
-{
-    double	remain, old_interv;
-
-    Check_Output_Float(tinterv)
-    Check_Atom(ttimer)
-    if (vtimer.did == d_.real0)
-	;
-    else if (vtimer.did == d_virtual)
-	{ Bip_Error(UNIMPLEMENTED); }
-    else if (vtimer.did == d_profile)
-	{ Bip_Error(UNIMPLEMENTED); }
-    else {
-	Bip_Error(RANGE_ERROR)
-    }
-
-    if (!ec_set_alarm(0.0, 0.0, _post_alarm, ec_sigalrm, &remain, &old_interv))
-	{ Bip_Error(SYS_ERROR); }
-    if (!ec_set_alarm(remain, old_interv, _post_alarm, ec_sigalrm, 0, 0))
-	{ Bip_Error(SYS_ERROR); }
-    if (old_interv == 0)
-       { Fail_; }
-    Return_Unify_Float(vinterv, tinterv, old_interv)
-}
-
-#else
-#if defined(HAVE_SETITIMER)
-static int
-p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinterv, type tinterv)
-{
+#ifdef HAVE_SETITIMER
+    {
 	struct itimerval	desc;
-	int			timer;
 
 	if (IsInteger(tinterv))
 	{
@@ -1224,22 +1173,16 @@ p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinter
 	else
 	    { Bip_Error(TYPE_ERROR); }
 
-	Check_Atom(ttimer)
-	if (vtimer.did == d_.real0)
-	    timer = ITIMER_REAL;
-	else if (vtimer.did == d_virtual)
-	    timer = ITIMER_VIRTUAL;
-	else if (vtimer.did == d_profile)
-	    timer = ITIMER_PROF;
-	else {
-	    Bip_Error(RANGE_ERROR)
-	}
-
 	if (setitimer(timer, &desc, (struct itimerval *) 0) < 0) {
 	    Set_Errno;
 	    Bip_Error(SYS_ERROR);
 	}
 	Succeed_
+    }
+
+#else
+    Bip_Error(UNIMPLEMENTED);
+#endif
 }
 
 static int
@@ -1251,21 +1194,40 @@ p_set_timer(value vtimer, type ttimer, value vinterv, type tinterv)
 static int
 p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv)
 {
+    int timer;
+
+    Check_Atom(ttimer)
+    if (vtimer.did == d_.real0)
+        timer = ITIMER_REAL;
+    else if (vtimer.did == d_virtual)
+        timer = ITIMER_VIRTUAL;
+    else if (vtimer.did == d_profile)
+        timer = ITIMER_PROF;
+    else {
+        Bip_Error(RANGE_ERROR)
+    }
+
+#ifdef USE_TIMER_THREAD
+    if (timer == ITIMER_REAL)   /* or any timer ifndef HAVE_SETITIMER */
+    {
+        double	remain, old_interv;
+
+        Check_Output_Float(tinterv)
+        if (!ec_set_alarm(0.0, 0.0, _post_alarm, ec_sigalrm, &remain, &old_interv))
+            { Bip_Error(SYS_ERROR); }
+        if (!ec_set_alarm(remain, old_interv, _post_alarm, ec_sigalrm, 0, 0))
+            { Bip_Error(SYS_ERROR); }
+        if (old_interv == 0)
+           { Fail_; }
+        Return_Unify_Float(vinterv, tinterv, old_interv)
+    }
+#endif
+
+#ifdef HAVE_SETITIMER
+    {
 	struct itimerval	desc;
-	int			timer;
 
 	Check_Output_Float(tinterv)
-	Check_Atom(ttimer)
-	if (vtimer.did == d_.real0)
-	    timer = ITIMER_REAL;
-	else if (vtimer.did == d_virtual)
-	    timer = ITIMER_VIRTUAL;
-	else if (vtimer.did == d_profile)
-	    timer = ITIMER_PROF;
-	else {
-	    Bip_Error(RANGE_ERROR)
-	}
-
 	if (getitimer(timer, &desc) < 0) {
 	    Set_Errno;
 	    Bip_Error(SYS_ERROR);
@@ -1276,6 +1238,11 @@ p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv)
 	}
 	Return_Unify_Float(vinterv, tinterv,
 		desc.it_interval.tv_sec + desc.it_interval.tv_usec/1000000.0)
+    }
+
+#else
+    Bip_Error(UNIMPLEMENTED);
+#endif
 }
 
 
@@ -1287,22 +1254,37 @@ p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv)
 static int
 p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinterv, type tinterv)
 {
-	struct itimerval	old, new;
-	int			timer;
-	Prepare_Requests
+    int timer;
+    Prepare_Requests
 
-	Check_Output_Float(tremain)
-	Check_Output_Float(tinterv)
-	Check_Atom(ttimer)
-	if (vtimer.did == d_.real0)
-	    timer = ITIMER_REAL;
-	else if (vtimer.did == d_virtual)
-	    timer = ITIMER_VIRTUAL;
-	else if (vtimer.did == d_profile)
-	    timer = ITIMER_PROF;
-	else {
-	    Bip_Error(RANGE_ERROR)
-	}
+    Check_Output_Float(tremain)
+    Check_Output_Float(tinterv)
+    Check_Atom(ttimer)
+    if (vtimer.did == d_.real0)
+        timer = ITIMER_REAL;
+    else if (vtimer.did == d_virtual)
+        timer = ITIMER_VIRTUAL;
+    else if (vtimer.did == d_profile)
+        timer = ITIMER_PROF;
+    else {
+        Bip_Error(RANGE_ERROR)
+    }
+
+#ifdef USE_TIMER_THREAD
+    if (timer == ITIMER_REAL)   /* or any timer ifndef HAVE_SETITIMER */
+    {
+        double	remain, old_interv;
+        if (!ec_set_alarm(0.0, 0.0, _post_alarm, ec_sigalrm, &remain, &old_interv))
+            { Bip_Error(SYS_ERROR); }
+        Request_Unify_Float(vinterv, tinterv, old_interv) 
+        Request_Unify_Float(vremain, tremain, remain)
+        Return_Unify
+    }
+#endif
+
+#ifdef HAVE_SETITIMER
+    {
+	struct itimerval old, new;
 
 	new.it_interval.tv_sec = 0;
 	new.it_interval.tv_usec = 0;
@@ -1316,17 +1298,13 @@ p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinte
 		old.it_interval.tv_sec + old.it_interval.tv_usec/1000000.0)
 	Request_Unify_Float(vremain, tremain,
 		old.it_value.tv_sec + old.it_value.tv_usec/1000000.0)
-	Return_Unify
-}
+        Return_Unify
+    }
 
 #else
-Not_Available_Built_In(p_set_timer)
-Not_Available_Built_In(p_get_timer)
-Not_Available_Built_In(p_start_timer)
-Not_Available_Built_In(p_stop_timer)
+    Bip_Error(UNIMPLEMENTED);
 #endif
-#endif
-
+}
 
 
 static int

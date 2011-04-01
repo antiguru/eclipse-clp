@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: handlers.c,v 1.4 2011/04/01 03:38:45 jschimpf Exp $
  */
 
 /*
@@ -602,8 +602,8 @@ _abort_handler(int i)
 }
 
 
-int
-_install_int_handler(int i, int how, pri *proc)
+static int
+_install_int_handler(int i, int how)
 {
     int res;
     sig_action_t action;
@@ -611,13 +611,13 @@ _install_int_handler(int i, int how, pri *proc)
 #ifndef SIGIO
     if (i == ec_sigio)
     {
-	Succeed_;	/* this is a fake signal number, do nothing */
+	Fail_;	/* this is a fake signal number, do nothing */
     }
 #endif
 #ifndef SIGALRM
     if (i == ec_sigalrm)
     {
-	Succeed_;	/* this is a fake signal number, do nothing */
+	Fail_;	/* this is a fake signal number, do nothing */
     }
 #endif
 
@@ -783,7 +783,7 @@ handlers_fini()
 	    case IH_THROW:
 	    case IH_ABORT:
 	    case IH_HANDLE_ASYNC:
-		(void) _install_int_handler(i, IH_SYSTEM_DFL, 0);
+		(void) _install_int_handler(i, IH_SYSTEM_DFL);
 		break;
 
 	    case IH_UNCHANGED:
@@ -795,7 +795,7 @@ handlers_fini()
 	}
     }
 #ifdef SIGPIPE
-    (void) _install_int_handler(SIGPIPE, IH_IGNORE, 0);
+    (void) _install_int_handler(SIGPIPE, IH_IGNORE);
 #endif
 }
 
@@ -1063,7 +1063,26 @@ p_set_interrupt_handler_nr(value vn, type tn, value vp, type tp, value vm, type 
     if (w == d_.default0)
 	how = IH_SYSTEM_DFL;
     else if (w == d_internal_)
-	how = IH_ECLIPSE_DFL;
+    {
+        switch (vn.nint) {
+#ifdef SIGALRM
+            case SIGALRM:
+#ifdef USE_TIMER_THREAD
+                Succeed_;               /* leave handler unchanged */
+#else
+                how = IH_POST_EVENT;
+#endif
+                break;
+#endif
+#ifdef SIGVTALRM
+            case SIGVTALRM:
+                how = IH_POST_EVENT;
+                break;
+#endif
+            default:
+                how = IH_ECLIPSE_DFL;
+        }
+    }
     else if (w == d_.true0)
 	how = IH_IGNORE;
     else if (w == d_event_)
@@ -1084,13 +1103,13 @@ p_set_interrupt_handler_nr(value vn, type tn, value vp, type tp, value vm, type 
 	    Bip_Error(err);
 	}
     }
-    err = _install_int_handler((int) vn.nint, how, proc);
-    if (err != PSUCCEED)
+    err = _install_int_handler((int) vn.nint, how);
+    Return_If_Error(err);
+    if (err == PSUCCEED)        /* do nothing for PFAIL */
     {
-	Bip_Error(err);
+        interrupt_handler_flags_[vn.nint] = how;
+        interrupt_handler_[vn.nint] = proc;
     }
-    interrupt_handler_flags_[vn.nint] = how;
-    interrupt_handler_[vn.nint] = proc;
     Succeed_;
 }
 

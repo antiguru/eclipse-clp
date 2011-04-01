@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.2 2010/07/11 13:45:54 jschimpf Exp $
+ * $Id: os_support.h,v 1.3 2011/04/01 03:38:45 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -86,6 +86,11 @@
 #endif
 
 
+/* When to use a timer thread instead of SIGALRM */
+#if defined(HAVE_PTHREAD_H) || defined(_WIN32)
+#define USE_TIMER_THREAD
+#endif
+
 
 /* Values for the global variable ec_os_errgrp_ indicating
  * what kind of error number we have in ec_os_errno_ */
@@ -144,6 +149,8 @@ extern char	ec_version[];
 extern int	clock_hz;
 extern int	ec_os_errno_;
 extern int	ec_os_errgrp_;
+extern int      ec_sigalrm;
+extern int      ec_sigio;
 
 void	ec_os_init ARGS((void));
 void	ec_os_fini ARGS((void));

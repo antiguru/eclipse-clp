@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.9 2010/07/11 13:45:54 jschimpf Exp $
+ * $Id: os_support.c,v 1.10 2011/04/01 03:38:45 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -110,6 +110,10 @@ extern char *getenv();
 #ifdef HAVE_SIOCGIFHWADDR
 #include <sys/ioctl.h>
 #include <net/if.h>
+#endif
+
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
 #endif
 
 /*----------------------------------------------------------------------*
@@ -203,9 +207,9 @@ void
 ec_os_fini(void)
 {
 #ifdef _WIN32
-    ec_terminate_alarm();	/* terminate alarm thread, if any */
     (void) WSACleanup();	/* finalise Winsock (once per WSAStartup()) */
 #endif
+    ec_terminate_alarm();	/* terminate alarm thread, if any */
 }
 
 
@@ -1475,7 +1479,7 @@ ec_alarm_thread(timer_thread *desc)
 		    next_timeout = INFINITE;
 		}
 		/* indicate acceptance */
-		if (!SetEvent(alarm_thread.time_accept_event))
+		if (!SetEvent(desc->time_accept_event))
 		{
 		    ec_bad_exit("ECLiPSe: timer thread SetEvent() failed");
 		}
@@ -1564,6 +1568,9 @@ ec_terminate_alarm()
 {
     DWORD thread_exit_code = 0;
 
+    if (!alarm_thread.thread_handle)
+        return 0;
+
     /* send a termination request to the thread */
     alarm_thread.terminate_req = 1;
     if (!SetEvent(alarm_thread.time_set_event))
@@ -1611,7 +1618,242 @@ ec_terminate_alarm()
     return thread_exit_code;	/* 0 or 1 */
 }
 
+
+#else
+#ifdef HAVE_PTHREAD_H
+
+/*
+ * Unix pthreads version
+ */
+
+typedef struct {
+    pthread_t thread_handle;     	/* must be first */
+    pthread_mutex_t mutex;              /* mutex for the two conds */
+
+/* signals that the new_xxx settings are valid and should be accepted */
+    pthread_cond_t time_set_event;
+
+/* signals that new settings have been accepted and old_xxx are valid */
+    pthread_cond_t time_accept_event;
+
+/* input (w for main, r for thread) */
+    double volatile new_first;		/* first interval (s) */
+    double volatile new_ivl;		/* future intervals (s) */
+    void (* volatile new_callback)(long);	/* callback function ... */
+    long volatile new_cb_arg;		/* ... and its argument */
+    int volatile terminate_req;		/* request to terminate alarm thread */
+
+/* output ( w for thread, r for main) */
+    double volatile old_remain;		/* remaining time when stopped (s) */
+    double volatile old_ivl;		/* old interval setting (s) */
+
+/* status (w for thread, r for main) */
+    int volatile running;		/* set while timer running */
+
+/* local (r/w for thread) */
+    double active_due;	 	        /* current due time (s since epoch) */
+    double active_ivl;		        /* current future intervals (s) */
+    void (*active_callback)(long);      /* current callback function ... */
+    long active_cb_arg;	                /* ... and its argument */
+
+} timer_thread;
+
+timer_thread alarm_thread = { /*thread_handle*/ (pthread_t) NULL };
+
+
+/* The timer thread procedure */
+
+void *
+ec_alarm_thread(timer_thread *desc)
+{
+    pthread_mutex_lock(&desc->mutex);
+    pthread_cond_signal(&desc->time_accept_event);
+    for(;;)
+    {
+	int res;
+	struct timeval now_timeval;
+        double now_time;
+
+        if (desc->running)
+        {
+            struct timespec next_timeout_spec;
+            next_timeout_spec.tv_sec = (time_t) desc->active_due;
+            next_timeout_spec.tv_nsec = (desc->active_due - next_timeout_spec.tv_sec) * 1e9;
+            res = pthread_cond_timedwait(&desc->time_set_event, &desc->mutex, &next_timeout_spec);
+        }
+        else
+        {
+            res = pthread_cond_wait(&desc->time_set_event, &desc->mutex);
+        }
+	if (res && res != ETIMEDOUT)
+	{
+            pthread_mutex_unlock(&desc->mutex);
+	    ec_bad_exit("ECLiPSe: timer thread WaitForSingleObject() failed");
+	}
+
+        gettimeofday(&now_timeval, NULL);
+        now_time = (double)now_timeval.tv_sec + (double)now_timeval.tv_usec/1000000.0;
+
+	/*
+	 * Check whether the active timer has expired and do the callback
+	 * if so. Then either cancel or schedule the next interval.
+	 */
+	if (desc->running)
+	{
+	    if (now_time >= desc->active_due)
+	    {
+		/* the alarm is due */
+		(*desc->active_callback)(desc->active_cb_arg);
+		if (desc->active_ivl > 0.0)
+		{
+		    /* schedule the next interval */
+		    desc->active_due = now_time + desc->active_ivl;
+		    desc->running = 1;
+		}
+		else
+		{
+		    /* nothing more to do */
+		    desc->active_due = 0.0;
+		    desc->active_ivl = 0.0;
+		    desc->running = 0;
+		}
+	    }
+	    /* else timed out too early, or SetEvent */
+	}
+
+	/*
+	 * If we had a timer_set_event, pick up
+	 * the new times and return the old ones.
+	 */
+	if (res == 0)
+	{
+	    if (desc->terminate_req)
+	    {
+		break;		/* same as pthread_exit(1); */
+	    }
+	    else
+	    {
+		desc->old_remain = desc->running ? desc->active_due - now_time : 0.0;
+		desc->old_ivl = desc->active_ivl;
+
+		if (desc->new_first)		/* change settings */
+		{
+		    desc->active_due = now_time + desc->new_first;
+		    desc->active_ivl = desc->new_ivl;
+		    desc->active_callback = desc->new_callback;
+		    desc->active_cb_arg = desc->new_cb_arg;
+		    desc->running = 1;
+		}
+		else				/* clear settings */
+		{
+		    desc->active_due = 0;
+		    desc->active_ivl = 0;
+		    desc->running = 0;
+		}
+		/* indicate acceptance */
+                pthread_cond_signal(&desc->time_accept_event);
+	    }
+	}
+    }
+    pthread_mutex_unlock(&desc->mutex);
+    return (void*) 1;
+}
+
+
+int
+ec_set_alarm(
+	double first,			/* new initial interval (0: stop timer) */
+	double interv,			/* new periodic interval (0: one shot) */
+	void (*callback)(long),		/* callback function ... */
+	long cb_arg,			/* ... and its argument */
+	double *premain,		/* return time to next timeout */
+	double *old_interv)		/* return previous interval setting */
+{
+    int res;
+    if (!alarm_thread.thread_handle)	/* create thread if not yet there */
+    {
+	alarm_thread.terminate_req = 0;
+	alarm_thread.running = 0;
+        if (pthread_mutex_init(&alarm_thread.mutex, NULL)
+         || pthread_cond_init(&alarm_thread.time_set_event, NULL)
+         || pthread_cond_init(&alarm_thread.time_accept_event, NULL)
+         || pthread_mutex_lock(&alarm_thread.mutex)
+	 || pthread_create(&alarm_thread.thread_handle, NULL,
+                (void*(*)(void*))ec_alarm_thread, (void*) &alarm_thread)
+            /* wait for ec_alarm_thread to be ready */
+         || pthread_cond_wait(&alarm_thread.time_accept_event, &alarm_thread.mutex)
+        )
+        {
+            pthread_mutex_unlock(&alarm_thread.mutex);
+	    Set_Sys_Errno(errno, ERRNO_UNIX);
+	    return 0;
+        }
+    }
+    else
+    {
+        pthread_mutex_lock(&alarm_thread.mutex);
+    }
+
+    /* write new parameters into the descriptor */
+    alarm_thread.new_first = (0.0 < first && first < 1.0e-6) ? 1.0e-6 : first;
+    alarm_thread.new_ivl = (0.0 < interv && interv < 1.0e-6) ? 1.0e-6 : interv;
+    alarm_thread.new_callback = callback;
+    alarm_thread.new_cb_arg = cb_arg;
+
+    pthread_cond_signal(&alarm_thread.time_set_event);
+
+    /* wait for thread to accept new times and return old ones */
+    res = pthread_cond_wait(&alarm_thread.time_accept_event, &alarm_thread.mutex);
+    pthread_mutex_unlock(&alarm_thread.mutex);
+    if (res)
+    {
+        Set_Sys_Errno(errno, ERRNO_UNIX);
+	return 0;
+    }
+
+    if (premain) *premain = alarm_thread.old_remain;
+    if (old_interv) *old_interv = alarm_thread.old_ivl;
+    return 1;
+}
+
+
+/*
+ * Terminate the alarm thread.
+ * Returns: 1 if cleanly terminated, 0 if forcibly terminated, -1 error
+ */
+int
+ec_terminate_alarm()
+{
+    void *thread_exit_code = NULL;
+
+    if (!alarm_thread.thread_handle)
+        return 0;
+
+    /* send a termination request to the thread */
+    alarm_thread.terminate_req = 1;
+    pthread_mutex_lock(&alarm_thread.mutex);
+    pthread_cond_signal(&alarm_thread.time_set_event);
+    pthread_mutex_unlock(&alarm_thread.mutex);
+
+    /* wait for termination */
+    if (pthread_join(alarm_thread.thread_handle, &thread_exit_code))
+    {
+        Set_Sys_Errno(errno, ERRNO_UNIX);
+	return -1;
+    }
+
+    pthread_cond_destroy(&alarm_thread.time_set_event);
+    pthread_cond_destroy(&alarm_thread.time_accept_event);
+    pthread_mutex_destroy(&alarm_thread.mutex);
+    alarm_thread.thread_handle = (pthread_t) NULL;
+    return thread_exit_code ? 1 : 0;	/* 0 or 1 */
+}
+
+#else
+int ec_terminate_alarm() { return 0; }
 #endif
+#endif
+
 
 /*----------------------------------------------------------------------
  * Registry/Environment lookup

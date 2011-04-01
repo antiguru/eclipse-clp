@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.6 2011/04/01 03:38:45 jschimpf Exp $
  */
 
 /*
@@ -47,6 +47,7 @@
 #include "opcode.h"
 
 extern int		*interrupt_handler_flags_;
+extern pri		**interrupt_handler_;
 extern dident		*interrupt_name_;
 extern jmp_buf reset;
 extern pword		*p_meta_arity_;
@@ -862,7 +863,7 @@ next_urgent_event(void)
 	event_q_assert(IsInteger(posted_events_[first_posted_].tag));
 	/* Remove element from queue */
 	first_posted_ = (first_posted_ + 1) % MAX_STATIC_EVENT_SLOTS;
-	if (interrupt_handler_flags_[n] == IH_POST_EVENT)
+	if (interrupt_handler_flags_[n] == IH_POST_EVENT || !interrupt_handler_[n])
 	{
 	    /* Post the atom to the dynamic event queue for synchronous
 	     * execution.
