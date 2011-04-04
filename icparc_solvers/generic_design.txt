@@ -140,10 +140,12 @@ than an integer.
 
 get_constraints_number(?Var, -Num)
 
-Returns, in Num, a count of the suspended goals attached to Var.  Note that
-this may be an overestimate of the number of constraints that Var appears
-in, if the constraint appears in more than one suspension list.  If Var is
-ground then Num is set very large; if Var is free then Num is 0.
+Returns, in Num, an estimate of the number of constraints that Var appears in.
+For most native ECLiPSe solver, this is a count of the suspended goals 
+attached to Var.  Note that this may be an overestimate of the number of 
+constraints that Var appears in, if the constraint appears in more than one
+suspension list.  If Var is ground then Num is set very large; if Var is 
+free then Num is 0.
 
 
 is_integer_type(?Var)
