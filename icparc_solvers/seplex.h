@@ -72,6 +72,7 @@
 
 # define CPXLPptr COINprob *
 
+/* solution states used in code to extract information from solver */ 
 typedef enum
 {
     state_success,
@@ -83,6 +84,22 @@ typedef enum
     state_unknown
 } state_t;
 
+/* these are used to return useful information to the user (mainly reason for
+   abort in the solve
+*/
+#define S_UNKNOWN	    0
+#define S_SUCCESS	    1
+#define S_FAIL		    2
+#define S_UNBOUND	    3
+#define S_UNBOUND_OR_FAIL   4
+#define S_ABORT_UNKNOWN     5
+#define S_ABORT_NUM	    6
+#define S_ABORT_TIMELIM	    7
+#define S_ABORT_NODELIM     8
+#define S_ABORT_SOLLIM	    9
+#define S_ABORT_LIM	   10
+#define S_ABORT_PRIMOBJLIM 11
+#define S_ABORT_DUALOBJLIM 12
 
 #endif
 

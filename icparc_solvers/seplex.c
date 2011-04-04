@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.18 2010/07/25 13:29:05 jschimpf Exp $
+ * Version:	$Id: seplex.c,v 1.19 2011/04/04 18:16:04 kish_shen Exp $
  *
  */
 
@@ -665,13 +665,16 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define Bar_Is_Primal_Feasible(lpd) coin_bar_is_primal_feas(lpd->lp)
 # define Bar_Is_Dual_Feasible(d) coin_bar_is_dual_feas(lpd->lp)
 
-# define SuccessState(d) (coin_get_result_state(d) == state_success)
-# define FailState(d) (coin_get_result_state(d) == state_fail)
-# define MIPSemiSuccessState(d) (coin_get_result_state(d) == state_mipsemisucc)
-# define MIPSemiFailState(d) (coin_get_result_state(d) == state_mipsemifail)
-# define LPAbortedState(d) (coin_get_result_state(d) == state_lpaborted)
-# define UnboundedState(d) (coin_get_result_state(d) == state_unbounded)
-# define MaybeFailState(d) (coin_get_result_state(d) == state_unknown)
+/* use only where solve_state is defined and set by call to 
+   coin_get_result_state()
+*/
+# define SuccessState(d) (solve_state == state_success)
+# define FailState(d) (solve_state == state_fail)
+# define MIPSemiSuccessState(d) (solve_state == state_mipsemisucc)
+# define MIPSemiFailState(d) (solve_state == state_mipsemifail)
+# define LPAbortedState(d) (solve_state == state_lpaborted)
+# define UnboundedState(d) (solve_state == state_unbounded)
+# define MaybeFailState(d) (solve_state == state_unknown)
 
 # define Get_MIPCutOff(d, v) coin_get_mipcutoff(d, v)
 # define DualMethod(lpd,m,am) 0
@@ -5878,6 +5881,9 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
     do
     {
 	int i;
+#ifdef COIN
+	int solve_state = S_UNKNOWN;  
+#endif
 
 	violated_cnt = 0;
 	if (IsStructure(tdump))
@@ -6208,6 +6214,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 #endif
 #ifdef COIN
 	CallN(coin_get_stats(lpd));
+	solve_state = coin_get_result_state(lpd);
 #endif
 
 /* Here we test for various states of the solution. The following macro tests

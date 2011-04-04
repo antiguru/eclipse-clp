@@ -322,6 +322,13 @@ int coin_branchAndBound(lp_desc* lpd)
 
     CbcModel* model = new CbcModel(static_cast<OsiSolverInterface &>(*lpd->lp->Solver));
 
+    DerivedHandler* mipMessageHandler = new DerivedHandler;
+    model->passInMessageHandler(mipMessageHandler);
+    // From John Forrest 2011-03-13, to get message logging with CbcSolver: 
+    model->messageHandler()->setLogLevel(0,1); // CBC
+    model->messageHandler()->setLogLevel(1,0); // CLP  -- set to 0 
+    model->messageHandler()->setLogLevel(2,1); // Coin
+    model->messageHandler()->setLogLevel(3,1); // CGL
     CbcMain0(*model);
 
     /*
@@ -351,13 +358,6 @@ int coin_branchAndBound(lp_desc* lpd)
 	delete lpd->lp->mipmodel->messageHandler();
 	delete lpd->lp->mipmodel;
     }
-    DerivedHandler* mipMessageHandler = new DerivedHandler;
-    model->passInMessageHandler(mipMessageHandler);
-    // From John Forrest 2011-03-13, to get message logging with CbcSolver: 
-    model->messageHandler()->setLogLevel(0,1); // CBC
-    model->messageHandler()->setLogLevel(1,0); // CLP  -- set to 0 
-    model->messageHandler()->setLogLevel(2,1); // Coin
-    model->messageHandler()->setLogLevel(3,1); // CGL
 
     lpd->lp->mipmodel = model;
     //model->solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
@@ -1234,68 +1234,126 @@ state_t coin_get_result_state(lp_desc* lpd)
     //    OsiXxxSolverInterface* Solver = lpd->lp->Solver;
 #ifdef COIN_USE_SYM
     // solving empty problem with OsiSym core dumps
-    if (lpd->lp->Solver->getNumCols() == 0) return state_success;
+  if (lpd->lp->Solver->getNumCols() == 0) {
+      lpd->sol_state = S_SUCCESS;
+      return state_success;
+  }
 #endif
 #ifdef COIN_USE_CLP
     // get more MIP information using CLP specific methods...
     if (IsMIPProb(lpd->prob_type))
     {
 	CbcModel* model = lpd->lp->mipmodel;
-	if (model->isProvenOptimal()) return state_success;
+	if (model->isProvenOptimal()) {
+	    lpd->sol_state = S_SUCCESS;
+	    return state_success;
+	}
 	if (model->isInitialSolveProvenOptimal()) // succeeded at root
 	{
-	    if (model->isProvenInfeasible()) return state_fail;
+	    if (model->isProvenInfeasible()) {
+	        lpd->sol_state = S_FAIL;
+	        return state_fail;
+	    }
+	    // MIP was aborted -- determine why
+	    if (model->isNodeLimitReached()) lpd->sol_state = S_ABORT_NODELIM;
+	    else if (model->isSecondsLimitReached()) lpd->sol_state = S_ABORT_TIMELIM;
+	    else if (model->isSolutionLimitReached()) lpd->sol_state = S_ABORT_SOLLIM;
+	    else if (model->isAbandoned()) lpd->sol_state = S_ABORT_NUM;
+	    else lpd->sol_state = S_ABORT_UNKNOWN;
+
 	    if (model->bestSolution()) return state_mipsemisucc;
 	    return state_mipsemifail;
 	}
-	if (model->isInitialSolveAbandoned()) return state_lpaborted;
+	if (model->isInitialSolveAbandoned()) {
+	    lpd->sol_state = S_ABORT_NUM;
+	    return state_lpaborted;
+	}
 	// unbounded at root => MIP can be unbounded or infeasible
-	if (model->isContinuousUnbounded()) return state_unknown; 
-	if (model->isInitialSolveProvenPrimalInfeasible()) return state_fail;
+	if (model->isContinuousUnbounded()) {
+	    lpd->sol_state = S_UNBOUND_OR_FAIL;
+	    return state_unknown;
+	} 
+	if (model->isInitialSolveProvenPrimalInfeasible()) {
+	  lpd->sol_state = S_FAIL;
+	  return state_fail;
+	}
 	//if (model->isInitialSolveProvenDualInfeasible()) return state_unbounded;
+	if (lpd->lp->Solver->getModelPtr()->hitMaximumIterations()) lpd->sol_state = S_ABORT_LIM;
+	else if (lpd->lp->Solver->getModelPtr()->isPrimalObjectiveLimitReached()) lpd->sol_state = S_ABORT_PRIMOBJLIM;
+	else if (lpd->lp->Solver->getModelPtr()->isDualObjectiveLimitReached()) lpd->sol_state = S_ABORT_DUALOBJLIM;
+	else lpd->sol_state = S_ABORT_UNKNOWN;
 	return state_mipsemifail;
     }
     if (lpd->lp->interiormodel != NULL)
     {// CLP's interior needs special test to detect failure
 	if (lpd->lp->Solver->isProvenOptimal())
         {
-	    if (lpd->lp->interiormodel->sumPrimalInfeasibilities() < 1e-5)
+	    if (lpd->lp->interiormodel->sumPrimalInfeasibilities() < 1e-5) {
+	        lpd->sol_state = S_SUCCESS;
 		return state_success;
-	    else
+	    } else {
+	        lpd->sol_state = S_FAIL;
 		return state_fail;
+	    }
 	}
-    } else if (lpd->lp->Solver->isProvenOptimal()) return state_success;
-
+    } else if (lpd->lp->Solver->isProvenOptimal()) {
+	lpd->sol_state = S_SUCCESS;
+        return state_success;
+    }
 #else // !COIN_USE_CLP
 
-    if (lpd->lp->Solver->isProvenOptimal()) return state_success;
+    if (lpd->lp->Solver->isProvenOptimal()) {
+	lpd->sol_state = S_SUCCESS;
+        return state_success;
+    }
 #endif
     // isAbandoned() due to numeric difficulties only
     if (lpd->lp->Solver->isAbandoned()) 
     {
+        lpd->sol_state = S_ABORT_NUM;
 	if (IsMIPProb(lpd->prob_type)) return state_mipsemifail;
 	else return state_lpaborted;
     }
-    if (lpd->lp->Solver->isProvenPrimalInfeasible()) return state_fail;
-    if (lpd->lp->Solver->isProvenDualInfeasible()) return state_unbounded;
-
+    if (lpd->lp->Solver->isProvenPrimalInfeasible()) {
+	lpd->sol_state = S_FAIL;
+        return state_fail;
+    }
+    if (lpd->lp->Solver->isProvenDualInfeasible()) {
+      lpd->sol_state = S_UNBOUND;
+        return state_unbounded;
+    }
     // problem is not optimal, infeasible or unbounded, solving is incomplete. 
     // For MIP, we need to extract information from the MIP to determine
     // if there is any feasible solution or not. OSI's API does not provide
     // this, so we return semifail by default if solver specific methods
     // are not used earlier
-    if (IsMIPProb(lpd->prob_type)) return state_mipsemifail;
+    if (IsMIPProb(lpd->prob_type)) {
+        lpd->sol_state = S_ABORT_UNKNOWN;
+        return state_mipsemifail;
+    }
     // is LP...
 #ifdef COIN_USE_CLP
     // hit max. iterations *or timeout* 
-    if (lpd->lp->Solver->getModelPtr()->hitMaximumIterations() ||
+    if (lpd->lp->Solver->getModelPtr()->hitMaximumIterations()) {
+        lpd->sol_state = S_ABORT_LIM;
+        return state_lpaborted;
+    }
 #else
-    if (lpd->lp->Solver->isIterationLimitReached() || 
+    if (lpd->lp->Solver->isIterationLimitReached()) {
+        lpd->sol_state = S_ABORT_LIM;
+        return state_lpaborted;
+    }
 #endif
-	lpd->lp->Solver->isPrimalObjectiveLimitReached() ||
-	lpd->lp->Solver->isDualObjectiveLimitReached())
+    if (lpd->lp->Solver->isPrimalObjectiveLimitReached()) {
+        lpd->sol_state = S_ABORT_LIM;
+        return state_lpaborted;
+    }
+    if (lpd->lp->Solver->isDualObjectiveLimitReached()) {
+        lpd->sol_state = S_ABORT_DUALOBJLIM;
 	return state_lpaborted;
+    }
     // no better information....
+    lpd->sol_state = S_ABORT_UNKNOWN;
     return state_unknown; 
 }
 
