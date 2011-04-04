@@ -144,7 +144,7 @@ gcc_matrix(Row,Col,Matrix) :-
               ],
         summary: "The number of values taken from Values is between Low and"
                  " High for all sequences of K variables in Vars.", 
-        see_also: [ic_global_gac:sequence/5,ic:element/3,ic_global:sequence_total/6,ic_global:sequence_total/7],
+        see_also: [ic_global_gac:sequence/4,ic:element/3,ic_global:sequence_total/6,ic_global:sequence_total/7],
         desc: html("\
 <P>
     This constraint ensures that the number of values taken from the set
@@ -177,7 +177,7 @@ gcc_matrix(Row,Col,Matrix) :-
 <P>
     This constraint ensures that the number of occurrences of the value 1
     is at least Low and at most High for all sequences of K consecutive 
-    variables/values in ZeroOnes. ZeroOnes are 0/1 variables (or itnegers), 
+    variables/values in ZeroOnes. ZeroOnes are 0/1 variables (or integers), 
     i.e. they have the domain [0,1]. 
 </P><P>
     The ZeroOnes can be interpreted as the fulfillment of various
