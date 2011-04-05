@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.24 2011/03/24 02:39:54 kish_shen Exp $
+# $Id: Makefile.in,v 1.25 2011/04/05 03:59:28 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -98,11 +98,12 @@ OSIGLPKARCHDIR = $(OSIGLPKDIR)/$(ARCH)
 
 COINOSILIBS = -lOsi -lCoinUtils
 COINCLPLIBS = -lOsiClp -lCgl -lClp 
+COINCBCLIBS = -lCbcSolver -lCbc
 
 $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX): seplex.c coinplex.cpp eplex_params.h seplex.h 
 	$(CXX) -DCOIN -DCOIN_USE_CLP @OSICLP_ADDDEF@ $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c seplex.c
-	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  -lCbcSolver -lCbc $(COINCLPLIBS) @OSICLP_ADDLIB@ $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
+	$(DYLD) $(DYNLDFLAGS) seplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCBCLIBS) $(COINCLPLIBS) @OSICLP_ADDLIB@ $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o seosiclpcbc.$(OBJ_SUFFIX)
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	mv seosiclpcbc.$(OBJ_SUFFIX) $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX)
 
@@ -529,8 +530,9 @@ bug65: bug.c
 	$(CC) -g -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex bug.c /usr/local/cplex/libcplex.a  -lm -o bug65
 
 bugclp: bug.c
-	$(CXX) -g -DCOIN -DCOIN_USE_CLP -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
-	$(CC) -g coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCLPLIBS) @OSICLP_ADDLIB@ -lCbc $(COINOSILIBS) -lstdc++ -DCOIN -DC_TO_COIN -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) bug.c -o bugclp
+	$(CXX) -g -DCOIN -DCOIN_USE_CLP @OSICLP_ADDDEF@ -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
+	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -DNOECLIPSE -c bug.c
+	$(CC) -g coinplex.o bug.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib $(COINCBCLIBS) $(COINCLPLIBS) @OSICLP_ADDLIB@ $(COINOSILIBS) $(STDCXXLIB) -DCOIN -o bugclp
 
 
 
@@ -712,7 +714,8 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl empty_language.ecl \
 		fd_sets.ecl ic_sets.ecl \
 		ic.ecl ic_kernel.ecl ic_constraints.ecl ic_symbolic.ecl \
 		fd_search.ecl ic_search.ecl \
-		fd_sbds.ecl ic_sbds.ecl \
+		gfd_search.ecl gfd_for_search.ecl \
+		fd_sbds.ecl ic_sbds.ecl gfd_sbds.ecl \
 		fd_generic_interface.ecl ic_generic_interface.ecl \
 		fd_global.ecl ic_global.ecl \
 	        fd_sequence.ecl ic_sequence.ecl flow_constraints_support.ecl \
@@ -757,8 +760,8 @@ PL_ECI_FILES =	repair.pl eplex.pl \
 		mip.pl linearize.pl shadow_cons.pl 
 ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		ic.ecl ic_kernel.ecl ic_sets.ecl ic_hybrid_sets.ecl \
-		fd_search.ecl ic_symbolic.ecl \
-		fd_sbds.ecl ic_sbds.ecl \
+		fd_search.ecl gfd_search.ecl ic_symbolic.ecl \
+		fd_sbds.ecl ic_sbds.ecl gfd_sbds.ecl \
 		fd_global.ecl ic_global.ecl \
 		cumulative.ecl ic_cumulative.ecl \
 		edge_finder.ecl ic_edge_finder.ecl \
@@ -906,17 +909,21 @@ $(PRETTY_DIR)/%.html:	ech/%.pl $(PRETTY_DIR)/.stamp
 
 $(PREFIX)/lib/fd_search.eco: generic_search.ecl 
 $(PREFIX)/lib/ic_search.eco: generic_search.ecl
+$(PREFIX)/lib/gfd_search.eco: generic_search.ecl gfd_for_search.ecl 
 
 $(PREFIX)/lib/fd_search.eci: generic_search_comments.ecl 
 $(PREFIX)/lib/ic.eci: generic_search_comments.ecl
+$(PREFIX)/lib/gfd_search.eci: generic_search_comments.ecl 
 
 # SBDS+SBDD dependencies
 
+$(PREFIX)/lib/gfd_sbds.eco: generic_sbds.ecl 
 $(PREFIX)/lib/fd_sbds.eco: generic_sbds.ecl 
 $(PREFIX)/lib/ic_sbds.eco: generic_sbds.ecl
 $(PREFIX)/lib/ic_gap_sbdd.eco: generic_gap_sbdd.ecl
 $(PREFIX)/lib/ic_gap_sbds.eco: generic_gap_sbds.ecl
 
+$(PREFIX)/lib/gfd_sbds.eci: generic_sbds.ecl 
 $(PREFIX)/lib/fd_sbds.eci: generic_sbds.ecl 
 $(PREFIX)/lib/ic_sbds.eci: generic_sbds.ecl
 $(PREFIX)/lib/ic_gap_sbdd.eci: generic_gap_sbdd.ecl

@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 %---------------------------------------------------------------------
 %
-% IC search module.
+% GFD search module.
 %
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Warwick Harvey, IC-Parc
@@ -31,8 +31,7 @@
 %	predicates from the RIA module, written by Joachim Schimpf and
 %	Stefano Novello; and from the fd_search module, by Helmut Simonis.
 %
-% This module provides the search-related components of the IC library, a
-% combined finite domain and floating point interval propagation solver.
+% This module provides the IC/FD compatible search-related components 
 %
 %---------------------------------------------------------------------
 
@@ -44,15 +43,14 @@
 %
 
 :- comment(categories, ["Constraints"]).
-:- comment(summary, "This library provides the search-related components of the IC-library").
+:- comment(summary, "This library provides the IC/FD cp,[atible search-related components for the GFD-library").
 
 :-comment(desc,html("\
-  This library provides the search-related components of the IC-library,
-  essentially those adapted from fd_search, and RIA.  Provided is a generic
+  This library provides the IC/FD search-related components for GFD,
+  essentially those adapted from fd_search.  Provided is a generic
   search routine (for integer domain) which implements a number of partial
   search methods (complete, credit, lds, bbs, dbs) and some of their
-  combinations. For floating point domains, the search facilities from RIA
-  are provided.
+  combinations. 
 ")).
 
 

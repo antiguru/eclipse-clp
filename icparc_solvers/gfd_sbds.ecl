@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% Version of the SBDS library specialised for IC.
+% Version of the SBDS library specialised for GFD.
 %
 % See generic_sbds.ecl for details.
 %
