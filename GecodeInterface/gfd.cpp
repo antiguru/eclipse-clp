@@ -195,7 +195,7 @@ int assign_IntVarArgs_from_ec_array(GecodeSpace* solver, int size,
 		} else
 		    return RANGE_ERROR;
 	    } else if (arg.is_long(&l) == EC_succeed) {
-		vargs[i].init(*solver,(int)l,(int)l);
+		vargs[i] = IntVar(*solver,(int)l,(int)l);
 	    } else
 		return TYPE_ERROR;
 	}
@@ -241,7 +241,7 @@ int assign_BoolVarArgs_from_ec_array(GecodeSpace* solver, int size,
 		    return RANGE_ERROR;
 	    } else if (arg.is_long(&l) == EC_succeed) {
 		if (l < 0 || l > 1) return RANGE_ERROR;
-		vargs[i].init(*solver,(int)l,(int)l);
+ 		vargs[i] = BoolVar(*solver,(int)l,(int)l);
 	    } else {
 		return TYPE_ERROR;
 	    }
@@ -735,9 +735,10 @@ int p_g_add_newvars_interval()
     oldsize = solver->vInt.size();
 
     try {
-	solver->vInt.resize(*solver, (int)++newsize); // ++ as we don't use 0
-	for (int i=oldsize; i < (int)newsize; i++)
-	    solver->vInt[i].init(*solver, (int)min, (int)max);
+      //	solver->vInt.resize(*solver, (int)++newsize); // ++ as we don't use 0
+      for (int i=oldsize; i <= (int)newsize; i++) {
+	  solver->vInt << IntVar(*solver, (int)min, (int)max);
+      }
     }
     CatchAndReportGecodeExceptions
 
@@ -757,8 +758,7 @@ int p_g_add_newbool()
     if (solver == NULL) return TYPE_ERROR;
 
     try {
-	BoolVar b(*solver,0,1);
-	solver->vBool.add(*solver,b);
+        solver->vBool << BoolVar(*solver,0,1);
 	int bidx = solver->vBool.size()-1;
 	long i;
 
@@ -795,9 +795,9 @@ int p_g_add_newvars_dom()
     IntSet domset(ranges, dsize);
 
     try {
-	solver->vInt.resize(*solver, (int)++newsize); // ++ to skip over idx 0
-	for (int i=oldsize; i < (int)newsize; i++)
-	    solver->vInt[i].init(*solver, domset);
+      //	solver->vInt.resize(*solver, (int)++newsize); // ++ to skip over idx 0
+	for (int i=oldsize; i <= (int)newsize; i++)
+	  solver->vInt << IntVar(*solver, domset);
     }
     CatchAndReportGecodeExceptions
 
@@ -950,12 +950,14 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
 			   ); 
 		};
 		if (strcmp(f.name(), "=>") == 0) { 
-		    return imp(ec2boolexpr(EC_argument(c,1), solver), 
-			       ec2boolexpr(EC_argument(c,2), solver));
+		    return (ec2boolexpr(EC_argument(c,1), solver) >> 
+			    ec2boolexpr(EC_argument(c,2), solver)
+			   );
 		};
 		if (strcmp(f.name(), "<=>") == 0) { 
-		    return eqv(ec2boolexpr(EC_argument(c,1), solver), 
-			       ec2boolexpr(EC_argument(c,2), solver));
+		    return (ec2boolexpr(EC_argument(c,1), solver) == 
+			       ec2boolexpr(EC_argument(c,2), solver)
+			   );
 		};
 		if (strcmp(f.name(), "_ivar") == 0) {
 		    if (EC_argument(c,2).is_long(&l) != EC_succeed)
@@ -966,7 +968,7 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
 	    }
 	} 
 	// otherwise, treat as linear relation
-	return (~(ec2linrel(c, solver)));
+	return ec2linrel(c, solver);
     } else if (c.is_long(&l) == EC_succeed) {
 	switch (l) {
 	    case 0: 
@@ -1004,7 +1006,7 @@ int p_g_post_bool_connectives()
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
 	if (first) cache_domain_sizes(solver);
-	post(*solver, tt(c), cl);
+	rel(*solver, c, cl);
 
 	/* check for failure (without full propagation) */
 	return (solver->failed() ? EC_fail : EC_succeed);
@@ -1039,7 +1041,7 @@ int p_g_post_linrel_cstr()
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
 	if (first) cache_domain_sizes(solver);
-	post(*solver, c, cl);
+	rel(*solver, c, cl);
 
 	/* check for failure (without full propagation) */
 	return (solver->failed() ? EC_fail : EC_succeed);
@@ -1068,7 +1070,7 @@ int p_g_post_setvar()
     solver = *solverp;
     if (solver == NULL) return TYPE_ERROR;
     if (idx >= solver->vInt.size()) {
-	return TYPE_ERROR;
+	return RANGE_ERROR;
     }
 
     long first;
@@ -1207,7 +1209,7 @@ int p_g_post_var_interval_reif()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -1235,7 +1237,7 @@ int p_g_post_var_interval_reif()
 		dom(*solver, x, (int)min, (int)max);
 		return (solver->failed() ? EC_fail : EC_succeed);
 	    } else if (b == 0) 
-		reif.init(*solver, 0, 0);
+		reif = BoolVar(*solver, 0, 0);
 	    else
 		return RANGE_ERROR;
 	}
@@ -1307,7 +1309,7 @@ int p_g_post_var_dom_reif()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -1342,7 +1344,7 @@ int p_g_post_var_dom_reif()
 		dom(*solver, x, domset);
 		return (solver->failed() ? EC_fail : EC_succeed);
 	    } else if (b == 0) 
-		reif.init(*solver, 0, 0);
+		reif = BoolVar(*solver, 0, 0);
 	    else 
 		return RANGE_ERROR;
 	}
@@ -1373,7 +1375,7 @@ int p_g_post_var_val_reif()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -1403,7 +1405,7 @@ int p_g_post_var_val_reif()
 		dom(*solver, x, (int)val);
 		return (solver->failed() ? EC_fail : EC_succeed);
 	    } else if (b == 0) 
-		reif.init(*solver, 0, 0);
+		reif = BoolVar(*solver, 0, 0);
 	    else 
 		return RANGE_ERROR;
 	}
@@ -1679,7 +1681,7 @@ int p_g_post_element()
 	    if (i < 1 || i >= solver->vInt.size()) return RANGE_ERROR;
 	    ivar = solver->vInt[(int)i];
 	} else if (EC_arg(3).is_long(&i) == EC_succeed) {
-	    ivar.init(*solver, (int)i, (int)i);
+	    ivar = IntVar(*solver, (int)i, (int)i);
 	} else
 	    return TYPE_ERROR;
 
@@ -2084,7 +2086,7 @@ int p_g_post_circuit_cost()
 	if (cidx < 1 || cidx >= solver->vInt.size()) return RANGE_ERROR;
 	c = solver->vInt[(int)cidx];
     } else if (EC_arg(6).is_long(&cidx) == EC_succeed) {
-	c.init(*solver, (int)cidx, (int)cidx);
+	c = IntVar(*solver, (int)cidx, (int)cidx);
     } else
 	return TYPE_ERROR;
 
@@ -2131,7 +2133,7 @@ int p_g_post_sqrt()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2139,7 +2141,7 @@ int p_g_post_sqrt()
 	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	    y = solver->vInt[(int)yidx];
 	} else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	    y.init(*solver, (int)yidx, (int)yidx);
+	    y = IntVar(*solver, (int)yidx, (int)yidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2177,7 +2179,7 @@ int p_g_post_sq()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2185,7 +2187,7 @@ int p_g_post_sq()
 	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	    y = solver->vInt[(int)yidx];
 	} else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	    y.init(*solver, (int)yidx, (int)yidx);
+	    y = IntVar(*solver, (int)yidx, (int)yidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2224,7 +2226,7 @@ int p_g_post_abs()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2232,7 +2234,7 @@ int p_g_post_abs()
 	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	    y = solver->vInt[(int)yidx];
 	} else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	    y.init(*solver, (int)yidx, (int)yidx);
+	    y = IntVar(*solver, (int)yidx, (int)yidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2268,7 +2270,7 @@ int p_g_post_mult()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2276,7 +2278,7 @@ int p_g_post_mult()
 	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	    y = solver->vInt[yidx];
 	} else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	    y.init(*solver, (int)yidx, (int)yidx);
+	    y = IntVar(*solver, (int)yidx, (int)yidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2284,7 +2286,7 @@ int p_g_post_mult()
 	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
 	    z = solver->vInt[zidx];
 	} else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
-	    z.init(*solver, (int)zidx, (int)zidx);
+	    z = IntVar(*solver, (int)zidx, (int)zidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2322,7 +2324,7 @@ int p_g_post_div()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2330,7 +2332,7 @@ int p_g_post_div()
 	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	    y = solver->vInt[(int)yidx];
 	} else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	    y.init(*solver, (int)yidx, (int)yidx);
+	    y = IntVar(*solver, (int)yidx, (int)yidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2338,7 +2340,7 @@ int p_g_post_div()
 	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
 	    z = solver->vInt[(int)zidx];
 	} else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
-	    z.init(*solver, (int)zidx, (int)zidx);
+	    z = IntVar(*solver, (int)zidx, (int)zidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2373,7 +2375,7 @@ int p_g_post_mod()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2381,7 +2383,7 @@ int p_g_post_mod()
 	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	    y = solver->vInt[(int)yidx];
 	} else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	    y.init(*solver, (int)yidx, (int)yidx);
+	    y = IntVar(*solver, (int)yidx, (int)yidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2389,7 +2391,7 @@ int p_g_post_mod()
 	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
 	    z = solver->vInt[(int)zidx];
 	} else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
-	    z.init(*solver, (int)zidx, (int)zidx);
+	    z = IntVar(*solver, (int)zidx, (int)zidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2424,7 +2426,7 @@ int p_g_post_divmod()
 	    if (midx < 1 || midx >= solver->vInt.size()) return RANGE_ERROR;
 	    m = solver->vInt[(int)midx];
 	} else if (EC_arg(3).is_long(&midx) == EC_succeed) {
-	    m.init(*solver, (int)midx, (int)midx);
+	    m = IntVar(*solver, (int)midx, (int)midx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2432,7 +2434,7 @@ int p_g_post_divmod()
 	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	    y = solver->vInt[(int)yidx];
 	} else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	    y.init(*solver, (int)yidx, (int)yidx);
+	    y = IntVar(*solver, (int)yidx, (int)yidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2440,7 +2442,7 @@ int p_g_post_divmod()
 	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
 	    z = solver->vInt[(int)zidx];
 	} else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
-	    z.init(*solver, (int)zidx, (int)zidx);
+	    z = IntVar(*solver, (int)zidx, (int)zidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2448,7 +2450,7 @@ int p_g_post_divmod()
 	    if (qidx < 1 || qidx >= solver->vInt.size()) return RANGE_ERROR;
 	    q = solver->vInt[(int)qidx];
 	} else if (EC_arg(3).is_long(&qidx) == EC_succeed) {
-	    q.init(*solver, (int)qidx, (int)qidx);
+	    q = IntVar(*solver, (int)qidx, (int)qidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2483,7 +2485,7 @@ int p_g_post_max2()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2491,7 +2493,7 @@ int p_g_post_max2()
 	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	    y = solver->vInt[(int)yidx];
 	} else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	    y.init(*solver, (int)yidx, (int)yidx);
+	    y = IntVar(*solver, (int)yidx, (int)yidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2499,7 +2501,7 @@ int p_g_post_max2()
 	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
 	    z = solver->vInt[(int)zidx];
 	} else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
-	    z.init(*solver, (int)zidx, (int)zidx);
+	    z = IntVar(*solver, (int)zidx, (int)zidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2537,7 +2539,7 @@ int p_g_post_min2()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2545,7 +2547,7 @@ int p_g_post_min2()
 	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	    y = solver->vInt[(int)yidx];
 	} else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	    y.init(*solver, (int)yidx, (int)yidx);
+	    y = IntVar(*solver, (int)yidx, (int)yidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2553,7 +2555,7 @@ int p_g_post_min2()
 	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
 	    z = solver->vInt[(int)zidx];
 	} else if (EC_arg(5).is_long(&zidx) == EC_succeed) {
-	    z.init(*solver, (int)zidx, (int)zidx);
+	    z = IntVar(*solver, (int)zidx, (int)zidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2591,7 +2593,7 @@ int p_g_post_maxlist()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2637,7 +2639,7 @@ int p_g_post_minlist()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -2683,7 +2685,7 @@ int p_g_post_boolchannel()
 	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	    x = solver->vInt[(int)xidx];
 	} else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	    x.init(*solver, (int)xidx, (int)xidx);
+	    x = IntVar(*solver, (int)xidx, (int)xidx);
 	} else
 	    return TYPE_ERROR;
 
@@ -3140,7 +3142,7 @@ int p_g_get_var_domain_handle()
 	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	x = solver->vInt[(int)xidx];
     } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	x.init(*solver, (int)xidx, (int)xidx);
+	x = IntVar(*solver, (int)xidx, (int)xidx);
     } else
 	return TYPE_ERROR;
     
@@ -3175,7 +3177,7 @@ int p_g_add_newvars_dom_union()
 	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
 	x = solver->vInt[(int)xidx];
     } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	x.init(*solver, (int)xidx, (int)xidx);
+	x = IntVar(*solver, (int)xidx, (int)xidx);
     } else
 	return TYPE_ERROR;
     
@@ -3186,7 +3188,7 @@ int p_g_add_newvars_dom_union()
 	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
 	y = solver->vInt[(int)yidx];
     } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	y.init(*solver, (int)yidx, (int)yidx);
+	y = IntVar(*solver, (int)yidx, (int)yidx);
     } else
 	return TYPE_ERROR;
 
@@ -3198,9 +3200,9 @@ int p_g_add_newvars_dom_union()
 
 	IntSet  newdom(unioniter);
 
-	solver->vInt.resize(*solver, (int)++newsize); // ++ to skip over idx 0
-	for (int i=oldsize; i < (int)newsize; i++)
-	    solver->vInt[i] = IntVar(*solver, newdom);
+	//	solver->vInt.resize(*solver, (int)++newsize); // ++ to skip over idx 0
+	for (int i=oldsize; i <= (int)newsize; i++)
+	  solver->vInt << IntVar(*solver, newdom);
 
 	return EC_succeed;
     }
@@ -3232,8 +3234,8 @@ int p_g_add_newvar_copy()
 	IntVarRanges iter(solver->vInt[(int)oldidx]);
 	(void) yv.narrow_r(*solver, iter, false);
 
-	solver->vInt.resize(*solver, (int)++newsize); // ++ to skip over idx 0
-	solver->vInt[oldsize] = y;
+	//	solver->vInt.resize(*solver, (int)++newsize); // ++ to skip over idx 0
+	solver->vInt << y;
 
 	return EC_succeed;
     }

@@ -2503,7 +2503,6 @@ args:[
             indomain_interval_min, indomain_interval_max",
 
       "Method" :  "is one of the following:  complete,
-	    lds(Disc:integer),
             bb_min(Cost:domain variable),
 	    restart_min(Cost:domain variable)",
 
@@ -2674,11 +2673,6 @@ The different <b>search methods</b> are
 a complete search routine which explores all alternative choices.</li>
 
 
-<li><b>lds(Disc)</b> (LDS)
-A form of the <i> limited discrepancy search </i>.  This method
-iteratively tries 0, 1, 2 ..  <b>Disc</b> changes against the
-heuristic (first) value.  
-
 <li><b>bb_min(Cost)</b> (BAB)
 Branch-and-bound search to find the minimal value for the cost variable Cost.
 This should be a domain variable that is instantiated at the end of the
@@ -2751,11 +2745,6 @@ top:-
 	length(L,8),
 	L :: 1..8,
 	search(L,0,input_order,indomain,complete,[]).
-
-top:-
-	length(L,8),
-	L :: 1..8,
-	search(L,0,input_order,indomain,lds(2),[]).
 
 top:-
         length(L,8),

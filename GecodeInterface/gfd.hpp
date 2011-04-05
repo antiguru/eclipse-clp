@@ -31,8 +31,8 @@ using namespace Gecode;
 
 class GecodeSpace : public Gecode::MinimizeSpace {
 public:
-    Gecode::IntVarArray vInt;
-    Gecode::BoolVarArray vBool;
+    Gecode::IntVarArgs vInt;
+    Gecode::BoolVarArgs vBool;
     Gecode::BoolVar booltrue;
     Gecode::BoolVar boolfalse;
     Gecode::IntVar vCost;
@@ -48,13 +48,16 @@ public:
     void clear_snapshot() {valid_snapshot = false;}
     bool snapshot_valid() {return valid_snapshot;}
 
-    GecodeSpace(bool share, GecodeSpace& s) : valid_snapshot(s.valid_snapshot),
-	                                      booltrue(*this, 1, 1), boolfalse(*this, 0, 0),
-					      Gecode::MinimizeSpace(share,s) {
+  GecodeSpace(bool share, GecodeSpace& s) : vInt(s.vInt.size()), vBool(s.vBool.size()),
+					    valid_snapshot(s.valid_snapshot),
+	                                    booltrue(*this, 1, 1), boolfalse(*this, 0, 0),
+					    Gecode::MinimizeSpace(share,s) {
 //	valid_snapshot = s.valid_snapshot;
 	if (snapshot_valid()) dom_snapshot = s.dom_snapshot;
-	vInt.update(*this, share, s.vInt);
-	vBool.update(*this, share, s.vBool);
+	for (int i=vInt.size(); i--;)
+	  vInt[i].update(*this, share, s.vInt[i]);
+	for (int i=vBool.size(); i--;)
+	  vBool[i].update(*this, share, s.vBool[i]);
 	vCost.update(*this, share, s.vCost);
 	
     }
@@ -146,10 +149,11 @@ public:
 	    case METHOD_COMPLETE:
 		sengine = Search::dfs(solver,sizeof(GecodeSpace),o);
 		break;
+		/* lds no longer supported
 	    case METHOD_LDS:
 		o.d = extra;
 		sengine = Search::lds(solver,sizeof(GecodeSpace),o);
-		break;
+		break; */
 	    case METHOD_BAB:
 		solver->vCost = solver->vInt[extra];
 		sengine = Search::bab(solver,sizeof(GecodeSpace),o);
