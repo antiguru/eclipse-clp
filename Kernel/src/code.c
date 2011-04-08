@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.12 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.13 2011/04/08 07:05:09 jschimpf Exp $
  */
 
 /********************************************************************
@@ -49,11 +49,6 @@
 #include "database.h"
 
 /* global definition */
-#define Kernel_Proc(d, flag, ccode)					\
-	pd = global_procedure(d, d_.kernel_sepia, tm);			\
-	pd->flags |= SYSTEM|flag;						\
-	pricode.vmc = ccode;						\
-	pri_define_code(pd, VMCODE, pricode);
 #define Local_Kernel_Proc(d, flag, ccode)					\
 	pd = local_procedure(d, d_.kernel_sepia, tm, PRI_CREATE);	\
 	pd->flags |= SYSTEM|flag;						\
@@ -125,16 +120,16 @@ vmcode par_fail_code_[2];	   /* parallel choicepoint */
 vmcode syserror_code_[PROC_PREFIX_SIZE+13];
 vmcode true_code_[PROC_PREFIX_SIZE+2];
 vmcode cut_to_code_[PROC_PREFIX_SIZE+4];
-vmcode comma_body_code_[PROC_PREFIX_SIZE+30];
-vmcode semic_body_code_[PROC_PREFIX_SIZE+18];
-vmcode cond_body_code_[PROC_PREFIX_SIZE+35];
-vmcode cond3_body_code_[PROC_PREFIX_SIZE+49];
-vmcode softcut5_body_code_[PROC_PREFIX_SIZE+50];
-vmcode call2_code_[PROC_PREFIX_SIZE+10];
-vmcode call_with_cut_code_[PROC_PREFIX_SIZE+2];
-vmcode call_at_code_[PROC_PREFIX_SIZE+4];
+vmcode comma_body_code_[PROC_PREFIX_SIZE+31];
+vmcode semic_body_code_[PROC_PREFIX_SIZE+20];
+vmcode cond_body_code_[PROC_PREFIX_SIZE+36];
+vmcode cond3_body_code_[PROC_PREFIX_SIZE+51];
+vmcode softcut5_body_code_[PROC_PREFIX_SIZE+52];
+vmcode call2_code_[PROC_PREFIX_SIZE+11];
+vmcode call_with_cut_code_[PROC_PREFIX_SIZE+3];
+vmcode call_at_code_[PROC_PREFIX_SIZE+5];
 vmcode gc_code_[PROC_PREFIX_SIZE+8];
-vmcode exit_block_code_[PROC_PREFIX_SIZE+8];
+vmcode exit_block_code_[PROC_PREFIX_SIZE+9];
 vmcode wake_code_[PROC_PREFIX_SIZE+5];
 vmcode idle_code_[PROC_PREFIX_SIZE+4];
 vmcode fork_code_[PROC_PREFIX_SIZE+49];
@@ -268,6 +263,30 @@ make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, int 
 }
 
 
+/*
+ * Create an exported predicate call_/N, N >= 3
+ */
+int
+ec_create_call_n(dident call_did)
+{
+    vmcode *code;
+    pri_code_t	pricode;
+    pri *pd;
+    type tm;
+    tm.kernel = ModuleTag(d_.kernel_sepia);
+    int i = DidArity(call_did);
+    Allocate_Default_Procedure(8, call_did);
+    Exported_Kernel_Proc(call_did, ARGFIXEDWAM|DEBUG_DB, code);
+    pd->flags &= ~DEBUG_TR; /*untraceable*/
+    Store_3(MoveAMAM, Address(i), Address(i+1))
+    Store_2(SavecutAM, Address(i+2))
+    Store_2(Meta_jmp,i-2)
+    Store_i(Code_end)
+    return PSUCCEED;
+}
+
+
+
 vmcode *
 allocate_code_block(word size, uword btablepos, uword link, uword bid, uword fid, uword btype, uword cid)
 {
@@ -340,25 +359,25 @@ code_init(int flags)
 
   }
 
+
 /*
- * definition of call/2
- *	call(Goal, Module)
- * (untraced_call/2 is supposed to be an untraceable call/2,
- * it's the body of call/1 and made untraceable in kernel.pl)
+ * Definition of call_(Goal, Module), the body of call/1
  */
     did1 = in_dict("untraced_call", 2);
     code = &call2_code_[0];
     Make_Default_Prefix(did1);
     if (flags & INIT_SHARED)
     {
-	Local_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF|DEBUG_TRMETA, code);
-	Kernel_Proc(d_.call_body, ARGFIXEDWAM|DEBUG_DF, code);
+	Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_TRMETA, code);
+        pd->flags &= ~DEBUG_TR; /*untraceable*/
+	Exported_Kernel_Proc(d_.call_body, ARGFIXEDWAM|DEBUG_TRMETA, code);
+        pd->flags &= ~DEBUG_TR; /*untraceable*/
 	Exported_Kernel_Proc(in_dict("trace_body",2), ARGFIXEDWAM|DEBUG_ST|DEBUG_SP|DEBUG_TRMETA, code);
 	Exported_Kernel_Proc(in_dict("debug_body",2), ARGFIXEDWAM|DEBUG_ST|DEBUG_TRMETA, code);
     }
     Store_3(MoveAMAM, Address(2), Address(3))
     Store_2(SavecutAM, Address(4))
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     Store_i(Code_end)	/* not really, see below */
 /*
  * The following code is dynamically inserted (by the Metacall instruction)
@@ -383,7 +402,7 @@ code_init(int flags)
     {
 	Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF, code);
     }
-    Store_i(Meta_jmp)		/* (Goal,CallerMod,LookupMod,Cut) */
+    Store_2(Meta_jmp,0)		/* (Goal,CallerMod,LookupMod,Cut) */
     Store_i(Code_end)
 
 /*
@@ -398,7 +417,7 @@ code_init(int flags)
     }
     do_call_code_ = code;
     Store_2(SavecutAM, Address(4))
-    Store_i(Meta_jmp)		/* (Goal,CallerMod,LookupMod,Cut) */
+    Store_2(Meta_jmp,0)		/* (Goal,CallerMod,LookupMod,Cut) */
     Store_i(Code_end)
 
 /*
@@ -419,7 +438,7 @@ code_init(int flags)
     Make_Default_Prefix(d_.wake);
     if (flags & INIT_SHARED)
     {
-	Kernel_Proc(d_.wake, ARGFIXEDWAM, code);
+	Exported_Kernel_Proc(d_.wake, ARGFIXEDWAM, code);
     }
     Store_2(Wake_init, Esize(1))
     Store_i(Wake)
@@ -449,7 +468,7 @@ code_init(int flags)
     Store_3(MoveAMAM, Address(2), Address(3))
     Store_3(MoveLAM, Esize(1), Address(4))
     Store_i(Deallocate)
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     Store_i(Code_end)
 
 /*
@@ -479,7 +498,7 @@ code_init(int flags)
     Store_3(MoveAMAM, Address(2), Address(3))
     Store_3(MoveLAM, Esize(2), Address(4))
     Store_i(Deallocate)
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     Store_i(Code_end)
 
 /*
@@ -499,12 +518,12 @@ code_init(int flags)
     Store_3(Try_me_else, NO_PORT, 4)
     aux = code++;
     Store_3(MoveAMAM, Address(3), Address(2))
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     *(vmcode**)aux = code;
     Store_2(Trust_me, NEXT_PORT)
     Store_3(MoveAMAM, Address(2), Address(1))
     Store_3(MoveAMAM, Address(3), Address(2))
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     Store_i(Code_end);
 
 /*
@@ -538,12 +557,12 @@ code_init(int flags)
     Store_3(MoveAMAM, Address(2), Address(3))
     Store_3(MoveLAM, Esize(3), Address(4))
     Store_i(Deallocate)
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     *(vmcode**)aux = code;
     Store_2(Trust_me, NEXT_PORT)
     Store_3(MoveAMAM, Address(5), Address(1))
     Store_3(MoveAMAM, Address(3), Address(2))
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     Store_i(Code_end);
 
 
@@ -578,12 +597,12 @@ code_init(int flags)
     Store_3(MoveAMAM, Address(2), Address(3))
     Store_3(MoveLAM, Esize(3), Address(4))
     Store_i(Deallocate)
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     *(vmcode**)aux = code;
     Store_2(Trust_me, NEXT_PORT)
     Store_3(MoveAMAM, Address(5), Address(1))
     Store_3(MoveAMAM, Address(3), Address(2))
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     Store_i(Code_end);
 
 
@@ -796,13 +815,13 @@ code_init(int flags)
     Make_Default_Prefix(d_.exit_block);
     if (flags & INIT_SHARED)
     {
-	Kernel_Proc(d_.exit_block, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB,code);
+	Exported_Kernel_Proc(d_.exit_block, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB,code);
     }
     do_exit_block_code_ = code;
     Store_i(Throw)
     Store_3(MoveAMAM, Address(2), Address(3))
     Store_2(SavecutAM, Address(4))
-    Store_i(Meta_jmp)
+    Store_2(Meta_jmp,0)
     Store_i(Code_end);
 
 
@@ -889,7 +908,7 @@ code_init(int flags)
     Make_Default_Prefix(d_.true0);
     if (flags & INIT_SHARED)
     {
-	Kernel_Proc(d_.true0, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
+	Exported_Kernel_Proc(d_.true0, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
     }
     Store_i(Retd)
     Store_i(Code_end);
@@ -927,7 +946,7 @@ code_init(int flags)
     Make_Default_Prefix(did1)
     if (flags & INIT_SHARED)
     {
-	Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF, code);
+	Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DF, code);
     }
     Store_2(Gc, 1);
     Store_i(Ret)
@@ -970,7 +989,7 @@ code_init(int flags)
     Make_Default_Prefix(did1)
     if (flags & INIT_SHARED)
     {
-	Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
+	Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
     }
     Store_2(Integer_range_switchAM, Address(1))
     aux = code++;
@@ -1075,7 +1094,7 @@ code_init(int flags)
  */
     did1 = in_dict("repeat", 0);
     Allocate_Default_Procedure(9, did1);
-    Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
+    Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
     aux = code;
     Store_4(Try, NO_PORT, 0, aux + 7)
     Store_3(Retry_me_else, NEXT_PORT, aux + 4)

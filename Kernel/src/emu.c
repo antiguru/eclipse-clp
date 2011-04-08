@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.19 2011/03/23 05:04:17 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.20 2011/04/08 07:05:09 jschimpf Exp $
  */
 
 /*
@@ -4002,7 +4002,7 @@ _try_par_1_:	/* (i:alt, tmp1:arity, back_code, err_code) */
 		DBG_PORT = NO_PORT;
 		if (LOAD < 0)
 		    LOAD = LoadReleaseDelay;	/* reinit countdown */
-                back_code = BBp(B.args);        /* backtrack to same point */
+                back_code = (emu_code) BBp(B.args); /* backtrack to same point */
 		goto _read_choice_point_;	/* (pw2,err_code,back_code) */
 	    } else {
 #ifdef PB_MAINTAINED
@@ -5451,10 +5451,12 @@ _do_fail_:
 	    A[2] = A[3];
 	    A[3] = scratch_pw;
 	    DBG_PORT = CALL_PORT|LAST_CALL;
-	    i = PRI_EXPORTEDONLY;
+	    err_code = PRI_EXPORTEDONLY;
+            i = 0;
 	    goto _anycall_;
 
 	Case(Meta_jmp, I_Meta_jmp)	/* tail-recursive metacall */
+            i = PP->nint;               /* # of additional arguments */
 	    if (Deterministic) {
 		Pop_Ret_Code
 	    } else {
@@ -5462,27 +5464,28 @@ _do_fail_:
 		Set_Det
 	    }
 	    DBG_PORT = CALL_PORT|LAST_CALL;
-	    i = 0;
+	    err_code = 0;
 	    goto _anycall_;
 
 	Case(Metacall, I_Metacall)	/* (Goal, CallerMod, LookupMod, Cut) */
 	    PP++;			/* skip environment size	*/
 	    DBG_PORT = CALL_PORT;
 	    Set_Det
-	    i = 0;
-_anycall_:				/* (pw1,DBG_PORT,i) */
+	    err_code = 0;
+            i = 0;
+_anycall_:				/* (pw1,DBG_PORT,err_code,i) */
 #ifdef USE_LAST_FLAG
 	    DBG_PORT |= FIRST_CALL;
 #else
 	    DBG_PORT |= FIRST_CALL|LAST_CALL;
 #endif
-	    pw1 = &A[3];		/* lookup module	*/
+	    pw1 = &A[3+i];		/* lookup module	*/
 	    tmp1 = pw1->tag.kernel;		/* check lookup module */
 	    if (ISRef(tmp1)) {
 		Dereference_Pw_Tag(pw1,tmp1)	/* rare case! */
 		if (ISRef(tmp1)) {
 		    err_code = INSTANTIATION_FAULT;
-		    goto _metacall_err_;
+		    goto _metacall_err_in_goal_;
 		}
 	    }
 	    if (!IsTag(tmp1,TDICT)) {
@@ -5490,7 +5493,7 @@ _anycall_:				/* (pw1,DBG_PORT,i) */
 		    pw1->val.did = d_.nil;
 		else {
 		    err_code = TYPE_ERROR;
-		    goto _metacall_err_;
+		    goto _metacall_err_in_goal_;
 		}
 	    }
 	    pw2 = pw1;				/* dereferenced lookup module */
@@ -5518,113 +5521,149 @@ _anycall_:				/* (pw1,DBG_PORT,i) */
 		    err_code = TYPE_ERROR;
 		goto _metacall_err_in_goal_;
 	    }
+            /* correct val_did for call/2..N */
+            tmp1 = DidArity(val_did);
+            if (i > 0) {
+                val_did = add_dict(val_did, tmp1+i);
+            }
 	    if (!IsModule(pw2->val.did)) {
 		err_code = NO_LOOKUP_MODULE;
-		goto _metacall_err_;
+		goto _metacall_err_call_;       /* (err_code,val_did,tmp1,i,pw1) */
 	    } 
 	    Export_B_Sp_Tg_Tt
-	    proc = visible_procedure(val_did, pw2->val.did, pw2->tag, i);
+	    proc = visible_procedure(val_did, pw2->val.did, pw2->tag, err_code);
 	    Import_None
 	    if( proc == (pri*) 0) {
 		Get_Bip_Error(err_code);
 		if (err_code == NOENTRY)
 		    err_code = CALLING_UNDEFINED;
-		goto _metacall_err_;
+		goto _metacall_err_call_;       /* (err_code,val_did,tmp1,i,pw1) */
 	    }
 	    DBG_INVOC = 0;
 
-	    /* first check for special goals ,/2 ;/2 ->/2 !/0	*/
-	if (proc->module_ref == d_.kernel_sepia)
-	{
-	    if(val_did == d_.comma) {
-		/* call((Goal1 , Goal2), CM,    LM, Cut)
-		 *  ','(Goal1,           Goal2, CM, Cut)	*/
-		A[3] = A[2];
-		A[1] = *(++pw1);
-		A[2] = *(++pw1);
-		Push_Ret_Code(PP)
-		Check_Local_Overflow;
-		PP = (emu_code) CodeStart(comma_body_code_);
-		DBG_PORT = NO_PORT;	/* don't trace, treat as inlined */
-		goto _exec_prolog_;
-	    }
-	    else if(val_did == d_.semicolon) {
-		Push_Ret_Code(PP)
-		Check_Local_Overflow;
-		pw2 = ++pw1;
-		Dereference_Pw(pw2)
-		if (IsStructure(pw2->tag) && (
-			( pw2->val.ptr->val.did == d_.cond
-			&& (PP = (emu_code) CodeStart(cond3_body_code_)))
-		    ||
-			( pw2->val.ptr->val.did == d_.softcut
-			&& (PP = (emu_code) CodeStart(softcut5_body_code_)))))
-		{
-		    /*
-		     * Map      call((G1->G2;G3), CM, LM, Cut)
-		     *  into     ';'(G1,          G2, CM, Cut, G3)
-		     * or       call((G1*->G2;G3), CM, LM, Cut)
-		     *  into softcut(G1,           G2, CM, Cut, G3)
-		     */
-		    A[3] = A[2];
-		    A[5] = *(++pw1);
-		    pw1 = pw2->val.ptr + 1;
-		    A[1] = *pw1++;
-		    A[2] = *pw1;
-		} else {		/* simple disjunction */
-		    /* call((G1;G2), CM, LM, Cut)
-		     *  ';'(G1,      G2, CM, Cut)	*/
-		    A[3] = A[2];
-		    A[1] = *pw2;
-		    A[2] = *(++pw1);
-		    PP = (emu_code) CodeStart(semic_body_code_);
-		}
-		DBG_PORT = NO_PORT;	/* don't trace, treat as inlined */
-		goto _exec_prolog_;
-	    } else if(val_did == d_.cond) {	/* simple ->/2 */
-		/* call((G1;G2), CM, LM, Cut)
-		 * '->'(G1,      G2, CM, Cut)	*/
-		A[3] = A[2];
-		A[1] = *(++pw1);
-		A[2] = *(++pw1);
-		Push_Ret_Code(PP)
-		Check_Local_Overflow;
-		PP = (emu_code) CodeStart(cond_body_code_);
-		DBG_PORT = NO_PORT;	/* don't trace, treat as inlined */
-		goto _exec_prolog_;
-	    } else if(val_did == d_.cut) {	/* !/0 ==> cut_to(Cut) */
-		pw2 = &A[4];
-		A[1] = *pw2;
-		Push_Ret_Code(PP)
-		Check_Local_Overflow;
-		PP = (emu_code) CodeStart(cut_to_code_);
-		goto _exec_prolog_;
-	    }
+	    /* first check for control constructs ,/2 ;/2 ->/2 !/0	*/
+            if (proc->module_ref == d_.kernel_sepia)
+            {
+                if(val_did == d_.comma) {
+                    Push_Ret_Code(PP)
+                    Check_Local_Overflow;
+                    PP = (emu_code) CodeStart(comma_body_code_);
+_move_control_args_:
+                    /* make ','(Goal1, Goal2, CM, Cut) */
+                    if (i==0) {
+                        /* from call(','(Goal1, Goal2), CM, LM, Cut) */
+                        A[3] = A[2];    /* CM */
+                        A[1] = pw1[1];  /* Goal1 */
+                        A[2] = pw1[2];  /* Goal2 */
+                    } else if (i==1) {
+                        /* from call(','(Goal1), Goal2, CM, LM, Cut) */
+                        A[1] = pw1[1];  /* Goal1 */
+                        A[4] = A[5];    /* Cut */
+                    } else {
+                        /* from call(',', Goal1, Goal2, CM, LM, Cut) */
+                        A[1] = A[2];    /* Goal1 */
+                        A[2] = A[3];    /* Goal2 */
+                        A[3] = A[4];    /* CM */
+                        A[4] = A[6];    /* Cut */
+                    }
+                    DBG_PORT = NO_PORT;	/* don't trace, treat as inlined */
+                    goto _exec_prolog_;
 
-	}
-	    pw3 = &A[2];			/* caller module */
-	    tmp1 = DidArity(val_did);		/* general metacall	*/
+                } else if(val_did == d_.semicolon) {
+                    Push_Ret_Code(PP)
+                    Check_Local_Overflow;
+                    pw2 = i<2? &pw1[1]: &A[2];  /* lhs */
+                    Dereference_Pw(pw2)
+                    if (IsStructure(pw2->tag) && (
+                            ( pw2->val.ptr->val.did == d_.cond
+                            && (PP = (emu_code) CodeStart(cond3_body_code_)))
+                        ||
+                            ( pw2->val.ptr->val.did == d_.softcut
+                            && (PP = (emu_code) CodeStart(softcut5_body_code_)))))
+                    {
+                        /*
+                         * Map      call((G1->G2;G3), CM, LM, Cut)
+                         *  into     ';'(G1,          G2, CM, Cut, G3)
+                         * or       call((G1*->G2;G3), CM, LM, Cut)
+                         *  into softcut(G1,           G2, CM, Cut, G3)
+                         */
+                        if (i==0) {
+                            /* from call((G1->G2;G3), CM, LM, Cut) */
+                            A[3] = A[2];        /* CM */
+                            /* Cut in place */
+                            A[5] = pw1[2];      /* G3 */
+                        } else if (i==1) {
+                            /* from call(;(G1->G2), G3, CM, LM, Cut) */
+                            /* CM in place */
+                            A[4] = A[5];        /* Cut */
+                            A[5] = A[2];        /* G3 */
+                        } else {
+                            /* from call(;, (G1->G2), G3, CM, LM, Cut) */
+                            A[5] = A[3];        /* G3 */
+                            A[3] = A[4];        /* CM */
+                            A[4] = A[6];        /* Cut */
+                        }
+                        A[1] = pw2->val.ptr[1]; /* G1 */
+                        A[2] = pw2->val.ptr[2]; /* G2 */
+                        DBG_PORT = NO_PORT;	/* don't trace, treat as inlined */
+                        goto _exec_prolog_;
+                    }
+                    /* simple disjunction */
+                    PP = (emu_code) CodeStart(semic_body_code_);
+                    goto _move_control_args_;
 
-	    /* PriArgPassing(proc) is ARGFIXEDWAM or ARGFLEXWAM */
+                } else if(val_did == d_.cond) {	/* simple ->/2 */
+                    Push_Ret_Code(PP)
+                    Check_Local_Overflow;
+                    PP = (emu_code) CodeStart(cond_body_code_);
+                    goto _move_control_args_;
+
+                } else if(val_did == d_.cut) {	/* !/0 ==> cut_to(Cut) */
+                    pw2 = &A[4];
+                    A[1] = *pw2;
+                    Push_Ret_Code(PP)
+                    Check_Local_Overflow;
+                    PP = (emu_code) CodeStart(cut_to_code_);
+                    goto _exec_prolog_;
+                }
+            }
+
+            /*
+             * general goal (val_did,tmp1=orig_arity,i=extra_args,pw1=struct)
+	     * PriArgPassing(proc) is ARGFIXEDWAM or ARGFLEXWAM
+             */
 	    {
-_call_structure_reg_:	/* (DBG_PORT, DBG_INVOC, proc, tmp1, pw1, pw3(module)) */
+_call_structure_reg_:	/* (DBG_PORT, DBG_INVOC, proc, tmp1, pw1, A[2](module)) */
 		Mark_Prof(_call_structure_reg_)
-		pw2 = &A[0];			/* copy arguments */
-		if (PriFlags(proc) & TOOL)
-		    pw2[tmp1+1] = *pw3;		 /* must be done first */
-		switch((unsigned) tmp1) {
-		default:
-		    do
-			pw2[tmp1] = pw1[tmp1];
-		    while (--tmp1 > 6);
-		case 6: pw2[6] = pw1[6];
-		case 5: pw2[5] = pw1[5];
-		case 4: pw2[4] = pw1[4];
-		case 3: pw2[3] = pw1[3];
-		case 2: pw2[2] = pw1[2];
-		case 1: pw2[1] = pw1[1];
-		case 0: ;
-		}
+
+                /* Shift the extra args of call/2+ and caller module */
+                if (PriFlags(proc) & TOOL) ++i;
+                if (tmp1 > 1) {
+
+                    /* move extra arguments last-to-first */
+                    pw2 = &A[0];
+                    for(; i>0; --i) pw2[tmp1+i] = pw2[1+i];
+
+                    /* get the arguments from the goal structure */
+                    switch((unsigned) tmp1) {
+                        default:
+                            do pw2[tmp1] = pw1[tmp1];
+                            while (--tmp1 > 6);
+                        case 6: pw2[6] = pw1[6];
+                        case 5: pw2[5] = pw1[5];
+                        case 4: pw2[4] = pw1[4];
+                        case 3: pw2[3] = pw1[3];
+                        case 2: pw2[2] = pw1[2];
+                        case 1: pw2[1] = pw1[1];
+                    }
+                } else if (tmp1 == 1) {
+                    /* extra args are already in the right place */
+                    A[1] = pw1[1];
+                } else { /* tmp1==0 */
+                    /* move extra arguments first-to-last */
+                    for(pw2=&A[1]; i>0; --i,++pw2) pw2[0] = pw2[1];
+                }
+
 _call_prolog_:		/* (DBG_INVOC, DBG_PORT, proc) */
 		Push_Ret_Code(PP)
 		Check_Local_Overflow;
@@ -5690,21 +5729,42 @@ _metacall_port_:	/* (proc) */
 	    }
 	    Next_Pp;
 
-_metacall_err_in_goal_:	/* (err_code, goal in A1, caller in A2, lookup in A3) */
-	    pw1 = TG;		/* error(N, call(Goal), Caller, Lookup) */
-	    TG += 2;
-	    pw1[0].val.did = d_.call;
-	    pw1[0].tag.kernel = TDICT;
-	    pw1[1] = A[1];
-	    A[1].val.ptr = pw1;
+_metacall_err_in_goal_:	/* (err_code, goal in A1, i, caller in A2+i, lookup in A3+i,i) */
+	    pw2 = TG;
+	    TG += 2+i;
+	    pw2[0].val.did = in_dict("call",1+i);
+	    pw2[0].tag.kernel = TDICT;
+            pw2[1] = A[1];              /* copy Goal */
+	    A[1].val.ptr = pw2;
 	    A[1].tag.kernel = TCOMP;
+            pw2 += 2;
+            goto _metacall_err_2_;
 
-_metacall_err_:		/* (err_code, goal in A1, caller in A2, lookup in A3) */
-	    A[4] = A[3];		/* error(N, Goal, Caller, Lookup) */
-	    A[3] = A[2];
-	    A[2] = A[1];
+_metacall_err_call_:	/* (err_code,val_did,i,pw1=&args[0..tmp1]) */
+            if (DidArity(val_did) == 0) {
+                A[1].val.did = val_did;
+                A[1].tag.kernel = TDICT;
+            } else {
+                pw2 = TG;
+                TG += 1+tmp1+i;
+                A[1].val.ptr = pw2;
+                A[1].tag.kernel = TCOMP;
+                pw2->val.did = val_did;
+                pw2++->tag.kernel = TDICT;
+                for(; tmp1>0; --tmp1) *pw2++ = *++pw1;
+            }
+_metacall_err_2_:                       /* (err_code,i,pw2,A[1,2,3]) */
+            pw1 = &A[2];
+            for(; i>0; --i) *pw2++ = *pw1++;    /* extra args */
+            if (pw1 >= &A[3]) {
+                A[3] = pw1[0];          /* caller module */
+                A[4] = pw1[1];          /* lookup module */
+            } else {
+                A[4] = pw1[1];          /* lookup module */
+                A[3] = pw1[0];          /* caller module */
+            }
+            A[2] = A[1];                /* call(...) */
 	    goto _regular_err_2_;	/* (err_code, A2, A3, A4)	*/
-
 
 
 	Case(Suspension_jmp, I_Suspension_jmp)		/* suspension in A[1] */
@@ -5724,7 +5784,7 @@ _susp_call_:
 		Next_Pp;		/* ok, already woken	*/
 	    }
 _susp_wake_:					/* suspension in pw2 */
-	    pw3 = &pw2[SUSP_MODULE];
+	    A[2] = pw2[SUSP_MODULE];
 	    proc = (pri*) pw2[SUSP_PRI].val.wptr;
 	    pw1 = &pw2[SUSP_GOAL];		/* find the arguments */
 	    Dereference_Pw_Tag(pw1, tmp1)
@@ -5750,7 +5810,8 @@ _susp_wake_:					/* suspension in pw2 */
 		Set_Susp_Dead(pw2);
 	    }
 	    /* PriArgPassing(proc) is ARGFIXEDWAM or ARGFLEXWAM */
-	    goto _call_structure_reg_; /* (DBG_PORT,DBG_INVOC,proc,tmp1,pw1,pw3) */
+            i=0;
+	    goto _call_structure_reg_; /* (DBG_PORT,DBG_INVOC,proc,tmp1,pw1,A[2],i) */
 
 
 	Case(Handler_call, I_Handler_call)	/* A[1] signal number */

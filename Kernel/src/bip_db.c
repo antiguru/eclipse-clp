@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.12 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.13 2011/04/08 07:05:09 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -129,6 +129,7 @@ static int
     p_visible_term_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6),
     p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value vlm, type tlm, value vcm, type tcm),
     p_trimcore(void),
+    p_create_call_n(value vn, type tn, value va, type ta),
     p_mode(value pv, type pt, value mv, type mt);
 
 static int	_type_did(pword*, dident*);
@@ -344,6 +345,7 @@ bip_db_init(int flags)
     (void) local_built_in(in_dict("visible_term_macro", 6), p_visible_term_macro, B_SAFE);
     (void) local_built_in(in_dict("illegal_macro", 5), p_illegal_macro, B_SAFE);
     (void) local_built_in(in_dict("visible_goal_macro", 4), p_visible_goal_macro, B_UNSAFE);
+    (void) local_built_in(in_dict("create_call_n", 2), p_create_call_n, B_UNSAFE);
     local_built_in(in_dict("module_predicates", 3), p_module_predicates, B_UNSAFE)
 	-> mode = BoundArg(2, GROUND);
 #ifdef lint
@@ -855,6 +857,19 @@ Not_Available_Built_In(p_external)
 Not_Available_Built_In(p_b_external)
 Not_Available_Built_In(p_external_body)
 #endif
+
+
+/*
+ * Lazily materialise call/n etc
+ */
+
+static int
+p_create_call_n(value vn, type tn, value va, type ta)
+{
+    Check_Atom(tn)
+    Check_Integer(ta)
+    return ec_create_call_n(add_dict(vn.did, va.nint));
+}
 
 
 /* ********************************************************************

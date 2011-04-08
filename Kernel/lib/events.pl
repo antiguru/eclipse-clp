@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.10 2011/04/01 03:40:00 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.11 2011/04/08 07:06:01 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -128,32 +128,74 @@ error_handler(X, Where, CM, LM) :-
 
 
 % avoid loops by recursive calls due to macros
-call_handler(X, Where, Module, LM) :- 
-	atom(Module),		% The context module is not checked yet,
-	is_a_module(Module),	% since this is normally done by the callee!
+call_handler(X, Where, CM, LM) :- 
+	atom(CM),		% The context module is not checked yet,
+	is_a_module(CM),	% since this is normally done by the callee!
 	!,
-	error_id(X, Msg), 
-	% First remove 'm' or 'M' from the output flags so that we don't
-	% hit undefined 'print attribute' predicates
-	output_mode(Mode),
-	string_list(Mode, ModeL),
-	(member(0'm, ModeL) ->
-	    delete(0'm, ModeL, NewModeL)
-	;
-	member(0'M, ModeL) ->
-	    delete(0'M, ModeL, NewModeL)
-	;
-	    NewModeL = ModeL
-	),
-	string_list(NewMode, NewModeL),
-	% And then disable write macros. This unfortunately also disables
-	% goal macros which would not loop anyway...
-	concat_string(['%w %', NewMode, 'Tw in module %w%n'], Format),
-	( Module == LM -> QualWhere = Where ; QualWhere = LM:Where ),
-	printf_body(error, Format, [Msg,QualWhere,Module], Module),
-	error(157, _).
-call_handler(_, Where, Module, _) :- 
-	error(80, Where@Module).
+        ( try_create_pred(Where, LM) ->
+            ( LM==CM ->
+                call(Where)@CM
+            ;
+                :@(LM, Where, CM)
+            )
+        ;
+            error_id(X, Msg), 
+            % First remove 'm' or 'M' from the output flags so that we don't
+            % hit undefined 'print attribute' predicates
+            output_mode(Mode),
+            string_list(Mode, ModeL),
+            (member(0'm, ModeL) ->
+                delete(0'm, ModeL, NewModeL)
+            ;
+            member(0'M, ModeL) ->
+                delete(0'M, ModeL, NewModeL)
+            ;
+                NewModeL = ModeL
+            ),
+            string_list(NewMode, NewModeL),
+            % And then disable write macros. This unfortunately also disables
+            % goal macros which would not loop anyway...
+            concat_string(['%w %', NewMode, 'Tw in module %w%n'], Format),
+            ( CM == LM -> QualWhere = Where ; QualWhere = LM:Where ),
+            printf_body(error, Format, [Msg,QualWhere,CM], CM),
+            error(157, _)
+        ).
+call_handler(_, Where, CM, _) :- 
+	error(80, Where@CM).
+
+try_create_pred(Where, LM) :-
+        functor(Where, Name, Arity),
+        multi_arity_pred(Name, Arity, Tool, Body, Proto),
+        Body = BName/N1,
+        N1 < get_flag(max_predicate_arity),
+        % is the visible prototype the sepia_kernel one?
+        get_flag(Proto, definition_module, sepia_kernel)@LM,
+        % Create the body, unless it exists already
+        ( get_flag(Body, defined, on) ->
+            true
+        ;
+            create_call_n(BName, N1)
+        ),
+        % Create the tool, unless it exists already
+        ( get_flag(Tool, tool, on) ->
+            true
+        ;
+            tool(Tool, Body),
+            export(Tool)
+        ),
+        % Create same visibility as Proto
+        ( get_flag(Proto, visibility, imported)@LM ->
+            (import Tool from sepia_kernel)@LM
+        ; get_flag(Proto, visibility, reexported)@LM ->
+            (reexport Tool from sepia_kernel)@LM
+        ;
+            true
+        ).
+
+multi_arity_pred(call,  N,  call/N, call_/N1, call/1) :- N1 is N+1, N>1.
+multi_arity_pred(call_, N1, call/N, call_/N1, call/1) :- N is N1-1, N>1.
+multi_arity_pred((:),   N,  (:)/N,  (:@)/N1,  (:)/2)  :- N1 is N+1, N>2.
+multi_arity_pred((:@),  N1, (:)/N,  (:@)/N1,  (:)/2)  :- N is N1-1, N>2.
 
 
 % Handler for error 86 - lookup module does not exist.

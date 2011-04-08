@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.27 2011/04/01 07:12:07 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.28 2011/04/08 07:06:01 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -179,7 +179,8 @@
    tool(get_syntax/2, get_syntax_/3),
    tool((@)/2, (@)/3),
    tool((\+)/1, fail_if_body/2),
-   tool(call/1, untraced_call/2),
+   tool(call/1, call_/2),
+   tool(call/2, call2_/3),
    tool(call_local/1, call_local/2),
    tool(current_record/1, current_record_body/2),
    tool(set_syntax/2, set_syntax_/3),
@@ -2035,6 +2036,15 @@ call_explicit_body(Goal, DefMod, CallerMod) :-
 '[]:@'(LookupMod, Goal, CallerMod) :-
 	:@(LookupMod, Goal, CallerMod).
 
+
+% Backward compatibility:
+call2_(Goal, CM, _) :-
+        atom(CM),
+        is_a_module(CM),
+        !,
+        call(Goal)@CM.
+call2_(Goal, Arg, CM) :-
+        call_(Goal, Arg, CM).
 
 
 %
@@ -3903,6 +3913,7 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	block_atomic/3,
 	bytes_to_term/2,
 	call/1,
+	call/2,
 	call_boxed/5,
 	call_boxed/6,
 	call_explicit/2,

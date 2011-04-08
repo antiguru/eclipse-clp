@@ -1,7 +1,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Copyright:	This file is in the public domain
-% Version:	$Id: swi.ecl,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: swi.ecl,v 1.6 2011/04/08 07:06:01 jschimpf Exp $
 % Description:	SWI Prolog compatibility package
 % ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@
 :- comment(summary, 'SWI-Prolog compatibility package').
 :- comment(author, 'J Chamois').
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, '$Date: 2010/07/25 13:29:05 $').
+:- comment(date, '$Date: 2011/04/08 07:06:01 $').
 :- comment(desc, html('
     This library is incomplete, and intended to ease the task of
     porting SWI-Prolog programs to ECLiPSe Prolog, or to add modules
@@ -166,19 +166,7 @@ unifiable(X, Y, Unifier) :-
 t_ignore(ignore(Goal), (Goal->true;true)).
 :- tool(ignore/1, ignore_/2).
 ignore_(Goal, Module) :-
-	( @(call(Goal),Module) -> true ; true ).
-
-:- export call/2, call/3, call/4, call/5, call/6.
-:- tool(call/2, call_/3).
-call_(G, A1, M) :- G=..L, append(L,[A1],L1), G1=..L1, @(call(G1),M).
-:- tool(call/3, call_/4).
-call_(G, A1, A2, M) :- G=..L, append(L,[A1,A2],L1), G1=..L1, @(call(G1),M).
-:- tool(call/4, call_/5).
-call_(G, A1, A2, A3, M) :- G=..L, append(L,[A1,A2,A3],L1), G1=..L1, @(call(G1),M).
-:- tool(call/5, call_/6).
-call_(G, A1, A2, A3, A4, M) :- G=..L, append(L,[A1,A2,A3,A4],L1), G1=..L1, @(call(G1),M).
-:- tool(call/6, call_/7).
-call_(G, A1, A2, A3, A4, A5, M) :- G=..L, append(L,[A1,A2,A3,A4,A5],L1), G1=..L1, @(call(G1),M).
+	( call(Goal)@Module -> true ; true ).
 
 
 % Signals

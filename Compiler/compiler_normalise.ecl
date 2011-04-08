@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.20 2010/07/25 13:29:04 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.21 2011/04/08 07:07:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2010/07/25 13:29:04 $").
+:- comment(date, "$Date: 2011/04/08 07:07:33 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -365,15 +365,18 @@ normalize_goal(G, AnnG, _, _, _, _, _, _, _, _, LM, _) :-
 
     % Look up relevant properties of the called predicate.
     % If it is not known yet, assume defaults (regular, non-tool, []-module).
-    get_pred_info(ReqVis, LM, Pred, DM, ToolBody, CallType) :-
+    get_pred_info(ReqVis, LM, Pred0, DM, ToolBody, CallType) :-
 	(
 	    current_module(LM),
+            virtual_pred(Pred0, Pred, Extra),
 	    get_flag(Pred, visibility, Vis)@LM,
 	    required_visibility(ReqVis, Vis)
 	->
 
 	    ( get_flag(Pred, tool, on)@LM ->
-		tool_body(Pred, ToolBody, DM)@LM
+		tool_body(Pred, Body/N, DM)@LM,
+                N1 is N+Extra,
+                ToolBody = Body/N1
 	    ;
 		ToolBody = none,
 		get_flag(Pred, definition_module, DM)@LM
@@ -387,6 +390,11 @@ normalize_goal(G, AnnG, _, _, _, _, _, _, _, _, LM, _) :-
     required_visibility(any, _) :- !.
     required_visibility(exported, exported) :- !.
     required_visibility(exported, reexported).
+
+    % Pretend existence of call/Any and :/Any
+    virtual_pred(Pred, Pred, 0).
+    virtual_pred(call/N, call/1, Extra) :- N>1, Extra is N-1.
+    virtual_pred((:)/N, (:)/2, Extra) :- N>2, Extra is N-2.
 
 
 normalize_left_branch((G1->G2), Ann, DisjCallPos, BranchNr0, BranchNr, Cut, DisjCut, Vs0, Vs, Branches, Branches0, _LM, CM) ?- !,

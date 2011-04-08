@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.6 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.7 2011/04/08 07:05:09 jschimpf Exp $
  */
 
 /*
@@ -1190,7 +1190,7 @@ _std_did_init(void)
 	d_.block =	in_dict("block", 3);
 	d_.exit_block = in_dict("exit_block",1);
 	d_.call = 	in_dict("call", 1);
-	d_.call_body = 	in_dict("call", 2);
+	d_.call_body = 	in_dict("call_", 2);
 	d_.metacall = 	in_dict("call", 3);
 	d_.go = 	in_dict("go", 0);
 	d_.break0 =	in_dict("break", 0);

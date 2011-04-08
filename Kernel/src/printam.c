@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.6 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.7 2011/04/08 07:05:09 jschimpf Exp $
  */
 
 /*
@@ -963,6 +963,7 @@ print_am(register vmcode *code,
 	case Puts_integer:
 	case Exit_emulator:
 	case Bounce:
+	case Meta_jmp:
 		Integer;
 		break;
 
@@ -1322,7 +1323,6 @@ print_am(register vmcode *code,
 	case Restore_bp:
 	case Catch:
 	case Throw:
-	case Meta_jmp:
 	case Suspension_jmp:
 	case Explicit_jmp:
 	case Wake:
