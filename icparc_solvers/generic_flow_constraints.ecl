@@ -69,7 +69,7 @@ alldifferent_matrix_internal(Matrix,Lib):-
             Lib: alldifferent(ColVars)
         ),
         check_alldifferent_matrix(Matrix),
-        flatten_array(Matrix,List),
+        term_variables(Matrix,List),
         (ground(List) ->
             true
         ;
@@ -197,7 +197,7 @@ gcc_matrix_internal(Row,Col,Matrix,GccLib):-
             GccLib:gcc(ColLimits,ColVars)
         ),
         check_gcc_matrix(Matrix,Limits,MaxRows,MaxCols),
-        flatten_array(Matrix,List),
+        term_variables(Matrix,List),
         (ground(List) ->
             true
         ;
