@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.8 2011/04/09 00:20:27 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.9 2011/04/09 16:29:42 jschimpf Exp $
  */
 
 /*
@@ -503,6 +503,10 @@ _quote_:
 			if (sd->options & ISO_ESCAPES) goto _return_ill_quoted_;
 			*pw++ = 0177; break;
 
+		    case 's':				/* space */
+			if (sd->options & ISO_ESCAPES) goto _return_ill_quoted_;
+			*pw++ = ' '; break;
+
 		    case 'c':		/* Quintus/Sicstus feature */
 			if (sd->options & ISO_ESCAPES) goto _return_ill_quoted_;
 			do {
@@ -687,7 +691,7 @@ _symbol_:
 
 
     case N:
-	pligne = string_to_number((char *) pligne - 1, &token->term, nst, sd->options);
+	pligne = string_to_number((char *) pligne - 1, &token->term, nst, sd);
 	tok = token->term.tag.kernel == TEND ? BAD_NUMERIC_CONSTANT :
 		tok == BLANK_SPACE ? SPACE_NUMBER :
 		NUMBER;
@@ -1422,7 +1426,7 @@ extern double infinity();
 #endif
 
 /*
- * char *string_to_number(start, result, nst)
+ * char *string_to_number(start, result, nst, sd)
  *
  * 	Auxiliary function used to convert a string (pointed to by start)
  *	to a number. The result is a prolog word in *result
@@ -1433,7 +1437,8 @@ extern double infinity();
  *	The function can be used both for parsing from a stream (nst)
  *	or for parsing a string (when nst == NULL).
  *	StreamPtr is updated according to the return value.
- *	This function is independent of character classes.
+ *	This function is independent of character classes, except
+ *      for the escape sequences.
  *	For better backward compatibility, based integers are 
  *	not parsed as bignums (otherwise 16'ffffffff would be a bignum),
  *	unless the based_bignums syntax option is active.
@@ -1476,7 +1481,7 @@ extern double infinity();
 #define PRECISE	16
 
 char *
-string_to_number(char *start, pword *result, stream_id nst, int syntax)
+string_to_number(char *start, pword *result, stream_id nst, syntax_desc *sd)
 {
     unsigned register char *t;		/* next character to read */
     unsigned register char *aux;	/* next location in LexAux */
@@ -1487,9 +1492,12 @@ string_to_number(char *start, pword *result, stream_id nst, int syntax)
     register uword iresult = 0;		/* accumulator for integer value */
     double f, low_f;			/* the float result */
     int float_digits = 0;
+    int syntax;
 
     Init_S2N();
     t = (unsigned char *) start;
+    if (!sd) sd = default_syntax;
+    syntax = sd->options;
 
 _start_:
     Get_Ch(c)
@@ -1524,7 +1532,65 @@ _start_:
 	base = iresult;
 	if (base == 0)			/* ascii */
 	{
-	    Get_Ch(c)
+            Get_Ch(c);
+            switch(sd->char_class[c]) {
+            case ES:
+                Get_Ch(c);
+                switch(sd->char_class[c]) {
+                case AQ:        /* 0'\' */
+                case SQ:        /* 0'\" or 0'\` */
+                case LQ:        /* 0'\" */
+                case ES:        /* 0'\\ */
+                    break;
+
+                case LC:        /* 0'\a ... 0'\v */
+                    switch(c) {
+                    case 'a': c = 0007; goto _return_c_;	/* alert */
+                    case 'b': c = '\b'; goto _return_c_;	/* backspace */
+                    case 't': c = '\t'; goto _return_c_;	/* tab */
+                    case 'n': c = '\n'; goto _return_c_;	/* newline */
+                    case 'v': c = 0013; goto _return_c_;	/* vertical tab */
+                    case 'f': c = '\f'; goto _return_c_;	/* form feed */
+                    case 'r': c = '\r'; goto _return_c_;	/* return */
+                    case 'e':                   /* escape */
+                        if (syntax & ISO_ESCAPES) goto return_int3;
+                        c = 0033; goto _return_c_;
+                    case 'd':                   /* delete */
+                        if (syntax & ISO_ESCAPES) goto return_int3;
+                        c = 0177; goto _return_c_;
+                    case 's':                   /* space */
+                        if (syntax & ISO_ESCAPES) goto return_int3;
+                        c = ' '; goto _return_c_;
+                    }
+                    /*fall through*/
+
+                default:        /* unrecognised 0'\? escape sequence */
+                    if (syntax & ISO_ESCAPES) goto return_int3;
+                    /* backward comp: allow plain 0'\ for backslash */
+                    Push_Back();		/* the bad char */
+                    c = '\\';
+                    break;
+                }
+                break;
+
+            case NL:    /* 0'<layout> not allowed in ISO */
+            case BS:
+                if (syntax & ISO_ESCAPES) goto return_int2; /* (iresult) */
+                break;
+
+            case AQ:    /* 0'' */
+                if (syntax & ISO_ESCAPES && syntax & DOUBLED_QUOTE_IS_QUOTE) {
+                    Get_Ch(c);
+                    if (sd->char_class[c] != AQ) goto return_int3;
+                    /* 0''' */
+                }
+                break;
+
+            case SQ:    /* 0'" or 0'` */
+            case LQ:    /* 0'" */
+                break;
+            }
+_return_c_:
 	    result->val.nint = (word) c;
 	    result->tag.kernel = TINT;
 	    goto return_ok;
@@ -1773,6 +1839,10 @@ return_rat:				/* (start, base) */
 	goto return_err;
     goto return_ok;
 
+return_int3:
+    Push_Back();
+return_int2:
+    Push_Back();
 return_int:				/* (flags, iresult, start, base) */
     Push_Back();			/* pushback the delimiter */
     if (flags & IVL) goto return_err;

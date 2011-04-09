@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: lex.h,v 1.3 2010/04/11 02:36:01 jschimpf Exp $
+ * VERSION	$Id: lex.h,v 1.4 2011/04/09 16:29:42 jschimpf Exp $
  */
 
 /*
@@ -180,4 +180,5 @@ typedef struct {
 
 Extern int lex_an ARGS((stream_id, syntax_desc*, token_desc *));
 Extern int ec_need_quotes ARGS((dident, syntax_desc *));
+Extern char *string_to_number ARGS((char *start, pword *result, stream_id nst, syntax_desc *sd));
 

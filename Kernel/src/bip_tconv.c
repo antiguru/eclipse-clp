@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.4 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.5 2011/04/09 16:29:42 jschimpf Exp $
  */
 
 /*
@@ -46,6 +46,7 @@
 #include 	"dict.h"
 #include	"emu_export.h"
 #include        "io.h"
+#include        "lex.h"
 
 #ifdef HAVE_STRING_H
 #include <string.h>
