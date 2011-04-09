@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.7 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.8 2011/04/09 00:20:27 jschimpf Exp $
  */
 
 /*
@@ -1516,7 +1516,8 @@ _start_:
     } while (isdigit(c));
 
     if (c == '\'') {			/* based integer */
-	if ((flags & BIG) || iresult > 36)
+	if ((flags & BIG) || iresult < 0 || iresult > 36
+            || (iresult < 10 && float_digits > 1) || float_digits > 2)
 	{
 	    goto return_int;
 	}
@@ -1650,7 +1651,7 @@ _based_number_:				/* (base,iresult) */
 	} while (isdigit(c));
 	goto return_rat;
     }
-    else if (syntax & ISO_BASE_PREFIX)
+    else if (syntax&ISO_BASE_PREFIX && iresult==0 && float_digits==1)
     {
 	switch (c) {
 	case 'b': base =  2; goto _based_number_; /* (base,iresult) */

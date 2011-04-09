@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.3 2010/07/25 13:29:05 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.4 2011/04/09 00:20:27 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -1371,9 +1371,16 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 	    {
 		return PSUCCEED;
 	    }
-	    /* Prolog compatibility: an (unquoted) bar in infix
-	     * position is treated as if it were a semicolon */
-	    did0 = pd->sd->options & BAR_IS_NO_ATOM ? d_.semi0 : d_bar0_;
+	    /* Prolog compatibility: an (unquoted) bar in infix position is
+             * treated as if it were a semicolon (for Cprolog/Quintus)
+             * or a syntax error (ISO)
+             */
+            did0 = d_bar0_;
+            if (pd->sd->options & BAR_IS_NO_ATOM) {
+                if (pd->sd->options & ISO_ESCAPES) /* TODO: invent new flag */
+                    return context_flags & PREBINFIRST ? PSUCCEED : POSTINF;
+                did0 = d_.semi0;
+            }
 	    goto _treat_like_atom_;	/* (did0) */
 
 
