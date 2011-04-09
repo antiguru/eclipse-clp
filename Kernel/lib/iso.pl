@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.10 2011/04/09 15:57:57 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.9 2010/07/25 13:29:05 jschimpf Exp $
+% $Id: iso.pl,v 1.10 2011/04/09 15:57:57 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -70,6 +70,7 @@
 	op(1100, xfy, (do)).
 
 :- export
+	syntax_option(not(nl_in_quotes)),
 	syntax_option(iso_escapes),
 	syntax_option(iso_base_prefix),
 	syntax_option(doubled_quote_is_quote),
@@ -88,37 +89,37 @@
 :- comment(categories, [`Compatibility`]).
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
-:- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, `$Date: 2010/07/25 13:29:05 $`).
+:- comment(copyright, `Cisco Systems, Inc`).
+:- comment(date, `$Date: 2011/04/09 15:57:57 $`).
 :- comment(see_also, [library(multifile)]).
-:- comment(desc, html('
-    This library provides a reasonable degree of compatibility with
-    the definition of Standard Prolog as defined in ISO/IEC 13211-1
-    (Information Technology, Programming Languages, Prolog, Part 1: 
-    General Core, 1995).  The areas where the library is not fully
-    compiant are I/O and exception handling.  However it should be
-    sufficient for most applications.  The library is provided in
-    source form.
-    <P>
-    The effect of the compatibility library is local to the module where
-    it is loaded. For maximal ISO-compatibility, an ISO-program should
-    be contained in a  separate module starting with a directive like
-    <PRE>
-    :- module(myisomodule, [], iso).
-    </PRE>
-    In this case, Eclipse-specific language constructs will not be available.
-    <P>
-    If the compatibility package is loaded into a standard module, e.g. like
-    <PRE>
-    :- module(mymixedmdule).
-    :- use_module(library(iso)).
-    </PRE>
-    then ISO and Eclipse language features can be used together. However,
-    ambiguities must be resolved explicitly and confusion may arise from
-    the different meaning of quotes in Eclipse vs ISO.
-    <P>
-    The recommended way is therefore the former one, ie to put code written
-    in different language dialects into different modules.')).
+:- comment(desc, html(`\
+    This library provides a reasonable degree of compatibility with\n\
+    the definition of Standard Prolog as defined in ISO/IEC 13211-1\n\
+    (Information Technology, Programming Languages, Prolog, Part 1: \n\
+    General Core, 1995).  The areas where the library is not fully\n\
+    compiant are I/O and exception handling.  However it should be\n\
+    sufficient for most applications.  The library is provided in\n\
+    source form.\n\
+    <P>\n\
+    The effect of the compatibility library is local to the module where\n\
+    it is loaded. For maximal ISO-compatibility, an ISO-program should\n\
+    be contained in a  separate module starting with a directive like\n\
+    <PRE>\n\
+    :- module(myisomodule, [], iso).\n\
+    </PRE>\n\
+    In this case, Eclipse-specific language constructs will not be available.\n\
+    <P>\n\
+    If the compatibility package is loaded into a standard module, e.g. like\n\
+    <PRE>\n\
+    :- module(mymixedmdule).\n\
+    :- use_module(library(iso)).\n\
+    </PRE>\n\
+    then ISO and Eclipse language features can be used together. However,\n\
+    ambiguities must be resolved explicitly and confusion may arise from\n\
+    the different meaning of quotes in Eclipse vs ISO.\n\
+    <P>\n\
+    The recommended way is therefore the former one, ie to put code written\n\
+    in different language dialects into different modules.`)).
 
 :- export
 	op(200, xfx, (**)).
@@ -187,6 +188,7 @@
 :- pragma(nodebug).
 :- pragma(system).
 
+:- import bip_error/1, set_bip_error/1 from sepia_kernel.
 
 %-----------------------------------------------------------------------
 % 7.4 Directives
@@ -337,7 +339,7 @@ stream_property1(Stream, position(P)) :-
 	at(Stream, P).
 stream_property1(Stream, end_of_stream(P)) :-
 	(at_eof(Stream) -> P = at ; P = not).	% 'past' not available
-stream_property1(Stream, eof_action(default)).
+stream_property1(_Stream, eof_action(default)).
 stream_property1(Stream, reposition(B)) :-
 	get_stream_info(Stream, device, D),
 	repositionable(D, B).
@@ -443,44 +445,92 @@ atom_codes(Atom, List) :-
 	atom_string(Atom, String),
 	string_list(String, List).
 
+
+% number_chars/2 and number_codes/2 are a pain wrt exceptions...
+
 number_chars(Number, Chars) :-			% 8.16.7
-	var(Number),
-	concat_atom(Chars, Atom),
-	chars_are_atoms(Chars, Number, Chars),
-	atom_string(Atom, String0),
-	valid_numstring(String0, String),
-	number_string(Number, String).
-number_chars(Number, Chars) :-
-	nonvar(Number),
-	number_string(Number, String),
-	string_list(String, Codes),
-	chars_codes(Chars, Codes).
+        ( var(Number) ->
+            ( valid_chars(Chars, Chars1) ->
+                concat_string(Chars1, String),
+                valid_numstring(String, String1),
+                number_string(Number, String1)  % read
+            ;
+                bip_error(number_chars(Number, Chars))
+            )
+        ; number(Number) ->
+            number_string(Number, String),      % write
+            string_list(String, Codes),
+            ( chars_codes(Chars, Codes) ->
+                true
+            ; valid_output_chars(Chars) ->
+                ground(Chars),
+                concat_string(Chars, String0),
+                valid_numstring(String0, String1),
+                number_string(Number, String1)  % read
+            ;
+                bip_error(number_chars(Number, Chars))
+            )
+        ;
+            error(5, number_chars(Number, Chars))
+        ).
 
 number_codes(Number, Codes) :-			% 8.16.8
-	var(Number),
-	string_list(String1, Codes),
-	valid_numstring(String1, String),
-	number_string(Number, String).
-number_codes(Number, Codes) :-
-	nonvar(Number),
-	number_string(Number, String),
-	(var(Codes) ->
-	    string_list(String, Codes)
-	;   string_list(String1, Codes),
-	    valid_numstring(String1, String)
-	).
+        ( var(Number) ->
+            string_list(String, Codes),
+            valid_numstring(String, String1),
+            number_string(Number, String1)  % read
+        ; number(Number) ->
+            number_string(Number, NumString),      % write
+            ( string_list(NumString, Codes) ->
+                true
+            ; valid_output_codes(Codes) ->
+                ground(Codes),
+                string_list(String, Codes),
+                valid_numstring(String, String1),
+                number_string(Number, String1)  % read
+            ;
+                bip_error(number_codes(Number, Codes))
+            )
+        ;
+            error(5, number_codes(Number, Codes))
+        ).
 
     chars_codes([], []).
     chars_codes([Char|Chars], [Code|Codes]) :-
 	char_code(Char, Code),
 	chars_codes(Chars, Codes).
 
-    chars_are_atoms([], _, _).
-    chars_are_atoms([Char|Chars], N, Cs) :-
-	((atom(Char), atom_length(Char,1)) ->
-	    chars_are_atoms(Chars, N, Cs) 
-	;   error(5, number_chars(N, Cs))
+    valid_chars([], Ds) ?- !, Ds=[].
+    valid_chars([C|Cs], Ds) ?- !,
+        ( var(C) -> set_bip_error(4)
+        ; atom(C), atom_length(C, 1) ->
+            Ds = [C|Ds1],
+            valid_chars(Cs, Ds1)
+        ;
+            set_bip_error(5)
         ).
+    valid_chars(X, _) :- var(X), !,
+        set_bip_error(4).
+    valid_chars(_, _) :-
+        set_bip_error(5).
+
+    valid_output_chars(X) :- var(X), !.
+    valid_output_chars([]) ?- !.
+    valid_output_chars([C|Cs]) ?-
+        (var(C) ; atom(C), atom_length(C, 1)),
+        !,
+        valid_output_chars(Cs).
+    valid_output_chars(_) :-
+        set_bip_error(5).
+
+    valid_output_codes(X) :- var(X), !.
+    valid_output_codes([]) ?- !.
+    valid_output_codes([C|Cs]) ?-
+        (var(C) ; integer(C)),
+        !,
+        valid_output_codes(Cs).
+    valid_output_codes(_) :-
+        set_bip_error(5).
 
     valid_numstring(String0, String) :-
 	split_string(String0, `\n\r\t `, ``, Strings0),
