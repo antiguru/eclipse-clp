@@ -28,7 +28,7 @@
 :- comment(summary, "Mapping between lists and I/O streams").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Joachim Schimpf, Coninfer Ltd").
-:- comment(date, "$Date: 2010/07/21 23:55:32 $").
+:- comment(date, "$Date: 2011/04/09 23:10:53 $").
 
 %----------------------------------------------------------------------
 % Input
@@ -39,7 +39,7 @@
     args:["Stream":"A stream handle",
     	"Codes":"A variable or (possibly partial) list"],
     amode:(stream_to_lazy_list(+,?) is semidet),
-    see_also:[list_to_stream/2,char_code/2,string_list/2],
+    see_also:[list_to_stream/3,char_code/2,string_list/2],
     desc:html("<P>
     	This predicate makes the content of Stream available as a list of
 	character codes, similar to reading the whole stream content into
