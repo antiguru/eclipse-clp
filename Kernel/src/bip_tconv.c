@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.5 2011/04/09 16:29:42 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.6 2011/04/10 15:17:56 jschimpf Exp $
  */
 
 /*
@@ -47,6 +47,8 @@
 #include	"emu_export.h"
 #include        "io.h"
 #include        "lex.h"
+#include        "property.h"
+#include        "module.h"
 
 #ifdef HAVE_STRING_H
 #include <string.h>
@@ -64,7 +66,7 @@ static int	p_atom_string(value va, type ta, value vs, type ts),
 		p_char_code(value v1, type t1, value v2, type t2), 
 		p_functor(value vt, type t, value vf, type tf, value va, type ta), 
 		p_integer_atom(value vn, type tn, value vs, type ts), 
-		p_number_string(value vn, type tn, value vs, type ts),
+		p_number_string(value vn, type tn, value vs, type ts, value vm, type tm),
 		p_term_hash(value vterm, type tterm, value vdepth, type tdepth, value vrange, type trange, value vhash, type thash),
 		p_canonical_copy(value v, type t, value vi, type ti),
 		p_setarg(value vn, type tn, value vt, type tt, value va, type ta),
@@ -107,7 +109,7 @@ bip_tconv_init(int flags)
 	(void) built_in(in_dict("array_list", 2), p_array_list, B_UNSAFE|U_UNIFY|PROC_DEMON);
 	(void) built_in(in_dict("array_concat", 3), p_array_concat, B_UNSAFE|U_UNIFY|PROC_DEMON);
 	(void) built_in(in_dict("is_array", 1), p_is_array, B_SAFE);
-	built_in(in_dict("number_string",2), p_number_string, B_UNSAFE|U_GROUND)
+	built_in(in_dict("number_string_",3), p_number_string, B_UNSAFE|U_GROUND)
 		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
 
 	(void) built_in(in_dict("term_hash", 4), p_term_hash, B_UNSAFE|U_SIMPLE);
@@ -529,7 +531,7 @@ p_integer_atom(value vn, type tn, value vs, type ts)
  */
 
 static int
-p_number_string(value vn, type tn, value vs, type ts)
+p_number_string(value vn, type tn, value vs, type ts, value vm, type tm)
 {
     pword result;
 
@@ -550,7 +552,8 @@ p_number_string(value vn, type tn, value vs, type ts)
     else if (IsString(ts)		/* string to number */
 	&& (IsRef(tn) || IsNumber(tn)))
     {
-	if (string_to_number(StringStart(vs), &result, (stream_id) 0, 0) ==
+        Check_Module_And_Access(vm, tm);
+	if (string_to_number(StringStart(vs), &result, (stream_id) 0, ModuleSyntax(vm.did)) ==
 		StringStart(vs) + StringLength(vs)
 	    && !IsTag(result.tag.kernel, TEND))
 	{

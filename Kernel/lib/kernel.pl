@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.29 2011/04/10 14:12:33 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.30 2011/04/10 15:18:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -204,6 +204,7 @@
    tool(mutex_one/2, mutex_one_body/3),
    tool(nested_compile_term/1, nested_compile_term_/2),
    tool(nested_compile_term_annotated/2, nested_compile_term_annotated_/3),
+   tool(number_string/2, number_string_/3),
    tool(par_all/2, par_all_body/3),
    tool(par_findall/4, par_findall_body/5),
    tool(par_once/2, par_once_body/3),
