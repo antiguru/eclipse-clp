@@ -25,7 +25,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.5 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: main.c,v 1.6 2011/04/10 14:11:38 jschimpf Exp $
  */
 
 /*
@@ -199,18 +199,6 @@ main(int argc, char **argv)
 		ec_options.allocation = ALLOC_FIXED;
 		break;
 
-	    case 'b':				/* -b <bootfile> */
-		argv[new_argc++] = argv[c];		/* shift */
-		if (++c + 1 > argc) usage(argv[c-1]);
-		argv[new_argc++] = argv[c++];		/* shift */
-		break;
-
-	    case 'e':				/* -e <goal> */
-		argv[new_argc++] = argv[c];		/* shift */
-		if (++c + 1 > argc) usage(argv[c-1]);
-		argv[new_argc++] = argv[c++];		/* shift */
-		break;
-
 	    case 'g':				/* -g <size> */
 		argv[new_argc++] = argv[c];		/* shift */
 		if (++c + 1 > argc) usage(argv[c-1]);
@@ -276,6 +264,17 @@ main(int argc, char **argv)
 		if (++c + 1 > argc) usage(argv[c-2]);
 		argv[new_argc++] = argv[c];		/* shift */
 		ec_options.option_p = atoi(argv[c++]);
+		break;
+
+                /* Options processed by Prolog-level code */
+	    case 'b':				/* -b <bootfile> */
+	    case 'f':				/* -f <file> */
+	    case 'e':				/* -e <goal> */
+	    case 'L':				/* -L <language> */
+	    case 't':				/* -t <module> */
+		argv[new_argc++] = argv[c];		/* shift */
+		if (++c + 1 > argc) usage(argv[c-1]);
+		argv[new_argc++] = argv[c++];		/* shift */
 		break;
 
 	    case '-':				/* -- give the rest to Prolog */
@@ -515,12 +514,15 @@ usage(char *opt)
 {
     ec_bad_exit(
 "Usage:\n\
-    -b <file>       compile or load a boot file\n\
-    -e <goal>       prolog goal to execute\n\
+    -b <file>       compile or load a file on startup (deprecated, same as -f)\n\
+    -f <file>       compile or load a file on startup (.ecl or .eco)\n\
+    -e <goal>       goal to execute (in Prolog syntax)\n\
     -g <kbytes>     global+trail stack size\n\
     -l <kbytes>     local+control stack size\n\
+    -L <language>   default language dialect\n\
     -h <kbytes>     private heap size\n\
     -s <kbytes>     shared heap size\n\
+    -t <module>     name of initial toplevel module\n\
     -d <seconds>    delayed startup\n\
     -D <dir>        installation directory\n\
     --              end of ECLiPSe options\n\
@@ -705,18 +707,6 @@ main(int argc, char **argv)
 		ec_set_option_int(EC_OPTION_ALLOCATION, ALLOC_FIXED);
 		break;
 
-	    case 'b':				/* -b <bootfile> */
-		argv[new_argc++] = argv[c];		/* shift */
-		if (++c + 1 > argc) usage(argv[c-1]);
-		argv[new_argc++] = argv[c++];		/* shift */
-		break;
-
-	    case 'e':				/* -e <goal> */
-		argv[new_argc++] = argv[c];		/* shift */
-		if (++c + 1 > argc) usage(argv[c-1]);
-		argv[new_argc++] = argv[c++];		/* shift */
-		break;
-
 	    case 'g':				/* -g <size> */
 		argv[new_argc++] = argv[c];		/* shift */
 		if (++c + 1 > argc) usage(argv[c-1]);
@@ -779,6 +769,17 @@ main(int argc, char **argv)
 	    case 'o':				/* enable oracles */
 		c += 1;
 		/* vm_options = ORACLES_ENABLED; */
+		break;
+
+                /* Options processed by Prolog-level code */
+	    case 'b':				/* -b <bootfile> */
+	    case 'f':				/* -f <file> */
+	    case 'e':				/* -e <goal> */
+	    case 'L':				/* -L <language> */
+	    case 't':				/* -t <module> */
+		argv[new_argc++] = argv[c];		/* shift */
+		if (++c + 1 > argc) usage(argv[c-1]);
+		argv[new_argc++] = argv[c++];		/* shift */
 		break;
 
 	    case '-':				/* -- give the rest to Prolog */
@@ -869,12 +870,15 @@ usage(char *opt)
 {
     fprintf(stderr,"Bad option: %s\n",opt);
     fprintf(stderr,"Usage:\n");
-    fprintf(stderr,"-b <file>       compile or load a boot file\n");
-    fprintf(stderr,"-e <goal>       prolog goal to execute\n");
+    fprintf(stderr,"-b <file>       compile or load file on startup (deprecated, same as -f)\n");
+    fprintf(stderr,"-f <file>       compile or load file on startup (.ecl or .eco)\n");
+    fprintf(stderr,"-e <goal>       goal to execute (in Prolog syntax)\n");
     fprintf(stderr,"-g <kbytes>     global+trail stack size\n");
     fprintf(stderr,"-l <kbytes>     local+control stack size\n");
+    fprintf(stderr,"-L <language>   default language dialect\n");
     fprintf(stderr,"-h <kbytes>     private heap size\n");
     fprintf(stderr,"-s <kbytes>     shared heap size\n");
+    fprintf(stderr,"-t <module>     name of initial toplevel module\n");
     fprintf(stderr,"-d <seconds>    delayed startup\n");
     fprintf(stderr,"-D <dir>        installation directory\n");
     fprintf(stderr,"--              end of ECLiPSe options\n");

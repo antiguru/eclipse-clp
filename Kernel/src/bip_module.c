@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.7 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.8 2011/04/10 14:11:38 jschimpf Exp $
  */
 
 /*
@@ -302,7 +302,12 @@ p_begin_module(value v, type t)
 static int
 p_default_module(value v, type t)
 {
-    Return_Unify_Atom(v, t, d_.default_module);
+    if (IsRef(t)) {
+        Return_Unify_Atom(v, t, d_.default_module);
+    }
+    Check_Atom(t);
+    d_.default_module = v.did;
+    Succeed_;
 }
 
 

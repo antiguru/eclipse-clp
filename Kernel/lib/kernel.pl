@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.28 2011/04/08 07:06:01 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.29 2011/04/10 14:12:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -299,7 +299,6 @@
    local_record(compiled_modules/0).
 
 
-?- make_array_(toplevel_module, prolog, local, sepia_kernel).
 ?- make_array_(default_language, prolog, local, sepia_kernel),
     setval(default_language, eclipse_language).
 ?- make_array_(toplevel_trace_mode, prolog, local, sepia_kernel),
@@ -440,13 +439,11 @@ ec_rpc_in_handler1(In, Out) :-
 ?- set_error_handler_(ec_rpc,ec_rpc_in_handler/1,sepia_kernel).
 
 startup_init :-
-	error(150, M),			% extension hook: startup
-	( atom(M) ->
-		TM = M
-	;
-		default_module(TM)
-	),
-	setval(toplevel_module, TM),
+	default_module(M),
+	default_module(M),	% set
+	argv(all, [_|Args]),
+        process_command_line_startup(Args, 1),
+	default_module(TM),	% get
 	create_module_if_did_not_exist(TM),
 	getval(default_language, Language),
 	import_body(Language, TM),	% TM was created in C, no imports yet
@@ -739,7 +736,7 @@ cleanup_before_exit :-
 %----------------------------------------
 
 standalone_toplevel :-
-	getval(toplevel_module, M),
+	default_module(M),
 	argv(all, [_|Args]),
 	process_command_line(Args, 1, Goal, M),
 	( var(Goal) ->
@@ -763,7 +760,6 @@ standalone_toplevel :-
 	),
 	exit_block(Tag).
 	
-
 :- mode process_command_line(+,+,-,+).
 process_command_line([], _I, _Goal, _M) :- !.
 process_command_line(["-b", Arg |Args], I, Goal, M) :- !,
@@ -783,6 +779,21 @@ process_command_line(["--" |_], I, _Goal, _M) :- !,
 process_command_line([_ |Args], I, Goal, M) :-
 	J is I+1,
 	process_command_line(Args, J, Goal, M).
+
+process_command_line_startup([], _I) :- !.
+process_command_line_startup(["-L",Arg|Args], I) :- !,
+        atom_string(Language, Arg),
+        setval(default_language, Language),
+	MI is -I, argv(MI,2),	% delete the 2 arguments
+	process_command_line_startup(Args, I).
+process_command_line_startup(["-t",Arg|Args], I) :- !,
+        atom_string(TM, Arg),
+	default_module(TM),	% set
+	MI is -I, argv(MI,2),	% delete the 2 arguments
+	process_command_line_startup(Args, I).
+process_command_line_startup([_ |Args], I) :-
+	I1 is I+1,
+	process_command_line_startup(Args, I1).
 
 
 
@@ -1962,14 +1973,6 @@ inline_calls(subcall(Goal, Delayed), Inlined, Module) :- -?->
 inline_calls(call_priority(Goal, Prio), Inlined, Module) :- -?->
 	nonvar(Goal),
 	tr_goals(Goal, TrGoal, Module),
-	% The next line is a workaround for a problem in Micha's compiler:
-	% during compilation, the functor words of goals get replaced
-	% with TPROC words. If the goal structure also occurs as a data
-	% structure in the clause, that structure appears corrupted.
-	% The problem occurs here because TrGoal appears as a goal and
-	% Goal as data, and they might be equal. As a counter-measure,
-	% we physically copy the structure here.
-	copy_structure(Goal, GoalCopy),
 	Inlined0 = (
 	    get_priority(P),
 	    ( Prio =< P ->
@@ -1978,7 +1981,7 @@ inline_calls(call_priority(Goal, Prio), Inlined, Module) :- -?->
 		sepia_kernel:set_priority(P),
 		wake
 	    ;
-		make_suspension(GoalCopy, Prio, S, Module),
+		make_suspension(Goal, Prio, S, Module),
 		schedule_suspensions(1, s([S]))
 	    )
 	),
@@ -1994,15 +1997,6 @@ inline_calls(call_priority(Goal, Prio), Inlined, Module) :- -?->
 		    error(5, call_priority(Goal, Prio), Module)
 	    )
 	).
-% These cannot be done yet - Micha's compiler recognises them for indexing
-%inline_calls(not(Goal), Inlined, Module) :- -?->
-%	nonvar(Goal),
-%	tr_goals(Goal, TrGoal, Module),
-%	Inlined = (TrGoal -> fail ; true ).
-%inline_calls(\+(Goal), Inlined, Module) :- -?->
-%	nonvar(Goal),
-%	tr_goals(Goal, TrGoal, Module),
-%	Inlined = (TrGoal -> fail ; true ).
 inline_calls(call_explicit(Goal, LM), Inlined, Module) :- -?->
 	tr_goals(LM:Goal, Inlined, Module).
 
@@ -2515,8 +2509,7 @@ create_module_if_did_not_exist(M) :-
 	(is_a_module(M) -> true ; create_module(M) ).
 
 create_module(M) :-
-	getval(default_language, Language),
-	create_module(M, [], Language).
+	create_module(M, [], eclipse_language).
 
 create_module(M, Exports, Language) :-
 	create_module_(M),
@@ -2535,7 +2528,7 @@ set_toplevel_module(M) :-		% fails on error with bip_error set
 		getval(default_language, Language),
 		create_module(M, [], Language)
 	),
-	setval(toplevel_module, M).
+	default_module(M).     % set
 
 
 %-----------------------------
@@ -5743,6 +5736,37 @@ tilde_body(_,_).
 %----------------------------------------------------------------
 % explicit suspension - suspend/2,3
 %----------------------------------------------------------------
+
+/*
+One thing we can definitely do is a static mapping from symbolic names
+to numeric priorities (which only gets changed when someone comes up with
+a convincing use case for introducing a new level).  For propagators,
+we could use Gecode's scheme, where the priorities are called
+{unary, binary, ternary, linear, quadratic, cubic, veryslow}
+i.e. they initially distinguish constraint arity, then complexity.
+For ECLiPSe, where delayed goals can be used for things other than
+propagators, I would extend this on both ends as follows:
+
+1-debug (goals that always succeed and do not affect program semantics)
+2-check (tests that succeed or fail or abort)
+3-unary
+4-binary
+5-ternary
+6-linear
+7-quadratic
+8-cubic
+9-subsolver (e.g. the eplex demon)
+10-mopup (bookkeeping to be done after all propagation, e.g. lib(changeset))
+11-search (nondeterministic goals)
+12-main program
+
+This gives us the 12 levels we currently have.  Since we use 4 bits to store
+priorities, it would be natural to extend to 15 (giving some flexibility
+that can be used e.g. for the case of the ternary propagators in lib(ic)
+which schedule themselves up/down one level depending on whether they
+achieved some useful propagation or not. This kind of dynamic adjustment
+may well be more important than a fine grained static classification).
+*/
 
 :- export
 	suspend/3,

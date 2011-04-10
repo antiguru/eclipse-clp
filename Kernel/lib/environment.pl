@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.9 2010/04/09 04:38:38 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.10 2011/04/10 14:12:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -174,7 +174,7 @@ do_get_flag(remote_protocol_version, X, _) :- remote_version(X).
 %	global_flags(0,0,F),
 %	(F /\ 16'10000000 =:= 0 -> X=off ; X=on).
 do_get_flag(syntax_option, X, M) :- get_syntax_(X, 0, M).
-do_get_flag(toplevel_module, X, _) :-	getval(toplevel_module, X).
+do_get_flag(toplevel_module, X, _) :-	default_module(X).
 do_get_flag(unix_time, X, _) :-	get_sys_flag(5, X).
 do_get_flag(variable_names, X, _) :-
 	global_flags(0,0,F),
