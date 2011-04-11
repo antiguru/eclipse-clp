@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.4 2011/04/09 00:20:27 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.5 2011/04/11 06:03:58 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -687,9 +687,10 @@ _cant_follow_prefix(parse_desc *pd, int context_flags,
 {
     opi *pre_op, *follow_op;
     dident did0;
-    int status;
+    int status, class;
 
-    switch(pd->token.class)
+    class = pd->token.class;
+    switch(class)
     {
     case EOCL:
     case EOI:
@@ -717,7 +718,7 @@ _cant_follow_prefix(parse_desc *pd, int context_flags,
 	if (did0 == D_UNKNOWN || !DidIsOp(did0))
 	    return 0;
 
-_check_precedence_:			/* (did0) */
+_check_precedence_:			/* (did0,class) */
 	/*
 	 * A functor-term CAN follow the prefix
 	 */
@@ -728,7 +729,7 @@ _check_precedence_:			/* (did0) */
 	/*
 	 * A signed number CAN follow the prefix
 	 */
-	if ((did0 == d_.minus0 || did0 == d_.plus0) && IsClass(pd,NUMBER))
+	if (class==IDENTIFIER && (did0 == d_.minus0 || did0 == d_.plus0) && IsClass(pd,NUMBER))
 	    goto _return_0_;
 
 	/*
@@ -992,7 +993,7 @@ _read_next_term(parse_desc *pd,
 	int context_flags,	/* terminators only */
 	pword *result)
 {
-    int		status;
+    int		status, class;
     pword	term;
     char	*name;
     uword	length;
@@ -1001,7 +1002,8 @@ _read_next_term(parse_desc *pd,
     source_pos_t	pos;
 
     pos = pd->token.pos;
-    switch(pd->token.class)
+    class = pd->token.class;
+    switch(class)
     {
 
     case BAR:
@@ -1012,7 +1014,7 @@ _read_next_term(parse_desc *pd,
     case IDENTIFIER:
     case QIDENTIFIER:
 	Save_Token_String(pd, name, length);	/* don't make dident eagerly */
-_treat_like_identifier_:		/* (name, length) */
+_treat_like_identifier_:		/* (name,length,class) */
 	Next_Token(pd);
 	switch(pd->token.class)
 	{
@@ -1058,9 +1060,9 @@ _treat_as_functor_:
 	    /* fall through */
 
 	case NUMBER:
-	    if (length==1 && (*name=='+' || *name=='-'))
+	    if (class==IDENTIFIER && length==1 && (*name=='+' || *name=='-'))
 	    {
-		/* +/- followed by number: treat as a sign */
+		/* unquoted +/- followed by number: treat as a sign */
 		if (*name == '-')
 		{
 		    tag_desc[pd->token.term.tag.kernel].arith_op[ARITH_CHGSIGN]
@@ -1201,7 +1203,7 @@ _after_variable_:
 		/* the atom or functor '[]' */
 		name = "[]"; length = 2;
 		Merge_Source_Pos(pos, pd->token.pos, pos);
-		goto _treat_like_identifier_;	/* (name,length) */
+		goto _treat_like_identifier_;	/* (name,length,class) */
 	    }
 	    else
 	    {
@@ -1234,7 +1236,7 @@ _after_variable_:
 		/* the atom or functor '{}' */
 		name = "{}"; length = 2;
 		Merge_Source_Pos(pos, pd->token.pos, pos);
-		goto _treat_like_identifier_;	/* (name,length) */
+		goto _treat_like_identifier_;	/* (name,length,class) */
 	    }
 	    else
 	    {
