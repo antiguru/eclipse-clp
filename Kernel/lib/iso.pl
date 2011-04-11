@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.10 2011/04/09 15:57:57 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.11 2011/04/11 07:21:53 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.10 2011/04/09 15:57:57 jschimpf Exp $
+% $Id: iso.pl,v 1.11 2011/04/11 07:21:53 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -90,7 +90,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, `Cisco Systems, Inc`).
-:- comment(date, `$Date: 2011/04/09 15:57:57 $`).
+:- comment(date, `$Date: 2011/04/11 07:21:53 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html(`\
     This library provides a reasonable degree of compatibility with\n\
@@ -447,13 +447,17 @@ atom_codes(Atom, List) :-
 
 
 % number_chars/2 and number_codes/2 are a pain wrt exceptions...
+% Remaining non-compliance:
+% - we currently fail instead of raising syntax errors (more useful)
+% - we don't accept leading comments in the string (madness)
+% - we don't accept numeric character constants like 0'\123\ (but 0'\n is ok)
 
 number_chars(Number, Chars) :-			% 8.16.7
         ( var(Number) ->
             ( valid_chars(Chars, Chars1) ->
                 concat_string(Chars1, String),
                 valid_numstring(String, String1),
-                number_string(Number, String1)  % read
+                number_string(Number, String1)  % read (fails on syntax error)
             ;
                 bip_error(number_chars(Number, Chars))
             )
@@ -466,7 +470,7 @@ number_chars(Number, Chars) :-			% 8.16.7
                 ground(Chars),
                 concat_string(Chars, String0),
                 valid_numstring(String0, String1),
-                number_string(Number, String1)  % read
+                number_string(Number, String1)  % read (fails on syntax error)
             ;
                 bip_error(number_chars(Number, Chars))
             )
@@ -478,7 +482,7 @@ number_codes(Number, Codes) :-			% 8.16.8
         ( var(Number) ->
             string_list(String, Codes),
             valid_numstring(String, String1),
-            number_string(Number, String1)  % read
+            number_string(Number, String1)  % read (fails on syntax error)
         ; number(Number) ->
             number_string(Number, NumString),      % write
             ( string_list(NumString, Codes) ->
@@ -487,7 +491,7 @@ number_codes(Number, Codes) :-			% 8.16.8
                 ground(Codes),
                 string_list(String, Codes),
                 valid_numstring(String, String1),
-                number_string(Number, String1)  % read
+                number_string(Number, String1)  % read (fails on syntax error)
             ;
                 bip_error(number_codes(Number, Codes))
             )
@@ -536,11 +540,14 @@ number_codes(Number, Codes) :-			% 8.16.8
 	split_string(String0, `\n\r\t `, ``, Strings0),
 	valid_numstring1(Strings0, String).
 
-    valid_numstring1([``|Ss0], String) ?- !,
-    % leading white spaces is ok...
+    valid_numstring1([``|Ss0], String) ?- !,	% leading white space is ok...
 	valid_numstring1(Ss0, String).
-    valid_numstring1([String0], String) ?- 
-    % no trailing white spaces 
+    valid_numstring1([`-`|Ss0], String) ?- !,	% space-separated sign is ok...
+	valid_numstring1(Ss0, String).
+%    valid_numstring1([`+`|Ss0], String) ?- !,  % add for corrigendum 2
+%    % space-separated sign is ok...
+%	valid_numstring1(Ss0, String).
+    valid_numstring1([String0], String) ?-	% no trailing white spaces 
 	String0 = String.
 
 %-----------------------------------------------------------------------

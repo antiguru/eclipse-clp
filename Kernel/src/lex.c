@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.9 2011/04/09 16:29:42 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.10 2011/04/11 07:20:57 jschimpf Exp $
  */
 
 /*
@@ -215,6 +215,7 @@ lex_init(int flags)	/* initialization: setting the name of types */
     syntax_flags[19] =	in_dict("general_subscripts",0);
     syntax_flags[20] =	in_dict("curly_args_as_list",0);
     syntax_flags[21] =	in_dict("float_needs_point",0);
+    syntax_flags[22] =	in_dict("iso_restrictions",0);
 
     default_syntax_desc.char_class[EOB_MARK] = RE;
 
@@ -1501,11 +1502,17 @@ string_to_number(char *start, pword *result, stream_id nst, syntax_desc *sd)
 
 _start_:
     Get_Ch(c)
-    if (c == '-') {		/* check for optional sign */
+    switch(c) { 		/* check for optional sign */
+    case '-':
 	flags |= NEG;
+        /*fall through*/
+    case '+':
 	Get_Ch(c)
-    } else if (c == '+') {
-	Get_Ch(c)
+        if (syntax & BLANK_AFTER_SIGN) {        /* allow optional space? */
+            while (sd->char_class[c] == BS) {
+                Get_Ch(c)
+            }
+        }
     }
 
     if (!isdigit(c))		/* read digits */
