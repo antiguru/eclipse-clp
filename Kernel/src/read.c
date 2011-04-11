@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.5 2011/04/11 06:03:58 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.6 2011/04/11 12:21:20 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -576,12 +576,23 @@ _build_list_from_token(parse_desc *pd, pword *pw)
     Flag_Did_Macro(pd, d_.nil);
     Flag_Type_Macro(pd, TCOMP);
     Flag_Did_Macro(pd, d_.list);
-    for(i=0; i<TokenStringLen(pd); ++i)
-    {
-	pword *phead;
-	Build_List(pw, phead, pd->token.pos);
-	Build_Integer(phead, TokenString(pd)[i], pd->token.pos);
-	pw = phead+1;
+    if (pd->token.class == CODES) {
+        for(i=0; i<TokenStringLen(pd); ++i)
+        {
+            pword *phead;
+            Build_List(pw, phead, pd->token.pos);
+            Build_Integer(phead, TokenString(pd)[i], pd->token.pos);
+            pw = phead+1;
+        }
+    } else /*if (pd->token.class == CHARS)*/ {
+        for(i=0; i<TokenStringLen(pd); ++i)
+        {
+            pword *phead;
+            dident char_did = enter_dict_n(TokenString(pd)+i, 1, 0);
+            Build_List(pw, phead, pd->token.pos);
+            Build_Atom_Or_Nil(phead, char_did, pd->token.pos);
+            pw = phead+1;
+        }
     }
     Build_Nil(pw, pd->token.pos);
 }
@@ -674,8 +685,8 @@ _delimiter_follows(parse_desc *pd)
  */
 #define CantFollowTerm(class) (\
 	(class)==NUMBER || (class)==SPACE_NUMBER || (class)==REFERENCE \
-	|| (class)==UREFERENCE || (class)==STRING || (class)==LIST \
-	|| (class)==SPACE_SOLO)
+	|| (class)==UREFERENCE || (class)==STRING || (class)==CODES \
+	|| (class)==CHARS || (class)==SPACE_SOLO)
  
 #define IsDelimiter(class) (\
 	(class)==EOI || (class)==EOCL || (class)==COMMA || (class)==BAR \
@@ -1145,7 +1156,8 @@ _make_number_:
 	return _read_after_term(pd, context_prec, context_flags, 0, result);
 
 
-    case LIST:				/* list-quoted string */
+    case CODES:				/* codes-list-quoted string */
+    case CHARS:				/* chars-list-quoted string */
     	_build_list_from_token(pd, &term);
 	Next_Token(pd);
 	*result = term;

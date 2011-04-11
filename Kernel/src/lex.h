@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: lex.h,v 1.5 2011/04/11 07:20:57 jschimpf Exp $
+ * VERSION	$Id: lex.h,v 1.6 2011/04/11 12:21:20 jschimpf Exp $
  */
 
 /*
@@ -54,11 +54,9 @@
 
 /* unused characters */
 #define 	DL	0
-#define		CQ	0
 #define 	KI	0
 
 /* usual atoms characters */
-#define 	ACH	5	/* to test the four preceeding */ 
 #define		UC	ACH-4	/* upper case alhabetic */
 #define		UL	ACH-3	/* underline */
 #define		LC	ACH-2	/* lower case alphabetic */
@@ -70,19 +68,20 @@
 #define 	NL	ACH+1	/* EOL, newline */
 
 /* quote characters */
-#define		AQ	ACH+2	/* atom quote delimiter */
-#define		SQ	ACH+3	/* string delimiter */
-#define		SL	ACH+4	/* solo char */
-#define 	DS	ACH+5	/* special solo */
-#define		CM	ACH+6	/* line comment */
+#define		AQ	ACH+2	/* atom quote */
+#define		SQ	ACH+3	/* string quote */
+#define		LQ	ACH+4	/* codes-list quote */
+#define		CQ	ACH+5	/* chars-list quote */
+#define		SL	ACH+6	/* solo char */
+#define 	DS	ACH+7	/* special solo */
+#define		CM	ACH+8	/* line comment */
 
-#define		LQ	ACH+7	/* list quote delimiter */
-#define		RA	ACH+8	/* radix  character class */
-#define		AS	ACH+9	/* ascii character class */
-#define		TS	ACH+10	/* terminator symbol character class */
+#define		RA	ACH+9	/* radix quote */
+#define		AS	ACH+10	/* ascii quote */
+#define		TS	ACH+11	/* terminator symbol */
 
 /* symbol characters */
-#define 	SCH	ACH+10 	/* to test the five following */
+#define 	SCH	ACH+12 	/* to test the five following */
 
 #define		ES	SCH+1	/* escape char in strings, symbol */
 #define 	CM1	SCH+2	/* comment external delimiter */
@@ -110,7 +109,7 @@
 #define		EOCL		3
 #define		IDENTIFIER	4
 #define		QIDENTIFIER	5
-#define		LIST		6
+#define		CODES           6
 #define		COMMA		7
 #define		BAR		8
 #define		SOLO		9
@@ -121,7 +120,8 @@
 #define		SPACE_SOLO	14
 #define		SPACE_NUMBER	15
 #define		CLOSING_SOLO	16
-#define		NBTK		17
+#define		CHARS           17
+#define		NBTK		18
 
 
 /*

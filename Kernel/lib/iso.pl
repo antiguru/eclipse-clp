@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.11 2011/04/11 07:21:53 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.12 2011/04/11 12:23:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.11 2011/04/11 07:21:53 jschimpf Exp $
+% $Id: iso.pl,v 1.12 2011/04/11 12:23:17 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -90,7 +90,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, `Cisco Systems, Inc`).
-:- comment(date, `$Date: 2011/04/11 07:21:53 $`).
+:- comment(date, `$Date: 2011/04/11 12:23:17 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html(`\
     This library provides a reasonable degree of compatibility with\n\
@@ -559,10 +559,7 @@ set_prolog_flag_(debug, Value, M) :- !,
 	; Value == off -> set_flag(debugging, nodebug)
 	; error(6, set_prolog_flag(debug, Value), M)).
 set_prolog_flag_(double_quotes, Value, M) :- !,
-	( Value == atom -> set_chtab(0'", atom_quote)@M
-	; Value == string -> set_chtab(0'", string_quote)@M
-	; Value == codes -> set_chtab(0'", list_quote)@M
-	; Value == chars -> error(141, set_prolog_flag(double_quotes, Value), M)
+        ( nonvar(Value), quote(Value, Quote) -> set_chtab(0'", Quote)@M
 	; error(6, set_prolog_flag(double_quotes, Value), M)).
 set_prolog_flag_(unknown, Value, M) :- !,
 	( Value == error -> reset_event_handler(68)
@@ -590,6 +587,11 @@ set_prolog_flag_(Flag, Value, M) :-			% 8.17.1
     readonly(max_integer).
     readonly(max_arity).
 
+    quote(atom,   atom_quote).
+    quote(string, string_quote).
+    quote(codes,  list_quote).
+    quote(chars,  chars_quote).
+
 current_prolog_flag_(bounded, false, _M).
 current_prolog_flag_(char_conversion, off, _M).
 current_prolog_flag_(debug, Value, _M) :-
@@ -599,9 +601,7 @@ current_prolog_flag_(debug, Value, _M) :-
 	; Value = off ).
 current_prolog_flag_(dialect, eclipse, _M).
 current_prolog_flag_(double_quotes, Value, M) :-
-	( get_chtab(0'", atom_quote)@M -> Value = atom
-	; get_chtab(0'", string_quote)@M -> Value = string
-	; get_chtab(0'", list_quote)@M -> Value = codes
+	( get_chtab(0'", Quote)@M, quote(Value, Quote) -> true
 	; Value = unknown ).
 current_prolog_flag_(integer_rounding_function, toward_zero, _M).
 %current_prolog_flag_(min_integer, _, _M) :- fail.

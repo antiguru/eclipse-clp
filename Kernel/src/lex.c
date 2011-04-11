@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.10 2011/04/11 07:20:57 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.11 2011/04/11 12:21:20 jschimpf Exp $
  */
 
 /*
@@ -129,7 +129,7 @@ static syntax_desc	default_syntax_desc = {
 /* nul soh stx etx eot enq ack bel  bs  ht  nl  vt  np  cr  so  si */
     BS, BS, BS, BS, BS, BS, BS, BS, DL, BS, NL, BS, BS, BS, BS, BS,
 /* dle dc1 dc2 dc3 dc4 nak syn etb can  em sub esc  fs  gs  rs  us */
-    BS, CQ, BS, BS, BS, KI, BS, BS, KI, BS, BS, BS, BS, BS, BS, BS,
+    BS, KI, BS, BS, BS, KI, BS, BS, KI, BS, BS, BS, BS, BS, BS, BS,
 /*  sp   !   "   #   $   %   &   '   (   )   *    +   ,   -   .   / */
     BS, SL, SQ, SY, SY, CM, SY, AQ, DS, DS, CM2, SY, DS, SY, SY, CM1,
 /*   0   1   2   3   4   5   6   7   8   9   :   ;   <   =   >   ? */
@@ -231,7 +231,8 @@ lex_init(int flags)	/* initialization: setting the name of types */
     chname_[SL] = in_dict("solo",0);
     chname_[DS] = in_dict("special",0);
     chname_[CM] = in_dict("line_comment",0);
-    chname_[LQ] = in_dict("list_quote",0);
+    chname_[LQ] = in_dict("list_quote",0);      /* should be codes_quote */
+    chname_[CQ] = in_dict("chars_quote",0);
     chname_[RA] = in_dict("radix",0);
     chname_[AS] = in_dict("ascii",0);
     chname_[TS] = in_dict("terminator",0);
@@ -256,7 +257,8 @@ lex_init(int flags)	/* initialization: setting the name of types */
     tname_[STRING] =	d_.string0;
     tname_[REFERENCE] =	d_.var0;
     tname_[UREFERENCE] = in_dict("anonymous", 0);
-    tname_[LIST] =	in_dict("list", 0);
+    tname_[CODES] =	in_dict("codes", 0);
+    tname_[CHARS] =	in_dict("chars", 0);
     tname_[SPACE_SOLO] = in_dict("open_par", 0);
 
     d_comma0_ = in_dict(",", 0);
@@ -403,8 +405,11 @@ _start_:		/* cc/ctype: current char, pligne: ptr to next char */
     case SQ:
 	tok = STRING;
 	goto _quote_;
+    case CQ:
+	tok = CHARS;
+	goto _quote_;
     case LQ:
-	tok = LIST;
+	tok = CODES;
 _quote_:
 	quote_char = cc;
 	pw = StreamLexAux(nst);
@@ -424,6 +429,7 @@ _quote_:
 	    case AQ:
 	    case LQ:
 	    case SQ:
+	    case CQ:
 		if (cc != quote_char) {
 		    *pw++ = cc;
 		    break;		/* other quote within */
@@ -481,6 +487,7 @@ _quote_:
 		case ES:
 		case AQ:
 		case LQ:
+		case CQ:
 		case SQ:
 		    *pw++ = cc;		/* just take cc as it is */
 		    break;
@@ -1319,7 +1326,8 @@ p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, t
 	case REFERENCE:
 	case UREFERENCE:
 	case STRING:
-	case LIST:
+	case CODES:
+	case CHARS:
 	case BAR:
 	default:		/* LexError() */
 	    len = token.term.val.nint;
@@ -1547,6 +1555,7 @@ _start_:
                 case AQ:        /* 0'\' */
                 case SQ:        /* 0'\" or 0'\` */
                 case LQ:        /* 0'\" */
+                case CQ:        /* 0'\" */
                 case ES:        /* 0'\\ */
                     break;
 
@@ -1595,6 +1604,7 @@ _start_:
 
             case SQ:    /* 0'" or 0'` */
             case LQ:    /* 0'" */
+            case CQ:    /* 0'" */
                 break;
             }
 _return_c_:
