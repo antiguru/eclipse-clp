@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.7 2011/04/08 07:05:09 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.8 2011/04/15 08:10:48 jschimpf Exp $
  */
 
 /*
@@ -449,6 +449,7 @@ print_am(register vmcode *code,
 	case BI_Identical:
 	case BI_NotIdentical:
 	case BI_Inequality:
+	case BI_ListEnd:
 	case SwapAMAM:
 	case Read_variable2AM:
 	case Write_variable2AM:

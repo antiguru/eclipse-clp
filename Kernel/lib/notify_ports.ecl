@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: notify_ports.ecl,v 1.3 2010/04/22 14:12:49 jschimpf Exp $
+% Version:	$Id: notify_ports.ecl,v 1.4 2011/04/15 08:12:04 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(notify_ports).
@@ -31,7 +31,7 @@
 :- comment(categories, ["Data Structures","Techniques"]).
 :- comment(summary, "One-to-many and many-to-many notification ports").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2010/04/22 14:12:49 $").
+:- comment(date, "$Date: 2011/04/15 08:12:04 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- comment(desc, html("<P>
@@ -568,15 +568,8 @@ send_notification(Pos, Attr, Event) :-
 send_tagged_notification(Pos, Attr, Event) :-
 	NewFrame = [Event|Tail],
 	arg(Pos, Attr, Tail0),
-	deref_tail(Tail0, NewFrame),
+	sepia_kernel:list_end(Tail0, NewFrame), % should report failures here!
 	setarg(Pos, Attr, Tail).
-
-    deref_tail(T0, T) :- var(T0), !, T=T0.
-    deref_tail([_|T0], T) :- !,
-	deref_tail(T0, T).
-    deref_tail([], _) :-
-    	writeln("notify_ports: trying to send via closed send port"),
-	abort.
 
 :- export open_receiver/2.
 open_receiver(SendPort, ReceivePort) :-

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.4 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: names.h,v 1.5 2011/04/15 08:10:48 jschimpf Exp $
  */
 
 /*
@@ -441,7 +441,7 @@ char * inst_name[] = {
 "CutAMN                    ",
 "Put_moduleAM              ",
 "BI_Compare                ",
-
+"BI_ListEnd                ",
 
 "Inst_Error                "
 };

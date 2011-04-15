@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.20 2011/04/08 07:05:09 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.21 2011/04/15 08:10:48 jschimpf Exp $
  */
 
 /*
@@ -7170,6 +7170,17 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    if (!IsTag(tmp1, TNIL)) {
 		Fail;
 	    }
+	    Next_Pp;
+
+         Case(BI_ListEnd, I_BI_ListEnd) /* list_end(?List, -End) */
+	    Get_Argument(pw1)
+	    Dereference_Pw_Tag(pw1, tmp1);
+	    while (IsTag(tmp1, TLIST)) {
+		pw1 = pw1->val.ptr + 1;
+		Dereference_Pw_Tag(pw1, tmp1);
+	    }
+            Get_Argument(pw2)
+            *pw2 = *pw1;
 	    Next_Pp;
 
 

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_builtins.ecl,v 1.1 2010/03/19 05:55:38 jschimpf Exp $
+% Version:	$Id: compiler_builtins.ecl,v 1.2 2011/04/15 08:12:53 jschimpf Exp $
 %
 % Part of module(compiler_codegen)
 % ----------------------------------------------------------------------
@@ -308,6 +308,7 @@ inlined_builtin(arg,		3,	unbounded,	bi_arg(arg,arg,uarg,desc)).
 inlined_builtin(arity,		2,	unbounded,	bi_arity(arg,uarg,desc)).
 inlined_builtin(get_bip_error,	1,	0,		bi_get_bip_error(uarg)).
 inlined_builtin(compare,	3,	0,		bi_compare(uarg,arg,arg)).
+inlined_builtin(list_end,	2,	0,		bi_list_end(arg,uarg)).
 
 % Encode argument descriptors in bitmask, 2 bits per argument
 add_arg_desc(_,  arg, Desc, Desc).
