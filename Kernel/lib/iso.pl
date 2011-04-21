@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.12 2011/04/11 12:23:17 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.13 2011/04/21 02:46:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.12 2011/04/11 12:23:17 jschimpf Exp $
+% $Id: iso.pl,v 1.13 2011/04/21 02:46:49 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -38,7 +38,7 @@
 % CONTENTS:		see export directive
 %
 % DESCRIPTION:		ISO Prolog compatibility package (incomplete)
-%			It follows standard draft ISO/IEC DIS 13211-1:1995(E)
+%			It follows draft ISO/IEC 13211-1 (1995)
 %
 
 :- module(iso).
@@ -73,6 +73,7 @@
 	syntax_option(not(nl_in_quotes)),
 	syntax_option(iso_escapes),
 	syntax_option(iso_base_prefix),
+	syntax_option(iso_restrictions),
 	syntax_option(doubled_quote_is_quote),
 	syntax_option(no_array_subscripts),
 	syntax_option(bar_is_no_atom),
@@ -90,7 +91,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, `Cisco Systems, Inc`).
-:- comment(date, `$Date: 2011/04/11 12:23:17 $`).
+:- comment(date, `$Date: 2011/04/21 02:46:49 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html(`\
     This library provides a reasonable degree of compatibility with\n\
@@ -544,9 +545,6 @@ number_codes(Number, Codes) :-			% 8.16.8
 	valid_numstring1(Ss0, String).
     valid_numstring1([`-`|Ss0], String) ?- !,	% space-separated sign is ok...
 	valid_numstring1(Ss0, String).
-%    valid_numstring1([`+`|Ss0], String) ?- !,  % add for corrigendum 2
-%    % space-separated sign is ok...
-%	valid_numstring1(Ss0, String).
     valid_numstring1([String0], String) ?-	% no trailing white spaces 
 	String0 = String.
 

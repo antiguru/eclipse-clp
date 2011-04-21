@@ -24,7 +24,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: operator.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: operator.c,v 1.4 2011/04/21 02:45:52 jschimpf Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include 	"emu_export.h"
 #include	"property.h"
 #include	"module.h"
+#include	"lex.h"
 
 
 
@@ -72,6 +73,7 @@
 
 
 static dident	didassoc[MAX_ASSOC+1];
+static dident	d_comma0_, d_bar0_;
 
 static int
     _get_assoc(dident assoc),
@@ -106,6 +108,9 @@ op_init(int flags)
     didassoc[YFX] = in_dict("yfx", 0);
     didassoc[FXX] = in_dict("fxx", 0);
     didassoc[FXY] = in_dict("fxy", 0);
+
+    d_comma0_ = in_dict(",", 0);
+    d_bar0_ = in_dict("|", 0);
 }
 
 void
@@ -372,6 +377,16 @@ p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, val
     {
 	Bip_Error(RANGE_ERROR);
     }
+    if (ModuleSyntax(vm.did)->options & ISO_RESTRICTIONS &&
+        (  v_op.did == d_comma0_
+        || v_op.did == d_.nil
+        || v_op.did == d_.nilcurbr
+        || v_op.did == d_bar0_ && (
+            !(iassoc==XFY || iassoc==XFX || iassoc==YFX)
+            || vprec.nint > 0 && vprec.nint <= 1000)))
+    {
+	Bip_Error(ILLEGAL_OP_DEF);
+    }
 
     if (vprec.nint == 0 && scope == GLOBAL_PROP)
 	/* precedence 0 is used to erase the operator but if it is
@@ -420,7 +435,7 @@ _insert_op(int scope, word preced, word assoc, dident oper, dident module, type 
     opi		*operator_prop;
     int		prop_type;
     int		arity;
-    int		res = PERROR;
+    int		res;
 
     switch (assoc)
     {
@@ -447,11 +462,19 @@ _insert_op(int scope, word preced, word assoc, dident oper, dident module, type 
 	break;
     }
 
+    /* Disallow infix/postfix, if required by the module syntax */
+    if (prop_type != PREFIX_PROP  &&  ModuleSyntax(module)->options & ISO_RESTRICTIONS)
+    {
+        if (OperatorItem(oper, module, mod_tag, VISIBLE_PROP,
+                (prop_type==INFIX_PROP? POSTFIX_PROP : INFIX_PROP), &res))
+        {
+	    Bip_Error(ILLEGAL_OP_DEF);
+        }
+    }
+
     a_mutex_lock(&PropertyLock);
 
-#define REDEF_OPERATOR -73
-#define HIDING_OPERATOR -74
-
+    res = PERROR;
     operator_prop = OperatorItem(oper, module, mod_tag, scope, prop_type, &res);
 
     if (operator_prop)		/* same scope operator exists already */

@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: lex.h,v 1.6 2011/04/11 12:21:20 jschimpf Exp $
+ * VERSION	$Id: lex.h,v 1.7 2011/04/21 02:45:52 jschimpf Exp $
  */
 
 /*
@@ -128,8 +128,6 @@
  *	USER DEFINABLE SYNTAX PARAMETERS
  */
 
-#define SYNTAX_FLAGS		23	/* number of flags below	*/
-
 #define NEWLINE_IN_QUOTES	0x0001	/* allow newlines in quoted objects */
 #define LIMIT_ARG_PRECEDENCE	0x0002	/* limit argument precedence to 999 */
 #define NO_BLANKS		0x0004	/* don't allow blanks after functor */
@@ -152,7 +150,10 @@
 #define	GENERAL_SUBSCRIPTS	0x80000	/* allow subscripts almost anywhere */
 #define	CURLY_ARGS_AS_LIST	0x100000/* parse {}(a,b,c) as {}([a,b,c])   */
 #define	FLOAT_NEEDS_POINT	0x200000/* require . in float constants     */
-#define	ISO_RESTRICTIONS	0x400000/* other ISO restrictions           */
+#define BAR_IS_SEMICOLON	0x400000/* map infix |/2 to ;/2             */
+#define	ISO_RESTRICTIONS	0x800000/* other ISO restrictions           */
+
+#define SYNTAX_FLAGS		24	/* number of flags above	*/
 
 
 /*

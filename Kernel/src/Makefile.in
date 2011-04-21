@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.10 2011/04/10 15:17:56 jschimpf Exp $
+# $Id: Makefile.in,v 1.11 2011/04/21 02:45:52 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -1059,7 +1059,7 @@ manual_examples.o: embed.h
 mem.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h io.h
 mem.o: emu_export.h os_support.h
 operator.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-operator.o: emu_export.h property.h module.h
+operator.o: emu_export.h property.h module.h lex.h
 os_support.o: config.h os_support.h
 printam.o: config.h names.h sepia.h ec_public.h types.h embed.h error.h mem.h
 printam.o: opcode.h io.h dict.h emu_export.h database.h gencode.h

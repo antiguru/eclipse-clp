@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.3 2008/08/01 15:53:32 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.4 2011/04/21 02:45:52 jschimpf Exp $
  */
 
 /*
@@ -114,7 +114,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 "stale object handle",				/* STALE_HANDLE		*/
 "array or global variable does not exist",	/* NOGLOBAL		*/
 "redefining an existing array",			/* ARRAY_EXISTS		*/
-"multiple definition postfix/infix",		/* MULT_POST_INF	*/
+"illegal operator definition",			/* ILLEGAL_OP_DEF	*/
 "record already exists",			/* LOCAL_REC		*/
 "record does not exist",			/* NO_LOCAL_REC		*/
 0,

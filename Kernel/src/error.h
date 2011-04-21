@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: error.h,v 1.2 2008/07/24 16:21:34 jschimpf Exp $
+ * VERSION	$Id: error.h,v 1.3 2011/04/21 02:45:52 jschimpf Exp $
  *
  * IDENTIFICATION		error.h
  *
@@ -92,7 +92,7 @@
 #define NOGLOBAL		-41	/* global var. or array does not
 					 * exist */
 #define ARRAY_EXISTS		-42
-#define MULT_POST_INF           -43     /* multiple definiton postfix/infix*/
+#define ILLEGAL_OP_DEF          -43     /* restriction on operator definition */
 #define LOCAL_REC		-44	/* local record exists		*/
 #define	NO_LOCAL_REC		-45	/* no local record		*/
 
@@ -111,6 +111,8 @@
 #define ACCESSING_UNDEF_DYN_PROC -70	/* no defined dynamic at all */
 #define ALREADY_PARALLEL	-71
 #define UNDEF_OPERATOR		-72
+#define REDEF_OPERATOR		-73
+#define HIDING_OPERATOR		-74
 #define CALLING_DYNAMIC		-79
 
 #define MODULENAME		-80

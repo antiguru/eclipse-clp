@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.11 2011/04/11 12:21:20 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.12 2011/04/21 02:45:52 jschimpf Exp $
  */
 
 /*
@@ -215,7 +215,8 @@ lex_init(int flags)	/* initialization: setting the name of types */
     syntax_flags[19] =	in_dict("general_subscripts",0);
     syntax_flags[20] =	in_dict("curly_args_as_list",0);
     syntax_flags[21] =	in_dict("float_needs_point",0);
-    syntax_flags[22] =	in_dict("iso_restrictions",0);
+    syntax_flags[22] =	in_dict("bar_is_semicolon",0);
+    syntax_flags[23] =	in_dict("iso_restrictions",0);
 
     default_syntax_desc.char_class[EOB_MARK] = RE;
 
@@ -870,9 +871,9 @@ _skip_blanks(stream_id nst, syntax_desc *sd, unsigned char **p_pligne, int *p_cc
  * write_atom() routine. Return values:
  *	IDENTIFIER - no quotes needed
  *	QIDENTIFIER - quotes needed
- *	BAR - may need quotes
- *	DOT - may need quotes
- *	COMMA - may need quotes
+ *	BAR - may need quotes (all arities)
+ *	EOCL - dot may need quotes (all arities)
+ *	COMMA - may need quotes (only returned for ,/2)
  */
 int
 ec_need_quotes(dident d, syntax_desc *sd)
@@ -944,8 +945,8 @@ _need_quotes1_:
 	    if (d == d_.comma)
 		return COMMA;
 	    else return QIDENTIFIER;
-	case '|':		/* | needs quotes ony inside lists	*/
-	    if (rest == 0  &&  !(sd->options & BAR_IS_NO_ATOM))
+	case '|':		/* | needs quotes only inside lists	*/
+	    if (rest == 0)
 		return BAR;
 	    else return QIDENTIFIER;
 	default:

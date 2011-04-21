@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.10 2011/03/22 23:25:00 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.11 2011/04/21 02:45:52 jschimpf Exp $
  */
 
 /*
@@ -1001,7 +1001,7 @@ _write_structure_:			/* (d, arg) */
 				assoc == YFX ? prec : prec - 1,
 				depth - 1, module, mod_tag, sd,
 				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGPREF)
-				| ARGOP);
+				| ARGOP | (assoc==YFX?ARGYF:0));
 			Write_Infix(idwrite, out, d, flags & ARGLIST,
 				    module, mod_tag, sd, arg, narg);
 			Pwrite(idwrite, out, narg->val, narg->tag,
@@ -1386,7 +1386,10 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
 
 	if (nq == QIDENTIFIER ||
 	    nq == COMMA && (what != OPERATOR) ||
-	    nq == BAR && (flag & ARGLIST) ||
+	    nq == BAR && (flag & ARGLIST
+                || ( (what == OPERATOR && d == d_.bar)
+                   ? sd->options & BAR_IS_SEMICOLON
+                   : sd->options & BAR_IS_NO_ATOM )) ||
 	    nq == EOCL && (what == OPERATOR || (flag & ARGOP)))
 	{
 		if ((flag & ARGOP)
@@ -1406,7 +1409,7 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
 		}
 		else
 		{
-		    Set_Bip_Error(0); /* access checking allready done	*/
+		    Set_Bip_Error(0); /* access checking already done	*/
 		    return _write_quoted(idwrite, out, name, length,
 					(char) sd->current_aq_char, sd, depth);
 		}
@@ -1428,7 +1431,7 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
 	}
 	else
 	{
-	    Set_Bip_Error(0); /* access checking allready done		*/
+	    Set_Bip_Error(0); /* access checking already done		*/
 	    return(ec_outf(out, name, (int) length));
 	}
    }

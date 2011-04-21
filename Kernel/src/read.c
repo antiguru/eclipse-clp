@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.6 2011/04/11 12:21:20 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.7 2011/04/21 02:45:52 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -1071,17 +1071,26 @@ _treat_as_functor_:
 	    /* fall through */
 
 	case NUMBER:
-	    if (class==IDENTIFIER && length==1 && (*name=='+' || *name=='-'))
-	    {
-		/* unquoted +/- followed by number: treat as a sign */
-		if (*name == '-')
-		{
-		    tag_desc[pd->token.term.tag.kernel].arith_op[ARITH_CHGSIGN]
-			    (pd->token.term.val, &pd->token.term);
-		}
-		Merge_Source_Pos(pos, pd->token.pos, pos);
-		goto _make_number_;
-	    }
+            /* Here, class is IDENTIFIER or QIDENTIFIER */
+            /* ECLiPSe: unquoted plus or minus are signs */
+            /* ISO: only minus is a sign, but quoted sign is allowed */
+	    if (length==1)
+            {
+                if (*name=='-' && (class==IDENTIFIER || pd->sd->options & ISO_RESTRICTIONS))
+                {
+                    /* - followed by number: treat as a sign */
+                    tag_desc[pd->token.term.tag.kernel].arith_op[ARITH_CHGSIGN]
+                            (pd->token.term.val, &pd->token.term);
+                    Merge_Source_Pos(pos, pd->token.pos, pos);
+                    goto _make_number_;
+                }
+                else if (*name=='+' && class==IDENTIFIER && !(pd->sd->options & ISO_RESTRICTIONS))
+                {
+                    /* + followed by number: treat as a sign */
+                    Merge_Source_Pos(pos, pd->token.pos, pos);
+                    goto _make_number_;
+                }
+            }
 	    break;
 	}
 
@@ -1386,15 +1395,9 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		return PSUCCEED;
 	    }
 	    /* Prolog compatibility: an (unquoted) bar in infix position is
-             * treated as if it were a semicolon (for Cprolog/Quintus)
-             * or a syntax error (ISO)
+             * treated as if it were a semicolon (for Cprolog/Quintus).
              */
-            did0 = d_bar0_;
-            if (pd->sd->options & BAR_IS_NO_ATOM) {
-                if (pd->sd->options & ISO_ESCAPES) /* TODO: invent new flag */
-                    return context_flags & PREBINFIRST ? PSUCCEED : POSTINF;
-                did0 = d_.semi0;
-            }
+            did0 = pd->sd->options & BAR_IS_SEMICOLON ? d_.semi0 : d_bar0_;
 	    goto _treat_like_atom_;	/* (did0) */
 
 
