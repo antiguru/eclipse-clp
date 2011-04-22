@@ -24,7 +24,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
- * Version:	$Id: eplex_params.h,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
+ * Version:	$Id: eplex_params.h,v 1.6 2011/04/22 14:55:40 kish_shen Exp $
  *
  */
 
@@ -1584,8 +1584,37 @@ static struct param_desc params[NUMPARAMS+NUMALIASES] = {
 
 #elif defined(COIN)
 
-#define NUMPARAMS 14
+# ifdef COIN_USE_CLP
+#  define NUMPARAMS 22
+#  include "coinplex_params.h"
 
+# else
+#  define NUMPARAMS 8
+# endif
+
+/* parameters for COIN OSI are more complicated, because there is
+   no single uniform source for the parameters. The following types
+   are currently defined:
+
+   OSI Params -- common to all OSI based solvers
+   =============================================
+   0 - OSI integer params
+   1 - OSI double  params
+   2 - OSI string  params
+
+   Solver(s) specific Params -- not defined by OSI
+   ===============================================
+   3 - Solver(s) integer params 
+   4 - Solver(s) double  params 
+   5 - Solver(s) string  params
+
+   Eplex Params -- Params defined in eplex to control solver(s) behaviour
+   ====================================================================== 
+   6 - Eplex integer params 
+   7 - Eplex double  params 
+   8 - Eplex string  params
+
+*/
 /* these are taken from OsiSolverParameters.hpp */
 #define OsiProbName 			0
 #define OsiSolverName 			1
@@ -1595,18 +1624,9 @@ static struct param_desc params[NUMPARAMS+NUMALIASES] = {
 #define OsiPrimalTolerance 		3
 #define OsiMaxNumIteration 		0
 #define OsiMaxNumIterationHotStart 	1
-/* Solver dependent parameters - these define the positions in the arrays
-   that maps to the corresponding actual paramters of the solver
-   (e.g. cbc_iparam[] and cbc_dparam[]) in coinplex.cpp
-*/
-#define SolverMaxNumNode		0
-#define SolverMaxNumSol			1
-#define SolverIntegerTolerance		0
-#define SolverAllowableGap		1
-#define SolverAllowableFractionGap	2
-#define SolverCutoffIncrement		3
 
 static struct param_desc params[NUMPARAMS+NUMALIASES] = {
+/* OSI */
 {"probname", OsiProbName, 2},
 {"solvername", OsiSolverName, 2},
 {"dualobjectivelimit", OsiDualObjectiveLimit, 1},
@@ -1615,14 +1635,26 @@ static struct param_desc params[NUMPARAMS+NUMALIASES] = {
 {"primaltolerance", OsiPrimalTolerance, 1},
 {"maxnumiteration", OsiMaxNumIteration, 0},
 {"maxnumiterationhotstart", OsiMaxNumIterationHotStart, 0},
-/* the following are solver dependent (i.e. non-OSI)
-*/
+
+# ifdef COIN_USE_CLP
+/* Solver */
 {"node_limit", SolverMaxNumNode,  3},
 {"solution_limit", SolverMaxNumSol, 3},
 {"integrality", SolverIntegerTolerance, 4},
 {"absmipgap", SolverAllowableGap, 4},
 {"mipgap", SolverAllowableFractionGap, 4},
 {"objdifference", SolverCutoffIncrement, 4},
+{"absmipheuristicgap", SolverHeuristicGap, 4},
+{"mipheuristicgap", SolverHeuristicFractionGap, 4},
+{"lppresolve_tol", SolverLPPresolveTolerance, 4},
+
+/* Eplex */
+{"bar_ordering", EpxClpParam_bar_ordering, 8},
+{"mip_print_freq", EpxClpParam_print_freq, 6},
+{"loglevel", EpxClpParam_loglevel, 6},
+{"mip_lploglevel", EpxClpParam_mip_lploglevel, 6},
+{"bar_doKKT", EpxClpParam_doKKT, 6},
+# endif
 
 #else
 

@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.19 2011/04/04 18:16:04 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.20 2011/04/22 14:55:40 kish_shen Exp $
  *
  */
 
@@ -510,6 +510,8 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
    ((L) == NULL ? XPRSgetintcontrol(E,A1,A2) : XPRSgetintcontrol((L)->lp,A1,A2))
 # define Get_Dbl_Param(E,L,A1,A2) \
    ((L) == NULL ? XPRSgetdblcontrol(E,A1,A2) : XPRSgetdblcontrol((L)->lp,A1,A2))
+# define Get_Str_Param(E,L,A1,A2) \
+   ((L) == NULL ? XPRSgetstrcontrol(E,A1,A2) : XPRSgetdblcontrol((L)->lp,A1,A2))
 # define Set_Int_Param(E,L,A1,A2) \
    ((L) == NULL ? XPRSsetintcontrol(E,A1,A2) : XPRSsetintcontrol((L)->lp,A1,A2))
 # define Set_Dbl_Param(E,L,A1,A2) \
@@ -690,10 +692,14 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
    coin_getintparam(((L) == NULL ? E : (L)->lp),A1,A2)
 # define Get_Dbl_Param(E,L,A1,A2) \
    coin_getdblparam(((L) == NULL ? E : (L)->lp),A1,A2)
+# define Get_Str_Param(E,L,A1,A2) \
+   coin_getstrparam(((L) == NULL ? E : (L)->lp),A1,A2)
 # define Set_Int_Param(E,L,A1,A2) \
    coin_setintparam(((L) == NULL ? E : (L)->lp),A1,A2)
 # define Set_Dbl_Param(E,L,A1,A2) \
    coin_setdblparam(((L) == NULL ? E : (L)->lp),A1,A2)
+# define Set_Str_Param(E,L,A1,A2) \
+   coin_setstrparam(((L) == NULL ? E : (L)->lp),A1,A2)
 
 /*
 # define Set_Str_Param(E,L,A1,A2) \
@@ -954,7 +960,7 @@ _strsz_lp_handle(lp_desc *lpd, int quoted)
 static int
 _tostr_lp_handle(lp_desc *lpd, char *buf, int quoted)
 {
-    sprintf(buf, "'EPLEX_"Transform_Quoted(SOLVER_SHORT_NAME)"'(16'%x)", (word) lpd);
+    sprintf(buf, "'EPLEX_"Transform_Quoted(SOLVER_SHORT_NAME)"'(16'%" W_MOD "x)", (uword) lpd);
     return strlen(buf); /* size of actual string */
 }
 
@@ -1695,6 +1701,7 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 {
     double dres;
     int i, ires;
+    char sres[STRBUFFERSIZE];
     lp_desc *lpd; 
 
 #ifndef COIN
@@ -1729,6 +1736,15 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 	{
 	    Return_Unify_Float(vval, tval, dres);
 	}
+	if (params[i].type == 2 && 
+		Get_Str_Param(cpx_env, lpd, params[i].num, sres)
+	    == 0)
+	{
+	  value val;
+	  Check_Output_String(tval);
+	  Cstring_To_Prolog(sres, val);
+	  Return_Unify_String(vval, tval, val.ptr);
+	}
 #ifdef COIN
 	if (params[i].type == 3 && 
 	        coin_get_solver_intparam((lpd==NULL ? cpx_env : lpd->lp), 
@@ -1743,6 +1759,23 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 	    == 0)
 	{
 	    Return_Unify_Float(vval, tval, dres);
+	}
+	if (params[i].type == 6 && 
+	        coin_get_eplex_intparam((lpd==NULL ? cpx_env : lpd->lp), 
+					  params[i].num, &ires)
+	    == 0)
+	{
+	    Return_Unify_Integer(vval, tval, ires);
+	} 
+	if (params[i].type == 8 && 
+	        coin_get_eplex_strparam((lpd==NULL ? cpx_env : lpd->lp), 
+					  params[i].num, sres)
+	    == 0)
+	{
+	  value val;
+	  Check_Output_String(tval);
+	  Cstring_To_Prolog(sres, val);
+	  Return_Unify_String(vval, tval, val.ptr);
 	}
 #endif
 	    
@@ -1807,6 +1840,7 @@ p_cpx_set_param(value vlpd, type tlpd, value vp, type tp, value vval, type tval)
 #ifndef SOLVER_HAS_LOCAL_PARAMETERS
     if (lpd != NULL) 
     {
+        Fprintf(Current_Error, "Eplex error: per solver instance parameters are not supported for this solver. Use global parameters instead.\n");
 	Bip_Error(UNIMPLEMENTED);
     }
 #endif
@@ -1832,20 +1866,18 @@ p_cpx_set_param(value vlpd, type tlpd, value vp, type tp, value vval, type tval)
              params[i].num, Dbl(vval));
         err = Set_Dbl_Param(cpx_env, lpd, params[i].num, Dbl(vval));
     }
-#ifdef XPRESS
     else if (params[i].type == 2 && (IsAtom(tval) || IsString(tval)))
     {
 	char *s = IsAtom(tval)? DidName(vval.did): StringStart(vval);
 
-	Call(err, XPRSsetstrcontrol(lpd->lp, params[i].num, s));
+	Call(err, Set_Str_Param(cpx_env, lpd, params[i].num, s));
     }
-# ifdef WIN32
+#if defined(XPRESS) && defined(WIN32)
     else if (params[i].type == 3 && (IsAtom(tval) || IsString(tval)))
     {
 	char *s = IsAtom(tval)? DidName(vval.did): StringStart(vval);
 	err = XPRSsetlogfile(lpd->lp, s);
     }
-# endif
 #endif
 #ifdef COIN
     /* Solver dependent parameters */
@@ -1856,6 +1888,21 @@ p_cpx_set_param(value vlpd, type tlpd, value vp, type tp, value vval, type tval)
     else if (params[i].type == 4 && IsDouble(tval))
     {
         err = coin_set_solver_dblparam((lpd == NULL ? cpx_env : lpd->lp), params[i].num, Dbl(vval));
+    }
+    else if (params[i].type == 6 && IsInteger(tval))
+    {
+        err = coin_set_eplex_intparam((lpd == NULL ? cpx_env : lpd->lp), params[i].num, vval.nint);
+    }
+    /* no double params defined yet
+    else if (params[i].type == 7 && IsDouble(tval))
+    {
+        err = coin_set_eplex_dblparam((lpd == NULL ? cpx_env : lpd->lp), params[i].num, Dbl(vval));
+    }
+    */
+    else if (params[i].type == 8 && (IsAtom(tval) || IsString(tval)))
+    {
+	char *s = IsAtom(tval)? DidName(vval.did): StringStart(vval);
+	err = coin_set_eplex_strparam((lpd == NULL ? cpx_env : lpd->lp), params[i].num, s);
     }
 #endif
     if (err) {
@@ -6213,7 +6260,6 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 	XPRSgetintattrib(lpd->lpcopy, XPRS_NODES, &lpd->sol_nodnum); 
 #endif
 #ifdef COIN
-	CallN(coin_get_stats(lpd));
 	solve_state = coin_get_result_state(lpd);
 #endif
 

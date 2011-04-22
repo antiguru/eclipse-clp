@@ -137,9 +137,14 @@ typedef OsiGlpkSolverInterface OsiXxxSolverInterface;
 #include "CoinError.hpp"
 #include "CoinMessageHandler.hpp"
 #include <stdio.h>
+#include <exception>
+#include <string>
+using std::string;
+using namespace std;
 
 #include <fstream>
 
+#include "coinplex_params.h"
 // must be defined before seplex.h
 typedef struct {
     OsiXxxSolverInterface * Solver;
@@ -154,6 +159,9 @@ typedef struct {
     CbcObject** mipobjects; // information such as SOS to be added to mipmodel 
     int nsos; // number of SOSs
     double timeout;
+    string sparam[EpxClpParam_ns]; 
+    int  iparam[EpxClpParam_ni];
+    double dparam[];
 #endif
 } COINprob;
 
@@ -189,8 +197,7 @@ void eclipse_out(int msgtype, const char* message);
 
 void eclipse_out(int msgtype, const char* message)
 {
-    printf(message);
-    printf("\n");
+  printf("%s\n",message);
 }
 #endif
 
@@ -223,8 +230,6 @@ void coin_error_handler(CoinError &e)
 /* these parameters must correspond to their COIN Solver* declarations
    in eplex_params.h
 */
-#define NUMSOLVERINTPARAMS 		2
-#define NUMSOLVERDBLPARAMS		4
 
 static CbcModel::CbcIntParam cbc_iparam[] = {CbcModel::CbcMaxNumNode, 
 					     CbcModel::CbcMaxNumSol};
@@ -232,8 +237,11 @@ static CbcModel::CbcIntParam cbc_iparam[] = {CbcModel::CbcMaxNumNode,
 static CbcModel::CbcDblParam cbc_dparam[] = {CbcModel::CbcIntegerTolerance,
 					     CbcModel::CbcAllowableGap,
 					     CbcModel::CbcAllowableFractionGap,
-					     CbcModel::CbcCutoffIncrement};
+					     CbcModel::CbcCutoffIncrement,
+                                             CbcModel::CbcHeuristicGap,
+                                             CbcModel::CbcHeuristicFractionGap};
 
+static ClpDblParam clp_dparam[] = {ClpPresolveTolerance};
 
 /* Meaning of whereFrom:
    1 after initial solve by dualsimplex etc
@@ -292,7 +300,7 @@ static int callBack(CbcModel * model, int whereFrom)
   return returnCode;
 }
 
-int coin_branchAndBound(lp_desc* lpd)
+int coin_branchAndBound(lp_desc* lpd, int meth, int auxmeth)
 {
     // copying original bounds before presolve -- Cbc's integer presolve and
     // MIP branch-and-bound can fix some column bounds. The original bounds
@@ -305,30 +313,18 @@ int coin_branchAndBound(lp_desc* lpd)
 
     // Tell solver to return fast if presolve or initial solve infeasible
     lpd->lp->Solver->getModelPtr()->setMoreSpecialOptions(3);
-    int* iparams = NULL; 
-    double* dparams = NULL; 
-
-    if (lpd->lp->mipmodel != NULL) 
-    {
-	// copy the parameters
-	iparams = new int[NUMSOLVERINTPARAMS];
-	dparams = new double[NUMSOLVERDBLPARAMS];
-
-	for (int i=0; i<NUMSOLVERINTPARAMS; i++)
-	    iparams[i] = lpd->lp->mipmodel->getIntParam(cbc_iparam[i]);
-	for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
-	    dparams[i] = lpd->lp->mipmodel->getDblParam(cbc_dparam[i]);
-    }
 
     CbcModel* model = new CbcModel(static_cast<OsiSolverInterface &>(*lpd->lp->Solver));
 
+    int loglevel = lpd->lp->iparam[EpxClpParam_loglevel];
     DerivedHandler* mipMessageHandler = new DerivedHandler;
     model->passInMessageHandler(mipMessageHandler);
     // From John Forrest 2011-03-13, to get message logging with CbcSolver: 
-    model->messageHandler()->setLogLevel(0,1); // CBC
-    model->messageHandler()->setLogLevel(1,0); // CLP  -- set to 0 
-    model->messageHandler()->setLogLevel(2,1); // Coin
-    model->messageHandler()->setLogLevel(3,1); // CGL
+    model->messageHandler()->setLogLevel(0,loglevel); // CBC
+    model->messageHandler()->setLogLevel(1,lpd->lp->iparam[EpxClpParam_mip_lploglevel]); // CLP  
+    model->messageHandler()->setLogLevel(2,loglevel); // Coin
+    model->messageHandler()->setLogLevel(3,loglevel); // CGL
+    model->setPrintFrequency(lpd->lp->iparam[EpxClpParam_print_freq]);
     CbcMain0(*model);
 
     /*
@@ -338,14 +334,13 @@ int coin_branchAndBound(lp_desc* lpd)
     */
     if (lpd->lp->mipmodel != NULL)
     {
-	// if we copied mipmodel's parameters, put them into the new model now
-	for (int i=0; i<NUMSOLVERINTPARAMS; i++)
-	    model->setIntParam(cbc_iparam[i], iparams[i]);
-	for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
-	    model->setDblParam(cbc_dparam[i], dparams[i]);
-
-	if (iparams) { delete [] iparams; iparams = NULL; }
-	if (dparams) { delete [] dparams; dparams = NULL; }
+	// copy mipmodel's parameters -- as these may contain settings from
+        // the user (set through OSI or Solver parameters)
+      
+      for (int i=0; i<CbcModel::CbcLastIntParam; i++)
+	  model->setIntParam(CbcModel::CbcIntParam(i), lpd->lp->mipmodel->getIntParam(CbcModel::CbcIntParam(i)));
+	for (int i=0; i<CbcModel::CbcLastIntParam; i++)
+	  model->setDblParam(CbcModel::CbcDblParam(i), lpd->lp->mipmodel->getDblParam(CbcModel::CbcDblParam(i)));
     }
 
     if (lpd->lp->nsos > 0)
@@ -365,15 +360,50 @@ int coin_branchAndBound(lp_desc* lpd)
     if (lpd->lp->timeout > 0) model->setMaximumSeconds(lpd->lp->timeout);
     //    const char * argv2="-preprocess on -solve ";
     //control->solve(argv2, 1);
-    //model->setPrintFrequency(5);
-    const char * cbc_args[5];
+    const char * cbc_args[12];
     cbc_args[0] = "eplexcbcclpsolver";
     cbc_args[1] = "-preprocess";
     cbc_args[2] = (lpd->presolve ? "on" : "off");
-    cbc_args[3] = "-solve";
-    cbc_args[4] = "-quit";
-    CbcMain1(5,cbc_args,*model,callBack);
+    int next = 3;
 
+    switch (meth) {
+    case METHOD_DUAL:
+      cbc_args[next++] = "-dualSimplex";
+      break;
+    case METHOD_PRIMAL:
+      cbc_args[next++] = "-primalSimplex";
+      break;
+    case METHOD_BAR:
+      cbc_args[next++] = "-chol";
+#ifdef UFL_BARRIER
+      if (lpd->lp->sparam[EpxClpParam_bar_ordering] == "uflamd") 
+	cbc_args[next++] = "Uni"; // UFL
+      else 
+#endif
+      if (lpd->lp->sparam[EpxClpParam_bar_ordering] == "dense") 
+	cbc_args[next++] = "dense";
+      else
+	cbc_args[next++] = "native"; // default
+
+      cbc_args[next++] = "-cross";
+      cbc_args[next++] = (auxmeth == METHOD_NONE ? "off" : "on");
+      if (lpd->lp->iparam[EpxClpParam_doKKT]) {
+	cbc_args[next++] =  "-KKT";
+	cbc_args[next++] = "on";
+      }
+      cbc_args[next++] = "-barrier";
+      if (auxmeth == METHOD_PRIMAL) {
+	eclipse_out(WrnType, "Eplex Warning: CbcSolver supports cross-over for barrier using dual simplex only -- dual simplex used instead of primal simplex.\n");
+      }
+      break;
+      // falls through if METHOD_DEFAULT
+    }
+    cbc_args[next++] = "-solve";
+    cbc_args[next++] = "-quit";
+    CbcMain1(next,cbc_args,*model,callBack);
+
+    lpd->sol_itcnt = model->getIterationCount();
+    lpd->sol_nodnum = model->getNodeCount();
 
     if (lpd->lp->Solver != NULL) 
     {
@@ -400,6 +430,8 @@ int coin_branchAndBound(lp_desc* lpd)
     delete [] lws;
     delete [] ups;
 
+    return 0;
+
 }    
 
 int coin_solveLinear(lp_desc* lpd, int meth, int auxmeth)
@@ -407,18 +439,34 @@ int coin_solveLinear(lp_desc* lpd, int meth, int auxmeth)
     switch (meth)
     {
     case METHOD_BAR:
-	{
-#ifdef UFL_BARRIER
-	ClpCholeskyUfl* cholesky = new ClpCholeskyUfl(-1);
-#else
-	ClpCholeskyBase* cholesky = new ClpCholeskyDense();
-#endif
+        {
 	ClpModel* clpmodel = lpd->lp->Solver->getModelPtr();
 	lpd->lp->interiormodel = new ClpInterior;
 	lpd->lp->interiormodel->borrowModel(*clpmodel);
-	// Quadratic QP aparently needs a KKT factorization
-	if (lpd->prob_type == PROBLEM_QP) cholesky->setKKT(true);
-	lpd->lp->interiormodel->setCholesky(cholesky);
+
+	lpd->lp->interiormodel->messageHandler()->setLogLevel(lpd->lp->iparam[EpxClpParam_loglevel]);
+#ifdef UFL_BARRIER
+	if (lpd->lp->sparam[EpxClpParam_bar_ordering] == "uflamd") {
+	  ClpCholeskyUfl* cholesky = new ClpCholeskyUfl(-1);
+	  // Quadratic QP aparently needs a KKT factorization
+	  if (lpd->prob_type == PROBLEM_QP || lpd->lp->iparam[EpxClpParam_doKKT]) 
+	    cholesky->setKKT(true);
+	  lpd->lp->interiormodel->setCholesky(cholesky);
+	} else
+#endif
+	if (lpd->lp->sparam[EpxClpParam_bar_ordering] == "dense") {
+	  ClpCholeskyBase* cholesky = new ClpCholeskyDense();
+	  // Quadratic QP aparently needs a KKT factorization
+	  if (lpd->prob_type == PROBLEM_QP || lpd->lp->iparam[EpxClpParam_doKKT]) 
+	    cholesky->setKKT(true);
+	  lpd->lp->interiormodel->setCholesky(cholesky);
+	} else {
+	  ClpCholeskyBase* cholesky = new ClpCholeskyBase(-1);
+	  // Quadratic QP aparently needs a KKT factorization
+	  if (lpd->prob_type == PROBLEM_QP || lpd->lp->iparam[EpxClpParam_doKKT]) 
+	    cholesky->setKKT(true);
+	  lpd->lp->interiormodel->setCholesky(cholesky);
+	}
 	lpd->lp->interiormodel->primalDual();
 	// Barrier done
 
@@ -432,22 +480,24 @@ int coin_solveLinear(lp_desc* lpd, int meth, int auxmeth)
 	    ClpSimplex model2(*lpd->lp->interiormodel);
 	    // make sure no status left
 	    model2.createStatus();
-	    switch (auxmeth)
-		{
-		case METHOD_PRIMAL:
-		case METHOD_DEFAULT:
-		    model2.primal(1);
-		    break;
-		case METHOD_DUAL:
-		    model2.dual(1);
-		    break;
-		case METHOD_NONE:
-		    break;
-		}
-	}
-	lpd->lp->interiormodel->returnModel(*clpmodel);
-	}
+	    model2.messageHandler()->setLogLevel(lpd->lp->iparam[EpxClpParam_loglevel]);
 
+	    switch (auxmeth) {
+	    case METHOD_PRIMAL:
+	    case METHOD_DEFAULT:
+	        model2.primal(1);
+	        break;
+	    case METHOD_DUAL:
+	        model2.dual(1);
+		break;
+	    case METHOD_NONE:
+	      break;
+	    }
+	}
+	// getIterationCount() is for barrier + crossover (if any)
+	lpd->sol_itcnt = lpd->lp->interiormodel->getIterationCount();
+	lpd->lp->interiormodel->returnModel(*clpmodel);
+        }
 	break;
     case METHOD_PRIMAL:
     case METHOD_DUAL:
@@ -466,6 +516,7 @@ int coin_solveLinear(lp_desc* lpd, int meth, int auxmeth)
 	       needed for detecting if timeout happened or not
 	    */ 
 	}
+	lpd->sol_itcnt = lpd->lp->Solver->getIterationCount();
 	break;
     }
 }
@@ -484,36 +535,31 @@ int coin_set_timeout(COINprob* lp, double timeout)
 
 #else 
 
-int coin_branchAndBound(lp_desc *lpd)
+int coin_branchAndBound(lp_desc *lpd, int meth, int auxmeth)
 {
-    try
-    {
-	lpd->lp->Solver->branchAndBound();
-	if (lpd->prob_type == PROBLEM_FIXEDL && 
-	    lpd->lp->Solver->isProvenOptimal())
-	{
-	    int mac = lpd->lp->Solver->getNumCols();
-	    double* ups = new double[mac];
-	    double* lws = new double[mac];
-	    memcpy(ups, lpd->lp->Solver->getColUpper(), mac*sizeof(double));
-	    memcpy(lws, lpd->lp->Solver->getColLower(), mac*sizeof(double));
-	    //fix
-	    lpd->lp->Solver->initialSolve();
-	    // restore original bounds
-	    for (int i=0; i<mac; i++) 
-		lpd->lp->Solver->setColBounds(i,lws[i],ups[i]);
-	    delete [] lws;
-	    delete [] ups;
+  if (meth != METHOD_DEFAULT) {
+    eclipse_out(WrnType, "Eplex Warning: OSI does not support specification of linear solving method for MIP problems. Specification ignored.\n");
+  } 
+  lpd->lp->Solver->branchAndBound();
+  if (lpd->prob_type == PROBLEM_FIXEDL && 
+      lpd->lp->Solver->isProvenOptimal()) {
+      int mac = lpd->lp->Solver->getNumCols();
+      double* ups = new double[mac];
+      double* lws = new double[mac];
+      memcpy(ups, lpd->lp->Solver->getColUpper(), mac*sizeof(double));
+      memcpy(lws, lpd->lp->Solver->getColLower(), mac*sizeof(double));
+      //fix
+      lpd->lp->Solver->initialSolve();
+      // restore original bounds
+      for (int i=0; i<mac; i++) 
+	lpd->lp->Solver->setColBounds(i,lws[i],ups[i]);
+      delete [] lws;
+      delete [] ups;
 
-	}
-    }
-    catch (CoinError e)
-    {
-	coin_error_handler(e);
-	return -1;
-    }
+  }
+  lpd->sol_itcnt = lpd->lp->Solver->getIterationCount();
 
-    return 0;
+  return 0;
 }
 
 int coin_solveLinear(lp_desc* lpd, int meth, int aux_meth)
@@ -530,6 +576,7 @@ int coin_solveLinear(lp_desc* lpd, int meth, int aux_meth)
 	//lpd->lp->Solver->writeLp("cointest");
 	lpd->lp->Solver->initialSolve();
 	lpd->lp->notfirst= 1;
+	lpd->sol_itcnt = lpd->lp->Solver->getIterationCount();
 	/* timeout for CLP not turned off here, but only before 
 	   branchAndBound() is called, because the timeout setting is 
 	   needed for detecting if timeout happened or not
@@ -550,16 +597,37 @@ extern "C"
 int coin_get_solver_dblparam(COINprob* lp, int key, double &value)
 {
     if (lp->mipmodel == NULL) return -1; // should not happen
-    value = lp->mipmodel->getDblParam(cbc_dparam[key]);
+    if (key >= NumSolverMipDblParams) {
+      // CLP param
+      key -= NumSolverMipDblParams;
+      lp->Solver->getModelPtr()->getDblParam(clp_dparam[key], value);
+    } else {
+      // CBC Param
+      value = lp->mipmodel->getDblParam(cbc_dparam[key]);
+    }
 
     return 0;
 }
 
 extern "C"
-int coin_get_solver_intparam(COINprob* lp, int key, int &value)
+int coin_get_solver_intparam(COINprob* lp, int key, int& value)
 {
     if (lp->mipmodel == NULL) return -1; // should not happen
     value = lp->mipmodel->getIntParam(cbc_iparam[key]);
+
+    return 0;
+}
+
+extern "C"
+int coin_set_solver_dblparam(COINprob* lp, int key, double value)
+{
+    if (lp->mipmodel == NULL) return -1;
+    if (key >= NumSolverMipDblParams) {
+      // CLP param
+      key -= NumSolverMipDblParams;
+      lp->Solver->getModelPtr()->setDblParam(clp_dparam[key], value);
+    } else
+      lp->mipmodel->setDblParam(cbc_dparam[key], value); // CBC param
 
     return 0;
 }
@@ -574,11 +642,69 @@ int coin_set_solver_intparam(COINprob* lp, int key, int value)
 }
 
 extern "C"
-int coin_set_solver_dblparam(COINprob* lp, int key, double value)
+int coin_get_eplex_intparam(COINprob* lp, int key, int& value)
 {
     if (lp->mipmodel == NULL) return -1;
-    lp->mipmodel->setDblParam(cbc_dparam[key], value);
+    value = lp->iparam[key];
 
+    return 0;
+}
+
+extern "C"
+int coin_get_eplex_strparam(COINprob* lp, int key, char* value)
+{
+    if (lp->mipmodel == NULL) return -1;
+    
+    int size = lp->sparam[key].length()+1;    
+    if (size > STRBUFFERSIZE) size = STRBUFFERSIZE;
+    string::traits_type::copy(value, lp->sparam[key].c_str(), size);
+   
+   return 0;
+
+}
+
+extern "C"
+int coin_set_eplex_intparam(COINprob* lp, int key, int value)
+{
+    if (lp->mipmodel == NULL) return -1;
+    switch (key) {
+    case EpxClpParam_print_freq:
+      lp->mipmodel->setPrintFrequency(value);
+      lp->iparam[key] = value;
+      break;
+    case EpxClpParam_loglevel:
+      if (value >= 0 && value <= 3) {
+	lp->iparam[key] = value;
+	lp->Solver->messageHandler()->setLogLevel(value);
+      } else return -1;
+      break;
+    case EpxClpParam_mip_lploglevel:
+      if (value >= 0 && value <= 3)
+	lp->iparam[key] = value;
+      else return -1;
+      break;
+    case EpxClpParam_doKKT:
+      lp->iparam[key] = value;
+      break;
+    default:
+      return -1;
+      break;
+    }
+    return 0;
+}
+
+extern "C"
+int coin_set_eplex_strparam(COINprob* lp, int key, const char* value)
+{
+    if (lp->mipmodel == NULL) return -1;
+    switch (key) {
+    case EpxClpParam_bar_ordering:
+      lp->sparam[key] = value;
+      break;
+    default:
+      return -1;
+    }
+    
     return 0;
 }
 
@@ -1047,11 +1173,24 @@ int coin_loadprob(COINprob* lp, int mac, int mar, int objsen, double* objx,
     //    CoinPackedMatrix* mat = 
     //new CoinPackedMatrix(true, mar, mac, matbeg[mac],
     //			   matval, matind, matbeg, matcnt, 0.6, 0.6);
-    lp->Solver->loadProblem(mac, mar, matbeg, matind, matval, lb, ub, objx, senx, rhsx, range);
-    //lp->Solver->loadProblem(*mat,lb, ub, objx, senx, rhsx, range);
-    lp->Solver->setObjSense((objsen == SENSE_MIN ? 1 : -1));
-    delete [] range;
-    //delete mat;
+    try {
+      lp->Solver->loadProblem(mac, mar, matbeg, matind, matval, lb, ub, objx, senx, rhsx, range);
+      //lp->Solver->loadProblem(*mat,lb, ub, objx, senx, rhsx, range);
+      lp->Solver->setObjSense((objsen == SENSE_MIN ? 1 : -1));
+      delete [] range;
+      //delete mat;
+    }
+    catch (CoinError e)
+    {
+      coin_error_handler(e);
+      return -1;
+    }
+    catch (bad_alloc&)
+    {
+      eclipse_out(ErrType, "Memory allocation error in external solver\n");
+      return -1;
+    }
+
     return 0;
 }
 
@@ -1392,6 +1531,19 @@ int coin_getintparam(COINprob* lp, int key, int &value)
 }
 
 extern "C"
+int coin_getstrparam(COINprob* lp, int key, char* value)
+{
+    string svalue;
+    lp->Solver->getStrParam(OsiStrParam(key), svalue);
+
+    int size = svalue.length()+1;
+    if (size > STRBUFFERSIZE) size = STRBUFFERSIZE;
+    string::traits_type::copy(value, svalue.c_str(), size);
+
+    return 0;
+}
+
+extern "C"
 int coin_setdblparam(COINprob* lp, int key, double value)
 {
     lp->Solver->setDblParam(OsiDblParam(key), value);
@@ -1405,6 +1557,14 @@ int coin_setintparam(COINprob* lp, int key, int value)
     return 0;
 }
 
+extern "C"
+int coin_setstrparam(COINprob* lp, int key, const char* value)
+{
+  const string svalue = value;
+    if (lp->Solver->setStrParam(OsiStrParam(key), svalue))
+        return 0;
+    else return -1;
+}
 
 extern "C"
 int coin_solve_problem(lp_desc* lpd, 
@@ -1443,11 +1603,10 @@ int coin_solve_problem(lp_desc* lpd,
     lpd->lp->Solver->setHintParam(OsiDoPresolveInInitial, lpd->presolve, OsiHintDo, NULL);
     lpd->lp->Solver->setHintParam(OsiDoPresolveInResolve, lpd->presolve, OsiHintDo, NULL);
 
-
-    switch (lpd->prob_type)
-    {
-    case PROBLEM_MIP:
-    case PROBLEM_FIXEDL:
+    try {
+      switch (lpd->prob_type) {
+      case PROBLEM_MIP:
+      case PROBLEM_FIXEDL:
 #ifdef COIN_USE_CLP
 	/* turn off timeout in CLP (otherwise may cause problems for MIP */
 	lpd->lp->Solver->getModelPtr()->setMaximumSeconds(-1);
@@ -1459,14 +1618,17 @@ int coin_solve_problem(lp_desc* lpd,
 	lpd->lp->Solver->setHintParam(OsiDoPresolveInResolve, false, OsiHintDo, NULL);
 	
 #endif
+	if (node_meth != METHOD_DEFAULT) {
+	  eclipse_out(WrnType, "Eplex Warning: node solving method for MIP problems not supported by COIN solvers, method ignored.\n");
+	}
 	lpd->lp->Solver->setHintParam(OsiDoInBranchAndCut, true, OsiHintDo);
-	coin_branchAndBound(lpd);
+	coin_branchAndBound(lpd, meth, auxmeth);
 	break;
-    case PROBLEM_LP:
-    case PROBLEM_RELAXEDL:
+      case PROBLEM_LP:
+      case PROBLEM_RELAXEDL:
 #ifdef COIN_USE_CLP
-    case PROBLEM_QP:
-    // case PROBLEM_RELAXEDQ:
+      case PROBLEM_QP:
+	// case PROBLEM_RELAXEDQ:
 	//	lpd->lp->Solver->getModelPtr()->setPerturbation(50);
 	if (lpd->lp->timeout > 0) 
 	    lpd->lp->Solver->getModelPtr()->setMaximumSeconds(lpd->lp->timeout);
@@ -1476,26 +1638,23 @@ int coin_solve_problem(lp_desc* lpd,
 	coin_solveLinear(lpd, meth, auxmeth);
 	break;
 
-    default:
+      default:
 	eclipse_out(ErrType, "Eplex Error: cannot solve problem type with this solver.\n"); 
 	return -1;
 	break;
-    }
-
-    return 0;
-}
-
-extern "C"
-int coin_get_stats(lp_desc* lpd)
-{
-#ifdef COIN_USE_SYM
-    if (lpd->lp->Solver->getNumCols() == 0) 
+      }
+    } /* try */
+    catch (CoinError e)
     {
-	lpd->sol_itcnt = 0;
-	return 0;
+      coin_error_handler(e);
+      return -1;
     }
-#endif
-    lpd->sol_itcnt = lpd->lp->Solver->getIterationCount();
+    catch (bad_alloc&)
+    {
+      eclipse_out(ErrType, "Memory allocation error in external solver\n");
+      return -1;
+    }
+
     return 0;
 }
 
@@ -1607,12 +1766,48 @@ int coin_create_prob(COINprob* &lp, COINprob* def)
 
     if (def)
     {// copy the parameter values from default
-	for (int i=0; i<NUMSOLVERINTPARAMS; i++)
+        // this should copy the parameters from def to lp, but it does not
+        // seem to work, so params are copied individually
+        //lp->Solver->copyParameters(*def->Solver);
+        for (int i=0; i<OsiLastIntParam; i++) {
+	    int val;
+	    if (def->Solver->getIntParam(OsiIntParam(i), val))
+	        lp->Solver->setIntParam(OsiIntParam(i), val);
+        } 
+        for (int i=0; i<OsiLastDblParam; i++) {
+	    double val;
+	    if (def->Solver->getDblParam(OsiDblParam(i), val))
+	        lp->Solver->setDblParam(OsiDblParam(i), val);
+        } 
+        for (int i=0; i<OsiLastStrParam; i++) {
+	    string val;
+	    if (def->Solver->getStrParam(OsiStrParam(i), val))
+	        lp->Solver->setStrParam(OsiStrParam(i), val);
+        } 
+	for (int i=0; i<NumSolverMipIntParams; i++)
 	    lp->mipmodel->setIntParam(cbc_iparam[i], def->mipmodel->getIntParam(cbc_iparam[i]));
-	for (int i=0; i<NUMSOLVERDBLPARAMS; i++)
+	for (int i=0; i<NumSolverMipDblParams; i++)
 	    lp->mipmodel->setDblParam(cbc_dparam[i], def->mipmodel->getDblParam(cbc_dparam[i]));
-    }
+	for (int i=0; i<NumSolverLpDblParams; i++) {
+	  double value;
+	  def->Solver->getModelPtr()->getDblParam(clp_dparam[i], value);
+	  lp->Solver->getModelPtr()->setDblParam(clp_dparam[i], value);
+	}
 
+	for (int i=0; i<EpxClpParam_ns; i++) lp->sparam[i] = def->sparam[i];
+	for (int i=0; i<EpxClpParam_ni; i++) lp->iparam[i] = def->iparam[i];
+    } else {
+      // initialise the defaults for eplex params 
+# ifdef UFL_BARRIER
+      lp->sparam[EpxClpParam_bar_ordering] = "uflamd";
+# else
+      lp->sparam[EpxClpParam_bar_ordering] = "native";
+# endif
+      lp->iparam[EpxClpParam_print_freq] = lp->mipmodel->printFrequency();
+      lp->iparam[EpxClpParam_loglevel] = 1;
+      lp->iparam[EpxClpParam_mip_lploglevel] = 0;
+      lp->iparam[EpxClpParam_doKKT] = 0;
+    }
     lp->timeout = -1; // no timeouts
 #else
     if (def) 
@@ -1623,7 +1818,7 @@ int coin_create_prob(COINprob* &lp, COINprob* def)
 #endif
 
     lp->Solver->passInMessageHandler(coinMessageHandler);
-    lp->Solver->messageHandler()->setLogLevel(1);
+    lp->Solver->messageHandler()->setLogLevel(lp->iparam[EpxClpParam_loglevel]);
     coin_set_solver_outputs(lp->Solver);
 
     return 0;
@@ -1833,18 +2028,26 @@ int coin_load_sos(COINprob* lp, int nsos, int nsosnz, char* sostype,
 #ifdef COIN_USE_CLP
     lp->mipobjects = new CbcObject * [nsos];
 
-    for (int i=0; i<nsos-1; i++)
-    {
+    try {
+      for (int i=0; i<nsos-1; i++) {
 	lp->mipobjects[i] = new CbcSOS(lp->mipmodel, sosbeg[i+1]-sosbeg[i], 
 				       &sosind[sosbeg[i]], &soswt[i], i, 
 				       (sostype[i] == '1' ? 1 : 2));
-    }
-    if (nsos > 0)
-    {// last set
+      }
+      if (nsos > 0) {// last set
 	int i = nsos - 1;
 	lp->mipobjects[i] = new CbcSOS(lp->mipmodel, nsosnz-sosbeg[i], 
-				    &sosind[sosbeg[i]], &soswt[i], i, 
-				    (sostype[i] == '1' ? 1 : 2));
+				       &sosind[sosbeg[i]], &soswt[i], i, 
+				       (sostype[i] == '1' ? 1 : 2));
+      }
+    }
+    catch (CoinError e) {
+      coin_error_handler(e);
+      return -1;
+    }
+    catch (bad_alloc&) {
+      eclipse_out(ErrType, "Memory allocation error in external solver\n");
+      return -1;
     }
 
     lp->nsos = nsos;
@@ -1914,6 +2117,9 @@ void coin_get_solver_info(char* info)
     strcpy(info, "symphony");
 #endif
 
+#ifdef COIN_USE_GLPK
+    strcpy(info, "glpk");
+#endif
 
 }
 

@@ -43,6 +43,8 @@
 #define IsMIPProb(t) ((t) == PROBLEM_MIP || (t) == PROBLEM_MIQP)
 #define IsQPProb(t)  ((t) == PROBLEM_QP || (t) == PROBLEM_MIQP)
 
+#define STRBUFFERSIZE  64  /* size of string parameter buffer size */
+ 
 #if defined(NOECLIPSE) 
 /* compiling for logged code */
  
@@ -301,17 +303,22 @@ int coin_get_mipcutoff(COINprob* lp, double* bestbound);
 double coin_infinity(COINprob* lp);
 int coin_getdblparam(COINprob* lp, int key, double* value);
 int coin_getintparam(COINprob* lp, int key, int* value);
+int coin_getstrparam(COINprob* lp, int key, char* value);
 int coin_setdblparam(COINprob* lp, int key, double value);
 int coin_setintparam(COINprob* lp, int key, int value);
+int coin_setstrparam(COINprob* lp, int key, const char* value);
 int coin_set_qobj(COINprob* lp, int mac, int cb_cnt, int* cb_index, int*
 		  cb_index2, double* cb_value); 
 int coin_get_solver_dblparam(COINprob* lp, int key, double* value);
 int coin_get_solver_intparam(COINprob* lp, int key, int* value);
 int coin_set_solver_dblparam(COINprob* lp, int key, double value);
 int coin_set_solver_intparam(COINprob* lp, int key, int value);
+int coin_get_eplex_strparam(COINprob* lp, int key, char* value);
+int coin_get_eplex_intparam(COINprob* lp, int key, int* value);
+int coin_set_eplex_strparam(COINprob* lp, int key, const char* value);
+int coin_set_eplex_intparam(COINprob* lp, int key, int value);
 int coin_solve_problem(lp_desc* lpd, 
 	int meth, int auxmeth, int node_meth, int node_auxmeth);
-int coin_get_stats(lp_desc* lpd);
 int coin_get_soln_state(lp_desc* lpd, double* sols, double* pis,
 	double* slacks, double* djs, int* cbase, int* rbase);
 int coin_set_timeout(COINprob* lp, double timeout);
