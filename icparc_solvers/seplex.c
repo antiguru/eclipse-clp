@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.20 2011/04/22 14:55:40 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.21 2011/04/23 21:40:39 kish_shen Exp $
  *
  */
 
@@ -108,6 +108,7 @@ __eprintf (format, file, line, expression)
 # include "xprs.h"
 # define XP_PROBNAME_MAX 200  /* maximum length of problem name */
 # define HAS_MIQP
+# define SOLVER_HAS_STR_PARAMS /* has string parameters */
 /* copying a problem with zeroed quad. coeff. can lead to core dumps */
 # define HAS_MIQP_FIXEDCOPYBUG 
 # define HAS_INTLB_BUG /* LB lost when converting col to int type */
@@ -712,8 +713,6 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define SOLVER_MAT_BASE 0
 # define SOLVER_MAT_OFFSET 1
 
-#define HAS_QUADRATIC /* CLP has quadratic */
-
 # define CPX_COL_AT_LOWER                   3
 # define CPX_COL_BASIC                      1
 # define CPX_COL_AT_UPPER                   2
@@ -731,7 +730,14 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define CPX_MIN	SENSE_MIN
 # define CPX_MAX	SENSE_MAX
 
-#define SOLVER_HAS_LOCAL_PARAMETERS
+# define SOLVER_HAS_STR_PARAMS /* has string parameters */
+# define SOLVER_HAS_LOCAL_PARAMETERS
+
+# ifdef COIN_USE_CLP
+
+# define HAS_QUADRATIC /* CLP has quadratic */
+
+# endif
 
 #endif /* COIN */
 
@@ -1736,6 +1742,7 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 	{
 	    Return_Unify_Float(vval, tval, dres);
 	}
+#ifdef SOLVER_HAS_STR_PARAMS
 	if (params[i].type == 2 && 
 		Get_Str_Param(cpx_env, lpd, params[i].num, sres)
 	    == 0)
@@ -1745,6 +1752,7 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 	  Cstring_To_Prolog(sres, val);
 	  Return_Unify_String(vval, tval, val.ptr);
 	}
+#endif
 #ifdef COIN
 	if (params[i].type == 3 && 
 	        coin_get_solver_intparam((lpd==NULL ? cpx_env : lpd->lp), 
@@ -1866,12 +1874,14 @@ p_cpx_set_param(value vlpd, type tlpd, value vp, type tp, value vval, type tval)
              params[i].num, Dbl(vval));
         err = Set_Dbl_Param(cpx_env, lpd, params[i].num, Dbl(vval));
     }
+#ifdef SOLVER_HAS_STR_PARAMS
     else if (params[i].type == 2 && (IsAtom(tval) || IsString(tval)))
     {
 	char *s = IsAtom(tval)? DidName(vval.did): StringStart(vval);
 
 	Call(err, Set_Str_Param(cpx_env, lpd, params[i].num, s));
     }
+#endif
 #if defined(XPRESS) && defined(WIN32)
     else if (params[i].type == 3 && (IsAtom(tval) || IsString(tval)))
     {
