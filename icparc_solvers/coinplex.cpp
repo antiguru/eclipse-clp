@@ -1809,16 +1809,20 @@ int coin_create_prob(COINprob* &lp, COINprob* def)
       lp->iparam[EpxClpParam_doKKT] = 0;
     }
     lp->timeout = -1; // no timeouts
+
+    lp->Solver->passInMessageHandler(coinMessageHandler);
+    lp->Solver->messageHandler()->setLogLevel(lp->iparam[EpxClpParam_loglevel]);
 #else
     if (def) 
     {// this should copy the parameters from def to lp, but it does not
      // seem to work, so should add specific code to copy params 
 	lp->Solver->copyParameters(*def->Solver);
     }
-#endif
 
     lp->Solver->passInMessageHandler(coinMessageHandler);
-    lp->Solver->messageHandler()->setLogLevel(lp->iparam[EpxClpParam_loglevel]);
+    lp->Solver->messageHandler()->setLogLevel(1);
+#endif
+
     coin_set_solver_outputs(lp->Solver);
 
     return 0;
