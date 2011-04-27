@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.14 2011/04/27 05:16:43 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.15 2011/04/27 12:21:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.14 2011/04/27 05:16:43 jschimpf Exp $
+% $Id: iso.pl,v 1.15 2011/04/27 12:21:56 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -94,7 +94,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, `Cisco Systems, Inc`).
-:- comment(date, `$Date: 2011/04/27 05:16:43 $`).
+:- comment(date, `$Date: 2011/04/27 12:21:56 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html(`\
     This library provides a reasonable degree of compatibility with\n\
@@ -291,14 +291,19 @@ eval_expr(N, ArithGoal) :-
 
 :- tool(abolish/1, abolish_/2).			% 8.9.4
 abolish_(Pred, Module) :-
-	( current_predicate(Pred)@Module ->
-	    ( is_dynamic(Pred)@Module ->
-		eclipse_language:abolish(Pred)@Module
+	( compound(Pred), Pred=N/A, atom(N), integer(A), A>=0 ->
+	    ( current_predicate(Pred)@Module ->
+		( is_dynamic(Pred)@Module ->
+		    eclipse_language:abolish(Pred)@Module
+		;
+		    error(63, abolish(Pred), Module)
+		)
 	    ;
-	    	error(63, abolish(Pred), Module)
+		true
 	    )
 	;
-	    true
+	    % just to raise errors...
+	    eclipse_language:abolish(Pred)@Module
 	).
 
 %-----------------------------------------------------------------------
