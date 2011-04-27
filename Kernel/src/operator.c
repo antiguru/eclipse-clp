@@ -24,7 +24,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: operator.c,v 1.4 2011/04/21 02:45:52 jschimpf Exp $
+ * VERSION	$Id: operator.c,v 1.5 2011/04/27 05:15:50 jschimpf Exp $
  */
 
 /*
@@ -182,6 +182,26 @@ _visible_anyfix_op(int fixity, dident atom, dident module, type mod_tag, int *re
 	return 0;
     }
 }
+
+
+/*
+ * Return nonzero if any operator property is attached to atom.
+ * Needed to implement ISO-Prolog restrictions.
+ */
+int
+visible_operator(dident atom, dident module, type mod_tag)
+{
+    int res;
+    opi *desc;
+    desc = OperatorItem(atom, module, mod_tag, VISIBLE_PROP, INFIX_PROP, &res);
+    if (desc && GetOpiPreced(desc)) return 1;
+    desc = OperatorItem(atom, module, mod_tag, VISIBLE_PROP, PREFIX_PROP, &res);
+    if (desc && GetOpiPreced(desc)) return 1;
+    desc = OperatorItem(atom, module, mod_tag, VISIBLE_PROP, POSTFIX_PROP, &res);
+    if (desc && GetOpiPreced(desc)) return 1;
+    return 0;
+}
+
 
 /*
  * visible_prefix_op(atom, module) return a pointer to the visible

@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: lex.h,v 1.7 2011/04/21 02:45:52 jschimpf Exp $
+ * VERSION	$Id: lex.h,v 1.8 2011/04/27 05:15:50 jschimpf Exp $
  */
 
 /*
@@ -151,9 +151,10 @@
 #define	CURLY_ARGS_AS_LIST	0x100000/* parse {}(a,b,c) as {}([a,b,c])   */
 #define	FLOAT_NEEDS_POINT	0x200000/* require . in float constants     */
 #define BAR_IS_SEMICOLON	0x400000/* map infix |/2 to ;/2             */
-#define	ISO_RESTRICTIONS	0x800000/* other ISO restrictions           */
+#define PLUS_IS_NO_SIGN 	0x800000/* + is always functor, never sign  */
+#define ISO_RESTRICTIONS	0x1000000/* other ISO restrictions	    */
 
-#define SYNTAX_FLAGS		24	/* number of flags above	*/
+#define SYNTAX_FLAGS		25	/* number of flags above	*/
 
 
 /*

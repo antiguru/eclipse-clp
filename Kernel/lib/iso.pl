@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.13 2011/04/21 02:46:49 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.14 2011/04/27 05:16:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.13 2011/04/21 02:46:49 jschimpf Exp $
+% $Id: iso.pl,v 1.14 2011/04/27 05:16:43 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -57,11 +57,13 @@
 	get_char/2.
 
 :- export
-	op(0,   xfx, (of)),		% remove some eclipse extensions
-	op(0,   xfx, (with)),
-	op(0,   xfy, (do)),
-	op(0,   xfx, (@)),
-	op(0,   fx, (-?->)),
+	op(0,   xfx, of),		% remove some eclipse extensions
+	op(0,   xfx, with),
+	op(0,   xfy, do),
+	op(0,   xfx, @),
+	op(0,   fx, -?->),
+	op(0,   fy, not),
+	op(0,   fy, abolish),
 	macro((with)/2, (=)/2, []),
 	macro((of)/2, (=)/2, []).
 
@@ -74,6 +76,7 @@
 	syntax_option(iso_escapes),
 	syntax_option(iso_base_prefix),
 	syntax_option(iso_restrictions),
+	syntax_option(plus_is_no_sign),
 	syntax_option(doubled_quote_is_quote),
 	syntax_option(no_array_subscripts),
 	syntax_option(bar_is_no_atom),
@@ -91,7 +94,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, `Cisco Systems, Inc`).
-:- comment(date, `$Date: 2011/04/21 02:46:49 $`).
+:- comment(date, `$Date: 2011/04/27 05:16:43 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html(`\
     This library provides a reasonable degree of compatibility with\n\

@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.7 2011/04/21 02:45:52 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.8 2011/04/27 05:15:50 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -322,13 +322,14 @@ static int
  * The SUBSCRIPTABLE flag means the term may be followed by a subscript.
  */
 
-#define COMMA_TERMINATES	1	/* list elements or structure fields */
-#define BAR_TERMINATES		2	/* list elements only */
-#define SUBSCRIPTABLE		4	/* term can be followed by subscript */
-#define PREBINFIRST		8	/* first argument of prefix binary op */
-#define FZINC_SUBSCRIPTABLE	16	/* subscripts after atoms */
-#define ZINC_SUBSCRIPTABLE	32	/* subscripts after almost everything */
-#define ATTRIBUTABLE            64	/* term can be followed by attributes */
+#define COMMA_TERMINATES	0x01	/* list elements or structure fields */
+#define BAR_TERMINATES		0x02	/* list elements only */
+#define SUBSCRIPTABLE		0x04	/* term can be followed by subscript */
+#define PREBINFIRST		0x08	/* first argument of prefix binary op */
+#define FZINC_SUBSCRIPTABLE	0x10	/* subscripts after atoms */
+#define ZINC_SUBSCRIPTABLE	0x20	/* subscripts after almost everything */
+#define ATTRIBUTABLE            0x40	/* term can be followed by attributes */
+#define ARGOFOP			0x80	/* argument of an operator */
 
 
 /*
@@ -730,6 +731,10 @@ _cant_follow_prefix(parse_desc *pd, int context_flags,
 	    return 0;
 
 _check_precedence_:			/* (did0,class) */
+
+	if (pd->sd->options & ISO_RESTRICTIONS)
+	    return 0;
+
 	/*
 	 * A functor-term CAN follow the prefix
 	 */
@@ -759,14 +764,24 @@ _check_precedence_:			/* (did0,class) */
 	     *        prefix infix NEXT
 	     * and NEXT is a token that can't follow a complete term, this
 	     * forces the prefix to be interpreted as an atom (otherwise it
-	     * would be a syntax error anyway), eg
-	     *        local / 2
+	     * would be a syntax error anyway), eg:  local / 2
+	     *
+	     * Examples:
+	     *	fy9  yfx10 3	->	(fy9) yfx10 3
+	     *	fy9  yfx10 foo	->	(fy9) yfx10 foo
+	     *	fy9  yfx9  3	->	(fy9) yfx9 3
+	     *	fy9  yfx9  foo	->	(fy9) yfx9 foo	i.e. prefer infix
+	     *	fy10 yfx9  3	->	(fy10) yfx9 3
+	     *	fy10 yfx9  foo	->	fy10 (yfx9) foo
+	     *	fy9  yf10	->	(fy9) yf10
+	     *	fy9  yf9	->	fy9 (yf9)	i.e. prefer prefix
+	     *	fy10 yf9	->	fy10 (yf9)
 	     */
 	    if (((follow_op = visible_infix_op(did0, pd->module, pd->module_tag, &status))
 		    && (oprec <= InfixLeftPrecedence(follow_op)
 			    || CantFollowTerm(pd->token.class)))
 	     || ((follow_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status))
-		    && oprec <= PostfixLeftPrecedence(follow_op))
+		    && oprec < PostfixLeftPrecedence(follow_op))
 	       )
 	    {
 		Prev_Token(pd);
@@ -793,7 +808,7 @@ _check_precedence_:			/* (did0,class) */
 	    if (((follow_op = visible_infix_op(did0, pd->module, pd->module_tag, &status))
 		    /* && (oprec <= InfixLeftPrecedence(follow_op)) */ )
 	     || ((follow_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status))
-		    && (oprec <= PostfixLeftPrecedence(follow_op)
+		    && (oprec < PostfixLeftPrecedence(follow_op)
 			|| IsDelimiter(pd->token.class)))
 	       )
 	    {
@@ -1001,7 +1016,7 @@ _read_struct(parse_desc *pd, char *name, uword length, pword *result,
 static int
 _read_next_term(parse_desc *pd,
 	int context_prec,
-	int context_flags,	/* terminators only */
+	int context_flags,	/* terminators, ARGOFOP */
 	pword *result)
 {
     int		status, class;
@@ -1074,9 +1089,10 @@ _treat_as_functor_:
             /* Here, class is IDENTIFIER or QIDENTIFIER */
             /* ECLiPSe: unquoted plus or minus are signs */
             /* ISO: only minus is a sign, but quoted sign is allowed */
-	    if (length==1)
+	    if (length==1 &&
+	    	(class==IDENTIFIER || pd->sd->options & BLANK_AFTER_SIGN))
             {
-                if (*name=='-' && (class==IDENTIFIER || pd->sd->options & ISO_RESTRICTIONS))
+                if (*name=='-')
                 {
                     /* - followed by number: treat as a sign */
                     tag_desc[pd->token.term.tag.kernel].arith_op[ARITH_CHGSIGN]
@@ -1084,7 +1100,7 @@ _treat_as_functor_:
                     Merge_Source_Pos(pos, pd->token.pos, pos);
                     goto _make_number_;
                 }
-                else if (*name=='+' && class==IDENTIFIER && !(pd->sd->options & ISO_RESTRICTIONS))
+                else if (*name=='+' && !(pd->sd->options & PLUS_IS_NO_SIGN))
                 {
                     /* + followed by number: treat as a sign */
                     Merge_Source_Pos(pos, pd->token.pos, pos);
@@ -1109,7 +1125,7 @@ _treat_as_functor_:
 		    /* treat as prefix operator */
 		    pword *pw;
 		    Build_Struct(&term, pw, OpiDid(pre_op), pos);
-		    status = _read_next_term(pd, rprec, context_flags, &pw[1]);
+		    status = _read_next_term(pd, rprec, context_flags|ARGOFOP, &pw[1]);
 		    Return_If_Error(status);
 		    *result = term;
 		    return _read_after_term(pd, context_prec, context_flags, oprec, result);
@@ -1125,9 +1141,9 @@ _treat_as_functor_:
 		    /* treat as binary prefix operator */
 		    pword *pw;
 		    Build_Struct_Or_List(&term, pw, OpiDid(pre_op), pos);
-		    status = _read_next_term(pd, lprec, context_flags|PREBINFIRST, &pw[1]);
+		    status = _read_next_term(pd, lprec, context_flags|ARGOFOP|PREBINFIRST, &pw[1]);
 		    Return_If_Error(status);
-		    status = _read_next_term(pd, rprec, context_flags, &pw[2]);
+		    status = _read_next_term(pd, rprec, context_flags|ARGOFOP, &pw[2]);
 		    Return_If_Error(status);
 		    *result = term;
 		    return _read_after_term(pd, context_prec, context_flags, oprec, result);
@@ -1143,6 +1159,10 @@ _treat_as_functor_:
 	    goto _treat_as_functor_;
 	}
 
+	/* ISO does not allow operators as arguments of operators */
+	if (context_flags & ARGOFOP  &&  pd->sd->options & ISO_RESTRICTIONS
+	    &&  DidIsOp(did0) &&  visible_operator(did0, pd->module, pd->module_tag))
+	    return BRACKET;
 	/* treat as a simple atom */
 	Build_Atom_Or_Nil(&term, did0, pos);
 	*result = term;
@@ -1334,7 +1354,6 @@ _read_after_term(parse_desc *pd, int context_prec,
 	case QIDENTIFIER:
 	    did0 = enter_dict_n(TokenString(pd), TokenStringLen(pd), 0);
 _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
-	    context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|ZINC_SUBSCRIPTABLE);
 	    in_op = visible_infix_op(did0, pd->module, pd->module_tag, &status);
 	    post_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status);
 	    if (in_op && !(post_op && _delimiter_follows(pd)))
@@ -1347,12 +1366,18 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		    return PSUCCEED;
 		if (lterm_prec > lprec)
 		    return context_flags & PREBINFIRST ? PSUCCEED : BRACKET;
+		/* ISO does not allow operators as arguments of operators */
+		if (context_flags & FZINC_SUBSCRIPTABLE && pd->sd->options & ISO_RESTRICTIONS
+			&&  DidIsOp(result->val.did)
+			&&  visible_operator(result->val.did, pd->module, pd->module_tag))
+		    return BRACKET;
 		Build_Struct_Or_List(&term, pw, OpiDid(in_op), pd->token.pos);
 		/* Use Move_Pword() to move possible self-refs in result
 		 * (because we are going to reuse result!) */
 		Move_Pword(result, pw+1);
 		Next_Token(pd);
-		status = _read_next_term(pd, rprec, context_flags, &pw[2]);
+		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|ZINC_SUBSCRIPTABLE);
+		status = _read_next_term(pd, rprec, context_flags|ARGOFOP, &pw[2]);
 		Return_If_Error(status);
 		/*return _read_after_term(pd, context_prec, context_flags, oprec, result);*/
 		*result = term; lterm_prec = oprec;
@@ -1368,11 +1393,17 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		    return PSUCCEED;
 		if (lterm_prec > lprec)
 		    return context_flags & PREBINFIRST ? PSUCCEED : BRACKET;
+		/* ISO does not allow operators as arguments of operators */
+		if (context_flags & FZINC_SUBSCRIPTABLE && pd->sd->options & ISO_RESTRICTIONS
+			&&  DidIsOp(result->val.did)
+			&&  visible_operator(result->val.did, pd->module, pd->module_tag))
+		    return BRACKET;
 		Build_Struct(&term, pw, OpiDid(post_op), pd->token.pos);
 		/* Use Move_Pword() to move possible self-refs in result
 		 * (because we are going to reuse result!) */
 		Move_Pword(result, pw+1);
 		Next_Token(pd);
+		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|ZINC_SUBSCRIPTABLE);
 		/*return _read_after_term(pd, context_prec, context_flags, oprec, result);*/
 		*result = term; lterm_prec = oprec;
 		break;	/* tail recursion */

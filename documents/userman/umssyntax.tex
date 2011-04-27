@@ -555,40 +555,57 @@ p(a :- b, c)
 Some of these properties can be changed by choosing one of the following
 syntax options (see \notation{syntax_options} in the description of
 \biptxtref{get_flag/2}{get_flag/2}{../bips/kernel/env/get_flag-2.html}).
-The following options exist:
+The following options exist (unless otherwise noted, the options are
+disabled by default):
 \begin{quote}
 \begin{description}
 \item[bar_is_no_atom:] disallow the use of an unquoted vertical bar as
-    atom or functor (and turns it into a synonym for a semicolon instead).
+    atom or functor, except when it occurs in infix-position.
+\item[bar_is_semicolon:] translate occurrences of unquoted infix
+    vertical bars into terms with functor ;/2, e.g. \verb:(a|b) = (a;b):.
 \item[based_bignums:] Allow base notation even to write integers longer
     than the wordsize (this implies they are always positive because the
     most significant bit is not interpreted as a sign bit).
 \item[blanks_after_sign:] ignore blank space between a sign and a number
     (by default, this space is significant and will lead to the sign
     being taken as prefix operator rather than the number's sign).
+    Also allow signs of numbers to be quoted.
 \item[doubled_quote_is_quote:] parse a pair of quotes within a quoted item
     as one occurrence of the quote within the string. If this option is off
     (the default), consecutive string-quoted and list-quoted items are parsed
     as a single (concatenated) item, and consecutive quoted atoms are parsed
     as consecutive atoms.
+\item[float_needs_point:] require floating point numbers to be written
+    with a decimal point, e.g. \verb:1.0e-3: instead of \verb:1e-3:.
 \item[iso_escapes:] ISO-Prolog compatible escape sequences within
     strings and atoms.
 \item[iso_base_prefix:] allow binary, octal or hexadecimal numbers to be
   written
     with 0b, 0o or 0x prefix respectively, and disallow the
     \notation{base'number} notation.
+\item[iso_restrictions:] 
+      enable all ISO-Prolog syntax restrictions that are not controlled
+      by individual settings. This includes: disallowing operators as
+      operands of operators; disallowing an atom to be declared as both
+      an infix and a postfix operator; restrictions on changing operator
+      properties for comma, vertical bar, and the empty-bracket atoms.
 \item[limit_arg_precedence:]
     do not allow terms with a precedence higher than 999 as
     structure arguments, unless parenthesised.
 \item[nested_comments:] allow bracketed comments to be nested.
-\item[nl_in_quotes:] allow newlines to occur inside quotes.
+\item[nl_in_quotes:] allow newlines to occur inside quotes (default).
 \item[no_array_subscripts:] disallow the {\eclipse} specific array-subscript
     syntax.
 \item[no_attributes:] disallow the {\eclipse} specific syntax for
     variable attributes in curly braces.
 \item[no_blanks:] do not allow blanks between functor an opening parenthesis
+    (default).
 \item[no_curly_arguments:] disallow the {\eclipse} specific syntax for
     structures with named arguments in curly braces.
+\item[plus_is_no_sign:]
+    do not interpret a plus sign preceding a number as the number's sign
+    (effectively ignoring it), but treat it as a possible prefix operator
+    \verb:+/1:.
 \item[read_floats_as_breals:] read all floating point numbers as bounded
     reals rather than as floats. The resulting breal is a small interval
     enclosing the true value of the number in decimal notation.

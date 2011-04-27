@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.12 2011/04/21 02:45:52 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.13 2011/04/27 05:15:50 jschimpf Exp $
  */
 
 /*
@@ -216,7 +216,8 @@ lex_init(int flags)	/* initialization: setting the name of types */
     syntax_flags[20] =	in_dict("curly_args_as_list",0);
     syntax_flags[21] =	in_dict("float_needs_point",0);
     syntax_flags[22] =	in_dict("bar_is_semicolon",0);
-    syntax_flags[23] =	in_dict("iso_restrictions",0);
+    syntax_flags[23] =	in_dict("plus_is_no_sign",0);
+    syntax_flags[24] =	in_dict("iso_restrictions",0);
 
     default_syntax_desc.char_class[EOB_MARK] = RE;
 

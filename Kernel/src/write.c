@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.11 2011/04/21 02:45:52 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.12 2011/04/27 05:15:50 jschimpf Exp $
  */
 
 /*
@@ -947,7 +947,8 @@ _write_structure_:			/* (d, arg) */
 		    case FX:
 			prec -= 1;
 		    case FY:
-			if (d == d_.plus1  ||  d == d_.minus1)
+			if ( d == d_.minus1 ||
+                             d == d_.plus1 && !(sd->options & PLUS_IS_NO_SIGN))
 			{
 			    /* ignore operators to avoid confusion
 			     * with signed numbers	*/
