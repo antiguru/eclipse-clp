@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.10 2010/12/07 15:57:01 kish_shen Exp $
+% Version:	$Id: eplex_s.ecl,v 1.11 2011/04/29 19:29:04 kish_shen Exp $
 %
 %
 
@@ -1092,7 +1092,7 @@ lp_var_get(Handle, X, What, Val) :-
                     " solver setup:"),
              error(6, Goal)
         ;
-             printf(error, "Eplex error: %w not a problem variable:"), 
+             writeln(error, "Eplex error: not accessing an eplex problem variable:"), 
              error(6, Goal)
         ).
 
