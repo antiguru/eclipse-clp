@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.8 2011/04/27 05:15:50 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.9 2011/05/02 01:49:54 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -1549,8 +1549,14 @@ ec_read_term(
 	    goto _return_error_;
 	switch(pd->token.class)
 	{
-	case EOCL:
 	case EOI:
+	    if (pd->sd->options & ISO_RESTRICTIONS)
+	    {
+		status = ENDOFFILE;
+		goto _return_error_;
+	    }
+	    break;
+	case EOCL:
 	    break;
 	default:
 	    status = UNEXPECTED;
