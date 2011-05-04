@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.33 2009/07/17 15:55:50 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.34 2011/05/04 01:52:12 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -3507,7 +3507,6 @@ proc tkecl:show_pred_prop {module callspec} {
     global tkecl
 
     set tkecl(predproppred) [lindex [ec_rpc [list term_string $callspec _] {((()I)_)}] 2]
-puts pred-$tkecl(predproppred)
     set tkecl(predpropmodule) $module
 
     tkecl:popup_pred_prop
