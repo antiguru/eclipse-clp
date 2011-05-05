@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_public.h,v 1.5 2009/07/17 15:45:49 kish_shen Exp $
+ * $Id: ec_public.h,v 1.6 2011/05/05 07:49:36 jschimpf Exp $
  *
  * Macro definitions needed for the ECLiPSe embedding interface.
  *
@@ -154,7 +154,7 @@ PROBLEM: Cannot deal with word size SIZEOF_WORD.
 
 #define MAXARITY		255	/* Max arity of a regular predicate */
 #define MAXSIMPLEARITY		8	/* Max arity of a simple predicate */
-#define NARGREGS		(1/*A0*/ + MAXARITY + MAXSIMPLEARITY + 2/*SPARE*/)
+#define NARGREGS		(1/*A0*/ + MAXARITY + MAXSIMPLEARITY + 3/*metacall*/)
 #define NTYPES			13	/* Number of types */
 #define ARITH_OPERATIONS	53	/* Number of arithmetic operations */
 

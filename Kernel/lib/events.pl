@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.11 2011/04/08 07:06:01 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.12 2011/05/05 07:48:53 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -167,7 +167,7 @@ try_create_pred(Where, LM) :-
         functor(Where, Name, Arity),
         multi_arity_pred(Name, Arity, Tool, Body, Proto),
         Body = BName/N1,
-        N1 < get_flag(max_predicate_arity),
+        N1 =< get_flag(max_predicate_arity),
         % is the visible prototype the sepia_kernel one?
         get_flag(Proto, definition_module, sepia_kernel)@LM,
         % Create the body, unless it exists already
