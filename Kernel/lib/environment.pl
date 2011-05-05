@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.10 2011/04/10 14:12:34 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.11 2011/05/05 07:48:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -762,7 +762,10 @@ find_guess(String, Bip) :-		% find bip with substring string
 find_match(Type, Name, Arity, Bip) :-		% find bip matching Pred
 	open_index_file(S),
 	b_read(S, Bip),
-	Bip = bip(Name, Arity, _, Type, _).
+	Bip = bip(Name, BipArity, _, Type, _),
+	( Arity = BipArity -> true
+	; integer(Arity), BipArity = AL..AH, AL=<Arity, Arity=<AH
+	).
 
 % 2nd arg is either `full' or `match'; `full' is if a `full' specification
 % is given: N/A or M:N/A. 

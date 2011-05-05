@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.4 2011/05/05 07:46:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2011/05/05 07:46:51 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -906,19 +906,17 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 		LibStructs4 = LibStructs3,
 	    	OtherExports1 = OtherExports0
 	    ; Export = struct(Struct) ->
-		functor(Struct, Name, Arity),
+		functor(Struct, Name, _Arity),
 		( memberchk(pred(struct2(Name,CommentStruct),_Tmpl,_Summ,_File), LibStructs2) ->
-		    % check whether declaration and comment match
-		    (
-			functor(CommentStruct, _, Arity),
-			(
-			    foreacharg(CommentFieldName,CommentStruct), foreacharg(FieldName,Struct)
-			do
-			    ( FieldName = CommentFieldName -> true
-			    ; FieldName = CommentFieldName:_
-			    )
+		    % check whether declaration and comment match (modulo order)
+		    CommentStruct =.. [_|CommentFieldNames],
+		    ( foreacharg(FieldNameDef,Struct), foreach(FieldName,FieldNames) do
+			( FieldNameDef = FieldName:_ -> true
+			; FieldNameDef = FieldName
 			)
-		    ->
+		    ),
+		    msort(CommentFieldNames, FieldNamesSorted),
+		    ( msort(FieldNames, FieldNamesSorted) ->
 			true
 		    ;
 			printf(warning_output, "WARNING: comment does not match declaration: %w%n", [struct(Name)])
@@ -1166,14 +1164,10 @@ gen_group_categories_index(HtmlTopDir, Groups, CatHash, LinkBack, SystemName) :-
 	open(IndexFile, write, Stream, [end_of_line(lf)]),
 	chmod644(IndexFile),
 %	writeln(log_output, making:IndexFile),
-	printf(Stream, "<HTML><HEAD><TITLE>%w Reference Manual</TITLE></HEAD><BODY>", [SystemName]),
+	versioned_name(SystemName, SystemNameVersion),
+	printf(Stream, "<HTML><HEAD><TITLE>%w Reference Manual</TITLE></HEAD><BODY>", [SystemNameVersion]),
 	printf(Stream, "[ %w | <A HREF=\"fullindex.html\">Alphabetic Index</A> ]%n", [LinkBack]),
-	( SystemName == "ECLiPSe" ->
-	    get_flag(version, Version),
-	    printf(Stream, "<H1>%w %w Reference Manual</H1>", [SystemName,Version])
-	;
-	    printf(Stream, "<H1>%w Reference Manual</H1>", [SystemName])
-	),
+	printf(Stream, "<H1>%w Reference Manual</H1>", [SystemNameVersion]),
 
 	% List the groups
 	msort(Groups, SortedGroups),
@@ -1238,6 +1232,9 @@ gen_group_categories_index(HtmlTopDir, Groups, CatHash, LinkBack, SystemName) :-
 	concat_string(["index",I,".html"], CatIndexFile),
 	gen_library_index(HtmlTopDir, ".", CatIndexFile, Category, CatLibsSorted, SubHeader).
 
+versioned_name("ECLiPSe", SystemNameVersion) ?-
+	get_flag(version, Version),
+	concat_string(["ECLiPSe ",Version], SystemNameVersion).
 
 group_summary("ECLiPSe", "kernel", "The ECLiPSe Built-In Predicates") :- !.
 group_summary("ECLiPSe", "lib", "The ECLiPSe Libraries") :- !.
@@ -1252,9 +1249,10 @@ gen_full_index(HtmlTopDir, LinkBack, SystemName, GroupFlag) :-
 	open(IndexFile, write, Stream, [end_of_line(lf)]),
 	chmod644(IndexFile),
 %	writeln(log_output, making:IndexFile),
-	printf(Stream, "<HTML><HEAD><TITLE>%w Alphabetic Predicate Index</TITLE></HEAD><BODY>", [SystemName]),
+	versioned_name(SystemName, SystemNameVersion),
+	printf(Stream, "<HTML><HEAD><TITLE>%w Alphabetic Predicate Index</TITLE></HEAD><BODY>", [SystemNameVersion]),
 	printf(Stream, "[ %w | <A HREF=\"index.html\">Reference Manual</A> ]%n", [LinkBack]),
-	printf(Stream, "<H1>%w Alphabetic Predicate Index</H1>", [SystemName]),
+	printf(Stream, "<H1>%w Alphabetic Predicate Index</H1>", [SystemNameVersion]),
 	% make A-Z jump table
 	( for(Letter, 0'A, 0'Z), param(Stream) do
 	    printf(Stream, "  <A HREF=\"#%c\">%c</A>", [Letter,Letter])
@@ -1285,11 +1283,11 @@ gen_full_index(HtmlTopDir, LinkBack, SystemName, GroupFlag) :-
 	    ( GroupFlag = nogroups -> Group = '.' ; Group = Group0 ),
 	    ( File == '' ->
 		printf(Stream,
-		    "<LI><STRONG> %w</STRONG>..........<A HREF=\"%w/%w/index.html\">%w/%w</A>%n",
+		    "<LI><STRONG> %w</STRONG> &rarr; <A HREF=\"%w/%w/index.html\">%w/%w</A>%n",
 		    [IndexTerm,Group,SubGroup,Group,SubGroup])
 	    ;
 		printf(Stream,
-		    "<LI><STRONG><A HREF=\"%w/%w/%w.html\"> %w</A></STRONG>..........<A HREF=\"%w/%w/index.html\">%w/%w</A>%n",
+		    "<LI><STRONG><A HREF=\"%w/%w/%w.html\"> %w</A></STRONG> &rarr; <A HREF=\"%w/%w/index.html\">%w/%w</A>%n",
 		    [Group,SubGroup,File,IndexTerm,Group,SubGroup,Group,SubGroup])
 	    ),
 	    fail
@@ -1390,7 +1388,11 @@ object_spec_to_filename(N/A, FileName) :- !,
 	    filename_char(CC, C, TC)
 	),
 	string_list(TS,TL),
-	concat_string([TS,-,A], FileName).
+	( ground(A), A = AL..AH ->
+	    concat_string([TS,-,AL,-,AH], FileName)
+	;
+	    concat_string([TS,-,A], FileName)
+	).
 object_spec_to_filename(struct(N), FileName) :-
 	object_spec_to_filename(N/s, FileName).
 
@@ -1706,6 +1708,8 @@ find_ref(N/A, Lib, Ref) ?-
 	bip(N, A, System, Group, File), Group \== Lib.	% take all others
 find_ref(struct(N), Lib, Match) ?- !,
 	find_ref(N/(struct), Lib, Match).
+find_ref(Group:struct(N), Lib, Match) ?- !,
+	find_ref(Group:N/(struct), Lib, Match).
 find_ref(library(Group), _Lib, Match) ?-
 	bip(_N, _A, System, Group, _File), !,
 	Match = library(System, Group).

@@ -256,7 +256,7 @@ Error:
 
 
 ",
-	see_also:[subcall / 2, (@) / 2, (:) / 2]]).
+	see_also:[subcall / 2, (@) / 2, (:) / 2, call/(2.._)]]).
 
 :- comment((',') / 2, [
 	summary:"Comma (AND) operator - succeeds if the goals Goal1 and Goal2 both succeed
@@ -1667,4 +1667,77 @@ Success:
 
 ",
 	see_also:[fail / 0, false / 0]]).
+
+
+:- comment(
+    call / (2..255), [
+    template:[
+        "call(+GoalPrefix, ?Arg, ?...)"
+    ],
+    args:["GoalPrefix":" A callable term",
+        "Arg":"An additional argument for Goal",
+        "...":"Optional further additional arguments for Goal"
+    ],
+    summary:"Call with any number of additional arguments",
+    desc:html("<P>\
+        Call the goal formed by appending the additional argument Arg
+	(and any further arguments given) to GoalPrefix.  For example,
+	the following calls are all equivalent and invoke p/2:
+	<PRE>
+	call(p, 1, 2)
+	call(p(1), 2)
+	call(p(1,2) )
+	</PRE>
+	The maximum arity for call/N is the one indicated by
+	get_flag(max_predicate_arity,N), and is at least 255.
+	</P><P>
+	These predicates are sensitive to their calling context module
+	in the same way as call/1.
+    </P>"),
+    resat:"Resatisfiable if the called goal is resatisfiable",
+    fail_if:"Fails if the called goal fails",
+    exceptions:[
+        4 : "GoalPrefix is not instantiated.",
+        5 : "GoalPrefix is not an atom or a compound term.",
+        68 : "Constructed goal refers to an undefined predicate."
+    ],
+    eg:"
+    ?- call(p, 1, 2, 3).
+    calling an undefined procedure p(1, 2, 3) in module eclipse
+    Abort
+
+    ?- call(append(L, R), [1]).
+    L = []
+    R = [1]
+    Yes (0.00s cpu, solution 1, maybe more)
+    L = [1]
+    R = []
+    Yes (0.00s cpu, solution 2)
+
+    ?- call(+(3), 4, X).
+    X = 7
+    Yes (0.00s cpu)
+
+
+    % A typical use case
+    filter(_, [], []).
+    filter(Pred, [X|Xs], Ys) :-
+        ( call(Pred, X) ->
+            Ys = [X|Ys1],
+            filter(Pred, Xs, Ys1)
+        ;
+            filter(Pred, Xs, Ys)
+        ).
+
+    ?- filter(atom, [1, a, 2, b, c], As).
+    As = [a, b, c]
+    Yes (0.03s cpu)
+    ?- filter(integer, [1, a, 2, b, c], As).
+    As = [1, 2]
+    Yes (0.06s cpu)
+    ?- filter(<(2), [5, 1, 4, 2, 3], Is).
+    Is = [5, 4, 3]
+    Yes (0.00s cpu)
+",
+    see_also:[call/1, (@)/2, (:)/2]]).
 
