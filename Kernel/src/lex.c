@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.13 2011/04/27 05:15:50 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.14 2011/05/06 05:47:50 jschimpf Exp $
  */
 
 /*
@@ -1591,8 +1591,10 @@ _start_:
                 }
                 break;
 
-            case NL:    /* 0'<layout> not allowed in ISO */
             case BS:
+		if (c == ' ') break;
+		/*fall through*/
+            case NL:    /* 0'<layout> not allowed in ISO */
                 if (syntax & ISO_ESCAPES) goto return_int2; /* (iresult) */
                 break;
 
