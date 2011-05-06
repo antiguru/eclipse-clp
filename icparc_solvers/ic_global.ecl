@@ -26,7 +26,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ic_global.ecl,v 1.3 2010/03/11 14:13:40 kish_shen Exp $
+% Version:	$Id: ic_global.ecl,v 1.4 2011/05/06 02:14:02 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	ic_global.ecl
@@ -48,7 +48,7 @@
 :- comment(summary, "Various global constraints over lists of IC variables").
 :- comment(author, "J.Schimpf, V.Liatsos, S.Novello, M.Wallace, A.Sadler, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2010/03/11 14:13:40 $").
+:- comment(date, "$Date: 2011/05/06 02:14:02 $").
 
 :- use_module(ic).
 :- use_module(ic_kernel).
@@ -106,7 +106,7 @@ alldifferent_matrix(Matrix) :-
         summary: "The number of values taken from Values is between Low and "
                  "High for all sequences of K variables in Vars, and the "
                  "total occurrence of each value in Vars is between Min and Max",
-        see_also: [ic_global:seqeunce_total/6, ic:element/3, ic_global_gac:sequence/6, ic_global_gac:sequence/5], 
+        see_also: [ic_global:sequence_total/6, ic:element/3, ic_global_gac:sequence/4, ic_global_gac:sequence/5], 
 
         desc: html("\
 <P>
@@ -136,7 +136,7 @@ alldifferent_matrix(Matrix) :-
                  "High for all sequences of K variables in ZeroOnes, and the "
                  "total occurrences of 1 in ZeroOnes is between Min and Max",
 
-        see_also: [ic_global:seqeunce_total/7, ic:element/3, ic_global_gac:sequence/6, ic_global_gac:sequence/5], 
+        see_also: [ic_global:sequence_total/7, ic:element/3, ic_global_gac:sequence/4, ic_global_gac:sequence/5], 
         desc: html("\
 <P>
     This constraint ensures that the number of occurrences of the value 1 is 

@@ -584,7 +584,7 @@ do_max_flow_with_lb(Graph, LwBArg, CapacityArg, Src, Sink, N, ResCaps, MaxFlowVa
               summary:"Finds a feasible flow for a network with non-"
                       "negative lower-bounds imposed on the edge flows,"
                      "using an adapted Ford-Fulkerson maximum flow algorithm",
-              amode:fea_flow_with_lb(+,+,+,+,+,-,-,-),
+              amode:feas_flow_with_lb(+,+,+,+,+,-,-,-),
               args:[
                        "Graph": "a graph structure, no parallel edges,"
                                 " e(Src,Dest,EdgeData), EdgeData must be a"
