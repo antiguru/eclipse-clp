@@ -132,14 +132,24 @@
    <DT><STRONG>sqrt(Expr)</STRONG><DD>
 	    Square root (always positive). Truncated to nearest smaller integer.
 
-   <DT><STRONG>sum(ExprList)</STRONG><DD>
-	    Sum of a list of expressions.
+   <DT><STRONG>sum(ExprCol)</STRONG><DD>
+	    Sum of a collection of expressions.
 
-   <DT><STRONG>min(ExprList)</STRONG><DD>
-	    Minimum of a list of expressions.
+   <DT><STRONG>sum(IntCol*ExprCol)</STRONG><DD>
+	    Scalar product of a collection of integers and expressions.
+            IntCol and ExprCol must be the same size.
 
-   <DT><STRONG>max(ExprList)</STRONG><DD>
-	    Maximum of a list of expressions.
+   <DT><STRONG>min(ExprCol)</STRONG><DD>
+	    Minimum of a collection of expressions.
+
+   <DT><STRONG>max(ExprCol)</STRONG><DD>
+	    Maximum of a collection of expressions.
+
+   <DT><STRONG>Functional/reified constraints</STRONG><DD>
+            Written without last argument, which is taken as the value of
+            the expression. Only reified constraints (whose last argument
+            is the 0/1 boolean) and constraints that can be written as 
+            functions (last argument is a domain variable) are allowed.
 
    <DT><STRONG>and</STRONG><DD>
 	    Reified constraint conjunction.  e.g. X&gt;3 and Y&lt;8
@@ -1142,6 +1152,265 @@ X = X{[-1000000 .. 1000000]}
 
 %---------------------------------------------------------------------
 
+:- comment(max/3, [
+    summary:"Max is the maximum of X and Y.",
+    template: "<ConsistencyModule:> max(?X,?Y,?Max)",
+    amode:max(?,?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable",
+        "Max":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Max to be the maximum of X and Y. 
+   </P><P> 
+   You may find it more convenient to embed <TT>max(X,Y)</TT> in a
+   constraint expression, but the cost of posting max(X,Y,Max) is
+   likely to be cheaper if X and Y are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [min/3]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(min/3, [
+    summary:"Min is the miniimum of X and Y.",
+    template: "<ConsistencyModule:> min(?X,?Y,?Min)",
+    amode:min(?,?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable",
+        "Min":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Min to be the minimum of X and Y. 
+   </P><P> 
+   You may find it more convenient to embed <TT>min(X,Y)</TT> in a
+   constraint expression, but the cost of posting min(X,Y,Min) is
+   likely to be cheaper if X and Y are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [max/3]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(plus/3, [
+    summary:"Constrains Z to X + Y.",
+    template: "<ConsistencyModule:> plus(?X,?Y,?Z)",
+    amode:mult(?,?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable",
+        "Z":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Z to be the the sum of X and Y (X+Y). 
+   </P><P> 
+   You may find it more convenient to embed <TT>X+Y</TT> in a
+   constraint expression, but the cost of posting <TT>plus(X,Y,Z)</TT> is
+   likely to be cheaper if X and Y are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [mult/3,divide/3,mod/3]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(mult/3, [
+    summary:"Constrains Z to X * Y.",
+    template: "<ConsistencyModule:> mult(?X,?Y,?Z)",
+    amode:mult(?,?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable",
+        "Z":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Z to be the the product of X and Y (X*Y). 
+   </P><P> 
+   You may find it more convenient to embed <TT>X*Y</TT> in a
+   constraint expression, but the cost of posting <TT>mult(X,Y,Z)</TT> is
+   likely to be cheaper if X and Y are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [plus/3,divide/3,mod/3]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(mod/3, [
+    summary:"Constrains Z to X mod Y.",
+    template: "<ConsistencyModule:> mod(?X,?Y,?Z)",
+    amode:mult(?,?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable",
+        "Z":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Z to be the modulus of X and Y (X mod Y). 
+   </P><P> 
+   You may find it more convenient to embed <TT>X mod Y</TT> in a
+   constraint expression, but the cost of posting <TT>mod(X,Y,Z)</TT> is
+   likely to be cheaper if X and Y are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency.
+"),
+    see_also: [plus/3,divide/3,mult/3]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(divide/3, [
+    summary:"Constrains Z to X // Y (integer division, round towards 0).",
+    template: "<ConsistencyModule:> divide(?X,?Y,?Z)",
+    amode:divide(?,?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable",
+        "Z":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Z to be the integer quotient of X and Y (X // Y). Z is rounded 
+   towards 0.
+   </P><P> 
+   You may find it more convenient to embed <TT>X // Y</TT> in a
+   constraint expression, but the cost of posting <TT>divide(X,Y,Z)</TT> is
+   likely to be cheaper if X and Y are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency.
+"),
+    see_also: [plus/3,mod/3,mult/3]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(divmod/4, [
+    summary:"Constrains Q to X // Y, and M to X mod Y.",
+    template: "<ConsistencyModule:> divmod(?X,?Y,?Z)",
+    amode:divmod(?,?,?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable",
+        "Q":"An integer or domain variable",
+        "M":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Q to be the integer quotient of X and Y (X // Y), and M to
+   be the modulus of X and Y (X mod Y). Q is rounded towards 0.
+   </P><P>
+   You may find it more convenient to embed <TT>divmod(X,Y,Q)</TT> or
+   <TT>moddiv(X,Y,M)</TT> in a constraint expression, but the cost of 
+   posting <TT>divmod(X,Y,Q,M)</TT> is likely to be cheaper if X, Y, 
+   Q and M are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency.
+")
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(sqrt/2, [
+    summary:"Constrains Y to be the (non-negative integer) square root of X.",
+    template: "<ConsistencyModule:> sqrt(?X,?Y)",
+    amode:sqrt(?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Y to be the non-negative integer square root of X. X is
+   the truncated integer value if the exact square root is not an integer.   
+   </P><P> 
+   You may find it more convenient to embed <TT>sqrt(X)</TT> in a
+   constraint expression, but the cost of posting <TT>sqrt(X,Y)</TT> is
+   likely to be cheaper if X and Y are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [sqr/2]
+]).
+
+
+%---------------------------------------------------------------------
+
+:- comment(sqr/2, [
+    summary:"Constrains Y to be the square of X (X*X).",
+    template: "<ConsistencyModule:> sqr(?X,?Y)",
+    amode:sqr(?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Y to be the square of X (X*X). 
+   </P><P> 
+   You may find it more convenient to embed <TT>sqr(X)</TT> or <TT>X^2</TT>
+   in a constraint expression, but the cost of posting <TT>sqr(X,Y)</TT> is
+   likely to be cheaper if X and Y are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [sqrt/2]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(abs/2, [
+    summary:"Constrains Y to be the absolute value of X.",
+    template: "<ConsistencyModule:> abs(?X,?Y)",
+    amode:sqr(?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable"
+    ],
+    desc:html("\
+   Constrains Y to be the absolute value of X. 
+   </P><P> 
+   You may find it more convenient to embed <TT>abs(X)</TT> in a 
+   constraint expression, but the cost of posting <TT>abs(X,Y)</TT> is
+   likely to be cheaper if X and Y are integers or domain variables.
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [sqrt/2]
+]).
+
+%---------------------------------------------------------------------
+
 :- comment(maxlist/2, [
     summary:"Max is the maximum of the values in Collection",
     template: "<ConsistencyModule:> maxlist(+Collection,?Max)",
@@ -1153,6 +1422,9 @@ X = X{[-1000000 .. 1000000]}
     desc:html("\
 	Max is the maximum of the values in Collection.</P><P>
 
+        You may find it more convenient to embed <TT>maxlist(Vars)</TT> in a
+        constraint expression.
+        </P><P> 
         ConsistencyModule is the optional module specification to give the 
         consistency level for the propagation for this constraint: 
         gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
@@ -1191,6 +1463,9 @@ X = X{[-1000000 .. 1000000]}
     desc:html("\
     	Min is the minimum of the values in Collection.</P><P>  
 
+        You may find it more convenient to embed <TT>minlist(Vars)</TT> in a
+        constraint expression.
+        </P><P> 
         ConsistencyModule is the optional module specification to give the 
         consistency level for the propagation for this constraint: 
         gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
@@ -1210,7 +1485,7 @@ X = X{[-1000000 .. 1000000]}
     desc: html("<P>
    An alias for minlist/2. provided for compatibility with IC.</P>
 
-   You may find it more convenient to embed <TT>max(Vars)</TT> in a
+   You may find it more convenient to embed <TT>min(Vars)</TT> in a
    constraint expression.
 ")
 ]).
@@ -1218,24 +1493,180 @@ X = X{[-1000000 .. 1000000]}
 %----------------------------------------------------------------------
 
 :- comment(sumlist/2, [
-    summary:"The sum of the Collection elements is Sum",
+    summary:"The sum (Collection) or scalar product (IntCollection*Collection) of the Collection elements is Sum",
     template: "<ConsistencyModule:> sumlist(+Collection,?Sum)",
     amode:sumlist(+,?),
     args:[
-	"Collection":"Collection of integers or domain variables",
+	"Collection or Coeffs*Collection":
+        "Collection: collection of N integers or domain variables. Coeffs: collection of N integers."
 	"Sum":"Variable or integer"
     ],
     desc:html("<P>\
-    	  The sum of the Collection elements is Sum.
+          Constrains Sum to be the sum of the elements in Collection if
+          the first argument is a collection of integers or domain variables.
+	  </P><P>
+          Constrains Sum to be the scalar product of a collection of integers 
+          and a collection of integers or domain variables if the first
+          argument is Coeffs*Collection. Coeffs and Collection
+          must have the same number of elements, and the scalar product 
+          is the sum of the coefficients in Coeffs with the corresponding
+          element in Collection.
 	  </P><P>
 	  Any input variables which are not already domain variable will be
           turn into domain variables with default bounds.</P><P>
-
+	  </P><P>
+          You may find it more convenient to embed <TT>sumlist(Vars)</TT> in a
+          constraint expression.
+	  </P><P>
           ConsistencyModule is the optional module specification to give the 
           consistency level for the propagation for this constraint: 
           gfd_bc for bounds consistency, and 
           gfd_gac for domain (generalised arc) consistency.") 
     ]).
+
+:- comment(sum/2, [
+    summary:"The sum (Collection) or scalar product (IntCollection*Collection) of the Collection elements is Sum",
+    template: "<ConsistencyModule:> sum(+Collection,?Sum)",
+    amode:sum(+,?),
+    args:[
+	"Collection or Coeffs*Collection":
+        "Collection: collection of N integers or domain variables. Coeffs: collection of N integers."
+	"Sum":"Variable or integer"
+    ],
+    desc:html("<P>\
+   An alias for sumlist/2. provided for compatibility with IC.</P>
+
+   You may find it more convenient to embed <TT>sum(Vars)</TT> in a
+   constraint expression.
+")
+    ]).
+
+%----------------------------------------------------------------------
+
+:- comment(sum/3, [
+    summary:"Constrains the sum of the elements of Collection to"
+            " satisfy the relation sum(Collection) Rel Sum.",
+    template: "<ConsistencyModule:> sum(+Collection,+Rel,?Sum)",
+    amode:sum(+,+,?),
+    args:[
+	"Collection": "Collection of integers or domain variables.",
+        "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
+	"Sum":"Variable or integer"
+    ],
+    desc:html("<P>\
+          Constrains the sum of the elements in Collection to satisfy
+          the relation sum(Collection) Rel Sum.
+	  </P><P>
+	  Any input variables which are not already domain variable will be
+          turn into domain variables with default bounds.</P><P>
+	  </P><P>
+          You may find it more convenient to embed <TT>sumlist(Vars)</TT> in a
+          constraint expression.
+	  </P><P>
+          ConsistencyModule is the optional module specification to give the 
+          consistency level for the propagation for this constraint: 
+          gfd_bc for bounds consistency, and 
+          gfd_gac for domain (generalised arc) consistency.
+          </P><P>
+          Domain consistency is different from bounds consistency only if
+          Rel is #=.
+    ") 
+]).
+
+%----------------------------------------------------------------------
+
+:- comment(sum/4, [
+    summary:"Reflect into Bool the truth of the sum of the elements of Collection"
+            " satisfing the relation sum(Collection) Rel Sum.",
+    template: "<ConsistencyModule:> sum(+Collection,+Rel,?Sum,?Bool)",
+    amode:sum(+,+,?,?),
+    args:[
+	"Collection": "Collection of integers or domain variables.",
+        "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
+	"Sum":"Variable or integer",
+        "Bool":"Variable or the integer 0 or 1"
+    ],
+    desc:html("<P>\
+          This is the reified form of sum/3, which constrains the sum
+          of  the elements in Collection to satisfy the relation 
+          sum(Collection) Rel Sum.
+	  </P><P>
+	  Any input variables which are not already domain variable will be
+          turn into domain variables with default bounds.</P><P>
+	  </P><P>
+          ConsistencyModule is the optional module specification to give the 
+          consistency level for the propagation for this constraint: 
+          gfd_bc for bounds consistency 
+    ")
+]).
+
+%----------------------------------------------------------------------
+
+:- comment(scalar_product/4, [
+    summary:"Constrains the scalar product of the elements of Coeffs"
+            " and Collection to satisfy the relation sum(Coeffs*Collection) Rel P.",
+    template: "<ConsistencyModule:> scalar_product(++Coeffs,+Collection,+Rel,?Sum)",
+    amode:scalar_product(++,+,+,?),
+    args:[
+	"Coeffs": "Collection of N integers.",
+	"Collection": "Collection of N integers or domain variables.",
+        "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
+	"P":"Variable or integer"
+    ],
+    desc:html("<P>\
+          Constrains the scalar product of the elements in Collection to satisfy
+          the relation sum(Coeffs*Collection) Rel P.
+	  </P><P>
+          The Scalar Product of the collection of N integers in Coeffs and
+          the collection of N domain variables or integers in Collection 
+          is the sum of all Ci*Vi, where Ci is a element in Coeffs and
+          Vi the corresponding element in Collection.
+          </P><P>
+	  Any input variables which are not already domain variable will be
+          turn into domain variables with default bounds.
+	  </P><P>
+          You may find it more convenient to embed <TT>sumlist(Vars)</TT> in a
+          constraint expression.
+	  </P><P>
+          ConsistencyModule is the optional module specification to give the 
+          consistency level for the propagation for this constraint: 
+          gfd_bc for bounds consistency, and 
+          gfd_gac for domain (generalised arc) consistency.
+          </P><P>
+          Domain consistency is different from bounds consistency only if
+          Rel is #=.
+    ") 
+]).
+
+%----------------------------------------------------------------------
+
+:- comment(scalar_product/5, [
+    summary:"Reflect into Bool the truth of the scalar product of the"
+            " elements of Coeffs and Collection satisfing the relation "
+            " sum(Coeffs*Collection) Rel Sum.",
+    template: "<ConsistencyModule:> scalar_product(++Coeffs,+Collection,+Rel,?Sum,?Bool)",
+    amode:scalar_product(++,+,+,?,?),
+    args:[
+	"Coeffs": "Collection of N integers.",
+	"Collection": "Collection of N integers or domain variables.",
+        "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
+	"P":"Variable or integer",
+        "Bool":"Variable or the integer 0 or 1"
+    ],
+    desc:html("<P>\
+          This is the reified form of scalar_product/4, which constrains the
+          scalar product of  the elements in Coeffs and Collection to satisfy
+          the relation 
+          sum(Coeffs*Collection) Rel P.
+	  </P><P>
+	  Any input variables which are not already domain variable will be
+          turn into domain variables with default bounds.</P><P>
+	  </P><P>
+          ConsistencyModule is the optional module specification to give the 
+          consistency level for the propagation for this constraint: 
+          gfd_bc for bounds consistency 
+    ")
+]).
 
 %---------------------------------------------------------------------
 :- comment((and)/2, [
@@ -2589,7 +3020,7 @@ largest and second largest value in the domain is selected.</li>
 <li><b>most_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MAX) the entry with the smallest domain size
 divded by the number of attached propagators.</li> 
 
-<li><b>leasst_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MIN) the entry with the largest domain size
+<li><b>least_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MIN) the entry with the largest domain size
 divded by the number of attached propagators.</li> 
 
 <li><b>max_weighted_degree</b> (INT_VAR_AFC_MAX) the entry with the largest

@@ -58,7 +58,10 @@
           cumulatives/5, cumulatives_min/5, cumulative/4, 
 	  cumulatives_g/5, cumulatives_min_g/5, 
           sequence/5, sequence/4.
-:- export minlist/2, maxlist/2, sumlist/2, max/2, min/2.
+:- export plus/3, mult/3, divide/3, mod/3, divmod/4, 
+          abs/2, sqr/2, sqrt/2.
+:- export minlist/2, maxlist/2, sum/2, max/2, min/2, max/3, min/3.
+:- export sum/3, sum/4, scalar_product/4, scalar_product/5.
 :- export bool_channeling/3, inverse/2, inverse/4, inverse_g/2, inverse_g/4.
 :- export ordered/2.
 :- export labeling/1, indomain/1, indomain/2, delete/5.
@@ -157,7 +160,6 @@ load_gfd_solver(Arch) :-
 :- 
         get_flag(hostarch, Arch),
         load_gfd_solver(Arch),
-        writeln(log_output, "Loaded Gecode solver"),
         external(g_init/1, p_g_init),
         external(g_state_is_stable/1, p_g_state_is_stable),
         external(g_check_handle/3, p_g_check_handle),
@@ -174,7 +176,7 @@ load_gfd_solver(Arch) :-
         external(g_post_var_dom_reif/5, p_g_post_var_dom_reif),
         external(g_post_var_val_reif/5, p_g_post_var_val_reif),
         external(g_post_setvar/4, p_g_post_setvar),
-        external(g_post_linrel_cstr/4, p_g_post_linrel_cstr),
+        external(g_post_intrel_cstr/4, p_g_post_intrel_cstr),
         external(g_post_bool_connectives/4, p_g_post_bool_connectives),
         external(g_post_alldiff/4, p_g_post_alldiff),
         external(g_post_alldiff_offsets/5, p_g_post_alldiff_offsets),
@@ -190,6 +192,9 @@ load_gfd_solver(Arch) :-
         external(g_post_disj/5, p_g_post_disj),
         external(g_post_cumulatives/9, p_g_post_cumulatives),
         external(g_post_sum/6, p_g_post_sum),
+        external(g_post_lin/7, p_g_post_lin),
+        external(g_post_sum_reif/7, p_g_post_sum_reif),
+        external(g_post_lin_reif/8, p_g_post_lin_reif),
         external(g_post_maxlist/5, p_g_post_maxlist),
         external(g_post_minlist/5, p_g_post_minlist),
         external(g_post_sqrt/5, p_g_post_sqrt),
@@ -223,7 +228,11 @@ load_gfd_solver(Arch) :-
         external(g_do_search/7, p_g_do_search),
         external(g_get_gfd_maxint/1, p_g_get_gfd_maxint),
         external(g_get_gfd_minint/1, p_g_get_gfd_minint),
-        external(g_get_var_domain_handle/3, p_g_get_var_domain_handle).
+        external(g_get_var_domain_handle/3, p_g_get_var_domain_handle),
+
+	external(g_gecode_version/1, p_g_gecode_version),
+	g_gecode_version(Version),
+        printf(log_output, "Loaded Gecode solver %s%n", [Version]).
 
 :- export struct(
         gfd_prob(
@@ -235,7 +244,7 @@ load_gfd_solver(Arch) :-
              prop,
              last_anc,
              space,
-             events
+             events   % store in reverse chronological order, i.e last first
         )
    ).
 
@@ -303,17 +312,19 @@ gfd_default_interval(Min, Max) :-
         arg(MinPos, Defaults, Min),
         arg(MaxPos, Defaults, Max).
 
-
 boolean_expr(E) :-
         reifiable_constraint(E), !.
 boolean_expr(E) :-
         connective(E, _, _).
 
 
+reifiable_constraint(sum(_Vs,_Rel,_S)) ?- !.
+reifiable_constraint(scalar_product(_Cs,_Vs,_Rel,_P)) ?- !.
 reifiable_constraint(E) :-
         relation_constraint(E, _, _, _), !.
 reifiable_constraint(E) :-
         domain_constraint(E,_, _), !.
+
 
 domain_constraint((Vs0 :: Dom0), Vs, Dom) ?- !,
         Vs = Vs0, Dom = Dom0.
@@ -871,13 +882,19 @@ neg_reif_c(EX, Bool, ConLev, Module) :-
         '#=_c'(EX, EY, default, Module).
 
 '#=_c'(EX, EY, ConLev, Module) :-
-        % optimisation for top-level non-linear expressions
-        ( nonlin_op(EX, EXTemp, EXType, ConLev) ->
-            % EX nonlinear (EY may be)
-            post_nonlin_eq(EX, EXType, EXTemp, EY, ConLev, Module)
-        ; nonlin_op(EY, EYTemp, EYType, ConLev) ->
-            % EY nonlinear EX linear op
-            post_nonlinlin_eq(EY, EYType, EYTemp, EX, ConLev, Module)
+        % optimisation for top-level aux. expressions
+        ( (aux_op(EX, EXTemp, Res, GRes, EXType, ConLev),
+	   aux_op(EY, EYTemp, Res, GRes, EYType,ConLev)) ->
+            % EX and EY both aux 
+	    get_prob_handle(H),
+	    H = gfd_prob{nvars:N0},
+	    gfd_default_interval(Min, Max),
+	    new_gfdvar(Res, H, N0,N1, GRes),
+	    ec_to_gecode_aux_op1(EXType, EX, H, N1,N2, [],Bs1, Auxs0,Auxs1, EXTemp, ConLev, Module),
+	    ec_to_gecode_aux_op1(EYType, EY, H, N2,N3, Bs1,Bs, Auxs1,AuxsT, EYTemp, ConLev, Module),
+	    update_vars_for_gecode(N0, N3, Bs, H, Min, Max),
+            post_new_event_with_aux(Auxs0,AuxsT, H)
+
         ;
             post_rel_cons((#=), EX, EY, ConLev, Module)
         ).
@@ -943,57 +960,14 @@ neg_reif_c(EX, Bool, ConLev, Module) :-
         '<=>_c'((EX #=< EY), Bool, ConLev, Module).
 
 
-post_nonlin_eq(NLExpr, NLType, NLEvent, Expr2, ConLev, Module) :-
-        ( nonlin_op(Expr2, E2Event, E2Type, ConLev) ->
-            get_prob_handle(H),
-            H = gfd_prob{nvars:N0},
-            gfd_default_interval(Min, Max),
-            new_gfdvar(_NewV, H, N0,N1, GNewV),
-            arg(2, E2Event, GNewV),
-            arg(2, NLEvent, GNewV),
-            ec_to_gecode_nonlin_op1(NLType, NLExpr, H, N1,N2, [],Bs1, Auxs0,
-                                    Auxs1, NLEvent, ConLev, Module),
-            ec_to_gecode_nonlin_op1(E2Type, Expr2, H, N2,N, Bs1,Bs, Auxs1,
-                                    AuxsT, E2Event, ConLev, Module),
-            update_vars_for_gecode(N0, N, Bs, H, Min, Max),
-            post_new_event_with_aux([NLEvent,E2Event|Auxs0], AuxsT, H)
-        ; % Expr2 has linear operator
-            post_nonlinlin_eq(NLExpr, NLType, NLEvent, Expr2, ConLev, Module)
-        ).
 
-post_nonlinlin_eq(NLExpr, NLType, NLEvent, LinOpExpr, ConLev, Module) :-
-        get_prob_handle(H),
-        H = gfd_prob{nvars:N0},
-        gfd_default_interval(Min, Max),
-        ( var(LinOpExpr) ->
-            ec_to_gecode_var1(LinOpExpr, H, N0,N1, [],_, GV),
-            arg(2, NLEvent, GV),
-            ec_to_gecode_nonlin_op1(NLType, NLExpr, H, N1,N, [],Bs, Auxs0,
-                                    AuxsT, NLEvent, ConLev, Module),
-            Events = [NLEvent|Auxs0]
-        ; integer(LinOpExpr) ->
-            arg(2, NLEvent, LinOpExpr),
-            ec_to_gecode_nonlin_op1(NLType, NLExpr, H, N0,N, [],Bs, Auxs0,
-                                    AuxsT, NLEvent, ConLev, Module),
-            Events = [NLEvent|Auxs0]
-        ; 
-            new_gfdvar(_NewV, H, N0,N1, GNewV),
-            arg(2, NLEvent, GNewV),
-            ec_to_gecode_nonlin_op1(NLType, NLExpr, H, N1,N2, [],Bs1, Auxs0,
-                                    Auxs1, NLEvent, ConLev, Module),
-            ec_to_gecode_arith_expr1(LinOpExpr, H, 0, N2,N, Bs1,Bs, Auxs1,
-                                     AuxsT, GLinOpExpr, ConLev, Module),
-            Events = [post_rc(ConLev,GNewV #= GLinOpExpr),NLEvent|Auxs0]
-        ),
-        update_vars_for_gecode(N0, N, Bs, H, Min, Max),
-        post_new_event_with_aux(Events, AuxsT, H).
 
 post_rel_cons(RelOp, EX, EY, ConLev, Module) :-
         get_prob_handle(H),
         H = gfd_prob{nvars:N0},
         gfd_default_interval(Min, Max),
         ec_to_gecode_expr1(EX, H, N0,N1, [],Bs1, Auxs0,Auxs1, GEX, ConLev, Module),
-        ec_to_gecode_expr1(EY, H, N1,N2, Bs1,Bs2, Auxs1,Auxs2, GEY, Module, ConLev),
+        ec_to_gecode_expr1(EY, H, N1,N2, Bs1,Bs2, Auxs1,Auxs2, GEY, ConLev, Module),
         construct_relcons_event1(RelOp, EX, EY, GEX, GEY, H, N2,N, Bs2,Bs,
                                  Auxs2,AuxsT, Event, ConLev), 
         update_vars_for_gecode(N0, N, Bs, H, Min, Max),
@@ -1117,22 +1091,30 @@ count(Value, Vars, Rel, N) :-
         count_c(Value, Vars, Rel, N, default).
 
 count_c(Value, Vars, Rel, N, ConLev) :-
-        integer(Value),
+	get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+	count_events1(Value, Vars, Rel, N, ConLev, H, NV0,NV, CountEvents, EventsT),
+	gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, [], H, Min, Max),
+        post_new_event_with_aux(CountEvents, EventsT, H).
+
+count_events1(Value, Vars, Rel, N, ConLev, H, NV0,NV, Events, EventsT) :-
         atomic(Rel),
         rel_op(Rel),
         collection_to_list(Vars, List),
-        get_prob_handle(H),
-        ec_to_gecode_varlist(List, H, GList),
+        ec_to_gecode_varlist1([Value,N|List], H, NV0,NV, [GValue,GN|GList]),
         GArray =.. [[]|GList],
+	CEvent = post_count(ConLev,GValue,GArray,Rel,GN), 
         ( integer(N) ->
             N =< arity(GArray),
-            GN = N
+	    Events = [CEvent|EventsT]
         ; var(N) ->
-            N :: 0..arity(GArray),
-            get_gecode_var(N, GN)
+	    Hi is arity(GArray),
+	    % GN will be in Gecode by the time this event is executed
+	    Events = [CEvent,post_interval([](GN), 0, Hi)|EventsT] 
 %       ; fail
-        ),
-        post_new_event(post_count(ConLev,Value,GArray,Rel,GN), H).
+        ).
+
 
 % compatibility
 occurrences(Value, Vars, N) :-
@@ -1167,24 +1149,33 @@ element_g_c(Index, Collection, Value, ConLev) :-
         element_body(Index, Collection, Value, gc, ConLev).
 
 element_body(Index, Collection, Value, IndexType, ConLev) :-
+	get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+	element_events1(Index, Collection, Value, IndexType, ConLev, H, NV0,NV, Events, EventsT),
+	gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, [], H, Min, Max),
+        post_new_event_with_aux(Events, EventsT, H).
+
+element_events1(Index, Collection, Value, IndexType, ConLev, H, NV0,NV, Es, EsT) :-
         collection_to_list(Collection, List),
-        get_prob_handle(H),
-        ec_to_gecode_varlist([Value|List], H, [GValue|GList]),
-	(IndexType == ecl ->
+        ec_to_gecode_varlist1([Index,Value|List], H, NV0,NV, [GIndex,GValue|GList]),
+	( IndexType == ecl ->
 	    Array =.. [[],0|GList],  % add a dummy first element for index 0
-            Index :: 1..(arity(Array)-1)
+	    Lo = 1
 	;
 	    Array =.. [[]|GList],
-            Index :: 0..(arity(Array)-1)
-	),
-        ( integer(Index) ->
-            GIndex is Index
-        ; var(Index) ->
-            get_gecode_var(Index, GIndex) 
-        ;
-            fail
+	    Lo = 0
         ),
-        post_new_event(post_element(ConLev, GIndex, Array, GValue), H).
+        Hi is arity(Array)-1,
+        EEvent = post_element(ConLev, GIndex, Array, GValue),  
+	( integer(Index) ->
+	   Index >= Lo,
+	   Index =< Hi,
+	   Es = [EEvent|EsT] 
+	;
+	   
+	   Es = [EEvent,post_interval([](GIndex), Lo, Hi)|EsT]
+	).
 
 :- export struct(gcc(low,high,value)),
           struct(occ(occ,value)).
@@ -1688,16 +1679,135 @@ maxlist_c(Xs, Max, ConLev) :-
         GArray =.. [[]|GLs],
         post_new_event(post_maxlist(ConLev, GMax, GArray), H).
 
-sumlist(Xs, Sum) :-
-        sumlist_c(Xs, Sum, default).
+sum(Xs, Sum) :-
+        sum_c(Xs, Sum, default).
 
-sumlist_c(Xs, Sum, ConLev) :-
+sum_c(Xs, Sum, ConLev) :-
+        nonvar(Xs),
+        ( Xs = Cs * Vs ->
+            scalar_product_c(Cs, Vs, (#=), Sum, ConLev)
+        ;
+            sum_c(Xs, (#=), Sum, ConLev)
+        ).
+
+
+sum(Xs, Rel, Sum) :-
+        sum_c(Xs, Rel, Sum, default).
+
+sum_c(Xs, Rel, Sum, ConLev) :-
+	get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+	linsum_event1(Xs, Rel, Sum, ConLev, H, NV0,NV, Events,EventsT),
+	gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, [], H, Min, Max),
+        post_new_event_with_aux(Events, EventsT, H).
+
+
+linsum_event1(Xs, Rel, Sum, ConLev, H, NV0,NV, Events,EventsT) :-
+        linsum_body1(Xs, Rel, Sum, GArray, GSum, H, NV0,NV),
+        Events = [post_sum(ConLev, GArray, Rel, GSum)|EventsT].
+
+linsum_body1(Xs, Rel, Sum, GArray, GSum, H, NV0,NV) :-
+	atomic(Rel),
+	rel_op(Rel),
         collection_to_list(Xs, XLs),
-        get_prob_handle(H),
-        ec_to_gecode_varlist([Sum|XLs], H, [GSum|GLs]),
-        GArray =.. [[]|GLs],
-        post_new_event(post_sum(ConLev, GSum, (#=), GArray), H).
+        ec_to_gecode_varlist1([Sum|XLs], H, NV0,NV, [GSum|GLs]),
+        GArray =.. [[]|GLs].
 
+
+sum(Xs, Rel, Sum, Bool) :-
+        sum_reif_c(Xs, Rel, Sum, Bool, default).
+
+sum_reif_c(Xs, Rel, Sum, Bool, ConLev) :-
+	get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+	linsum_reif_event1(Xs, Rel, Sum, Bool, ConLev, H, NV0,NV, [],
+                           Bs, Event, _GBool),
+	gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, Bs, H, Min, Max),
+        post_new_event_with_aux([Event|EventsT], EventsT, H).
+
+linsum_reif_event1(Xs, Rel, Sum, Bool, ConLev, H, NV0,NV, Bs0,Bs, Event, GBool) :-
+        linsum_body1(Xs, Rel, Sum, GArray, GSum, H, NV0,NV1),
+        ( var(Bool) ->
+            ec_to_gecode_var1(Bool, H, NV1,NV, [],_Old, GBool),
+            Bs = [Bool|Bs0]
+        ;
+            GBool = Bool,
+            NV1 = NV,
+            Bs = Bs0
+        ;
+            fail
+        ),
+        Event = post_sum_reif(ConLev, GArray, Rel, GSum, GBool).
+
+
+scalar_product(Cs, Xs, Rel, P) :-
+        scalar_product_c(Cs, Xs, Rel, P, default).
+
+scalar_product_c(Cs, Xs, Rel, P, ConLev) :-
+	get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+	scalar_product_event1(Cs, Xs, Rel, P, ConLev, H, NV0,NV, Events,EventsT),
+	gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, [], H, Min, Max),
+        post_new_event_with_aux(Events, EventsT, H).
+
+scalar_product_event1(Cs, Xs, Rel, P, ConLev, H, NV0,NV, Events,EventsT) :-
+	scalar_product_body1(Cs, Xs, Rel, P, CArray, GArray, GP, H, NV0,NV),
+	Events = [post_lin(ConLev, GArray, CArray, Rel, GP)|EventsT].
+		  
+scalar_product_body1(Cs, Xs, Rel, P, CArray, GArray, GP, H, NV0,NV) :-
+	atomic(Rel),
+	rel_op(Rel),
+        collection_to_list(Xs, XLs),
+        collection_to_list(Cs, CLs),
+        ec_to_gecode_varlist1([P|XLs], H, NV0,NV, [GP|GLs]),
+        GArray =.. [[]|GLs],
+	CArray =.. [[]|CLs],
+	arity(GArray) =:= arity(CArray),
+	(foreach(C, CLs) do integer(C)).
+
+
+scalar_product(Cs, Xs, Rel, P, Bool) :-
+        scalar_product_reif_c(Cs, Xs, Rel, P, Bool, default).
+
+scalar_product_reif_c(Cs, Xs, Rel, P, Bool, ConLev) :-
+	get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+	scalar_product_reif_event1(Cs, Xs, Rel, P, Bool, ConLev, H,
+                                   NV0,NV, [],Bs, Event, _GBool),
+	gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, Bs, H, Min, Max),
+        post_new_event_with_aux([Event|EventsT], EventsT, H).
+
+scalar_product_reif_event1(Cs, Xs, Rel, P, Bool, ConLev, H, NV0,NV, Bs0,Bs, Event, GBool) :-
+	scalar_product_body1(Cs, Xs, Rel, P, CArray, GArray, GP, H, NV0,NV1),
+        ( var(Bool) ->
+            ec_to_gecode_var1(Bool, H, NV1,NV, [],_Old, GBool),
+            Bs = [Bool|Bs0]
+        ;
+            GBool = Bool,
+            NV1 = NV,
+            Bs = Bs0
+        ;
+            fail
+        ),
+	Event = post_lin_reif(ConLev, GArray, CArray, Rel, GP, GBool).
+
+
+plus(X, Y, Sum) :-
+     plus_c(X, Y, Sum, default).
+
+plus_c(X, Y, Sum, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([Sum,X,Y], H, [GSum|GXY]),
+        GArray =.. [[]|GXY],
+        post_new_event(post_sum(ConLev, GArray, (#=), GSum), H).
+
+ 
+sqrt(X, Y) :-
+        sqrt_c(X, Y, default).
 
 sqrt_c(X, Y, ConLev) :-
         get_prob_handle(H),
@@ -1705,17 +1815,24 @@ sqrt_c(X, Y, ConLev) :-
         post_new_event(post_sqrt(ConLev, GY,GX), H).
 
 
+sqr(X, Y) :-
+        sqr_c(X, Y, default).
+
 sqr_c(X, Y, ConLev) :-
         get_prob_handle(H),
         ec_to_gecode_varlist([X,Y], H, [GX,GY]),
         post_new_event(post_sq(ConLev, GY,GX), H).
 
+abs(X, Y) :-
+       abs_c(X, Y, default).
 
 abs_c(X, Y, ConLev) :-
         get_prob_handle(H),
         ec_to_gecode_varlist([X,Y], H, [GX,GY]),
         post_new_event(post_abs(ConLev, GY,GX), H).
 
+divide(X, Y, Z) :-
+       div_c(X, Y, Z, default).
 
 div_c(X, Y, Z, ConLev) :-
         get_prob_handle(H),
@@ -1723,11 +1840,26 @@ div_c(X, Y, Z, ConLev) :-
         post_new_event(post_div(ConLev, GZ, GX,GY), H).
 
 
+divmod(X, Y, Q, M) :-
+	divmod_c(X, Y, Q, M, default).
+
+divmod_c(X, Y, Q, M, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([X,Y,Q,M], H, [GX,GY,GQ,GM]),
+        post_new_event(post_divmod(ConLev, GX, GY, GQ, GM), H).
+
+
+mult(X, Y, Z) :-
+	mult_c(X, Y, Z, default).
+
 mult_c(X, Y, Z, ConLev) :-
         get_prob_handle(H),
         ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
         post_new_event(post_mult(ConLev, GZ, GX,GY), H).
 
+
+mod(X, Y, Z) :-
+	mod_c(X, Y, Z, default).
 
 mod_c(X, Y, Z, ConLev) :-
         get_prob_handle(H),
@@ -1735,10 +1867,21 @@ mod_c(X, Y, Z, ConLev) :-
         post_new_event(post_mod(ConLev, GZ, GX,GY), H).
 
 
-plus_c(X, Y, Z, ConLev) :-
+min(X, Y, Z) :-
+	min_c(X, Y, Z, default).
+
+min_c(X, Y, Z, ConLev) :-
         get_prob_handle(H),
         ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
-        post_new_event(post_plus(ConLev, GZ, GX,GY), H).
+        post_new_event(post_min2(ConLev, GZ, GX,GY), H).
+
+max(X, Y, Z) :-
+	max_c(X, Y, Z, default).
+
+max_c(X, Y, Z, ConLev) :-
+        get_prob_handle(H),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        post_new_event(post_max2(ConLev, GZ, GX,GY), H).
 
 
 % utility predicate for connecting indices/positions in ECLiPSe tradition
@@ -1964,7 +2107,7 @@ do_event(E, H, First, DoProp) :-
 
 do_event1(post_rc(ConLev, GExpr), SpH, First, DoProp) ?-
         DoProp = 1,
-        g_post_linrel_cstr(SpH, First, GExpr, ConLev).
+        g_post_intrel_cstr(SpH, First, GExpr, ConLev).
 do_event1(post_bool_connectives(ConLev, GBCon), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_bool_connectives(SpH, First, GBCon, ConLev).
@@ -2041,6 +2184,15 @@ do_event1(setvar(Idx, Val), SpH, First, DoProp) ?-
 do_event1(post_sum(ConLev, GArray, Rel, C), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_sum(SpH, First, GArray, Rel, C, ConLev).
+do_event1(post_sum_reif(ConLev, GArray, Rel, C, GBool), SpH, First, DoProp) ?-
+        DoProp = 1,
+        g_post_sum_reif(SpH, First, GArray, Rel, C, GBool, ConLev).
+do_event1(post_lin(ConLev, GArray, CArray, Rel, C), SpH, First, DoProp) ?-
+        DoProp = 1,
+        g_post_lin(SpH, First, GArray, CArray, Rel, C, ConLev).
+do_event1(post_lin_reif(ConLev, GArray, CArray, Rel, C, GBool), SpH, First, DoProp) ?-
+        DoProp = 1,
+        g_post_lin_reif(SpH, First, GArray, CArray, Rel, C, GBool, ConLev).
 do_event1(post_maxlist(ConLev, GV, GArray), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_maxlist(SpH, First, GV, GArray, ConLev).
@@ -2068,12 +2220,9 @@ do_event1(post_mult(ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
 do_event1(post_mod(_ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_mod(SpH, First, GRes, GX, GY).
-do_event1(post_divmod(_ConLev, GM, GX, GY, GQ), SpH, First, DoProp) ?-
+do_event1(post_divmod(_ConLev, GX, GY, GQ, GM), SpH, First, DoProp) ?-
         DoProp = 1,
-        g_post_divmod(SpH, First, GM, GX, GY, GQ).
-do_event1(post_moddiv(_ConLev, GQ, GX, GY, GM), SpH, First, DoProp) ?-
-        DoProp = 1,
-        g_post_divmod(SpH, First, GM, GX, GY, GQ).
+        g_post_divmod(SpH, First, GX, GY, GQ, GM).
 do_event1(post_min2(ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_min2(SpH, First, GRes, GX, GY, ConLev).
@@ -2172,12 +2321,11 @@ ec_to_gecode_varlist1(L, H, N0,N, GL) :-
             )
         ).
 
-/* sum(Vs) is not supported in all versions of Gecode (added 3.3.0)
-ec_to_gecode_arith_exprlist1(List, H, Lin, N0,N, Bs0,Bs, Auxs0,Auxs, GList, ConLev, Module) :-
+ec_to_gecode_arith_exprlist1(List, H, Inline, N0,N, Bs0,Bs, Auxs0,Auxs, GList, ConLev, Module) :-
         ( foreach(E,List), fromto(N0, N1,N2, N), 
           fromto(Auxs0, As1,As2, Auxs), fromto(Bs0, Bs1,Bs2, Bs),
-          param(H,Module,Lin),
-          foreach(GE,GList,ConLev)
+          param(H,Module,Inline,ConLev),
+          foreach(GE,GList)
         do
             ( var(E) ->
                 As2 = As1,
@@ -2188,132 +2336,132 @@ ec_to_gecode_arith_exprlist1(List, H, Lin, N0,N, Bs0,Bs, Auxs0,Auxs, GList, ConL
                 GE = E,
                 Bs2 = Bs1,
                 As2 = As1
-            ; bound(E, GE, Module) ->
-                N2 = N1,
-                Bs2 = Bs1,
-                As2 = As1
+	    ; E = subscript(T,S) ->
+	        subscript(T, S, V),
+		As2 = As1,
+		Bs2 = Bs1,
+		ec_to_gecode_var1(V, H, N1,N2, [],_, GE)
             ; 
+	        Inline == 0, % only parse for subexpressions if non-inline allowed
                 new_gfdvar(_NewV, H, N1,N3, GE),
-                ec_to_gecode_arith_expr1(E, H, Lin, N3,N2, Bs1,Bs2, As1,As3, GExpr, ConLev, Module),
+                ec_to_gecode_arith_expr1(E, H, Inline, N3,N2, Bs1,Bs2, As1,As3, GExpr, ConLev, Module),
                 As3 = [post_rc(ConLev,GE #= GExpr)|As2]
             )
         ).
+
+
+inline_op(X+Y, Out) ?- !, Out = X+Y.
+inline_op(X-Y, Out) ?- !, Out = X-Y.
+inline_op(X*Y, Out) ?- !, Out = X * Y.
+inline_op(-X, Out) ?- !, Out = -X.
+inline_op(sqrt(X), Out) ?- !, Out = sqrt(X).
+inline_op(X^2, Out) ?- !, Out = sqr(X).
+inline_op(sqr(X), Out) ?- !, Out = sqr(X).
+inline_op(abs(X), Out) ?- !, Out = abs(X).
+inline_op(X/Y, Out) ?- !, Out = X/Y.
+inline_op(X//Y, Out) ?- !, Out = X/Y.
+inline_op(X mod Y, Out) ?- !, Out = X mod Y.
+inline_op(max(X,Y), Out) ?- !, Out = max(X,Y).
+inline_op(min(X,Y), Out) ?- !, Out = min(X,Y).
+/* inline_op(element(Index, Collection, Out) -- not supported due to
+   indexing differences
 */
-ec_to_gecode_arith_exprlist1([E|L1], H, Lin, N0,N, Bs0,Bs, Auxs0,Auxs, GL, ConLev, Module) :-
-        ec_to_gecode_arith_expr1(E, H, Lin, N0,N1, Bs0,Bs1, Auxs0,Auxs1, GE, ConLev, Module),
-        ( L1 == [] ->
-            GL = GE,
-            N1 = N,
-            Bs1 = Bs,
-            Auxs1 = Auxs
-        ;
-            GL = GE + GL1,
-            ec_to_gecode_arith_exprlist1(L1, H, Lin, N1,N, Bs1,Bs, Auxs1,Auxs, GL1, ConLev, Module)
-        ).
 
-
-linear_op(X+Y, Out, _M) ?- !, Out = X+Y.
-linear_op(X-Y, Out, _M) ?- !, Out = X-Y.
-linear_op(X*Y, Out, _Module) ?- 
-/*
-        ( bound(X, OutX, Module) -> 
-            Out = OutX*Y 
-        ; bound(Y, OutY, Module)  ->
-            Out = X*OutY
-        ;
-            fail
-        ).
+/* aux_op are 'operators' that cannot be inlined in a Gecode expression.
+   They are 'functional constraints' -- constraints written in a functional
+   notation in an expression, without the last argument of the constraint,
+   which is the value of the function. Only constraints that have a last
+   argument as a domain variable can be functional constraint.
 */
-        (integer(X) ; integer(Y)), !,
-        Out = X * Y.
-linear_op(-X, Out, _M) ?- !, Out = -X.
+aux_op(divmod(_X,_Y,_Q), Aux, _Res, GRes, Type, ConLev) ?- !,
+        Aux = post_divmod(ConLev,_GX,_GY,_GQ,GRes),
+        Type = args([var(1,2),var(2,3),var(3,4)]).
+aux_op(moddiv(_X,_Y,_M), Aux, _Q, GQ, Type, ConLev) ?- !,
+        Aux = post_divmod(ConLev,_GX,_GY,GQ,_GRes),
+        Type = args([var(1,2),var(2,3),var(3,5)]).
+aux_op(sum(_Vs,_Rel), Aux, S, _GS, Type, _ConLev) ?- !,
+	Aux = linsum,
+	Type = aux_cstr(S).
+aux_op(scalar_product(_Cs,_Vs,_Rel), Aux, S, _GS, Type, _ConLev) ?- !,
+	Aux = scalar_product,
+	Type = aux_cstr(S).
+aux_op(occurrences(_Value,_Vs), Aux, N, _GN, Type, _ConLev) ?- !,
+	Aux = occurrences,
+	Type = aux_cstr(N).
+aux_op(count(_Value,_Vs,_Rel), Aux, N, _GN, Type, _ConLev) ?- !,
+	Aux = count,
+	Type = aux_cstr(N).
+aux_op(element(_Idx,_Vs), Aux, Val, _GVal, Type, _ConLev) ?- !,
+	Aux = element,
+        Type = aux_cstr(Val).
+aux_op(element_g(_Idx,_Vs), Aux, Val, _GVal, Type, _ConLev) ?- !,
+	Aux = element_g,
+        Type = aux_cstr(Val).
 
 
-nonlin_op(max(_L), Aux, Type, ConLev) ?- !,
-        Aux = post_maxlist(ConLev,_GMaxV, _GL),
-        Type = listexpr.
-nonlin_op(min(_L), Aux, Type, ConLev) ?- !,
-        Aux = post_minlist(ConLev,_GMinV, _GL),
-        Type = listexpr.
-nonlin_op(sqrt(_X), Aux, Type, ConLev) ?- !,
-        Aux = post_sqrt(ConLev,_GV, _GX),
-        Type = exprargs.
-nonlin_op(_X^2, Aux, Type, ConLev) ?- !,
-        Aux = post_sq(ConLev,_GV, _GX, 2),
-        Type = exprargs.
-nonlin_op(sqr(_X), Aux, Type, ConLev) ?- !,
-        Aux = post_sq(ConLev,_GV, _GX),
-        Type = exprargs.
-nonlin_op(abs(_X), Aux, Type, ConLev) ?- !,
-        Aux = post_abs(ConLev,_GV, _GX),
-        Type = exprargs.
-nonlin_op(_X/_Y, Aux, Type, ConLev) ?- !,
-        Aux = post_div(ConLev,_GNewV,_GNewXV,_GNewYV),
-        Type = exprargs.
-nonlin_op(_X//_Y, Aux, Type, ConLev) ?- !,
-        Aux = post_div(ConLev,_GNewV,_GNewXV,_GNewYV),
-        Type = exprargs.
-nonlin_op(X*Y, Aux, Type, ConLev) ?- !,
-        % neither X or Y are integers (linear otherwise)
-        \+ integer(X), 
-        \+ integer(Y),
-        Aux = post_mult(ConLev,_GNewV,_GNewXV,_GNewYV),
-        Type = exprargs.
-nonlin_op(_X mod _Y, Aux, Type, ConLev) ?- !,
-        Aux = post_mod(ConLev,_GNewV,_GNewXV,_GNewYV),
-        Type = exprargs.
-nonlin_op(divmod(_X,_Y,_Q), Aux, Type, ConLev) ?- !,
-        Aux = post_divmod(ConLev,_,_,_,_),
-        Type = exprargs.
-nonlin_op(moddiv(_X,_Y,_M), Aux, Type, ConLev) ?- !,
-        Aux = post_moddiv(ConLev,_,_,_,_),
-        Type = exprargs.
-nonlin_op(max(_X,_Y), Aux, Type, ConLev) ?- !,
-        Aux = post_max2(ConLev,_GNewV,_GNewXV,_GNewYV),
-        Type = exprargs.
-nonlin_op(min(_X,_Y), Aux, Type, ConLev) ?- !,
-        Aux = post_min2(ConLev,_GNewV,_GNewXV,_GNewYV),
-        Type = exprargs.
 
-
-ec_to_gecode_nonlin_op1(listexpr, Expr, H, N0,N, Bs0,Bs, Auxs0,AuxsT, EventTemp, ConLev, Module) ?- !,
-        % operator has 1 arg that is a list of expressions
-        arg(1, Expr, Collect),
-        collection_to_list(Collect, List),
-        ec_to_gecode_arith_exprlist1(List, H, 0, N0,N, Bs0,Bs, Auxs0,AuxsT, GList, ConLev, Module),
-        GArray =.. [[]|GList],
-        EventTemp =.. [_Name,ConLev,_Res,GArray].
-ec_to_gecode_nonlin_op1(exprargs, Expr, H, N0,N, Bs0,Bs, Auxs0,AuxsT, EventTemp, ConLev, Module) ?- !,
-        % operator has multiple arguments that are expressions
-        % length(GArgList) == number of arguments for operator
-        % Res in EventTemp is filled by caller
-        EventTemp =.. [_Name,ConLev,_Res|GArgList], 
-        % fill in the arguments in event template EventTemp
-        ( foreacharg(Arg, Expr),
-          param(H,Module,ConLev),
-          foreach(GArg, GArgList),
-          fromto(Auxs0, Auxs1,Auxs2, AuxsT),
-          fromto(Bs0, Bs1,Bs2, Bs),
-          fromto(N0, N1,N2, N)
-        do
-            ( var(Arg) ->
-                Auxs1 = Auxs2,
-                Bs1 = Bs2,
-                ec_to_gecode_var1(Arg, H, N1,N2, [], _, GArg)
-            ; integer(Arg) ->
-                Auxs1 = Auxs2,
-                Bs1 = Bs2,
-                N1 = N2,
-                GArg = Arg
-            ; % Arg is an expression, process it and add an auxillary
-              % constraint linking it to the argument variable in EventTemp
-                new_gfdvar(_NewV, H, N1,N3, GArg),
-                Auxs1 = [post_rc(ConLev, GArg #= GExpr)|Auxs3],
-                ec_to_gecode_arith_expr1(Arg, H, 0, N3,N2, Bs1,Bs2, Auxs3,
-                                         Auxs2, GExpr, ConLev, Module)
+ec_to_gecode_aux_op1(args(Specs), AuxOp, H, N0,N, Bs0,Bs, Auxs0,AuxsT, EventTemp, ConLev, Module) ?- !,
+        % operator has multiple arguments of different types, with the ones
+        % that can be expressions specified in the list Specs 
+        Auxs0 = [EventTemp|Auxs1],
+        ( foreach(Spec, Specs),
+	  fromto(N0, N1,N2, N), 
+	  fromto(Bs0, Bs1,Bs2, Bs), 
+	  fromto(Auxs1, Auxs2,Auxs3, AuxsT),
+	  param([EventTemp,AuxOp,H,ConLev,Module])
+	do 
+            ( Spec = list(AuxArg,EvArg) ->
+                arg(AuxArg, AuxOp, Collect),
+                collection_to_list(Collect, List),
+                ec_to_gecode_arith_exprlist1(List, H, 0, N1,N2, Bs1,Bs2, Auxs2,Auxs3, GList, ConLev, Module),
+                GArray =.. [[]|GList],
+                arg(EvArg, EventTemp, GArray)
+            ; Spec = var(AuxArg,EvArg) ->
+                arg(AuxArg, AuxOp, Arg),
+                arg(EvArg, EventTemp, GArg),
+                ( var(Arg) ->
+                    Auxs3 = Auxs2,
+                    Bs2 = Bs1,
+                    ec_to_gecode_var1(Arg, H, N1,N2, [], _, GArg)
+                ; integer(Arg) ->
+                    Auxs3 = Auxs2,
+                    Bs1 = Bs2,
+                    N1 = N2,
+                    GArg = Arg
+                ; % Arg is an expression, process it and add an auxillary
+                  % constraint linking it to the argument variable in EventTemp
+                    new_gfdvar(_NewV, H, N1,N3, GArg),
+                    Auxs2 = [post_rc(ConLev, GArg #= GExpr)|Auxs4],
+                    ec_to_gecode_arith_expr1(Arg, H, 0, N3,N2, Bs1,Bs2,
+                                             Auxs4,Auxs3, GExpr, ConLev, Module)
+                )
+            ;
+                fail
             )
+	     
         ).
+ec_to_gecode_aux_op1(aux_cstr(Val), Cstr, H, N0,N, Bs0,Bs, Auxs0,AuxsT, EventTemp, ConLev, _Module) ?- !,
+        cstr_aux_events1(EventTemp, Cstr, Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev).
 
+
+cstr_aux_events1(linsum, sum(Vs,Rel), Sum, H, N0,N, Bs0,Bs, Auxs0, AuxsT, ConLev) :-
+        Bs0 = Bs,
+        linsum_event1(Vs, Rel, Sum, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(scalar_product, scalar_product(Cs,Vs,Rel), Prod, H, N0,N, Bs0,Bs, Auxs0, AuxsT, ConLev) :-
+        Bs0 = Bs,
+        scalar_product_event1(Cs, Vs, Rel, Prod, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(element, element(Idx,Vs), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev) :-
+	Bs0 = Bs,
+        element_events1(Idx, Vs, Val, ecl, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(element_g, element_g(Idx,Vs), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev) :-
+	Bs0 = Bs,
+        element_events1(Idx, Vs, Val, gc, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(occurrences, occurrences(Value,Vs), Count, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev) :-
+	Bs0 = Bs,
+        count_events1(Value, Vs, '#=', Count, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(count, count(Value,Vs,Rel), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev) :-
+	Bs0 = Bs,
+        count_events1(Value, Vs, Rel, Val, ConLev, H, N0,N, Auxs0,AuxsT).
 
 
 ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, Module) :-
@@ -2323,13 +2471,21 @@ ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, Mod
         Event = post_bool_connectives(ConLev,GBool<=>GRC),
         ec_to_gecode_reifiedrc1(RelOp, E1, E2, H, N1,N, Bs1,Bs, Auxs0,AuxsT, GRC, ConLev, Module).
 ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, _ConLev, Module) :-
-        domain_constraint(C, Vs, Dom),
+        domain_constraint(C, Vs, Dom), !,
         Auxs0 = AuxsT,
         ec_to_gecode_domain_reified1(Vs, Dom, _Bool, H, N0,N, Bs0,Bs, Event, GBool, Module).
+ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, _Module) :-
+        C = scalar_product(Cs,Vs,Rel,S), !,
+        Auxs0 = AuxsT,
+        scalar_product_reif_event1(Cs,Vs, Rel, S, _Bool, ConLev, H, N0,N, Bs0,Bs, Event, GBool).
+ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, _Module) :-
+        C = sum(Vs,Rel,S), !,
+        Auxs0 = AuxsT,
+        linsum_reif_event1(Vs, Rel, S, _Bool, ConLev, H, N0,N, Bs0,Bs, Event, GBool).
 
 
 ec_to_gecode_reifiedrc1(RelOp, E1, E2, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GRC, ConLev, Module) :-
-        % the subexpressions must be linear here
+        % the subexpressions must be inline here
         ec_to_gecode_arith_expr1(E1, H, 1, N0,N1, Bs0,Bs1, Auxs0,Auxs1, GE1, ConLev, Module),
         ec_to_gecode_arith_expr1(E2, H, 1, N1,N, Bs1,Bs, Auxs1,AuxsT, GE2, ConLev, Module),
         GRC =.. [RelOp,GE1,GE2].
@@ -2353,6 +2509,7 @@ ec_to_gecode_oldvar(V, H, GV) :-
         ;
             fail
         ).
+
 
 ec_to_gecode_var1(V, H, N0,N, OldGVs0,OldGVs, GV) :-
         ( get_gecode_attr(V, H, Attr) ->
@@ -2379,11 +2536,11 @@ new_gfdvar(V, H, N0, N, GV) :-
         add_gecode_attr(V, H, N, BN),  % may fail!
         addto_varray(H, N, V).
 
-ec_to_gecode_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, Module, ConLev) :-
+ec_to_gecode_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, ConLev, Module) :-
         boolean_expr(E), !,
-        ec_to_gecode_bool_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, Module, ConLev).
-ec_to_gecode_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, Module, ConLev) :-
-        ec_to_gecode_arith_expr1(E, H, 0, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, Module, ConLev).
+        ec_to_gecode_bool_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, ConLev, Module).
+ec_to_gecode_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, ConLev, Module) :-
+        ec_to_gecode_arith_expr1(E, H, 0, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, ConLev, Module).
                                 
 ec_to_gecode_bool_expr1(V, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GV, _ConLev, _Module) :- 
         var(V), !,
@@ -2402,13 +2559,6 @@ ec_to_gecode_bool_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, ConLev, Module) :-
             ec_to_gecode_bool_expr1(SubE, H, N1,N2, Bs1,Bs2, Auxs1,Auxs2, GSubE, ConLev, Module)
         ),
         GE =.. [Connective|GSubExprs].
-ec_to_gecode_bool_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, ConLev, Module) :-
-        relation_constraint(E, Op, EX, EY), !, 
-        ec_to_gecode_reifiedrc1(Op, EX, EY, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, ConLev, Module).
-ec_to_gecode_bool_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GBool, _ConLev, Module) :-
-        domain_constraint(E, Vs, Dom),
-        Auxs0 = [Event|AuxsT],
-        ec_to_gecode_domain_reified1(Vs, Dom, _Bool, H, N0,N, Bs0,Bs, Event, GBool, Module).
 ec_to_gecode_bool_expr1(1, _H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, _ConLev, _Module) :-
         N0 = N,
         Bs0 = Bs,
@@ -2419,6 +2569,15 @@ ec_to_gecode_bool_expr1(0, _H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, _ConLev, _Module) 
         Bs0 = Bs,
         Auxs0 = AuxsT,
         GE = 0.
+ec_to_gecode_bool_expr1(E, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, ConLev, Module) :-
+        % rel. constraints can be inlined in bool. expr,
+        relation_constraint(E, Op, EX, EY), !, 
+        ec_to_gecode_reifiedrc1(Op, EX, EY, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GE, ConLev, Module).
+ec_to_gecode_bool_expr1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GB, ConLev, Module) :-
+        reifiable_constraint(C), !, 
+        Auxs0 = [RCEvent|Auxs1],
+        ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs1,AuxsT, RCEvent, GB, ConLev, Module).
+
 
 ec_to_gecode_arith_expr1(V, H, _Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GV, _ConLev, _Module) :-
         var(V), !,
@@ -2437,14 +2596,45 @@ ec_to_gecode_arith_expr1(eval(E), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GE, ConLev, 
 ec_to_gecode_arith_expr1(subscript(T,S), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GE, ConLev, Module) ?- !,
         subscript(T,S,E),
         ec_to_gecode_arith_expr1(E, H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GE, ConLev, Module).
+ec_to_gecode_arith_expr1(sum(Cs0*L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSP, ConLev, Module) ?- !,
+        collection_to_list(flatten(L0),L), 
+        collection_to_list(flatten(Cs0),Cs),
+	(foreach(C, Cs) do integer(C)), 
+        ec_to_gecode_arith_exprlist1(L, H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GL, ConLev, Module),
+        GArr =.. [[]|GL],
+	CArr =.. [[]|Cs],
+	arity(GArr) =:= arity(CArr),
+        GSP = sum(CArr,GArr).
 ec_to_gecode_arith_expr1(sum(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev, Module) ?- !,
+        collection_to_list(flatten(L0),L),
+	ec_to_gecode_arith_exprlist1(L, H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GL, ConLev, Module),
+        GArr =.. [[]|GL],
+        GSum = sum(GArr).
+ec_to_gecode_arith_expr1(sumlist(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev, Module) ?- !,
+        ec_to_gecode_arith_expr1(sum(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev, Module).
+ec_to_gecode_arith_expr1(min(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev, Module) ?- !,
         collection_to_list(flatten(L0),L), 
         ec_to_gecode_arith_exprlist1(L, H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GL, ConLev, Module),
-        GL = GSum.
-%        GArray =.. [[]|GL],
-%        GSum = sum(GArray).
+        GArr =.. [[]|GL],
+        GSum = min(GArr).
+ec_to_gecode_arith_expr1(minlist(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev, Module) ?- !,
+        ec_to_gecode_arith_expr1(min(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev, Module).
+ec_to_gecode_arith_expr1(max(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev, Module) ?- !,
+        collection_to_list(flatten(L0),L), 
+        ec_to_gecode_arith_exprlist1(L, H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GL, ConLev, Module),
+        GArr =.. [[]|GL],
+        GSum = max(GArr).
+ec_to_gecode_arith_expr1(maxlist(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev, Module) ?- !,
+        ec_to_gecode_arith_expr1(max(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev, Module).
+ec_to_gecode_arith_expr1(element_g(Idx,Vs), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GElm, ConLev, Module) ?- !,
+        ec_to_gecode_arith_expr1(Idx, H, Lin, N0,N1, Bs0,Bs, Auxs,AuxsT, GIdx, ConLev, Module),
+	collection_to_list(flatten(Vs), List),
+        ec_to_gecode_varlist1(List, H, N1,N, GList),
+	GArr =.. [[]|GList],
+        % order of arg in Gecode is reverse of ECLiPSe 
+	GElm = element(GArr, GIdx).
 ec_to_gecode_arith_expr1(E0, H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GE, ConLev, Module) :-
-        linear_op(E0, E, Module), !,
+        inline_op(E0, E), !,
         functor(E, Name, Arity),
         functor(GE, Name, Arity),
         ( foreacharg(Arg, E), foreacharg(GArg, GE),
@@ -2455,30 +2645,18 @@ ec_to_gecode_arith_expr1(E0, H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GE, ConLev, Modul
         do
             ec_to_gecode_arith_expr1(Arg, H, Lin, N1,N2, Bs1,Bs2, Auxs1,Auxs2,  GArg, ConLev, Module)
         ).
-% following clauses are for non-linear expressions only
+% following clauses are for expressions that needs to be factored out as aux. 
+% these used to be the non-linear parts but Gecode can now handle most
+% non-linear parts directly
 ec_to_gecode_arith_expr1(E, H, 0, N0,N, Bs0,Bs, Auxs0,AuxsT, GNewV, ConLev, Module) :-
-        nonlin_op(E, EventTemp, ArgType, ConLev), !,
-        new_gfdvar(_NewV, H, N0,N1, GNewV),
-        arg(2, EventTemp, GNewV), % fill in the result variable in template
-        Auxs0 = [EventTemp|Auxs1],
-        ec_to_gecode_nonlin_op1(ArgType, E, H, N1,N, Bs0,Bs, Auxs1,AuxsT, EventTemp, ConLev, Module).
+        aux_op(E, EventTemp, NewV, GNewV, ArgType, ConLev), !,
+        new_gfdvar(NewV, H, N0,N1, GNewV),
+        ec_to_gecode_aux_op1(ArgType, E, H, N1,N, Bs0,Bs, Auxs0,AuxsT, EventTemp, ConLev, Module).
 ec_to_gecode_arith_expr1(C, H, 0, N0,N, Bs0,Bs, Auxs0,AuxsT, GB, ConLev, Module) :-
         reifiable_constraint(C), !, 
         Auxs0 = [RCEvent|Auxs1],
         ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs1,AuxsT, RCEvent, GB, ConLev, Module).
-/*
 
-ec_to_gecode_sumlist([E|L], H, N0,N, OldGVs0,OldGVs, GL) :-
-        ec_to_gecode_arith_expr1(E, H, N0,N1, OldGVs0,OldGVs1, GE1),
-        ( L == [] ->
-            GL = GE1,
-            N = N1,
-            OldGVs = OldGVs1
-        ;
-            GL = GE1 + GL1,
-            ec_to_gecode_sumlist(L, H, N1,N, OldGVs1,OldGVs, GL1)
-        ).
-*/
 
 indomain(I) :- integer(I), !.
 indomain(V{gfd:Attr}) ?-
@@ -3287,6 +3465,11 @@ ordered1(Order, X1, X2Xs) :-
       neg/2 -> neg_c/3,
       '<=>'/3 -> '<=>_reif_c'/4,
       '=>'/3 -> '=>_reif_c'/4, */
+      abs/2 -> abs_c/3,
+      plus/3 -> plus_c/4,
+      mult/3 -> mult_c/4,
+      sqr/2 -> sqr_c/3,
+      sqrt/2 -> sqrt_c/3,
       alldifferent/1 -> alldifferent_c/2,
       alldifferent_cst/2 -> alldifferent_cst_c/3,
       bool_channeling/3 -> bool_channeling_c/4,
@@ -3309,7 +3492,11 @@ ordered1(Order, X1, X2Xs) :-
       inverse_g/4 -> inverse_g_c/5,
       minlist/2 -> minlist_c/3,
       maxlist/2 -> maxlist_c/3,
-      sumlist/2 -> sumlist_c/3,
+      min/2 -> minlist_c/3,
+      max/2 -> maxlist_c/3,
+      sum/2 -> sum_c/3,
+      sum/3 -> sum_c/4,
+      scalar_product/4 -> scalar_product_c/5,
       sequence/4 -> sequence_c/5,
       sequence/5 -> sequence_c/6
    ]).
@@ -3340,6 +3527,14 @@ ordered1(Order, X1, X2Xs) :-
       neg/2 -> neg_c/3,
       '<=>'/3 -> '<=>_reif_c'/4,
       '=>'/3 -> '=>_reif_c'/4,
+      abs/2 -> abs_c/3,
+      plus/3 -> plus_c/4,
+      mult/3 -> mult_c/4,
+      divide/3 -> div_c/4,
+      mod/3 -> mod_c/4,
+      divmod/4 -> divmod_c/5,
+      sqr/2 -> sqr_c/3,
+      sqrt/2 -> sqrt_c/3,
       alldifferent/1 -> alldifferent_c/2,
       alldifferent_cst/2 -> alldifferent_cst_c/3,
       element/3 -> element_c/4,
@@ -3347,7 +3542,13 @@ ordered1(Order, X1, X2Xs) :-
       gcc/2 -> gcc_c/3,
       minlist/2 -> minlist_c/3,
       maxlist/2 -> maxlist_c/3,
-      sumlist/2 -> sumlist_c/3,
+      min/2 -> minlist_c/3,
+      max/2 -> maxlist_c/3,
+      sum/2 -> sum_c/3,
+      sum/3 -> sum_c/4,
+      sum/4 -> sum_reif_c/5,
+      scalar_product/4 -> scalar_product_c/5,
+      scalar_product/5 -> scalar_product_reif_c/6,
       sorted_g/3 -> sorted_g_c/4,
       sorted/2 -> sorted_c/3,
       sorted/3 -> sorted_c/4
@@ -3376,12 +3577,5 @@ ordered1(Order, X1, X2Xs) :-
       gcc/2 -> gcc_c/3
   ]).
 
-:- create_constraint_pool(gfd, 0, [
-       sqrt/2 -> sqrt_c/3,
-       sqr/2 -> sqr_c/3,
-       abs/2 -> abs_c/3,
-       mod/3 -> mod_c/4,
-       (/)/3 -> div_c/4
-   ]).
 
 :- comment(include, "gfd_comments.ecl").
