@@ -81,6 +81,7 @@ end_of_line   & \notation{NL}  &line feed\\
 atom_quote     & \notation{AQ}  &\verb+'+\\
 string_quote   & \notation{SQ}  &\verb+"+\\
 list_quote     & \notation{LQ}  & \\
+chars_quote     & \notation{CQ}  & \\
 radix           & \notation{RA}  & \\
 ascii           & \notation{AS}  & \\
 solo            & \notation{SL}  &\verb+! ; +\\
@@ -107,7 +108,6 @@ The character class of any character can be modified by a
 \\
 alphanumerical  & \notation{ALP}
                        &\notation{UC} \notation{UL} \notation{LC} \notation{N}\\
-any character   & \notation{ANY}     &\\
 non escape      & \notation{NES}     &any character except escape\\
 sign            & \notation{SGN}     &\verb'+ -'\\
 \end{tabular}
@@ -126,21 +126,19 @@ The description of the valid tokens follows.
 
 \vfill %<<<<<<<<<<<<<<<<<<<<<
 
-\subsubsection{Constants}
+\subsubsection{Atoms}
 
-\begin{enumerate}
-\item \heading{atoms}
 \begin{verbatim}
 ATOM    = (LC ALP*)
         | (SY | CM1 | CM2 | ES)+
-        | (AQ (NES | ES ANY+)* AQ)
+        | (AQ (NES | ESCSEQ)* AQ)
         | SL
         | []
         | {}
         | |
 \end{verbatim}
 
-\item\heading{numbers}
+\subsubsection{Numbers}
 
 \begin{enumerate}
 
@@ -165,10 +163,14 @@ INTBAS = [SGN] 0 (b | o | x) (N | LC | UC)+
 which allows binary, octal and hexadecimal numbers respectively.
 
 \item\heading{character codes}
+\label{intchar}
 \begin{verbatim}
-INTCHAR = [SGN] 0 (AQ | RA) ANY | AS ANY
+INTCHAR = [SGN] (0 (AQ|RA)|AS) CHARCONST
 \end{verbatim}
-The value of the integer is the character code of the last character.
+For all plain characters, CHARCONST is just that character, and the
+value of the integer is the character code of that character.
+For special characters, see the detailed definition
+of CHARCONST below \ref{charconst}.
 
 \item\heading{rationals}
 \begin{verbatim}
@@ -180,7 +182,8 @@ RAT = [SGN] N+ UL N+
 FLOAT = [SGN] N+ . N+ [ (e | E) [SGN] N+ | Inf ]
       | [SGN] N+        (e | E) [SGN] N+
 \end{verbatim}
-checks are performed that the numbers are in a valid range.
+If the syntax option \notation{float_needs_point} is active, then
+only the first alternative (with floating point) is valid syntax.
 
 \item\heading{bounded reals}
 \begin{verbatim}
@@ -194,27 +197,46 @@ If the syntax option \notation{blanks_after_sign} is active, then
 blank space (\notation{BS*}) is allowed between the sign and the following
 digits.
 
-\vfill\pagebreak %<<<<<<<<<<<<<<<<<
 
-\item\heading{strings}
+\subsubsection{Strings}
 \begin{verbatim}
-STRING = SQ (NES | ES ANY+ | SQ BS* SQ)* SQ
+STRING = SQ (NES | ESCSEQ | SQ BS* SQ)* SQ
 \end{verbatim}
+Text enclosed in SQ (string_quote) characters is parsed as a constant of type
+string.  By default, the double quote \verb.". is the SQ character.
+
 By default, consecutive strings are concatenated into a single string.
 This behaviour can be disabled by the syntax option
 \notation{doubled_quote_is_quote}, which causes doubled quotes to be
 interpreted as a single occurrence of the quote within the string.
 
-\item\heading{lists of character codes}
+\subsubsection{Lists of numeric character codes}
 \begin{verbatim}
-LIST = LQ (NES | ES ANY+ | LQ BS* LQ)* LQ
+LIST = LQ (NES | ESCSEQ | LQ BS* LQ)* LQ
 \end{verbatim}
+Text enclosed in LQ (list_quote) characters is parsed as a list of numeric
+character codes.  For example, if the double quote \verb.". is defined as
+list_quote, then \verb."abc". is parsed as \verb.[97,98,99]..
+
 By default, consecutive character lists are concatenated into a single character
 list.
 This behaviour can be disabled by the syntax option
 \notation{doubled_quote_is_quote}, which causes doubled quotes to be
 interpreted as a single occurrence of the quote within the string.
-\end{enumerate}
+
+\subsubsection{Lists of single-character atoms}
+\begin{verbatim}
+LIST = CQ (NES | ESCSEQ | CQ BS* CQ)* CQ
+\end{verbatim}
+Text enclosed in CQ (chars_quote) characters is parsed as a list of single-atom
+characters.  For example, if the double quote \verb.". is defined as
+chars_quote, then \verb."abc". is parsed as \verb.['a','b','c']..
+
+By default, consecutive character lists are concatenated into a single character
+list.
+This behaviour can be disabled by the syntax option
+\notation{doubled_quote_is_quote}, which causes doubled quotes to be
+interpreted as a single occurrence of the quote within the string.
 
 \subsubsection{Variables}
 \begin{verbatim}
@@ -225,40 +247,79 @@ VAR = (UC | UL) ALP*
 \begin{verbatim}
 EOCL = . (BS | NL | <end of file>) | TS | <end of file>
 \end{verbatim}
+If the syntax option \notation{iso_restrictions} is active,
+then end-of-file alone does not act as EOCL.
 
 
-\subsection{Escape Sequences within Strings and Atoms}
-
-Within atoms and strings, the escape sequences (ES ANY+) are interpreted:
-if the sequence matches one of the following valid escape sequences,
-the corresponding special character is inserted into the quoted item.
+\subsubsection{Escape Sequences within Quotes}
+\index{escape sequence}
+Within quoted constants (atoms, strings, character lists), the following
+escape sequences ESCSEQ may occur, and lead to
+the corresponding special character being inserted into the quoted item.
 \begin{flushleft}
-\begin{tabular}{ll}
-\heading{Escape Sequence} &	\heading{Result} \\
-ES \verb'a'		&	ASCII alert (7)\\
-ES \verb'b'		&	ASCII backspace (8)\\
-ES \verb'f'		&	ASCII form feed (12)\\
-ES \verb'n'		&	ASCII newline (10)\\
-ES \verb'r'		&	ASCII carriage return (13)\\
-ES \verb't'		&	ASCII tabulation (9)\\
-ES \verb'v'		&	ASCII vertical tab (11)\\
-ES \verb'e'		&	ASCII escape (27)\\
-ES \verb'd'		&	ASCII delete (127)\\
-ES ES			&	the ES character itself\\
-ES AQ			&	the AQ character itself\\
-ES SQ			&	the SQ character itself\\
-ES LQ			&	the LQ character itself\\
-ES NL			&	ignored\\
-ES \verb'c' (BS\verb'|'NL)*	&	ignored\\
-ES three octal digits	&	character whose character code is
-the given octal value\\
-ES \verb'x' hex digits ES	&    character whose character code is
-the given hexadecimal value\\
+\begin{tabular}{lll}
+\heading{ESCSEQ =} &	\heading{Result} & \heading{Syntax option}\\
+ES \verb'a'		&	ASCII alert (7)	&\\
+ES \verb'b'		&	ASCII backspace (8)	&\\
+ES \verb'f'		&	ASCII form feed (12)	&\\
+ES \verb'n'		&	ASCII newline (10)	&\\
+ES \verb'r'		&	ASCII carriage return (13)	&\\
+ES \verb't'		&	ASCII tabulation (9)	&\\
+ES \verb'v'		&	ASCII vertical tab (11)	&\\
+ES \verb'e'		&	ASCII escape (27)	& not iso_restrictions\\
+ES \verb'd'		&	ASCII delete (127)	& not iso_restrictions\\
+ES \verb's'		&	ASCII space (32)	& not iso_restrictions\\
+ES (ES|AQ|SQ|LQ|CQ)	& the ES,AQ,SQ,LQ or CQ character &\\
+ES NL			&	ignored	&\\
+ES \verb'c' (BS\verb'|'NL)*	&	ignored	& not iso_restrictions\\
+ES three octal digits	&	character with given octal character code	& not iso_escapes\\
+ES octal digits	ES &	character with given octal character code	& iso_escapes\\
+ES \verb'x' hex digits ES	&    character with given hexadecimal character code	&\\
 \end{tabular}
 \end{flushleft}
-It is illegal for any other character follows the ES.
+It is illegal for any other character to follow the ES.
 If the syntax option \notation{iso_escapes} is active, the octal escape
 sequence can be of any length and must be terminated with an ES character.
+Some sequences are disabled by the \notation{iso_restrictions} option.
+
+\subsubsection{Character Constants}
+\label{charconst}
+\index{character constant}
+An integer character constant (see \ref{intchar})
+is by default introduced by the sequence \verb.0'.
+and followed by CHARCONST, which is defined as one of the following:
+\begin{flushleft}
+\begin{tabular}{lll}
+\heading{CHARCONST =} &	\heading{Represents} & \heading{Syntax option}\\
+(ALP|SL|DS|CM|CM1|CM2|SY|TS)	& that character&\\
+<SPACE>		& ASCII space (32)		&\\
+(SQ|LQ|CQ)		& the SQ,LQ or CQ character &\\
+ES (ES|AQ|SQ|LQ|CQ)	& the ES,AQ,SQ,LQ or CQ character &\\
+ES \verb'a'	& ASCII alert (7)		&\\
+ES \verb'b'	& ASCII backspace (8)		&\\
+ES \verb'f'	& ASCII form feed (12)		&\\
+ES \verb'n'	& ASCII newline (10)		&\\
+ES \verb'r'	& ASCII carriage return (13)	&\\
+ES \verb't'	& ASCII tabulation (9)		&\\
+ES \verb'v'	& ASCII vertical tab (11)	&\\
+AQ AQ		& the AQ character itself	& iso_escapes and doubled_quote_is_quote\\
+%ES octal digits	ES &	character with given octal character code	& iso_escapes\\
+%ES \verb'x' hex digits ES	&    character with given hexadecimal character code	&\\
+<TAB>		& ASCII tabulation (9)		& not iso_escapes\\
+NL		& ASCII newline (10)		& not iso_escapes\\
+AQ		& the AQ character itself	& not iso_escapes\\
+ES		& the ES character itself	& not iso_escapes\\
+ES \verb'e'	& ASCII escape (27)		& not iso_restrictions\\
+ES \verb'd'	& ASCII delete (127)		& not iso_restrictions\\
+ES \verb's'	& ASCII space (32)		& not iso_restrictions\\
+\end{tabular}
+\end{flushleft}
+It is recommended to use only those sequences that are recognised universally,
+i.e.\ independent of syntax option settings.  The other sequences are present
+for compatibility with various Prolog dialects.  The syntax options
+\notation{iso_escapes} and \notation{iso_restrictions} disable several
+of those.  The AQ AQ sequence is of dubious value -- it is recommended to
+write \verb.0'\'. instead of \verb.0'''..
 
 
 \section{Formal definition of clause syntax}
