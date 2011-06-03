@@ -1627,25 +1627,40 @@ gcc_c(BoundsList, Vars, ConLev) :-
         arity(Bounds, M),
         dim(Vals, [M]),
         dim(Occurrences, [M]),
-        ( foreacharg(Spec, Bounds), 
+        ( foreacharg(Spec, Bounds),
+          param(H),
           foreacharg(Value, Vals),
           foreacharg(Occ, Occurrences)
         do
-            translate_gcc_spec(Spec, Value, Occ)
+            translate_gcc_spec(Spec, Value, H, Occ)
         ),
         post_new_event(post_gcc(ConLev, Vals, Occurrences, GVs), H).
 
-translate_gcc_spec(gcc{low:Lo,high:Hi,value:Val0}, Val, Occ) ?-
+translate_gcc_spec(gcc{low:Lo,high:Hi,value:Val0}, Val, H, GOcc) ?-
         integer(Val0),
         Val0 = Val,
         integer(Hi),
         integer(Lo),
-        Occ :: Lo..Hi.
-translate_gcc_spec(occ{occ:Occ0,value:Val0}, Val, Occ) ?-
+        Occ :: Lo..Hi,
+        ( var(Occ) ->
+            ec_to_gecode_var(Occ, H, GOcc)
+        ; integer(Occ) ->
+            GOcc = Occ
+        ;
+            abort
+        ).
+translate_gcc_spec(occ{occ:Occ0,value:Val0}, Val, H, Occ) ?-
         integer(Val0),
         Val0 = Val,
-        is_solver_type(Occ0),
-        Occ0 = Occ.
+        (is_solver_type(Occ0) ->
+            ( var(Occ0) ->
+                ec_to_gecode_var(Occ0, H, Occ)
+            ; % must be integer
+                Occ0 = Occ
+            )
+        ;
+            abort
+        ).
 
 sorted(Us0, Ss0) :-
         sorted_c(Us0, Ss0, default).
