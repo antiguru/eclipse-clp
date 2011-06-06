@@ -1,3 +1,4 @@
 sepia_date("development").
-sepia_stage("unstable").
+sepia_stage("development").
 sepia_build(72).
+
