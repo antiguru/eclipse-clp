@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.21 2011/04/23 21:40:39 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.22 2011/06/08 12:40:34 kish_shen Exp $
  *
  */
 
@@ -512,7 +512,7 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define Get_Dbl_Param(E,L,A1,A2) \
    ((L) == NULL ? XPRSgetdblcontrol(E,A1,A2) : XPRSgetdblcontrol((L)->lp,A1,A2))
 # define Get_Str_Param(E,L,A1,A2) \
-   ((L) == NULL ? XPRSgetstrcontrol(E,A1,A2) : XPRSgetdblcontrol((L)->lp,A1,A2))
+   ((L) == NULL ? XPRSgetstrcontrol(E,A1,A2) : XPRSgetstrcontrol((L)->lp,A1,A2))
 # define Set_Int_Param(E,L,A1,A2) \
    ((L) == NULL ? XPRSsetintcontrol(E,A1,A2) : XPRSsetintcontrol((L)->lp,A1,A2))
 # define Set_Dbl_Param(E,L,A1,A2) \
