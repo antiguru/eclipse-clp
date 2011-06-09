@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.5 2011/04/01 07:12:07 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.6 2011/06/09 16:58:53 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -55,7 +55,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2011/04/01 07:12:07 $").
+:- comment(date, "$Date: 2011/06/09 16:58:53 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -762,7 +762,7 @@ append([X|L1],L2,[X|L3]):-
 	args:["?List1" : "List or variable.", "?List2" : "List or variable.", "?List3" : "List or variable."],
 	resat:"   Yes.",
 	fail_if:"   Fails if List3 does not unify with the result of appending List2 to\n   List1.\n\n",
-	eg:"\nSuccess:\n  append([1,2],L2,[1,2,3,4]). (gives L2=[3,4]).\n  append([1,B],L2,[A,2,3,4]). (gives B=2 L2=[3,4] A=1).\n  append([1,2],L2,L3).        (gives L2=_g70 L3=[1,2|_g70]).\n  append([1]),[2,3]),L3).     (gives L3=[1,2,3]).\n\n  [eclipse]: append(L1,L2,[1,2]), writeln((L1,L2)), fail.\n  [] , [1, 2]\n  [1] , [2]\n  [1, 2] , []\n  no (more) solution.\nFail:\n  append(L1,[3],[1,2,3,4]).\n  append(1,L2,[1,2]).\n\n\n",
+	eg:"\nSuccess:\n  append([1,2],L2,[1,2,3,4]). (gives L2=[3,4]).\n  append([1,B],L2,[A,2,3,4]). (gives B=2 L2=[3,4] A=1).\n  append([1,2],L2,L3).        (gives L2=L2 L3=[1,2|L2]).\n  append([1],[2,3],L3).     (gives L3=[1,2,3]).\n\n  [eclipse]: append(L1,L2,[1,2]), writeln((L1,L2)), fail.\n  [] , [1, 2]\n  [1] , [2]\n  [1, 2] , []\n  no (more) solution.\nFail:\n  append(L1,[3],[1,2,3,4]).\n  append(1,L2,[1,2]).\n\n\n",
 	see_also:[union / 3]]).
 
 :- comment(checklist / 2, [
