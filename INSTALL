@@ -38,7 +38,7 @@ Simple build from toplevel directory (e.g. for i386_linux, sparc_sunos5):
 
 Build on multi-architecture machine, e.g. 64 bit build on 32/64 bit solaris:
 
-	export ARCH=x64_64_sunos5
+	export ARCH=x86_64_sunos5
 	CONFIG_SITE=config.$ARCH ./configure --build=x86_64-pc-solaris2.9
 	make -f Makefile.$ARCH
 
