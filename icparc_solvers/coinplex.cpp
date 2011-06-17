@@ -348,10 +348,12 @@ int coin_branchAndBound(lp_desc* lpd, int meth, int auxmeth)
 	model->addObjects(lpd->lp->nsos, lpd->lp->mipobjects);
     }
 
-    if (!lpd->lp->mipIsShared && lpd->lp->mipmodel != NULL) 
+    if (lpd->lp->mipmodel != NULL) 
     {
 	delete lpd->lp->mipmodel->messageHandler();
 	delete lpd->lp->mipmodel;
+	// if mipIsShared, then Solver is also deleted, so set to NULL
+	if (lpd->lp->mipIsShared) lpd->lp->Solver = NULL;
     }
 
     lpd->lp->mipmodel = model;
@@ -412,8 +414,8 @@ int coin_branchAndBound(lp_desc* lpd, int meth, int auxmeth)
 	delete lpd->lp->Solver;
     }
     lpd->lp->Solver = dynamic_cast< OsiXxxSolverInterface*>(model->solver());
-    DerivedHandler* solMessageHandler = new DerivedHandler;
-    lpd->lp->Solver->getModelPtr()->passInMessageHandler(solMessageHandler);
+    //DerivedHandler* solMessageHandler = new DerivedHandler;
+    //lpd->lp->Solver->getModelPtr()->passInMessageHandler(solMessageHandler);
     lpd->lp->mipIsShared = 1;
 
     if (lpd->prob_type == PROBLEM_FIXEDL && 
@@ -2077,8 +2079,8 @@ int coin_free_prob(COINprob* lp)
 
     delete lp->Solver->messageHandler();
     /* solver specific stuff */
-    coin_free_solver_handlers(lp->Solver);
 #ifdef COIN_USE_CLP
+    if (!lp->mipIsShared) coin_free_solver_handlers(lp->Solver);
 
     if (lp->nsos > 0)
     {
