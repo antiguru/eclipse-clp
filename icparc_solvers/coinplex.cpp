@@ -314,6 +314,7 @@ int coin_branchAndBound(lp_desc* lpd, int meth, int auxmeth)
     // Tell solver to return fast if presolve or initial solve infeasible
     lpd->lp->Solver->getModelPtr()->setMoreSpecialOptions(3);
 
+    // model is a new copy of lpd->lp->Solver
     CbcModel* model = new CbcModel(static_cast<OsiSolverInterface &>(*lpd->lp->Solver));
 
     int loglevel = lpd->lp->iparam[EpxClpParam_loglevel];
@@ -350,6 +351,7 @@ int coin_branchAndBound(lp_desc* lpd, int meth, int auxmeth)
 
     if (lpd->lp->mipmodel != NULL) 
     {
+      // mipmodel has an old copy of the model that needs to be deleted
 	delete lpd->lp->mipmodel->messageHandler();
 	delete lpd->lp->mipmodel;
 	// if mipIsShared, then Solver is also deleted, so set to NULL
