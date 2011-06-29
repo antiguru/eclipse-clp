@@ -27,6 +27,7 @@ top_srcdir = @top_srcdir@
 PREFIX = @prefix@
 MAKEFILE = Makefile.$(ARCH)
 JAVA_HOME = @JAVA_HOME@
+JRE_HOME = @JRE_HOME@
 GRAPPA_DIR = @GRAPPA_DIR@
 GRAPPA_JAR = @GRAPPA_JAR@
 

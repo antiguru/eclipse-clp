@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.43 2011/04/05 04:10:33 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.44 2011/06/29 16:21:49 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1557,7 +1557,7 @@ AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
 
 if test "$cplex_versions_requested" != "no"; then
     if test "$cplex_versions_requested" = "yes"; then
-    	cplex_versions_requested="75 81 90 102 110 121"
+    	cplex_versions_requested="75 81 90 102 110 121 122" 
     fi
     for version in $cplex_versions_requested; do
 	CPLEXDIR="$ECLIPSETHIRDPARTY/cplex$version"
@@ -1662,6 +1662,7 @@ AC_ARG_WITH([java], [[  --with-java[=dir]	Build ECLiPSe/Java interface.
 
 if test "$with_java" = "no"; then
     unset JAVA_HOME
+    unset JRE_HOME
     ALL_WITH_JAVA=
     ALL_CROSS_WITH_JAVA=
     AC_MSG_NOTICE([Not building Java interface])
@@ -1745,6 +1746,10 @@ ALL_VISUALISATION=
 ALL_VISUALISATION_CROSS=
 if test -n "$JAVA_HOME"; then
 
+    # Kish 2011-06-29: it seems that grappa version 1.2 covers changes
+    # that are incompatible - recent grappa 1.2 are incompatible with
+    # our Java Visualisation code, but there doesn't seem to be a way to
+    # test for this  
     GRAPPA_REQUIRED="1.2"
     for version in $GRAPPA_REQUIRED; do
 	GRAPPA_DIR=$ECLIPSETHIRDPARTY/grappa$version
@@ -1757,9 +1762,19 @@ if test -n "$JAVA_HOME"; then
     if test -z "$GRAPPA_JAR"; then
 	AC_MSG_WARN([Could not find Grappa ($GRAPPA_REQUIRED) in $ECLIPSETHIRDPARTY])
     else
-	ALL_VISUALISATION=all_visualisation
-	ALL_VISUALISATION_CROSS=all_visualisation_cross
-	AC_MSG_NOTICE([Using Grappa $GRAPPA_DIR/$GRAPPA_JAR])
+        if test -z "$JRE_HOME"; then
+	   if test -d $JAVA_HOME/jre; then
+	      JRE_HOME=$JAVA_HOME/jre
+	   else
+	      AC_MSG_WARN([Could not find JRE for Java; Visualisation tools will not be built.])
+	   fi
+	fi
+	if test -n $JRE_HOME; then		 
+	   AC_MSG_NOTICE([Using JRE in $JRE_HOME])
+	   ALL_VISUALISATION=all_visualisation
+	   ALL_VISUALISATION_CROSS=all_visualisation_cross
+	   AC_MSG_NOTICE([Using Grappa $GRAPPA_DIR/$GRAPPA_JAR])
+	fi
     fi
 
 else
@@ -1963,6 +1978,7 @@ AC_SUBST(GECODEDIR)
 AC_SUBST(ALL_WITH_JAVA)
 AC_SUBST(ALL_CROSS_WITH_JAVA)
 AC_SUBST(JAVA_HOME)
+AC_SUBST(JRE_HOME)
 AC_SUBST(CPPFLAGS_WITH_WITHOUT_FLEXLM)
 AC_SUBST(LIBS_WITH_WITHOUT_FLEXLM)
 AC_SUBST(FILES_WITH_WITHOUT_FLEXLM)
