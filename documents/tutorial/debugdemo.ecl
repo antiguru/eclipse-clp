@@ -24,16 +24,26 @@
 
 :- [mapcolour].
 
-exec_mapdisplay(Pid, Port) :-
+exec_mapdisplay(Pid, Port, Sock) :-
         get_flag(hostarch, ARCH),
+        TclFile = "mapdebugdemo.tcl",
+        (exists(TclFile) -> 
+            true
+        ;
+            printf(error, "Cannot find %w, which is needed to run"
+                           " this program.%nCheck that you are in the"
+                           " right directory to run this program.\n", [TclFile]),
+            (current_stream(Sock) -> close(Sock) ; true),
+            abort
+        ),
         (ARCH = "i386_nt" ->
              get_flag(installation_directory, ECDIR),
              concat_string([ECDIR, "/tcltk/",ARCH, "/bin/"], WISHPATH),
 	     read_directory(WISHPATH, "wish*", _, [WISH|_]), 
 	     concat_string([WISHPATH, WISH], WISHEXEC),
-             exec([WISHEXEC, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
+             exec([WISHEXEC, TclFile, "--", "-p", Port], [], Pid)
         ;
-             exec([wish, "mapdebugdemo.tcl", "--", "-p", Port], [], Pid)
+             exec([wish, TclFile, "--", "-p", Port], [], Pid)
         ),
         setval(pid, Pid).
 
@@ -50,11 +60,13 @@ post_attach(S) :-
 
 colour :-
         remote_connect_setup(localhost/Port, Peer, Sock),
-        exec_mapdisplay(_Pid, Port),
+        exec_mapdisplay(_Pid, Port, Sock),
         (remote_connect_accept(Peer, Sock, 10, post_attach(Peer), "", _) ->
             block(colouring1(prolog, input_order, indomain, 4, _), _,  true)
         ;
-            close(Sock)
+            writeln("Unable to connect to program to display the map."),
+            (current_stream(Sock) -> close(Sock) ; true),
+            abort
         ).
 
 
