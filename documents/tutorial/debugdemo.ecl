@@ -36,7 +36,7 @@ exec_mapdisplay(Pid, Port, Sock) :-
             (current_stream(Sock) -> close(Sock) ; true),
             abort
         ),
-        (ARCH = "i386_nt" ->
+        ((ARCH == "i386_nt"; ARCH == "x86_64_nt") ->
              get_flag(installation_directory, ECDIR),
              concat_string([ECDIR, "/tcltk/",ARCH, "/bin/"], WISHPATH),
 	     read_directory(WISHPATH, "wish*", _, [WISH|_]), 
@@ -50,7 +50,8 @@ exec_mapdisplay(Pid, Port, Sock) :-
 
 
 disconnect_handler :-
-        (get_flag(hostarch, "i386_nt") -> 
+        get_flag(hostarch, ARCH),
+        ((ARCH == "i386_nt" ; ARCH == "x86_64_nt") -> 
              true ; getval(pid, Pid), wait(Pid, _)
         ).
 
