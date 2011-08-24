@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.34 2011/05/04 01:52:12 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.35 2011/08/24 11:02:22 kish_shen Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -1099,7 +1099,11 @@ proc tkecl:edit_new_popup {} {
 proc tkecl:edit_file {file {line -1}} {
     global tkecl
 
-   if {![file exists $file]} {
+    if {$tkecl(pref,editor) == ""} {
+	tk_messageBox -icon error -type ok -message "Cannot start an editor, as none is defined.\nDefine a third-party text editor using\nTools->'TkECLiPSe Preference Editor'\nto edit programs."
+	return
+    }
+    if {![file exists $file]} {
 	# Create the file (some editors require it)
 	close [open $file w]
     }
