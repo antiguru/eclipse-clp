@@ -3562,7 +3562,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     <li><b>cloning_distance</b>
           This controls how often the gecode state is cloned. The smaller
           the distance, the more frequent the cloning. Cloning is only done
-          at places where the nre clone might be useful, roughly there are
+          at places where the new clone might be useful, roughly if there are
           changes to the state since the last clone, and it is possible to 
           backtrack and make use of the new clone (i.e. there should be
           at least one choicepoint between the last clone and the current
