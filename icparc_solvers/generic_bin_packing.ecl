@@ -28,7 +28,7 @@
 :- comment(bin_packing/4, [
        amode: bin_packing(+,++,+,+),
        args: ["Items": "A collection of M variables or integers (domain/value"
-                       " between 0 and N)",
+                       " between 1 and N)",
               "ItemSizes": "A collection of M non-negative integers",
               "N": "A positive Integer",
               "BinSize": "A non-negative integer"
@@ -71,7 +71,7 @@ bin_packing(Items,Sizes,N,BinSize):-
 :- comment(bin_packing/3, [
        amode: bin_packing(+,++,+),
        args: ["Items": "A collection of M variables or integers (domain/value"
-                       " between 0 and N)",
+                       " between 1 and N)",
               "ItemSizes": "A collection of M non-negative integers",
               "BinLoads": "A collection of N variables or non-negative integers"
              ],
