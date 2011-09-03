@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.22 2011/06/08 12:40:34 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.23 2011/09/03 00:18:41 kish_shen Exp $
  *
  */
 
@@ -6207,7 +6207,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 	Log2({lpd->prob_type = %d; lpd->presolve = %d;}, lpd->prob_type, lpd->presolve);
 	Log4(coin_solve_problem(lpd, %d, %d, %d, %d), meth, auxmeth, node_meth, node_auxmeth);
 	if (coin_solve_problem(lpd, meth, auxmeth, node_meth, node_auxmeth) == -1)
-	    Bip_Error(UNIMPLEMENTED);
+	    Bip_Error(EC_EXTERNAL_ERROR);
 #endif /* COIN */
 
 	/*********************************************************************
