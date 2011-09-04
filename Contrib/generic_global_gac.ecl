@@ -494,7 +494,7 @@ GCC with fixed bounds
     Note that all values that Vars can take must be specified in Bounds.
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
     This constraint is known as global_cardinality_low_up in the global
@@ -640,7 +640,7 @@ SAME
     length.
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
     This constraint is also known as same in the global constraint catalog. 
@@ -788,7 +788,7 @@ inverse
      predecessor of node y.
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
      This constraint is known as inverse in the global constraint catalog,
@@ -888,7 +888,7 @@ lex_le/2, lex_lt/2
         reached)is strictly smaller than any existing element.
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
         This constraint is known as lex_lesseq in the global constraint
@@ -920,7 +920,7 @@ lex_le(XVector,YVector):-
         reached)is strictly smaller than any existing element.
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
         This constraint is known as lex_less in the global constraint

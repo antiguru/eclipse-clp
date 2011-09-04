@@ -26,7 +26,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ic_global.ecl,v 1.4 2011/05/06 02:14:02 jschimpf Exp $
+% Version:	$Id: ic_global.ecl,v 1.5 2011/09/04 02:38:10 kish_shen Exp $
 %
 %
 % IDENTIFICATION:	ic_global.ecl
@@ -48,7 +48,7 @@
 :- comment(summary, "Various global constraints over lists of IC variables").
 :- comment(author, "J.Schimpf, V.Liatsos, S.Novello, M.Wallace, A.Sadler, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2011/05/06 02:14:02 $").
+:- comment(date, "$Date: 2011/09/04 02:38:10 $").
 
 :- use_module(ic).
 :- use_module(ic_kernel).
@@ -81,7 +81,7 @@ alldifferent_matrix(Matrix) :-
     have N values
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
     This constraint is described in J.-C. Regin and C. Gomes,
@@ -116,7 +116,7 @@ alldifferent_matrix(Matrix) :-
     Max in total for all Vars.
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P>
 ") 
@@ -154,7 +154,7 @@ alldifferent_matrix(Matrix) :-
     ZeroOnes can then be used in further constraint reasoning.
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 ") 
          ]

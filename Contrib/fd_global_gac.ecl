@@ -99,7 +99,7 @@ gcc_matrix(Row,Col,Matrix) :-
     domain consistent. 
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
     This constraint is described in J.-C. Regin and C. Gomes,
@@ -126,7 +126,7 @@ gcc_matrix(Row,Col,Matrix) :-
     have N values
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
     This constraint is described in J.-C. Regin and C. Gomes,
@@ -151,7 +151,7 @@ gcc_matrix(Row,Col,Matrix) :-
     of K consecutive variables/values in Vars. 
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
     This constraint is known as among_seq in the global constraint catalog.
@@ -190,7 +190,7 @@ gcc_matrix(Row,Col,Matrix) :-
     Note: this constraint is different from sequence/4 in lib(fd).
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 ") 
          ]

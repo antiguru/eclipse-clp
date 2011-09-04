@@ -49,7 +49,7 @@
    represents a time point, and BinSize corresponds to the Resource.
 </P><P>
     This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
+    very extensively and little effort have been spent to optimise performance.
     We welcome any feedbacks on using this constraint.
 </P><P>
    This constraint and the algorithm used to implement it is described in
