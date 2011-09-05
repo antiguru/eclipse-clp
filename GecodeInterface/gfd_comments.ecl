@@ -1,4 +1,4 @@
-:- comment(catagories, ["Constraints"]).
+:- comment(categories, ["Constraints"]).
 :- comment(summary, "Interface to gecode solver for integer finite domains").
 
 :- comment(author, "Kish Shen").
@@ -20,7 +20,7 @@
        <LI>Real interval arithmetic and variables are not supported.
 
        <LI>Domain variables have finite bounds, and the maximum bounds are
-       deterermined by gecode. Like FD, default finite bounds are given to 
+       determined by gecode. Like FD, default finite bounds are given to 
        domain variables that are not explicitly given bounds.
 
        <LI>Constraint propagation is performed in gecode, and each propagation
@@ -48,8 +48,8 @@
        addition, some constraints can be called from modules that specify
        the consistency level: gfd_gac (generalised arc consistency, aka
        domain consistency), gfd_bc (bounds consistency), gfd_vc (value
-       consistency (naive)). The calls to gfd uses the default cnsistency 
-       defined for the constraint by gecode. These consisteny levels maps 
+       consistency (naive)). The calls to gfd uses the default consistency 
+       defined for the constraint by gecode. These consistency levels maps 
        directly to those defined for the constraints, so if gecode supports 
        different consistency levels for a constraint, GFD supports it as 
        well. In  particular (and unlike IC), most arithmetic operations can 
@@ -187,14 +187,14 @@
     amode: (integers(+) is semidet),
 %    template: "integers(?Vars)",
     args: [
-	"Vars": "Variable or integer, or a list or submatrix of variables/integers"
+	"Vars": "Variable or integer, or a list or sub-matrix of variables/integers"
     ],
     summary: "Vars' domain is the integer numbers.",
     see_also: [_:integers/1],
 %    fail_if: "variables already a non-integer.",
     desc: html("<P>
    Constrain the variables to integer values.  If any variable is a non-domain
-   variable, a default domain wil be created for it.
+   variable, a default domain will be created for it.
 ")
 ]).
 
@@ -598,7 +598,7 @@ M = 3
    Constrains Vars to take only values from the domain specified by Domain.  
    Vars may be a variable or a collection of variables (as accepted by 
    collection_to_list/2).  Domain can be specified as a simple range Lo .. Hi, 
-   or as a list of subranges and/or individual elements. All domain elements
+   or as a list of sub-ranges and/or individual elements. All domain elements
    must be integers within the range allowed by gecode.
 <P>
    For instance:
@@ -653,14 +653,14 @@ Y = Y{[-1 .. 10, 21]}
    neither of the above two conditions hold.
 <P>
    Instantiating Bool to 1, will cause the constraint to behave exactly like
-   ::/2.  Instatiating Bool to 0 will cause Domain to be excluded from the
+   ::/2.  Instantiating Bool to 0 will cause Domain to be excluded from the
    domain of the variable.
 <P>
    Note that calling the reified form of :: will result in the Variable
    becoming a domain variable, even if Bool is uninstantiated.
 <P>
    Further note that, like other reified predicates, :: can be used infix in
-   aGFD  expression, e.g. B #= (X :: [1..10]) is equivalent to
+   a GFD  expression, e.g. B #= (X :: [1..10]) is equivalent to
    ::(X, [1..10], B).
 "),
     eg: "\
@@ -716,7 +716,7 @@ X = X{[-1000000 .. 1000000]}
     desc: html("<P>
    Constrains ExprX and ExprY to be equal.  Also constrains all variables
    appearing in ExprX and ExprY to be domain variables and checks that all 
-   constants and ground subexpressions are integers.</P><P>
+   constants and ground sub-expressions are integers.</P><P>
 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: gfd_bc
@@ -773,7 +773,7 @@ X = X{[-1000000 .. 1000000]}
     desc: html("<P>
    Constrains ExprX to be greater than or equal to ExprY.  Also constrains
    all variables appearing in ExprX and ExprY to be domain variables and 
-   checks that all constants and ground subexpressions are integers.</P><P>
+   checks that all constants and ground sub-expressions are integers.</P><P>
 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: gfd_bc
@@ -888,7 +888,7 @@ X = X{[-1000000 .. 1000000]}
     desc: html("<P>
    Constrains ExprX to be greater than ExprY.  Also constrains all variables
    appearing in ExprX and ExprY to be domain variables and checks that all 
-   constants and ground subexpressions are integers.</P><P>
+   constants and ground sub-expressions are integers.</P><P>
 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: gfd_bc
@@ -944,8 +944,8 @@ X = X{[-1000000 .. 1000000]}
                (#<)/3, _:(#<)/2],
     desc: html("<P>
    Constrains ExprX to be less than ExprY.  Also constrains all variables
-   appearing in ExprX and ExprY to be domain varaibles and checks that all 
-   constants and ground subexpressions are integers.</P><P>
+   appearing in ExprX and ExprY to be domain variables and checks that all 
+   constants and ground sub-expressions are integers.</P><P>
 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: gfd_bc
@@ -1003,7 +1003,7 @@ X = X{[-1000000 .. 1000000]}
     desc: html("<P>
    Constrains ExprX to be not equal to ExprY.  Also constrains all variables
    appearing in ExprX and ExprY to be domain variable and checks that all 
-   constants and ground subexpressions are integers.</P><P>
+   constants and ground sub-expressions are integers.</P><P>
 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: gfd_bc
@@ -1179,7 +1179,7 @@ X = X{[-1000000 .. 1000000]}
 %---------------------------------------------------------------------
 
 :- comment(min/3, [
-    summary:"Min is the miniimum of X and Y.",
+    summary:"Min is the minimum of X and Y.",
     template: "<ConsistencyModule:> min(?X,?Y,?Min)",
     amode:min(?,?,?),
     args:[
@@ -1557,6 +1557,9 @@ X = X{[-1000000 .. 1000000]}
           Constrains the sum of the elements in Collection to satisfy
           the relation sum(Collection) Rel Sum.
 	  </P><P>
+          Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
+          >, >=, <, =<, =, \\=).
+	  </P><P>
 	  Any input variables which are not already domain variable will be
           turn into domain variables with default bounds.</P><P>
 	  </P><P>
@@ -1577,7 +1580,7 @@ X = X{[-1000000 .. 1000000]}
 
 :- comment(sum/4, [
     summary:"Reflect into Bool the truth of the sum of the elements of Collection"
-            " satisfing the relation sum(Collection) Rel Sum.",
+            " satisfying the relation sum(Collection) Rel Sum.",
     template: "<ConsistencyModule:> sum(+Collection,+Rel,?Sum,?Bool)",
     amode:sum(+,+,?,?),
     args:[
@@ -1590,6 +1593,9 @@ X = X{[-1000000 .. 1000000]}
           This is the reified form of sum/3, which constrains the sum
           of  the elements in Collection to satisfy the relation 
           sum(Collection) Rel Sum.
+	  </P><P>
+          Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
+          >, >=, <, =<, =, \\=).
 	  </P><P>
 	  Any input variables which are not already domain variable will be
           turn into domain variables with default bounds.</P><P>
@@ -1617,6 +1623,9 @@ X = X{[-1000000 .. 1000000]}
           Constrains the scalar product of the elements in Collection to satisfy
           the relation sum(Coeffs*Collection) Rel P.
 	  </P><P>
+          Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
+          >, >=, <, =<, =, \\=).
+	  </P><P>
           The Scalar Product of the collection of N integers in Coeffs and
           the collection of N domain variables or integers in Collection 
           is the sum of all Ci*Vi, where Ci is a element in Coeffs and
@@ -1642,7 +1651,7 @@ X = X{[-1000000 .. 1000000]}
 
 :- comment(scalar_product/5, [
     summary:"Reflect into Bool the truth of the scalar product of the"
-            " elements of Coeffs and Collection satisfing the relation "
+            " elements of Coeffs and Collection satisfying the relation "
             " sum(Coeffs*Collection) Rel Sum.",
     template: "<ConsistencyModule:> scalar_product(++Coeffs,+Collection,+Rel,?Sum,?Bool)",
     amode:scalar_product(++,+,+,?,?),
@@ -1659,6 +1668,9 @@ X = X{[-1000000 .. 1000000]}
           the relation 
           sum(Coeffs*Collection) Rel P.
 	  </P><P>
+          Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
+          >, >=, <, =<, =, \\=).
+          </P><P>
 	  Any input variables which are not already domain variable will be
           turn into domain variables with default bounds.</P><P>
 	  </P><P>
@@ -2100,7 +2112,7 @@ V = V{[1, 2, 4 .. 10]}
 
 :- comment(atleast/3, [
 	summary:"Atleast N elements of Vars have the value V.",
-	template:"<ConsistencyModule:> atleastt(+N, ?Vars, +V)",
+	template:"<ConsistencyModule:> atleast(+N, ?Vars, +V)",
 	desc:html("\
    This constraint ensures that atleast N element of Vars have the value V.
 <P>
@@ -2130,8 +2142,10 @@ V = V{[1, 2, 4 .. 10]}
    constraint defined by Rel:
 <PRE>
           N Rel <number of occurrences of Value in Vars>
-</PRE>
-<P>
+</PRE><P>
+     Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
+     >, >=, <, =<, =, \\=)
+</P><P>
    occurrences/3, atmost/3, atleast/3 are defined using count/3. For example,
 <PRE>
          atmost(N, Vars, Value)
@@ -2282,7 +2296,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     Var's domain, and 1 if Var is assigned the value [Thus, only one variable
     in DomainBools can take the value 1].
 </P><P>
-    A variant of this constraint, calld 'domain_constraint' is in the global 
+    A variant of this constraint, called 'domain_constraint' is in the global 
     constraint catalog. There, instead of having DomainBools and Min, there
     is a collection of Value-Bool pairs, representing a possible domain value
     and its associated 0/1 variable. 
@@ -2350,7 +2364,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
      N nodes, where the i'th element of Succ and Pred represents the 
      successor and predecessor of the node i respectively. The constraint 
      enforces each node in the digraph to have one successor and one 
-     predessor node, and that if node y is the successor of node x, then 
+     predecessor node, and that if node y is the successor of node x, then 
      node x is the predecessor of node y.
 </P><P>
     One of the two arguments can be uninstantiated or partial list
@@ -2411,7 +2425,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
      Succ and Pred are list of N elements, representing a digraph of N nodes,
      where the i'th element of Succ and Pred represents the successor and
      predecessor of the node i respectively. The constraint enforces each
-     node in the digraph to have one successor and one predessor node, and
+     node in the digraph to have one successor and one predecessor node, and
      that if the successor of node y minus SuccOffset is equal to x, then
      the predecessor of node x minus PredOffset is equal to y.
 </P><P>
@@ -2471,7 +2485,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
   the graph, visiting each node once and forming a circuit.</P><P>
 
   Note that the Gecode implementation of this constraint has index (node id)
-  starting from 0, rather than 1. These indecies are constrained to 
+  starting from 0, rather than 1. These indices are constrained to 
   ECLiPSe node id with a constraint for each element. A version of this
   constraint with native Gecode indexing is available as circuit_g/1.
 </P><P>
@@ -2523,7 +2537,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 </P><P>
 
   Note that the Gecode implementation of this constraint has index (node id)
-  starting from 0, rather than 1. These indecies are constrained to 
+  starting from 0, rather than 1. These indices are constrained to 
   ECLiPSe node id with a constraint for each element. A version of this
   constraint with native Gecode indexing is available as circuit_g/3,
 </P><P>
@@ -2581,7 +2595,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 </P><P>
 
   Note that the gecode implementation of this constraint has index (node id)
-  starting from 0, rather than 1. These indecies are constrained to 
+  starting from 0, rather than 1. These indices are constrained to 
   ECLiPSe node id with a constraint for each element.A version of this
   constraint with native Gecode indexing is available as circuit_g/4.
 </P><P>
@@ -2620,8 +2634,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 :- comment(disjunctive/2, [
   amode:   disjunctive(+,+),
   args:    ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
-%            "Durations":   "Collection of N durations for tasks (domain variables or integers)"
-            "Durations":   "Collection of N durations for tasks (integers)"
+            "Durations":   "Collection of N durations for tasks (non-negative domain variables or integers)"
            ],
   summary: "Constrain the tasks with specified start times and durations to not overlap in time.",
   see_also: [collection_to_list/2],
@@ -2629,8 +2642,19 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 <P>
     A disjunctive scheduling constraint. StartTimes and Durations are
     collections (a la collection_to_list/2) of equal size N of integer
-    variables or integers.  The declarative meaning is that the N tasks with
-    the given start times and durations do not overlap at any point in time.
+    variables or integers. Durations must be non-negative. 
+    The declarative meaning is that the N tasks with the given start 
+    times and durations do not overlap at any point in time.
+</P><P>
+    Note that the constraint is implemented by different Gecode propagators,
+    depending on if Durations contains domain variables or not. If
+    Durations does have domain variables, the Gecode propagator requires
+    an extra End domain variable specifying the end time, and a constraint 
+<PRE>        
+      End #= Start + Duration  
+</PRE>
+    for each task. These are posted as part of the constraint (the End 
+    variables are not accessible by the user).
 </P><P>
     Any input variables which are not already domain variables will be
     converted into domain variables with default bounds.
@@ -2640,21 +2664,31 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 :- comment(disjunctive_optional/3, [
   amode:   disjunctive_optional(+,+,+),
   args:    ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
-%            "Durations":   "Collection of N durations for tasks (domain variables or integers)"
-            "Durations":   "Collection of N durations for tasks (integers)",
-            "Scheduled":   "Collection of N scheduled booleans for taks (0/1"
+            "Durations":   "Collection of N durations for tasks (non-negative domain variables or integers)"
+            "Scheduled":   "Collection of N scheduled booleans for task (0/1"
 " domain variables or integers)"
            ],
-  summary: "Constrain the tasks with specified start times and durations to"
-" not overlap in time, tasks may be optional, i.e. not scheduled.",
+  summary: "Constrain the optional tasks with specified start times and durations to"
+           " not overlap in time.",
   see_also: [collection_to_list/2],
   desc:    html("\
-<P>
+<P>  
     A disjunctive scheduling constraint. StartTimes, Durations and Scheduled
-    are  collections (a la collection_to_list/2) of equal size N.
+    are collections (a la collection_to_list/2) of equal size N. Durations
+    must be non-negative, and Scheduled are booleans (0/1).
     The declarative meaning is that the scheduled tasks with the given start 
     times and durations do not overlap at any point in time. A task would not
-    be scheduled if its scheduled boolean is 0, and must be scheduled if 1.
+    be scheduled if its Scheduled boolean is 0, and must be scheduled if 1.
+</P><P>
+    Note that the constraint is implemented by different Gecode propagators,
+    depending on if Durations contains domain variables or not. If
+    Durations does have domain variables, the Gecode propagator requires
+    an extra End domain variable specifying the end time, and a constraint 
+<PRE>        
+      End #= Start + Duration  
+</PRE>
+    for each task. These are posted as part of the constraint (the End 
+    variables are not accessible by the user).
 </P><P>
     Any input variables which are not already domain variables will be
     converted into domain variables with default bounds.
@@ -2666,36 +2700,80 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 :- comment(cumulative/4, [
   amode: cumulative(+,+,+,+),
-  template:"<ConsistencyModule:> cumulative(+StartTimes, +Durations +Hights, +ResourceLimits)",
   args:  ["StartTimes":  "Collection of start times for tasks (integer variables or integers)",
-          "Durations":   "Collection of duration for tasks (integer variables or integers)",
-          "Hights":   "Collection of resource usages (positive) or productions (negative) by tasks (integer variables or integers)",
-          "ResourceLimit": "Maximum amount of resource available (integer)"
+          "Durations":   "Collection of duration for tasks (non-negative integer variables or integers)",
+          "Usages":   "Collection of resource usages (positive integers)",
+          "ResourceLimit": "Maximum amount of resource available (positive integer)"
          ],
-  summary: "Single resource cumulative constraint on specified tasks.",
-  see_also: [disjunctive/2, cumulative/5, collection_to_list/2, _:cumulative/4],
+  summary: "Single resource cumulative constraint on scheduling tasks.",
+  see_also: [disjunctive/2, cumulative_optional/5, collection_to_list/2, _:cumulative/4],
   desc:    html("\
 <P>
-   A cumulative scheduling constraint. StartTimes, Durations and Hights
-   are collections (a la collection_to_list/2) of equal size N of integer
-   variables or integers.  ResourceLimit is an integer. The declarative
-   meaning is:
-   If there are N tasks, each starting at a certain start time, having
-   a certain duration and conscsuming a certain (constant) amount of
+   A cumulative scheduling constraint. StartTimes, Durations and Usages 
+   are collections (a la collection_to_list/2) of equal size N representing
+   N tasks. Durations are non-negative, Usages and ResourceLimit are 
+   strictly positive. The declarative meaning is:
+</P><P>
+   The N tasks, each starting at a certain start time, having
+   a certain duration and consuming a certain (constant) amount of
    resource, then the sum of resource usage of all the tasks does not
-   exceed ResourceLimit at any time. Note that resource usage for a task
-   can be negative, in which case the task produce the resource rather 
-   than consume it.
+   exceed ResourceLimit at any time. 
+</P><P>
+   Note that the constraint is implemented by different Gecode propagators,
+   depending on if Durations contains domain variables or not. If
+   Durations does have domain variables, the Gecode propagator requires
+   an extra End domain variable specifying the end time, and a constraint 
+<PRE>        
+     End #= Start + Duration  
+</PRE>
+   for each task. These are posted as part of the constraint (the End 
+   variables are not accessible by the user).
+</P><P>
+   Any input variables which are not already domain variables are turned
+   into domain variables with default domain.
+</P>")
+]).
+
+:- comment(cumulative_optional/5, [
+  amode: cumulative(+,+,+,+,+),
+  args:  ["StartTimes":  "Collection of start times for tasks (integer variables or integers)",
+          "Durations":   "Collection of duration for tasks (non-negative integer variables or integers)",
+          "Usages":   "Collection of resource usages (positive integers)",
+          "ResourceLimit": "Maximum amount of resource available
+                            (positive integer)",
+          "Scheduled":   "Collection of N scheduled booleans for task (0/1"
+" domain variables or integers)"
+         ],
+  summary: "Single resource cumulative constraint on scheduling optional tasks.",
+  see_also: [disjunctive/2, disjunctive_optional/3, cumulative/4, collection_to_list/2, _:cumulative/4],
+  desc:    html("\
+<P>
+   A cumulative scheduling constraint. StartTimes, Durations, Usages and 
+   Scheduled are collections (a la collection_to_list/2) of equal size N,
+   representing N task. Durations must be non-negative, Usages and 
+   ResourceLimit must be strictly positive, and Scheduled are booleans 
+   (values of 0/1). The declarative meaning is:
+</P><P>
+   The N tasks, each starting at a certain start time, having
+   a certain duration and consuming a certain (constant) amount of
+   resource, then the sum of resource usage of all the tasks does not
+   exceed ResourceLimit at any time. A task would not be scheduled 
+   if its Scheduled boolean is 0, and must be scheduled if 1.
+</P><P>
+   Note that the constraint is implemented by different Gecode propagators,
+   depending on if Durations contains domain variables or not. If
+   Durations does have domain variables, the Gecode propagator requires
+   an extra End domain variable specifying the end time, and a constraint 
+<PRE>        
+     End #= Start + Duration  
+</PRE>
+   for each task. These are posted as part of the constraint (the End 
+   variables are not accessible by the user).
 </P><P>
    Any input variables which are not already domain variables are turned
    into domain variables with default domain.
 </P><P>
-</P><P>
-    ConsistencyModule is the optional module specification to give the 
-    consistency level for the propagation for this constraint: 
-    gfd_gac for generalised arc consistency (domain consistency), 
-    gfd_vc for value consistency.
-</P>")
+")
 ]).
 
 
@@ -2725,7 +2803,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
    If there are N tasks and M machines, each machine having a limit of 
    resource that can be consumed at any single time-point, and each task 
    starting at a certain start time, having a certain duration and 
-   conscsuming/producing a certain (constant) amount of resource for the 
+   consuming/producing a certain (constant) amount of resource for the 
    machine assigned to the task, then the sum of resource usage for each
    machine by all the tasks does not exceed the capacity for that machine at
    any time. 
@@ -2735,8 +2813,8 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 </P><P>
     Note that the Gecode implementation of this constraint has index starting
     from 0, i.e. the numbering for the machines starts from 0. These native 
-    indecies are mapped to the  ECLiPSe indecies starting from 1 with an 
-    additional dummy \"zero\'th\" machine that is not used. A version of this 
+    indices are mapped to the  ECLiPSe indices starting from 1 with an 
+    additional dummy zero'th machine that is not used. A version of this 
     constraint that uses native Gecode indexing is available 
     as cumulatives_g/5.
 </P><P>
@@ -2745,6 +2823,8 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     gfd_vc for value consistency.
 </P>")
 ]).
+
+
 
 :- comment(cumulatives_g/5, [
   amode: cumulatives_g(+,+,+,+,++),
@@ -2758,7 +2838,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
           "MachineCapacities": "Collection of M maximum amount of resource"
 " available for machines (integers)"
          ],
-  summary: "Multi-resource cumulatives constraint on specified tasks, using native Gecide indexing.",
+  summary: "Multi-resource cumulatives constraint on specified tasks, using native Gecode indexing.",
   see_also: [cumulatives/5],
   desc:    html("\
   This version of the constraint uses the native Gecode indexing, which starts 
@@ -2805,18 +2885,21 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
    Any input variables which are not already domain variables are turned
    into domain variables with default domain.
 </P><P>
+
     Note that the Gecode implementation of this constraint has index starting
     from 0, i.e. the numbering for the machines starts from 0. These native 
-    indecies are mapped to the  ECLiPSe indecies starting from 1 with an 
-    additional dummy \"zero\'th\" machine that is not used. A version of this 
+    indices are mapped to the  ECLiPSe indices starting from 1 with an 
+    additional dummy zero'th machine that is not used. A version of this 
     constraint that uses native Gecode indexing is available 
     as cumulatives_min_g/5.
 </P><P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
     gfd_vc for value consistency.
-</P>")
+</P>"
+)
 ]).
+
 
 :- comment(cumulatives_min_g/5, [
   amode: cumulatives_min_g(+,+,+,+,++),
@@ -2852,7 +2935,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
         amode: sequence(+,+,+,+,++),
         args: ["Low":"Non-negative integer",
                "High":"Positive integer",
-               "K": "Postive integer",
+               "K": "Positive integer",
                "Vars": "A list of variables or integers",
                "Values": "A list of (different) integers"
               ],
@@ -2879,7 +2962,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
         template:"<ConsistencyModule:> sequence(+Low,+High,+K,+ZeroOnes)",
         args: ["Low":"Non-negative integer",
                "High":"Positive integer",
-               "K": "Postive integer",
+               "K": "Positive integer",
                "ZeroOnes": "A collection of 0/1 variables or integers"
               ],
         summary: "The number of occurrences of the value 1 is between Low and"
@@ -2902,7 +2985,279 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
          ]
 ).
 
+
+%----------------------------------------------------------------------
+
+:- comment(bin_packing/3, [
+       amode: bin_packing(+,++,+),
+       args: ["Items": "A collection of M variables or integers (domain/value"
+                       " between 1 and N)",
+              "ItemSizes": "A collection of M non-negative integers",
+              "BinLoads": "A collection of N variables or non-negative integers"
+             ],
+       see_also:[bin_packing/4,bin_packing_g/3],
+       summary:"The one-dimensional bin packing constraint with loads: packing "
+               "M items into N bins, each bin having a load",
+       desc: html("\
+   This constraint is for one-dimensional bin-packing, that is, to pack M
+   items with individual sizes into N bins, such that the sum of sizes of
+   items in each bin equals the load of that bin, as specified in BinLoads.
+   Each element of Items and its corresponding element in ItemSizes
+   represents an item, such that the i'th element of ItemSizes is the size
+   of the i'th item, and the i'th element of Item is the bin this item is
+   packed into. BinLoads represent the load of each bin, i.e. the sum
+   of the sizes of items assigned to that bin, with the j'th element 
+   representing the load for bin j. An (integer finite domain) variable for 
+   the load allows a constraint on the load to be specified, such as a
+   minimum and/or maximum load for the bin.
+</P><P>
+   This constraint and the algorithm used to implement it is described in
+   P. Shaw, 'A Constraint for Bin Packing', CP'2004, and is described in
+   the global constraint catalog as bin_packing, in the variation where
+   the CAPACITY parameter is replaced by a collection of domain variables
+   (BinLoads).
+</P><P>
+    Note that the Gecode implementation of this constraint has index starting
+    from 0, i.e. the numbering for the bins starts from 0. These native 
+    indices are mapped to the  ECLiPSe indices starting from 1 with an 
+    additional dummy zero'th bin that is assigned a dummy item 0. A version
+    of this constraint that uses native Gecode indexing is available 
+    as bin_packing_g/3.
+</p>
+")
+          ]).
+
+:- comment(bin_packing_g/3, [
+       amode: bin_packing(+,++,+),
+       args: ["Items": "A collection of M variables or integers (domain/value"
+                       " between 0 and N-1)",
+              "ItemSizes": "A collection of M non-negative integers",
+              "BinLoads": "A collection of N variables or non-negative integers"
+             ],
+       see_also:[bin_packing/4,bin_packing/3],
+       summary:"The one-dimensional bin packing constraint with loads, using native Gecode indexing",
+  desc:    html("\
+  This version of the constraint uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps more directly to Gecode's native implementation of 
+  the constraint, without the conversion between Gecode and ECLiPSe
+  indexing of cumulatives_min/5. It may therefore be more efficient, but 
+  could also be incompatible with existing ECLiPSe code. 
+</p><p>
+  See bin_packing/3 for a more detailed description of this predicate.")
+]).   
+
+:- comment(bin_packing/4, [
+       amode: bin_packing(+,++,+,+),
+       args: ["Items": "A collection of M variables or integers (domain/value"
+                       " between 1 and N)",
+              "ItemSizes": "A collection of M non-negative integers",
+              "N": "A positive Integer",
+              "BinSize": "A non-negative integer"
+             ],
+       see_also:[bin_packing/3, cumulative/4],
+       summary:"The one-dimensional bin packing constraint: packing M items"
+               " into N bins of size BinSize.",
+       desc: html("\
+   This constraint is for one-dimensional bin-packing, that is, to pack M
+   items with individual sizes into N bins, such that the sum of sizes of 
+   items in each bin does not exceed BinSize. Each element of Items and its 
+   corresponding element in ItemSizes represents an item, such that the i'th 
+   element of ItemSizes is the size of the i'th item, and the i'th element in
+   Items is the bin this item is packed into. 
+</P><P>
+   This constraint can be seen as a special case of the cumulative/4
+   constraint, where all task durations are equal to 1, each bin
+   represents a time point, and BinSize corresponds to the Resource.
+</P><P>
+   This constraint and the algorithm used to implement it is described in
+   P. Shaw, 'A Constraint for Bin Packing', CP'2004, with a fixed size for 
+   the bins. It is also described in the global constraint catalog as 
+   bin_packing, but with slightly different arguments: in the catalog, N
+   (the number of bins) is implicitly defined by the domain of the variables 
+   in Items, and the representation of item is grouped into a single argument
+   of collection of pairs, each pair representing an item: the bin to pack 
+   the item, and its size.
+</p><p>
+   Note that this constraint is implemented using the more general 
+   bin_packing/4, where each bin has its own size, represented by a domain
+   variable, as this is what is implemented by Gecode. This form of
+   the constraint with a fixed BinSize is more common. so it is
+   provided for convenience and compatibility. Note that this constraint
+   uses ECLiPSe indexing -- bins are indexed starting from 1. There is no     
+   Gecode indexing version of this constraint as it is not implemented
+   directly in Gecode.
+</p>
+")
+          ]).
+
+
 % ----------------------------------------------------------------------
+
+:- comment(lex_le/2, [
+    summary:"Collection1 is lexicographically less or equal to Collection2",
+    amode:lex_le(+,+),
+    args:[
+	"Collection1":"Collection of integers or domain variables",
+	"Collection2":"Collection of integers or domain variables"
+    ],
+    desc:html("\
+    	Imposes a lexicographic ordering between the two lists. 
+	I.e.  either is the first element of Collection1 strictly smaller
+	than the first element of Collection2, or the first elements are
+	equal and the lexicographic order holds between the two list
+	tails. A non-existing element (i.e. when the end of list is 
+        reached) is strictly smaller than any existing element.
+</P><P>
+        Restrictions in the Gecode version used requires the two
+        collections to have equal lengths.
+</P><P>
+        This constraint is known as lex_lesseq in the global constraint
+        catalog. 
+")
+]).
+
+
+:- comment(lex_lt/2, [
+    summary:"Collection1 is lexicographically less than  Collection2",
+    amode:lex_lt(+,+),
+    args:[
+	"Collection1":"Collection of integers or domain variables",
+	"Collection2":"Collection of integers or domain variables"
+    ],
+    desc:html("\
+    	Imposes a lexicographic ordering between the two lists. 
+	I.e.  either is the first element of Collection1 strictly smaller
+	than the first element of Collection2, or the first elements are
+	equal and the lexicographic order holds between the two list
+	tails. A non-existing element (i.e. when the end of list is 
+        reached)is strictly smaller than any existing element.
+</P><P>
+        Restrictions in the Gecode version used requires the two
+        collections to have equal lengths.
+</P><P>
+        This constraint is known as lex_less in the global constraint
+        catalog. 
+")
+]).
+
+:- comment(lex_ge/2, [
+    summary:"Collection1 is lexicographically greater or equal to Collection2",
+    amode:lex_le(+,+),
+    args:[
+	"Collection1":"Collection of integers or domain variables",
+	"Collection2":"Collection of integers or domain variables"
+    ],
+    desc:html("\
+    	Imposes a lexicographic ordering between the two lists. 
+	I.e.  either is the first element of Collection1 strictly larger
+	than the first element of Collection2, or the first elements are
+	equal and the lexicographic order holds between the two list
+	tails. A non-existing element (i.e. when the end of list is 
+        reached) is strictly smaller than any existing element.
+</P><P>
+        Restrictions in the Gecode version used requires the two
+        collections to have equal lengths.
+</P><P>
+        This constraint is known as lex_greatereq in the global constraint
+        catalog. 
+")
+]).
+
+
+:- comment(lex_gt/2, [
+    summary:"Collection1 is lexicographically greater than  Collection2",
+    amode:lex_lt(+,+),
+    args:[
+	"Collection1":"Collection of integers or domain variables",
+	"Collection2":"Collection of integers or domain variables"
+    ],
+    desc:html("\
+    	Imposes a lexicographic ordering between the two lists. 
+	I.e.  either is the first element of Collection1 strictly greater
+	than the first element of Collection2, or the first elements are
+	equal and the lexicographic order holds between the two list
+	tails. A non-existing element (i.e. when the end of list is 
+        reached)is strictly smaller than any existing element.
+</P><P>
+        Restrictions in the Gecode version used requires the two
+        collections to have equal lengths.
+</P><P>
+        This constraint is known as lex_greater in the global constraint
+        catalog. 
+")
+]).
+
+:- comment(lex_eq/2, [
+    summary:"Collection1 is lexicographically equal to Collection2",
+    amode:lex_lt(+,+),
+    args:[
+	"Collection1":"Collection of integers or domain variables",
+	"Collection2":"Collection of integers or domain variables"
+    ],
+    desc:html("\
+    	Constrains the two collections to be lexicographically equal, i.e.
+	the two collections are the same length, and each
+        element is identical to its corresponding element in the
+        other collection.
+</P><P>
+        Restrictions in the Gecode version used requires the two
+        collections to have equal lengths.
+</P><P>
+        This constraint is known as lex_equal in the global constraint
+        catalog. 
+")
+]).
+
+:- comment(lex_neq/2, [
+    summary:"Collection1 is lexicographically not equal to Collection2",
+    amode:lex_lt(+,+),
+    args:[
+	"Collection1":"Collection of integers or domain variables",
+	"Collection2":"Collection of integers or domain variables"
+    ],
+    desc:html("\
+    	Constrains the two collections to be lexicographically different, i.e.
+	the two collections are either different lengths, or at least
+        one element in one collection is different from its corresponding
+        element in the other collection.
+</P><P>
+        Restrictions in the Gecode version used requires the two
+        collections to have equal lengths.
+</P><P>
+        This constraint is known as lex_different in the global constraint
+        catalog. 
+")
+]).
+
+
+%----------------------------------------------------------------------
+
+:- comment(ordered/2, [
+    summary:"Constrains List to be ordered according to Relation",
+    template:"<ConsistencyModule:> ordered(+Relation,+List)",
+    amode:ordered(++,+),
+    args:[
+	"Relation":"One of the atoms #<, #=<, #>, #>=, #=, #\\=",
+	"List":"Collection of integers or domain variables"
+    ],
+    desc: html("\
+      Constrains the elements in List to be ordered according to Relation,
+      which is one of #<, #=<, #>, #>=, #=, #\\= (and equivalently, for 
+      compatibility, <, =<, >, >=, =, \\=).
+</P><P>
+      ConsistencyModule is the optional module specification to give the 
+      consistency level for the propagation for this constraint: 
+        gfd_gac for generalised arc consistency (domain consistency), 
+        gfd_bc for bounds consistency, and
+        gfd_vc for value consistency.
+    "),
+    see_also:[lex_le/2,lex_lt/2,lex_ge/2,lex_gt/2,sorted/2,collection_to_list/2]
+    ]).
+
+
+%----------------------------------------------------------------------
 
 :-comment(search/6,[
 summary:"Interface to gecode search-engines to perform search in gecode.",
@@ -2913,7 +3268,7 @@ args:[
 	    variables (Arg = 0) or a collection of terms (Arg > 0)",
 
       "Arg" :"is an integer, which is 0 if L is a collection of
-	    dvarints or greater than 0 if L consists of terms of
+	    domain variables or greater than 0 if L consists of terms of
 	    arity greater than Arg, the value Arg indicates the
 	    selected argument of the term",
 
@@ -2926,7 +3281,7 @@ args:[
             min_regret_upb, random, max_weighted_degree, min_weighted_degree, 
             max_weighted_degree_per_value, min_weighted_degree_per_value",
 
-      "Choice" :  "is the name of a predefine value choice method for chosing
+      "Choice" :  "is the name of a predefine value choice method for choosing
             the value to try for a variable; Predefined choice methods are:
             indomain, indomain_from_max, indomain_min, indomain_max, 
             indomain_middle, indomain_median, indomain_split, 
@@ -2942,7 +3297,7 @@ args:[
           timeout(+Seconds), control(+Control), backtrack(-N), 
           node(+Call), nodes(+N)"
 ],
-desc:html("<b>Search/6</b> provides an interface to gecode's search-enegine,
+desc:html("<b>Search/6</b> provides an interface to gecode's search-engine,
 to allow search to be performed by gecode. It is designed to have the same 
 arguments as the generic search/6 routine available for integer domain solvers.
 so that for common cases, the call will work for both search/6. The generic
@@ -2951,7 +3306,7 @@ the search is performed by gecode, and is an atomic step when viewed from
 ECLiPSe. For the non-optimising search method, backtracking into this
 predicate will produce the next solution if it exists. By changing the 
 <b>Method</b> argument, different gecode search-engines (implementation 
-of different compilete, partial and optimising search algorithms (and 
+of different complete, partial and optimising search algorithms (and 
 their parameters)) can be selected and controlled. The availability of 
 optimising search-engines means that this predicate also provide some of 
 the functionality of lib(branch_and_bound). The predicate also provides a 
@@ -2967,14 +3322,14 @@ grouped together.
 <p>
 The variable selection and value choice methods are defined by gecode. They
 are mapped to the closest matching methods in the generic search/6 (or with
-a name following the same convention if the method have no correspondance).
+a name following the same convention if the method have no correspondence).
 For variable selection, if several entries
 have the same heuristic value, then a tiebreak selection method, specified by
 the tiebreak method, can be used to chose from these entries. Note that
 there are some differences from ECLiPSe search in how the methods are 
 applied: variable selection is always performed before each value selection:
 in ECLiPSe, once a variable is selected, all the possible values for that
-variable are tried on backtracking without reselecting the variable. 
+variable are tried on backtracking without re-selecting the variable. 
 <p>
 The pre-defined <b>selection methods</b> (with the gecode name in brackets) 
 use the following criteria:
@@ -3018,10 +3373,10 @@ largest and second largest value in the domain is selected.</li>
 largest and second largest value in the domain is selected.</li>
 
 <li><b>most_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MAX) the entry with the smallest domain size
-divded by the number of attached propagators.</li> 
+divided by the number of attached propagators.</li> 
 
 <li><b>least_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MIN) the entry with the largest domain size
-divded by the number of attached propagators.</li> 
+divided by the number of attached propagators.</li> 
 
 <li><b>max_weighted_degree</b> (INT_VAR_AFC_MAX) the entry with the largest
 weighted degree is selected. Weighted degree is call AFC (accumulated failure
@@ -3065,26 +3420,26 @@ failure, the previously tested value is removed, and the new median value will
 be chosen next.</li>
 
 <li><b>indomain_split</b> (INT_VAL_SPLIT_MIN)
-Values are tried by succesive domain splitting, trying the lower half
+Values are tried by successive domain splitting, trying the lower half
 of the domain first.  On failure, the tried interval is removed.  This
 enumerates values in the same order as indomain or indomain_min, but
 may fail earlier.</li>
 
 <li><b>indomain_reverse_split</b> (INT_VAL_SPLIT_MAX)
-Values are tried by succesive domain splitting, trying the upper half
+Values are tried by successive domain splitting, trying the upper half
 of the domain first.  On failure, the tried interval is removed.  This
 enumerates values in the same order as indomain or indomain_max, but
 may fail earlier.</li>
 
 <li><b>indomain_random</b> (INT_VAL_RND)
 Values are tried in a random order.  On backtracking, the previously
-tried value is removed.  Using this rutine may lead to unreproducable
-results, as another call wil create random numbers in a different
+tried value is removed.  Using this routine may lead to unreproducible
+results, as another call will create random numbers in a different
 sequence. </li> 
 
 <li><b>indomain_interval</b> (INT_VAL_RANGE_MIN)
 If the domain consists of several intervals, we first branch on the choice of
-the interval, chosing the smallest interval.  For one interval, we use domain
+the interval, choosing the smallest interval.  For one interval, we use domain
 splitting.</li>
 
 <li><b>indomain_interval_min</b> (INT_VAL_RANGE_MIN)
@@ -3092,7 +3447,7 @@ Alias for indomain interval.</li>
 
 <li><b>indomain_interval_max</b> (INT_VAL_RANGE_MAX)
 If the domain consists of several intervals, we first branch on the choice of
-the interval, chosing the largest interval.  For one interval, we use reverse 
+the interval, choosing the largest interval.  For one interval, we use reverse 
 domain splitting.</li>
 
 </ul><p>
@@ -3123,7 +3478,7 @@ The option list is used to pass additional parameters to and from the
 procedure.  The currently recognized options are:
 <ul>
 <li><b>tiebreak(+Selection)</b>
-Selection is one of the variable selection methods, and is usedas a tie-break
+Selection is one of the variable selection methods, and is used as a tie-break
 if the primary selection method yields more than one candidate. Obviously not
 all combinations of selection methods makes sense (e.g. it should not be the 
 same as the primary), but no check is done, they are simply passed to gecode.</li>
@@ -3167,7 +3522,7 @@ node field of limits. The node field will be unified with N</li>
 
 </ul>
 "),
-fail_if:"Fails if the searchengine does not find any solution.
+fail_if:"Fails if the search engine does not find any solution.
 For partial search methods, this does not mean that the problem does not 
 have a solution.",
 resat: 'yes (non-optimising searches)',
@@ -3555,7 +3910,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
           Maximum for the default interval for domain variables. (integer).</li>
     <li><b>array_size</b>
           Initial size for the variable array for storing domain variables
-          When more variables than can be accomodated in the array is required,
+          When more variables than can be accommodated in the array is required,
           a new array double the size is created, and the old variables copied
           to the new. Changing the initial size can reduce or avoid this 
           copying overhead. (positive integer).</li>
@@ -3565,7 +3920,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
           at places where the new clone might be useful, roughly if there are
           changes to the state since the last clone, and it is possible to 
           backtrack and make use of the new clone (i.e. there should be
-          at least one choicepoint between the last clone and the current
+          at least one choice-point between the last clone and the current
           one. Distance is a measure of such points, so a distance of 1 is 
           the minimal distance where a clone may be needed. (positive 
           integer).</li>
@@ -3645,7 +4000,7 @@ desc: html("\
   is returned. Secondly, the struct can be used in the limits option, to
   specify limits for the search, such that the search will be terminated when 
   the specified limit is exceeded. In this case, the fields for which limits 
-  are required should be set. Note that not all fields can be used as lmits.
+  are required should be set. Note that not all fields can be used as limits.
   If the field cannot be used as a limit, it will be ignored.",
         fields: [
             "prop" : "Number of propagations performed. (stats only)",

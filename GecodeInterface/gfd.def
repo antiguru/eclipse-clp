@@ -9,6 +9,7 @@ EXPORTS
         p_g_add_newbool			@6
         p_g_add_newvars_interval	@7
         p_g_add_newvars_dom		@8
+	p_g_add_newvars_as_bool		@9
         p_g_post_interval		@10
         p_g_post_var_interval_reif	@11
         p_g_post_dom			@12
@@ -29,45 +30,56 @@ EXPORTS
         p_g_post_circuit		@27
         p_g_post_circuit_cost		@28
         p_g_post_disj			@29
-        p_g_post_cumulatives		@30
-        p_g_post_sum			@31
-        p_g_post_lin			@32
-        p_g_post_sum_reif		@33
-        p_g_post_lin_reif		@34
-        p_g_post_maxlist		@35
-        p_g_post_minlist		@36
-        p_g_post_sqrt			@37
-        p_g_post_sq			@38
-        p_g_post_abs			@39
-        p_g_post_div			@40
-        p_g_post_mult			@41
-        p_g_post_mod			@42
-        p_g_post_min2			@43
-        p_g_post_max2			@44
-        p_g_post_divmod			@45
-        p_g_post_boolchannel		@46
-        p_g_post_inverse		@47
-        p_g_post_inverse_offset		@48
-        p_g_propagate			@49
-        p_g_check_val_is_in_var_domain	@50
-        p_g_get_var_bounds		@51
-        p_g_get_var_value		@52
-        p_g_get_var_domain		@53
-        p_g_get_var_lwb			@54
-        p_g_update_and_get_var_bound	@55
-        p_g_get_var_upb			@56
-        p_g_get_var_domain_size		@57
-        p_g_get_var_domain_width	@58
-        p_g_get_var_degree		@59
-        p_g_get_var_median		@60
-        p_g_get_var_afc			@61
-        p_g_get_var_regret_lwb		@62
-        p_g_get_var_regret_upb		@63
-        p_g_setup_search		@64
-        p_g_do_search			@65
-        p_g_get_gfd_maxint		@66
-        p_g_get_gfd_minint		@67
-        p_g_add_newvars_dom_union	@68
-        p_g_get_var_domain_handle	@69
-        p_g_add_newvar_copy		@70
-	p_g_gecode_version		@71
+        p_g_post_disjflex		@30
+        p_g_post_cumulative		@31
+        p_g_post_cumulativeflex		@32
+        p_g_post_cumulatives		@33
+	p_g_post_ordered		@34
+	p_g_post_lex_order		@35
+	p_post_bin_packing		@36	
+        p_g_post_sum			@37
+        p_g_post_lin			@38
+        p_g_post_sum_reif		@39
+        p_g_post_lin_reif		@40
+        p_g_post_maxlist		@41
+        p_g_post_minlist		@42
+        p_g_post_sqrt			@43
+        p_g_post_sq			@44
+        p_g_post_abs			@45
+        p_g_post_div			@46
+        p_g_post_mult			@47
+        p_g_post_mod			@48
+        p_g_post_min2			@49
+        p_g_post_max2			@50
+        p_g_post_divmod			@51
+        p_g_post_boolchannel		@52
+        p_g_post_inverse		@53
+        p_g_post_inverse_offset		@54
+	p_g_post_ordered		@55
+	p_g_post_lex_order		@56
+        p_g_post_bin_packing		@57
+        p_g_post_cumulative		@58
+        p_g_propagate			@59
+        p_g_check_val_is_in_var_domain	@60
+        p_g_get_var_bounds		@61
+        p_g_get_var_value		@62
+        p_g_get_var_domain		@63
+        p_g_get_var_lwb			@64
+        p_g_update_and_get_var_bound	@65
+        p_g_get_var_upb			@66
+        p_g_get_var_domain_size		@67
+        p_g_get_var_domain_width	@68
+        p_g_get_var_degree		@69
+        p_g_get_var_median		@70
+        p_g_get_var_afc			@71
+        p_g_get_var_regret_lwb		@72
+        p_g_get_var_regret_upb		@73
+        p_g_setup_search		@74
+        p_g_do_search			@75
+        p_g_get_gfd_maxint		@76
+        p_g_get_gfd_minint		@77
+        p_g_add_newvars_dom_union	@78
+        p_g_get_var_domain_handle	@79
+        p_g_add_newvar_copy		@80
+	p_g_link_newbools		@81
+	p_g_gecode_version		@82

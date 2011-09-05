@@ -51,19 +51,20 @@
 :- export (#\=)/3, (#=)/3, (#<)/3, (#>)/3, (#>=)/3, (#=<)/3.
 
 :- export alldifferent/1, alldifferent_cst/2, 
-          occurrences/3, atmost/3, count/4, element/3, element_g/3, gcc/2,
-          sorted/2, sorted/3, circuit/1, circuit/3, circuit/4,
-          sorted_g/3, circuit_g/1, circuit_g/3, circuit_g/4,
-          disjunctive/2, disjunctive_optional/3, 
-          cumulatives/5, cumulatives_min/5, cumulative/4, 
-	  cumulatives_g/5, cumulatives_min_g/5, 
-          sequence/5, sequence/4.
+   occurrences/3, atmost/3, count/4, element/3, element_g/3, gcc/2,
+   sorted/2, sorted/3, circuit/1, circuit/3, circuit/4,
+   sorted_g/3, circuit_g/1, circuit_g/3, circuit_g/4,
+   disjunctive/2, disjunctive_optional/3,
+   cumulative/4, cumulative_optional/5,
+   cumulatives/5, cumulatives_min/5, cumulatives_g/5, cumulatives_min_g/5, 
+   sequence/5, sequence/4, bin_packing/3, bin_packing_g/3, bin_packing/4.
 :- export plus/3, mult/3, divide/3, mod/3, divmod/4, 
           abs/2, sqr/2, sqrt/2.
 :- export minlist/2, maxlist/2, sum/2, max/2, min/2, max/3, min/3.
 :- export sum/3, sum/4, scalar_product/4, scalar_product/5.
 :- export bool_channeling/3, inverse/2, inverse/4, inverse_g/2, inverse_g/4.
-:- export ordered/2.
+:- export ordered/2, lex_le/2, lex_lt/2, lex_ge/2, lex_gt/2, 
+          lex_eq/2, lex_ne/2.
 :- export labeling/1, indomain/1, indomain/2, delete/5.
 :- export is_in_domain/2, is_in_domain/3.
 :- export search/6.
@@ -173,6 +174,8 @@ load_gfd_solver(Arch) :-
         external(g_add_newvars_dom/3, p_g_add_newvars_dom),
         external(g_add_newvars_dom_union/4, p_g_add_newvars_dom_union),
         external(g_add_newvar_copy/3, p_g_add_newvar_copy),
+        external(g_add_newvars_as_bool/3, p_g_add_newvars_as_bool),
+        external(g_link_newbools/2, p_g_link_newbools),
         external(g_post_interval/5, p_g_post_interval),
         external(g_post_var_interval_reif/6, p_g_post_var_interval_reif),
         external(g_post_dom/4, p_g_post_dom),
@@ -193,6 +196,9 @@ load_gfd_solver(Arch) :-
         external(g_post_circuit/4, p_g_post_circuit),
         external(g_post_circuit_cost/7, p_g_post_circuit_cost),
         external(g_post_disj/5, p_g_post_disj),
+        external(g_post_disjflex/6, p_g_post_disjflex),
+        external(g_post_cumulative/7, p_g_post_cumulative),
+        external(g_post_cumulativeflex/8, p_g_post_cumulativeflex),
         external(g_post_cumulatives/9, p_g_post_cumulatives),
         external(g_post_sum/6, p_g_post_sum),
         external(g_post_lin/7, p_g_post_lin),
@@ -212,6 +218,9 @@ load_gfd_solver(Arch) :-
         external(g_post_boolchannel/6, p_g_post_boolchannel),
         external(g_post_inverse/5, p_g_post_inverse),
         external(g_post_inverse_offset/7, p_g_post_inverse_offset),
+        external(g_post_ordered/5, p_g_post_ordered),
+        external(g_post_lex_order/6, p_g_post_lex_order),
+        external(g_post_bin_packing/5, p_g_post_bin_packing),
         external(g_propagate/4, p_g_propagate),
         external(g_check_val_is_in_var_domain/3, p_g_check_val_is_in_var_domain),
         external(g_get_var_bounds/4, p_g_get_var_bounds),
@@ -386,7 +395,20 @@ rel_op('#=<').
 rel_op('#>').
 rel_op('#>=').
 
+pl_rel_op('#=','=').
+pl_rel_op('#\\=','\\=').
+pl_rel_op('#<','<').
+pl_rel_op('#=<','=<').
+pl_rel_op('#>','>').
+pl_rel_op('#>=','>=').
 
+is_valid_rel_op(Rel0, Rel) :-
+        atomic(Rel0), 
+        ( rel_op(Rel0) -> Rel0 = Rel
+        ; pl_rel_op(Rel, Rel0) -> true
+        ; fail
+        ).
+ 
 inline_op(X+Y, Out) ?- !, Out = X+Y.
 inline_op(X-Y, Out) ?- !, Out = X-Y.
 inline_op(X*Y, Out) ?- !, Out = X * Y.
@@ -565,7 +587,7 @@ create_and_add_default_gfdvar(V, H) :-
         H = gfd_prob{nvars:N0},
         gfd_default_interval(Min, Max),
         new_gfdvar(V, H, N0,N1, _),
-        update_newvars_with_domain_interval(H, N1, Min, Max).
+        do_update_newvars_with_domain_interval(H, N1, Min, Max).
 
 is_not_boolvar(_{gfd:Attr}) ?-
         nonvar(Attr), !,
@@ -575,7 +597,6 @@ is_not_boolvar(_).
 
 link_var_to_boolvar(V, H) :-
         ( (var(V), is_not_boolvar(V)) ->
-            V :: [0,1],
 	    get_gecode_attr(V, H, Attr),
             Attr = gfd{idx:Idx,bool:BIdx},
             post_new_event(newbool(Idx,BIdx), H)
@@ -586,7 +607,7 @@ link_var_to_boolvar(V, H) :-
 update_vars_for_gecode(N0, N, Bs, H, Min, Max) :-
         ( N > N0 ->
             % have new variables, add them (and link any booleans to their var)
-            update_newvars_with_domain_interval(H, N, Min, Max)
+            do_update_newvars_with_domain_interval(H, N, Min, Max)
         ;
             true
         ),
@@ -971,39 +992,129 @@ construct_relcons_event1(RelOp, EX, EY, GEX, GEY, H, N0,N, Bs0,Bs, Auxs0,AuxsT, 
 
 ec_to_gecode_var(V, H, GV) :-
         H = gfd_prob{nvars:N0},
-        gfd_default_interval(Min, Max),
         ec_to_gecode_var1(V, H, N0,N, [],_, GV),
         ( N > N0 ->
             % V is a new gecode var, add it to gecode
-            update_newvars_with_domain_interval(H, N, Min, Max)
+            gfd_default_interval(Min, Max),
+            do_update_newvars_with_domain_interval(H, N, Min, Max)
         ;
             true
         ).
 
-ec_to_gecode_varlist(L, H, GL) :-
+ec_to_gecode_varlist(L, H, GL, HasVar) :-
         H = gfd_prob{nvars:N0},
         gfd_default_interval(Min, Max),
-        ec_to_gecode_varlist1(L, H, N0,N, GL),
+        ec_to_gecode_varlist1(L, H, N0,N, GL, HasVar),
         ( N > N0 ->
             % have new variables, add them
-            update_newvars_with_domain_interval(H, N, Min, Max)
+            do_update_newvars_with_domain_interval(H, N, Min, Max)
         ;
             true
         ).
 
-ec_to_gecode_varlist1(L, H, N0,N, GL) :-
+ec_to_gecode_varlist1(L, H, N0,N, GL, HasVar) :-
         ( foreach(V, L), 
           fromto(N0, N1,N2, N),
-          param(H),
+          param(H, HasVar),
           foreach(GV, GL)
         do
             ( var(V) ->
+                HasVar = 1, % HasVar = 1 if there is at least 1 var
                 ec_to_gecode_var1(V, H, N1,N2, [],_, GV)
             ; integer(V) ->
                 GV = V,
                 N1 = N2
             ;
                 fail
+            )
+        ).
+
+ec_to_gecode_multivarlists(Ls, H, GLs) :-
+        H = gfd_prob{nvars:NV0},
+        ec_to_gecode_multivarlists1(Ls, H, NV0, NV, GLs),
+        ( NV > NV0 ->
+            % have new variables, add them
+            gfd_default_interval(Min, Max),
+            do_update_newvars_with_domain_interval(H, NV, Min, Max)
+        ;
+            true
+        ).
+
+ec_to_gecode_multivarlists1(Ls, H, NV0,NV, GLs) :-
+        ( foreach(L, Ls),
+          param(H),
+          fromto(NV0, NV1,NV2, NV),
+          foreach(GL, GLs)
+        do
+            ec_to_gecode_varlist1(L, H, NV1,NV2, GL, _)
+        ).
+
+ec_to_gecode_boolvarlist(L, H, GL, HasVar) :-
+        H = gfd_prob{nvars:N0},
+        ec_to_gecode_boolvarlist1(L, H, NewVs, NBVs, N0,N1, GL, HasVar),
+        ( nonvar(HasVar) ->
+            ( NBVs \== [] ->
+                % new bool vars for existing int vars
+                NBVArr =.. [[]|NBVs],
+                Es = [connectnewbools(NBVArr)|Es1]
+            ;
+                Es = Es1
+            ),
+            ( N1 > N0 ->
+                % new vars
+                setarg(nvars of gfd_prob, H, N1),
+                NewVArr =.. [[]|NewVs],
+                Es1 = [newboolvars(N1, NewVArr)|EsTail]
+            ;
+                Es1 = EsTail
+            ),
+            ( nonvar(Es) ->
+                post_new_event_with_aux(Es, EsTail, H)
+            ;
+                true  % no new bool vars
+            )
+        ;
+            true  % no vars
+        ).
+
+ec_to_gecode_boolvarlist1(L, H, NewVs, NBVs, N0,N, GL, HasVar) :-
+        ( foreach(V, L),
+          fromto(NewVs, NewVs0,NewVs1, []),
+          fromto(NBVs, NBVs0,NBVs1, []),
+          fromto(N0, N1,N2, N),
+          param(H, HasVar, N0),
+          foreach(GV, GL)
+        do
+            ( var(V) ->
+                HasVar = 1,
+                ec_to_gecode_var1(V, H, N1,N2, [],_, GV),
+                ( N1 == N2 -> 
+                    % not a new domain variable
+                    % need to check if already linked to a bool var
+                    NewVs0 = NewVs1,
+                    gfdvar(VI,BI, GV),
+                    (integer(BI) ->
+                        % already linked to a bool var
+                        NBVs0 = NBVs1
+                    ; VI > N0 -> 
+                        % is a just created domain variable 
+                        NBVs0 = NBVs1
+                    ;
+                        NBVs0 = [GV|NBVs1]
+                    )
+                ;
+                    NewVs0 = [GV|NewVs1],
+                    NBVs0 = NBVs1
+                )
+            ; integer(V) ->
+                V >= 0,
+                V =< 1,
+                GV = V,
+                N1 = N2,
+                NewVs0 = NewVs1,
+                NBVs0 = NBVs1
+            ;
+                abort
             )
         ).
 
@@ -1255,7 +1366,7 @@ ec_to_gecode_arith_expr1(maxlist(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, Co
 ec_to_gecode_arith_expr1(element_g(Idx,Vs), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GElm, ConLev, Module) ?- !,
         ec_to_gecode_arith_expr1(Idx, H, Lin, N0,N1, Bs0,Bs, Auxs,AuxsT, GIdx, ConLev, Module),
 	collection_to_list(flatten(Vs), List),
-        ec_to_gecode_varlist1(List, H, N1,N, GList),
+        ec_to_gecode_varlist1(List, H, N1,N, GList, _),
 	GArr =.. [[]|GList],
         % order of arg in Gecode is reverse of ECLiPSe 
 	GElm = element(GArr, GIdx).
@@ -1296,7 +1407,7 @@ ec_to_gecode_arith_expr1(C, H, 0, N0,N, Bs0,Bs, Auxs0,AuxsT, GB, ConLev, Module)
             % singleton, just assign
             (foreach(V,NX), param(B) do V = B)
         ;
-            process_domain_vars(NX, NormalDomain, H, NV0,NV, [],OldGVs),
+            process_domain_vars(NX, NormalDomain, H, NV0,NV, [],OldGVs, _),
             assign_domain(NormalDomain, H, NV, OldGVs)
         ), !.
 '::_body'(X, Domain, _Module) :-
@@ -1430,23 +1541,23 @@ subdomain(I, Lo1, Hi1, Module) :-
         Hi1 = Lo1,
         bound(I, Lo1, Module).
 
-process_domain_vars([V1|Vs], Domain, H, NV0,NV, OldGVs0,OldGVs) :-
+process_domain_vars([V1|Vs], Domain, H, NV0,NV, OldGVs0,OldGVs, [GV1|GVs]) :-
         var(V1), !,
-        ec_to_gecode_var1(V1, H, NV0,NV1, OldGVs0,OldGVs1, _),
-        process_domain_vars(Vs, Domain, H, NV1,NV, OldGVs1,OldGVs).
-process_domain_vars([I|Vs], Domain, H, NV0,NV, OldGVs0,OldGVs) :-
+        ec_to_gecode_var1(V1, H, NV0,NV1, OldGVs0,OldGVs1, GV1),
+        process_domain_vars(Vs, Domain, H, NV1,NV, OldGVs1,OldGVs, GVs).
+process_domain_vars([I|Vs], Domain, H, NV0,NV, OldGVs0,OldGVs, [I|GVs]) :-
         integer(I), !,
         is_in_given_domain(I, Domain),
-        process_domain_vars(Vs, Domain, H, NV0,NV, OldGVs0,OldGVs).
-process_domain_vars([_|_], _,_,_,_,_,_) :- !,
+        process_domain_vars(Vs, Domain, H, NV0,NV, OldGVs0,OldGVs, GVs).
+process_domain_vars([_|_], _,_,_,_,_,_,_) :- !,
         set_bip_error(5).
-process_domain_vars([], _D, _H, NV,NV, OldGVs,OldGVs).
+process_domain_vars([], _D, _H, NV,NV, OldGVs,OldGVs, []).
 
 is_in_given_domain(I, [Lo..Hi|Ds]) :-
         (I >= Lo, I =< Hi -> true ; is_in_given_domain(I, Ds)).
 
 
-assign_domain(Domain, H, NV, OldGVs) ?- 
+assign_domain(Domain, H, NV, OldGVs) :- 
         Domain = [Lo..Hi|T], !,
         (T == [] ->
             Hi >= Lo,
@@ -1464,13 +1575,29 @@ assign_domain_interval(H, NV, OldGVs, Lo, Hi) :-
         ),
         update_newvars_with_domain_interval(H, NV, Lo, Hi).
 
+assign_domain_interval1(H, NV0, NV, OldGVs, Lo, Hi) :-
+        ( OldGVs == [] ->
+            true
+        ;
+            GVArr =.. [[]|OldGVs],
+            post_new_event(post_interval(GVArr,Lo,Hi), H)
+        ),
+        ( NV0 == NV ->
+            true
+        ;
+            do_update_newvars_with_domain_interval(H, NV, Lo, Hi)
+        ).
+
 update_newvars_with_domain_interval(H, NV, Lo, Hi) :-
         ( NV =:= arg(nvars of gfd_prob, H) -> % no new vars 
             true
         ;
-            setarg(nvars of gfd_prob, H, NV),
-            post_new_event(newvars_interval(NV,Lo,Hi), H)
+            do_update_newvars_with_domain_interval(H, NV, Lo, Hi)
         ).
+
+do_update_newvars_with_domain_interval(H, NV, Lo, Hi) :-
+        setarg(nvars of gfd_prob, H, NV),
+        post_new_event(newvars_interval(NV,Lo,Hi), H).
 
 assign_multi_domain_intervals(H, NV, OldGVs, Domain) :-
         DArray =.. [[]|Domain],
@@ -1499,7 +1626,7 @@ alldifferent(Vars) :-
 alldifferent_c(Vars, ConLev) :-
         collection_to_list(Vars, List),
         get_prob_handle(H),
-        ec_to_gecode_varlist(List, H, GList),
+        ec_to_gecode_varlist(List, H, GList, _),
         GArray =.. [[]|GList],
         post_new_event(post_alldiff(ConLev,GArray), H).
 
@@ -1512,8 +1639,9 @@ alldifferent_cst_c(Vars, Offsets, ConLev) :-
         collection_to_list(Vars, List),
         collection_to_list(Offsets, OffList),
         get_prob_handle(H),
-        ec_to_gecode_varlist(List, H, GList),
-        ec_to_gecode_varlist(OffList, H, GOffList),
+        ec_to_gecode_varlist(List, H, GList, _),
+        ec_to_gecode_varlist(OffList, H, GOffList, HasVar),
+        var(HasVar), % OffList must be integers
         GArray =.. [[]|GList],
         OArray =.. [[]|GOffList],
         arity(GArray, N),
@@ -1532,11 +1660,10 @@ count_c(Value, Vars, Rel, N, ConLev) :-
 	update_vars_for_gecode(NV0, NV, [], H, Min, Max),
         post_new_event_with_aux(CountEvents, EventsT, H).
 
-count_events1(Value, Vars, Rel, N, ConLev, H, NV0,NV, Events, EventsT) :-
-        atomic(Rel),
-        rel_op(Rel),
+count_events1(Value, Vars, Rel0, N, ConLev, H, NV0,NV, Events, EventsT) :-
+        is_valid_rel_op(Rel0, Rel),
         collection_to_list(Vars, List),
-        ec_to_gecode_varlist1([Value,N|List], H, NV0,NV, [GValue,GN|GList]),
+        ec_to_gecode_varlist1([Value,N|List], H, NV0,NV, [GValue,GN|GList],_),
         GArray =.. [[]|GList],
 	CEvent = post_count(ConLev,GValue,GArray,Rel,GN), 
         ( integer(N) ->
@@ -1592,7 +1719,7 @@ element_body(Index, Collection, Value, IndexType, ConLev) :-
 
 element_events1(Index, Collection, Value, IndexType, ConLev, H, NV0,NV, Es, EsT) :-
         collection_to_list(Collection, List),
-        ec_to_gecode_varlist1([Index,Value|List], H, NV0,NV, [GIndex,GValue|GList]),
+        ec_to_gecode_varlist1([Index,Value|List], H, NV0,NV, [GIndex,GValue|GList],_),
 	( IndexType == ecl ->
 	    Array =.. [[],0|GList],  % add a dummy first element for index 0
 	    Lo = 1
@@ -1621,7 +1748,7 @@ gcc(BoundsList, Vars) :-
 gcc_c(BoundsList, Vars, ConLev) :-        
         collection_to_list(Vars, VList),
         get_prob_handle(H),
-        ec_to_gecode_varlist(VList, H, GVList),
+        ec_to_gecode_varlist(VList, H, GVList, _),
         GVs =.. [[]|GVList],
         Bounds =.. [[]|BoundsList],
         arity(Bounds, M),
@@ -1641,10 +1768,12 @@ translate_gcc_spec(gcc{low:Lo,high:Hi,value:Val0}, Val, H, GOcc) ?-
         Val0 = Val,
         integer(Hi),
         integer(Lo),
-        Occ :: Lo..Hi,
         ( var(Occ) ->
-            ec_to_gecode_var(Occ, H, GOcc)
+            ec_to_gecode_var1(Occ, H, NV0,NV, [], OldV, GOcc),
+            assign_domain_interval1(H, NV0, NV, OldV, Lo, Hi)
         ; integer(Occ) ->
+            Occ >= Lo,
+            Occ =< Hi,
             GOcc = Occ
         ;
             abort
@@ -1681,9 +1810,9 @@ sorted_c(Us0, Ss0, ConLev) :-
         Ss \== [],
         !,
         get_prob_handle(H),
-        ec_to_gecode_varlist(Ss, H, GSs),
+        ec_to_gecode_varlist(Ss, H, GSs, _),
         SsArr =.. [[]|GSs],
-        ec_to_gecode_varlist(Us, H, GUs),
+        ec_to_gecode_varlist(Us, H, GUs, _),
         UsArr =.. [[]|GUs],
         post_new_event(post_sorted2(ConLev, UsArr, SsArr), H).
 
@@ -1722,29 +1851,42 @@ sorted_body(Us0, Ss0, Ps0, IndexType, ConLev) :-
   convert_sorted_lists(ecl, H, Us, Ss, Ps,  UsArr, SsArr, PsArr) :-
         gfd_maxint(Max),
 	( foreach(U,Us), foreach(_,Ss), foreach(_,Ps),
-          fromto(Max, Min0,Min1, Min)
+          fromto(Max, Min0,Min1, Min), count(_, 1, Length),
+          foreach(GU, GUs)
         do 
            get_min(U, UMin),
-           (UMin < Min0 -> Min1 is UMin - 1 ; Min1 = Min0)
+           (UMin < Min0 -> Min1 is UMin - 1 ; Min1 = Min0),
+           ( var(U) ->
+               % must be a gfd var because of get_min/2
+               get_gecode_var(U, GU)
+           ; integer(U) ->
+               GU = U
+           ;
+               set_bip_error(5)
+           )
         ),
         Ss \== [],
-        ec_to_gecode_varlist(Ss, H, GSs),
+        ec_to_gecode_varlist(Ss, H, GSs, _),
         SsArr =.. [[],Min|GSs],
-        ec_to_gecode_varlist(Us, H, GUs),
         UsArr =.. [[],Min|GUs],
-        ec_to_gecode_varlist(Ps, H, GPs),
+        H = gfd_prob{nvars:NV0},
+        process_domain_vars(Ps, [1..Length], H, NV0,NV, [],OldPs, GPs),
         PsArr =.. [[],0|GPs],
-        Ps :: [1..(arity(PsArr)-1)].
+        assign_domain([1..Length], H, NV, OldPs).
   convert_sorted_lists(gc, H, Us, Ss, Ps,  UsArr, SsArr, PsArr) :-
-	( foreach(_,Us), foreach(_,Ss), foreach(_,Ps) do true),
+	( foreach(_,Us), foreach(_,Ss), foreach(_,Ps), 
+          count(_,0, Max)
+        do 
+            true
+        ),
         Ss \== [],
-        ec_to_gecode_varlist(Ss, H, GSs),
+        ec_to_gecode_multivarlists([Ss,Us], H, [GSs,GUs]),
         SsArr =.. [[]|GSs],
-        ec_to_gecode_varlist(Us, H, GUs),
         UsArr =.. [[]|GUs],
-        ec_to_gecode_varlist(Ps, H, GPs),
+        H = gfd_prob{nvars:NV0},
+        process_domain_vars(Ps, [0..Max], H, NV0,NV, [],OldPs, GPs),
         PsArr =.. [[]|GPs],
-        Ps :: [0..(arity(PsArr)-1)].
+        assign_domain([0..Max], H, NV, OldPs).
 
 
 circuit(Succ) :-
@@ -1763,10 +1905,11 @@ circuit_body(Succ, IndexType, ConLev) :-
         collection_to_list(Succ, SList),
         SList \== [],
         length(SList, N), 
-        SList :: 1..N,
-        get_prob_handle(H),
         convert_index_vars(IndexType, ConLev, SList, SList1),
-        ec_to_gecode_varlist(SList1, H, GSs),
+        get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+        process_domain_vars(SList1, [1..N], H, NV0,NV, [],OldVs, GSs),
+        assign_domain([1..N], H, NV, OldVs),
         SArr =.. [[]|GSs],
         post_new_event(post_circuit(ConLev,SArr), H).
 
@@ -1796,7 +1939,7 @@ circuit_g_c(Succ, CostMatrix, ArcCosts, Cost, ConLev) :-
         circuit_body(Succ, CostMatrix, ArcCosts, Cost, gc, ConLev).
 
 circuit_body(Succ, CostMatrix, ArcCosts, Cost, IndexType, ConLev) :-
-        collection_to_list(CostMatrix, CMList),
+        collection_to_list(flatten(CostMatrix), CMList),
         CMArr =.. [[]|CMList],
         collection_to_list(Succ, SList),
         SList \== [],
@@ -1804,13 +1947,13 @@ circuit_body(Succ, CostMatrix, ArcCosts, Cost, IndexType, ConLev) :-
         SList :: 1..N,
         get_prob_handle(H),
         convert_index_vars(IndexType, ConLev, SList, SList1),
-        ec_to_gecode_varlist([Cost|SList1], H, [GCost|GSs]),
+        ec_to_gecode_varlist([Cost|SList1], H, [GCost|GSs], _),
         SArr =.. [[]|GSs],
         ( ArcCosts == [] ->
             GAC = []
         ;
             collection_to_list(ArcCosts, ACList),
-            ec_to_gecode_varlist(ACList, H, GACList),
+            ec_to_gecode_varlist(ACList, H, GACList, _),
             GAC =.. [[]|GACList]
         ),
         post_new_event(post_circuit_cost(ConLev,SArr,CMArr,GAC,GCost), H).
@@ -1827,7 +1970,7 @@ sequence_c(Lo, Hi, K, Vars, Values, ConLev) :-
         collection_to_list(Values, ValList),
         (foreach(V, ValList) do integer(V)),
         get_prob_handle(H),
-        ec_to_gecode_varlist(VarList, H, GVars),
+        ec_to_gecode_varlist(VarList, H, GVars, _),
         VarArr =.. [[]|GVars],
         ValArr =.. [[]|ValList],
         K =< arity(VarArr),
@@ -1841,23 +1984,9 @@ sequence_c(Lo, Hi, K, ZeroOneVars, ConLev) :-
         Hi >= Lo, Lo >= 0,
         integer(K), K > 0,
         collection_to_list(ZeroOneVars, VarList),
-        VarList :: [0..1],
         get_prob_handle(H),
-        ( foreach(B, VarList), param(H),
-          foreach(GB, GBList)
-        do
-            link_var_to_boolvar(B, H),
-            ( var(B) ->
-                get_gecode_var(B, GB)
-            ; B == 1 ->
-                GB = 1
-            ; B == 0 ->
-                GB = 0
-            ;
-                fail
-            )
-        ),
-        VarArr =.. [[]|GBList],
+        ec_to_gecode_boolvarlist(VarList, H, GVList, _), 
+        VarArr =.. [[]|GVList],
         K =< arity(VarArr),
         post_new_event(post_sequence_01(ConLev, Lo, Hi, K, VarArr), H).
 
@@ -1891,28 +2020,24 @@ cumulatives_g_c(Starts, Durations, Usages, UsedMachines, MachineMin, ConLev) :-
 
 cumulatives_c(Starts, Durations, Usages, UsedMachines, Limits, AtMost, IndexType, ConLev) :-
         collection_to_list(Starts, StartsL),
-        ec_to_gecode_varlist(StartsL, H, GStartsL),
+        collection_to_list(Durations, DurationsL),
+        collection_to_list(Usages, UsagesL),
+        collection_to_list(UsedMachines, UsedL),
+        get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+        ec_to_gecode_multivarlists1([StartsL,DurationsL,UsagesL,UsedL], 
+                                    H, NV0,NV1,
+                                   [GStartsL,GDurationsL,GUsagesL,GUsedL]),
         StartsArr =.. [[]|GStartsL],
         arity(StartsArr, N),
-        collection_to_list(Durations, DurationsL),
-        ec_to_gecode_varlist(DurationsL, H, GDurationsL),
         DurationsArr =.. [[]|GDurationsL],
         arity(DurationsArr,N),
-        collection_to_list(Usages, UsagesL),
-        ec_to_gecode_varlist(UsagesL, H, GUsagesL),
         UsagesArr =.. [[]|GUsagesL],
         arity(UsagesArr,N),
-        collection_to_list(UsedMachines, UsedL),
-        ec_to_gecode_varlist(UsedL, H, GUsedL),
         UsedArr =.. [[]|GUsedL],
         arity(UsedArr,N),
         functor(EndsArr, [], N),
-        ( foreacharg(S, StartsArr), foreacharg(D, DurationsArr),
-          foreacharg(E, EndsArr)
-        do
-            S + D #= E
-        ),
-
+        create_task_end_times1(StartsArr, DurationsArr, H, NV1,NV, Evs, EvsT0, EndsArr),
         collection_to_list(Limits, LimitsL),
 	(IndexType == ecl ->
             LimitsArr =.. [[],0|LimitsL], % dummy limit for 0'th machine 
@@ -1921,73 +2046,131 @@ cumulatives_c(Starts, Durations, Usages, UsedMachines, Limits, AtMost, IndexType
             LimitsArr =.. [[]|LimitsL],
 	    First = 0
 	),
-	UsedL :: First..arity(LimitsArr) - 1,
-        post_new_event(post_cumulatives(ConLev, StartsArr, DurationsArr, EndsArr,
-                                        UsagesArr, UsedArr, LimitsArr, AtMost), H).
 
-% compatibility for 3.3 -- no specialised cumulative
+        % must have new vars as Ends' vars are created by constraint
+        gfd_default_interval(Min, Max),
+        do_update_newvars_with_domain_interval(H, NV, Min, Max),
+        
+        Last is arity(LimitsArr) - 1,
+        EvsT0 = [post_interval(UsedArr,First,Last),
+                 post_cumulatives(ConLev, StartsArr, DurationsArr, EndsArr,
+                                  UsagesArr, UsedArr, LimitsArr, AtMost) |
+                 EvsT],
+        post_new_event_with_aux(Evs, EvsT, H).
+
+
 cumulative(Starts, Durations, Usages, Limit) :-
-        cumulative_c(Starts, Durations, Usages, Limit, default).
-
-cumulative_c(Starts, Durations, Usages, Limit, ConLev) :-
-        collection_to_list(Starts, StartsL),
-        ec_to_gecode_varlist(StartsL, H, GStartsL),
-        StartsArr =.. [[]|GStartsL],
-        arity(StartsArr, N),
-        collection_to_list(Durations, DurationsL),
-        ec_to_gecode_varlist(DurationsL, H, GDurationsL),
-        DurationsArr =.. [[]|GDurationsL],
-        arity(DurationsArr,N),
-        collection_to_list(Usages, UsagesL),
-        ec_to_gecode_varlist(UsagesL, H, GUsagesL),
-        UsagesArr =.. [[]|GUsagesL],
-        arity(UsagesArr,N),
-        functor(UsedArr, [], N),
-        ( foreacharg(0, UsedMachines) do true),
-
-        functor(EndsArr, [], N),
-        ( foreacharg(S, StartsArr), foreacharg(D, DurationsArr),
-          foreacharg(E, EndsArr)
-        do
-            S + D #= E
-        ),
-        integer(Limit),
-        LimitsArr = [](Limit),
-        post_new_event(post_cumulatives(ConLev, StartsArr, DurationsArr, EndsArr,
-                                        UsagesArr, UsedArr, LimitsArr), H).
-
-% gecode 3.3 allows ground Durations only
-disjunctive(Starts, Durations) :-
-        collection_to_list(Starts, SList),
-        collection_to_list(Durations, DList),
-        SList \== [],
         get_prob_handle(H),
-        ec_to_gecode_varlist(SList, H, GSs),
-%        ec_to_gecode_varlist(DList, H, GDs),
-        SsArr =.. [[]|GSs],
-%        DsArr =.. [[]|GDs],
-        DsArr =.. [[]|DList],
+        cumulative_body(Starts, Durations, Usages, Limit, H, []).
+
+cumulative_optional(Starts, Durations, Usages, Limit, Scheduled) :-
+        get_prob_handle(H),
+        collection_to_list(Scheduled, BList),
+        ec_to_gecode_boolvarlist(BList, H, GBs, _),
+        cumulative_body(Starts, Durations, Usages, Limit, H, GBs).
+        
+cumulative_body(Starts, Durations, Usages, Limit, H, GBs) :-
+        integer(Limit),
+        collection_to_list(Starts, StartsL),
+        collection_to_list(Durations, DurationsL),
+        H = gfd_prob{nvars:NV0},
+        ec_to_gecode_varlist1(StartsL, H, NV0,NV1, GStartsL, _),
+        ec_to_gecode_varlist1(DurationsL, H, NV1,NV2, GDsL, DHasVar),
+        SsArr =.. [[]|GStartsL],
         arity(SsArr, N),
-        arity(DsArr, N),  % same size
-        post_new_event(post_disj(default, SsArr,DsArr,[]), H).
+        DsArr =.. [[]|GDsL],
+        arity(DsArr,N),
+        % usages must be integers
+        collection_to_list(Usages, UsagesL),
+        UsArr =.. [[]|UsagesL],
+        arity(UsArr,N),
+
+        ( GBs == [] ->
+            BsArr = []
+        ;
+            BsArr =.. [[]|GBs],
+            arity(BsArr, N)
+        ),
+        ( var(DHasVar) ->
+            ( NV2 > NV0 ->
+                gfd_default_interval(Min, Max),
+                do_update_newvars_with_domain_interval(H, NV2, Min, Max)
+            ;
+                true
+            ),
+            post_new_event(post_cumulative(SsArr, DsArr, UsArr, Limit, BsArr), H) 
+        ;
+            functor(EsArr, [], N),
+            create_task_end_times1(SsArr, DsArr, H, NV2,NV, Auxs0,AuxsT, EsArr),
+            ( NV > NV0 ->
+                gfd_default_interval(Min, Max),
+                do_update_newvars_with_domain_interval(H, NV, Min, Max)
+            ;
+                true
+            ),
+            post_new_event_with_aux([post_cumulativeflex(SsArr, DsArr, EsArr, UsArr, Limit, BsArr)|Auxs0], AuxsT, H)                                     
+        ).
+
+
+disjunctive(Starts, Durations) :-
+        get_prob_handle(H),
+        disjunctive_body(Starts, Durations, H, []).
 
 disjunctive_optional(Starts, Durations, Scheduled) :-
+        get_prob_handle(H),
+        collection_to_list(Scheduled, BList),
+        ec_to_gecode_boolvarlist(BList, H, GBs, _),
+        disjunctive_body(Starts, Durations, H, GBs).
+
+disjunctive_body(Starts, Durations, H, GBs) :-
         collection_to_list(Starts, SList),
         collection_to_list(Durations, DList),
-        collection_to_list(Scheduled, BList),
         SList \== [],
-        BList :: 0..1,
-        get_prob_handle(H),
-        ec_to_gecode_varlist(SList, H, GSs),
-%        ec_to_gecode_varlist(DList, H, GDs),
+        H = gfd_prob{nvars:NV0},
+        ec_to_gecode_varlist1(SList, H, NV0,NV1, GSs, _),
+        ec_to_gecode_varlist1(DList, H, NV1,NV2, GDs, DHasVar),
         SsArr =.. [[]|GSs],
-%        DsArr =.. [[]|GDs],
-        DsArr =.. [[]|DList],
-        BsArr =.. [[]|BList],
+        DsArr =.. [[]|GDs],
         arity(SsArr, N),
         arity(DsArr, N),  % same size
-        arity(BsArr, N),
-        post_new_event(post_disj(default, SsArr,DsArr,BsArr), H).
+        ( GBs == [] ->
+            BsArr = []
+        ;
+            BsArr =.. [[]|GBs],
+            arity(BsArr, N)
+        ),
+        ( var(DHasVar) ->
+            ( NV2 > NV0 -> 
+                gfd_default_interval(Min, Max),
+                do_update_newvars_with_domain_interval(H, NV2, Min, Max)
+            ;
+                true
+            ),
+            post_new_event(post_disj(SsArr,DsArr,BsArr), H)
+        ;
+            functor(EsArr, [], N),
+            create_task_end_times1(SsArr, DsArr, H, NV2,NV, Auxs0,AuxsT, EsArr),
+
+            ( NV > NV0 ->
+                gfd_default_interval(Min, Max),
+                do_update_newvars_with_domain_interval(H, NV, Min, Max)
+            ;
+                true
+            ),
+            post_new_event_with_aux([post_disjflex(SsArr,DsArr,EsArr,BsArr)|Auxs0], AuxsT, H)
+        ).
+
+create_task_end_times1(SsArr, DsArr, H, NV0,NV, Auxs0,AuxsT, EsArr) :-
+        ( foreacharg(GS, SsArr), foreacharg(GD, DsArr),
+          param(H),
+          fromto(NV0, NV1,NV2, NV), fromto(Auxs0, Auxs1,Auxs2, AuxsT),
+          foreacharg(GE, EsArr)
+        do
+%            ec_to_gecode_var1(E, H, NV1,NV2, [],_, GE),
+            % EsArr are all new variables
+            new_gfdvar(_E, H, NV1,NV2, GE),
+            Auxs1 = [post_sum(default, [](GS,GD), (#=), GE)|Auxs2]
+        ).
 
 
 bool_channeling(V, Bools, Min) :-
@@ -1996,30 +2179,23 @@ bool_channeling(V, Bools, Min) :-
 bool_channeling_c(V, Bools, Min, ConLev) :-
         integer(Min),
         collection_to_list(Bools, BList),
-        BList :: [0..1],
-        V :: [Min..(Min+length(BList))],
         get_prob_handle(H),
-        ( foreach(B, BList), param(H),
-          foreach(GB, GBList)
-        do
-            link_var_to_boolvar(B, H),
-            ( var(B) ->
-                get_gecode_var(B, GB)
-            ; B == 1 ->
-                GB = 1
-            ; B == 0 ->
-                GB = 0
-            ;
-                fail
-            )
-        ),
+        ec_to_gecode_boolvarlist(BList, H, GBList, _),
         GBArr =.. [[]|GBList],
+        Max is Min+arity(GBArr),
         ( var(V) ->
-            get_gecode_var(V, GV)
-        ; % V must be integer as :: succeeded 
+            H = gfd_prob{nvars:N0},
+            ec_to_gecode_var1(V, H, N0,N, [], OldGV, GV),
+            assign_domain_interval1(H, N0, N, OldGV, Min, Max)
+        ; integer(V) ->
+            V >= Min, 
+            V =< Max,
             GV = V
+        ;
+            error(5, bool_channeling(V, Bools, Min))
         ),
         post_new_event(post_boolchannel(ConLev,GV,GBArr,Min), H). 
+
 
 inverse(XL, YL) :-
         inverse_body(XL, YL, ecl, default).
@@ -2048,8 +2224,8 @@ inverse_body(Vs1, Vs2, IndexType, ConLev) :-
 	( foreach(_,Vars1), foreach(_,Vars2) do true ),
         Vars1 \== [],
         get_prob_handle(H),
-        ec_to_gecode_varlist(Vars1, H, GVars1),
-        ec_to_gecode_varlist(Vars2, H, GVars2),
+        ec_to_gecode_varlist(Vars1, H, GVars1, _),
+        ec_to_gecode_varlist(Vars2, H, GVars2, _),
         % add 0 to match ECLiPSe index (starting from 1)
         (IndexType == ecl ->
             Arr1 =.. [[],0|GVars1],
@@ -2096,8 +2272,8 @@ inverse_body(Vs1, Off1, Vs2, Off2, IndexType, ConLev) :-
 	( foreach(_,Vars1), foreach(_,Vars2) do true ),
         Vars1 \== [],
         get_prob_handle(H),
-        ec_to_gecode_varlist(Vars1, H, GVars1),
-        ec_to_gecode_varlist(Vars2, H, GVars2),
+        ec_to_gecode_varlist(Vars1, H, GVars1, _),
+        ec_to_gecode_varlist(Vars2, H, GVars2, _),
         Arr1 =.. [[]|GVars1],
         Arr2 =.. [[]|GVars2],
         post_new_event(post_inverse_offset(ConLev, Arr1, GOff1, Arr2, GOff2), H).
@@ -2111,7 +2287,7 @@ minlist(Xs, Min) :-
 minlist_c(Xs, Min, ConLev) :-
         collection_to_list(Xs, XLs),
         get_prob_handle(H),
-        ec_to_gecode_varlist([Min|XLs], H, [GMin|GLs]),
+        ec_to_gecode_varlist([Min|XLs], H, [GMin|GLs], _),
         GArray =.. [[]|GLs],
         post_new_event(post_minlist(ConLev, GMin, GArray), H).
 
@@ -2124,7 +2300,7 @@ maxlist(Xs, Max) :-
 maxlist_c(Xs, Max, ConLev) :-
         collection_to_list(Xs, XLs),
         get_prob_handle(H),
-        ec_to_gecode_varlist([Max|XLs], H, [GMax|GLs]),
+        ec_to_gecode_varlist([Max|XLs], H, [GMax|GLs], _),
         GArray =.. [[]|GLs],
         post_new_event(post_maxlist(ConLev, GMax, GArray), H).
 
@@ -2152,15 +2328,14 @@ sum_c(Xs, Rel, Sum, ConLev) :-
         post_new_event_with_aux(Events, EventsT, H).
 
 
-linsum_event1(Xs, Rel, Sum, ConLev, H, NV0,NV, Events,EventsT) :-
-        linsum_body1(Xs, Rel, Sum, GArray, GSum, H, NV0,NV),
+linsum_event1(Xs, Rel0, Sum, ConLev, H, NV0,NV, Events,EventsT) :-
+        linsum_body1(Xs, Rel0, Sum, GArray, Rel, GSum, H, NV0,NV),
         Events = [post_sum(ConLev, GArray, Rel, GSum)|EventsT].
 
-linsum_body1(Xs, Rel, Sum, GArray, GSum, H, NV0,NV) :-
-	atomic(Rel),
-	rel_op(Rel),
+linsum_body1(Xs, Rel0, Sum, GArray, Rel, GSum, H, NV0,NV) :-
+	is_valid_rel_op(Rel0, Rel),
         collection_to_list(Xs, XLs),
-        ec_to_gecode_varlist1([Sum|XLs], H, NV0,NV, [GSum|GLs]),
+        ec_to_gecode_varlist1([Sum|XLs], H, NV0,NV, [GSum|GLs], _),
         GArray =.. [[]|GLs].
 
 
@@ -2176,8 +2351,8 @@ sum_reif_c(Xs, Rel, Sum, Bool, ConLev) :-
 	update_vars_for_gecode(NV0, NV, Bs, H, Min, Max),
         post_new_event_with_aux([Event|EventsT], EventsT, H).
 
-linsum_reif_event1(Xs, Rel, Sum, Bool, ConLev, H, NV0,NV, Bs0,Bs, Event, GBool) :-
-        linsum_body1(Xs, Rel, Sum, GArray, GSum, H, NV0,NV1),
+linsum_reif_event1(Xs, Rel0, Sum, Bool, ConLev, H, NV0,NV, Bs0,Bs, Event, GBool) :-
+        linsum_body1(Xs, Rel0, Sum, GArray, Rel, GSum, H, NV0,NV1),
         ( var(Bool) ->
             ec_to_gecode_var1(Bool, H, NV1,NV, [],_Old, GBool),
             Bs = [Bool|Bs0]
@@ -2202,16 +2377,15 @@ scalar_product_c(Cs, Xs, Rel, P, ConLev) :-
 	update_vars_for_gecode(NV0, NV, [], H, Min, Max),
         post_new_event_with_aux(Events, EventsT, H).
 
-scalar_product_event1(Cs, Xs, Rel, P, ConLev, H, NV0,NV, Events,EventsT) :-
-	scalar_product_body1(Cs, Xs, Rel, P, CArray, GArray, GP, H, NV0,NV),
+scalar_product_event1(Cs, Xs, Rel0, P, ConLev, H, NV0,NV, Events,EventsT) :-
+	scalar_product_body1(Cs, Xs, Rel0, P, CArray, GArray, GP, Rel, H, NV0,NV),
 	Events = [post_lin(ConLev, GArray, CArray, Rel, GP)|EventsT].
 		  
-scalar_product_body1(Cs, Xs, Rel, P, CArray, GArray, GP, H, NV0,NV) :-
-	atomic(Rel),
-	rel_op(Rel),
+scalar_product_body1(Cs, Xs, Rel0, P, CArray, GArray, GP, Rel, H, NV0,NV) :-
+	is_valid_rel_op(Rel0, Rel),
         collection_to_list(Xs, XLs),
         collection_to_list(Cs, CLs),
-        ec_to_gecode_varlist1([P|XLs], H, NV0,NV, [GP|GLs]),
+        ec_to_gecode_varlist1([P|XLs], H, NV0,NV, [GP|GLs], _),
         GArray =.. [[]|GLs],
 	CArray =.. [[]|CLs],
 	arity(GArray) =:= arity(CArray),
@@ -2230,8 +2404,9 @@ scalar_product_reif_c(Cs, Xs, Rel, P, Bool, ConLev) :-
 	update_vars_for_gecode(NV0, NV, Bs, H, Min, Max),
         post_new_event_with_aux([Event|EventsT], EventsT, H).
 
-scalar_product_reif_event1(Cs, Xs, Rel, P, Bool, ConLev, H, NV0,NV, Bs0,Bs, Event, GBool) :-
-	scalar_product_body1(Cs, Xs, Rel, P, CArray, GArray, GP, H, NV0,NV1),
+scalar_product_reif_event1(Cs, Xs, Rel0, P, Bool, ConLev, H, NV0,NV, Bs0,Bs, Event, GBool) :-
+	scalar_product_body1(Cs, Xs, Rel0, P, CArray, GArray, GP, Rel,
+                             H, NV0,NV1),
         ( var(Bool) ->
             ec_to_gecode_var1(Bool, H, NV1,NV, [],_Old, GBool),
             Bs = [Bool|Bs0]
@@ -2250,7 +2425,7 @@ plus(X, Y, Sum) :-
 
 plus_c(X, Y, Sum, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([Sum,X,Y], H, [GSum|GXY]),
+        ec_to_gecode_varlist([Sum,X,Y], H, [GSum|GXY], _),
         GArray =.. [[]|GXY],
         post_new_event(post_sum(ConLev, GArray, (#=), GSum), H).
 
@@ -2260,7 +2435,7 @@ sqrt(X, Y) :-
 
 sqrt_c(X, Y, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([X,Y], H, [GX,GY]),
+        ec_to_gecode_varlist([X,Y], H, [GX,GY], _),
         post_new_event(post_sqrt(ConLev, GY,GX), H).
 
 
@@ -2269,7 +2444,7 @@ sqr(X, Y) :-
 
 sqr_c(X, Y, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([X,Y], H, [GX,GY]),
+        ec_to_gecode_varlist([X,Y], H, [GX,GY], _),
         post_new_event(post_sq(ConLev, GY,GX), H).
 
 abs(X, Y) :-
@@ -2277,7 +2452,7 @@ abs(X, Y) :-
 
 abs_c(X, Y, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([X,Y], H, [GX,GY]),
+        ec_to_gecode_varlist([X,Y], H, [GX,GY], _),
         post_new_event(post_abs(ConLev, GY,GX), H).
 
 divide(X, Y, Z) :-
@@ -2285,7 +2460,7 @@ divide(X, Y, Z) :-
 
 div_c(X, Y, Z, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ], _),
         post_new_event(post_div(ConLev, GZ, GX,GY), H).
 
 
@@ -2294,7 +2469,7 @@ divmod(X, Y, Q, M) :-
 
 divmod_c(X, Y, Q, M, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([X,Y,Q,M], H, [GX,GY,GQ,GM]),
+        ec_to_gecode_varlist([X,Y,Q,M], H, [GX,GY,GQ,GM], _),
         post_new_event(post_divmod(ConLev, GX, GY, GQ, GM), H).
 
 
@@ -2303,7 +2478,7 @@ mult(X, Y, Z) :-
 
 mult_c(X, Y, Z, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ], _),
         post_new_event(post_mult(ConLev, GZ, GX,GY), H).
 
 
@@ -2312,7 +2487,7 @@ mod(X, Y, Z) :-
 
 mod_c(X, Y, Z, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ], _),
         post_new_event(post_mod(ConLev, GZ, GX,GY), H).
 
 
@@ -2321,7 +2496,7 @@ min(X, Y, Z) :-
 
 min_c(X, Y, Z, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ], _),
         post_new_event(post_min2(ConLev, GZ, GX,GY), H).
 
 max(X, Y, Z) :-
@@ -2329,8 +2504,119 @@ max(X, Y, Z) :-
 
 max_c(X, Y, Z, ConLev) :-
         get_prob_handle(H),
-        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ]),
+        ec_to_gecode_varlist([X,Y,Z], H, [GX,GY,GZ], _),
         post_new_event(post_max2(ConLev, GZ, GX,GY), H).
+
+
+ordered(Order, Xs) :-
+        ordered_c(Order, Xs, default).
+
+ordered_c(Order0, Xs0, ConLev) :-
+        is_valid_rel_op(Order0, Order),
+        get_prob_handle(H),
+        collection_to_list(flatten(Xs0), Xs),
+        ec_to_gecode_varlist(Xs, H, GXs, _),
+        XArr =.. [[]|GXs],
+        post_new_event(post_ordered(ConLev, XArr, Order), H).
+
+lex_le(Xs, Ys) :-
+        lex_le_c(Xs, Ys, default).
+
+lex_le_c(Xs, Ys, ConLev) :-
+        lex_c(Xs, (#=<), Ys, ConLev).
+
+
+lex_lt(Xs, Ys) :-
+        lex_lt_c(Xs, Ys, default).
+
+lex_lt_c(Xs, Ys, ConLev) :-
+        lex_c(Xs, (#<), Ys, ConLev).
+
+
+lex_ge(Xs, Ys) :-
+        lex_ge_c(Xs, Ys, default).
+
+lex_ge_c(Xs, Ys, ConLev) :-
+        lex_c(Xs, (#>=), Ys, ConLev).
+
+
+lex_gt(Xs, Ys) :-
+        lex_gt_c(Xs, Ys, default).
+
+lex_gt_c(Xs, Ys, ConLev) :-
+        lex_c(Xs, (#>), Ys, ConLev).
+
+
+lex_eq(Xs, Ys) :-
+        lex_eq_c(Xs, Ys, default).
+
+lex_eq_c(Xs, Ys, ConLev) :-
+        lex_c(Xs, (#=), Ys, ConLev).
+
+
+lex_ne(Xs, Ys) :-
+        lex_ne_c(Xs, Ys, default).
+
+lex_ne_c(Xs, Ys, ConLev) :-
+        lex_c(Xs, (#\=), Ys, ConLev).
+
+
+lex_c(Xs0, Rel, Ys0, ConLev) :-
+        atom(Rel),
+        rel_op(Rel),
+        collection_to_list(flatten(Xs0), Xs),
+        collection_to_list(flatten(Ys0), Ys),
+        get_prob_handle(H),
+        ec_to_gecode_varlist(Xs, H, GXs, _),
+        XArr =.. [[]|GXs],
+        ec_to_gecode_varlist(Ys, H, GYs, _),
+        YArr =.. [[]|GYs],
+        post_new_event(post_lex_order(ConLev, XArr, Rel, YArr), H).
+        
+
+bin_packing(Items, ItemSizes, BinLoads) :-
+        bin_packing_body(Items, ItemSizes, BinLoads, ecl).
+
+bin_packing_g(Items, ItemSizes, BinLoads) :-
+        bin_packing_body(Items, ItemSizes, BinLoads, gc).
+
+bin_packing_body(Items0, ItemSizes0, BinLoads0, IndexType) :-
+        collection_to_list(flatten(Items0), Items),
+        collection_to_list(flatten(ItemSizes0), ItemSizes),
+        collection_to_list(flatten(BinLoads0), BinLoads),
+        get_prob_handle(H),
+        ec_to_gecode_multivarlists([Items,BinLoads], H, [GIs,GLs]),
+        post_bin_packing(GIs, ItemSizes, GLs, H, IndexType).
+
+post_bin_packing(GIs, ItemSizes, GLs, H, IndexType) :-
+        (IndexType == ecl ->
+            IArray =.. [[],0|GIs],
+            SArray =.. [[],1|ItemSizes],
+            arity(IArray) =:= arity(SArray),
+            LArray =.. [[],1|GLs]
+        ;
+            IArray =.. [[]|GIs],
+            SArray =.. [[]|ItemSizes],
+            arity(IArray) =:= arity(SArray),
+            LArray =.. [[]|GLs]
+        ),
+        post_new_event(post_bin_packing(IArray, SArray, LArray), H).
+
+bin_packing(Items0,ItemSizes0,N,BinSize):-
+        get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+        ( count(_, 1, N), 
+          param(H), 
+          fromto(NV0, NV1,NV2, NV), foreach(GB, GBinLoads)
+        do
+            new_gfdvar(_B, H, NV1,NV2, GB)
+        ),
+        do_update_newvars_with_domain_interval(H, NV, 0, BinSize),
+
+        collection_to_list(flatten(Items0), Items),
+        collection_to_list(flatten(ItemSizes0), ItemSizes),
+        ec_to_gecode_varlist(Items, H, GItems, _),
+        post_bin_packing(GItems, ItemSizes, GBinLoads, H, ecl).
 
 
 %------------------------------------------------------------------------
@@ -2343,6 +2629,7 @@ update_space_with_events(H) :-
 %        writeln("******updating new clone, current level":NL-Es),
         update_space_with_events1(Es, H),
         do_event(propagate, H, 0, _).
+
 
 update_space_with_events1([], _) :- 
 %        writeln("*****done updating clone"), 
@@ -2533,13 +2820,23 @@ do_event1(post_circuit(ConLev, SArray), SpH, First, DoProp) ?-
 do_event1(post_circuit_cost(ConLev, SArray, CMArray, ACArray, GCost), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_circuit_cost(SpH, First, SArray, CMArray, ACArray, GCost, ConLev).
-do_event1(post_disj(_ConLev,StartArray,DurArray,SchArray), SpH, First, DoProp) ?-
+do_event1(post_disj(StartArray,DurArray,SchArray), SpH, First, DoProp) ?-
         DoProp = 1,
         % ConLev not supported for this constraint
         g_post_disj(SpH, First, StartArray, DurArray,SchArray).
-do_event1(post_cumulatives(_ConLev,Starts,Durations,Ends,Usages,Used,Limits,AtMost), SpH, First, DoProp) ?-
+do_event1(post_disjflex(StartArray,DurArray,EndArray,SchArray), SpH, First, DoProp) ?-
+        DoProp = 1,
+        % ConLev not supported for this constraint
+        g_post_disjflex(SpH, First, StartArray, DurArray, EndArray, SchArray).
+do_event1(post_cumulatives(Starts,Durations,Ends,Usages,Used,Limits,AtMost), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_cumulatives(SpH, First, Starts, Durations, Ends, Usages, Used, Limits, AtMost).
+do_event1(post_cumulative(Starts,Durations,Usages,Limit,Schs), SpH, First, DoProp) ?-
+        DoProp = 1,
+        g_post_cumulative(SpH, First, Starts, Durations, Usages, Limit, Schs).
+do_event1(post_cumulativeflex(Starts,Durations,Ends,Usages,Limit,Schs), SpH, First, DoProp) ?-
+        DoProp = 1,
+        g_post_cumulativeflex(SpH, First, Starts, Durations, Ends, Usages, Limit, Schs).
 do_event1(post_interval(GArray,Lo,Hi), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_interval(SpH, First, GArray, Lo, Hi).
@@ -2564,6 +2861,12 @@ do_event1(newvars_dom(NV,DArray), SpH, _First, DoProp) ?-
 do_event1(newvars_dom_union(GX,GY,NV), SpH, _First, DoProp) ?-
         DoProp = 0,
         g_add_newvars_dom_union(SpH, NV, GX, GY).
+do_event1(newboolvars(NV,VArr), SpH, _First, DoProp) ?-
+        DoProp = 0,
+        g_add_newvars_as_bool(SpH, NV, VArr).
+do_event1(connectnewbools(VArr), SpH, _First, DoProp) ?-
+        DoProp = 0,
+        g_link_newbools(SpH, VArr).
 do_event1(copyvar(NV,OldIdx), SpH, _First, DoProp) ?-
         DoProp = 0,
         g_add_newvar_copy(SpH, NV, OldIdx).
@@ -2630,6 +2933,15 @@ do_event1(post_inverse(ConLev,Arr1,Arr2), SpH, First, DoProp) ?-
 do_event1(post_inverse_offset(ConLev,Arr1,Off1,Arr2,Off2), SpH, First, DoProp) ?-
         DoProp = 1,
         g_post_inverse_offset(SpH, First, Arr1, Off1, Arr2, Off2, ConLev).
+do_event1(post_ordered(ConLev,XArr,Rel), SpH, First, DoProp) ?-
+        DoProp = 1,
+        g_post_ordered(SpH, First, XArr, Rel, ConLev).
+do_event1(post_lex_order(ConLev,XArr,Rel,YArr), SpH, First, DoProp) ?-
+        DoProp = 1,
+        g_post_lex_order(SpH, First, XArr, Rel, YArr, ConLev).
+do_event1(post_bin_packing(IArr,SArr,LArr), SpH, First, DoProp) ?-
+        DoProp = 1,
+        g_post_bin_packing(SpH, First, IArr, SArr, LArr).
 do_event1(propagate, SpH, First, DoProp) ?-
         DoProp = 0,
 %        g_propagate(SpH).
@@ -3006,7 +3318,7 @@ search(Vars, Pos, Select, Choice, Method, Option) :-
         ;
             VList = List
         ),
-        ec_to_gecode_varlist(VList, H, GList),
+        ec_to_gecode_varlist(VList, H, GList, _),
         translate_search_method(Method, TMethod),
         GArray =.. [[]|GList],
         process_options(Option, TieBreak, Stats, Stop, Timeout, Control),
@@ -3392,7 +3704,7 @@ integers(V) :-
             ec_to_gecode_var(V, H, _)
         ;
             collection_to_list(V, VList),
-            ec_to_gecode_varlist(VList, H, _)
+            ec_to_gecode_varlist(VList, H, _, _)
         ).
 
 % note these don't need a space, so no need to update handle
@@ -3413,7 +3725,7 @@ msg(X, Y, Dom) :-
             new_gfdvar(Dom0, H, N0,N, _GDom0),
             setarg(nvars of gfd_prob, H, N),
             % we follow Gecode's recomputation style, the
-            % union will be recomputated, rather than storing it 
+            % union will be recomputed, rather than storing it 
             post_new_event(newvars_dom_union(GX,GY,N), H),
             Dom0 = Dom
         ;
@@ -3433,46 +3745,6 @@ is_in_domain(Val, Var) :-
 
 is_in_domain(Val, Var, Result) :-
         (is_in_domain(Val, Var) -> Result = yes ; Result = no).
-
-
-%----------------------------------------------------------------------
-% ic compatibility
-% ordered(+Relation, List) -- naive implementation
-%----------------------------------------------------------------------
-
-:- comment(ordered/2, [
-    summary:"Constrains List to be ordered according to Relation",
-    amode:ordered(++,+),
-    args:[
-	"Relation":"One of the atoms <, =<, >, >=, =",
-	"List":"Collection of integers or domain variables"
-    ],
-    see_also:[lexico_le/2,ordered_sum/2,sorted/2,collection_to_list/2]
-    ]).
-
-ordered(Order, Xs) :- var(Xs), !,
-	suspend(ordered(Order, Xs), 4, Xs->inst).
-ordered(_, []) :- !.
-ordered(Order, [X1|Xs]) :- !,
-	ordered1(Order, X1, Xs).
-ordered(Order, Xs) :-
-	collection_to_list(Xs, List),
-	ordered(Order, List).
-
-ordered1(Order, X1, Xs) :- var(Xs), !,
-	suspend(ordered(Order, [X1|Xs]), 4, Xs->inst).
-ordered1(_Order, _X1, []).
-ordered1(Order, X1, X2Xs) :-
-	X2Xs = [X2|Xs],
-	ordered(Order, X1, X2),
-	ordered1(Order, X2, Xs).
-
-    ordered( <, X1, X2) :- X1 #<  X2.
-    ordered(=<, X1, X2) :- X1 #=< X2.
-    ordered(> , X1, X2) :- X1 #>  X2.
-    ordered(>=, X1, X2) :- X1 #>= X2.
-    ordered(= , X1, X2) :- X1 #=  X2.
-
 
 
 :- erase_module(gfd_gac),
@@ -3507,6 +3779,13 @@ ordered1(Order, X1, X2Xs) :-
       mult/3 -> mult_c/4,
       sqr/2 -> sqr_c/3,
       sqrt/2 -> sqrt_c/3,
+      ordered/2 -> ordered_c/3,
+      lex_le/2 -> lex_le_c/3,
+      lex_lt/2 -> lex_lt_c/3,
+      lex_ge/2 -> lex_ge_c/3,
+      lex_gt/2 -> lex_gt_c/3,
+      lex_eq/2 -> lex_eq_c/3,
+      lex_ne/2 -> lex_ne_c/3,
       alldifferent/1 -> alldifferent_c/2,
       alldifferent_cst/2 -> alldifferent_cst_c/3,
       bool_channeling/3 -> bool_channeling_c/4,
@@ -3572,6 +3851,13 @@ ordered1(Order, X1, X2Xs) :-
       divmod/4 -> divmod_c/5,
       sqr/2 -> sqr_c/3,
       sqrt/2 -> sqrt_c/3,
+      ordered/2 -> ordered_c/3,
+      lex_le/2 -> lex_le_c/3,
+      lex_lt/2 -> lex_lt_c/3,
+      lex_ge/2 -> lex_ge_c/3,
+      lex_gt/2 -> lex_gt_c/3,
+      lex_eq/2 -> lex_eq_c/3,
+      lex_ne/2 -> lex_ne_c/3,
       alldifferent/1 -> alldifferent_c/2,
       alldifferent_cst/2 -> alldifferent_cst_c/3,
       element/3 -> element_c/4,
@@ -3602,7 +3888,7 @@ ordered1(Order, X1, X2Xs) :-
       circuit_g/1 -> circuit_g_c/2,
       circuit_g/3 -> circuit_g_c/4,
       circuit_g/4 -> circuit_g_c/5,
-      cumulative/4 -> cumulative_c/5,
+%      cumulative/4 -> cumulative_c/5,
       cumulatives/5 -> cumulatives_c/6,
       cumulatives_min/5 -> cumulatives_min_c/6,
       cumulatives_g/5 -> cumulatives_g_c/6,
@@ -3611,7 +3897,8 @@ ordered1(Order, X1, X2Xs) :-
       inverse_g/2 -> inverse_g_c/3,
       inverse/4 -> inverse_c/5,
       inverse_g/4 -> inverse_g_c/5,
-      gcc/2 -> gcc_c/3
+      gcc/2 -> gcc_c/3,
+      ordered/2 -> ordered_c/3
   ]).
 
 

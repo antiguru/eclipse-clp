@@ -747,6 +747,55 @@ int p_g_add_newvars_interval()
 
 
 extern "C"
+int p_g_add_newvars_as_bool()
+{
+    // add new vars as booleans to problem -- add new IntVars and link them 
+    // them with new BoolVars
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    long newsize;
+    int oldsize, snapshotsize;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+    if (EC_succeed != EC_arg(2).is_long(&newsize)) return(TYPE_ERROR);
+    oldsize = solver->vInt.size();
+    EC_word varr = EC_arg(3);
+
+    int varrsize = varr.arity();
+    if (varrsize == 0) return TYPE_ERROR;
+    // ++newsize as we don't use 0 for index
+    if (varrsize != ++newsize - oldsize) return RANGE_ERROR;
+ 
+
+    try {
+	for (int i=oldsize,argi=1; i < (int)newsize; i++,argi++) {
+	    solver->vInt << IntVar(*solver, 0, 1);
+	    solver->vBool << BoolVar(*solver,0, 1);
+	    int bidx = solver->vBool.size() - 1;
+	    channel(*solver,  solver->vInt[i], solver->vBool[bidx]);
+	    EC_word arg = EC_argument(varr, argi);
+	    EC_functor f;
+	    if (arg.functor(&f) == EC_succeed && 
+		strcmp(f.name(), "_ivar") == 0 &&
+		arg.arity() == 2) {
+		int res = unify(EC_argument(arg, 2), EC_word((long)bidx));
+		if (res != EC_succeed) return res;
+
+		res = unify(EC_argument(arg,1), EC_word((long)i));
+		if (res != EC_succeed) return res;
+
+	    } else return TYPE_ERROR;
+	}
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C"
 int p_g_add_newbool()
 {
     GecodeSpace** solverp;
@@ -768,6 +817,51 @@ int p_g_add_newbool()
     }
     CatchAndReportGecodeExceptions
 
+}
+
+extern "C"
+int p_g_link_newbools()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word varr = EC_arg(2);
+    int varrsize = varr.arity();
+    if (varrsize == 0) return TYPE_ERROR;
+ 
+
+    try {
+	for (int i=1; i <= varrsize; i++) {
+
+	    EC_word arg = EC_argument(varr, i);
+	    EC_functor f;
+	    long vidx;
+	    if (arg.functor(&f) == EC_succeed && 
+		strcmp(f.name(), "_ivar") == 0 &&
+		arg.arity() == 2 &&
+		EC_argument(arg,1).is_long(&vidx) == EC_succeed) {
+
+		long bidx;
+		if (EC_argument(arg, 2).is_long(&bidx) != EC_succeed) {
+		    // not yet linked, create link to new BoolVar
+		    solver->vBool << BoolVar(*solver,0,1);
+		    bidx = (long) solver->vBool.size()-1;
+		    channel(*solver,  solver->vInt[vidx], solver->vBool[(int)bidx]);
+		    int res = unify(EC_argument(arg, 2), EC_word((long)bidx));
+		    if (res != EC_succeed) return res;
+		}
+	    } else return TYPE_ERROR;
+	}
+
+    }
+    CatchAndReportGecodeExceptions
+	
+    return EC_succeed;
 }
 
 extern "C"
@@ -2190,8 +2284,6 @@ int p_g_post_disj()
     EC_word darr = EC_arg(4);
     if (darr.arity() != size) return RANGE_ERROR;
 
-//not in 3.3    IntVarArgs durations(size);
-//    res = assign_IntVarArgs_from_ec_array(solver, size, darr, durations);
     IntArgs durations(size);
     res = assign_IntArgs_from_ec_array(solver, size, darr, durations);
     if (res != EC_succeed) return res;
@@ -2223,6 +2315,65 @@ int p_g_post_disj()
     return EC_succeed;
 }
 
+extern "C"
+int p_g_post_disjflex()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word sarr = EC_arg(3);
+    int size = sarr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs starts(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, sarr, starts);
+    if (res != EC_succeed) return res;
+
+    EC_word darr = EC_arg(4);
+    if (darr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs durations(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, darr, durations);
+    if (res != EC_succeed) return res;
+
+    EC_word earr = EC_arg(5);
+    if (earr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs ends(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, earr, ends);
+    if (res != EC_succeed) return res;
+
+    EC_word barr = EC_arg(6);
+    BoolVarArgs scheduled(size);
+    bool has_optional = (barr.arity() != 0);
+    if (has_optional) {
+	if (size != barr.arity()) return TYPE_ERROR;
+
+	res = assign_BoolVarArgs_from_ec_array(solver, size, barr, scheduled);
+	if (res != EC_succeed) return res;
+    }
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    try {
+	// consistency level not supported!
+	if (has_optional) {
+	  unary(*solver, starts, durations, ends, scheduled);
+	} else {
+	  unary(*solver, starts, ends, durations);
+	}
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
 
 extern "C"
 int p_g_post_cumulatives()
@@ -2287,6 +2438,136 @@ int p_g_post_cumulatives()
 	cumulatives(*solver, used, starts, durations, ends, usages, limits, ec_atmost);
     }
     CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_cumulative()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word sarr = EC_arg(3);
+    int size = sarr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs starts(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, sarr, starts);
+    if (res != EC_succeed) return res;
+
+    EC_word darr = EC_arg(4);
+    if (darr.arity() != size) return RANGE_ERROR;
+
+    IntArgs durations(size);
+    res = assign_IntArgs_from_ec_array(solver, size, darr, durations);
+
+    EC_word uarr = EC_arg(5);
+    if (uarr.arity() != size) return RANGE_ERROR;
+
+    IntArgs usages(size);
+    res = assign_IntArgs_from_ec_array(solver, size, uarr, usages);
+
+    long limit;
+    if (EC_succeed != EC_arg(6).is_long(&limit)) return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    EC_word barr = EC_arg(7);
+    bool has_optional = (barr.arity() != 0);
+    if (has_optional) {
+	if (size != barr.arity()) return TYPE_ERROR;
+
+	BoolVarArgs scheduled(size);
+	res = assign_BoolVarArgs_from_ec_array(solver, size, barr, scheduled);
+	if (res != EC_succeed) return res;
+	try {
+	  cumulative(*solver, (int)limit, starts, durations, usages, scheduled);
+	}
+	CatchAndReportGecodeExceptions
+
+    } else {
+
+      try {
+	cumulative(*solver, (int)limit, starts, durations, usages);
+      }
+      CatchAndReportGecodeExceptions
+    }
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_cumulativeflex()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word sarr = EC_arg(3);
+    int size = sarr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs starts(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, sarr, starts);
+    if (res != EC_succeed) return res;
+
+    EC_word darr = EC_arg(4);
+    if (darr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs durations(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, darr, durations);
+
+    EC_word earr = EC_arg(5);
+    if (earr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs ends(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, earr, ends);
+
+    EC_word uarr = EC_arg(6);
+    if (uarr.arity() != size) return RANGE_ERROR;
+
+    IntArgs usages(size);
+    res = assign_IntArgs_from_ec_array(solver, size, uarr, usages);
+
+    long limit;
+    if (EC_succeed != EC_arg(7).is_long(&limit)) return TYPE_ERROR;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    EC_word barr = EC_arg(8);
+    bool has_optional = (barr.arity() != 0);
+    if (has_optional) {
+	if (size != barr.arity()) return TYPE_ERROR;
+
+	BoolVarArgs scheduled(size);
+	res = assign_BoolVarArgs_from_ec_array(solver, size, barr, scheduled);
+	if (res != EC_succeed) return res;
+	try {
+	  cumulative(*solver, (int)limit, starts, durations, ends, usages, scheduled);
+	}
+	CatchAndReportGecodeExceptions
+
+    } else {
+
+      try {
+	cumulative(*solver, (int)limit, starts, durations, ends, usages);
+      }
+      CatchAndReportGecodeExceptions
+    }
 
     return EC_succeed;
 }
@@ -2976,7 +3257,7 @@ int p_g_post_boolchannel()
 	if (EC_succeed != EC_arg(5).is_long(&min)) return TYPE_ERROR;
 
 	IntConLevel cl;
-	Get_Consistency_Level(5, cl);
+	Get_Consistency_Level(6, cl);
 
 	long first;
 	if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
@@ -3076,6 +3357,152 @@ int p_g_post_inverse_offset()
 
     return EC_succeed;
 }
+
+extern "C"
+int p_g_post_ordered()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    IntRelType r;
+    EC_atom ecrel;
+    if (EC_arg(4).is_atom(&ecrel) != EC_succeed) return TYPE_ERROR;
+    if (strcmp(ecrel.name(), "#=") == 0) r = IRT_EQ;
+    else if (strcmp(ecrel.name(), "#\\=") == 0) r = IRT_NQ;
+    else if (strcmp(ecrel.name(), "#>") == 0) r = IRT_GR;
+    else if (strcmp(ecrel.name(), "#<") == 0) r = IRT_LE;
+    else if (strcmp(ecrel.name(), "#>=") == 0) r = IRT_GQ;
+    else if (strcmp(ecrel.name(), "#=<") == 0) r = IRT_LQ;
+    else return TYPE_ERROR;
+
+    EC_word varr = EC_arg(3);
+    int size = varr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs vars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+    if (res != EC_succeed) return res;
+
+    IntConLevel cl;
+    Get_Consistency_Level(5, cl);
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    try {
+      rel(*solver, vars, r, cl);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_lex_order()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    IntRelType r;
+    EC_atom ecrel;
+    if (EC_arg(4).is_atom(&ecrel) != EC_succeed) return TYPE_ERROR;
+    if (strcmp(ecrel.name(), "#=") == 0) r = IRT_EQ;
+    else if (strcmp(ecrel.name(), "#\\=") == 0) r = IRT_NQ;
+    else if (strcmp(ecrel.name(), "#>") == 0) r = IRT_GR;
+    else if (strcmp(ecrel.name(), "#<") == 0) r = IRT_LE;
+    else if (strcmp(ecrel.name(), "#>=") == 0) r = IRT_GQ;
+    else if (strcmp(ecrel.name(), "#=<") == 0) r = IRT_LQ;
+    else return TYPE_ERROR;
+
+    EC_word xarr = EC_arg(3);
+    int size = xarr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs xvars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, xarr, xvars);
+    if (res != EC_succeed) return res;
+
+    EC_word yarr = EC_arg(5);
+    size = yarr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs yvars(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, yarr, yvars);
+    if (res != EC_succeed) return res;
+
+    IntConLevel cl;
+    Get_Consistency_Level(6, cl);
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    try {
+      rel(*solver, xvars, r, yvars, cl);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C"
+int p_g_post_bin_packing()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word iarr = EC_arg(3);
+    int size = iarr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs ivars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, iarr, ivars);
+    if (res != EC_succeed) return res;
+
+    EC_word sarr = EC_arg(4);
+    if (size != sarr.arity()) return TYPE_ERROR;
+
+    IntArgs sizes(size);
+    res = assign_IntArgs_from_ec_array(solver, size, sarr, sizes);
+    if (res != EC_succeed) return res;
+
+    EC_word larr = EC_arg(5);
+    size = larr.arity();
+    if (size == 0) return TYPE_ERROR;
+
+    IntVarArgs lvars(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, larr, lvars);
+    if (res != EC_succeed) return res;
+
+    long first;
+    if (EC_succeed != EC_arg(2).is_long(&first)) return TYPE_ERROR;
+    if (first) cache_domain_sizes(solver);
+
+    try {
+      binpacking(*solver, lvars, ivars, sizes);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+
 
 #define GFDSTATSIZE    5
 #define GFDCONTROLSIZE 2
