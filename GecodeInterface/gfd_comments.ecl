@@ -3707,9 +3707,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    the domain), succeed (possibly updating the variable's bounds), or
    instantiate the variable (in the case where the domain gets restricted to
    a singleton value).</P><P>
-
+</P><P>
    Note that this predicate is intended for use only in implementing
-   constraint propagators, and should not be called from ordinary user code.
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
    It differs from the usual constraint in that the propagation is not
    performed immediately. Normally, propagation in gecode is performed by
    a suspended goal that is scheduled and woken after each constraint is
@@ -3744,9 +3745,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    instantiate the variable (in the case where the domain gets restricted to
    a singleton value).  Note that if the variable's type is integer, its
    bounds will always be adjusted to integral values.</P><P>
-
+</P><P>
    Note that this predicate is intended for use only in implementing
-   constraint propagators, and should not be called from ordinary user code.
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
    It differs from the usual constraint in that the propagation is not
    performed immediately. Normally, propagation in gecode is performed by
    a suspended goal that is scheduled and woken after each constraint is
@@ -3776,11 +3778,11 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Update (if required) the bounds of Var.",
     see_also: [impose_min/2, impose_max/2],
     desc: html("<P>
-   Primitive for updating the upper and lower bounds of Var, also used as
-   the set_bounds handler for the IC attribute.  As with impose_min/2 and
-   impose_max/2, it is intended for use in implementing constraint
-   propagators, and should not be called from ordinary user code (use $::/2
-   or ::/2 instead).  Its semantics is essentially:
+   Primitive for updating the upper and lower bounds of Var, As with 
+   impose_min/2 and impose_max/2, it is intended for use in implementing 
+   co-operation with other solvers, and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user 
+   code (use ::/2 instead).  Its semantics is essentially:
 <PRE>
        impose_min(Var, Lo), impose_max(Var, Hi), wake.
 </PRE>
@@ -3803,21 +3805,23 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    The call may fail (when Var is the same integer as Excl),
    succeed (possibly updating the variable's domain), or instantiate the
    variable (when Excl was one of only two domain elements left).</P><P>
-
+</P><P>
    Note that this predicate is intended for use only in implementing
-   constraint propagators, and should not be called from ordinary user code
-   (use gfd:(Var #\\= Excl) instead).  It differs from the usual constraint in
-   that the propagation is not performed immediately. Normally, propagation in
-   gecode is performed by a suspended goal that is scheduled and woken after
-   each constraint is posted.  However, impose_min/2 does not call the woken
-   goal scheduler (wake/0), so the propagation goal may not be executed
-   immediately. (It is possible that under some circumstances the goal will be
-   executed, if wake/0 is called indirectly - one example would be by the
-   unify handler if the variable becomes ground - but this should not be
-   relied upon.) To ensure that the goals are eventually executed, the caller
-   should arrange for wake/0 to be called at some appropriate point in the
-   subsequent execution.  Please see the \"Advanced Control Features\" section
-   of the User Manual for more information about woken goal management.</P>
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
+   It differs from the usual constraint in that the propagation is not
+   performed immediately. Normally, propagation in gecode is performed by
+   a suspended goal that is scheduled and woken after each constraint is
+   posted.  However, impose_min/2 does not call the woken goal
+   scheduler (wake/0), so the propagation goal may not be executed 
+   immediately. (It is possible that under some circumstances the goal 
+   will be executed, if wake/0 is called indirectly - one example would be
+   by the unify handler if the variable becomes ground - but this should not
+   be relied upon.) To ensure that the goals are eventually executed, the 
+   caller should arrange for wake/0 to be called at some appropriate point 
+   in the subsequent execution.  Please see the \"Advanced Control Features\" 
+   section of the User Manual for more information about woken goal 
+   management.</P>
 ")
 ]).
 
@@ -3839,9 +3843,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    Var has no elements outside the range Lo..Hi), succeed (possibly updating
    the variable's domain), or instantiate the variable (in the case where
    the domain gets restricted to a singleton value).</P><P>
-
+</P><P>
    Note that this predicate is intended for use only in implementing
-   constraint propagators, and should not be called from ordinary user code.
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
    It differs from the usual constraint in that the propagation is not
    performed immediately. Normally, propagation in gecode is performed by
    a suspended goal that is scheduled and woken after each constraint is
