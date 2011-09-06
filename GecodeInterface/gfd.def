@@ -36,7 +36,7 @@ EXPORTS
         p_g_post_cumulatives		@33
 	p_g_post_ordered		@34
 	p_g_post_lex_order		@35
-	p_post_bin_packing		@36	
+	p_g_post_bin_packing		@36	
         p_g_post_sum			@37
         p_g_post_lin			@38
         p_g_post_sum_reif		@39
