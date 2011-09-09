@@ -60,7 +60,7 @@ EXPORTS
         p_g_post_bin_packing		@57
         p_g_post_cumulative		@58
 	p_g_post_rel			@59
-	P_g_post_lwb			@60
+	p_g_post_lwb			@60
 	p_g_post_upb			@61
         p_g_propagate			@62
         p_g_check_val_is_in_var_domain	@63
