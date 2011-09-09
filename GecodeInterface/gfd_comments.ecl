@@ -1152,6 +1152,174 @@ X = X{[-1000000 .. 1000000]}
 
 %---------------------------------------------------------------------
 
+:- comment(le/2, [
+    summary:"Constrains X to be less than or equal to Y.",
+    template: "<ConsistencyModule:> le(?X,?Y)",
+    amode:le(?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable"
+    ],
+    desc:html("\
+   Primitive to constrain X to be less than or equal to  Y (X #=&lt; Y). 
+   </P><P> 
+   Unlike X #=&lt; Y, X and Y must be variables or integers, and 
+   not expressions, because it interfaces directly to Gecode's
+   <TT>rel</TT> propagator. The cost of posting this primitive should
+   be less than posting X #=&lt; Y, so if you are posting a lot of
+   simple constraints of this form, it may be worth your while to use
+   this primiatve, but that this primitive is specific to lib(gfd).
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [(#=<)/2,lt/2,gt/2,ge/2,ne/2,eq/2]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(lt/2, [
+    summary:"Constrains X to be less than Y.",
+    template: "<ConsistencyModule:> lt(?X,?Y)",
+    amode:lt(?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable"
+    ],
+    desc:html("\
+   Primitive to constrain X to be less than  Y (X #&lt; Y). 
+   </P><P> 
+   Unlike X #&lt; Y, X and Y must be variables or integers, and 
+   not expressions, because it interfaces directly to Gecode's
+   <TT>rel</TT> propagator. The cost of posting this primitive should
+   be less than posting X #&lt; Y, so if you are posting a lot of
+   simple constraints of this form, it may be worth your while to use
+   this primiatve, but that this primitive is specific to lib(gfd).
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [(#=<)/2,le/2,gt/2,ge/2,ne/2,eq/2]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(ge/2, [
+    summary:"Constrains X to be greater than or equal to Y.",
+    template: "<ConsistencyModule:> le(?X,?Y)",
+    amode:le(?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable"
+    ],
+    desc:html("\
+   Primitive to constrain X to be greater than or equal to  Y (X #&gt;= Y). 
+   </P><P> 
+   Unlike X #&gt;= Y, X and Y must be variables or integers, and 
+   not expressions, because it interfaces directly to Gecode's
+   <TT>rel</TT> propagator. The cost of posting this primitive should
+   be less than posting X #&gt;= Y, so if you are posting a lot of
+   simple constraints of this form, it may be worth your while to use
+   this primiatve, but that this primitive is specific to lib(gfd).
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [(#>=)/2,lt/2,gt/2,le/2,ne/2,eq/2]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(gt/2, [
+    summary:"Constrains X to be greater than Y.",
+    template: "<ConsistencyModule:> gt(?X,?Y)",
+    amode:lt(?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable"
+    ],
+    desc:html("\
+   Primitive to constrain X to be greater than  Y (X #&gt; Y). 
+   </P><P> 
+   Unlike X #&lt; Y, X and Y must be variables or integers, and 
+   not expressions, because it interfaces directly to Gecode's
+   <TT>rel</TT> propagator. The cost of posting this primitive should
+   be less than posting X #&gt; Y, so if you are posting a lot of
+   simple constraints of this form, it may be worth your while to use
+   this primiatve, but that this primitive is specific to lib(gfd).
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [(#<)/2,le/2,lt/2,ge/2,ne/2,eq/2]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(ne/2, [
+    summary:"Constrains X to be not equal to Y.",
+    template: "<ConsistencyModule:> ne(?X,?Y)",
+    amode:lt(?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable"
+    ],
+    desc:html("\
+   Primitive to constrain X to be not equal to  Y (X #\\= Y). 
+   </P><P> 
+   Unlike X #\\= Y, X and Y must be variables or integers, and 
+   not expressions, because it interfaces directly to Gecode's
+   <TT>rel</TT> propagator. The cost of posting this primitive should
+   be less than posting X #\\= Y, so if you are posting a lot of
+   simple constraints of this form, it may be worth your while to use
+   this primiatve, but that this primitive is specific to lib(gfd).
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [(#=<)/2,le/2,gt/2,ge/2,lt/2,eq/2]
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(eq/2, [
+    summary:"Constrains X to be equal to Y.",
+    template: "<ConsistencyModule:> eq(?X,?Y)",
+    amode:eq(?,?),
+    args:[
+        "X":"An integer or domain variable",
+        "Y":"An integer or domain variable"
+    ],
+    desc:html("\
+   Primitive to constrain X to be equal to  Y (X #= Y). 
+   </P><P> 
+   Unlike X #= Y, X and Y must be variables or integers, and 
+   not expressions, because it interfaces directly to Gecode's
+   <TT>rel</TT> propagator. The cost of posting this primitive should
+   be less than posting X #= Y, so if you are posting a lot of
+   simple constraints of this form, it may be worth your while to use
+   this primiatve, but that this primitive is specific to lib(gfd).
+   </P><P> 
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+   arc) consistency. 
+"),
+    see_also: [(#=<)/2,le/2,gt/2,ge/2,lt/2,ne/2]
+]).
+
+%---------------------------------------------------------------------
+
 :- comment(max/3, [
     summary:"Max is the maximum of X and Y.",
     template: "<ConsistencyModule:> max(?X,?Y,?Max)",
@@ -1557,8 +1725,8 @@ X = X{[-1000000 .. 1000000]}
           Constrains the sum of the elements in Collection to satisfy
           the relation sum(Collection) Rel Sum.
 	  </P><P>
-          Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
-          >, >=, <, =<, =, \\=).
+          Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+          &gt;, &gt;=, &lt;, =&lt;, =, \\=).
 	  </P><P>
 	  Any input variables which are not already domain variable will be
           turn into domain variables with default bounds.</P><P>
@@ -1594,8 +1762,8 @@ X = X{[-1000000 .. 1000000]}
           of  the elements in Collection to satisfy the relation 
           sum(Collection) Rel Sum.
 	  </P><P>
-          Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
-          >, >=, <, =<, =, \\=).
+          Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+          &gt;, &gt;=, &lt;, =&lt;, =, \\=).
 	  </P><P>
 	  Any input variables which are not already domain variable will be
           turn into domain variables with default bounds.</P><P>
@@ -1623,8 +1791,8 @@ X = X{[-1000000 .. 1000000]}
           Constrains the scalar product of the elements in Collection to satisfy
           the relation sum(Coeffs*Collection) Rel P.
 	  </P><P>
-          Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
-          >, >=, <, =<, =, \\=).
+          Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+          &gt;, &gt;=, &lt;, =&lt;, =, \\=).
 	  </P><P>
           The Scalar Product of the collection of N integers in Coeffs and
           the collection of N domain variables or integers in Collection 
@@ -1668,8 +1836,8 @@ X = X{[-1000000 .. 1000000]}
           the relation 
           sum(Coeffs*Collection) Rel P.
 	  </P><P>
-          Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
-          >, >=, <, =<, =, \\=).
+          Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+          &gt;, &gt;=, &lt;, =&lt;, =, \\=).
           </P><P>
 	  Any input variables which are not already domain variable will be
           turn into domain variables with default bounds.</P><P>
@@ -2143,8 +2311,8 @@ V = V{[1, 2, 4 .. 10]}
 <PRE>
           N Rel <number of occurrences of Value in Vars>
 </PRE><P>
-     Rel can be one of #>, #>=, #<, #=<, #=, #\\= (or equivalently,
-     >, >=, <, =<, =, \\=)
+   Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+   &gt;, &gt;=, &lt;, =&lt;, =, \\=).
 </P><P>
    occurrences/3, atmost/3, atleast/3 are defined using count/3. For example,
 <PRE>
