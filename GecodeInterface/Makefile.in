@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.10 2011/03/30 15:58:10 kish_shen Exp $
+# $Id: Makefile.in,v 1.11 2011/09/11 15:36:28 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -89,7 +89,7 @@ install_cross:	@ALL_CROSS_WITH_GECODE@
 all_with_gecode:	install_cross $(ECI_DEST) 
 all_cross_with_gecode: $(OBJ_DEST) $(ECL_DEST)
 
-GECODELIBS = -lgecodeminimodel -lgecodeset -lgecodegraph -lgecodescheduling \
+GECODELIBS = -lgecodeminimodel -lgecodeset \
 	   -lgecodeint -lgecodesearch -lgecodekernel -lgecodesupport    
 
 ifeq ($(OSCLASS),win)
@@ -147,3 +147,58 @@ clean:	archclean
 
 archclean:
 	rm -rf $(ARCH)
+
+#---------------------------------------------------------------------------
+# Rules for building Gecode
+#---------------------------------------------------------------------------
+
+GECODE_VERSION=@GECODE_VERSION@
+GECODE_SVN_PASSWD=eclipse@cisco.com
+THIRDPARTY_GECODE_DEST=$(THIRDPARTY)/gecode-$(GECODE_VERSION)/$(ARCH)
+
+ifeq ($(ARCH),x86_64_linux)
+
+ADD_GECODE_CONFIG_FLAGS=--disable-gcc-visibility
+CONFIG_PREFIX=
+
+else
+  ifeq ($(ARCH),sparc_sunos5)
+
+ADD_GECODE_CONFIG_FLAGS="--with-host-os=linux --disable-examples"
+CONFIG_PREFIX=
+
+  else
+    ifeq ($(OSCLASS),win)
+
+      ifeq ($(ARCH),i386_nt)
+CROSSTARGET=i386-mingw32
+      else
+CROSSTARGET=x86_64-w64-mingw32
+      endif
+
+# assuming we are cross-compiling on 32 bit x86 Linux (i586-pc-linux)
+ADD_GECODE_CONFIG_FLAGS="--build=i586-pc-linux --host=$(CROSSTARGET)"
+CONFIG_PREFIX=CONFIG_SITE=$(ECLIPSEDIR)/../config.$(ARCH)
+
+    else
+
+ADD_GECODE_CONFIG_FLAGS=
+CONFIG_PREFIX=
+
+    endif
+  endif
+endif
+
+
+install_gecode:	gecode
+
+gecode:	Gecode/$(ARCH)/Makefile
+	( cd Gecode/$(ARCH) ; make ; make install )
+
+Gecode/$(ARCH)/Makefile:	Gecode/configure
+	mkdir -p Gecode/$(ARCH)
+	(cd Gecode/$(ARCH) ; $(CONFIG_PREFIX) ../configure --enable-static $(ADD_GECODE_CONFIG_FLAGS) --prefix=$(THIRDPARTY_GECODE_DEST))
+
+Gecode/configure:
+	svn --username anonymous --password $(GECODE_SVN_PASSWD) co https://svn.gecode.org/svn/gecode/tags/release-$(GECODE_VERSION) Gecode
+

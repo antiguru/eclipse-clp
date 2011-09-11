@@ -23,8 +23,10 @@
 #include <gecode/int.hh>
 #include <gecode/minimodel.hh>
 #include <gecode/search.hh>
+/* not used in Gecode >= 3.6.0
 #include <gecode/graph.hh>
 #include <gecode/scheduling.hh>
+*/
 #include <vector>
 
 using namespace Gecode;
