@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.11 2011/09/11 15:36:28 kish_shen Exp $
+# $Id: Makefile.in,v 1.12 2011/09/12 04:40:16 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -164,7 +164,7 @@ CONFIG_PREFIX=
 else
   ifeq ($(ARCH),sparc_sunos5)
 
-ADD_GECODE_CONFIG_FLAGS="--with-host-os=linux --disable-examples"
+ADD_GECODE_CONFIG_FLAGS=--with-host-os=linux --disable-examples
 CONFIG_PREFIX=
 
   else
@@ -177,8 +177,8 @@ CROSSTARGET=x86_64-w64-mingw32
       endif
 
 # assuming we are cross-compiling on 32 bit x86 Linux (i586-pc-linux)
-ADD_GECODE_CONFIG_FLAGS="--build=i586-pc-linux --host=$(CROSSTARGET)"
-CONFIG_PREFIX=CONFIG_SITE=$(ECLIPSEDIR)/../config.$(ARCH)
+ADD_GECODE_CONFIG_FLAGS=--build=i586-pc-linux --host=$(CROSSTARGET)
+CONFIG_PREFIX=CONFIG_SITE=../../../config.$(ARCH)
 
     else
 
