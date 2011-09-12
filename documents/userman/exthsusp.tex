@@ -20,7 +20,7 @@
 %
 % END LICENSE BLOCK
 %
-% $Id: exthsusp.tex,v 1.4 2009/12/14 17:49:14 kish_shen Exp $
+% $Id: exthsusp.tex,v 1.5 2011/09/12 19:20:10 kish_shen Exp $
 %
 
 \chapter{Advanced Control Features}
@@ -149,8 +149,8 @@ suffer from floundering.
 
 Basic {\eclipse} has two built-in predicates whose behaviour includes
 suspending: the sound negation built-in
-\bipref{\tld/1}{../bips/kernel/control/T-1.html} and the sound disequality
-predicate \bipref{\tld=/2}{../bips/kernel/termcomp/TE-2.html}.
+\txtbipref{\tld/1}{(~)/1{../bips/kernel/control/T-1.html} and the sound disequality
+predicate \txtbipref{\tld=/2}{(~=)/2}{../bips/kernel/termcomp/TE-2.html}.
 Instead of succeeding or failing, they will suspend when their arguments
 are insufficiently instantiated to make a decision. For example
 \begin{quote}
@@ -690,7 +690,7 @@ No (0.00s cpu)
 \end{verbatim}
 \end{quote}
 Note that the built-in predicate
-\bipref{\tld=/2}{../bips/kernel/termcomp/TE-2.html}
+\txtbipref{\tld=/2}{(~=)/2}{../bips/kernel/termcomp/TE-2.html}
 is a similar case and uses the \notation{bound} waking condition for the
 same reason.
 
@@ -726,8 +726,7 @@ While goals suspended on the \notation{inst} and \notation{bound} conditions
 are woken implicitly by the unification routine, libaries which implement
 domain variables are responsible for notifying the system when they
 constrain a variable. They do so by invoking the built-ins
-\bipref{notify_constrained/1}%
-{../bips/kernel/suspensions/notify_constrained-1.html}
+\bipref{notify_constrained/1}{../bips/kernel/suspensions/notify_constrained-1.html}
 and \bipref{wake/0}{../bips/kernel/suspensions/wake-0.html}
 which is the generic way of telling the system that a variable has been
 constrained.
@@ -958,8 +957,7 @@ an attributed variable or attached to a symbolic trigger.
 The most basic primitive to create a suspension is
 \begin{quote}
 \biptxtrefni{make_suspension(\pattern{Goal},~\pattern{Priority},%
-~\pattern{Susp} \lbr, \pattern{Module}\rbr)}%
-{make_suspension/3,4}{../bips/kernel/suspensions/make_suspension-3.html}%
+~\pattern{Susp} \lbr, \pattern{Module}\rbr)}{make_suspension/3,4}{../bips/kernel/suspensions/make_suspension-3.html}%
 \indextt{make_suspension/3}\indextt{make_suspension/4}
 \end{quote}
 where \about{Goal} is the goal structure,
@@ -967,11 +965,9 @@ where \about{Goal} is the goal structure,
 the goal should be woken and \about{Susp} is the resulting suspension.
 
 Note that usually
-\biprefni{make_suspension/3,4}%
-{../bips/kernel/suspensions/make_suspension-3.html}
+\biprefni{make_suspension/3,4}{../bips/kernel/suspensions/make_suspension-3.html}
 is not used directly, but implicitly via
-\biprefni{suspend/3,4}{../bips/kernel/suspensions/suspend-3.html}%
-\indextt{suspend/3}\indextt{suspend/4}
+\biprefni{suspend/3,4}{../bips/kernel/suspensions/suspend-3.html}\indextt{suspend/3}\indextt{suspend/4}
 (described in section \ref{suspend3}) which in addition attaches the suspension
 to a
 trigger condition.
@@ -1021,29 +1017,21 @@ The following summarises the predicates that can be used to create, test,
 decompose and destroy suspensions.
 \begin{quote}
 \begin{description}
-\item[\biptxtref{%
-make_suspension(\pattern{Goal},~\pattern{Priority},~\pattern{Susp})}%
-{make_suspension/3}{../bips/kernel/suspensions/make_suspension-3.html}]
-\item[\biptxtref{make_suspension(%
-\pattern{Goal},~\pattern{Priority},~\pattern{Susp},~\pattern{Module})}%
-{make_suspension/4}{../bips/kernel/suspensions/make_suspension-4.html}]
+\item[\biptxtref{make_suspension(\pattern{Goal},~\pattern{Priority},~\pattern{Susp})}{make_suspension/3}{../bips/kernel/suspensions/make_suspension-3.html}]
+\item[\biptxtref{make_suspension(\pattern{Goal},~\pattern{Priority},~\pattern{Susp},~\pattern{Module})}{make_suspension/4}{../bips/kernel/suspensions/make_suspension-4.html}]
 Create a suspension with a given priority from a given goal.
 The goal will subsequently show up as a delayed goal.
 
-\item[\biptxtref{is_suspension(\pattern{Susp})}{is_suspension/1}%
-{../bips/kernel/typetest/is_suspension-1.html}]
+\item[\biptxtref{is_suspension(\pattern{Susp})}{is_suspension/1}{../bips/kernel/typetest/is_suspension-1.html}]
 Succeeds if \about{Susp} is a sleeping or scheduled suspension,
 fails if it is not a suspension or a suspension that has been already executed.
 
-\item[\biptxtref{type_of(\pattern{S},~\pattern{goal})}{type_of/2}%
-{../bips/kernel/typetest/type_of-2.html}]
+\item[\biptxtref{type_of(\pattern{S},~\pattern{goal})}{type_of/2}{../bips/kernel/typetest/type_of-2.html}]
 Succeeds if \about{S} is a suspension, no matter if it is
 sleeping, scheduled or executed.
 
 \item[\biptxtref{get_suspension_data(%
-\pattern{Susp},~\pattern{Name},~\pattern{Value})}%
-{get_suspension_data/3}%
-{../bips/kernel/suspensions/get_suspension_data-3.html}]
+\pattern{Susp},~\pattern{Name},~\pattern{Value})}{get_suspension_data/3}{../bips/kernel/suspensions/get_suspension_data-3.html}]
 Extract any of the information contained in the suspension:
 \about{Name} can be one of
 \notation{goal}, \notation{module}, \notation{priority}, \notation{state} or
@@ -1051,9 +1039,7 @@ Extract any of the information contained in the suspension:
 
 
 \item[\biptxtref{set_suspension_data(%
-\pattern{Susp},~\pattern{Name},~\pattern{Value})}%
-{set_suspension_data/3}%
-{../bips/kernel/suspensions/set_suspension_data-3.html}]
+\pattern{Susp},~\pattern{Name},~\pattern{Value})}{set_suspension_data/3}{../bips/kernel/suspensions/set_suspension_data-3.html}]
 The \notation{priority} and \notation{invoc} (debugger invocation number) fields
 of a suspension can be changed using this primitive.
 If the priority of a sleeping suspension is changed,
@@ -1063,8 +1049,7 @@ priority has no effect, except for future schedulings of demons
 (see~\ref{secdemon}).
 
 
-\item[\biptxtref{kill_suspension(\pattern{Susp})}%
-{kill_suspension/1}{../bips/kernel/suspensions/kill_suspension-1.html}]
+\item[\biptxtref{kill_suspension(\pattern{Susp})}{kill_suspension/1}{../bips/kernel/suspensions/kill_suspension-1.html}]
 Convert the suspension \about{Susp} into an executed
 one, i.e., remove the suspended goal from the resolvent.
 This predicate is meta-logical as its use may
@@ -1080,8 +1065,7 @@ The system keeps track of all created suspensions and it
 uses this data, e.g., in the built-in predicates
 \bipref{delayed_goals/1}{../bips/kernel/suspensions/delayed_goals-1.html},
 \bipref{suspensions/1}{../bips/kernel/suspensions/suspensions-1.html},
-\bipref{current_suspension/1}%
-{../bips/kernel/suspensions/current_suspension-1.html},
+\bipref{current_suspension/1}{../bips/kernel/suspensions/current_suspension-1.html},
 \bipref{subcall/2}{../bips/kernel/suspensions/subcall-2.html}
 \index{floundering}
 and to detect floundering of the query given to the {\eclipse} top-level loop.
@@ -1099,16 +1083,12 @@ reserved for \defnotionni{suspension lists}.\index{suspension list}
 Suspensions can then be inserted into one or several of those lists using
 \begin{quote}
 \begin{description}
-\item[\biptxtref{insert_suspension(%
-\pattern{Vars},~\pattern{Susp},~\pattern{Index})}%
-{insert_suspension/3}{../bips/kernel/suspensions/insert_suspension-3.html}]
+\item[\biptxtref{insert_suspension(\pattern{Vars},~\pattern{Susp},~\pattern{Index})}{insert_suspension/3}{../bips/kernel/suspensions/insert_suspension-3.html}]
 Insert the suspension \about{Susp} into the \about{Index}'th
 suspension list of all attributed variables occurring in \about{Vars}.
 The current module specifies which of the attributes will be taken.
 
-\item[\biptxtref{insert_suspension(%
-\pattern{Vars},~\pattern{Susp},~\pattern{Index},~\pattern{Module})}%
-{insert_suspension/4}{../bips/kernel/suspensions/insert_suspension-4.html}]
+\item[\biptxtref{insert_suspension(\pattern{Vars},~\pattern{Susp},~\pattern{Index},~\pattern{Module})}{insert_suspension/4}{../bips/kernel/suspensions/insert_suspension-4.html}]
 Similar to the above,
 but it inserts the suspension into the attribute specified by \about{Module}.
 \end{description}
@@ -1140,14 +1120,12 @@ locate the attribute which corresponds to the current module or the
 This attribute must be a structure, otherwise an error
 is raised, which means that the attribute has to be initialized
 before calling
-\biprefni{insert_suspension/4,3}%
-{../bips/kernel/suspensions/insert_suspension-4.html}.%
+\biprefni{insert_suspension/4,3}{../bips/kernel/suspensions/insert_suspension-4.html}.%
 \indextt{insert_suspension/3}\indextt{insert_suspension/4}
 Finally, the \about{Index}'th argument of the attribute
 is interpreted as a suspension list and the suspension
 \about{Susp} is inserted at the beginning of this list.
-%\bipref{insert_suspension/3}%
-%{../bips/kernel/suspensions/insert_suspension-3.html}
+%\bipref{insert_suspension/3}{../bips/kernel/suspensions/insert_suspension-3.html}
 %also recognises suspension
 %lists which are difference lists, i.e., terms {\it Start - Tail}.
 A more user-friendly interface to access suspension lists is
@@ -1167,34 +1145,22 @@ For the implementation of user-defined suspension lists,
 the following low-level primitives are provided:
 \begin{quote}
 \begin{description}
-\item[\biptxtref{init_suspension_list(%
-+\pattern{Position},~+\pattern{Attribute})}%
-{init_suspension_list/2}%
-{../bips/kernel/suspensions/init_suspension_list-2.html}]
+\item[\biptxtref{init_suspension_list(+\pattern{Position},~+\pattern{Attribute})}{init_suspension_list/2}{../bips/kernel/suspensions/init_suspension_list-2.html}]
     Initializes argument \about{Position} of \about{Attribute} to an empty
     suspension list.
-\item[\biptxtref{merge_suspension_lists(%
-+\pattern{Pos1},~+\pattern{Attr},~+\pattern{Pos2},~+\pattern{Attr2})}%
-{merge_suspension_lists/4}%
-{../bips/kernel/suspensions/merge_suspension_lists-4.html}]
+\item[\biptxtref{merge_suspension_lists(+\pattern{Pos1},~+\pattern{Attr},~+\pattern{Pos2},~+\pattern{Attr2})}{merge_suspension_lists/4}{../bips/kernel/suspensions/merge_suspension_lists-4.html}]
     Appends the first of two suspension lists (argument
     \about{Pos1} of
     \about{Attr1}) to
     the end of the second (argument \about{Pos2} of \about{Attr2}). NOTE: The
     append is destructive, i.e., the second list is modified.
-\item[\biptxtref{enter_suspension_list(%
-+\pattern{Pos},~+\pattern{Attr},~+\pattern{Susp})}%
-{enter_suspension_list/3}%
-{../bips/kernel/suspensions/enter_suspension_list-3.html}]
+\item[\biptxtref{enter_suspension_list(+\pattern{Pos},~+\pattern{Attr},~+\pattern{Susp})}{enter_suspension_list/3}{../bips/kernel/suspensions/enter_suspension_list-3.html}]
     Adds the suspension \about{Susp} to the suspension list in the
     argument position \about{Pos} of \about{Attr}. The suspension list can be
     pre-existing,
     or the argument could be uninstantiated, in which case a new suspension
     list will be created.
-\item[\biptxtref{schedule_suspensions(%
-+\pattern{Position},~+\pattern{Attribute})}%
-{schedule_suspensions/2}%
-{../bips/kernel/suspensions/schedule_suspensions-2.html}]
+\item[\biptxtref{schedule_suspensions(+\pattern{Position},~+\pattern{Attribute})}{schedule_suspensions/2}{../bips/kernel/suspensions/schedule_suspensions-2.html}]
     Takes the suspension list on argument position \about{Position} within
     \about{Attribute}, and schedule them for execution.
     As a side effect, the suspension list within \about{Attribute} is updated,
@@ -1210,13 +1176,10 @@ the following low-level primitives are provided:
 \index{symbolic waking condition}
 A single suspension or a list of suspensions can be attached to a
 symbolic trigger by using
-\biptxtref{attach_suspensions(+\pattern{Trigger},~+\pattern{Susps})}%
-{attach_suspensions/2}{../bips/kernel/suspensions/attach_suspensions-2.html}.
+\biptxtref{attach_suspensions(+\pattern{Trigger},~+\pattern{Susps})}{attach_suspensions/2}{../bips/kernel/suspensions/attach_suspensions-2.html}.
 A symbolic trigger can have an arbitrary name (an atom).
 %To ``pull the trigger''
-%\biptxtref{schedule_suspensions(+Trigger)}%
-%{schedule_suspensions/1}%
-%{../bips/kernel/suspensions/schedule_suspensions-1.html}
+%\biptxtref{schedule_suspensions(+Trigger)}{schedule_suspensions/1}{../bips/kernel/suspensions/schedule_suspensions-1.html}
 %is used which will submit all attached suspensions to the waking scheduler.
 
 
@@ -1231,23 +1194,19 @@ in which they occur to the waking scheduler.
 The waking scheduler which maintains a global priority queue inserts
 them into this queue according to their priority (see figure \ref{figresolv}).
 A suspension list can be passed to the scheduler by either of the predicates
-\bipref{schedule_suspensions/1}%
-{../bips/kernel/suspensions/schedule_suspensions-1.html}
+\bipref{schedule_suspensions/1}{../bips/kernel/suspensions/schedule_suspensions-1.html}
 (for triggers)
 or
-\bipref{schedule_suspensions/2}%
-{../bips/kernel/suspensions/schedule_suspensions-2.html}
+\bipref{schedule_suspensions/2}{../bips/kernel/suspensions/schedule_suspensions-2.html}
 (for uder-defined suspension lists).
 A suspension which has been scheduled in this way and awaits
 its execution is called a
 \defnotion{scheduled suspension}\index{suspension!scheduled}.
 
 Note, however, that scheduling a suspension by means of
-\bipref{schedule_suspensions/1}%
-{../bips/kernel/suspensions/schedule_suspensions-1.html}
+\bipref{schedule_suspensions/1}{../bips/kernel/suspensions/schedule_suspensions-1.html}
 or
-\bipref{schedule_suspensions/2}%
-{../bips/kernel/suspensions/schedule_suspensions-2.html}
+\bipref{schedule_suspensions/2}{../bips/kernel/suspensions/schedule_suspensions-2.html}
 alone does not implicitly start the waking scheduler.
 Instead, execution continues normally with the next goal in sequence after
 \predspec{schedule_suspensions/1,2}.
@@ -1357,8 +1316,7 @@ with priority higher than that of the current goal.
 \subsection{Changing Priority Explicitly}
 It is also possible to execute a goal with a given priority
 by means of
-\biptxtref{call_priority(\pattern{Goal},~\pattern{Prio})}%
-{call_priority/2}{../bips/kernel/suspensions/call_priority-2.html}
+\biptxtref{call_priority(\pattern{Goal},~\pattern{Prio})}{call_priority/2}{../bips/kernel/suspensions/call_priority-2.html}
 which calls \about{Goal} with the priority \about{Prio}.
 When a goal is called this way with high priority, it is effectively
 made atomic, i.e., it will not be interrupted by goals with lower priority

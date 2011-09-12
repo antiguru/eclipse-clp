@@ -383,8 +383,7 @@ Refer to the operating system documentation for details.
 The way to deal with incoming signals is to define a Prolog or external
 predicate and declare it as the interrupt handler for this interrupt
 (using
-\bipref{set_interrupt_handler/2}%
-{../bips/kernel/event/set_interrupt_handler-2.html}).
+\bipref{set_interrupt_handler/2}{../bips/kernel/event/set_interrupt_handler-2.html}).
 Interrupt handlers can be established for all signals except those that are
 not allowed to be caught by the process (like e.g., the \notation{kill} signal
 9).

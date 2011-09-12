@@ -85,7 +85,7 @@ top -->
 	latexarg(BipList),	% consumes closing }
 	{
 	    string_list(BipString, BipList),
-	    emit_bipref(BipString)
+	    emit_bipref([], "bipref", BipString)
 	},
 	!,
 	top.
@@ -97,7 +97,7 @@ top -->
 	{
 	    string_list(BipString, BipList),
 	    string_list(TextString, TextList),
-	    emit_bipref(TextString, "biptxt", BipString)
+	    emit_bipref([], TextString, "biptxtref", BipString)
 	},
 	!,
 	top.
@@ -109,16 +109,16 @@ top -->
 	{
 	    string_list(BipString, BipList),
 	    string_list(TextString, TextList),
-	    emit_bipref(TextString, "txtbip", BipString)
+	    emit_bipref([], TextString, "txtbipref", BipString)
 	},
 	!,
 	top.
 %top -->
 %	`{\\bf `,
 %	latexarg(BipList),	% consumes closing }
-%	{
+%	{≈o
 %	    string_list(BipString, BipList),
-%	    emit_bipref(BipString)
+%	    emit_bipref([], BipString)
 %	},
 %	!,
 %	top.
@@ -126,10 +126,32 @@ top -->
 	`\\bipref{`,
 	latexarg(BipList),	% consumes closing }
 	`{`,
-	latexarg(_OldUrl),
+	latexarg(OldUrlList),
 	{
 	    string_list(BipString, BipList),
-	    emit_bipref(BipString)
+	    emit_bipref(OldUrlList, "bipref", BipString)
+	},
+	!,
+	top.
+top -->
+	`\\biprefni{`,
+	latexarg(BipList),	% consumes closing }
+	`{`,
+	latexarg(OldUrlList),
+	{
+	    string_list(BipString, BipList),
+	    emit_bipref(OldUrlList, "biprefni", BipString)
+	},
+	!,
+	top.
+top -->
+	`\\biprefnoidx{`,
+	latexarg(BipList),	% consumes closing }
+	`{`,
+	latexarg(OldUrlList),
+	{
+	    string_list(BipString, BipList),
+	    emit_bipref(OldUrlList, "biprefnoidx", BipString)
 	},
 	!,
 	top.
@@ -139,25 +161,25 @@ top -->
 	`{`,
 	latexarg(BipList),	% consumes closing }
 	`{`,
-	latexarg(_OldUrl),
+	latexarg(OldUrlList),
 	{
 	    string_list(BipString, BipList),
 	    string_list(TextString, TextList),
-	    emit_bipref(TextString, "biptxt", BipString)
+	    emit_bipref(OldUrlList, TextString, "biptxtref", BipString)
 	},
 	!,
 	top.
 top -->
-	`\\txtbipref{`,
+	`\\biptxtrefni{`,
 	latexarg(TextList),	% consumes closing }
 	`{`,
 	latexarg(BipList),	% consumes closing }
 	`{`,
-	latexarg(_OldUrl),
+	latexarg(OldUrlList),
 	{
 	    string_list(BipString, BipList),
 	    string_list(TextString, TextList),
-	    emit_bipref(TextString, "txtbip", BipString)
+	    emit_bipref(OldUrlList, TextString, "biptxtrefni", BipString)
 	},
 	!,
 	top.
@@ -168,46 +190,91 @@ top -->
 top --> [].
 
 latexarg([]) --> `}`, !.
+latexarg([0'{|Cs]) --> `{`, !, latexarg1(Cs, Cs1), latexarg(Cs1). 
 latexarg([C|Cs]) --> [C], latexarg(Cs).
 
+% consume recursively to a matching }
+latexarg1([0'}|Cs], Cs) --> `}`, !.
+latexarg1([0'{|Cs0], Cs) --> `{`, latexarg1(Cs0, Cs1), latexarg1(Cs1, Cs).  
+latexarg1([C|Cs0], Cs) --> [C], latexarg1(Cs0, Cs).
 
-emit_bipref(BipString) :-
+process_bip_spec((N0/A0), N, A, _) ?- !, N0 = N, A0 = A.
+process_bip_spec((N0/A0,_), N, A, _) ?- !, N0 = N, A0 = A.
+process_bip_spec((SubGroup0:N0/A0), N, A, SubGroup) ?- !, 
+        N0 = N, A0 = A, SubGroup0 = SubGroup.
+process_bip_spec(!(N0/A0,SubGroup0), N, A, SubGroup) ?- !, 
+        N0 = N, A0 = A, SubGroup0 = SubGroup.
+process_bip_spec(library(Name), N, A, _) ?- !,
+        N = Name, A = index.
+process_bip_spec(lib(Name), N, A, _) ?- !,
+        N = Name, A = index.
+process_bip_spec(Name, N, A, _) ?- atomic(Name), !,
+        N = Name, A = index.
+
+emit_bipref(OldUrl, BipTxtType, BipString) :-
 	try_term_string(Bip, BipString),
-	( Bip = (N/A) ; Bip = (SubGroup:N/A) ; Bip = (N/A,_) ),
+        process_bip_spec(Bip, N, A, SubGroup), % may fail
 	nonvar(N), nonvar(A),
-	findbip(N, A, Group, SubGroup, File0),
+	findbip(N, A, SubGroup, BipInfo),
 	!,
-	( File0=='' -> File = index ; File = File0 ),
-	concat_string([Group,/,SubGroup,/,File,".html"], HtmlFile),
-	printf(out, "\\bipref{%s}{../bips/%s}", [BipString,HtmlFile]).
-emit_bipref(BipString) :-
+        select_bip_info(N, A, OldUrl, SubGroup, BipInfo, HtmlFile),
+	printf(out, "\\%s{%s}{%s}", [BipTxtType,BipString,HtmlFile]).
+emit_bipref(_, BipString) :-
 	printf("*** Could not find %s%n", [BipString]),
 	fail.
 
-emit_bipref(Text, BipTxtType, BipString) :-
+emit_bipref(OldUrl, Text, BipTxtType, BipString) :-
 	try_term_string(Bip, BipString),
-	( Bip = (N/A) ; Bip = (SubGroup:N/A) ; Bip = (N/A,_) ),
+        process_bip_spec(Bip, N, A, SubGroup), % may fail
 	nonvar(N), nonvar(A),
-        findbip(N, A, Group, SubGroup, File0),
+%        findbip(N, A, Group, SubGroup, File0),
+        findbip(N, A, SubGroup, BipInfo),
 	!,
-	( File0=='' -> File = index ; File = File0 ),
-	concat_string([Group,/,SubGroup,/,File,".html"], HtmlFile),
-	printf(out, "\\%sref{%s}{%s}{../bips/%s}", [BipTxtType,Text,BipString,HtmlFile]).
-emit_bipref(_, _, BipString) :-
+        select_bip_info(N, A, OldUrl, SubGroup, BipInfo, HtmlFile),
+	printf(out, "\\%s{%s}{%s}{%s}", [BipTxtType,Text,BipString,HtmlFile]).
+emit_bipref(_, _, _, BipString) :-
 	printf("*** Could not find %s%n", [BipString]),
 	fail.
 
-findbip(N, A, Group, SubGroup, File) :-
-        (var(SubGroup) -> UnkSubG = yes ; UnkSubG = no),
-	findall(f(File0,Group0,SubGroup), bip(N, A, Group0, SubGroup, File0), 
-                [f(File,Group,SubGroup)|Tail]),
+select_bip_info(N, A, OldUrl, SubGroup, BipInfo, HtmlFile) :-
+        ( OldUrl == [] ->
+            select_one_bip_info_and_warn(N, A, SubGroup, BipInfo, HtmlFile)
+        ;
+            string_list(OldUrlString, OldUrl),
+            ( match_bip_info(BipInfo, OldUrlString) ->
+                % found a match in BipInfo to OldUrl, use the OldUrl
+                HtmlFile = OldUrlString
+            ;
+                select_one_bip_info_and_warn(N, A, SubGroup, BipInfo, HtmlFile)
+            )
+        ).
+
+match_bip_info([f(File,Group,SubGroup)|Tail], OldUrlString) :-
+        make_html_file(File, Group, SubGroup, HtmlFile),
+        ( HtmlFile == OldUrlString -> 
+            true
+        ;
+            match_bip_info(Tail, OldUrlString)
+        ).
+
+make_html_file(File0, Group, SubGroup, HtmlFile) :-
+        ( File0=='' -> File = index ; File = File0 ),
+        concat_string(["../bips/",Group,/,SubGroup,/,File,".html"], HtmlFile).
+            
+select_one_bip_info_and_warn(N, A, SubGroup0, [f(File,Group,SubGroup)|Tail], HtmlFile) :-
+        (var(SubGroup0) -> UnkSubG = yes ; UnkSubG = no),
         (Tail == [] -> true
         ;
          UnkSubG == no -> printf("*** More than one predicate match %w:%w/%w%n*** Group %w used.%n", [SubGroup,N,A,Group])
         ;
          UnkSubG == yes, printf("*** More than one predicate match %w/%w%n*** Group %w-%w used.%n", [N,A,Group,SubGroup])
-        ).
+        ),
+        make_html_file(File, Group, SubGroup, HtmlFile).
         
+        
+findbip(N, A, SubGroup, BipInfo) :-   % Group, SubGroup, File) :-
+        findall(f(File0,Group0,SubGroup), bip(N, A, Group0, SubGroup, File0), BipInfo),
+        BipInfo = [_|_]. % at least one match
 
 try_term_string(T, S) :-
 	set_error_handler(114, fail/0),
@@ -221,6 +288,7 @@ try_term_string(T, S) :-
 	current_op(Prec3,Assoc3,(:)), !,
 	op(1200,yfx,(',')),
 	op(1199,yfx,(:)),
+	op(1199,yfx,(!)),
 	op(1198,yfx,(/)),
 	set_flag(macro_expansion,off),
 	( term_string(T, S) ->

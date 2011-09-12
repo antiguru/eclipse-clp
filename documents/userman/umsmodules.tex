@@ -356,7 +356,7 @@ example when multiple versions of the predicate are needed,
 or when the presence of a local definition makes it impossible
 to import a predicate of the same name from elsewhere.
 A call with explicit module qualification is done using
-\bipref{:/2}{../bips/kernel/control/N-2.html}
+\txtbipref{:/2}{(:)/2}{../bips/kernel/control/N-2.html}
 and looks like this:
 \begin{quote}
 \begin{verbatim}
@@ -378,7 +378,7 @@ often be necessary to use brackets, e.g., in
 \end{verbatim}
 \end{quote}
 
-The \bipref{:/2}{../bips/kernel/control/N-2.html} primitive can be used to
+The \txtbipref{:/2}{(:)/2}{../bips/kernel/control/N-2.html} primitive can be used to
 resolve import conflicts,
 i.e., the case where the same name is exported from more than one
 module and both are needed. In this case, none of the conflicting
@@ -601,7 +601,7 @@ This caller module is then used by \predspec{twice/2} to execute
 \end{verbatim}
 \end{quote}
 The
-\biprefnoidx{call(Goal)@Module}{../bips/kernel/control/A-2.html}%
+\txtbipref{call(Goal)@Module}{(@)/2}{../bips/kernel/control/A-2.html}%
 \index{\atsym/2@\notation{"@/2}} construct means that the call is supposed
 to happen \emph{in the context} of module main.
 
@@ -647,7 +647,7 @@ so that they know from which module they have been called.
 In case that the built-in predicate has to be executed in
 a different module (this is very often the case inside
 user tool predicates), the
-\biptxtrefni{@/2}{\atsym/2}{../bips/kernel/control/A-2.html}%
+\txtbipref{@/2}{(@)/2}{../bips/kernel/control/A-2.html}%
 \index{\atsym/2@\notation{"@/2}}
 construct must be used, e.g.,
 \begin{quote}
@@ -668,9 +668,9 @@ without module specifications.
 There are only two basic rules to remember:
 \begin{quote}
 \begin{itemize}
-\item \bipref{:/2}{../bips/kernel/control/N-2.html}
+\item \txtbipref{:/2}{(:)/2}{../bips/kernel/control/N-2.html}
 	specifies the lookup module (to find the definition)
-\item \biprefnoidx{@/2}{../bips/kernel/control/A-2.html}%
+\item \biprefnoidx{@/2}{(@)/2}{../bips/kernel/control/A-2.html}%
 % need a separate index entry because latex evaluates \atsym too early
 % inside \bipref
 \index{\atsym/2@\notation{"@/2}}

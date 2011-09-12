@@ -20,7 +20,7 @@
 %
 % END LICENSE BLOCK
 %
-% $Id: umsexcept.tex,v 1.2 2009/12/14 17:49:15 kish_shen Exp $
+% $Id: umsexcept.tex,v 1.3 2011/09/12 19:20:10 kish_shen Exp $
 %
 % Created from umsexcept.tex
 %
@@ -517,7 +517,7 @@ otherwise it is identical to the fourth argument.\footnote{%
 
 \item The fourth argument is the lookup module for the culprit goal.  This
 is needed for example when the handler wants to call the culprit reliably,
-using a qualified call via \bipref{:/2}{../bips/kernel/control/N-2.html}.
+using a qualified call via \txtbipref{:/2}{(:)/2}{../bips/kernel/control/N-2.html}.
 \end{enumerate}
 
 The error handler is free to ignore some of these arguments,
@@ -616,7 +616,7 @@ valid_command(stop).
 %the existing procedure, which is what one wants
 %during the debugging phase.
 %We want to use the predicate
-%\bipref{retract_all/1}{../bips/kernel/dynamic/retract_all-1.html} to remove
+%\bipref{retract_all/1}{../bips/kernel/obsolete/retract_all-1.html} to remove
 %all existing clauses, however we have to use its body procedure
 %(it is a tool) to be able to access a predicate in an explicit module.
 %

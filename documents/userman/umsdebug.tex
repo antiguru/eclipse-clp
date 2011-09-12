@@ -20,7 +20,7 @@
 %
 % END LICENSE BLOCK
 %
-% $Id: umsdebug.tex,v 1.8 2009/12/14 17:49:14 kish_shen Exp $
+% $Id: umsdebug.tex,v 1.9 2011/09/12 19:20:10 kish_shen Exp $
 %
 
 \chapter{Debugging}
@@ -1869,25 +1869,19 @@ When inserted into the code, and when the debugger is on,
 they will cause execution to stop and enter the debugger,
 displaying a trace line with the user-defined port and data:
 \begin{itemize}
-\item \biptxtref{%
-trace_call_port(+\pattern{Port},~?\pattern{Invoc},~?\pattern{Term})}%
-{trace_call_port/3}{../bips/kernel/debug/trace_call_port-3.html}
+\item \biptxtref{trace_call_port(+\pattern{Port},~?\pattern{Invoc},~?\pattern{Term})}{trace_call_port/3}{../bips/kernel/debug/trace_call_port-3.html}
 	is used to create new ports similar to CALL ports, but the port name
 	can be chosen freely. Such a port creates a new box. There must be
 	a corresponding \predspec{trace_exit_port/0} to exit the box on
         success.
-\item \biptxtref{trace_exit_port}{trace_exit_port/0}%
-{../bips/kernel/debug/trace_exit_port-0.html}
+\item \biptxtref{trace_exit_port}{trace_exit_port/0}{../bips/kernel/debug/trace_exit_port-0.html}
 	is used in conjunction with \predspec{trace_call_port/3} to exit a box
 	on success.
-\item \biptxtref{%
-trace_point_port(+\pattern{Port},~?\pattern{Invoc},~?\pattern{Term})}%
-{trace_point_port/3}{../bips/kernel/debug/trace_point_port-3.html}
+\item \biptxtref{trace_point_port(+\pattern{Port},~?\pattern{Invoc},~?\pattern{Term})}{trace_point_port/3}{../bips/kernel/debug/trace_point_port-3.html}
 	is used to create a standalone port, i.e., a port that causes the
 	tracer to create a trace line, but does not create, enter or leave
 	any box.
-\item \biptxtref{trace_parent_port(+\pattern{Port})}{trace_parent_port/1}%
-{../bips/kernel/debug/trace_parent_port-1.html}
+\item \biptxtref{trace_parent_port(+\pattern{Port})}{trace_parent_port/1}{../bips/kernel/debug/trace_parent_port-1.html}
 	is used to create an additional port for the parent box, but does
 	not enter or leave the box.
 \end{itemize}

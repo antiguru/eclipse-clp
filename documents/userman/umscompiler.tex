@@ -67,41 +67,34 @@ The compiler is usually invoked by calling one of the following built-in
 predicates:
 \begin{quote}
 \begin{description}
-\item[\biptxtref{compile(\pattern{Source})}{compile/1}%
-{../bips/kernel/compiler/compile-1.html}]
+\item[\biptxtref{compile(\pattern{Source})}{compile/1}{../bips/kernel/compiler/compile-1.html}]
 This is the standard compiler predicate.
 Source is usually a file name, other forms are detailed below.
 The contents of the file is compiled with the default compiler options.
 
-\item[\biptxtref{compile(\pattern{Source},~\pattern{Options})}{compile/2}%
-{../bips/kernel/compiler/compile-2.html}]
+\item[\biptxtref{compile(\pattern{Source},~\pattern{Options})}{compile/2}{../bips/kernel/compiler/compile-2.html}]
 This is the standard compiler predicate.
 Source is usually a file name, other forms are detailed below.
 Options is a list of options to control the compilation process, see details
 below.
 
-\item[\biptxtref{[\pattern{File1},...,\pattern{FileN}]}{./2}%
-{../bips/kernel/compiler/D-2.html}]
+\item[\txtbipref{[\pattern{File1},...,\pattern{FileN}]}{(.)/2}{../bips/kernel/compiler/D-2.html}]
 This predicate can be used as a shorthand for the
 \bipref{compile/1}{../bips/kernel/compiler/compile-1.html}
 predicate.
 It accepts a list of files, which can be source files or precompiled files.
 
-\item[\biptxtref{compile_stream(\pattern{Stream})}{compile_stream/1}%
-{../bips/kernel/compiler/compile_stream-1.html}]
+\item[\biptxtref{compile_stream(\pattern{Stream})}{compile_stream/1}{../bips/kernel/compiler/compile_stream-1.html}]
 This predicate compiles a given, open stream up to its end
 or to the \notation{end_of_file} clause.
 It can be used when the input file is already open,
 e.g., when the beginning of the file does not contain
 compiler input.
 
-\item[\biptxtref{compile_stream(\pattern{Stream},~\pattern{Options})}%
-{compile_stream/2}%
-{../bips/kernel/compiler/compile_stream-2.html}]
+\item[\biptxtref{compile_stream(\pattern{Stream},~\pattern{Options})}{compile_stream/2}{../bips/kernel/compiler/compile_stream-2.html}]
 Like compile_stream/1 but with options list.
 
-\item[\biptxtref{compile_term(\pattern{Clauses})}{compile_term/1}%
-{../bips/kernel/compiler/compile_term-1.html}]
+\item[\biptxtref{compile_term(\pattern{Clauses})}{compile_term/1}{../bips/kernel/compiler/compile_term-1.html}]
 This predicate is used to compile a given term,
 usually a list of clauses and directives.
 Unlike \bipref{assert/1}{../bips/kernel/dynamic/assert-1.html} it compiles
@@ -109,9 +102,7 @@ a static procedure,
 and so it can be used to compile a procedure which is dynamically
 created and then used as a static one.
 
-\item[\biptxtref{compile_term(\pattern{Clauses},~\pattern{Options})}%
-{compile_term/2}%
-{../bips/kernel/compiler/compile_term-2.html}]
+\item[\biptxtref{compile_term(\pattern{Clauses},~\pattern{Options})}{compile_term/2}{../bips/kernel/compiler/compile_term-2.html}]
 Like \predspec{compile_term/2} but with options list.
 \end{description}
 \end{quote}
@@ -127,8 +118,7 @@ menu options or buttons.
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 Program source is usually contained in files.  The recommended file name
-\index{extension (file name)}\index{suffix (file name)}%
-\index{file name!extension}
+\index{extension (file name)}\index{suffix (file name)}\index{file name!extension}
 suffixes (extensions) are
 \begin{itemize}
 \item \notation{.ecl} for {\eclipse} specific source
@@ -420,47 +410,37 @@ Instead, the construct \notation{compile(File)@Module} must be used.
 The following is a list of the directives most commonly used in source files:
 \begin{quote}
 \begin{description}
-\item[\biptxtref{:- module(\pattern{Name}).}{module/1}%
-{../bips/kernel/modules/module-1.html}]
+\item[\biptxtref{:- module(\pattern{Name}).}{module/1}{../bips/kernel/modules/module-1.html}]
 Beginning of a module.
 
 \item[\biptxtref{%
-:- module(\pattern{Name},~\pattern{Exports},~\pattern{Dialect}).}{module/3}%
-{../bips/kernel/modules/module-3.html}]
+:- module(\pattern{Name},~\pattern{Exports},~\pattern{Dialect}).}{module/3}{../bips/kernel/modules/module-3.html}]
 Beginning of a module in a given dialect.
 
-\item[\biptxtref{:- local \pattern{Specs}.}{local/1}%
-{../bips/kernel/modules/local-1.html}]
+\item[\biptxtref{:- local \pattern{Specs}.}{local/1}{../bips/kernel/modules/local-1.html}]
 Declaration of local items, e.g., syntax settings, operators, global storage,
 etc.
 
-\item[\biptxtref{:- export \pattern{Specs}.}{export/1}%
-{../bips/kernel/modules/export-1.html}]
+\item[\biptxtref{:- export \pattern{Specs}.}{export/1}{../bips/kernel/modules/export-1.html}]
 Declaration of exported items, e.g., predicates, syntax settings, operators,
 etc.
 
-\item[\biptxtref{:- reexport \pattern{Specs}.}{reexport/1}%
-{../bips/kernel/modules/reexport-1.html}]
+\item[\biptxtref{:- reexport \pattern{Specs}.}{reexport/1}{../bips/kernel/modules/reexport-1.html}]
 Declaration of reexported items.
 
-\item[\biptxtref{:- import \pattern{Specs}.}{import/1}%
-{../bips/kernel/modules/import-1.html}]
+\item[\biptxtref{:- import \pattern{Specs}.}{import/1}{../bips/kernel/modules/import-1.html}]
 Declaration of imported modules or predicates.
 
-\item[\biptxtref{:- use_module(\pattern{Mods}).}{use_module/1}%
-{../bips/kernel/modules/use_module-1.html}]
+\item[\biptxtref{:- use_module(\pattern{Mods}).}{use_module/1}{../bips/kernel/modules/use_module-1.html}]
 Loading and importing of modules or libraries.
 
-\item[\biptxtref{:- lib(\pattern{Libs}).}{lib/1}%
-{../bips/kernel/modules/lib-1.html}]
+\item[\biptxtref{:- lib(\pattern{Libs}).}{lib/1}{../bips/kernel/compiler/lib-1.html}]
 Loading and importing of libraries.
 
-\item[\biptxtref{:- meta_attribute(\pattern{Name},~\pattern{Handlers})}%
-{meta_attribute/2}{../bips/kernel/termmanip/meta_attribute-2.html}]
+\item[\biptxtref{:- meta_attribute(\pattern{Name},~\pattern{Handlers})}{meta_attribute/2}{../bips/kernel/termmanip/meta_attribute-2.html}]
 Declare a variable attribute.
 
-\item[\biptxtref{:- comment(\pattern{Type},~\pattern{Info})}{comment/2}%
-{../bips/kernel/directives/comment-2.html}]
+\item[\biptxtref{:- comment(\pattern{Type},~\pattern{Info})}{comment/2}{../bips/kernel/directives/comment-2.html}]
 Structured program documentation.
 \end{description}
 \end{quote}
@@ -510,13 +490,11 @@ directives:
 
 \begin{quote}
 \begin{description}
-\item[\biptxtref{:- include(\pattern{Files}).}{include/1}%
-{../bips/kernel/directives/include-1.html}]
+\item[\biptxtref{:- include(\pattern{Files}).}{include/1}{../bips/kernel/directives/include-1.html}]
 The contents of the given Files are treated as if they occurred in place of
 the include directive.  Files is a single file name or a list of them.
 
-\item[\biptxtref{:- [\pattern{Files}].}{'.'/2}%
-{../bips/kernel/directives/D-2.html}]
+\item[\biptxtref{:- [\pattern{Files}].}{'.'/2}{../bips/kernel/compiler/D-2.html}]
 A synonym for the include/1 directive.  Note that the semantics of this
 construct when used as a directive (include semantics) differs slightly
 from its use as a goal or query (compiler/loader invocation).
@@ -712,20 +690,17 @@ are preferred if they can be found in the search path:
 
 \begin{quote}
 \begin{description}
-\item[\biptxtref{[\pattern{File1},...,\pattern{FileN}]}{./2}%
-{../bips/kernel/compiler/D-2.html}]
+\item[\txtbipref{[\pattern{File1},...,\pattern{FileN}]}{(.)/2}{../bips/kernel/compiler/D-2.html}]
 This predicate can be used as a shorthand for the \predspec{compile} predicate,
 usually in the interactive toplevel.
 It accepts a list of files, which can be source files or precompiled files.
 
-\item[\biptxtref{ensure_loaded(\pattern{Files})}{ensure_loaded/1}%
-{../bips/kernel/compiler/ensure_loaded-1.html}]
+\item[\biptxtref{ensure_loaded(\pattern{Files})}{ensure_loaded/1}{../bips/kernel/compiler/ensure_loaded-1.html}]
 This predicate compiles the specified file if it has not been compiled
 yet or if it has been modified since the last compilation.
 It can be used to load application code or system libraries.
 
-\item[\biptxtref{use_module(\pattern{Files})}{use_module/1}%
-{../bips/kernel/modules/use_module-1.html}]
+\item[\biptxtref{use_module(\pattern{Files})}{use_module/1}{../bips/kernel/modules/use_module-1.html}]
 A combination of \predspec{ensure_loaded/1} and \predspec{import/1}.
 
 \item[\biptxtref{lib(\pattern{Lib})}{lib/1}{../bips/kernel/compiler/lib-1.html}]
@@ -745,11 +720,9 @@ since their last compilation or loading.
 To implement reloading/recompiling when needed, the system keeps track of
 when a particular source files was compiled or precompiled file was loaded
 into memory.  This information can be accessed explicitly through
-\bipref{current_compiled_file/3}%
-{../bips/kernel/compiler/current_compiled_file-3.html}.
+\bipref{current_compiled_file/3}{../bips/kernel/compiler/current_compiled_file-3.html}.
 
-%\item[\biptxtref{assert(Clause)}{assert/1}%
-%{../bips/kernel/dynamic/assert-1.html}]
+%\item[\biptxtref{assert(Clause)}{assert/1}{../bips/kernel/dynamic/assert-1.html}]
 %\index{assert/1}
 %This predicate compiles the given clause of a dynamic predicate.
 
@@ -812,8 +785,7 @@ textual sources and term compilation:
 \end{itemize}
 
 A variant of \predspec{compile_term/2} is
-\bipref{compile_term_annotated/3}%
-{../bips/kernel/compiler/compile_term_annotated-3.html}
+\bipref{compile_term_annotated/3}{../bips/kernel/compiler/compile_term_annotated-3.html}
 which takes source terms with source position annotations.
 This can be used when compiling auxiliary code within inlining/goal
 expansions transformations, without losing the source position information
@@ -1067,13 +1039,12 @@ disjunction):
 \bipref{nonground/1}{../bips/kernel/typetest/nonground-1.html}.
 
 \item Explicit unification and value testing
-\txtbipref{=/2}{=/2}{../bips/kernel/termcomp/E-2.html},
-\txtbipref{==/2}{==/2}{../bips/kernel/termcomp/EE-2.html},
-\biprefnoidx{\bsl==/2}{../bips/kernel/termcomp/REE-2.html}%
+\txtbipref{=/2}{(=)/2}{../bips/kernel/termcomp/E-2.html},
+\txtbipref{==/2}{(==)/2}{../bips/kernel/termcomp/EE-2.html},
+\biprefnoidx{\bsl==/2}{'\\=='/2}{../bips/kernel/termcomp/REE-2.html}%
 \index{\bsl==/2@\bsl\notation{==/2}}
 and
-\biprefnoidx{\bsl=/2}%
-{../bips/kernel/termcomp/RE-2.html}\index{\bsl=/2@\bsl\notation{=/2}}.
+\biprefnoidx{\bsl=/2}{'\\='/2}{../bips/kernel/termcomp/RE-2.html}\index{\bsl=/2@\bsl\notation{=/2}}.
 
 \item Combinations of tests with
   \txtbipref{,/2}{','/2}{../bips/kernel/control/C-2.html},
@@ -1226,8 +1197,7 @@ more efficiently if the condition is an indexable built-in test.
 The {\eclipse} compiler is actually contained in the eclipse library
 \notation{lib(ecl_compiler)} which relies on a number of auxiliary modules.
 It uses
-\biptxtref{lib(source_processor)}{library(source_processor)}%
-{../bips/lib/source_processor/index.html}
+\biptxtref{lib(source_processor)}{library(source_processor)}{../bips/lib/source_processor/index.html}
 to read programs, and produces abstract
 machine code that is assembled using
 \biptxtref{lib(asm)}{library(asm)}{../bips/lib/asm/index.html}.
