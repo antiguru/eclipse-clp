@@ -62,7 +62,6 @@ EXPORTS
 	p_g_post_rel			@59
 	p_g_post_lwb			@60
 	p_g_post_upb			@61
-        p_g_propagate			@62
         p_g_check_val_is_in_var_domain	@63
         p_g_get_var_bounds		@64
         p_g_get_var_value		@65
@@ -85,4 +84,9 @@ EXPORTS
         p_g_get_var_domain_handle	@82
         p_g_add_newvar_copy		@83
 	p_g_link_newbools		@84
-	p_g_gecode_version		@85
+        p_g_propagate			@85
+        p_g_propagate_recompute		@86
+	p_g_stop_caching		@87
+	p_g_start_caching		@88
+	
+	p_g_gecode_version		@89
