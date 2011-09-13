@@ -42,6 +42,7 @@ public:
     GecodeSpace(void) : vInt(*this, 1, 0, 0), vBool(*this, 0, 0, 0), 
 			booltrue(*this, 1, 1), boolfalse(*this, 0, 0),
 			vCost(*this, 0, 0),
+			first(true),
 			valid_snapshot(false) {}
 
     std::vector<int>  dom_snapshot;
@@ -50,8 +51,13 @@ public:
     void clear_snapshot() {valid_snapshot = false;}
     bool snapshot_valid() {return valid_snapshot;}
 
+    void stop_caching() {first = false;}
+    void start_caching() {first = true;}
+    bool is_first() {return first;}
+
   GecodeSpace(bool share, GecodeSpace& s) : vInt(s.vInt.size()), vBool(s.vBool.size()),
 					    valid_snapshot(s.valid_snapshot),
+					    first(true),
 	                                    booltrue(*this, 1, 1), boolfalse(*this, 0, 0),
 					    Gecode::MinimizeSpace(share,s) {
 //	valid_snapshot = s.valid_snapshot;
@@ -75,6 +81,7 @@ public:
 
 private:
     bool valid_snapshot;
+    bool first;
 };
 
 enum SearchMethod {METHOD_COMPLETE, 

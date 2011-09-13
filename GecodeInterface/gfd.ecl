@@ -177,54 +177,54 @@ load_gfd_solver(Arch) :-
         external(g_add_newvar_copy/3, p_g_add_newvar_copy),
         external(g_add_newvars_as_bool/3, p_g_add_newvars_as_bool),
         external(g_link_newbools/2, p_g_link_newbools),
-        external(g_post_interval/5, p_g_post_interval),
-        external(g_post_var_interval_reif/6, p_g_post_var_interval_reif),
-        external(g_post_dom/4, p_g_post_dom),
-        external(g_post_var_dom_reif/5, p_g_post_var_dom_reif),
-        external(g_post_var_val_reif/5, p_g_post_var_val_reif),
-        external(g_post_setvar/4, p_g_post_setvar),
-        external(g_post_intrel_cstr/4, p_g_post_intrel_cstr),
-        external(g_post_bool_connectives/4, p_g_post_bool_connectives),
-        external(g_post_alldiff/4, p_g_post_alldiff),
-        external(g_post_alldiff_offsets/5, p_g_post_alldiff_offsets),
-        external(g_post_count/7, p_g_post_count),
-        external(g_post_gcc/6, p_g_post_gcc),
-        external(g_post_element/6, p_g_post_element),
-        external(g_post_sorted2/5, p_g_post_sorted2),
-        external(g_post_sorted/6, p_g_post_sorted),
-        external(g_post_sequence/8, p_g_post_sequence),
-        external(g_post_sequence_01/7, p_g_post_sequence_01),
-        external(g_post_circuit/4, p_g_post_circuit),
-        external(g_post_circuit_cost/7, p_g_post_circuit_cost),
-        external(g_post_disj/5, p_g_post_disj),
-        external(g_post_disjflex/6, p_g_post_disjflex),
-        external(g_post_cumulative/7, p_g_post_cumulative),
-        external(g_post_cumulativeflex/8, p_g_post_cumulativeflex),
-        external(g_post_cumulatives/9, p_g_post_cumulatives),
-        external(g_post_sum/6, p_g_post_sum),
-        external(g_post_lin/7, p_g_post_lin),
-        external(g_post_sum_reif/7, p_g_post_sum_reif),
-        external(g_post_lin_reif/8, p_g_post_lin_reif),
-        external(g_post_maxlist/5, p_g_post_maxlist),
-        external(g_post_minlist/5, p_g_post_minlist),
-        external(g_post_sqrt/5, p_g_post_sqrt),
-        external(g_post_sq/5, p_g_post_sq),
-        external(g_post_abs/5, p_g_post_abs),
-        external(g_post_div/5, p_g_post_div),
-        external(g_post_mult/6, p_g_post_mult),
-        external(g_post_mod/5, p_g_post_mod),
-        external(g_post_min2/6, p_g_post_min2),
-        external(g_post_max2/6, p_g_post_max2),
-        external(g_post_divmod/6, p_g_post_divmod),
-        external(g_post_boolchannel/6, p_g_post_boolchannel),
-        external(g_post_inverse/5, p_g_post_inverse),
-        external(g_post_inverse_offset/7, p_g_post_inverse_offset),
-        external(g_post_ordered/5, p_g_post_ordered),
-        external(g_post_rel/6, p_g_post_rel),
-        external(g_post_lex_order/6, p_g_post_lex_order),
-        external(g_post_bin_packing/5, p_g_post_bin_packing),
-        external(g_post_lwb/4, p_g_post_lwb),
-        external(g_post_upb/4, p_g_post_upb),
+        external(g_post_interval/4, p_g_post_interval),
+        external(g_post_var_interval_reif/5, p_g_post_var_interval_reif),
+        external(g_post_dom/3, p_g_post_dom),
+        external(g_post_var_dom_reif/4, p_g_post_var_dom_reif),
+        external(g_post_var_val_reif/4, p_g_post_var_val_reif),
+        external(g_post_setvar/3, p_g_post_setvar),
+        external(g_post_intrel_cstr/3, p_g_post_intrel_cstr),
+        external(g_post_bool_connectives/3, p_g_post_bool_connectives),
+        external(g_post_alldiff/3, p_g_post_alldiff),
+        external(g_post_alldiff_offsets/4, p_g_post_alldiff_offsets),
+        external(g_post_count/6, p_g_post_count),
+        external(g_post_gcc/5, p_g_post_gcc),
+        external(g_post_element/5, p_g_post_element),
+        external(g_post_sorted2/4, p_g_post_sorted2),
+        external(g_post_sorted/5, p_g_post_sorted),
+        external(g_post_sequence/7, p_g_post_sequence),
+        external(g_post_sequence_01/6, p_g_post_sequence_01),
+        external(g_post_circuit/3, p_g_post_circuit),
+        external(g_post_circuit_cost/6, p_g_post_circuit_cost),
+        external(g_post_disj/4, p_g_post_disj),
+        external(g_post_disjflex/5, p_g_post_disjflex),
+        external(g_post_cumulative/6, p_g_post_cumulative),
+        external(g_post_cumulativeflex/7, p_g_post_cumulativeflex),
+        external(g_post_cumulatives/8, p_g_post_cumulatives),
+        external(g_post_sum/5, p_g_post_sum),
+        external(g_post_lin/6, p_g_post_lin),
+        external(g_post_sum_reif/6, p_g_post_sum_reif),
+        external(g_post_lin_reif/7, p_g_post_lin_reif),
+        external(g_post_maxlist/4, p_g_post_maxlist),
+        external(g_post_minlist/4, p_g_post_minlist),
+        external(g_post_sqrt/4, p_g_post_sqrt),
+        external(g_post_sq/4, p_g_post_sq),
+        external(g_post_abs/4, p_g_post_abs),
+        external(g_post_div/4, p_g_post_div),
+        external(g_post_mult/5, p_g_post_mult),
+        external(g_post_mod/4, p_g_post_mod),
+        external(g_post_min2/5, p_g_post_min2),
+        external(g_post_max2/5, p_g_post_max2),
+        external(g_post_divmod/5, p_g_post_divmod),
+        external(g_post_boolchannel/5, p_g_post_boolchannel),
+        external(g_post_inverse/4, p_g_post_inverse),
+        external(g_post_inverse_offset/6, p_g_post_inverse_offset),
+        external(g_post_ordered/4, p_g_post_ordered),
+        external(g_post_rel/5, p_g_post_rel),
+        external(g_post_lex_order/5, p_g_post_lex_order),
+        external(g_post_bin_packing/4, p_g_post_bin_packing),
+        external(g_post_lwb/3, p_g_post_lwb),
+        external(g_post_upb/3, p_g_post_upb),
         external(g_propagate/4, p_g_propagate),
         external(g_check_val_is_in_var_domain/3, p_g_check_val_is_in_var_domain),
         external(g_get_var_bounds/4, p_g_get_var_bounds),
@@ -245,7 +245,10 @@ load_gfd_solver(Arch) :-
         external(g_get_gfd_maxint/1, p_g_get_gfd_maxint),
         external(g_get_gfd_minint/1, p_g_get_gfd_minint),
         external(g_get_var_domain_handle/3, p_g_get_var_domain_handle),
-
+        external(g_propagate_recompute/1, p_g_propagate_recompute),
+        external(g_stop_caching/1, p_g_stop_caching),
+        external(g_start_caching/1, p_g_start_caching),
+        
 	external(g_gecode_version/1, p_g_gecode_version),
 	g_gecode_version(Version),
         printf(log_output, "Loaded Gecode solver %s%n", [Version]).
@@ -268,6 +271,18 @@ load_gfd_solver(Arch) :-
 :- export gfd_handle_tr_out/2.
 gfd_handle_tr_out(gfd_prob{nvars:N},gfd_prob(nvars(N))).
 
+
+/* gfd_space{} is the ECLiPSe level representation of a Gecode 
+   computation state.  At the ECLiPSe level, a space is cloned 
+   (producing a new gfd_space{}) when the cloning condition is 
+   satisfied, and the new gfd_space{} is used for continuing
+   execution, with the old gfd_space{} becoming an "ancestor" of
+   the current one. The actual Gecode computation space pointed
+   to by a gfd_space{} can change, e.g. when backtracking undo 
+   changes to the computation state. In such cases, a new Gecode
+   computation space is needed, and this is done by cloning the
+   state from the nearest ancestor, and then recomputing the rest
+*/
 :- export struct( gfd_space(handle, stamp) ).
 
 :- export struct(
@@ -2681,9 +2696,11 @@ update_space_with_events(H) :-
         H = gfd_prob{events:Es,space:gfd_space{handle:SpH}},
 %        H = gfd_prob{nlevels:NL},
 %        writeln("******updating new clone, current level":NL-Es),
+        g_stop_caching(SpH),
         update_space_with_events1(Es, H),
         % no need to check Inst/Chg -- not updated with First=0
-        g_propagate(SpH, 0, _InstList, _ChgList).
+        g_propagate_recompute(SpH).
+%        g_propagate(SpH, 0, _InstList, _ChgList).
 
 
 update_space_with_events1([], _) :- 
@@ -2692,27 +2709,30 @@ update_space_with_events1([], _) :-
 update_space_with_events1([E|Es], H) :-
         update_space_with_events1(Es, H),
         % recomputing => First = 0
-        do_event(E, H, 0, _).
+        do_event(E, H, _).
         
 
 % posting an event that may have additional "auxillary" events
 post_new_event_with_aux(Es, EsTail, H) :-
         set_new_event(Es, EsTail0, H),
-        post_new_events1(Es, H, _First, DoProp),
+        H = gfd_prob{space:gfd_space{handle:SpH}},
+        post_new_events1(Es, SpH, DoProp),
+        g_start_caching(SpH),
         EsTail = EsTail0, % join posted events to head of events list 
         ( var(DoProp) -> true ; try_propagate(1, H), wake ).
 
 
-post_new_events1(Es, H, First, DoProp) :-
+post_new_events1(Es, SpH, DoProp) :-
         ( var(Es) -> % at end
-            First = 1
+            true
         ; 
             Es = [E|Es1],
             % do events in reverse order (as during recomputation)
             % and only first event done has First = 1
-            First = 0, 
-            post_new_events1(Es1, H, First1, DoProp),
-            do_event(E, H, First1, DoProp0), 
+            post_new_events1(Es1, SpH, DoProp),
+            do_event1(E, SpH, DoProp0),
+            g_stop_caching(SpH),
+%            (var(Es1) -> g_stop_caching(SpH) ; true),
             (DoProp0 == 1 -> DoProp = 1 ; true)
         ).
 
@@ -2728,7 +2748,7 @@ post_new_event(E, H) :-
 post_new_event_no_wake(E, H) :-
         Es = [E|ET],
         set_new_event(Es, ET, H),
-        do_event(E, H, 1, DoProp), % First = 1 (not recomputing)
+        do_event(E, H, DoProp), % First = 1 (not recomputing)
         try_propagate(DoProp, H).
 
 try_propagate(0, _).
@@ -2827,183 +2847,183 @@ update_space_if_cloned(0, _H).
    Handling of events should not assume that any arguments that are 
    variables in first execution will be variables during recomputation
 */
-do_event(E, H, First, DoProp) :-
+do_event(E, H, DoProp) :-
 %        writeln(doing-E-First),
         H = gfd_prob{space:gfd_space{handle:SpH}},
 %        arg(space of gfd_prob, H, Space),
 %        arg(handle of gfd_space, Space, SpH),
-        do_event1(E, SpH, First, DoProp).
+        do_event1(E, SpH, DoProp).
 
-do_event1(post_rc(ConLev, GExpr), SpH, First, DoProp) ?-
+do_event1(post_rc(ConLev, GExpr), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_intrel_cstr(SpH, First, GExpr, ConLev).
-do_event1(post_bool_connectives(ConLev, GBCon), SpH, First, DoProp) ?-
+        g_post_intrel_cstr(SpH, GExpr, ConLev).
+do_event1(post_bool_connectives(ConLev, GBCon), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_bool_connectives(SpH, First, GBCon, ConLev).
-do_event1(post_alldiff(ConLev, GArray), SpH, First, DoProp) ?-
+        g_post_bool_connectives(SpH, GBCon, ConLev).
+do_event1(post_alldiff(ConLev, GArray), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_alldiff(SpH, First, GArray, ConLev).
-do_event1(post_alldiff_offsets(ConLev, GArray, OArray), SpH, First, DoProp) ?-
+        g_post_alldiff(SpH, GArray, ConLev).
+do_event1(post_alldiff_offsets(ConLev, GArray, OArray), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_alldiff_offsets(SpH, First, GArray, OArray, ConLev).
-do_event1(post_count(ConLev, Value,GArray,Rel, N), SpH, First, DoProp) ?-
+        g_post_alldiff_offsets(SpH, GArray, OArray, ConLev).
+do_event1(post_count(ConLev, Value,GArray,Rel, N), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_count(SpH, First, Value, GArray, Rel, N, ConLev).
-do_event1(post_gcc(ConLev, Vals,Occs,GVs), SpH, First, DoProp) ?-
+        g_post_count(SpH, Value, GArray, Rel, N, ConLev).
+do_event1(post_gcc(ConLev, Vals,Occs,GVs), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_gcc(SpH, First, Vals, Occs, GVs, ConLev).
-do_event1(post_element(ConLev, GI,GArray,GValue), SpH, First, DoProp) ?-
+        g_post_gcc(SpH, Vals, Occs, GVs, ConLev).
+do_event1(post_element(ConLev, GI,GArray,GValue), SpH, DoProp) ?-
         DoProp =1,
-        g_post_element(SpH, First, GI, GArray, GValue, ConLev).
-do_event1(post_sequence(ConLev, Lo, Hi, K, VarArray, ValArray), SpH, First, DoProp) ?-
+        g_post_element(SpH, GI, GArray, GValue, ConLev).
+do_event1(post_sequence(ConLev, Lo, Hi, K, VarArray, ValArray), SpH, DoProp) ?-
         DoProp =1,
-        g_post_sequence(SpH, First, Lo, Hi, K, VarArray, ValArray, ConLev).
-do_event1(post_sequence_01(ConLev, Lo, Hi, K, VarArray), SpH, First, DoProp) ?-
+        g_post_sequence(SpH, Lo, Hi, K, VarArray, ValArray, ConLev).
+do_event1(post_sequence_01(ConLev, Lo, Hi, K, VarArray), SpH, DoProp) ?-
         DoProp =1,
-        g_post_sequence_01(SpH, First, Lo, Hi, K, VarArray, ConLev).
-do_event1(post_sorted2(ConLev, UsArray, SsArray), SpH, First, DoProp) ?-
+        g_post_sequence_01(SpH, Lo, Hi, K, VarArray, ConLev).
+do_event1(post_sorted2(ConLev, UsArray, SsArray), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_sorted2(SpH, First, UsArray, SsArray, ConLev).
-do_event1(post_sorted(ConLev, UsArray, SsArray, PsArray), SpH, First, DoProp) ?-
+        g_post_sorted2(SpH, UsArray, SsArray, ConLev).
+do_event1(post_sorted(ConLev, UsArray, SsArray, PsArray), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_sorted(SpH, First, UsArray, SsArray, PsArray, ConLev).
-do_event1(post_circuit(ConLev, SArray), SpH, First, DoProp) ?-
+        g_post_sorted(SpH, UsArray, SsArray, PsArray, ConLev).
+do_event1(post_circuit(ConLev, SArray), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_circuit(SpH, First, SArray, ConLev).
-do_event1(post_circuit_cost(ConLev, SArray, CMArray, ACArray, GCost), SpH, First, DoProp) ?-
+        g_post_circuit(SpH, SArray, ConLev).
+do_event1(post_circuit_cost(ConLev, SArray, CMArray, ACArray, GCost), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_circuit_cost(SpH, First, SArray, CMArray, ACArray, GCost, ConLev).
-do_event1(post_disj(StartArray,DurArray,SchArray), SpH, First, DoProp) ?-
+        g_post_circuit_cost(SpH, SArray, CMArray, ACArray, GCost, ConLev).
+do_event1(post_disj(StartArray,DurArray,SchArray), SpH, DoProp) ?-
         DoProp = 1,
         % ConLev not supported for this constraint
-        g_post_disj(SpH, First, StartArray, DurArray,SchArray).
-do_event1(post_disjflex(StartArray,DurArray,EndArray,SchArray), SpH, First, DoProp) ?-
+        g_post_disj(SpH, StartArray, DurArray, SchArray).
+do_event1(post_disjflex(StartArray,DurArray,EndArray,SchArray), SpH, DoProp) ?-
         DoProp = 1,
         % ConLev not supported for this constraint
-        g_post_disjflex(SpH, First, StartArray, DurArray, EndArray, SchArray).
-do_event1(post_cumulatives(Starts,Durations,Ends,Usages,Used,Limits,AtMost), SpH, First, DoProp) ?-
+        g_post_disjflex(SpH, StartArray, DurArray, EndArray, SchArray).
+do_event1(post_cumulatives(Starts,Durations,Ends,Usages,Used,Limits,AtMost), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_cumulatives(SpH, First, Starts, Durations, Ends, Usages, Used, Limits, AtMost).
-do_event1(post_cumulative(Starts,Durations,Usages,Limit,Schs), SpH, First, DoProp) ?-
+        g_post_cumulatives(SpH, Starts, Durations, Ends, Usages, Used, Limits, AtMost).
+do_event1(post_cumulative(Starts,Durations,Usages,Limit,Schs), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_cumulative(SpH, First, Starts, Durations, Usages, Limit, Schs).
-do_event1(post_cumulativeflex(Starts,Durations,Ends,Usages,Limit,Schs), SpH, First, DoProp) ?-
+        g_post_cumulative(SpH, Starts, Durations, Usages, Limit, Schs).
+do_event1(post_cumulativeflex(Starts,Durations,Ends,Usages,Limit,Schs), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_cumulativeflex(SpH, First, Starts, Durations, Ends, Usages, Limit, Schs).
-do_event1(post_interval(GArray,Lo,Hi), SpH, First, DoProp) ?-
+        g_post_cumulativeflex(SpH, Starts, Durations, Ends, Usages, Limit, Schs).
+do_event1(post_interval(GArray,Lo,Hi), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_interval(SpH, First, GArray, Lo, Hi).
-do_event1(post_var_interval_reif(GV,Lo,Hi,GBool), SpH, First, DoProp) ?-
+        g_post_interval(SpH, GArray, Lo, Hi).
+do_event1(post_var_interval_reif(GV,Lo,Hi,GBool), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_var_interval_reif(SpH, First, GV, Lo, Hi, GBool).
-do_event1(post_dom(GArray,DArray), SpH, First, DoProp) ?-
+        g_post_var_interval_reif(SpH, GV, Lo, Hi, GBool).
+do_event1(post_dom(GArray,DArray), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_dom(SpH, First, GArray, DArray).
-do_event1(post_var_dom_reif(GV,DArray,GBool), SpH, First, DoProp) ?-
+        g_post_dom(SpH, GArray, DArray).
+do_event1(post_var_dom_reif(GV,DArray,GBool), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_var_dom_reif(SpH, First, GV, DArray, GBool).
-do_event1(post_var_val_reif(GV,Value,GBool), SpH, First, DoProp) ?-
+        g_post_var_dom_reif(SpH, GV, DArray, GBool).
+do_event1(post_var_val_reif(GV,Value,GBool), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_var_val_reif(SpH, First, GV, Value, GBool).
-do_event1(newvars_interval(NV,Lo,Hi), SpH, _First, DoProp) ?-
+        g_post_var_val_reif(SpH, GV, Value, GBool).
+do_event1(newvars_interval(NV,Lo,Hi), SpH, DoProp) ?-
         DoProp = 0,
         g_add_newvars_interval(SpH, NV, Lo, Hi).
-do_event1(newvars_dom(NV,DArray), SpH, _First, DoProp) ?-
+do_event1(newvars_dom(NV,DArray), SpH, DoProp) ?-
         DoProp = 0,
         g_add_newvars_dom(SpH, NV, DArray).
-do_event1(newvars_dom_union(GX,GY,NV), SpH, _First, DoProp) ?-
+do_event1(newvars_dom_union(GX,GY,NV), SpH, DoProp) ?-
         DoProp = 0,
         g_add_newvars_dom_union(SpH, NV, GX, GY).
-do_event1(newboolvars(NV,VArr), SpH, _First, DoProp) ?-
+do_event1(newboolvars(NV,VArr), SpH, DoProp) ?-
         DoProp = 0,
         g_add_newvars_as_bool(SpH, NV, VArr).
-do_event1(connectnewbools(VArr), SpH, _First, DoProp) ?-
+do_event1(connectnewbools(VArr), SpH, DoProp) ?-
         DoProp = 0,
         g_link_newbools(SpH, VArr).
-do_event1(copyvar(NV,OldIdx), SpH, _First, DoProp) ?-
+do_event1(copyvar(NV,OldIdx), SpH, DoProp) ?-
         DoProp = 0,
         g_add_newvar_copy(SpH, NV, OldIdx).
-do_event1(setvar(Idx, Val), SpH, First, DoProp) ?-
+do_event1(setvar(Idx, Val), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_setvar(SpH, First, Idx, Val).
-do_event1(post_sum(ConLev, GArray, Rel, C), SpH, First, DoProp) ?-
+        g_post_setvar(SpH, Idx, Val).
+do_event1(post_sum(ConLev, GArray, Rel, C), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_sum(SpH, First, GArray, Rel, C, ConLev).
-do_event1(post_sum_reif(ConLev, GArray, Rel, C, GBool), SpH, First, DoProp) ?-
+        g_post_sum(SpH, GArray, Rel, C, ConLev).
+do_event1(post_sum_reif(ConLev, GArray, Rel, C, GBool), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_sum_reif(SpH, First, GArray, Rel, C, GBool, ConLev).
-do_event1(post_lin(ConLev, GArray, CArray, Rel, C), SpH, First, DoProp) ?-
+        g_post_sum_reif(SpH, GArray, Rel, C, GBool, ConLev).
+do_event1(post_lin(ConLev, GArray, CArray, Rel, C), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_lin(SpH, First, GArray, CArray, Rel, C, ConLev).
-do_event1(post_lin_reif(ConLev, GArray, CArray, Rel, C, GBool), SpH, First, DoProp) ?-
+        g_post_lin(SpH, GArray, CArray, Rel, C, ConLev).
+do_event1(post_lin_reif(ConLev, GArray, CArray, Rel, C, GBool), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_lin_reif(SpH, First, GArray, CArray, Rel, C, GBool, ConLev).
-do_event1(post_maxlist(ConLev, GV, GArray), SpH, First, DoProp) ?-
+        g_post_lin_reif(SpH, GArray, CArray, Rel, C, GBool, ConLev).
+do_event1(post_maxlist(ConLev, GV, GArray), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_maxlist(SpH, First, GV, GArray, ConLev).
-do_event1(post_minlist(ConLev, GV, GArray), SpH, First, DoProp) ?-
+        g_post_maxlist(SpH, GV, GArray, ConLev).
+do_event1(post_minlist(ConLev, GV, GArray), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_minlist(SpH, First, GV, GArray, ConLev).
-do_event1(post_sqrt(ConLev, GRes, GX), SpH, First, DoProp) ?-
+        g_post_minlist(SpH, GV, GArray, ConLev).
+do_event1(post_sqrt(ConLev, GRes, GX), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_sqrt(SpH, First, GRes, GX, ConLev).
-do_event1(post_sq(ConLev, GRes, GX,_Power), SpH, First, DoProp) ?-
+        g_post_sqrt(SpH, GRes, GX, ConLev).
+do_event1(post_sq(ConLev, GRes, GX,_Power), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_sq(SpH, First, GRes, GX, ConLev).
-do_event1(post_sq(ConLev, GRes, GX), SpH, First, DoProp) ?-
+        g_post_sq(SpH, GRes, GX, ConLev).
+do_event1(post_sq(ConLev, GRes, GX), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_sq(SpH, First, GRes, GX, ConLev).
-do_event1(post_abs(ConLev, GRes, GX), SpH, First, DoProp) ?-
+        g_post_sq(SpH, GRes, GX, ConLev).
+do_event1(post_abs(ConLev, GRes, GX), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_abs(SpH, First, GRes, GX, ConLev).
-do_event1(post_div(_ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
+        g_post_abs(SpH, GRes, GX, ConLev).
+do_event1(post_div(_ConLev, GRes, GX, GY), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_div(SpH, First, GRes, GX, GY).
-do_event1(post_mult(ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
+        g_post_div(SpH, GRes, GX, GY).
+do_event1(post_mult(ConLev, GRes, GX, GY), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_mult(SpH, First, GRes, GX, GY, ConLev).
-do_event1(post_mod(_ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
+        g_post_mult(SpH, GRes, GX, GY, ConLev).
+do_event1(post_mod(_ConLev, GRes, GX, GY), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_mod(SpH, First, GRes, GX, GY).
-do_event1(post_divmod(_ConLev, GX, GY, GQ, GM), SpH, First, DoProp) ?-
+        g_post_mod(SpH, GRes, GX, GY).
+do_event1(post_divmod(_ConLev, GX, GY, GQ, GM), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_divmod(SpH, First, GX, GY, GQ, GM).
-do_event1(post_min2(ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
+        g_post_divmod(SpH, GX, GY, GQ, GM).
+do_event1(post_min2(ConLev, GRes, GX, GY), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_min2(SpH, First, GRes, GX, GY, ConLev).
-do_event1(post_max2(ConLev, GRes, GX, GY), SpH, First, DoProp) ?-
+        g_post_min2(SpH, GRes, GX, GY, ConLev).
+do_event1(post_max2(ConLev, GRes, GX, GY), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_max2(SpH, First, GRes, GX, GY, ConLev).
-do_event1(post_rel(ConLev, GX, Rel, GY), SpH, First, DoProp) ?-
+        g_post_max2(SpH, GRes, GX, GY, ConLev).
+do_event1(post_rel(ConLev, GX, Rel, GY), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_rel(SpH, First, GX, Rel, GY, ConLev).
-do_event1(post_lwb(GV, Lwb), SpH, First, DoProp) ?-
+        g_post_rel(SpH, GX, Rel, GY, ConLev).
+do_event1(post_lwb(GV, Lwb), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_lwb(SpH, First, GV, Lwb).
-do_event1(post_upb(GV, Lwb), SpH, First, DoProp) ?-
+        g_post_lwb(SpH, GV, Lwb).
+do_event1(post_upb(GV, Lwb), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_upb(SpH, First, GV, Lwb).
-do_event1(newbool(Idx,BIdx), SpH, _First, DoProp) ?-
+        g_post_upb(SpH, GV, Lwb).
+do_event1(newbool(Idx,BIdx), SpH, DoProp) ?-
         DoProp = 0,
         g_add_newbool(SpH, Idx, BIdx).
-do_event1(post_boolchannel(ConLev,GV,GBArr,Min), SpH, First, DoProp) ?-
+do_event1(post_boolchannel(ConLev,GV,GBArr,Min), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_boolchannel(SpH, First, GV, GBArr, Min, ConLev).
-do_event1(post_inverse(ConLev,Arr1,Arr2), SpH, First, DoProp) ?-
+        g_post_boolchannel(SpH, GV, GBArr, Min, ConLev).
+do_event1(post_inverse(ConLev,Arr1,Arr2), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_inverse(SpH, First, Arr1, Arr2, ConLev).
-do_event1(post_inverse_offset(ConLev,Arr1,Off1,Arr2,Off2), SpH, First, DoProp) ?-
+        g_post_inverse(SpH, Arr1, Arr2, ConLev).
+do_event1(post_inverse_offset(ConLev,Arr1,Off1,Arr2,Off2), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_inverse_offset(SpH, First, Arr1, Off1, Arr2, Off2, ConLev).
-do_event1(post_ordered(ConLev,XArr,Rel), SpH, First, DoProp) ?-
+        g_post_inverse_offset(SpH, Arr1, Off1, Arr2, Off2, ConLev).
+do_event1(post_ordered(ConLev,XArr,Rel), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_ordered(SpH, First, XArr, Rel, ConLev).
-do_event1(post_lex_order(ConLev,XArr,Rel,YArr), SpH, First, DoProp) ?-
+        g_post_ordered(SpH, XArr, Rel, ConLev).
+do_event1(post_lex_order(ConLev,XArr,Rel,YArr), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_lex_order(SpH, First, XArr, Rel, YArr, ConLev).
-do_event1(post_bin_packing(IArr,SArr,LArr), SpH, First, DoProp) ?-
+        g_post_lex_order(SpH, XArr, Rel, YArr, ConLev).
+do_event1(post_bin_packing(IArr,SArr,LArr), SpH, DoProp) ?-
         DoProp = 1,
-        g_post_bin_packing(SpH, First, IArr, SArr, LArr).
+        g_post_bin_packing(SpH, IArr, SArr, LArr).
 /* not an event -- now called directly
 do_event1(propagate, SpH, First, DoProp) ?-
         DoProp = 0,
