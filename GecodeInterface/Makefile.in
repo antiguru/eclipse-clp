@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.12 2011/09/12 04:40:16 kish_shen Exp $
+# $Id: Makefile.in,v 1.13 2011/09/14 04:56:49 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -113,10 +113,22 @@ EXTRAFILES =
 
 endif
 
+# extra flag to avoid visibility warnings in Mac OS X
+ifeq ($(ARCH),x86_64_macosx)
+
+ADD_FLAGS= --visibility=hidden
+
+else
+  ifeq ($(ARCH),i386_macosx)
+
+ADD_FLAGS=$(LOCAL_FLAGS) --visibility=hidden
+  endif
+endif
+
 # gfd.so is stripped because file is very large before stripping 
 $(ARCH)/gfd.$(OBJ_SUFFIX): gfd.cpp gfd.hpp
 	[ -d $(ARCH) ] || mkdir $(ARCH)
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LOCAL_FLAGS) -I$(GECODE)/include gfd.cpp \
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(ADD_FLAGS) $(LOCAL_FLAGS) -I$(GECODE)/include gfd.cpp \
               -c -o $(ARCH)/gfd.o
 	$(DYLDCXX) $(DYNLDFLAGS)  -L$(GECODE)/lib $(ARCH)/gfd.o $(EXTRAFILES) \
              $(GECODELIBS) $(STDCXXLIB) $(ECLIBS) $(THREADLIB) -o $(ARCH)/gfd.$(OBJ_SUFFIX)
