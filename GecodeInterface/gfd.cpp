@@ -71,17 +71,17 @@ EC_argument(EC_word t, int i)
 }
 
 
-extern "C" stream_id log_output_, warning_output_, current_err_;
+extern "C" VisAtt stream_id log_output_, warning_output_, current_err_;
 
-extern "C" void ec_trail_undo(void(*f)(pword*,word*,int,int), pword*, pword*, word*, int, int);
+extern "C" VisAtt void ec_trail_undo(void(*f)(pword*,word*,int,int), pword*, pword*, word*, int, int);
 
-extern "C" int ec_flush(stream_id);
+extern "C" VisAtt int ec_flush(stream_id);
 
-extern "C" int p_fprintf(stream_id, const char*, ...);
+extern "C" VisAtt int p_fprintf(stream_id, const char*, ...);
 
 #if defined(WIN32)
 
-extern "C" stream_id Winapi ec_stream_id(int);
+extern "C" VisAtt stream_id Winapi ec_stream_id(int);
 # define log_output_ ec_stream_id(ec_stream_nr("log_output"))
 # define current_err_ ec_stream_id(ec_stream_nr("current_err"))
 
@@ -270,7 +270,7 @@ void cache_domain_sizes(GecodeSpace* solver) {
 
 }
 
-extern "C"
+extern "C" VisAtt 
 int p_g_init()
 {
     GecodeSpace** solverp = new GecodeSpace*;
@@ -279,7 +279,7 @@ int p_g_init()
     return unify(EC_arg(1), handle(&gfd_method, solverp));
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_trail_undo_for_event()
 {
     GecodeSpace** solverp;
@@ -298,7 +298,7 @@ int p_g_trail_undo_for_event()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_state_is_stable()
 {
     GecodeSpace** solverp;
@@ -316,7 +316,7 @@ int p_g_state_is_stable()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_check_handle()
 {
     // trail_undo cannot be done here, because this space handle may be cloned
@@ -350,7 +350,7 @@ int p_g_check_handle()
 }
 
 
-extern "C"
+extern "C" VisAtt
 int p_g_delete()
 {
     GecodeSpace** solverp;
@@ -363,7 +363,7 @@ int p_g_delete()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_value()
 {
     long idx;
@@ -388,7 +388,7 @@ int p_g_get_var_value()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_check_val_is_in_var_domain()
 {
     long idx, val;
@@ -413,7 +413,7 @@ int p_g_check_val_is_in_var_domain()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_bounds()
 {
     long idx;
@@ -441,7 +441,7 @@ int p_g_get_var_bounds()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_lwb()
 {
     long idx;
@@ -461,7 +461,7 @@ int p_g_get_var_lwb()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_update_and_get_var_bound()
 {
     long idx;
@@ -509,7 +509,7 @@ int p_g_update_and_get_var_bound()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_upb()
 {
     long idx;
@@ -529,7 +529,7 @@ int p_g_get_var_upb()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_domain_size()
 {
     long idx;
@@ -549,7 +549,7 @@ int p_g_get_var_domain_size()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_domain_width()
 {
     long idx;
@@ -569,7 +569,7 @@ int p_g_get_var_domain_width()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_median()
 {
     long idx;
@@ -589,7 +589,7 @@ int p_g_get_var_median()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_degree()
 {
     long idx;
@@ -609,7 +609,7 @@ int p_g_get_var_degree()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_afc()
 {
     long idx;
@@ -629,7 +629,7 @@ int p_g_get_var_afc()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_regret_lwb()
 {
     long idx;
@@ -649,7 +649,7 @@ int p_g_get_var_regret_lwb()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_regret_upb()
 {
     long idx;
@@ -669,7 +669,7 @@ int p_g_get_var_regret_upb()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_domain()
 {
     long idx;
@@ -717,7 +717,7 @@ int p_g_get_var_domain()
     return (unify(EC_arg(3), domlist));
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_add_newvars_interval()
 {
     GecodeSpace** solverp;
@@ -746,7 +746,7 @@ int p_g_add_newvars_interval()
 }
 
 
-extern "C"
+extern "C" VisAtt
 int p_g_add_newvars_as_bool()
 {
     // add new vars as booleans to problem -- add new IntVars and link them 
@@ -795,7 +795,7 @@ int p_g_add_newvars_as_bool()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_add_newbool()
 {
     GecodeSpace** solverp;
@@ -819,7 +819,7 @@ int p_g_add_newbool()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_link_newbools()
 {
     GecodeSpace** solverp;
@@ -864,7 +864,7 @@ int p_g_link_newbools()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_add_newvars_dom()
 {
     GecodeSpace** solverp;
@@ -1122,7 +1122,7 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
     throw Ec2gcException();
     }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_bool_connectives()
 {
     GecodeSpace** solverp;
@@ -1151,7 +1151,7 @@ int p_g_post_bool_connectives()
 }
 
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_intrel_cstr()
 {
     GecodeSpace** solverp;
@@ -1180,7 +1180,7 @@ int p_g_post_intrel_cstr()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_setvar()
 {
     GecodeSpace** solverp;
@@ -1229,7 +1229,7 @@ int p_g_post_setvar()
     } \
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_stop_caching()
 {
     GecodeSpace** solverp;
@@ -1245,7 +1245,7 @@ int p_g_stop_caching()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_start_caching()
 {
     GecodeSpace** solverp;
@@ -1261,7 +1261,7 @@ int p_g_start_caching()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_propagate_recompute()
 {
     GecodeSpace** solverp;
@@ -1282,7 +1282,7 @@ int p_g_propagate_recompute()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_propagate()
 {
     GecodeSpace** solverp;
@@ -1323,7 +1323,7 @@ int p_g_propagate()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_interval()
 {
     GecodeSpace** solverp;
@@ -1358,7 +1358,7 @@ int p_g_post_interval()
     return (solver->failed() ? EC_fail : EC_succeed);
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_var_interval_reif()
 {
     GecodeSpace** solverp;
@@ -1421,7 +1421,7 @@ int p_g_post_var_interval_reif()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_dom()
 {
     GecodeSpace** solverp;
@@ -1459,7 +1459,7 @@ int p_g_post_dom()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_var_dom_reif()
 {
     GecodeSpace** solverp;
@@ -1523,7 +1523,7 @@ int p_g_post_var_dom_reif()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_var_val_reif()
 {
     GecodeSpace** solverp;
@@ -1582,7 +1582,7 @@ int p_g_post_var_val_reif()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_sum()
 {
     GecodeSpace** solverp;
@@ -1640,7 +1640,7 @@ int p_g_post_sum()
     CatchAndReportGecodeExceptions
 }
  
-extern "C"
+extern "C" VisAtt
 int p_g_post_sum_reif()
 {
     GecodeSpace** solverp;
@@ -1710,7 +1710,7 @@ int p_g_post_sum_reif()
     CatchAndReportGecodeExceptions
 }
  
-extern "C"
+extern "C" VisAtt
 int p_g_post_lin()
 {
     GecodeSpace** solverp;
@@ -1775,7 +1775,7 @@ int p_g_post_lin()
     CatchAndReportGecodeExceptions
 }
  
-extern "C"
+extern "C" VisAtt
 int p_g_post_lin_reif()
 {
     GecodeSpace** solverp;
@@ -1852,7 +1852,7 @@ int p_g_post_lin_reif()
     CatchAndReportGecodeExceptions
 }
  
-extern "C"
+extern "C" VisAtt
 int p_g_post_alldiff()
 {
     GecodeSpace** solverp;
@@ -1883,7 +1883,7 @@ int p_g_post_alldiff()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_alldiff_offsets()
 {
     GecodeSpace** solverp;
@@ -1923,7 +1923,7 @@ int p_g_post_alldiff_offsets()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_count()
 {
     GecodeSpace** solverp;
@@ -1986,7 +1986,7 @@ int p_g_post_count()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_gcc()
 {
     GecodeSpace** solverp;
@@ -2035,7 +2035,7 @@ int p_g_post_gcc()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_element()
 {
     GecodeSpace** solverp;
@@ -2092,7 +2092,7 @@ int p_g_post_element()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_sequence()
 {
     GecodeSpace** solverp;
@@ -2140,7 +2140,7 @@ int p_g_post_sequence()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_sequence_01()
 {
     GecodeSpace** solverp;
@@ -2181,7 +2181,7 @@ int p_g_post_sequence_01()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_sorted2()
 {
     GecodeSpace** solverp;
@@ -2220,7 +2220,7 @@ int p_g_post_sorted2()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_sorted()
 {
     GecodeSpace** solverp;
@@ -2267,7 +2267,7 @@ int p_g_post_sorted()
 }
 
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_disj()
 {
     GecodeSpace** solverp;
@@ -2318,7 +2318,7 @@ int p_g_post_disj()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_disjflex()
 {
     GecodeSpace** solverp;
@@ -2376,7 +2376,7 @@ int p_g_post_disjflex()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_cumulatives()
 {
     GecodeSpace** solverp;
@@ -2441,7 +2441,7 @@ int p_g_post_cumulatives()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_cumulative()
 {
     GecodeSpace** solverp;
@@ -2501,7 +2501,7 @@ int p_g_post_cumulative()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_cumulativeflex()
 {
     GecodeSpace** solverp;
@@ -2567,7 +2567,7 @@ int p_g_post_cumulativeflex()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_circuit()
 {
     GecodeSpace** solverp;
@@ -2599,7 +2599,7 @@ int p_g_post_circuit()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_circuit_cost()
 {
     GecodeSpace** solverp;
@@ -2660,7 +2660,7 @@ int p_g_post_circuit_cost()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_sqrt()
 {
     GecodeSpace** solverp;
@@ -2704,7 +2704,7 @@ int p_g_post_sqrt()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_sq()
 {
     GecodeSpace** solverp;
@@ -2749,7 +2749,7 @@ int p_g_post_sq()
 }
 
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_abs()
 {
     GecodeSpace** solverp;
@@ -2791,7 +2791,7 @@ int p_g_post_abs()
 }
 
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_mult()
 {
     GecodeSpace** solverp;
@@ -2843,7 +2843,7 @@ int p_g_post_mult()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_div()
 {
     GecodeSpace** solverp;
@@ -2892,7 +2892,7 @@ int p_g_post_div()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_mod()
 {
     GecodeSpace** solverp;
@@ -2941,7 +2941,7 @@ int p_g_post_mod()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_divmod()
 {
     GecodeSpace** solverp;
@@ -2998,7 +2998,7 @@ int p_g_post_divmod()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_max2()
 {
     GecodeSpace** solverp;
@@ -3050,7 +3050,7 @@ int p_g_post_max2()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_min2()
 {
     GecodeSpace** solverp;
@@ -3102,7 +3102,7 @@ int p_g_post_min2()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_maxlist()
 {
     GecodeSpace** solverp;
@@ -3146,7 +3146,7 @@ int p_g_post_maxlist()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_minlist()
 {
     GecodeSpace** solverp;
@@ -3190,7 +3190,7 @@ int p_g_post_minlist()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_rel()
 {
     GecodeSpace** solverp;
@@ -3250,7 +3250,7 @@ int p_g_post_rel()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_lwb()
 {
     GecodeSpace** solverp;
@@ -3286,7 +3286,7 @@ int p_g_post_lwb()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_upb()
 {
     GecodeSpace** solverp;
@@ -3322,7 +3322,7 @@ int p_g_post_upb()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_boolchannel()
 {
     GecodeSpace** solverp;
@@ -3369,7 +3369,7 @@ int p_g_post_boolchannel()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_inverse()
 {
     GecodeSpace** solverp;
@@ -3408,7 +3408,7 @@ int p_g_post_inverse()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_inverse_offset()
 {
     GecodeSpace** solverp;
@@ -3453,7 +3453,7 @@ int p_g_post_inverse_offset()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_ordered()
 {
     GecodeSpace** solverp;
@@ -3496,7 +3496,7 @@ int p_g_post_ordered()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_lex_order()
 {
     GecodeSpace** solverp;
@@ -3547,7 +3547,7 @@ int p_g_post_lex_order()
     return EC_succeed;
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_post_bin_packing()
 {
     GecodeSpace** solverp;
@@ -3596,7 +3596,7 @@ int p_g_post_bin_packing()
 #define GFDSTATSIZE    5
 #define GFDCONTROLSIZE 2
 
-extern "C"
+extern "C" VisAtt
 int p_g_setup_search()
 {
     GecodeSpace** solverp;
@@ -3786,7 +3786,7 @@ int p_g_setup_search()
 }
 
 
-extern "C"
+extern "C" VisAtt
 int p_g_do_search()
 {
     GecodeSpace** solverp;
@@ -3901,20 +3901,20 @@ int p_g_do_search()
     CatchAndReportGecodeExceptions
 }
     
-extern "C"
+extern "C" VisAtt
 int p_g_get_gfd_maxint()
 {
     return unify(EC_arg(1), EC_word(Int::Limits::max));
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_gfd_minint()
 {
     return unify(EC_arg(1), EC_word(Int::Limits::min));
 }
 
 
-extern "C"
+extern "C" VisAtt
 int p_g_get_var_domain_handle()
 {
     GecodeSpace** solverp;
@@ -3945,7 +3945,7 @@ int p_g_get_var_domain_handle()
 
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_add_newvars_dom_union()
 {
     GecodeSpace** solverp;
@@ -4000,7 +4000,7 @@ int p_g_add_newvars_dom_union()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_add_newvar_copy()
 {
     GecodeSpace** solverp;
@@ -4033,7 +4033,7 @@ int p_g_add_newvar_copy()
     CatchAndReportGecodeExceptions
 }
 
-extern "C"
+extern "C" VisAtt
 int p_g_gecode_version()
 {
   return unify(EC_arg(1), EC_word(GECODE_VERSION));

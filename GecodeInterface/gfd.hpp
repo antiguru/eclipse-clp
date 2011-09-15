@@ -29,6 +29,17 @@
 */
 #include <vector>
 
+#if defined(__APPLE__) && defined(__MACH__)
+/* Mac OS X */
+
+# define VisAtt __attribute__((visibility ("default")))
+
+#else
+
+# define VisAtt
+
+#endif
+
 using namespace Gecode;
 
 class GecodeSpace : public Gecode::MinimizeSpace {
