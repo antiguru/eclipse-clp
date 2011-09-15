@@ -1450,11 +1450,13 @@ ec_to_gecode_arith_expr1(C, H, 0, N0,N, Bs0,Bs, Auxs0,AuxsT, GB, ConLev, Module)
 	process_domain_domain(Domain, NormalDomain, Module),
         (NormalDomain = [B..B] ->
             % singleton, just assign
+            !, % cut here as V = B might post events
             (foreach(V,NX), param(B) do V = B)
         ;
             process_domain_vars(NX, NormalDomain, H, NV0,NV, [],OldGVs, _),
+            !, % cut here to avoid posting events with a live choicepoint
             assign_domain(NormalDomain, H, NV, OldGVs)
-        ), !.
+        ).
 '::_body'(X, Domain, _Module) :-
         get_bip_error(E),
         error(E,(X :: Domain)).
