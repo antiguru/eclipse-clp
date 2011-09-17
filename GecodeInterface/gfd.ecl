@@ -2721,7 +2721,7 @@ post_new_event_with_aux(Es, EsTail, H) :-
         post_new_events1(Es, SpH, DoProp),
         g_start_caching(SpH),
         EsTail = EsTail0, % join posted events to head of events list 
-        ( var(DoProp) -> true ; try_propagate(1, H), wake ).
+        ( var(DoProp) -> true ; try_propagate(H), wake ).
 
 
 post_new_events1(Es, SpH, DoProp) :-
@@ -2732,10 +2732,9 @@ post_new_events1(Es, SpH, DoProp) :-
             % do events in reverse order (as during recomputation)
             % and only first event done has First = 1
             post_new_events1(Es1, SpH, DoProp),
-            do_event1(E, SpH, DoProp0),
-            g_stop_caching(SpH),
+            do_event1(E, SpH, DoProp),
+            g_stop_caching(SpH)
 %            (var(Es1) -> g_stop_caching(SpH) ; true),
-            (DoProp0 == 1 -> DoProp = 1 ; true)
         ).
 
 /* post_new_event call wake at the end, so that gfd_do_propagate will
@@ -2751,10 +2750,9 @@ post_new_event_no_wake(E, H) :-
         Es = [E|ET],
         set_new_event(Es, ET, H),
         do_event(E, H, DoProp), % First = 1 (not recomputing)
-        try_propagate(DoProp, H).
+        (DoProp == [] -> try_propagate(H) ; true).
 
-try_propagate(0, _).
-try_propagate(1, H) ?-
+try_propagate(H) :-
         H = gfd_prob{prop:Susp},
         schedule_suspensions(1, s([Susp])).
 
@@ -2793,7 +2791,7 @@ restore_space_if_needed(H, SpH) :-
         H = gfd_prob{space:gfd_space{handle:SpH},last_anc:Anc},
         % pass Anc rather than the C handle, because Anc can be []
         g_check_handle(SpH, Anc, Cloned),
-        update_space_if_cloned(Cloned, H).
+        ( Cloned == [] -> update_space_with_events(H) ; true).
 
 % should only be called with a new event
 check_and_update_ancestors(H) :-
@@ -2838,14 +2836,12 @@ trace_clone(H) :-
         H = gfd_prob{nlevels:N},
         printf("New ancestor, cloning at level %d...\n", [N]).
 
-update_space_if_cloned(1, H) :-
-        update_space_with_events(H).
-update_space_if_cloned(0, _H).
 
-/* do_event execute a Gecode event. This can be when the event is first
-   executed (First = 1), or when the state is being recomputed (First = 0).
-   DoProp is returned to indicate if propagation should be done after the
-   event (on first execution only). 
+/* do_event execute a Gecode event, either for the first time or
+   during recomputation. 
+   DoProp is set to [] to indicate if propagation should be done after the
+   event (used on first execution only).  [] is used as it is slightly
+   faster in type indexing.
    Handling of events should not assume that any arguments that are 
    variables in first execution will be variables during recomputation
 */
@@ -2857,174 +2853,174 @@ do_event(E, H, DoProp) :-
         do_event1(E, SpH, DoProp).
 
 do_event1(post_rc(ConLev, GExpr), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_intrel_cstr(SpH, GExpr, ConLev).
 do_event1(post_bool_connectives(ConLev, GBCon), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_bool_connectives(SpH, GBCon, ConLev).
 do_event1(post_alldiff(ConLev, GArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_alldiff(SpH, GArray, ConLev).
 do_event1(post_alldiff_offsets(ConLev, GArray, OArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_alldiff_offsets(SpH, GArray, OArray, ConLev).
 do_event1(post_count(ConLev, Value,GArray,Rel, N), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_count(SpH, Value, GArray, Rel, N, ConLev).
 do_event1(post_gcc(ConLev, Vals,Occs,GVs), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_gcc(SpH, Vals, Occs, GVs, ConLev).
 do_event1(post_element(ConLev, GI,GArray,GValue), SpH, DoProp) ?-
-        DoProp =1,
+        DoProp = [],
         g_post_element(SpH, GI, GArray, GValue, ConLev).
 do_event1(post_sequence(ConLev, Lo, Hi, K, VarArray, ValArray), SpH, DoProp) ?-
-        DoProp =1,
+        DoProp = [],
         g_post_sequence(SpH, Lo, Hi, K, VarArray, ValArray, ConLev).
 do_event1(post_sequence_01(ConLev, Lo, Hi, K, VarArray), SpH, DoProp) ?-
-        DoProp =1,
+        DoProp =[],
         g_post_sequence_01(SpH, Lo, Hi, K, VarArray, ConLev).
 do_event1(post_sorted2(ConLev, UsArray, SsArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_sorted2(SpH, UsArray, SsArray, ConLev).
 do_event1(post_sorted(ConLev, UsArray, SsArray, PsArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_sorted(SpH, UsArray, SsArray, PsArray, ConLev).
 do_event1(post_circuit(ConLev, SArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_circuit(SpH, SArray, ConLev).
 do_event1(post_circuit_cost(ConLev, SArray, CMArray, ACArray, GCost), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_circuit_cost(SpH, SArray, CMArray, ACArray, GCost, ConLev).
 do_event1(post_disj(StartArray,DurArray,SchArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         % ConLev not supported for this constraint
         g_post_disj(SpH, StartArray, DurArray, SchArray).
 do_event1(post_disjflex(StartArray,DurArray,EndArray,SchArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         % ConLev not supported for this constraint
         g_post_disjflex(SpH, StartArray, DurArray, EndArray, SchArray).
 do_event1(post_cumulatives(Starts,Durations,Ends,Usages,Used,Limits,AtMost), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_cumulatives(SpH, Starts, Durations, Ends, Usages, Used, Limits, AtMost).
 do_event1(post_cumulative(Starts,Durations,Usages,Limit,Schs), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_cumulative(SpH, Starts, Durations, Usages, Limit, Schs).
 do_event1(post_cumulativeflex(Starts,Durations,Ends,Usages,Limit,Schs), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_cumulativeflex(SpH, Starts, Durations, Ends, Usages, Limit, Schs).
 do_event1(post_interval(GArray,Lo,Hi), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_interval(SpH, GArray, Lo, Hi).
 do_event1(post_var_interval_reif(GV,Lo,Hi,GBool), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_var_interval_reif(SpH, GV, Lo, Hi, GBool).
 do_event1(post_dom(GArray,DArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_dom(SpH, GArray, DArray).
 do_event1(post_var_dom_reif(GV,DArray,GBool), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_var_dom_reif(SpH, GV, DArray, GBool).
 do_event1(post_var_val_reif(GV,Value,GBool), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_var_val_reif(SpH, GV, Value, GBool).
 do_event1(newvars_interval(NV,Lo,Hi), SpH, DoProp) ?-
-        DoProp = 0,
+        %DoProp = 0,
         g_add_newvars_interval(SpH, NV, Lo, Hi).
 do_event1(newvars_dom(NV,DArray), SpH, DoProp) ?-
-        DoProp = 0,
+        %DoProp = 0,
         g_add_newvars_dom(SpH, NV, DArray).
 do_event1(newvars_dom_union(GX,GY,NV), SpH, DoProp) ?-
-        DoProp = 0,
+        %DoProp = 0,
         g_add_newvars_dom_union(SpH, NV, GX, GY).
 do_event1(newboolvars(NV,VArr), SpH, DoProp) ?-
-        DoProp = 0,
+        %DoProp = 0,
         g_add_newvars_as_bool(SpH, NV, VArr).
 do_event1(connectnewbools(VArr), SpH, DoProp) ?-
-        DoProp = 0,
+        %DoProp = 0,
         g_link_newbools(SpH, VArr).
 do_event1(copyvar(NV,OldIdx), SpH, DoProp) ?-
-        DoProp = 0,
+        %DoProp = 0,
         g_add_newvar_copy(SpH, NV, OldIdx).
 do_event1(setvar(Idx, Val), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_setvar(SpH, Idx, Val).
 do_event1(post_sum(ConLev, GArray, Rel, C), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_sum(SpH, GArray, Rel, C, ConLev).
 do_event1(post_sum_reif(ConLev, GArray, Rel, C, GBool), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_sum_reif(SpH, GArray, Rel, C, GBool, ConLev).
 do_event1(post_lin(ConLev, GArray, CArray, Rel, C), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_lin(SpH, GArray, CArray, Rel, C, ConLev).
 do_event1(post_lin_reif(ConLev, GArray, CArray, Rel, C, GBool), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_lin_reif(SpH, GArray, CArray, Rel, C, GBool, ConLev).
 do_event1(post_maxlist(ConLev, GV, GArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_maxlist(SpH, GV, GArray, ConLev).
 do_event1(post_minlist(ConLev, GV, GArray), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_minlist(SpH, GV, GArray, ConLev).
 do_event1(post_sqrt(ConLev, GRes, GX), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_sqrt(SpH, GRes, GX, ConLev).
 do_event1(post_sq(ConLev, GRes, GX,_Power), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_sq(SpH, GRes, GX, ConLev).
 do_event1(post_sq(ConLev, GRes, GX), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_sq(SpH, GRes, GX, ConLev).
 do_event1(post_abs(ConLev, GRes, GX), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_abs(SpH, GRes, GX, ConLev).
 do_event1(post_div(_ConLev, GRes, GX, GY), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_div(SpH, GRes, GX, GY).
 do_event1(post_mult(ConLev, GRes, GX, GY), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_mult(SpH, GRes, GX, GY, ConLev).
 do_event1(post_mod(_ConLev, GRes, GX, GY), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_mod(SpH, GRes, GX, GY).
 do_event1(post_divmod(_ConLev, GX, GY, GQ, GM), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_divmod(SpH, GX, GY, GQ, GM).
 do_event1(post_min2(ConLev, GRes, GX, GY), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_min2(SpH, GRes, GX, GY, ConLev).
 do_event1(post_max2(ConLev, GRes, GX, GY), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_max2(SpH, GRes, GX, GY, ConLev).
 do_event1(post_rel(ConLev, GX, Rel, GY), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_rel(SpH, GX, Rel, GY, ConLev).
 do_event1(post_lwb(GV, Lwb), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_lwb(SpH, GV, Lwb).
 do_event1(post_upb(GV, Lwb), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_upb(SpH, GV, Lwb).
 do_event1(newbool(Idx,BIdx), SpH, DoProp) ?-
-        DoProp = 0,
+        %DoProp = 0,
         g_add_newbool(SpH, Idx, BIdx).
 do_event1(post_boolchannel(ConLev,GV,GBArr,Min), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_boolchannel(SpH, GV, GBArr, Min, ConLev).
 do_event1(post_inverse(ConLev,Arr1,Arr2), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_inverse(SpH, Arr1, Arr2, ConLev).
 do_event1(post_inverse_offset(ConLev,Arr1,Off1,Arr2,Off2), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_inverse_offset(SpH, Arr1, Off1, Arr2, Off2, ConLev).
 do_event1(post_ordered(ConLev,XArr,Rel), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_ordered(SpH, XArr, Rel, ConLev).
 do_event1(post_lex_order(ConLev,XArr,Rel,YArr), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_lex_order(SpH, XArr, Rel, YArr, ConLev).
 do_event1(post_bin_packing(IArr,SArr,LArr), SpH, DoProp) ?-
-        DoProp = 1,
+        DoProp = [],
         g_post_bin_packing(SpH, IArr, SArr, LArr).
 /* not an event -- now called directly
 do_event1(propagate, SpH, First, DoProp) ?-

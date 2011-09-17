@@ -342,11 +342,12 @@ int p_g_check_handle()
 	    *solverp = static_cast<GecodeSpace*>((*ancestorp)->clone());
 	}
 
-	return unify(EC_arg(3), EC_word(1));
+	// cloned -- instantiate arg(3) to []	
+	return unify(EC_arg(3), nil());
     } else {
-	// not cloned
-	return unify(EC_arg(3), EC_word(0));
-    }
+	// not cloned -- leave arg(3) uninstantiated
+	return EC_succeed;
+	}
 }
 
 
