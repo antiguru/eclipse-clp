@@ -257,13 +257,13 @@ load_gfd_solver(Arch) :-
         gfd_prob(
              cp_stamp,
              nvars,
-             nlevels,
              nevents,
              vars,
              prop,
              last_anc,
              space,
-             events   % store in reverse chronological order, i.e last first
+             events,
+             events_tail
         )
    ).
 
@@ -541,22 +541,13 @@ unify_term_gfd(Y{gfd:AttrY}, AttrX) ?-
         unify_gfd_gfd(Y, AttrX, AttrY).
 unify_term_gfd(X, Attr) :-
         integer(X),
-%        Attr = gfd{prob:H,idx:I},
         Attr = gfd{prob:H,set:S,idx:I},
-%        post_new_event(setvar(I, X), H).
-%        check_and_update_handle(H),
         schedule_suspensions(any of gfd, Attr),
         ( S == [] -> 
             true 
         ; 
             post_new_event_no_wake(setvar(I, X), H)
         ).
-/*        H = gfd_prob{space:gfd_space{handle:SpH}},
-        ( g_get_var_value(SpH, I, Y) -> % fail if not assigned
-            X == Y
-        ;
-            post_new_event(setvar(I, X), H)
-        ).*/
 
 unify_gfd_gfd(_Y, AttrX, AttrY) :-
         var(AttrY),
@@ -710,8 +701,13 @@ new_gecode_attr(X, H, N, BN, Attr) :-
 new_prob_handle(H) :-
         gfd_get_default(array_size, VSz),
         dim(VArr, [VSz]),
-        H = gfd_prob{nvars:0,last_anc:[],space:Sp,events:[],vars:VArr,
-                 nlevels:0,nevents:0, prop:Susp}, 
+        H = gfd_prob{nvars:0,last_anc:[],space:Sp,vars:VArr,
+                 nevents:0, prop:Susp},
+        % setarg/3 instead of arg/3 is used to initialise the events list
+        % to make sure the variable tail is not physically allocated
+        % inside the gfd_prob structure (idea taken from notify_port.ecl)
+        setarg(events_tail of gfd_prob, H, Tail),
+        setarg(events of gfd_prob, H, Tail),
         timestamp_update(H, cp_stamp of gfd_prob),
         make_suspension(gfd_do_propagate(H), 10, Susp),
         new_space_handle(Sp).
@@ -1719,7 +1715,7 @@ count_events1(Value, Vars, Rel0, N, ConLev, H, NV0,NV, Events, EventsT) :-
         ; var(N) ->
 	    Hi is arity(GArray),
 	    % GN will be in Gecode by the time this event is executed
-	    Events = [CEvent,post_interval([](GN), 0, Hi)|EventsT] 
+	    Events = [post_interval([](GN), 0, Hi),CEvent|EventsT] 
 %       ; fail
         ).
 
@@ -1782,7 +1778,7 @@ element_events1(Index, Collection, Value, IndexType, ConLev, H, NV0,NV, Es, EsT)
 	   Es = [EEvent|EsT] 
 	;
 	   
-	   Es = [EEvent,post_interval([](GIndex), Lo, Hi)|EsT]
+	   Es = [post_interval([](GIndex), Lo, Hi),EEvent|EsT]
 	).
 
 :- export struct(gcc(low,high,value)),
@@ -2099,9 +2095,9 @@ cumulatives_c(Starts, Durations, Usages, UsedMachines, Limits, AtMost, IndexType
         do_update_newvars_with_domain_interval(H, NV, Min, Max),
         
         Last is arity(LimitsArr) - 1,
-        EvsT0 = [post_interval(UsedArr,First,Last),
-                 post_cumulatives(ConLev, StartsArr, DurationsArr, EndsArr,
-                                  UsagesArr, UsedArr, LimitsArr, AtMost) |
+        EvsT0 = [post_cumulatives(ConLev, StartsArr, DurationsArr, EndsArr,
+                                  UsagesArr, UsedArr, LimitsArr, AtMost), 
+                 post_interval(UsedArr,First,Last) |
                  EvsT],
         post_new_event_with_aux(Evs, EvsT, H).
 
@@ -2696,46 +2692,37 @@ bin_packing(Items0,ItemSizes0,N,BinSize):-
 
 update_space_with_events(H) :-
         H = gfd_prob{events:Es,space:gfd_space{handle:SpH}},
-%        H = gfd_prob{nlevels:NL},
-%        writeln("******updating new clone, current level":NL-Es),
         g_stop_caching(SpH),
         update_space_with_events1(Es, H),
         % no need to check Inst/Chg -- not updated with First=0
         g_propagate_recompute(SpH).
-%        g_propagate(SpH, 0, _InstList, _ChgList).
 
 
-update_space_with_events1([], _) :- 
-%        writeln("*****done updating clone"), 
-        !.
-update_space_with_events1([E|Es], H) :-
-        update_space_with_events1(Es, H),
-        % recomputing => First = 0
-        do_event(E, H, _).
+update_space_with_events1(Es, _) :-
+        var(Es), !.
+%        writeln("*****done updating clone"). 
+update_space_with_events1([E|Es], H) ?-
+        do_event(E, H, _),
+        update_space_with_events1(Es, H).
         
 
 % posting an event that may have additional "auxillary" events
 post_new_event_with_aux(Es, EsTail, H) :-
-        set_new_event(Es, EsTail0, H),
+        set_new_event(Es, EsTail, H),
         H = gfd_prob{space:gfd_space{handle:SpH}},
         post_new_events1(Es, SpH, DoProp),
         g_start_caching(SpH),
-        EsTail = EsTail0, % join posted events to head of events list 
         ( var(DoProp) -> true ; try_propagate(H), wake ).
 
 
-post_new_events1(Es, SpH, DoProp) :-
-        ( var(Es) -> % at end
-            true
-        ; 
-            Es = [E|Es1],
-            % do events in reverse order (as during recomputation)
-            % and only first event done has First = 1
-            post_new_events1(Es1, SpH, DoProp),
-            do_event1(E, SpH, DoProp),
-            g_stop_caching(SpH)
-%            (var(Es1) -> g_stop_caching(SpH) ; true),
-        ).
+post_new_events1(Es, _SpH, _DoProp) :-
+        var(Es), !.
+post_new_events1([E|Es1], SpH, DoProp) ?-
+%        writeln(doing-E),
+        do_event1(E, SpH, DoProp),
+        g_stop_caching(SpH), % first event will be done with caching
+        post_new_events1(Es1, SpH, DoProp).
+
 
 /* post_new_event call wake at the end, so that gfd_do_propagate will
    be woken and executed. This may not be appropriate if the posted 
@@ -2749,7 +2736,7 @@ post_new_event(E, H) :-
 post_new_event_no_wake(E, H) :-
         Es = [E|ET],
         set_new_event(Es, ET, H),
-        do_event(E, H, DoProp), % First = 1 (not recomputing)
+        do_event(E, H, DoProp), 
         (DoProp == [] -> try_propagate(H) ; true).
 
 try_propagate(H) :-
@@ -2762,24 +2749,52 @@ gfd_do_propagate(H) :-
         H = gfd_prob{space:gfd_space{handle:SpH},vars:VArr},
         g_propagate(SpH, 1, InstList, ChgList),
         propagate_gecode_changes(SpH, VArr, InstList, ChgList).
-/*        H = gfd_prob{events:Es},
-        (Es = [propagate|_] ->
-            % do nothing 
+
+
+propagate_gecode_changes(SpH, VArr, InstList, ChgList) :-
+        ( InstList == [] ->
+%            store_inc(stats, pg0)
             true
         ;
-            setarg(events of gfd_prob, H, [propagate|Es]),
-            do_event(propagate, H, 1, _)
-        ).
+%            length(InstList, Len), concat_atom([pg, Len], Key), store_inc(stats, Key), 
+            ( foreach(Idx, InstList), param(VArr, SpH) do
+                arg(Idx, VArr, V),
+                (integer(V) -> true ; mark_var_as_set(V),g_get_var_value(SpH, Idx, V))
+%                (integer(V) -> true ; g_get_var_value(SpH, Idx, V))
+            )
+        ),
+        ( ChgList == [] ->
+            true
+        ;
+            ( foreach(CIdx, ChgList), param(VArr) do
+                arg(CIdx, VArr, U),
+/*                ( integer(U) -> 
+                    % may be integer from previous unifications not yet
+                    % sync'ed with Gecode
+                    true
+                ;
 */
+                get_gecode_attr(U, Attr),
+                % assuming only one single problem, otherwise need H
+                schedule_suspensions(any of gfd, Attr)
+%               )
+            )
+        ).
+           
+
+mark_var_as_set(_{gfd{set:S}}) ?- !, S = [].
+
+
 
 set_new_event(Es, EsT, H) :-
         check_and_update_handle(H),
         % access H *only* after possible update of handle!
-        H = gfd_prob{events:EsT,nevents:NE0,space:Sp},
+        H = gfd_prob{events_tail:Es,nevents:NE0,space:Sp},
+        % Es is joined to events list and events_tail updated to new tail
+        setarg(events_tail of gfd_prob, H, EsT), 
         g_trail_undo_for_event(Sp),
         NE1 is NE0+1,
-        setarg(nevents of gfd_prob, H, NE1),
-        setarg(events of gfd_prob, H, Es).
+        setarg(nevents of gfd_prob, H, NE1).
 
 % should only be called with a new event
 check_and_update_handle(H) :-
@@ -2802,13 +2817,11 @@ check_and_update_ancestors(H) :-
 check_and_update_ancestors1(_H, current).
 check_and_update_ancestors1(H, old) :-
         % first event after a choicepoint
-        H = gfd_prob{nlevels:NL, events:E,space:Current},
+        H = gfd_prob{nevents:NE, events:E,space:Current},
         ( g_state_is_stable(Current) ->
             % only clone if state is stable, i.e. have propagation done
             % this may not be the case if propagation has been delayed
-            NL1 is NL + 1,
-            setarg(nlevels of gfd_prob, H, NL1),
-            ( NL1 mod cloning_distance =:= 0 ->
+            ( NE >= cloning_distance  ->
                 do_update_ancestor(H)
             ; E == update ->
                 do_update_ancestor(H)
@@ -2824,17 +2837,17 @@ check_and_update_ancestors1(H, old) :-
 % clone the current space and make it the last ancestor
 do_update_ancestor(H) :-
         H = gfd_prob{space:Current},
-%        trace_clone(H),
         new_space_handle(New),
         setarg(last_anc of gfd_prob, H, Current),
         setarg(space of gfd_prob, H, New),
-        setarg(events of gfd_prob, H, []),
+        % setarg/3 used to initialise events list so that Tail is 
+        % allocated outside of H 
+        setarg(events_tail of gfd_prob, H, Tail),
+        setarg(events of gfd_prob, H, Tail),
+        setarg(nevents of gfd_prob, H, 0),
         New = gfd_space{handle:NewH},
         g_check_handle(NewH, Current, _Cloned).
 
-trace_clone(H) :-
-        H = gfd_prob{nlevels:N},
-        printf("New ancestor, cloning at level %d...\n", [N]).
 
 
 /* do_event execute a Gecode event, either for the first time or
@@ -2846,10 +2859,8 @@ trace_clone(H) :-
    variables in first execution will be variables during recomputation
 */
 do_event(E, H, DoProp) :-
-%        writeln(doing-E-First),
+%        writeln(doing-E),
         H = gfd_prob{space:gfd_space{handle:SpH}},
-%        arg(space of gfd_prob, H, Space),
-%        arg(handle of gfd_space, Space, SpH),
         do_event1(E, SpH, DoProp).
 
 do_event1(post_rc(ConLev, GExpr), SpH, DoProp) ?-
@@ -2923,22 +2934,22 @@ do_event1(post_var_dom_reif(GV,DArray,GBool), SpH, DoProp) ?-
 do_event1(post_var_val_reif(GV,Value,GBool), SpH, DoProp) ?-
         DoProp = [],
         g_post_var_val_reif(SpH, GV, Value, GBool).
-do_event1(newvars_interval(NV,Lo,Hi), SpH, DoProp) ?-
+do_event1(newvars_interval(NV,Lo,Hi), SpH, _DoProp) ?-
         %DoProp = 0,
         g_add_newvars_interval(SpH, NV, Lo, Hi).
-do_event1(newvars_dom(NV,DArray), SpH, DoProp) ?-
+do_event1(newvars_dom(NV,DArray), SpH, _DoProp) ?-
         %DoProp = 0,
         g_add_newvars_dom(SpH, NV, DArray).
-do_event1(newvars_dom_union(GX,GY,NV), SpH, DoProp) ?-
+do_event1(newvars_dom_union(GX,GY,NV), SpH, _DoProp) ?-
         %DoProp = 0,
         g_add_newvars_dom_union(SpH, NV, GX, GY).
-do_event1(newboolvars(NV,VArr), SpH, DoProp) ?-
+do_event1(newboolvars(NV,VArr), SpH, _DoProp) ?-
         %DoProp = 0,
         g_add_newvars_as_bool(SpH, NV, VArr).
-do_event1(connectnewbools(VArr), SpH, DoProp) ?-
+do_event1(connectnewbools(VArr), SpH, _DoProp) ?-
         %DoProp = 0,
         g_link_newbools(SpH, VArr).
-do_event1(copyvar(NV,OldIdx), SpH, DoProp) ?-
+do_event1(copyvar(NV,OldIdx), SpH, _DoProp) ?-
         %DoProp = 0,
         g_add_newvar_copy(SpH, NV, OldIdx).
 do_event1(setvar(Idx, Val), SpH, DoProp) ?-
@@ -3001,7 +3012,7 @@ do_event1(post_lwb(GV, Lwb), SpH, DoProp) ?-
 do_event1(post_upb(GV, Lwb), SpH, DoProp) ?-
         DoProp = [],
         g_post_upb(SpH, GV, Lwb).
-do_event1(newbool(Idx,BIdx), SpH, DoProp) ?-
+do_event1(newbool(Idx,BIdx), SpH, _DoProp) ?-
         %DoProp = 0,
         g_add_newbool(SpH, Idx, BIdx).
 do_event1(post_boolchannel(ConLev,GV,GBArr,Min), SpH, DoProp) ?-
@@ -3022,48 +3033,7 @@ do_event1(post_lex_order(ConLev,XArr,Rel,YArr), SpH, DoProp) ?-
 do_event1(post_bin_packing(IArr,SArr,LArr), SpH, DoProp) ?-
         DoProp = [],
         g_post_bin_packing(SpH, IArr, SArr, LArr).
-/* not an event -- now called directly
-do_event1(propagate, SpH, First, DoProp) ?-
-        DoProp = 0,
-%        g_propagate(SpH).
-        get_prob_handle(gfd_prob{vars:VArr}),
-%        g_propagate(SpH, First, VArr).
-        g_propagate(SpH, First, InstList, ChgList),
-        propagate_gecode_changes(SpH, VArr, InstList, ChgList).
-*/
 
-propagate_gecode_changes(SpH, VArr, InstList, ChgList) :-
-        ( InstList == [] ->
-%            store_inc(stats, pg0)
-            true
-        ;
-%            length(InstList, Len), concat_atom([pg, Len], Key), store_inc(stats, Key), 
-            ( foreach(Idx, InstList), param(VArr, SpH) do
-                arg(Idx, VArr, V),
-                (integer(V) -> true ; mark_var_as_set(V),g_get_var_value(SpH, Idx, V))
-%                (integer(V) -> true ; g_get_var_value(SpH, Idx, V))
-            )
-        ),
-        ( ChgList == [] ->
-            true
-        ;
-            ( foreach(CIdx, ChgList), param(VArr) do
-                arg(CIdx, VArr, U),
-/*                ( integer(U) -> 
-                    % may be integer from previous unifications not yet
-                    % sync'ed with Gecode
-                    true
-                ;
-*/
-                get_gecode_attr(U, Attr),
-                % assuming only one single problem, otherwise need H
-                schedule_suspensions(any of gfd, Attr)
-%               )
-            )
-        ).
-           
-
-mark_var_as_set(_{gfd{set:S}}) ?- !, S = [].
 
 
 
