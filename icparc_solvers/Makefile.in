@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.27 2011/06/29 22:33:52 kish_shen Exp $
+# $Id: Makefile.in,v 1.28 2011/09/20 13:21:11 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -755,8 +755,7 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl empty_language.ecl \
 		fd_sets.ecl ic_sets.ecl \
 		ic.ecl ic_kernel.ecl ic_constraints.ecl ic_symbolic.ecl \
 		fd_search.ecl ic_search.ecl \
-		gfd_search.ecl gfd_for_search.ecl \
-		fd_sbds.ecl ic_sbds.ecl gfd_sbds.ecl \
+		fd_sbds.ecl ic_sbds.ecl \
 		fd_generic_interface.ecl ic_generic_interface.ecl \
 		fd_global.ecl ic_global.ecl \
 	        fd_sequence.ecl ic_sequence.ecl flow_constraints_support.ecl \
@@ -801,8 +800,8 @@ PL_ECI_FILES =	repair.pl eplex.pl \
 		mip.pl linearize.pl shadow_cons.pl 
 ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		ic.ecl ic_kernel.ecl ic_sets.ecl ic_hybrid_sets.ecl \
-		fd_search.ecl gfd_search.ecl ic_symbolic.ecl \
-		fd_sbds.ecl ic_sbds.ecl gfd_sbds.ecl \
+		fd_search.ecl ic_symbolic.ecl \
+		fd_sbds.ecl ic_sbds.ecl \
 		fd_global.ecl ic_global.ecl \
 		cumulative.ecl ic_cumulative.ecl \
 		edge_finder.ecl ic_edge_finder.ecl \
@@ -812,17 +811,21 @@ ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		eplex_osi.ecl eplex_osi_clpcbc.ecl \
 		eplex_osi_symclp.ecl  eplex_osi_glpk.ecl \
 		tentative.ecl tentative_constraints.ecl max_flow.ecl
+GFD_ECL_ECO_FILES = gfd_search.ecl gfd_for_search.ecl gfd_sbds.ecl 
+GFD_ECL_ECI_FILES = gfd_search.ecl  gfd_sbds.ecl
 NON_ECLIPSE_FILES = RuntimesList.g SBDDa.g
 
 EXAMPLE_DEST =	$(EXAMPLE_FILES:%=$(PREFIX)/doc/examples/tutorial/%) 
 ECO_DEST =	$(ECL_ECO_FILES:%.ecl=$(PREFIX)/lib/%.eco) \
 		$(PL_ECO_FILES:%.pl=$(PREFIX)/lib/%.eco)
+GFD_ECO_DEST =  $(GFD_ECL_ECO_FILES:%.ecl=$(PREFIX)/lib/%.eco) 
 SOURCE_DEST =	$(ECL_ECO_FILES:%.ecl=$(PREFIX)/lib/%.ecl) \
 		$(PL_ECO_FILES:%.pl=$(PREFIX)/lib/%.pl) \
 		$(ECL_ONLY_FILES:%=$(PREFIX)/lib/%) \
 		$(INCLUDE_ONLY_FILES:%=$(PREFIX)/lib/%)
 ECI_DEST =      $(PL_ECI_FILES:%.pl=$(PREFIX)/lib/%.eci) \
 		$(ECL_ECI_FILES:%.ecl=$(PREFIX)/lib/%.eci) 
+GFD_ECI_DEST =  $(GFD_ECL_ECI_FILES:%.ecl=$(PREFIX)/lib/%.eci) 
 OBJ_DEST =	$(OBJ_FILES:%=$(PREFIX)/lib/%)
 NON_ECLIPSE_DEST = $(NON_ECLIPSE_FILES:%=$(PREFIX)/lib/%)
 
@@ -836,12 +839,17 @@ archclean:
 ecoclean:
 	rm -rf *.eco $(ECO_DEST)
 
-install_all:	install_cross  $(ECO_DEST) $(ECI_DEST) \
+install_all:	install_cross  install_gfd $(ECO_DEST) $(ECI_DEST) \
 		$(NON_ECLIPSE_DEST)
 
-install_cross:	$(XPRESS_DEST_DIRS) $(OBJ_DEST) $(SOURCE_DEST) \
+install_cross:	install_gfd_cross $(XPRESS_DEST_DIRS) $(OBJ_DEST) $(SOURCE_DEST) \
 	        $(EXAMPLE_DEST) $(ECH_EXAMPLE_DEST) 
 
+install_gfd_cross: @ALL_CROSS_WITH_GECODE@
+install_gfd: @ALL_WITH_GECODE@
+
+all_with_gecode:  $(GFD_ECO_DEST)
+all_cross_with_gecode: $(GFD_ECI_DEST)
 
 
 %/.stamp:
