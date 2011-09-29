@@ -5659,7 +5659,7 @@ desc: html("\
     This structure is used to specify the cardinality (number of occurrences)
     of one value for the gcc constraint."),
         fields: ["low": "Lower bound on the cardinality of Value (integer).",
-                 "hi": "Upper bound on the cardinality of Value (integer).",
+                 "high": "Upper bound on the cardinality of Value (integer).",
                  "value": "Value whose cardinality is being specified."
         ]
    ]).
@@ -5688,8 +5688,8 @@ desc: html("\
                 ]
                          ]).
 
-:- comment(struct(gfd), hidden).
+%:- comment(struct(gfd), hidden).
 
-:- comment(struct(gfd_prob), hidden).
+%:- comment(struct(gfd_prob), hidden).
 
-:- comment(struct(gfd_space), hidden).
+%:- comment(struct(gfd_space), hidden).
