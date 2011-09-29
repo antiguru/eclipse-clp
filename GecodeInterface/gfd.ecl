@@ -50,14 +50,22 @@
 :- export (#\=)/2, (#=)/2, (#<)/2, (#>)/2, (#>=)/2, (#=<)/2.
 :- export (#\=)/3, (#=)/3, (#<)/3, (#>)/3, (#>=)/3, (#=<)/3.
 
-:- export alldifferent/1, alldifferent_cst/2, 
-   occurrences/3, atmost/3, count/4, element/3, element_g/3, gcc/2,
-   sorted/2, sorted/3, circuit/1, circuit/3, circuit/4,
-   sorted_g/3, circuit_g/1, circuit_g/3, circuit_g/4,
-   disjunctive/2, disjunctive_optional/3,
-   cumulative/4, cumulative_optional/5,
-   cumulatives/5, cumulatives_min/5, cumulatives_g/5, cumulatives_min_g/5, 
-   sequence/5, sequence/4, bin_packing/3, bin_packing_g/3, bin_packing/4.
+:- export alldifferent/1, alldifferent_cst/2, nvalues/3,
+          occurrences/3, atmost/3, count/4, count_matches/4, among/4, 
+          element/3, element_g/3, gcc/2,
+          sorted/2, sorted/3, sorted_g/3, circuit/1, circuit/3, circuit/4,
+          circuit_offset/2, circuit_offset/4, circuit_offset/5,
+          circuit_g/1, circuit_g/3, circuit_g/4,
+          circuit_offset_g/2, circuit_offset_g/4, circuit_offset_g/5,
+          ham_path/3, ham_path/5, ham_path/6,
+          ham_path_offset/4, ham_path_offset/6, ham_path_offset/7,
+          ham_path_g/3, ham_path_g/5, ham_path_g/6,
+          ham_path_offset_g/4, ham_path_offset_g/6, ham_path_offset_g/7,
+          precede/2, precede/3, disjunctive/2, disjunctive_optional/3,
+          disjoint2/1,disjoint2_optional/1, cumulative/4, cumulative_optional/5,
+          cumulatives/5, cumulatives_min/5, 
+          cumulatives_g/5, cumulatives_min_g/5, 
+          sequence/5, sequence/4, bin_packing/3, bin_packing_g/3, bin_packing/4.
 :- export plus/3, mult/3, divide/3, mod/3, divmod/4, 
           abs/2, sqr/2, sqrt/2.
 :- export minlist/2, maxlist/2, sum/2, max/2, min/2, max/3, min/3.
@@ -65,7 +73,7 @@
 :- export le/2, lt/2, ge/2, gt/2, eq/2, ne/2.
 :- export bool_channeling/3, inverse/2, inverse/4, inverse_g/2, inverse_g/4.
 :- export ordered/2, lex_le/2, lex_lt/2, lex_ge/2, lex_gt/2, 
-          lex_eq/2, lex_ne/2.
+          lex_eq/2, lex_ne/2, mem/2, mem/3.
 :- export labeling/1, indomain/1, indomain/2, delete/5.
 :- export is_in_domain/2, is_in_domain/3.
 :- export search/6.
@@ -187,17 +195,24 @@ load_gfd_solver(Arch) :-
         external(g_post_bool_connectives/3, p_g_post_bool_connectives),
         external(g_post_alldiff/3, p_g_post_alldiff),
         external(g_post_alldiff_offsets/4, p_g_post_alldiff_offsets),
+        external(g_post_nvalues/4, p_g_post_nvalues),
         external(g_post_count/6, p_g_post_count),
+        external(g_post_among/5, p_g_post_among),
+        external(g_post_count_matches/5, p_g_post_count_matches),
         external(g_post_gcc/5, p_g_post_gcc),
         external(g_post_element/5, p_g_post_element),
         external(g_post_sorted2/4, p_g_post_sorted2),
         external(g_post_sorted/5, p_g_post_sorted),
         external(g_post_sequence/7, p_g_post_sequence),
         external(g_post_sequence_01/6, p_g_post_sequence_01),
-        external(g_post_circuit/3, p_g_post_circuit),
-        external(g_post_circuit_cost/6, p_g_post_circuit_cost),
+        external(g_post_circuit/4, p_g_post_circuit),
+        external(g_post_circuit_cost/7, p_g_post_circuit_cost),
+        external(g_post_ham_path/6, p_g_post_ham_path),
+        external(g_post_ham_path_cost/9, p_g_post_ham_path_cost),
         external(g_post_disj/4, p_g_post_disj),
         external(g_post_disjflex/5, p_g_post_disjflex),
+        external(g_post_disjoint2/6, p_g_post_disjoint2),
+        external(g_post_disjointflex2/8, p_g_post_disjointflex2),
         external(g_post_cumulative/6, p_g_post_cumulative),
         external(g_post_cumulativeflex/7, p_g_post_cumulativeflex),
         external(g_post_cumulatives/8, p_g_post_cumulatives),
@@ -221,10 +236,15 @@ load_gfd_solver(Arch) :-
         external(g_post_inverse_offset/6, p_g_post_inverse_offset),
         external(g_post_ordered/4, p_g_post_ordered),
         external(g_post_rel/5, p_g_post_rel),
+        external(g_post_collection_rel/5, p_g_post_collection_rel),
         external(g_post_lex_order/5, p_g_post_lex_order),
         external(g_post_bin_packing/4, p_g_post_bin_packing),
         external(g_post_lwb/3, p_g_post_lwb),
         external(g_post_upb/3, p_g_post_upb),
+        external(g_post_precede/4, p_g_post_precede),
+        external(g_post_precede_chain/3, p_g_post_precede_chain),
+        external(g_post_mem/3, p_g_post_mem),
+        external(g_post_mem_reif/4, p_g_post_mem_reif),
         external(g_propagate/4, p_g_propagate),
         external(g_check_val_is_in_var_domain/3, p_g_check_val_is_in_var_domain),
         external(g_get_var_bounds/4, p_g_get_var_bounds),
@@ -367,6 +387,7 @@ boolean_expr(E) :-
 
 reifiable_constraint(sum(_Vs,_Rel,_S)) ?- !.
 reifiable_constraint(scalar_product(_Cs,_Vs,_Rel,_P)) ?- !.
+reifiable_constraint(mem(_Vs,_M)) ?- !.
 /*reifiable_constraint(E) :-
         relation_constraint(E, _, _, _), !.
 */
@@ -495,13 +516,69 @@ aux_op(occurrences(_Value,_Vs), Aux, N, _GN, Type, _ConLev) ?- !,
 aux_op(count(_Value,_Vs,_Rel), Aux, N, _GN, Type, _ConLev) ?- !,
 	Aux = count,
 	Type = aux_cstr(N).
+aux_op(among(_Values,_Vs,_Rel), Aux, N, _GN, Type, _ConLev) ?- !,
+	Aux = among,
+	Type = aux_cstr(N).
+aux_op(count_matches(_Values,_Vs,_Rel), Aux, N, _GN, Type, _ConLev) ?- !,
+	Aux = count_matches,
+	Type = aux_cstr(N).
 aux_op(element(_Idx,_Vs), Aux, Val, _GVal, Type, _ConLev) ?- !,
 	Aux = element,
         Type = aux_cstr(Val).
 aux_op(element_g(_Idx,_Vs), Aux, Val, _GVal, Type, _ConLev) ?- !,
 	Aux = element_g,
         Type = aux_cstr(Val).
-
+aux_op(mem(_Vs), Aux, Mem, _GVal, Type, _ConLev) ?- !,
+	Aux = mem,
+        Type = aux_cstr(Mem).
+aux_op(circuit(_Succ, _CostMat), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = circuit,
+        Type = aux_cstr(Cost).
+aux_op(circuit(_Succ, _CostMat,_ArcCosts), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = circuit_arc,
+        Type = aux_cstr(Cost).
+aux_op(circuit_g(_Succ, _CostMat), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = circuit_g,
+        Type = aux_cstr(Cost).
+aux_op(circuit_g(_Succ, _CostMat,_ArcCosts), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = circuit_arc_g,
+        Type = aux_cstr(Cost).
+aux_op(circuit_offset(_Succ, _Off, _CostMat), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = circuitoff,
+        Type = aux_cstr(Cost).
+aux_op(circuit_offset(_Succ, _Off, _CostMat,_ArcCosts), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = circuitoff_arc,
+        Type = aux_cstr(Cost).
+aux_op(circuit_offset_g(_Succ, _Off, _CostMat), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = circuitoff_g,
+        Type = aux_cstr(Cost).
+aux_op(circuit_offset_g(_Succ, _Off, _CostMat,_ArcCosts), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = circuitoff_arc_g,
+        Type = aux_cstr(Cost).
+aux_op(ham_path(_S, _E, _Succ, _CostMat), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = ham_path,
+        Type = aux_cstr(Cost).
+aux_op(ham_path(_S, _E, _Succ, _CostMat,_ArcCosts), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = ham_path_arc,
+        Type = aux_cstr(Cost).
+aux_op(ham_path_g(_S, _E, _Succ, _CostMat), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = ham_path_g,
+        Type = aux_cstr(Cost).
+aux_op(ham_path_g(_S, _E, _Succ, _CostMat,_ArcCosts), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = ham_path_arc_g,
+        Type = aux_cstr(Cost).
+aux_op(ham_path_offset(_S, _E, _Succ, _Off, _CostMat), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = ham_pathoff,
+        Type = aux_cstr(Cost).
+aux_op(ham_path_offset(_S, _E, _Succ, _Off, _CostMat,_ArcCosts), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = ham_pathoff_arc,
+        Type = aux_cstr(Cost).
+aux_op(ham_path_offset_g(_S, _E, _Succ, _Off, _CostMat), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = ham_pathoff_g,
+        Type = aux_cstr(Cost).
+aux_op(ham_path_offset_g(_S, _E, _Succ, _Off, _CostMat,_ArcCosts), Aux, Cost, _GVal, Type, _ConLev) ?- !,
+        Aux = ham_pathoff_arc_g,
+        Type = aux_cstr(Cost).
 
 %------------------------------------------------------------------------
 % Support
@@ -651,26 +728,6 @@ update_vars_for_gecode(N0, N, Bs, H, Min, Max) :-
             link_var_to_boolvar(B, H) 
         ).
 
-% utility predicate for connecting indices/positions in ECLiPSe tradition
-% (which starts from 1) to that used by Gecode (which starts from 0)
-connect_ecl_to_gecode_indices(ConLev, EV, GV) :-
-        ( var(EV) -> 
-            '#=_c'(GV, (EV - 1), ConLev)
-        ; integer(EV) ->
-            GV is EV -1
-        ;
-            fail
-        ).
-
-:- mode convert_index_vars(+, +, +, -).
-convert_index_vars(ecl, ConLev, SList, SList1) ?-
-        ( foreach(V,SList), foreach(V1,SList1),
-	  param(ConLev) do
-            connect_ecl_to_gecode_indices(ConLev,V,V1)
-        ).
-convert_index_vars(gc, _, SList, SList1) ?-
-        SList = SList1.
-
 
 get_gecode_attr(_{gfd:Attr0}, Attr) ?-
         nonvar(Attr0),
@@ -767,6 +824,10 @@ post_connectives(Conn, ConLev, Module) :-
 :- tool(neg_reif_c/3, neg_reif_c/4).
 :- tool('<=>_reif_c'/4, '<=>_reif_c'/5).
 :- tool('=>_reif_c'/4, '=>_reif_c'/5).
+
+:- tool(among/4, among_body/5).
+:- tool(among_c/5, among_c/6).
+
 
 and_body(EX, EY, Module) :-
         and_c(EX, EY, default, Module).
@@ -1046,7 +1107,7 @@ update_gecode_with_default_newvars(H, N0, N) :-
 ec_to_gecode_varlist(L, H, GL, HasVar) :-
         H = gfd_prob{nvars:N0},
         ec_to_gecode_varlist1(L, H, N0,N, GL, HasVar),
-        update_gecode_with_default_newvars(H, N, N0).
+        update_gecode_with_default_newvars(H, N0, N).
 
 ec_to_gecode_varlist1(L, H, N0,N, GL, HasVar) :-
         ( foreach(V, L), 
@@ -1219,48 +1280,116 @@ ec_to_gecode_aux_op1(args(Specs), AuxOp, H, N0,N, Bs0,Bs, Auxs0,AuxsT, EventTemp
             )
 	     
         ).
-ec_to_gecode_aux_op1(aux_cstr(Val), Cstr, H, N0,N, Bs0,Bs, Auxs0,AuxsT, EventTemp, ConLev, _Module) ?- !,
-        cstr_aux_events1(EventTemp, Cstr, Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev).
+ec_to_gecode_aux_op1(aux_cstr(Val), Cstr, H, N0,N, Bs0,Bs, Auxs0,AuxsT, EventTemp, ConLev, Module) ?- !,
+        cstr_aux_events1(EventTemp, Cstr, Val, H, N0,N, Bs0,Bs, Auxs0,
+                         AuxsT, ConLev, Module).
 
 
-cstr_aux_events1(linsum, sum(Vs,Rel), Sum, H, N0,N, Bs0,Bs, Auxs0, AuxsT, ConLev) :-
+cstr_aux_events1(linsum, sum(Vs,Rel), Sum, H, N0,N, Bs0,Bs, Auxs0, AuxsT, ConLev, _Module) :-
         Bs0 = Bs,
         linsum_event1(Vs, Rel, Sum, ConLev, H, N0,N, Auxs0,AuxsT).
-cstr_aux_events1(scalar_product, scalar_product(Cs,Vs,Rel), Prod, H, N0,N, Bs0,Bs, Auxs0, AuxsT, ConLev) :-
+cstr_aux_events1(scalar_product, scalar_product(Cs,Vs,Rel), Prod, H, N0,N, Bs0,Bs, Auxs0, AuxsT, ConLev, _Module) :-
         Bs0 = Bs,
         scalar_product_event1(Cs, Vs, Rel, Prod, ConLev, H, N0,N, Auxs0,AuxsT).
-cstr_aux_events1(element, element(Idx,Vs), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev) :-
+cstr_aux_events1(element, element(Idx,Vs), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
 	Bs0 = Bs,
         element_events1(Idx, Vs, Val, ecl, ConLev, H, N0,N, Auxs0,AuxsT).
-cstr_aux_events1(element_g, element_g(Idx,Vs), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev) :-
+cstr_aux_events1(element_g, element_g(Idx,Vs), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
 	Bs0 = Bs,
         element_events1(Idx, Vs, Val, gc, ConLev, H, N0,N, Auxs0,AuxsT).
-cstr_aux_events1(occurrences, occurrences(Value,Vs), Count, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev) :-
+cstr_aux_events1(occurrences, occurrences(Value,Vs), Count, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
 	Bs0 = Bs,
         count_events1(Value, Vs, '#=', Count, ConLev, H, N0,N, Auxs0,AuxsT).
-cstr_aux_events1(count, count(Value,Vs,Rel), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev) :-
+cstr_aux_events1(count, count(Value,Vs,Rel), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
 	Bs0 = Bs,
         count_events1(Value, Vs, Rel, Val, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(among, among(Values,Vs,Rel), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, Module) :-
+	Bs0 = Bs,
+        among_events1(Values, Vs, Rel, Val, ConLev, H, N0,N, Auxs0, AuxsT, Module).
+cstr_aux_events1(count_matches, count_matches(Values,Vs,Rel), Val, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        count_matches_events1(Values, Vs, Rel, Val, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(mem, mem(Vs), Mem, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        mem_events1(Vs, Mem, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(circuit, circuit(Succ, CostMat), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        circuit_aux_events1(Succ, 1, CostMat, [], Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(circuit_g, circuit_g(Succ, CostMat), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        circuit_aux_events1(Succ, 0, CostMat, [], Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(circuit_arc, circuit(Succ, CostMat, ArcCs), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        circuit_aux_events1(Succ, 1, CostMat, ArcCs, Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(circuit_arc_g, circuit_g(Succ, CostMat, ArcCs), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        circuit_aux_events1(Succ, 0, CostMat, ArcCs, Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(circuitoff, circuit_offset(Succ, Off0, CostMat), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        Off is Off0 + 1,
+        circuit_aux_events1(Succ, Off, CostMat, [], Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(circuitoff_g, circuit_offset_g(Succ, Off, CostMat), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        circuit_aux_events1(Succ, Off, CostMat, [], Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(circuitoff_arc, circuit(Succ, Off0, CostMat, ArcCs), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        Off is Off0 + 1,
+        circuit_aux_events1(Succ, Off, CostMat, ArcCs, Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(circuitoff_arc_g, circuit_offset_g(Succ, Off, CostMat, ArcCs), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        circuit_aux_events1(Succ, Off, CostMat, ArcCs, Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+
+cstr_aux_events1(ham_path, ham_path(Start, End, Succ, CostMat), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        ham_path_aux_events1(Start, End, Succ, 1, CostMat, [], Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(ham_path_g, ham_path_g(Start, End, Succ, CostMat), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        ham_path_aux_events1(Start, End, Succ, 0, CostMat, [], Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(ham_path_arc, ham_path(Start, End, Succ, CostMat, ArcCs), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        ham_path_aux_events1(Start, End, Succ, 1, CostMat, ArcCs, Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(ham_path_arc_g, ham_path_g(Start, End, Succ, CostMat, ArcCs), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        ham_path_aux_events1(Start, End, Succ, 0, CostMat, ArcCs, Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(ham_pathoff, ham_path_offset(Start, End, Succ, Off0, CostMat), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        Off is Off0 + 1,
+        ham_path_aux_events1(Start, End, Succ, Off, CostMat, [], Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(ham_pathoff_g, ham_path_offset_g(Start, End, Succ, Off, CostMat), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        ham_path_aux_events1(Start, End, Succ, Off, CostMat, [], Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(ham_pathoff_arc, ham_path(Start, End, Succ, Off0, CostMat, ArcCs), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        Off is Off0 + 1,
+        ham_path_aux_events1(Start, End, Succ, Off, CostMat, ArcCs, Cost, ConLev, H, N0,N, Auxs0,AuxsT).
+cstr_aux_events1(ham_pathoff_arc_g, ham_path_offset_g(Start, End, Succ, Off, CostMat, ArcCs), Cost, H, N0,N, Bs0,Bs, Auxs0,AuxsT, ConLev, _Module) :-
+	Bs0 = Bs,
+        ham_path_aux_events1(Start, End, Succ, Off, CostMat, ArcCs, Cost, ConLev, H, N0,N, Auxs0,AuxsT).
 
 
+
+ec_to_gecode_reified1(scalar_product(Cs,Vs,Rel,S), H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, _Module) :-
+        !,
+        Auxs0 = AuxsT,
+        scalar_product_reif_event1(Cs,Vs, Rel, S, _Bool, ConLev, H, N0,N, Bs0,Bs, Event, GBool).
+ec_to_gecode_reified1(sum(Vs,Rel,S), H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, _Module) :-
+        !,
+        Auxs0 = AuxsT,
+        linsum_reif_event1(Vs, Rel, S, _Bool, ConLev, H, N0,N, Bs0,Bs, Event, GBool).
+ec_to_gecode_reified1(mem(Vs,M), H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, _Module) :-
+        !,
+        Auxs0 = AuxsT,
+        mem_reif_event1(Vs, M, _Bool, ConLev, H, N0,N, Bs0,Bs, Event, GBool).
+ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, _ConLev, Module) :-
+        domain_constraint(C, Vs, Dom), !,
+        Auxs0 = AuxsT,
+        ec_to_gecode_domain_reified1(Vs, Dom, _Bool, H, N0,N, Bs0,Bs, Event, GBool, Module).
 ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, Module) :-
         relation_constraint(C, RelOp, E1, E2), !,
         new_gfdvar(Bool, H, N0, N1, GBool),
         Bs1 = [Bool|Bs0],
         Event = post_bool_connectives(ConLev,GBool<=>GRC),
         ec_to_gecode_reifiedrc1(RelOp, E1, E2, H, N1,N, Bs1,Bs, Auxs0,AuxsT, GRC, ConLev, Module).
-ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, _ConLev, Module) :-
-        domain_constraint(C, Vs, Dom), !,
-        Auxs0 = AuxsT,
-        ec_to_gecode_domain_reified1(Vs, Dom, _Bool, H, N0,N, Bs0,Bs, Event, GBool, Module).
-ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, _Module) :-
-        C = scalar_product(Cs,Vs,Rel,S), !,
-        Auxs0 = AuxsT,
-        scalar_product_reif_event1(Cs,Vs, Rel, S, _Bool, ConLev, H, N0,N, Bs0,Bs, Event, GBool).
-ec_to_gecode_reified1(C, H, N0,N, Bs0,Bs, Auxs0,AuxsT, Event, GBool, ConLev, _Module) :-
-        C = sum(Vs,Rel,S), !,
-        Auxs0 = AuxsT,
-        linsum_reif_event1(Vs, Rel, S, _Bool, ConLev, H, N0,N, Bs0,Bs, Event, GBool).
 
 
 ec_to_gecode_reifiedrc1(RelOp, E1, E2, H, N0,N, Bs0,Bs, Auxs0,AuxsT, GRC, ConLev, Module) :-
@@ -1444,15 +1573,9 @@ ec_to_gecode_arith_expr1(C, H, 0, N0,N, Bs0,Bs, Auxs0,AuxsT, GB, ConLev, Module)
         H = gfd_prob{nvars:NV0},
         normalise_vars(X, NX),
 	process_domain_domain(Domain, NormalDomain, Module),
-        (NormalDomain = [B..B] ->
-            % singleton, just assign
-            !, % cut here as V = B might post events
-            (foreach(V,NX), param(B) do V = B)
-        ;
-            process_domain_vars(NX, NormalDomain, H, NV0,NV, [],OldGVs, _),
-            !, % cut here to avoid posting events with a live choicepoint
-            assign_domain(NormalDomain, H, NV, OldGVs)
-        ).
+        process_domain_vars(NX, NormalDomain, H, NV0,NV, [],OldGVs, _),
+        !, % cut here to avoid posting events with a live choicepoint
+        assign_domain(NormalDomain, H, NV, OldGVs).
 '::_body'(X, Domain, _Module) :-
         get_bip_error(E),
         error(E,(X :: Domain)).
@@ -1586,7 +1709,15 @@ subdomain(I, Lo1, Hi1, Module) :-
 
 process_domain_vars([V1|Vs], Domain, H, NV0,NV, OldGVs0,OldGVs, [GV1|GVs]) :-
         var(V1), !,
-        ec_to_gecode_oldvar1(V1, H, NV0,NV1, OldGVs0,OldGVs1, GV1),
+        ( Domain = [B..B], \+ ec_to_gecode_oldvar(V1,_) ->  
+            % singleton domain, and a nnon-gecode variable
+            V1 = B, % just assign it
+            GV1 = B,
+            NV0 = NV1,
+            OldGVs0 = OldGVs1
+        ;
+            ec_to_gecode_oldvar1(V1, H, NV0,NV1, OldGVs0,OldGVs1, GV1)
+        ),
         process_domain_vars(Vs, Domain, H, NV1,NV, OldGVs1,OldGVs, GVs).
 process_domain_vars([I|Vs], Domain, H, NV0,NV, OldGVs0,OldGVs, [I|GVs]) :-
         integer(I), !,
@@ -1595,6 +1726,7 @@ process_domain_vars([I|Vs], Domain, H, NV0,NV, OldGVs0,OldGVs, [I|GVs]) :-
 process_domain_vars([_|_], _,_,_,_,_,_,_) :- !,
         set_bip_error(5).
 process_domain_vars([], _D, _H, NV,NV, OldGVs,OldGVs, []).
+
 
 is_in_given_domain(I, [Lo..Hi|Ds]) :-
         (I >= Lo, I =< Hi -> true ; is_in_given_domain(I, Ds)).
@@ -1692,6 +1824,61 @@ alldifferent_cst_c(Vars, Offsets, ConLev) :-
         post_new_event(post_alldiff_offsets(ConLev,GArray,OArray), H).
 
 
+nvalues(Vars, Rel0, N) :-
+        is_valid_rel_op(Rel0, Rel),
+        collection_to_list(Vars, VList),
+        get_prob_handle(H),
+        ec_to_gecode_varlist([N|VList], H, [GN|GVars], _),
+        VArr =.. [[]|GVars],
+        post_new_event(post_nvalues(VArr, Rel, GN), H).
+
+
+mem(Vars, X) :-
+        mem_c(Vars, X, default).
+
+mem_c(Vars, X, ConLev) :-
+        get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+        mem_events1(Vars, X, ConLev, H, NV0,NV, Event,EventsT),
+        gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, [], H, Min, Max),
+        post_new_event_with_aux(Event,EventsT, H).
+
+mem_events1(Vars, X, _ConLev, H, NV0,NV, Event,EventsT) :-
+        collection_to_list(Vars, VList),
+        ec_to_gecode_varlist1([X|VList], H, NV0,NV, [GX|GVars], _),
+        VArr =.. [[]|GVars],
+        Event = [post_mem(VArr, GX)|EventsT].
+
+
+mem(Vars, X, Bool) :-
+        mem_reif_c(Vars, X, Bool, default).
+
+mem_reif_c(Vars, X, Bool, ConLev) :-
+        get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+        mem_reif_event1(Vars, X, Bool, ConLev, H, NV0,NV, [],Bs, Event, _GBool),
+        gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, Bs, H, Min, Max),
+        post_new_event_with_aux([Event|EventsT], EventsT, H).
+
+mem_reif_event1(Vars, X, Bool, _ConLev, H, NV0,NV, Bs0,Bs, Event, GBool) :-
+        collection_to_list(Vars, VList),
+        ec_to_gecode_varlist1([X|VList], H, NV0,NV1, [GX|GVars], _),
+        ( var(Bool) ->
+            ec_to_gecode_var1(Bool, H, NV1,NV, GBool),
+            Bs = [Bool|Bs0]
+        ;
+            GBool = Bool,
+            NV1 = NV,
+            Bs = Bs0
+        ;
+            fail
+        ),
+        VArr =.. [[]|GVars],
+        Event = post_mem_reif(VArr, GX, GBool).
+
+
 count(Value, Vars, Rel, N) :-
         count_c(Value, Vars, Rel, N, default).
 
@@ -1739,6 +1926,59 @@ atleast(N, Vars, Value) :-
 
 atleast_c(N, Vars, Value, ConLev) :-
         count_c(Value, Vars, '#>=', N, ConLev).
+
+
+among_body(Values, Vars, Rel, N, Module) :-
+        among_c(Values, Vars, Rel, N, default, Module).
+
+among_c(Values, Vars, Rel, N, ConLev, Module) :-
+        get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+        among_events1(Values, Vars, Rel, N, ConLev, H, NV0,NV, 
+                     Event,EventsT, Module),
+	gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, [], H, Min, Max),
+        post_new_event_with_aux(Event,EventsT, H).
+
+among_events1(ValSpec, Vars, Rel0, N, _ConLev, H, NV0,NV, Ev,EvT, Module) :-
+        is_valid_rel_op(Rel0, Rel),
+        collection_to_list(ValSpec, SpecList),
+        ( foreach(Spec,SpecList), param(Module),
+          foreach(Lo..Hi, Vals)
+        do
+            subdomain(Spec, Lo, Hi, Module)
+        ),
+        ValsArr =.. [[]|Vals],
+        collection_to_list(Vars, VarsL),
+        ec_to_gecode_varlist1([N|VarsL], H, NV0, NV, [GN|GVars], _),
+        VarsArr =.. [[]|GVars],
+        % gac only currently, no need for ConLev
+        Ev = [post_among(ValsArr, VarsArr, Rel, GN)|EvT].
+                       
+
+count_matches(Values, Vars, Rel, N) :-
+        count_matches_c(Values, Vars, Rel, N, default).
+
+count_matches_c(Values, Vars, Rel, N, ConLev) :-
+        get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+        count_matches_events1(Values, Vars, Rel, N, ConLev, H, NV0,NV, 
+                     Event,EventsT),
+	gfd_default_interval(Min, Max),
+	update_vars_for_gecode(NV0, NV, [], H, Min, Max),
+        post_new_event_with_aux(Event,EventsT, H).
+
+count_matches_events1(Vals, Vars, Rel0, N, _ConLev, H, NV0,NV, Ev,EvT) :-
+        is_valid_rel_op(Rel0, Rel),
+        collection_to_list(Vals, ValsL),
+        ValsArr =.. [[]|ValsL],
+        collection_to_list(Vars, VarsL),
+        ec_to_gecode_varlist1([N|VarsL], H, NV0, NV, [GN|GVars], _),
+        VarsArr =.. [[]|GVars],
+        arity(VarsArr) =:= arity(ValsArr),
+        % gac only currently, no need for ConLev
+        Ev = [post_count_matches(ValsArr, VarsArr, Rel, GN)|EvT].
+                       
 
 element(Index, Collection, Value) :-
         element_body(Index, Collection, Value, ecl, default).
@@ -1933,73 +2173,276 @@ sorted_body(Us0, Ss0, Ps0, IndexType, ConLev) :-
 
 
 circuit(Succ) :-
-        circuit_body(Succ, ecl, default).
+        circuit_offset_body(Succ, 0, ecl, default).
 
 circuit_g(Succ) :-
-        circuit_body(Succ, gc, default).
+        circuit_offset_body(Succ, 0, gc, default).
 
 circuit_c(Succ, ConLev) :-
-        circuit_body(Succ, ecl, ConLev).
+        circuit_offset_body(Succ, 0, ecl, ConLev).
 
 circuit_g_c(Succ, ConLev) :-
-        circuit_body(Succ, gc, ConLev).
+        circuit_offset_body(Succ, 0, gc, ConLev).
 
-circuit_body(Succ, IndexType, ConLev) :-
+
+circuit_offset(Succ, Off) :-
+        circuit_offset_body(Succ, Off, ecl, default).
+
+circuit_offset_g(Succ, Off) :-
+        circuit_offset_body(Succ, Off, gc, default).
+
+circuit_offset_c(Succ, Off, ConLev) :-
+        circuit_offset_body(Succ, Off, ecl, ConLev).
+
+circuit_offset_g_c(Succ, Off, ConLev) :-
+        circuit_offset_body(Succ, Off, gc, ConLev).
+
+circuit_offset_body(Succ, Off0, IndexType, ConLev) :-
         collection_to_list(Succ, SList),
-        SList \== [],
         length(SList, N), 
-        convert_index_vars(IndexType, ConLev, SList, SList1),
+        (IndexType == ecl ->
+            Off is Off0 + 1, Min = Off, Max is N + Off0 
+        ;
+            Off is Off0, Min = Off, Max is N + Off - 1
+        ),
         get_prob_handle(H),
         H = gfd_prob{nvars:NV0},
-        process_domain_vars(SList1, [1..N], H, NV0,NV, [],OldVs, GSs),
-        assign_domain([1..N], H, NV, OldVs),
+        process_domain_vars(SList, [Min..Max], H, NV0,NV, [],OldVs, GSs),
+        assign_domain([Min..Max], H, NV, OldVs),
         SArr =.. [[]|GSs],
-        post_new_event(post_circuit(ConLev,SArr), H).
+        post_new_event(post_circuit(ConLev,SArr,Off), H).
+
 
 circuit(Succ, CostMatrix, Cost) :-
-        circuit_body(Succ, CostMatrix, [], Cost, ecl, default).
+        circuit_offset_body(Succ, 0, CostMatrix, [], Cost, ecl, default).
 
 circuit(Succ, CostMatrix, ArcCosts, Cost) :-
-        circuit_body(Succ, CostMatrix, ArcCosts, Cost, ecl, default).
+        circuit_offset_body(Succ, 0, CostMatrix, ArcCosts, Cost, ecl, default).
 
 circuit_g(Succ, CostMatrix, Cost) :-
-        circuit_body(Succ, CostMatrix, [], Cost, gc, default).
+        circuit_offset_body(Succ, 0, CostMatrix, [], Cost, gc, default).
 
 circuit_g(Succ, CostMatrix, ArcCosts, Cost) :-
-        circuit_body(Succ, CostMatrix, ArcCosts, Cost, gc, default).
-
+        circuit_offset_body(Succ, 0, CostMatrix, ArcCosts, Cost, gc, default).
 
 circuit_c(Succ, CostMatrix, Cost, ConLev) :-
-        circuit_body(Succ, CostMatrix, [], Cost, ecl, ConLev).
+        circuit_offset_body(Succ, 0, CostMatrix, [], Cost, ecl, ConLev).
 
 circuit_c(Succ, CostMatrix, ArcCosts, Cost, ConLev) :-
-        circuit_body(Succ, CostMatrix, ArcCosts, Cost, ecl, ConLev).
+        circuit_offset_body(Succ, 0, CostMatrix, ArcCosts, Cost, ecl, ConLev).
 
 circuit_g_c(Succ, CostMatrix, Cost, ConLev) :-
-        circuit_body(Succ, CostMatrix, [], Cost, gc, ConLev).
+        circuit_offset_body(Succ, 0, CostMatrix, [], Cost, gc, ConLev).
 
 circuit_g_c(Succ, CostMatrix, ArcCosts, Cost, ConLev) :-
-        circuit_body(Succ, CostMatrix, ArcCosts, Cost, gc, ConLev).
+        circuit_offset_body(Succ, 0, CostMatrix, ArcCosts, Cost, gc, ConLev).
 
-circuit_body(Succ, CostMatrix, ArcCosts, Cost, IndexType, ConLev) :-
+
+circuit_offset(Succ, Off, CostMatrix, Cost) :-
+        circuit_offset_body(Succ, Off, CostMatrix, [], Cost, ecl, default).
+
+circuit_offset(Succ, Off, CostMatrix, ArcCosts, Cost) :-
+        circuit_offset_body(Succ, Off, CostMatrix, ArcCosts, Cost, ecl, default).
+
+circuit_offset_g(Succ, Off, CostMatrix, Cost) :-
+        circuit_offset_body(Succ, Off, CostMatrix, [], Cost, gc, default).
+
+circuit_offset_g(Succ, Off, CostMatrix, ArcCosts, Cost) :-
+        circuit_offset_body(Succ, Off, CostMatrix, ArcCosts, Cost, gc, default).
+
+circuit_offset_c(Succ, Off, CostMatrix, Cost, ConLev) :-
+        circuit_offset_body(Succ, Off, CostMatrix, [], Cost, ecl, ConLev).
+
+circuit_offset_c(Succ, Off, CostMatrix, ArcCosts, Cost, ConLev) :-
+        circuit_offset_body(Succ, Off, CostMatrix, ArcCosts, Cost, ecl, ConLev).
+
+circuit_offset_g_c(Succ, Off, CostMatrix, Cost, ConLev) :-
+        circuit_offset_body(Succ, Off, CostMatrix, [], Cost, gc, ConLev).
+
+circuit_offset_g_c(Succ, Off, CostMatrix, ArcCosts, Cost, ConLev) :-
+        circuit_offset_body(Succ, Off, CostMatrix, ArcCosts, Cost, gc, ConLev).
+
+circuit_offset_body(Succ, Off0, CostMatrix, ArcCosts, Cost, IndexType, ConLev) :-
+        collection_to_list(Succ, SList),
+        length(SList, N), 
+        (IndexType == ecl ->
+            Off is Off0 + 1, Min = Off, Max is N + Off0 
+        ;
+            Off is Off0, Min = Off, Max is N + Off - 1
+        ),
+        get_prob_handle(H),
+        arg(nvars of gfd_prob, H, NV0),
+        process_domain_vars(SList, [Min..Max], H, NV0,NV1, [],OldVs, GSs),
+        assign_domain([Min..Max], H, NV1, OldVs),
+        SArr =.. [[]|GSs],
+        circuit_offset_events1(SArr, Off, CostMatrix, ArcCosts, Cost,
+                               ConLev, H, NV1,NV, Event, EventTail),
+        % NV1 because assign_domain updated nvars to NV1
+        update_gecode_with_default_newvars(H, NV1, NV),
+        post_new_event_with_aux(Event, EventTail, H).
+
+circuit_offset_events1(SArr, Off, CostMatrix, ArcCosts, Cost, ConLev, H,
+                       NV1,NV, Event, EventTail) :-
         collection_to_list(flatten(CostMatrix), CMList),
         CMArr =.. [[]|CMList],
-        collection_to_list(Succ, SList),
-        SList \== [],
-        length(SList, N), 
-        SList :: 1..N,
-        get_prob_handle(H),
-        convert_index_vars(IndexType, ConLev, SList, SList1),
-        ec_to_gecode_varlist([Cost|SList1], H, [GCost|GSs], _),
-        SArr =.. [[]|GSs],
+        ec_to_gecode_var1(Cost, H, NV1,NV2, GCost),
         ( ArcCosts == [] ->
+            NV = NV2,
             GAC = []
         ;
             collection_to_list(ArcCosts, ACList),
-            ec_to_gecode_varlist(ACList, H, GACList, _),
+            ec_to_gecode_varlist1(ACList, H, NV2,NV, GACList, _),
             GAC =.. [[]|GACList]
         ),
-        post_new_event(post_circuit_cost(ConLev,SArr,CMArr,GAC,GCost), H).
+        Event = [post_circuit_cost(ConLev,SArr,CMArr,GAC,GCost,Off)|EventTail].
+
+% The common code for posting a aux. circuit (with cost) constraint in a
+% constraint expression, we cannot treat the Succ variables differently here
+circuit_aux_events1(Succ, Off, CostMat, ArcCosts, Cost, ConLev, H, N0,N, Auxs0,AuxsT) :-
+        collection_to_list(Succ, SuccL),
+        ec_to_gecode_varlist1(SuccL, H, N0,N1, GSuccL, _),
+        SArr =.. [[]|GSuccL],
+        circuit_offset_events1(SArr, Off, CostMat, ArcCosts, Cost, ConLev, H, N1,N, Auxs0,AuxsT). 
+
+
+ham_path(Start, End, Succ) :-
+        ham_path_offset_body(Start, End, Succ, 0, ecl, default).
+
+ham_path_g(Start, End, Succ) :-
+        ham_path_offset_body(Start, End, Succ, 0, gc, default).
+
+ham_path_c(Start, End, Succ, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, 0, ecl, ConLev).
+
+ham_path_g_c(Start, End, Succ, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, 0, gc, ConLev).
+
+
+ham_path_offset(Start, End, Succ, Off) :-
+        ham_path_offset_body(Start, End, Succ, Off, ecl, default).
+
+ham_path_offset_g(Start, End, Succ, Off) :-
+        ham_path_offset_body(Start, End, Succ, Off, gc, default).
+
+ham_path_offset_c(Start, End, Succ, Off, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, Off, ecl, ConLev).
+
+ham_path_offset_g_c(Start, End, Succ, Off, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, Off, gc, ConLev).
+
+
+ham_path_offset_body(Start, End, Succ, Off0, IdxType, ConLev) :-
+        collection_to_list(Succ, SList),
+        length(SList, Size),
+        % The successor to End node is a dummy id = largest id + 1 (Max)
+        ( IdxType == ecl ->
+            Off is Off0 + 1, Min = Off, Max is Size + Off
+        ;
+            Off is Off0, Min = Off, Max is Size + Off
+        ),
+        get_prob_handle(H),
+        H = gfd_prob{nvars:NV0},
+        process_domain_vars([Start,End|SList], [Min..Max], H, NV0,NV, 
+                            [],OldVs, [GStart,GEnd|GSs]),
+        assign_domain([Min..Max], H, NV, OldVs),
+        SArr =.. [[]|GSs],
+        post_new_event(post_ham_path(ConLev,GStart,GEnd,SArr,Off), H).
+
+
+ham_path(Start, End, Succ, CostMatrix, Cost) :-
+        ham_path_offset_body(Start, End, Succ, 0, CostMatrix, [], Cost, ecl, default).
+
+ham_path_g(Start, End, Succ, CostMatrix, Cost) :-
+        ham_path_offset_body(Start, End, Succ, 0, CostMatrix, [], Cost, gc, default).
+
+ham_path_c(Start, End, Succ, CostMatrix, Cost, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, 0, CostMatrix, [], Cost, ecl, ConLev).
+
+ham_path_g_c(Start, End, Succ, CostMatrix, Cost, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, 0, CostMatrix, [], Cost, gc, ConLev).
+
+
+ham_path_offset(Start, End, Succ, Off, CostMatrix, Cost) :-
+        ham_path_offset_body(Start, End, Succ, Off, CostMatrix, [], Cost, ecl, default).
+
+ham_path_offset_g(Start, End, Succ, Off, CostMatrix, Cost) :-
+        ham_path_offset_body(Start, End, Succ, Off, CostMatrix, [], Cost, gc, default).
+
+ham_path_offset_c(Start, End, Succ, Off, CostMatrix, Cost, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, Off, CostMatrix, [], Cost, ecl, ConLev).
+
+ham_path_offset_g_c(Start, End, Succ, Off, CostMatrix, Cost, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, Off, CostMatrix, [], Cost, gc, ConLev).
+
+
+ham_path(Start, End, Succ, CostMatrix, ArcCosts, Cost) :-
+        ham_path_offset_body(Start, End, Succ, 0, CostMatrix, ArcCosts, Cost, ecl, default).
+
+ham_path_g(Start, End, Succ, CostMatrix, ArcCosts, Cost) :-
+        ham_path_offset_body(Start, End, Succ, 0, CostMatrix, ArcCosts, Cost, gc, default).
+
+ham_path_c(Start, End, Succ, CostMatrix, ArcCosts, Cost, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, 0, CostMatrix, ArcCosts, Cost, ecl, ConLev).
+
+ham_path_g_c(Start, End, Succ, CostMatrix, ArcCosts, Cost, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, 0, CostMatrix, ArcCosts, Cost, gc, ConLev).
+
+
+ham_path_offset(Start, End, Succ, Off, CostMatrix, ArcCosts, Cost) :-
+        ham_path_offset_body(Start, End, Succ, Off, CostMatrix, ArcCosts, Cost, ecl, default).
+
+ham_path_offset_g(Start, End, Succ, Off, CostMatrix, ArcCosts, Cost) :-
+        ham_path_offset_body(Start, End, Succ, Off, CostMatrix, ArcCosts, Cost, gc, default).
+
+ham_path_offset_c(Start, End, Succ, Off, CostMatrix, ArcCosts, Cost, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, Off, CostMatrix, ArcCosts, Cost, ecl, ConLev).
+
+ham_path_offset_g_c(Start, End, Succ, Off, CostMatrix, ArcCosts, Cost, ConLev) :-
+        ham_path_offset_body(Start, End, Succ, Off, CostMatrix, ArcCosts, Cost, gc, ConLev).
+
+
+ham_path_offset_body(Start, End, Succ, Off0, CostMatrix, ArcCosts, Cost, IdxType, ConLev) :-
+        collection_to_list(Succ, SList),
+        length(SList, N), 
+        (IdxType == ecl ->
+            Off is Off0 + 1, Min = Off, Max is N + Off 
+        ;
+            Off is Off0, Min = Off, Max is N + Off 
+        ),
+        get_prob_handle(H),
+        arg(nvars of gfd_prob, H, NV0),
+        process_domain_vars([Start,End|SList], [Min..Max], H, NV0,NV1, 
+                            [],OldVs, [GStart,GEnd|GSs]),
+        assign_domain([Min..Max], H, NV1, OldVs),
+        SArr =.. [[]|GSs],
+        ham_path_offset_events1(GStart, GEnd, SArr, Off, CostMatrix,
+                                ArcCosts, Cost, ConLev, H, NV1,NV, Ev,EvT),
+        % NV1 because assign_domain updated nvars to NV1
+        update_gecode_with_default_newvars(H, NV1, NV),
+        post_new_event_with_aux(Ev, EvT, H).
+
+ham_path_offset_events1(GStart, GEnd, SArr, Off, CostMatrix, ArcCosts,
+                        Cost, ConLev, H, NV1,NV, Ev,EvT) :-
+        collection_to_list(flatten(CostMatrix), CMList),
+        CMArr =.. [[]|CMList],
+        ec_to_gecode_var1(Cost, H, NV1,NV2, GCost),
+        ( ArcCosts == [] ->
+            NV = NV2,
+            GAC = []
+        ;
+            collection_to_list(ArcCosts, ACList),
+            ec_to_gecode_varlist1(ACList, H, NV2,NV, GACList, _),
+            GAC =.. [[]|GACList]
+        ),
+        Ev = [post_ham_path_cost(ConLev,GStart,GEnd,SArr,CMArr,GAC,GCost,Off)|EvT].
+
+% The common code for posting a aux. ham_path (with cost) constraint in a
+% constraint expression, we cannot treat the Succ variables differently here
+ham_path_aux_events1(Start, End, Succ, Off, CostMat, ArcCosts, Cost, ConLev, H, N0,N, Auxs0,AuxsT) :-
+        collection_to_list(Succ, SuccL),
+        ec_to_gecode_varlist1([Start,End|SuccL], H, N0,N1, [GStart,GEnd|GSuccL], _),
+        SArr =.. [[]|GSuccL],
+        ham_path_offset_events1(GStart, GEnd, SArr, Off, CostMat, ArcCosts, Cost, ConLev, H, N1,N, Auxs0,AuxsT). 
 
 
 sequence(Lo, Hi, K, Vars, Values) :-
@@ -2113,11 +2556,10 @@ cumulative_optional(Starts, Durations, Usages, Limit, Scheduled) :-
         cumulative_body(Starts, Durations, Usages, Limit, H, GBs).
         
 cumulative_body(Starts, Durations, Usages, Limit, H, GBs) :-
-        integer(Limit),
         collection_to_list(Starts, StartsL),
         collection_to_list(Durations, DurationsL),
         H = gfd_prob{nvars:NV0},
-        ec_to_gecode_varlist1(StartsL, H, NV0,NV1, GStartsL, _),
+        ec_to_gecode_varlist1([Limit|StartsL], H, NV0,NV1, [GLimit|GStartsL], _),
         ec_to_gecode_varlist1(DurationsL, H, NV1,NV2, GDsL, DHasVar),
         SsArr =.. [[]|GStartsL],
         arity(SsArr, N),
@@ -2136,12 +2578,12 @@ cumulative_body(Starts, Durations, Usages, Limit, H, GBs) :-
         ),
         ( var(DHasVar) ->
             update_gecode_with_default_newvars(H, NV0, NV2),
-            post_new_event(post_cumulative(SsArr, DsArr, UsArr, Limit, BsArr), H) 
+            post_new_event(post_cumulative(SsArr, DsArr, UsArr, GLimit, BsArr), H) 
         ;
-            functor(EsArr, [], N),
+            dim(EsArr, [N]),
             create_task_end_times1(SsArr, DsArr, H, NV2,NV, Auxs0,AuxsT, EsArr),
             update_gecode_with_default_newvars(H, NV0, NV),
-            post_new_event_with_aux([post_cumulativeflex(SsArr, DsArr, EsArr, UsArr, Limit, BsArr)|Auxs0], AuxsT, H)                                     
+            post_new_event_with_aux([post_cumulativeflex(SsArr, DsArr, EsArr, UsArr, GLimit, BsArr)|Auxs0], AuxsT, H)                                     
         ).
 
 
@@ -2190,8 +2632,15 @@ create_task_end_times1(SsArr, DsArr, H, NV0,NV, Auxs0,AuxsT, EsArr) :-
         do
 %            ec_to_gecode_var1(E, H, NV1,NV2, GE),
             % EsArr are all new variables
-            new_gfdvar(_E, H, NV1,NV2, GE),
-            Auxs1 = [post_sum(default, [](GS,GD), (#=), GE)|Auxs2]
+            ( integer(GS), integer(GD) ->
+                % don't post extra constraint if End could be determined
+                GE is GS + GD,
+                NV1 = NV2,
+                Auxs1 = Auxs2
+            ;
+                new_gfdvar(_E, H, NV1,NV2, GE),
+                Auxs1 = [post_sum(default, [](GS,GD), (#=), GE)|Auxs2]
+            )
         ).
 
 
@@ -2217,6 +2666,57 @@ bool_channeling_c(V, Bools, Min, ConLev) :-
             error(5, bool_channeling(V, Bools, Min))
         ),
         post_new_event(post_boolchannel(ConLev,GV,GBArr,Min), H). 
+
+:- export struct(rect(x,y,w,h,b)).
+
+disjoint2(Recs) :-
+        collection_to_list(Recs, RecLs),
+        ( foreach(rect{x:X,y:Y,w:Width,h:Height}, RecLs),
+          foreach(X, Xs), foreach(Y, Ys), 
+          foreach(Width, Ws), foreach(Height, Hs)
+        do 
+            true
+        ),
+        get_prob_handle(H),
+        disjoint2_body(Xs, Ws, Ys, Hs, [], H).
+
+
+disjoint2_optional(Recs) :-
+        collection_to_list(Recs, RecLs),
+        ( foreach(rect{x:X,y:Y,w:Width,h:Height,b:O}, RecLs),
+          foreach(X, Xs), foreach(Y, Ys), foreach(O, Os), 
+          foreach(Width, Ws), foreach(Height, Hs)
+        do 
+            true
+        ),
+        get_prob_handle(H),
+        ec_to_gecode_boolvarlist(Os, H, GOs, _),
+        disjoint2_body(Xs, Ws, Ys, Hs, GOs, H).
+
+disjoint2_body(Xs, Ws, Ys, Hs, GOs, H) :-
+        H = gfd_prob{nvars:N0}, 
+        ec_to_gecode_varlist1(Xs, H, N0,N1, GXs, _),
+        ec_to_gecode_varlist1(Ys, H, N1,N2, GYs, _),
+        ec_to_gecode_varlist1(Hs, H, N2,N3, GHs, HasVar),
+        ec_to_gecode_varlist1(Ws, H, N3,N4, GWs, HasVar),
+        WArr =.. [[]|GWs],
+        HArr =.. [[]|GHs],
+        XArr =.. [[]|GXs],
+        YArr =.. [[]|GYs],
+        OArr =.. [[]|GOs],
+        ( HasVar == 1 ->
+            arity(WArr, NR),
+            dim(XEArr, [NR]),
+            dim(YEArr, [NR]),
+            create_task_end_times1(XArr, WArr, H, N4, N5, Auxs0,Auxs1, XEArr),
+            create_task_end_times1(YArr, HArr, H, N5, N6, Auxs1,AuxsT, YEArr),
+            update_gecode_with_default_newvars(H, N0, N6),
+            post_new_event_with_aux([post_disjointflex2(XArr,WArr,YArr,HArr,OArr,XEArr,YEArr)|
+                                     Auxs0], AuxsT, H)
+        ;
+            update_gecode_with_default_newvars(H, N0, N4),
+            post_new_event(post_disjoint2(XArr,WArr,YArr,HArr,OArr), H)
+        ).
 
 
 inverse(XL, YL) :-
@@ -2299,6 +2799,27 @@ inverse_body(Vs1, Off1, Vs2, Off2, IndexType, ConLev) :-
         Arr1 =.. [[]|GVars1],
         Arr2 =.. [[]|GVars2],
         post_new_event(post_inverse_offset(ConLev, Arr1, GOff1, Arr2, GOff2), H).
+
+
+precede(S, T, Vars) :-
+        integer(S),
+        integer(T),
+        collection_to_list(Vars, VList),
+        get_prob_handle(H),
+        ec_to_gecode_varlist(VList, H, GVars, _),
+        GArr =.. [[]|GVars],
+        post_new_event(post_precede(S,T,GArr), H).
+
+
+precede(Vals, Vars) :-
+        collection_to_list(Vals, ValsL),
+        ValsArr =.. [[]|ValsL],
+        collection_to_list(Vars, VarsL),
+        get_prob_handle(H),
+        ec_to_gecode_varlist(VarsL, H, GVarsL, _),
+        GVarsArr =.. [[]|GVarsL],
+        post_new_event(post_precede_chain(ValsArr,GVarsArr), H).
+        
 
 min(Xs, Min) :-
         minlist_c(Xs, Min, default).
@@ -2579,13 +3100,28 @@ eq_c(X, Y, ConLev) :-
 
 
 rel_c(X, Rel, Y, ConLev) :-
+        ( compound(X) ->
+            collection_rel(X, Rel, Y, ConLev)
+        ; X == [] ->
+            true
+        ;
+            get_prob_handle(H),
+            H = gfd_prob{nvars:NV0},
+            ec_to_gecode_varlist1([X,Y], H, NV0,NV, [GX,GY], _),
+            update_gecode_with_default_newvars(H, NV0, NV),
+            post_new_event(post_rel(ConLev, GX, Rel, GY), H)
+        ).
+
+collection_rel(Xs, Rel, Y, ConLev) :-
+        collection_to_list(Xs, XList),
         get_prob_handle(H),
         H = gfd_prob{nvars:NV0},
-        ec_to_gecode_varlist1([X,Y], H, NV0,NV, [GX,GY], _),
+        ec_to_gecode_varlist1([Y|XList], H, NV0,NV, [GY|GXList], _),
+        GXArr =.. [[]|GXList],
         update_gecode_with_default_newvars(H, NV0, NV),
-        post_new_event(post_rel(ConLev, GX, Rel, GY), H).
+        post_new_event(post_collection_rel(ConLev, GXArr, Rel, GY), H).
 
-
+        
 lex_le(Xs, Ys) :-
         lex_le_c(Xs, Ys, default).
 
@@ -2702,6 +3238,7 @@ update_space_with_events1(Es, _) :-
         var(Es), !.
 %        writeln("*****done updating clone"). 
 update_space_with_events1([E|Es], H) ?-
+%        write("re"),
         do_event(E, H, _),
         update_space_with_events1(Es, H).
         
@@ -2768,16 +3305,9 @@ propagate_gecode_changes(SpH, VArr, InstList, ChgList) :-
         ;
             ( foreach(CIdx, ChgList), param(VArr) do
                 arg(CIdx, VArr, U),
-/*                ( integer(U) -> 
-                    % may be integer from previous unifications not yet
-                    % sync'ed with Gecode
-                    true
-                ;
-*/
                 get_gecode_attr(U, Attr),
                 % assuming only one single problem, otherwise need H
                 schedule_suspensions(any of gfd, Attr)
-%               )
             )
         ).
            
@@ -2875,9 +3405,18 @@ do_event1(post_alldiff(ConLev, GArray), SpH, DoProp) ?-
 do_event1(post_alldiff_offsets(ConLev, GArray, OArray), SpH, DoProp) ?-
         DoProp = [],
         g_post_alldiff_offsets(SpH, GArray, OArray, ConLev).
+do_event1(post_nvalues(GArray,Rel,N), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_nvalues(SpH, GArray, Rel, N).
 do_event1(post_count(ConLev, Value,GArray,Rel, N), SpH, DoProp) ?-
         DoProp = [],
         g_post_count(SpH, Value, GArray, Rel, N, ConLev).
+do_event1(post_among(Values,GArray,Rel, N), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_among(SpH, Values, GArray, Rel, N).
+do_event1(post_count_matches(Values,GArray,Rel, N), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_count_matches(SpH, Values, GArray, Rel, N).
 do_event1(post_gcc(ConLev, Vals,Occs,GVs), SpH, DoProp) ?-
         DoProp = [],
         g_post_gcc(SpH, Vals, Occs, GVs, ConLev).
@@ -2896,12 +3435,18 @@ do_event1(post_sorted2(ConLev, UsArray, SsArray), SpH, DoProp) ?-
 do_event1(post_sorted(ConLev, UsArray, SsArray, PsArray), SpH, DoProp) ?-
         DoProp = [],
         g_post_sorted(SpH, UsArray, SsArray, PsArray, ConLev).
-do_event1(post_circuit(ConLev, SArray), SpH, DoProp) ?-
+do_event1(post_circuit(ConLev, SArray, Offset), SpH, DoProp) ?-
         DoProp = [],
-        g_post_circuit(SpH, SArray, ConLev).
-do_event1(post_circuit_cost(ConLev, SArray, CMArray, ACArray, GCost), SpH, DoProp) ?-
+        g_post_circuit(SpH, SArray, Offset, ConLev).
+do_event1(post_circuit_cost(ConLev, SArray, CMArray, ACArray, GCost, Offset), SpH, DoProp) ?-
         DoProp = [],
-        g_post_circuit_cost(SpH, SArray, CMArray, ACArray, GCost, ConLev).
+        g_post_circuit_cost(SpH, SArray, CMArray, ACArray, GCost, Offset, ConLev).
+do_event1(post_ham_path(ConLev,Start,End,SArray, Offset), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_ham_path(SpH, Start, End, SArray, Offset, ConLev).
+do_event1(post_ham_path_cost(ConLev,Start,End,SArray,CMArray,ACArray,GCost,Offset), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_ham_path_cost(SpH, Start, End, SArray, CMArray, ACArray, GCost, Offset, ConLev).
 do_event1(post_disj(StartArray,DurArray,SchArray), SpH, DoProp) ?-
         DoProp = [],
         % ConLev not supported for this constraint
@@ -2919,6 +3464,18 @@ do_event1(post_cumulative(Starts,Durations,Usages,Limit,Schs), SpH, DoProp) ?-
 do_event1(post_cumulativeflex(Starts,Durations,Ends,Usages,Limit,Schs), SpH, DoProp) ?-
         DoProp = [],
         g_post_cumulativeflex(SpH, Starts, Durations, Ends, Usages, Limit, Schs).
+do_event1(post_disjoint2(Xs,Widths,Ys,Heights,Optionals), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_disjoint2(SpH, Xs, Widths, Ys, Heights, Optionals).
+do_event1(post_disjointflex2(X1s,Widths,Y1s,Heights,Optionals,X2s,Y2s), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_disjointflex2(SpH, X1s, Widths, Y1s, Heights, Optionals, X2s, Y2s).
+do_event1(post_precede(S, T, GArray), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_precede(SpH, S, T, GArray).
+do_event1(post_precede_chain(Vals, GArray), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_precede_chain(SpH, Vals, GArray).
 do_event1(post_interval(GArray,Lo,Hi), SpH, DoProp) ?-
         DoProp = [],
         g_post_interval(SpH, GArray, Lo, Hi).
@@ -3006,6 +3563,9 @@ do_event1(post_max2(ConLev, GRes, GX, GY), SpH, DoProp) ?-
 do_event1(post_rel(ConLev, GX, Rel, GY), SpH, DoProp) ?-
         DoProp = [],
         g_post_rel(SpH, GX, Rel, GY, ConLev).
+do_event1(post_collection_rel(ConLev, GXs, Rel, GY), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_collection_rel(SpH, GXs, Rel, GY, ConLev).
 do_event1(post_lwb(GV, Lwb), SpH, DoProp) ?-
         DoProp = [],
         g_post_lwb(SpH, GV, Lwb).
@@ -3033,6 +3593,12 @@ do_event1(post_lex_order(ConLev,XArr,Rel,YArr), SpH, DoProp) ?-
 do_event1(post_bin_packing(IArr,SArr,LArr), SpH, DoProp) ?-
         DoProp = [],
         g_post_bin_packing(SpH, IArr, SArr, LArr).
+do_event1(post_mem(VArr,Mem), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_mem(SpH, VArr, Mem).
+do_event1(post_mem_reif(VArr,Mem, Bool), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_mem_reif(SpH, VArr, Mem, Bool).
 
 
 
@@ -3351,8 +3917,8 @@ copy_until_elem([X|Xs], K, Ys, Ys0) :-
    event queue is marked, so that the space returned after the search
    will become an ancestor if further events are posted. 
 */   
-:- export struct(gfd_stats(prop,fail,node,depth,mem)).
-:- export struct(gfd_control(commit_distance,adaptive_distance)).
+:- export struct(gfd_stats(prop,fail,nodes,depth,mem)).
+:- export struct(gfd_control(commit_distance,adaptive_distance,threads)).
 
 search(Vars, Pos, Select, Choice, Method, Option) :-
         collection_to_list(Vars, List),
@@ -3404,7 +3970,7 @@ process_option(limits(Stop0), _, _, Stop, _, _) ?-
         Stop = Stop0.
 process_option(nodes(N), _, _, Stop, _, _) ?- % ic/fd/gfd_search compatibility
         integer(N), N >= 0, !,
-        Stop = gfd_stats{node:N}.
+        Stop = gfd_stats{nodes:N}.
 process_option(timeout(T), _, _, _, Timeout, _) ?-
         number(T), T >= 0, !,
         convert_timeout_to_ms(T, Timeout).
@@ -3831,6 +4397,10 @@ is_in_domain(Val, Var, Result) :-
       sqr/2 -> sqr_c/3,
       sqrt/2 -> sqrt_c/3,
       ordered/2 -> ordered_c/3,
+      among/4 -> among_c/5,
+      count_matches/4 -> count_matches_c/5,
+      mem/2 -> mem_c/3,
+      mem/3 -> mem_reif_c/4,
       le/2 -> le_c/3,
       lt/2 -> lt_c/3,
       ge/2 -> ge_c/3,
@@ -3858,6 +4428,24 @@ is_in_domain(Val, Var, Result) :-
       circuit_g/1 -> circuit_g_c/2,
       circuit_g/3 -> circuit_g_c/4,
       circuit_g/4 -> circuit_g_c/5,
+      circuit_offset/2 -> circuit_offset_c/3,
+      circuit_offset/4 -> circuit_offset_c/5,
+      circuit_offset/5 -> circuit_offset_c/6,
+      circuit_offset_g/2 -> circuit_offset_g_c/3,
+      circuit_offset_g/4 -> circuit_offset_g_c/5,
+      circuit_offset_g/5 -> circuit_offset_g_c/6,
+      ham_path/3 -> ham_path_c/4,
+      ham_path/5 -> ham_path_c/6,
+      ham_path/6 -> ham_path_c/7,
+      ham_path_g/3 -> ham_path_g_c/4,
+      ham_path_g/5 -> ham_path_g_c/6,
+      ham_path_g/6 -> ham_path_g_c/7,
+      ham_path_offset/4 -> ham_path_offset_c/5,
+      ham_path_offset/6 -> ham_path_offset_c/7,
+      ham_path_offset/7 -> ham_path_offset_c/8,
+      ham_path_offset_g/4 -> ham_path_offset_g_c/5,
+      ham_path_offset_g/6 -> ham_path_offset_g_c/7,
+      ham_path_offset_g/7 -> ham_path_offset_g_c/8,
       gcc/2 -> gcc_c/3,
       inverse/2 -> inverse_c/3,
       inverse_g/2 -> inverse_g_c/3,
@@ -3951,6 +4539,24 @@ is_in_domain(Val, Var, Result) :-
       circuit_g/1 -> circuit_g_c/2,
       circuit_g/3 -> circuit_g_c/4,
       circuit_g/4 -> circuit_g_c/5,
+      circuit_offset/2 -> circuit_offset_c/3,
+      circuit_offset/4 -> circuit_offset_c/5,
+      circuit_offset/5 -> circuit_offset_c/6,
+      circuit_offset_g/2 -> circuit_offset_g_c/3,
+      circuit_offset_g/4 -> circuit_offset_g_c/5,
+      circuit_offset_g/5 -> circuit_offset_g_c/6,
+      ham_path/3 -> ham_path_c/4,
+      ham_path/5 -> ham_path_c/6,
+      ham_path/6 -> ham_path_c/7,
+      ham_path_g/3 -> ham_path_g_c/4,
+      ham_path_g/5 -> ham_path_g_c/6,
+      ham_path_g/6 -> ham_path_g_c/7,
+      ham_path_offset/4 -> ham_path_offset_c/5,
+      ham_path_offset/6 -> ham_path_offset_c/7,
+      ham_path_offset/7 -> ham_path_offset_c/8,
+      ham_path_offset_g/4 -> ham_path_offset_g_c/5,
+      ham_path_offset_g/6 -> ham_path_offset_g_c/7,
+      ham_path_offset_g/7 -> ham_path_offset_g_c/8,
 %      cumulative/4 -> cumulative_c/5,
       cumulatives/5 -> cumulatives_c/6,
       cumulatives_min/5 -> cumulatives_min_c/6,

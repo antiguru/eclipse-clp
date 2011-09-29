@@ -41,13 +41,13 @@ EC_argument(EC_word t, int i)
   return e;
 }
 
-// Arg is an integer domain variable with index Idx 
+// Arg is an integer domain variable with index Idx (use EC_functor f)
 #define ArgIsVarIdx(Arg, Idx)			\
     (EC_arg(Arg).functor(&f) == EC_succeed &&	\
 	strcmp(f.name(),"_ivar") ==0 && \
 	EC_argument(EC_arg(Arg),1).is_long(&Idx) == EC_succeed)
 
-// Arg is an integer domain variable with associated boolean with index BIdx
+// Arg is an integer domain variable with associated boolean with index BIdx (use EC_functor f)
 #define ArgIsVarBoolIdx(Arg, BIdx)		     \
     (EC_arg(Arg).functor(&f) == EC_succeed &&	     \
 	strcmp(f.name(),"_ivar") ==0 && \
@@ -60,6 +60,7 @@ EC_argument(EC_word t, int i)
 	return EC_EXTERNAL_ERROR; \
     }
 
+// get the interger consistency level cl from argument N 
 #define Get_Consistency_Level(N, cl) {		\
     EC_atom atm;   \
     if (EC_arg(N).is_atom(&atm) != EC_succeed) return TYPE_ERROR; \
@@ -70,6 +71,44 @@ EC_argument(EC_word t, int i)
     else return RANGE_ERROR; \
 }
 
+// get IntRelType r from argument N
+#define Get_IntRelType(N, r) { \
+    EC_atom ecrel; \
+    if (EC_arg(N).is_atom(&ecrel) != EC_succeed) return TYPE_ERROR; \
+    if (strcmp(ecrel.name(), "#=") == 0) r = IRT_EQ;                \
+    else if (strcmp(ecrel.name(), "#\\=") == 0) r = IRT_NQ;         \
+    else if (strcmp(ecrel.name(), "#>") == 0) r = IRT_GR;           \
+    else if (strcmp(ecrel.name(), "#<") == 0) r = IRT_LE;           \
+    else if (strcmp(ecrel.name(), "#>=") == 0) r = IRT_GQ;          \
+    else if (strcmp(ecrel.name(), "#=<") == 0) r = IRT_LQ;          \
+    else return TYPE_ERROR; \
+}
+
+// Assign IntVar var from argument N, var is assigned to either an existing 
+// vInt[] variable if argN is a variable, or to an integer value if argN is 
+// integer (use EC_functor f)
+#define Assign_IntVar(N, idx, var) { \
+    if (ArgIsVarIdx(N, idx)) {    \
+        if (idx < 1 || idx >= solver->vInt.size()) return RANGE_ERROR; \
+	var = solver->vInt[(int)idx]; \
+    } else if (EC_arg(N).is_long(&idx) == EC_succeed) { \
+	var = IntVar(*solver, (int)idx, (int)idx);      \
+    } else \
+        return TYPE_ERROR; \
+}
+
+// Assign the value of argument N to either IntVar var or int i, is_int is
+// set to true if i is assigned, false if var is assigned (use EC_functor f)
+#define Assign_IntVar_or_Int(N, i, var, is_int) { \
+    if (ArgIsVarIdx(N, i)) { \
+        if (i < 1 || i >= solver->vInt.size()) return RANGE_ERROR; \
+        var = solver->vInt[(int)i]; \
+        is_int = false; \
+    } else if (EC_arg(N).is_long(&i) == EC_succeed) { \
+        is_int = true; \
+    } else \
+        return TYPE_ERROR; \
+}
 
 extern "C" VisAtt stream_id log_output_, warning_output_, current_err_;
 
@@ -1343,8 +1382,6 @@ int p_g_post_interval()
     EC_word varr =  EC_arg(2);
     int size = varr.arity();
 
-    if (size == 0) return TYPE_ERROR;
-
     IntVarArgs vars(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
     if (res != EC_succeed) return res;
@@ -1380,13 +1417,7 @@ int p_g_post_var_interval_reif()
     EC_functor f;
 
     try {
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
+        Assign_IntVar(2, xidx, x);
 
 	long b;
 	BoolVar reif;
@@ -1440,7 +1471,6 @@ int p_g_post_dom()
 
     EC_word varr =  EC_arg(2);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     int res = get_domain_intervals_from_ec_array(dsize, darr, ranges);
     if (res != EC_succeed) return res;
@@ -1476,13 +1506,7 @@ int p_g_post_var_dom_reif()
 	IntVar x;
 	EC_functor f;
 
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
 
 	EC_word darr = EC_arg(3);
 	int dsize = darr.arity();
@@ -1540,13 +1564,7 @@ int p_g_post_var_val_reif()
     EC_functor f;
 
     try {
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
+        Assign_IntVar(2, xidx, x);
 
 	long val;
 
@@ -1596,35 +1614,19 @@ int p_g_post_sum()
 
     EC_word varr = EC_arg(2);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs vars(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
     if (res != EC_succeed) return res;
 
     IntRelType rel;
-    EC_atom r;
-    if (EC_arg(3).is_atom(&r) != EC_succeed) return TYPE_ERROR;
-    if (strcmp(r.name(), "#=") == 0) rel = IRT_EQ;
-    else if (strcmp(r.name(), "#\\=") == 0) rel = IRT_NQ;
-    else if (strcmp(r.name(), "#>") == 0) rel = IRT_GR;
-    else if (strcmp(r.name(), "#<") == 0) rel = IRT_LE;
-    else if (strcmp(r.name(), "#>=") == 0) rel = IRT_GQ;
-    else if (strcmp(r.name(), "#=<") == 0) rel = IRT_LQ;
-    else return TYPE_ERROR;
+    Get_IntRelType(3, rel);
 
     long c;
     IntVar cvar;
     EC_functor f;
     bool c_is_int;
-    if (ArgIsVarIdx(4, c)) {
-        if (c < 1 || c >= solver->vInt.size()) return RANGE_ERROR;
-        cvar = solver->vInt[(int)c];
-        c_is_int = false;
-    } else if (EC_arg(4).is_long(&c) == EC_succeed) {
-        c_is_int = true;
-    } else
-        return TYPE_ERROR;
+    Assign_IntVar_or_Int(4, c, cvar, c_is_int);
 
     IntConLevel cl;
     Get_Consistency_Level(5, cl);
@@ -1654,42 +1656,25 @@ int p_g_post_sum_reif()
 
     EC_word varr = EC_arg(2);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs vars(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
     if (res != EC_succeed) return res;
 
     IntRelType rel;
-    EC_atom r;
-    if (EC_arg(3).is_atom(&r) != EC_succeed) return TYPE_ERROR;
-    if (strcmp(r.name(), "#=") == 0) rel = IRT_EQ;
-    else if (strcmp(r.name(), "#\\=") == 0) rel = IRT_NQ;
-    else if (strcmp(r.name(), "#>") == 0) rel = IRT_GR;
-    else if (strcmp(r.name(), "#<") == 0) rel = IRT_LE;
-    else if (strcmp(r.name(), "#>=") == 0) rel = IRT_GQ;
-    else if (strcmp(r.name(), "#=<") == 0) rel = IRT_LQ;
-    else return TYPE_ERROR;
+    Get_IntRelType(3, rel);
 
     long c;
     IntVar cvar;
     EC_functor f;
     bool c_is_int;
-    if (ArgIsVarIdx(4, c)) {
-        if (c < 1 || c >= solver->vInt.size()) return RANGE_ERROR;
-        cvar = solver->vInt[(int)c];
-        c_is_int = false;
-    } else if (EC_arg(4).is_long(&c) == EC_succeed) {
-        c_is_int = true;
-    } else
-        return TYPE_ERROR;
+    Assign_IntVar_or_Int(4, c, cvar, c_is_int);
 
     IntConLevel cl;
     Get_Consistency_Level(6, cl);
 
     long b;
     BoolVar reif;
-    bool bool_is_set;
 
     if (ArgIsVarBoolIdx(5, b)) {
         reif = solver->vBool[(int)b];
@@ -1724,7 +1709,6 @@ int p_g_post_lin()
 
     EC_word varr = EC_arg(2);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs vars(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
@@ -1738,28 +1722,13 @@ int p_g_post_lin()
     if (res != EC_succeed) return res;
 
     IntRelType rel;
-    EC_atom r;
-    if (EC_arg(4).is_atom(&r) != EC_succeed) return TYPE_ERROR;
-    if (strcmp(r.name(), "#=") == 0) rel = IRT_EQ;
-    else if (strcmp(r.name(), "#\\=") == 0) rel = IRT_NQ;
-    else if (strcmp(r.name(), "#>") == 0) rel = IRT_GR;
-    else if (strcmp(r.name(), "#<") == 0) rel = IRT_LE;
-    else if (strcmp(r.name(), "#>=") == 0) rel = IRT_GQ;
-    else if (strcmp(r.name(), "#=<") == 0) rel = IRT_LQ;
-    else return TYPE_ERROR;
+    Get_IntRelType(4, rel);
 
     long c;
     IntVar cvar;
     EC_functor f;
     bool c_is_int;
-    if (ArgIsVarIdx(5, c)) {
-        if (c < 1 || c >= solver->vInt.size()) return RANGE_ERROR;
-        cvar = solver->vInt[(int)c];
-        c_is_int = false;
-    } else if (EC_arg(5).is_long(&c) == EC_succeed) {
-        c_is_int = true;
-    } else
-        return TYPE_ERROR;
+    Assign_IntVar_or_Int(5, c, cvar, c_is_int);
 
     IntConLevel cl;
     Get_Consistency_Level(6, cl);
@@ -1789,7 +1758,6 @@ int p_g_post_lin_reif()
 
     EC_word varr = EC_arg(2);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs vars(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
@@ -1803,35 +1771,19 @@ int p_g_post_lin_reif()
     if (res != EC_succeed) return res;
 
     IntRelType rel;
-    EC_atom r;
-    if (EC_arg(4).is_atom(&r) != EC_succeed) return TYPE_ERROR;
-    if (strcmp(r.name(), "#=") == 0) rel = IRT_EQ;
-    else if (strcmp(r.name(), "#\\=") == 0) rel = IRT_NQ;
-    else if (strcmp(r.name(), "#>") == 0) rel = IRT_GR;
-    else if (strcmp(r.name(), "#<") == 0) rel = IRT_LE;
-    else if (strcmp(r.name(), "#>=") == 0) rel = IRT_GQ;
-    else if (strcmp(r.name(), "#=<") == 0) rel = IRT_LQ;
-    else return TYPE_ERROR;
+    Get_IntRelType(4, rel);
 
     long c;
     IntVar cvar;
     EC_functor f;
     bool c_is_int;
-    if (ArgIsVarIdx(5, c)) {
-        if (c < 1 || c >= solver->vInt.size()) return RANGE_ERROR;
-        cvar = solver->vInt[(int)c];
-        c_is_int = false;
-    } else if (EC_arg(5).is_long(&c) == EC_succeed) {
-        c_is_int = true;
-    } else
-        return TYPE_ERROR;
+    Assign_IntVar_or_Int(5, c, cvar, c_is_int);
 
     IntConLevel cl;
     Get_Consistency_Level(7, cl);
 
     long b;
     BoolVar reif;
-    bool bool_is_set;
 
     if (ArgIsVarBoolIdx(6, b)) {
         reif = solver->vBool[(int)b];
@@ -1866,7 +1818,6 @@ int p_g_post_alldiff()
 
     EC_word varr = EC_arg(2);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs alldiff(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, alldiff);
@@ -1897,7 +1848,6 @@ int p_g_post_alldiff_offsets()
 
     EC_word varr = EC_arg(2);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs alldiff(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, alldiff);
@@ -1925,6 +1875,116 @@ int p_g_post_alldiff_offsets()
 }
 
 extern "C" VisAtt
+int p_g_post_mem()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word varr = EC_arg(2);
+    int size = varr.arity();
+
+    IntVarArgs vs(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vs);
+    if (res != EC_succeed) return res;
+
+    IntVar mvar;
+    long m;
+    EC_functor f;
+    Assign_IntVar(3, m, mvar);
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+      member(*solver, vs, mvar);
+    }
+    CatchAndReportGecodeExceptions
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_mem_reif()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word varr = EC_arg(2);
+    int size = varr.arity();
+
+    IntVarArgs vs(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vs);
+    if (res != EC_succeed) return res;
+
+    IntVar mvar;
+    long m;
+    EC_functor f;
+    Assign_IntVar(3, m, mvar);
+
+    long b;
+    BoolVar reif;
+
+    if (ArgIsVarBoolIdx(4, b)) {
+        reif = solver->vBool[(int)b];
+	    } else if (EC_arg(4).is_long(&b) == EC_succeed) {
+        if (b < 0 || b > 1) return RANGE_ERROR;
+	reif = BoolVar(*solver, (int)b, (int)b);
+    } else
+        return TYPE_ERROR;
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+	member(*solver, vs, mvar, reif);
+    }
+    CatchAndReportGecodeExceptions
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_nvalues()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word varr = EC_arg(2);
+    int size = varr.arity();
+ 
+    IntVarArgs vs(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vs);
+    if (res != EC_succeed) return res;
+
+    IntRelType rel;
+    Get_IntRelType(3, rel);
+
+    IntVar valvar;
+    long val;
+    EC_functor f;
+    Assign_IntVar(4, val, valvar);
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+      nvalues(*solver, vs, rel, valvar);
+    }
+    CatchAndReportGecodeExceptions
+    return EC_succeed;
+}
+
+extern "C" VisAtt
 int p_g_post_count()
 {
     GecodeSpace** solverp;
@@ -1938,37 +1998,15 @@ int p_g_post_count()
     if (solver == NULL) return TYPE_ERROR;
 
     EC_functor f;
-    if (ArgIsVarIdx(2, vidx)) {
-        if (vidx < 1 || vidx >= solver->vInt.size()) return RANGE_ERROR;
-	val = solver->vInt[(int)vidx];
-    } else if (EC_arg(2).is_long(&vidx) == EC_succeed) {
-	val = IntVar(*solver, (int)vidx, (int)vidx);
-    } else
-        return TYPE_ERROR;
-
+    Assign_IntVar(2, vidx, val);
 
     IntRelType rel;
-    EC_atom ecrel;
-    if (EC_arg(4).is_atom(&ecrel) != EC_succeed) return TYPE_ERROR;
-    if (strcmp(ecrel.name(), "#=") == 0) rel = IRT_EQ;
-    else if (strcmp(ecrel.name(), "#\\=") == 0) rel = IRT_NQ;
-    else if (strcmp(ecrel.name(), "#>") == 0) rel = IRT_GR;
-    else if (strcmp(ecrel.name(), "#<") == 0) rel = IRT_LE;
-    else if (strcmp(ecrel.name(), "#>=") == 0) rel = IRT_GQ;
-    else if (strcmp(ecrel.name(), "#=<") == 0) rel = IRT_LQ;
-    else return TYPE_ERROR;
+    Get_IntRelType(4, rel);
 
-    if (ArgIsVarIdx(5, nidx)) {
-        if (nidx < 1 || nidx >= solver->vInt.size()) return RANGE_ERROR;
-	n = solver->vInt[(int)nidx];
-    } else if (EC_arg(5).is_long(&nidx) == EC_succeed) {
-        n = IntVar(*solver, (int)nidx, (int)nidx);
-    } else
-        return TYPE_ERROR;
+    Assign_IntVar(5, nidx, n);
 
     EC_word varr = EC_arg(3);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs vars(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
@@ -1981,6 +2019,93 @@ int p_g_post_count()
 
     try {
 	count(*solver, vars, val, rel, n, cl);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_among()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    IntVar val, n;
+    long vidx, nidx; 
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    IntRelType rel;
+    Get_IntRelType(4, rel);
+
+    EC_functor f;
+    Assign_IntVar(5, nidx, n);
+
+    EC_word varr = EC_arg(3);
+    int size = varr.arity();
+
+    IntVarArgs vars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+    if (res != EC_succeed) return res;
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+	EC_word darr = EC_arg(2);
+	int dsize = darr.arity();
+	int ranges[dsize][2];
+
+	res = get_domain_intervals_from_ec_array(dsize, darr, ranges);
+	if (res != EC_succeed) return res;
+
+	IntSet valset(ranges, dsize);
+	count(*solver, vars, valset, rel, n);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_count_matches()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    IntVar val, n;
+    long vidx, nidx; 
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    IntRelType rel;
+    Get_IntRelType(4, rel);
+
+    EC_functor f;
+    Assign_IntVar(5, nidx, n);
+
+    EC_word varr = EC_arg(3);
+    int size = varr.arity();
+
+    IntVarArgs vars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+    if (res != EC_succeed) return res;
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+	EC_word valarr = EC_arg(2);
+	if (valarr.arity() != size) return RANGE_ERROR;
+
+	IntArgs vals(size);
+	res = assign_IntArgs_from_ec_array(solver, size, valarr, vals);
+	if (res != EC_succeed) return res;
+
+	count(*solver, vars, vals, rel, n);
     }
     CatchAndReportGecodeExceptions
 
@@ -2002,7 +2127,6 @@ int p_g_post_gcc()
 
     EC_word pvals = EC_arg(2);
     int specsize = pvals.arity();
-    if (specsize == 0) return TYPE_ERROR;
 
     IntArgs vals(specsize);
     int res = assign_IntArgs_from_ec_array(solver, specsize, pvals, vals);
@@ -2017,7 +2141,6 @@ int p_g_post_gcc()
 
     EC_word varr = EC_arg(4);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs vars(size);
     res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
@@ -2053,26 +2176,12 @@ int p_g_post_element()
     try {
 	EC_functor f;
 
-	if (ArgIsVarIdx(4, v)) {
-	    if (v < 1 || v >= solver->vInt.size()) return RANGE_ERROR;
-	    vvar = solver->vInt[(int)v];
-	    v_is_int = false;
-	} else if (EC_arg(4).is_long(&v) == EC_succeed) {
-	    v_is_int = true;
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar_or_Int(4, v, vvar, v_is_int);
 
-	if (ArgIsVarIdx(2, i)) {
-	    if (i < 1 || i >= solver->vInt.size()) return RANGE_ERROR;
-	    ivar = solver->vInt[(int)i];
-	} else if (EC_arg(2).is_long(&i) == EC_succeed) {
-	    ivar = IntVar(*solver, (int)i, (int)i);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, i, ivar);
 
 	EC_word arr = EC_arg(3);
 	int size = arr.arity();
-	if (size == 0) return TYPE_ERROR;
 
 	IntVarArgs vals(size);
 	int res = assign_IntVarArgs_from_ec_array(solver, size, arr, vals);
@@ -2108,7 +2217,6 @@ int p_g_post_sequence()
 
     EC_word pvals = EC_arg(6);
     int specsize = pvals.arity();
-    if (specsize == 0) return TYPE_ERROR;
 
     IntArgs vals(specsize);
     int res = assign_IntArgs_from_ec_array(solver, specsize, pvals, vals);
@@ -2117,7 +2225,6 @@ int p_g_post_sequence()
 
     EC_word varr = EC_arg(5);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs vars(size);
     res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
@@ -2158,7 +2265,6 @@ int p_g_post_sequence_01()
 
     EC_word varr = EC_arg(5);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     BoolVarArgs vars(size);
     int res = assign_BoolVarArgs_from_ec_array(solver, size, varr, vars);
@@ -2195,7 +2301,6 @@ int p_g_post_sorted2()
 
     EC_word uarr = EC_arg(2);
     int size = uarr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs unsort(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, uarr, unsort);
@@ -2234,7 +2339,6 @@ int p_g_post_sorted()
 
     EC_word uarr = EC_arg(2);
     int size = uarr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs unsort(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, uarr, unsort);
@@ -2281,7 +2385,6 @@ int p_g_post_disj()
 
     EC_word sarr = EC_arg(2);
     int size = sarr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs starts(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, sarr, starts);
@@ -2332,7 +2435,6 @@ int p_g_post_disjflex()
 
     EC_word sarr = EC_arg(2);
     int size = sarr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs starts(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, sarr, starts);
@@ -2390,7 +2492,6 @@ int p_g_post_cumulatives()
 
     EC_word sarr = EC_arg(2);
     int size = sarr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs starts(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, sarr, starts);
@@ -2455,7 +2556,6 @@ int p_g_post_cumulative()
 
     EC_word sarr = EC_arg(2);
     int size = sarr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs starts(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, sarr, starts);
@@ -2473,8 +2573,10 @@ int p_g_post_cumulative()
     IntArgs usages(size);
     res = assign_IntArgs_from_ec_array(solver, size, uarr, usages);
 
-    long limit;
-    if (EC_succeed != EC_arg(5).is_long(&limit)) return TYPE_ERROR;
+    long lidx;
+    IntVar limit;
+    EC_functor f;
+    Assign_IntVar(5, lidx, limit);
 
     if (solver->is_first()) cache_domain_sizes(solver);
 
@@ -2487,14 +2589,14 @@ int p_g_post_cumulative()
 	res = assign_BoolVarArgs_from_ec_array(solver, size, barr, scheduled);
 	if (res != EC_succeed) return res;
 	try {
-	  cumulative(*solver, (int)limit, starts, durations, usages, scheduled);
+	  cumulative(*solver, limit, starts, durations, usages, scheduled);
 	}
 	CatchAndReportGecodeExceptions
 
     } else {
 
       try {
-	cumulative(*solver, (int)limit, starts, durations, usages);
+	cumulative(*solver, limit, starts, durations, usages);
       }
       CatchAndReportGecodeExceptions
     }
@@ -2515,7 +2617,6 @@ int p_g_post_cumulativeflex()
 
     EC_word sarr = EC_arg(2);
     int size = sarr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs starts(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, sarr, starts);
@@ -2539,8 +2640,10 @@ int p_g_post_cumulativeflex()
     IntArgs usages(size);
     res = assign_IntArgs_from_ec_array(solver, size, uarr, usages);
 
-    long limit;
-    if (EC_succeed != EC_arg(6).is_long(&limit)) return TYPE_ERROR;
+    long lidx;
+    IntVar limit;
+    EC_functor f;
+    Assign_IntVar(6, lidx, limit);
 
     if (solver->is_first()) cache_domain_sizes(solver);
 
@@ -2553,14 +2656,14 @@ int p_g_post_cumulativeflex()
 	res = assign_BoolVarArgs_from_ec_array(solver, size, barr, scheduled);
 	if (res != EC_succeed) return res;
 	try {
-	  cumulative(*solver, (int)limit, starts, durations, ends, usages, scheduled);
+	  cumulative(*solver, limit, starts, durations, ends, usages, scheduled);
 	}
 	CatchAndReportGecodeExceptions
 
     } else {
 
       try {
-	cumulative(*solver, (int)limit, starts, durations, ends, usages);
+	cumulative(*solver, limit, starts, durations, ends, usages);
       }
       CatchAndReportGecodeExceptions
     }
@@ -2581,19 +2684,23 @@ int p_g_post_circuit()
 
     EC_word arr = EC_arg(2);
     int size = arr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs succ(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, arr, succ);
     if (res != EC_succeed) return res;
 
     IntConLevel cl;
-    Get_Consistency_Level(3, cl);
+    Get_Consistency_Level(4, cl);
 
     if (solver->is_first()) cache_domain_sizes(solver);
 
     try {
-	circuit(*solver, succ, cl);
+	long offset;
+	if (EC_arg(3).is_long(&offset) != EC_succeed) return TYPE_ERROR;
+	if (offset == 0)
+	    circuit(*solver, succ, cl);
+	else 
+	    circuit(*solver, (int)offset, succ, cl);
     }
     CatchAndReportGecodeExceptions
 
@@ -2613,7 +2720,6 @@ int p_g_post_circuit_cost()
 
     EC_word arr = EC_arg(2);
     int size = arr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs succ(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, arr, succ);
@@ -2621,7 +2727,6 @@ int p_g_post_circuit_cost()
 
     EC_word cmarr = EC_arg(3);
     int cmsize = cmarr.arity();
-    if (cmsize == 0) return TYPE_ERROR;
     if (cmsize != size*size) return RANGE_ERROR;
     
     IntArgs cm(cmsize);
@@ -2631,17 +2736,13 @@ int p_g_post_circuit_cost()
     EC_functor f;
     long cidx;
     IntVar c;
+    Assign_IntVar(5, cidx, c);
 
-    if (ArgIsVarIdx(5, cidx)) {
-	if (cidx < 1 || cidx >= solver->vInt.size()) return RANGE_ERROR;
-	c = solver->vInt[(int)cidx];
-    } else if (EC_arg(5).is_long(&cidx) == EC_succeed) {
-	c = IntVar(*solver, (int)cidx, (int)cidx);
-    } else
-	return TYPE_ERROR;
+    long offset;
+    if (EC_arg(6).is_long(&offset) != EC_succeed) return TYPE_ERROR;
 
     IntConLevel cl;
-    Get_Consistency_Level(6, cl);
+    Get_Consistency_Level(7, cl);
 
     if (solver->is_first()) cache_domain_sizes(solver);
 
@@ -2652,9 +2753,328 @@ int p_g_post_circuit_cost()
 	    IntVarArgs arccosts(size);
 	    res = assign_IntVarArgs_from_ec_array(solver, size, acarr, arccosts);
 	    if (res != EC_succeed) return res;
-	    circuit(*solver, cm, succ, arccosts, c, cl);
-	} else 
-	    circuit(*solver, cm, succ, c, cl);
+	    if (offset == 0) 
+		circuit(*solver, cm, succ, arccosts, c, cl);
+	    else 
+	      circuit(*solver, cm, (int)offset, succ, arccosts, c, cl);
+	} else {
+	    if (offset == 0) 
+		circuit(*solver, cm, succ, c, cl);
+	    else 
+	      circuit(*solver, cm, (int)offset, succ, c, cl);
+	}
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_ham_path()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    long idx;
+    EC_functor f;
+    IntVar start;
+    Assign_IntVar(2, idx, start);
+
+    IntVar end;
+    Assign_IntVar(3, idx, end);
+
+    EC_word arr = EC_arg(4);
+    int size = arr.arity();
+
+    IntVarArgs succ(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, arr, succ);
+    if (res != EC_succeed) return res;
+
+    IntConLevel cl;
+    Get_Consistency_Level(6, cl);
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+	long offset;
+	if (EC_arg(5).is_long(&offset) != EC_succeed) return TYPE_ERROR;
+	if (offset == 0)
+	  path(*solver, succ, start, end, cl);
+	else 
+	  path(*solver, (int)offset, succ, start, end, cl);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_ham_path_cost()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    long idx;
+    EC_functor f;
+    IntVar start;
+    Assign_IntVar(2, idx, start);
+
+    IntVar end;
+    Assign_IntVar(3, idx, end);
+
+    EC_word arr = EC_arg(4);
+    int size = arr.arity();
+
+    IntVarArgs succ(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, arr, succ);
+    if (res != EC_succeed) return res;
+
+    EC_word cmarr = EC_arg(5);
+    int cmsize = cmarr.arity();
+    if (cmsize != size*size) return RANGE_ERROR;
+    
+    IntArgs cm(cmsize);
+    res = assign_IntArgs_from_ec_array(solver, cmsize, cmarr, cm);
+    if (res != EC_succeed) return res;
+
+    long cidx;
+    IntVar c;
+    Assign_IntVar(7, cidx, c);
+
+    long offset;
+    if (EC_arg(8).is_long(&offset) != EC_succeed) return TYPE_ERROR;
+
+    IntConLevel cl;
+    Get_Consistency_Level(9, cl);
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+	if (EC_arg(6).is_nil() != EC_succeed) {
+	    EC_word acarr = EC_arg(6);
+	    if (size != acarr.arity()) return RANGE_ERROR;
+	    IntVarArgs arccosts(size);
+	    res = assign_IntVarArgs_from_ec_array(solver, size, acarr, arccosts);
+	    if (res != EC_succeed) return res;
+	    if (offset == 0) 
+	       path(*solver, cm, succ, start, end, arccosts, c, cl);
+	    else 
+	      path(*solver, cm, (int)offset, succ, start, end, arccosts, c, cl);
+	} else {
+	    if (offset == 0) 
+	      path(*solver, cm, succ, start, end, c, cl);
+	    else 
+	      path(*solver, cm, (int)offset, succ, start, end, c, cl);
+	}
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_precede()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    long s, t;
+
+    if (EC_succeed != EC_arg(2).is_long(&s)) return(TYPE_ERROR);
+    if (EC_succeed != EC_arg(3).is_long(&t)) return(TYPE_ERROR);
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word varr =  EC_arg(4);
+    int size = varr.arity();
+
+    IntVarArgs vars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+    if (res != EC_succeed) return res;
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+      precede(*solver, vars, (int)s, (int)t);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_precede_chain()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word varr =  EC_arg(3);
+    int size = varr.arity();
+
+    IntVarArgs vars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+    if (res != EC_succeed) return res;
+
+    EC_word valarr =  EC_arg(2);
+    size = valarr.arity();
+
+    IntArgs vals(size);
+    res = assign_IntArgs_from_ec_array(solver, size, valarr, vals);
+    if (res != EC_succeed) return res;
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+	precede(*solver, vars, vals);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_disjoint2()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word xarr =  EC_arg(2);
+    int size = xarr.arity();
+
+    IntVarArgs xs(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, xarr, xs);
+    if (res != EC_succeed) return res;
+
+    EC_word warr =  EC_arg(3);
+    if (warr.arity() != size) return RANGE_ERROR;
+
+    IntArgs ws(size);
+    res = assign_IntArgs_from_ec_array(solver, size, warr, ws);
+    if (res != EC_succeed) return res;
+
+    EC_word yarr =  EC_arg(4);
+    if (yarr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs ys(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, yarr, ys);
+    if (res != EC_succeed) return res;
+
+    EC_word harr =  EC_arg(5);
+    if (harr.arity() != size) return RANGE_ERROR;
+
+    IntArgs hs(size);
+    res = assign_IntArgs_from_ec_array(solver, size, harr, hs);
+    if (res != EC_succeed) return res;
+
+    try {
+	if (EC_arg(6).is_nil() != EC_succeed) {
+	    EC_word oarr = EC_arg(6);
+	    if (size != oarr.arity()) return RANGE_ERROR;
+
+	    BoolVarArgs os(size);
+	    res = assign_BoolVarArgs_from_ec_array(solver, size, oarr, os);
+
+	    if (solver->is_first()) cache_domain_sizes(solver);
+	    nooverlap(*solver, xs, ws, ys, hs, os);
+	} else {
+	    if (solver->is_first()) cache_domain_sizes(solver);
+	    nooverlap(*solver, xs, ws, ys, hs);
+	}
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_disjointflex2()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word x1arr =  EC_arg(2);
+    int size = x1arr.arity();
+
+    IntVarArgs x1s(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, x1arr, x1s);
+    if (res != EC_succeed) return res;
+
+    EC_word warr =  EC_arg(3);
+    if (warr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs ws(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, warr, ws);
+    if (res != EC_succeed) return res;
+
+    EC_word y1arr =  EC_arg(4);
+    if (y1arr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs y1s(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, y1arr, y1s);
+    if (res != EC_succeed) return res;
+
+    EC_word harr =  EC_arg(5);
+    if (harr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs hs(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, harr, hs);
+    if (res != EC_succeed) return res;
+
+    EC_word x2arr =  EC_arg(7);
+    if (x2arr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs x2s(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, x2arr, x2s);
+    if (res != EC_succeed) return res;
+
+    EC_word y2arr =  EC_arg(8);
+    if (y2arr.arity() != size) return RANGE_ERROR;
+
+    IntVarArgs y2s(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, y2arr, y2s);
+    if (res != EC_succeed) return res;
+
+    try {
+	if (EC_arg(6).is_nil() != EC_succeed) {
+	    EC_word oarr = EC_arg(6);
+	    if (size != oarr.arity()) return RANGE_ERROR;
+
+	    BoolVarArgs os(size);
+	    res = assign_BoolVarArgs_from_ec_array(solver, size, oarr, os);
+
+	    if (solver->is_first()) cache_domain_sizes(solver);
+	    nooverlap(*solver, x1s, ws, x2s, y1s, hs, y2s, os);
+	} else {
+	    if (solver->is_first()) cache_domain_sizes(solver);
+	    nooverlap(*solver, x1s, ws, x2s, y1s, hs, y2s);
+	}
     }
     CatchAndReportGecodeExceptions
 
@@ -2676,22 +3096,8 @@ int p_g_post_sqrt()
 	EC_functor f;
 	long xidx, yidx;
 	IntVar x, y;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(3, yidx)) {
-	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[(int)yidx];
-	} else if (EC_arg(3).is_long(&yidx) == EC_succeed) {
-	    y = IntVar(*solver, (int)yidx, (int)yidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
+	Assign_IntVar(3, yidx, y);
 
 	IntConLevel cl;
 	Get_Consistency_Level(4, cl);
@@ -2720,22 +3126,8 @@ int p_g_post_sq()
 	EC_functor f;
 	long xidx, yidx;
 	IntVar x, y;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(3, yidx)) {
-	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[(int)yidx];
-	} else if (EC_arg(3).is_long(&yidx) == EC_succeed) {
-	    y = IntVar(*solver, (int)yidx, (int)yidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
+	Assign_IntVar(3, yidx, y);
 
 	IntConLevel cl;
 	Get_Consistency_Level(4, cl);
@@ -2765,22 +3157,8 @@ int p_g_post_abs()
 	EC_functor f;
 	long xidx, yidx;
 	IntVar x, y;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(3, yidx)) {
-	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[(int)yidx];
-	} else if (EC_arg(3).is_long(&yidx) == EC_succeed) {
-	    y = IntVar(*solver, (int)yidx, (int)yidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
+	Assign_IntVar(3, yidx, y);
 
 	if (solver->is_first()) cache_domain_sizes(solver);
 
@@ -2807,30 +3185,9 @@ int p_g_post_mult()
 	EC_functor f;
 	long xidx, yidx, zidx;
 	IntVar x, y, z;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(3, yidx)) {
-	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[yidx];
-	} else if (EC_arg(3).is_long(&yidx) == EC_succeed) {
-	    y = IntVar(*solver, (int)yidx, (int)yidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(4, zidx)) {
-	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
-	    z = solver->vInt[zidx];
-	} else if (EC_arg(4).is_long(&zidx) == EC_succeed) {
-	    z = IntVar(*solver, (int)zidx, (int)zidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
+	Assign_IntVar(3, yidx, y);
+	Assign_IntVar(4, zidx, z);
 
 	IntConLevel cl;
 	Get_Consistency_Level(5, cl);
@@ -2859,30 +3216,9 @@ int p_g_post_div()
 	EC_functor f;
 	long xidx, yidx, zidx;
 	IntVar x, y, z;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(3, yidx)) {
-	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[(int)yidx];
-	} else if (EC_arg(3).is_long(&yidx) == EC_succeed) {
-	    y = IntVar(*solver, (int)yidx, (int)yidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(4, zidx)) {
-	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
-	    z = solver->vInt[(int)zidx];
-	} else if (EC_arg(4).is_long(&zidx) == EC_succeed) {
-	    z = IntVar(*solver, (int)zidx, (int)zidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
+	Assign_IntVar(3, yidx, y);
+	Assign_IntVar(4, zidx, z);
 
 	if (solver->is_first()) cache_domain_sizes(solver);
 
@@ -2908,30 +3244,9 @@ int p_g_post_mod()
 	EC_functor f;
 	long xidx, yidx, zidx;
 	IntVar x, y, z;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(3, yidx)) {
-	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[(int)yidx];
-	} else if (EC_arg(3).is_long(&yidx) == EC_succeed) {
-	    y = IntVar(*solver, (int)yidx, (int)yidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(4, zidx)) {
-	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
-	    z = solver->vInt[(int)zidx];
-	} else if (EC_arg(4).is_long(&zidx) == EC_succeed) {
-	    z = IntVar(*solver, (int)zidx, (int)zidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
+	Assign_IntVar(3, yidx, y);
+	Assign_IntVar(4, zidx, z);
 
 	if (solver->is_first()) cache_domain_sizes(solver);
 
@@ -2957,38 +3272,10 @@ int p_g_post_divmod()
 	EC_functor f;
 	long xidx, yidx, qidx, midx;
 	IntVar x, y, q, m;
-
-	if (ArgIsVarIdx(5, midx)) {
-	    if (midx < 1 || midx >= solver->vInt.size()) return RANGE_ERROR;
-	    m = solver->vInt[(int)midx];
-	} else if (EC_arg(5).is_long(&midx) == EC_succeed) {
-	    m = IntVar(*solver, (int)midx, (int)midx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(3, yidx)) {
-	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[(int)yidx];
-	} else if (EC_arg(3).is_long(&yidx) == EC_succeed) {
-	    y = IntVar(*solver, (int)yidx, (int)yidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(4, qidx)) {
-	    if (qidx < 1 || qidx >= solver->vInt.size()) return RANGE_ERROR;
-	    q = solver->vInt[(int)qidx];
-	} else if (EC_arg(4).is_long(&qidx) == EC_succeed) {
-	    q = IntVar(*solver, (int)qidx, (int)qidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
+	Assign_IntVar(3, yidx, y);
+	Assign_IntVar(4, qidx, q);
+	Assign_IntVar(5, midx, m);
 
 	if (solver->is_first()) cache_domain_sizes(solver);
 
@@ -3014,30 +3301,9 @@ int p_g_post_max2()
 	EC_functor f;
 	long xidx, yidx, zidx;
 	IntVar x, y, z;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(3, yidx)) {
-	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[(int)yidx];
-	} else if (EC_arg(3).is_long(&yidx) == EC_succeed) {
-	    y = IntVar(*solver, (int)yidx, (int)yidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(4, zidx)) {
-	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
-	    z = solver->vInt[(int)zidx];
-	} else if (EC_arg(4).is_long(&zidx) == EC_succeed) {
-	    z = IntVar(*solver, (int)zidx, (int)zidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
+	Assign_IntVar(3, yidx, y);
+	Assign_IntVar(4, zidx, z);
 
 	IntConLevel cl;
 	Get_Consistency_Level(5, cl);
@@ -3066,30 +3332,9 @@ int p_g_post_min2()
 	EC_functor f;
 	long xidx, yidx, zidx;
 	IntVar x, y, z;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(3, yidx)) {
-	    if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[(int)yidx];
-	} else if (EC_arg(3).is_long(&yidx) == EC_succeed) {
-	    y = IntVar(*solver, (int)yidx, (int)yidx);
-	} else
-	    return TYPE_ERROR;
-
-	if (ArgIsVarIdx(4, zidx)) {
-	    if (zidx < 1 || zidx >= solver->vInt.size()) return RANGE_ERROR;
-	    z = solver->vInt[(int)zidx];
-	} else if (EC_arg(4).is_long(&zidx) == EC_succeed) {
-	    z = IntVar(*solver, (int)zidx, (int)zidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
+	Assign_IntVar(3, yidx, y);
+	Assign_IntVar(4, zidx, z);
 
 	IntConLevel cl;
 	Get_Consistency_Level(5, cl);
@@ -3118,18 +3363,10 @@ int p_g_post_maxlist()
 	EC_functor f;
 	long xidx;
 	IntVar x;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
 
 	EC_word varr = EC_arg(3);
 	int size = varr.arity();
-	if (size == 0) return TYPE_ERROR;
 
 	IntVarArgs vars(size);
 	int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
@@ -3162,18 +3399,10 @@ int p_g_post_minlist()
 	EC_functor f;
 	long xidx;
 	IntVar x;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
 
 	EC_word varr = EC_arg(3);
 	int size = varr.arity();
-	if (size == 0) return TYPE_ERROR;
 
 	IntVarArgs vars(size);
 	int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
@@ -3206,35 +3435,13 @@ int p_g_post_rel()
 	EC_functor f;
 	long i;
 	IntVar x, y;
-
-	if (ArgIsVarIdx(2, i)) {
-	    if (i < 1 || i >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)i];
-	} else if (EC_arg(2).is_long(&i) == EC_succeed) {
-	    x = IntVar(*solver, (int)i, (int)i);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, i, x);
     
         bool y_is_int = false;
-	if (ArgIsVarIdx(4, i)) {
-	    if (i < 1 || i >= solver->vInt.size()) return RANGE_ERROR;
-	    y = solver->vInt[(int)i];
-	    y_is_int = false;
-	} else if (EC_arg(4).is_long(&i) == EC_succeed) {
-	    y_is_int = true;
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar_or_Int(4, i, y, y_is_int);
 
 	IntRelType r;
-	EC_atom ecrel;
-	if (EC_arg(3).is_atom(&ecrel) != EC_succeed) return TYPE_ERROR;
-	if (strcmp(ecrel.name(), "#=") == 0) r = IRT_EQ;
-	else if (strcmp(ecrel.name(), "#\\=") == 0) r = IRT_NQ;
-	else if (strcmp(ecrel.name(), "#>") == 0) r = IRT_GR;
-	else if (strcmp(ecrel.name(), "#<") == 0) r = IRT_LE;
-	else if (strcmp(ecrel.name(), "#>=") == 0) r = IRT_GQ;
-	else if (strcmp(ecrel.name(), "#=<") == 0) r = IRT_LQ;
-	else return TYPE_ERROR;
+	Get_IntRelType(3, r);
 
 	IntConLevel cl;
 	Get_Consistency_Level(5, cl);
@@ -3242,9 +3449,52 @@ int p_g_post_rel()
 	if (solver->is_first()) cache_domain_sizes(solver);
 
 	if (y_is_int) 
-	    rel(*solver, x, r, i, cl);
+	  rel(*solver, x, r, (int)i, cl);
 	else
-	    rel(*solver, x, r, i, cl);
+	    rel(*solver, x, r, y, cl);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_collection_rel()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    try {
+	EC_word xarr = EC_arg(2);
+	long i = xarr.arity();
+	if (i == 0) return TYPE_ERROR;
+
+	IntVarArgs xs(i);
+	int res = assign_IntVarArgs_from_ec_array(solver, i, xarr, xs);
+	if (res != EC_succeed) return res;
+    
+	IntVar y;
+        bool y_is_int = false;
+	EC_functor f;
+	Assign_IntVar_or_Int(4, i, y, y_is_int);
+
+	IntRelType r;
+	Get_IntRelType(3, r);
+
+	IntConLevel cl;
+	Get_Consistency_Level(5, cl);
+
+	if (solver->is_first()) cache_domain_sizes(solver);
+
+	if (y_is_int) 
+	    rel(*solver, xs, r, (int)i, cl);
+	else
+	    rel(*solver, xs, r, y, cl);
     }
     CatchAndReportGecodeExceptions
 
@@ -3266,14 +3516,7 @@ int p_g_post_lwb()
 	EC_functor f;
 	long xidx;
 	IntVar x;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
 
 	long lwb;
 	if (EC_arg(3).is_long(&lwb) != EC_succeed) return TYPE_ERROR;
@@ -3302,14 +3545,7 @@ int p_g_post_upb()
 	EC_functor f;
 	long xidx;
 	IntVar x;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
 
 	long upb;
 	if (EC_arg(3).is_long(&upb) != EC_succeed) return TYPE_ERROR;
@@ -3338,18 +3574,10 @@ int p_g_post_boolchannel()
 	EC_functor f;
 	long xidx;
 	IntVar x;
-
-	if (ArgIsVarIdx(2, xidx)) {
-	    if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	    x = solver->vInt[(int)xidx];
-	} else if (EC_arg(2).is_long(&xidx) == EC_succeed) {
-	    x = IntVar(*solver, (int)xidx, (int)xidx);
-	} else
-	    return TYPE_ERROR;
+	Assign_IntVar(2, xidx, x);
 
 	EC_word barr = EC_arg(3);
 	int size = barr.arity();
-	if (size == 0) return TYPE_ERROR;
 
 	BoolVarArgs vars(size);
 	int res = assign_BoolVarArgs_from_ec_array(solver, size, barr, vars);
@@ -3383,7 +3611,6 @@ int p_g_post_inverse()
 
     EC_word arr1 = EC_arg(2);
     int size = arr1.arity();
-    if (size == 0) return TYPE_ERROR;
 
     EC_word arr2 = EC_arg(3);
     if (size != arr2.arity()) return TYPE_ERROR;
@@ -3428,7 +3655,6 @@ int p_g_post_inverse_offset()
 
     EC_word arr1 = EC_arg(2);
     int size = arr1.arity();
-    if (size == 0) return TYPE_ERROR;
 
     EC_word arr2 = EC_arg(4);
     if (size != arr2.arity()) return TYPE_ERROR;
@@ -3466,19 +3692,10 @@ int p_g_post_ordered()
     if (solver == NULL) return TYPE_ERROR;
 
     IntRelType r;
-    EC_atom ecrel;
-    if (EC_arg(3).is_atom(&ecrel) != EC_succeed) return TYPE_ERROR;
-    if (strcmp(ecrel.name(), "#=") == 0) r = IRT_EQ;
-    else if (strcmp(ecrel.name(), "#\\=") == 0) r = IRT_NQ;
-    else if (strcmp(ecrel.name(), "#>") == 0) r = IRT_GR;
-    else if (strcmp(ecrel.name(), "#<") == 0) r = IRT_LE;
-    else if (strcmp(ecrel.name(), "#>=") == 0) r = IRT_GQ;
-    else if (strcmp(ecrel.name(), "#=<") == 0) r = IRT_LQ;
-    else return TYPE_ERROR;
+    Get_IntRelType(3, r);
 
     EC_word varr = EC_arg(2);
     int size = varr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs vars(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
@@ -3509,27 +3726,17 @@ int p_g_post_lex_order()
     if (solver == NULL) return TYPE_ERROR;
 
     IntRelType r;
-    EC_atom ecrel;
-    if (EC_arg(3).is_atom(&ecrel) != EC_succeed) return TYPE_ERROR;
-    if (strcmp(ecrel.name(), "#=") == 0) r = IRT_EQ;
-    else if (strcmp(ecrel.name(), "#\\=") == 0) r = IRT_NQ;
-    else if (strcmp(ecrel.name(), "#>") == 0) r = IRT_GR;
-    else if (strcmp(ecrel.name(), "#<") == 0) r = IRT_LE;
-    else if (strcmp(ecrel.name(), "#>=") == 0) r = IRT_GQ;
-    else if (strcmp(ecrel.name(), "#=<") == 0) r = IRT_LQ;
-    else return TYPE_ERROR;
+    Get_IntRelType(3, r);
 
     EC_word xarr = EC_arg(2);
-    int size = xarr.arity();
-    if (size == 0) return TYPE_ERROR;
+    int size = xarr.arity(); // can be 0
 
     IntVarArgs xvars(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, xarr, xvars);
     if (res != EC_succeed) return res;
 
     EC_word yarr = EC_arg(4);
-    size = yarr.arity();
-    if (size == 0) return TYPE_ERROR;
+    size = yarr.arity(); // can be 0
 
     IntVarArgs yvars(size);
     res = assign_IntVarArgs_from_ec_array(solver, size, yarr, yvars);
@@ -3561,7 +3768,6 @@ int p_g_post_bin_packing()
 
     EC_word iarr = EC_arg(2);
     int size = iarr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs ivars(size);
     int res = assign_IntVarArgs_from_ec_array(solver, size, iarr, ivars);
@@ -3576,7 +3782,6 @@ int p_g_post_bin_packing()
 
     EC_word larr = EC_arg(4);
     size = larr.arity();
-    if (size == 0) return TYPE_ERROR;
 
     IntVarArgs lvars(size);
     res = assign_IntVarArgs_from_ec_array(solver, size, larr, lvars);
@@ -3728,7 +3933,7 @@ int p_g_setup_search()
 
 	EC_word varr = EC_arg(2);
 	int res, size = varr.arity();
-	if (size == 0) return TYPE_ERROR;
+
 	IntVarArgs vars(size);
 	res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
 	if (res != EC_succeed) return res;
@@ -3749,13 +3954,20 @@ int p_g_setup_search()
 		mem_lim = 0;
 	}
 
-	long adaptived = 0, commitd = 0;
+	long adaptived = 0, commitd = 0, ithreads;
+	double threads = 1.0;
 	if ((EC_arg(9).functor(&f) == EC_succeed) && (f.arity() == GFDCONTROLSIZE)
 	    && (strcmp(f.name(), "gfd_control") == 0)) {
+	  // these positions must correspond to their definition in
+	  // the struct(gdf_contr(...)) in gfd.ecl
 	    if (EC_argument(EC_arg(9),1).is_long(&commitd) != EC_succeed)
-		commitd = 0;
+	        commitd = 0;  // commit_distance, arg 1
 	    if (EC_argument(EC_arg(9),2).is_long(&adaptived) != EC_succeed)
-		adaptived = 0;
+	        adaptived = 0; // adaptive_distance, arg 2 
+	    if (EC_argument(EC_arg(9),3).is_long(&ithreads) == EC_succeed)
+	        threads = (double) ithreads; // threads, arg 3 (set as int)
+	    else if (EC_argument(EC_arg(9),3).is_double(&threads) != EC_succeed)
+	        threads = 1.0;
 	}
 
 	solver->clear_snapshot(); // make sure we do cache the current values!
@@ -3778,6 +3990,7 @@ int p_g_setup_search()
 
 	if (adaptived > 0) o.a_d = adaptived;
 	if (commitd > 0) o.c_d = commitd;
+	if (threads != 1.0) o.threads = threads;
 
 	GecodeSearch* searchp = new GecodeSearch(solver, o, (unsigned) l, cutoffp, method);
 
@@ -3929,14 +4142,7 @@ int p_g_get_var_domain_handle()
     long xidx;
     IntVar x;
     EC_functor f;
-
-    if (ArgIsVarIdx(2, xidx)) {
-	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	x = solver->vInt[(int)xidx];
-    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	x = IntVar(*solver, (int)xidx, (int)xidx);
-    } else
-	return TYPE_ERROR;
+    Assign_IntVar(2, xidx, x);
     
     IntVarRanges r(x);
 
@@ -3964,25 +4170,11 @@ int p_g_add_newvars_dom_union()
     long xidx;
     IntVar x;
     EC_functor f;
-
-    if (ArgIsVarIdx(3, xidx)) {
-	if (xidx < 1 || xidx >= solver->vInt.size()) return RANGE_ERROR;
-	x = solver->vInt[(int)xidx];
-    } else if (EC_arg(3).is_long(&xidx) == EC_succeed) {
-	x = IntVar(*solver, (int)xidx, (int)xidx);
-    } else
-	return TYPE_ERROR;
+    Assign_IntVar(3, xidx, x);
     
     long yidx;
     IntVar y;
-
-    if (ArgIsVarIdx(4, yidx)) {
-	if (yidx < 1 || yidx >= solver->vInt.size()) return RANGE_ERROR;
-	y = solver->vInt[(int)yidx];
-    } else if (EC_arg(4).is_long(&yidx) == EC_succeed) {
-	y = IntVar(*solver, (int)yidx, (int)yidx);
-    } else
-	return TYPE_ERROR;
+    Assign_IntVar(3, yidx, y);
 
     try {
 	IntVarRanges rx(x);

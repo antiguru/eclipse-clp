@@ -62,7 +62,13 @@
        differences. The exact equivalent to IC's search/6, where the search
        is performed at the ECLiPSe level, is available via the gfd_search
        module (in fact it shares the same code with IC's search/6). This
-       provides more flexibility, but is likely to be less efficient.
+       provides more flexibility, but is likely to be less efficient,
+       because the search is done in ECLiPSe and is therefore not
+       tightly integrated with gecode, and also because the 
+       gfd_search is not optimised for use with gecode. In addition,
+       gfd also provide predicates for both variable selection and
+       value choice that are optimised for gecode, which should be more
+       efficient than gfd_search.
 
        <LI>The suspension lists supported by GFD are different from IC.
        Currently, only the 'any' suspension list (for any changes to the
@@ -598,14 +604,18 @@ M = 3
    Constrains Vars to take only values from the domain specified by Domain.  
    Vars may be a variable or a collection of variables (as accepted by 
    collection_to_list/2).  Domain can be specified as a simple range Lo .. Hi, 
-   or as a list of sub-ranges and/or individual elements. All domain elements
-   must be integers within the range allowed by gecode.
+   or as a list of sub-ranges and/or individual elements. Each element
+   of the specification is an integer, or is a ground expression that evaluates
+   to an integer. All domain elements must be integers within the range allowed 
+   by gecode. 
 <P>
    For instance:
 <PRE>
      X :: 0..1                  % boolean
      X :: -1..5                 % integer between -1 and 5
      X :: [0..3, 5, 8..10]      % any integer from 0 to 10 except 4 and 6
+     X :: 0..N*N                % integer between 0 and N*N (N bound
+                                % to integer at time of calling)
      [X, Y, Z] :: 1..8          % apply domain to X, Y and Z
      M[2..4, 5] :: 1..8         % apply to rows 2..4, column 5 of matrix M
      X :: [0.0..5.0, 7.0..9.0]  % Type error
@@ -1095,6 +1105,9 @@ X = X{[-1000000 .. 1000000]}
 		    indomain(Var,min)
 		).
 </PRE></P>
+   Note that labeling perform the search in ECLiPSe, but it uses
+   indomain/2 with min, which is optimised for use with gecode. 
+</P>
 ")
 ]).
 
@@ -1140,14 +1153,66 @@ X = X{[-1000000 .. 1000000]}
    where Vari, Offseti are the i'th element of Vars and Offsets, and
    Varj, Offsetj are the j'th element.</P><P>
 
-   This constraint is also known as alldifferent_cst in the global constraints 
-   catalog.</P><P>
-
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_vc for value consistency (naive), gfd_bc for bounds consistency, 
-   and gfd_gac for domain (generalised arc) consistency. 
+   and gfd_gac for domain (generalised arc) consistency.</P><P> 
+
+   This constraint is also known as alldifferent_cst in the global constraints 
+   catalog, and is implmntd using Gecode's distinct() constraint.
 ")
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(nvalues/3, [
+    summary:"Constrains N, the number of distinct values assigned to "
+            "Collection to satisfy the relation N Rel Limit.",
+    amode:nvalues(+,+,?),
+    args:[
+	"Collection": "Collection of integers or domain variables.",
+        "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
+	"Limit":"Variable or integer"
+    ],
+    eg:"\
+[eclipse 21]: nvalues([4,5,5,4,1,5], (#=), N).
+
+N = 3
+
+[eclipse 22]: nvalues([A,B,C,D], (#>), N).
+
+A = A{[-1000000 .. 1000000]}
+B = B{[-1000000 .. 1000000]}
+C = C{[-1000000 .. 1000000]}
+D = D{[-1000000 .. 1000000]}
+N = N{[-1000000 .. 3]}
+
+[eclipse 23]: nvalues([A,B,C,D], (#=), N).
+
+A = A{[-1000000 .. 1000000]}
+B = B{[-1000000 .. 1000000]}
+C = C{[-1000000 .. 1000000]}
+D = D{[-1000000 .. 1000000]}
+N = N{[1 .. 4]}
+
+",
+    
+    desc:html("<P>\
+  Constrains N, the number of distinct values assigned to Collection
+  to satisfy the relation N Rel Limit.
+</P><P>
+  Rel can be one of #&gt;, #&gt;=, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+  &gt;, &gt;=, &lt;, =&lt;, =, \\=).
+</P><P>
+  Any input variables which are not already domain variable will be turned 
+  into domain variables with default bounds.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
+  This constraint is also known as nvalues in the global constraint catalog. 
+  It is implemented by Gecode's nvalue() constraint.
+    ") 
 ]).
 
 %---------------------------------------------------------------------
@@ -1156,15 +1221,40 @@ X = X{[-1000000 .. 1000000]}
     summary:"Constrains X to be less than or equal to Y.",
     template: "<ConsistencyModule:> le(?X,?Y)",
     amode:le(?,?),
+    amode:le(+,?),
     args:[
-        "X":"An integer or domain variable",
+        "X":"An integer or domain variable, or a collection of integers
+ or domain variables",
         "Y":"An integer or domain variable"
     ],
+    eg: "\
+[eclipse 2]: le([X,Y,Z],3).
+
+X = X{[-1000000 .. 3]}
+Y = Y{[-1000000 .. 3]}
+Z = Z{[-1000000 .. 3]}
+
+[eclipse 3]: [X,Y] :: 1..10, Z :: 2..5, A :: [1,3..5], le([X,Y,Z], A).
+
+
+X = X{[1 .. 5]}
+Y = Y{[1 .. 5]}
+Z = Z{[2 .. 5]}
+A = A{[3 .. 5]}
+
+[eclipse 4]: le([2,3,4], 3).   % fail
+
+[eclipse 5]: le(2,2). % succeeds
+
+",
     desc:html("\
    Primitive to constrain X to be less than or equal to  Y (X #=&lt; Y). 
+   If X is a collection, then the relation holds for every element of
+   X over Y.
    </P><P> 
-   Unlike X #=&lt; Y, X and Y must be variables or integers, and 
-   not expressions, because it interfaces directly to Gecode's
+   Unlike X #=&lt; Y, X must be a either a variable or integer, or a
+   collection of variables or integers, and Y must be a variable or 
+   integer, and not expressions, because it interfaces directly to Gecode's
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #=&lt; Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
@@ -1174,6 +1264,12 @@ X = X{[-1000000 .. 1000000]}
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   The variant of this constraint with X being a collection is known
+   as arith (with the less than or equal relation) in the Global
+   Constraint Catalog. The variant with X and Y both being variables
+   is known as leq in the Global Constraint Catalog. This constraint
+   is implemented using Gecode's rel() constraint.
 "),
     see_also: [(#=<)/2,lt/2,gt/2,ge/2,ne/2,eq/2]
 ]).
@@ -1185,14 +1281,38 @@ X = X{[-1000000 .. 1000000]}
     template: "<ConsistencyModule:> lt(?X,?Y)",
     amode:lt(?,?),
     args:[
-        "X":"An integer or domain variable",
+        "X":"An integer or domain variable, or a collection of integers",
         "Y":"An integer or domain variable"
     ],
+    eg: "\
+[eclipse 16]:   lt([A,B,C,D], 3).
+
+A = A{[-1000000 .. 2]}
+B = B{[-1000000 .. 2]}
+C = C{[-1000000 .. 2]}
+D = D{[-1000000 .. 2]}
+
+[eclipse 17]: lt([0,1,2], 3).     % succeeds
+
+[eclipse 18]: lt([0,1,2,3], 3).   % fails
+
+[eclipse 20]: lt(3,3).            % fails
+
+[eclipse 21]: lt(3,10).           % succeeds
+
+[eclipse 22]: lt(3,X).
+
+X = X{[4 .. 1000000]}
+
+",
     desc:html("\
    Primitive to constrain X to be less than  Y (X #&lt; Y). 
+   If X is a collection, then the relation holds for every element of
+   X over Y.
    </P><P> 
-   Unlike X #&lt; Y, X and Y must be variables or integers, and 
-   not expressions, because it interfaces directly to Gecode's
+   Unlike X #&lt; Y, X must be a either a variable or integer, or a
+   collection of variables or integers, and Y must be a variable or 
+   integer, and not expressions, because it interfaces directly to Gecode's
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #&lt; Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
@@ -1202,6 +1322,12 @@ X = X{[-1000000 .. 1000000]}
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   The variant of this constraint with X being a collection is known
+   as arith (with the less than relation) in the Global Constraint
+   Catalog. The variant with X and Y both being variables is known
+   as lt in the Global Constraint Catalog. This constraiant is
+   implemented using Gecode's rel() constraint.
 "),
     see_also: [(#=<)/2,le/2,gt/2,ge/2,ne/2,eq/2]
 ]).
@@ -1211,16 +1337,44 @@ X = X{[-1000000 .. 1000000]}
 :- comment(ge/2, [
     summary:"Constrains X to be greater than or equal to Y.",
     template: "<ConsistencyModule:> le(?X,?Y)",
-    amode:le(?,?),
+    amode:ge(?,?),
+    eg:"\
+[eclipse 34]: [X,Y,Z] :: 1..10, ge([X,Y,Z], 5).
+
+X = X{[5 .. 10]}
+Y = Y{[5 .. 10]}
+Z = Z{[5 .. 10]}
+
+[eclipse 35]: [X,Y,Z] :: 1..10, ge([X,Y,Z], A).
+
+X = X{[1 .. 10]}
+Y = Y{[1 .. 10]}
+Z = Z{[1 .. 10]}
+A = A{[-1000000 .. 10]}
+
+[eclipse 36]: ge([3,4,5],3).            % succeed
+
+[eclipse 37]: ge([2,3,4,5],3).          % fail
+
+[eclipse 40]: ge(5,3).                  % succeed
+
+[eclipse 43]: ge(3,5).                  % fail
+
+[eclipse 42]: ge(3,3).                  % succeed
+
+",
     args:[
-        "X":"An integer or domain variable",
+        "X":"An integer or domain variable, or a collection of integers",
         "Y":"An integer or domain variable"
     ],
     desc:html("\
    Primitive to constrain X to be greater than or equal to  Y (X #&gt;= Y). 
+   If X is a collection, then the relation holds for every element of
+   X over Y.
    </P><P> 
-   Unlike X #&gt;= Y, X and Y must be variables or integers, and 
-   not expressions, because it interfaces directly to Gecode's
+   Unlike X #&gt;= Y, X must be a either a variable or integer, or a
+   collection of variables or integers, and Y must be a variable or 
+   integer, and not expressions, because it interfaces directly to Gecode's
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #&gt;= Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
@@ -1230,6 +1384,12 @@ X = X{[-1000000 .. 1000000]}
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   The variant of this constraint with X being a collection is known
+   as arith (with the greater than or equal relation) in the Global
+   Constraint Catalog. The variant with X and Y both being variables
+   is known as geq in the Global Constraint Catalog. This constraint
+   is implemented using Gecode's rel() constraint.
 "),
     see_also: [(#>=)/2,lt/2,gt/2,le/2,ne/2,eq/2]
 ]).
@@ -1239,16 +1399,38 @@ X = X{[-1000000 .. 1000000]}
 :- comment(gt/2, [
     summary:"Constrains X to be greater than Y.",
     template: "<ConsistencyModule:> gt(?X,?Y)",
-    amode:lt(?,?),
+    amode:gt(?,?),
     args:[
-        "X":"An integer or domain variable",
+        "X":"An integer or domain variable, or a collection of integers",
         "Y":"An integer or domain variable"
     ],
+    eg:"\
+[eclipse 27]: gt([4,5,6,7], 4).      % succeed
+
+[eclipse 28]: gt([5,6,7], 4).        % fail
+
+[eclipse 30]: gt(4,3).               % succeed
+ 
+[eclipse 31]: gt(3,4).               % fail
+
+[eclipse 32]: gt(1000,X).
+
+X = X{[-1000000 .. 999]}
+
+[eclipse 33]: gt(X,Y).
+
+X = X{[-999999 .. 1000000]}
+Y = Y{[-1000000 .. 999999]}
+
+",
     desc:html("\
    Primitive to constrain X to be greater than  Y (X #&gt; Y). 
+   If X is a collection, then the relation holds for every element of
+   X over Y.
    </P><P> 
-   Unlike X #&lt; Y, X and Y must be variables or integers, and 
-   not expressions, because it interfaces directly to Gecode's
+   Unlike X #&gt; Y, X must be a either a variable or integer, or a
+   collection of variables or integers, and Y must be a variable or 
+   integer, and not expressions, because it interfaces directly to Gecode's
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #&gt; Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
@@ -1257,6 +1439,12 @@ X = X{[-1000000 .. 1000000]}
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
+</P><P>
+   The variant of this constraint with X being a collection is known
+   as arith (with the greater than relation) in the Global
+   Constraint Catalog. The variant with X and Y both being variables
+   is known as gt in the Global Constraint Catalog. This constraint
+   is implemented using Gecode's rel() constraint.
    arc) consistency. 
 "),
     see_also: [(#<)/2,le/2,lt/2,ge/2,ne/2,eq/2]
@@ -1267,16 +1455,33 @@ X = X{[-1000000 .. 1000000]}
 :- comment(ne/2, [
     summary:"Constrains X to be not equal to Y.",
     template: "<ConsistencyModule:> ne(?X,?Y)",
-    amode:lt(?,?),
+    amode:ne(?,?),
     args:[
-        "X":"An integer or domain variable",
+        "X":"An integer or domain variable, or a collection of integers",
         "Y":"An integer or domain variable"
     ],
+    eg:"\
+[eclipse 45]:  X :: 1..10, ne([1,3,4,5], X).
+
+X = X{[2, 6 .. 10]}
+
+[eclipse 46]: ne([1,3,4,5], 2).       % succeed
+
+[eclipse 47]: ne([1,3,4,5], 4).       % fail
+
+[eclipse 48]: ne(3,3).                % fail
+
+[eclipse 49]: ne(3,5).                % succeed
+
+",
     desc:html("\
    Primitive to constrain X to be not equal to  Y (X #\\= Y). 
+   If X is a collection, then the relation holds for every element of
+   X over Y.
    </P><P> 
-   Unlike X #\\= Y, X and Y must be variables or integers, and 
-   not expressions, because it interfaces directly to Gecode's
+   Unlike X #\\= Y, X must be a either a variable or integer, or a
+   collection of variables or integers, and Y must be a variable or 
+   integer, and not expressions, because it interfaces directly to Gecode's
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #\\= Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
@@ -1286,6 +1491,12 @@ X = X{[-1000000 .. 1000000]}
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   The variant of this constraint with X being a collection is known
+   as arith (with the not equal relation) in the Global Constraint
+   Catalog. The variant with X and Y both being variables is 
+   known as neq in the Global Constraint Catalog. This conastraint
+   is implemented using Gecode's rel() constraint.
 "),
     see_also: [(#=<)/2,le/2,gt/2,ge/2,lt/2,eq/2]
 ]).
@@ -1297,14 +1508,40 @@ X = X{[-1000000 .. 1000000]}
     template: "<ConsistencyModule:> eq(?X,?Y)",
     amode:eq(?,?),
     args:[
-        "X":"An integer or domain variable",
+        "X":"An integer or domain variable, or a collection of integers",
         "Y":"An integer or domain variable"
     ],
+    eg:"\
+[eclipse 51]: eq([1,2,3,5], X).     % fail
+
+[eclipse 52]: eq([1,1,1,1], X).
+
+X = 1
+
+[eclipse 53]: [X,Y] :: 0..10, Z :: 9..15, eq([X,Y,Z], A).
+
+X = X{[9, 10]}
+Y = Y{[9, 10]}
+Z = Z{[9, 10]}
+A = A{[9, 10]}
+[eclipse 55]: eq(3,X).
+
+X = 3
+
+Yes (0.00s cpu)
+[eclipse 56]: eq(X,3).
+
+X = 3
+
+",
     desc:html("\
    Primitive to constrain X to be equal to  Y (X #= Y). 
+   If X is a collection, then the relation holds for every element of
+   X over Y.
    </P><P> 
-   Unlike X #= Y, X and Y must be variables or integers, and 
-   not expressions, because it interfaces directly to Gecode's
+   Unlike X #= Y, X must be a either a variable or integer, or a
+   collection of variables or integers, and Y must be a variable or 
+   integer, and not expressions, because it interfaces directly to Gecode's
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #= Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
@@ -1314,6 +1551,12 @@ X = X{[-1000000 .. 1000000]}
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   The variant of this constraint with X being a collection is known
+   as arith (with the equal to relation) in the Global
+   Constraint Catalog. The variant with X and Y both being variables
+   is known as eq in the Global Constraint Catalog. This constraint
+   is implemented using Gecode's rel() constraint.
 "),
     see_also: [(#=<)/2,le/2,gt/2,ge/2,lt/2,ne/2]
 ]).
@@ -1321,7 +1564,7 @@ X = X{[-1000000 .. 1000000]}
 %---------------------------------------------------------------------
 
 :- comment(max/3, [
-    summary:"Max is the maximum of X and Y.",
+    summary:"Constrain Max to be the maximum of X and Y.",
     template: "<ConsistencyModule:> max(?X,?Y,?Max)",
     amode:max(?,?,?),
     args:[
@@ -1347,7 +1590,7 @@ X = X{[-1000000 .. 1000000]}
 %---------------------------------------------------------------------
 
 :- comment(min/3, [
-    summary:"Min is the minimum of X and Y.",
+    summary:"Constrains Min to be the minimum of X and Y.",
     template: "<ConsistencyModule:> min(?X,?Y,?Min)",
     amode:min(?,?,?),
     args:[
@@ -1375,7 +1618,7 @@ X = X{[-1000000 .. 1000000]}
 :- comment(plus/3, [
     summary:"Constrains Z to X + Y.",
     template: "<ConsistencyModule:> plus(?X,?Y,?Z)",
-    amode:mult(?,?,?),
+    amode:plus(?,?,?),
     args:[
         "X":"An integer or domain variable",
         "Y":"An integer or domain variable",
@@ -1427,7 +1670,7 @@ X = X{[-1000000 .. 1000000]}
 :- comment(mod/3, [
     summary:"Constrains Z to X mod Y.",
     template: "<ConsistencyModule:> mod(?X,?Y,?Z)",
-    amode:mult(?,?,?),
+    amode:mod(?,?,?),
     args:[
         "X":"An integer or domain variable",
         "Y":"An integer or domain variable",
@@ -1557,7 +1800,7 @@ X = X{[-1000000 .. 1000000]}
 :- comment(abs/2, [
     summary:"Constrains Y to be the absolute value of X.",
     template: "<ConsistencyModule:> abs(?X,?Y)",
-    amode:sqr(?,?),
+    amode:abs(?,?),
     args:[
         "X":"An integer or domain variable",
         "Y":"An integer or domain variable"
@@ -1725,7 +1968,7 @@ X = X{[-1000000 .. 1000000]}
           Constrains the sum of the elements in Collection to satisfy
           the relation sum(Collection) Rel Sum.
 	  </P><P>
-          Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+          Rel can be one of #&gt;, #&gt;=, #&lt;, #=&lt;, #=, #\\= (or equivalently,
           &gt;, &gt;=, &lt;, =&lt;, =, \\=).
 	  </P><P>
 	  Any input variables which are not already domain variable will be
@@ -1762,7 +2005,7 @@ X = X{[-1000000 .. 1000000]}
           of  the elements in Collection to satisfy the relation 
           sum(Collection) Rel Sum.
 	  </P><P>
-          Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+          Rel can be one of #&gt;, #&gt;=, #&lt;, #=&lt;, #=, #\\= (or equivalently,
           &gt;, &gt;=, &lt;, =&lt;, =, \\=).
 	  </P><P>
 	  Any input variables which are not already domain variable will be
@@ -1772,6 +2015,112 @@ X = X{[-1000000 .. 1000000]}
           consistency level for the propagation for this constraint: 
           gfd_bc for bounds consistency 
     ")
+]).
+
+%----------------------------------------------------------------------
+
+:- comment(mem/2, [
+    amode: mem(+, ?),
+    template: "<ConsistencyModule:> mem(+Vars,?Member)",
+    args:[
+	"Vars": "Collection (a la collection_to_list/2) of variables or integers (NOT arbitrary expressions)",
+	"Member":  "Member element of Vars (domain variable or integer)"
+    ],
+    summary: "Constrains Member to be the a member element in Vars.",
+    see_also: [mem/3, collection_to_list/2],
+    eg: "\
+[eclipse 7]: A :: 1..10, B :: 2..20, mem([A,B], M).
+
+A = A{[1 .. 10]}
+B = B{[2 .. 20]}
+M = M{[1 .. 20]}
+
+
+[eclipse 8]: A :: 1..10, B :: 2..20, mem([A,B], M), M #< 5.
+
+A = A{[1 .. 10]}
+B = B{[2 .. 20]}
+M = M{[1 .. 4]}
+
+
+[eclipse 9]: A :: 1..10, B :: 2..20, mem([A,B], M), M #< 2.
+
+A = A{[1 .. 10]}
+B = B{[2 .. 20]}
+M = 1
+
+[eclipse 10]: mem([4,5,5,4,1,5], C).
+
+C = C{[1, 4, 5]}
+
+
+",
+    desc: html("<P>
+   Constrains Member to be a one of the elements in Vars.
+</P><P>
+   Note that this constraint has the same declarative semantics as the
+   standard member/2 predicate, but the order of the arguments are
+   reversed to allow the constraint to be used in constraint
+   expressions.
+</P><P>
+   This constraint is implemented by Gecode's member() constraint.
+</P><P>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+       gfd_gac for domain (generalised arc) consistency.
+")
+]).
+
+:- comment(mem/3, [
+    amode: mem(+, ?, ?),
+    template: "<ConsistencyModule:> mem(+Vars,?Member,?Bool)",
+    args:[
+	"Vars": "Collection (a la collection_to_list/2) of variables or integers (NOT arbitrary expressions)",
+	"Member":  "Member element of Vars (domain variable or
+ integer)",
+        "Bool": "Reified truth value (0/1 integer or domain variable)"
+    
+    ],
+    summary: "Reflect into Bool the truth of Member being a member element of Vars.",
+    see_also: [mem/2, collection_to_list/2],
+    eg: "\
+[eclipse 11]: A :: 1..10, B :: 2..20, mem([A,B], M, Bool), M #< 2.
+
+A = A{[1 .. 10]}
+B = B{[2 .. 20]}
+M = M{[-1000000 .. 1]}
+Bool = Bool{[0, 1]}
+
+
+Delayed goals:
+        gfd : gfd_do_propagate(gfd_prob(nvars(4)))
+Yes (0.00s cpu)
+[eclipse 12]: A :: 1..10, B :: 2..20, mem([A,B], M, Bool), M #< 2, Bool = 1.
+
+A = A{[1 .. 10]}
+B = B{[2 .. 20]}
+M = 1
+Bool = 1
+
+[eclipse 13]: A :: 1..10, B :: 2..20, mem([A,B], M, Bool), M #< 2, Bool = 0.
+
+A = A{[1 .. 10]}
+B = B{[2 .. 20]}
+M = M{[-1000000 .. 1]}
+Bool = 0
+
+",
+    desc: html("<P>
+   Reified form of the mem/2 constraint, which constrains Member to be
+   one of the elements in Vars.
+</P><P>
+   This constraint is implemented by Gecode's member() constraint 
+   (reified version).
+</P><P>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+       gfd_gac for domain (generalised arc) consistency.
+")
 ]).
 
 %----------------------------------------------------------------------
@@ -1791,7 +2140,7 @@ X = X{[-1000000 .. 1000000]}
           Constrains the scalar product of the elements in Collection to satisfy
           the relation sum(Coeffs*Collection) Rel P.
 	  </P><P>
-          Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+          Rel can be one of #&gt;, #&gt;=, #&lt;, #=&lt;, #=, #\\= (or equivalently,
           &gt;, &gt;=, &lt;, =&lt;, =, \\=).
 	  </P><P>
           The Scalar Product of the collection of N integers in Coeffs and
@@ -1836,7 +2185,7 @@ X = X{[-1000000 .. 1000000]}
           the relation 
           sum(Coeffs*Collection) Rel P.
 	  </P><P>
-          Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+          Rel can be one of #&gt;, #&gt;=, #&lt;, #=&lt;, #=, #\\= (or equivalently,
           &gt;, &gt;=, &lt;, =&lt;, =, \\=).
           </P><P>
 	  Any input variables which are not already domain variable will be
@@ -2299,7 +2648,7 @@ V = V{[1, 2, 4 .. 10]}
 %----------------------------------------------------------------------
 
 :- comment(count/4, [
-	summary: "Constrain the number of occurrence of Value in Vars (Occ) to satisfy  the relation N Rel Occ",
+	summary: "Constrain the number of occurrence of Value in Vars (Occ) to satisfy  the relation Occ Rel N",
 	template:"<ConsistencyModule:> count(+Value, ?Vars, +Rel, ?N)",
 	args:["+Value" : "An integer",
 	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
@@ -2309,9 +2658,9 @@ V = V{[1, 2, 4 .. 10]}
    Constrain the number of occurrences of Value in Vars to satisfy the
    constraint defined by Rel:
 <PRE>
-          N Rel <number of occurrences of Value in Vars>
+          <number of occurrences of Value in Vars> Rel N
 </PRE><P>
-   Rel can be one of #&gt;, #&gt=;, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+   Rel can be one of #&gt;, #&gt;=, #&lt;, #=&lt;, #=, #\\= (or equivalently,
    &gt;, &gt;=, &lt;, =&lt;, =, \\=).
 </P><P>
    occurrences/3, atmost/3, atleast/3 are defined using count/3. For example,
@@ -2322,6 +2671,13 @@ V = V{[1, 2, 4 .. 10]}
 <PRE>
         count(Value, Vars, (#=<), N)
 </PRE><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
+   This constraint is known as count in the global constraint catalog.
+   It is implemented using gecode's count() constraint (variants with
+   int or IntVar for argument representing Value).
+</P><P>
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_gac for domain (generalised arc) consistency. 
@@ -2329,6 +2685,139 @@ V = V{[1, 2, 4 .. 10]}
 ]).
 
 %----------------------------------------------------------------------
+
+:- comment(among/4, [
+	summary: "The number of occurrence (Occ) in Vars of values taken from the set of values specified in Values satisfy  the relation Occ Rel N",
+	template:"<ConsistencyModule:> among(+Values, ?Vars, +Rel, ?N)",
+	args:["+Values" : "A collection of specifications for integer values",
+	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
+              "+Rel":"One of the atom: #>, #>=, #<, #=<, #=, #\\=",
+	      "?N" : "An integer or domain variable"],
+        eg:"\
+[eclipse 24]: among([1,3,4,9], [4,5,5,4,1,5], (#=), N).
+
+N = 3
+
+
+[eclipse 25]: among([1..4,9],  [4,5,5,4,1,5], (#=), N).
+
+N = 3
+
+
+[eclipse 26]:  among([1..4,3,9], [4,5,5,4,1,5], (#=), N). % repeated value
+
+N = 3
+
+[eclipse 2]: among([], [4,5,5,4,1,5], (#=), N).
+
+N = 0
+
+[eclipse 3]: among([1,2,3], [], (#=), N).
+
+N = 0
+
+[eclipse 5]: among([1,3,4,9], [4,5,5,4,1,5], (#\\=), N).
+
+N = N{[-1000000 .. 2, 4 .. 1000000]}
+
+",
+        desc:html("<P>\
+   Constrain the number of occurrences in Vars of values taken from the set of
+   values specified in Value to satisfy the constraint defined by Rel:
+<PRE>
+          <number of occurrences of values among Values in Vars> Rel N
+</PRE><P>
+   Rel can be one of #&gt;, #&gt;=, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+   &gt;, &gt;=, &lt;, =&lt;, =, \\=).
+</P><P>
+   Values specify the values whose occurrence are counted, and accept
+   the same syntax as domain specification, i.e. each item can be a
+   a simple element, or a range Lo .. Hi. Each element is either an
+   integer, or is a ground expression that evaluates to an integer. 
+</P><P>
+   This constraint can be embedded in a constraint expression in its
+   functional form (without the last argument).
+</P><P>
+   This constraint is known as counts in the global constraint catalog,
+   with among and among_vars being the specialised form with #= as 
+   the Rel (i.e. The number of occurrences of values from Values is
+   exactly N), the name among is used here to better distinguish this
+   constraint from count/4, for counting the occurrences of a single value.
+   This constraint is implemented by gecode's count() contraint (the variant
+   with an IntSet argument for Values).
+</P><P>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_gac for domain (generalised arc) consistency. 
+")
+]).
+
+%----------------------------------------------------------------------
+
+:- comment(count_matches/4, [
+	summary: "The number of the elements in Vars that
+ match its corresponding value in Values, Matches, satisfies the
+ relation Matches Rel N.",
+	template:"<ConsistencyModule:> count_matches(+Values, ?Vars, +Rel, ?N)",
+	args:["+Values" : "A collection of M integer values",
+	      "?Vars" : "A collection of M domain variables or integers",
+              "+Rel":"One of the atom: #>, #>=, #<, #=<, #=, #\\=",
+	      "?N" : "An integer or domain variable"],
+        eg: "\
+[eclipse 5]: count_matches([1,2,3,4], [A,B,C,D], (#=), N).
+
+A = A{[-1000000 .. 1000000]}
+B = B{[-1000000 .. 1000000]}
+C = C{[-1000000 .. 1000000]}
+D = D{[-1000000 .. 1000000]}
+N = N{[0 .. 4]}
+
+[eclipse 6]: L = [A,B,C,D], L :: 4..10, count_matches([1,2,3,4], L, (#=), N).
+
+L = [A{[4 .. 10]}, B{[4 .. 10]}, C{[4 .. 10]}, D{[4 .. 10]}]
+A = A{[4 .. 10]}
+B = B{[4 .. 10]}
+C = C{[4 .. 10]}
+D = D{[4 .. 10]}
+N = N{[0, 1]}
+
+[eclipse 15]: count_matches([1,2,3,4], [4,3,2,1], (#=), N).
+
+N = 0
+
+[eclipse 16]: count_matches([1,2,3,4], [2,2,3,5],  (#=), N).
+
+N = 2
+
+[eclipse 17]:  count_matches([], [], (#=), N).
+
+N = 0
+
+",
+        desc:html("<P>\
+   Values and Vars are collections of the same size, and the
+   number of elements in Vars taking on the value given by its corresponding 
+   element in Values, Matches, is constrained by the relation:
+<PRE>
+          <Matches> Rel N
+</PRE><P>
+   Rel can be one of #&gt;, #&gt;=, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+   &gt;, &gt;=, &lt;, =&lt;, =, \\=).
+</P><P>
+   This constraint can be embedded in a constraint expression in its
+   functional form (without the last argument).
+</P><P>
+   This constraint is implemented by gecode's count() constraint 
+   (variant with an IntArgs for Values). 
+</P><P>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_gac for domain (generalised arc) consistency. 
+")
+]).
+
+%----------------------------------------------------------------------
+
 :- comment(sorted/2, [
     summary:"Sorted is a sorted permutation of List",
     amode:sorted(+,+),
@@ -2351,6 +2840,8 @@ V = V{[1, 2, 4 .. 10]}
     Any input variables which is not already a domain variable will be
     turned into a domain variable with default bounds.
 <P>
+    This constraint is known as sort in the global constraint catalog.
+ <P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
     gfd_bc for bounds consistency.
@@ -2406,6 +2897,9 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
    behave badly for variables with large domain widths. For a version of this
    constraint that uses native Gecode indexing, see sorted_g/3.
 <P>
+    This constraint is known as sort_permutation in the global
+    constraint catalog.
+ <P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
     gfd_bc for bounds consistency.
@@ -2423,9 +2917,9 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 :- comment(sorted_g/3, [
     summary:"Sorted is a sorted permutation (described by Positions) of List, with native Gecode indexing.",
-    amode:sorted(+,?,?),
-    amode:sorted(?,+,?),
-    amode:sorted(?,?,+),
+    amode:sorted_g(+,?,?),
+    amode:sorted_g(?,+,?),
+    amode:sorted_g(?,?,+),
     template:"<ConsistencyModule:> sorted_g(?List, ?Sorted, ?Positions)",
     args:["List":"Collection of N domain variables or integers",
     	"Sorted":"Collection of N domain variables or integers",
@@ -2645,7 +3139,21 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
               ],
         template:"<ConsistencyModule:> circuit(+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit.", 
-	see_also: [circuit_g/1],
+	see_also: [circuit_g/1,circuit_offset_g/2],
+        eg: "\
+[eclipse 7]: circuit([2,A,4,1]).
+
+A = 3
+
+[eclipse 2]: circuit([]).
+
+No (0.00s cpu)
+
+[eclipse 11]: circuit([A]).
+
+A = 1
+
+",
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where
   the i'th element of Succ represents the successor to node i. The constraint
@@ -2653,15 +3161,17 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
   the graph, visiting each node once and forming a circuit.</P><P>
 
   Note that the Gecode implementation of this constraint has index (node id)
-  starting from 0, rather than 1. These indices are constrained to 
-  ECLiPSe node id with a constraint for each element. A version of this
-  constraint with native Gecode indexing is available as circuit_g/1.
+  starting from 0, rather than 1. This constraint is actually posted
+  as circuit_offset_g/2 with an offset of 1. A version of this constraint
+  with native Gecode indexing is available as circuit_g/1.
 </P><P>
-
   ConsistencyModule is the optional module specification to give the 
   consistency level for the propagation for this constraint: 
   gfd_gac for generalised arc consistency (domain consistency), 
   and gfd_vc for value consistency.
+</P><P>
+  This constraint is known as circuit in the global constraint catalog. It is
+  implemented with Gecode's circuit() constraint with an offset of 1.
 ")
                       ]).
 
@@ -2672,14 +3182,17 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
         template:"<ConsistencyModule:> circuit_g(+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit, with native Gecode indexing.", 
 	see_also: [circuit/1],
+        eg: "
+circuit_g([A,2,3,0])
+
+A = 1
+
+
+",
         desc: html("<P>\
   This version of circuit/1 uses the native Gecode indexing, which starts 
-  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
-</p><p>
-  This predicate maps more directly to Gecode's native implementation of 
-  the constraint, without the conversion between Gecode and ECLiPSe
-  indexing of circuit/1. It may therefore be more efficient, but could also
-  be incompatible with existing ECLiPSe code. 
+  from 0. This is different from normal ECLiPSe's indexing, which starts 
+  from 1, and may be incompatible with existing ECLiPSe code. 
 </p><p>
   See circuit/1 for a more detailed description of this predicate.")
 ]).   
@@ -2694,6 +3207,15 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
               ],
         template:"<ConsistencyModule:> circuit(+Succ,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost.", 
+        see_also: [circuit_offset_g/4, circuit/1,
+                   circuit/4, circuit_g/3],
+        eg: "\
+[eclipse 9]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
+             circuit([2,3,4,1], CostM, C).   
+
+CostM = []([](0, 3, 5, 7), [](4, 0, 9, 6), [](2, 1, 0, 5), [](-7, 8, -2, 0))
+C = 10
+",
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where
   the i'th element of Succ represents the successor to node i. The constraint
@@ -2703,18 +3225,21 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
   CostMatrix[i,j] represents the cost of travelling from node i to j, and 
   Cost is constrained to the total cost for the circuit.
 </P><P>
-
-  Note that the Gecode implementation of this constraint has index (node id)
-  starting from 0, rather than 1. These indices are constrained to 
-  ECLiPSe node id with a constraint for each element. A version of this
-  constraint with native Gecode indexing is available as circuit_g/3,
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
 </P><P>
-  This constraint is known as circuit in the global constraint catalog.
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. This constraint is actually posted
+  as circuit_offset_g/4 with an offset of 1. A version of this constraint
+  with native Gecode indexing is available as circuit_g/3.
 </P><P>
   ConsistencyModule is the optional module specification to give the 
   consistency level for the propagation for this constraint: 
   gfd_gac for generalised arc consistency (domain consistency), 
   and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's circuit() constraint (variant with 
+  cost), using an offset of 1.
 ")
                       ]).
 
@@ -2727,15 +3252,27 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
         template:"<ConsistencyModule:> circuit_g(+Succ,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost. This version uses native Gecode indexing.", 
 	see_also: [circuit/3],
+        eg: "\
+[eclipse 10]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
+        circuit_g([1,2,3,0], CostM, C).   
+
+CostM = []([](0, 3, 5, 7), [](4, 0, 9, 6), [](2, 1, 0, 5), [](-7, 8, -2, 0))
+C = 10
+
+
+[eclipse 6]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
+        C #= circuit([2,3,4,1], CostM) + 1.
+
+CostM = []([](0, 3, 5, 7), [](4, 0, 9, 6), [](2, 1, 0, 5), [](-7, 8, -2, 0))
+C = 11
+
+",
         desc: html("<P>\
   This version of circuit/3 uses the native Gecode indexing, which starts 
-  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
-</p><p>
-  This predicate maps more directly to Gecode's native implementation of 
-  the constraint, without the conversion between Gecode and ECLiPSe
-  indexing of circuit/3. It may therefore be more efficient, but could also
-  be incompatible with existing ECLiPSe code. 
-</p><p>
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.</p><p>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
   See circuit/3 for a more detailed description of this predicate.")
 ]).   
 
@@ -2748,9 +3285,21 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
                "ArcCosts": "A collection of N variables or integers.",
                "Cost": "An domain variable or integer."
               ],
-        template:"<ConsistencyModule:> circuit(+Succ,++CostMatrix,?Cost)",
+        template:"<ConsistencyModule:> circuit(+Succ,++CostMatrix,+ArcCosts,?Cost)",
 	see_also:[circuit/1,circuit/3,circuit_g/4],
-        summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost.", 
+        summary: "Constrains elements in Succ to form a Hamiltonian"
+                 " circuit with cost Cost.", 
+        eg:"\
+[eclipse 5]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
+        circuit([2,3,4,1], CostM,        [C1,C2,C3,C4], C).
+
+CostM = []([](0, 3, 5, 7), [](4, 0, 9, 6), [](2, 1, 0, 5), [](-7, 8, -2, 0))
+C1 = 3
+C2 = 9
+C3 = 5
+C4 = -7
+C = 10
+",
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where
   the i'th element of Succ represents the successor to node i. The constraint
@@ -2761,17 +3310,21 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
   Cost is constrained to the total Cost for the circuit. The i'th element of 
   ArcCosts is constrained to the cost of the arc in the circuit from node i.
 </P><P>
-
-  Note that the gecode implementation of this constraint has index (node id)
-  starting from 0, rather than 1. These indices are constrained to 
-  ECLiPSe node id with a constraint for each element.A version of this
-  constraint with native Gecode indexing is available as circuit_g/4.
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. This constraint is actually posted
+  as circuit_offset_g/5 with an offset of 1. A version of this constraint
+  with native Gecode indexing is available as circuit_g/4.
 </P><P>
-
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
   ConsistencyModule is the optional module specification to give the 
   consistency level for the propagation for this constraint: 
   gfd_gac for generalised arc consistency (domain consistency), 
   and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's circuit() constraint (variant with 
+  cost and arc costs), using an offset of 1.
 ")
                       ]).
 
@@ -2782,19 +3335,670 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
                "ArcCosts": "A collection of N variables or integers.",
                "Cost": "An domain variable or integer."
               ],
-        template:"<ConsistencyModule:> circuit_g(+Succ,++CostMatrix,?Cost)",
+        template:"<ConsistencyModule:> circuit_g(+Succ,++CostMatrix,+ArcCosts,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost, using native Gecode indexing.", 
 	see_also:[circuit/4],
+        eg: "\
+CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
+        circuit_g([1,2,3,0], CostM, [C0,C1,C2,C3], C).
+",
         desc: html("<P>\
   This version of circuit/4 uses the native Gecode indexing, which starts 
   from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
-</p><p>
-  This predicate maps more directly to Gecode's native implementation of 
-  the constraint, without the conversion between Gecode and ECLiPSe
-  indexing of circuit/4. It may therefore be more efficient, but could also
-  be incompatible with existing ECLiPSe code. 
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
 </p><p>
   See circuit/4 for a more detailed description of this predicate.")
+]).   
+
+%----------------------------------------------------------------------
+
+:- comment(circuit_offset/2, [
+        amode: circuit_offset(+,+),
+        args: ["Succ":"A collection of different variables or integers",
+               "Offset":"Offset for Succ (An integer)"
+              ],
+        template:"<ConsistencyModule:> circuit_offset(+Succ,+Offset)",
+        summary: "Constrains elements (offset by Offset) in Succ to form a Hamiltonian circuit.", 
+	see_also: [circuit_offset_g/2],
+        desc: html("<P>\
+  Succ is a collection of N elements presenting a digraph of N nodes, where
+  the value of the i'th element of Succ - Offset represents the successor to 
+  node i. The constraint enforces Succ to form a Hamiltonian circuit,
+  a path through every node in the graph, visiting each node once and
+  forming a circuit.</P><P>
+
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. The value of Offset is incremented by 1 
+  when the constraint is posted to Gecode.  A version of this constraint with
+  native Gecode indexing, i.e. without adjusting Offset, is available 
+  as circuit_offset_g/2.
+</P><P>
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's circuit() constraint, using an 
+  offset of Offset + 1.
+")
+                      ]).
+
+:- comment(circuit_offset_g/2, [
+        amode: circuit_offset_g(+,+),
+        args: ["Succ":"A collection of different variables or integers",
+               "Offset":"Offset for Succ (An integer)"
+              ],
+        template:"<ConsistencyModule:> circuit_offset_g(+Succ, +Offset)",
+        summary: "Constrains elements (offset by Offset) in Succ to form a Hamiltonian circuit, with native Gecode indexing.", 
+	see_also: [circuit_offset/2],
+        desc: html("<P>\
+  This version of circuit_offset/2 uses the native Gecode indexing, which
+  starts from 0. This is different from normal ECLiPSe's indexing, which
+  starts from 1. Offset is not adjusted in this versin. This version of 
+  the constraint is provided for completeness, in case the user is using
+  native Gecode indexing in their code, so that Offset does not need to
+  be adjusted manually by the user. 
+ </p><p>
+  See circuit_offset/2 for a more detailed description of this predicate.")
+]).   
+
+%----------------------------------------------------------------------
+
+:- comment(circuit_offset/4, [
+        amode: circuit_offset(+,+,++,?),
+        args: ["Succ":"A collection of N different variables or integers",
+               "Offset":"Offset for Succ (An integer)",
+               "CostMatrix":"A NxN matrix of integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> circuit_offset(+Succ,+Offset,++CostMatrix,?Cost)",
+        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost.", 
+        see_also: [circuit_offset_g/4, circuit_offset/2,
+                   circuit_offset/5, circuit/3],
+        desc: html("<P>\
+  Succ is a collection of N elements presenting a digraph of N nodes, where
+  the value of the i'th element of Succ - Offset represents the successor to 
+  node i. The constraint enforces Succ to form a Hamiltonian circuit,
+  a path through every node in the graph, visiting each node once and
+  forming a circuit. Additionally,CostMatrix specifies the cost for 
+  traversing between each pair of nodes:
+  CostMatrix[i,j] represents the cost of travelling from node i to j, and 
+  Cost is constrained to the total cost for the circuit.
+</P><P>
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. The value of Offset is incremented by 1 
+  when the constraint is posted to Gecode.  A version of this constraint with
+  native Gecode indexing, i.e. without adjusting Offset, is available 
+  as circuit_offset_g/4.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's circuit() constraint (variant with 
+  cost), using an offset of Offset + 1.
+")
+                      ]).
+
+:- comment(circuit_offset_g/4, [
+        amode: circuit_offset_g(+,+,++,?),
+        args: ["Succ":"A collection of N different variables or integers",
+               "Offset":"Offset for Succ (An integer)",
+               "CostMatrix":"A NxN matrix of integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> circuit_offset_g(+Succ,+Offset,++CostMatrix,?Cost)",
+        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost. This version uses native Gecode indexing.", 
+	see_also: [circuit_offset/4],
+        desc: html("<P>\
+  This version of circuit_offset/4 uses the native Gecode indexing, which
+  starts from 0. This is different from normal ECLiPSe's indexing, which
+  starts from 1. Offset is not adjusted in this versin. This version of 
+  the constraint is provided for completeness, in case the user is using
+  native Gecode indexing in their code, so that Offset does not need to
+  be adjusted manually by the user. 
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</p><p>
+  See circuit_offset/4 for a more detailed description of this predicate.")
+]).   
+
+%----------------------------------------------------------------------
+
+:- comment(circuit_offset/5, [
+        amode: circuit_offset(+,+,++,+,?),
+        args: ["Succ":"A collection of N different variables or integers",
+               "Offset":"Offset for Succ (An integer)",
+               "CostMatrix":"A NxN matrix of integers",
+               "ArcCosts": "A collection of N variables or integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> circuit_offset(+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
+	see_also:[circuit_offset/2,circuit_offset/4,circuit_offset_g/5],
+        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost.", 
+        desc: html("<P>\
+  Succ is a collection of N elements presenting a digraph of N nodes, where
+  the value of the i'th element of Succ - Offset represents the successor to 
+  node i. The constraint enforces Succ to form a Hamiltonian circuit,
+  a path through every node in the graph, visiting each node once and
+  forming a circuit. Additionally,CostMatrix specifies the cost for 
+  traversing between each pair of nodes:
+  CostMatrix[i,j] represents the cost of travelling from node i to j, and 
+  Cost is constrained to the total cost for the circuit. The i'th element of 
+  ArcCosts is constrained to the cost of the arc in the circuit from node i.
+</P><P>
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. The value of Offset is incremented by 1 
+  when the constraint is posted to Gecode.  A version of this constraint with
+  native Gecode indexing, i.e. without adjusting Offset, is available 
+  as circuit_offset_g/5.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's circuit() constraint (variant with 
+  cost and arc costs), using an offset of Offset + 1.
+")
+                      ]).
+
+:- comment(circuit_offset_g/5, [
+        amode: circuit_offset_g(+,+,++,+,?),
+        args: ["Succ":"A collection of N different variables or integers",
+               "Offset":"Offset for Succ (An integer)",
+               "CostMatrix":"A NxN matrix of integers",
+               "ArcCosts": "A collection of N variables or integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> circuit_offset_g(+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
+        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost, using native Gecode indexing.", 
+	see_also:[circuit_offset/5],
+        desc: html("<P>\
+  This version of circuit_offset/5 uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</p><p>
+  See circuit_offset/5 for a more detailed description of this predicate.")
+]).   
+
+%----------------------------------------------------------------------
+
+:- comment(ham_path/3, [
+        amode: ham_path(?,?,+),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of different variables or integers"
+              ],
+        template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ)",
+        summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End.",
+	see_also: [ham_path_g/3,ham_path_offset_g/4],
+        eg: "\
+[eclipse 5]: ham_path(S,E,[X]).
+
+S = 1
+E = 1
+X = 2
+
+
+[eclipse 2]: ham_path(S,E,[A,B]).
+
+S = S{[1, 2]}
+E = E{[1, 2]}
+A = A{[2, 3]}
+B = B{[1, 3]}
+
+[eclipse 3]: ham_path(2,1,[A,B]).
+
+A = 3
+B = 1
+
+[eclipse 5]: ham_path(S,E,[2,4,1]).
+
+S = 3
+E = 2
+
+",
+        desc: html("<P>\
+  Succ is a collection of N elements presenting a digraph of N nodes, where
+  the i'th element of Succ represents the successor to node i. The constraint
+  enforces Succ to form a Hamiltonian path, a path through every node in
+  the graph, visiting each node once, with Start giving the first node
+  of the path, and End giving the last node of the path. Note that the
+  Succ of the last node will be N+1, i.e. a dummy node not in the graph. 
+</P><P>
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. This constraint is actually posted
+  as ham_path_offset_g/3 with an offset of 1. A version of this constraint
+  with native Gecode indexing is available as circuit_g/1.
+</P><P>
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's path() constraint, using an offset 
+  of 1.
+")
+                      ]).
+
+:- comment(ham_path_g/3, [
+        amode: ham_path_g(?,?,+),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of different variables or integers"
+              ],
+        template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ)",
+        summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End, with native Gecode indexing.", 
+	see_also: [ham_path/3],
+        eg: "\
+[eclipse 6]: ham_path_g(S,E,[A,B]).
+
+S = S{[0, 1]}
+E = E{[0, 1]}
+A = A{[1, 2]}
+B = B{[0, 2]}
+
+[eclipse 7]: ham_path_g(1,0,[A,B]).
+
+A = 2
+B = 0
+
+
+[eclipse 8]: ham_path_g(S,E,[1,3,0]).
+
+S = 2
+E = 1
+
+",
+        desc: html("<P>\
+  This version of ham_path/3 uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts 
+  from 1, and may be incompatible with existing ECLiPSe code. 
+</p><p>
+  See ham_path/3 for a more detailed description of this predicate.")
+]).   
+
+%----------------------------------------------------------------------
+
+:- comment(ham_path/5, [
+        amode: ham_path(?,?,+,++,?),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of N different variables or integers",
+               "CostMatrix":"A NxN matrix of integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ,++CostMatrix,?Cost)",
+        summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End with cost Cost.",
+        see_also: [ham_path_offset_g/6, ham_path/3,
+                   ham_path/6, ham_path_g/5],
+        eg: "\
+[eclipse 2]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
+        ham_path(4,3,[2,3,5,1], CostM, C).
+
+CostM = []([](0, 3, 5, 7), [](4, 0, 9, 6), [](2, 1, 0, 5), [](-7, 8, -2, 0))
+C = 5
+
+",
+        desc: html("<P>\
+  Succ is a collection of N elements presenting a digraph of N nodes, where
+  the i'th element of Succ represents the successor to node i. The constraint
+  enforces Succ to form a Hamiltonian path, a path through every node in
+  the graph, visiting each node once, with Start giving the first node
+  of the path, and End giving the last node of the path. Note that the
+  Succ of the last node will be N+1, i.e. a dummy node not in the graph. 
+  Additionally, CostMatrix specifies the cost for traversing between
+  each pair of nodes: CostMatrix[i,j] represents the cost of
+  travelling from node i to j, and Cost is constrained to the total cost 
+  for the path.
+</P><P>
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. This constraint is actually posted
+  as ham_path_offset_g/4 with an offset of 1. A version of this constraint
+  with native Gecode indexing is available as ham_path_g/3.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's path() constraint (variant with 
+  cost), using an offset of 1.
+")
+                      ]).
+
+:- comment(ham_path_g/5, [
+        amode: ham_path_g(?,?,+,++,?),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of N different variables or integers",
+               "CostMatrix":"A NxN matrix of integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ,++CostMatrix,?Cost)",
+        summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End with cost Cost. This version uses native Gecode indexing.", 
+	see_also: [ham_path/5],
+        eg: "\
+[eclipse 2]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
+        ham_path_g(3,2,[1,2,4,0], CostM, C).
+
+CostM = []([](0, 3, 5, 7), [](4, 0, 9, 6), [](2, 1, 0, 5), [](-7, 8, -2, 0))
+C = 5
+",
+        desc: html("<P>\
+  This version of ham_path/5 uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</p><p>
+  See ham_path/5 for a more detailed description of this predicate.")
+]).   
+
+%----------------------------------------------------------------------
+
+:- comment(ham_path/6, [
+        amode: ham_path(?,?,+,++,+,?),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of N different variables or integers",
+               "CostMatrix":"A NxN matrix of integers",
+               "ArcCosts": "A collection of N variables or integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ,++CostMatrix,+ArcCosts,?Cost)",
+	see_also:[ham_path/3,ham_path/5,ham_path_g/6],
+        summary: "Constrains elements in Succ to form a Hamiltonian path with cost Cost.", 
+        eg: "\
+[eclipse 2]:  CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
+              ham_path(4,3,[2,3,5,1], CostM, [C1,C2,C3,C4], C).
+
+CostM = []([](0, 3, 5, 7), [](4, 0, 9, 6), [](2, 1, 0, 5), [](-7, 8, -2, 0))
+C1 = 3
+C2 = 9
+C3 = 0
+C4 = -7
+C = 5
+",
+
+        desc: html("<P>\
+  Succ is a collection of N elements presenting a digraph of N nodes, where
+  the i'th element of Succ represents the successor to node i. The constraint
+  enforces Succ to form a Hamiltonian path, a path through every node in
+  the graph, visiting each node once, with Start giving the first node
+  of the path, and End giving the last node of the path. Note that the
+  Succ of the last node will be N+1, i.e. a dummy node not in the graph. 
+  Additionally, CostMatrix specifies the cost for traversing between
+  each pair of nodes: CostMatrix[i,j] represents the cost of
+  travelling from node i to j, and Cost is constrained to the total cost 
+  for the path. The i'th element of ArcCosts is constrained to the cost of 
+  the arc in the path from node i.
+</P><P>
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. This constraint is actually posted
+  as ham_path_offset_g/7 with an offset of 1. A version of this constraint
+  with native Gecode indexing is available as ham_path_g/6.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's path() constraint (variant with 
+  cost and arc costs), using an offset of 1.
+")
+                      ]).
+
+:- comment(ham_path_g/6, [
+        amode: ham_path_g(?,?,+,++,+,?),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of N different variables or integers",
+               "CostMatrix":"A NxN matrix of integers",
+               "ArcCosts": "A collection of N variables or integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ,++CostMatrix,+ArcCosts,?Cost)",
+        summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End, with cost Cost, using native Gecode indexing.", 
+	see_also:[ham_path/6],
+        eg:"\
+[eclipse 3]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
+        ham_path_g(3,2,[1,2,4,0], CostM, [C0,C1,C2,C3], C).
+
+CostM = []([](0, 3, 5, 7), [](4, 0, 9, 6), [](2, 1, 0, 5), [](-7, 8, -2, 0))
+C0 = 3
+C1 = 9
+C2 = 0
+C3 = -7
+C = 5
+",
+        desc: html("<P>\
+  This version of ham_path/6 uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</p><p>
+  See ham_path/6 for a more detailed description of this constraint.")
+]).   
+
+%----------------------------------------------------------------------
+
+:- comment(ham_path_offset/4, [
+        amode: ham_path_offset(?,?,+,+),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of different variables or integers",
+               "Offset":"Offset for Succ (An integer)"
+              ],
+        template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ,+Offset)",
+        summary: "Constrains elements (offset by Offset) in Succ to form a Hamiltonian path from Start to End.", 
+	see_also: [ham_path_offset_g/4],
+        desc: html("<P>\
+  Succ is a collection of N elements presenting a digraph of N nodes, where
+  the i'th element of Succ represents the successor to node i. The constraint
+  enforces (Succ -Offset) to form a Hamiltonian path, a path through
+  every node in the graph, visiting each node once, with Start giving
+  the first node of the path, and End giving the last node of the path.
+  Note that the Succ of the last node will be N+1, i.e. a dummy node
+  not in the graph. 
+</P><P>
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. The value of Offset is incremented by 1 
+  when the constraint is posted to Gecode.  A version of this constraint with
+  native Gecode indexing, i.e. without adjusting Offset, is available 
+  as ham_path_offset_g/4.
+</P><P>
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's path() constraint, with
+  an actual offset of 1 + Offset.
+")
+                      ]).
+
+:- comment(ham_path_offset_g/4, [
+        amode: ham_path_offset_g(?,?,+,+),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of different variables or integers",
+               "Offset":"Offset for Succ (An integer)"
+              ],
+        template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ,+Offset)",
+        summary: "Constrains elements (offset by Offset) in Succ to form a Hamiltonian path from Start to End, with native Gecode indexing.", 
+	see_also: [ham_path_offset/4],
+        desc: html("<P>\
+  This version of ham_path_offset/4 uses the native Gecode indexing, which
+  starts from 0. This is different from normal ECLiPSe's indexing, which
+  starts from 1. Offset is not adjusted in this versin. This version of 
+  the constraint is provided for completeness, in case the user is using
+  native Gecode indexing in their code, so that Offset does not need to
+  be adjusted manually by the user. 
+ </p><p>
+  See ham_path_offset/4 for a more detailed description of this predicate.")
+]).   
+
+%----------------------------------------------------------------------
+
+:- comment(ham_path_offset/6, [
+        amode: ham_path_offset(?,?,+,+,++,?),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of N different variables or integers",
+               "Offset":"Offset for Succ (An integer)",
+               "CostMatrix":"A NxN matrix of integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> ham_path_offset(?Start,?End,+Succ,+Offset,++CostMatrix,?Cost)",
+        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian path from Start to End with cost Cost.", 
+        see_also: [ham_path_offset_g/6, ham_path_offset/4,
+                   ham_path_offset/7, ham_path/5],
+        desc: html("<P>\
+  Succ is a collection of N elements presenting a digraph of N nodes, where the
+  i'th element of (Succ - Offset) represents the successor to node i.The
+  constraint enforces Succ to form a Hamiltonian path, a path through every
+  node in the graph, visiting each node once, with Start giving the first node
+  of the path, and End giving the last node of the path. Note that the
+  Succ of the last node will be N+1, i.e. a dummy node not in the graph. 
+  Additionally, CostMatrix specifies the cost for traversing between
+  each pair of nodes: CostMatrix[i,j] represents the cost of
+  travelling from node i to j, and Cost is constrained to the total cost 
+  for the path.
+</P><P>
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. The value of Offset is incremented by 1 
+  when the constraint is posted to Gecode.  A version of this constraint with
+  native Gecode indexing, i.e. without adjusting Offset, is available 
+  as ham_path_offset_g/6.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's path() constraint (variant with 
+  cost), using an actual offset of Offset + 1.
+")
+                      ]).
+
+:- comment(ham_path_offset_g/6, [
+        amode: ham_path_offset_g(?,?,+,+,++,?),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of N different variables or integers",
+               "Offset":"Offset for Succ (An integer)",
+               "CostMatrix":"A NxN matrix of integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> ham_path_offset_g(?Start,?End,+Succ,+Offset,++CostMatrix,?Cost)",
+        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian ham_path with cost Cost. This version uses native Gecode indexing.", 
+	see_also: [ham_path_offset/6],
+        desc: html("<P>\
+  This version of ham_path_offset/4 uses the native Gecode indexing, which
+  starts from 0. This is different from normal ECLiPSe's indexing, which
+  starts from 1. Offset is not adjusted in this versin. This version of 
+  the constraint is provided for completeness, in case the user is using
+  native Gecode indexing in their code, so that Offset does not need to
+  be adjusted manually by the user. 
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</p><p>
+  See ham_path_offset/6 for a more detailed description of this predicate.")
+]).   
+
+%----------------------------------------------------------------------
+
+:- comment(ham_path_offset/7, [
+        amode: ham_path_offset(?,?,+,+,++,+,?),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of N different variables or integers",
+               "Offset":"Offset for Succ (An integer)",
+               "CostMatrix":"A NxN matrix of integers",
+               "ArcCosts": "A collection of N variables or integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> ham_path_offset(?Start,?End,+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
+	see_also:[ham_path_offset/4,ham_path_offset/6,ham_path_offset_g/7],
+        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian ham_path with cost Cost.", 
+        desc: html("<P>\
+  Succ is a collection of N elements presenting a digraph of N nodes, where the
+  i'th element of (Succ - Offset) represents the successor to node i. The
+  constraint enforces Succ to form a Hamiltonian path, a path through every
+  node in the graph, visiting each node once, with Start giving the first node
+  of the path, and End giving the last node of the path. Note that the
+  Succ of the last node will be N+1, i.e. a dummy node not in the graph. 
+  Additionally, CostMatrix specifies the cost for traversing between
+  each pair of nodes: CostMatrix[i,j] represents the cost of
+  travelling from node i to j, and Cost is constrained to the total cost 
+  for the path. The i'th element of ArcCosts is constrained to the cost of 
+  the arc in the path from node i.
+</P><P>
+  Note that the Gecode implementation of this constraint has index (node id)
+  starting from 0, rather than 1. The value of Offset is incremented by 1 
+  when the constraint is posted to Gecode.  A version of this constraint with
+  native Gecode indexing, i.e. without adjusting Offset, is available 
+  as ham_path_offset_g/5.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</P><P>
+  ConsistencyModule is the optional module specification to give the 
+  consistency level for the propagation for this constraint: 
+  gfd_gac for generalised arc consistency (domain consistency), 
+  and gfd_vc for value consistency.
+</P><P>
+  This constraint is implemented by Gecode's path() constraint (variant with 
+  cost and arc costs), using an offset of Offset + 1.
+")
+                      ]).
+
+:- comment(ham_path_offset_g/7, [
+        amode: ham_path_offset_g(?,?,+,+,++,+,?),
+        args: ["Start": "An integer or domain variable",
+               "End": "An integer or domain variable",
+               "Succ":"A collection of N different variables or integers",
+               "Offset":"Offset for Succ (An integer)",
+               "CostMatrix":"A NxN matrix of integers",
+               "ArcCosts": "A collection of N variables or integers.",
+               "Cost": "An domain variable or integer."
+              ],
+        template:"<ConsistencyModule:> ham_path_offset_g(?Start,?End,+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
+        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian path from Start to End with cost Cost, using native Gecode indexing.", 
+	see_also:[ham_path_offset/7],
+        desc: html("<P>\
+  This version of ham_path_offset/7 uses the native Gecode indexing, which starts 
+  from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
+</P><P>
+  This constraint can be embedded in a constraint expression in its
+  functional form (without the last argument).
+</p><p>
+  See ham_path_offset/7 for a more detailed description of this predicate.")
 ]).   
 
 %----------------------------------------------------------------------
@@ -2832,7 +4036,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 :- comment(disjunctive_optional/3, [
   amode:   disjunctive_optional(+,+,+),
   args:    ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
-            "Durations":   "Collection of N durations for tasks (non-negative domain variables or integers)"
+            "Durations":   "Collection of N durations for tasks (non-negative domain variables or integers)",
             "Scheduled":   "Collection of N scheduled booleans for task (0/1"
 " domain variables or integers)"
            ],
@@ -2866,12 +4070,116 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 %----------------------------------------------------------------------
 
+:- comment(disjoint2/1, [
+  amode:   disjoint2(+),
+  args:    ["Rectangles":  "Collection of rect{} structures specifying
+ the position and size of rectangles on a grid."
+           ],
+  summary: "Constrains the position (and possibly size) of the rectangles in Rectangles so that none overlaps.",
+  see_also: [disjoint2_optional/1,collection_to_list/2],
+  eg: "\
+[eclipse 17]: disjoint2([rect{x:2,y:1,w:2,h:3},rect{x:4,y:3,w:4,h:3},
+                   rect{x:9,w:2,y:4,h:3}]).    % succeed
+
+",
+  desc:    html("\
+<P>
+    A two dimensional disjunctive constraint that constrains the replacement
+    of a collection of rectangles specified by Rectangles to not overlap in
+    their areas. 
+</P><P>
+    Each rectangle is defined by a rect named structure, using the
+    following fields:
+<DL>
+      <DT>x:<DD> The x co-ordinate of the left side of the rectangle 
+      <DT>y:<DD> The y co-ordinate of the bottom side of the rectangle.
+      <DT>w:<DD> The width of the rectangle
+      <DT>h:<DD> The heigth of the rectangle
+</DL>
+    x, y, w, h can be domain variables or integers. If w and h are
+    integers, then the rectangle is of a fixed size. Note the rect{}
+    structure has an additional 'o' field, which is ignored for this
+    constraint as it is only used for disjoint2_optional/1.
+</P><P>
+    Note that the constraint is implemented by different Gecode propagators,
+    depending on if all the rectangles are of fixed size or not. If at
+    least one rectangle is not of fixed size, then the Gecode
+    propagator requires additional variables for the right and top
+    sides of the rectangles, plus additional constraints
+<PRE>        
+      Xright #= Xleft + Width
+      Ytop   #= Ybot + Height
+</PRE>
+    for each rectangles. These are posted as part of the constraint (the Xright 
+    and Ytop variables are not accessible by the user).
+</P><P>
+    Any input variables which are not already domain variables will be
+    converted into domain variables with default bounds.
+</P><P>
+    A version of this constraint, generalised from two to multi-
+    dimension, is known as diffn in the Global Constraint Catalog.
+    It is implemented using Gecode's nooverlap() constraint.
+</P>")
+]).
+
+:- comment(disjoint2_optional/1, [
+  amode:   disjoint2_optional(+),
+  args:    ["Rectangles":  "Collection of rect{} structures specifying
+ the position and size of rectangles on a grid."
+           ],
+  summary: "Constrains the position (and possibly size) of the (possibly optional) rectangles in Rectangles so that none overlaps.",
+  see_also: [disjoint2/1, collection_to_list/2],
+  desc:    html("\
+<P>
+    A two dimensional disjunctive constraint that constrains the replacement
+    of a collection of rectangles specified by Rectangles to not overlap in
+    their areas. The placement of each rectangle can be optional, i.e.
+    they may not need to be placed.
+</P><P>
+    Each rectangle is defined by a rect named structure, using the
+    following fields:
+<DL>
+      <DT>x:<DD> The x co-ordinate of the left side of the rectangle 
+      <DT>y:<DD> The y co-ordinate of the bottom side of the rectangle.
+      <DT>w:<DD> The width of the rectangle
+      <DT>h:<DD> The heigth of the rectangle
+      <DT>b:<DD> Boolean specifying if rectangle is placed or not
+</DL>
+    x, y, w, h can be domain variables or integers. If w and h are
+    integers, then the rectangle is of a fixed size. o is a 0/1
+    integer or domain variable, 1 specifies that the rectangle needs
+    to be placed, and 0 that it is not placed. 
+</P><P>
+    Note that the constraint is implemented by different Gecode propagators,
+    depending on if all the rectangles are of fixed size or not. If at
+    least one rectangle is not of fixed size, then the Gecode
+    propagator requires additional variables for the right and top
+    sides of the rectangles, plus additional constraints
+<PRE>        
+      Xright #= Xleft + Width
+      Ytop   #= Ybot + Height
+</PRE>
+    for each rectangles. These are posted as part of the constraint (the Xright 
+    and Ytop variables are not accessible by the user).
+</P><P>
+    Any input variables which are not already domain variables will be
+    converted into domain variables with default bounds.
+</P><P>
+    A version of this constraint, generalised from two to multi-
+    dimension, and without optional placement, is known as diffn in
+    the Global Constraint Catalog. It is implemented using Gecode's 
+    nooverlap() constraint (variant with optional placement).
+</P>")
+]).
+
+%----------------------------------------------------------------------
+
 :- comment(cumulative/4, [
   amode: cumulative(+,+,+,+),
   args:  ["StartTimes":  "Collection of start times for tasks (integer variables or integers)",
           "Durations":   "Collection of duration for tasks (non-negative integer variables or integers)",
           "Usages":   "Collection of resource usages (positive integers)",
-          "ResourceLimit": "Maximum amount of resource available (positive integer)"
+          "ResourceLimit": "Maximum amount of resource available (integer variable)"
          ],
   summary: "Single resource cumulative constraint on scheduling tasks.",
   see_also: [disjunctive/2, cumulative_optional/5, collection_to_list/2, _:cumulative/4],
@@ -2903,12 +4211,12 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 ]).
 
 :- comment(cumulative_optional/5, [
-  amode: cumulative(+,+,+,+,+),
+  amode: cumulative_optional(+,+,+,+,+),
   args:  ["StartTimes":  "Collection of start times for tasks (integer variables or integers)",
           "Durations":   "Collection of duration for tasks (non-negative integer variables or integers)",
           "Usages":   "Collection of resource usages (positive integers)",
           "ResourceLimit": "Maximum amount of resource available
-                            (positive integer)",
+                            (integer variable)",
           "Scheduled":   "Collection of N scheduled booleans for task (0/1"
 " domain variables or integers)"
          ],
@@ -3196,7 +4504,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
           ]).
 
 :- comment(bin_packing_g/3, [
-       amode: bin_packing(+,++,+),
+       amode: bin_packing_g(+,++,+),
        args: ["Items": "A collection of M variables or integers (domain/value"
                        " between 0 and N-1)",
               "ItemSizes": "A collection of M non-negative integers",
@@ -3278,9 +4586,6 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 	tails. A non-existing element (i.e. when the end of list is 
         reached) is strictly smaller than any existing element.
 </P><P>
-        Restrictions in the Gecode version used requires the two
-        collections to have equal lengths.
-</P><P>
         This constraint is known as lex_lesseq in the global constraint
         catalog. 
 ")
@@ -3302,9 +4607,6 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 	tails. A non-existing element (i.e. when the end of list is 
         reached)is strictly smaller than any existing element.
 </P><P>
-        Restrictions in the Gecode version used requires the two
-        collections to have equal lengths.
-</P><P>
         This constraint is known as lex_less in the global constraint
         catalog. 
 ")
@@ -3312,7 +4614,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 :- comment(lex_ge/2, [
     summary:"Collection1 is lexicographically greater or equal to Collection2",
-    amode:lex_le(+,+),
+    amode:lex_ge(+,+),
     args:[
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
@@ -3325,9 +4627,6 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 	tails. A non-existing element (i.e. when the end of list is 
         reached) is strictly smaller than any existing element.
 </P><P>
-        Restrictions in the Gecode version used requires the two
-        collections to have equal lengths.
-</P><P>
         This constraint is known as lex_greatereq in the global constraint
         catalog. 
 ")
@@ -3336,7 +4635,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 :- comment(lex_gt/2, [
     summary:"Collection1 is lexicographically greater than  Collection2",
-    amode:lex_lt(+,+),
+    amode:lex_gt(+,+),
     args:[
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
@@ -3349,9 +4648,6 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 	tails. A non-existing element (i.e. when the end of list is 
         reached)is strictly smaller than any existing element.
 </P><P>
-        Restrictions in the Gecode version used requires the two
-        collections to have equal lengths.
-</P><P>
         This constraint is known as lex_greater in the global constraint
         catalog. 
 ")
@@ -3359,7 +4655,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 :- comment(lex_eq/2, [
     summary:"Collection1 is lexicographically equal to Collection2",
-    amode:lex_lt(+,+),
+    amode:lex_eq(+,+),
     args:[
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
@@ -3370,9 +4666,6 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
         element is identical to its corresponding element in the
         other collection.
 </P><P>
-        Restrictions in the Gecode version used requires the two
-        collections to have equal lengths.
-</P><P>
         This constraint is known as lex_equal in the global constraint
         catalog. 
 ")
@@ -3380,7 +4673,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 
 :- comment(lex_neq/2, [
     summary:"Collection1 is lexicographically not equal to Collection2",
-    amode:lex_lt(+,+),
+    amode:lex_neq(+,+),
     args:[
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
@@ -3390,9 +4683,6 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 	the two collections are either different lengths, or at least
         one element in one collection is different from its corresponding
         element in the other collection.
-</P><P>
-        Restrictions in the Gecode version used requires the two
-        collections to have equal lengths.
 </P><P>
         This constraint is known as lex_different in the global constraint
         catalog. 
@@ -3408,22 +4698,173 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     amode:ordered(++,+),
     args:[
 	"Relation":"One of the atoms #<, #=<, #>, #>=, #=, #\\=",
-	"List":"Collection of integers or domain variables"
+	"Vars":"Collection of integers or domain variables"
     ],
+    eg: "\
+[eclipse 9]: ordered((#<), [1,2,3,4]).
+
+Yes (0.00s cpu)
+[eclipse 10]: ordered((#<), [1,2,2,3,4]).
+
+No (0.00s cpu)
+[eclipse 11]: ordered((#=<), [1,2,3,4]).
+
+Yes (0.00s cpu)
+[eclipse 12]: ordered((#=<),  [1,2,2,3,4]).
+
+Yes (0.00s cpu)
+[eclipse 13]: ordered((#>), [4,3,2,1]).
+
+Yes (0.00s cpu)
+[eclipse 14]: ordered((#>), [4,3,3,2,1]).
+
+No (0.00s cpu)
+[eclipse 15]: ordered((#>=), [4,3,2,1]).
+
+Yes (0.00s cpu)
+
+[eclipse 16]:  ordered((#>=), [4,3,3,2,1]).
+
+Yes (0.00s cpu)
+[eclipse 17]: ordered((#=), [2,2,3,3]).
+
+No (0.00s cpu)
+[eclipse 18]: ordered((#=), [2,2,2,2]).
+
+Yes (0.00s cpu)
+[eclipse 19]: ordered((#\\=), [2,2,3,3]).
+
+Yes (0.00s cpu)
+[eclipse 20]: ordered((#\\=), [2,2,2,2]).
+
+No (0.00s cpu)
+[eclipse 21]: ordered((#>), [2]).
+
+Yes (0.00s cpu)
+[eclipse 22]: ordered((#\\=), [X]).
+
+No (0.00s cpu)
+[eclipse 23]: [A,B] :: 3..7, [C,D] :: 4..10, ordered((#=), [A,B,C,D]).
+
+A = A{[4 .. 7]}
+B = B{[4 .. 7]}
+C = C{[4 .. 7]}
+D = D{[4 .. 7]}
+
+Yes (0.00s cpu)
+[eclipse 24]:  [A,B] :: 3..7, [C,D] :: 4..10, ordered((#>), [A,B,C,D]).
+
+A = 7
+B = 6
+C = 5
+D = 4
+
+",
     desc: html("\
-      Constrains the elements in List to be ordered according to Relation,
-      which is one of #<, #=<, #>, #>=, #=, #\\= (and equivalently, for 
-      compatibility, <, =<, >, >=, =, \\=).
+      Constrains the elements in Vars to be ordered according to Relation,
+      which is one of  #&gt;, #&gt;=, #&lt;, #=&lt;, #=, #\\= (or equivalently,
+      &gt;, &gt;=, &lt;, =&lt;, =, \\=). Except for #\\=, the relation must
+      hold between any two adjacent two elements in Vars, for  #\\=, the #\\=
+      must hold for at least one adjacent pair of elements in Vars, i.e.
+      not elements in Vars are equal.
 </P><P>
       ConsistencyModule is the optional module specification to give the 
       consistency level for the propagation for this constraint: 
         gfd_gac for generalised arc consistency (domain consistency), 
         gfd_bc for bounds consistency, and
-        gfd_vc for value consistency.
+        gfd_vc for value consistency
+</P><P>
+     This constraint is known as strictly_increasing (#&gt), increasing (#=&gt;), .
+     strictly_decreasing (#&lt;), decreasing (#&lt;=), all_equal (#=), 
+     not_all_equal (#\\=) in the Global Constraint Catalog, and is implemented
+     using Gecode's rel() constraint (variant with an IntVarArgs and an 
+     IntRelType).
     "),
     see_also:[lex_le/2,lex_lt/2,lex_ge/2,lex_gt/2,sorted/2,collection_to_list/2]
     ]).
 
+
+%----------------------------------------------------------------------
+
+:- comment(precede/3, [
+    summary:"Constrains S to precede T in Collection",
+    amode:precede(+,+,+),
+    args:[
+	"S": "Integer",
+	"T": "Integer",
+	"Collectiont":"Collection of integers or domain variables"
+    ],
+    eg: "\
+[eclipse 14]: precede(0,1, [4,0,6,1,0]).  % succeed (0 appears before 1)
+
+[eclipse 15]: precede(0,1, [](4,0,6,1,0)). % succeed (0 appears before 1)
+
+[eclipse 16]: precede(0,1, [A,B,C,D,E]).
+
+A = A{[-1000000 .. 0, 2 .. 1000000]}
+B = B{[-1000000 .. 1000000]}
+C = C{[-1000000 .. 1000000]}
+D = D{[-1000000 .. 1000000]}
+E = E{[-1000000 .. 1000000]}
+
+[eclipse 17]:  precede(0,1, [4,1,6,0,0]).   % fail (1 appears before 0)
+
+",
+
+    desc: html("\
+      Constrains the first appearance of value S to precede the first
+      appearance of value T in the ordered collection of elements in 
+      Collection. S and T do not have to appear in Collection: if only
+      S appears, the constraint will succeed, and if only T appears,
+      the constraint will fail. If neither appears, the constraint will
+      succeed.
+</P><P>
+      This constraint is known as int_value_precede in the Global
+      Constrain Catalog, and is implemented using Gecode's precede()
+      constraint (variant with int arguments for s and t).
+    "),
+    see_also:[precede/2,collection_to_list/2]
+    ]).
+
+%----------------------------------------------------------------------
+
+:- comment(precede/2, [
+    summary:"Constrains each value in Values to precede its succeeding
+ value in Collection",
+    amode:precede(++,+),
+    args:[
+	"Values": "Collection of integers",
+	"Collectiont":"Collection of integers or domain variables"
+    ],
+    eg: "\
+[eclipse 18]: precede([4,0,1], [4,0,6,1,0]).   % succeed
+[eclipse 19]: precede([4,0,1], [4,0,6,1,0]).  % succeed
+[eclipse 20]: precede([4,0,1], [4,1,6,1,0]).   % fail
+
+[eclipse 21]: precede([4,0,1], [A,B,C,D,E]).
+
+A = A{[-1000000 .. -1, 2 .. 1000000]}
+B = B{[-1000000 .. 0, 2 .. 1000000]}
+C = C{[-1000000 .. 1000000]}
+D = D{[-1000000 .. 1000000]}
+E = E{[-1000000 .. 1000000]}
+
+",
+
+
+    desc: html("\
+      Constrains the first appearance of every value of the ordered
+      collection of integers in Values to precede the first
+      appearance of the next value in Values in the ordered collection of 
+      elements in Collection, i.e. the precede/3 constraint to hold
+      for every adjacent integers in Values.
+</P><P>
+      This constraint is known as int_value_precede_chain in the Global
+      Constrain Catalog, and is implemented using Gecode's precede()
+      constraint (variant with IntArg argument for Values).
+    "),
+    see_also:[precede/3,collection_to_list/2]
+    ]).
 
 %----------------------------------------------------------------------
 
@@ -3675,11 +5116,13 @@ fail and mem fields are significant. Entries in the other fields are ignored.</l
 <li><b>control(+Control)</b>
  Control is a named gfd_control structure, defined as:
  <pre>
- :- export struct(gfd_control(commit_distance,adaptive_distance)).
+ :- export struct(gfd_control(commit_distance,adaptive_distance,threads)).
 </pre>
 This is used to pass information to gecode to control the search. The
  corresponding field should be instantiated to the value passed to gecode. 
-See the gecode manual for more details on the options.</li>
+ threads may be of most interest as if threads is set to a value &gt;= 2,
+ this will allow parallel search. See the gecode manual for more
+ details on the options.</li>
  <li><b>backtrack(-N)</b>
 Provided for compatibility with generic search/6. Returns the number of fail
  nodes (fail field of statistics.</li> 
@@ -4163,8 +5606,10 @@ desc: html("\
 :- comment(struct(gfd_stats), [
         summary: "Structure for obtaining statistics or providing stopping"
                  " limits for gecode search-engines",
+/*        
         amode: gfd_stats(-,?,?,-,?),
         amode: gfd_stats(-,-,-,-,-),
+*/
         desc: "\
   This structure is used in search/6 predicate, which interface to gecode's
   search-engines. The structure can be used to obtain statistics of the
@@ -4187,46 +5632,61 @@ desc: html("\
 :- comment(struct(gfd_control), [
         summary: "Structure for passing low-level control parameters to gecode"
                  " search-engines.",
-        amode: gfd_control(?,?),
-        desc: "\
+          desc: "\
   This structure is used in search/6 predicate, which interface to gecode's
   search-engines. The structure is used by the control option to pass values
   for low-level parameters that control the behaviour gecode search-engine.
   See the gecode documentation for more details explanation of the
-  parameters.",
+  parameters. For threads, if >= 1, this specifies number of threads
+  to use in search, but for < 1, this specify the number of threads in
+  relation to the number of processors on the machine, see the gecode
+  documentation for more detail. ",
         fields: [
-            "commit_distance": "the commit recomputation distance "
+            "commit_distance": "the commit recomputation distance (integer)"
                                "(member c_d of Gecode::Search::Options)",
             
-            "commit_distance": "the adaptive recomputation distance "
-                               "(member a_d of Gecode::Search::Options)"
+            "adaptive_distance": "the adaptive recomputation distance (integer)"
+                               "(member a_d of Gecode::Search::Options)",
+            "threads": "number of threads to use in search (integer or float)"
+                               "(member threads of Gecode::Search::Options)"
         ]
   ]).
 
 
 :- comment(struct(gcc), [
         summary: "Bounds specification for gcc constraint.",
-        amode: gcc(+,+,+),
-        desc: html("\
+          desc: html("\
     This structure is used to specify the cardinality (number of occurrences)
     of one value for the gcc constraint."),
-        fields: ["Low": "Lower bound on the cardinality of Value (integer).",
-                 "Hi": "Upper bound on the cardinality of Value (integer).",
-                 "Value": "Value whose cardinality is being specified."
+        fields: ["low": "Lower bound on the cardinality of Value (integer).",
+                 "hi": "Upper bound on the cardinality of Value (integer).",
+                 "value": "Value whose cardinality is being specified."
         ]
    ]).
 
 
 :- comment(struct(occ), [
         summary: "Bounds specification for gcc constraint.",
-        amode: occ(?,+),
-        desc: html("\
+          desc: html("\
     This structure is used to specify the cardinality (number of occurrences)
     of one value for the gcc constraint."),
-        fields: ["Occ": "Domain variable or integer specifying the cardinality of Value.",
-                 "Value": "Value whose cardinality is being specified."
+        fields: ["occ": "Domain variable or integer specifying the cardinality of Value.",
+                 "value": "Value whose cardinality is being specified."
         ]
    ]).
+
+:- comment(struct(rect), [
+        summary: "Specification for rectangles used in disjoint2 and disjoint2_optional constraints.",
+        desc: "This structure is used for specify the rectangles used
+ in disjoint2 and disjoint2_optional constraints. These rectangles are
+ placed on a grid.",
+        fields: ["x": "the x co-ordinate of the left-side of the rectangle",
+                 "y": "the y co-ordinate of the bottom-side of the rectangle",
+                 "w": "the width of the rectangle",
+                 "h": "the height of the rectangle",
+                 "b": "boolean specifying if rectangle is placed (1=placed)"
+                ]
+                         ]).
 
 :- comment(struct(gfd), hidden).
 
