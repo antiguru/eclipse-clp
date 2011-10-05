@@ -4174,7 +4174,7 @@ int p_g_add_newvars_dom_union()
     
     long yidx;
     IntVar y;
-    Assign_IntVar(3, yidx, y);
+    Assign_IntVar(4, yidx, y);
 
     try {
 	IntVarRanges rx(x);
