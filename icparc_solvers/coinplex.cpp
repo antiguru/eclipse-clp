@@ -821,6 +821,30 @@ int coin_set_solver_intparam(COINprob* lp, int key, int value)
 }
 
 extern "C"
+int coin_get_eplex_intparam(COINprob* lp, int key, int &value)
+{
+    return -1;
+}
+
+extern "C"
+int coin_set_eplex_intparam(COINprob* lp, int key, int value)
+{
+    return -1;
+}
+
+extern "C"
+int coin_get_eplex_strparam(COINprob* lp, int key, char* value)
+{
+    return -1;
+}
+
+extern "C"
+int coin_set_eplex_strparam(COINprob* lp, int key, const char* value)
+{
+    return -1;
+}
+
+extern "C"
 int coin_set_solver_methods(lp_desc* lpd, int method, int auxmethod, 
 			   int node_meth, int node_auxmeth)
 {
