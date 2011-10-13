@@ -2138,61 +2138,51 @@ gcc(BoundsList, Vars) :-
 gcc_c(BoundsList, Vars, ConLev) :-        
         check_collection_to_list(Vars, VList),
         get_prob_handle_nvars(H, NV0),
-        ec_to_gecode_varlist1(VList, H, NV0,NV, GVList, _),
+        ec_to_gecode_varlist1(VList, H, NV0,NV1, GVList, _),
         GVs =.. [[]|GVList],
         Bounds =.. [[]|BoundsList],
         arity(Bounds, M),
         dim(Vals, [M]),
-        dim(Occurrences, [M]), !,
-        update_gecode_with_default_newvars(H, NV0, NV),
-        block(
-                 ( foreacharg(Spec, Bounds),
-                   param(H),
-                   foreacharg(Value, Vals),
-                   foreacharg(Occ, Occurrences)
-                 do
-                     translate_gcc_spec(Spec, Value, H, Occ)
-                 ), Error,
-                 ( integer(Error) -> 
-                     error(Error, gcc(BoundsList, Vars))
-                 ;
-                     exit_block(Error)
-                 )
-             ),
-        post_new_event(post_gcc(ConLev, Vals, Occurrences, GVs), H).
+        dim(Occurrences, [M]), 
+        ( foreacharg(Spec, Bounds),
+          fromto(NV1, NV2,NV3, NV),
+          fromto(Ev, Ev1,Ev2, EvT0),
+          param(H),
+          foreacharg(Value, Vals),
+          foreacharg(GOcc, Occurrences)
+        do
+            translate_gcc_spec_events1(Spec, Value, H, NV2,NV3, Ev1,Ev2, GOcc)
+        ), !,
+        update_gecode_with_default_newvars(H, NV0, NV1),
+        setarg(nvars of gfd_prob, H, NV),
+        % the gcc event must be the last event posted here
+        EvT0 = [post_gcc(ConLev, Vals, Occurrences, GVs)|EvT],
+        post_new_event_with_aux(Ev, EvT, H).
 gcc_c(BoundsList, Vars, _ConLev) :-
         get_bip_error(Error),
         error(Error, gcc(BoundsList, Vars)).
 
-translate_gcc_spec(gcc{low:Lo,high:Hi,value:Val0}, Val, H, GOcc) ?- !,
-        integer(Val0),
+translate_gcc_spec_events1(gcc{low:Lo,high:Hi,value:Val0}, Val, H, NV0,NV,
+                           Ev0,EvT, GOcc) ?- !,
+        check_integer(Val0),
         Val0 = Val,
-        integer(Hi),
-        integer(Lo),
-        ( var(Occ) ->
-            ec_to_gecode_oldvar1(Occ, H, NV0,NV, [], OldV, GOcc),
-            assign_domain_interval1(H, NV0, NV, OldV, Lo, Hi)
-        ; integer(Occ) ->
-            Occ >= Lo,
-            Occ =< Hi,
-            GOcc = Occ
-        ;
-            exit_block(5) % type error
-        ).
-translate_gcc_spec(occ{occ:Occ0,value:Val0}, Val, H, Occ) ?- !,
-        integer(Val0),
+        check_integer(Hi),
+        check_integer(Lo),
+        new_gfdvar(_Occ, H, NV0,NV, GOcc),
+        Ev0 = [newvars_interval(NV, Lo, Hi)|EvT].
+translate_gcc_spec_events1(occ{occ:Occ0,value:Val0}, Val, _H, NV0,NV,
+                           Ev0,EvT, GOcc) ?- !,
+        check_integer(Val0),
         Val0 = Val,
-        (is_solver_type(Occ0) ->
-            ( var(Occ0) ->
-                ec_to_gecode_var(Occ0, H, Occ)
-            ; % must be integer
-                Occ0 = Occ
-            )
+        NV0 = NV,
+        Ev0 = EvT,
+        ( ec_to_gecode_oldvar(Occ0, GOcc) ->
+            true
         ;
-            exit_block(5) % type error
+            set_bip_error(5) % not a gfd domain var or integer
         ).
-translate_gcc_spec(_Spec, _Val, _H, _Occ) :-
-        exit_block(6).  % range error -- spec not recognised
+translate_gcc_spec_events1(_Spec, _Val, _H, _,_, _,_, _Occ) :-
+        set_bip_error(6).  % range error -- spec not recognised
 
 
 sorted(Us0, Ss0) :-
