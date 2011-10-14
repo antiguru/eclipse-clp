@@ -2990,7 +2990,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
  <DT><STRONG><TT>gcc(Low,High,Value)</TT></STRONG>
     <DD>where Value is an integer, a value that Vars is to be assigned to, 
     and must occur only once as a Value in Bounds, and whose cardinality 
-    |Value| is specified by Low =< |Value| =< High, where Low and High are 
+    |Value| is specified by Low =&lt; |Value| =&lt; High, where Low and High are 
     non-negative integers.
  <DT><STRONG><TT>occ(Occ,Value)</TT></STRONG>
     <DD>where Value is an integer, a value that Vars is to be assigned to, 
