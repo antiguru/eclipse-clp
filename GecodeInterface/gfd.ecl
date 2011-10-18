@@ -75,6 +75,7 @@
           cumulatives/5, cumulatives_min/5, 
           cumulatives_g/5, cumulatives_min_g/5. 
 :- export sequence/5, sequence/4, bin_packing/3, bin_packing_g/3, bin_packing/4.
+:- export table/2, table/3, extensional/4, regular/2.
 
 :- export labeling/1, indomain/1, indomain/2, delete/5.
 :- export is_in_domain/2, is_in_domain/3.
@@ -247,6 +248,9 @@ load_gfd_solver(Arch) :-
         external(g_post_precede_chain/3, p_g_post_precede_chain),
         external(g_post_mem/3, p_g_post_mem),
         external(g_post_mem_reif/4, p_g_post_mem_reif),
+        external(g_post_table/6, p_g_post_table),
+        external(g_post_extensional/6, p_g_post_extensional),
+        external(g_post_regular/4, p_g_post_regular),
         external(g_propagate/4, p_g_propagate),
         external(g_check_val_is_in_var_domain/3, p_g_check_val_is_in_var_domain),
         external(g_get_var_bounds/4, p_g_get_var_bounds),
@@ -800,10 +804,13 @@ new_gfdvar(V, H, N0, N, GV) :-
         addto_varray(H, N, V).
 
 
-% type checking used in constraints
+% type/range checking used in constraints
 
 check_integer(I) :-
         (integer(I) -> true ; set_bip_error(5)).
+
+check_positive(I) :-   % assumes I is a number
+        (I >= 0 -> true ; set_bip_error(6)).
 
 
 check_atom(A) :-
@@ -3579,6 +3586,173 @@ bin_packing(Items0,ItemSizes0,N,BinSize):-
         error(E, bin_packing(Items0,ItemSizes0,N,BinSize)).
 
 
+table(Vars, Table) :-
+        table_c(Vars, Table, default, default).
+
+table(Vars, Table, Emph) :-
+        table_c(Vars, Table, Emph, default).
+
+table_c(Vars, Table, ConLev) :-
+        table_c(Vars, Table, default, ConLev).
+
+table_c(Vars, Table, Emph, ConLev) :-
+        check_table_emph(Emph),
+        check_collection_to_list(Vars, VList),
+        check_collection_to_list(Table, TList),
+        (foreach(T, TList), param(TSize) do
+            (arity(T, TSize) -> true ; set_bip_error(6))
+        ),
+        get_prob_handle_nvars(H, NV0),
+        ( VList = [E|_], compound(E) ->
+            /* multiple tuples of variables */
+            ( foreach(Vs, VList), fromto(NV0, NV1,NV2, NV),
+              param(H, TSize),
+              foreach(GVArr, GVs)
+            do
+                check_collection_to_list(Vs, VsList),
+                ec_to_gecode_varlist1(VsList, H, NV1,NV2, GVsList, _),
+                GVArr =.. [[]|GVsList],
+                ( arity(GVArr, TSize) -> true ; set_bip_error(6))
+            )
+        ;
+            /* single tuple of variables */
+            ec_to_gecode_varlist1(VList, H, NV0,NV, GVList, _),
+            VArr =.. [[]|GVList],
+            (arity(VArr, TSize) -> true ; set_bip_error(6)),
+            GVs = [VArr]
+        ), !,
+        update_gecode_with_default_newvars(H, NV0, NV),
+        post_new_event(post_table(ConLev, GVs, TList, TSize, Emph), H).
+table_c(Vars, Table, Emph, _ConLev) :-
+        get_bip_error(E),
+        error(E, table(Vars, Emph, Table)).
+
+check_table_emph(mem) ?- !.
+check_table_emph(speed) ?- !.
+check_table_emph(default) ?- !.
+check_table_emph(_) :- set_bip_error(6).
+
+
+% the order of the fields follows that used by Gecode's DFA::Transition
+:- export struct(trans(f,l,t)).
+
+extensional(Vars, Transitions, Start, Finals) :-
+        extensional_c(Vars, Transitions, Start, Finals, default).
+
+extensional_c(Vars, Transitions, Start, Finals, ConLev) :-
+        check_integer(Start),
+        check_collection_to_list(Finals, FList0),
+        check_collection_to_list(Vars, VList),
+        check_collection_to_list(Transitions, TList0),
+        ( foreach(T, TList0), fromto(TList, TL1,TL2, TTail) do
+            TL1 = [T|TL2],
+            (T = trans{f:Fr,t:To,l:Sy},
+              integer(Fr), integer(To), integer(Sy) ->
+                check_positive(Fr), check_positive(To)
+            ;
+                set_bip_error(5)
+            )
+
+        ),
+        TTail = [trans{f: -1, t:0,l:0}], % dummy transition to mark end
+        TArr =.. [[]|TList],
+        ( foreach(F, FList0), 
+          fromto(FList, [F|T],T, [-1]) % as FList0 with extra -1 at end
+        do 
+            check_integer(F), check_positive(F)
+        ),
+        FArr =.. [[]|FList],
+        get_prob_handle_nvars(H, NV0),
+        ( VList = [E|_], compound(E) ->
+            /* multiple tuples of variables */
+            ( foreach(Vs, VList), fromto(NV0, NV1,NV2, NV),
+              param(H),
+              foreach(GVArr, GVs)
+            do
+                check_collection_to_list(Vs, VsList),
+                ec_to_gecode_varlist1(VsList, H, NV1,NV2, GVsList, _),
+                GVArr =.. [[]|GVsList]
+            )
+        ;
+            /* single tuple of variables */
+            ec_to_gecode_varlist1(VList, H, NV0,NV, GVList, _),
+            VArr =.. [[]|GVList],
+            GVs = [VArr]
+        ), !,
+        update_gecode_with_default_newvars(H, NV0, NV),
+        post_new_event(post_extensional(ConLev, GVs, TArr, Start, FArr), H).
+extensional_c(Vars, Transitions, Start, Finals, _ConLev) :-
+        get_bip_error(E),
+        error(E,extensional(Vars, Transitions, Start, Finals)).
+
+
+regular(Vars, RegExp) :-
+        regular_c(Vars, RegExp, default).
+
+regular_c(Vars, RegExp0, ConLev) :-
+        check_collection_to_list(Vars, VList),
+        check_regexp(RegExp0, RegExp),
+        get_prob_handle_nvars(H, NV0),
+        ( VList = [E|_], compound(E) ->
+            /* multiple tuples of variables */
+            ( foreach(Vs, VList), fromto(NV0, NV1,NV2, NV),
+              param(H),
+              foreach(GVArr, GVs)
+            do
+                check_collection_to_list(Vs, VsList),
+                ec_to_gecode_varlist1(VsList, H, NV1,NV2, GVsList, _),
+                GVArr =.. [[]|GVsList]
+            )
+        ;
+            /* single tuple of variables */
+            ec_to_gecode_varlist1(VList, H, NV0,NV, GVList, _),
+            VArr =.. [[]|GVList],
+            GVs = [VArr]
+        ), !,
+        update_gecode_with_default_newvars(H, NV0, NV),
+        post_new_event(post_regular(ConLev, GVs, RegExp), H).
+regular_c(Vars, RegExp, _ConLev) :-
+        get_bip_error(E),
+        error(E,regular(Vars, RegExp)).
+
+check_regexp(I0, I) ?-
+        integer(I0), !,
+        I = I0.
+check_regexp(*(E0), E) ?- !,
+        E = *(E1),
+        check_regexp(E0, E1).
+check_regexp(+(E0), E) ?- !,
+        E = +(E1),
+        check_regexp(E0, E1).
+check_regexp(E0+E1, E) ?- !,
+        E = E2 + E3,
+        check_regexp(E0, E2),
+        check_regexp(E1, E3).
+check_regexp((E0|E1), E) ?- !,
+        E = (E2 | E3),
+        check_regexp(E0, E2),
+        check_regexp(E1, E3).
+check_regexp((E0,{N,M}), E) ?- !, % {N,M} must be before {N} case
+        check_integer(N),
+        check_integer(M),
+        check_positive(N),
+        check_positive(M),
+        E = (E1,r(N,M)),
+        check_regexp(E0, E1).
+check_regexp((E0,{N}), E) ?- !,
+        check_integer(N),
+        check_positive(N),
+        E = (E1,{N}),
+        check_regexp(E0, E1).
+check_regexp(Is, E) :-
+        collection_to_list(Is, IList),
+        IList = [_|_], !,
+        (foreach(I, IList) do check_integer(I)),
+        E =.. [[]|IList].
+check_regexp(_, _) :-
+        set_bip_error(5).
+
+                          
 %------------------------------------------------------------------------
 % Events
 
@@ -3688,42 +3862,55 @@ check_and_update_handle(H) :-
         restore_space_if_needed(H, _SpH),
         check_and_update_ancestors(H).
 
+
 % can be called outside of a new event (e.g. when state is required)
 restore_space_if_needed(H, SpH) :-
-        H = gfd_prob{space:gfd_space{handle:SpH},last_anc:Anc},
+        H = gfd_prob{space: gfd_space{handle:SpH},last_anc:Anc},
         % pass Anc rather than the C handle, because Anc can be []
         g_check_handle(SpH, Anc, Cloned),
         ( Cloned == [] -> update_space_with_events(H) ; true).
 
+
 % should only be called with a new event
 check_and_update_ancestors(H) :-
         timestamp_age(H, cp_stamp of gfd_prob, Age),
-        check_and_update_ancestors1(H, Age).
-
-:- mode check_and_update_ancestors1(+,+).
-check_and_update_ancestors1(_H, current).
-check_and_update_ancestors1(H, old) :-
-        % first event after a choicepoint
-        H = gfd_prob{nevents:NE, events:E,space:Current},
-        ( g_state_is_stable(Current) ->
-            % only clone if state is stable, i.e. have propagation done
-            % this may not be the case if propagation has been delayed
-            ( NE >= cloning_distance  ->
-                do_update_ancestor(H)
-            ; E == update ->
-                do_update_ancestor(H)
+        (Age == old ->
+            % first event after a choicepoint
+            H = gfd_prob{nevents:NE, events:E,space:Current},
+            ( g_state_is_stable(Current) ->
+                % only clone if state is stable, i.e. have propagation done
+                % this may not be the case if propagation has been delayed
+                ( NE >= cloning_distance  ->
+                    do_update_ancestor(H, Current)
+                ; E == update ->
+                    do_update_ancestor(H, Current)
+                ;
+                    true
+                )
+            ;
+                true
+            ),
+            timestamp_update(H, cp_stamp of gfd_prob)
+        ;
+            H = gfd_prob{nevents:NE, space:Current, last_anc: Anc},
+            ( NE > 2000 ->
+                ( g_state_is_stable(Current) ->
+                    do_update_ancestor(H, Current),
+                    ( Anc = gfd_space{handle:ASpH} ->
+                        g_delete(ASpH)
+                    ;
+                        true % no old ancestor to delete
+                    )
+                ;
+                    true
+                )
             ;
                 true
             )
-        ;
-            true
-        ),
-        timestamp_update(H, cp_stamp of gfd_prob).
-
+        ).
 
 % clone the current space and make it the last ancestor
-do_update_ancestor(H) :-
-        H = gfd_prob{space:Current},
+do_update_ancestor(H, Current) :-
         new_space_handle(New),
         setarg(last_anc of gfd_prob, H, Current),
         setarg(space of gfd_prob, H, New),
@@ -3956,7 +4143,15 @@ do_event1(post_mem(VArr,Mem), SpH, DoProp) ?-
 do_event1(post_mem_reif(VArr,Mem, Bool), SpH, DoProp) ?-
         DoProp = [],
         g_post_mem_reif(SpH, VArr, Mem, Bool).
-
+do_event1(post_table(ConLev,VArr,Table,Size,Emph), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_table(SpH, VArr, Table, Size, Emph, ConLev).
+do_event1(post_extensional(ConLev,GVs,TArr,Start, FArr), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_extensional(SpH, GVs, TArr, Start, FArr, ConLev).
+do_event1(post_regular(ConLev,GVs,RegExp), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_regular(SpH, GVs, RegExp, ConLev).
 
 
 
@@ -4962,7 +5157,11 @@ gfd_minint(X) :-
       sum/3 -> sum_c/4,
       scalar_product/4 -> scalar_product_c/5,
       sequence/4 -> sequence_c/5,
-      sequence/5 -> sequence_c/6
+      sequence/5 -> sequence_c/6,
+      extensional/4 -> extensional_c/5,
+      regular/2 ->regular_c/3,
+      table/2 -> table_c/3,
+      table/3 -> table_c/4
    ]).
 
 :- erase_module(gfd_bc),

@@ -2981,6 +2981,14 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
                "Vars":"A collection of different variables or integers"
               ],
         summary:"Constrain the cardinality of each Value according to the specification in Bounds.",
+        eg: "\
+[eclipse 2]: gcc([occ{occ:2,value:3},occ{occ:0,value:5},occ{occ:1,value:6}], 
+                 [3,3,8,6]).  % fails -- value 8 not specified in Bounds
+
+[eclipse 3]: gcc([occ{occ:2,value:3},occ{occ:0,value:5},occ{occ:1,value:6},
+                 gcc{low:0,high:3,value:8}], [3,3,8,6]).  % succeed
+",
+
         desc:html("\
 <P>
     This constraint ensures that the cardinality (the number of occurrences)
@@ -2997,6 +3005,8 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     and must occur only once as a Value in Bounds, and whose cardinality 
     |Value| is specified by Occ. Occ is either a non-negative integer, or 
     a domain variable whose domain are the possible cardinality for Value.
+    Note that if Occ is a non-gfd domain variable, a type error would
+    be raised. 
 </DL></P><P>
     Note that all values that Vars can take must be specified in Bounds.
 </P><P>
@@ -3004,7 +3014,13 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     consistency level for the propagation for this constraint: 
     gfd_gac for generalised arc consistency (domain consistency), 
     gfd_bc for bounds consistency, and gfd_vc for value consistency.
-
+</P><P>
+    This constraint is known as global_cardinality (occ{} spec) and
+    global_cardinality_low_up (gcc{} spec) in the Global Constraint
+    Catalog, and is implemented using Gecode's count() constraint (variant 
+    with two IntVarArgs and an IntArgs). The semantics is different
+    from that given in the catalog, which does not require all values
+    that Vars can take be specified by Bounds. 
 ")
                   ]).
 
@@ -4424,11 +4440,11 @@ C = 5
     specified in Values is at least Low and at most High for all sequences 
     of K consecutive variables/values in Vars. 
 </P><P>
-    This constraint is known as among_seq in the global constraint catalog.
-</P><P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
-    gfd_gac for generalised arc consistency (domain consistency), 
+    gfd_gac for generalised arc consistency (domain consistency). 
+</P><P>
+    This constraint is known as among_seq in the global constraint catalog.
 ") 
          ]
 ).
@@ -4792,7 +4808,7 @@ D = 4
     args:[
 	"S": "Integer",
 	"T": "Integer",
-	"Collectiont":"Collection of integers or domain variables"
+	"Collection":"Collection of integers or domain variables"
     ],
     eg: "\
 [eclipse 14]: precede(0,1, [4,0,6,1,0]).  % succeed (0 appears before 1)
@@ -4833,7 +4849,7 @@ E = E{[-1000000 .. 1000000]}
  value in Collection",
     amode:precede(++,+),
     args:[
-	"Values": "Collection of integers",
+	"Value": "Collection of integers",
 	"Collectiont":"Collection of integers or domain variables"
     ],
     eg: "\
@@ -4866,6 +4882,306 @@ E = E{[-1000000 .. 1000000]}
     see_also:[precede/3,collection_to_list/2]
     ]).
 
+%----------------------------------------------------------------------
+
+:- comment(table/2, [
+    template: "<ConsistencyModule:> table(+Vars, ++Table)",    
+    summary:"Constrain Vars' solutions to be those defined by the tuples in Table.",
+    amode:table(+,++),
+    args:[
+	"Vars": "Collection of N domain variables or integers,
+ or a collection of a collection of N domain variables or integers.",
+	"Table":"Collection of tuples, each of which is a collection
+ of N integer values"
+    ],
+    eg: "
+[eclipse 9]: table([5,3,3], [[](5,2,3),[](5,2,6),[](5,3,3)]).  % succeed
+                                                               
+[eclipse 10]:  table([[5,3,3],[5,2,3]],  
+                     [[](5,2,3),[](5,2,6),[](5,3,3)]).         % succeed
+
+[eclipse 11]: table([5,3,2], [[](5,2,3),[](5,2,6),[](5,3,3)]). % fail
+
+",
+    see_also: [table/3],
+    desc: html("\
+   table is an extensional constraint or user defined constraint, i.e.
+   the solutions for the each posted constraint is explicitly defined within 
+   the constraint. Each table constraint specifies the solutions to N
+   variables, with all the solutions for this constraint specified in Table,
+   in the form of tuples, each of N values that is one solution to the
+   constraint. 
+</p><p>
+   Vars represents the variables that are to be satisfied for this
+   constraint. It can be one collection of N variables (or integers),
+   or a collection of a collections of N variables (or integers), if
+   the constraint is to be satisifed by more than one collection of 
+   variables. Posting the constraint with multiple collections of 
+   variables is logically equivalent to posting individual table
+   constraint with the same Table for each collection, but should be
+   more efficient as the same Table is shared by all the collections.
+</p><p>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_gac for generalised arc consistency (domain consistency).
+</p><p>
+   This constraint is known as in_relation in the global constraint catalog, 
+   with the allowance for mutiple collections of variables taken from
+   SICStus Prolog's table/2 constraint. This constraint is implemented in
+   Gecode as the extensional() constraint with the variant that takes a
+   TupleSet as an argument.")
+]).
+
+:- comment(table/3, [
+    template: "<ConsistencyModule:> table(+Vars, ++Table, +Option)",    
+    summary:"Constrain Vars' solutions to be those defined by the tuples in Table.",
+    amode:table(+,++,+),
+    args:[
+	"Vars": "Collection of N domain variables or integers,
+ or a collection of a collection of N domain variables or integers.",
+	"Table":"Collection of tuples, each of which is a collection
+ of N integer values",
+        "Option": "the atom 'mem' or 'speed' or 'default'"
+    ],
+    eg: "
+[eclipse 9]: table([5,3,3], [[](5,2,3),[](5,2,6),[](5,3,3)], speed).  % succeed
+                                                               
+[eclipse 10]:  table([[5,3,3],[5,2,3]],  
+                     [[](5,2,3),[](5,2,6),[](5,3,3)], default).       % succeed
+
+[eclipse 11]: table([5,3,2], [[](5,2,3),[](5,2,6),[](5,3,3)], mem).   % fail
+
+",
+
+    see_also: [table/2],
+    desc: html("\
+   table is a user defined constraint, i.e. the solutions for the each 
+   posted constraint is explicitly defined within the constraint. Each 
+   table constraint specifies the solutions to N variables, with all
+   the solutions for this constraint specified in Table, in the form
+   of tuples, each of N values that is one solution to the constraint. 
+</p><p>
+   Vars represents the variables that are to be satisfied for this
+   constraint. It can be one collection of N variables (or integers),
+   or a collection of a collections of N variables (or integers), if
+   the constraint is to be satisifed by more than one collection of 
+   variables. Posting the constraint with multiple collections of 
+   variables is logically equivalent to posting individual table
+   constraint with the same Table for each collection, but should be
+   more efficient as the same Table is shared by all the collections.
+</p><p>
+   Option currently allows the selection of algorithm to use for the 
+   propagation: mem for an algorithm that prefer smaller memory
+   consumption overamount of  computation, speed for an algorithm that
+   prefer reducing computation over memory consumption, and default
+   for the default algorithm (as defined by Gecode). Note that table/2
+   is mapped to table/3 with Option set to default.
+</p><p>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_gac for generalised arc consistency (domain consistency).
+</p><p>
+   This constraint is known as in_relation in the global constraint catalog, 
+   with the allowance for mutiple collections of variables taken from
+   SICStus Prolog's table/2 constraint. This constraint is implemented in
+   Gecode as the extensional() constraint with the variant that takes a
+   TupleSet as an argument.")
+]).
+
+%----------------------------------------------------------------------
+
+:- comment(regular/2, [
+    template: "<ConsistencyModule:> regular(+Vars, ++RegExp)",    
+    summary:"Constrain Vars' solutions to conform to that defined in"
+            " the regular expression RegExp.",
+    amode:regular(+,++),
+    args:[
+	"Vars": "Collection of domain variables or integers,
+ or a collection of a collection domain variables or integers.",
+	"RegExp":"A regular expression"
+
+    ],
+    eg: "
+[eclipse 8]: regular([0,0,0,1,1,0,0], *(0) + *(1) + +(0)).  % succeed
+
+[eclipse 9]:  L = [A,B,C,D,E], regular(L,  *(0) + *(1) + +(0)), 
+               labeling(L), writeln(L), fail.
+[0, 0, 0, 0, 0]
+[0, 0, 0, 1, 0]
+[0, 0, 1, 0, 0]
+[0, 0, 1, 1, 0]
+[0, 1, 0, 0, 0]
+[0, 1, 1, 0, 0]
+[0, 1, 1, 1, 0]
+[1, 0, 0, 0, 0]
+[1, 1, 0, 0, 0]
+[1, 1, 1, 0, 0]
+[1, 1, 1, 1, 0]
+
+No (0.00s cpu)
+
+[eclipse 10]: regular([A,B,C,D,E,F], ([1, 3, 5], {1, 2}) + *(4))
+
+A = A{[1, 3, 5]}
+B = B{[1, 3 .. 5]}
+C = 4
+D = 4
+E = 4
+F = 4
+
+",
+    see_also: [extensional/4, table/2, table/3],
+    desc: html("\
+   regular is a user defined constraint, i.e. the solutions for the
+   each posted constraint is defined within the constraint. For regular, 
+   the regular expression in RegExp defines the sequence of values that 
+   the variables for the constraint can take. 
+</p><p>
+   Vars represents the variables that are to be satisfied for this
+   constraint. It can be one collection of variables (or integers),
+   or a collection of a collections of variables (or integers), if
+   the constraint is to be satisifed by more than one collection of 
+   variables. Each collection can be of different size, i.e. have
+   different number of variables. Posting the constraint with multiple 
+   collections of variables is logically equivalent to posting individual 
+   constraint with the same RegExp for each collection, but should be
+   more efficient as the same RegExp is shared by all the collections.
+</p><p>
+   RegExp is a regular expression that defines the allowable sequence of
+   values that can be taken by the variables. The syntax is as follows:
+   <DL>
+   <DT><STRONG>N</STRONG><DD>
+	    N is the integer value taken by a variable.
+   <DT><STRONG>+(RegExp)</STRONG><DD>
+	    RegExpr is repeated 1 or more times
+   <DT><STRONG>*(RegExp)</STRONG><DD>
+	    RegExpr is repeated 0 or more times
+   <DT><STRONG>RegExp1 + RegExp2</STRONG><DD>
+	    RegExp1 is followed by RegExp2
+   <DT><STRONG>(RegExp1 | RegExp2)</STRONG><DD>
+	    RegExp1 and RegExp2 are alternatives
+   <DT><STRONG>(RegExp,  {N,M})</STRONG><DD>
+            RegExp is repeated at least N times, and at most M times.
+            (N, M are non-negative integers)
+   <DT><STRONG>(RegExp,  {N})</STRONG><DD>
+            RegExp is repeated at least N times (N is a non-negative integer)
+   <DT><STRONG>ValueCollection</STRONG><DD>
+            ValueCollection is a collection of integer values. Each value
+            is a value that the variable is allowed to take in this position.
+   </DL>
+</p><p>
+   Regular expression uses existing standard ECLiPSe operators and
+   functors, so the syntax is slightly different from the standard
+   syntax, and it maps to the regular expression used by Gecode
+   for this constraint. For example, the following
+<pre>
+        RegExp = +(0) + (1, {3,3})
+</pre>
+  specifies a sequence of 1 or more 0s followed by 3 1s. e.g. [0,0,1,1,1].
+</p><p>
+   The possible values for a sequence of variables can also be specified
+   by extensional/4, but using regular expression is probably more
+   convenient, both constraints map to same underlying implementation.
+   For a sequence of fixed length, the solutions can also be specified
+   using the table/2,3 constraints.
+ </p><p>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_gac for generalised arc consistency (domain consistency).
+</p><p>
+   This constraint is implemented in Gecode as the extensional() constraint 
+   with the variant that takes a REG (regular expression) as an argument.")
+]).
+
+%----------------------------------------------------------------------
+
+:- comment(extensional/4, [
+    template: "<ConsistencyModule:> extensional(+Vars, ++Transitions, +Start, +Finals)",    
+    summary:"Constrain Vars' solutions to conform to the finite-state "
+            "automaton specified by Transitions with start state Start"
+            " and  final states Finals.",
+    amode:extensional(+,++,+,++),
+    args:[
+	"Vars": "Collection of domain variables or integers,
+ or a collection of a collection domain variables or integers",
+	"Transitions":"A collection of trsnsitions of the form trans{f,"
+                     "l,t)",
+        "Start":"Start state (non-negative integer)",
+        "Finals":"Final ststes (collection of non-negative integers)"
+    ],
+    eg: "
+[eclipse 7]: L = [A,B,C,D,E], extensional(L, [trans(0,0,0),trans(0,1,1),trans(1,0,0)], 0, [0]), labeling(L), writeln(L), fail.
+[0, 0, 0, 0, 0]
+[0, 0, 0, 1, 0]
+[0, 0, 1, 0, 0]
+[0, 1, 0, 0, 0]
+[0, 1, 0, 1, 0]
+[1, 0, 0, 0, 0]
+[1, 0, 0, 1, 0]
+[1, 0, 1, 0, 0]
+
+No (0.00s cpu)
+
+",
+    see_also: [regualar/2, table/2, table/3],
+    desc: html("\
+   extensional is a user defined constraint, i.e. the solutions for each 
+   posted constraint is defined within the constraint. For extensional, 
+   the solutions is defined by the deterministic finite-state automaton (DFA)
+   specified by the transitions in Transitions with start state Start and 
+   final states Finals.The DFA defines the sequence of values that the 
+   variables for the constraint can take. 
+</p><p>
+   Vars represents the variables that are to be satisfied for this
+   constraint. It can be one collection of variables (or integers),
+   or a collection of a collections of variables (or integers), if
+   the constraint is to be satisifed by more than one collection of 
+   variables. Each collection can be of different size, i.e. have
+   different number of variables. Posting the constraint with multiple 
+   collections of variables is logically equivalent to posting individual 
+   constraint with the same DFA for each collection, but should be more
+   efficient as the same is shared by all the collections.
+</p><p>
+   A collection of variables in Vars represents a sequence (i.e. they
+   are ordered), and the DFA describes the values that can be taken by
+   the seqeunce of variables, starting from the first variable, the
+   DFA starts at the Start state, and moves to the next variable in
+   the sequence via a transition given in Transition. A transition is
+   a triple (from,to,input) that specifies the move from one state of the 
+   DFA to another (from,to), accompanied by the labelling of the original
+   variable with the value specified by input. A transition is specified  
+   using the named structure trans(f,l,t), for the transition from
+   state f to t (states are non-negative integers), and l is the input
+   -- the integer value a variable is labelled to by the transition.
+   The DFA is deterministic in that there should be at most a single 
+   transition for for each unique input and from state. 
+</p><p>
+   In addition to the transitions, the DFA requires a unique start
+   state, which is given by Start, and must terminate in one of the final 
+   states, which is given in Finals as a collection of values. The
+   Transitions, Start and Finals are mapped onto the data structures
+   for representing a DFA in Gecode. Note however that for Gecode, both
+   the final states and the Transitions must be terminated with a
+   dummy entry (finals with a -1 state, and transitions with a
+   transition with a -1 for the from state), these dummy entries are
+   added by gfd before the constraint is passed to Gecode, so the user
+   should not supply these entries.
+</p><p>
+   The possible values for a sequence of variables can also be specified
+   by regular/2, and using regular expression is probably more
+   convenient. Both constraints map to same underlying implementation.
+   For a sequence of fixed length, the solutions can also be specified
+   using the table/2,3 constraints.
+</p><p>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_gac for generalised arc consistency (domain consistency).
+</p><p>
+   This constraint is implemented in Gecode as the extensional() constraint 
+   with the variant that takes a REG (regular expression) as an argument.")
+]).
+
+  
 %----------------------------------------------------------------------
 
 :-comment(search/6,[
