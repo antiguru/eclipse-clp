@@ -1199,7 +1199,7 @@ ec2reg(EC_word e)
 	  case 1:
 	    // assume f2 is {}/1: {n}
 	    if (EC_argument(e2,1).is_long(&n) == EC_succeed) {
-	      return arg1((int)n);
+	      return arg1((unsigned int)n);
 	    } else
 	      throw Ec2gcException();
 	    break;
@@ -1207,7 +1207,7 @@ ec2reg(EC_word e)
 	    // assume f2 is r/2: r(n,m)
 	    if (EC_argument(e2,1).is_long(&n) == EC_succeed && 
 		EC_argument(e2,2).is_long(&m) == EC_succeed) {
-	      return arg1((int)n,(int)m);
+	      return arg1((unsigned int)n,(unsigned int)m);
 	    } else
 	      throw Ec2gcException();
 	    break;
@@ -1228,6 +1228,7 @@ ec2reg(EC_word e)
     throw Ec2gcException();
 
 }
+
 
 extern "C" VisAtt
 int p_g_post_bool_connectives()
