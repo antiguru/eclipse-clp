@@ -75,7 +75,7 @@ EXPORTS
 	p_g_post_mem			@72
 	p_g_post_mem_reif		@73
 	p_g_post_table			@74
-	p_g_post_extensioal		@75
+	p_g_post_extensional		@75
 	p_g_post_regular		@76
         p_g_check_val_is_in_var_domain	@77
         p_g_get_var_bounds		@78
