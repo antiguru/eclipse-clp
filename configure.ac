@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.45 2011/09/11 15:34:36 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.46 2011/10/19 02:22:32 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1632,6 +1632,15 @@ if test "$gfd_requested" = "yes"; then
       ALL_CROSS_WITH_GECODE=all_cross_with_gecode
       AC_MSG_NOTICE([Using Gecode in $GECODEDIR])
       AC_MSG_NOTICE([Will build Gecode Interface for Gecode version $GECODE_REQUIRED])
+   else
+# try a specific version of Gecode
+      GECODEDIR=$(ls -d $GECODE_BASEDIR$GECODE_VERSION/$ARCH  2>/dev/null)
+      if test -d "$GECODEDIR"; then
+         ALL_WITH_GECODE=all_with_gecode
+         ALL_CROSS_WITH_GECODE=all_cross_with_gecode
+         AC_MSG_NOTICE([Using Gecode in $GECODEDIR])
+         AC_MSG_NOTICE([Will build Gecode Interface for Gecode version $GECODE_REQUIRED])
+     fi
    fi
 fi
 if test -z "$ALL_WITH_GECODE"; then
