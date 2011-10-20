@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.13 2011/09/14 04:56:49 kish_shen Exp $
+# $Id: Makefile.in,v 1.14 2011/10/20 23:50:25 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -167,6 +167,7 @@ archclean:
 GECODE_VERSION=@GECODE_VERSION@
 GECODE_SVN_PASSWD=eclipse@cisco.com
 THIRDPARTY_GECODE_DEST=$(THIRDPARTY)/gecode-$(GECODE_VERSION)/$(ARCH)
+GECODEDIR=Gecode$(GECODE_VERSION)
 
 ifeq ($(ARCH),x86_64_linux)
 
@@ -204,13 +205,13 @@ endif
 
 install_gecode:	gecode
 
-gecode:	Gecode/$(ARCH)/Makefile
-	( cd Gecode/$(ARCH) ; make ; make install )
+gecode:	$(GECODEDIR)/$(ARCH)/Makefile
+	( cd $(GECODEDIR)/$(ARCH) ; make ; make install )
 
-Gecode/$(ARCH)/Makefile:	Gecode/configure
-	mkdir -p Gecode/$(ARCH)
-	(cd Gecode/$(ARCH) ; $(CONFIG_PREFIX) ../configure --enable-static $(ADD_GECODE_CONFIG_FLAGS) --prefix=$(THIRDPARTY_GECODE_DEST))
+$(GECODEDIR)/$(ARCH)/Makefile:	$(GECODEDIR)/configure
+	mkdir -p $(GECODEDIR)/$(ARCH)
+	(cd $(GECODEDIR)/$(ARCH) ; $(CONFIG_PREFIX) ../configure --enable-static $(ADD_GECODE_CONFIG_FLAGS) --prefix=$(THIRDPARTY_GECODE_DEST))
 
-Gecode/configure:
-	svn --username anonymous --password $(GECODE_SVN_PASSWD) co https://svn.gecode.org/svn/gecode/tags/release-$(GECODE_VERSION) Gecode
+$(GECODEDIR)/configure:
+	svn --username anonymous --password $(GECODE_SVN_PASSWD) co https://svn.gecode.org/svn/gecode/tags/release-$(GECODE_VERSION) $(GECODEDIR)
 
