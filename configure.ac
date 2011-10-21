@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.46 2011/10/19 02:22:32 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.47 2011/10/21 00:44:09 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1623,7 +1623,7 @@ ALL_WITH_GECODE=
 ALL_CROSS_WITH_GECODE=
 GECODE_BASEDIR="$ECLIPSETHIRDPARTY/gecode-"
 GECODE_REQUIRED="3.7"
-GECODE_VERSION="3.7.0"
+GECODE_VERSION="3.7.1"
 
 if test "$gfd_requested" = "yes"; then
    GECODEDIR=$(ls -d $GECODE_BASEDIR$GECODE_REQUIRED*/$ARCH  2>/dev/null)
