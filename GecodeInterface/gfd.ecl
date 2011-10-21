@@ -249,8 +249,10 @@ load_gfd_solver(Arch) :-
         external(g_post_mem/3, p_g_post_mem),
         external(g_post_mem_reif/4, p_g_post_mem_reif),
         external(g_post_table/6, p_g_post_table),
-        external(g_post_extensional/6, p_g_post_extensional),
-        external(g_post_regular/4, p_g_post_regular),
+        external(g_post_extensional/4, p_g_post_extensional),
+        external(g_create_tupleset_handle/3, p_g_create_tupleset_handle),
+        external(g_create_regdfa_handle/2, p_g_create_regdfa_handle),
+        external(g_create_dfa_handle/4, p_g_create_dfa_handle),
         external(g_propagate/4, p_g_propagate),
         external(g_check_val_is_in_var_domain/3, p_g_check_val_is_in_var_domain),
         external(g_get_var_bounds/4, p_g_get_var_bounds),
@@ -809,7 +811,7 @@ new_gfdvar(V, H, N0, N, GV) :-
 check_integer(I) :-
         (integer(I) -> true ; set_bip_error(5)).
 
-check_positive(I) :-   % assumes I is a number
+check_nonnegative(I) :-   % assumes I is a number
         (I >= 0 -> true ; set_bip_error(6)).
 
 
@@ -3047,6 +3049,9 @@ inverse_body(Vs1, Off1, Vs2, Off2, IndexType, _ConLev) :-
 
 
 precede(S, T, Vars) :-
+        precede_c(S, T, Vars, default).
+
+precede_c(S, T, Vars, _ConLev) :-  % ConLev ignored; constraint is gac
         check_integer(S),
         check_integer(T),
         check_collection_to_list(Vars, VList),
@@ -3056,7 +3061,7 @@ precede(S, T, Vars) :-
         update_gecode_with_default_newvars(H, NV0, NV),
         GArr =.. [[]|GVars],
         post_new_event(post_precede(S,T,GArr), H).
-precede(S, T, Vars) :-
+precede_c(S, T, Vars, _ConLev) :-
         get_bip_error(E),
         error(E, precede(S, T, Vars)).
 
@@ -3622,7 +3627,8 @@ table_c(Vars, Table, Emph, ConLev) :-
             GVs = [VArr]
         ), !,
         update_gecode_with_default_newvars(H, NV0, NV),
-        post_new_event(post_table(ConLev, GVs, TList, TSize, Emph), H).
+        g_create_tupleset_handle(TList, TSize, TsH),
+        post_new_event(post_table(ConLev, GVs, TsH, TSize, Emph), H).
 table_c(Vars, Table, Emph, _ConLev) :-
         get_bip_error(E),
         error(E, table(Vars, Emph, Table)).
@@ -3648,7 +3654,7 @@ extensional_c(Vars, Transitions, Start, Finals, ConLev) :-
             TL1 = [T|TL2],
             (T = trans{f:Fr,t:To,l:Sy},
               integer(Fr), integer(To), integer(Sy) ->
-                check_positive(Fr), check_positive(To)
+                check_nonnegative(Fr), check_nonnegative(To)
             ;
                 set_bip_error(5)
             )
@@ -3659,7 +3665,7 @@ extensional_c(Vars, Transitions, Start, Finals, ConLev) :-
         ( foreach(F, FList0), 
           fromto(FList, [F|T],T, [-1]) % as FList0 with extra -1 at end
         do 
-            check_integer(F), check_positive(F)
+            check_integer(F), check_nonnegative(F)
         ),
         FArr =.. [[]|FList],
         get_prob_handle_nvars(H, NV0),
@@ -3680,7 +3686,8 @@ extensional_c(Vars, Transitions, Start, Finals, ConLev) :-
             GVs = [VArr]
         ), !,
         update_gecode_with_default_newvars(H, NV0, NV),
-        post_new_event(post_extensional(ConLev, GVs, TArr, Start, FArr), H).
+        g_create_dfa_handle(TArr, Start, FArr, DfaH),
+        post_new_event(post_extensional(ConLev, GVs, DfaH), H).
 extensional_c(Vars, Transitions, Start, Finals, _ConLev) :-
         get_bip_error(E),
         error(E,extensional(Vars, Transitions, Start, Finals)).
@@ -3710,7 +3717,8 @@ regular_c(Vars, RegExp0, ConLev) :-
             GVs = [VArr]
         ), !,
         update_gecode_with_default_newvars(H, NV0, NV),
-        post_new_event(post_regular(ConLev, GVs, RegExp), H).
+        g_create_regdfa_handle(RegExp, DfaH),
+        post_new_event(post_extensional(ConLev, GVs, DfaH), H).
 regular_c(Vars, RegExp, _ConLev) :-
         get_bip_error(E),
         error(E,regular(Vars, RegExp)).
@@ -3735,13 +3743,13 @@ check_regexp((E0|E1), E) ?- !,
 check_regexp((E0,{N,M}), E) ?- !, % {N,M} must be before {N} case
         check_integer(N),
         check_integer(M),
-        check_positive(N),
-        check_positive(M),
+        check_nonnegative(N),
+        check_nonnegative(M),
         E = (E1,r(N,M)),
         check_regexp(E0, E1).
 check_regexp((E0,{N}), E) ?- !,
         check_integer(N),
-        check_positive(N),
+        check_nonnegative(N),
         E = (E1,{N}),
         check_regexp(E0, E1).
 check_regexp(Is, E) :-
@@ -4143,15 +4151,12 @@ do_event1(post_mem(VArr,Mem), SpH, DoProp) ?-
 do_event1(post_mem_reif(VArr,Mem, Bool), SpH, DoProp) ?-
         DoProp = [],
         g_post_mem_reif(SpH, VArr, Mem, Bool).
-do_event1(post_table(ConLev,VArr,Table,Size,Emph), SpH, DoProp) ?-
+do_event1(post_table(ConLev,VArr,TsH,Size,Emph), SpH, DoProp) ?-
         DoProp = [],
-        g_post_table(SpH, VArr, Table, Size, Emph, ConLev).
-do_event1(post_extensional(ConLev,GVs,TArr,Start, FArr), SpH, DoProp) ?-
+        g_post_table(SpH, VArr, TsH, Size, Emph, ConLev).
+do_event1(post_extensional(ConLev,GVs,DfaH), SpH, DoProp) ?-
         DoProp = [],
-        g_post_extensional(SpH, GVs, TArr, Start, FArr, ConLev).
-do_event1(post_regular(ConLev,GVs,RegExp), SpH, DoProp) ?-
-        DoProp = [],
-        g_post_regular(SpH, GVs, RegExp, ConLev).
+        g_post_extensional(SpH, GVs, DfaH, ConLev).
 
 
 
@@ -5145,6 +5150,7 @@ gfd_minint(X) :-
       ham_path_offset_g/6 -> ham_path_offset_g_c/7,
       ham_path_offset_g/7 -> ham_path_offset_g_c/8,
       gcc/2 -> gcc_c/3,
+      precede/3 -> precede_c/4,
       inverse/2 -> inverse_c/3,
       inverse_g/2 -> inverse_g_c/3,
       inverse/4 -> inverse_c/5,
@@ -5216,6 +5222,8 @@ gfd_minint(X) :-
       element/3 -> element_c/4,
       element_g/3 -> element_g_c/4,
       gcc/2 -> gcc_c/3,
+      count/4 -> count_c/5,
+      occurrences/3 -> occurrences_c/4,
       minlist/2 -> minlist_c/3,
       maxlist/2 -> maxlist_c/3,
       min/2 -> minlist_c/3,

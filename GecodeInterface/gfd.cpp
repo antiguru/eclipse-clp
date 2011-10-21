@@ -135,6 +135,40 @@ get_handle_from_arg(int arg, t_ext_type *method, void **obj)
     return EC_arg(arg).is_handle(method, obj);
 }
 
+static void _free_dfa_handle(DFA* dfap)
+{
+    delete dfap;
+}
+
+t_ext_type dfa_method = {
+    (void (*)(t_ext_ptr)) _free_dfa_handle, /* free */
+    NULL, /* copy */ 
+    NULL, /* mark_dids */
+    NULL, /* string_size */
+    NULL, /* to_string */
+    NULL, /* equal */
+    NULL, /* remote_copy */
+    NULL, /* get */
+    NULL, /* set */
+};
+
+static void _free_tupleset_handle(TupleSet* dtset)
+{
+    delete dtset;
+}
+
+t_ext_type tupleset_method = {
+    (void (*)(t_ext_ptr)) _free_tupleset_handle, /* free */
+    NULL, /* copy */ 
+    NULL, /* mark_dids */
+    NULL, /* string_size */
+    NULL, /* to_string */
+    NULL, /* equal */
+    NULL, /* remote_copy */
+    NULL, /* get */
+    NULL, /* set */
+};
+
 static void _free_space_handle(GecodeSpace** solverp)
 {
     if (*solverp != NULL) delete *solverp;
@@ -3866,6 +3900,36 @@ int p_g_post_bin_packing()
 }
 
 extern "C" VisAtt
+int p_g_create_tupleset_handle()
+{
+    long size;
+    if (EC_arg(2).is_long(&size) != EC_succeed) return TYPE_ERROR;
+
+      EC_word ts = EC_arg(1), tarr;
+
+      IntArgs tuple((int)size);
+
+    try {
+	TupleSet* tsetp = new(TupleSet);
+
+	while (ts.is_nil() != EC_succeed) {
+
+	    if (ts.is_list(tarr, ts) != EC_succeed) return TYPE_ERROR;		
+	    if (tarr.arity() != size) return TYPE_ERROR;
+	    int res = assign_IntArgs_from_ec_array(size, tarr, tuple);
+	    if (res != EC_succeed) return res;
+	    tsetp->add(tuple);
+	} 
+	tsetp->finalize();
+
+	return unify(EC_arg(3), handle(&tupleset_method, tsetp));
+
+    }
+    CatchAndReportGecodeExceptions
+
+}
+
+extern "C" VisAtt
 int p_g_post_table()
 {
     GecodeSpace** solverp;
@@ -3886,26 +3950,15 @@ int p_g_post_table()
     else if (strcmp(emph.name(), "speed") == 0) epk = EPK_SPEED;
     else epk = EPK_DEF;
 
+    TupleSet* tsetp;
+    if (EC_succeed != get_handle_from_arg(3, &tupleset_method, (void**)&tsetp))
+	    return TYPE_ERROR;
+    if (tsetp == NULL) return TYPE_ERROR;
+
     IntConLevel cl;
     Get_Consistency_Level(6, cl);
 
     try {
-
-      EC_word ts = EC_arg(3), tarr;
-      if (ts.is_nil() == EC_succeed) return EC_succeed; // nothing to constrain
-
-      IntArgs tuple((int)size);
-      TupleSet tset;
-
-      do {
-
-	if (ts.is_list(tarr, ts) != EC_succeed) return TYPE_ERROR;		
-	if (tarr.arity() != size) return TYPE_ERROR;
-	int res = assign_IntArgs_from_ec_array(size, tarr, tuple);
-	if (res != EC_succeed) return res;
-	tset.add(tuple);
-      } while (ts.is_nil() != EC_succeed);
-      tset.finalize();
 
       if (solver->is_first()) cache_domain_sizes(solver);
 
@@ -3918,7 +3971,7 @@ int p_g_post_table()
 	int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vvars);
 	if (res != EC_succeed) return res;
 	    
-	extensional(*solver, vvars, tset, epk, cl);
+	extensional(*solver, vvars, *tsetp, epk, cl);
       } while (vtail.is_nil() != EC_succeed);
     }
     CatchAndReportGecodeExceptions
@@ -3927,17 +3980,10 @@ int p_g_post_table()
 }
 
 extern "C" VisAtt
-int p_g_post_extensional()
+int p_g_create_dfa_handle()
 {
-    GecodeSpace** solverp;
-    GecodeSpace* solver;
 
-    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
-	return TYPE_ERROR;
-    solver = *solverp;
-    if (solver == NULL) return TYPE_ERROR;
-
-    EC_word tarr = EC_arg(3), triple, item;
+    EC_word tarr = EC_arg(1), triple, item;
     int n = tarr.arity();
     DFA::Transition ts[n];
     long from, to, sym;
@@ -3960,46 +4006,48 @@ int p_g_post_extensional()
     }
 
     long start;
-    if (EC_arg(4).is_long(&start) != EC_succeed) return TYPE_ERROR;
+    if (EC_arg(2).is_long(&start) != EC_succeed) return TYPE_ERROR;
 
-    n = EC_arg(5).arity();
+    n = EC_arg(3).arity();
     if (n < 1) return TYPE_ERROR;
     int finals[n];
     
     for (int i=0; i < n; i++) {
-	EC_arg(5).arg(i+1, item);
+	EC_arg(3).arg(i+1, item);
 	long j;
 	if (item.is_long(&j) != EC_succeed) return TYPE_ERROR;
 	finals[i] = (int) j;
     }
 	    
-    IntConLevel cl;
-    Get_Consistency_Level(6, cl);
-
     try {
 
-      if (solver->is_first()) cache_domain_sizes(solver);
-      DFA dfa((int)start, ts, finals);
+      DFA* dfap = new DFA((int)start, ts, finals);
+      return unify(EC_arg(4), handle(&dfa_method, dfap));
 
-      EC_word varr,  vtail = EC_arg(2);
-      do {
-	if (vtail.is_list(varr, vtail) != EC_succeed) return TYPE_ERROR;
-	n = varr.arity();
-	IntVarArgs vvars(n);
-	int res = assign_IntVarArgs_from_ec_array(solver, n, varr, vvars);
-	if (res != EC_succeed) return res;
-	
-	extensional(*solver, vvars, dfa);
- 
-      } while (vtail.is_nil() != EC_succeed);
     }
     CatchAndReportGecodeExceptions
 
-    return EC_succeed;
 }
 
 extern "C" VisAtt
-int p_g_post_regular()
+int p_g_create_regdfa_handle()
+{
+    try {
+
+      REG r  = ec2reg(EC_arg(1));
+      DFA* dfap = new DFA(r);
+
+      return unify(EC_arg(2), handle(&dfa_method, dfap));
+    }
+    catch(Ec2gcException) {
+	return TYPE_ERROR;
+    }
+    CatchAndReportGecodeExceptions
+
+}
+
+extern "C" VisAtt
+int p_g_post_extensional()
 {
     GecodeSpace** solverp;
     GecodeSpace* solver;
@@ -4016,21 +4064,24 @@ int p_g_post_regular()
 
     try {
 
-      REG r = ec2reg(EC_arg(3));
+	DFA* dfap;
+	if (EC_succeed != get_handle_from_arg(3, &dfa_method, (void**)&dfap))
+	    return TYPE_ERROR;
+	if (dfap == NULL) return TYPE_ERROR;
 
-      if (solver->is_first()) cache_domain_sizes(solver);
+	if (solver->is_first()) cache_domain_sizes(solver);
 
-      EC_word varr,  vtail = EC_arg(2);
-      do {
-	if (vtail.is_list(varr, vtail) != EC_succeed) return TYPE_ERROR;
-	int n = varr.arity();
-	IntVarArgs vvars(n);
-	int res = assign_IntVarArgs_from_ec_array(solver, n, varr, vvars);
-	if (res != EC_succeed) return res;
-	
-	extensional(*solver, vvars, r);
+	EC_word varr,  vtail = EC_arg(2);
+	do {
+	    if (vtail.is_list(varr, vtail) != EC_succeed) return TYPE_ERROR;
+	    int n = varr.arity();
+	    IntVarArgs vvars(n);
+	    int res = assign_IntVarArgs_from_ec_array(solver, n, varr, vvars);
+	    if (res != EC_succeed) return res;
 
-      } while (vtail.is_nil() != EC_succeed);
+	    extensional(*solver, vvars, *dfap);
+
+	} while (vtail.is_nil() != EC_succeed);
     }
     catch(Ec2gcException) {
 	return TYPE_ERROR;

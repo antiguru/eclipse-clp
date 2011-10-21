@@ -76,7 +76,7 @@ EXPORTS
 	p_g_post_mem_reif		@73
 	p_g_post_table			@74
 	p_g_post_extensional		@75
-	p_g_post_regular		@76
+
         p_g_check_val_is_in_var_domain	@77
         p_g_get_var_bounds		@78
         p_g_get_var_value		@79
@@ -103,5 +103,8 @@ EXPORTS
         p_g_propagate_recompute		@100
 	p_g_stop_caching		@101
 	p_g_start_caching		@102
+	p_g_create_tupleset_handle	@103
+	p_g_create_regdfa_handle	@104
+	p_g_create_dfa_handle		@105
 	
-	p_g_gecode_version		@103
+	p_g_gecode_version		@106
