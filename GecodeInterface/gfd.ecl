@@ -806,6 +806,21 @@ new_gfdvar(V, H, N0, N, GV) :-
         addto_varray(H, N, V).
 
 
+% converts a compound term to a list: a list is left as a list
+% (without flattening), other compound terms are converted into a list
+% with its arguments as the elements of the list, i.e. the term is not
+% flattened like in collection_to_list
+check_compound_to_list(Cs, L) :-
+        check_nonvar(Cs), 
+        ( Cs = [_|_] ->
+            Cs = L
+        ; compound(Cs) ->
+            Cs =.. [_|L]
+        ;
+            set_bip_error(5)  % type error
+        ).
+
+        
 % type/range checking used in constraints
 
 check_integer(I) :-
@@ -818,6 +833,8 @@ check_nonnegative(I) :-   % assumes I is a number
 check_atom(A) :-
         (atom(A) -> true ; set_bip_error(5)).
 
+check_nonvar(A) :-
+        (nonvar(A) -> true ; set_bip_error(4)). % instantiation fault
 
 check_collection_to_list(C, L) :-
         (collection_to_list(C, L) -> true ; set_bip_error(5)).
@@ -3602,9 +3619,19 @@ table_c(Vars, Table, ConLev) :-
 
 table_c(Vars, Table, Emph, ConLev) :-
         check_table_emph(Emph),
-        check_collection_to_list(Vars, VList),
-        check_collection_to_list(Table, TList),
-        (foreach(T, TList), param(TSize) do
+        check_compound_to_list(Vars, VList),
+        check_compound_to_list(Table, TList0),
+        ( foreach(T0, TList0), param(TSize),
+          foreach(T.,TList)
+         do
+            check_nonvar(T0),
+            ( T0 = [_|_] -> 
+                T =.. [[]|T0]
+            ; atomic(T0) -> 
+                set_bip_error(5)
+            ;
+                T0 = T
+            ),
             (arity(T, TSize) -> true ; set_bip_error(6))
         ),
         get_prob_handle_nvars(H, NV0),
@@ -3648,7 +3675,7 @@ extensional(Vars, Transitions, Start, Finals) :-
 extensional_c(Vars, Transitions, Start, Finals, ConLev) :-
         check_integer(Start),
         check_collection_to_list(Finals, FList0),
-        check_collection_to_list(Vars, VList),
+        check_compound_to_list(Vars, VList),
         check_collection_to_list(Transitions, TList0),
         ( foreach(T, TList0), fromto(TList, TL1,TL2, TTail) do
             TL1 = [T|TL2],
@@ -3697,7 +3724,7 @@ regular(Vars, RegExp) :-
         regular_c(Vars, RegExp, default).
 
 regular_c(Vars, RegExp0, ConLev) :-
-        check_collection_to_list(Vars, VList),
+        check_compound_to_list(Vars, VList),
         check_regexp(RegExp0, RegExp),
         get_prob_handle_nvars(H, NV0),
         ( VList = [E|_], compound(E) ->
