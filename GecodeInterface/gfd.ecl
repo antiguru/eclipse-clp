@@ -3622,7 +3622,7 @@ table_c(Vars, Table, Emph, ConLev) :-
         check_compound_to_list(Vars, VList),
         check_compound_to_list(Table, TList0),
         ( foreach(T0, TList0), param(TSize),
-          foreach(T.,TList)
+          foreach(T,TList)
          do
             check_nonvar(T0),
             ( T0 = [_|_] -> 
