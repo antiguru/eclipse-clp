@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.5 2010/11/26 04:22:56 kish_shen Exp $
+ * VERSION		$Id: bigrat.c,v 1.6 2011/11/14 12:13:39 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -40,6 +40,10 @@
 #include "sepia.h"
 #include "types.h"
 #include "error.h"
+#include "embed.h"
+#include "mem.h"
+#include "dict.h"
+#include "emu_export.h"
 
 
 #ifndef HAVE_LIBGMP
@@ -80,11 +84,6 @@ ec_big_to_chunks(pword *pw1, uword chunksize, pword *result)
 
 #else
 
-
-#include        "embed.h"
-#include        "mem.h"
-#include        "dict.h"
-#include	"emu_export.h"
 
 #include	<math.h>
 #include	"gmp.h"
