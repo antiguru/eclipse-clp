@@ -68,7 +68,7 @@
        gfd_search is not optimised for use with gecode. In addition,
        gfd also provide predicates for both variable selection and
        value choice that are optimised for gecode, which should be more
-       efficient than gfd_search.
+       efficient than those provided by gfd_search.
 
        <LI>The suspension lists supported by GFD are different from IC.
        Currently, only the 'any' suspension list (for any changes to the
@@ -193,14 +193,16 @@
     amode: (integers(+) is semidet),
 %    template: "integers(?Vars)",
     args: [
-	"Vars": "Variable or integer, or a list or sub-matrix of variables/integers"
+	"Vars": "Variable or integer, or a collection of variables"
     ],
-    summary: "Vars' domain is the integer numbers.",
+    summary: "Vars' domain is the integer numbers (within default bounds).",
     see_also: [_:integers/1],
 %    fail_if: "variables already a non-integer.",
     desc: html("<P>
    Constrain the variables to integer values.  If any variable is a non-domain
    variable, a default domain will be created for it.
+<P>
+   This predicate is also defined in lib(ic) and lib(fd).
 ")
 ]).
 
@@ -216,6 +218,9 @@
     desc: html("<P>
    Test if the term Term is an GFD domain variable.  Succeed if it is, fail
    otherwise.</P>
+<P>
+   This predicate is also defined in lib(ic), and is known as
+   is_integer_domain/1 in lib(fd).</P>
 ")
 ]).
 
@@ -231,7 +236,9 @@
     desc: html("<P>
    Test if the term Term is an GFD domain variable. This is an alias for
    is_solver_var/1 in GFD.
-   </P>
+<P>
+   This predicate is also defined in lib(ic), and is provided for 
+   compatibility.</P>
 ")
 ]).
 
@@ -247,6 +254,8 @@
     desc: html("<P>
    Test if the term Term is a GFD domain variable or an integer.
    Succeed if it is, fail otherwise.</P>
+<P>
+   This predicate is also defined in lib(ic).</P>
 ")
 ]).
 
@@ -270,6 +279,9 @@
    If Var has not been declared before, it will be turned into a domain
    variable with default interval.  If Var is an integer, Lo and Hi will
    be set to Var.</P>
+<P>
+   This predicate is also defined in lib(ic); lib(fd) has dvar_range/3, 
+   which fails if the variable is not already a fd domain variable.</P>
 ")
 ]).
 
@@ -289,6 +301,8 @@
    Primitive for retrieving the lower bound of Var.  Lo returns the minimum
    of the variable's interval. If Var has not been declared before, it
    will be turned into a domain variable with default interval.</P>
+<P>
+   This predicate is also defined in lib(ic);</P>
 ")
 ]).
 
@@ -308,6 +322,8 @@
    Primitive for retrieving the upper bound of Var.  Hi returns the maximum
    of the variable's interval. If Var has not been declared before, it
    will be turned into a domain variable with default interval.</P>
+<P>
+   This predicate is also defined in lib(ic);</P>
 ")
 ]).
 
@@ -361,6 +377,12 @@
    If Var is an GFD domain variable, Size will be set to the number of 
    integer values in the domain of Var.  If Var is a number, then Size 
    will be set to 1.</P><P>
+
+   This predicate is also defined in lib(ic). Also note that if Var
+   is a domain variable, the value is obtained from Gecode (via the
+   size() method for IntVarArgs), rather than calculated independently by
+   lib(gfd).
+</P>
 "),
    exceptions: [
         5: "Var is neither a GFD variable or integer."
@@ -369,6 +391,7 @@
 ]).
 
 %---------------------------------------------------------------------
+
 :- comment(get_domain/2, [
     amode: (get_domain(?, -) is det),
     args: [
@@ -377,6 +400,13 @@
     ],
     summary: "Returns a ground representation of the current GFD domain of a variable.",
     see_also: [get_domain_as_list/2, get_bounds/3],
+    eg:"
+[eclipse 8]: X :: [1..5,10], get_domain(X, D).
+
+X = X{[1 .. 5, 10]}
+D = [1 .. 5, 10]
+
+",
     desc: html("<P>
    If Var is an integer, Domain will be unified with a singleton list
    with that integer.</P><P>
@@ -384,12 +414,15 @@
    If Var is an GFD domain variable with no holes in its domain, Domain will
    be unified with the term Lo..Hi where Lo and Hi are integers
    corresponding to the current lower and upper bounds of Var, respectively.</P><P>
-
    If Var is an GFD domain variable with holes in its domain, Domain will
    be unified with an ordered list of integers and/or terms Lo..Hi where Lo
    and Hi are integers; in this case the elements of the domain of Var are
    exactly those integers appearing directly in the list or falling within
    any of the intervals Lo..Hi.</P>
+<P>
+   This predicate is also defined in lib(ic); lib(fd) provides a similar
+   dvar_domain/2, but differs if Var is an integer, as an integer is
+   returned for Domain rather than a singleton list.</P>
 "),
    exceptions: [
         5: "Var is neither an IC variable or number."
@@ -406,10 +439,19 @@
     ],
     summary: "List of all the elements in the GFD domain of Var",
     see_also: [get_domain/2, get_bounds/3],
+    eg:"
+ [eclipse 9]: X :: [1..5,10], get_domain_as_list(X, D).
+
+X = X{[1 .. 5, 10]}
+D = [1, 2, 3, 4, 5, 10]
+
+",      
     desc: html("<P>
    If Var is a GFD domain variable, DomainList will be set to an ordered
    list containing each element in the domain of Var.  If Var is a number,
-   then DomainList will be set to a singleton list containing the number.</P><P>
+   then DomainList will be set to a singleton list containing the number.</P>
+<P>
+   This predicate is also defined in lib(ic).</P>
 "),
    exceptions: [
         5: "Var is neither a GFD variable or integer."
@@ -433,6 +475,12 @@
    Note that this is different from the definition used in IC, where the
    median (a float) of the interval is returned. If Var is an integer, the 
    median is unified with that number.
+<P>
+   This predicate is also defined in lib(ic), but differs as stated above.
+   Also note that if Var is a domain variable, the median value is obtained 
+   from Gecode (via the med() method for IntVarArgs), rather than calculated 
+   independently by lib(gfd).
+</P>
 "),
     eg: "\
 [eclipse 2]: X :: 10..1000, get_median(X, M).
@@ -456,14 +504,24 @@ M = 3
 :- comment(get_delta/2, [
     amode: (get_delta(?, -) is det),
     args: [
-	"Var":   "A variable or a number",
+	"Var":   "A variable or an integer",
 	"Width": "Width of the interval"
     ],
     summary: "Returns the width of the interval of Var.",
     see_also: [get_median/2, get_bounds/3],
     desc: html("<P>
    Returns the width (Hi - Lo) of the interval of Var. If Var is an integer,
-   0 will be returned as the width.</P>
+   0 will be returned as the width. If Var is free, then 1.0Inf is
+   returned as the width, but Var is not turned into a domain variable.</P>
+<P>
+   This predicate is also defined in lib(ic), but differs as lib(gfd)
+   has no real intervals, so Var is not turned into a GFD domain variable if
+   it is not already a GFD domain variable, and if Var is ground, then
+   the only number type accepted is an integer.</P> 
+<P>
+   Also note that if Var is a domain variable, the width is obtained from 
+   Gecode (via the width() method for IntVarArgs), rather than calculated 
+   independently by lib(gfd).</P>
 ")
 ]).
 
@@ -485,6 +543,17 @@ M = 3
 </P><P>
    If Var is not a variable, a very large number (1.0Inf) is returned. If
    Var is a variable but not a domain variable, 0 will be returned.
+</P><P>
+   This predicate is not defined in lib(ic) or lib(fd); but the equivalent
+   functionality is provided by the delayed_goals_number handler for the
+   ic (ic:delayed_goals_number/2) and fd (fd:constraints_number/2) 
+   attributes, with the assumptions that the number of delayed goals is
+   a good approximation of the number of propagators attached to the 
+   variables in lib(ic) and lib(fd), as propagators are implemented
+   using suspensions. This is not the case for lib(gfd), as the propagators
+   are not implemented at the ECLiPSe level. Rather, the constraints number
+   is obtained from Gecode directly, via the width() method for IntVarArgs.
+</P>
 ")
 ]).
 
@@ -499,12 +568,20 @@ M = 3
     summary: "Returns the weighted degree of an existing domain variable Var.",
     desc: html("<P>
    Returns the weighted degree for a domain variable. Weighted degree is call 
-   AFC (accumulated failure count) in gecode, and is a count of the number of 
+   AFC (accumulated failure count) in Gecode, and is a count of the number of 
    failures so far of propagators associated with the variable, plus the 
    number of propagator attached to the variable (to give reasonable 
    starting values when there are not failures yet).  This is usually used 
    in selecting a variable for labelling.
-")
+</P><P>
+   This predicate is not defined in lib(ic) or lib(fd), as the functionality
+   (measurement of the weighted degree for a variable) is not available 
+   in either libraries. Weighted degree (often referred to as wdeg in the
+   research literature) is a relatively recently developed heuristic 
+   measurement which post-date the development of both ic and fd libraries,
+   and retrofitting such an measurement into these libraries is non-trivial,
+</P>
+ ")
 ]).
 
 %---------------------------------------------------------------------
@@ -521,6 +598,12 @@ M = 3
    the magnitude of the difference between the lowest and second lowest value 
    in the variable's domain. This can be used in selecting a variable for 
    labelling.
+</P><P>
+   This predicate is not defined in lib(ic) or lib(fd), as the functionality
+   is not directly available in either libraries, although a \"max_regret\"
+   variable choice is available in both solvers' search predicate 
+   (ic:search/6, fd_search:search/6), which select the variable with
+   the maximum regret_lwb.</P> 
 ")
 ]).
 
@@ -535,9 +618,12 @@ M = 3
     summary: "Returns the regret value for the upper bound of Var.",
     desc: html("<P>
    Returns the regret value for the upper bound of the variable, that is, 
-   the magnitude of the difference between the largest and second largest value 
-   in the variable's domain. This can be used in selecting a variable for 
-   labelling.
+   the magnitude of the difference between the largest and second largest 
+   value in the variable's domain. This can be used in selecting a variable 
+   for labelling.
+</P><P>
+   This predicate is not defined in lib(ic) or lib(fd), as the functionality
+   is not directly available in either libraries,</P>
 ")
 ]).
 
@@ -554,6 +640,8 @@ M = 3
     see_also:[is_in_domain/3],
     desc: html("<P>
    Low level predicate which succeeds when Val is in the domain of Var.
+</P><P>
+   This predicate is also defined in lib(ic).
 ")
 ]).
 
@@ -573,6 +661,8 @@ M = 3
    Low level predicate which succeeds when Val is in the domain of Var with
    Result bound to the atom 'yes'.  When Val is not in the domain of Var,
    the predicate succeeds binding Result to the atom 'no'. 
+</P><P>
+   This predicate is also defined in lib(ic).
 ")
 ]).
 
@@ -589,6 +679,8 @@ M = 3
     see_also: [(::)/2],
     desc: html("<P>
    Alias of ::/2. See ::/2 for more details.
+</P><P>
+   This predicate is also defined in lib(ic) and lib(fd).
 ")]).
 
 :- comment((::)/2, [
@@ -599,7 +691,7 @@ M = 3
 	"Domain": "Domain specification"
     ],
     summary: "Constrain Vars to have the domain Domain.",
-    see_also: [integers/1, reals/1, _:(::)/2, (::)/3, (#::)/2, ($::)/2],
+    see_also: [integers/1, _:(::)/2, (::)/3, (#::)/2, ($::)/2],
     desc: html("<P>
    Constrains Vars to take only values from the domain specified by Domain.  
    Vars may be a variable or a collection of variables (as accepted by 
@@ -608,6 +700,8 @@ M = 3
    of the specification is an integer, or is a ground expression that evaluates
    to an integer. All domain elements must be integers within the range allowed 
    by gecode. 
+</P><P>
+   This predicate is also defined in lib(ic) and lib(fd). 
 <P>
    For instance:
 <PRE>
@@ -672,6 +766,10 @@ Y = Y{[-1 .. 10, 21]}
    Further note that, like other reified predicates, :: can be used infix in
    a GFD  expression, e.g. B #= (X :: [1..10]) is equivalent to
    ::(X, [1..10], B).
+</P><P>
+   This predicate is also defined in lib(ic) and lib(fd). If Var is a free
+   variable, it will be given the default finite bounds like in
+   lib(fd) if Bool is not ground.
 "),
     eg: "\
 [eclipse 2]: ::(X, [1..10, 12..30], 1).
@@ -708,6 +806,8 @@ X = X{[-1000000 .. 1000000]}
     see_also: [_:(::)/2, (::)/3],
     desc: html("<P>
   An alias for ::/3. See ::/3 for more details.</P>
+</P><P>
+  This predicate is also defined in lib(ic) and lib(fd).
 ")
 ]).
 
@@ -723,6 +823,24 @@ X = X{[-1000000 .. 1000000]}
     summary: "ExprX is equal to ExprY.",
     see_also: [(#<)/2, (#=<)/2, (#>=)/2, (#>)/2, (#\=)/2,
                (#=)/3, _:(#=)/2],
+    eg: "
+[eclipse 28]: A :: [1,3,5,7], A #= B.
+
+A = A{[1, 3, 5, 7]}
+B = B{[1 .. 7]}
+
+[eclipse 29]: A :: [1,3,5,7], gfd_gac: (A #= B).
+
+A = A{[1, 3, 5, 7]}
+B = B{[1, 3, 5, 7]}
+
+[eclipse 30]:  A :: [1,3,5,7], gfd_gac: ( A #= B + 1).
+
+A = A{[1, 3, 5, 7]}
+B = B{[0, 2, 4, 6]}
+
+
+",
     desc: html("<P>
    Constrains ExprX and ExprY to be equal.  Also constrains all variables
    appearing in ExprX and ExprY to be domain variables and checks that all 
@@ -734,6 +852,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and lib(fd), with slight
+   differences in what is allowed in the expressions. In addition, no
+   consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 :- comment((#=)/3, [
@@ -765,6 +893,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and lib(fd), with slight
+   differences in what is allowed in the expressions. In addition, no
+   consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -791,6 +929,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and lib(fd), with slight
+   differences in what is allowed in the expressions. In addition, no
+   consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -823,6 +971,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and lib(fd), with slight
+   differences in what is allowed in the expressions. In addition, no
+   consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -849,6 +1007,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and (as (#>=)/2) in lib(fd), 
+   with slight differences in what is allowed in the expressions. In 
+   addition, no consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 :- comment((#=<)/3, [
@@ -880,6 +1048,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and (as (#>=)/3) in lib(fd), 
+   with slight differences in what is allowed in the expressions. In 
+   addition, no consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -906,6 +1084,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and lib(fd), with slight
+   differences in what is allowed in the expressions. In addition, no
+   consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 :- comment((#>)/3, [
@@ -937,6 +1125,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and lib(fd), with slight
+   differences in what is allowed in the expressions. In addition, no
+   consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -963,6 +1161,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and lib(fd), with slight
+   differences in what is allowed in the expressions. In addition, no
+   consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -995,6 +1203,16 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and lib(fd), with slight
+   differences in what is allowed in the expressions. In addition, no
+   consistency level is defined in the case of ic and fd, but the
+   consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -1021,6 +1239,17 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and (as (##)/2) in lib(fd), 
+   with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of ic and
+   fd, but the consistency achieve is weaker than domain consistency in 
+   most cases.
 ")
 ]).
 
@@ -1053,6 +1282,17 @@ X = X{[-1000000 .. 1000000]}
    consistency. Note that some operators (integer division, modulus)
    only support bounds consistency and will be propagated with bounds
    consistency even when posted with gfd_gac.
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic) and (as (##)/3) in lib(fd), 
+   with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of ic and
+   fd, but the consistency achieve is weaker than domain consistency in 
+   most cases.
 ")
 ]).
 
@@ -1079,6 +1319,8 @@ X = X{[-1000000 .. 1000000]}
    Note that this predicate is not very efficient, because the whole domain 
    for Var is obtained from gecode at the start. Use indomain/2 for more
    efficient ways to set Var's value. 
+</P><P>
+   This predicate is also defined in lib(ic) and lib(fd).
 ")
 ]).
 
@@ -1107,7 +1349,8 @@ X = X{[-1000000 .. 1000000]}
 </PRE></P>
    Note that labeling perform the search in ECLiPSe, but it uses
    indomain/2 with min, which is optimised for use with gecode. 
-</P>
+</P><P>
+   This predicate is also defined in lib(ic) and lib(fd).
 ")
 ]).
 
@@ -1124,11 +1367,17 @@ X = X{[-1000000 .. 1000000]}
     desc: html("<P>
    Constrains all elements of a collection to be different from each other.
    Semantically, all elements of the collection are pairwise different.
+</p><p>
+   This constraint is also known as alldifferent_cst in the global constraints 
+   catalog, and is implemented using Gecode's distinct() constraint.</P><P>
 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_vc for value consistency (naive), gfd_bc for bounds consistency, 
    and gfd_gac for domain (generalised arc) consistency. 
+</P><P>
+   This constraint is also defined in lib(ic), lib(ic_global) and 
+   lib(ic_global_gac) and also in the corresponding libraries for fd. 
 ")
 ]).
 
@@ -1153,13 +1402,15 @@ X = X{[-1000000 .. 1000000]}
    where Vari, Offseti are the i'th element of Vars and Offsets, and
    Varj, Offsetj are the j'th element.</P><P>
 
+   This constraint is also known as alldifferent_cst in the global constraints 
+   catalog, and is implemented using Gecode's distinct() constraint.</P><P>
+
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_vc for value consistency (naive), gfd_bc for bounds consistency, 
    and gfd_gac for domain (generalised arc) consistency.</P><P> 
 
-   This constraint is also known as alldifferent_cst in the global constraints 
-   catalog, and is implmntd using Gecode's distinct() constraint.
+   This constraint is not available in lib(ic) or lib(fd).
 ")
 ]).
 
@@ -1258,7 +1509,7 @@ A = A{[3 .. 5]}
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #=&lt; Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
-   this primiatve, but that this primitive is specific to lib(gfd).
+   this primitive, but that this primitive is specific to lib(gfd).
    </P><P> 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
@@ -1270,6 +1521,9 @@ A = A{[3 .. 5]}
    Constraint Catalog. The variant with X and Y both being variables
    is known as leq in the Global Constraint Catalog. This constraint
    is implemented using Gecode's rel() constraint.
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [(#=<)/2,lt/2,gt/2,ge/2,ne/2,eq/2]
 ]).
@@ -1316,7 +1570,7 @@ X = X{[4 .. 1000000]}
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #&lt; Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
-   this primiatve, but that this primitive is specific to lib(gfd).
+   this primitive, but that this primitive is specific to lib(gfd).
    </P><P> 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
@@ -1326,8 +1580,11 @@ X = X{[4 .. 1000000]}
    The variant of this constraint with X being a collection is known
    as arith (with the less than relation) in the Global Constraint
    Catalog. The variant with X and Y both being variables is known
-   as lt in the Global Constraint Catalog. This constraiant is
+   as lt in the Global Constraint Catalog. This constraint is
    implemented using Gecode's rel() constraint.
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [(#=<)/2,le/2,gt/2,ge/2,ne/2,eq/2]
 ]).
@@ -1378,7 +1635,7 @@ A = A{[-1000000 .. 10]}
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #&gt;= Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
-   this primiatve, but that this primitive is specific to lib(gfd).
+   this primitive, but that this primitive is specific to lib(gfd).
    </P><P> 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
@@ -1390,6 +1647,9 @@ A = A{[-1000000 .. 10]}
    Constraint Catalog. The variant with X and Y both being variables
    is known as geq in the Global Constraint Catalog. This constraint
    is implemented using Gecode's rel() constraint.
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [(#>=)/2,lt/2,gt/2,le/2,ne/2,eq/2]
 ]).
@@ -1434,7 +1694,7 @@ Y = Y{[-1000000 .. 999999]}
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #&gt; Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
-   this primiatve, but that this primitive is specific to lib(gfd).
+   this primitive, but that this primitive is specific to lib(gfd).
    </P><P> 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
@@ -1446,6 +1706,9 @@ Y = Y{[-1000000 .. 999999]}
    is known as gt in the Global Constraint Catalog. This constraint
    is implemented using Gecode's rel() constraint.
    arc) consistency. 
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [(#<)/2,le/2,lt/2,ge/2,ne/2,eq/2]
 ]).
@@ -1485,7 +1748,7 @@ X = X{[2, 6 .. 10]}
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #\\= Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
-   this primiatve, but that this primitive is specific to lib(gfd).
+   this primitive, but that this primitive is specific to lib(gfd).
    </P><P> 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
@@ -1495,8 +1758,11 @@ X = X{[2, 6 .. 10]}
    The variant of this constraint with X being a collection is known
    as arith (with the not equal relation) in the Global Constraint
    Catalog. The variant with X and Y both being variables is 
-   known as neq in the Global Constraint Catalog. This conastraint
+   known as neq in the Global Constraint Catalog. This constraint
    is implemented using Gecode's rel() constraint.
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [(#=<)/2,le/2,gt/2,ge/2,lt/2,eq/2]
 ]).
@@ -1545,7 +1811,7 @@ X = 3
    <TT>rel</TT> propagator. The cost of posting this primitive should
    be less than posting X #= Y, so if you are posting a lot of
    simple constraints of this form, it may be worth your while to use
-   this primiatve, but that this primitive is specific to lib(gfd).
+   this primitive, but that this primitive is specific to lib(gfd).
    </P><P> 
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
@@ -1557,6 +1823,9 @@ X = 3
    Constraint Catalog. The variant with X and Y both being variables
    is known as eq in the Global Constraint Catalog. This constraint
    is implemented using Gecode's rel() constraint.
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [(#=<)/2,le/2,gt/2,ge/2,lt/2,ne/2]
 ]).
@@ -1583,6 +1852,9 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   This constraint is not directly available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [min/3]
 ]).
@@ -1609,6 +1881,9 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   This constraint is not directly available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [max/3]
 ]).
@@ -1635,6 +1910,9 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [mult/3,divide/3,mod/3]
 ]).
@@ -1661,6 +1939,9 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [plus/3,divide/3,mod/3]
 ]).
@@ -1686,6 +1967,9 @@ X = 3
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency.
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [plus/3,divide/3,mult/3]
 ]).
@@ -1712,6 +1996,9 @@ X = 3
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency.
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [plus/3,mod/3,mult/3]
 ]).
@@ -1740,6 +2027,8 @@ X = 3
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency.
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd).</P>
 ")
 ]).
 
@@ -1765,6 +2054,9 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [sqr/2]
 ]).
@@ -1791,6 +2083,9 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [sqrt/2]
 ]).
@@ -1816,6 +2111,9 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
+</P><P>
+   This primitive is not available in lib(ic) or lib(fd), but the 
+   functionality is available via the more general posting of expressions.</P>
 "),
     see_also: [sqrt/2]
 ]).
@@ -1840,7 +2138,12 @@ X = 3
         consistency level for the propagation for this constraint: 
         gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
         arc) consistency. 
-
+</P><P>
+        This constraint is known as maximum in the global constraint catalog,
+        and is implemented using Gecode's max() constraint.
+</P><P>
+        This constraint is also available in lib(ic), lib(ic_global), lib(fd)
+        and lib(fd_global).
 "),
     see_also:[minlist/2,sumlist/2,collection_to_list/2]
     ]).
@@ -1858,6 +2161,8 @@ X = 3
 
    You may find it more convenient to embed <TT>max(Vars)</TT> in a
    constraint expression.
+</p><p>
+   This constraint is also available in lib(ic).
 ")
 ]).
 
@@ -1881,6 +2186,12 @@ X = 3
         consistency level for the propagation for this constraint: 
         gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
         arc) consistency. 
+</P><P>
+        This constraint is known as minimum in the global constraint catalog,
+        and is implemented using Gecode's min() constraint.
+</P><P>
+        This constraint is also available in lib(ic), lib(ic_global), lib(fd)
+        and lib(fd_global).
 "),
     see_also:[maxlist/2,sumlist/2,collection_to_list/2]
     ]).
@@ -1898,6 +2209,8 @@ X = 3
 
    You may find it more convenient to embed <TT>min(Vars)</TT> in a
    constraint expression.
+</p><p>
+   This constraint is also available in lib(ic).
 ")
 ]).
 
@@ -1932,7 +2245,15 @@ X = 3
           ConsistencyModule is the optional module specification to give the 
           consistency level for the propagation for this constraint: 
           gfd_bc for bounds consistency, and 
-          gfd_gac for domain (generalised arc) consistency.") 
+          gfd_gac for domain (generalised arc) consistency.
+          </P><P>
+          This constraint is known as sum_ctr (with the = relation) in the
+          global constraint catalog, and is implemented using Gecode's
+          linear() constraint (with IRT_EQ relation).
+          </P><P>
+          This constraint is also available in lib(ic_global) and 
+          lib(fd_global).</P>
+") 
     ]).
 
 :- comment(sum/2, [
@@ -1945,7 +2266,7 @@ X = 3
 	"Sum":"Variable or integer"
     ],
     desc:html("<P>\
-   An alias for sumlist/2. provided for compatibility with IC.</P>
+   An alias for sumlist/2. provided for consistency.</P>
 
    You may find it more convenient to embed <TT>sum(Vars)</TT> in a
    constraint expression.
@@ -1974,8 +2295,8 @@ X = 3
 	  Any input variables which are not already domain variable will be
           turn into domain variables with default bounds.</P><P>
 	  </P><P>
-          You may find it more convenient to embed <TT>sumlist(Vars)</TT> in a
-          constraint expression.
+          You may find it more convenient to embed <TT>sum(Collections,RelOp)</TT> 
+          in a constraint expression.
 	  </P><P>
           ConsistencyModule is the optional module specification to give the 
           consistency level for the propagation for this constraint: 
@@ -1984,6 +2305,14 @@ X = 3
           </P><P>
           Domain consistency is different from bounds consistency only if
           Rel is #=.
+          </P><P>
+          This constraint is known as sum_ctr in the global constraint 
+          catalog, and is implemented using Gecode's linear() constraint.
+          </P><P>
+          This constraint is not directly available in lib(ic) or lib(fd),
+          except for the more special case of sum/2 where ReOp is an
+          implicit (#=). However, its functionality is covered by the
+          posting of expressions.</P>
     ") 
 ]).
 
@@ -2014,6 +2343,14 @@ X = 3
           ConsistencyModule is the optional module specification to give the 
           consistency level for the propagation for this constraint: 
           gfd_bc for bounds consistency 
+          </P><P>
+          This constraint is implemented using Gecode's linear() constraint
+          (reified version).
+          </P><P>
+          This constraint is not directly available in lib(ic) or lib(fd),
+          except for the more special case of sum/2 where ReOp is an
+          implicit (#=). However, its functionality is covered by the
+          posting of reified expressions.</P>
     ")
 ]).
 
@@ -2062,12 +2399,17 @@ C = C{[1, 4, 5]}
    standard member/2 predicate, but the order of the arguments are
    reversed to allow the constraint to be used in constraint
    expressions.
+ </P><P>
+   You may find it more convenient to embed <TT>mem(Vars)</TT> in a
+   constraint expression.
 </P><P>
    This constraint is implemented by Gecode's member() constraint.
 </P><P>
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
        gfd_gac for domain (generalised arc) consistency.
+</P><P>
+   This constraint is not available in lib(ic) or lib(fd).
 ")
 ]).
 
@@ -2120,6 +2462,8 @@ Bool = 0
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
        gfd_gac for domain (generalised arc) consistency.
+</P><P>
+   This constraint is not available in lib(ic) or lib(fd).
 ")
 ]).
 
@@ -2151,7 +2495,7 @@ Bool = 0
 	  Any input variables which are not already domain variable will be
           turn into domain variables with default bounds.
 	  </P><P>
-          You may find it more convenient to embed <TT>sumlist(Vars)</TT> in a
+          You may find it more convenient to embed <TT>scalar_product</TT> in a
           constraint expression.
 	  </P><P>
           ConsistencyModule is the optional module specification to give the 
@@ -2161,6 +2505,13 @@ Bool = 0
           </P><P>
           Domain consistency is different from bounds consistency only if
           Rel is #=.
+          </P><P>
+          This constraint is known as scalar_product in the global constraint 
+          catalog, and is implemented using Gecode's linear() constraint.
+          </P><P>
+          This constraint is not directly available in lib(ic) or lib(fd).
+          However, its functionality is covered by the posting of 
+          expressions.</P>
     ") 
 ]).
 
@@ -2194,6 +2545,14 @@ Bool = 0
           ConsistencyModule is the optional module specification to give the 
           consistency level for the propagation for this constraint: 
           gfd_bc for bounds consistency 
+          </P><P>
+          This constraint is implemented using Gecode's linear() constraint
+          (reified version).
+          </P><P>
+          This constraint is not directly available in lib(ic) or lib(fd),
+          except for the more special case of sum/2 where ReOp is an
+          implicit (#=). However, its functionality is covered by the
+          posting of reified expressions.</P>
     ")
 ]).
 
@@ -2219,7 +2578,14 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
-
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic), and is available as (#/\\)/2 
+   in lib(fd).
 ")
 ]).
 
@@ -2245,6 +2611,14 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic), and is available as (#/\\)/3 
+   in lib(fd).
 ")
 ]).
 
@@ -2260,7 +2634,7 @@ Bool = 0
     see_also: [(or)/3, (neg)/1, (neg)/2, (and)/2, (and)/3, (=>)/2,
                (=>)/3],
     desc: html("<P>
-   Equivalent to BX #= (ConX), BY #= (ConY), BX + BY #>= 1</P>
+   Equivalent to BX #= (ConX), BY #= (ConY), BX + BY #&gt;= 1</P>
    <P>
    The two constraints are reified in such a way that at least one must be
    true.  ConX and ConY must be constraints that have a corresponding
@@ -2270,6 +2644,14 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic), and is available as (#\\/)/2 
+   in lib(fd).
 ")
 ]).
 
@@ -2285,7 +2667,7 @@ Bool = 0
     see_also: [(or)/2, (neg)/1, (neg)/2, (and)/2, (and)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
     desc: html("<P>
-   Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX + BY #>= 1)</P>
+   Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX + BY #&gt;= 1)</P>
    <P>
    The two constraints are reified in such a way that Bool reflects the
    truth of at least one being true.  ConX and ConY must be constraints that
@@ -2295,6 +2677,14 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic), and is available as (#\\/)/3 
+   in lib(fd).
 ")
 ]).
 
@@ -2320,6 +2710,13 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is not available in lib(ic) or lib(fd).
 ")
 ]).
 
@@ -2345,6 +2742,13 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is not available in lib(ic) or lib(fd).
 ")
 ]).
 
@@ -2356,11 +2760,11 @@ Bool = 0
 	"ConX": "Constraint",
 	"ConY": "Constraint"
     ],
-    summary: "Constraint ConX being true implies ConY must both be true.",
+    summary: "Constraint ConX  implies ConY.",
     see_also: [(=>)/3, (neg)/1, (neg)/2, (or)/2, (or)/3, (and)/2,
                (and)/3],
     desc: html("<P>
-   Equivalent to BX #= (ConX), BY #= (ConY), BX #=< BY</P>
+   Equivalent to BX #= (ConX), BY #= (ConY), BX #=&lt; BY</P>
    <P>
    The two constraints are reified in such a way that ConX being true
    implies that ConY must also be true.  ConX and ConY must be constraints
@@ -2370,6 +2774,14 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic), and is available as (#=>)/2 
+   in lib(fd).
 ")
 ]).
 
@@ -2385,7 +2797,7 @@ Bool = 0
     see_also: [(=>)/2, (neg)/1, (neg)/2, (or)/2, (or)/3, (and)/2,
                (and)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
     desc: html("<P>
-   Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX #=< BY)</P>
+   Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX #=&lt; BY)</P>
    <P>
    The two constraints are reified in such a way that Bool is true if ConX
    being true implies that ConY must also be true.  ConX and ConY must be
@@ -2395,6 +2807,14 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic), and is available as (#=>)/3 
+   in lib(fd).
 ")
 ]).
 
@@ -2424,6 +2844,14 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is defined in lib(ic) using (#=)/2 in a reified
+   context, and is available as (#<=>)/3 in lib(fd).
 ")
 ]).
 
@@ -2453,6 +2881,14 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is defined in lib(ic) using (#=)/3 in a reified
+   context, and is available as (#<=>)/3 in lib(fd).
 ")
 ]).
 
@@ -2477,6 +2913,14 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic), and is available as (##)/2 
+   in lib(fd).
 ")
 ]).
 
@@ -2500,13 +2944,22 @@ Bool = 0
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
    consistency. 
+</P><P>
+   This constraint is implemented using Gecode's MiniModel's rel() for
+   both integer and boolean expressions, with sub-expressions/constraints
+   not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   This constraint is also defined in lib(ic), and is available as (##)/3 
+   in lib(fd).
 ")
 ]).
 
 %---------------------------------------------------------------------
 
 :- comment(element/3, [
-	summary:"Value is the Index'th element of the integer list List.",
+	summary:"Value is the Index'th element of the integer
+ collection Collection.",
 	template:"<ConsistencyModule:> element(?Index, +Collection, ?Value)",
 	args:[
 	    "?Index" : "A domain variable or an integer.",
@@ -2532,10 +2985,19 @@ Bool = 0
    starting from 1. A version of this constraint that uses the native 
    Gecode indexing is element_g/3. 
 <P>
+   This constraint can be embedded in a constraint expression in its
+   functional form (without the last argument).
+<P>
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
-   consistency. 
+   consistency.
+</P><P> 
+   This constraint is known as element in the global constraint catalog,
+   and is implemented with Gecode's element() constraint.
+</P><P>
+   This constraint is available in lib(ic), lib(ic_global) and lib(fd),
+   where Collection are restricted to integers.
 "),
 	eg:"
 [eclipse 2]: element(I, [1,3,6,3], V).
@@ -2581,6 +3043,9 @@ V = V{[1, 2, 4 .. 10]}
   This predicate maps directly to Gecode's native implementation of the
   constraint, and may therefore be more efficient, but could also be
   incompatible with existing ECLiPSe code. 
+</P><P>
+   This constraint can be embedded in a constraint expression in its
+   functional form (without the last argument).
 </p><p>
   See element/3 for a more detailed description of this predicate.")
 ]).   
@@ -2592,68 +3057,241 @@ V = V{[1, 2, 4 .. 10]}
     template:"<ConsistencyModule:> occurrences(++Value,+Vars.?N)",
     amode:occurrences(++,+,?),
     args:[
-	"Value":"Integer",
+	"Value":"Integer (or domain variable)",
 	"Vars":"Collection (a la collection_to_list/2) of integers or domain variables",
 	"N":"Domain variable or integer"
     ],
+    eg:"
+[eclipse 11]: occurrences(1,[3,5,1,4,1,3], N).
+
+N = 2
+
+[eclipse 12]: occurrences(6, [], N).
+
+N = 0
+
+[eclipse 15]: [A,B,C] :: [1..10], occurrences(3, [A,B,C], 0). 
+
+A = A{[1, 2, 4 .. 10]}
+B = B{[1, 2, 4 .. 10]}
+C = C{[1, 2, 4 .. 10]}
+
+
+[eclipse 16]:  N :: [3, 5], occurrences(3, [3,A,3,5,3], N).
+
+N = 3
+A = A{[-1000000 .. 2, 4 .. 1000000]}  % A cannot be 3
+
+
+[eclipse 17]:  N :: [3, 5], occurrences(3, [3,A,3,5,3,3], N).
+
+N = 5
+A = 3
+
+",
     desc:html("\
     	  The value Value occurs in Vars N times.
 <P>
           ConsistencyModule is the optional module specification to give the 
           consistency level for the propagation for this constraint: 
-          gfd_gac for domain (generalised arc) consistency. 
+          gfd_gac for domain (generalised arc) consistency. Note that if
+          Value is a domain variable, then the propagation is weak, achieving
+          neither domain or bound consistency until Value becomes ground.
+</P><P>
+          This constraint can be embedded in a constraint expression in its
+          functional form (without the last argument).
+ </p><p>
+          This constraint is a specialisation of the more general count/4
+          constraint, with the (#=) relation, i.e. the occurrences of Value
+          is equal to N. 
+</p><p>
+          This constraint is known as exactly in the global constraint
+          catalog, where N is restricted to an integer; the more general 
+          count/4 constraint is also known as count in the global 
+          constraint catalog, and the constraint is implemented using 
+          Gecode's count() constraint.
+  </p><p>
+          This constraint is available in lib(ic_global) and lib(fd_global).
 "),
-    see_also:[element/3, atmost/3, collection_to_list/2]
+    see_also:[element/3, atmost/3, count/4, collection_to_list/2]
     ]).
 
 %----------------------------------------------------------------------
 
 :- comment(atmost/3, [
 	summary:"At most N elements of Vars have the value V.",
-	template:"<ConsistencyModule:> atmost(+N, ?Vars, +V)",
-	desc:html("\
+	template:"<ConsistencyModule:> atmost(?N, +Vars, +V)",
+        amode: atmost(?,+,+),
+        eg:"
+[eclipse 33]: atmost(N,  [3, 5, 1, 4, 1, 3], 1).
+
+N = N{[2 .. 6]}
+
+[eclipse 34]: N :: [3,5], atmost(N, [3,A,3,5,3,3], 3).
+
+N = 5
+A = A{[-1000000 .. 1000000]}
+
+[eclipse 35]:  N :: [3,6], atmost(N, [3,A,3,5,3,3], 3).
+
+N = 6
+A = A{[-1000000 .. 1000000]}
+
+[eclipse 36]: N::[1..3], atmost(N, [3,4,2,3,1], 3).
+
+N = N{[2, 3]}
+
+",
+        desc:html("\
    This constraint ensures that at most N element of Vars have the value V.
+</p><p>
+   This constraint is a specialisation of the more general count/4
+   constraint, with the (#=&lt;) relation, i.e. the occurrences of V
+   is less than or equal to N. Note that the order in which N and V
+   occur in the constraint are swapped with respect to occurrences/3
+   and count/4; this is for compatibility with the argument order in
+   IC.
 <P>
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
-   gfd_gac for domain (generalised arc) consistency. 
+   gfd_gac for domain (generalised arc) consistency. Note that if
+   V is a domain variable, then the propagation is weak, achieving
+   neither domain or bound consistency until V becomes ground.
+ </p><p>
+   This constraint is also known as atmost in the global constraint
+   catalog, where N is restricted to an integer; the more general 
+   count/4 constraint is also known as count in the global 
+   constraint catalog, and the constraint is implemented using 
+   Gecode's count() constraint.
+</p><p>
+   The constraint is also known as atmost in the global constraint
+   catalog, and is implemented using Gecode's count() constraint.
+  </p><p>
+   This constraint is available in lib(ic_global) and lib(fd_global),
+   with N restricted to an integer.
 "),
-	args:["+N" : "An integer",
-	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
-	      "+V" : "An integer"],
+	args:["N" : "An integer or domain variable",
+	      "+Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
+	      "V" : "An integer"],
 	resat:"   No.",
 	fail_if:"   Fails if more than N elements of Vars can be instantiated to V.",
-	see_also:[element/3, occurrences/3, collection_to_list/2]]).
+	see_also:[count/4, atleast/3, element/3, occurrences/3, collection_to_list/2]]).
 
 %----------------------------------------------------------------------
 
 :- comment(atleast/3, [
 	summary:"Atleast N elements of Vars have the value V.",
-	template:"<ConsistencyModule:> atleast(+N, ?Vars, +V)",
-	desc:html("\
-   This constraint ensures that atleast N element of Vars have the value V.
+	template:"<ConsistencyModule:> atleast(?N, +Vars, +V)",
+        amode: atleast(?,+,+),
+        eg: "
+[eclipse 2]: N :: [3,6], atleast(N, [3,A,3,5,3,3], 3).
+
+N = 3
+A = A{[-1000000 .. 1000000]}
+",
+        desc:html("\
+   This constraint ensures that at least N elements of Vars have the value V.
+</p><p>
+   This constraint is a specialisation of the more general count/4
+   constraint, with the (#&gt;=) relation, i.e. the occurrences of V
+   is greater than or equal to N. Note that the order in which N and V
+   occur in the constraint are swapped with respect to occurrences/3
+   and count/4; this is for compatibility with the argument order in
+   IC (for atmost/3).
 <P>
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
-   gfd_gac for domain (generalised arc) consistency. 
+   gfd_gac for domain (generalised arc) consistency. Note that if
+   V is a domain variable, then the propagation is weak, achieving
+   neither domain or bound consistency until V becomes ground.
+ </p><p>
+   This constraint is also known as atleast in the global constraint
+   catalog, where N is restricted to an integer; the more general 
+   count/4 constraint is also known as count in the global 
+   constraint catalog, and the constraint is implemented using 
+   Gecode's count() constraint.
+</p><p>
+   The constraint is also known as atleast in the global constraint
+   catalog, and is implemented using Gecode's count() constraint.
+</p><p>
+   This constraint is not available in lib(ic) or lib(fd).
 "),
-	args:["+N" : "An integer",
-	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
-	      "+V" : "An integer"],
+	args:["N" : "An integer or domain variable",
+	      "Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
+	      "V" : "An integer"],
 	resat:"   No.",
 	fail_if:"   Fails if less than N elements of Vars can be instantiated to V.",
-	see_also:[element/3, occurrences/3, collection_to_list/2]]).
+	see_also:[count/4, atmost/3, element/3, occurrences/3, collection_to_list/2]]).
 
 
 %----------------------------------------------------------------------
 
 :- comment(count/4, [
 	summary: "Constrain the number of occurrence of Value in Vars (Occ) to satisfy  the relation Occ Rel N",
-	template:"<ConsistencyModule:> count(+Value, ?Vars, +Rel, ?N)",
-	args:["+Value" : "An integer",
+        amode: count(+,+,+,+),
+        amode: count(?,+,+,+),
+        amode: count(?,+,+,?),
+        amode: count(+,+,+,?),
+        template:"<ConsistencyModule:> count(+Value, ?Vars, +Rel, ?N)",
+	args:["+Value" : "An integer (or a domain variable)",
 	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
               "+Rel":"One of the atom: #>, #>=, #<, #=<, #=, #\\=",
 	      "?N" : "An integer or domain variable"],
+        eg: "
+[eclipse 33]: count(5, [](4,5,5,4,5), (#>=), 2).   % succeed
+
+[eclipse 34]:  count(5, [](4,5,5,4,5), (#>), 2).   % succeed
+
+[eclipse 35]: count(5, [](4,5,5,4,5), (#=), 2).    % fail
+
+[eclipse 36]: count(5, [](4,5,5,4,5), (#\\=), 2).   % succeed
+
+[eclipse 37]: count(5, [](4,5,5,4,5), (#=<), 2).   % fail
+
+[eclipse 38]: count(5, [](4,5,5,4,5), (#<), 2).    % fail
+
+[eclipse 39]: count(5, [](4,5,5,4,5), (#>=), 3).   % succeed
+
+[eclipse 40]: count(5, [](4,5,5,4,5), (#>), 3).    % fail
+
+[eclipse 41]: count(5, [](4,5,5,4,5), (#=), 3)     % succeed
+
+[eclipse 42]: N :: [3,5], count(3, [3,A,3,5,3,3], (#=), N).
+
+N = 5
+A = 3
+
+[eclipse 43]:  N :: [3,5], count(3, [3,A,3,5,3], (#=), N).
+
+N = 3
+A = A{[-1000000 .. 2, 4 .. 1000000]}
+
+[eclipse 44]:  N :: [3,5], count(3, [3,A,3,5,3], (#<), N).
+
+N = 5
+A = A{[-1000000 .. 1000000]}
+
+[eclipse 45]:  N :: [3,5], count(3, [3,A,3,5,3], (#>), N).
+
+N = 3
+A = 3
+
+[eclipse 46]:  N :: [3,5], count(3, [3,A,3,5,3], (#>=), N).
+
+N = 3
+A = A{[-1000000 .. 1000000]}
+
+[eclipse 47]: N :: [3,5], count(3, [3,A,3,5,3], (#=<), N).
+
+N = N{[3, 5]}
+A = A{[-1000000 .. 1000000]}
+
+[eclipse 48]: N :: [3,5], count(3, [3,A,3,5,3], (#\\=), N).
+
+N = N{[3, 5]}
+A = A{[-1000000 .. 1000000]}
+
+",
 	desc:html("<P>\
    Constrain the number of occurrences of Value in Vars to satisfy the
    constraint defined by Rel:
@@ -2671,16 +3309,21 @@ V = V{[1, 2, 4 .. 10]}
 <PRE>
         count(Value, Vars, (#=<), N)
 </PRE><P>
-  This constraint can be embedded in a constraint expression in its
-  functional form (without the last argument).
+   This constraint can be embedded in a constraint expression in its
+   functional form (without the last argument).
+</P><P>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_gac for domain (generalised arc) consistency. Note that if
+   Value is a domain variable, then the propagation is weak, achieving
+   neither domain or bound consistency until Value becomes ground.
 </P><P>
    This constraint is known as count in the global constraint catalog.
    It is implemented using gecode's count() constraint (variants with
    int or IntVar for argument representing Value).
-</P><P>
-   ConsistencyModule is the optional module specification to give the 
-   consistency level for the propagation for this constraint: 
-   gfd_gac for domain (generalised arc) consistency. 
+</p><p>
+   This constraint is not available in lib(ic) or lib(fd), but the more
+   specialised occurrences/3 and atmost/3 are available in IC and FD.
 ")
 ]).
 
@@ -2738,17 +3381,19 @@ N = N{[-1000000 .. 2, 4 .. 1000000]}
    This constraint can be embedded in a constraint expression in its
    functional form (without the last argument).
 </P><P>
+   ConsistencyModule is the optional module specification to give the 
+   consistency level for the propagation for this constraint: 
+   gfd_gac for domain (generalised arc) consistency. 
+</P><P>
    This constraint is known as counts in the global constraint catalog,
    with among and among_vars being the specialised form with #= as 
    the Rel (i.e. The number of occurrences of values from Values is
    exactly N), the name among is used here to better distinguish this
    constraint from count/4, for counting the occurrences of a single value.
-   This constraint is implemented by gecode's count() contraint (the variant
+   This constraint is implemented by gecode's count() constraint (the variant
    with an IntSet argument for Values).
 </P><P>
-   ConsistencyModule is the optional module specification to give the 
-   consistency level for the propagation for this constraint: 
-   gfd_gac for domain (generalised arc) consistency. 
+   This constraint is not available in lib(ic) or lib(fd).</P>
 ")
 ]).
 
@@ -2807,12 +3452,14 @@ N = 0
    This constraint can be embedded in a constraint expression in its
    functional form (without the last argument).
 </P><P>
-   This constraint is implemented by gecode's count() constraint 
-   (variant with an IntArgs for Values). 
-</P><P>
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
    gfd_gac for domain (generalised arc) consistency. 
+</P><P>
+   This constraint is implemented by gecode's count() constraint 
+   (variant with an IntArgs for Values). 
+</P><P>
+   This constraint is not available in lib(ic) or lib(fd).</P>
 ")
 ]).
 
@@ -2826,6 +3473,26 @@ N = 0
     template:"<ConsistencyModule:> sorted(?List, ?Sorted)",
     args:["List":"List or collection of N domain variables or integers",
     	"Sorted":"List or collection of N domain variables or integers"],
+    eg: "
+[eclipse 2]: sorted([1,9,1,5,2|L], [1,1,1,2,5,9]).
+
+L = [1]
+
+[eclipse 3]:  sorted([1,9,1,5,2,1], S).
+
+S = [1, 1, 1, 2, 5, 9]
+
+[eclipse 4]: length(Xs,4), Xs::0..100, sorted(Xs,Ys), Xs = [8,20|_].
+
+Xs = [8, 20, _694{[0 .. 100]}, _714{[0 .. 100]}]
+Ys = [_774{[0 .. 8]}, _794{[0 .. 20]}, _814{[8 .. 100]}, _834{[20 .. 100]}]
+
+[eclipse 5]: length(Ys,4), Ys::0..100, sorted(Xs,Ys), Ys = [8,20|_].
+
+Ys = [8, 20, _694{[20 .. 100]}, _714{[20 .. 100]}]
+Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
+
+    ",
     desc:html("\
     Declaratively: The two lists have the same length and Sorted is a
     sorted permutation of List.
@@ -2840,24 +3507,15 @@ N = 0
     Any input variables which is not already a domain variable will be
     turned into a domain variable with default bounds.
 <P>
-    This constraint is known as sort in the global constraint catalog.
- <P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
     gfd_bc for bounds consistency.
+<P>
+    This constraint is known as sort in the global constraint catalog,
+    and is implemented using Gecode's sorted() constraint.
+<P>
+    This constraint is available in lib(ic_global) and lib(fd_global).
  "),
-    eg:"
-[eclipse 2]: length(Xs,4), Xs::0..100, sorted(Xs,Ys), Xs = [8,20|_].
-
-Xs = [8, 20, _694{[0 .. 100]}, _714{[0 .. 100]}]
-Ys = [_774{[0 .. 8]}, _794{[0 .. 20]}, _814{[8 .. 100]}, _834{[20 .. 100]}]
-
-[eclipse 2]: length(Ys,4), Ys::0..100, sorted(Xs,Ys), Ys = [8,20|_].
-
-Ys = [8, 20, _694{[20 .. 100]}, _714{[20 .. 100]}]
-Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
-
-    ",
     see_also:[sorted/3,ordered/2]
     ]).
 
@@ -2897,13 +3555,15 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
    behave badly for variables with large domain widths. For a version of this
    constraint that uses native Gecode indexing, see sorted_g/3.
 <P>
-    This constraint is known as sort_permutation in the global
-    constraint catalog.
- <P>
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
     gfd_bc for bounds consistency.
-    "),
+<P>
+    This constraint is known as sort_permutation in the global
+    constraint catalog, and is implemented using Gecode's sorted() constraint.
+<P>
+    This constraint is available in lib(ic_global) and lib(fd_global).
+"),
     eg:"
 [eclipse 2]: length(Xs,4),Xs :: 1 .. 100,sorted(Xs, Ys, Ps),Xs = [8, 20|_].
 
@@ -2949,6 +3609,24 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
                "Min": "An integer"],
         summary: "Channel the domain values of Vars to the 0/1 boolean"
                  " variables in DomainBools",
+        eg:"
+[eclipse 53]: bool_channeling(V, [0,1,1,0,1,0,0], 3).  % fail
+
+[eclipse 54]:  bool_channeling(V, [0,0,1,0,0,0,B], 3).
+
+V = 5
+B = 0
+
+[eclipse 55]: bool_channeling(V, [B1,B2,B3,B4,B5], 6), B4 = 0.
+
+V = V{[6 .. 8, 10]}
+B1 = B1{[0, 1]}
+B2 = B2{[0, 1]}
+B3 = B3{[0, 1]}
+B4 = 0
+B5 = B5{[0, 1]}
+
+",
         desc: html("\
 <P>
     Var is a domain variable whose initial interval is Min..(Min+N),
@@ -2958,15 +3636,17 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     Var's domain, and 1 if Var is assigned the value [Thus, only one variable
     in DomainBools can take the value 1].
 </P><P>
+    ConsistencyModule is the optional module specification to give the 
+    consistency level for the propagation for this constraint: 
+    gfd_gac for generalised arc consistency (domain consistency).
+</P><P>
     A variant of this constraint, called 'domain_constraint' is in the global 
     constraint catalog. There, instead of having DomainBools and Min, there
     is a collection of Value-Bool pairs, representing a possible domain value
-    and its associated 0/1 variable. 
+    and its associated 0/1 variable. This constraint is implemented using
+    Gecode's channel() constraint (variant with BoolVarArgs and IntVar).
 </P><P>
-    ConsistencyModule is the optional module specification to give the 
-    consistency level for the propagation for this constraint: 
-    gfd_gac for generalised arc consistency (domain consistency), and
-    gfd_vc for value consistency.
+    This constraint is available in lib(ic_global) and lib(fd_global)..
 ")]).
 
 
@@ -3020,7 +3700,11 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     Catalog, and is implemented using Gecode's count() constraint (variant 
     with two IntVarArgs and an IntArgs). The semantics is different
     from that given in the catalog, which does not require all values
-    that Vars can take be specified by Bounds. 
+    that Vars can take be specified by Bounds.
+</P><P>
+    This constraint is available in lib(ic_global_gac) and
+    lib(fd_global_gac); where it is considered a proto-type implementation.
+    In addition, only the gcc() bounds specifiers are supported for Bounds.
 ")
                   ]).
 
@@ -3048,9 +3732,6 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     One of the two arguments can be uninstantiated or partial list
     at call time.
 </P><P>
-     This constraint is known as inverse in the global constraint catalog,
-     but with implicit node index based on the position in the list.  
-</P><P>
      Note that the Gecode implementation of this constraint actually index
      from 0. A dummy element is added to the start of Succ and Pred so that
      the indices returned corresponds to ECLiPSe's (starting from 1). A
@@ -3061,7 +3742,14 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     consistency level for the propagation for this constraint: 
     gfd_gac for generalised arc consistency (domain consistency), 
     and gfd_vc for value consistency.
-
+</P><P>
+     This constraint is known as inverse in the global constraint catalog,
+     but with implicit node index based on the position in the list, and
+     is implemented using Gecode's channel() constraint (variant with two
+     IntVarArgs).
+</P><P>
+     This constraint is available in lib(ic_global), lib(ic_global_gac),
+     lib(fd_global) and lib(fd_global_gac).
 ")]).
 
 :- comment(inverse_g/2, [
@@ -3110,9 +3798,6 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     One of the two collection arguments (Succ and Pred) can be uninstantiated 
     or partial list at call time.
 </P><P>
-     This constraint is known as inverse_offset in the global constraint 
-     catalog, but with implicit node index based on the position in the list.  
-</P><P>
      Note that the gecode implementation of this constraint actually index
      from 0. The SuccOfffset and PredOffset are adjusted accordingly before
      posting to gecode so that the indices returned corresponds to 
@@ -3122,7 +3807,14 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     consistency level for the propagation for this constraint: 
     gfd_gac for generalised arc consistency (domain consistency), 
     and gfd_vc for value consistency.
-
+</P><P>
+     This constraint is known as inverse_offset in the global constraint 
+     catalog, but with implicit node index based on the position in the list.  
+     It is implemented using Gecode's channel() constraint (variant with two
+     IntVarArgs and two integer offsets).
+</P><P>
+     This constraint is not available in lib(ic) and lib(fd); the version
+     without offsets (inverse/2) is available in IC and FD.
 ")]).
 
 :- comment(inverse_g/4, [
@@ -3188,6 +3880,8 @@ A = 1
 </P><P>
   This constraint is known as circuit in the global constraint catalog. It is
   implemented with Gecode's circuit() constraint with an offset of 1.
+</P><P>
+  This constraint is not available in lib(ic) or lib(fd).
 ")
                       ]).
 
@@ -3412,7 +4106,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         desc: html("<P>\
   This version of circuit_offset/2 uses the native Gecode indexing, which
   starts from 0. This is different from normal ECLiPSe's indexing, which
-  starts from 1. Offset is not adjusted in this versin. This version of 
+  starts from 1. Offset is not adjusted in this version. This version of 
   the constraint is provided for completeness, in case the user is using
   native Gecode indexing in their code, so that Offset does not need to
   be adjusted manually by the user. 
@@ -3475,7 +4169,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         desc: html("<P>\
   This version of circuit_offset/4 uses the native Gecode indexing, which
   starts from 0. This is different from normal ECLiPSe's indexing, which
-  starts from 1. Offset is not adjusted in this versin. This version of 
+  starts from 1. Offset is not adjusted in this version. This version of 
   the constraint is provided for completeness, in case the user is using
   native Gecode indexing in their code, so that Offset does not need to
   be adjusted manually by the user. 
@@ -3867,7 +4561,7 @@ C = 5
         desc: html("<P>\
   This version of ham_path_offset/4 uses the native Gecode indexing, which
   starts from 0. This is different from normal ECLiPSe's indexing, which
-  starts from 1. Offset is not adjusted in this versin. This version of 
+  starts from 1. Offset is not adjusted in this version. This version of 
   the constraint is provided for completeness, in case the user is using
   native Gecode indexing in their code, so that Offset does not need to
   be adjusted manually by the user. 
@@ -3936,7 +4630,7 @@ C = 5
         desc: html("<P>\
   This version of ham_path_offset/4 uses the native Gecode indexing, which
   starts from 0. This is different from normal ECLiPSe's indexing, which
-  starts from 1. Offset is not adjusted in this versin. This version of 
+  starts from 1. Offset is not adjusted in this version. This version of 
   the constraint is provided for completeness, in case the user is using
   native Gecode indexing in their code, so that Offset does not need to
   be adjusted manually by the user. 
@@ -4110,7 +4804,7 @@ C = 5
       <DT>x:<DD> The x co-ordinate of the left side of the rectangle 
       <DT>y:<DD> The y co-ordinate of the bottom side of the rectangle.
       <DT>w:<DD> The width of the rectangle
-      <DT>h:<DD> The heigth of the rectangle
+      <DT>h:<DD> The height of the rectangle
 </DL>
     x, y, w, h can be domain variables or integers. If w and h are
     integers, then the rectangle is of a fixed size. Note the rect{}
@@ -4158,7 +4852,7 @@ C = 5
       <DT>x:<DD> The x co-ordinate of the left side of the rectangle 
       <DT>y:<DD> The y co-ordinate of the bottom side of the rectangle.
       <DT>w:<DD> The width of the rectangle
-      <DT>h:<DD> The heigth of the rectangle
+      <DT>h:<DD> The height of the rectangle
       <DT>b:<DD> Boolean specifying if rectangle is placed or not
 </DL>
     x, y, w, h can be domain variables or integers. If w and h are
@@ -4850,7 +5544,7 @@ E = E{[-1000000 .. 1000000]}
     amode:precede(++,+),
     args:[
 	"Value": "Collection of integers",
-	"Collectiont":"Collection of integers or domain variables"
+	"Collection":"Collection of integers or domain variables"
     ],
     eg: "\
 [eclipse 18]: precede([4,0,1], [4,0,6,1,0]).   % succeed
@@ -4902,6 +5596,14 @@ E = E{[-1000000 .. 1000000]}
 
 [eclipse 11]: table([5,3,2], [[](5,2,3),[](5,2,6),[](5,3,3)]). % fail
 
+[eclipse 12]: L = [A,B,C], table(L, [[](5,2,3),[](5,2,6),[](5,3,3)]), 
+        labeling(L), writeln(L), fail.
+[5, 2, 3]
+[5, 2, 6]
+[5, 3, 3]
+
+No (0.00s cpu)
+
 ",
     see_also: [table/3],
     desc: html("\
@@ -4915,7 +5617,7 @@ E = E{[-1000000 .. 1000000]}
    Vars represents the variables that are to be satisfied for this
    constraint. It can be one collection of N variables (or integers),
    or a collection of a collections of N variables (or integers), if
-   the constraint is to be satisifed by more than one collection of 
+   the constraint is to be satisfied by more than one collection of 
    variables. Posting the constraint with multiple collections of 
    variables is logically equivalent to posting individual table
    constraint with the same Table for each collection, but should be
@@ -4926,7 +5628,7 @@ E = E{[-1000000 .. 1000000]}
    gfd_gac for generalised arc consistency (domain consistency).
 </p><p>
    This constraint is known as in_relation in the global constraint catalog, 
-   with the allowance for mutiple collections of variables taken from
+   with the allowance for multiple collections of variables taken from
    SICStus Prolog's table/2 constraint. This constraint is implemented in
    Gecode as the extensional() constraint with the variant that takes a
    TupleSet as an argument.")
@@ -4946,7 +5648,7 @@ E = E{[-1000000 .. 1000000]}
     eg: "
 [eclipse 9]: table([5,3,3], [[](5,2,3),[](5,2,6),[](5,3,3)], speed).  % succeed
                                                                
-[eclipse 10]:  table([[5,3,3],[5,2,3]],  
+[eclipse 10]: table([[5,3,3],[5,2,3]],  
                      [[](5,2,3),[](5,2,6),[](5,3,3)], default).       % succeed
 
 [eclipse 11]: table([5,3,2], [[](5,2,3),[](5,2,6),[](5,3,3)], mem).   % fail
@@ -4964,7 +5666,7 @@ E = E{[-1000000 .. 1000000]}
    Vars represents the variables that are to be satisfied for this
    constraint. It can be one collection of N variables (or integers),
    or a collection of a collections of N variables (or integers), if
-   the constraint is to be satisifed by more than one collection of 
+   the constraint is to be satisfied by more than one collection of 
    variables. Posting the constraint with multiple collections of 
    variables is logically equivalent to posting individual table
    constraint with the same Table for each collection, but should be
@@ -4972,7 +5674,7 @@ E = E{[-1000000 .. 1000000]}
 </p><p>
    Option currently allows the selection of algorithm to use for the 
    propagation: mem for an algorithm that prefer smaller memory
-   consumption overamount of  computation, speed for an algorithm that
+   consumption over amount of  computation, speed for an algorithm that
    prefer reducing computation over memory consumption, and default
    for the default algorithm (as defined by Gecode). Note that table/2
    is mapped to table/3 with Option set to default.
@@ -4982,7 +5684,7 @@ E = E{[-1000000 .. 1000000]}
    gfd_gac for generalised arc consistency (domain consistency).
 </p><p>
    This constraint is known as in_relation in the global constraint catalog, 
-   with the allowance for mutiple collections of variables taken from
+   with the allowance for multiple collections of variables taken from
    SICStus Prolog's table/2 constraint. This constraint is implemented in
    Gecode as the extensional() constraint with the variant that takes a
    TupleSet as an argument.")
@@ -5040,7 +5742,7 @@ F = 4
    Vars represents the variables that are to be satisfied for this
    constraint. It can be one collection of variables (or integers),
    or a collection of a collections of variables (or integers), if
-   the constraint is to be satisifed by more than one collection of 
+   the constraint is to be satisfied by more than one collection of 
    variables. Each collection can be of different size, i.e. have
    different number of variables. Posting the constraint with multiple 
    collections of variables is logically equivalent to posting individual 
@@ -5104,10 +5806,10 @@ F = 4
     args:[
 	"Vars": "Collection of domain variables or integers,
  or a collection of a collection domain variables or integers",
-	"Transitions":"A collection of trsnsitions of the form trans{f,"
+	"Transitions":"A collection of transitions of the form trans{f,"
                      "l,t)",
         "Start":"Start state (non-negative integer)",
-        "Finals":"Final ststes (collection of non-negative integers)"
+        "Finals":"Final states (collection of non-negative integers)"
     ],
     eg: "
 [eclipse 7]: L = [A,B,C,D,E], extensional(L, [trans(0,0,0),trans(0,1,1),trans(1,0,0)], 0, [0]), labeling(L), writeln(L), fail.
@@ -5123,7 +5825,7 @@ F = 4
 No (0.00s cpu)
 
 ",
-    see_also: [regualar/2, table/2, table/3],
+    see_also: [regular/2, table/2, table/3],
     desc: html("\
    extensional is a user defined constraint, i.e. the solutions for each 
    posted constraint is defined within the constraint. For extensional, 
@@ -5135,7 +5837,7 @@ No (0.00s cpu)
    Vars represents the variables that are to be satisfied for this
    constraint. It can be one collection of variables (or integers),
    or a collection of a collections of variables (or integers), if
-   the constraint is to be satisifed by more than one collection of 
+   the constraint is to be satisfied by more than one collection of 
    variables. Each collection can be of different size, i.e. have
    different number of variables. Posting the constraint with multiple 
    collections of variables is logically equivalent to posting individual 
@@ -5144,7 +5846,7 @@ No (0.00s cpu)
 </p><p>
    A collection of variables in Vars represents a sequence (i.e. they
    are ordered), and the DFA describes the values that can be taken by
-   the seqeunce of variables, starting from the first variable, the
+   the sequence of variables, starting from the first variable, the
    DFA starts at the Start state, and moves to the next variable in
    the sequence via a transition given in Transition. A transition is
    a triple (from,to,input) that specifies the move from one state of the 
@@ -5629,6 +6331,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Update (if required) the lower bound of Var.",
     see_also: [impose_max/2, impose_bounds/3, impose_domain/2, exclude/2, exclude_range/3],
     desc: html("<P>
+   This predicate is provided mainly for compatibility with lib(ic).
+   If you intend to impose the same minimum on multiple variables, it
+   is more efficient to use the lib(gfd) specific gfd_vars_impose_min/2.
+</P><P>
    Primitive for updating the lower bound of Var so that it is at least
    Bound.  A bound update on a variable may fail (when the update empties
    the domain), succeed (possibly updating the variable's bounds), or
@@ -5666,6 +6372,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Update (if required) the upper bound of Var.",
     see_also: [impose_min/2, impose_bounds/3, impose_domain/2, exclude/2, exclude_range/3],
     desc: html("<P>
+   This predicate is provided mainly for compatibility with lib(ic).
+   If you intend to impose the same maximum on multiple variables, it
+   is more efficient to use the lib(gfd) specific gfd_vars_impose_max/2.
+</P><P>
    Primitive for updating the upper bound of Var so that it is at most
    Bound.  A bound update on a variable may fail (when the update empties
    the domain), succeed (possibly updating the variable's bounds), or
@@ -5679,7 +6389,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    It differs from the usual constraint in that the propagation is not
    performed immediately. Normally, propagation in gecode is performed by
    a suspended goal that is scheduled and woken after each constraint is
-   posted.  However, impose_min/2 does not call the woken goal
+   posted.  However, impose_max/2 does not call the woken goal
    scheduler (wake/0), so the propagation goal may not be executed 
    immediately. (It is possible that under some circumstances the goal 
    will be executed, if wake/0 is called indirectly - one example would be
@@ -5705,6 +6415,11 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Update (if required) the bounds of Var.",
     see_also: [impose_min/2, impose_max/2],
     desc: html("<P>
+   This predicate is provided mainly for compatibility with lib(ic).
+   If you intend to impose the same bounds on multiple variables, it
+   is more efficient to use the lib(gfd) specific gfd_vars_impose_min/2
+   (which additionally does not call wake).
+</P><P>
    Primitive for updating the upper and lower bounds of Var, As with 
    impose_min/2 and impose_max/2, it is intended for use in implementing 
    co-operation with other solvers, and constraint propagators at the
@@ -5719,6 +6434,65 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 
 %---------------------------------------------------------------------
 
+:- comment(impose_domain/2, [
+    amode: impose_domain(?, ?),
+    args: [
+    	"Var":   "Variable or integer",
+	"DomVar": "Variable or integer"
+    ],
+    summary: "Restrict (if required) the domain of Var to the domain of DomVar.",
+    see_also: [impose_min/2, impose_max/2, impose_bounds/3, exclude/2, exclude_range/3],
+    desc: html("<P>
+   This predicate is provided mainly for compatibility with lib(ic).
+   If you intend to impose the same domain on multiple variables, it
+   is more efficient to use the lib(gfd) specific gfd_vars_impose_domain/2,
+   which additionally offer more flexibility in allowing the domain to be
+   specified as a list.
+</P><P>
+   Primitive for restricting the domain of Var to the domain of DomVar.
+   Any values in the domain of Var, which are not also in the domain of
+   DomVar, are removed.  DomVar remains unaffected.  
+   The domain update on Var may fail (when the update empties the domain),
+   succeed (possibly updating the variable's domain), or instantiate the
+   variable (in the case where the domain gets restricted to a singleton
+   value).</P><P>
+
+   Note that this predicate is intended for use only in implementing
+   constraint propagators, and should not be called from ordinary user code.
+   The waking behaviour is the same as discussed for impose_min/2 and
+   impose_max/2.  Apart from this, the effect is similar to unifying
+   Var with a copy of DomVar.
+   </P>
+"),
+    eg: "\
+    ?- X::1..9, Y::5..7, impose_domain(X, Y).
+    X = X{5 .. 7}
+    Y = Y{5 .. 7}
+
+
+    ?- X::1..9, impose_domain(X, 7).
+    X = 7
+
+
+    ?- X::1..3, Y::5..7, impose_domain(X, Y).
+    No (0.00s cpu)
+
+    ?- Y::1..5, impose_domain(3, Y).
+    Y = Y{1 .. 5}
+
+    ?- Y::1..5, impose_domain(6, Y).
+    No (0.00s cpu)
+
+
+    ?- Y::1..5, impose_domain(X, Y).
+    Y = Y{1 .. 5}
+    X = X{1 .. 5}
+
+"
+]).
+
+%---------------------------------------------------------------------
+
 :- comment(exclude/2, [
     amode: exclude(?, ++),
     args: [
@@ -5728,6 +6502,11 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Exclude the element Excl from the domain of Var.",
     see_also: [exclude_range/3, impose_min/2, impose_max/2, impose_domain/2],
     desc: html("<P>
+   This predicate is mainly provided for compatibility with lib(ic).
+   If you want to remove multiple values from the domain of one or 
+   more variables, it is more efficient to use the lib(gfd) specific 
+   gfd_vars_exclude/2.
+</P><P>
    Primitive for excluding an element from the domain of a variable.
    The call may fail (when Var is the same integer as Excl),
    succeed (possibly updating the variable's domain), or instantiate the
@@ -5739,7 +6518,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    It differs from the usual constraint in that the propagation is not
    performed immediately. Normally, propagation in gecode is performed by
    a suspended goal that is scheduled and woken after each constraint is
-   posted.  However, impose_min/2 does not call the woken goal
+   posted.  However, exclude/2 does not call the woken goal
    scheduler (wake/0), so the propagation goal may not be executed 
    immediately. (It is possible that under some circumstances the goal 
    will be executed, if wake/0 is called indirectly - one example would be
@@ -5765,6 +6544,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Exclude the elements Lo..Hi from the domain of Var.",
     see_also: [exclude/2, impose_min/2, impose_max/2],
     desc: html("<P>
+   This predicate is mainly provided for compatibility with lib(ic).
+   If you want to exclude the same range of values from multiple variables,
+   it is more efficient to use the lib(gfd) specific gfd_vars_exclude_range/3.
+</P><P>
    Primitive for excluding the integers between Lo and Hi (inclusive) from
    the domain of an integer variable.  The call may fail (when the domain of
    Var has no elements outside the range Lo..Hi), succeed (possibly updating
@@ -5777,7 +6560,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    It differs from the usual constraint in that the propagation is not
    performed immediately. Normally, propagation in gecode is performed by
    a suspended goal that is scheduled and woken after each constraint is
-   posted.  However, impose_min/2 does not call the woken goal
+   posted.  However, exclude_range/3 does not call the woken goal
    scheduler (wake/0), so the propagation goal may not be executed 
    immediately. (It is possible that under some circumstances the goal 
    will be executed, if wake/0 is called indirectly - one example would be
@@ -5790,6 +6573,307 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 ")
 ]).
 
+%---------------------------------------------------------------------
+
+:- comment(gfd_vars_impose_domain/2, [
+    amode: gfd_vars_impose_domain(+, ?),
+    amode: gfd_vars_impose_domain(+, ++),
+    args: [
+    	"Vars":   "Collection of variables or integers",
+	"Domain": "List of domain specs or Domain Variable or integer"
+    ],
+    summary: "Restrict (if required) the domain of Var to the domain"
+             " specified  in Domain",
+    see_also: [gfd_vars_impose_min/2, gfd_vars_impose_max/2,
+               gfd_vars_impose_bounds/3, 
+               gfd_vars_exclude/2, gfd_vars_exclude_range/3, 
+               gfd_vars_exclude_domain/2],
+    desc: html("<P>
+</P><P>
+   Primitive for restricting the domains of Vars to the domain
+   specified by  Domain. 
+</P><P>
+   Domain can be a list (note only a list is supported in this
+   primitive, and not a collection) of domain specifications, a la the
+   domain specifications of (::)/2 -- i.e. each element can be an
+   integer, or an integer range in the form <pre>Lo..Hi</pre>. Alternatively,
+   Domain can be an existing GFD domain variable, or an integer. 
+</P><P>
+   The domain update on Vars may fail (when the update empties the
+   domain of any variables in Vars), succeed (possibly updating the 
+   variables' domain), or instantiate the variables (in the case where the 
+   domain gets restricted to a singleton value).</P><P>
+
+   Note that this predicate is intended for use only in implementing
+   constraint propagators, and should not be called from ordinary user code.
+   It differs from the usual constraint in that the propagation is not
+   performed immediately. Normally, propagation in gecode is performed by
+   a suspended goal that is scheduled and woken after each constraint is
+   posted.  However, this predicate does not call the woken goal
+   scheduler (wake/0), so the propagation goal may not be executed 
+   immediately. (It is possible that under some circumstances the goal 
+   will be executed, if wake/0 is called indirectly - one example would be
+   by the unify handler if the variable becomes ground - but this should not
+   be relied upon.) To ensure that the goals are eventually executed, the 
+   caller should arrange for wake/0 to be called at some appropriate point 
+   in the subsequent execution.  Please see the \"Advanced Control Features\" 
+   section of the User Manual for more information about woken goal 
+   management.</P><P>
+
+   This predicate is specific to lib(gfd).
+")
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_vars_impose_min/2, [
+    amode: gfd_vars_impose_min(+, ++),
+    args: [
+    	"Vars":   "Collection of variables or integers",
+	"Bound": "Lower bound (integer)"
+    ],
+    summary: "Update (if required) the lower bounds of Vars.",
+    desc: html("<P>
+   Primitive for updating the upper bound of Vars so that they are at most
+   Bound.  A bound update on a variable in Vars may fail (when the
+   update empties the domain), succeed (possibly updating the variable's 
+   bounds), or instantiate the variable (in the case where the domain gets 
+   restricted to a singleton value).</P><P>
+
+   Note that this predicate is intended for use only in implementing
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
+   It differs from the usual constraint in that the propagation is not
+   performed immediately. Normally, propagation in gecode is performed by
+   a suspended goal that is scheduled and woken after each constraint is
+   posted.  However, this predicate does not call the woken goal
+   scheduler (wake/0), so the propagation goal may not be executed 
+   immediately. (It is possible that under some circumstances the goal 
+   will be executed, if wake/0 is called indirectly - one example would be
+   by the unify handler if the variable becomes ground - but this should not
+   be relied upon.) To ensure that the goals are eventually executed, the 
+   caller should arrange for wake/0 to be called at some appropriate point 
+   in the subsequent execution.  Please see the \"Advanced Control Features\" 
+   section of the User Manual for more information about woken goal 
+   management.
+</P><P>
+   This predicate is specific to lib(gfd), and is more efficient than
+   using multiple impose_min/2 for updating each variable in Vars,
+   both because this is implementing as one rather than multiple
+   events, and the Gecode rel() constraint for multiple IntVars is
+   used to implement this primitive.
+")
+
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_vars_impose_max/2, [
+    amode: gfd_vars_impose_max(+, ++),
+    args: [
+    	"Vars":   "Collection of variables or integers",
+	"Bound": "Upper bound (integer)"
+    ],
+    summary: "Update (if required) the upper bounds of Vars.",
+    desc: html("<P>
+   Primitive for updating the lower bound of Vars so that they are at least
+   Bound.  A bound update on a variable may fail (when the update empties
+   the domain), succeed (possibly updating the variable's bounds), or
+   instantiate the variable (in the case where the domain gets restricted to
+   a singleton value).</P><P>
+</P><P>
+   Note that this predicate is intended for use only in implementing
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
+   It differs from the usual constraint in that the propagation is not
+   performed immediately. Normally, propagation in gecode is performed by
+   a suspended goal that is scheduled and woken after each constraint is
+   posted.  However, this predicate does not call the woken goal
+   scheduler (wake/0), so the propagation goal may not be executed 
+   immediately. (It is possible that under some circumstances the goal 
+   will be executed, if wake/0 is called indirectly - one example would be
+   by the unify handler if the variable becomes ground - but this should not
+   be relied upon.) To ensure that the goals are eventually executed, the 
+   caller should arrange for wake/0 to be called at some appropriate point 
+   in the subsequent execution.  Please see the \"Advanced Control Features\" 
+   section of the User Manual for more information about woken goal 
+   management.
+</P><P>
+   This predicate is specific to lib(gfd), and is more efficient than
+   using multiple impose_max/2 for updating each variable in Vars,
+   both because this is implementing as one rather than multiple
+   events, and the Gecode rel() constraint for multiple IntVars is
+   used to implement this primitive.
+")
+
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_vars_impose_bounds/3, [
+    amode: gfd_vars_impose_bounds(+, ++, ++),
+    args: [
+    	"Vars":   "Collection of variables or integers",
+	"Lo": "Lower bound (integer)",
+	"Hi": "Upper bound (integer)"
+    ],
+    summary: "Update (if required) the bounds of Vars.",
+    desc: html("<P>
+   Primitive for updating the bounds of Vars so that the Lower bounds
+   are at least Lo and the upper bounds are at most Hi.
+   A bound update on a variable may fail (when the update empties
+   the domain), succeed (possibly updating the variable's bounds), or
+   instantiate the variable (in the case where the domain gets restricted to
+   a singleton value).</P><P>
+</P><P>
+   Note that this predicate is intended for use only in implementing
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
+   It differs from the usual constraint in that the propagation is not
+   performed immediately. Normally, propagation in gecode is performed by
+   a suspended goal that is scheduled and woken after each constraint is
+   posted.  However, this predicate does not call the woken goal
+   scheduler (wake/0), so the propagation goal may not be executed 
+   immediately. (It is possible that under some circumstances the goal 
+   will be executed, if wake/0 is called indirectly - one example would be
+   by the unify handler if the variable becomes ground - but this should not
+   be relied upon.) To ensure that the goals are eventually executed, the 
+   caller should arrange for wake/0 to be called at some appropriate point 
+   in the subsequent execution.  Please see the \"Advanced Control Features\" 
+   section of the User Manual for more information about woken goal 
+   management.
+</P><P>
+   This predicate is specific to lib(gfd), and is more efficient than
+   using multiple impose_max/2 and impose_min/2 for updating each 
+   variable in Vars. Also, unlike impose_bounds/2, this primitive does
+   not call wake, so it behaviour is consistent with the other gfd_vars
+   primitives.
+")
+
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_vars_exclude/2, [
+    amode: gfd_vars_exclude(+, ++),
+    args: [
+    	"Vars":  "Collection of Domain variable or integer",
+	"Excl": "Integer value to exclude"
+    ],
+    summary: "Exclude the element Excl from the domains of Vars.",
+    desc: html("<P>
+   Primitive for excluding an element from the domains of variables in Vars.
+</P><P>
+   Note that this predicate is intended for use only in implementing
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
+   It differs from the usual constraint in that the propagation is not
+   performed immediately. Normally, propagation in gecode is performed by
+   a suspended goal that is scheduled and woken after each constraint is
+   posted.  However, this predicate does not call the woken goal
+   scheduler (wake/0), so the propagation goal may not be executed 
+   immediately. (It is possible that under some circumstances the goal 
+   will be executed, if wake/0 is called indirectly - one example would be
+   by the unify handler if the variable becomes ground - but this should not
+   be relied upon.) To ensure that the goals are eventually executed, the 
+   caller should arrange for wake/0 to be called at some appropriate point 
+   in the subsequent execution.  Please see the \"Advanced Control Features\" 
+   section of the User Manual for more information about woken goal 
+   management.</P>
+</P><P>
+   This predicate is specific to lib(gfd), and is more efficient than
+   using multiple exclude/2 for updating each variable in Vars,
+   because this is implementing as one rather than multiple
+   events.
+")
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_vars_exclude_range/3, [
+    amode: gfd_vars_exclude_range(+, ++, ++),
+    args: [
+    	"Vars": "Collection of Domain variable or integer",
+	"Lo":  "Integer lower bound of range to exclude",
+	"Hi":  "Integer upper bound of range to exclude"
+    ],
+    summary: "Exclude the elements Lo..Hi from the domains of Vars.",
+    desc: html("<P>
+   Primitive for excluding the integers between Lo and Hi (inclusive) from
+   the domains of variables in Vars. 
+</P><P>
+   Note that this predicate is intended for use only in implementing
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
+   It differs from the usual constraint in that the propagation is not
+   performed immediately. Normally, propagation in gecode is performed by
+   a suspended goal that is scheduled and woken after each constraint is
+   posted.  However, this predicate does not call the woken goal
+   scheduler (wake/0), so the propagation goal may not be executed 
+   immediately. (It is possible that under some circumstances the goal 
+   will be executed, if wake/0 is called indirectly - one example would be
+   by the unify handler if the variable becomes ground - but this should not
+   be relied upon.) To ensure that the goals are eventually executed, the 
+   caller should arrange for wake/0 to be called at some appropriate point 
+   in the subsequent execution.  Please see the \"Advanced Control Features\" 
+   section of the User Manual for more information about woken goal 
+   management.</P>
+</P><P>
+   This predicate is specific to lib(gfd), and is more efficient than
+   using multiple exclude_range/2 for updating each variable in Vars,
+   because this is implementing as one rather than multiple
+   events.
+")
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_vars_exclude_domain/2, [
+    amode: gfd_vars_exclude_domain(+, ?),
+    amode: gfd_vars_exclude_domain(+, ++),
+    args: [
+    	"Vars":   "Collection of variables or integers",
+	"Domain": "List of domain specs or Domain Variable or integer"
+    ],
+    summary: "Exclude the values specified in Domain from the domains"
+             " of Vars.",
+    desc: html("
+</P><P>
+   Primitive for excluding the values specified in Domain from the
+   domains of Vars.
+</P><P>
+   Domain can be a list (note only a list is supported in this
+   primitive, and not a collection) of domain specifications, a la the
+   domain specifications of (::)/2 -- i.e. each element can be an
+   integer, or an integer range in the form <pre>Lo..Hi</pre>. Alternatively,
+   Domain can be an existing GFD domain variable, or an integer. 
+</P><P>
+   Note that this predicate is intended for use only in implementing
+   co-operation with other solvers and constraint propagators at the
+   ECLiPSe level, and should not be called from ordinary user code.
+   It differs from the usual constraint in that the propagation is not
+   performed immediately. Normally, propagation in gecode is performed by
+   a suspended goal that is scheduled and woken after each constraint is
+   posted.  However, this predicate does not call the woken goal
+   scheduler (wake/0), so the propagation goal may not be executed 
+   immediately. (It is possible that under some circumstances the goal 
+   will be executed, if wake/0 is called indirectly - one example would be
+   by the unify handler if the variable becomes ground - but this should not
+   be relied upon.) To ensure that the goals are eventually executed, the 
+   caller should arrange for wake/0 to be called at some appropriate point 
+   in the subsequent execution.  Please see the \"Advanced Control Features\" 
+   section of the User Manual for more information about woken goal 
+   management.</P>
+</P><P>
+   This predicate is specific to lib(gfd). For Gecode, if multiple
+   values need to   be excluded from the domain of a variable, it is much more
+   efficient to do it in one go, rather than excluding each value 
+   individually (e.g. using gfd_vars_exclude/2). Also, if the values
+   has to be excluded from multiple variables, it is more efficient to use
+   one primitive to do this, rather than exclude the values from each 
+   variable individually, as this is done with one event.
+
+")]).
 
 %---------------------------------------------------------------------
 

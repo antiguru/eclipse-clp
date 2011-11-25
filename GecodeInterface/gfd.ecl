@@ -89,8 +89,12 @@
           get_delta/2.
 :- export get_constraints_number/2, get_weighted_degree/2.
 :- export get_regret_lwb/2, get_regret_upb/2.
-:- export impose_min/2, impose_max/2, impose_bounds/3, 
+:- export impose_min/2, impose_max/2, impose_bounds/3, impose_domain/2,
           exclude/2, exclude_range/3.
+:- export gfd_vars_impose_min/2, gfd_vars_impose_max/2, 
+          gfd_vars_impose_bounds/3, gfd_vars_impose_domain/2,
+          gfd_vars_exclude/2, gfd_vars_exclude_range/3, 
+          gfd_vars_exclude_domain/2.
 :- export is_solver_type/1, is_solver_var/1, is_exact_solver_var/1, integers/1.
 :- export msg/3.
 
@@ -184,6 +188,7 @@ load_gfd_solver(Arch) :-
         external(g_add_newbool/3, p_g_add_newbool),
         external(g_add_newvars_interval/4, p_g_add_newvars_interval),
         external(g_add_newvars_dom/3, p_g_add_newvars_dom),
+        external(g_add_newvars_dom_handle/3, p_g_add_newvars_dom_handle),
         external(g_add_newvars_dom_union/4, p_g_add_newvars_dom_union),
         external(g_add_newvar_copy/3, p_g_add_newvar_copy),
         external(g_add_newvars_as_bool/3, p_g_add_newvars_as_bool),
@@ -191,8 +196,13 @@ load_gfd_solver(Arch) :-
         external(g_post_interval/4, p_g_post_interval),
         external(g_post_var_interval_reif/5, p_g_post_var_interval_reif),
         external(g_post_dom/3, p_g_post_dom),
+        external(g_post_dom_handle/3, p_g_post_dom_handle),
         external(g_post_var_dom_reif/4, p_g_post_var_dom_reif),
         external(g_post_var_val_reif/4, p_g_post_var_val_reif),
+        external(g_post_exclude_val/3, p_g_post_exclude_val),
+        external(g_post_exclude_range/4, p_g_post_exclude_range),
+        external(g_post_exclude_dom/3, p_g_post_exclude_dom),
+        external(g_post_exclude_dom_handle/3, p_g_post_exclude_dom_handle),
         external(g_post_setvar/3, p_g_post_setvar),
         external(g_post_intrel_cstr/3, p_g_post_intrel_cstr),
         external(g_post_bool_connectives/3, p_g_post_bool_connectives),
@@ -600,6 +610,15 @@ get_gecode_var(_{gfd:Attr}, GV) ?-
         Attr = gfd{idx:I,bool:B},
         gfdvar(I, B, GV).
 
+get_gecode_var_or_int(_{gfd:Attr}, GV) ?-
+        nonvar(Attr), !,
+        Attr = gfd{idx:I,bool:B},
+        gfdvar(I, B, GV).
+get_gecode_var_or_int(I, GI) :-
+        integer(I), !, 
+        I = GI.
+get_gecode_var_or_int(_, _) :-
+        set_bip_error(6).
 
 gfd_copy_var(_X{gfd:AttrX}, Copy) ?-
         ( var(AttrX) ->
@@ -1171,6 +1190,31 @@ update_gecode_with_default_newvars(H, N0, N) :-
             true
         ).
 
+ec_to_gecode_oldvarlist_bounds1(Vs, H, Min, Max, N0,N, OldGVs) :-
+        ( foreach(V, Vs),
+          fromto(N0, N1,N2, N),
+          param(H, Min, Max),
+          fromto(OldGVs, GVs1,GVs2, [])
+        do
+            ( integer(V) ->
+                V >= Min,
+                V =< Max,
+                N1 = N2,
+                GVs1 = GVs2
+            ; var(V) ->
+                ( get_gecode_attr(V, gfd{idx:I,bool:B}) ->
+                    gfdvar(I, B, GV),
+                    GVs1 = [GV|GVs2],
+                    N1 = N2
+                ; /* new gfd var */
+                    new_gfdvar(V, H, N1,N2, _GV),
+                    GVs1 = GVs2
+                )
+            ;
+                fail
+            )
+        ).
+
 ec_to_gecode_varlist(L, H, GL, HasVar) :-
         H = gfd_prob{nvars:N0},
         ec_to_gecode_varlist1(L, H, N0,N, GL, HasVar),
@@ -1676,8 +1720,9 @@ ec_to_gecode_arith_expr1(E, _H, In, _N0,_N, _Bs0,_Bs, _Auxs0,_AuxsT,
 
 '::_body'(X, Domain, Bool, Module):-
         get_prob_handle_nvars(H, N0),
+        normalise_vars(X, NX),
         gfd_default_interval(Min, Max),
-        ec_to_gecode_domain_reified1(X, Domain, Bool, H, N0,N, [],Bs, Event, _, Module),
+        ec_to_gecode_domain_reified1(NX, Domain, Bool, H, N0,N, [],Bs, Event, _, Module),
         !,
         update_vars_for_gecode(N0, N, Bs, H, Min, Max),
         post_new_event(Event, H).
@@ -1705,7 +1750,8 @@ ec_to_gecode_domain_reified1(X, Domain, Bool, H, N0,N, Bs0,Bs, Event, GBool, Mod
         ; integer(X) ->
             GX = X,
             N1 = N
-        ;
+        ; 
+
             set_bip_error(5)
         ),
         % domain is normalised and type checked already
@@ -4064,18 +4110,36 @@ do_event1(post_var_interval_reif(GV,Lo,Hi,GBool), SpH, DoProp) ?-
 do_event1(post_dom(GArray,DArray), SpH, DoProp) ?-
         DoProp = [],
         g_post_dom(SpH, GArray, DArray).
+do_event1(post_dom_handle(GArray,DArray), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_dom_handle(SpH, GArray, DArray).
 do_event1(post_var_dom_reif(GV,DArray,GBool), SpH, DoProp) ?-
         DoProp = [],
         g_post_var_dom_reif(SpH, GV, DArray, GBool).
 do_event1(post_var_val_reif(GV,Value,GBool), SpH, DoProp) ?-
         DoProp = [],
         g_post_var_val_reif(SpH, GV, Value, GBool).
+do_event1(post_exclude_dom(GArray,DArray), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_exclude_dom(SpH, GArray, DArray).
+do_event1(post_exclude_dom_handle(GArray,Dom), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_exclude_dom_handle(SpH, GArray, Dom).
+do_event1(post_exclude_val(GArray,Val), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_exclude_val(SpH, GArray, Val).
+do_event1(post_exclude_range(GArray,Lo,Hi), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_exclude_range(SpH, GArray, Lo, Hi).
 do_event1(newvars_interval(NV,Lo,Hi), SpH, _DoProp) ?-
         %DoProp = 0,
         g_add_newvars_interval(SpH, NV, Lo, Hi).
 do_event1(newvars_dom(NV,DArray), SpH, _DoProp) ?-
         %DoProp = 0,
         g_add_newvars_dom(SpH, NV, DArray).
+do_event1(newvars_dom_handle(NV,Dom), SpH, _DoProp) ?-
+        %DoProp = 0,
+        g_add_newvars_dom_handle(SpH, NV, Dom).
 do_event1(newvars_dom_union(GX,GY,NV), SpH, _DoProp) ?-
         %DoProp = 0,
         g_add_newvars_dom_union(SpH, NV, GX, GY).
@@ -4968,38 +5032,118 @@ get_regret_upb(V, Count) :-
 impose_min(I, Min) :-
         integer(I), !,
         Min =< I.
-impose_min(_{gfd:Attr}, Min) ?- 
-        integer(Min),
+impose_min(_{gfd:Attr}, Min0) ?- 
         nonvar(Attr),
+        ( integer(Min0) -> Min = Min0
+        ; number(Min0) ->  Min is integer(ceiling(Min0))
+        ; fail
+        ), !,
         Attr = gfd{prob:H, idx:Idx,bool:BI},
         gfdvar(Idx,BI, GV),
         post_new_event_no_wake(post_lwb(GV, Min), H).
+impose_min(V, Min0) :-
+        var(V),  
+        ( integer(Min0) -> Min = Min0
+        ; number(Min0) ->  Min is integer(ceiling(Min0))
+        ; fail
+        ), !,
+        get_prob_handle_nvars(H, NV0),
+        new_gfdvar(V, H, NV0,NV, _),
+        setarg(nvars of gfd_prob, H, NV),
+        gfd_default_interval(_, Max),
+        post_new_event_no_wake(newvars_interval(NV,Min,Max), H).
+impose_min(V, Min) :-
+        error(5, impose_min(V, Min)).
+
 
 impose_max(I, Max) :-
         integer(I), !,
         integer(Max),
         Max >= I.
-impose_max(_{gfd:Attr}, Max) ?- 
-        integer(Max),
-        nonvar(Attr),
+impose_max(_{gfd:Attr}, Max0) ?- 
+        nonvar(Attr), 
+        ( integer(Max0) -> Max = Max0
+        ; number(Max0) ->  Max is integer(floor(Max0))
+        ; fail
+        ), !,
         Attr = gfd{prob:H, idx:Idx,bool:BI},
         gfdvar(Idx,BI, GV),
         post_new_event_no_wake(post_upb(GV, Max), H).
+impose_max(V, Max0) :-
+        var(V),  !,
+        ( integer(Max0) -> Max = Max0
+        ; number(Max0) ->  Max is integer(floor(Max0))
+        ; fail
+        ), !,
+        get_prob_handle_nvars(H, NV0),
+        new_gfdvar(V, H, NV0,NV, _),
+        setarg(nvars of gfd_prob, H, NV),
+        gfd_default_interval(Min, _),
+        post_new_event_no_wake(newvars_interval(NV,Min,Max), H).
+impose_max(V, Max) :-
+        error(5, impose_max(V, Max)).
+
 
 impose_bounds(I, Min, Max) :-
         integer(I), !,
-        (integer(Min) -> true ; error(5, impose_bounds(I, Min, Max))),
-        (integer(Max) -> true ; error(5, impose_bounds(I, Min, Max))),
         Max >= I, Min =< I.
+impose_bounds(V, Min0, Max0) :-
+        var(V),
+        ( integer(Min0) -> Min = Min0
+        ; number(Min0) ->  Min is integer(ceiling(Min0))
+        ; fail
+        ), 
+        ( integer(Max0) -> Max = Max0
+        ; number(Max0) ->  Max is integer(floor(Max0))
+        ; fail
+        ), !,
+        ( is_solver_var(V) ->
+            gfd_set_var_bounds(V, Min, Max), 
+            wake % need explicit wake here
+        ;
+            get_prob_handle_nvars(H, N0),
+            new_gfdvar(V, H, N0,N, _GV),
+            do_update_newvars_with_domain_interval(H, N, Min, Max)
+        ).
 impose_bounds(V, Min, Max) :-
-        (integer(Min) -> true ; error(5, impose_bounds(I, Min, Max))),
-        (integer(Max) -> true ; error(5, impose_bounds(I, Min, Max))),
-        gfd_set_var_bounds(V, Min, Max), 
-        wake.
+        error(5, impose_bounds(V, Min, Max)).
+
+
+impose_domain(X, _Y{gfd:Attr}) ?- !,
+        var(X),
+        impose_domain1(X, Attr).
+impose_domain(_X, Y) :-
+        var(Y).
+impose_domain(X, Y) :-
+        nonvar(Y),
+        X = Y.
+
+    impose_domain1(_X, AttrY) :-
+    	var(AttrY).
+    impose_domain1(X, AttrY) :-
+    	nonvar(AttrY),
+        AttrY = gfd{idx:IdxY},
+        get_prob_handle(H), 
+        restore_space_if_needed(H, SpH),
+        g_get_var_domain_handle(SpH, IdxY, Dom),
+        impose_domain_on_var(X, H, Dom).
+
+    impose_domain_on_var(_X{gfd:Attr}, H, Dom) ?-
+        nonvar(Attr), !,
+        Attr = gfd{idx:Idx, bool:BI},
+        gfdvar(Idx,BI, GX),
+        post_new_event(post_dom_handle([](GX), Dom), H).
+    impose_domain_on_var(X, H, Dom) :-
+        H = gfd_prob{nvars:N0},
+        new_gfdvar(X, H, N0,N, _GX),
+        setarg(nvars of gfd_prob, H, N),
+        post_new_event(newvars_dom_handle(N,Dom), H).
+
 
 exclude(I, Excl) ?-
         integer(I), !,
-        I =\= Excl.
+        (integer(Excl) -> true ; error(5, exclude(I, Excl))),
+        I \== Excl.
 exclude(V{gfd:Attr}, I) ?- 
         nonvar(Attr),
         (integer(I) -> true ; error(5, exclude(V, I))),
@@ -5023,6 +5167,194 @@ exclude_range(X, Lo, Hi) :-
 	\+ ( Lo =< X, X =< Hi).
 exclude_range(X, Lo, Hi) :-
 	error(6, exclude_range(X, Lo, Hi)).
+
+
+
+gfd_vars_impose_min(Vs, Min) :-
+        gfd_default_interval(_, Max),
+        impose_vars_bound(Vs, Min, Max, (#>=), Min).
+
+gfd_vars_impose_max(Vs, Max) :-
+        gfd_default_interval(Min, _),
+        impose_vars_bound(Vs, Min, Max, (#=<), Max).
+
+impose_vars_bound(Vs, Min, Max, Rel, Bound) :-
+        collection_to_list(Vs, VList),
+        get_prob_handle_nvars(H, NV0),
+        ec_to_gecode_oldvarlist_bounds1(VList, H, Min, Max, NV0, NV, GOList),
+        setarg(nvars of gfd_prob, H, NV),
+        post_new_event_no_wake(newvars_interval(NV,Min,Max), H),
+        ( GOList == [] ->
+            true
+        ;
+            GOArr =.. [[]|GOList], 
+            post_new_event_no_wake(post_collection_rel(default, GOArr, Rel, Bound), H)
+        ).
+
+gfd_vars_impose_bounds(Vs, Min, Max) :-
+        collection_to_list(Vs, VList),
+        get_prob_handle_nvars(H, NV0),
+        ec_to_gecode_oldvarlist_bounds1(VList, H, Min, Max, NV0, NV, GOList),
+        setarg(nvars of gfd_prob, H, NV),
+        post_new_event_no_wake(newvars_interval(NV,Min,Max), H),
+        ( GOList == [] ->
+            true
+        ;
+            GOArr =.. [[]|GOList], 
+            post_new_event_no_wake(post_interval(GOArr, Min, Max), H)
+        ).
+
+
+:- tool(gfd_vars_impose_domain/2, gfd_vars_impose_domain/3).
+
+gfd_vars_impose_domain(Vs, [Val], Module) ?-
+        integer(Val), !,
+        gfd_vars_impose_domain(Vs, Val, Module).
+gfd_vars_impose_domain(Vs, Val, _Moudle) :-
+        integer(Val), !,
+        collection_to_list(Vs, VList),
+        ( foreach(Val, VList), param(Val) do true ).
+gfd_vars_impose_domain(Vs, Dom, Module) :-
+        collection_to_list(Vs, VList),
+        get_prob_handle_nvars(H, NV0),
+        ( foreach(V, VList),
+          fromto(NV0, NV1,NV2, NV),
+          param(H),
+          fromto(GVs, GVs1,GVs2, [])
+        do
+            ( integer(V) ->
+                NV1 = NV2,
+                GVs1 = [V|GVs2]
+            ; var(V) ->
+                ( get_gecode_attr(V, gfd{idx:I,bool:B}) ->
+                    gfdvar(I, B, GV),
+                    GVs1 = [GV|GVs2],
+                    NV1 = NV2
+                ; /* new gfd var */
+                    new_gfdvar(V, H, NV1,NV2, _GV),
+                    GVs1 = GVs2
+                )
+            ;
+                fail
+            )
+        ),
+        GVArr =.. [[]|GVs],
+        impose_domain_on_vars(GVArr, Dom, H, NV0, NV, Module).
+
+
+
+impose_domain_on_vars(GVArr, _{gfd:gfd{idx:Idx}}, H, NV0, NV, _Module) ?- !,
+        restore_space_if_needed(H, SpH),
+        g_get_var_domain_handle(SpH, Idx, Dom),
+        (NV > NV0 ->
+            setarg(nvars of gfd_prob, H, NV),
+            post_new_event_no_wake(newvars_dom_handle(NV,Dom), H)
+        ;
+            true
+        ),
+        ( GVArr == [] ->
+            true
+        ;
+            post_new_event_no_wake(post_dom_handle(GVArr, Dom), H)
+        ).
+impose_domain_on_vars(GVArr, Dom, H, NV0, NV, Module) :-
+        compound(Dom), !,
+        ( foreach(D,Dom), param(Module),
+          foreach(Lo..Hi, Vals)
+        do
+            subdomain(D, Lo, Hi, Module)
+        ),
+        ValsArr =.. [[]|Vals],
+        (NV > NV0 ->
+            setarg(nvars of gfd_prob, H, NV),
+            post_new_event_no_wake(newvars_dom(NV,ValsArr), H)
+        ;
+            true
+        ),
+        ( GVArr == [] ->
+            true
+        ;
+            post_new_event_no_wake(post_dom(GVArr, ValsArr), H)
+        ).
+
+
+gfd_vars_exclude(Vars, Excl) :-
+        (collection_to_list(Vars, VL) -> true ; error(5, exclude(Vars, Excl))),
+        (integer(Excl) -> true ; error(5, exclude(Vars, Excl))),
+        ( foreach(V, VL),
+          param(Vars, Excl),
+          fromto(GVars, GVs1,GVs2, [])
+        do
+            ( integer(V) -> 
+                V \== Excl,
+                GVs1 = GVs2
+            ; get_gecode_var(V, GV) -> 
+                GVs1 = [GV|GVs2]
+            ;
+                 error(6, exclude(Vars, Excl))
+            )
+        ),
+        GVArr =.. [[]|GVars],
+        get_prob_handle(H),
+        post_new_event_no_wake(post_exclude_val(GVArr, Excl), H).
+
+gfd_vars_exclude_range(Vars, Lo, Hi) :-
+        (collection_to_list(Vars, VL) -> true ; error(5, gfd_vars_exclude_range(Vars, Lo, Hi))), 
+        (integer(Hi) -> true ; error(5, gfd_vars_exclude_range(Vars, Lo, Hi))),
+        (integer(Lo) -> true ; error(5, gfd_vars_exclude_range(Vars, Lo, Hi))),
+        Hi >= Lo,
+        ( foreach(V, VL),
+          param(Vars, Lo, Hi),
+          fromto(GVars, GVs1,GVs2, [])
+        do
+            ( integer(V) -> 
+                \+ ( Lo =< V, V =< Hi),
+                GVs1 = GVs2
+            ; get_gecode_var(V, GV) -> 
+                GVs1 = [GV|GVs2]
+            ;
+                 error(6, gfd_vars_exclude_range(Vars, Lo, Hi))
+            )
+        ),
+        get_prob_handle(H),
+        GVArr =.. [[]|GVars],
+        post_new_event_no_wake(post_exclude_range(GVArr, Lo, Hi), H).
+
+
+:- tool(gfd_vars_exclude_domain/2, gfd_vars_exclude_domain/3).
+
+gfd_vars_exclude_domain(Vars, Dom, Module) :-
+        check_collection_to_list(Vars, VL), 
+        ( foreach(V, VL),
+          foreach(GV, GVars)
+        do
+            get_gecode_var_or_int(V, GV) 
+        ), !,
+        (GVars == [] -> 
+            true
+        ;
+            GVArr =.. [[]|GVars],
+            exclude_domain1(GVArr, Dom, Module)
+        ).
+gfd_vars_exclude_domain(Vs, Dom, _M) :-
+        ( get_bip_error(E) -> true ; E = 6),
+        error(E, exclude_domain(Vs, Dom)).
+
+exclude_domain1(Vs, _{gfd:gfd{idx:Idx}}, _Module) ?- !,
+        get_prob_handle(H),
+        restore_space_if_needed(H, SpH),
+        g_get_var_domain_handle(SpH, Idx, Dom),
+        post_new_event_no_wake(post_exclude_dom_handle(Vs, Dom), H).
+exclude_domain1(Vs, Dom, Module) :-
+        compound(Dom),
+        ( foreach(D,Dom), param(Module),
+          foreach(Lo..Hi, Vals)
+        do
+            subdomain(D, Lo, Hi, Module)
+        ),
+        ValsArr =.. [[]|Vals],
+        get_prob_handle(H),
+        post_new_event_no_wake(post_exclude_dom(Vs, ValsArr), H).
 
 
 is_solver_type(I) :- integer(I), !.
@@ -5269,7 +5601,6 @@ gfd_minint(X) :-
    create_constraint_pool(gfd_vc, 0, [
       alldifferent/1 -> alldifferent_c/2,
       alldifferent_cst/2 -> alldifferent_cst_c/3,
-      bool_channeling/3 -> bool_channeling_c/4,
       circuit/1 -> circuit_c/2,
       circuit/3 -> circuit_c/4,
       circuit/4 -> circuit_c/5,
