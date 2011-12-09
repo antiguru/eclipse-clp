@@ -4080,7 +4080,8 @@ do_event1(post_disjflex(StartArray,DurArray,EndArray,SchArray), SpH, DoProp) ?-
         DoProp = [],
         % ConLev not supported for this constraint
         g_post_disjflex(SpH, StartArray, DurArray, EndArray, SchArray).
-do_event1(post_cumulatives(Starts,Durations,Ends,Usages,Used,Limits,AtMost), SpH, DoProp) ?-
+do_event1(post_cumulatives(_ConLev, Starts,Durations,Ends,Usages,Used,Limits,AtMost), SpH, DoProp) ?-
+        % ignore ConLev for now (only gfd_vc allowed)
         DoProp = [],
         g_post_cumulatives(SpH, Starts, Durations, Ends, Usages, Used, Limits, AtMost).
 do_event1(post_cumulative(Starts,Durations,Usages,Limit,Schs), SpH, DoProp) ?-
