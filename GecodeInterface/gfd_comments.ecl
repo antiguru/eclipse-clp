@@ -202,7 +202,8 @@
    Constrain the variables to integer values.  If any variable is a non-domain
    variable, a default domain will be created for it.
 <P>
-   This predicate is also defined in lib(ic) and lib(fd).
+   This predicate is also defined for the IC and FD solvers in lib(ic) 
+   and lib(fd).
 ")
 ]).
 
@@ -219,8 +220,8 @@
    Test if the term Term is an GFD domain variable.  Succeed if it is, fail
    otherwise.</P>
 <P>
-   This predicate is also defined in lib(ic), and is known as
-   is_integer_domain/1 in lib(fd).</P>
+   This predicate is also defined for the IC and FD solvers in lib(ic),
+   and is known as is_integer_domain/1 in lib(fd).</P>
 ")
 ]).
 
@@ -237,8 +238,8 @@
    Test if the term Term is an GFD domain variable. This is an alias for
    is_solver_var/1 in GFD.
 <P>
-   This predicate is also defined in lib(ic), and is provided for 
-   compatibility.</P>
+   This predicate is also defined for the IC solver in lib(ic), and is 
+   provided for compatibility.</P>
 ")
 ]).
 
@@ -255,7 +256,7 @@
    Test if the term Term is a GFD domain variable or an integer.
    Succeed if it is, fail otherwise.</P>
 <P>
-   This predicate is also defined in lib(ic).</P>
+   This predicate is also defined for the IC solver in lib(ic).</P>
 ")
 ]).
 
@@ -280,8 +281,9 @@
    variable with default interval.  If Var is an integer, Lo and Hi will
    be set to Var.</P>
 <P>
-   This predicate is also defined in lib(ic); lib(fd) has dvar_range/3, 
-   which fails if the variable is not already a fd domain variable.</P>
+   This predicate is also defined for the IC solver in lib(ic); FD has 
+   dvar_range/3, which fails if the variable is not already a FD
+   domain variable.</P>
 ")
 ]).
 
@@ -302,7 +304,7 @@
    of the variable's interval. If Var has not been declared before, it
    will be turned into a domain variable with default interval.</P>
 <P>
-   This predicate is also defined in lib(ic);</P>
+   This predicate is also defined for IC solver in lib(ic);</P>
 ")
 ]).
 
@@ -323,7 +325,7 @@
    of the variable's interval. If Var has not been declared before, it
    will be turned into a domain variable with default interval.</P>
 <P>
-   This predicate is also defined in lib(ic);</P>
+   This predicate is also defined for IC solver in lib(ic);</P>
 ")
 ]).
 
@@ -378,8 +380,8 @@
    integer values in the domain of Var.  If Var is a number, then Size 
    will be set to 1.</P><P>
 
-   This predicate is also defined in lib(ic). Also note that if Var
-   is a domain variable, the value is obtained from Gecode (via the
+   This predicate is also defined for IC solver in lib(ic). Also note that 
+   if Var is a domain variable, the value is obtained from Gecode (via the
    size() method for IntVarArgs), rather than calculated independently by
    lib(gfd).
 </P>
@@ -420,9 +422,9 @@ D = [1 .. 5, 10]
    exactly those integers appearing directly in the list or falling within
    any of the intervals Lo..Hi.</P>
 <P>
-   This predicate is also defined in lib(ic); lib(fd) provides a similar
-   dvar_domain/2, but differs if Var is an integer, as an integer is
-   returned for Domain rather than a singleton list.</P>
+   This predicate is also defined for IC solver in lib(ic); lib(fd) 
+   provides a similar dvar_domain/2, but differs if Var is an integer, as 
+   an integer is returned for Domain rather than a singleton list.</P>
 "),
    exceptions: [
         5: "Var is neither an IC variable or number."
@@ -451,7 +453,7 @@ D = [1, 2, 3, 4, 5, 10]
    list containing each element in the domain of Var.  If Var is a number,
    then DomainList will be set to a singleton list containing the number.</P>
 <P>
-   This predicate is also defined in lib(ic).</P>
+   This predicate is also defined for IC solver in lib(ic).</P>
 "),
    exceptions: [
         5: "Var is neither a GFD variable or integer."
@@ -476,10 +478,10 @@ D = [1, 2, 3, 4, 5, 10]
    median (a float) of the interval is returned. If Var is an integer, the 
    median is unified with that number.
 <P>
-   This predicate is also defined in lib(ic), but differs as stated above.
-   Also note that if Var is a domain variable, the median value is obtained 
-   from Gecode (via the med() method for IntVarArgs), rather than calculated 
-   independently by lib(gfd).
+   This predicate is also defined for IC solver in lib(ic), but differs as 
+   stated above. Also note that if Var is a domain variable, the median 
+   value is obtained from Gecode (via the med() method for IntVarArgs), 
+   rather than calculated independently by lib(gfd).
 </P>
 "),
     eg: "\
@@ -514,10 +516,10 @@ M = 3
    0 will be returned as the width. If Var is free, then 1.0Inf is
    returned as the width, but Var is not turned into a domain variable.</P>
 <P>
-   This predicate is also defined in lib(ic), but differs as lib(gfd)
-   has no real intervals, so Var is not turned into a GFD domain variable if
-   it is not already a GFD domain variable, and if Var is ground, then
-   the only number type accepted is an integer.</P> 
+   This predicate is also defined for IC solver in lib(ic), but differs as 
+   lib(gfd) has no real intervals, so Var is not turned into a GFD domain 
+   variable if it is not already a GFD domain variable, and if Var is 
+   ground, then the only number type accepted is an integer.</P> 
 <P>
    Also note that if Var is a domain variable, the width is obtained from 
    Gecode (via the width() method for IntVarArgs), rather than calculated 
@@ -544,9 +546,9 @@ M = 3
    If Var is not a variable, a very large number (1.0Inf) is returned. If
    Var is a variable but not a domain variable, 0 will be returned.
 </P><P>
-   This predicate is not defined in lib(ic) or lib(fd); but the equivalent
+   This predicate is not defined for IC or FD solvers, but the equivalent
    functionality is provided by the delayed_goals_number handler for the
-   ic (ic:delayed_goals_number/2) and fd (fd:constraints_number/2) 
+   IC (ic:delayed_goals_number/2) and FD (fd:constraints_number/2) 
    attributes, with the assumptions that the number of delayed goals is
    a good approximation of the number of propagators attached to the 
    variables in lib(ic) and lib(fd), as propagators are implemented
@@ -574,7 +576,7 @@ M = 3
    starting values when there are not failures yet).  This is usually used 
    in selecting a variable for labelling.
 </P><P>
-   This predicate is not defined in lib(ic) or lib(fd), as the functionality
+   This predicate is not defined for IC or FD solvers, as the functionality
    (measurement of the weighted degree for a variable) is not available 
    in either libraries. Weighted degree (often referred to as wdeg in the
    research literature) is a relatively recently developed heuristic 
@@ -599,7 +601,7 @@ M = 3
    in the variable's domain. This can be used in selecting a variable for 
    labelling.
 </P><P>
-   This predicate is not defined in lib(ic) or lib(fd), as the functionality
+   This predicate is not defined for IC or FD solvers, as the functionality
    is not directly available in either libraries, although a \"max_regret\"
    variable choice is available in both solvers' search predicate 
    (ic:search/6, fd_search:search/6), which select the variable with
@@ -622,8 +624,8 @@ M = 3
    value in the variable's domain. This can be used in selecting a variable 
    for labelling.
 </P><P>
-   This predicate is not defined in lib(ic) or lib(fd), as the functionality
-   is not directly available in either libraries,</P>
+   This predicate is not defined for IC or FD solvers, as the functionality
+   is not directly available in either solvers,</P>
 ")
 ]).
 
@@ -641,7 +643,7 @@ M = 3
     desc: html("<P>
    Low level predicate which succeeds when Val is in the domain of Var.
 </P><P>
-   This predicate is also defined in lib(ic).
+   This predicate is also defined for IC solver in lib(ic).
 ")
 ]).
 
@@ -662,7 +664,7 @@ M = 3
    Result bound to the atom 'yes'.  When Val is not in the domain of Var,
    the predicate succeeds binding Result to the atom 'no'. 
 </P><P>
-   This predicate is also defined in lib(ic).
+   This predicate is also defined for IC solver in lib(ic).
 ")
 ]).
 
@@ -680,7 +682,7 @@ M = 3
     desc: html("<P>
    Alias of ::/2. See ::/2 for more details.
 </P><P>
-   This predicate is also defined in lib(ic) and lib(fd).
+   This predicate is also defined for IC and FD solvers in lib(ic) and lib(fd).
 ")]).
 
 :- comment((::)/2, [
@@ -701,7 +703,8 @@ M = 3
    to an integer. All domain elements must be integers within the range allowed 
    by gecode. 
 </P><P>
-   This predicate is also defined in lib(ic) and lib(fd). 
+   This predicate is also defined for the IC and FD solvers in lib(ic)
+   and lib(fd). 
 <P>
    For instance:
 <PRE>
@@ -767,9 +770,9 @@ Y = Y{[-1 .. 10, 21]}
    a GFD  expression, e.g. B #= (X :: [1..10]) is equivalent to
    ::(X, [1..10], B).
 </P><P>
-   This predicate is also defined in lib(ic) and lib(fd). If Var is a free
-   variable, it will be given the default finite bounds like in
-   lib(fd) if Bool is not ground.
+   This predicate is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd). If Var is a free variable, it will be given the default finite 
+   bounds like in lib(fd) if Bool is not ground.
 "),
     eg: "\
 [eclipse 2]: ::(X, [1..10, 12..30], 1).
@@ -807,7 +810,7 @@ X = X{[-1000000 .. 1000000]}
     desc: html("<P>
   An alias for ::/3. See ::/3 for more details.</P>
 </P><P>
-  This predicate is also defined in lib(ic) and lib(fd).
+  This predicate is also defined for IC and FD solvers in lib(ic) and lib(fd).
 ")
 ]).
 
@@ -858,10 +861,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and lib(fd), with slight
-   differences in what is allowed in the expressions. In addition, no
-   consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 :- comment((#=)/3, [
@@ -899,10 +902,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and lib(fd), with slight
-   differences in what is allowed in the expressions. In addition, no
-   consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -935,10 +938,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and lib(fd), with slight
-   differences in what is allowed in the expressions. In addition, no
-   consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -977,10 +980,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and lib(fd), with slight
-   differences in what is allowed in the expressions. In addition, no
-   consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -1013,10 +1016,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and (as (#>=)/2) in lib(fd), 
-   with slight differences in what is allowed in the expressions. In 
-   addition, no consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 :- comment((#=<)/3, [
@@ -1054,10 +1057,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and (as (#>=)/3) in lib(fd), 
-   with slight differences in what is allowed in the expressions. In 
-   addition, no consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -1090,10 +1093,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and lib(fd), with slight
-   differences in what is allowed in the expressions. In addition, no
-   consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 :- comment((#>)/3, [
@@ -1131,10 +1134,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and lib(fd), with slight
-   differences in what is allowed in the expressions. In addition, no
-   consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -1167,10 +1170,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and lib(fd), with slight
-   differences in what is allowed in the expressions. In addition, no
-   consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -1209,10 +1212,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and lib(fd), with slight
-   differences in what is allowed in the expressions. In addition, no
-   consistency level is defined in the case of ic and fd, but the
-   consistency achieve is weaker than domain consistency in most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   lib(fd), with slight differences in what is allowed in the expressions. 
+   In addition, no consistency level is defined in the case of IC and FD, 
+   but the consistency achieve is weaker than domain consistency in most cases.
 ")
 ]).
 
@@ -1245,11 +1248,11 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and (as (##)/2) in lib(fd), 
-   with slight differences in what is allowed in the expressions. 
-   In addition, no consistency level is defined in the case of ic and
-   fd, but the consistency achieve is weaker than domain consistency in 
-   most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   (as (##)/2) in lib(fd), with slight differences in what is allowed in 
+   the expressions. In addition, no consistency level is defined in the 
+   case of IC and FD, but the consistency achieve is weaker than domain 
+   consistency in most cases.
 ")
 ]).
 
@@ -1288,11 +1291,11 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic) and (as (##)/3) in lib(fd), 
-   with slight differences in what is allowed in the expressions. 
-   In addition, no consistency level is defined in the case of ic and
-   fd, but the consistency achieve is weaker than domain consistency in 
-   most cases.
+   This constraint is also defined for IC and FD solvers in lib(ic) and 
+   (as (##)/2) in lib(fd), with slight differences in what is allowed in 
+   the expressions. In addition, no consistency level is defined in the 
+   case of IC and FD, but the consistency achieve is weaker than domain 
+   consistency in most cases.
 ")
 ]).
 
@@ -1320,7 +1323,7 @@ B = B{[0, 2, 4, 6]}
    for Var is obtained from gecode at the start. Use indomain/2 for more
    efficient ways to set Var's value. 
 </P><P>
-   This predicate is also defined in lib(ic) and lib(fd).
+   This predicate is also defined for IC and FD solvers in lib(ic) and lib(fd).
 ")
 ]).
 
@@ -1350,7 +1353,7 @@ B = B{[0, 2, 4, 6]}
    Note that labeling perform the search in ECLiPSe, but it uses
    indomain/2 with min, which is optimised for use with gecode. 
 </P><P>
-   This predicate is also defined in lib(ic) and lib(fd).
+   This predicate is also defined for IC and FD solvers in lib(ic) and lib(fd).
 ")
 ]).
 
@@ -1376,8 +1379,9 @@ B = B{[0, 2, 4, 6]}
    gfd_vc for value consistency (naive), gfd_bc for bounds consistency, 
    and gfd_gac for domain (generalised arc) consistency. 
 </P><P>
-   This constraint is also defined in lib(ic), lib(ic_global) and 
-   lib(ic_global_gac) and also in the corresponding libraries for fd. 
+   This constraint is also defined for IC and FD solvers in lib(ic), 
+   lib(ic_global) and lib(ic_global_gac) and also in the corresponding 
+   libraries for FD. 
 ")
 ]).
 
@@ -1410,7 +1414,7 @@ B = B{[0, 2, 4, 6]}
    gfd_vc for value consistency (naive), gfd_bc for bounds consistency, 
    and gfd_gac for domain (generalised arc) consistency.</P><P> 
 
-   This constraint is not available in lib(ic) or lib(fd).
+   This constraint is not defined for IC or FD solvers.
 ")
 ]).
 
@@ -1522,8 +1526,8 @@ A = A{[3 .. 5]}
    is known as leq in the Global Constraint Catalog. This constraint
    is implemented using Gecode's rel() constraint.
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This primitive is not defined for IC or FD solvers, but the functionality
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [(#=<)/2,lt/2,gt/2,ge/2,ne/2,eq/2]
 ]).
@@ -1583,8 +1587,8 @@ X = X{[4 .. 1000000]}
    as lt in the Global Constraint Catalog. This constraint is
    implemented using Gecode's rel() constraint.
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This primitive is not defined for IC or FD solvers, but the functionality
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [(#=<)/2,le/2,gt/2,ge/2,ne/2,eq/2]
 ]).
@@ -1648,8 +1652,8 @@ A = A{[-1000000 .. 10]}
    is known as geq in the Global Constraint Catalog. This constraint
    is implemented using Gecode's rel() constraint.
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This primitive is not defined for IC or FD solvers, but the functionality
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [(#>=)/2,lt/2,gt/2,le/2,ne/2,eq/2]
 ]).
@@ -1707,8 +1711,8 @@ Y = Y{[-1000000 .. 999999]}
    is implemented using Gecode's rel() constraint.
    arc) consistency. 
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This primitive is not defined for IC or FD solvers, but the functionality
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [(#<)/2,le/2,lt/2,ge/2,ne/2,eq/2]
 ]).
@@ -1761,8 +1765,8 @@ X = X{[2, 6 .. 10]}
    known as neq in the Global Constraint Catalog. This constraint
    is implemented using Gecode's rel() constraint.
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This primitive is not defined for IC or FD solvers, but the functionality
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [(#=<)/2,le/2,gt/2,ge/2,lt/2,eq/2]
 ]).
@@ -1824,8 +1828,8 @@ X = 3
    is known as eq in the Global Constraint Catalog. This constraint
    is implemented using Gecode's rel() constraint.
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This primitive is not defined for IC or FD solvers, but the functionality
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [(#=<)/2,le/2,gt/2,ge/2,lt/2,ne/2]
 ]).
@@ -1853,8 +1857,8 @@ X = 3
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
 </P><P>
-   This constraint is not directly available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This constraint is not defined for IC and FD solvers, but the functionality 
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [min/3]
 ]).
@@ -1882,8 +1886,8 @@ X = 3
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
 </P><P>
-   This constraint is not directly available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This constraint is not defined for IC and FD solvers, but the functionality 
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [max/3]
 ]).
@@ -1911,8 +1915,8 @@ X = 3
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This constraint is not defined for IC and FD solvers, but the functionality 
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [mult/3,divide/3,mod/3]
 ]).
@@ -1940,8 +1944,8 @@ X = 3
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This constraint is not defined for IC and FD solvers, but the functionality 
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [plus/3,divide/3,mod/3]
 ]).
@@ -1968,8 +1972,8 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency.
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This constraint is not defined for IC and FD solvers, but the functionality 
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [plus/3,divide/3,mult/3]
 ]).
@@ -1997,8 +2001,8 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency.
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This constraint is not defined for IC and FD solvers, but the functionality 
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [plus/3,mod/3,mult/3]
 ]).
@@ -2028,7 +2032,7 @@ X = 3
    consistency level for the propagation for this constraint: 
    gfd_bc for bounds consistency.
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd).</P>
+   This primitive is not defined for IC or FD solvers.</P>
 ")
 ]).
 
@@ -2055,8 +2059,8 @@ X = 3
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This constraint is not defined for IC and FD solvers, but the functionality 
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [sqr/2]
 ]).
@@ -2084,8 +2088,8 @@ X = 3
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This constraint is not defined for IC and FD solvers, but the functionality 
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [sqrt/2]
 ]).
@@ -2112,8 +2116,8 @@ X = 3
    gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
    arc) consistency. 
 </P><P>
-   This primitive is not available in lib(ic) or lib(fd), but the 
-   functionality is available via the more general posting of expressions.</P>
+   This constraint is not defined for IC and FD solvers, but the functionality 
+   is available via the more general posting of expressions.</P>
 "),
     see_also: [sqrt/2]
 ]).
@@ -2142,8 +2146,8 @@ X = 3
         This constraint is known as maximum in the global constraint catalog,
         and is implemented using Gecode's max() constraint.
 </P><P>
-        This constraint is also available in lib(ic), lib(ic_global), lib(fd)
-        and lib(fd_global).
+        This constraint is also defined for IC and FD solvers in lib(ic), 
+        lib(ic_global), lib(fd) and lib(fd_global).
 "),
     see_also:[minlist/2,sumlist/2,collection_to_list/2]
     ]).
@@ -2162,7 +2166,7 @@ X = 3
    You may find it more convenient to embed <TT>max(Vars)</TT> in a
    constraint expression.
 </p><p>
-   This constraint is also available in lib(ic).
+   This constraint is also defined for IC solver in lib(ic).
 ")
 ]).
 
@@ -2190,8 +2194,8 @@ X = 3
         This constraint is known as minimum in the global constraint catalog,
         and is implemented using Gecode's min() constraint.
 </P><P>
-        This constraint is also available in lib(ic), lib(ic_global), lib(fd)
-        and lib(fd_global).
+        This constraint is also defined for IC and FD solvers in lib(ic), 
+        lib(ic_global), lib(fd) and lib(fd_global).
 "),
     see_also:[maxlist/2,sumlist/2,collection_to_list/2]
     ]).
@@ -2210,7 +2214,7 @@ X = 3
    You may find it more convenient to embed <TT>min(Vars)</TT> in a
    constraint expression.
 </p><p>
-   This constraint is also available in lib(ic).
+   This constraint is also defined for IC solver in lib(ic).
 ")
 ]).
 
@@ -2251,8 +2255,8 @@ X = 3
           global constraint catalog, and is implemented using Gecode's
           linear() constraint (with IRT_EQ relation).
           </P><P>
-          This constraint is also available in lib(ic_global) and 
-          lib(fd_global).</P>
+          This constraint is also defined for IC and FD solvers in 
+          lib(ic_global) and lib(fd_global).</P>
 ") 
     ]).
 
@@ -2309,7 +2313,7 @@ X = 3
           This constraint is known as sum_ctr in the global constraint 
           catalog, and is implemented using Gecode's linear() constraint.
           </P><P>
-          This constraint is not directly available in lib(ic) or lib(fd),
+          This constraint is not directly defined for IC and FD solvers,
           except for the more special case of sum/2 where ReOp is an
           implicit (#=). However, its functionality is covered by the
           posting of expressions.</P>
@@ -2347,7 +2351,7 @@ X = 3
           This constraint is implemented using Gecode's linear() constraint
           (reified version).
           </P><P>
-          This constraint is not directly available in lib(ic) or lib(fd),
+          This constraint is not directly defined for IC or FD solvers,
           except for the more special case of sum/2 where ReOp is an
           implicit (#=). However, its functionality is covered by the
           posting of reified expressions.</P>
@@ -2409,7 +2413,7 @@ C = C{[1, 4, 5]}
    consistency level for the propagation for this constraint: 
        gfd_gac for domain (generalised arc) consistency.
 </P><P>
-   This constraint is not available in lib(ic) or lib(fd).
+   This constraint is not defined for IC or FD solvers.
 ")
 ]).
 
@@ -2463,7 +2467,7 @@ Bool = 0
    consistency level for the propagation for this constraint: 
        gfd_gac for domain (generalised arc) consistency.
 </P><P>
-   This constraint is not available in lib(ic) or lib(fd).
+   This constraint is not defined for IC or FD solvers.
 ")
 ]).
 
@@ -2509,7 +2513,7 @@ Bool = 0
           This constraint is known as scalar_product in the global constraint 
           catalog, and is implemented using Gecode's linear() constraint.
           </P><P>
-          This constraint is not directly available in lib(ic) or lib(fd).
+          This constraint is not directly defined for IC or FD solvers.
           However, its functionality is covered by the posting of 
           expressions.</P>
     ") 
@@ -2549,7 +2553,7 @@ Bool = 0
           This constraint is implemented using Gecode's linear() constraint
           (reified version).
           </P><P>
-          This constraint is not directly available in lib(ic) or lib(fd),
+          This constraint is not directly defined for IC or FD solvers,
           except for the more special case of sum/2 where ReOp is an
           implicit (#=). However, its functionality is covered by the
           posting of reified expressions.</P>
@@ -2584,8 +2588,8 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic), and is available as (#/\\)/2 
-   in lib(fd).
+   This connective is also defined for IC solver in lib(ic), and is 
+   available as (#/\\)/2 for FD solver in lib(fd).
 ")
 ]).
 
@@ -2617,8 +2621,8 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic), and is available as (#/\\)/3 
-   in lib(fd).
+   This constraint is also defined for IC solver in lib(ic), and is 
+   available as (#/\\)/3 for FD solver in lib(fd).
 ")
 ]).
 
@@ -2650,8 +2654,8 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic), and is available as (#\\/)/2 
-   in lib(fd).
+   This constraint is also defined for IC solver in lib(ic), and is 
+   available as (#\\/)/2 for FD solver in lib(fd).
 ")
 ]).
 
@@ -2683,8 +2687,8 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic), and is available as (#\\/)/3 
-   in lib(fd).
+   This constraint is also defined for IC solver in lib(ic), and is 
+   available as (#\\/)/3 for FD solver in lib(fd).
 ")
 ]).
 
@@ -2716,7 +2720,7 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is not available in lib(ic) or lib(fd).
+   This constraint is not defined for IC or FD solvers.
 ")
 ]).
 
@@ -2748,7 +2752,7 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is not available in lib(ic) or lib(fd).
+   This constraint is not defined for IC or FD solvers.
 ")
 ]).
 
@@ -2780,8 +2784,8 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic), and is available as (#=>)/2 
-   in lib(fd).
+   This constraint is also defined for IC solver in lib(ic), and is 
+   available as (#=>)/2 for FD solver in lib(fd).
 ")
 ]).
 
@@ -2813,8 +2817,8 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic), and is available as (#=>)/3 
-   in lib(fd).
+   This constraint is also defined for IC solver in lib(ic), and is available 
+   as (#=>)/3 for FD solver in lib(fd).
 ")
 ]).
 
@@ -2850,8 +2854,8 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is defined in lib(ic) using (#=)/2 in a reified
-   context, and is available as (#<=>)/3 in lib(fd).
+   This constraint is available for IC solver in lib(ic) using (#=)/2 in a 
+   reified context, and is available as (#<=>)/3 for FD solver in lib(fd).
 ")
 ]).
 
@@ -2887,8 +2891,8 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is defined in lib(ic) using (#=)/3 in a reified
-   context, and is available as (#<=>)/3 in lib(fd).
+   This constraint is available for IC solver in lib(ic) using (#=)/3 in a 
+   reified context, and is available for FD solver as (#<=>)/3 in lib(fd).
 ")
 ]).
 
@@ -2950,8 +2954,8 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
-   This constraint is also defined in lib(ic), and is available as (##)/3 
-   in lib(fd).
+   This constraint is also defined for IC solver in lib(ic), and is 
+   available for FD solver as (##)/3 in lib(fd).
 ")
 ]).
 
@@ -2996,8 +3000,8 @@ Bool = 0
    This constraint is known as element in the global constraint catalog,
    and is implemented with Gecode's element() constraint.
 </P><P>
-   This constraint is available in lib(ic), lib(ic_global) and lib(fd),
-   where Collection are restricted to integers.
+   This constraint is defined for IC and FD solvers in lib(ic), lib(ic_global)
+   and lib(fd), where Collection are restricted to integers.
 "),
 	eg:"
 [eclipse 2]: element(I, [1,3,6,3], V).
@@ -3111,7 +3115,8 @@ A = 3
           constraint catalog, and the constraint is implemented using 
           Gecode's count() constraint.
   </p><p>
-          This constraint is available in lib(ic_global) and lib(fd_global).
+          This constraint is defined for IC and FD solvers in lib(ic_global) 
+          and lib(fd_global).
 "),
     see_also:[element/3, atmost/3, count/4, collection_to_list/2]
     ]).
@@ -3167,8 +3172,8 @@ N = N{[2, 3]}
    The constraint is also known as atmost in the global constraint
    catalog, and is implemented using Gecode's count() constraint.
   </p><p>
-   This constraint is available in lib(ic_global) and lib(fd_global),
-   with N restricted to an integer.
+   This constraint is defined for IC and FD solvers in lib(ic_global) 
+   and lib(fd_global), with N restricted to an integer.
 "),
 	args:["N" : "An integer or domain variable",
 	      "+Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
@@ -3214,7 +3219,7 @@ A = A{[-1000000 .. 1000000]}
    The constraint is also known as atleast in the global constraint
    catalog, and is implemented using Gecode's count() constraint.
 </p><p>
-   This constraint is not available in lib(ic) or lib(fd).
+   This constraint is not defined for IC or FD solvers.
 "),
 	args:["N" : "An integer or domain variable",
 	      "Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
@@ -3322,8 +3327,8 @@ A = A{[-1000000 .. 1000000]}
    It is implemented using gecode's count() constraint (variants with
    int or IntVar for argument representing Value).
 </p><p>
-   This constraint is not available in lib(ic) or lib(fd), but the more
-   specialised occurrences/3 and atmost/3 are available in IC and FD.
+   This constraint is not defined for IC or FD solvers, but the more
+   specialised occurrences/3 and atmost/3 are available in these solvers.
 ")
 ]).
 
@@ -3393,7 +3398,7 @@ N = N{[-1000000 .. 2, 4 .. 1000000]}
    This constraint is implemented by gecode's count() constraint (the variant
    with an IntSet argument for Values).
 </P><P>
-   This constraint is not available in lib(ic) or lib(fd).</P>
+   This constraint is not defined for IC or FD solvers.</P>
 ")
 ]).
 
@@ -3459,7 +3464,7 @@ N = 0
    This constraint is implemented by gecode's count() constraint 
    (variant with an IntArgs for Values). 
 </P><P>
-   This constraint is not available in lib(ic) or lib(fd).</P>
+   This constraint is not defined for IC or FD solvers.</P>
 ")
 ]).
 
@@ -3514,7 +3519,8 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
     This constraint is known as sort in the global constraint catalog,
     and is implemented using Gecode's sorted() constraint.
 <P>
-    This constraint is available in lib(ic_global) and lib(fd_global).
+    This constraint is defined for IC and FD solvers in lib(ic_global) 
+    and lib(fd_global).
  "),
     see_also:[sorted/3,ordered/2]
     ]).
@@ -3562,7 +3568,8 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
     This constraint is known as sort_permutation in the global
     constraint catalog, and is implemented using Gecode's sorted() constraint.
 <P>
-    This constraint is available in lib(ic_global) and lib(fd_global).
+    This constraint is defined for IC and FD solvers in lib(ic_global) 
+    and lib(fd_global).
 "),
     eg:"
 [eclipse 2]: length(Xs,4),Xs :: 1 .. 100,sorted(Xs, Ys, Ps),Xs = [8, 20|_].
@@ -3646,7 +3653,8 @@ B5 = B5{[0, 1]}
     and its associated 0/1 variable. This constraint is implemented using
     Gecode's channel() constraint (variant with BoolVarArgs and IntVar).
 </P><P>
-    This constraint is available in lib(ic_global) and lib(fd_global)..
+    This constraint is defined for IC and FD solvers in lib(ic_global) 
+    and lib(fd_global)..
 ")]).
 
 
@@ -3702,7 +3710,7 @@ B5 = B5{[0, 1]}
     from that given in the catalog, which does not require all values
     that Vars can take be specified by Bounds.
 </P><P>
-    This constraint is available in lib(ic_global_gac) and
+    This constraint is defined for IC and FD solvers in lib(ic_global_gac) and
     lib(fd_global_gac); where it is considered a proto-type implementation.
     In addition, only the gcc() bounds specifiers are supported for Bounds.
 ")
@@ -3748,8 +3756,8 @@ B5 = B5{[0, 1]}
      is implemented using Gecode's channel() constraint (variant with two
      IntVarArgs).
 </P><P>
-     This constraint is available in lib(ic_global), lib(ic_global_gac),
-     lib(fd_global) and lib(fd_global_gac).
+     This constraint is defined for IC and FD solvers in lib(ic_global), 
+     lib(ic_global_gac), lib(fd_global) and lib(fd_global_gac).
 ")]).
 
 :- comment(inverse_g/2, [
@@ -3813,8 +3821,8 @@ B5 = B5{[0, 1]}
      It is implemented using Gecode's channel() constraint (variant with two
      IntVarArgs and two integer offsets).
 </P><P>
-     This constraint is not available in lib(ic) and lib(fd); the version
-     without offsets (inverse/2) is available in IC and FD.
+     This constraint is not available for IC or FD solvers; the version
+     without offsets (inverse/2) is available for IC and FD.
 ")]).
 
 :- comment(inverse_g/4, [
@@ -3881,7 +3889,7 @@ A = 1
   This constraint is known as circuit in the global constraint catalog. It is
   implemented with Gecode's circuit() constraint with an offset of 1.
 </P><P>
-  This constraint is not available in lib(ic) or lib(fd).
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -3950,6 +3958,8 @@ C = 10
 </P><P>
   This constraint is implemented by Gecode's circuit() constraint (variant with 
   cost), using an offset of 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4035,6 +4045,8 @@ C = 10
 </P><P>
   This constraint is implemented by Gecode's circuit() constraint (variant with 
   cost and arc costs), using an offset of 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4092,6 +4104,8 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 </P><P>
   This constraint is implemented by Gecode's circuit() constraint, using an 
   offset of Offset + 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4153,6 +4167,8 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 </P><P>
   This constraint is implemented by Gecode's circuit() constraint (variant with 
   cost), using an offset of Offset + 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4220,6 +4236,8 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 </P><P>
   This constraint is implemented by Gecode's circuit() constraint (variant with 
   cost and arc costs), using an offset of Offset + 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4301,6 +4319,8 @@ E = 2
 </P><P>
   This constraint is implemented by Gecode's path() constraint, using an offset 
   of 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4390,6 +4410,8 @@ C = 5
 </P><P>
   This constraint is implemented by Gecode's path() constraint (variant with 
   cost), using an offset of 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4475,6 +4497,8 @@ C = 5
 </P><P>
   This constraint is implemented by Gecode's path() constraint (variant with 
   cost and arc costs), using an offset of 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4545,6 +4569,8 @@ C = 5
 </P><P>
   This constraint is implemented by Gecode's path() constraint, with
   an actual offset of 1 + Offset.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4612,6 +4638,8 @@ C = 5
 </P><P>
   This constraint is implemented by Gecode's path() constraint (variant with 
   cost), using an actual offset of Offset + 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4685,6 +4713,8 @@ C = 5
 </P><P>
   This constraint is implemented by Gecode's path() constraint (variant with 
   cost and arc costs), using an offset of Offset + 1.
+</P><P>
+  This constraint is not available for IC or FD solvers.
 ")
                       ]).
 
@@ -4720,14 +4750,35 @@ C = 5
            ],
   summary: "Constrain the tasks with specified start times and durations to not overlap in time.",
   see_also: [collection_to_list/2],
+  eg: "
+[eclipse 2]: disjunctive([1,7,4],[3,2,1]).    % succeed
+
+[eclipse 3]: disjunctive([1,7,3], [3,2,1]).   % fail
+
+[eclipse 4]: disjunctive([1,4,7,4],[3,0,2,1]). % succeed 
+
+[eclipse 5]: disjunctive([1,2,7,4],[3,0,2,1]). % fail 
+
+
+[eclipse 5]: [S2,S4]::[1..9], disjunctive([1,S2,7,S4], [3,1,2,1]).
+
+S2 = S2{[4 .. 9]}
+S4 = S4{[4 .. 9]}
+
+",
+
   desc:    html("\
 <P>
     A disjunctive scheduling constraint. StartTimes and Durations are
     collections (a la collection_to_list/2) of equal size N of integer
-    variables or integers. Durations must be non-negative. 
+    variables or integers. Durations must be non-negative.
+ </P><P>
     The declarative meaning is that the N tasks with the given start 
-    times and durations do not overlap at any point in time.
-</P><P>
+    times and durations do not overlap at any point in time, i.e. for
+    any pairs of tasks X and Y, the following holds:
+<PRE>
+        (Xstart + Xduration =< Ystart) or (Ystart + Yduration =< Xstart)
+</PRE></P><P>
     Note that the constraint is implemented by different Gecode propagators,
     depending on if Durations contains domain variables or not. If
     Durations does have domain variables, the Gecode propagator requires
@@ -4740,6 +4791,16 @@ C = 5
 </P><P>
     Any input variables which are not already domain variables will be
     converted into domain variables with default bounds.
+</P><P>
+    This constraint is also known as disjunctive in the global constraint
+    catalog, but in the catalog, tasks with zero duration are allowed
+    to overlap with other tasks. The consreaint is implemented using 
+    Gecode's unary constraint (with extra constraints on task end times if 
+    any task duration is a domain variable).
+</P><P>
+    This constraint is available for IC and FD solvers in 
+    lib(ic_edge_finder), lib(ic_edge_finder3), and lib(edge_finder) and 
+    lib(edge_finder3).
 </P>")
 ]).
 
@@ -4774,6 +4835,13 @@ C = 5
 </P><P>
     Any input variables which are not already domain variables will be
     converted into domain variables with default bounds.
+</P><P>
+    This constraint is implemented using Gecode's unary() constraint (with 
+    extra constraints on task end times if any task duration is a domain 
+    variable).
+</P><P>
+    This constraint is not available for IC and FD solvers; the
+    version without optional tasks (disjunctive/2) is available.
 </P>")
 ]).
 
@@ -4829,6 +4897,8 @@ C = 5
     A version of this constraint, generalised from two to multi-
     dimension, is known as diffn in the Global Constraint Catalog.
     It is implemented using Gecode's nooverlap() constraint.
+</P><P>
+    This constraint is not available for IC or FD solvers.
 </P>")
 ]).
 
@@ -4879,7 +4949,9 @@ C = 5
     dimension, and without optional placement, is known as diffn in
     the Global Constraint Catalog. It is implemented using Gecode's 
     nooverlap() constraint (variant with optional placement).
-</P>")
+</P><P>
+    This constraint is not available for IC or FD solvers.
+          </P>")
 ]).
 
 %----------------------------------------------------------------------
@@ -4893,6 +4965,15 @@ C = 5
          ],
   summary: "Single resource cumulative constraint on scheduling tasks.",
   see_also: [disjunctive/2, cumulative_optional/5, collection_to_list/2, _:cumulative/4],
+  eg: "
+
+% success (peak consumption is 7) 
+[eclipse 7]: cumulative([1,2,3,6,7], [3,9,10,6,2], [1,2,1,1,3], 8).
+
+% fail (peak consumption is 7)
+[eclipse 8]:  cumulative([1,2,3,6,7], [3,9,10,6,2], [1,2,1,1,3], 6).
+
+",
   desc:    html("\
 <P>
    A cumulative scheduling constraint. StartTimes, Durations and Usages 
@@ -4904,6 +4985,11 @@ C = 5
    a certain duration and consuming a certain (constant) amount of
    resource, then the sum of resource usage of all the tasks does not
    exceed ResourceLimit at any time. 
+</P><P>
+   A zero duration task both consume and release the resource it uses
+   at the same time-point, so effectively it does not consume any resources 
+   at that time-point, but there must be sufficient resources available at 
+   that time-point to allow the task to be scheduled.
 </P><P>
    Note that the constraint is implemented by different Gecode propagators,
    depending on if Durations contains domain variables or not. If
@@ -4917,6 +5003,15 @@ C = 5
 </P><P>
    Any input variables which are not already domain variables are turned
    into domain variables with default domain.
+</P><P>
+    This constraint is also known as cumulative in the global constraint
+    catalog, but in the catalog, tasks with zero duration have a different
+    definition of overlap with other tasks. The consreaint is implemented 
+    using Gecode's cumulative constraint (with extra constraints on task 
+    end-times if any task duration is a domain variable).
+</P><P>
+    This constraint is available for IC and FD solvers in lib(ic_edge_finder), 
+    lib(ic_edge_finder3), and lib(edge_finder) and lib(edge_finder3).
 </P>")
 ]).
 
@@ -4945,7 +5040,12 @@ C = 5
    resource, then the sum of resource usage of all the tasks does not
    exceed ResourceLimit at any time. A task would not be scheduled 
    if its Scheduled boolean is 0, and must be scheduled if 1.
-</P><P>
+/P><P>
+   A zero duration task both consume and release the resource it uses
+   at the same time-point, so effectively it does not consume any resources 
+   at that time-point, but there must be sufficient resources available at 
+   that time-point to allow the task to be scheduled.
+<</P><P>
    Note that the constraint is implemented by different Gecode propagators,
    depending on if Durations contains domain variables or not. If
    Durations does have domain variables, the Gecode propagator requires
@@ -4959,6 +5059,8 @@ C = 5
    Any input variables which are not already domain variables are turned
    into domain variables with default domain.
 </P><P>
+   This constraint is not available for IC and FD solvers; the version without
+   optional tasks is available.
 ")
 ]).
 
@@ -4979,6 +5081,13 @@ C = 5
          ],
   summary: "Multi-resource cumulatives constraint on specified tasks.",
   see_also: [disjunctive/2, cumulative/5, collection_to_list/2, _:cumulative/4,cumulatives_g/5],
+  eg:"
+[eclipse 4]: cumulatives([2,1,4,2,5,3,1],[2,4,2,3,2,2,4],[-2,1,-1,2,2,-1,1], 
+                [1,1,1,1,1,2,2], [2,1]).  % Succeed
+
+[eclipse 5]: cumulatives([2,1,4,2,5,3,1],[2,4,2,3,2,2,4],[-2,1,-1,2,2,-1,1], 
+                [1,1,1,1,1,2,2], [1,1]).  % Fails
+",
   desc:    html("\
 <P>
    A multi-resource cumulatives scheduling constraint - scheduling of M
@@ -4997,6 +5106,10 @@ C = 5
    Any input variables which are not already domain variables are turned
    into domain variables with default domain.
 </P><P>
+   This constraint generalise the cumulative constraint to multi-resources,
+   and is also more flexible, in that tasks can both produce and consume a
+   resource.
+</P><P>
     Note that the Gecode implementation of this constraint has index starting
     from 0, i.e. the numbering for the machines starts from 0. These native 
     indices are mapped to the  ECLiPSe indices starting from 1 with an 
@@ -5007,6 +5120,13 @@ C = 5
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
     gfd_vc for value consistency.
+</P><P>
+    This constraint is also known as cumulatives in the global constraint
+    catalog, where CTR is \"less than or equal to\" case  The consreaint is 
+    implemented using Gecode's cumulatives constraint (with extra constraints 
+    on task end-times if any task duration is a domain variable).
+</P><P>
+    This constraint is not available for IC or FD solvers.
 </P>")
 ]).
 
@@ -5053,6 +5173,16 @@ C = 5
   summary: "Multi-resource cumulatives constraint on specified tasks with"
 " required minimum resource consumptions.",
   see_also: [disjunctive/2, cumulative/5, collection_to_list/2, _:cumulative/4],
+  eg:"
+
+[eclipse 7]: cumulatives_min([2,1,4,2,5,3,1],[-2,4,2,3,2,2,4],
+                [2,1,-1,2, 2,-1,1], [1,1,1,1,1,2,2], [1,0]).  % Succeed
+ 
+[eclipse 8]: cumulatives_min([2,1,4,2,5,3,1],[2,4,2,3,2,2,4],
+                [-2,1,-1,2,2,-1,1], [1,1,1,1,1,2,2], [1,1]). % fails 
+
+
+",
   desc:    html("\
 <P>
    A multi-resource cumulatives scheduling constraint - scheduling of M
@@ -5071,7 +5201,10 @@ C = 5
    Any input variables which are not already domain variables are turned
    into domain variables with default domain.
 </P><P>
-
+   This constraint generalise the cumulative constraint to multi-resources,
+   and is also more flexible, in that tasks can both produce and consume a
+   resource.
+</P><P>
     Note that the Gecode implementation of this constraint has index starting
     from 0, i.e. the numbering for the machines starts from 0. These native 
     indices are mapped to the  ECLiPSe indices starting from 1 with an 
@@ -5082,6 +5215,13 @@ C = 5
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
     gfd_vc for value consistency.
+</P><P>
+    This constraint is known as cumulatives in the global constraint
+    catalog, where CTR is \"greater than or equal to\" case  The consreaint is 
+    implemented using Gecode's cumulatives constraint (with extra constraints 
+    on task end-times if any task duration is a domain variable).
+</P><P>
+    This constraint is not available for IC or FD solvers..
 </P>"
 )
 ]).
@@ -5128,6 +5268,10 @@ C = 5
         summary: "The number of values taken from Values is between Low and"
                  " High for all sequences of K variables in Vars.", 
         see_also: [sequence/4],
+        eg:"
+[eclipse 22]: sequence(1,2,4,[9,2,4,5,5,7,2], [0,2,4,6,8]). % Succeed
+
+",
         desc: html("\
 <P>
     This constraint ensures that the number of values taken from the set
@@ -5138,7 +5282,12 @@ C = 5
     consistency level for the propagation for this constraint: 
     gfd_gac for generalised arc consistency (domain consistency). 
 </P><P>
-    This constraint is known as among_seq in the global constraint catalog.
+    This constraint is known as among_seq in the global constraint catalog,
+    and is implemented using Gecode's sequence() constraint.
+</P><P>
+    This constraint is available for IC and FD solvers in lib(ic_global_gac)
+    and lib(fd_global_gac).
+</P>
 ") 
          ]
 ).
@@ -5154,6 +5303,12 @@ C = 5
         summary: "The number of occurrences of the value 1 is between Low and"
                  " High for all sequences of K variables in ZeroOnes", 
         see_also: [sequence/5],
+        eg:"
+[eclipse 20]: sequence(2,3,3,[1,0,1,1,0,1]).    % Succeed
+
+[eclipse 21]: sequence(2,3,3,[1,0,1,1,0,0,1]).  % Fail
+
+",
         desc: html("\
 <P>
     This constraint ensures that the number of occurrences of the value 1
@@ -5167,6 +5322,18 @@ C = 5
     ConsistencyModule is the optional module specification to give the 
     consistency level for the propagation for this constraint: 
     gfd_gac for generalised arc consistency (domain consistency), 
+</P><P>
+    This more general version of this constraint, sequence/5, where the 
+    values being checked is not limited to 1 is known as among_seq in the 
+    global constraint catalog, and this constraint is also implemented
+    via the more general Gecode sequence() constraint by limiting the value
+    set to 1. This version is provided here for compatibility with IC and 
+    FD, where the more general sequence/5 constraint is implemented on top
+    of this more restrictive sequence/4.
+</P><P>
+    This constraint is available for IC and FD solvers in lib(ic_global_gac)
+    and lib(fd_global_gac).
+</P>
 ") 
          ]
 ).
@@ -5184,6 +5351,15 @@ C = 5
        see_also:[bin_packing/4,bin_packing_g/3],
        summary:"The one-dimensional bin packing constraint with loads: packing "
                "M items into N bins, each bin having a load",
+       eg:"
+[eclipse 7]: bin_packing([3,1,3], [4,3,1], [L1,L2,L3,L4]).
+
+L1 = 3
+L2 = 0
+L3 = 5
+L4 = 0
+
+",
        desc: html("\
    This constraint is for one-dimensional bin-packing, that is, to pack M
    items with individual sizes into N bins, such that the sum of sizes of
@@ -5197,18 +5373,26 @@ C = 5
    the load allows a constraint on the load to be specified, such as a
    minimum and/or maximum load for the bin.
 </P><P>
-   This constraint and the algorithm used to implement it is described in
-   P. Shaw, 'A Constraint for Bin Packing', CP'2004, and is described in
-   the global constraint catalog as bin_packing, in the variation where
-   the CAPACITY parameter is replaced by a collection of domain variables
-   (BinLoads).
-</P><P>
     Note that the Gecode implementation of this constraint has index starting
     from 0, i.e. the numbering for the bins starts from 0. These native 
     indices are mapped to the  ECLiPSe indices starting from 1 with an 
     additional dummy zero'th bin that is assigned a dummy item 0. A version
     of this constraint that uses native Gecode indexing is available 
     as bin_packing_g/3.
+</P><P>
+   The global constraint catalog describes this constraint as a
+   variation of the bin_packing constraint where the fixed capacity for
+   every bin is replaced by the BinLoads variables. In addition, a more
+   restricted version of this constraint is also described in the global 
+   constraint catalog as bin_packing_capa, where instead of BinLoads,
+   each bin is given its own integer capacity, the maximum load that
+   bin can take, this is equivalent to giving the corresponding variable 
+   for the bin in BinLoads the domain 0..Capacity. 
+</p><p>
+   This constraint is implemented using Gecode's binpacking() constraint.
+</p><p>
+   This constraint is available for IC and FD solvers in lib(ic_global)
+   and lib(fd_global).
 </p>
 ")
           ]).
@@ -5245,6 +5429,12 @@ C = 5
        see_also:[bin_packing/3, cumulative/4],
        summary:"The one-dimensional bin packing constraint: packing M items"
                " into N bins of size BinSize.",
+       eg: "
+[eclipse 4]: bin_packing([3,1,3], [4,3,1], 3, 5).  % Succeed
+
+[eclipse 5]: bin_packing([3,3,3], [4,3,1], 3, 5).  % Fails
+
+",
        desc: html("\
    This constraint is for one-dimensional bin-packing, that is, to pack M
    items with individual sizes into N bins, such that the sum of sizes of 
@@ -5256,24 +5446,27 @@ C = 5
    This constraint can be seen as a special case of the cumulative/4
    constraint, where all task durations are equal to 1, each bin
    represents a time point, and BinSize corresponds to the Resource.
-</P><P>
-   This constraint and the algorithm used to implement it is described in
-   P. Shaw, 'A Constraint for Bin Packing', CP'2004, with a fixed size for 
-   the bins. It is also described in the global constraint catalog as 
-   bin_packing, but with slightly different arguments: in the catalog, N
-   (the number of bins) is implicitly defined by the domain of the variables 
-   in Items, and the representation of item is grouped into a single argument
-   of collection of pairs, each pair representing an item: the bin to pack 
-   the item, and its size.
 </p><p>
-   Note that this constraint is implemented using the more general 
-   bin_packing/4, where each bin has its own size, represented by a domain
+   This constraint is implemented using the more general 
+   bin_packing/3, where each bin has its own size, represented by a domain
    variable, as this is what is implemented by Gecode. This form of
    the constraint with a fixed BinSize is more common. so it is
    provided for convenience and compatibility. Note that this constraint
    uses ECLiPSe indexing -- bins are indexed starting from 1. There is no     
    Gecode indexing version of this constraint as it is not implemented
    directly in Gecode.
+</P><P>
+   This constraint is described in the global constraint catalog as 
+   bin_packing, but with slightly different arguments: in the catalog, N
+   (the number of bins) is implicitly defined by the domains of the variables 
+   in Items, and the representation of item is grouped into a single argument
+   of collection of pairs, each pair representing an item: the bin to pack 
+   the item, and its size. It is implemented using Gecode's binpacking() 
+   constraint, with the loads of all bins set to the domain 0..BinSize,i.e..
+   that they all have capacity of BinSize.
+</p><p>
+   This constraint is available for IC and FD solvers in lib(ic_global)
+   and lib(fd_global).
 </p>
 ")
           ]).
@@ -5288,6 +5481,21 @@ C = 5
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    eg:"
+[eclipse 31]: lex_le([5,2,3,1], [5,2,6,2]).
+   ...
+Yes (0.00s cpu)
+[eclipse 32]: lex_le([5,2,3,9], [5,2,3,9]).
+   ...
+Yes (0.00s cpu)
+[eclipse 33]: lex_le([5,2,4], [5,2,4,1]).
+  ...
+Yes (0.00s cpu)
+[eclipse 34]: lex_le([5,2,4,1], [5,2,4,0]).
+
+No (0.00s cpu)
+
+",
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
 	I.e.  either is the first element of Collection1 strictly smaller
@@ -5297,7 +5505,14 @@ C = 5
         reached) is strictly smaller than any existing element.
 </P><P>
         This constraint is known as lex_lesseq in the global constraint
-        catalog. 
+        catalog, but the catalog's definition requires Collection1 and
+        Collection2 to be the same size. It is implemented using Gecode's
+        rel() constraint (variant that takes two IntVarArgs arguments),
+        with the IRT_LQ IntRelType.
+</P><P>
+        This constraint is available for IC and FD solvers in lib(ic_global),
+        lib(ic_global_gac), and lib(fd_global) and lib(fd_global_gac).
+</P>
 ")
 ]).
 
@@ -5309,6 +5524,24 @@ C = 5
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    eg:"
+[eclipse 36]: lex_lt([5,2,3,9], [5,2,6,2]).
+
+ ...
+Yes (0.00s cpu)
+[eclipse 37]: lex_lt([5,2,3,9], [5,2,6]).
+
+ ...
+Yes (0.00s cpu)
+[eclipse 38]: lex_lt([5,2,3], [5,2,3,9]).
+
+ ...
+Yes (0.00s cpu)
+[eclipse 39]: lex_lt([5,2,3,4], [5,2,3,4]).
+
+No (0.00s cpu)
+
+",
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
 	I.e.  either is the first element of Collection1 strictly smaller
@@ -5318,7 +5551,15 @@ C = 5
         reached)is strictly smaller than any existing element.
 </P><P>
         This constraint is known as lex_less in the global constraint
-        catalog. 
+        catalog. but the catalog's definition requires Collection1 and
+        Collection2 to be the same size. It is implemented using Gecode's
+        rel() constraint (variant that takes two IntVarArgs arguments),
+        with the IRT_LE IntRelType.
+</P><P>
+        This constraint is available for IC and FD solvers in lib(ic_global),
+        lib(ic_global_gac), and lib(fd_global) and lib(fd_global_gac).
+</P>
+
 ")
 ]).
 
@@ -5329,6 +5570,24 @@ C = 5
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    eg:"
+[eclipse 40]: lex_ge([5,2,8,9],[5,2,6,2]).
+
+...
+Yes (0.00s cpu)
+[eclipse 41]: lex_ge([5,2,3,9], [5,2,3,9]).
+
+...
+Yes (0.00s cpu)
+
+[eclipse 42]: lex_ge([5,2,3,9], [5,2,3]).
+
+...
+Yes (0.00s cpu)
+[eclipse 43]: lex_ge([5,2,3,9], [5,3,1]).
+
+No (0.00s cpu)
+",
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
 	I.e.  either is the first element of Collection1 strictly larger
@@ -5338,7 +5597,14 @@ C = 5
         reached) is strictly smaller than any existing element.
 </P><P>
         This constraint is known as lex_greatereq in the global constraint
-        catalog. 
+        catalog, but the catalog's definition requires Collection1 and
+        Collection2 to be the same size. It is implemented using Gecode's
+        rel() constraint (variant that takes two IntVarArgs arguments),
+        with the IRT_GQ IntRelType.
+</P><P>
+        This constraint is not available in IC or FD solvers, but lex_le/2
+        can be used with the arguments reversed.
+</P>
 ")
 ]).
 
@@ -5350,6 +5616,19 @@ C = 5
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    eg:"
+[eclipse 44]: lex_gt([5,2,7,1], [5,2,6,2]).
+
+...
+Yes (0.00s cpu)
+[eclipse 45]: lex_gt([5,2,7,1], [5,2,7]).
+
+...
+Yes (0.00s cpu)
+[eclipse 46]: lex_gt([5,2,7,1], [5,2,7,3]).
+
+No (0.00s cpu)
+",
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
 	I.e.  either is the first element of Collection1 strictly greater
@@ -5359,7 +5638,14 @@ C = 5
         reached)is strictly smaller than any existing element.
 </P><P>
         This constraint is known as lex_greater in the global constraint
-        catalog. 
+        catalog, but the catalog's definition requires Collection1 and
+        Collection2 to be the same size. It is implemented using Gecode's
+        rel() constraint (variant that takes two IntVarArgs arguments),
+        with the IRT_GR IntRelType.
+</P><P>
+        This constraint is not available in IC or FD solvers, but lex_lt/2
+        can be used instead with the arguments reversed.
+</P>
 ")
 ]).
 
@@ -5370,6 +5656,21 @@ C = 5
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    eg:"
+[eclipse 48]: lex_eq([1,9,1,5], [1,9,1,5]).
+
+...
+Yes (0.00s cpu)
+[eclipse 49]: lex_eq([1,9,1,5], [1,9,2,5]).
+
+No (0.00s cpu)
+[eclipse 50]: lex_eq([1,9,1,5], [1,9,0,5]).
+
+No (0.00s cpu)
+[eclipse 51]: lex_eq([1,9,1], [1,9,1,5]).
+
+No (0.00s cpu)
+",
     desc:html("\
     	Constrains the two collections to be lexicographically equal, i.e.
 	the two collections are the same length, and each
@@ -5377,7 +5678,14 @@ C = 5
         other collection.
 </P><P>
         This constraint is known as lex_equal in the global constraint
-        catalog. 
+        catalog, but the catalog's definition requires Collection1 and
+        Collection2 to be the same size. It is implemented using Gecode's
+        rel() constraint (variant that takes two IntVarArgs arguments),
+        with the IRT_EQ IntRelType.
+</P><P>
+        This constraint is not available in IC or FD.
+</P>
+
 ")
 ]).
 
@@ -5388,6 +5696,24 @@ C = 5
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    eg:"
+[eclipse 52]: lex_ne([5,2,7,1], [5,3,7,1]).
+
+...
+Yes (0.00s cpu)
+[eclipse 53]: lex_ne([5,2,7,1], [5,2,7]).
+
+...
+Yes (0.00s cpu)
+[eclipse 54]: lex_ne([5,2,7], [5,2,7,1]).
+
+...
+Yes (0.00s cpu)
+[eclipse 55]: lex_ne([5,2,7,1], [5,2,7,1]).
+
+No (0.00s cpu)
+
+",
     desc:html("\
     	Constrains the two collections to be lexicographically different, i.e.
 	the two collections are either different lengths, or at least
@@ -5395,7 +5721,13 @@ C = 5
         element in the other collection.
 </P><P>
         This constraint is known as lex_different in the global constraint
-        catalog. 
+        catalog, but the catalog's definition requires Collection1 and
+        Collection2 to be the same size. It is implemented using Gecode's
+        rel() constraint (variant that takes two IntVarArgs arguments),
+        with the IRT_NQ IntRelType.
+</P><P>
+        This constraint is not available in IC or FD.
+</P>
 ")
 ]).
 
@@ -5489,6 +5821,11 @@ D = 4
      not_all_equal (#\\=) in the Global Constraint Catalog, and is implemented
      using Gecode's rel() constraint (variant with an IntVarArgs and an 
      IntRelType).
+</P><P>
+     This constraint is available for the IC and FD solvers, in lib(ic_global)
+     and lib(fd_global), with one difference: the (#\\=) for the Relation 
+     argument is not defined for these constraints.
+</P>
     "),
     see_also:[lex_le/2,lex_lt/2,lex_ge/2,lex_gt/2,sorted/2,collection_to_list/2]
     ]).
@@ -5532,6 +5869,9 @@ E = E{[-1000000 .. 1000000]}
       This constraint is known as int_value_precede in the Global
       Constrain Catalog, and is implemented using Gecode's precede()
       constraint (variant with int arguments for s and t).
+</P><P>
+      This constraint is not available for the IC and FD solvers.
+</P>
     "),
     see_also:[precede/2,collection_to_list/2]
     ]).
@@ -5572,6 +5912,9 @@ E = E{[-1000000 .. 1000000]}
       This constraint is known as int_value_precede_chain in the Global
       Constrain Catalog, and is implemented using Gecode's precede()
       constraint (variant with IntArg argument for Values).
+</P><P>
+      This constraint is not available for the IC and FD solvers.
+</P>
     "),
     see_also:[precede/3,collection_to_list/2]
     ]).
@@ -5631,7 +5974,11 @@ No (0.00s cpu)
    with the allowance for multiple collections of variables taken from
    SICStus Prolog's table/2 constraint. This constraint is implemented in
    Gecode as the extensional() constraint with the variant that takes a
-   TupleSet as an argument.")
+   TupleSet as an argument.
+</p><p>
+   This constraint is not available for the IC or FD solvers.
+</p>
+")
 ]).
 
 :- comment(table/3, [
@@ -5687,7 +6034,11 @@ No (0.00s cpu)
    with the allowance for multiple collections of variables taken from
    SICStus Prolog's table/2 constraint. This constraint is implemented in
    Gecode as the extensional() constraint with the variant that takes a
-   TupleSet as an argument.")
+   TupleSet as an argument.
+</p><p>
+   This constraint is not available for the IC or FD solvers.
+</p>
+")
 ]).
 
 %----------------------------------------------------------------------
@@ -5792,7 +6143,11 @@ F = 4
    gfd_gac for generalised arc consistency (domain consistency).
 </p><p>
    This constraint is implemented in Gecode as the extensional() constraint 
-   with the variant that takes a REG (regular expression) as an argument.")
+   with the variant that takes a REG (regular expression) as an argument.
+</p><p>
+   This constraint is not available for the IC or FD solvers.
+</p>
+")
 ]).
 
 %----------------------------------------------------------------------
@@ -5880,7 +6235,11 @@ No (0.00s cpu)
    gfd_gac for generalised arc consistency (domain consistency).
 </p><p>
    This constraint is implemented in Gecode as the extensional() constraint 
-   with the variant that takes a REG (regular expression) as an argument.")
+   with the variant that takes a REG (regular expression) as an argument.
+</p><p>
+   This constraint is not available for the IC or FD solvers.
+</p>
+")
 ]).
 
   
@@ -6213,6 +6572,8 @@ in ECLiPSe, and the coding is based on delete/6 from generic search
  (gfd_search), except for how the property for selection is obtained. This
 allowed selection methods not supported by generic search, such as 
 weighted degree, to be used. 
+</p>,p>
+This predicate is defined for IC and FD solvers in lib(ic) and lib(fd_search).
 "),
 fail_if:"fails if the list is empty",
 resat:no,
@@ -6331,7 +6692,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Update (if required) the lower bound of Var.",
     see_also: [impose_max/2, impose_bounds/3, impose_domain/2, exclude/2, exclude_range/3],
     desc: html("<P>
-   This predicate is provided mainly for compatibility with lib(ic).
+   This predicate is provided mainly for compatibility with IC solver.
    If you intend to impose the same minimum on multiple variables, it
    is more efficient to use the lib(gfd) specific gfd_vars_impose_min/2.
 </P><P>
@@ -6356,7 +6717,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    caller should arrange for wake/0 to be called at some appropriate point 
    in the subsequent execution.  Please see the \"Advanced Control Features\" 
    section of the User Manual for more information about woken goal 
-   management.</P>
+   management.
+</P><P>
+   This predicate is defined for IC solver in lib(ic_kernel).
+</P>
 ")
 
 ]).
@@ -6372,7 +6736,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Update (if required) the upper bound of Var.",
     see_also: [impose_min/2, impose_bounds/3, impose_domain/2, exclude/2, exclude_range/3],
     desc: html("<P>
-   This predicate is provided mainly for compatibility with lib(ic).
+   This predicate is provided mainly for compatibility with IC solver.
    If you intend to impose the same maximum on multiple variables, it
    is more efficient to use the lib(gfd) specific gfd_vars_impose_max/2.
 </P><P>
@@ -6399,6 +6763,9 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    in the subsequent execution.  Please see the \"Advanced Control Features\" 
    section of the User Manual for more information about woken goal 
    management.</P>
+</P><P>
+   This predicate is defined for IC solver in lib(ic_kernel).
+</P>
 ")
 ]).
 
@@ -6415,7 +6782,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Update (if required) the bounds of Var.",
     see_also: [impose_min/2, impose_max/2],
     desc: html("<P>
-   This predicate is provided mainly for compatibility with lib(ic).
+   This predicate is provided mainly for compatibility with IC solver.
    If you intend to impose the same bounds on multiple variables, it
    is more efficient to use the lib(gfd) specific gfd_vars_impose_min/2
    (which additionally does not call wake).
@@ -6428,6 +6795,8 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 <PRE>
        impose_min(Var, Lo), impose_max(Var, Hi), wake.
 </PRE>
+</P><P>
+   This predicate is defined for IC solver in lib(ic_kernel).
 ")
 ]).
 
@@ -6443,7 +6812,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Restrict (if required) the domain of Var to the domain of DomVar.",
     see_also: [impose_min/2, impose_max/2, impose_bounds/3, exclude/2, exclude_range/3],
     desc: html("<P>
-   This predicate is provided mainly for compatibility with lib(ic).
+   This predicate is provided mainly for compatibility with IC solver.
    If you intend to impose the same domain on multiple variables, it
    is more efficient to use the lib(gfd) specific gfd_vars_impose_domain/2,
    which additionally offer more flexibility in allowing the domain to be
@@ -6462,7 +6831,8 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    The waking behaviour is the same as discussed for impose_min/2 and
    impose_max/2.  Apart from this, the effect is similar to unifying
    Var with a copy of DomVar.
-   </P>
+</P><P>
+   This predicate is defined for IC solver in lib(ic_kernel).
 "),
     eg: "\
     ?- X::1..9, Y::5..7, impose_domain(X, Y).
@@ -6502,7 +6872,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Exclude the element Excl from the domain of Var.",
     see_also: [exclude_range/3, impose_min/2, impose_max/2, impose_domain/2],
     desc: html("<P>
-   This predicate is mainly provided for compatibility with lib(ic).
+   This predicate is mainly provided for compatibility with IC solver.
    If you want to remove multiple values from the domain of one or 
    more variables, it is more efficient to use the lib(gfd) specific 
    gfd_vars_exclude/2.
@@ -6527,7 +6897,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    caller should arrange for wake/0 to be called at some appropriate point 
    in the subsequent execution.  Please see the \"Advanced Control Features\" 
    section of the User Manual for more information about woken goal 
-   management.</P>
+   management.
+</P><P>
+   This predicate is defined for IC solver in lib(ic_kernel).
+</P>
 ")
 ]).
 
@@ -6544,7 +6917,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     summary: "Exclude the elements Lo..Hi from the domain of Var.",
     see_also: [exclude/2, impose_min/2, impose_max/2],
     desc: html("<P>
-   This predicate is mainly provided for compatibility with lib(ic).
+   This predicate is mainly provided for compatibility with IC solver.
    If you want to exclude the same range of values from multiple variables,
    it is more efficient to use the lib(gfd) specific gfd_vars_exclude_range/3.
 </P><P>
@@ -6569,7 +6942,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
    caller should arrange for wake/0 to be called at some appropriate point 
    in the subsequent execution.  Please see the \"Advanced Control Features\" 
    section of the User Manual for more information about woken goal 
-   management.</P>
+   management.
+</P><P>
+   This predicate is defined for IC solver in lib(ic_kernel).
+</P>
 ")
 ]).
 
