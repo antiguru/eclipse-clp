@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.4 2011/05/05 07:46:51 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.5 2012/01/08 09:57:37 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2011/05/05 07:46:51 $").
+:- comment(date, "$Date: 2012/01/08 09:57:37 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -1357,12 +1357,14 @@ makedir(Dir) :-
 	    true
 	;
 	    mkdir(Dir),
-	    ( get_flag(hostarch, "i386_nt") -> true
+            get_flag(hostarch, Arch),
+	    ( (Arch == "i386_nt" ; Arch == "x86_64_nt") -> true
 	    ; exec([chmod,755,Dir], []))
 	).
 
 chmod644(File) :-
-	( get_flag(hostarch, "i386_nt") -> true
+        get_flag(hostarch, Arch),
+        ( (Arch == "i386_nt" ; Arch == "x86_64_nt") -> true
 	; exec([chmod,644,File], [])).
 
 
