@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.3 2011/04/01 03:38:45 jschimpf Exp $
+ * $Id: os_support.h,v 1.4 2012/01/09 11:49:34 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -84,6 +84,12 @@
 #define LSEEK_INCR	1
 #define LSEEK_END	2
 #endif
+
+/* options for the expand_filename() function */
+#define EXPAND_SYNTACTIC 0	/* expand ~ and $, remove redundant . and / */
+#define EXPAND_STANDARD	 1	/* SYNTACTIC (proccess) or ABSOLUTE (private) */
+#define EXPAND_ABSOLUTE	 2	/* SYNTACTIC + absolute */
+#define EXPAND_NORMALISE 3	/* ABSOLUTE + symlinks, capitalisation etc */
 
 
 /* When to use a timer thread instead of SIGALRM */
@@ -149,12 +155,13 @@ extern char	ec_version[];
 extern int	clock_hz;
 extern int	ec_os_errno_;
 extern int	ec_os_errgrp_;
+extern int	ec_use_own_cwd;
 extern int      ec_sigalrm;
 extern int      ec_sigio;
 
 void	ec_os_init ARGS((void));
 void	ec_os_fini ARGS((void));
-char *	expand_filename ARGS((char *in, char *out));
+char *	expand_filename ARGS((char *in, char *out, int option));
 char *	os_filename ARGS((char *in, char *out));
 extern DLLEXP	char *		os_filename ARGS((char *in, char *out));
 char *	canonical_filename ARGS((char *in, char *out));

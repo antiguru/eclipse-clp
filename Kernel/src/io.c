@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.10 2010/08/01 03:48:48 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.11 2012/01/09 11:49:34 jschimpf Exp $
  */
 
 /*
@@ -768,8 +768,8 @@ ec_open_file(char *name, int mode, int *err)
     default:			*err = RANGE_ERROR; return NO_STREAM;
     }
 
-    /* try to open the file */
-    (void) expand_filename(name, buf);
+    /* try to open the file (don't use absolute path if possible) */
+    (void) expand_filename(name, buf, EXPAND_STANDARD);
     if ((fd = ec_open(buf, smode, 0666)) < 0) {
 	Set_Errno;
 	*err = SYS_ERROR;
@@ -780,11 +780,7 @@ ec_open_file(char *name, int mode, int *err)
     /* make the stream descriptor */
     nst = find_free_stream();
     init_stream(nst, fd, mode|io_type->io_type, enter_dict(name, 0), NO_PROMPT, NO_STREAM, 0);
-    if (buf[0] != '/')
-    {
-	i = get_cwd(buf, MAX_PATH_LEN);
-    }
-    (void) expand_filename(name, buf+i);
+    (void) expand_filename(name, buf, EXPAND_ABSOLUTE);
     StreamPath(nst) = enter_dict(buf, 0);
     return(nst);
 }

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.4 2010/09/24 20:08:53 kish_shen Exp $
+ * $Id: embed.h,v 1.5 2012/01/09 11:49:34 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -73,7 +73,8 @@ enum {
 	EC_OPTION_ECLIPSEDIR		=11,
 	EC_OPTION_IO			=12,
 	EC_OPTION_INIT			=13,
-	EC_OPTION_DEBUG_LEVEL		=14
+	EC_OPTION_DEBUG_LEVEL		=14,
+	EC_OPTION_CWD_SEPARATE		=15
 };
 
 /*

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.6 2011/04/01 03:38:45 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.7 2012/01/09 11:49:34 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -110,8 +110,7 @@ static int p_date(value v, type t),
 	p_argc(value v0, type t0),
 	p_argv(value v0, type t0, value v1, type t1),
 	p_cd(value v, type t),
-	p_cd_if_possible(value v, type t),
-	p_expand_filename(value vin, type tin, value vout, type tout),
+	p_expand_filename(value vin, type tin, value vout, type tout, value vopt, type topt),
 	p_os_file_name(value vecl, type tecl, value vos, type tos),
 	p_getcwd(value sval, type stag),
 	p_getenv(value v0, type t0, value v1, type t1),
@@ -176,7 +175,7 @@ bip_misc_init(int flags)
 	(void) built_in(in_dict("date",1), 	p_date,	B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("local_time",8),  p_local_time,	B_UNSAFE|U_GROUND);
 	(void) built_in(in_dict("local_time_string",3),  p_local_time_string,	B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("expand_filename",2),
+	(void) local_built_in(in_dict("expand_filename",3),
 				p_expand_filename,	B_UNSAFE|U_SIMPLE);
 	built_in(in_dict("os_file_name",2), 	p_os_file_name, B_UNSAFE|U_GROUND)
 		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
@@ -190,7 +189,6 @@ bip_misc_init(int flags)
 	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
 	(void) built_in(in_dict("getcwd", 1), 	p_getcwd,  B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("cd", 1),		p_cd, 	B_SAFE);
-	(void) built_in(in_dict("cd_if_possible", 1),	p_cd_if_possible, 	B_SAFE);
 	(void) built_in(in_dict("get_hr_time", 1), p_get_hr_time, 	B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("set_timer", 2), p_set_timer, 	B_SAFE);
 	(void) built_in(in_dict("get_timer", 2),
@@ -734,9 +732,8 @@ p_suffix(value sval, type stag, value sufval, type suftag)
 static int
 p_pathname(value sval, type stag, value pathval, type pathtag, value vfile, type tfile)
 {
-	char		*p;
 	char		*path;
-	char		*t;
+	char		*p, *d, *f, *e;
 	char		c;
 	char		fullname[MAX_PATH_LEN];
 	value		v;
@@ -746,20 +743,41 @@ p_pathname(value sval, type stag, value pathval, type pathtag, value vfile, type
 	Get_Name(sval, stag, path);
 	Check_Output_String(pathtag);
 	Check_Output_String(tfile);
-	t = p = path = expand_filename(path, fullname);
+	d = e = f = expand_filename(path, fullname, EXPAND_SYNTACTIC);
 
-	if (path[0] == '/' && path[1] == '/')
-	    p = &path[2];
+	if (*e == '/') {
+	    ++e;
+	    if ((c = *e) == '/') {
+		++e;
+		while ((c = *e) && c != '/')	/* skip drive/share spec */
+		    ++e;
+		f = e;
+		if (!c) {
+		    /* dir="//share", file="/" */
+		    *e++ = '/';
+		    *e = '\0';
+		}
+	    } else if (c) {
+		f = e;
+	    }
+	    /* else dir="", file="/" */
+	}
 
-	while (c = *p++)
-		if (c == '/' && *p)	/* we ignore trailing '/' */
-			path = p;
+	while (c = *e)
+	{
+	    ++e;
+	    if (c == '/') f = e;	/* remember last slash */
+	}
 
-	Make_Stack_String(path - t, v, p);
-	while (t < path)
-		*p++ = *t++;
+	Make_Stack_String(f-d, v, p);	/* copy directory part */
+	while (d < f)
+		*p++ = *d++;
 	*p = '\0';
-	Cstring_To_Prolog(path, vf);
+
+	Make_Stack_String(e-f, vf, p);	/* copy filename part */
+	while (f < e)
+		*p++ = *f++;
+	*p = '\0';
 
         Request_Unify_String(pathval,pathtag,v.ptr);
         Request_Unify_String(vfile, tfile, vf.ptr);
@@ -768,23 +786,24 @@ p_pathname(value sval, type stag, value pathval, type pathtag, value vfile, type
 
 
 /*
- * expand_filename(+NameIn, ?NameOut)
+ * expand_filename(+NameIn, ?NameOut, Option)
  *
- * expand ~, ~user and $VAR at the beginning of the filename,
- * and remove extra leading /, ./  from each subpath.
+ * Various expansions on a file name, depending on options.
  */
 
 static int
-p_expand_filename(value vin, type tin, value vout, type tout)
+p_expand_filename(value vin, type tin, value vout, type tout, value vopt, type topt)
 {
     char *in, out[MAX_PATH_LEN];
     value v;
+    Check_Integer(topt);
     Get_Name(vin, tin, in);
     Check_Output_String(tout);
-    (void) expand_filename(in, out);
+    (void) expand_filename(in, out, vopt.nint);
     Cstring_To_Prolog(out, v);
     Return_Unify_String(vout, tout, v.ptr);
 }
+
 
 static int
 p_os_file_name(value vecl, type tecl, value vos, type tos)
@@ -829,42 +848,23 @@ p_getcwd(value sval, type stag)
 	int	len;
 
 	Check_Output_String(stag);
-	len = get_cwd(buf, MAX_PATH_LEN);
-	Make_Stack_String(len, v, s);
-	Copy_Bytes(s, buf, len+1);
+	v.ptr = TG;
+	Push_Buffer(MAX_PATH_LEN);
+	len = ec_get_cwd(StringStart(v), MAX_PATH_LEN);
+	Trim_Buffer(v.ptr, len+1);
 	Return_Unify_String(sval, stag, v.ptr);
 }
+
 
 static int
 p_cd(value v, type t)
 {
-	char   *name;
-	char	buf[MAX_PATH_LEN];
-
-	Get_Name(v,t,name)
-	name = expand_filename(name, buf);
-	if (ec_chdir(name)) {
-		Set_Errno
-		Bip_Error(SYS_ERROR)
-	}
-	Succeed_;
-}
-
-/* moved into C from ECLiPSe for compatibility with Windows Vista, where
-   checking that a directory has executable flag set does not work
-*/
-static int
-p_cd_if_possible(value v, type t)
-{
-	char   *name;
-	char	buf[MAX_PATH_LEN];
-
-	Get_Name(v,t,name)
-	name = expand_filename(name, buf);
-	if (ec_chdir(name)) {
-	    Fail_;
-	}
-	Succeed_;
+    char   *name;
+    Get_Name(v,t,name)
+    if (ec_set_cwd(name)) {
+	Bip_Error(SYS_ERROR);
+    }
+    Succeed_;
 }
 
 
@@ -1361,6 +1361,9 @@ p_sys_file_flag(value fv, type ft, value nv, type nt, value vv, type vt)
     char		*str;
     value		val;
     int			acc;
+
+    /* CAUTION: this low-level primitive expects a file name
+     * that is expanded to at least EXPAND_STANDARD! */
 
     Get_Name(fv, ft, name);
     if (nv.nint <= 16) {

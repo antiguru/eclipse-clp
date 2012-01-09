@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.11 2011/03/04 05:18:04 kish_shen Exp $
+ * VERSION	$Id: bip_io.c,v 1.12 2012/01/09 11:49:34 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1205,7 +1205,7 @@ p_delete(value v, type t)
     struct_stat	file_stat;
 
     Get_Name(v,t,name)
-    name = expand_filename(name, fullname);
+    name = expand_filename(name, fullname, EXPAND_STANDARD);
 
     if (ec_stat(name, &file_stat) < 0)
     {
@@ -1231,7 +1231,7 @@ p_mkdir(value v, type t)
     char   fullname[MAX_PATH_LEN];
 
     Get_Name(v,t,name)
-    name = expand_filename(name, fullname);
+    name = expand_filename(name, fullname, EXPAND_STANDARD);
 
     if (ec_mkdir(name, 0777) < 0)
     {
@@ -1251,8 +1251,8 @@ p_rename(value vo, type to, value vd, type td)
     char   fullnew[MAX_PATH_LEN];
     Get_Name(vo,to,old)
     Get_Name(vd,td,new)
-    old = expand_filename(old, fullold);
-    new = expand_filename(new, fullnew);
+    old = expand_filename(old, fullold, EXPAND_STANDARD);
+    new = expand_filename(new, fullnew, EXPAND_STANDARD);
     if (ec_rename(old, new) < 0) {
 	Set_Errno
 	Bip_Error(SYS_ERROR)
@@ -1272,9 +1272,9 @@ p_rename(value vo, type to, value vd, type td)
     Get_Name(vo,to,nameo)
     Get_Name(vd,td,named)
     (void) strcpy(buf, "mv ");
-    (void) expand_filename(nameo, &buf[3]);
+    (void) expand_filename(nameo, &buf[3], EXPAND_STANDARD);
     (void) strcat(buf, " ");
-    (void) expand_filename(named, &buf[strlen(buf)]);
+    (void) expand_filename(named, &buf[strlen(buf)], EXPAND_STANDARD);
 #ifdef NO_SYSTEM_RETURN
     (void) system(buf);
 #else
@@ -2390,6 +2390,7 @@ static int
 p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type tsubdirs, value vfiles, type tfiles)
 {
     char		*name, *pattern;
+    char		exp_name[MAX_PATH_LEN];
     char		full_name[MAX_PATH_LEN];
     HANDLE		dirp;
     WIN32_FIND_DATA	dent;
@@ -2404,6 +2405,7 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
     Check_Output_List(tsubdirs);
     Check_Output_List(tfiles);
 
+    name = expand_filename(name, exp_name, EXPAND_STANDARD);
     name = strcat(os_filename(name, full_name), "/*.*");
 
     dirp = FindFirstFile(name, &dent);
@@ -2464,6 +2466,7 @@ static int
 p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type tsubdirs, value vfiles, type tfiles)
 {
     char		*name, *pattern;
+    char		exp_name[MAX_PATH_LEN];
     char		full_name[MAXNAMLEN];	/* for stat() */
     DIR			 *dirp;
     struct dirent	*dent;
@@ -2478,6 +2481,7 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
     Check_Output_List(tsubdirs);
     Check_Output_List(tfiles);
 
+    name = expand_filename(name, exp_name, EXPAND_STANDARD);
     name = os_filename(name, full_name);
     if ((dirp = opendir(name)) == NULL)		/* try to open the directory */
     {

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.11 2011/05/05 07:48:09 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.12 2012/01/09 11:47:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -83,6 +83,8 @@ do_get_flag(coroutine,X, _) :-
 	global_flags(0,0,F),
 	(F /\ 16'00000100 =:= 0 -> X=off ; X=on).
 do_get_flag(cwd,X, _) :- getcwd(X).
+do_get_flag(cwd_scope, X, _) :-
+	sys_flags(4, Y), (Y = 0 -> X = process; X = separate).
 do_get_flag(debugging, X, _) :-
 	getval(toplevel_trace_mode, X).
 do_get_flag(debug_compile,X, _) :-
@@ -322,6 +324,11 @@ do_set_flag(cwd,X, _) :- !,
 		cd(X)
 	    ;
 		set_bip_error(5)
+	).
+do_set_flag(cwd_scope, X, _) :-
+	( X == process -> sys_flags(4, 0)
+	; X == separate -> sys_flags(4, 1)
+	; wrong_atom(X)
 	).
 do_set_flag(library_path, List, _) :- !,
 	(

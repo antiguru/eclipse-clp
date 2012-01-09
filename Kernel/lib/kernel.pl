@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.30 2011/04/10 15:18:46 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.31 2012/01/09 11:47:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1166,54 +1166,59 @@ compile_list_body(H, T, Module) :-
 %----------------------------------------------------------------------
 
 exists(File) :-
-	% the following fails for nonexisting files and
-	% for the pseudo-files aux,con,nul,prn on Windows
-	sys_file_flag(File, 6, _).
+	check_atom_string(File),
+	!,
+	expand_filename(File, FileNameS, 1),	% EXPAND_STANDARD
+	existing_path(FileNameS, _any).
+exists(File) :-
+	bip_error(exists(File)).
 
+
+existing_file(_, _, _, _) :-
+	set_bip_error(0).	% reset bip_error, always fails
 existing_file(Base0, Extensions, Permissions, FileName) :-
-	(nonvar(Extensions) -> true ; set_bip_error(4)),
-	(is_list(Extensions) -> true ; set_bip_error(5)),
-	(nonvar(Permissions) -> true ; set_bip_error(4)),
-	(is_list(Permissions) -> true ; set_bip_error(5)),
-	expand_if_libpath(Base0, Base),
-	nonempty_atom_or_string(Base),
-	member(Ext, Extensions),
-	(basic_atomic(Ext) -> true ; set_bip_error(5)),
+	check_proper_list(Extensions),
+	check_proper_list(Permissions),
+	expand_wrapper(Base0, Base, ReturnType),
+	member(Ext, Extensions),	% Caution: fails to bip_error/1
+	check_basic_atomic(Ext),
 	concat_string([Base, Ext], FileNameS0),
-	expand_filename(FileNameS0, FileNameS),
+	expand_filename(FileNameS0, FileNameS, 1),	% EXPAND_STANDARD
 	existing_path(FileNameS, file),	 /* must not be a directory */
 	check_permissions(Permissions, FileNameS), 
-	(string(Base) -> 
-	    FileName = FileNameS ; atom_string(FileName, FileNameS)
+	% FileNameS may be absolute, but we want to return
+	% a relative one if a relative one was given
+	expand_filename(FileNameS0, FileNameS1, 0),	% EXPAND_SYNTACTIC
+	( string(ReturnType) -> FileName = FileNameS1
+	; atom_string(FileName, FileNameS1)
 	).
 existing_file(Base, Exts, Perms, File) :-
-	get_bip_error(E),
-	error(E, existing_file(Base, Exts, Perms, File)).
+	% we may fail here normally, that's why we set_bip_error(0) above
+	bip_error(existing_file(Base, Exts, Perms, File)).
 
 existing_path(Path, Type) :-
-	exists(Path),
-	sys_file_flag(Path, 0, Mode),
+	% the atime-request fails for nonexisting files and
+	% for the pseudo-files aux,con,nul,prn on Windows
+	sys_file_flag(Path, 6, _),	% atime
+	sys_file_flag(Path, 0, Mode),	% mode
 	(8'40000 =:= Mode /\ 8'170000 ->
 	     Type = dir
 	;
 	     Type = file
 	).
-	
-% basic_atomic excludes `atomic' types such as handles and suspensions
-basic_atomic(Term) :- atom(Term).
-basic_atomic(Term) :- string(Term).
-basic_atomic(Term) :- number(Term).
 
-check_permissions([], _) :- !.
-check_permissions([P|Ps], FileNameS) :-
+    check_permissions([], _) :- !.
+    check_permissions([P|Ps], FileNameS) :-
 	((atom(P), process_file_permission(P, N)) ->
 	    sys_file_flag(FileNameS, N, on),
 	    check_permissions(Ps, FileNameS)
 	;   set_bip_error(6)
 	).
 
-expand_if_libpath(library(File), PathFile) :- 
-	-?-> string(File), !,
+    expand_wrapper(library(File), PathFile, ReturnType) :- -?->
+	!,
+	check_atom_string(File),
+	ReturnType = File,
 	getval(library_path, Path),
 	member(Lib, Path),
 	concat_string([Lib, '/', File], PathFile0), 
@@ -1222,140 +1227,39 @@ expand_if_libpath(library(File), PathFile) :-
 	    pathname(File, _, ModuleS),
 	    concat_string([PathFile0, '/', ModuleS], PathFile)
 	).
-expand_if_libpath(library(File), PathFile) :- 
-	-?-> atom(File), !,  
-	getval(library_path, Path),
-	member(Lib, Path),
-	concat_atom([Lib, '/', File], PathFile0), 
-	(   PathFile = PathFile0
-	;
-	    pathname(File, _, ModuleS),
-	    concat_atom([PathFile0, '/', ModuleS], PathFile)
-	).
-expand_if_libpath(File, File).
+    expand_wrapper(File, File, File) :-
+	check_atom_string(File).
 
 
-canonical_path_name(Path0, CanPath) :-
-	(atom(Path0) ; string(Path0)), !,
-	expand_filename(Path0, Path1),
-	(has_expanded(Path1) ->
-	    (Path1 == "" -> Path = "." ; Path = Path1),
-	    get_absolute_path(Path, CanPathS), % CanPathS is a string
-	    (string(Path0) -> CanPath = CanPathS ; atom_string(CanPath, CanPathS))
+canonical_path_name(Path, CanPath) :-
+	check_atom_string(Path),
+	!,
+	expand_filename(Path, CanPathString0, 3),	% EXPAND_NORMALISE
+	( sys_file_flag(CanPathString0, 0) /\ 8'170000 =:= 8'40000 ->
+	    % it's a directory
+	    concat_strings(CanPathString0, "/", CanPathString)
 	;
-	    Path0 = CanPath % something went wrong, return original
+	    CanPathString = CanPathString0
+	),
+	( atom(Path) ->
+	    atom_string(CanPathAtom, CanPathString),
+	    CanPath = CanPathAtom
+	;
+	    CanPath = CanPathString
 	).
 canonical_path_name(Path, CanPath) :-
-	error(5, canonical_path_name(Path, CanPath)).
-
-has_expanded(Path) :- % check if first character should have been expanded
-	substring(Path, 0,1,_, First),
-	\+ expand_string(First). 
-
-expand_string("$"). % non-expanded environment variable
-expand_string("~"). % non-expanded home/user path 
-
-nonempty_atom_or_string(Path) :-
-	string(Path), !,
-	(Path \== "" ->	 true ; set_bip_error(6)).
-nonempty_atom_or_string(Path) :-
-	atom(Path), !,
-	(Path \== '' ->	 true ; set_bip_error(6)).
-nonempty_atom_or_string(Path) :-
-% instantiation fault if var, type error otherwise
-	(var(Path) -> set_bip_error(4) ; set_bip_error(5)).
+	bip_error(canonical_path_name(Path, CanPath)).
 
 
-
-% given a string path returned by expandpath/2, ExpandedPath0, returns the 
-% normalised and edited (i.e. .., . etc. removed) full path AbsPath (as string)
-get_absolute_path(ExpandedPath0, AbsPath) :-
-	getcwd(OldPath),
-	make_full_path(ExpandedPath0, OldPath, ExpandedPath),
-	normalise_path(ExpandedPath, [], Normalised),
-	cd(OldPath),
-	edit_path(Normalised, AbsPath).
-
-make_full_path(File, CWD, FullPath) :-
-	(substring(File, "/", 1) ->
-	    File = FullPath
-	;   concat_string([CWD, "/", File], FullPath)
-	).
-
-normalise_path(Path, Rest, NormFullPath) :-
-	(cd_if_possible(Path) ->
-	    getcwd(ActualPath), % non-aliased version of path
-	    concat_string([ActualPath|Rest], NormFullPath)
-
-	;   
-	    pathname(Path, Parent, This),
-	    (Parent == ""  -> % have reached top-level
-		concat_string([Path|Rest], NormFullPath)
-	    ;	normalise_path(Parent, [This|Rest], NormFullPath)
-	    )
-	).
-
-
-% replace and remove //, .., . in a full path (i.e. with leading /)
-edit_path(Path, Edited) :-
-	string_list(Path, PathList),
-	edit_path_r(PathList, [], EditedList),
-	string_list(Edited, EditedList).
-
-edit_path_r([], Pre, Edited) :-
-	reverse(Pre, Edited).
-edit_path_r([0'/|Path], Pre0, Edited) :-
-	Pre1 = [0'/|Pre0],
-	edit_path_item(Path, Pre1, Post, Pre2),
-	edit_path_r(Post, Pre2, Edited).
-
-edit_path_item([], Pre0, Post, Pre) :- 
-	-?-> 
+% Get source or precompiled file for compilation, loading, etc.
+% suceeds or fail with bip error set
+get_file(Var, _, _) :-
+	var(Var),
 	!,
-	Post = [], Pre = Pre0.
-edit_path_item([0'/|Post0], Pre0, Post, Pre) :- 
-% remove extra / and proceeding
-	-?->
-	!,
-	(Pre0 == [0'/] ->  
-	    % at top, allow '//' for Windows
-	    Pre1 = [0'/,0'/] 
-	;   Pre1 = Pre0
-	), 
-	edit_path_item(Post0, Pre1, Post, Pre).
-edit_path_item([0'.,0'.|Post0], [0'/|Pre0], Post, Pre) :-
-% remove .. and backup one level in Pre to parent
-	-?->
-	(Post0 = [0'/|_] ; Post0 == []), !,
-	Post0 = Post,
-	backup_one_item(Pre0, Pre).
-edit_path_item([0'.|Post0], Pre0, Post, Pre) :-
-% remove ./, or trailing .
-	-?->
-	(Post0 = [0'/|Post1] ; Post0 == [], Post1 = []), !,
-	edit_path_item(Post1, Pre0, Post, Pre).
-edit_path_item(Post0, Pre0, Post, Pre) :-
-	-?->
-	find_next_dir(Post0, Pre0, Post, Pre).
-
-backup_one_item([0'/|Pre], Pre) :- !.
-backup_one_item([_C|Pre0], Pre) :-
-	backup_one_item(Pre0, Pre).
-
-% get to next .. or end of path
-find_next_dir([], Pre0, Post, Pre) :-
-	-?->
-	Pre0 = Pre, Post = [].
-find_next_dir([C|Post0], Pre0, Post, Pre) :-
-	-?->
-	(C == 0'/  ->
-	   Pre = Pre0, Post = [C|Post0]
-	;  find_next_dir(Post0, [C|Pre0], Post, Pre)
-	).
-
-
-% may fail with Bip error set
-canonical_plfile_name(Base, WithObj, FullFileAtom) :-
+	set_bip_error(4).
+get_file(user, _, user) :- !,
+	( get_stream_info(stdin, device, queue) -> set_bip_error(193) ; true ).
+get_file(Base, WithObj, FullFileAtom) :-
 	getval(prolog_suffix, Sufs0),
 	(WithObj == yes ->
 	    getval(eclipse_object_suffix, Obj),
@@ -1371,18 +1275,8 @@ canonical_plfile_name(Base, WithObj, FullFileAtom) :-
 	;
 	    nonvar(Base), 
 	    (Base = library(_) -> set_bip_error(173) ; set_bip_error(171))
-	).
-
-
-% suceeds or fail with bip error set
-get_file(Var, _, _) :-
-	var(Var),
-	!,
-	set_bip_error(4).
-get_file(user, _, user) :- !,
-	( get_stream_info(stdin, device, queue) -> set_bip_error(193) ; true ).
-get_file(File, WithObj, FileAtom) :-
-	canonical_plfile_name(File, WithObj, FileAtom), !.
+	),
+	!.
 get_file(_, _, _) :-
 	set_bip_error(5).
 
@@ -3129,6 +3023,13 @@ check_atom_string(X) :- atom(X), !.
 check_atom_string(X) :- string(X), !.
 check_atom_string(_) :- set_bip_error(5).
 
+% basic_atomic excludes `atomic' types such as handles and suspensions
+check_basic_atomic(X) :- var(X), !, set_bip_error(4).
+check_basic_atomic(X) :- atom(X), !.
+check_basic_atomic(X) :- string(X), !.
+check_basic_atomic(X) :- number(X), !.
+check_basic_atomic(_) :- set_bip_error(5).
+
 check_var_or_string(X) :- var(X), !.
 check_var_or_string(X) :- check_string(X).
 
@@ -3157,6 +3058,13 @@ check_var_or_partial_list([]) :- !.
 check_var_or_partial_list([_|T]) :- !,
 	check_var_or_partial_list(T).
 check_var_or_partial_list(_) :-
+	set_bip_error(5).
+
+check_proper_list(X) :- var(X), !, set_bip_error(4).
+check_proper_list([]) :- !.
+check_proper_list([_|T]) :- !,
+	check_proper_list(T).
+check_proper_list(_) :-
 	set_bip_error(5).
 
 

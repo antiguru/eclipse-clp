@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.8 2011/04/01 07:12:07 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.9 2012/01/09 11:47:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -775,12 +775,13 @@ get_file_info(File, Name, Value) :-
 	check_var_or_atom(Name),
 	check_var_or_atomic(Value),
 	!,
-	expand_filename(File, ExpandedFile),  % File1 is a string
+	expand_filename(File, ExpandedFile, 1),  % EXPAND_STANDARD
 	do_get_file_info(ExpandedFile, Name, Value).
 get_file_info(File, Name, Value) :-
 	bip_error(get_file_info(File, Name, Value)).
 
 
+% This predicate expects an already expanded file name!
 do_get_file_info(File, device, X) :-
 	sys_file_flag(File, 9, X).
 do_get_file_info(File, inode, X) :-
@@ -824,6 +825,18 @@ do_get_file_info(File, writable, X) :-
 do_get_file_info(File, executable, X) :-
 	process_file_permission(executable, N),
 	sys_file_flag(File, N, X).
+do_get_file_info(File, type, Type) :-
+	sys_file_flag(File, 0, Mode),
+	TypeBits is Mode /\ 8'170000,
+	( TypeBits == 8'010000 -> Type = fifo
+	; TypeBits == 8'020000 -> Type = char_device
+	; TypeBits == 8'040000 -> Type = directory
+	; TypeBits == 8'060000 -> Type = block_device
+	; TypeBits == 8'100000 -> Type = file
+	; TypeBits == 8'120000 -> Type = link
+	; TypeBits == 8'140000 -> Type = socket
+	; Type = unknown
+	).
 do_get_file_info(File, compiled_time, Time) :-
 	current_compiled_file(File, Time, _Module, _Goal).
 

@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.10 2011/04/01 03:38:45 jschimpf Exp $
+ * $Id: os_support.c,v 1.11 2012/01/09 11:49:34 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -151,6 +151,15 @@ int		ec_os_errno_;	/* the operating system error number */
 int		ec_os_errgrp_;	/* which group of error numbers it is from */
 
 
+/*
+ * ECLiPSe's simulated working directory
+ * Used when ec_use_own_cwd != 0
+ */
+
+int		ec_use_own_cwd = 0;
+static char	ec_cwd[MAX_PATH_LEN];	/* should always have a trailing '/' */
+
+
 /*----------------------------------------------------------------------*
  * Initialisation
  *----------------------------------------------------------------------*/
@@ -200,6 +209,9 @@ ec_os_init(void)
 	(void) WSAStartup(MAKEWORD(2,0), &wsa_data);	/* init Winsock */
     }
 #endif
+
+    ec_use_own_cwd = 0;
+    (void) get_cwd(ec_cwd, MAX_PATH_LEN);
 }
 
 
@@ -413,18 +425,138 @@ ec_rename(char *old, char *new)
  *----------------------------------------------------------------------*/
 
 /*
- * char *expand_filename(in, out)
+ * Automaton for syntactic cleanup of (absolute or relative) pathnames:
+ * Remove redundant slashes, . and ..
+ * Produce:	 //share/dir/file  //c/dir/file  /dir/file  dir/file  file
+ * The result will never be longer than the input, and in=out is allowed.
+ */
+
+static char *
+_cleanup_path(char *inp, char *out, char *out_last)
+{
+    int c;
+    char *outp = out;
+    char *top = out;	/* highest point in the path */
+    int absolute = 0;	/* it's an absolute path (we can't go beyond top) */
+
+#define Emit(c) { if (outp<out_last) *outp++ = (c); else goto _terminate_; }
+
+    switch (c = *inp++) {
+	case '.': goto _initial_dot_;
+	case '/': Emit(c); goto _abs_;
+	case 0:   goto _terminate_;
+	default:  goto _name_;
+    }
+_initial_dot_:
+    switch (c = *inp++) {
+	case '.': goto _initial_up_;
+	case '/': goto _rel_;
+	case 0:   Emit('.'); goto _terminate_;
+	default:  Emit('.'); goto _name_;
+    }
+_initial_up_:
+    switch (c = *inp++) {
+	case '/': Emit('.'); Emit('.'); Emit('/'); top=outp; goto _sep_;
+	case 0:   Emit('.'); Emit('.'); goto _terminate_;
+	case '.':
+	default:  Emit('.'); Emit('.'); goto _name_;
+    }
+_rel_:
+    switch (c = *inp++) {
+	case '.': goto _initial_dot_;
+	case '/': goto _rel_;
+	case 0:   Emit('.'); goto _terminate_;
+	default:  top=outp; goto _name_;
+    }
+_abs_:
+    absolute = 1;
+    switch (c = *inp++) {
+	case '.': top=outp; goto _dot_;
+	case '/': goto _unc_;
+	case 0:   goto _terminate_;
+	default:  top=outp; goto _name_;
+    }
+_unc_:
+    switch (c = *inp++) {
+	case '.': top=outp; goto _dot_;			/* treat //. like /. */
+	case '/': goto _unc_;				/* treat /// like // */
+	case 0:   goto _terminate_;			/* treat // like / */
+	default:  Emit('/'); goto _share_;		/* treat ///a like //a */
+    }
+_share_:
+    Emit(c);
+    switch (c = *inp++) {
+	case '/': Emit(c); top=outp; goto _sep_;
+	case 0: goto _terminate_;
+	default: goto _share_;
+    }
+_sep_:
+    switch (c = *inp++) {
+	case '/': goto _sep_;
+	case '.': goto _dot_;
+	case 0:   goto _done_;
+	default:  goto _name_;
+    }
+_dot_:
+    switch (c = *inp++) {
+	case 0: goto _done_;			/* ignore trailing . */
+	case '.': goto _up_;
+	case '/': goto _sep_;			/* ignore /./ */
+	default: Emit('.'); goto _name_;
+    }
+_up_:
+    switch(c = *inp++) {
+	case 0:
+	case '/':
+	    if (outp>top) {
+		/* back to after previous / or top */
+		while(--outp > top  &&  *(outp-1) != '/')
+		    continue;
+	    } else if (!absolute) {
+		Emit('.'); Emit('.'); Emit('/'); top=outp;
+	    }
+	    if (c) goto _sep_; else goto _done_;
+	default:
+	    Emit('.'); Emit('.'); goto _name_;
+    }
+_name_:
+    Emit(c);
+    switch (c = *inp++) {
+	case '/': Emit(c); goto _sep_;
+	case 0:  goto _terminate_;
+	default: goto _name_;
+    }
+_done_:
+    if (outp == out) {
+	Emit('.')			/* no other path component */
+    } else if (outp > out+1  && *(outp-1) == '/') {
+    	--outp;				/* omit trailing slash */
+    }
+_terminate_:
+    *outp = 0;
+    return out;
+}
+
+
+/*
+ * char *expand_filename(in, out, option)
  *
- * expand ~, ~user and $VAR at the beginning of the filename.
+ * EXPAND_SYNTACTIC
+ *	expand ~, ~user and $VAR at the beginning of the filename
+ * EXPAND_STANDARD
+ *	also make absolute (only if necessary)
+ * EXPAND_ABSOLUTE
+ *	also make absolute (always)
+ * EXPAND_NORMALISE
+ *	full normalisation (symlinks, Windows capitalisation etc)
+ *	In addition, unneeded sequences /, ./ are removed.
+ *
  * out should point to a buffer of length MAX_PATH_LEN.
- * In addition, it does some editing of the filename to remove unneeded
- * characters at the start of all path components: extra /, ./ are 
- * removed.
  * The return value is a pointer to the expanded filename in out[].
  * It can be used like
  *
  *	char buf[MAX_PATH_LEN];
- *	name = expand_filename(name, buf);
+ *	name = expand_filename(name, buf, 0);
  *
  * No errors are returned. When there was a problem, we just
  * return a copy of the original string.
@@ -437,31 +569,52 @@ ec_rename(char *old, char *new)
 	{ while(*(from) && *(from) != (delim) && (to) < (to_last)) *(to)++ = *(from)++; }
 
 char *
-expand_filename(char *in, char *out)
+expand_filename(char *in, char *out, int option)
 {
-    register char *auxp, *inp = in, *outp = out;
+    int c;
+    char *root, *inp = in, *outp = out;
     char *dir = (char *) 0;
-    char aux[MAX_PATH_LEN];
+    char aux1[MAX_PATH_LEN], *aux1p = 0;
+    char *aux1_last = &aux1[MAX_PATH_LEN-1];
+    char aux[MAX_PATH_LEN], *auxp = 0;
     char *aux_last = &aux[MAX_PATH_LEN-1];
     char *out_last = outp+MAX_PATH_LEN-1;
 
+    /* When not using the process's cwd, we MUST use absolute paths */
+    if (option == EXPAND_STANDARD && ec_use_own_cwd)
+	option = EXPAND_ABSOLUTE;
+
+    /*
+     * Expand tilde and environment variables
+     * inp=in=<input path>
+     */
     switch(*inp)
     {
-    case '/':
-	if (*++inp == '/')
-	{ /* preserve leading '//' for WIN32 */
-	    dir = aux;
-	    strcpy(dir, "/\0");
-	}
-	break;
     case '~':
 	if (*++inp == '/' || *inp == '\0')
 	{
-	    dir = getenv("HOME");
-	    if (!dir)
-		dir = getenv("HOMEPATH");	/* WinNT */
-	    if (dir) /* make sure it is in ECLiPSe format */
-		dir = canonical_filename(dir, aux);  
+	    char *home, *drv;
+	    auxp = aux;
+	    aux1p = aux1;
+#ifndef _WIN32
+	    if ((home = getenv("HOME")) && strlen(home) < MAX_PATH_LEN)
+	    {
+		aux1p = canonical_filename(home, aux1);  
+	    }
+#else
+	    if ((drv = getenv("HOMEDRIVE")) && (home = getenv("HOMEPATH")))
+	    {
+		auxp = aux;
+		Str_Cpy(auxp, drv, aux_last);
+		Str_Cpy(auxp, home, aux_last);
+		*auxp = 0;
+		aux1p = canonical_filename(aux, aux1);  
+	    }
+#endif
+	    else
+	    {
+	        aux1p = 0;
+	    }
 	}
 #ifndef _WIN32
 	else
@@ -470,8 +623,8 @@ expand_filename(char *in, char *out)
 	    auxp = aux;
 	    Str_Cpy_Until(auxp, inp, '/', aux_last);
 	    *auxp = '\0';
-	    if (pass = getpwnam(aux))
-		dir = pass->pw_dir;
+	    if (((pass = getpwnam(aux)) && strlen(pass) < MAX_PATH_LEN)
+		aux1p = canonical_filename(pass->pw_dir, aux1);  
 	}
 #endif
 	break;
@@ -481,38 +634,102 @@ expand_filename(char *in, char *out)
 	Str_Cpy_Until(auxp, inp, '/', aux_last);
 	*auxp = '\0';
 	dir = getenv(aux);
-	if (dir) /* make sure it is in ECLiPSe format */
-	    dir = canonical_filename(dir, aux); 
+	if (dir && strlen(dir) < MAX_PATH_LEN)
+	    aux1p = canonical_filename(dir, aux1);  /* make sure it is in ECLiPSe format */
 	break;
     }
-    if (dir)
-    {
-	Str_Cpy(outp, dir, out_last);
-    }
-    else	/* directory could not be expanded */
-	inp = in;
 
-    while(*inp && outp < out_last)
+    if (aux1p)
     {
-	Str_Cpy_Until(outp, inp, '/', out_last);
-	if (*inp == '/' && outp < out_last)
+	/* append rest of input to expanded prefix in aux1[] */
+	aux1p += strlen(aux1p);
+	Str_Cpy(aux1p, inp, aux1_last);
+	*aux1p = 0;
+	inp = aux1;
+    }
+    else	/* no prefix was expanded */
+    {
+	inp = in;
+    }
+
+
+    /*
+     * Make absolute, i.e. add cwd or drive
+     * inp points to result so far, either in in[] or aux1[]
+     */
+    if (option >= EXPAND_ABSOLUTE)
+    {
+        if (inp[0] != '/')		/* relative path: prefix cwd */
 	{
-	    *outp++ = *inp++; /* copy the / */
-	    while(*inp)  /* edit the path following a / */
-	    {
-		switch(*inp)
-		{
-		case '.':
-		    if (!(*(inp+1) == '/' || *(inp+1) == '\0')) break;
-		case '/':
-		    ++inp;
-		    continue;
-		}
-		break; /* exit inner while(*inp) */
+	    auxp = aux + ec_get_cwd(aux, MAX_PATH_LEN);
+	    Str_Cpy(auxp, inp, aux_last);
+	    *auxp = 0;
+	    inp = aux;
+	}
+#ifdef _WIN32
+	else if (inp[1] != '/')		/* drive relative: prefix drive */
+	{
+	    auxp = aux;
+	    ec_get_cwd(aux, MAX_PATH_LEN);
+	    while (*auxp == '/') ++auxp;	/* copy share/drive name */
+	    while (*auxp != '/') ++auxp;
+	    Str_Cpy(auxp, inp, aux_last);
+	    *auxp = 0;
+	    inp = aux;
+	}
+#endif
+    }
+
+
+    /*
+     * Full normalise: symlinks etc
+     * inp points to result so far, either in in[], aux1[] or aux[]
+     */
+    if (option == EXPAND_NORMALISE)
+    {
+#if defined(_WIN32) && (_WIN32_WINNT > 0x400)
+	int len;
+	char buf1[MAX_PATH_LEN];
+	char buf2[MAX_PATH_LEN];
+	/* Get `normalised' path with correct cases for characters in path.
+	   GetLongPathName() is supported only by Windows NT > 4 
+	   XP seems to require a call to GetShortPathName(), otherwise
+	   GetLongPathName() does not always behave correctly.
+	*/ 
+	len = GetShortPathName(os_filename(inp,buf2), buf1, MAX_PATH_LEN);
+	if (0 < len && len < MAX_PATH_LEN)
+	{
+	    len = GetLongPathName(buf1, buf2, MAX_PATH_LEN);
+	    if (0 < len && len < MAX_PATH_LEN) {
+		canonical_filename(buf2, buf1);
+		_cleanup_path(buf1, out, out_last);
+	    } else {
+		canonical_filename(buf1, buf2);
+		_cleanup_path(buf2, out, out_last);
 	    }
 	}
+	else
+	{
+	    _cleanup_path(inp, out, out_last);
+	}
+
+#elif HAVE_REALPATH
+	/* realpath() also cleans up /. and /.. */
+	if (!realpath(inp, out))
+	{
+	    errno = 0;
+	    _cleanup_path(inp, out, out_last);
+	}
+
+#else
+	_cleanup_path(inp, out, out_last);
+#endif
     }
-    *outp = '\0';
+    else
+    {
+	_cleanup_path(inp, out, out_last);
+    }
+
     return out;
 }
 
@@ -695,6 +912,50 @@ get_cwd(char *buf, int size)
     }
     return len;
 }
+
+
+/* return string length (without terminator) */
+int
+ec_get_cwd(char *buf, int size)
+{
+    if (ec_use_own_cwd)
+    {
+	strcpy(buf, ec_cwd);
+	return strlen(ec_cwd);
+    }
+    else
+    {
+	return get_cwd(buf, size);
+    }
+}
+
+/* return 0 on success, -1 on error with Sys_Errno */
+int
+ec_set_cwd(char *name)
+{
+    if (ec_use_own_cwd)
+    {
+	char buf[MAX_PATH_LEN];
+	struct_stat st_buf;
+	name = expand_filename(name, buf, EXPAND_NORMALISE);
+	if (ec_stat(name, &st_buf)) {
+	    Set_Sys_Errno(errno, ERRNO_UNIX);
+	    return -1;
+	}
+	if (!S_ISDIR(st_buf.st_mode)) {
+	    Set_Sys_Errno(ENOTDIR, ERRNO_UNIX);	/* simulate chdir() */
+	    return -1;
+	}
+	strcpy(ec_cwd, buf);
+	strcat(ec_cwd, "/");
+
+    } else if (ec_chdir(name)) {
+	Set_Sys_Errno(errno, ERRNO_UNIX);
+	return -1;
+    }
+    return 0;
+}
+
 
 /*----------------------------------------------------------------------*
  * dlopen

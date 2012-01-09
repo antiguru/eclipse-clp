@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_load.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * VERSION	$Id: bip_load.c,v 1.2 2012/01/09 11:49:34 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -164,20 +164,13 @@ type t;
 {
     char *name;
     char buf1[MAX_PATH_LEN];
-    char buf2[MAX_PATH_LEN];
     char winname[MAX_PATH_LEN];
     HINSTANCE dloaded;
     struct dload_info *dli;
 
     Get_Name(v,t,name)			/* get the name of the file */
-    name = expand_filename(name, buf1);
     /* Make an absolute pathname, needed on Windows 95 */
-    if (name[0] != '/')
-    {
-	int len = get_cwd(buf2, MAX_PATH_LEN);
-	(void) strcpy(buf2+len, name);
-	name = buf2;
-    }
+    name = expand_filename(name, buf1, EXPAND_ABSOLUTE);
     dloaded = LoadLibrary(os_filename(name, winname));
     if (!dloaded)
     {
@@ -234,22 +227,15 @@ static int
 p_load(value v, type t)
 {
     char buf1[MAX_PATH_LEN];
-    char buf2[MAX_PATH_LEN];
     char *name;
     void *dloaded;
     struct dload_info *dli;
 
     Get_Name(v,t,name)			/* get the name of the file */
-    name = expand_filename(name, buf1);
     /* Make an absolute pathname because dlopen sometimes
      * seems to have a wrong idea of the cwd.
      */
-    if (name[0] != '/')
-    {
-	int len = get_cwd(buf2, MAX_PATH_LEN);
-	(void) strcpy(buf2+len, name);
-	name = buf2;
-    }
+    name = expand_filename(name, buf1, EXPAND_ABSOLUTE);
     dloaded = dlopen(name, RTLD_NOW|RTLD_GLOBAL);
     if (!dloaded)
     {
@@ -292,7 +278,6 @@ static struct dload_info *dload_list;
 static int 
 p_load(value v, type t)
 {
-    extern char *expand_filename();
     char *name;
     int  res;
     char fullname[MAX_PATH_LEN];
@@ -301,7 +286,7 @@ p_load(value v, type t)
     char	*loader;
 
     Get_Name(v,t,name)			/* get the name of the file */
-    name = expand_filename(name, fullname);
+    name = expand_filename(name, fullname, EXPAND_ABSOLUTE);
     if(!IsString(p_whoami_->tag)) {
 	Bip_Error(TYPE_ERROR)
     }
@@ -446,7 +431,6 @@ static generic_ptr dload_list = 0;
 static int 
 p_load(value v, type t)
 {
-    extern char *expand_filename();
     char *name;
     char *end;
     int size, res;
@@ -459,7 +443,7 @@ p_load(value v, type t)
     char	*loader;
 
     Get_Name(v,t,name)			/* get the name of the file */
-    name = expand_filename(name, fullname);
+    name = expand_filename(name, fullname, EXPAND_ABSOLUTE);
     if(!IsString(p_whoami_->tag)) {
 	Bip_Error(TYPE_ERROR)
     }

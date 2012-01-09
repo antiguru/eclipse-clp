@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.4 2010/03/19 05:52:16 jschimpf Exp $
+ * $Id: embed.c,v 1.5 2012/01/09 11:49:34 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -104,6 +104,7 @@ ec_set_option_long(int opt, word val)
     case EC_OPTION_IO:		ec_options.io_option = (int) val; break;
     case EC_OPTION_INIT:	ec_options.init_flags = val; break;
     case EC_OPTION_DEBUG_LEVEL:	ec_options.debug_level = val; break;
+    case EC_OPTION_CWD_SEPARATE:ec_use_own_cwd = (int) val; break;
     default:			return RANGE_ERROR;
     }
     return PSUCCEED;

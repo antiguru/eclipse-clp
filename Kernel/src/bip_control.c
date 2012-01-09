@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.5 2010/07/25 13:29:05 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.6 2012/01/09 11:49:34 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -45,6 +45,7 @@
 #include	"debug.h"
 #include	"module.h"
 #include        "property.h"
+#include        "os_support.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -363,6 +364,18 @@ p_sys_flags(value vf, type tf, value vval, type tval)
 	{
 	    Check_Integer(tval);
 	    PublishingParam = vval.nint;
+	    Succeed_;
+	}
+
+    case 4:				/* cwd_scope */
+	if (IsRef(tval))
+	{
+	    Return_Unify_Integer(vval, tval, ec_use_own_cwd);
+	}
+	else
+	{
+	    Check_Integer(tval);
+	    ec_use_own_cwd = (int) vval.nint;
 	    Succeed_;
 	}
 
