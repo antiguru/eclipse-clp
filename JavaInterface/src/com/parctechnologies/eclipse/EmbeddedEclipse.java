@@ -21,7 +21,7 @@
 // END LICENSE BLOCK
 
 //Title:        Java/ECLiPSe interface
-//Version:      $Id: EmbeddedEclipse.java,v 1.1 2006/09/23 01:54:10 snovello Exp $
+//Version:      $Id: EmbeddedEclipse.java,v 1.2 2012/01/09 21:30:55 jschimpf Exp $
 //Author:       Josh Singer / Stefano Novello
 //Company:      Parc Technologies
 //Description:  Embedded ECLiPSe engine.
@@ -298,7 +298,12 @@ public class EmbeddedEclipse extends EclipseConnectionImpl
     }
 
     // tell NativeEclipse whether or not we are using queues for standard streams
-    res = NativeEclipse.setOption(IntOption.IO , options.isUsingQueues()? 2 : 0);
+    NativeEclipse.setOption(IntOption.IO , options.isUsingQueues()? 2 : 0);
+
+    // make NativeEclipse use its own cwd rather than the process's cwd
+    // in order to be more consistent with the out-of-process situation
+    // [not yet enabled for backward compatibility]
+    // NativeEclipse.setOption(IntOption.CWD_SEPARATE , 1);
   }
 
 
@@ -364,6 +369,7 @@ public class EmbeddedEclipse extends EclipseConnectionImpl
     static final int SHAREDSIZE =  7;
     static final int IO =          12;
     static final int OPTION_ARGC = 2;
+    static final int CWD_SEPARATE = 15;
   }
 
  /**
