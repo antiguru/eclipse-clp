@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.13 2011/04/08 07:05:09 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.14 2012/01/09 22:59:30 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1992,6 +1992,10 @@ p_dynamic_create(value v1, type t1, value v2, type t2, value vm, type tm)
 
     Check_Module(tm, vm);
     Add_Did(v1, t1, v2, t2, wdid);
+    if (DidArity(wdid) < 0 || DidArity(wdid) > MAXARITY)
+    {
+	Bip_Error(RANGE_ERROR)
+    }
     ndebug = (GlobalFlags & DBGCOMP) ? 0 : DEBUG_DB;
 
     a_mutex_lock(&ProcedureLock);

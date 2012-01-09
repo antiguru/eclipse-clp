@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.8 2011/04/10 14:11:38 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.9 2012/01/09 22:59:30 jschimpf Exp $
  */
 
 /*
@@ -743,6 +743,11 @@ _add_module(dident module, didlist **start)
 }
 
 
+/* The following builtins use the global error variable ! */
+#undef Bip_Error
+#define Bip_Error(N) Bip_Error_Fail(N)
+
+
 /*
  * Implicit local declaration,
  * used by the compiler to prepare for the subsequent definition of a predicate
@@ -762,11 +767,6 @@ p_implicit_local(value v, type t, value vm, type tm)
     }
     Succeed_;
 }
-
-
-/* The following builtins use the global error variable ! */
-#undef Bip_Error
-#define Bip_Error(N) Bip_Error_Fail(N)
 
 
 static int
