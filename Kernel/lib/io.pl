@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.9 2012/01/09 11:47:50 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.10 2012/01/09 23:54:22 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1157,11 +1157,8 @@ get_peer_queue_key(N, Key) :-
 
 new_socket_server(Soc, Address, N) :-
 	socket(internet, stream, Soc), 
-	block(
-          (bind(Soc, Address), listen(Soc, N)
-          ), Tag, (close(Soc), exit_block(Tag))
-        ).
-
+        bind(Soc, Address),
+	listen(Soc, N).
 
 
 peer_queue_close(Queue) :-
