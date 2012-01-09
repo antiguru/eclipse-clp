@@ -458,34 +458,39 @@ Success:
    `canonical' form of the pathname. The following are done to the path:
 
 <UL>
-   <LI> A full path is returned. If a relative path is supplied, the
-   path is prefixed with the current working directory
+   <LI> An absolute path is returned. If a relative path is supplied, the
+   path is prefixed with the current working directory. On Windows, a
+   drive name is prefixed, if necessary.
 
-   <LI> leading '~' and environment variables (such as '$HOME') are
+   <LI> Leading '~' and environment variables (such as '$HOME') are
    substituted by the appropriate value. If this substitution is not
-   possible (e.g. if the envrionment variable does not exist), the 
-   original path is returned unchanged. 
+   possible (e.g. if the environment variable does not exist), nothing
+   is changed.
 
-   <LI> special sequences such as '.', '..', extra '/' are appropriately
-      removed/replaced. 
+   <LI> Special sequences such as '.', '..', extra '/' are appropriately
+   removed/replaced. 
 
-   <LI> the non-aliased path is returned, i.e. any symbolic links are
-   replaced by the non-symbolic linked version of the path. On Windows and
-   Mac OS X, where different cases of letters in path names are allowed but 
-   ignored (so e.g. \"foo\" and \"Foo\" are aliases), the `normalised' version 
-   of the name, using the letter cases when each file/directory was created, is
-   returned (not supported in older versions of Windows before 2000).
+   <LI> The non-aliased path is returned, i.e. any symbolic links are
+   replaced by the non-symbolic linked version of the path.
+   
+   <LI> On Windows and Mac OS X, where different cases of letters in
+   path names are allowed but ignored (so e.g. \"foo\" and \"Foo\" are
+   aliases), the `normalised' version of the name, using the letter
+   cases when each file/directory was created, is returned
+   (not supported in older versions of Windows before 2000).
 
-   <LI> if the path is a directory, a terminating '/' is always returned.
+   <LI> If the path denotes an existing directory, the canonical path
+   is terminated with a '/'.
 </UL>
 
 <P>
-   Path does not need to exist, and only the removal of aliasing is 
-   performed on the part of the path that does exist. 
+   Not all components of Path need to exist.  The removal of aliasing
+   is performed only on the part of the path that does exist.
 
 <P>
-   CanonicalPath is always the same type as Path (string or atom). If Path
-   is empty, it is replaced by the current working directory. 
+   The type of the returned CanonicalPath is the same as the type of
+   Path (string or atom).  If Path is empty, it is replaced by the
+   current working directory. 
 
 <P>
     The predicates canonical_path_name/2 and existing_file/4 are intended
@@ -532,14 +537,14 @@ Success:
 
 :- comment(existing_file/4, [
       amode:(existing_file(++,++,++,-) is nondet),
-      amode:(existing_file(++,++,++,+) is semidet),
-      args:  ["Base":        "The start of a filename (non-empty atom or string (possibly with a library/1 wrapper))",
+      args:  ["Base":        "The start of a file or path name (atom or string, possibly with a library/1 wrapper)",
               "Completions": "Possible completions for Base (list of atomic elements)",
               "Permissions": "Permissions (list of readable,writable,executable)",
               "MatchedFile": "An existing file that matches the specification."
              ],
       summary: "Finds any existing file subject to the specified conditions.",
       fail_if: "MatchedFile cannot be found.", 
+      resat: "Succeeds once for every matching file", 
       exceptions: [5: "Base, Completions, Permissions not of right type.",
                    6: "Base is an empty atom or string."
 		  ],
@@ -547,18 +552,33 @@ Success:
       eg:      "
 Success: 
 
-      [eclipse 1]:  existing_file(library(fd), [\".eco\"], [readable], File).
+      % Trying different file extensions, including the empty one:
+      ?- existing_file(\"hello\", [\".ecl\",\".txt\",\"\"], [], File).
+      File = \"hello.txt\"     More? (;) 
+      No (0.00s cpu)         % assuming hello.ecl and hello do not exist
 
-      File = \"/homes/ks15/Eclipse/lib/fd.eco\"     More? (;) 
+      % Looking for one of several files in the parent directory:
+      ?- existing_file(\"../\", [\"a.txt\",\"b.txt\",\"c.txt\"], [readable], File).
+      File = \"../a.txt\"     More? (;) 
+      File = \"../c.txt\"     More? (;) 
+      No (0.00s cpu)        % assuming b.txt does not exist or is not readable
 
-      % test1 and test3 exists in current working directory
+      % Looking for a precompiled library:
+      ?- existing_file(library(fd), [\".eco\"], [readable], File).
+      File = '/homes/ks15/Eclipse/lib/fd.eco'     More? (;) 
+      No (0.00s cpu)
+
+      % Looking for source files:
+      ?- get_flag(prolog_suffix, Exts),
+         existing_file(\"hello\", Exts, [readable], File).
+      File = \"hello.ecl\"     More? (;) 
+      No (0.00s cpu)
+
+      % Looking for different file names:
       [eclipse 1]: existing_file(test, [1,2,3], [], File).
-
       File = test1     More? (;) 
-
       File = test3     More? (;) 
-
-      no (more) solution.
+      No (0.00s cpu)
 
 Failure:
 
@@ -570,38 +590,40 @@ Failure:
 ",
 
       desc: html("\
-
-    This predicate will search for any existing files that matches the
+    This predicate will search for any existing files that match the
     specifications given in the first three arguments: the file starts with
-    Base, which is a partial filepath name. Base may have a library/1
-    wrapper around the name. A list of possible completions (usually
-    suffixes) given in Completions is appended to Base, in the order they
-    are given, to give a complete name. If a proper file
-    (i.e. non-directory) with this name exists, the ECLiPSe process's
-    permission for this file are checked against the Permissions list --
-    the list can contain the atoms readable, writable, executable; each
-    specifying that the corresponding permission should be checked. If the
-    permissions match, then the filename is returned in MatchedFile. Note 
-    that the executable permission for Windows may be approximate, because
-    Windows (especially Vista) have a different system for dealing with
-    execute permission.
+    Base, which is an absolute or relative partial file name.  Possible
+    completions (usually file extensions) given in Completions are appended
+    to Base, in the order they are given, to give a complete name.
+    If a proper file (i.e. non-directory) with this name exists, the
+    ECLiPSe process's permission for this file are checked against the
+    Permissions list (readable, writable, executable).  If the
+    permissions match, then the filename is returned in MatchedFile.
+    
+<P>
+    Base may have a library/1 wrapper around the name.  If this is
+    used, the file is searched for in the directories specified in
+    library path (including any subdirectory with the same name as
+    given in the library/1 wrapper, i.e. we check for both lib/foo.eco
+    and lib/foo/foo.eco).  The search order is the order in which the
+    library directories appear in the library_path flag of get_flag/2,
+    and for each directory, the completions are tried in the order in
+    which they appear in the list Completions.
+
+    All matching files are returned via backtracking.  If only the
+    first one is required, use once/1.
 
 <P>
-    If the library/1 wrapper is used, then the file is searched for in the
-    paths specified in library path (including any subdirectory with the
-    same name as given in the library/1 wrapper).  Otherwise, the search is
-    relative to the current working directory. All matching names can be
-    returned via backtracking. The search order is that if library/1
-    wrapper is used, then the library path is tried in the order in which
-    they appear in the library_path flag of get_flag/2, and for each path,
-    the completions are tried in the order in which they appeared in
-    Completions.
+    MatchedFile is the same type as Base (atom or string).  Also, if 
+    Base is a relative (absolute) pathname, then so is MatchedFile.
+    If Base starts with '~' or enviroment variables (specified with a
+    leading '$'), these are substituted.  If the library(...) wrapper
+    is used, the proper library path is substituted.
 
-<P>
-    MatchedFile is in the same form as Base, except that if library(...) is 
-    used, the proper library path is substituted. Also, any leading '~' and
-    enviroment variables (specified with a leading '$') are replaced. 
-
+    Note that the executable permission for Windows may be approximate,
+    because Windows (especially Vista) has a different system for
+    dealing with execute permission.
+    
 <P>
     The predicates canonical_path_name/2 and existing_file/4 are intended
     as replacement for absolute_file_name/2 in previous releases. The
@@ -1171,44 +1193,41 @@ the value of its attribute Attr unfies with Value.
 ",
 	amode:(get_file_info(+,-,-) is nondet),
 	amode:(get_file_info(+,+,-) is semidet),
-	desc:html("   This predicate is used to test the properties of a specified file, it
-   allows to examine the values obtained from the stat(2) system call.
-   Attr specifies one of the attributes listed below or a variable, on
-   return, Value is unified with the attribute value.
-
+	desc:html("\
+   This predicate is used to test the properties of a specified file.
+   If Attr specifies one of the attributes listed below, then Value is
+   unified with the attribute value on return.
+   If Attr is a variable, the predicate on backtracking returns all
+   attribute-value pairs that are relevant for the given file.
 <P>
    The possible attributes and their meanings are:
-
 <P>
 <PRE>
-    Attribute  Meaning
-   ----------------------------------
-    mode       file mode; see
-               values below
-    inode      inode number
-    nlink      number of links
-    uid        user ID of the
-               owner
-    uname      user name of the
-               owner
-    gid        group ID of the
-               owner
-    gname      group name of the
-               owner
-    size       file size
-    atime      time of last access
-    adate      date of last access
-    mtime      time of last data
-               modification
-    mdate      date of last data
-               modification
-    ctime      time of last status
-               change
-    cdate      date of last status
-               change
-    readable   on or off
-    writable   on or off
-    executable on or off
+    Attribute  Type        Meaning
+   ---------------------------------------------------------
+    mode       integer     file mode; see values below
+    size       integer     file size
+    type       atom        file,directory,link,socket,fifo,
+                           char_device,block_device
+
+    device     integer     device number
+    inode      integer     inode number (Unix)
+    nlink      integer     number of links (Unix)
+    uid        integer     user ID of the owner (Unix)
+    uname      string      user name of the owner (Unix)
+    gid        integer     group ID of the owner (Unix)
+    gname      string      group name of the owner (Unix)
+
+    atime      integer     time of last access
+    mtime      integer     time of last data modification
+    ctime      integer     time of last status change
+    adate      string      date of last access
+    mdate      string      date of last data modification
+    cdate      string      date of last status change
+
+    readable   on/off      file is/isn't readable by this process
+    writable   on/off      file is/isn't writable by this process
+    executable on/off      file is/isn't executable by this process
 </PRE>
    All attributes are integers except for the *name attributes, which are
    string representation of the corresponding *id attributes and *date
@@ -1217,11 +1236,10 @@ the value of its attribute Attr unfies with Value.
    elapsed since 00:00:00 GMT, Jan.  1, 1970.  The flags readable, writable
    and executable indicate whether the running ECLiPSe process has the
    corresponding permissions on the file. Note that the executable permission 
-   for Windows may be approximate, because Windows (especially Vista) have a
+   for Windows may be approximate, because Windows (especially Vista) has a
    different system for dealing with execute permission.
 
    The meaning of the bits in the mode attribute is as follows:
-
 <P>
 <PRE>
  Mode     Meaning
@@ -1250,8 +1268,8 @@ the value of its attribute Attr unfies with Value.
  8'000002 write permission for others
  8'000001 execute/search permission for others
 </PRE>
-   The bit masks can be defined as user arithmetic functors so that the
-   code is more readable (see the examples).
+   The use of the 'mode' attribute and these numbers is deprecated in favour
+   of the 'type', 'readable', 'writable' and 'executable' attributes.
 
 <P>
 "),
@@ -1260,18 +1278,18 @@ the value of its attribute Attr unfies with Value.
 	exceptions:[4 : "File is not instantiated.", 5 : "File is neither an atom nor a string.", 5 : "Attr is instantiated but not to an atom.", 5 : "Value is instantiated but not to a constant."],
 	eg:"
 Success:
-   file_type(8'170000).
+   is_directory(File) :-
+        get_file_info(File, type, directory),
 
-   directory_flag(8'40000).
 
-   owner_read(8'400).
-
+   % the same test via mode bits:
    is_directory(File) :-
         get_file_info(File, mode, Mode),
         Mode /\\ file_type =:= directory_flag.
-   readable(File) :-
-        get_file_info(File, mode, Mode),
-        Mode /\\ owner_read =:= owner_read.
+
+   file_type(8'170000).
+   directory_flag(8'40000).
+
 
    % A file is younger if its time is greater
    is_younger(File1, File2) :-
