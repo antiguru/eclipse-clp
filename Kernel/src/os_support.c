@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.11 2012/01/09 11:49:34 jschimpf Exp $
+ * $Id: os_support.c,v 1.12 2012/01/12 03:29:52 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -48,6 +48,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/types.h>
+#include <sys/stat.h>	/* for struct stat or _stat */
 #include <stdio.h>
 #include <math.h>	/* for floor() */
 #include <ctype.h>	/* for toupper() etc */
@@ -65,7 +66,6 @@
 #include <process.h>	/* for _getpid() */
 #include <direct.h>	/* for _getcwd() */
 #include <sys/timeb.h>	/* for _fstat() */
-#include <sys/stat.h>	/* for struct _stat */
 #include <conio.h>	/* for _getch */
 #include <windows.h>
 #else
@@ -556,7 +556,7 @@ _terminate_:
  * It can be used like
  *
  *	char buf[MAX_PATH_LEN];
- *	name = expand_filename(name, buf, 0);
+ *	name = expand_filename(name, buf, EXPAND_STANDARD);
  *
  * No errors are returned. When there was a problem, we just
  * return a copy of the original string.
@@ -623,7 +623,7 @@ expand_filename(char *in, char *out, int option)
 	    auxp = aux;
 	    Str_Cpy_Until(auxp, inp, '/', aux_last);
 	    *auxp = '\0';
-	    if (((pass = getpwnam(aux)) && strlen(pass) < MAX_PATH_LEN)
+	    if ((pass = getpwnam(aux)) && strlen(pass->pw_dir) < MAX_PATH_LEN)
 		aux1p = canonical_filename(pass->pw_dir, aux1);  
 	}
 #endif
