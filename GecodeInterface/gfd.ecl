@@ -1720,9 +1720,8 @@ ec_to_gecode_arith_expr1(E, _H, In, _N0,_N, _Bs0,_Bs, _Auxs0,_AuxsT,
 
 '::_body'(X, Domain, Bool, Module):-
         get_prob_handle_nvars(H, N0),
-        normalise_vars(X, NX),
         gfd_default_interval(Min, Max),
-        ec_to_gecode_domain_reified1(NX, Domain, Bool, H, N0,N, [],Bs, Event, _, Module),
+        ec_to_gecode_domain_reified1(X, Domain, Bool, H, N0,N, [],Bs, Event, _, Module),
         !,
         update_vars_for_gecode(N0, N, Bs, H, Min, Max),
         post_new_event(Event, H).
