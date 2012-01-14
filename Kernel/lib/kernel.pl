@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.31 2012/01/09 11:47:50 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.32 2012/01/14 00:57:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1235,7 +1235,10 @@ canonical_path_name(Path, CanPath) :-
 	check_atom_string(Path),
 	!,
 	expand_filename(Path, CanPathString0, 3),	% EXPAND_NORMALISE
-	( sys_file_flag(CanPathString0, 0) /\ 8'170000 =:= 8'40000 ->
+	string_length(CanPathString0, L),
+	( string_code(CanPathString0, L, 0'/) ->
+	    CanPathString = CanPathString0
+	; sys_file_flag(CanPathString0, 0) /\ 8'170000 =:= 8'40000 ->
 	    % it's a directory
 	    concat_strings(CanPathString0, "/", CanPathString)
 	;
