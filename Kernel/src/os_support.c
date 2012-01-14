@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.12 2012/01/12 03:29:52 jschimpf Exp $
+ * $Id: os_support.c,v 1.13 2012/01/14 00:46:11 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -936,6 +936,7 @@ ec_set_cwd(char *name)
     if (ec_use_own_cwd)
     {
 	char buf[MAX_PATH_LEN];
+	int len;
 	struct_stat st_buf;
 	name = expand_filename(name, buf, EXPAND_NORMALISE);
 	if (ec_stat(name, &st_buf)) {
@@ -947,7 +948,11 @@ ec_set_cwd(char *name)
 	    return -1;
 	}
 	strcpy(ec_cwd, buf);
-	strcat(ec_cwd, "/");
+	len = strlen(ec_cwd);
+	if (ec_cwd[len-1] != '/') {
+	    ec_cwd[len] = '/';
+	    ec_cwd[len+1] = 0;
+	}
 
     } else if (ec_chdir(name)) {
 	Set_Sys_Errno(errno, ERRNO_UNIX);
