@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.13 2012/01/14 00:46:11 jschimpf Exp $
+ * $Id: os_support.c,v 1.14 2012/01/17 01:06:33 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -696,7 +696,11 @@ expand_filename(char *in, char *out, int option)
 	   XP seems to require a call to GetShortPathName(), otherwise
 	   GetLongPathName() does not always behave correctly.
 	*/ 
-	len = GetShortPathName(os_filename(inp,buf2), buf1, MAX_PATH_LEN);
+	os_filename(inp, buf2);
+	/* Make sure drive letter is upper case (bug under cygwin) */
+	if (islower(buf2[0]) && buf2[1] == ':')
+	    buf2[0] = toupper(buf2[0]);
+	len = GetShortPathName(buf2, buf1, MAX_PATH_LEN);
 	if (0 < len && len < MAX_PATH_LEN)
 	{
 	    len = GetLongPathName(buf1, buf2, MAX_PATH_LEN);
@@ -710,7 +714,8 @@ expand_filename(char *in, char *out, int option)
 	}
 	else
 	{
-	    _cleanup_path(inp, out, out_last);
+	    canonical_filename(buf2, buf1);
+	    _cleanup_path(buf1, out, out_last);
 	}
 
 #elif HAVE_REALPATH
