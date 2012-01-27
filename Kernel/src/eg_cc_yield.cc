@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_cc_yield.cc,v 1.1 2008/06/30 17:43:54 jschimpf Exp $
+ * $Id: eg_cc_yield.cc,v 1.2 2012/01/27 23:17:23 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	cc_yield.c
@@ -65,33 +65,33 @@ main(int argc,char ** argv)
 		std::cout << "succeeded\n";
 		post_goal("fail");
 		res = EC_resume(X_or_Cut);
-		break;
+		continue;
 
 	    case EC_fail:
 		std::cout << "failed\n";
-		goto _stop_;
+		break;
 
 	    case EC_throw:
 		std::cout << "aborted\n";
 		post_goal("writeln(new_goal_after_abort)");
 		res = EC_resume(X_or_Cut);
-		break;
+		continue;
 
-	    case 3:	/* case EC_yield: */
+	    case EC_yield:
 		std::cout << "yielded\n";
 		if (EC_succeed == EC_word(X_or_Cut).is_long(&x) && x>6)
 		    res = EC_resume(EC_atom("stop"), X_or_Cut);
 		else
 		    res = EC_resume(EC_atom("cont"), X_or_Cut);
-		break;
+		continue;
 
 	    default:
-		std::cout << "bad return code\n";
+		std::cout << "bad return code: " << res << "\n";
 		break;
 	}
+	break;
     }
 
-_stop_:
     ec_cleanup();
     exit(0);
 }
