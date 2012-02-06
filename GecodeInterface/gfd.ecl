@@ -5384,9 +5384,9 @@ msg(X, Y, Dom) :-
             % X =:= Y, Msg is a singleton, so directly bind it
             Dom = X
         ;
-            get_prob_handle(H),
             ( ec_to_gecode_oldvar(X, GX),
               ec_to_gecode_oldvar(Y, GY) ->
+                get_prob_handle(H),
                 restore_space_if_needed(H, _),
                 H = gfd_prob{nvars:N0},
                 % The new domain must be added to a new gfd var
