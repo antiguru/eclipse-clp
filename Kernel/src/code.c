@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.15 2012/02/06 13:16:43 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.16 2012/02/06 18:32:36 jschimpf Exp $
  */
 
 /********************************************************************
@@ -813,11 +813,10 @@ code_init(int flags)
   }
 
     code = &exit_block_code_[0];
-    did1 = in_dict("throw", 1);
-    Make_Default_Prefix(did1);
+    Make_Default_Prefix(d_.throw1);
     if (flags & INIT_SHARED)
     {
-	Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB,code);
+	Exported_Kernel_Proc(d_.throw1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB,code);
 	Exported_Kernel_Proc(d_.exit_block, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB,code);
     }
     do_exit_block_code_ = code;

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.8 2012/02/06 13:16:43 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.9 2012/02/06 18:32:36 jschimpf Exp $
  */
 
 /*
@@ -1217,7 +1217,7 @@ _std_did_init(void)
 	d_.error_handler =	in_dict("error_handler",2);
 	d_.call_explicit =	in_dict("call_explicit",2);
 	d_.garbage_collect_dictionary = in_dict("garbage_collect_dictionary",0);
-	d_.throw	= in_dict("throw",1);
+	d_.throw1	= in_dict("throw",1);
 
 	d_.hang =	in_dict("hang",0);
 	d_.nohang =	in_dict("nohang",0);

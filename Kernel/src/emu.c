@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.22 2012/02/06 13:16:43 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.23 2012/02/06 18:32:36 jschimpf Exp $
  */
 
 /*
@@ -6560,7 +6560,7 @@ _end_external_:
 	    Dereference_Pw_Tag(pw3, tmp1);
 	    if (ISRef(tmp1))
 	    {
-		val_did = d_.throw;
+		val_did = d_.throw1;
 		err_code = INSTANTIATION_FAULT;
 		Pop_Ret_Code
 		goto _regular_err_;
