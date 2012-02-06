@@ -801,28 +801,29 @@ procedure, for example because some situation was detected which
 makes continuing impossible.
 In this situation, one wants to return to some defined state and
 perform some kind of recovery action.
-This functionality is provided by block/3 and exit_block/1.
+This functionality is provided by catch/3 and throw/1
+(formerly known as block/3 and exit_block/1).
 \quickref{Exception Handling}{
 \begin{description}
-\item[block(Goal, BTag, Recovery)]\ \\
+\item[catch(Goal, BTag, Recovery)]\ \\
     like {\tt call(Goal)}, except that in addition a Recovery goal is set up, which
-     can be called by {\tt exit_block} from anywhere inside the
-     call to Goal. When {\tt exit_block(ETag)} is called, then if {\tt ETag} 
+     can be called by {\tt throw} from anywhere inside the
+     call to Goal. When {\tt throw(ETag)} is called, then if {\tt ETag} 
      unifies with a {\tt BTag} from an enclosing {\tt block}, the
-     recovery goal associated with that {\tt block} is called, with the system
-     immediately failing back to where the {\tt block} was called.  In
+     recovery goal associated with that {\tt catch} is called, with the system
+     immediately failing back to where the {\tt catch} was called.  In
      addition, {\tt ETag} can be used to pass information to the recovery 
      goal, if {\tt BTag} occurs as an argument of {\tt Recovery}. 
-\item[exit_block(ETag)]\ \\
+\item[throw(ETag)]\ \\
      will transfer control to the innermost enclosing block/3 whose
      {\tt BTag} argument unifies with {\tt ETag}.
 \end{description}
 }
-By wrapping a predicate call into block/3, any irregular termination
+By wrapping a predicate call into catch/3, any irregular termination
 can be caught and handled, e.g.
 \begin{code}
 protected_main(X,Y,Z) :-
-    block(
+    catch(
         main(X,Y,Z),
         Problem,
         printf("Execution of main/3 aborted with %w%n", [Problem])
@@ -830,13 +831,13 @@ protected_main(X,Y,Z) :-
 
 main(X,Y,Z) :-
     ...,
-    ( test(...) -> ... ; exit_block(test_failed) ),
+    ( test(...) -> ... ; throw(test_failed) ),
     ...,
 \end{code}
 When built-in predicates raise errors, this results in the predicate
 being exited with the tag \verb.abort., which can also be caught:
 \begin{quote}\begin{verbatim}
-?- block(X is 1//0, T, true).
+?- catch(X is 1//0, T, true).
 arithmetic exception in //(1, 0, X)
 X = X
 T = abort

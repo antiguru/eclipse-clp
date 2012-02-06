@@ -20,7 +20,7 @@
 %
 % END LICENSE BLOCK
 %
-% $Id: umsexcept.tex,v 1.3 2011/09/12 19:20:10 kish_shen Exp $
+% $Id: umsexcept.tex,v 1.4 2012/02/06 13:14:41 jschimpf Exp $
 %
 % Created from umsexcept.tex
 %
@@ -311,7 +311,7 @@ asynchronous events should never fail, because the failure will be inserted
 in a random place in the resolvent, and the effect will be unpredictable.
 It is however sometimes useful to allow an asynchronous event to abort
 an execution (via
-\bipref{exit_block/1}{../bips/kernel/control/exit_block-1.html}), e.g.,
+\bipref{throw/1}{../bips/kernel/control/throw-1.html}), e.g.,
 to implement timeouts.\footnote{%
   Since implementing reliable timeouts is a
   nontrivial task, we recommend the use of
@@ -372,8 +372,8 @@ the invocation of the erroneous goal:
 erroneous goal failed;
 \item if the error handler succeeds, possibly binding some variables,
 the execution continues at the point behind the call of the erroneous goal;
-\item if the handler calls \bipref{exit_block/1}%
-{../bips/kernel/control/exit_block-1.html}, it has the same effect as if
+\item if the handler calls \bipref{throw/1}%
+{../bips/kernel/control/throw-1.html}, it has the same effect as if
 this was done by the erroneous goal itself.
 \end{itemize}
 For errors that are classified as warnings the second point is somewhat
@@ -529,13 +529,13 @@ which is the actual error type.
 An error handler is just an ordinary Prolog procedure and thus within
 it a call may be made to any other procedure, or any built in predicate;
 this in particular means that a call to
-\bipref{exit_block/1}{../bips/kernel/control/exit_block-1.html} may be
+\bipref{throw/1}{../bips/kernel/control/throw-1.html} may be
 made (see the section on the
-\bipref{block/3}{../bips/kernel/control/block-3.html}
+\bipref{catch/3}{../bips/kernel/control/catch-3.html}
 predicate).\index{blocks} This will work
 ``through'' the call to the error handler, and so an exit may be made from
-within the handler out of the current block (i.e., back to the corresponding
-call of the \bipref{block/3}{../bips/kernel/control/block-3.html} predicate).
+within the handler out of the current catch-block (i.e., back to the corresponding
+call of the \bipref{catch/3}{../bips/kernel/control/catch-3.html} predicate).
 Specifying the predicates \bipref{true/0}{../bips/kernel/control/true-0.html} or
 \bipref{fail/0}{../bips/kernel/control/fail-0.html} as error handlers
 will make the erroneous predicate succeed (without binding
@@ -771,10 +771,10 @@ performs the standard UNIX handling of the specified interrupt (signal).
     i.e., the interrupt is ignored.
 
 \item[throw/1]\indextt{throw/1}\mbox{}\\
-    Invoke \predspec{exit_block/1} with the interupt's symbolic name.
+    Invoke \predspec{throw/1} with the interupt's symbolic name.
 
 \item[abort/0]\indextt{abort/0}\mbox{}\\
-    Invoke \notation{exit_block(abort)}.
+    Invoke \notation{throw(abort)}.
 
 \item[halt/0]\indextt{halt/0}\mbox{}\\
     Terminate the {\eclipse} process.

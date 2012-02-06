@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.14 2011/04/15 08:10:48 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.15 2012/02/06 13:16:43 jschimpf Exp $
  */
 
 /********************************************************************
@@ -779,14 +779,15 @@ code_init(int flags)
 
 
 /*
- * block/4 and exit_block/1
+ * catch_/4 and throw/1 (alias block/4 and exit_block/1)
  */
 
   if (flags & INIT_SHARED)
   {
-    did1 = in_dict("block", 4);
+    did1 = in_dict("catch_", 4);
     Allocate_Default_Procedure(16, did1);
     Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_TRMETA, code);
+    Exported_Kernel_Proc(in_dict("block",4), ARGFIXEDWAM | DEBUG_DF | DEBUG_TRMETA, code);
     Store_2(Catch, 0)
     Store_2(Allocate, Esize(1))
     Store_i(Savecut)
@@ -812,9 +813,11 @@ code_init(int flags)
   }
 
     code = &exit_block_code_[0];
-    Make_Default_Prefix(d_.exit_block);
+    did1 = in_dict("throw", 1);
+    Make_Default_Prefix(did1);
     if (flags & INIT_SHARED)
     {
+	Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB,code);
 	Exported_Kernel_Proc(d_.exit_block, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB,code);
     }
     do_exit_block_code_ = code;

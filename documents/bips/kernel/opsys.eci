@@ -1205,10 +1205,10 @@ the value of its attribute Attr unfies with Value.
 <PRE>
     Attribute  Type        Meaning
    ---------------------------------------------------------
-    mode       integer     file mode; see values below
-    size       integer     file size
-    type       atom        file,directory,link,socket,fifo,
-                           char_device,block_device
+    mode       integer     file mode (see table below)
+    size       integer     file size in bytes
+    type       atom        file type: file,directory,link,socket,
+                           fifo,char_device or block_device
 
     device     integer     device number
     inode      integer     inode number (Unix)
@@ -1221,26 +1221,28 @@ the value of its attribute Attr unfies with Value.
     atime      integer     time of last access
     mtime      integer     time of last data modification
     ctime      integer     time of last status change
-    adate      string      date of last access
-    mdate      string      date of last data modification
-    cdate      string      date of last status change
+    adate      string      date of last access (text)
+    mdate      string      date of last data modification (text)
+    cdate      string      date of last status change (text)
 
     readable   on/off      file is/isn't readable by this process
     writable   on/off      file is/isn't writable by this process
     executable on/off      file is/isn't executable by this process
 </PRE>
-   All attributes are integers except for the *name attributes, which are
-   string representation of the corresponding *id attributes and *date
-   attributes, which are string representation of the corresponding *time
-   attributes.  The time for the *time attributes is measured as seconds
-   elapsed since 00:00:00 GMT, Jan.  1, 1970.  The flags readable, writable
-   and executable indicate whether the running ECLiPSe process has the
-   corresponding permissions on the file. Note that the executable permission 
-   for Windows may be approximate, because Windows (especially Vista) has a
-   different system for dealing with execute permission.
-
-   The meaning of the bits in the mode attribute is as follows:
+   The *name attributes are string representation of the corresponding *id
+   attributes.  The *date attributes are string representation of the
+   corresponding *time attributes.  The time for the *time attributes is
+   measured as seconds elapsed since 00:00:00 GMT, Jan 1, 1970.
 <P>
+   The flags readable, writable and executable indicate whether the running
+   ECLiPSe process has the corresponding permissions on the file.  Note that
+   the executable permission for Windows may be approximate, because Windows
+   (especially Vista) has a different system for dealing with execute
+   permission.
+<P>
+   The use of the 'mode' attribute and the following numbers is deprecated
+   in favour of the 'type', 'readable', 'writable' and 'executable'
+   attributes.  The meaning of the bits in the mode attribute is as follows:
 <PRE>
  Mode     Meaning
 ------------------------------------------------
@@ -1268,10 +1270,6 @@ the value of its attribute Attr unfies with Value.
  8'000002 write permission for others
  8'000001 execute/search permission for others
 </PRE>
-   The use of the 'mode' attribute and these numbers is deprecated in favour
-   of the 'type', 'readable', 'writable' and 'executable' attributes.
-
-<P>
 "),
 	args:["File" : "Atom or string.", "Attr" : "Atom or variable.", "Value" : "Constant or variable."],
 	fail_if:"Fails if the file File does not exist, or doesn't have the attribute Attr",
@@ -1715,10 +1713,10 @@ Example (UNIX only):
     % e.g. due to a timeout or after-event handler
 
     wait_with_cleanup(Pid, Status) :-
-	block(
+	catch(
 	    wait(Pid, Status),
 	    Tag,
-	    ( kill(Pid, 2), wait(Pid, _), exit_block(Tag) )
+	    ( kill(Pid, 2), wait(Pid, _), throw(Tag) )
 	).
 ",
 	see_also:[exec / 2, exec / 3, exec_group / 3, kill / 2, sh / 1]]).

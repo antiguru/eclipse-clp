@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.11 2010/07/21 23:40:37 jschimpf Exp $
+ * $Id: types.h,v 1.12 2012/02/06 13:16:42 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -861,7 +861,7 @@ typedef struct
 	greater,
 	greaterq,
 	ground,
-	handle_expired_while_thrown,
+	throw,
 	halt,
 	halt0,
         hang,

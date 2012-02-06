@@ -20,7 +20,7 @@
 %
 % END LICENSE BLOCK
 %
-% $Id: umsdebug.tex,v 1.9 2011/09/12 19:20:10 kish_shen Exp $
+% $Id: umsdebug.tex,v 1.10 2012/02/06 13:14:41 jschimpf Exp $
 %
 
 \chapter{Debugging}
@@ -144,25 +144,24 @@ time of the last one.
 %\bipref{set_leash/2}{../bips/kernel/debug/set_leash-2.html} call.
 
 \item[LEAVE:]
-This port allows to trace the execution of a the
-\bipref{block/3}{../bips/kernel/control/block-3.html} and
-\bipref{exit_block/1}{../bips/kernel/control/exit_block-1.html}
-predicates within the box model.  The predicate
-\bipref{block/3}{../bips/kernel/control/block-3.html} is traced as
-a normal procedure.  If the goal in its first argument fails,
-\bipref{block/3}{../bips/kernel/control/block-3.html} fails, if it
-exits, \bipref{block/3}{../bips/kernel/control/block-3.html} exits.
-If the predicate \bipref{exit_block/1}{../bips/kernel/control/exit_block-1.html}
-is called (and exited since it
-never fails), all the goals inside the matching block are left through
-a special port called LEAVE, so that each entry port matches with an
-exit port.  The recover procedure (in the third argument of
-\bipref{block/3}{../bips/kernel/control/block-3.html}) is then
-called and traced normally and
-\bipref{block/3}{../bips/kernel/control/block-3.html} will exit or
-fail (or even leave) depending on the recover procedure.
+This port allows to trace the execution of exceptions.  Exceptions
+are either raised implicitly by built-in predicates (in which case the
+built-in itself exits via the LEAVE port), or explicitly through a call to
+\bipref{throw/1}{../bips/kernel/control/throw-1.html}
+(or \bipref{exit_block/1}{../bips/kernel/control/exit_block-1.html}).
+All ancestors of the predicate that raised the exception will subsequently
+exit via a LEAVE port, until a
+\bipref{catch/3}{../bips/kernel/control/catch-3.html}
+(or \bipref{block/3}{../bips/kernel/control/block-3.html})
+is found, whose second argument matches the exception.
+This invocation of
+\bipref{catch/3}{../bips/kernel/control/catch-3.html}
+then passes a NEXT port (at which point the exception has been caught),
+and then execution continues via a normal call of the recovery goal
+(the third argument of the
+\bipref{catch/3}{../bips/kernel/control/catch-3.html}).
 
-As with the FAIL port, no argument value are displayed in the LEAVE port.
+As with the FAIL port, no argument values are displayed in the LEAVE port.
 
 %\item[CUT:] The cut is considered by the debugger as a predicate
 %(it has its own box with a CALL and an EXIT port) that always
@@ -304,8 +303,9 @@ invocation;
 \item[\notation{FAIL}:] a procedure fails, there is no (other) solution;
 
 \item[\notation{LEAVE}:] a procedure is left before having failed or exited
-  because
-of a call to \bipref{exit_block/1}{../bips/kernel/control/exit_block-1.html};
+  because an exception was raised by either a built-in predicate error
+condition or a call to \bipref{throw/1}{../bips/kernel/control/throw-1.html}
+or \bipref{exit_block/1}{../bips/kernel/control/exit_block-1.html};
 
 \item[\notation{NEXT}:] the next possibly matching clause of a procedure is
   tried
@@ -762,7 +762,7 @@ Use \notation{N} to switch tracing off permanently.
 
 \cmd{q}{query the failure culprit}\\
 The purpose of this command is to find out why a goal has failed (FAIL)
-or was aborted with an exit_block (LEAVE).  It prints the invocation
+or was aborted with an exception (LEAVE).  It prints the invocation
 number of the goal which caused the failure.  You can then re-run the
 program in \notation{creep} mode and type \notation{q} at the first command
   prompt.  This will
@@ -1048,7 +1048,7 @@ Source file: /homes/user/EclipseTests/Chatq/newtop
 Source is only shown if the source information is available---that is,
 the code has to be compiled debuggable from a file, and not all goals have
 source information; for example, goals in meta-calls (e.g., those inside a
-\predspec{block/3}). Also, source context cannot be shown at a RESUME port.
+\predspec{call/1}). Also, source context cannot be shown at a RESUME port.
 
 \cmd{h}{help}\\
 Print a summary of the debugger commands.

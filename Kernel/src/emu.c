@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.21 2011/04/15 08:10:48 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.22 2012/02/06 13:16:43 jschimpf Exp $
  */
 
 /*
@@ -5902,19 +5902,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
  * It is similar to a Try, but it only saves arguments 2, 3, and 4.
  */
 
-/* Doubles can't be thrown because they are not always simple */
-#define Throwable(t) (IsSimple(t) ? !IsDouble(t) : IsTag(t.kernel,THANDLE))
-
 	Case(Catch, I_Catch)
-	    pw1 = &A[2];
-	    Dereference_Pw(pw1);
-	    if (!IsRef(pw1->tag) && !Throwable(pw1->tag))
-	    {
-		val_did = d_.block;
-		err_code = TYPE_ERROR;
-		Pop_Ret_Code
-		goto _regular_err_;
-	    }
 	    Record_Alternative(1, 0);
 	    pw1 = B.args;
 	    Chp(pw1)->sp = EB = SP;
@@ -6568,26 +6556,27 @@ _end_external_:
  * reset the machine and unify the two tags
  */
 	Case(Throw, I_Throw)
-	    pw1 = &A[1];
-	    Dereference_Pw(pw1);
-	    if (!Throwable(pw1->tag))
+	    pw3 = &A[1];
+	    Dereference_Pw_Tag(pw3, tmp1);
+	    if (ISRef(tmp1))
 	    {
-		    val_did = d_.exit_block;
-		    if (IsRef(pw1->tag))
-		    {
-		      err_code = INSTANTIATION_FAULT;
-		    } else {
-                      err_code = TYPE_ERROR;
-                    }
-		    Pop_Ret_Code
-		    goto _regular_err_;
+		val_did = d_.throw;
+		err_code = INSTANTIATION_FAULT;
+		Pop_Ret_Code
+		goto _regular_err_;
 	    }
 	    /* the exit tag (ball) may disappear, so we save it */
-	    scratch_pw.tag.all = pw1->tag.all;
-	    scratch_pw.val.all = pw1->val.all;
+	    if (ISSimple(tmp1)) {
+		scratch_pw = *pw3;
+	    } else {
+		Export_B_Sp_Tg_Tt
+		create_heapterm(&scratch_pw, pw3->val, pw3->tag);
+		Import_Tg_Tt;
+	    }
+
 	    pw1 = B.args;
 	    pw2 = E;
-	    for (;;)			/* (pw1, pw2, scratch_pw) */
+	    for (;;)			/* (pw1, pw2, pw3) */
 	    {
 		if (IsCatchFrame(BTop(pw1)))
 		{
@@ -6602,17 +6591,22 @@ _end_external_:
 			 * unify; it is done in the current state, hence
 			 * we have to dereference the catch tag
 			 */
-			Dereference_Pw(pw2);
-			/* we are cheating a bit here: SimpleEq() shouldn't be
-			 * used for THANDLEs but it does the right thing */
-			if ( IsRef(pw2->tag)
-			  || ( SameType(pw2->tag, scratch_pw.tag)
-			    && SimpleEq(scratch_pw.tag.kernel,
-						scratch_pw.val, pw2->val)
-			     )
-			   )
+			Dereference_Pw_Tag(pw2, tmp1);
+			if (ISRef(tmp1))
+			    break;
+			if (SameTypeC(pw3->tag, tmp1))
 			{
-			    break;		/* they unify */
+			    if (ISSimple(tmp1)) {
+				if (SimpleEq(tmp1, pw3->val, pw2->val))
+				    break;
+			    } else {
+				Export_B_Sp_Tg_Tt_Eb_Gb
+				if (ec_unify_(pw3->val, pw3->tag, pw2->val, pw2->tag, &MU) == PSUCCEED)
+				{
+				    Import_Tg_Tt;
+				    break;
+				}
+			    }
 			}
 			pw2 = BChp(pw1)->e;
 		    }
@@ -6630,15 +6624,18 @@ _end_external_:
 		 */
 		    err_code = PTHROW;
 		    B.args = pw1;
+		    Export_B_Sp_Tg_Tt
+		    free_heapterm(&scratch_pw);
+		    Import_Tg_Tt;
+		    scratch_pw = *pw3;
 		    goto _exit_emulator_;	/* (err_code,scratch_pw) */
 		}
 		else	/* other frame, skip it */
 		    pw1 = BPrev(pw1);
 	    }
 
-/* we finally found a matching ball !!
+/* We finally found a matching ball !!
  * pw1: top of the catch frame
- * pw2: points to dereferenced Catcher
  * scratch_pw: copy of dereferenced Ball,
  */
 	    /* If the frame indicates that events are to be deferred
@@ -6693,7 +6690,8 @@ _end_external_:
             LD = Chp(pw1)->ld;
 	    MU = 0;
 	    Adjust_GcTg_and_TgSl(TG);
-	    pw1 = (pword *)(Chp(pw1) + 1) + 1;		/* skip the ball */
+	    pw1 = (pword *)(Chp(pw1) + 1);
+	    A[7] = *pw1++;				/* A7 = Catcher */
 	    A[1] = *pw1++;				/* A1 = recovery goal */
 	    A[2] = *pw1++;				/* A2 = module */
 	    B.args = pw1 = Top(pw1)->frame.args;	/* pop catch frame */
@@ -6728,14 +6726,17 @@ _end_external_:
 		Make_Integer(&A[5], NEXT_PORT);	/* show NEXT port? */
 	    }
 
-	    /* now we unify the tags - if the argument of exit_block/1
-	     * was a handle that was popped, replace it with an atom.
-	     */
-	    if (IsTag(scratch_pw.tag.kernel,THANDLE) && scratch_pw.val.ptr >= TG)
-	    {
-		Make_Atom(&scratch_pw, d_.handle_expired_while_thrown);
-	    }
+	    /* Get the saved Ball and unify it with the Catcher */
 	    pw1 = &scratch_pw;
+	    if (!IsSimple(scratch_pw.tag))
+	    {
+		pw1 = &A[6];		/* use any free pword */
+		Export_B_Sp_Tg_Tt
+		get_heapterm(&scratch_pw, pw1);
+		free_heapterm(&scratch_pw);
+		Import_Tg_Tt;
+	    }
+	    pw2 = &A[7];
 	    goto _unify_;				/* (pw1, pw2) */
 
 
@@ -6755,7 +6756,7 @@ _end_external_:
 	    EB = Exception(pw1)->eb;
 	    GB = Exception(pw1)->gb;
 	    while (LCA >= GB) {
-		Export_B_Sp_Tg_Tt;
+		Export_B_Sp_Tg_Tt_Eb_Gb
 		do_cut_action();
 		Import_Tg_Tt;
 	    }

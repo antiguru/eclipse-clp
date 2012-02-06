@@ -252,7 +252,8 @@ failed.
 \end{tabular}
 \medskip
 
-When the handler for event 152 (``end of eclipse execution'') calls exit_block,
+When the handler for event 152 (``end of eclipse execution'') calls
+\bipref{throw/1}{../bips/kernel/control/throw-1.html},
 {\eclipse}
 is not exited. This is a way to prevent
 accidental exits from the system. Failure of the handler is ignored.
@@ -339,8 +340,8 @@ The handlers for these events receive the following arguments:
 \section{Stack Overflows}
 \index{stack!overflow}
 \index{overflow, stack}
-When a stack overflows, the system performs an
-\bipref{exit_block/1}{../bips/kernel/control/exit_block-1.html}
+When a stack overflows, the system performs a
+\bipref{throw/1}{../bips/kernel/control/throw-1.html}
 with an appropriate exit tag, i.e.,
 \begin{description}
 \item[global_trail_overflow] for overflows of the global/trail stack
@@ -350,10 +351,10 @@ with an appropriate exit tag, i.e.,
 \end{description}
 These exits can be caught by wrapping a goal that is likely
 to overflow the stacks into an appropriate
-\bipref{block/3}{../bips/kernel/control/block-3.html}, e.g.,
+\bipref{catch/3}{../bips/kernel/control/catch-3.html}, e.g.,
 \begin{quote}
 \begin{verbatim}
-..., block(big_goal(X), global_trail_overflow, react_to_overflow), ...
+..., catch(big_goal(X), global_trail_overflow, react_to_overflow), ...
 \end{verbatim}
 \end{quote}
 In the debugger, you can locate the overflow by jumping to a LEAVE port
@@ -454,7 +455,7 @@ See the description of
 %\index{error_handler/2}
 %prints the error message and the culprit.
 %Then it raises the event 157 (error exit) which by default
-%aborts via {\bf exit_block(abort)}.
+%aborts via {\bf throw(abort)}.
 %
 %\item[error_handler/3]
 %\index{error_handler/3}
@@ -509,7 +510,7 @@ See the description of
 %and prints the corresponding
 %error message.
 %Then it raises the event 157 (error exit) which by default
-%aborts via {\bf exit_block(abort)}.
+%aborts via {\bf throw(abort)}.
 %
 %\item[undef_array_handler/3]
 %\index{undef_array_handler/3}
