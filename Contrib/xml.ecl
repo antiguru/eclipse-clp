@@ -1,5 +1,5 @@
 %
-% $Id: xml.ecl,v 1.1 2006/09/23 01:45:20 snovello Exp $
+% $Id: xml.ecl,v 1.2 2012/02/06 13:30:55 jschimpf Exp $
 %
 % slightly modified version of xml.pl for ECLiPSe
 %
@@ -30,8 +30,11 @@
  *
  * History:
  * $Log: xml.ecl,v $
- * Revision 1.1  2006/09/23 01:45:20  snovello
- * Initial revision
+ * Revision 1.2  2012/02/06 13:30:55  jschimpf
+ * Deprecated block/3 and exit_block/1, making iso compatible catch/3 and throw/1 generally available instead.
+ *
+ * Revision 1.1.1.1  2006/09/23 01:45:20  snovello
+ * Cisco initial import
  *
  * Revision 1.4  2005/05/03 17:23:59  js10
  * Added is_list/1 builtin, including exploitation for indexing.
@@ -62,7 +65,11 @@
 	xml_pp/1
 	], sicstus ).		% ECLiPSe
 
-:- local member/2, select/3, is_list/1.	% ECLiPSe
+:- local
+	member/2,
+	select/3,
+	is_list/1,
+	throw/1.		% ECLiPSe
 
 
 /* xml_parse( {+Controls}, +?Chars, ?+Document ) parses Chars to/from a data
