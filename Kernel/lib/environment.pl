@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.12 2012/01/09 11:47:50 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.13 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -787,11 +787,11 @@ print_help([BipInfo], _) :-
 		( get_pager(Pager) ->		% only if there is a paging program
 		    (get_interrupt_handler(int, Hand, DefMod),
 		     set_interrupt_handler(int, true/0),
-		     block(((exec([Pager,HelpFile], []) -> true;true),
+		     catch(((exec([Pager,HelpFile], []) -> true;true),
 		            set_interrupt_handler(int,Hand)@DefMod
 			   ), Tag, 
 		           (set_interrupt_handler(int,Hand)@DefMod,
-			    exit_block(Tag)
+			    throw(Tag)
 			   )
 		     ))
 		;
@@ -902,14 +902,14 @@ b_read(S, Bip) :-
 
 more(File) :-
 	open(File, read, S),
-	set_error_handler(190, exit_block/1),
-	block(more_page(0, S), Tag, more_end(Tag, S)).
+	set_error_handler(190, throw/1),
+	catch(more_page(0, S), Tag, more_end(Tag, S)).
 
 more_end(Tag, S) :-
 	close(S),
 	reset_error_handler(190),
 	(Tag \== 190 ->
-	    exit_block(Tag)
+	    throw(Tag)
 	;
 	    true
 	).
@@ -921,7 +921,7 @@ more_page(24, S) :-
 	tyi(X),
 	write('\b\b\b\b\b\b\b       \b\b\b\b\b\b\b'),
 	(X == 0'q ->
-	    exit_block(190)
+	    throw(190)
 	;
 	X == 0'b ->
 	    seek(S, 0),

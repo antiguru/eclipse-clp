@@ -27,7 +27,7 @@
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Andrew Cheadle, IC-Parc
 %               Joachim Schimpf, IC-Parc
-% Version:      $Id: timeout.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:      $Id: timeout.ecl,v 1.3 2012/02/06 13:24:43 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -40,7 +40,7 @@
 :- comment(categories, ["Programming Utilities"]).
 :- comment(summary, "Impose time limit for goals").
 :- comment(author, "Andrew Cheadle, Joachim Schimpf, IC-Parc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2012/02/06 13:24:43 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- import request_fail_event/3, timestamp_init/2, timestamp_update/2 from sepia_kernel.
@@ -78,7 +78,7 @@
     Goal is executed as if called via call(Goal),
     but only for a maximum of TimeLimit seconds. If the goal is
     still executing after TimeLimit, time-out occurs, the execution of the
-    goal is terminated (via exit_block/1) and TimeOutGoal is executed.  If
+    goal is terminated (via throw/1) and TimeOutGoal is executed.  If
     the value of TimeLimit is 0 or 1.0Inf, no timeout is applied to the Goal.
 <P>
     Note that, if Goal is nondeterministic, execution flow may leave the scope
@@ -126,7 +126,7 @@ timeout_body(Goal, TimeLimit, TimeOutGoal, Module) :-
 <P>
     Goal is executed for a maximum of TimeLimit seconds. If the goal is still
     executing after TimeLimit, time-out occurs, the execution of the goal is
-    terminated (via exit_block/1) and TimeOutGoal is executed.  If the value
+    terminated (via throw/1) and TimeOutGoal is executed.  If the value
     of TimeLimit is 0 or 1.0Inf, no timeout is applied to the Goal.
 <P>
     SolutionMode is one of all_solution or per_solution.  If Goal is
@@ -254,13 +254,13 @@ stop_timer(Timer, TimeRemaining) :-
 %	Effect as if the inner timeout hadn't occurred. Ok.
 %
 % We handle the case where a timeout occurs when we have just
-% started to process an unrelated exit_block inside the timeout-goal by using
-% block_atomic/3 instead of block/3.
-% In the case of block/3, the timeout handler may interrupt between immediately
+% started to process an unrelated throw inside the timeout-goal by using
+% block_atomic/3 instead of catch/3.
+% In the case of catch/3, the timeout handler may interrupt between immediately
 % on entering catch_timeout(other_tag,...) and before event_disable(Timer).
-% It will then execute an exit_block(timeout_ball_thrown) which is now
-% already outside the scope of its block and therefore not caught.
-% This is fixed by using a variant of block/3, block_atomic/3 which defers
+% It will then execute an throw(timeout_ball_thrown) which is now
+% already outside the scope of its catch and therefore not caught.
+% This is fixed by using a variant of catch/3, block_atomic/3 which defers
 % event handling automatically on entering the catch-goal.
 %
 
@@ -282,14 +282,14 @@ catch_timeout(timeout_ball_thrown, Timer, TimeOutGoal, Module, TimeRemaining) :-
 	    % Disable event in case Timer expired before we could stop it
 	    event_disable(Timer),
 	    % Exit further, leaving event handling deferred
-            exit_block(timeout_ball_thrown)
+            throw(timeout_ball_thrown)
         ).
 catch_timeout(Tag, Timer, _TimeOutGoal, _Module, _TimeRemaining) :-
         % TimeOutGoal aborted for other reasons
         stop_timer(Timer, _TimeRemaining),
 	event_disable(Timer),
 	sepia_kernel:events_nodefer,
-        exit_block(Tag).
+        throw(Tag).
 
 
 % Event handling is deferred when entering this handler
@@ -299,7 +299,7 @@ timeout_handler(Timer) :-
         ( SemValue = 0 ->
 %	    writeln(timeout_handler_0(Timer)),
             setval(timer_ball, Timer),
-            exit_block(timeout_ball_thrown)
+            throw(timeout_ball_thrown)
         ;
 %	    writeln(timeout_handler_1),
             recordz(deferred_timeouts, Timer),

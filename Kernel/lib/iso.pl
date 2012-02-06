@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.15 2011/04/27 12:21:56 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.16 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.15 2011/04/27 12:21:56 jschimpf Exp $
+% $Id: iso.pl,v 1.16 2012/02/06 13:24:43 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -94,7 +94,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, `Cisco Systems, Inc`).
-:- comment(date, `$Date: 2011/04/27 12:21:56 $`).
+:- comment(date, `$Date: 2012/02/06 13:24:43 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html(`\
     This library provides a reasonable degree of compatibility with\n\
@@ -136,8 +136,6 @@
 	atom_concat/3,
 	atom_codes/2,
 	atom_chars/2,
-	catch/3,
-	catch/4,
 	ceiling/2,
 	char_conversion/2,
 	close/2,
@@ -158,7 +156,6 @@
 	get_code/2,
 	halt/1,
 	initialization/1,
-	iso_recover/4,
 	log/2,
 	number_chars/2,
 	number_codes/2,
@@ -180,11 +177,9 @@
 	sign/2,
 	stream_property/2,
 	sub_atom/5,
-	throw/1,
 	truncate/2,
 	unify_with_occurs_check/2.
 
-:- tool(catch/3, catch/4).
 :- tool(initialization/1, initialization/2).
 :- tool(current_prolog_flag/2, current_prolog_flag_/3).
 :- tool(set_prolog_flag/2, set_prolog_flag_/3).
@@ -202,53 +197,6 @@
 
 initialization(Goal, Module) :-
 	local(initialization(Goal))@Module.
-
-%-----------------------------------------------------------------------
-% 7.8 Control constructs (ok)
-%-----------------------------------------------------------------------
-
-:- local variable(ball).
-
-catch(Goal, Catcher, Recovery, Module) :-
-	block(Goal, Tag, iso:iso_recover(Tag, Catcher, Recovery, Module))@Module.
-
-
-    iso_recover(iso_ball_thrown, Catcher, Recovery, Module) :- !,
-	getval(ball, Ball),
-	( Catcher = Ball ->
-	    setval(ball, _),
-	    call(Recovery)@Module
-	;
-	    exit_block(iso_ball_thrown)
-	).
-    iso_recover(Tag, Catcher, Recovery, Module) :-
-	( Catcher = Tag ->
-	    call(Recovery)@Module
-	;
-	    exit_block(Tag)
-	).
-	
-
-throw(Ball) :-
-	atomic(Ball),
-	exit_block(Ball).
-throw(Ball) :-
-	nonvar(Ball),
-	setval(ball, Ball),
-	exit_block(iso_ball_thrown).
-throw(Ball) :-
-	var(Ball),
-	error(4, throw(Ball)).
-
-
-    throw_handler(N, exit_block(iso_ball_thrown)) :-
-	getval(ball, Ball),
-	setval(ball, _),
-	error(N, throw(Ball)).
-    throw_handler(N, Goal) :-
-	error(default(N), Goal).
-	
-:- set_event_handler(230, throw_handler/2).
 
 
 %-----------------------------------------------------------------------

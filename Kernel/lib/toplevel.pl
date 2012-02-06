@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.4 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.5 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -120,7 +120,7 @@
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2010/07/25 13:29:05 $").
+:- comment(date, "$Date: 2012/02/06 13:24:43 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -281,7 +281,7 @@ tty_abort_loop :-
 	repeat,				% we start here after abort
 	    set_stream_property(toplevel_input, prompt, '\t'),
 	    set_stream_property(toplevel_input, prompt_stream, toplevel_output),
-	    block(tty_fail_loop, Tag, top_abort(Tag)),
+	    catch(tty_fail_loop, Tag, top_abort(Tag)),
 	!.
 
 
@@ -329,7 +329,7 @@ tty_run_command(end_of_file, _, _) :- !,
 	( get_flag(ignore_eof, on), get_flag(break_level, 0) ->
 	    writeln(toplevel_output, "Use \"halt.\" to exit ECLiPSe.")
 	;
-	    exit_block(end)
+	    throw(end)
 	).
 tty_run_command(Goal0, VL0, M) :-
         history_append(Goal0-VL0),
@@ -523,7 +523,7 @@ gui_toplevel_init :-
 gui_toplevel :-
 	write_exdr(toplevel_out, "Idle"),
 	repeat,
-	    block(gui_fail_loop, Tag, top_abort(Tag)),
+	    catch(gui_fail_loop, Tag, top_abort(Tag)),
 	!.
 
 gui_fail_loop :-
@@ -542,7 +542,7 @@ state_idle(port_profile(GoalString)) :- !,
 	exec_goal(GoalString, port_profile).
 state_idle(end) :- !.
 state_idle(exit) :- !,
-	exit_block(end).
+	throw(end).
 state_idle(Junk) :- !,
 	error(6, state_idle(Junk)).
 
@@ -555,7 +555,7 @@ state_success(more) :- !,
 	fail.
 state_success(end) :- !.
 state_success(exit) :- !,
-	exit_block(end).
+	throw(end).
 state_success(Junk) :-
 	error(6, state_success(Junk)).
 	
@@ -563,7 +563,7 @@ state_success(Junk) :-
 read_goal(GoalString,Goal,Vars) :-
 	open(GoalString,string,Stream),
 	get_flag(toplevel_module, Module),
-	( block(readvar(Stream,Goal,Vars)@Module,_,fail) ->
+	( catch(readvar(Stream,Goal,Vars)@Module,_,fail) ->
 	    close(Stream)
 	;
 	    close(Stream),
@@ -588,7 +588,7 @@ exec_goal(GoalString, RunMode) :-
 	!,
 	run_goal(TransGoal, Vars, Module, RunMode).
 exec_goal(_, _) :-
-	exit_block(abort).
+	throw(abort).
 
 
 gui_ask_more(_, no) :- !,
@@ -656,7 +656,7 @@ user_stop_request_handler(Event) :-
     Used to start a new invocation of the top level loop.  Compiled
     procedures and event handler redefinitions remain valid within the new
     invocation level.  Exiting with a Control-D (or end_of_file) or
-    calling exit_block(end) will return the control to the previous level.
+    calling throw(end) will return the control to the previous level.
     "),
     args:[],
     resat:"   No.",
@@ -685,7 +685,7 @@ Leaving break level 1
 yes.
 [eclipse]:
 ",
-	see_also:[toplevel/0, exit_block / 1]]).
+	see_also:[toplevel/0, throw / 1]]).
 
 break :-
 	getval(toplevel_type, tty),
@@ -808,7 +808,7 @@ top_abort(Tag) :-
 	stack_overflow_message(Tag), !,
 	top_abort(abort).
 top_abort(Tag) :-
-	block(error(230, exit_block(Tag)), T, true),
+	catch(error(230, throw(Tag)), T, true),
 	top_abort(T).
 
 

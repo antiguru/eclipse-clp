@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.10 2012/01/09 23:54:22 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.11 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -908,7 +908,7 @@ do_get_file_info(File, compiled_time, Time) :-
 %	- running rpcs
 %	- running user goals, e.g. remote_init
 %	- remote flush (but not if inside ec_waitio)
-% but these goals must be safely wrapped in block/3 to make sure the
+% but these goals must be safely wrapped in catch/3 to make sure the
 % events are deferred again even on failure/throw.
 % Note that, since we re-enable events temporarily from within events-deferred
 % code, we cannot allow nesting, i.e. remote_accept, peer_queue_xxx and
@@ -989,14 +989,14 @@ remote_connect_accept(Control, Soc, TimeOut, Init, Pass, Res, Mod) :-
 	close(Soc),
 	events_defer,	% fail if already deferred (can't handle nesting)
 	!,
-	block((
+	catch((
 		run_remote_init(Init, Res, Mod),
 		remote_control_read(Control, Message),
 		handle_ec_resume(Message, Control),
 		events_nodefer
 	    ), Tag, (
 		events_nodefer,
-		exit_block(Tag)
+		throw(Tag)
 	    )).
 remote_connect_accept(Control, Soc, TimeOut, Init, Pass, Res, Mod) :-
 	(nonvar(Soc),current_stream(Soc) -> close(Soc) ; true),
@@ -1020,7 +1020,7 @@ check_remote_version(Control) :-
 
 timed_read_exdr(Stream, TimeOut, Data) :-
 	stream_select([Stream], TimeOut, [Stream]),
-	block(read_exdr(Stream, Data), _, fail).
+	catch(read_exdr(Stream, Data), _, fail).
 
 timed_accept(Server, TimeOut, RemoteHost, NewQueue) :-
 	stream_select([Server], TimeOut, [Server]),
@@ -1033,7 +1033,7 @@ timed_accept(Server, TimeOut, RemoteHost, NewQueue) :-
 % events deferred!
 run_remote_init(Init, Res, Mod) :-
 	( nonvar(Init), var(Res) ->
-	    block((
+	    catch((
 		     events_nodefer,
 		     (call(Init)@Mod -> Res = Init ; Res = fail),
 		     events_defer
@@ -1264,7 +1264,7 @@ peer_queue_create1(Name, Control, Sync, Direction, Event) :-
 
     % events deferred!
     connect_remote_queue(success, Soc, Name, Control, Sync, Direction, Event, TimeOut, RHost, StreamId) :-
-	block(
+	catch(
 	      (create_remote_queue(Sync, Direction, Soc, Name, Control, TimeOut, RHost, Event) ->
                    get_stream_info(Name, physical_stream, StreamId)
 	      ;    
@@ -1326,7 +1326,7 @@ peer_queue_create1(Name, Control, Sync, Direction, Event) :-
 
 % returns end_of_file as a message if something goes wrong
 remote_control_read(Control, Message) :-
-	block((read_exdr(Control, Message) -> true ; Message = end_of_file),
+	catch((read_exdr(Control, Message) -> true ; Message = end_of_file),
 	           _, Message = end_of_file
 	).
 
@@ -1338,9 +1338,9 @@ remote_control_send(Control, Message) :-
 	    ((InMessage == disconnect_resume; InMessage == end_of_file) ->
 		% unilateral disconnect from remote side; disconnect locally now
 		remote_cleanup(Control),
-		exit_block(peer_abort_disconnected)
+		throw(peer_abort_disconnected)
 	    ;   printf(error, "Unexpected incoming message %w on remote %w.\n", [InMessage,Control]),
-	        exit_block(peer_abort_error)
+	        throw(peer_abort_error)
 	    )
 	;
 	    write_exdr(Control, Message),
@@ -1417,7 +1417,7 @@ remote_rpc_handler(Rpc, Control) :-
 	% the rpc goal corresponding to the control message must eventually
         % arrive on the Rpc socket stream
 	stream_select([Rpc], block, [Rpc]), % wait until Rpc stream is ready..
-	block(execute_remote_rpc(Rpc, Control), _, handle_remote_rpc_throw(Rpc, Control)).
+	catch(execute_remote_rpc(Rpc, Control), _, handle_remote_rpc_throw(Rpc, Control)).
 
     execute_remote_rpc(Rpc, Control) :-
 	read_exdr(Rpc, Goal),
@@ -1473,7 +1473,7 @@ handle_control(disconnect, Control, _NextMsg) :- -?->  !, % disconnect request
 	write_exdr(Control, disconnect_yield), % acknowledge disconnect
 	flush(Control),
 	remote_cleanup(Control),
-	exit_block(peer_abort_disconnected).
+	throw(peer_abort_disconnected).
 handle_control(rem_flushio(Queue), Control, NextMsg) :- -?-> !, 
 	get_stream_info(Queue, device, Device),
 	deal_with_remote_flush(Device, Queue, unknown),
@@ -1483,7 +1483,7 @@ handle_control(rem_flushio(Queue, Len), Control, NextMsg) :- -?-> !,
 	deal_with_remote_flush(Device, Queue, Len),
 	remote_yield(Control, NextMsg).
 handle_control(queue_create(Name,Sync,Direction,Event), Control, NextMsg) :- -?-> !,
-	block((
+	catch((
 	   peer_queue_create1(Name, Control, Sync, Direction, Event) -> true;true),
            _, true
         ),
@@ -1497,11 +1497,11 @@ handle_control(queue_close(Queue), Control, NextMsg) :- -?-> !,
 handle_control(disconnect_resume, Control, _NextMsg) :- -?-> !,
 % remote side already disconnected, no acknowledgement
 	remote_cleanup(Control),
-	exit_block(peer_abort_disconnected).
+	throw(peer_abort_disconnected).
 handle_control(end_of_file, Control, _NextMsg) :- -?-> !,
 % Control is disconnected. Assume remote side disconnected unexpectedly
 	remote_cleanup(Control),
-	exit_block(peer_abort_disconnected).
+	throw(peer_abort_disconnected).
 handle_control(Message, Control, NextMsg) :-
 	printf(error, "Unrecognised control signal %w; disconnecting.%n",
             [Message]),
@@ -1513,13 +1513,13 @@ deal_with_remote_flush(Device, Queue, Len) :-
 	( getval(in_ec_waitio, Queue) ->
 	    % this flush is the input corresponding to a ec_waitio
 	    % don't handle events
-	    block((
+	    catch((
 		deal_with_remote_flush1(Device, Queue, Len) -> true ; true
 		), _, true)	% ignore any problems with the handler
 
 	; events_nodefer ->     %%%% this can't fail!
 	    % handle events during remote flush
-	    block((
+	    catch((
 		deal_with_remote_flush1(Device, Queue, Len) -> true ; true
 		), _, true),	% ignore any problems with the handler
 	    events_defer
@@ -1549,7 +1549,7 @@ deal_with_remote_flush(Device, Queue, Len) :-
 % make remote_cleanup more robust so that problems will not choke eclipse
 % events deferred on entry, undeferred om exit
 remote_cleanup(Control) :-
-	block(remote_cleanup_raw(Control), _, fail), !.
+	catch(remote_cleanup_raw(Control), _, fail), !.
 remote_cleanup(Control) :-
 	printf(error, "Problem with cleaning up remote peer %w.%n", [Control]).
 
@@ -1636,14 +1636,14 @@ peer_deregister_multitask(Peer) :-
 peer_do_multitask(Type) :-
         \+peers_are_multitasking,
         /* multitasking will terminate if peers do not confirm multitasking */
-        block(( (peer_multitask_terminate,
+        catch(( (peer_multitask_terminate,
                  peer_multitask_phase(Type, Err)
                 )-> true
               ;     peer_end_multitask(Err)
               ), 
               Tag, (peer_end_multitask(_Err2), Tag = Err)
         ),
-        (nonvar(Err) -> exit_block(Err) ; true).
+        (nonvar(Err) -> throw(Err) ; true).
 
     peer_multitask_phase(Type, Err) :-
         peers_mt_broadcast_with_cleanup(start_multitask(Type), Err),
@@ -1651,9 +1651,9 @@ peer_do_multitask(Type) :-
         peer_end_multitask(Err).
 
 /* ensure that multitask phase is ended properly: if failure or 
-   exit_block occurs, broadcast end_multitask again */
+   throw occurs, broadcast end_multitask again */
 peer_end_multitask(Err) :-
-        block(( (peers_mt_broadcast_with_cleanup(end_multitask, Err),
+        catch(( (peers_mt_broadcast_with_cleanup(end_multitask, Err),
                  peer_multitask_off
                  ) -> true
                 ;     peer_end_multitask(Err)
@@ -1694,7 +1694,7 @@ peers_mt_broadcast(Msg, Err) :-
 
 peers_mt_broadcast1([], _, _).
 peers_mt_broadcast1([mt_peer{peer:Peer,msgq:MQ}|Ps], Msg, Err) :-
-        block(send_mt_message(MQ, Msg), Tag,
+        catch(send_mt_message(MQ, Msg), Tag,
               peer_mt_error_recover(Tag,Peer,Err)),
         peers_mt_broadcast1(Ps, Msg, Err).
 

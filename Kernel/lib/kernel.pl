@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.32 2012/01/14 00:57:20 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.33 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -163,6 +163,7 @@
    tool(bagof/3, bagof_body/4),
    tool(block/3, block/4),
    tool(block_atomic/3, block_atomic/4),
+   tool(catch/3, catch_/4),
    tool(coverof/3, coverof_body/4),
    tool(untraced_block/3, block/4),
    tool(printf_with_current_modes/2, printf_with_current_modes_body/3),
@@ -349,7 +350,7 @@ main(Restart) :-
 	embed_block([]).
 
 	embed_block(Goals) :-
-	    block(embed_repeat(Goals),ExitCode,embed_catch(ExitCode)).
+	    catch(embed_repeat(Goals),ExitCode,embed_catch(ExitCode)).
 
 	    embed_catch(ExitCode) :-
 		yield(2,ExitCode,Goals),	% 2 == PTHROW
@@ -407,7 +408,7 @@ ec_rpc_in_handler1(In, Out) :-
 	    flush(Out)
 	;
 	    empty_stream(Out),
-	    block((read_exdr_last(In, Goal),execute_rpc(Out, Goal, true)),
+	    catch((read_exdr_last(In, Goal),execute_rpc(Out, Goal, true)),
 		    _, (write_exdr(Out, throw),flush(Out))),
 	    ec_rpc_in_handler1(In, Out)
 	).
@@ -466,8 +467,8 @@ hang :- hang.
 
 slave :-
 	get_par_goal(pargoal(InitGoal, ParGoal)),
-	(block(InitGoal, _, fail, eclipse) -> true ; true),
-	block(
+	(catch(InitGoal, _, fail, eclipse) -> true ; true),
+	catch(
 	    (install_pending_oracle, worker_boundary, ParGoal),
 	    _,
 	    (install_oracle(0),hang)
@@ -618,7 +619,7 @@ licence_check :-
 	    % Open licence file and backtrack over all licence entries in it
 	    open(LicFile, read, S),
 	    repeat,
-	    block(read(S, SignedLicenceTerm), _, SignedLicenceTerm=junk),
+	    catch(read(S, SignedLicenceTerm), _, SignedLicenceTerm=junk),
 
 	    ( SignedLicenceTerm \== end_of_file ->
 
@@ -747,7 +748,7 @@ standalone_toplevel :-
 
 	% In the following, Goal is negated to make sure we always fail and
 	% untrail everything before exiting. Do not simplify this code!
-	; block(\+call(Goal)@M, T, top_throw(T)) ->
+	; catch(\+call(Goal)@M, T, top_throw(T)) ->
 	    fail
 	;
 	    true
@@ -759,13 +760,13 @@ standalone_toplevel :-
 	;
 	    writeln(error, Tag)
 	),
-	exit_block(Tag).
+	throw(Tag).
 	
 :- mode process_command_line(+,+,-,+).
 process_command_line([], _I, _Goal, _M) :- !.
 process_command_line(["-b", Arg |Args], I, Goal, M) :- !,
 	os_file_name(File, Arg),
-	block(ensure_loaded(File, M), Tag, top_throw(Tag)),
+	catch(ensure_loaded(File, M), Tag, top_throw(Tag)),
 	MI is -I, argv(MI,2),	% delete the 2 arguments
 	process_command_line(Args, I, Goal, M).
 process_command_line(["-e", Arg |Args], I, Goal, M) :- !,
@@ -832,7 +833,7 @@ mutex_body(Mutex, Goal, Module) :-
 	( getval_body(Mutex, Worker, Module) -> % already ours (if nested)
 	    ( call(Goal)@Module -> true ; fail )
 	;
-	    block(mutex_body(Mutex, Goal, Module, Worker), T,
+	    catch(mutex_body(Mutex, Goal, Module, Worker), T,
 		mutex_exit(T, Mutex, Worker, Module))
 	).
 
@@ -854,7 +855,7 @@ mutex_one_body(Mutex, Goal, Module) :-
 	( getval_body(Mutex, Worker, Module) -> % already ours (if nested)
 	    ( call(Goal)@Module -> true ; fail )
 	;
-	    block(mutex_one_body(Mutex, Goal, Module, Worker), T,
+	    catch(mutex_one_body(Mutex, Goal, Module, Worker), T,
 		mutex_exit(T, Mutex, Worker, Module))
 	).
 
@@ -876,7 +877,7 @@ mutex_one_body(Mutex, Goal, Module, Worker) :-
 mutex_exit(T, Mutex, Worker, Module) :-
 	% We don't know whether the lock was grabbed or not!
 	(test_and_setval_body(Mutex, Worker, 0, Module) -> true ; true),
-	exit_block(T).
+	throw(T).
 
 %--------------------------------
 % Miscellaneous
@@ -1115,11 +1116,11 @@ load_eco(FileAtom, Module) :-
 	getcwd(OldPath),
 	cd(ParentDir),
 	cputime(Time0),
-	( block(load_eco(FileAtom, 0, Module, FileModule),
+	( catch(load_eco(FileAtom, 0, Module, FileModule),
 		Tag,
 		(cd(OldPath),
 		 (error(147, FileAtom) -> true; true),	% COMPILER_ABORT
-		 exit_block(Tag)))
+		 throw(Tag)))
 	->
 	    Time is cputime - Time0,
 	    error(149, end_of_file, FileModule),	% CODE_UNIT_LOADED
@@ -1495,7 +1496,7 @@ run_stored_goals(Which, Module) :-
 
     run_list_of_goals([], _).
     run_list_of_goals([Goal|Goals], Module) :-
-	    ( block(call(Goal)@Module, _Tag, fail) ->
+	    ( catch(call(Goal)@Module, _Tag, fail) ->
 		true
 	    ;
 		error(167, Goal, Module)
@@ -1697,7 +1698,7 @@ abort :-
 	    concat_string([" on worker ", W], Where)
 	),
 	printf(log_output, "Aborting execution%s ...\n%b", Where),
-	exit_block(abort).
+	throw(abort).
 
 sepiadir(S) :-
 	getval(sepiadir, S).
@@ -4296,12 +4297,12 @@ expand_goal(Goal, Expanded, Module) :-
 	expand_goal_annotated_(Goal, _, Expanded, _, Module).
 
 expand_goal_annotated_(Goal, AnnGoal, Expanded, AnnExpanded, Module) :-
-	block(tr_goals_annotated(Goal, AnnGoal, Expanded, AnnExpanded, Module),
+	catch(tr_goals_annotated(Goal, AnnGoal, Expanded, AnnExpanded, Module),
 	    Tag,
 	    ( integer(Tag), Tag > 0 ->
 		error(Tag, Goal, Module)
 	    ;
-		exit_block(Tag)
+		throw(Tag)
 	    )
 	).
 
@@ -7156,13 +7157,13 @@ check_head(H) :-
 non_terminal(V, Where) :-
 	(var(V) ; number(V) ; string(V)),
 	!,
-	exit_block(Where).
+	throw(Where).
 non_terminal(_, _).
 
 error_if_not_list(.(_,_), _) :-
 	!.
 error_if_not_list(_, Where) :-
-	exit_block(Where).
+	throw(Where).
 
 :- mode head(+, -, ?, -, -, -, -, -, -, ++).
 head((Head , Pushbacklist), NewHead, AnnPHead, AnnNewHead, 

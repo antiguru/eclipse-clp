@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: t_all.pl,v 1.3 2010/04/22 14:12:49 jschimpf Exp $
+% Version:	$Id: t_all.pl,v 1.4 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %-----------------------------------------------------------------------
@@ -93,7 +93,7 @@ ab_loop :-
 	my_halt.
 
 ab_pgm(X) :-
-	write(test_log_output, '***** PROBLEM : program aborts : exit_block('),
+	write(test_log_output, '***** PROBLEM : program aborts : throw('),
 	write(test_log_output, X),
 	writeln(test_log_output, ')'),
 	write_error,
@@ -101,7 +101,7 @@ ab_pgm(X) :-
 	my_halt.
 
 ab_test(X) :-
-	write(test_log_output, '***** PROBLEM : test aborts : exit_block('),
+	write(test_log_output, '***** PROBLEM : test aborts : throw('),
 	write(test_log_output, X),
 	writeln(test_log_output, ')'),
 	write_error,
@@ -148,7 +148,7 @@ write_error.
 
 
 test1(File, Header, M) :-
-	block(test2(File, Header, consult, top, M),_,end_test).
+	catch(test2(File, Header, consult, top, M),_,end_test).
 
 test2(File, Header, CompileGoal, RunGoal, M) :-
 
@@ -167,7 +167,7 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 
 	set_flag(variable_names, off),		% prepare for compile
 
-	block(
+	catch(
 	    ( call(CompileGoal)@M ->		% compile the test
 		CompilationOk = true
 	    ;
@@ -176,7 +176,7 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	    ExitTag,
 	    (
 		write(test_log_output, '***** PROBLEM: COMPILATION ABORTS WITH '),
-		writeln(test_log_output, exit_block(ExitTag))
+		writeln(test_log_output, throw(ExitTag))
 	    )
 	),
 
@@ -192,7 +192,7 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	    cputime(StartTime),
 	    get_priority(OldPrio),
 
-	    block(
+	    catch(
 		(
 		    call(RunGoal)@M,		% run test goal
 		    garbage_collect,
@@ -209,7 +209,7 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 		ExitTag,
 		(
 		    write(test_log_output, '***** PROBLEM: TEST ABORTS WITH '),
-		    writeln(test_log_output, exit_block(ExitTag))
+		    writeln(test_log_output, throw(ExitTag))
 		)
 	    ),
 
@@ -246,13 +246,13 @@ check_state(OldPrio) :-
 	( get_priority(OldPrio) ->
 	    true
 	;
-	    exit_block(test_terminated_with_modified_priority)
+	    throw(test_terminated_with_modified_priority)
 	),
 	( events_defer ->
 	    events_nodefer
 	;
 	    events_nodefer,
-	    exit_block(test_terminated_with_events_deferred)
+	    throw(test_terminated_with_events_deferred)
 	).
 
 

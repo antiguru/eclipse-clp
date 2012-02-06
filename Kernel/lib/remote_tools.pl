@@ -25,7 +25,7 @@
 % ECLiPSe II remote development tools ECLiPSe side interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: remote_tools.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: remote_tools.pl,v 1.3 2012/02/06 13:24:43 jschimpf Exp $
 % Authors:	Kish Shen, IC-Parc
 %
 %----------------------------------------------------------------------
@@ -52,7 +52,7 @@ attach_tools(Address, Block, Goal, Module) :-
 	\+attached(_),
 	install_guitools,
 	remote_connect_setup(Address, Con, Soc),
-	block(
+	catch(
 	   (call(Goal)@Module, 
 	    remote_connect_accept(Con, Soc, Block, post_attach(Con), "", _) ->
 		true
@@ -60,7 +60,7 @@ attach_tools(Address, Block, Goal, Module) :-
 		current_stream(Soc), close(Soc), fail
 	   ), Tag,
 	   ((current_stream(Soc) -> close(Soc) ; true), 
-	    exit_block(Tag)
+	    throw(Tag)
 	   )
 	).
 
@@ -76,9 +76,9 @@ attached(ControlStream) :-
 
 tools :- 
 	(attached(ControlStream) ->
-	    block(remote_yield(ControlStream), abort, 
+	    catch(remote_yield(ControlStream), abort, 
 	       (writeln(log_output, "Disconnected from remote tools"),
-	        exit_block(abort)
+	        throw(abort)
 	       )
 	   )
 	;   % not yet attached

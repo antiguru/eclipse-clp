@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: mps.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: mps.pl,v 1.2 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -77,7 +77,7 @@ mps_receive_body(Port, Term, Module) :-
 mps_error_handler(_, Goal) :-
     ( mps_error(Message) -> true ; Message = "Wrong usage !" ),
     printf(error, "Message passing error in %w\n%s\n%b", [Goal,Message]),
-    exit_block(abort).
+    throw(abort).
 
 :- set_default_error_handler(176, mps_error_handler/2),
    reset_error_handler(176).

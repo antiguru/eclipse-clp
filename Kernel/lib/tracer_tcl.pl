@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.11 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.12 2012/02/06 13:24:43 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -356,7 +356,7 @@ set_usepred_info(PredMatchString, PredModuleString, PredDefModuleString, PredCon
 	% construct and compile the condition
         concat_string(["goal_filter((", PredMatchString,
 		"),(", PredModuleString,
-	        ")) ?- block(\\+(\\+ (", PredConditionString,")), _, fail)"],
+	        ")) ?- catch(\\+(\\+ (", PredConditionString,")), _, fail)"],
 	    PredMatchConditionString),
         % DefiningModule cannot be a variable!
 	term_string(NewGoalFilter, PredMatchConditionString)@DefiningModule,
@@ -775,12 +775,12 @@ get_subterm_child(Pos, Current0, Top, Child, Module) :-
 
 is_expandable_handle(H, Exp) :-
         set_event_handler(141, fail/0),
-        block(
+        catch(
                    (xget(H, 0, Exp) -> 
                         reset_event_handler(141)
                    ;
                         reset_event_handler(141), fail
-                   ), Tag, (reset_event_handler(141), exit_block(Tag)) 
+                   ), Tag, (reset_event_handler(141), throw(Tag)) 
         ).
 
 list_nth(1, [E0|Ls], E, Tail) ?- !,
@@ -1573,14 +1573,14 @@ use_module_os(OsFile, Module) :-
 	flush(output).
 
 catchall(Goal) :-
-        block(Goal, Tag, top_abort(Tag)).
+        catch(Goal, Tag, top_abort(Tag)).
 
 top_abort(abort) ?- !.
 top_abort(Tag) :-
         stack_overflow_message(Tag), !,
         top_abort(abort).
 top_abort(Tag) :-
-        block(error(230, exit_block(Tag)), T, true),
+        catch(error(230, throw(Tag)), T, true),
         top_abort(T).
 
 list_predicates(Which, Module, AuxFilter, Sorted) :-
@@ -1680,7 +1680,7 @@ list_modules(Modules, ToplevelModule) :-
 gui_help(Stream,SubjectString) :-
 	get_stream(output, S),
 	set_stream(output, Stream),
-	( block(gui_help1(SubjectString), _, fail) ->
+	( catch(gui_help1(SubjectString), _, fail) ->
 	    true
 	;
 	    printf("No help available on \"%s\"%n", SubjectString)
@@ -2081,7 +2081,7 @@ uninstall_guitools :-
 %----------------------------------------------------------------------
 
 catch_fatal :-
-	exit_block(fatal_signal_caught).
+	throw(fatal_signal_caught).
 
 %----------------------------------------------------------------------
 % Saros Filename involved predicates

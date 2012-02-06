@@ -107,6 +107,7 @@
 :-(reexport(from(/(cancel_after_event,1),sepia_kernel))).
 :-(reexport(from(/(cancel_after_event,2),sepia_kernel))).
 :-(reexport(from(/(canonical_path_name,2),sepia_kernel))).
+:-(reexport(from(/(catch,3),sepia_kernel))).
 :-(reexport(from(/(cd,1),sepia_kernel))).
 :-(reexport(from(/(ceiling,2),sepia_kernel))).
 :-(reexport(from(/(char_code,2),sepia_kernel))).
@@ -528,6 +529,7 @@
 :-(reexport(from(/(term_to_bytes,2),sepia_kernel))).
 :-(reexport(from(/(term_variables,2),sepia_kernel))).
 :-(reexport(from(/(test_and_setval,3),sepia_kernel))).
+:-(reexport(from(/(throw,1),sepia_kernel))).
 :-(reexport(from(/(times,3),sepia_kernel))).
 :-(reexport(from(/(tool,1),sepia_kernel))).
 :-(reexport(from(/(tool,2),sepia_kernel))).

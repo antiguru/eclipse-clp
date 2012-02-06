@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.5 2012/01/08 09:57:37 kish_shen Exp $
+% Version:	$Id: document.ecl,v 1.6 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2012/01/08 09:57:37 $").
+:- comment(date, "$Date: 2012/02/06 13:24:43 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -100,7 +100,7 @@ icompile_body(File, OutDir, _M) :-
 	canonical_path_name(OutDir, CanonOutDir), % before source_open can cd!
 	source_open(File, [minimal_macro_expansion,no_clause_expansion,include_comment_files], SP0),
 	SP0 = source_position{file:CanonFile},
-	( block(open_eci_file(CanonFile, CanonOutDir, FileModule, EciStream),_,fail) ->
+	( catch(open_eci_file(CanonFile, CanonOutDir, FileModule, EciStream),_,fail) ->
 	    (
 		fromto(begin, _, Class, end),
 		fromto(SP0, SP1, SP2, SPend),
@@ -149,7 +149,7 @@ icompile_body(File, OutDir, _M) :-
 	    source_close(SPend, [])
 	;
 	    source_close(SP0, []),
-	    exit_block(abort)
+	    throw(abort)
 	).
 
     module_directive(module(_)).

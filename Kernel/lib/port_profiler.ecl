@@ -25,7 +25,7 @@
 % Port Counting Profiler
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: port_profiler.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: port_profiler.ecl,v 1.3 2012/02/06 13:24:43 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %
 %----------------------------------------------------------------------
@@ -157,14 +157,14 @@ port_profile_(Goal, OptionList, Module) :-
 	    ;
 	    	TraceGoal = trace(Goal)
 	    ),
-	    block(
+	    catch(
 		( TraceGoal@Module ->
 		    Result = true
 		;
 		    Result = fail
 		),
 		Exception,
-		Result = exit_block(Exception)
+		Result = throw(Exception)
 	    ),
 	    uninstall_handler,
 	    list_results(Options, GoalString),
@@ -533,7 +533,7 @@ save_results(_Options, S) :-
 :- comment(summary, "Port Counting Profiler").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2012/02/06 13:24:43 $").
 
 :- comment(desc, html("<P>
     This is a performance analysis tool based on counting of events during
@@ -655,7 +655,7 @@ save_results(_Options, S) :-
 	<DT>else</DT> <DD>going to an alternative within a predicate</DD>
 	</TR>
 	<TR>
-	<DT>leave</DT> <DD>leaving a predicate with exit_block/1</DD>
+	<DT>leave</DT> <DD>leaving a predicate with throw/1</DD>
 	</TR>
 	<TR>
 	<DT>delay</DT> <DD>delaying a predicate</DD>

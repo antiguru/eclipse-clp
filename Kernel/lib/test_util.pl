@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: test_util.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: test_util.pl,v 1.3 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(test_util).
@@ -79,7 +79,7 @@
 :- comment(summary, "Utilities for automated program tests").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2012/02/06 13:24:43 $").
 :- comment(desc, html("
     Use this library as follows: Write a file with test patterns, using
     the primitives should_fail/1, should_give/2, should_throw/2 and
@@ -87,7 +87,7 @@
     <PRE>
     3.0 > 3 should_fail.
     X is 3.0+4 should_give X=7.0.
-    exit_block(ball) should_throw ball.
+    throw(ball) should_throw ball.
     number_string(hello,_) should_raise 5.
     </PRE>
     The file name should have a .tst extension, e.g. mytests.tst.
@@ -102,7 +102,7 @@
     <PRE>
     should_fail(3.0 > 3, test_float_not_greater_than_integer).
     should_give(X is 3.0+4, X=7.0, test_float_plus_integer_equals_float).
-    should_throw(exit_block(ball),ball,test_exit_block).
+    should_throw(throw(ball),ball,test_throw).
     should_raise(number_string(hello,_),5,test_raises_5).
     </PRE>
     Here the extra last argument serves as a name for the test (or a short
@@ -113,7 +113,7 @@
     <PRE>
     test_float_not_greater_than_integer,pass,2001-10-29,16:59:20,0.00
     test_float_plus_integer_equals_float,pass,2001-10-29,16:59:20,0.01
-    test_exit_block,pass,2001-10-29,16:59:20,0.00
+    test_throw,pass,2001-10-29,16:59:20,0.00
     test_raises_5,pass,2001-10-29,16:59:20,0.00
     </PRE>
     The first value is the name of the test (last argument in test pattern).
@@ -127,7 +127,7 @@
     <PRE>
     test_result,test_float_not_greater_than_integer,pass,2001-10-29,16:59:20,0.00
     test_result,test_float_plus_integer_equals_float,pass,2001-10-29,16:59:20,0.01
-    test_result,test_exit_block,pass,2001-10-29,16:59:20,0.00
+    test_result,test_throw,pass,2001-10-29,16:59:20,0.00
     test_result,test_raises_5,pass,2001-10-29,16:59:20,0.00
     </PRE>
     This can be extremely useful, as useful information as the name of the
@@ -167,14 +167,14 @@
 :- comment((should_throw)/2, [
     template:"+Goal should_throw +Exception",
     summary:"Run the goal Goal and print a message if it doesn't throw Exception",
-    eg:"exit_block(ball) should_throw ball.",
+    eg:"throw(ball) should_throw ball.",
     see_also:[(should_give)/2, (should_fail)/1, (should_raise)/2, (should_throw)/3,
 	      (should_give)/3, (should_fail)/2, (should_raise)/3]
     ]).
 :- comment((should_throw)/3, [
     template:"should_throw(+Goal,+Exception,+TestName)",
     summary:"Run the goal Goal and print a message if it doesn't throw Exception",
-    eg:"    should_throw(exit_block(ball),ball,test_exit_block).",
+    eg:"    should_throw(throw(ball),ball,test_throw).",
     see_also:[(should_give)/2, (should_fail)/1, (should_raise)/2, (should_throw)/2,
 	      (should_give)/3, (should_fail)/2, (should_raise)/3]
     ]).
@@ -329,7 +329,7 @@ do_test(compile, Test, M) ?-
 
 compile_test_call(Test, M) :-
 	extract_test_goal(Test, Goal0, Head, NewTest),
-	block(expand_goal(Goal0, Goal)@M,
+	catch(expand_goal(Goal0, Goal)@M,
 	   _, Goal0 = Goal % ignore problem until compilation
 	),
 	term_variables(Goal, Vars),
@@ -337,7 +337,7 @@ compile_test_call(Test, M) :-
         % catch and ignore `illegal goal' error if should_raise
 	get_event_handler(131, HH, HM),
 	set_event_handler(131, expected_handler/0),
-	block(
+	catch(
           (compile_term((Head:-Goal))@M ->
 	         arg(1, Head, Test),
 	         once(NewTest)@M,
@@ -392,14 +392,14 @@ extract_test_goal(should_throw(Goal,Expected,_Name), G0, G1, NewTest) ?- !,
 extract_test_goal(Goal, Goal, G1, G1).
 
 should_fail_body(Goal, Module) :-
-	block(should_fail1(Goal, Module), _, true).
+	catch(should_fail1(Goal, Module), _, true).
 
 should_fail_body(Goal, Name, Module) :-
 	printf(test_csv_log, "%q,", [Name]),
-	block(should_fail1(Goal, Module), _, true).
+	catch(should_fail1(Goal, Module), _, true).
 
     should_fail1(Goal, Module) :-
-	( block(call(Goal)@Module, Tag, unexpected_exit(Goal,Tag)) ->
+	( catch(call(Goal)@Module, Tag, unexpected_exit(Goal,Tag)) ->
 	    unexpected_success(Goal)
 	;
 	    write(test_csv_log, "pass,")
@@ -407,15 +407,15 @@ should_fail_body(Goal, Name, Module) :-
 
 
 should_give_body(Goal, Check, Module) :-
-	block(should_give1(Goal, Check, Module), _, true).
+	catch(should_give1(Goal, Check, Module), _, true).
 
 should_give_body(Goal, Check, Name, Module) :-
 	printf(test_csv_log, "%q,", [Name]),
-	block(should_give1(Goal, Check, Module), _, true).
+	catch(should_give1(Goal, Check, Module), _, true).
 
     should_give1(Goal, Check, Module) :-
-	( block(call(Goal)@Module, Tag, unexpected_exit(Goal,Tag)) ->
-	    ( block(call(Check)@Module, Tag, unexpected_exit(Check,Tag)) ->
+	( catch(call(Goal)@Module, Tag, unexpected_exit(Goal,Tag)) ->
+	    ( catch(call(Check)@Module, Tag, unexpected_exit(Check,Tag)) ->
 		garbage_collect,  % try to provoke any gc bugs
 		write(test_csv_log, "pass,")
 	    ;
@@ -429,30 +429,30 @@ should_give_body(Goal, Check, Name, Module) :-
 	).
 
 should_throw_body(Goal, Expected, Module) :-
-	block(should_throw1(Goal, Expected, Module), _, true).
+	catch(should_throw1(Goal, Expected, Module), _, true).
 
 should_throw_body(Goal, Expected, Name, Module) :-
 	printf(test_csv_log, "%q,", [Name]),
-	block(should_throw1(Goal, Expected, Module), _, true).
+	catch(should_throw1(Goal, Expected, Module), _, true).
 
     should_throw1(Goal, Expected, Module) :-
-	( block(call(Goal)@Module, Tag, expected_exit(Goal,Expected,Tag)) ->
+	( catch(call(Goal)@Module, Tag, expected_exit(Goal,Expected,Tag)) ->
 	    unexpected_success(Goal)
 	;
 	    unexpected_failure(Goal)
 	).
 
 should_raise_body(Goal, ErrorId, Module) :-
-	block(should_raise1(Goal, ErrorId, Module), _, true).
+	catch(should_raise1(Goal, ErrorId, Module), _, true).
 
 should_raise_body(Goal, ErrorId, Name, Module) :-
 	printf(test_csv_log, "%q,", [Name]),
-	block(should_raise1(Goal, ErrorId, Module), _, true).
+	catch(should_raise1(Goal, ErrorId, Module), _, true).
 
     should_raise1(Goal, ErrorId, Module) :-
 	get_event_handler(ErrorId, H, M),
 	set_event_handler(ErrorId, expected_handler/0),
-	( block(call(Goal)@Module, Tag,
+	( catch(call(Goal)@Module, Tag,
 	    (set_event_handler(ErrorId, H)@M, expected_exit(Goal,ignore,Tag)))
 	->
 	    unexpected_success(Goal)
@@ -463,7 +463,7 @@ should_raise_body(Goal, ErrorId, Name, Module) :-
 
 
     expected_handler :-
-	exit_block(ignore).
+	throw(ignore).
 
     unexpected_success(Goal) :-
 	%% TEST has failed
@@ -481,8 +481,8 @@ should_raise_body(Goal, ErrorId, Name, Module) :-
 	%% TEST has failed
 	write(test_csv_log, "fail,"),
 	incval(failed_test_count),
-	printf_with_line(testlog, "goal unexpectedly did exit_block(%w):%n%q%n%n%b", [Tag,Goal]),
-	exit_block(ignore).
+	printf_with_line(testlog, "goal unexpectedly did throw(%w):%n%q%n%n%b", [Tag,Goal]),
+	throw(ignore).
 
     expected_exit(Goal,Expected, Actual) :-
 	( Expected==Actual ->
@@ -492,9 +492,9 @@ should_raise_body(Goal, ErrorId, Name, Module) :-
 	    %% TEST has failed
 	    write(test_csv_log, "fail,"),
 	    incval(failed_test_count),
-	    printf_with_line(testlog, "goal unexpectedly did exit_block(%w):%n%q%n%n%b", [Actual,Goal])
+	    printf_with_line(testlog, "goal unexpectedly did throw(%w):%n%q%n%n%b", [Actual,Goal])
 	),
-	exit_block(ignore).
+	throw(ignore).
 
 
 %%%%%%%%%%%%%%%%%%%

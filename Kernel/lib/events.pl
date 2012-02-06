@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.12 2011/05/05 07:48:53 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.13 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -98,7 +98,7 @@ gen_valid_errors(Start, Max, N) :-
 
 % The user-definable exit from a non-recoverable error.
 error_exit :-
-	exit_block(abort).
+	throw(abort).
 
 %-------------------------------------
 % Here are the default error handlers
@@ -1305,7 +1305,7 @@ postpone_suspensions(Susp) :-
 
 /* default error handler for MegaLog errors */
 
-'$transaction_deadlock'(317,_) :- exit_block(abort_transaction).
+'$transaction_deadlock'(317,_) :- throw(abort_transaction).
 
 ?- set_default_error_handler_(300, error_handler/2, sepia_kernel),
    set_default_error_handler_(301, error_handler/2, sepia_kernel),
@@ -1336,7 +1336,7 @@ postpone_suspensions(Susp) :-
 ?- set_event_handler(postponed, trigger/1),
    set_event_handler(requested_fail_event, trigger/1),
    set_event_handler(garbage_collect_dictionary, garbage_collect_dictionary/0),
-   set_event_handler(abort, exit_block/1).
+   set_event_handler(abort, throw/1).
 
 reset_error_handlers :-
 	current_error(N),
@@ -1480,9 +1480,9 @@ post_events_from_stream(Stream) :-
 
 
 %----------------------------------------------------------------------
-% postpone_exit(+Tag) is called when an exit_block was requested inside
-% an interrupt, but the exit_block protection is active (e.g. we were
-% interrupting a garbage collection). The exit_block is postponed by
+% postpone_exit(+Tag) is called when a throw was requested inside
+% an interrupt, but the throw protection is active (e.g. we were
+% interrupting a garbage collection). The throw is postponed by
 % saving the Tag and setting the WAS_EXIT flag.
 %----------------------------------------------------------------------
 
@@ -1493,13 +1493,13 @@ postpone_exit(Tag) :-
 	vm_flags(0, 16'08000000, _),	% set the WAS_EXIT flag
 	sys_return(0).
 
-% exit_postponed/0 is called when the exit_block protection
+% exit_postponed/0 is called when the throw protection
 % is dropped and the WAS_EXIT flag is set.
 
 exit_postponed :-
 	getval(postpone_exit, Tag),
 	vm_flags(16'0c000000, 0, _),	% clear NO_EXIT and WAS_EXIT
-	exit_block(Tag).
+	throw(Tag).
 
 %----------------------------------------------------------------------
 % after
@@ -1595,7 +1595,7 @@ try_set_after_timer(Timer) :-
 	    get_flag(after_event_timer, Timer0),
 	    % reinitialise after_events
 	    stop_timer(Timer0, Remain, Interv),  	% stop old timer
-	    (block(stop_timer(Timer, _, _), _, fail) ->
+	    (catch(stop_timer(Timer, _, _), _, fail) ->
 		true 
 	    ; 
 		printf(error, "%w not available on this configuration.%n", [Timer]),
@@ -1741,7 +1741,7 @@ check_after_events(_, _, _, _) :-
     check_time_type(_) :- set_bip_error(5).
 
 
-% Called with events deferred. Must not fail/exit_block!
+% Called with events deferred. Must not fail/throw!
 unchecked_add_after_events([], [], [], _) :-
 	getval(after_events, List),
 	adjust_after_timer(List).

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: fd.pl,v 1.3 2012/02/06 13:24:43 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -488,7 +488,7 @@ min_max_body(Goal, Template, Solution, Value, Lower, Upper, Percent, Timeout, Mo
     ).
 
 bbr2(Goal, Template, _Solution, List, Low, Max, Percent, Timeout, Index, Module) :-
-    block(call_local(branch_and_bound_restart(Goal, Template, List,
+    catch(call_local(branch_and_bound_restart(Goal, Template, List,
     		Low, Max, Percent, Timeout, Index, Module)), Tag, handle_exit(Tag)).
 bbr2(_Goal, _Template, Solution, _, _, _, _, _, Index, _) :-
     xget(Index, 1, Solution),	% fail here if no solution
@@ -581,7 +581,7 @@ minimize_body(Goal, Template, Solution, Value, Lower, Upper, Percent, Timeout, M
     ).
 
 bb2(Goal, Template, _Solution, List, Low, Max, Percent, Timeout, Index, Module) :-
-    block(call_local(branch_and_bound(Goal, Template, List,
+    catch(call_local(branch_and_bound(Goal, Template, List,
     		Low, Max, Percent, Timeout, Index, Module)), Tag, handle_exit(Tag)).
 bb2(_Goal, _Template, Solution, _, _, _, _, _, Index, _) :-
     xget(Index, 1, Solution),	% fail here if no solution
@@ -743,12 +743,12 @@ handle_exit(fd_timeout) :-
     fail.
 handle_exit(Tag) :-
     cancel_after_event(fd_timeout, _),
-    exit_block(Tag).
+    throw(Tag).
 
-:- set_event_handler(fd_timeout, exit_block/1).
+:- set_event_handler(fd_timeout, throw/1).
 
 :- untraceable
-	branch_and_bound/9,			% called from block
+	branch_and_bound/9,			% called from catch
 	branch_and_bound_restart/9.
 
 
