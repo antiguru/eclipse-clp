@@ -2842,7 +2842,7 @@ label(L0):
 	move                     a(3)     y(2)     a(1)     y(1) 
 	put_atom                 a(1)     true 
 	put_module               a(2)     eclipse 
-	callf                    sepia_kernel : untraced_call / 2     Y[1,2] 
+	callf                    sepia_kernel : call_ / 2     Y[1,2] 
 	get_value                y(1)     y(2) 
 	exit                 
 
@@ -2868,7 +2868,7 @@ label(L0):
 	move                     3     a(1)     y(1) 
 	put_atom                 a(1)     true 
 	put_module               a(2)     eclipse 
-	callf                    sepia_kernel : untraced_call / 2     Y[1,2,3,4,5,6] 
+	callf                    sepia_kernel : call_ / 2     Y[1,2,3,4,5,6] 
 	get_value                y(1)     y(4) 
 	get_value                y(2)     y(5) 
 	get_value                y(3)     y(6) 
@@ -9908,7 +9908,7 @@ p(A) :-
 p / 1:
 label(L0):
 	put_module               a(2)     eclipse 
-	jmp                      sepia_kernel : untraced_call / 2 
+	jmp                      sepia_kernel : call_ / 2 
 
 ------ Test special(2) -------
 p(A) :-
@@ -9917,7 +9917,7 @@ p(A) :-
 p / 1:
 label(L0):
 	put_module               a(2)     eclipse 
-	jmp                      sepia_kernel : untraced_call / 2 
+	jmp                      sepia_kernel : call_ / 2 
 
 ------ Test special(3) -------
 p(A, B) :-
@@ -9925,7 +9925,7 @@ p(A, B) :-
 
 p / 2:
 label(L0):
-	jmp                      sepia_kernel : untraced_call / 2 
+	jmp                      sepia_kernel : call_ / 2 
 
 ------ Test special(4) -------
 p(A) :-
@@ -9934,7 +9934,7 @@ p(A) :-
 p / 1:
 label(L0):
 	put_atom                 a(2)     lists 
-	jmp                      sepia_kernel : untraced_call / 2 
+	jmp                      sepia_kernel : call_ / 2 
 
 ------ Test special(5) -------
 p(A, B) :-
@@ -9982,7 +9982,7 @@ p / 0:
 label(L0):
 	put_atom                 a(1)     q 
 	put_module               a(2)     eclipse 
-	jmp                      sepia_kernel : untraced_call / 2 
+	jmp                      sepia_kernel : call_ / 2 
 
 ------ Test special(10) -------
 p :-
@@ -10000,7 +10000,7 @@ label(L0):
 	write_didatom            (',') / 2     ! 
 	write_atom               b 
 	put_module               a(2)     eclipse 
-	callf                    sepia_kernel : untraced_call / 2     Y[] 
+	callf                    sepia_kernel : call_ / 2     Y[] 
 	chain                    r / 0 
 
 ------ Test special(11) -------
@@ -10011,7 +10011,7 @@ p / 1:
 label(L0):
 	move                     a(1)     a(2) 
 	put_atom                 a(1)     q 
-	jmp                      sepia_kernel : untraced_call / 2 
+	jmp                      sepia_kernel : call_ / 2 
 
 ------ Test special(12) -------
 p :-
@@ -10021,7 +10021,7 @@ p / 0:
 label(L0):
 	put_atom                 a(1)     q 
 	put_atom                 a(2)     lists 
-	jmp                      sepia_kernel : untraced_call / 2 
+	jmp                      sepia_kernel : call_ / 2 
 
 ------ Test special(13) -------
 p :-
@@ -10032,7 +10032,7 @@ label(L0):
 	put_structure            a(1)     writeln / 1 
 	write_atom               hello 
 	put_atom                 a(2)     lists 
-	jmp                      sepia_kernel : untraced_call / 2 
+	jmp                      sepia_kernel : call_ / 2 
 
 ------ Test special(13) -------
 p :-
@@ -14751,7 +14751,7 @@ label(L0):
 	callf                    copy_term / 2     Y[2] 
 	savecut                  y(1) 
 	put_module               a(2)     eclipse 
-	move_callf               y(2)     a(1)     sepia_kernel : untraced_call / 2     Y[1] 
+	move_callf               y(2)     a(1)     sepia_kernel : call_ / 2     Y[1] 
 	cut                      y(1)     0 
 	exit                 
 
@@ -15053,11 +15053,11 @@ label(L0):
 	callf                    getcond / 2     Y[3,4] 
 	savecut                  y(2) 
 	put_module               a(2)     eclipse 
-	move_callf               y(4)     a(1)     sepia_kernel : untraced_call / 2     Y[2,3] 
+	move_callf               y(4)     a(1)     sepia_kernel : call_ / 2     Y[2,3] 
 	cut                      y(2)     3 
 	savecut                  y(1) 
 	put_module               a(2)     eclipse 
-	move_callf               y(3)     a(1)     sepia_kernel : untraced_call / 2     Y[1] 
+	move_callf               y(3)     a(1)     sepia_kernel : call_ / 2     Y[1] 
 	cut                      y(1)     0 
 	exit                 
 
