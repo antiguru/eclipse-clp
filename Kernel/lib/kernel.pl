@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.33 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.34 2012/02/07 19:34:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -2634,23 +2634,9 @@ is_body(R, X, M) :-
 	;
 	    error(4, R is X, M)
 	).
-
-
-
-
-is_body(R, X, M) :- (atom(X);compound(X)), !, eval(X, R, M).
-
-is_body(R, X, M) :- number(X), !, unify_number(R, X, M).
+is_body(R, X, M) :- callable(X), !, eval(X, R, M).
+is_body(R, X, _) :- number(X), !, R=X.
 is_body(R, X, M) :- error(24, R is X, M).
-
-
-% is performs essentially unification with a slightly more helpful failure case (ie. does some type incompatibility check)
-unify_number(R, X, _) :- var(R),!, R = X.
-unify_number(X, X, _) :- !.
-unify_number(R, X, _) :- type_of(R,T), type_of(X,T), !, fail.
-unify_number(R, X, M) :- error(5, R is X, M).
-
-
 
 
 % eval(X, R, M) - evaluate an arithmetic expression.
