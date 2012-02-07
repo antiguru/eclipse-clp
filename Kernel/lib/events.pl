@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.13 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.14 2012/02/07 13:27:08 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -765,22 +765,30 @@ output_error_handler(X, Culprit, CM, LM):-
 	system_error_handler(X, Culprit, CM, LM).
 
 
-% system_stream(SystemStream,DefaultAssignStream)
+% system_stream(SystemStream,DefaultAssignStreams,LastResortStream)
 
-:- mode system_stream(?, -).
-system_stream(input, stdin).
-system_stream(output, stdout).
-system_stream(warning_output, stdout).
-system_stream(log_output, stdout).
-system_stream(error, stderr).
+:- mode system_stream(?,-,-,-).
+system_stream(input,		default_input,		[read, update], stdin).
+system_stream(output,		default_output, 	[write,update], stdout).
+system_stream(warning_output,	default_warning_output,	[write,update], stdout).
+system_stream(log_output,	default_log_output,	[write,update], stdout).
+system_stream(error,		default_error,		[write,update], stderr).
 
 close_handler(_,close(Stream)) ?- !,
 	get_stream(Stream, Handle),
         (
 	    % reset system streams that are redirected to Stream
-            system_stream(SysStream,Standard),
-            get_stream(SysStream,Handle),
-            set_stream(SysStream,Standard),
+            system_stream(SysStream, Default, AcceptableModes, Fallback),
+            get_stream(SysStream, Handle),
+	    (   is_open_stream(Default),
+		\+get_stream(Default, Handle),
+	        get_stream_info(Default, mode, Mode),
+	        memberchk(Mode, AcceptableModes)
+	    ->
+		set_stream(SysStream, Default)
+	    ;
+		set_stream(SysStream, Fallback)
+	    ),
             fail
         ;
             true
