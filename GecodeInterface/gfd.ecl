@@ -1095,6 +1095,7 @@ construct_relcstr_event1((#=), EX, EY, GEX, GEY, H, N0,N, Bs0,Bs, Auxs0,AuxsT, E
         ( boolean_expr(EX) ->
             ( boolean_expr(EY) ->
                 Bs = Bs0,
+                N = N0,
                 Event = post_bool_connectives(ConLev,GEX<=>GEY),
                 Auxs0 = AuxsT
             ; var(EY) ->
