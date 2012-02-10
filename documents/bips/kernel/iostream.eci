@@ -172,7 +172,7 @@ with the stream identifier Stream.
 
 
 ",
-        see_also:[open/3, existing_file/4, close/1,
+        see_also:[open/3, existing_file/4, close/1, close/2,
                 set_stream_property/3, at / 2, at_eof / 1, current_stream / 1,
                 get_stream_info / 3, seek / 2, set_stream/2,
                 stream_select / 3, stream_truncate/1, flush / 1,
@@ -568,6 +568,35 @@ Error:
         see_also:[socket / 3, listen / 2, accept / 3, connect / 2, new_socket_server/3, current_stream / 1, get_stream_info / 3]]).
 
 
+:- comment(close / 2, [
+        summary:"Closes the stream specified by Stream.",
+        amode:(close(+,+) is det),
+        args:[ "Stream" : "Stream handle or alias (atom)",
+        	"Options" : "List of option terms"],
+        exceptions:[4 : "Stream is not instantiated.",
+	    4 : "Options is not sufficiently instantiated.",
+	    5 : "Stream is instantiated, but not to a stream handle or an atom.",
+%	    40 : "Stream is a handle that was already closed.",
+%	    193 : "Stream is an illegal stream specification.",
+	    196 : "Trying to close a system stream (handled by default)."],
+        desc:html("<P>
+	    The only supported option is force(true).  This will suppress
+	    any errors that would have been raised during closing otherwise,
+	    in particular errors from the operating system, or the stream
+	    being already closed.  It is intended for error handling
+	    routines that want to do their best to free resources.
+	<P>
+	    close(Stream,[]) is equivalent to close(Stream).
+	    See close/1 for more details.  
+	"),
+	eg:"
+	:- local finalization(
+		close(logstream, [force(true)])
+	    ).
+	",
+        see_also:[close/1, open / 3, open / 4]]).
+
+
 :- comment(close / 1, [
         summary:"Closes the stream specified by Stream.  ",
         amode:(close(+) is det),
@@ -605,7 +634,12 @@ Error:
 <P>
 "),
         args:[ "Stream" : "Stream handle or alias (atom)"],
-        exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is instantiated, but not to a stream handle or an atom.", 172 : "File specified by stream number Stream is not open.", 193 : "Stream is an illegal stream specification.", 196 : "Trying to close a system stream."],
+        exceptions:[4 : "Stream is not instantiated.",
+	    5 : "Stream is instantiated, but not to a stream handle or an atom.",
+	    40 : "Stream is a handle that was already closed.",
+	    170 : "Operating system could not close the stream.",
+	    193 : "Stream is an illegal stream specification.",
+	    196 : "Trying to close a system stream (handled by default)."],
         eg:"
       % Open and close using a handle
       ?- open(file1,write,S), write(S,hello), close(S).
@@ -641,7 +675,7 @@ Error:
       Abort
 
       % OK: handle-only stream gets auto-closed on failure (and file deleted)
-      ?- open(file2, write, S, [delete_file(when_lost)]), abort.
+      ?- open(file2, write, S, [delete_file(when_lost)]), fail.
       No (0.00s cpu)
 
 
@@ -649,11 +683,11 @@ Error:
       close(Stream).         (Error 4).
       close(\"4\").            (Error 5).
       close(S),close(S).     (Error 40).
-      close(10).             (Error 172).
+      close(10).             (Error 193).
       close(nostream).       (Error 193).
-      close(outout).         (Error 196).
+      close(output).         (Error 196).
 ",
-        see_also:[open / 3, open / 4, set_stream / 2]]).
+        see_also:[close /2, open / 3, open / 4, set_stream / 2]]).
 
 :- comment(connect / 2, [
         summary:"Connects a socket with the given address.

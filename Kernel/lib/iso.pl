@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.16 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.17 2012/02/10 20:20:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.16 2012/02/06 13:24:43 jschimpf Exp $
+% $Id: iso.pl,v 1.17 2012/02/10 20:20:05 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -94,7 +94,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, `Cisco Systems, Inc`).
-:- comment(date, `$Date: 2012/02/06 13:24:43 $`).
+:- comment(date, `$Date: 2012/02/10 20:20:05 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html(`\
     This library provides a reasonable degree of compatibility with\n\
@@ -138,7 +138,6 @@
 	atom_chars/2,
 	ceiling/2,
 	char_conversion/2,
-	close/2,
 	current_char_conversion/2,
 	current_input/1,
 	current_output/1,
@@ -269,9 +268,6 @@ set_input(Stream) :-				% 8.11.3
 
 set_output(Stream) :-				% 8.11.4
 	set_stream(output, Stream).
-
-close(Stream, _) :-				% 8.11.6
-	close(Stream).
 
 flush_output :- flush(output).			% 8.11.7
 

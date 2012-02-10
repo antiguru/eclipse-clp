@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.11 2012/01/09 11:49:34 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.12 2012/02/10 20:15:23 jschimpf Exp $
  */
 
 /*
@@ -854,7 +854,7 @@ ec_close_stream(stream_id nst, int options)
     int res = PSUCCEED;
 
     if(!IsOpened(nst))
-	return(FILE_NOT_OPEN);
+	return STREAM_SPEC;
 
     if (IsWriteStream(nst) && !IsQueueStream(nst))
     {

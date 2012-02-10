@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.14 2012/02/07 13:27:08 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.15 2012/02/10 20:20:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -765,7 +765,7 @@ output_error_handler(X, Culprit, CM, LM):-
 	system_error_handler(X, Culprit, CM, LM).
 
 
-% system_stream(SystemStream,DefaultAssignStreams,LastResortStream)
+% system_stream(SystemStream,DefaultStream,AcceptableModes,LastResortStream)
 
 :- mode system_stream(?,-,-,-).
 system_stream(input,		default_input,		[read, update], stdin).
@@ -774,7 +774,9 @@ system_stream(warning_output,	default_warning_output,	[write,update], stdout).
 system_stream(log_output,	default_log_output,	[write,update], stdout).
 system_stream(error,		default_error,		[write,update], stderr).
 
-close_handler(_,close(Stream)) ?- !,
+close_handler(_, close(Stream)) ?- !,
+	close_handler(_, close(Stream, [])).
+close_handler(_, close(Stream, Options)) ?- !,
 	get_stream(Stream, Handle),
         (
 	    % reset system streams that are redirected to Stream
@@ -793,9 +795,9 @@ close_handler(_,close(Stream)) ?- !,
         ;
             true
         ),
-        close(Handle).
-close_handler(ErrorNumber,Goal) :-
-        error_handler(ErrorNumber,Goal).
+        close(Handle, Options).
+close_handler(ErrorNumber, Goal) :-
+        error_handler(ErrorNumber, Goal).
 
 
 % Currently only used for output goals
@@ -837,6 +839,7 @@ system_error_handler(E, Goal, CM, LM):-
     restartable_builtin(cd(_)).
     restartable_builtin(open(_,_,_)).
     restartable_builtin(close(_)).
+    restartable_builtin(close(_,_)).
     restartable_builtin(connect(_,_)).
     restartable_builtin(stream_select(_,_,_)).
     restartable_builtin(wait(_,_,_)).

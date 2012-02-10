@@ -115,6 +115,7 @@
 :-(reexport(from(/(clause,1),sepia_kernel))).
 :-(reexport(from(/(clause,2),sepia_kernel))).
 :-(reexport(from(/(close,1),sepia_kernel))).
+:-(reexport(from(/(close,2),sepia_kernel))).
 :-(reexport(from(/(clrbit,3),sepia_kernel))).
 :-(reexport(from(/(comment,2),sepia_kernel))).
 :-(reexport(from(/(compare,3),sepia_kernel))).

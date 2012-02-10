@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.4 2011/04/21 02:45:52 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.5 2012/02/10 20:15:23 jschimpf Exp $
  */
 
 /*
@@ -274,7 +274,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 /* -170 */
 "system interface error",			/* SYS_ERROR		*/
 "File does not exist : ",			/* NOFILE		*/
-"File is not open :",				/* FILE_NOT_OPEN	*/
+"",						/* was FILE_NOT_OPEN	*/
 "library not found",				/* NOLIB		*/
 "child process terminated due to signal",
 "child process stopped",

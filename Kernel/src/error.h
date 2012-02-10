@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: error.h,v 1.3 2011/04/21 02:45:52 jschimpf Exp $
+ * VERSION	$Id: error.h,v 1.4 2012/02/10 20:15:23 jschimpf Exp $
  *
  * IDENTIFICATION		error.h
  *
@@ -182,7 +182,6 @@
 					 * "errno" describing the error.
 					 */
 #define NO_FILE			-171
-#define FILE_NOT_OPEN		-172
 #define MPS_ERROR		-176
 #define NO_SHARED_LIB		-177
 #define PEOF			-190	/* end of file in an IO predicate */

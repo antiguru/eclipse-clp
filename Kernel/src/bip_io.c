@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.12 2012/01/09 11:49:34 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.13 2012/02/10 20:15:23 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -213,6 +213,8 @@ extern int		ec_sigio;
 static dident		d_pipe,
 			d_fd,
 			d_fd1,
+			d_false,
+			d_force1,
 			d_dup1,
 			d_sigio,
 			d_in,
@@ -261,6 +263,7 @@ static int     		p_nl(value vs, type ts),
 			p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr), 
 			p_erase_stream_property(value v, type t),
 			p_close(value v, type t),
+			p_close2(value v, type t, value vopt, type topt),
 			p_tyo(value vs, type ts, value v, type t),
 			p_tyi(value vs, type ts, value v, type t), 
 			p_delete(value v, type t), 
@@ -311,6 +314,8 @@ bip_io_init(int flags)
 {
     d_fd = in_dict("fd", 0);
     d_fd1 = in_dict("fd", 1);
+    d_false = in_dict("false", 0);
+    d_force1 = in_dict("force", 1);
     d_dup1 = in_dict("dup", 1);
     d_sigio = in_dict("sigio", 1);
     d_in = in_dict("in", 1);
@@ -353,6 +358,7 @@ bip_io_init(int flags)
 	(void) built_in(in_dict("nl", 1),	p_nl, B_SAFE);
 	(void) built_in(in_dict("open", 3),	p_open, B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("close", 1),	p_close, B_SAFE);
+	(void) built_in(in_dict("close", 2),	p_close2, B_SAFE);
 	(void) built_in(in_dict("tyo", 2),	p_tyo, B_SAFE);
 	(void) built_in(in_dict("tyi", 2),	p_tyi, B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("delete", 1),	p_delete, B_SAFE);
@@ -1089,10 +1095,37 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
  */
 
 static int
-p_close(value v, type t)
+p_close2(value v, type t, value vopt, type topt)
 {
     stream_id	nst;
     int		res;
+    int		close_options = 0;
+
+    /* process the options list */
+    while (IsList(topt))
+    {
+	pword *car = vopt.ptr;
+	pword *cdr = car + 1;
+
+	Dereference_(car);
+	Error_If_Ref(car->tag);
+	if (!IsStructure(car->tag)) {
+	    Bip_Error(RANGE_ERROR);	/* not TYPE_ERROR (ISO) */
+	}
+	car = car->val.ptr;
+	if (car->val.did == d_force1) {
+	    Check_Atom(car[1].tag);
+	    if (car[1].val.did == d_.true0) close_options |= CLOSE_FORCE;
+	    else if (car[1].val.did == d_false) close_options &= ~CLOSE_FORCE;
+	    else { Bip_Error(RANGE_ERROR); }
+	} else {
+	    Bip_Error(RANGE_ERROR);
+	}
+	Dereference_(cdr);
+	topt = cdr->tag;
+	vopt = cdr->val;
+    }
+    Check_Nil(topt);
 
     Error_If_Ref(t);
     if (IsAtom(t) && v.did == d_.user)
@@ -1100,11 +1133,19 @@ p_close(value v, type t)
 	Bip_Error(SYSTEM_STREAM);
     }
 
-    nst =  get_stream_id(v,t, 0, &res);
+    nst = get_stream_id(v,t, 0, &res);
     if (nst == NO_STREAM)
     {
-	Bip_Error(res);
+	switch (res) {
+	    case STREAM_SPEC:
+	    case STALE_HANDLE:
+		if (close_options&CLOSE_FORCE) { Succeed_; }
+		/* fall through */
+	    default:
+		Bip_Error(res);
+	}
     }
+
     if (SystemStream(nst) && !(StreamMode(nst) & SSYSTEM))
     {
         /* A system alias (output,log_output,etc) is pointing to it AND it
@@ -1113,15 +1154,18 @@ p_close(value v, type t)
          */
 	Bip_Error(SYSTEM_STREAM);
     }
+
+    /* close the stream, reporting errors only if necessary */
     Lock_Stream(nst);
-    res = ec_close_stream(nst, 0);
+    res = ec_close_stream(nst, close_options);
     Unlock_Stream(nst);
-    if (res < 0)
+    if ((res < 0)  &&  !(close_options & CLOSE_FORCE)  &&
+    	!(res==STREAM_SPEC && (IsAtom(t)||IsNil(t))))
     {
-	if (res != FILE_NOT_OPEN || !(IsAtom(t) || IsNil(t))) {
-	    Bip_Error(res)
-	}
+	Bip_Error(res)
     }
+
+    /* free handle or property */
     if (IsNil(t))
 	v.did = d_.nil;
     if ((IsAtom(t) || IsNil(t)) && !IsOpened(nst))
@@ -1134,10 +1178,21 @@ p_close(value v, type t)
 	pword hstream;
 	hstream.val.all = v.all;
 	hstream.tag.all = t.all;
-	return ec_free_handle(hstream, &stream_tid);
+	res = ec_free_handle(hstream, &stream_tid);
+	return (close_options & CLOSE_FORCE) ? PSUCCEED : res;
     }
     Succeed_;
 }
+
+
+static int
+p_close(value v, type t)
+{
+    pword nil;
+    Make_Nil(&nil);
+    return p_close2(v, t, nil.val, nil.tag);
+}
+
 
 static int
 p_erase_stream_property(value v, type t)
