@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.23 2012/02/06 18:32:36 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.24 2012/02/10 01:40:38 jschimpf Exp $
  */
 
 /*
@@ -1409,28 +1409,22 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		    pw1 = &DE[SUSP_GOAL].val.ptr[1];
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
-		    if (tmp1 < 0) {
-			err_code = -tmp1;
+		    if (tmp1 < 0)
 			goto _ndelay_err_;
-		    }
 		}
 		if (err_code & (PDELAY_2 & PDELAY_MASK)) {
 		    pw1 = &DE[SUSP_GOAL].val.ptr[2];
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
-		    if (tmp1 < 0) {
-			err_code = -tmp1;
+		    if (tmp1 < 0)
 			goto _ndelay_err_;
-		    }
 		}
 		if (err_code & (PDELAY_3 & PDELAY_MASK)) {
 		    pw1 = &DE[SUSP_GOAL].val.ptr[3];
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
-		    if (tmp1 < 0) {
-			err_code = -tmp1;
+		    if (tmp1 < 0)
 			goto _ndelay_err_;
-		    }
 		}
 		Import_Tg_Tt
 	    }
@@ -1447,8 +1441,12 @@ _ndelay_de_sv_:		/* (proc,de,sv,args) */
 			    err_code & PDELAY_BOUND ? DELAY_BOUND: DELAY_INST,
 			    DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
+_ndelay_err_:			/* (tmp1,proc,DE) */
+			Import_Tg_Tt
 			err_code = -tmp1;
-			goto _ndelay_err_;
+			scratch_pw = DE[SUSP_GOAL];
+			Reset_DE;
+			goto _nbip_err_goal_;
 		    }
 		    if (!IsList(pw2[1].tag))
 			break;
@@ -1468,7 +1466,6 @@ _ndelay_de_sv_:		/* (proc,de,sv,args) */
 			DBG_DELAY_INVOC = NINVOC-1;
 		    }
 		    err_code = -(DEBUG_SUSP_EVENT);
-_ndelay_err_:	/* (err_code,proc,DE) */
 		    scratch_pw = DE[SUSP_GOAL];
 		    Reset_DE;
 		    goto _nbip_err_goal_;
@@ -1655,6 +1652,7 @@ _bip_res1_:				/* (err_code,proc) */
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
+			Import_Tg_Tt
 			err_code = tmp1;
 			goto _bip_err1_;
 		    }
@@ -1664,6 +1662,7 @@ _bip_res1_:				/* (err_code,proc) */
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
+			Import_Tg_Tt
 			err_code = tmp1;
 			goto _bip_err1_;
 		    }
@@ -1673,6 +1672,7 @@ _bip_res1_:				/* (err_code,proc) */
 		    Dereference_Pw(pw1)
 		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
+			Import_Tg_Tt
 			err_code = tmp1;
 			goto _bip_err1_;
 		    }
@@ -1691,6 +1691,7 @@ _bip_res1_:				/* (err_code,proc) */
 			    err_code & PDELAY_BOUND ? DELAY_BOUND: DELAY_INST,
 			    DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
+			Import_Tg_Tt
 			err_code = tmp1;
 			goto _bip_err1_;
 		    }
@@ -6571,7 +6572,7 @@ _end_external_:
 	    } else {
 		Export_B_Sp_Tg_Tt
 		create_heapterm(&scratch_pw, pw3->val, pw3->tag);
-		Import_Tg_Tt;
+		Import_None;
 	    }
 
 	    pw1 = B.args;
@@ -6606,6 +6607,7 @@ _end_external_:
 				    Import_Tg_Tt;
 				    break;
 				}
+				Import_Tg_Tt;
 			    }
 			}
 			pw2 = BChp(pw1)->e;
@@ -6626,7 +6628,7 @@ _end_external_:
 		    B.args = pw1;
 		    Export_B_Sp_Tg_Tt
 		    free_heapterm(&scratch_pw);
-		    Import_Tg_Tt;
+		    Import_None;
 		    scratch_pw = *pw3;
 		    goto _exit_emulator_;	/* (err_code,scratch_pw) */
 		}
