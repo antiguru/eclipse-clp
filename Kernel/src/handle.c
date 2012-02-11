@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Kernel Module
  *
- * $Id: handle.c,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * $Id: handle.c,v 1.2 2012/02/11 17:09:31 jschimpf Exp $
  *
  * Author:	Stefano Novello, IC-Parc
  *		Joachim Schimpf, IC-Parc
@@ -83,7 +83,7 @@
 #include "embed.h"
 #include "mem.h"
 #include "error.h"
-#include "io.h"
+#include "ec_io.h"
 #include "dict.h"
 #include "database.h"
 #include "emu_export.h"

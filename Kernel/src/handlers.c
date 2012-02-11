@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.4 2011/04/01 03:38:45 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.5 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -51,7 +51,7 @@ extern char	*strcpy();
 #include "error.h"
 #include "dict.h"
 #include "emu_export.h"
-#include "io.h"
+#include "ec_io.h"
 #include "module.h"
 #include "property.h"
 #include "os_support.h"

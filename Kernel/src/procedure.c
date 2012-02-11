@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: procedure.c,v 1.3 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: procedure.c,v 1.4 2012/02/11 17:09:31 jschimpf Exp $
  *
  * IDENTIFICATION		procedure.c
  *
@@ -48,7 +48,7 @@
 #include	"dict.h"
 #include	"emu_export.h"
 #include	"property.h"
-#include	"io.h"
+#include	"ec_io.h"
 #include	"read.h"
 #include	"module.h"
 

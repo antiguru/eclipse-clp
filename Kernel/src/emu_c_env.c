@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.6 2011/04/01 03:38:45 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.7 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -39,7 +39,7 @@
 #include "error.h"
 #include "embed.h"
 #include "mem.h"
-#include "io.h"
+#include "ec_io.h"
 #include "dict.h"
 #include "emu_export.h"
 #include "module.h"

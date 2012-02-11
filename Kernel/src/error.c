@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.5 2012/02/10 20:15:23 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.6 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -45,7 +45,7 @@
 #include "mem.h"
 #include "dict.h"
 #include "emu_export.h"
-#include "io.h"
+#include "ec_io.h"
 #include "os_support.h"
 
 #ifdef HAVE_STRING_H

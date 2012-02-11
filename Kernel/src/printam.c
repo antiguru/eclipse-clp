@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.8 2011/04/15 08:10:48 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.9 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -47,7 +47,7 @@
 #include	"error.h"
 #include	"mem.h"
 #include	"opcode.h"
-#include 	"io.h"
+#include 	"ec_io.h"
 #include 	"dict.h"
 #include	"emu_export.h"
 #include	"database.h"

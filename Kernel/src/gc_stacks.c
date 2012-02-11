@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.4 2010/07/16 06:13:10 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.5 2012/02/11 17:09:31 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -82,7 +82,7 @@
 #include "error.h"
 #include "mem.h"
 #include "dict.h"
-#include "io.h"
+#include "ec_io.h"
 #include "opcode.h"
 #include "emu_export.h"
 

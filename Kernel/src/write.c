@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.12 2011/04/27 05:15:50 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.13 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -56,7 +56,7 @@
 #include	"error.h"
 #include	"dict.h"
 #include	"lex.h"
-#include 	"io.h"
+#include 	"ec_io.h"
 #include	"emu_export.h"
 #include	"module.h"
 #include	"property.h"
@@ -602,7 +602,7 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
 /*
  * _pwrite1() - write a Prolog term
  *
- * idwrite: flags for the different write options (see io.h)
+ * idwrite: flags for the different write options (see ec_io.h)
  *	CANONICAL	ignore operators
  *	FULLDEPTH	ignore depth
  *	DOTLIST		write lists in dot notation

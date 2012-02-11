@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.4 2011/04/15 08:09:44 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.5 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -43,7 +43,7 @@
 #include 	"dict.h"
 #include	"module.h"
 #include	"os_support.h"
-#include	"io.h"
+#include	"ec_io.h"
 
 #include <errno.h>
 #include <stdio.h>	/* for sprintf() */

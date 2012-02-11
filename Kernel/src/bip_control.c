@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.6 2012/01/09 11:49:34 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.7 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -39,7 +39,7 @@
 #include        "embed.h"
 #include        "mem.h"
 #include        "error.h"
-#include        "io.h"
+#include        "ec_io.h"
 #include	"dict.h"
 #include	"emu_export.h"
 #include	"debug.h"

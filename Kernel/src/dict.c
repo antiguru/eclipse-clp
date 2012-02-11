@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.9 2012/02/06 18:32:36 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.10 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -107,7 +107,7 @@
 #include	"embed.h"
 #include	"error.h"
 #include	"mem.h"
-#include	"io.h"
+#include	"ec_io.h"
 #include	"dict.h"
 #include	"emu_export.h"
 

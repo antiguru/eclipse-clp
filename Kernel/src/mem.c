@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.2 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: mem.c,v 1.3 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 #include	"error.h"
 #include	"mem.h"
 #include	"dict.h"
-#include	"io.h"
+#include	"ec_io.h"
 #include	"emu_export.h"
 #include	"os_support.h"
 

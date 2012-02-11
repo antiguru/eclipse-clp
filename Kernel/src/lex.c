@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.14 2011/05/06 05:47:50 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.15 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -48,7 +48,7 @@
 #include	"error.h"	/* the BIP return values and standard errors */
 #include	"dict.h"
 #include	"lex.h"		/* the values returned lex_an */
-#include	"io.h"
+#include	"ec_io.h"
 #include	"emu_export.h"
 #include 	"module.h"
 #include	"property.h"	/* for MODULE_PROP */

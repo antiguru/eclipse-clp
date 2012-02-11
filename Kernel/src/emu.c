@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.24 2012/02/10 01:40:38 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.25 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -63,7 +63,7 @@
 #include "error.h"
 #include "mem.h"
 #include "dict.h"
-#include "io.h"
+#include "ec_io.h"
 #include "emu_export.h"
 #include "embed.h"
 

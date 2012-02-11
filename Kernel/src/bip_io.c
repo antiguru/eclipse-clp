@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.13 2012/02/10 20:15:23 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.14 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -141,7 +141,7 @@ typedef int socket_t;
 #include	"embed.h"
 #include        "mem.h"
 #include        "error.h"
-#include        "io.h"
+#include        "ec_io.h"
 #include	"dict.h"
 #include	"lex.h"
 #include	"emu_export.h"

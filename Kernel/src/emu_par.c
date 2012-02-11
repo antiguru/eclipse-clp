@@ -41,7 +41,7 @@
 #include "types.h"
 #include "embed.h"
 #include "error.h"
-#include "io.h"
+#include "ec_io.h"
 #include "mem.h"
 #include "dict.h"
 #include "emu_export.h"

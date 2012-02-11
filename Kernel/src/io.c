@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.12 2012/02/10 20:15:23 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.13 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -243,7 +243,7 @@ extern long		lseek();
 #include "error.h"
 #include "dict.h"
 #include "lex.h"
-#include "io.h"
+#include "ec_io.h"
 #include "emu_export.h"
 #include "property.h"
 #include "module.h"

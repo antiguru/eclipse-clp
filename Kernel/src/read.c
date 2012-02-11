@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.9 2011/05/02 01:49:54 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.10 2012/02/11 17:09:31 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -205,7 +205,7 @@
 #include	"dict.h"
 #include	"lex.h"
 #include	"emu_export.h"
-#include 	"io.h"
+#include 	"ec_io.h"
 #include 	"read.h"
 #include	"module.h"
 #include	"property.h"

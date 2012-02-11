@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.7 2010/04/28 13:56:00 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.8 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -64,7 +64,7 @@
 #include "error.h"
 #include "mem.h"
 #include "dict.h"
-#include "io.h"
+#include "ec_io.h"
 #include "module.h"
 #include "property.h"
 #include "emu_export.h"

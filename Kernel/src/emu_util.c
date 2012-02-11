@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.3 2008/07/10 00:33:05 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.4 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -48,7 +48,7 @@
 #include "dict.h"
 #include "module.h"
 #include "emu_export.h"
-#include "io.h"
+#include "ec_io.h"
 
 extern int 	p_exit(value v, type t);		/* to stop in a clean way */
 extern int 	ec_init_postponed(void);

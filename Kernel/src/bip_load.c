@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_load.c,v 1.2 2012/01/09 11:49:34 jschimpf Exp $
+ * VERSION	$Id: bip_load.c,v 1.3 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -65,7 +65,7 @@ extern char	*strcpy();
 #include "emu_export.h"
 #include "error.h"
 #include "opcode.h"
-#include "io.h"
+#include "ec_io.h"
 #include "property.h"
 #include "module.h"
 #include "os_support.h"

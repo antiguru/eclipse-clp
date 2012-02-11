@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.14 2012/01/09 22:59:30 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.15 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -50,7 +50,7 @@
 #include        "embed.h"
 #include        "mem.h"
 #include        "error.h"
-#include        "io.h"
+#include        "ec_io.h"
 #include	"opcode.h"
 #include	"gencode.h"
 #include	"dict.h"

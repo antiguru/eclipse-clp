@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.9 2012/01/09 22:59:30 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.10 2012/02/11 17:09:31 jschimpf Exp $
  */
 
 /*
@@ -37,7 +37,7 @@
 #include        "embed.h"
 #include        "mem.h"
 #include        "error.h"
-#include        "io.h"
+#include        "ec_io.h"
 #include	"dict.h"
 #include	"database.h"
 #include	"emu_export.h"
