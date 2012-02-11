@@ -1024,14 +1024,11 @@ transformation (e.g. inlining) of calls to Pred.
 	desc:html("\
    To improve efficiency, calls to user-defined predicates can be
    preprocessed and transformed at compile time.  The directive
-
-<P>
 <PRE>
     :- inline(mypred/1, mytranspred/2).
 </PRE>
    arranges for mytranspred/2 to be invoked at compile time for each 
    call to the predicate mypred/1 before it is being compiled.
-
 <P>
    The transformation predicate receives the original call to mypred/1
    as its first argument, and is expected to return a replacement goal
@@ -1040,7 +1037,26 @@ transformation (e.g. inlining) of calls to Pred.
    semantically equivalent, but more efficient than the original goal.
    When the transformation predicate fails, the original goal is not
    replaced.
-
+<P>
+   A transformation predicate can have an optional third argument which
+   supplies the module in which the substitution takes place:
+<PRE>
+      trans_pred(OldGoal, NewGoal [, Module]) :- ...
+</PRE>
+<P>
+   Moreover, a transformation predicate can be source annotation aware;
+   it is then of arity 4 or 5, and should look as follows:
+<PRE>
+      trans_pred(OldGoal, NewGoal, OldAnnGoal, NewAnnGoal [, Module]) :- ...
+</PRE>
+   In this setting, the annotated version of the original goal term
+   (see read_annotated/2,3) is passed in the third argument, and the
+   transformation should bind the fourth argument to the annotated
+   transformed goal term.  If no source annotation information was
+   available for the original goal, the third argument is passed in as
+   a free variable, and the transformation should not bind the fourth
+   argument.  The optional last argument is again the module in which
+   the substitution takes place, i.e. where the goal was called.
 <P>
    If inlining is applied to an exported predicate, one must be aware that
    the replacement goal will be textually substituted for the original
@@ -1048,44 +1064,34 @@ transformation (e.g. inlining) of calls to Pred.
    should only contain calls to builtins or explicitly qualified calls to
    other exported predicates, since the visibility of predicates generally
    cannot be guaranteed in the module where the substitution takes place.
-
-<P>
-   A transformation predicate can have an optional third argument which
-   supplies the module in which the substitution takes place.
-
 <P>
    The inline/2 directive must be issued from the definition module
    of Pred, and TransPred must be visible from (and is usually defined
    in) this same module.
-
 <P>
    The transformation predicate for a predicate can be queried by
    calling get_flag(Pred, inline, TransPred).
-
 <P>
    Setting TransPred to =/2 will erase any previously attached
    transformation predicate.
-
 <P>
    Transformation can be disabled for debugging purposes by adding
-
-<P>
 <PRE>
-    :- pragma(noexpand).
+      :- pragma(noexpand).
 </PRE>
    to the compiled file, or by setting the global flag
-
-<P>
 <PRE>
-    :- set_flag(goal_expansion, off).
+      :- set_flag(goal_expansion, off).
 </PRE>
     The global flag also controls whether transformations are applied
     to goals entered at the interactive toplevel prompt.
-
 <P>
 "),
-	args:["Pred" : "Expression of the form Atom/Integer.", "TransPred" : "Expression of the form Atom/Integer, Integer is 2 or 3."],
-	exceptions:[4 : "Pred or TransPred are not fully instantiated.", 5 : "Pred or TransPred are not of the form Atom/Integer.", 6 : "The arity of TransPred is not 2 or 3.", 100 : "Pred is not defined is this module."],
+	args:["Pred" : "Expression of the form Atom/Integer.", "TransPred" : "Expression of the form Atom/Integer, Integer is 2 to 5."],
+	exceptions:[4 : "Pred or TransPred are not fully instantiated.",
+	    5 : "Pred or TransPred are not of the form Atom/Integer.",
+	    6 : "The arity of TransPred is not between 2 and 5.",
+	    100 : "Pred is not defined is this module."],
 	eg:"
     :- inline(double/2, trans_double/2).
 
@@ -1108,7 +1114,7 @@ transformation (e.g. inlining) of calls to Pred.
 
 
 ",
-	see_also:[inline/1, expand_goal/2, macro / 3, get_flag / 2, set_flag / 2, pragma / 1, compile / 1]]).
+	see_also:[inline/1, expand_goal/2, macro / 3, get_flag / 2, set_flag / 2, pragma / 1, compile / 1, read_annotated/3]]).
 
 
 :- comment(inline / 1, [
