@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.12 2012/02/12 12:50:22 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.13 2012/02/12 13:03:48 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -428,6 +428,8 @@ options_to_format(_, _, _, _, _, _, _) :-
     option_to_format(Option, C, S, D, _P) :-
 	option_format_compat(Option, C, S, D), !.
     option_to_format(precedence(P0), 0, 0, _D, P) :- !,
+    	P = P0.
+    option_to_format(priority(P0), 0, 0, _D, P) :- !,	% SICStus/SWI compat
     	P = P0.
     option_to_format(Junk, _, _, _, _) :- var(Junk), !,
 	set_bip_error(4).
