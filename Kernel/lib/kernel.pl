@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.34 2012/02/07 19:34:56 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.35 2012/02/12 02:19:32 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -302,7 +302,12 @@
 
 
 ?- make_array_(default_language, prolog, local, sepia_kernel),
-    setval(default_language, eclipse_language).
+    ( getenv("ECLIPSEDEFAULTLANGUAGE", LangString) ->
+	atom_string(Language, LangString),
+	setval(default_language, Language)
+    ;
+	setval(default_language, eclipse_language)
+    ).
 ?- make_array_(toplevel_trace_mode, prolog, local, sepia_kernel),
     setval(toplevel_trace_mode, nodebug).
 ?- make_array_(compiled_stream, prolog, local, sepia_kernel),
@@ -977,7 +982,7 @@ rerecord_body(Key, Value, Module):-
 
 erase_body(Key, Value, Module):-
 	( valid_key(Key) ->
-	    first_recorded_(Key, DbRef, Module),
+	    first_recorded_(Key, Value, DbRef, Module),
 	    erase_first_matching(DbRef, Value)
 	;
 	    bip_error(erase(Key, Value), Module)
@@ -987,13 +992,13 @@ erase_body(Key, Value, Module):-
 	( referenced_record(DbRef, Value) ->
 	    erase(DbRef)
 	;
-	    next_recorded(DbRef, DbRef1),
+	    next_recorded(DbRef, Value, DbRef1),
 	    erase_first_matching(DbRef1, Value)
 	).
 
 erase_all_body(Key, Value, Module):-
 	( valid_key(Key) ->
-	    ( first_recorded_(Key, DbRef, Module) ->
+	    ( first_recorded_(Key, Value, DbRef, Module) ->
 		erase_matching(DbRef, Value)
 	    ;
 		true
@@ -1004,7 +1009,7 @@ erase_all_body(Key, Value, Module):-
 
     erase_matching(end, _Value) :- !.
     erase_matching(DbRef, Value) :-
-	( next_recorded(DbRef, DbRef1) -> true ; DbRef1 = end ),
+	( next_recorded(DbRef, Value, DbRef1) -> true ; DbRef1 = end ),
 	( \+ referenced_record(DbRef, Value) ->
 	    true
 	;
@@ -1036,7 +1041,7 @@ recordedchk_body(Key, Value, Module) :-
 
 recordedchk_body(Key, Value, DbRef, Module) :-
 	( valid_key(Key) ->
-	    first_recorded_(Key, DbRef0, Module),
+	    first_recorded_(Key, Value, DbRef0, Module),
 	    recorded_member(DbRef0, Value, DbRef)
 	;
 	    bip_error(recordedchk(Key, Value, DbRef), Module)
@@ -1046,7 +1051,7 @@ recordedchk_body(Key, Value, DbRef, Module) :-
 	( referenced_record(DbRef0, Value) ->
 	    DbRef = DbRef0
 	;
-	    next_recorded(DbRef0, DbRef1),
+	    next_recorded(DbRef0, Value, DbRef1),
 	    recorded_member(DbRef1, Value, DbRef)
 	).
 

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.2 2008/07/16 17:12:32 kish_shen Exp $
+ * VERSION	$Id: bip_record.c,v 1.3 2012/02/12 02:16:13 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -503,143 +503,96 @@ _unlock_return_err_:
 }
 
 
-/* recorded_list(+Key, -Terms)@Module */
-
-static int
-_rec_all(t_heap_rec *header, int dbrefs_only, pword *result)
-{
-    t_heap_rec *el;
-
-    for (el = header->next; el != header; el = el->next)
-    {
-	pword *car = TG;
-	Make_List(result, car);
-	Push_List_Frame();
-	if (dbrefs_only)
-	    *car = ec_handle(&heap_rec_tid, (t_ext_ptr) _rec_copy_elem(el));
-	else
-	    get_heapterm(&el->term, car);
-	result = car+1;
-    }
-    Make_Nil(result);
-    Succeed_;
-}
-
 /* filter for recorded terms: simple tests to reduce the recorded terms
-   returned to the ECLiPSe level, which needs to be unified with the filter
-   term. The filter test performs simple comparison on the arguments of the first
-   argument of a recorded term against the filter, This is designed to
-   speed up the matching of dynamic predicates, which are recorded as (H ?- B),
-   so that `filtering' is performed on the head H
+   returned to the ECLiPSe level, that need to be unified with the filter
+   term. The filter test performs simple comparison on the arguments of the
+   first argument of a recorded term against the filter, This is designed to
+   speed up the matching of dynamic predicates, which are recorded as (H :- B),
+   so that `filtering' is performed on the head H and its arguments.
 */
 static int
-_filtered_rec_term(uword ftag, pword *farg, dident fdid, pword *term)
+_may_match_filter(value vfilter, uword tfilter, value vterm, type tterm)
 {
-    pword *f, *targ;
+    pword *farg;	/* pointer into filter term */
+    pword *targ;	/* pointer into recorded term */
     int i;
-    if (ftag == TCOMP)
-    {
-	targ = term->val.ptr;
-	if (fdid != (targ++)->val.did) return 0;
-    } else if (ftag == TLIST)
-    {
-	targ = term->val.ptr;
-    } else
-	return 1;
 
-    if (IsRef(farg->tag)) return 1;
-    if (IsRef(targ->tag)) return 1;
-    if (DifferType(farg->tag, targ->tag)) return 0;
+    /* toplevel term */
+    if (ISRef(tfilter) || IsRef(tterm))
+        return 1;
+    if (DifferTypeC(tterm,tfilter))
+        return 0;
+    if (ISSimple(tfilter))
+        return SimpleEq(tfilter,vfilter,vterm);
+    if (IsTag(tfilter,TCOMP))
+    {
+        farg = vfilter.ptr;
+        targ = vterm.ptr;
+	if (farg->val.did != targ->val.did)
+	    return 0;
+        ++farg;
+        ++targ;
+    }
+    else if (IsTag(tfilter,TLIST))
+    {
+        farg = vfilter.ptr;
+        targ = vterm.ptr;
+    }
+    else
+	return 1;       /* in case of doubt, succeed (don't filter) */
+
+    /* first argument (the head in case of a head:-body term */
+    if (IsRef(farg->tag) || IsRef(targ->tag))
+        return 1;
+    if (DifferType(farg->tag, targ->tag))
+        return 0;
+    if (IsSimple(farg->tag))
+        return SimpleEq(farg->tag.kernel,farg->val,targ->val);
     switch (TagType(farg->tag))
     {
-    case TINT:
-    case TDICT:
-	if (targ->val.all != farg->val.all) return 0;
-	break;
-    case TNIL:
-	return 1;
-	break;
     case TCOMP:
 	targ = targ->val.ptr;
 	farg = farg->val.ptr;
-	if (farg->val.did != targ->val.did) return 0;
 	i = DidArity(farg->val.did);
+	if (farg->val.did != targ->val.did) return 0;
     _check_rec_args:
 	do
 	{
-	    f = ++farg;
+	    pword *f = ++farg;
 	    ++targ;
 	    Dereference_(f);
-	    if (IsRef(f->tag)) continue;
-	    if (IsRef(targ->tag)) continue;
-	    if (DifferType(f->tag, targ->tag)) return 0;
-	    switch (TagType(f->tag))
-	    {
-	    case TINT:
-	    case TDICT:
-		if (f->val.all != targ->val.all) return 0;
-		break;
-	    case TCOMP:
-		if (f->val.ptr->val.did != targ->val.ptr->val.did) return 0;
-		break;
-	    default:
-		continue;
-	    }
+	    if (IsRef(f->tag) || IsRef(targ->tag))
+	    	continue;
+	    if (DifferType(f->tag, targ->tag))
+	    	return 0;
+            if (IsSimple(f->tag))
+            {
+                if (!SimpleEq(f->tag.kernel,f->val,targ->val))
+		    return 0;
+            }
+            else if (IsTag(f->tag.kernel,TCOMP))
+            {
+		if (f->val.ptr->val.did != targ->val.ptr->val.did)
+		    return 0;
+            }
 	} while (--i > 0);
 	break;
     case TLIST:
 	targ = targ->val.ptr-1;
 	farg = farg->val.ptr-1;
-	i = 1; /* just check the head */
+	i = 2;
 	goto _check_rec_args;
     }
     return 1;
 }
 
-static int
-_rec_all_filtered(t_heap_rec *header, value vfilter, type tfilter, pword *result)
-{
-    t_heap_rec *el;
-    pword *farg = NULL;
-    dident fdid = NULL;
-    uword ftag = TagType(tfilter);
 
-    if (ftag == TCOMP)
-    {
-	farg = vfilter.ptr;
-	fdid = (farg++)->val.did;
-	Dereference_(farg);
-    } else if (ftag == TLIST)
-    { 
-	farg = vfilter.ptr;
-	Dereference_(farg);
-    }
-
-    for (el = header->next; el != header; el = el->next)
-    {
-	if (IsRef(tfilter) || IsRef(el->term.tag) || 
-	    (SameType(tfilter, el->term.tag) && (
-	     (!ISPointer(el->term.tag.kernel) && vfilter.all == el->term.val.all) 
-	     ||  _filtered_rec_term(ftag, farg, fdid, &(el->term))) )
-	   )
-	{
-	    pword *car = TG;
-	    Make_List(result, car);
-	    Push_List_Frame();
-	    *car = ec_handle(&heap_rec_tid, (t_ext_ptr) _rec_copy_elem(el));
-	    result = car+1;
-	}
-    }
-    Make_Nil(result);
-    Succeed_;
-}
-
+/* recorded_list(+Key, -Terms)@Module */
 
 static int
 p_recorded_list_body(value vrec, type trec, value vl, type tl, value vmod, type tmod)
 {
-    t_heap_rec *header;
-    pword list;
+    t_heap_rec *header, *obj;
     int err;
 
     Check_Output_List(tl);
@@ -647,7 +600,17 @@ p_recorded_list_body(value vrec, type trec, value vl, type tl, value vmod, type 
     err = _get_rec_list(vrec, trec, vmod, tmod, &header);
     if (err == PSUCCEED)
     {
-	_rec_all(header, 0, &list);
+	pword list;
+	pword *tail = &list;
+	for (obj = header->next; obj != header; obj = obj->next)
+	{
+	    pword *car = TG;
+	    Make_List(tail, car);
+	    Push_List_Frame();
+	    get_heapterm(&obj->term, car);
+	    tail = car+1;
+	}
+	Make_Nil(tail);
 	a_mutex_unlock(&PropertyLock);
 	Return_Unify_Pw(vl, tl, list.val, list.tag);
     }
@@ -669,8 +632,7 @@ p_recorded_list_body(value vrec, type trec, value vl, type tl, value vmod, type 
 static int
 p_recorded_refs_body(value vrec, type trec, value vfilter, type tfilter, value vl, type tl, value vmod, type tmod)
 {
-    t_heap_rec *header;
-    pword list;
+    t_heap_rec *header, *obj;
     int err;
 
     Check_Output_List(tl);
@@ -678,7 +640,21 @@ p_recorded_refs_body(value vrec, type trec, value vfilter, type tfilter, value v
     err = _get_rec_list(vrec, trec, vmod, tmod, &header);
     if (err == PSUCCEED)
     {
-	_rec_all_filtered(header, vfilter, tfilter, &list);
+	pword list;
+	pword *tail = &list;
+	for (obj = header->next; obj != header; obj = obj->next)
+	{
+	    if (ISRef(tfilter.kernel) ||
+		_may_match_filter(vfilter, tfilter.kernel, obj->term.val, obj->term.tag))
+	    {
+		pword *car = TG;
+		Make_List(tail, car);
+		Push_List_Frame();
+		*car = ec_handle(&heap_rec_tid, (t_ext_ptr) _rec_copy_elem(obj));
+		tail = car+1;
+	    }
+	}
+	Make_Nil(tail);
 	a_mutex_unlock(&PropertyLock);
 	Return_Unify_Pw(vl, tl, list.val, list.tag);
     }
@@ -764,16 +740,16 @@ p_erase(value vrec, type trec)
 
 
 /*
- * Two predicates for stepping through the recorded list:
- * first_recorded(+Key, -Ref)@Module is semidet
- * next_recorded(+Ref, -Ref) is semidet
- * These cannot be used for logica update semantics!
+ * Two internal predicates for stepping through the recorded list:
+ * first_recorded(+Key, ?Filter, -Ref)@Module is semidet
+ * next_recorded(+Ref, ?Filter, -Ref) is semidet
+ * These cannot be used for logical update semantics!
  */
 
 static int
-p_first_recorded(value vrec, type trec, value vdref, type tdref, value vmod, type tmod)
+p_first_recorded(value vrec, type trec, value vfilter, type tfilter, value vdref, type tdref, value vmod, type tmod)
 {
-    t_heap_rec *header;
+    t_heap_rec *header, *obj;
     pword ref_pw;
     int err;
 
@@ -781,43 +757,49 @@ p_first_recorded(value vrec, type trec, value vdref, type tdref, value vmod, typ
     err = _get_rec_list(vrec, trec, vmod, tmod, &header);
     if (err == PSUCCEED)
     {
-	t_heap_rec *obj = header->next;
-	if (obj == header)
+	for(obj=header->next; obj != header; obj=obj->next)
 	{
-	    a_mutex_unlock(&PropertyLock);
-	    Fail_;
+	    if (IsRef(tfilter) ||
+		_may_match_filter(vfilter, tfilter.kernel, obj->term.val, obj->term.tag))
+	    {
+		obj = _rec_copy_elem(obj);
+		a_mutex_unlock(&PropertyLock);
+		ref_pw = ec_handle(&heap_rec_tid, (t_ext_ptr) obj);
+		Return_Unify_Pw(vdref, tdref, ref_pw.val, ref_pw.tag);
+	    }
 	}
-	obj = _rec_copy_elem(obj);
-	a_mutex_unlock(&PropertyLock);
-	ref_pw = ec_handle(&heap_rec_tid, (t_ext_ptr) obj);
-	Return_Unify_Pw(vdref, tdref, ref_pw.val, ref_pw.tag);
     }
-    else if (err == NO_LOCAL_REC)
-    {
-	a_mutex_unlock(&PropertyLock);
-	Fail_;
-    }
-    else
+    else if (err != NO_LOCAL_REC)
     {
 	a_mutex_unlock(&PropertyLock);
 	Bip_Error(err);
     }
+    a_mutex_unlock(&PropertyLock);
+    Fail_;
 }
 
 
 static int
-p_next_recorded(value vref1, type tref1, value vref2, type tref2)
+p_next_recorded(value vref1, type tref1, value vfilter, type tfilter, value vref2, type tref2)
 {
     t_heap_rec *obj;
     pword ref_pw;
 
     Get_Typed_Object(vref1, tref1, &heap_rec_tid, obj);
     a_mutex_lock(&PropertyLock);
-    obj = obj->next;
-    if (!obj || IsTag(obj->term.tag.kernel,TEND))
+    for(;;)
     {
-	a_mutex_unlock(&PropertyLock);
-	Fail_;
+        obj = obj->next;
+        if (!obj || IsTag(obj->term.tag.kernel,TEND))
+        {
+            a_mutex_unlock(&PropertyLock);
+            Fail_;
+        }
+	if (IsRef(tfilter) ||
+	    _may_match_filter(vfilter, tfilter.kernel, obj->term.val, obj->term.tag))
+        {
+            break;
+        }
     }
     obj = _rec_copy_elem(obj);
     a_mutex_unlock(&PropertyLock);
@@ -934,9 +916,9 @@ bip_record_init(int flags)
 				 p_global_record_body, B_UNSAFE);
 	(void) exported_built_in(in_dict("abolish_record_body", 2),
 				 p_abolish_record_body, B_UNSAFE);
-	(void) local_built_in(in_dict("first_recorded_", 3),
+	(void) local_built_in(in_dict("first_recorded_", 4),
 				 p_first_recorded, B_UNSAFE);
-	(void) local_built_in(in_dict("next_recorded", 2),
+	(void) local_built_in(in_dict("next_recorded", 3),
 				 p_next_recorded, B_UNSAFE);
     }
 
