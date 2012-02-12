@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.5 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.6 2012/02/12 21:29:47 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -441,6 +441,9 @@ ec_worker_cleanup(void)
 {
     megalog_end();
 
+    handlers_fini();		/* undo signal handler settings */
+				/* (before shutting down emu and i/o) */
+
     ec_emu_fini();		/* destroy the engine */
     ec_embed_fini();
 
@@ -451,8 +454,6 @@ ec_worker_cleanup(void)
     flush_and_close_io(1);	/* shut down I/O system */
     
     ec_os_fini();		/* timers, threads, sockets */
-
-    handlers_fini();		/* undo signal handler settings */
 
     if (ec_options.parallel_worker)
 	exit_mps();
