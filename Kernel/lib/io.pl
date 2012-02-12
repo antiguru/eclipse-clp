@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.11 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.12 2012/02/12 12:50:22 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -203,7 +203,7 @@ set_stream_property(Stream, Info, Value) :-
     set_stream_property1(_Stream, Info, _Value) :- var(Info), !,
 	set_bip_error(4).
     set_stream_property1(Stream, output_options, Options) :- !,
-	options_to_format(Options, 0, _Off, 0, On, Depth),
+	options_to_format(Options, 0, _Off, 0, On, Depth, _Prec),
 	stream_info_nr(output_options, I1),
 	set_stream_prop_(Stream, I1, On),
 	stream_info_nr_hidden(print_depth, I2),
@@ -244,7 +244,7 @@ set_stream_options(_, _) :-
     set_stream_option(alias(Name), Stream) ?- !,
 	set_stream(Name, Stream).
     set_stream_option(output_options(Options), Stream) ?-
-	options_to_format(Options, 0, _Off, 0, On, Depth),
+	options_to_format(Options, 0, _Off, 0, On, Depth, _Prec),
 	stream_info_nr(output_options, I1),
 	set_stream_prop_(Stream, I1, On),
 	stream_info_nr_hidden(print_depth, I2),
@@ -399,8 +399,8 @@ write_term_(Term, Options, Module) :-
 	write_term_(output, Term, Options, Module).
 
 write_term_(Stream, Term, Options, Module) :-		% 8.14.2
-	options_to_format(Options, 0, Off, 0, On, Depth),
-	write_term(Stream, Term, Off, On, Depth, Module),
+	options_to_format(Options, 0, Off, 0, On, Depth, Prec),
+	write_term(Stream, Term, Off, On, Depth, Prec, Module),
 	!.
 write_term_(Stream, Term, Options, Module) :-
 	bip_error(write_term(Stream, Term, Options), Module).
@@ -409,28 +409,31 @@ write_term_(Stream, Term, Options, Module) :-
 % The following auxiliary predicates map symbolic write-options to
 % bitmask+depth used on the C level (in write.c) and vice versa
 
-:- mode options_to_format(?,+,-,+,-,-).	% may fail with bip_error
-options_to_format(List, _, _, _, _, _) :- var(List), !,
+:- mode options_to_format(?,+,-,+,-,-,-).	% may fail with bip_error
+options_to_format(List, _, _, _, _, _, _) :- var(List), !,
 	set_bip_error(4).
-options_to_format([], Off, Off, On, On, Depth) :- !,
-	( var(Depth) -> Depth = 0 ; true ).
-options_to_format([O|Os], Off0, Off, On0, On, Depth) :- !,
-	option_to_format(O, ThisOff, ThisOn, Depth),
+options_to_format([], Off, Off, On, On, Depth, Prec) :- !,
+	( var(Depth) -> Depth = 0 ; true ),
+	( var(Prec) -> Prec = 1200 ; true ).
+options_to_format([O|Os], Off0, Off, On0, On, Depth, Prec) :- !,
+	option_to_format(O, ThisOff, ThisOn, Depth, Prec),
 	Off1 is Off0 \/ ThisOff,
 	On1 is On0 \/ ThisOn,
-	options_to_format(Os, Off1, Off, On1, On, Depth).
-options_to_format(_, _, _, _, _, _) :-
+	options_to_format(Os, Off1, Off, On1, On, Depth, Prec).
+options_to_format(_, _, _, _, _, _, _) :-
 	set_bip_error(5).
 
-    option_to_format(Option, C, S, D) :-
+    option_to_format(Option, C, S, D, _P) :-
 	option_format(Option, C, S, D), !.
-    option_to_format(Option, C, S, D) :-
+    option_to_format(Option, C, S, D, _P) :-
 	option_format_compat(Option, C, S, D), !.
-    option_to_format(Junk, _, _, _) :- var(Junk), !,
+    option_to_format(precedence(P0), 0, 0, _D, P) :- !,
+    	P = P0.
+    option_to_format(Junk, _, _, _, _) :- var(Junk), !,
 	set_bip_error(4).
-    option_to_format(Junk, _, _, _) :- compound(Junk), !,
+    option_to_format(Junk, _, _, _, _) :- compound(Junk), !,
 	set_bip_error(6).
-    option_to_format(_, _, _, _) :-
+    option_to_format(_, _, _, _, _) :-
 	set_bip_error(5).
 
 
@@ -451,7 +454,7 @@ options_from_format(On, Depth, Options) :-
 %
 % ISO compatible:	ignore_ops, quoted, numbervars
 % SICStus compatible:	max_depth, portrayed
-% CAUTION: The numeric constants must match the definitions in io.h!
+% CAUTION: The numeric constants must match the definitions in ec_io.h!
 
 % option_format(?Option, -BitsToClear, -BitsToSet, ?MaxDepth).
 :- mode option_format(?,-,-,?).
@@ -483,6 +486,10 @@ option_format(depth(full),		16'0000, 16'0002, 0).	% FULLDEPTH
 option_format(depth(N),			16'0002, 16'0000, N).
 option_format(compact(true),		16'0000, 16'0080, _).	% WRITE_COMPACT
 option_format(compact(false),		16'0080, 16'0000, _).
+option_format(fullstop(true),          16'00000,16'20000, _).	% TERM_FULLSTOP
+option_format(fullstop(false),         16'20000,16'00000, _).
+option_format(nl(true),                16'00000,16'40000, _).	% TERM_NEWLINE
+option_format(nl(false),               16'40000,16'00000, _).
 
 option_format_compat(ignore_ops(true),	16'0000, 16'0805, _).	% ISO compat
 option_format_compat(ignore_ops(false),	16'0805, 16'0000, _).
