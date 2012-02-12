@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.1 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.2 2012/02/12 12:44:22 jschimpf Exp $
  */
 
 /*
@@ -236,11 +236,13 @@
 #define	VAR_ANON	   0x4000	/* print variables as _		*/
 #define	OUT_DOLLAR_VAR	   0x8000	/* print $VAR(I) as variables	*/
 #define	PORTRAY_VAR	  0x10000	/* call portray even for variables */
-#define	OUTPUT_MODES	       17
+#define	TERM_FULLSTOP	  0x20000	/* terminate term with a fullstop */
+#define	TERM_NEWLINE	  0x40000	/* terminate term with a newline */
+#define	OUTPUT_MODES	       19
 
-#define	PORTRAY2	  0x20000	/* a portray/2 predicate exists	*/
-#define	PORTRAY1	  0x40000	/* a portray/1 predicate exists	*/
-#define	VARTERM		  0x80000	/* print variables as '_'(...)	*/
+#define	PORTRAY2	 0x100000	/* a portray/2 predicate exists	*/
+#define	PORTRAY1	 0x200000	/* a portray/1 predicate exists	*/
+#define	VARTERM		 0x400000	/* print variables as '_'(...)	*/
 
 /* context of the term being written */
 

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.13 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.14 2012/02/12 12:44:22 jschimpf Exp $
  */
 
 /*
@@ -125,7 +125,7 @@ static int
 		    p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, value vm, type tm, value vfc, type tfc, value vse, type tse, value vle, type tle, value verr, type terr),
 		    p_write_canonical(value val, type tag, value vm, type tm),
 		    p_write_canonical3(value vals, type tags, value val, type tag, value vm, type tm),
-		    p_write_term(value vs, type ts, value val, type tag, value vcm, type tcm, value vsm, type tsm, value vdepth, type tdepth, value vm, type tm),
+		    p_write_term(value vs, type ts, value val, type tag, value vcm, type tcm, value vsm, type tsm, value vdepth, type tdepth, value vprec, type tprec, value vm, type tm),
 		    p_display(value vs, type ts, value val, type tag),
 		    p_output_mode(value val, type tag),
 		    p_output_mode_mask(value val, type tag),
@@ -173,7 +173,7 @@ static dident		d_dollar_var,
                         d_var_name,
                         d_vname2;
 
-static char	output_mode_chars[OUTPUT_MODES+1] = "OD.QvVPKmGMTCN_IU";
+static char	output_mode_chars[OUTPUT_MODES+1] = "OD.QvVPKmGMTCN_IUFL";
 
 static int	output_mode_mask = QUOTED | PRINT_CALL | ATTRIBUTE;
 
@@ -222,7 +222,7 @@ write_init(int flags)
     (void) local_built_in(in_dict("writeln_body", 3), p_writeln, B_SAFE);
     (void) exported_built_in(in_dict("writeq_", 3), p_writeq3, B_SAFE);
     (void) exported_built_in(in_dict("write_canonical_", 3), p_write_canonical3, B_SAFE);
-    (void) exported_built_in(in_dict("write_term", 6), p_write_term, B_SAFE);
+    (void) exported_built_in(in_dict("write_term", 7), p_write_term, B_SAFE);
     (void) built_in(in_dict("display", 2), p_display, B_SAFE);
     (void) local_built_in(in_dict("output_mode", 1), p_output_mode, B_UNSAFE|U_SIMPLE);
     (void) local_built_in(in_dict("output_mode_mask", 1), p_output_mode_mask, B_UNSAFE|U_SIMPLE);
@@ -519,6 +519,33 @@ p_display(value vs, type ts, value val, type tag)
 }
 
 
+/* auxiliary for ec_pwrite(): terminate term with fullstop and/or newline */
+
+static int
+_terminate_term(stream_id nst, int options, syntax_desc *sd)
+{
+    int status;
+    if (options & TERM_FULLSTOP)
+    {
+	/* write a space if last character was a symbol */
+	if (Symbol(sd->char_class[(unsigned char)StreamLastWritten(nst)]))
+	{
+	    Write_Char(nst, ' ');
+	}
+	Write_Char(nst, '.');
+	if (options & TERM_NEWLINE)
+	    return ec_newline(nst);	/* maybe YIELD_ON_FLUSH_REQ */
+	else
+	    return ec_outfc(nst, ' ');
+    }
+    else if (options & TERM_NEWLINE)
+    {
+	return ec_newline(nst);		/* maybe YIELD_ON_FLUSH_REQ */
+    }
+    return PSUCCEED;
+}
+
+
 /*
  * ec_pwrite() - write a Prolog term
  *
@@ -530,6 +557,7 @@ int
 ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag)
 {
     pword			**old_tt = TT, *old_tg = TG, *old_ld = LD;
+    syntax_desc *		sd = ModuleSyntax(module);
     int				idwrite;
     int				result;
 
@@ -547,10 +575,10 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
     /*
      * For backward compatibility, map obsolete syntax options to output modes
      */
-    if (ModuleSyntax(module)->options & DOLLAR_VAR)
+    if (sd->options & DOLLAR_VAR)
     	idwrite |= OUT_DOLLAR_VAR;
     /* not fully compatible:
-    if (ModuleSyntax(module)->options & DENSE_OUTPUT)
+    if (sd->options & DENSE_OUTPUT)
     	idwrite |= WRITE_COMPACT;
     */
 
@@ -588,7 +616,11 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
     }
 
     result = _pwrite1(idwrite, out, val, tag, maxprec, depth,
-			module, mod_tag, ModuleSyntax(module), ARGLAST);
+			module, mod_tag, sd, ARGLAST);
+    
+    /* terminate the term, if requested */
+    if (result == PSUCCEED)
+	result = _terminate_term(out, idwrite, sd);
 
     /*
      * Pop stuff that may have been left by write macros and
@@ -598,6 +630,7 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
     return result;
 
 }
+
 
 /*
  * _pwrite1() - write a Prolog term
@@ -1968,7 +2001,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 		switch (*cpar)
 		{
 /* 
- * free : hjyz BFHJLSYZ
+ * free : hjyz BHJSYZ
  */
 		case ' ' :       /* flags and sizes */
 		case '+' :
@@ -1990,9 +2023,11 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 		case 'v' :
 		case 'C' :
 		case 'D' :
+		case 'F' :
 		case 'G' :
 		case 'I' :
 		case 'K' :
+		case 'L' :
 		case 'M' :
 		case 'N' :
 		case 'O' :
@@ -2588,12 +2623,14 @@ writeq_term(uword val, uword tag)
 
 
 /*
- * write_term(+Stream, +Term, +ClrOptions, +SetOptions, ?Depth, +Module)
+ * write_term(+Stream, +Term, +ClrOptions, +SetOptions, +Depth, +Precedence, +Module)
  *
  * Depth=0	use stream's/global default setting
  */
 static int
-p_write_term(value vs, type ts, value val, type tag, value vcm, type tcm, value vsm, type tsm, value vdepth, type tdepth, value vm, type tm)
+p_write_term(value vs, type ts, value val, type tag, value vcm, type tcm,
+	value vsm, type tsm, value vdepth, type tdepth,
+	value vprec, type tprec, value vm, type tm)
 {
     int		res;
     stream_id out = get_stream_id(vs, ts, SWRITE, &res);
@@ -2602,9 +2639,11 @@ p_write_term(value vs, type ts, value val, type tag, value vcm, type tcm, value 
     Check_Integer(tcm);
     Check_Integer(tsm);
     Check_Integer(tdepth);
+    Check_Integer(tprec);
+    if (vprec.nint < 0 || 1200 < vprec.nint) { Bip_Error(RANGE_ERROR); }
     Check_Module(tm, vm);
     Lock_Stream(out);
-    res = ec_pwrite(vcm.nint, vsm.nint, out, val, tag, 1200, vdepth.nint, vm.did, tm);
+    res = ec_pwrite(vcm.nint, vsm.nint, out, val, tag, vprec.nint, vdepth.nint, vm.did, tm);
     Unlock_Stream(out);
     return res;
 }

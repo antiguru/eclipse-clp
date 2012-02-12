@@ -820,6 +820,14 @@ Format string and the result is printed to the output stream.
       <DT><STRONG>C</STRONG><DD>
         print the term as a clause, i.e.  clause macros will be taken into
         account.
+
+      <DT><STRONG>F</STRONG><DD>
+	print a fullstop after the term, separated from the term by an
+	extra space, if necessary.
+
+      <DT><STRONG>L</STRONG><DD>
+	print a newline after the term (or as part of the fullstop
+	sequence, if used together with the F option).
 </DL>
 
   <DT>%<STRONG>W</STRONG><DD>
@@ -1080,6 +1088,14 @@ Format string and the result is printed on the output Stream.
       <DT><STRONG>C</STRONG><DD>
         print the term as a clause, i.e.  clause macros will be taken into
         account.
+
+      <DT><STRONG>F</STRONG><DD>
+	print a fullstop after the term, separated from the term by an
+	extra space, if necessary.
+
+      <DT><STRONG>L</STRONG><DD>
+	print a newline after the term (or as part of the fullstop
+	sequence, if used together with the F option).
 </DL>
 
   <DT>%<STRONG>W</STRONG><DD>
@@ -1831,6 +1847,28 @@ Error:
         This only makes sense together with the quoted(true) option.
         </P></DD>
 
+    <DT><STRONG>nl(false)</STRONG> -- default</DT><DD><P>
+	do no add a newline.
+        </P></DD>
+
+    <DT><STRONG>nl(true)</STRONG></DT><DD><P>
+        print a newline sequence (as with nl/1) after the term.  If this is
+	used together with the fullstop(true) option, this newline serves
+	as the blank space after the fullstop.
+        </P></DD>
+
+    <DT><STRONG>fullstop(false)</STRONG> -- default</DT><DD><P>
+	do no add a fullstop.
+        </P></DD>
+
+    <DT><STRONG>fullstop(true)</STRONG></DT><DD><P>
+	terminate the term with a fullstop (a dot followed by blank space),
+	so it can be read back.  The blank space after the dot is a newline
+	if the nl(true) option is present, otherwise a space character.
+	If necessary, an extra space will be inserted before the fullstop,
+	in order to separate it from the end of the term.
+        </P></DD>
+
     <DT><STRONG>numbervars(false)</STRONG> -- default</DT><DD><P>
         do not treat '$VAR'/1 terms specially.
         ISO-Prolog compatible.
@@ -1862,6 +1900,14 @@ Error:
     <DT><STRONG>portrayed(true)</STRONG></DT><DD><P>
         call the user-defined predicate portray/1,2 in the way print/1,2
         does.
+        </P></DD>
+
+    <DT><STRONG>precedence(Prec)</STRONG></DT><DD><P>
+	Prec is an integer between 0 and 1200 (default 1200), representing
+	context operator precedence.  Can be used to force correct
+	parenthesizing when partial terms are written as arguments of
+	operators.  The written term will be enclosed in parentheses if
+	its precedence is higher than Prec.
         </P></DD>
 
     <DT><STRONG>quoted(false)</STRONG> -- default</DT><DD><P>
@@ -1942,12 +1988,21 @@ Error:
         the same as depth(N).
         SICStus-Prolog compatibility.
         </P></DD>
+
+    <DT><STRONG>priority(Prec)</STRONG></DT><DD><P>
+        the same as precedence(Prec).
+        SICStus/SWI-Prolog compatibility.
+        </P></DD>
 </DL>
     The correspondence between write_term/2,3 and the other output predicates
     is as follows:
 <DL>
     <DT>write(T)</DT><DD><P>
         write_term(T, [numbervars(true)])
+        </P></DD>
+
+    <DT>writeln(T)</DT><DD><P>
+        write_term(T, [numbervars(true),nl(true)])
         </P></DD>
 
     <DT>writeq(T)</DT><DD><P>
@@ -1995,9 +2050,17 @@ Error:
         ?- write_term(['a-b',\"cd\"], [quoted(true),dotlists(true)]).
         .('a-b', .(\"cd\", []))
 
+        ?- write_term(hello, [fullstop(true)]).
+	hello.
+
+        ?- write_term(***, [fullstop(true)]).
+	*** .
+
+        ?- write('X = '), write_term(a=b, [precedence(699)]).
+	X = (a = b)
 ",
         see_also:[write_term/2, display/2, print/2, printf / 3, write / 2,
-        writeq / 2, write_canonical/2, get_stream_info/3, get_flag/2]]).
+        writeln/2, writeq / 2, write_canonical/2, get_stream_info/3, get_flag/2]]).
 
 
 
