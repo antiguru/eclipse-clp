@@ -26,7 +26,7 @@
 ** System:       ECLiPSe Constraint Logic Programming System
 ** Author/s:     Warwick Harvey, IC-Parc
 ** 
-** $Id: ic.c,v 1.2 2008/06/20 13:41:14 jschimpf Exp $
+** $Id: ic.c,v 1.3 2012/02/13 23:49:58 jschimpf Exp $
 **
 ** This file provides low-level primitives in support of the ic_kernel and
 ** ic_constraints ECLiPSe modules.  This is almost entirely for efficiency
@@ -1660,7 +1660,6 @@ solve_equal(bounds *a, var_info *vi, bounds *c, int *solved)
 	pword	tmp;
 	int	result;
 
-	*solved = 0;
 	Div(*c, *a, res);
 
 	if (vi->prop_int && res.l == res.u && res.l == ceil(res.l)) {
@@ -1670,16 +1669,22 @@ solve_equal(bounds *a, var_info *vi, bounds *c, int *solved)
 	    Return_If_Not_Success(result);
 	    *solved = 1;
 	} else if (vi->tb.i) {
-	    if (res.l == res.u) {
-		*solved = 1;
-	    }
 	    res.l = ceil(res.l);
 	    res.u = floor(res.u);
 	    if (res.l == res.u) {
+		/* Due to rounding, the Div above may suggest a solution when
+		 * none exists.  Compute a*X to see if it really overlaps c.
+		 * (was bug 669) */
+		bounds computed_c;
+		Mul(res, *a, computed_c);
+		if (computed_c.l > c->u  ||  computed_c.u < c->l) {
+		    Fail
+		}
 		result = ec_double_to_int_or_bignum(res.l, &tmp);
 		Return_If_Not_Success(result);
 		result = Unify_Pw(vi->var->val, vi->var->tag, tmp.val, tmp.tag);
 		Return_If_Not_Success(result);
+		*solved = (c->l==c->u && computed_c.l==computed_c.u);
 	    } else if (res.l > res.u) {
 		Fail
 	    } else {
@@ -1688,6 +1693,7 @@ solve_equal(bounds *a, var_info *vi, bounds *c, int *solved)
 		Return_If_Not_Success(result)
 		result = ic_upb(vi, res.u);
 		Return_If_Not_Success(result)
+		*solved = 0;
 	    }
 	} else {
 	    Make_Interval(&tmp, res.l, res.u);
