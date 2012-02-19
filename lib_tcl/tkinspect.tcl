@@ -53,13 +53,44 @@
 
 package provide tkinspect 1.0
 
-#set tkinspectvalues(prdepth)    5
 set tkinspectvalues(invocnum)  -1
 set tkinspectvalues(twinhdef)   3
-set tkinspectvalues(listdepth)  20
-#set tkinspectvalues(symbols) 1
+set tkinspectvalues(defaultheight) 12c
+set tkinspectvalues(defaultwidth)  14c
+set tkinspectvalues(summary_truncate)	100
 
-font create tkeclsmall -family helvetica -weight bold -size 10
+
+#-----------------------------------------------------------------------
+# Icon setup
+#-----------------------------------------------------------------------
+
+package require tkec_icons 1.0
+
+set tkinspectvalues(atomimage) stamp-16
+set tkinspectvalues(varimage) xapp-16
+set tkinspectvalues(attrimage) kcmx-16
+#set tkinspectvalues(varimage) package-16
+#set tkinspectvalues(attrimage) package_favourite-16
+set tkinspectvalues(numimage) kit-16
+set tkinspectvalues(structureimage) package-16
+#set tkinspectvalues(structureimage) folder_red_open-16
+set tkinspectvalues(stringimage) document2-16
+set tkinspectvalues(deadimage) gv-16
+set tkinspectvalues(schedimage) connect_creating-16
+set tkinspectvalues(suspimage) connect_no-16
+set tkinspectvalues(handleimage) exec-16
+set tkinspectvalues(defaultimage) help-16
+set tkinspectvalues(blankimage) blank-16
+set tkinspectvalues(upimage) 1uparrow-16
+set tkinspectvalues(downimage) 1downarrow-16
+set tkinspectvalues(leftimage) 1leftarrow-16
+set tkinspectvalues(rightimage) 1rightarrow-16
+set tkinspectvalues(closeimage) fileclose-16
+
+
+#-----------------------------------------------------------------------
+# Create inspector window
+#-----------------------------------------------------------------------
 
 proc tkinspect:Inspect_term_init {source} {
     global tkinspectvalues tcl_platform tkecl
@@ -78,11 +109,9 @@ proc tkinspect:Inspect_term_init {source} {
 	return
     }
 
-    toplevel $iw ;#-height 160m -width 190m
+    toplevel $iw
     wm title $iw "ECLiPSe Inspector"
-    wm minsize $iw 27 3
 
-#    ec_inspect_init
 
 #-----------------------------------------------------------------------
 # Menu Bar setup
@@ -90,97 +119,37 @@ proc tkinspect:Inspect_term_init {source} {
     set mbar [menu $iw.menubar]
     $iw config -menu $mbar
     $mbar add cascade -label "Windows" -menu $mbar.win -underline 0
-    $mbar add cascade -label "Options" -menu $mbar.opt -underline 0
+#    $mbar add cascade -label "Options" -menu $mbar.opt -underline 0
     $mbar add cascade -label "Select" -menu $mbar.select -underline 0
-    #    $mbar add command -label "Help" -underline 0 -command "tkecl:Get_helpfileinfo insp $iw"
-#-----------------------------------------------------------------------
-# Images setup
-#-----------------------------------------------------------------------
-    set atomimage [tkinspect:CreateImage atom gif]
-    set varimage [tkinspect:CreateImage var gif]
-    set attrimage [tkinspect:CreateImage attr gif]
-    set numimage [tkinspect:CreateImage number ppm]
-    set stringimage [tkinspect:CreateImage string gif]
-    set structureimage [tkinspect:CreateImage struct gif]
-
-    set upimage [tkinspect:CreateImage uparrow ppm]
-    set downimage [tkinspect:CreateImage downarrow ppm]
-    set leftimage [tkinspect:CreateImage leftarrow ppm]
-    set rightimage [tkinspect:CreateImage rightarrow ppm]
-    set alertimage [tkinspect:CreateImage alert gif]
-    set suspimage [tkinspect:CreateImage suspended gif]
-    set schedimage [tkinspect:CreateImage scheduled gif]
-    set deadimage [tkinspect:CreateImage  dead gif]
-    set blankimage [tkinspect:CreateImage blank gif]
-
-    
-    set tkinspectvalues(atomimage) $atomimage
-    set tkinspectvalues(varimage) $varimage
-    set tkinspectvalues(attrimage) $attrimage
-    set tkinspectvalues(numimage) $numimage
-    set tkinspectvalues(structureimage) $structureimage
-    set tkinspectvalues(stringimage) $stringimage
-    set tkinspectvalues(deadimage) $deadimage
-    set tkinspectvalues(schedimage) $schedimage
-    set tkinspectvalues(suspimage) $suspimage
-
-    set tkinspectvalues(upimage) $upimage
-    set tkinspectvalues(downimage) $downimage
-    set tkinspectvalues(leftimage) $leftimage
-    set tkinspectvalues(rightimage) $rightimage
-    set tkinspectvalues(alertimage) $alertimage
-    set tkinspectvalues(blankimage) $blankimage
+    $mbar add cascade -label "Help" -menu $mbar.help -underline 0
 
 
 #-------------------------------------------------------------------------
 # Frames setup
 #-------------------------------------------------------------------------
 
-    set top [frame $iw.top -height 300]
-#        set nav [toplevel $top.n]
-#        wm resizable $nav 0 0
-#          set cf [frame $nav.control]
-#          set info [frame $nav.info]
+    set top [frame $iw.top]
 
-       set tkinspectvalues($top.m,iw) $iw
+    set tkinspectvalues($top.m,iw) $iw
 
-       ;# $top.m should be $h. Need to set var. before widget is called :-(
-       set h [hierarchy $top.m -root 1 -browsecmd tkinspect:Get_subterms \
+    ;# $top.m should be $h. Need to set var. before widget is called :-(
+    set h [hierarchy $top.m -root 1 -browsecmd tkinspect:Get_subterms \
 	    -nodelook tkinspect:Look_term -expand 1 -selectmode single \
-	    -paddepth 40 -padstack 6 -selectcmd tkinspect:Display \
+	    -paddepth 25 -padstack 6 -autoscrollbar 1 \
 	    -command tkinspect:MayCentre -background white \
 	    -selectbackground gray]
-       set tf [frame $top.tf] 
+
+    # if we have saved a previous position and size, restore it
+    if [info exists tkinspectvalues($iw,geometry)] {
+    	wm geometry $iw $tkinspectvalues($iw,geometry)
+    }
+
+    set tf [frame $top.tf] 
     set bot [frame $iw.bot]
-       set alf [frame $bot.alert]
-
-
-#------------------------------------------------
-# Frame packings
-#------------------------------------------------
-    pack $top -side top -expand true -fill both
-
-        pack $h -expand true -fill both -side left
-        pack $tf -expand true -fill both
-#        pack $nav -side right 
-#         wm title $nav "Navigation control"
-#            pack $cf -side top
-    pack $bot -side bottom -fill x
-        pack [button $bot.exit -text "Close" -command "tkinspect:Exit $iw"] \
-		-expand true -side bottom -fill x
-        pack $alf -side bottom -expand true -fill x
-
-
-
-
-
-#------------------------------------------------------------------------
-# Details
-#------------------------------------------------------------------------
 
 
 # Alert frame---------------------------------
-    set alert_text [text $alf.t -height 2 -relief groove -background lightgray]
+    set alert_text [text $bot.alert -height 1 -background lightgray]
     bind $alert_text <Any-Key> {break} ;# read only
     bind $alert_text <Any-Button> {break} ;# really read only!
     bind $alert_text <Any-Motion> {break}
@@ -188,15 +157,25 @@ proc tkinspect:Inspect_term_init {source} {
     bind $alert_text <Leave> {break}
     $alert_text tag configure bold -font tkecllabel -justify left
 
-    ;#grid [label $alf.l -image $alertimage] -row 0 -column 0 -sticky w
-    grid $alert_text -row 0 -column 1 -sticky news 
-    grid rowconfigure $alf 0 -weight 1
-    grid columnconfigure $alf 1 -weight 1
+# Control frame---------------------------------
+    set cf [frame $top.control]
+    tkinspect:PackCF $cf $iw $h $alert_text
 
-# Control frame------------------------------------
-#    tkinspect:Deal_with_NavWin $top.n $iw $h $alert_text
-#    tkinspect:PackCF $cf $iw $h $alert_text
+#------------------------------------------------
+# Frame packings
+#------------------------------------------------
+    pack $top -side top -expand true -fill both
+    pack $bot -side bottom -fill x
 
+    pack $cf -side top -fill x
+    pack $h -expand true -fill both -side top
+    pack $alert_text -side top -fill x
+    pack [ttk::sizegrip $bot.alert.grip] -side right -anchor se
+
+
+#------------------------------------------------------------------------
+# Details
+#------------------------------------------------------------------------
 
 # text frame-----------------------------------------------------
     set t [text $tf.t -setgrid true -relief sunken -height $tkinspectvalues(twinhdef)\
@@ -224,57 +203,34 @@ proc tkinspect:Inspect_term_init {source} {
 
 # Menu bar-----------------------------------
 
-    set tkinspectvalues(prdepthmlabel) "Print Depth:"
-    set tkinspectvalues(ldepthmlabel)  "Structure Threshold:"
-
-    menu $mbar.opt -postcommand "tkinspect:Update_optmenu $mbar.opt \
-	    0 {$tkinspectvalues(prdepthmlabel)} tkecl(pref,inspect_prdepth) \
-	    1 {$tkinspectvalues(ldepthmlabel)} tkecl(pref,inspect_ldepth)" \
-         -tearoff 0
-
     menu $mbar.select 
-
-    menu $mbar.win 
-
-
-    $mbar.opt add command -label "$tkinspectvalues(prdepthmlabel) $tkecl(pref,inspect_prdepth) ..." \
-	    -command "tkinspect:EditDepth $iw prdepth 0 100 {Inspector uses the global output mode for printing terms. Change it from the global settings.} {Print Depth}"
-    $mbar.opt add command -label "$tkinspectvalues(ldepthmlabel) $tkecl(pref,inspect_ldepth) ..." \
-	    -command "tkinspect:EditDepth $iw ldepth 1 100 {Parameter for displaying list specially/printing argument number for structures} {Structure Threshold}" 
-    $mbar.opt add command -label "Display current path" \
-	    -command "tkinspect:DisplayPath $h $t"
-    $mbar.opt add check -label "Display Symbols" -variable tkecl(pref,inspect_nosymbols) -onvalue 0 -offvalue 1
-    $mbar.opt add check -label "Balloon Help" -variable tkecl(pref,balloonhelp) -onvalue 1 -offvalue 0
     $mbar.select add command -label "Current goal" \
 	    -command "tkinspect:SelectCurrent $iw $h $alert_text"
     $mbar.select add command -label "Invoked goal ..." \
 	    -command "tkinspect:SelectInvoc $iw $h $alert_text"
 
-    $mbar.win add command -label "Navigation panel" \
-	    -command "tkinspect:Deal_with_NavWin $top.n $iw $h $alert_text"
+    menu $mbar.help 
+    $mbar.help add check -label "Balloon help" -variable tkecl(pref,balloonhelp) -onvalue 1 -offvalue 0
+    $mbar.help add command -label "Inspector help" -underline 0 -command "tkecl:Get_helpfileinfo insp $iw"
+
+    menu $mbar.win 
     $mbar.win add command -label "Browser y-scroll control" \
 	    -command "tkinspect:Deal_with_yscroll $top.ys $iw $h"
     $mbar.win add command -label "Symbol key" \
 	    -command "tkinspect:DisplayKey $iw"
-    $mbar.win add command -label "Inspector Help" \
+    $mbar.win add command -label "Inspector help" \
 	    -command "tkecl:Get_helpfileinfo insp $iw"
     $mbar.win add separator
     $mbar.win add command -label "Close this Inspector" \
-	    -command "destroy $iw"
+	    -command "tkinspect:Exit $iw"
 
-    pane $h $tf -orient vertical -initfrac [list 0.75 0.25]
+   # pane $h $tf -orient vertical -initfrac [list 0.75 0.25]
 
-proc tkinspect:Update_optmenu {m prdpos prdlabel prdvar ldpos ldlabel ldvar} {
-
-    tkinspect:Update_menu $m $prdpos $prdlabel $prdvar
-    tkinspect:Update_menu $m $ldpos $ldlabel $ldvar
-}
 
 #------------------------------------------------------------------
 # Balloon Help
 #------------------------------------------------------------------
 
-#    balloonhelp $bot.exit "Exit from Inspector"
     balloonhelp $h "Term browser area - browsing and inspection of term\n \
       Double leftmouse click toggles node expansion\n Arrow keys move \
       selected term relative to current position.\n Right (or control-left) click on a term \
@@ -282,8 +238,8 @@ proc tkinspect:Update_optmenu {m prdpos prdlabel prdvar ldpos ldlabel ldvar} {
       with other ECLiPSe windows while inspector is active.\n\
       Y scrollbars defaults to `follow-node' mode - change with yscroll control panel."
     balloonhelp $tf "Text display area - printed form of term and path information"
-    balloonhelp $alf "Message area - alert/error messages from Inspector"
-    balloonhelp $top.__h1 "Press and drag mouse button 1 to adjust text/Term window sizes"
+    balloonhelp $alert_text "Message area - alert/error messages from Inspector"
+#    balloonhelp $top.__h1 "Press and drag mouse button 1 to adjust text/Term window sizes"
 
 #-------------------------------------------------------------------
 # Window bindings
@@ -312,12 +268,11 @@ proc tkinspect:Update_optmenu {m prdpos prdlabel prdvar ldpos ldlabel ldvar} {
 	set tkinspectvalues(ysbe,$iw) [expr round($be*100)]
     }
     $h selection set $hroot ;# select top-level
-    tkinspect:Display $h $hroot {} 
+#    tkinspect:Display $h $hroot {} 
     if {![winfo viewable $iw]} {
 	tkwait visibility $iw   ;# the grab may sometimes happen before visibility 
     }
     grab $iw
-
 }
 
 
@@ -380,54 +335,77 @@ proc tkinspect:Update_ys {iw h} {
     }
 }
 
-# Packing of control frame moved out as procedure because it is needed to
-# reconstruct frame if it was destroyed.
+
+# Packing of control frame cf
+
 proc tkinspect:PackCF {cf iw h alert_text} {
     global tkinspectvalues
 
-    set upimage $tkinspectvalues(upimage) 
-    set downimage $tkinspectvalues(downimage) 
-    set leftimage $tkinspectvalues(leftimage) 
-    set rightimage $tkinspectvalues(rightimage) 
+    set side left
+    set ef true
+    set pad 5
+    set fill x
 
-    grid [button $cf.up -image $upimage -relief raised \
-	    -command "tkinspect:Move $iw $h left $alert_text"] -row 1 -column 2 
-    grid [button $cf.left -image $leftimage -relief raised \
-	    -command "tkinspect:Move $iw $h up $alert_text"] -row 2 -column 1
-    grid [button $cf.down -image $downimage -relief raised \
-	    -command "tkinspect:Move $iw $h right $alert_text"]  -row 3 -column 2 
-    grid [label $cf.downlabel -font tkeclsmall -text "right sibling" -justify center] -row 4 -column 1 -columnspan 3 -sticky news
-    grid [label $cf.uplabel -font tkeclsmall -text "left sibling" -justify center] -row 0 -column 1 -columnspan 3 -sticky news
-    grid [label $cf.leftlabel -font tkeclsmall -text "parent"] -row 2 -column 0
+    pack [button $cf.left -image $tkinspectvalues(leftimage) \
+	    -command "tkinspect:Move $iw $h up $alert_text"] -side $side -padx $pad
+    pack [button $cf.up -image $tkinspectvalues(upimage) \
+	    -command "tkinspect:Move $iw $h left $alert_text"] -side $side -padx $pad
+    pack [button $cf.down -image $tkinspectvalues(downimage) \
+	    -command "tkinspect:Move $iw $h right $alert_text"] -side $side  -padx $pad
+    pack [button $cf.right -image $tkinspectvalues(rightimage) \
+	    -command "tkinspect:MoveDown $iw $h $alert_text"] -side $side -padx $pad
 
-    grid [frame $cf.nentry] -row 2 -column 2
-       grid [label $cf.nentry.l -font tkeclsmall -text "repeat"] -row 0 -column 0
-       tkinspect:Numentry $cf.nentry.e {} tkinspectvalues($iw,movesize) 1 1 2 1 0 3
-    grid [frame $cf.f -borderwidth 3 -relief ridge] -row 2 -column 3 -columnspan 2 -sticky news 
+    pack [frame $cf.fill1] -side $side -expand $ef -fill $fill
+    pack [label $cf.lchild -image view_tree-16] -side $side
+    pack [spinbox $cf.child -from 1 -to 1000000000 -width 3 -justify right \
+       -validate key -validatecommand {regexp {^([1-9][0-9]*)?$} %P} \
+       -textvariable tkinspectvalues($iw,argpos)] \
+       -side $side -fill x -padx $pad -pady 4
 
-       grid [button $cf.f.right -image $rightimage -relief raised \
-	    -command "tkinspect:MoveDown $iw $h $alert_text"]  \
-	    -row 0 -column 0 
-       grid [frame $cf.f.aentry] -row 0 -column 1
-          grid [label $cf.f.aentry.l -font tkeclsmall -text "child#"] -row 0 -column 0
-          tkinspect:Numentry $cf.f.aentry.e {} tkinspectvalues($iw,argpos) 2 1 2 1 0 3
+    pack [frame $cf.fill2] -side $side -expand $ef -fill $fill
+    pack [label $cf.lrepeat -image redo-16] -side $side
+    pack [spinbox $cf.repeat -from 1 -to 1000000000 -width 3 -justify right \
+       -validate key -validatecommand {regexp {^([1-9][0-9]*)?$} %P} \
+       -textvariable tkinspectvalues($iw,movesize)] \
+       -side $side -fill x -padx $pad -pady 4
 
-    bind $cf.f.aentry <Return> "tkinspect:MoveDown $iw $h $alert_text"
+    pack [frame $cf.fill3] -side $side -expand $ef -fill $fill
+    pack [label $cf.lprdepth -image goto-16] -side $side
+    pack [spinbox $cf.prdepth -from 1 -to 1000000000 -width 3 -justify right \
+       -validate key -validatecommand {regexp {^([1-9][0-9]*|0)?$} %P} \
+       -textvariable tkecl(pref,inspect_prdepth)] \
+       -side $side -fill x -padx $pad -pady 4
 
-    balloonhelp $cf "Navigation control panel - move selection relative to currently selected term"
-    balloonhelp $cf.up "Move to left sibling term"
-    balloonhelp $cf.left "Move to ancestral term"
-    balloonhelp $cf.f.right "Move to a descendant term"
-    balloonhelp $cf.down "Move to right sibling term"
-    balloonhelp $cf.nentry "Repeat count -- number of times movement is repeated"
-    balloonhelp $cf.f.aentry "Argument position of descendant term move"
+    pack [frame $cf.fill4] -side $side -expand $ef -fill $fill
+    pack [label $cf.lldepth -image text_multirow-16] -side $side
+    pack [spinbox $cf.ldepth -from 1 -to 1000000000 -width 3 -justify right \
+       -validate key -validatecommand {regexp {^([1-9][0-9]*|0)?$} %P} \
+       -textvariable tkecl(pref,inspect_ldepth)] \
+       -side $side -fill x -padx $pad -pady 4
+
+    pack [frame $cf.fill5] -side $side -expand $ef -fill $fill
+    pack [label $cf.lsym -image flag-16] -side $side
+    pack [ttk::checkbutton $cf.sym -variable tkecl(pref,inspect_nosymbols) -onvalue 0 -offvalue 1] \
+       -side $side -padx 0
+
+    pack [frame $cf.fill6] -side $side -expand true -fill $fill
+    pack [button $cf.exit -image $tkinspectvalues(closeimage) -command "tkinspect:Exit $iw"] \
+	    -side left -padx $pad
+    # an empty label to work around a packer problem on tk8.5/linux
+    pack [label $cf.fill7] -side $side
+
+    balloonhelp $cf.up "Move to previous sibling term"
+    balloonhelp $cf.left "Move to the parent term"
+    balloonhelp $cf.right "Move to Nth child term"
+    balloonhelp $cf.down "Move to next sibling term"
+    balloonhelp $cf.lrepeat "Repeat count for movements"
+    balloonhelp $cf.lchild "Argument position for child term move"
+    balloonhelp $cf.lprdepth "Print depth limit"
+    balloonhelp $cf.lldepth "List unfolding chunk size"
+    balloonhelp $cf.lsym "Display term type symbols"
+    balloonhelp $cf.exit "Close inspector"
 }
 
-
-proc tkinspect:CreateImage {name format} {
-    global tkecl
-    return [image create photo -format $format -file [file join $tkecl(ECLIPSEDIR) lib_tcl Images $name.$format]]
-}
 
 proc tkinspect:MarkLevels {n np t} {
 
@@ -518,6 +496,7 @@ proc tkinspect:Exit {iw} {
     global tkinspectvalues
 
     tkinspect:inspect_command $tkinspectvalues($iw,source) [list end] {}
+    set tkinspectvalues($iw,geometry) [wm geometry $iw]
     destroy $iw
 }
 
@@ -564,17 +543,15 @@ proc tkinspect:Look_term {hw np isopen} {
     switch -exact -- $termtype {
 	db_reference -
 	handle      {
-	    set image [tkinspect:DisplayImage $hw blankimage]
+	    set image [tkinspect:DisplayImage $hw handleimage]
 	    return [list $termname {} $image {black}]
 	}
 
 	exphandle      {
-	    set image [tkinspect:DisplayImage $hw blankimage]
+	    set image [tkinspect:DisplayImage $hw handleimage]
 	    if {$isopen == 1} {
-		set font {-family fixed}
 		set colour black
 	    } else {
-		set font {-family fixed -weight bold}
 		set colour red
 	    }
 	    return [list $termname $font $image $colour]
@@ -609,10 +586,10 @@ proc tkinspect:Look_term {hw np isopen} {
 	attributed {
 	    set image [tkinspect:DisplayImage $hw attrimage]
 	    if {$isopen == 1} {
-		set font {-family fixed}
+		set font tkeclmono
 		set colour black
 	    } else {
-		set font {-family fixed -weight bold}
+		set font tkecllabel
 		set colour red
 	    }
 	    return [list $termname $font $image $colour]
@@ -663,7 +640,7 @@ proc tkinspect:Look_term {hw np isopen} {
 
 	default     { 
 	    tk_messageBox -icon warning -type ok -message "Unknown subterm type `$termtype'. Please report this problem (follow the links in About this ECLiPSe)"
-	    set image [tkinspect:DisplayImage $hw blankimage]
+	    set image [tkinspect:DisplayImage $hw defaultimage]
 	    return [list $termname {} $image {black}]
 	}
 
@@ -810,6 +787,19 @@ proc tkinspect:ec_resume_inspect {} {
 }
 
 
+# center the child over the parent window
+# (adapted from the wm man page)
+proc tkinspect:center_over {child parent} {
+    wm withdraw $child
+    update
+    set x [expr {max(0,[winfo x $parent]+([winfo width $parent]-[winfo width $child])/2)}]
+    set y [expr {max(0,[winfo y $parent]+([winfo height $parent]-[winfo height $child])/2)}]
+    wm geometry  $child +$x+$y
+    wm transient $child $parent
+    wm deiconify $child
+}
+
+
 proc tkinspect:EditDepth {iw type min max message typetext} {
     global tkecl 
 
@@ -821,6 +811,7 @@ proc tkinspect:EditDepth {iw type min max message typetext} {
 
 	toplevel $w
 	wm title $w "Change Inspector's $typetext"
+	tkinspect:center_over $iw $w
 	wm resizable $w 1 0
 	message $w.m -justify center -aspect 1000 -text $message
 	pack [frame $w.f] -expand 1 -fill both -side bottom
@@ -853,6 +844,9 @@ proc tkinspect:Popnumentry {iw tvar default valname exclusive} {
     }
     toplevel $popup
     wm title $popup "Change $valname"
+
+    tkinspect:center_over $iw $popup
+
     if {$exclusive == 1} {
 	tkwait visibility $popup
 	grab $popup
@@ -878,16 +872,6 @@ proc tkinspect:Popnumentry {iw tvar default valname exclusive} {
 }
 
 
-proc tkinspect:Update_menu {m mindex mtext mvar} {
-    
-    upvar #0 $mvar numvar
-
-    set mlabel "$mtext: $numvar ..."
-    $m entryconfigure $mindex -label $mlabel
-}
-
-
-
 proc tkinspect:DisplayKey {iw} {
     global tkinspectvalues
 
@@ -898,27 +882,32 @@ proc tkinspect:DisplayKey {iw} {
     set keywin [toplevel $iw.inspectkey] 
     wm title $keywin "Key to Symbols"
     set i 0
-    foreach {imagename type} "$tkinspectvalues(atomimage) atom \
-	    $tkinspectvalues(varimage) variable $tkinspectvalues(attrimage) \
-	    {attributed variable} $tkinspectvalues(numimage) number \
-	    $tkinspectvalues(structureimage) structure \
-	    $tkinspectvalues(stringimage) string $tkinspectvalues(suspimage) \
-	    {sleeping suspension} $tkinspectvalues(schedimage) {scheduled \
-	    suspension} $tkinspectvalues(deadimage) {dead suspension}" {
-	grid [label $keywin.i$type -image $imagename] -row $i -column 1 
-	grid [label $keywin.$type -text $type -justify left \
-		-font {times 14 bold}] -row $i -column 0 -sticky w 
+    foreach {imagename type} "\
+    	    $tkinspectvalues(atomimage)		atom\
+    	    $tkinspectvalues(handleimage)	handle\
+	    $tkinspectvalues(numimage)		number\
+	    $tkinspectvalues(stringimage)	string\
+	    $tkinspectvalues(structureimage)	structure\
+	    $tkinspectvalues(suspimage)		{sleeping suspension}\
+	    $tkinspectvalues(schedimage)	{scheduled suspension}\
+	    $tkinspectvalues(deadimage)		{dead suspension}\
+	    $tkinspectvalues(varimage)		variable\
+	    $tkinspectvalues(attrimage)		{attributed variable}" {
+	grid [label $keywin.i$type -image $imagename] -row $i -column 0
+	grid [label $keywin.$type -text $type -justify left] \
+		-row $i -column 1 -sticky w
 	incr i 1
     }
     grid [button $keywin.exit -text "Dismiss" \
-	    -command "destroy $keywin"] -row $i -column 0 -columnspan 2
+	    -command "destroy $keywin"] -row $i -column 0 -columnspan 2 -sticky ew
+    tkinspect:center_over $iw.inspectkey $iw
 }
 
 
 proc tkinspect:SelectCurrent {iw h t} {
     global tkinspectvalues
 
-    tkinspect:PostSelect $iw $h $t current [tkinspect:select_command $tkinspectvalues($iw,source) current]
+    tkinspect:PostSelect $iw $h $t current [tkinspect:select_command $iw current]
 
 }
 
@@ -943,7 +932,7 @@ proc tkinspect:PostSelect {iw h t source status} {
 	set tkinspectvalues($iw,source) $source ;# set only after close!
 	$h open $hroot  ;# update root term. Also consistent with initial display
 	$h selection set $hroot
-	tkinspect:Display $h $hroot {}
+#	tkinspect:Display $h $hroot {}
     } else {
 	$t delete 1.0 end
 	$t insert end "Inspected term not changed due to invalid \
@@ -1028,18 +1017,6 @@ proc tkinspect:TkOutputPath {rawpath tw iw} {
 }
 
 
-proc tkinspect:Deal_with_NavWin {nav iw h alert_text} {
-    if {![tkinspect:RaiseWindow $nav]} {
-	toplevel $nav
-        wm resizable $nav 0 0
-        wm title $nav "Navigation control"
-          set cf [frame $nav.control]
-          pack $cf -side top
-	tkinspect:PackCF $cf $iw $h $alert_text
-    }
-}
-
-
 proc tkinspect:Deal_with_yscroll {ys iw h} {
     if {![tkinspect:RaiseWindow $ys]} {
 	toplevel $ys
@@ -1101,10 +1078,16 @@ proc tkinspect:Popup_menu {iw h x y cx cy t} {
     foreach {subterm summary type arity} [tkinspect:info_command $iw $np] {
 	break
     }
+    if {[string length $summary] >= $tkinspectvalues(summary_truncate)} {
+	set summary [string range $summary 0 $tkinspectvalues(summary_truncate)]
+	append summary ...
+    }
     set posinfo [tkinspect:inspect_command $tkinspectvalues($iw,source) [list translate $lastargpos] S]
 
     set m [menu $h.hpopup -tearoff 0]
-    $m add command -label "$summary (type: $type, arg pos: $posinfo)" -state disabled
+    $m add command -label "$summary" -state disabled
+    $m add command -label "type: $type" -state disabled
+    $m add command -label "arg pos: $posinfo" -state disabled
     $m add command -label "Observe this term" -command "tkinspect:Make_observed $iw {$np} $t"
     tk_popup $m $x $y
 }

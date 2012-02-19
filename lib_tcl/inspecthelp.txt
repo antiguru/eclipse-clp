@@ -34,24 +34,19 @@ ECLiPSe windows.
 Layout
 ======
 
-The inspector consists of the following windows:
+The inspector consists of the following components:
+
+Navigation and settings panel: this panel across the top contains
+arrow buttons for movements, parameter input entries, and a close-button.
 
 Main term browser window: displays the selected term in the hierarchical
- tree format.
+tree format.
 
-Navigation panel: this window needs to be launched from the inspector from
-the Windows menu. It provides a second method for navigating through the
-selected term.
+Status line: shows messages from the inspector.
 
 Browser y-scroll control panel: this window needs to be launched from the
 inspector from the Windows menu. It allows the changing of parameters for
 controlling the behaviour of the y scrollbar in the term browser window.
-
-Text display window: displays extra information during browsing.
-
-Message window: shows messages from the inspector.
-
-Close button: quit the inspector tool.
 
 
 Functionality
@@ -69,12 +64,7 @@ children are not shown. The user can toggle between these two states by
 double clicking the left mouse button over the node. Nodes which can be
 expanded are shown in a red bold font.
 
-A node can be selected by single clicking the mouse button on it. This 
-allows additional information to be obtained about the sub-term represented
-by the node: the printed form of the sub-term, or information on the
-functor, is displayed on the text display window, and the user can also
-obtain the path (the argument positions) of the sub-term from the Options
-menu.
+A node can be selected by single clicking the mouse button on it.
 
 For convenience, the list elements of a list are displayed at the same
 level, rather than as the actual recursive tree structure of the head and
@@ -90,11 +80,11 @@ list [1,2,3,4] with a threshold of 2 will be displayed as:
 
 ./2
  |
- |-- [   : 1
+ |-- [   1
  |
- |-- ,   : 2
+ |-- ,   2
  |
- |-- |   : [3,4]
+  -- |   [3,4]
 
 The threshold setting is applied when the list node is expanded. 
 
@@ -130,17 +120,13 @@ how to use it.
  
 
 The sub-terms can be displayed in the browser window with icons that gives
-type information if the `Display Symbols' option is selected from the
-Options menu. 
+type information if the `Display term type symbols' option is ticked.
 
 In the browser window, attributes are prefixed with their attribute names.
 For structures with field names (declared using local struct or
-global struct), its arguments are prefixed with their field names. If a
+global struct), the arguments are prefixed with their field names. If a
 normal structure has more arguments than the structure threshold, then its
 elements will be prefixed with their argument number. 
-
-The relative sizes of the browser and text display windows can be adjusted
-by dragging their common boundary.
 
 The viewable area of the term browser window can be adjusted by using the
 scrollbars. The y scrollbars implements a `follow-node' mode. In this mode,
@@ -161,6 +147,53 @@ at the node that is closest to some pre-defined distance from the
 appropriate edge.
 
  
+Navigation buttons 
+------------------
+
+Navigation through the term is also possible using the navigation buttons.
+They allow the user to move the selected node in relation to the current node:
+to one of its sibling, parent or child node. The number of times a
+particular move is to be repeated can be set by setting the `repeat' entry
+in the middle of the panel. For moving to a child node, the particular
+child argument to move to at each stage is set in the `child' entry to the
+right of the descendant arrow. This is particularly useful in moving down
+many levels of deeply nested structures. The default child position is 2.
+
+The keyboard arrow keys can be used in place of the arrow buttons.
+
+
+Settings
+--------
+
+Next to the navigation buttons there are the following entries:
+
+Argument position for child move
+    this determines to which child the current selection moves
+    when the right-arrow is pressed.
+
+Repeat count for all movements
+    this determines how many steps are executed in the given direction,
+    when an arrow is pressed.  If the move has to be terminated early,
+    a message is displayed in the status line.
+
+Print depth setting
+    the nesting depth at which the textual representation of a subterm in
+    a tree node is truncated.  This has no effect on the tree structure.
+
+Structure threshold/List unfolding chunk size
+    Lists are unfolded and displayed in chunks of the given length.  This
+    is usually more readable than the true structure of the list, which is
+    a deeply nested term of ./2 structures.
+
+    Also, in structures with an arity higher than this setting, all the
+    arguments will be displayed together with argument position numbers,
+    for better orientation.
+
+Display term type symbols option
+    When ticked, every subterm is marked with a symbold indicating its type.
+    Depending on the data, this may improve or diminish readability.
+
+
 Browser y-scroll control panel
 ------------------------------
 
@@ -226,27 +259,17 @@ Close button:
 
 Closes the window when pressed.
 
-Navigation panel 
-----------------
-
-Navigation through the term is also possible using the navigation panel,
-which can be launched from the Windows menu. This provides similar
-navigation facilities as in the tty debugger for inspecting sub-terms. They
-allow the user to move the selected node in relation to the current node --
-to one of its sibling, ancestor or descendant. The number of times a
-particular move is to be repeated can be set by setting the `repeat' entry
-in the middle of the panel. For moving to a descendant, the particular
-child argument to move to at each stage is set in the `child#' entry to the
-right of the descendant arrow. This is particularly useful in moving down
-many levels of deeply nested structures. The default child# is set to 2.
-
-Note that the arrow keys can be used in place of the buttons in any
-inspector windows. The navigation panel does not have to be present to use
-the arrow keys, although the default for the repeat and child
-argument position cannot be changed without the navigation panel. 
-
 Menu Bar
 --------
+
+  Windows - this launches sub-windows of the inspector:
+
+       Browser y-scroll control
+           this launches the browser y-scroll control panel
+       Show symbol key
+           this launches a window that shows what the type icons represents.
+       Close
+           quit the inspector tool.
 
   Select - this allows the selection of the term that is to be inspected:
 
@@ -255,34 +278,11 @@ Menu Bar
            executed or traced.
        Invoked goal
            selects an invoked goal by its invocation number.
-       Close
-           quit the inspector tool.
 
-  Options - this allows various options to be set:
-
-       Print Depth
-           shows the current print depth and allows the user to change it.
-       Structure Threshold
-           shows the current structure threshold and allows the user to
-           change it 
-       Display current path
-           displays the path of the current sub-term in the text
-           display window.
-       Display Symbols
-           toggles the display of type icons with sub-terms in the
-           browser window.
+  Help
        Balloon Help
            toggles balloon help.
-
-  Windows - this launches sub-windows of the inspector:
-
-       Navigation panel
-           this launches the navigation panel.
-       Browser y-scroll control
-           this launches the browser y-scroll control panel
-       Show symbol key
-           this launches a window that shows what the type icons represents.
-       Help
+       Inspector Help
            this window.
 
 

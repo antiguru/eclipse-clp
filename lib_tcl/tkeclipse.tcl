@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.11 2011/03/14 13:04:46 kish_shen Exp $
+# $Id: tkeclipse.tcl,v 1.12 2012/02/19 17:54:50 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -51,17 +51,33 @@ switch $tcl_platform(platform) {
     }
 }
 
-lappend auto_path [file join $tkecl(ECLIPSEDIR) lib_tcl]
+set tkecl(imagedir) [file join $tkecl(ECLIPSEDIR) lib_tcl Images]
 
+lappend auto_path [file join $tkecl(ECLIPSEDIR) lib_tcl]
 
 # Display a splash window (as soon as possible)
 
 wm title . "ECLiPSe $tkecl(version) Toplevel"
 wm iconname . ECLiPSe
-set tkecl(ec_image) [image create photo -format ppm -file \
-	[file join $tkecl(ECLIPSEDIR) lib_tcl Images eclipse_logo.ppm]]
+set tkecl(ec_image) [image create photo -format gif -file \
+	[file join $tkecl(imagedir) eclipse_logo_blue75.gif]]
+set tkecl(ec_icon) [image create photo -format gif -file \
+	[file join $tkecl(imagedir) eclipseclp32.gif]]
 pack [label .splash -image $tkecl(ec_image) -relief raised] -padx 5 -pady 5
 update
+
+
+
+switch $tcl_platform(platform) {
+    windows {wm iconbitmap . [file join $tkecl(imagedir) eclipseclp.ico]}
+    default {wm iconbitmap . @[file join $tkecl(imagedir) eclipseclp48.xbm]}
+}
+
+#toplevel .icon
+#pack [label .icon.l -image $tkecl(ec_icon)]
+#wm iconwindow . .icon
+#wm withdraw .
+#wm state . normal
 
 
 #----------------------------------------------------------------------

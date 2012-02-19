@@ -1,5 +1,5 @@
 #
-# $Id: eclipse.tcl,v 1.2 2008/07/22 14:37:55 kish_shen Exp $
+# $Id: eclipse.tcl,v 1.3 2012/02/19 17:54:49 jschimpf Exp $
 # 
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -500,8 +500,9 @@ cd $prev
 #----------------------------------------------------------------------
 
 # use queues for stdin/stdout/stderr and connect them to popups for now
-ec_set_option 12 2
+ec_set_option io 2
 set ec_queue_in_handlers(0) "ec_stream_input_popup {Input expected on ECLiPSe input stream:}"
 set ec_queue_out_handlers(1) "ec_stream_output_popup {Output occurred on ECLiPSe output stream:}"
 set ec_queue_out_handlers(2) "ec_stream_output_popup {Output occurred on ECLiPSe error stream:}"
+return ok
 
