@@ -1434,7 +1434,7 @@ refer to bagof/3 for examples.
 	summary:"Throw an exception described by Ball. Continue execution
 at the recovery procedure of a matching ancestestor catch/3 or block/3",
 	desc:"This is a deprecated alias for throw/1 - see there.",
-	amode:(exit_block(++) is erroneous),
+	amode:(exit_block(+) is erroneous),
 	args:["Ball" : "Any term, but no variable"],
 	exceptions:[
 	    4 : "Ball is uninstantiated.",
@@ -1468,7 +1468,7 @@ at the recovery procedure of a matching ancestestor catch/3",
    exit_block/1 is a deprecated alias for throw/1, and behaves identically.
 <P>
 "),
-	amode:(throw(++) is erroneous),
+	amode:(throw(+) is erroneous),
 	args:["Ball" : "Any term, but no variable"],
 	exceptions:[
 	    4 : "Ball is uninstantiated.",
@@ -1498,6 +1498,13 @@ at the recovery procedure of a matching ancestestor catch/3",
 
       ?- catch(throw(hi(world)), hello(Who), writeln(recovered(Who))).
       uncaught exception in throw(hi(world))
+      Yes (0.00s cpu)
+
+
+      % The caught term is a copy of the thrown term (fresh variables)
+      ?- T1=f(X), catch(throw(T1), T2, true), variant(T1, T2), T1\==T2.
+      T1 = f(X_88)
+      T2 = f(X_510)
       Yes (0.00s cpu)
 
 Error:
