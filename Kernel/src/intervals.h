@@ -85,18 +85,6 @@
 void sincos(double,double*,double*);
 #endif
 
-#ifndef DLLEXP
-#ifdef _WIN32
-#ifndef EC_EXTERNAL
-#define DLLEXP __declspec(dllexport)
-#else
-#define DLLEXP __declspec(dllimport)
-#endif
-#else	/* UNIX */
-#define DLLEXP
-#endif
-#endif
-
 Extern DLLEXP void ec_i_add ARGS((double,double,double,double,double*,double*));
 Extern DLLEXP void ec_i_sub ARGS((double,double,double,double,double*,double*));
 Extern DLLEXP void ec_i_mul ARGS((double,double,double,double,double*,double*));

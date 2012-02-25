@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.10 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.11 2012/02/25 13:36:44 jschimpf Exp $
  */
 
 /*
@@ -1509,16 +1509,6 @@ extern dident transf_did ARGS((word));
 /*---------------------------------------------------------------------------
  * Prototypes
  *---------------------------------------------------------------------------*/
-
-#ifdef _WIN32
-#ifndef EC_EXTERNAL
-#define DLLEXP __declspec(dllexport)
-#else
-#define DLLEXP __declspec(dllimport)
-#endif
-#else	/* UNIX */
-#define DLLEXP
-#endif
 
 Extern	void	re_fake_overflow ARGS((void));
 Extern	int	query_emulc ARGS((value, type, value, type));

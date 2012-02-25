@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.9 2011/03/15 00:32:20 kish_shen Exp $
+** $Id: rounding_control.h,v 1.10 2012/02/25 13:36:44 jschimpf Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -116,12 +116,6 @@
 #ifdef _WIN32
 
     #include <float.h>
-
-    #ifndef EC_EXTERNAL
-    #define DLLEXP __declspec(dllexport)
-    #else
-    #define DLLEXP __declspec(dllimport)
-    #endif
 
     /* added = 0 assignment on declaration to work around MinGW bug 
        with gcc 4.2 that only seem to generate entry for DATA items

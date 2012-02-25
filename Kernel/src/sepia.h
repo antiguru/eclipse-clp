@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.10 2010/07/25 13:29:05 jschimpf Exp $
+ * $Id: sepia.h,v 1.11 2012/02/25 13:36:44 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -32,6 +32,32 @@
  *				dictionary macros; backtracking macros.  	
  *	
  */
+
+#ifdef _WIN32
+#ifndef EC_EXTERNAL
+/* For building Eclipse itself: avoid to include windows.h everywhere */
+/* Just define Winapi for the compiler we use (Microsoft C or gcc) */
+#define Winapi __stdcall
+#define DLLEXP __declspec(dllexport)
+
+#else
+#ifdef EC_EMBED
+This file must not be included with the embedding interface!
+
+#else
+/* For compiling old-style externals */
+#include <windows.h>
+#define Winapi WINAPI
+#define DLLEXP __declspec(dllimport)
+#endif
+#endif
+
+#else	/* UNIX */
+#define Winapi
+#define DLLEXP
+
+#endif
+
 
 #include "ec_public.h"
 

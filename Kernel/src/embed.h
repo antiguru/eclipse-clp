@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.5 2012/01/09 11:49:34 jschimpf Exp $
+ * $Id: embed.h,v 1.6 2012/02/25 13:36:44 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -36,26 +36,6 @@
  * DESCRIPTION:
  *			External embedding interface and safe variables
  */
-
-#ifdef _WIN32
-
-#ifndef EC_EXTERNAL
-/* For building Eclipse itself: avoid to include windows.h everywhere */
-/* Define Winapi for the compiler we use (Microsoft C) */
-#define Winapi __stdcall
-#define DLLEXP __declspec(dllexport)
-#else
-/* If this file is used to build user's C code, Winapi is defined in
- * eclipse.h or eclipseclass.h specific to the user's C/C++ compiler */
-#define DLLEXP __declspec(dllimport)
-#endif
-
-#else	/* UNIX */
-
-#define Winapi
-#define DLLEXP
-
-#endif
 
 
 enum {

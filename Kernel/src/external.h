@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: external.h,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * VERSION	$Id: external.h,v 1.2 2012/02/25 13:36:44 jschimpf Exp $
  */
 
 /*
@@ -64,13 +64,6 @@
  */
 
 #define EC_EXTERNAL
-
-#ifdef _WIN32
-#include <windows.h>
-#define Winapi WINAPI
-#else
-#define Winapi
-#endif
 
 /*
  * INCLUDES

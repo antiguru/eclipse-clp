@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: eclipse.h,v 1.1 2008/06/30 17:43:53 jschimpf Exp $
+ * $Id: eclipse.h,v 1.2 2012/02/25 13:36:44 jschimpf Exp $
  *
  * DESCRIPTION
  *		Included by C programs that use embedding interface.
@@ -33,11 +33,18 @@
 #define EC_EMBED
 
 #ifdef _WIN32
+
 #include <windows.h>
 #define Winapi WINAPI
-#else
+#define DLLEXP __declspec(dllimport)
+
+#else	/* UNIX */
+
 #define Winapi
+#define DLLEXP
+
 #endif
+
 
 #include "config.h"
 #include "ec_public.h"
