@@ -24,7 +24,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_cc_sendmore.cc,v 1.1 2008/06/30 17:43:54 jschimpf Exp $
+ * $Id: eg_cc_sendmore.cc,v 1.2 2012/02/25 13:47:56 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	eg.cc
@@ -40,6 +40,8 @@
 #include	"eclipseclass.h"
 
 enum {S,E,N,D,M,O,R,Y};
+
+int
 main()
 {
 	ec_init();

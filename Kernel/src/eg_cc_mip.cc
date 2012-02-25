@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Application Example
  *
- * $Id: eg_cc_mip.cc,v 1.1 2008/06/30 17:43:54 jschimpf Exp $
+ * $Id: eg_cc_mip.cc,v 1.2 2012/02/25 13:47:56 jschimpf Exp $
  *
  * IDENTIFICATION:	eg_sendmore.c
  *
@@ -82,6 +82,7 @@ static void maximize(EC_word obj, EC_word objval)
 }
 
 
+int
 main()
 {
     ec_init();

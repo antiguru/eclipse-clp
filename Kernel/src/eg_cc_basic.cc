@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_cc_basic.cc,v 1.1 2008/06/30 17:43:54 jschimpf Exp $
+ * $Id: eg_cc_basic.cc,v 1.2 2012/02/25 13:47:56 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	eg_cc_basic.cc
@@ -40,6 +40,7 @@
 #include	"eclipseclass.h"
 #include <iostream>
 
+int
 main()
 {
     char	buf[1024];

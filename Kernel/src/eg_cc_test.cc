@@ -23,7 +23,7 @@
 /*
  * ECLiPSe SAMPLE CODE
  *
- * $Id: eg_cc_test.cc,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+ * $Id: eg_cc_test.cc,v 1.3 2012/02/25 13:47:56 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf
  *
@@ -99,6 +99,7 @@ EC_word uni(const EC_word a, const EC_word b)
     return term(EC_functor("=",2), a, b);
 }
 
+int
 main(int argc, char **argv)
 {
     char 	*s;

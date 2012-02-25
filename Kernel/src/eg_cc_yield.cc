@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_cc_yield.cc,v 1.2 2012/01/27 23:17:23 jschimpf Exp $
+ * $Id: eg_cc_yield.cc,v 1.3 2012/02/25 13:47:56 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	cc_yield.c
@@ -41,6 +41,7 @@
 #include	<iostream>
 
 
+int
 main(int argc,char ** argv)
 {
     ec_init();

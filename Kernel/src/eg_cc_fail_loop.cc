@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_cc_fail_loop.cc,v 1.1 2008/06/30 17:43:54 jschimpf Exp $
+ * $Id: eg_cc_fail_loop.cc,v 1.2 2012/02/25 13:47:56 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	fail_loop.c
@@ -41,6 +41,7 @@
 #include	<iostream>
 
 
+int
 main(int argc,char ** argv)
 {
     ec_init();

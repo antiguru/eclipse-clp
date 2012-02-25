@@ -37,6 +37,7 @@ handle_alarm(int i)
 }
 
 
+int
 main(int argc,char ** argv)
 {
     ec_init();
