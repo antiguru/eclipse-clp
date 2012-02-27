@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: apply_macros.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: apply_macros.pl,v 1.3 2012/02/27 04:14:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(apply_macros).
@@ -32,7 +32,7 @@
 :- comment(summary, "Utilities to apply a predicate to all elements of a list resp. all subterms of a term").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2012/02/27 04:14:44 $").
 :- comment(desc, html("
     Note that this library is largely superseded by the do-loop construct!
     <P>
@@ -477,7 +477,7 @@ aux_pred_name(Name, Pattern, NewName) :-
 
 maplist_body(_, [], [], _).
 maplist_body(Pred, [In|ListIn], [Out|ListOut], Module) :-
-    apply(Pred, [In, Out], Module),
+    call(Pred, In, Out)@Module,
     maplist_body(Pred, ListIn, ListOut, Module).
 
 :- tool(mapstream/3, mapstream_body/4).
@@ -485,7 +485,7 @@ maplist_body(Pred, [In|ListIn], [Out|ListOut], Module) :-
 delay mapstream_body(_, L, _, _) if var(L).
 mapstream_body(_, [], [], _).
 mapstream_body(Pred, [In|ListIn], [Out|ListOut], Module) :-
-    apply(Pred, [In, Out], Module),
+    call(Pred, In, Out)@Module,
     mapstream_body(Pred, ListIn, ListOut, Module).
 
 :- tool(mapargs/3, mapargs_body/4).
@@ -500,23 +500,23 @@ mapargs_args(Pred, TermIn, TermOut, I, Module) :-
     arg(I, TermIn, InArg),
     arg(I, TermOut, OutArg),
     I1 is I-1,
-    apply(Pred, [InArg, OutArg], Module),
+    call(Pred, InArg, OutArg)@Module,
     mapargs_args(Pred, TermIn, TermOut, I1, Module).
 
 :- tool(appnodes/2, appnodes_body/3).
 
 appnodes_body(Pred, Term, Module) :-
     (atomic(Term); var(Term)),
-    apply(Pred, [Term], Module).
+    call(Pred, Term)@Module.
 appnodes_body(Pred, Term, Module) :-
     compound(Term),
     Term = [_|_],
     !,
-    apply(Pred, [Term], Module),
+    call(Pred, Term)@Module,
     appnodes_list(Pred, Term, Module).
 appnodes_body(Pred, Term, Module) :-
     compound(Term),
-    apply(Pred, [Term], Module),
+    call(Pred, Term)@Module,
     Term =.. [_|Args],
     appnodes_list(Pred, Args, Module).
 
@@ -537,7 +537,7 @@ sumargs(_, _, A0, A1, 0, _) :-
 sumargs(Pred, Term, A1, A3, N, Module) :-
     arg(N, Term, Arg),
     N1 is N - 1,
-    apply(Pred, [Arg, A1, A2], Module),
+    call(Pred, Arg, A1, A2)@Module,
     sumargs(Pred, Term, A2, A3, N1, Module).
 
 :- tool(applist/2, applist_body/3).
@@ -553,7 +553,7 @@ applist_body(Pred, [In|ListIn], Module) :-
 
 selectlist_body(_, [], [], _).
 selectlist_body(Pred, [In|ListIn], ListOut, Module) :-
-    (apply(Pred, [In], Module) ->
+    (call(Pred, In)@Module ->
 	ListOut = [In|NewListOut]
     ;
 	ListOut = NewListOut
@@ -564,13 +564,13 @@ selectlist_body(Pred, [In|ListIn], ListOut, Module) :-
 
 sumlist_body(_, [], Acc, Acc, _).
 sumlist_body(Pred, [H|T], AccIn, AccOut, Module) :-
-    apply(Pred, [H, AccIn, A1], Module),
+    call(Pred, H, AccIn, A1)@Module,
     sumlist_body(Pred, T, A1, AccOut, Module).
 
 :- tool(sumnodes/4, sumnodes_body/5).
 
 sumnodes_body(Pred, Term, A0, A2, Module) :-
-    apply(Pred, [Term, A0, A1], Module),
+    call(Pred, Term, A0, A1)@Module,
     (compound(Term) ->
 	functor(Term, _, N),
 	sumnodes(Pred, Term, A1, A2, 0, N, Module)
@@ -593,12 +593,8 @@ fromto_body(From, To, Step, Pred, Module) :-
 	( sgn(Step) =:= sgn(From-To) ->
 	    true
 	;
-	    apply(Pred, [From], Module),
+	    call(Pred, From)@Module,
 	    From1 is From+Step,
 	    fromto_body(From1, To, Step, Pred, Module)
 	).
-
-apply(Term, AddArgs, Module) :-
-    append_args(Term, AddArgs, Goal),
-    call(Goal)@Module.
 
