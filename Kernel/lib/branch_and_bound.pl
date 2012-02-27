@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: branch_and_bound.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: branch_and_bound.pl,v 1.3 2012/02/27 04:27:52 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(branch_and_bound).
@@ -31,7 +31,7 @@
 :- comment(summary, "Generic branch-and-bound primitives").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, Vassilis Liatsos, IC-Parc, Imperial College, London").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2012/02/27 04:27:52 $").
 :- comment(index, ["branch-and-bound","dichotomic search"]).
 :- comment(desc, html("
 	This is a solver-independent library implementing branch-and-bound
@@ -504,12 +504,9 @@ report_failure(bb_options{report_failure:Spec}, Range, Handle, Module) :-
 	append(Args, _Optional, [Range, Handle, Module]),
 	call(Goal)@Module.
     report_result(Prefix, _Msg, Range, Handle, Module) :-
-	( atom(Prefix) ; compound(Prefix) ),
+	callable(Prefix),
 	!,
-	Prefix =.. [N|FixedArgs],
-	append(FixedArgs, [Range, Handle, Module], Args),
-	Goal =.. [N|Args],
-	call(Goal)@Module.
+	call(Prefix, Range, Handle, Module)@Module.
     report_result(_, Msg, Cost, _, _) :-
 	printf(log_output, Msg, Cost).
 
