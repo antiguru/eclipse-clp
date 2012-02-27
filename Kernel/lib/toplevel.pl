@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.5 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.6 2012/02/27 04:21:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -120,7 +120,7 @@
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2012/02/06 13:24:43 $").
+:- comment(date, "$Date: 2012/02/27 04:21:05 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -134,7 +134,6 @@
 	get_cut/1,
 	compiled_file_handler/3,
 	set_default_error_handler/2,
-	printf_with_current_modes/2,
 	mutex_one/2,
 	stack_overflow_message/1,
 	printf_goal/2,
@@ -577,8 +576,9 @@ exec_goal(GoalString, RunMode) :-
 	read_goal(GoalString,Goal,Vars),	% fails on syntax error
 	get_flag(toplevel_module, Module),
 	tracer_tcl:register_inspected_term(Goal, Module),
-	printf_with_current_modes(answer_output, (?- Goal))@Module,
-	writeln(answer_output, "."),
+	get_flag(output_options, Options),
+	write_term(answer_output, (?- Goal),
+		[fullstop(true),nl(true)|Options])@Module,
 	flush(answer_output),
 	( get_flag(goal_expansion,on) ->
 	    expand_goal(Goal, TransGoal)@Module	% might fail
@@ -716,8 +716,8 @@ print_values(_, Vars, Module) :-		% handler for 155
 	( foreach([Name|Value],Vars),param(Stream,Module) do
 	    write(Stream, Name),
 	    write(Stream, ' = '),
-	    printf_with_current_modes(Stream, Value)@Module,
-	    nl(Stream)
+	    get_flag(output_options, Options),
+	    write_term(Stream, Value, [precedence(699),nl(true)|Options])@Module
 	).
 
 
