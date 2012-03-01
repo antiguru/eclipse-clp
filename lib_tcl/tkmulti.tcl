@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 
 #
-# $Id: tkmulti.tcl,v 1.1 2006/09/23 01:54:20 snovello Exp $
+# $Id: tkmulti.tcl,v 1.2 2012/03/01 12:49:21 jschimpf Exp $
 #
 
 package provide eclipse_peer_multitask 1.0
@@ -35,7 +35,7 @@ proc ec_multi:peer_register { {mtcommands {}} } {
 	error "Calling ec_multi:peer_register when peer is already registered for multitasking."
     }
 
-    set res [ec_rpc [list peer_register_multitask [ec_peer_name] _] {(()_)}]
+    set res [ec_rpcq [list peer_register_multitask [ec_peer_name] _] {(()_)}]
     switch $res {
 	fail -
 	throw {
@@ -80,7 +80,7 @@ proc ec_multi:peer_deregister {} {
 	error "Calling ec_multi:peer_deregister when peer is not registered for multitasking."
     }
 
-    set res [ec_rpc [list peer_deregister_multitask [ec_peer_name]] {(())}]
+    set res [ec_rpcq [list peer_deregister_multitask [ec_peer_name]] {(())}]
     switch $res {
 	fail -
 	throw {
@@ -119,7 +119,7 @@ proc ec_multi:state_action {state {arg {}}} {
 	    if {$tkecl(multi_start_command) != {}} {
 		switch [eval [list $tkecl(multi_start_command) $arg]]  {
 		    continue {
-			ec_rpc peer_multitask_confirm
+			ec_rpcq peer_multitask_confirm ()
 		    }
 		    terminate {
 			ec_multi:terminate_phase
@@ -174,7 +174,7 @@ proc ec_multi:terminate_phase {} {
     global tkecl
 
     if {$tkecl(multi_state) == "on"} {
-	ec_rpc peer_multitask_terminate
+	ec_rpcq peer_multitask_terminate ()
     }
 }
 

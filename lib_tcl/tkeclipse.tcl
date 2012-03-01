@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.12 2012/02/19 17:54:50 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.13 2012/03/01 12:49:21 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -352,6 +352,7 @@ proc tkecl:popup_history {} {
 	pack $history.label -side bottom -fill x
 	pack $history.vscroll -side left -fill y
 	pack $history.box -side left -fill both -expand 1
+	tkecl:center_over $history .
     }
 }
 
@@ -403,12 +404,26 @@ proc tkecl:CreateImage {name format} {
 proc tkecl:Update_current_module {name dummy op} {
     global tkecl
 
-    set result [ec_rpc [list set_flag toplevel_module $tkecl(toplevel_module)] (()())]
+    set result [ec_rpcq [list set_flag toplevel_module $tkecl(toplevel_module)] (()())]
     if {$result  == "throw"} {
 	;# unsucessful module switch, change back to old module
-	set tkecl(toplevel_module) [lindex [ec_rpc get_flag(toplevel_module,_)] 2]
+	set tkecl(toplevel_module) [lindex [ec_rpcq {get_flag toplevel_module _} (()_)] 2]
     }
 }
+
+
+# center the child over the parent window
+# (adapted from the wm man page)
+proc tkecl:center_over {child parent} {
+    wm withdraw $child
+    update
+    set x [expr {max(0,[winfo x $parent]+([winfo width $parent]-[winfo width $child])/2)}]
+    set y [expr {max(0,[winfo y $parent]+([winfo height $parent]-[winfo height $child])/2)}]
+    wm geometry  $child +$x+$y
+    wm transient $child $parent
+    wm deiconify $child
+}
+
 
 #----------------------------------------------------------------------
 # About ECLiPSe
@@ -421,8 +436,8 @@ proc tkecl:About {} {
     set w .tkecl.tkecl_about
 
     if [winfo exists $w] {return}
-    foreach {name date} [lrange [lindex [ec_rpc_check \
-	    "sepia_kernel:sepia_version_banner(Name, Date)"] 2] 1 end] {
+    foreach {name date} [lrange [ec_rpcq_check \
+	    {sepia_version_banner _ _} (__) sepia_kernel] 1 end] {
 	toplevel $w
 	wm title $w "About this Eclipse"
 	wm resizable $w 0 0
@@ -433,6 +448,7 @@ proc tkecl:About {} {
 	pack [button $w.ok -text OK -command "destroy $w"] \
 		-ipady 10 -padx 10 -pady 10 -side bottom -fill x -expand 1
     }
+    tkecl:center_over $w .
 }
 
 # taken and modified from cgi.tcl, by Don Libes 
@@ -450,12 +466,26 @@ proc cgi_quote_url {in} {
 
 proc tkecl:Documentation {} {
     global tcl_platform env
-    set htmldoc [lindex [lindex [ec_rpc "tracer_tcl:return_html_root(_)"] 2] 1]
+    set htmldoc [lindex [ec_rpcq {return_html_root _} (_) tracer_tcl] 1]
     switch $tcl_platform(platform) {
-	unix { exec firefox [cgi_quote_url $htmldoc] &}
-	windows { exec $env(COMSPEC) /c $htmldoc & }
+	windows {
+	    # the $htmldoc file must have execute permission!!
+	    set res [catch {exec $env(COMSPEC) /c $htmldoc &} msg]
+	}
+
+	default {
+	    # try a couple of alternative browser launch commands
+	    foreach cmd {xdg-open sensible-browser firefox opera google-chrome} {
+		set res [catch [list exec $cmd [cgi_quote_url $htmldoc] &] msg]
+		if {$res == 0} break
+	    }
+	}
+    }
+    if $res {
+	tk_messageBox -type ok -icon error -message "Cannot launch browser: $msg"
     }
 }
+
 
 #----------------------------------------------------------------------
 # Selecting a query's output
@@ -674,6 +704,8 @@ proc tkecl:new_module_popup {} {
 	balloonhelp $w.ok "Click to create specified module"
 	balloonhelp $w.cancel "Click to cancel without creating module"
 
+	tkecl:center_over $w .
+
     } else {
 	tkinspect:RaiseWindow $w
     }
@@ -682,7 +714,7 @@ proc tkecl:new_module_popup {} {
 proc tkecl:create_module {w} {
     global tkecl
 
-    switch [ec_rpc "current_module($tkecl(new_module_name))"] {
+    switch [ec_rpcq [list current_module $tkecl(new_module_name)] (())] {
 	throw {
 	    tk_messageBox -type ok -icon error -message "Invalid module name: cannot create module $tkecl(new_module_name)"
 	    return
@@ -692,7 +724,7 @@ proc tkecl:create_module {w} {
 	    switch [tk_messageBox -default yes -type yesno -icon question -message \
 		    "Module $tkecl(new_module_name) is an existing module. Do you want to try to reinitialise it?"] {
 		yes {
-		    if {[ec_rpc "erase_module($tkecl(new_module_name))"] == "throw"} {
+		    if {[ec_rpcq [list erase_module $tkecl(new_module_name)] (())] == "throw"} {
 			tk_messageBox -type ok -icon error -message "Unable to erase module"
 			return
 		    }
@@ -703,11 +735,10 @@ proc tkecl:create_module {w} {
 	}
     }
 
-    append goal "create_module(" $tkecl(new_module_name) "," {[]} ", $tkecl(new_module_language))"
-    switch  [ec_rpc $goal] {
+    switch  [ec_rpcq [list create_module $tkecl(new_module_name) {[]} $tkecl(new_module_language)] (()()())] {
 	fail  -
 	throw {
-	    ec_rpc "erase_module($tkecl(new_module_name))"  ;# clean up
+	    ec_rpcq [list erase_module $tkecl(new_module_name)] (())  ;# clean up
 	    tk_messageBox -type ok -icon error -message "Unable to create module $tkecl(new_module_name) with language $tkecl(new_module_language)"
 	}
 	default {
@@ -722,7 +753,7 @@ proc tkecl:init_toplev_module {} {
     global tkecl
 
     if {[tk_messageBox -default ok -type okcancel -icon warning -message "This will erase the current content of module '$tkecl(toplevel_module)'"] == "ok"} {
-	ec_rpc "tracer_tcl:init_toplevel_module"
+	ec_rpcq init_toplevel_module () tracer_tcl
     }
 }
 
@@ -862,7 +893,10 @@ trace variable tkecl(toplevel_module) w tkecl:Update_current_module
 frame .tkecl.query.buttons
 button .tkecl.query.buttons.make -text "make" -command \
     {tkecl:exec_toplevel_command {tkecl:remove_current_highlights; \
-		ec_rpc "make,flush(output),flush(error), flush(warning_output)"}}
+	    ec_rpcq make () ;\
+	    ec_rpcq {flush output} (()) ;\
+	    ec_rpcq {flush error} (()) ;\
+	    ec_rpcq {flush warning_output} (()) }}
 button .tkecl.query.buttons.run -text "run" -command {tkecl:run_goal call}
 button .tkecl.query.buttons.more -text "more" -command tkecl:more_goal
 
@@ -1107,7 +1141,7 @@ proc tkecl:stop_request_handler {stream} {
 	pack .tkecl.ec_stop_continue_box.cont -side left -expand 1 -pady 3m -padx 3m
 	pack .tkecl.ec_stop_continue_box.creep -side left -expand 1 -pady 3m -padx 3m
 
-	switch [lindex [ec_rpc get_flag(debugging,_)] 2] {
+	switch [lindex [ec_rpcq {get_flag debugging _} (()_)] 2] {
 	    nodebug { .tkecl.ec_stop_continue_box.creep configure -state disabled }
 	}
 
@@ -1120,7 +1154,9 @@ proc tkecl:stop_request_handler {stream} {
 		    ec_post_event abort
 		}
 	    }
-	    creep {ec_rpc sepia_kernel:trace_mode(0,0)}
+	    creep {
+	    	ec_rpcq {trace_mode 0 0} (II) sepia_kernel
+	    }
 	}
     }
 }
@@ -1176,30 +1212,30 @@ ec_queue_create output r {tkecl:tkec_stream_to_window highlight .tkecl.pane.stdi
 ec_queue_create error r "tkecl:error_to_window .tkecl.pane.stdio.tout"
 
 # ensure_loaded rather than use_module: we don't want to import
-ec_rpc "ensure_loaded(library(toplevel))"
-ec_rpc "toplevel:toplevel_init(gui)"
+ec_rpcq {ensure_loaded {library toplevel}} ((()))
+ec_rpcq {toplevel_init gui} (()) toplevel
 
 ec_queue_create gui_interrupt_request r tkecl:stop_request_handler
 ec_queue_create answer_output r "ec_stream_to_window highlight .tkecl.pane.answer.tout"
 ec_queue_create warning_output r "tkecl:tkec_stream_to_window warning .tkecl.pane.stdio.tout $tkecl(stop_scrolling)"
 ec_queue_create toplevel_out r tkecl:toplevel_out_handler
 ec_queue_create toplevel_in w tkecl:toplevel_in_handler
-ec_rpc "set_stream_property(warning_output,flush,end_of_line)" 
+ec_rpcq {set_stream_property warning_output flush end_of_line} (()()())
 
-if {![string match $tkecl(version) [lindex [ec_rpc_check "get_flag(version, V)"] 2]]} {
+if {![string match $tkecl(version) [lindex [ec_rpcq_check {get_flag version _} (()_)] 2]]} {
     tk_messageBox -icon warning -message "Version differences detected between Tcl and ECLiPSe codes" -type ok
 }
 
 if {[string trimleft $tkecl(pref,initquery)] != ""} {
-    ec_rpc_check $tkecl(pref,initquery)
+    ec_rpc_check $tkecl(pref,initquery) S
 }
 
 set tkecl(oldcursor) [. cget -cursor]
 
 if {[ec_interface_type] == "remote"} {
-    ec_rpc "toplevel:toplevel" 
+    ec_rpcq toplevel () toplevel
 } else {
-    ec_post_goal "toplevel:toplevel" 
+    ec_post_goal {: toplevel toplevel} (()())
     ec_resume 1		;# resume async to keep the GUI active
 }
 ec_cleanup

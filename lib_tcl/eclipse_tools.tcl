@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.35 2011/08/24 11:02:22 kish_shen Exp $
+# $Id: eclipse_tools.tcl,v 1.36 2012/03/01 12:49:21 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -247,14 +247,14 @@ frame .ec_tools  ;# dummy toplevel frame for all eclipse tools
 #----------------------------------------------------------------------
 
 proc tkecl:test {} {
-    ec_rpc_check {exit_block(abort)}
+    ec_rpcq_check {exit_block abort} (())
 }
 
 proc tkecl:rpc {} {
     global tkecl
 
     set ec_rpc .ec_tools.ec_rpc
-   if ![winfo exists $ec_rpc] {
+    if ![winfo exists $ec_rpc] {
 	toplevel $ec_rpc
 	wm title $ec_rpc "ECLiPSe Simple Query"
 	pack [label $ec_rpc.entrylabel -justify left -text "Enter a goal in ECLiPSe syntax:"] -fill x
@@ -294,6 +294,53 @@ proc ec_rpc_check {goal {format S}} {
     return $result
 }
 
+# Call a module-qualified (default:eclipse_language) predicate.
+# Return fail, throw, or module-less goal term on success.
+proc ec_rpcq {goal exdr_type {module eclipse_language}} {
+#    .tkecl.pane.stdio.tout insert end "qcall $goal\n"
+    set result [ec_rpc [list : $module $goal] (()$exdr_type)] 
+#    .tkecl.pane.stdio.tout insert end "qexit $result\n"
+    update
+    switch $result {
+	fail -
+	throw {return $result}
+    }
+    lindex $result 2
+}
+
+# Like ec_rpcq, but message on fail/throw
+proc ec_rpcq_check {goal exdr_type {module eclipse_language}} {
+#    .tkecl.pane.stdio.tout insert end "ccall $goal\n"
+    set result [ec_rpc [list : $module $goal] (()$exdr_type)] 
+#    .tkecl.pane.stdio.tout insert end "cexit $result\n"
+    update
+    switch $result {
+	fail {
+	    tk_messageBox -type ok -message "ECLiPSe goal failed: $goal"
+	    return $result
+	}
+	throw {
+	    tk_messageBox -type ok -message "ECLiPSe goal aborted: $goal"
+	    return $result
+	}
+    }
+    lindex $result 2
+}
+
+# Call a goal with given context-module (and optional lookup-module)
+# Return fail, throw, or module-less goal term on success.
+# We call lm:(lm:goal@cm) because @/2 may not be visible (ISO).
+proc ec_rpcatq {goal exdr_type at_module {module eclipse_language} } {
+#    .tkecl.pane.stdio.tout insert end "atqcall $goal\n"
+    set result [ec_rpc [list : $module [list @ [list : $module $goal] $at_module]]\
+    		(()((()$exdr_type)())) ] 
+#    .tkecl.pane.stdio.tout insert end "atqexit $result\n"
+    switch $result {
+	fail -
+	throw {return $result}
+    }
+    lindex $result 2 1 2
+}
 
 
 #----------------------------------------------------------------------
@@ -308,8 +355,8 @@ proc tkecl:library_browser {} {
     set tkecl(lbmodule) ""
     if ![winfo exists $lb] {
 	toplevel $lb
-	ec_rpc "tracer_tcl:init_library_info"
-	set htmldoc [lindex [lindex [ec_rpc "tracer_tcl:return_html_root(_)"] 2] 1]
+	ec_rpcq init_library_info () tracer_tcl
+	set htmldoc [lindex [ec_rpcq {return_html_root _} (_) tracer_tcl] 1]
 	wm title $lb "ECLiPSe Library Browser and Help"
 
 	set htmlinfo [text $lb.ref -relief groove  -borderwidth 3 -height 3 ] 
@@ -399,22 +446,20 @@ proc tkecl:lb_load_module {tree} {
     global tkecl
 
     if {$tkecl(lbmodule) != ""} {
-	ec_rpc_check [list : tracer_tcl [list lbnode_loadmodule $tkecl(lbmodule)]] {(()(()))}
+	ec_rpcq_check [list lbnode_loadmodule $tkecl(lbmodule)] (()) tracer_tcl
 	$tree refresh
     }
 }
 
 proc tkecl:lb_getchildren {tree path} {
-    return [lindex [lindex \
-     [ec_rpc [list : tracer_tcl [list expand_lbnode $path _]] {(()([S*]_))}] \
-    2] 2]
+    return [lindex [ec_rpcq\
+    		[list expand_lbnode $path _] {([S*]_)} tracer_tcl] 2]
     
 }
 
 proc tkecl:lbnode_look {tree path isopen} {
-    foreach {pred in nodetext highlight isopen} [lindex \
-     [ec_rpc [list : tracer_tcl [list lbnode_display $path _ _]] {(()([S*]__))}] \
-    2] {
+    foreach {pred in nodetext highlight isopen} \
+    	[ec_rpcq [list lbnode_display $path _ _] {([S*]__)} tracer_tcl] {
           switch -exact -- $highlight {
 	      highlight {
 		  set colour #00b000
@@ -437,11 +482,11 @@ proc tkecl:lbnode_info {t selected prevsel} {
     $t centreitem $selected 0.1 0.9 0.0 1.0
     set path [lindex [$t get $selected] 0]
     set isopen [$t isopen $path]
-    foreach {infoitems tkecl(lbmodule)} [lrange [lindex \
-      [ec_rpc [list : tracer_tcl [list lbnode_info $path $isopen _ _]] {(()([S*]I__))}]\
-      2] 3 4] {break}
+    foreach {infoitems tkecl(lbmodule)} [lrange \
+      [ec_rpcq [list lbnode_info $path $isopen _ _] {([S*]I__)} tracer_tcl]\
+      3 4] {break}
      if {$tkecl(lbmodule) != ""} {
-	 set toplevel [lindex [ec_rpc "get_flag(toplevel_module, _)"] 2]
+	 set toplevel [lindex [ec_rpcq {get_flag toplevel_module _} (()_)] 2]
 	 set tkecl(lbloadtext) "load $tkecl(lbmodule) library into  module $toplevel"
 	 $lb.top.tframe.load configure -state normal
      } else {
@@ -471,9 +516,9 @@ proc tkecl:display_help {input text} {
     $input selection range 0 end
     $text tag remove highlight 1.0 end
     $text configure -cursor watch ; update idletasks
-    $text insert end [lindex [lindex [ec_rpc \
-	 [list : tracer_tcl [list gui_help_string $tkecl(help_input) _]] (()(S_))] \
-    2] 2] highlight
+    $text insert end [lindex [ec_rpcq\
+	 [list gui_help_string $tkecl(help_input) _] (()(S_)) tracer_tcl] 2]\
+	highlight
     $text see end
     $text configure -cursor left_ptr
 
@@ -494,7 +539,9 @@ proc tkecl:combo_add_modules {w} {
 }
 
 proc tkecl:list_modules {} {
-    lindex [ec_rpc_check {setof(X,current_module(X),L)}] 3
+    # use string because of shared variable
+    # fullstop at end in case we are in strict_iso context
+    lindex [ec_rpc_check {eclipse_language:setof(X,eclipse_language:current_module(X),L).}] 2 3
 }
 
 proc tkecl:popup_pred_prop {} {
@@ -592,9 +639,9 @@ proc tkecl:display_predicates {dummy} {
 
     set predprop .ec_tools.predprop
     $predprop.preds delete 0 end
-    set preds [lindex [lindex [ec_rpc_check [list : tracer_tcl  [list \
-	    list_predicates $tkecl(predpropwhich) $tkecl(predpropmodule) $tkecl(predpropauxfilter) _]] \
-            (()(()()I_))] 2] 4]
+    set preds [lindex [ec_rpcq_check [list \
+	    list_predicates $tkecl(predpropwhich) $tkecl(predpropmodule) $tkecl(predpropauxfilter) _] \
+            (()()I_) tracer_tcl] 4]
     foreach item $preds {
 	$predprop.preds insert end $item
     }
@@ -642,15 +689,14 @@ proc tkecl:display_predprops {w} {
 }
 
 proc tkecl:pred_flag_value {pred module name} {
-    set result [ec_rpc \
-    	[list : tracer_tcl [list flag_value $pred $name $module _]] (()(S()()_))]
+    set result [ec_rpcq \
+    	[list flag_value $pred $name $module _] (S()()_) tracer_tcl]
     # rpc can fail, return "" in that case
-    lindex [lindex $result 2] 4
+    lindex $result 4
 }
 
 proc tkecl:set_pred_flag {pred module name value} {
-    ec_rpc \
-    	[list : tracer_tcl [list set_flag_string $pred $name $value $module]] (()(S()()()))
+    ec_rpcq [list set_flag_string $pred $name $value $module] (S()()()) tracer_tcl
 }
 
 
@@ -663,7 +709,7 @@ proc tkecl:display_source {} {
 
     if {$tkecl(predproppred) == ""} return
 
-    set res [ec_rpc [list : tracer_tcl [list get_source_info $tkecl(predproppred) $tkecl(predpropmodule) _ _]] (()(S()__))]
+    set res [ec_rpcq [list get_source_info $tkecl(predproppred) $tkecl(predpropmodule) _ _] (S()__) tracer_tcl]
     switch $res {
 	throw -
 	fail {
@@ -676,8 +722,8 @@ proc tkecl:display_source {} {
 	    return
 	}
 	default {
-	    set file [lindex [lindex $res 2] 3]
-	    set offset [lindex [lindex $res 2] 4]
+	    set file [lindex $res 3]
+	    set offset [lindex $res 4]
 	}
     }
 
@@ -706,7 +752,7 @@ proc tkecl:display_source_for_callport {t} {
 
     if {$tkecl(source_debug,file) == ""} return
     set line [tkecl:get_current_text_line $t]
-    set res [ec_rpc [list : tracer_tcl [list find_exact_callinfo $tkecl(source_debug,file) $line _]] {(()(()I_))}] 
+    set res [ec_rpcq [list find_exact_callinfo $tkecl(source_debug,file) $line _] (()I_) tracer_tcl]
 
     switch $res {
 	throw -
@@ -715,15 +761,15 @@ proc tkecl:display_source_for_callport {t} {
 	    return
 	}
 	default {
-	    set callport [lindex [lindex $res 2] 3]
+	    set callport [lindex $res 3]
 	}
     }
     set calldefmodule [lindex $callport 1]
     set callspec [lindex $callport 2]
     # need to convert spec to a string as that is expected
     # no modle needed for call as only need '/'/2 to be defined normally
-    set predspecs [lindex [ec_rpc \
-	[list term_string $callspec _] {((()I)_)}] 2]
+    set predspecs [lindex [ec_rpcq \
+	[list term_string $callspec _] ((()I)_)] 2]
     tkecl:set_and_display_source $predspecs $calldefmodule
 }
 
@@ -779,7 +825,7 @@ proc tkecl:popup_global_state {} {
 proc tkecl:add_radiobutton {parent name values} {
     global tkecl
 
-    set tkecl($name) [lindex [ec_rpc_check [list get_flag $name _] (()_)] 2]
+    set tkecl($name) [lindex [ec_rpcq_check [list get_flag $name _] (()_)] 2]
 #    frame $parent.$name -relief groove -bd 1
     frame $parent.$name
     label $parent.$name.label -text $name -anchor w -width 20
@@ -805,7 +851,7 @@ proc tkecl:add_popupentry {parent name command ctext exdr_type} {
     }
     pack $info -side left -expand 1 -fill x
 #    bind $parent.$name.val <Return> "tkecl:set_flag $name S"
-    set tkecl($name) [lindex [ec_rpc_check [list get_flag $name _] (()_)] 2]
+    set tkecl($name) [lindex [ec_rpcq_check [list get_flag $name _] (()_)] 2]
     pack [button $f.b -anchor e -text $ctext -command $command] -side right 
     pack $f -side top -fill x
 }
@@ -823,7 +869,7 @@ proc tkecl:add_menuentry {parent name buildmenu mtext exdr_type} {
     }
     pack $info -side left -expand 1 -fill x
 #    bind $parent.$name.val <Return> "tkecl:set_flag $name S"
-    set tkecl($name) [lindex [ec_rpc_check [list get_flag $name _] (()_)] 2]
+    set tkecl($name) [lindex [ec_rpcq_check [list get_flag $name _] (()_)] 2]
     pack [menubutton $f.b -text $mtext -menu $f.b.m -relief raised] -side right 
     $buildmenu $f.b $name
     pack $f -side top -fill x
@@ -842,7 +888,7 @@ proc tkecl:add_entry {parent name vtype exdr_type} {
     }
     frame $parent.$name
     label $parent.$name.label -text $name -anchor w -width 20
-    set tkecl($name) [lindex [ec_rpc_check [list get_flag $name _] (()_)] 2]
+    set tkecl($name) [lindex [ec_rpcq_check [list get_flag $name _] (()_)] 2]
     if {$exdr_type != ""} {
 	ventry $parent.$name.val -bg white -justify right -relief sunken -textvariable tkecl($name) -validate key -invalidcmd bell -vcmd $vstring
 	bind $parent.$name.val <Return> "tkecl:set_flag $name $exdr_type"
@@ -858,9 +904,10 @@ proc tkecl:add_entry {parent name vtype exdr_type} {
     pack $parent.$name -side top -fill x
 }
 
+# Set eclipse flag name from the tcl variable $tkecl(name)
 proc tkecl:set_flag {name exdr_type} {
     global tkecl
-    ec_rpc_check [list set_flag $name $tkecl($name)] (()$exdr_type)
+    ec_rpcq_check [list set_flag $name $tkecl($name)] (()$exdr_type)
 }
 
 
@@ -896,13 +943,17 @@ proc tkecl:edit_output_mode {which} {
     switch -- $which {
 	tracer {
 	    set title "Tracer Output Options"
-	    set tkecl(prdepth_$which) [lindex [lindex [ec_rpc_check "getval(dbg_print_depth,_)@tracer_tcl"] 1] 2]
-	    set oldmode [lindex [lindex [ec_rpc_check "tracer_tcl:get_tracer_output_modes(_)"] 2] 1]
+	    set tkecl(prdepth_$which) [lindex [ec_rpcatq\
+		{getval dbg_print_depth _} (()_) tracer_tcl] 2]
+	    set oldmode [lindex [ec_rpcq_check {get_tracer_output_modes _}\
+		(_) tracer_tcl] 1]
 	}
 	global {
 	    set title "Global Output Options"
-	    set tkecl(prdepth_$which) [lindex [ec_rpc_check "get_flag(print_depth,_)"] 2]
-	    set oldmode [lindex [ec_rpc_check "get_flag(output_mode,_)"] 2]
+	    set tkecl(prdepth_$which) [lindex [ec_rpcq_check\
+		{get_flag print_depth _} (()_) ] 2]
+	    set oldmode [lindex [ec_rpcq_check\
+		{get_flag output_mode _} (()_) ] 2]
 	}
     }
 
@@ -982,13 +1033,13 @@ proc tkecl:apply_output_mode {which newmode} {
 
     switch -- $which {
 	tracer {
-	    ec_rpc_check [list : tracer_tcl [list set_tracer_output_modes $newmode]] (()(S))
-	    ec_rpc_check [list : tracer_tcl [list set_tracer_print_depth $tkecl(prdepth_$which)]] (()(I))
+	    ec_rpcq_check [list set_tracer_output_modes $newmode] (S) tracer_tcl
+	    ec_rpcq_check [list set_tracer_print_depth $tkecl(prdepth_$which)] (I) tracer_tcl
 	    tkecl:refresh_current_trace_line
 	}
 	global {
-	    ec_rpc_check [list set_flag output_mode $newmode] (()S)
-	    ec_rpc_check [list set_flag print_depth $tkecl(prdepth_$which)] (()I)
+	    ec_rpcq_check [list set_flag output_mode $newmode] (()S)
+	    ec_rpcq_check [list set_flag print_depth $tkecl(prdepth_$which)] (()I)
 	    # these two are only for updating the Global Settings window:
 	    set tkecl(output_mode) $newmode
 	    set tkecl(print_depth) $tkecl(prdepth_$which)
@@ -1016,9 +1067,9 @@ proc tkecl:xref_popup {} {
 
     if {$file != ""} {
 	if {[file exists $file] && [file readable $file]} {
-	    set file [lindex [ec_rpc [list os_file_name _ $file] (_S)] 1]
-	    ec_rpc [list : xref [list xref $file [list [list : output graphviz]]]] \
-		   {(()(S[(()())]))}
+	    set file [lindex [ec_rpcq [list os_file_name _ $file] (_S)] 1]
+	    ec_rpcq [list xref $file [list [list : output graphviz]]] \
+		   {(S[(()())])} xref
 	} else {
 	    tk_messageBox -icon error -type ok -message "Cannot access file $file"
 	}
@@ -1031,8 +1082,8 @@ proc tkecl:lint_popup {} {
 
     if {$file != ""} {
 	if {[file exists $file] && [file readable $file]} {
-	    set file [lindex [ec_rpc [list os_file_name _ $file] (_S)] 1]
-	    ec_rpc [list : lint [list lint $file]] {(()(S))}
+	    set file [lindex [ec_rpcq [list os_file_name _ $file] (_S)] 1]
+	    ec_rpcq [list lint $file] (S) lint
 	} else {
 	    tk_messageBox -icon error -type ok -message "Cannot access file $file"
 	}
@@ -1042,10 +1093,10 @@ proc tkecl:lint_popup {} {
 proc tkecl:compile_file {file {module ""}} {
     if {$file != ""} {
 	if {$module == ""} {
-	    set module [lindex [ec_rpc_check get_flag(toplevel_module,_)] 2]
+	    set module [lindex [ec_rpcq_check {get_flag toplevel_module _} (()_) ] 2]
 	}
 	if {[file exists $file] && [file readable $file]} {
-	    ec_rpc [list : tracer_tcl [list compile_os_file $file $module]] (()(S()))
+	    ec_rpcq [list compile_os_file $file $module] (S()) tracer_tcl
 	} else {
 	    tk_messageBox -icon error -type ok -message "Cannot access file $file"
 	}
@@ -1065,10 +1116,10 @@ proc tkecl:use_module_popup {} {
 proc tkecl:use_module {file {module ""}} {
     if {$file != ""} {
 	if {$module == ""} {
-	    set module [lindex [ec_rpc_check get_flag(toplevel_module,_)] 2]
+	    set module [lindex [ec_rpcq_check {get_flag toplevel_module _} (()_) ] 2]
 	}
 	if {[file exists $file] && [file readable $file]} {
-	    ec_rpc [list : tracer_tcl [list use_module_os $file $module]] (()(S()))
+	    ec_rpcq [list use_module_os $file $module] (S()) tracer_tcl
 	} else {
 	    tk_messageBox -icon error -type ok -message "Cannot access file $file"
 	}
@@ -1121,9 +1172,11 @@ proc tkecl:popup_file_window {} {
 	toplevel $ec_files
 	wm title $ec_files "ECLiPSe Source File Manager"
 
-	listbox $ec_files.names -selectmode single -width 20 -height 25 -yscrollcommand "$ec_files.vscroll set"
-	listbox $ec_files.state -selectmode browse -width 11 -height 25 -yscrollcommand "$ec_files.vscroll set"
-	scrollbar $ec_files.vscroll -command tkecl:scroll_file_status
+	listbox $ec_files.names -selectmode single -width 20 -height 25\
+		-yscrollcommand "tkecl:scroll_lb_sb $ec_files.state $ec_files.vscroll"
+	listbox $ec_files.state -selectmode browse -width 11 -height 25\
+		-yscrollcommand "tkecl:scroll_lb_sb $ec_files.names $ec_files.vscroll"
+	scrollbar $ec_files.vscroll -command "tkecl:scroll_lb_lb $ec_files.names $ec_files.state"
 	bind $ec_files.names <Double-Button-1> {
 	    tkecl:edit_file [.ec_tools.ec_files.names get [.ec_tools.ec_files.names curselection]]
 	}
@@ -1160,7 +1213,9 @@ proc tkecl:popup_file_window {} {
 	button $ec_files.buttons.refresh -text Redisplay -command tkecl:refresh_file_window
 	    pack $ec_files.buttons.refresh -side left -fill x -expand 1
 	button $ec_files.buttons.make -text Make -command {
-	    	ec_rpc_check "make,flush(output),flush(error)"
+	    	ec_rpcq_check make ()
+	    	ec_rpcq_check {flush output} (())
+	    	ec_rpcq_check {flush error} (())
 		tkecl:refresh_file_window }
 	    pack $ec_files.buttons.make -side left -fill x -expand 1
 	button $ec_files.buttons.close -text Close -command "destroy $ec_files"
@@ -1187,13 +1242,18 @@ proc tkecl:popup_file_window {} {
 }
 
 proc tkecl:add_source_file {file} {
-    ec_rpc_check [list : tracer_tcl [list record_source_file $file]] (()(S))
+    ec_rpcq_check [list record_source_file $file] (S) tracer_tcl 
     tkecl:refresh_file_window
 }
 
-proc tkecl:scroll_file_status {args} {
-    eval ".ec_tools.ec_files.names yview $args"
-    eval ".ec_tools.ec_files.state yview $args"
+proc tkecl:scroll_lb_lb {lb1 lb2 args} {
+    eval "$lb1 yview $args"
+    eval "$lb2 yview $args"
+}
+
+proc tkecl:scroll_lb_sb {lb sb from to} {
+    $lb yview moveto $from
+    $sb set $from $to
 }
 
 proc tkecl:refresh_file_window {} {
@@ -1202,7 +1262,7 @@ proc tkecl:refresh_file_window {} {
     if [winfo exists $ec_files] {
 	$ec_files.names delete 0 end
 	$ec_files.state delete 0 end
-	set files [lindex [lindex [ec_rpc_check tracer_tcl:list_files(_)] 2] 1]
+	set files [lindex [ec_rpcq_check {list_files _} (_) tracer_tcl] 1]
 	foreach item [lsort -index 0 $files] {
 	    $ec_files.names insert end [lindex $item 0]
 	    $ec_files.state insert end [lindex $item 1]
@@ -1295,7 +1355,14 @@ proc tkecl:refresh_dg {} {
 	eval $ec_dg.text tag delete [$ec_dg.text tag names]
 	$ec_dg.text tag configure highlight -foreground #00b000
 	$ec_dg.text tag configure truncated -background pink
-	ec_rpc_check [list : tracer_tcl [list gui_dg $tkecl(dg_select_triggers) $tkecl(dg_trigger) [list dg_filter $tkecl(pref,dgf_tracedonly) $tkecl(pref,dgf_spiedonly) $tkecl(pref,dgf_wakeonly)]]] {(()(I()(III)))}
+	ec_rpcq_check [list gui_dg\
+			$tkecl(dg_select_triggers)\
+			$tkecl(dg_trigger)\
+			[list dg_filter\
+			    $tkecl(pref,dgf_tracedonly)\
+			    $tkecl(pref,dgf_spiedonly)\
+			    $tkecl(pref,dgf_wakeonly)]]\
+		   (I()(III)) tracer_tcl
     }
 }
 
@@ -1352,8 +1419,7 @@ proc tkecl:select_dg_triggers {w} {
 
 proc tkecl:dg_get_triggers {w} {
 
-    $w configure -list [lindex [lindex [ec_rpc \
-       [list : tracer_tcl [list get_triggers _]] {(()(_))}] 2] 1]
+    $w configure -list [lindex [ec_rpcq [list get_triggers _] (_) tracer_tcl] 1]
 }
 
 proc tkecl:popup_delaymenu {w invoc prio x y} {
@@ -1365,9 +1431,7 @@ proc tkecl:popup_delaymenu {w invoc prio x y} {
     set m [menu $w.gpopup -tearoff 0]
 
     if {$invoc != 0} {
-	set rpc_result [ec_rpc_check [list : tracer_tcl \
-    		[list get_goal_info_by_invoc $invoc _ _ _ _ _ _ _]] (()(I_______))]
-	set greturn [lindex $rpc_result 2]
+	set greturn [ec_rpcq_check [list get_goal_info_by_invoc $invoc _ _ _ _ _ _ _] (I_______) tracer_tcl]
 	set spec [lindex  $greturn 2]
 	set tspec [lindex $greturn 3]
 	set module [lindex $greturn 4]
@@ -1455,7 +1519,7 @@ proc tkecl:end_creep {} {
 proc tkecl:analyze_failure {parent} {
     global tkecl
 
-    set result [ec_rpc "sepia_kernel:failure_culprit(_,_)"]
+    set result [ec_rpcq {failure_culprit _ _} (__) sepia_kernel]
     switch $result {
 	throw -
 	fail {
@@ -1463,8 +1527,8 @@ proc tkecl:analyze_failure {parent} {
 		    -message "No failure culprit stored yet"
 	}
 	default {
-	    set fculprit [lindex [lindex $result 2] 1]
-	    set invoc   [lindex [lindex $result 2] 2]
+	    set fculprit [lindex $result 1]
+	    set invoc   [lindex $result 2]
 	    if { $fculprit > $invoc } {
 		set answer [ tk_messageBox -type yesno -icon question -parent $parent \
 			-message "Most recent failure was caused by goal with invocation number ($fculprit).\
@@ -1509,7 +1573,7 @@ proc tkecl:refresh_current_trace_line {} {
     if ![winfo exists $ec_tracer] return 
 
     tkecl:edit_output_mode tracer
-    set trace_info [lindex [ec_rpc [list : tracer_tcl [list get_current_traceline _ _ _ _]] {(()(____))}] 2]
+    set trace_info [ec_rpcq [list get_current_traceline _ _ _ _] (____) tracer_tcl]
     set invoc [lindex $trace_info 4]
     set style [lindex $trace_info 2]
     if {$style == "fail_style"} return ;# no point refreshing if failure/abort
@@ -1564,7 +1628,15 @@ proc tkecl:popup_tracer {} {
 	set tkecl(filter_maxdepth) 999999999
 	set tkecl(filter_count) 1
 	set tkecl(filter_hits) 0
-	set tkecl(portlist) [lindex [lindex [ec_rpc_check "sepia_kernel:debug_port_names(_)"] 2] 1]
+	set tkecl(portlist) [lindex [ec_rpcq_check {debug_port_names _} (_) sepia_kernel] 1]
+	set tkecl(portsets) {all none current previous entering exiting failing}
+	set tkecl(portset,current) $tkecl(portlist)
+	set tkecl(portset,previous) $tkecl(portlist)
+	set tkecl(portset,all) $tkecl(portlist)
+	set tkecl(portset,none) {}
+	set tkecl(portset,entering) {call redo resume}
+	set tkecl(portset,exiting) {exit *exit fail leave}
+	set tkecl(portset,failing) {fail next else}
 	foreach port $tkecl(portlist) {
 	    set tkecl(filter_port,$port) 1
 	}
@@ -1718,7 +1790,7 @@ proc tkecl:popup_tracer {} {
 	pack $ec_tracertab -expand 1 -fill both
 	pack $ec_tracer.close -side top -fill x
 
-	ec_rpc "set_flag(debugging,creep)"
+	ec_rpcq {set_flag debugging creep} (()())
 
 #--------------------------------------------------------------------
 # Balloon Help for tracer
@@ -1903,14 +1975,13 @@ proc tkecl:handle_tracer_port_start {} {
 	} 
     }
     # update the filter hits
-    set tkecl(filter_hits) [lindex [lindex \
-	[ec_rpc [list @ [list getval filter_hits _] tracer_tcl ]  {((()_)())}] \
-     1] 2]
+    set tkecl(filter_hits) [lindex \
+	[ec_rpcatq [list getval filter_hits _] (()_) tracer_tcl] 2]
 }
 
 proc tkecl:send_tracer_command {cmd {type S}} {
 
-    ec_rpc [list ":" tracer_tcl [list set_tracer_command $cmd]] (()($type))
+    ec_rpcq [list set_tracer_command $cmd] ($type) tracer_tcl
 }
 
 proc tkecl:handle_tracer_command {} {
@@ -1928,8 +1999,8 @@ proc tkecl:handle_tracer_command {} {
 	i {
 	    if [regexp -- {^[0-9]+$} $tkecl(cont_invoc)] {
 		tkecl:configure_tracer_buttons disabled
-		ec_rpc_check [list : sepia_kernel [list configure_prefilter \
-				 $tkecl(cont_invoc) _ _ _ _]] {(()(I____))}
+		ec_rpcq_check [list configure_prefilter $tkecl(cont_invoc) _ _ _ _]\
+			(I____) sepia_kernel 
 		tkecl:send_tracer_command i
 	    }
 	}
@@ -1937,13 +2008,15 @@ proc tkecl:handle_tracer_command {} {
 	    if {[regexp -- {^[0-9]+$} $tkecl(cont_mindepth)] && \
 		    [regexp -- {^[0-9]+$} $tkecl(cont_mindepth)]} {
 		tkecl:configure_tracer_buttons disabled
-		ec_rpc_check "sepia_kernel:configure_prefilter(_,$tkecl(cont_mindepth)..$tkecl(cont_maxdepth),_,_,_)"
+		ec_rpcq_check [list configure_prefilter _ [list .. $tkecl(cont_mindepth) $tkecl(cont_maxdepth)] _ _ _]\
+			(_(II)___) sepia_kernel 
 		tkecl:send_tracer_command j
 	    }
 	}
 	up { ;# jump one level up
 	    tkecl:configure_tracer_buttons disabled
-	    ec_rpc_check "sepia_kernel:configure_prefilter(_,0..$tkecl(tracer_up_depth),_,_,_)"
+	    ec_rpcq_check [list configure_prefilter _ [list .. 0 $tkecl(tracer_up_depth)] _ _ _]\
+		    (_(II)___) sepia_kernel 
 	    tkecl:send_tracer_command j
 	}
 	f { ;# fail to $tkecl(fail_invoc)
@@ -1953,7 +2026,8 @@ proc tkecl:handle_tracer_command {} {
 	z { ;# zap to $tkecl(zap_port)
 	    tkecl:configure_tracer_buttons disabled
 	    if {$tkecl(zap_port) != "Not Current"} {
-		ec_rpc_check [list : sepia_kernel [list configure_prefilter _ _ $tkecl(zap_port) _ dontcare]] {(()(__()_()))}
+		ec_rpcq_check [list configure_prefilter _ _ $tkecl(zap_port) _ dontcare]]\
+			(__()_()) sepia_kernel
 		tkecl:send_tracer_command ""
 	    } else {
 		tkecl:send_tracer_command z
@@ -1973,8 +2047,7 @@ proc tkecl:handle_tracer_command {} {
 
 	    # prepare ECLiPSe side for filter command. This must be done
 	    # before setting any specialised condition (e.g. goal filtering).
-	    ec_rpc [list : tracer_tcl  \
-			[list  prepare_filter $tkecl(filter_count)] ] {(()(I))}
+	    ec_rpcq [list prepare_filter $tkecl(filter_count)] (I) tracer_tcl
 
 	    switch -exact -- $tkecl(filter_predtype) {
 		any {
@@ -2013,19 +2086,23 @@ proc tkecl:handle_tracer_command {} {
 		    lappend tkecl(filter_wanted_ports) $port
 		}
 	    }
+	    if {$tkecl(filter_wanted_ports) != $tkecl(portset,current)} {
+		set tkecl(portset,previous) $tkecl(portset,current)
+		set tkecl(portset,current) $tkecl(filter_wanted_ports)
+	    }
+
 	    # sepia_kernel:configure_prefilter(Invoc, Depth, Ports, Preds, Module)
 	    foreach filterprop $tkecl(filter,changable) {
 		if [tkecl:check_if_changed $filterprop] { incr changed}
 	    }
 
-	    if [catch { ec_rpc_check [list : sepia_kernel \
-					  [list configure_prefilter \
-					       [list .. $tkecl(filter_mininvoc) $tkecl(filter_maxinvoc)] \
-					       [list .. $tkecl(filter_mindepth) $tkecl(filter_maxdepth)] \
-					       $tkecl(filter_wanted_ports) \
-					       $filter_spy \
-					       dontcare]] \
-			    {(()((II)(II)[()*]()()))} }\
+	    if [catch { ec_rpcq_check [list configure_prefilter \
+				       [list .. $tkecl(filter_mininvoc) $tkecl(filter_maxinvoc)] \
+				       [list .. $tkecl(filter_mindepth) $tkecl(filter_maxdepth)] \
+				       $tkecl(filter_wanted_ports) \
+				       $filter_spy \
+				       dontcare] \
+			    {((II)(II)[()*]()())} sepia_kernel }\
 		   ] {
 		tk_messageBox -icon error -type ok -message "Filter Error: some entries for filter conditions are invalid. "
 		tkecl:reset_traceport
@@ -2034,8 +2111,7 @@ proc tkecl:handle_tracer_command {} {
 
 	    if {$changed > 0} {
 		;# change in filter condition, reset filter count
-		ec_rpc [list @ [list setval filter_hits 0] \
-			tracer_tcl ]  {((()I)())}
+		ec_rpcatq [list setval filter_hits 0] (()I) tracer_tcl
 	    }
 	    tkecl:send_tracer_command filter
 	}
@@ -2090,7 +2166,7 @@ proc tkecl:tracer_off {} {
     global tkecl
 
     if [string match $tkecl(tracer_state) disabled] {
-	ec_rpc "set_flag(debugging,nodebug)"
+	ec_rpcq {set_flag debugging nodebug} (()())
     } else {
 	# tracer window may have already disappeared, pass command directly
 	set tkecl(tracercommand) N
@@ -2206,7 +2282,7 @@ proc tkecl:cleanup_goal_stack_line {depth next_line} {
 proc tkecl:refresh_goal_stack {} {
     global tkecl
 
-    foreach anc  [lindex [lindex [ec_rpc tracer_tcl:get_ancestors(_)] 2] 1] {
+    foreach anc  [lindex [ec_rpcq {get_ancestors _} (_) tracer_tcl] 1] {
 	foreach {pred depth invoc prio line} $anc {break}
 	set stdepth [expr $depth+1]
 	;# only clean up line if it is actually there!
@@ -2232,9 +2308,8 @@ proc tkecl:refresh_goal_stack {} {
 proc tkecl:set_goalpopup {depth invoc prio line} {
 # print goal line in the stack display and set up the tag for it
     set ec_tracer .ec_tools.ec_tracer
-    set rpc_result [ec_rpc_check [list : tracer_tcl \
-    		[list get_goal_info_by_invoc $invoc _ _ _ _ _ _ _]] (()(I_______))]
-    set greturn [lindex $rpc_result 2]
+    set greturn [ec_rpcq_check\
+	    [list get_goal_info_by_invoc $invoc _ _ _ _ _ _ _] (I_______) tracer_tcl]
     $ec_tracer.stack.text tag bind $invoc <Button-3> \
 	"tkecl:popup_goalmenu $ec_tracer.stack.text $invoc $depth $prio {$greturn} %X %Y; break"
     $ec_tracer.stack.text tag bind $invoc <Control-Button-1> \
@@ -2332,6 +2407,13 @@ proc tkecl:popup_filter {} {
 	set col [expr ($col+1)%$cols]
 	set row [expr $col?$row:$row+1]
     }
+    set w $ec_tracer.filter.settings.portsets
+    combobox $w -labeltext Tick -click single -editable 0 \
+	-listheight [llength $tkecl(portsets)] -width 8 \
+	-postcommand [list tkecl:combo_add_portsets $w] \
+	-command tkecl:tick_portset
+    grid $w -row $row -column $col -sticky w
+
 
     frame $ec_tracer.filter.predsettings -relief groove -bd 1
     pack $ec_tracer.filter.predsettings -side top -ipadx 3 -ipady 3 -pady 5 -padx 5 -fill x 
@@ -2408,23 +2490,22 @@ proc tkecl:popup_filter {} {
     tkecl:fields_disable $ec_tracer
 
 
-    incr row
-
-    pack [frame $ec_tracer.filter.hits] -fill x
-    pack [label $ec_tracer.filter.hits.left -text "Conditions met "] -side left
-    pack [label $ec_tracer.filter.hits.hits -textvariable tkecl(filter_hits)] -side left
-    pack [label $ec_tracer.filter.hits.right -text " times using this filter."] -side left
+    pack [frame $ec_tracer.filter.after -relief groove -bd 1] \
+	 -side top -ipadx 3 -ipady 3 -pady 5 -padx 5 -fill x 
+    pack [frame $ec_tracer.filter.after.hits] -fill x
+    pack [label $ec_tracer.filter.after.hits.left -text "Conditions already met "] -side left
+    pack [label $ec_tracer.filter.after.hits.hits -textvariable tkecl(filter_hits)] -side left
+    pack [label $ec_tracer.filter.after.hits.right -text " times using this filter."] -side left
 
     
-    pack [frame $ec_tracer.filter.count -relief groove -bd 1] \
-	 -side top -ipadx 3 -ipady 3 -pady 5 -padx 5 -fill x 
-    pack [label $ec_tracer.filter.count.label -text \
+    pack [frame $ec_tracer.filter.after.count] -fill x
+    pack [label $ec_tracer.filter.after.count.label -text \
 	      "Stop after the conditions have been met"] -side left
-    pack [ventry $ec_tracer.filter.count.entry \
+    pack [ventry $ec_tracer.filter.after.count.entry \
 	      -vcmd {regexp {^[0-9]*$} %P} \-validate key -invalidcmd bell \
 	      -width 10 -textvariable tkecl(filter_count) -bg white \
 	 ] -side left
-    pack [label $ec_tracer.filter.count.endlabel -text "time(s)."] -side left
+    pack [label $ec_tracer.filter.after.count.endlabel -text "time(s)."] -side left
 
     button $ec_tracer.filter.go -text "Go" -state $tkecl(tracer_state) \
 	-command {tkecl:set_tracercommand filter}
@@ -2436,6 +2517,23 @@ proc tkecl:popup_filter {} {
     return $ec_tracer.filter
 }
 
+proc tkecl:combo_add_portsets {w} {
+    global tkecl
+    foreach portset $tkecl(portsets) {
+	$w add $portset
+    }
+}
+
+proc tkecl:tick_portset {portset} {
+    global tkecl
+
+    foreach port $tkecl(portlist) {
+	set tkecl(filter_port,$port) 0
+    }
+    foreach port $tkecl(portset,$portset) {
+	set tkecl(filter_port,$port) 1
+    }
+}
 
 proc tkecl:configure_pred {} {
     global tkecl
@@ -2470,9 +2568,9 @@ proc tkecl:configure_pred {} {
     if {$changed > 0} {
 	# predmodule2 cannot be undefined: it is taken from a list of modules
 	# the eclipse side code also assumes it cannot be a variable
-	set res [ec_rpc [list ":" tracer_tcl [list set_usepred_info \
-		 $usepredmatch $usepredmodule $tkecl(filter_predmodule2) $usepredcondition _]] \
-		     {(()(SSSS_))}]
+	set res [ec_rpcq [list set_usepred_info \
+		 $usepredmatch $usepredmodule $tkecl(filter_predmodule2) $usepredcondition _] \
+		 (SSSS_) tracer_tcl]
 
 	switch $res {
 	    fail  -
@@ -2481,7 +2579,7 @@ proc tkecl:configure_pred {} {
 		set status error
 	    }
 	    default {
-		set status [lindex [lindex $res 2] 5]
+		set status [lindex $res 5]
 		if {$status == "not_found"} {
 		    tk_messageBox -icon warning -type ok -message "Filter Error: Failed to set conditional goal filter. Goal template or module may be undefined."
 		    ;# treat as an error
@@ -2492,7 +2590,7 @@ proc tkecl:configure_pred {} {
 	set tkecl(filter,status) $status
     } elseif {$tkecl(filter,status) != "error"} {
 	# enable filter goal
-	set res [ec_rpc [list ":" tracer_tcl reenable_usepred ] {(()())}]
+	set res [ec_rpcq reenable_usepred () tracer_tcl]
 	switch $res {
 	    fail  -
 	    throw {
@@ -2572,10 +2670,10 @@ proc tkecl:newcwd {newdir} {
     global tkecl
 
     if {![string match "" $newdir]} {
-	set tkecl(cwd) [lindex [ec_rpc [list os_file_name _ $newdir] {(_S)}] 1]
+	set tkecl(cwd) [lindex [ec_rpcq [list os_file_name _ $newdir] {(_S)}] 1]
 	;# cd now done in ECLiPSe to ensure that it is the ECLiPSe side's
 	;# cwd that is changed
-	switch [ec_rpc [list cd $tkecl(cwd)] {(S)}] {
+	switch [ec_rpcq [list cd $tkecl(cwd)] {(S)}] {
 	    fail -
 	    throw {
 		tk_messageBox -icon warning -type ok -message "Unable to set current directory to $newdir"
@@ -2611,7 +2709,7 @@ proc tkecl:add_new_path {name} {
     tkecl:gui_edit_one_path Insert $name [pwd] 0 
 
     if {[llength $tkecl($name)] != 0} {
-	ec_rpc [list set_flag $name $tkecl($name)] {(()[S*])}
+	ec_rpcq [list set_flag $name $tkecl($name)] {(()[S*])}
     }
 
 }
@@ -2668,7 +2766,7 @@ proc tkecl:getNewEcFile {initdir title} {
 proc tkecl:get_path_popup {initpath pathtype browsecmd} {
     global tkecl
 
-    set echostname [lindex [ec_rpc [list get_flag hostname _] (()_)] 2]
+    set echostname [lindex [ec_rpcq [list get_flag hostname _] (()_)] 2]
     if {([ec_interface_type] == "embedded") ||
        ([string compare [info hostname] $echostname] == 0)} {
 	    return [eval $browsecmd]
@@ -2699,7 +2797,7 @@ proc tkecl:change_one_path {name p item i} {
 
     if ![winfo exists $w] {
 	set old [focus]
-	set tkecl(path_to_change) [lindex [ec_rpc [list os_file_name $item _] \
+	set tkecl(path_to_change) [lindex [ec_rpcq [list os_file_name $item _] \
 		(S_)] 2]
 	toplevel $w
 	wm title $w "Change one path for $name"
@@ -2721,9 +2819,9 @@ proc tkecl:change_one_path {name p item i} {
     tkwait variable tkecl($name)
 
     if {[llength $tkecl($name)] == 0} {
-	ec_rpc [list set_flag $name $tkecl($name)] {(()[])}
+	ec_rpcq [list set_flag $name $tkecl($name)] {(()[])}
     } else {
-	ec_rpc [list set_flag $name $tkecl($name)] {(()[S*])}
+	ec_rpcq [list set_flag $name $tkecl($name)] {(()[S*])}
     }
     grab release $w
     focus $old
@@ -2734,10 +2832,10 @@ proc tkecl:change_one_path {name p item i} {
 proc tkecl:gui_edit_one_path {action name path i} {
     global tkecl
 
-    set path [lindex [ec_rpc [list os_file_name $path _] (S_) ] 2]
+    set path [lindex [ec_rpcq [list os_file_name $path _] (S_) ] 2]
     set new [tkecl:getDirectory $path "$action a path"]
     if ![string match "" $new] {
-	set new [lindex [ec_rpc [list os_file_name _ $new] (_S) ] 1]
+	set new [lindex [ec_rpcq [list os_file_name _ $new] (_S) ] 1]
 	tkecl:perform_path_change $action $name $new $i
     } else {
 	set tkecl($name) $tkecl($name) ;# make sure that tkwait does get its `changes'
@@ -2901,16 +2999,15 @@ proc tkecl:compile_pad {} {
 }
 
 proc tkecl:do_compile_all {t} {
-    ec_rpc_check [list ":" tracer_tcl \
-	    [list compile_string [$t get 1.0 end]]] (()(S))
+    ec_rpcq_check [list compile_string [$t get 1.0 end]] (S) tracer_tcl
 }
 
 proc tkecl:do_compile_sel {t} {
     foreach {start end} [$t tag ranges sel] {
-       ec_rpc_check [list ":" tracer_tcl \
-	    [list compile_string [$t get $start $end]]] (()(S))
+       ec_rpcq_check [list compile_string [$t get $start $end]] (S) tracer_tcl
     }
 }
+
 
 #----------------------------------------------------------------------
 # Statistics display
@@ -2919,7 +3016,7 @@ proc tkecl:handle_statistics {} {
     global tkecl
 
     tkecl:create_stat_window
-    set data [lindex [lindex [ec_rpc_check [list : tracer_tcl [list report_stats $tkecl(pref,stats_interval) _]] (()(D_))] 2] 2] 
+    set data [lindex [ec_rpcq_check [list report_stats $tkecl(pref,stats_interval) _] (D_) tracer_tcl] 2] 
     tkecl:display_stat $data
 }
 
@@ -2988,7 +3085,8 @@ proc tkecl:display_stat {data} {
 		$textf.gc.col configure -text "$gccol"
 		$pie create oval 10 10 $h $w -fill white
 		if {$ngc != 0} {
-		    tkecl:draw_pieslice $pie $h $w 0 [expr $gctime / double($user)] blue
+		    set extent [expr -360*$gctime/$user]
+		    $pie create arc 10 10 $h $w -start 90 -extent $extent -style pieslice -fill blue
 		}
 	    }
 
@@ -2996,7 +3094,6 @@ proc tkecl:display_stat {data} {
 		set total [lindex $item 2]
 		set mname [lindex $item 1]
 		set ref   [lindex $item 3] 
-		set sstart 0
 		set mframe $ec_stats.$mname
 		set pie $mframe.pie
 		set textf $mframe.text
@@ -3005,11 +3102,11 @@ proc tkecl:display_stat {data} {
 		    pack [canvas $pie -width [expr $w + 20] -height [expr $h + 10]] -side left
 		    pack [frame $textf] -side right
 		    pack [frame $textf.headings] -side top -expand 1 -fill x
-		    grid [label $textf.headings.main -text $mname] -row 0 -column 0 -columnspan 4 -sticky news
-		    grid [label $textf.headings.a -text area -width 10 -anchor e] -row 1 -column 0 -sticky news
-		    grid [label $textf.headings.b -text alloc -width 11 -anchor e] -row 1 -column 1 -sticky news
-		    grid [label $textf.headings.c -text used -width 11 -anchor e] -row 1 -column 2 -sticky news
-		    grid [label $textf.headings.d -text free -width 11 -anchor e] -row 1 -column 3 -sticky news
+		    grid [label $textf.headings.main -text [string toupper $mname 0 0] -anchor w] -row 0 -column 0 -columnspan 4 -sticky news
+		    grid [label $textf.headings.a -text {} -width 8 -anchor e] -row 1 -column 0 -sticky news
+		    grid [label $textf.headings.b -text used -width 11 -anchor e] -row 1 -column 1 -sticky news
+		    grid [label $textf.headings.c -text alloc -width 11 -anchor e] -row 1 -column 2 -sticky news
+		    grid [label $textf.headings.d -text peak -width 11 -anchor e] -row 1 -column 3 -sticky news
 
 		    balloonhelp $textf "Memory statistics (in bytes) for the $mname memory area"
 		    balloonhelp $pie "Proportion of memory used/allocated in the $mname area with respect to $ref"
@@ -3017,15 +3114,18 @@ proc tkecl:display_stat {data} {
 		}
 		$pie create oval 10 10 $h $w -fill white
 		
+		set direction -1.0
 		foreach component [lrange $item 4 end] {
 		    switch -exact -- [lindex $component 0] {
 			stack {
-			    foreach {cname alloc used} [lrange $component 1 end] {
+			    foreach {cname alloc used peak} [lrange $component 1 end] {
 				break
 			    }
-			    set usedf [expr $used / double($total)]
-			    set free [expr $alloc - $used]
-			    set freef [expr $free / double($total)]
+			    # without round() here we get funny effects with the pie charts on Windows
+			    set startused 90
+			    set extentused [expr round($direction*$used/$total*360)]
+			    set startfree [expr $startused + $extentused]
+			    set extentfree [expr round($direction*($alloc-$used)/$total*360)]
 			    set dcol [lindex $colours $cindex]
 			    incr cindex 1
 			    set lcol [lindex $colours $cindex]
@@ -3034,30 +3134,21 @@ proc tkecl:display_stat {data} {
 			    set cframe $textf.$cname
 			    if ![winfo exists $cframe] {
 				pack [frame $cframe] -side bottom -expand 1 -fill x
-				grid [label $cframe.name -text $cname -width 10 -anchor e] -row 0 -column 0 -sticky news
-				grid [label $cframe.alloc -width 11 -anchor e] -row 0 -column 1 -sticky news
-				grid [label $cframe.used -foreground $lcol -width 11 -anchor e] -row 0 -column 2 -sticky news 
-				grid [label $cframe.free -foreground $dcol -width 11 -anchor e] -row 0 -column 3 -sticky news
+				grid [label $cframe.name -text $cname -width 8 -anchor e] -row 0 -column 0 -sticky news
+				grid [label $cframe.used -foreground $dcol -width 11 -anchor e] -row 0 -column 1 -sticky news
+				grid [label $cframe.alloc -foreground $lcol -width 11 -anchor e] -row 0 -column 2 -sticky news 
+				grid [label $cframe.peak -width 11 -anchor e] -row 0 -column 3 -sticky news 
 			    }
 			    $cframe.alloc configure -text $alloc
-			    $cframe.free configure -text  $free
 			    $cframe.used configure -text  $used
+			    $cframe.peak configure -text  $peak
 
-
-			    set sstart [tkecl:draw_pieslice $pie $h $w \
-				    $sstart $usedf $lcol]
-			    set sstart [tkecl:draw_pieslice $pie $h $w \
-				    $sstart $freef $dcol]
-			    if {$cindex >= [llength $colours]} {
-				set cindex 0
-			    }
+			    $pie create arc 10 10 $h $w -start $startused -extent $extentused -style pieslice -fill $dcol
+			    $pie create arc 10 10 $h $w -start $startfree -extent $extentfree -style pieslice -fill $lcol
 			}
-
-
 		    }
+		    set direction [expr -$direction]
 		}
-		$pie create arc 10 10 $h $w -start $sstart -extent \
-			[expr 360-$sstart] -style pieslice
 	    }
 	}
     }
@@ -3113,7 +3204,7 @@ proc tkecl:set_stat_interval {w} {
 
     if [regexp {^([0-9]+[.][0-9]+)|([0-9]+)$} $tkecl(stats_interval1)] {
 	set tkecl(pref,stats_interval) $tkecl(stats_interval1)
-	ec_rpc_check [list : tracer_tcl [list change_report_interval $tkecl(pref,stats_interval)]] (()(D))
+	ec_rpcq_check [list change_report_interval $tkecl(pref,stats_interval)] (D) tracer_tcl
 	destroy $w
     } else {
 	set tkecl(stats_interval1) $tkecl(pref,tats_interval)
@@ -3122,15 +3213,8 @@ proc tkecl:set_stat_interval {w} {
 }
 
 proc tkecl:kill_stat_window {} {
-    ec_rpc "tracer_tcl:stop_report_stats"
+    ec_rpcq stop_report_stats () tracer_tcl
     destroy .ec_tools.ec_stats
-}
-
-proc tkecl:draw_pieslice {c h w start share colour} {
-    set extent [expr $share * 360]
-    $c create arc 10 10 $h $w -start $start -extent $extent \
-	    -style pieslice -fill $colour
-    return [expr $extent + $start]
 }
 
 proc tkecl:handle_stats_report {stream {length {}}} {
@@ -3510,7 +3594,7 @@ proc tkecl:popup_sourcetext_menu {t x y} {
 proc tkecl:show_pred_prop {module callspec} {
     global tkecl
 
-    set tkecl(predproppred) [lindex [ec_rpc [list term_string $callspec _] {((()I)_)}] 2]
+    set tkecl(predproppred) [lindex [ec_rpcq [list term_string $callspec _] {((()I)_)}] 2]
     set tkecl(predpropmodule) $module
 
     tkecl:popup_pred_prop
@@ -3527,21 +3611,21 @@ proc tkecl:check_port_call_source {module callspec} {
 	set parent .
     }
 
-    switch [ec_rpc [list current_module $module] {(())}] {
+    switch [ec_rpcq [list current_module $module] {(())}] {
 	fail -
 	throw {
 	    tk_messageBox -parent $parent -type ok -message "Definition module $module for call $callspec does not exist" 
 	    return 0
 	}
     }
-    switch [ec_rpc [list @ [list is_predicate $callspec] $module] {(((()I))())}] {
+    switch [ec_rpcatq [list is_predicate $callspec] ((()I)) $module] {
 	fail -
 	throw {
 	    tk_messageBox -parent $parent -type ok -message "$callspec is not a user defined predicate in module $module"
 	    return 0
 	}
     }
-    switch [ec_rpc [list @ [list get_flag $callspec source_file _] $module] {(((()I)()_)())}] {
+    switch [ec_rpcatq [list get_flag $callspec source_file _] ((()I)()_) $module] {
 	fail -
 	throw {
 	    tk_messageBox -parent $parent -type ok -message "Unable to access source information for $callspec defined in module $module"
@@ -3555,7 +3639,7 @@ proc tkecl:check_port_call_source {module callspec} {
 
 proc tkecl:get_nearest_port_call {file line} {
 
-    set result [ec_rpc [list : tracer_tcl [list find_matching_callinfo $file $line _ _]] {(()(()I__))}]
+    set result [ec_rpcq [list find_matching_callinfo $file $line _ _] (()I__) tracer_tcl]
 
     switch $result {
 	throw -
@@ -3563,7 +3647,7 @@ proc tkecl:get_nearest_port_call {file line} {
 	    return ""
 	}
 	default {
-	    return [lrange [lindex $result 2] 3 4]
+	    return [lrange $result 3 4]
 	}
     }
 }
@@ -3572,7 +3656,7 @@ proc tkecl:toggle_breakpoint {t} {
     global tkecl
 
     set line [tkecl:get_current_text_line $t]
-    set result [ec_rpc [list : tracer_tcl [list toggle_source_breakpoint $tkecl(source_debug,file) $line _ _ _]] {(()(()I___))}]
+    set result [ec_rpcq [list toggle_source_breakpoint $tkecl(source_debug,file) $line _ _ _] (()I___) tracer_tcl]
     if [winfo exists .ec_tools.ec_tracer] {
 	set parent .ec_tools.ec_tracer
     } else {
@@ -3589,10 +3673,9 @@ proc tkecl:toggle_breakpoint {t} {
 	    bell
 	}
 	default {
-	    set returned [lindex $result 2]
-	    set breakline [lindex $returned 3]
-	    set old_style [lindex $returned 4]
-	    set new_style [lindex $returned 5]
+	    set breakline [lindex $result 3]
+	    set old_style [lindex $result 4]
+	    set new_style [lindex $result 5]
 	    set ec_breakstatus .ec_tools.ec_tracer.tab.source.context.status
 
 	    $ec_breakstatus tag remove $old_style $breakline.0 $breakline.end
@@ -3605,9 +3688,7 @@ proc tkecl:toggle_breakpoint {t} {
 proc tkecl:get_source_debug_filenames {w} {
 
     set source_files \
-	[lindex [lindex \
-		     [ec_rpc [list : tracer_tcl [list current_files_with_port_lines _]] {(()(_))}] \
-		     2] 1]
+	[lindex [ec_rpcq [list current_files_with_port_lines _] (_) tracer_tcl] 1]
     foreach file $source_files {
 	$w add "$file"
     }
@@ -3677,10 +3758,9 @@ proc tkecl:show_source_context {invoc greturn} {
     set to [lindex $greturn 8]
     # is_current_goal/2 must be execute when source is viewed to get 
     # the current information
-    set rpc_result [ec_rpc [list : tracer_tcl \
-				[list is_current_goal $invoc _]] (()(I_))] 
+    set rpc_result [ec_rpcq [list is_current_goal $invoc _] (I_) tracer_tcl] 
     if {$rpc_result != "fail"} {
-	set gstyle [lindex [lindex $rpc_result 2] 2]
+	set gstyle [lindex $rpc_result 2]
     } else {
 	set gstyle ancestor_style
     }
@@ -3753,8 +3833,7 @@ proc tkecl:load_source_debug_file {fpath {xfracs "0 1"} {yfracs "0 1"}} {
     set xfrac [lindex $xfracs 0]
     set yfrac [lindex $yfracs 0]
 
-    switch [ec_rpc [list : tracer_tcl [list file_is_readable $fpath]] \
-		{(()(()))}] {
+    switch [ec_rpcq [list file_is_readable $fpath] (()) tracer_tcl] {
 	    fail -
 	    throw {
 		# source not readable, no display
@@ -3763,22 +3842,22 @@ proc tkecl:load_source_debug_file {fpath {xfracs "0 1"} {yfracs "0 1"}} {
      }
 
     $ec_sourcetext delete 1.0 end
-    ec_rpc [list : tracer_tcl [list read_file_for_gui $fpath]] {(()(()))}
+    ec_rpcq [list read_file_for_gui $fpath] (()) tracer_tcl
     set tkecl(source_debug,file) $fpath
     $ec_source.context.text xview moveto $xfrac 
     $ec_source.context.text yview moveto $yfrac 
 
-    set result [ec_rpc [list : tracer_tcl [list breakpoints_for_file $fpath _ _ _]] {(()(()___))}]
+    set result [ec_rpcq [list breakpoints_for_file $fpath _ _ _] (()___) tracer_tcl]
     switch $result {
 	fail -
 	throw {
 	    return 0
 	}
 	default {
-	    set actives [lindex [lindex $result 2] 2]
+	    set actives [lindex $result 2]
 
-	    set ports [lindex [lindex $result 2] 3]
-	    set predslist [lindex [lindex $result 2] 4]
+	    set ports [lindex $result 3]
+	    set predslist [lindex $result 4]
 	    foreach line $ports {
 		$ec_source.context.status insert $line.0 "#" off
 	    }
@@ -4107,7 +4186,7 @@ proc tkecl:set_one_tools_default {dname dvalue type} {
 	    tracer_prdepth {
 		if [regexp {^[0-9]+$} $dvalue size] {
 		    set tkecl(pref,tracer_prdepth) $dvalue
-		    ec_rpc "tracer_tcl:set_tracer_print_depth($tkecl(pref,tracer_prdepth))" 
+		    ec_rpcq [list set_tracer_print_depth $tkecl(pref,tracer_prdepth)] (I) tracer_tcl
 		} else {
 		    tk_messageBox -icon warning -message "$dvalue is an invalid value for tracer_prdepth (positive integer expected" -type ok
 		}
@@ -4467,10 +4546,10 @@ proc tkecl:multi_end_handler {type} {
 #---------------------------------------------------------------------
 
 proc tkecl:start_vc {} {
-    switch [ec_rpc_check "ensure_loaded(library(java_vc))"] {
+    switch [ec_rpcq_check {ensure_loaded {library java_vc}} ((()))] {
     	fail - throw { return }
     }
-    ec_rpc_check "java_vc:start_vc(_)"
+    ec_rpcq_check {start_vc _} (_) java_vc
 }
 
 #----------------------------------------------------------------------
@@ -4482,16 +4561,16 @@ proc ec_tools_init {w} {
 
 
 # Init the Eclipse part (must be done after ec_init !!!)
-    ec_rpc "ensure_loaded(library(development_support))"
-    ec_rpc "ensure_loaded(library(tracer_tcl))"
-    ec_rpc "tracer_tcl:install_guitools"
+    ec_rpcq {ensure_loaded {library development_support}} ((()))
+    ec_rpcq {ensure_loaded {library tracer_tcl}} ((()))
+    ec_rpcq install_guitools () tracer_tcl
     ec_queue_create debug_traceline r tkecl:handle_trace_line
     ec_queue_create debug_output r tkecl:handle_debug_output
     ec_queue_create gui_source_file r tkecl:handle_source_debug_print
     ec_queue_create matrix_out_queue r tkecl:handle_mat_flush
     ec_queue_create gui_dg_info r tkecl:handle_dg_print
     ec_queue_create statistics_out_queue r tkecl:handle_stats_report
-    set tkecl(toplevel_module) [lindex [ec_rpc_check get_flag(toplevel_module,_)] 2]
+    set tkecl(toplevel_module) [lindex [ec_rpcq_check {get_flag toplevel_module _} (()_)] 2]
     set tkecl(predpropmodule) $tkecl(toplevel_module)
 
     ec_multi:peer_register [list interact tkecl:multi_interact_handler start tkecl:multi_start_handler end tkecl:multi_end_handler] 

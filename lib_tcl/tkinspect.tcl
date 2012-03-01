@@ -684,11 +684,8 @@ proc tkinspect:select_command {iw source} {
 
 proc tkinspect:inspect_command {source command type} {
 
-    return [lindex [ \
-      lindex [ec_rpc [list : tracer_tcl \
-        [list inspect_command $source $command _]] (()(S($type)_))\
-      ] 2 \
-    ] 3]
+    return [lindex [ec_rpcq \
+    	[list inspect_command $source $command _] (S($type)_) tracer_tcl] 3]
 }
 
 proc tkinspect:Get_subterm_info {iw np subname sumname} {
@@ -783,7 +780,7 @@ proc tkinspect:Get_numentry {tvar default} {
 package require AllWidgets
 
 proc tkinspect:ec_resume_inspect {} {
-    ec_rpc_check tracer_tcl:inspect_term
+    ec_rpcq_check inspect_term () tracer_tcl
 }
 
 
@@ -811,7 +808,7 @@ proc tkinspect:EditDepth {iw type min max message typetext} {
 
 	toplevel $w
 	wm title $w "Change Inspector's $typetext"
-	tkinspect:center_over $iw $w
+	tkinspect:center_over $w $iw
 	wm resizable $w 1 0
 	message $w.m -justify center -aspect 1000 -text $message
 	pack [frame $w.f] -expand 1 -fill both -side bottom
@@ -845,7 +842,7 @@ proc tkinspect:Popnumentry {iw tvar default valname exclusive} {
     toplevel $popup
     wm title $popup "Change $valname"
 
-    tkinspect:center_over $iw $popup
+    tkinspect:center_over $popup $iw
 
     if {$exclusive == 1} {
 	tkwait visibility $popup
