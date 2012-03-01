@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.12 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.13 2012/03/01 16:22:16 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -1892,17 +1892,24 @@ get_memory(Stats, Tail) :-
 	get_flag(max_global_trail, MaxGT),
 	statistics(global_stack_allocated, GAlloc),
 	statistics(global_stack_used, GUsed),
+	statistics(global_stack_peak, GPeak),
 	statistics(trail_stack_allocated, TAlloc),
 	statistics(trail_stack_used, TUsed),
+	statistics(trail_stack_peak, TPeak),
 	get_flag(max_local_control, MaxLC),
 	statistics(local_stack_allocated, LAlloc),
 	statistics(local_stack_used, LUsed),
+	statistics(local_stack_peak, LPeak),
 	statistics(control_stack_allocated, CAlloc),
 	statistics(control_stack_used, CUsed),
+	statistics(control_stack_peak, CPeak),
 	statistics(shared_heap_allocated, SHAlloc),
 	statistics(shared_heap_used, SHUsed),
-	Stats = [[memory, "global and trail stacks", MaxGT, "maximum size of global/trail stacks", stack(global, GAlloc, GUsed), stack(trail, TAlloc, TUsed)], 
-           [memory, "local and control stacks", MaxLC, "maximum size of local/control stacks", stack(local, LAlloc, LUsed), stack(control, CAlloc, CUsed)],
+%	statistics(private_heap_allocated, PHAlloc),
+%	statistics(private_heap_used, PHUsed),
+	Stats = [[memory, "global and trail stacks", MaxGT, "maximum size of global/trail stacks", stack(global, GAlloc, GUsed, GPeak), stack(trail, TAlloc, TUsed, TPeak)], 
+           [memory, "local and control stacks", MaxLC, "maximum size of local/control stacks", stack(local, LAlloc, LUsed, LPeak), stack(control, CAlloc, CUsed, CPeak)],
+%	   [memory, "shared and private heap", SHAlloc, "currently allocated size of shared heap", stack(shared, SHAlloc,SHUsed), stack(private, PHAlloc, PHUsed)]
 	   [memory, "shared heap", SHAlloc, "currently allocated size of shared heap", stack(shared, SHAlloc,SHUsed)]
 	   |Tail].
 
