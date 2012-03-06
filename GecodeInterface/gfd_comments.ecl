@@ -2011,7 +2011,7 @@ X = 3
 
 :- comment(divmod/4, [
     summary:"Constrains Q to X // Y, and M to X mod Y.",
-    template: "<ConsistencyModule:> divmod(?X,?Y,?Z)",
+    template: "<ConsistencyModule:> divmod(?X,?Y,?Q,?M)",
     amode:divmod(?,?,?,?),
     args:[
         "X":"An integer or domain variable",
