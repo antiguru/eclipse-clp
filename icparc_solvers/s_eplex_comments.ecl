@@ -3884,6 +3884,7 @@ desc: html("
         eplex:(X+Y>=3),
         eplex:(X+Y=<2),
         eplex_solver_setup(min(X)),
+        eplex_set(cache_iis, yes),
         eplex_set(infeasible_handler,
              eplex_get_iis(NC,BV, Is, Vs),
              eplex_get(constraints(Is), Cs))),
@@ -3927,6 +3928,17 @@ desc: html("
     If the solver found that the problem was infeasible, this predicate
     will return an IIS (Irreducible Infeasible Subsystem or Irreducible
     Inconsistent Subsystem) for the problem, if supported by the solver. 
+<P>
+    This predicate must be called from within a user defined 
+    infeasible_handler, and with the cache_iis option set to yes (both
+    can be set during solver set-up or using eplex_set/2). The reason for
+    this is the IIS must be computed by the solver before the failed
+    solver state changes, and backtracking pass the failure (the normal 
+    behaviour when a problem is infeasible) will logically remove the failed 
+    state. cache_iis is needed because the default setting for this
+    option is no, as the IIS need to be computed as an extra step, so
+    IIS is normally not computed.
+<P>
     An IIS is a subset of the problem constraints and variables which
     defines an infeasible subproblem. It is usually irreducible in that
     any proper subset of the IIS is feasible. Finding an IIS allows the
@@ -3954,26 +3966,7 @@ desc: html("
     information returned by the IIS, for example, finding an IIS may be
     limited to linear problems, and/or bound status information may be
     unavailable for the variables (hence the need for the \"x\" status).
-    Consult the manual entry for infeasibility analyses for more detail.   
-</P><P>
-    The current solver state must be infeasible when this predicate is called
-    to obtain the IIS. However, the default behaviour is to fail when the 
-    solver determines the problem to be infeasible. Therefore, this
-    predicate must be called inside a user-defined infeasible handler, which
-    can be defined during solver setup, or with eplex_set/2 or lp_set/3 after
-    solver setup. 
-</P><P>
-    The IIS can only be obtained from the external solver before any change is
-    made to the problem in the external solver. Unfortunately, certain
-    eplex functionality does change the problem soon after solving the
-    problem, before the user have any chance to obtain the IIS information,
-    e.g. cutpool constraints or probing -- in the case of the cutpool constraints,
-    the removal of the active cutpool constraints, and in the case of probing,
-    To get around this problem, the cache_iis option can be used to
-    instruct eplex to obtain the IIS information whenever the problem is
-    determined to be infeasible, and this information is then cached by the
-    eplex instance, so that when the user request the IIS information, it can
-    be obtained from the cache.
+    Consult the solver's manual entry for infeasibility analyses for more detail.   
 </P><P>
     For some external solvers, and for problems on the boundary between
     feasible and infeasible, it is possible that the routine that finds
@@ -4002,6 +3995,17 @@ desc: html("
     If the solver found that the problem was infeasible, this predicate
     will return an IIS (Irreducible Infeasible Subsystem or Irreducible
     Inconsistent Subsystem) for the problem, if supported by the solver. 
+    </P><P>
+    This predicate must be called from within a user defined 
+    infeasible_handler, and with the cache_iis option set to yes (both
+    can be set during solver set-up or using lp_set/2). The reason for
+    this is the IIS must be computed by the solver before the failed
+    solver state changes, and backtracking pass the failure (the normal 
+    behaviour when a problem is infeasible) will logically remove the failed 
+    state. cache_iis is needed because the default setting for this
+    option is no, as the IIS need to be computed as an extra step, so
+    IIS is normally not computed.
+    </P><P>
     An IIS is a subset of the problem constraints and variables which
     defines an infeasible subproblem. It is usually irreducible in that
     any proper subset of the IIS is feasible. Finding an IIS allows the
@@ -4030,25 +4034,6 @@ desc: html("
     limited to linear problems, and/or bound status information may be
     unavailable for the variables (hence the need for the \"x\" status).
     Consult the manual entry for infeasibility analyses for more detail.   
-</P><P>
-    The current solver state must be infeasible when this predicate is called
-    to obtain the IIS. However, the default behaviour is to fail when the 
-    solver determines the problem to be infeasible. Therefore, this
-    predicate must be called inside a user-defined infeasible handler, which
-    can be defined during solver setup, or with eplex_set/2 or lp_set/3 after
-    solver setup. 
-</P><P>
-    The IIS can only be obtained from the external solver before any change is
-    made to the problem in the external solver. Unfortunately, certain
-    eplex functionality does change the problem soon after solving the
-    problem, before the user have any chance to obtain the IIS information,
-    e.g. cutpool constraints or probing -- in the case of the cutpool constraints,
-    the removal of the active cutpool constraints, and in the case of probing,
-    To get around this problem, the cache_iis option can be used to
-    instruct eplex to obtain the IIS information whenever the problem is
-    determined to be infeasible, and this information is then cached by the
-    eplex instance, so that when the user request the IIS information, it can
-    be obtained from the cache.
 </P><P>
     For some external solvers, and for problems on the boundary between
     feasible and infeasible, it is possible that the routine that finds

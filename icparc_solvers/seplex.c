@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: seplex.c,v 1.23 2011/09/03 00:18:41 kish_shen Exp $
+ * Version:	$Id: seplex.c,v 1.24 2012/03/16 18:22:34 kish_shen Exp $
  *
  */
 
@@ -5160,82 +5160,6 @@ _get_iis(lp_desc * lpd, int * nrowsp, int * ncolsp, int * rowidxs, int * colidxs
 
 #endif /* SUPPORT_IIS */
 
-int
-p_cpx_infeas_info(value vlp, type tlp, 
-		  value vnrows, type tnrows, 
-		  value vncols, type tncols, 
-		  value vrowidx, type trowidx, 
-		  value vcolidx, type tcolidx, 
-		  value vcolstat, type tcolstat)
-{
-#ifdef SUPPORT_IIS
-    int cnrows, cncols, status;
-    pword * rowidxbuf, * colidxbuf, * colstatbuf;
-    lp_desc *lpd;
-    int res;
-    pword * old_tg;
-# ifdef CPLEX
-    int * rowstat, * colstat;
-# endif
-    LpDescOnly(vlp, tlp, lpd);
-    Prepare_Requests
-
-    if (lpd->descr_state == DESCR_SOLVED_NOSOL) 
-    {
-	/* it seems that for CPLEX 10, if the find conflct call is made for a sp;ved problem,
-           the function can succeed without error but does not set the size of the rows and columns!
-	   So we only call find conflict for infeasible problems
-	*/
-	Find_Conflict(res, lpd->lp, cnrows, cncols);
-	if (res) { Bip_Error(EC_EXTERNAL_ERROR); }
-
-	old_tg = TG;
-	rowidxbuf  = _create_iarray(cnrows);
-	colidxbuf =  _create_iarray(cncols); 
-	colstatbuf = _create_carray(cncols);
-	res = _get_iis(lpd, &cnrows, &cncols, IArrayStart(rowidxbuf), IArrayStart(colidxbuf), CArrayStart(colstatbuf));
-
-	switch (res)
-	{
-	case 1:
-	    /* no conflict set, reset TG and create zero length arrays instead */
-	    TG = old_tg;
-	    rowidxbuf = _create_iarray(0);
-	    colidxbuf = _create_iarray(0);
-	    colstatbuf = _create_carray(0);
-	    break;
-	case -1:
-	    /* error in trying to obtain IIS */
-	    Fail;
-	    break;
-	}
-
-    } else
-    {/* lpd->desc_state != DESCR_SOLVED_NOSOL */
-	cnrows = 0;
-	cncols = 0;
-	rowidxbuf  = _create_iarray(cnrows);
-	colidxbuf =  _create_iarray(cncols); 
-	colstatbuf = _create_carray(cncols);
-    }
-
-    Request_Unify_Integer(vnrows, tnrows, cnrows);
-    Request_Unify_Integer(vncols, tncols, cncols);
-    Request_Unify_String(vrowidx, trowidx, rowidxbuf);
-    Request_Unify_String(vcolidx, tcolidx, colidxbuf);
-    Request_Unify_String(vcolstat, tcolstat, colstatbuf);
-
-    Return_Unify;
-
-#else
-
-    Fprintf(Current_Error, "Eplex error: this solver does not support infeasibilty analysis.\n");
-    ec_flush(Current_Error);
-    Bip_Error(UNIMPLEMENTED);
-
-#endif
-
-}
 
 /*----------------------------------------------------------------------*
  * Solve

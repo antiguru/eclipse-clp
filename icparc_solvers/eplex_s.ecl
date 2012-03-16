@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_s.ecl,v 1.11 2011/04/29 19:29:04 kish_shen Exp $
+% Version:	$Id: eplex_s.ecl,v 1.12 2012/03/16 18:22:34 kish_shen Exp $
 %
 %
 
@@ -445,8 +445,6 @@ load_external_solver(_, _, _, _).
         external(cplex_get_named_cpcstr_indices/3, p_cpx_get_named_cpcstr_indices),
         external(cplex_get_cpcstr_info/4, p_cpx_get_cpcstr_info),
         external(cplex_set_cpcstr_cond/4, p_cpx_set_cpcstr_cond),
-        external(cplex_infeas_info/6, p_cpx_infeas_info),
-        
         
         setval(loaded_solver, loaded(Solver,Version))
     ;
@@ -4738,35 +4736,44 @@ eplex_get_iis(NCRows, NCCols, CIdxs, CVs, Pool) :-
         error(5, eplex_get_iis(NCRows, NCCols, CIdxs, CVs, Pool)).
 
 lp_get_iis(Handle, NCRows, NCCols, CstrIdxs, CVs) :-
-        Handle = prob{cplex_handle:CPH,mr:MR,cp_cond_map:Map,iis_rows:CRowIdxs0},
-        ( array(CRowIdxs0) ->
+        Handle = prob{cplex_handle:CPH, mr:MR,cp_cond_map:Map,iis_rows:CRowIdxs,iis_cols:CColIdxs,iis_colstats:CColStatus},
+        ( array(CRowIdxs) ->
             % IIS computed eagerly on failure and associated with the IIS arrays
-            Handle = prob{iis_rows:CRowIdxs,iis_cols:CColIdxs,iis_colstats:CColStatus},
             iarray_size(CRowIdxs, NCRows),
-            iarray_size(CColIdxs, NCCols)
-        ;
-            cplex_infeas_info(CPH, NCRows, NCCols, CRowIdxs, CColIdxs,
-                              CColStatus)
-        ),
-        iarray_list(CRowIdxs, CRowIdxLst),
-	( foreach(RIdx, CRowIdxLst), param(Map,MR),
-          foreach(CIdx, CstrIdxs)  do
-            matidx_cstridx(RIdx, Map, MR, CIdx)
-	),
+            iarray_size(CColIdxs, NCCols),
+            iarray_list(CRowIdxs, CRowIdxLst),
+            ( foreach(RIdx, CRowIdxLst), param(Map,MR),
+              foreach(CIdx, CstrIdxs)  do
+                matidx_cstridx(RIdx, Map, MR, CIdx)
+            ),
 	
-%        lp_get1(Handle, constraints_norm(CRowIdxLst), Cstrs),
-        iarray_list(CColIdxs, CColIdxLst),
-	(CColIdxLst \== [] ->
-            lp_get1(Handle, vars, VArr),
-            ( foreach(ColIdx, CColIdxLst), param(VArr,CColStatus),
-              foreach(V:StatusAtom, CVs), count(I, 1,_) do
-                string_code(CColStatus, I, StatusCode),
-                char_code(StatusAtom, StatusCode),
-                Pos is ColIdx + 1,
-		arg(Pos, VArr, V)
+            %        lp_get1(Handle, constraints_norm(CRowIdxLst), Cstrs),
+            iarray_list(CColIdxs, CColIdxLst),
+            (CColIdxLst \== [] ->
+                lp_get1(Handle, vars, VArr),
+                ( foreach(ColIdx, CColIdxLst), param(VArr,CColStatus),
+                  foreach(V:StatusAtom, CVs), count(I, 1,_) do
+                    string_code(CColStatus, I, StatusCode),
+                    char_code(StatusAtom, StatusCode),
+                    Pos is ColIdx + 1,
+                    arg(Pos, VArr, V)
+                )
+            ;
+                CVs = []
             )
-	;
-            CVs = []
+        ; CRowIdxs == [] ->
+            NCRows = 0,
+            NCCols = 0,
+            CstrIdxs = [],
+            CVs = [],
+            writeln(warning_output, 
+                    "Eplex warning: no IIS information is available."
+                    " This is either because 1) the current solve did"
+                    " not fail, or 2) the solver does not support IIS.")
+        ;
+            writeln(error, "Eplex error: iis must be requested via"
+                         " cache_iis  option before solving."),
+            error(6, lp_get_iis(Handle, NCRows, NCCols, CstrIdxs, CVs))
 	).
 
 %-----------------------------------------------------------------------
