@@ -1951,7 +1951,7 @@ bool coin_read_prob_file(OsiXxxSolverInterface* Solver,
 			 const char* ext,
 			 int format)
 {
-    char* file1 = new char[strlen(file)+strlen(ext)+1];
+    char* file1 = new char[strlen(file)+strlen(ext)+2];
     int err = 0;
     try
     {
@@ -2006,7 +2006,7 @@ int coin_readprob(COINprob* lp, const char* file, char* otype)
 
 
 extern "C"
-int coin_set_name(COINprob* lp, char ntype, int idx, char *const name)
+int coin_set_name(COINprob* lp, char ntype, int idx, const char * name)
 {
 
     if (ntype == 'c')
@@ -2046,7 +2046,7 @@ int coin_set_name(COINprob* lp, char ntype, int idx, char *const name)
 	if (idx < 0 || idx >= nc)
 	    return -1;
 	delete lp->varnames[idx]; // get rid of old name
-	lp->varnames[idx] = new char[strlen(name)];
+	lp->varnames[idx] = new char[strlen(name)+1]; // +1 for terminating \0
 	strcpy(lp->varnames[idx], name);
     }
     else return -1; // row names not supported 
@@ -2098,11 +2098,11 @@ int coin_free_prob(COINprob* lp)
     if (lp == NULL) return 0;
     if (lp->varnames != NULL)
     {
-	for (int i=0; i < lp->Solver->getNumCols(); i++) 
+	for (int i=0; i < lp->vnsize; i++) 
 	    delete lp->varnames[i];
+	free(lp->varnames);
     }
-    free(lp->varnames);
-
+    
     delete lp->Solver->messageHandler();
     /* solver specific stuff */
 #ifdef COIN_USE_CLP
