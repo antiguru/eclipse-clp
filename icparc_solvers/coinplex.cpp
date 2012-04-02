@@ -1951,7 +1951,7 @@ bool coin_read_prob_file(OsiXxxSolverInterface* Solver,
 			 const char* ext,
 			 int format)
 {
-    char* file1 = new char[strlen(file)+strlen(ext)+2];
+    char* file1 = new char[strlen(file)+strlen(ext)+1];
     int err = 0;
     try
     {
