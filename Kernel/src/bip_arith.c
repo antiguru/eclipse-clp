@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.12 2011/03/15 00:32:20 kish_shen Exp $
+ * VERSION	$Id: bip_arith.c,v 1.13 2012/05/02 18:31:12 kish_shen Exp $
  */
 
 /*
@@ -848,10 +848,11 @@ _int_pow(word x,
            of no integer overflow on some platforms
          */
 	if (x ==  MIN_S_WORD) return INTEGER_OVERFLOW;	/* we had MININT */
+	x = -x;
 #else
+	x = -x;
 	if (x < 0) return INTEGER_OVERFLOW;		/* we had MININT */
 #endif
-	x = -x;
 	if (y & 1) neg = 1;
     }
 
