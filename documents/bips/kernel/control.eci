@@ -1502,7 +1502,7 @@ at the recovery procedure of a matching ancestestor catch/3",
 
 
       % The caught term is a copy of the thrown term (fresh variables)
-      ?- T1=f(X), catch(throw(T1), T2, true), variant(T1, T2), T1\==T2.
+      ?- T1=f(X), catch(throw(T1), T2, true), variant(T1, T2), T1\\==T2.
       T1 = f(X_88)
       T2 = f(X_510)
       Yes (0.00s cpu)
