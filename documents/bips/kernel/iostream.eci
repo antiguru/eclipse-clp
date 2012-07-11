@@ -99,7 +99,7 @@ with the stream identifier Stream.
     This option applies to file streams only: the value 'when_closed'
     causes the associated file to be deleted as soon as the stream is closed
     (whether implicitly or explicitly).  The value 'when_lost' causes
-    the associated file to be closed only when the stream is implicitly
+    the associated file to be deleted only when the stream is implicitly
     closed, either because of failure across the opening, or because
     its handles were garbage collected.  The default is 'off'.
 

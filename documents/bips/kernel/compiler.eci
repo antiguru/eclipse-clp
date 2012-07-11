@@ -1513,10 +1513,10 @@ Error:
     compiler gets assembled and loaded into memory as executable code.
     Values for the 'load' option are:
     <DL>
-    </DD><DT>all (default)</DT><DD>
+    <DT>all (default)</DT><DD>
         Load and replace code in memory, create/re-create all modules,
         interpret pragmas, and execute all directives and queries.
-    <DT>none</DT><DD>
+    </DD><DT>none</DT><DD>
         Do not load any code into memory, do not execute queries,
         but interpret pragmas and execute directives.
         Do not re-create modules, but create new ones and erase them

@@ -237,48 +237,47 @@ Error:
 
 
 :- comment(get / 1, [
-        summary:"Reads the next character from the current input stream and unifies its
-numeric character code with CharCode.
-
-",
+        summary:"Reads the next character or byte from the current input stream",
         amode:(get(-) is det),
-        desc:html("   Takes the next character from the current input and unifies its integer
-   character code (in the range 0 to 255) to CharCode.
-
+        desc:html("\
+   Takes the next character from the current input stream, and unifies its
+   integer character code with Code.  The range of possible values depends
+   on the stream's text encoding, or is 0 to 255 for binary streams.
 <P>
-   Character codes for the non-printable characters (i.e.  control characters)
-   are also acceptable.
-
+   Character codes for the non-printable characters (i.e. control characters)
+   are treated like normal characters.
 <P>
+   On end-of-file, -1 is returned (via the default handler for event 190).
 "),
-        args:["CharCode" : "Variable or integer."],
-        exceptions:[5 : "CharCode is instantiated, but not to an integer.", 190 : "End of file has been reached."],
-        eg:"   Equivalent to get(input, CharCode).  (see get/2 for details).
-
-
-
-",
+        args:["Code" : "Variable or integer."],
+        exceptions:[5 : "Code is instantiated, but not to an integer.", 190 : "End of file has been reached."],
+        eg:"   Equivalent to get(input, Code).  (see get/2 for details).",
         see_also:[get / 2, put / 1, put / 2]]).
 
 :- comment(get / 2, [
-        summary:"Reads the next character from the input stream Stream and unifies its character
-code with CharCode.
-
-",
+        summary:"Reads the next character from the input stream Stream",
         amode:(get(+, -) is det),
-        desc:html("   Takes the next character from the open input stream Stream and unifies
-   its integer character code (in the range 0 to 255) to CharCode.  Character codes
-   for the non-printable characters (i.e.  control characters) are also
-   acceptable.
-
+        desc:html("\
+   Takes the next character from the input stream Stream, and unifies its
+   integer character code with Code.  The range of possible values depends
+   on the stream's text encoding, or is 0 to 255 for binary streams.
 <P>
+   Character codes for the non-printable characters (i.e. control characters)
+   are treated like normal characters.
+<P>
+   On end-of-file, -1 is returned (via the default handler for event 190).
 "),
         args:[
             "Stream" : "Stream handle or alias (atom)",
-            "CharCode" : "Variable or integer."],
-        exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is neither a stream handle nor an atom.", 5 : "CharCode is instantiated, but not to an integer.", 190 : "End of file has been reached.", 192 : "Stream is not an input stream.", 193 : "Stream is an illegal stream specification."],
+            "Code" : "Variable or integer."],
+        exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is neither a stream handle nor an atom.", 5 : "Code is instantiated, but not to an integer.", 190 : "End of file has been reached.", 192 : "Stream is not an input stream.", 193 : "Stream is an illegal stream specification."],
         eg:"
 Success:
+      ?- get(input, X).
+       a
+      X = 97
+      yes.
+
       ?- get(input, 0'a), get(input,97).
        aa
       yes.
@@ -291,47 +290,42 @@ Error:
       get(input, '98').               (Error 5).
       get(10,A).                      (Error 192).
       get(atom,A).                    (Error 193).
-
-
-
 ",
         see_also:[get / 1, put / 1, put / 2]]).
 
 :- comment(get_char / 1, [
-        summary:"Reads the next character from the current input and unifies it with a
-single character string Char.
-
-",
+        summary:"Reads the next character from the current input",
         amode:(get_char(-) is det),
         desc:html("   Takes a single-character string from the current input and unifies it
    with Char.
-
 <P>
+   Note that this predicate returns a string, while the corresponding predicate
+   iso:get_char/1 returns an atom!
 "),
         args:["Char" : "Single character string or variable."],
         exceptions:[5 : "Char is instantiated, but not to a string."],
         eg:"   Equivalent to get_char(input, Char).  (see get_char/2 for details).
-
-
-
 ",
-        see_also:[get_char / 2, put_char / 1, put_char / 2]]).
+        see_also:[get_char / 2, iso:get_char/1, put_char / 1, put_char / 2]]).
 
 :- comment(get_char / 2, [
-        summary:"Reads the next character from the input stream Stream and unifies it with a
-single character string Char.
-
-",
+        summary:"Reads the next character from the input stream Stream",
         amode:(get_char(+,-) is det),
         desc:html("   Takes a single character string from the input stream Stream.  and
    unifies it with Char.
-
 <P>
+   Note that this predicate returns a string, while the corresponding predicate
+   iso:get_char/2 returns an atom!
 "),
         args:[
             "Stream" : "Stream handle or alias (atom)",
             "Char" : "Single character string or variable."],
-        exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is neither a stream handle nor an atom.", 5 : "Char is instantiated, but not to a single character string.", 190 : "End of file has been reached.", 192 : "Stream is not open for reading.", 193 : "Stream is not a valid stream number."],
+        exceptions:[4 : "Stream is not instantiated.",
+	    5 : "Stream is neither a stream handle nor an atom.",
+	    5 : "Char is instantiated, but not to a single character string.",
+	    190 : "End of file has been reached.",
+	    192 : "Stream is not open for reading.",
+	    193 : "Stream is not a valid stream number."],
         eg:"
    Success:
       ?- get_char(input,Char).
@@ -367,31 +361,28 @@ Error:
 
 
 ",
-        see_also:[get / 1, get / 2, get_char / 1, put / 1, put / 2, put_char / 1, put_char / 2]]).
+        see_also:[get / 1, get / 2, get_char / 1, iso:get_char/2, put / 1, put / 2, put_char / 1, put_char / 2]]).
 
 :- comment(put / 1, [
-        summary:"The character represented by the integer CharCode is put onto the
-buffered current output.
-
-",
+        summary:"The character represented by the integer Code is put onto the
+buffered current output",
         amode:(put(+) is det),
-        desc:html("   Puts the character represented by the integer character code CharCode (in the
-   range 0 to 255) onto the buffered current output.
-
+        desc:html("\
+   Writes the character (or byte, in case of binary stream) represented by
+   the integer Code onto the buffered current output stream.  The acceptable
+   value range depends on the stream's character encoding, or is 0 to 255
+   for binary streams.
 <P>
-   The output from put/1 is buffered first, and is only output to the
-   screen when the output is flushed e.g.when returning to the ECLiPSe
-   prompt or explicitly using flush(1)..
-
+   Note that the output from put/1 is usually buffered, and is only output
+   to the screen when the output is flushed e.g. when returning to the
+   ECLiPSe prompt or explicitly using flush(output).
 <P>
-   Character codes for the non-printable characters (i.e.  control characters)
+   Character codes for the non-printable characters (i.e. control characters)
    are also acceptable.
-
-<P>
 "),
-        args:["CharCode" : "Integer."],
-        exceptions:[4 : "CharCode is not instantiated.", 5 : "CharCode is instantiated, but not to an integer."],
-        eg:"   Equivalent to put(output, CharCode).  (see put/2 for details).
+        args:["Code" : "Integer."],
+        exceptions:[4 : "Code is not instantiated.", 5 : "Code is instantiated, but not to an integer."],
+        eg:"   Equivalent to put(output, Code).  (see put/2 for details).
 
 
 
@@ -399,28 +390,32 @@ buffered current output.
         see_also:[get / 1, get / 2, put / 2, nl/0]]).
 
 :- comment(put / 2, [
-        summary:"The character represented by the integer code CharCode is put onto the
+        summary:"The character represented by the integer code Code is put onto the
 buffered output stream Stream.
 
 ",
         amode:(put(+, +) is det),
-        desc:html("   Puts the character represented by the integer character code CharCode (in the
-   range 0 to 255) onto the buffered output stream Stream.
-
+        desc:html("\
+   Writes the character (or byte, in case of binary stream) represented by
+   the integer Code onto the output stream Stream.  The acceptable
+   value range depends on the stream's character encoding, or is 0 to 255
+   for binary streams.
 <P>
-   The output from put/2 is buffered first, and is only output to the
-   stream when the output is flushed (e.g.  using flush/1).
-
+   Note that the output from put/2 is usually buffered, and is only output
+   to the stream when the output is flushed (e.g.  using flush/1).
 <P>
-   Character codes for the non-printable characters (i.e.  control characters)
+   Character codes for the non-printable characters (i.e. control characters)
    are also acceptable.
-
-<P>
 "),
         args:[
             "Stream" : "Stream handle or alias (atom)",
-            "CharCode" : "Integer."],
-        exceptions:[4 : "Stream is not instantiated.", 4 : "CharCode is not instantiated.", 5 : "Stream is neither a stream handle nor an atom.", 5 : "CharCode is instantiated, but not to an integer.", 192 : "Stream is not an output stream.", 193 : "Stream is an illegal stream specification."],
+            "Code" : "Integer."],
+        exceptions:[4 : "Stream is not instantiated.",
+		4 : "Code is not instantiated.",
+		5 : "Stream is neither a stream handle nor an atom.",
+		5 : "Code is instantiated, but not to an integer.",
+		192 : "Stream is not an output stream.",
+		193 : "Stream is an illegal stream specification."],
         eg:"
 Success:
       ?- put(output, 0'a).
@@ -462,16 +457,12 @@ Error:
         see_also:[get / 1, get / 2, put / 1, nl/1]]).
 
 :- comment(put_char / 1, [
-        summary:"Puts the single character string Char onto the buffered current output.
-
-",
+        summary:"Puts the single character text Char onto the buffered current output.",
         amode:(put_char(+) is det),
-        desc:html("   Puts the single-character string Char onto the current output.
-
-<P>
+        desc:html("   Puts the single-character string or atom Char onto the current output.
 "),
-        args:["Char" : "Single character string."],
-        exceptions:[4 : "Char is not instantiated.", 5 : "Char is instantiated, but not to a single character string."],
+        args:["Char" : "Single character string or atom."],
+        exceptions:[4 : "Char is not instantiated.", 5 : "Char is instantiated, but not to a single character string or atom."],
         eg:"   Equivalent to put_char(output, Char).  (see put_char/2 for details).
 
 
@@ -480,33 +471,36 @@ Error:
         see_also:[get_char / 1, get_char / 2, put_char / 2, nl/0]]).
 
 :- comment(put_char / 2, [
-        summary:"Puts the single character string Char onto the buffered output stream
-Stream.
-
-",
+        summary:"Puts the single character text Char onto the buffered output stream Stream.",
         amode:(put_char(+,+) is det),
-        desc:html("   Puts the single-character string Char onto the output stream Stream.
-
-<P>
+        desc:html("   Puts the single-character string or atom Char onto the output stream Stream.
 "),
         args:[
             "Stream" : "Stream handle or alias (atom)",
-            "Char" : "Single character string."],
-        exceptions:[4 : "Stream is not instantiated.", 4 : "Char is not instantiated.", 5 : "Stream is neither a stream handle nor an atom.", 5 : "Char is instantiated, but not to a single character string.", 192 : "Stream is not an output stream.", 193 : "Stream is an illegal stream specification."],
+            "Char" : "Single character string or atom."],
+        exceptions:[4 : "Stream is not instantiated.",
+	    4 : "Char is not instantiated.",
+	    5 : "Stream is neither a stream handle nor an atom.",
+	    5 : "Char is instantiated, but not to a single character string or atom.",
+	    192 : "Stream is not an output stream.",
+	    193 : "Stream is an illegal stream specification."],
         eg:"
 Success:
   ?- put_char(output, \"a\").
   a
   yes.
 
-  ?- get_char(input,C),put_char(output,C).
-   a
-  a
-  C = \"a\"
+  ?- put_char(output, '7').
+  7
   yes.
+
+  ?- put_char(output, a).
+  a
+  yes.
+
 Error:
   put_char(Stream,A).      (Error 4).
-  put_char(output,a).      (Error 5).
+  put_char(output,ab).     (Error 5).
   put_char(output,98).     (Error 5).
   put_char(11, \"a\").        (Error 192).
   put_char(atom, \"a\").      (Error 193).
@@ -662,12 +656,12 @@ Error:
 
 :- comment(tyi / 1, [
         summary:"Succeeds if the code of the next character read in raw mode from the
-current input is successfully unified with CharCode.
+current input is successfully unified with Code.
 
 ",
         amode:(tyi(-) is det),
         desc:html("   Takes the next character from the current input and unifies its integer
-   character code (in the range 0 to 255) with CharCode.  The input is in raw mode
+   character code (in the range 0 to 255) with Code.  The input is in raw mode
    so that no newline character must be typed.
 
 <P>
@@ -676,9 +670,9 @@ current input is successfully unified with CharCode.
 
 <P>
 "),
-        args:["CharCode" : "Variable or integer."],
-        exceptions:[5 : "CharCode is instantiated, but not to an integer.", 190 : "End of file was encountered before reading any character.", 198 : "Trying to read even after the error 190 was raised."],
-        eg:"   Equivalent to tyi(input, CharCode).  (see tyi/2 for details).
+        args:["Code" : "Variable or integer."],
+        exceptions:[5 : "Code is instantiated, but not to an integer.", 190 : "End of file was encountered before reading any character.", 198 : "Trying to read even after the error 190 was raised."],
+        eg:"   Equivalent to tyi(input, Code).  (see tyi/2 for details).
 
 
 
@@ -687,12 +681,12 @@ current input is successfully unified with CharCode.
 
 :- comment(tyi / 2, [
         summary:"Succeeds if the code of the next character read in raw mode from the
-input stream Stream is successfully unified with CharCode.
+input stream Stream is successfully unified with Code.
 
 ",
         amode:(tyi(+,-) is det),
         desc:html("   Takes the next character from the unbuffered input stream Stream and
-   unifies its integer character code (in the range 0 to 255) with CharCode.  The
+   unifies its integer character code (in the range 0 to 255) with Code.  The
    input is in raw mode so that no newline character must be typed, and the
    character is not echoed on the screen.
 
@@ -710,20 +704,20 @@ Note
 "),
         args:[
             "Stream" : "Stream handle or alias (atom)",
-            "CharCode" : "Variable or integer."],
-        exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is neither a stream handle nor an atom.", 5 : "CharCode is instantiated, but not to an integer.", 190 : "End of file has been reached.", 192 : "Stream is not an input stream.", 193 : "Stream is an illegal stream specification.", 198 : "Trying to read even after the error 190 was raised."],
+            "Code" : "Variable or integer."],
+        exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is neither a stream handle nor an atom.", 5 : "Code is instantiated, but not to an integer.", 190 : "End of file has been reached.", 192 : "Stream is not an input stream.", 193 : "Stream is an illegal stream specification.", 198 : "Trying to read even after the error 190 was raised."],
         eg:"
 Success:
-      ?- tyi(input,CharCode).
-      CharCode = 97         % press 'a'
+      ?- tyi(input,Code).
+      Code = 97         % press 'a'
       yes.
 
       ?- tyi(input,97).
                             % press 'a'
       yes.
 
-      ?- tyi(input,CharCode).
-      CharCode = 4          % press ^D
+      ?- tyi(input,Code).
+      Code = 4          % press ^D
       yes.
 
 Fail:
@@ -738,8 +732,8 @@ Error:
       tyi(\"string\", A).           (Error 5).
 
       ?- open(file1,update,s), write(s,p),
-         seek(s,0), tyi(s,CharCode),
-      tyi(s,CharCode).              (Error 190).
+         seek(s,0), tyi(s,Code),
+      tyi(s,Code).              (Error 190).
       tyi(9,A).                  (Error 192).
       tyi(atom,A).               (Error 193).
 
@@ -749,12 +743,12 @@ Error:
         see_also:[tyi / 1, tyo / 1, tyo / 2]]).
 
 :- comment(tyo / 1, [
-        summary:"The character represented by the integer CharCode is put onto the
+        summary:"The character represented by the integer Code is put onto the
 current output in raw mode.
 
 ",
         amode:(tyo(+) is det),
-        desc:html("   Puts the character represented by the integer character code CharCode (in the
+        desc:html("   Puts the character represented by the integer character code Code (in the
    range 0 to 255) onto the current output in raw mode.
 
 <P>
@@ -769,9 +763,9 @@ current output in raw mode.
 
 <P>
 "),
-        args:["CharCode" : "Integer."],
-        exceptions:[4 : "CharCode is not instantiated.", 5 : "CharCode is instantiated, but not to an integer."],
-        eg:"   Equivalent to tyo(output, CharCode).  (see tyo/2 for details).
+        args:["Code" : "Integer."],
+        exceptions:[4 : "Code is not instantiated.", 5 : "Code is instantiated, but not to an integer."],
+        eg:"   Equivalent to tyo(output, Code).  (see tyo/2 for details).
 
 
 
@@ -779,12 +773,12 @@ current output in raw mode.
         see_also:[tyi / 1, tyi / 2, tyo / 2]]).
 
 :- comment(tyo / 2, [
-        summary:"The character represented by the integer CharCode is put onto the output
+        summary:"The character represented by the integer Code is put onto the output
 stream Stream in raw mode.
 
 ",
         amode:(tyo(+,+) is det),
-        desc:html("   Puts the character represented by the integer character code CharCode (in the
+        desc:html("   Puts the character represented by the integer character code Code (in the
    range 0 to 255) onto the output stream Stream in raw mode.
 
 <P>
@@ -804,8 +798,8 @@ stream Stream in raw mode.
 "),
         args:[
             "Stream" : "Stream handle or alias (atom)",
-            "CharCode" : "Integer."],
-        exceptions:[4 : "Stream is not instantiated.", 4 : "CharCode is not instantiated.", 5 : "Stream is neither a stream handle nor an atom.", 5 : "CharCode is instantiated, but not to an integer.", 192 : "Stream is not an output stream.", 193 : "Stream is an illegal stream specification."],
+            "Code" : "Integer."],
+        exceptions:[4 : "Stream is not instantiated.", 4 : "Code is not instantiated.", 5 : "Stream is neither a stream handle nor an atom.", 5 : "Code is instantiated, but not to an integer.", 192 : "Stream is not an output stream.", 193 : "Stream is an illegal stream specification."],
         eg:"
    Success:
       ?- set_stream(screen,output),
