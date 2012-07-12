@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.13 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.14 2012/07/12 10:31:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -150,7 +150,9 @@ do_get_flag(max_predicate_arity,255, _).	% keep consistent with MAX_ARITY !
 do_get_flag(min_integer,N, _) :-
         \+ bignum(0, _), % fails if no bignums
         minint(N).
-do_get_flag(object_suffix,X, _) :-	get_sys_flag(9, X).
+do_get_flag(object_suffix,X, _) :-	get_sys_flag(9, X).	% obsolete
+do_get_flag(system_object_suffix, X, _) :- get_sys_flag(9, Ext),
+	concat_strings(".", Ext, X).
 do_get_flag(occur_check,X, _) :-
 	get_flag(extension, occur_check),
 	global_flags(0,0,F),
@@ -254,6 +256,7 @@ do_set_flag(max_global_trail, _, _) :- !, set_bip_error(30).
 do_set_flag(max_local_control, _, _) :- !, set_bip_error(30).
 do_set_flag(max_predicate_arity, _, _) :- !, set_bip_error(30).
 do_set_flag(object_suffix, _, _) :- !, set_bip_error(30).
+do_set_flag(system_object_suffix, _, _) :- !, set_bip_error(30).
 do_set_flag(pid, _, _) :-		!, set_bip_error(30).
 do_set_flag(ppid, _, _) :-		!, set_bip_error(30).
 do_set_flag(remote_protocol_version, _, _) :- !, set_bip_error(30).
@@ -534,37 +537,42 @@ env_body(M) :-
 	Half is (length(FList) + 1) // 2,
 	halve(Half, FList, L1, L2),
 	splice(L1, L2, NewList),
-	open(_, string, env_stream),
-	member(Flag, NewList),
-	get_flag_body(Flag,Value,M),		% first the deterministic flags
-	Fill is 23 - atom_length(Flag),
-	printf(env_stream, "%w:%*c%QDvw", [Flag, Fill, 0' , Value]),
-	at(env_stream, At),
-	(At < 40 ->
-	    F is 40 - At,
-	    printf(env_stream, "%*c", [F, 0' ])
-	;
-	    F is 79 - At,
-	    (F > 0 -> printf(env_stream, "%*c\n", [F, 0' ]); true),
-	    current_stream(S, _, env_stream),
-	    write(output, S),
-	    seek(env_stream, 0)
-	),
-	fail.
-env_body(M) :-
-	at(env_stream, At),
-	(At == 40 ->
-	    current_stream(S, _, env_stream),
-	    printf(output, "%.40s\n", [S])
+	open(_, string, EnvStream),
+	(
+	    member(Flag, NewList),
+	    get_flag_body(Flag,Value,M),		% first the deterministic flags
+	    Fill is 23 - atom_length(Flag),
+	    printf(EnvStream, "%w:%*c%QDvw", [Flag, Fill, 0' , Value]),
+	    at(EnvStream, At),
+	    (At < 40 ->
+		F is 40 - At,
+		printf(EnvStream, "%*c", [F, 0' ])
+	    ;
+		nl(EnvStream),
+		current_stream(S, _, EnvStream),
+		write(output, S),
+		seek(EnvStream, 0),
+		stream_truncate(EnvStream)
+	    ),
+	    fail
 	;
 	    true
 	),
-	close(env_stream),
+	( at(EnvStream) > 0 ->
+	    nl(EnvStream),
+	    current_stream(S, _, EnvStream),
+	    write(output, S)
+	;
+	    true
+	),
+	close(EnvStream),
+	fail.
+env_body(M) :-
 	long_flag(Flag),		% then the nondeterministic flags
 	\+obsolete_flag(Flag),
 	once(get_flag_body(Flag,_,M)),
 	Fill is 23 - atom_length(Flag),
-	printf(output, "\n%w:%*c", [Flag, Fill, 0' ]),
+	printf(output, "%n%w:%*c", [Flag, Fill, 0' ]),
 	get_flag_body(Flag,Value,M),
 	(Flag = library_path ->
 		write_paths(Value)
@@ -585,7 +593,7 @@ write_paths([H|T]) :-
 write_list([]) :-
 	write(output, ']').
 write_list([H|T]) :-
-	printf(output, ",\n%*c", [25, 0' ]),
+	printf(output, ",%n%*c", [25, 0' ]),
 	writeq(output, H),
 	write_list(T).
 
@@ -613,6 +621,8 @@ long_flag(hostname).
 long_flag(installation_directory).
 long_flag(library_path).	% too long
 long_flag(loaded_library).	% nondet
+long_flag(min_integer).		% long if 64-bit
+long_flag(max_integer).		% long if 64-bit
 long_flag(output_options).
 long_flag(prolog_suffix).
 long_flag(syntax_option).	% nondet
@@ -623,6 +633,7 @@ long_flag(workers).
 obsolete_flag(all_dynamic).
 obsolete_flag(dfid_compile).
 obsolete_flag(occur_check).
+obsolete_flag(object_suffix).
 obsolete_flag(worker).
 obsolete_flag(workerids).
 obsolete_flag(workers).
