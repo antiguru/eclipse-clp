@@ -26,7 +26,7 @@
 % ECLiPSe kernel built-ins
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel_bips.pl,v 1.1 2008/06/30 17:43:47 jschimpf Exp $
+% Version:	$Id: kernel_bips.pl,v 1.2 2012/07/12 10:33:33 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -68,29 +68,42 @@
 */
 
 append_strings(X,Y,Z) :-
-	var(Z), !,
-	concat_strings(X,Y,Z).
-append_strings(X,Y,Z) :-
-	string(Z), !,
-	append_strings1(X,Y,Z).
-append_strings(X,Y,Z) :-
-	error(5, append_strings(X,Y,Z)).
+	( var(Z) ->
+	    concat_strings(X,Y,Z)
 
-    append_strings1(X,Y,Z) :-
-	var_or_string(X),
-	var_or_string(Y),
-	!,
-	string_list(Z, ZL),
-	append(XL, YL, ZL),
-	string_list(X, XL),
-	string_list(Y, YL).
-    append_strings1(X, Y, Z) :-
-	error(5, append_strings(X, Y, Z)).
+	; string(Z) ->
+	    ( var(X) ->
+		( var(Y) ->
+		    string_list(Z, ZL),
+		    append(XL, YL, ZL),
+		    string_list(X, XL),
+		    string_list(Y, YL)
 
-    var_or_string(X) :-
-	var(X).
-    var_or_string(X) :-
-	string(X).
+		; string(Y) ->
+		    Xlen is string_length(Z) - string_length(Y),
+		    first_substring(Z, 1, Xlen, X)
+		;
+		    error(5, append_strings(X,Y,Z))
+		)
+	    ; string(X) ->
+		( var(Y) ->
+		    string_length(X, Xlen),
+		    Ypos is Xlen + 1,
+		    Ylen is string_length(Z) - Xlen,
+		    first_substring(Z, Ypos, Ylen, Y)
+
+		; string(Y) ->
+		    concat_strings(X,Y,Z)
+		;
+		    error(5, append_strings(X,Y,Z))
+		)
+	    ;
+	    	error(5, append_strings(X,Y,Z))
+	    )
+	;
+	    error(5, append_strings(X,Y,Z))
+	).
+
 
 % substring(+String, ?Pos, ?Len, ?SubStr) :-
 %
