@@ -253,6 +253,8 @@ It is more efficient to use number_string/2 wherever possible.
 
 ",
 	amode:(append_strings(+,+,-) is det),
+	amode:(append_strings(+,-,+) is det),
+	amode:(append_strings(-,+,+) is det),
 	amode:(append_strings(-,-,+) is multi),
 	desc:html("   Succeeds if String3 is the concatenation of String1 and String2.
 
