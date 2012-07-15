@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.pl,v 1.17 2012/02/10 20:20:05 jschimpf Exp $
+% Version:	$Id: iso.pl,v 1.18 2012/07/15 23:33:38 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.pl,v 1.17 2012/02/10 20:20:05 jschimpf Exp $
+% $Id: iso.pl,v 1.18 2012/07/15 23:33:38 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -94,7 +94,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC and IC-Parc`).
 :- comment(copyright, `Cisco Systems, Inc`).
-:- comment(date, `$Date: 2012/02/10 20:20:05 $`).
+:- comment(date, `$Date: 2012/07/15 23:33:38 $`).
 :- comment(see_also, [library(multifile)]).
 :- comment(desc, html(`\
     This library provides a reasonable degree of compatibility with\n\
@@ -360,11 +360,9 @@ current_char_conversion(C, C).			% 8.14.6
 atom_concat(A, B, C) :-				% 8.16.2
 	var(C), !,
 	concat_atoms(A, B, C).
-atom_concat(A, B, C) :-
-	nonvar(C), nonvar(A), nonvar(B), !,
-	concat_atoms(A, B, C).
-atom_concat(A, B, C) :-
-	nonvar(C),
+atom_concat(A, B, C) :-				% 8.16.2
+	( var(A) -> true ; atom_string(A, SA) ),
+	( var(B) -> true ; atom_string(B, SB) ),
 	atom_string(C, SC),
 	append_strings(SA, SB, SC),
 	atom_string(A, SA),
