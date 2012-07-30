@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.47 2011/10/21 00:44:09 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.48 2012/07/30 21:08:05 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1648,18 +1648,19 @@ if test -z "$ALL_WITH_GECODE"; then
 fi
 
 #----------
-# Java
+# Java JDK
 #----------
 
 JAVA_SEARCH_PATH="\
-    $ECLIPSETHIRDPARTY/java/$ARCH/java \
-    /usr/java \
-    /usr/lib/java \
-    /usr/lib/jvm \
-    /usr/lib/jvm/java \
-    /usr/j2se\
-    /Library/Java/Home \
-"
+$ECLIPSETHIRDPARTY/java/$ARCH/java
+/usr/java
+/usr/lib/java
+/usr/lib/jvm
+/usr/lib/jvm/java
+/usr/j2se
+C:/Program Files/Java/jdk*
+$PROGRAMFILES/Java/jdk*
+/Library/Java/Home"
 
 AC_ARG_WITH([java], [[  --with-java[=dir]	Build ECLiPSe/Java interface.
 			If dir is given, this is taken as the Java installation
@@ -1682,12 +1683,15 @@ else
     elif test -n "$JAVA_HOME"; then
 	JAVA_SEARCH_PATH="$JAVA_HOME"
     fi
+    IFSorig=$IFS
+    IFS=`printf '\n\t'`
     for JAVA_HOME in $JAVA_SEARCH_PATH; do
-	if test -x $JAVA_HOME/bin/javac -a -d $JAVA_HOME/include; then
+	if test -x "$JAVA_HOME/bin/javac" -a -d "$JAVA_HOME/include"; then
 	    break
 	fi
 	JAVA_HOME=
     done
+    IFS=$IFSorig
     if test -n "$JAVA_HOME"; then
 	AC_DEFINE(HAVE_JAVA)
 	ALL_WITH_JAVA=all_with_java
