@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.6 2012/02/25 13:36:44 jschimpf Exp $
+ * $Id: embed.h,v 1.7 2012/07/31 11:21:13 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -240,8 +240,8 @@ Extern DLLEXP int		ec_external ARGS((dident,int (*) (Dots),dident));
 
 Extern DLLEXP stream_id Winapi	ec_stream_id ARGS((int));
 Extern DLLEXP	int		ec_outf ARGS((stream_id, const char*, int));
-Extern		int		ec_outfc ARGS((stream_id, int));
-Extern		int		ec_outfs ARGS((stream_id, const char*));
+Extern DLLEXP	int		ec_outfc ARGS((stream_id, int));
+Extern DLLEXP	int		ec_outfs ARGS((stream_id, const char*));
 Extern DLLEXP	int		ec_flush ARGS((stream_id));
 #ifdef STDC_HEADERS
 Extern DLLEXP	int		p_fprintf ARGS((stream_id nst, char *fmt, ...));
