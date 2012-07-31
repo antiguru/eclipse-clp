@@ -32,16 +32,6 @@
 
 :- local variable(probect).
 
-drop_warnings_in_xpress :-
-	% Check whether XPRESS is loaded, in a way that won't die if no
-	% solver could be loaded (for building on machines with no licences).
-        ( getval(loaded_solver, loaded(xpress, _))@eplex_s -> 
-            lp_set(warning_channel,-(warning_output))
-        ; true
-        ).
-
-%:- drop_warnings_in_xpress.
-
 set_probect(X) :-
     setval(probect,X).
 get_probect(X) :- 
@@ -211,7 +201,7 @@ deviating_bounds_demon(X, Handle, Susp, OwnSusp) :-
 :- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Probing").
 :- comment(author, "Mark Wallace, Hani El Sakkout").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2012/07/31 13:29:02 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("<P>
