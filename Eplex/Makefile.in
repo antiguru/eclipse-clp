@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.2 2012/07/31 13:34:44 jschimpf Exp $
+# $Id: Makefile.in,v 1.3 2012/07/31 23:03:32 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -47,6 +47,7 @@ AR = @AR@
 CFLAGS = @CFLAGS@ @OPT_FLAGS@
 OS_INCLUDES = @OS_INCLUDES@
 OBJ_SUFFIX = @OBJECTS_SUFFIX@
+DLIBDIR = @DLIBDIR@
 DYNLDFLAGS = @DYNLDFLAGS@
 DYLD = @DYLD@
 EXEEXT = @EXEEXT@
@@ -582,9 +583,9 @@ bugclp: bug.c
 $(ARCH)/segurobi$(GUROBI_VERSION).$(OBJ_SUFFIX): eplex.c eplex.h eplex_gurobi.h eplex_gurobi.c eplex_gurobi.def
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) -DGUROBI $(CPPFLAGS) $(CFLAGS) -I$(GUROBIDIR)/include -c eplex.c
-	$(DYLD) $(DYNLDFLAGS)  eplex_gurobi.def eplex.o $(GUROBIDIR)/bin/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) $(ECLIBS) -o $@
-	cp $(GUROBIDIR)/bin/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) $(ARCH)
-	cp $(GUROBIDIR)/bin/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) ../lib/$(ARCH)
+	$(DYLD) $(DYNLDFLAGS)  eplex_gurobi.def eplex.o $(GUROBIDIR)/$(DLIBDIR)/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) $(ECLIBS) -o $@
+	cp $(GUROBIDIR)/$(DLIBDIR)/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) $(ARCH)
+	cp $(GUROBIDIR)/$(DLIBDIR)/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) ../lib/$(ARCH)
 
 
 #----------------------------------------------------------------------

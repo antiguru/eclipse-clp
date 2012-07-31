@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.50 2012/07/31 21:49:42 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.51 2012/07/31 23:04:32 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -204,6 +204,7 @@ GRAPHLIBS=""
 OBJECT_SUFFIX=o
 OBJECTS_SUFFIX=a
 LIB_PREFIX=lib
+DLIBDIR=lib
 BUILDO=o
 VIRTUAL_HEAP_DEFAULT="32*MB"
 VIRTUAL_SHARED_DEFAULT="64*MB"
@@ -531,6 +532,7 @@ case "$ARCH" in
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
     LIB_PREFIX=
+    DLIBDIR=bin
     dnl wsock32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lwsock32 -lnetapi32 $LIBS"
@@ -546,6 +548,7 @@ case "$ARCH" in
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
     LIB_PREFIX=
+    DLIBDIR=bin
     DYLD="\$(CC)"
     DYLDCXX="\$(CXX)"
     dnl ws2_32 is for select(), gethostname() and sockets
@@ -1999,6 +2002,7 @@ AC_SUBST(WANT_MPS)
 AC_SUBST(OBJECT_SUFFIX)
 AC_SUBST(OBJECTS_SUFFIX)
 AC_SUBST(LIB_PREFIX)
+AC_SUBST(DLIBDIR)
 AC_SUBST(GMP_LD)
 AC_SUBST(GMP_EXE_LD)
 AC_SUBST(GMP_LIBDIR)

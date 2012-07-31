@@ -645,6 +645,7 @@ GMP_LIB
 GMP_LIBDIR
 GMP_EXE_LD
 GMP_LD
+DLIBDIR
 LIB_PREFIX
 OBJECTS_SUFFIX
 OBJECT_SUFFIX
@@ -2913,6 +2914,7 @@ GRAPHLIBS=""
 OBJECT_SUFFIX=o
 OBJECTS_SUFFIX=a
 LIB_PREFIX=lib
+DLIBDIR=lib
 BUILDO=o
 VIRTUAL_HEAP_DEFAULT="32*MB"
 VIRTUAL_SHARED_DEFAULT="64*MB"
@@ -3249,6 +3251,7 @@ case "$ARCH" in
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
     LIB_PREFIX=
+    DLIBDIR=bin
             LIBS="-lwsock32 -lnetapi32 $LIBS"
             $as_echo "#define HAVE_WIN32_WINNT 0x500" >>confdefs.h
 
@@ -3261,6 +3264,7 @@ case "$ARCH" in
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
     LIB_PREFIX=
+    DLIBDIR=bin
     DYLD="\$(CC)"
     DYLDCXX="\$(CXX)"
             LIBS="-lws2_32 -lnetapi32 $LIBS"
@@ -9138,6 +9142,7 @@ LIBS="-L. $SYSLIBS $LIBS"
 ac_config_files="$ac_config_files Makefile.$ARCH:Makefile.in Kernel/$ARCH/Makefile:Kernel/src/Makefile.in Kernel/$ARCH/INST_PARAMS:Kernel/src/INST_PARAMS.in Kernel/$ARCH/Makefile.external:Kernel/src/Makefile.external.in Shm/$ARCH/Makefile:Shm/src/Makefile.in Eplex/Makefile.$ARCH:Eplex/Makefile.in icparc_solvers/Makefile.$ARCH:icparc_solvers/Makefile.in JavaInterface/Makefile.$ARCH:JavaInterface/Makefile.in Flexlm/Makefile.$ARCH:Flexlm/Makefile.in Visualisation/Makefile.$ARCH:Visualisation/Makefile.in Compiler/Makefile.$ARCH:Compiler/Makefile.in Contrib/Makefile.$ARCH:Contrib/Makefile.in Mercury/Makefile.$ARCH:Mercury/Makefile.in ecrc_solvers/Makefile.$ARCH:ecrc_solvers/Makefile.in pt_libraries/Makefile.$ARCH:pt_libraries/Makefile.in Oci/Makefile.$ARCH:Oci/Makefile.in ZincInterface/Makefile.$ARCH:ZincInterface/Makefile.in GecodeInterface/Makefile.$ARCH:GecodeInterface/Makefile.in"
 
 ac_config_headers="$ac_config_headers Kernel/$ARCH/config.h:Kernel/src/config.h.in Shm/$ARCH/config.h:Shm/src/config.h.in"
+
 
 
 
