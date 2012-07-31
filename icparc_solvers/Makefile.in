@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.29 2012/07/31 02:18:43 jschimpf Exp $
+# $Id: Makefile.in,v 1.30 2012/07/31 13:51:18 jschimpf Exp $
 #
 
 # The location of third party software releases
@@ -267,7 +267,7 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl \
 		tentative.ecl tentative_constraints.ecl max_flow.ecl
 PL_ECO_FILES =	changeset.pl linearize.pl shadow_cons.pl ech.pl \
 		repair.pl eplex_relax.pl \
-		repairfd.pl mip.pl \
+		repairfd.pl \
 		ic_make_overlap_bivs.pl ic_probe_support.pl \
 		ic_probing_for_scheduling.pl ic_probe.pl ic_probe_search.pl \
 		make_overlap_bivs.pl probe_support.pl \
