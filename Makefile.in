@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.12 2010/09/29 15:31:47 kish_shen Exp $
+# $Id: Makefile.in,v 1.13 2012/07/31 02:17:06 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -16,6 +16,7 @@ install:	@MAKE_TARGET@
 # (e.g. because they test for cross-building themselves)
 install_cross:	make_kernel \
 		make_flexlm \
+		make_eplex \
 		make_icparc_solvers \
 		make_javainterface \
 		make_zincinterface \
@@ -55,7 +56,11 @@ make_documents:		make_bin
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/documents; ./INSTALL)
 
-make_icparc_solvers:	make_bin
+make_eplex:		make_bin
+	@echo ======== $@ ========
+	@(cd $(top_srcdir)/Eplex; $(MAKE) -f Makefile.$(ARCH) install)
+
+make_icparc_solvers:	make_bin make_eplex
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/icparc_solvers; $(MAKE) -f Makefile.$(ARCH) install)
 
@@ -71,7 +76,7 @@ make_visualisation:	make_bin make_contrib
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/Visualisation; $(MAKE) -f Makefile.$(ARCH) install)
 
-make_zincinterface:	make_bin make_icparc_solvers make_ecrc_solvers
+make_zincinterface:	make_bin make_icparc_solvers make_eplex make_ecrc_solvers
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/ZincInterface; $(MAKE) -f Makefile.$(ARCH) install)
 
@@ -102,6 +107,7 @@ make_mercury:		make_bin
 make_internal_doc:	make_bin
 	@echo ======== $@ ========
 	( cd $(top_srcdir)/Kernel/$(ARCH) ; make pretty )
+	( cd $(top_srcdir)/Eplex ; make -f Makefile.$(ARCH) pretty )
 	( cd $(top_srcdir)/icparc_solvers ; make -f Makefile.$(ARCH) pretty )
 	( cd $(top_srcdir)/ecrc_solvers ; make -f Makefile.$(ARCH) pretty )
 	( cd $(top_srcdir)/pt_libraries ; make -f Makefile.$(ARCH) pretty )
@@ -163,6 +169,7 @@ clean_subdirs:
 	(cd $(top_srcdir)/Shm/$(ARCH); $(MAKE) clean)
 	(cd $(top_srcdir)/Flexlm; $(MAKE) -f Makefile.$(ARCH) clean)
 	# (cd $(top_srcdir)/documents; $(MAKE) clean)
+	(cd $(top_srcdir)/Eplex; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/icparc_solvers; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/JavaInterface; $(MAKE) -f Makefile.$(ARCH) clean)
 	(cd $(top_srcdir)/ZincInterface; $(MAKE) -f Makefile.$(ARCH) clean)
@@ -190,6 +197,7 @@ archclean_subdirs:
 	(cd $(top_srcdir)/Shm/$(ARCH); $(MAKE) archclean)
 	(cd $(top_srcdir)/Flexlm; $(MAKE) -f Makefile.$(ARCH) archclean)
 	# (cd $(top_srcdir)/documents; $(MAKE) archclean)
+	(cd $(top_srcdir)/Eplex; $(MAKE) -f Makefile.$(ARCH) archclean)
 	(cd $(top_srcdir)/icparc_solvers; $(MAKE) -f Makefile.$(ARCH) archclean)
 	(cd $(top_srcdir)/JavaInterface; $(MAKE) -f Makefile.$(ARCH) archclean)
 	(cd $(top_srcdir)/ZincInterface; $(MAKE) -f Makefile.$(ARCH) archclean)

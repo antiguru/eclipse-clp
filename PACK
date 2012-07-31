@@ -86,9 +86,11 @@ ALLDIRS="include legal lib lib_tcl lib_public doc man tcltk"
 I386NT_CPLEX_SOLVER="cplex121"
 I386NT_XPRESS_SOLVER="xpress2000"
 I386NT_CLPCBC_SOLVER="osiclpcbc"
+I386NT_GUROBI_SOLVER="gurobi50"
 EPLEX_SOLVERS="\
 	$I386NT_CLPCBC_SOLVER \
 	$I386NT_XPRESS_SOLVER \
+	$I386NT_GUROBI_SOLVER \
 	osisymclp \
 "
 PRIVATE_EPLEX_SOLVERS="\
@@ -115,6 +117,7 @@ NSIS_GRAPHVIZ_EXE="graphviz-1.10.exe"
 NSIS_CPLEX_PACKAGE="if_$I386NT_CPLEX_SOLVER"
 NSIS_XPRESS_PACKAGE="if_$I386NT_XPRESS_SOLVER"
 NSIS_CLPCBC_PACKAGE="if_$I386NT_CLPCBC_SOLVER"
+NSIS_GUROBI_PACKAGE="if_$I386NT_GUROBI_SOLVER"
 NSIS_PACKAGES=" \
 	eclipse_basic \
 	eclipse_misc \
@@ -122,6 +125,7 @@ NSIS_PACKAGES=" \
 	$NSIS_CPLEX_PACKAGE \
 	$NSIS_XPRESS_PACKAGE \
 	$NSIS_CLPCBC_PACKAGE \
+	$NSIS_GUROBI_PACKAGE \
 	tcltk
 "
 
@@ -476,6 +480,13 @@ nsispack ()	# $1=name $2=selectedfiles $3=arch
 "Section \"CPLEX Interface\" SecCPLEX
   SectionIn 3
   DetailPrint \"Extracting CPLEX interface...\"
+  SetOutPath \$8
+  SetDetailsPrint textonly" ;;
+		$NSIS_GUROBI_PACKAGE)
+		    echo \
+"Section \"GUROBI Interface\" SecGUROBI
+  SectionIn 3
+  DetailPrint \"Extracting GUROBI interface...\"
   SetOutPath \$8
   SetDetailsPrint textonly" ;;
 		$NSIS_XPRESS_PACKAGE)
@@ -931,7 +942,7 @@ if [ "$pack_archs" = yes ] ; then
 	# Don't include UNPACK (might be running during unpacking)
 	packarch $arch eclipse_basic "" \
 		"lib include lib_tcl $INSTALL_FILES legal" \
-		"$PRIVATE_FILES" "eplex seosi cplex xpress xpopt mp-opt pteclipse"
+		"$PRIVATE_FILES" "eplex seosi cplex gurobi xpress xpopt mp-opt pteclipse"
 
 
 	# The "runtime" package (eclipse_basic without development stuff,

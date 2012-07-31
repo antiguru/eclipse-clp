@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.48 2012/07/30 21:08:05 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.49 2012/07/31 02:17:06 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1521,31 +1521,14 @@ fi
 #----------
 
 case $ARCH in
-
-    i386_linux)
-        CPLEX_ARCH_PREFIX=x86_debian
-        ;;
-    x86_64_linux)
-        CPLEX_ARCH_PREFIX=x86-64_debian
-        ;;
-    sparc_sunos5)
-        CPLEX_ARCH_PREFIX=ultrasparc32
-        ;;
-    i386_nt)
-        CPLEX_ARCH_PREFIX=x86_windows
-        ;;
-    x86_64_nt)
-        CPLEX_ARCH_PREFIX=x64_windows
-        ;;
-    i386_macosx)
-        CPLEX_ARCH_PREFIX=x86_darwin
-        ;;
-    x86_64_macosx)
-        CPLEX_ARCH_PREFIX=x86-64_darwin
-        ;;
-    *)
-        CPLEX_ARCH_PREFIX=unsupported
-        ;;
+    i386_linux)		CPLEX_ARCH_PREFIX=x86_debian ;;
+    x86_64_linux)	CPLEX_ARCH_PREFIX=x86-64_debian ;;
+    sparc_sunos5)	CPLEX_ARCH_PREFIX=ultrasparc32 ;;
+    i386_nt)		CPLEX_ARCH_PREFIX=x86_windows ;;
+    x86_64_nt)		CPLEX_ARCH_PREFIX=x64_windows ;;
+    i386_macosx)	CPLEX_ARCH_PREFIX=x86_darwin ;;
+    x86_64_macosx)	CPLEX_ARCH_PREFIX=x86-64_darwin ;;
+    *)			CPLEX_ARCH_PREFIX=unsupported ;;
 esac
 
 AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
@@ -1606,6 +1589,59 @@ if test -n "$XPRESS_VERSIONS"; then
     AC_MSG_NOTICE([Will build Xpress-MP interfaces for versions $XPRESS_VERSIONS])
 else
     AC_MSG_NOTICE([Not building any Xpress-MP interfaces])
+fi
+
+
+#----------
+# Gurobi
+#----------
+
+case $ARCH in
+    i386_linux)		GRB_ARCH=linux32 ;;
+    x86_64_linux)	GRB_ARCH=linux64 ;;
+    i386_nt)		GRB_ARCH=win32 ;;
+    x86_64_nt)		GRB_ARCH=win64 ;;
+    i386_macosx)	GRB_ARCH=mac32 ;;
+    x86_64_macosx)	GRB_ARCH=mac64 ;;
+    *)			GRB_ARCH=unsupported ;;
+esac
+
+GUROBI_SEARCH_PATH="\
+$ECLIPSETHIRDPARTY
+/opt
+C:
+/Library"
+
+AC_ARG_WITH([gurobi], [[  --with-gurobi[=versions]
+			Build ECLiPSe interface to the Gurobi optimizer.  You
+			can optionally specify a version list, e.g. "50 51".
+			Default is to build the first matching version.
+    ]],
+    [gurobi_versions_requested="$withval"], [gurobi_versions_requested=yes])
+
+if test "$gurobi_versions_requested" != "no"; then
+    if test "$gurobi_versions_requested" = "yes"; then
+    	gurobi_versions_requested="50"
+    fi
+    IFSorig=$IFS
+    IFS=`printf '\n\t'`
+    GUROBIDIR=
+    for version in $gurobi_versions_requested; do
+	for gurobi_path in $GUROBI_SEARCH_PATH; do
+	    # find last (highest minor version number) match
+	    gurobi_dirs="$gurobi_path/gurobi$version?/$GRB_ARCH"
+	    for dir in $gurobi_dirs; do
+		test -d "$dir" && GUROBIDIR=$dir
+	    done
+	    test -n "$GUROBIDIR" && GUROBI_VERSION=$version && break 2
+	done
+    done
+    IFS=$IFSorig
+fi
+if test -n "$GUROBI_VERSION"; then
+    AC_MSG_NOTICE([Will build Gurobi interface for version $GUROBI_VERSION])
+else
+    AC_MSG_NOTICE([Not building Gurobi interface])
 fi
 
 
@@ -1895,6 +1931,7 @@ AC_CONFIG_FILES([
 	Kernel/$ARCH/INST_PARAMS:Kernel/src/INST_PARAMS.in
 	Kernel/$ARCH/Makefile.external:Kernel/src/Makefile.external.in
 	Shm/$ARCH/Makefile:Shm/src/Makefile.in
+	Eplex/Makefile.$ARCH:Eplex/Makefile.in
 	icparc_solvers/Makefile.$ARCH:icparc_solvers/Makefile.in
 	JavaInterface/Makefile.$ARCH:JavaInterface/Makefile.in
 	Flexlm/Makefile.$ARCH:Flexlm/Makefile.in
@@ -1986,6 +2023,8 @@ AC_SUBST(OSICLP_ADDLIB)
 AC_SUBST(OSICLP_ADDDEF)
 AC_SUBST(CPLEX_VERSIONS)
 AC_SUBST(XPRESS_VERSIONS)
+AC_SUBST(GUROBIDIR)
+AC_SUBST(GUROBI_VERSION)
 AC_SUBST(ALL_WITH_GECODE)
 AC_SUBST(ALL_CROSS_WITH_GECODE)
 AC_SUBST(GECODEDIR)
