@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.1 2012/07/31 02:17:06 jschimpf Exp $
+# $Id: Makefile.in,v 1.2 2012/07/31 13:34:44 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -234,56 +234,56 @@ i386_nt/secplex90.dll: eplex_cplex.def eplex.c eplex_cplex.h eplex_cplex.c eplex
 	$(DYLD) $(DYNLDFLAGS)  eplex_cplex.def eplex.o $(THIRDPARTY)/cplex90/lib/i386_nt/stat_mda/cplex90.lib $(ECLIBS) -o secplex.dll
 	[ -d i386_nt ] || mkdir i386_nt
 	mv secplex.dll i386_nt/secplex90.dll
-	#cp $(CPLEX90_SUPPORT_i386_nt) i386_nt/
-	#cp $(CPLEX90_SUPPORT_i386_nt) ../lib/i386_nt/
+	cp $(CPLEX90_SUPPORT_i386_nt) i386_nt/
+	cp $(CPLEX90_SUPPORT_i386_nt) ../lib/i386_nt/
 
 i386_nt/secplex102.dll: eplex_cplex.def eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=10 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex102/include/ilcplex -c eplex.c
 	$(DYLD) $(DYNLDFLAGS)  eplex_cplex.def eplex.o $(THIRDPARTY)/cplex102/lib/i386_nt/cplex102.lib $(ECLIBS) -o secplex.dll
 	[ -d i386_nt ] || mkdir i386_nt
 	mv secplex.dll i386_nt/secplex102.dll
-	#cp $(CPLEX102_SUPPORT_i386_nt) i386_nt/
-	#cp $(CPLEX102_SUPPORT_i386_nt) ../lib/i386_nt/
+	cp $(CPLEX102_SUPPORT_i386_nt) i386_nt/
+	cp $(CPLEX102_SUPPORT_i386_nt) ../lib/i386_nt/
 
 i386_nt/secplex110.dll: eplex_cplex.def eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c eplex.c
 	$(DYLD) $(DYNLDFLAGS)  eplex_cplex.def eplex.o $(THIRDPARTY)/cplex110/lib/i386_nt/cplex110.lib $(ECLIBS) -o secplex.dll
 	[ -d i386_nt ] || mkdir i386_nt
 	mv secplex.dll i386_nt/secplex110.dll
-	#cp $(CPLEX110_SUPPORT_i386_nt) i386_nt/
-	#cp $(CPLEX110_SUPPORT_i386_nt) ../lib/i386_nt/
+	cp $(CPLEX110_SUPPORT_i386_nt) i386_nt/
+	cp $(CPLEX110_SUPPORT_i386_nt) ../lib/i386_nt/
 
 i386_nt/secplex121.dll: eplex_cplex.def eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=12 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex121/include/ilcplex -c eplex.c
 	$(DYLD) $(DYNLDFLAGS)  eplex_cplex.def eplex.o $(THIRDPARTY)/cplex121/lib/x86_windows_vs2008/stat_mda/cplex121.lib $(ECLIBS) -o secplex.dll
 	[ -d i386_nt ] || mkdir i386_nt
 	mv secplex.dll i386_nt/secplex121.dll
-	#cp $(CPLEX121_SUPPORT_i386_nt) i386_nt/
-	#cp $(CPLEX121_SUPPORT_i386_nt) ../lib/i386_nt/
+	cp $(CPLEX121_SUPPORT_i386_nt) i386_nt/
+	cp $(CPLEX121_SUPPORT_i386_nt) ../lib/i386_nt/
 
 i386_nt/secplex122.dll: eplex_cplex.def eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=12 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex122/include/ilcplex -c eplex.c
 	$(DYLD) $(DYNLDFLAGS)  eplex_cplex.def eplex.o $(THIRDPARTY)/cplex122/lib/x86_windows_vs2008/stat_mda/cplex122.lib $(ECLIBS) -o secplex.dll
 	[ -d i386_nt ] || mkdir i386_nt
 	mv secplex.dll i386_nt/secplex122.dll
-	#cp $(CPLEX122_SUPPORT_i386_nt) i386_nt/
-	#cp $(CPLEX122_SUPPORT_i386_nt) ../lib/i386_nt/
+	cp $(CPLEX122_SUPPORT_i386_nt) i386_nt/
+	cp $(CPLEX122_SUPPORT_i386_nt) ../lib/i386_nt/
 
 x86_64_nt/secplex121.dll: eplex_cplex.def eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=12 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex121/include/ilcplex -c eplex.c
 	$(DYLD) $(DYNLDFLAGS)  eplex_cplex.def eplex.o $(THIRDPARTY)/cplex121/bin/x64_win64/cplex121.dll $(ECLIBS) -o secplex.dll
 	[ -d x86_64_nt ] || mkdir x86_64_nt
 	mv secplex.dll x86_64_nt/secplex121.dll
-	#cp $(CPLEX121_SUPPORT_x86_64_nt) x86_64_nt/
-	#cp $(CPLEX121_SUPPORT_x86_64_nt) ../lib/x86_64_nt/
+	cp $(CPLEX121_SUPPORT_x86_64_nt) x86_64_nt/
+	cp $(CPLEX121_SUPPORT_x86_64_nt) ../lib/x86_64_nt/
 
 x86_64_nt/secplex122.dll: eplex_cplex.def eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=12 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex122/include/ilcplex -c eplex.c
 	$(DYLD) $(DYNLDFLAGS)  eplex_cplex.def eplex.o $(THIRDPARTY)/cplex122/bin/x64_win64/cplex122.dll $(ECLIBS) -o secplex.dll
 	[ -d x86_64_nt ] || mkdir x86_64_nt
 	mv secplex.dll x86_64_nt/secplex122.dll
-	#cp $(CPLEX122_SUPPORT_x86_64_nt) x86_64_nt/
-	#cp $(CPLEX122_SUPPORT_x86_64_nt) ../lib/x86_64_nt/
+	cp $(CPLEX122_SUPPORT_x86_64_nt) x86_64_nt/
+	cp $(CPLEX122_SUPPORT_x86_64_nt) ../lib/x86_64_nt/
 
 x86_64_linux/secplex90.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c eplex.c
@@ -466,10 +466,9 @@ $(PREFIX)/lib/$(ARCH)/express1601:	$(ARCH)/express1601
 # XPRESS 20
 XPRESS2000 = $(THIRDPARTY)/xosl2000
 XPRESS2000_SUPPORT=
-XPRESS2000_SUPPORT_x86_64_linux =
-#XPRESS2000_SUPPORT_x86_64_linux = \
-#	$(XPRESS2000)/$(ARCH)/lib/libxprs.so \
-#	$(XPRESS2000)/$(ARCH)/lib/libxprl.so
+XPRESS2000_SUPPORT_x86_64_linux = \
+	$(XPRESS2000)/$(ARCH)/lib/libxprs.so \
+	$(XPRESS2000)/$(ARCH)/lib/libxprl.so
 
 $(ARCH)/express2000:	$(XPRESS2000)
 	mkdir -p $@
@@ -584,8 +583,8 @@ $(ARCH)/segurobi$(GUROBI_VERSION).$(OBJ_SUFFIX): eplex.c eplex.h eplex_gurobi.h 
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) -DGUROBI $(CPPFLAGS) $(CFLAGS) -I$(GUROBIDIR)/include -c eplex.c
 	$(DYLD) $(DYNLDFLAGS)  eplex_gurobi.def eplex.o $(GUROBIDIR)/bin/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) $(ECLIBS) -o $@
-	#cp $(GUROBIDIR)/bin/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) $(ARCH)
-	#cp $(GUROBIDIR)/bin/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) ../lib/$(ARCH)
+	cp $(GUROBIDIR)/bin/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) $(ARCH)
+	cp $(GUROBIDIR)/bin/gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) ../lib/$(ARCH)
 
 
 #----------------------------------------------------------------------

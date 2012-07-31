@@ -962,8 +962,8 @@ if [ "$pack_archs" = yes ] ; then
 	#   in the subdirectory $arch/e${SOLVER}
 	for SOLVER in $EPLEX_SOLVERS; do
 	    if test -r lib/$arch/se${SOLVER}.*; then
-		# Note: find is used to find a related subdirectory with aux files, if any
-		packarch $arch if_${SOLVER} "" "lib/*eplex* lib/$arch/*${SOLVER}.* `find lib/$arch -name e${SOLVER}`" "$PRIVATE_FILES"
+		# Note: the solver auxiliary files in $arch/e$SOLVER/ are not packed (not ours!)
+		packarch $arch if_${SOLVER} "" "lib/*eplex* lib/$arch/e${SOLVER}.* lib/$arch/se${SOLVER}.*" "$PRIVATE_FILES"
 	    fi
 	done
 

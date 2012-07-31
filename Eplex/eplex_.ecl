@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.1 2012/07/31 02:17:06 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.2 2012/07/31 13:34:44 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -301,22 +301,29 @@ installed_solver(Solver, Version, File) :-
 % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 % If the external solver is a dynamic library,
-% load it explicitly to avoid PATH problems
+% try to load it explicitly to avoid PATH problems (otherwise fail)
 
-load_external_solver("i386_nt", xpress, Version, "dll") ?- !,
+load_external_solver(Arch, Solver, Version, Suffix) :-
+	( Solver = cplex ; Solver == gurobi ), !,
+        concat_string([Solver,Version,".",Suffix], SolverLibName),
+        ( concat_string([Arch,/,SolverLibName], SolverLib)
+        ; concat_string([Arch,"/e",Solver,Version,/,SolverLibName], SolverLib) ),
+	exists(SolverLib),
+        block(load(SolverLib), abort, fail).
+load_external_solver(Arch, xpress, Version, "dll") ?- !,
 	atom_string(Version, VersionString),
 	( substring(VersionString, "13", 1) ->
-	    concat_string(["i386_nt/express",Version,"/xprs.dll"], SolverLib),
+	    concat_string([Arch,"/express",Version,"/xprs.dll"], SolverLib),
+	    exists(SolverLib),
 	    block(load(SolverLib), abort, fail)
 	;
-	    concat_string(["i386_nt/express",Version,"/xprl.dll"], SolverLib1),
+	    concat_string([Arch,"/express",Version,"/xprl.dll"], SolverLib1),
+	    exists(SolverLib1),
 	    block(load(SolverLib1), abort, fail),
-	    concat_string(["i386_nt/express",Version,"/xprs.dll"], SolverLib2),
+	    concat_string([Arch,"/express",Version,"/xprs.dll"], SolverLib2),
+	    exists(SolverLib2),
 	    block(load(SolverLib2), abort, fail)
 	).
-load_external_solver("i386_nt", cplex, Version, "dll") ?- !,
-        concat_string(["i386_nt/cplex",Version,".dll"], SolverLib),
-        block(load(SolverLib), abort, fail).
 load_external_solver(Arch, xpress, Version, "so") ?-
 	atom_string(Version, VersionString),
 	\+ substring(VersionString, "13", 1), !, % assume this means > 13
@@ -353,7 +360,7 @@ load_external_solver(_, _, _, _).
 	;
 	    printf(log_output, "loading %A %s ... %b", [Solver,Version]),
 	    get_flag(object_suffix, O),
-	    load_external_solver(Arch, Solver, Version, O),
+	    ( load_external_solver(Arch, Solver, Version, O) -> true ; true ),
 	    ( O = "o" ->
 	       concat_string([Arch,/,ObjFile,' -lm'], Load)
 	    ;
