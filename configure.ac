@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.49 2012/07/31 02:17:06 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.50 2012/07/31 21:49:42 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -125,7 +125,7 @@ fi
 
 # Make sure we are using a reasonable CONFIG_SITE file
 if test -r "$CONFIG_SITE"; then
-    if test "$CONFIG_SITE" != "config.$ARCH"; then
+    if echo "$CONFIG_SITE" | grep -v -q "^config.*\.$ARCH"; then
 	AC_MSG_ERROR([Won't use "$CONFIG_SITE" for architecture $ARCH,
 	    change or unset CONFIG_SITE])
     fi
@@ -526,10 +526,6 @@ case "$ARCH" in
     OSTYPE="linux"  
     ;;
  i386_nt)
-    ac_cv_func_select=yes
-    ac_cv_func_gethostname=yes
-    ac_cv_func_getpagesize=yes
-
     OPTIMIZE="sh ../src/opt_i386_linux.sh"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
@@ -543,13 +539,8 @@ case "$ARCH" in
     AC_DEFINE(HAVE_WIN32_WINNT, 0x500)
     OSTYPE="win32"
     OSCLASS="win"
-
     ;;
  x86_64_nt)
-    ac_cv_func_select=yes
-    ac_cv_func_gethostname=yes
-    ac_cv_func_getpagesize=yes
-
     CFLAGS="$CFLAGS"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
@@ -565,7 +556,6 @@ case "$ARCH" in
     AC_DEFINE(HAVE_WIN32_WINNT, 0x500)
     OSTYPE="win64"
     OSCLASS="win"
-
     ;;
  i386_dynix3)
     LOCAL_FLAGS="-DD_LOAD"

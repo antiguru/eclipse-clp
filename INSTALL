@@ -14,7 +14,8 @@ You should have the following environment settings:
 	    sparc_sunos5
 	    i386_sunos5
 	    x86_64_sunos5
-	    i386_nt
+	    i386_nt           ("nt" stands for Windows)
+	    x86_64_nt         ("nt" stands for Windows)
 	    ppc_macosx
 	    i386_macosx
 
@@ -51,9 +52,13 @@ Cross build, e.g. for Windows on Linux:
 Build for Windows on Windows/Cygwin:
 
 	export ARCH=i386_nt
-	cp config.i386_nt config.i386_nt.cross
-	cp config.i386_nt.cygwin config.i386_nt
-	CONFIG_SITE=config.i386_nt ./configure
+	CONFIG_SITE=config_cygwin.i386_nt ./configure
+	make -f Makefile.$ARCH
+
+Build for Windows64 on Windows64/Cygwin:
+
+	export ARCH=x86_64_nt
+	CONFIG_SITE=config_cygwin.x86_64_nt ./configure --build=x86_64-w64-mingw32
 	make -f Makefile.$ARCH
 
 To build the documentation:

@@ -1,7 +1,8 @@
-# This is a site-defaults file for configure
-# It contains defaults cache values for WIN32
-# Kish 2011-02-17: tried to make this file more portable - 
-# change MINGW32ROOT and CROSS for the local configuration
+#
+# Site-defaults file for cross-configure for WIN32 cross-build on Linux
+#
+# Change MINGW32ROOT and CROSS for the local configuration
+#
 
 ECLIPSETOOLS=${ECLIPSETOOLS:-/vol/Eclipse/tools}
 MINGW32ROOT=/usr/local/mingw32
@@ -19,4 +20,9 @@ OBJDUMP=$MINGW32ROOT/bin/$CROSS-objdump
 RESCOMP=$MINGW32ROOT/bin/$CROSS-windres
 RC=$MINGW32ROOT/bin/$CROSS-windres
 OS_INCLUDES="-isystem $MINGW32ROOT/include"
+
+# Cache values for settings that can't be configured when cross-building
+ac_cv_func_select=yes
+ac_cv_func_gethostname=yes
+ac_cv_func_getpagesize=yes
 

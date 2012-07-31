@@ -144,12 +144,12 @@ $(EXAMPLESDIR)/ic-parc.gif: tests/ic-parc.gif
 # convenience rule: does not play a part in make all
 docs: 
 	mkdir -p $(DOCSDIR)
-	$(JAVA_BIN)/javadoc -author -public -d $(DOCSDIR) -sourcepath ./src com.parctechnologies.eclipse
+	"$(JAVA_BIN)/javadoc" -author -public -d $(DOCSDIR) -sourcepath ./src com.parctechnologies.eclipse
 
 
 $(DOCSDIR)/index.html: $(SOURCEDIR)/*
 	mkdir -p $(DOCSDIR)
-	$(JAVA_BIN)/javadoc -author -public -d $(DOCSDIR) -sourcepath ./src com.parctechnologies.eclipse
+	"$(JAVA_BIN)/javadoc" -author -public -d $(DOCSDIR) -sourcepath ./src com.parctechnologies.eclipse
 
 ecoclean:
 	rm -rf joop_boot.eco $(REL_EC_DIR)/lib/joop_boot.eco
@@ -167,8 +167,8 @@ clean:	ecoclean archclean
 
 eclipse.jar: $(SOURCEDIR)/*.java
 	mkdir -p ./classes
-	$(JAVA_BIN)/javac -O -deprecation -d ./classes -sourcepath ./src/ -classpath ./classes/ $(SOURCEDIR)/*.java
-	$(JAVA_BIN)/jar cf eclipse.jar -C classes com
+	"$(JAVA_BIN)/javac" -O -deprecation -d ./classes -sourcepath ./src/ -classpath ./classes/ $(SOURCEDIR)/*.java
+	"$(JAVA_BIN)/jar" cf eclipse.jar -C classes com
 
 
 # libec_java.so
@@ -201,13 +201,13 @@ ifneq "$(OSCLASS)" "win"
 
 $(ARCH)/libec_java.$(OBJECTS_SUFFIX): ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
 	mkdir -p $(ARCH)
-	$(CC) $(CFLAGS) -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OSTYPE) -c ec_java.c
+	$(CC) $(CFLAGS) -I$(REL_EC_DIR)/include/$(ARCH) -I"$(JAVA_HOME)/include" -I"$(JAVA_HOME)/include/$(OSTYPE)" -c ec_java.c
 	$(DYLD) $(DYNLDFLAGS) -L$(REL_EC_DIR)/lib/$(ARCH)  ec_java.o $(RUNPATH_DYLDFLAG). $(GMP_LD) -leclipse -o $(ARCH)/libec_java.$(OBJECTS_SUFFIX)
 	rm ec_java.o
 
 $(ARCH)/libec_java_load.$(OBJECTS_SUFFIX): ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
 	mkdir -p $(ARCH)
-	$(CC) $(CFLAGS) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(OSTYPE) -c ec_java_load.c 
+	$(CC) $(CFLAGS) -I"$(JAVA_HOME)/include" -I"$(JAVA_HOME)/include/$(OSTYPE)" -c ec_java_load.c 
 	$(DYLD) $(DYNLDFLAGS) ec_java_load.o $(LIBC) -o $(ARCH)/libec_java_load.$(OBJECTS_SUFFIX)
 	rm ec_java_load.o
 
@@ -220,8 +220,8 @@ else
 
 $(ARCH)/ec_java.dll: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h 
 	mkdir -p $(ARCH)
-	$(CC) -shared -I$(REL_EC_DIR)/include/$(ARCH) -I$(JAVA_HOME)/include \
-		-I$(JAVA_HOME)/include/win32 -Iinclude/win32 \
+	$(CC) -shared -I$(REL_EC_DIR)/include/$(ARCH) -I"$(JAVA_HOME)/include" \
+		-I"$(JAVA_HOME)/include/win32" -Iinclude/win32 \
 		-D_JNI_IMPLEMENTATION -Wl,--kill-at \
 		-Wl,--output-def,$(ARCH)/ec_java.def \
 		ec_java.c \
@@ -230,8 +230,8 @@ $(ARCH)/ec_java.dll: ec_java.c com_parctechnologies_eclipse_NativeEclipse.h
 
 $(ARCH)/ec_java_load.dll: ec_java_load.c com_parctechnologies_eclipse_NativeEclipse.h 
 	mkdir -p $(ARCH)
-	$(CC) -shared -I$(JAVA_HOME)/include \
-		-I$(JAVA_HOME)/include/win32 -Iinclude/win32 \
+	$(CC) -shared -I"$(JAVA_HOME)/include" \
+		-I"$(JAVA_HOME)/include/win32" -Iinclude/win32 \
 		-D_JNI_IMPLEMENTATION -Wl,--kill-at \
 		-Wl,--output-def,$(ARCH)/ec_java_load.def \
 		ec_java_load.c -o $(ARCH)/ec_java_load.dll
@@ -240,6 +240,6 @@ endif
 
 com_parctechnologies_eclipse_NativeEclipse.h : ./src/com/parctechnologies/eclipse/NativeEclipse.java 
 	mkdir -p ./classes
-	$(JAVA_BIN)/javac ./src/com/parctechnologies/eclipse/NativeEclipse.java -d ./classes
-	$(JAVA_BIN)/javah -jni -classpath ./classes com.parctechnologies.eclipse.NativeEclipse
+	"$(JAVA_BIN)/javac" ./src/com/parctechnologies/eclipse/NativeEclipse.java -d ./classes
+	"$(JAVA_BIN)/javah" -jni -classpath ./classes com.parctechnologies.eclipse.NativeEclipse
 

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.5 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.6 2012/07/31 21:51:46 jschimpf Exp $
  */
 
 /*
@@ -98,6 +98,7 @@ typedef struct {
 
 #ifdef HAVE_SIGPROCMASK
 
+#define If_Have_Sig_Masks(Decl) Decl;
 #define Empty_Sig_Mask(Mask) (void) sigemptyset(&(Mask));
 #define Save_Sig_Mask(Mask) \
 	(void) sigprocmask(SIG_SETMASK, (sigset_t *) 0, &(Mask));
@@ -129,6 +130,7 @@ typedef int sigset_t;
 # define sigmask(n)      (1 << ((n) - 1))
 #endif
 
+#define If_Have_Sig_Masks(Decl) Decl;
 #define Empty_Sig_Mask(Mask) (Mask) = 0;
 #define Save_Sig_Mask(Mask) (Mask) = sigblock(0);
 #define Restore_Sig_Mask(Mask) (void) sigsetmask(Mask);
@@ -144,14 +146,14 @@ typedef int sigset_t;
 
 #else
 
-typedef int sigset_t;
+#define If_Have_Sig_Masks(Decl)
 #define Empty_Sig_Mask(Mask) (Mask) = 0;
 #define Save_Sig_Mask(Mask)
 #define Restore_Sig_Mask(Mask)
 #define Block_Signal(i)
 #define Unblock_Signal(i)
 
-#define Init_Block_Mask() Empty_Sig_Mask(sig_block_mask_)
+#define Init_Block_Mask()
 #define	Add_To_Block_Mask(i)
 #define	Del_From_Block_Mask(i)
 #define Block_Signals(OldMask)
@@ -161,8 +163,8 @@ typedef int sigset_t;
 
 #define Unblock_Signals() Restore_Sig_Mask(initial_sig_mask_)
 
-static sigset_t initial_sig_mask_;	/* normal execution sigmask */
-static sigset_t	sig_block_mask_;	/* what to block on handler invoc */
+If_Have_Sig_Masks(static sigset_t initial_sig_mask_)	/* normal execution sigmask */
+If_Have_Sig_Masks(static sigset_t sig_block_mask_)	/* what to block on handler invoc */
 
 static int	spurious = 0;	/* counts nesting of fatal signals */
 
@@ -314,7 +316,7 @@ static int _enqueue_irq(int n), _dequeue_irq(void);
 static int delayed_interrupt_[NBDELAY];
 static int first_delayed_ = 0, next_delayed_ = 0;
 
-static sigset_t mask_before_blocking_;
+If_Have_Sig_Masks(static sigset_t mask_before_blocking_)
 
 void
 block_signals(void)
@@ -511,7 +513,7 @@ static int
 _dequeue_irq(void)
 {
     int n;
-    sigset_t saved_mask;
+    If_Have_Sig_Masks(sigset_t saved_mask)
 
     Block_Signals(saved_mask);
     if (first_delayed_ != next_delayed_)	/* empty? */

@@ -2833,7 +2833,7 @@ fi
 
 # Make sure we are using a reasonable CONFIG_SITE file
 if test -r "$CONFIG_SITE"; then
-    if test "$CONFIG_SITE" != "config.$ARCH"; then
+    if echo "$CONFIG_SITE" | grep -v -q "^config.*\.$ARCH"; then
 	as_fn_error $? "Won't use \"$CONFIG_SITE\" for architecture $ARCH,
 	    change or unset CONFIG_SITE" "$LINENO" 5
     fi
@@ -3244,10 +3244,6 @@ case "$ARCH" in
     OSTYPE="linux"
     ;;
  i386_nt)
-    ac_cv_func_select=yes
-    ac_cv_func_gethostname=yes
-    ac_cv_func_getpagesize=yes
-
     OPTIMIZE="sh ../src/opt_i386_linux.sh"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
@@ -3258,13 +3254,8 @@ case "$ARCH" in
 
     OSTYPE="win32"
     OSCLASS="win"
-
     ;;
  x86_64_nt)
-    ac_cv_func_select=yes
-    ac_cv_func_gethostname=yes
-    ac_cv_func_getpagesize=yes
-
     CFLAGS="$CFLAGS"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
@@ -3277,7 +3268,6 @@ case "$ARCH" in
 
     OSTYPE="win64"
     OSCLASS="win"
-
     ;;
  i386_dynix3)
     LOCAL_FLAGS="-DD_LOAD"

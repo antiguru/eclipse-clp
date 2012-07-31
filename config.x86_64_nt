@@ -1,7 +1,9 @@
 #
-# This is a site-defaults file for configure
-# It contains defaults cache values for WIN64
+# Site-defaults file for cross-configure for WIN64 cross-build on Linux
 #
+# Change MINGW64ROOT and CROSS for the local configuration
+#
+
 ECLIPSETOOLS=$HOME/tools
 MINGW64ROOT=/usr/local/mingw64
 CROSS=x86_64-w64-mingw32
@@ -18,3 +20,9 @@ OBJDUMP=$MINGW64ROOT/bin/$CROSS-objdump
 RESCOMP=$MINGW64ROOT/bin/$CROSS-windres
 RC=$MINGW64ROOT/bin/$CROSS-windres
 OS_INCLUDES="-isystem $MINGW64ROOT/$CROSS/include"
+
+# Cache values for settings that can't be configured when cross-building
+ac_cv_func_select=yes
+ac_cv_func_gethostname=yes
+ac_cv_func_getpagesize=yes
+
