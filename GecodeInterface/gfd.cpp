@@ -4351,7 +4351,6 @@ int p_g_post_extensional()
 
 
 #define GFDSTATSIZE    5
-#define GFDCONTROLSIZE 2
 
 extern "C" VisAtt
 int p_g_setup_search()
@@ -4507,10 +4506,10 @@ int p_g_setup_search()
 
 	long adaptived = 0, commitd = 0, ithreads;
 	double threads = 1.0;
-	if ((EC_arg(9).functor(&f) == EC_succeed) && (f.arity() == GFDCONTROLSIZE)
+	if ((EC_arg(9).functor(&f) == EC_succeed) 
 	    && (strcmp(f.name(), "gfd_control") == 0)) {
 	  // these positions must correspond to their definition in
-	  // the struct(gdf_contr(...)) in gfd.ecl
+	  // the struct(gdf_control(...)) in gfd.ecl
 	    if (EC_argument(EC_arg(9),1).is_long(&commitd) != EC_succeed)
 	        commitd = 0;  // commit_distance, arg 1
 	    if (EC_argument(EC_arg(9),2).is_long(&adaptived) != EC_succeed)
