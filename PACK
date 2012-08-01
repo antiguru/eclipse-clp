@@ -83,7 +83,7 @@ ALLDIRS="include legal lib lib_tcl lib_public doc man tcltk"
 # Eplex interfaces
 # NOTE: PLEASE UPDATE I386NT_<solver>_PACKAGE WITH LATEST i386_nt 
 #       SOLVER INTERFACES
-I386NT_CPLEX_SOLVER="cplex121"
+I386NT_CPLEX_SOLVER="cplex122"
 I386NT_XPRESS_SOLVER="xpress2000"
 I386NT_CLPCBC_SOLVER="osiclpcbc"
 I386NT_GUROBI_SOLVER="gurobi50"
@@ -100,6 +100,7 @@ PRIVATE_EPLEX_SOLVERS="\
         cplex90 \
 	cplex102 \
 	cplex110 \
+	cplex121 \
 	$I386NT_CPLEX_SOLVER \
 	xpress1427 \
 	xpress1427icp \
