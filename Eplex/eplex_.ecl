@@ -25,14 +25,11 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.2 2012/07/31 13:34:44 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.3 2012/08/08 23:07:42 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
 %	- elimiate cplex_type_code/2 (use atoms)
-%	- method-options should use proper default from global parameters
-%	- don't integer-encode method descriptors
-%	- pass format string to lpwrite
 %	- review role of our own probtype flag (only for probes?)
 
 
@@ -103,9 +100,8 @@
 
 :- export lp_add_indexed/4.     % lp_add_indexed(+Handle, +NormConstraints, +Ints, -Indices)
 :- export lp_add_vars/2.        % lp_add_vars(+Handle, +Vars)
-% added by AE 06/11/02
 :- export lp_add_columns/2.     % lp_add_columns(+Handle, +VarCols)
-% end added by AE
+
 :- export lp_demon/5.		% lp_demon(+Handle, ?Cost, +PreGoal, +PostGoal, +Module)
 :- export lp_demon_setup/5.     % lp_demon_setup(+Objective, ?Cost, +Options,
                                 %	+TriggerModes, -Handle[,+Module])
@@ -184,7 +180,6 @@
 :- export eplex_verify_solution/3. % eplex_verify_solution/2.
 
 :- local struct(constraint_type(integers,reals,linear)).
-:- local struct(bound_info(bound,code,var)).
 :- local struct(probes(obj,sense,ints,rhs,bounds)). % types of probe in lp/eplex_probe
 :- export op(700, xfx, [$>=, $=, $=<, $::]).
 
@@ -380,9 +375,8 @@ load_external_solver(_, _, _, _).
 	external(cplex_set_rhs_coeff/4, p_cpx_set_rhs_coeff),
 	external(cplex_set_obj_coeff/3, p_cpx_set_obj_coeff),
 	external(cplex_set_qobj_coeff/4, p_cpx_set_qobj_coeff),
-	external(cplex_set_type/3, p_cpx_set_type),
-	external(cplex_init_new_col_bounds/4, p_cpx_init_new_col_bounds),
-	external(cplex_new_col_bound/4, p_cpx_new_col_bound),
+	external(cplex_init_type/3, p_cpx_init_type),
+	external(cplex_init_bound/4, p_cpx_init_bound),
 	external(cplex_new_obj_coeff/3, p_cpx_new_obj_coeff),
 	external(cplex_new_qobj_coeff/4, p_cpx_new_qobj_coeff),
 	external(cplex_flush_obj/1, p_cpx_flush_obj),
@@ -408,8 +402,8 @@ load_external_solver(_, _, _, _).
 	external(cplex_add_coeff/4, p_cpx_add_coeff),
 	external(cplex_flush_new_rowcols/2, p_cpx_flush_new_rowcols),
 	external(cplex_set_var_name/3, p_cpx_set_var_name),
-	external(cplex_change_col_type/3, p_cpx_change_col_type),
-	external(cplex_change_lp_to_mip/1, p_cpx_change_lp_to_mip),
+	external(cplex_change_col_type/3, p_cpx_change_col_type),	% bt
+	external(cplex_change_lp_to_mip/1, p_cpx_change_lp_to_mip),	% bt
         external(cplex_change_obj_sense/2, p_cpx_change_obj_sense),
         external(cplex_change_rhs/4, p_cpx_change_rhs),
         external(cplex_change_cols_bounds/5, p_cpx_change_cols_bounds),
@@ -441,9 +435,9 @@ load_external_solver(_, _, _, _).
         external(cplex_matrix_base/1, p_cpx_matrix_base),
         external(cplex_matrix_offset/1, p_cpx_matrix_offset),
 	external(cplex_get_col_type/3, p_cpx_get_col_type),
-	external(cplex_impose_col_lwb/5, p_cpx_impose_col_lwb),
-	external(cplex_impose_col_upb/5, p_cpx_impose_col_upb),
-	external(cplex_impose_col_bounds/7, p_cpx_impose_col_bounds),
+	external(cplex_impose_col_lwb/5, p_cpx_impose_col_lwb),		% bt
+	external(cplex_impose_col_upb/5, p_cpx_impose_col_upb),		% bt
+	external(cplex_impose_col_bounds/7, p_cpx_impose_col_bounds),	% bt
 	external(cplex_get_col_bounds/4, p_cpx_get_col_bounds),
         external(cplex_set_new_cols/6, p_cpx_set_new_cols),
 
@@ -568,7 +562,8 @@ lp_release_license :-
 	setval(licence_data, none).
 lp_release_license.
 
-:- local finalization(lp_release_license).  % cleanup when exiting
+% cleanup when exiting
+:- local finalization(is_predicate(lp_release_license/0) -> lp_release_license ; true).
 
 
 :- pragma(debug).	% allow debugging for the rest of the code
@@ -631,7 +626,7 @@ lp_release_license.
 	    solver_id,          % int: Eplex's id for solver
 	    suspension,		% suspension or variable
             sync_bounds,        % atom: yes,no
-	    nc_trigger,         % atom: yes,no 
+	    nc_trigger,         % atom: yes,no (yes implies nonvar(suspension))
             bd_trigger,         % atom: no,bounds,deviating_bounds
 	    triggermodes,	% list of atoms
 	    aux_susps,          % extra suspensions associated with handle
@@ -852,28 +847,6 @@ lp_var_get_bounds(Handle, V, Lo, Hi) :-
         printf(error, "Eplex error: Invalid problem handle %w:%n", [Handle]),
         error(5, lp_var_get_bounds(Handle, V, Lo, Hi)).
 
-
-% these are considered as constraints: i.e. if the variable is not
-% already a problem variable, it is added to the problem
-
-set_var_bound(Handle, V, Bound0, Sense) :-
-        nonvar(Handle),
-        Handle = prob{solver_id:SId,cplex_handle:CPH,vars:Vars},
-        Bound is float(Bound0),
-        (get_first_var_index(V, SId, I) -> 
-             get_lp_attr(V, Handle, Attr),
-             impose_col_bounds(Handle, Attr, I, Bound, Changed, Sense),
-             schedule_wake_demon_if_bounds_changed(Handle, I, Changed)
-
-        ; 
-             cplex_get_prob_param(CPH, 1, I),
-             set_var_index(V, Handle, I),
-             setarg(vars of prob, Handle, [V|Vars]),
-             setup_new_cols(Handle, [], [], [], [], I, 1, 0),
-             cplex_flush_new_rowcols(Handle, 0),
-             cplex_bound_code(Sense, BCode),
-             cplex_new_col_bound(CPH, I, Bound, BCode)
-        ).
 
 % may exit_block(abort) indicating error
 lp_impose_col_bounds(Handle, Attr, [I|_], Lo, Hi) :-
@@ -1320,7 +1293,7 @@ remove_and_merge_hashed_occurences(end, _, _, _) ?- true.
                 TypeCode = TypeCode1
             ),
             (foreach(I, Idxs), param(Handle,TypeCode) do
-                cplex_change_col_type(Handle, I, TypeCode)
+                cplex_change_col_type(Handle, I, TypeCode)	% backtrackable
             )
         ;
             true /* column types same, no need to change column types */
@@ -1363,21 +1336,18 @@ collect_suspensions_eplex(eplex{intol_inst:S, next:NextAttr},
 
 
 schedule_demon_if_bounds_changed(prob{
-     bd_trigger:TrigCond,cplex_handle:CPH,suspension:Susp,
-     demon_tol_real:RT,demon_tol_int:IT,sols:SolArr}, I, 1) ?-
+	    bd_trigger:TrigCond,cplex_handle:CPH,suspension:Susp,
+	    demon_tol_real:RT,demon_tol_int:IT,sols:SolArr}, I, 1) ?-
         check_if_should_trigger(TrigCond, CPH, RT, IT, SolArr, I),
         !,
         schedule_suspensions(1, s([Susp])).
 schedule_demon_if_bounds_changed(_,_,_).
 
-schedule_wake_demon_if_bounds_changed(prob{ 
-	     bd_trigger:TrigCond,cplex_handle:CPH,suspension:Susp,
-	     demon_tol_real:RT,demon_tol_int:IT,sols:SolArr}, I, 1) ?- 
-        check_if_should_trigger(TrigCond, CPH, RT, IT, SolArr, I),
-        !,
-        schedule_suspensions(1, s([Susp])),
-        wake.
-schedule_wake_demon_if_bounds_changed(_,_,_).
+
+bound_change_requires_scheduling(prob{
+	    bd_trigger:TrigCond,cplex_handle:CPH,
+	    demon_tol_real:RT,demon_tol_int:IT,sols:SolArr}, I) ?-
+        check_if_should_trigger(TrigCond, CPH, RT, IT, SolArr, I).
 
 
 check_if_should_trigger(bounds,_,_,_,_,_).
@@ -1533,30 +1503,7 @@ lp_impose_interval(Vs, Interval, CCType, Pool) :-
                   )
              )
         ;
-             % check for and add new variables to problem
-             Handle = prob{solver_id:SId, cplex_handle:CPH,option_vnames:VNames},
-             filter_and_set_new_vars(Handle, VList, NewVList, OldVs,
-                                     OldCols, NAdded),
-             setup_new_cols(Handle, [], [], [], [], OldCols, NAdded, 0),
-             % initialise intervals for new columns
-             cplex_flush_new_rowcols(Handle, 0),
-             (count(_, 1, NAdded), fromto(NewVList, [NV|NewVs0],NewVs0, _),
-              param(CPH, SId, VNames, Lo, Hi) do
-                 % these are new columns, so should contain only one index
-                 get_unique_var_index(NV, SId, J),
-                 (VNames == yes, var_name:get_var_name(NV, Name) -> 
-                     cplex_set_var_name(CPH, J, Name)
-                 ;
-                     true
-                 ),
-                 cplex_init_new_col_bounds(CPH, J, Lo, Hi)
-             ),
-             % update intervals for old columns (atomically)
-	     call_priority(
-		 (foreach(NV, OldVs), param(Handle, Lo, Hi) do
-		      lp_var_set_bounds(Handle, NV, Lo, Hi)
-		 ),
-		 2)
+	     lp_add_vars_interval(Handle, VList, Lo, Hi)
         ).
 
 lp_real_interval(Vs, Interval, Pool) :-
@@ -1626,25 +1573,10 @@ add_pool_constraint(Cstr, Pool) :-		% used for  =:=  >=  =<
 	normalise_cstr(Cstr, Norm0),
 	!,
 	( get_pool_handle(Handle, Pool) ->
-	    try_propagate_bounds(Handle, Norm0, Norm),		% may fail
-	    ( var(Norm) ->
-		true						% simplified away
-	    ;
-		% add constraint to the solver straight away
-		lp_add_normalised(Handle, [Norm], [], _, NewVars, _),
-		lp_add_var_triggers(Handle, NewVars),
-		( pool_solver_waiting(Pool, Handle, Susp) ->
-		    ( satisfied_now(Norm, Handle) ->  
-			true 
-		    ;
-			schedule_suspensions(1, s([Susp])),	% invoke lpsolver
-			wake
-		    )
-		;
-		   true
-		)
-
-	    )
+	    preprocess_norm_cstr(Norm0, LinCstrs, [], BdCstrs, []),	% may fail
+	    % add constraint to the solver straight away
+	    lp_add_normalised(Handle, LinCstrs, BdCstrs, [], _RowIdxs, TypeChangedVars, ChangedCols),
+	    wake_solver_if_needed(Handle, LinCstrs, TypeChangedVars, ChangedCols)
 	;
 	    % we don't have a solver yet
 	    try_ground_check(Norm0, Norm),			% may fail
@@ -1745,43 +1677,15 @@ lp_add_constraints(Handle, Cstrs, Ints) :-
 	),
 	normalise_cstrs(Cstrs, NormCs0, []), % linear for now
 	!,
-	% this does not try to reach a fixpoint with all simple
-	% constraints removed. Should it?
-	(foreach(Norm0, NormCs0), fromto([], NC0,NC1, NormCs), 
-         param(Handle) do
-	     try_propagate_bounds(Handle, Norm0, Norm),
-	     (var(Norm) -> 
-		   NC0 = NC1     % constraint simplified away
-	     ;
-		   NC1 = [Norm|NC0]
-	     )
+	(
+	    foreach(Norm0, NormCs0),
+	    fromto(NormCs,NC0,NC1,[]),
+	    fromto(BoundCs,BC0,BC1,[])
+	do
+	    preprocess_norm_cstr(Norm0, NC0, NC1, BC0, BC1)
 	),
-
-	lp_add(Handle, NormCs, Ints, _, OldInts),
-
-	% If Handle has a delayed solver, wake it now if registered.
-	% Except if all vars in the new constraints already
-	% have lp solutions which satisfy the constraints
-	% nc_trigger is yes if new_constraint option is enabled
-	( Handle = prob{suspension:Susp, nc_trigger:yes} ->
-	      ((foreach(Norm, NormCs), param(Handle) do
-		    satisfied_now(Norm, Handle)
-	       ) ->
-                   % we still might need to trigger if integer constraints
-                   % were posted for existing variables
-		   (OldInts \== [] ->
-                        schedule_suspensions(1, s([Susp])),
-                        wake
-                   ;
-                        true
-                   )
-	      ;
-		   schedule_suspensions(1, s([Susp])),
-		   wake
-	      )
-	;
-	      true
-	).
+        lp_add_normalised(Handle, NormCs, BoundCs, Ints, _, OldInts, ChangedCols),
+	wake_solver_if_needed(Handle, NormCs, OldInts, ChangedCols).
 lp_add_constraints(Handle, Cstr, Ints) :-
 	error(5, lp_add_constraints(Handle, Cstr, Ints)).
 
@@ -1808,12 +1712,48 @@ add_pool_vars(Handle, _Pool, Xs, []) :-
 lp_add_vars(Handle, Xs) :-
         nonvar(Handle),
         Handle = prob{solver_id:SId, cplex_handle:CPH,option_vnames:VNames},
-        filter_and_set_new_vars(Handle, Xs, NewVList, _OldXs, OldCols, NAdded),
+        filter_and_index_new_vars(Handle, Xs, VarList, _OldXs, OldCols, NAdded),
         setup_new_cols(Handle, [], [], [], [], OldCols, NAdded, 0),
         cplex_flush_new_rowcols(Handle, 0),
-        set_var_names(VNames, NAdded, CPH, SId, NewVList).
-                  
-% Constraints with 2 or more variables and Integers are collected in 
+	% Technically, variables without constraints do not need to trigger
+	% a solver, but it would be difficult to add the triggers later...
+	lp_add_var_triggers(Handle, VarList, NAdded),
+        set_var_names(VNames, NAdded, CPH, SId, VarList).
+
+
+% Add bound constraints to new or old variables. Lo and Hi are floats.
+lp_add_vars_interval(Handle, Xs, Lo, Hi) :-
+        nonvar(Handle),
+	Handle = prob{solver_id:SId, cplex_handle:CPH,option_vnames:VNames},
+	filter_and_index_new_vars(Handle, Xs, VarList, OldVs, OldCols, NAdded),
+
+	% Add new variables with bounds and names
+	% (we could pass bounds right here, but would need lists)
+	setup_new_cols(Handle, [], [], [], [], OldCols, NAdded, 0),
+	% set bounds on new variables
+	(
+	    count(_,1,NAdded),
+	    fromto(VarList,[X|Xs1],Xs1,_),
+	    param(SId,CPH,Lo,Hi)
+	do
+	    get_unique_var_index(X, SId, J),
+	    cplex_init_bound(CPH, J, (>=), Lo),
+	    cplex_init_bound(CPH, J, (=<), Hi)
+	),
+	cplex_flush_new_rowcols(Handle, 0),
+	lp_add_var_triggers(Handle, VarList, NAdded),
+	set_var_names(VNames, NAdded, CPH, SId, VarList),
+
+	% update intervals for old columns
+	( foreach(X, OldVs), param(Handle, Lo, Hi) do
+	    get_lp_attr(X, Handle, Attr),
+	    Attr = eplex{idx: Is},
+	    lp_impose_col_bounds(Handle, Attr, Is, Lo, Hi)
+	),
+	wake.
+
+
+% Constraints with 1 or more variables and Integers are collected in 
 % constraint pool(s). lp_pending/0 is used to indicate that there might
 % be pending constraints in the pools.
 % The auxiliary lp_pending_cleanup/1 delays on 'postponed' and kills
@@ -1853,7 +1793,8 @@ tr_out(lp_pending, Goals) :-
 	     get_typed_pool_constraints(Pool, integers of constraint_type, Integers),
              get_typed_pool_constraints(Pool, reals of constraint_type, Reals),
 	     get_typed_pool_constraints(Pool, linear of constraint_type, NormCstrs),
-             ( Integers == [] -> GsIn=Gs0 ; GsIn=[Pool:integers(Integers)|Gs0]),             ( Reals == [] -> Gs1=Gs0 ; Gs0=[Pool:reals(Reals)|Gs1]),
+             ( Integers == [] -> GsIn=Gs0 ; GsIn=[Pool:integers(Integers)|Gs0]),
+	     ( Reals == [] -> Gs1=Gs0 ; Gs0=[Pool:reals(Reals)|Gs1]),
 	     (fromto(NormCstrs, [NormCstr|NormCstrs1],NormCstrs1, []),
 		fromto(Gs1, [Goal|Goal1],Goal1, GsOut), param(Pool) do
 		    denormalise_cstr(NormCstr, Cstr),
@@ -1876,22 +1817,17 @@ store_integers(NewIntegers, Tail, Pool) :-
         (get_pool_handle(Handle, Pool) -> 
              % if there is a solver store the integer constraint
              Tail = [],
-             lp_add(Handle, [], NewIntegers, NewVars, OldInts),
-             Handle = prob{suspension:Susp, nc_trigger: NCTrigger,triggermodes:VarTriggerModes},
-             ( var(Susp) ->
-                   true
-             ;
-                   var_triggers(VarTriggerModes, Handle, Susp, NewVars),
-                   % wake demon if a old variable is made integer
-                   % and new_constraint trigger condition is defined
-                   (OldInts \== [], NCTrigger == yes ->
-                        schedule_suspensions(1, s([Susp])),
-                        wake
-                   ;
-                        true
-                   )
-             )
-             
+	     lp_add_normalised(Handle, [], [], NewIntegers, _, OldInts, _BdChgs),
+
+             Handle = prob{suspension:Susp, nc_trigger: NCTrigger},
+	     % wake demon if a old variable is made integer
+	     % and new_constraint trigger condition is defined
+	     ( OldInts \== [], NCTrigger == yes ->
+		    schedule_suspensions(1, s([Susp])),
+		    wake
+	     ;
+		    true
+	     )
         ;
 	     set_lp_pending,
              get_typed_pool_constraints(Pool, integers of constraint_type, OldIntegers),
@@ -1902,12 +1838,6 @@ store_integers(NewIntegers, Tail, Pool) :-
 collect_lp_constraints_norm(CstrsNorm) :-
 	collect_typed_pool_constraints(eplex, linear of constraint_type, CstrsNorm).
 
-
-pool_solver_waiting(Pool, Handle, Susp) :-
-	get_pool_item(Pool, Handle), 
-	Handle = prob{nc_trigger:yes, suspension:Susp},
-	is_suspension(Susp).
-	
 
 
 % ----------------------------------------------------------------------
@@ -2171,23 +2101,55 @@ tolerable_range_var(S, Min, Max, CPH, I, RT, IT) :-
 	).
 
 
+% If Handle has a delayed solver, check 4 waking conditions:
+% - We have the 'new_constraint' trigger (nc_trigger=yes) and
+%   not all constraints are satisfied with their current solutions.
+% - We have the 'new_constraint' trigger (nc_trigger=yes) and
+%   any variable had its type changed (integrality imposed)
+% - We have the 'bounds' trigger and any bound changed
+% - We have the 'deviating_bounds' trigger and any bound change
+%   excluded the current solution
+wake_solver_if_needed(Handle, NormCstrs, TypeChangedVars, ChangedCols) :-
+	Handle = prob{suspension:Susp, nc_trigger:NcTrigger},
+	(
+	    is_suspension(Susp),
+	    (
+		NcTrigger == yes,
+		TypeChangedVars = [_|_]
+	    ;
+		NcTrigger == yes,
+		member(Norm, NormCstrs),
+		\+satisfied_now(Norm, Handle)
+	    ;
+		member(I, ChangedCols),
+		bound_change_requires_scheduling(Handle, I)
+	    )
+	->
+	    schedule_suspensions(1, s([Susp])),
+	    wake
+	;
+	    true
+	).
+
+
 % ----------------------------------------------------------------------
 % Preprocessing - treat the trivial constraints:
 % Check the ground ones, turn single-variable constraints into bound updates.
 % ----------------------------------------------------------------------
 
 
-try_propagate_bounds(Handle, NormIn, NormOut) :-
+preprocess_norm_cstr(NormIn, Linears, Linears0, Bounds, Bounds0) :-
 	NormIn = Sense:[Cst*_|Lhs],
 	( Lhs = [] ->			        % ground: check immediately
-	    satisfied(Sense, Cst)
-	; Lhs = [C*X] ->			% single var
-            % update its bound if there is an external solver
-            Bound is -Cst/C,
-	    swap_sense(C, Sense, Sense1),
-	    set_var_bound(Handle, X, Bound, Sense1)  % does not bind X 	
+	    satisfied(Sense, Cst),
+	    Bounds = Bounds0,
+	    Linears = Linears0
+	; Lhs = [_C*_X] ->			% single var
+	    Bounds = [NormIn|Bounds0],
+	    Linears = Linears0
 	;				
-	    NormIn = NormOut
+	    Linears = [NormIn|Linears0],
+	    Bounds = Bounds0
 	).
 
 try_ground_check(NormIn, NormOut) :-
@@ -2199,16 +2161,11 @@ try_ground_check(NormIn, NormOut) :-
 	).
 
 
-    renormalise_and_check_simple([], _, []).
-    renormalise_and_check_simple([Sense:Expr|Cstrs], Handle, RemCstr) :-
+    renormalise_and_check_simple([], [], []).
+    renormalise_and_check_simple([Sense:Expr|Cstrs], RemCstrs, BdCstrs) :-
 	linrenorm(Expr, NormExpr0),
-        try_propagate_bounds(Handle, Sense:NormExpr0, NormOut), % may fail
-        (var(NormOut) ->
-	    RemCstr=RemCstr1            % simplified away
-	;				% general constraint: new row
-	    RemCstr=[NormOut|RemCstr1]
-	),
-	renormalise_and_check_simple(Cstrs, Handle, RemCstr1).
+        preprocess_norm_cstr(Sense:NormExpr0, RemCstrs, RemCstrs1, BdCstrs, BdCstrs1), % may fail
+	renormalise_and_check_simple(Cstrs, RemCstrs1, BdCstrs1).
 
 
 % Process a list of normalised constraints and turn them into matrix
@@ -2217,6 +2174,7 @@ try_ground_check(NormIn, NormOut) :-
 % Ground constraints are checked for consistency and may lead to failure.
 % We also count the true constraints (rows) and the nonzero coefficients.
 
+%process_constraints(+Cstrs, -Rhss, -Bs, +SId, +RowNr0, -RowNr, +NZ0, -NZ, +Colz)
 process_constraints([], [], [], _, Rows, Rows, NonZeros, NonZeros, _).
 process_constraints([Cstr|Cstrs], Rhss, Bs, SId, Rows0, Rows, N0, N, Cols) :-
 	Cstr = Sense:[Cst*_|Lhs],
@@ -2227,14 +2185,11 @@ process_constraints([Cstr|Cstrs], Rhss, Bs, SId, Rows0, Rows, N0, N, Cols) :-
               Bs1 = Bs,
               Rhss1 = Rhss,
               satisfied(Sense, Cst)
-        ; Lhs = [C*X] ->
+        ; Lhs = [_] ->	% collect bounds constraints for later
               Rows1 = Rows0, 
               N1 = N0,
-              Bound is float(Rhs/C),
-              swap_sense(C, Sense, Sense1),
-              cplex_bound_code(Sense1, BCode),
               Rhss = Rhss1,
-              Bs = [bound_info{bound:Bound,code:BCode,var:X}|Bs1]
+	      Bs = [Cstr|Bs1]
 	;
               Rows1 is Rows0+1,
               add_coeffs(Lhs, Cols, SId, Rows0, N0, N1),
@@ -2364,18 +2319,18 @@ low_level_setup(Handle, TempData, CstrNorm) :-
 		},
         TempData = temp_prob{use_copy:UseCopy},       
                                 
-
         % convert constraints into matrix coefficients and rhs
         cplex_matrix_base(MBase), % starting column number
         set_var_indices(VarList, Handle, MBase, _, Cols),
         functor(ColCoeffs, '', Cols),
-        process_constraints(CstrNorm, Rhs, BCs, SId, MBase, Rows, 0, NonZeros, ColCoeffs),
+        process_constraints(CstrNorm, Rhs, BdCstrs, SId, MBase, Rows, 0, NonZeros, ColCoeffs),
         get_flag(tmp_dir, TDir),
         os_file_name(TDir,OSTDir),
         % solver setup, will cleanup on failure
         cplex_prob_init(PreSolve, UseCopy, Rows, Cols, NonZeros, OSTDir,
                         Sense, Handle),
         arg(cplex_handle of prob, Handle, CPH),	% after cplex_prob_init
+	set_initial_bounds(CPH, SId, BdCstrs),	% may fail
         obj_coeffs(LinObjFunct, SId, ObjCoeffs),
         set_obj_coeffs(CPH, ObjCoeffs),
         qobj_coeffs(QuadObjFunct, SId, QuadObjCoeffs),
@@ -2385,117 +2340,126 @@ low_level_setup(Handle, TempData, CstrNorm) :-
         set_mat(CPH, ColCoeffs, 0, 0, Cols),
         set_sos(Handle,TempData),		% may change prob type to MIP
         cplex_loadprob(CPH),
-        (foreach(bound_info{bound:Bound,code:BCode,var:X}, BCs), 
-         param(SId, CPH) do % after loadprob
-            get_first_var_index(X, SId, Idx),
-            cplex_new_col_bound(CPH, Idx, Bound, BCode)
-        ),
         set_var_names(VNames, Cols, CPH, SId, VarList).
 
 
+% ----------------------------------------------------------------------
+% Adding constraints and variables
+% ----------------------------------------------------------------------
 
 lp_add(Handle, Cstr, Integers) :-
         (var(Handle) ; var(Cstr) ; var(Integers)),  !, 
         error(4, lp_add(Handle, Cstr, Integers)).
 lp_add(Handle, Cstr, Integers) :-
-	lp_add(Handle, Cstr, Integers, NewVars, _),
-        lp_add_var_triggers(Handle, NewVars).
+	renormalise_and_check_simple(Cstr, CstrNorm, BdCstrs),
+        lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, _RowIdxs, _TypeChgs, _BdChgs).
+	% don't wake here (as documented - but why?)
 
-lp_add_var_triggers(Handle, NewVars) :-
-	Handle = prob{suspension:Susp, triggermodes:VarTriggerModes},
+
+lp_add_var_triggers(Handle, AllVarsNewFirst, NAdded) :-
+	nonvar(Handle), Handle = prob{suspension:Susp, triggermodes:VarTriggerModes},
 	( var(Susp) ->
 	    true
+	; VarTriggerModes = [] ->
+	    true
 	;
+	    ( count(_,1,NAdded), fromto(AllVarsNewFirst,[X|Xs],Xs,_), foreach(X,NewVars) do
+		true
+	    ),
 	    var_triggers(VarTriggerModes, Handle, Susp, NewVars)
 	).
 
-lp_add(Handle, Cstr, Integers, NewVars, OldInts) :-
-	renormalise_and_check_simple(Cstr, Handle, CstrNorm),
-        lp_add_normalised(Handle, CstrNorm, Integers, _, NewVars, OldInts).
 
-lp_add_normalised(Handle, CstrNorm, Integers, RowIdxs, NewVars, OldIntegers) :-
+% This is the core predicate for adding constraints.
+% It will add CstrNorm as proper rows (without further checking
+% or simplification, even when they are ground or single-variable).
+% The single-variable BdCstrs will be added as bound updates.
+% Integers will be added as integrality constraints.
+% All of {CstrNorm,BdCstrs,Integers} may contain new variables.
+% Returns indices of added rows, new variables, and a list of
+% old variables that had integrality imposed.
+% No waking is done here (but the necessary information is returned).
+% New variables get row indices, but no suspensions.
+
+% lp_add_normalised(+Handle,+CstrNorm,+BdCstrs,+Integers,+SuspendFlag,-RowIdxs,-TypeChanges,-ChangedCols)
+lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, SuspendFlag,
+		RowIdxs, TypeChanges, ChangedCols) :-
 	Handle = prob{cplex_handle:CPH, solver_id:SId, 
 		     ints:ExistingInts,option_vnames:VNames},
 
-        % first we add the new constraints, then the integers
+	% Split single-var constraints into new and old var ones
+	% this must be done before new vars are given indices!
+	filter_new_vars(SId, Integers, NewIntegers, TypeChanges),
+	filter_new_vars_bc(SId, BdCstrs, NewBCs, OldBCs),
+	% make a list that contains at least all new variables
+        term_variables([](CstrNorm,NewBCs,NewIntegers), Vars),
+	% give indices to the new variables (OldCols..OldCols+AddedCols-1)
+	% Varlist will start with AddedCols new variables
+	filter_and_index_new_vars(Handle, Vars, VarList, _, OldCols, AddedCols),
 
-        term_variables([Integers|CstrNorm], Vars),
+	% destroy saved basis, if necessary
+	( AddedCols == 0, CstrNorm == [] -> true ;
+	    clear_result(Handle, cbase of prob),
+	    clear_result(Handle, rbase of prob)
+	),
 
-        ((Vars \== [] ; CstrNorm \== []) ->
-             % we are adding something...
-             clear_result(Handle, cbase of prob),
-             clear_result(Handle, rbase of prob),
+	% allocate and initialise buffer arrays
+	setup_new_cols(Handle, [], [], [], [], OldCols, AddedCols, 0),
+	% set bounds on new variables
+	set_initial_bounds(CPH, SId, NewBCs),	% may fail
 
-             % Check for new variables
-             % note that their bounds will be updated in lp_solve later
+	% update bounds on old variables
+	update_bounds(Handle, SId, OldBCs, ChangedCols),	% may fail
 
-             % this must be done before new vars are given indices!
-             filter_new_vars(SId, Integers, NewIntegers, OldIntegers),
-             filter_and_set_new_vars(Handle, Vars, NewVarList, _, OldCols, AddedCols),
+	( Integers == [] ->
+	    true
+	;
+	    % we need to change problem type first before adding
+	    % integers; as cplex_init_type/3 also sets the
+	    % problem type to MIP (non-backtrackably)
+	    cplex_get_prob_param(CPH, 4, ProbType),
+	    ( cplex_mip_code(ProbType) ->
+		true
+	    ;
+		% need to change from LP->MIP
+		cplex_change_lp_to_mip(Handle)	% backtrackable
+	    ),
+	    % set integer type on new variables
+	    set_type_integer(CPH, SId, NewIntegers),
 
-             setup_new_cols(Handle, [], [], [], [], OldCols, AddedCols, 0),
-             
-             % Now we add integers, which are classified as:
-             %    ExistingInts - existing ints
-             %    Integers - incoming integers, which are divided into:
-             %    OldIntegers - integers for existing prob. vars
-             %     change col type and setup undo type change on backtrack
-             %    NewIntegers - integers for just added vars 
+	    % change old variables to integers
+	   (foreach(Old, TypeChanges), param(Handle,CPH,SId),
+	    % OldIntegers1: existing prob. vars. which were not
+	    % of type integer already
+	    fromto([], OldInts0,OldInts1, OldIntegers1) do
+		get_var_index(Old, SId, Is),	% must exist
+		Is = [FirstI|_],
+		cplex_get_col_type(CPH, FirstI, OldTypeCode),
+		cplex_get_col_bounds(CPH, FirstI, Lo, Hi),
+		cplex_type_code(OldType, OldTypeCode),
+		(OldType \== integer -> 
+		     OldInts1 = [Old|OldInts0],
+		     type_to_cplex_type(integer, Lo, Hi, TypeCode),
+		     (foreach(I, Is), param(Handle,TypeCode) do
+			 cplex_change_col_type(Handle, I, TypeCode)	% backtrackable
+		     )
+		;
+		     OldInts1 = OldInts0 
+		)
+	   ),
+	   append(NewIntegers, ExistingInts, AllIntegers0),
+	   append(OldIntegers1, AllIntegers0, AllIntegers),
+	   setarg(ints of prob, Handle, AllIntegers)
+	),
 
-             cplex_get_prob_param(CPH, 4, ProbType),
+	% new constraints and number of new variables
+	setup_new_rows(CPH, SId, 0, _, CstrNorm, RowIdxs),
+	cplex_flush_new_rowcols(Handle, 0),
+	set_var_names(VNames, AddedCols, CPH, SId, VarList),
+	lp_add_var_triggers(Handle, VarList, AddedCols).
 
-             ( OldIntegers == [], NewIntegers == [] ->
-                   true
-             ;
-                   % we need to change problem type first before adding
-                   % integers; as cplex_set_type/3 also sets the
-                   % problem type to MIP (non-backtrackably)
-                   ((cplex_problem_code(lp, ProbType) ;
-                     cplex_problem_code(qp, ProbType)) ->
-                        % need to change from LP->MIP
-                        cplex_change_lp_to_mip(Handle) 
-                   ;    true
-                   ),
-                   % add new integers
-                   set_type_integer(CPH, SId, NewIntegers),
 
-                   (foreach(Old, OldIntegers), param(Handle,CPH),
-                    % OldIntegers1: existing prob. vars. which were not
-                    % of type integer already
-                    fromto([], OldInts0,OldInts1, OldIntegers1) do
-                        get_lp_attr(Old, Handle, Attr),
-                        Attr = eplex{idx: Is},
-                        Is = [FirstI|_],
-                        cplex_get_col_type(CPH, FirstI, OldTypeCode),
-                        cplex_get_col_bounds(CPH, FirstI, Lo, Hi),
-                        cplex_type_code(OldType, OldTypeCode),
-                        (OldType \== integer -> 
-                             OldInts1 = [Old|OldInts0],
-                             type_to_cplex_type(integer, Lo, Hi, TypeCode),
-                             (foreach(I, Is), param(Handle,TypeCode) do
-                                 cplex_change_col_type(Handle, I, TypeCode)
-                             )
-                            ;
-                             OldInts1 = OldInts0 
-                        )
-                   ),
-
-                   append(NewIntegers, ExistingInts, AllIntegers0),
-                   append(OldIntegers1, AllIntegers0, AllIntegers),
-
-                   setarg(ints of prob, Handle, AllIntegers)
-             ),
-
-             % new constraints and number of new variables
-             setup_new_rows(CPH, SId, 0, _, CstrNorm, RowIdxs),
-             cplex_flush_new_rowcols(Handle, 0),	% takes Prolog handle!!!
-             set_var_names(VNames, AddedCols, CPH, SId, NewVarList) 
-        ;
-             % no new vars or constraints to add...
-             RowIdxs = [],  
-             NewVars = []
-        ).
-
+    % Split var list into new and old (known by solver SId) variables
     :- mode filter_new_vars(+,+,-,-).
     filter_new_vars(_, [], [], []).
     filter_new_vars(SId, [X|Xs], NewXs, OldXs) :-
@@ -2507,12 +2471,25 @@ lp_add_normalised(Handle, CstrNorm, Integers, RowIdxs, NewVars, OldIntegers) :-
 	    filter_new_vars(SId, Xs, NewXs0, OldXs)
 	).
 
-% filter_and_set_new_vars(+Handle, +Xs, -NewVarList, -OldXs, -Index, -NAdded)
+    % Split bound-constraint list into new and old (known by solver SId)
+    :- mode filter_new_vars_bc(+,+,-,-).
+    filter_new_vars_bc(_, [], [], []).
+    filter_new_vars_bc(SId, [BC|BCs], NewBCs, OldBCs) ?-
+	BC = _Sense:[_Rhs,_C*X],
+	( get_var_index(X, SId, _) ->
+	    OldBCs = [BC|OldBCs0],
+	    filter_new_vars_bc(SId, BCs, NewBCs, OldBCs0)
+	;
+	    NewBCs = [BC|NewBCs0],
+	    filter_new_vars_bc(SId, BCs, NewBCs0, OldBCs)
+	).
+
+% filter_and_index_new_vars(+Handle, +Xs, -NewVarList, -OldXs, -Index, -NAdded)
 %   separate the variables in Xs into new and old variables (OldXs). Index
 %   the new variables and add them (in reverse order) to the Handle's 
 %   variable list (NewVarList). NAdded is the number of added variables;
 %   Index is the start index of the added variables (original number of cols)
-filter_and_set_new_vars(Handle, Xs, VarList, OldXs, I0, NAdded) :-
+filter_and_index_new_vars(Handle, Xs, VarList, OldXs, I0, NAdded) :-
         Handle = prob{vars:VarList0, cplex_handle:CPH, solver_id:SId},
         cplex_get_prob_param(CPH, 1, I0),
         ( foreach(X, Xs), fromto(I0, I1,I2, I),
@@ -2585,13 +2562,8 @@ lp_add_indexed(Handle, Cstr, Ints, Indices) :-
         (var(Handle) ; var(Cstr) ; var(Ints)), !,
         error(4, lp_add_indexed(Handle, Cstr, Ints, Indices)).
 lp_add_indexed(Handle, Cstr, Ints, Indices) :-
-	Handle = prob{suspension:Susp, triggermodes:VarTriggerModes},
-	lp_add_normalised(Handle, Cstr, Ints, Indices, NewVars, _),
-	( var(Susp) ->
-	    true
-	;
-	    var_triggers(VarTriggerModes, Handle, Susp, NewVars)
-	).
+	lp_add_normalised(Handle, Cstr, [], Ints, Indices, _, _).
+
 
 /*  Added by AE 22/10/02
  *  VarCols should now be a list of [Var:Col]s, where Col is a list of 
@@ -4196,6 +4168,9 @@ cplex_problem_code(fixedqp, 5).
 cplex_problem_code(relaxedlp, 6).
 cplex_problem_code(relaxedqp, 7).
 
+cplex_mip_code(1).	% mip
+cplex_mip_code(3).	% miqp
+
 % correspondance between linear and quad. problems
 linear_quadratic(lp, qp).
 linear_quadratic(mip, miqp).
@@ -4369,11 +4344,32 @@ set_type_integer(CPH, SId, [X|Xs]) :-
         ( get_unique_var_index(X, SId, J) ->
               cplex_get_col_bounds(CPH, J, Lo, Hi),
               type_to_cplex_type(integer, Lo, Hi, TypeCode),
-              cplex_set_type(CPH, J, TypeCode)
+              cplex_init_type(CPH, J, TypeCode)
 	;
               printf(warning_output, "Eplex warning: integer variable not a problem variable (ignored): %mVw%n", [X])
 	),
 	set_type_integer(CPH, SId, Xs).
+
+% Set initial bounds for new variables from one-variable constraints
+set_initial_bounds(_, _, []).
+set_initial_bounds(CPH, SId, [Sense:[Cst*_,C*X]|BdCstrs]) ?-
+	Bound is float(-Cst/C),
+	swap_sense(C, Sense, Sense1),
+	get_unique_var_index(X, SId, J),
+	cplex_init_bound(CPH, J, Sense1, Bound),
+	set_initial_bounds(CPH, SId, BdCstrs).
+
+% Update bounds for old variables from one-variable constraints.
+% Return list of changed columns.
+update_bounds(_, _, [], []).
+update_bounds(Handle, SId, [Sense:[Cst*_,C*X]|BdCstrs], CCs) ?-
+	Bound is float(-Cst/C),
+	swap_sense(C, Sense, Sense1),
+	get_lp_attr(X, Handle, Attr),
+	Attr = eplex{idx: [I|_]},	%%% enough?
+	impose_col_bounds(Handle, Attr, I, Bound, Changed, Sense1),
+	( Changed==1 -> CCs = [I|CCs1] ; CCs=CCs1 ),
+	update_bounds(Handle, SId, BdCstrs, CCs1).
 
 % synchronise bounds if requested
 sync_bounds_mat(yes, Vars, Handle, CPH) :-
@@ -4983,6 +4979,6 @@ int_tolerance(Tol) :-
 % Try to grab a licence
 % ----------------------------------------------------------------------
 
-:-  ( lp_get_license -> true ; true).
+?- ( is_predicate(lp_get_license/0), lp_get_license -> true ; true).
 
 

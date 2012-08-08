@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.1 2012/07/31 02:17:06 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.2 2012/08/08 23:07:42 jschimpf Exp $
  *
  */
 
@@ -3005,7 +3005,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 		/* check that there are the right number of bds */
 		if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 		/* mark both arrays as "dirty" */
-		lpd->dirtybdflag = (lpd->dirtybdflag & 3);
+		lpd->dirtybdflag |= 3;
 	    }
 	    else /* default upper bounds */
 	    {
@@ -3054,7 +3054,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 		/* check that there are the right number of bds */
 		if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 		/* mark lower bounds array as "dirty" */
-		lpd->dirtybdflag = (lpd->dirtybdflag & 2);
+		lpd->dirtybdflag |= 2;
 	    }
 	}
 	else if (IsList(this)) /* default lower bounds, non-default upper bounds */
@@ -3106,7 +3106,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    /* check that there are the right number of bds */
 	    if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 	    /* mark upper bounds array as "dirty" */
-	    lpd->dirtybdflag = (lpd->dirtybdflag & 1);
+	    lpd->dirtybdflag |= 1;
 	}
 	else /* default bounds */
 	{
@@ -3203,7 +3203,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 		/* check that there are the right number of bds */
 		if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 		/* mark both arrays as "dirty" */
-		lpd->dirtybdflag = (lpd->dirtybdflag & 3);
+		lpd->dirtybdflag |= 3;
 	    }
 	    else /* default upper bounds */
 	    {
@@ -3238,7 +3238,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 		/* check that there are the right number of bds */
 		if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 		/* mark lower bounds array as "dirty" */
-		lpd->dirtybdflag = (lpd->dirtybdflag & 2);
+		lpd->dirtybdflag |= 2;
 	    }
 	}
 	else if (IsList(this)) /* default lower bounds, non-default upper bounds */
@@ -3274,7 +3274,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    /* check that there are the right number of bds */
 	    if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 	    /* mark upper bounds array as "dirty" */
-	    lpd->dirtybdflag = (lpd->dirtybdflag & 1);
+	    lpd->dirtybdflag |= 1;
 	}
 	else /* default bounds */
 	{
@@ -3338,7 +3338,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 
 
 int
-p_cpx_set_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype)
+p_cpx_init_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype)
 {
     lp_desc *lpd; 
     int j;
@@ -3379,6 +3379,47 @@ p_cpx_set_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype)
     Succeed_;
 }
 
+
+/* Set bounds for new variables in buffer arrays.
+ * Used for initial setup and for adding variables.
+ */
+int
+p_cpx_init_bound(value vlp, type tlp, value vj, type tj, value vwhich, type twhich, value vval, type tval)
+{
+    lp_desc *lpd; 
+    int j;
+    double bd;
+
+    LpDescOnly(vlp, tlp, lpd);
+    Check_Integer(tj);
+    Check_Atom(twhich);
+    Check_Float(tval);
+    bd = Dbl(vval);
+
+    j = vj.nint;
+    if (j >= lpd->mac) { Bip_Error(RANGE_ERROR); }
+    if (j >= lpd->macadded) j -= lpd->macadded; /* added col */
+
+    if (vwhich.did == d_le) {		/* upper bound */
+	if (bd < lpd->bdl[j]) { Fail; }
+	if (bd < lpd->bdu[j]) { lpd->bdu[j] = bd; lpd->dirtybdflag |= 1; }
+
+    } else if (vwhich.did == d_ge) {	/* lower bound */
+	if (bd > lpd->bdu[j]) { Fail; }
+	if (bd > lpd->bdl[j]) { lpd->bdl[j] = bd; lpd->dirtybdflag |= 2; }
+
+    } else if (vwhich.did == d_eq) {	/* both bounds */
+	if (bd < lpd->bdl[j]  ||  lpd->bdu[j] < bd) { Fail; }
+	lpd->bdl[j] = lpd->bdu[j] = bd;
+	lpd->dirtybdflag |= 3;
+
+    } else {
+	Bip_Error(RANGE_ERROR);
+    }
+    Succeed_;
+}
+
+
 /*----------------------------------------------------------------------*
  * Retrieving variable type and bounds
  *----------------------------------------------------------------------*/
@@ -3412,7 +3453,7 @@ p_cpx_get_col_type(value vlp, type tlp, value vj, type tj, value vtype, type tty
 }
 
 /*----------------------------------------------------------------------*
- * Updating variable bounds
+ * Updating objective
  *----------------------------------------------------------------------*/
 
 static void
@@ -3475,130 +3516,6 @@ _grow_cb_arrays(lp_desc * lpd, int with_index2)
 	    lpd->cb_index2 = 0;
 	}
     }
-}
-
-/* cplex_init_new_col_bounds(CPH, J, Lo, Hi)
-   initialises the bounds of a new column J that is to be added to the
-    matrix to lower bound Lo and upper bound Hi.
-*/
-int
-p_cpx_init_new_col_bounds(value vlp, type tlp, 
-			  value vj, type tj, 
-			  value vlo, type tlo, 
-			  value vhi, type thi)
-{
-    lp_desc *lpd; 
-    double bds[2];
-    int j;
-
-    Check_Integer(tj);
-    Check_Float(thi);
-    Check_Float(tlo);
-    LpDescOnly(vlp, tlp, lpd);
-    j = vj.nint;
-
-    if (j >= lpd->mac) { Bip_Error(RANGE_ERROR); }
-
-    bds[0] = Dbl(vlo);
-    bds[1] = Dbl(vhi);
-    if (bds[0] > bds[1]) { Fail; }
-    if (bds[1] > CPX_INFBOUND)  bds[1] =  CPX_INFBOUND;
-    if (bds[0] < -CPX_INFBOUND) bds[0] = -CPX_INFBOUND;
-
-    if (bds[0] == bds[1]) 
-    {
-	Log2({
-	    int j = %d;\n\
-	    double bds = %.15e;\n\
-	    CPXchgbds(cpx_env, lpd->lp, 1, &j, "B", &bds);
-	}, j, bds[0]);
-
-	CPXchgbds(cpx_env, lpd->lp, 1, &j, "B", bds);
-    }
-    else
-    {
-	int idx[2];
-	idx[0] = j;
-	idx[1] = j;
-	Log4({
-	    int idx[2];\n\
-	    double bds[2];\n\
-            idx[0] = %d;\n\
-	    idx[1] = %d;\n\
-            bds[0] = %.15e;\n\
-            bds[1] = %.15e;\n\
-	    CPXchgbds(cpx_env, lpd->lp, 2, idx, "LU", bds);
-	}, j, j, bds[0], bds[1]);
-
-	CPXchgbds(cpx_env, lpd->lp, 2, idx, "LU", bds);
-    }
-    Succeed;
-}
-
-/* cplex_new_col_bound(CPH, J, Bound, Which) 
-   updates the Which bound (-ve = lower, 0 = both, +ve = upper) of an
-   existing column J in the solver matrix
-*/
-int
-p_cpx_new_col_bound(value vlp, type tlp, 
-		    value vj, type tj, 
-		    value vbd, type tbd, 
-		    value vwhich, type twhich)
-{
-    lp_desc *lpd; 
-    double newbd, lo0, hi0;
-    int j;
-    char which[1]; 
-
-    Check_Integer(tj);
-    Check_Integer(twhich);
-    Check_Float(tbd);
-    LpDesc(vlp, tlp, lpd);
-
-    which[0] =  (char) 0;
-    j = vj.nint;
-
-    if (j >= lpd->mac) { Bip_Error(RANGE_ERROR); }
-    newbd = Dbl(vbd);
-
-    CPXupdatemodel(lpd->lp);	/* make sure types and bounds are up-to-date */
-    Get_Col_Bounds(j, lo0, hi0);
-    if (vwhich.nint <= 0) /* lower bound */
-    {
-	if (newbd > hi0) { Fail;}
-	if (newbd > lo0) which[0] = 'L';
-    }
-    if (vwhich.nint >= 0) /* upper bound */
-    {
-	if (newbd < lo0) { Fail; }
-	if (newbd < hi0) which[0] = (which[0] == 'L' ? 'B' : 'U');
-    }
-    if (which[0] != 0) 
-    {
-	Log3({
-	    int j = %d;\n\
-	    double newbd = %.15e;\n\
-	    CPXchgbds(cpx_env, lpd->lp, 1, &j, "%c", &newbd);
-	}, j, newbd, which[0]);
-
-	CPXchgbds(cpx_env, lpd->lp, 1, &j, which, &newbd);
-#ifdef HAS_SAMEBOUNDSBUG
-	/* workaround for Xpress 14 bug: if both bounds are set to the same
-           value, then the solution value can be returned incorrectly as 0.0.
-           Workaround: create a small interval around the actual bound so
-           that the two bounds are not the same
-	*/
-	if (which[0] == 'B')
-	{/* 1e-8 seems small enough and works */
-	    newbd += 1e-8;
-	    CPXchgbds(cpx_env, lpd->lp, 1, &j, "U", &newbd);
-	    newbd -= 2e-8;
-	    CPXchgbds(cpx_env, lpd->lp, 1, &j, "L", &newbd);
-	}
-#endif	    
-    }
-
-    Succeed;
 }
 
 
