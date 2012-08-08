@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex.ecl,v 1.1 2012/07/31 02:17:06 jschimpf Exp $
+% Version:	$Id: eplex.ecl,v 1.2 2012/08/08 23:08:43 jschimpf Exp $
 
 %------------------------------------------------------------------------
 :- module(eplex_).
@@ -38,31 +38,39 @@
 :- comment(categories, ["Constraints","Interfacing"]).
 :- comment(summary, "Interface to external Simplex or MIP solvers").
 :- comment(author, "Joachim Schimpf and Kish Shen").
-:- comment(date, "$Date: 2012/07/31 02:17:06 $").
+:- comment(date, "$Date: 2012/08/08 23:08:43 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(include, eplex_comments).
 
-:- reexport eplex_ except
+:- reexport eplex_ except	% except predicates with pool argument
 	add_constraint/1,
 	lp_eq/3,
 	lp_ge/3,
 	lp_le/3,
         lp_interval/3,
-        lp_int_interval/3,
         lp_real_interval/3,
         reals/2,
         integers/2,
+	suspend_on_change/3,
+	get_changeable_value/3,
 	lp_var_non_monotonic_set_bounds/4,
+	piecewise_linear_hull/4,
+	eplex_add_constraints/3,
         eplex_get/3,
 	eplex_cleanup/1,
 	eplex_probe/3,
 	eplex_solve/2,
+	eplex_solver_setup/2,
+	eplex_solver_setup_cbody/5, 
+	eplex_solver_setup_cbody/6, % obsolete
 	eplex_var_get/4,
+        eplex_var_get_bounds/4,
         eplex_set/3,
         eplex_read/3,
+	eplex_verify_solution/3,
         eplex_write/3,
-        eplex_get_iis/6.
+        eplex_get_iis/5.
 
 :- eplex_instance(eplex).
 
