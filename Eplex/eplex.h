@@ -112,13 +112,13 @@ typedef struct {
                                    current (or matrix number for logging) */
 #endif
 
-    int         start_mac;       /* initial number of valid columns */
     /* here we collect the input parameters for cplex */
     int		prob_type;
     int		presolve;       /* presolve for problem */
     int		sense;		/* objective sense min=1, max=-1 */
-    int		mac;		/* number of  valid colunms */
-    int		macadded;	/* columns already added to problem */
+    int		mac;		/* number of valid colunms */
+    int		macadded;	/* columns already added to solver */
+    int         start_mac;      /* initial number of valid columns */
     int		mar;		/* number of valid rows */
     int		matnz;		/* used nonzeros in column-wise nz arrays */
     int		macsz;          /* size of column buffer arrays */
