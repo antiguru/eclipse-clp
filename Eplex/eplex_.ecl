@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.3 2012/08/08 23:07:42 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.4 2012/08/09 22:43:28 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -2382,8 +2382,7 @@ lp_add_var_triggers(Handle, AllVarsNewFirst, NAdded) :-
 % New variables get row indices, but no suspensions.
 
 % lp_add_normalised(+Handle,+CstrNorm,+BdCstrs,+Integers,+SuspendFlag,-RowIdxs,-TypeChanges,-ChangedCols)
-lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, SuspendFlag,
-		RowIdxs, TypeChanges, ChangedCols) :-
+lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, RowIdxs, TypeChanges, ChangedCols) :-
 	Handle = prob{cplex_handle:CPH, solver_id:SId, 
 		     ints:ExistingInts,option_vnames:VNames},
 
@@ -3359,7 +3358,7 @@ fill_in_defaults(prob{ints:Ints, method:Method, aux_method:AuxMethod,
 	( var(RT) -> RT = 0.00001 ; true ),	%%% preliminary
 	( var(IT) -> IT = 0.5 ; true ),
 	( var(Ints) -> Ints = [] ; true ),
-        ( var(CPMap) -> CPMap = "" ; true), % no solved state yeto
+        ( var(CPMap) -> CPMap = "" ; true), % no solved state yet
         ( var(TO) -> getval(timeout_default,TO) ; true ),  
 	( var(PreSolve) -> getval(presolve_default,PreSolve) ; true),
 	( var(VNames) -> VNames = no ; true),
