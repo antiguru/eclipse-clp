@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.11 2010/07/25 13:29:04 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.12 2012/08/09 14:17:54 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2010/07/25 13:29:04 $").
+:- comment(date, "$Date: 2012/08/09 14:17:54 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -626,7 +626,7 @@ handle_ifdef(if(Cond), ThisPos, NextPos, Kind, SourceTerm0, SourceTerm) ?- !,
 	    update_struct(source_position, [ifdefs:Nesting1], ThisPos, ThisPos1),
 	    source_read(ThisPos1, NextPos, Kind, SourceTerm)
 	;
-	    skip_to_conditional(ThisPos, NextDir),
+	    skip_to_conditional(ThisPos, NextDir, Module),
 	    ( NextDir == endif ->
 		source_read(ThisPos, NextPos, Kind, SourceTerm)
 	    ; NextDir == else ->
@@ -644,9 +644,9 @@ handle_ifdef(if(Cond), ThisPos, NextPos, Kind, SourceTerm0, SourceTerm) ?- !,
 handle_ifdef(Else, ThisPos, NextPos, Kind, _, SourceTerm) :-
 	nonvar(Else), (Else=else;Else=elif(_)),
 	!,
-	( ThisPos = source_position{ifdefs:[then|Nesting]} ->
+	( ThisPos = source_position{ifdefs:[then|Nesting],module:Module} ->
 	    % we were reading a then/elif-part and found else/elif
-	    skip_to_endif(ThisPos, NextDir),
+	    skip_to_endif(ThisPos, NextDir, Module),
 	    ( NextDir == endif ->
 		update_struct(source_position, [ifdefs:Nesting], ThisPos, ThisPos1),
 		source_read(ThisPos1, NextPos, Kind, SourceTerm)
@@ -913,51 +913,51 @@ skip_to_fullstop(Stream) :-
 	).
 
 
-skip_to_endif(ThisPos, NextDir) :-
-	skip_to_conditional(ThisPos, NextDir0),
+skip_to_endif(ThisPos, NextDir, Module) :-
+	skip_to_conditional(ThisPos, NextDir0, Module),
 	( is_else_directive(:-NextDir0) ->
-	    skip_to_endif(ThisPos, NextDir)
+	    skip_to_endif(ThisPos, NextDir, Module)
 	;
 	    NextDir = NextDir0
 	).
 
 % Skip to elif/1, else/0, endif/0 or end_of_file
-skip_to_conditional(source_position{stream:Stream}, NextDir) :-
-	skip_to_conditional(Stream, 0, NextDir).
+skip_to_conditional(source_position{stream:Stream}, NextDir, Module) :-
+	skip_to_conditional(Stream, 0, NextDir, Module).
 
-skip_to_conditional(Stream, Nesting, NextDir) :-
+skip_to_conditional(Stream, Nesting, NextDir, Module) :-
 	% suppress syntax errors in the skipped code
 	get_stream(error, OldError),
 	set_stream(error, null),
-	skip_to_conditional1(Stream, Nesting, NextDir),
+	skip_to_conditional1(Stream, Nesting, NextDir, Module),
 	set_stream(error, OldError).
 
-    skip_to_conditional1(Stream, Nesting, NextDir) :-
-	( read(Stream, Term) ->
+    skip_to_conditional1(Stream, Nesting, NextDir, Module) :-
+	( read(Stream, Term)@Module ->
 	    ( Term == end_of_file ->
 		unget(Stream),
 		NextDir = end_of_file
 	    ; Term == (:-endif) ->
 		( Nesting > 0 ->
 		    Nesting1 is Nesting-1,
-		    skip_to_conditional1(Stream, Nesting1, NextDir)
+		    skip_to_conditional1(Stream, Nesting1, NextDir, Module)
 		;
 		    NextDir = endif
 		)
 	    ; is_if_directive(Term) ->
 		Nesting1 is Nesting+1,
-		skip_to_conditional1(Stream, Nesting1, NextDir)
+		skip_to_conditional1(Stream, Nesting1, NextDir, Module)
 	    ; is_else_directive(Term) ->
 		( Nesting > 0 ->
-		    skip_to_conditional1(Stream, Nesting, NextDir)
+		    skip_to_conditional1(Stream, Nesting, NextDir, Module)
 		;
 		    Term = (:-NextDir)
 		)
 	    ;
-		skip_to_conditional1(Stream, Nesting, NextDir)
+		skip_to_conditional1(Stream, Nesting, NextDir, Module)
 	    )
 	;
-	    skip_to_conditional1(Stream, Nesting, NextDir)
+	    skip_to_conditional1(Stream, Nesting, NextDir, Module)
 	).
 
     is_if_directive(:-if(_)) ?- true.
