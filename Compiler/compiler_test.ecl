@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.22 2010/07/25 13:29:04 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.23 2012/08/10 21:50:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1094,8 +1094,16 @@ testclause(true(12), [(p(X) :- q(X),true)]).
 testclause(true(13), [(p :- (true;true),(true;true))]).	% bug 662
 testclause(true(14), [(p :- a,(true;true))]).		% bug 662
 testclause(true(15), [(p :- true,sepia_kernel:var(_),b)]).	% keep
-testclause(true(16), [(p :- true,_:var(_),b)]).
+testclause(true(16), [(p :- true,_:var(_),b)]).	% keep
 testclause(true(17), [(p :- true,sepia_kernel:nl,b)]).
+testclause(true(18), [(p :- true,(a;b))]).	% keep
+testclause(true(19), [(p :- true,(a->b))]).	% keep
+testclause(true(20), [(p :- true,(a->b;c))]).	% keep
+testclause(true(21), [(p :- true,once(a))]).	% keep
+testclause(true(22), [(p :- true,\+(a))]).	% keep
+testclause(true(23), [(p :- true,not(a))]).	% keep
+testclause(true(24), [(p :- true,(4>3)@lists)]).	% keep
+testclause(true(25), [(p :- true,writeln(hello)@lists)]).
 
 % Inlined builtins
 testclause(bip(type_tests), [

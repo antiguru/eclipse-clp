@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.21 2011/04/08 07:07:33 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.22 2012/08/10 21:50:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2011/04/08 07:07:33 $").
+:- comment(date, "$Date: 2012/08/10 21:50:34 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -349,12 +349,17 @@ normalize_goal(G, AnnG, _, _, _, _, _, _, _, _, LM, _) :-
 
 
     % Hack: check whether a preceding true/0 can be eliminated
-    starts_regular((G,_), LM) ?- !,
-	starts_regular(G, LM).
-    starts_regular(LM:G, _LM) ?- !,
-        ( var(LM) -> true ; starts_regular(G, LM) ).
+    % Fail for simple goals, control constructs, and when in doubt.
+    starts_regular((G,_), LM) ?- !, starts_regular(G, LM).
+    starts_regular(LM:G, _LM) ?- !, ( var(LM) -> true ; starts_regular(G, LM) ).
+    starts_regular(G@CM, LM) ?- !, ( var(CM) -> true ; starts_regular(G, LM) ).
     starts_regular(!, _) ?- !, fail.
     starts_regular(cut_to(_), _) ?- !, fail.
+    starts_regular((_;_), _) ?- !, fail.
+    starts_regular((_->_), _) ?- !, fail.
+    starts_regular(not(_), _) ?- !, fail.
+    starts_regular(\+(_), _) ?- !, fail.
+    starts_regular(once(_), _) ?- !, fail.
     starts_regular(Goal, LM) :-
 	callable(Goal),
 	current_module(LM),

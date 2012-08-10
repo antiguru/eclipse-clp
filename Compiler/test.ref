@@ -11256,6 +11256,164 @@ label(L0):
 	callf                    sepia_kernel : nl / 0     Y[] 
 	chain                    b / 0 
 
+------ Test true(18) -------
+p :-
+	true,
+	(
+	    a
+	;
+	    b
+	).
+
+p / 0:
+label(L0):
+	allocate                 0 
+	callf                    true / 0     Y[] 
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	chain                    a / 0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     Y[] 
+label(L3):
+	chain                    b / 0 
+label(L4):
+	ret                  
+
+------ Test true(19) -------
+p :-
+	true,
+	(
+	    a
+	->
+	    b
+	).
+
+p / 0:
+label(L0):
+	allocate                 1 
+	callf                    true / 0     Y[] 
+	savecut                  y(1) 
+	callf                    a / 0     Y[1] 
+	cut                      y(1)     0 
+	chain                    b / 0 
+
+------ Test true(20) -------
+p :-
+	true,
+	(
+	    a
+	->
+	    b
+	;
+	    c
+	).
+
+p / 0:
+label(L0):
+	allocate                 1 
+	callf                    true / 0     Y[] 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	callf                    a / 0     Y[1] 
+	cut                      y(1)     0 
+	chain                    b / 0 
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     Y[] 
+label(L3):
+	chain                    c / 0 
+label(L4):
+	ret                  
+
+------ Test true(21) -------
+p :-
+	true,
+	once a.
+
+p / 0:
+label(L0):
+	allocate                 1 
+	callf                    true / 0     Y[] 
+	savecut                  y(1) 
+	callf                    a / 0     Y[1] 
+	cut                      y(1)     0 
+	exit                 
+
+------ Test true(22) -------
+p :-
+	true,
+	\+ a.
+
+p / 0:
+label(L0):
+	allocate                 1 
+	callf                    true / 0     Y[] 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	callf                    a / 0     Y[1] 
+	cut                      y(1)     0 
+	failure              
+	deallocate           
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     Y[] 
+label(L3):
+	deallocate           
+label(L4):
+	ret                  
+
+------ Test true(23) -------
+p :-
+	true,
+	not a.
+
+p / 0:
+label(L0):
+	allocate                 1 
+	callf                    true / 0     Y[] 
+	savecut                  y(1) 
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	callf                    a / 0     Y[1] 
+	cut                      y(1)     0 
+	failure              
+	deallocate           
+	branch                   ref(L4) 
+label(L2):
+	trust_me_inline          0     Y[] 
+label(L3):
+	deallocate           
+label(L4):
+	ret                  
+
+------ Test true(24) -------
+p :-
+	true,
+	(4 > 3) @ lists.
+
+p / 0:
+label(L0):
+	allocate                 0 
+	callf                    true / 0     Y[] 
+	put_integer              a(1)     4 
+	put_integer              a(2)     3 
+	bi_gt                    a(1)     a(2)     lists     48 
+	exit                 
+
+------ Test true(25) -------
+p :-
+	true,
+	writeln(hello) @ lists.
+
+p / 0:
+label(L0):
+	put_atom                 a(1)     hello 
+	put_atom                 a(2)     lists 
+	jmp                      sepia_kernel : writeln_body / 2 
+
 ------ Test bip(type_tests) -------
 p(A) :-
 	free(A).
