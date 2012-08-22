@@ -376,6 +376,8 @@ from ic_kernel.
     ],
     summary: "Vars' domain is the real numbers.",
     see_also: [integers/1, _:reals/1],
+    kind: [constraint],
+
 %    fail_if: "variables already a non-number.",
     desc: html("<P>
    Constrain the domain of the variables to be the real numbers.  This is
@@ -402,6 +404,7 @@ from ic_kernel.
     summary: "Vars' domain is the integer numbers.",
     see_also: [reals/1, _:integers/1],
 %    fail_if: "variables already a non-integer.",
+    kind: [constraint],
     desc: html("<P>
    Constrain the variables to integer values.  Note that this declaration is
    implicit when specifiying an integer interval, e.g. in <TT>Y :: 0..99</TT>.</P>
@@ -1046,6 +1049,7 @@ summary:   "Handler to retrieve suspensions from the ic attribute"
     ],
     summary: "Constrain Vars to be integral and have the domain Domain.",
     see_also: [(::)/2, ($::)/2],
+    kind: [constraint],
     desc: html("<P>
    Like ::/2, but constrains Vars to take only integer values from the given
    domain.
@@ -1060,6 +1064,7 @@ summary:   "Handler to retrieve suspensions from the ic attribute"
     ],
     summary: "Constrain Vars to have the domain Domain.",
     see_also: [(::)/2, (#::)/2],
+    kind: [constraint],
     desc: html("<P>
    Like ::/2, but does not perform any type analysis on the domain and does
    not enforce integrality on the variables even if the domain specified has
@@ -1075,6 +1080,7 @@ summary:   "Handler to retrieve suspensions from the ic attribute"
     ],
     summary: "Constrain Vars to have the domain Domain.",
     see_also: [integers/1, reals/1, _:(::)/2, (::)/3, (#::)/2, ($::)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains Vars to take only integer or real values from the domain
    specified by Domain.  Vars may be a variable or a collection of variables
@@ -1148,6 +1154,7 @@ Yes (0.00s cpu)
     ],
     summary: "Reflect into Bool the truth of Var having the domain Domain.",
     see_also: [integers/1, reals/1, _:(::)/2, (::)/2],
+    kind: [constraint],
     desc: html("<P>
    Provides a reified form of the ::/2 domain assignment predicate.  This
    reified ::/3 is defined only to work for one variable and only integer
@@ -1215,6 +1222,7 @@ Yes (0.00s cpu)
     summary: "Reflect into Bool the truth of Var having the domain"
              " Domain. Does not impose integrality.",
     see_also: [integers/1, reals/1, _:($::)/2, ($::)/2, (::)/3],
+    kind: [constraint],
     desc: html("<P>
    Provides a reified form of the $::/2 domain assignment predicate.  This
    reified $::/3 is defined only to work for one variable and real 
@@ -1270,6 +1278,7 @@ Yes (0.00s cpu)
     ],
     summary: "Reflect into Bool the truth of Var having the domain Domain.",
     see_also: [integers/1, reals/1, _:(#::)/2, (#::)/2, (::)/3],
+    kind: [constraint],
     desc: html("<P>
    Provides a reified form of the #::/2 domain assignment predicate.  This
    reified #::/3 is defined only to work for one variable and only integer
@@ -1340,6 +1349,7 @@ Yes (0.00s cpu)
     ],
     summary: "ExprX is equal to ExprY.",
     see_also: [(=:=)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX and ExprY to be equal.  Alternate form of
    ic:(ExprX =:= ExprY).
@@ -1354,6 +1364,7 @@ Yes (0.00s cpu)
     ],
     summary: "ExprX is less than or equal to ExprY.",
     see_also: [(=<)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be less than or equal to ExprY.  Alternate form of
    ic:(ExprX =< ExprY).
@@ -1368,6 +1379,7 @@ Yes (0.00s cpu)
     ],
     summary: "ExprX is strictly less than ExprY.",
     see_also: [(<)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be strictly less than ExprY.  Alternate form of
    ic:(ExprX < ExprY).
@@ -1382,6 +1394,7 @@ Yes (0.00s cpu)
     ],
     summary: "ExprX is greater than or equal to ExprY.",
     see_also: [(>=)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be greater than or equal to ExprY.  Alternate form of
    ic:(ExprX >= ExprY).
@@ -1396,6 +1409,7 @@ Yes (0.00s cpu)
     ],
     summary: "ExprX is strictly greater than ExprY.",
     see_also: [(>)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be strictly greater than ExprY.  Alternate form of
    ic:(ExprX > ExprY).
@@ -1410,6 +1424,7 @@ Yes (0.00s cpu)
     ],
     summary: "ExprX is not equal to ExprY.",
     see_also: [(=\=)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX and ExprY to not be equal.  Alternate form of
    ic:(ExprX =\\= ExprY).
@@ -1426,6 +1441,7 @@ Yes (0.00s cpu)
     summary: "ExprX is equal to ExprY.",
     see_also: [(<)/2, (=<)/2, (>=)/2, (>)/2, (=\=)/2,
                (#=)/2, (=:=)/3, _:(=:=)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX and ExprY to be equal.
 ")
@@ -1442,6 +1458,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is equal to ExprY.",
     see_also: [(<)/3, (=<)/3, (>=)/3, (>)/3, (=\=)/3,
                (#=)/3, (=:=)/2, _:(=:=)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1468,6 +1485,7 @@ Yes (0.00s cpu)
     summary: "ExprX is greater than or equal to ExprY.",
     see_also: [(<)/2, (=<)/2, (=:=)/2, (>)/2, (=\=)/2,
                (#>=)/2, (>=)/3, _:(>=)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be greater than or equal to ExprY.</P>
 ")
@@ -1484,6 +1502,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is greater than or equal to ExprY.",
     see_also: [(<)/3, (=<)/3, (=:=)/3, (>)/3, (=\=)/3,
                (#>=)/3, (>=)/2, _:(>=)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1510,6 +1529,7 @@ Yes (0.00s cpu)
     summary: "ExprX is strictly greater than ExprY.",
     see_also: [(<)/2, (=<)/2, (=:=)/2, (>=)/2, (=\=)/2,
                (#>)/2, (>)/3, _:(>)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be strictly greater than ExprY.</P>
 ")
@@ -1526,6 +1546,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is strictly greater than ExprY.",
     see_also: [(<)/3, (=<)/3, (=:=)/3, (>=)/3, (=\=)/3,
                (#>)/3, (>)/2, _:(>)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1552,6 +1573,7 @@ Yes (0.00s cpu)
     summary: "ExprX is less than or equal to ExprY.",
     see_also: [(<)/2, (=:=)/2, (>=)/2, (>)/2, (=\=)/2,
                (#=<)/2, (=<)/3, _:(=<)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be less than or equal to ExprY.</P>
 ")
@@ -1568,6 +1590,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is less than or equal to ExprY.",
     see_also: [(<)/3, (=:=)/3, (>=)/3, (>)/3, (=\=)/3,
                (#=<)/3, (=<)/2, _:(=<)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1594,6 +1617,7 @@ Yes (0.00s cpu)
     summary: "ExprX is strictly less than ExprY.",
     see_also: [(=<)/2, (=:=)/2, (>=)/2, (>)/2, (=\=)/2,
                (#<)/2, (<)/3, _:(<)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be strictly less than ExprY.</P>
 ")
@@ -1610,6 +1634,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is strictly less than ExprY.",
     see_also: [(=<)/3, (=:=)/3, (>=)/3, (>)/3, (=\=)/3,
                (#<)/3, (<)/2, _:(<)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1636,6 +1661,7 @@ Yes (0.00s cpu)
     summary: "ExprX is not equal to ExprY.",
     see_also: [(<)/2, (=<)/2, (>=)/2, (>)/2, (=:=)/2,
                (#\=)/2, (=\=)/3, _:(=\=)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX and ExprY to be different.
 ")
@@ -1652,6 +1678,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is not equal to ExprY.",
     see_also: [(<)/3, (=<)/3, (>=)/3, (>)/3, (=:=)/3,
                (#\=)/3, (=\=)/2, _:(=\=)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1679,6 +1706,7 @@ Yes (0.00s cpu)
     summary: "ExprX is equal to ExprY (with integrality constraints).",
     see_also: [(#<)/2, (#=<)/2, (#>=)/2, (#>)/2, (#\=)/2,
                (=:=)/2, (#=)/3, _:(#=)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX and ExprY to be equal.  Also constrains all variables
    appearing in ExprX and ExprY to be integral and checks that all constants
@@ -1700,6 +1728,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is equal to ExprY (with integrality constraints).",
     see_also: [(#<)/3, (#=<)/3, (#>=)/3, (#>)/3, (#\=)/3,
                (=:=)/3, (#=)/2, _:(#=)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1726,6 +1755,7 @@ Yes (0.00s cpu)
     summary: "ExprX is greater than or equal to ExprY (with integrality constraints).",
     see_also: [(#<)/2, (#=<)/2, (#=)/2, (#>)/2, (#\=)/2,
                (>=)/2, (#>=)/3, _:(#>=)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be greater than or equal to ExprY.  Also constrains
    all variables appearing in ExprX and ExprY to be integral and checks that
@@ -1748,6 +1778,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is greater than or equal to ExprY (with integrality constraints).",
     see_also: [(#<)/3, (#=<)/3, (#=)/3, (#>)/3, (#\=)/3,
                (>=)/3, (#>=)/2, _:(#>=)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1774,6 +1805,7 @@ Yes (0.00s cpu)
     summary: "ExprX is less than or equal to ExprY (with integrality constraints).",
     see_also: [(#<)/2, (#=)/2, (#>=)/2, (#>)/2, (#\=)/2,
                (=<)/2, (#=<)/3, _:(#=<)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be less than or equal to ExprY.  Also constrains all
    variables appearing in ExprX and ExprY to be integral and checks that all
@@ -1795,6 +1827,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is less than or equal to ExprY (with integrality constraints).",
     see_also: [(#<)/3, (#=)/3, (#>=)/3, (#>)/3, (#\=)/3,
                (=<)/3, (#=<)/2, _:(#=<)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1821,6 +1854,7 @@ Yes (0.00s cpu)
     summary: "ExprX is strictly greater than ExprY (with integrality constraints).",
     see_also: [(#<)/2, (#=<)/2, (#=)/2, (#>=)/2, (#\=)/2,
                (>)/2, (#>)/3, _:(#>)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be greater than ExprY.  Also constrains all variables
    appearing in ExprX and ExprY to be integral and checks that all constants
@@ -1838,6 +1872,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is strictly greater than ExprY (with integrality constraints).",
     see_also: [(#<)/3, (#=<)/3, (#=)/3, (#>=)/3, (#\=)/3,
                (>)/3, (#>)/2, _:(#>)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1864,6 +1899,7 @@ Yes (0.00s cpu)
     summary: "ExprX is less than ExprY (with integrality constraints).",
     see_also: [(#=<)/2, (#=)/2, (#>=)/2, (#>)/2, (#\=)/2,
                (<)/2, (#<)/3, _:(#<)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be less than ExprY.  Also constrains all variables
    appearing in ExprX and ExprY to be integral and checks that all constants
@@ -1882,6 +1918,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is less than ExprY (with integrality constraints).",
     see_also: [(#=<)/3, (#=)/3, (#>=)/3, (#>)/3, (#\=)/3,
                (<)/3, (#<)/2, _:(#<)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1908,6 +1945,7 @@ Yes (0.00s cpu)
     summary: "ExprX is not equal to ExprY (with integrality constraints).",
     see_also: [(#<)/2, (#=<)/2, (#=)/2, (#>=)/2, (#>)/2,
                (=\=)/2, (#\=)/3, _:(#\=)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains ExprX to be not equal to ExprY.  Also constrains all variables
    appearing in ExprX and ExprY to be integral and checks that all constants
@@ -1930,6 +1968,7 @@ Yes (0.00s cpu)
     summary: "Reified ExprX is not equal to ExprY (with integrality constraints).",
     see_also: [(#<)/3, (#=<)/3, (#=)/3, (#>=)/3, (#>)/3,
                (=\=)/3, (#\=)/2, _:(#\=)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -2001,6 +2040,7 @@ Yes (0.00s cpu)
     ],
     summary: "Constrains all elements of a list to be pairwise different.",
     see_also: [(#\=)/2, _:alldifferent/1, collection_to_list/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains all elements of a collection to be pairwise different (and
    integral).  Effectively imposes #\\= constraints on every pair of
@@ -2144,6 +2184,7 @@ Yes (0.00s cpu)
     ],
     summary: "Constrains Max to be the largest element in Vars.",
     see_also: [min/2, collection_to_list/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains Max to be the largest element in the collection of variables
    or numbers Vars.</P><P>
@@ -2163,6 +2204,7 @@ Yes (0.00s cpu)
     ],
     summary: "Constrains Min to be the smallest element in Vars.",
     see_also: [max/2, collection_to_list/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains Max to be the smallest element in the collection of variables
    or numbers Vars.</P><P>
@@ -2182,6 +2224,7 @@ Yes (0.00s cpu)
     ],
     summary: "Constrains Max to be the largest element in Vars.",
     see_also: [max/2, min/2, collection_to_list/2],
+    kind: [constraint],
     desc: html("<P>
    This predicate is obsolete.  Use <TT>max/2</TT> instead.
 ")
@@ -2197,6 +2240,7 @@ Yes (0.00s cpu)
     ],
     summary: "Constrains Min to be the smallest element in Vars.",
     see_also: [min/2, max/2, collection_to_list/2],
+    kind: [constraint],
     desc: html("<P>
    This predicate is obsolete.  Use <TT>min/2</TT> instead.
 ")
@@ -2213,6 +2257,7 @@ Yes (0.00s cpu)
     summary: "Constraints ConX and ConY must both be true.",
     see_also: [(and)/3, (neg)/1, (neg)/2, (or)/2, (or)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to BX $= (ConX), BY $= (ConY), BX + BY #= 2</P>
    <P>
@@ -2233,6 +2278,7 @@ Yes (0.00s cpu)
     summary: "Bool is the reified truth of both constraints ConX and ConY being true.",
     see_also: [(and)/2, (neg)/1, (neg)/2, (or)/2, (or)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to BX $= (ConX), BY $= (ConY), Bool #= (BX + BY #= 2)</P>
    <P>
@@ -2254,7 +2300,7 @@ Yes (0.00s cpu)
     see_also: [(or)/3, (neg)/1, (neg)/2, (and)/2, (and)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
     desc: html("<P>
-   Equivalent to BX $= (ConX), BY $= (ConY), BX + BY #>= 1</P>
+   Equivalent to BX $= (ConX), BY $= (ConY), BX + BY #&gt;= 1</P>
    <P>
    The two constraints are reified in such a way that at least one must be
    true.  ConX and ConY must be constraints that have a corresponding
@@ -2273,8 +2319,9 @@ Yes (0.00s cpu)
     summary: "Bool is the reified truth of at least one of the constraints ConX or ConY being true.",
     see_also: [(or)/2, (neg)/1, (neg)/2, (and)/2, (and)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint],
     desc: html("<P>
-   Equivalent to BX $= (ConX), BY $= (ConY), Bool #= (BX + BY #>= 1)</P>
+   Equivalent to BX $= (ConX), BY $= (ConY), Bool #= (BX + BY #&gt;= 1)</P>
    <P>
    The two constraints are reified in such a way that Bool reflects the
    truth of at least one being true.  ConX and ConY must be constraints that
@@ -2293,8 +2340,9 @@ Yes (0.00s cpu)
     summary: "Constraint ConX being true implies ConY must both be true.",
     see_also: [(=>)/3, (neg)/1, (neg)/2, (or)/2, (or)/3, (and)/2,
                (and)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint],
     desc: html("<P>
-   Equivalent to BX $= (ConX), BY $= (ConY), BX #=< BY</P>
+   Equivalent to BX $= (ConX), BY $= (ConY), BX #=&lt; BY</P>
    <P>
    The two constraints are reified in such a way that ConX being true
    implies that ConY must also be true.  ConX and ConY must be constraints
@@ -2313,8 +2361,9 @@ Yes (0.00s cpu)
     summary: "Bool is the reified truth of constraint ConX implying the truth of ConY.",
     see_also: [(=>)/2, (neg)/1, (neg)/2, (or)/2, (or)/3, (and)/2,
                (and)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint],
     desc: html("<P>
-   Equivalent to BX $= (ConX), BY $= (ConY), Bool #= (BX #=< BY)</P>
+   Equivalent to BX $= (ConX), BY $= (ConY), Bool #= (BX #=&lt; BY)</P>
    <P>
    The two constraints are reified in such a way that Bool is true if ConX
    being true implies that ConY must also be true.  ConX and ConY must be
@@ -2333,6 +2382,7 @@ Yes (0.00s cpu)
     summary: "Constraints Con is negated.",
     see_also: [(and)/2, (and)/3, (neg)/2, (or)/2, (or)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to 0 $= (Con)</P>
    <P>
@@ -2351,6 +2401,7 @@ Yes (0.00s cpu)
     summary: "Bool is the logical negation of the reified truth constraints Con.",
     see_also: [(and)/2, (and)/3, (neg)/1, (or)/2, (or)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to B $= (Con), Bool #= 1-B</P>
    <P>
@@ -2371,6 +2422,7 @@ Yes (0.00s cpu)
 	],
 	resat:"No.",
 	fail_if:"Fails if Value is not the Index'th element of List.",
+        kind: [constraint],
 	desc:html("This constraint can be used in a variety of programs to state a
    relation between two domain variables.  List is a list of integers and
    the constraint states that its Index'th element is equal to Value, i.e.
@@ -2410,6 +2462,7 @@ Yes (0.00s cpu)
     ],
     summary: "Arc-consistent implementation of X #= Y + C.",
     see_also: [(#=)/2],
+    kind: [constraint],
     desc: html("<P>
    This constraint implements an arc-consistent version of X #= Y + C (i.e.
    any \"holes\" in the domain of X are propagated to Y and vice-versa).<P>
@@ -2431,6 +2484,7 @@ args:["X":"Parameter/domain of the piecewise function",
      ],
 summary: "Relates X and Y according to a piecewise linear function.",
 see_also: [piecewise_linear_hull/3, collection_to_list/2],
+kind: [constraint],
 desc: html("<P>
    This predicate imposes the constraint Y = f(X), where f is a piecewise
    linear function defined by Points.  Points must be (after processing by

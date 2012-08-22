@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_edge_finder.ecl,v 1.1 2006/09/23 01:53:31 snovello Exp $
+% Version:	$Id: generic_edge_finder.ecl,v 1.2 2012/08/22 01:12:15 kish_shen Exp $
 %
 % Description:		Generic Edge-finder, quadratic algorithm
 %
@@ -44,6 +44,7 @@
            ],
   summary: "Constrain the tasks with specified start times and durations to not overlap in time.",
   see_also: [disjunctive_bools/3, collection_to_list/2, _:disjunctive/2],
+  kind: [constraint:[root:[ic,edge_finder:fd]]],
   desc:    html("\
 <P>
     A disjunctive scheduling constraint. StartTimes and Durations are
@@ -74,6 +75,7 @@ disjunctive(Starts, Durations) :-
            ],
   summary: "Constrain the tasks with specified start times and durations to not overlap in time.",
   see_also: [disjunctive/2, collection_to_list/2, _:disjunctive_bools/3],
+  kind: [constraint:[root:[ic,edge_finder:fd]]],
   desc:    html("\
 <P>
     A disjunctive scheduling constraint. StartTimes and Durations are
@@ -132,6 +134,7 @@ disjunctive_bools(Starts, Durations, Bools) :-
          ],
   summary: "Cumulative constraint on specified tasks.",
   see_also: [disjunctive/2, cumulative/5, collection_to_list/2, _:cumulative/4],
+  kind: [constraint:[root:[ic,edge_finder:fd]]],
   desc:    html("\
 <P>
    A cumulative scheduling constraint. StartTimes, Durations and Resources
@@ -172,6 +175,7 @@ cumulative(Starts, Durations, Resources, Cap) :-
          ],
   summary: "Cumulative constraint on specified tasks.",
   see_also: [disjunctive/2, cumulative/4, collection_to_list/2, _:cumulative/5],
+  kind: [constraint:[root:[ic,edge_finder:fd]]],
   desc:    html("\
 <P>
    In this variant, an area (the product of duration and resource usage of

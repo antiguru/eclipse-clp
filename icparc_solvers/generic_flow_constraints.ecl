@@ -333,6 +333,7 @@ inverse
               ],
         summary: "Constrains elements of Succ to be the successors and"
                  " Pred to be the predecessors of nodes in a digraph",
+        kind:[constraint:[root:[ic,fd]]],
         desc: html("\
 <P>
      Succ and Pred are list of N elements, representing a digraph of N nodes,

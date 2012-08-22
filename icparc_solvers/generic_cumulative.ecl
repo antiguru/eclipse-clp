@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_cumulative.ecl,v 1.1 2006/09/23 01:53:31 snovello Exp $
+% Version:	$Id: generic_cumulative.ecl,v 1.2 2012/08/22 01:12:15 kish_shen Exp $
 %
 % This file is intended to be used 'include'd into specialised modules
 % which must declare certain key interface predicates (possibly via
@@ -33,7 +33,7 @@
 %
 % ECLiPSe LIBRARY MODULE		
 %
-% $Id: generic_cumulative.ecl,v 1.1 2006/09/23 01:53:31 snovello Exp $
+% $Id: generic_cumulative.ecl,v 1.2 2012/08/22 01:12:15 kish_shen Exp $
 %
 % Emacs :      --*-prolog-*--
 % File  :       cumulative.pl
@@ -62,6 +62,7 @@
          ],
   summary: "Cumulative constraint on specified tasks.",
   see_also: [profile/4, collection_to_list/2, _:cumulative/4],
+  kind: [constraint:[root:[ic,cumulative:fd]]],
   desc:    html("\
 <P>
    A cumulative scheduling constraint. StartTimes, Durations and Resources
@@ -85,6 +86,7 @@
          ],
   summary: "Cumulative constraint on specified tasks.",
   see_also: [cumulative/4, collection_to_list/2],
+  kind: [constraint:[root:[ic,cumulative:fd]]],
   desc:    html("\
 <P>
    StartTimes, Durations and Resources are collections (a la

@@ -71,6 +71,7 @@ alldifferent
                           amode:alldifferent(+),
                           args:["L":"List of integers or domain"
                                     " variables, or a collection a la collection_to_list/2"],
+                          kind:[constraint:[root:[ic,fd]]],
                           desc:html("This predicate implements a GAC"
                                     " (generalized arc consistency)"
                                     " version of the alldifferent"
@@ -483,6 +484,7 @@ GCC with fixed bounds
               ],
         summary:"Constrain the cardinality of each Value specified in Bound's"
                 " gcc(Low,High,Value) to be between Low and High in Vars",
+        kind:[constraint:[root:[ic,fd]]],
         desc:html("\
 <P>
     This constraint ensures that the cardinality (the number of occurrences)
@@ -633,6 +635,7 @@ SAME
               ],
         summary: "Vars1 and Vars2 are constrained to be a permutation of each"
                  " other in the values taken by the variables.",
+        kind:[constraint:[root:[ic,fd],extra:[gccat:same]]],
         desc: html("\
 <P>
     This constraint ensures that the values taken by the variables in Vars1
@@ -778,6 +781,7 @@ inverse
               ],
         summary: "Constrains elements of Succ to be the successors and"
                  " Pred to be the predecessors of nodes in a digraph",
+        kind:[constraint:[root:[ic,fd]]],
         desc: html("\
 <P>
      Succ and Pred are list of N elements, representing a digraph of N nodes,
@@ -879,6 +883,7 @@ lex_le/2, lex_lt/2
 	"List1":"List of integers or domain variables",
 	"List2":"List of integers or domain variables"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
 	I.e.  either is the first element of List1 strictly smaller
@@ -911,6 +916,7 @@ lex_le(XVector,YVector):-
 	"List1":"List of integers or domain variables",
 	"List2":"List of integers or domain variables"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
 	I.e.  either is the first element of List1 strictly smaller

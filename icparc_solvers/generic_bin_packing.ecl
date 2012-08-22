@@ -36,6 +36,7 @@
        see_also:[bin_packing/3, cumulative/4],
        summary:"The one-dimensional bin packing constraint: packing M items"
                " into N bins",
+       kind:[constraint:[root:[ic,fd]]],
        desc: html("\
    This constraint is for one-dimensional bin-packing, that is, to pack M
    items with individual sizes into N bins, such that the sum of sizes of 
@@ -78,6 +79,7 @@ bin_packing(Items,Sizes,N,BinSize):-
        see_also:[bin_packing/4],
        summary:"The one-dimensional bin packing constraint with loads: packing "
                "M items into N bins, each bin having a load",
+       kind:[constraint:[root:[ic,fd]]],
        desc: html("\
    This constraint is for one-dimensional bin-packing, that is, to pack M
    items with individual sizes into N bins, such that the sum of sizes of

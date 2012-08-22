@@ -197,6 +197,7 @@
     ],
     summary: "Vars' domain is the integer numbers (within default bounds).",
     see_also: [_:integers/1],
+    kind: [constraint],
 %    fail_if: "variables already a non-integer.",
     desc: html("<P>
    Constrain the variables to integer values.  If any variable is a non-domain
@@ -216,6 +217,7 @@
     ],
     summary: "Succeeds iff Term is an GFD domain variable.",
     fail_if: "Var is not an GFD domain variable.",
+    kind:[varq],
     desc: html("<P>
    Test if the term Term is an GFD domain variable.  Succeed if it is, fail
    otherwise.</P>
@@ -234,6 +236,7 @@
     ],
     summary: "Succeeds iff Term is an GFD domain variable.",
     fail_if: "Var is not an GFD domain variable.",
+    kind:[varq],
     desc: html("<P>
    Test if the term Term is an GFD domain variable. This is an alias for
    is_solver_var/1 in GFD.
@@ -252,6 +255,7 @@
     ],
     summary: "Succeeds iff Term is a GFD domain variable or an integer.",
     fail_if: "Var is not a GFD domain variable or an integer.",
+    kind:[varq],
     desc: html("<P>
    Test if the term Term is a GFD domain variable or an integer.
    Succeed if it is, fail otherwise.</P>
@@ -274,6 +278,7 @@
     see_also: [get_min/2, get_max/2, 
 		get_integer_bounds/3, get_finite_integer_bounds/3,
 		get_delta/2, get_median/2],
+    kind:[varq],
     desc: html("<P>
    Primitive for retrieving the upper and lower bounds of Var.  Lo and Hi
    return the minimum and maximum (respectively) of the variable's interval.
@@ -299,6 +304,7 @@
 %    fail_if: "Var is not a variable or an integer.",
     see_also: [get_bounds/3, 
 		get_integer_bounds/3, get_finite_integer_bounds/3],
+    kind:[varq],
     desc: html("<P>
    Primitive for retrieving the lower bound of Var.  Lo returns the minimum
    of the variable's interval. If Var has not been declared before, it
@@ -320,6 +326,7 @@
 %    fail_if: "Var is not a variable or an integer.",
     see_also: [get_bounds/3, 
 		get_integer_bounds/3, get_finite_integer_bounds/3],
+    kind:[varq],
     desc: html("<P>
    Primitive for retrieving the upper bound of Var.  Hi returns the maximum
    of the variable's interval. If Var has not been declared before, it
@@ -341,6 +348,7 @@
     summary: "Retrieve the current bounds of Var.",
 %    fail_if: "Var is not a variable or an integer.",
     see_also: [get_bounds/3, get_finite_integer_bounds/3],
+    kind:[varq],
     desc: html("<P>
    This is provided for compatibility with IC, and is an alias for 
    get_bounds/3.</P>
@@ -359,6 +367,7 @@
     summary: "Retrieve the current (finite, integral) bounds of Var.",
 %    fail_if: "Var is not a variable or a number.",
     see_also: [get_bounds/3, get_integer_bounds/3],
+    kind:[varq],
     desc: html("<P>
    This is provided for compatibility with IC, and is an alias for 
    get_bounds/3.</P>
@@ -375,6 +384,7 @@
     ],
     summary: "Size is the number of integer elements in the GFD domain for Var",
     see_also: [get_delta/2],
+    kind:[varq],
     desc: html("<P>
    If Var is an GFD domain variable, Size will be set to the number of 
    integer values in the domain of Var.  If Var is a number, then Size 
@@ -409,6 +419,7 @@ X = X{[1 .. 5, 10]}
 D = [1 .. 5, 10]
 
 ",
+    kind:[varq],
     desc: html("<P>
    If Var is an integer, Domain will be unified with a singleton list
    with that integer.</P><P>
@@ -448,6 +459,7 @@ X = X{[1 .. 5, 10]}
 D = [1, 2, 3, 4, 5, 10]
 
 ",      
+    kind:[varq],
     desc: html("<P>
    If Var is a GFD domain variable, DomainList will be set to an ordered
    list containing each element in the domain of Var.  If Var is a number,
@@ -471,6 +483,7 @@ D = [1, 2, 3, 4, 5, 10]
     ],
     summary: "Returns the median of the domain of the GFD domain variable Var.",
     see_also: [get_delta/2, get_bounds/3],
+    kind:[varq],
     desc: html("<P>
    Returns the median of the domain of Var, i.e. if there are N values in
    the domain, the N/2'th (rounded down if N is odd) value is returned.
@@ -511,6 +524,7 @@ M = 3
     ],
     summary: "Returns the width of the interval of Var.",
     see_also: [get_median/2, get_bounds/3],
+    kind:[varq],
     desc: html("<P>
    Returns the width (Hi - Lo) of the interval of Var. If Var is an integer,
    0 will be returned as the width. If Var is free, then 1.0Inf is
@@ -533,10 +547,11 @@ M = 3
     amode: (get_constraints_number(?, -) is det),
     args: [
 	"Var":   "A variable or a term",
-	"Degree": "Variable (instantiates to a non-negative integer)"
+	"Number": "Variable (instantiates to a non-negative integer)"
     ],
     summary: "Returns the number of propagators attached to the gecode"
              " variable representing Var.",
+    kind:[varq],
     desc: html("<P>
    Returns the number of propagators attached to the gecode variable
    representing Var, This approximates the number of constraints attach
@@ -567,7 +582,8 @@ M = 3
 	"Var":   "A domain variable",
 	"WD": "Current wighted degree for variable"
     ],
-    summary: "Returns the weighted degree of an existing domain variable Var.",
+    summary: "Returns the weighted degree of domain variable Var.",
+    kind:[varq],
     desc: html("<P>
    Returns the weighted degree for a domain variable. Weighted degree is call 
    AFC (accumulated failure count) in Gecode, and is a count of the number of 
@@ -595,6 +611,7 @@ M = 3
 	"Regret": "Regret value"
     ],
     summary: "Returns the regret value for the lower bound of Var.",
+    kind:[varq],
     desc: html("<P>
    Returns the regret value for the lower bound of the variable, that is, 
    the magnitude of the difference between the lowest and second lowest value 
@@ -618,6 +635,7 @@ M = 3
 	"Regret": "Regret value"
     ],
     summary: "Returns the regret value for the upper bound of Var.",
+    kind:[varq],
     desc: html("<P>
    Returns the regret value for the upper bound of the variable, that is, 
    the magnitude of the difference between the largest and second largest 
@@ -640,6 +658,7 @@ M = 3
     summary: "Succeeds iff Val is in the domain of Var",
     exceptions:[5: "Val is not an integer"],
     see_also:[is_in_domain/3],
+    kind:[varq],
     desc: html("<P>
    Low level predicate which succeeds when Val is in the domain of Var.
 </P><P>
@@ -659,6 +678,7 @@ M = 3
     summary: "Binds Result to indicate presence of Val in domain of Var",
     exceptions:[5: "Val is not an integer"],
     see_also:[is_in_domain/2],
+    kind:[varq],
     desc: html("<P>
    Low level predicate which succeeds when Val is in the domain of Var with
    Result bound to the atom 'yes'.  When Val is not in the domain of Var,
@@ -679,6 +699,7 @@ M = 3
     ],
     summary: "Constrain Vars to have the domain Domain.",
     see_also: [(::)/2],
+    kind: [constraint],
     desc: html("<P>
    Alias of ::/2. See ::/2 for more details.
 </P><P>
@@ -694,6 +715,7 @@ M = 3
     ],
     summary: "Constrain Vars to have the domain Domain.",
     see_also: [integers/1, _:(::)/2, (::)/3, (#::)/2, ($::)/2],
+    kind: [constraint],
     desc: html("<P>
    Constrains Vars to take only values from the domain specified by Domain.  
    Vars may be a variable or a collection of variables (as accepted by 
@@ -749,6 +771,7 @@ Y = Y{[-1 .. 10, 21]}
     ],
     summary: "Reflect into Bool the truth of Var having the domain Domain.",
     see_also: [_:(::)/2, (::)/2],
+    kind: [constraint],
     desc: html("<P>
    Provides a reified form of the ::/2 domain assignment predicate.  This
    reified ::/3 is defined only to work for one variable (unlike ::/2).
@@ -807,6 +830,7 @@ X = X{[-1000000 .. 1000000]}
     ],
     summary: "Reflect into Bool the truth of Var having the domain Domain.",
     see_also: [_:(::)/2, (::)/3],
+    kind: [constraint],
     desc: html("<P>
   An alias for ::/3. See ::/3 for more details.</P>
 </P><P>
@@ -826,6 +850,7 @@ X = X{[-1000000 .. 1000000]}
     summary: "ExprX is equal to ExprY.",
     see_also: [(#<)/2, (#=<)/2, (#>=)/2, (#>)/2, (#\=)/2,
                (#=)/3, _:(#=)/2],
+    kind: [constraint:[extra:[gccat:eq]]],
     eg: "
 [eclipse 28]: A :: [1,3,5,7], A #= B.
 
@@ -861,6 +886,10 @@ B = B{[0, 2, 4, 6]}
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'eq'. Here the constraint is defined
+   between two domain variables rather than two expressions.
+</P><P>
    This constraint is also defined for IC and FD solvers in lib(ic) and 
    lib(fd), with slight differences in what is allowed in the expressions. 
    In addition, no consistency level is defined in the case of IC and FD, 
@@ -878,6 +907,7 @@ B = B{[0, 2, 4, 6]}
     summary: "Reified ExprX is equal to ExprY.",
     see_also: [(#<)/3, (#=<)/3, (#>=)/3, (#>)/3, (#\=)/3,
                (#=)/2, _:(#=)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -921,6 +951,7 @@ B = B{[0, 2, 4, 6]}
     summary: "ExprX is greater than or equal to ExprY.",
     see_also: [(#<)/2, (#=<)/2, (#=)/2, (#>)/2, (#\=)/2,
                (#>=)/3, _:(#>=)/2],
+    kind: [constraint:[extra:[gccat:geq]]],
     desc: html("<P>
    Constrains ExprX to be greater than or equal to ExprY.  Also constrains
    all variables appearing in ExprX and ExprY to be domain variables and 
@@ -937,6 +968,10 @@ B = B{[0, 2, 4, 6]}
    both integer and boolean expressions, with sub-expressions/constraints
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
+</P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'geq'. Here the constraint is defined
+   between two domain variables rather than two expressions.
 </P><P>
    This constraint is also defined for IC and FD solvers in lib(ic) and 
    lib(fd), with slight differences in what is allowed in the expressions. 
@@ -956,6 +991,7 @@ B = B{[0, 2, 4, 6]}
     summary: "Reified ExprX is greater than or equal to ExprY.",
     see_also: [(#<)/3, (#=<)/3, (#=)/3, (#>)/3, (#\=)/3,
                (>=)/3, (#>=)/2, _:(#>=)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -999,6 +1035,7 @@ B = B{[0, 2, 4, 6]}
     summary: "ExprX is less than or equal to ExprY.",
     see_also: [(#<)/2, (#=)/2, (#>=)/2, (#>)/2, (#\=)/2,
                (#=<)/3, _:(#=<)/2],
+    kind: [constraint:[extra:[gccat:leq]]],
     desc: html("<P>
    Constrains ExprX to be less than or equal to ExprY.  Also constrains all
    variables appearing in ExprX and ExprY to be integral and checks that all
@@ -1015,6 +1052,10 @@ B = B{[0, 2, 4, 6]}
    both integer and boolean expressions, with sub-expressions/constraints
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
+</P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'leq'. Here the constraint is defined
+   between two domain variables rather than two expressions.
 </P><P>
    This constraint is also defined for IC and FD solvers in lib(ic) and 
    lib(fd), with slight differences in what is allowed in the expressions. 
@@ -1033,6 +1074,7 @@ B = B{[0, 2, 4, 6]}
     summary: "Reified ExprX is less than or equal to ExprY.",
     see_also: [(#<)/3, (#=)/3, (#>=)/3, (#>)/3, (#\=)/3,
                (#=<)/2, _:(#=<)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1076,6 +1118,7 @@ B = B{[0, 2, 4, 6]}
     summary: "ExprX is strictly greater than ExprY.",
     see_also: [(#<)/2, (#=<)/2, (#=)/2, (#>=)/2, (#\=)/2,
                (#>)/3, _:(#>)/2],
+    kind: [constraint:[extra:[gccat:gt]]],
     desc: html("<P>
    Constrains ExprX to be greater than ExprY.  Also constrains all variables
    appearing in ExprX and ExprY to be domain variables and checks that all 
@@ -1092,6 +1135,10 @@ B = B{[0, 2, 4, 6]}
    both integer and boolean expressions, with sub-expressions/constraints
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
+</P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'gt'. Here the constraint is defined
+   between two domain variables rather than two expressions.
 </P><P>
    This constraint is also defined for IC and FD solvers in lib(ic) and 
    lib(fd), with slight differences in what is allowed in the expressions. 
@@ -1110,6 +1157,7 @@ B = B{[0, 2, 4, 6]}
     summary: "Reified ExprX is strictly greater than ExprY.",
     see_also: [(#<)/3, (#=<)/3, (#=)/3, (#>=)/3, (#\=)/3,
                (#>)/2, _:(#>)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1153,6 +1201,7 @@ B = B{[0, 2, 4, 6]}
     summary: "ExprX is less than ExprY.",
     see_also: [(#=<)/2, (#=)/2, (#>=)/2, (#>)/2, (#\=)/2,
                (#<)/3, _:(#<)/2],
+    kind: [constraint:[extra:[gccat:lt]]],
     desc: html("<P>
    Constrains ExprX to be less than ExprY.  Also constrains all variables
    appearing in ExprX and ExprY to be domain variables and checks that all 
@@ -1169,6 +1218,10 @@ B = B{[0, 2, 4, 6]}
    both integer and boolean expressions, with sub-expressions/constraints
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
+</P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'lt'. Here the constraint is defined
+   between two domain variables rather than two expressions.
 </P><P>
    This constraint is also defined for IC and FD solvers in lib(ic) and 
    lib(fd), with slight differences in what is allowed in the expressions. 
@@ -1188,6 +1241,7 @@ B = B{[0, 2, 4, 6]}
     summary: "Reified ExprX is less than ExprY.",
     see_also: [(#=<)/3, (#=)/3, (#>=)/3, (#>)/3, (#\=)/3,
                (<)/3, (#<)/2, _:(#<)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1231,6 +1285,7 @@ B = B{[0, 2, 4, 6]}
     summary: "ExprX is not equal to ExprY.",
     see_also: [(#<)/2, (#=<)/2, (#=)/2, (#>=)/2, (#>)/2,
                (#\=)/3, _:(#\=)/2],
+    kind: [constraint:[extra:[gccat:neq]]],
     desc: html("<P>
    Constrains ExprX to be not equal to ExprY.  Also constrains all variables
    appearing in ExprX and ExprY to be domain variable and checks that all 
@@ -1247,6 +1302,10 @@ B = B{[0, 2, 4, 6]}
    both integer and boolean expressions, with sub-expressions/constraints
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
+</P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'neq'. Here the constraint is defined
+   between two domain variables rather than two expressions.
 </P><P>
    This constraint is also defined for IC and FD solvers in lib(ic) and 
    (as (##)/2) in lib(fd), with slight differences in what is allowed in 
@@ -1267,6 +1326,7 @@ B = B{[0, 2, 4, 6]}
     summary: "Reified ExprX is not equal to ExprY.",
     see_also: [(#<)/3, (#=<)/3, (#=)/3, (#>=)/3, (#>)/3,
                (=\=)/3, (#\=)/2, _:(#\=)/3],
+    kind: [constraint],
     desc: html("<P>
    This predicate is a reified constraint: it succeeds if and only if the
    truth value of its associated constraint (the constraint with arity one
@@ -1307,6 +1367,7 @@ B = B{[0, 2, 4, 6]}
     args: [
     	"Var": "An GFD domain variable or an integer"
     ],
+    kind: [search],
     resat: "Yes.",
     summary: "Instantiates a domain GFD variable to an element of its domain.",
     see_also: [indomain/2, labeling/1, (::)/2, _:indomain/1],
@@ -1337,6 +1398,7 @@ B = B{[0, 2, 4, 6]}
     resat: "Yes.",
     summary: "Instantiates all variables in a collection to elements of their domains.",
     see_also: [indomain/2, _:labeling/1, collection_to_list/2],
+    kind: [search],
     desc: html("<P>
    Simple predicate for instantiating a collection of GFD domain variables
    to elements of their domains.  (Integers are also allowed in the
@@ -1367,6 +1429,7 @@ B = B{[0, 2, 4, 6]}
     ],
     summary: "All elements of Vars are different.",
     see_also: [(#\=)/2, collection_to_list/2],
+    kind: [constraint:[extra:[gccat:alldifferent]]],
     desc: html("<P>
    Constrains all elements of a collection to be different from each other.
    Semantically, all elements of the collection are pairwise different.
@@ -1389,7 +1452,7 @@ B = B{[0, 2, 4, 6]}
 
 :- comment(alldifferent_cst/2, [
     amode: alldifferent_cst(+,++),
-    template: "<ConsistencyModule:> alldifferent_offsets(+Vars,++Offsets)",
+    template: "<ConsistencyModule:> alldifferent_cst(+Vars,++Offsets)",
     args: [
     	"Vars": "A collection (a la collection_to_list/2) of variables or integers",
         "Offsets": "A collection (a la collection_to_list/2) of integers, with"
@@ -1397,6 +1460,7 @@ B = B{[0, 2, 4, 6]}
     ],
     summary: "The values of each element plus corresponding offset are pair-wised different.",
     see_also: [(#\=)/2, collection_to_list/2],
+    kind: [constraint:[extra:[gccat:alldifferent_cst]]],
     desc: html("<P>
    Constrains all elements of Vars plus its corresponding offset value in
    Offset to be different. That is, 
@@ -1429,6 +1493,7 @@ B = B{[0, 2, 4, 6]}
         "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
 	"Limit":"Variable or integer"
     ],
+    kind: [constraint:[extra:[gccat:nvalues]]],
     eg:"\
 [eclipse 21]: nvalues([4,5,5,4,1,5], (#=), N).
 
@@ -1477,11 +1542,13 @@ N = N{[1 .. 4]}
     template: "<ConsistencyModule:> le(?X,?Y)",
     amode:le(?,?),
     amode:le(+,?),
+    kind: [constraint],
     args:[
         "X":"An integer or domain variable, or a collection of integers
  or domain variables",
         "Y":"An integer or domain variable"
     ],
+    kind: [constraint:[extra:[gccat:[leq,arith] ]]],
     eg: "\
 [eclipse 2]: le([X,Y,Z],3).
 
@@ -1542,6 +1609,7 @@ A = A{[3 .. 5]}
         "X":"An integer or domain variable, or a collection of integers",
         "Y":"An integer or domain variable"
     ],
+    kind: [constraint:[extra:[gccat:[lt,arith] ]]],
     eg: "\
 [eclipse 16]:   lt([A,B,C,D], 3).
 
@@ -1597,8 +1665,9 @@ X = X{[4 .. 1000000]}
 
 :- comment(ge/2, [
     summary:"Constrains X to be greater than or equal to Y.",
-    template: "<ConsistencyModule:> le(?X,?Y)",
+    template: "<ConsistencyModule:> ge(?X,?Y)",
     amode:ge(?,?),
+    kind: [constraint:[extra:[gccat:[geq,arith] ]]],
     eg:"\
 [eclipse 34]: [X,Y,Z] :: 1..10, ge([X,Y,Z], 5).
 
@@ -1668,6 +1737,7 @@ A = A{[-1000000 .. 10]}
         "X":"An integer or domain variable, or a collection of integers",
         "Y":"An integer or domain variable"
     ],
+    kind: [constraint:[extra:[gccat:[gt,arith] ]]],
     eg:"\
 [eclipse 27]: gt([4,5,6,7], 4).      % succeed
 
@@ -1727,6 +1797,7 @@ Y = Y{[-1000000 .. 999999]}
         "X":"An integer or domain variable, or a collection of integers",
         "Y":"An integer or domain variable"
     ],
+    kind: [constraint:[extra:[gccat:[neq,arith] ]]],
     eg:"\
 [eclipse 45]:  X :: 1..10, ne([1,3,4,5], X).
 
@@ -1781,6 +1852,7 @@ X = X{[2, 6 .. 10]}
         "X":"An integer or domain variable, or a collection of integers",
         "Y":"An integer or domain variable"
     ],
+    kind: [constraint:[extra:[gccat:[eq,arith] ]]],
     eg:"\
 [eclipse 51]: eq([1,2,3,5], X).     % fail
 
@@ -1809,7 +1881,7 @@ X = 3
    If X is a collection, then the relation holds for every element of
    X over Y.
    </P><P> 
-   Unlike X #= Y, X must be a either a variable or integer, or a
+   Unlike X #= Y, X must be either a variable or integer, or a
    collection of variables or integers, and Y must be a variable or 
    integer, and not expressions, because it interfaces directly to Gecode's
    <TT>rel</TT> propagator. The cost of posting this primitive should
@@ -1845,6 +1917,7 @@ X = 3
         "Y":"An integer or domain variable",
         "Max":"An integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("\
    Constrains Max to be the maximum of X and Y. 
    </P><P> 
@@ -1874,6 +1947,7 @@ X = 3
         "Y":"An integer or domain variable",
         "Min":"An integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("\
    Constrains Min to be the minimum of X and Y. 
    </P><P> 
@@ -1903,6 +1977,7 @@ X = 3
         "Y":"An integer or domain variable",
         "Z":"An integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("\
    Constrains Z to be the the sum of X and Y (X+Y). 
    </P><P> 
@@ -1932,6 +2007,7 @@ X = 3
         "Y":"An integer or domain variable",
         "Z":"An integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("\
    Constrains Z to be the the product of X and Y (X*Y). 
    </P><P> 
@@ -1961,6 +2037,7 @@ X = 3
         "Y":"An integer or domain variable",
         "Z":"An integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("\
    Constrains Z to be the modulus of X and Y (X mod Y). 
    </P><P> 
@@ -1989,6 +2066,7 @@ X = 3
         "Y":"An integer or domain variable",
         "Z":"An integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("\
    Constrains Z to be the integer quotient of X and Y (X // Y). Z is rounded 
    towards 0.
@@ -2019,6 +2097,7 @@ X = 3
         "Q":"An integer or domain variable",
         "M":"An integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("\
    Constrains Q to be the integer quotient of X and Y (X // Y), and M to
    be the modulus of X and Y (X mod Y). Q is rounded towards 0.
@@ -2046,6 +2125,7 @@ X = 3
         "X":"An integer or domain variable",
         "Y":"An integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("\
    Constrains Y to be the non-negative integer square root of X. X is
    the truncated integer value if the exact square root is not an integer.   
@@ -2076,6 +2156,7 @@ X = 3
         "X":"An integer or domain variable",
         "Y":"An integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("\
    Constrains Y to be the square of X (X*X). 
    </P><P> 
@@ -2104,6 +2185,7 @@ X = 3
         "X":"An integer or domain variable",
         "Y":"An integer or domain variable"
     ],
+    kind: [constraint:[extra:[gccat:abs_value]]],
     desc:html("\
    Constrains Y to be the absolute value of X. 
    </P><P> 
@@ -2117,7 +2199,10 @@ X = 3
    arc) consistency. 
 </P><P>
    This constraint is not defined for IC and FD solvers, but the functionality 
-   is available via the more general posting of expressions.</P>
+   is available via the more general posting of expressions.
+</P><P>
+   This constraint is known as abs_value in the global constraint catalog. 
+   It is implemented by Gecode's abs() constraint.
 "),
     see_also: [sqrt/2]
 ]).
@@ -2132,6 +2217,7 @@ X = 3
 	"Collection":"A collection (a la collection_to_list/2) of integers or domain variables",
 	"Max":"Variable or integer"
     ],
+    kind: [constraint:[extra:[gccat:maximum]]],
     desc:html("\
 	Max is the maximum of the values in Collection.</P><P>
 
@@ -2160,6 +2246,7 @@ X = 3
     ],
     summary: "Constrains Max to be the largest element in Vars.",
     see_also: [min/2, collection_to_list/2],
+    kind: [constraint:[extra:[gccat:maximum]]],
     desc: html("<P>
    An alias for maxlist/2. provided for compatibility with IC.</P>
 
@@ -2175,11 +2262,12 @@ X = 3
 :- comment(minlist/2, [
     summary:"Min is the minimum of the values in Collection",
     amode:minlist(+,?),
-    template: "<ConsistencyModule:> minlist(+Collection,?Max)",
+    template: "<ConsistencyModule:> minlist(+Collection,?Min)",
     args:[
 	"Collection":"A collection (a la collection_to_list/2) of integers or domain variables",
 	"Min":"Variable or integer"
     ],
+    kind: [constraint:[extra:[gccat:minimum]]],
     desc:html("\
     	Min is the minimum of the values in Collection.</P><P>  
 
@@ -2208,6 +2296,7 @@ X = 3
     ],
     summary: "Constrains Min to be the smallest element in Vars.",
     see_also: [max/2, collection_to_list/2],
+    kind: [constraint:[extra:[gccat:minimum]]],
     desc: html("<P>
    An alias for minlist/2. provided for compatibility with IC.</P>
 
@@ -2229,6 +2318,7 @@ X = 3
         "Collection: collection of N integers or domain variables. Coeffs: collection of N integers."
 	"Sum":"Variable or integer"
     ],
+    kind: [constraint:[extra:[gccat:sum_ctr]]],
     desc:html("<P>\
           Constrains Sum to be the sum of the elements in Collection if
           the first argument is a collection of integers or domain variables.
@@ -2269,6 +2359,7 @@ X = 3
         "Collection: collection of N integers or domain variables. Coeffs: collection of N integers."
 	"Sum":"Variable or integer"
     ],
+    kind: [constraint:[extra:[gccat:sum_ctr]]],
     desc:html("<P>\
    An alias for sumlist/2. provided for consistency.</P>
 
@@ -2289,6 +2380,7 @@ X = 3
         "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
 	"Sum":"Variable or integer"
     ],
+    kind: [constraint:[extra:[gccat:sum_ctr]]],
     desc:html("<P>\
           Constrains the sum of the elements in Collection to satisfy
           the relation sum(Collection) Rel Sum.
@@ -2333,6 +2425,7 @@ X = 3
 	"Sum":"Variable or integer",
         "Bool":"Variable or the integer 0 or 1"
     ],
+    kind: [constraint],
     desc:html("<P>\
           This is the reified form of sum/3, which constrains the sum
           of  the elements in Collection to satisfy the relation 
@@ -2369,6 +2462,7 @@ X = 3
     ],
     summary: "Constrains Member to be the a member element in Vars.",
     see_also: [mem/3, collection_to_list/2],
+    kind: [constraint],
     eg: "\
 [eclipse 7]: A :: 1..10, B :: 2..20, mem([A,B], M).
 
@@ -2429,6 +2523,7 @@ C = C{[1, 4, 5]}
     ],
     summary: "Reflect into Bool the truth of Member being a member element of Vars.",
     see_also: [mem/2, collection_to_list/2],
+    kind: [constraint],
     eg: "\
 [eclipse 11]: A :: 1..10, B :: 2..20, mem([A,B], M, Bool), M #< 2.
 
@@ -2484,6 +2579,7 @@ Bool = 0
         "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
 	"P":"Variable or integer"
     ],
+    kind: [constraint:[extra:[gccat:scalar_product]]],
     desc:html("<P>\
           Constrains the scalar product of the elements in Collection to satisfy
           the relation sum(Coeffs*Collection) Rel P.
@@ -2534,6 +2630,7 @@ Bool = 0
 	"P":"Variable or integer",
         "Bool":"Variable or the integer 0 or 1"
     ],
+    kind: [constraint],
     desc:html("<P>\
           This is the reified form of scalar_product/4, which constrains the
           scalar product of  the elements in Coeffs and Collection to satisfy
@@ -2571,6 +2668,7 @@ Bool = 0
     summary: "Constraints ConX and ConY must both be true.",
     see_also: [(and)/3, (neg)/1, (neg)/2, (or)/2, (or)/3, (=>)/2,
                (=>)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX + BY #= 2</P>
    <P>
@@ -2604,6 +2702,7 @@ Bool = 0
     summary: "Bool is the reified truth of both constraints ConX and ConY being true.",
     see_also: [(and)/2, (neg)/1, (neg)/2, (or)/2, (or)/3, (=>)/2,
                (=>)/3],
+    kind: [constraint:[extra:[gccat:(and)]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX + BY #= 2)</P>
    <P>
@@ -2619,6 +2718,11 @@ Bool = 0
    This constraint is implemented using Gecode's MiniModel's rel() for
    both integer and boolean expressions, with sub-expressions/constraints
    not supported by MiniModel factored out and posted as auxiliary 
+   constraints.
+</P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'and', in that the reified
+   truth value is the logical conjunctions of 0/1 variables rather than 
    constraints.
 </P><P>
    This constraint is also defined for IC solver in lib(ic), and is 
@@ -2637,6 +2741,7 @@ Bool = 0
     summary: "At least one of the constraints ConX or ConY must be true.",
     see_also: [(or)/3, (neg)/1, (neg)/2, (and)/2, (and)/3, (=>)/2,
                (=>)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX + BY #&gt;= 1</P>
    <P>
@@ -2670,6 +2775,7 @@ Bool = 0
     summary: "Bool is the reified truth of at least one of the constraints ConX or ConY being true.",
     see_also: [(or)/2, (neg)/1, (neg)/2, (and)/2, (and)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint:[extra:[gccat:(or)]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX + BY #&gt;= 1)</P>
    <P>
@@ -2687,6 +2793,10 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'or', in that the reified truth value
+   is the logical disjunction of 0/1 variables rather than constraints.
+</P><P>
    This constraint is also defined for IC solver in lib(ic), and is 
    available as (#\\/)/3 for FD solver in lib(fd).
 ")
@@ -2703,6 +2813,7 @@ Bool = 0
     summary: "One of the constraints ConX or ConY must be true.",
     see_also: [(or)/3, (neg)/1, (neg)/2, (and)/2, (and)/3, (=>)/2,
                (=>)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX + BY #= 1</P>
    <P>
@@ -2735,6 +2846,7 @@ Bool = 0
     summary: "Bool is the reified truth of one of the constraints ConX or ConY being true.",
     see_also: [(or)/2, (neg)/1, (neg)/2, (and)/2, (and)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint:[extra:[gccat:(xor)]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX + BY #= 1)</P>
    <P>
@@ -2752,6 +2864,11 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'xor', in that the reified truth value
+   is the logical exclusive disjunction of 0/1 variables rather than 
+   constraints.
+</P><P>
    This constraint is not defined for IC or FD solvers.
 ")
 ]).
@@ -2767,6 +2884,7 @@ Bool = 0
     summary: "Constraint ConX  implies ConY.",
     see_also: [(=>)/3, (neg)/1, (neg)/2, (or)/2, (or)/3, (and)/2,
                (and)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX #=&lt; BY</P>
    <P>
@@ -2800,6 +2918,7 @@ Bool = 0
     summary: "Bool is the reified truth of constraint ConX implying the truth of ConY.",
     see_also: [(=>)/2, (neg)/1, (neg)/2, (or)/2, (or)/3, (and)/2,
                (and)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint:[extra:[gccat:imply]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX #=&lt; BY)</P>
    <P>
@@ -2817,6 +2936,10 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'imply', in that the reified truth value
+   is the logical implication of 0/1 variables rather than constraints.
+</P><P>
    This constraint is also defined for IC solver in lib(ic), and is available 
    as (#=>)/3 for FD solver in lib(fd).
 ")
@@ -2833,6 +2956,7 @@ Bool = 0
     summary: "Constraint ConX has the equivalent truth value as ConY.",
     see_also: [(=>)/3, (neg)/1, (neg)/2, (or)/2, (or)/3, (and)/2,
                (and)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX #= BY</P>
    <P>
@@ -2870,6 +2994,7 @@ Bool = 0
     summary: "Bool is the reified truth of constraint ConX is equivalent to the truth of ConY.",
     see_also: [(=>)/2, (neg)/1, (neg)/2, (or)/2, (or)/3, (and)/2,
                (and)/3],
+    kind: [constraint:[extra:[gccat:equivalent]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX #= BY)</P>
    <P>
@@ -2891,6 +3016,10 @@ Bool = 0
    not supported by MiniModel factored out and posted as auxiliary 
    constraints.
 </P><P>
+   A more restricted version of this constraint is defined in the 
+   global constraint catalog as 'equivalent', in that the reified truth value
+   is the logical equivalance of 0/1 variables rather than constraints.
+</P><P>
    This constraint is available for IC solver in lib(ic) using (#=)/3 in a 
    reified context, and is available for FD solver as (#<=>)/3 in lib(fd).
 ")
@@ -2907,6 +3036,7 @@ Bool = 0
     summary: "Constraints Con is negated.",
     see_also: [(and)/2, (and)/3, (neg)/2, (or)/2, (or)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to 0 #= (Con)</P>
    <P>
@@ -2938,6 +3068,7 @@ Bool = 0
     summary: "Bool is the logical negation of the reified truth constraints Con.",
     see_also: [(and)/2, (and)/3, (neg)/1, (or)/2, (or)/3, (=>)/2,
                (=>)/3, (=:=)/3, (=<)/3, (=\=)/3, (>=)/3, (>)/3, (<)/3],
+    kind: [constraint],
     desc: html("<P>
    Equivalent to B #= (Con), Bool #= 1-B</P>
    <P>
@@ -2962,8 +3093,7 @@ Bool = 0
 %---------------------------------------------------------------------
 
 :- comment(element/3, [
-	summary:"Value is the Index'th element of the integer
- collection Collection.",
+	summary:"Value is the Index'th element of the integer collection Collection.",
 	template:"<ConsistencyModule:> element(?Index, +Collection, ?Value)",
 	args:[
 	    "?Index" : "A domain variable or an integer.",
@@ -2972,7 +3102,8 @@ Bool = 0
 	],
 	resat:"No.",
 	fail_if:"Fails if Value is not the Index'th element of Collection.",
-	desc:html("This constraint can be used in a variety of programs to state a
+        kind: [constraint:[extra:[gccat:element]]],
+        desc:html("This constraint can be used in a variety of programs to state a
    relation between two domain variables.  Collection is a collection of 
    integers and the constraint states that its Index'th element is equal to 
    Value, i.e.
@@ -3039,7 +3170,8 @@ V = V{[1, 2, 4 .. 10]}
 	resat:"No.",
 	fail_if:"Fails if Value is not the Index'th element of Collection.",
 	see_also: [element/3],
-	desc:html("\
+        kind: [constraint:[extra:[gccat:element]]],
+        desc:html("\
   This version of element/3 uses the native Gecode indexing, which starts 
   from 0, i.e. the first element of Collection has index 0. This is different 
   from normal ECLiPSe's indexing, which starts from 1.
@@ -3065,6 +3197,7 @@ V = V{[1, 2, 4 .. 10]}
 	"Vars":"Collection (a la collection_to_list/2) of integers or domain variables",
 	"N":"Domain variable or integer"
     ],
+    kind: [constraint:[extra:[gccat:exactly]]],
     eg:"
 [eclipse 11]: occurrences(1,[3,5,1,4,1,3], N).
 
@@ -3127,6 +3260,7 @@ A = 3
 	summary:"At most N elements of Vars have the value V.",
 	template:"<ConsistencyModule:> atmost(?N, +Vars, +V)",
         amode: atmost(?,+,+),
+        kind: [constraint:[extra:[gccat:atmost]]],
         eg:"
 [eclipse 33]: atmost(N,  [3, 5, 1, 4, 1, 3], 1).
 
@@ -3188,6 +3322,7 @@ N = N{[2, 3]}
 	summary:"Atleast N elements of Vars have the value V.",
 	template:"<ConsistencyModule:> atleast(?N, +Vars, +V)",
         amode: atleast(?,+,+),
+        kind: [constraint:[extra:[gccat:atleast]]],
         eg: "
 [eclipse 2]: N :: [3,6], atleast(N, [3,A,3,5,3,3], 3).
 
@@ -3242,6 +3377,7 @@ A = A{[-1000000 .. 1000000]}
 	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
               "+Rel":"One of the atom: #>, #>=, #<, #=<, #=, #\\=",
 	      "?N" : "An integer or domain variable"],
+        kind: [constraint:[extra:[gccat:count]]],
         eg: "
 [eclipse 33]: count(5, [](4,5,5,4,5), (#>=), 2).   % succeed
 
@@ -3341,6 +3477,7 @@ A = A{[-1000000 .. 1000000]}
 	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
               "+Rel":"One of the atom: #>, #>=, #<, #=<, #=, #\\=",
 	      "?N" : "An integer or domain variable"],
+        kind: [constraint:[extra:[gccat:counts]]],
         eg:"\
 [eclipse 24]: among([1,3,4,9], [4,5,5,4,1,5], (#=), N).
 
@@ -3413,6 +3550,7 @@ N = N{[-1000000 .. 2, 4 .. 1000000]}
 	      "?Vars" : "A collection of M domain variables or integers",
               "+Rel":"One of the atom: #>, #>=, #<, #=<, #=, #\\=",
 	      "?N" : "An integer or domain variable"],
+        kind: [constraint],
         eg: "\
 [eclipse 5]: count_matches([1,2,3,4], [A,B,C,D], (#=), N).
 
@@ -3471,13 +3609,14 @@ N = 0
 %----------------------------------------------------------------------
 
 :- comment(sorted/2, [
-    summary:"Sorted is a sorted permutation of List",
+    summary:"Sorted is a sorted permutation of Unsorted",
     amode:sorted(+,+),
     amode:sorted(+,-),
     amode:sorted(-,+),
-    template:"<ConsistencyModule:> sorted(?List, ?Sorted)",
-    args:["List":"List or collection of N domain variables or integers",
+    template:"<ConsistencyModule:> sorted(?Unsorted, ?Sorted)",
+    args:["Unsorted":"List or collection of N domain variables or integers",
     	"Sorted":"List or collection of N domain variables or integers"],
+    kind: [constraint:[extra:[gccat:sort]]],
     eg: "
 [eclipse 2]: sorted([1,9,1,5,2|L], [1,1,1,2,5,9]).
 
@@ -3499,12 +3638,12 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
 
     ",
     desc:html("\
-    Declaratively: The two lists have the same length and Sorted is a
-    sorted permutation of List.
+    Declaratively: The two lists (or collections) have the same length
+    and Sorted is a sorted permutation of Unsorted.
 <P>
     Operationally:  the elements in both collections are constrained such
-    that their domains are consistent with the assumption that the
-    collection Sorted is the sorted version of the collection List.
+    that their domains are consistent with the assumption that Sorted
+    is the sorted version of Unsorted.
 <P>
     One of the two arguments can be uninstantiated or partial lists
     at call time.
@@ -3526,22 +3665,23 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
     ]).
 
 :- comment(sorted/3, [
-    summary:"Sorted is a sorted permutation (described by Positions) of List",
+    summary:"Sorted is a sorted permutation (described by Positions) of Unsorted",
     amode:sorted(+,?,?),
     amode:sorted(?,+,?),
     amode:sorted(?,?,+),
-    template:"<ConsistencyModule:> sorted(?List, ?Sorted, ?Positions)",
-    args:["List":"Collection of N domain variables or integers",
+    template:"<ConsistencyModule:> sorted(?Unsorted, ?Sorted, ?Positions)",
+    args:["Unsorted":"Collection of N domain variables or integers",
     	"Sorted":"Collection of N domain variables or integers",
     	"Positions":"Collection of N domain variables or integers"],
+    kind: [constraint:[extra:[gccat:sort_permutation]]],
     desc:html("\
-    Declaratively:  Sorted is a sorted permutation of List.  Positions
+    Declaratively:  Sorted is a sorted permutation of Unsorted.  Positions
     is a collection whose elements range from 1 to N (where N is the 
     cardinality of the collections) indicating the position of each 
     unsorted list element within the sorted list.  The positions are all 
     different. The three collections are constrained to have the same size.
 <P>
-    Operationally:  the elements in all three lists are constrained
+    Operationally:  the elements in all three collections are constrained
     such that their domains are consistent with the declarative
     meaning.
 <P>
@@ -3583,15 +3723,16 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     ]).
 
 :- comment(sorted_g/3, [
-    summary:"Sorted is a sorted permutation (described by Positions) of List, with native Gecode indexing.",
+    summary:"Sorted is a sorted permutation (described by Positions) of Unsorted, with native Gecode indexing.",
     amode:sorted_g(+,?,?),
     amode:sorted_g(?,+,?),
     amode:sorted_g(?,?,+),
-    template:"<ConsistencyModule:> sorted_g(?List, ?Sorted, ?Positions)",
-    args:["List":"Collection of N domain variables or integers",
+    template:"<ConsistencyModule:> sorted_g(?Unsorted, ?Sorted, ?Positions)",
+    args:["Unsorted":"Collection of N domain variables or integers",
     	"Sorted":"Collection of N domain variables or integers",
     	"Positions":"Collection of N domain variables or integers"],
     see_also: [sorted/3],	
+    kind: [constraint:[extra:[gccat:sort_permutation]]],
     desc:html("\
   This version of sorted/3 uses the native Gecode indexing, which starts 
   from 0, i.e. the first element of the collections has index 0. This is 
@@ -3616,6 +3757,7 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
                "Min": "An integer"],
         summary: "Channel the domain values of Vars to the 0/1 boolean"
                  " variables in DomainBools",
+        kind: [constraint:[extra:[gccat:domain_constraint]]],
         eg:"
 [eclipse 53]: bool_channeling(V, [0,1,1,0,1,0,0], 3).  % fail
 
@@ -3677,6 +3819,7 @@ B5 = B5{[0, 1]}
                  gcc{low:0,high:3,value:8}], [3,3,8,6]).  % succeed
 ",
 
+        kind: [constraint:[extra:[gccat:[global_cardinality,global_cardinality_low_up]]]],
         desc:html("\
 <P>
     This constraint ensures that the cardinality (the number of occurrences)
@@ -3728,6 +3871,7 @@ B5 = B5{[0, 1]}
         summary: "Constrains elements of Succ to be the successors and"
                  " Pred to be the predecessors of nodes in a digraph",
 	see_also:[inverse_g/2],
+        kind: [constraint:[extra:[gccat:inverse]]],
         desc: html("\
 <P>
      Succ and Pred are collections of N elements, representing a digraph of 
@@ -3770,6 +3914,7 @@ B5 = B5{[0, 1]}
                  " Pred to be the predecessors of nodes in a digraph, using"
 		 " native Gecode indexing.",
 	see_also:[inverse/2],
+        kind: [constraint:[extra:[gccat:inverse]]],
         desc: html("\
   This version of inverse/2 uses the native Gecode indexing, which starts 
   from 0, i.e. the first elements in Succ and Pred has position 0. This is 
@@ -3791,9 +3936,10 @@ B5 = B5{[0, 1]}
                "PredOffset":"An integer."
               ],
         template:"<ConsistencyModule:> inverse(+Succ,+SuccOffset,+Pred,+PredOffset)",
-        summary: "Constrains elements of Succ to be the successors and"
-                 " Pred to be the predecessors of nodes in a digraph",
+        summary: "Constrains elements of Succ (with SuccOffset) to be the successors and"
+                 " Pred (with PredOffset) to be the predecessors of nodes in a digraph",
 	see_also:[inverse_g/4],
+        kind: [constraint:[extra:[gccat:inverse_offset]]],
         desc: html("\
 <P>
      Succ and Pred are list of N elements, representing a digraph of N nodes,
@@ -3833,9 +3979,10 @@ B5 = B5{[0, 1]}
                "PredOffset":"An integer."
               ],
         template:"<ConsistencyModule:> inverse_g(+Succ,+SuccOffset,+Pred,+PredOffset)",
-        summary: "Constrains elements of Succ to be the successors and"
-                 " Pred to be the predecessors of nodes in a digraph",
+        summary: "Constrains elements of Succ (with SuccOffset) to be the successors and"
+                 " Pred (with PredOffset) to be the predecessors of nodes in a digraph",
 	see_also:[inverse/4],
+        kind: [constraint:[extra:[gccat:inverse_offset]]],
         desc: html("\
   This version of inverse/4 uses the native Gecode indexing, which starts 
   from 0, i.e. the first elements in Succ and Pred has position 0. This is 
@@ -3856,6 +4003,7 @@ B5 = B5{[0, 1]}
         template:"<ConsistencyModule:> circuit(+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit.", 
 	see_also: [circuit_g/1,circuit_offset_g/2],
+        kind: [constraint:[extra:[gccat:circuit]]],
         eg: "\
 [eclipse 7]: circuit([2,A,4,1]).
 
@@ -3900,6 +4048,7 @@ A = 1
         template:"<ConsistencyModule:> circuit_g(+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit, with native Gecode indexing.", 
 	see_also: [circuit/1],
+        kind: [constraint:[extra:[gccat:circuit]]],
         eg: "
 circuit_g([A,2,3,0])
 
@@ -3927,6 +4076,7 @@ A = 1
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost.", 
         see_also: [circuit_offset_g/4, circuit/1,
                    circuit/4, circuit_g/3],
+        kind: [constraint],
         eg: "\
 [eclipse 9]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
              circuit([2,3,4,1], CostM, C).   
@@ -3972,6 +4122,7 @@ C = 10
         template:"<ConsistencyModule:> circuit_g(+Succ,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost. This version uses native Gecode indexing.", 
 	see_also: [circuit/3],
+        kind: [constraint],
         eg: "\
 [eclipse 10]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         circuit_g([1,2,3,0], CostM, C).   
@@ -4009,6 +4160,7 @@ C = 11
 	see_also:[circuit/1,circuit/3,circuit_g/4],
         summary: "Constrains elements in Succ to form a Hamiltonian"
                  " circuit with cost Cost.", 
+        kind: [constraint],
         eg:"\
 [eclipse 5]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         circuit([2,3,4,1], CostM,        [C1,C2,C3,C4], C).
@@ -4060,6 +4212,7 @@ C = 10
         template:"<ConsistencyModule:> circuit_g(+Succ,++CostMatrix,+ArcCosts,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost, using native Gecode indexing.", 
 	see_also:[circuit/4],
+        kind: [constraint],
         eg: "\
 CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         circuit_g([1,2,3,0], CostM, [C0,C1,C2,C3], C).
@@ -4084,6 +4237,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         template:"<ConsistencyModule:> circuit_offset(+Succ,+Offset)",
         summary: "Constrains elements (offset by Offset) in Succ to form a Hamiltonian circuit.", 
 	see_also: [circuit_offset_g/2],
+        kind: [constraint],
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where
   the value of the i'th element of Succ - Offset represents the successor to 
@@ -4117,6 +4271,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         template:"<ConsistencyModule:> circuit_offset_g(+Succ, +Offset)",
         summary: "Constrains elements (offset by Offset) in Succ to form a Hamiltonian circuit, with native Gecode indexing.", 
 	see_also: [circuit_offset/2],
+        kind: [constraint],
         desc: html("<P>\
   This version of circuit_offset/2 uses the native Gecode indexing, which
   starts from 0. This is different from normal ECLiPSe's indexing, which
@@ -4141,6 +4296,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost.", 
         see_also: [circuit_offset_g/4, circuit_offset/2,
                    circuit_offset/5, circuit/3],
+        kind: [constraint],
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where
   the value of the i'th element of Succ - Offset represents the successor to 
@@ -4182,6 +4338,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         template:"<ConsistencyModule:> circuit_offset_g(+Succ,+Offset,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost. This version uses native Gecode indexing.", 
 	see_also: [circuit_offset/4],
+        kind: [constraint],
         desc: html("<P>\
   This version of circuit_offset/4 uses the native Gecode indexing, which
   starts from 0. This is different from normal ECLiPSe's indexing, which
@@ -4209,6 +4366,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         template:"<ConsistencyModule:> circuit_offset(+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
 	see_also:[circuit_offset/2,circuit_offset/4,circuit_offset_g/5],
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost.", 
+        kind: [constraint],
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where
   the value of the i'th element of Succ - Offset represents the successor to 
@@ -4252,6 +4410,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         template:"<ConsistencyModule:> circuit_offset_g(+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost, using native Gecode indexing.", 
 	see_also:[circuit_offset/5],
+        kind: [constraint],
         desc: html("<P>\
   This version of circuit_offset/5 uses the native Gecode indexing, which starts 
   from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
@@ -4273,6 +4432,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End.",
 	see_also: [ham_path_g/3,ham_path_offset_g/4],
+        kind: [constraint],
         eg: "\
 [eclipse 5]: ham_path(S,E,[X]).
 
@@ -4333,6 +4493,7 @@ E = 2
         template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End, with native Gecode indexing.", 
 	see_also: [ham_path/3],
+        kind: [constraint],
         eg: "\
 [eclipse 6]: ham_path_g(S,E,[A,B]).
 
@@ -4375,6 +4536,7 @@ E = 1
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End with cost Cost.",
         see_also: [ham_path_offset_g/6, ham_path/3,
                    ham_path/6, ham_path_g/5],
+        kind: [constraint],
         eg: "\
 [eclipse 2]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         ham_path(4,3,[2,3,5,1], CostM, C).
@@ -4426,6 +4588,7 @@ C = 5
         template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End with cost Cost. This version uses native Gecode indexing.", 
 	see_also: [ham_path/5],
+        kind: [constraint],
         eg: "\
 [eclipse 2]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         ham_path_g(3,2,[1,2,4,0], CostM, C).
@@ -4456,7 +4619,8 @@ C = 5
               ],
         template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ,++CostMatrix,+ArcCosts,?Cost)",
 	see_also:[ham_path/3,ham_path/5,ham_path_g/6],
-        summary: "Constrains elements in Succ to form a Hamiltonian path with cost Cost.", 
+        summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End with cost Cost.", 
+        kind: [constraint],
         eg: "\
 [eclipse 2]:  CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
               ham_path(4,3,[2,3,5,1], CostM, [C1,C2,C3,C4], C).
@@ -4514,6 +4678,7 @@ C = 5
         template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ,++CostMatrix,+ArcCosts,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End, with cost Cost, using native Gecode indexing.", 
 	see_also:[ham_path/6],
+        kind: [constraint],
         eg:"\
 [eclipse 3]: CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
         ham_path_g(3,2,[1,2,4,0], CostM, [C0,C1,C2,C3], C).
@@ -4544,9 +4709,10 @@ C = 5
                "Succ":"A collection of different variables or integers",
                "Offset":"Offset for Succ (An integer)"
               ],
-        template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ,+Offset)",
+        template:"<ConsistencyModule:> ham_path_offset(?Start,?End,+Succ,+Offset)",
         summary: "Constrains elements (offset by Offset) in Succ to form a Hamiltonian path from Start to End.", 
 	see_also: [ham_path_offset_g/4],
+        kind: [constraint],
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where
   the i'th element of Succ represents the successor to node i. The constraint
@@ -4584,6 +4750,7 @@ C = 5
         template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ,+Offset)",
         summary: "Constrains elements (offset by Offset) in Succ to form a Hamiltonian path from Start to End, with native Gecode indexing.", 
 	see_also: [ham_path_offset/4],
+        kind: [constraint],
         desc: html("<P>\
   This version of ham_path_offset/4 uses the native Gecode indexing, which
   starts from 0. This is different from normal ECLiPSe's indexing, which
@@ -4610,6 +4777,7 @@ C = 5
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian path from Start to End with cost Cost.", 
         see_also: [ham_path_offset_g/6, ham_path_offset/4,
                    ham_path_offset/7, ham_path/5],
+        kind: [constraint],
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where the
   i'th element of (Succ - Offset) represents the successor to node i.The
@@ -4653,8 +4821,10 @@ C = 5
                "Cost": "An domain variable or integer."
               ],
         template:"<ConsistencyModule:> ham_path_offset_g(?Start,?End,+Succ,+Offset,++CostMatrix,?Cost)",
-        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian ham_path with cost Cost. This version uses native Gecode indexing.", 
+        summary: "Constrains elements in Succ (offset by Offset) to
+ form a Hamiltonian path from Start to End with cost Cost. This version uses native Gecode indexing.", 
 	see_also: [ham_path_offset/6],
+        kind: [constraint],
         desc: html("<P>\
   This version of ham_path_offset/4 uses the native Gecode indexing, which
   starts from 0. This is different from normal ECLiPSe's indexing, which
@@ -4683,7 +4853,9 @@ C = 5
               ],
         template:"<ConsistencyModule:> ham_path_offset(?Start,?End,+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
 	see_also:[ham_path_offset/4,ham_path_offset/6,ham_path_offset_g/7],
-        summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian ham_path with cost Cost.", 
+        summary: "Constrains elements in Succ (offset by Offset) to
+ form a Hamiltonian path from Start to End with cost Cost.", 
+        kind: [constraint],
         desc: html("<P>\
   Succ is a collection of N elements presenting a digraph of N nodes, where the
   i'th element of (Succ - Offset) represents the successor to node i. The
@@ -4731,6 +4903,7 @@ C = 5
         template:"<ConsistencyModule:> ham_path_offset_g(?Start,?End,+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian path from Start to End with cost Cost, using native Gecode indexing.", 
 	see_also:[ham_path_offset/7],
+        kind: [constraint],
         desc: html("<P>\
   This version of ham_path_offset/7 uses the native Gecode indexing, which starts 
   from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
@@ -4750,6 +4923,7 @@ C = 5
            ],
   summary: "Constrain the tasks with specified start times and durations to not overlap in time.",
   see_also: [collection_to_list/2],
+  kind: [constraint:[extra:[gccat:disjunctive]]],
   eg: "
 [eclipse 2]: disjunctive([1,7,4],[3,2,1]).    % succeed
 
@@ -4814,6 +4988,7 @@ S4 = S4{[4 .. 9]}
   summary: "Constrain the optional tasks with specified start times and durations to"
            " not overlap in time.",
   see_also: [collection_to_list/2],
+  kind: [constraint],
   desc:    html("\
 <P>  
     A disjunctive scheduling constraint. StartTimes, Durations and Scheduled
@@ -4855,6 +5030,7 @@ S4 = S4{[4 .. 9]}
            ],
   summary: "Constrains the position (and possibly size) of the rectangles in Rectangles so that none overlaps.",
   see_also: [disjoint2_optional/1,collection_to_list/2],
+  kind: [constraint:[extra:[gccat:diffn]]],
   eg: "\
 [eclipse 17]: disjoint2([rect{x:2,y:1,w:2,h:3},rect{x:4,y:3,w:4,h:3},
                    rect{x:9,w:2,y:4,h:3}]).    % succeed
@@ -4896,7 +5072,8 @@ S4 = S4{[4 .. 9]}
 </P><P>
     A version of this constraint, generalised from two to multi-
     dimension, is known as diffn in the Global Constraint Catalog.
-    It is implemented using Gecode's nooverlap() constraint.
+</P><P>
+    This constraint is implemented using Gecode's nooverlap() constraint.
 </P><P>
     This constraint is not available for IC or FD solvers.
 </P>")
@@ -4909,6 +5086,7 @@ S4 = S4{[4 .. 9]}
            ],
   summary: "Constrains the position (and possibly size) of the (possibly optional) rectangles in Rectangles so that none overlaps.",
   see_also: [disjoint2/1, collection_to_list/2],
+  kind: [constraint],
   desc:    html("\
 <P>
     A two dimensional disjunctive constraint that constrains the replacement
@@ -4965,6 +5143,7 @@ S4 = S4{[4 .. 9]}
          ],
   summary: "Single resource cumulative constraint on scheduling tasks.",
   see_also: [disjunctive/2, cumulative_optional/5, collection_to_list/2, _:cumulative/4],
+  kind: [constraint:[extra:[gccat:cummulative]]],
   eg: "
 
 % success (peak consumption is 7) 
@@ -5027,6 +5206,7 @@ S4 = S4{[4 .. 9]}
          ],
   summary: "Single resource cumulative constraint on scheduling optional tasks.",
   see_also: [disjunctive/2, disjunctive_optional/3, cumulative/4, collection_to_list/2, _:cumulative/4],
+  kind: [constraint],
   desc:    html("\
 <P>
    A cumulative scheduling constraint. StartTimes, Durations, Usages and 
@@ -5081,6 +5261,7 @@ S4 = S4{[4 .. 9]}
          ],
   summary: "Multi-resource cumulatives constraint on specified tasks.",
   see_also: [disjunctive/2, cumulative/5, collection_to_list/2, _:cumulative/4,cumulatives_g/5],
+    kind: [constraint:[extra:[gccat:cumulatives]]],
   eg:"
 [eclipse 4]: cumulatives([2,1,4,2,5,3,1],[2,4,2,3,2,2,4],[-2,1,-1,2,2,-1,1], 
                 [1,1,1,1,1,2,2], [2,1]).  % Succeed
@@ -5146,6 +5327,7 @@ S4 = S4{[4 .. 9]}
          ],
   summary: "Multi-resource cumulatives constraint on specified tasks, using native Gecode indexing.",
   see_also: [cumulatives/5],
+  kind: [constraint:[extra:[gccat:cumulatives]]],
   desc:    html("\
   This version of the constraint uses the native Gecode indexing, which starts 
   from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
@@ -5173,6 +5355,7 @@ S4 = S4{[4 .. 9]}
   summary: "Multi-resource cumulatives constraint on specified tasks with"
 " required minimum resource consumptions.",
   see_also: [disjunctive/2, cumulative/5, collection_to_list/2, _:cumulative/4],
+  kind: [constraint:[extra:[gccat:cumulatives]]],
   eg:"
 
 [eclipse 7]: cumulatives_min([2,1,4,2,5,3,1],[-2,4,2,3,2,2,4],
@@ -5242,6 +5425,7 @@ S4 = S4{[4 .. 9]}
   summary: "Multi-resource cumulatives constraint on specified tasks with"
 " required minimum resource consumptions, using native Gecode indexing.",
   see_also: [cumulatives_min/5],
+  kind: [constraint:[extra:[gccat:cumulatives]]],
   desc:    html("\
   This version of the constraint uses the native Gecode indexing, which starts 
   from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
@@ -5268,6 +5452,7 @@ S4 = S4{[4 .. 9]}
         summary: "The number of values taken from Values is between Low and"
                  " High for all sequences of K variables in Vars.", 
         see_also: [sequence/4],
+        kind: [constraint:[extra:[gccat:among_seq]]],
         eg:"
 [eclipse 22]: sequence(1,2,4,[9,2,4,5,5,7,2], [0,2,4,6,8]). % Succeed
 
@@ -5303,6 +5488,7 @@ S4 = S4{[4 .. 9]}
         summary: "The number of occurrences of the value 1 is between Low and"
                  " High for all sequences of K variables in ZeroOnes", 
         see_also: [sequence/5],
+        kind: [constraint:[extra:[gccat:among_seq]]],
         eg:"
 [eclipse 20]: sequence(2,3,3,[1,0,1,1,0,1]).    % Succeed
 
@@ -5323,7 +5509,7 @@ S4 = S4{[4 .. 9]}
     consistency level for the propagation for this constraint: 
     gfd_gac for generalised arc consistency (domain consistency), 
 </P><P>
-    This more general version of this constraint, sequence/5, where the 
+    The more general version of this constraint, sequence/5, where the 
     values being checked is not limited to 1 is known as among_seq in the 
     global constraint catalog, and this constraint is also implemented
     via the more general Gecode sequence() constraint by limiting the value
@@ -5351,6 +5537,7 @@ S4 = S4{[4 .. 9]}
        see_also:[bin_packing/4,bin_packing_g/3],
        summary:"The one-dimensional bin packing constraint with loads: packing "
                "M items into N bins, each bin having a load",
+       kind: [constraint:[extra:[gccat:bin_packing]]],
        eg:"
 [eclipse 7]: bin_packing([3,1,3], [4,3,1], [L1,L2,L3,L4]).
 
@@ -5381,7 +5568,7 @@ L4 = 0
     as bin_packing_g/3.
 </P><P>
    The global constraint catalog describes this constraint as a
-   variation of the bin_packing constraint where the fixed capacity for
+   variation of their bin_packing constraint where the fixed capacity for
    every bin is replaced by the BinLoads variables. In addition, a more
    restricted version of this constraint is also described in the global 
    constraint catalog as bin_packing_capa, where instead of BinLoads,
@@ -5406,6 +5593,7 @@ L4 = 0
              ],
        see_also:[bin_packing/4,bin_packing/3],
        summary:"The one-dimensional bin packing constraint with loads, using native Gecode indexing",
+       kind: [constraint:[extra:[gccat:bin_packing]]],
   desc:    html("\
   This version of the constraint uses the native Gecode indexing, which starts 
   from 0. This is different from normal ECLiPSe's indexing, which starts from 1.
@@ -5435,6 +5623,7 @@ L4 = 0
 [eclipse 5]: bin_packing([3,3,3], [4,3,1], 3, 5).  % Fails
 
 ",
+       kind: [constraint:[extra:[gccat:bin_packing]]],
        desc: html("\
    This constraint is for one-dimensional bin-packing, that is, to pack M
    items with individual sizes into N bins, such that the sum of sizes of 
@@ -5481,6 +5670,7 @@ L4 = 0
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    kind: [constraint:[extra:[gccat:lex_leq]]],
     eg:"
 [eclipse 31]: lex_le([5,2,3,1], [5,2,6,2]).
    ...
@@ -5524,6 +5714,7 @@ No (0.00s cpu)
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    kind: [constraint:[extra:[gccat:lex_less]]],
     eg:"
 [eclipse 36]: lex_lt([5,2,3,9], [5,2,6,2]).
 
@@ -5570,6 +5761,7 @@ No (0.00s cpu)
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    kind: [constraint:[extra:[gccat:lex_greatereq]]],
     eg:"
 [eclipse 40]: lex_ge([5,2,8,9],[5,2,6,2]).
 
@@ -5616,6 +5808,7 @@ No (0.00s cpu)
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    kind: [constraint:[extra:[gccat:lex_greater]]],
     eg:"
 [eclipse 44]: lex_gt([5,2,7,1], [5,2,6,2]).
 
@@ -5656,6 +5849,7 @@ No (0.00s cpu)
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    kind: [constraint:[extra:[gccat:lex_equal]]],
     eg:"
 [eclipse 48]: lex_eq([1,9,1,5], [1,9,1,5]).
 
@@ -5696,6 +5890,7 @@ No (0.00s cpu)
 	"Collection1":"Collection of integers or domain variables",
 	"Collection2":"Collection of integers or domain variables"
     ],
+    kind: [constraint:[extra:[gccat:lex_different]]],
     eg:"
 [eclipse 52]: lex_ne([5,2,7,1], [5,3,7,1]).
 
@@ -5735,13 +5930,23 @@ No (0.00s cpu)
 %----------------------------------------------------------------------
 
 :- comment(ordered/2, [
-    summary:"Constrains List to be ordered according to Relation",
-    template:"<ConsistencyModule:> ordered(+Relation,+List)",
+    summary:"Constrains Vars to be ordered according to Relation",
+    template:"<ConsistencyModule:> ordered(+Relation,+Vars)",
     amode:ordered(++,+),
     args:[
 	"Relation":"One of the atoms #<, #=<, #>, #>=, #=, #\\=",
 	"Vars":"Collection of integers or domain variables"
     ],
+    kind: [constraint:[extra:[gccat:[strictly_increasing,
+                                     increasing,
+                                     strictly_decreasing,
+                                     decreasing,
+                                     all_equal,
+                                     not_all_equal 
+                                    ]
+                             ]
+                      ]
+          ],
     eg: "\
 [eclipse 9]: ordered((#<), [1,2,3,4]).
 
@@ -5841,6 +6046,7 @@ D = 4
 	"T": "Integer",
 	"Collection":"Collection of integers or domain variables"
     ],
+    kind: [constraint:[extra:[gccat:int_value]]],
     eg: "\
 [eclipse 14]: precede(0,1, [4,0,6,1,0]).  % succeed (0 appears before 1)
 
@@ -5886,6 +6092,7 @@ E = E{[-1000000 .. 1000000]}
 	"Value": "Collection of integers",
 	"Collection":"Collection of integers or domain variables"
     ],
+    kind: [constraint:[extra:[gccat:int_value_precede_chain]]],
     eg: "\
 [eclipse 18]: precede([4,0,1], [4,0,6,1,0]).   % succeed
 [eclipse 19]: precede([4,0,1], [4,0,6,1,0]).  % succeed
@@ -5931,6 +6138,7 @@ E = E{[-1000000 .. 1000000]}
 	"Table":"Collection of tuples, each of which is a collection
  of N integer values"
     ],
+    kind: [constraint:[extra:[gccat:in_relation]]],
     eg: "
 [eclipse 9]: table([5,3,3], [[](5,2,3),[](5,2,6),[](5,3,3)]).  % succeed
                                                                
@@ -5992,6 +6200,7 @@ No (0.00s cpu)
  of N integer values",
         "Option": "the atom 'mem' or 'speed' or 'default'"
     ],
+    kind: [constraint:[extra:[gccat:in_relation]]],
     eg: "
 [eclipse 9]: table([5,3,3], [[](5,2,3),[](5,2,6),[](5,3,3)], speed).  % succeed
                                                                
@@ -6054,6 +6263,7 @@ No (0.00s cpu)
 	"RegExp":"A regular expression"
 
     ],
+    kind: [constraint],
     eg: "
 [eclipse 8]: regular([0,0,0,1,1,0,0], *(0) + *(1) + +(0)).  % succeed
 
@@ -6166,6 +6376,7 @@ F = 4
         "Start":"Start state (non-negative integer)",
         "Finals":"Final states (collection of non-negative integers)"
     ],
+    kind: [constraint],
     eg: "
 [eclipse 7]: L = [A,B,C,D,E], extensional(L, [trans(0,0,0),trans(0,1,1),trans(1,0,0)], 0, [0]), labeling(L), writeln(L), fail.
 [0, 0, 0, 0, 0]
@@ -6283,6 +6494,7 @@ args:[
           timeout(+Seconds), control(+Control), backtrack(-N), 
           node(+Call), nodes(+N)"
 ],
+kind: [search],
 desc:html("<b>Search/6</b> provides an interface to gecode's search-engine,
 to allow search to be performed by gecode. It is designed to have the same 
 arguments as the generic search/6 routine available for integer domain solvers.
@@ -6544,6 +6756,7 @@ args:[
       "Select" : "is a predefined selection method or the name of a"
 	         " predicate of arity 2."
 ],
+kind: [search],
 desc:html("
 This predicate chooses one entry in a list of variables or terms based
 on some selection criteria. The selected entry is returned in X, with
@@ -6590,6 +6803,7 @@ amode:indomain(?,++),
 args:[
 "Var":"a domain variable or an integer",
 "Method":"one of the atoms min, max, middle, median, split, interval, random or an integer"],
+kind: [search],
 desc:html("This predicate provides a flexible way to assign values to finite 
 domain variables.<p>
 The available methods are:
@@ -6691,6 +6905,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     ],
     summary: "Update (if required) the lower bound of Var.",
     see_also: [impose_max/2, impose_bounds/3, impose_domain/2, exclude/2, exclude_range/3],
+    kind:[dom],
     desc: html("<P>
    This predicate is provided mainly for compatibility with IC solver.
    If you intend to impose the same minimum on multiple variables, it
@@ -6735,6 +6950,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     ],
     summary: "Update (if required) the upper bound of Var.",
     see_also: [impose_min/2, impose_bounds/3, impose_domain/2, exclude/2, exclude_range/3],
+    kind:[dom],
     desc: html("<P>
    This predicate is provided mainly for compatibility with IC solver.
    If you intend to impose the same maximum on multiple variables, it
@@ -6781,6 +6997,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     ],
     summary: "Update (if required) the bounds of Var.",
     see_also: [impose_min/2, impose_max/2],
+    kind:[dom],
     desc: html("<P>
    This predicate is provided mainly for compatibility with IC solver.
    If you intend to impose the same bounds on multiple variables, it
@@ -6811,6 +7028,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     ],
     summary: "Restrict (if required) the domain of Var to the domain of DomVar.",
     see_also: [impose_min/2, impose_max/2, impose_bounds/3, exclude/2, exclude_range/3],
+    kind:[dom],
     desc: html("<P>
    This predicate is provided mainly for compatibility with IC solver.
    If you intend to impose the same domain on multiple variables, it
@@ -6871,6 +7089,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     ],
     summary: "Exclude the element Excl from the domain of Var.",
     see_also: [exclude_range/3, impose_min/2, impose_max/2, impose_domain/2],
+    kind:[dom],
     desc: html("<P>
    This predicate is mainly provided for compatibility with IC solver.
    If you want to remove multiple values from the domain of one or 
@@ -6916,6 +7135,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     ],
     summary: "Exclude the elements Lo..Hi from the domain of Var.",
     see_also: [exclude/2, impose_min/2, impose_max/2],
+    kind:[dom],
     desc: html("<P>
    This predicate is mainly provided for compatibility with IC solver.
    If you want to exclude the same range of values from multiple variables,
@@ -6964,6 +7184,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
                gfd_vars_impose_bounds/3, 
                gfd_vars_exclude/2, gfd_vars_exclude_range/3, 
                gfd_vars_exclude_domain/2],
+    kind:[dom],
     desc: html("<P>
 </P><P>
    Primitive for restricting the domains of Vars to the domain
@@ -7009,6 +7230,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 	"Bound": "Lower bound (integer)"
     ],
     summary: "Update (if required) the lower bounds of Vars.",
+    kind:[dom],
     desc: html("<P>
    Primitive for updating the upper bound of Vars so that they are at most
    Bound.  A bound update on a variable in Vars may fail (when the
@@ -7051,6 +7273,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 	"Bound": "Upper bound (integer)"
     ],
     summary: "Update (if required) the upper bounds of Vars.",
+    kind:[dom],
     desc: html("<P>
    Primitive for updating the lower bound of Vars so that they are at least
    Bound.  A bound update on a variable may fail (when the update empties
@@ -7094,6 +7317,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 	"Hi": "Upper bound (integer)"
     ],
     summary: "Update (if required) the bounds of Vars.",
+    kind:[dom],
     desc: html("<P>
    Primitive for updating the bounds of Vars so that the Lower bounds
    are at least Lo and the upper bounds are at most Hi.
@@ -7137,6 +7361,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 	"Excl": "Integer value to exclude"
     ],
     summary: "Exclude the element Excl from the domains of Vars.",
+    kind:[dom],
     desc: html("<P>
    Primitive for excluding an element from the domains of variables in Vars.
 </P><P>
@@ -7174,6 +7399,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 	"Hi":  "Integer upper bound of range to exclude"
     ],
     summary: "Exclude the elements Lo..Hi from the domains of Vars.",
+    kind:[dom],
     desc: html("<P>
    Primitive for excluding the integers between Lo and Hi (inclusive) from
    the domains of variables in Vars. 
@@ -7213,6 +7439,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     ],
     summary: "Exclude the values specified in Domain from the domains"
              " of Vars.",
+    kind:[dom],
     desc: html("
 </P><P>
    Primitive for excluding the values specified in Domain from the

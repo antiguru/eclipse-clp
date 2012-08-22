@@ -82,6 +82,7 @@ gcc_matrix(Row,Col,Matrix) :-
                         "other Values in ColBounds",
              "Matrix":"A two dimensional MxN matrix of Variables or integer"],
       see_also: [fd_global_gac:gcc/2],
+      kind:[constraint:[root:fd]],
       desc:html("\
     This constraint ensures that the cardinality (the number of occurrences)
     of values in each row and column of Matrix conforms to the specifications
@@ -111,6 +112,7 @@ gcc_matrix(Row,Col,Matrix) :-
       amode:alldifferent_matrix(+),
       args:["Matrix":"A two dimensional square matrix of Variables or integer"],
       see_also:[fd_global_gac:alldifferent/1,_:alldifferent_matrix/1],
+      kind:[constraint:[root:fd]],
       desc:html("\
 <P>
     This constraint is a matrix version of alldifferent. Matrix is a two
@@ -144,6 +146,7 @@ gcc_matrix(Row,Col,Matrix) :-
         summary: "The number of values taken from Values is between Low and"
                  " High for all sequences of K variables in Vars.", 
         see_also: [fd_global_gac:sequence/5,fd:element/3,fd_global:sequence_total/6,fd_global:sequence_total/7],
+        kind:[constraint:[root:fd]],
         desc: html("\
 <P>
     This constraint ensures that the number of values taken from the set
@@ -172,6 +175,7 @@ gcc_matrix(Row,Col,Matrix) :-
         summary: "The number of occurrences of the value 1 is between Low and"
                  " High for all sequences of K variables in ZeroOnes", 
         see_also: [fd_global_gac:sequence/5,fd:element/3,fd_global:sequence_total/6,fd_global:sequence_total/7],
+        kind:[constraint:[root:fd]],
         desc: html("\
 <P>
     This constraint ensures that the number of occurrences of the value 1

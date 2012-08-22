@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.6 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.7 2012/08/22 01:12:15 kish_shen Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -91,6 +91,7 @@ tr_global_out(occurrences(Val, Vars, N, _, _), occurrences(Val, Vars, N)).
 	"Relation":"One of the atoms <, =<, >, >=, =",
 	"List":"Collection of integers or domain variables"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     see_also:[lex_le/2,ordered_sum/2,sorted/2,collection_to_list/2]
     ]).
 
@@ -135,6 +136,7 @@ ordered1(Order, X1, X2Xs) :-
 	"List":"Collection of integers or domain variables",
 	"Min":"Variable or integer"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     	Min is the minimum of the values in List.  Operationally: 
 	Min gets updated to reflect the current range of the minimum
@@ -203,6 +205,7 @@ minlist(Xs, Min) :-
 	"List":"Collection of integers or domain variables",
 	"Max":"Variable or integer"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
 	Max is the maximum of the values in List.  Operationally: 
 	Max gets updated to reflect the current range of the maximum
@@ -276,6 +279,7 @@ maxlist(Xs, Max) :-
 	"Vars":"Collection (a la collection_to_list/2) of atomic terms or domain variables",
 	"N":"Variable or integer"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     	  The value Value occurs in Vars N times.  Operationally:  N
 	  gets updated to reflect the number of possible occurrences in the
@@ -377,6 +381,7 @@ count_vars(Value,[H|T],Lower1,Lower,Upper1,Upper,VarsWithValue) :-
 	"List":"List of integers or domain variables",
 	"Sum":"Variable or integer"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("<P>\
     	  The sum of the list elements is Sum.  This constraint is
 	  more efficient than the general arithmetic constraint if
@@ -607,6 +612,7 @@ in_between(X, Min, Max) :-
 	"List":"List of integers or domain variables",
 	"Sum":"Variable or integer"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     This constraint is declaratively equivalent to:
 <PRE>
@@ -682,6 +688,7 @@ ordered_sum_l(Xs, N, Sum, Susp) :-
 	"List1":"List of integers or domain variables",
 	"List2":"List of integers or domain variables"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
 	I.e.  either is the first element of List1 strictly smaller
@@ -753,6 +760,7 @@ get_next([X|_X1],[Y|_Y1],X,Y).
 	"List1":"List of integers or domain variables",
 	"List2":"List of integers or domain variables"
     ],
+    kind:[constraint:[root:[ic,fd]]],
     see_also:[ordered/2,_:lex_lt/2,lex_le/2],
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
@@ -818,6 +826,7 @@ lexico_le(Xs, Ys) :- lex_le(Xs, Ys).  % backwards compatibility
     amode:sorted(-,+),
     args:["List":"List of domain variables or integers",
     	"Sorted":"List of domain variables or integers"],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     Declaratively: The two lists have the same length and Sorted is a
     sorted permutation of List.
@@ -855,6 +864,7 @@ lexico_le(Xs, Ys) :- lex_le(Xs, Ys).  % backwards compatibility
     args:["List":"List of domain variables or integers",
     	"Sorted":"List of domain variables or integers",
     	"Positions":"List of domain variables or integers"],
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     Declaratively:  Sorted is a sorted permutation of List.  Positions
     is a list whose elements range from 1 to N (where N is the length
@@ -1121,6 +1131,7 @@ sorted_demon(Us, SsArr, Ps, Susp) :-
 	"Vars": "A collection (a la collection_to_list/2) of variables or integers"
     ],
     summary:"All members of Vars are different",
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     Constrains all elements of a collection to be pairwise different (and
     integral).  This is an implementation with the same semantics as the
@@ -1160,6 +1171,7 @@ alldifferent(List) :-
 	"Capacity": "Maximum number of times a value can appear in Vars"
     ],
     summary:"Vars contains at most Capacity elements of each value",
+    kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     This is a generalization of alldifferent/1.  It allows repeated elements
     in the collection, but there can be no more than Capacity elements with
@@ -1384,6 +1396,7 @@ process_prefix_ge_min(Min,TTs,RestTs,CutOffSize,Cap,Dom0,Dom,NVars0,NVars,Prop) 
 :- comment(atmost/3, [
 	summary:"At most N elements of Vars have the value V.",
 	template:"atmost(+N, ?Vars, +V)",
+        kind:[constraint:[root:[ic,fd]]],
 	desc:html("\
    This constraint ensures that at most N element of Vars have the value V.
    As soon as some domain variable from the collection is updated, this
@@ -1523,6 +1536,7 @@ bool_channeling
                "Min": "An integer"],
         summary: "Channel the domain values of Vars to the 0/1 boolean"
                  " variables in DomainBools",
+        kind:[constraint:[root:[ic,fd]]],
         desc: html("\
 <P>
     Var is an integer domain variable whose initial interval is Min..(Min+N),
