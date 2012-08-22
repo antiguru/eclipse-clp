@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd.pl,v 1.3 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: fd.pl,v 1.4 2012/08/22 01:03:39 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -767,6 +767,7 @@ handle_exit(Tag) :-
 	args:["?List" : "A list of integers and domain variables."],
 	resat:"   No.",
 	fail_if:"   Fails if two element of the list are equal.\n\n",
+        kind: [constraint],
 	see_also:[/(::, 2), /(#::, 2), /(##, 2), fd_global:alldifferent/1]]).
 
 :- comment(/(alldistinct, 1), [
@@ -781,6 +782,7 @@ handle_exit(Tag) :-
 	args:["?List" : "A list of integers and domain variables."],
 	resat:"   No.",
 	fail_if:"   Fails if two element of the list are equal.\n\n",
+        kind: [constraint],
 	see_also:[/(::, 2), /(#::, 2), /(##, 2), /(alldifferent, 1)]]).
 
 :- comment(/(#/\, 2), [
@@ -796,6 +798,7 @@ handle_exit(Tag) :-
 	args:["?C1" : "An arithmetic constraint expression.", "?C2" : "An arithmetic constraint expression."],
 	resat:"   No.",
 	fail_if:"   Fails if one of C1 or C2 is false.\n\n",
+        kind: [constraint],
 	see_also:[/(#\/, 2), /(#=>, 2), /(#<=>, 2), /(#\+, 1)]]).
 
 :- comment(/(#/\, 3), [
@@ -803,6 +806,7 @@ handle_exit(Tag) :-
 
 ",
 	template:"#/\\(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -844,6 +848,7 @@ handle_exit(Tag) :-
 
 ",
 	template:"atmost(+N, ?List, +V)",
+        kind: [constraint],
 	desc:html("   If List is a list of domain variables and/or integers, this constraint
    takes care that at most N element of this list have the value V. As soon
    as some domain variable from the list is updated, this constraint is
@@ -919,6 +924,7 @@ which occurs in arithmetic constraints.
 
 ",
 	template:"?X ## ?Y",
+        kind: [constraint],
 	desc:html("   This constraints states that the two linear terms are not equal.  It is
    suspended until at most one variable appears in it and then its domain
    is updated so that the constraint is satisfied.
@@ -935,6 +941,7 @@ which occurs in arithmetic constraints.
 
 ",
 	template:"##(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -976,6 +983,7 @@ which occurs in arithmetic constraints.
 
 ",
 	template:"?X #\\= ?Y",
+        kind: [constraint],
 	desc:html("   This constraints states that the two linear terms are not equal.  It is
    suspended until at most one variable appears in it and then its domain
    is updated so that the constraint is satisfied.
@@ -992,6 +1000,7 @@ which occurs in arithmetic constraints.
 
 ",
 	template:"#\\=(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -1276,6 +1285,7 @@ number of its elements.
 
 ",
 	template:"?Vars ::  ?Domain",
+        kind: [constraint],
 	desc:html("   The main purpose of this predicate is to create domain variables.
    Domain can be a closed integer interval denoted as Min..Max, or a sorted
    list of integer intervals and/or elements.  If Vars is already a domain
@@ -1304,6 +1314,7 @@ number of its elements.
 	args:["?Vars" : "A variable or a list of variables.", "+Domain" : "Variable, integer, integer interval or a list of integers                and integer intervals."],
 	resat:"   No.",
 	fail_if:"   Fails if Vars cannot have the domain Domain.\n\n",
+        kind: [constraint],
 	see_also:[/(::, 2), /(dom_to_list, 2), /(is_domain, 1)]]).
 
 :- comment(/(::, 3), [
@@ -1311,6 +1322,7 @@ number of its elements.
 
 ",
 	template:"::(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -1354,6 +1366,7 @@ number of its elements.
 	template:"#::(?X, ?Y, ?B)",
 	args:["?X" : "A domain variable", "?Y" : "A linear term.", "?B" : "A variable with domain 0..1."],
 	resat:"   No.",
+        kind: [constraint],
 	fail_if:"   Fails if B is not the truth value of the associated constraint.\n\n",
 	see_also:[/(::, 3), /(#>=, 3), /(#<, 3), /(#<=, 3), /(#=, 3), /(#\=, 3)]]).
 
@@ -1507,6 +1520,7 @@ changes.
 
 ",
 	template:"element(?Index, +List, ?Value)",
+        kind: [constraint],
 	desc:html("   This constraints can be used in a variety of programs to state a
    relation between two domain variables.  List is a list of integers and
    the constraint states that its Index'th element is equal to Value, i.e.
@@ -1547,6 +1561,7 @@ changes.
 
 ",
 	template:"?X #= ?Y",
+        kind: [constraint],
 	desc:html("   This constraints states that the two linear terms are equal.  It is
    activated whenever the maximum or minimum of a domain variable is
    updated that might require updating other domains.  When propagating
@@ -1570,6 +1585,7 @@ changes.
 
 ",
 	template:"#=(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -1611,6 +1627,7 @@ changes.
 
 ",
 	template:"?C1 #<=> ?C2",
+        kind: [constraint],
 	desc:html("   This constraint states that the constraint expressions C1 and C2
    evaluate to the same truth value, either both true of both false.  If
    this is already the case, it simply succeeds.  Otherwise it is suspended
@@ -1631,6 +1648,7 @@ changes.
 
 ",
 	template:"#<=>(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -1690,6 +1708,7 @@ changes.
 
 ",
 	template:"?X #> ?Y",
+        kind: [constraint],
 	desc:html("   This constraint states that the linear term X is greater than the linear
    term Y. It is activated whenever the maximum or minimum of a domain
    variable is updated that might require updating other domains.  When
@@ -1713,6 +1732,7 @@ changes.
 
 ",
 	template:"#>(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -1754,6 +1774,7 @@ changes.
 
 ",
 	template:"?X #>= ?Y",
+        kind: [constraint],
 	desc:html("   This constraint states that the linear term X is greater than or equal
    to the linear term Y. It is activated whenever the maximum or minimum of
    a domain variable is updated that might require updating other domains.
@@ -1777,6 +1798,7 @@ changes.
 
 ",
 	template:"#>=(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -1818,6 +1840,7 @@ changes.
 
 ",
 	template:"?C1 #=> ?C2",
+        kind: [constraint],
 	desc:html("   This constraint states that the constraint expression C1 implies the
    constraint expression C2.  If this is already the case, it simply
    succeeds.  Otherwise it is suspended and after each domain change that
@@ -1836,6 +1859,7 @@ changes.
 
 ",
 	template:"#=>(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -1956,6 +1980,7 @@ changes.
 
 ",
 	template:"?B isd ?C",
+        kind: [constraint],
 	desc:html("   This is an evaluation constraint.  It states that the constraint
    expression C evaluates to the boolean value B, where the value 0 means
    false and 1 true.  This constraint can be used both to test the validity
@@ -1994,6 +2019,7 @@ changes.
 
 ",
 	template:"?X #< ?Y",
+        kind: [constraint],
 	desc:html("   This constraint states that the linear term X is less than the linear
    term Y. It is activated whenever the maximum or minimum of a domain
    variable is updated that might require updating other domains.  When
@@ -2017,6 +2043,7 @@ changes.
 
 ",
 	template:"#<(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -2058,6 +2085,7 @@ changes.
 
 ",
 	template:"?X #<= ?Y",
+        kind: [constraint],
 	desc:html("   This constraint states that the linear term X is less than or equal to
    the linear term Y. It is activated whenever the maximum or minimum of a
    domain variable is updated that might require updating other domains.
@@ -2081,6 +2109,7 @@ changes.
 
 ",
 	template:"#<=(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -2714,6 +2743,7 @@ domain from the solver.
 
 ",
 	template:"#\\+ ?C",
+        kind: [constraint],
 	desc:html("   This constraint states that the constraint expressions C is false.  If
    this is already the case, it simply succeeds.  Otherwise it is suspended
    and after each domain change that may cause C to succeed, it is woken
@@ -2731,6 +2761,7 @@ domain from the solver.
 
 ",
 	template:"#\\+(?X, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -2772,6 +2803,7 @@ domain from the solver.
 
 ",
 	template:"?C1 #\\/ ?C2",
+        kind: [constraint],
 	desc:html("   This constraint states that at least one of the two constraint
    expressions C1, C2 must be true.  If this is already the case, it simply
    succeeds.  Otherwise it is suspended and after each domain change that
@@ -2791,6 +2823,7 @@ domain from the solver.
 
 ",
 	template:"#\\/(?X, ?Y, ?B)",
+        kind: [constraint],
 	desc:html("   This predicate is an evaluation constraint:  it succeeds if and only if
    the truth value of its associated constraint (the constraint with arity
    one less and the same arguments except for B) is equal to B, where the
@@ -2898,6 +2931,7 @@ of sequences of Item in List.
 
 ",
 	template:"contigs(+List, +Item, ?MaxLength, ?Occurrences, ?Contigs)",
+        kind: [constraint],
 	desc:html("   The constraint is satisfied when MaxLength is the longest sequence of
    Item occurring in List, Occurrences is the total number of occurrences
    of Item in List and Contigs is the number of all uninterrupted sequences
@@ -2948,6 +2982,7 @@ and duration Duration2 (and the Flag is 2).
 
 ",
 	template:"disjunction(?Start1, +Duration1, ?Start2, +Duration2, ?Flag)",
+        kind: [constraint],
 	desc:html("   This constraint can be used to model two non-overlapping tasks with
    known durations.  Given the starting times and durations, this
    constraint uses constructive disjunction to remove all inconsistent
@@ -2993,6 +3028,7 @@ and duration Duration2 (and the Flag is 2).
 
 ",
 	template:"disjunction_choose(?Start1, +Duration1, ?Start2, +Duration2, ?Flag)",
+        kind: [constraint],
 	desc:html("   This constraint can be used, if there are two tasks that have to be
    scheduled on the same machine.  It states which of the two tasks given
    by their starting times and durations is scheduled as first.  It is
@@ -3036,6 +3072,7 @@ represented in the list Flags.
 
 ",
 	template:"disjunctive(?Starts, +Durations, ?Flags)",
+        kind: [constraint],
 	desc:html("   This constraint can be used by job-shop problems on single machine.  The
    tasks to be scheduled on one machine are represented by their starting
    times (Starts) and durations (Durations).  The actual ordering of tasks
@@ -3171,6 +3208,7 @@ constraints and return the rest of the list.
 	resat: "  No.",
 	fail_if: "   Fails if Vars contains non-integers, or variables with non-integer domains.",
 	exceptions:[5: "Vars is a variable."],
+        kind: [constraint],
         desc: html("\
   Constrains the list Vars to be integers. If Vars contains non-domain 
   variable, such variables will be given the default domain.")
@@ -3207,6 +3245,7 @@ constraints and return the rest of the list.
 	"Cstrs":"A list of constraint expressions",
 	"Max":"Integer or domain variable"
     ],
+    kind: [constraint],
     desc:html("
 	This is a meta constraint known in the literature as the
 	cardinality operator.  CstList is a list of constraint
