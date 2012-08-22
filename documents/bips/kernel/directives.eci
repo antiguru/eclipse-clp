@@ -305,6 +305,41 @@ The following ones are recognized by the document tools:
     the most general default template that will otherwise be
     automatically generated from the predicate name, the arguments and
     and the amode information.
+
+<DT><STRONG>kind: ListofKinds</STRONG>
+    <DD>ListofKinds is a list of 'kind' information about the commented
+    predicate. Unlike the other fields, the kind information is not intended
+    for the generated documentation for the predicate, but instead, it is 
+    intended for producing meta-information about the predicate that can
+    then be processed by ECLiPSe programs. Each item in the ListofKinds
+    has the following form:
+    <PRE>
+    Kind
+    </PRE>
+    or
+    <PRE>
+    Kind:Info
+    </PRE>
+    where Kind is an atom specifying some classification of the predicate
+    (e.g. constraint). Info is a list of further information about the 
+    predicate, and can be the following:
+    <PRE>
+    root: Root
+    extra: Extra
+    </PRE>
+    where Root is an atom, the name of the 'root' module for the predicate.
+    If it is not specified, the root module is taken to be the module in
+    which the predicate is defined.
+    Extra is a list of Kind-specific information about the predicate.
+</P><P>
+    Each item in the ListofKinds will be processed by the document tools into 
+    an ECLiPSe fact, and facts gathered from all the processed comment files 
+    will be placed into a file after the processing. The fact is of the form:  
+    <PRE>
+    kind(Kind, Name, Arity, Root, Module, Extra)
+    </PRE>
+    where Name and Arity is the name and arity of the predicate, and Module is
+    the module the predicate is defined in.
 </DL>
 Note that only the 'summary' property is compulsory, and apart from
 'amode', each property should occur at most once.
