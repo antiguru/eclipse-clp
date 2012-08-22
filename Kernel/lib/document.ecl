@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.6 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.7 2012/08/22 01:02:28 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2012/02/06 13:24:43 $").
+:- comment(date, "$Date: 2012/08/22 01:02:28 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -245,9 +245,20 @@ write_eci_file(Out, Decls, Comments, Module) :-
 	fail,		% text
 	exc,		% [int:text]
 	eg,		% string
-	see		% term
+        kind,		% [term]
+        see		% term
     )).
 
+% this structure is for storing the 'kind' (classification)
+% information for a predicate provided in the comment documentation.
+:- local struct(kind(
+        kind,		% kind
+        n,		% name
+        a,		% arity
+        root,		% root for pred (e.g. the solver for pred.)
+        lib,		% lib for pred.
+        extra		% extra (kind specific) info
+    )).
 
 % Dummy definition to avoid warnings (will be replaced via compile_term)
 bip(_Name, _Arity, _Group, _Library, _File).
@@ -257,6 +268,9 @@ bip(_Name, _Arity, _Group, _Library, _File).
     desc:html("Generate the HTML documentation tree for all ECLiPSe libraries.
     It takes into account all .eci files in the library path and generates
     an HTML documentation tree in <ECLiPSe installation directory>/doc/bips.
+    The kind information for predicates (taken from the kind field of
+    comment directives) are placed into:
+      <ECLiPSe installation directory>/doc/bips/bip_kinds.ecl 
     "),
     see_also:[ecis_to_htmls/4]
     ]).
@@ -315,18 +329,20 @@ ecis_to_htmls(LibDirs, HtmlTopDir, LinkBack) :-
 ecis_to_htmls(LibDirs0, HtmlTopDir, LinkBack, SystemName) :-
 	( LibDirs0 = [_|_] -> LibDirs = LibDirs0 ; LibDirs = [LibDirs0] ),
 	makedir(HtmlTopDir),
-	writeln(log_output, "collecting indexing information..."),
 	(
 	    foreach(LibDir,LibDirs),			% Pass 1
 	    fromto(Groups,Groups1,Groups0,[]),
 	    fromto(GroupedFiles,GroupedFiles1,GroupedFiles0,[]),
+            fromto(Kinds,Kinds3,Kinds0,[]),
 	    fromto(IndexList,IndexList3,IndexList0,[])	% and index info
 	do
 	    % group name is the library directory name (may have trailing / !)
-	    pathname(LibDir, _, Group0, _),
+            writeln(log_output, doing-LibDir),
+            pathname(LibDir, _, Group0, _),
 	    split_string(Group0, "", "/", [Group]),
 	    find_tree(LibDir, "*.eci", EciFiles),
 	    ( EciFiles = [] ->
+                Kinds3 = Kinds0,
 		IndexList3 = IndexList0,
 		Groups1 = Groups0,
 		GroupedFiles1 = GroupedFiles0
@@ -334,9 +350,10 @@ ecis_to_htmls(LibDirs0, HtmlTopDir, LinkBack, SystemName) :-
 		(
 		    foreach(EciFile,EciFiles),
 		    fromto(IndexList3,IndexList2,IndexList1,IndexList0),
-		    param(Group)
+                    fromto(Kinds3,Kinds2,Kinds1,Kinds0),
+                    param(Group)
 		do
-		    eci_to_index(EciFile, Group, IndexList2, IndexList1)
+		    eci_to_index(EciFile, Group, IndexList2, IndexList1, Kinds2, Kinds1)
 		),
 		Groups1 = [Group|Groups0],
 		GroupedFiles1 = [EciFiles|GroupedFiles0]
@@ -353,6 +370,7 @@ ecis_to_htmls(LibDirs0, HtmlTopDir, LinkBack, SystemName) :-
 	),
 	fillin_empty_files(SortedIndexList),
 	gen_prolog_index(HtmlTopDir, SortedIndexList),
+        gen_bip_kind_file(HtmlTopDir, Kinds),
 	compile_term(SortedIndexList),
 	( Groups = [_] ->
 	    % Simple form, only one global library index
@@ -441,19 +459,21 @@ ecis_to_htmls(LibDirs0, HtmlTopDir, LinkBack, SystemName) :-
 % Pass 1 - collect predicate index information
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-eci_to_index(EciFile, Group, IndexList, IndexList0) :-
+eci_to_index(EciFile, Group, IndexList, IndexList0, Kinds, Kinds0) :-
 	pathname(EciFile, _, LibNameString, _),
 	atom_string(LibName, LibNameString),
 	open(EciFile, read, EciStream),
-	( eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0) ->
+	( eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0, Kinds, Kinds0) ->
 	    true
 	;
 	    IndexList=IndexList0,
+            Kinds=Kinds0,
 	    printf(error, "Error while processing %w for index%n", [EciFile])
 	),
 	close(EciStream).
 
-eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0) :-
+eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0,
+                    Kinds, Kinds0) :-
 	atom_string(GroupA, Group),
 	% make an index entry for the library as a whole
 	add_index_entries([LibName],GroupA,LibName,_NoFile,IndexList,IndexList4),
@@ -462,26 +482,31 @@ eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0) :-
 	    fromto(FirstDirective,Directive,NextDirective,end_of_file),
 	    fromto(IndexList4,IndexList2,IndexList1,IndexList5),
 	    fromto(Exports,Exports1,Exports0,[]),
-	    fromto(Hidden,Hidden1,Hidden0,[]),
+            fromto(Kinds,Kinds2,Kinds1,Kinds0),
+            fromto(Hidden,Hidden1,Hidden0,[]),
 	    param(EciStream,GroupA,LibName)
 	do
 	    ( Directive = (:- export N/A) ->
 		IndexList2 = IndexList1,
 		Hidden1 = Hidden0,
+                Kinds1 = Kinds2,
 		Exports1 = [N/A|Exports0]
 	    ; Directive = (:- export struct(Struct)) ->
 		Hidden1 = Hidden0,
+                Kinds1 = Kinds2,
 		Exports1 = Exports0,
 		functor(Struct, N, _),
 		IndexList2 = [bip(N,struct,GroupA,LibName,_NoFile)|IndexList1]
 	    ; Directive = (:- global N/A) ->
 		Hidden1 = Hidden0,
 		Exports1 = Exports0,
+                Kinds1 = Kinds2,
 		IndexList2 = [bip(N,A,GroupA,LibName,_NoFile)|IndexList1]
 	    ;  Directive = (:- comment(N/A, Comment)) ->
 		Exports1 = Exports0,
 		( Comment == hidden ->
 		    Hidden1 = [N/A|Hidden0],
+                    Kinds1 = Kinds2,
 		    IndexList2 = IndexList1
 		;
 		    Hidden1 = Hidden0,
@@ -492,19 +517,37 @@ eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0) :-
 			add_index_entries(ExtraIndex,GroupA,LibName,PredFileNameA,IndexList3,IndexList1)
 		    ;
 			IndexList3=IndexList1
-		    )
+		    ),
+                    (N == regular, A == 2 ->
+                        foobar(Comment)
+                    ;
+                        true
+                    ),
+                    ( memberchk(kind:Kind,Comment) ->
+                        ( add_kind_entries(Kind,N,A,LibName,Kinds2, Kinds1) ->
+                            true
+                        ; 
+                            printf(error, "Invalid kind entry: %w for %w/%d in lib(%w).%n", [Kind,N,A,LibName]),
+                            Kinds1 = Kinds2
+                        )
+                    ;
+                        Kinds1 = Kinds2
+                    )
 		)
 	    ;  Directive = (:- comment(struct(N), _)) ->
 		Hidden1 = Hidden0,
+                Kinds1 = Kinds2,
 		Exports1 = Exports0,
 		object_spec_to_filename(struct(N), FileName),
 		IndexList2 = [bip(N,struct,GroupA,LibName,FileName)|IndexList1]
 	    ;  Directive = (:- comment(index, ExtraIndex)) ->
 		Hidden1 = Hidden0,
 		Exports1 = Exports0,
+                Kinds1 = Kinds2,
 		add_index_entries(ExtraIndex,GroupA,LibName,_NoFile,IndexList2,IndexList1)
 	    ;
 		Hidden1 = Hidden0,
+                Kinds1 = Kinds2,
 		Exports1 = Exports0,
 	    	IndexList2 = IndexList1
 	    ),
@@ -522,7 +565,7 @@ eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0) :-
 		IndexList6 = [bip(N,A,GroupA,LibName,_NoFile)|IndexList7]
 	    )
 	).
-
+foobar(_).
     add_index_entries([],_Group,_LibName,_PredFileName,IL,IL).
     add_index_entries([Word|Words],G,L,P, IL, IL0) :-
 	( atomic(Word) ->
@@ -537,6 +580,61 @@ eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0) :-
 	    IL = IL1
 	),
 	add_index_entries(Words,G,L,P,IL1,IL0).
+
+    add_kind_entries([],_N, _A,_L, Ks, Ks).
+    add_kind_entries([KindInfo|KIs],N,A,L, Ks, Ks0) :-
+        (atom_or_string(KindInfo) -> 
+            Kind = KindInfo,
+            Info = []
+        ; nonvar(KindInfo), KindInfo = Kind:Info ->
+            true
+        ; 
+            fail
+        ),
+        KindFact = kind{kind:Kind, lib:L,n:N,a:A},
+        (fill_kind_fields(Info, Kind, L, KindFact)  ->
+            Ks = [KindFact|Ks0]
+        ;
+            printf(error, "Invalid kind entry: %w for %w/%d in lib(%w):%n", [Kind,N,A,L]),
+            Ks = Ks1
+        ),
+	add_kind_entries(KIs, N, A, L, Ks1, Ks0).
+
+    fill_kind_fields([], _Kind, L, IF) :-
+        IF = kind{root:Root},
+        (var(Root) -> Root = L ; true),
+        (foreacharg(Arg, IF) do 
+            (var(Arg) -> Arg = 0 ; true)
+        ).
+   fill_kind_fields([I|Is], Kind, L, IF) :-
+        fill_one_kind_field(I, L, IF),
+        fill_kind_fields(Is, Kind, L, IF).
+
+   fill_one_kind_field(root:Root0, L, kind{root:Root}) :- !,
+        ( atom(Root0) ->
+            Root0 = Root
+        ; is_list(Root0) ->
+            % more than one possible root solver (generic interface)
+            concat_string([L], SL), 
+            (foreach(R,Root0), param(SL,Root) do
+                ( atom(R) -> 
+                    atom_string(R, SR),
+                    ( substring(SL, SR, 1) -> 
+                        Root = R % use atom
+                    ;
+                        true
+                    )
+                ; R = Lib:LibRoot ->
+                    atom_string(Lib, SLib),
+                    (SL = SLib -> Root = LibRoot ; true)
+                ;
+                    fail 
+                )
+            )
+        ; 
+            fail
+        ).
+   fill_one_kind_field(extra:Extra, _L, kind{extra:Extra}) :- !.
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 % Pass 2 - generate the html files
@@ -1113,6 +1211,7 @@ page_field(_/_,		fail_if:Val,	fail of pdoc) :- atom_or_string(Val), !.
 page_field(_/_,		exceptions:Val,	exc of pdoc) :- ground(Val), is_list(Val), !.
 page_field(_/_,		template:Val,	template of pdoc) :- ground(Val), !.
 page_field(_/_,		tool:Val,	tool of pdoc) :- atom_or_string(Val), !.
+page_field(_/_,         kind:Val,	kind of pdoc) :- is_list(Val), !.
 page_field(_/_,		amode:_Val,	0) :- !.	% handled separately
 page_field(_,		index:_Val,	0) :- !.	% handled separately
 
@@ -1312,6 +1411,16 @@ gen_prolog_index(HtmlTopDir, SortedIndexList) :-
 	),
 	close(S).
 
+gen_bip_kind_file(HtmlTopDir, Kinds) :-
+	concat_string([HtmlTopDir,"/bip_kinds.ecl"], KindsFile),
+	open(KindsFile, write, S, [end_of_line(lf)]),
+	chmod644(KindsFile),
+	printf(S, "%%%n%% This file is generated - do not edit%n", []),
+	printf(S, "%% kind(Kind, Name, Arity, Root, Library, Extra)%n%%%n%n", []),
+	( foreach(Kind,Kinds), param(S) do
+	    writeq(S, Kind), writeln(S, .)
+	),
+	close(S).
 
 %----------------------------------------------------------------------
 % Auxiliaries
