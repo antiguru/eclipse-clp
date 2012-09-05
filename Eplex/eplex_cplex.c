@@ -302,7 +302,7 @@ int _lp_opt(lp_desc * lpd, struct lp_meth *meth)
 
 
 static int
-cpx_solve(lp_desc* lpd, struct lp_meth *meth, double* bestbound, double* worstbound)
+cpx_solve(lp_desc* lpd, struct lp_meth *meth, struct lp_sol *sol, double* bestbound, double* worstbound)
 {
     int res;
 

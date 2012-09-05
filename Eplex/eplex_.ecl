@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.4 2012/08/09 22:43:28 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.5 2012/09/05 23:13:38 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -393,7 +393,7 @@ load_external_solver(_, _, _, _).
 	external(cplex_loadbase/3, p_cpx_loadbase),
 	external(cplex_loadorder/3, p_cpx_loadorder),
 	external(cplex_loadsos/4, p_cpx_loadsos),
-	external(cplex_optimise/9, p_cpx_optimise),
+	external(cplex_optimise/10, p_cpx_optimise),
 	external(cplex_get_objval/2, p_cpx_get_objval),
 	external(cplex_cleanup/1, p_cpx_cleanup),
 	external(cplex_lpwrite/3, p_cpx_lpwrite),
@@ -622,6 +622,7 @@ lp_release_license.
             post_equality,      % atom: yes,no: post equality constr
             option_dump,        % dump problem before solving (no or
                                 % write_before_solve/2)
+            option_mipstart,    % in [none,all,integers]
 % Solver demon
 	    solver_id,          % int: Eplex's id for solver
 	    suspension,		% suspension or variable
@@ -2416,13 +2417,8 @@ lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, RowIdxs, TypeChanges, Cha
 	    % we need to change problem type first before adding
 	    % integers; as cplex_init_type/3 also sets the
 	    % problem type to MIP (non-backtrackably)
-	    cplex_get_prob_param(CPH, 4, ProbType),
-	    ( cplex_mip_code(ProbType) ->
-		true
-	    ;
-		% need to change from LP->MIP
-		cplex_change_lp_to_mip(Handle)	% backtrackable
-	    ),
+	    cplex_change_lp_to_mip(Handle),	% backtrackable
+
 	    % set integer type on new variables
 	    set_type_integer(CPH, SId, NewIntegers),
 
@@ -2686,6 +2682,7 @@ lp_solve(Handle, ObjVal) :- var(Handle), !,
 lp_solve(Handle, ObjVal) :-
 	Handle = prob{vars:VList,cplex_handle:CPH, timeout:TO,
                       option_dump:DumpOpt, sync_bounds:SyncBounds,
+                      option_mipstart:MipStartOpt,
                       method:M, aux_method:AM, 
                       node_method:NM, node_aux_method:NAM,
                       obj:ObjConst,cbase:CBase,rbase:RBase,
@@ -2712,7 +2709,7 @@ lp_solve(Handle, ObjVal) :-
             true
         ),
         
-        cplex_optimise(Handle, m(M,AM,NM,NAM), TO, DumpOpt,
+        cplex_optimise(Handle, m(M,AM,NM,NAM), TO, DumpOpt, MipStartOpt,
 		sols of prob, Result, Stat, Worst, Best), 
         set_lp_handle_value(Handle, status of prob, Stat),
         BestBound is ObjConst + Best,
@@ -3344,6 +3341,8 @@ process_option(abort_handler(Goal), Handle, _) ?- !,
         lp_set(Handle, abort_handler, Goal). 
 process_option(infeasible_handler(Goal), Handle, _) ?- !,
         lp_set(Handle, infeasible_handler, Goal). 
+process_option(mipstart(MipStart), Handle, _) ?- !,
+        lp_set(Handle, mipstart, MipStart). 
 process_option(NoOpt, _Handle, _) :-
 	writeln(error, "Eplex error: Invalid option for setup":NoOpt),
         abort.
@@ -3354,6 +3353,7 @@ fill_in_defaults(prob{ints:Ints, method:Method, aux_method:AuxMethod,
                 sync_bounds:SyncBds, bd_trigger:BdTrigger, triggermodes:TModes,
                 option_vnames:VNames, presolve:PreSolve, option_dump:Dump,
 		nc_trigger:NCTrigger, post_equality:PostEq,
+		option_mipstart:MipStartOpt,
 		demon_tol_real:RT, demon_tol_int:IT, cp_cond_map:CPMap}) :-
 	( var(RT) -> RT = 0.00001 ; true ),	%%% preliminary
 	( var(IT) -> IT = 0.5 ; true ),
@@ -3369,6 +3369,7 @@ fill_in_defaults(prob{ints:Ints, method:Method, aux_method:AuxMethod,
 	( var(NMethod) -> cplex_method_codes(default, NMethod, NAuxMethod) ; true ),
         ( var(PostEq) -> PostEq = yes ; true),
         ( var(Dump) -> Dump = no ; true),
+	( var(MipStartOpt) -> mipstart_code(none, MipStartOpt) ; true ),
 	( var(SyncBds) -> SyncBds = no ; true).
 
 
@@ -3615,6 +3616,8 @@ lp_get1(Handle, handle, Value) :- !,
 lp_get1(Handle, pool, Pool) :- !,
 	Handle = prob{pool:Pool},
 	nonvar(Pool).
+lp_get1(prob{option_mipstart:MipStartOpt}, mipstart, MipStart) :- !,
+	mipstart_code(MipStart, MipStartOpt).
 lp_get1(Handle, What, Value) :-
 	error(6, lp_get(Handle, What, Value)).
 
@@ -3726,6 +3729,9 @@ lp_set1(Handle, post_equality_when_unified, yes) :- !,
 	setarg(post_equality of prob, Handle, yes).
 lp_set1(Handle, post_equality_when_unified, no) :- !, 
 	setarg(post_equality of prob, Handle, no).
+lp_set1(Handle, mipstart, MipStart) :-
+	mipstart_code(MipStart, MipStartOpt), !,
+	setarg(option_mipstart of prob, Handle, MipStartOpt).
 lp_set1(Handle, order, SpecList) :-
 	Handle = prob{cplex_handle:CPH,solver_id:SId},
 	make_order_list(SpecList, SId, OrderList, 0, Length),
@@ -4250,6 +4256,10 @@ cp_cstr_state_code(inactive, -5).
 % must correspond to C code in cplex_set_cpcstr_cond()
 cp_cond_code(active, 1).
 cp_cond_code(add_initially, 2).
+
+mipstart_code(none, 0).
+mipstart_code(all, 1).
+mipstart_code(integers, 2).
 
 
 :- mode set_qobj_coeffs(+,++).

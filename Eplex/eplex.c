@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.2 2012/08/08 23:07:42 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.3 2012/09/05 23:13:38 jschimpf Exp $
  *
  */
 
@@ -311,6 +311,9 @@ static pword * _create_iarray();
 #define CSTR_STATE_INVALID     -4
 #define CSTR_STATE_INACTIVE    -5
 
+#define MIPSTART_NONE		0
+#define MIPSTART_ALL		1
+#define MIPSTART_INT		2
 
 #define CP_ACTIVE       1       /* correspond to cp_cond_code/2  */
 #define CP_ADDINIT      2
@@ -643,8 +646,7 @@ _free_lp_handle(lp_desc *lpd)
     CPXflushchannel (cpx_env, cpxlog);
     CPXflushchannel (cpx_env, cpxerror);
     CPXflushchannel (cpx_env, cpxwarning);
-#endif
-#if defined(XPRESS) || defined(COIN)
+#else
     (void) ec_flush(solver_streams[LogType]);
     (void) ec_flush(solver_streams[ResType]);
     (void) ec_flush(solver_streams[WrnType]);
@@ -1054,6 +1056,8 @@ p_cpx_prob_init(value vpre, type tpre,
     */
 
     lpd->descr_state = DESCR_LOADED;
+
+    lpd->mipstart_dirty = 0;
 
     {/* Return the cplex descriptor in argument HANDLE_CPH of the handle structure. */
 	vhandle.ptr[HANDLE_CPH] = ec_handle(&lp_handle_tid, lpd);
@@ -3054,7 +3058,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 		/* check that there are the right number of bds */
 		if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 		/* mark lower bounds array as "dirty" */
-		lpd->dirtybdflag |= 2;
+		lpd->dirtybdflag |= 1;
 	    }
 	}
 	else if (IsList(this)) /* default lower bounds, non-default upper bounds */
@@ -3106,7 +3110,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    /* check that there are the right number of bds */
 	    if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 	    /* mark upper bounds array as "dirty" */
-	    lpd->dirtybdflag |= 1;
+	    lpd->dirtybdflag |= 2;
 	}
 	else /* default bounds */
 	{
@@ -3238,7 +3242,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 		/* check that there are the right number of bds */
 		if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 		/* mark lower bounds array as "dirty" */
-		lpd->dirtybdflag |= 2;
+		lpd->dirtybdflag |= 1;
 	    }
 	}
 	else if (IsList(this)) /* default lower bounds, non-default upper bounds */
@@ -3274,7 +3278,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	    /* check that there are the right number of bds */
 	    if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
 	    /* mark upper bounds array as "dirty" */
-	    lpd->dirtybdflag |= 1;
+	    lpd->dirtybdflag |= 2;
 	}
 	else /* default bounds */
 	{
@@ -3402,11 +3406,11 @@ p_cpx_init_bound(value vlp, type tlp, value vj, type tj, value vwhich, type twhi
 
     if (vwhich.did == d_le) {		/* upper bound */
 	if (bd < lpd->bdl[j]) { Fail; }
-	if (bd < lpd->bdu[j]) { lpd->bdu[j] = bd; lpd->dirtybdflag |= 1; }
+	if (bd < lpd->bdu[j]) { lpd->bdu[j] = bd; lpd->dirtybdflag |= 2; }
 
     } else if (vwhich.did == d_ge) {	/* lower bound */
 	if (bd > lpd->bdu[j]) { Fail; }
-	if (bd > lpd->bdl[j]) { lpd->bdl[j] = bd; lpd->dirtybdflag |= 2; }
+	if (bd > lpd->bdl[j]) { lpd->bdl[j] = bd; lpd->dirtybdflag |= 1; }
 
     } else if (vwhich.did == d_eq) {	/* both bounds */
 	if (bd < lpd->bdl[j]  ||  lpd->bdu[j] < bd) { Fail; }
@@ -3428,7 +3432,6 @@ p_cpx_init_bound(value vlp, type tlp, value vj, type tj, value vwhich, type twhi
 int
 p_cpx_get_col_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype)
 {
-    Prepare_Requests
     lp_desc *lpd; 
     char ctype[1];
 
@@ -3448,8 +3451,7 @@ p_cpx_get_col_type(value vlp, type tlp, value vj, type tj, value vtype, type tty
     {
 	ctype[0] = 'C';
     }
-    Request_Unify_Integer(vtype, ttype, (int) ctype[0]);
-    Return_Unify;
+    Return_Unify_Integer(vtype, ttype, (int) ctype[0]);
 }
 
 /*----------------------------------------------------------------------*
@@ -4304,8 +4306,8 @@ _cstr_state(lp_desc * lpd, int row, char add_cp_cstr, double * sols, double tol)
 }
 
 
-/* cplex_optimise(Handle, SolveMethods, TimeOut, WriteBefore, OutputPos, 
-                  OptResult, OptStatus, WorstBound, BestBound)
+/* cplex_optimise(Handle, SolveMethods, TimeOut, WriteBefore, MipStart,
+		OutputPos, OptResult, OptStatus, WorstBound, BestBound)
 
    optimises problem in Handle. Handle is needed to access the result
    arrays located in Handle by the OutputPos arguments.
@@ -4322,6 +4324,7 @@ _cstr_state(lp_desc * lpd, int row, char add_cp_cstr, double * sols, double tol)
 int
 p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths, 
          value vtimeout, type ttimeout, value vdump, type tdump, 
+         value vmipstart, type tmipstart,
 	 value vout, type tout, value vres, type tres, value vstat, type tstat,
 	 value vworst, type tworst, value vbest, type tbest) 
 {
@@ -4354,6 +4357,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
     Check_Structure(thandle);
     Check_Structure(tmeths);
     Check_Integer(tout);
+    Check_Integer(tmipstart);
     Check_Number(ttimeout);
 
     LpDesc(vhandle.ptr[HANDLE_CPH].val, vhandle.ptr[HANDLE_CPH].tag, lpd);
@@ -4431,6 +4435,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
     */
     pw = &vhandle.ptr[solspos];
     Dereference_(pw);
+    sol.oldmac = IsArray(pw->tag) ? DArraySize(pw->val.ptr) : 0;
     sol.oldsols = IsArray(pw->tag) ? DArrayStart(pw->val.ptr) : NULL;
 
     _create_result_darray(vhandle, solspos, lpd->mac, &outsols, &sol.sols);
@@ -4485,6 +4490,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 	reset_rowcols(lpd, oldmar, lpd->mac);
 	Bip_Error(EC_EXTERNAL_ERROR);
     }
+    meth.option_mipstart = vmipstart.nint;
 
     /* if solution values are unavailable, and there are unadded cutpool
        constraints, abort with RANGE_ERROR as we can't check for violations
@@ -4497,7 +4503,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 
     /*********************************************************************
      *     Solve Problem with the External Solver                        *
-     *        depending on problem type, call the appropirate routine    *
+     *        depending on problem type, call the appropriate routine    *
      *        may solve multiple times with cutpool constraints          *
      *********************************************************************/
 
@@ -4513,11 +4519,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 
 	/* Run the solver
 	*/
-	if (cpx_solve(lpd, &meth,
-#ifdef XPRESS
-		&sol,
-#endif
-		&bestbound, &worstbound))
+	if (cpx_solve(lpd, &meth, &sol, &bestbound, &worstbound))
 	{
 	    if (has_cp) reset_rowcols(lpd, oldmar, lpd->mac);
 	    Bip_Error(EC_EXTERNAL_ERROR);

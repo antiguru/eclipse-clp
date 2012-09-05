@@ -859,10 +859,13 @@ desc:      html("\
    for the column representing the variable in the external solver matrix:
    this is a list of Index:Coefficient pairs. Where index is the index of an
    existing constraint (obtained when the constraint was added using
-   lp_add_constraints/4), and coefficient is its coefficient. Index
-   can also be the atom 'obj', in which case the coefficient is the objective
-   coefficient for the column. If the objective coefficient is specified,
-   it must be the first element in the ColumnSpecification list. Each
+   lp_add_constraints/4), and coefficient is its coefficient.
+</P><P>
+   The ColumnSpecification list can optionally start with a special element
+   'obj':Coeff, in which case the coefficient is the objective coefficient
+   for the column (otherwise zero).  This can be optionally followed by two
+   entries of the form 'lo':Lwb,'hi':Upb, which specify initial lower and
+   upper bound on the column variable (otherwise unbounded).  Each
    constraint coefficient should only occur once. Any index not specified
    is given a zero value.
 </P><P>
@@ -1116,6 +1119,16 @@ occur no more than once):
     This option only affects performance.
     YesNo is one of the atoms <TT>yes</TT> or <TT>no</TT>, the default is 
     <TT>no</TT>.
+
+<P>
+    <DT><STRONG><TT>mipstart(+Option)</TT></STRONG>
+    <DD>Use the previous solution values as a warm-start heuristics for
+    the MIP search.  This only has an effect for certain solvers (e.g.
+    Gurobi), if there are integrality constraints, and if there is a 
+    previous solution available.  Possible values are <TT>none</TT>
+    (no mipstart values, the default), <TT>all</TT> (use previous
+    solution for all variables), or <TT>integers</TT> (use previous
+    solution for all variables that are now constrained to be integral).  
 
 <P>
     <DT><STRONG><TT>cache_iis(YesNo)</TT></STRONG>
@@ -1705,6 +1718,16 @@ The solver Options are:
     This option only affects performance.
     YesNo is one of the atoms <TT>yes</TT> or <TT>no</TT>, the default is 
     <TT>no</TT>.
+
+<P>
+    <DT><STRONG><TT>mipstart(+Option)</TT></STRONG>
+    <DD>Use the previous solution values as a warm-start heuristics for
+    the MIP search.  This only has an effect for certain solvers (e.g.
+    Gurobi), if there are integrality constraints, and if there is a 
+    previous solution available.  Possible values are <TT>none</TT>
+    (no mipstart values, the default), <TT>all</TT> (use previous
+    solution for all variables), or <TT>integers</TT> (use previous
+    solution for all variables that are now constrained to be integral).  
 
 <P>
     <DT><STRONG><TT>cache_iis(YesNo)</TT></STRONG>
@@ -3285,6 +3308,16 @@ even after setup.
         Value is one of the atoms <TT>yes</TT> or <TT>no</TT>.
 
 <P>
+    <DT><STRONG><TT>mipstart</TT></STRONG>
+        <DD>Use the previous solution values as a warm-start heuristics for
+	the MIP search.  This only has an effect for certain solvers (e.g.
+	Gurobi), if there are integrality constraints, and if there is a 
+	previous solution available.  Possible values are <TT>none</TT>
+	(no mipstart values, the default), <TT>all</TT> (use previous
+	solution for all variables), or <TT>integers</TT> (use previous
+	solution for all variables that are now constrained to be integral).  
+
+<P>
     <DT><STRONG><TT>cache_iis</TT></STRONG>
         <DD>When a problem is found to be infeasible, compute an IIS for the problem
         (if supported by the external solver), and store it so that it can bee retrieved
@@ -3508,6 +3541,16 @@ even after setup of a solver for eplex instance <EM>EplexInstance</EM>.
         <DD>Store the basis each time the problem has been solved successfully,
         and use this basis as a starting point for re-solving next time.
         Value is one of the atoms <TT>yes</TT> or <TT>no</TT>.
+
+<P>
+    <DT><STRONG><TT>mipstart</TT></STRONG>
+        <DD>Use the previous solution values as a warm-start heuristics for
+	the MIP search.  This only has an effect for certain solvers (e.g.
+	Gurobi), if there are integrality constraints, and if there is a 
+	previous solution available.  Possible values are <TT>none</TT>
+	(no mipstart values, the default), <TT>all</TT> (use previous
+	solution for all variables), or <TT>integers</TT> (use previous
+	solution for all variables that are now constrained to be integral).  
 
 <P>
     <DT><STRONG><TT>cache_iis</TT></STRONG>

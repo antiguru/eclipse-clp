@@ -42,6 +42,7 @@ typedef int sostype_t;
 #undef HAS_QUADRATIC
 #undef HAS_MIQP
 #define HAS_LIMITED_MIP_RESULTS
+#define SOLVER_HAS_LOCAL_PARAMETERS
 
 
 /*

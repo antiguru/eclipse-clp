@@ -116,6 +116,76 @@ _return_err_:
 }
 
 
+static int
+cpx_loadstart(lp_desc* lpd, int option, double *sols, int sz)
+{
+    int nvars, i;
+
+    if (GRBgetintattr(lpd->lp, GRB_INT_ATTR_NUMVARS, &nvars))
+	goto _return_err_;
+    if (sz == 0) option = MIPSTART_NONE;
+    if (sz > nvars) sz = nvars;
+
+    switch(option)
+    {
+    case MIPSTART_NONE:
+	if (lpd->mipstart_dirty)
+	{
+	    for (i=0; i<nvars; ++i)
+	    {
+		if (GRBsetdblattrelement(lpd->lp,GRB_DBL_ATTR_START,i,GRB_UNDEFINED))
+		    goto _return_err_;
+	    }
+	    lpd->mipstart_dirty = 0;
+	}
+	break;
+
+    case MIPSTART_ALL:
+	if (GRBsetdblattrarray(lpd->lp,GRB_DBL_ATTR_START,0,sz,sols))
+	    goto _return_err_;
+	for (i=sz; i<nvars; ++i)
+	{
+	    if (GRBsetdblattrelement(lpd->lp,GRB_DBL_ATTR_START,i,GRB_UNDEFINED))
+		goto _return_err_;
+	}
+	lpd->mipstart_dirty = 1;
+	break;
+
+    case MIPSTART_INT:
+	{
+	    char *vtype = (char*) Malloc(nvars*sizeof(char));
+	    if (GRBgetcharattrarray(lpd->lp,GRB_CHAR_ATTR_VTYPE,0,nvars,vtype))
+	    {
+		Free(vtype);
+		goto _return_err_;
+	    }
+	    for (i=0; i<sz; ++i)
+	    {
+		if (GRBsetdblattrelement(lpd->lp,GRB_DBL_ATTR_START,i,
+			vtype[i]=='C' ? GRB_UNDEFINED : sols[i]))
+		{
+		    Free(vtype);
+		    goto _return_err_;
+		}
+	    }
+	    Free(vtype);
+	    for (i=sz; i<nvars; ++i)
+	    {
+		if (GRBsetdblattrelement(lpd->lp,GRB_DBL_ATTR_START,i,GRB_UNDEFINED))
+		    goto _return_err_;
+	    }
+	    lpd->mipstart_dirty = 1;
+	}
+	break;
+    }
+    return 0;
+
+_return_err_:
+    Report_Solver_Error(cpx_env);
+    return -1;
+}
+
+
 /* caution: this function assumes that the arrays are the right size */
 static int
 grb_getbasis(GRBmodel* lp, int* cbase, int* rbase)
@@ -278,10 +348,13 @@ _return_err_:
 
 
 static int
-cpx_solve(lp_desc* lpd, struct lp_meth *meth, double* bestbound, double* worstbound)
+cpx_solve(lp_desc* lpd, struct lp_meth *meth, struct lp_sol *sol, double* bestbound, double* worstbound)
 {
     int sol_count;
     int rev_state = GRB_LOADED;
+
+    if (cpx_loadstart(lpd, meth->option_mipstart, sol->oldsols, sol->oldmac))
+	return -1;
 
 _retry_:
     if (GRBoptimize(lpd->lp))
@@ -319,6 +392,7 @@ _grb_infeasible_:
 	    break;
 
     case GRB_INF_OR_UNBD:		/* MaybeFailState */
+#ifdef TRY_RESOLVE_UNCERTAIN_RESULT
 	    /* try to check for infeasibility by reversing the sense */
 	    switch(rev_state)
 	    {
@@ -342,6 +416,7 @@ _grb_infeasible_:
 	    case GRB_UNBOUNDED:
 		goto _grb_unbounded_;
 	    }
+#endif
 
 	    /* can't get a more precise result */
 	    lpd->descr_state = DESCR_UNKNOWN_NOSOL;

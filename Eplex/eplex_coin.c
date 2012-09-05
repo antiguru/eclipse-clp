@@ -41,7 +41,7 @@ cpx_prepare_solve(lp_desc* lpd, struct lp_meth *meth, double timeout)
 
 
 static int
-cpx_solve(lp_desc* lpd, struct lp_meth *meth, double* bestbound, double* worstbound)
+cpx_solve(lp_desc* lpd, struct lp_meth *meth, struct lp_sol *sol, double* bestbound, double* worstbound)
 {
     int solve_state = S_UNKNOWN;  
 

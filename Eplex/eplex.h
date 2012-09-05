@@ -221,8 +221,9 @@ typedef struct {
     char        **cp_names2;    /* [cp_npools_sz2] of cutpool names */
 
     double      objval;         /* the most recent objective value */
-    /* the most recent return status */
-    int		sol_state;
+    int		sol_state;	/* the most recent return status */
+
+    int		mipstart_dirty;	/* we did set mipstart values */
 
     /* statistics for most recent solver call */
     int         sol_itcnt;
@@ -259,6 +260,7 @@ struct lp_meth {
     char *meth_string;
     char *node_meth_string;
 #endif
+    int option_mipstart;
 };
 
 
@@ -267,13 +269,14 @@ struct lp_meth {
  */
 
 struct lp_sol {
-    double *oldsols;
-    double *sols;
+    double *oldsols;	/* [oldmac] */
+    double *sols;	/* [mac] */
     double *slacks;
     double *pis;
-    double *djs;
-    int    *cbase;
+    double *djs;	/* [mac] */
+    int    *cbase;	/* [mac] */
     int    *rbase;
+    int    oldmac;
     int    mac;
 };
 
