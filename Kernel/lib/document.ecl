@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.7 2012/08/22 01:02:28 kish_shen Exp $
+% Version:	$Id: document.ecl,v 1.8 2012/09/22 11:28:02 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2012/08/22 01:02:28 $").
+:- comment(date, "$Date: 2012/09/22 11:28:02 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -134,7 +134,7 @@ icompile_body(File, OutDir, _M) :-
 		    ; module_directive(Directive) ->
 			C1 = C2, Decls1 = Decls2,
 			printf(warning_output,
-			    "Ignoring module '%w' (expected main module '%w').",
+			    "Ignoring module '%w' (expected main module '%w').%n",
 			    [Module,FileModule])
 		    ;
 			C1 = C2, Decls1 = Decls2
