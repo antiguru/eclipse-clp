@@ -24,7 +24,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: operator.c,v 1.5 2011/04/27 05:15:50 jschimpf Exp $
+ * VERSION	$Id: operator.c,v 1.6 2012/09/23 18:52:39 jschimpf Exp $
  */
 
 /*
@@ -397,15 +397,21 @@ p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, val
     {
 	Bip_Error(RANGE_ERROR);
     }
-    if (ModuleSyntax(vm.did)->options & ISO_RESTRICTIONS &&
-        (  v_op.did == d_comma0_
-        || v_op.did == d_.nil
-        || v_op.did == d_.nilcurbr
-        || v_op.did == d_bar0_ && (
-            !(iassoc==XFY || iassoc==XFX || iassoc==YFX)
-            || vprec.nint > 0 && vprec.nint <= 1000)))
+    if (ModuleSyntax(vm.did)->options & ISO_RESTRICTIONS)
     {
-	Bip_Error(ILLEGAL_OP_DEF);
+	if (iassoc >= FXX)
+	{
+	    Bip_Error(RANGE_ERROR)
+	}
+	else if (v_op.did == d_comma0_
+	      || v_op.did == d_.nil
+	      || v_op.did == d_.nilcurbr
+	      || v_op.did == d_bar0_ && (
+		    !(iassoc==XFY || iassoc==XFX || iassoc==YFX)
+		    || vprec.nint > 0 && vprec.nint <= 1000))
+	{
+	    Bip_Error(ILLEGAL_OP_DEF)
+	}
     }
 
     if (vprec.nint == 0 && scope == GLOBAL_PROP)
@@ -615,7 +621,9 @@ p_legal_current_op(value v_prec, type t_prec, value v_assoc, type t_assoc, value
 
     if (IsAtom(t_assoc))		/* Associativity		*/
     {
-	if (_get_assoc(v_assoc.did) == NIL_OP)
+	word iassoc = _get_assoc(v_assoc.did);
+	if (iassoc == NIL_OP ||
+	   (iassoc > FXX && (ModuleSyntax(v_mod.did)->options & ISO_RESTRICTIONS)))
 	{
 	    Bip_Error(RANGE_ERROR);
 	}
