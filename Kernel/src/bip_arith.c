@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.13 2012/05/02 18:31:12 kish_shen Exp $
+ * VERSION	$Id: bip_arith.c,v 1.14 2012/09/23 10:51:50 jschimpf Exp $
  */
 
 /*
@@ -819,7 +819,7 @@ p_float2(value v1, type t1, value v, type t)
 #define MAX_SQUAREABLE_WORD	46340
 #else
 #if (SIZEOF_WORD == 8)
-#define MAX_SQUAREABLE_WORD	3037000499
+#define MAX_SQUAREABLE_WORD	3037000499UL
 #else
 PROBLEM: Cannot deal with word size SIZEOF_WORD.
 #endif
@@ -843,16 +843,8 @@ _int_pow(word x,
 	    *r = (x >= 0 || (y&1)) ? x : 1;		/* -1^y 0^y 1^y */
 	    return PSUCCEED;
 	}
-#ifdef MAY_HAVE_STRICT_OVERFLOW
-	/* explicit test for MIN_S_WORD to avoid a compiler assumption
-           of no integer overflow on some platforms
-         */
-	if (x ==  MIN_S_WORD) return INTEGER_OVERFLOW;	/* we had MININT */
+	if (x == MIN_S_WORD) return INTEGER_OVERFLOW;
 	x = -x;
-#else
-	x = -x;
-	if (x < 0) return INTEGER_OVERFLOW;		/* we had MININT */
-#endif
 	if (y & 1) neg = 1;
     }
 
