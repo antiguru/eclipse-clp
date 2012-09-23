@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.15 2012/02/10 20:20:05 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.16 2012/09/23 18:55:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -490,16 +490,26 @@ extract_stream(close(S), S).
 
 eof_handler(N, Goal, Module, LM) :-
 	extract_stream(Goal, Stream),
-	( stream_info_(Stream, 19, on) ->	% yield
-	    stream_info_(Stream, 4, PhysicalStream),
-	    (is_remote_sync_queue(PhysicalStream, _, ControlStream) ->
-		remote_input(PhysicalStream, ControlStream)
-	    ;
-	    	yield(6, PhysicalStream, _)	% 6 == PWAITIO == EC_waitio
-	    ),
-	    :@(LM, Goal, Module)
-	;
+	stream_info_(Stream, 37, Action),	% eof_action
+
+	( Action == eof_code ->
 	    eof_handler(N, Goal)
+
+	; Action == reset ->
+	    ( stream_info_(Stream, 19, on) ->	% yield
+		stream_info_(Stream, 4, PhysicalStream),
+		(is_remote_sync_queue(PhysicalStream, _, ControlStream) ->
+		    remote_input(PhysicalStream, ControlStream)
+		;
+		    yield(6, PhysicalStream, _)	% 6 == PWAITIO == EC_waitio
+		),
+		:@(LM, Goal, Module)
+	    ;
+		eof_handler(N, Goal)
+	    )
+
+	; Action == error ->
+	    error_handler(N, Goal, Module, LM)
 	).
 
 :- mode eof_handler(++, +).
@@ -534,7 +544,7 @@ eof_handler(_, read_annotated_raw(S,
 
 past_eof_handler(N, Goal) :-
 	extract_stream(Goal, Stream),
-	close(Stream),
+	close(Stream, [force(true)]),
 	error_handler(N, Goal).
 
 
@@ -765,14 +775,18 @@ output_error_handler(X, Culprit, CM, LM):-
 	system_error_handler(X, Culprit, CM, LM).
 
 
-% system_stream(SystemStream,DefaultStream,AcceptableModes,LastResortStream)
+% system_stream(SystemStream,DefaultStream,Direction,LastResortStream)
 
 :- mode system_stream(?,-,-,-).
-system_stream(input,		default_input,		[read, update], stdin).
-system_stream(output,		default_output, 	[write,update], stdout).
-system_stream(warning_output,	default_warning_output,	[write,update], stdout).
-system_stream(log_output,	default_log_output,	[write,update], stdout).
-system_stream(error,		default_error,		[write,update], stderr).
+system_stream(input,		default_input,		input,	stdin).
+system_stream(output,		default_output, 	output,	stdout).
+system_stream(warning_output,	default_warning_output,	output,	stdout).
+system_stream(log_output,	default_log_output,	output,	stdout).
+system_stream(error,		default_error,		output,	stderr).
+% these two are for ISO:
+system_stream(user_input,	default_input,		input,	stdin) :- current_stream(user_input).
+system_stream(user_output,	default_output, 	output,	stdout) :- current_stream(user_output).
+system_stream(user_error,	default_error, 		output,	stderr) :- current_stream(user_error).
 
 close_handler(_, close(Stream)) ?- !,
 	close_handler(_, close(Stream, [])).
@@ -780,12 +794,11 @@ close_handler(_, close(Stream, Options)) ?- !,
 	get_stream(Stream, Handle),
         (
 	    % reset system streams that are redirected to Stream
-            system_stream(SysStream, Default, AcceptableModes, Fallback),
+            system_stream(SysStream, Default, Direction, Fallback),
             get_stream(SysStream, Handle),
 	    (   is_open_stream(Default),
 		\+get_stream(Default, Handle),
-	        get_stream_info(Default, mode, Mode),
-	        memberchk(Mode, AcceptableModes)
+	        get_stream_info(Default, Direction, true)
 	    ->
 		set_stream(SysStream, Default)
 	    ;

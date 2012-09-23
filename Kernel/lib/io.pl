@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.13 2012/02/12 13:03:48 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.14 2012/09/23 18:55:34 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -99,10 +99,13 @@ current_stream(Stream) :- check_stream_spec(Stream), !,
 current_stream(Stream) :-
 	bip_error(current_stream(Stream)).
 
-    gen_open_stream(Stream, Stream).
+    % This could be a backtacking external
     gen_open_stream(Prev, Stream) :-
-	next_open_stream(Prev, Next),
-	gen_open_stream(Next, Stream).
+	( next_open_stream(Prev, Next) ->
+	    ( Stream = Prev ; gen_open_stream(Next, Stream) )
+	;
+	    Stream = Prev
+	).
 
 
 % current_stream(?File, ?Mode, ?Stream) - DEPRECATED
@@ -189,6 +192,12 @@ stream_info_nr(last_written, 28).
 stream_info_nr(handle, 29).
 stream_info_nr(delete_file, 30).
 stream_info_nr(path, 31).
+stream_info_nr(reposition, 32).
+stream_info_nr(encoding, 33).
+stream_info_nr(input, 34).
+stream_info_nr(output, 35).
+stream_info_nr(end_of_stream, 36).
+stream_info_nr(eof_action, 37).
 
 stream_info_nr_hidden(physical_stream, 4).
 stream_info_nr_hidden(print_depth, 26).
@@ -241,8 +250,18 @@ set_stream_options([O|Os], Stream) :- !,
 set_stream_options(_, _) :-
 	set_bip_error(5).
 
+    set_stream_option(Option, _) :- var(Option), !, set_bip_error(4).
     set_stream_option(alias(Name), Stream) ?- !,
-	set_stream(Name, Stream).
+	( current_stream(Name) -> set_bip_error(192)	% ISO requirement
+	; set_stream(Name, Stream) ).
+    set_stream_option(type(text), _Stream) ?- !.	% ISO (only open/4)
+    set_stream_option(type(binary), Stream) ?- !,	% ISO (only open/4)
+	stream_info_nr(encoding, I),
+	set_stream_prop_(Stream, I, octet).
+    set_stream_option(reposition(false), _Stream) ?- !.	% ISO
+    set_stream_option(reposition(true), Stream) ?- !,
+    	( stream_info_nr(reposition, Nr), stream_info_(Stream, Nr, true) -> true
+	; set_bip_error(192) ).				% ISO
     set_stream_option(output_options(Options), Stream) ?-
 	options_to_format(Options, 0, _Off, 0, On, Depth, _Prec),
 	stream_info_nr(output_options, I1),
@@ -270,37 +289,30 @@ set_stream_options(_, _) :-
 :- tool( global_op/3,		global_op_body/4).
 
 local_op_body(Preced, Assoc, Op, Module):-
-	op_body(local, Preced, Assoc, Op, Module).
+	op_body(local, Preced, Assoc, Op, Module), !.
+local_op_body(Preced, Assoc, Op, Module):-
+	bip_error(op(Preced, Assoc, Op), Module).
 
 global_op_body(Preced, Assoc, Op, Module):-
-	op_body(global, Preced, Assoc, Op, Module).
+	op_body(global, Preced, Assoc, Op, Module), !.
+global_op_body(Preced, Assoc, Op, Module):-
+	bip_error(global_op(Preced, Assoc, Op), Module).
 
 % Note: unfortunately, according to ISO, op(P,A,[]) means op(P,A,[[]]).
-op_body(Visible,Preced,Assoc,Op,Module):-
-	var(Op), !,
-	op_body1(Visible,Preced,Assoc,Op,Module).
-op_body(Visible,Preced,Assoc,[Op|T],Module):-
-	!,
-	op_body1(Visible,Preced,Assoc,Op,Module),
-        ( T==[] -> true ; op_body(Visible,Preced,Assoc,T,Module) ).
-op_body(Visible,Preced,Assoc,Op,Module):-
-	op_body1(Visible,Preced,Assoc,Op,Module).
+op_body(Visible, Preced, Assoc, Ops, Module) :- nonvar(Ops), Ops=[_|_], !,
+	op_body1(Visible, Preced, Assoc, Ops, Module).
+op_body(Visible, Preced, Assoc, Ops, Module) :-
+	op_(Visible, Preced, Assoc, Ops, Module).
 
-op_body1(Visible,Preced,Assoc,Op,Module):-
-	op_(Visible,Preced,Assoc,Op,Module)
-	->
-	    true
-	;
-	(
-	    get_bip_error(Err),
-	    (
-		Visible == local
-		->
-		    error(Err, op(Preced, Assoc, Op))
-		;
-		    error(Err, global_op(Preced, Assoc, Op))
-	    )
-	).
+op_body1(_, _, _, Ops, _) :- var(Ops), !, set_bip_error(4).
+op_body1(_, _, _, [], _) :- !.
+op_body1(Visible, Preced, Assoc, [Op|Ops], Module) :- !,
+	% report errors per-operator, if possible
+	( op_(Visible, Preced, Assoc, Op, Module) -> true
+	; Visible == local -> bip_error(op(Preced, Assoc, Op), Module)
+	; bip_error(global_op(Preced, Assoc, Op), Module) ),
+        op_body1(Visible, Preced, Assoc, Ops, Module).
+op_body1(_, _, _, _, _) :- set_bip_error(5).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -319,29 +331,43 @@ read_term_(Term, Options, Module) :-
 	read_term_(input, Term, Options, Module).
 
 read_term_(Stream, Term, Options, Module) :-		% 8.14.1
+	check_read_options(Options),
+	!,
 	readvar(Stream, Term, Vars, Module),
-	handle_read_options(Options, Term, Vars),
-	!.
+	handle_read_options(Options, Term, Vars).
 read_term_(Stream, Term, Options, Module) :-
 	bip_error(read_term(Stream, Term, Options), Module).
 
-    handle_read_options(Options, _, _) :- var(Options), !,
+    check_read_options(Options) :- var(Options), !,
     	set_bip_error(4).
+    check_read_options([]) :- !.
+    check_read_options([O|Os]) :- !,
+	check_read_option(O),
+	check_read_options(Os).
+    check_read_options(_Options) :-
+    	set_bip_error(5).
+
+    :- mode handle_read_options(+,?,+).
     handle_read_options([], _, _) :- !.
     handle_read_options([O|Os], Term, Vars) :- !,
 	handle_read_option(O, Term, Vars),
 	handle_read_options(Os, Term, Vars).
-    handle_read_options(_Options, _, _) :-
-    	set_bip_error(5).
 
-    handle_read_option(Option, _, _) :- var(Option), !,
-	set_bip_error(4).
-    handle_read_option(variables(Vs), Term, _Vars) :- !,
+    % Always change the next 2 predicates together!
+    check_read_option(Option) :- var(Option), !, set_bip_error(4).
+    check_read_option(variables(_)).
+    check_read_option(variable_names(_)).
+    check_read_option(singletons(_)).
+    check_read_option(_) :- set_bip_error(6).
+
+    % If you make a change here, change also check_read_option/1!
+    :- mode handle_read_option(+,?,+).
+    handle_read_option(variables(Vs), Term, _Vars) :-
 	term_variables(Term, RVars),	% returns reverse order
 	reverse(RVars, Vs).		% ISO requires left-to-right
-    handle_read_option(variable_names(VNs), _Term, Vars) :- !,
+    handle_read_option(variable_names(VNs), _Term, Vars) :-
     	name_eq_var(Vars, VNs).
-    handle_read_option(singletons(NamesSingletons), Term, NsVs) :- !,
+    handle_read_option(singletons(NamesSingletons), Term, NsVs) :-
 	collect_variables(Term, [], Vars),
 	( Vars = [] ->
 	    NamesSingletons = []
@@ -351,8 +377,6 @@ read_term_(Stream, Term, Options, Module) :-
 	    collect_singletons(_X, Xs, Singletons),
 	    add_names(Singletons, NsVs, NamesSingletons)
 	).
-    handle_read_option(_, _, _) :-
-	set_bip_error(6).
 
     vars_only([], []).
     vars_only([[_|V]|Vars], [V|Vs]) :-

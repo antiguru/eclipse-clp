@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.2 2012/02/12 12:44:22 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.3 2012/09/23 18:54:39 jschimpf Exp $
  */
 
 /*
@@ -101,8 +101,10 @@
 #define IsReadWriteStream(nst)	((StreamMode(nst) & SRDWR) == SRDWR)
 #define IsReadlineStream(nst)	(StreamMode(nst) & READLINE)
 
+#define IsTextStream(nst)	(StreamEncoding(nst) > SENC_OCTET)
+
 /* streams which can recover from being at eof */
-#define IsSoftEofStream(nst)	(IsTty(nst) || IsQueueStream(nst) || IsNullStream(nst))
+#define IsSoftEofStream(nst)	(StreamMode(nst) & SEOF_RESET)
 
 #define SystemStream(nst)	(				\
 				    (nst) == current_input_ ||	\
@@ -144,6 +146,7 @@
 #define SRDWR		0x0003
 #define SAPPEND		0x0004	/* always with SWRITE, never with SREAD	*/
 				/* only in SFILE streams	*/
+#define SMODEBITS	0x0007
 
 /* stream type field */
 #define STYPE_SHIFT	3
@@ -164,7 +167,7 @@
 #define DONT_PROMPT	0x0100	/* don't print the next prompt	*/
 #define MREAD		0x0200	/* we have read a buffer	*/
 #define MWRITE		0x0400	/* we wrote into the buffer	*/
-#define MEOF		0x0800	/* eof has been read		*/
+#define MEOF		0x0800	/* eof has been read (past eof)	*/
 #define SSCRAMBLE	0x1000	/* scramble stream data		*/
 #define SYIELD		0x2000	/* queues only: yield on eof or flush */
 #define REPROMPT_ONLY	0x4000	/* suppress initial prompts on this stream */
@@ -178,11 +181,23 @@
 #define SNUMBERUSED	0x200000 /* stream may be referred to by number */
 #define SDELETELOST	0x400000 /* delete file when stream handle is lost */
 #define SDELETECLOSED	0x800000 /* delete file when stream is closed */
+#define SREPOSITION	0x1000000 /* can be repositioned (seek) */
+
+#define SEOF_ACTION	0x6000000 /* eof_action (ISO):			*/
+#define SEOF_CODE	0x0000000 /* return eof code (-1,end_of_file)	*/
+#define SEOF_RESET	0x2000000 /* return eof code and allow repeat	*/
+#define SEOF_ERROR	0x4000000 /* treat eof as permission error	*/
 
 
 /* how many characters can be ungotten */
 #define LOOKAHEAD		4
 
+/* encodings (0 binary, >0 text) */
+#define SENC_OCTET	0
+#define SENC_ASCII	1
+#define SENC_LATIN1	2
+#define SENC_NUM	3
+#define SENC_DEFAULT	SENC_LATIN1
 
 /* options for ec_close_stream() */
 #define CLOSE_FORCE	1

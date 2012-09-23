@@ -86,8 +86,8 @@ with the stream identifier Stream.
    Options is a list of zero or more of the following stream options:
 <DL>
 <DT><STRONG>alias(Name)</STRONG><DD>
-    Make the stream known under an alternative name.
-    Name is an atom. See also set_stream/2.
+    Make the stream known under an alternative name.  Name is an atom,
+    and must not already be a stream alias. See also set_stream/2.
 
 <DT><STRONG>compress(OnOff)</STRONG><DD>
     a hint for output operations (e.g. write_exdr/2) to use a more
@@ -103,12 +103,22 @@ with the stream identifier Stream.
     closed, either because of failure across the opening, or because
     its handles were garbage collected.  The default is 'off'.
 
+<DT><STRONG>encoding(Code)</STRONG><DD>
+    The character encoding used on the stream.  In version 6.1, the
+    only allowed values are: octet, ascii, and iso_latin_1 (the default).
+
 <DT><STRONG>end_of_line(CrLf)</STRONG><DD>
     This option affects only write-streams and determines which
     end-of-line character sequence is written by predicates like nl/1,
     writeln/1 and printf/3.  Possible values are the atoms lf and
     crlf.  The default for string and queue streams is lf, for other
     streams it is operating-system dependent.
+
+<DT><STRONG>eof_action(Action)</STRONG><DD>
+    Controls how end-of-file is handled on this stream.  Possible values
+    are: 'eof_code' (return an code appropriate to the input predicate used
+    - this is the default), 'error' (raise an error), 'reset' (like eof_code,
+    but allow further read attempts on the stream).
 
 <DT><STRONG>event(Name)</STRONG><DD>
     This option configures a read-queue stream or a socket stream to raise
@@ -137,6 +147,11 @@ with the stream identifier Stream.
     write_term/2,3 predicates.
     Note that certain output predicates can override these default
     settings, e.g. writeq/2, write_term/3, printf/3, etc.
+
+<DT><STRONG>reposition(Bool)</STRONG><DD>
+    The option reposition(true) verifies that the stream can be repositioned,
+    i.e. that seek/2 can be used on it.  Otherwise an error is raised.
+    The option reposition(false) has no effect.
 
 <DT><STRONG>yield(OnOff)</STRONG><DD>
     This option is intended for queue streams in embedded applications
@@ -212,19 +227,32 @@ Value.
                     socket, tty,
                     string
 
+    encoding        octet,        character encoding used by this stream
+                    iso_latin_1,
+                    ...
+
     end_of_line     lf, crlf      which end-of-line sequence to write
                                   (output streams only)
+
+    end_of_stream   at,not,past   indicates whether the stream is currently
+                                  positioned at (or past) the end-of-file
+
+    eof_action      eof_code,     how to react to end-of-file
+                    error,        (input streams only)
+                    reset
 
     event           atom or       event on writing to empty stream
                     event handle  (see open/4)
 
-    fd              integer       the associated OS/UNIX file descriptor
+    fd              integer       the associated OS file descriptor
 
     flush           flush,        explicit or implicit flushing
                     end_of_line   (output streams only)
 
     handle          stream handle a garbage-collectable handle to the stream
                                   (see also get_stream/2)
+
+    input           true, false   this is an input stream (ISO)
 
     last_written    integer       character code of last written character
                                   (output streams only)
@@ -244,6 +272,8 @@ Value.
     offset          integer       current position in the
                                   stream, as given by at/2
 
+    output          true, false   this is an input stream (ISO)
+
     output_options  list          default output options for all term
                                   output on this stream. The list
                                   format is as in write_term/2,3.
@@ -260,6 +290,8 @@ Value.
 
     prompt_stream   handle        output stream for the prompt
                                   (input streams only)
+
+    reposition      true, false   the stream can be repositioned (seek/2)
 
     sigio           on            SIGIO signals enabled (UNIX only)
 
@@ -1231,6 +1263,10 @@ Error:
                     when_closed   - the stream is closed in any way
 
     end_of_line     lf, crlf      which end-of-line sequence to write
+
+    eof_action      eof_code,     how to react to end-of-file
+                    error,        (input streams only)
+                    reset
 
     event           atom or       event on writing to empty stream
                     event handle  (see open/4)

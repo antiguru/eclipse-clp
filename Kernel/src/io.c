@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.13 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.14 2012/09/23 18:54:39 jschimpf Exp $
  */
 
 /*
@@ -578,6 +578,7 @@ init_stream(stream_id nst, int unit, int mode, dident name, dident prompt, strea
     my_io_aport(&nst->aport);
     a_mutex_init(&nst->lock);
     StreamLine(nst) = 1;
+    StreamEncoding(nst) = SENC_DEFAULT;
     StreamPromptStream(nst) = prompt_stream;
     StreamPrompt(nst) = prompt;
     StreamName(nst) = name;
@@ -2996,9 +2997,9 @@ _read_fd(int fd, char *buf, int n)
 io_channel_t	ec_file = {
     SFILE,		/*io_type*/
 #ifdef _WIN32
-    SCOMPRESS|SEOLCR,		/*mode_defaults*/
+    SREPOSITION|SCOMPRESS|SEOLCR,	/*mode_defaults*/
 #else
-    SCOMPRESS|SSELECTABLE,	/*mode_defaults*/
+    SREPOSITION|SCOMPRESS|SSELECTABLE,	/*mode_defaults*/
 #endif
     BUFSIZE,		/*buf_size_hint*/
     _close_fd,		/*close*/
@@ -3019,9 +3020,9 @@ io_channel_t	ec_file = {
 io_channel_t	ec_pipe = {
     SPIPE,		/*io_type*/
 #ifdef _WIN32
-    SCOMPRESS|SEOLCR,		/*mode_defaults*/
+    SEOF_RESET|SCOMPRESS|SEOLCR,		/*mode_defaults*/
 #else
-    SCOMPRESS|SSELECTABLE,	/*mode_defaults*/
+    SEOF_RESET|SCOMPRESS|SSELECTABLE,	/*mode_defaults*/
 #endif
     BUFSIZE,		/*buf_size_hint*/
     _close_fd,		/*close*/
@@ -3042,9 +3043,9 @@ io_channel_t	ec_pipe = {
 io_channel_t	ec_tty = {
     STTY,		/*io_type*/
 #ifdef _WIN32
-    SFLUSHEOL|SEOLCR,		/*mode_defaults*/
+    SEOF_RESET|SFLUSHEOL|SEOLCR,		/*mode_defaults*/
 #else
-    SFLUSHEOL|SSELECTABLE,	/*mode_defaults*/
+    SEOF_RESET|SFLUSHEOL|SSELECTABLE,	/*mode_defaults*/
 #endif
     TTY_BUF_SIZE,	/*buf_size_hint*/
     _close_fd,		/*close*/
@@ -3064,7 +3065,7 @@ io_channel_t	ec_tty = {
 
 io_channel_t	ec_null_stream = {
     SNULL,		/*io_type*/
-    SSELECTABLE,	/*mode_defaults*/
+    SEOF_RESET|SREPOSITION|SSELECTABLE,	/*mode_defaults*/
     0,			/*buf_size_hint*/
     _dummy_close,	/*close*/
     _dummy_io,		/*ready*/
@@ -3088,9 +3089,9 @@ extern int ec_close_socket(int);
 io_channel_t	ec_socket = {
     SSOCKET,		/*io_type*/
 #ifdef _WIN32
-    SEOLCR|SCOMPRESS|SSELECTABLE,	/*mode_defaults*/
+    SEOF_RESET|SEOLCR|SCOMPRESS|SSELECTABLE,	/*mode_defaults*/
 #else
-    SCOMPRESS|SSELECTABLE,		/*mode_defaults*/
+    SEOF_RESET|SCOMPRESS|SSELECTABLE,		/*mode_defaults*/
 #endif
     BUFSIZE,		/*buf_size_hint*/
     ec_close_socket,	/*close*/
@@ -3110,7 +3111,7 @@ io_channel_t	ec_socket = {
 
 io_channel_t	ec_string_stream = {
     SSTRING,		/*io_type*/
-    MREAD|SSELECTABLE,	/*mode_defaults*/
+    MREAD|SREPOSITION|SSELECTABLE,	/*mode_defaults*/
     1024,		/*buf_size_hint*/
     _dummy_close,	/*close*/
     _dummy_io,		/*ready*/
@@ -3129,7 +3130,7 @@ io_channel_t	ec_string_stream = {
 
 io_channel_t	ec_queue_stream = {
     SQUEUE,		/*io_type*/
-    MREAD|SSELECTABLE,	/*mode_defaults*/
+    SEOF_RESET|MREAD|SSELECTABLE,	/*mode_defaults*/
     1024,		/*buf_size_hint*/
     _dummy_close,	/*close*/
     _dummy_io,		/*ready*/

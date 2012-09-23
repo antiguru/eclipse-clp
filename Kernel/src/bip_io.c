@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.14 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.15 2012/09/23 18:54:39 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -219,6 +219,10 @@ static dident		d_pipe,
 			d_sigio,
 			d_in,
 			d_out,
+			d_at,
+			d_not,
+			d_past,
+			d_eof_code,
 			d_socket,
 			d_queue,
 			d_queue1,
@@ -234,8 +238,9 @@ static dident		d_pipe,
 			d_reprompt1,
 			d_block;
 
-static dident		modes[SRDWR + 1];
+static dident		modes[SMODEBITS + 1];
 static dident		stream_types[STYPE_NUM];
+static dident		stream_encodings[SENC_NUM];
 
 #ifdef __STDC__
 
@@ -320,6 +325,10 @@ bip_io_init(int flags)
     d_sigio = in_dict("sigio", 1);
     d_in = in_dict("in", 1);
     d_out = in_dict("out", 1);
+    d_at = in_dict("at", 0);
+    d_not = in_dict("not", 0);
+    d_past = in_dict("past", 0);
+    d_eof_code = in_dict("eof_code", 0);
     d_queue1 = in_dict("queue", 1);
     d_unix = in_dict("unix", 0);
     d_internet = in_dict("internet", 0);
@@ -337,6 +346,10 @@ bip_io_init(int flags)
     modes[SREAD] = d_.read;
     modes[SWRITE] = d_.write;
     modes[SRDWR] = d_.update;
+    modes[SAPPEND|SCLOSED] = in_dict("invalid",0);
+    modes[SAPPEND|SREAD] =  in_dict("invalid",0);
+    modes[SAPPEND|SWRITE] = d_.append;
+    modes[SAPPEND|SRDWR] =  in_dict("invalid",0);
 
     stream_types[SFILE>>STYPE_SHIFT] = in_dict("file", 0);
     stream_types[SSTRING>>STYPE_SHIFT] = d_.string0;
@@ -345,6 +358,10 @@ bip_io_init(int flags)
     stream_types[SNULL>>STYPE_SHIFT] = d_.null;
     stream_types[SSOCKET>>STYPE_SHIFT] = d_socket = in_dict("socket", 0);
     stream_types[STTY>>STYPE_SHIFT] = in_dict("tty", 0);
+
+    stream_encodings[SENC_OCTET] = in_dict("octet", 0);
+    stream_encodings[SENC_ASCII] = in_dict("ascii", 0);
+    stream_encodings[SENC_LATIN1] = in_dict("iso_latin_1", 0);
 
 #ifdef _WIN32
     if (flags & INIT_PRIVATE)
@@ -734,7 +751,7 @@ ec_stream_nr(const char *name)
     stream_id	nst;
     int		res;
     value	v;
-    v.did = enter_dict(name, 0);
+    v.did = enter_dict((char*) name, 0);
     nst = get_stream_id(v, tdict, 0, &res);
     if (nst == NO_STREAM  ||  !IsOpened(nst))
 	return -1;
@@ -768,6 +785,9 @@ p_get_char(value vs, type ts, value val, type tag)
     }
     if (nst == NO_STREAM) {
 	Bip_Error(res)
+    }
+    if (!IsTextStream(nst)) {
+	Bip_Error(STREAM_MODE)
     }
     Lock_Stream(nst);
     if (StreamMode(nst) & REPROMPT_ONLY)
@@ -815,6 +835,9 @@ p_put_char(value vs, type ts, value val, type tag)
     }
     if (len != 1) {
 	Bip_Error(TYPE_ERROR)
+    }
+    if (!IsTextStream(nst)) {
+	Bip_Error(STREAM_MODE)
     }
     Lock_Stream(nst);
     if((res = ec_outfc(nst, *s)) < 0) {
@@ -1011,7 +1034,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
     if (kind == SSTRING || kind == SQUEUE)
     {
 	nst = find_free_stream();
-	init_stream(nst, NO_UNIT, (mode & ~SAPPEND)|kind,
+	init_stream(nst, NO_UNIT, mode|kind,
 		kind == SSTRING? d_.string0: d_queue,
 		NO_PROMPT, NO_STREAM, size);
     }
@@ -1034,7 +1057,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
 	    kind = SFILE;
 
 	nst = find_free_stream();
-	init_stream(nst, fd, (mode & ~SAPPEND)|kind, d_fd, NO_PROMPT, NO_STREAM, 0);
+	init_stream(nst, fd, mode|kind, d_fd, NO_PROMPT, NO_STREAM, 0);
     }
     else			/* open by name	*/
     {
@@ -1535,7 +1558,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	else if (IsSocket(nst))
 	    result.val.did = d_socket;
 	else
-	    result.val.did = modes[StreamMode(nst) & SRDWR];
+	    result.val.did = modes[StreamMode(nst) & SMODEBITS];
 	result.tag.kernel = TDICT;
 	break;
     case 3:	/* aliases */
@@ -1639,7 +1662,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 15:	/* mode */
-	Make_Atom(&result, modes[StreamMode(nst) & SRDWR]);
+	Make_Atom(&result, modes[StreamMode(nst) & SMODEBITS]);
 	break;
 
     case 16:		/* buffer size - system only */
@@ -1759,6 +1782,38 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	    result.tag.kernel = TNIL;
 	else
 	    result.tag.kernel = TDICT;
+	break;
+
+    case 32:		/* reposition */
+	Make_Atom(&result, StreamMode(nst) & SREPOSITION ? d_.true0 : d_false);
+	break;
+
+    case 33:		/* encoding */
+	Make_Atom(&result, stream_encodings[StreamEncoding(nst)]);
+	break;
+
+    case 34:		/* input */
+	Make_Atom(&result, StreamMode(nst) & SREAD ? d_.true0 : d_false);
+	break;
+
+    case 35:		/* output */
+	Make_Atom(&result, StreamMode(nst) & SWRITE ? d_.true0 : d_false);
+	break;
+
+    case 36:		/* end_of_stream */
+	result.val.did =
+	    StreamMode(nst) & MEOF ? d_past :
+	    StreamMethods(nst).at_eof(nst) == PSUCCEED ? d_at : d_not;
+	result.tag.kernel = TDICT;
+	break;
+
+    case 37:		/* eof_action */
+	if (!IsReadStream(nst))
+	    { Fail_; }
+	result.val.did =
+	    StreamMode(nst) & SEOF_ERROR ? d_.err :
+	    StreamMode(nst) & SEOF_RESET ? d_.reset : d_eof_code;
+	result.tag.kernel = TDICT;
 	break;
 
     default:
@@ -2013,6 +2068,36 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 	    StreamMode(nst) &= ~(SDELETELOST|SDELETECLOSED);
 	}
 	else {
+	    Bip_Error(RANGE_ERROR);
+	}
+	break;
+
+    case 33:		/* encoding */
+	Check_Atom(t);
+	{
+	    int i;
+	    for (i=0; i<SENC_NUM; ++i) {
+		if (v.did == stream_encodings[i]) {
+		    StreamEncoding(nst) = i;
+		    Succeed_;
+		}
+	    }
+	}
+	Bip_Error(RANGE_ERROR);
+
+    case 37:		/* eof_action */
+	if (!IsReadStream(nst)) {
+	    Bip_Error(STREAM_MODE);
+	}
+	Check_Atom(t);
+	StreamMode(nst) &= ~SEOF_ACTION;
+	if (v.did == d_.err) {
+	    StreamMode(nst) |= SEOF_ERROR;
+	} else if (v.did == d_.reset) {
+	    StreamMode(nst) |= SEOF_RESET;
+	} else if (v.did == d_eof_code) {
+	    StreamMode(nst) |= SEOF_CODE;
+	} else {
 	    Bip_Error(RANGE_ERROR);
 	}
 	break;

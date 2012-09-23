@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.14 2012/02/12 12:44:22 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.15 2012/09/23 18:54:39 jschimpf Exp $
  */
 
 /*
@@ -566,6 +566,9 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
     if ((StreamMode(out) & STYPE) == SNULL)
 	return PSUCCEED;
     	
+    if (!IsTextStream(out))
+	return STREAM_MODE;
+
     /*
      * Merge the stream's default output mode settings with the modes
      * for this particular call
