@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.16 2012/09/23 18:55:34 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.17 2012/09/26 22:32:25 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -490,27 +490,18 @@ extract_stream(close(S), S).
 
 eof_handler(N, Goal, Module, LM) :-
 	extract_stream(Goal, Stream),
-	stream_info_(Stream, 37, Action),	% eof_action
-
-	( Action == eof_code ->
-	    eof_handler(N, Goal)
-
-	; Action == reset ->
-	    ( stream_info_(Stream, 19, on) ->	% yield
-		stream_info_(Stream, 4, PhysicalStream),
-		(is_remote_sync_queue(PhysicalStream, _, ControlStream) ->
-		    remote_input(PhysicalStream, ControlStream)
-		;
-		    yield(6, PhysicalStream, _)	% 6 == PWAITIO == EC_waitio
-		),
-		:@(LM, Goal, Module)
+	( stream_info_(Stream, 19, on) ->	% yield
+	    stream_info_(Stream, 4, PhysicalStream),
+	    (is_remote_sync_queue(PhysicalStream, _, ControlStream) ->
+		remote_input(PhysicalStream, ControlStream)
 	    ;
-		eof_handler(N, Goal)
-	    )
-
-	; Action == error ->
-	    error_handler(N, Goal, Module, LM)
+		yield(6, PhysicalStream, _)	% 6 == PWAITIO == EC_waitio
+	    ),
+	    :@(LM, Goal, Module)
+	;
+	    eof_handler(N, Goal)
 	).
+
 
 :- mode eof_handler(++, +).
 eof_handler(_, read(end_of_file)).
@@ -544,8 +535,15 @@ eof_handler(_, read_annotated_raw(S,
 
 past_eof_handler(N, Goal) :-
 	extract_stream(Goal, Stream),
-	close(Stream, [force(true)]),
-	error_handler(N, Goal).
+	stream_info_(Stream, 37, Action),	% eof_action
+	( Action == error ->
+	    close(Stream, [force(true)]),
+	    error_handler(N, Goal)
+	;
+	    % Action == eof_code ->
+	    % Action == reset ->	% should never happen!
+	    eof_handler(N, Goal)
+	).
 
 
 compiler_warning_handler(N, Proc) :-

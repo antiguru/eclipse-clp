@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.15 2012/09/23 18:54:39 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.16 2012/09/26 22:33:52 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1801,9 +1801,16 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 36:		/* end_of_stream */
+	/* Only a SoftEofStream can recover from being "past" eof */
 	result.val.did =
-	    StreamMode(nst) & MEOF ? d_past :
-	    StreamMethods(nst).at_eof(nst) == PSUCCEED ? d_at : d_not;
+	    ( IsSoftEofStream(nst) ?
+		(StreamMethods(nst).at_eof(nst) == PSUCCEED ?
+		    (StreamPastEof(nst) ? d_past : d_at)
+		: d_not)
+	    : StreamPastEof(nst) ? d_past
+	    : StreamMethods(nst).at_eof(nst) == PSUCCEED ? d_at
+	    : d_not
+	    );
 	result.tag.kernel = TDICT;
 	break;
 
@@ -1811,8 +1818,8 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	if (!IsReadStream(nst))
 	    { Fail_; }
 	result.val.did =
-	    StreamMode(nst) & SEOF_ERROR ? d_.err :
-	    StreamMode(nst) & SEOF_RESET ? d_.reset : d_eof_code;
+	    (StreamMode(nst) & SEOF_ACTION) == SEOF_ERROR ? d_.err :
+	    (StreamMode(nst) & SEOF_ACTION) == SEOF_RESET ? d_.reset : d_eof_code;
 	result.tag.kernel = TDICT;
 	break;
 
@@ -2331,7 +2338,9 @@ p_at_eof(value vs, type ts)
     {
 	Bip_Error(res);
     }
-    return StreamMethods(nst).at_eof(nst);
+    /* SoftEofStream can recover from being "past" eof, and needs extra check */
+    Succeed_If((StreamPastEof(nst) && !IsSoftEofStream(nst))
+    	|| (StreamMethods(nst).at_eof(nst) == PSUCCEED));
 }
 
 

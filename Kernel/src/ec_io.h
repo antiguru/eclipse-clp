@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.3 2012/09/23 18:54:39 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.4 2012/09/26 22:33:52 jschimpf Exp $
  */
 
 /*
@@ -71,6 +71,7 @@
 #define StreamEvent(nst)	(nst)->event
 #define StreamRand(nst)		(nst)->rand
 #define StreamLastWritten(nst)	(nst)->last_written
+#define StreamPastEof(nst)	((nst)->mode & MEOF)
 #define StreamFILE(nst)		((FILE *) (nst)->stdfile)
 #define StreamMethods(nst)	(* (io_channel_t *) (nst)->methods)
 #define SetStreamMethods(nst,m)	(nst)->methods = (void_ptr) (m);
@@ -104,7 +105,7 @@
 #define IsTextStream(nst)	(StreamEncoding(nst) > SENC_OCTET)
 
 /* streams which can recover from being at eof */
-#define IsSoftEofStream(nst)	(StreamMode(nst) & SEOF_RESET)
+#define IsSoftEofStream(nst)	((StreamMode(nst) & SEOF_ACTION) == SEOF_RESET)
 
 #define SystemStream(nst)	(				\
 				    (nst) == current_input_ ||	\
@@ -184,9 +185,9 @@
 #define SREPOSITION	0x1000000 /* can be repositioned (seek) */
 
 #define SEOF_ACTION	0x6000000 /* eof_action (ISO):			*/
-#define SEOF_CODE	0x0000000 /* return eof code (-1,end_of_file)	*/
+#define SEOF_ERROR	0x0000000 /* treat past-eof as permission error	*/
 #define SEOF_RESET	0x2000000 /* return eof code and allow repeat	*/
-#define SEOF_ERROR	0x4000000 /* treat eof as permission error	*/
+#define SEOF_CODE	0x4000000 /* return eof code (-1,end_of_file)	*/
 
 
 /* how many characters can be ungotten */

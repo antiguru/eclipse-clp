@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.14 2012/09/23 18:54:39 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.15 2012/09/26 22:33:52 jschimpf Exp $
  */
 
 /*
@@ -1023,6 +1023,10 @@ fill_buffer(register stream_id nst)
 
     if (StreamPtr(nst) - StreamBuf(nst) < StreamCnt(nst))
 	return PSUCCEED;	/* shouldn't happen */
+
+    /* Refilling after having returned EOF is only allowed for SoftEofStreams */
+    if ((StreamMode(nst) & MEOF) && !IsSoftEofStream(nst))
+	return PEOF;
 
     if (IsStringStream(nst))
     {
