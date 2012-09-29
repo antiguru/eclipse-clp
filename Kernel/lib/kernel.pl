@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.35 2012/02/12 02:19:32 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.36 2012/09/29 21:49:58 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -314,9 +314,11 @@
     setval(compiled_stream, _).
 ?- make_array_(compile_stack, reference([]), local, sepia_kernel).
 
-% This used to be 'on' for Windows, but apparently no longer necessary.
+% ignore_eof is 'on' for Windows, because ^C acts like eof (in Command Prompt)
 ?- make_array_(ignore_eof, prolog, local, sepia_kernel),
-   setval(ignore_eof, off).
+   get_sys_flag(8, Arch),	% hostarch
+   ( (Arch == "i386_nt" ; Arch == "x86_64_nt") -> setval(ignore_eof, on) ; setval(ignore_eof, off)).
+ 
 
 
 %------------------------------------
@@ -1904,10 +1906,6 @@ inline_calls(call_priority(Goal, Prio), Inlined, Module) :- -?->
 inline_calls(call_explicit(Goal, LM), Inlined, Module) :- -?->
 	tr_goals(LM:Goal, Inlined, Module).
 
-    copy_structure(Orig, Copy) :- compound(Orig), !,
-	Orig =.. List, Copy =.. List.
-    copy_structure(Orig, Orig).
-
 
 % call_local(Goal, Module)
 % [ This used to call Goal in an independent local computation, separating
@@ -3033,7 +3031,7 @@ check_compound(X) :- compound(X), !.
 check_compound(_) :- set_bip_error(5).
 
 check_callable(X) :- var(X), !, set_bip_error(4).
-check_callable(X) :- (atom(X);compound(X)), !.
+check_callable(X) :- callable(X), !.
 check_callable(_) :- set_bip_error(5).
 
 check_var_or_type(X) :- var(X), !.
@@ -4430,7 +4428,7 @@ try_tr_goal(Goal, AnnGoal, NewGoal, AnnNewGoal, LM, CM) :-
 
     % In C:
     % visible_goal_macro(Goal, TransPred, TLM, LM) :-
-    %	(atom(Goal);compound(Goal)),
+    %	callable(Goal),
     %	functor(Goal, N, A),
     %	get_flag(N/A, inline, TransPred)@LM,
     %	get_flag(N/A, definition_module, TLM)@LM,
@@ -4846,7 +4844,7 @@ portray_goal(Goal, PortrayedGoal, CM) :-
 	portray_goal(Goal, PortrayedGoal, CM, CM).
 
     portray_goal(Goal, PortrayedGoal, CM, LM) :-
-	( atom(Goal) ; compound(Goal) ),
+	callable(Goal),
 	% if we can't lookup in LM, use at least CM
 	( authorized_module(LM) -> MLM=LM ; MLM=CM ),
 	visible_term_macro(Goal, TransPred, _Options, TLM, MLM, 15 /*WRITE_GOAL_TRANS_PROP*/),
@@ -5774,7 +5772,7 @@ trans_is(Res is Expr, Code) :-
 	number(Expr),
 	Code = (Res = Expr).
     trans_is(Expr, Res, Code) :-
-	( atom(Expr) ; compound(Expr) ),
+	callable(Expr),
 	trans_function(Expr, Res, Call, Code, Call).
 
 
@@ -5808,7 +5806,7 @@ trans_expr(M:Func, Res, Code, NextCode) ?-
 	!,
 	Code = (eval(M:Func,Res),NextCode).
 trans_expr(Expr, Res, Code, NextCode) :-
-	( atom(Expr) ; compound(Expr) ),
+	callable(Expr),
 	!,
 	trans_function(Expr, Res, Call, Code, (Call,NextCode)).
 trans_expr(Expr, Res, Code, NextCode) :-
@@ -7358,7 +7356,6 @@ select(Streams, Timeout, Ready) :- stream_select(Streams, Timeout, Ready).
 :- deprecated(autoload_tool/2,		"").	% no proper replacement yet
 %:- deprecated(b_external/1,		"Write backtracking wrapper in ECLiPSe").
 %:- deprecated(b_external/2,		"Write backtracking wrapper in ECLiPSe").
-:- deprecated(call/2,			"Use call(Goal)@Module").
 :- deprecated(call_c/2,			"Write an external predicate (see Embedding Manual)").
 :- deprecated(call_explicit/2,		"Use Module:Goal").
 :- deprecated(char_int/2,		"Use char_code/2").
