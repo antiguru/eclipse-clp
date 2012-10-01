@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.6 2012/07/31 21:51:46 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.7 2012/10/01 01:05:59 jschimpf Exp $
  */
 
 /*
@@ -257,10 +257,6 @@ static int
 static int
 	_set_error_array(pri **arr, word n, dident w, value vm, type tm);
 
-static RETSIGTYPE
-	_abort_handler(int),
-	_throw_handler(int);
-
 #ifdef SA_SIGINFO
 static RETSIGTYPE _break(int, siginfo_t*, void *);
 #else
@@ -355,7 +351,7 @@ _handle_fatal(int n)
 
 
 static void
-_handle_async(int n)		 /* may be 0 */
+_handle_async(int n, int polling)		 /* may be 0 */
 {
     /* not InterruptsDisabled! */
 
@@ -405,6 +401,22 @@ _handle_async(int n)		 /* may be 0 */
     {
 	if (ec_post_event_int(n) != PSUCCEED)
 	    (void) write(2,"\nEvent queue overflow - signal lost\n",36);
+	return;
+    }
+    else if (interrupt_handler_flags_[n] == IH_ABORT
+	 ||  interrupt_handler_flags_[n] == IH_THROW)
+    {
+	if (polling) {
+	    pword exit_tag;
+	    Make_Atom(&exit_tag, interrupt_handler_flags_[n] == IH_ABORT ?
+				    d_.abort : interrupt_name_[n]);
+	    (void) longjmp_throw(exit_tag.val, exit_tag.tag);
+	} else {
+	    /* We are in signal handler or timer thread, i.e. it is not
+	     * safe to abort here. Post, and handle later via polling */
+	    if (ec_post_event_int(n) != PSUCCEED)
+		(void) write(2,"\nEvent queue overflow - signal lost\n",36);
+	}
 	return;
     }
     else
@@ -476,7 +488,7 @@ _break(int n)
     }
 
     Unblock_Signal(n);
-    _handle_async(n);
+    _handle_async(n, 0);
 }
 
 
@@ -488,7 +500,7 @@ delayed_break(void)
 
     while (InterruptsPending && (n = _dequeue_irq()) != -1)
     {
-	_handle_async(n);
+	_handle_async(n, 0);
     }
     errno = saved_errno;
 }
@@ -504,7 +516,7 @@ ec_handle_async(void)		/* !InterruptsDisabled && EXPORTED */
     int n;
     while ((n = next_urgent_event()) != -1)
     {
-	_handle_async(n);
+	_handle_async(n, 1);
     }
 }
 
@@ -578,32 +590,6 @@ sigmsg_handler(int n)
 }
 
 
-static RETSIGTYPE
-_throw_handler(int i)
-{
-    pword exit_tag;
-#if !defined(HAVE_SIGACTION) && !defined(HAVE_SIGVEC)
-    (void) signal(i, _throw_handler);	/* e.g. Windows... */
-#endif
-    Make_Atom(&exit_tag, interrupt_name_[i]);
-    Unblock_Signal(i);	/* won't otherwise be restored because of longjmp */
-    (void) longjmp_throw(exit_tag.val, exit_tag.tag);
-}
-
-
-static RETSIGTYPE
-_abort_handler(int i)
-{
-    pword exit_tag;
-#if !defined(HAVE_SIGACTION) && !defined(HAVE_SIGVEC)
-    (void) signal(i, _abort_handler);	/* e.g. Windows... */
-#endif
-    Make_Atom(&exit_tag, d_.abort);
-    Unblock_Signal(i);	/* won't otherwise be restored because of longjmp */
-    (void) longjmp_throw(exit_tag.val, exit_tag.tag);
-}
-
-
 static int
 _install_int_handler(int i, int how)
 {
@@ -613,13 +599,13 @@ _install_int_handler(int i, int how)
 #ifndef SIGIO
     if (i == ec_sigio)
     {
-	Fail_;	/* this is a fake signal number, do nothing */
+	Succeed_;	/* this is a fake signal number, do nothing */
     }
 #endif
 #ifndef SIGALRM
     if (i == ec_sigalrm)
     {
-	Fail_;	/* this is a fake signal number, do nothing */
+	Succeed_;	/* this is a fake signal number, do nothing */
     }
 #endif
 
@@ -679,6 +665,8 @@ _install_int_handler(int i, int how)
 	action.sa_handler = SIG_IGN;
 	break;
 
+    case IH_THROW:
+    case IH_ABORT:
     case IH_POST_EVENT:
 	Add_To_Block_Mask(i);
 #ifdef SA_SIGINFO
@@ -687,16 +675,6 @@ _install_int_handler(int i, int how)
 #else
 	action.sa_handler = _break;
 #endif
-	break;
-
-    case IH_THROW:
-	Del_From_Block_Mask(i);
-	action.sa_handler = _throw_handler;
-	break;
-
-    case IH_ABORT:
-	Del_From_Block_Mask(i);
-	action.sa_handler = _abort_handler;
 	break;
 
     case IH_HALT:
@@ -1065,26 +1043,7 @@ p_set_interrupt_handler_nr(value vn, type tn, value vp, type tp, value vm, type 
     if (w == d_.default0)
 	how = IH_SYSTEM_DFL;
     else if (w == d_internal_)
-    {
-        switch (vn.nint) {
-#ifdef SIGALRM
-            case SIGALRM:
-#ifdef USE_TIMER_THREAD
-                Succeed_;               /* leave handler unchanged */
-#else
-                how = IH_POST_EVENT;
-#endif
-                break;
-#endif
-#ifdef SIGVTALRM
-            case SIGVTALRM:
-                how = IH_POST_EVENT;
-                break;
-#endif
-            default:
-                how = IH_ECLIPSE_DFL;
-        }
-    }
+	how = IH_ECLIPSE_DFL;
     else if (w == d_.true0)
 	how = IH_IGNORE;
     else if (w == d_event_)

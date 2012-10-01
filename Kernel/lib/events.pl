@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.17 2012/09/26 22:32:25 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.18 2012/10/01 01:08:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1596,7 +1596,7 @@ after_handler :-
 % Default timer is real. 
 
 ?-  
-    set_interrupt_handler(alrm, internal/0),
+    set_interrupt_handler(alrm, event/1),
     setval(after_event_timer, real),
     set_event_handler(alrm, defers(after_handler/0)).
 
@@ -1629,7 +1629,7 @@ try_set_after_timer(Timer) :-
 	    (Signal0 == Signal ->
 		true
 	    ;
-		set_interrupt_handler(Signal, internal/0),
+		set_interrupt_handler(Signal, event/1),
 		set_event_handler(Signal, defers(after_handler/0)),
 		setval(after_event_timer, Timer)
 	    )

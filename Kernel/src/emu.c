@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.25 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.26 2012/10/01 01:05:59 jschimpf Exp $
  */
 
 /*
@@ -299,6 +299,8 @@ extern vmcode
 extern pri	**default_error_handler_,
 		**interrupt_handler_,
 		**error_handler_;
+extern int	*interrupt_handler_flags_;
+extern dident	*interrupt_name_;
 
 
  /*
@@ -5818,7 +5820,23 @@ _susp_wake_:					/* suspension in pw2 */
 	Case(Handler_call, I_Handler_call)	/* A[1] signal number */
 	    pw1 = &A[1];
 	    Dereference_Pw(pw1)			/* checks omitted */
-	    proc = interrupt_handler_[pw1->val.nint];
+	    i = pw1->val.nint;
+	    switch(interrupt_handler_flags_[i]) {
+		case IH_ABORT:
+		    Make_Atom(&A[1], d_.abort);
+		    PP = (emu_code) do_exit_block_code_;
+		    Next_Pp;
+		case IH_THROW:
+		    Make_Atom(&A[1], interrupt_name_[i]);
+		    PP = (emu_code) do_exit_block_code_;
+		    Next_Pp;
+		case IH_HANDLE_ASYNC:
+		    proc = interrupt_handler_[i];
+		    break;
+		default:	/* should not happen */
+		    proc = true_proc_;
+		    break;
+	    }
 	    PP++;				/* skip environment size */
 	    DBG_PORT = CALL_PORT;
 	    goto _handler_call_;		/* (proc,DBG_PORT) */

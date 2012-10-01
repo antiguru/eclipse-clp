@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.7 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.8 2012/10/01 01:05:59 jschimpf Exp $
  */
 
 /*
@@ -863,7 +863,7 @@ next_urgent_event(void)
 	event_q_assert(IsInteger(posted_events_[first_posted_].tag));
 	/* Remove element from queue */
 	first_posted_ = (first_posted_ + 1) % MAX_STATIC_EVENT_SLOTS;
-	if (interrupt_handler_flags_[n] == IH_POST_EVENT || !interrupt_handler_[n])
+	if (interrupt_handler_flags_[n] == IH_POST_EVENT)
 	{
 	    /* Post the atom to the dynamic event queue for synchronous
 	     * execution.
@@ -875,7 +875,9 @@ next_urgent_event(void)
 	}
 	else
 	{
-	    event_q_assert(interrupt_handler_flags_[n] == IH_HANDLE_ASYNC);
+	    event_q_assert(interrupt_handler_flags_[n] == IH_HANDLE_ASYNC
+	    		|| interrupt_handler_flags_[n] == IH_THROW
+	    		|| interrupt_handler_flags_[n] == IH_ABORT);
 	    if (IsEmptyStaticEventQueue()) 
 	    {
     		EVENT_FLAGS &= ~DEL_IRQ_POSTED;
