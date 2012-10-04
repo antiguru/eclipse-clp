@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.36 2012/09/29 21:49:58 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.37 2012/10/04 22:54:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -771,6 +771,8 @@ standalone_toplevel :-
 	
 :- mode process_command_line(+,+,-,+).
 process_command_line([], _I, _Goal, _M) :- !.
+process_command_line(["-f"|Args], I, Goal, M) :- !,
+	process_command_line(["-b"|Args], I, Goal, M).
 process_command_line(["-b", Arg |Args], I, Goal, M) :- !,
 	os_file_name(File, Arg),
 	catch(ensure_loaded(File, M), Tag, top_throw(Tag)),
