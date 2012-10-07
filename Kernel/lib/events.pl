@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.19 2012/10/04 22:54:28 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.20 2012/10/07 12:53:52 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -165,32 +165,35 @@ call_handler(_, Where, CM, _) :-
 
 try_create_pred(Where, LM) :-
         functor(Where, Name, Arity),
+	is_lazy_pred(LM, Name, Arity, Tool, Body, Proto),
+	% Create the body, unless it exists already
+	( get_flag(Body, defined, on) ->
+	    true
+	;
+	    Body = BName/N1,
+	    create_call_n(BName, N1)
+	),
+	% Create the tool, unless it exists already
+	( get_flag(Tool, tool, on) ->
+	    true
+	;
+	    tool(Tool, Body),
+	    export(Tool)
+	),
+	% Create same visibility as Proto
+	( get_flag(Proto, visibility, imported)@LM ->
+	    (import Tool from sepia_kernel)@LM
+	; get_flag(Proto, visibility, reexported)@LM ->
+	    (reexport Tool from sepia_kernel)@LM
+	;
+	    true
+	).
+
+is_lazy_pred(LM, Name, Arity, Tool, Body, Proto) :-
         multi_arity_pred(Name, Arity, Tool, Body, Proto),
-        Body = BName/N1,
-        N1 =< get_flag(max_predicate_arity),
+        arity(Body) =< get_flag(max_predicate_arity),
         % is the visible prototype the sepia_kernel one?
-        get_flag(Proto, definition_module, sepia_kernel)@LM,
-        % Create the body, unless it exists already
-        ( get_flag(Body, defined, on) ->
-            true
-        ;
-            create_call_n(BName, N1)
-        ),
-        % Create the tool, unless it exists already
-        ( get_flag(Tool, tool, on) ->
-            true
-        ;
-            tool(Tool, Body),
-            export(Tool)
-        ),
-        % Create same visibility as Proto
-        ( get_flag(Proto, visibility, imported)@LM ->
-            (import Tool from sepia_kernel)@LM
-        ; get_flag(Proto, visibility, reexported)@LM ->
-            (reexport Tool from sepia_kernel)@LM
-        ;
-            true
-        ).
+        get_flag(Proto, definition_module, sepia_kernel)@LM.
 
 multi_arity_pred(call,  N,  call/N, call_/N1, call/1) :- N1 is N+1, N>1.
 multi_arity_pred(call_, N1, call/N, call_/N1, call/1) :- N is N1-1, N>1.
@@ -231,6 +234,10 @@ declaration_warning_handler(75, Pred, Module) :- !,
     % suppress the warning if there is such a library
 declaration_warning_handler(85, BadModule:_, _Module) :-
 	known_library(BadModule),
+	!.
+    % suppress the warning if predicate will be created lazily
+declaration_warning_handler(84, LM:N/A, _Module) ?-
+	is_lazy_pred(LM, N, A, _, _, _),
 	!.
 declaration_warning_handler(N, Pred, Module) :-
 	warning_handler(N, Pred, Module).
