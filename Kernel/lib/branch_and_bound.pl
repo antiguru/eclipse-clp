@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: branch_and_bound.pl,v 1.3 2012/02/27 04:27:52 jschimpf Exp $
+% Version:	$Id: branch_and_bound.pl,v 1.4 2012/10/07 12:42:01 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(branch_and_bound).
@@ -31,7 +31,7 @@
 :- comment(summary, "Generic branch-and-bound primitives").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, Vassilis Liatsos, IC-Parc, Imperial College, London").
-:- comment(date, "$Date: 2012/02/27 04:27:52 $").
+:- comment(date, "$Date: 2012/10/07 12:42:01 $").
 :- comment(index, ["branch-and-bound","dichotomic search"]).
 :- comment(desc, html("
 	This is a solver-independent library implementing branch-and-bound
@@ -80,7 +80,8 @@
 	    timeout,		% number
 	    probe_timeout,	% number
 	    report_success,	% N/A or GoalPrefix
-	    report_failure	% N/A or GoalPrefix
+	    report_failure,	% N/A or GoalPrefix
+	    report_timeout	% N/A or GoalPrefix
 	)).
 
 :- lib(timeout).
@@ -123,7 +124,7 @@ bb_min(Goal, Cost, Template, Solution, Opt, Options, Module) :-
 	    timeout(
 		bb_any(From, To, Goal, Template, Cost, Handle, Module, Options),
 		Timeout,
-		printf(log_output, "Branch-and-bound timeout!%n%b", [])
+		report_timeout(Options, From..To, Handle, Module)
 	    )
 	;
 	    bb_any(From, To, Goal, Template, Cost, Handle, Module, Options)
@@ -498,6 +499,10 @@ report_success(bb_options{report_success:Spec}, Cost, Handle, Module) :-
 report_failure(bb_options{report_failure:Spec}, Range, Handle, Module) :-
 	report_result(Spec, "Found no solution with cost %q%n", Range, Handle, Module).
 
+report_timeout(bb_options{report_timeout:Spec}, _InitialRange, Handle, Module) :-
+	bb_cost(Handle, Cost),
+	report_result(Spec, "Branch-and-bound timeout while searching for solution better than %q%n%b", Cost, Handle, Module).
+
     report_result(N/A, _Msg, Range, Handle, Module) ?- !,
 	functor(Goal, N, A),
 	Goal =.. [_|Args],
@@ -615,6 +620,16 @@ report_failure(bb_options{report_failure:Spec}, Range, Handle, Module) :-
 	    as accepted by bb_cost/2 or bb_solution/2, and Module is the
 	    context module of the minimisation.
 	    The default handler prints a message.</DD>
+
+	<DT><STRONG>report_timeout:</STRONG></DT>
+	    <DD>GoalPrefix - an atom (predicate name) or structure (goal prefix),
+	    specifying a goal to be invoked when the branch-and-bound
+	    process times out.  The invoked goal is constructed
+	    by adding three arguments (Cost, Handle, Module) to GoalPrefix.
+	    Cost is a float number representing the cost of the best solution
+	    found, Handle is a handle as accepted by bb_cost/2 or bb_solution/2,
+	    and Module is the context module of the minimisation.
+	    The default handler prints a message.</DD>
 	</DL>
 	The default options can be selected by passing a free variable as
 	the Options-argument. To specify other options, pass a bb_options-
@@ -625,10 +640,11 @@ report_failure(bb_options{report_failure:Spec}, Range, Handle, Module) :-
 	In order to maximize instead of minimizing, introduce a negated
 	cost variable in your model and minimize that instead.
 	<P>
-	Compatibility note: For backward compatibility, the report_success and
-	report_failure options also accept Name/Arity specifications with
-	maximum arity 3 for the handler goals. The three optional arguments
-	are then Cost, Handle, and Module.
+	Note: the report_success, report_failure and report_timeout options
+	also accept Name/Arity specifications with maximum arity 3 for the
+	handler goals (the three optional arguments being Cost, Handle,
+	and Module).  Therefore, the simplest way to disable a handler
+	completely is to set it to true/0.
 	"),
     args:["Goal":"The (nondeterministic) search goal",
 	"Cost":"A (usually numeric domain) variable representing the cost",
