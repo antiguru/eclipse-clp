@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.3 2012/09/05 23:13:38 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.4 2012/10/07 14:29:51 jschimpf Exp $
  *
  */
 
@@ -2561,7 +2561,7 @@ p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tne
 
     if (coladded)
     {
-	_grow_numbers_array(lpd, coladded);	/* for zeroes[] */
+	_grow_numbers_array(lpd, coladded+1);	/* for zeroes[] */
 	Log2(CPXaddcols(cpx_env, lpd->lp, %d, lpd->matnz, 
 			%s, (lpd->matnz ? lpd->matbeg : lpd->zeroes),
 		       lpd->matind, lpd->matval, lpd->bdl, lpd->bdu, NULL),
