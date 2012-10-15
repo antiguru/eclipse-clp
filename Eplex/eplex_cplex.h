@@ -24,18 +24,34 @@
  * ECLiPSe/CPLEX interface (for inclusion in eplex.c)
  */
 
-#define CPX_MODERN
+/* Hack needed for Cplex 12.3: to select the correct definitions, pretend to be the MSC compiler. */
+#if defined(_WIN32) && !defined(_MSC_VER) /* Note that _WIN32 is also defined for _WIN_64 */
+#define _MSC_VER
 #include "cplex.h"		/* CPLEX declarations */
+#undef _MSC_VER
+#else
+#include "cplex.h"		/* CPLEX declarations */
+#endif
+
+/* The values CPX_VERSION_VERSION and CPX_VERSION_RELEASE were introduced in CPLEX 12.3.
+ * For earlier versions, we compute them from the 4-digit CPX_VERSION.
+ */
+#ifndef CPX_VERSION_VERSION
+#define CPX_VERSION_VERSION (CPX_VERSION/100)
+#endif
+#ifndef CPX_VERSION_RELEASE
+#define CPX_VERSION_RELEASE ((CPX_VERSION/10)%10)
+#endif
 
 #if (CPLEX == 0)
-#define CPLEX (CPX_VERSION/100)
-#elif (CPLEX != (CPX_VERSION/100))
+#define CPLEX CPX_VERSION_VERSION
+#elif (CPLEX != CPX_VERSION_VERSION)
 Version mismatch!
 #endif
 
 #ifndef CPLEXMINOR
-#define CPLEXMINOR ((CPX_VERSION/10)%10)
-#elif (CPLEXMINOR != ((CPX_VERSION/10)%10))
+#define CPLEXMINOR CPX_VERSION_RELEASE
+#elif (CPLEXMINOR != CPX_VERSION_RELEASE)
 Version mismatch!
 #endif
 
@@ -208,11 +224,16 @@ typedef char sostype_t;
 
 #endif /* CPLEX >= 8 */
 
+#if CPLEX < 12 || (CPLEX == 12  &&  CPLEXMINOR < 3)
+#define CPX_STAT_ABORT_DETTIME_LIM (-1)
+#define CPX_STAT_FIRSTORDER (-1)
+#endif
 
 #define SuccessState(d) ( \
 	(d)->sol_state == CPX_STAT_OPTIMAL || \
 	(d)->sol_state == CPX_STAT_OPTIMAL_INFEAS || \
         (d)->sol_state == CPX_STAT_OPTIMAL_FACE_UNBOUNDED || \
+        (d)->sol_state == CPX_STAT_FIRSTORDER || \
         MIPSuccessState(d))
 
 #define MIPSuccessState(d) ( \
@@ -281,6 +302,7 @@ typedef char sostype_t;
 # define MIPSemiFailState(d) ( \
 	(d)->sol_state == CPXMIP_NODE_LIM_INFEAS || \
 	(d)->sol_state == CPXMIP_TIME_LIM_INFEAS || \
+	(d)->sol_state == CPXMIP_DETTIME_LIM_INFEAS || \
 	(d)->sol_state == CPXMIP_FAIL_INFEAS || \
 	(d)->sol_state == CPXMIP_MEM_LIM_INFEAS || \
 	(d)->sol_state == CPXMIP_ABORT_INFEAS || \
@@ -290,6 +312,7 @@ typedef char sostype_t;
 	(d)->sol_state == CPXMIP_SOL_LIM || \
 	(d)->sol_state == CPXMIP_NODE_LIM_FEAS || \
 	(d)->sol_state == CPXMIP_TIME_LIM_FEAS || \
+	(d)->sol_state == CPXMIP_DETTIME_LIM_FEAS || \
 	(d)->sol_state == CPXMIP_FAIL_FEAS || \
 	(d)->sol_state == CPXMIP_MEM_LIM_FEAS || \
 	(d)->sol_state == CPXMIP_ABORT_FEAS || \

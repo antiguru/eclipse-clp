@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.5 2012/08/08 23:08:20 jschimpf Exp $
+# $Id: Makefile.in,v 1.6 2012/10/15 01:00:37 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -132,6 +132,7 @@ CPLEX110_SUPPORT_i386_nt = $(THIRDPARTY)/cplex110/bin/i386_nt/cplex110.dll
 CPLEX121_SUPPORT_i386_nt = $(THIRDPARTY)/cplex121/bin/x86_win32/cplex121.dll
 CPLEX121_SUPPORT_x86_64_nt = $(THIRDPARTY)/cplex121/bin/x64_win64/cplex121.dll
 CPLEX122_SUPPORT_x86_64_nt = $(THIRDPARTY)/cplex122/bin/x64_win64/cplex122.dll
+CPLEX124_SUPPORT_x86_64_nt = $(THIRDPARTY)/cplex124/bin/x64_win64/cplex124.dll
 
 
 sparc_sunos5/secplex65.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
@@ -286,6 +287,14 @@ x86_64_nt/secplex122.dll: eplex_cplex.def eplex.c eplex_cplex.h eplex_cplex.c ep
 	mv secplex.dll x86_64_nt/secplex122.dll
 	cp $(CPLEX122_SUPPORT_x86_64_nt) x86_64_nt/
 	cp $(CPLEX122_SUPPORT_x86_64_nt) ../lib/x86_64_nt/
+
+x86_64_nt/secplex124.dll: eplex_cplex.def eplex.c eplex_cplex.h eplex_cplex.c eplex.h
+	$(CC) -DCPLEX=12 -DCPLEXMINOR=4 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex124/include/ilcplex -c eplex.c
+	$(DYLD) $(DYNLDFLAGS)  eplex_cplex.def eplex.o $(THIRDPARTY)/cplex124/bin/x64_win64/cplex124.dll $(ECLIBS) -o secplex.dll
+	[ -d x86_64_nt ] || mkdir x86_64_nt
+	mv secplex.dll x86_64_nt/secplex124.dll
+	cp $(CPLEX124_SUPPORT_x86_64_nt) x86_64_nt/
+	cp $(CPLEX124_SUPPORT_x86_64_nt) ../lib/x86_64_nt/
 
 x86_64_linux/secplex90.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c eplex.c
