@@ -1504,7 +1504,7 @@ static struct param_desc params[NUMPARAMS+NUMALIASES] = {
 {"qpnzreadlim", CPX_PARAM_QPNZREADLIM, 0},
 {"qpmakepsdind", CPX_PARAM_QPMAKEPSDIND, 0},
 
-#elif CPLEX==12 && CPLEX<3
+#elif CPLEX==12 && CPLEXMINOR<3
 
 #define NUMPARAMS 157
 static struct param_desc params[NUMPARAMS+NUMALIASES] = {
