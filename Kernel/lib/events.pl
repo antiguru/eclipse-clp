@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.20 2012/10/07 12:53:52 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.21 2012/10/16 23:00:33 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -47,35 +47,10 @@
 % error/event handling builtins
 %------------------------------------
 
+get_error_handler(N, H, M) :- atom(N), !,
+	error(5,get_error_handler(N, H, M)).
 get_error_handler(N, H, M) :-
-	(
-		H = F/A
-	->
-		(
-			get_error_handler(N, F, A, M)
-		->
-			true
-		;
-			bip_error(get_error_handler(N, H, M))
-		)
-	;
-		error(5,get_error_handler(N, H, M))
-	).
-
-get_event_handler(N, H, M) :-
-	(
-		H = F/A
-	->
-		(
-			get_event_handler(N, F, A, M)
-		->
-			true
-		;
-			bip_error(get_event_handler(N, H, M))
-		)
-	;
-		error(5,get_event_handler(N, H, M))
-	).
+	get_event_handler(N, H, M).
 
 current_error(N) :-
 	(var(N) ->
@@ -1391,61 +1366,17 @@ current_interrupt(N, Name) :-
 current_interrupt(N, Name) :-
 	error(5, current_interrupt(N, Name)).
 
-gen_interrupt_id(Number, Name, N) :-
-        interrupt_id_det(N, Name) ->
+    gen_interrupt_id(Number, Name, N) :-
+        ( interrupt_id_det(N, Name) ->
 	    Name \== '.',
             Number = N
         ;
-            !, fail.
-gen_interrupt_id(Number, Name, N) :-
+            !,
+	    fail
+	).
+    gen_interrupt_id(Number, Name, N) :-
         N1 is N + 1,
         gen_interrupt_id(Number, Name, N1).
-
-
-set_interrupt_handler_body(N, Proc, M):- 
-	(check_interrupt(N, Int) ->
-		set_interrupt_handler_nr(Int, Proc, M)
-	;
-		bip_error(set_interrupt_handler(N, Proc), M)
-	).
-
-get_interrupt_handler(N, X, M):-
-	(var(X), X = F/A ; X = F/A, atom(F),integer(A)),
-	(var(M) ; atom(M)),
-	!,
-	(check_interrupt(N, Int) ->
-		get_interrupt_handler_nr(Int, F, A, M)
-	;
-		bip_error(get_interrupt_handler(N, X, M))
-	).
-
-get_interrupt_handler(N, X, M):-
-	error(5, get_interrupt_handler(N, X, M)).
-
-
-
-% Check Int for a valid interrupt id and unify N with the interrupt number
-check_interrupt(N, Int):-
-	(var(N) ->
-		set_bip_error(4)
-	;
-	integer(N) ->
-		(interrupt_id_det(N, Name), Name \== '.' ->
-			N = Int
-		;
-			set_bip_error(6)
-		)
-	;
-	atom(N) ->
-		(interrupt_id_det(Int, N), N \== '.' ->
-			true
-		;
-			set_bip_error(6)
-		)
-	;
-		set_bip_error(5)
-	).
-	
 
 
 %----------------------------------------------------------------------
