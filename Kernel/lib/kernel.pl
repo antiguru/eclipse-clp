@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.37 2012/10/04 22:54:28 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.38 2012/10/16 23:08:26 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -4238,10 +4238,6 @@ help :-
 %% Predefined macros
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-'C'([Token|Rest], Token, Rest).
-
-
 %
 % The protecting functor no_macro_expansion/1
 %
@@ -7118,6 +7114,13 @@ multifor_next([Idx0 | RevIdx0], RevFrom, RevTo, [Step | RevStep], RevIdx,
 %----------------------------------------------------------------------
 % Definite clause grammars (DCG)
 %----------------------------------------------------------------------
+
+
+:- inline('C'/3, tr_C/2).
+tr_C('C'(XXs,X,Xs), XXs=[X|Xs]).
+
+'C'([Token|Rest], Token, Rest).
+
 
 trdcg((Head --> Body), Clause, AnnDCG, AnnClause, Module) :-
         check_head(Head),
