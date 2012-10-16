@@ -1343,39 +1343,50 @@ Success:
 	see_also:[exit / 1, break / 0, pause / 0]]).
 
 :- comment(kill / 2, [
-	summary:"Send the signal Signal to the process number Pid
-
-",
+	summary:"Send the signal Signal to the process number Pid",
 	amode:(kill(+,+) is semidet),
-	desc:html("   Send the signal number Signal to the process with process ID Pid.  This
-   predicate is an interface to the UNIX system call kill(2).
-
+	desc:html("\
+    Send the signal Signal to the process with process ID Pid.
+    If Signal is 0, then only a check for existence of the process
+    is performed, i.e. kill/2 fails if the process does not exist.
+    A process ID of 0 can be used as a shorthand for the current process.
 <P>
-   If Signal is 0, then only a check for existence of the process is
-   performed.  In this case, kill/2 fails if the process does not exist.
-
+    This predicate is modelled after the UNIX system call kill(2).
+    Signal names are derived from their official names by stripping
+    SIG and using lower case, e.g. 'segv' for SIGSEGV.
+<P>
+    On Windows, a subset of the functionality is supported:
+    <UL>
+    <LI>Checking for process existence using signal 0</LI>
+    <LI>Terminating a process using signal 'term'</LI>
+    <LI>Sending signals 'abrt, 'fpe, 'ill, 'int, 'segv' or 'term'
+	to the current process/LI>
+    </UL>
 <P>
 "),
-	args:["Pid" : "Integer", "Signal" : "Integer"],
+	args:["Pid" : "Integer", "Signal" : "Atom or Integer"],
 	fail_if:"Fails if Signal is 0 and process Pid does not exist",
-	exceptions:[4 : "Pid or Signal are not instantiated.", 5 : "Pid or Signal are instantiated to non-integers.", 170 : "Pid or Signal has an invalid value.", 170 : "The process Pid belongs to another user."],
+	exceptions:[4 : "Pid or Signal are not instantiated.",
+	    5 : "Pid is instantiated to a non-integer.",
+	    5 : "Signal is instantiated to neither an integer nor an atom.",
+	    6 : "Signal is not a signal name or number.",
+	    170 : "Pid or Signal has an invalid value.",
+	    170 : "No permission to access process Pid."],
 	eg:"
 Success:
       [eclipse]: get_flag(pid, Pid), kill(Pid, 31).
       Signal 31
-
       Pid = 2929
       yes.
-      [eclipse]: kill(2929, 0)
 
+      [eclipse]: kill(2929, 0)
+      yes.
+
+      [eclipse]: kill(1234, term)
       yes.
 Failure:
       [eclipse]: kill(9999, 0)
-
       no.
-
-
-
 ",
 	see_also:[exec / 2, exec / 3, exec_group / 3, get_flag / 2, wait / 2]]).
 
