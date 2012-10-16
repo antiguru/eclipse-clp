@@ -224,16 +224,17 @@ typedef char sostype_t;
 
 #endif /* CPLEX >= 8 */
 
-#if CPLEX < 12 || (CPLEX == 12  &&  CPLEXMINOR < 3)
-#define CPX_STAT_ABORT_DETTIME_LIM (-1)
-#define CPX_STAT_FIRSTORDER (-1)
+#if CPLEX > 12 || (CPLEX == 12  &&  CPLEXMINOR >= 3)
+#define IfAtLeast123(X) (X)
+#else
+#define IfAtLeast123(X) 0
 #endif
 
 #define SuccessState(d) ( \
 	(d)->sol_state == CPX_STAT_OPTIMAL || \
 	(d)->sol_state == CPX_STAT_OPTIMAL_INFEAS || \
         (d)->sol_state == CPX_STAT_OPTIMAL_FACE_UNBOUNDED || \
-        (d)->sol_state == CPX_STAT_FIRSTORDER || \
+	IfAtLeast123((d)->sol_state == CPX_STAT_FIRSTORDER) || \
         MIPSuccessState(d))
 
 #define MIPSuccessState(d) ( \
@@ -258,6 +259,7 @@ typedef char sostype_t;
 #define LPAbortedState(d) ( \
 	(d)->sol_state == CPX_STAT_ABORT_IT_LIM || \
 	(d)->sol_state == CPX_STAT_ABORT_TIME_LIM || \
+	IfAtLeast123((d)->sol_state == CPX_STAT_ABORT_DETTIME_LIM) || \
 	(d)->sol_state == CPX_STAT_ABORT_OBJ_LIM || \
 	(d)->sol_state == CPX_STAT_ABORT_USER || \
         (d)->sol_state == CPX_STAT_NUM_BEST || \
@@ -302,7 +304,7 @@ typedef char sostype_t;
 # define MIPSemiFailState(d) ( \
 	(d)->sol_state == CPXMIP_NODE_LIM_INFEAS || \
 	(d)->sol_state == CPXMIP_TIME_LIM_INFEAS || \
-	(d)->sol_state == CPXMIP_DETTIME_LIM_INFEAS || \
+	IfAtLeast123((d)->sol_state == CPXMIP_DETTIME_LIM_INFEAS) || \
 	(d)->sol_state == CPXMIP_FAIL_INFEAS || \
 	(d)->sol_state == CPXMIP_MEM_LIM_INFEAS || \
 	(d)->sol_state == CPXMIP_ABORT_INFEAS || \
@@ -312,7 +314,7 @@ typedef char sostype_t;
 	(d)->sol_state == CPXMIP_SOL_LIM || \
 	(d)->sol_state == CPXMIP_NODE_LIM_FEAS || \
 	(d)->sol_state == CPXMIP_TIME_LIM_FEAS || \
-	(d)->sol_state == CPXMIP_DETTIME_LIM_FEAS || \
+	IfAtLeast123((d)->sol_state == CPXMIP_DETTIME_LIM_FEAS) || \
 	(d)->sol_state == CPXMIP_FAIL_FEAS || \
 	(d)->sol_state == CPXMIP_MEM_LIM_FEAS || \
 	(d)->sol_state == CPXMIP_ABORT_FEAS || \
