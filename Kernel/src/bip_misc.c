@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.7 2012/01/09 11:49:34 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.8 2012/10/16 22:54:01 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1308,32 +1308,61 @@ p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinte
 
 
 static int
-p_kill(value pv, type pt, value sv, type st)
+p_kill(value vpid, type tpid, value vsig, type tsig)
 {
-	Check_Integer(pt);
-	Check_Integer(st);
-#ifdef _WIN32
-	if (!(pv.nint == 0 || pv.nint == getpid()))
-	    { Bip_Error(UNIMPLEMENTED); }
-
-	if (!raise((int) sv.nint))
-	    { Bip_Error(RANGE_ERROR); }
-#else
-	if (kill((int) pv.nint, (int) sv.nint) < 0)
-	{
-	    if (sv.nint == 0 && errno == ESRCH)
-	    {
-		Fail_;		/* just checking for process existence */
-	    }
-	    else
-	    {
-		Set_Errno;
-		Bip_Error(SYS_ERROR);
-	    }
+    extern int ec_signalnum(value vsig, type tsig);
+    int sig = ec_signalnum(vsig, tsig);
+    if (sig < 0) {
+	if (IsInteger(tsig) && vsig.nint == 0) {
+	    sig = 0;	/* allow pseudo-signal 0 for existence testing */
+	} else {
+	    Bip_Error(sig);
 	}
-#endif
+    }
+    Check_Integer(tpid);
+    
+#ifdef _WIN32
+    /* Allow a few special cases: own process, and pseudo-SIGTERM */
+    if (vpid.nint == 0 || vpid.nint == getpid()) {	/* this process */
+	if (sig != 0  &&  raise(sig)  &&  errno == EINVAL)
+	    { Bip_Error(RANGE_ERROR); }
 	Succeed_;
+
+    } else if (sig == 0) {			/* existence check only */
+	HANDLE phandle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, vpid.nint);
+	if (phandle) {
+	    CloseHandle(phandle);
+	    Succeed_;
+	}
+	Fail_;
+
+    } else if (sig == SIGTERM) {		 /* other process */
+	HANDLE phandle = OpenProcess(PROCESS_TERMINATE, FALSE, vpid.nint);
+	if (phandle && TerminateProcess(phandle, 256)) {
+	    CloseHandle(phandle);
+	    Succeed_;
+	}
+	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	Bip_Error(SYS_ERROR);
+    }
+    Bip_Error(UNIMPLEMENTED);
+#else
+    if (kill((int) vpid.nint, sig) < 0)
+    {
+	if (sig == 0 && errno == ESRCH)
+	{
+	    Fail_;		/* just checking for process existence */
+	}
+	else
+	{
+	    Set_Errno;
+	    Bip_Error(SYS_ERROR);
+	}
+    }
+    Succeed_;
+#endif
 }
+
 
 #ifdef _WIN32
 static int

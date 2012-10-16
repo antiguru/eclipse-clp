@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.7 2012/10/01 01:05:59 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.8 2012/10/16 22:54:01 jschimpf Exp $
  */
 
 /*
@@ -243,16 +243,15 @@ int	p_reset(void);
 
 static int
 	p_pause(void),
-	p_get_error_handler(value vn, type tn, value vf, type tf, value va, type ta, value vm, type tm),
-        p_get_event_handler(value vn, type tn, value vf, type tf, value va, type ta, value vm, type tm),
+        p_get_event_handler(value vn, type tn, value vh, type th, value vm, type tm),
 	p_define_error(value valm, type tagm, value vale, type tage),
-	p_get_interrupt_handler_nr(value vn, type tn, value vf, type tf, value va, type ta, value vm, type tm),
+	p_get_interrupt_handler(value vn, type tn, value vh, type th, value vm, type tm),
 	p_interrupt_id_det(value vnum, type tnum, value vname, type tname),
 	p_post_events(value v, type t),
 	p_set_error_handler(value vn, type tn, value vp, type tp, value vm, type tm),
 	p_reset_error_handler(value vn, type tn),
 	p_set_default_error_handler(value vn, type tn, value vp, type tp, value vm, type tm),
-	p_set_interrupt_handler_nr(value vn, type tn, value vp, type tp, value vm, type tm),
+	p_set_interrupt_handler(value vn, type tn, value vp, type tp, value vm, type tm),
 	p_valid_error(value vn, type tn);
 static int
 	_set_error_array(pri **arr, word n, dident w, value vm, type tm);
@@ -725,8 +724,7 @@ _install_int_handler(int i, int how)
 #ifdef HAVE_SIGVEC
     res = sigvec(i, &action, (struct sigvec *) 0);
 #else
-    /* casting from void * to int for returned value */
-    res = (int) signal(i, action.sa_handler);
+    res = ( signal(i, action.sa_handler) == SIG_ERR ? -1 : 0 );
 #endif
 #endif
 
@@ -777,6 +775,28 @@ handlers_fini()
 #ifdef SIGPIPE
     (void) _install_int_handler(SIGPIPE, IH_IGNORE);
 #endif
+}
+
+
+/* Given tagged integer or atom, return signal number (or negative error code) */
+int ec_signalnum(value vsig, type tsig)
+{
+    if (IsInteger(tsig)) {
+	if (vsig.nint > 0 && vsig.nint < NSIG && interrupt_name_[vsig.nint] != D_UNKNOWN)
+	    return (int) vsig.nint;
+	return RANGE_ERROR;
+
+    } else if IsAtom(tsig) {
+	int i;
+	for (i = 1; i < NSIG; i++)
+	    if (interrupt_name_[i] == vsig.did)
+		return i;
+	return RANGE_ERROR;
+
+    } else if IsRef(tsig) {
+	return INSTANTIATION_FAULT;
+    }
+    return TYPE_ERROR;
 }
 
 
@@ -1027,14 +1047,15 @@ p_reset_error_handler(value vn, type tn)
 
 
 static int
-p_set_interrupt_handler_nr(value vn, type tn, value vp, type tp, value vm, type tm)
+p_set_interrupt_handler(value vn, type tn, value vp, type tp, value vm, type tm)
 {
     dident w;
     pri *proc = 0;
-    int err, how;
+    int sig, err, how;
 
     Check_Module(tm, vm);
-    Check_Interrupt_Number(vn,tn)
+    sig = ec_signalnum(vn, tn);
+    if (sig < 0) { Bip_Error(sig); }
     Get_Proc_Did(vp, tp, w);
     if(DidArity(w) > 1)
     {
@@ -1064,12 +1085,12 @@ p_set_interrupt_handler_nr(value vn, type tn, value vp, type tp, value vm, type 
 	    Bip_Error(err);
 	}
     }
-    err = _install_int_handler((int) vn.nint, how);
+    err = _install_int_handler(sig, how);
     Return_If_Error(err);
     if (err == PSUCCEED)        /* do nothing for PFAIL */
     {
-        interrupt_handler_flags_[vn.nint] = how;
-        interrupt_handler_[vn.nint] = proc;
+        interrupt_handler_flags_[sig] = how;
+        interrupt_handler_[sig] = proc;
     }
     Succeed_;
 }
@@ -1095,13 +1116,25 @@ static p_pause(void)
 
 /*ARGSUSED*/
 static int
-p_get_interrupt_handler_nr(value vn, type tn, value vf, type tf, value va, type ta, value vm, type tm)
+p_get_interrupt_handler(value vn, type tn, value vh, type th, value vm, type tm)
 {
     dident	wdid, module;
     pri		*proc;
+    pword	*pw = TG;
+    int		sig;
     Prepare_Requests;
 
-    switch(interrupt_handler_flags_[vn.nint])
+    sig = ec_signalnum(vn, tn);
+    if (sig < 0) { Bip_Error(sig); }
+    if (!IsRef(th)) {
+	Check_Structure(th);
+	if (vh.ptr->val.did != d_.quotient) {Bip_Error(TYPE_ERROR); }
+	Check_Output_Atom_Or_Nil(vh.ptr[1].val, vh.ptr[1].tag);
+	Check_Output_Integer(vh.ptr[2].tag);
+    }
+    Check_Output_Atom_Or_Nil(vm, tm);
+
+    switch(interrupt_handler_flags_[sig])
     {
     case IH_UNCHANGED:
 	Fail_;
@@ -1134,15 +1167,18 @@ p_get_interrupt_handler_nr(value vn, type tn, value vf, type tf, value va, type 
 	module = d_.kernel_sepia;
 	break;
     case IH_HANDLE_ASYNC:
-	proc = interrupt_handler_[vn.nint];
+	proc = interrupt_handler_[sig];
 	wdid = PriDid(proc);
 	module = PriHomeModule(proc);
 	break;
     default:
 	Bip_Error(RANGE_ERROR);
     }
-    Request_Unify_Atom(vf, tf, add_dict(wdid, 0));
-    Request_Unify_Integer(va, ta, DidArity(wdid));
+    pw = TG;
+    Push_Struct_Frame(d_.quotient);
+    Make_Atom(&pw[1], add_dict(wdid, 0));
+    Make_Integer(&pw[2], DidArity(wdid));
+    Request_Unify_Structure(vh, th, pw);
     Request_Unify_Atom(vm, tm, module);
     Return_Unify;
 }
@@ -1158,45 +1194,20 @@ p_reset(void)
 }
 
 
-/* The following builtins use the global error variable ! */
-
-#undef Bip_Error
-#define Bip_Error(N) Bip_Error_Fail(N)
-
-
-/*ARGSUSED*/
 static int
-p_get_error_handler(value vn, type tn, value vf, type tf, value va, type ta, value vm, type tm)
+p_get_event_handler(value vn, type tn, value vh, type th, value vm, type tm)
 {
-    dident wdid;
     pri *proc;
-    Prepare_Requests;
-
-    Check_Error_Number(vn,tn);
-    Check_Output_Integer(ta);
-    Check_Output_Atom_Or_Nil(vf, tf);
-    Check_Output_Atom_Or_Nil(vm, tm);
-    proc = error_handler_[vn.nint];
-    if(proc == (pri *) 0)
-	proc = error_handler_[0];
-    wdid = PriDid(proc);
-    Request_Unify_Atom(vf, tf, add_dict(wdid, 0));
-    Request_Unify_Integer(va, ta, DidArity(wdid));
-    Request_Unify_Atom(vm, tm, PriHomeModule(proc));
-    Return_Unify;
-}
-
-static int
-p_get_event_handler(value vn, type tn, value vf, type tf, value va, type ta, value vm, type tm)
-{
-    dident wdid;
-    pri *proc;
-    pword *prop;
+    pword *prop, *pw;
     Prepare_Requests;
 
     Error_If_Ref(tn);
-    Check_Output_Integer(ta);
-    Check_Output_Atom_Or_Nil(vf, tf);
+    if (!IsRef(th)) {
+	Check_Structure(th);
+	if (vh.ptr->val.did != d_.quotient) {Bip_Error(TYPE_ERROR); }
+	Check_Output_Atom_Or_Nil(vh.ptr[1].val, vh.ptr[1].tag);
+	Check_Output_Integer(vh.ptr[2].tag);
+    }
     Check_Output_Atom_Or_Nil(vm, tm);
     if (IsAtom(tn))
     {
@@ -1217,12 +1228,20 @@ p_get_event_handler(value vn, type tn, value vf, type tf, value va, type ta, val
     {
       Bip_Error(TYPE_ERROR)
     }
-    wdid = PriDid(proc);
-    Request_Unify_Atom(vf, tf, add_dict(wdid, 0));
-    Request_Unify_Integer(va, ta, DidArity(wdid));
+    pw = TG;
+    Push_Struct_Frame(d_.quotient);
+    Make_Atom(&pw[1], add_dict(PriDid(proc), 0));
+    Make_Integer(&pw[2], DidArity(PriDid(proc)));
+    Request_Unify_Structure(vh, th, pw);
     Request_Unify_Atom(vm, tm, PriHomeModule(proc));
     Return_Unify;
 }
+
+
+/* The following builtins use the global error variable ! */
+
+#undef Bip_Error
+#define Bip_Error(N) Bip_Error_Fail(N)
 
 static int
 p_valid_error(value vn, type tn)
@@ -1461,20 +1480,14 @@ handlers_init(int flags)
 				p_set_error_handler,		B_SAFE);
 	(void) exported_built_in(in_dict("set_default_error_handler_", 3),
 				p_set_default_error_handler,	B_SAFE);
-	(void) local_built_in(in_dict("set_interrupt_handler_nr", 3),
-				p_set_interrupt_handler_nr,	B_SAFE);
-	local_built_in(in_dict("get_error_handler", 4),
-				p_get_error_handler,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT) |
-		    BoundArg(4, CONSTANT);
-	local_built_in(in_dict("get_event_handler", 4),
+	(void) exported_built_in(in_dict("set_interrupt_handler_body", 3),
+				p_set_interrupt_handler,	B_SAFE);
+	local_built_in(in_dict("get_event_handler", 3),
 				p_get_event_handler,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT) |
-		    BoundArg(4, CONSTANT);
-	local_built_in(in_dict("get_interrupt_handler_nr", 4),
-				p_get_interrupt_handler_nr, B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT) |
-		    BoundArg(4, CONSTANT);
+	    -> mode = BoundArg(2, NONVAR) | BoundArg(3, CONSTANT);
+	built_in(in_dict("get_interrupt_handler", 3),
+				p_get_interrupt_handler, B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, NONVAR) | BoundArg(3, CONSTANT);
 	(void) local_built_in(in_dict("valid_error", 1),
 				p_valid_error,		B_SAFE);
 	local_built_in(in_dict("interrupt_id_det", 2),
