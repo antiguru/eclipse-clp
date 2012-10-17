@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.8 2012/10/16 22:54:01 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.9 2012/10/17 10:05:20 jschimpf Exp $
  */
 
 /*
@@ -793,6 +793,8 @@ int ec_signalnum(value vsig, type tsig)
 		return i;
 	return RANGE_ERROR;
 
+    } else if (IsBignum(tsig)) {
+	return RANGE_ERROR;
     } else if IsRef(tsig) {
 	return INSTANTIATION_FAULT;
     }
