@@ -251,6 +251,13 @@ are defined for all the solvers:
 
 
 static int
+cpx_delsos(lp_desc *lpd, int from, int to)
+{
+    return coin_del_sos(lpd->lp, from, to);
+}
+
+
+static int
 cpx_write(lp_desc *lpd, char *file, char *fmt)
 {
     return coin_writeprob(lpd->lp, file, fmt);

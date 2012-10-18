@@ -100,7 +100,7 @@ typedef int sostype_t;
 	GRBgetconstrs(A1,A2,A3,A4,A5,A8,(A9)-(A8)+1)
 #define CPXchgobjsen(E,A1,A2) 		GRBsetintattr(A1,GRB_INT_ATTR_MODELSENSE,A2)
 #define CPXchgprobtype(A1, A2, A3)	0 /* 0 for success return code */
-#define CPXcopysos_(E,LP,NS,NE,ST,SB,SI,SW) GRBaddsos(LP,NS,NE,ST,SB,SI,SW)
+#define CPXaddsos(E,LP,NS,NE,ST,SB,SI,SW,SN) GRBaddsos(LP,NS,NE,ST,SB,SI,SW)
 #define XPRSdelrows(A1,A2,A3)		GRBdelconstrs(A1,A2,A3)
 #define XPRSdelcols(A1,A2,A3)		GRBdelvars(A1,A2,A3)
 #define CPXchgname(E,A1,A2,A3,A4)	grb_setname(A1,A2,A3,A4)

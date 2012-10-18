@@ -110,6 +110,7 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
           XPRSaddcols(A1,A2,A3,A4,A5,A6,A7,A8,A9) /* diff args! */
 # define CPXaddrows(E,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11) \
           XPRSaddrows(A1,A3,A4,A6,A5,NULL,A7,A8,A9) /* diff args! */
+# define CPXaddsos(E,LP,NS,NE,ST,SB,SI,SW,SN) XPRSaddsets(LP,NS,NE,ST,SB,SI,SW)
 # define CPXgetrows(E,A1,A2,A3,A4,A5,A6,A7,A8,A9) \
           XPRSgetrows(A1,A3,A4,A5,A6,A2,A8,A9) /* diff args! */
 # define CPXchgobjsen(E,A1,A2) 		0

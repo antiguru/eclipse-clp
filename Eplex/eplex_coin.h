@@ -75,7 +75,7 @@ typedef char sostype_t;
           coin_addrows(A1,A3,A4,A5,A6,A7,A8,A9) /* diff args! */
 # define CPXchgobjsen(E,A1,A2) coin_chgobjsen(A1,A2)
 # define CPXchgprobtype(A1, A2, A3)     0 /* 0 for success return code */
-# define CPXcopysos_(E,A1,A2,A3,A4,A5,A6,A7) coin_load_sos(A1,A2,A3,A4,A5,A6,A7)
+# define CPXaddsos(E,LP,NS,NE,ST,SB,SI,SW,SN) coin_add_sos(LP,NS,NE,ST,SB,SI,SW)
 # define CPXgetrows(E,A1,A2,A3,A4,A5,A6,A7,A8,A9) \
           coin_get_row(A1,A2,A4,A5,A8) /* gets one row only! */
 # define CPXgetnumnz(E,A1) coin_getnumnz(A1)

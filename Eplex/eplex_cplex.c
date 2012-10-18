@@ -700,6 +700,22 @@ cpx_get_soln_state(lp_desc* lpd, struct lp_sol *sol)
 
 
 static int
+cpx_delsos(lp_desc *lpd, int from, int to)
+{
+    int total = CPXgetnumsos(cpx_env, lpd->lp);
+    int *delset = Malloc(total*sizeof(int));
+    int i=0;
+    while (i < from)  delset[i++] = 0;
+    while (i < to)    delset[i++] = 1;
+    while (i < total) delset[i++] = 0;
+    if (CPXdelsetsos(cpx_env, lpd->lp, delset))
+	return -1;
+    Free(delset);
+    return 0;
+}
+
+
+static int
 cpx_write(lp_desc *lpd, char *file, char *fmt)
 {
     int res;

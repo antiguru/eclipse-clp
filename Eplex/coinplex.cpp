@@ -156,6 +156,7 @@ typedef struct {
     char mipIsShared; /* 1 if shared with Solver, 0 if copied */ 
     CbcModel* mipmodel;
     ClpInterior* interiormodel;
+#define MIPOBJSZ	1000	// temporary, replace with std::vector
     CbcObject** mipobjects; // information such as SOS to be added to mipmodel 
     int nsos; // number of SOSs
     double timeout;
@@ -1788,7 +1789,7 @@ int coin_create_prob(COINprob** plp, COINprob* def)
     lp->mipmodel->passInMessageHandler(coinMessageHandler);
     lp->mipIsShared = 0;
     //    lp->control = NULL;
-    lp->mipobjects = NULL;
+    lp->mipobjects = new CbcObject* [MIPOBJSZ];
     lp->nsos = 0;
     lp->interiormodel = NULL;
 
@@ -2053,22 +2054,25 @@ int coin_set_name(COINprob* lp, char ntype, int idx, const char * name)
     return 0;
 }
 
+
 extern "C"
-int coin_load_sos(COINprob* lp, int nsos, int nsosnz, char* sostype, 
+int coin_add_sos(COINprob* lp, int nsos, int nsosnz, char* sostype, 
 		  int* sosbeg, int* sosind, double* soswt)
 {
 #ifdef COIN_USE_CLP
-    lp->mipobjects = new CbcObject * [nsos];
+    int new_nsos = lp->nsos + nsos;
 
     try {
+      if (new_nsos > MIPOBJSZ)
+	  throw new bad_alloc;
       for (int i=0; i<nsos-1; i++) {
-	lp->mipobjects[i] = new CbcSOS(lp->mipmodel, sosbeg[i+1]-sosbeg[i], 
+	lp->mipobjects[lp->nsos+i] = new CbcSOS(lp->mipmodel, sosbeg[i+1]-sosbeg[i], 
 				       &sosind[sosbeg[i]], &soswt[i], i, 
 				       (sostype[i] == '1' ? 1 : 2));
       }
       if (nsos > 0) {// last set
 	int i = nsos - 1;
-	lp->mipobjects[i] = new CbcSOS(lp->mipmodel, nsosnz-sosbeg[i], 
+	lp->mipobjects[lp->nsos+i] = new CbcSOS(lp->mipmodel, nsosnz-sosbeg[i], 
 				       &sosind[sosbeg[i]], &soswt[i], i, 
 				       (sostype[i] == '1' ? 1 : 2));
       }
@@ -2082,15 +2086,35 @@ int coin_load_sos(COINprob* lp, int nsos, int nsosnz, char* sostype,
       return -1;
     }
 
-    lp->nsos = nsos;
+    lp->nsos = new_nsos;
     return 0;
 #else
 
     // unimplemented
     return -1;
 #endif
-
 }
+
+
+extern "C"
+int coin_del_sos(COINprob* lp, int from, int to)
+{
+#ifdef COIN_USE_CLP
+    if (from > to || to > lp->nsos)
+	return -1;
+    int ndel = to-from;
+    for (int i=to; i<lp->nsos; i++) {
+	lp->mipobjects[i-ndel] = lp->mipobjects[i];
+    }
+    lp->nsos -= ndel;
+    return 0;
+#else
+
+    // unimplemented
+    return -1;
+#endif
+}
+
 
 extern "C"
 int coin_free_prob(COINprob* lp)

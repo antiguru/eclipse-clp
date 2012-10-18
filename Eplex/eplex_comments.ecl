@@ -31,17 +31,15 @@
 </P><P>
     The constraints provided are:
     <DL>
-    <DT>X =:= Y</DT><DD>equality over linear expressions</DD>
-    <DT>X &gt;= Y</DT><DD>inequality over linear expressions</DD>
-    <DT>X =&lt; Y</DT><DD>inequality over linear expressions</DD>
+    <DT>Vs $:: Bound</DT><DD>Bounds on variables</DD>
     <DT>X $= Y</DT><DD>equality over linear expressions</DD>
     <DT>X $&gt;= Y</DT><DD>inequality over linear expressions</DD>
     <DT>X $=&lt; Y</DT><DD>inequality over linear expressions</DD>
     <DT>integers(Xs)</DT><DD>integrality of variables</DD>
-    <DT>Vs :: Bound</DT><DD>Bounds on variables</DD>
-    <DT>Vs $:: Bound</DT><DD>Bounds on variables</DD>
+    <DT>sos1(Xs)</DT><DD>all but one are zero</DD>
+    <DT>sos2(Xs)</DT><DD>all but two consecutive ones are zero</DD>
     </DL>
-    Their operational behaviour is as follows:
+    The operational behaviour of the linear constraints is as follows:
 </P><UL>
     <LI>When they contain no variables, they simply succeed or fail.
 
@@ -50,7 +48,7 @@
     can lead to immediate failure if the lower bound is greater than the upper.
 
     <LI>Otherwise, the constraint is transferred to the external solver
-    instance immediately.
+    immediately (or as soon as the solver is set up).
 </UL><P>
 The following arithmetic expression can be used inside the constraints:
 <DL>
@@ -227,6 +225,38 @@ the solving behaviour for a particular application's needs.
     ]).
 
 
+:- comment(sos1/1,  [
+    template:  "EplexInstance:sos1(?Vars)",
+    args:      ["Vars":    "A collection of variables"],
+    see_also:  [_:sos1/1,sos2/1,integers/1],
+    summary:   "Constrains all but one of Vars to be zero.",
+    desc:      html("<P>\
+	Constrains all but one of Vars to be zero.  In MIP terminology
+	this is called a Special Ordered Set (SOS) of type 1.
+</P><P>
+	If the variables are also required to be integral, this must
+	be separately declared using integers/1.  Similarly for bounds.
+</P>
+	")
+    ]).
+
+
+:- comment(sos2/1,  [
+    template:  "EplexInstance:sos2(?Vars)",
+    args:      ["Vars":    "A collection of variables"],
+    see_also:  [_:sos2/1,sos1/1,integers/1],
+    summary:   "Constrains all but two consecutive elements of Vars to be zero.",
+    desc:      html("<P>\
+	Constrains all but two consecutive elements of Vars to be zero.  In
+	MIP terminology this is called a Special Ordered Set (SOS) of type 2.
+</P><P>
+	If the variables are also required to be integral, this must
+	be separately declared using integers/1.  Similarly for bounds.
+</P>
+	")
+    ]).
+
+
 :- comment(reals/1,  [
     template:  "EplexInstance:reals(?Vars)",
     args:      ["Vars":    "Variable or number, or a list or submatrix of variables/numbers"],
@@ -243,6 +273,7 @@ the solving behaviour for a particular application's needs.
         sense, where real numbers subsume the integers. If the variables
         are already instantiated, this call checks that the variable is
         instantiated to a number.
+</P>
         ")
     ]).
 
@@ -595,7 +626,7 @@ desc:      html("\
              "Integers": "A (possibly empty) list of variables to be considered as integers"
             ],
  see_also:  [lp_add_constraints/3,lp_demon_setup/5,lp_add/3,lp_add_constraints/4,
-             ($=)/2,($=<)/2,($>=)/2,(=:=)/2,(=<)/2,(>=)/2],
+             ($=)/2,($=<)/2,($>=)/2,(=:=)/2,(=<)/2,(>=)/2,sos1/1,sos2/1],
  resat:     no,
  fail_if: "Any ground (no variable) or bound constraints (one variable) is self-inconsistent.",
  exceptions: [4: "Constraints or Integers uninstantiated.",
@@ -626,6 +657,9 @@ desc:      html("\
   the external solver. If any constraint is ground, they are tested for
   consistency.
 </P><P>
+  The constraints can be linear equalities and inequalities, as well as
+  sos/1 and sos2/1 constraints.
+</P><P>
   Note that variables in NewIntegers can be any problem variables. In
   previous versions of ECLiPSe, there was a restriction that the variables
   be new problem variables; this restriction has been removed.
@@ -643,7 +677,7 @@ desc:      html("\
             ],
  see_also:  [lp_demon_setup/5,lp_add/3,lp_add_constraints/4,
              eplex_add_constraints/2,
-             ($=)/2,($=<)/2,($>=)/2,(=:=)/2,(=<)/2,(>=)/2],
+             ($=)/2,($=<)/2,($>=)/2,(=:=)/2,(=<)/2,(>=)/2,sos1/1,sos2/1],
  resat:     no,
  fail_if: "Any ground (no variable) or bound constraints (one variable) is self-inconsistent.",
  exceptions: [4: "Handle, Constraints or Integers uninstantiated.",
@@ -666,6 +700,9 @@ desc:      html("\
   The constraints are normalised and simplified before being passed to
   the external solver. If any constraint is ground, they are tested for
   consistency.
+</P><P>
+  The constraints can be linear equalities and inequalities, as well as
+  sos/1 and sos2/1 constraints.
 </P><P>
   Note that variables in NewIntegers can be any problem variables. In
   previous versions of ECLiPSe, there was a restriction that the variables
@@ -1154,14 +1191,14 @@ occur no more than once):
     0.00001 and 0.5 respectively.
 
 <P>
-<DT><STRONG><TT>sos1(VarList)</TT></STRONG>
+<DT><STRONG><TT>sos1(VarList)</TT></STRONG> - deprecated, use sos1/1 constraint
     <DD><TT>VarList</TT> is a list of variables which the solver should
     treat as variables of a type 1 special ordered set (SOS), i.e. at most
     one of the variables in the set can be non-zero. This can occur multiple
     times, for different sets of variables.
 
 <P>
-<DT><STRONG><TT>sos2(VarList)</TT></STRONG>
+<DT><STRONG><TT>sos2(VarList)</TT></STRONG> - deprecated, use sos2/1 constraint
     <DD><TT>VarList</TT> is a list of variables which the solver should
     treat as variables of a type 2 special ordered set (SOS), i.e. at most
     two of the variables in the set can be non-zero. This can occur multiple

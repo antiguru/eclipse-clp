@@ -93,9 +93,6 @@ typedef char sostype_t;
 */
 # define CPXERR_NO_INT_SOLN CPXERR_NO_SOLN 
 
-/* CPXcopysos() args changed in 10: removed sospri and added sosname */
-# define CPXcopysos_(E,L,A1,A2,A3,A4,A5,A6) CPXcopysos(E,L,A1,A2,A3,A4,A5,A6,NULL)
-
 # define HAS_GENERAL_CONFLICT_REFINER
 
 # define Find_Conflict(Res, L, NRows, NCols)  Res = CPXrefineconflict(cpx_env, L, &(NRows), &(NCols))
@@ -104,8 +101,6 @@ typedef char sostype_t;
 	CPXgetconflict(cpx_env, L, &(Status), RowIdxs, RowStat, NRows_p, ColIdxs, ColStat, NCols_p)
 
 #else
-
-# define CPXcopysos_(E,L,A1,A2,A3,A4,A5,A6) CPXcopysos(E,L,A1,A2,A3,NULL,A4,A5,A6)
 
 /* mapping the calls to find a conflict set to the older and less general routines (LP only) to get 
    the IIS 

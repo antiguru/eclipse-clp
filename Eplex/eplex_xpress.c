@@ -725,6 +725,14 @@ cpx_get_soln_state(lp_desc* lpd, struct lp_sol *sol)
 
 
 static int
+cpx_delsos(lp_desc *lpd, int from, int to)
+{
+    _grow_numbers_array(lpd, to);	/* if necessary */
+    return XPRSdelsets(lpd->lp, to-from, &lpd->numbers[from]));
+}
+
+
+static int
 cpx_write(lp_desc *lpd, char *file, char *fmt)
 {
     int res;

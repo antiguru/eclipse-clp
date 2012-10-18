@@ -570,6 +570,10 @@ cpx_loadprob(lp_desc *lpd)
 		))
 	goto _return_err_;
 
+    if (lpd->nsos && GRBaddsos(lpd->lp, lpd->nsos, lpd->nsosnz,
+		lpd->sostype, lpd->sosbeg, lpd->sosind, lpd->sosref))
+	goto _return_err_;
+
     /* Switch presolve off if requested, otherwise leave cpx_env's defaults */
     if (lpd->presolve == 0) 
 	GRBsetintparam(GRBgetenv(lpd->lp), GRB_INT_PAR_PRESOLVE, GRB_PRESOLVE_OFF);
@@ -578,6 +582,14 @@ cpx_loadprob(lp_desc *lpd)
 _return_err_:
     Report_Solver_Error(cpx_env);
     return -1;
+}
+
+
+static int
+cpx_delsos(lp_desc *lpd, int from, int to)
+{
+    _grow_numbers_array(lpd, to);	/* if necessary */
+    return GRBdelsos(lpd->lp, to-from, &lpd->numbers[from]);
 }
 
 

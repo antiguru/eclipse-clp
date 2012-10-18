@@ -147,12 +147,13 @@ typedef struct {
     int		ngents;		/* number of non-continuous vars */
 #endif
 
-    int		sossz;		/* size of sos */
     int		nsos;		/* number of SOSs */
-    int		sosnzsz;	/* size of sos arrays */
+    int		nsos_added;	/* number of SOSs already in solver */
+    int		sossz;		/* size of sos arrays */
+    int		sosnzsz;	/* size of sos member arrays */
     int		nsosnz;		/* total number of sos members */
     sostype_t	*sostype;	/* [sosnzsz] sos type 1 or 2 */
-    int		*sosbeg;	/* [sossz+1 !! ] index into sosind[] */
+    int		*sosbeg;	/* [sossz] index into sosind[] */
     int		*sosind;	/* [sosnzsz] col-no */
     double	*sosref;	/* [sosnzsz] */
 

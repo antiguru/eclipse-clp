@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.5 2012/09/05 23:13:38 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.6 2012/10/18 18:59:33 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -179,7 +179,7 @@
 :- export eplex_get_iis/5.	% eplex_get_iis/4
 :- export eplex_verify_solution/3. % eplex_verify_solution/2.
 
-:- local struct(constraint_type(integers,reals,linear)).
+:- local struct(constraint_type(integers,reals,linear,sos)).
 :- local struct(probes(obj,sense,ints,rhs,bounds)). % types of probe in lp/eplex_probe
 :- export op(700, xfx, [$>=, $=, $=<, $::]).
 
@@ -392,7 +392,8 @@ load_external_solver(_, _, _, _).
 	external(cplex_loadprob/1, p_cpx_loadprob),
 	external(cplex_loadbase/3, p_cpx_loadbase),
 	external(cplex_loadorder/3, p_cpx_loadorder),
-	external(cplex_loadsos/4, p_cpx_loadsos),
+	external(cplex_add_new_sos/4, p_cpx_add_new_sos),
+	external(cplex_flush_sos/1, p_cpx_flush_sos),
 	external(cplex_optimise/10, p_cpx_optimise),
 	external(cplex_get_objval/2, p_cpx_get_objval),
 	external(cplex_cleanup/1, p_cpx_cleanup),
@@ -401,7 +402,7 @@ load_external_solver(_, _, _, _).
 	external(cplex_output_stream/3, p_cpx_output_stream),
 	external(cplex_add_coeff/4, p_cpx_add_coeff),
 	external(cplex_flush_new_rowcols/2, p_cpx_flush_new_rowcols),
-	external(cplex_set_var_name/3, p_cpx_set_var_name),
+	external(cplex_load_varname/3, p_cpx_load_varname),
 	external(cplex_change_col_type/3, p_cpx_change_col_type),	% bt
 	external(cplex_change_lp_to_mip/1, p_cpx_change_lp_to_mip),	% bt
         external(cplex_change_obj_sense/2, p_cpx_change_obj_sense),
@@ -1509,24 +1510,21 @@ lp_impose_interval(Vs, Interval, CCType, Pool) :-
 
 lp_real_interval(Vs, Interval, Pool) :-
         block(lp_impose_interval(Vs, Interval, real, Pool), Tag,
-              (nonvar(Vs), Vs = (_:_) ->
-                  printf(error, "Eplex error: invalid syntax detected in %w $:: %w; missing"
-                         " brackets perhaps?%n", [Vs, Interval]),
-                  exit_block(Tag)
-              ;
-                  error(5, Vs $:: Interval)
-              )
-        ).
+		colon_interval_warning(($::), Vs, Interval, Tag)).
 
 lp_interval(Vs, Interval, Pool) :-
         block(lp_impose_interval(Vs, Interval, _either, Pool), Tag,
-              (nonvar(Vs), Vs = (_:_) ->
-                  printf(error, "Eplex error: invalid syntax detected in %w :: %w; missing"
-                         " brackets perhaps?%n", [Vs, Interval]),
-                  exit_block(Tag)
-              ;
-                  error(5, Vs :: Interval)
-              )
+		colon_interval_warning((::), Vs, Interval, Tag)).
+
+    % warn about: poolname:X::1..N
+    colon_interval_warning(Functor, Vs, Interval, Tag) :-
+	Goal =.. [Functor,Vs,Interval],
+	( nonvar(Vs), Vs = (_:_) ->
+	    printf(error, "Eplex error: invalid syntax detected in %w; missing"
+		     " brackets perhaps?%n", [Goal]),
+	    exit_block(Tag)
+	;
+	    error(5, Goal)
         ).
 
     % This is copied from lib(range)
@@ -1576,7 +1574,7 @@ add_pool_constraint(Cstr, Pool) :-		% used for  =:=  >=  =<
 	( get_pool_handle(Handle, Pool) ->
 	    preprocess_norm_cstr(Norm0, LinCstrs, [], BdCstrs, []),	% may fail
 	    % add constraint to the solver straight away
-	    lp_add_normalised(Handle, LinCstrs, BdCstrs, [], _RowIdxs, TypeChangedVars, ChangedCols),
+	    lp_add_normalised(Handle, LinCstrs, BdCstrs, [], [], _RowIdxs, TypeChangedVars, ChangedCols),
 	    wake_solver_if_needed(Handle, LinCstrs, TypeChangedVars, ChangedCols)
 	;
 	    % we don't have a solver yet
@@ -1591,6 +1589,21 @@ add_pool_constraint(Cstr, Pool) :-		% used for  =:=  >=  =<
 add_pool_constraint(Cstr, Pool) :-
 	error(5, Pool:Cstr).
 
+sos1(Xs, Pool) :-
+	add_sos(sos1(Xs), Pool).
+
+sos2(Xs, Pool) :-
+	add_sos(sos2(Xs), Pool).
+
+    add_sos(Sos, Pool) :-
+	( get_pool_handle(Handle, Pool) -> 
+	    lp_add_normalised(Handle, [], [], [], [Sos], _RowIdxs, _TypeChangedVars, ChangedCols),
+	    wake_solver_if_needed(Handle, [], [_Dummy], ChangedCols)
+	;
+	    post_typed_pool_constraint(Pool, sos of constraint_type, Sos),
+	    set_lp_pending
+	).
+
 
 eplex_add_constraints(Cstrs, Ints, Pool) :-
         (get_pool_handle(Handle, Pool) ->
@@ -1602,16 +1615,18 @@ eplex_add_constraints(Cstrs, Ints, Pool) :-
 
 
 lp_add_constraints(Handle, Cstrs, Ints, Idxs) :-
-        (var(Ints) -> error(4, lp_add_constraints(Handle,Cstrs,Ints,Idxs)) ; true),
-        normalise_and_check_nonground(Handle, Cstrs,
-            lp_add_constraints(Handle,Cstrs,Ints,Idxs), NormCs), 
+	( nonvar(Handle), nonvar(Cstrs), nonvar(Ints) -> true ;
+	    error(4, lp_add_constraints(Handle,Cstrs,Ints,Idxs))
+	),
+	normalise_and_check_linear_nonground(Cstrs, NormCs, NonLins, lp_add_constraints),
         lp_add_indexed(Handle, NormCs, Ints, Idxs).
 
 
-
 lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs) :-
-        Handle = prob{solver_id:SId,cplex_handle:CPH},
-        normalise_and_check_nonground(Handle, Cstrs, Goal, NormCs),
+	( nonvar(Handle), nonvar(Cstrs) -> true ;
+            error(4, lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs))
+	),
+	normalise_and_check_linear_nonground(Cstrs, NormCs, NonLins, lp_add_cutpool_constraints),
 	OptSet = cp_options{group:Name,active:Act,add_initially:Add},
 	( (foreach(O:V, Opts), param(OptSet,Handle) do
             valid_cp_opt(O, OPos),
@@ -1627,6 +1642,7 @@ lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs) :-
 	(var(Name) -> Name = [] ; true),
 	(var(Act)  ->  Act =  1 ; true),
 	(var(Add)  ->  Add =  1 ; true),
+        Handle = prob{solver_id:SId,cplex_handle:CPH},
         cplex_get_cutpool_size(CPH, NRows, NNzs), 
         cplex_get_prob_param(CPH, 15, MaxVIdx),
         constraint_type_code(condcp, CType),
@@ -1642,41 +1658,37 @@ lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs) :-
             cplex_reset_cutpool_size(CPH, NRows, NNzs),
             printf(error, "Eplex error: trying to post cutpool constraints"
                    " that contain new variables in %w.%n",
-                   [Goal]),
+                   [lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs)]),
             abort
         ).
 
 
-normalise_and_check_nonground(Handle, Cstrs, PredCall, NormCs) :-
-        ((var(Handle) ; var(Cstrs)) -> 
-            error(4, PredCall) 
-        ; 
-            true
-        ),
-	(normalise_cstrs(Cstrs, NormCs, []) -> 
-            true 
-        ; 
-            writeln(error, "Eplex error: unable to normalise constraint(s) in":
-                   PredCall),
+normalise_and_check_linear_nonground(Cstrs, NormCs, NonLins, PredCall) :-
+        ( normalise_cstrs(Cstrs, NormCs, NonLins) -> true ;
+            printf(error, "Eplex error: unknown constraint in %w:%n%w%n", [PredCall,Cstrs]),
+	    abort
+	),
+	( NonLins = [Example|_] ->
+            printf(error, "Eplex error: no nonlinear constraints allowed in %w:%n%w%n", [PredCall,Example]),
             abort
-        ),
+	;
+	    true
+	),
         % check that there are no ground constraints
-        ((foreach(_:[_,_|_], NormCs) do true) ->
-             true
-        ;
-             writeln(error,"Eplex error: trying to add ground constraint(s):"),
-             error(5, PredCall)
-        ).
+        ( (foreach(_:[_,_|_], NormCs) do true) -> true ;
+            printf(error, "Eplex error: no ground constraints allowed in %w:%n%w%n", [PredCall,Cstrs]),
+	    abort
+	).
 
+all_nonground(NormCs) :-
+        ( foreach(_:[_,_|_], NormCs) do true ).
 
 
 lp_add_constraints(Handle, Cstrs, Ints) :-
-	((var(Handle) ; var(Ints) ; var(Cstrs)) -> 
+	( nonvar(Handle), nonvar(Ints), nonvar(Cstrs) -> true ;
 	     error(4, lp_add_constraints(Handle,Cstrs,Ints)) 
-	; 
-             true
 	),
-	normalise_cstrs(Cstrs, NormCs0, []), % linear for now
+	normalise_cstrs(Cstrs, NormCs0, NonLin),
 	!,
 	(
 	    foreach(Norm0, NormCs0),
@@ -1685,7 +1697,14 @@ lp_add_constraints(Handle, Cstrs, Ints) :-
 	do
 	    preprocess_norm_cstr(Norm0, NC0, NC1, BC0, BC1)
 	),
-        lp_add_normalised(Handle, NormCs, BoundCs, Ints, _, OldInts, ChangedCols),
+	( foreach(NonLin,NonLins), fromto(SOSs,SOSs1,SOSs2,[]) do
+	    ( var(NonLin) -> SOSs1 = SOSs2
+	    ; NonLin = sos1(_) -> SOSs1 = [NonLin|SOSs2]
+	    ; NonLin = sos2(_) -> SOSs1 = [NonLin|SOSs2]
+	    ; SOS1s = SOSs2
+	    )
+	),
+        lp_add_normalised(Handle, NormCs, BoundCs, Ints, SOSs, _, OldInts, ChangedCols),
 	wake_solver_if_needed(Handle, NormCs, OldInts, ChangedCols).
 lp_add_constraints(Handle, Cstr, Ints) :-
 	error(5, lp_add_constraints(Handle, Cstr, Ints)).
@@ -1719,7 +1738,7 @@ lp_add_vars(Handle, Xs) :-
 	% Technically, variables without constraints do not need to trigger
 	% a solver, but it would be difficult to add the triggers later...
 	lp_add_var_triggers(Handle, VarList, NAdded),
-        set_var_names(VNames, NAdded, CPH, SId, VarList).
+        load_varnames(VNames, NAdded, CPH, SId, VarList).
 
 
 % Add bound constraints to new or old variables. Lo and Hi are floats.
@@ -1743,7 +1762,7 @@ lp_add_vars_interval(Handle, Xs, Lo, Hi) :-
 	),
 	cplex_flush_new_rowcols(Handle, 0),
 	lp_add_var_triggers(Handle, VarList, NAdded),
-	set_var_names(VNames, NAdded, CPH, SId, VarList),
+	load_varnames(VNames, NAdded, CPH, SId, VarList),
 
 	% update intervals for old columns
 	( foreach(X, OldVs), param(Handle, Lo, Hi) do
@@ -1794,10 +1813,13 @@ tr_out(lp_pending, Goals) :-
 	     get_typed_pool_constraints(Pool, integers of constraint_type, Integers),
              get_typed_pool_constraints(Pool, reals of constraint_type, Reals),
 	     get_typed_pool_constraints(Pool, linear of constraint_type, NormCstrs),
+	     get_typed_pool_constraints(Pool, sos of constraint_type, SOSs),
              ( Integers == [] -> GsIn=Gs0 ; GsIn=[Pool:integers(Integers)|Gs0]),
-	     ( Reals == [] -> Gs1=Gs0 ; Gs0=[Pool:reals(Reals)|Gs1]),
-	     (fromto(NormCstrs, [NormCstr|NormCstrs1],NormCstrs1, []),
-		fromto(Gs1, [Goal|Goal1],Goal1, GsOut), param(Pool) do
+	     ( Reals == [] -> Gs0=Gs1 ; Gs0=[Pool:reals(Reals)|Gs1]),
+	     ( foreach(SOS,SOSs), fromto(Gs1,[Goal|Goal1],Goal1,Gs2), param(Pool) do
+		    Goal = Pool:SOS
+	     ),
+	     ( foreach(NormCstr,NormCstrs), fromto(Gs2,[Goal|Goal1],Goal1,GsOut), param(Pool) do
 		    denormalise_cstr(NormCstr, Cstr),
 		    Goal = Pool:Cstr
 	     )
@@ -1818,7 +1840,7 @@ store_integers(NewIntegers, Tail, Pool) :-
         (get_pool_handle(Handle, Pool) -> 
              % if there is a solver store the integer constraint
              Tail = [],
-	     lp_add_normalised(Handle, [], [], NewIntegers, _, OldInts, _BdChgs),
+	     lp_add_normalised(Handle, [], [], NewIntegers, [], _, OldInts, _BdChgs),
 
              Handle = prob{suspension:Susp, nc_trigger: NCTrigger},
 	     % wake demon if a old variable is made integer
@@ -1912,11 +1934,13 @@ lp_demon_setup_body(OptExpr, Cost, Options0, TriggerModes, Handle, CallerModule)
              pool_has_no_solver(Pool),
 	     collect_typed_pool_constraints(Pool, linear of constraint_type, Cstr),
 	     collect_typed_pool_constraints(Pool, integers of constraint_type, Ints),
-             collect_typed_pool_constraints(Pool, reals of constraint_type, PVars)
+             collect_typed_pool_constraints(Pool, reals of constraint_type, PVars),
+             collect_typed_pool_constraints(Pool, sos of constraint_type, SOSs)
         ;
-	     Ints = [], Cstr = [], PVars = []
+	     Ints = [], Cstr = [], PVars = [], SOSs = []
 	),
-	lp_setup_body(Cstr, OptExpr, [reals(PVars),integers(Ints)|Options], 
+	append(SOSs, Options, SOSsOptions),
+	lp_setup_body(Cstr, OptExpr, [reals(PVars),integers(Ints)|SOSsOptions], 
                       Handle, CallerModule),
         % associate solver with pool (must be done after lp_setup)
 	(CollectCstrs = pool(Pool) -> lp_pool_associate_solver(Pool, Handle) ; true),
@@ -2318,7 +2342,7 @@ low_level_setup(Handle, TempData, CstrNorm) :-
 			objcoeffs:ObjCoeffs,		% out
 			qobjcoeffs:QuadObjCoeffs	% out
 		},
-        TempData = temp_prob{use_copy:UseCopy},       
+        TempData = temp_prob{use_copy:UseCopy,sos:SOSs},
                                 
         % convert constraints into matrix coefficients and rhs
         cplex_matrix_base(MBase), % starting column number
@@ -2339,9 +2363,9 @@ low_level_setup(Handle, TempData, CstrNorm) :-
         set_rhs(CPH, Rhs, 0),
         set_type_integer(CPH, SId, Ints),	% may change prob type to MIP
         set_mat(CPH, ColCoeffs, 0, 0, Cols),
-        set_sos(Handle,TempData),		% may change prob type to MIP
+        set_sos(Handle, SOSs),			% may change prob type to MIP
         cplex_loadprob(CPH),
-        set_var_names(VNames, Cols, CPH, SId, VarList).
+        load_varnames(VNames, Cols, CPH, SId, VarList).
 
 
 % ----------------------------------------------------------------------
@@ -2353,7 +2377,7 @@ lp_add(Handle, Cstr, Integers) :-
         error(4, lp_add(Handle, Cstr, Integers)).
 lp_add(Handle, Cstr, Integers) :-
 	renormalise_and_check_simple(Cstr, CstrNorm, BdCstrs),
-        lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, _RowIdxs, _TypeChgs, _BdChgs).
+        lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, [], _RowIdxs, _TypeChgs, _BdChgs).
 	% don't wake here (as documented - but why?)
 
 
@@ -2382,8 +2406,8 @@ lp_add_var_triggers(Handle, AllVarsNewFirst, NAdded) :-
 % No waking is done here (but the necessary information is returned).
 % New variables get row indices, but no suspensions.
 
-% lp_add_normalised(+Handle,+CstrNorm,+BdCstrs,+Integers,+SuspendFlag,-RowIdxs,-TypeChanges,-ChangedCols)
-lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, RowIdxs, TypeChanges, ChangedCols) :-
+% lp_add_normalised(+Handle,+CstrNorm,+BdCstrs,+Integers,+SOSs,-RowIdxs,-TypeChanges,-ChangedCols)
+lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, SOSs, RowIdxs, TypeChanges, ChangedCols) :-
 	Handle = prob{cplex_handle:CPH, solver_id:SId, 
 		     ints:ExistingInts,option_vnames:VNames},
 
@@ -2392,7 +2416,7 @@ lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, RowIdxs, TypeChanges, Cha
 	filter_new_vars(SId, Integers, NewIntegers, TypeChanges),
 	filter_new_vars_bc(SId, BdCstrs, NewBCs, OldBCs),
 	% make a list that contains at least all new variables
-        term_variables([](CstrNorm,NewBCs,NewIntegers), Vars),
+        term_variables([](CstrNorm,NewBCs,NewIntegers,SOSs), Vars),
 	% give indices to the new variables (OldCols..OldCols+AddedCols-1)
 	% Varlist will start with AddedCols new variables
 	filter_and_index_new_vars(Handle, Vars, VarList, _, OldCols, AddedCols),
@@ -2403,7 +2427,7 @@ lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, RowIdxs, TypeChanges, Cha
 	    clear_result(Handle, rbase of prob)
 	),
 
-	% allocate and initialise buffer arrays
+	% allocate and initialise buffer arrays (for columns)
 	setup_new_cols(Handle, [], [], [], [], OldCols, AddedCols, 0),
 	% set bounds on new variables
 	set_initial_bounds(CPH, SId, NewBCs),	% may fail
@@ -2411,9 +2435,7 @@ lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, RowIdxs, TypeChanges, Cha
 	% update bounds on old variables
 	update_bounds(Handle, SId, OldBCs, ChangedCols),	% may fail
 
-	( Integers == [] ->
-	    true
-	;
+	( Integers == [] -> true ;
 	    % we need to change problem type first before adding
 	    % integers; as cplex_init_type/3 also sets the
 	    % problem type to MIP (non-backtrackably)
@@ -2450,7 +2472,14 @@ lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, RowIdxs, TypeChanges, Cha
 	% new constraints and number of new variables
 	setup_new_rows(CPH, SId, 0, _, CstrNorm, RowIdxs),
 	cplex_flush_new_rowcols(Handle, 0),
-	set_var_names(VNames, AddedCols, CPH, SId, VarList),
+
+	% flush SOSs after new columns
+	( SOSs == [] -> true ;
+	    cplex_change_lp_to_mip(Handle),	% backtrackable
+	    set_sos(Handle, SOSs),
+	    cplex_flush_sos(Handle)
+	),
+	load_varnames(VNames, AddedCols, CPH, SId, VarList),
 	lp_add_var_triggers(Handle, VarList, AddedCols).
 
 
@@ -2557,7 +2586,7 @@ lp_add_indexed(Handle, Cstr, Ints, Indices) :-
         (var(Handle) ; var(Cstr) ; var(Ints)), !,
         error(4, lp_add_indexed(Handle, Cstr, Ints, Indices)).
 lp_add_indexed(Handle, Cstr, Ints, Indices) :-
-	lp_add_normalised(Handle, Cstr, [], Ints, Indices, _, _).
+	lp_add_normalised(Handle, Cstr, [], Ints, [], Indices, _, _).
 
 
 /*  Added by AE 22/10/02
@@ -2567,7 +2596,7 @@ lp_add_indexed(Handle, Cstr, Ints, Indices) :-
 lp_add_columns(Handle, VarCols) :-
         ((nonvar(Handle), nonvar(VarCols)) -> true 
         ; error(4, lp_add_columns(Handle, VarCols))),
-        Handle = prob{cbase:CBase, rbase:RBase,
+        Handle = prob{cbase:CBase,
                       cplex_handle:CPH, solver_id:SId,
                       vars:Vars0, objcoeffs:ObjCoeffs0, option_vnames:VNames,
                       pool: Pool, suspension:S},
@@ -2610,10 +2639,9 @@ lp_add_columns(Handle, VarCols) :-
         setarg(objcoeffs of prob, Handle, ObjCoeffs),
         setup_new_cols(Handle, NewObjCoeffs, NewLos, NewHis, NewColCoeffs, NCols0, AddedCols, NonZeros),
         cplex_flush_new_rowcols(Handle, 1),
-        set_var_names(VNames, AddedCols, CPH, SId, Vars1),
+        load_varnames(VNames, AddedCols, CPH, SId, Vars1),
         ( array(CBase) ->
               extend_array(CBase, AddedCols, NewLos, NewHis, NewCBase),
-              cplex_loadbase(CPH, NewCBase, RBase),
               setarg(cbase of prob, Handle, NewCBase)
         ;
               true
@@ -4419,23 +4447,21 @@ set_mat_col(CPH, [I:CIJ|More], K0, K) :-
 	set_mat_col(CPH, More, K1, K).
 
 
-set_sos(prob{cplex_handle:CPH,solver_id:SId}, temp_prob{sos:SosList}) :-
+set_sos(prob{cplex_handle:CPH,solver_id:SId}, SosList) :-
 	set_sos_list(CPH, SId, SosList).
 
     set_sos_list(_CPH, _, []).
     set_sos_list(CPH, SId, [Sos|SosList]) :-
-	( Sos = sos1(Vars) ->
-	    clean_sos1(Vars, PureVars),
+	( Sos = sos1(Vars), clean_sos1(Vars, PureVars) ->
 	    ( PureVars = [] -> true ;
 		vars_to_cols(PureVars, SId, Cols, 0, N),
-	    cplex_loadsos(CPH, 0'1, N, Cols)
+		cplex_add_new_sos(CPH, 0'1, N, Cols)
 	    )
-	; Sos = sos2(Vars) ->
-	    % todo: clean_sos2
-	    vars_to_cols(Vars, SId, Cols, 0, N),
-	    cplex_loadsos(CPH, 0'2, N, Cols)
+	; Sos = sos2(Vars), clean_sos2(Vars, PureVars) ->
+	    vars_to_cols(PureVars, SId, Cols, 0, N),
+	    cplex_add_new_sos(CPH, 0'2, N, Cols)
 	;
-	    writeln(error, "Eplex error: error in SOS setup")
+	    printf(error, "Eplex error: error in SOS setup: %w%n", [Sos])
 	),
 	set_sos_list(CPH, SId, SosList).
 
@@ -4461,7 +4487,8 @@ set_sos(prob{cplex_handle:CPH,solver_id:SId}, temp_prob{sos:SosList}) :-
     %  - X=0: drop the 0, make sos2 + sos1 with left/right neighbour
     %  - X=1: make sos1 with left/right neighbour, others 0
 
-    clean_sos1(Elems, NewElems) :-
+    clean_sos1(ElemsColl, NewElems) :-
+	collection_to_list(ElemsColl, Elems),
 	(
 	    foreach(E,Elems),
 	    fromto(Vars,Vars1,Vars0,[]),
@@ -4469,12 +4496,17 @@ set_sos(prob{cplex_handle:CPH,solver_id:SId}, temp_prob{sos:SosList}) :-
 	 do
 	     ( var(E) ->
 		 Vars1 = [E|Vars0]
-	     ; E =:= 0 ->
-		 Vars1 = Vars0	% drop zeros
 	     ;
-		 var(Nonzero),   % else fail (more than one nonzero)
-		 Nonzero = E,
-		 Vars1 = Vars0
+	     	X is E,		% evaluate subscripts etc
+		( var(X) ->
+		    Vars1 = [X|Vars0]
+		 ; X =:= 0 ->
+		     Vars1 = Vars0	% drop zeros
+		 ;
+		     var(Nonzero),   % else fail (more than one nonzero)
+		     Nonzero = X,
+		     Vars1 = Vars0
+		 )
 	     )
 	 ),
 	 ( var(Nonzero) ->
@@ -4483,6 +4515,21 @@ set_sos(prob{cplex_handle:CPH,solver_id:SId}, temp_prob{sos:SosList}) :-
 	     NewElems = [],
 	     ( foreach(V,Vars) do V = 0 )
 	 ).
+
+    % preliminary
+    clean_sos2(ElemsColl, Vars) :-
+	collection_to_list(ElemsColl, Elems),
+	(
+	    foreach(E,Elems),
+	    fromto(Vars,Vars1,Vars0,[])
+	do
+	    ( var(E) ->
+		Vars1 = [E|Vars0]
+	    ;
+	     	X is E,		% evaluate subscripts etc
+		Vars1 = [X|Vars0]
+	    )
+	).
 
 
 raw_to_typed_solution(CPH, ArrSize, RawArr, SolArr) :-
@@ -4501,17 +4548,17 @@ raw_to_typed_solution(CPH, ArrSize, RawArr, SolArr) :-
 % Variable names
 %-----------------------------------------------------------------------
 
-set_var_names(yes, NAdded, CPH, SId, Vars) ?-
+load_varnames(yes, NAdded, CPH, SId, Vars) ?-
         (count(_, 1, NAdded), fromto(Vars, [Var|Vars0],Vars0, _), 
          param(CPH, SId) do
              (get_unique_var_index(Var, SId, ColJ), % new var
               var_name:get_var_name(Var, Name) ->
-                  cplex_set_var_name(CPH, ColJ, Name)
+                  cplex_load_varname(CPH, ColJ, Name)
              ;
                   true
              )
         ).
-set_var_names(no, _,  _, _, _).
+load_varnames(no, _,  _, _, _).
 
 
 % ----------------------------------------------------------------------
@@ -4534,41 +4581,46 @@ set_var_names(no, _,  _, _, _).
 % the constraint  -5 + 3*X >= 0.
 % ----------------------------------------------------------------------
 
+% Fails for var, unknown, and nonlinear constraints 
+normalise_cstr(Cstr, _) :- var(Cstr), !,
+	fail.
 normalise_cstr(Cstr, (=:=):Norm) :- 
-        Cstr = (E1 =:= E2), !,
+        Cstr = (E1 =:= E2),
 	linearize(E1-E2, Norm, Residue),
         warn_nonlinear(Residue, Cstr).
 normalise_cstr(Cstr, (>=):Norm) :- 
-        Cstr = (E1 >= E2), !,
+        Cstr = (E1 >= E2),
 	linearize(E1-E2, Norm, Residue),
         warn_nonlinear(Residue, Cstr).
 normalise_cstr(Cstr, (=<):Norm) :- 
-        Cstr = (E1 =< E2), !,
+        Cstr = (E1 =< E2),
 	linearize(E1-E2, Norm, Residue),
         warn_nonlinear(Residue, Cstr).
 normalise_cstr(Cstr, (=:=):Norm) :- 
-        Cstr = (E1 $= E2), !,
+        Cstr = (E1 $= E2),
 	linearize(E1-E2, Norm, Residue),
         warn_nonlinear(Residue, Cstr).
 normalise_cstr(Cstr, (>=):Norm) :- 
-        Cstr = (E1 $>= E2), !,
+        Cstr = (E1 $>= E2),
 	linearize(E1-E2, Norm, Residue),
         warn_nonlinear(Residue, Cstr).
 normalise_cstr(Cstr, (=<):Norm) :- 
-        Cstr = (E1 $=< E2), !,
+        Cstr = (E1 $=< E2),
 	linearize(E1-E2, Norm, Residue),
         warn_nonlinear(Residue, Cstr).
-normalise_cstr(Cstr, _) :-
-	writeln(error, "Eplex error: unable to normalise unknown constraint":Cstr),
-	abort. 
 
 
+normalise_cstrs(Cs, _, _) :- var(Cs), !,
+	fail.
 normalise_cstrs([], [], []).
-normalise_cstrs([C|Cs], [Cnorm|Norm], Nonlin) :-
-	normalise_cstr(C, Cnorm), !,
-	normalise_cstrs(Cs, Norm, Nonlin).
-normalise_cstrs([C|Cs], Norm, [C|Nonlin]) :-
-	normalise_cstrs(Cs, Norm, Nonlin).
+normalise_cstrs([C|Cs], NormLins, NonLins) :-
+	( normalise_cstr(C, Cnorm) ->
+	    NormLins = [Cnorm|NormLins1],
+	    normalise_cstrs(Cs, NormLins1, NonLins)
+	;
+	    NonLins = [Cnorm|NonLins1],
+	    normalise_cstrs(Cs, NormLins, NonLins1)
+	).
 
 renormalise_cstr(Sense:Denorm, Sense:Norm) :-
 	linrenorm(Denorm, Norm).
@@ -4893,6 +4945,8 @@ create_eplex_pool(Pool) :-
             (::)/2 ->  lp_interval/3,
             integers/1 -> integers/2,
             reals/1 -> reals/2,
+            sos1/1 -> sos1/2,
+            sos2/1 -> sos2/2,
             piecewise_linear_hull/3 -> piecewise_linear_hull/4,
             suspend_on_change/2 -> suspend_on_change/3,
             get_changeable_value/2 -> get_changeable_value/3,

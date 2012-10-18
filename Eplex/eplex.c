@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.4 2012/10/07 14:29:51 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.5 2012/10/18 18:59:33 jschimpf Exp $
  *
  */
 
@@ -391,7 +391,7 @@ t_ext_type lp_handle_tid = {
 
 
 typedef struct {
-  int              oldmar, oldmac;
+  int              oldmar, oldmac, oldsos;
 } untrail_data;
       
 typedef struct {
@@ -494,6 +494,10 @@ Free(void *p)
 #define TryFree(p)  if (p) { CallN(Free(p)); p = NULL; } 
 
 
+static void _grow_cb_arrays(lp_desc *, int);
+static void _grow_numbers_array(lp_desc * lpd, int m);
+
+
 /*
  * Include solver-specific code
  */
@@ -523,9 +527,6 @@ coerce_to_double(value vval, type tval)
     tag_desc[TagType(tval)].coerce_to[TDBL](vval, &buffer);
     return Dbl(buffer);
 }
-
-
-static void _grow_cb_arrays ARGS((lp_desc *, int));
 
 
 int
@@ -585,7 +586,7 @@ _free_lp_handle(lp_desc *lpd)
 	    TryFree(lpd->cb_index2);
 	    CallN(Free(lpd->cb_value));
 	}
-	if (lpd->nsos)
+	if (lpd->sossz)
 	{
 	    CallN(Free(lpd->sostype));
 	    CallN(Free(lpd->sosbeg));
@@ -1312,7 +1313,7 @@ p_cpx_set_param(value vlpd, type tlpd, value vp, type tp, value vval, type tval)
     if (err) {
 	Bip_Error(TYPE_ERROR);
     }
-    Succeed_;
+    Succeed;
 }
 
 
@@ -1366,7 +1367,7 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
 	if (CPXaddfuncdest(cpx_env, ch, (void *) nst, eclipse_out))
 	    { Bip_Error(EC_EXTERNAL_ERROR); }
     }
-    Succeed_;
+    Succeed;
 }
 
 #else
@@ -1437,7 +1438,7 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
 	*solver_stream = nst;
     else if (*solver_stream == nst)
 	*solver_stream = Current_Null;
-    Succeed_;
+    Succeed;
 }
 
 #endif
@@ -1527,6 +1528,7 @@ p_cpx_set_obj_coeff(value vlp, type tlp, value vj, type tj, value vval, type tva
     Succeed;
 }
 
+#if 0
 int
 p_cpx_get_obj_coeff(value vlp, type tlp, value vj, type tj, value vval, type tval)
 {
@@ -1536,6 +1538,7 @@ p_cpx_get_obj_coeff(value vlp, type tlp, value vj, type tj, value vval, type tva
     if (vj.nint >= lpd->mac) { Bip_Error(RANGE_ERROR); }
     Return_Unify_Float(vval, tval, lpd->objx[vj.nint]);
 }
+#endif
 
 int
 p_cpx_set_qobj_coeff(value vlp, type tlp, value vi, type ti, value vj, type tj, value vval, type tval)
@@ -1589,7 +1592,7 @@ p_cpx_set_qobj_coeff(value vlp, type tlp, value vi, type ti, value vj, type tj, 
 
 
 int
-p_cpx_set_var_name(value vlp, type tlp, value vj, type tj, value vname, type tname)
+p_cpx_load_varname(value vlp, type tlp, value vj, type tj, value vname, type tname)
 {
     lp_desc *lpd; 
 
@@ -1705,7 +1708,7 @@ p_cpx_change_rhs(value vlp, type tlp, value vsize, type tsize,
 	if (err) { Bip_Error(EC_EXTERNAL_ERROR); }
     }
 
-    Succeed_;
+    Succeed;
 }
 
 /*----------------------------------------------------------------------*
@@ -1805,7 +1808,7 @@ p_cpx_change_cols_bounds(value vlp, type tlp, value vsize, type tsize,
 	if (err) { Bip_Error(EC_EXTERNAL_ERROR); }
     }
 
-    Succeed_;
+    Succeed;
 }
 
 int
@@ -2135,7 +2138,7 @@ p_cpx_change_col_type(value vhandle, type thandle,
 	    ec_trail_undo(_cpx_reset_col_type, vhandle.ptr, NULL, (word*)&udata, NumberOfWords(untrail_ctype), TRAILED_WORD32);
 	}
     }
-    Succeed_;
+    Succeed;
 }
 
 
@@ -2305,7 +2308,7 @@ p_cpx_add_coeff(value vlp, type tlp, value vj, type tj, value v, type t, value v
 	Bip_Error(RANGE_ERROR);
 	break;
     }
-    Succeed_;
+    Succeed;
 }
 
 static void
@@ -2391,6 +2394,23 @@ static void _cpx_restore_bounds(pword * phandle, word * udata, int size, int und
     }
 }
 
+
+static void
+reset_sos(lp_desc * lpd, int oldsos)
+{
+    if (lpd->nsos_added > oldsos)
+    {
+	if (cpx_delsos(lpd, oldsos, lpd->nsos_added))
+	{
+	    Fprintf(Current_Error, "Error in deleting SOSs %d..%d\n",
+		oldsos, lpd->nsos_added);
+	    ec_flush(Current_Error);
+	}
+	lpd->nsos = lpd->nsos_added = oldsos;
+    }
+}
+
+
 static void
 reset_rowcols(lp_desc * lpd, int oldmar, int oldmac)
 {
@@ -2457,25 +2477,40 @@ static void _cpx_del_rowcols(pword * phandle,word * udata, int size, int flags)
     lp_desc *lpd = ExternalData(phandle[HANDLE_CPH].val.ptr); 
 
     int oldmar = ((untrail_data*) udata)->oldmar, 
-        oldmac = ((untrail_data*) udata)->oldmac;
+        oldmac = ((untrail_data*) udata)->oldmac,
+        oldsos = ((untrail_data*) udata)->oldsos;
 
-    if (!lpd)
-	return; /* stale handle */
-
-#if 0
-    Fprintf(Current_Error, "Removing rows %d..%d, cols %d..%d, in gc:%d\n",
-	oldmar, lpd->mar-1, oldmac, lpd->mac-1,
-	ec_.m.vm_flags & NO_EXIT);
-    ec_flush(Current_Error);
-#endif
-
-    if (lpd->descr_state != DESCR_EMPTY)
+    if (lpd  &&  lpd->descr_state != DESCR_EMPTY)
     {
+#if 0
+	Fprintf(Current_Error, "Removing rows %d..%d, cols %d..%d, soss %d..%d, in gc:%d\n",
+	    oldmar, lpd->mar-1, oldmac, lpd->macadded-1, oldsos, lpd->nsos_added,
+	    ec_.m.vm_flags & NO_EXIT);
+	ec_flush(Current_Error);
+#endif
+	reset_sos(lpd, oldsos);
 	reset_rowcols(lpd, oldmar, oldmac);
     }
 }
 
 
+/*
+ * flush_new_rowcols(+Handle, +HasObjCoeffs) expects the following input:
+ * 
+ *	lpd->mac	new column count (>= macadded, those already added)
+ *	lpd->objx	objective coefficients for new vars only (if HasObjCoeffs)
+ *	lpd->matnz	number of nonzero coefficients for new vars in old constraints
+ *	lpd->matxxx	those nonzero coefficients
+ *	lpd->ctype	types for new vars only
+ *
+ *	lpd->nr		number of rows to add
+ *	lpd->senx	row senses
+ *	lpd->rhsx	row RHSs
+ *	lpd->nnz	number of nonzero coefficients to add
+ *	lpd->rmatxxx	those nonzero coefficients
+ *
+ * We may add only columns or only rows.
+ */
 /* newcolobjs == 1  if non-zero objective coeffs are to be added */
 int
 p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tnewcolobjs)
@@ -2483,8 +2518,8 @@ p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tne
     lp_desc *lpd; 
     int res, coladded, rowadded, nzadded;
 
-    LpDesc(vhandle.ptr[HANDLE_CPH].val, vhandle.ptr[HANDLE_CPH].tag, lpd);
     Check_Structure(thandle);
+    LpDesc(vhandle.ptr[HANDLE_CPH].val, vhandle.ptr[HANDLE_CPH].tag, lpd);
     Check_Integer(tnewcolobjs);
     coladded = lpd->mac - lpd->macadded;
     rowadded = lpd->nr;
@@ -2627,6 +2662,7 @@ p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tne
       untrail_data udata;
       udata.oldmac = lpd->macadded;
       udata.oldmar = lpd->mar;
+      udata.oldsos = lpd->nsos_added;
       ec_trail_undo(_cpx_del_rowcols, vhandle.ptr, vhandle.ptr+HANDLE_STAMP, (word*) &udata, NumberOfWords(untrail_data), TRAILED_WORD32); 
     }
 
@@ -2634,7 +2670,7 @@ p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tne
     lpd->mar += rowadded;
 
     lpd->nr = lpd->nnz = 0;	/* maybe shrink arrays here */
-    Succeed_;
+    Succeed;
 }
 
 
@@ -2894,6 +2930,19 @@ p_cpx_get_col_bounds(value vlp, type tlp,
     }
 }
 
+
+/*
+ * cplex_set_new_cols(CPH, AddedCols, NewObjCoeffs, NewLos, NewHis, NonZeros)
+ * 
+ * Sets the following fields:
+ *	lpd->mac	+AddedCold
+ *	lpd->matnz	+NonZeros
+ *	lpd->matxxx	get resized for AddedCols and NonZeros
+ *	lpd->ctype	resized to AddedCols only and initialised to 'C'
+ *	lpd->bdl/bdu	resized to AddedCols or maczs?? and filled
+ *	lpd->objx	resized to AddedCols, if NewObjCoeffs given
+ */
+
 int
 p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, type tobjs, value vlos, type tlos, value vhis, type this, value vnzs, type tnzs)
 {
@@ -2908,7 +2957,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
     LpDescOnly(vlp, tlp, lpd);
     Check_Integer(tadded);
     Check_Integer(tnzs);
-    if (vadded.nint == 0) { Succeed_; } /* no added columns, return now! */
+    if (vadded.nint == 0) { Succeed; } /* no added columns, return now! */
 
     lpd->mac += vadded.nint;
     lpd->matnz = vnzs.nint;
@@ -3337,7 +3386,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 	if (i != vadded.nint) { Bip_Error(RANGE_ERROR) }
     }
 
-    Succeed_;
+    Succeed;
 }
 
 
@@ -3380,7 +3429,7 @@ p_cpx_init_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype)
     	++lpd->ngents;
 #endif
     }
-    Succeed_;
+    Succeed;
 }
 
 
@@ -3420,7 +3469,7 @@ p_cpx_init_bound(value vlp, type tlp, value vj, type tj, value vwhich, type twhi
     } else {
 	Bip_Error(RANGE_ERROR);
     }
-    Succeed_;
+    Succeed;
 }
 
 
@@ -3690,6 +3739,13 @@ p_cpx_loadprob(value vlp, type tlp)
     SetPreSolve(lpd->presolve);
     lpd->start_mac = lpd->mac; 
 
+    if (lpd->nsos) {
+	if (lpd->prob_type == PROBLEM_QP) 
+	    lpd->prob_type = PROBLEM_MIQP;
+	else 
+	    lpd->prob_type = PROBLEM_MIP;
+    }
+
 #ifndef HAS_MIQP
     if (lpd->prob_type == PROBLEM_MIQP)
     {
@@ -3806,10 +3862,10 @@ p_cpx_loadprob(value vlp, type tlp)
 
     if (lpd->nsos)
     {
-	/* macro mapping to version depending CPXcopysos() */
-	if (CPXcopysos_(cpx_env, lpd->lp, lpd->nsos, lpd->nsosnz, lpd->sostype,
-		lpd->sosbeg, lpd->sosind, lpd->sosref))
+	if (CPXaddsos(cpx_env, lpd->lp, lpd->nsos, lpd->nsosnz, lpd->sostype,
+		lpd->sosbeg, lpd->sosind, lpd->sosref, NULL))
 	    { Bip_Error(EC_EXTERNAL_ERROR); }
+	lpd->nsos_added = lpd->nsos;
     }
     if IsQPProb(lpd->prob_type)
     {
@@ -3895,6 +3951,7 @@ p_cpx_loadprob(value vlp, type tlp)
 	Log1({
         lpd->ngents = %i;\n\
 	lpd->nsos = 0;\n\
+	lpd->sossz = 0;\n\
 	lpd->sostype = NULL;\n\
 	lpd->sosbeg = NULL;\n\
 	lpd->sosind = NULL;\n\
@@ -3974,10 +4031,11 @@ p_cpx_loadprob(value vlp, type tlp)
 
     if (lpd->nsos)
     {
+	lpd->nsos_added = lpd->nsos;
 	Free(lpd->sosbeg); lpd->sosbeg = NULL;
 	Free(lpd->sosind); lpd->sosind = NULL;
 	Free(lpd->sosref); lpd->sosref = NULL;
-	lpd->nsos = lpd->nsosnz = 0;
+	lpd->nsosnz = 0;
     }
 
     lpd->macadded = lpd->mac;
@@ -4793,7 +4851,7 @@ p_cpx_loadorder(value vlp, type tlp, value vn, type tn, value vl, type tl)
     pword *buf = TG;
 
     Check_Integer(tn);
-    if (vn.nint <= 0) Succeed_; /* no need to load anything */
+    if (vn.nint <= 0) Succeed; /* no need to load anything */
 
     LpDesc(vlp, tlp, lpd);
     Push_Buffer(vn.nint*3*sizeof(int));
@@ -4853,27 +4911,66 @@ p_cpx_loadorder(value vlp, type tlp, value vn, type tn, value vl, type tl)
 
 #endif
 
+
+/*
+ * Add SOSs from descriptor arrays to solver
+ */
+
 int
-p_cpx_loadsos(value vlp, type tlp, 
+p_cpx_flush_sos(value vhandle, type thandle)
+{
+    lp_desc *lpd; 
+    untrail_data udata;
+
+    Check_Structure(thandle);
+    LpDesc(vhandle.ptr[HANDLE_CPH].val, vhandle.ptr[HANDLE_CPH].tag, lpd);
+
+    if (lpd->nsos <= lpd->nsos_added)
+    	Succeed;
+
+    if (CPXaddsos(cpx_env, lpd->lp, lpd->nsos, lpd->nsosnz, lpd->sostype,
+	    lpd->sosbeg, lpd->sosind, lpd->sosref, NULL))
+    {
+	Bip_Error(EC_EXTERNAL_ERROR);
+    }
+    udata.oldmac = lpd->macadded;
+    udata.oldmar = lpd->mar;
+    udata.oldsos = lpd->nsos_added;
+    ec_trail_undo(_cpx_del_rowcols, vhandle.ptr, vhandle.ptr+HANDLE_STAMP, (word*) &udata, NumberOfWords(untrail_data), TRAILED_WORD32); 
+    lpd->nsos_added = lpd->nsos;
+    /* could free/resize arrays here */
+    Succeed;
+}
+
+
+/*
+ * Set up SOS arrays in descriptor
+ */
+
+int
+p_cpx_add_new_sos(value vlp, type tlp, 
 	      value vsostype, type tsostype, 
-	      value vn, type tn, 
+	      value vn, type tn,	/* member count */
 	      value vl, type tl)
 {
     lp_desc *lpd; 
     double weight;
-    int i;
+    int i, nnewsos;
 
     Check_Integer(tsostype);
     Check_Integer(tn);
 
     LpDescOnly(vlp, tlp, lpd);
-    if (vn.nint <= 0) Succeed_; /* return immediately if sos set empty */
-    /* allocate enough space for the new sos */
-    /* CAUTION: in this array must have lpd->nsos+1 elements !!! */
+    if (vn.nint <= 0) Succeed; /* return immediately if sos set empty */
+
+    /* the temporary array index of the new SOS */
+    nnewsos = lpd->nsos - lpd->nsos_added;
     ++lpd->nsos;
-    if (lpd->nsos >= lpd->sossz)
+    if (nnewsos+1 >= lpd->sossz)
     {
-	if (lpd->nsos == 0)
+	/* allocate enough space for the new sos */
+	/* CAUTION: in this array must have at least nnewsos+1 elements !!! */
+	if (lpd->sossz == 0)
 	{
 	    lpd->sossz = NEWSOS_INCR;
 	    lpd->sosbeg = (int *) Malloc(NEWSOS_INCR*sizeof(int));
@@ -4884,8 +4981,8 @@ p_cpx_loadsos(value vlp, type tlp,
 	    lpd->sosbeg = (int *) Realloc(lpd->sosbeg, lpd->sossz*sizeof(int));
 	}
     }
-    lpd->sosbeg[lpd->nsos-1] = lpd->nsosnz;
-    lpd->sosbeg[lpd->nsos] = lpd->nsosnz + vn.nint;
+    lpd->sosbeg[nnewsos] = lpd->nsosnz;
+    lpd->sosbeg[nnewsos+1] = lpd->nsosnz + vn.nint;
 
     /* allocate enough space for the sos members */
     i = lpd->nsosnz;
@@ -4933,10 +5030,6 @@ p_cpx_loadsos(value vlp, type tlp,
     if (i != lpd->nsosnz)
 	{ Bip_Error(RANGE_ERROR); }
 
-    if (lpd->prob_type == PROBLEM_QP) 
-	lpd->prob_type = PROBLEM_MIQP;
-    else 
-	lpd->prob_type = PROBLEM_MIP;
     Succeed;
 }
 
