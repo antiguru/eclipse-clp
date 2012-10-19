@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.5 2012/10/18 18:59:33 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.6 2012/10/19 23:52:36 jschimpf Exp $
  *
  */
 
@@ -391,7 +391,7 @@ t_ext_type lp_handle_tid = {
 
 
 typedef struct {
-  int              oldmar, oldmac, oldsos;
+  int              oldmar, oldmac, oldsos, oldidc;
 } untrail_data;
       
 typedef struct {
@@ -417,7 +417,7 @@ typedef struct {
 static stream_id solver_streams[4];
 
 /* Atoms used to communicate with the Prolog level */
-static dident d_le, d_ge, d_eq, d_optimizer;
+static dident d_le, d_ge, d_eq, d_optimizer, d_yes, d_no;
 
 /* Global solver environment (!=0 when initialised) */
 static CPXENVptr	cpx_env = (CPXENVptr) 0;
@@ -604,6 +604,8 @@ _free_lp_handle(lp_desc *lpd)
 	if (lpd->nr_sz)
 	{
 	    CallN(Free(lpd->rmatbeg));
+	    TryFree(lpd->rcompl);
+	    TryFree(lpd->rindind);
 	}
 	if (lpd->nnz_sz)
 	{
@@ -684,6 +686,8 @@ p_cpx_init(value vlicloc, type tlicloc,
     d_ge = ec_did(">=", 0);
     d_eq = ec_did("=:=", 0);
     d_optimizer = ec_did(SOLVER_ATOMIC_NAME, 0);
+    d_yes = ec_did("yes", 0);
+    d_no = ec_did("no", 0);
 
     if (!cpx_env)
     {
@@ -1013,6 +1017,7 @@ p_cpx_prob_init(value vpre, type tpre,
     lpd->mac = vcol.nint;
     lpd->macsz = vcol.nint;
     lpd->macadded = 0;
+    lpd->nidc = 0;
     lpd->marsz = vrow.nint;	       /* max number of rows */
     lpd->mar = vrow.nint;
     lpd->matnz = vnz.nint;	       /* number of nonzero coefficients */
@@ -1216,6 +1221,28 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 #else
 	Return_Unify_Integer(vval, tval, SOLVER_VERSION_INT);
 #endif
+
+    case -3:			/* has_qp */
+#ifdef HAS_QUADRATIC
+	Return_Unify_Atom(vval, tval, d_yes);
+#else
+	Return_Unify_Atom(vval, tval, d_no);
+#endif
+
+    case -4:			/* has_miqp */
+#ifdef HAS_MIQP
+	Return_Unify_Atom(vval, tval, d_yes);
+#else
+	Return_Unify_Atom(vval, tval, d_no);
+#endif
+
+    case -5:			/* has_indicator_constraints */
+#ifdef HAS_INDICATOR_CONSTRAINTS
+	Return_Unify_Atom(vval, tval, d_yes);
+#else
+	Return_Unify_Atom(vval, tval, d_no);
+#endif
+
     default:
 	Bip_Error(RANGE_ERROR);
     }
@@ -2264,7 +2291,50 @@ p_cpx_new_row(value vlp, type tlp, value vsense, type tsense,
     }
     Return_Unify_Integer(vidx, tidx, idx);
 }
-    	
+
+
+int
+p_cpx_new_row_idc(value vlp, type tlp, value vsense, type tsense, 
+	  value vrhs, type trhs, value vcompl, type tcompl,
+	  value vindind, type tindind)
+{
+    int sense; 
+    lp_desc *lpd;
+
+    LpDescOnly(vlp, tlp, lpd);
+    Check_Number(trhs);
+    Check_Integer(tcompl);
+    Check_Integer(tindind);
+    Check_Atom(tsense);
+    if (vsense.did == d_le) sense = SOLVER_SENSE_LE;
+    else if (vsense.did == d_ge) sense = SOLVER_SENSE_GE;
+    else if (vsense.did == d_eq) sense = SOLVER_SENSE_EQ;
+    else { Bip_Error(RANGE_ERROR); }
+    
+    if (lpd->nr+1 >= lpd->nr_sz)	/* allocate/grow arrays */
+    {
+	CallN(lpd->nr_sz += NEWROW_INCR);
+	CallN(lpd->senx = (char *) Realloc(lpd->senx, lpd->nr_sz*sizeof(char)));
+	CallN(lpd->rhsx = (double *) Realloc(lpd->rhsx, lpd->nr_sz*sizeof(double)));
+	CallN(lpd->rmatbeg = (int *) Realloc(lpd->rmatbeg, lpd->nr_sz*sizeof(int)));
+	CallN(lpd->rcompl = (char *) Realloc(lpd->rcompl, lpd->nr_sz*sizeof(char)));
+	CallN(lpd->rindind = (int *) Realloc(lpd->rindind, lpd->nr_sz*sizeof(int)));
+    } else if (!lpd->rcompl) {
+	/* Only used for IDC, may not be allocated yet */
+	CallN(lpd->rcompl = (char *) Malloc(lpd->nr_sz*sizeof(char))); 
+	CallN(lpd->rindind = (int *) Malloc(lpd->nr_sz*sizeof(int)));
+    }
+    lpd->senx[lpd->nr] = (char) sense;
+    lpd->rhsx[lpd->nr] = DoubleVal(vrhs, trhs);
+    Check_Constant_Range(lpd->rhsx[lpd->nr]);
+    lpd->rmatbeg[lpd->nr] = lpd->nnz;
+    lpd->rcompl[lpd->nr] = vcompl.nint;	/* complement flag */
+    lpd->rindind[lpd->nr] = vindind.nint;	/* indicator variable index */
+    ++lpd->nr;
+
+    Succeed;
+}
+
 
 
 #define Add_Row_Coeff(nnz_sz, nnzs, rmatind, rmatval, idxj, val, tag) {\
@@ -2412,6 +2482,24 @@ reset_sos(lp_desc * lpd, int oldsos)
 
 
 static void
+reset_idc(lp_desc * lpd, int oldidc)
+{
+#ifdef HAS_INDICATOR_CONSTRAINTS
+    if (lpd->nidc > oldidc)
+    {
+	if (CPXdelindconstrs(cpx_env, lpd->lp, oldidc, lpd->nidc-1))
+	{
+	    Fprintf(Current_Error, "Error in deleting indicator constraints %d..%d\n",
+		oldidc, lpd->nidc-1);
+	    ec_flush(Current_Error);
+	}
+	lpd->nidc = oldidc;
+    }
+#endif
+}
+
+
+static void
 reset_rowcols(lp_desc * lpd, int oldmar, int oldmac)
 {
 #ifdef CPLEX
@@ -2478,16 +2566,20 @@ static void _cpx_del_rowcols(pword * phandle,word * udata, int size, int flags)
 
     int oldmar = ((untrail_data*) udata)->oldmar, 
         oldmac = ((untrail_data*) udata)->oldmac,
-        oldsos = ((untrail_data*) udata)->oldsos;
+        oldsos = ((untrail_data*) udata)->oldsos,
+        oldidc = ((untrail_data*) udata)->oldidc;
 
     if (lpd  &&  lpd->descr_state != DESCR_EMPTY)
     {
 #if 0
-	Fprintf(Current_Error, "Removing rows %d..%d, cols %d..%d, soss %d..%d, in gc:%d\n",
-	    oldmar, lpd->mar-1, oldmac, lpd->macadded-1, oldsos, lpd->nsos_added,
+	Fprintf(Current_Error,
+	    "Removing rows %d..%d, cols %d..%d, soss %d..%d, idcs %d..%d, in gc:%d\n",
+	    oldmar, lpd->mar-1, oldmac, lpd->macadded-1,
+	    oldsos, lpd->nsos_added, oldidc, lpd->nidc,
 	    ec_.m.vm_flags & NO_EXIT);
 	ec_flush(Current_Error);
 #endif
+	reset_idc(lpd, oldidc);
 	reset_sos(lpd, oldsos);
 	reset_rowcols(lpd, oldmar, oldmac);
     }
@@ -2663,6 +2755,7 @@ p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tne
       udata.oldmac = lpd->macadded;
       udata.oldmar = lpd->mar;
       udata.oldsos = lpd->nsos_added;
+      udata.oldidc = lpd->nidc;
       ec_trail_undo(_cpx_del_rowcols, vhandle.ptr, vhandle.ptr+HANDLE_STAMP, (word*) &udata, NumberOfWords(untrail_data), TRAILED_WORD32); 
     }
 
@@ -2671,6 +2764,73 @@ p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tne
 
     lpd->nr = lpd->nnz = 0;	/* maybe shrink arrays here */
     Succeed;
+}
+
+
+/*
+ * Add Indicator Constraints from descriptor arrays to solver
+ * Input:
+ *	lpd->nr		number of indicator rows to add
+ *	lpd->senx	row senses
+ *	lpd->rhsx	row RHSs
+ *	lpd->nnz	number of nonzero coefficients to add
+ *	lpd->rmatxxx	those nonzero coefficients
+ *	lpd->rcompl	the complement flags
+ *	lpd->rindind	the indicator variable indexes
+ */
+
+int
+p_cpx_flush_idcs(value vhandle, type thandle)
+{
+#ifdef HAS_INDICATOR_CONSTRAINTS
+    int i;
+    lp_desc *lpd; 
+    untrail_data udata;
+
+    Check_Structure(thandle);
+    LpDesc(vhandle.ptr[HANDLE_CPH].val, vhandle.ptr[HANDLE_CPH].tag, lpd);
+
+    if (lpd->nr == 0)
+    	Succeed;
+
+    /* trail first, in case we abort during adding */
+    udata.oldmac = lpd->macadded;
+    udata.oldmar = lpd->mar;
+    udata.oldsos = lpd->nsos_added;
+    udata.oldidc = lpd->nidc;
+    ec_trail_undo(_cpx_del_rowcols, vhandle.ptr, vhandle.ptr+HANDLE_STAMP, (word*) &udata, NumberOfWords(untrail_data), TRAILED_WORD32); 
+
+    lpd->rmatbeg[lpd->nr] = lpd->nnz;
+    for(i=0; lpd->nr>0; --lpd->nr,++i)
+    {
+#if 0
+	int k;
+	Fprintf(Current_Error, "CPXaddindconstr(%d,%d,%d,%f,%d,...,...)\n",
+		lpd->rindind[i], lpd->rcompl[i],
+		 lpd->rmatbeg[i+1]-lpd->rmatbeg[i],	/* nzcnt */
+		 lpd->rhsx[i], lpd->senx[i]);
+	for(k=lpd->rmatbeg[i];k<lpd->rmatbeg[i+1];++k) {
+	    Fprintf(Current_Error, "%d:%f, ", lpd->rmatind[k], lpd->rmatval[k]);
+	}
+	(void) ec_newline(Current_Error);
+	(void) ec_flush(Current_Error);
+#endif
+
+	if (CPXaddindconstr(cpx_env, lpd->lp, lpd->rindind[i], lpd->rcompl[i],
+		 lpd->rmatbeg[i+1]-lpd->rmatbeg[i],	/* nzcnt */
+		 lpd->rhsx[i], lpd->senx[i],
+		 lpd->rmatind+lpd->rmatbeg[i], lpd->rmatval+lpd->rmatbeg[i],
+		 NULL))
+	{
+	    Bip_Error(EC_EXTERNAL_ERROR);
+	}
+	++lpd->nidc;
+    }
+    /* could free/resize arrays here */
+    Succeed;
+#else
+    Bip_Error(UNIMPLEMENTED);
+#endif
 }
 
 
@@ -3862,8 +4022,13 @@ p_cpx_loadprob(value vlp, type tlp)
 
     if (lpd->nsos)
     {
+#if defined(CPLEX) && CPLEX < 10
+	if (CPXaddsos(cpx_env, lpd->lp, lpd->nsos, lpd->nsosnz, lpd->sostype,
+		NULL, lpd->sosbeg, lpd->sosind, lpd->sosref))
+#else
 	if (CPXaddsos(cpx_env, lpd->lp, lpd->nsos, lpd->nsosnz, lpd->sostype,
 		lpd->sosbeg, lpd->sosind, lpd->sosref, NULL))
+#endif
 	    { Bip_Error(EC_EXTERNAL_ERROR); }
 	lpd->nsos_added = lpd->nsos;
     }
@@ -4936,6 +5101,7 @@ p_cpx_flush_sos(value vhandle, type thandle)
     udata.oldmac = lpd->macadded;
     udata.oldmar = lpd->mar;
     udata.oldsos = lpd->nsos_added;
+    udata.oldidc = lpd->nidc;
     ec_trail_undo(_cpx_del_rowcols, vhandle.ptr, vhandle.ptr+HANDLE_STAMP, (word*) &udata, NumberOfWords(untrail_data), TRAILED_WORD32); 
     lpd->nsos_added = lpd->nsos;
     /* could free/resize arrays here */

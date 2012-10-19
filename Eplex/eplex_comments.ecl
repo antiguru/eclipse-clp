@@ -37,7 +37,8 @@
     <DT>X $=&lt; Y</DT><DD>inequality over linear expressions</DD>
     <DT>integers(Xs)</DT><DD>integrality of variables</DD>
     <DT>sos1(Xs)</DT><DD>all but one are zero</DD>
-    <DT>sos2(Xs)</DT><DD>all but two consecutive ones are zero</DD>
+    <DT>sos2(Xs)</DT><DD>all but two consecutive values are zero</DD>
+    <DT>Cond=>Linear</DT><DD>indicator constraint (some solvers only)</DD>
     </DL>
     The operational behaviour of the linear constraints is as follows:
 </P><UL>
@@ -200,7 +201,7 @@ the solving behaviour for a particular application's needs.
     ")]).
 
 :- comment(integers/1,  [
-    template:  "EplexInstance:integers(?Vars)",
+    template:  ["integers(?Vars)","EplexInstance:integers(?Vars)"],
     args:      ["Vars":    "Variable or number, or a list or submatrix of variables/numbers"],
     see_also:  [_:integers/1,reals/1,(::)/2],
     summary:   "Constrains Vars to integers for eplex instance EplexInstance.",
@@ -226,7 +227,7 @@ the solving behaviour for a particular application's needs.
 
 
 :- comment(sos1/1,  [
-    template:  "EplexInstance:sos1(?Vars)",
+    template:  ["sos1(?Vars)","EplexInstance:sos1(?Vars)"],
     args:      ["Vars":    "A collection of variables"],
     see_also:  [_:sos1/1,sos2/1,integers/1],
     summary:   "Constrains all but one of Vars to be zero.",
@@ -242,7 +243,7 @@ the solving behaviour for a particular application's needs.
 
 
 :- comment(sos2/1,  [
-    template:  "EplexInstance:sos2(?Vars)",
+    template:  ["sos2(?Vars)","EplexInstance:sos2(?Vars)"],
     args:      ["Vars":    "A collection of variables"],
     see_also:  [_:sos2/1,sos1/1,integers/1],
     summary:   "Constrains all but two consecutive elements of Vars to be zero.",
@@ -258,7 +259,7 @@ the solving behaviour for a particular application's needs.
 
 
 :- comment(reals/1,  [
-    template:  "EplexInstance:reals(?Vars)",
+    template:  ["reals(?Vars)","EplexInstance:reals(?Vars)"],
     args:      ["Vars":    "Variable or number, or a list or submatrix of variables/numbers"],
     see_also:  [_:reals/1,integers/1,(::)/2],
     summary:   "Constraints Vars to the real domain for EplexInstance.",
@@ -280,7 +281,7 @@ the solving behaviour for a particular application's needs.
 
 :- comment((::)/2,  [
     amode:     ::(?,++),
-    template: "EplexInstance: (?Vars :: ++Lo..Hi)",
+    template: ["?Vars :: ++Lo..Hi","EplexInstance: (?Vars :: ++Lo..Hi)"],
     args: ["Vars":"Variable or number, or a list or submatrix of variables/numbers",
 	   "Lo..Hi":"Lo, Hi are numbers or arithmetic expressions"
 	],
@@ -314,7 +315,7 @@ the solving behaviour for a particular application's needs.
 
 :- comment(($::)/2,  [
     amode:     $::(?,++),
-    template: "EplexInstance: (?Vars $:: ++Lo..Hi)",
+    template: ["?Vars $:: ++Lo..Hi","EplexInstance: (?Vars $:: ++Lo..Hi)"],
     args: ["Vars":"Variable or number or a list of them",
 	   "Lo..Hi":"Lo, Hi are numbers or arithmetic expressions"
 	],
@@ -347,7 +348,7 @@ the solving behaviour for a particular application's needs.
 
 
 :- comment(eplex_var_get/3, [
-template:  "EplexInstance:eplex_var_get(+Var, ++What, -Value)",
+template:  ["eplex_var_get(+Var, ++What, -Value)","EplexInstance:eplex_var_get(+Var, ++What, -Value)"],
 args:      ["Var":   "A solver problem variable for solver associated with EplexInstance",
             "What":  "Specification for information wanted (atom)",
 	    "Value": "Returned value of What"
@@ -425,13 +426,13 @@ desc:      html("\
 
 
 :-comment(suspend_on_change/2,
-          [template:"EplexInstance:suspend_on_change(?Var, +Susp)",
+          [template:["suspend_on_change(?Var, +Susp)","EplexInstance:suspend_on_change(?Var, +Susp)"],
            args:["Var"  : "A solver problem variable for solver associated with EplexInstance",
                  "Susp" : "Suspension to schedule when the typed solution for this variable changes"],
           summary:"Record the given suspension to be scheduled whenever a solution is found for the EplexInstance."]).
 
 :-comment(get_changeable_value/2,
-          [template:"EplexInstance:get_changeable_value(?Var, -Val)",
+          [template:["get_changeable_value(?Var, -Val)","EplexInstance:get_changeable_value(?Var, -Val)"],
            args:["Var"  : "A solver problem variable for solver associated with EplexInstance",
                  "Val"  : "The typed_solution value for this variable"],
            summary:"Interface predicate to access the <EM>changeable</EM> value for this variable."]).
@@ -508,7 +509,7 @@ desc:      html("\
     ]).
 
 :- comment(($>=)/2,  [
-    template:  "EplexInstance:(?X $>= ?Y)",
+    template:  ["?X $>= ?Y","EplexInstance:(?X $>= ?Y)"],
     args:      ["X":    "Linear expression",
 		"Y":    "Linear expression"
 	       ],
@@ -553,7 +554,7 @@ desc:      html("\
     ]).
 
 :- comment(($=<)/2,  [
-    template:  "EplexInstance:(?X $=< ?Y)",
+    template:  ["?X $=< ?Y","EplexInstance:(?X $=< ?Y)"],
     args:      ["X":    "Linear expression",
 		"Y":    "Linear expression"
 	       ],
@@ -596,7 +597,7 @@ desc:      html("\
     ]).
 
 :- comment(($=)/2,  [
-    template:  "EplexInstance:(?X $= ?Y)",
+    template:  ["?X $= ?Y","EplexInstance:(?X $= ?Y)"],
     args:      ["X":    "Linear expression",
 		"Y":    "Linear expression"
 	       ],
@@ -619,14 +620,51 @@ desc:      html("\
     ")
 ]).
 
+:- comment((=>)/2,  [
+    template:  ["Ind => LinCon","EplexInstance:(Ind => LinCon)"],
+    args:      ["Ind":    "A binary variable or negated binary variable",
+		"LinCon":    "A linear constraint"
+	       ],
+    see_also:  [ _:(=>)/2, ($>=)/2,($=)/2,($=<)/2, 
+                 eplex_add_constraints/2
+                ],
+    summary:   "Linear constraint conditional on binary variable",
+    desc:      html("<P>\
+	Logical implication Ind =&ge; LinCon.  The linear constraint LinCon
+	is enforced when the indicator Ind is 1, and violation of LinCon
+	forces the indicator Ind to 0.
+</P><P>
+	Ind can be a variable, or a subscript expression resulting in a
+	variable.  It can also be negated using the neg/1 prefix operator.
+	Correspondingly, LinCon is either enforced by the binary being 0 or 1.
+</P><P>
+	LinCon is any linear constraint accepted by eplex, i.e. an equality
+	or inequality constraint over linear expressions.
+</P><P>
+	This constraint does not implicitly impose bounds or a type on the
+	binary variable in Ind.  It will usually make sense to separately
+	impose bounds of 0..1 and invoke integers/1.
+</P><P>
+	Indicator constraints are not supported by every external solver.
+	Use lp_get(has_indicator_constraints,yes) to check availability.
+</P>
+    "),
+    eg:"
+    B => ( X1 $>= X2+8 )
+    neg B => ( X1+5 $=< X2 )
+    B[12] => ( sum(Costs) $= 42 )
+"
+]).
+
 :- comment(eplex_add_constraints/2, [
- template:  "EplexInstance: eplex_add_constraints(+Constraints,+Integers)",
+ template:  ["eplex_add_constraints(+Constraints,+Integers)",
+	     "EplexInstance: eplex_add_constraints(+Constraints,+Integers)"],
  args:      [
              "Constraints": "A (possibly empty) list of equality or inequality constraints",
              "Integers": "A (possibly empty) list of variables to be considered as integers"
             ],
  see_also:  [lp_add_constraints/3,lp_demon_setup/5,lp_add/3,lp_add_constraints/4,
-             ($=)/2,($=<)/2,($>=)/2,(=:=)/2,(=<)/2,(>=)/2,sos1/1,sos2/1],
+             ($=)/2,($=<)/2,($>=)/2,(=:=)/2,(=<)/2,(>=)/2,sos1/1,sos2/1,(=>)/2],
  resat:     no,
  fail_if: "Any ground (no variable) or bound constraints (one variable) is self-inconsistent.",
  exceptions: [4: "Constraints or Integers uninstantiated.",
@@ -657,8 +695,8 @@ desc:      html("\
   the external solver. If any constraint is ground, they are tested for
   consistency.
 </P><P>
-  The constraints can be linear equalities and inequalities, as well as
-  sos/1 and sos2/1 constraints.
+  The constraints can be linear equalities and inequalities, sos/1 and
+  sos2/1 constraints, and =&ge;/2 indicator constraints.
 </P><P>
   Note that variables in NewIntegers can be any problem variables. In
   previous versions of ECLiPSe, there was a restriction that the variables
@@ -677,7 +715,7 @@ desc:      html("\
             ],
  see_also:  [lp_demon_setup/5,lp_add/3,lp_add_constraints/4,
              eplex_add_constraints/2,
-             ($=)/2,($=<)/2,($>=)/2,(=:=)/2,(=<)/2,(>=)/2,sos1/1,sos2/1],
+             ($=)/2,($=<)/2,($>=)/2,(=:=)/2,(=<)/2,(>=)/2,sos1/1,sos2/1,(=>)/2],
  resat:     no,
  fail_if: "Any ground (no variable) or bound constraints (one variable) is self-inconsistent.",
  exceptions: [4: "Handle, Constraints or Integers uninstantiated.",
@@ -701,8 +739,8 @@ desc:      html("\
   the external solver. If any constraint is ground, they are tested for
   consistency.
 </P><P>
-  The constraints can be linear equalities and inequalities, as well as
-  sos/1 and sos2/1 constraints.
+  The constraints can be linear equalities and inequalities, sos/1 and
+  sos2/1 constraints, and =&ge;/2 indicator constraints.
 </P><P>
   Note that variables in NewIntegers can be any problem variables. In
   previous versions of ECLiPSe, there was a restriction that the variables
@@ -717,7 +755,7 @@ desc:      html("\
  amode:     lp_add_constraints(+,+,++, -),
  args:      ["Handle":      "Handle to a solver state",
              "Constraints": "A (possibly empty) list of expandable"
-                            " equality or  inequality constraints",
+                            "linear equality or inequality constraints",
              "Integers": "A (possibly empty) list of problem variables to be considered as integers",
              "Indices": "Indices for the constraints in Constraints"
             ],
@@ -954,7 +992,7 @@ desc:      html("\
 ]).
 
 :- comment(eplex_solver_setup/1, [
-template: "EplexInstance:eplex_solver_setup(+Objective)",
+template: ["eplex_solver_setup(+Objective)","EplexInstance:eplex_solver_setup(+Objective)"],
 args:    ["Objective":     "Objective function: min(CostExpr) or max(CostExpr)"],
 summary: "Setup an external solver state for eplex instance EplexInstance",
 see_also:[($=)/2,($=<)/2,($>=)/2,(=:=)/2, (>=)/2, (=<)/2, 
@@ -991,7 +1029,8 @@ desc: html("\
 ]).
 
 :- comment(eplex_solver_setup/4, [
-template: "EplexInstance:eplex_solver_setup(+Objective, ?Cost, ++ListOfOptions, +TriggerModes)",    
+template: ["eplex_solver_setup(+Objective, ?Cost, ++ListOfOptions, +TriggerModes)",
+	   "EplexInstance:eplex_solver_setup(+Objective, ?Cost, ++ListOfOptions, +TriggerModes)"],
 args:      ["Objective":     "Objective function: min(CostExpr) or max(CostExpr)",
             "Cost":          "Variable bounded by the optimal solution",
             "ListOfOptions": "List of solver options",
@@ -1480,17 +1519,24 @@ desc:      html("\
     solver is invoked, it will collect constraints posted to
     <TT>Instance</TT>.  Note that <TT>Instance</TT> must not be associated
     with any other solver state already.
-</P><P>
     The default value for <TT>Pool</TT> is pool(eplex) (for backward
     compatibility).
 
-<P>
 <DT><STRONG><TT>initial_solve(+YesNo)</TT></STRONG>
     <DD>Specifies if an initial solve (call to the external solver) should
     be performed immediately after problem setup.
     YesNo is one of the atoms <TT>yes</TT> or <TT>no</TT>, the default is 
     <TT>yes</TT> if any trigger condition is specified in TriggerModes, 
     <TT>no</TT> if no trigger condition is specified.
+
+<DT><STRONG><TT>priority(+Prio)</TT></STRONG>
+    <DD><TT>Prio</TT> is the scheduling priority with which the solver gets
+    woken up.  This priority determines whether the solver is run before or
+    after other constraints. By default, if no priority is specified, the
+    default priority (0, mapped to 5 unless changed) is used. Normally, the
+    default priority should be sufficient and this option is not needed,
+    unless there is a specific need to have the external solver invoked with
+    higher or lower priority than some other constraints.
 </DL>
    
 </P><P>
@@ -1959,7 +2005,7 @@ desc:      html("\
 ]).
 
 :- comment(eplex_solve/1, [
-template:  "EplexInstance:eplex_solve(-Cost)",
+template:  ["eplex_solve(-Cost)","EplexInstance:eplex_solve(-Cost)"],
 args:      [
             "Cost":   "Value of returned solution"
            ],
@@ -2115,7 +2161,7 @@ desc:      html("\
 ]).
 
 :- comment(eplex_probe/2, [
-template:  "EplexInstance:eplex_probe(+Probes, -Cost)",
+template:  ["eplex_probe(+Probes, -Cost)","EplexInstance:eplex_probe(+Probes, -Cost)"],
 args:      [
             "Probes": "Temporary probe specification(s)",
             "Cost":      "Value of solution"
@@ -2341,7 +2387,7 @@ exceptions:[
 ]).
 
 :- comment(eplex_cleanup/0, [
-template:  "EplexInstance:eplex_cleanup",
+template:  ["eplex_cleanup","EplexInstance:eplex_cleanup"],
 summary:   "Destroy the external solver associated with EplexInstance.",
 desc:      html("\
 <P>
@@ -2408,7 +2454,7 @@ desc:      html("
 ]).
 
 :- comment(eplex_read/2, [
-template: "EplexInstance:eplex_read(++Format,++File)",
+template: ["eplex_read(++Format,++File)","EplexInstance:eplex_read(++Format,++File)"],
 args:      ["Format": "lp or mps",
 	    "File":   "File name"
            ],
@@ -2451,7 +2497,7 @@ desc:      html("
 ]).
 
 :- comment(eplex_write/2, [
-template: "EplexInstance:eplex_write(++Format,++File)",
+template: ["eplex_write(++Format,++File)","EplexInstance:eplex_write(++Format,++File)"],
 args:      ["Format": "lp or mps",
 	    "File":   "File name"
            ],
@@ -2476,7 +2522,7 @@ desc:      html("
 ]).
 
 :- comment(eplex_get/2, [
-template:  "EplexInstance:eplex_get(++ParamName, -Value)",
+template:  ["eplex_get(++ParamName, -Value)","EplexInstance:eplex_get(++ParamName, -Value)"],
 args:      [
             "ParamName": "Name of parameter (atom)",
             "Value":     "Returned value for ParamName"
@@ -3498,7 +3544,7 @@ even after setup.
 ]).
 
 :- comment(eplex_set/2, [
-template:  "EplexInstance:eplex_set(++ParamName, -Value)",
+template:  ["eplex_set(++ParamName, -Value)","EplexInstance:eplex_set(++ParamName, -Value)"],
 args:      [
             "ParamName": "Name of parameter (atom)",
             "Value":     "New value for ParamName"
@@ -3711,7 +3757,7 @@ even after setup of a solver for eplex instance <EM>EplexInstance</EM>.
 :- comment(lp_get/2, [
 amode:     lp_get(++,-),
 amode:     lp_get(++,+),
-args:      ["ParamName":   "Atom",
+args:      ["ParamName":   "Atom or structure",
             "Value":       "Variable, integer, float or atom"
            ],
 summary:   "Obtain the value of a global parameter.",
@@ -3721,6 +3767,15 @@ desc:      html("\
     particular problem) parameters. These can be queried using this 
     predicate.
 <DL>
+    <DT><TT>has_indicator_constraints</TT>
+	<DD>Returns 'yes' if the solver supports =&ge;/2 indicator constraints,
+	else 'no'.
+    <DT><TT>has_miqp</TT>
+	<DD>Returns 'yes' if the solver supports mixed integer problems
+	with quadratic objectives, else 'no'.
+    <DT><TT>has_qp</TT>
+	<DD>Returns 'yes' if the solver supports quadratic objectives,
+	else 'no'.
     <DT><TT>optimizer</TT>
 	<DD>Returns the name of the external solver, currently
 	'cplex', 'xpress', 'osi' or gurobi.
@@ -3755,7 +3810,7 @@ desc:      html("\
 
 :- comment(lp_set/2, [
 amode:     lp_set(++,++),
-args:      ["ParamName": "Atom",
+args:      ["ParamName": "Atom or structure",
             "Value": "Integer, float, string or structure"
            ],
 see_also:  [lp_get/2],
@@ -3855,7 +3910,7 @@ desc: html("
 
 
 :- comment(eplex_var_get_bounds/3, [
- template:  "EplexInstance: eplex_var_get_bounds(+Var, -Lo, -Hi)",
+ template:  ["eplex_var_get_bounds(+Var, -Lo, -Hi)","EplexInstance:eplex_var_get_bounds(+Var, -Lo, -Hi)"],
 args:    [
           "Var":    "A problem variable for EplexInstance",
           "Lo":     "Lower bound for Var",
@@ -3928,7 +3983,8 @@ desc: html("
 
 :- comment(eplex_get_iis/4, [
         summary: "Returns an IIS for an infeasible problem associated with EplexInstance.",
-        template: "EplexInstance:eplex_get_iis(-NumConstraints, -NumVars, -ConstraintIdxs, -VarInfos)",
+        template: ["eplex_get_iis(-NumConstraints, -NumVars, -ConstraintIdxs, -VarInfos)",
+		   "EplexInstance:eplex_get_iis(-NumConstraints, -NumVars, -ConstraintIdxs, -VarInfos)"],
         exceptions: [141: "External solver does not support finding IIS",
                      213: "Error in external solver while getting IIS"
                     ],
@@ -4111,7 +4167,8 @@ desc: html("
 
 :- comment(eplex_verify_solution/2, [
         summary: "Verifies the current solution for the problem associated with EplexInstance.",
-        template:"EplexInstance:eplex_verify_solution(-ViolatedCstrs,-ViolatedVars)",
+        template:["eplex_verify_solution(-ViolatedCstrs,-ViolatedVars)",
+		  "EplexInstance:eplex_verify_solution(-ViolatedCstrs,-ViolatedVars)"],
         args: ["ViolatedCstrs": "List of violated Constraints.", 
                "ViolatedVars": "List of violated variables."
               ],
@@ -4226,7 +4283,8 @@ desc: html("
 ]).
 
 :- comment(piecewise_linear_hull/3, [
-template: "EplexInstance:piecewise_linear_hull(?X, ++Points, ?Y)",
+template:["piecewise_linear_hull(?X, ++Points, ?Y)",
+	  "EplexInstance:piecewise_linear_hull(?X, ++Points, ?Y)"],
 args:["X":"Parameter/domain of the piecewise function",
       "Points":"List of points defining the piecewise function",
       "Y":"Result/range of piecewise the function"

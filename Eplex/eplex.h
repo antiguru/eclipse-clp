@@ -120,6 +120,8 @@ typedef struct {
     int		macadded;	/* columns already added to solver */
     int         start_mac;      /* initial number of valid columns */
     int		mar;		/* number of valid rows */
+    int		nidc;		/* number of indicator constraints */
+
     int		matnz;		/* used nonzeros in column-wise nz arrays */
     int		macsz;          /* size of column buffer arrays */
     int		marsz;
@@ -182,9 +184,12 @@ typedef struct {
     int		nnz_sz;		/* size of new nonzero arrays */
     int		nr;		/* next new row index */
     int		nnz;		/* next new nonzero index */
-    int		*rmatbeg;	/* [nr_sz] */
+    int		*rmatbeg;	/* [nr_sz]  nr_sz > nr! */
     int		*rmatind;	/* [nnz_sz] */
     double	*rmatval;	/* [nnz_sz] */
+    char	*rcompl;	/* [nr_sz] indicator constraints only */
+    int		*rindind;	/* [nr_sz] indicator constraints only */
+
     int		numsz;		/* auxiliary array for delrows/delcols */
     int		*numbers;	/* [numsz], contains numbers 0..numsz-1 */
     int		*zeroes;	/* [numsz], contains int zeroes */

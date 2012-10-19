@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.6 2012/10/18 18:59:33 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.7 2012/10/19 23:52:36 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -179,9 +179,13 @@
 :- export eplex_get_iis/5.	% eplex_get_iis/4
 :- export eplex_verify_solution/3. % eplex_verify_solution/2.
 
-:- local struct(constraint_type(integers,reals,linear,sos)).
+:- local struct(constraint_type(integers,reals,linear,sos,idc)).
 :- local struct(probes(obj,sense,ints,rhs,bounds)). % types of probe in lp/eplex_probe
+
+% These operators are a subset of those in lib(ic)
 :- export op(700, xfx, [$>=, $=, $=<, $::]).
+:- export op(780, yfx, [=>]).
+:- export op(750, fx, [neg]).
 
 :- local struct(cp_options(group,active,add_initially)). % cutpool cstrs options
 
@@ -418,6 +422,9 @@ load_external_solver(_, _, _, _).
 
         % column generation (adapted from AE 25/10/02)
 	external(cplex_new_row/5, p_cpx_new_row),
+
+	external(cplex_new_row_idc/5, p_cpx_new_row_idc),
+	external(cplex_flush_idcs/1, p_cpx_flush_idcs),
 
         external(create_extended_iarray/3, p_create_extended_iarray),
         external(create_extended_darray/3, p_create_extended_darray),
@@ -1471,12 +1478,6 @@ lp_attr_get_bounds(_{eplex:Attr}, Lo, Hi) ?-
 			pending   % suspension: lp_pending's suspension
 	 )).
 
-
-
-lp_eq(X, Y, Pool) :- add_pool_constraint(X=:=Y, Pool).
-lp_ge(X, Y, Pool) :- add_pool_constraint(X>=Y, Pool).
-lp_le(X, Y, Pool) :- add_pool_constraint(X=<Y, Pool).
-
 lp_impose_interval(Vs, Interval, CCType, Pool) :-
 	(range(Interval, BoundType, Lo, Hi) -> Hi >= Lo 
         ;  exit_block(abort)
@@ -1568,52 +1569,70 @@ extract_vars(subscript(Array,Index), Lo, Hi, CheckInt, VList0, VList) :-
         extract_vars(E, Lo, Hi, CheckInt, VList0, VList).
 extract_vars(_,_,_,_,_,_) :- exit_block(abort). 
 
-add_pool_constraint(Cstr, Pool) :-		% used for  =:=  >=  =<
-	normalise_cstr(Cstr, Norm0),
-	!,
-	( get_pool_handle(Handle, Pool) ->
-	    preprocess_norm_cstr(Norm0, LinCstrs, [], BdCstrs, []),	% may fail
-	    % add constraint to the solver straight away
-	    lp_add_normalised(Handle, LinCstrs, BdCstrs, [], [], _RowIdxs, TypeChangedVars, ChangedCols),
-	    wake_solver_if_needed(Handle, LinCstrs, TypeChangedVars, ChangedCols)
-	;
-	    % we don't have a solver yet
-	    try_ground_check(Norm0, Norm),			% may fail
-	    ( var(Norm) ->
-		true						% simplified away
-	    ;
-                post_typed_pool_constraint(Pool, linear of constraint_type, Norm),
-		set_lp_pending
-	    )
-	).
+
+% Add constraint of any type (linear,sos,idc) to Pool
 add_pool_constraint(Cstr, Pool) :-
-	error(5, Pool:Cstr).
-
-sos1(Xs, Pool) :-
-	add_sos(sos1(Xs), Pool).
-
-sos2(Xs, Pool) :-
-	add_sos(sos2(Xs), Pool).
-
-    add_sos(Sos, Pool) :-
-	( get_pool_handle(Handle, Pool) -> 
-	    lp_add_normalised(Handle, [], [], [], [Sos], _RowIdxs, _TypeChangedVars, ChangedCols),
-	    wake_solver_if_needed(Handle, [], [_Dummy], ChangedCols)
+	( get_pool_handle(Handle, Pool) ->
+	    lp_add_constraints(Handle, [Cstr], [])
 	;
-	    post_typed_pool_constraint(Pool, sos of constraint_type, Sos),
-	    set_lp_pending
+	    % We don't have a solver yet: post constraints to pool.
+	    % For linear constraints, normalise and ground check them first.
+	    post_constraint_to_pool(Cstr, Pool)
 	).
 
-
+% Add constraints of any type (linear,sos,idc) to Pool
 eplex_add_constraints(Cstrs, Ints, Pool) :-
         (get_pool_handle(Handle, Pool) ->
-             lp_add_constraints(Handle, Cstrs, Ints)
+            lp_add_constraints(Handle, Cstrs, Ints)
         ;
-             (foreach(C, Cstrs), param(Pool) do add_pool_constraint(C, Pool)),
-             integers(Ints, Pool)
+            (foreach(C, Cstrs), param(Pool) do
+		post_constraint_to_pool(C, Pool)
+	    ),
+            integers(Ints, Pool)
         ).
 
 
+    % Post linear, sos or idc constraints to Pool.
+    % Linear ones get normalised and ground checked first.
+    post_constraint_to_pool(Cstr, Pool) :- var(Cstr), !,
+	error(4, post_constraint_to_pool(Cstr, Pool)).
+    post_constraint_to_pool(Cstr, Pool) :- Cstr=sos1(_), !,
+	post_typed_pool_constraint(Pool, sos of constraint_type, Cstr),
+	set_lp_pending.
+    post_constraint_to_pool(Cstr, Pool) :- Cstr=sos2(_), !,
+	post_typed_pool_constraint(Pool, sos of constraint_type, Cstr),
+	set_lp_pending.
+    post_constraint_to_pool(Cstr, Pool) :- Cstr=(_=>_), !,
+	post_typed_pool_constraint(Pool, idc of constraint_type, Cstr),
+	set_lp_pending.
+    post_constraint_to_pool(Cstr, Pool) :-
+	normalise_cstr(Cstr, Norm0),
+	!,
+	try_ground_check(Norm0, Norm),	% may fail
+	( var(Norm) ->
+	    true			% simplified away
+	;
+	    post_typed_pool_constraint(Pool, linear of constraint_type, Norm),
+	    set_lp_pending
+	).
+    post_constraint_to_pool(Cstr, Pool) :-
+	error(5, post_constraint_to_pool(Cstr, Pool)).
+
+
+lp_eq(X, Y, Pool) :- add_pool_constraint(X=:=Y, Pool).
+
+lp_ge(X, Y, Pool) :- add_pool_constraint(X>=Y, Pool).
+
+lp_le(X, Y, Pool) :- add_pool_constraint(X=<Y, Pool).
+
+sos1(Xs, Pool) :- add_pool_constraint(sos1(Xs), Pool).
+
+sos2(Xs, Pool) :- add_pool_constraint(sos2(Xs), Pool).
+
+indicator_constraint(Cond, Cstr, Pool) :- add_pool_constraint(Cond=>Cstr, Pool).
+
+
+% Can handle only linear constraints, returns indexes
 lp_add_constraints(Handle, Cstrs, Ints, Idxs) :-
 	( nonvar(Handle), nonvar(Cstrs), nonvar(Ints) -> true ;
 	    error(4, lp_add_constraints(Handle,Cstrs,Ints,Idxs))
@@ -1622,6 +1641,7 @@ lp_add_constraints(Handle, Cstrs, Ints, Idxs) :-
         lp_add_indexed(Handle, NormCs, Ints, Idxs).
 
 
+% Can handle only linear constraints, returns indexes
 lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs) :-
 	( nonvar(Handle), nonvar(Cstrs) -> true ;
             error(4, lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs))
@@ -1684,27 +1704,55 @@ all_nonground(NormCs) :-
         ( foreach(_:[_,_|_], NormCs) do true ).
 
 
+% Add constraints of any type (linear,sos,idc) to existing Handle
+lp_add_constraints(_Handle, [], []) :- !.
 lp_add_constraints(Handle, Cstrs, Ints) :-
 	( nonvar(Handle), nonvar(Ints), nonvar(Cstrs) -> true ;
 	     error(4, lp_add_constraints(Handle,Cstrs,Ints)) 
 	),
-	normalise_cstrs(Cstrs, NormCs0, NonLin),
+	normalise_cstrs(Cstrs, NormCs0, NonLins),
 	!,
+	% analyse the nonlinear part
 	(
-	    foreach(Norm0, NormCs0),
+	    foreach(NonLin,NonLins),
+	    fromto(SOSs,SOSs1,SOSs2,[]),
+	    fromto(IDCs3,IDCs1,IDCs2,[]),
+	    fromto(NLs,NLs1,NLs2,[])
+	do
+	    ( var(NonLin) ->
+	    	SOSs1=SOSs2, IDCs1=IDCs2, NLs1 = [NonLin|NLs2]
+	    ; NonLin = sos1(_) ->
+	    	SOSs1 = [NonLin|SOSs2], IDCs1=IDCs2, NLs1=NLs2
+	    ; NonLin = sos2(_) ->
+	    	SOSs1 = [NonLin|SOSs2], IDCs1=IDCs2, NLs1=NLs2
+	    ; NonLin = (_=>_), normalise_idc(NonLin, NormIDC) ->
+	    	SOSs1=SOSs2, IDCs1 = [NormIDC|IDCs2], NLs1=NLs2
+	    ; SOSs1=SOSs2, IDCs1=IDCs2, NLs1 = [NonLin|NLs2]
+	    )
+	),
+	( NLs = [Example|_] ->
+	    printf(error, "Unknown or nonlinear constraint in lp_add_constraints/3:%n%w%n", [Example]),
+	    abort
+	;
+	    true
+	),
+	% preprocess the indicator constraints (may lead to new linear ones)
+	(
+	    foreach(IDC,IDCs3),
+	    fromto(IDCs,IDCs4,IDCs5,[]),
+	    fromto(NormCs3,NormCs2,NormCs1,NormCs0)
+	do
+	    preprocess_idc(IDC, IDCs4, IDCs5, NormCs2, NormCs1)
+	),
+	% preprocess the linear constraints
+	(
+	    foreach(Norm0, NormCs3),
 	    fromto(NormCs,NC0,NC1,[]),
 	    fromto(BoundCs,BC0,BC1,[])
 	do
 	    preprocess_norm_cstr(Norm0, NC0, NC1, BC0, BC1)
 	),
-	( foreach(NonLin,NonLins), fromto(SOSs,SOSs1,SOSs2,[]) do
-	    ( var(NonLin) -> SOSs1 = SOSs2
-	    ; NonLin = sos1(_) -> SOSs1 = [NonLin|SOSs2]
-	    ; NonLin = sos2(_) -> SOSs1 = [NonLin|SOSs2]
-	    ; SOS1s = SOSs2
-	    )
-	),
-        lp_add_normalised(Handle, NormCs, BoundCs, Ints, SOSs, _, OldInts, ChangedCols),
+        lp_add_normalised(Handle, NormCs, BoundCs, Ints, SOSs, IDCs, _, OldInts, ChangedCols),
 	wake_solver_if_needed(Handle, NormCs, OldInts, ChangedCols).
 lp_add_constraints(Handle, Cstr, Ints) :-
 	error(5, lp_add_constraints(Handle, Cstr, Ints)).
@@ -1814,12 +1862,16 @@ tr_out(lp_pending, Goals) :-
              get_typed_pool_constraints(Pool, reals of constraint_type, Reals),
 	     get_typed_pool_constraints(Pool, linear of constraint_type, NormCstrs),
 	     get_typed_pool_constraints(Pool, sos of constraint_type, SOSs),
+	     get_typed_pool_constraints(Pool, idc of constraint_type, IDCs),
              ( Integers == [] -> GsIn=Gs0 ; GsIn=[Pool:integers(Integers)|Gs0]),
 	     ( Reals == [] -> Gs0=Gs1 ; Gs0=[Pool:reals(Reals)|Gs1]),
 	     ( foreach(SOS,SOSs), fromto(Gs1,[Goal|Goal1],Goal1,Gs2), param(Pool) do
 		    Goal = Pool:SOS
 	     ),
-	     ( foreach(NormCstr,NormCstrs), fromto(Gs2,[Goal|Goal1],Goal1,GsOut), param(Pool) do
+	     ( foreach(IDC,IDCs), fromto(Gs2,[Goal|Goal1],Goal1,Gs3), param(Pool) do
+		    Goal = Pool:IDC
+	     ),
+	     ( foreach(NormCstr,NormCstrs), fromto(Gs3,[Goal|Goal1],Goal1,GsOut), param(Pool) do
 		    denormalise_cstr(NormCstr, Cstr),
 		    Goal = Pool:Cstr
 	     )
@@ -1840,7 +1892,7 @@ store_integers(NewIntegers, Tail, Pool) :-
         (get_pool_handle(Handle, Pool) -> 
              % if there is a solver store the integer constraint
              Tail = [],
-	     lp_add_normalised(Handle, [], [], NewIntegers, [], _, OldInts, _BdChgs),
+	     lp_add_normalised(Handle, [], [], NewIntegers, [], [], _, OldInts, _BdChgs),
 
              Handle = prob{suspension:Susp, nc_trigger: NCTrigger},
 	     % wake demon if a old variable is made integer
@@ -1935,13 +1987,17 @@ lp_demon_setup_body(OptExpr, Cost, Options0, TriggerModes, Handle, CallerModule)
 	     collect_typed_pool_constraints(Pool, linear of constraint_type, Cstr),
 	     collect_typed_pool_constraints(Pool, integers of constraint_type, Ints),
              collect_typed_pool_constraints(Pool, reals of constraint_type, PVars),
-             collect_typed_pool_constraints(Pool, sos of constraint_type, SOSs)
+             collect_typed_pool_constraints(Pool, sos of constraint_type, SOSs),
+             collect_typed_pool_constraints(Pool, idc of constraint_type, IDCs)
         ;
-	     Ints = [], Cstr = [], PVars = [], SOSs = []
+	     Ints = [], Cstr = [], PVars = [], SOSs = [], IDCs = []
 	),
 	append(SOSs, Options, SOSsOptions),
 	lp_setup_body(Cstr, OptExpr, [reals(PVars),integers(Ints)|SOSsOptions], 
                       Handle, CallerModule),
+	% indicator constraints not accepted by lp_setup, add now
+	lp_add_constraints(Handle, IDCs, []),
+
         % associate solver with pool (must be done after lp_setup)
 	(CollectCstrs = pool(Pool) -> lp_pool_associate_solver(Pool, Handle) ; true),
 
@@ -2186,6 +2242,28 @@ try_ground_check(NormIn, NormOut) :-
 	).
 
 
+% Filter out degenerate indicator constraints (Bool 0 or 1)
+% We do not further check the Bool variable here: must be done later.
+% May fail if Bool instantiated, but not to 0 or 1 (of any numerical type)
+preprocess_idc(IDC, IDCs, IDCs0, NormCs, NormCs0) :-
+	writeln(preprocess_idc(IDC)),
+	IDC = idc(Cpl,BoolExpr,LinNorm),
+	( var(BoolExpr) ->
+	    IDCs = [IDC|IDCs0], NormCs = NormCs0
+	;
+	    Bool is BoolExpr,		% evaluate subscripts etc
+	    ( var(Bool) ->
+		IDCs = [idc(Cpl,Bool,LinNorm)|IDCs0], NormCs = NormCs0
+	    ; Bool =:= Cpl ->		% constraint is void
+		IDCs = IDCs0, NormCs = NormCs0
+	    ; Bool =:= 1-Cpl ->		% degenerates to plain linear
+		IDCs = IDCs0, NormCs = [LinNorm|NormCs0]
+	    ;
+		fail
+	    )
+	).
+
+
     renormalise_and_check_simple([], [], []).
     renormalise_and_check_simple([Sense:Expr|Cstrs], RemCstrs, BdCstrs) :-
 	linrenorm(Expr, NormExpr0),
@@ -2263,7 +2341,10 @@ satisfied_now(Sense:Lhs, Handle) :-
 %	Also, the variables may have bounds already. The constraints are
 %	first simplified and converted into coefficients (and possibly
 %	bound updates). This data is then copied into cplex arrays.
-% lp_add - Add new constraints to an existing problem
+%
+%	Accepts normalised linear constraints, and option integers(Ints).
+%	For backward compatibility, it also accepts sos[12](Xs) options.
+%	We don't accept indicator constraints, they must be added later.
 % ----------------------------------------------------------------------
 
 :- pragma(noexpand).	% because of compiler bug
@@ -2377,7 +2458,7 @@ lp_add(Handle, Cstr, Integers) :-
         error(4, lp_add(Handle, Cstr, Integers)).
 lp_add(Handle, Cstr, Integers) :-
 	renormalise_and_check_simple(Cstr, CstrNorm, BdCstrs),
-        lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, [], _RowIdxs, _TypeChgs, _BdChgs).
+        lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, [], [], _RowIdxs, _TypeChgs, _BdChgs).
 	% don't wake here (as documented - but why?)
 
 
@@ -2406,8 +2487,8 @@ lp_add_var_triggers(Handle, AllVarsNewFirst, NAdded) :-
 % No waking is done here (but the necessary information is returned).
 % New variables get row indices, but no suspensions.
 
-% lp_add_normalised(+Handle,+CstrNorm,+BdCstrs,+Integers,+SOSs,-RowIdxs,-TypeChanges,-ChangedCols)
-lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, SOSs, RowIdxs, TypeChanges, ChangedCols) :-
+% lp_add_normalised(+Handle,+CstrNorm,+BdCstrs,+Integers,+SOSs,+IDCs,-RowIdxs,-TypeChanges,-ChangedCols)
+lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, SOSs, IDCs, RowIdxs, TypeChanges, ChangedCols) :-
 	Handle = prob{cplex_handle:CPH, solver_id:SId, 
 		     ints:ExistingInts,option_vnames:VNames},
 
@@ -2416,7 +2497,7 @@ lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, SOSs, RowIdxs, TypeChange
 	filter_new_vars(SId, Integers, NewIntegers, TypeChanges),
 	filter_new_vars_bc(SId, BdCstrs, NewBCs, OldBCs),
 	% make a list that contains at least all new variables
-        term_variables([](CstrNorm,NewBCs,NewIntegers,SOSs), Vars),
+        term_variables([](CstrNorm,NewBCs,NewIntegers,SOSs,IDCs), Vars),
 	% give indices to the new variables (OldCols..OldCols+AddedCols-1)
 	% Varlist will start with AddedCols new variables
 	filter_and_index_new_vars(Handle, Vars, VarList, _, OldCols, AddedCols),
@@ -2478,6 +2559,11 @@ lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, SOSs, RowIdxs, TypeChange
 	    cplex_change_lp_to_mip(Handle),	% backtrackable
 	    set_sos(Handle, SOSs),
 	    cplex_flush_sos(Handle)
+	),
+	( IDCs == [] -> true ;
+	    cplex_change_lp_to_mip(Handle),	% backtrackable
+	    setup_new_idcs(Handle, IDCs),
+	    cplex_flush_idcs(Handle)
 	),
 	load_varnames(VNames, AddedCols, CPH, SId, VarList),
 	lp_add_var_triggers(Handle, VarList, AddedCols).
@@ -2576,6 +2662,19 @@ setup_new_rows(CPH, SId, CType, MaxIdx, [Cstr|Cstrs], [Idx|Idxs]) :-
         (J < MaxIdx -> J0 = J ; check_original_index(Js, MaxIdx, J0)).
 
 
+setup_new_idcs(Handle, IDCs) :-
+	Handle = prob{cplex_handle:CPH,solver_id:SId},
+	% Set up indcator row data (similar to setup_new_rows)
+	( foreach(idc(Cpl,Bool,Cstr),IDCs), param(CPH,SId) do
+	    Cstr = Sense:[Cst*_|Lhs],
+	    Rhs is -Cst,
+	    CType = 0,
+	    get_first_var_index(Bool, SId, J),
+	    cplex_new_row_idc(CPH, Sense, Rhs, Cpl, J),
+	    add_row_coeffs(CPH, SId, CType, _MaxIdx, Lhs)
+	).
+
+
 % added by AE 25/10/02
 % this is for adding rows whose index in the external
 % solver we want to know for sure - when we get duals
@@ -2586,7 +2685,7 @@ lp_add_indexed(Handle, Cstr, Ints, Indices) :-
         (var(Handle) ; var(Cstr) ; var(Ints)), !,
         error(4, lp_add_indexed(Handle, Cstr, Ints, Indices)).
 lp_add_indexed(Handle, Cstr, Ints, Indices) :-
-	lp_add_normalised(Handle, Cstr, [], Ints, [], Indices, _, _).
+	lp_add_normalised(Handle, Cstr, [], Ints, [], [], Indices, _, _).
 
 
 /*  Added by AE 22/10/02
@@ -3275,7 +3374,7 @@ lp_cleanup(Prob) :-
 	
 
 % check that options is a proper list, remove and warn over obsolete options,
-% and seperate out options which applies to lp_demon_setup only
+% and separate out options which applies to lp_demon_setup only
 clean_options([], CO, _DOpts) ?- !, CO = [].
 clean_options([integers(_)|Os], COs, DOpts) ?- !,
 	writeln(warning_output, "Eplex warning: integers(...) option no longer supported (ignored)"),
@@ -3892,18 +3991,15 @@ lp_set(Param, Value) :-
 
 % lp_get(+ParameterName, -Value)  ------------------------------
 
-lp_get(optimizer, Value) :-
-	!,
-	cplex_get_param(0,-1, Value).
-lp_get(optimizer_version, Value) :- !,
-	cplex_get_param(0,-2, Value).
-lp_get(standalone, Value) :- !,
-        Value = yes.
-lp_get(presolve, Value) :- !,
-        getval(presolve_default, Value).
-lp_get(timeout, Value) :- !,
-        getval(timeout_default, Value).
-lp_get(optimizer_param(Param), Value) :-
+lp_get(optimizer, Value) ?-		!, cplex_get_param(0, -1, Value).
+lp_get(optimizer_version, Value) ?-	!, cplex_get_param(0, -2, Value).
+lp_get(has_qp, Value) ?-		!, cplex_get_param(0, -3, Value).
+lp_get(has_miqp, Value) ?-		!, cplex_get_param(0, -4, Value).
+lp_get(has_indicator_constraints, Value) ?- !, cplex_get_param(0, -5, Value).
+lp_get(standalone, Value) ?-		!, Value = yes.
+lp_get(presolve, Value) ?-		!, getval(presolve_default, Value).
+lp_get(timeout, Value) ?-		!, getval(timeout_default, Value).
+lp_get(optimizer_param(Param), Value) ?-
 	atom(Param), 
 	cplex_get_param(0, Param, Value), !.
 lp_get(Param, Value) :-
@@ -4618,7 +4714,7 @@ normalise_cstrs([C|Cs], NormLins, NonLins) :-
 	    NormLins = [Cnorm|NormLins1],
 	    normalise_cstrs(Cs, NormLins1, NonLins)
 	;
-	    NonLins = [Cnorm|NonLins1],
+	    NonLins = [C|NonLins1],
 	    normalise_cstrs(Cs, NormLins, NonLins1)
 	).
 
@@ -4639,6 +4735,16 @@ renormalise_cstrs([C|Cs], [N|Ns]) :-
 	     writeln(warning_output, "Constraint is either non-linear, or has incorrect syntax (missing brackets?)"),
              fail
         ).
+
+
+% Normalise indicator constraint, fail if invalid
+% idc(Complemented:0..1, Bool:UncheckedExpression, LinNorm:NormConstraint),
+normalise_idc(Indicator=>Lin, Norm) ?-
+	Norm = idc(Complemented, Bool, LinNorm),
+	( nonvar(Indicator), Indicator=neg(Bool) -> Complemented=1
+	; Bool=Indicator, Complemented=0
+	),
+	normalise_cstr(Lin, LinNorm).
 
 
 % ----------------------------------------------------------------------
@@ -4947,6 +5053,7 @@ create_eplex_pool(Pool) :-
             reals/1 -> reals/2,
             sos1/1 -> sos1/2,
             sos2/1 -> sos2/2,
+            (=>)/2 -> indicator_constraint/3,
             piecewise_linear_hull/3 -> piecewise_linear_hull/4,
             suspend_on_change/2 -> suspend_on_change/3,
             get_changeable_value/2 -> get_changeable_value/3,

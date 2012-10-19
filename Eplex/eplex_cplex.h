@@ -87,6 +87,10 @@ typedef char sostype_t;
 #define HAS_CONCURRENT
 #endif
 
+#if CPLEX >= 12
+#define HAS_INDICATOR_CONSTRAINTS
+#endif
+
 #if CPLEX >= 10
 /* CPLEX 10+ has more generic error for no solution state and the more general conflict set 
    rather than IIS (which is for LP only) for infeasible analyses
