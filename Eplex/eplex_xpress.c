@@ -728,7 +728,7 @@ static int
 cpx_delsos(lp_desc *lpd, int from, int to)
 {
     _grow_numbers_array(lpd, to);	/* if necessary */
-    return XPRSdelsets(lpd->lp, to-from, &lpd->numbers[from]));
+    return XPRSdelsets(lpd->lp, to-from, &lpd->numbers[from]);
 }
 
 
