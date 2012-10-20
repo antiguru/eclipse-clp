@@ -23,7 +23,7 @@
 /*
 * IDENTIFICATION	alloc.c
 *
-* VERSION		$Id: alloc.c,v 1.2 2007/07/03 00:10:25 jschimpf Exp $
+* VERSION		$Id: alloc.c,v 1.3 2012/10/20 13:16:02 jschimpf Exp $
 *
 * AUTHOR		Joachim Schimpf
 *
@@ -942,7 +942,11 @@ h_alloc(struct heap_descriptor *hd, word size)
 void
 h_free(struct heap_descriptor *hd, generic_ptr ptr)
 {
-    HEADER *h = (HEADER*) ptr - 1;
+    HEADER *h;
+    if (!ptr)
+    	return;
+
+    h = (HEADER*) ptr - 1;
     if (h->s.magic != hd->heap)
     {
 	_print("SHM: invalid header in h_free()\n");
@@ -955,8 +959,14 @@ h_free(struct heap_descriptor *hd, generic_ptr ptr)
 generic_ptr
 h_realloc(struct heap_descriptor *hd, generic_ptr ptr, word newsize)
 {
-    HEADER *h = (HEADER*) ptr - 1;
-    word oldsize = h->s.size;
+    HEADER *h;
+    word oldsize;
+
+    if (!ptr)
+	return h_alloc(hd, newsize);
+
+    h = (HEADER*) ptr - 1;
+    oldsize = h->s.size;
 
     if (h->s.magic != hd->heap)
     {
