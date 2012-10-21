@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.7 2012/10/21 12:26:46 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.8 2012/10/21 13:33:26 jschimpf Exp $
  *
  */
 
@@ -5084,6 +5084,9 @@ p_cpx_loadorder(value vlp, type tlp, value vn, type tn, value vl, type tl)
 int
 p_cpx_flush_sos(value vhandle, type thandle)
 {
+#ifdef HAS_NO_ADDSOS
+    Bip_Error(UNIMPLEMENTED);
+#else
     lp_desc *lpd; 
     untrail_data udata;
 
@@ -5106,6 +5109,7 @@ p_cpx_flush_sos(value vhandle, type thandle)
     lpd->nsos_added = lpd->nsos;
     /* could free/resize arrays here */
     Succeed;
+#endif
 }
 
 

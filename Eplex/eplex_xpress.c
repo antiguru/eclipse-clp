@@ -727,8 +727,12 @@ cpx_get_soln_state(lp_desc* lpd, struct lp_sol *sol)
 static int
 cpx_delsos(lp_desc *lpd, int from, int to)
 {
+#ifdef HAS_NO_ADDSOS
+    return UNIMPLEMENTED;
+#else
     _grow_numbers_array(lpd, to);	/* if necessary */
     return XPRSdelsets(lpd->lp, to-from, &lpd->numbers[from]);
+#endif
 }
 
 

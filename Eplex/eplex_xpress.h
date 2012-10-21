@@ -63,6 +63,9 @@ typedef char sostype_t;
 /* XPRSpostsolve is not documented and not declared in xprs.h */
 int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # endif
+# if XPRESS < 20
+#define HAS_NO_ADDSOS
+# endif
 
 # ifndef XPRESSMINOR
 #  define XPRESSMINOR 0
