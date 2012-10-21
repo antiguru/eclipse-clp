@@ -4183,7 +4183,7 @@ desc: html("
  ViolatedVars.
 </P><P>
  Under normal circumstances, if the external solver produces a solution, it 
- should produce no violations. Any violations probably indicates a problem
+ should produce no violations. Any violation probably indicates a problem
  with the external solver. However, because the external solver is a complex
  piece of software and may contain problems, it is a good idea to verify the
  solution, and this predicate provides an easy way to do this.
@@ -4218,8 +4218,8 @@ desc: html("
  for the constraint is greater than the feasibility tolerance (feasibility_tol)
  parameter for the instance. For variables, a bound is considered violated if
  the solution value falls outside the bound by more than feasibility tolerance,
- and integrarity is considered to be violated if the fractional part of the
- soltuion is greater than the integrarity parameter for the instance. 
+ and integrality is considered to be violated if the fractional part of the
+ soltuion is greater than the integrality parameter for the instance. 
 "),
  fail_if: "no solution values are available."
 ]).
@@ -4241,7 +4241,7 @@ desc: html("
  ViolatedVars.
 </P><P>
  Under normal circumstances, if the external solver produces a solution, it 
- should produce no violations. Any violations probably indicates a problem
+ should produce no violations. Any violation probably indicates a problem
  with the external solver. However, because the external solver is a complex
  piece of software and may contain problems, it is a good idea to verify the
  solution, and this predicate provides an easy way to do this.
@@ -4276,8 +4276,8 @@ desc: html("
  for the constraint is greater than the feasibility tolerance (feasibility_tol)
  parameter for the instance. For variables, a bound is considered violated if
  the solution value falls outside the bound by more than feasibility tolerance,
- and integrarity is considered to be violated if the fractional part of the
- soltuion is greater than the integrarity parameter for the instance. 
+ and integrality is considered to be violated if the fractional part of the
+ soltuion is greater than the integrality parameter for the instance. 
 "),
  fail_if: "no solution values are available."
 ]).
