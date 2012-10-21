@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.7 2012/10/19 23:52:36 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.8 2012/10/21 12:26:46 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -2246,7 +2246,6 @@ try_ground_check(NormIn, NormOut) :-
 % We do not further check the Bool variable here: must be done later.
 % May fail if Bool instantiated, but not to 0 or 1 (of any numerical type)
 preprocess_idc(IDC, IDCs, IDCs0, NormCs, NormCs0) :-
-	writeln(preprocess_idc(IDC)),
 	IDC = idc(Cpl,BoolExpr,LinNorm),
 	( var(BoolExpr) ->
 	    IDCs = [IDC|IDCs0], NormCs = NormCs0
@@ -4549,13 +4548,11 @@ set_sos(prob{cplex_handle:CPH,solver_id:SId}, SosList) :-
     set_sos_list(_CPH, _, []).
     set_sos_list(CPH, SId, [Sos|SosList]) :-
 	( Sos = sos1(Vars), clean_sos1(Vars, PureVars) ->
-	    ( PureVars = [] -> true ;
-		vars_to_cols(PureVars, SId, Cols, 0, N),
-		cplex_add_new_sos(CPH, 0'1, N, Cols)
-	    )
+	    vars_to_cols(PureVars, SId, Cols, 0, N),
+	    cplex_add_new_sos(CPH, 1, N, Cols)
 	; Sos = sos2(Vars), clean_sos2(Vars, PureVars) ->
 	    vars_to_cols(PureVars, SId, Cols, 0, N),
-	    cplex_add_new_sos(CPH, 0'2, N, Cols)
+	    cplex_add_new_sos(CPH, 2, N, Cols)
 	;
 	    printf(error, "Eplex error: error in SOS setup: %w%n", [Sos])
 	),

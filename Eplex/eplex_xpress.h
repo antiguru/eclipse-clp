@@ -81,6 +81,9 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 #define SOLVER_SENSE_GE	'G'
 #define SOLVER_SENSE_EQ	'E'
 
+#define SOLVER_SOS_TYPE1	'1'
+#define SOLVER_SOS_TYPE2	'2'
+
 # define CPX_INFBOUND			XPRS_PLUSINFINITY
 # define CPX_COL_AT_LOWER               0
 # define CPX_COL_BASIC                  1

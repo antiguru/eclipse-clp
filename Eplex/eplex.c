@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.6 2012/10/19 23:52:36 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.7 2012/10/21 12:26:46 jschimpf Exp $
  *
  */
 
@@ -5115,9 +5115,9 @@ p_cpx_flush_sos(value vhandle, type thandle)
 
 int
 p_cpx_add_new_sos(value vlp, type tlp, 
-	      value vsostype, type tsostype, 
-	      value vn, type tn,	/* member count */
-	      value vl, type tl)
+	      value vsostype, type tsostype, 	/* 1 or 2 */
+	      value vn, type tn,		/* member count */
+	      value vl, type tl)		/* member list */
 {
     lp_desc *lpd; 
     double weight;
@@ -5127,7 +5127,8 @@ p_cpx_add_new_sos(value vlp, type tlp,
     Check_Integer(tn);
 
     LpDescOnly(vlp, tlp, lpd);
-    if (vn.nint <= 0) Succeed; /* return immediately if sos set empty */
+    if (vn.nint <= vsostype.nint)
+    	Succeed; /* return immediately if sos set is trivial */
 
     /* the temporary array index of the new SOS */
     nnewsos = lpd->nsos - lpd->nsos_added;
@@ -5180,11 +5181,7 @@ p_cpx_add_new_sos(value vlp, type tlp,
 	if (!IsInteger(car->tag))
 	    { Bip_Error(TYPE_ERROR); }
 
-#ifdef GUROBI
-	lpd->sostype[i] = vsostype.nint=='1' ? GRB_SOS_TYPE1 : GRB_SOS_TYPE2;
-#else
-	lpd->sostype[i] = (sostype_t) vsostype.nint;
-#endif
+	lpd->sostype[i] = vsostype.nint==1 ? SOLVER_SOS_TYPE1 : SOLVER_SOS_TYPE2;
 	lpd->sosind[i] = (int) car->val.nint;
 	lpd->sosref[i] = weight;
 

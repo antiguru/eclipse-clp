@@ -62,6 +62,9 @@ typedef int sostype_t;
 #define SOLVER_SENSE_LE		'<'
 #define SOLVER_SENSE_GE		'>'
 #define SOLVER_SENSE_EQ		'='
+	
+#define SOLVER_SOS_TYPE1	1
+#define SOLVER_SOS_TYPE2	2
 
 #define CPX_COL_AT_LOWER	GRB_NONBASIC_LOWER
 #define CPX_COL_AT_UPPER	GRB_NONBASIC_UPPER

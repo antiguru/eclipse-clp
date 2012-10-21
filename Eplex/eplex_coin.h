@@ -140,6 +140,9 @@ typedef char sostype_t;
 #define SOLVER_SENSE_GE	'G'
 #define SOLVER_SENSE_EQ	'E'
 
+#define SOLVER_SOS_TYPE1	'1'
+#define SOLVER_SOS_TYPE2	'2'
+
 # define CPX_COL_AT_LOWER                   3
 # define CPX_COL_BASIC                      1
 # define CPX_COL_AT_UPPER                   2
