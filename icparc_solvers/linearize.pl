@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: linearize.pl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: linearize.pl,v 1.3 2012/10/21 01:04:43 jschimpf Exp $
 %
 % Description:		Expression simplifier
 %
@@ -64,7 +64,7 @@
 :- comment(categories, ["Data Structures"]).
 :- comment(summary, "Normalizers for arithmetic expressions").
 :- comment(author, "Joachim Schimpf, IC-Parc").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2012/10/21 01:04:43 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- export
@@ -363,46 +363,7 @@ linearize(E, C0, C, L, L0, R, R0, Mod) :-
 
 linrenorm(Lin, LinNorm) :-
 	sort(2, >=, Lin, LinSorted),
-	collapse_terms(LinSorted, LinNorm),
-	( LinNorm=[Rhs*One|_], number(Rhs), One==1 -> true
-	; writeln(error, "Error in linrenorm/2"), abort ). 
-
-
-collapse_terms([], []).
-collapse_terms([X|Xs], R) :-
-	collapse_terms(X, Xs, R).
-
-collapse_terms(X, Xs, Res) :-
-	X = F*V,
-	( var(V) ->
-	    % `not F =\= 0' is like `F =:= 0' except it fails for bounded reals
-	    % which span 0 rather than setting up a delayed goal.
-	    ( not F =\= 0 ->
-		collapse_terms(Xs, Res)
-	    ;
-		collapse_terms1(X, Xs, Res)
-	    )
-	; number(V) ->
-	    collapse_terms1(X, Xs, Res)
-	;
-	    writeln(error, "Non-numeric term in linrenorm/2"),
-	    abort 
-	).
-
-collapse_terms1(Any, [], [Any]).
-collapse_terms1(F1V1, [F2V2|More], Res) :-
-	F2V2 = F2*V2,	% writing these 2 unification in the other order
-	F1V1 = F1*V1,	% triggers a compiler bug (indexing on arg 1...)
-	( number(V1), number(V2) ->
-	    F is F1*V1+F2*V2,
-	    collapse_terms(F*1, More, Res)
-	; V1 == V2 ->
-	    F is F1+F2,
-	    collapse_terms(F*V1, More, Res)
-	;
-	    Res = [F1V1|Res0],
-	    collapse_terms(F2V2, More, Res0)
-	).
+	sepia_kernel:collapse_linear(LinSorted, LinNorm).
 
 
 % ----------------------------------------------------------------------

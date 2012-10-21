@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.14 2012/09/23 10:51:50 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.15 2012/10/21 01:02:46 jschimpf Exp $
  */
 
 /*
@@ -387,6 +387,11 @@ p_is_zero(value v, type t)
 }
 
 
+/*
+ * collect(+LinNormExpr, -LinNornSimplified, -ZeroVars)
+ * This was for library(r) and is pretty much obsolete.
+ */
+
 #define OFF_C	0
 #define OFF_V	1
 
@@ -538,6 +543,174 @@ p_collect(value vin, type tin, value vout, type tout, value vzero, type tzero)
     err = TYPE_ERROR;
 _error_:
     /* may have to pop incomplete junk on the stack */
+    Bip_Error(err);
+}
+
+
+/*
+ * collapse_linear(+LinDenormalSorted, -LinNormalised)
+ *
+ * The linear normal form is [C0*1,C1*X1,...,Cn*Xn] with numbers Ci and
+ * variables Xi.  The Ci are nonzero for i>0, and the Xi are distinct.
+ * The C0*1 term is always present.
+ *
+ * Our input is expected to be denormalised due to variable instantiation
+ * and var-var bindings.  But it is expected to have been sorted using
+ * sort(2, >=, LinDenormal, LinDenormalSorted).  I.e. there may be several
+ * constant terms in the front (but not necessarily starting with C0*1),
+ * and sequences of terms with identical variables.
+ *
+ * This is a bit elaborate because we try to reuse parts of the input:
+ *	- the whole tail of the input list that remains unchanged
+ *	- the singleton monomial terms Ci*Xi
+ * This should reduce garbage collection time for large applications.
+ */
+
+#define OFF_CONST 1
+#define OFF_VAR 2
+#define SIZE_MONO 3
+#define SIZE_LIST 2
+
+static int
+p_collapse_linear(value vin, type tin, value vout, type tout)
+{
+    pword *in_tail, *out_tail;
+    pword *seq_mono, *seq_var, seq_coeff;
+    pword *in_reuse_tail, *out_reuse_tail, *reuse_tg = TG;
+    pword in_list, out_list, unit_var;
+    pword *old_tg = TG;
+    int err;
+
+    Check_List(tin);
+    in_list.val = vin;
+    in_list.tag = tin;
+    in_tail = in_reuse_tail = &in_list;
+    out_tail = out_reuse_tail = &out_list;
+    Make_Integer(&seq_coeff, 0);
+    Make_Integer(&unit_var, 1);
+    seq_var = &unit_var;
+    seq_mono = 0;
+
+    for(;;)
+    {
+	pword *cur_mono, *cur_var, *cur_coeff;
+	pword *cur_tail = in_tail;
+
+	if (IsNil(in_tail->tag))
+	{
+	    cur_mono = 0;
+	}
+	else if (!IsList(in_tail->tag))
+	{
+	    err = IsRef(in_tail->tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
+	    goto _error_;
+	}
+	else
+	{
+	    /* read next input list element */
+	    pword *pw = in_tail->val.ptr;
+	    in_tail = &pw[1];
+	    Dereference_(in_tail);
+
+	    /* read the monomial Coeff*VarOrConst */
+	    Dereference_(pw);
+	    if (!IsStructure(pw->tag))
+	    {
+		err= IsRef(pw->tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
+		goto _error_;
+	    }
+	    cur_mono = pw->val.ptr;
+	    if (cur_mono->val.did != d_.times)
+	    {
+		err=TYPE_ERROR;
+		goto _error_;
+	    }
+	    cur_coeff = &cur_mono[OFF_CONST];
+	    Dereference_(cur_coeff);
+	    cur_var = &cur_mono[OFF_VAR];
+	    Dereference_(cur_var);
+
+	    if (!IsRef(cur_var->tag)) /* still part of the constant sequence */
+	    {
+		pword product;
+		if (seq_var != &unit_var)
+		{
+		    err = RANGE_ERROR;
+		    goto _error_;	/* malformed: constant after var */
+		}
+		err = bin_arith_op(cur_coeff->val, cur_coeff->tag,
+			    cur_var->val, cur_var->tag, &product, ARITH_MUL);
+		if (err != PSUCCEED) goto _error_;
+		err = bin_arith_op(product.val, product.tag,
+			    seq_coeff.val, seq_coeff.tag, &seq_coeff, ARITH_ADD);
+		if (err != PSUCCEED) goto _error_;
+		seq_mono = 0;	/* not reusable */
+		continue;
+
+	    }
+	    else if (cur_var == seq_var) /* still part of a variable sequence */
+	    {
+		err = bin_arith_op(cur_coeff->val, cur_coeff->tag,
+			seq_coeff.val, seq_coeff.tag, &seq_coeff, ARITH_ADD);
+		if (err != PSUCCEED) goto _error_;
+		seq_mono = 0;	/* not reusable */
+		continue;
+	    }
+	    /* start of a new sequence */
+	}
+
+	/* emit new monomial if necessary (no vars with zero coeffs!) */
+	if (seq_var != &unit_var && p_is_zero(seq_coeff.val, seq_coeff.tag) == PSUCCEED)
+	{
+	    /* an element was dropped: can't reuse earlier input list */
+	    in_reuse_tail = cur_tail;
+	    out_reuse_tail = out_tail;
+	    reuse_tg = TG;
+	}
+	else
+	{
+	    pword *pw = TG;
+	    TG += SIZE_LIST;
+	    Make_List(out_tail, pw);
+	    out_tail = &pw[1];
+	    if (seq_mono)
+	    {
+		Make_Struct(&pw[0], seq_mono);	/* reuse the old mono */
+	    }
+	    else
+	    {
+		Make_Struct(&pw[0], TG);	/* make new Coeff*VarOr1 */
+		pw = TG;
+		TG += SIZE_MONO;
+		pw->val.did = d_.times;
+		pw->tag.kernel = TDICT;
+		pw[OFF_CONST] = seq_coeff;
+		pw[OFF_VAR] = *seq_var;
+		
+		/* elements were collapsed: can't reuse earlier input list */
+		in_reuse_tail = cur_tail;
+		out_reuse_tail = out_tail;
+		reuse_tg = TG;
+	    }
+	    Check_Gc;
+	}
+	if (!cur_mono)	/* finished! */
+	    break;
+
+	/* init next sequence */
+	seq_mono = cur_mono;
+	seq_var = cur_var;
+	seq_coeff = *cur_coeff;
+    }
+
+    /* Reuse usable tail of input list, discard already constructed copy */
+    *out_reuse_tail = *in_reuse_tail;
+    TG = reuse_tg;
+
+    Return_Unify_Pw(vout, tout, out_list.val, out_list.tag);
+
+_error_:
+    TG = old_tg;
     Bip_Error(err);
 }
 
@@ -1991,6 +2164,7 @@ bip_arith_init(int flags)
 		BoundArg(3, NONVAR);
 
     (void) exported_built_in(in_dict("collect", 3), p_collect,	B_UNSAFE);
+    (void) exported_built_in(in_dict("collapse_linear", 2), p_collapse_linear,	B_UNSAFE);
     (void) b_built_in(in_dict("between", 4), p_between, d_.kernel_sepia);
 
     (void) built_in(in_dict("+", 2),	p_uplus, B_UNSAFE|U_SIMPLE);
