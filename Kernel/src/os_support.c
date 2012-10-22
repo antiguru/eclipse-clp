@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.14 2012/01/17 01:06:33 jschimpf Exp $
+ * $Id: os_support.c,v 1.15 2012/10/22 21:11:26 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -575,10 +575,10 @@ expand_filename(char *in, char *out, int option)
     char *root, *inp = in, *outp = out;
     char *dir = (char *) 0;
     char aux1[MAX_PATH_LEN], *aux1p = 0;
-    char *aux1_last = &aux1[MAX_PATH_LEN-1];
+    const char *aux1_last = &aux1[MAX_PATH_LEN-1];
     char aux[MAX_PATH_LEN], *auxp = 0;
-    char *aux_last = &aux[MAX_PATH_LEN-1];
-    char *out_last = outp+MAX_PATH_LEN-1;
+    const char *aux_last = &aux[MAX_PATH_LEN-1];
+    const char *out_last = outp+MAX_PATH_LEN-1;
 
     /* When not using the process's cwd, we MUST use absolute paths */
     if (option == EXPAND_STANDARD && ec_use_own_cwd)
@@ -629,13 +629,16 @@ expand_filename(char *in, char *out, int option)
 #endif
 	break;
     case '$':
-	++inp;
-	auxp = aux;
-	Str_Cpy_Until(auxp, inp, '/', aux_last);
-	*auxp = '\0';
-	dir = getenv(aux);
-	if (dir && strlen(dir) < MAX_PATH_LEN)
-	    aux1p = canonical_filename(dir, aux1);  /* make sure it is in ECLiPSe format */
+	{
+	    int size = MAX_PATH_LEN;
+	    ++inp;
+	    aux1p = aux1;
+	    Str_Cpy_Until(aux1p, inp, '/', aux1_last);
+	    *aux1p = '\0';
+	    if (ec_env_lookup(aux1, aux, &size) && size <= MAX_PATH_LEN)
+		aux1p = canonical_filename(aux, aux1);  /* make sure it is in ECLiPSe format */
+	    else aux1p = 0;
+	}
 	break;
     }
 
