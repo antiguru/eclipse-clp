@@ -35,6 +35,7 @@
 	timestamp_init/2,
         timestamp_update/2,
 	timestamp_age/3,
+        timestamp_older/4,
 	request_fail_event/3 
    from sepia_kernel.
 
@@ -50,7 +51,7 @@
 :- export (#\=)/2, (#=)/2, (#<)/2, (#>)/2, (#>=)/2, (#=<)/2.
 :- export (#\=)/3, (#=)/3, (#<)/3, (#>)/3, (#>=)/3, (#=<)/3.
 
-:- export plus/3, mult/3, divide/3, mod/3, divmod/4, 
+:- export mult/3, divide/3, mod/3, divmod/4, 
           abs/2, sqr/2, sqrt/2.
 :- export minlist/2, maxlist/2, sum/2, max/2, min/2, max/3, min/3.
 :- export sum/3, sum/4, scalar_product/4, scalar_product/5.
@@ -77,9 +78,11 @@
 :- export sequence/5, sequence/4, bin_packing/3, bin_packing_g/3, bin_packing/4.
 :- export table/2, table/3, extensional/4, regular/2.
 
-:- export labeling/1, indomain/1, indomain/2, delete/5.
+:- export labeling/3, labeling/1, indomain/1, indomain/2, delete/5.
 :- export is_in_domain/2, is_in_domain/3.
 :- export search/6.
+:- export gfd_update/0.
+
 :- export (and)/2, (or)/2, (xor)/2, (<=>)/2, (=>)/2, neg/1.
 :- export (and)/3, (or)/3, (xor)/3, (<=>)/3, (=>)/3, neg/2.
 
@@ -336,6 +339,7 @@ gfd_handle_tr_out(gfd_prob{nvars:N},gfd_prob(nvars(N))).
 :- local struct(options(interval_min,
                         interval_max,
                         array_size,
+                        events_max,
                         cloning_distance)
                ).
 
@@ -343,15 +347,18 @@ valid_option_field(interval_min, interval_min of options).
 valid_option_field(interval_max, interval_max of options).
 valid_option_field(array_size,   array_size of options).
 valid_option_field(cloning_distance, cloning_distance of options).
+valid_option_field(events_max, events_max of options).
 
 valid_option_value(interval_min, Min) :- integer(Min), Min >= gfd_minint.
 valid_option_value(interval_max, Max) :- integer(Max), Max =< gfd_maxint.
 valid_option_value(array_size, Size) :- integer(Size), Size > 0.
 valid_option_value(cloning_distance, D) :- integer(D), D > 0.
+valid_option_value(events_max, Max) :- integer(Max), Max > 0.
 
 default_options(options{interval_min: -1000000,
                         interval_max:  1000000,
                         array_size: 100,
+                        events_max: 2000,
                         cloning_distance: 2}
                ).
 
@@ -377,6 +384,9 @@ gfd_set_default(Option, Value) :-
         ; Option == interval_min ->
             gfd_get_default(interval_min, Min),
             compile_term(gfd_default_interval(Min,Value))
+        ; Option == events_max ->
+            gfd_get_default(events_max, EMax),
+            compile_term(events_max(EMax))
         ;                
             true
         ).
@@ -384,6 +394,8 @@ gfd_set_default(Option, Value) :-
 
 ?- gfd_get_default(cloning_distance, Dist),
    compile_term(cloning_distance(Dist)),
+   gfd_get_default(events_max, EMax),
+   compile_term(events_max(EMax)),
    gfd_get_default(interval_min, Min),
    gfd_get_default(interval_max, Max),
    compile_term(gfd_default_interval(Min, Max)).
@@ -3280,6 +3292,7 @@ scalar_product_body1(Cs, Xs, Rel0, P, CArray, GArray, GP, Rel, H, NV0,NV) :-
 scalar_product(Cs, Xs, Rel, P, Bool) :-
         scalar_product_reif_c(Cs, Xs, Rel, P, Bool, default).
 
+
 scalar_product_reif_c(Cs, Xs, Rel, P, Bool, ConLev) :-
 	get_prob_handle_nvars(H, NV0),
 	scalar_product_reif_event1(Cs, Xs, Rel, P, Bool, ConLev, H,
@@ -3311,19 +3324,15 @@ scalar_product_reif_event1(Cs, Xs, Rel0, P, Bool, ConLev, H, NV0,NV, Bs0,Bs, Eve
 	Event = post_lin_reif(ConLev, GArray, CArray, Rel, GP, GBool).
 
 
-plus(X, Y, Sum) :-
-     plus_c(X, Y, Sum, default).
-
-plus_c(X, Y, Sum, ConLev) :-
+% X #= Y + C => X - Y #= C
+ac_eq(X, Y, C) :-
+        integer(C),
         get_prob_handle_nvars(H, NV0),
-        ec_to_gecode_varlist1([Sum,X,Y], H, NV0,NV, [GSum|GXY], _),
+        ec_to_gecode_varlist1([X,Y], H, NV0,NV, GXY, _),
         GArray =.. [[]|GXY],
         !,
         update_gecode_with_default_newvars(H, NV0, NV),
-        post_new_event(post_sum(ConLev, GArray, (#=), GSum), H).
-plus_c(X, Y, Sum, _ConLev) :-
-        get_bip_error(E),
-        error(E, plus(X, Y, Sum)).
+        post_new_event(post_lin(gfd_gac, GArray, [](1,-1), (#=), C), H).
 
 
 sqrt(X, Y) :-
@@ -3835,8 +3844,23 @@ check_regexp(_, _) :-
 
                           
 %------------------------------------------------------------------------
-% Events
+% Events and clone management
 
+gfd_update :-
+        get_prob_handle(H),
+        timestamp_age(H, cp_stamp of gfd_prob, Age),
+        (Age == old ->
+            % do nothing if new clone will be created at next anyway
+            true  
+        ;
+            restore_space_if_needed(H, _SpH),
+            H = gfd_prob{nevents:NE, space:Current, last_anc: Anc},
+            ( NE == 0 ->
+                true % don't update if there are no changes
+            ;
+                replace_last_ancestor(H, Current, Anc)
+            )
+        ).
 
 update_space_with_events(H) :-
         H = gfd_prob{events:Es,space:gfd_space{handle:SpH}},
@@ -3917,6 +3941,7 @@ propagate_gecode_changes(SpH, VArr, InstList, ChgList) :-
         ;
             ( foreach(CIdx, ChgList), param(VArr) do
                 arg(CIdx, VArr, U),
+                notify_constrained(U),
                 get_gecode_attr(U, Attr),
                 % assuming only one single problem, otherwise need H
                 schedule_suspensions(any of gfd, Attr)
@@ -3963,7 +3988,7 @@ check_and_update_ancestors(H) :-
                 % this may not be the case if propagation has been delayed
                 ( NE >= cloning_distance  ->
                     do_update_ancestor(H, Current)
-                ; E == update ->
+                 ; E == update ->
                     do_update_ancestor(H, Current)
                 ;
                     true
@@ -3974,21 +3999,33 @@ check_and_update_ancestors(H) :-
             timestamp_update(H, cp_stamp of gfd_prob)
         ;
             H = gfd_prob{nevents:NE, space:Current, last_anc: Anc},
-            ( NE > 2000 ->
-                ( g_state_is_stable(Current) ->
-                    do_update_ancestor(H, Current),
-                    ( Anc = gfd_space{handle:ASpH} ->
-                        g_delete(ASpH)
-                    ;
-                        true % no old ancestor to delete
-                    )
-                ;
-                    true
-                )
+            ( NE > events_max ->
+                replace_last_ancestor(H, Current, Anc)
             ;
                 true
             )
         ).
+
+
+% create new ancestor, replacing last ancestor if possible
+% this is to reduce amount of subsequent recomputation 
+replace_last_ancestor(H, Current, Anc) :-
+        ( g_state_is_stable(Current) ->
+            do_update_ancestor(H, Current),
+            ( Anc = gfd_space{handle:ASpH} ->
+                ( timestamp_older(Anc, stamp of gfd_space, 
+                                  Current, stamp of gfd_space) ->
+                    true 
+                ;
+                    g_delete(ASpH) % old ancestor replaced and can be deleted
+                )
+            ;
+                true % no old ancestor to delete
+            )
+        ;
+            true
+        ).
+
 
 % clone the current space and make it the last ancestor
 do_update_ancestor(H, Current) :-
@@ -4297,10 +4334,27 @@ indomain(V, I) ?-
 
 labeling(Vars) :-
         check_collection_to_list(Vars, List), !,
+        gfd_update,
         ( foreach(Var, List) do do_indomain_min(Var) ).
 labeling(Vars) :-
         error(5, labeling(Vars)).
 
+labeling(Vars, Select, Choice) :-
+        check_collection_to_list(Vars, List), !,
+        gfd_update,
+        labeling1(List, Select, Choice).
+labeling(Vars, Select, Choice) :-
+        error(5, labeling(Vars, Select, Choice)).
+
+
+labeling1(Vs, Select, Choice) :-
+        ( Vs == [] ->
+            true
+        ;
+            delete(V, Vs, Rest, 0, Select),
+            indomain(V, Choice),
+            labeling1(Rest, Select, Choice)
+        ).
 
 do_indomain_min(I) :- integer(I), !.
 do_indomain_min(V{gfd:Attr}) ?-
@@ -5455,7 +5509,6 @@ gfd_minint(X) :-
       '<=>'/3 -> '<=>_reif_c'/4,
       '=>'/3 -> '=>_reif_c'/4, */
       abs/2 -> abs_c/3,
-      plus/3 -> plus_c/4,
       mult/3 -> mult_c/4,
       sqr/2 -> sqr_c/3,
       sqrt/2 -> sqrt_c/3,
@@ -5557,7 +5610,6 @@ gfd_minint(X) :-
       '<=>'/3 -> '<=>_reif_c'/4,
       '=>'/3 -> '=>_reif_c'/4,
       abs/2 -> abs_c/3,
-      plus/3 -> plus_c/4,
       mult/3 -> mult_c/4,
       divide/3 -> div_c/4,
       mod/3 -> mod_c/4,

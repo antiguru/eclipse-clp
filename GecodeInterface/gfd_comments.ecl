@@ -1408,14 +1408,91 @@ B = B{[0, 2, 4, 6]}
 <PRE>
 	labeling(Vars) :-
 		collection_to_list(Vars, List),
+                gfd_update,
 		( foreach(Var,List) do
 		    indomain(Var,min)
 		).
 </PRE></P>
    Note that labeling perform the search in ECLiPSe, but it uses
-   indomain/2 with min, which is optimised for use with gecode. 
+   indomain/2 with min, which is optimised for use with Gecode, and a 
+   gfd_update before the labeling starts to ensure that no recomputation
+   will not be done for events before the labeling starts.
 </P><P>
    This predicate is also defined for IC and FD solvers in lib(ic) and lib(fd).
+")
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(labeling/3, [
+    amode: labeling(+,+,+),
+    args: [
+    	"Vars": "A collection (a la collection_to_list/2) of integer IC variables or integers",
+      "Select" :  "a predefined variable selection method.",
+      "Choice" :  "a predefine value choice method "
+          ],
+    resat: "Yes.",
+    summary: "Instantiates all variables in a collection to elements"
+             " of their domains according to Select and Choice.",
+    see_also: [indomain/2, delete/5,labeling/1, collection_to_list/2],
+    kind: [search],
+    desc: html("<P>
+   Simple predicate for instantiating a collection of GFD domain variables
+   to elements of their domains.  (Integers are also allowed in the
+   collection; they are effectively ignored.)  The order the variables are
+   instantiated is according to Select, and the value a variable is 
+   instantiated to is according to Choice.
+</P><P>
+   This predicate is a combination of delete/5 and indomain/2, along with
+   a gfd_update before the start of labeling to ensure that only
+   changes during the labeling will be recomputed. 
+</P><P>
+   This predicate is provided to allow a more flexible GFD-specific 
+   labeling procedure where the search is performed in ECLiPS -- 
+   GFD's search/6 performs the search in Gecode, and search/6 in
+   lib(gfd_search) uses the generic search code and does not use
+   GFD-specific features (and will thus be less efficient). 
+</P><P>
+   This predicate is not defined for IC and FD solvers in lib(ic) and lib(fd).
+")
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(gfd_update/0, [
+        summary: "Update the parent Gecode space to the current"
+                 " state.",
+        resat: "No.",
+        desc: html("<P>
+   This is a low-level primitive that updates (if needed) the parent cloned
+   Gecode space to the current state. The parent clone is from where
+   recomputation is performed, so updating the parent will reduce the
+   amount of recomputation done during subsequent backtracking. Note 
+   that the old parent is discarded and replaced by the updated parent.
+</P><P>
+   GFD handles the cloning of Gecode spaces automatically, and the user
+   does not normally have to deal with cloning explicitly. However, if
+   the cloning distance is set very high, so that the system does
+   mostly recomputation instead of copying from clones, it is possible
+   for GFD performance to suffer significantly if the changes to set-up
+   a problem before the search has to be recomputed. This problem does
+   not occur in Gecode when using Gecode's search engine, because the space
+   is always cloned before the start of the search. As the search in
+   ECLiPSe is not normally distinguished from the model setup, GFD
+   cannot automatically ensure that the space is cloned before the
+   start of search (if the search is performed in ECLiPSe). 
+</P><P>
+   The update is only done if the changes to Gecode state since the parent
+   is deterministic, as otherwise the parent cannot be replaced as the 
+   backtracking might alter some of the changes. Also, the update is
+   not done if the parent have not changed.
+</P><P>
+   The intented use for this predicate is just before the search
+   starts in the user's program, if the search is performed in ECLiPSe. 
+   Note that gfd_update is included in GFD's labeling/1 and labeling/3, 
+   and so if you use these, you do not need to use gfd_update. Also, this 
+   predicate will only be useful if the cloning distance is set very high,
+   and with default settings it should not be needed.
 ")
 ]).
 
@@ -1964,36 +2041,6 @@ X = 3
    is available via the more general posting of expressions.</P>
 "),
     see_also: [max/3]
-]).
-
-%---------------------------------------------------------------------
-
-:- comment(plus/3, [
-    summary:"Constrains Z to X + Y.",
-    template: "<ConsistencyModule:> plus(?X,?Y,?Z)",
-    amode:plus(?,?,?),
-    args:[
-        "X":"An integer or domain variable",
-        "Y":"An integer or domain variable",
-        "Z":"An integer or domain variable"
-    ],
-    kind: [constraint],
-    desc:html("\
-   Constrains Z to be the the sum of X and Y (X+Y). 
-   </P><P> 
-   You may find it more convenient to embed <TT>X+Y</TT> in a
-   constraint expression, but the cost of posting <TT>plus(X,Y,Z)</TT> is
-   likely to be cheaper if X and Y are integers or domain variables.
-   </P><P> 
-   ConsistencyModule is the optional module specification to give the 
-   consistency level for the propagation for this constraint: 
-   gfd_bc for bounds consistency, and gfd_gac for domain (generalised 
-   arc) consistency. 
-</P><P>
-   This constraint is not defined for IC and FD solvers, but the functionality 
-   is available via the more general posting of expressions.</P>
-"),
-    see_also: [mult/3,divide/3,mod/3]
 ]).
 
 %---------------------------------------------------------------------
@@ -6089,7 +6136,7 @@ E = E{[-1000000 .. 1000000]}
  value in Collection",
     amode:precede(++,+),
     args:[
-	"Value": "Collection of integers",
+	"Values": "Collection of integers",
 	"Collection":"Collection of integers or domain variables"
     ],
     kind: [constraint:[extra:[gccat:int_value_precede_chain]]],
@@ -7543,6 +7590,8 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
           one. Distance is a measure of such points, so a distance of 1 is 
           the minimal distance where a clone may be needed. (positive 
           integer).</li>
+    <li><b>events_max</b>
+          Maximum number of events before a new parent clone is created. (integer).</li>
 </ul>")]
 ).
 
