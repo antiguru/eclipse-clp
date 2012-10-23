@@ -75,8 +75,11 @@ cpx_prepare_solve(lp_desc* lpd, struct lp_meth *meth,
     if (timeout >= 0.0)
     {
 	/* 0 is no timeout, negative for desired semantics */
-	Log1(XPRSsetintcontrol(lpd->lp, XPRS_MAXTIME, %d), - (int)timeout);
-	XPRSsetintcontrol(lpd->lp, XPRS_MAXTIME, - (int)timeout);
+	int timeout_i;
+	timeout = ceil(timeout);	/* avoid round to zero and overflow */
+	timeout_i = timeout > INT_MAX ? INT_MAX : (int)timeout;
+	Log1(XPRSsetintcontrol(lpd->lp, XPRS_MAXTIME, %d), -timeout_i);
+	XPRSsetintcontrol(lpd->lp, XPRS_MAXTIME, -timeout_i);
     }
 
     /* meth, auxmeth, node_meth are kept upto-date as they may be required

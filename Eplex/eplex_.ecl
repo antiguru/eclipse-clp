@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.8 2012/10/21 12:26:46 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.9 2012/10/23 02:21:55 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -2513,7 +2513,7 @@ lp_add_normalised(Handle, CstrNorm, BdCstrs, Integers, SOSs, IDCs, RowIdxs, Type
 	set_initial_bounds(CPH, SId, NewBCs),	% may fail
 
 	% update bounds on old variables
-	update_bounds(Handle, SId, OldBCs, ChangedCols),	% may fail
+	update_bounds(Handle, OldBCs, ChangedCols),	% may fail
 
 	( Integers == [] -> true ;
 	    % we need to change problem type first before adding
@@ -3432,9 +3432,8 @@ process_option(mip_use_copy(yes), _Handle, Temp) ?- !,
         setarg(use_copy of temp_prob, Temp, 1).
 process_option(mip_use_copy(no), _Handle, Temp) ?- !,
         setarg(use_copy of temp_prob, Temp, 0).
-process_option(integers(Integers), Handle, _) ?-
-	is_list_or_nil(Integers), !,
-	term_variables(Integers, Ints),
+process_option(integers(Ints), Handle, _) ?-
+	is_list_or_nil(Ints), !,
 	Handle = prob{ints:Ints}.
 process_option(reals(Vars), _Handle, Temp) ?-
 	is_list_or_nil(Vars), !,
@@ -4477,8 +4476,11 @@ set_type_integer(CPH, SId, [X|Xs]) :-
               cplex_get_col_bounds(CPH, J, Lo, Hi),
               type_to_cplex_type(integer, Lo, Hi, TypeCode),
               cplex_init_type(CPH, J, TypeCode)
-	;
+	; var(X) ->
               printf(warning_output, "Eplex warning: integer variable not a problem variable (ignored): %mVw%n", [X])
+	;
+	      % nonvar: make sure it's sufficiently integral
+	      abs(round(X) - X) =< cplex_get_param(CPH, integrality)
 	),
 	set_type_integer(CPH, SId, Xs).
 
@@ -4493,15 +4495,15 @@ set_initial_bounds(CPH, SId, [Sense:[Cst*_,C*X]|BdCstrs]) ?-
 
 % Update bounds for old variables from one-variable constraints.
 % Return list of changed columns.
-update_bounds(_, _, [], []).
-update_bounds(Handle, SId, [Sense:[Cst*_,C*X]|BdCstrs], CCs) ?-
+update_bounds(_, [], []).
+update_bounds(Handle, [Sense:[Cst*_,C*X]|BdCstrs], CCs) ?-
 	Bound is float(-Cst/C),
 	swap_sense(C, Sense, Sense1),
 	get_lp_attr(X, Handle, Attr),
 	Attr = eplex{idx: [I|_]},	%%% enough?
 	impose_col_bounds(Handle, Attr, I, Bound, Changed, Sense1),
 	( Changed==1 -> CCs = [I|CCs1] ; CCs=CCs1 ),
-	update_bounds(Handle, SId, BdCstrs, CCs1).
+	update_bounds(Handle, BdCstrs, CCs1).
 
 % synchronise bounds if requested
 sync_bounds_mat(yes, Vars, Handle, CPH) :-

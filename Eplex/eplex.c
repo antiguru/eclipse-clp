@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.8 2012/10/21 13:33:26 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.9 2012/10/23 02:21:55 jschimpf Exp $
  *
  */
 
@@ -105,9 +105,8 @@ __eprintf (format, file, line, expression)
 #endif
 
 
-#ifndef HUGE_VAL
+# include <limits.h>
 # include <math.h>
-#endif
 
 #if defined(LOG_CALLS) 
 # define USE_PROBLEM_ARRAY
@@ -4036,7 +4035,6 @@ p_cpx_loadprob(value vlp, type tlp)
     {
 # ifdef HAS_QUADRATIC
 	int i;
-# ifdef CPLEX
 #  ifdef HAS_MIQP
 	int ptype = (lpd->prob_type == PROBLEM_QP ? CPXPROB_QP : CPXPROB_MIQP);
 #  else
@@ -4048,6 +4046,7 @@ p_cpx_loadprob(value vlp, type tlp)
 	    if (err != 0)
 	    { Bip_Error(EC_EXTERNAL_ERROR); }
 	}
+# ifdef CPLEX
 	for (i=0; i<lpd->cb_cnt; ++i)
 	{
 	    Log3(CPXchgqpcoef(cpx_env, lpd->lp, %d, %d, %f),
