@@ -28,7 +28,7 @@
 :- comment(summary, "Mapping from FlatZinc to lib(fd) and lib(fd_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2010/07/25 13:29:05 $").
+:- comment(date, "$Date: 2012/10/23 00:38:15 $").
 :- comment(see_also, [library(flatzinc),
 	library(fd),library(fd_sets),library(fd_global),
 	library(propia),library(branch_and_bound)]).
@@ -51,7 +51,7 @@ The following extra annotations are supported by this mapping:
     are \"continue\", \"restart\", \"dichotomic\", See bb_min/3.</DD>
 <DT>annotation delta(float:f)</DT>
     <DD>minimal absolute improvement for branch-and-bound steps (default 1.0).
-    See bb_min/3./DD>
+    See bb_min/3.</DD>
 <DT>annotation factor(float:f)</DT>
     <DD>minimal improvement ratio (with respect to the lower cost bound)
     for strategies 'continue' and 'restart' (default 1.0), or split factor
@@ -294,6 +294,10 @@ array_var_int_element(I, Array, E) :- array_any_element(I, Array, E).
 
 % Coercion operations -----------------------------------------------
 
+% This is only useful for float-typed annotations,
+% as lib(fd) cannot handle floats elsewhere.
+int2float(I, F) :- ( var(I) -> F=I ; F is float(I) ).
+
 bool2int(X, X).
 
 
@@ -305,7 +309,13 @@ bool_fzn_to_solver(true, 1).
 bool_solver_to_fzn(0, false).
 bool_solver_to_fzn(1, true).
 
-float_solver_to_fzn(_, _) :- fail.
+% This is only useful for float-typed annotations,
+% as lib(fd) cannot handle floats elsewhere.
+float_fzn_to_solver(X, F) :- F is float(X).
+
+% should never be needed
+float_solver_to_fzn(X, X) :- real(X).
+
 
 % Set constants are ordered lists in fd_sets
 set_fzn_to_solver(List, Set) :- eclipse_language:sort(List, Set).

@@ -25,7 +25,7 @@
 
 :- module(minizinc).
 
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2012/10/23 00:38:15 $").
 :- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Utilities for using MiniZinc with ECLiPSe").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
@@ -109,7 +109,7 @@ ECLiPSe strings, the backslashes had to be doubled!
 Installation
 </H3>
 <P>
-This version is intended to to work with Minizinc 1.0 or later!
+This version is intended to to work with Minizinc 1.1 or later!
 <P>
 In order to be found by lib(minizinc), the Melbourne Minizinc-to-Flatzinc
 converter mzn2fzn must be installed in a directory called <CODE>minizinc-&lt;version&gt;</CODE>
@@ -128,8 +128,9 @@ for Linux):
 <LI>Directory specified by <CODE>$PROGRAMFILES</CODE> environment variable</LI>
 </OL>
 <P>
-For MiniZinc on Windows, it may be necessary to copy a cygwin1.dll into
-the MiniZinc distribution's bin/private folder.
+You can also set the environment variable ECLIPSEMZN (on Windows alternatively
+the registry entry HKLM/SOFTWARE/IC-Parc/Eclipse/<version>/ECLIPSEMZN)
+to the Minizinc installation directory (or to its parent).
 
 
 <H3>
@@ -298,33 +299,40 @@ solver mapping. The following table shows the mapping used with fzn_ic
 	    get_flag(hostarch, Arch),
 	    getval(here, Here),
 	    findall(Dir2, (
-		    ( Dir1 = "$ECLIPSEMZN"
-		    ; Dir1 = "$HOME"
-		    ; Dir1 = "$HOMEPATH"
+		    ( Dir1 = "$ECLIPSEMZN/"
+		    ; Dir1 = "$HOME/"
+		    ; Dir1 = "$HOMEPATH/"
 		    ; concat_string([Here,Arch,/], Dir1)
 		    ; concat_string([EclDir,"/lib_public/",Arch,/], Dir1)
 		    ; concat_string([EclDir,"/lib/",Arch,/], Dir1)
 		    ; concat_string([EclDir,"/"], Dir1)
 		    ; concat_string([EclDir,"/../"], Dir1)
-		    ; Dir1 = "$PROGRAMFILES"
+		    ; Dir1 = "$PROGRAMFILES/"
 		    ),
 		    canonical_path_name(Dir1, Dir2)
 		), Dirs),
 	    (
-		member(Dir, Dirs),
-		exists(Dir),
-		read_directory(Dir, "", SubDirs0, _),
-		sort(0, >=, SubDirs0, SubDirs),	% attempt to prefer newer ones
-		member(Sub, SubDirs),
-		substring(Sub, "minizinc-", 1),
-		concat_string([Dir,Sub,/], MznDir),
-		( substring(Sub, "minizinc-0", 1) -> % require 1.0 at least
-		    printf(warning_output, "Ignoring old version %w%n", [MznDir]),
-		    fail
-		;
-		    true
-		),
-		( concat_string([MznDir,"bin/actual/mzn2fzn"], Mzn2Fzn)
+                (
+		    canonical_path_name("$ECLIPSEMZN/", MznDir)
+                ;
+                    member(Dir, Dirs),
+                    exists(Dir),
+                    read_directory(Dir, "", SubDirs0, _),
+                    sort(0, >=, SubDirs0, SubDirs),	% attempt to prefer newer ones
+                    member(Sub, SubDirs),
+                    member(Prefix, ["minizinc-","MiniZinc "]),
+                    substring(Sub, Prefix, 1),
+                    concat_string([Dir,Sub,/], MznDir)
+                ),
+                ( ( substring(MznDir, "minizinc-0", _)
+                  ; substring(MznDir, "minizinc-1.0", _)) -> % require 1.1 at least
+                    printf(warning_output, "Ignoring old version %w%n", [MznDir]),
+                    fail
+                ;
+                    true
+                ),
+		( concat_string([MznDir,"bin/private/mzn2fzn"], Mzn2Fzn)
+		; concat_string([MznDir,"bin/actual/mzn2fzn"], Mzn2Fzn)
 		; concat_string([MznDir,"bin/private/mzn2fzn-actual"], Mzn2Fzn)
 		),
 		existing_file(Mzn2Fzn, ["",".exe"], [readable], _Mzn2FznExe)
@@ -444,7 +452,10 @@ mzn_run(ModelFile0, ParMapOrFile, SolverOrOptions) :-
 	;
 	    mzn2fzn(ModelFile0, ParMapOrFile, Options, FznStream, PidOrFile)
 	),
+%        Options = zn_options{output:SolOut},
+%        exec([solns2out,'msq.ozn'], [SolOut], _Pid),
 	fzn_run_stream(FznStream, Options),
+%        close(SolOut),
 	mzn2fzn_cleanup(PidOrFile).
 
 

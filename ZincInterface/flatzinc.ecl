@@ -25,7 +25,7 @@
 
 :- module(flatzinc).
 
-:- comment(date, "$Date: 2010/07/25 13:29:05 $").
+:- comment(date, "$Date: 2012/10/23 00:38:15 $").
 :- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Interpreter for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
@@ -209,7 +209,8 @@ TODO
 	var_names,		% on/off: use lib(var_name) to attach MiniZinc names
 	solutions,		% int: max number of solutions (0=all)
 	fzn_tmp,		% file/pipe: how to handle intermediate .fzn
-	setup_prio		% 0..12 setup priority (0=current)
+	setup_prio,		% 0..12 setup priority (0=current)
+	output   		% output_stream
     )).
 
 :- comment(struct(zn_options), [
@@ -224,6 +225,9 @@ TODO
 	One of the atoms 'file' or 'pipe', determining if intermediate
 	FlatZinc code is piped from the generator to the interpreter,
 	or passed through an intermediate file. Default is 'file'.",
+    "output":"
+        A stream (name or handle) to which the results are printed.
+        The default is 'output'."
     "parser":"
 	One of the atoms 'strict' or 'fast', giving the choice between
 	a stricter, but slower dedicated FlatZinc parser (in
@@ -246,7 +250,7 @@ TODO
 	Only effective if no minimization/maximization is done.
 	Only effective for toplevel predicates like fzn_run/mzn_run
 	that are deterministic and do not succeed once per solution.
-	Default is 1, 'all' or 0 means no limit.",
+	Default is 1, 'all' (or 0) means no limit.",
     "var_names":"
 	If this option is set to 'on', the ECLiPSe variables representing
 	Zinc variables will be marked with their Zinc names, using the
@@ -295,12 +299,14 @@ TODO
 	id_count,		% identifier counter (to track input order)
 	solve_goal,		% goal resulting from solve item
 	output_elems,		% argument of output item (obsolete)
+        output_stream,          % output stream
 	init_time,		% time we started
 	start_setup_time,	% time we started loading the model
 	end_setup_time,		% time we finished loading the model
 	start_search_time,	% time we started search
 	end_search_time,	% time we finished search
 	sol_cnt,		% solution countdown (shelf)
+        sol_cnt_init,           % starting value for sol_cnt (from options)
 	cost			% result of min/maximize, or 'none'
     )).
 
@@ -310,7 +316,7 @@ TODO
 %----------------------------------------------------------------------
 
 default_options(zn_options{solver:Solver,parser:Parser,var_names:VNames,
-				fzn_tmp:FznTmp,solutions:N,setup_prio:Prio}) :-
+                    fzn_tmp:FznTmp,solutions:N,setup_prio:Prio,output:Out}) :-
 	set_default(Solver, fzn_ic),
 	set_default(N, 1),
 	get_flag(version_as_list, Version),
@@ -323,6 +329,7 @@ default_options(zn_options{solver:Solver,parser:Parser,var_names:VNames,
 	),
 	set_default(Prio, 0),
 	set_default(VNames, off),
+	set_default(Out, output),
 	% Use 'file' default because it is difficult to get both stdout
 	% and stderr back from exec(mzn2fzn) simultaneously without blocking
 	set_default(FznTmp, file).
@@ -407,7 +414,7 @@ fzn_run(SolverOrOptions) :-
 
 fzn_run(File, SolverOrOptions) :-
 	( existing_file(File, ["",".fzn"], [readable], FullFile) ->
-	    printf(log_output, "Loading model %w%n", [FullFile]),
+	    printf(log_output, "%% Loading model %w%n", [FullFile]),
 	    open(FullFile, read, Stream)
 	;
 	    fzn_error("No such file: %w", [File])
@@ -444,15 +451,20 @@ fzn_run(File, SolverOrOptions) :-
 "]).
 fzn_run_stream(Stream, SolverOrOptions) :-
 	fzn_init(SolverOrOptions, State),
+        State = state{output_stream:Out},
 	(
 	    fzn_load_stream(Stream, State),
 	    fzn_search(State),
 	    fzn_output(State),
-	    writeln(----------),
+	    writeln(Out, ----------),
 	    fzn_last(State),
 	    !
 	;
-	    writeln(==========)
+            ( fzn_unsat(State) ->
+                writeln(Out, "=====UNSATISFIABLE=====")
+            ;
+                writeln(Out, ==========)
+            )
 	).
 
 
@@ -521,13 +533,14 @@ zn_options(SolverOrOptions, Options) :-
 "]).
 fzn_init(SolverOrOptions,
     		state{solver:Solver,options:Options,dict:Dict,id_count:0,
-		sol_cnt:SolCnt,init_time:T0}) :-
+		sol_cnt:SolCnt,sol_cnt_init:InitCnt,init_time:T0,
+                output_stream:Out}) :-
 	zn_options(SolverOrOptions, Options),
-	Options = zn_options{solver:Solver,solutions:SolMax},
+	Options = zn_options{solver:Solver,solutions:SolMax,output:Out},
 
 	% solution counter
-	( SolMax > 0 -> C0 is eval(SolMax)-1 ; C0 is all-1 ),
-	shelf_create(c(C0), SolCnt),
+        ( SolMax == 0 -> InitCnt is all-1 ; InitCnt is eval(SolMax)-1 ),
+	shelf_create(c(InitCnt), SolCnt),
 
 	% load solver here, so it doesn't affect the timings
 	ensure_loaded(library(Solver)),
@@ -606,7 +619,7 @@ fzn_load_stream(Stream, State) :-
 	    close(Stream)
 	;
 	    get_stream_info(Stream, line, Line),
-	    printf("%% Failure during constraint setup, FlatZinc model line %w%n", [Line]),
+	    printf(log_output, "%% Failure during constraint setup, FlatZinc model line %w%n", [Line]),
 	    close(Stream),
 	    fail
 	).
@@ -1068,15 +1081,15 @@ add_default_anns(State, UserAnns, Anns) :-
 	fzn_output(State).
 "]).
 fzn_output(State) :-
-	State = state{output_elems:Elems},
+	State = state{output_elems:Elems,output_stream:Out},
 	( var(Elems) ->
 	    default_output(State)
 	;
 	    % obsolete - there should be no output items
-	    ( foreach(Elem,Elems), param(State) do
+	    ( foreach(Elem,Elems), param(State,Out) do
 		( Elem = show(Expr) ->
 		    eval_expr(Expr, State, Value),
-		    fzn_write(output, Value)
+		    fzn_write(Out, Value)
 		; Elem = show_cond(Cond,Then,Else) ->
 		    eval_expr(Cond, State, Bool),
 		    ( eval_expr(true, State, Bool) ->
@@ -1084,52 +1097,54 @@ fzn_output(State) :-
 		    ;
 			eval_expr(Else, State, Value)
 		    ),
-		    fzn_write(output, Value)
+		    fzn_write(Out, Value)
 		;
-		    write(Elem)
+		    write(Out, Elem)
 		)
 	    )
 	),
 	report_statistics(State).
 
 
-default_output(state{solver:Solver,dict:Dict,solve_goal:Solve,cost:Cost}) :-
-	hash_list(Dict, Keys, Entries),
+default_output(state{solver:Solver,dict:Dict,solve_goal:Solve,cost:Cost,output_stream:Out}) :-
+	hash_list(Dict, _Keys, Entries),
 /*
 	% Old code (pre output annotations)
 	sort(num of zn_var, =<, Entries, Sorted),
-	( foreach(zn_var{id:Ident,eclvar:X,type:Type,ann:Ann}, Sorted), param(Solver) do
+	( foreach(zn_var{id:Ident,eclvar:X,type:Type,ann:Ann}, Sorted), param(Solver,Out) do
 	    ( memberchk(var_is_introduced, Ann) ->
 		true
 	    ; Type = var(_) ->
-		printf("%w = ", [Ident]), fzn_write(output, X, Type, Solver), nl
+		printf(Out, "%w = ", [Ident]),
+                fzn_write(Out, X, Type, Solver),
+                nl(Out)
 	    ; Type = no_macro_expansion(array(_) of var(_)) ->
-		printf("%w = ", [Ident]), fzn_write(output, X, Type, Solver), nl
+		printf(Out, "%w = ", [Ident]),
+                fzn_write(Out, X, Type, Solver),
+                nl(Out)
 	    ;
 		true
 	    )
 	),
 */
 	% sort alphabetically
-	( foreach(K,Keys),foreach(E,Entries),foreach(K-E,KEntries) do true ),
-	keysort(KEntries, KSorted),
-	( foreach(_-E,KSorted),foreach(E,Sorted) do true ),
-	( foreach(zn_var{id:Ident,eclvar:X,type:Type,ann:Ann,group:Group}, Sorted), param(Solver) do
+	sort(id of zn_var, =<, Entries, Sorted),
+	( foreach(zn_var{id:Ident,eclvar:X,type:Type,ann:Ann,group:Group}, Sorted), param(Solver,Out) do
 	    ( memberchk(output_var, Ann) ->
 		( Type = var(_) ->
-		    printf("%w = ", [Ident]),
-		    fzn_write(output, X, Type, Solver),
-		    writeln(";")
+		    printf(Out, "%w = ", [Ident]),
+		    fzn_write(Out, X, Type, Solver),
+		    writeln(Out, ";")
 		;
 		    fzn_error("output_var cannot output %w", [Group])
 		)
 	    ; memberchk(output_array(Ranges), Ann) ->
 		( Type = no_macro_expansion(array(_) of var(_)) ->
 		    length(Ranges, Dim),
-		    printf("%w = array%dd(", [Ident,Dim]),
-		    ( foreach(Range,Ranges) do printf("%Kw, ", [Range])),
-		    fzn_write(output, X, Type, Solver),
-		    writeln(");")
+		    printf(Out, "%w = array%dd(", [Ident,Dim]),
+		    ( foreach(Range,Ranges),param(Out) do printf(Out, "%Kw, ", [Range])),
+		    fzn_write(Out, X, Type, Solver),
+		    writeln(Out, ");")
 		;
 		    fzn_error("output_array cannot output %w", [Group])
 		)
@@ -1378,3 +1393,6 @@ fzn_error(Message, Culprit) :-
 fzn_last(state{sol_cnt:N}) :-
 	\+ shelf_dec(N, 1).
 
+:- export fzn_unsat/1.
+fzn_unsat(state{sol_cnt:N,sol_cnt_init:InitCnt}) :-
+	shelf_get(N, 1, InitCnt).

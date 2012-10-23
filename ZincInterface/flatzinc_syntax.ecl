@@ -28,7 +28,7 @@
 :-(call(op(1200, fx, (:-)))).
 :-(call(op(1200, xfx, (:-)))).
 
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2012/10/23 00:38:15 $").
 :- comment(categories, ["Interfacing"]).
 :- comment(summary, "Configure ECLiPSe parser to accept FlatZinc syntax").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
@@ -98,6 +98,8 @@ read_item(Stream, Term) :-
     ),
 
     local(chtab(0'!, symbol)),
+    local(chtab(0'-, solo)),    % to allow e.g. -3..-1 without spaces
+    local(chtab(0'+, solo)),    % to allow e.g. 0..+1 without spaces
     local(chtab(0';, terminator)),
 
     local(syntax_option(iso_base_prefix)),

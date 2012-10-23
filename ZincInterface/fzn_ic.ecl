@@ -33,7 +33,7 @@
 :- comment(summary, "Mapping from FlatZinc to lib(ic) and lib(ic_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2010/07/25 13:29:05 $").
+:- comment(date, "$Date: 2012/10/23 00:38:15 $").
 :- comment(see_also, [library(flatzinc),
 	library(ic),library(ic_sets),library(ic_global),
 	library(propia),library(branch_and_bound)]).
@@ -56,7 +56,7 @@ The following extra annotations are supported by this mapping:
     are \"continue\", \"restart\", \"dichotomic\", See bb_min/3.</DD>
 <DT>annotation delta(float:f)</DT>
     <DD>minimal absolute improvement for branch-and-bound steps (default 1.0).
-    See bb_min/3./DD>
+    See bb_min/3.</DD>
 <DT>annotation factor(float:f)</DT>
     <DD>minimal improvement ratio (with respect to the lower cost bound)
     for strategies 'continue' and 'restart' (default 1.0), or split factor
@@ -140,98 +140,98 @@ set_declare_array(Xs, Elems) :-
 int_eq(X, Y) :- X = Y.
 int_ne(X, Y) :- X #\= Y.
 int_le(X, Y) :- X #=< Y.
-int_ge(X, Y) :- X #>= Y.
+int_ge(X, Y) :- X #>= Y.        % OBSOLETE 1.2
 int_lt(X, Y) :- X #< Y.
-int_gt(X, Y) :- X #> Y.
+int_gt(X, Y) :- X #> Y. % OBSOLETE 1.2
 
 % float_??(var float, var float)
 float_eq(X, Y) :- X = Y.
 float_ne(X, Y) :- X $\= Y.
 float_le(X, Y) :- X $=< Y.
-float_ge(X, Y) :- X $>= Y.
+float_ge(X, Y) :- X $>= Y.      % OBSOLETE 1.2
 float_lt(X, Y) :- X $< Y.
-float_gt(X, Y) :- X $> Y.
+float_gt(X, Y) :- X $> Y.       % OBSOLETE 1.2
 
 % bool_??(var bool, var bool)
 bool_eq(X, Y) :- X = Y.
-bool_ne(X, Y) :- X #\= Y.
+bool_ne(X, Y) :- X #\= Y.       % OBSOLETE 1.2
 bool_le(X, Y) :- X #=< Y.
-bool_ge(X, Y) :- X #>= Y.
+bool_ge(X, Y) :- X #>= Y.       % OBSOLETE 1.2
 bool_lt(X, Y) :- X #< Y.
-bool_gt(X, Y) :- X #> Y.
+bool_gt(X, Y) :- X #> Y.        % OBSOLETE 1.2
 
 % set_??(var set, var set)
 set_eq(X, Y) :- X = Y.
-%bool_ne(X, Y) :-
-%bool_le(X, Y) :-
-%bool_ge(X, Y) :-
-%bool_lt(X, Y) :-
-%bool_gt(X, Y) :-
+%set_ne(X, Y) :-
+%set_le(X, Y) :-
+%set_ge(X, Y) :-       % OBSOLETE 1.2
+%set_lt(X, Y) :-
+%set_gt(X, Y) :-       % OBSOLETE 1.2
 
 % int_lin_??(array[int] of int, array[int] of var int, int)
 int_lin_eq(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) #= Rhs.
 int_lin_ne(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) #\= Rhs.
 int_lin_le(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) #=< Rhs.
-int_lin_ge(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) #>= Rhs.
-int_lin_lt(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) #< Rhs.
-int_lin_gt(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) #> Rhs.
+int_lin_ge(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) #>= Rhs.   % OBSOLETE 1.2
+int_lin_lt(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) #< Rhs.    % OBSOLETE 1.2
+int_lin_gt(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) #> Rhs.    % OBSOLETE 1.2
 
 % float_lin_??(array[int] of float, array[int] of var float, float)
 float_lin_eq(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $= Rhs.
 float_lin_ne(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $\= Rhs.
 float_lin_le(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $=< Rhs.
-float_lin_ge(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $>= Rhs.
+float_lin_ge(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $>= Rhs. % OBSOLETE 1.2
 float_lin_lt(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $< Rhs.
-float_lin_gt(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $> Rhs.
+float_lin_gt(Cs, Xs, Rhs) :- vector_sum(Cs, Xs, CXs), sum(CXs) $> Rhs.  % OBSOLETE 1.2
 
 
 % int_??(var int, var int, var bool)
 int_eq_reif(X, Y, B) :- #=(X, Y, B).
 int_ne_reif(X, Y, B) :- #\=(X, Y, B).
 int_le_reif(X, Y, B) :- #=<(X, Y, B).
-int_ge_reif(X, Y, B) :- #>=(X, Y, B).
+int_ge_reif(X, Y, B) :- #>=(X, Y, B).   % OBSOLETE 1.2
 int_lt_reif(X, Y, B) :- #<(X, Y, B).
-int_gt_reif(X, Y, B) :- #>(X, Y, B).
+int_gt_reif(X, Y, B) :- #>(X, Y, B).    % OBSOLETE 1.2
 
 % float_??(var float, var float, B)
 float_eq_reif(X, Y, B) :- $=(X, Y, B).
 float_ne_reif(X, Y, B) :- $\=(X, Y, B).
 float_le_reif(X, Y, B) :- $=<(X, Y, B).
-float_ge_reif(X, Y, B) :- $>=(X, Y, B).
+float_ge_reif(X, Y, B) :- $>=(X, Y, B). % OBSOLETE 1.2
 float_lt_reif(X, Y, B) :- $<(X, Y, B).
-float_gt_reif(X, Y, B) :- $>(X, Y, B).
+float_gt_reif(X, Y, B) :- $>(X, Y, B).  % OBSOLETE 1.2
 
 % bool_??(var bool, var bool)
 bool_eq_reif(X, Y, B) :- #=(X, Y, B).
-bool_ne_reif(X, Y, B) :- #\=(X, Y, B).
+bool_ne_reif(X, Y, B) :- #\=(X, Y, B).  % OBSOLETE 1.2
 bool_le_reif(X, Y, B) :- #=<(X, Y, B).
-bool_ge_reif(X, Y, B) :- #>=(X, Y, B).
+bool_ge_reif(X, Y, B) :- #>=(X, Y, B).  % OBSOLETE 1.2
 bool_lt_reif(X, Y, B) :- #<(X, Y, B).
-bool_gt_reif(X, Y, B) :- #>(X, Y, B).
+bool_gt_reif(X, Y, B) :- #>(X, Y, B).   % OBSOLETE 1.2
 
 % set_??(var set, var set, B)
 %set_eq_reif(X, Y, B) :-
-%bool_ne_reif(X, Y, B) :-
-%bool_le_reif(X, Y, B) :-
-%bool_ge_reif(X, Y, B) :-
-%bool_lt_reif(X, Y, B) :-
-%bool_gt_reif(X, Y, B) :-
+%set_ne_reif(X, Y, B) :-
+%set_le_reif(X, Y, B) :-        % OBSOLETE?
+%set_ge_reif(X, Y, B) :-        % OBSOLETE 1.2
+%set_lt_reif(X, Y, B) :-        % OBSOLETE?
+%set_gt_reif(X, Y, B) :-        % OBSOLETE 1.2
 
 % int_lin_??(array[int] of int, array[int] of var int, int, var bool)
 int_lin_eq_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #=(sum(CXs), Rhs, B).
 int_lin_ne_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #\=(sum(CXs), Rhs, B).
 int_lin_le_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #=<(sum(CXs), Rhs, B).
-int_lin_ge_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #>=(sum(CXs), Rhs, B).
-int_lin_lt_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #<(sum(CXs), Rhs, B).
-int_lin_gt_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #>(sum(CXs), Rhs, B).
+int_lin_ge_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #>=(sum(CXs), Rhs, B).      % OBSOLETE 1.2
+int_lin_lt_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #<(sum(CXs), Rhs, B).       % OBSOLETE 1.2
+int_lin_gt_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), #>(sum(CXs), Rhs, B).       % OBSOLETE 1.2
 
 % float_lin_??(array[int] of float, array[int] of var float, float, B)
 float_lin_eq_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), $=(sum(CXs), Rhs, B).
 float_lin_ne_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), $\=(sum(CXs), Rhs, B).
 float_lin_le_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), $=<(sum(CXs), Rhs, B).
-float_lin_ge_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), $>=(sum(CXs), Rhs, B).
+float_lin_ge_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), $>=(sum(CXs), Rhs, B).    % OBSOLETE 1.2
 float_lin_lt_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), $<(sum(CXs), Rhs, B).
-float_lin_gt_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), $>(sum(CXs), Rhs, B).
+float_lin_gt_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), $>(sum(CXs), Rhs, B).     % OBSOLETE 1.2
 
     vector_sum(Cs, Xs, CXs) :-
 	arity(Cs, N),
@@ -247,9 +247,9 @@ float_lin_gt_reif(Cs, Xs, Rhs, B) :- vector_sum(Cs, Xs, CXs), $>(sum(CXs), Rhs, 
 % Arithmetic operations -----------------------------------------------
 
 % int_???(var int, var int, var int)
-int_negate(X, Z) :- Z #= -X.
+int_negate(X, Z) :- Z #= -X.    % OBSOLETE 1.2
 int_plus(X, Y, Z) :- Z #= X+Y.
-int_minus(X, Y, Z) :- Z #= X-Y.
+int_minus(X, Y, Z) :- Z #= X-Y. % OBSOLETE 1.2
 int_times(X, Y, Z) :- Z #= X*Y.
 int_div(Dividend, Divisor, Quotient) :-
  	Remainder #>=0, Remainder #< abs(Divisor),
@@ -262,14 +262,20 @@ int_max(X, Y, Z) :- Z #= max(X,Y).
 int_abs(X, Z) :- Z #= abs(X).
 
 % float_???(var float, var float, var float)
-float_negate(X, Z) :- Z $= -X.
+float_negate(X, Z) :- Z $= -X.          % OBSOLETE 1.2
 float_plus(X, Y, Z) :- Z $= X+Y.
-float_minus(X, Y, Z) :- Z $= X-Y.
-float_times(X, Y, Z) :- Z $= X*Y.
-float_div(X, Y, Z) :- Z $= X/Y.
+float_minus(X, Y, Z) :- Z $= X-Y.       % OBSOLETE 1.2
+float_times(X, Y, Z) :- Z $= X*Y.       % OBSOLETE?
+float_div(X, Y, Z) :- Z $= X/Y.         % OBSOLETE?
 float_min(X, Y, Z) :- Z $= min(X,Y).
 float_max(X, Y, Z) :- Z $= max(X,Y).
 float_abs(X, Z) :- Z $= abs(X).
+float_cos(X, Z) :- Z $= cos(X).
+float_sin(X, Z) :- Z $= sin(X).
+float_atan(X, Z) :- Z $= atan(X).
+float_sqrt(X, Z) :- Z $= sqrt(X).
+float_exp(X, Z) :- Z $= exp(X).
+float_ln(X, Z) :- Z $= ln(X).
 
 
 % Logical operations -----------------------------------------------
@@ -277,8 +283,8 @@ float_abs(X, Z) :- Z $= abs(X).
 % bool_???(var bool, var bool, var bool)
 bool_and(X, Y, Z) :- and(X, Y, Z).
 bool_or(X, Y, Z) :- or(X, Y, Z).
-bool_left_imp(X, Y, Z) :- =>(Y, X, Z).
-bool_right_imp(X, Y, Z) :- =>(X, Y, Z).
+bool_left_imp(X, Y, Z) :- =>(Y, X, Z).  % OBSOLETE 1.2
+bool_right_imp(X, Y, Z) :- =>(X, Y, Z). % OBSOLETE 1.2
 bool_xor(X, Y, Z) :- #\=(X, Y, Z).
 bool_not(X, Z) :- neg(X, Z).
 
@@ -289,7 +295,7 @@ array_bool_or(Xs, B) :- ic_global:maxlist(Xs, B).
 % bool_clause(array[int] of var bool, array[int] of var bool)
 bool_clause(Ps, Ns) :-
 	bool_clause_reif(Ps, Ns, 1).
-bool_clause_reif(Ps, Ns, B) :-
+bool_clause_reif(Ps, Ns, B) :-          % OBSOLETE 1.2
 	ic_global:maxlist(Ps, B1),
 	ic_global:minlist(Ns, B2),
 	#>=(B1,B2,B).
@@ -299,7 +305,9 @@ bool_clause_reif(Ps, Ns, B) :-
 
 % set_???(... var set of int ...)
 set_in(I, S) :- I in S.
+%set_in_reif(I, S, B) :-
 set_subset(Sub, Super) :- subset(Sub, Super).
+%set_subset_reif(Sub, Super, B) :-
 set_intersect(X, Y, Z) :- intersection(X, Y, Z).
 set_union(X, Y, Z) :- union(X, Y, Z).
 set_diff(X, Y, Z) :- difference(X, Y, Z).
@@ -348,7 +356,10 @@ bool_solver_to_fzn(1, true).
 % convert FlatZinc floats to breals for lib(ic)
 float_fzn_to_solver(X, Real) :- Real is breal(X).
 
+% IC real variables may be instantiated to integers, floats or breals.
+% Convert integers to floats so the type is obvious for the Zinc user.
 float_solver_to_fzn(X, X) :- real(X).
+float_solver_to_fzn(X, F) :- integer(X), F is float(X).
 
 % Set constants are ordered lists in ic_sets
 set_fzn_to_solver(List, Set) :- eclipse_language:sort(List, Set).

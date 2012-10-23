@@ -29,7 +29,7 @@
 :- comment(summary, "A parser for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2012/10/23 00:38:15 $").
 :- comment(see_also, [library(flatzinc_syntax)]).
 :- comment(desc, html("
 <P>
@@ -537,6 +537,7 @@ keyword(::).
 keyword(;).
 keyword(=).
 keyword(-).
+keyword(+).
 keyword(annotation).
 keyword(any).
 keyword(array).
@@ -583,18 +584,22 @@ keyword(where).
 
 :- module(flatzinc_parser_syntax).
 
-:- local
-    chtab(0'!, symbol),
-    syntax_option(iso_base_prefix),
-    syntax_option(not(nl_in_quotes)).
+:- local initialization((
 
-:- (
-	% treat upper case letters like lower case
+    local(chtab(0'!, symbol)),
+    local(chtab(0'-, solo)),    % to allow e.g. -3..-1 without spaces
+    local(chtab(0'+, solo)),    % to allow e.g. 0..+1 without spaces
+    local(syntax_option(iso_base_prefix)),
+    local(syntax_option(not(nl_in_quotes))),
+
+    % treat upper case letters like lower case
+    (
 	between(0, 255, 1, _Char),
 	get_chtab(_Char, upper_case),
 	local(chtab(_Char, lower_case)),
 	fail
-    ;
+     ;
 	true
-    ).
+    )
+)).
 
