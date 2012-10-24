@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.15 2012/10/21 01:02:46 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.16 2012/10/24 18:16:53 jschimpf Exp $
  */
 
 /*
@@ -579,7 +579,7 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
     pword *in_reuse_tail, *out_reuse_tail, *reuse_tg = TG;
     pword in_list, out_list, unit_var;
     pword *old_tg = TG;
-    int err;
+    int err, const_seen = 0;
 
     Check_List(tin);
     in_list.val = vin;
@@ -596,16 +596,7 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
 	pword *cur_mono, *cur_var, *cur_coeff;
 	pword *cur_tail = in_tail;
 
-	if (IsNil(in_tail->tag))
-	{
-	    cur_mono = 0;
-	}
-	else if (!IsList(in_tail->tag))
-	{
-	    err = IsRef(in_tail->tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
-	    goto _error_;
-	}
-	else
+	if (IsList(in_tail->tag))
 	{
 	    /* read next input list element */
 	    pword *pw = in_tail->val.ptr;
@@ -632,21 +623,32 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
 
 	    if (!IsRef(cur_var->tag)) /* still part of the constant sequence */
 	    {
-		pword product;
 		if (seq_var != &unit_var)
 		{
 		    err = RANGE_ERROR;
 		    goto _error_;	/* malformed: constant after var */
 		}
-		err = bin_arith_op(cur_coeff->val, cur_coeff->tag,
-			    cur_var->val, cur_var->tag, &product, ARITH_MUL);
-		if (err != PSUCCEED) goto _error_;
-		err = bin_arith_op(product.val, product.tag,
-			    seq_coeff.val, seq_coeff.tag, &seq_coeff, ARITH_ADD);
-		if (err != PSUCCEED) goto _error_;
-		seq_mono = 0;	/* not reusable */
-		continue;
-
+		if (!const_seen && IsInteger(cur_var->tag) && cur_var->val.nint==1)
+		{
+		    /* first (maybe only) C0*1 term, potentially reusable */
+		    seq_mono = cur_mono;
+		    seq_coeff = *cur_coeff;
+		    const_seen = 1;
+		    continue;
+		}
+		else			/* general constant monomial */
+		{
+		    pword product;
+		    err = bin_arith_op(cur_coeff->val, cur_coeff->tag,
+				cur_var->val, cur_var->tag, &product, ARITH_MUL);
+		    if (err != PSUCCEED) goto _error_;
+		    err = bin_arith_op(product.val, product.tag,
+				seq_coeff.val, seq_coeff.tag, &seq_coeff, ARITH_ADD);
+		    if (err != PSUCCEED) goto _error_;
+		    seq_mono = 0;	/* not reusable */
+		    const_seen = 1;
+		    continue;
+		}
 	    }
 	    else if (cur_var == seq_var) /* still part of a variable sequence */
 	    {
@@ -656,10 +658,19 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
 		seq_mono = 0;	/* not reusable */
 		continue;
 	    }
-	    /* start of a new sequence */
+	    /* else start of a new sequence */
+	}
+	else if (IsNil(in_tail->tag))
+	{
+	    cur_mono = 0;
+	}
+	else
+	{
+	    err = IsRef(in_tail->tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
+	    goto _error_;
 	}
 
-	/* emit new monomial if necessary (no vars with zero coeffs!) */
+	/* emit monomial for finished sequence (unless it is 0*Var) */
 	if (seq_var != &unit_var && p_is_zero(seq_coeff.val, seq_coeff.tag) == PSUCCEED)
 	{
 	    /* an element was dropped: can't reuse earlier input list */
@@ -667,7 +678,7 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
 	    out_reuse_tail = out_tail;
 	    reuse_tg = TG;
 	}
-	else
+	else	/* do emit the monomial, reusing the input one if possible */
 	{
 	    pword *pw = TG;
 	    TG += SIZE_LIST;
@@ -703,7 +714,7 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
 	seq_coeff = *cur_coeff;
     }
 
-    /* Reuse usable tail of input list, discard already constructed copy */
+    /* Reuse reusable tail of input list, discard already constructed copy */
     *out_reuse_tail = *in_reuse_tail;
     TG = reuse_tg;
 
