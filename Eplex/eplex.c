@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.9 2012/10/23 02:21:55 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.10 2012/10/24 19:02:37 jschimpf Exp $
  *
  */
 
@@ -5095,8 +5095,13 @@ p_cpx_flush_sos(value vhandle, type thandle)
     if (lpd->nsos <= lpd->nsos_added)
     	Succeed;
 
+#if defined(CPLEX) && CPLEX < 10
+    if (CPXaddsos(cpx_env, lpd->lp, lpd->nsos, lpd->nsosnz, lpd->sostype,
+	    NULL, lpd->sosbeg, lpd->sosind, lpd->sosref))
+#else
     if (CPXaddsos(cpx_env, lpd->lp, lpd->nsos, lpd->nsosnz, lpd->sostype,
 	    lpd->sosbeg, lpd->sosind, lpd->sosref, NULL))
+#endif
     {
 	Bip_Error(EC_EXTERNAL_ERROR);
     }
