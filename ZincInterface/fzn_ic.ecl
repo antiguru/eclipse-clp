@@ -33,7 +33,7 @@
 :- comment(summary, "Mapping from FlatZinc to lib(ic) and lib(ic_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2012/10/23 00:38:15 $").
+:- comment(date, "$Date: 2012/10/24 16:54:56 $").
 :- comment(see_also, [library(flatzinc),
 	library(ic),library(ic_sets),library(ic_global),
 	library(propia),library(branch_and_bound)]).
@@ -341,7 +341,10 @@ array_var_float_element(I, Array, E) :- array_any_element(I, Array, E).
 
 % Coercion operations -----------------------------------------------
 
-int2float(I, F) :- ( var(I) -> F=I ; F is breal(I) ).
+% Caution: this needs to correctly handle various combinations
+% of variables and constants of different types (was bug 741).
+int2float(I, F) :- I $= F.
+
 bool2int(X, X).
 
 
