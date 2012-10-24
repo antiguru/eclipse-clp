@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.10 2012/10/24 19:02:37 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.11 2012/10/24 19:33:35 jschimpf Exp $
  *
  */
 
@@ -4099,6 +4099,7 @@ p_cpx_loadprob(value vlp, type tlp)
     if (lpd->presolve == 0)
     {
 	CallN(XPRSsetintcontrol(lpd->lp, XPRS_PRESOLVE, 0));
+	CallN(XPRSsetintcontrol(lpd->lp, XPRS_MIPPRESOLVE, 0));
     }
 
     /* this call back was done globally before version 13 */
