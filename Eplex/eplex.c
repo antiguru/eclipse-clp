@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.11 2012/10/24 19:33:35 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.12 2012/10/25 00:27:35 jschimpf Exp $
  *
  */
 
@@ -1127,7 +1127,10 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
     }
 #endif
     /* lpd is NULL for global/default param */
-    if (IsHandle(tlp))  { LpDesc(vlp, tlp, lpd); } else lpd = NULL;
+    if (IsHandle(tlp))  {
+	LpDesc(vlp, tlp, lpd);
+	if (!lpd->lp) lpd = NULL;
+    } else lpd = NULL;
 
     if (IsAtom(tp))
     {
@@ -1249,7 +1252,7 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 
 
 int
-p_cpx_set_param(value vlpd, type tlpd, value vp, type tp, value vval, type tval)
+p_cpx_set_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 /* fails if parameter unknown */
 {
     int i;
@@ -1264,7 +1267,10 @@ p_cpx_set_param(value vlpd, type tlpd, value vp, type tp, value vval, type tval)
     }
 #endif
     /* lpd is NULL for global/default param */
-    if (IsHandle(tlpd))  { LpDesc(vlpd, tlpd, lpd); } else lpd = NULL;
+    if (IsHandle(tlp))  {
+	LpDesc(vlp, tlp, lpd);
+	if (!lpd->lp) lpd = NULL;
+    } else lpd = NULL;
 
 #ifndef SOLVER_HAS_LOCAL_PARAMETERS
     if (lpd != NULL) 
