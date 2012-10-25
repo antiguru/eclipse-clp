@@ -88,7 +88,7 @@
 % Load the modules we depend upon.
 
 :- use_module(ic_kernel).
-:- use_module(linearize).
+:- lib(linearize).
 
 %
 % We assume the required dynamic library (ic) loaded by ic_kernel, so just

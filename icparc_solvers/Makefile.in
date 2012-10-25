@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.30 2012/07/31 13:51:18 jschimpf Exp $
+# $Id: Makefile.in,v 1.31 2012/10/25 13:14:34 jschimpf Exp $
 #
 
 # The location of third party software releases
@@ -265,7 +265,7 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl \
 		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		conjunto_fd_sets.ecl ic_hybrid_sets.ecl lex_set.ecl \
 		tentative.ecl tentative_constraints.ecl max_flow.ecl
-PL_ECO_FILES =	changeset.pl linearize.pl shadow_cons.pl ech.pl \
+PL_ECO_FILES =	changeset.pl shadow_cons.pl ech.pl \
 		repair.pl eplex_relax.pl \
 		repairfd.pl \
 		ic_make_overlap_bivs.pl ic_probe_support.pl \
@@ -288,7 +288,7 @@ PL_ECI_FILES =	repair.pl ech.pl \
 		ic_probing_for_scheduling.pl ic_probe.pl ic_probe_search.pl \
 		make_overlap_bivs.pl probe_support.pl \
 		probing_for_scheduling.pl probe.pl probe_search.pl \
-		linearize.pl shadow_cons.pl 
+		shadow_cons.pl 
 ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		ic.ecl ic_kernel.ecl ic_sets.ecl ic_hybrid_sets.ecl \
 		fd_search.ecl ic_symbolic.ecl \
