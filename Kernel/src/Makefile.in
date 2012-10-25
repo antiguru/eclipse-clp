@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.13 2012/02/11 17:09:31 jschimpf Exp $
+# $Id: Makefile.in,v 1.14 2012/10/25 13:23:05 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -555,7 +555,8 @@ PL_ECO_LIBRARIES =	anti_unify.pl apply.pl \
 		fd_arith.pl fd_chip.pl fd_domain.pl fd_elipsys.pl \
 		fd_util.pl foreign.pl fromonto.pl heaps.pl \
 		http.pl http_client.pl http_grammar.pl http_method.pl \
-		http_server.pl iso.pl lips.pl lists.pl matrix_util.pl \
+		http_server.pl iso.pl linearize.pl lips.pl lists.pl \
+		matrix_util.pl \
 		modes.pl notinstance.pl numbervars.pl oldio.pl ordset.pl \
 		paddy.pl par_util.pl pretty_print.pl profile.pl queues.pl \
 		quintus.pl quintus_util.pl rationals.pl remote_tools.pl \
@@ -592,7 +593,7 @@ ECI_PL_LIBRARIES =	anti_unify.pl apply.pl apply_macros.pl \
 		calendar.pl cio.pl cprolog.pl \
 		foreign.pl fromonto.pl heaps.pl \
 		http.pl http_server.pl http_client.pl \
-		iso.pl lips.pl lists.pl \
+		iso.pl linearize.pl lips.pl lists.pl \
 		matrix_util.pl notinstance.pl numbervars.pl \
 		ordset.pl par_util.pl \
 		pretty_print.pl profile.pl queues.pl quintus.pl \
