@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.9 2012/10/23 02:21:55 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.10 2012/10/29 18:25:39 kish_shen Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -1382,7 +1382,8 @@ lp_var_print(_{eplex:Attr}, Printed) ?-
         Attr = eplex{next:NextAttr, idx:[I|_],
                            solver:prob{cplex_handle:CPH}},
         nonvar(CPH),  % we do have the low-level information
-        cplex_get_col_bounds(CPH, I, L, H),
+        block(cplex_get_col_bounds(CPH, I, L, H),_,
+              (L='?', H='?') ), /* catch case when var not yet in solver */
 	(lp_attr_solution(Attr, Sol) ->
 	     SolsIn0 = [L..H@Sol|SolsIn1] 
         ; 

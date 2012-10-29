@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.12 2012/10/25 00:27:35 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.13 2012/10/29 18:25:39 kish_shen Exp $
  *
  */
 
@@ -2965,7 +2965,7 @@ p_cpx_impose_col_bounds(value vhandle, type thandle,
     CPXupdatemodel(lpd->lp);	/* make sure types and bounds are up-to-date */
 
     j = (int) vj.nint;
-    if (j >= lpd->macadded) { Bip_Error(RANGE_ERROR); } 
+    if (j >= lpd->macadded || j < 0) { Bip_Error(RANGE_ERROR); } 
     if ((newhi = Dbl(vhi)) > CPX_INFBOUND) newhi = CPX_INFBOUND;
     if ((newlo = Dbl(vlo)) < -CPX_INFBOUND) newlo = -CPX_INFBOUND;
 
@@ -3071,12 +3071,9 @@ p_cpx_get_col_bounds(value vlp, type tlp,
 	Request_Unify_Float(vlo, tlo, lpd->bdl[j]);
 	Return_Unify;
     }
-    else if (j >= lpd->macadded)
-    {/* column not yet added to solver, get bounds from arrays */
-	j -= lpd->macadded; /* arrays are for new added columns only */
-	Request_Unify_Float(vhi, thi, lpd->bdu[j]);
-	Request_Unify_Float(vlo, tlo, lpd->bdl[j]);
-	Return_Unify;
+    else if (j >= lpd->macadded || j < 0)
+    {/* column not yet added to solver or error in index  */
+	Bip_Error(RANGE_ERROR);
     }
     else
     {
@@ -3651,7 +3648,7 @@ p_cpx_get_col_type(value vlp, type tlp, value vj, type tj, value vtype, type tty
 
     LpDesc(vlp, tlp, lpd);
     Check_Integer(tj);
-    if (vj.nint >= lpd->mac) { Bip_Error(RANGE_ERROR); }
+    if (vj.nint >= lpd->mac || vj.nint < 0) { Bip_Error(RANGE_ERROR); }
     SetPreSolve(lpd->presolve);
     if (IsMIPProb(lpd->prob_type))
     {
