@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.13 2012/10/29 18:25:39 kish_shen Exp $
+ * Version:	$Id: eplex.c,v 1.14 2012/10/30 17:22:53 kish_shen Exp $
  *
  */
 
@@ -3071,9 +3071,16 @@ p_cpx_get_col_bounds(value vlp, type tlp,
 	Request_Unify_Float(vlo, tlo, lpd->bdl[j]);
 	Return_Unify;
     }
-    else if (j >= lpd->macadded || j < 0)
-    {/* column not yet added to solver or error in index  */
+    else if (j >= lpd->mac || j < 0) 
+    {/* invalid column index */
 	Bip_Error(RANGE_ERROR);
+    }
+    else if (j >= lpd->macadded)
+    {/* column not yet added to solver, get bounds from arrays */
+	j -= lpd->macadded; /* arrays are for new added columns only */
+	Request_Unify_Float(vhi, thi, lpd->bdu[j]);
+	Request_Unify_Float(vlo, tlo, lpd->bdl[j]);
+	Return_Unify;
     }
     else
     {
