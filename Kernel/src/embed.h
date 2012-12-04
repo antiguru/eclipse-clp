@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.7 2012/07/31 11:21:13 jschimpf Exp $
+ * $Id: embed.h,v 1.8 2012/12/04 12:54:47 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -193,6 +193,7 @@ Extern DLLEXP int	Winapi	ec_visible_procedure ARGS((dident,pword,void**));
 Extern DLLEXP int	Winapi	ec_make_suspension ARGS((pword,int,void*,pword*));
 Extern DLLEXP int	Winapi	ec_schedule_suspensions ARGS((pword,int));
 Extern DLLEXP int	Winapi	ec_free_handle ARGS((const pword, const t_ext_type*));
+Extern DLLEXP int		ec_external ARGS((dident,int (*) (Dots),dident));
 
 /*
  * Stream I/O
@@ -236,7 +237,6 @@ Extern DLLEXP void		ec_trail_pwords ARGS((pword*, int, int));
 Extern DLLEXP int		ec_unify_ ARGS((value,type,value,type,pword**));
 Extern DLLEXP int		ec_remember ARGS((int,value,type));
 Extern DLLEXP void		cut_external ARGS((void));
-Extern DLLEXP int		ec_external ARGS((dident,int (*) (Dots),dident));
 
 Extern DLLEXP stream_id Winapi	ec_stream_id ARGS((int));
 Extern DLLEXP	int		ec_outf ARGS((stream_id, const char*, int));
