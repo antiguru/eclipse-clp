@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.15 2012/10/22 21:11:26 jschimpf Exp $
+ * $Id: os_support.c,v 1.16 2012/12/06 13:15:18 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -572,13 +572,13 @@ char *
 expand_filename(char *in, char *out, int option)
 {
     int c;
-    char *root, *inp = in, *outp = out;
+    char *inp = in;
     char *dir = (char *) 0;
     char aux1[MAX_PATH_LEN], *aux1p = 0;
-    const char *aux1_last = &aux1[MAX_PATH_LEN-1];
+    char * const aux1_last = &aux1[MAX_PATH_LEN-1];
     char aux[MAX_PATH_LEN], *auxp = 0;
-    const char *aux_last = &aux[MAX_PATH_LEN-1];
-    const char *out_last = outp+MAX_PATH_LEN-1;
+    char * const aux_last = &aux[MAX_PATH_LEN-1];
+    char * const out_last = out+MAX_PATH_LEN-1;
 
     /* When not using the process's cwd, we MUST use absolute paths */
     if (option == EXPAND_STANDARD && ec_use_own_cwd)
