@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.11 2012/02/25 13:36:44 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.12 2012/12/09 22:53:12 jschimpf Exp $
  */
 
 /*
@@ -651,6 +651,20 @@ extern pword	*spmax_;
 
 #define GlobalOverflow		(TG >= TG_SLS)	/* a real stack overflow */
 
+
+#ifdef IN_C_EMULATOR
+#define Poll_Interrupts()			\
+	if (EVENT_FLAGS & DEL_IRQ_POSTED) {	\
+	    Export_B_Sp_Tg_Tt			\
+	    ec_handle_async();			\
+	    Import_None				\
+	}
+#else
+#define Poll_Interrupts()			\
+	if (EVENT_FLAGS & DEL_IRQ_POSTED) {	\
+	    ec_handle_async();			\
+	}
+#endif
 
 /*---------------------------------------------------------------------------
  * General purpose macros
@@ -1559,4 +1573,5 @@ Extern	DLLEXP	int unary_arith_op ARGS((value,type,value,type,int,int));
 Extern	int	binary_arith_op ARGS((value,type,value,type,value,type,int));
 Extern	int	un_arith_op ARGS((value,type,pword *,int,int));
 Extern	int	bin_arith_op ARGS((value,type,value,type,pword *,int));
+Extern	void	ec_handle_async ARGS((void));
 

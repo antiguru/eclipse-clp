@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.26 2012/10/01 01:05:59 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.27 2012/12/09 22:53:12 jschimpf Exp $
  */
 
 /*
@@ -757,13 +757,6 @@ int bt_max = MAX_BACKTRACE;
  * Export_... macro. If the function is allowed to modify the abstract
  * machine registers, they also must be imported after returning.
  */
-
-#define Poll_Interrupts()			\
-	if (EVENT_FLAGS & DEL_IRQ_POSTED) {	\
-	    Export_B_Sp_Tg_Tt			\
-	    ec_handle_async();			\
-	    Import_None				\
-	}
 
 
 /*

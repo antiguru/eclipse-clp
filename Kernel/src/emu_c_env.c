@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.8 2012/10/01 01:05:59 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.9 2012/12/09 22:53:12 jschimpf Exp $
  */
 
 /*
@@ -1219,6 +1219,8 @@ ec_unify_(value v1, type t1,
 #endif
 	    return tag_desc[TagType(t1)].equal(v1.ptr, v2.ptr) ? PSUCCEED : PFAIL;
 	}
+
+	Poll_Interrupts();	/* because we might be looping */
 	
 	/* arity > 0 */
 	for (;;)
