@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.16 2012/10/24 18:16:53 jschimpf Exp $
+ * VERSION	$Id: bip_arith.c,v 1.17 2012/12/09 22:51:37 jschimpf Exp $
  */
 
 /*
@@ -1487,22 +1487,23 @@ bin_arith_op(value v1, type t1, value v2, type t2, pword *pres, int op)
 	    if (!IsNumber(t2))
 		{ Bip_Error(ARITH_TYPE_ERROR); }
 	    err = tag_desc[TagType(t2)].coerce_to[TagType(t1)](v2, &v2);
-	    pres->tag.kernel = Tag(t1.kernel);
 	}
 	else
 	{
 	    if (!IsNumber(t1))
 		{ Bip_Error(ARITH_TYPE_ERROR); }
 	    err = tag_desc[TagType(t1)].coerce_to[TagType(t2)](v1, &v1);
-	    pres->tag.kernel = Tag(t2.kernel);
+	    t1.kernel = t2.kernel;
 	}
 	if (err != PSUCCEED) return err;
     }
-    else
-	/* CAUTION: must strip extra tag bits, e.g. PERSISTENT */
-	pres->tag.kernel = Tag(t1.kernel);
 
-    return tag_desc[TagType(pres->tag)].arith_op[op](v1, v2, pres);
+    err = tag_desc[TagType(t1)].arith_op[op](v1, v2, pres);
+    if (err != PSUCCEED) return err;
+    /* CAUTION: must strip extra tag bits, e.g. PERSISTENT */
+    /* CAUTION: clobber pres tag only on success! */
+    pres->tag.kernel = Tag(t1.kernel);
+    return PSUCCEED;
 }
 
 int
