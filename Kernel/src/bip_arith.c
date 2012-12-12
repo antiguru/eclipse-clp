@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_arith.c,v 1.17 2012/12/09 22:51:37 jschimpf Exp $
+ * VERSION    $Id: bip_arith.c,v 1.18 2012/12/12 23:05:58 jschimpf Exp $
  */
 
 /*
@@ -1479,6 +1479,7 @@ int
 bin_arith_op(value v1, type t1, value v2, type t2, pword *pres, int op)
 {
     int err;
+    pword result;
 
     if (!SameType(t1,t2))
     {
@@ -1498,11 +1499,12 @@ bin_arith_op(value v1, type t1, value v2, type t2, pword *pres, int op)
 	if (err != PSUCCEED) return err;
     }
 
-    err = tag_desc[TagType(t1)].arith_op[op](v1, v2, pres);
-    if (err != PSUCCEED) return err;
+    /* Result tag gets t1 tag as default value */
     /* CAUTION: must strip extra tag bits, e.g. PERSISTENT */
-    /* CAUTION: clobber pres tag only on success! */
-    pres->tag.kernel = Tag(t1.kernel);
+    result.tag.kernel = Tag(t1.kernel);
+    err = tag_desc[TagType(t1)].arith_op[op](v1, v2, &result);
+    if (err != PSUCCEED) return err;	/* return with untouched *pres! */
+    *pres = result;
     return PSUCCEED;
 }
 
