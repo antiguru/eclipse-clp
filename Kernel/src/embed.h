@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.8 2012/12/04 12:54:47 jschimpf Exp $
+ * $Id: embed.h,v 1.9 2013/01/17 23:41:09 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -117,6 +117,9 @@ Extern DLLEXP pword	Winapi	ec_string ARGS((const char*));
 Extern DLLEXP pword	Winapi	ec_length_string ARGS((int, const char*));
 Extern DLLEXP pword	Winapi	ec_atom ARGS((const dident));
 Extern DLLEXP pword	Winapi	ec_long ARGS((const long));
+#ifdef HAVE_LONG_LONG
+Extern DLLEXP pword	Winapi	ec_long_long ARGS((const long long));
+#endif
 Extern DLLEXP pword	Winapi	ec_double ARGS((const double));
 #ifdef STDC_HEADERS
 Extern DLLEXP pword		ec_term ARGS((dident, ... /*pwords*/));
@@ -144,6 +147,9 @@ Extern DLLEXP int	Winapi	ec_get_string ARGS((const pword,char**));
 Extern DLLEXP int	Winapi	ec_get_string_length ARGS((const pword,char**,long*));
 Extern DLLEXP int	Winapi	ec_get_atom ARGS((const pword,dident*));
 Extern DLLEXP int	Winapi	ec_get_long ARGS((const pword,long*));
+#ifdef HAVE_LONG_LONG
+Extern DLLEXP int	Winapi	ec_get_long_long ARGS((const pword,long long*));
+#endif
 Extern DLLEXP int	Winapi	ec_get_double ARGS((const pword,double*));
 Extern DLLEXP int	Winapi	ec_get_nil ARGS((const pword));
 Extern DLLEXP int	Winapi	ec_get_list ARGS((const pword,pword*,pword*));

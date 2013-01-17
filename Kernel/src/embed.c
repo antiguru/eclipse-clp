@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.5 2012/01/09 11:49:34 jschimpf Exp $
+ * $Id: embed.c,v 1.6 2013/01/17 23:41:09 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -54,6 +54,7 @@
 #ifdef STDC_HEADERS
 #include <stdarg.h>
 #include <string.h>
+#include <limits.h>
 #else
 #include <varargs.h>
 extern char *	strcat();
@@ -756,7 +757,7 @@ ec_get_atom(const pword w, dident *a)
 	return INSTANTIATION_FAULT;
     else
 	return TYPE_ERROR;
-    Succeed_
+    return PSUCCEED;
 }
 
 pword Winapi
@@ -797,7 +798,7 @@ ec_get_string(const pword w, char **s)
 	return INSTANTIATION_FAULT;
     else
 	return TYPE_ERROR;
-    Succeed_
+    return PSUCCEED;
 }
 
 int Winapi
@@ -825,7 +826,7 @@ ec_get_string_length(const pword w, char **s, long int *l)
 	return INSTANTIATION_FAULT;
     else
 	return TYPE_ERROR;
-    Succeed_
+    return PSUCCEED;
 }
 
 pword Winapi
@@ -846,7 +847,7 @@ ec_get_long(const pword w, long int *l)
     {
 #if SIZEOF_WORD > SIZEOF_LONG
 	/* range error if val.nint is too large for long */
-	if (pw->val.nint > __LONG_MAX__ || pw->val.nint <= -(__LONG_MAX__))
+	if (pw->val.nint > LONG_MAX || pw->val.nint < LONG_MIN)
 	    return RANGE_ERROR;
 #endif
 	*l = pw->val.nint;
@@ -856,9 +857,48 @@ ec_get_long(const pword w, long int *l)
 	return INSTANTIATION_FAULT;
     else
 	return TYPE_ERROR;
-    /* convert doubles that are integer? */
-    Succeed_
+    return PSUCCEED;
 }
+
+#ifdef HAVE_LONG_LONG
+#ifndef SIZEOF_LONG_LONG
+#ifdef __SIZEOF_LONG_LONG__
+#define SIZEOF_LONG_LONG __SIZEOF_LONG_LONG__
+#else
+#define SIZEOF_LONG_LONG 8
+#endif
+#endif
+
+pword Winapi
+ec_long_long(const long long int l)
+{
+    pword w;
+    tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](l, &w);
+    return w;
+}
+
+int Winapi
+ec_get_long_long(const pword w, long long int *l)
+{
+    const pword *pw = &w;
+    Dereference_(pw);
+
+    if (IsInteger(pw->tag)) {
+#if SIZEOF_WORD > SIZEOF_LONG_LONG
+	/* range error if val.nint is too large for long long */
+	if (pw->val.nint > LLONG_MAX || pw->val.nint < LLONG_MIN)
+	    return RANGE_ERROR;
+#endif
+	*l = pw->val.nint;
+    } else if (IsBignum(pw->tag)) 
+	return tag_desc[TBIG].arith_op[ARITH_TOCLONGLONG](&w, l) < 0 ? RANGE_ERROR : PSUCCEED;
+    else if (IsRef(pw->tag))
+	return INSTANTIATION_FAULT;
+    else
+	return TYPE_ERROR;
+    return PSUCCEED;
+}
+#endif
 
 pword Winapi
 ec_double(const double d)
@@ -883,7 +923,7 @@ ec_get_double(const pword w, double *d)
 	return INSTANTIATION_FAULT;
     else
 	return TYPE_ERROR;
-    Succeed_
+    return PSUCCEED;
 }
 
 
@@ -1116,10 +1156,10 @@ ec_get_list(const pword list, pword *car, pword *cdr)
     {
 	*car = pw->val.ptr[0];
 	*cdr = pw->val.ptr[1];
-	Succeed_
+	return PSUCCEED;
     }
     else if (IsNil(pw->tag))
-	Fail_
+	return PFAIL;
     else if (IsRef(pw->tag))
     	return INSTANTIATION_FAULT;
     else
@@ -1146,7 +1186,7 @@ ec_get_arg(const int n, pword term, pword *arg)
     	return INSTANTIATION_FAULT;
     else
     	return TYPE_ERROR;
-    Succeed_
+    return PSUCCEED;
 }
 
 int Winapi
@@ -1163,7 +1203,7 @@ ec_get_functor(const pword term, dident *d)
     	return INSTANTIATION_FAULT;
     else
     	return TYPE_ERROR;
-    Succeed_
+    return PSUCCEED;
 }
 
 int Winapi
@@ -1229,15 +1269,15 @@ ec_var_lookup(ec_ref vars, char *name, pword *var)
 		0 == strcmp(DidName(varname.val.did),name) )
 	    {
 			ec_get_arg(2,pair,var);
-			Succeed_
+			return PSUCCEED;
 	    }
 	    else
 	    {
 		    if (PSUCCEED != ec_get_arg(2,list,&list))
-		    	{ Fail_; }
+		    	return PFAIL;
 	    }
 	}
-	Fail_
+	return PFAIL;
 }
 
 

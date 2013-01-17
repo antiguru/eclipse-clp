@@ -23,7 +23,7 @@
 /*
  * ECLiPSe SAMPLE CODE
  *
- * $Id: eg_c_test.c,v 1.1 2008/06/30 17:43:54 jschimpf Exp $
+ * $Id: eg_c_test.c,v 1.2 2013/01/17 23:41:09 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf
  *
@@ -31,6 +31,7 @@
  *	Test all features of the embedding interface.
  */
 
+#include	<stdio.h>
 #include	"eclipse.h"
 
 long	longs[] = {1,2,3,4,5};
@@ -227,6 +228,15 @@ main(int argc, char **argv)
     ec_refs_set(YZ, 1, ec_long(77));
     if (!(ec_get_long(ec_refs_get(YZ,1),&n) == PSUCCEED && n == 77))
     	goto _problem_;
+
+#ifdef HAVE_LONG_LONG
+    {
+	long long ln;
+	ec_refs_set(YZ, 1, ec_long_long(5000000000LL));
+	if (!(ec_get_long_long(ec_refs_get(YZ,1),&ln) == PSUCCEED && ln == 5000000000))
+	    goto _problem_;
+    }
+#endif
 
     /*----------------------------------------*/
     printf("Testing checking and decomposition\n");
