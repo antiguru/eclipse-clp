@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: notify_ports.ecl,v 1.4 2011/04/15 08:12:04 jschimpf Exp $
+% Version:	$Id: notify_ports.ecl,v 1.5 2013/01/23 19:40:19 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(notify_ports).
@@ -31,7 +31,7 @@
 :- comment(categories, ["Data Structures","Techniques"]).
 :- comment(summary, "One-to-many and many-to-many notification ports").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2011/04/15 08:12:04 $").
+:- comment(date, "$Date: 2013/01/23 19:40:19 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- comment(desc, html("<P>
@@ -394,6 +394,20 @@
     ]
 ]).
 
+:- comment(merge_senders/2, [
+    summary:"Merge DyingSender into SurvivingSender",
+    amode:merge_senders(+, +),
+    args:[
+	"DyingSender":"a send port opened with open_sender/1 or open_tagging_sender/1",
+	"SurvivingSender":"a send port opened with open_sender/1 or open_tagging_sender/1"
+    ],
+    desc:html("
+    Destroy DyingSender, but only after adding its receivers to the receivers
+    of SurvivingSender.  In the case of tagging senders, duplicate receivers
+    will be eliminated iff their tags are equal.
+    ")
+]).
+
 :- comment(send_notification/3, [
     summary:"Send a notification message",
     amode:send_notification(+, +, +),
@@ -547,6 +561,32 @@ close_sender(SendPort) :-
 :- export close_sender/2.
 close_sender(Pos, Attr) :-
 	arg(Pos, Attr, []).
+
+
+:- export merge_senders/2.
+:- mode merge_senders(+,+).
+merge_senders(DyingSender, SurvivingSender) :-
+	DyingSender = send(Tail),
+	SurvivingSender = send(Tail),
+	setarg(1, DyingSender, []).
+merge_senders(DyingSender, SurvivingSender) :-
+	DyingSender = tagging_send(List1),
+	SurvivingSender = tagging_send(List2),
+	% normalise tails, and append
+	normalise_senders(List1, NormList12, NormList2),
+	normalise_senders(List2, NormList2, []),
+	% merge, removing duplicates
+	sort(0, >, NormList12, MergedList),
+	setarg(1, SurvivingSender, MergedList),
+	setarg(1, DyingSender, []).
+
+    :- mode normalise_senders(+,-,?).
+    normalise_senders([], NSs, NSs).
+    normalise_senders([send(Tail,Tag)|Ss], [TaggedSend|NSs], NSs0) :-
+	TaggedSend = send([],Tag),
+    	deref_tail(Tail, RealTail),
+	setarg(1, TaggedSend, RealTail),
+	normalise_senders(Ss, NSs, NSs0).
 
 
 :- export send_notification/2.
