@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: tentative.ecl,v 1.4 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: tentative.ecl,v 1.5 2013/01/23 19:43:04 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -35,7 +35,7 @@
 :- comment(categories, ["Techniques","Constraints"]).
 :- comment(summary, "A framework for Local Search based on tentative values").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2010/07/25 13:29:05 $").
+:- comment(date, "$Date: 2013/01/23 19:43:04 $").
 :- comment(copyright, "Cisco Systems").
 
 :- comment(see_also, [library(tentative_constraints)]).
@@ -78,7 +78,10 @@
 </P><P>
     Instantiating a tentative variable to a value V is equivalent to first
     setting/changing its tentative value to V, and then instantiating to V.
-    Unifying two tentative variables is not supported and raises an error.
+</P><P>
+    When two tentative variables get unified, one of them acquires the
+    tentative value of the other (which one is undefined).  Such unifications
+    do not fit well with the concepts of this library and are best avoided.
 </P><P>
     Variables with tentative value are printed in the following format:
 <PRE>
@@ -759,14 +762,26 @@ unify_tentative(_Y, AttrX) :-
     unify_tent_tent(AttrY, AttrX) :-
     	var(AttrY),
 	AttrY = AttrX.
-    unify_tent_tent(AttrY, _AttrX) :-
+    unify_tent_tent(AttrY, AttrX) :-
     	compound(AttrY),
-	% TODO: allow var-var unification if tentative values are identical:
-	% merge sums (eliminating duplicates?)
-	% merge receivers
-	% merge waking lists
-	% sum violations
-	exit_block(unifying_two_tentative_variables).
+	% X disappears, Y survives
+	AttrX = tentative{tentval:TX,violations:VX,sums:SumsX,send_port:PortX},
+	AttrY = tentative{tentval:TY,violations:VY,sums:SumsY,send_port:PortY},
+	( TX==TY ->
+	    true
+	;
+	    % essentially tent_set_attr(AttrX, TY)
+	    setarg(tentval of tentative, AttrX, TY),
+	    update_sums(SumsX, TY),
+	    notify_change(PortX, TX, TY),
+	    schedule_suspensions(tent_chg of tentative, AttrX)
+	),
+	VXY is VX+VY,
+	setarg(violations of tentative, AttrX, VXY),
+	append(SumsY, SumsX, SumsYX),	% TODO: merge duplicates?
+	setarg(sums of tentative, AttrY, SumsYX),
+	merge_suspension_lists(tent_chg of tentative, AttrX, tent_chg of tentative, AttrY),
+	merge_senders(PortX, PortY).
 
 
 %----------------------------------------------------------------------
