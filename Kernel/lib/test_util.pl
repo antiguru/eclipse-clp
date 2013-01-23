@@ -22,13 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: test_util.pl,v 1.3 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: test_util.pl,v 1.4 2013/01/23 21:06:00 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(test_util).
 
 :- lib(calendar).
 
+:- export op(1200,fy,(fixme)).
 :- export op(1110,xfx,(should_give)).
 :- export op(1110,xf,(should_fail)).
 :- export op(1110,xfx,(should_throw)).
@@ -39,6 +40,7 @@
 	(should_throw)/2, (should_raise)/2,
 	(should_give)/3, (should_fail)/2,
 	(should_throw)/3, (should_raise)/3,
+	(fixme)/1,
 	get_failed_test_count/1.
 
 :- export make_integer/1, make_float/1, make_rational/1, make_bignum/1,
@@ -63,14 +65,13 @@
 :- tool(test/1, test_body/2).
 
 %% Number of tests
-:- local variable(test_count).
-:- setval(test_count, 0).
+:- local variable(test_count, 0).
+%% Number of skipped tests
+:- local variable(skipped_test_count, 0).
 %% Number of failed tests
-:- local variable(failed_test_count).
-:- setval(failed_test_count, 0).
+:- local variable(failed_test_count, 0).
 %% Line number of current test
-:- local variable(test_line).
-:- setval(test_line, 0).
+:- local variable(test_line, 0).
 
 :- set_stream(testlog, output).
 :- set_stream(test_csv_log, null).
@@ -79,7 +80,7 @@
 :- comment(summary, "Utilities for automated program tests").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2012/02/06 13:24:43 $").
+:- comment(date, "$Date: 2013/01/23 21:06:00 $").
 :- comment(desc, html("
     Use this library as follows: Write a file with test patterns, using
     the primitives should_fail/1, should_give/2, should_throw/2 and
@@ -151,8 +152,43 @@
     ]).
  :- comment((should_give)/2, [
     template:"+Goal should_give +CheckGoal",
-    summary:"Run the goal Goal and print a message if the result doesn't satisfy CheckGoal",
-    eg:"X is 3.0+4 should_give X=7.0.",
+    summary:"Run the goal Goal and print a message if Goal and CheckGoal don't succeed",
+    desc:html("<P>
+    Run the goal Goal and print a message if Goal does not succeed, or
+    if the result doesn't satisfy CheckGoal.
+</P><P>
+    CheckGoal can be an arbitrary user-defined goal.  In this case, the
+    first solution of Goal is committed to, and CheckGoal executed with
+    the variable instantiations of this solution.
+</P><P>
+    To allow verification of goals with multiple solutions, one special
+    form of CheckGoal is recognised:
+<BLOCKQUOTE>
+	multiple_solutions(SolCountVar, FinalCheck, SolutionCheck)
+</BLOCKQUOTE>
+    where SolCountVar should be a fresh variable.  With such a CheckGoal,
+    ALL solutions to Goal will be generated.  For each solution, SolutionCheck
+    will be executed with the variable instantiations of this solution, and
+    with SolCountVar instantiated to the number of this solution (starting
+    from 1).  After all solutions have been found, FinalCheck will be
+    executed, with SolCountVar instantiated to the total number of solutions.
+</P>"),
+    eg:"
+    % Testing deterministic goals
+
+    X is 3.0+4 should_give X=7.0.
+
+    T1=foo(_,_), copy_term(T1,T2) should_give variant(T1,T2).
+    
+
+    % Testing nondeterministic goals
+
+    member(X,[a,b,c]) should_give multiple_solutions(K, K==3,
+        ( K==1 -> X==a
+        ; K==2 -> X==b
+        ; K==3 -> X==c
+	)).
+    ",
     see_also:[(should_fail)/1, (should_throw)/2, (should_raise)/2, (should_give)/3,
 	      (should_fail)/2, (should_throw)/3, (should_raise)/3]
     ]).
@@ -167,16 +203,24 @@
 :- comment((should_throw)/2, [
     template:"+Goal should_throw +Exception",
     summary:"Run the goal Goal and print a message if it doesn't throw Exception",
-    eg:"throw(ball) should_throw ball.",
+    desc:"The exception term thrown must be an instance (see instance/2) of Exception",
+    eg:"
+	throw(ball) should_throw ball.
+	throw(error(type,atom)) should_throw error(type,_).
+    ",
     see_also:[(should_give)/2, (should_fail)/1, (should_raise)/2, (should_throw)/3,
-	      (should_give)/3, (should_fail)/2, (should_raise)/3]
+	      (should_give)/3, (should_fail)/2, (should_raise)/3, instance/2]
     ]).
 :- comment((should_throw)/3, [
     template:"should_throw(+Goal,+Exception,+TestName)",
     summary:"Run the goal Goal and print a message if it doesn't throw Exception",
-    eg:"    should_throw(throw(ball),ball,test_throw).",
+    desc:"The exception term thrown must be an instance (see instance/2) of Exception",
+    eg:"
+	should_throw(throw(ball),ball,test_throw).
+	should_throw(throw(error(type,atom)),error(type,_),test_type_error).
+    ",
     see_also:[(should_give)/2, (should_fail)/1, (should_raise)/2, (should_throw)/2,
-	      (should_give)/3, (should_fail)/2, (should_raise)/3]
+	      (should_give)/3, (should_fail)/2, (should_raise)/3, instance/2]
     ]).
 :- comment((should_raise)/2, [
     template:"+Goal should_raise +Event",
@@ -189,6 +233,18 @@
     template:"should_raise(+Goal,+Event,+TestName)",
     summary:"Run the goal Goal and print a message if it doesn't raise Event.",
     eg:"should_raise(number_string(hello,_),5,test_raises_5). % type error",
+    see_also:[(should_give)/2, (should_fail)/1, (should_throw)/2, (should_raise/2),
+	      (should_give)/3, (should_fail)/2, (should_throw)/3]
+    ]).
+:- comment((fixme)/1, [
+    template:"fixme +SkippedTest",
+    summary:"Skip a test that is known to fail.",
+    desc:"fixme/1 is a low-precedence prefix operator, and can thus be
+    textually prefixed to any other test.  Its effect is that the test
+    is skipped (not executed).  When multiple tests are done, the number
+    of skipped tests gets reported at the end.  Skipped tests count as
+    neither succeeded or failed.",
+    eg:"fixme X is 0.1+0.1+0.1+0.1+0.1+0.1+0.1+0.1 should_give X=0.8.",
     see_also:[(should_give)/2, (should_fail)/1, (should_throw)/2, (should_raise/2),
 	      (should_give)/3, (should_fail)/2, (should_throw)/3]
     ]).
@@ -256,6 +312,7 @@ test_body(File, Type, Info, Module) :-
 	printf(testlog, "%nRunning tests from file (using %w) %w...%n%b", [Type,File1]),
         setval(test_count, 0),
 	setval(failed_test_count, 0),
+	setval(skipped_test_count, 0),
 	test_stream(S, Type, Info, Module),
 	close(S).
 test_body(File, _Type, _Info, _Module) :-
@@ -270,7 +327,10 @@ test_stream(S, Type, Info, M) :-
 	       !,  
 	       getval(test_count, N),
 	       getval(failed_test_count, FN),
-	       printf(testlog, "%n%d tests done.%n%d tests failed.%n%b", [N,FN])
+	       getval(skipped_test_count, SN),
+	       DN is N-SN,
+	       ( SN==0 -> true ; printf(testlog, "%n%d tests skipped.", [SN]) ),
+	       printf(testlog, "%n%d tests done.%n%d tests failed.%n%b", [DN,FN])
 	   ;
 	       ( Info == "" ->
 		     true
@@ -391,6 +451,11 @@ extract_test_goal(should_throw(Goal,Expected,_Name), G0, G1, NewTest) ?- !,
 
 extract_test_goal(Goal, Goal, G1, G1).
 
+
+fixme(_Test) :-
+	incval(skipped_test_count).
+
+
 should_fail_body(Goal, Module) :-
 	catch(should_fail1(Goal, Module), _, true).
 
@@ -413,9 +478,35 @@ should_give_body(Goal, Check, Name, Module) :-
 	printf(test_csv_log, "%q,", [Name]),
 	catch(should_give1(Goal, Check, Module), _, true).
 
+    should_give1(Goal, multiple_solutions(K,CheckCount,Check), Module) ?- !,
+	shelf_create(count(0), Count),
+	(
+	    catch(call(Goal)@Module, Tag, unexpected_exit(Goal,Tag)),
+	    shelf_inc(Count, 1),
+	    ( var(K) -> shelf_get(Count, 1, K) ; true ),
+	    ( catch(call(Check)@Module, _, fail) ->
+		fail	% next solution
+	    ;
+		write(test_csv_log, "fail,"),
+		incval(failed_test_count),
+		printf_with_line(testlog, "goal gave unexpected result:%n%q%n",[Goal]),
+		printf(testlog, "------ did not satisfy:%n%q%n%n%b", [Check])
+	    )
+	;
+	    shelf_get(Count, 1, K),
+	    ( catch(call(CheckCount)@Module, Tag, unexpected_exit(CheckCount,Tag)) ->
+		garbage_collect,  % try to provoke any gc bugs
+		write(test_csv_log, "pass,")
+	    ;
+		write(test_csv_log, "fail,"),
+		incval(failed_test_count),
+		printf_with_line(testlog, "unexpected number of solutions:%n%q%n", [Goal]),
+		printf(testlog, "------ did not satisfy:%n%q%n%n%b", [CheckCount])
+	    )
+	).
     should_give1(Goal, Check, Module) :-
 	( catch(call(Goal)@Module, Tag, unexpected_exit(Goal,Tag)) ->
-	    ( catch(call(Check)@Module, Tag, unexpected_exit(Check,Tag)) ->
+	    ( catch(call(Check)@Module, _, fail) ->
 		garbage_collect,  % try to provoke any gc bugs
 		write(test_csv_log, "pass,")
 	    ;
@@ -484,8 +575,11 @@ should_raise_body(Goal, ErrorId, Name, Module) :-
 	printf_with_line(testlog, "goal unexpectedly did throw(%w):%n%q%n%n%b", [Tag,Goal]),
 	throw(ignore).
 
-    expected_exit(Goal,Expected, Actual) :-
-	( Expected==Actual ->
+    expected_exit(Goal, Expected, Actual) :-
+	% The thrown term should be an instance of the Expected template.
+	% Note that the terms may be nonground,
+	% and thrown terms are always copies.
+	( instance(Actual, Expected) ->
 	    %% Test succeeded
 	    write(test_csv_log, "pass,")
 	;
