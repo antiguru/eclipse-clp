@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: notify_ports.ecl,v 1.5 2013/01/23 19:40:19 jschimpf Exp $
+% Version:	$Id: notify_ports.ecl,v 1.6 2013/01/23 20:25:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(notify_ports).
@@ -31,7 +31,7 @@
 :- comment(categories, ["Data Structures","Techniques"]).
 :- comment(summary, "One-to-many and many-to-many notification ports").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2013/01/23 19:40:19 $").
+:- comment(date, "$Date: 2013/01/23 20:25:39 $").
 :- comment(copyright, "Cisco Systems, Inc").
 
 :- comment(desc, html("<P>
@@ -584,7 +584,7 @@ merge_senders(DyingSender, SurvivingSender) :-
     normalise_senders([], NSs, NSs).
     normalise_senders([send(Tail,Tag)|Ss], [TaggedSend|NSs], NSs0) :-
 	TaggedSend = send([],Tag),
-    	deref_tail(Tail, RealTail),
+	sepia_kernel:list_end(Tail, RealTail),
 	setarg(1, TaggedSend, RealTail),
 	normalise_senders(Ss, NSs, NSs0).
 
