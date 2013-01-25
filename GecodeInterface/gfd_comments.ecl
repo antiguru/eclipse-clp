@@ -6580,21 +6580,52 @@ The pre-defined <b>selection methods</b> (with the gecode name in brackets)
 use the following criteria:
 <ul>
 <li><b>input_order</b> (INT_VAR_NONE) the first entry in the list is selected</li>
-<li><b>first_fail</b> (INT_VAR_SIZE_MIN) the entry with the smallest domain size is selected</li>
-<li><b>anti_first_fail</b> (INT_VAR_SIZE_MAX) the entry with the largest domain size is selected</li>
-<li><b>smallest</b> (INT_VAR_MIN_MIN) the entry with the smallest value in the domain is selected</li>
-<li><b>largest</b> (INT_VAR_MAX_MAX) the entry with the largest value in the domain is selected</li>
-<li><b>occurrence</b> (INT_VAR_DEGREE_MAX) the entry whose corresponding gecode variable with the
-largest number of attached propagators is selected</li>
+<li><b>random</b> (INT_VAR_RND) an entry is selected at random.</li>
 
 <li><b>anti_occurrence</b> (INT_VAR_DEGREE_MIN) the entry whose corresponding gecode variable with the
 smallest number of attached propagators is selected</li>
 
-<li><b>most_constrained</b> (INT_VAR_SIZE_MIN, INT_VAR_DEGREE_MAX) the entry with the smallest domain size is
- selected. If several entries have the same domain size, the entry with the
- largest number of attached constraints is selected. This is provided for
- compatibility, as this define a tiebreak method (occurrence). Any tiebreak
- method defined in options is ignored.</li>
+<li><b>occurrence</b> (INT_VAR_DEGREE_MAX) the entry whose corresponding gecode variable with the
+largest number of attached propagators is selected</li>
+
+<li><b>min_weighted_degree</b> (INT_VAR_AFC_MIN) the entry with the smallest
+weighted degree is selected.</li>
+
+<li><b>max_weighted_degree</b> (INT_VAR_AFC_MAX) the entry with the largest
+weighted degree is selected. Weighted degree is call AFC (accumulated failure
+count) in gecode, and is a count of the number of failures so far of
+propagators associated with the variable, plus the number of propagator
+attached to the variable (to give reasonable starting values when there are
+not failures yet).</li>
+
+<li><b>smallest</b> (INT_VAR_MIN_MIN) the entry with the smallest value in the domain is selected</li>
+
+<li><b>smallest_upb</b> (INT_VAR_MIN_MAX) the entry with the smallest
+ upper bound in the domain is selected</li>
+
+<li><b>largest_lwb</b> (INT_VAR_MAX_MIN) the entry with the largest lower
+  bound in the domain is selected</li>
+
+<li><b>largest</b> (INT_VAR_MAX_MAX) the entry with the largest value in the domain is selected</li>
+
+<li><b>first_fail</b> (INT_VAR_SIZE_MIN) the entry with the smallest domain size is selected</li>
+
+<li><b>anti_first_fail</b> (INT_VAR_SIZE_MAX) the entry with the largest domain size is selected</li>
+
+<li><b>least_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MIN) the entry with the largest domain size
+divided by the number of attached propagators.</li> 
+
+<li><b>most_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MAX) the entry with the smallest domain size
+divided by the number of attached propagators.</li> 
+
+<li><b>min_weighted_degree_per_value</b> (INT_VAR_SIZE_AFC_MIN) the entry with
+ the smallest domain size divided by weighted degree is selected.</li> 
+
+<li><b>max_weighted_degree_per_value</b> (INT_VAR_SIZE_AFC_MAX) the entry with
+ the largest domain size divided by weighted degree is selected.</li> 
+
+<li><b>min_regret_lwb</b> (INT_VAR_REGRET_MIN_MIN) the entry with the smallest difference between the
+smallest and second smallest value in the domain is selected.</li>
 
 <li><b>max_regret</b> (INT_VAR_REGRET_MIN_MAX) the entry with the largest difference between the
 smallest and second smallest value in the domain is selected. This method is
@@ -6605,39 +6636,19 @@ work. If two decision variables incur the same minimal cost, the regret is not
 calculated as zero, but as the difference from this minimal value to the next
 greater value. Note this is an alias for max_regret_lwb</li>
 
-<li><b>random</b> (INT_VAR_RND) an entry is selected at random.</li>
 <li><b>max_regret_lwb</b> (INT_VAR_REGRET_MIN_MAX) is an alias to max_regret.</li>
-
-<li><b>min_regret_lwb</b> (INT_VAR_REGRET_MIN_MIN) the entry with the smallest difference between the
-smallest and second smallest value in the domain is selected.</li>
-
-<li><b>max_regret_upb</b> (INT_VAR_REGRET_MAX_MAX) the entry with the largest difference between the
-largest and second largest value in the domain is selected.</li>
 
 <li><b>min_regret_upb</b> (INT_VAR_REGRET_MAX_MIN) the entry with the smallest difference between the
 largest and second largest value in the domain is selected.</li>
 
-<li><b>most_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MAX) the entry with the smallest domain size
-divided by the number of attached propagators.</li> 
+<li><b>max_regret_upb</b> (INT_VAR_REGRET_MAX_MAX) the entry with the largest difference between the
+largest and second largest value in the domain is selected.</li>
 
-<li><b>least_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MIN) the entry with the largest domain size
-divided by the number of attached propagators.</li> 
-
-<li><b>max_weighted_degree</b> (INT_VAR_AFC_MAX) the entry with the largest
-weighted degree is selected. Weighted degree is call AFC (accumulated failure
-count) in gecode, and is a count of the number of failures so far of
-propagators associated with the variable, plus the number of propagator
-attached to the variable (to give reasonable starting values when there are
-not failures yet).</li>
-
-<li><b>min_weighted_degree</b> (INT_VAR_AFC_MIN) the entry with the smallest
-weighted degree is selected.</li>
-
-<li><b>max_weighted_degree_per_value</b> (INT_VAR_SIZE_AFC_MAX) the entry with
- the largest domain size divided by weighted degree is selected.</li> 
-
-<li><b>min_weighted_degree_per_value</b> (INT_VAR_SIZE_AFC_MIN) the entry with
- the smallest domain size divided by weighted degree is selected.</li> 
+<li><b>most_constrained</b> (INT_VAR_SIZE_MIN, INT_VAR_DEGREE_MAX) the entry with the smallest domain size is
+ selected. If several entries have the same domain size, the entry with the
+ largest number of attached constraints is selected. This is provided for
+ compatibility, as this define a tiebreak method (occurrence). Any tiebreak
+ method defined in options is ignored.</li>
 
 </ul><p>
 The pre-defined <b>choice methods</b> (with gecode name in brackets) have the following meaning:
@@ -6807,7 +6818,9 @@ kind: [search],
 desc:html("
 This predicate chooses one entry in a list of variables or terms based
 on some selection criteria. The selected entry is returned in X, with
-the rest of the list without X returned in R.<p></p>
+the rest of the list without X returned in R. Note that this predicate
+is provided mainly for compatibility with IC, as variable selection
+can be done more efficiently using the GFD-specific select_var/5.<p></p>
 
 Select can be one of the predefined selection method or the name of a user
 defined selection method. Predefined methods are:
@@ -6836,6 +6849,85 @@ weighted degree, to be used.
 This predicate is defined for IC and FD solvers in lib(ic) and lib(fd_search).
 "),
 fail_if:"fails if the list is empty",
+resat:no,
+
+see_also:[indomain/2,search/6, gfd_search:search/6]
+
+]).
+
+
+:-comment(select_var/5,[
+summary:"Choose a domain variable from a collection according to selection criteria.",
+amode:select_var(-,+,+,+,?),
+
+args:[
+      "X" : " a free variable",
+      "Collection" : " a collection of GFD domain variables or terms ",
+      "Arg" : " an integer",
+      "Select" : "is a predefined selection method.",
+      "Handle" : "A free variable (first call) or Handle from previous call."
+],
+kind: [search],
+desc:html("
+This predicate chooses one domain variable in Collection based
+on some selection criteria. The selected entry is returned in X.
+Collection is either a collection of domain variables (Arg is 0), or terms
+containing domain variables (in which case the domain variable is in the
+ Arg'th argument of each term). 
+</p><p>
+This predicate provides the same functionality as delete/5, but is
+more efficient and specific to GFD, and Select cannot be a user-
+defined method. This predicate is more efficient than delete/5
+because the variable selection is done by a single low-level
+ procedure. Unlike delete/5, which does the selection at the ECLiPSe 
+level, and deletes the selected element from Collection, select_var/5 
+selects the variable using Handle, which is a low-level representation
+of the variables extracted from Collection -- the handle is created
+ from Collection if Handle is a free variable.
+ The first time the
+ predicate is called to select from Collection, Handle must be a free
+variable, and select_var/5 will extract the domain variables from Collection
+and create the low-level handle to these variables in Handle, and this
+ Handle can then be used in subsequent calls to select_var/5, avoiding
+ the overhead of re-creating the handle. 
+</p><p>
+Select is one of the following predefined selection methods:
+input_order, occurrence, anti_occurrence, 
+max_weighted_degree, min_weighted_degree,
+max_weighted_degree_per_value, min_weighted_degree_per_value,
+smallest, largest, smallest_upb, largest_lwb,
+first_fail, anti_first_fail, 
+most_constrained,  most_constrained_per_value, least_constrained_per_value, 
+max_regret, max_regret_lwb, min_regret_lwb, max_regret_upb.
+</p><p>
+This is essentially the same selection methods as those for search/6,
+ except the calculation for the method is done by GFD (in C++) rather
+ than Gecode. The selection works by calculating the selection
+ criteria for each variable in Collection, in the order they are in
+ Collection, and chosing the first variable with the best value. Note
+ that only non-instantiated variables (i.e. variable with more than 1
+ value in its domain) are considered. If all variables are
+ instantiated, the predicate fails, i.e. the predicate will fail when
+all variables in Collection have been labelled. 
+ </p><p>
+
+
+This predicate is not defined for IC and FD solvers.
+"),
+eg: "
+% Simple labelling implemented using select_var/5 and indomain/2
+labelling(Vars, Select, Choice) :-
+        labelling1(Vars, Select, Choice, Handle).
+
+labelling1(Vars, Select, Choice, Handle) :-
+        (select_var(V, Vars, 0, Select, Handle) ->
+            indomain(V, Choice),
+            labelling1(Vars, Select, Choice, Handle)
+        ;
+            true
+        ).
+",
+fail_if:"fails if no variable can be selected",
 resat:no,
 
 see_also:[indomain/2,search/6, gfd_search:search/6]

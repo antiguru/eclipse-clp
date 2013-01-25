@@ -126,6 +126,16 @@ extern "C" VisAtt stream_id Winapi ec_stream_id(int);
 
 #endif
 
+static dident d_max_wdeg, d_min_wdeg, 
+    d_max_wdeg_per_val, d_min_wdeg_per_val,
+    d_ff, d_antiff, 
+    d_occ, d_antiocc, 
+    d_smallest, d_largest, d_smallest_upb, d_largest_lwb, 
+    d_max_regret, d_max_regret_lwb, 
+    d_min_regret_lwb, d_max_regret_upb, d_min_regret_upb,
+    d_most_constrained_per_val, d_least_constrained_per_val, 
+    d_most_constrained, d_input_order, d_random;
+
 using namespace Gecode;
 
 
@@ -345,6 +355,29 @@ void cache_domain_sizes(GecodeSpace* solver) {
 extern "C" VisAtt 
 int p_g_init()
 {
+    d_max_wdeg = ec_did("max_weighted_degree", 0);
+    d_min_wdeg = ec_did("min_weighted_degree", 0);
+    d_max_wdeg_per_val = ec_did("max_weighted_degree_per_value", 0);
+    d_min_wdeg_per_val = ec_did("min_weighted_degree_per_value", 0);
+    d_ff = ec_did("first_fail", 0);
+    d_antiff = ec_did("anti_first_fail", 0);
+    d_occ = ec_did("occurrence", 0);
+    d_antiocc = ec_did("anti_occurrence", 0);
+    d_smallest = ec_did("smallest", 0);
+    d_largest = ec_did("largest", 0);
+    d_smallest_upb = ec_did("smallest_upb", 0);
+    d_largest_lwb = ec_did("largest_lwb", 0);
+    d_max_regret = ec_did("max_regret", 0);
+    d_max_regret_lwb = ec_did("max_regret_lwb", 0);
+    d_max_regret_upb = ec_did("max_regret_upb", 0);
+    d_min_regret_lwb = ec_did("min_regret_lwb", 0);
+    d_min_regret_upb = ec_did("min_regret_upb", 0);
+    d_most_constrained_per_val = ec_did("most_constrained_per_value", 0);
+    d_most_constrained = ec_did("most_constrained", 0);
+    d_least_constrained_per_val = ec_did("least_constrained_per_value", 0);
+    d_input_order = ec_did("input_order", 0);
+    d_random = ec_did("random", 0);
+
     GecodeSpace** solverp = new GecodeSpace*;
 
     *solverp = NULL;
@@ -4373,65 +4406,79 @@ int p_g_setup_search()
 	if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
 	if (strcmp(atm.name(), "none") != 0) {
 	    do_tiebreak = true;
-	    if (strcmp(atm.name(), "input_order") == 0) 
+	    dident selectdid = atm.d;
+	    if (selectdid == d_input_order)
 		tiebreakselect = INT_VAR_NONE;
-	    else if (strcmp(atm.name(), "first_fail") == 0) 
+	    else if (selectdid == d_ff )
 		tiebreakselect = INT_VAR_SIZE_MIN;
-	    else if (strcmp(atm.name(), "anti_first_fail") == 0) 
+	    else if (selectdid == d_antiff )
 		tiebreakselect = INT_VAR_SIZE_MAX;
-	    else if (strcmp(atm.name(), "occurrence") == 0) 
+	    else if (selectdid == d_occ )
 		tiebreakselect = INT_VAR_DEGREE_MAX;
-	    else if (strcmp(atm.name(), "anti_occurrence") == 0) 
+	    else if (selectdid == d_antiocc )
 		tiebreakselect = INT_VAR_DEGREE_MIN;
-	    else if (strcmp(atm.name(), "largest") == 0) 
+	    else if (selectdid == d_largest )
 		tiebreakselect = INT_VAR_MAX_MAX;
-	    else if (strcmp(atm.name(), "smallest") == 0) 
+	    else if (selectdid == d_smallest )
 		tiebreakselect = INT_VAR_MIN_MIN;
-	    else if (strcmp(atm.name(), "most_constrained_per_value") == 0) 
+	    else if (selectdid == d_largest_lwb )
+		tiebreakselect = INT_VAR_MAX_MIN;
+	    else if (selectdid == d_smallest_upb )
+		tiebreakselect = INT_VAR_MIN_MAX;
+	    else if (selectdid == d_most_constrained_per_val )
 		tiebreakselect = INT_VAR_SIZE_DEGREE_MAX;
-	    else if (strcmp(atm.name(), "least_constrained_per_value") == 0) 
+	    else if (selectdid == d_least_constrained_per_val )
 		tiebreakselect = INT_VAR_SIZE_DEGREE_MIN;
-	    else if (strcmp(atm.name(), "max_regret") == 0) 
+	    else if (selectdid == d_max_regret )
 		tiebreakselect = INT_VAR_REGRET_MIN_MAX;
-	    else if (strcmp(atm.name(), "max_regret_lwb") == 0) 
+	    else if (selectdid == d_max_regret_lwb )
 		tiebreakselect = INT_VAR_REGRET_MIN_MAX;
-	    else if (strcmp(atm.name(), "min_regret_lwb") == 0) 
+	    else if (selectdid == d_min_regret_lwb )
 		tiebreakselect = INT_VAR_REGRET_MIN_MIN;
-	    else if (strcmp(atm.name(), "max_regret_upb") == 0) 
+	    else if (selectdid == d_max_regret_upb )
 		tiebreakselect = INT_VAR_REGRET_MAX_MAX;
-	    else if (strcmp(atm.name(), "min_regret_upb") == 0) 
+	    else if (selectdid == d_min_regret_upb )
 		tiebreakselect = INT_VAR_REGRET_MAX_MIN;
-	    else if (strcmp(atm.name(), "random") == 0) 
+	    else if (selectdid == d_random )
 		tiebreakselect = INT_VAR_RND;
+	    else if (selectdid == d_max_wdeg )
+		tiebreakselect = INT_VAR_AFC_MAX;
+	    else if (selectdid == d_min_wdeg )
+		tiebreakselect = INT_VAR_AFC_MIN;
+	    else if (selectdid == d_max_wdeg_per_val )
+		tiebreakselect = INT_VAR_SIZE_AFC_MAX;
+	    else if (selectdid == d_min_wdeg_per_val )
+		tiebreakselect = INT_VAR_SIZE_AFC_MIN;
 	    else return RANGE_ERROR;
 	}
 
 	if (EC_arg(3).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
-	if (strcmp(atm.name(), "input_order") == 0) varselect = INT_VAR_NONE;
-	else if (strcmp(atm.name(), "first_fail") == 0) varselect = INT_VAR_SIZE_MIN;
-	else if (strcmp(atm.name(), "anti_first_fail") == 0) varselect = INT_VAR_SIZE_MAX;
-	else if (strcmp(atm.name(), "occurrence") == 0) varselect = INT_VAR_DEGREE_MAX;
-	else if (strcmp(atm.name(), "anti_occurrence") == 0) varselect = INT_VAR_DEGREE_MIN;
-	else if (strcmp(atm.name(), "largest") == 0) varselect = INT_VAR_MAX_MAX;
-	else if (strcmp(atm.name(), "smallest") == 0) varselect = INT_VAR_MIN_MIN;
-	else if (strcmp(atm.name(), "largest_lwb") == 0) varselect = INT_VAR_MAX_MIN;
-	else if (strcmp(atm.name(), "smallest_upb") == 0) varselect = INT_VAR_MIN_MAX;
-	else if (strcmp(atm.name(), "most_constrained") == 0) {
+	dident selectdid = atm.d;
+	if (selectdid == d_input_order) varselect = INT_VAR_NONE;
+	else if (selectdid == d_ff) varselect = INT_VAR_SIZE_MIN;
+	else if (selectdid == d_antiff) varselect = INT_VAR_SIZE_MAX;
+	else if (selectdid == d_occ) varselect = INT_VAR_DEGREE_MAX;
+	else if (selectdid == d_antiocc) varselect = INT_VAR_DEGREE_MIN;
+	else if (selectdid == d_largest) varselect = INT_VAR_MAX_MAX;
+	else if (selectdid == d_smallest) varselect = INT_VAR_MIN_MIN;
+	else if (selectdid == d_largest_lwb) varselect = INT_VAR_MAX_MIN;
+	else if (selectdid == d_smallest_upb) varselect = INT_VAR_MIN_MAX;
+	else if (selectdid == d_most_constrained) {
 	    varselect = INT_VAR_SIZE_MIN;
 	    do_tiebreak = true;
 	    tiebreakselect = INT_VAR_DEGREE_MAX;
-	} else if (strcmp(atm.name(), "most_constrained_per_value") == 0) varselect = INT_VAR_SIZE_DEGREE_MAX;
-	else if (strcmp(atm.name(), "least_constrained_per_value") == 0) varselect = INT_VAR_SIZE_DEGREE_MIN;
-	else if (strcmp(atm.name(), "max_regret") == 0) varselect = INT_VAR_REGRET_MIN_MAX;
-	else if (strcmp(atm.name(), "max_regret_lwb") == 0) varselect = INT_VAR_REGRET_MIN_MAX;
-	else if (strcmp(atm.name(), "min_regret_lwb") == 0) varselect = INT_VAR_REGRET_MIN_MIN;
-	else if (strcmp(atm.name(), "max_regret_upb") == 0) varselect = INT_VAR_REGRET_MAX_MAX;
-	else if (strcmp(atm.name(), "min_regret_upb") == 0) varselect = INT_VAR_REGRET_MAX_MIN;
-	else if (strcmp(atm.name(), "random") == 0) varselect = INT_VAR_RND;
-	else if (strcmp(atm.name(), "max_weighted_degree") == 0) varselect = INT_VAR_AFC_MAX; 
-	else if (strcmp(atm.name(), "min_weighted_degree") == 0) varselect = INT_VAR_AFC_MIN; 
-	else if (strcmp(atm.name(), "max_weighted_degree_per_value") == 0) varselect = INT_VAR_SIZE_AFC_MAX; 
-	else if (strcmp(atm.name(), "min_weighted_degree_per_value") == 0) varselect = INT_VAR_SIZE_AFC_MIN; 
+	} else if (selectdid == d_most_constrained_per_val) varselect = INT_VAR_SIZE_DEGREE_MAX;
+	else if (selectdid == d_least_constrained_per_val) varselect = INT_VAR_SIZE_DEGREE_MIN;
+	else if (selectdid == d_max_regret) varselect = INT_VAR_REGRET_MIN_MAX;
+	else if (selectdid == d_max_regret_lwb) varselect = INT_VAR_REGRET_MIN_MAX;
+	else if (selectdid == d_min_regret_lwb) varselect = INT_VAR_REGRET_MIN_MIN;
+	else if (selectdid == d_max_regret_upb) varselect = INT_VAR_REGRET_MAX_MAX;
+	else if (selectdid == d_min_regret_upb) varselect = INT_VAR_REGRET_MAX_MIN;
+	else if (selectdid == d_random) varselect = INT_VAR_RND;
+	else if (selectdid == d_max_wdeg) varselect = INT_VAR_AFC_MAX; 
+	else if (selectdid == d_min_wdeg) varselect = INT_VAR_AFC_MIN; 
+	else if (selectdid == d_max_wdeg_per_val) varselect = INT_VAR_SIZE_AFC_MAX; 
+	else if (selectdid == d_min_wdeg_per_val) varselect = INT_VAR_SIZE_AFC_MIN; 
 	else return RANGE_ERROR;
 
 	IntValBranch valchoice;
@@ -4675,6 +4722,155 @@ extern "C" VisAtt
 int p_g_get_gfd_minint()
 {
     return unify(EC_arg(1), EC_word(Int::Limits::min));
+}
+
+extern "C" VisAtt
+int p_g_create_idxs_handle()
+{
+    EC_word idxs = EC_arg(1);
+    long size = idxs.arity();
+
+    long* idxarr = (long *)malloc(sizeof(long)*(size+1));
+    idxarr[0] = size;
+
+    EC_word w;
+    idxs.arg(1, w);
+    long i;
+    for (int j=1; j <= size; j++) {
+	long i;
+	EC_word w;
+
+	if (EC_fail == idxs.arg(j, w)) return RANGE_ERROR;
+	if (EC_succeed == w.is_long(&i)) {
+	    idxarr[j] = i;
+	} else return TYPE_ERROR;
+    }
+
+    return unify(EC_arg(2), handle(&ec_xt_long_arr, idxarr));
+
+}
+
+#define Find_Best_IntVar_For(InitialVal, Best, Current, Checkbest) {	\
+    Best = InitialVal;					\
+    for (int j=1; j <= size; j++) {\
+	int idx = (int) idxarr[j];\
+	if ((dsize = solver->vInt[idx].size()) > 1) {	\
+	    if Checkbest {\
+		Best = Current;			\
+		bestidx = idx;\
+	    }\
+	}\
+    }\
+}
+
+extern "C" VisAtt
+int p_g_select()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    long* idxarr;
+    if (EC_succeed != get_handle_from_arg(2, &ec_xt_long_arr, (void **)&idxarr))
+	return TYPE_ERROR;
+
+    EC_atom select;
+    if (EC_arg(3).is_atom(&select) != EC_succeed) return TYPE_ERROR;
+    dident selectdid = select.d;
+    int size = (int) idxarr[0], bestidx = -1, best;   
+    unsigned int it, dsize;
+    double ft, fbest;
+
+    try {
+	if (selectdid == d_ff) {
+	    Find_Best_IntVar_For(Int::Limits::max, best, dsize,
+				 ((int)dsize < best));
+	} else if (selectdid == d_max_wdeg) {
+	    Find_Best_IntVar_For(Int::Limits::min, best, it,
+				 ((int)(it=solver->vInt[idx].afc()) > best));
+	} else if (selectdid == d_min_wdeg) {
+	    Find_Best_IntVar_For(Int::Limits::max, best, it,
+				 ((int)(it=solver->vInt[idx].afc()) < best));
+	} else if (selectdid == d_occ) {
+	    Find_Best_IntVar_For(Int::Limits::min, best, it,
+				 ((int)(it=solver->vInt[idx].degree()) > best));
+	} else if (selectdid == d_antiocc) {
+	    Find_Best_IntVar_For(Int::Limits::max, best, it,
+				 ((int)(it=solver->vInt[idx].degree()) < best));
+	} else if (selectdid == d_input_order) {
+	    for (int j=1; j <= size; j++) {	
+		int idx = (int) idxarr[j];
+		if (solver->vInt[idx].size() > 1) {
+		    bestidx = idx;
+		    break;
+		}
+	    }
+	} else if (selectdid == d_smallest) {
+	    Find_Best_IntVar_For(Int::Limits::max, best, it,
+				 ((int)(it=solver->vInt[idx].min()) < best));
+	} else if (selectdid == d_largest) {
+	    Find_Best_IntVar_For(Int::Limits::min, best, it,
+				 ((int)(it=solver->vInt[idx].max()) > best));
+	} else if (selectdid == d_smallest_upb) {
+	    Find_Best_IntVar_For(Int::Limits::max, best, it,
+				 ((int)(it=solver->vInt[idx].max()) < best));
+	} else if (selectdid == d_largest_lwb) {
+	    Find_Best_IntVar_For(Int::Limits::min, best, it,
+				 ((int)(it=solver->vInt[idx].min()) > best));
+	} else if (selectdid == d_max_wdeg_per_val) {
+	    Find_Best_IntVar_For(Int::Limits::min, fbest, ft,
+				 ((ft=dsize/(double)solver->vInt[idx].afc()) > fbest));
+	} else if (selectdid == d_most_constrained) {
+	    int best2 = Int::Limits::min;
+	    best = Int::Limits::max;
+	    for (int j=1; j <= size; j++) {	
+		int idx = (int) idxarr[j];
+		if ((dsize = (int)solver->vInt[idx].size()) > 1) {	
+		    if ((int)dsize <= best && 
+			((it=(int)solver->vInt[idx].degree()),(int)dsize < best || it > best2)) {
+			best = dsize;
+			best2 = it;
+			bestidx = idx;
+		    }
+		}
+	    }
+
+	} else if (selectdid == d_max_regret_lwb) {
+	    Find_Best_IntVar_For(Int::Limits::min, best, it,
+				 ((int)(it=solver->vInt[idx].regret_min()) > best));
+	} else if (selectdid == d_max_regret_upb) {
+	    Find_Best_IntVar_For(Int::Limits::min, best, it,
+				 ((int)(it=solver->vInt[idx].regret_max()) > best));
+	} else if (selectdid == d_min_regret_lwb) {
+	    Find_Best_IntVar_For(Int::Limits::max, best, it,
+				 ((int)(it=solver->vInt[idx].regret_min()) < best));
+	} else if (selectdid == d_min_regret_upb) {
+	    Find_Best_IntVar_For(Int::Limits::max, best, it,
+				 ((int)(it=solver->vInt[idx].regret_max()) < best));
+	} else if (selectdid == d_min_wdeg_per_val) {
+	    Find_Best_IntVar_For(Int::Limits::max, fbest, ft,
+				 ((ft=dsize/(double)solver->vInt[idx].afc()) < fbest));
+	} else if (selectdid == d_most_constrained_per_val) {
+	    Find_Best_IntVar_For(Int::Limits::min, fbest, ft,
+				 ((ft=dsize/(double)solver->vInt[idx].degree()) > fbest));
+	} else if (selectdid == d_least_constrained_per_val) {
+	    Find_Best_IntVar_For(Int::Limits::max, fbest, ft,
+	    ((ft=dsize/(double)solver->vInt[idx].degree()) < fbest));
+	} else if (selectdid == d_antiff) {
+	    Find_Best_IntVar_For(Int::Limits::min, best, dsize,
+				 ((int)dsize > best));
+	} else
+	    return RANGE_ERROR;
+    }
+    CatchAndReportGecodeExceptions
+
+    if (bestidx > 0) return unify(EC_arg(4), EC_word((long)bestidx));
+    else return EC_fail; // No var selected
+
 }
 
 

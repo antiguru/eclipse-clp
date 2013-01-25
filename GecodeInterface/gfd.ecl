@@ -78,7 +78,7 @@
 :- export sequence/5, sequence/4, bin_packing/3, bin_packing_g/3, bin_packing/4.
 :- export table/2, table/3, extensional/4, regular/2.
 
-:- export labeling/3, labeling/1, indomain/1, indomain/2, delete/5.
+:- export labeling/3, labeling/1, indomain/1, indomain/2, delete/5, select_var/5.
 :- export is_in_domain/2, is_in_domain/3.
 :- export search/6.
 :- export gfd_update/0.
@@ -289,7 +289,9 @@ load_gfd_solver(Arch) :-
         external(g_propagate_recompute/1, p_g_propagate_recompute),
         external(g_stop_caching/1, p_g_stop_caching),
         external(g_start_caching/1, p_g_start_caching),
-        
+        external(g_create_idxs_handle/2, p_g_create_idxs_handle),
+        external(g_select/4, p_g_select),
+
 	external(g_gecode_version/1, p_g_gecode_version),
 	g_gecode_version(Version),
         printf(log_output, "Loaded Gecode solver %s%n", [Version]).
@@ -4340,21 +4342,21 @@ labeling(Vars) :-
         error(5, labeling(Vars)).
 
 labeling(Vars, Select, Choice) :-
-        check_collection_to_list(Vars, List), !,
+        select_var_setup(Vars, 0, VsH), !,
         gfd_update,
-        labeling1(List, Select, Choice).
+        labeling1(VsH, Select, Choice).
 labeling(Vars, Select, Choice) :-
         error(5, labeling(Vars, Select, Choice)).
 
 
-labeling1(Vs, Select, Choice) :-
-        ( Vs == [] ->
-            true
-        ;
-            delete(V, Vs, Rest, 0, Select),
+labeling1(VsH, Select, Choice) :-
+        (select_var1(V, Select, VsH) ->
             indomain(V, Choice),
-            labeling1(Rest, Select, Choice)
+            labeling1(VsH, Select, Choice)
+        ;
+            true
         ).
+
 
 do_indomain_min(I) :- integer(I), !.
 do_indomain_min(V{gfd:Attr}) ?-
@@ -4471,6 +4473,38 @@ indomain_from1(Which, V, H, Sp, Idx, OldHi, OldLo) :-
         restore_space_if_needed(H, _SpH),
         NewWhich is Which * -1,
         indomain_from1(NewWhich, V, H, Sp, Idx, OldHi, OldLo).
+
+select_var(X, Xs, Arg, Select, IdxsH) :-
+        ( type_of(IdxsH, handle) ->
+            true
+        ;
+            select_var_setup(Xs, Arg, IdxsH)
+        ), 
+        select_var1(X, Select, IdxsH).
+
+
+select_var_setup(Xs, Arg, IdxsH) :-
+        check_collection_to_list(Xs, LXs),
+        ( foreach(V0, LXs), 
+          param(Arg),
+          fromto(LIdxs, LIdxs0,LIdxs1, [])
+        do
+            (Arg == 0 -> V = V0 ; arg(Arg, V, V0)), 
+            (get_gecode_var(V, GV), gfdvar(VIdx,_,GV) ->
+                LIdxs0 = [VIdx|LIdxs1]
+            ;
+                LIdxs0 = LIdxs1
+            )
+        ),
+        Idxs =.. [[]|LIdxs],
+        g_create_idxs_handle(Idxs, IdxsH).
+
+select_var1(X, Select, IdxsH) :-
+        get_prob_handle(H),
+        restore_space_if_needed(H, SpH),
+        g_select(SpH, IdxsH, Select, XIdx),  % May fail
+        H = gfd_prob{vars:PVs},
+        arg(XIdx, PVs, X).
 
 % Based on delete/5 in generic_search.ecl
 % delete(-X,+List:non_empty_list,-R:list,++Arg:integer,++Select:atom,++Module:atom)
@@ -4687,7 +4721,7 @@ process_options([O|Os], TieBreak, Stats, Stop, Timeout, Control) :-
         process_options(Os, TieBreak, Stats, Stop, Timeout, Control).
 
 process_option(tiebreak(TieBreak0), TieBreak, _, _, _, _) ?-
-        atom(TieBreak), !,
+        atom(TieBreak0), !,
         var_selection(TieBreak0),
         TieBreak0 = TieBreak.
 process_option(stats(Stats0), _, Stats, _, _, _) ?- !,
@@ -5036,7 +5070,7 @@ get_weighted_degree(T, Count) :-
 get_weighted_degree(T, Count) :-
         free(T), !,
         Count = 0.
-get_weighted_degree(_{gfd:Attr}, Count) ?-
+get_weighted_degree(_{gfd:Attr}, Count) ?- !,
         ( nonvar(Attr) ->
             Attr = gfd{prob:H, idx:Idx}, 
             restore_space_if_needed(H, SpH),
