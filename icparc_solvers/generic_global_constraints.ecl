@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.7 2012/08/22 01:12:15 kish_shen Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.8 2013/01/25 19:18:33 kish_shen Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -808,7 +808,8 @@ lex_lt([X1|X2Xs], [Y1|Y2Ys], S) ?-
                 )
             ;
                 % there is no next element
-                kill_suspension(S)
+                kill_suspension(S),
+                X1 #< Y1
             )
         ).
 
