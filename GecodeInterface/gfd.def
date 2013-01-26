@@ -112,6 +112,8 @@ EXPORTS
         p_g_add_newvars_dom		@108
 	p_g_add_newvars_as_bool		@109
 	p_g_add_newvars_dom_handle      @110
-        p_g_delete			@111
+	p_g_create_idxs_handle          @111
+	p_g_select			@112
+        p_g_delete			@113
 	
-	p_g_gecode_version		@112
+	p_g_gecode_version		@114
