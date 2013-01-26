@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.8 2013/01/25 19:18:33 kish_shen Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.9 2013/01/26 23:49:21 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -78,6 +78,8 @@
 
 tr_global_out(atmost1(N, List, Val), atmost(N, List, Val)).
 tr_global_out(occurrences(Val, Vars, N, _, _), occurrences(Val, Vars, N)).
+tr_global_out(lex_demon(Xs,Ys,0,_), lex_le(Xs, Ys)).
+tr_global_out(lex_demon(Xs,Ys,1,_), lex_lt(Xs, Ys)).
 
 
 %----------------------------------------------------------------------
@@ -710,48 +712,8 @@ ordered_sum_l(Xs, N, Sum, Susp) :-
 lex_le(XVector,YVector):-
         collection_to_list(XVector,XList),
         collection_to_list(YVector,YList),
-        lex_le1(XList,YList).
-%        lex_le(XList,YList).
+        lex_demon(XList,YList,0,_).
 
-lex_le1([], []) ?- !, true.
-lex_le1([X], [Y|_]) ?- !, X #=< Y.
-lex_le1(Xs, Ys) :-
-	lex_le(Xs, Ys, _).
-    	
-:- demon lex_le/3.
-lex_le([X1|X2Xs], [Y1|Y2Ys], S) ?-
-        X1 #=< Y1,
-        get_bounds(X1, _X1min, X1max),
-        get_bounds(Y1, Y1min, _Y1max),
-        ( X1max < Y1min ->		% X1 #< Y1 entailed
-            kill_suspension(S)
-        ; X1 == Y1 ->			% same value or variable
-            kill_suspension(S),
-            lex_le1(X2Xs, Y2Ys)
-        ; 
-            (get_next(X2Xs,Y2Ys,X2,Y2) ->
-                get_bounds(X2, X2min, _X2max),
-                get_bounds(Y2, _Y2min, Y2max),
-                ( X2min > Y2max ->
-                    kill_suspension(S),
-                    X1 #< Y1
-                ; var(S) ->
-                    generic_suspend(lex_le([X1|X2Xs], [Y1|Y2Ys], S), 3,
-                        [X1->bound,Y1->bound,X1->max,Y1->min,X2->min,Y2->max], S)
-                ;
-                    true	% resuspend
-                )
-            ;
-                % there is no next element
-                kill_suspension(S)
-            )
-        ).
-
-get_next([X|X1],[Y|Y1],X2,Y2):-
-        X == Y,
-        !,
-        get_next(X1,Y1,X2,Y2).
-get_next([X|_X1],[Y|_Y1],X,Y).
 
 :- comment(lex_lt/2, [
     summary:"List1 is lexicographically less than  List2",
@@ -775,46 +737,97 @@ get_next([X|_X1],[Y|_Y1],X,Y).
 lex_lt(XVector,YVector):-
         collection_to_list(XVector,XList),
         collection_to_list(YVector,YList),
-        lex_lt1(XList,YList).
+        lex_demon(XList,YList,1,_).
 
-lex_lt1([], []) ?- !, true.
-lex_lt1([X], [Y|_]) ?- !, X #< Y.
-lex_lt1(Xs, Ys) :-
-	lex_lt(Xs, Ys, _).
-    	
-:- demon lex_lt/3.
-lex_lt([X1|X2Xs], [Y1|Y2Ys], S) ?-
-        X1 #=< Y1,
-        get_bounds(X1, _X1min, X1max),
-        get_bounds(Y1, Y1min, _Y1max),
-        ( X1max < Y1min ->		% X1 #< Y1 entailed
-            kill_suspension(S)
-        ; X1 == Y1 ->			% same value or variable
-            kill_suspension(S),
-            lex_lt1(X2Xs, Y2Ys)
-        ; 
-            (get_next(X2Xs,Y2Ys,X2,Y2) ->
-                get_bounds(X2, X2min, _X2max),
-                get_bounds(Y2, _Y2min, Y2max),
-                ( X2min > Y2max ->
-                    kill_suspension(S),
-                    X1 #< Y1
-                ; var(S) ->
-                    generic_suspend(lex_lt([X1|X2Xs], [Y1|Y2Ys], S), 3,
-                            [X1->bound,Y1->bound,X1->max,Y1->min,
-                             X2->min,Y2->max], S)
-                ;
-                    true	% resuspend
-                )
-            ;
-                % there is no next element
-                kill_suspension(S),
-                X1 #< Y1
-            )
-        ).
 
 :- deprecated(lexico_le/2, "Use lex_le/2").
 lexico_le(Xs, Ys) :- lex_le(Xs, Ys).  % backwards compatibility
+
+
+% lex_demon(Xs, Ys, 0, Susp)	for lex_le
+% lex_demon(Xs, Ys, 1, Susp)	for lex_lt
+%
+% This demon monitors the first two (non-identical) var-var pairs of
+% list elements X1-Y1 and X2-Y2, and implements the following rules:
+%
+% X1-Y1 X2-Y2		lex_le			lex_lt
+%
+%   =    n/a 	===>	entailed		false
+%   <    any 	===>	entailed		entailed	(lazy)
+%   >    any 	===>	false			false
+%   ?     >  	===>	X1 #<  Y1		X1 #<  Y1
+%   ?     <  	===>	X1 #=< Y1		X1 #=< Y1
+%   ?     =  	===>	X1 #=< Y1		X1 #<  Y1
+%   ?     ?  	===>	impose X1=<Y1,suspend	impose X1=<Y1,suspend
+%
+% Identical X-Y pairs are dropped from the lists in recursive calls of
+% lex_demon.  Note that the X1<Y1 entailment case is detected lazily,
+% which also has the advantage that the demon doesn't wake itself when
+% imposing upb(X1).  Strict is 0 for lex_le, 1 for lex_lt.
+
+:- export portray(lex_demon/4, tr_global_out/2, [goal]).
+:- demon lex_demon/4.
+:- set_flag(lex_demon/4, priority, 3).
+:- set_flag(lex_demon/4, run_priority, 2).
+lex_demon(Xs, Ys, Strict, S) :-
+	advance(Xs, Ys, R1, Skipped, X1Xs2, Y1Ys2, MinX1, MaxY1),
+	( R1==(<) ->
+	    kill_suspension(S)
+	; R1==(=) ->
+	    Strict == 0,		% fail for lex_lt
+	    kill_suspension(S)		% entailed for lex_le
+	; R1==(>) ->
+	    fail
+	;
+	    X1Xs2 = [X1|Xs2], Y1Ys2 = [Y1|Ys2],
+	    advance(Xs2, Ys2, R2, Skipped, X2Xs3, Y2Ys3, _MinX2, _MaxY2),
+	    ( R2==(<) ->
+		kill_suspension(S),
+		X1 #=< Y1
+	    ; R2==(=) ->
+		kill_suspension(S),
+		X1 #=< Y1-Strict	% #=< for lex_le, #< for lex_lt
+	    ; R2==(>) ->
+		kill_suspension(S),
+		X1 #< Y1
+	    ;
+                ( var(Skipped), nonvar(S) ->
+		    true		% identical resuspend
+		;
+		    kill_suspension(S),	% if any
+		    X2Xs3 = [X2|_], Y2Ys3 = [Y2|_],
+                    generic_suspend(lex_demon([X1|X2Xs3], [Y1|Y2Ys3], Strict, S1), 0,
+                        [[](X1,X2,Y2)->min,	% not Y1!
+			 [](Y1,X2,Y2)->max,	% not X1!
+			 [](X1,Y1,X2,Y2)->bound], S1)
+		),
+		% Impose X1=<Y1
+		% This will wake lex_demon iff it leads to X1 or Y1 being bound
+		upb(X1, MaxY1), lwb(Y1, MinX1)
+	    )
+	).
+
+
+    % Skip over identical elements in Xs and Ys (indicating this in Skipped),
+    % evaluate the first difference, and return information about it.
+    advance([], [],    Res, _, _, _, _, _) ?- !, Res = (=).
+    advance([], [_|_], Res, _, _, _, _, _) ?- !, Res = (<).
+    advance([_|_], [], Res, _, _, _, _, _) ?- !, Res = (>).
+    advance(XXs, YYs, Res, Skipped, XXs1, YYs1, Xmin, Ymax) :-
+	XXs = [X|Xs], YYs = [Y|Ys],
+	( X==Y ->
+	    Skipped=true,
+	    get_bounds(X, _, _),	% force default domain on X (if necessary)
+	    advance(Xs, Ys, Res, _, XXs1, YYs1, Xmin, Ymax)
+	;
+	    get_bounds(X, Xmin, Xmax),
+	    get_bounds(Y, Ymin, Ymax),
+	    ( Xmax < Ymin -> Res = (<)
+	    ; Xmin > Ymax -> Res = (>)
+	    ; XXs1=XXs, YYs1=YYs, Res = (?)
+	    )
+	).
+
 
 %----------------------------------------------------------------------
 % sorted(?UnsortedList, ?SortedList)
