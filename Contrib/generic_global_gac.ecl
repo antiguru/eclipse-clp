@@ -960,7 +960,7 @@ setup_lex_gac(XList,YList,Variant):-
             Store = store{alpha:A,beta:B,n:N},
             lex_gac(XArray,YArray,Store,A,Variant),
 %            writeln(Store-XArray-YArray),
-            Upper is fix(min(B,N))-1, % convert to integer required
+            Upper is fix(min(B-1,N)), % convert to integer required
 %            writeln(Upper is min(B,N)),
             (for(J,A,Upper),
              param(XArray,YArray,Store,Variant) do
