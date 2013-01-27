@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.31 2012/10/25 13:14:34 jschimpf Exp $
+# $Id: Makefile.in,v 1.32 2013/01/27 01:37:35 jschimpf Exp $
 #
 
 # The location of third party software releases
@@ -261,6 +261,7 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl \
 		fd_edge_finder_common.ecl ic_edge_finder_common.ecl \
 		edge_finder.ecl ic_edge_finder.ecl \
 		edge_finder3.ecl ic_edge_finder3.ecl \
+		fd_prop_test_util.ecl ic_prop_test_util.ecl \
 		config_opts.ecl gap.ecl sym_expr.ecl \
 		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		conjunto_fd_sets.ecl ic_hybrid_sets.ecl lex_set.ecl \
@@ -279,6 +280,7 @@ INCLUDE_ONLY_FILES = generic_search.ecl generic_search_comments.ecl \
 		generic_hybrid_sets.ecl \
 		generic_cumulative.ecl generic_edge_finder_common.ecl \
 		generic_edge_finder.ecl generic_edge_finder3.ecl \
+		generic_prop_test_util.ecl \
 		generic_gap_sbdd.ecl generic_gap_sbds.ecl \
 		generic_flow_constraints.ecl generic_bin_packing.ecl \
 	        generic_sequence.ecl
@@ -297,6 +299,7 @@ ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		cumulative.ecl ic_cumulative.ecl \
 		edge_finder.ecl ic_edge_finder.ecl \
 		edge_finder3.ecl ic_edge_finder3.ecl \
+		fd_prop_test_util.ecl ic_prop_test_util.ecl \
 		config_opts.ecl gap.ecl sym_expr.ecl \
 		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		tentative.ecl tentative_constraints.ecl max_flow.ecl
@@ -496,10 +499,15 @@ $(PREFIX)/lib/edge_finder.eci : generic_edge_finder.ecl
 $(PREFIX)/lib/ic_edge_finder.eco : generic_edge_finder.ecl
 $(PREFIX)/lib/ic_edge_finder.eci : generic_edge_finder.ecl
 
-$(PREFIX)/lib/edge_finder3.eco : generic_edge_finder.ecl
-$(PREFIX)/lib/edge_finder3.eci : generic_edge_finder.ecl
-$(PREFIX)/lib/ic_edge_finder3.eco : generic_edge_finder.ecl
-$(PREFIX)/lib/ic_edge_finder3.eci : generic_edge_finder.ecl
+$(PREFIX)/lib/edge_finder3.eco : generic_edge_finder3.ecl
+$(PREFIX)/lib/edge_finder3.eci : generic_edge_finder3.ecl
+$(PREFIX)/lib/ic_edge_finder3.eco : generic_edge_finder3.ecl
+$(PREFIX)/lib/ic_edge_finder3.eci : generic_edge_finder3.ecl
+
+$(PREFIX)/lib/fd_prop_test_util.eco : generic_prop_test_util.ecl
+$(PREFIX)/lib/fd_prop_test_util.eci : generic_prop_test_util.ecl
+$(PREFIX)/lib/ic_prop_test_util.eco : generic_prop_test_util.ecl
+$(PREFIX)/lib/ic_prop_test_util.eci : generic_prop_test_util.ecl
 
 
 # specific installation rules for ech
