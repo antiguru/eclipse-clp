@@ -33,37 +33,33 @@ gap_sbds, gap_sbdd)",
 amode:search(+,++,++,+,++,+),
 
 args:[
-      "L" : "is a collection (a la collection_to_list/2) of domain
+      "L" : "a collection (a la collection_to_list/2) of domain
 	    variables (Arg = 0) or a collection of terms (Arg > 0)",
 
-      "Arg" :"is an integer, which is 0 if the list is a list of
-	    dvarints or greater 0 if the list consists of terms of
-	    arity greater than Arg, the value Arg indicates the
-	    selected argument of the term",
+      "Arg" :"an integer, which is 0 if the list is a list of domain
+	    variables, or greater than 0 if the list consists of terms
+	    with arity at least Arg (the value Arg indicating the argument
+	    that contains the domain variables to be labeled)",
 
+      "Select" :  "the name of a predefined selection method (input_order,
+	    first_fail, smallest, largest, occurrence, most_constrained,
+	    max_regret, anti_first_fail), or an atom or compound term
+	    specifying a user-defined selection method",
 
-      "Select" :  "is a predefined selection method or the name of a
-	    predicate of arity 2.  Predefined methods are input_order,
-	    first_fail, smallest, largest, occurrence,
-	    most_constrained, max_regret, anti_first_fail",
+      "Choice" :  "the name of a predefined choice method (indomain,
+	    indomain_min, indomain_max, indomain_middle, indomain_reverse_min,
+	    indomain_reverse_max, indomain_median, indomain_split,
+	    indomain_reverse_split, indomain_random, indomain_interval),
+	    or an atom or compound term specifying a user-defined method",
 
-      "Choice" :  "is the name of a predicate of arity 1 or a term
-	    with two arguments with the same functor as a predicate of
-	    arity 3.  Some names are already predefined as special
-	    cases and are handled without a meta-call:  indomain,
-	    indomain_min, indomain_max, indomain_middle,
-	    indomain_reverse_min, indomain_reverse_max,
-	    indomain_median, indomain_split, indomain_reverse_split,
-	    indomain_random, indomain_interval",
-
-      "Method" :  "is one of the following:  complete,
-	    bbs(Steps:integer), lds(Disc:integer),
+      "Method" :  "one of the following search method specifications:
+	    complete, bbs(Steps:integer), lds(Disc:integer),
 	    credit(Credit:integer, Extra:integer or bbs(Steps:integer)
 	    or lds(Disc:integer)), dbs(Level:integer, Extra:integer or
 	    bbs(Steps:integer) or lds(Disc:integer)), sbds, gap_sbds,
 	    gap_sbdd",
 
-       "Option" :  "is a list of option terms.  Currently recognized
+       "Option" :  "a list of option terms.  Currently recognized
 	   are backtrack(-N), node(++Call), nodes(++N)"
 ],
 desc:html("<b>Search/6</b> provides a generic interface to a set of different search
@@ -93,97 +89,124 @@ Integer values are not treated differently from the domain variables,
 they are selected only if their heuristic value is better than those of the 
 other entries.
 <p>
-The pre-defined <b>selection methods</b> use the following criteria:
+The pre-defined <b>selection methods</b> are the following:
 <ul>
-<li><b>input_order</b> the first entry in the list is selected</li>
-<li><b>first_fail</b> the entry with the smallest domain size is selected</li>
-<li><b>anti_first_fail</b> the entry with the largest domain size is selected</li>
-<li><b>smallest</b> the entry with the smallest value in the domain is selected</li>
-<li><b>largest</b> the entry with the largest value in the domain is selected</li>
-<li><b>occurrence</b> the entry with the largest number of attached constraints is selected</li>
-<li><b>most_constrained</b> the entry with the smallest domain size is selected. If several entries have the same domain size, the entry with the largest number of attached constraints is selected.</li>
-<li><b>max_regret</b> the entry with the largest difference between the smallest and second smallest value in the domain is selected. This method is typically used if the variable represents a cost, and we are interested in the choice which could increase overall cost the most if the best possibility is not taken. Unfortunately, the implementation sometimes does not always work. If two decision variables incur the same minimal cost, the regret is not calculated as zero, but as the difference from this minimal value to the next greater value.</li>
+<li><b>input_order</b>
+	the first entry in the list is selected</li>
+<li><b>first_fail</b>
+	the entry with the smallest domain size is selected</li>
+<li><b>anti_first_fail</b>
+	the entry with the largest domain size is selected</li>
+<li><b>smallest</b>
+	the entry with the smallest value in the domain is selected</li>
+<li><b>largest</b>
+	the entry with the largest value in the domain is selected</li>
+<li><b>occurrence</b>
+	the entry with the largest number of attached constraints is selected</li>
+<li><b>most_constrained</b>
+	the entry with the smallest domain size is selected.  If several
+	entries have the same domain size, the entry with the largest number
+	of attached constraints is selected.</li>
+<li><b>max_regret</b>
+	the entry with the largest difference between the smallest and second
+	smallest value in the domain is selected. This method is typically
+	used if the variable represents a cost, and we are interested in
+	the choice which could increase overall cost the most if the best
+	possibility is not taken. Unfortunately, the implementation does
+	not always work: If two decision variables incur the same minimal
+	cost, the regret is not calculated as zero, but as the difference
+	from this minimal value to the next greater value.</li>
 </ul><p>
-Any other name is taken as the name of a user-defined predicate of arity 2
-which is expected to compute a selection criterion (typically a number), e.g.
+Any other atom will be taken as the specification of a user-defined
+selection predicate.  This will be invoked with 2 arguments (X,Criterion)
+added and is expected to compute a selection criterion (typically a number)
+from a variable or value X.  E.g. if Select is 'my_select', a predicate
+definition like the following has to be provided:
 <pre>
-my_select(X,Criterion) :-
+    my_select(X,Criterion) :-
 	...	% compute Criterion from variable X
 </pre>
-The variable-selection will then select the variable with the lowest
-value of Criterion.  If several variables have the same value, the first
-one is selected.
+The variable-selection will then select the variable with the lowest value
+(in standard term order) of Criterion.  If several variables have the same
+value, the first one is selected.  
+<p>
+The above selection methods use the predefined delete/5 predicate.
+If this is not general enough, you can replace it with your own: if Select
+is given as select(my_delete), then my_delete(-SelectedVar,+List,-Rest,+Arg)
+will be invoked for selecting a variable from List.
+
 <p>
 The pre-defined <b>choice methods</b> have the following meaning:
 <ul>
 <li><b>indomain</b>
-uses the built-in indomain/1.  Values are tried in increasing order. 
-On failure, the previously tested value is not removed.</li>
+    uses the built-in indomain/1.  Values are tried in increasing order. 
+    On failure, the previously tested value is not removed.</li>
 
 <li><b>indomain_min</b>
-Values are tried in increasing order.  On failure, the previously
-tested value is removed.  The values are tested in the same order as
-for <b>indomain</b>, but backtracking may occur earlier.</li>
+    Values are tried in increasing order.  On failure, the previously
+    tested value is removed.  The values are tested in the same order as
+    for <b>indomain</b>, but backtracking may occur earlier.</li>
 
 <li><b>indomain_max</b>
-Values are tried in decreasing order.  On failure, the previously
-tested value is removed.</li>
+    Values are tried in decreasing order.  On failure, the previously
+    tested value is removed.</li>
 
 <li><b>indomain_reverse_min</b>
-Like indomain_min, but the alternatives are tried in reverse order.
-I.e. the smallest value is first removed from the domain, and only
-if that fails, the value is assigned.
+    Like indomain_min, but the alternatives are tried in reverse order.
+    I.e. the smallest value is first removed from the domain, and only
+    if that fails, the value is assigned.
 
 <li><b>indomain_reverse_max</b>
-Like indomain_max, but the alternatives are tried in reverse order.
-I.e. the largest value is first removed from the domain, and only
-if that fails, the value is assigned.
+    Like indomain_max, but the alternatives are tried in reverse order.
+    I.e. the largest value is first removed from the domain, and only
+    if that fails, the value is assigned.
 
 <li><b>indomain_middle</b>
-Values are tried beginning from the middle of the domain.  On failure,
-the previously tested value is removed.</li>
+    Values are tried beginning from the middle of the domain.  On failure,
+    the previously tested value is removed.</li>
 
 <li><b>indomain_median</b>
-Values are tried beginning from the median value of the domain.  On
-failure, the previously tested value is removed.</li>
+    Values are tried beginning from the median value of the domain.  On
+    failure, the previously tested value is removed.</li>
 
 <li><b>indomain_split</b>
-Values are tried by succesive domain splitting, trying the lower half
-of the domain first.  On failure, the tried interval is removed.  This
-enumerates values in the same order as indomain or indomain_min, but
-may fail earlier.</li>
+    Values are tried by succesive domain splitting, trying the lower half
+    of the domain first.  On failure, the tried interval is removed.  This
+    enumerates values in the same order as indomain or indomain_min, but
+    may fail earlier.</li>
 
 <li><b>indomain_reverse_split</b>
-Values are tried by succesive domain splitting, trying the upper half
-of the domain first.  On failure, the tried interval is removed.  This
-enumerates values in the same order as indomain or indomain_max, but
-may fail earlier.</li>
+    Values are tried by succesive domain splitting, trying the upper half
+    of the domain first.  On failure, the tried interval is removed.  This
+    enumerates values in the same order as indomain or indomain_max, but
+    may fail earlier.</li>
 
 <li><b>indomain_random</b>
-Values are tried in a random order.  On backtracking, the previously
-tried value is removed.  Using this rutine may lead to unreproducable
-results, as another call wil create random numbers in a different
-sequence.  This method uses the built-in <b>random/1</b> to create
-random numbers, <b>seed/1</b> can be used to force the same number
-generation sequence in another run.</li>
+    Values are tried in a random order.  On backtracking, the previously
+    tried value is removed.  Using this rutine may lead to unreproducable
+    results, as another call wil create random numbers in a different
+    sequence.  This method uses the built-in <b>random/1</b> to create
+    random numbers, <b>seed/1</b> can be used to force the same number
+    generation sequence in another run.</li>
 
 <li><b>indomain_interval</b>
-If the domain consists of several intervals, we first branch on the
-choice of the interval.  For one interval, we use domain
-splitting.</li>
+    If the domain consists of several intervals, we first branch on the
+    choice of the interval.  For one interval, we use domain
+    splitting.</li>
 
 </ul><p>
 Any other name is taken as the name of a user-defined predicate of
-arity 1, e.g.
+arity 1, to which the variable to be labeled (or a whole element of
+list L, in the Arg&gt;0 case) is passed, e.g.
 <pre>
-my_choice(X) :-
+    my_choice(X) :-
 	...	% make a choice on variable X
 </pre>
 Alternatively, a term with 2 arguments can be given as the choice-method,
 e.g. my_choice(FirstIn,LastOut). this will lead to the invocation of a
 choice predicate with arity 3, e.g.
 <pre>
-my_choice(X,In,Out) :-
+    my_choice(X,In,Out) :-
 	...	% make a choice on variable X, using In-Out
 </pre>
 This allows user-defined state to be transferred between the subsequent
@@ -191,111 +214,117 @@ invocations of the choice-predicate (the Out argument of a call to
 my_choice/3 for one variable is unified with the In argument of the call to
 my_choice/3 for the next variable, and so on).
 <p>
+In addition, a fixed argument can be passed: my_choice(Param) leads to
+invocation of my_choice(X,Param), and my_choice(Param,FirstIn,LastOut)
+leads to invocation of my_choice(X,Param,In,Out).
+
+<p>
 The different <b>search methods</b> are
 <ul>
 <li><b>complete</b>
-a complete search routine which explores all alternative choices.</li>
+    a complete search routine which explores all alternative choices.</li>
 
 <li><b>bbs(Steps)</b>
-The <i>bounded backtracking search</i> allows <b>Steps</b>
-backtracking steps.</li>
+    The <i>bounded backtracking search</i> allows <b>Steps</b>
+    backtracking steps.</li>
 
 <li><b>lds(Disc)</b>
-A form of the <i> limited discrepancy search </i>.  This method
-iteratively tries 0, 1, 2 ..  <b>Disc</b> changes against the
-heuristic (first) value.  Typical values are between 1 and 3 (which
-already may create too many alternatives for large problems).  The
-original LDS paper stated that the discrepancy to be tested first
-should be at the top of the tree.  Our implementation tries the first
-discrepancy at the bottom of the tree.  This means that solutions may
-be found in a different order compared to the original algorithm. 
-This change is imposed by the evaluation strategy used and can not be
-easily modified.</li>
+    A form of the <i> limited discrepancy search </i>.  This method
+    iteratively tries 0, 1, 2 ..  <b>Disc</b> changes against the
+    heuristic (first) value.  Typical values are between 1 and 3 (which
+    already may create too many alternatives for large problems).  The
+    original LDS paper stated that the discrepancy to be tested first
+    should be at the top of the tree.  Our implementation tries the first
+    discrepancy at the bottom of the tree.  This means that solutions may
+    be found in a different order compared to the original algorithm. 
+    This change is imposed by the evaluation strategy used and can not be
+    easily modified.</li>
 
 <li><b>credit(Credit, bbs(Steps))</b>
-The credit based search explores the top of the search tree
-completely.  Initially, a given number of credits (<b>Credit</b>) are
-given.  At each choice point, the first alternative gets half of the
-available credit, the second alternative half of the remaining credit,
-and so on.  When the credit run out, the system switches to another
-search routine, here bbs.  In each of these bounded backtracking
-searches <b>Steps</b> backtracking steps are allowed before returning
-to the top most part of the tree and choosing the next remaining
-candidate.  A good value for <b>Steps</b> is 5, a value of 0 forces a
-deterministic search using the heuristic.  Typical values for
-<b>Credit</b> are either N or N*N, where N is the number of entries in
-the collection.</li>
+    The credit based search explores the top of the search tree
+    completely.  Initially, a given number of credits (<b>Credit</b>) are
+    given.  At each choice point, the first alternative gets half of the
+    available credit, the second alternative half of the remaining credit,
+    and so on.  When the credit run out, the system switches to another
+    search routine, here bbs.  In each of these bounded backtracking
+    searches <b>Steps</b> backtracking steps are allowed before returning
+    to the top most part of the tree and choosing the next remaining
+    candidate.  A good value for <b>Steps</b> is 5, a value of 0 forces a
+    deterministic search using the heuristic.  Typical values for
+    <b>Credit</b> are either N or N*N, where N is the number of entries in
+    the collection.</li>
 
 <li><b>credit(Credit, lds(Disc))</b>
-like the one above, but using <i>lds</i> when the credit runs out. 
-Typically, only one (perhaps 2) discrepancies should be allowed.</li>
+    like the one above, but using <i>lds</i> when the credit runs out. 
+    Typically, only one (perhaps 2) discrepancies should be allowed.</li>
 
 <li><b>dbs(Level, bbs(Steps))</b>
-The <i>depth bounded search</i> explores the first <b>Level</b>
-choices in the search tree completely, i.e.  it tries all values for
-the first <b>Level</b> selected variables.  After that, it switches to
-another search method, here bbs.  In each of these searches,
-<b>Steps</b> backtracking steps are allowed.  </li>
+    The <i>depth bounded search</i> explores the first <b>Level</b>
+    choices in the search tree completely, i.e.  it tries all values for
+    the first <b>Level</b> selected variables.  After that, it switches to
+    another search method, here bbs.  In each of these searches,
+    <b>Steps</b> backtracking steps are allowed.  </li>
 
 <li><b>dbs(Level, lds(Disc))</b>
-like the method above, but switches to lds after the first
-<b>Level</b> variables.</li>
+    like the method above, but switches to lds after the first
+    <b>Level</b> variables.</li>
 
 <li><b>sbds</b>
-A complete search routine which uses the SBDS symmetry breaking library
-(lib(ic_sbds) or lib(fd_sbds)) to exclude symmetric parts of the search tree
-from consideration.  The symmetry breaking must be initialised through a
-call to sbds_initialise/4,5 before calling search/6.  Currently the only
-pre-defined choice methods supported by this search method are
-<b>indomain_min</b>, <b>indomain_max</b>, <b>indomain_middle</b>,
-<b>indomain_median</b> and <b>indomain_random</b>.  Any user-defined choice
-method used in conjunction with this search method must use sbds_try/2 to
-assign/exclude values or the symmetry breaking will not work correctly.</li>
+    A complete search routine which uses the SBDS symmetry breaking library
+    (lib(ic_sbds) or lib(fd_sbds)) to exclude symmetric parts of the search tree
+    from consideration.  The symmetry breaking must be initialised through a
+    call to sbds_initialise/4,5 before calling search/6.  Currently the only
+    pre-defined choice methods supported by this search method are
+    <b>indomain_min</b>, <b>indomain_max</b>, <b>indomain_middle</b>,
+    <b>indomain_median</b> and <b>indomain_random</b>.  Any user-defined choice
+    method used in conjunction with this search method must use sbds_try/2 to
+    assign/exclude values or the symmetry breaking will not work correctly.</li>
 
 <li><b>gap_sbds</b> (Not available for FD.)
-A complete search routine which uses the GAP-based SBDS symmetry breaking
-library lib(ic_gap_sbds) to exclude symmetric parts of the search tree from
-consideration.  The symmetry breaking must be initialised through a call to
-sbds_initialise/5 before calling search/6.  Currently the only pre-defined
-choice methods supported by this search method are <b>indomain_min</b>,
-<b>indomain_max</b>, <b>indomain_middle</b>, <b>indomain_median</b> and
-<b>indomain_random</b>.  Any user-defined choice method used in conjunction
-with this search method must use sbds_try/2 to assign/exclude values or the
-symmetry breaking will not work correctly.</li>
+    A complete search routine which uses the GAP-based SBDS symmetry breaking
+    library lib(ic_gap_sbds) to exclude symmetric parts of the search tree from
+    consideration.  The symmetry breaking must be initialised through a call to
+    sbds_initialise/5 before calling search/6.  Currently the only pre-defined
+    choice methods supported by this search method are <b>indomain_min</b>,
+    <b>indomain_max</b>, <b>indomain_middle</b>, <b>indomain_median</b> and
+    <b>indomain_random</b>.  Any user-defined choice method used in conjunction
+    with this search method must use sbds_try/2 to assign/exclude values or the
+    symmetry breaking will not work correctly.</li>
 
 <li><b>gap_sbdd</b> (Not available for FD.)
-A complete search routine which uses the GAP-based SBDD symmetry breaking
-library lib(ic_gap_sbdd) to exclude symmetric parts of the search tree from
-consideration.  The symmetry breaking must be initialised through a call to
-sbdd_initialise/5 before calling search/6.  Currently the only pre-defined
-choice methods supported by this search method are <b>indomain_min</b>,
-<b>indomain_max</b>, <b>indomain_middle</b>, <b>indomain_median</b> and
-<b>indomain_random</b>.  Any user-defined choice method used in conjunction
-with this search method must use sbdd_try/2 to assign/exclude values or the
-symmetry breaking will not work correctly.</li>
+    A complete search routine which uses the GAP-based SBDD symmetry breaking
+    library lib(ic_gap_sbdd) to exclude symmetric parts of the search tree from
+    consideration.  The symmetry breaking must be initialised through a call to
+    sbdd_initialise/5 before calling search/6.  Currently the only pre-defined
+    choice methods supported by this search method are <b>indomain_min</b>,
+    <b>indomain_max</b>, <b>indomain_middle</b>, <b>indomain_median</b> and
+    <b>indomain_random</b>.  Any user-defined choice method used in conjunction
+    with this search method must use sbdd_try/2 to assign/exclude values or the
+    symmetry breaking will not work correctly.</li>
 </ul>
+<p>
+
 The option list is used to pass additional parameters to and from the
 procedure.  The currently recognized options are:
 <ul>
 <li><b>backtrack(-N)</b>
-returns the number of backtracking steps used in the search
-routine</li>
+    returns the number of backtracking steps used in the search routine</li>
 
 <li><b>nodes(++N)</b>
-sets an upper limit on the number of nodes explored in the search.  If
-the given limit is exceeded, the search routine stops the exploration
-of the search tree.</li>
+    sets an upper limit on the number of nodes explored in the search.  If
+    the given limit is exceeded, the search routine stops the exploration
+    of the search tree.</li>
 
 <li><b>node(daVinci)</b>
-create a drawing of the search tree using the daVinci graph drawing
-tool.  Each node of the search tree is shown as a node in the tree. 
-The label of the node is the selected term of the collection.</li>
+    create a drawing of the search tree using the daVinci graph drawing
+    tool.  Each node of the search tree is shown as a node in the tree. 
+    The label of the node is the selected term of the collection.</li>
 
 <li><b>node(daVinci(++Call))</b>
-as the previous option, it creates a drawing of the search tree using
-the daVinci graph drawing tool.  But instead of using the complete
-selected term as the label, it call the predicate <b>Call/2</b> to
-choose which part of the selected term to display.</li>
+    as the previous option, it creates a drawing of the search tree using
+    the daVinci graph drawing tool.  But instead of using the complete
+    selected term as the label, it call the predicate <b>Call/2</b> to
+    choose which part of the selected term to display.</li>
 </ul>
 "),
 fail_if:"Fails if the search tree generated does not contain any solution. 
@@ -559,7 +588,7 @@ see_also:[indomain/1,indomain/2,labeling/1,deleteff/3,deleteffc/3,
 
 
 :-comment(delete/5,[
-summary:"Choose a domain variable from a list according to selection criteria.",
+summary:"Choose a domain variable from a list according to selection criterion.",
 amode:delete(-,+,-,++,++),
 
 args:[
@@ -567,11 +596,11 @@ args:[
       "List" : " a list of variables or terms ",
       "R" : " a free variable ",
       "Arg" : " an integer",
-      "Select" : " the name of the selection criteria"
+      "Select" : " the name of the selection criterion"
 ],
 desc:html("
 This predicate chooses one entry in a list of variables or terms based
-on some selection criteria.  The criteria are explained in detail in
+on some selection criterion.  The criteria are explained in detail in
 the <b>search/6</b> predicate. The selected entry is returned in X, with
 the rest of the list without X returned in R.<p>
 "),

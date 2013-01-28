@@ -27,7 +27,7 @@
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 %               Joachim Schimpf, IC-Parc
 %               Kish Shen, IC-Parc
-% Version:	$Id: generic_search.ecl,v 1.4 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: generic_search.ecl,v 1.5 2013/01/28 21:32:18 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -162,7 +162,7 @@ labeling(L,Arg,Select,Choice,In,Out,Node_option, Node,Module):-
 :-mode labeling1(+,++,++,+,?,?,?,++,++).
 labeling1([],_,_,_,In,In,_Tree,_Node,_Module).
 labeling1([H|T],Arg,Select,Choice,In,Out,Node_option, Node,Module):-
-	delete(X,[H|T],R,Arg,Select,Module),
+	search_delete(X,[H|T],R,Arg,Select,Module),
 	tree_fixed(X,Node_option,Arg,Choice,Node,complete),
 	choose(X,Arg,Choice,In,In1,Module),
 	inc_backtrack_count,
@@ -312,7 +312,7 @@ bbs(L,Arg,Select,Choice,Steps,In,Out,Node_option, Node,Module):-
 :-mode bbs1(+,++,++,+,?,?,?,++,++).
 bbs1([],_,_,_,In,In,_Tree,_Node,_Module).
 bbs1([H|T],Arg,Select,Choice,In,Out,Node_option, Node,Module):-
-	delete(X,[H|T],R,Arg,Select,Module),
+	search_delete(X,[H|T],R,Arg,Select,Module),
 	tree_fixed(X,Node_option,Arg,Choice,Node,bbs),
 	choose(X,Arg,Choice,In,In1,Module),
 	inc_backtrack_count_check,
@@ -354,7 +354,7 @@ credit1([H|T],Arg,Select,Choice,1,lds(Extra),_Level,_Shelf,In,Out,Node_option, N
 	lds([H|T],Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
 credit1([H|T],Arg,Select,Choice,Credit,Extra,Level,Shelf,In,Out,Node_option, Node,Module):-
 	Credit > 1,
-	delete(X,[H|T],R,Arg,Select,Module),
+	search_delete(X,[H|T],R,Arg,Select,Module),
 	set_credit(Shelf,Level,Credit),
 	tree_fixed(X,Node_option,Arg,Choice,Node,credit),
 	choose(X,Arg,Choice,In,In1,Module),
@@ -413,7 +413,7 @@ lds(L,Arg,Select,Choice,Lds,In,Out,Node_option, Node,Module):-
 lds1([],_,_,_,0,_,_,In,In,_Tree,_Node,_Module). % do not allow to use less than given discrepancies
 lds1([H|T],Arg,Select,Choice,0,Level,Shelf,In,Out,Node_option, Node,Module):-
 	!,
-	delete(X,[H|T],R,Arg,Select,Module),
+	search_delete(X,[H|T],R,Arg,Select,Module),
 	tree_fixed(X,Node_option,Arg,Choice,Node,lds_0),
 	once(choose(X,Arg,Choice,In,In1,Module)), % allows only shallow backtracking
 	update_nodes_counter, % create new node name
@@ -421,7 +421,7 @@ lds1([H|T],Arg,Select,Choice,0,Level,Shelf,In,Out,Node_option, Node,Module):-
 	Level1 is Level+1,
 	lds1(R,Arg,Select,Choice,0,Level1,Shelf,In1,Out,Node_option, Node1,Module).
 lds1([H|T],Arg,Select,Choice,Disc,Level,Shelf,In,Out,Node_option, Node,Module):-
-	delete(X,[H|T],R,Arg,Select,Module),
+	search_delete(X,[H|T],R,Arg,Select,Module),
 	set_discrepancy(Shelf,Level,Disc),
 	tree_fixed(X,Node_option,Arg,Choice,Node,lds),
 	choose(X,Arg,Choice,In,In1,Module),
@@ -484,7 +484,7 @@ dbs1([H|T],Arg,Select,Choice,0,lds(Extra),In,Out,Node_option, Node,Module):-
 	lds([H|T],Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
 dbs1([H|T],Arg,Select,Choice,Level,Extra,In,Out,Node_option, Node,Module):-
 	Level >= 1,
-	delete(X,[H|T],R,Arg,Select,Module),
+	search_delete(X,[H|T],R,Arg,Select,Module),
 	tree_fixed(X,Node_option,Arg,Choice,Node,dbs),
 	choose(X,Arg,Choice,In,In1,Module),
 	inc_backtrack_count,
@@ -517,12 +517,14 @@ choose(X,N,Type,_In, _Out, _Module):-
 choose(X,_Arg,Method,_In,_Out,Module):- % this is called for a user-defined method
 	atom(Method),
 	!,
-	Call =.. [Method,X],
-	call(Call)@Module. % may be non-deterministic
+	call(Method,X)@Module.		% may be non-deterministic
 choose(X,_Arg,Method,In,Out,Module):- % this is called for a user-defined method
-	functor(Method,F,2),
-	Call =.. [F,X,In,Out],
-	call(Call)@Module. % may be non-deterministic
+	functor(Method,F,A),
+	% this is an awkward convention, due by backwards compatibility:
+	( A==1 -> arg(1,Method,Fixed), call(F,X,Fixed)@Module
+	; A==2 ->                      call(F,X,In,Out)@Module
+	; A==3 -> arg(1,Method,Fixed), call(F,X,Fixed,In,Out)@Module
+	).
 
 
 /************************************************************
@@ -599,11 +601,11 @@ access(X,N,Var):-
 % this is only used if Choose is a functor of arity 2
 :-mode in_out(?,-,-).
 in_out(T,In,Out):-
-	functor(T,_,2),
-	!,
-	arg(1,T,In),
-	arg(2,T,Out).
-in_out(_T,-,-).
+	arity(T,A),
+	( A==2 -> arg(1,T,In), arg(2,T,Out)
+	; A==3 -> arg(2,T,In), arg(3,T,Out)
+	; In=(-), Out=(-)
+	).
 
 reset_backtrack_count(Option):-
 	nr_nodes(Option,N),
@@ -719,8 +721,7 @@ tree_node(X,daVinci(Info_pred),Parent,Node,Module):- % display only Info returne
 	integer(Parent),
 	!,
 	getval(nodes,Node),
-	Goal =.. [Info_pred,X,Info],
-	call(Goal)@Module,
+	call(Info_pred,X,Info)@Module,
 	daVinci_node(Node,Info),
 	(Parent \= -1 ->
 	    daVinci_edge(Node,Parent,Node)
@@ -731,33 +732,11 @@ tree_node(X,Call,Parent,Node,Module):- % custom routine
 	integer(Parent),
 	!,
 	getval(nodes,Node),
-	make_call(Call,daVinci,X,Parent,Node,Goal),
-	call(Goal)@Module.
+	call(Call,daVinci,X,Parent,Node)@Module.
 tree_node(X,Call,Parent,Node,Module):- % catch error in calling pattern
 	writeln(wrong_tree_node(X,Call,Parent,Node,Module)),
 	abort.
 
-/*
-make a meta-call by appending some attributes to the given term
-only handles up to 3 arguments
-*/
-:-mode make_call(+,++,?,++,++,-).
-make_call(Call,S,X,Parent,Node,Goal):-
-	atom(Call),
-	!,
-	Goal =.. [Call,S,X,Parent,Node].
-make_call(Call,S,X,Parent,Node,Goal):-
-	Call =.. [Pred,Arg1],
-	!,
-	Goal =.. [Pred,Arg1,S,X,Parent,Node].
-make_call(Call,S,X,Parent,Node,Goal):-
-	Call =.. [Pred,Arg1,Arg2],
-	!,
-	Goal =.. [Pred,Arg1,Arg2,S,X,Parent,Node].
-make_call(Call,S,X,Parent,Node,Goal):-
-	Call =.. [Pred,Arg1,Arg2,Arg3],
-	!,
-	Goal =.. [Pred,Arg1,Arg2,Arg3,S,X,Parent,Node].
 
 /*
 
@@ -825,6 +804,15 @@ option_for_daVinci(Option):-
 variable selection 
 
 ***********************************************************************/
+
+
+search_delete(H, List, T, Arg, select(MyDelete), Module) ?-
+	once call(MyDelete,H,List,T,Arg)@Module.
+search_delete(H, List, T, Arg, criterion(SelectMethod), Module) ?-
+	delete(H,List,T,Arg,SelectMethod,Module).
+search_delete(H, List, T, Arg, SelectMethod, Module) :- atom(SelectMethod),
+	delete(H,List,T,Arg,SelectMethod,Module).
+
 
 :-export(delete/5).
 :-tool(delete/5, delete/6).
@@ -947,8 +935,9 @@ find_value(X,most_constrained,Crit,Module):-
 	    find_value(X,occurrence,Number,Module)
 	).
 find_value(X,User_method,Value,Module):-
-	Call =..[User_method,X,Value],
-	once(Call)@Module.	% do not allow backtracking in user routine
+	atom(User_method),
+	% CAUTION: X passed, not list Term (compatibility)!
+	once call(User_method,X,Value)@Module.	% make deterministic
 
 
 % Copy list until first occurrence of K and return as difference list
