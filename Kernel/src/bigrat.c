@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.6 2011/11/14 12:13:39 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.7 2013/01/29 14:23:16 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -87,6 +87,11 @@ ec_big_to_chunks(pword *pw1, uword chunksize, pword *result)
 
 #include	<math.h>
 #include	"gmp.h"
+
+#ifndef GMP_LIMB_BITS
+/* for older gmp versions */
+#define GMP_LIMB_BITS __GMP_BITS_PER_MP_LIMB 
+#endif
 
 #ifdef USING_MPIR
 /* MP_INT and MP_RAT are from gmp 1, and gmp provides the
@@ -233,7 +238,7 @@ typedef __int64 long_long;
  * For 64 bit architectures an mp_limb_t is 64 bit so 
  * Push_Big_Int/Push_Big_PosInt suffices. 
  */
-#if __GMP_BITS_PER_MP_LIMB == 32	
+#if GMP_LIMB_BITS == 32	
 
 #define Push_Big_Int64(neg, n) {			\
 	pword *_pbig = TG;				\
@@ -253,7 +258,7 @@ typedef __int64 long_long;
 	((mp_limb_t *) BufferStart(_pbig))[0] = (n & 0xFFFFFFFF);	\
 	((mp_limb_t *) BufferStart(_pbig))[1] = ((n >> 32) & 0xFFFFFFFF); \
 	}
-#elif __GMP_BITS_PER_MP_LIMB == 64
+#elif GMP_LIMB_BITS == 64
 
 #define Push_Big_Int64(neg, n) Push_Big_Int(neg, n)
 #define Push_Big_PosInt64(neg, n) Push_Big_PosInt(neg, n)
@@ -358,7 +363,7 @@ mpn_to_double(mp_ptr d, mp_size_t size)
 {
     double res = 0.0;
     int i = ABS(size);
-#if __GMP_BITS_PER_MP_LIMB == 32
+#if GMP_LIMB_BITS == 32
     switch (i)
     {
     case 3:
@@ -419,10 +424,10 @@ mpz_getbit(MP_INT *z, uword bit)
 
 
     mp_size_t size = z->_mp_size;
-    mp_size_t offs = bit / __GMP_BITS_PER_MP_LIMB;
+    mp_size_t offs = bit / GMP_LIMB_BITS;
 
     if (size > 0)
-	return offs >= size ? 0 : (z->_mp_d[offs] >> (bit%__GMP_BITS_PER_MP_LIMB)) & 1;
+	return offs >= size ? 0 : (z->_mp_d[offs] >> (bit%GMP_LIMB_BITS)) & 1;
 /*
     else if (size < 0)
     {
