@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.27 2012/12/09 22:53:12 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.28 2013/01/29 00:15:39 jschimpf Exp $
  */
 
 /*
@@ -54,11 +54,16 @@
 #undef	B
 #undef	PP
 
+#ifdef __GNUC__
+#define _GNU_SOURCE     /* to get REG_R13 from ucontext.h */
+#endif
+
 #if defined(_WIN32) && defined(__GNUC__)
 /* work around gcc bug */
 #undef TagTypeC
 #define TagTypeC(item_tag)		((int8) ((item_tag)&0xff))
 #endif
+
 #include "types.h"
 #include "error.h"
 #include "mem.h"
