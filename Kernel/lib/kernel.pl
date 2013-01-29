@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.38 2012/10/16 23:08:26 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.39 2013/01/29 19:08:13 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -3093,7 +3093,8 @@ illegal_unlocked_module(Module, 80) :-
 	fail_if(is_a_module(Module)).
 illegal_unlocked_module(Module, 82) :-
 	atom(Module),
-	is_locked(Module).
+	\+authorized_module(Module).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
