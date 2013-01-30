@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.39 2013/01/29 19:08:13 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.40 2013/01/30 04:34:28 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -319,6 +319,25 @@
    get_sys_flag(8, Arch),	% hostarch
    ( (Arch == "i386_nt" ; Arch == "x86_64_nt") -> setval(ignore_eof, on) ; setval(ignore_eof, off)).
  
+% Hack for Java/Linux: if eclipse was loaded by a Java host program, then its
+% symbols may not be visible (loaded without RTLD_GLOBAL). In this case,
+% try to re-load the eclipse shared library (now with the right options).
+?-  ( get_sys_flag(9, "so") ->		% object_suffix
+	( symbol_address("ec_",_) ->	% look for any symbol from C kernel
+	    true
+        ;
+	    getval(sepiadir, Dir),
+	    get_sys_flag(8, Arch),	% hostarch
+	    concat_string([Dir,"/lib/",Arch,"/libeclipse.so"], EclLib),
+	    ( sys_file_flag(EclLib, 17 /*readable*/, on) ->
+		load(EclLib)
+	    ;
+		true
+	    )
+	)
+    ;
+	true
+    ).
 
 
 %------------------------------------

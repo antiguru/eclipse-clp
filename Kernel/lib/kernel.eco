@@ -21,6 +21,7 @@
 ?-(','(make_array_(compiled_stream,prolog,local,sepia_kernel),setval(compiled_stream,A))).
 ?-(make_array_(compile_stack,reference([]),local,sepia_kernel)).
 ?-(','(make_array_(ignore_eof,prolog,local,sepia_kernel),','(get_sys_flag(8,A),;(->(;(==(A,"i386_nt"),==(A,"x86_64_nt")),setval(ignore_eof,on)),setval(ignore_eof,off))))).
+?-(;(->(get_sys_flag(9,"so"),;(->(symbol_address("ec_",A),true),','(getval(sepiadir,B),','(get_sys_flag(8,C),','(concat_string([B,"/lib/",C,"/libeclipse.so"],D),;(->(sys_file_flag(D,17,on),load(D)),true)))))),true)).
 :-(','(tool(/(',',2),/(',_body',3)),','(tool(/(;,2),/(';_body',3)),','(tool(/(*->,2),/(',_body',3)),tool(/(->,2),/('->_body',3)))))).
 :-(store_pred(/(',_body',3),[](o(212),a(4),o(151),proc(/(',',4)),o(0)),5,0,1073741824,'Kernel/lib/kernel.pl',0,0)).
 :-(store_pred(/(';_body',3),[](o(123),a(1),ref(22),1,ref(5),o(212),a(4),o(151),proc(/(;,4)),o(38),a(1),o(2),a(2),a(5),o(38),a(2),o(212),a(4),o(151),proc(/(;,5)),o(0),o(177),table([-(/(->,2),ref(9))],2)),24,0,1073741824,'Kernel/lib/kernel.pl',0,0)).
