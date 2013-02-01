@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.8 2012/10/16 22:54:01 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.9 2013/02/01 00:02:15 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -918,6 +918,7 @@ p_get_sys_flag(value vf, type tf, value vv, type tv)
 		d_hostid_ = enter_dict_n(buf, len, 0);
 	    else
 		d_hostid_ = enter_dict_n("?", 1, 0);
+	    Set_Did_Stability(d_hostid_, DICT_PERMANENT);
 	}
 	pw.tag.kernel = TSTRG;
 	pw.val.ptr = DidString(d_hostid_);
