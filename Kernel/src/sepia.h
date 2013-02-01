@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.11 2012/02/25 13:36:44 jschimpf Exp $
+ * $Id: sepia.h,v 1.12 2013/02/01 18:38:57 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -670,11 +670,11 @@ This file must not be included with the embedding interface!
 
 #define Make_Integer(pw, /* word */ n) \
 	(pw)->tag.kernel = TINT; \
-	(pw)->val.nint = (word) n;
+	(pw)->val.nint = (word) (n);
 
 #define Make_Double(pw, /* double */ dbl) \
 	(pw)->tag.kernel = TDBL; \
-	Make_Double_Val((pw)->val, (dbl))
+	Make_Double_Val((pw)->val, dbl)
 
 #define Make_Checked_Double(pw, /* double */ dbl) \
 	(pw)->tag.kernel = TDBL; \

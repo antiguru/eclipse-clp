@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.9 2011/03/15 00:32:20 kish_shen Exp $
+* Version:	$Id: intervals.c,v 1.10 2013/02/01 18:38:57 jschimpf Exp $
 *
 
 Supported operations:
@@ -1623,6 +1623,16 @@ _ivl_from_string(char *s, pword *result, int base)
     Succeed_;
 }
 
+
+static int
+_ivl_nop(value v1, pword *pres)
+{
+    pres->tag.kernel = TIVL;
+    pres->val.all = v1.all;
+    Succeed_;
+}
+
+
 static int
 _ivl_add(value v1, value v2, pword *pres)
 {
@@ -1975,13 +1985,15 @@ _ivl_truncate(value v1, pword *pres)
 static int
 _ivl_sgn(value v1, pword *pres)
 {
+    int res;
     if (IvlLwb(v1.ptr) > 0.0)
-    	pres->val.nint = 1;
+    	res = 1;
     else if (IvlUpb(v1.ptr) < 0.0)
-    	pres->val.nint = -1;
+    	res = -1;
     else if (IvlLwb(v1.ptr) == 0.0  &&  IvlUpb(v1.ptr) == 0.0)
-    	pres->val.nint = 0;
+    	res = 0;
     else { Bip_Error(ARITH_EXCEPTION); }
+    Make_Integer(pres, res);
     Succeed_;
 }
 
@@ -2248,7 +2260,7 @@ ec_intervals_init(void)
     tag_desc[TIVL].arith_compare = _arith_compare_ivl;
     tag_desc[TIVL].equal = _equal_ivl;
 
-    tag_desc[TIVL].arith_op[ARITH_PLUS] = tag_desc[TDBL].arith_op[ARITH_PLUS];
+    tag_desc[TIVL].arith_op[ARITH_PLUS] = _ivl_nop;
     tag_desc[TIVL].arith_op[ARITH_NEG] = _ivl_neg;
     tag_desc[TIVL].arith_op[ARITH_ABS] = _ivl_abs;
     tag_desc[TIVL].arith_op[ARITH_ADD] = _ivl_add;

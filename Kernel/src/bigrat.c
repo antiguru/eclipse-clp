@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.7 2013/01/29 14:23:16 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.8 2013/02/01 18:38:57 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -297,10 +297,10 @@ PROBLEM: No code to cope with MP_LIMB size for this platform!
 	Push_Big_Mpi(mpq_denref(mpr));			\
 	}
 
-/* Assume pw->tag is already TRAT, set pw->val to mpr's value */
+/* Create a TRAT pword from the MP_RAT mpr */
 /* Clears the MP_RAT! */
 #define Pw_From_Mpr(pw, mpr) {				\
-	(pw)->val.ptr = TG;				\
+	Make_Rat(pw, TG);				\
 	Push_Rat_Mpr(mpr);				\
 	}
 
@@ -314,7 +314,9 @@ PROBLEM: No code to cope with MP_LIMB size for this platform!
 #define MpiZero(x) ((x)->_mp_size == 0)
 
 #define ABS(x) (x >= 0 ? x : -x)
-#define INFINITY (limb_value[1]*limb_value[31])
+#ifndef HUGE_VAL
+#define HUGE_VAL (limb_value[1]*limb_value[31])
+#endif
 
 /* A 1024 bit bignum is the largest representable as a double.
  * That corresponds to 32 32-bit limbs or 16 64-bit limbs.
@@ -384,7 +386,7 @@ mpn_to_double(mp_ptr d, mp_size_t size)
 		    + limb_value[2] * d[i-1]
 		    ) * limb_value[i-3];
 	else
-	    res = INFINITY;
+	    res = HUGE_VAL;
 	break;
     }
 #else
@@ -404,7 +406,7 @@ mpn_to_double(mp_ptr d, mp_size_t size)
 		    + limb_value[2] * d[i-1]
 		    ) * limb_value[2*(i-2)];
 	else
-	    res = INFINITY;
+	    res = HUGE_VAL;
 	break;
     }
 #endif
@@ -499,7 +501,7 @@ mpz_fdiv(MP_INT *num, MP_INT *den)
 
     if (longer_size - shorter_size > 34)
     {
-	res = swapped ? INFINITY : 0.0;
+	res = swapped ? HUGE_VAL : 0.0;
     }
     else
     {
@@ -1015,7 +1017,6 @@ _rat_from_string(char *s,	/* points to valid rational representation */
 	Bip_Error(BAD_FORMAT_STRING)
     }
     mpq_canonicalize(&a);
-    result->tag.kernel = TRAT;
     Pw_From_Mpr(result, &a);
     Succeed_;
 }
@@ -1162,8 +1163,7 @@ _dbl_nicerat(value in, pword *pres)
 	{ Bip_Error(ARITH_EXCEPTION); }
     mpq_init(&c);
     mpq_set_double(&c, Dbl(in));
-    pres->tag.kernel = TRAT;
-    pres->val.ptr = TG;
+    Make_Rat(pres, TG);
     Push_Rat_Mpr(&c);
     Succeed_;
 }
@@ -1178,6 +1178,13 @@ _dbl_nicerat(value in, pword *pres)
  * unnormalized TBIG due to type coercion.
  * Results always have to be normalized.
  *--------------------------------------------------------------------------*/
+
+static int
+_big_nop(value v1, pword *pres)
+{
+    Make_Big(pres, v1.ptr);
+    Succeed_;
+}
 
 static int
 _big_add(value v1, value v2, pword *pres)
@@ -1357,12 +1364,11 @@ _big_neg(value v1,	/* can't be zero */
 {
     pword *pw;
     if (BigPosMin(v1.ptr)) {
-	pres->tag.kernel = TINT;
-	pres->val.nint = MIN_S_WORD;
+	Make_Integer(pres, MIN_S_WORD);
     } else {
 	Duplicate_Buffer(v1.ptr, pw);
 	Negate_Big(pw);
-	pres->val.ptr = pw;
+	Make_Big(pres, pw);
     }
     Succeed_;
 }
@@ -1374,7 +1380,7 @@ _big_abs(value v1, pword *pres)
     {
 	return _big_neg(v1, pres);
     }
-    pres->val.ptr = v1.ptr;
+    Make_Big(pres, v1.ptr);
     Succeed_;
 }
 
@@ -1382,7 +1388,7 @@ static int
 _big_sgn(value v1,	/* can't be zero */
 	pword *pres)
 {
-    pres->val.nint = (word) (BigNegative(v1.ptr) ? -1: 1);
+    Make_Integer(pres, BigNegative(v1.ptr) ? -1: 1);
     Succeed_;
 }
 
@@ -1587,7 +1593,9 @@ _int_neg(value v1, pword *pres)
 	Push_Big_PosInt(MIN_S_WORD);
     }
     else
-	pres->val.nint = -v1.nint;
+    {
+    	Make_Integer(pres, -v1.nint);
+    }
     Succeed_;
 }
 
@@ -1668,11 +1676,18 @@ ec_double_to_int_or_bignum(double f, pword *pres)
  *--------------------------------------------------------------------------*/
 
 static int
+_rat_nop(value v1, pword *pres)
+{
+    Make_Rat(pres, v1.ptr);
+    Succeed_;
+}
+
+static int
 _rat_neg(value v1, pword *pres)
 {
     if (RatZero(v1.ptr))
     {
-	pres->val.ptr = v1.ptr;
+	Make_Rat(pres, v1.ptr);
     }
     else
     {
@@ -1682,7 +1697,7 @@ _rat_neg(value v1, pword *pres)
 	Push_Big_Copy(Numer(v1.ptr)->val.ptr);
 	Negate_Big(Numer(pw)->val.ptr);
 	Make_Big(Denom(pw), Denom(v1.ptr)->val.ptr);
-	pres->val.ptr = pw;
+	Make_Rat(pres, pw);
     }
     Succeed_;
 }
@@ -1694,14 +1709,14 @@ _rat_abs(value v1, pword *pres)
     {
 	return _rat_neg(v1, pres);
     }
-    pres->val.ptr = v1.ptr;
+    Make_Rat(pres, v1.ptr);
     Succeed_;
 }
 
 static int
 _rat_sgn(value v1, pword *pres)
 {
-    pres->val.nint = (word) (RatNegative(v1.ptr) ? -1: RatZero(v1.ptr)? 0: 1);
+    Make_Integer(pres, RatNegative(v1.ptr) ? -1: RatZero(v1.ptr)? 0: 1);
     Succeed_;
 }
 
@@ -1767,7 +1782,6 @@ _big_div(value v1, value v2, pword *pres)	/* big x big -> rat */
 	mpz_init_set(mpq_numref(&c), &a);
 	mpz_init_set(mpq_denref(&c), &b);
 	mpq_canonicalize(&c);
-	pres->tag.kernel = TRAT;
 	Pw_From_Mpr(pres, &c);
     }
     else
@@ -1832,7 +1846,7 @@ _rat_min(value v1, value v2, pword *pres)
     MP_RAT a,b;
     Rat_To_Mpr(v1.ptr, &a);
     Rat_To_Mpr(v2.ptr, &b);
-    pres->val.ptr = mpq_cmp(&a, &b) < 0 ? v1.ptr : v2.ptr;
+    Make_Rat(pres, mpq_cmp(&a, &b) < 0 ? v1.ptr : v2.ptr);
     Succeed_;
 }
 
@@ -1842,7 +1856,7 @@ _rat_max(value v1, value v2, pword *pres)
     MP_RAT a,b;
     Rat_To_Mpr(v1.ptr, &a);
     Rat_To_Mpr(v2.ptr, &b);
-    pres->val.ptr = mpq_cmp(&a, &b) > 0 ? v1.ptr : v2.ptr;
+    Make_Rat(pres, mpq_cmp(&a, &b) > 0 ? v1.ptr : v2.ptr);
     Succeed_;
 }
 
@@ -1876,14 +1890,14 @@ _rat_f_c(value v1, pword *pres, void (*div_function) (MP_INT*, const MP_INT*, co
     Big_To_Mpi(Denom(v1.ptr)->val.ptr, &b);
     if (mpz_cmp_si(&b, 1L) == 0)
     {
-	pres->val.ptr = v1.ptr;		/* it's already integer */
+	Make_Rat(pres, v1.ptr);		/* it's already integer */
     }
     else
     {
 	Big_To_Mpi(Numer(v1.ptr)->val.ptr, &a);
 	mpz_init(&c);
 	(*div_function)(&c, &a, &b);
-	pres->val.ptr = TG;
+	Make_Rat(pres, TG);
 	Push_Rat_Frame();
 	Make_Big(Numer(pres->val.ptr), TG);
 	Push_Big_Mpi(&c);
@@ -1974,6 +1988,14 @@ bigrat_init(void)
     tag_desc[TBIG].to_string = _big_to_string;
     tag_desc[TBIG].coerce_to[TRAT] = _big_rat;
     tag_desc[TBIG].coerce_to[TDBL] = _big_dbl;
+    tag_desc[TBIG].arith_op[ARITH_PLUS] = _big_nop;
+    tag_desc[TBIG].arith_op[ARITH_FLOAT] = _big_nop;	/* handled by coercion */
+    tag_desc[TBIG].arith_op[ARITH_ROUND] = _big_nop;
+    tag_desc[TBIG].arith_op[ARITH_FLOOR] = _big_nop;
+    tag_desc[TBIG].arith_op[ARITH_CEIL] = _big_nop;
+    tag_desc[TBIG].arith_op[ARITH_TRUNCATE] = _big_nop;
+    tag_desc[TBIG].arith_op[ARITH_FIX] = _big_nop;
+    tag_desc[TBIG].arith_op[ARITH_INT] = _big_nop;
     tag_desc[TBIG].arith_op[ARITH_MIN] = _big_min;
     tag_desc[TBIG].arith_op[ARITH_MAX] = _big_max;
     tag_desc[TBIG].arith_op[ARITH_ABS] = _big_abs;
@@ -2019,6 +2041,9 @@ bigrat_init(void)
     tag_desc[TRAT].string_size = _rat_string_size;
     tag_desc[TRAT].to_string = _rat_to_string;
     tag_desc[TRAT].coerce_to[TDBL] = _rat_dbl;
+    tag_desc[TRAT].arith_op[ARITH_PLUS] = _rat_nop;
+    tag_desc[TRAT].arith_op[ARITH_FLOAT] = _rat_nop;	/* handled by coercion */
+    tag_desc[TRAT].arith_op[ARITH_NICERAT] = _rat_nop;
     tag_desc[TRAT].arith_op[ARITH_CHGSIGN] =
     tag_desc[TRAT].arith_op[ARITH_NEG] = _rat_neg;
     tag_desc[TRAT].arith_op[ARITH_ABS] = _rat_abs;

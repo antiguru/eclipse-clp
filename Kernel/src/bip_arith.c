@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION    $Id: bip_arith.c,v 1.18 2012/12/12 23:05:58 jschimpf Exp $
+ * VERSION    $Id: bip_arith.c,v 1.19 2013/02/01 18:38:57 jschimpf Exp $
  */
 
 /*
@@ -737,7 +737,6 @@ p_sgn(value v1, type t1, value v, type t)
     int err;
     pword result;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
-    result.tag.kernel = TINT;
     err = tag_desc[TagType(t1)].arith_op[ARITH_SGN](v1, &result);
     if (err != PSUCCEED) return err;
     Return_Numeric(v, t, result)
@@ -953,7 +952,6 @@ p_rationalize(value v1, type t1, value v, type t)
     int err;
     pword result;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
-    result.tag.kernel = TRAT;
     err = tag_desc[TagType(t1)].arith_op[ARITH_NICERAT](v1, &result);
     if (err != PSUCCEED) return err;
     Return_Numeric(v, t, result)
@@ -1088,13 +1086,11 @@ p_power(value v1, type t1, value v2, type t2, value v, type t)
 	}
 	else if (IsBignum(t1))
 	{
-	    result.tag.kernel = TBIG;
 	    err = tag_desc[TBIG].arith_op[ARITH_POW](v1, v2, &result);
 	    if (err) { Bip_Error(err); }
 	}
 	else if (IsRational(t1))
 	{
-	    result.tag.kernel = TRAT;
 	    err = tag_desc[TRAT].arith_op[ARITH_POW](v1, v2, &result);
 	    if (err) { Bip_Error(err); }
 	}
@@ -1176,7 +1172,6 @@ p_lshift(value v1, type t1, value v2, type t2, value v, type t)
 	}
 	else if (IsBignum(t1))
 	{
-	    result.tag.kernel = TBIG;
 	    err = tag_desc[TBIG].arith_op[ARITH_SHL](v1, v2, &result);
 	    if (err != PSUCCEED) { Bip_Error(err); }
 	}
@@ -1187,11 +1182,14 @@ p_lshift(value v1, type t1, value v2, type t2, value v, type t)
     {
         if (!BigNegative(v2.ptr))
             { Bip_Error(RANGE_ERROR); }
-        result.tag.kernel = TINT;
 	if (IsInteger(t1))
-            result.val.nint = v1.nint < 0 ? -1 : 0;
+	{
+            Make_Integer(&result, v1.nint < 0 ? -1 : 0);
+	}
 	else if (IsBignum(t1))
-            result.val.nint = BigNegative(v1.ptr) ? -1 : 0;
+	{
+            Make_Integer(&result, BigNegative(v1.ptr) ? -1 : 0);
+	}
 	else
 	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHL);
     }
@@ -1231,7 +1229,6 @@ p_rshift(value v1, type t1, value v2, type t2, value v, type t)
 	}
 	else if (IsBignum(t1))
 	{
-	    result.tag.kernel = TBIG;
 	    err = tag_desc[TBIG].arith_op[ARITH_SHR](v1, v2, &result);
 	    if (err != PSUCCEED) { Bip_Error(err); }
 	}
@@ -1242,11 +1239,14 @@ p_rshift(value v1, type t1, value v2, type t2, value v, type t)
     {
         if (BigNegative(v2.ptr))
             { Bip_Error(RANGE_ERROR); }
-        result.tag.kernel = TINT;
 	if (IsInteger(t1))
-            result.val.nint = v1.nint < 0 ? -1 : 0;
+	{
+	    Make_Integer(&result, v1.nint < 0 ? -1 : 0);
+	}
 	else if (IsBignum(t1))
-            result.val.nint = BigNegative(v1.ptr) ? -1 : 0;
+	{
+	    Make_Integer(&result, BigNegative(v1.ptr) ? -1 : 0);
+	}
 	else
 	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHR);
     }
@@ -1302,8 +1302,7 @@ p_setbit(value vi, type ti, value vn, type tn, value v, type t)	/* argument orde
     }
     else if (IsBignum(ti) || IsString(ti))
     {
-	result.tag.kernel = Tag(ti.kernel);
-	err = tag_desc[TagType(result.tag)].arith_op[ARITH_SETBIT](vi, vn, &result);
+	err = tag_desc[TagType(ti)].arith_op[ARITH_SETBIT](vi, vn, &result);
 	if (err != PSUCCEED) return err;
     }
     else
@@ -1341,8 +1340,7 @@ p_clrbit(value vi, type ti, value vn, type tn, value v, type t)
     }
     else if (IsBignum(ti) || IsString(ti))
     {
-	result.tag.kernel = Tag(ti.kernel);
-	err = tag_desc[TagType(result.tag)].arith_op[ARITH_CLRBIT](vi, vn, &result);
+	err = tag_desc[TagType(ti)].arith_op[ARITH_CLRBIT](vi, vn, &result);
 	if (err != PSUCCEED) return err;
     }
     else
@@ -1363,12 +1361,12 @@ p_getbit(value vi, type ti, value vn, type tn, value v, type t)
     {
 	Bip_Error(RANGE_ERROR);
     }
-    result.tag.kernel = TINT;
     if (IsInteger(ti))
     {
-	result.val.nint = vn.nint < BITS_PER_WORD ?
+	Make_Integer(&result,
+		vn.nint < BITS_PER_WORD ?
 		((uword) vi.nint >> vn.nint) & 1 :
-		vi.nint < 0 ? 1 : 0;
+		vi.nint < 0 ? 1 : 0);
     }
     else if (IsBignum(ti) || IsString(ti))
     {
@@ -1452,12 +1450,11 @@ un_arith_op(
 	    { Bip_Error(ARITH_TYPE_ERROR); }
 	err = tag_desc[TagType(t1)].coerce_to[top](v1, &v1);
 	if (err != PSUCCEED) return err;
-	result->tag.kernel = top;
     }
     else
 	/* CAUTION: must strip extra tag bits, e.g. PERSISTENT */
-	result->tag.kernel = Tag(t1.kernel);
-    return tag_desc[TagType(result->tag)].arith_op[op](v1, result);
+	top = TagType(t1);
+    return tag_desc[top].arith_op[op](v1, result);
 }
 
 int
@@ -1479,7 +1476,6 @@ int
 bin_arith_op(value v1, type t1, value v2, type t2, pword *pres, int op)
 {
     int err;
-    pword result;
 
     if (!SameType(t1,t2))
     {
@@ -1498,13 +1494,8 @@ bin_arith_op(value v1, type t1, value v2, type t2, pword *pres, int op)
 	}
 	if (err != PSUCCEED) return err;
     }
-
-    /* Result tag gets t1 tag as default value */
-    /* CAUTION: must strip extra tag bits, e.g. PERSISTENT */
-    result.tag.kernel = Tag(t1.kernel);
-    err = tag_desc[TagType(t1)].arith_op[op](v1, v2, &result);
+    err = tag_desc[TagType(t1)].arith_op[op](v1, v2, pres);
     if (err != PSUCCEED) return err;	/* return with untouched *pres! */
-    *pres = result;
     return PSUCCEED;
 }
 
@@ -1550,9 +1541,17 @@ arith_compare(value v1, type t1, value v2, type t2, int *res)
 }
 
 static int
-_nop(value v1, pword *pres)
+_int_nop(value v1, pword *pres)
 {
-    pres->val.all = v1.all;
+    Make_Integer(pres, v1.nint);
+    Succeed_;
+}
+
+static int
+_dbl_nop(value v1, pword *pres)
+{
+    pres->tag.kernel = TDBL;
+    pres->val.all = v1.all;	/* double or pointer */
     Succeed_;
 }
 
@@ -1585,80 +1584,77 @@ _arith_compare_int(value v1, value v2, int *res)
 static int
 _int_add(value v1, value v2, pword *pres)	/* int x int -> int/big */
 {
-    register word   n1 = v1.nint;
-    register word   n2 = v2.nint;
-
-    pres->val.nint = n1 + n2;
-    if (((n1 >= 0) == (n2 >= 0)) && (n1 >= 0) != (pres->val.nint >= 0))
+    word res = v1.nint + v2.nint;
+    if (((v1.nint >= 0) == (v2.nint >= 0)) && (v1.nint >= 0) != (res >= 0))
     {
 	Bip_Error(INTEGER_OVERFLOW)
     }
+    Make_Integer(pres, res);
     Succeed_;
 }
 
 static int
 _int_sub(value v1, value v2, pword *pres)	/* int x int -> int/big */
 {
-    register word   n1 = v1.nint;
-    register word   n2 = v2.nint;
-
-    pres->val.nint = n1 - n2;
-    if (((n1 >= 0) != (n2 >= 0)) && (n1 >= 0) != (pres->val.nint >= 0))
+    word res = v1.nint - v2.nint;
+    if (((v1.nint >= 0) != (v2.nint >= 0)) && (v1.nint >= 0) != (res >= 0))
     {
 	Bip_Error(INTEGER_OVERFLOW)
     }
+    Make_Integer(pres, res);
     Succeed_;
 }
 
 static int
 _int_mul(value v1, value v2, pword *pres)	/* int x int -> int/big */
 {
-    register word   n1 = v1.nint;
-    register word   n2 = v2.nint;
-    register word   n3;
+    word   n1 = v1.nint;
+    word   n2 = v2.nint;
+    word   res;
 
     if (n1 == 0) {
-    	pres->val.nint = 0;
+	Make_Integer(pres, 0);
 	Succeed_
     }
     if (n2 == MIN_S_WORD) {
 	/* Not true if n1 == 1, but who cares... */
     	Bip_Error(INTEGER_OVERFLOW)
     }
-    n3 = n1 * n2;
-    if (n3 / n1 != n2) {
+    res = n1 * n2;
+    if (res / n1 != n2) {
     	Bip_Error(INTEGER_OVERFLOW)
     }
-    pres->val.nint = n3;
+    Make_Integer(pres, res);
     Succeed_;
 }
 
 static int
 _int_neg(value v1, pword *pres)	/* needed in the parser to evaluate signs */
 {
-    if ((pres->val.nint = -v1.nint) == MIN_S_WORD)
+    if (-v1.nint == MIN_S_WORD)
 	{ Bip_Error(INTEGER_OVERFLOW); }
+    Make_Integer(pres, -v1.nint);
     Succeed_;
 }
 
 static int
 _int_sgn(value v1, pword *pres)
 {
-    pres->val.nint = (word) (v1.nint > 0 ? 1 : v1.nint < 0 ? -1: 0);
+    Make_Integer(pres, v1.nint > 0 ? 1 : v1.nint < 0 ? -1: 0);
     Succeed_;
 }
 
 static int
 _int_min(value v1, value v2, pword *pres)
 {
-    pres->val.nint = v1.nint > v2.nint ? v2.nint : v1.nint;
+    Make_Integer(pres, v1.nint > v2.nint ? v2.nint : v1.nint);
     Succeed_;
 }
 
 static int
 _int_max(value v1, value v2, pword *pres)
 {
-    pres->val.nint = v1.nint < v2.nint ? v2.nint : v1.nint;
+    Make_Integer(pres, v1.nint < v2.nint ? v2.nint : v1.nint);
     Succeed_;
 }
 
@@ -1667,7 +1663,7 @@ _int_abs(value v1, pword *pres)
 {
     if (v1.nint < 0)
 	return _int_neg(v1, pres);
-    pres->val.nint = v1.nint;
+    Make_Integer(pres, v1.nint);
     Succeed_;
 }
 
@@ -1751,15 +1747,14 @@ _equal_dbl(pword *pw1, pword *pw2)
 static int
 _dbl_neg(value v1, pword *pres)	/* needed in the parser to evaluate signs */
 {
-    Make_Double_Val(pres->val, -Dbl(v1))
+    Make_Double(pres, -Dbl(v1))
     Succeed_;
 }
 
 static int
 _dbl_sgn(value v1, pword *pres)
 {
-    pres->val.nint = (word)
-	(Dbl(v1) == 0.0 ? 0 : Dbl(v1) > 0.0 ? 1: -1);
+    Make_Integer(pres, Dbl(v1) == 0.0 ? 0 : Dbl(v1) > 0.0 ? 1: -1);
     Succeed_;
 }
 
@@ -1768,6 +1763,7 @@ _dbl_min(value v1, value v2, pword *pres)
 {
     double d1 = Dbl(v1);
     double d2 = Dbl(v2);
+    pres->tag.kernel = TDBL;
     pres->val.all = PedanticLess(d1,d2) ? v1.all : v2.all;
     Succeed_;
 }
@@ -1777,6 +1773,7 @@ _dbl_max(value v1, value v2, pword *pres)
 {
     double d1 = Dbl(v1);
     double d2 = Dbl(v2);
+    pres->tag.kernel = TDBL;
     pres->val.all = PedanticGreater(d1,d2) ? v1.all : v2.all;
     Succeed_;
 }
@@ -1784,28 +1781,28 @@ _dbl_max(value v1, value v2, pword *pres)
 static int
 _dbl_add(value v1, value v2, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, Dbl(v1) + Dbl(v2))
+    Make_Checked_Double(pres, Dbl(v1) + Dbl(v2))
     Succeed_;
 }
 
 static int
 _dbl_sub(value v1, value v2, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, Dbl(v1) - Dbl(v2))
+    Make_Checked_Double(pres, Dbl(v1) - Dbl(v2))
     Succeed_;
 }
 
 static int
 _dbl_mul(value v1, value v2, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, Dbl(v1) * Dbl(v2))
+    Make_Checked_Double(pres, Dbl(v1) * Dbl(v2))
     Succeed_;
 }
 
 static int
 _dbl_div(value v1, value v2, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, Dbl(v1) / Dbl(v2))
+    Make_Checked_Double(pres, Dbl(v1) / Dbl(v2))
     Succeed_;
 }
 
@@ -1814,35 +1811,38 @@ _dbl_abs(value v1, pword *pres)
 {
     if (Dbl(v1) < 0.0)
     {
-	Make_Double_Val(pres->val, -Dbl(v1))
+	Make_Double(pres, -Dbl(v1))
     }
     else if (Dbl(v1) == 0.0)	/* for negative zero */
     {
-	Make_Double_Val(pres->val, 0.0)
+	Make_Double(pres, 0.0)
     }
     else
+    {
+	pres->tag.kernel = TDBL;
 	pres->val.all = v1.all;
+    }
     Succeed_;
 }
 
 static int
 _dbl_sin(value v1, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, sin(Dbl(v1)))
+    Make_Checked_Double(pres, sin(Dbl(v1)))
     Succeed_;
 }
 
 static int
 _dbl_cos(value v1, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, cos(Dbl(v1)))
+    Make_Checked_Double(pres, cos(Dbl(v1)))
     Succeed_;
 }
 
 static int
 _dbl_tan(value v1, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, tan(Dbl(v1)))
+    Make_Checked_Double(pres, tan(Dbl(v1)))
     Succeed_;
 }
 
@@ -1852,7 +1852,7 @@ _dbl_asin(value v1, pword *pres)
     double y = Dbl(v1);
     if (!OneMOne(y))
 	{ Bip_Error(ARITH_EXCEPTION) }
-    Make_Checked_Double_Val(pres->val, asin(y))
+    Make_Checked_Double(pres, asin(y))
     Succeed_;
 }
 
@@ -1862,21 +1862,21 @@ _dbl_acos(value v1, pword *pres)
     double y = Dbl(v1);
     if (!OneMOne(y))
 	{ Bip_Error(ARITH_EXCEPTION) }
-    Make_Checked_Double_Val(pres->val, acos(y))
+    Make_Checked_Double(pres, acos(y))
     Succeed_;
 }
 
 static int
 _dbl_atan(value v1, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, atan(Dbl(v1)))
+    Make_Checked_Double(pres, atan(Dbl(v1)))
     Succeed_;
 }
 
 static int
 _dbl_atan2(value v1, value v2, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, Atan2(Dbl(v1), Dbl(v2)))
+    Make_Checked_Double(pres, Atan2(Dbl(v1), Dbl(v2)))
     Succeed_;
 }
 
@@ -1893,7 +1893,7 @@ _dbl_exp(value v1, pword *pres)
     } else {
 	d = exp(d);
     }
-    Make_Double_Val(pres->val, d)
+    Make_Double(pres, d)
     Succeed_;
 }
 
@@ -1903,7 +1903,7 @@ _dbl_ln(value v1, pword *pres)
     double y = Dbl(v1);
     if (!NonNegative(y))
 	{ Bip_Error(ARITH_EXCEPTION); }
-    Make_Double_Val(pres->val, log(y))
+    Make_Double(pres, log(y))
     Succeed_;
 }
 
@@ -1913,14 +1913,14 @@ _dbl_sqrt(value v1, pword *pres)
     double y = Dbl(v1);
     if (!NonNegative(y))
 	{ Bip_Error(ARITH_EXCEPTION); }
-    Make_Checked_Double_Val(pres->val, sqrt(y))
+    Make_Checked_Double(pres, sqrt(y))
     Succeed_;
 }
 
 static int
 _dbl_pow(value v1, value v2, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, SafePow(Dbl(v1), Dbl(v2)))
+    Make_Checked_Double(pres, SafePow(Dbl(v1), Dbl(v2)))
     Succeed_;
 }
 
@@ -1940,21 +1940,21 @@ _dbl_round(value v1, pword *pres)
         (x - Dbl(v1) == 0.5 && ((word)x & 1)))
 	    x -= 1.0;
 #endif /* rint */
-    Make_Checked_Double_Val(pres->val, x)
+    Make_Checked_Double(pres, x)
     Succeed_;
 }
 
 static int
 _dbl_floor(value v1, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, floor(Dbl(v1)))
+    Make_Checked_Double(pres, floor(Dbl(v1)))
     Succeed_;
 }
 
 static int
 _dbl_ceil(value v1, pword *pres)
 {
-    Make_Checked_Double_Val(pres->val, Ceil(Dbl(v1)))
+    Make_Checked_Double(pres, Ceil(Dbl(v1)))
     Succeed_;
 }
 
@@ -1962,10 +1962,10 @@ static int
 _dbl_truncate(value v1, pword *pres)
 {
 #ifdef HAVE_TRUNC
-    Make_Checked_Double_Val(pres->val, trunc(Dbl(v1)))
+    Make_Checked_Double(pres, trunc(Dbl(v1)))
 #else
     double f = Dbl(v1);
-    Make_Checked_Double_Val(pres->val, f < 0 ? Ceil(f) : floor(f));
+    Make_Checked_Double(pres, f < 0 ? Ceil(f) : floor(f));
 #endif
     Succeed_;
 }
@@ -1979,8 +1979,7 @@ _dbl_fix(value v1, pword *pres)
     double f = Dbl(v1);
     if (MIN_S_WORD_DBL <= f && f < MAX_S_WORD_1_DBL)	/* fits in word? */
     {
-	pres->val.nint = (word) f;
-	pres->tag.kernel = TINT;
+	Make_Integer(pres, (word) f);
     }
     else if (finite(f))
     {
@@ -2002,8 +2001,7 @@ _dbl_int2(value v1, pword *pres)
 	double ipart;
 	if (modf(f, &ipart) == 0.0)
 	{
-	    pres->val.nint = (word) ipart;
-	    pres->tag.kernel = TINT;
+	    Make_Integer(pres, (word) ipart);
 	}
 	else
 	{
@@ -2094,7 +2092,7 @@ bip_arith_init(int flags)
     tag_desc[TINT].compare = _compare_int;
     tag_desc[TINT].arith_compare = _arith_compare_int;
     tag_desc[TINT].coerce_to[TDBL] = _int_dbl;
-    tag_desc[TINT].arith_op[ARITH_PLUS] = _nop;
+    tag_desc[TINT].arith_op[ARITH_PLUS] = _int_nop;
     tag_desc[TINT].arith_op[ARITH_CHGSIGN] =
     tag_desc[TINT].arith_op[ARITH_NEG] = _int_neg;
     tag_desc[TINT].arith_op[ARITH_ADD] = _int_add;
@@ -2105,34 +2103,21 @@ bip_arith_init(int flags)
     tag_desc[TINT].arith_op[ARITH_GCD] = _int_gcd;
     tag_desc[TINT].arith_op[ARITH_LCM] = _int_lcm;
     tag_desc[TINT].arith_op[ARITH_ABS] = _int_abs;
-    tag_desc[TINT].arith_op[ARITH_ROUND] = _nop;
-    tag_desc[TINT].arith_op[ARITH_FLOOR] = _nop;
-    tag_desc[TINT].arith_op[ARITH_CEIL] = _nop;
-    tag_desc[TINT].arith_op[ARITH_TRUNCATE] = _nop;
-    tag_desc[TINT].arith_op[ARITH_FIX] = _nop;
-    tag_desc[TINT].arith_op[ARITH_INT] = _nop;
+    tag_desc[TINT].arith_op[ARITH_ROUND] = _int_nop;
+    tag_desc[TINT].arith_op[ARITH_FLOOR] = _int_nop;
+    tag_desc[TINT].arith_op[ARITH_CEIL] = _int_nop;
+    tag_desc[TINT].arith_op[ARITH_TRUNCATE] = _int_nop;
+    tag_desc[TINT].arith_op[ARITH_FIX] = _int_nop;
+    tag_desc[TINT].arith_op[ARITH_INT] = _int_nop;
     tag_desc[TINT].arith_op[ARITH_SGN] = _int_sgn;
     tag_desc[TINT].arith_op[ARITH_ATAN2] = _int_atan2;
-
-    tag_desc[TBIG].arith_op[ARITH_PLUS] = _nop;
-    tag_desc[TBIG].arith_op[ARITH_FLOAT] = _nop;
-    tag_desc[TBIG].arith_op[ARITH_ROUND] = _nop;
-    tag_desc[TBIG].arith_op[ARITH_FLOOR] = _nop;
-    tag_desc[TBIG].arith_op[ARITH_CEIL] = _nop;
-    tag_desc[TBIG].arith_op[ARITH_TRUNCATE] = _nop;
-    tag_desc[TBIG].arith_op[ARITH_FIX] = _nop;
-    tag_desc[TBIG].arith_op[ARITH_INT] = _nop;
-
-    tag_desc[TRAT].arith_op[ARITH_PLUS] = _nop;
-    tag_desc[TRAT].arith_op[ARITH_FLOAT] = _nop;
-    tag_desc[TRAT].arith_op[ARITH_NICERAT] = _nop;
 
     tag_desc[TDBL].compare = _compare_dbl;
     tag_desc[TDBL].arith_compare = _arith_compare_dbl;
 #ifndef UNBOXED_DOUBLES
     tag_desc[TDBL].equal = _equal_dbl;
 #endif
-    tag_desc[TDBL].arith_op[ARITH_PLUS] = _nop;
+    tag_desc[TDBL].arith_op[ARITH_PLUS] = _dbl_nop;
     tag_desc[TDBL].arith_op[ARITH_CHGSIGN] =
     tag_desc[TDBL].arith_op[ARITH_NEG] = _dbl_neg;
     tag_desc[TDBL].arith_op[ARITH_ADD] = _dbl_add;
