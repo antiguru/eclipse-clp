@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.16 2012/02/06 18:32:36 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.17 2013/02/02 01:02:37 jschimpf Exp $
  */
 
 /********************************************************************
@@ -276,7 +276,7 @@ ec_create_call_n(dident call_did)
     tm.kernel = ModuleTag(d_.kernel_sepia);
     int i = DidArity(call_did);
     Allocate_Default_Procedure(8, call_did);
-    Exported_Kernel_Proc(call_did, ARGFIXEDWAM|DEBUG_DB, code);
+    Exported_Kernel_Proc(call_did, ARGFIXEDWAM|DEBUG_TRMETA, code);
     pd->flags &= ~DEBUG_TR; /*untraceable*/
     Store_3(MoveAMAM, Address(i), Address(i+1))
     Store_2(SavecutAM, Address(i+2))

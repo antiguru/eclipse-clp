@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.28 2013/01/29 00:15:39 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.29 2013/02/02 01:02:37 jschimpf Exp $
  */
 
 /*
@@ -5537,7 +5537,7 @@ _anycall_:				/* (pw1,DBG_PORT,err_code,i) */
 	    if( proc == (pri*) 0) {
 		Get_Bip_Error(err_code);
 		if (err_code == NOENTRY)
-		    err_code = CALLING_UNDEFINED;
+		    err_code = CALLING_AUTOLOAD;
 		goto _metacall_err_call_;       /* (err_code,val_did,tmp1,i,pw1) */
 	    }
 	    DBG_INVOC = 0;
@@ -6515,8 +6515,7 @@ _end_external_:
 	    }
 	    /* move caller module to A[3] */
 	    A[3] = scratch_pw;
-	    err_code = (proc->flags & AUTOLOAD) ?
-	    		CALLING_AUTOLOAD : CALLING_UNDEFINED;
+	    err_code = CALLING_AUTOLOAD;
 	    /*
 	     * Put lookup module in A[4]: as opposed to Make_Lookup_Module()
 	     * the code here prefers to use the home module because that is

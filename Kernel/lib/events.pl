@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.21 2012/10/16 23:00:33 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.22 2013/02/02 01:03:38 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -102,66 +102,94 @@ error_handler(X, Where, CM, LM) :-
 	error(157, _).
 
 
-% avoid loops by recursive calls due to macros
+%-------------------------------------
+% Undefined-call handler, may be redefined to fail, etc
+%-------------------------------------
+
 call_handler(X, Where, CM, LM) :- 
-	atom(CM),		% The context module is not checked yet,
+	atom(CM),		% The context module may not be checked yet,
 	is_a_module(CM),	% since this is normally done by the callee!
 	!,
-        ( try_create_pred(Where, LM) ->
-            ( LM==CM ->
-                call(Where)@CM
-            ;
-                :@(LM, Where, CM)
-            )
-        ;
-            error_id(X, Msg), 
-            % First remove 'm' or 'M' from the output flags so that we don't
-            % hit undefined 'print attribute' predicates
-            output_mode(Mode),
-            string_list(Mode, ModeL),
-            (member(0'm, ModeL) ->
-                delete(0'm, ModeL, NewModeL)
-            ;
-            member(0'M, ModeL) ->
-                delete(0'M, ModeL, NewModeL)
-            ;
-                NewModeL = ModeL
-            ),
-            string_list(NewMode, NewModeL),
-            % And then disable write macros. This unfortunately also disables
-            % goal macros which would not loop anyway...
-            concat_string(['%w %', NewMode, 'Tw in module %w%n'], Format),
-            ( CM == LM -> QualWhere = Where ; QualWhere = LM:Where ),
-            printf_body(error, Format, [Msg,QualWhere,CM], CM),
-            error(157, _)
-        ).
+	error_id(X, Msg), 
+	% Avoid loops by recursive calls due to macros:
+	% First remove 'm' or 'M' from the output flags so that we don't
+	% hit undefined 'print attribute' predicates
+	output_mode(Mode),
+	string_list(Mode, ModeL),
+	(member(0'm, ModeL) ->
+	    delete(0'm, ModeL, NewModeL)
+	;
+	member(0'M, ModeL) ->
+	    delete(0'M, ModeL, NewModeL)
+	;
+	    NewModeL = ModeL
+	),
+	string_list(NewMode, NewModeL),
+	% And then disable write macros. This unfortunately also disables
+	% goal macros which would not loop anyway...
+	concat_string(['%w %', NewMode, 'Tw in module %w%n'], Format),
+	( CM == LM -> QualWhere = Where ; QualWhere = LM:Where ),
+	printf_body(error, Format, [Msg,QualWhere,CM], CM),
+	error(157, _).
 call_handler(_, Where, CM, _) :- 
 	error(80, Where@CM).
 
-try_create_pred(Where, LM) :-
-        functor(Where, Name, Arity),
-	is_lazy_pred(LM, Name, Arity, Tool, Body, Proto),
-	% Create the body, unless it exists already
-	( get_flag(Body, defined, on) ->
-	    true
+
+%-------------------------------------
+% Autoload and lazy predicate creation
+%-------------------------------------
+
+:- pragma(nodebug).
+:- unskipped autoload_handler/4.
+:- untraceable autoload_handler/4.
+autoload_handler(_, Goal, CM, LM) :-
+	atom(CM),		% The context module is not checked yet,
+	is_a_module(CM),	% since this is normally done by the callee!
+	!,
+        ( try_create_pred(Goal, LM) ->
+            ( LM==CM ->
+                call(Goal)@CM
+            ;
+                :@(LM, Goal, CM)
+            )
 	;
-	    Body = BName/N1,
-	    create_call_n(BName, N1)
-	),
-	% Create the tool, unless it exists already
-	( get_flag(Tool, tool, on) ->
-	    true
-	;
-	    tool(Tool, Body),
-	    export(Tool)
-	),
-	% Create same visibility as Proto
-	( get_flag(Proto, visibility, imported)@LM ->
-	    (import Tool from sepia_kernel)@LM
-	; get_flag(Proto, visibility, reexported)@LM ->
-	    (reexport Tool from sepia_kernel)@LM
-	;
-	    true
+	    error(68, Goal, CM)@LM
+	).
+autoload_handler(_, Goal, CM, _) :- 
+	error(80, Goal@CM).
+
+
+try_create_pred(Goal, LM) :-
+        functor(Goal, Name, Arity),
+	( is_lazy_pred(LM, Name, Arity, Tool, Body, Proto) ->
+
+	    % Create the body, unless it exists already
+	    ( get_flag(Body, defined, on) ->
+		true
+	    ;
+		Body = BName/N1,
+		create_call_n(BName, N1)
+	    ),
+	    % Create the tool, unless it exists already
+	    ( get_flag(Tool, tool, on) ->
+		true
+	    ;
+		tool(Tool, Body),
+		export(Tool)
+	    ),
+	    % Create same visibility as Proto
+	    ( get_flag(Proto, visibility, imported)@LM ->
+		(import Tool from sepia_kernel)@LM
+	    ; get_flag(Proto, visibility, reexported)@LM ->
+		(reexport Tool from sepia_kernel)@LM
+	    ;
+		true
+	    )
+
+	; % Autoloading
+	    get_flag(Name/Arity, autoload, on)@LM,	% may fail
+	    get_unqualified_goal(Goal, UnQualGoal),
+	    mutex_lib(UnQualGoal, LM)
 	).
 
 is_lazy_pred(LM, Name, Arity, Tool, Body, Proto) :-
@@ -176,9 +204,44 @@ multi_arity_pred((:),   N,  (:)/N,  (:@)/N1,  (:)/2)  :- N1 is N+1, N>2.
 multi_arity_pred((:@),  N1, (:)/N,  (:@)/N1,  (:)/2)  :- N is N1-1, N>2.
 
 
+?- local variable(autoload_lock).
+?- mutex_init(autoload_lock).
+mutex_lib(Goal, CallerModule) :-
+	mutex(autoload_lock, (
+	    get_autoload_info(Goal, CallerModule, File, HomeModule) ->
+		ensure_loaded_skip(library(File), HomeModule)
+	    ;
+		true	% already loaded (maybe by other worker)
+	)).
+
+% fails if predicate is defined in the meantime
+get_autoload_info(Goal, CallerModule, HomeModule, HomeModule) :-
+	functor(Goal, N, A),
+	proc_flags(N/A, 14, off, CallerModule),	% get_flag(N/A, defined, off)
+	proc_flags(N/A, 0, HomeModule, CallerModule).
+
+
+% Some hacking here to suppress tracing of metacalls during ensure_loaded
+:- pragma(debug).
+ensure_loaded_skip(File, Module) :-
+	% need the (untraceable) CALL port here for skipping
+	ensure_loaded_silent(File, Module).
+:- pragma(nodebug).
+
+:- untraceable ensure_loaded_silent/2.
+:- skipped ensure_loaded_silent/2.
+ensure_loaded_silent(File, Module) :-
+	ensure_loaded(File, Module).
+
+
+%-------------------------------------
 % Handler for error 86 - lookup module does not exist.
+%-------------------------------------
+
 % Culprit is an ok goal, but LM is an atom but not a module.
 % If there is a library called LM, we try to load it.
+:- unskipped no_lookup_module_handler/4.
+:- untraceable no_lookup_module_handler/4.
 no_lookup_module_handler(N, Goal, CM, LM) :- !,
 	getval(prolog_suffix, ECLs),
 	getval(eclipse_object_suffix, ECO),
@@ -186,7 +249,7 @@ no_lookup_module_handler(N, Goal, CM, LM) :- !,
 	    printf(warning_output,
 	    	"WARNING: module '%w' does not exist, loading library...%n",
 		[LM]),
-	    ensure_loaded(library(LM))@CM,
+	    ensure_loaded_skip(library(LM), CM),
 	    ( is_a_module(LM) ->
 		:@(LM, Goal, CM)
 	    ;
@@ -196,6 +259,10 @@ no_lookup_module_handler(N, Goal, CM, LM) :- !,
 	    error_handler(N, Goal, CM, LM)
 	).
 
+
+%-------------------------------------
+% End-of-compilation warnings
+%-------------------------------------
 
     % suppress these warnings until autoloading is done properly
 declaration_warning_handler(_N, _Pred, lists) :- !.
@@ -227,6 +294,10 @@ declaration_warning_handler(N, Pred, Module) :-
 	once existing_file(library(Module), [ECO|ECLs], [readable], _).
 
 
+%-------------------------------------
+% General warnings
+%-------------------------------------
+
 warning_handler(X, Where) :-
 	write(warning_output, 'WARNING: '),
 	warning_message(X, Where).
@@ -236,6 +307,9 @@ warning_handler(X, Where, Module) :-
 	warning_message(X, Where, Module).
 
 
+%-------------------------------------
+% Undefined global entities
+%-------------------------------------
 
 undef_array_handler(N, setval_body(Name, Value, Module), _) :- !,
 	undef_array_handler(N, setval(Name, Value), Module).
@@ -306,6 +380,11 @@ undef_record_handler(N, Culprit) :-
     extract_record_key(recordz_body(Key,_,M), Key, M).
     extract_record_key(recorda_body(Key,_,_,M), Key, M).
     extract_record_key(recordz_body(Key,_,_,M), Key, M).
+
+
+%-------------------------------------
+% Syntax error handling
+%-------------------------------------
 
 parser_error_handler(N, Goal):- 
 	error_id(N, Id), 
@@ -467,6 +546,10 @@ extract_stream(nl(S), S).
 extract_stream(close(S), S).
 
 
+%-------------------------------------
+% I/O event handling
+%-------------------------------------
+
 % eof_handler/4 - take the appropriate action for each culprit
 % CARE: eof_handler/4 fails for other culprits
 
@@ -527,6 +610,10 @@ past_eof_handler(N, Goal) :-
 	    eof_handler(N, Goal)
 	).
 
+
+%-------------------------------------
+% Compilation related handlers
+%-------------------------------------
 
 compiler_warning_handler(N, Proc) :-
 	( ( nonvar(Proc), Proc=Term@File:Line
@@ -871,28 +958,9 @@ macro_handler(N, define_macro_(T, QP, F, M), _) :-
 	get_flag_body(P, definition_module, DM, M2).
 
 
-?- make_array_(autoload_lock, prolog, local, sepia_kernel),
-   mutex_init(autoload_lock).
-
-autoload_handler(_, Goal, CallerModule, LookupModule) :-
-	get_unqualified_goal(Goal, UnQualGoal),
-	mutex_lib(UnQualGoal, CallerModule),
-	:@(LookupModule, Goal, CallerModule).
-
-mutex_lib(Goal, CallerModule) :-
-	mutex(autoload_lock, (
-	    get_autoload_info(Goal, CallerModule, File, HomeModule) ->
-		ensure_loaded(library(File), HomeModule)
-	    ;
-		true	% already loaded (maybe by other worker)
-	)).
-
-% fails if predicate is defined in the meantime
-get_autoload_info(Goal, CallerModule, HomeModule, HomeModule) :-
-	functor(Goal, N, A),
-	proc_flags(N/A, 14, off, CallerModule),	% get_flag(N/A, defined, off)
-	proc_flags(N/A, 0, HomeModule, CallerModule).
-
+%-------------------------------------
+% Arithmetic handlers
+%-------------------------------------
 
 integer_overflow_handler(E, Goal) :-
 	Goal =.. [F,X|T],
@@ -934,6 +1002,10 @@ compare_handler(_, Goal, CM, LM) :-
 	    error(24, NewGoal, M)
 	).
 
+
+%-------------------------------------
+% Module related handlers
+%-------------------------------------
 
 % allow certain things even if the module is locked
 
@@ -985,6 +1057,10 @@ ambiguous_import_warn(_, Pred, Module) :-
     preferred_predicate((=:=)/2, eclipse_language).
     preferred_predicate((=\=)/2, eclipse_language).
 
+
+%-------------------------------------
+% Optimization message handler
+%-------------------------------------
 
 cost_handler(_, (Cost, _)) :-
 	printf("Found a solution with cost %w%n%b", Cost).
@@ -1883,14 +1959,10 @@ bip_error_(Goal, CM, LM) :-	% for internal use
 
 :- untraceable
 	error_exit/0,
-	get_autoload_info/4,
 	compare_handler/4,
-	autoload_handler/4,
-	mutex_lib/2,
 	call_handler/4.
 
 :- skipped
-	autoload_handler/4,
 	call_handler/4,
 	eof_handler/4,
 	error_exit/0,
