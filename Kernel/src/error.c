@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.6 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.7 2013/02/04 14:51:13 jschimpf Exp $
  */
 
 /*
@@ -197,32 +197,32 @@ char *	ec_error_message[MAX_ERRORS] = {
 		 */
 /* Syntax */
 /* -110 */
-"syntax error: ",				/* was AMBIGUITY	*/
-"syntax error: list tail ended improperly",	/* PUNCTUATION		*/
-"syntax error: illegal character in a quoted token",	/* ILL_QUOTED	*/
-"syntax error: unexpected comma",		/* UNEXCOMMA		*/
-"syntax error: unexpected token",		/* UNEXPECTED		*/
-"syntax error: unexpected end of file",		/* ENDOFFILE		*/
-"syntax error: numeric constant out of range",	/* BAD_NUMERIC_CONSTANT	*/
-"syntax error: bracket necessary",		/* BRACKET		*/
-"syntax error: unexpected fullstop",		/* ENDOFCLAUSE		*/
-"syntax error: postfix/infix operator expected",/* POSTINF		*/
+0,						/* was AMBIGUITY	*/
+"list tail ended improperly",			/* PUNCTUATION		*/
+"illegal character in a quoted token",		/* ILL_QUOTED	*/
+"unexpected comma",				/* UNEXCOMMA		*/
+"unexpected token",				/* UNEXPECTED		*/
+"unexpected end of file",			/* ENDOFFILE		*/
+"numeric constant out of range",		/* BAD_NUMERIC_CONSTANT	*/
+"bracket necessary",				/* BRACKET		*/
+"unexpected fullstop",				/* ENDOFCLAUSE		*/
+"postfix/infix operator expected",		/* POSTINF		*/
 /* -120 */
-"syntax error: wrong solo char",		/* SOLOCH		*/
-"syntax error: space between functor and open bracket",	 /* BLANK	*/
-"syntax error: variable with multiple attributes",	/* MULTI_META	*/
-"illegal iteration specifier in do-loop",
-"syntax error : prefix operator followed by infix operator",	/* PREFINF */
-"syntax error : unexpected closing bracket",		/* UNCLOSBR	*/
-"syntax error : grammar rule head is not valid",	/* GRAMMAR_HEAD */
-"syntax error : grammar rule body is not valid",	/* GRAMMAR_BODY */
-"syntax error : in source transformation",		/* TRANS_ERROR */
-"syntax error: source transformation floundered",	/* QUERY_FLOUNDERED */
+0,						/* was: SOLOCH		*/
+"space between functor and open bracket",	/* BLANK	*/
+"variable with multiple attributes",		/* MULTI_META	*/
+"illegal iteration specifier in do-loop",	/* compilation, not syntax error! */
+0,						/* was: PREFINF */
+"unexpected closing bracket",			/* UNCLOSBR	*/
+"grammar rule head is not valid",		/* GRAMMAR_HEAD */
+"grammar rule body is not valid",		/* GRAMMAR_BODY */
+"in source transformation",			/* TRANS_ERROR */
+"source transformation floundered",		/* QUERY_FLOUNDERED */
 /* Compilation */
 /* -130 */
-"syntax error: illegal head",			/* ILLEGAL_HEAD		*/
-"syntax error: illegal goal",			/* ILLEGAL_GOAL		*/
-"syntax error: term of an unknown type",	/* WRONG_TYPE		*/
+"illegal clause head",				/* ILLEGAL_HEAD		*/
+"illegal goal in clause body",			/* ILLEGAL_GOAL		*/
+0,						/* was: WRONG_TYPE	*/
 "loading the library ",				/* LIBRARY		*/
 "procedure clauses are not consecutive",	/* CONSECUTIVE		*/
 "trying to redefine a protected procedure",	/* PROTECT_REDEF	*/

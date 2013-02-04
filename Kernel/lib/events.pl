@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.22 2013/02/02 01:03:38 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.23 2013/02/04 14:52:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -386,28 +386,36 @@ undef_record_handler(N, Culprit) :-
 % Syntax error handling
 %-------------------------------------
 
-parser_error_handler(N, Goal):- 
+parser_error_handler(N, Goal, M):- 
+	( extract_module(Goal, CM) -> true ; CM = M ),
 	error_id(N, Id), 
-	(extract_stream(Goal, Stream) ->
-	    print_error(Stream, Id)
+	( extract_stream(Goal, Stream) ->
+	    ( get_flag(syntax_option, iso_restrictions)@CM ->	%%% temporary
+		% ISO style: throw error term
+	        throw(error(syntax_error(Id),stream(Stream)))
+	    ;
+		% old ECLiPSe style: print error directly, then fail
+		print_error(Stream, Id),
+		fail
+	    )
 	;
-	    error_message(N, Goal)
-	),
-	fail.
+	    error_message(N, Goal),
+	    fail
+	).
 
 print_error(Stream, Id) :-
 	stream_info_(Stream, 13, Type),
 	stream_info_(Stream, 6, Where),
 	stream_info_(Stream, 5, Line),
 	(get_context(Stream, Type, Where, Line, From, String) ->
-	    printf(error, "%s\n", Id),
+	    printf(error, "syntax error: %s\n", Id),
 	    printf(error, "| %s\n", String),
 	    print_arrow(String, From, Where),
 	    seek(Stream, Where),
 	    set_stream_prop_(Stream, 5, Line),	% reset the line
 	    skip_to_eocl(Stream, Type)
 	;
-	    printf(error, "%s\n%b", Id)		% no context available
+	    printf(error, "syntax error: %s\n%b", Id)		% no context available
 	).
 
 get_context(Stream, file, Err, Line, From, String) :-
@@ -544,6 +552,24 @@ extract_stream(writeln(S,_), S).
 extract_stream(nl, output).
 extract_stream(nl(S), S).
 extract_stream(close(S), S).
+
+% This should be replaced with a more generic way of getting
+% the context module from a tool body goal
+:- mode extract_module(+, -).
+extract_module(read_(_, M), M).
+extract_module(readvar(_, _, _, M), M).
+extract_module(read_annotated_raw(_, _, _, M), M).
+extract_module(read_(_, _, M), M).
+extract_module(read_token_(_, _, _, M), M).
+extract_module(compile_stream_(_, M), M).
+extract_module(format_body(_, _, M), M).
+extract_module(format_body(_, _, _, M), M).
+extract_module(printf_body(_, _, M), M).
+extract_module(printf_body(_, _, _, M), M).
+extract_module(write_(_, M), M).
+extract_module(write_(_, _, M), M).
+extract_module(writeln_body(_,M), M).
+extract_module(writeln_body(_,_,M), M).
 
 
 %-------------------------------------
@@ -990,8 +1016,8 @@ compare_handler(_, Goal, CM, LM) :-
 	    arg(2, NewGoal, Y1),
 	    M = CM
 	),
-	eval(X, X1, M),
-	eval(Y, Y1, M),
+	call(X1 is X)@M,		% call the visible is/2 (e.g. for iso)
+	call(Y1 is Y)@M,
 	( number(X1), number(Y1) ->
 	    :@(LM,NewGoal,M)
 	; var(X1) ->
@@ -1285,29 +1311,25 @@ postpone_suspensions(Susp) :-
    set_default_error_handler_(99, ambiguous_import_warn/3, sepia_kernel),
    set_default_error_handler_(100, undef_dynamic_handler/3, sepia_kernel),
    set_default_error_handler_(101, error_handler/2, sepia_kernel),
-   set_default_error_handler_(110, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(111, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(112, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(113, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(114, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(115, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(116, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(117, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(118, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(119, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(120, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(121, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(122, parser_error_handler/2, sepia_kernel),
+   set_default_error_handler_(111, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(112, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(113, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(114, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(115, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(116, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(117, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(118, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(119, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(121, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(122, parser_error_handler/3, sepia_kernel),
    set_default_error_handler_(123, error_handler/4, sepia_kernel),
-   set_default_error_handler_(124, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(125, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(126, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(127, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(128, parser_error_handler/2, sepia_kernel),
-   set_default_error_handler_(129, parser_error_handler/2, sepia_kernel),
+   set_default_error_handler_(125, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(126, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(127, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(128, parser_error_handler/3, sepia_kernel),
+   set_default_error_handler_(129, parser_error_handler/3, sepia_kernel),
    set_default_error_handler_(130, compiler_error_handler/2, sepia_kernel),
    set_default_error_handler_(131, compiler_error_handler/2, sepia_kernel),
-   set_default_error_handler_(132, compiler_error_handler/2, sepia_kernel),
    set_default_error_handler_(133, true/0, sepia_kernel),
    set_default_error_handler_(134, compiler_error_handler/2, sepia_kernel),
    set_default_error_handler_(135, compiler_error_handler/2, sepia_kernel),
@@ -1970,5 +1992,5 @@ bip_error_(Goal, CM, LM) :-	% for internal use
 	error_handler/3,
 	error_handler/4,
 	output_error_handler/4,
-	parser_error_handler/2,
+	parser_error_handler/3,
 	system_error_handler/4.

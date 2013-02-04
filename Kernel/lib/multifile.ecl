@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: multifile.ecl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: multifile.ecl,v 1.3 2013/02/04 14:52:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(multifile).
@@ -31,15 +31,17 @@
 :- comment(summary, "Multifile declaration, for Prolog compatibility").
 :- comment(author, "Joachim Schimpf, Coninfer Ltd").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2013/02/04 14:52:11 $").
 :- comment(desc, html("
 	This library implements the multifile/1 declaration, and allows clauses
 	for multifile predicates to be prefixed with their module name.
 ")).
 
+:- pragma(system).
 
 :- export multifile/1.
 :- tool(multifile/1, multifile_/2).
+:- set_flag(multifile/1, type, built_in).
 multifile_(P, Module) :- var(P), !,
 	error(4, multifile(P), Module).
 multifile_((P1,P2), Module) :- !,

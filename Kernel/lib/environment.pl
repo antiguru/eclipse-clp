@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.14 2012/07/12 10:31:15 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.15 2013/02/04 14:52:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -246,6 +246,7 @@ set_flag_body(Name, Value, M) :-
 
 :- mode do_set_flag(++, +, ++).
 
+do_set_flag(bounded, _, _) :-	!, set_bip_error(30).
 do_set_flag(extension, _, _) :-	!, set_bip_error(30).
 do_set_flag(eclipse_info_suffix, _, _) :- !, set_bip_error(30).
 do_set_flag(eclipse_object_suffix, _, _) :- !, set_bip_error(30).
@@ -255,6 +256,8 @@ do_set_flag(hostarch, _, _) :-	!, set_bip_error(30).
 do_set_flag(max_global_trail, _, _) :- !, set_bip_error(30).
 do_set_flag(max_local_control, _, _) :- !, set_bip_error(30).
 do_set_flag(max_predicate_arity, _, _) :- !, set_bip_error(30).
+do_set_flag(max_integer, _, _) :- !, set_bip_error(30).
+do_set_flag(min_integer, _, _) :- !, set_bip_error(30).
 do_set_flag(object_suffix, _, _) :- !, set_bip_error(30).
 do_set_flag(system_object_suffix, _, _) :- !, set_bip_error(30).
 do_set_flag(pid, _, _) :-		!, set_bip_error(30).

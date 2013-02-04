@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.14 2012/09/23 18:55:34 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.15 2013/02/04 14:52:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -306,7 +306,9 @@ op_body(Visible, Preced, Assoc, Ops, Module) :-
 
 op_body1(_, _, _, Ops, _) :- var(Ops), !, set_bip_error(4).
 op_body1(_, _, _, [], _) :- !.
-op_body1(Visible, Preced, Assoc, [Op|Ops], Module) :- !,
+op_body1(Visible, Preced, Assoc, [Op|Ops], Module) :-
+	( atom(Op) -> true ; var(Op) ),
+	!,
 	% report errors per-operator, if possible
 	( op_(Visible, Preced, Assoc, Op, Module) -> true
 	; Visible == local -> bip_error(op(Preced, Assoc, Op), Module)

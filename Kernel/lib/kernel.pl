@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.40 2013/01/30 04:34:28 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.41 2013/02/04 14:52:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -2429,7 +2429,7 @@ get_unqualified_goal(_QM:Goal, UGoal) :- -?-> !, UGoal=Goal.
 get_unqualified_goal(Goal, Goal).
 
 create_module_if_did_not_exist(M) :-
-	(is_a_module(M) -> true ; create_module(M) ).
+	(is_a_module(M) -> true ; create_module(M, [], []) ).
 
 create_module(M) :-
 	create_module(M, [], eclipse_language).
@@ -2511,6 +2511,28 @@ stack_overflow_message(fatal_signal_caught) :-
 	    "ECLiPSe may have become unstable, restart recommended\n"
 	),
 	flush(error).
+stack_overflow_message(error(IsoError,ImpDefTerm)) :-
+	nonvar(IsoError),
+	( IsoError = syntax_error(Description), ImpDefTerm=stream(Stream) ->
+	    print_error(Stream, Description)
+	;
+	    iso_print_error(IsoError, String, Params),
+	    printf(error, String, Params),
+	    printf(error, " in %w%n%b", [ImpDefTerm])
+	).
+
+iso_print_error(instantiation_error, "instantiation fault", []).
+iso_print_error(uninstantiation_error(Actual), "variable expected, found %w", [Actual]).
+iso_print_error(type_error(Expected,Actual), "type error: expected %w, found %w", [Expected,Actual]).
+iso_print_error(domain_error(Expected,Actual), "domain error: expected %w, found %w", [Expected,Actual]).
+iso_print_error(domain_error(Expected,Actual), "domain error: expected %w, found %w", [Expected,Actual]).
+iso_print_error(existence_error(ObjectType, Culprit), "%w does not exist: %w", [ObjectType, Culprit]).
+iso_print_error(permission_error(Operation, PermissionType, Culprit), "permission error during %w of %w: %w", [Operation,PermissionType,Culprit]).
+iso_print_error(representation_error(Flag), "cannot represent %w", [Flag]).
+iso_print_error(evaluation_error(Error), "arithmetic exception %w", [Error]).
+iso_print_error(resource_error(Resource), "resource %w exhausted", [Resource]).
+iso_print_error(syntax_error(Description), "syntax error: %w", [Description]).
+iso_print_error(system_error, "unspecified system error", []).
 
 
 is_macro(Type, Pred, List, PredModule, Module) :-
@@ -3780,6 +3802,8 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	trprotect/2,
 	trdcg/5,
 	call_local/1,
+	check_callable/1,
+	check_predspec/1,
 	erase_module_pragmas/1,
 	exec_exdr/1,
 	exec_string/2,
@@ -7401,6 +7425,8 @@ select(Streams, Timeout, Ready) :- stream_select(Streams, Timeout, Ready).
 :- deprecated(event_retrieve/2,		"Use event_retrieve/3").
 :- deprecated(fail_if/1,		"Use \\+ /1").
 :- deprecated(flatten_array/2,		"Use array_flat/3").
+:- deprecated(get_char/1,		"Use iso:get_char/1 which returns an atom").
+:- deprecated(get_char/2,		"Use iso:get_char/2 which returns an atom").
 :- deprecated(get_error_handler/3,	"Use get_event_handler/3").
 :- deprecated(get_prompt/3,		"Use get_stream_info/3").
 :- deprecated(get_timer/2,		"Use after events").

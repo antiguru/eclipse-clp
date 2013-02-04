@@ -26,7 +26,7 @@
 % ECLiPSe kernel built-ins
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel_bips.pl,v 1.2 2012/07/12 10:33:33 jschimpf Exp $
+% Version:	$Id: kernel_bips.pl,v 1.3 2013/02/04 14:52:10 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -229,7 +229,9 @@ string_list(String, List, Format) :- var(Format), !,
 	error(4, string_list(String, List, Format)).
 string_list(String, List, utf8) :- !,
 	utf8_list(String, List).
-string_list(String, List, 'bytes') :- !,
+string_list(String, List, bytes) :- !,
+	string_list(String, List).
+string_list(String, List, octet) :- !,
 	string_list(String, List).
 string_list(String, List, Format) :-
 	error(6, string_list(String, List, Format)).

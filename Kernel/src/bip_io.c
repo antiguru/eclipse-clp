@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.16 2012/09/26 22:33:52 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.17 2013/02/04 14:51:13 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1801,6 +1801,8 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 36:		/* end_of_stream */
+	if (!IsReadStream(nst))
+	    { Fail_; }
 	/* Only a SoftEofStream can recover from being "past" eof */
 	result.val.did =
 	    ( IsSoftEofStream(nst) ?

@@ -80,6 +80,10 @@ lib/ic_sequence.eco
 lib/ic_sets.eco
 lib/ic_symbolic.eco
 lib/iso.eco
+lib/iso_aux.eco
+lib/iso_error.eco
+lib/iso_light.eco
+lib/iso_strict.eco
 lib/joop_boot.eco
 lib/kernel.eco
 lib/linearize.eco
