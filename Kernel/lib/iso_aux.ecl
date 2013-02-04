@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_aux.ecl,v 1.1 2013/02/04 14:52:10 jschimpf Exp $
+% Version:	$Id: iso_aux.ecl,v 1.2 2013/02/04 19:11:39 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_aux.ecl
 %
@@ -324,6 +324,21 @@ check_stream_or_alias_io_type(Stream, IO, Type) :-
 	get_stream_info(Stream, encoding, E),
 	encoding_type(E, Actual),
 	( Actual=Type -> true ; set_bip_error(192) ).
+
+
+:- export normalize_body/2.
+:- mode normalize_body(?,-).
+normalize_body(Goal, call(Goal)) :- var(Goal), !.
+normalize_body((G1,G2), (NG1,NG2)) :- !,
+	normalize_body(G1, NG1),
+	normalize_body(G2, NG2).
+normalize_body((G1;G2), (NG1;NG2)) :- !,
+	normalize_body(G1, NG1),
+	normalize_body(G2, NG2).
+normalize_body((G1->G2), (NG1->NG2)) :- !,
+	normalize_body(G1, NG1),
+	normalize_body(G2, NG2).
+normalize_body(Goal, Goal) :- callable(Goal).
 
 
 %-----------------------------------------------------------------------

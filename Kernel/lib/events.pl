@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.23 2013/02/04 14:52:11 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.24 2013/02/04 19:11:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -195,8 +195,9 @@ try_create_pred(Goal, LM) :-
 is_lazy_pred(LM, Name, Arity, Tool, Body, Proto) :-
         multi_arity_pred(Name, Arity, Tool, Body, Proto),
         arity(Body) =< get_flag(max_predicate_arity),
-        % is the visible prototype the sepia_kernel one?
-        get_flag(Proto, definition_module, sepia_kernel)@LM.
+        % is the visible prototype the standard one?
+        get_flag(Proto, definition_module, DM)@LM,
+	( DM==sepia_kernel -> true ; DM==iso_strict ).
 
 multi_arity_pred(call,  N,  call/N, call_/N1, call/1) :- N1 is N+1, N>1.
 multi_arity_pred(call_, N1, call/N, call_/N1, call/1) :- N is N1-1, N>1.

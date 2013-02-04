@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_strict.ecl,v 1.2 2013/02/04 14:52:10 jschimpf Exp $
+% Version:	$Id: iso_strict.ecl,v 1.3 2013/02/04 19:11:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -59,7 +59,7 @@
 :- comment(summary, `Strict ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, 'Joachim Schimpf, Coninfer Ltd').
-:- comment(date, `$Date: 2013/02/04 14:52:10 $`).
+:- comment(date, `$Date: 2013/02/04 19:11:39 $`).
 :- comment(see_also, [library(multifile),library(iso),library(iso_light)]).
 :- comment(desc, html(`
 <h3>Overview</h3>
@@ -213,7 +213,6 @@
 	discontiguous/1,
 	true/0,				% built-ins
 	fail/0,
-	call/1,
 	!/0,
 	(',')/2,
 	(;)/2,
@@ -242,17 +241,7 @@
 	arg/3,
 	(=..)/2,
 	copy_term/2,
-%	(is)/2,				% 8.6
-%	(=:=)/2,			% 8.7
-%	(=\=)/2,
-%	(<)/2,
-%	(=<)/2,
-%	(>)/2,
-%	(>=)/2,
 	current_predicate/1,
-%	findall/3,			% 8.10
-%	bagof/3,
-%	setof/3,
 	close/1,			% 8.11
 	close/2,
 	nl/0,				% 8.12
@@ -401,6 +390,59 @@
 :- import
 	bip_error/1
     from sepia_kernel.
+
+
+%-----------------------------------------------------------------------
+% 7.8 Control constructs
+%-----------------------------------------------------------------------
+
+:- export call/1, call/2, call/3.
+
+:- tool(call/1,call_/2).
+call_(G, M) :-
+	( normalize_call(G, G1) ->
+	    eclipse_language:call(G1)@M
+	;
+	    throw(error(type_error(callable,G),call/1))
+	).
+
+    :- mode normalize_call(?,-).
+    normalize_call(G, G) :- var(G), !.
+    normalize_call(G, G1) :-
+	normalize_body(G, G1).
+
+:- tool(call/2,call_/3).
+call_(P, A, M) :-
+	( critical_goal(P, A, G) ->
+	    ( normalize_body(G, G1) ->
+		eclipse_language:call(G1)@M
+	    ;
+		throw(error(type_error(callable,G),call/1))
+	    )
+	;
+	    eclipse_language:call(P, A)@M
+	).
+
+    critical_goal(','(G1), G2, ','(G1,G2)).
+    critical_goal(';'(G1), G2, ';'(G1,G2)).
+    critical_goal('->'(G1), G2, '->'(G1,G2)).
+
+:- tool(call/3,call_/4).
+call_(P, A1, A2, M) :-
+	( critical_goal(P, A1, A2, G) ->
+	    ( normalize_body(G, G1) ->
+		eclipse_language:call(G1)@M
+	    ;
+		throw(error(type_error(callable,G),call/1))
+	    )
+	;
+	    eclipse_language:call(P, A1, A2)@M
+	).
+
+    critical_goal(',', G1, G2, ','(G1,G2)).
+    critical_goal(';', G1, G2, ';'(G1,G2)).
+    critical_goal('->', G1, G2, '->'(G1,G2)).
+
 
 %-----------------------------------------------------------------------
 % 8.4 Term comparison

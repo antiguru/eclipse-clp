@@ -24,13 +24,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_light.ecl,v 1.1 2013/02/04 14:52:10 jschimpf Exp $
+% Version:	$Id: iso_light.ecl,v 1.2 2013/02/04 19:11:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso_light.ecl,v 1.1 2013/02/04 14:52:10 jschimpf Exp $
+% $Id: iso_light.ecl,v 1.2 2013/02/04 19:11:39 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_light.ecl, based on obsolete iso.pl
 %
@@ -110,7 +110,7 @@
 :- comment(summary, `ISO Prolog compatibility library (light version)`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, `Cisco Systems, Inc (2006), Coninfer Ltd (modifications 2007-2012)`).
-:- comment(date, `$Date: 2013/02/04 14:52:10 $`).
+:- comment(date, `$Date: 2013/02/04 19:11:39 $`).
 :- comment(see_also, [library(multifile),library(iso_strict),library(iso)]).
 :- comment(desc, html(`\
 <h3>Overview</h3>\n\
@@ -311,26 +311,12 @@ retract_(Clause, Module) :-
 	; error(5, retract(Clause))@Module
 	).
 
-
     :- mode normalize_clause(?,-).
     normalize_clause((Head:-Body), (Head:-NormBody)) :- !,
 	check_callable(Head),
 	( normalize_body(Body, NormBody) -> true ; set_bip_error(5) ).
     normalize_clause(Head, (Head:-true)) :-
 	check_callable(Head).
-
-    :- mode normalize_body(?,-).
-    normalize_body(Goal, call(Goal)) :- var(Goal), !.
-    normalize_body((G1,G2), (NG1,NG2)) :- !,
-	normalize_body(G1, NG1),
-	normalize_body(G2, NG2).
-    normalize_body((G1;G2), (NG1;NG2)) :- !,
-	normalize_body(G1, NG1),
-	normalize_body(G2, NG2).
-    normalize_body((G1->G2), (NG1->NG2)) :- !,
-	normalize_body(G1, NG1),
-	normalize_body(G2, NG2).
-    normalize_body(Goal, Goal) :- callable(Goal).
 
 
 :- tool(clause/2, clause_/3).
