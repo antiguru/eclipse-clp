@@ -109,6 +109,7 @@ lib/suspend.eco
 lib/tentative.eco
 lib/tentative_constraints.eco
 lib/timeout.eco
+lib/timeout_simple.eco
 lib/var_name.eco
 lib/version.pl
 legal/lgpl.txt
