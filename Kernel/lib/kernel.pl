@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.41 2013/02/04 14:52:11 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.42 2013/02/05 14:59:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -2513,8 +2513,8 @@ stack_overflow_message(fatal_signal_caught) :-
 	flush(error).
 stack_overflow_message(error(IsoError,ImpDefTerm)) :-
 	nonvar(IsoError),
-	( IsoError = syntax_error(Description), ImpDefTerm=stream(Stream) ->
-	    print_error(Stream, Description)
+	( IsoError = syntax_error(Description) ->
+	    print_syntax_error(Description, ImpDefTerm)
 	;
 	    iso_print_error(IsoError, String, Params),
 	    printf(error, String, Params),

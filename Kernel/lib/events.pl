@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.24 2013/02/04 19:11:39 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.25 2013/02/05 14:59:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -391,12 +391,13 @@ parser_error_handler(N, Goal, M):-
 	( extract_module(Goal, CM) -> true ; CM = M ),
 	error_id(N, Id), 
 	( extract_stream(Goal, Stream) ->
+	    get_context_and_skip_to_eocl(Stream, Context),
 	    ( get_flag(syntax_option, iso_restrictions)@CM ->	%%% temporary
 		% ISO style: throw error term
-	        throw(error(syntax_error(Id),stream(Stream)))
+	        throw(error(syntax_error(Id), Context))
 	    ;
 		% old ECLiPSe style: print error directly, then fail
-		print_error(Stream, Id),
+		print_syntax_error(Id, Context),
 		fail
 	    )
 	;
@@ -404,19 +405,26 @@ parser_error_handler(N, Goal, M):-
 	    fail
 	).
 
-print_error(Stream, Id) :-
-	stream_info_(Stream, 13, Type),
-	stream_info_(Stream, 6, Where),
-	stream_info_(Stream, 5, Line),
-	(get_context(Stream, Type, Where, Line, From, String) ->
+print_syntax_error(Id, context(_Stream, String, From, Where)) :-
+	( String == "" ->
+	    printf(error, "%s\n%b", Id)		% no context available
+	;
 	    printf(error, "syntax error: %s\n", Id),
 	    printf(error, "| %s\n", String),
-	    print_arrow(String, From, Where),
+	    print_arrow(String, From, Where)
+	).
+
+
+get_context_and_skip_to_eocl(Stream, context(Stream, String, From, Where)) :-
+	stream_info_(Stream, 13, Device),
+	stream_info_(Stream, 6, Where),
+	stream_info_(Stream, 5, Line),
+	( get_context(Stream, Device, Where, Line, From, String) ->
 	    seek(Stream, Where),
 	    set_stream_prop_(Stream, 5, Line),	% reset the line
-	    skip_to_eocl(Stream, Type)
+	    skip_to_eocl(Stream, Device)
 	;
-	    printf(error, "syntax error: %s\n%b", Id)		% no context available
+	    String="", From=0, Where=0
 	).
 
 get_context(Stream, file, Err, Line, From, String) :-
