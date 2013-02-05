@@ -24,13 +24,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_light.ecl,v 1.2 2013/02/04 19:11:39 jschimpf Exp $
+% Version:	$Id: iso_light.ecl,v 1.3 2013/02/05 02:19:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso_light.ecl,v 1.2 2013/02/04 19:11:39 jschimpf Exp $
+% $Id: iso_light.ecl,v 1.3 2013/02/05 02:19:24 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_light.ecl, based on obsolete iso.pl
 %
@@ -110,7 +110,7 @@
 :- comment(summary, `ISO Prolog compatibility library (light version)`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, `Cisco Systems, Inc (2006), Coninfer Ltd (modifications 2007-2012)`).
-:- comment(date, `$Date: 2013/02/04 19:11:39 $`).
+:- comment(date, `$Date: 2013/02/05 02:19:24 $`).
 :- comment(see_also, [library(multifile),library(iso_strict),library(iso)]).
 :- comment(desc, html(`\
 <h3>Overview</h3>\n\
@@ -675,8 +675,8 @@ number_chars(Number, Chars) :-			% 8.16.7
 	check_character_list_out(Chars, Chars , number_chars, 2),
         ( var(Number) ->
 	    concat_string(Chars, String),
-	    valid_numstring(String, String1),
-	    ( number_string(Number0, String1) ->  % read (fails on syntax error)
+	    ( valid_numstring(String, String1),
+	      number_string(Number0, String1) ->  % read (fails on syntax error)
 		Number=Number0
 	    ;
 	    	throw(error(syntax_error(illegal_number),number_chars/2))
@@ -690,8 +690,8 @@ number_chars(Number, Chars) :-			% 8.16.7
             ; valid_output_chars(Chars) ->
                 ground(Chars),
                 concat_string(Chars, String0),
-                valid_numstring(String0, String1),
-                ( number_string(Number0, String1) ->  % read (fails on syntax error)
+                ( valid_numstring(String0, String1),
+                  number_string(Number0, String1) ->  % read (fails on syntax error)
 		    Number=Number0
 		;
 		    throw(error(syntax_error(illegal_number),number_chars/2))
@@ -707,8 +707,8 @@ number_codes(Number, Codes) :-			% 8.16.8
 	check_charcode_list_out(Codes, Codes , number_codes, 2),
         ( var(Number) ->
             string_list(String, Codes),
-            valid_numstring(String, String1),
-            ( number_string(Number0, String1) ->  % read (fails on syntax error)
+            ( valid_numstring(String, String1),
+              number_string(Number0, String1) ->  % read (fails on syntax error)
 		Number=Number0
 	    ;
 		throw(error(syntax_error(illegal_number),number_codes/2))
@@ -720,8 +720,8 @@ number_codes(Number, Codes) :-			% 8.16.8
             ; valid_output_codes(Codes) ->
                 ground(Codes),
                 string_list(String, Codes),
-                valid_numstring(String, String1),
-                ( number_string(Number0, String1) ->  % read (fails on syntax error)
+                ( valid_numstring(String, String1),
+                  number_string(Number0, String1) ->  % read (fails on syntax error)
 		    Number=Number0
 		;
 		    throw(error(syntax_error(illegal_number),number_codes/2))

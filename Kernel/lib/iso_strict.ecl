@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_strict.ecl,v 1.3 2013/02/04 19:11:39 jschimpf Exp $
+% Version:	$Id: iso_strict.ecl,v 1.4 2013/02/05 02:19:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -59,7 +59,7 @@
 :- comment(summary, `Strict ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, 'Joachim Schimpf, Coninfer Ltd').
-:- comment(date, `$Date: 2013/02/04 19:11:39 $`).
+:- comment(date, `$Date: 2013/02/05 02:19:24 $`).
 :- comment(see_also, [library(multifile),library(iso),library(iso_light)]).
 :- comment(desc, html(`
 <h3>Overview</h3>
@@ -522,21 +522,41 @@ term_variables(Term, Vs) :-
 findall_(Template, Goal, Instances, Module) :-
 	( is_output_list(Instances) -> true
 	; throw(error(type_error(list,Instances),findall/3)) ),
-	eclipse_language:findall(Template, Goal, Instances)@Module.
+	( normalize_call(Goal, NormGoal) ->
+	    eclipse_language:findall(Template, NormGoal, Instances)@Module
+	;
+	    throw(error(type_error(callable,Goal),findall/3))
+	).
 
 :- export bagof/3.
 :- tool(bagof/3,bagof_/4).
-bagof_(Template, Goal, Instances, Module) :-
+bagof_(Template, QGoal, Instances, Module) :-
 	( is_output_list(Instances) -> true
 	; throw(error(type_error(list,Instances),bagof/3)) ),
-	eclipse_language:bagof(Template, Goal, Instances)@Module.
+	dequant(QGoal, Goal, QNormGoal, NormGoal),
+	( normalize_call(Goal, NormGoal) ->
+	    eclipse_language:bagof(Template, QNormGoal, Instances)@Module
+	;
+	    throw(error(type_error(callable,Goal),bagof/3))
+	).
 
 :- export setof/3.
 :- tool(setof/3,setof_/4).
-setof_(Template, Goal, Instances, Module) :-
+setof_(Template, QGoal, Instances, Module) :-
 	( is_output_list(Instances) -> true
 	; throw(error(type_error(list,Instances),setof/3)) ),
-	eclipse_language:setof(Template, Goal, Instances)@Module.
+	dequant(QGoal, Goal, QNormGoal, NormGoal),
+	( normalize_call(Goal, NormGoal) ->
+	    eclipse_language:setof(Template, QNormGoal, Instances)@Module
+	;
+	    throw(error(type_error(callable,Goal),setof/3))
+	).
+
+    :- mode dequant(+,-,-,-).
+    dequant(G, G, NG, NG) :- var(G), !.
+    dequant(V^VG, G, V^VNG, NG) :- !,
+	dequant(VG, G, VNG, NG).
+    dequant(G, G, NG, NG).
 
 
 %-----------------------------------------------------------------------
