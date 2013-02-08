@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.13 2013/02/08 14:58:15 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.14 2013/02/08 22:28:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2013/02/08 14:58:15 $').
+:- comment(date, '$Date: 2013/02/08 22:28:36 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -268,6 +268,7 @@
     from cprolog.
 
 :- reexport numbervars.
+:- reexport format.
 
 :- export
 	(abolish)/1,
@@ -286,8 +287,6 @@
 	erase/1,
 	expand_term/2,
 	flush_output/1,
-	format/2,
-	format/3,
 	gc/0,
 	get0/2,
 	incore/1,
@@ -391,8 +390,6 @@ tr_lib(L, L) :-
 :-
 	tool((abolish)/1, q_abolish_body/2),
 	tool(incore/1, untraced_call/2),
-	tool(format/2, format_body/3),
-	tool(format/3, format_body/4),
 	tool(nospyall/0, nospyall_body/1),
 	tool(predicate_property/2, predicate_property_body/3),
 	tool(prolog_flag/2, prolog_flag_body/3),
@@ -450,32 +447,6 @@ otherwise.
 
 display(Term) :-
 	eclipse_language:display(stdout, Term).
-
-format_body(Stream, List, ArgList, Module) :-
-	List = [_|_],
-	!,
-	string_list(Format, List),
-	format_body(Stream, Format, ArgList, Module).
-format_body(Stream, Format, ArgList, Module) :-
-	printf_(Stream, Format, ArgList, Module, 0'~, ErrF, ErrL, Res),
-	(Res = 0 ->
-	    true
-	;
-	    % catch the case format("~s", [ListOfChars]) and repair it
-	    Res = 5,
-	    atom_string('~s',TS),
-	    substring(ErrF, TS, 1),
-	    ErrL = [Chars|More],
-	    Chars = [_|_]
-	->
-	    string_list(String, Chars),
-	    format_body(Stream, ErrF, [String|More], Module)
-	;
-	    error(Res, format(Stream, ErrF, ErrL), Module)
-	).
-
-format_body(List, ArgList, Module) :-
-	format_body(output, List, ArgList, Module).
 
 open_null_stream(null).
 flush_output(X) :- flush(X).
