@@ -26,7 +26,7 @@
 % ECLiPSe kernel built-ins
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel_bips.pl,v 1.3 2013/02/04 14:52:10 jschimpf Exp $
+% Version:	$Id: kernel_bips.pl,v 1.4 2013/02/08 18:25:29 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -80,7 +80,10 @@ append_strings(X,Y,Z) :-
 		    string_list(Y, YL)
 
 		; string(Y) ->
-		    Xlen is string_length(Z) - string_length(Y),
+		    string_length(Y, Ylen),
+		    Xlen is string_length(Z) - Ylen,
+		    Ypos is Xlen + 1,
+		    first_substring(Z, Ypos, Ylen, Y),	% may fail
 		    first_substring(Z, 1, Xlen, X)
 		;
 		    error(5, append_strings(X,Y,Z))
@@ -88,6 +91,7 @@ append_strings(X,Y,Z) :-
 	    ; string(X) ->
 		( var(Y) ->
 		    string_length(X, Xlen),
+		    first_substring(Z, 1, Xlen, X),	% may fail
 		    Ypos is Xlen + 1,
 		    Ylen is string_length(Z) - Xlen,
 		    first_substring(Z, Ypos, Ylen, Y)
