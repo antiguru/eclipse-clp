@@ -26,7 +26,7 @@
 % ECLiPSe kernel built-ins
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel_bips.pl,v 1.4 2013/02/08 18:25:29 jschimpf Exp $
+% Version:	$Id: kernel_bips.pl,v 1.5 2013/02/08 22:25:33 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -237,8 +237,44 @@ string_list(String, List, bytes) :- !,
 	string_list(String, List).
 string_list(String, List, octet) :- !,
 	string_list(String, List).
+string_list(String, List, codes) :- !,
+	string_list(String, List).
+string_list(String, List, chars) :- !,
+	string_chars(String, List).
 string_list(String, List, Format) :-
 	error(6, string_list(String, List, Format)).
+
+
+string_chars(String, List) :-
+	( var(String) ->
+	    check_chars_list(List),
+	    !,
+	    concat_string(List, String)
+	; string(String) ->
+	    !,
+	    ( for(I,1,string_length(String)), foreach(C,List), param(String) do
+		string_code(String, I, Code),
+		char_code(C, Code)
+	    )
+	;
+	    error(5, string_chars(String, List))
+	).
+string_chars(String, List) :-
+	bip_error(string_chars(String, List)).
+
+    check_chars_list(X) :- var(X), !, set_bip_error(4).
+    check_chars_list([]) :- !.
+    check_chars_list([H|T]) :- !,
+	check_char(H),
+	check_chars_list(T).
+    check_chars_list(_) :-
+	set_bip_error(5).
+
+    check_char(X) :- var(X), !, set_bip_error(4).
+    check_char(X) :- atom(X), !,
+	( atom_length(X, 1) -> true ; set_bip_error(6) ).
+    check_char(_) :-
+	set_bip_error(5).
 
 
 %----------------------------------------------------------------------
