@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_error.ecl,v 1.3 2013/02/08 14:58:15 jschimpf Exp $
+% Version:	$Id: iso_error.ecl,v 1.4 2013/02/08 23:50:52 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_error.ecl
 %
@@ -210,11 +210,9 @@ is_of_type(Xs, atom_or_atom_list) :- !,
 	    	( atom(X) -> true
 		; throw(error(type_error(atom,X),_)))
 	    )
-	% standard seems to always require 'list' here, section 8.14.3
-	; Xs = [_|_] ->
-	    throw(error(type_error(list,Xs),_))
 	;
-	    throw(error(type_error(atom,Xs),_))
+	    % standard strangely requires 'list' here, not atom (8.14.3)
+	    throw(error(type_error(list,Xs),_))
 	).
 is_of_type(X, Type)	:- type_of(X, Type).
 
@@ -322,7 +320,7 @@ is_of_domain(singletons(_), read_option) ?- !.
 
 is_of_domain(X, source_sink) ?- source_sink(X), !.
 
-is_of_domain(X, stream) ?- is_handle(X), !.	% should be is_stream(X)
+is_of_domain(X, stream) ?- is_handle(X), !, current_stream(X).
 
 is_of_domain(type(text), stream_option) ?- !.
 is_of_domain(type(binary), stream_option) ?- !.
@@ -333,7 +331,7 @@ is_of_domain(eof_action(eof_code), stream_option) ?- !.
 is_of_domain(eof_action(reset), stream_option) ?- !.
 is_of_domain(eof_action(reset), stream_option) ?- !.
 
-is_of_domain(X, stream_or_alias) ?- atom(X), !.
+is_of_domain(X, stream_or_alias) ?- atom(X), !, current_stream(X).
 is_of_domain(X, stream_or_alias) ?- integer(X), !.
 is_of_domain(X, stream_or_alias) ?-
 	is_handle(X).	% should test for stream-handle
@@ -390,7 +388,14 @@ source_sink(fd(I)) ?- integer(I).
 :- set_event_handler(193, iso_illegal_stream_handler/2).
 iso_illegal_stream_handler(_, Culprit) :- compound(Culprit), !,
 	arg(1, Culprit, Stream),	% Stream is always 1st argument!
-	throw_error(existence_error(stream,Stream), Culprit).
+	( atom(Stream),
+	  real_culprit(Culprit,Culprit1),
+	  domain_check(Culprit1, Exception) ->
+	    % ISO prefers domain errors here
+	    throw_error(Exception, Culprit1)
+	;
+	    throw_error(existence_error(stream,Stream), Culprit)
+	).
 iso_illegal_stream_handler(E, Culprit) :-
 	error(default(E), Culprit).
 
@@ -691,7 +696,8 @@ type(writeq(nonvar,term)).
 type(write_canonical(nonvar,term)).
 type(write_canonical(term)).
 type(op(integer,atom,atom_or_atom_list)).
-type(current_op(term,term,atom)).	% strange, but required
+%type(current_op(term,term,atom)).	% literally required by 8.14.4.3
+type(current_op(term,atom,atom)).	% according to Szeredi test
 type(char_conversion(character,character)).
 type(current_char_conversion(character,character)).
 type(\+(callable)).
