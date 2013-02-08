@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.10 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.11 2013/02/08 15:00:52 jschimpf Exp $
  */
 
 /*
@@ -1224,6 +1224,9 @@ _std_did_init(void)
 
 	d_.warning_output = 	in_dict("warning_output",0);
 	d_.log_output = 	in_dict("log_output",0);
+	d_.user_input = 	in_dict("user_input",0);
+	d_.user_output = 	in_dict("user_output",0);
+	d_.user_error = 	in_dict("user_error",0);
 	d_.null = 		in_dict("null", 0);
 	d_.flush = 		in_dict("flush",0);
 	d_.emulate = 		in_dict("Emulate",0);

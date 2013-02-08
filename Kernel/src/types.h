@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.13 2012/02/06 18:32:36 jschimpf Exp $
+ * $Id: types.h,v 1.14 2013/02/08 15:00:52 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -1001,6 +1001,9 @@ typedef struct
 	unify0,
 	univ,
 	universally_quantified,
+	user_input,
+	user_output,
+	user_error,
 	update,
 	uref,
 	user,

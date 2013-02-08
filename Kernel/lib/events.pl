@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.25 2013/02/05 14:59:09 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.26 2013/02/08 14:58:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -877,42 +877,85 @@ output_error_handler(X, Culprit, CM, LM):-
 	system_error_handler(X, Culprit, CM, LM).
 
 
-% system_stream(SystemStream,DefaultStream,Direction,LastResortStream)
+% This handler is called when we were trying to close one of the predefined
+% streams, whether explicitly or via their handle or another alias.
 
-:- mode system_stream(?,-,-,-).
-system_stream(input,		default_input,		input,	stdin).
-system_stream(output,		default_output, 	output,	stdout).
-system_stream(warning_output,	default_warning_output,	output,	stdout).
-system_stream(log_output,	default_log_output,	output,	stdout).
-system_stream(error,		default_error,		output,	stderr).
-% these two are for ISO:
-system_stream(user_input,	default_input,		input,	stdin) :- current_stream(user_input).
-system_stream(user_output,	default_output, 	output,	stdout) :- current_stream(user_output).
-system_stream(user_error,	default_error, 		output,	stderr) :- current_stream(user_error).
+close_handler(E, close(Stream, Options)) ?- !,
+	get_stream(Stream, Handle),
+	( default_stream(_, Stream) ->
+	    % Don't close stdin etc.
+	    flush_if_output(Stream)
 
+	; default_stream(_, FixedStream),
+	  get_stream(FixedStream, Handle) ->
+	    % Trying to close another alias or the handle of a fixed stream:
+	    % don't close it!  Erase alias, unless a predefined one.
+	    flush_if_output(Stream),
+	    erase_alias(Stream)
+
+	; default_stream(Stream, FixedStream) ->
+	    % Allow closing default streams explicitly via the user_xxx alias.
+	    % Close user_xxx's handle after setting alias back to stdxxx.
+	    set_stream(Stream, FixedStream),
+	    close(Handle, Options)
+
+	; default_stream(DefaultStream, _),
+	  get_stream(DefaultStream, Handle) ->
+	    % Trying to close a stream that is in use as a default stream:
+	    % don't close it!  Erase alias, unless a predefined one.
+	    flush_if_output(Stream),
+	    erase_alias(Stream)
+
+	; current_stream(Stream, DefaultStream) ->
+	    % close current stream handle after setting alias back to default
+	    set_stream(Stream, DefaultStream),
+	    close(Handle, Options)
+
+	; current_stream(CurrentStream, DefaultStream),
+	  get_stream(CurrentStream, Handle) ->
+	    % reset current stream that was redirected to Handle, and try again
+	    set_stream(CurrentStream, DefaultStream),
+	    close(Stream, Options)
+	;
+	    % should not occur
+	    error_handler(E, close(Stream, Options))
+	).
 close_handler(_, close(Stream)) ?- !,
 	close_handler(_, close(Stream, [])).
-close_handler(_, close(Stream, Options)) ?- !,
-	get_stream(Stream, Handle),
-        (
-	    % reset system streams that are redirected to Stream
-            system_stream(SysStream, Default, Direction, Fallback),
-            get_stream(SysStream, Handle),
-	    (   is_open_stream(Default),
-		\+get_stream(Default, Handle),
-	        get_stream_info(Default, Direction, true)
-	    ->
-		set_stream(SysStream, Default)
-	    ;
-		set_stream(SysStream, Fallback)
-	    ),
-            fail
-        ;
-            true
-        ),
-        close(Handle, Options).
 close_handler(ErrorNumber, Goal) :-
         error_handler(ErrorNumber, Goal).
+
+    % The 'current' streams, and the 'default' streams to reset them to
+    :- mode current_stream(?,?,-,-).
+    current_stream(input,	user_input).
+    current_stream(output,	user_output).
+    current_stream(warning_output, user_output).
+    current_stream(log_output,	user_output).
+    current_stream(error,	user_error).
+
+    % The 'default' streams, and the 'fixed' streams to reset them to
+    default_stream(user_input,	stdin).
+    default_stream(user_output,	stdout).
+    default_stream(user_error,	stderr).
+    default_stream(null,	null).
+
+    erase_alias(stdin) :- !.
+    erase_alias(stdout) :- !.
+    erase_alias(stderr) :- !.
+    erase_alias(user_input) :- !.
+    erase_alias(user_output) :- !.
+    erase_alias(user_error) :- !.
+    erase_alias(input) :- !.
+    erase_alias(output) :- !.
+    erase_alias(error) :- !.
+    erase_alias(warning_output) :- !.
+    erase_alias(log_output) :- !.
+    erase_alias(null) :- !.
+    erase_alias(Stream) :- atom(Stream), !, erase_stream_property(Stream).
+    erase_alias(_).
+
+    flush_if_output(Stream) :-
+	( stream_info_(Stream, 35/*output*/, true) -> flush(Stream) ; true ).
 
 
 % Currently only used for output goals

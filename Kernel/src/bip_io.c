@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.17 2013/02/04 14:51:13 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.18 2013/02/08 15:00:52 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1151,10 +1151,6 @@ p_close2(value v, type t, value vopt, type topt)
     Check_Nil(topt);
 
     Error_If_Ref(t);
-    if (IsAtom(t) && v.did == d_.user)
-    {
-	Bip_Error(SYSTEM_STREAM);
-    }
 
     nst = get_stream_id(v,t, 0, &res);
     if (nst == NO_STREAM)
@@ -1169,11 +1165,10 @@ p_close2(value v, type t, value vopt, type topt)
 	}
     }
 
-    if (SystemStream(nst) && !(StreamMode(nst) & SSYSTEM))
+    if (SystemStream(nst) || (StreamMode(nst) & SSYSTEM))
     {
-        /* A system alias (output,log_output,etc) is pointing to it AND it
-         * is not stdin/stdout/stderr/null, i.e. it will really be closed:
-         * Let the close_handler take care of redirecting and closing again.
+        /* It is (or is pointing to) one of the predefined streams.
+         * Let the close_handler take care of the details.
          */
 	Bip_Error(SYSTEM_STREAM);
     }

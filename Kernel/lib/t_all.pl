@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: t_all.pl,v 1.4 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: t_all.pl,v 1.5 2013/02/08 14:58:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %-----------------------------------------------------------------------
@@ -161,9 +161,8 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	concat_string([File,'.ref'], Reference),
 	del_if_exists(FileErr),
 	del_if_exists(FileOut),
-	open(FileErr, write, ErrorStream, [end_of_line(lf)]),
 	open(FileOut, write, OutputStream, [end_of_line(lf)]),
-	set_stream(error, OutputStream),  % normal error messages to output
+	set_stream(error, test_log_output),  % compilation error messages to output
 
 	set_flag(variable_names, off),		% prepare for compile
 
@@ -186,6 +185,9 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	    set_stream(error, OutputStream),
 	    set_stream(warning_output, OutputStream),
 	    set_stream(log_output, OutputStream),
+	    set_stream(user_output, OutputStream),
+	    set_stream(user_error, OutputStream),
+
 	    set_flag(strip_variables, on),
 	    set_flag(variable_names, off),
 	    set_flag(print_depth, 100000),
@@ -213,9 +215,12 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 		)
 	    ),
 
-	    close(log_output),			% undo output redirections
+	    close(user_output),			% undo output redirections
+	    close(user_error),
+	    close(log_output),
 	    close(warning_output),
-	    close(output)
+	    close(output),
+	    close(error)
 	;
 	    true
 	),
@@ -230,14 +235,6 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 	;
 	    true
 	),
-	flush(ErrorStream),
-	( at(ErrorStream, 0) ->			% echo errors if any
-	    true
-	;
-	    writeln(test_log_output, '***** PROBLEM - ERROR OUTPUT:'),
-	    file_print(test_log_output, FileErr)
-	),
-	close(ErrorStream),
 	flush(test_log_output),
 	close(test_log_output).
 

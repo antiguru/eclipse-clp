@@ -24,13 +24,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_light.ecl,v 1.3 2013/02/05 02:19:24 jschimpf Exp $
+% Version:	$Id: iso_light.ecl,v 1.4 2013/02/08 14:58:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso_light.ecl,v 1.3 2013/02/05 02:19:24 jschimpf Exp $
+% $Id: iso_light.ecl,v 1.4 2013/02/08 14:58:15 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_light.ecl, based on obsolete iso.pl
 %
@@ -110,7 +110,7 @@
 :- comment(summary, `ISO Prolog compatibility library (light version)`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, `Cisco Systems, Inc (2006), Coninfer Ltd (modifications 2007-2012)`).
-:- comment(date, `$Date: 2013/02/05 02:19:24 $`).
+:- comment(date, `$Date: 2013/02/08 14:58:15 $`).
 :- comment(see_also, [library(multifile),library(iso_strict),library(iso)]).
 :- comment(desc, html(`\
 <h3>Overview</h3>\n\
@@ -331,10 +331,6 @@ clause_(Head, Body, Module) :-
 % 8.11 Stream selection and control
 %-----------------------------------------------------------------------
 
-% Be careful to always keep aliases 'XXput' and 'user_XXput' in sync!
-?- set_stream(user_input, input).
-?- set_stream(user_output, output).
-
 current_input(Stream) :-			% 8.11.1
 	( var(Stream) -> get_stream(input, Stream)
 	; is_handle(Stream) -> get_stream(input, Stream)
@@ -352,8 +348,7 @@ current_output(Stream) :-			% 8.11.2
 set_input(Stream) :-				% 8.11.3
 	check_stream_or_alias_io_type(Stream, input, _any),
 	!,
-	set_stream(input, Stream),
-	set_stream(user_input, Stream).
+	set_stream(input, Stream).
 set_input(Stream) :-
 	bip_error(set_input(Stream)).
 
@@ -361,13 +356,12 @@ set_input(Stream) :-
 set_output(Stream) :-				% 8.11.4
 	check_stream_or_alias_io_type(Stream, output, _any),
 	!,
-	set_stream(output, Stream),
-	set_stream(user_output, Stream).
+	set_stream(output, Stream).
 set_output(Stream) :-
 	bip_error(set_output(Stream)).
 
 
-flush_output :- flush(user_output).			% 8.11.7
+flush_output :- flush(output).			% 8.11.7
 
 flush_output(Stream) :-
 	check_stream_or_alias_io_type(Stream, output, _any),
@@ -396,7 +390,7 @@ stream_property(Stream, Property) :-
 
 
 at_end_of_stream :-
-	get_stream_info(user_input, end_of_stream, Value),
+	get_stream_info(input, end_of_stream, Value),
 	Value \== (not).
 
 at_end_of_stream(Stream) :-
@@ -527,15 +521,15 @@ peek_char(Stream, Char) :-
 	bip_error(peek_char(Stream, Char)).
 
 
-get_byte(Byte) :- get_stream(user_input, S), get_byte(S, Byte).
-get_code(Code) :- get_stream(user_input, S), get_code(S, Code).
-get_char(Char) :- get_stream(user_input, S), get_char(S, Char).
-put_byte(Byte) :- get_stream(user_output, S), put_byte(S, Byte).
-put_code(Code) :- get_stream(user_output, S), put_code(S, Code).
-put_char(Char) :- get_stream(user_output, S), put_char(S, Char).
-peek_byte(Byte) :- get_stream(user_input, S), peek_byte(S, Byte).
-peek_code(Code) :- get_stream(user_input, S), peek_code(S, Code).
-peek_char(Char) :- get_stream(user_input, S), peek_char(S, Char).
+get_byte(Byte) :- get_stream(input, S), get_byte(S, Byte).
+get_code(Code) :- get_stream(input, S), get_code(S, Code).
+get_char(Char) :- get_stream(input, S), get_char(S, Char).
+put_byte(Byte) :- get_stream(output, S), put_byte(S, Byte).
+put_code(Code) :- get_stream(output, S), put_code(S, Code).
+put_char(Char) :- get_stream(output, S), put_char(S, Char).
+peek_byte(Byte) :- get_stream(input, S), peek_byte(S, Byte).
+peek_code(Code) :- get_stream(input, S), peek_code(S, Code).
+peek_char(Char) :- get_stream(input, S), peek_char(S, Char).
 
 
 %-----------------------------------------------------------------------

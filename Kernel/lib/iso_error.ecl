@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_error.ecl,v 1.2 2013/02/04 14:52:10 jschimpf Exp $
+% Version:	$Id: iso_error.ecl,v 1.3 2013/02/08 14:58:15 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_error.ecl
 %
@@ -517,14 +517,15 @@ iso_stream_mode_handler(_, open(_,Mode,_,Options)) ?- !,
 %iso_stream_mode_handler(_, flush(S)) ?- !,
 %	throw(error(permission_error(output,stream,S),flush/1)).
 iso_stream_mode_handler(_, readvar(S,_,_,_))	?- !, throw_pe(S, input, binary, readvar/3).
-iso_stream_mode_handler(_, write_(_,_))		?- !, throw_pe(user_input, output, binary, write/1).
+iso_stream_mode_handler(_, write_(_,_))		?- !, get_stream(input,S), throw_pe(S, output, binary, write/1).
 iso_stream_mode_handler(_, write_(S,_,_))	?- !, throw_pe(S, output, binary, write/2).
+iso_stream_mode_handler(_, writeq_(_,_))	?- !, get_stream(input,S), throw_pe(S, output, binary, writeq/2).
 iso_stream_mode_handler(_, writeq_(S,_,_))	?- !, throw_pe(S, output, binary, writeq/2).
+iso_stream_mode_handler(_, write_canonical_(_,_)) ?- !, get_stream(input,S), throw_pe(S, output, binary, write_canonical/2).
 iso_stream_mode_handler(_, write_canonical_(S,_,_)) ?- !, throw_pe(S, output, binary, write_canonical/2).
 iso_stream_mode_handler(_, nl(S))		?- !, throw_pe(S, output, binary, nl/1).
 iso_stream_mode_handler(_, set_input(S))	?- !, throw_pe(S, input, binary, set_input/1).
 iso_stream_mode_handler(_, set_output(S))	?- !, throw_pe(S, output, binary, set_output/1).
-iso_stream_mode_handler(_, flush_output(S))	?- !, throw_pe(S, output, binary, flush_output/1).
 iso_stream_mode_handler(_, flush_output(S))	?- !, throw_pe(S, output, binary, flush_output/1).
 iso_stream_mode_handler(_, get_byte(S,_))	?- !, throw_pe(S, input, text, get_byte/2).
 iso_stream_mode_handler(_, get_char(S,_))	?- !, throw_pe(S, input, binary, get_char/2).
@@ -562,7 +563,7 @@ iso_stream_mode_handler(E, Culprit) :-
 :- set_event_handler(198, iso_past_eof_handler/2).
 iso_past_eof_handler(_, Culprit) :-
 	% assume Culprit is an input-builtin, either with 1st argument
-	% being the stream, or with input from 'user_input'
+	% being the stream, or with input from current 'input'
 	(
 	    arg(1, Culprit, S),
 	    ( is_handle(S) -> SH=S

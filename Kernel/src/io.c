@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.15 2012/09/26 22:33:52 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.16 2013/02/08 15:00:52 jschimpf Exp $
  */
 
 /*
@@ -349,11 +349,16 @@ stream_desc	stream_desc_structs_[STREAM_MIN];
  * System streams. user is a conglomerate of current_input_ and current_output_
  */
 
-stream_id	current_input_,
+stream_id	current_input_,		/* current streams */
 		current_output_,
 		current_err_,
 		log_output_,
 		warning_output_,
+
+		user_input_,		/* default streams */
+		user_output_,
+		user_err_,
+
 		null_;
 
 
@@ -460,9 +465,9 @@ io_init(int flags)
 	/* 
 	 * Initialize some private data
 	 */
-	current_input_ = StreamId(0);
-	current_output_ = warning_output_ = log_output_ = StreamId(1);
-	current_err_ = StreamId(2);
+	current_input_ = user_input_ = StreamId(0);
+	current_output_ = warning_output_ = log_output_ = user_output_ = StreamId(1);
+	current_err_ = user_err_ = StreamId(2);
 	null_ = StreamId(3);
     }
     if (flags & INIT_SHARED)
@@ -476,6 +481,9 @@ io_init(int flags)
 	Set_New_Stream(d_.stdin0, StreamId(0));
 	Set_New_Stream(d_.stdout0, StreamId(1));
 	Set_New_Stream(d_.stderr0, StreamId(2));
+	Set_New_Stream(d_.user_input, StreamId(0));
+	Set_New_Stream(d_.user_output, StreamId(1));
+	Set_New_Stream(d_.user_error, StreamId(2));
     }
 
     if ((ec_options.io_option != OWN_IO) && (flags & REINIT_SHARED))
@@ -2710,17 +2718,44 @@ set_stream(dident name, stream_id neww)
 	    return(STREAM_MODE);
 	log_output_ = neww;
     }
-    else if(name == d_.stdin0)
+    else if(name == d_.user_input)
     {
 	if(!IsReadStream(neww))
 	    return(STREAM_MODE);
-	StreamMode(neww) |= SSYSTEM;
+	user_input_ = neww;
     }
-    else if(name == d_.stdout0 || name == d_.stderr0)
+    else if(name == d_.user_output)
     {
 	if(!IsWriteStream(neww))
 	    return(STREAM_MODE);
+	user_output_ = neww;
+    }
+    else if(name == d_.user_error)
+    {
+	if(!IsWriteStream(neww))
+	    return(STREAM_MODE);
+	user_err_ = neww;
+    }
+    /* stdin,stdout,stderr should not be changeable, but used in remote java */
+    else if(name == d_.stdin0)
+    {
+#if 1
+	if(!IsReadStream(neww))
+	    return(STREAM_MODE);
 	StreamMode(neww) |= SSYSTEM;
+#else
+	return(STREAM_SPEC);
+#endif
+    }
+    else if(name == d_.stdout0 || name == d_.stderr0)
+    {
+#if 1
+	if(!IsWriteStream(neww))
+	    return(STREAM_MODE);
+	StreamMode(neww) |= SSYSTEM;
+#else
+	return(STREAM_SPEC);
+#endif
     }
     /* And now change the stream */
     Set_Stream(name, neww);
@@ -2863,19 +2898,17 @@ reset_sigio(int fd)
 static int
 _isafifo(int fd)
 {
-#ifndef _WIN32
-    struct stat st;
+#if !defined(_WIN32) || defined(S_IFIFO)
+    struct_stat st;
 
     return
 	fd != NO_UNIT &&
 	fstat(fd, &st) != -1 &&
 	( (st.st_mode & S_IFMT) == S_IFIFO
-#ifdef SOCKETS
+#if defined(SOCKETS) && defined(S_IFSOCK)
 	|| (st.st_mode & S_IFMT) == S_IFSOCK
 #endif
 	);
-#else
-    return 0;
 #endif
 }
 

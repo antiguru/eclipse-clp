@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.4 2012/09/26 22:33:52 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.5 2013/02/08 15:00:52 jschimpf Exp $
  */
 
 /*
@@ -113,20 +113,11 @@
 				    (nst) == current_err_ ||	\
 				    (nst) == warning_output_ ||	\
 				    (nst) == log_output_ ||	\
+				    (nst) == user_input_ ||	\
+				    (nst) == user_output_ ||	\
+				    (nst) == user_err_ ||	\
 				    (nst) == null_		\
 				)
-
-#define SystemStreamAlias(d)	(				\
-                                    (d) == d_.stdin0 ||         \
-                                    (d) == d_.stdout0 ||        \
-                                    (d) == d_.stderr0 ||        \
-                                    (d) == d_.null ||           \
-                                    (d) == d_.input ||          \
-                                    (d) == d_.output ||         \
-                                    (d) == d_.warning_output || \
-                                    (d) == d_.log_output ||     \
-                                    (d) == d_.err               \
-                                )
 
 
 /****

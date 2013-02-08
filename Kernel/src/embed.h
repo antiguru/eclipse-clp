@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.9 2013/01/17 23:41:09 jschimpf Exp $
+ * $Id: embed.h,v 1.10 2013/02/08 15:00:52 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -235,6 +235,7 @@ Extern t_eclipse_options	ec_options;
 Extern char			*ec_eclipse_home;
 Extern stream_id		current_input_, current_output_, current_err_;
 Extern stream_id		log_output_, warning_output_, null_;
+Extern stream_id		user_input_, user_output_, user_err_;
 
 
 Extern DLLEXP void		trail_undo ARGS((pword*, void (*)(pword*)));
