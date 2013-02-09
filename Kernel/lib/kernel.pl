@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.42 2013/02/05 14:59:09 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.43 2013/02/09 19:14:14 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -472,7 +472,7 @@ startup_init :-
 	argv(all, [_|Args]),
         process_command_line_startup(Args, 1),
 	default_module(TM),	% get
-	create_module_if_did_not_exist(TM),
+	create_module_if_did_not_exist(TM, []),
 	getval(default_language, Language),
 	import_body(Language, TM),	% TM was created in C, no imports yet
 	getval(library_path, Path0),
@@ -2428,8 +2428,8 @@ module(M):-
 get_unqualified_goal(_QM:Goal, UGoal) :- -?-> !, UGoal=Goal.
 get_unqualified_goal(Goal, Goal).
 
-create_module_if_did_not_exist(M) :-
-	(is_a_module(M) -> true ; create_module(M, [], []) ).
+create_module_if_did_not_exist(M, Language) :-
+	(is_a_module(M) -> true ; create_module(M, [], Language) ).
 
 create_module(M) :-
 	create_module(M, [], eclipse_language).
@@ -2571,7 +2571,7 @@ autoload(File, Var, Module, _) :-
 	error(4, autoload(File, Var), Module).
 autoload(File, Procs, Module, Flags) :-
 	atom(File),
-	create_module_if_did_not_exist(Module),
+	create_module_if_did_not_exist(Module, eclipse_language),
 	set_procs_flags(Procs, Module, [autoload|Flags]),
 	!.
 autoload(File, Nonsense, _, _):-
@@ -4052,7 +4052,7 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	block/4,
 	block_atomic/4,
 	compile_list_body/3, 
-	create_module_if_did_not_exist/1,
+	create_module_if_did_not_exist/2,
 	dbgcomp/0,
 	ensure_loaded/2,
 	eval/3,
