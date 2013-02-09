@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.4 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.5 2013/02/09 20:27:57 jschimpf Exp $
  */
 
 /*
@@ -525,7 +525,7 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 		    || IsTrustMeInlineFrame(BTop(fp.args))
 		    || IsRetryInlineFrame(BTop(fp.args))
 		    || IsTrustInlineFrame(BTop(fp.args)))
-		p_fprintf(current_err_, "inline:\n");
+		p_fprintf(current_err_, "inline(0x%lx):\n", BBp(fp.args));
 	    else if (IsUnpubParFrame(BTop(fp.args)))
 	    {
 		p_fprintf(current_err_, "parallel unpublished:\n");
@@ -555,7 +555,7 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 	    }
 	    else
 	    {
-		p_fprintf(current_err_, "sequential:\n");
+		p_fprintf(current_err_, "sequential(0x%lx):\n", BBp(fp.args));
 	    }
 
 	    p_fprintf(current_err_,
@@ -569,5 +569,108 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
     while (--n);
     ec_flush(current_err_);
 }
+
+
+static _print_code_address(stream_id nst, vmcode *code)
+{
+    extern pri *ec_code_procedure(vmcode *code);
+    pri *pd = ec_code_procedure(code);
+    if (pd) {
+        p_fprintf(nst,"%s/%d+%d",
+                DidName(PriDid(pd)), DidArity(PriDid(pd)), code - PriCode(pd));
+    } else {
+        p_fprintf(nst,"<proc unknown>");
+    }
+}
+
+
+/*
+ * Print all choicepoints and all environment chains.
+ * If execution is currently inside emulator, pass e and sp as parameters!
+ */
+
+void
+print_control(pword *e, pword *sp)
+{
+    control_ptr		fp;
+    pword               *b, *env;
+    int                 after_call;
+    char                *kind;
+
+    if (!e) e = E;      /* use the exported values, if none given */
+    if (!sp) sp = SP;
+
+    p_fprintf(current_err_, "current\n");
+    p_fprintf(current_err_, "  rtrnto 0x%lx ?-> 0x%lx ", SP, *(vmcode**)SP);
+    _print_code_address(current_err_, *(vmcode**)SP);
+    ec_newline(current_err_);
+    for(env = E; env < SP_ORIG; env = *(pword**)env)
+    {
+        vmcode **cpp = ((vmcode**)env)+1;
+        p_fprintf(current_err_, "  exitto 0x%lx -> 0x%lx ", cpp, *cpp);
+        _print_code_address(current_err_, *cpp);
+        ec_newline(current_err_);
+    }
+
+    for(b=B.args;;b=fp.args)
+    {
+        ec_newline(current_err_);
+        fp.args = BPrev(b);
+
+	if (IsInterruptFrame(BTop(b)) || IsRecursionFrame(BTop(b)))
+	{
+            p_fprintf(current_err_, "invoc");
+            break;
+	}
+	else if (IsCatchFrame(BTop(b)))
+        {
+            kind = "catch"; after_call = 1;
+        }
+	else if (IsExceptionFrame(BTop(b)))
+        {
+            kind = "exception"; after_call = 0;
+        }
+	else if (IsRetryMeInlineFrame(BTop(b)))
+	{
+            kind = "inline"; after_call = 0;
+	}
+	else if (IsTrustMeInlineFrame(BTop(b)))
+	{
+            kind = "inline"; after_call = 0;
+	}
+	else if (IsRetryInlineFrame(BTop(b)))
+	{
+            kind = "inline"; after_call = 0;
+	}
+	else if (IsTrustInlineFrame(BTop(b)))
+	{
+            kind = "inline"; after_call = 0;
+	}
+	else /* if (IsChoicePoint(BTop(b))) */
+	{
+            kind = "clause"; after_call = 1;
+	}
+
+        p_fprintf(current_err_, "%s 0x%lx -> 0x%lx ", kind, b, BBp(b));
+        _print_code_address(current_err_, BBp(b));
+        ec_newline(current_err_);
+
+        if (after_call)
+        {
+            p_fprintf(current_err_, "  rtrnto 0x%lx -> 0x%lx ", SP, *(vmcode**)SP);
+            _print_code_address(current_err_, *(vmcode**)SP);
+            ec_newline(current_err_);
+        }
+        for(env = fp.chp->e; env < SP_ORIG; env = *(pword**)env)
+        {
+            vmcode **cpp = ((vmcode**)env)+1;
+            p_fprintf(current_err_, "  exitto 0x%lx -> 0x%lx ", cpp, *cpp);
+            _print_code_address(current_err_, *cpp);
+            ec_newline(current_err_);
+        }
+    }
+    ec_newline(current_err_);
+}
+
 
 #endif /* PRINTAM */

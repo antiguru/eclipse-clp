@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.8 2013/02/01 18:38:57 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.9 2013/02/09 20:27:57 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -44,6 +44,7 @@
 #include "mem.h"
 #include "dict.h"
 #include "emu_export.h"
+#include "rounding_control.h"
 
 
 #ifndef HAVE_LIBGMP
@@ -458,7 +459,19 @@ mpz_swap(MP_INT *x, MP_INT *y)
  *	return mpz_to_double(num) / mpz_to_double(den);
  * suffers from floating point overflows when the numbers are huge
  * and is inefficient because it looks at unnecessarily many digits.
+ *
+ * IEEE double precision is 53 bits mantissa and 12 bits signed exponent.
+ * So the largest integer representable with doubles is 1024 bits wide,
+ * of which the first 53 are ones, i.e. it lies between 2^1023 and 2^1024.
+ * If the dividend's MSB is more than 1024 bits higher than the divisor's,
+ * the result will always be floating point infinity (no need to divide).
+ * If we do divide, we first drop excess integer precision by keeping only
+ * DBL_PRECISION_LIMBS and ignoring the lower limbs for both operands
+ * (i.e. we effectively scale the integers down, or right-shift them).
  */
+
+#define MIN_LIMB_DIFF (1+1024/GMP_NUMB_BITS)
+#define DBL_PRECISION_LIMBS (1+53/GMP_NUMB_BITS)
 
 static double
 mpz_fdiv(MP_INT *num, MP_INT *den)
@@ -499,24 +512,24 @@ mpz_fdiv(MP_INT *num, MP_INT *den)
 	swapped = 0;			/* abs(res) < 1 */
     }
 
-    if (longer_size - shorter_size > 34)
+    if (longer_size - shorter_size > MIN_LIMB_DIFF)
     {
 	res = swapped ? HUGE_VAL : 0.0;
     }
     else
     {
 	/* we ignore limbs that are not significant for the result */
-	if (longer_size > 34)	/* more than 34 can't be represented */
+	if (longer_size > MIN_LIMB_DIFF)	/* more can't be represented */
 	{
-	    ignored_limbs = longer_size - 34;
+	    ignored_limbs = longer_size - MIN_LIMB_DIFF;
 	    longer_size -= ignored_limbs;
 	    shorter_size -= ignored_limbs;
 	}
-	if (shorter_size > 3)	/* more than 3 exceeds the precision */
+	if (shorter_size > DBL_PRECISION_LIMBS)	/* more exceeds the precision */
 	{
-	    ignored_limbs += shorter_size - 3;
-	    longer_size -= shorter_size - 3;
-	    shorter_size = 3;
+	    ignored_limbs += shorter_size - DBL_PRECISION_LIMBS;
+	    longer_size -= shorter_size - DBL_PRECISION_LIMBS;
+	    shorter_size = DBL_PRECISION_LIMBS;
 	}
 	longer_d += ignored_limbs;
 	shorter_d += ignored_limbs;
@@ -531,14 +544,18 @@ mpz_fdiv(MP_INT *num, MP_INT *den)
     return negative ? -res : res;
 }
 
-#if __GNU_MP_VERSION < 3
+
+#define HAVE_MPQ_GET_D (__GNU_MP_VERSION >= 3)
+#define MPQ_GET_D_ROUNDS_TOWARDS_ZERO (__GNU_MP_VERSION > 4 || (__GNU_MP_VERSION == 4 && __GNU_MP_VERSION_MINOR >= 2))
+
+#if HAVE_MPQ_GET_D && !MPQ_GET_D_ROUNDS_TOWARDS_ZERO
+#define mpq_to_double(q) mpq_get_d(q)
+#else
 static double
 mpq_to_double(MP_RAT *q)
 {
     return mpz_fdiv(mpq_numref(q), mpq_denref(q));
 }
-#else
-#define mpq_to_double(q) mpq_get_d(q)
 #endif
 
 static void
@@ -1138,6 +1155,31 @@ _rat_dbl(value in, value *out)	/* CAUTION: we allow out == &in */
     MP_RAT a;
     Rat_To_Mpr(in.ptr, &a);
     Make_Double_Val(*out,  mpq_to_double(&a));
+    Succeed_;
+}
+
+static int
+_rat_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
+{
+    pword *pw;
+    value dval;
+    MP_RAT a;
+    Rat_To_Mpr(in.ptr, &a);
+
+#if HAVE_MPQ_GET_D && MPQ_GET_D_ROUNDS_TOWARDS_ZERO
+    Make_Double_Val(dval, mpq_get_d(&a));
+    if (Dbl(dval) < 0.0) {
+        Push_Interval(pw, down(Dbl(dval)), Dbl(dval));
+    } else {
+        Push_Interval(pw, Dbl(dval), up(Dbl(dval)));
+    }
+#else
+    /* mpq_get_d() rounds to nearest, or we are using our own mpq_to_double() */
+    Make_Double_Val(dval, mpq_to_double(&a));
+    Push_Interval(pw, down(Dbl(dval)), up(Dbl(dval)));
+#endif
+
+    out->ptr = pw;
     Succeed_;
 }
 
@@ -2044,6 +2086,7 @@ bigrat_init(void)
     tag_desc[TRAT].arith_op[ARITH_PLUS] = _rat_nop;
     tag_desc[TRAT].arith_op[ARITH_FLOAT] = _rat_nop;	/* handled by coercion */
     tag_desc[TRAT].arith_op[ARITH_NICERAT] = _rat_nop;
+    tag_desc[TRAT].coerce_to[TIVL] = _rat_ivl;
     tag_desc[TRAT].arith_op[ARITH_CHGSIGN] =
     tag_desc[TRAT].arith_op[ARITH_NEG] = _rat_neg;
     tag_desc[TRAT].arith_op[ARITH_ABS] = _rat_abs;

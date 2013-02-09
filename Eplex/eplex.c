@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.14 2012/10/30 17:22:53 kish_shen Exp $
+ * Version:	$Id: eplex.c,v 1.15 2013/02/09 20:27:57 jschimpf Exp $
  *
  */
 
@@ -4337,6 +4337,7 @@ p_cpx_lpwrite(value vfile, type tfile, value vformat, type tformat,
 int
 p_cpx_lpread(value vfile, type tfile, 
 	     value vformat, type tformat, 
+	     value vpresolve, type tpresolve,
 	     value vhandle, type thandle)
 {
     lp_desc *lpd;
@@ -4352,12 +4353,14 @@ p_cpx_lpread(value vfile, type tfile,
     Get_Name(vfile, tfile, file);
     Get_Name(vformat, tformat, format);
     Check_Structure(thandle);
+    Check_Integer(tpresolve);
 
     CallN((lpd =  (lp_desc *) Malloc(sizeof(lp_desc))));
     /*CallN(_clr_lp_desc(lpd));*/
     CallN(memset(lpd, 0, sizeof(lp_desc)));
     /* the logged code needs to be hand-adjusted to put file in scope */
     Log1({char *file = "%s";}, file); 
+    lpd->presolve = vpresolve.nint;
 
 #ifdef USE_PROBLEM_ARRAY
     Log1(lpdmat[%d] = lpd, next_matno);

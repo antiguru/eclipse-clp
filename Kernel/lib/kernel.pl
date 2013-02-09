@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.43 2013/02/09 19:14:14 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.44 2013/02/09 20:27:57 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -618,13 +618,13 @@ sepia_version_banner(Text, Date) :-
 	    GmpCopyright = ""
 	),
 	concat_string([
-	    "ECLiPSe Constraint Logic Programming System [", Conf, "]",
-	    "\nKernel and basic libraries copyright Cisco Systems, Inc.",
-	    "\nand subject to the Cisco-style Mozilla Public Licence 1.1",
-	    "\n(see legal/cmpl.txt or www.eclipse-clp.org/licence)",
+	    "ECLiPSe Constraint Logic Programming System [", Conf, "]"
+	    "\nKernel and basic libraries copyright Cisco Systems, Inc."
+	    "\nand subject to the Cisco-style Mozilla Public Licence 1.1"
+	    "\n(see legal/cmpl.txt or http://eclipseclp.org/licence)"
 	    "\nSource available at www.sourceforge.org/projects/eclipse-clp",
 	    GmpCopyright,
-	    "\nFor other libraries see their individual copyright notices",
+	    "\nFor other libraries see their individual copyright notices"
 	    "\nVersion ", Version, Stage, " #", Build, " (", Arch, "), ",
 	    Date, PidInfo, "\n"
 	], Text).
@@ -4386,6 +4386,12 @@ tr_goals_annotated((G1, G2), Ann, (GC1, GC2), AnnExp, M) :- !,
         same_annotation((AnnG1,AnnG2), Ann, (AnnGC1,AnnGC2), AnnExp),
 	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
 	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M).
+tr_goals_annotated((G1*->G2;G3), Ann, Expanded, AnnExp, M) ?- !, Expanded = (GC1*->GC2;GC3),
+	same_annotation((AnnLhs;AnnG3), Ann, (AnnLhsC;AnnGC3), AnnExp),
+	same_annotation((AnnG1*->AnnG2), AnnLhs, (AnnGC1*->AnnGC2), AnnLhsC),
+	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
+	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M),
+	tr_goals_annotated(G3, AnnG3, GC3, AnnGC3, M).
 tr_goals_annotated((G1; G2), Ann, (GC1; GC2), AnnExp, M) :- !,
 	same_annotation((AnnG1;AnnG2), Ann, (AnnGC1;AnnGC2), AnnExp),
 	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
@@ -4396,6 +4402,10 @@ tr_goals_annotated((G1 -> G2), Ann, (GC1 -> GC2), AnnExp, M) :- !,
 	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M).
 tr_goals_annotated(-?->(G), Ann, -?->(GC), AnnExp, M) :- !,
 	same_annotation(-?->(AnnG), Ann, -?->(AnnGC), AnnExp),
+	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
+tr_goals_annotated(once(G), Ann, once(GC), AnnExp, M) :-
+	!,
+	same_annotation(once(AnnG), Ann, once(AnnGC), AnnExp),
 	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
 tr_goals_annotated(not(G), Ann, not(GC), AnnExp, M) :-
 	!,
@@ -6109,7 +6119,7 @@ dim(M, D) :-
 	error(4, dim(M,D)).
     make_dim(M, [D|Ds]) :- !,
 	functor(M, [], D),
-	 make_rows(M, Ds, D).
+	make_rows(M, Ds, D).
     make_dim(M, D) :-
 	error(5, dim(M,D)).
 

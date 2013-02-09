@@ -26,7 +26,7 @@
 ** System:       ECLiPSe Constraint Logic Programming System
 ** Author/s:     Warwick Harvey, IC-Parc
 ** 
-** $Id: ic.c,v 1.3 2012/02/13 23:49:58 jschimpf Exp $
+** $Id: ic.c,v 1.4 2013/02/09 20:27:58 jschimpf Exp $
 **
 ** This file provides low-level primitives in support of the ic_kernel and
 ** ic_constraints ECLiPSe modules.  This is almost entirely for efficiency
@@ -2052,21 +2052,18 @@ swap_entries(int idx, con_info *con, bounds *a)
 	}
 
 	if (con->term_count > idx) {
-	    value   v;
+	    pword   v;
 	    double  d;
 	    int	    tc = con->term_count;
 	    /*
 	    ** Note that we have to use the raw (not dereferenced) values
 	    ** when swapping variables since we're not restoring on
 	    ** backtracking.
-	    **
-	    ** XXX - Do we need to swap the tags for the variables as well?
-	    ** E.g. TREF vs. TMETA...  Probably all start as TMETA, and stay
-	    ** that way?
 	    */
-	    v = con->var_vec[idx].val;
-	    con->var_vec[idx].val = con->var_vec[tc].val;
-	    con->var_vec[tc].val = v;
+	    v = con->var_vec[idx];
+	    con->var_vec[idx] = con->var_vec[tc];
+	    con->var_vec[tc] = v;
+
 	    d = con->lo_vec[tc];
 	    con->lo_vec[tc] = a->l;
 	    a->l = con->lo_vec[idx] = d;

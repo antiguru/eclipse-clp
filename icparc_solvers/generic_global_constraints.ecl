@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.9 2013/01/26 23:49:21 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.10 2013/02/09 20:27:58 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -422,7 +422,7 @@ sumlist(List, Sum) :-
 			Vars1 = Vars0
 		    )
 		),
-		ListSum :: Min..Max),
+		[Sum,ListSum] :: Min..Max),
 	    2),
 	sumlist_prop(ListSum, Sum, v(Vars), _Susp),
 	wake.

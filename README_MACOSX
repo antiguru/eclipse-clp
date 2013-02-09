@@ -34,7 +34,7 @@ need the binary files described here.
 
 Note that the PowerPC and Intel versions of Mac OS X are distinguished by
 ECLiPSe; the Power PC version is ppc_macosx, and the Intel version is 
-i386_macosx.
+i386_macosx. (32 bit) and x86_64_macosx (64 bit).
 
 Unpacking
 ---------
@@ -62,10 +62,10 @@ Optional:
                                 CLP and CBC
 
 Support:
-    tcltk.tgz			A matching Tcl/Tk release (8.5)
-    				(you may have that already, but note Tcl/Tk
-				8.5 prior to 8.5.7 has a bug and does not work
-                                with ECLiPSe)
+    tcltk.tgz			A matching Tcl/Tk release (8.5) 
+    				(you may have that already - but this version
+			        has X11 support, and Mac Tcl/Tk 8.5 prior to 
+				8.5.7 has a bug and does not work with ECLiPSe)
 				Needed for the tkeclipse development GUI.
     editors_eclipse_support.tgz Support for various editors for editing
                                 ECLiPSe code.       

@@ -496,8 +496,10 @@ no (more) solution.
    the declaration.  There are also a number of predefined global operators,
    see the User Manual appendix for a complete list.
 <P>
-   Name may be a single atom or a list of atoms, in which case
-   each is given the specified precedence and associativity.
+   Name may be a single atom or a list of atoms, in which case each is
+   given the specified precedence and associativity.  A value of [] is
+   interpreted as the empty list.  To declare [] as an operator, use
+   e.g. op(500,fx,[[]]).
 <P>
    A precedence of 0 has a special meaning.  It erases a local operator
    definition and/or hides a global operator of the same name and

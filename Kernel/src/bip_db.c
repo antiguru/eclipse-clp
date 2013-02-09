@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.15 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.16 2013/02/09 20:27:57 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -400,6 +400,9 @@ p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod
 
 
 #ifndef NOALS
+
+extern vmcode *print_am(register vmcode *code, vmcode **label, int *res, int option);
+
 /*
 	als_(Name/Arity, Module)
 		It prints on the current ouput stream the abstract
@@ -415,8 +418,6 @@ p_als(value val, type tag, value vm, type tm)
     pri		*proc;
     unsigned	dflags;
     int		err;
-
-    extern vmcode *print_am(register vmcode *code, vmcode **label, int *res, int option);
 
     Check_Module(tm, vm);
 #ifdef PRINTAM
@@ -471,12 +472,17 @@ p_als(value val, type tag, value vm, type tm)
 
 #if defined(PRINTAM) || defined(LASTPP)
 int
-als(word addr)	/* for use with dbx */
+als(vmcode *code)	/* for use with dbx */
 {
-    value vaddr, vmod;
-    vaddr.nint = addr;
-    vmod.did = d_.default_module;
-    return p_als(vaddr, tint, vmod, tdict);
+    vmcode	*save_code = code;
+    vmcode	*label = 0;
+    int		res;
+    do
+        code = print_am(code, &label, &res, 3);
+    while (code || (code = label));
+    if (res == PFAIL)
+        {Fail_}
+    Succeed_;
 }
 #endif /* PRINTAM */
 #endif /* NOALS */

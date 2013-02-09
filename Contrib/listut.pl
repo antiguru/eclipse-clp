@@ -16,10 +16,10 @@
 :- comment(summary, "List processing utilities").
 :- comment(author, "Bob Welham, Lawrence Byrd, R.A.O'Keefe, Joachim Schimpf").
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, "$Date: 2009/07/16 09:11:23 $").
+:- comment(date, "$Date: 2013/02/09 20:27:57 $").
 
 :- export
-	append/3,			%   List x List -> List
+%	append/3,			%   List x List -> List
 	correspond/4,			%   Elem <- List x List -> Elem
 	delete/3,			%   List x Elem -> List
 	last/2,				%   List -> Elem
@@ -35,7 +35,7 @@
 	perm2/4,			%   Elem x Elem -> Elem x Elem
 	remove_dups/2,			%   List -> Set
 	rev/2,				%   List -> List
-	reverse/2,			%   List -> List
+%	reverse/2,			%   List -> List
 	same_length/2,			%   List x List ->
 	select/4,			%   Elem x List x Elem -> List
 	shorter_list/2,			%   List x List ->
@@ -44,10 +44,19 @@
 	subseq1/2,			%   List -> List
 	sumlist/2.			%   List -> Integer
 
+% We reexport the built-in versions in order to keep the
+% interface of listut unchanged, and at the same time
+% avoid ambiguous import warnings in the importer
+:- reexport
+	append/3,
+%	delete/3,			% conflicting semantics!
+	reverse/2
+   from sepia_kernel.
+
 :- local select/3.
 
 :- mode
-	append(?, ?, ?),
+%	append(?, ?, ?),
 	correspond(?, +, +, ?),
 	delete(+, +, -),
 	last(?, ?),
@@ -63,8 +72,8 @@
 	perm2(?,?, ?,?),
 	remove_dups(+, ?),
 	rev(?, ?),
-	reverse(?, ?),
-	reverse(?, +, ?),
+%	reverse(?, ?),
+%	reverse(?, +, ?),
 	same_length(?, ?),
 	select(?, ?, ?, ?),
 	shorter_list(?, +),
@@ -81,10 +90,10 @@
 %   used to form Combined from a given Prefix and Suffix, or to take a given
 %   Combined apart.  E.g. we could define member/2 (from SetUtl.Pl) as
 %	member(X, L) :- append(_, [X|_], L).
-
-append([], L, L).
-append([H|T], L, [H|R]) :-
-	append(T, L, R).
+%
+%append([], L, L).
+%append([H|T], L, [H|R]) :-
+%	append(T, L, R).
 
 
 
@@ -340,14 +349,14 @@ remove_dups(List, Pruned) :-
 %   but in opposite orders.  rev/2 is a synonym for reverse/2.
 
 rev(List, Reversed) :-
-	reverse(List, [], Reversed).
+	reverse(List, Reversed).
 
-reverse(List, Reversed) :-
-	reverse(List, [], Reversed).
-
-reverse([], Reversed, Reversed).
-reverse([Head|Tail], Sofar, Reversed) :-
-	reverse(Tail, [Head|Sofar], Reversed).
+%reverse(List, Reversed) :-
+%	reverse(List, [], Reversed).
+%
+%reverse([], Reversed, Reversed).
+%reverse([Head|Tail], Sofar, Reversed) :-
+%	reverse(Tail, [Head|Sofar], Reversed).
 
 
 %   same_length(?List1, ?List2)

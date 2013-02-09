@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.10 2012/10/29 18:25:39 kish_shen Exp $
+% Version:	$Id: eplex_.ecl,v 1.11 2013/02/09 20:27:57 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -402,7 +402,7 @@ load_external_solver(_, _, _, _).
 	external(cplex_get_objval/2, p_cpx_get_objval),
 	external(cplex_cleanup/1, p_cpx_cleanup),
 	external(cplex_lpwrite/3, p_cpx_lpwrite),
-	external(cplex_lpread/3, p_cpx_lpread),
+	external(cplex_lpread/4, p_cpx_lpread),
 	external(cplex_output_stream/3, p_cpx_output_stream),
 	external(cplex_add_coeff/4, p_cpx_add_coeff),
 	external(cplex_flush_new_rowcols/2, p_cpx_flush_new_rowcols),
@@ -4024,13 +4024,14 @@ eplex_read_body(Format, File, Pool, _Caller) :-
 
 lp_read_body(File, Format, Handle, Caller) :-
 	var(Handle),
+	getval(presolve_default, PreSolve),
 
         % fill in fields that are different/not filled in by
         % fill_in_defaults/1
 	Handle = prob{vars:VList, ints:Ints, sols:[], 
 		objsense:ObjSense, obj:0.0, objcoeffs:ObjCoeffs,
 		solver_id:SId, 
-                presolve:0, % hardwired inside cplex_lpread
+		presolve:PreSolve, % fill in as we have it anyway
 		% linobj,quadobj only used during setup
 		qobjcoeffs:[], % incorrect for quadratic problems! (b435)
                 caller_module:Caller
@@ -4042,7 +4043,7 @@ lp_read_body(File, Format, Handle, Caller) :-
 	new_solver_id(SId), 
 	init_suspension_list(aux_susps of prob, Handle),
         init_suspension_list(change_suspensions of prob, Handle),
-	cplex_lpread(File, Format, Handle),
+	cplex_lpread(File, Format, PreSolve, Handle),
 
 	arg(cplex_handle of prob, Handle, CPH),
         cplex_get_prob_param(CPH, 1, NCols),

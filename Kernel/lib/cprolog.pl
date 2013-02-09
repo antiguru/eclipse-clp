@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cprolog.pl,v 1.8 2011/04/21 02:46:49 jschimpf Exp $
+% Version:	$Id: cprolog.pl,v 1.9 2013/02/09 20:27:57 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -47,7 +47,7 @@
 :- comment(summary, 'C-Prolog compatibility package').
 :- comment(author, 'Various, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2011/04/21 02:46:49 $').
+:- comment(date, '$Date: 2013/02/09 20:27:57 $').
 :- comment(desc, html('
     One of the requirements during the development of ECLiPSe has been the
     aim of minimising the work required to port traditional Prolog
@@ -201,6 +201,7 @@
 	macro((of)/2, (=)/2, []).
 
 :- local
+	op(1100,  xfy, (do)),
 	op(650,   xfx, (@)).
 
 :- export
@@ -405,6 +406,25 @@ log10(Y,X):- X is ln(Y)/ln(10.0).
 log(Y,X) :- X is ln(Y).
 
 .(X,_,X).
+
+% allow expressions built at runtime without an eval wrapper to be evaluated
+
+:- set_event_handler(24, eval_expr/2).
+
+eval_expr(N, ArithGoal) :-
+        functor(ArithGoal, Op, A),
+        NewA is A - 1,
+        functor(Expr, Op, NewA),
+	( sepia_kernel:arith_builtin(Expr) ->
+	    ( foreacharg(X,Expr,I), param(ArithGoal) do
+		arg(I, ArithGoal, X)
+	    ),
+	    arg(A, ArithGoal, Res),
+	    Res is Expr
+	;
+	    error(default(N), ArithGoal)
+	).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %

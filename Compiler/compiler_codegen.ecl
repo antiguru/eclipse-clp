@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_codegen.ecl,v 1.30 2010/03/19 05:55:38 jschimpf Exp $
+% Version:	$Id: compiler_codegen.ecl,v 1.31 2013/02/09 20:27:57 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_codegen).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - code generation").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2010/03/19 05:55:38 $").
+:- comment(date, "$Date: 2013/02/09 20:27:57 $").
 
 
 :- lib(hash).

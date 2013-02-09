@@ -795,7 +795,8 @@ Fail:
 	controlling iteration, i.e. MaxExpr cannot be uninstantiated. 
 
     <DT><STRONG>for(I,MinExpr,MaxExpr,Increment) </STRONG><DD>
-	same as before, but Increment can be specified (it defaults to 1). 
+	same as before, but an integer or integer expression Increment
+	can be specified (it defaults to 1).
 
     <DT><STRONG>multifor(List,MinList,MaxList)</STRONG><DD>
 	like for/3, but allows iteration over multiple indices (saves

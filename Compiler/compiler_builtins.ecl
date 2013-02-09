@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_builtins.ecl,v 1.2 2011/04/15 08:12:53 jschimpf Exp $
+% Version:	$Id: compiler_builtins.ecl,v 1.3 2013/02/09 20:27:57 jschimpf Exp $
 %
 % Part of module(compiler_codegen)
 % ----------------------------------------------------------------------
@@ -456,7 +456,8 @@ generate_unify(_Arg1, _Arg2, _ChunkData0, _ChunkData, _Code0, _Code, _Module) :-
 % bind_variable(VarOccDesc, VarId, Term, ChunkData0, ChunkData, Code, Code0, Module)
 %
 
-bind_variable(void, _VarId, _Term, ChunkData, ChunkData, Code, Code, _Module).
+bind_variable(void, _VarId, Term, ChunkData0, ChunkData, Code, Code0, _Module) :-
+	void_term(Term, ChunkData0, ChunkData, Code, Code0).
 bind_variable(tmp_first, VarId, Term, ChunkData0, ChunkData, Code, Code0, Module) :-
 	body(VarId, Term, ChunkData0, ChunkData, Code, Code0, Module).
 bind_variable(tmp, VarId, Term, ChunkData0, ChunkData, Code, Code0, _Module) :-
@@ -469,6 +470,25 @@ bind_variable(perm_first_in_chunk(Y), VarId, Term, ChunkData0, ChunkData, Code, 
 	head(VarId, Term, ChunkData0, ChunkData, Code1, Code0).
 bind_variable(perm(_Y), VarId, Term, ChunkData0, ChunkData, Code, Code0, _Module) :-
 	head(VarId, Term, ChunkData0, ChunkData, Code, Code0).
+
+
+%
+% Code generation for: _void = Term
+% We only need to take care of side effects of variable occurrences
+%
+
+void_term(Term, State, State, Code, Code) :-
+	atomic(Term).
+void_term([T1|T2], State0, State, Code, Code0) :-
+	void_term(T1, State0, State1, Code, Code1),
+	void_term(T2, State1, State, Code1, Code0).
+void_term(structure{args:Args}, State0, State, Code, Code0) :-
+	void_term(Args, State0, State, Code, Code0).
+void_term(Var, State0, State, Code, Code0) :-
+	Var = variable{varid:VarId},
+	variable_occurrence(Var, State0, State1, Code, Code1, VarOccDesc),
+	unify_variables_ord(void, 0, VarOccDesc, VarId, Code1, Code0, GAlloc),
+	alloc_check_pwords(GAlloc, State1, State).
 
 
 %
@@ -566,6 +586,9 @@ unify_variables_ord(tmp_first, VarId1, perm_first_in_chunk(Y2), VarId2, Code, Co
 	Code = [code{instr:nop, regs:[r(VarId1,Y2,perm,_),r(VarId2,Y2,perm,_)]} |Code0].
 
 unify_variables_ord(void, _VarId1, void, _VarId2, Code, Code, 0) :- !.
+unify_variables_ord(void, _VarId1, tmp, _VarId2, Code, Code, 0) :- !.
+unify_variables_ord(void, _VarId1, tmp_first, VarId2, Code, Code0, 1) :- !,
+	Code = [code{instr:put_variable(R2), regs:[r(VarId2,R2,def,_)]}|Code0].
 unify_variables_ord(void, _VarId1, perm(_), _VarId2, Code, Code, 0) :- !.
 unify_variables_ord(void, _VarId1, perm_first(Y2), VarId2, Code, Code0, 1) :- !,
 	Code = [code{instr:put_global_variable(Y2), regs:[r(VarId2,Y2,perm,_)]}

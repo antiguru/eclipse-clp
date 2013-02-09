@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.52 2013/01/29 15:19:51 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.53 2013/02/09 20:27:57 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -119,7 +119,7 @@ AC_DEFINE_UNQUOTED(HOSTARCH, "$ARCH")
 # because many tests won't work!!!
 if test "$host" != "$build"; then
     if ! test -r "$CONFIG_SITE"; then
-	AC_MSG_ERROR([Need site config file $CONFIG_SITE because we are cross-configuring!!!])
+	AC_MSG_WARN([Cross-compiling without site config file $CONFIG_SITE!!!])
     fi
 fi
 
@@ -527,6 +527,10 @@ case "$ARCH" in
     OSTYPE="linux"  
     ;;
  i386_nt)
+    ac_cv_func_select=yes
+    ac_cv_func_gethostname=yes
+    ac_cv_func_getpagesize=yes
+
     OPTIMIZE="sh ../src/opt_i386_linux.sh"
     LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll

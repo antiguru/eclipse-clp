@@ -1,7 +1,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Copyright:	This file is in the public domain
-% Version:	$Id: swi.ecl,v 1.7 2013/02/08 22:28:36 jschimpf Exp $
+% Version:	$Id: swi.ecl,v 1.8 2013/02/09 20:27:57 jschimpf Exp $
 % Description:	SWI Prolog compatibility package
 % ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@
 :- comment(summary, 'SWI-Prolog compatibility package').
 :- comment(author, 'J Chamois').
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, '$Date: 2013/02/08 22:28:36 $').
+:- comment(date, '$Date: 2013/02/09 20:27:57 $').
 :- comment(desc, html('
     This library is incomplete, and intended to ease the task of
     porting SWI-Prolog programs to ECLiPSe Prolog, or to add modules
@@ -470,7 +470,8 @@ setup_call_cleanup_(Setup, Call, Cleanup, Module) :-
 
     cleanup(Cleanup, Module) :-
 	(
-	    once block(Cleanup, _Ignore, fail)@Module,
+            % unlike proposal, we always propagate throws caused by Cleanup.
+	    once block(Cleanup, Ball, (events_nodefer,exit_block(Ball)))@Module,
 	    fail
 	;
 	    events_nodefer

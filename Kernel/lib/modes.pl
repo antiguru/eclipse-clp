@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: modes.pl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: modes.pl,v 1.4 2013/02/09 20:27:57 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -51,7 +51,7 @@
 :- comment(summary, "An abstract interpreter for mode ananlysis").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2013/02/09 20:27:57 $").
 :- comment(desc, html("
     This library provides a static mode analysis tool for ECLiPSe
     programs.  It takes as input a Prolog program and a goal pattern, and
@@ -97,6 +97,7 @@
 :- export analyze/1, analyze_exits/1.
 
 
+:- reexport read_source/1 from source_storage.
 :- import get_clauses/2, undefined_predicate/1 from source_storage.
 
 :- pragma(nodebug).
@@ -913,6 +914,12 @@ builtin(_ < _,			[++ < ++]).
 builtin(_ =< _,			[++ =< ++]).
 builtin(_ =:= _,		[++ =:= ++]).
 builtin(_ =\= _,		[++ =\= ++]).
+builtin(>(_,_,_),		[>(++,++,++)]).
+builtin(>=(_,_,_),		[>=(++,++,++)]).
+builtin(<(_,_,_),		[<(++,++,++)]).
+builtin(=<(_,_,_),		[=<(++,++,++)]).
+builtin(=:=(_,_,_),		[=:=(++,++,++)]).
+builtin(=\=(_,_,_),		[=\=(++,++,++)]).
 builtin(max(_,_,_),		[max(++,++,++)]).
 builtin(min(_,_,_),		[min(++,++,++)]).
 
@@ -1076,7 +1083,7 @@ writeln("1. read a source file (e.g. src.pl):       read_source(src)."),
 writeln("2. analyze a call pattern (e.g. p/2):      analyze(p(++,-))"),
 writeln("This will print the resulting mode declarations"),
 writeln("Valid modes are ++ + - ? +- and -+"), nl,
-writeln("To collect builtin call modes, use setval(collect_builtin_modes, on)."), nl.
+writeln("To collect builtin call modes, use setval(collect_builtin_modes, on)@modes."), nl.
 
 
 

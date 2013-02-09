@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.10 2013/02/01 18:38:57 jschimpf Exp $
+* Version:	$Id: intervals.c,v 1.11 2013/02/09 20:27:57 jschimpf Exp $
 *
 
 Supported operations:
@@ -1538,23 +1538,6 @@ _big_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
 }
 
 
-    /* This is too conservative: we need to round out only
-     * if the float cannot not represent the rational exactly
-     */
-static int
-_rat_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
-{
-    pword *pw;
-    value dval;
-    int err;
-    err = tag_desc[TRAT].coerce_to[TDBL](in, &dval);
-    if (err != PSUCCEED) return(err);
-    Push_Interval(pw, down(Dbl(dval)), up(Dbl(dval)));
-    out->ptr = pw;
-    Succeed_;
-}
-
-
 /*ARGSUSED*/
 static int
 _ivl_dbl(value in, value *out)	/* CAUTION: we allow out == &in */
@@ -2249,7 +2232,6 @@ ec_intervals_init(void)
     tag_desc[TINT].coerce_to[TIVL] = _int_ivl;	/* coerce to interval */
     tag_desc[TDBL].coerce_to[TIVL] = _dbl_ivl;
     tag_desc[TBIG].coerce_to[TIVL] = _big_ivl;
-    tag_desc[TRAT].coerce_to[TIVL] = _rat_ivl;
 
     tag_desc[TIVL].coerce_to[TDBL] = _ivl_dbl;	/* coerce from interval */
 

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION    $Id: bip_arith.c,v 1.19 2013/02/01 18:38:57 jschimpf Exp $
+ * VERSION    $Id: bip_arith.c,v 1.20 2013/02/09 20:27:57 jschimpf Exp $
  */
 
 /*
@@ -111,6 +111,11 @@
 
 static int
 	_reverse_times(word x, word y, value zval, type ztag);
+
+
+#if defined(i386) && defined(__GNUC__)
+double (*pow_ptr_to_avoid_buggy_inlining)(double,double) = pow;
+#endif
 
 
 /*------------------------------------------------------------------------

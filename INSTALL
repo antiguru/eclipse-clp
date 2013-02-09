@@ -46,7 +46,7 @@ Build on multi-architecture machine, e.g. 64 bit build on 32/64 bit solaris:
 Cross build, e.g. for Windows on Linux:
 
 	export ARCH=i386_nt
-	CONFIG_SITE=config.$ARCH ./configure --host=i386-mingw32msvc
+	CONFIG_SITE=config.$ARCH ./configure --host=i586-mingw32msvc
 	make -f Makefile.$ARCH
 
 Build for Windows on Windows/Cygwin:

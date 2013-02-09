@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: apply_macros.pl,v 1.3 2012/02/27 04:14:44 jschimpf Exp $
+% Version:	$Id: apply_macros.pl,v 1.4 2013/02/09 20:27:57 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(apply_macros).
@@ -32,7 +32,7 @@
 :- comment(summary, "Utilities to apply a predicate to all elements of a list resp. all subterms of a term").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2012/02/27 04:14:44 $").
+:- comment(date, "$Date: 2013/02/09 20:27:57 $").
 :- comment(desc, html("
     Note that this library is largely superseded by the do-loop construct!
     <P>
@@ -412,7 +412,7 @@ compile_aux(Clauses, Module) :-
 	;
 	    printf("*** Creating auxiliary predicate %Qw\n%b", [F/N]),
 %	    write_clauses(Clauses),
-	    compile_term(Clauses)@Module,
+	    sepia_kernel:nested_compile_term(Clauses)@Module,
 	    set_flag(F/N, auxiliary, on)@Module
 	).
 

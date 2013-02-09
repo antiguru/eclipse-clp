@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.32 2013/01/27 01:37:35 jschimpf Exp $
+# $Id: Makefile.in,v 1.33 2013/02/09 20:27:58 jschimpf Exp $
 #
 
 # The location of third party software releases
@@ -37,6 +37,7 @@ OSCLASS = @OSCLASS@
 CC = @CC@
 CXX = @CXX@
 AR = @AR@
+RANLIB = @RANLIB@
 CFLAGS = @CFLAGS@ @OPT_FLAGS@
 OS_INCLUDES = @OS_INCLUDES@
 OBJ_SUFFIX = @OBJECTS_SUFFIX@
@@ -199,6 +200,7 @@ $(ARCH)/libregex.a:
 	( cd rxspencer ; \
 	  CC="$(CC)" AR="$(AR)" $(MAKE) lib)
 	mv rxspencer/libregex.a $(ARCH)/.
+	$(RANLIB) $@
 
 #----------------------------------------------------------------------
 # Ilog Solver
@@ -549,4 +551,66 @@ $(MAKEFILE):	Makefile.in
 	  else \
 	    echo === Please re-run configure on this host ; \
 	  fi )
+
+
+#----------------------------------------------------------------------
+# Some helpful rules to build COIN-OR Cbc/SYMPHONY in $(THIRDPARTY)
+# We only build static libraries!
+#----------------------------------------------------------------------
+
+COIN_CBC_VERSION=2.6
+THIRDPARTY_CBC_DEST=$(THIRDPARTY)/coinclpcbc$(COIN_CBC_VERSION)/$(ARCH)
+
+install_cbc:    all_cbc
+	mkdir -p $(THIRDPARTY_CBC_DEST)/include
+	mkdir -p $(THIRDPARTY_CBC_DEST)/lib
+	/bin/cp -pr Cbc/$(ARCH)/include/coin/* $(THIRDPARTY_CBC_DEST)/include
+	/bin/cp -pr Cbc/$(ARCH)/lib/coin/* $(THIRDPARTY_CBC_DEST)/lib
+
+all_cbc:	basic_cbc \
+	Cbc/$(ARCH)/include/coin/CbcBranchUser.hpp \
+	Cbc/$(ARCH)/include/coin/CbcCompareUser.hpp \
+	Cbc/$(ARCH)/lib/coin/CbcBranchUser.o \
+	Cbc/$(ARCH)/lib/coin/CbcCompareUser.o
+
+basic_cbc:	Cbc/$(ARCH)/Makefile
+	( cd Cbc/$(ARCH) ; make install )
+
+Cbc/$(ARCH)/Makefile:	Cbc/configure
+	mkdir -p Cbc/$(ARCH)
+	( cd Cbc/$(ARCH) ; ../configure --host=@host@ --enable-static --disable-shared ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
+
+Cbc/configure:
+	svn co https://projects.coin-or.org/svn/Cbc/stable/$(COIN_CBC_VERSION) Cbc
+
+Cbc/$(ARCH)/include/coin/%.hpp:  Cbc/Cbc/examples/%.hpp basic_cbc
+	/bin/cp $< $@
+
+Cbc/$(ARCH)/lib/coin/%.o:  Cbc/$(ARCH)/Cbc/examples/%.o
+	/bin/cp $< $@
+
+Cbc/$(ARCH)/Cbc/examples/%.o:  Cbc/Cbc/examples/%.cpp basic_cbc
+	( cd $(@D) ; make $(@F) )
+
+
+
+COIN_SYM_VERSION=5.3
+THIRDPARTY_SYM_DEST=$(THIRDPARTY)/coinsymclp$(COIN_SYM_VERSION)/$(ARCH)
+
+install_sym:    all_sym
+	mkdir -p $(THIRDPARTY_SYM_DEST)/include
+	mkdir -p $(THIRDPARTY_SYM_DEST)/lib
+	/bin/cp -pr SYMPHONY/$(ARCH)/include/coin/* $(THIRDPARTY_SYM_DEST)/include
+	/bin/cp -pr SYMPHONY/$(ARCH)/lib/coin/* $(THIRDPARTY_SYM_DEST)/lib
+
+all_sym:	SYMPHONY/$(ARCH)/Makefile
+	( cd SYMPHONY/$(ARCH) ; make install )
+
+SYMPHONY/$(ARCH)/Makefile:	SYMPHONY/configure
+	mkdir -p SYMPHONY/$(ARCH)
+	( cd SYMPHONY/$(ARCH) ; ../configure --host=@host@ --enable-static --disable-shared ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
+
+SYMPHONY/configure:
+	svn co https://projects.coin-or.org/svn/SYMPHONY/stable/$(COIN_SYM_VERSION) SYMPHONY
+
 
