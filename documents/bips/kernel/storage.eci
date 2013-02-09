@@ -196,7 +196,6 @@
     args:["BagHandle":"A bag", "Count":"A variable or integer"],
     exceptions:[4: "BagHandle is not instantiated",
     	5 : "BagHandle is not a bag",
-    	5 : "List is instantiated but not to an integer",
     	40 : "BagHandle refers to an already destroyed bag"],
     eg:"
     ?- bag_create(B), bag_count(B, N0), bag_enter(B, one), bag_count(B, N1).
@@ -224,7 +223,6 @@
     args:["BagHandle":"A bag", "List":"A variable or list of terms"],
     exceptions:[4: "BagHandle is not instantiated",
     	5 : "BagHandle is not a bag",
-    	5 : "List is instantiated but not to a list",
     	40 : "BagHandle refers to an already destroyed bag"],
     eg:"
     simple_findall(Goal, Solutions) :-
@@ -263,7 +261,6 @@
     args:["BagHandle":"A bag", "List":"A variable or list of terms"],
     exceptions:[4: "BagHandle is not instantiated",
     	5 : "BagHandle is not a bag",
-    	5 : "List is instantiated but not to a list",
     	40 : "BagHandle refers to an already destroyed bag"],
     eg:"
     simple_findall(Goal, Solutions) :-
