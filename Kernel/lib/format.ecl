@@ -24,7 +24,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: format.ecl,v 1.1 2013/02/08 22:28:36 jschimpf Exp $
+% Version:	$Id: format.ecl,v 1.2 2013/02/09 20:03:23 jschimpf Exp $
 % Description:	Based on code factored out from quintus.pl
 % ----------------------------------------------------------------------
 
@@ -85,7 +85,7 @@
 :- comment(summary, "Partially implements the format/2,3 predicate").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Cisco Systems, Coninfer Ltd").
-:- comment(date, "$Date: 2013/02/08 22:28:36 $").
+:- comment(date, "$Date: 2013/02/09 20:03:23 $").
 
 :- comment(format/2, [
     summary:"Print formatted data",
@@ -115,7 +115,7 @@ format_(List, ArgList, Module) :-
 	format_(output, List, ArgList, Module).
 
 
-:- export format/2.
+:- export format/3.
 :- tool(format/3, format_/4).
 format_(Stream, AnyFormat, ArgList, Module) :-
 	any_to_string(AnyFormat, Format),
