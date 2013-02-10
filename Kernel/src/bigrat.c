@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.9 2013/02/09 20:27:57 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.10 2013/02/10 03:48:37 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -1166,7 +1166,9 @@ _rat_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
     MP_RAT a;
     Rat_To_Mpr(in.ptr, &a);
 
-#if HAVE_MPQ_GET_D && MPQ_GET_D_ROUNDS_TOWARDS_ZERO
+/* Disabled, because it leads to machine-dependent test results */
+/* #if HAVE_MPQ_GET_D && MPQ_GET_D_ROUNDS_TOWARDS_ZERO */
+#if 0
     Make_Double_Val(dval, mpq_get_d(&a));
     if (Dbl(dval) < 0.0) {
         Push_Interval(pw, down(Dbl(dval)), Dbl(dval));
