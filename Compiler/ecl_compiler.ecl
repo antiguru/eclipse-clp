@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.20 2012/02/07 19:51:16 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.21 2013/02/10 17:58:57 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2012/02/07 19:51:16 $").
+:- comment(date,	"$Date: 2013/02/10 17:58:57 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -916,19 +916,19 @@ consider_pragma(Pragma, _, M) :-
 
 
 % For compatibility with old compiler
-old_compiler_directive((:-system), Options) :- !,
+old_compiler_directive((:-system), Options) ?- !,
 	setarg(system of options, Options, on),
 	setarg(debug of options, Options, off),
 	setarg(skip of options, Options, on),
 	setarg(expand_goals of options, Options, on).
-old_compiler_directive((:-system_debug), Options) :- !,
+old_compiler_directive((:-system_debug), Options) ?- !,
 	setarg(system of options, Options, on),
 	setarg(debug of options, Options, on),
 	setarg(skip of options, Options, off).
-old_compiler_directive((:-dbgcomp), Options) :- !,
+old_compiler_directive((:-dbgcomp), Options) ?- !,
 	set_flag(debug_compile, on),
 	setarg(debug of options, Options, on).
-old_compiler_directive((:-nodbgcomp), Options) :- !,
+old_compiler_directive((:-nodbgcomp), Options) ?- !,
 	set_flag(debug_compile, off),
 	setarg(expand_goals of options, Options, on),
 	setarg(debug of options, Options, off).
