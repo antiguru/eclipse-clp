@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.12 2013/02/01 18:38:57 jschimpf Exp $
+ * $Id: sepia.h,v 1.13 2013/02/10 01:09:44 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -932,6 +932,35 @@ This file must not be included with the embedding interface!
 #define Atan2(y,x) ((x)==0.0 && (y)==0.0 ? atan2(y,1/(x)) : atan2(y,x))
 #else
 #define Atan2(y,x) atan2(y,x)
+#endif
+
+
+#ifdef HAVE_CEIL_NEGZERO_BUG
+/* workaround for bug that incorrectly returns 0.0
+   instead of -0.0 when argument is >-1.0 and <-0.0
+*/
+#define Ceil(x) \
+  ( ceil(x) == 0.0 && x != -0.0 ? ceil(x)*x : ceil(x))
+
+#else
+
+#define Ceil(x) ceil(x)
+
+#endif
+
+
+/* Use SafePow() if x may be zero and y negative */
+#ifdef HAVE_POW_ZERO_NEG_BUG
+#define SafePow(x,y) ((x)==0.0 && (y)<0 ? 1.0/Pow(x,-(y)) : Pow(x,y))
+#else
+#define SafePow(x,y) Pow(x,y)
+#endif
+
+#if defined(i386) && defined(__GNUC__)
+#define Pow (*pow_ptr_to_avoid_buggy_inlining)
+extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
+#else
+#define Pow pow
 #endif
 
 
