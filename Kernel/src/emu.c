@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.29 2013/02/02 01:02:37 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.30 2013/02/10 01:53:53 jschimpf Exp $
  */
 
 /*
@@ -8040,7 +8040,6 @@ emu_break(void) {}	/* a dummy function to put a breakpoint in */
 #if defined(__GNUC__) && defined(HAVE_UCONTEXTGREGS)
 
 #include <signal.h>
-#define __USE_GNU	/* to get REG_XXX */
 #include <ucontext.h>
 #ifndef REG_ESI
 #define REG_ESI ESI	/* e.g. on Solaris 10 */
