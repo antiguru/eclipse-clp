@@ -24,13 +24,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_light.ecl,v 1.4 2013/02/08 14:58:15 jschimpf Exp $
+% Version:	$Id: iso_light.ecl,v 1.5 2013/02/10 18:15:29 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso_light.ecl,v 1.4 2013/02/08 14:58:15 jschimpf Exp $
+% $Id: iso_light.ecl,v 1.5 2013/02/10 18:15:29 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_light.ecl, based on obsolete iso.pl
 %
@@ -110,7 +110,7 @@
 :- comment(summary, `ISO Prolog compatibility library (light version)`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, `Cisco Systems, Inc (2006), Coninfer Ltd (modifications 2007-2012)`).
-:- comment(date, `$Date: 2013/02/08 14:58:15 $`).
+:- comment(date, `$Date: 2013/02/10 18:15:29 $`).
 :- comment(see_also, [library(multifile),library(iso_strict),library(iso)]).
 :- comment(desc, html(`\
 <h3>Overview</h3>\n\
@@ -795,11 +795,15 @@ current_prolog_flag_(Flag, Value, M) :-
 	    (
 		iso_only_flag_(Flag, Value, M)
 	    ;
+	    	Flag=dialect, Value=eclipse
+	    ;
 		get_flag(Flag, Value)@M
 	    )
 	; atom(Flag) ->
 	    ( iso_only_flag(Flag) ->
 		iso_only_flag_(Flag, Value, M)
+	    ; Flag==dialect ->
+	    	Value=eclipse
 	    ;
 		get_flag(Flag, Value)@M
 	    )
