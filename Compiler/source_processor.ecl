@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.12 2012/08/09 14:17:54 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.13 2013/02/10 18:00:23 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2012/08/09 14:17:54 $").
+:- comment(date, "$Date: 2013/02/10 18:00:23 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -696,25 +696,10 @@ handle_directives((D1,D2), ThisPos, NextPos, Kind) :- !,
 	).
 
     % include directives
-handle_directives([File|Files], ThisPos, NextPos, Kind) :- !,
-	handle_directives(include([File|Files]), ThisPos, NextPos, Kind).
-handle_directives(include(File), ThisPos, NextPos, Kind) :-
-	( var(File) ; atomic(File) ), !,
-	handle_directives(include([File]), ThisPos, NextPos, Kind).
-handle_directives(include([File|Files]), ThisPos, NextPos, handled_directive) :- !,
-	ThisPos = source_position{module:Module,options:OptFlags,
-		file:TopFile,line:Line},
-	( source_open(File, Files, ThisPos, OptFlags, NextPos, Module) ->
-	    true
-	;
-	    printf(warning_output, "WARNING: Could not open include file \"%w\""
-		"%nin file %w, line %d%n", [File,TopFile,Line]),
-	    ( Files == [] ->
-		NextPos = ThisPos
-	    ;
-		handle_directives(include(Files), ThisPos, NextPos, _)
-	    )
-	).
+handle_directives(Files, ThisPos, NextPos, Kind) :- Files = [_|_], !,
+	handle_include(Files, ThisPos, NextPos, Kind).
+handle_directives(include(Files), ThisPos, NextPos, Kind) :- !,
+	handle_include(Files, ThisPos, NextPos, Kind).
 handle_directives(comment(include,Files), ThisPos, NextPos, Kind) :- !,
 	ThisPos = source_position{options:options{include_comment_files:WantInclude}},
 	( WantInclude == true ->
@@ -802,6 +787,25 @@ handle_directives(Directive, NextPos, NextPos, Kind) :-
 	pathname(Path, _Dir, File),
 	printf(warning_output, "WARNING: %w in file %w, line %d:%n:- %w.%n",
 		[Msg,File,Line,Directive]).
+
+
+handle_include([File|Files], ThisPos, NextPos, Kind) ?- !,
+	Kind = handled_directive,
+	ThisPos = source_position{module:Module,options:OptFlags,
+		file:TopFile,line:Line},
+	( source_open(File, Files, ThisPos, OptFlags, NextPos, Module) ->
+	    true
+	;
+	    printf(warning_output, "WARNING: Could not open include file \"%w\""
+		"%nin file %w, line %d%n", [File,TopFile,Line]),
+	    ( Files == [] ->
+		NextPos = ThisPos
+	    ;
+		handle_directives(include(Files), ThisPos, NextPos, _)
+	    )
+	).
+handle_include(File, ThisPos, NextPos, Kind) :-
+	handle_include([File], ThisPos, NextPos, Kind).
 
 
 % handled_directive(+Directive, -NeedToChangeDir)
