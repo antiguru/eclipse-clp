@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.16 2013/02/08 15:00:52 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.17 2013/02/10 18:52:58 jschimpf Exp $
  */
 
 /*
@@ -2736,26 +2736,26 @@ set_stream(dident name, stream_id neww)
 	    return(STREAM_MODE);
 	user_err_ = neww;
     }
-    /* stdin,stdout,stderr should not be changeable, but used in remote java */
+    /*
+     * stdin,stdout,stderr should not be changeable, but there are cases
+     * where we want to do it once, e.g. when starting a remote server.
+     * Undocumented: allow it when user_xxx has been set beforehand.
+     */
     else if(name == d_.stdin0)
     {
-#if 1
+	if(neww != user_input_)
+	    return(SYSTEM_STREAM);
 	if(!IsReadStream(neww))
 	    return(STREAM_MODE);
 	StreamMode(neww) |= SSYSTEM;
-#else
-	return(STREAM_SPEC);
-#endif
     }
     else if(name == d_.stdout0 || name == d_.stderr0)
     {
-#if 1
+	if(neww != (name==d_.stdout0? user_output_ : user_err_))
+	    return(SYSTEM_STREAM);
 	if(!IsWriteStream(neww))
 	    return(STREAM_MODE);
 	StreamMode(neww) |= SSYSTEM;
-#else
-	return(STREAM_SPEC);
-#endif
     }
     /* And now change the stream */
     Set_Stream(name, neww);
