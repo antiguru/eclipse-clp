@@ -34,8 +34,8 @@
 \index{input/output}
 Input and output in {\eclipse} is done via communication channels
 called \defnotioni{streams}{stream}.
-They are usually associated with either a file, a terminal, a socket,
-a pipe, or in-memory queues and buffers.
+They are usually associated with I/O devices (a file, a terminal,
+a socket, a pipe), or in-memory queues or buffers.
 
 The streams may be opened for input only
 (\defnotion{read mode}\index{mode!read}),
@@ -44,9 +44,53 @@ or for both input and output (\defnotion{update mode}\index{mode!update}).
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 \subsection{Predefined Streams}
-%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Every {\eclipse} session has 4 predefined system streams:
 \label{streams}
+%- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Every {\eclipse} session defines the following symbolic stream names, which
+indicate the \aboutidx{current streams} for certain categories of input/output:
+\begin{quote}
+\begin{description}
+\item[\Indextt{input}]
+  Used by the input predicates that do not have an explicit stream argument,
+  e.g., \bipref{read/1}{../bips/kernel/ioterm/read-1.html}.
+  This is by default the same as user_input and stdin, but can be redirected.
+\item[\Indextt{output}]
+  Used by the output predicates that do not have an explicit stream argument,
+  e.g., \bipref{write/1}{../bips/kernel/ioterm/write-1.html}.
+  This is by default the same as user_output and stdout, but can be redirected.
+\item[\Indextt{error}]
+  Output for error messages and all messages about exceptional states.
+  This is by default the same as user_error and stderr, but can be redirected.
+\item[\Indextt{warning_output}]
+  Used by the system or user programs to output warning messages.
+  This is by default the same as user_output and stdout, but can be redirected.
+\item[\Indextt{log_output}]
+  Used by the system for information messages (e.g. garbage collection),
+  or by user programs for e.g. messages about computational progress.
+  This is by default the same as user_output and stdout, but can be redirected.
+\end{description}
+\end{quote}
+
+The above streams can be freely redirected, but are initially set to one
+of the following three \aboutidx{default streams}, to which they will
+also be reset whenever a redirection ends:
+\begin{quote}
+\begin{description}
+\item[\Indextt{user_input}]
+  The default input stream.
+  This is initially the same as stdin, but can be redirected.
+\item[\Indextt{user_output}]
+  The default output stream.
+  This is initially the same as stdout, but can be redirected.
+\item[\Indextt{user_error}]
+  The default error stream.
+  This is initially the same as stderr, but can be redirected.
+\end{description}
+\end{quote}
+
+Finally, there are the four predefined \aboutidx{standard streams},
+which cannot be closed or redirected.  Apart from the \notationidx{null}
+stream, there is usually no need to refer to them explicitly:
 \begin{quote}
 \begin{description}
 \item[\Indextt{stdin}]
@@ -55,7 +99,6 @@ Every {\eclipse} session has 4 predefined system streams:
   The standard output stream.
 \item[\Indextt{stderr}]
   The standard error stream.
-
 \item[\Indextt{null}]
   A dummy stream, output to it is discarded, on input it always
   gives end of file.
@@ -66,86 +109,65 @@ to the corresponding standard I/O descriptors of the process.
 In an embedded {\eclipse}, the meaning of stdin, stdout and
 stderr is determined by the {\eclipse} initialization options.
 
-
-Moreover, every {\eclipse} session defines the following symbolic stream
-names, which are used for certain categories of input/output:
-\begin{quote}
-\begin{description}
-\item[\Indextt{input}]
-  Used by the input predicates that do not have an explicit stream argument,
-  e.g., \bipref{read/1}{../bips/kernel/ioterm/read-1.html}.
-  This is by default the same as stdin, but can be redirected.
-\item[\Indextt{output}]
-  Used by the output predicates that do not have an explicit stream argument,
-  e.g., \bipref{write/1}{../bips/kernel/ioterm/write-1.html}.
-  This is by default the same as stdout, but can be redirected.
-\item[\Indextt{error}]
-  Output for error messages and all messages about exceptional states.
-  This is by default the same as stderr, but can be redirected.
-\item[\Indextt{warning_output}]
-  Used by the system to output warning messages.
-  This is by default the same as stdout, but can be redirected.
-\item[\Indextt{log_output}]
-  Used by the system to output various log messages, e.g., messages about
-  garbage collection activity.
-  This is by default the same as stdout, but can be redirected.
-\item[\Indextt{user}]
-  This identifier is provided for compatibility with Prolog
-  systems and it is identical with \notation{stdin} and \notation{stdout}
-  depending on the context where it is used.
-\end{description}
-\end{quote}
-
 \begin{center}
-\begin{tabular}{|r|l|}
+\begin{tabular}{|r|l|l|}
 \hline
-Symbolic Stream &       System Stream   \\
+Current Stream  & Default Stream & Standard Stream\\
 \hline
 \hline
-input           &       0 (stdin)       \\
+input           & user_input  & stdin\\
 \hline
-output          &       1 (stdout)      \\
-warning_output  &       1 (stdout)      \\
-log_output      &       1 (stdout)      \\
+output          & user_output & stdout\\
+warning_output  & user_output & stdout\\
+log_output      & user_output & stdout\\
 \hline
-error           &       2 (stderr)      \\
+error           & user_error  & stderr\\
 \hline
-                &       3 (null)        \\
+                &             & null\\
 \hline
 \end{tabular}
 
 Initial assignment of symbolic stream names
 \end{center}
 
+For compatibility with Prolog systems, the system accepts the stream
+name \notationidx{user} in certain places.  Its meaning is
+identical to \notation{stdin} and \notation{stdout},
+depending on the context where it is used.
+
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-\subsection{Stream Identifiers and Aliases}
+\subsection{Stream Handles and Aliases}
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Every stream is identified by a small integer,\footnote{%
-  Note that the stream numbers are not the same as UNIX file descriptors.}
-but it can have several symbolic names (aliases), which are atoms.
+Streams can be identified by anonymous
+\aboutidx{stream handles} or by symbolic names.\footnote{%
+    Earlier {\eclipse} versions identified streams by small integers, which
+    is now deprecated, except for some foreign language interfaces. If needed,
+    the number is available as the physical_stream stream property.}
 Most of the built-in predicates that require a stream to be specified
 have a stream argument at the first position,
-e.g., \notation{write(Stream, Term)}. This argument can be either the stream
-number or a symbolic stream name.
+e.g., \notation{write(Stream, Term)}. This argument can be either a
+stream handle or a symbolic stream name.
 
-An alias name can be given to a stream either when it is created or
-explicitly by invoking
-\bipref{set_stream/2}{../bips/kernel/iostream/set_stream-2.html}:
-\begin{quote}
-\begin{verbatim}
-set_stream(Alias, Stream)
-\end{verbatim}
-\end{quote}
-To find the corresponding stream number, use
+Streams that are opened by programs should only use stream handles,
+as this allows the system to better keep track of their lifetime.
+Alias names can however be given either immediately when a stream is
+newly opened (e.g. with \bipref{open/4}{../bips/kernel/iostream/open-4.html}),
+or later via redirection
+(\bipref{set_stream/2}{../bips/kernel/iostream/set_stream-2.html}).
+A stream can have more than one symbolic alias.
+
+To obtain a handle when only an alias is known, use
 \bipref{get_stream/2}{../bips/kernel/iostream/get_stream-2.html}:
 \begin{quote}
 \begin{verbatim}
-get_stream(StreamOrAlias, StreamNr)
+get_stream(StreamOrAlias, Handle)
 \end{verbatim}
 \end{quote}
 \bipref{get_stream/2}{../bips/kernel/iostream/get_stream-2.html} can also
 be used to check whether two stream names are aliases of each other.
 
+Note that stream handles are not normal Prolog terms!  They
+can not be assembled, decomposed, or occur literally in Prolog text. 
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 \subsection{Opening New Streams}
@@ -246,13 +268,12 @@ Opening a file in \notation{append} mode will keep the current contents
 of the file and start writing at its end.
 
 \about{Stream} is a symbolic stream identifier or an uninstantiated variable.
-If it is uninstantiated, the system will bind it to an identifier (the stream
-number):
+If it is uninstantiated, the system will bind it to an anonymous stream handle:
 \begin{quote}
 \begin{verbatim}
 [eclipse 1]: open(new_file, write, Stream).
-Stream = 6
-yes.
+Stream = $&(stream(7))
+Yes (0.00s cpu)
 \end{verbatim}
 \end{quote}
 If the stream argument is an atomic name, this name becomes an alias
@@ -263,7 +284,12 @@ for the (hidden) stream number:
 yes.
 \end{verbatim}
 \end{quote}
-The stream identifier (symbolic or numeric) may then be used in predicates
+This is equivalent to
+\begin{verbatim}
+[eclipse 1]: open(new_file, write, _, [alias(new_stream)]).
+yes.
+\end{verbatim}
+The stream identifier (symbolic or handle) may then be used in predicates
 which have a named stream as one of their arguments. For example
 \begin{quote}
 \begin{verbatim}
@@ -275,11 +301,10 @@ will write the atom
 
 
 It is recommended style \emph{not} to use symbolic stream names in code that is
-meant to be reused. This is because the stream names are global,
+meant to be reused. This is because these stream names are global,
 there is the possibility of name clashes, and the code will not be reentrant.
 It is cleaner to open streams with a variable for the stream identifier
-and pass the identifier as an argument wherever it is needed.
-
+and pass the resulting handle as an argument wherever it is needed.
 
 \defnotion{Socket streams} are not opened with \predspec{open/3}, but with the
 special primitives
@@ -308,16 +333,29 @@ the executed process. See chapter \ref{chapopsys} for details.
 \subsection{Closing Streams}
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-The predicate
+A stream lives until it is closed.  Streams that are only referenced
+by handle are closed automatically, either on failure across the
+open/3,4 predicate, or after all copies of their handle become unused
+and garbage collected.  This means that no extra precautions have to
+be taken to ensure that streams are closed on failure or when
+aborting.  Handle-streams can optionally be closed explicitly if their
+lifetime is statically known in the program.  Streams that have
+aliases cannot be closed automatically:  all aliases must be closed
+explicitly.
+
+The predicates
+\bipref{close/1}{../bips/kernel/iostream/close-1.html},
+\biptxtref{2}{close/2}{../bips/kernel/iostream/close-2.html}
 \begin{quote}
-\preddef{close(\pattern{Stream})}\indextt{close/1}
+\preddef{close(\pattern{Stream})}
+\preddef{close(\pattern{Stream},\pattern{Options})}
 \end{quote}
-is used to close an open stream.
+are used to explicitly close an open stream.
 If a stream has several alias names, closing any of them will close
 the actual stream. All the other aliases should be closed as well
 (or redirected to streams that are still open),
 because otherwise they will continue
-to refer to the number of the already closed stream.
+to refer to an identifier of the already closed stream.
 
 When an attempt is made to close a redirected system stream (e.g.,
 \notation{output}),
@@ -347,7 +385,8 @@ The redirection is terminated by calling
 close(output)
 \end{verbatim}
 \end{quote}
-which will reestablish the original meaning of the output stream.
+which will reestablish the original meaning of the output stream
+by resetting it to the user_output default stream.
 
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -357,8 +396,8 @@ The predicate
 \begin{quote}
 \preddef{current_stream(?\pattern{Stream})}\indextt{current_stream/1}
 \end{quote}
-can be used to backtrack over all the currently opened stream
-indentifiers (but not their aliases).
+can be used to backtrack over all the currently opened streams,
+and obtain handles for them (but not their aliases).
 
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -385,7 +424,7 @@ behaviour, the prompt etc.
 %----------------------------------------------------------------------
 \section{Communication via Streams}
 %----------------------------------------------------------------------
-The contents of a stream may be interpreted in one of the
+The contents of a stream may be interpreted in one of
 three basic ways.
 The first one is to
 consider it as a sequence of characters, so that the basic unit to
@@ -412,8 +451,9 @@ get(Char)
 takes the next character from
 the current input stream and matches it as a single character with Char.
 Note that a character in {\eclipse} is represented as an integer corresponding
-to the ASCII code of the character.
-If the end of file has been reached then an exception is raised.
+to the ISO-8859-1 (iso_latin_1) code of the character.
+If the end of file has been reached then an exception is raised and -1
+is returned.
 The call
 \begin{quote}
 \begin{verbatim}
@@ -964,6 +1004,27 @@ The following figure gives an overview.
                             & print newlines as line breaks even inside
                                                                        quotes \\
 \hline
+\notation{nl(false)}
+                        &   & do not add a newline \\
+\hline
+\notation{nl(true)}
+                        & \notation{L}
+                            & print a newline sequence (as with nl/1) after
+			      the term. If this is used together with the
+			      fullstop(true) option, this newline serves as
+			      the blank space after the fullstop \\
+\hline
+\notation{fullstop(false)}
+                        &   & do not add a fullstop \\
+\hline
+\notation{fullstop(true)}
+                        & \notation{F}
+			    & terminate the term with a fullstop, so
+			    it can be read back.  If necessary, an
+			    extra space will be inserted before the
+			    fullstop, in order to separate it from the
+			    end of the term \\
+\hline
 \notation{numbervars(false)}
                         &   & do not treat \predspec{'\$VAR'/1} terms
                                                                     specially \\
@@ -995,6 +1056,9 @@ The following figure gives an overview.
                         & \notation{P}
                             & call the user-defined predicate
                                           \predspec{portray/1,2} for printing \\
+\hline
+\notation{precedence(Prec)}
+                        &   & print assuming given context precedence \\
 \hline
 \notation{quoted(false)}
                         &   & do not print quotes around strings or atoms \\

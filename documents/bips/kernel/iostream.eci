@@ -655,14 +655,18 @@ Error:
    handles.  In particular, it is NOT necessary to take precautions for
    closing a stream in case of failure or abort across the stream opening.
 <P>
-   When an attempt is made to close one of the predefined system streams
-   (i.e. a stream that the aliases input, output, error, warning_output
-   or log_output refer to), event 196 is raised.  To avoid this, these
-   aliases should ideally first be redirected using set_stream/2.
-   However, the default handler for event 196 will automatically reset the
-   system streams to their defaults, and then close the stream normally.
-   Attempts to close the streams stdin, stdout, stderr and null will be
-   ignored.
+   The predefined stream aliases and the standard streams always remain
+   open.  Trying to close them has the following effect:
+   <DL><DT>
+   Current streams (input, output, warning_output, log_output, error):</DT><DD>
+       the stream is closed (unless it was directed to a standard stream),
+       and the alias is reset to the corresponding user_XXX alias</DD><DT>
+   Default streams (user_input, user_output, user_error):</DT><DD>
+       the stream is closed (unless it was directed to a standard stream),
+       and the alias is reset to the corresponding stdXXX alias</DD><DT>
+   Standard streams (stdin, stdout, stderr, null):</DT><DD>
+       no effect</DD>
+   </DL>
 <P>
 "),
         args:[ "Stream" : "Stream handle or alias (atom)"],
@@ -1146,9 +1150,12 @@ Notes:
 <P>
    If Alias is an already existing stream name (including one of the
    symbolic system stream names like input, output, error, warning_output,
-   log_output), then that stream is redirected to Stream. Any previously
-   existing association of the name Alias is forgotten. Note that other
-   alias names for the same physical stream are not affected by redirection.
+   log_output), then that stream is redirected to Stream.  Note that the
+   setting of the 'input' and 'output' aliases determines the streams used
+   by the I/O predicates that have no stream argument.
+<P>
+   Any previous association of the name Alias is forgotten.  Other alias
+   names for the same physical stream are not affected by redirection.
 <P>
    When a user-defined symbolic stream is closed, the associated physical
    stream is closed and the association forgotten.
@@ -1156,15 +1163,26 @@ Notes:
    the association of symbolic an physical stream remains (even though the
    physical stream is closed) until the stream alias is closed as well.
    A system-defined stream alias however will be automatically redirected
-   to its default when the associated physical stream is closed.
+   back to its default when the associated physical stream is closed.
 <P>
    An anonymous stream handle associated with a symbolic stream name can be
    obtained using get_stream/2 or get_stream_info/3.
 <P>
+   An alternative way of creating a stream alias is to specify it during
+   stream creation, i.e. as the Stream-argument to open/3, socket/3, etc.,
+   or by using an alias(Alias) option in open/4.
+<P>
+   The standard stream aliases stdin, stdout, stderr and null cannot be
+   redirected.
+<P>
 "),
         args:["Alias" : "Atom.",
             "Stream" : "Stream handle or alias (atom)"],
-        exceptions:[4 : "Either Alias or Stream is uninstantiated.", 5 : "Either Alias is not an atom or Stream is not a stream    number or symbolic stream name.", 193 : "Stream is an illegal stream specification."],
+        exceptions:[4 : "Either Alias or Stream is uninstantiated.",
+		5 : "Either Alias is not an atom or Stream is not a stream handle or symbolic stream name.",
+		193 : "Stream is an illegal stream specification.",
+		196 : "Stream is fixed system stream."
+		],
         eg:"
         % suppress standard output temporarily:
         ?- set_stream(output, null).
