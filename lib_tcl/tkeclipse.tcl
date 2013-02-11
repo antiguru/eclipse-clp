@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.13 2012/03/01 12:49:21 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.14 2013/02/11 21:02:45 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -1210,6 +1210,8 @@ foreach {key topic filename} $tkecl(helpfiles) {
 # use the more sophisticated version of ec_stream_to_window for more control
 ec_queue_create output r {tkecl:tkec_stream_to_window highlight .tkecl.pane.stdio.tout 1}
 ec_queue_create error r "tkecl:error_to_window .tkecl.pane.stdio.tout"
+ec_rpcq {set_stream user_output output} (()())
+ec_rpcq {set_stream user_error error} (()())
 
 # ensure_loaded rather than use_module: we don't want to import
 ec_rpcq {ensure_loaded {library toplevel}} ((()))
