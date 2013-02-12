@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.15 2013/02/04 14:52:11 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.16 2013/02/12 00:41:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -31,7 +31,7 @@
  */
 
 /*
- * IDENTIFICATION:	io.pl
+ * IDENTIFICATION:	io.pl, part of module(sepia_kernel)
  *
  * DESCRIPTION: 	
  *
@@ -43,8 +43,6 @@
 /*
  * GLOBAL DIRECTIVES
  */
-:- begin_module(sepia_kernel).
-:- pragma(system).		% compiler directive to add the SYSTEM flag
 :- pragma(nodebug).
 :- pragma(expand).
 :- pragma(skip).

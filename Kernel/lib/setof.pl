@@ -26,8 +26,8 @@
 % ----------------------------------------------------------------------
 %
 % System:		ECLiPSe Constraint Logic Programming System
-% Version:		$Id: setof.pl,v 1.4 2013/01/23 22:33:03 jschimpf Exp $
-% Identification:	setof.pl
+% Version:		$Id: setof.pl,v 1.5 2013/02/12 00:41:44 jschimpf Exp $
+% Identification:	setof.pl, part of module(sepia_kernel)
 % Description:		Implements the all-solution predicates.
 % 			This code was originally based on Richard O'Keefe's
 % 			1983 public domain implementation, but now retains

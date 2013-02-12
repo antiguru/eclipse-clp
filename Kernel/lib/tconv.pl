@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tconv.pl,v 1.2 2008/08/21 18:08:28 jschimpf Exp $
+% Version:	$Id: tconv.pl,v 1.3 2013/02/12 00:41:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
  * SEPIA PROLOG SOURCE MODULE
  *
- * IDENTIFICATION:	tconv.pl 
+ * IDENTIFICATION:	tconv.pl, part of module(sepia_kernel)
  *
  * DESCRIPTION: 	
  *

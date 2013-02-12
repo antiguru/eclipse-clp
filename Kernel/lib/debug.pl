@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: debug.pl,v 1.8 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: debug.pl,v 1.9 2013/02/12 00:41:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -31,7 +31,7 @@
  */
 
 /*
- * IDENTIFICATION:	debug.pl
+ * IDENTIFICATION:	debug.pl, part of module(sepia_kernel)
  *
  * DESCRIPTION: 	
  *
@@ -43,7 +43,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-:- begin_module(sepia_kernel).
 :- system.		% compiler directive to add the SYSTEM flag
 
 :- export

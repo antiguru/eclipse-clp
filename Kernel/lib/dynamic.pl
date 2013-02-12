@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dynamic.pl,v 1.7 2008/10/02 11:45:53 jschimpf Exp $
+% Version:	$Id: dynamic.pl,v 1.8 2013/02/12 00:41:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -31,7 +31,7 @@
  */
 
 /*
- * IDENTIFICATION:	dynamic.pl
+ * IDENTIFICATION:	dynamic.pl, part of module(sepia_kernel)
  *
  * DESCRIPTION: 	This file contains all the Prolog predicates
  *			that handle dynamic predicates.
@@ -46,8 +46,6 @@
  *				from db.pl into this file.
  * joachim		2007	Radically simplified record-based version
  */
-
-:- begin_module(sepia_kernel).
 
 :- system.		% compiler directive to add the SYSTEM flag
 

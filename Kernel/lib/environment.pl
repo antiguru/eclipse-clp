@@ -23,13 +23,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.15 2013/02/04 14:52:11 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.16 2013/02/12 00:41:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
  * SEPIA PROLOG SOURCE MODULE
  *
- * IDENTIFICATION:	environment.pl 
+ * IDENTIFICATION:	environment.pl, part of module(sepia_kernel)
  *
  * DESCRIPTION: 	
  *

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.26 2013/02/08 14:58:15 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.27 2013/02/12 00:41:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -31,7 +31,7 @@
  */
 
 /*
- * IDENTIFICATION:	events.pl
+ * IDENTIFICATION:	events.pl, part of module(sepia_kernel)
  *
  * DESCRIPTION: 	
  *

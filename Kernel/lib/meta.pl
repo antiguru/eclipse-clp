@@ -23,21 +23,19 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.5 2010/04/04 08:13:37 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.6 2013/02/12 00:41:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % SEPIA PROLOG KERNEL MODULE
 %
-% IDENTIFICATION:	meta.pl
+% IDENTIFICATION:	meta.pl, part of module(sepia_kernel)
 %
 % AUTHOR:		Micha Meier
 %
 % CONTENTS:		Basic metaterm handling
 %
 
-:- begin_module(sepia_kernel).
-:- pragma(system).
 :- pragma(nodebug).
 :- pragma(noskip).
 

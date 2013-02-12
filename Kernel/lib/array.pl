@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: array.pl,v 1.1 2008/06/30 17:43:42 jschimpf Exp $
+% Version:	$Id: array.pl,v 1.2 2013/02/12 00:41:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -31,7 +31,7 @@
  */
 
 /*
- * IDENTIFICATION:	array.pl
+ * IDENTIFICATION:	array.pl, part of module(sepia_kernel)
  *
  * DESCRIPTION: 	
  *
@@ -42,7 +42,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-:- begin_module(sepia_kernel).
 :- system.		% compiler directive to add the SYSTEM flag
 
 :- export

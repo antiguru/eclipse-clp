@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer.pl,v 1.2 2008/07/08 22:31:23 jschimpf Exp $
+% Version:	$Id: tracer.pl,v 1.3 2013/02/12 00:41:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
-% ECLiPSe II debugger -- Port generation
+% ECLiPSe II debugger -- Port generation, part of module(sepia_kernel)
 %
-% $Id: tracer.pl,v 1.2 2008/07/08 22:31:23 jschimpf Exp $
+% $Id: tracer.pl,v 1.3 2013/02/12 00:41:44 jschimpf Exp $
 %
 % Author:	Joachim Schimpf, IC-Parc
 %
@@ -62,9 +62,7 @@ trace_mode/2.
 
 */
 
-:- begin_module(sepia_kernel).
 :- pragma(nodebug).
-:- pragma(system).
 :- pragma(noskip).
 
 :- export
