@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.6 2013/02/12 00:41:44 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.7 2013/02/12 17:53:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -90,6 +90,7 @@
 :- local_record(suspensions).
 :- local_record(delayed_goals).
 :- local_record(delayed_goals_number).
+:- local_record(suspension_lists).
 
 meta_attributes(Atts) :-
 	recorded_list(meta_attribute, Atts).
@@ -101,11 +102,11 @@ meta_attribute_body(Name, List, Module) :-
     ( Name == suspend, Index == 1 ->
 	% The suspend handlers are handcoded below to avoid use of the
 	% compiler during initial booting
-	check_handlers(List, Module),
-	record_handlers(Index, Name, List, Module)
+	check_handlers(List, List1, Name, Module),
+	record_handlers(Index, Name, List1, Module)
     ;
-	check_handlers(List, Module),
-	record_handlers(Index, Name, List, Module),
+	check_handlers(List, List1, Name, Module),
+	record_handlers(Index, Name, List1, Module),
 	recompile_system_handlers
     ),
     !.
@@ -127,35 +128,51 @@ meta_name_index(Name, Index) :-
     ),
     recorda(meta_attribute, [Name|Index]).
 
-
-check_handlers(L, _) :- var(L), !,
+% can fail with bip_error
+:- mode check_handlers(?,-,+,+).
+check_handlers(L, _, _, _) :- var(L), !,
     set_bip_error(4).
-check_handlers([], _) :- !.
-check_handlers([H:P|List], Module) :- !,
-    check_predspec(P),
-    ( P = _/Arity, is_meta_event(H, Arity) ->
-	( get_flag(P, defined, on)@Module ->
-	    get_flag(P, visibility, Vis)@Module,
-	    ( Vis == local ->
-		(export P)@Module
-	    ; Vis == imported ->
-		get_flag(P, definition_module, DM)@Module,
-		(reexport P from DM)@Module
-	    ;
-		true
-	    )
+check_handlers([], [], _, _) :- !.
+check_handlers([Decl|List], Decls, AttrName, Module) :- !,
+    check_functor(Decl, (:), 2),
+    Decl = H:P,
+    ( is_meta_event(H, _) ->
+	check_predspec(P),
+	( P == true/0 ->
+	    true
 	;
-	    % require handler to be defined already
-	    set_bip_error(60)
-	)
-    ; P == true/0, is_meta_event(H,_) ->
-    	true
+	    P = _/Arity,
+	    once is_meta_event(H, Arity),
+	    ( get_flag(P, defined, on)@Module ->
+		get_flag(P, visibility, Vis)@Module,
+		( Vis == local ->
+		    (export P)@Module
+		; Vis == imported ->
+		    get_flag(P, definition_module, DM)@Module,
+		    (reexport P from DM)@Module
+		;
+		    true
+		)
+	    ;
+		% require handler to be defined already
+		set_bip_error(60)
+	    )
+	),
+	Decls = [Decl|Decls1],
+	check_handlers(List, Decls1, AttrName, Module)
+
+    ; H == suspension_lists ->
+	check_proper_list(P),
+	( foreach(Spec,P), foreach(OutSpec,OutDecl), param(AttrName,Module) do
+	    normalise_susp_list_spec(Spec, OutSpec, AttrName, Module)
+	),
+	Decls = [H:OutDecl|Decls1],
+	check_handlers(List, Decls1, AttrName, Module)
     ;
-	fail	% with bip_error set from is_meta_event/2
-    ),
-    check_handlers(List, Module).
-check_handlers(_, _) :-
-   set_bip_error(5).
+	set_bip_error(6)
+    ).
+check_handlers(_, _, _, _) :-
+    set_bip_error(5).
 
 
 record_handlers(_, _, [], _).
@@ -173,6 +190,44 @@ record_handlers(Index, Name, [H:P|List], Module) :-
     record_handlers(Index, Name, List, Module).
 
 
+% Check and normalise a single suspension_lists declaration:
+% ( atom | atom:(atom|posint|list(atom|posint)) )  ==>  atom:list(posint)
+% can fail with bip_error
+:- mode normalise_susp_list_spec(?,-,+,+).
+normalise_susp_list_spec(Spec, _, _, _) :- var(Spec), !,
+	set_bip_error(4).
+normalise_susp_list_spec(Name, Name:[Slot], AttrName, Module) :- atom(Name), !,
+	lookup_slot_number(Name, Slot, AttrName, Module).
+normalise_susp_list_spec(Name:SlotSpecs, NameSlots, AttrName, Module) ?- !,
+	check_atom(Name),
+	NameSlots = Name:Slots,
+	( atom(SlotSpecs) ->
+	    Slots = [Slot], lookup_slot_number(SlotSpecs, Slot, AttrName, Module)
+	; integer(SlotSpecs) ->
+	    check_integer_ge(SlotSpecs, 1),
+	    Slots = [SlotSpecs]
+	;
+	    check_proper_list(SlotSpecs),
+	    ( foreach(SlotSpec,SlotSpecs), foreach(Slot1,Slots), param(AttrName,Module) do
+		( atom(SlotSpec) ->
+		    lookup_slot_number(SlotSpec, Slot1, AttrName, Module)
+		;
+		    check_integer_ge(SlotSpec, 1), Slot1=SlotSpec
+		)
+	    )
+	).
+normalise_susp_list_spec(_, _, _, _) :-
+	set_bip_error(5).
+
+    % can fail with bip_error
+    lookup_slot_number(Name, Slot, AttrName, Module) :-
+	( tr_of(no_macro_expansion(Name of AttrName), Slot, Module), integer(Slot) ->
+	    true
+	;
+	    set_bip_error(6)
+	).
+
+
 % remove all calls to handlers in the erased module
 erase_module_attribute_handlers(suspend) :- !.
 erase_module_attribute_handlers(Module) :-
@@ -186,6 +241,100 @@ erase_module_attribute_handlers(Module) :-
     ;
 	true
     ).
+
+
+is_meta_event(Var, _) :-
+    var(Var),
+    !,
+    set_bip_error(4).
+is_meta_event(Var, _) :-
+    not atom(Var),
+    !,
+    set_bip_error(5).
+is_meta_event(H, A) :-
+    meta_event(H, A), !.
+is_meta_event(_, _) :-
+    set_bip_error(6).
+
+meta_event(pre_unify, 2).
+meta_event(unify, 2).
+meta_event(unify, 3).
+meta_event(test_unify, 2).
+meta_event(compare_instances, 3).
+meta_event(copy_term, 2).
+meta_event(delayed_goals, 3).
+meta_event(suspensions, 3).
+meta_event(delayed_goals_number, 2).
+meta_event(get_bounds, 3).
+meta_event(set_bounds, 3).
+meta_event(print, 2).
+
+
+% lookup_suspension_list(?AttrName, +SuspName, -Slots, +Module) is semidet
+lookup_suspension_list(AttrName, SuspName, Slots, Module) :-
+	atom(AttrName),
+	% We know the attribute name. If there was a declaration, use it.
+	( recordedchk(suspension_lists, t(_, AttrName, _, Specs, _)) ->
+	    memberchk(SuspName:Slots, Specs)
+	;
+	    % No declaration: For backward compatibility, if a like-named
+	    % structure is visible, allow any of its field names.
+	    visible_struct(AttrName, ProtoStruct, Module, _Scope), % semidet
+	    struct_lookup_index(ProtoStruct, SuspName, Slot, Module),
+	    integer(Slot), Slots = [Slot]
+	).
+lookup_suspension_list(AttrNameFound, SuspName, Slots, Module) :-
+	var(AttrNameFound),
+	% No attribute name given.
+	% Search those attributes for which a like-named structure is visible.
+	recorded_list(suspension_lists, AttrSusps),
+	(
+	    foreach(t(_,AttrName,_,Specs,_),AttrSusps),
+	    param(SuspName,Module,AttrNameFound,Slots)
+	do
+	    (
+		visible_struct(AttrName, _ProtoStruct, Module, _Scope),
+		memberchk(SuspName:Slots0, Specs)
+	    ->
+		( AttrNameFound = AttrName -> Slots = Slots0 ;
+		    printf(warning_output,
+			"WARNING: Ignoring ambiguous suspension list name '%w'%n"
+			"WARNING:    defined in attributes %w and %w.%n",
+			[SuspName,AttrNameFound,AttrName]),
+		    fail
+		)
+	    ;
+		true
+	    )
+	),
+	( nonvar(Slots) ->
+	    true
+	;
+	    % No matching declaration.  For backward compatibility,
+	    % try any field of structures that are named like attributes.
+	    meta_attributes(Metas),
+	    (
+		foreach([AttrName|_],Metas),
+		param(SuspName,Module,AttrNameFound,Slots)
+	    do
+		(
+		    visible_struct(AttrName, ProtoStruct, Module, _Scope),
+		    struct_lookup_index(ProtoStruct, SuspName, Slot, Module),
+		    integer(Slot)
+		->
+		    ( AttrNameFound = AttrName -> Slots = [Slot] ;
+			printf(warning_output,
+			    "WARNING: Ignoring ambiguous suspension list name '%w'%n"
+			    "WARNING:    defined in attributes %w and %w.%n",
+			    [SuspName,AttrNameFound,AttrName]),
+			fail
+		    )
+		;
+		    true
+		)
+	    ),
+	    nonvar(Slots)
+	).
 
 
 recompile_system_handlers :-
@@ -527,33 +676,6 @@ collect_local_handlers(I, Key, List) :-
 	collect_local_handlers(I1, Key, List)
     ).
 collect_local_handlers(_, _, []).
-
-
-is_meta_event(Var, _) :-
-    var(Var),
-    !,
-    set_bip_error(4).
-is_meta_event(Var, _) :-
-    not atom(Var),
-    !,
-    set_bip_error(5).
-is_meta_event(H, A) :-
-    meta_event(H, A), !.
-is_meta_event(_, _) :-
-    set_bip_error(6).
-
-meta_event(pre_unify, 2).
-meta_event(unify, 2).
-meta_event(unify, 3).
-meta_event(test_unify, 2).
-meta_event(compare_instances, 3).
-meta_event(copy_term, 2).
-meta_event(delayed_goals, 3).
-meta_event(suspensions, 3).
-meta_event(delayed_goals_number, 2).
-meta_event(get_bounds, 3).
-meta_event(set_bounds, 3).
-meta_event(print, 2).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

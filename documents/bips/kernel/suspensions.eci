@@ -279,7 +279,7 @@ trigger Trigger.
 
 
 ",
-	see_also:[get_priority / 1, make_suspension / 3, make_suspension / 4, suspend / 3, suspend / 4, set_suspension_data / 3]]).
+	see_also:[get_priority / 1, make_suspension / 3, suspend / 3, suspend / 4, set_suspension_data / 3]]).
 
 :- comment(current_suspension / 1, [
 	summary:"Susp is a live (sleeping or scheduled) suspension.
@@ -379,7 +379,7 @@ No (0.01s cpu)
 
 
 ",
-	see_also:[call_priority / 2, make_suspension / 3, make_suspension / 4, suspend / 3, suspend / 4, set_suspension_data / 3]]).
+	see_also:[call_priority / 2, make_suspension / 3, suspend / 3, suspend / 4, set_suspension_data / 3]]).
 
 :- comment(init_suspension_list / 2, [
 	summary:"Initialise the argument position Position within the structure
@@ -447,10 +447,7 @@ Yes (0.00s cpu)
 	see_also:[(demon) / 1, make_suspension / 3, get_suspension_data / 3, attach_suspensions / 2, insert_suspension / 3, insert_suspension / 4]]).
 
 :- comment(make_suspension / 3, [
-	summary:"Make Goal a suspended goal with waking priority Prio and return the
-corresponding suspension object in Susp.
-
-",
+	summary:"Make Goal a suspended goal",
 	amode:(make_suspension(+,+,-) is det),
 	desc:html("\
    The goal Goal is made a suspended goal, i.e. it enters the suspended
@@ -512,36 +509,15 @@ Yes (0.00s cpu)
 	see_also:[suspend/3, delayed_goals / 1, insert_suspension / 4, is_suspension / 1, kill_suspension / 1, schedule_suspensions / 1, schedule_suspensions / 2, get_suspension_data / 3, set_flag/3, wake / 0]]).
 
 :- comment(make_suspension / 4, [
-	summary:"Make Goal from module Module a suspended goal with waking priority Prio and
-return the corresponding suspension object in Susp.
-
-",
+	summary:"Make Goal a suspended goal",
 	amode:(make_suspension(+,+,-,+) is det),
-	desc:html("   The goal Goal from module Module is made a suspended goal, i.e. it
-   enters the suspended part of the resolvent and shows up as a delayed
-   goal.  When the debugger is on, a DELAY port is generated.
-<P>
-   A suspension can be in three states:
+	desc:html("<P>
+    This is equivalent to
 <PRE>
-	State		Printed as
-	---------------------------------
-	sleeping	'SUSP-_123-susp'
-	scheduled	'SUSP-_123-sched'
-	dead		'SUSP-_123-dead'
+	make_suspension(Goal, Prio, Susp)@Module
 </PRE>
-<P>
-   The Prio argument determines the priority with which the Goal will be
-   scheduled when woken. It can be a positive number between 1 and 12,
-   or zero, in which case the priority defaults to the priority setting
-   of the predicate which is called in Goal.
-<P>
-   Note that a suspension is not a standard Prolog data structure and can
-   only be manipulated in a restricted way.  In particular, a suspension is
-   not an atom although it gets printed by default in the form
-   'SUSP-_123-susp'.   The only way to create a suspension is with
-   make_suspension/3,4, suspend/3,4 or by copying an existing suspension.
-   The contents of a suspension can only be retrieved using get_suspension_data/3.
-<P>
+    which should be preferred.
+</P>
 "),
 	args:["Goal" : "A Prolog Goal.", "Prio" : "A small integer.", "Susp" : "A variable.", "Module" : "An atom."],
 	exceptions:[
@@ -554,7 +530,7 @@ return the corresponding suspension object in Susp.
 	  6 : "Prio is not a valid priority.", 
 	  60 : "Goal refers to an undefined precedure."
         ],
-	see_also:[suspend/3, insert_suspension / 4, is_suspension / 1, make_suspension / 3, schedule_suspensions / 1, schedule_suspensions / 2, get_suspension_data / 3, wake / 0]]).
+	see_also:[make_suspension/3]]).
 
 :- comment(enter_suspension_list / 3, [
         summary:"Enter the suspension Susp into the suspension list at position Positiion within the structure Attribute.",
@@ -921,32 +897,30 @@ conditions in CondList occurs.",
 <P>
    Vars-&gt;Cond is used to specify trigger conditions on variables.
    Vars is an arbitrary term, and the suspension will be attached to all
-   the variables that occur in Vars. 
+   the variables that occur in Vars.  These trigger conditions correspond
+   to suspension lists inside of variables's attributes, and can be
+   written in a variety of forms:
+<PRE>
+        Vars-&gt;SUSPLISTNAME                e.g. X->inst
+        Vars-&gt;ATTRNAME:SUSPLISTNAME       e.g. X->fd:min
+        Vars-&gt;ATTRNAME:ARGINDEX           e.g. X->fd:(min of fd)
+        Vars-&gt;ATTRNAME:ARGLIST            e.g. X->fd:[min,max]
+        Vars-&gt;LISTOFCONDS                 e.g. X->[fd:min,inst]
+</PRE>
 <P>
-   The condition Cond is either the name of a predefined suspension
-   list or the specification of a suspension list in one of the
-   variable's attributes.  The predefined suspension lists are: 'inst'
-   (for instantiation), 'bound' (instantiation, including aliasing to another
-   variable) and 'constrained' (any constraining attribute modification).
-   The general specification has the form
-<PRE>
-	Vars-&gt;moduleName:(suspListName of attrStruct)
-</PRE>
-    which can be abbreviated (if moduleName and attrStruct are identical) to
-<PRE>
-	Vars-&gt;moduleName:suspListName
-</PRE>
-    The following are examples for valid conditions:
-<PRE>
-	Vars-&gt;inst
-	Vars-&gt;constrained
-	Vars-&gt;fd:min
-	Vars-&gt;fd:(min of fd)
-</PRE>
+   There are 3 predefined suspension list names: 'inst' (for instantiation),
+   'bound' (instantiation, including aliasing to another variable) and
+   'constrained' (any constraining attribute modification).  These all
+   belong to an attribute called 'suspend'.  Others are defined by libaries,
+   and usually the attribute name is identical to the library name (e.g. fd).
+<P>
    A specification of the form trigger(Atom) states that the goal should
    be woken by a symbolic trigger, ie.  by a matching invocation of the
    built-in schedule_suspensions/1.  The name of the trigger can be an
    arbitrary atom.
+<P>
+   A variant suspend/4 of this predicate is available.  It returns a handle
+   for the created suspension, which is useful for suspending demons.
 <P>
    NOTE: it is possible to create a suspension that can never be woken,
    e.g. by specifying a Vars-term without variables.
@@ -983,64 +957,22 @@ world
 
 yes.
 ",
-	see_also:[make_suspension / 3, insert_suspension / 3, suspend / 4, attach_suspensions / 2, schedule_suspensions / 1]]).
+	see_also:[suspend / 4, make_suspension / 3, insert_suspension / 3,
+		attach_suspensions / 2, schedule_suspensions / 1, meta_attribute/2]]).
 
 :- comment(suspend / 4, [
 	summary:"Suspend the Goal and wake it with priority Prio as soon as one of the
 conditions in CondList occurs.",
 	amode:(suspend(+,+,+,-) is det),
 	desc:html("\
-   The specified goal Goal is suspended (a suspension is created as with
-   make_suspension/3) and attached to the trigger conditions given in CondList.
-   When any of the trigger conditions arise in the future, the goal is
-   going to be woken up.
+   The specified goal Goal is suspended, subject to the given trigger
+   conditions and priority, as with suspend/3.  The only difference to
+   suspend/3 is that the Susp argument returns a handle for the created
+   suspension. This handle can, for example, be passed as an argument to
+   the suspended goal itself, which is useful for demon goals which need
+   to kill their own suspension under certain circumstances.
 <P>
-   The Prio argument determines the priority with which the Goal will be
-   scheduled when woken. It can be a positive number between 1 and 12,
-   or zero, in which case the priority defaults to the priority setting
-   of the predicate which is called in Goal.
-<P>
-   CondList is a list of terms (or a single term) of the form Vars-&gt;Cond
-   or trigger(Atom).  It specifies the conditions that will lead to the goal
-   being woken up. It is enough for one of the specified conditions to arise
-   in order for the goal to be woken.
-<P>
-   Vars-&gt;Cond is used to specify trigger conditions on variables.
-   Vars is an arbitrary term, and the suspension will be attached to all
-   the variables that occur in Vars. 
-<P>
-   The condition Cond is either the name of a predefined suspension
-   list or the specification of a suspension list in one of the
-   variable's attributes.  The predefined suspension lists are: 'inst'
-   (for instantiation), 'bound' (instantiation, including aliasing to another
-   variable) and 'constrained' (any constraining attribute modification).
-   The general specification has the form
-<PRE>
-	Vars-&gt;moduleName:(suspListName of attrStruct)
-</PRE>
-    which can be abbreviated (if moduleName and attrStruct are identical) to
-<PRE>
-	Vars-&gt;moduleName:suspListName
-</PRE>
-    The following are examples for valid conditions:
-<PRE>
-	Vars-&gt;inst
-	Vars-&gt;constrained
-	Vars-&gt;fd:min
-	Vars-&gt;fd:(min of fd)
-</PRE>
-   A specification of the form trigger(Atom) states that the goal should
-   be woken by a symbolic trigger, ie.  by a matching invocation of the
-   built-in schedule_suspensions/1.  The name of the trigger can be an
-   arbitrary atom.
-<P>
-   The Susp argument returns a handle for the created suspension. This
-   handle can, for example, be passed as an argument to the suspended goal
-   itself, which is useful for demon goals which need to kill their own
-   suspension under certain circumstances.
-<P>
-   NOTE: it is possible to create a suspension that can never be woken,
-   e.g. by specifying a Vars-term without variables.
+   See suspend/3 for details of arguments and operation.
 <P>
 "),
 	args:["Goal" : "A callable term.", "Prio" : "An integer.",

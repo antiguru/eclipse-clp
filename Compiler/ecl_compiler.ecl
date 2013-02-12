@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.21 2013/02/10 17:58:57 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.22 2013/02/12 17:55:03 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2013/02/10 17:58:57 $").
+:- comment(date,	"$Date: 2013/02/12 17:55:03 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -822,11 +822,14 @@ handle_nonclause(Class, Term, Ann, SourcePos1, Size0, Size, Options, PosModule, 
 		emit_directive_or_query(Term, Options, PosModule)
 	    ; handle_module_boundary(Term, Options, PosModule, SourcePos1, Module, Size0, Size) ->
 		emit_directive_or_query(Term, Options, PosModule)
-	    ; Term = (:-meta_attribute(Name,Handlers)) ->
-		% already partially handled in source_processor
+	    ; Term = (:-meta_attribute(Name,Decls)) ->
+		% This is tricky and needs to be split in two:
+		% - syntax-relevant part: handled in source_processor, and also emitted as directive
+		% - handler part: turned into initialization directive to be executed after loading
 		Size = Size0,
-		emit_directive_or_query((:-meta_attribute(Name,[])), Options, PosModule),
-		process_directive(SourcePos1, (:-local initialization(meta_attribute(Name,Handlers))), Options, PosModule)
+		meta_attribute_now_later(Decls, UrgentDecls, HandlerDecls),
+		emit_directive_or_query((:-meta_attribute(Name,UrgentDecls)), Options, PosModule),
+		process_directive(SourcePos1, (:-local initialization(meta_attribute(Name,HandlerDecls))), Options, PosModule)
 	    ;
 		Size = Size0,
 		emit_directive_or_query(Term, Options, PosModule)

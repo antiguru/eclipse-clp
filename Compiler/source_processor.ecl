@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.13 2013/02/10 18:00:23 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.14 2013/02/12 17:55:03 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2013/02/10 18:00:23 $").
+:- comment(date, "$Date: 2013/02/12 17:55:03 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -749,10 +749,11 @@ handle_directives(pragma(Pragma), NextPos, NextPos, handled_directive) :- !,
     % re-call with handler list after module is loaded and the handlers
     % are actually available to be called.
 handle_directives(Directive, NextPos, NextPos, handled_directive) :-
-	Directive = meta_attribute(Name, _Handlers),
+	Directive = meta_attribute(Name, Decls),
 	!,
 	NextPos = source_position{module:Module},
-	( block(meta_attribute(Name, [])@Module, _, fail) ->
+	meta_attribute_now_later(Decls, UrgentDecls, _Others),
+	( block(meta_attribute(Name, UrgentDecls)@Module, _, fail) ->
 	    true
 	;
 	    directive_warning("Directive failed or aborted", Directive, NextPos)
@@ -839,6 +840,19 @@ obsolete_directive(make_local_array(_)).
 obsolete_directive(make_local_array(_,_)).
 obsolete_directive(tool(_)).
 
+% Filter out the part of the meta_attribute declaration that must be
+% considered immediately. All others are delayed until initialization.
+:- export meta_attribute_now_later/3.
+:- mode meta_attribute_now_later(?,-,-).
+meta_attribute_now_later([Decl|Ds], Ns, Ls) ?- !,
+	( nonvar(Decl), Decl=Name:_, Name == suspension_lists ->
+	    Ns = [Decl|Ns1], Ls = Ls1
+	;
+	    Ns = Ns1, Ls = [Decl|Ls1]
+	),
+	meta_attribute_now_later(Ds, Ns1, Ls1).
+meta_attribute_now_later(Ds, Ds, []).
+	
 
 %----------------------------------------------------------------------
 % Auxiliary read predicates

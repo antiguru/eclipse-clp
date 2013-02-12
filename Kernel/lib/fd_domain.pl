@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_domain.pl,v 1.3 2010/04/04 08:13:37 jschimpf Exp $
+% Version:	$Id: fd_domain.pl,v 1.4 2013/02/12 17:53:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -110,7 +110,12 @@
 	delayed_goals_number:	delayed_goals_number_domain/2,
 	get_bounds:		get_fd_bounds/3,
 	set_bounds:		set_fd_bounds/3,
-	print:			tr_fd_domain_out/2
+	print:			tr_fd_domain_out/2,
+	suspension_lists:	[min:(min of fd),
+				 max:(max of fd),
+				 any:(any of fd),
+				 domain:(any of fd),
+				 bounds:[min of fd,max of fd] ]
 	]).
 
 % Export transformation routines.

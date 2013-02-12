@@ -87,39 +87,28 @@ yes.
 	see_also:[phrase / 3]]).
 
 :- comment(add_attribute / 2, [
-	summary:"Add dynamically an attribute to a variable.
-
-",
+	summary:"Add dynamically an attribute to a variable",
 	amode:(add_attribute(?,?) is semidet),
-	desc:html("\
-   The main use of this predicate is for dynamic attributed variables
-   creation.  Since the number of declared extensions can vary with time,
-   attributes explicitly occurring in the source of extensions might be
-   created with less slots than currently necessary.  To make sure that a
-   newly created attributed variable will have as many slots as necessary,
-   this predicate should be preferred to the equivalent
-
+	desc:html("<P>\
+   Adds an attribute to a variable.  The attribute name is taken as the name
+   of the context module.  There must have been an attribute declaration
+   (meta_attribute/2) with the same name as the context module.
 <P>
-<PRE>
-    Var = _{Attribute}
-</PRE>
-   If Var is a free variable, it will be bound to a new attributed variable
-   whose attribute corresponding to the caller module name will be
-   Attribute.  If Var is already an attributed variable and the
-   corresponding attribute is a free variable, it will be bound to
-   Attribute.  Otherwise, if the attribute is not a free variable or if Var
-   is instantiated, it will be unified with a new attributed variable whose
-   corresponding attribute is Attribute and all other attributes are free
-   variables.
-
+   If Var is a free variable, it will be turned into an attributed variable
+   with a single attribute Attribute whose name is the name of the context
+   module.  If Var is already an attributed variable with other attributes,
+   then the new attribute will be added to it.
+<P>
+   Otherwise, if the attribute slot is already occupied, or Var is already
+   instantiated, then a new attributed variable with the single attribute
+   Attribute is created, and subsequently unified with Var.
 <P>
    Use add_attribute/3 to add an explicitly named attribute.
-
 <P>
 "),
 	args:["Var" : "Any term.", "Attribute" : "Any term."],
 	fail_if:"Fails if Var is not a free variable and its unification with the new attributed variable fails",
-	exceptions:[270 : "There is no attribute declared in the caller module."],
+	exceptions:[270 : "There is no attribute declared in the context module."],
 	eg:"
 [eclipse 6]: meta_attribute(eclipse, []).
 
@@ -128,10 +117,6 @@ yes.
 X{suspend : _g270 , a}
 X = X
 yes
-
-
-
-
 ",
 	see_also:[meta_attribute / 2, add_attribute / 3]]).
 
@@ -141,36 +126,29 @@ yes
 ",
 	amode:(add_attribute(?,?,+) is semidet),
 	desc:html("\
-   The main use of this predicate is for dynamic attributed variables
-   creation.  Since the number of declared extensions can vary with time,
-   attributes explicitly occurring in the source of extensions might be
-   created with less slots than currently necessary.  To make sure that a
-   newly created attributed variable will have as many slots as necessary,
-   this predicate should be preferred to the equivalent
-
+   Adds an attribute with name AttrName and value Attribute to a variable.
+   There must have been a preceding attribute declaration (meta_attribute/2)
+   for AttrName.
 <P>
-<PRE>
-    Var = _{Attribute}
-</PRE>
-   If Var is a free variable, it will be bound to a new attributed variable
-   whose attribute corresponding to Module will be Attribute.  If Var is
-   already an attributed variable and the corresponding attribute is a free
-   variable, it will be bound to Attribute.  Otherwise, if the attribute is
-   not a free variable or if Var is instantiated, it will be unified with a
-   new attributed variable whose corresponding attribute is Attribute and
-   all other attributes are free variables.
-
+   If Var is a free variable, it will be turned into an attributed variable
+   with a single attribute Attribute whose name is AttrName.
+   If Var is already an attributed variable with other attributes,
+   then the new attribute will be added to it.
 <P>
-   If Module is an atom, the attribute corresponding to a previous
-   meta_attribute declaration will be used.  If Module is an integer, it is
-   directly used as the index slot (this is mainly used by the compiler to
+   Otherwise, if the attribute slot for AttrName is already occupied, or
+   Var is already instantiated, then a new attributed variable with the
+   single attribute Attribute is created, and subsequently unified with Var.
+<P>
+   If AttrName is an atom, the attribute corresponds to a previous
+   meta_attribute declaration.  If AttrName is an integer, it is directly
+   used as an attribute index slot (this is mainly used by the compiler to
    resolve attribute references at compile time).
-
 <P>
 "),
-	args:["Var" : "Any term.", "Attribute" : "Any term.", "Module" : "Integer or atom."],
+	args:["Var" : "Any term.", "Attribute" : "Any term.", "AttrName" : "Integer or atom."],
 	fail_if:"Fails if Var is not a free variable and its unification with the new attributed variable fails",
-	exceptions:[270 : "There is no attribute declared in Module."],
+	exceptions:[270 : "There is no attribute declared as AttrName.",
+		6:"AttrName is an integer, but not a valid attribute index"],
 	eg:"
 [eclipse 6]: meta_attribute(extra, []).
 
@@ -537,7 +515,8 @@ L = []([](a,b), [](c), d, [](e))
 	    "copy_term handler",
 	    "suspension handler",
 	    "print handler",
-	    "delayed_goals_number handler"
+	    "delayed_goals_number handler",
+	    "suspension_lists declaration"
 	    ],
 	summary:"Declares the variable attribute Name with the corresponding handlers",
 	amode:(meta_attribute(+,++) is det),
@@ -572,6 +551,7 @@ L = []([](a,b), [](c), d, [](e))
    slower), if it is off, it will be the opposite.  All specified handlers
    will be exported from their definition module.
 <P>
+<H3>Handler Declarations</H3>
    The predefined operations and the corresponding handler arguments are
    the following:
 <DL>
@@ -771,20 +751,62 @@ but their use is not recommended:
 	changes inside this handler may have unexpected effects.
 <P>
 </DL>
-
+<P>
+<H3>Suspension List Declaration</H3>
+The following entry is used to declare the valid suspension lists that
+the attribute defines:
+<DL>
+<DT>suspension_lists</DT><DD>
+<P>
+    Operation : declare suspension list names
+<P>
+    Handler :   list of name:indexlist
+<P>
+    Description :   This specifies which attribute slots (arguments in the
+        attribute structure) are suspension lists, and how they are called.
+	It is possible to declare aliases, i.e. several names for the same
+	suspension list, or a common name for more than one suspension list.
+	Note that in addition to this declaration, there must be an exported
+	struct-declaration with the same name as the attribute.  Using this,
+	the suspension_lists declarations can then be written as
+	susp_list_name:[(fieldname of attrname)]
+<P>
+</DD>
+</DL>
 "),
 	args:["Name" : "Atom", "Handlers" : "List or nil."],
 	exceptions:[4 : "The arguments are not ground.", 5 : "The first argument is not an atom or the second one is not a    list in the required format.", 6 : "The specified operation is not implemented or the handler    arity is wrong."],
 	eg:"
-[eclipse 5]: write(X{a}).
-undefined metaterm attribute in trans_meta_in(X, _g370, eclipse)
+% Sample source directives
+
+:- meta_attribute(myattr, []).
+
+:- meta_attribute(thing, [unify:unify_things/3, print_things/2]).
+
+:- export struct(dom(values,min,max)).
+:- meta_attribute(dom, [
+	unify:unify_doms/3,
+	print_doms/2,
+	suspension_lists:[
+		min:[(min of dom)],
+		max:[(max of dom)],
+		both:[(min of dom),(max of dom)]
+	    ]
+    ]).
+
+
+% Example session
+
+?- writeq(X{a}).
+undefined variable attribute in add_attribute(X, a, eclipse)
 syntax error : in source transformation
 | write(X{a}).
 |             ^ here
-[eclipse 6]: meta_attribute(eclipse, []).
 
+?- meta_attribute(eclipse, []).
 yes.
-[eclipse 7]: printf(\"%QPMw\", X{a}).
+
+?- writeq(X{a}).
 X{suspend : _g386 , a}
 X = X
 yes.
@@ -793,6 +815,7 @@ yes.
 	copy_term/2, delayed_goals_number/2, delayed_goals/2,
 	set_var_bounds/3, get_var_bounds/3, printf/2, printf/3, suspensions/2,
 	add_attribute / 2]]).
+
 
 :- comment(meta_bind / 2, [
 	summary:"The attributed variable Meta is bound to the term Term without triggering the

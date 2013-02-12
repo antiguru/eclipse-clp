@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.44 2013/02/09 20:27:57 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.45 2013/02/12 17:53:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -3030,6 +3030,10 @@ check_atom(X) :- var(X), !, set_bip_error(4).
 check_atom(X) :- atom(X), !.
 check_atom(_) :- set_bip_error(5).
 
+check_functor(X,_,_) :- var(X), !, set_bip_error(4).
+check_functor(X,N,A) :- functor(X,N,A), !.
+check_functor(_,_,_) :- set_bip_error(5).
+
 check_fieldspecs(X) :- var(X), !, set_bip_error(4).
 check_fieldspecs(N:_) :- atom(N), !.
 check_fieldspecs([N:_|More]) :- -?-> atom(N), !, check_fieldspecs(More).
@@ -3042,10 +3046,11 @@ check_nonvar(_).
 check_var(X) :- var(X), !.
 check_var(_) :- set_bip_error(5).
 
-check_arity(A) :- var(A), !, set_bip_error(4).
-check_arity(A) :- integer(A), A >= 0, !.
-check_arity(A) :- integer(A), A < 0, !, set_bip_error(6).
-check_arity(_) :- set_bip_error(5).
+check_arity(A) :- check_integer_ge(A, 0).
+
+check_integer_ge(A, _) :- var(A), !, set_bip_error(4).
+check_integer_ge(A, Min) :- integer(A), !, ( A>=Min -> true ; set_bip_error(6) ).
+check_integer_ge(_, _) :- set_bip_error(5).
 
 check_string(X) :- var(X), !, set_bip_error(4).
 check_string(X) :- string(X), !.
@@ -5741,55 +5746,74 @@ tr_suspend(no_macro_expansion(suspend(Goal, Prio, List, Susp)), Goals, Module) :
     Goals = (make_suspension(Goal, Prio, Susp, Module), G1),
     tr_suspend1(Susp, List, Module, G1).
 
-tr_suspend1(Susp, [Spec|Specs], Module, Goals) :- !,
-    (Specs = [] ->
-	tr_suspend2(Susp, Spec, Module, Goals)
-    ;
-	Goals = (Goal, Goals1),
-	tr_suspend2(Susp, Spec, Module, Goal),
-	tr_suspend1(Susp, Specs, Module, Goals1)
-    ).
+tr_suspend1(_Susp, [], _Module, Goals) ?- !,
+	Goals = true.
+tr_suspend1(Susp, [Spec|Specs], Module, Goals) ?- !,
+    tr_suspend2(Susp, Spec, Module, Goals, Goals1),
+    tr_suspend1(Susp, Specs, Module, Goals1).
 tr_suspend1(Susp, Spec, Module, Goals) :-
-    tr_suspend2(Susp, Spec, Module, Goals).
+    tr_suspend2(Susp, Spec, Module, Goals, true).
 
-tr_suspend2(_Susp, What, _Module, _Goal) :-
-    var(What), !, fail.
-tr_suspend2(Susp, Vars->Select, Module, Goal) :-
-    find_susp_list(Select, Index, M, Module),
-    Goal = insert_suspension(Vars, Susp, Index, M).
-tr_suspend2(Susp, trigger(Event), _Module, Goal) :-
-    Goal = attach_suspensions(Event, Susp).
+tr_suspend2(Susp, Vars->Select, Module, Goals, Goals0) ?-
+    %find_susp_list(Select, Index, M, Module),
+    %Goal = insert_suspension(Vars, Susp, Index, M).
+    make_inserts_top(Select, Vars, Susp, Module, Goals, Goals0).
+tr_suspend2(Susp, trigger(Event), _Module, Goals, Goals0) ?-
+    Goals = (attach_suspensions(Event, Susp),Goals0).
 
-    % Recommended forms of Select-specification:
-    %	fd:(min of fd)
-    %	fd:min
+    % make_inserts(+Spec, ?Vars, +Susp, +Module, -Goals, ?MoreGoals)
     %
-    % Support for unqualified names, e.g.
-    %	min
-    % requires that in the caller module a structure is visible whose
-    % name is an attribute name and which has a matching field name.
+    % Generate insert_suspension/4 goals.  Allowed forms of Spec:
+    %	->min
+    %	->fd:min
+    %	->fd:3         could have been fd:(max of fd)
+    %	->fd:[min,3]
+    %	->[min,fd:max,fd:4,fd:[min,3]]
+    %
+    % Names are taken from meta_attribute-suspension_lists-declarations
+    % (if present), or from a struct that has the same name as the attribute.
+    % In any case, an attribute-named structure must be visible (we use the
+    % struct-visibility as a proxy for the (global) attribute's visibility)!
+    % Support for unqualified names, e.g. X->min works in the same way,
+    % but requires a unique match for a specific attribute.
+    % Ambiguity leads to a warning, and failure.
 
-    % find_susp_list(+Select, -Index, -AttrName, +Module)
-    find_susp_list(Select, Index, AttrName, Module) :-
-	atom(Select),
-	% Try the possible attribute names
-	getval(meta_arity, MaxMetaIndex),
-	between(1, MaxMetaIndex, 1, MetaIndex),
-	meta_index(AttrName, MetaIndex),
-	% Require the structure to be visible in Module
-	visible_struct(AttrName, ProtoStruct, Module, _Scope),
-	struct_lookup_index(ProtoStruct, Select, Index, Module),
-	% We should probably cache the result of this (possibly expensive)
-	% lookup. Also, should do ambiguity check instead of this commit:
-	!.
-    find_susp_list(Attr:Field, Index, M, _Module) :- -?->
-	atom(Attr),
-	M = Attr,
-	( atom(Field) ->
-	    tr_of(no_macro_expansion(Field of Attr), Index, Attr)
-	;
-	    integer(Field), Index = Field
-	).
+    make_inserts_top([], _Vars, _Susp, _Module, Gs, Gs0) ?- !,
+    	Gs = Gs0.
+    make_inserts_top([Spec|Specs], Vars, Susp, Module, Gs, Gs0) ?- !,
+	make_inserts(Spec, Vars, Susp, Module, Gs, Gs1),
+	make_inserts_top(Specs, Vars, Susp, Module, Gs1, Gs0).
+    make_inserts_top(Spec, Vars, Susp, Module, Gs, Gs0) :-
+	make_inserts(Spec, Vars, Susp, Module, Gs, Gs0).
+
+    % accept unqualified atom, or qualified something
+    make_inserts(SuspName, Vars, Susp, Module, Gs, Gs0) :- atom(SuspName), !,
+	lookup_suspension_list(AttrName, SuspName, Slots, Module),
+	make_inserts_slots(AttrName, Slots, Vars, Susp, Gs, Gs0).
+    make_inserts(AttrName:Spec, Vars, Susp, Module, Gs, Gs0) ?- atom(AttrName),
+	make_inserts_quals(AttrName, Spec, Vars, Susp, Module, Gs, Gs0).
+
+    % attribute known: accept suspension name or integer, or list thereof
+    make_inserts_quals(_, [], _, _, _, Gs, Gs0) ?- !,
+    	Gs=Gs0.
+    make_inserts_quals(AttrName, [Spec|Specs], Vars, Susp, Module, Gs, Gs0) ?- !,
+	make_inserts_qual(AttrName, Spec, Vars, Susp, Module, Gs, Gs1),
+	make_inserts_quals(AttrName, Specs, Vars, Susp, Module, Gs1, Gs0).
+    make_inserts_quals(AttrName, Spec, Vars, Susp, Module, Gs, Gs0) :-
+	make_inserts_qual(AttrName, Spec, Vars, Susp, Module, Gs, Gs0).
+
+    % attribute known: accept suspension name or integer
+    make_inserts_qual(AttrName, Slot, Vars, Susp, _Module, Gs, Gs0) :- integer(Slot),
+	Gs = (insert_suspension(Vars, Susp, Slot, AttrName),Gs0).
+    make_inserts_qual(AttrName, SuspName, Vars, Susp, Module, Gs, Gs0) :- atom(SuspName),
+	lookup_suspension_list(AttrName, SuspName, Slots, Module),
+	make_inserts_slots(AttrName, Slots, Vars, Susp, Gs, Gs0).
+
+    % attribute known: accept integer list (no check)
+    make_inserts_slots(_AttrName, [], _Vars, _Susp, Gs, Gs).
+    make_inserts_slots(AttrName, [Slot|Slots], Vars, Susp, Gs, Gs0) :-
+	Gs = (insert_suspension(Vars, Susp, Slot, AttrName),Gs1),
+	make_inserts_slots(AttrName, Slots, Vars, Susp, Gs1, Gs0).
 
 
 % Non-expanded version
