@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.45 2013/02/12 17:53:36 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.46 2013/02/12 18:52:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -5731,7 +5731,6 @@ may well be more important than a fine grained static classification).
 	suspend/3,
 	suspend/4.
 :- export
-	find_susp_list/4,
 	tr_suspend/3.
 
 

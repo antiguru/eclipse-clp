@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.7 2013/02/12 17:53:36 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.8 2013/02/12 18:52:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -271,7 +271,7 @@ meta_event(print, 2).
 
 
 % lookup_suspension_list(?AttrName, +SuspName, -Slots, +Module) is semidet
-lookup_suspension_list(AttrName, SuspName, Slots, Module) :-
+lookup_suspension_list(AttrName, SuspName, Slots, _Module) :-
 	atom(AttrName),
 	% We know the attribute name. If there was a declaration, use it.
 	( recordedchk(suspension_lists, t(_, AttrName, _, Specs, _)) ->
@@ -279,8 +279,8 @@ lookup_suspension_list(AttrName, SuspName, Slots, Module) :-
 	;
 	    % No declaration: For backward compatibility, if a like-named
 	    % structure is visible, allow any of its field names.
-	    visible_struct(AttrName, ProtoStruct, Module, _Scope), % semidet
-	    struct_lookup_index(ProtoStruct, SuspName, Slot, Module),
+	    visible_struct(AttrName, ProtoStruct, AttrName, _Scope), % semidet
+	    struct_lookup_index(ProtoStruct, SuspName, Slot, AttrName),
 	    integer(Slot), Slots = [Slot]
 	).
 lookup_suspension_list(AttrNameFound, SuspName, Slots, Module) :-
