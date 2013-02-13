@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.22 2012/08/10 21:50:34 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.23 2013/02/13 17:54:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2012/08/10 21:50:34 $").
+:- comment(date, "$Date: 2013/02/13 17:54:36 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -172,15 +172,15 @@ normalize_clauses_annotated(Clauses, AnnClauses, NormClauses, VarCount, Options,
 %----------------------------------------------------------------------
 
 :- mode normalize_body(?,?,+,+,-,+,+,-,-,+,+,+,+).
-normalize_body(Var, AnnVar, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM, _Last) :-
+normalize_body(Var, AnnVar, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, CM, _Last) :-
 	var(Var), !,
 	ann_update_term(call(AnnVar), AnnVar, AnnCall),
-	normalize_goal(call(Var), AnnCall, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
+	normalize_goal(call(Var), AnnCall, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, CM).
 
-normalize_body(true, _Ann, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, _LM, _CM, last) :- !.
+normalize_body(true, _Ann, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, _LMP, _CM, last) :- !.
 	% remove true/0 at end of branches
 
-%normalize_body(call(G), Ann, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, Goals0, Goals, _LM, CM, Last) :-
+%normalize_body(call(G), Ann, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, Goals0, Goals, _LMP, CM, Last) :-
 %	nonvar(G), !,
 %	Goals0 = [SavecutGoal|Goals1],
 %	same_call_pos(Branch, CallNr0, CallNr1, CallPos0),
@@ -189,7 +189,7 @@ normalize_body(true, _Ann, _Branch, CallNr, CallNr, _Cut, Vs, Vs, Goals, Goals, 
 %        Ann =: annotated_term{term:call(AnnG)},
 %        normalize_body(G, AnnG, Branch, CallNr1, CallNr, LocalCut, Vs1, Vs, Goals1, Goals, CM-any, CM, Last).
 
-normalize_body(once(G), Ann, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, Goals0, Goals, _LM, CM, _Last) :- !,
+normalize_body(once(G), Ann, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, Goals0, Goals, _LMP, CM, _Last) :- !,
 	Goals0 = [SavecutGoal|Goals1],
 	same_call_pos(Branch, CallNr0, CallNr1, CallPos0),
 	savecut_goal(CallPos0, Vs0, Vs1, LocalCut, SavecutGoal),
@@ -200,20 +200,22 @@ normalize_body(once(G), Ann, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, Goals0, Goa
 	same_call_pos(Branch, CallNr2, CallNr, CallPos1),
 	cutto_goal(CallPos1, Vs2, Vs, LocalCut, CuttoGoal).
 
-normalize_body(not(G), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LM, CM, Last) :- !,
+normalize_body(not(G), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LMP, CM, Last) :-
+	LMP=LM-_, get_flag((not)/1, definition_module, sepia_kernel)@LM,
+	!,
         Ann =: annotated_term{term:not(AG)},
         ann_update_term(\+AG, Ann, Ann0),
-        normalize_body(\+G, Ann0, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LM, CM, Last).
+        normalize_body(\+G, Ann0, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LMP, CM, Last).
 
-normalize_body(\+G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LM, CM, Last) :- !,
+normalize_body(\+G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LMP, CM, Last) :- !,
         Ann =: annotated_term{term:(\+AG)},
         ann_update_term(fail, Ann, AnnFail),
         ann_update_term(true, Ann, AnnTrue),
         ann_update_term((AG->AnnFail), Ann, AnnCond),
         ann_update_term((AnnCond;AnnTrue), Ann, AnnITE),
-        normalize_body((G->fail;true), AnnITE, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LM, CM, Last).
+        normalize_body((G->fail;true), AnnITE, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, LMP, CM, Last).
 
-normalize_body((G1->G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, _LM, CM, _Last) :- !,
+normalize_body((G1->G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goals, _LMP, CM, _Last) :- !,
 	% this is a ->/2 that's _not_ inside a ;/2
 	Goals0 = [SavecutGoal|Goals1],
 	same_call_pos(Branch, CallNr0, CallNr1, CallPos0),
@@ -227,11 +229,13 @@ normalize_body((G1->G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals0, Goa
 	normalize_body(G2, AG2, Branch, CallNr3, CallNr, Cut, Vs3, Vs, Goals3, Goals, CM-any, CM, last).
 
 	% TODO: compile softcut!  Preliminary: metacall it.
-normalize_body((G1*->G2;G3), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM, Last) ?- !,
+normalize_body((G1*->G2;G3), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, CM, Last) ?-
+	LMP=LM-_, get_flag((*->)/2, definition_module, sepia_kernel)@LM,
+	!,
 	ann_update_term(call(Ann), Ann, AnnCall),
-	normalize_body(call(G1*->G2;G3), AnnCall, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM, Last).
+	normalize_body(call(G1*->G2;G3), AnnCall, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, CM, Last).
 
-normalize_body((G1;G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LM, CM, _Last) :- !,
+normalize_body((G1;G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LMP, CM, _Last) :- !,
 	Goals = [SavecutGoal,disjunction{callpos:CallPos,branches:Branches}|Goals0],
 	same_call_pos(Branch, CallNr0, CallNr1, CallPos0),
 	savecut_goal(CallPos0, Vs0, Vs1, DisjCut, SavecutGoal),
@@ -241,7 +245,7 @@ normalize_body((G1;G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals
 	normalize_left_branch(G1, AG1, CallPos, 1, BranchNr1, Cut, DisjCut, Vs1, Vs2, Branches, Branches1, CM-any, CM),
 	normalize_right_branch(G2, AG2, CallPos, BranchNr1, _NBranches, Cut, DisjCut, Vs2, Vs, Branches1, [], CM-any, CM).
 
-normalize_body((G1,G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LM, CM, Last) :- !,
+normalize_body((G1,G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LMP, CM, Last) :- !,
 	% this could be changed such that the lookup module propagates
 	% through the comma (would be incompatible with Eclipse =< 5)
 	Ann =: annotated_term{term:(AG1,AG2)},
@@ -253,34 +257,34 @@ normalize_body((G1,G2), Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals
 	    normalize_body(G2, AG2, Branch, CallNr1, CallNr, Cut, Vs1, Vs, Goals1, Goals0, CM-any, CM, Last)
 	).
 
-normalize_body(G@M, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, _CM, Last) :-
-	% get_flag((@)/2, definition_module, sepia_kernel)@LM,
+normalize_body(G@M, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, _CM, Last) :-
+	LMP=LM-_, get_flag((@)/2, definition_module, sepia_kernel)@LM,
         !,
 	% this could be changed such that the lookup module propagates
 	% through the @ (would be incompatible with Eclipse =< 5)
 	Ann =: annotated_term{term:(AG@_AM)},
         ( atom(M) ->
-            normalize_body(G, AG, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M, Last)
+            normalize_body(G, AG, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, M, Last)
 	; var(G) ->
 	    ann_update_term(call(AG), Ann, AnnCall),
-	    normalize_goal(call(G), AnnCall, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
+	    normalize_goal(call(G), AnnCall, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, M)
 	;
-	    normalize_goal(G, AG, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, M)
+	    normalize_goal(G, AG, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, M)
 	).
 
-normalize_body(LM:G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LM0, CM, Last) :-
-	% get_flag((:)/2, definition_module, sepia_kernel)@LM0,
+normalize_body(LM:G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, CM, Last) :-
 	atom(LM), nonvar(G),
+	LMP=LMC-_, get_flag((:)/2, definition_module, sepia_kernel)@LMC,
 	!,
         Ann =: annotated_term{term:(_ALM:AG)},
         normalize_body(G, AG, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM-exported, CM, Last).
 
-normalize_body(!, _Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LM, _CM, _Last) :- !,
+normalize_body(!, _Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, _LMP, _CM, _Last) :- !,
 	Goals = [CuttoGoal|Goals0],
 	same_call_pos(Branch, CallNr0, CallNr, CallPos),
 	cutto_goal(CallPos, Vs0, Vs, Cut, CuttoGoal).
 
-normalize_body(X=Y, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM, _Last) :- !,
+normalize_body(X=Y, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, CM, _Last) :- !,
         simplify_unification(X=Y, Ann, UnifGoals, AnnUnifGoals),
 	(
 	    foreach(UnifGoal, UnifGoals),
@@ -288,13 +292,13 @@ normalize_body(X=Y, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, L
 	    fromto(CallNr0,CallNr1,CallNr2,CallNr),
 	    fromto(Vs0,Vs1,Vs2,Vs),
 	    fromto(Goals,Goals1,Goals2,Goals0),
-	    param(Branch,Cut,LM,CM)
+	    param(Branch,Cut,LMP,CM)
 	do
-	    normalize_goal(UnifGoal, AnnUnifGoal, Branch, CallNr1, CallNr2, Cut, Vs1, Vs2, Goals1, Goals2, LM, CM)
+	    normalize_goal(UnifGoal, AnnUnifGoal, Branch, CallNr1, CallNr2, Cut, Vs1, Vs2, Goals1, Goals2, LMP, CM)
 	).
 
-normalize_body(G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM, _Last) :-
-        normalize_goal(G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LM, CM).
+normalize_body(G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, CM, _Last) :-
+        normalize_goal(G, Ann, Branch, CallNr0, CallNr, Cut, Vs0, Vs, Goals, Goals0, LMP, CM).
 
 
 normalize_goal(G, AnnG, Branch, CallNr0, CallNr, _Cut, Vs0, Vs, [Goal|Goals], Goals, LM-Vis, CM) :-
@@ -475,23 +479,27 @@ normalize_clause_list(Clauses, AnnClauses, NormClauses, VarCount, Options, CM) :
 	).
 
     normalize_clause(Clause, AnnClause, Branch, Goals, CM, Cut, Vs, Vs0) :-
-	clause_head_body(Clause, AnnClause, Head, Body, AnnHead, AnnBody, HeadType),
+	clause_head_body(Clause, AnnClause, Head, Body, AnnHead, AnnBody, HeadType, CM),
 	same_call_pos(Branch, 1, CallNr, CallPos),
 	normalize_head(HeadType, Head, AnnHead, CallPos, Goals, Goals1, Vs, Vs1),
 	normalize_body(Body, AnnBody, Branch, CallNr, _CallNr, Cut, Vs1, Vs0, Goals1, [], CM-any, CM, last).
 
-    :- mode clause_head_body(+,?,-,-,-,-,-).
-    clause_head_body((H0:- -?->B0), Ann, H, B, AH, AB, HeadType) ?- !,
+    :- mode clause_head_body(+,?,-,-,-,-,-,+).
+    clause_head_body((H0:- -?->B0), Ann, H, B, AH, AB, HeadType, CM) ?-
+	get_flag((?-)/2, definition_module, sepia_kernel)@CM,
+	!,
         Ann =: annotated_term{term:(AH:-AnnMatch)},
         AnnMatch =: annotated_term{term:(-?->AB)},
 	H=H0, B=B0, HeadType = (?=).
-    clause_head_body((H0:-B0), Ann, H, B, AH, AB, HeadType) ?- !,
+    clause_head_body((H0:-B0), Ann, H, B, AH, AB, HeadType, _CM) ?- !,
         Ann =: annotated_term{term:(AH:-AB)},
 	H=H0, B=B0, HeadType = (=).
-    clause_head_body((H0?-B0), Ann, H, B, AH, AB, HeadType) ?- !,
+    clause_head_body((H0?-B0), Ann, H, B, AH, AB, HeadType, CM) ?-
+	get_flag((?-)/2, definition_module, sepia_kernel)@CM,
+	!,
         Ann =: annotated_term{term:(AH?-AB)},
 	H=H0, B=B0, HeadType = (?=).
-    clause_head_body(H, AH, H, true, AH, AnnTrue, =) :-
+    clause_head_body(H, AH, H, true, AH, AnnTrue, =, _CM) :-
         ann_update_term(true, AH, AnnTrue).
 
 
@@ -500,7 +508,7 @@ head_marker(Clause, CM, CallPos, Goal, Arity) :-
 	    kind:head, callpos:CallPos,
 	    lookup_module:CM, definition_module:CM,
 	    functor:N/Arity, args:HeadArgs},
-    	clause_head_body(Clause, _, H, _, _, _, _),
+    	clause_head_body(Clause, _, H, _, _, _, _, CM),
 	functor(H, N, Arity),
 	(
 	    for(I,1,Arity),

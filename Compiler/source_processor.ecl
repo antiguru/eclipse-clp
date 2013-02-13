@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.14 2013/02/12 17:55:03 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.15 2013/02/13 17:54:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2013/02/12 17:55:03 $").
+:- comment(date, "$Date: 2013/02/13 17:54:36 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -502,7 +502,7 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
 	    TermOrEofX = (:- Directive),
 	    handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, OptFlags)
 
-	; TermOrEof = (?- _) ->
+	; TermOrEof = (?- _), \+current_pragma(iso(strict))@Module ->
 	    SourceTerm = source_term{term:TermOrEof,vars:Vars, annotated:AnnTermOrEof},
 	    update_struct(source_position, [offset:Offset,line:Line], OldPos, NextPos),
 	    Kind = query
@@ -612,6 +612,12 @@ expand_clause_goals(C, AC, C, AC, _).
 % Directives
 %----------------------------------------------------------------------
 
+handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, _Options) :-
+	ThisPos = source_position{module:Module},
+	current_pragma(iso(strict))@Module,
+	!,
+	SourceTerm = SourceTerm0,
+	iso_handle_directives(Directive, ThisPos, NextPos, Kind).
 handle_ifdef_and_directives(Directive, ThisPos, NextPos, Kind, SourceTerm0, SourceTerm, options{ignore_conditionals:true}) ?- !,
 	SourceTerm = SourceTerm0,
 	handle_directives(Directive, ThisPos, NextPos, Kind).
@@ -788,6 +794,22 @@ handle_directives(Directive, NextPos, NextPos, Kind) :-
 	pathname(Path, _Dir, File),
 	printf(warning_output, "WARNING: %w in file %w, line %d:%n:- %w.%n",
 		[Msg,File,Line,Directive]).
+
+
+% Restricted directive handling for iso(strict)
+:- mode iso_handle_directives(?,+,-,-).
+iso_handle_directives(Directive, NextPos, NextPos, directive) :-
+	var(Directive), !.
+iso_handle_directives(include(Files), ThisPos, NextPos, Kind) :- !,
+	handle_include(Files, ThisPos, NextPos, Kind).
+iso_handle_directives(Directive, NextPos, NextPos, handled_directive) :-
+	Directive = op(_,_,_),
+	!,
+	NextPos = source_position{module:Module},
+	( block(call(Directive)@Module, _, fail) -> true
+	; directive_warning("Directive failed or aborted", Directive, NextPos)
+	).
+iso_handle_directives(_Directive, NextPos, NextPos, directive).
 
 
 handle_include([File|Files], ThisPos, NextPos, Kind) ?- !,

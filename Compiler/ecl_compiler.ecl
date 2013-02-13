@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.22 2013/02/12 17:55:03 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.23 2013/02/13 17:54:36 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2013/02/12 17:55:03 $").
+:- comment(date,	"$Date: 2013/02/13 17:54:36 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -845,8 +845,12 @@ handle_nonclause(Class, Term, Ann, SourcePos1, Size0, Size, Options, PosModule, 
 
 
 process_directive(SourcePos, Term, Options, Module) :-
-	call_directive(SourcePos, Term, Options, Module),
-	emit_directive_or_query(Term, Options, Module).
+	( current_pragma(iso(strict))@Module, Term=(:-Dir), \+iso_directive(Dir) ->
+	    compiler_error(_Ann, SourcePos, "Non-ISO directive (ignored) %w", [Term])
+	;
+	    call_directive(SourcePos, Term, Options, Module),
+	    emit_directive_or_query(Term, Options, Module)
+	).
 
 
 process_query(SourcePos, Term, Options, Module) :-
@@ -935,6 +939,18 @@ old_compiler_directive((:-nodbgcomp), Options) ?- !,
 	set_flag(debug_compile, off),
 	setarg(expand_goals of options, Options, on),
 	setarg(debug of options, Options, off).
+
+
+% Valid ISO-Prolog directives
+iso_directive(dynamic(_)).
+iso_directive(multifile(_)).
+iso_directive(discontiguous(_)).
+iso_directive(op(_,_,_)).
+iso_directive(char_conversion(_,_)).
+iso_directive(initialization(_)).
+iso_directive(include(_)).	% already handled
+iso_directive(ensure_loaded(_)).
+iso_directive(set_prolog_flag(_,_)).
 
 
 % copy directives and queries to the eco file
