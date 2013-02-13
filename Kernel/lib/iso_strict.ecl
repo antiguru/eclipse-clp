@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_strict.ecl,v 1.4 2013/02/05 02:19:24 jschimpf Exp $
+% Version:	$Id: iso_strict.ecl,v 1.5 2013/02/13 18:05:30 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -51,6 +51,8 @@
     current_module_predicate(exported,P), set_flag(P, type, built_in), fail ; true
 )).
 
+:- export initialization(eclipse_language:error(148,pragma(iso(strict)))).
+
 :- export
 	chtab(0'`, string_quote),
 	chtab(0'", list_quote).
@@ -59,7 +61,7 @@
 :- comment(summary, `Strict ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, 'Joachim Schimpf, Coninfer Ltd').
-:- comment(date, `$Date: 2013/02/05 02:19:24 $`).
+:- comment(date, `$Date: 2013/02/13 18:05:30 $`).
 :- comment(see_also, [library(multifile),library(iso),library(iso_light)]).
 :- comment(desc, html(`
 <h3>Overview</h3>
@@ -339,6 +341,13 @@
 :- use_module(library(iso_aux)).
 
 ?- export initialization((
+					% hide (global,non-portray) macros
+	eclipse_language:current_macro(F,_,Opt,sepia_kernel),
+	eclipse_language:nonmember(write, Opt),
+	eclipse_language:delete(global, Opt, Opt1),
+	eclipse_language:local(macro(F, (=)/2, Opt1)),
+	fail
+    ;
 	current_op(P, A, Op),		% hide all (global) operators
 	Op \== (','),
 	op(0, A, Op),
