@@ -98,7 +98,7 @@ total_sequence(Min,Max,L,U,K,Vars):-
         (ground(Variables) ->
             true
         ;
-            generic_suspend(update_total_sequence(Min,Max,L,U,K,N,Variables,
+            suspend(update_total_sequence(Min,Max,L,U,K,N,Variables,
                                           Susp),
                     9,[Variables->any],Susp)
         ).
@@ -247,9 +247,8 @@ sequence(L,U,K,Vars):-
         (ground(Variables) ->
             true
         ;
-            generic_suspend(update_sequence(L,U,K,N,Variables,Susp),
-                    9,[Variables->min,
-                       Variables->max/*,
+            suspend(update_sequence(L,U,K,N,Variables,Susp),
+                    9,[Variables->[min,max]/*,
                        Variables->ic:hole*/],Susp)
         ).
 

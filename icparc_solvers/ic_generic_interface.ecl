@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ic_generic_interface.ecl,v 1.2 2010/03/11 14:13:40 kish_shen Exp $
+% Version:	$Id: ic_generic_interface.ecl,v 1.3 2013/02/13 00:58:47 jschimpf Exp $
 %
 % Description:		Generic interface to IC library
 %
@@ -65,9 +65,7 @@
 	upb/2,
 	excl/2,
 	domain_union/4,
-	subtract_domain/2,
-	generic_suspend/3,
-	generic_suspend/4.
+	subtract_domain/2.
 
 
     %
@@ -126,12 +124,6 @@ tr_ic_in(excl(Var, Val),
 		ic:(Var =\= Val)).
 tr_ic_in(check_in(Val, Var),
          ic:is_in_domain(Val, Var)).
-tr_ic_in(generic_suspend(Goal, Priority, Cond0),
-		suspend(Goal, Priority, Cond)) :-
-	translate_suspension_conditions(Cond0, Cond, compile).
-tr_ic_in(generic_suspend(Goal, Priority, Cond0, Susp),
-		suspend(Goal, Priority, Cond, Susp)) :-
-	translate_suspension_conditions(Cond0, Cond, compile).
 
 
     %
@@ -154,8 +146,6 @@ tr_ic_in(generic_suspend(Goal, Priority, Cond0, Susp),
 :- inline(upb/2, tr_ic_in/2).
 :- inline(excl/2, tr_ic_in/2).
 :- inline(check_in/2, tr_ic_in/2).
-:- inline(generic_suspend/3, tr_ic_in/2).
-:- inline(generic_suspend/4, tr_ic_in/2).
 
     %
     % Almost "dummy" (but not really) versions of interface predicates for
@@ -206,16 +196,6 @@ excl(Var, Val) :-
 check_in(Val, Var) :-
         check_in(Val, Var).
 
-    % These ones aren't quite trivial.
-
-generic_suspend(Goal, Priority, Cond0) :-
-	translate_suspension_conditions(Cond0, Cond, run),
-	suspend(Goal, Priority, Cond).
-
-generic_suspend(Goal, Priority, Cond0, Susp) :-
-	translate_suspension_conditions(Cond0, Cond, run),
-	suspend(Goal, Priority, Cond, Susp).
-
 
     %
     % Implement the generic interface predicates which do not have a natural
@@ -255,47 +235,4 @@ subtract_domain(Var, DomList) :-
 	    )
 	),
 	wake.
-
-
-
-    %
-    % Code for handling the translation of suspension conditions.
-    %
-
-    % Translate a (list of) generic suspension condition(s) into its
-    % corresponding list of solver-specific suspension conditions.
-translate_suspension_conditions(Cond0, CondList, Mode) :-
-	( nonvar(Cond0), Cond0 = [_|_] ->
-	    (
-		foreach(Cond, Cond0),
-		fromto(CondList, CondList, CondTail, []),
-		param(Mode)
-	    do
-		translate_suspension_condition(Cond, CondList, CondTail, Mode)
-	    )
-	;
-	    % Cond0 might be a variable, but this is caught in
-	    % translate_suspension_condition/4.
-	    translate_suspension_condition(Cond0, CondList, [], Mode)
-	).
-
-    % Translate a generic suspension condition into its corresponding list
-    % of solver-specific suspension conditions.
-translate_suspension_condition(Vars->Key, CondList, CondTail, _Mode) :- -?->
-	nonvar(Key),
-	!,
-	translate_suspension_key(Vars, Key, CondList, CondTail).
-translate_suspension_condition(Cond, CondList, CondTail, Mode) :-
-	% Either the condition or the "key" is a variable.  If it's compile
-	% time, just fail and hope it's instantiated by the time it's called
-	% at run time.  If it's run time it's probably an error, but pass it
-	% through as-is and let somebody else deal with it.
-	Mode == run,
-	CondList = [Cond | CondTail].
-
-translate_suspension_key(Vars, any, List, Tail) :-
-	!,
-	List = [Vars->min, Vars->max, Vars->hole | Tail].
-translate_suspension_key(Vars, Key, List, Tail) :-
-	List = [Vars->Key | Tail].
 

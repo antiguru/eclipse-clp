@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_cumulative.ecl,v 1.2 2012/08/22 01:12:15 kish_shen Exp $
+% Version:	$Id: generic_cumulative.ecl,v 1.3 2013/02/13 00:58:47 jschimpf Exp $
 %
 % This file is intended to be used 'include'd into specialised modules
 % which must declare certain key interface predicates (possibly via
@@ -33,7 +33,7 @@
 %
 % ECLiPSe LIBRARY MODULE		
 %
-% $Id: generic_cumulative.ecl,v 1.2 2012/08/22 01:12:15 kish_shen Exp $
+% $Id: generic_cumulative.ecl,v 1.3 2013/02/13 00:58:47 jschimpf Exp $
 %
 % Emacs :      --*-prolog-*--
 % File  :       cumulative.pl
@@ -209,7 +209,7 @@ overlap(S1,S2,D2,Bool,Susp) :-
 		V=v(S1,S2,D2),
 		( nonvar(Susp) -> true
 		; Goal = overlap(S1,S2,D2,Bool,Susp),
-		  generic_suspend(Goal, 4, [V->min,V->max,Bool->inst], Susp))
+		  suspend(Goal, 4, [V->[min,max],Bool->inst], Susp))
 	    )
 	; MaxS1 < MinS2 ->
 	    kill_suspension(Susp),
@@ -218,7 +218,7 @@ overlap(S1,S2,D2,Bool,Susp) :-
 	    V=v(S1,S2,D2),
 	    ( nonvar(Susp) -> true
 	    ; Goal = overlap(S1,S2,D2,Bool,Susp),
-	      generic_suspend(Goal, 4, [V->min,V->max,Bool->inst], Susp))
+	      suspend(Goal, 4, [V->[min,max],Bool->inst], Susp))
 	).
 
 
@@ -236,7 +236,7 @@ disjunction_con(S1,S2,D2,Susp):-
 	    S2 #> S1
 	; var(Susp) ->
 	    Goal = disjunction_con(S1,S2,D2,Susp),
-	    generic_suspend(Goal, 2, [v(S1,S2,D2)->min,v(S1,S2)->max], Susp)
+	    suspend(Goal, 2, [v(S1,S2,D2)->min,v(S1,S2)->max], Susp)
 	;
 	    true
 	).

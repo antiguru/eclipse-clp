@@ -23,13 +23,13 @@
 %author) and The University of Huddersfield (second author) during the
 %development of this library.
 
-% $Id: generic_sbds.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% $Id: generic_sbds.ecl,v 1.3 2013/02/13 00:58:47 jschimpf Exp $
 
 :- comment(categories, ["Constraints"]).
 :- comment(summary, "Symmetry Breaking During Search (SBDS)").
 :- comment(desc, "Symmetry Breaking During Search (SBDS) library, provides predicates to initalise symmetry breaking during search search and to perform the search, as well as utility functions for prining and unification.").
 :- comment(author, "Warwick Harvey & Karen Petrie").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2013/02/13 00:58:47 $").
     
 %The predicates that the user may need to call, 
 % see definitions with predicate
@@ -421,12 +421,10 @@ sbds_try(Var, _Value):-
 sbds_try_assign(Var, Value, Idx, Shared,Symmetries0, FixPred, Module):-	
 	sbds_update(Symmetries0, Symmetries, Idx, Value, FixPred, Module),
 	setarg(symmetries of sbds_shared, Shared, Symmetries),
-	FixCall =.. [FixPred, Var, Value, 1],
-	call(FixCall)@Module.
+	call(FixPred, Var, Value, 1)@Module.
 sbds_try_assign(Var, Value, Idx, _Shared, Symmetries0, FixPred, Module):-
 	sbds_exclude(Var, Value, Idx, Symmetries0, FixPred, Module),
-	FixCall =.. [FixPred, Var, Value, 0],
-	call(FixCall)@Module.
+	call(FixPred, Var, Value, 0)@Module.
 
 %called by 1st clause sbds_try_assign (i.e. var = val)
 %updates the symmetry list to record which are broken
@@ -460,12 +458,8 @@ sbds_exclude(_Var, Value, Idx, Symmetries, FixPred, Module) :-
 %applies the symmetry function to get symm var/val
 %then gets bool which indcates whether symm is broken
 apply_symm_get_bool(SymPred, Module, Idx, Value, FixPred, FixBool):-
-	SymPred =.. PredAsList,
-	append(PredAsList, [Idx, Value, SymVar, SymValue], CallAsList),
-	Call =.. CallAsList,
-	call(Call)@Module,
-	ExcludeCall =.. [FixPred, SymVar, SymValue, FixBool],
-	call(ExcludeCall)@Module.
+	call(SymPred, Idx, Value, SymVar, SymValue)@Module,
+	call(FixPred, SymVar, SymValue, FixBool)@Module.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

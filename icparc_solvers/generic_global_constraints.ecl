@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.10 2013/02/09 20:27:58 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.11 2013/02/13 00:58:47 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -196,7 +196,7 @@ minlist(Xs, Min) :-
 	; nonvar(MinX) ->	% implies nonvar(Min)
 	    true
 	;
-	    generic_suspend(minlist(Ys, Min), 4, [MinX->min,Ys->max,Min->min,Min->max])
+	    suspend(minlist(Ys, Min), 4, [MinX->min,Ys->max,Min->[min,max]])
 	).
 
 
@@ -265,7 +265,7 @@ maxlist(Xs, Max) :-
 	; nonvar(MaxX) ->	% implies nonvar(Max)
 	    true
 	;
-	    generic_suspend(maxlist(Ys, Max), 4, [MaxX->max,Ys->min,Max->max,Max->min])
+	    suspend(maxlist(Ys, Max), 4, [MaxX->max,Ys->min,Max->[max,min]])
 	).
 
 
@@ -331,9 +331,9 @@ occurrences(Value, List, N, State, Susp) :-
             kill_suspension(Susp),
 	    set_priority(P)
 	; var(Susp) ->
-	    generic_suspend(
+	    suspend(
 		    occurrences(Value, List, N, state(Lower,VarsWithValue), Susp),
-		    4, [VarsWithValue->any, N->min, N->max], Susp),
+		    4, [VarsWithValue->any, N->[min,max]], Susp),
 	    set_priority(P)
 	;
             setarg(1, State, Lower),
@@ -414,8 +414,8 @@ sumlist(List, Sum) :-
 			Max1 is Max0 + XH,
 			Vars1 = [X|Vars0],
 			% put a demon on each variable
-			generic_suspend(sumlist_update(X, XL..XH, ListSum, S),
-				2, [X->min, X->max], S)
+			suspend(sumlist_update(X, XL..XH, ListSum, S),
+				2, [X->[min,max]], S)
 		    ;
 			Min1 is Min0 + X,
 			Max1 is Max0 + X,
@@ -479,8 +479,8 @@ sumlist_prop(ListSum, Sum, VList, Susp) :-
 	; nonvar(Susp) ->
 	    true
 	;
-	    generic_suspend(sumlist_prop(ListSum, Sum, VList, Susp), 3,
-			[ListSum-Sum->min, ListSum-Sum->max], Susp)
+	    suspend(sumlist_prop(ListSum, Sum, VList, Susp), 3,
+			[ListSum-Sum->[min,max]], Susp)
 	),
 	set_priority(P).
 
@@ -494,7 +494,7 @@ sumlist_prop(ListSum, Sum, VList, Susp) :-
 sum_ge_zero(List) :-
 	SumInfo = si(_Min,_Max,none),
 	track_list_range(List, SumInfo, Vars),
-	generic_suspend(sum_ge_zero_prop(Vars, SumInfo, S), 3, [Vars->max], S),
+	suspend(sum_ge_zero_prop(Vars, SumInfo, S), 3, [Vars->max], S),
 	sum_ge_zero_prop(Vars, SumInfo, S).
 
 % Triggered when some upper bound(s) changed.
@@ -551,8 +551,8 @@ track_list_range(List, SumInfo, Vars) :-
 		Min1 is Min0 + XL,
 		Max1 is Max0 + XH,
 		Vars1 = [X|Vars0],
-		generic_suspend(range_update(X, XL..XH, SumInfo, S), 2,
-			[X->min, X->max], S)	% put a demon on each variable
+		suspend(range_update(X, XL..XH, SumInfo, S), 2,
+			[X->[min,max]], S)	% put a demon on each variable
 	    ;
 		Min1 is Min0 + X,
 		Max1 is Max0 + X,
@@ -634,8 +634,8 @@ ordered_sum(Xs, Sum) :-
 	sum(Xs) #= Sum,
 	length(Xs, N),
 	reverse(Xs, RXs),
-	generic_suspend(ordered_sum_u( Xs, N, Sum, S1), 4, [ Xs->min,Sum->max], S1),
-	generic_suspend(ordered_sum_l(RXs, N, Sum, S2), 4, [RXs->max,Sum->min], S2),
+	suspend(ordered_sum_u( Xs, N, Sum, S1), 4, [ Xs->min,Sum->max], S1),
+	suspend(ordered_sum_l(RXs, N, Sum, S2), 4, [RXs->max,Sum->min], S2),
 	schedule_woken([S1,S2]), wake.
 
 
@@ -796,7 +796,7 @@ lex_demon(Xs, Ys, Strict, S) :-
 		;
 		    kill_suspension(S),	% if any
 		    X2Xs3 = [X2|_], Y2Ys3 = [Y2|_],
-                    generic_suspend(lex_demon([X1|X2Xs3], [Y1|Y2Ys3], Strict, S1), 0,
+                    suspend(lex_demon([X1|X2Xs3], [Y1|Y2Ys3], Strict, S1), 0,
                         [[](X1,X2,Y2)->min,	% not Y1!
 			 [](Y1,X2,Y2)->max,	% not X1!
 			 [](X1,Y1,X2,Y2)->bound], S1)
@@ -918,8 +918,8 @@ sorted(Us, Ss) :-
 	arg(1,SsArr,S1), get_finite_bounds(S1,MinDom,_),
 	arg(N,SsArr,Sn), get_finite_bounds(Sn,_,MaxDom),
 	Us :: MinDom..MaxDom,
-	generic_suspend(sorted_demon(Us, SsArr, Susp), 4,
-		[Us-Ss->min,Us-Ss->max], Susp),
+	suspend(sorted_demon(Us, SsArr, Susp), 4,
+		[Us-Ss->[min,max]], Susp),
 	sorted_demon(Us, SsArr, Susp).
 sorted(Us, Ss) :-
 	error(6, sorted(Us, Ss)).
@@ -997,9 +997,8 @@ sorted(Us, Ss, Ps) :-
 	Us :: MinDom..MaxDom,
 	Ps :: 1..N,
 	alldifferent(Ps),
-	generic_suspend(sorted_demon(Us, SsArr, Ps, Susp), 4,
-%		[Us-Ss-Ps->fd:min,Us-Ss-Ps->fd:max], Susp),
-		[Us-Ss-Ps->min,Us-Ss-Ps->max], Susp),
+	suspend(sorted_demon(Us, SsArr, Ps, Susp), 4,
+		[Us-Ss-Ps->[min,max]], Susp),
 	sorted_demon(Us, SsArr, Ps, Susp).
 sorted(Us, Ss, Ps) :-
 	error(6, sorted(Us, Ss, Ps)).
@@ -1282,7 +1281,7 @@ alldifferent(Vars, Cap, UnsortedTs, UnsortedMaxs) :-
 		    % have just analysed it and know there is nothing to do!
 		    vars_in_first_n(PropagatedAfter, TsLeMax, VsInMinToMax),
 		    ( VsInMinToMax == [] -> true
-		    ; generic_suspend(alldifferent(VsInMinToMax,Cap), 4, VsInMinToMax->any)
+		    ; suspend(alldifferent(VsInMinToMax,Cap), 4, VsInMinToMax->any)
 		    ),
 
 		    % Remove exhausted subset from the other items
@@ -1307,7 +1306,7 @@ alldifferent(Vars, Cap, UnsortedTs, UnsortedMaxs) :-
 	( nonvar(Propagated) ->
 	    true
 	;
-	    generic_suspend(alldifferent(Vars,Cap),4,Vars->any)
+	    suspend(alldifferent(Vars,Cap),4,Vars->any)
 	).
 
 	    
@@ -1575,7 +1574,7 @@ bool_channeling(X,Coll,F):-
 %        sumlist(B,1),
         check_bool_channeling(X,B,F),
         (  var(X) ->
-            generic_suspend(update_bool_channeling(X,B,F,Susp),3,
+            suspend(update_bool_channeling(X,B,F,Susp),3,
                     [B->inst, X->any],Susp)
         ;
             true

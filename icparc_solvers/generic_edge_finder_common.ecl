@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_edge_finder_common.ecl,v 1.1 2006/09/23 01:53:32 snovello Exp $
+% Version:	$Id: generic_edge_finder_common.ecl,v 1.2 2013/02/13 00:58:47 jschimpf Exp $
 %
 % Description:		Generalised Prolog toplevel for Edge-finder in C
 %
@@ -60,13 +60,13 @@
 tr_demon_suspend(
 	demon_suspend(Goal,Prior,Cond,Susp),
 	(
-	    generic_suspend(Goal,Prior,Cond,Susp),
+	    suspend(Goal,Prior,Cond,Susp),
 	    schedule_woken([Susp]),
 	    wake
 	)).
 
 demon_suspend(Goal,Prior,Cond,Susp) :-
-          generic_suspend(Goal,Prior,Cond,Susp),
+          suspend(Goal,Prior,Cond,Susp),
           schedule_woken([Susp]),
           wake.
 
@@ -79,7 +79,7 @@ disjunctive_ef(Starts, Durations, Algorithm) :-
 	length(Starts, NTasks),
 	init_ef(NTasks, 1, Algorithm, Handle),
 	is_ground(Starts-Durations, 4, Ground),
-	generic_suspend(disjunctive_ef(Starts, Durations, [], Handle, Ground, Susp), 5,
+	suspend(disjunctive_ef(Starts, Durations, [], Handle, Ground, Susp), 5,
 		[Starts-Durations->min,Starts->max,Ground->inst], Susp),
 	disjunctive_ef(Starts, Durations, [], Handle, Ground, Susp).
 
@@ -92,7 +92,7 @@ disjunctive_ef(Starts, Durations, Bools, Algorithm) :-
 %	Bools :: 0..1,
 	disjunctive_prop_setup(Starts, Durations, Bools),
 	is_ground(Starts-Durations, 4, Ground),
-	generic_suspend(disjunctive_ef(Starts, Durations, BoolArr, Handle, Ground, Susp), 5,
+	suspend(disjunctive_ef(Starts, Durations, BoolArr, Handle, Ground, Susp), 5,
 		[Starts-Durations->min,Starts->max,Ground->inst], Susp),
 	disjunctive_ef(Starts, Durations, BoolArr, Handle, Ground, Susp).
 
@@ -167,7 +167,7 @@ disjunctive_prop_setup(Starts, Durations, Flags) :-
 		    fromto(Flags3, [F|Flags1], Flags1, Flags0),
 		    param(Sj,Dj)
 		do
-		    generic_suspend(disjunctive_prop(Si,Di,Sj,Dj,F,Susp),3,[[Si,Sj,Di,Dj]->min,[Si,Sj]->max,F->inst],Susp),
+		    suspend(disjunctive_prop(Si,Di,Sj,Dj,F,Susp),3,[[Si,Sj,Di,Dj]->min,[Si,Sj]->max,F->inst],Susp),
 		    disjunctive_prop(Si,Di,Sj,Dj,F,Susp)
 		)
 	    )
@@ -189,7 +189,7 @@ cumulative_ef(Starts, Durations, Resources, Areas, Cap, _Alg) :- var(Starts), !,
 cumulative_ef([], _Durations, _Resources, _Areas, _Cap, _Alg) :- !.
 cumulative_ef(Starts, Durations, Resources, Areas, Cap, Alg) :-
 	( var(Cap) -> 
-            generic_suspend(cumulative_ef(Starts, Durations, Resources, Areas, Cap, Alg),
+            suspend(cumulative_ef(Starts, Durations, Resources, Areas, Cap, Alg),
 		    5,
 		    Cap->inst)
         ;

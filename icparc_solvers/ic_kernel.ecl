@@ -57,7 +57,6 @@
 
 :- pragma(expand).
 :- pragma(nodebug).
-:- set_flag(float_precision, double).
 
 
 %---------------------------------------------------------------------
@@ -306,7 +305,13 @@
 	delayed_goals_number:	delayed_goals_number/2,
 	get_bounds:		get_float_bounds/3,
 	set_bounds:		impose_bounds/3,
-	print:			print_solver_var/2
+	print:			print_solver_var/2,
+	suspension_lists:[
+		min:[min of ic],
+		max:[max of ic],
+		hole:[hole of ic],
+		any:[min of ic,max of ic,hole of ic]
+	    ]
 	]).
 
 % Init IC library - Must follow ic meta_attribute declaration

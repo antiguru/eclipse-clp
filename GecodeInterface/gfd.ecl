@@ -173,13 +173,6 @@ load_gfd_solver(Arch) :-
             load(SolverObj)
         ).
 
-:- meta_attribute(gfd, [
-        set_bounds:gfd_set_var_bounds/3,  
-        get_bounds:gfd_get_var_bounds/3,  
-        print:gfd_var_print/2,
-        unify:gfd_unify/2,
-        copy_term:gfd_copy_var/2]).
-
 :- 
         get_flag(hostarch, Arch),
         load_gfd_solver(Arch),
@@ -337,6 +330,20 @@ gfd_handle_tr_out(gfd_prob{nvars:N},gfd_prob(nvars(N))).
             set
         )
    ).
+
+:- meta_attribute(gfd, [
+        set_bounds:gfd_set_var_bounds/3,  
+        get_bounds:gfd_get_var_bounds/3,  
+        print:gfd_var_print/2,
+        unify:gfd_unify/2,
+        copy_term:gfd_copy_var/2,
+	suspension_lists:[
+	    any:(any of gfd),
+	    min:(any of gfd),	% approximate alias for generic code
+	    max:(any of gfd)	% approximate alias for generic code
+	]
+    ]).
+
 
 :- local struct(options(interval_min,
                         interval_max,

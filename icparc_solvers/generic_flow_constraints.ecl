@@ -73,7 +73,7 @@ alldifferent_matrix_internal(Matrix,Lib):-
         (ground(List) ->
             true
         ;
-            generic_suspend(update_alldifferent_matrix(List,Matrix,Susp),
+            suspend(update_alldifferent_matrix(List,Matrix,Susp),
                     0,[List->any],Susp)
         ).
 
@@ -201,7 +201,7 @@ gcc_matrix_internal(Row,Col,Matrix,GccLib):-
         (ground(List) ->
             true
         ;
-            generic_suspend(update_gcc_matrix(List,Matrix,Limits,Susp),
+            suspend(update_gcc_matrix(List,Matrix,Limits,Susp),
                     0,[List->any],Susp)
         ).
 
@@ -361,7 +361,7 @@ inverse(XL,YL):-
         (ground(Variables) ->
             true
         ;
-            generic_suspend(update_inverse(Variables,Vars1,Vars2,N,Susp),
+            suspend(update_inverse(Variables,Vars1,Vars2,N,Susp),
                     10,[Variables->any],Susp)
         ).
 

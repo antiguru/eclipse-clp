@@ -143,12 +143,11 @@ bin_packing(L,_S,B,_Total,_NrVars,NrBins,Items):-
         (ground(AllVars) ->
             true
         ;
-            generic_suspend(update_bin_packing(AllVars,B,
+            suspend(update_bin_packing(AllVars,B,
                                        NrBins,Items,Hash,Susp),
                     5,[AllVars->inst,
                        L->any,
-                       B->min,
-                       B->max],Susp)
+                       B->[min,max]],Susp)
         ).
 
 :-demon(update_bin_packing/6).

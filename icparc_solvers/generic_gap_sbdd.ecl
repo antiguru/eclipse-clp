@@ -3,7 +3,7 @@
 % See SBDDa.g for the GAP side.
 % IPG, WH, TK, SAL
 %
-% $Id: generic_gap_sbdd.ecl,v 1.4 2009/07/16 09:11:27 jschimpf Exp $
+% $Id: generic_gap_sbdd.ecl,v 1.5 2013/02/13 00:58:47 jschimpf Exp $
 %
 
 %
@@ -737,10 +737,7 @@ throttle_depth_mod_non_unique(Mod, Shared) :-
 sbdd_check(Shared, Removals, PointSet, Doms) :-
 	( PointSet = [Pt | Pts] ->
 	    Shared = sbdd_shared with [throttle_pred:ThrottlePred, module:Module],
-	    ThrottlePred =.. PredAsList,
-	    append(PredAsList, [Shared], CallAsList),
-	    Call =.. CallAsList,
-	    ( call(Call)@Module ->
+	    ( call(ThrottlePred, Shared)@Module ->
 		gap_query("CheckOptionList(%Dw,%d,%Dw)", [Pts, Pt, Doms], Res),
 		Res \== false,
 		( Res = [true|Rest] ->

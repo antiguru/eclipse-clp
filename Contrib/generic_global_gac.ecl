@@ -130,8 +130,7 @@ alldifferent(Vars):-
         ; L1 = [_] ->
             true
         ;
-            generic_suspend(update_alldifferent(L1,Remember,L,Susp),
-                    4,[L1->any],Susp)
+            suspend(update_alldifferent(L1,Remember,L,Susp),4,[L1->any],Susp)
         ).
 
 shrink(L,L1):-
@@ -514,9 +513,8 @@ gcc(Bounds,Vars):-
         (ground(Variables) ->
             true
         ;
-            generic_suspend(update_gcc(Bounds,Variables,N,M,Susp),9,
-                    [Variables->inst,
-                     Variables->any],Susp)
+            suspend(update_gcc(Bounds,Variables,N,M,Susp),9,
+                    [Variables->[inst,any]],Susp)
         ).
 
 :-demon(update_gcc/5).
@@ -661,7 +659,7 @@ same(L1,L2):-
         (ground(Variables) ->
             true
         ;
-            generic_suspend(update_same(Variables,Vars1,Vars2,N,Susp),
+            suspend(update_same(Variables,Vars1,Vars2,N,Susp),
                     0,[Variables->any],Susp)
         ).
 
@@ -810,7 +808,7 @@ inverse(XL,YL):-
         (ground(Variables) ->
             true
         ;
-            generic_suspend(update_inverse(Variables,Vars1,Vars2,N,Susp),
+            suspend(update_inverse(Variables,Vars1,Vars2,N,Susp),
                     10,[Variables->any],Susp)
         ).
 
@@ -968,17 +966,17 @@ setup_lex_gac(XList,YList,Variant):-
                 arg(J,YArray,Yj),
 %                writeln(j(J,Xj,Yj)),
                 (var(Xj) ->
-                    generic_suspend(update_lex_gac(Xj,XArray,YArray,
+                    suspend(update_lex_gac(Xj,XArray,YArray,
                                            Store,J,Variant,SuspX),4,
-                            [Xj ->inst,Xj->min],
+                            [Xj->[inst,min]],
                             SuspX)
                 ;
                     true
                 ),
                 (var(Yj) ->
-                    generic_suspend(update_lex_gac(Yj,XArray,YArray,
+                    suspend(update_lex_gac(Yj,XArray,YArray,
                                            Store,J,Variant,SuspY),4,
-                            [Yj ->inst,Yj->max],
+                            [Yj->[inst,max]],
                             SuspY)
                 ;
                     true

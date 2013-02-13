@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: gfd_generic_interface.ecl,v 1.2 2010/09/29 15:43:05 kish_shen Exp $
+% Version:	$Id: gfd_generic_interface.ecl,v 1.3 2013/02/13 01:00:43 jschimpf Exp $
 %
 % Description:		Generic interface to gfd library
 %
@@ -56,11 +56,9 @@
 	check_in/2,
 	lwb/2,
 	upb/2,
-	excl/2,
+	excl/2.
 %	domain_union/4,
 %	subtract_domain/2,
-	generic_suspend/3,
-	generic_suspend/4.
 
     %
     % Set up module name translations.
@@ -115,12 +113,6 @@ tr_gfd_in(check_in(Val, Var),
          gfd:is_in_domain(Val, Var)).
 tr_gfd_in(is_integer_type(Var),
          gfd:is_solver_type(Var)).
-tr_gfd_in(generic_suspend(Goal, Priority, Cond0),
-		suspend(Goal, Priority, Cond)) :-
-	translate_suspension_conditions(Cond0, Cond, compile).
-tr_gfd_in(generic_suspend(Goal, Priority, Cond0, Susp),
-		suspend(Goal, Priority, Cond, Susp)) :-
-	translate_suspension_conditions(Cond0, Cond, compile).
 
 
     %
@@ -144,8 +136,6 @@ tr_gfd_in(generic_suspend(Goal, Priority, Cond0, Susp),
 :- inline(excl/2, tr_gfd_in/2).
 :- inline(check_in/2, tr_gfd_in/2).
 :- inline(is_integer_type/1, tr_gfd_in/2).
-:- inline(generic_suspend/3, tr_gfd_in/2).
-:- inline(generic_suspend/4, tr_gfd_in/2).
 
     %
     % Almost "dummy" (but not really) versions of interface predicates for
@@ -203,15 +193,6 @@ check_in(Val, Var) :-
 is_integer_type(Var) :-
         is_integer_type(Var).
 
-    % These ones aren't quite trivial.
-
-generic_suspend(Goal, Priority, Cond0) :-
-	translate_suspension_conditions(Cond0, Cond, run),
-	suspend(Goal, Priority, Cond).
-
-generic_suspend(Goal, Priority, Cond0, Susp) :-
-	translate_suspension_conditions(Cond0, Cond, run),
-	suspend(Goal, Priority, Cond, Susp).
 
 
     %
@@ -241,44 +222,3 @@ subtract_domain(Var, DomList) :-
 	),
 	wake.
 */
-
-
-    %
-    % Code for handling the translation of suspension conditions.
-    %
-
-    % Translate a (list of) generic suspension condition(s) into its
-    % corresponding list of solver-specific suspension conditions.
-translate_suspension_conditions(Cond0, CondList, Mode) :-
-	( nonvar(Cond0), Cond0 = [_|_] ->
-	    (
-		foreach(Cond, Cond0),
-		fromto(CondList, CondList, CondTail, []),
-		param(Mode)
-	    do
-		translate_suspension_condition(Cond, CondList, CondTail, Mode)
-	    )
-	;
-	    % Cond0 might be a variable, but this is caught in
-	    % translate_suspension_condition/4.
-	    translate_suspension_condition(Cond0, CondList, [], Mode)
-	).
-
-    % Translate a generic suspension condition into its corresponding list
-    % of solver-specific suspension conditions.
-translate_suspension_condition(Vars->Key, CondList, CondTail, _Mode) :- -?->
-	nonvar(Key),
-	!,
-	translate_suspension_key(Vars, Key, CondList, CondTail).
-translate_suspension_condition(Cond, CondList, CondTail, Mode) :-
-	% Either the condition or the "key" is a variable.  If it's compile
-	% time, just fail and hope it's instantiated by the time it's called
-	% at run time.  If it's run time it's probably an error, but pass it
-	% through as-is and let somebody else deal with it.
-	Mode == run,
-	CondList = [Cond | CondTail].
-
-translate_suspension_key(Vars, any, List, Tail) :-
-	!,
-	List = [Vars->any | Tail].
-

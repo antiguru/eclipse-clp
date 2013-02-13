@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_generic_interface.ecl,v 1.2 2010/03/11 14:13:37 kish_shen Exp $
+% Version:	$Id: fd_generic_interface.ecl,v 1.3 2013/02/13 00:58:47 jschimpf Exp $
 %
 % Description:		Generic interface to FD library
 %
@@ -59,9 +59,7 @@
 	excl/2,
 	empty_domain/1,
 	domain_union/4,
-	subtract_domain/2,
-	generic_suspend/3,
-	generic_suspend/4.
+	subtract_domain/2.
 
 
     %
@@ -136,10 +134,6 @@ tr_fd_in(subtract_domain(Var, Dom), (
 		    fd:dom_difference(VarDom, Dom, NewDom, _),
 		    fd:dvar_update(Var, NewDom)
 		)).
-tr_fd_in(generic_suspend(Goal, Priority, Cond),
-		suspend(Goal, Priority, Cond)).
-tr_fd_in(generic_suspend(Goal, Priority, Cond, Susp),
-		suspend(Goal, Priority, Cond, Susp)).
 
 
     %
@@ -166,8 +160,6 @@ tr_fd_in(generic_suspend(Goal, Priority, Cond, Susp),
 :- inline(empty_domain/1, tr_fd_in/2).
 :- inline(domain_union/4, tr_fd_in/2).
 :- inline(subtract_domain/2, tr_fd_in/2).
-:- inline(generic_suspend/3, tr_fd_in/2).
-:- inline(generic_suspend/4, tr_fd_in/2).
 
 
     %
@@ -231,12 +223,6 @@ domain_union(Dom1, Dom2, DomUnion, DomUnionSize) :-
 
 subtract_domain(Var, Dom) :-
 	subtract_domain(Var, Dom).
-
-generic_suspend(Goal, Priority, Cond) :-
-	generic_suspend(Goal, Priority, Cond).
-
-generic_suspend(Goal, Priority, Cond, Susp) :-
-	generic_suspend(Goal, Priority, Cond, Susp).
 
 
     %
