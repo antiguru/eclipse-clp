@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.15 2013/02/13 17:54:36 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.16 2013/02/14 02:55:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2013/02/13 17:54:36 $").
+:- comment(date, "$Date: 2013/02/14 02:55:20 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -1004,137 +1004,6 @@ skip_to_conditional(Stream, Nesting, NextDir, Module) :-
 
     is_else_directive(:-elif(_)) ?- true.
     is_else_directive(:-else) ?- true.
-
-
-%----------------------------------------------------------------------
-% PRELIMINARY: Database of meta-predicates
-% These should probably be stored as predicate properties,
-% like the mode declaration.
-%
-% Meaning of the argument types:
-%
-%	u	goal (unconditionally called whenever pred called)
-%	e	goal (goal exit leads unconditionally to pred exit)
-%	s	goal (both u and e)
-%	:	goal (called)
-%	0	goal (not directly called, further processed)
-%	<int>	goal (after adding arguments)
-%	c	clause
-%	p	predicate spec N/A
-%	*	other
-%
-% make_suspension and suspend could be : rather than 0.
-% advantage: we get a wake counter from the coverage processor.
-% disadvantage: some code may break because the delayed goal is different
-%----------------------------------------------------------------------
-
-:- comment(meta_predicate_pattern/1, 
-        [ summary: "Describes built-in ECLiPSe meta-predicate patterns",
-          amode:meta_predicate_pattern(?),
-          args:["Pattern" : "Prolog term describing the meta-predicate pattern"],
-          fail_if:no,
-          resat:yes,
-          desc: html("<P>This predicate returns a structure, Pattern, that "
-                     "describes the control flow through the arguments of a "
-                     "meta-predicate."
-                     "<P>"
-                     "The functor and arity of Pattern correspond to the functor "
-                     "and arity of the meta-predicate. The arguments are each "
-                     "populated with one of the following atomic descriptors:"
-                     "<DL>"
-                     "<DT>"
-                     "<PRE>u</PRE>"
-                     "<DD>"
-                     "A goal that is unconditionally called whenever the "
-                     "predicate is called."
-                     "<DT>"
-                     "<PRE>e</PRE>"
-                     "<DD>"
-                     "A goal whose exit leads unconditionally to the "
-                     "predicate exit."
-                     "<DT>"
-                     "<PRE>s</PRE>"
-                     "<DD>"
-                     "A goal whose behaviour is the combination of <TT>u</TT> "
-                     "and <TT>e</TT>."
-                     "<DT>"
-                     "<PRE>:</PRE>"
-                     "<DD>"
-                     "A goal that is called directly."
-                     "<DT>"
-                     "<PRE>0</PRE>"
-                     "<DD>"
-                     "A goal that is not directly called, but is further "
-                     "processed."
-                     "<DT>"
-                     "<P>An integer</P>"
-                     "<DD><P>"
-                     "A goal that is constructed by appending the number "
-                     "of specified arguments."
-                     "</P><DT>"
-                     "<PRE>c</PRE>"
-                     "<DD>"
-                     "A clause."
-                     "<DT>"
-                     "<PRE>p</PRE>"
-                     "<DD>"
-                     "A PredSpec."
-                     "<DT>"
-                     "<PRE>*</PRE>"
-                     "<DD>"
-                     "An argument that is not one of the above."
-                     "</DL>"),
-          see_also:[instrument/2, instrument/3, library(instrument), struct(itemplate)]
-        ]).
-
-:- export meta_predicate_pattern/1.
-
-meta_predicate_pattern(@(s,*)).
-meta_predicate_pattern(:(*,s)).
-meta_predicate_pattern(','(u,e)).
-meta_predicate_pattern(;(u,:)).
-meta_predicate_pattern(->(s,:)).
-meta_predicate_pattern(once(s)).
-meta_predicate_pattern(call(s)).
-meta_predicate_pattern(call(s,*)).
-meta_predicate_pattern(not(u)).
-meta_predicate_pattern(fail_if(u)).
-meta_predicate_pattern(is(*,1)).
-meta_predicate_pattern(\+(u)).
-meta_predicate_pattern(~(u)).
-meta_predicate_pattern(call_priority(s,*)).
-meta_predicate_pattern(call_priority(s,*,*)).
-meta_predicate_pattern(maplist(2,*,*)).
-meta_predicate_pattern(block(u,*,:)).
-meta_predicate_pattern(do(*,:)).
-meta_predicate_pattern(assert(c)).
-meta_predicate_pattern(asserta(c)).
-meta_predicate_pattern(assertz(c)).
-meta_predicate_pattern(retract(c)).
-meta_predicate_pattern(retract_all(0)).
-meta_predicate_pattern(retractall(0)).
-meta_predicate_pattern(make_suspension(0,*,*)).
-meta_predicate_pattern(suspend(0,*,*)).
-meta_predicate_pattern(suspend(0,*,*,*)).
-meta_predicate_pattern(minimize(:,*)).
-meta_predicate_pattern(minimize(:,*,*,*)).
-meta_predicate_pattern(minimize(:,*,*,*,*)).
-meta_predicate_pattern(minimize(:,*,*,*,*,*)).
-meta_predicate_pattern(minimize(:,*,*,*,*,*,*,*)).
-meta_predicate_pattern(min_max(:,*)).
-meta_predicate_pattern(min_max(:,*,*,*)).
-meta_predicate_pattern(min_max(:,*,*,*,*)).
-meta_predicate_pattern(min_max(:,*,*,*,*,*)).
-meta_predicate_pattern(min_max(:,*,*,*,*,*,*,*)).
-meta_predicate_pattern(findall(*,:,*)).
-meta_predicate_pattern(setof(*,:,*)).
-meta_predicate_pattern(bagof(*,:,*)).
-meta_predicate_pattern(coverof(*,:,*)).
-meta_predicate_pattern(^(*,s)).
-meta_predicate_pattern(-?->(s)).
-meta_predicate_pattern(set_error_handler(*,p)).
-meta_predicate_pattern(set_default_error_handler(*,p)).
-meta_predicate_pattern(set_event_handler(*,p)).
 
 
 end_of_file.
