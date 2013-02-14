@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.16 2013/02/09 20:27:57 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.17 2013/02/14 02:50:37 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1308,6 +1308,10 @@ p_mode(value pv, type pt, value mv, type mt)
 		wd = d_.list;
 		pred = pred->val.ptr;
 	    }
+	    else if (IsAtom(pred->tag)) {
+		wd = pred->val.did;
+		pred = 0;
+	    }
 	    else {
 		Bip_Error(TYPE_ERROR);
 	    }
@@ -1326,6 +1330,10 @@ p_mode(value pv, type pt, value mv, type mt)
 		else if (IsList(term->tag)) {
 		    wd = d_.list;
 		    term = term->val.ptr;
+		}
+		else if (IsAtom(term->tag)) {
+		    wd = term->val.did;
+		    term = 0;
 		}
 		else {
 		    Bip_Error(TYPE_ERROR);
@@ -1367,7 +1375,7 @@ p_mode(value pv, type pt, value mv, type mt)
 #endif
 		else
 		{
-		    Bip_Error(TYPE_ERROR);
+		    Bip_Error(RANGE_ERROR);
 		}
 		Set_Mode(i, mode_decl, mode);
 	    }
