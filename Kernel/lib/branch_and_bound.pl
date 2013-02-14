@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: branch_and_bound.pl,v 1.4 2012/10/07 12:42:01 jschimpf Exp $
+% Version:	$Id: branch_and_bound.pl,v 1.5 2013/02/14 01:28:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(branch_and_bound).
@@ -31,7 +31,7 @@
 :- comment(summary, "Generic branch-and-bound primitives").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, Vassilis Liatsos, IC-Parc, Imperial College, London").
-:- comment(date, "$Date: 2012/10/07 12:42:01 $").
+:- comment(date, "$Date: 2013/02/14 01:28:56 $").
 :- comment(index, ["branch-and-bound","dichotomic search"]).
 :- comment(desc, html("
 	This is a solver-independent library implementing branch-and-bound
@@ -70,6 +70,13 @@
 	bb_solution/2,
 	bb_finish/1,
 	bb_probe/7.
+
+:- meta_predicate((
+	bb_min(:,*,*),
+	bb_min(:,*,*,*,*,*),
+	minimize(:,*),
+	bb_probe(*,*,:,*,*,*,*)
+    )).
 
 :- export struct(bb_options(
 	    strategy,		% atom

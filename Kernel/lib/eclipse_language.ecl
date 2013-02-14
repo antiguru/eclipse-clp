@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.10 2012/02/10 20:20:05 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.11 2013/02/14 01:28:56 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -362,6 +362,7 @@
 :- reexport merge_suspension_lists / 4 from sepia_kernel.
 :- reexport meta / 1 from sepia_kernel.
 :- reexport meta_attribute / 2 from sepia_kernel.
+:- reexport meta_predicate / 1 from sepia_kernel.
 :- reexport min / 2 from sepia_kernel.
 :- reexport min / 3 from sepia_kernel.
 :- reexport mkdir / 1 from sepia_kernel.

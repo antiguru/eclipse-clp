@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.6 2011/06/09 16:58:53 kish_shen Exp $
+% Version:	$Id: lists.pl,v 1.7 2013/02/14 01:28:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -55,7 +55,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2011/06/09 16:58:53 $").
+:- comment(date, "$Date: 2013/02/14 01:28:56 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -105,7 +105,9 @@
 
 
 :- tool(maplist/3, maplist_body/4).
+:- meta_predicate(maplist(2,*,*)).
 :- tool(checklist/2, checklist_body/3).
+:- meta_predicate(checklist(1,*)).
 :- tool(print_list/1, print_list_/2).
 
 

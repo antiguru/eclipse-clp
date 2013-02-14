@@ -25,7 +25,7 @@
 %
 % System:       ECLiPSe Constraint Logic Programming System
 % Author/s:     Andrew Cheadle, IC-Parc
-% Version:      $Id: instrument.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% Version:      $Id: instrument.ecl,v 1.3 2013/02/14 01:31:05 jschimpf Exp $
 %
 %
 % NOTES
@@ -50,7 +50,7 @@
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Generic tool for code instrumentation").
 :- comment(author,"Andrew Cheadle, based on ideas by Joachim Schimpf").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2013/02/14 01:31:05 $").
 :- comment(status, prototype).
 
 :- comment(desc, html("<P>
@@ -2956,8 +2956,7 @@ weave_body(WeaverPredName, FileKey, Goal, WeavedGoal, Mode, Module) :-
                     UnQualGoal = UserGoal,
                     WeavedGoal = MetaWeavedGoal
                 ),
-                functor(Pattern, F, N),
-                ( meta_predicate_pattern(Pattern) ->
+		( get_flag(F/N, meta_predicate, Pattern)@Module ->
                     % some of Goal's arguments may need to be weaved themselves
                     functor(MetaWeavedGoal, F, N),
                     (

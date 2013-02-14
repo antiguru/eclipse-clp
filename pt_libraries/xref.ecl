@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: xref.ecl,v 1.2 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: xref.ecl,v 1.3 2013/02/14 01:31:05 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(xref).
@@ -35,7 +35,7 @@
 :- comment(summary, "Cross-referencing tool").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2009/07/16 09:11:27 $").
+:- comment(date, "$Date: 2013/02/14 01:31:05 $").
 :- comment(desc, html("
     This library analyses an ECLiPSe source module or file and build
     a call graph. The graph can either be returned in the format of
@@ -414,8 +414,7 @@ process_body((G1->G2), Caller, Edges, Edges0, Options, Module) :- !,
 process_body(Goal, Caller, Edges, Edges0, Options, Module) :-
 	functor(Goal, F, N),
 	insert_callee(Caller, F/N, Edges1, Edges0, Options, Module),
-	functor(Pattern, F, N),
-	( meta_predicate_pattern(Pattern) ->
+	( get_flag(F/N, meta_predicate, Pattern)@Module ->
 	    % some of Goal's arguments may need to be processed themselves
 	    (
 	        for(I,1,N),

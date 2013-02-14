@@ -23,14 +23,8 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc, Imperial College
-% Version:	$Id: coverage.ecl,v 1.3 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: coverage.ecl,v 1.4 2013/02/14 01:31:05 jschimpf Exp $
 %
-%
-% TODO
-%	- do everything the normal compiler does
-%		record information (+which compiler) so that make/0 works
-%		raise events
-%	- make incval/2 to avoid structure allocation in counting
 %
 % NOTES
 %	- (read) macro expansion should be on during preprocessing
@@ -49,7 +43,7 @@
 
 :- comment(author,"Joachim Schimpf, based on ideas by Helmut Simonis").
 :- comment(copyright,"Cisco Systems, Inc.").
-:- comment(date,"$Date: 2009/07/16 09:11:27 $").
+:- comment(date,"$Date: 2013/02/14 01:31:05 $").
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tool for obtaining code coverage information").
 :- comment(desc, html("<P>
@@ -735,8 +729,7 @@ preprocess_body((G1->G2;G3), NewGoal, PointCount0, PointCount, Mode, Options, Po
 preprocess_body(Goal, NewGoal, PointCount0, PointCount, Mode, Options, Position, Module) :-
 	profiler_point(Mode, Options, Position, PointCount0, PointCount1, ProcessedGoal, NewGoal, Module),
 	functor(Goal, F, N),
-	functor(Pattern, F, N),
-	( meta_predicate_pattern(Pattern) ->
+	( get_flag(F/N, meta_predicate, Pattern)@Module ->
 	    % some of Goal's arguments may need to be preprocessed themselves
 	    functor(ProcessedGoal, F, N),
 	    (

@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lint.ecl,v 1.3 2010/07/25 13:29:05 jschimpf Exp $
+% Version:	$Id: lint.ecl,v 1.4 2013/02/14 01:31:05 jschimpf Exp $
 %
 %
 % TODO/ideas:
@@ -52,7 +52,7 @@
 :- comment(summary, "Heuristic program checker").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2010/07/25 13:29:05 $").
+:- comment(date, "$Date: 2013/02/14 01:31:05 $").
 :- comment(desc, html("
     This library analyses an ECLiPSe source module or file and generates
     warning messages for dubious programming constructs and violation
@@ -296,8 +296,7 @@ lint_goal(G, SP, Cut, Options) :-
 	%     true
 	% ),
 	check_builtin_calls(G, SP, Options),
-	functor(Pattern, Name, Arity),
-	( meta_predicate_pattern(Pattern) ->
+	( get_flag(Name/Arity, meta_predicate, Pattern) /*Module?*/ ->
 	    % some of G's arguments may need to be processed themselves
 	    (
 	        for(I,1,Arity),

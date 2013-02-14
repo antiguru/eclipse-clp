@@ -332,6 +332,7 @@
 :-(reexport(from(/(merge_suspension_lists,4),sepia_kernel))).
 :-(reexport(from(/(meta,1),sepia_kernel))).
 :-(reexport(from(/(meta_attribute,2),sepia_kernel))).
+:-(reexport(from(/(meta_predicate,1),sepia_kernel))).
 :-(reexport(from(/(min,2),sepia_kernel))).
 :-(reexport(from(/(min,3),sepia_kernel))).
 :-(reexport(from(/(mkdir,1),sepia_kernel))).

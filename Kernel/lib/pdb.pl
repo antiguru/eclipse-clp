@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: pdb.pl,v 1.2 2013/02/12 00:41:44 jschimpf Exp $
+% Version:	$Id: pdb.pl,v 1.3 2013/02/14 01:28:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -211,6 +211,71 @@ is_built_in_body(Functor, Module) :-
 		bip_error(is_built_in(Functor), Module)
 	).
 
+
+%----------------------------------------------------------------------
+% meta_predicate declaration
+%----------------------------------------------------------------------
+
+:- export meta_predicate/1.
+:- tool(meta_predicate/1, meta_predicate_/2).
+:- local store(meta_predicate).
+
+meta_predicate_((Decl,Decls), Module) ?- !,
+	meta_predicate_single(Decl, Module),
+	meta_predicate_(Decls, Module).
+meta_predicate_(Decl, Module) :-
+	meta_predicate_single(Decl, Module).
+
+meta_predicate_single(Decl, Module) :-
+	check_callable(Decl),
+	functor(Decl, F, N),
+	functor(Meta, F, N),
+	functor(NewMode, F, N),
+	( get_flag(F/N, mode, OldMode)@Module -> true ; functor(OldMode, F, N) ),
+	( for(I,1,arity(Decl)), param(Decl,Meta,OldMode,NewMode) do
+	    arg(I, Decl, Spec), 
+	    arg(I, Meta, MetaArg), 
+	    arg(I, OldMode, OldModeArg), 
+	    arg(I, NewMode, NewModeArg), 
+	    ( var(OldModeArg) -> OldModeArg = (?) ; true ),
+	    check_meta_arg(Spec, MetaArg, OldModeArg, NewModeArg)
+	),
+	!,
+	% mode/1 also takes care of creating the predicate if necessary
+	( NewMode = (_,_) ->
+	    mode((NewMode,NewMode))@Module	% comma ambiguity...
+	;
+	    mode(NewMode)@Module
+	),
+	store_set(meta_predicate, Module:F/N, Meta).
+meta_predicate_single(Decl, Module) :-
+	bip_error(meta_predicate(Decl))@Module.
+
+    :- mode check_meta_arg(?,-,+,-).
+    check_meta_arg(Arg, _, _, _) :- var(Arg), !, set_bip_error(4).
+    check_meta_arg(Arg, Arg, M, M) :- integer(Arg), check_integer_ge(Arg, 0).
+    check_meta_arg(:, :, M, M) :- !.
+    check_meta_arg(u, u, M, M) :- !.
+    check_meta_arg(e, e, M, M) :- !.
+    check_meta_arg(s, s, M, M) :- !.
+    check_meta_arg(c, c, M, M) :- !.
+    check_meta_arg(p, p, M, M) :- !.
+    check_meta_arg(*, *, M, M) :- !.
+    check_meta_arg(+, *, _, +) :- !.
+    check_meta_arg(-, *, _, -) :- !.
+    check_meta_arg(?, *, _, ?) :- !.
+    check_meta_arg(++, *, _, ++) :- !.
+    check_meta_arg(Arg, _, _, _) :- atom(Arg), !, set_bip_error(6).
+    check_meta_arg(_, _, _, _) :- set_bip_error(5).
+
+
+erase_meta_predicates(Module) :-
+	store_erase_qualified(meta_predicate, Module).
+
+
+%----------------------------------------------------------------------
+% Print predicate information
+%----------------------------------------------------------------------
 
 als(Proc, Module) :-
 	(var(Proc) ->

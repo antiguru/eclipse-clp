@@ -26,7 +26,7 @@
 % ----------------------------------------------------------------------
 %
 % System:		ECLiPSe Constraint Logic Programming System
-% Version:		$Id: setof.pl,v 1.5 2013/02/12 00:41:44 jschimpf Exp $
+% Version:		$Id: setof.pl,v 1.6 2013/02/14 01:28:55 jschimpf Exp $
 % Identification:	setof.pl, part of module(sepia_kernel)
 % Description:		Implements the all-solution predicates.
 % 			This code was originally based on Richard O'Keefe's
@@ -44,6 +44,13 @@
 	coverof/3,
 	bagof/3,
 	(^)/2.
+
+:- meta_predicate((
+	findall(*,:,*),
+	setof(*,:,*),
+	bagof(*,:,*),
+	coverof(*,:,*),
+	^(*,s))).
 
 
 %   findall(Template, Generator, List)

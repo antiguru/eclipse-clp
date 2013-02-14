@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.46 2013/02/12 18:52:16 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.47 2013/02/14 01:28:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1079,6 +1079,16 @@ recordedchk_body(Key, Value, DbRef, Module) :-
 	).
 
 
+% Erase all Store entries whose keys match Module:_
+store_erase_qualified(Store, Module) :-
+	stored_keys(Store, Entries),
+	Key = Module:_,
+	member(Key, Entries),
+	store_delete(Store, Key),
+	fail.
+store_erase_qualified(_, _).
+
+
 %----------------------------------------------------------------------
 % Compiling and loading
 %----------------------------------------------------------------------
@@ -1420,18 +1430,7 @@ current_pragma_(Pragma, Module) :-
 
 erase_module_pragmas(Module) :-
 	reset_name_ctr(Module),
-	stored_keys(pragmas, Keys),
-	erase_module_pragmas(Keys, Module).
-
-    erase_module_pragmas([], _Module).
-    erase_module_pragmas([Key|Keys], Module) :-
-	( Key = Module:_ ->
-	    store_delete(pragmas, Key)
-	;
-	    true	% other module, ignore
-	),
-	erase_module_pragmas(Keys, Module).
-
+	store_erase_qualified(pragmas, Module).
 
 
 %----------------------------------------------------------------------
@@ -1701,17 +1700,7 @@ record_inline_source(Head, Body, AnnBody, Module) :-
 
 % module has been erased: forget the stored source
 forget_inlined_predicates(Module) :-
-	stored_keys(inlined_predicates, Keys),
-	forget_inlined_predicates(Keys, Module).
-
-    forget_inlined_predicates([], _Module).
-    forget_inlined_predicates([Key|Keys], Module) :-
-	( Key = Module:_ ->
-	    store_delete(inlined_predicates, Key)
-	;
-	    true	% other module, ignore
-	),
-	forget_inlined_predicates(Keys, Module).
+	store_erase_qualified(inlined_predicates, Module).
 
 
 %--------------------------------
@@ -2215,6 +2204,7 @@ erase_module_related_records(Module) :-
 	erase_module_domains(Module),
 	erase_module_pragmas(Module),
 	erase_deprecation_advice(Module),
+	erase_meta_predicates(Module),
 	forget_discontiguous_predicates(Module),
 	forget_inlined_predicates(Module),
 	forget_stored_goals(initialization_goals, Module),
@@ -2442,7 +2432,7 @@ create_module(M, Exports, Language) :-
 set_toplevel_module(M) :-		% fails on error with bip_error set
 	( var(M) ->
 		set_bip_error(4)
-	; fail_if(atom(M)) ->
+	; \+atom(M) ->
 		set_bip_error(5)
 	; is_a_module(M) ->
 		( is_locked(M) -> set_bip_error(82) ; true )
@@ -3113,8 +3103,8 @@ check_proper_list(_) :-
 illegal_module(Module, 4) :-
 	var(Module).
 illegal_module(Module, 5) :-
-	fail_if(var(Module)),
-	fail_if(atom(Module)).
+	nonvar(Module),
+	\+atom(Module).
 
 % illegal_or_nonexisting_module
 :- mode illegal_existing_module(?, -).
@@ -3125,7 +3115,7 @@ illegal_existing_module(Module, 5) :-
 	not atom(Module).
 illegal_existing_module(Module, 80) :-
 	atom(Module),
-	fail_if(is_a_module(Module)).
+	\+is_a_module(Module).
 
 % illegal_or_nonexisting_or_locked_module
 :- mode illegal_unlocked_module(?, -).
@@ -3136,7 +3126,7 @@ illegal_unlocked_module(Module, 5) :-
 	not atom(Module).
 illegal_unlocked_module(Module, 80) :-
 	atom(Module),
-	fail_if(is_a_module(Module)).
+	\+is_a_module(Module).
 illegal_unlocked_module(Module, 82) :-
 	atom(Module),
 	\+authorized_module(Module).
@@ -3624,18 +3614,7 @@ get_deprecation_advice(PredSpec, Module, Advice) :-
 
 
 erase_deprecation_advice(Module) :-
-	stored_keys(deprecation_advice, Keys),
-	erase_deprecation_advice(Keys, Module).
-
-    erase_deprecation_advice([], _Module).
-    erase_deprecation_advice([Key|Keys], Module) :-
-	( Key = Module:_ ->
-	    store_delete(deprecation_advice, Key)
-	;
-	    true	% other module, ignore
-	),
-	erase_deprecation_advice(Keys, Module).
-
+	store_erase_qualified(deprecation_advice, Module).
 
 
 %
@@ -3643,11 +3622,17 @@ erase_deprecation_advice(Module) :-
 %
 
 get_flag_body(Proc, Flag, Value, Module) :-
+	check_predspec(Proc),
 	check_var_or_atom(Flag),
-	check_var_or_flag_value(Flag),
+	%check_var_or_flag_value(Flag),
 	!,
 	pri_flag_code(Flag, Code),
-	proc_flags(Proc, Code, Value, Module).
+	( integer(Code),
+	    proc_flags(Proc, Code, Value, Module)
+	; atom(Code),
+	    proc_flags(Proc, 0/*definition_module*/, DM, Module),
+	    store_get(Code, DM:Proc, Value)
+	).
 get_flag_body(Proc, Flag, Value, Module) :-
 	bip_error(get_flag(Proc, Flag, Value), Module).
 
@@ -3659,6 +3644,7 @@ proc_flags(P, C, V, M) :-
 % The numbers here have to match those in local_proc_flags/5 in bip_db.c
 
 pri_flag_code(mode,		 6).	% name and visibility
+pri_flag_code(meta_predicate,	meta_predicate).
 pri_flag_code(visibility,	23).
 pri_flag_code(definition_module, 0).
 pri_flag_code(declared,		12).
@@ -5145,19 +5131,8 @@ visible_item(Key, Definition, LookupModule, Scope, DefStore, ImpStore) :-
 % Keep information about imports _from_ Module.
 :- mode erase_module_item(+,+,+).
 erase_module_item(Module, DefStore, ImpStore) :-
-	(
-	    stored_keys(ImpStore, Entries),
-	    member(Module:Key, Entries),
-	    store_delete(ImpStore, Module:Key),
-	    fail
-	;
-	    stored_keys(DefStore, Entries),
-	    member(Module:Key, Entries),
-	    store_delete(DefStore, Module:Key),
-	    fail
-	;
-	    true
-	).
+	store_erase_qualified(ImpStore, Module),
+	store_erase_qualified(DefStore, Module).
 
 
 %----------------------------------------------------------------------
@@ -5618,14 +5593,7 @@ import_domain(Template, ExpOrReexpModule, ImpModule) :-
 % Erase all information about Module's domains
 erase_module_domains(Module) :-
 	erase_module_item(Module, domain_def, imported_domain),
-	stored_keys(domain_symbols, Entries),
-	(
-	    member(Module:Symbol, Entries),
-	    store_delete(domain_symbols, Module:Symbol),
-	    fail
-	;
-	    true
-	).
+	store_erase_qualified(domain_symbols, Module).
 
 
 :- export domain_index/3.
@@ -7492,6 +7460,38 @@ select(Streams, Timeout, Ready) :- stream_select(Streams, Timeout, Ready).
 :- deprecated(substring/4,		"Use substring/5").
 :- deprecated(suffix/2,			"Use pathname/4").
 :- deprecated(suspension_to_goal/3,	"Use get_suspension_data/3").
+
+
+:- meta_predicate((
+	-?->(s),
+	@(s,*),
+	:(*,s),
+	','(u,e),
+	;(u,:),		% why?
+	->(s,:),	% why?
+	*->(u,e),
+	\+(u),
+	~(u),
+	block(u,*,:),
+	call(s),
+	call(s,*),
+	call_priority(s,*),
+	catch(u,*,:),
+	do(*,:),
+	is(*,1),
+	make_suspension(0,*,*),
+	mutex(*,s),
+	not(u),
+	once(s),
+	phrase(2,*),
+	phrase(2,*,*),
+	subcall(s,*),
+	suspend(0,*,*),
+	suspend(0,*,*,*),
+	set_event_handler(*,p),		% use
+	set_interrupt_handler(*,p),	% use
+	tool(*,p)			% use
+    )).
 
 
 %--------------------------------------------

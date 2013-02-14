@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: quintus.pl,v 1.14 2013/02/08 22:28:36 jschimpf Exp $
+% Version:	$Id: quintus.pl,v 1.15 2013/02/14 01:28:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'Quintus prolog compatibility package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2013/02/08 22:28:36 $').
+:- comment(date, '$Date: 2013/02/14 01:28:56 $').
 :- comment(desc, html('
     ECLiPSe includes a Quintus Prolog compatibility package to ease the
     task of porting Quintus Prolog applications to ECLiPSe Prolog.  This
@@ -88,11 +88,10 @@
     <DT>help/1 
 	<DD>This is the normal ECLiPSe help/1 predicate. 
     <DT>meta_predicate/1 
-	<DD>This predicate is not available, as the Quintus method of
-	passing the module information to meta predicates differs
-	substantially from the ECLiPSe more general concept of tools
-	(see Section 9.6.4).  Only the operator definition for this
-	functor is available. 
+	<DD>This declaration does not cause passing of module information
+	in Quintus-style, as ECLiPSe\'s concept of meta predicates
+	differs substantially.  The meta-predicates very likely have
+	to be modified manually to use ECLiPSe tools (see User Manual).
     <DT>multifile/1 
 	<DD>This is implemented by declaring the predicates as dynamic, so
 	to obtain more efficient programs it is better to put all
@@ -296,7 +295,6 @@
 	is_upper/1,
 	line_count/2,
 	manual/0,
-	(meta_predicate)/1,
 	name/2,
 	no_style_check/1,
 	nogc/0,
@@ -395,8 +393,7 @@ tr_lib(L, L) :-
 	tool(prolog_flag/2, prolog_flag_body/3),
 	tool(prolog_flag/3, prolog_flag_body/4),
 	tool((public)/1, public_body/2),
-	tool(op/3, op_body/4),
-	tool((meta_predicate)/1, meta_predicate_body/2).
+	tool(op/3, op_body/4).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -715,13 +712,6 @@ import1(File, M) :-
 	!,
 	import_body(Module, M).
 import1(_, _).
-
-meta_predicate_body((A,B), M) :-
-	!,
-	meta_predicate_body(A, M),
-	meta_predicate_body(B, M).
-meta_predicate_body(Def, _M) :-
-	printf(error, '*** Warning: the meta_predicate definition %w%n    must be manually replaced by a tool definition%n%b', [Def]).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
