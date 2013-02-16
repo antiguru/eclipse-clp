@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.47 2013/02/14 01:28:56 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.48 2013/02/16 00:40:29 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1666,7 +1666,8 @@ forget_discontiguous_predicates(Module) :-
 :- store_create_named(inlined_predicates).
 
 inline_(Proc, Module) :-
-	define_macro_(Proc, unfold/6, [goal], Module).
+	define_macro_(Proc, unfold/6, [goal], Module),
+	store_delete(inlined_predicates, Module:Proc).
 
 inline_(Proc, Trans, Module) :-
 	define_macro_(Proc, Trans, [goal], Module).
@@ -1676,6 +1677,23 @@ unfold(Goal, Unfolded, AnnGoal, AnnUnfolded, _CM, LM) :-
 	functor(Goal, F, N),
 	store_get(inlined_predicates, LM:F/N, Stored), % may fail
 	Stored = source(Head, Body, AnnBody),
+	( Goal=Head -> Unfolded=Body ; Unfolded=true ),
+	( var(AnnGoal) ->
+	    % leave AnnUnfolded uninstantiated
+	    true
+	; var(AnnBody) ->
+	    % inherit Goal's annotation for everything
+	    transformed_annotate_anon(Unfolded, AnnGoal, AnnUnfolded)
+	;
+	    % Body keeps its annotations. CAUTION: the Goal=Head unification
+	    % above may instantiate variables, and thus render the 'var'
+	    % annotations invalid.  However, currently the AnnBody returned
+	    % by the compiler does not contain annotated variable, so we are ok.
+	    % repair_annotation(AnnBody, AnnUnfolded)
+	    AnnUnfolded = AnnBody
+	).
+	/*
+	% conservative expansion, ever useful?
 	Unfolded = (Goal=Head, Body),
 	( var(AnnGoal) ->
 	    % leave AnnUnfolded uninstantiated
@@ -1689,7 +1707,8 @@ unfold(Goal, Unfolded, AnnGoal, AnnUnfolded, _CM, LM) :-
 	    inherit_annotation(AnnGoal=AnnHead, AnnGoal, AnnUnify),
 	    % Body keeps its annotations, comma inherits Body's annotation,
 	    inherit_annotation((AnnUnify,AnnBody), AnnBody, AnnUnfolded)
-	).
+	)
+	*/
 
 
 % Called by the compiler
@@ -4371,47 +4390,50 @@ inherit_annotation(TermOut,
 	    type_of(TermOut, TypeOut)
 	).
 
+tr_goals_annotated(G, Ann, GC, AnnGC, M) :-
+	( current_pragma(inline_depth(D))@M, integer(D) -> true ; D=10 ),
+	tr_goals_annotated(G, Ann, GC, AnnGC, D, M).
 
-tr_goals_annotated(Var, Ann, Var, Ann, _) :- var(Var), !.
-tr_goals_annotated((G1, G2), Ann, (GC1, GC2), AnnExp, M) :- !,
+tr_goals_annotated(Var, Ann, Var, Ann, _, _) :- var(Var), !.
+tr_goals_annotated((G1, G2), Ann, (GC1, GC2), AnnExp, D, M) :- !,
         same_annotation((AnnG1,AnnG2), Ann, (AnnGC1,AnnGC2), AnnExp),
-	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
-	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M).
-tr_goals_annotated((G1*->G2;G3), Ann, Expanded, AnnExp, M) ?- !, Expanded = (GC1*->GC2;GC3),
+	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, D, M),
+	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, D, M).
+tr_goals_annotated((G1*->G2;G3), Ann, Expanded, AnnExp, D, M) ?- !, Expanded = (GC1*->GC2;GC3),
 	same_annotation((AnnLhs;AnnG3), Ann, (AnnLhsC;AnnGC3), AnnExp),
 	same_annotation((AnnG1*->AnnG2), AnnLhs, (AnnGC1*->AnnGC2), AnnLhsC),
-	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
-	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M),
-	tr_goals_annotated(G3, AnnG3, GC3, AnnGC3, M).
-tr_goals_annotated((G1; G2), Ann, (GC1; GC2), AnnExp, M) :- !,
+	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, D, M),
+	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, D, M),
+	tr_goals_annotated(G3, AnnG3, GC3, AnnGC3, D, M).
+tr_goals_annotated((G1; G2), Ann, (GC1; GC2), AnnExp, D, M) :- !,
 	same_annotation((AnnG1;AnnG2), Ann, (AnnGC1;AnnGC2), AnnExp),
-	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
-	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M).
-tr_goals_annotated((G1 -> G2), Ann, (GC1 -> GC2), AnnExp, M) :- !,
+	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, D, M),
+	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, D, M).
+tr_goals_annotated((G1 -> G2), Ann, (GC1 -> GC2), AnnExp, D, M) :- !,
 	same_annotation((AnnG1->AnnG2), Ann, (AnnGC1->AnnGC2), AnnExp),
-	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, M),
-	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, M).
-tr_goals_annotated(-?->(G), Ann, -?->(GC), AnnExp, M) :- !,
+	tr_goals_annotated(G1, AnnG1, GC1, AnnGC1, D, M),
+	tr_goals_annotated(G2, AnnG2, GC2, AnnGC2, D, M).
+tr_goals_annotated(-?->(G), Ann, -?->(GC), AnnExp, D, M) :- !,
 	same_annotation(-?->(AnnG), Ann, -?->(AnnGC), AnnExp),
-	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
-tr_goals_annotated(once(G), Ann, once(GC), AnnExp, M) :-
+	tr_goals_annotated(G, AnnG, GC, AnnGC, D, M).
+tr_goals_annotated(once(G), Ann, once(GC), AnnExp, D, M) :-
 	!,
 	same_annotation(once(AnnG), Ann, once(AnnGC), AnnExp),
-	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
-tr_goals_annotated(not(G), Ann, not(GC), AnnExp, M) :-
+	tr_goals_annotated(G, AnnG, GC, AnnGC, D, M).
+tr_goals_annotated(not(G), Ann, not(GC), AnnExp, D, M) :-
 	!,
 	same_annotation(not(AnnG), Ann, not(AnnGC), AnnExp),
-	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
-tr_goals_annotated(\+(G), Ann, \+(GC), AnnExp, M) :-
+	tr_goals_annotated(G, AnnG, GC, AnnGC, D, M).
+tr_goals_annotated(\+(G), Ann, \+(GC), AnnExp, D, M) :-
 	!,
 	same_annotation(\+(AnnG), Ann, \+(AnnGC), AnnExp),
-	tr_goals_annotated(G, AnnG, GC, AnnGC, M).
-tr_goals_annotated(LM:G, Ann, GC, AnnGC, M) :- !,
+	tr_goals_annotated(G, AnnG, GC, AnnGC, D, M).
+tr_goals_annotated(LM:G, Ann, GC, AnnGC, D, M) :- !,
 	annotated_arg(2, Ann, AnnG),
-	tr_colon(G, AnnG, GC, AnnGC, M, LM).
-tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
-	( try_tr_goal(Goal, Ann, G1, AnnG1, M, M) -> 
-	    tr_goals_annotated(G1, AnnG1, GC, AnnGC, M) 
+	tr_colon(G, AnnG, GC, AnnGC, M, LM, D).
+tr_goals_annotated(Goal, Ann, GC, AnnGC, D, M) :-
+	( try_tr_goal(Goal, Ann, G1, AnnG1, M, M, D, D1) -> 
+	    tr_goals_annotated(G1, AnnG1, GC, AnnGC, D1, M) 
 	; 
 	    GC = Goal,
 	    AnnGC = Ann
@@ -4420,17 +4442,17 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
 
 % Inlining of ModuleList:Goal
 
-    tr_colon(G, AnnG, NewG, AnnNewG, _M, LM) :- 
+    tr_colon(G, AnnG, NewG, AnnNewG, _M, LM, _D) :- 
 	var(LM), !, 
 	NewG = LM:G,
 	transformed_annotate(LM, AnnG, AnnLM),
 	inherit_annotation((AnnLM:AnnG), AnnG, AnnNewG).
-    tr_colon(_G, AnnG, NewG, AnnNewG, _M, []) :- !, 
+    tr_colon(_G, AnnG, NewG, AnnNewG, _M, [], _D) :- !, 
 	NewG = true,
 	inherit_annotation(NewG, AnnG, AnnNewG).
-    tr_colon(G, AnnG, NewG, AnnNewG, M, [LM|LMs]) :- !,
-        ( try_tr_goal(G, AnnG, LMG0, AnnLMG0, LM, M) ->
-	    tr_goals_annotated(LMG0, AnnLMG0, LMG, AnnLMG, M)
+    tr_colon(G, AnnG, NewG, AnnNewG, M, [LM|LMs], D) :- !,
+        ( try_tr_goal(G, AnnG, LMG0, AnnLMG0, LM, M, D, D1) ->
+	    tr_goals_annotated(LMG0, AnnLMG0, LMG, AnnLMG, D1, M)
 	;
 	    LMG = LM:G,
 	    transformed_annotate(LM, AnnG, AnnLM),
@@ -4451,11 +4473,11 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
             ;
                 true
             ),
-            tr_colon(G, AnnG, LMsG, AnnLMsG, M, LMs)
+            tr_colon(G, AnnG, LMsG, AnnLMsG, M, LMs, D)
 	).
-    tr_colon(G, AnnG, NewG, AnnNewG, M, LM) :-
-	( try_tr_goal(G, AnnG, LMG, AnnLMG, LM, M) -> 
-	    tr_goals_annotated(LMG, AnnLMG, NewG, AnnNewG, M) 
+    tr_colon(G, AnnG, NewG, AnnNewG, M, LM, D) :-
+	( try_tr_goal(G, AnnG, LMG, AnnLMG, LM, M, D, D1) -> 
+	    tr_goals_annotated(LMG, AnnLMG, NewG, AnnNewG, D1, M) 
 	; 
 	    NewG = LM:G,
 	    inherit_annotation(AnnLM:AnnG, AnnG, AnnNewG),
@@ -4465,9 +4487,16 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, M) :-
 
 % Inline transformation of a standard goal
 
-try_tr_goal(Goal, AnnGoal, NewGoal, AnnNewGoal, LM, CM) :-
+try_tr_goal(Goal, AnnGoal, NewGoal, AnnNewGoal, LM, CM, Depth, Depth1) :-
 	visible_goal_macro(Goal, TransPred, TLM, LM),
-	transform(Goal, AnnGoal, NewGoal, AnnNewGoal, TransPred, TLM, CM).
+	( succ(Depth1, Depth) ->
+	    transform(Goal, AnnGoal, NewGoal, AnnNewGoal, TransPred, TLM, CM)
+	;
+	    functor(Goal, F, N),
+	    printf(warning_output,
+	    	"WARNING: inlining terminated at depth limit: %Kw%n",[LM:F/N]),
+	    fail
+	).
 
     % In C:
     % visible_goal_macro(Goal, TransPred, TLM, LM) :-
