@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ech.pl,v 1.5 2009/07/16 09:11:27 jschimpf Exp $
+% Version:	$Id: ech.pl,v 1.6 2013/02/16 02:55:20 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %  New CHR implementation
@@ -1884,7 +1884,7 @@ get_varconstraint1(_X, ConstNo, SuspL, Attr, Module) :-
 get_globalconstraint(ConstNo, SuspL, Module) :-
      getval_body('CHRcstore', Store, Module),
      % Store == 0 if uninitialised. 
-     (Store \== 0 -> arg(ConstNo, Store, SuspL) ; SuspL = []). 
+     (Store \== 0 -> arg(ConstNo, Store, SuspL) ; SuspL = []).
 
 
 new_chr_attr(X, Attr, Module) :-  % make a new chr-variable
@@ -2259,16 +2259,33 @@ get_applied_list(N, Applied, List) :-
 % unify_ech(+Term, Attribute)
 unify_ech(_, Attr) :- 
    var(Attr), !.
-unify_ech(Term, _) :-
-   nonvar(Term), !.
-unify_ech(_Term{ech:Attr0}, Attr1) ?- nonvar(Attr0), !,
-/* Term is var, there are chr attributes for both variables */
-   arg(slists of ech, Attr0, CStore0),
-   arg(slists of ech, Attr1, CStore1),
-   chrstore_merge_and_schedule(CStore0, CStore1).
+% Fix for bug#745, Kish 2013-02-14 - the ech suspension lists needs to be
+% inherited by any variables in the compound term.
 unify_ech(Term, Attr) :-
-/* Term does not have  chr attribute, just add it in */
-   add_attribute(Term, Attr).
+   compound(Term), !,
+   arg(slists of ech, Attr, CStore),
+   term_variables(Term, Vars),
+   ( Vars = [] -> 
+       true
+   ;
+       arity(CStore, Size),
+       (foreach(V, Vars), param(CStore, Size) do
+           add_chrstore_to_var(V, CStore, Size)
+       )
+   ).   
+unify_ech(Term, _) :-
+   atomic(Term), !.
+unify_ech(Term{ech:Attr0}, Attr1) ?- 
+   (nonvar(Attr0) ->
+       /* Term is var, there are chr attributes for both variables */
+       arg(slists of ech, Attr0, CStore0),
+       arg(slists of ech, Attr1, CStore1),
+       chrstore_merge_and_schedule(CStore0, CStore1)
+   ;
+       /* Term does not have  chr attribute, just add it in */
+       add_attribute(Term, Attr)
+   ).
+
 
 chrstore_merge_and_schedule(CS0, CS1) :-
    functor(CS0, F, A),
@@ -2279,12 +2296,21 @@ chrstore_merge_and_schedule(CS0, CS1) :-
 chrstore_merge_and_schedule(0, _, _) :- !.
 chrstore_merge_and_schedule(N, CS0, CS1) :-
    schedule_suspensions(N, CS0),	% schedule either CS0 or CS1 here
+   merge_one_slist(N, CS0, CS1),
+   N1 is N - 1,
+   chrstore_merge_and_schedule(N1, CS0, CS1).
+
+chrstore_merge(0, _, _) :- !.
+chrstore_merge(N, CS0, CS1) :-
+   merge_one_slist(N, CS0, CS1),
+   N1 is N - 1,
+   chrstore_merge(N1, CS0, CS1).
+
+merge_one_slist(N, CS0, CS1) :-
    arg(N, CS0, List0),
    arg(N, CS1, List1),
    ordered_merge(List0, List1, List),
-   setarg(N, CS0, List),
-   N1 is N - 1,
-   chrstore_merge_and_schedule(N1, CS0, CS1).
+   setarg(N, CS0, List).
 
 ordered_merge([], L, L) :- !.
 ordered_merge(L, [], L) :- !.
@@ -2312,6 +2338,32 @@ ordered_merge(L0, L1, L) :-
    ).
 
 
+/* add an existing chrstore from one variable to another variable */
+add_chrstore_to_var(V{Attr1}, Cs, Size) ?- !,
+        (nonvar(Attr1) ->
+            % already a CHR module, merge stores
+            arg(slists of ech, Attr1, Cs1),
+            arity(Cs1, Size),
+            chrstore_merge(Size, Cs1, Cs)
+        ;
+            % new CHR variable, copy store
+            duplicate_cstore(Attr, Cs, Size)
+        ).
+add_chrstore_to_var(V, Cs, Size) :-
+        free(V),
+        duplicate_cstore(Attr, Cs, Size),
+        add_attribute(V, Attr).
+
+duplicate_cstore(NewAttr, OldCs, Size) :-
+        NewAttr = ech{slists: NewCs, count:0},
+        functor(OldCs, Name, Size),
+        functor(NewCs, Name, Size),
+        (foreacharg(OldL, OldCs), foreacharg(NewL, NewCs) do
+            (foreach(S, OldL), fromto(NewL, NL1,NL2, []) do
+                % copy and also clean up lists
+                (is_suspension(S) -> NL1 = [S|NL2] ; NL1 = NL2)
+            )
+        ).
 
 chr_clear :-
    recorded_list('CHRconst_count', CCountL),
