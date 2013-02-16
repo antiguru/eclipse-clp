@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.8 2012/09/22 11:28:02 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.9 2013/02/16 20:06:54 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2012/09/22 11:28:02 $").
+:- comment(date, "$Date: 2013/02/16 20:06:54 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -1331,9 +1331,10 @@ gen_group_categories_index(HtmlTopDir, Groups, CatHash, LinkBack, SystemName) :-
 	concat_string(["index",I,".html"], CatIndexFile),
 	gen_library_index(HtmlTopDir, ".", CatIndexFile, Category, CatLibsSorted, SubHeader).
 
-versioned_name("ECLiPSe", SystemNameVersion) ?-
+versioned_name("ECLiPSe", SystemNameVersion) ?- !,
 	get_flag(version, Version),
 	concat_string(["ECLiPSe ",Version], SystemNameVersion).
+versioned_name(SystemName, SystemName).
 
 group_summary("ECLiPSe", "kernel", "The ECLiPSe Built-In Predicates") :- !.
 group_summary("ECLiPSe", "lib", "The ECLiPSe Libraries") :- !.
