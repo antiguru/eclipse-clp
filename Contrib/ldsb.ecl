@@ -34,6 +34,7 @@
 
 :- module(ldsb).
 
+:- comment(categories, ["Constraints","Techniques"]).
 :- comment(summary, "Lightweight dynamic symmetry breaking for finite domains.").
 :- comment(author, "Chris Mears").
 
