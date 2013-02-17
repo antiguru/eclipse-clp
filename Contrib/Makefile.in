@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.10 2013/02/16 19:49:14 jschimpf Exp $
+# $Id: Makefile.in,v 1.11 2013/02/17 22:31:58 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -28,7 +28,7 @@ PL_FILES =	xml.pl xml_diagnosis.pl xml_pp.pl xml_acquisition.pl \
 		cardinal_comments.pl cardinal_functions.pl cardinal_minmax.pl \
 		cardinal_union.pl cardinal_util.pl
 
-ECL_FILES =
+ECL_FILES =	generic_global_gac.ecl
 
 ECI_FILES =
 
