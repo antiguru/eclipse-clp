@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd.pl,v 1.5 2013/02/14 01:28:56 jschimpf Exp $
+% Version:	$Id: fd.pl,v 1.6 2013/02/18 00:42:58 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -206,16 +206,16 @@
     tool(min_max/8, min_max_body/9).
 
 :- meta_predicate((
-	minimize(:,*),
-	minimize(:,*,*,*),
-	minimize(:,*,*,*,*),
-	minimize(:,*,*,*,*,*),
-	minimize(:,*,*,*,*,*,*,*),
-	min_max(:,*),
-	min_max(:,*,*,*),
-	min_max(:,*,*,*,*),
-	min_max(:,*,*,*,*,*),
-	min_max(:,*,*,*,*,*,*,*)
+	minimize(0,*),
+	minimize(0,*,*,*),
+	minimize(0,*,*,*,*),
+	minimize(0,*,*,*,*,*),
+	minimize(0,*,*,*,*,*,*,*),
+	min_max(0,*),
+	min_max(0,*,*,*),
+	min_max(0,*,*,*,*),
+	min_max(0,*,*,*,*,*),
+	min_max(0,*,*,*,*,*,*,*)
     )).
 
 :- export 

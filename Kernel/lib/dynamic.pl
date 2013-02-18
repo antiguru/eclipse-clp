@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: dynamic.pl,v 1.9 2013/02/14 01:28:56 jschimpf Exp $
+% Version:	$Id: dynamic.pl,v 1.10 2013/02/18 00:42:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -86,11 +86,11 @@
 :- tool(write_goal/3, write_goal/4).		% exported, for opium
 
 :- meta_predicate((
-	assert(c),
-	asserta(c),
-	assertz(c),
-	clause(c),
-	retract(c)
+	assert(:-),
+	asserta(:-),
+	assertz(:-),
+	clause(:-),
+	retract(:-)
     )).
 
 

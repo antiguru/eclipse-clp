@@ -28,6 +28,7 @@
 :- tool(als / 1).
 :- tool((abolish) / 1).
 :- tool((demon) / 1).
+:- tool((meta_predicate) / 1).
 :- tool((mode) / 1).
 :- tool((parallel) / 1).
 :- tool(lib / 1).
@@ -735,7 +736,11 @@ value Value.
     leash              stop,print,      see below
                        notrace
 
-    mode               pred(Mode1,...)  the mode of the predicate
+    meta_predicate     pred(Prop1,...)  the meta-arguments of the predicate
+                                        (from a meta_predicate/1 declaration)
+
+    mode               pred(Mode1,...)  the mode of the predicate (from a
+                                        mode/1 or meta_predicate/1 declaration)
 
     parallel           on, off          clauses may be executed in parallel
 
@@ -833,55 +838,62 @@ Error:
 	see_also:[pred / 1, set_flag / 3, current_module_predicate/2]]).
 
 :- comment((mode) / 1, [
-	summary:"Specifies the mode (calling pattern) for the given predicates.
-
-",
+	summary:"Specifies the mode (calling pattern) for the given predicates",
 	template:"mode +PredModes",
 	amode:(mode(++) is det),
-	desc:html("   The call of the predicate informs the compiler that the arguments of the
-   specified predicate will always have the corresponding form when the
-   predicate is called.  The compiler takes this information into account
-   when the predicate is compiled and generates more compact and/or faster
-   code.  Specifying the mode of a predicate that has been already compiled
-   has no effect, unless it is recompiled.  If the specified procedure does
-   not exist, a local undefined procedure is created.
-
+	desc:html("\
+   This declaration is normally used as a directive in compiled code,
+   and informs the compiler that the arguments of the specified predicate
+   will always have the corresponding form when the predicate is called.
+   The compiler takes this information into account when the predicate
+   is compiled, and generates more compact and/or faster code.
+   Specifying the mode of a predicate that has been already compiled
+   has no effect, unless it is recompiled.  If the specified predicate
+   does not exist, a local undefined predicate is created.
 <P>
    The possible argument modes are:
-
+<P>
+<DL>
+<DT>
+    <PRE>+</PRE><DD>
+	The argument is instantiated, i.e. it is not a variable.
+<DT>
+    <PRE>++</PRE><DD>
+	The argument is ground, i.e. contains no variables.
+<DT>
+    <PRE>-</PRE><DD>
+	The argument is not instantiated, it must be a free variable without
+	any constraints, especially it must not occur in any other argument
+	and it cannot be a suspending variable.
+<DT>
+    <PRE>?</PRE><DD>
+	The mode is not known or it is neither of the above.
+</DL>
+</PRE>
+   mode/1 is a prefix operator and accepts also comma-separated list of
+   mode specifications in the form
 <P>
 <PRE>
-+   The argument is instantiated, i.e.  it is not a variable.
-
-++  The argument is ground.
-
--   The argument is not instantiated, it must be a free variable without
-    any constraints, especially it must not occur in any other argument and
-    it cannot be a suspending variable.
-
-?   The mode is not known or it is neither of the above ones.
+   :- mode p(+), q(-), r(++, ?).
 </PRE>
-   mode/1 is an operator and accepts also comma-separated list of mode
-   specifications in the form
-
-<P>
-<PRE>
-   mode p(+), q(-), r(++, ?).
-</PRE>
-   This operator binds less than comma, so the argument of mode/1 might
-   have to be parenthesised when it is followed by other goals.  Modes for
-   built-in and external predicates are ignored.  Modes are significant
+   As the operator binds less than comma, the argument of mode/1 might
+   have to be parenthesised when it is followed by other goals.  Modes must
+   be declared in a predicate's definition module.  Modes are significant
    only for the first 15 arguments, for higher arguments the mode is always
    taken as ?.
-
 <P>
-   NOTE: If the instantiation of the predicate call violates its mode
+   NOTE: If the instantiation of a runtime predicate call violates its mode
    declaration, no exception is raised and its behaviour is undefined.
-
+<P>
+   The declared mode information can be accessed by retrieving the
+   predicate's 'mode' property with get_flag/3.
 <P>
 "),
-	args:["PredModes" : "Compound term whose arguments are +, ++, - or ?  or a comma-separated list of such compound terms."],
-	exceptions:[4 : "PredModes is not instantiated", 5 : "PredModes is not a compound term or a comma list or its    arguments are not the above specified atoms."],
+	args:["PredModes" : "Callable term with mode-indicator arguments, or a comma-separated list of such"],
+	exceptions:[4 : "PredModes is not ground",
+		5 : "PredModes is not a callable term, or a comma list, or its arguments are not atoms.",
+		6 : "The callable term arguments are not mode indicators"
+		],
 	eg:"
 Success:
     % code size:
@@ -930,11 +942,90 @@ Error:
     mode p(X).                         (Error 4).
     mode p(+), get_flag(p/1, mode, X). (Error 5).
     % equivalent to mode((p(+), get_flag(p/1, mode, X)))
-
-
-
 ",
-	see_also:[compile / 1, get_flag / 3, set_flag / 3]]).
+	see_also:[compile / 1, get_flag / 3, set_flag / 3, (meta_predicate)/1]]).
+
+
+:- comment((meta_predicate) / 1, [
+	summary:"Specifies the meta-arguments for the given predicates",
+%	template:"meta_predicate +MetaSpecs",
+	amode:(meta_predicate(++) is det),
+	desc:html("\
+   This declaration is normally used as a directive in compiled code,
+   to specify if and how the arguments of a predicate refer to other
+   predicates (meta-arguments).  In ECLiPSe 6.1, this declaration does
+   not affect the semantics of the program, and is only used by
+   development tools like the cross-referencer or coverage analyser. 
+   In future releases, the compiler may make use of the information.
+<P>
+   The meta-argument indicators describes the control flow through the
+   arguments of a meta-predicate.  The functor and arity of MetaSpec
+   correspond to the functor and arity of the meta-predicate. The arguments
+   are each populated with one of the following atomic descriptors:
+<DL>
+    <PRE>0</PRE><DD>
+	A goal that is called as a subgoal of the declared predicate.
+<DT>
+    <P>A positive integer</P><DD>
+	A subgoal is constructed by appending the number of specified
+	arguments, and then called.
+<DT>
+    <PRE>:-</PRE><DD>
+	A clause (a fact or a rule).
+<DT>
+    <PRE>/</PRE><DD>
+	A PredSpec of the form Name/Arity.
+<DT>
+    <PRE>:</PRE><DD>
+	A module-sensitive argument, but none of the above.
+<DT>
+    <PRE>*</PRE><DD>
+	An argument that is not one of the above.
+</DL>
+    Instead of the '*', which marks a non-meta argument, a mode indicator
+    can be given.  The effect is the same as specifying '*', and giving
+    the mode in a separate mode/1 declaration:
+<DL>
+<DT>
+    <PRE>+</PRE><DD>
+	The argument is instantiated, i.e. it is not a variable.
+<DT>
+    <PRE>++</PRE><DD>
+	The argument is ground, i.e. contains no variables.
+<DT>
+    <PRE>-</PRE><DD>
+	The argument is not instantiated, it must be a free variable without
+	any constraints or aliases.
+<DT>
+    <PRE>?</PRE><DD>
+	The mode is not known or it is neither of the above.
+</DL>
+<P>
+   If one of the declared predicates does not exist, a local undefined
+   predicate is created.
+<P>
+   The declared meta-predicate information can be accessed by retrieving
+   the predicate's 'meta_predicate' and 'mode' properties with get_flag/3.
+<P>
+"),
+	args:["MetaSpecs" : "Callable term with meta-argument indicators, or a comma-separated list of such."],
+	exceptions:[4 : "MetaSpecs is not ground",
+		5 : "MetaSpecs is not a callable term, or a comma list of such",
+		6 : "The callable term arguments are not meta-argument indicators"
+		],
+	eg:"
+:- meta_predicate p(:,*,*).
+
+:- meta_predicate q(0,+,-).
+
+:- meta_predicate
+	maplist(2,*,*),
+	checklist(1,*).
+",
+	see_also:[compile/1, get_flag/3, (mode)/1, library(instrument),
+			library(xref), library(coverage), library(lint)]
+]).
+
 
 :- comment(set_flag / 3, [
 	summary:"Sets the flag Flag of the procedure specified by PredSpec to the value

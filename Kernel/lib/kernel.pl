@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.48 2013/02/16 00:40:29 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.49 2013/02/18 00:42:58 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -7492,34 +7492,34 @@ select(Streams, Timeout, Ready) :- stream_select(Streams, Timeout, Ready).
 
 
 :- meta_predicate((
-	-?->(s),
-	@(s,*),
-	:(*,s),
-	','(u,e),
-	;(u,:),		% why?
-	->(s,:),	% why?
-	*->(u,e),
-	\+(u),
-	~(u),
-	block(u,*,:),
-	call(s),
-	call(s,*),
-	call_priority(s,*),
-	catch(u,*,:),
-	do(*,:),
+	-?->(0),
+	@(0,*),
+	:(*,0),
+	','(0,0),
+	;(0,0),
+	->(0,0),
+	*->(0,0),
+	\+(0),
+	~(0),
+	block(0,*,0),
+	call(0),
+	call(0,*),
+	call_priority(0,*),
+	catch(0,*,0),
+	do(*,0),
 	is(*,1),
-	make_suspension(0,*,*),
-	mutex(*,s),
-	not(u),
-	once(s),
+	make_suspension(:,*,*),
+	mutex(*,0),
+	not(0),
+	once(0),
 	phrase(2,*),
 	phrase(2,*,*),
-	subcall(s,*),
-	suspend(0,*,*),
-	suspend(0,*,*,*),
-	set_event_handler(*,p),		% use
-	set_interrupt_handler(*,p),	% use
-	tool(*,p)			% use
+	subcall(0,*),
+	suspend(:,*,*),
+	suspend(:,*,*,*),
+	set_event_handler(*,/),		% use
+	set_interrupt_handler(*,/),	% use
+	tool(*,/)			% use
     )).
 
 

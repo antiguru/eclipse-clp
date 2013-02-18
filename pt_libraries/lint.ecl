@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lint.ecl,v 1.4 2013/02/14 01:31:05 jschimpf Exp $
+% Version:	$Id: lint.ecl,v 1.5 2013/02/18 00:43:24 jschimpf Exp $
 %
 %
 % TODO/ideas:
@@ -52,7 +52,7 @@
 :- comment(summary, "Heuristic program checker").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2013/02/14 01:31:05 $").
+:- comment(date, "$Date: 2013/02/18 00:43:24 $").
 :- comment(desc, html("
     This library analyses an ECLiPSe source module or file and generates
     warning messages for dubious programming constructs and violation
@@ -304,7 +304,7 @@ lint_goal(G, SP, Cut, Options) :-
 	    do
 		arg(I, G, Arg),
 	        arg(I, Pattern, ArgSpec),
-		( direct_call(ArgSpec) ->
+		( ArgSpec == 0 ->
 		    lint_goal(Arg, SP, Cut, Options)
 		;
 		    true
@@ -322,12 +322,6 @@ check_var_goal(Goal, SP) :-
 	    message("Variable goal (%w): consider using @/2 or call/1", [Goal], SP)
 	).
 
-
-:- mode direct_call(+).
-direct_call(:).
-direct_call(u).
-direct_call(e).
-direct_call(s).
 
 message(String, Args, source_position with [file:F,line:L,module:_M]) :-
 	printf(warning_output, "%n--- File %s, clause line %d:%n", [F,L]),

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: pdb.pl,v 1.3 2013/02/14 01:28:56 jschimpf Exp $
+% Version:	$Id: pdb.pl,v 1.4 2013/02/18 00:42:58 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -255,11 +255,8 @@ meta_predicate_single(Decl, Module) :-
     check_meta_arg(Arg, _, _, _) :- var(Arg), !, set_bip_error(4).
     check_meta_arg(Arg, Arg, M, M) :- integer(Arg), check_integer_ge(Arg, 0).
     check_meta_arg(:, :, M, M) :- !.
-    check_meta_arg(u, u, M, M) :- !.
-    check_meta_arg(e, e, M, M) :- !.
-    check_meta_arg(s, s, M, M) :- !.
-    check_meta_arg(c, c, M, M) :- !.
-    check_meta_arg(p, p, M, M) :- !.
+    check_meta_arg(:-, :-, M, M) :- !.
+    check_meta_arg(/, /, M, M) :- !.
     check_meta_arg(*, *, M, M) :- !.
     check_meta_arg(+, *, _, +) :- !.
     check_meta_arg(-, *, _, -) :- !.

@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc, Imperial College
-% Version:	$Id: coverage.ecl,v 1.4 2013/02/14 01:31:05 jschimpf Exp $
+% Version:	$Id: coverage.ecl,v 1.5 2013/02/18 00:43:24 jschimpf Exp $
 %
 %
 % NOTES
@@ -43,7 +43,7 @@
 
 :- comment(author,"Joachim Schimpf, based on ideas by Helmut Simonis").
 :- comment(copyright,"Cisco Systems, Inc.").
-:- comment(date,"$Date: 2013/02/14 01:31:05 $").
+:- comment(date,"$Date: 2013/02/18 00:43:24 $").
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tool for obtaining code coverage information").
 :- comment(desc, html("<P>
@@ -729,7 +729,8 @@ preprocess_body((G1->G2;G3), NewGoal, PointCount0, PointCount, Mode, Options, Po
 preprocess_body(Goal, NewGoal, PointCount0, PointCount, Mode, Options, Position, Module) :-
 	profiler_point(Mode, Options, Position, PointCount0, PointCount1, ProcessedGoal, NewGoal, Module),
 	functor(Goal, F, N),
-	( get_flag(F/N, meta_predicate, Pattern)@Module ->
+	functor(Pattern, F, N),
+	( meta_predicate_pattern(Pattern, Module) ->
 	    % some of Goal's arguments may need to be preprocessed themselves
 	    functor(ProcessedGoal, F, N),
 	    (
@@ -822,8 +823,35 @@ sibling_position(_, PosAB, PosA, PosB) :-
 
 % map the character used in the meta_predicate spec to a "position"
 :- mode meta_arg_position(+,-).
-meta_arg_position(:, both).
+meta_arg_position(0, both).
 meta_arg_position(u, exit).
 meta_arg_position(e, call).
 meta_arg_position(s, none).
+
+
+% Wrapper around meta_predicate/2 for more precise information,
+% enables us to suppress unnecessary counter insertions.
+% u = unconditional call, e = subgoal exit is goal exit, s = u+e
+meta_predicate_pattern( ^(*,s)		, _) :- !.
+meta_predicate_pattern( -?->(s)		, _) :- !.
+meta_predicate_pattern( @(s,*)		, _) :- !.
+meta_predicate_pattern( :(*,s)		, _) :- !.
+%meta_predicate_pattern( ','(u,u)	, _) :- !. % handled directly
+meta_predicate_pattern( ;(u,0)		, _) :- !.
+meta_predicate_pattern( ->(s,0)		, _) :- !. % when standalone
+meta_predicate_pattern( *->(s,0)	, _) :- !.
+meta_predicate_pattern( \+(u)		, _) :- !.
+meta_predicate_pattern( ~(u)		, _) :- !.
+meta_predicate_pattern( block(u,*,0)	, _) :- !.
+meta_predicate_pattern( call(s)		, _) :- !.
+meta_predicate_pattern( call(s,*)	, _) :- !.
+meta_predicate_pattern( call_priority(s,*), _) :- !.
+meta_predicate_pattern( catch(u,*,0)	, _) :- !.
+meta_predicate_pattern( mutex(*,s)	, _) :- !.
+meta_predicate_pattern( not(u)		, _) :- !.
+meta_predicate_pattern( once(s)		, _) :- !.
+meta_predicate_pattern( subcall(s,*)	, _) :- !.
+meta_predicate_pattern(Pattern, Module) :-
+	functor(Pattern, F, N),
+	get_flag(F/N, meta_predicate, Pattern)@Module.
 

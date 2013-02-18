@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: xref.ecl,v 1.3 2013/02/14 01:31:05 jschimpf Exp $
+% Version:	$Id: xref.ecl,v 1.4 2013/02/18 00:43:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(xref).
@@ -35,7 +35,7 @@
 :- comment(summary, "Cross-referencing tool").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2013/02/14 01:31:05 $").
+:- comment(date, "$Date: 2013/02/18 00:43:24 $").
 :- comment(desc, html("
     This library analyses an ECLiPSe source module or file and build
     a call graph. The graph can either be returned in the format of
@@ -423,17 +423,15 @@ process_body(Goal, Caller, Edges, Edges0, Options, Module) :-
 	    do
 		arg(I, Goal, Arg),
 	        arg(I, Pattern, ArgSpec),
-		( direct_call(ArgSpec) ->
-		    process_body(Arg, Caller, Edges3, Edges2, Options, Module)
-		; integer(ArgSpec), (compound(Arg);atom(Arg)) ->
+		( integer(ArgSpec), (compound(Arg);atom(Arg)) ->
 		    Arg =.. [ArgF|ArgArgs],
 		    length(XArgs, ArgSpec),
 		    append(ArgArgs, XArgs, CallArgArgs),
 		    Call =.. [ArgF|CallArgArgs],
 		    process_body(Call, Caller, Edges3, Edges2, Options, Module)
-		; ArgSpec == p, nonvar(Arg), Arg = ArgF/ArgN, atom(ArgF), integer(ArgN) ->
+		; ArgSpec == (/), nonvar(Arg), Arg = ArgF/ArgN, atom(ArgF), integer(ArgN) ->
 		    insert_callee(Caller, Arg, Edges3, Edges2, Options, Module)
-		; ArgSpec == c, nonvar(Arg), extract_pred(Arg, ArgF, ArgN) ->
+		; ArgSpec == (:-), nonvar(Arg), extract_pred(Arg, ArgF, ArgN) ->
 		    insert_callee(Caller, ArgF/ArgN, Edges3, Edges2, Options, Module)
 		;
 		    Edges3 = Edges2
@@ -465,10 +463,4 @@ process_body(Goal, Caller, Edges, Edges0, Options, Module) :-
 		Edges1 = [edge(Module:Caller,Module:FN,1)|Edges0]
 	    )
 	).
-
-:- mode direct_call(+).
-direct_call(:).
-direct_call(u).
-direct_call(e).
-direct_call(s).
 
