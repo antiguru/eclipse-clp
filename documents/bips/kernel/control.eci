@@ -1769,6 +1769,10 @@ Success:
 	</P><P>
 	These predicates are sensitive to their calling context module
 	in the same way as call/1.
+	</P><P>
+	Implementation note: These predicates are materialised lazily the
+	first time they are being invoked. They may therefore not show up
+	with current_built_in/1, get_flag/3 or other similar access methods.
     </P>"),
     resat:"Resatisfiable if the called goal is resatisfiable",
     fail_if:"Fails if the called goal fails",
