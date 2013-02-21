@@ -199,6 +199,7 @@ load_gfd_solver(Arch) :-
         external(g_post_exclude_range/4, p_g_post_exclude_range),
         external(g_post_exclude_dom/3, p_g_post_exclude_dom),
         external(g_post_exclude_dom_handle/3, p_g_post_exclude_dom_handle),
+        external(g_post_exclude_var_val/3, p_g_post_exclude_var_val),
         external(g_post_setvar/3, p_g_post_setvar),
         external(g_post_intrel_cstr/3, p_g_post_intrel_cstr),
         external(g_post_bool_connectives/3, p_g_post_bool_connectives),
@@ -705,7 +706,8 @@ gfd_set_var_bounds(_{gfd:Attr}, Lo0, Hi0) ?-
         Hi is fix(Hi0),
         Attr = gfd{prob:H, idx:I, bool:BI},
         gfdvar(I,BI,GV),
-        post_new_event_no_wake(post_interval([](GV), Lo, Hi), H).
+        % note: changed to call wake as other bounds handler do so
+        post_new_event(post_interval([](GV), Lo, Hi), H).
 
 gfd_get_var_bounds(_{gfd:Attr}, Lo, Hi) ?-
         nonvar(Attr),
@@ -4202,6 +4204,9 @@ do_event1(copyvar(NV,OldIdx), SpH, _DoProp) ?-
 do_event1(setvar(Idx, Val), SpH, DoProp) ?-
         DoProp = [],
         g_post_setvar(SpH, Idx, Val).
+do_event1(post_exclude_var_val(Idx, Val), SpH, DoProp) ?-
+        DoProp = [],
+        g_post_exclude_var_val(SpH, Idx, Val).
 do_event1(post_sum(ConLev, GArray, Rel, C), SpH, DoProp) ?-
         DoProp = [],
         g_post_sum(SpH, GArray, Rel, C, ConLev).
@@ -4349,22 +4354,22 @@ labeling(Vars) :-
         error(5, labeling(Vars)).
 
 labeling(Vars, Select, Choice) :-
-        select_var_setup(Vars, 0, VsH), !,
+        select_var_setup(Vars, 0, H, VsH), !,
         gfd_update,
-        labeling1(VsH, Select, Choice).
+        labeling1(VsH, H, Select, Choice).
 labeling(Vars, Select, Choice) :-
         error(5, labeling(Vars, Select, Choice)).
 
 
-labeling1(VsH, Select, Choice) :-
-        (select_var1(V, Select, VsH) ->
+labeling1(VsH, H, Select, Choice) :-
+        (select_var1(V, H, Select, VsH) ->
             indomain(V, Choice),
-            labeling1(VsH, Select, Choice)
+            labeling1(VsH, H, Select, Choice)
         ;
             true
         ).
 
-
+                             
 do_indomain_min(I) :- integer(I), !.
 do_indomain_min(V{gfd:Attr}) ?-
         nonvar(Attr), !,
@@ -4483,14 +4488,14 @@ indomain_from1(Which, V, H, Sp, Idx, OldHi, OldLo) :-
 
 select_var(X, Xs, Arg, Select, IdxsH) :-
         ( type_of(IdxsH, handle) ->
-            true
+            get_prob_handle(H)
         ;
-            select_var_setup(Xs, Arg, IdxsH)
-        ), 
-        select_var1(X, Select, IdxsH).
+            select_var_setup(Xs, Arg, H, IdxsH)
+        ),
+        select_var1(X, H, Select, IdxsH).
 
 
-select_var_setup(Xs, Arg, IdxsH) :-
+select_var_setup(Xs, Arg, H, IdxsH) :-
         check_collection_to_list(Xs, LXs),
         ( foreach(V0, LXs), 
           param(Arg),
@@ -4503,11 +4508,11 @@ select_var_setup(Xs, Arg, IdxsH) :-
                 LIdxs0 = LIdxs1
             )
         ),
+        get_prob_handle(H),
         Idxs =.. [[]|LIdxs],
         g_create_idxs_handle(Idxs, IdxsH).
 
-select_var1(X, Select, IdxsH) :-
-        get_prob_handle(H),
+select_var1(X, H, Select, IdxsH) :-
         restore_space_if_needed(H, SpH),
         g_select(SpH, IdxsH, Select, XIdx),  % May fail
         H = gfd_prob{vars:PVs},
@@ -4674,7 +4679,8 @@ copy_until_elem([X|Xs], K, Ys, Ys0) :-
 	    copy_until_elem(Xs, K, Ys1, Ys0)
 	).
 
-
+                                  
+                                  
 /* search/6 maps to Gecode's branching and search engines. 
    As cloning is done before and after the use of the search engine,
    we cannot treat the search as a normal gfd event. Instead, the 
@@ -5194,8 +5200,8 @@ impose_bounds(V, Min0, Max0) :-
         ; fail
         ), !,
         ( is_solver_var(V) ->
-            gfd_set_var_bounds(V, Min, Max), 
-            wake % need explicit wake here
+            gfd_set_var_bounds(V, Min, Max) 
+            % wake % need explicit wake here (no longer!)
         ;
             get_prob_handle_nvars(H, N0),
             new_gfdvar(V, H, N0,N, _GV),
@@ -5243,9 +5249,8 @@ exclude(I, Excl) ?-
 exclude(V{gfd:Attr}, I) ?- 
         nonvar(Attr),
         (integer(I) -> true ; error(5, exclude(V, I))),
-        Attr = gfd{prob:H, idx:Idx,bool:BI},
-        gfdvar(Idx,BI, GV),
-        post_new_event_no_wake(post_var_val_reif(GV, I, 0), H).
+        Attr = gfd{prob:H, idx:Idx},
+        post_new_event_no_wake(post_exclude_var_val(Idx, I), H).
 
 
 exclude_range(V{gfd:Attr}, Lo, Hi) ?-

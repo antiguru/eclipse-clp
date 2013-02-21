@@ -64,24 +64,26 @@ EC_argument(EC_word t, int i)
 #define Get_Consistency_Level(N, cl) {		\
     EC_atom atm;   \
     if (EC_arg(N).is_atom(&atm) != EC_succeed) return TYPE_ERROR; \
-    if (strcmp(atm.name(), "default") == 0) cl = ICL_DEF;         \
-    else if (strcmp(atm.name(), "gfd_gac") == 0) cl = ICL_DOM;    \
-    else if (strcmp(atm.name(), "gfd_bc") == 0) cl = ICL_BND;     \
-    else if (strcmp(atm.name(), "gfd_vc") == 0) cl = ICL_VAL;     \
-    else return RANGE_ERROR; \
+    dident ldid = atm.d;					  \
+    if (ldid == d_default) cl = ICL_DEF;                          \
+    else if (ldid == d_gac) cl = ICL_DOM;			  \
+    else if (ldid == d_bc) cl = ICL_BND;			  \
+    else if (ldid == d_vc) cl = ICL_VAL;			  \
+    else return RANGE_ERROR;				  \
 }
 
 // get IntRelType r from argument N
 #define Get_IntRelType(N, r) { \
     EC_atom ecrel; \
     if (EC_arg(N).is_atom(&ecrel) != EC_succeed) return TYPE_ERROR; \
-    if (strcmp(ecrel.name(), "#=") == 0) r = IRT_EQ;                \
-    else if (strcmp(ecrel.name(), "#\\=") == 0) r = IRT_NQ;         \
-    else if (strcmp(ecrel.name(), "#>") == 0) r = IRT_GR;           \
-    else if (strcmp(ecrel.name(), "#<") == 0) r = IRT_LE;           \
-    else if (strcmp(ecrel.name(), "#>=") == 0) r = IRT_GQ;          \
-    else if (strcmp(ecrel.name(), "#=<") == 0) r = IRT_LQ;          \
-    else return TYPE_ERROR; \
+    dident rdid = ecrel.d;				    \
+    if (rdid == d_eq) r = IRT_EQ;				    \
+    else if (rdid == d_geq) r = IRT_GQ;				    \
+    else if (rdid == d_gt) r = IRT_GR;				    \
+    else if (rdid == d_leq) r = IRT_LQ;				    \
+    else if (rdid == d_lt) r = IRT_LE;				    \
+    else if (rdid == d_neq) r = IRT_NQ;				    \
+    else return TYPE_ERROR;				    \
 }
 
 // Assign IntVar var from argument N, var is assigned to either an existing 
@@ -134,7 +136,14 @@ static dident d_max_wdeg, d_min_wdeg,
     d_max_regret, d_max_regret_lwb, 
     d_min_regret_lwb, d_max_regret_upb, d_min_regret_upb,
     d_most_constrained_per_val, d_least_constrained_per_val, 
-    d_most_constrained, d_input_order, d_random;
+    d_most_constrained, d_input_order, d_random,
+    d_default, d_gac, d_bc, d_vc,
+    d_eq, d_neq, d_gt, d_lt, d_geq, d_leq,
+    d_iv2, d_sum2, d_element2, d_plus2, d_minus2, 
+    d_mult2, d_div2, d_mod2, d_min2, d_max2, 
+    d_minus1, d_abs1, d_sqr1, d_sqrt1, d_sum1, d_max1, d_min1,
+    d_eq2, d_gt2, d_geq2, d_lt2, d_leq2, d_neq2,
+    d_and2, d_or2, d_xor2, d_imp2, d_equ2, d_neg1;
 
 using namespace Gecode;
 
@@ -377,6 +386,50 @@ int p_g_init()
     d_least_constrained_per_val = ec_did("least_constrained_per_value", 0);
     d_input_order = ec_did("input_order", 0);
     d_random = ec_did("random", 0);
+
+    d_default = ec_did("default", 0);
+    d_gac = ec_did("gfd_gac", 0);
+    d_bc = ec_did("gfd_bc", 0);
+    d_vc = ec_did("gfd_vc", 0);
+
+    d_eq = ec_did("#=", 0);
+    d_neq = ec_did("#\\=", 0);
+    d_gt = ec_did("#>", 0);
+    d_lt = ec_did("#<", 0);
+    d_geq = ec_did("#>=", 0);
+    d_leq = ec_did("#=<", 0);
+
+    d_eq2 = ec_did("#=", 2);
+    d_neq2 = ec_did("#\\=", 2);
+    d_gt2 = ec_did("#>", 2);
+    d_lt2 = ec_did("#<", 2);
+    d_geq2 = ec_did("#>=", 2);
+    d_leq2 = ec_did("#=<", 2);
+
+    d_sum2 = ec_did("sum", 2);
+    d_element2 = ec_did("element", 2);
+    d_max2 = ec_did("max", 2);
+    d_min2 = ec_did("min", 2);
+    d_mod2 = ec_did("mod", 2);
+    d_plus2 = ec_did("+", 2);
+    d_minus2 = ec_did("-", 2);
+    d_mult2 = ec_did("*", 2);
+    d_div2 = ec_did("/", 2);
+    d_minus1 = ec_did("-", 1);
+    d_abs1 = ec_did("abs", 1);
+    d_sqr1 = ec_did("sqr", 1);
+    d_sqrt1 = ec_did("sqrt", 1);
+    d_sum1 = ec_did("sum", 1);
+    d_max1 = ec_did("max", 1);
+    d_min1 = ec_did("min", 1);
+    d_and2 = ec_did("and", 2);
+    d_or2 = ec_did("or", 2);
+    d_xor2 = ec_did("xor", 2);
+    d_imp2 = ec_did("=>", 2);
+    d_equ2 = ec_did("<=>", 2);
+    d_neg1 = ec_did("neg", 1);
+
+    d_iv2 = ec_did("_ivar", 2);
 
     GecodeSpace** solverp = new GecodeSpace*;
 
@@ -1035,6 +1088,18 @@ int p_g_add_newvars_dom_handle()
     return EC_succeed;
 }
 
+#define Return_ExprListArg(e, solver, EXPR) {	\
+     EC_word varr = EC_argument(e,1); \
+     int size = varr.arity(); \
+     if (size > 0) { \
+	 IntVarArgs vars(size); \
+	 if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) \
+	     != EC_succeed) \
+		throw Ec2gcException(); \
+         return EXPR; \
+     } \
+}
+
 LinExpr
 ec2intexpr(EC_word e, GecodeSpace* solver)
 {
@@ -1044,62 +1109,36 @@ ec2intexpr(EC_word e, GecodeSpace* solver)
     LinExpr arg1(BoolVar(*solver,1,1)), arg2(BoolVar(*solver,1,1));
 
     if (e.functor(&f) == EC_succeed) {
-	if (strcmp(f.name(), "_ivar") == 0 && 
+	if (f.d == d_iv2 && 
+	    //if (strcmp(f.name(), "_ivar") == 0 && 
 	    EC_argument(e, 1).is_long(&l) == EC_succeed) {
 	    i = (int)l;
 	    return solver->vInt[i];
-	}
-	switch (f.arity()) {
+	} else {
+	    switch (f.arity()) {
 	    case 1: {
-		if (strcmp(f.name(), "-") == 0) { // -Expr
+		if (f.d == d_sum1) {
+		    Return_ExprListArg(e, solver, sum(vars));
+
+		} else if (f.d == d_max1) {
+		    Return_ExprListArg(e, solver, max(vars));
+
+		} else if (f.d == d_min1) {
+		    Return_ExprListArg(e, solver, min(vars));
+
+
+		} else {
 		    arg2 = ec2intexpr(EC_argument(e, 1), solver);
-		    return -arg2;
-				      
+
+		    if (f.d == d_minus1) return -arg2;
+		    else if (f.d == d_abs1) return abs(arg2);
+		    else if (f.d == d_sqr1) return sqr(arg2);
+		    else if (f.d == d_sqrt1) return sqrt(arg2);
 		}
-		if (strcmp(f.name(), "abs") == 0) { 
-		    arg2 = ec2intexpr(EC_argument(e, 1), solver);
-		    return abs(arg2);
-		}
-		if (strcmp(f.name(), "sqr") == 0) { 
-		    arg2 = ec2intexpr(EC_argument(e, 1), solver);
-		    return sqr(arg2);
-		}
-		if (strcmp(f.name(), "sqrt") == 0) { 
-		    arg2 = ec2intexpr(EC_argument(e, 1), solver);
-		    return sqrt(arg2);
-		}
-		if (strcmp(f.name(), "sum") == 0) { 
-		  EC_word varr = EC_argument(e,1);
-		  int size = varr.arity();
-		  if (size > 0) {
-		    IntVarArgs vars(size);
-		    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
-		    return sum(vars);
-		  }
-		}
-		if (strcmp(f.name(), "max") == 0) { 
-		  EC_word varr = EC_argument(e,1);
-		  int size = varr.arity();
-		  if (size > 0) {
-		    IntVarArgs vars(size);
-		    int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
-		    return max(vars);
-		  }
-		}
-		if (strcmp(f.name(), "min") == 0) { 
-		  EC_word varr = EC_argument(e,1);
-		  int size = varr.arity();
-		  if (size > 0) {
-		    IntVarArgs vars(size);
-		    if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) == EC_succeed)
-		      return min(vars);
-		  }
-		}
-		// Unknown unary expression or error found
-		throw Ec2gcException();
+		break;
 	    }
 	    case 2: {
-	        if (strcmp(f.name(), "sum") == 0) {
+		if (f.d == d_sum2) {
 		  EC_word carr = EC_argument(e,1);
 		  EC_word varr = EC_argument(e,2);
 		  int size = varr.arity();
@@ -1112,46 +1151,40 @@ ec2intexpr(EC_word e, GecodeSpace* solver)
 		      return sum(cs, vars);
 		  }
 		} else {
-		  arg2 = ec2intexpr(EC_argument(e, 2), solver);
-		  if (strcmp(f.name(), "element") != 0) {
-		    arg1 = ec2intexpr(EC_argument(e, 1), solver);
+		    arg2 = ec2intexpr(EC_argument(e, 2), solver);
+		    if (f.d != d_element2) {
+			arg1 = ec2intexpr(EC_argument(e, 1), solver);
 	
-		    if (strcmp(f.name(), "+") == 0) { return (arg1 + arg2); };
-		    if (strcmp(f.name(), "-") == 0) { return (arg1 - arg2); };
-		    if (strcmp(f.name(), "*") == 0) { return (arg1 * arg2); };
-		    if (strcmp(f.name(), "/") == 0) { return (arg1 / arg2); };
-		    if (strcmp(f.name(), "mod") == 0) { return (arg1 % arg2); };
-		    if (strcmp(f.name(), "min") == 0) { return min(arg1, arg2); };
-		    if (strcmp(f.name(), "max") == 0) { return max(arg1, arg2); };
-		  } else {
-		    // element(<Vars>, <Expr>)
-		    EC_word varr = EC_argument(e,2);
-		    int size = varr.arity();
-		    if (size > 0) {
-		      IntVarArgs vars(size);
-		      if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) == EC_succeed)
-			return element(vars, arg2);
+			if (f.d == d_plus2)       return (arg1 + arg2); 
+			else if (f.d == d_minus2) return (arg1 - arg2); 
+			else if (f.d == d_mult2)  return (arg1 * arg2); 
+			else if (f.d == d_min2)   return  min(arg1, arg2); 
+			else if (f.d == d_max2)   return max(arg1, arg2); 
+			else if (f.d == d_mod2)   return (arg1 % arg2); 
+			else if (f.d == d_div2)   return (arg1 / arg2); 
+
+		    } else {
+			// element(<Vars>, <Expr>)
+			EC_word varr = EC_argument(e,2);
+			int size = varr.arity();
+			if (size > 0) {
+			    IntVarArgs vars(size);
+			    if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) == EC_succeed)
+				return element(vars, arg2);
+			}
 		    }
-		  }
 		}
-
-		// Unknown binary expression
-		throw Ec2gcException();
-	    }
-
-	    default:
-		// Unknown compound expression
-		throw Ec2gcException();
 		break;
+	    }} /* switch */
 	}
     } else if (e.is_long(&l) == EC_succeed) { // Integer
         return (int)l;
         //i = (int)l;
 	//	return (solver->vInt[0] + i); // vInt[0] has value 0, needed as dummy
-    } else {
+    }
+
     // Unknown integer expression
     throw Ec2gcException();
-    }
 }
 
 LinRel
@@ -1163,12 +1196,12 @@ ec2intrel(EC_word c, GecodeSpace* solver)
 	LinExpr arg1 = ec2intexpr(EC_argument(c,1), solver);
 	LinExpr arg2 = ec2intexpr(EC_argument(c,2), solver);
 
-	if (strcmp(f.name(), "#=") == 0) { return (arg1 == arg2); };
-	if (strcmp(f.name(), "#\\=") == 0) { return (arg1 != arg2); };
-	if (strcmp(f.name(), "#>") == 0) { return (arg1 > arg2); };
-	if (strcmp(f.name(), "#<") == 0) { return (arg1 < arg2); };
-	if (strcmp(f.name(), "#>=") == 0) { return (arg1 >= arg2); };
-	if (strcmp(f.name(), "#=<") == 0) { return (arg1 <= arg2); };
+	if (f.d == d_eq2) return (arg1 == arg2);
+	else if (f.d == d_gt2) return (arg1 > arg2);
+	else if (f.d == d_geq2) return (arg1 >= arg2);
+	else if (f.d == d_lt2) return (arg1 < arg2);
+	else if (f.d == d_leq2) return (arg1 <= arg2);
+	else if (f.d == d_neq2) return (arg1 != arg2);
 	
 	// Unknown binary constraint
 	throw Ec2gcException();
@@ -1183,47 +1216,34 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
     long l;
 
     if (c.functor(&f) == EC_succeed) { 
-	switch (f.arity()) {
-	    case 1: {
-		if (strcmp(f.name(), "neg") == 0)
-		    return ec2boolexpr(EC_argument(c,1), solver);
-		break;
-	    }
-	    case 2: {
-	
-		if (strcmp(f.name(), "and") == 0) { 
-		    return (ec2boolexpr(EC_argument(c,1), solver) && 
-			    ec2boolexpr(EC_argument(c,2), solver)
-			   ); 
-		};
-		if (strcmp(f.name(), "or") == 0) { 
-		    return (ec2boolexpr(EC_argument(c,1), solver) || 
-			    ec2boolexpr(EC_argument(c,2), solver)
-			   ); 
-		};
-		if (strcmp(f.name(), "xor") == 0) { 
-		    return (ec2boolexpr(EC_argument(c,1), solver) ^ 
-			    ec2boolexpr(EC_argument(c,2), solver)
-			   ); 
-		};
-		if (strcmp(f.name(), "=>") == 0) { 
-		    return (ec2boolexpr(EC_argument(c,1), solver) >> 
-			    ec2boolexpr(EC_argument(c,2), solver)
-			   );
-		};
-		if (strcmp(f.name(), "<=>") == 0) { 
-		    return (ec2boolexpr(EC_argument(c,1), solver) == 
-			       ec2boolexpr(EC_argument(c,2), solver)
-			   );
-		};
-		if (strcmp(f.name(), "_ivar") == 0) {
-		    if (EC_argument(c,2).is_long(&l) != EC_succeed)
-			throw Ec2gcException();
-		    return solver->vBool[(int)l];
-		}
-		break;
-	    }
-	} 
+	if (f.d == d_iv2) {
+	    if (EC_argument(c,2).is_long(&l) != EC_succeed)
+		throw Ec2gcException();
+	    return solver->vBool[(int)l];
+	    
+	} else if (f.d == d_and2) {
+	    return (ec2boolexpr(EC_argument(c,1), solver) && 
+		    ec2boolexpr(EC_argument(c,2), solver)
+		    );
+	} else if (f.d == d_or2) {
+	    return (ec2boolexpr(EC_argument(c,1), solver) || 
+		    ec2boolexpr(EC_argument(c,2), solver)
+		    );
+	} else if (f.d == d_xor2) {
+	    return (ec2boolexpr(EC_argument(c,1), solver) ^
+		    ec2boolexpr(EC_argument(c,2), solver)
+		    );
+	} else if (f.d == d_imp2) {
+	    return (ec2boolexpr(EC_argument(c,1), solver) >> 
+		    ec2boolexpr(EC_argument(c,2), solver)
+		    );
+	} else if (f.d == d_equ2) {
+	    return (ec2boolexpr(EC_argument(c,1), solver) == 
+		    ec2boolexpr(EC_argument(c,2), solver)
+		    );
+
+	} else if (f.d == d_neg1) return ec2boolexpr(EC_argument(c,1), solver);
+
 	// otherwise, treat as linear relation
 	return ec2intrel(c, solver);
     } else if (c.is_long(&l) == EC_succeed) {
@@ -1413,6 +1433,40 @@ int p_g_post_setvar()
 //    rel(*solver, solver->vInt[idx], IRT_EQ, (int)val);
 	if (solver->is_first()) solver->dom_snapshot[idx] = 1; // just assigned!
 
+	return (solver->failed() ? EC_fail : EC_succeed);
+    }
+    CatchAndReportGecodeExceptions
+
+}
+
+extern "C" VisAtt
+int p_g_post_exclude_var_val()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+    long l;
+    int idx, val;
+
+    if (EC_arg(2).is_long(&l) != EC_succeed) return TYPE_ERROR;
+    idx = (int) l;
+    if (idx < 0) return RANGE_ERROR;
+    if (EC_arg(3).is_long(&l) != EC_succeed) return TYPE_ERROR;
+    val = (int) l;
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver ==  NULL) return TYPE_ERROR;
+    if (idx >= solver->vInt.size()) {
+	return RANGE_ERROR;
+    }
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+	// Guido Tack suggests that this is the most efficient
+	// way of excluding a value from a variable (2013-02-20)
+	Int::IntView vv(solver->vInt[idx]);
+	if (me_failed(vv.nq(*solver, (int)val))) solver->fail();
 	return (solver->failed() ? EC_fail : EC_succeed);
     }
     CatchAndReportGecodeExceptions
@@ -4570,9 +4624,13 @@ int p_g_setup_search()
 	solver->clear_snapshot(); // make sure we do cache the current values!
 	cache_domain_sizes(solver);
 	if (!do_tiebreak) {
-	    branch(*solver, vars, varselect, valchoice);
+	    // time() sets the seeds for the random var/val methods
+	    // setting user defined seed to be added later
+	    branch(*solver, vars, varselect, valchoice, 
+		   VarBranchOptions::time(), ValBranchOptions::time());
 	} else {
-	    branch(*solver, vars, tiebreak(varselect, tiebreakselect), valchoice);
+	    branch(*solver, vars, tiebreak(varselect, tiebreakselect), valchoice,
+		   VarBranchOptions::time(), ValBranchOptions::time());
 	}
 
 	Search::Options o;
