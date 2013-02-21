@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2010 (http://www.altova.com) by Helmut Simonis (University College Cork) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:element name="tree">
+		<xs:annotation>
+			<xs:documentation>top level element describing a search tree</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence maxOccurs="unbounded">
+				<xs:choice>
+					<xs:element name="try">
+						<xs:complexType>
+							<xs:attribute name="id" type="xs:nonNegativeInteger" use="required"/>
+							<xs:attribute name="parent" type="xs:nonNegativeInteger" use="required"/>
+							<xs:attribute name="name" type="xs:string" use="required"/>
+							<xs:attribute name="size" type="xs:nonNegativeInteger" use="required"/>
+							<xs:attribute name="value" type="xs:integer" use="required"/>
+						</xs:complexType>
+					</xs:element>
+					<xs:element name="succ">
+						<xs:complexType>
+							<xs:attribute name="id" type="xs:nonNegativeInteger" use="required"/>
+						</xs:complexType>
+					</xs:element>
+					<xs:element name="root">
+						<xs:complexType>
+							<xs:attribute name="id" type="xs:nonNegativeInteger" use="required"/>
+						</xs:complexType>
+					</xs:element>
+					<xs:element name="fail">
+						<xs:complexType>
+							<xs:attribute name="id" type="xs:nonNegativeInteger" use="required"/>
+							<xs:attribute name="parent" type="xs:nonNegativeInteger" use="required"/>
+							<xs:attribute name="name" type="xs:string" use="required"/>
+							<xs:attribute name="size" type="xs:nonNegativeInteger" use="required"/>
+							<xs:attribute name="value" type="xs:integer" use="required"/>
+						</xs:complexType>
+					</xs:element>
+				</xs:choice>
+			</xs:sequence>
+			<xs:attribute name="version" type="xs:string" use="required"/>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

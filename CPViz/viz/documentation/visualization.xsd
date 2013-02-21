@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2010 (http://www.altova.com) by Helmut Simonis (University College Cork) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:element name="visualization">
+		<xs:annotation>
+			<xs:documentation>description of variables and constraint visualizers</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="visualizer" maxOccurs="unbounded"/>
+				<xs:element ref="state" maxOccurs="unbounded"/>
+			</xs:sequence>
+			<xs:attribute name="version" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>currently "1.0"</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="state">
+		<xs:annotation>
+			<xs:documentation>describes the state of execution at some specific time point</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence maxOccurs="unbounded">
+				<xs:element ref="visualizer_state"/>
+			</xs:sequence>
+			<xs:attribute name="id" type="xs:nonNegativeInteger" use="required">
+				<xs:annotation>
+					<xs:documentation>a sequential number defining the timepoint in execution</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="tree_node" type="xs:integer" use="required">
+				<xs:annotation>
+					<xs:documentation>links the state to a node in the search tree, can be -1 if not inside search</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="visualizer">
+		<xs:annotation>
+			<xs:documentation>description of a constraint or a set of variables which will be visualized</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:attribute name="id" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>id is referred to by visualizer_state</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="type" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>type of visualizer; must be supported on both sizes</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="display" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>how to display the visualizer</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="x" type="xs:integer" default="0">
+				<xs:annotation>
+					<xs:documentation>optional explicit placement of visualizer on canvas</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="y" type="xs:integer" default="0"/>
+			<xs:attribute name="width" type="xs:integer" default="0"/>
+			<xs:attribute name="height" type="xs:integer" default="0"/>
+			<xs:attribute name="group" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>optional parameter, allows grouping of multiple constraints</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="min" type="xs:integer" default="0">
+				<xs:annotation>
+					<xs:documentation>expected minimal value of any of the domains</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="max" type="xs:integer" default="0"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="visualizer_state">
+		<xs:annotation>
+			<xs:documentation>Comment describing your root element</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:choice>
+					<xs:sequence maxOccurs="unbounded">
+						<xs:element ref="argument"/>
+					</xs:sequence>
+					<xs:sequence maxOccurs="unbounded">
+						<xs:choice>
+							<xs:element ref="dvar"/>
+							<xs:element ref="integer"/>
+							<xs:element ref="other"/>
+							<xs:element ref="sinteger"/>
+							<xs:element ref="svar"/>
+						</xs:choice>
+					</xs:sequence>
+				</xs:choice>
+				<xs:choice minOccurs="0">
+					<xs:element ref="failed"/>
+					<xs:element ref="focus"/>
+				</xs:choice>
+			</xs:sequence>
+			<xs:attribute name="id" type="xs:nonNegativeInteger" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="argument">
+		<xs:complexType>
+			<xs:complexContent>
+				<xs:extension base="collectable">
+					<xs:attribute ref="index" use="required"/>
+				</xs:extension>
+			</xs:complexContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="collection">
+		<xs:complexType>
+			<xs:complexContent>
+				<xs:extension base="collectable">
+					<xs:attribute ref="index" use="required"/>
+				</xs:extension>
+			</xs:complexContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="tuple">
+		<xs:complexType>
+			<xs:complexContent>
+				<xs:extension base="items">
+					<xs:attribute ref="index" use="required"/>
+				</xs:extension>
+			</xs:complexContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="dvar">
+		<xs:complexType>
+			<xs:attribute ref="index" use="required"/>
+			<xs:attribute name="domain" type="xs:string" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="integer">
+		<xs:complexType>
+			<xs:attribute ref="index" use="required"/>
+			<xs:attribute name="value" type="xs:integer" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="svar">
+		<xs:complexType>
+			<xs:attribute ref="index" use="required"/>
+			<xs:attribute name="low" type="xs:string" use="required"/>
+			<xs:attribute name="high" type="xs:string" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="sinteger">
+		<xs:complexType>
+			<xs:attribute ref="index" use="required"/>
+			<xs:attribute name="value" type="xs:string" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="other">
+		<xs:complexType>
+			<xs:attribute ref="index" use="required"/>
+			<xs:attribute name="value" type="xs:string" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="focus">
+		<xs:complexType>
+			<xs:attribute ref="index" use="required"/>
+			<xs:attribute ref="group" use="required"/>
+			<xs:attribute name="type" type="xs:string" use="optional"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="failed">
+		<xs:complexType>
+			<xs:attribute ref="index" use="required"/>
+			<xs:attribute ref="group" use="required"/>
+			<xs:attribute name="value" type="xs:integer" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="items">
+		<xs:sequence minOccurs="0" maxOccurs="unbounded">
+			<xs:choice>
+				<xs:element ref="dvar"/>
+				<xs:element ref="integer"/>
+				<xs:element ref="svar"/>
+				<xs:element ref="sinteger"/>
+				<xs:element ref="other"/>
+				<xs:element ref="tuple"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="collectable">
+		<xs:sequence maxOccurs="unbounded">
+			<xs:choice>
+				<xs:element ref="collection"/>
+				<xs:element ref="tuple"/>
+				<xs:element ref="dvar"/>
+				<xs:element ref="integer"/>
+				<xs:element ref="sinteger"/>
+				<xs:element ref="svar"/>
+				<xs:element ref="other"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:attribute name="index" type="xs:string"/>
+	<xs:attribute name="group" type="xs:string"/>
+</xs:schema>

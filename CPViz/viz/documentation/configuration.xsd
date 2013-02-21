@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2010 (http://www.altova.com) by Helmut Simonis (University College Cork) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:element name="configuration">
+		<xs:annotation>
+			<xs:documentation>Comment descdescribes the configuration for the viz program</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence maxOccurs="unbounded">
+				<xs:element name="tool">
+					<xs:complexType>
+						<xs:attribute name="show" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>tree or viz</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="type" type="xs:string" use="optional" default="layout">
+							<xs:annotation>
+								<xs:documentation>layout, distribution, treemap</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="display" type="xs:string" use="optional" default="compact">
+							<xs:annotation>
+								<xs:documentation>compact or expanded</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="repeat" type="xs:string" use="optional" default="final">
+							<xs:annotation>
+								<xs:documentation>all, final , i or -i</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="width" type="xs:nonNegativeInteger" use="optional" default="500">
+							<xs:annotation>
+								<xs:documentation>width of SVG canvas in screen pixels</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="height" type="xs:nonNegativeInteger" use="optional" default="500">
+							<xs:annotation>
+								<xs:documentation>height of SVG canvas in screen pixels</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="fileroot" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>root name of output files</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="version" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>currently 1.0</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="directory" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>name for directory where output is placed</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>
