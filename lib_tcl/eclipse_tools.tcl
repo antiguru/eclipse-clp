@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.36 2012/03/01 12:49:21 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.37 2013/02/22 18:54:30 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -4552,6 +4552,17 @@ proc tkecl:start_vc {} {
     ec_rpcq_check {start_vc _} (_) java_vc
 }
 
+#---------------------------------------------------------------------
+# Viztool
+#---------------------------------------------------------------------
+
+proc tkecl:start_viztool {} {
+    switch [ec_rpcq_check {ensure_loaded {library cpviz}} ((()))] {
+    	fail - throw { return }
+    }
+    ec_rpcq_check viztool () cpviz
+}
+
 #----------------------------------------------------------------------
 # Initalise and create menu/toolbar
 #----------------------------------------------------------------------
@@ -4592,6 +4603,7 @@ proc ec_tools_init {w} {
     $w add command -label "Inspector" -command "tkinspect:Inspect_term_init current"
     lappend tkecl(helpfiles) insp Inspector inspecthelp.txt
     $w add command -label "Visualisation Client" -command "tkecl:start_vc"
+    $w add command -label "CP-Viz Viztool" -command "tkecl:start_viztool"
     $w add separator
     $w add command -label "Global Settings" -command tkecl:popup_global_state
     lappend tkecl(helpfiles) glob {Global Settings Tool} globalsethelp.txt
