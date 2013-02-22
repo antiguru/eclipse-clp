@@ -25,7 +25,7 @@
 :-comment(author,"Helmut Simonis").
 :-comment(status,"experimental").
 :-comment(copyright,"2010, Helmut Simonis").
-:-comment(categories,["Constraints","Development Tools","Visualization"]).
+:-comment(categories,["Development Tools","Visualisation"]).
 :-comment(summary,"Definition of the log format for constraint and"
                   " variable visualizers").
 :-comment(description,"This library describes how variable and"
@@ -153,7 +153,7 @@ Constraint visualizers show the state and/or evolution of a global cosntraint. A
 <td>same(L,K)</td><td></td>
 </tr>
 <tr>
-<td>sequence_total</td><td></td>
+<td>sequence_total(Min,Max,Low,Hi,K,ZeroOnes)</td><td></td>
 </tr>
 <tr>
 <td></td><td></td>
@@ -276,6 +276,7 @@ open_overview(visualization{root:Root,
                             schema_path:SchemaPath,
                             tree_stream:TreeStream,
                             stream:Stream}):-
+	( exists(Dir) -> true ; mkdir(Dir) ),
         concat_string([Dir,'/',Root,".viz"],File),
         concat_string([Dir,'/',TreeRoot,".tre"],TreeFile),
         open(File,write,Stream),

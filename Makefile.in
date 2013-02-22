@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.14 2013/02/09 20:27:57 jschimpf Exp $
+# $Id: Makefile.in,v 1.15 2013/02/22 18:45:58 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -20,7 +20,8 @@ install_cross:	make_kernel \
 		make_icparc_solvers \
 		make_javainterface \
 		make_oci \
-		make_gecodeinterface 
+		make_gecodeinterface \
+		make_cpviz 
 
 # include subsystems that can only be made if we are building on target
 # (e.g. because they try to make .eco/.eci files and need to run eclipse,
@@ -75,6 +76,10 @@ make_javainterface:	make_bin
 make_visualisation:	make_bin make_contrib
 	@echo ======== $@ ========
 	@(cd $(top_srcdir)/Visualisation; $(MAKE) -f Makefile.$(ARCH) install)
+
+make_cpviz:	make_bin
+	@echo ======== $@ ========
+	@(cd $(top_srcdir)/CPViz; $(MAKE) -f Makefile.$(ARCH) install)
 
 make_zincinterface:	make_bin make_icparc_solvers make_eplex make_ecrc_solvers
 	@echo ======== $@ ========

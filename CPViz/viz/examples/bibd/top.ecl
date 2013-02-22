@@ -27,17 +27,17 @@
 
 :-lib(ic).
 :-lib(ic_global).
-:-lib(ic_global_gac).
+%:-lib(ic_global_gac).
 :-lib(timeout).
 
-:-use_module('../visualize_tree').
+:-lib(cpviz).
 
 top:-
         all_bibd(6,10,5,3,2,col,sym,indomain_max,"COLUMN"),
         all_bibd(6,10,5,3,2,row,sym,indomain_max,"MAX"),
         all_bibd(6,10,5,3,2,row,sym,indomain,"RESULT"),
         bibd(6,10,5,3,2,row,naive,indomain,"FIRST"),
-        all_bibd(6,10,5,3,2,row,naive,indomain,"NAIVE"),
+%        all_bibd(6,10,5,3,2,row,naive,indomain,"NAIVE"),
         true.
 
 all_bibd(V,B,R,K,L,RowColumn,Method,Assign,Output):-
@@ -57,7 +57,8 @@ all_bibd(V,B,R,K,L,RowColumn,Method,Assign,Output):-
                           fail),Sols),
         length(Sols,NrSols),
         writeln(NrSols),
-        close_visualization(Handle).
+        close_visualization(Handle),
+	viz(Handle, _).
 
 bibd(V,B,R,K,L,RowCol,Method,Assign,Output):-
         model(V,B,R,K,L,Matrix,Method),
@@ -70,7 +71,8 @@ bibd(V,B,R,K,L,RowCol,Method,Assign,Output):-
         assign_term(Assign,Handle,AssignTerm),
         search(List,1,input_order,AssignTerm,complete,[]),
         solution(Handle),
-        close_visualization(Handle).
+        close_visualization(Handle),
+	viz(Handle, _).
 
 assign_term(Assign,Handle,AssignTerm):-
         (Assign = indomain ->

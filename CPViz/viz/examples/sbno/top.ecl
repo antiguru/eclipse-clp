@@ -27,19 +27,20 @@
 
 :-lib(ic).
 :-lib(ic_global).
+:-import lex_le/2, lex_lt/2 from ic_global.
 :-lib(ic_global_gac).
-:-use_module('../visualize_tree').
+:-lib(cpviz).
 
 
 top:-
         bibd(7,7,3,3,1),
+/*
         bibd(6,10,5,3,2),
         bibd(7,14,6,3,2),
         bibd(9,12,4,3,1),
         bibd(8,14,7,4,3),
         bibd(6,20,10,3,4),
         bibd(11,11,5,5,2),
-
         bibd(13,13,4,4,1),
         bibd(7,21,6,2,1),
         bibd(16,20,5,4,1),
@@ -96,6 +97,7 @@ top:-
         bibd(9,120,40,3,10),
         bibd(10,120,36,3,8),
         bibd(13,104,24,3,4),
+*/
         true.
 
 
@@ -107,7 +109,7 @@ find one solution
 bibd(V,B,R,K,L):-
         concat_atom([V,'_',B,'_',R,'_',K,'_',L],Root),
         concat_atom(['tree_',Root],TreeRoot),
-        make_configuration(sbno,"TREE",Root),
+%       make_configuration(sbno,"TREE",Root),
         create_visualization([tree_root:TreeRoot,
                               output:"TREE"],Handle),
         model(V,B,R,K,L,_Matrix,List),
@@ -119,7 +121,8 @@ bibd(V,B,R,K,L):-
         ;
             writeln("No solution")
         ),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
 /*
 
@@ -131,14 +134,15 @@ find all solutions
 all_bibd(V,B,R,K,L):-
         concat_atom([V,'_',B,'_',R,'_',K,'_',L],Root),
         concat_atom(['tree_',Root],TreeRoot),
-        make_configuration(sbno,"TREE",Root),
+%       make_configuration(sbno,"TREE",Root),
         create_visualization([tree_root:TreeRoot,
                               output:"TREE"],Handle),
         model(V,B,R,K,L,_Matrix,List),
         number_variables(Handle,List,NumberedList),
         root(Handle),
         try(NumberedList,Handle),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
         
 try(List,Handle):-

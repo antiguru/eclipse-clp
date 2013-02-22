@@ -25,7 +25,7 @@
 :-export(top/0).
 
 :-lib(ic).
-:-use_module("../visualize_tree").
+:-lib(cpviz).
 
 top:-
         sendmory(L1,"TREE",yes),
@@ -62,7 +62,8 @@ sendmory(L,Output,IgnoreFixed):-
         search(Pairs,1,input_order,tree_indomain(Handle,_),
                complete,[]),
         solution(Handle),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
 sendmory_complete(L,Output,IgnoreFixed):-
 	L=[S,E,N,D,M,O,R,Y],
@@ -91,7 +92,8 @@ sendmory_complete(L,Output,IgnoreFixed):-
                        complete,[]),
                  solution(Handle)),
                 _),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
 sendmory_wrong(Output,IgnoreFixed):-
 	L=[S,E,N,D,M,O,R,Y],
@@ -114,7 +116,8 @@ sendmory_wrong(Output,IgnoreFixed):-
         findall(x,(search(Pairs,1,input_order,
                           tree_indomain(Handle,_),complete,[]),
                    solution(Handle)),_),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
 sendmory_split(L,Output,IgnoreFixed):-
 	L=[S,E,N,D,M,O,R,Y],
@@ -149,5 +152,6 @@ sendmory_split(L,Output,IgnoreFixed):-
         findall(x,(search(Pairs,1,input_order,
                           tree_indomain(Handle,_),complete,[]),
                    solution(Handle)),_),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 

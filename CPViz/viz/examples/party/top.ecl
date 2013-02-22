@@ -30,16 +30,15 @@
 :-lib(ic_global_gac).
 :-lib(timeout).
 :-lib(lists).
-:-use_module('../visualize_tree').
-:-use_module('../bin_packing').
+:-lib(cpviz).
 
 :-local struct(boat(nr,cap,crew,sorting)).
 
 top:-
         problem(10,Hosts,Guests),
-        once(model(Hosts,Guests,6,naive,"NAIVE")),
-        once(model(Hosts,Guests,6,first_fail,"FF")),
-        once(model(Hosts,Guests,6,layered,"LAYERED")),
+%        once(model(Hosts,Guests,6,naive,"NAIVE")),
+%        once(model(Hosts,Guests,6,first_fail,"FF")),
+%        once(model(Hosts,Guests,6,layered,"LAYERED")),
         once(model(Hosts,Guests,6,credit,"CREDIT")),
         once(model(Hosts,Guests,6,layered_random,"RANDOM")),
 
@@ -92,7 +91,8 @@ model(Hosts,Guests,NrPeriods,Method,Output):-
         root(Handle),
         assign(Method,List,Matrix,NrPeriods,NrGuests,Handle),
         solution(Handle),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
 assign(naive,List,_Matrix,_NrPeriods,_NrGuests,Handle):-
         !,

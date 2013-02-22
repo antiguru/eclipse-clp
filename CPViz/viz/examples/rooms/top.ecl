@@ -28,7 +28,7 @@
 :-lib(ic).
 :-lib(ic_global).
 :-lib(ic_global_gac).
-:-use_module('../visualize_tree').
+:-lib(cpviz).
 
 top:-
         top(1,no,no,input_order,"NAIVE"),
@@ -80,7 +80,8 @@ top(Problem,ValueSetChanneling,ImprovedHint,VariableChoice,Output):-
         search(Pairs,1,VariableChoice,tree_indomain(Handle,_),complete,[]),
         solution(Handle),
         writeln(L),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
 project_row_cols(L,N,Rows,Cols):-
         generate_tables(N,RowTable,ColTable),

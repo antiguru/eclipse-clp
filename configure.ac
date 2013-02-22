@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.53 2013/02/09 20:27:57 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.54 2013/02/22 18:45:58 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -241,6 +241,8 @@ CFLAGS="-fPIC $CFLAGS"
 
 # needed for strip on Mac OS X 
 STRIPFLAGS=
+
+JAVA_PATH_SEP=:
 
 #----------------------------------------------------------------------
 # Explicit settings - things that can't be figured out automatically
@@ -545,6 +547,7 @@ case "$ARCH" in
     AC_DEFINE(HAVE_WIN32_WINNT, 0x500)
     OSTYPE="win32"
     OSCLASS="win"
+    JAVA_PATH_SEP=";"
     ;;
  x86_64_nt)
     CFLAGS="$CFLAGS"
@@ -563,6 +566,7 @@ case "$ARCH" in
     AC_DEFINE(HAVE_WIN32_WINNT, 0x500)
     OSTYPE="win64"
     OSCLASS="win"
+    JAVA_PATH_SEP=";"
     ;;
  i386_dynix3)
     LOCAL_FLAGS="-DD_LOAD"
@@ -1898,6 +1902,36 @@ fi
 
 
 #----------
+# CP-Viz
+#----------
+
+AC_ARG_WITH([cpviz], [[  --without-cpviz
+			Build ECLiPSe without the CP-Viz constraint visualiser
+			(CP-Viz requires Java, Batik and Javahelp)
+    ]],
+    [cpviz_requested="$withval"], [cpviz_requested=yes])
+
+
+ALL_CPVIZ=
+if test "$cpviz_requested" != "no"; then
+    for f in "$ECLIPSETHIRDPARTY/batik-"* ; do
+	if test -d "$f"; then BATIK_DIR="$f"; fi
+    done
+    for f in "$ECLIPSETHIRDPARTY/jh"[[0-9]]* ; do
+	if test -d "$f"; then JHELP_DIR="$f"; fi
+    done
+    if test -n "$BATIK_DIR" -a -n "$JHELP_DIR" -a -n "$JAVA_HOME"; then
+	ALL_CPVIZ=all_cpviz
+    fi
+fi
+if test -n "$ALL_CPVIZ"; then
+    AC_MSG_NOTICE([Will build CP-Viz tool])
+else
+    AC_MSG_NOTICE([Not building CP-Viz tool])
+fi
+
+
+#----------
 # Documents
 #----------
 
@@ -1942,6 +1976,7 @@ AC_CONFIG_FILES([
 	Oci/Makefile.$ARCH:Oci/Makefile.in
 	ZincInterface/Makefile.$ARCH:ZincInterface/Makefile.in
 	GecodeInterface/Makefile.$ARCH:GecodeInterface/Makefile.in
+	CPViz/Makefile.$ARCH:CPViz/Makefile.in
 	])
 AC_CONFIG_HEADERS([
 	Kernel/$ARCH/config.h:Kernel/src/config.h.in
@@ -2047,5 +2082,9 @@ AC_SUBST(MYSQLDIR)
 AC_SUBST(GRAPHVIZ_TARGET)
 AC_SUBST(GRAPHVIZ_DIR)
 AC_SUBST(STDCXXLIB)
+AC_SUBST(ALL_CPVIZ)
+AC_SUBST(BATIK_DIR)
+AC_SUBST(JHELP_DIR)
+AC_SUBST(JAVA_PATH_SEP)
 
 AC_OUTPUT

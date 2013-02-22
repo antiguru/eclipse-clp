@@ -27,7 +27,7 @@
 
 :- lib(ic).
 :- lib(branch_and_bound).
-:-use_module("../visualize_tree").
+:- lib(cpviz).
 
 :- local struct(task(name,start,duration,need,use)).
 
@@ -126,7 +126,8 @@ top :-
                 solution(Handle)
                ), EndDate, bb_options{strategy:step}),
         writeln(EndDate),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, [tool{show:tree,repeat:final}]).
        
 
 

@@ -31,14 +31,13 @@
 :-lib(branch_and_bound).
 :-lib(lists).
 :-lib(util).
-
-:-use_module("../visualize_tree").
+:-lib(cpviz).
 
 % setup fails with Limit=132, setup works with Limit=133, this is
 % still weak
 
 top:-
-        top(1,"NAIVE",naive),
+%        top(1,"NAIVE",naive),
         top(1,"RESULT",improved).
 
 top(Seed,Dir,Quality):-
@@ -105,7 +104,8 @@ top(Seed,Dir,Quality):-
         writeq(found(Start)),nl,
        solution(Handle),
 %        draw_visualization(Handle),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
         
 
 lower_bound(Dur,Bound):-

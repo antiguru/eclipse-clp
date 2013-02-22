@@ -28,7 +28,7 @@
 :-lib(ic).
 :-lib(ic_global).
 :-lib(ic_global_gac).
-:-use_module('../visualize_tree').
+:-lib(cpviz).
 
 top:-
         top(ic,'FC'),
@@ -64,7 +64,8 @@ model(Matrix,Method,Output):-
         search(NamedList,1,input_order,tree_indomain(Handle,Handle),
                complete,[]),
         solution(Handle),
-        close_visualization(Handle).
+        close_visualization(Handle),
+	viz(Handle, _).
         
 problem([]([](4, _, 8, _, _, _, _, _, _), 
            [](_, _, _, 1, 7, _, _, _, _), 

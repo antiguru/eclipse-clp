@@ -29,8 +29,7 @@
 :-lib(ic_global).
 :-lib(timeout).
 :-lib(lists).
-:-use_module('../visualize_tree').
-:-use_module('../bin_packing').
+:-lib(cpviz).
 
 :-local struct(boat(nr,cap,crew,sorting)).
 
@@ -64,7 +63,7 @@ model(Hosts,Guests,NrPeriods,Method,Output):-
         (for(J,1,NrPeriods),
          param(Matrix,NrPeriods,NrGuests,Guests,Hosts,Handle) do
             make_bins(Hosts,Bins),
-            bin_packing_alone(Matrix[1..NrGuests,J],Guests,Bins),
+            bin_packing(Matrix[1..NrGuests,J],Guests,Bins),
             X is NrPeriods+2+((J-1)//2)*(11+2),
             Y is ((J-1) mod 2)*15,
             add_visualizer(Handle,
@@ -84,7 +83,8 @@ model(Hosts,Guests,NrPeriods,Method,Output):-
         root(Handle),
         assign(Method,List,Matrix,NrPeriods,NrGuests,Handle),
         solution(Handle),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
 assign(naive,List,_Matrix,_NrPeriods,_NrGuests,Handle):-
         !,

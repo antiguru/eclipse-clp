@@ -27,15 +27,16 @@
 
 :-lib(ic).
 :-lib(ic_global).
+:-import lex_le/2, lex_lt/2 from ic_global.
 :-lib(ic_global_gac).
 :-lib(ic_sets).
-:-use_module('../visualize_tree').
+:-lib(cpviz).
 
 top:-
         ic:(T21 :: 0..21),
         top("T21",T21),
-        top("T22",22),
-        top("T23",23),
+%        top("T22",22),
+%        top("T23",23),
         true.
 
 
@@ -149,7 +150,8 @@ top(Output,T):-
                         display:text]),
         sumlist(NodeSizesList,T),
         assign(T,Handle,NrNodes,Degrees,NodeSizes,Matrix),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
 assign(T,Handle,NrNodes,Degrees,NodeSizes,Matrix):-
         root(Handle),

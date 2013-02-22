@@ -27,24 +27,24 @@
 
 :-lib(ic).
 :-lib(ic_global_gac).
-:-lib(ic_sequence).
+:-lib(ic_global).
 :-lib(util).
 :-lib(timeout).
+:-lib(lists).
 
 :-use_module(structures).
 :-use_module(problem).
 
-:-use_module("../visualize_tree").
-:-use_module("../reorder").
+:-lib(cpviz).
 
 top:-
-        problem("data","test0.dat",Problem),
-        writeq(Problem),nl,
-        model(Problem,Solution0b,naive,"NAIVE0"),
-        writeln(Solution0b),
-        problem("data","test1.dat",Problem1),
-        model(Problem1,Solution1,naive,"NAIVE"),
-        writeln(Solution1),
+%        problem("data","test0.dat",Problem),
+%        writeq(Problem),nl,
+%        model(Problem,Solution0b,naive,"NAIVE0"),
+%        writeln(Solution0b),
+%        problem("data","test1.dat",Problem1),
+%        model(Problem1,Solution1,naive,"NAIVE"),
+%        writeln(Solution1),
         problem("data","test1.dat",Problem2),
         model(Problem2,Solution2,regin,"RESULT"),
         writeln(Solution2),
@@ -112,7 +112,7 @@ model(problem{cars:Cars,
                   sort(slack of option,>=,List,SortedOptions),
                   (foreach(option{pairs:Pairs},SortedOptions),
                    fromto(BinaryPairs,A1,A,[]) do
-                      reorder(Pairs,Reordered),
+                      middle_out(Pairs,Reordered),
 %                      writeln(Reordered),
                       append(Reordered,A,A1)
                   ),
@@ -136,7 +136,8 @@ model(problem{cars:Cars,
                 ),
                 200,
                 writeln(search_stopped)),
-        close_visualization(Handle).
+        close_visualization(Handle),
+        viz(Handle, _).
 
 
 preference_order(L,Ordered,Pref):-

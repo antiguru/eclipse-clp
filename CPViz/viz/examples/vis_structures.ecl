@@ -25,7 +25,7 @@
 :-comment(author,"Helmut Simonis").
 :-comment(status,"experimental").
 :-comment(copyright,"2010, Helmut Simonis").
-:-comment(categories,["Constraints","Development Tools","Visualization"]).
+:-comment(categories,["Development Tools","Visualisation"]).
 :-comment(summary,"Structure definition for visualization").
 :-comment(description,"Provides the different structures required for visualization. Also defines default values for attributes.").
 

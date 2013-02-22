@@ -29,9 +29,8 @@
 :-lib(ic_cumulative).
 :-lib(ic_global).
 :-lib(ic_global_gac).
-
-%:-use_module('../reorder').
-:-use_module('../visualize_tree').
+:- import lex_le/2, lex_lt/2 from ic_global.
+:-lib(cpviz).
 
 top:-
         mix(8,"RESULT").
@@ -140,7 +139,8 @@ mix(N,Output):-
         solution(Handle),
         close_visualization(Handle),
         writeln(L),
-        writeln(K).
+        writeln(K),
+        viz(Handle, _).
 
 
 random_list(N,L):-

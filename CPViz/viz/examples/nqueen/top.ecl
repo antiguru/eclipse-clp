@@ -26,8 +26,8 @@
 :-export(top/0).
 
 :-lib(ic).
-:-use_module('../reorder').
-:-use_module('../visualize_tree').
+:-lib(lists).
+:-lib(cpviz).
 
 top:-
         nqueen(naive,4,"QUEEN4",no),
@@ -35,7 +35,7 @@ top:-
         nqueen(naive,8,"FULL",no),
         nqueen(naive,8,"COMPACT",yes),
         nqueen(first_fail,8,"FF",yes),
-        nqueen(naive,16,"NAIVE",yes),
+%        nqueen(naive,16,"NAIVE",yes),
         nqueen(first_fail,16,"FIRST_FAIL",yes),
         nqueen(middle,16,"MIDDLE",yes),
         nqueen(credit,94,"CREDIT",yes),
@@ -57,7 +57,7 @@ nqueen(Type,N,Output,IgnoreFixed):-
         root(Handle),
         (Type = credit ->
             NSq is N*N,
-            reorder(Pairs,Reordered),
+            middle_out(Pairs,Reordered),
             search(Reordered,1,first_fail,tree_indomain_middle(Handle,_),
                    credit(NSq,10),[])
         ; Type = naive ->
@@ -65,7 +65,7 @@ nqueen(Type,N,Output,IgnoreFixed):-
         ; Type = first_fail ->
             search(Pairs,1,first_fail,tree_indomain_min(Handle,_),complete,[])
         ; Type = middle ->
-            reorder(Pairs,Reordered),
+            middle_out(Pairs,Reordered),
             search(Reordered,1,first_fail,tree_indomain_middle(Handle,_),
                    complete,[])
         ;
@@ -74,6 +74,7 @@ nqueen(Type,N,Output,IgnoreFixed):-
         ),
         solution(Handle),
         close_visualization(Handle),
+	viz(Handle,_),
         true.
 
 

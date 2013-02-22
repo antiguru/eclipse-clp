@@ -2,7 +2,7 @@
 :-comment(author,"Helmut Simonis").
 :-comment(status,"experimental").
 :-comment(copyright,"2010, Helmut Simonis").
-:-comment(categories,["Constraints","Development Tools","Visualization"]).
+:-comment(categories,["Development Tools","Visualization"]).
 :-comment(summary,"Primitives to exchange node count information between visualization.ecl and visualize_tree.ecl").
 :-comment(description,"Internal use only").
 

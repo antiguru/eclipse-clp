@@ -29,27 +29,27 @@
 :-lib(ic_global).
 :-lib(ic_global_gac).
 :-lib(propia).
-:-use_module('../reorder').
-:-use_module('../visualize_tree').
+:-lib(lists).
+:-lib(cpviz).
 
 top:-
         costas(naive,12,ic,"NAIVE"),
-        costas_tree(naive,13,ic,"NAIVE"),
-        costas_tree(naive,14,ic,"NAIVE"),
-        costas_tree(naive,15,ic,"NAIVE"),
-        costas_tree(naive,16,ic,"NAIVE"),
+%        costas_tree(naive,13,ic,"NAIVE"),
+%        costas_tree(naive,14,ic,"NAIVE"),
+%        costas_tree(naive,15,ic,"NAIVE"),
+%        costas_tree(naive,16,ic,"NAIVE"),
         costas(model,12,ic,"MODEL"),
-        costas_tree(model,13,ic,"MODEL"),
-        costas_tree(model,14,ic,"MODEL"),
-        costas_tree(model,15,ic,"MODEL"),
-        costas_tree(model,16,ic,"MODEL"),
+%        costas_tree(model,13,ic,"MODEL"),
+%        costas_tree(model,14,ic,"MODEL"),
+%        costas_tree(model,15,ic,"MODEL"),
+%        costas_tree(model,16,ic,"MODEL"),
         costas(middle,12,ic,"MIDDLE"),
-        costas_tree(middle,13,ic,"MIDDLE"),
-        costas_tree(middle,14,ic,"MIDDLE"),
-        costas_tree(middle,15,ic,"MIDDLE"),
-        costas_tree(middle,16,ic,"MIDDLE"),
-        costas_tree(middle,17,ic,"MIDDLE"),
-        costas_tree(middle,18,ic,"MIDDLE"),
+%        costas_tree(middle,13,ic,"MIDDLE"),
+%        costas_tree(middle,14,ic,"MIDDLE"),
+%        costas_tree(middle,15,ic,"MIDDLE"),
+%        costas_tree(middle,16,ic,"MIDDLE"),
+%        costas_tree(middle,17,ic,"MIDDLE"),
+%        costas_tree(middle,18,ic,"MIDDLE"),
         true.
 
 costas(Type,N,Module,Output):-
@@ -67,7 +67,7 @@ costas(Type,N,Module,Output):-
         L = [_|L1],
         diffs(L,L1,Module,L,_Vars,Type),
         number_variables(Handle,L,K),
-        reorder(K,KK),
+        middle_out(K,KK),
         root(Handle),
         (memberchk(Type,[middle]) ->
             search(KK,1,first_fail,tree_indomain_middle(Handle,_),complete,[])
@@ -77,6 +77,7 @@ costas(Type,N,Module,Output):-
         writeln(L),
         solution(Handle),
         close_visualization(Handle),
+        viz(Handle, _Default),
         !.
 
 costas_tree(Type,N,Module,Output):-
@@ -95,7 +96,7 @@ costas_tree(Type,N,Module,Output):-
         L = [_|L1],
         diffs(L,L1,Module,L,_Vars,Type),
         number_variables(Handle,L,K),
-        reorder(K,KK),
+        middle_out(K,KK),
         root(Handle),
         (memberchk(Type,[middle]) ->
             search(KK,1,first_fail,tree_indomain_middle(Handle,_),complete,[])
@@ -105,6 +106,7 @@ costas_tree(Type,N,Module,Output):-
         writeln(L),
         solution(Handle),
         close_visualization(Handle),
+        viz(Handle, []),
         !.
 
 make_configuration(Example,Dir,Root):-

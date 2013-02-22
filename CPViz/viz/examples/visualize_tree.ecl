@@ -25,7 +25,7 @@
 :-comment(author,"Helmut Simonis").
 :-comment(status,"experimental").
 :-comment(copyright,"2010, Helmut Simonis").
-:-comment(categories,["Constraints","Development Tools","Visualization"]).
+:-comment(categories,["Development Tools","Visualisation"]).
 :-comment(summary,"Entry point for VIZ visualisation tools").
 :-comment(description,"This library is the entry point for the VIZ"
                       " visualization tools. It must be loaded to"

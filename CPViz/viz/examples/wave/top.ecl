@@ -31,8 +31,7 @@
 :-lib(graph_algorithms).
 :-lib(branch_and_bound).
 :-lib(util).
-:-use_module('../group').
-:-use_module('../visualize_tree').
+:-lib(cpviz).
 :-use_module('data').
 
 top:-
@@ -75,7 +74,8 @@ wave(NrDemands,Routes,LowerBound,Var,Max):-
         root(Handle),
         bb_min(assign(Var,Handle),Max,bb_options{from:LowerBound,
                                           timeout:100}),
-        close_visualization(Handle).
+        close_visualization(Handle),
+	viz(Handle, _).
 
 
 assign(Var,Handle):-
@@ -126,3 +126,40 @@ problem(Name,NrDemands,Network,Demands):-
             !
         ).
 
+
+% list processing auxiliary
+
+group(List,Arg,Groups):-
+        integer(Arg),
+        !,
+        sort(Arg,=<,List,[H|T]),
+        extract_arg(Arg,H,V),
+        lp(T,Arg,[H],V,Groups).
+group(List,Arg1+Arg2,Groups):-
+        integer(Arg1),
+        integer(Arg2),
+        !,
+        sort(Arg1,=<,List,List1),
+        sort(Arg2,=<,List1,[H|T]),
+        extract_arg(Arg1+Arg2,H,V),
+        lp(T,Arg1+Arg2,[H],V,Groups).
+
+lp([],_,Last,LastV,[LastV-Last]).
+lp([H|T],Arg,Old,V,Groups):-
+        extract_arg(Arg,H,V),
+        !,
+        lp(T,Arg,[H|Old],V,Groups).
+lp([H|T],Arg,Old,OldV,[OldV-Old|Groups]):-
+        extract_arg(Arg,H,V),
+        lp(T,Arg,[H],V,Groups).
+
+extract_arg(0,Term,V):-
+        !,
+        Term = V.
+extract_arg(A,Term,V):-
+        integer(A),
+        !,
+        arg(A,Term,V).
+extract_arg(A1+A2,Term,V1+V2):-
+        arg(A1,Term,V1),
+        arg(A2,Term,V2).
