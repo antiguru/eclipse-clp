@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.7 2013/02/14 01:28:56 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.8 2013/02/22 02:43:53 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -55,7 +55,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2013/02/14 01:28:56 $").
+:- comment(date, "$Date: 2013/02/22 02:43:53 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -433,6 +433,36 @@ print_list_([H|T], M) :-
 	print_list_(T, M).
 
 
+:- comment(middle_out/2, [
+	summary:"Reorder a list such that the middle elements come first",
+	amode:(middle_out(+,-) is det),
+	args:["List":"A list", "Reordered":"A variable or list"],
+	eg:"
+?- middle_out([1,2,3,4,5], Zs).
+Zs = [3, 2, 4, 1, 5]
+Yes (0.00s cpu)
+
+?- middle_out([1,2,3,4,5,6], Zs).
+Zs = [3, 4, 2, 5, 1, 6]
+Yes (0.00s cpu)
+	",
+	see_also:[reverse/2]]).
+
+:- export middle_out/2.
+middle_out(XsYs, Zs) :-
+	middle_out(XsYs, XsYs, [], Zs0),
+	!, Zs=Zs0.
+
+    middle_out([], Ys, Zs, Zs) :- evens(Zs, Ys).
+    middle_out([_], [Y|Ys], Zs, [Y|Zs]) :- evens(Zs, Ys).
+    middle_out([_,_|XsYs], [X|Xs], XYs, Zs) :-
+	middle_out(XsYs, Xs, [X,_Y|XYs], Zs).
+
+    evens([], []).
+    evens([_,Y|XYs], [Y|Ys]) :- evens(XYs, Ys).
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 :- comment(select / 3, [
@@ -737,7 +767,7 @@ reverse([H|T], L, SoFar) :-
 </PRE>
    This predicate does not perform any type testing functions.
 	"),
-	args:["+List" : "Ground List.", "?Reversed" : "List or variable."],
+	args:["+List" : "A List.", "?Reversed" : "List or variable."],
 	resat:"   No.",
 	fail_if:"   Fails if Reverse does not unify with the reversed version of List.\n\n",
 	eg:"\nSuccess:\n    [eclipse]: reverse([1,2,3,4,5], X).\n    X = [5, 4, 3, 2, 1]\n    yes.\n\n\n\n\n",
@@ -819,7 +849,7 @@ flatten_aux(Term, [Term|Cont], Cont).
 </PRE>
    This predicate does not perform any type testing functions.
 	"),
-	args:["+NestedList" : "Ground List.", "?FlatList" : "List or variable."],
+	args:["+NestedList" : "A List.", "?FlatList" : "List or variable."],
 	resat:"   No.",
 	fail_if:"   Fails if FlatList does not unify with the flattened version of\n   NestedList.\n\n",
 	eg:"\nSuccess:\n    [eclipse]: flatten([[1,2,[3,4],5],6,[7]], L).\n    L = [1, 2, 3, 4, 5, 6, 7]\n    yes.\n\nFail:\n    [eclipse]: flatten([1,[3],2], [1,2,3]).\n    no.\n\n\n\n",
