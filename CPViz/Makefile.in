@@ -104,7 +104,7 @@ archclean:
 clean:	ecoclean archclean
 	rm -rf $(ECL_DEST) $(ECI_DEST) $(JAR_DEST)
 	rm -rf $(DOC_DEST) $(EXAMPLE_DEST)
-	rm -rf $(VIZ_CLASSES) $(VIZTOOL_CLASSES)
+	rm -rf $(VIZ_CLASSES) $(VIZTOOL_CLASSES) $(VIZ_JDOC) jars
 
 
 # ---------------
@@ -112,22 +112,27 @@ clean:	ecoclean archclean
 # ---------------
 
 $(DESTDIR)/%.eci:       %.ecl 
+	@mkdir -p $(@D)
 	$(ECLIPSE) -e 'lib(document),icompile("$(*F)","$(@D)")'
 	-@/bin/chmod $(PERM) $@
 
 $(DESTDIR)/%.eco:       %.ecl 
+	@mkdir -p $(@D)
 	$(ECLIPSE) -e 'lib(fcompile),fcompile("$(*F)", [outdir:"$(@D)"])'
 	-@/bin/chmod $(PERM) $@
 
 $(DESTDIR)/%.ecl:       %.ecl 
+	@mkdir -p $(@D)
 	/bin/cp $< $@
 	-@/bin/chmod $(PERM) $@
 
 $(DESTDIR)/%.ecl:	viz/examples/%.ecl 
+	@mkdir -p $(@D)
 	/bin/cp $< $@
 	-@/bin/chmod $(PERM) $@
 
 $(DESTDIR)/%.eci:       viz/examples/%.ecl 
+	@mkdir -p $(@D)
 	$(ECLIPSE) -e 'lib(document),icompile("$<","$(@D)")'
 	-@/bin/chmod $(PERM) $@
 
