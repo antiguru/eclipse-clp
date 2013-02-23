@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.13 2012/03/01 16:22:16 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.14 2013/02/23 00:23:18 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -774,13 +774,17 @@ get_subterm_child(Pos, Current0, Top, Child, Module) :-
 
 
 is_expandable_handle(H, Exp) :-
+        get_event_handler(40, H40, M40),
+        set_event_handler(40, fail/0),
+        get_event_handler(141, H141, M141),
         set_event_handler(141, fail/0),
+	Reset = (set_event_handler(40,H40)@M40, set_event_handler(141,H141)@M141),
         catch(
-                   (xget(H, 0, Exp) -> 
-                        reset_event_handler(141)
-                   ;
-                        reset_event_handler(141), fail
-                   ), Tag, (reset_event_handler(141), throw(Tag)) 
+	    ( xget(H, 0, Exp) -> 
+		Reset
+	    ;
+		Reset, fail
+	    ), Tag, (Reset, throw(Tag)) 
         ).
 
 list_nth(1, [E0|Ls], E, Tail) ?- !,
