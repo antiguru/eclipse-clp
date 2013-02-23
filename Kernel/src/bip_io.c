@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.18 2013/02/08 15:00:52 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.19 2013/02/23 00:02:36 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -605,7 +605,10 @@ get_stream_id(value v, type t, int mode, int *err)
 	hstream.val.all = v.all;
 	hstream.tag.all = t.all;
 	res = ec_get_handle(hstream, &stream_tid, (t_ext_ptr*) &nst);
-	if (res != PSUCCEED) { *err = res; return NO_STREAM; }
+	if (res != PSUCCEED) {
+	    *err = res==STALE_HANDLE ? STREAM_SPEC : res;
+	    return NO_STREAM;
+	}
 	break;
     }
 
