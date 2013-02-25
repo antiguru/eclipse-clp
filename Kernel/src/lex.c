@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.15 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.16 2013/02/25 22:47:23 jschimpf Exp $
  */
 
 /*
@@ -527,9 +527,9 @@ _quote_:
 		    case 'x':
 			base = 16; max_no = '9'; max_lc = 'f'; max_uc = 'F';
 			Get_Ch_Class(cc, ctype)
-_iso_numeric_escape_:
-			if (!(cc>='0' && cc<=max_no || cc>='a' && cc<=max_lc || cc>='A' && cc<=max_uc))
+			if (ctype == ES)
 			    goto _return_ill_quoted_;
+_iso_numeric_escape_:
 			for (iresult=0;;) {
 			    if (cc>='0' && cc<=max_no) cc -= '0';
 			    else if (cc>='a' && cc<=max_lc) cc = cc - 'a' + 10;
@@ -667,6 +667,19 @@ _symbol_:
 	    	break;
 	    }
 	}
+#ifdef ISO_FULLSTOP
+	Backup_(cc, 1);
+	if ((pw - StreamLexAux(nst)) == 1  &&  *StreamLexAux(nst) == '.'
+	    && (ctype == BS || ctype == NL || ctype == RE || ctype == CM))
+	{
+	    Make_Atom(&token->term, d_.eocl);
+	    tok = EOCL;				/* full stop */
+	} else {
+	    *pw = 0;
+	    Set_TokenString(StreamLexAux(nst), pw - StreamLexAux(nst));
+	    tok = IDENTIFIER;
+	}
+#else
 	if ((pw - StreamLexAux(nst)) == 1  &&  *StreamLexAux(nst) == '.'
 	    && (ctype == BS || ctype == NL || ctype == RE || ctype == CM))
 	{
@@ -686,6 +699,7 @@ _symbol_:
 	    Set_TokenString(StreamLexAux(nst), pw - StreamLexAux(nst));
 	    tok = IDENTIFIER;
 	}
+#endif
 	break;
 
 
@@ -1547,8 +1561,9 @@ _start_:
 	    goto return_int;
 	}
 	base = iresult;
-	if (base == 0)			/* ascii */
+	if (base == 0)			/* character code */
 	{
+	    int max_no, max_lc, max_uc;
             Get_Ch(c);
             switch(sd->char_class[c]) {
             case ES:
@@ -1579,10 +1594,45 @@ _start_:
                     case 's':                   /* space */
                         if (syntax & ISO_ESCAPES) goto return_int3;
                         c = ' '; goto _return_c_;
+		    case 'x':                   /* ISO hex constant */
+			if (!(syntax & ISO_ESCAPES)) goto _unknown_escape_;
+			base = 16; max_no = '9'; max_lc = 'f'; max_uc = 'F';
+			Get_Ch(c)
+			if (sd->char_class[c] != ES)
+			    goto _iso_numeric_escape_;
+			Push_Back();		/* the premature ES */
+			break;
                     }
-                    /*fall through*/
+		    goto _unknown_escape_;
+
+		case N:
+                    if (!(syntax & ISO_ESCAPES)) goto _unknown_escape_;
+		    base = 8; max_no = '7'; max_lc = 0; max_uc = 0;
+_iso_numeric_escape_:
+		    /* because of unlimited length of this sequence, we cannot push
+		     * it all back on error - we leave legal prefix consumed */
+		    for (iresult=0;;) {
+			if (c>='0' && c<=max_no) c -= '0';
+			else if (c>='a' && c<=max_lc) c = c - 'a' + 10;
+			else if (c>='A' && c<=max_uc) c = c - 'A' + 10;
+			else if (sd->char_class[c] == ES)
+			    break;
+			else {
+			    Push_Back();		/* the bad char */
+			    goto return_err;
+			}
+			if ((unsigned )iresult <= MAX_CHAR_CODE/base &&
+				((unsigned ) (iresult * base) <= MAX_CHAR_CODE - c))
+			    iresult = iresult * base + c;
+			else goto return_err;	/* overflow */
+			Get_Ch(c)
+		    }
+		    result->val.nint = (word) iresult;
+		    result->tag.kernel = TINT;
+		    goto return_ok;
 
                 default:        /* unrecognised 0'\? escape sequence */
+_unknown_escape_:
                     if (syntax & ISO_ESCAPES) goto return_int3;
                     /* backward comp: allow plain 0'\ for backslash */
                     Push_Back();		/* the bad char */
