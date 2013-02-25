@@ -40,27 +40,36 @@
                   args:["Options":"a list of option pairs of form option:value",
                         "Handle":"a free variable, will be bound to an opaque data structure for the visualization"],
                   amode:create_visualization(+,-),
-                  desc:html("This predicate prepares the system for"
+                  desc:html("<P>This predicate prepares the system for"
                             " visualization output and create a data"
                             " structure Handle which is used by all"
                             " other visualization predicates. For"
                             " every run, the predicate should only be"
                             " called once. It can not be called again,"
-                            " untill the current visualization is"
+                            " until the current visualization is"
                             " closed with close_visualization/1. The"
                             " predicate only prepares the system, it"
-                            " does not record a execution state on its"
-                            " own."),
-                  eg:ascii("top(N,L):-"
+                            " does not record a execution state on its own."
+			    "</P><P>"
+			    "Possible options are:"
+			    "<DL>"
+			    "<DT>output</DT><DD>"
+			    "   atom/string (default 'OUTPUT'), name of directory where log files will be placed"
+			    "</DD>"
+			    "<DT>ignore_fixed</DT><DD>"
+			    "    yes/no (default yes), states if fixed assignments will be ignored and not create tree nodes"
+			    "</DD>"
+			    "</DL>"
+			    "</P>"),
+                  eg:ascii("top(N,L):-\n"
                            "    length(L,N),\n"                
                            "    L :: 1..N,\n"
-                           "    alldifferent(L),"
+                           "    alldifferent(L),\n"
                            "    create_visualization([],Handle),\n"
                            "    add_visualizer(Handle,vector(L),[]),\n"
                            "    number_variables(Handle,L,Terms),\n"
                            "    root(Handle),\n"
-                           "    search(Terms,1,first_fail,\n"
-                           "           tree_indomain(Handle,_),complete,[]),\n"
+                           "    search(Terms,1,first_fail,tree_indomain(Handle,_),complete,[]),\n"
                            "    solution(Handle),\n"
                            "    close_visualization(Handle).\n"),
                   see_also:[root/1,solution/1,try/4,failure/4,
@@ -73,45 +82,68 @@
                   args:["Handle":"an opaque data structure for the"
                                  " visualization",
                         "Visualizer":"a term, defining the visualizer",
-                        "Options":"a list of optino:value pairs"
+                        "Options":"a list of option:value pairs"
                                   " describing the options to be"
                                   " applied to the visualizer"],
                   amode:add_visualizer(+,++,++),
-                  desc:html("This predicate is used to add a visualizer to an existing visualization. It can be called after the visualization has been created with a create_visualization/2 call. The second argument is the description of the visualizer, either for variables or for constraints.
+                  desc:html("<P>
+This predicate is used to add a visualizer to an existing
+visualization.  It can be called after the visualization has been
+created with a create_visualization/2 call.  The second argument is
+the description of the visualizer, either for variables or for
+constraints.
+</P><P>
+Variable visualizers display the state and/or evolution of a
+collection of variables.  At the moment this can be one of the
+following entries:
 
-Variable visualizers display the state and/or evolution of a collection of variables. At the moment this can be one of the following entries:
 <table border=1>
 <tr>
-<td>Variable Visualizer</td><td>Description</td>
+<td>Variable Visualizer</td>  <td>Description</td>
 </tr>
 <tr>
-<td>vector(L)</td><td>The visualizer shows the current state of a collection of variables. It marks which variables have been assigned, which values have been removed and which values remain in the domain.</td>
+<td>vector(L)</td>  <td>The visualizer shows the current state of a
+collection of variables.  It marks which variables have been assigned,
+which values have been removed and which values remain in the domain.</td>
 </tr>
 <tr>
-<td>vector_waterfall(L)</td><td>This visualizer shows the changes of the collection of variables on the path from the root node to the current node. It marks if a variable is assigned, changed (min and max, min, max or size only), or if it is not modified in each step. </td>
+<td>vector_waterfall(L)</td>  <td>This visualizer shows the changes of
+the collection of variables on the path from the root node to the
+current node.  It marks if a variable is assigned, changed (min and
+max, min, max or size only), or if it is not modified in each step.</td>
 </tr>
 <tr>
-<td>vector_size(L)</td><td>This visualizer shows the change of the domain sizes for a collection of variables from the root node to the current node in the search.</td>
+<td>vector_size(L)</td>  <td>This visualizer shows the change of the
+domain sizes for a collection of variables from the root node to the
+current node in the search.</td>
 </tr>
 <tr>
-<td>binary_vector(Bool)</td><td>This visualizer is a special variant of the vector visualizer for a collection of 0/1 vairables. Values are marked either as unassigned, or as assigned to zero or to one.</td>
+<td>binary_vector(Bool)</td>  <td>This visualizer is a special variant
+of the vector visualizer for a collection of 0/1 vairables.  Values
+are marked either as unassigned, or as assigned to zero or to one.</td>
 </tr>
 <tr>
-<td>domain_matrix(Matrix)</td><td>This visualizer shows a 2D matrix of domain variables. Depending on the options, it only shows the assigned values, or displayed the values remaining in the domain.</td>
+<td>domain_matrix(Matrix)</td>  <td>This visualizer shows a 2D matrix of
+domain variables.  Depending on the options, it only shows the
+assigned values, or displayed the values remaining in the domain.</td>
 </tr>
 <tr>
-<td>binary_matrix(BoolMatrix)</td><td>A specialized version of the matrix visualizer for 0/1 variables.</td>
+<td>binary_matrix(BoolMatrix)</td>  <td>A specialized version of the
+matrix visualizer for 0/1 variables.</td>
 </tr>
 </table>
 
-Constraint visualizers show the state and/or evolution of a global cosntraint. At the moment, visualizers for the following global constraints are provided.
+</P><P>
+Constraint visualizers show the state and/or evolution of a global
+constraint.  At the moment, visualizers for the following global
+constraints are provided.
 
 <table border=1>
 <tr>
-<td>Constraint Visualizer</td><td>Description</td>
+<td>Constraint Visualizer</td><td></td>
 </tr>
 <tr>
-<td>alldifferent(L)</td><td>A visualizer for the alldifferent constraint, L is a collection of domain variables</td>
+<td>alldifferent(Xs)</td><td></td>
 </tr>
 <tr>
 <td>alldifferent_matrix(Matrix)</td><td></td>
@@ -123,16 +155,16 @@ Constraint visualizers show the state and/or evolution of a global cosntraint. A
 <td>bool_channeling(X,Bool,Start)</td><td></td>
 </tr>
 <tr>
-<td>cumulative(Start,Dur,Res,Limit)</td><td></td>
+<td>cumulative(Starts,Durations,Resources,Limit)</td><td></td>
 </tr>
 <tr>
-<td>cumulative(Start,Dur,Res,Limit,End)</td><td></td>
+<td>cumulative(Starts,Durationss,Resources,Limit,End)</td><td></td>
 </tr>
 <tr>
-<td>disjoint2(Rect)</td><td></td>
+<td>disjoint2(Rectangles)</td><td></td>
 </tr>
 <tr>
-<td>element(X,L,C)</td><td></td>
+<td>element(X,Vs,Y)</td><td></td>
 </tr>
 <tr>
 <td>gcc(Limits,Vars)</td><td></td>
@@ -141,16 +173,16 @@ Constraint visualizers show the state and/or evolution of a global cosntraint. A
 <td>gcc_matrix(RowLimits,ColLimits,Matrix)</td><td></td>
 </tr>
 <tr>
-<td>inverse(L,K)</td><td></td>
+<td>inverse(Succ,Pred)</td><td></td>
 </tr>
 <tr>
-<td>lex_le(L,K)</td><td></td>
+<td>lex_le(Xs,Ys)</td><td></td>
 </tr>
 <tr>
-<td>lex_lt(L,K)</td><td></td>
+<td>lex_lt(Xs,Ys)</td><td></td>
 </tr>
 <tr>
-<td>same(L,K)</td><td></td>
+<td>same(Xs,Ys)</td><td></td>
 </tr>
 <tr>
 <td>sequence_total(Min,Max,Low,Hi,K,ZeroOnes)</td><td></td>
@@ -160,17 +192,29 @@ Constraint visualizers show the state and/or evolution of a global cosntraint. A
 </tr>
 </table>
 
+</P><P>
+Possible Options are:
+<DL>
+<DT>display</DT><DD>
+    influences how the visualizer will be drawn (expanded, text, gantt, ...),
+    default: minimal
+<DT>group</DT><DD>
+    group id number for the visualizer (integer, or 'other')
+<DT>x,y</DT><DD>
+    position at which the visualizer will be placed (default 0,0)
+</DD>
+</DL>
+</P>
 "),
-                  eg:ascii("top(N,L):-"
+                  eg:ascii("top(N,L):-\n"
                            "    length(L,N),\n"                
                            "    L :: 1..N,\n"
-                           "    alldifferent(L),"
+                           "    alldifferent(L),\n"
                            "    create_visualization([],Handle),\n"
                            "    add_visualizer(Handle,vector(L),[]),\n"
                            "    number_variables(Handle,L,Terms),\n"
                            "    root(Handle),\n"
-                           "    search(Terms,1,first_fail,\n"
-                           "           tree_indomain(Handle,_),complete,[]),\n"
+                           "    search(Terms,1,first_fail,tree_indomain(Handle,_),complete,[]),\n"
                            "    solution(Handle),\n"
                            "    close_visualization(Handle).\n"),
                   see_also:[alldifferent/1,
@@ -197,13 +241,13 @@ Constraint visualizers show the state and/or evolution of a global cosntraint. A
                   args:["Handle":"an opaque data structure for the visualization"],
                   amode:draw_visualization(+),
                   desc:html("This predicate is used to explicitely log the state of the constraint systems for visualization. It is used by the application programmer to show the effect of some setup steps, before the search is started. It is also called automatically by the tree logging predicates, so that a user rarely needs to call it inside a search routine."),
-                  eg:ascii("top(N,L):-"
+                  eg:ascii("top(N,L):-\n"
                            "    length(L,N),\n"                
                            "    L :: 1..N,\n"
-                           "    alldifferent(L),"
+                           "    alldifferent(L),\n"
                            "    create_visualization([],Handle),\n"
                            "    add_visualizer(Handle,vector(L),[]),\n"
-                           "    draw_visualization(Handle),"
+                           "    draw_visualization(Handle),\n"
                            "    close_visualization(Handle).\n"),
                   see_also:[root/1,solution/1,try/4,failure/4,tree_indomain/3,draw_visualization/2]]).
 
@@ -212,16 +256,16 @@ Constraint visualizers show the state and/or evolution of a global cosntraint. A
 
 :-comment(draw_visualization/2,[summary:"Log the current state of the constraint system",
                   args:["Handle":"an opaque data structure for the visualization",
-                        "Options":"a list of optino:value pairs"],
+                        "Options":"a list of option:value pairs"],
                   amode:draw_visualization(+,+),
-                  desc:html("This predicate is used to explicitely log the state of the constraint systems for visualization. It is used by the application programmer to show the effect of some setup steps, before the search is started. It is also called automatically by the tree logging predicates, so that a user rarely needs to call it inside a search routine."),
-                  eg:ascii("top(N,L):-"
+                  desc:html("This predicate is used to explicitely log the state of the constraint systems for visualization, i.e. create a visualisation time point. It is used by the application programmer to show the effect of some setup steps, before the search is started. It is also called automatically by the tree logging predicates, so that a user rarely needs to call it inside a search routine."),
+                  eg:ascii("top(N,L):-\n"
                            "    length(L,N),\n"                
                            "    L :: 1..N,\n"
-                           "    alldifferent(L),"
+                           "    alldifferent(L),\n"
                            "    create_visualization([],Handle),\n"
                            "    add_visualizer(Handle,vector(L),[]),\n"
-                           "    draw_visualization(Handle,[]),"
+                           "    draw_visualization(Handle,[]),\n"
                            "    close_visualization(Handle).\n"),
                   see_also:[root/1,solution/1,try/4,failure/4,tree_indomain/3,draw_visualization/1]]).
 
@@ -231,16 +275,15 @@ Constraint visualizers show the state and/or evolution of a global cosntraint. A
                   args:["Handle":"an opaque data structure for the visualization"],
                   amode:close_visualization(+),
                   desc:html("This predicate should be called at the end of a program to close the visualization logs, flush all file output and reset the internal data structures."),
-                  eg:ascii("top(N,L):-"
+                  eg:ascii("top(N,L):-\n"
                            "    length(L,N),\n"                
                            "    L :: 1..N,\n"
-                           "    alldifferent(L),"
+                           "    alldifferent(L),\n"
                            "    create_visualization([],Handle),\n"
                            "    add_visualizer(Handle,vector(L),[]),\n"
                            "    number_variables(Handle,L,Terms),\n"
                            "    root(Handle),\n"
-                           "    search(Terms,1,first_fail,\n"
-                           "           tree_indomain(Handle,_),complete,[]),\n"
+                           "    search(Terms,1,first_fail,tree_indomain(Handle,_),complete,[]),\n"
                            "    solution(Handle),\n"
                            "    close_visualization(Handle).\n"),
                   see_also:[solution/1,try/4,failure/4,tree_indomain/3,visualization:draw_visualization/1]]).

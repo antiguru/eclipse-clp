@@ -50,7 +50,7 @@
                                          "focus_arg":"integer, argument number used to retrieve index number of variables to be assigned",
                                          "parent":"integer, current parent node id",
                                          "stream":"file descriptor of visualization log file",
-                                         "schema_path":"Path to the schema description, can br URI or path relative to output directory",
+                                         "schema_path":"Path to the schema description, can be URI or path relative to output directory",
                                          "range_from":"integer, only start visualization from this step on",
                                          "range_to":"integer, stop visualization when this step is reached",
                                          "tree_stream":"file descriptor of tree log file",
