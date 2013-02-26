@@ -136,6 +136,11 @@ ATOM    = (LC ALP*)
         | {}
         | |
 \end{verbatim}
+If the syntax option \notation{doubled_quote_is_quote} is enabled, two
+immediately consecutive AQ characters may occur inside an AQ-quoted sequence,
+and will be interpreted as a single occurrence of the quote within the name.
+If the syntax option \notation{bar_is_no_atom} is active, the vertical bar
+cannot be used as an atom, unless quoted.
 
 \subsubsection{Numbers}
 
@@ -302,8 +307,8 @@ ES \verb'r'	& ASCII carriage return (13)	&\\
 ES \verb't'	& ASCII tabulation (9)		&\\
 ES \verb'v'	& ASCII vertical tab (11)	&\\
 AQ AQ		& the AQ character itself	& iso_escapes and doubled_quote_is_quote\\
-%ES octal digits	ES &	character with given octal character code	& iso_escapes\\
-%ES \verb'x' hex digits ES	&    character with given hexadecimal character code	&\\
+ES octal digits	ES &	character with given octal character code	& iso_escapes\\
+ES \verb'x' hex digits ES	&    character with given hexadecimal character code	&\\
 <TAB>		& ASCII tabulation (9)		& not iso_escapes\\
 NL		& ASCII newline (10)		& not iso_escapes\\
 AQ		& the AQ character itself	& not iso_escapes\\
