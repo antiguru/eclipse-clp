@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.23 2013/02/13 17:54:36 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.24 2013/02/26 02:10:06 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2013/02/13 17:54:36 $").
+:- comment(date,	"$Date: 2013/02/26 02:10:06 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -845,8 +845,14 @@ handle_nonclause(Class, Term, Ann, SourcePos1, Size0, Size, Options, PosModule, 
 
 
 process_directive(SourcePos, Term, Options, Module) :-
-	( current_pragma(iso(strict))@Module, Term=(:-Dir), \+iso_directive(Dir) ->
-	    compiler_error(_Ann, SourcePos, "Non-ISO directive (ignored) %w", [Term])
+	( current_pragma(iso(strict))@Module, Term=(:-Dir) ->
+	    % ISO directives may not be directly callable
+	    ( iso_directive(Dir, QDir) ->
+		call_directive(SourcePos, (:-QDir), Options, Module),
+		emit_directive_or_query((:-QDir), Options, Module)
+	    ;
+		compiler_error(_Ann, SourcePos, "Non-ISO directive (ignored) %w", [Term])
+	    )
 	;
 	    call_directive(SourcePos, Term, Options, Module),
 	    emit_directive_or_query(Term, Options, Module)
@@ -942,15 +948,16 @@ old_compiler_directive((:-nodbgcomp), Options) ?- !,
 
 
 % Valid ISO-Prolog directives
-iso_directive(dynamic(_)).
-iso_directive(multifile(_)).
-iso_directive(discontiguous(_)).
-iso_directive(op(_,_,_)).
-iso_directive(char_conversion(_,_)).
-iso_directive(initialization(_)).
-iso_directive(include(_)).	% already handled
-iso_directive(ensure_loaded(_)).
-iso_directive(set_prolog_flag(_,_)).
+% We qualify those that are not built-ins
+iso_directive(dynamic(P),	eclipse_language:dynamic(P)).
+iso_directive(multifile(P),	multifile:multifile(P)).
+iso_directive(discontiguous(P),	eclipse_language:discontiguous(P)).
+iso_directive(op(P,A,O),	op(P,A,O)).
+iso_directive(char_conversion(X,Y), char_conversion(X,Y)).
+iso_directive(initialization(G), iso:initialization(G)).
+iso_directive(include(_),	true).	% already handled
+iso_directive(ensure_loaded(F),	eclipse_language:ensure_loaded(F)).
+iso_directive(set_prolog_flag(F,V), set_prolog_flag(F,V)).
 
 
 % copy directives and queries to the eco file
