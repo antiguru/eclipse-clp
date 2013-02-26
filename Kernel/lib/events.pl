@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.27 2013/02/12 00:41:44 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.28 2013/02/26 23:29:22 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -405,7 +405,15 @@ parser_error_handler(N, Goal, M):-
 	    fail
 	).
 
-print_syntax_error(Id, context(_Stream, String, From, Where)) :-
+print_syntax_error(Id, context(_Stream, Device, Name, Line, String, From, Where)) :-
+	% Don't use Stream, it may be closed/stale.
+	( Device==tty ->
+	    true	% no need
+	;
+	    printf(error, "%s %w", [Device,Name]),
+	    ( Line > 1 -> printf(error, ", line %d", [Line]) ; true ),
+	    printf(error, ": ", [])
+	),
 	( String == "" ->
 	    printf(error, "%s\n%b", Id)		% no context available
 	;
@@ -415,19 +423,20 @@ print_syntax_error(Id, context(_Stream, String, From, Where)) :-
 	).
 
 
-get_context_and_skip_to_eocl(Stream, context(Stream, String, From, Where)) :-
+get_context_and_skip_to_eocl(Stream, Context) :-
 	stream_info_(Stream, 13, Device),
 	stream_info_(Stream, 6, Where),
 	stream_info_(Stream, 5, Line),
-	( get_context(Stream, Device, Where, Line, From, String) ->
+	( get_context(Stream, Device, Where, Line, Context) ->
 	    seek(Stream, Where),
-	    set_stream_prop_(Stream, 5, Line),	% reset the line
-	    skip_to_eocl(Stream, Device)
+	    set_stream_prop_(Stream, 5, Line)	% reset the line
 	;
-	    String="", From=0, Where=0
-	).
+	    Context = context(Stream, Device, stream, Line, "", 0, Where)
+	),
+	skip_forward(Stream).
 
-get_context(Stream, file, Err, Line, From, String) :-
+get_context(Stream, file, Err, Line,
+		context(Stream, file, File, LL, String, From, Err)) :-
 	!,
 	stream_info_(Stream, 0, Name),
 	Back is max(Err - 80, 0),
@@ -435,31 +444,35 @@ get_context(Stream, file, Err, Line, From, String) :-
 	stream_info_(Stream, 16, BufSize),
 	find_string(Stream, Err, Back, BufSize, String, From, LineDecr),
 	LL is Line - LineDecr,
-	local_file_name(Name, File),
-	printf(error, "file %s, line %d: ", [File, LL]).
-get_context(Stream, tty, Err, _, From, String) :-
+	local_file_name(Name, File).
+get_context(Stream, tty, Err, Line,
+		context(Stream, tty, Name, Line, String, From, Err)) :-
 	!,
+	stream_info_(Stream, 0, Name),
 	stream_info_(Stream, 14, Buf),
 	stream_info_(Stream, 16, BufSize),
 	seek(Stream, Buf),
 	find_string(Stream, Err, Buf, BufSize, String, From, _).
-get_context(Stream, socket, Err, Line, From, String) :-
+get_context(Stream, Type, Err, Line,
+		context(Stream, Type, Name, LL, String, From, Err)) :-
+	(Type==socket;Type==pipe),
 	!,
 	stream_info_(Stream, 0, Name),
 	stream_info_(Stream, 16, BufSize),
 	seek(Stream, Buf),
 	find_string(Stream, Err, Buf, BufSize, String, From, LineDecr),
-	LL is Line - LineDecr,
-	printf(error, "socket %s, line %d: ", [Name, LL]).
-get_context(_Stream, queue, _Err, _Line, _From, _String) :-
-	!, fail.	% can't seek on a queue
-get_context(Stream, Type, Err, _, From, String) :-
+	LL is Line - LineDecr.
+get_context(Stream, queue, Err, Line,
+		context(Stream, 'queue stream', Stream, Line, "", 0, Err)) :-
+	!. % can't seek on a queue
+get_context(Stream, string, Err, Line,
+		context(Stream, 'string stream', Stream, Line, String, From, Err)) :-
 	stream_info_(Stream, 14, Buf),
 	seek(Stream, Buf),
 	stream_info_(Stream, 16, BufSize),
-	find_string(Stream, Err, Buf, BufSize, String, From, _),
-	printf(error, "%w stream %w: ", [Type, Stream]).
+	find_string(Stream, Err, Buf, BufSize, String, From, _).
 
+% find the line (or line end) that contains the Where-position
 find_string(Stream, Where, Last, BufSize, String, From, LineDecr) :-
 	read_string(Stream, end_of_line, BufSize, S),
 	string_length(S, Length),
@@ -481,18 +494,63 @@ print_arrow(String, From, Where) :-
 	string_print_length(String, 2, Num, Skip),
 	printf(error, "| %*c^ here\n%b", [Skip, 0' ]).
 
-skip_to_eocl(Stream, _) :-
-	at_eof(Stream),
-	!.
-skip_to_eocl(Stream, tty) :-
-	!,
-	read_string(Stream, end_of_line, _, _),
-	skip_to_eocl(Stream, 0).
-skip_to_eocl(Stream, _) :-
-	read_token(Stream, _, fullstop),
-	!.
-skip_to_eocl(Stream, Type) :-
-	skip_to_eocl(Stream, Type).
+
+skip_forward(Stream) :-
+	stream_info_(Stream, 13, Device),
+	( Device==tty -> discard_all_input(Stream)
+	; Device==file -> skip_to_eocl(Stream)
+	; Device==string -> skip_to_eocl(Stream)
+	; Device==null -> true
+	; carefully_forward(Stream)
+	).
+
+% For ttys
+discard_all_input(Stream) :-
+	( at_eof(Stream) ->
+	    true
+	;
+	    get(Stream, C),
+	    ( C<0 -> true ; discard_all_input(Stream) )
+	).
+
+% For nonblocking streams: skip token-wise to fullstop or end of stream
+skip_to_eocl(Stream) :-
+	( at_eof(Stream) ->
+	    true
+	;
+	    read_token(Stream, _, Class),
+	    ( Class==fullstop -> true 
+	    ; Class==end_of_file -> true 
+	    ; skip_to_eocl(Stream)
+	    )
+	).
+
+% Skip to something that looks like fullstop, be careful not to block
+carefully_forward(Stream) :-
+	( at_eof(Stream) -> true
+	; stream_select([Stream], 0, []) -> true
+	;
+	    get(Stream, C),
+	    ( C < 0 -> true
+	    ; C==0'. -> carefully_forward1(Stream)
+	    ; get_chtab(C, terminator) -> true
+	    ; carefully_forward(Stream)
+	    )
+	).
+
+    carefully_forward1(Stream) :-
+	( at_eof(Stream) -> true
+	; stream_select([Stream], 0, []) -> true
+	;
+	    get(Stream, C),
+	    ( C < 0 -> true
+	    ; get_chtab(C, blank_space) -> true
+	    ; get_chtab(C, end_of_line) -> true
+	    ; C==0'. -> carefully_forward1(Stream)
+	    ; carefully_forward(Stream)
+	    )
+	).
+
 
 singleton_in_loop(N, Occurrence) :-
 	( Occurrence = quantified(Name) ->
