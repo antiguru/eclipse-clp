@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_normalise.ecl,v 1.23 2013/02/13 17:54:36 jschimpf Exp $
+% Version:	$Id: compiler_normalise.ecl,v 1.24 2013/02/26 01:21:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_normalise).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - source code normaliser").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2013/02/13 17:54:36 $").
+:- comment(date, "$Date: 2013/02/26 01:21:20 $").
 
 :- comment(desc, html("
 	This module creates the normalised form of the source predicate on
@@ -970,7 +970,6 @@ denormalize_pred([NormHead|NormBody], VarCount, (Head:-Body)) :-
 
 denormalize_conj([], _Vars, true).
 denormalize_conj([NormGoal|NormGoals], Vars, Conj) :-
-	writeln(NormGoal),
 	denormalize_goal(NormGoal, Vars, Goal1),
 	(
 	    foreach(NormGoal,NormGoals),
@@ -978,7 +977,6 @@ denormalize_conj([NormGoal|NormGoals], Vars, Conj) :-
 	    fromto(Conj,(PrevGoal,Conj2),Conj2,LastGoal),
 	    param(Vars)
 	do
-	    writeln(NormGoal),
 	    denormalize_goal(NormGoal, Vars, Goal)
 	).
 
