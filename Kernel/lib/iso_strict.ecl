@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_strict.ecl,v 1.5 2013/02/13 18:05:30 jschimpf Exp $
+% Version:	$Id: iso_strict.ecl,v 1.6 2013/02/26 02:15:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -35,13 +35,6 @@
 % DESCRIPTION:		Strict ISO 13211-1 standard language module
 %
 
-% TODO:
-%	- disallow non-standard directives
-%	- disallow ?-/1 queries
-%	- strictly, dynamic and discontiguous should only be directives
-%	- disallow rationals, breals and strings
-%	- restrict the compiler (matching, softcut)
-
 :- module(iso_strict).
 
 :- pragma(system).
@@ -51,6 +44,7 @@
     current_module_predicate(exported,P), set_flag(P, type, built_in), fail ; true
 )).
 
+% Tell the compiler that we are strict
 :- export initialization(eclipse_language:error(148,pragma(iso(strict)))).
 
 :- export
@@ -61,7 +55,7 @@
 :- comment(summary, `Strict ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, 'Joachim Schimpf, Coninfer Ltd').
-:- comment(date, `$Date: 2013/02/13 18:05:30 $`).
+:- comment(date, `$Date: 2013/02/26 02:15:51 $`).
 :- comment(see_also, [library(multifile),library(iso),library(iso_light)]).
 :- comment(desc, html(`
 <h3>Overview</h3>
@@ -211,8 +205,6 @@
     `)).
 
 :- reexport
-   	dynamic/1,			% directives
-	discontiguous/1,
 	true/0,				% built-ins
 	fail/0,
 	!/0,
@@ -299,7 +291,6 @@
 	current_input/1,
 	current_op/3,
 	current_output/1,
-	ensure_loaded/1,
 	flush_output/0,
 	flush_output/1,
 	get_byte/1,
@@ -309,7 +300,6 @@
 	get_code/1,
 	get_code/2,
 	halt/1,
-	initialization/1,
 	number_chars/2,
 	number_codes/2,
 	op/3,
@@ -335,10 +325,12 @@
 	unify_with_occurs_check/2
     from iso.
 
-:- reexport multifile.
-
+:- ensure_loaded(library(multifile)).	% for directive
 :- ensure_loaded(library(iso_error)).
 :- use_module(library(iso_aux)).
+
+t_syntax(_IllegalType, _) :-
+	throw(114).	% UNEXPECTED token
 
 ?- export initialization((
 					% hide (global,non-portray) macros
@@ -346,6 +338,12 @@
 	eclipse_language:nonmember(write, Opt),
 	eclipse_language:delete(global, Opt, Opt1),
 	eclipse_language:local(macro(F, (=)/2, Opt1)),
+	fail
+    ;
+					% disallow ECLiPSe types
+	eclipse_language:local(macro(type(rational), t_syntax/2, [])),
+	eclipse_language:local(macro(type(breal), t_syntax/2, [])),
+	eclipse_language:local(macro(type(string), t_syntax/2, [])),
 	fail
     ;
 	current_op(P, A, Op),		% hide all (global) operators
