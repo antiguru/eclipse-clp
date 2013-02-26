@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.19 2013/02/23 00:02:36 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.20 2013/02/26 22:54:22 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1054,8 +1054,10 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
 	    kind = STTY;
 #ifndef _WIN32
 	else if (S_ISSOCK(fs.st_mode) || S_ISFIFO(fs.st_mode))
-	    kind = SPIPE;
+#else
+	else if (S_ISFIFO(fs.st_mode))
 #endif
+	    kind = SPIPE;
 	else
 	    kind = SFILE;
 
@@ -3375,6 +3377,7 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
     int			need_select = 0;
 #ifdef _WIN32
     int			need_kbhit = 0;
+    int			need_peek = 0;
 #endif
     stream_id		nst;
     struct timeval	to;
@@ -3462,6 +3465,11 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
 	    /* allow pseudo-select on Windows console with zero timeout */
 	    need_kbhit = 1;
 	}
+	else if (IsPipeStream(nst) && IsReadStream(nst) && pto && pto->tv_sec==0 && pto->tv_usec==0)
+	{
+	    /* allow pseudo-select on Windows pipe with zero timeout */
+	    need_peek = 1;
+	}
 #endif
 	else
 	{
@@ -3496,7 +3504,21 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
 #ifdef _WIN32
     if (need_kbhit && _kbhit())
     {
-	FD_SET((socket_t) StreamUnit(nst), &dread);
+	FD_SET(StreamUnit(nst), &dread);
+    }
+    if (need_peek)
+    {
+	DWORD avail;
+	if (!PeekNamedPipe((HANDLE)_get_osfhandle(StreamUnit(nst)),
+				NULL, 0, NULL, &avail, NULL))
+	{
+	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	    Bip_Error(SYS_ERROR);
+	}
+	if (avail > 0)
+	{
+	    FD_SET(StreamUnit(nst), &dread);
+	}
     }
 #endif
 

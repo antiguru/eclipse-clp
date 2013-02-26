@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.17 2013/02/10 18:52:58 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.18 2013/02/26 22:54:22 jschimpf Exp $
  */
 
 /*
@@ -2909,6 +2909,8 @@ _isafifo(int fd)
 	|| (st.st_mode & S_IFMT) == S_IFSOCK
 #endif
 	);
+#else
+    return 0;
 #endif
 }
 
