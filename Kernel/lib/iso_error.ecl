@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_error.ecl,v 1.4 2013/02/08 23:50:52 jschimpf Exp $
+% Version:	$Id: iso_error.ecl,v 1.5 2013/02/26 02:17:45 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_error.ecl
 %
@@ -386,8 +386,9 @@ source_sink(fd(I)) ?- integer(I).
 %----------------------------------------------------------------------
 
 :- set_event_handler(193, iso_illegal_stream_handler/2).
-iso_illegal_stream_handler(_, Culprit) :- compound(Culprit), !,
-	arg(1, Culprit, Stream),	% Stream is always 1st argument!
+iso_illegal_stream_handler(_, Culprit) :-
+	bip_stream(Culprit, Stream),
+	!,
 	( atom(Stream),
 	  real_culprit(Culprit,Culprit1),
 	  domain_check(Culprit1, Exception) ->
@@ -398,6 +399,12 @@ iso_illegal_stream_handler(_, Culprit) :- compound(Culprit), !,
 	).
 iso_illegal_stream_handler(E, Culprit) :-
 	error(default(E), Culprit).
+
+    bip_stream(set_stream(_,S), S).	% for set_{in,out}put/1
+    bip_stream(get_stream(_,S), S).	% for get_{in,out}put/1
+    bip_stream(Culprit, S) :-
+    	compound(Culprit),
+    	arg(1, Culprit, S).		% Stream usually 1st argument!
 
 
 :- set_event_handler(68, iso_undefined_procedure_handler/4).
@@ -586,28 +593,6 @@ iso_past_eof_handler(_, Culprit) :-
 	throw(error(permission_error(input,past_end_of_stream,S),Name/Arity)).
 iso_past_eof_handler(E, Culprit) :-
 	error(default(E), Culprit).
-
-
-%----------------------------------------------------------------------
-
-:- set_event_handler(40, iso_stale_object_handler/3).
-iso_stale_object_handler(E, Culprit, Module) :-
-	( bip_stream(Culprit, S) ->
-	    throw_error(existence_error(stream,S), Culprit)
-	;
-	    error(default(E), Culprit, Module)
-	).
-
-    bip_stream(set_stream(_,S), S).	% for set_{in,out}put/1
-    bip_stream(get_stream(_,S), S).	% for get_{in,out}put/1
-    bip_stream(close(S), S).
-    bip_stream(close(S,_), S).
-    bip_stream(at_eof(S), S).		% for at_end_of_stream/1
-    bip_stream(get_stream_info(S,_,_), S).	% for stream_property/2
-    bip_stream(flush(S), S).		% for flush_output/1
-    bip_stream(write_(S,_,_), S).	%
-    bip_stream(writeq_(S,_,_), S).	%
-    bip_stream(write_canonical_(S,_,_), S).	%
 
 
 %----------------------------------------------------------------------
