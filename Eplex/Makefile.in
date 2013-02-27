@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.7 2012/10/18 23:28:09 jschimpf Exp $
+# $Id: Makefile.in,v 1.8 2013/02/27 00:29:54 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -78,8 +78,11 @@ OBJ_FILES =	\
 	$(GUROBI_VERSION:%=$(ARCH)/segurobi%.$(OBJ_SUFFIX))
 
 
-# install is configured as either install_all or install_cross
-install:	@MAKE_TARGET@
+# install is configured as either install_eplex or nothing
+install:	@INSTALL_EPLEX@
+
+# install_eplex is configured as install_all or install_cross
+install_eplex:	@MAKE_TARGET@
 
 # Objects
 all:	$(OBJ_FILES)

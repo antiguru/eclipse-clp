@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.54 2013/02/22 18:45:58 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.55 2013/02/27 00:28:54 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1512,6 +1512,7 @@ if test "$osi_versions_requested" != "no"; then
 fi
 if test -n "$OSI_VERSIONS"; then
     AC_MSG_NOTICE([Will build OSI interfaces for versions $OSI_VERSIONS])
+    INSTALL_EPLEX=install_eplex
 else
     AC_MSG_NOTICE([Not building any OSI interfaces])
 fi
@@ -1556,6 +1557,7 @@ if test "$cplex_versions_requested" != "no"; then
 fi
 if test -n "$CPLEX_VERSIONS"; then
     AC_MSG_NOTICE([Will build Cplex interfaces for versions $CPLEX_VERSIONS])
+    INSTALL_EPLEX=install_eplex
 else
     AC_MSG_NOTICE([Not building any Cplex interfaces])
 fi
@@ -1588,6 +1590,7 @@ if test "$xpress_versions_requested" != "no"; then
 fi
 if test -n "$XPRESS_VERSIONS"; then
     AC_MSG_NOTICE([Will build Xpress-MP interfaces for versions $XPRESS_VERSIONS])
+    INSTALL_EPLEX=install_eplex
 else
     AC_MSG_NOTICE([Not building any Xpress-MP interfaces])
 fi
@@ -1641,6 +1644,7 @@ if test "$gurobi_versions_requested" != "no"; then
 fi
 if test -n "$GUROBI_VERSION"; then
     AC_MSG_NOTICE([Will build Gurobi interface for version $GUROBI_VERSION])
+    INSTALL_EPLEX=install_eplex
 else
     AC_MSG_NOTICE([Not building Gurobi interface])
 fi
@@ -1795,7 +1799,6 @@ fi
 #----------
 
 ALL_VISUALISATION=
-ALL_VISUALISATION_CROSS=
 if test -n "$JAVA_HOME"; then
 
     # Kish 2011-06-29: it seems that grappa version 1.2 covers changes
@@ -1824,7 +1827,6 @@ if test -n "$JAVA_HOME"; then
 	if test -n $JRE_HOME; then		 
 	   AC_MSG_NOTICE([Using JRE in $JRE_HOME])
 	   ALL_VISUALISATION=all_visualisation
-	   ALL_VISUALISATION_CROSS=all_visualisation_cross
 	   AC_MSG_NOTICE([Using Grappa $GRAPPA_DIR/$GRAPPA_JAR])
 	fi
     fi
@@ -2049,6 +2051,7 @@ AC_SUBST(GMP_LIBDIR)
 AC_SUBST(GMP_LIB)
 AC_SUBST(INSTALL_GMP)
 AC_SUBST(LOCK)
+AC_SUBST(INSTALL_EPLEX)
 AC_SUBST(OSI_VERSIONS)
 AC_SUBST(CLPCBCDIR)
 AC_SUBST(SYMCLPDIR)
