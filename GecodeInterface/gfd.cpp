@@ -143,7 +143,7 @@ static dident d_max_wdeg, d_min_wdeg,
     d_mult2, d_div2, d_mod2, d_min2, d_max2, 
     d_minus1, d_abs1, d_sqr1, d_sqrt1, d_sum1, d_max1, d_min1,
     d_eq2, d_gt2, d_geq2, d_lt2, d_leq2, d_neq2,
-    d_and2, d_or2, d_xor2, d_imp2, d_equ2, d_neg1;
+    d_and2, d_or2, d_xor2, d_imp2, d_revimp2, d_equ2, d_neg1;
 
 using namespace Gecode;
 
@@ -426,6 +426,7 @@ int p_g_init()
     d_or2 = ec_did("or", 2);
     d_xor2 = ec_did("xor", 2);
     d_imp2 = ec_did("=>", 2);
+    d_revimp2 = ec_did("<=", 2);
     d_equ2 = ec_did("<=>", 2);
     d_neg1 = ec_did("neg", 1);
 
@@ -1237,6 +1238,10 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
 	    return (ec2boolexpr(EC_argument(c,1), solver) >> 
 		    ec2boolexpr(EC_argument(c,2), solver)
 		    );
+	} else if (f.d == d_revimp2) {
+	    return (ec2boolexpr(EC_argument(c,1), solver) <<
+		    ec2boolexpr(EC_argument(c,2), solver)
+		    );
 	} else if (f.d == d_equ2) {
 	    return (ec2boolexpr(EC_argument(c,1), solver) == 
 		    ec2boolexpr(EC_argument(c,2), solver)
@@ -1862,28 +1867,19 @@ int p_g_post_exclude_val()
     int size = varr.arity();
 
     try {
-	BoolVar reif(*solver, 0, 0);
 
 	for (int i=1; i<=size; i++) {
 	    EC_word arg = EC_argument(varr, i);
-	    EC_functor f;
 	    long l;
-	    IntVar v;
 
-	    if (arg.functor(&f) == EC_succeed) {
-		if  (strcmp(f.name(), "_ivar") == 0
-		     && EC_argument(arg, 1).is_long(&l) == EC_succeed) {
-		    v = solver->vInt[(int)l];
-		} else
-		    return RANGE_ERROR;
-	    } else if (arg.is_long(&l) == EC_succeed) {
-		v = IntVar(*solver,(int)l,(int)l);
-	    } else
-		return TYPE_ERROR;
+	    if (arg.is_long(&l) != EC_succeed) return TYPE_ERROR;
 
-	    dom(*solver, v, (int)val, reif);
-
-	    if (solver->failed()) return EC_fail;
+	    Int::IntView vv(solver->vInt[(int)l]);
+	    if (me_failed(vv.nq(*solver, (int)val))) {
+		solver->fail();
+		return EC_fail;
+	    }
+	
 	}
 	return EC_succeed;
     }
@@ -1917,14 +1913,8 @@ int p_g_post_exclude_range()
 	    long l;
 	    IntVar v;
 
-	    if (arg.functor(&f) == EC_succeed) {
-		if  (strcmp(f.name(), "_ivar") == 0
-		     && EC_argument(arg, 1).is_long(&l) == EC_succeed) {
-		    v = solver->vInt[(int)l];
-		} else
-		    return RANGE_ERROR;
-	    } else if (arg.is_long(&l) == EC_succeed) {
-		v = IntVar(*solver,(int)l,(int)l);
+	    if (arg.is_long(&l) == EC_succeed) {
+		v = solver->vInt[(int)l];
 	    } else
 		return TYPE_ERROR;
 
