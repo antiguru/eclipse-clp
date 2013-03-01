@@ -207,7 +207,7 @@ Success:
 
 Error:
     read_exdr(S, a(b,c)).    (Error 4).
-    read_exdr(input, X).     (Error 192).
+    read_exdr(output, X).    (Error 192).
     read_exdr(atom, X).      (Error 193).
 
 
