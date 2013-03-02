@@ -800,6 +800,8 @@ TYPE_ERROR:
         cerr << "unexpected type\n";
 \end{verbatim}
 
+The creation of the handle copies the address of the array, rather than the
+array itself, so the handle must be used within the scope of the array.
 
 \subsection{The method table}
 \index{method table}
