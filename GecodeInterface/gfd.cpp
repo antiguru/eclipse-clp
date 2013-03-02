@@ -251,6 +251,23 @@ t_ext_type domain_method = {
     NULL, /* set */
 };
 
+static void _free_intptr_handle(int* intarrp)
+{
+    if (intarrp != NULL) delete intarrp;
+}
+
+t_ext_type intptr_method = {
+    (void (*)(t_ext_ptr)) _free_intptr_handle, /* free */
+    NULL, /* copy */ 
+    NULL, /* mark_dids */
+    NULL, /* string_size */
+    NULL, /* to_string */
+    NULL, /* equal */
+    NULL, /* remote_copy */
+    NULL, /* get */
+    NULL, /* set */
+};
+
 int get_domain_intervals_from_ec_array(int size, EC_word ecarr, int r[][2])
 {
     EC_word arg;
@@ -4778,7 +4795,7 @@ int p_g_create_idxs_handle()
     EC_word idxs = EC_arg(1);
     long size = idxs.arity();
 
-    long* idxarr = (long *)malloc(sizeof(long)*(size+1));
+    int* idxarr = (int *)malloc(sizeof(int)*(size+1));
     idxarr[0] = size;
 
     EC_word w;
@@ -4790,11 +4807,11 @@ int p_g_create_idxs_handle()
 
 	if (EC_fail == idxs.arg(j, w)) return RANGE_ERROR;
 	if (EC_succeed == w.is_long(&i)) {
-	    idxarr[j] = i;
+	    idxarr[j] = (int)i;
 	} else return TYPE_ERROR;
     }
 
-    return unify(EC_arg(2), handle(&ec_xt_long_arr, idxarr));
+    return unify(EC_arg(2), handle(&intptr_method, idxarr));
 
 }
 
@@ -4822,14 +4839,14 @@ int p_g_select()
     solver = *solverp;
     if (solver == NULL) return TYPE_ERROR;
 
-    long* idxarr;
-    if (EC_succeed != get_handle_from_arg(2, &ec_xt_long_arr, (void **)&idxarr))
+    int* idxarr;
+    if (EC_succeed != get_handle_from_arg(2, &intptr_method, (void **)&idxarr))
 	return TYPE_ERROR;
 
     EC_atom select;
     if (EC_arg(3).is_atom(&select) != EC_succeed) return TYPE_ERROR;
     dident selectdid = select.d;
-    int size = (int) idxarr[0], bestidx = -1, best;   
+    int size =  idxarr[0], bestidx = -1, best;   
     unsigned int it, dsize;
     double ft, fbest;
 
@@ -4851,7 +4868,7 @@ int p_g_select()
 				 ((int)(it=solver->vInt[idx].degree()) < best));
 	} else if (selectdid == d_input_order) {
 	    for (int j=1; j <= size; j++) {	
-		int idx = (int) idxarr[j];
+		int idx =  idxarr[j];
 		if (solver->vInt[idx].size() > 1) {
 		    bestidx = idx;
 		    break;
@@ -4876,7 +4893,7 @@ int p_g_select()
 	    int best2 = Int::Limits::min;
 	    best = Int::Limits::max;
 	    for (int j=1; j <= size; j++) {	
-		int idx = (int) idxarr[j];
+		int idx =  idxarr[j];
 		if ((dsize = (int)solver->vInt[idx].size()) > 1) {	
 		    if ((int)dsize <= best && 
 			((it=(int)solver->vInt[idx].degree()),(int)dsize < best || it > best2)) {
