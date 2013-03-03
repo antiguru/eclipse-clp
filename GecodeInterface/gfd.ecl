@@ -58,8 +58,8 @@
 :- export bool_channeling/3, inverse/2, inverse/4, inverse_g/2, inverse_g/4.
 :- export ordered/2, lex_le/2, lex_lt/2, lex_ge/2, lex_gt/2, 
           lex_eq/2, lex_ne/2, mem/2, mem/3.
-:- export alldifferent/1, alldifferent_cst/2, nvalues/3, gcc/2,
-          occurrences/3, atmost/3, count/4, count_matches/4, among/4. 
+:- export alldifferent/1, alldifferent_cst/2, nvalues/3, gcc/2, occurrences/3, 
+          atmost/3, atleast/3, count/4, count_matches/4, among/4. 
 :- export element/3, element_g/3, precede/2, precede/3, 
           sorted/2, sorted/3, sorted_g/3. 
 :- export circuit/1, circuit/3, circuit/4, circuit_offset/2, circuit_offset/4, 
