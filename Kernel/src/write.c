@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.15 2012/09/23 18:54:39 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.16 2013/03/04 01:24:03 jschimpf Exp $
  */
 
 /*
@@ -635,6 +635,28 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
 }
 
 
+static int
+_is_signed_number(value v, type t)
+{
+    pword sign;
+    int res = tag_desc[TagType(t)].arith_op[ARITH_SGN](v, &sign);
+    /* res can be ARITH_EXCEPTION for zero-spanning breals! */
+    if (res != PSUCCEED) return 1;
+    if (sign.val.nint < 0) return 1;
+    if (sign.val.nint > 0) return 0;
+
+    /* deal with negative zeros */
+    switch (TagType(t))
+    {
+    case TDBL:
+	return PedanticZeroLess(Dbl(v),0.0);
+    case TIVL:
+	return PedanticZeroLess(IvlLwb(v.ptr),0.0);
+    }
+    return 0;
+}
+
+
 /*
  * _pwrite1() - write a Prolog term
  *
@@ -663,12 +685,12 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
  *			bars that occur as atoms or operators
  *	ARGTERM		inside a structure argument, used to handle
  *			commas that are not argument separators
- *	ARGPREF		term _textually_ follows a prefix operator
+ *	ARGSIGN		term _textually_ follows a -/1 or +/1
  * maxprec: the maximum precedence that may be printed without brackets
  */
 
-#define NumberNeedsBrackets(val) \
-    ((idwrite & QUOTED) && (flags & ARGPREF) && (val < 0))
+#define UnsignedNumberNeedsBrackets \
+    ((idwrite & QUOTED) && (flags & ARGSIGN))
 
 static int
 _pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, register int flags)
@@ -717,7 +739,7 @@ _pwrite_:
 
     case TINT:
 	Handle_Type_Macro(TINT)
-	if NumberNeedsBrackets(val.nint)
+	if (UnsignedNumberNeedsBrackets && (val.nint >= 0))
 	    return (p_fprintf(out, "(%" W_MOD "d)", val.nint));
 	else
 	    return (p_fprintf(out, "%" W_MOD "d", val.nint));
@@ -727,7 +749,7 @@ _pwrite_:
 	{
 	    char fbuf[32];
 	    int size = _float_to_string_opt(val, tag, fbuf, idwrite & QUOTED, sd->options);
-	    if (NumberNeedsBrackets(Dbl(val)))
+	    if (UnsignedNumberNeedsBrackets && fbuf[0] != '-')
 	    {
 		if ((status = ec_outfc(out, '(')) < 0 ||
 		    (status = ec_outf(out, fbuf, size)) < 0 ||
@@ -967,11 +989,11 @@ _write_structure_:			/* (d, arg) */
 		if (  prec > maxprec 
 		    || d == d_.comma && (flags & ARGTERM)
 		    || flags & ARGYF && prec == maxprec &&
-			(assoc == FY || assoc == XFY)
+			(assoc == FY || assoc == XFY || assoc == FXY)
 		    || post_infix && !(flags & ARGLAST)
 		   )
 		{
-		    flags = flags  & ~(ARGTERM | ARGLIST | ARGPREF) | ARGLAST;
+		    flags = flags  & ~(ARGTERM | ARGLIST | ARGSIGN) | ARGLAST;
 		    openpar = 1;
 		    Write_Char(out, '(');
 		}
@@ -983,8 +1005,9 @@ _write_structure_:			/* (d, arg) */
 		    case FX:
 			prec -= 1;
 		    case FY:
-			if ( d == d_.minus1 ||
-                             d == d_.plus1 && !(sd->options & PLUS_IS_NO_SIGN))
+			if ( !(sd->options & BLANK_AFTER_SIGN) && (
+			     d == d_.minus1 ||
+                             d == d_.plus1 && !(sd->options & PLUS_IS_NO_SIGN)))
 			{
 			    /* ignore operators to avoid confusion
 			     * with signed numbers	*/
@@ -1003,14 +1026,18 @@ _write_structure_:			/* (d, arg) */
 			    Pwrite(idwrite, out, arg->val, arg->tag,
 				    prec, depth - 1, module, mod_tag,
 				    sd, flags & (ARGTERM | ARGLIST | ARGLAST)
-				    | ARGOP | ARGPREF);
+				    | ARGOP |
+				    ( sd->options & BLANK_AFTER_SIGN && (
+					d == d_.minus1 ||
+					d == d_.plus1 && !(sd->options & PLUS_IS_NO_SIGN))
+				    ? ARGSIGN : 0 ));
 			}
 			break;
 
 		    case YF:
 			Pwrite(idwrite, out, arg->val, arg->tag,
 				prec, depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGPREF)
+				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGSIGN)
 				| ARGYF | ARGOP);
 			Write_Postfix(idwrite, out, d, flags & ARGLIST,
 				      module, mod_tag, sd);
@@ -1019,7 +1046,7 @@ _write_structure_:			/* (d, arg) */
 		    case XF:
 			Pwrite(idwrite, out, arg->val, arg->tag,
 				prec - 1, depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGPREF)
+				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGSIGN)
 				| ARGOP);
  			Write_Postfix(idwrite, out, d, flags & ARGLIST,
 				      module, mod_tag, sd);
@@ -1037,7 +1064,7 @@ _write_structure_:			/* (d, arg) */
 			Pwrite(idwrite, out, arg->val, arg->tag,
 				assoc == YFX ? prec : prec - 1,
 				depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGPREF)
+				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGSIGN)
 				| ARGOP | (assoc==YFX?ARGYF:0));
 			Write_Infix(idwrite, out, d, flags & ARGLIST,
 				    module, mod_tag, sd, arg, narg);
@@ -1055,7 +1082,11 @@ _write_structure_:			/* (d, arg) */
 			Pwrite(idwrite, out, arg->val, arg->tag,
 				prec - 1, depth - 1, module, mod_tag, sd,
 				flags & ~ARGLAST & (ARGTERM | ARGLIST)
-				| ARGOP | ARGPREF);
+				| ARGOP |
+				    ( sd->options & BLANK_AFTER_SIGN && (
+					d == d_.minus ||
+					d == d_.plus && !(sd->options & PLUS_IS_NO_SIGN))
+				    ? ARGSIGN : 0 ));
 			Write_Char(out, ' ');
 			Pwrite(idwrite, out, narg->val, narg->tag,
 				assoc == FXY ? prec : prec - 1,
@@ -1177,9 +1208,18 @@ _write_args_:				/* (arg,arity) */
     default:
 	if (TagType(tag) >= 0 && TagType(tag) <= NTYPES)
 	{
-	    value		vmodule;
 	    Handle_Type_Macro(TagType(tag))
-	    vmodule.did = module;
+
+	    if (tag_desc[TagType(tag)].numeric
+	    	&& UnsignedNumberNeedsBrackets
+		&& !_is_signed_number(val, tag))
+	    {
+		if ((status = ec_outfc(out, '(')) < 0 ||
+		    (status = tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag)) < 0 ||
+		    (status = ec_outfc(out, ')')) < 0)
+			return status;
+		return status;
+	    }
 	    return tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag);
 	}
 	else
@@ -1348,10 +1388,7 @@ _write_infix(int idwrite, stream_id out, dident d, register int flags, dident mo
 	last_left = sd->char_class[(unsigned char)StreamLastWritten(out)];
 	if (IsNumber(right->tag))
 	{
-	    pword sign;
-	    int res = tag_desc[TagType(right->tag)].arith_op[ARITH_SGN](right->val, &sign);
-	    /* res can be ARITH_EXCEPTION for zero-spanning breals! */
-	    if (res != PSUCCEED  ||  sign.val.nint < 0)
+	    if (_is_signed_number(right->val, right->tag))
 		first_right = sd->char_class['-'];
 	    else
 		first_right = N;
@@ -1557,13 +1594,16 @@ _write_quoted(int idwrite, stream_id out, char *name, register word len, char qu
 		{
 		    if ((status = ec_outfc(out, sd->current_escape)))
 			return status;
-		    if ((status = p_fprintf(out, "%03o", c & 0xff)))
-			return status;
 		    if (sd->options & ISO_ESCAPES)
 		    {
+			if ((status = p_fprintf(out, "%o", c & 0xff)))
+			    return status;
 			if ((status = ec_outfc(out, sd->current_escape)))
 			    return status;
 		    }
+		    else
+			if ((status = p_fprintf(out, "%03o", c & 0xff)))
+			    return status;
 		}
 		else			/* normal printable character	*/
 		    if ((status = ec_outfc(out, c)))
