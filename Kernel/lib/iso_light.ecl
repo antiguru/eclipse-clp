@@ -24,13 +24,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_light.ecl,v 1.5 2013/02/10 18:15:29 jschimpf Exp $
+% Version:	$Id: iso_light.ecl,v 1.6 2013/03/04 18:31:04 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso_light.ecl,v 1.5 2013/02/10 18:15:29 jschimpf Exp $
+% $Id: iso_light.ecl,v 1.6 2013/03/04 18:31:04 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_light.ecl, based on obsolete iso.pl
 %
@@ -110,7 +110,7 @@
 :- comment(summary, `ISO Prolog compatibility library (light version)`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, `Cisco Systems, Inc (2006), Coninfer Ltd (modifications 2007-2012)`).
-:- comment(date, `$Date: 2013/02/10 18:15:29 $`).
+:- comment(date, `$Date: 2013/03/04 18:31:04 $`).
 :- comment(see_also, [library(multifile),library(iso_strict),library(iso)]).
 :- comment(desc, html(`\
 <h3>Overview</h3>\n\
@@ -616,113 +616,88 @@ sub_atom(Atom, Before, Length, After, SubAtom) :-
 
 atom_chars(Atom, Chars) :-			% 8.16.4
 	var(Atom),
-	check_character_list_out(Chars, Chars, atom_chars, 2),
+	check_character_list_out(Chars, Chars, atom_chars, 2, _),
 	concat_atom(Chars, Atom).
 atom_chars(Atom, Chars) :-
 	nonvar(Atom),
-	check_character_list_out(Chars, Chars, atom_chars, 2),
+	check_character_list_out(Chars, Chars, atom_chars, 2, _),
 	atom_codes(Atom, Codes),
 	chars_codes(Chars, Codes).
 
-    check_character_list_out(Cs, _, _, _) :- var(Cs), !.
-    check_character_list_out([], _, _, _) ?- !.
-    check_character_list_out([C|Cs], All, F, A) ?- !,
-	( var(C) -> true
+    check_character_list_out(Cs, _, _, _, Nonground) :- var(Cs), !,
+    	Nonground = true.
+    check_character_list_out([], _, _, _, _) ?- !.
+    check_character_list_out([C|Cs], All, F, A, Nonground) ?- !,
+	( var(C) -> Nonground = true
 	; atom(C), atom_length(C, 1) -> true
 	; throw(error(type_error(character,C),F/A))
 	),
-	check_character_list_out(Cs, All, F, A).
-    check_character_list_out(_, All, F, A) :-
+	check_character_list_out(Cs, All, F, A, Nonground).
+    check_character_list_out(_, All, F, A, _) :-
 	throw(error(type_error(list,All),F/A)).
 
 
 atom_codes(Atom, List) :-			% 8.16.5
 	var(Atom),
-	check_charcode_list_out(List, List, atom_codes, 2),
+	check_charcode_list_out(List, List, atom_codes, 2, _),
 	string_list(String, List),
 	atom_string(Atom, String).
 atom_codes(Atom, List) :-
 	nonvar(Atom),
-	check_charcode_list_out(List, List, atom_codes, 2),
+	check_charcode_list_out(List, List, atom_codes, 2, _),
 	atom_string(Atom, String),
 	string_list(String, List).
 
-    check_charcode_list_out(Cs, _, _, _) :- var(Cs), !.
-    check_charcode_list_out([], _, _, _) ?- !.
-    check_charcode_list_out([C|Cs], All, F, A) ?- !,
-	( var(C) -> true
+    check_charcode_list_out(Cs, _, _, _, Nonground) :- var(Cs), !,
+    	Nonground = true.
+    check_charcode_list_out([], _, _, _, _) ?- !.
+    check_charcode_list_out([C|Cs], All, F, A, Nonground) ?- !,
+	( var(C) -> Nonground = true
 	; integer(C), 0=<C, C=<255 -> true
-	; integer(C) -> throw(error(representation_error(character_code),F/A))
-	; throw(error(type_error(integer,C),F/A))
+	; throw(error(representation_error(character_code),F/A)) % required
+%	; integer(C) -> throw(error(representation_error(character_code),F/A))
+%	; throw(error(type_error(integer,C),F/A))
 	),
-	check_charcode_list_out(Cs, All, F, A).
-    check_charcode_list_out(_, All, F, A) :-
+	check_charcode_list_out(Cs, All, F, A, Nonground).
+    check_charcode_list_out(_, All, F, A, _) :-
 	throw(error(type_error(list,All),F/A)).
 
 
 % number_chars/2 and number_codes/2 are a pain wrt exceptions...
-% Remaining non-compliance:
-% - we don't accept leading comments in the string (madness)
-% - we don't accept numeric character constants like 0'\123\ (but 0'\n is ok)
 
 number_chars(Number, Chars) :-			% 8.16.7
-	check_character_list_out(Chars, Chars , number_chars, 2),
-        ( var(Number) ->
+	check_character_list_out(Chars, Chars , number_chars, 2, Nonground),
+	( var(Nonground) ->
 	    concat_string(Chars, String),
-	    ( valid_numstring(String, String1),
-	      number_string(Number0, String1) ->  % read (fails on syntax error)
-		Number=Number0
+	    ( string_to_number(String, Term) ->
+		Number = Term
 	    ;
-	    	throw(error(syntax_error(illegal_number),number_chars/2))
+	    	throw(error(syntax_error(number_expected),number_chars/2))
 	    )
-
         ; number(Number) ->
             number_string(Number, String),      % write
             string_list(String, Codes),
-            ( chars_codes(Chars, Codes) ->
-                true
-            ; valid_output_chars(Chars) ->
-                ground(Chars),
-                concat_string(Chars, String0),
-                ( valid_numstring(String0, String1),
-                  number_string(Number0, String1) ->  % read (fails on syntax error)
-		    Number=Number0
-		;
-		    throw(error(syntax_error(illegal_number),number_chars/2))
-		)
-            ;
-                bip_error(number_chars(Number, Chars))
-            )
+	    chars_codes(Chars, Codes)
+        ; var(Number) ->
+            error(4, number_chars(Number, Chars))
         ;
             error(5, number_chars(Number, Chars))
         ).
 
 number_codes(Number, Codes) :-			% 8.16.8
-	check_charcode_list_out(Codes, Codes , number_codes, 2),
-        ( var(Number) ->
-            string_list(String, Codes),
-            ( valid_numstring(String, String1),
-              number_string(Number0, String1) ->  % read (fails on syntax error)
-		Number=Number0
+	check_charcode_list_out(Codes, Codes , number_codes, 2, Nonground),
+	( var(Nonground) ->
+	    string_list(String, Codes),
+	    ( string_to_number(String, Term) ->
+		Number = Term
 	    ;
-		throw(error(syntax_error(illegal_number),number_codes/2))
+	    	throw(error(syntax_error(number_expected),number_codes/2))
 	    )
         ; number(Number) ->
-            number_string(Number, NumString),      % write
-            ( string_list(NumString, Codes) ->
-                true
-            ; valid_output_codes(Codes) ->
-                ground(Codes),
-                string_list(String, Codes),
-                ( valid_numstring(String, String1),
-                  number_string(Number0, String1) ->  % read (fails on syntax error)
-		    Number=Number0
-		;
-		    throw(error(syntax_error(illegal_number),number_codes/2))
-		)
-            ;
-                bip_error(number_codes(Number, Codes))
-            )
+            number_string(Number, String),      % write
+            string_list(String, Codes)
+        ; var(Number) ->
+            error(4, number_codes(Number, Codes))
         ;
             error(5, number_codes(Number, Codes))
         ).
@@ -732,48 +707,22 @@ number_codes(Number, Codes) :-			% 8.16.8
 	char_code(Char, Code),
 	chars_codes(Chars, Codes).
 
-    valid_chars([], Ds) ?- !, Ds=[].
-    valid_chars([C|Cs], Ds) ?- !,
-        ( var(C) -> set_bip_error(4)
-        ; atom(C), atom_length(C, 1) ->
-            Ds = [C|Ds1],
-            valid_chars(Cs, Ds1)
-        ;
-            set_bip_error(5)
-        ).
-    valid_chars(X, _) :- var(X), !,
-        set_bip_error(4).
-    valid_chars(_, _) :-
-        set_bip_error(5).
+    string_to_number(String, Number) :-
+	open(string(String), read, S),
+	read_token(S, T1, _),
+	( T1 == (-) ->
+	    read_token(S, T2, _),
+	    iso_number(T2),
+	    Number is -T2
+	;
+	    iso_number(T1),
+	    Number = T1
+	),
+	at_eof(S),
+	close(S).
 
-    valid_output_chars(X) :- var(X), !.
-    valid_output_chars([]) ?- !.
-    valid_output_chars([C|Cs]) ?-
-        (var(C) ; atom(C), atom_length(C, 1)),
-        !,
-        valid_output_chars(Cs).
-    valid_output_chars(_) :-
-        set_bip_error(5).
-
-    valid_output_codes(X) :- var(X), !.
-    valid_output_codes([]) ?- !.
-    valid_output_codes([C|Cs]) ?-
-        (var(C) ; integer(C)),
-        !,
-        valid_output_codes(Cs).
-    valid_output_codes(_) :-
-        set_bip_error(5).
-
-    valid_numstring(String0, String) :-
-	split_string(String0, `\n\r\t `, ``, Strings0),
-	valid_numstring1(Strings0, String).
-
-    valid_numstring1([``|Ss0], String) ?- !,	% leading white space is ok...
-	valid_numstring1(Ss0, String).
-    valid_numstring1([`-`|Ss0], String) ?- !,	% space-separated sign is ok...
-	valid_numstring1(Ss0, String).
-    valid_numstring1([String0], String) ?-	% no trailing white spaces 
-	String0 = String.
+    iso_number(X) :- integer(X).
+    iso_number(X) :- float(X).
 
 
 %-----------------------------------------------------------------------
