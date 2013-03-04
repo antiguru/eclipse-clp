@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.17 2013/02/14 02:50:37 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.18 2013/03/04 18:22:32 kish_shen Exp $
  */
 
 /****************************************************************************
@@ -2368,6 +2368,7 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
                 the port table */
 		vmcode * code;
 		uword offset;
+		char found  = 0;
 
 		code = PriCode(proc);
 		offset = ProcBrkTableOffset(code);
@@ -2385,11 +2386,11 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 		    if (*(((vmcode *)(*code))+2)/* breakport line */ == vv.nint)
 		    {
 			**((vmcode **)code) ^= BREAKPOINT;
-			break;
+			found = 1;
 		    }
 		    code++;
 		}
-		if (*code == 0) /* no match found */
+		if (found == 0) /* no match found */
 		{
 		    err = RANGE_ERROR;
 		    goto _unlock_return_err_;
