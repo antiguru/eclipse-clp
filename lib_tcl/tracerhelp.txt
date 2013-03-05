@@ -174,8 +174,8 @@ The status pane shows the port status for the selected source file:
 coloured light gray if no breakpoint have been set on it, and red if a 
 breakpoint is set on it. A set breakpoint will cause the tracer to stop
 when execution reaches the goal on the source line. Note that if there
-is more than one goal on the source line, the breakpoint will only be set
-on one of the goal. Clicking the left mouse button on a line in the
+is more than one goal on the source line, the breakpoint will be set
+on all the goals. Clicking the left mouse button on a line in the
 status pane will toggle the breakpoint setting of a breakpoint near the
 line in the source file.
 
