@@ -2020,6 +2020,8 @@ desc:      html("\
    Explicitly triggers the solver associated with the eplex instance 
    EplexInstance. If the solver was set up without any trigger conditions,
    then it needs to be explicitly triggered via a call to this predicate.
+   The objective value of the solve is unified with Cost, which should be a
+   free variable.
 </P><P>
    The external solver's LP, QP or MIP solver is applied to the
    problem represented by the eplex instance.  Precisely which method is used
@@ -2174,9 +2176,12 @@ desc:      html("\
 <P>
    Similar to eplex_solve/1, but the problem is first temporarily modified
    as specified in Probes. Probes is a list of one or more probe
-   specifications that specifies how the problem is modified. After the call
-   to this predicate, the problem is restored for the external
-   solver. However, the results from the probe (obtainable from
+   specifications that specifies how the problem is modified. The
+   objective value of the modified problem is unified with Cost
+   after the solve. Cost should be a free variable.
+</P><P>
+   After the call to this predicate, the problem is restored for the 
+   external solver. However, the results from the probe (obtainable from
    eplex_var_get/3 and eplex_get/2) are retained.
 </P><P>
    The following probe specifications are allowed:
