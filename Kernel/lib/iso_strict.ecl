@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_strict.ecl,v 1.6 2013/02/26 02:15:51 jschimpf Exp $
+% Version:	$Id: iso_strict.ecl,v 1.7 2013/03/06 22:06:45 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -55,7 +55,7 @@
 :- comment(summary, `Strict ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, 'Joachim Schimpf, Coninfer Ltd').
-:- comment(date, `$Date: 2013/02/26 02:15:51 $`).
+:- comment(date, `$Date: 2013/03/06 22:06:45 $`).
 :- comment(see_also, [library(multifile),library(iso),library(iso_light)]).
 :- comment(desc, html(`
 <h3>Overview</h3>
@@ -130,7 +130,9 @@
     <DT>7.10.1 Sources and sinks</DT>
 	<DD>See open/3,4</DD>
     <DT>7.10.2.6 Text streams</DT>
-	<DD>Text streams are the same as binary streams.</DD>
+	<DD>Text streams are very similar to binary streams, no characters
+	are implicitly inserted or removed.  The nl/0,1 predicates emit
+	an operating system and device dependent newline sequence.</DD>
     <DT>7.10.2.8,11 Stream positions</DT>
 	<DD>File, string, and null streams can be (re)positioned</DD>
     <DT>7.10.2.9 End position of a stream</DT>
@@ -151,8 +153,9 @@
 	the limit on predicate arity (there is no limit on term arity).
 	</DD>
     <DT>7.12.1 Effect of an error</DT>
-	<DD>The implementation defined error term argument is the predicate
-	indicator of the culprit goal</DD>
+	<DD>The implementation defined error term argument is normally the
+	predicate indicator of the culprit goal.  For syntax errors, it is
+	a term describing the error location.</DD>
     <DT>8.15.4 call/N</DT>
 	<DD>The maximum N is given by the flag max_predicate_arity (255)</DD>
     <DT>8.17.1 set_prolog_flag/2</DT>
@@ -196,11 +199,10 @@
 
 <h3>Remaining deviations from Standard</h3>
     <OL>
+    <LI>The write predicates output extra spaces</LI>
     <LI>The char_conversion flag is always off, meaning that character
     conversion is not applied to prolog texts or on term input.  However,
     char_conversion/2 and current_char_conversion/2 predicates are operational.
-    <LI>When a stream has multiple aliases, and one of them is closed,
-    ECLiPSe does not close the other aliases automatically.
     </OL>
     `)).
 

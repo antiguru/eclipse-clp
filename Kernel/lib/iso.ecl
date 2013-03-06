@@ -24,13 +24,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.ecl,v 1.1 2013/02/04 14:52:10 jschimpf Exp $
+% Version:	$Id: iso.ecl,v 1.2 2013/03/06 22:06:45 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.ecl,v 1.1 2013/02/04 14:52:10 jschimpf Exp $
+% $Id: iso.ecl,v 1.2 2013/03/06 22:06:45 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -54,7 +54,7 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC, IC-Parc and Coninfer Ltd`).
 :- comment(copyright, `Cisco Systems, Inc (2006), Coninfer Ltd (modifications 2007-2012)`).
-:- comment(date, `$Date: 2013/02/04 14:52:10 $`).
+:- comment(date, `$Date: 2013/03/06 22:06:45 $`).
 :- comment(see_also, [library(multifile),library(iso_strict),library(iso_light)]).
 :- comment(desc, html(`\
 <h3>Overview</h3>\n\
@@ -113,9 +113,6 @@
     <LI>All ISO built-in predicates are available.</LI>\n\
     </UL>\n\
 <h3>Limitations</h3>\n\
-    The follwing ISO requirements are not implemented:\n\
-    <UL>\n\
-    <LI>The char_conversion feature</LI>\n\
-    </UL>\n\
+    ISO's idiosyncratic char_conversion features is not implemented.\n\
 `)).
 
