@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.11 2013/02/09 20:27:57 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.12 2013/03/06 16:32:26 kish_shen Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -162,8 +162,7 @@
 :- export lp_eq/3.		% =:=/2
 :- export lp_ge/3.		% >=/2
 :- export lp_le/3.		% =</2
-:- export lp_real_interval/3.   % $::/2
-:- export lp_interval/3.        % ::/2
+:- export lp_interval/3.        % ::/2, $::/2
 :- export integers/2.		% integers/1
 :- export reals/2.              % reals/1
 :- export eplex_get/3.		% eplex_get/2
@@ -1479,17 +1478,9 @@ lp_attr_get_bounds(_{eplex:Attr}, Lo, Hi) ?-
 			pending   % suspension: lp_pending's suspension
 	 )).
 
-lp_impose_interval(Vs, Interval, CCType, Pool) :-
-	(range(Interval, BoundType, Lo, Hi) -> Hi >= Lo 
+lp_impose_interval(Vs, Interval, Pool) :-
+	(range(Interval, Lo, Hi) -> Hi >= Lo 
         ;  exit_block(abort)
-        ),
-        % real CCType accepts integer bounds
-        ((BoundType == integer, CCType \== real) ->
-             printf(warning_output, "Eplex warning: Imposing integer bounds on"
-                    " variable(s) %w for eplex instance %w does not"
-                    " impose integer type.%n", [Vs, Pool])
-        ;
-             true
         ),
         extract_vars(Vs, Lo, Hi, no, [], VList), % may abort
         get_pool_item(Pool, Handle), 
@@ -1510,12 +1501,9 @@ lp_impose_interval(Vs, Interval, CCType, Pool) :-
 	     lp_add_vars_interval(Handle, VList, Lo, Hi)
         ).
 
-lp_real_interval(Vs, Interval, Pool) :-
-        block(lp_impose_interval(Vs, Interval, real, Pool), Tag,
-		colon_interval_warning(($::), Vs, Interval, Tag)).
 
 lp_interval(Vs, Interval, Pool) :-
-        block(lp_impose_interval(Vs, Interval, _either, Pool), Tag,
+        block(lp_impose_interval(Vs, Interval, Pool), Tag,
 		colon_interval_warning((::), Vs, Interval, Tag)).
 
     % warn about: poolname:X::1..N
@@ -1526,30 +1514,27 @@ lp_interval(Vs, Interval, Pool) :-
 		     " brackets perhaps?%n", [Goal]),
 	    exit_block(Tag)
 	;
-	    error(5, Goal)
+            writeln(herebar),
+            error(5, Goal)
         ).
 
-    % This is copied from lib(range)
-    :- mode range(?,?,-,-).
-    range(L..H, Type, Lo, Hi) ?- 
-	bound(L, Type, Lo),
-	bound(H, Type, Hi),
-	( var(Type) -> Type = real ; true ).
-    range([L..H], Type, Lo, Hi) ?-  % for IC/FD compatability
-	bound(L, Type, Lo),
-	bound(H, Type, Hi),
-	( var(Type) -> Type = real ; true ).
+    :- mode range(?,-,-).
+    range(L..H, Lo, Hi) ?- 
+	bound(L, Lo),
+	bound(H, Hi).
+    range([L..H], Lo, Hi) ?-  % for IC/FD compatability
+	bound(L, Lo),
+	bound(H, Hi).
     
-    bound(L, _, _) :- var(L), !, fail.
-    bound(L, T, Lo) :- integer(L), !, Lo is float(L), T=integer.
-    bound(L, T, Lo) :- rational(L), !, Lo is float(L), T=real.
-    bound(L, T, Lo) :- real(L), !, Lo=L, T=real.
-    bound(-inf, _, Lo) :- !, Lo = -1.0Inf.
-    bound(inf, _, Hi) :- !, Hi = 1.0Inf.
-    bound(+inf, _, Hi) :- !, Hi = 1.0Inf.
-    bound(E, T, Bnd) :-
+    bound(L, _) :- var(L), !, fail.
+    bound(L, Lo) :- integer(L), !, Lo is float(L).
+    bound(L, Lo) :- rational(L), !, Lo is float(L).
+    bound(L, Lo) :- real(L), !, Lo=L.
+    bound(-inf, Lo) :- !, Lo = -1.0Inf.
+    bound(inf, Hi) :- !, Hi = 1.0Inf.
+    bound(+inf, Hi) :- !, Hi = 1.0Inf.
+    bound(E, Bnd) :-
         block((Bnd0 is E), _, fail),
-        (integer(Bnd0) -> T = integer ; T = real),
 	Bnd is float(Bnd0).
 
 % may exit_block(abort) indicating error
@@ -3134,7 +3119,7 @@ set_bounds_probe(Handle, Bounds, Set0, [bounds(N,Js,OldLs,OldHs)|Set0]) :-
          fromto(NewHs, NewHs0,NewHs1, []) do
             
             (nonvar(BSpec), BSpec = (V $:: Range),
-             range(Range, _, L, H), get_var_index(V, SId, J0) ->
+             range(Range, L, H), get_var_index(V, SId, J0) ->
                 (foreach(J, J0), count(_, 1, NumJ0s), param(CPH,L,H),
                  fromto(Js0, JTail0,JTail1, Js1), 
                  fromto(OldLs0, OldLTail0,OldLTail1, OldLs1),
@@ -5048,7 +5033,7 @@ create_eplex_pool(Pool) :-
 	    ($=)/2 -> lp_eq/3,
 	    ($>=)/2 -> lp_ge/3,
 	    ($=<)/2 -> lp_le/3,
-            ($::)/2 -> lp_real_interval/3,
+            ($::)/2 -> lp_interval/3,
             (::)/2 ->  lp_interval/3,
             integers/1 -> integers/2,
             reals/1 -> reals/2,
