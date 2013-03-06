@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.6 2012/02/27 04:21:05 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.7 2013/03/06 21:51:14 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -120,7 +120,7 @@
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2012/02/27 04:21:05 $").
+:- comment(date, "$Date: 2013/03/06 21:51:14 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -236,6 +236,7 @@ tty_toplevel_init :-
 	),
 	set_stream(answer_output, output),
 	set_stream(toplevel_output, output),
+%	set_stream_property(error, flush, end_of_line),
 
 	% optional: init debugging tools and interrupt handling
 	ensure_loaded(library(tracer_tty)),
@@ -562,18 +563,14 @@ state_success(Junk) :-
 read_goal(GoalString,Goal,Vars) :-
 	open(GoalString,string,Stream),
 	get_flag(toplevel_module, Module),
-	( catch(readvar(Stream,Goal,Vars)@Module,_,fail) ->
-	    close(Stream)
-	;
-	    close(Stream),
-	    fail
-	).
+	readvar(Stream,Goal,Vars)@Module,
+	close(Stream).
 
 % exec_goal(GoalString, RunMode)
 % read a goal from toplevel_in, run it, do the more-dialog
 % and always succeed in the end
 exec_goal(GoalString, RunMode) :-
-	read_goal(GoalString,Goal,Vars),	% fails on syntax error
+	read_goal(GoalString,Goal,Vars),	% fail or throw on syntax error
 	get_flag(toplevel_module, Module),
 	tracer_tcl:register_inspected_term(Goal, Module),
 	get_flag(output_options, Options),
