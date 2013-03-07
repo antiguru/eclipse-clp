@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.37 2013/02/22 18:54:30 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.38 2013/03/07 15:54:56 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -752,7 +752,9 @@ proc tkecl:display_source_for_callport {t} {
 
     if {$tkecl(source_debug,file) == ""} return
     set line [tkecl:get_current_text_line $t]
-    set res [ec_rpcq [list find_exact_callinfo $tkecl(source_debug,file) $line _] (()I_) tracer_tcl]
+    # Caution: the predicate expects an atom. For quoting-sensitive arguments
+    # like file names, we have to pass a 1-element list with the () type.
+    set res [ec_rpcq [list find_exact_callinfo [list $tkecl(source_debug,file)] $line _] (()I_) tracer_tcl]
 
     switch $res {
 	throw -
@@ -3639,7 +3641,7 @@ proc tkecl:check_port_call_source {module callspec} {
 
 proc tkecl:get_nearest_port_call {file line} {
 
-    set result [ec_rpcq [list find_matching_callinfo $file $line _ _] (()I__) tracer_tcl]
+    set result [ec_rpcq [list find_matching_callinfo $file $line _ _] (SI__) tracer_tcl]
 
     switch $result {
 	throw -
@@ -3656,7 +3658,7 @@ proc tkecl:toggle_breakpoint {t} {
     global tkecl
 
     set line [tkecl:get_current_text_line $t]
-    set result [ec_rpcq [list toggle_source_breakpoint $tkecl(source_debug,file) $line _ _ _] (()I___) tracer_tcl]
+    set result [ec_rpcq [list toggle_source_breakpoint $tkecl(source_debug,file) $line _ _ _] (SI___) tracer_tcl]
     if [winfo exists .ec_tools.ec_tracer] {
 	set parent .ec_tools.ec_tracer
     } else {
@@ -3690,7 +3692,7 @@ proc tkecl:get_source_debug_filenames {w} {
     set source_files \
 	[lindex [ec_rpcq [list current_files_with_port_lines _] (_) tracer_tcl] 1]
     foreach file $source_files {
-	$w add "$file"
+	$w add [lindex $file 0]		;# $file is an atom (1-element list)
     }
 
 }
@@ -3794,7 +3796,7 @@ proc tkecl:update_source_debug {style from to fpath_info} {
 	return
     } else {
 	# get the pathname
-	set fpath [lindex $fpath_info 1]
+	set fpath [lindex [lindex $fpath_info 1] 0] ;# atom type!
     }
 
      if {$tkecl(source_debug,file) != $fpath} {
@@ -3833,7 +3835,7 @@ proc tkecl:load_source_debug_file {fpath {xfracs "0 1"} {yfracs "0 1"}} {
     set xfrac [lindex $xfracs 0]
     set yfrac [lindex $yfracs 0]
 
-    switch [ec_rpcq [list file_is_readable $fpath] (()) tracer_tcl] {
+    switch [ec_rpcq [list file_is_readable $fpath] (S) tracer_tcl] {
 	    fail -
 	    throw {
 		# source not readable, no display
@@ -3842,12 +3844,12 @@ proc tkecl:load_source_debug_file {fpath {xfracs "0 1"} {yfracs "0 1"}} {
      }
 
     $ec_sourcetext delete 1.0 end
-    ec_rpcq [list read_file_for_gui $fpath] (()) tracer_tcl
+    ec_rpcq [list read_file_for_gui $fpath] (S) tracer_tcl
     set tkecl(source_debug,file) $fpath
     $ec_source.context.text xview moveto $xfrac 
     $ec_source.context.text yview moveto $yfrac 
 
-    set result [ec_rpcq [list breakpoints_for_file $fpath _ _ _] (()___) tracer_tcl]
+    set result [ec_rpcq [list breakpoints_for_file $fpath _ _ _] (S___) tracer_tcl]
     switch $result {
 	fail -
 	throw {
