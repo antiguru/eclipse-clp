@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.10 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.11 2013/03/08 17:21:48 jschimpf Exp $
  */
 
 /*
@@ -303,7 +303,10 @@ static int
 p_default_module(value v, type t)
 {
     if (IsRef(t)) {
-        Return_Unify_Atom(v, t, d_.default_module);
+	pword pw;
+	pw.val.did = d_.default_module;
+	pw.tag.kernel = ModuleTag(d_.default_module);
+        Return_Unify_Pw(v, t, pw.val, pw.tag);
     }
     Check_Atom(t);
     d_.default_module = v.did;
