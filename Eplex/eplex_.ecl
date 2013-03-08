@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.12 2013/03/06 16:32:26 kish_shen Exp $
+% Version:	$Id: eplex_.ecl,v 1.13 2013/03/08 03:24:27 kish_shen Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -1514,7 +1514,6 @@ lp_interval(Vs, Interval, Pool) :-
 		     " brackets perhaps?%n", [Goal]),
 	    exit_block(Tag)
 	;
-            writeln(herebar),
             error(5, Goal)
         ).
 
