@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.13 2013/03/08 03:24:27 kish_shen Exp $
+% Version:	$Id: eplex_.ecl,v 1.14 2013/03/08 11:00:55 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -1622,7 +1622,7 @@ lp_add_constraints(Handle, Cstrs, Ints, Idxs) :-
 	( nonvar(Handle), nonvar(Cstrs), nonvar(Ints) -> true ;
 	    error(4, lp_add_constraints(Handle,Cstrs,Ints,Idxs))
 	),
-	normalise_and_check_linear_nonground(Cstrs, NormCs, NonLins, lp_add_constraints),
+	normalise_and_check_linear_nonground(Cstrs, NormCs, lp_add_constraints),
         lp_add_indexed(Handle, NormCs, Ints, Idxs).
 
 
@@ -1631,7 +1631,7 @@ lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs) :-
 	( nonvar(Handle), nonvar(Cstrs) -> true ;
             error(4, lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs))
 	),
-	normalise_and_check_linear_nonground(Cstrs, NormCs, NonLins, lp_add_cutpool_constraints),
+	normalise_and_check_linear_nonground(Cstrs, NormCs, lp_add_cutpool_constraints),
 	OptSet = cp_options{group:Name,active:Act,add_initially:Add},
 	( (foreach(O:V, Opts), param(OptSet,Handle) do
             valid_cp_opt(O, OPos),
@@ -1668,7 +1668,7 @@ lp_add_cutpool_constraints(Handle, Cstrs, Opts, Idxs) :-
         ).
 
 
-normalise_and_check_linear_nonground(Cstrs, NormCs, NonLins, PredCall) :-
+normalise_and_check_linear_nonground(Cstrs, NormCs, PredCall) :-
         ( normalise_cstrs(Cstrs, NormCs, NonLins) -> true ;
             printf(error, "Eplex error: unknown constraint in %w:%n%w%n", [PredCall,Cstrs]),
 	    abort
