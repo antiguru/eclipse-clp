@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.10 2012/02/11 17:09:31 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.11 2013/03/08 13:47:19 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -1441,7 +1441,7 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		/* translate Term[Args] into subscript(Term, [Args]) */
 		pword *pw;
 		Build_Struct(&term, pw, d_.subscript, pd->token.pos);
-		pw[1] = *result;
+		Move_Pword(result, pw+1);
 		Next_Token(pd);
 		status = _read_sequence_until(pd, &pw[2], ']');
 		Return_If_Error(status);
