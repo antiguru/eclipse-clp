@@ -24,7 +24,7 @@
 
 \section{Introduction}
 
-   The GFD library is an interface for \eclipse to Gecode's finite domain constraint
+   The GFD library is an interface for {\eclipse} to Gecode's finite domain constraint
    solver. Gecode ({\tt www.gecode.org}) is an open-source toolkit for 
    developing
    constraint-based systems in C++, and includes an  integer 
@@ -34,7 +34,7 @@
    domain portion of the IC library, and to a lesser extent, with the FD
    library as well. This means that programs originally written for the
    IC library should run with GFD with little modifications, beyond 
-   renaming any explicit calls to the ic family of modules. For example,
+   renaming any explicit reference to the ic family of modules. For example,
    here is a GFD program for N-Queens:
 
 \begin{quote}
@@ -42,17 +42,16 @@
 :- lib(gfd).
 
 queens_list(N, Board) :-
-        length(Board, N),
-        Board :: 1..N,
-        (fromto(Board, [Q1|Cols], Cols, []) do
-            ( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
-                Q2 #\= Q1,
-                Q2 - Q1 #\= Dist,
-                Q1 - Q2 #\= Dist
-            )
-        ),
-        labeling(Board).  
-
+    length(Board, N),
+    Board :: 1..N,
+    (fromto(Board, [Q1|Cols], Cols, []) do
+	( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
+	    Q2 #\= Q1,
+	    Q2 - Q1 #\= Dist,
+	    Q1 - Q2 #\= Dist
+	)
+    ),
+    labeling(Board).  
 \end{verbatim}
 \end{quote}
 
@@ -70,14 +69,14 @@ GFD provides facilities to model and solve problems over the
 finite integer domain, with Gecode as the solver. It supports the constraints
 provided by Gecode -- and Gecode supports a large set of constraints. The 
 search to solve the problem can be done at the 
-\eclipse level (with support from Gecode for variable and value selections), 
+{\eclipse} level (with support from Gecode for variable and value selections), 
 or the whole search can be performed by Gecode itself using one of its 
 search engines.   
 
-In addition to the code-level differences, Gecode is implemented using a
-{\it re-computation based\/} model, unlike the {\it backtracking\/}
- model of \eclipse. However, this difference is largely invisible to
-the user, as GFD automatically maintain the Gecode computational state 
+Implementation-level differences (like Gecode's 
+{\it re-computation based\/} model vs. \eclipse's {\it backtracking\/}
+model) are largely invisible to the user,
+as GFD automatically maintains the Gecode computational state 
 to match \eclipse's.
 
 \subsection{Usage}
@@ -96,24 +95,25 @@ at an appropriate point in your code.
 An (integer) domain variable is a variable which can be instantiated only to a
 value from a given finite set of integer values. 
 
-A variable becomes a domain variable when it first appear in a (GFD) 
+A variable becomes a domain variable when it first appears in a (GFD) 
 constraint. If the constraint is a domain constraint, then the variable will
 be given the domain specified by the constraint. Otherwise, the variable will
-be given a default domain, which should be more than large enough for
+be given a default domain, which should be large enough for
 most problem instances. 
 
 The default domain is an interval, and the maximum and minimum values of this
 interval can be changed using \bipref{gfd_set_default/2}{../bips/lib/gfd/gfd_set_default-2.html} (with the options 
 {\tt interval_max} and {\tt interval_min} for the maximum and minimum values,
-respectively. These values must be within the interval allowed by Gecode
-(\bip{gfd_maxint/1} and \bip{gfd_minint/1}). You can also obtain the current values
+respectively).  You can also obtain the current values
 of interval_max and interval_min using \bip{gfd_get_default/2}.
 
 The Gecode documentation suggests that domain variables should be given as
-small a domain as possible, and requires the user to specify the domain for 
-all domain variables. This is not required by GFD, but following Gecode's
-convention, it is recommended that the user use domain constraints to specify 
-the domain for variables if possible before using them.
+small a domain as possible, and requires the user to explicitly specify a domain for 
+all domain variables. While this is not required by GFD, following Gecode's
+convention is still a good idea, since overly large domains can negatively
+affect performance.  It is therefore recommended to make use of domain
+constraints, and specify the domain for variables before using them in other
+constraints.
 
 A domain variable is mapped into a Gecode \verb'IntVar'.
 
@@ -121,101 +121,97 @@ A domain variable is mapped into a Gecode \verb'IntVar'.
 \subsection{Constraints}
 
 GFD supports the (integer finite domain) constraints implemented by Gecode.
-Some of these constraints are also implemented in \eclipse's native finite 
-domain solvers (IC and FD), but many are not. For those that are 
+Some of these constraints correspond to those in \eclipse's native finite 
+domain solvers (IC and FD), but many do not. For those that are 
 implemented in IC and/or FD, the same name and syntax is used by GFD 
-(although the details may differ, such as the types allowed for arguments).  
-One difference is that all these constraints are defined in the GFD
-library itself, and can thus be called without module qualification or
-loading additional libraries. 
+(although details may differ, such as the types allowed for arguments).  
+%One difference is that all these constraints are defined in the GFD
+%library itself, and can thus be called without module qualification or
+%loading additional libraries. 
 
-However, the propagation consistency level for the constraint can be 
-specified using a module-like syntax when posting the constraint:
-
-\begin{verbatim}
-
-<Propgation level>: <Constraint>
-
-\end{verbatim}
-
-where propagation level is one of:
-
+For many constraints, Gecode supports a choice of consistency levels.
+In GFD, these are provided as alternative implementations of these
+constraints in one of three modules:
 \begin{description}
-\item[{\tt gfd_gac}] Domain consistent (Generalised Arc-consistent). Map to {\tt ICL_DOM} in Gecode.
-\item[{\tt gfd_bc}] Bound consistent. Map to {\tt ICL_BND} in Gecode.
-\item[{\tt gfd_vc}] Value consistent. Map to {\tt ICL_VAL} in Gecode.
+\item[{\tt gfd_gac}] Domain consistent (Generalised Arc-Consistent), maps to {\tt ICL_DOM} in Gecode.
+\item[{\tt gfd_bc}] Bound consistent, maps to {\tt ICL_BND} in Gecode.
+\item[{\tt gfd_vc}] Value consistent, maps to {\tt ICL_VAL} in Gecode.
 \end{description}
-
-Although the propagation level is specified as a module, they do not need to
-be loaded separately -- these modules are created when GFD is loaded.
-
-Posting to a particular consistency level for a constraint is supported only
+Constraints can either be imported from one of these modules, or explicitly
+qualified with the module name, e.g.
+\begin{quote}
+\begin{verbatim}
+gfd_gac:alldifferent(Xs)
+\end{verbatim}
+\end{quote}
+Posting a constraint at a particular consistency level is supported only
 if that consistency level is implemented for that constraint
-in Gecode. See the individual documentation for the constraints for details.
-Note that posting the constraint unqualified (or qualified with {\tt gfd}) 
+in Gecode -- see the individual documentation for the constraints for details.
+Note that the three consistency modules are implicitly created when library(gfd)
+is loaded, and do not need to be loaded explicitly.
+Posting a constraint unqualified (or qualified with {\tt gfd}) 
 means posting the constraint at the default consistency level ({\tt ICL_DEF}). 
 
-Note that posting of constraints with expressions at different 
-consistency level is supported by GFD. However, it is possible that some of
-the constraints and sub-expressions inside the expressions are not supported
+Even constraints that involve expressions may be posted at specific 
+consistency levels. However, it is possible that some of
+the sub-constraints and sub-expressions inside the expressions are not supported
 at the given consistency level. In such cases, these sub-expressions will be
-posted at the default consistency level. For example, the N-Queens example
-can post domain consistent versions of the \verb'#\=/2' constraints:
+posted at the default consistency level.
 
+For example, the N-Queens example
+can post domain consistent versions of the \verb'#\=/2' constraints:
 \begin{quote}
 \begin{verbatim}
 :- lib(gfd).
 
 queens_list(N, Board) :-
-        length(Board, N),
-        Board :: 1..N,
-        (fromto(Board, [Q1|Cols], Cols, []) do
-            ( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
-                gfd_gac: (Q2 #\= Q1),
-                gfd_gac: (Q2 - Q1 #\= Dist),
-                gfd_gac: (Q1 - Q2 #\= Dist)
-            )
-        ),
-        label(Board).
-
+    length(Board, N),
+    Board :: 1..N,
+    (fromto(Board, [Q1|Cols], Cols, []) do
+	( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
+	    gfd_gac: (Q2 #\= Q1),
+	    gfd_gac: (Q2 - Q1 #\= Dist),
+	    gfd_gac: (Q1 - Q2 #\= Dist)
+	)
+    ),
+    label(Board).
 \end{verbatim}
 \end{quote}
 In this particular example, using the stronger propagation actually results in
-a reduction in performance, as there are no reduction in search space from the
+a reduction in performance, as there is no reduction in search space from the
 stronger propagation, but an increase in the cost of doing the propagation, 
 
 
 Gecode requires an explicit command to perform propagation. In GFD,
-the call to Gecode to perform propagation is implemented as a delayed
- goal at priority 9.
-When a constraint is posted, GFD first add any new domain variables in
- the constraint to Gecode, and then add the constraint to Gecode,
+this command is implemented as a delayed goal at priority 9.
+When a constraint is posted, GFD first adds any new domain variables in
+ the constraint to Gecode, and then adds the constraint to Gecode,
  without performing any explicit propagation. The call to propagate is
 then scheduled for execution. It is thus possible to post multiple
  constraints without propagation by posting the constraints at a more
-urgent (i.e. numerically smaller) priority than 9. This could reduce
- the cost of performing the propagation.
+urgent (i.e. numerically smaller) priority than 9 (see
+\bipref{call_priority/2}{../bips/kernel/suspensions/call_priority-2.html}).
+This could reduce the cost of performing the propagation.
  
 Several constraints involve the use of indices. In \eclipse, indices starts
 from 1, while Gecode, like C++ (the programming language it is implemented in), indices starts from 0. For compatibility 
 with \eclipse, ``normal'' GFD constraints also have indices
 that starts from 1. These constraints are mapped to the Gecode native 
 indices in various ways, depending of the constraint, with the aim of 
-minimising the overhead. GFD also support versions of these constraints that 
+minimising the overhead. GFD also supports versions of these constraints that 
 uses Gecode's native indices, i.e. starting from 0, and these have an 
 additional {\tt _g} in their name (e.g. {\tt bin_packing_g/3} is the Gecode native
-indices version of {\tt bin_packing/3}). These version of the constraint do not
+index version of {\tt bin_packing/3}). These versions of the constraint do not
 have the overhead of converting the index value, but may be
 incompatible with the rest of \eclipse.
 
 \subsubsection{Domain constraints}
 
-The following domain constraints supported by GFD:
+The following domain constraints are supported by GFD:
 
 \begin{description}
 \item[\biptxtrefni{?Vars \#:: ++Domain}{\#::/2!gfd}{../bips/lib/gfd/HNN-2.html}]
-Constrain Vars to have the domain Domain. A \biptxtrefni{reified}{\#::/3!gfd}{../bips/lib/gfd/HNN-3.html} version is also available.
-
+Constrains Vars to have the domain Domain. A \biptxtrefni{reified}{\#::/3!gfd}{../bips/lib/gfd/HNN-3.html} version is also available.
 \verb'::/2,3' are also supported as aliases.
 
 \end{description}
@@ -250,9 +246,8 @@ Specifies a logical connection between  constraint expression(s).
 All logical connectives have their reified counterparts.
 The available connectives are:
 
-\biptxtrefni{<=>/2,3}{<=>/2!gfd}{../bips/lib/gfd/LEG-2.html}] (equivalent),
-\biptxtrefni{=>/2,3}{=>/2!gfd}{../bips/lib/gfd/EG-2.html} (imply),
-\biptxtrefni{<=/2,3}{<=/2!gfd}{} (reverse imply),
+\biptxtrefni{<=>/2,3}{<=>/2!gfd}{../bips/lib/gfd/LEG-2.html} (equivalent),
+\biptxtrefni{=>/2,3}{=>/2!gfd}{../bips/lib/gfd/EG-2.html} (implies),
 \biptxtrefni{and/2,3}{and/2!gfd}{../bips/lib/gfd/and-2.html} (and),
 \biptxtrefni{or/2,3}{or/2!gfd}{../bips/lib/gfd/or-2.html} (or),
 \biptxtrefni{xor/2,3}{xor/2!gfd}{../bips/lib/gfd/xor-2.html} (exclusive or),
@@ -264,8 +259,8 @@ as a constraint expression, evaluating to the reified truth value.
 
 As relational constraints can be reified, and truth values of constraint
 expressions can be evaluated as integer values, \texttt{\#=/2} can be used
-as an alias for \texttt{<=>/2} and \texttt{\#\bsl=/2} can be used as an 
-alias for \texttt{xor}. This is also provided for compatibility with IC.
+instead of \texttt{<=>/2} and \texttt{\#\bsl=/2} can be used instead of
+\texttt{xor}. This is also provided for compatibility with IC.
 
 
 \end{description}
@@ -278,13 +273,13 @@ following can be used inside expressions:
 	    \emph{Variables}.  If \verb'X' is not yet a domain variable, it is turned 
 	    into one.
 
-   \item[\texttt{123}]
+\item[\texttt{123}]
 	    Integer constants.
 
-   \item[\texttt{+Expr}]
+\item[\texttt{+Expr}]
 	    Identity.
 
-   \item[\texttt{-Expr}]
+\item[\texttt{-Expr}]
 	    Sign change.
 
 \item[\texttt{abs(Expr)}]
@@ -300,13 +295,13 @@ following can be used inside expressions:
     Multiplication.
 
 \item[\texttt{E1//E2}]
-    Integer division. Truncate towards zero.
+    Integer division, truncating towards zero.
 
 \item[\texttt{E1/E2}]
-    Integer division (alias for compatibility).
+    Integer division, defined only if E2 evenly divides E1.
 
-\item[\texttt{E1 mod E2}]
-	    Integer modulus.
+\item[\texttt{E1 rem E2}]
+	    Integer remainder, same sign as E1.
 
 \item[\texttt{Expr}\textasciicircum{}{\texttt 2}]
 	    Square. Equivalent to {\texttt sqr(Expr)} (alias for compatibility).
@@ -321,8 +316,11 @@ following can be used inside expressions:
 \item[\texttt{sqr(Expr)}]
     Square. Logically equivalent to \verb|Expr*Expr|.
 
-\item[\texttt{sqrt(Expr)}]
+\item[\texttt{isqrt(Expr)}]
 	    Square root (always positive). Truncated towards zero.
+
+\item[\texttt{sqrt(Expr)}]
+	    Square root, defined only if Expr is the square of an integer.
 
 \item[\texttt{sum(ExprCol)}]
 	    Sum of a collection of expressions.
@@ -357,11 +355,6 @@ following can be used inside expressions:
             These are restricted to the top-level of an expression,
             and for reifiable expressions only,
 
-\item[\texttt{<=}]
-	    Reified constraint reverse implication. e.g. \verb'X #> 3 <= Y #< 8'.
-            These are restricted to the top-level of an expression,
-            and for reifiable expressions only,
-
 \item[\texttt{neg}]
 	    Reified constraint negation.  e.g. \verb'neg X #> 3'
             These are restricted to the top-level of an expression,
@@ -369,7 +362,7 @@ following can be used inside expressions:
 
 \item[\texttt{<=>}]
 	    Reified constraint equivalence.  e.g. \verb'X #> 3 <=> Y #< 8'.
-            This is an alias for {\texttt \#=} used in an expression context.
+            This is similar to {\texttt \#=} used in an expression context.
             These are restricted to the top-level of an expression,
             and for reifiable expressions only,
 
@@ -395,22 +388,20 @@ following can be used inside expressions:
 
 \item[\texttt{eval(Expr)}]
             Logically equivalent to \verb'Expr'.
-	    \verb'Expr' should not be evaluated at compile-time, only at
-	    runtime when the expression is posted.
+	    Should be used when \verb'Expr' is a compile-time variable
+	    which may get instantiated to an expression (rather than an
+	    integer) at runtime.
 
 \item[\texttt{Functional/reified constraints}]
-            Written without last argument, and within an expression context.
-
-            The constraint evaluates to the value of the missing argument.
-            Only reified constraints (whose (unwritten) last argument
-            is a 0/1 Boolean representing the truth value of the constraint) 
-            and constraints that can be written as 
-            functions ((unwritten) last argument is a domain variable) are 
-            allowed.
+	    Reified constraints (whose last argument is a 0/1 variable)
+	    and functional constraints (whose last argument is an integer
+	    variable) can be written without their last argument within
+	    an expression context.  The expression then effectively
+	    evaluates to the value of the missing (unwritten) argument.
 
 \end{description}
  
-The expressions allowed by GFD is a super-set of the expressions supported by 
+The expressions allowed by GFD are a super-set of the expressions supported by 
 Gecode (briefly, Gecode does not support functional and 
 reified constraints in expressions, and collections of expressions are not 
 supported). When an expression is posted, it is parsed and broken down into 
@@ -421,46 +412,47 @@ allow the user greater freedom in the code they write, and also to provide
 better compatibility with IC. 
 
 Note that posting of complex expressions is relatively expensive: they are 
-first parsed at the \eclipse level by GFD to extract the sub-expressions and 
+first parsed at the {\eclipse} level by GFD to extract the sub-expressions and 
 any new domain variables, and these sub-expressions (in the form of 
-\eclipse structures) are then parsed again at the GFD C++ level to convert
+{\eclipse} structures) are then parsed again at the GFD C++ level to convert
 them to the appropriate Gecode data structures, which are then passed to
-Gecode. Gecode itself will probably parse these structures again
-and convert them to the basic constraints that it supports. 
+Gecode. Gecode itself will then convert these data structures
+to the basic constraints that it supports. 
 
 
-As mentioned above, one of the reason for parsing the expressions is to
-extract new domain variables. This is another difference between GFD and
-Gecode: Gecode requires the user to explicitly initialise domain variables 
-(IntVar) with a domain before using them, while GFD will give any new 
-domain variables a default domain, so variables do not need to be 
-initialised  with a domain before use. This GFD behaviour is compatible with
-IC (except the default domain is a finite integer domain like FD).
+%%% Not sure which point we are trying to make here:
+%As mentioned above, one of the reason for parsing the expressions is to
+%extract new domain variables. This is another difference between GFD and
+%Gecode: Gecode requires the user to explicitly initialise domain variables 
+%(IntVar) with a domain before using them, while GFD will give any new 
+%domain variables a default domain, so variables do not need to be 
+%initialised  with a domain before use. This GFD behaviour is compatible with
+%IC (except the default domain is a finite integer domain like FD).
 
 
 
 \subsubsection{Arithmetic constraints}
 
-These constraints imposes some form of arithmetic relation between its
+These constraints impose some form of arithmetic relation between their
 arguments. Some of these constraints can occur inside expressions, while
 others are ``primitive'' versions of the constraint where the arguments
-are domain variables (or integers), and are provided to  allow more efficient
-posting of the simple arithmetic relation than using expressions (e.g.
-{\tt lt(X,Y)} is more efficient to post than {\tt X \#< Y}).
+are domain variables (or integers).
 
-Many of the constraints listed here are only available in IC inside
-expressions, i.e. they are not available as independent constraints.
-In GFD, all ``operator'' allowed in expressions have a constraint
-counterpart that can be posted outside of expressions, partly because
-Gecode does provide these constraints.
+%%% Not sure which point we are trying to make here:
+%Many of the constraints listed here are only available in IC inside
+%expressions, i.e. they are not available as independent constraints.
+%In GFD, all ``operators'' allowed in expressions have a constraint
+%counterpart that can be posted outside of expressions, partly because
+%Gecode does provide these constraints.
 
 
 \begin{description}
-\item[\biptxtrefni{divmod(?X,?Y,?Q,?M)}{divmod/4!gfd}{../bips/lib/gfd/divmod-4.html}]
-Constrains Q to X // Y, and M to X mod Y.
+%%% Commented out until we sort out the name
+%\item[\biptxtrefni{divmod(?X,?Y,?Q,?M)}{divmod/4!gfd}{../bips/lib/gfd/divmod-4.html}]
+%Constrains Q to X // Y, and M to X rem Y.
 
 \item[\biptxtrefni{all_eq(?Collection,?Y)}{all_eq/2!gfd}{../bips/lib/gfd/all_eq-2.html}]
-Constrains each element of Collection to be equal to Y. Simular constraints
+Constrains each element of Collection to be equal to Y. Similar constraints
 for the other relations: 
 \biptxtrefni{all_ge/2)}{all_ge/2!gfd}{../bips/lib/gfd/all_ge-2.html} (greater than or equal to), 
 \biptxtrefni{all_gt/2}{all_gt/2!gfd}{../bips/lib/gfd/all_gt-2.html} (greater than),
@@ -470,14 +462,15 @@ for the other relations:
 
 
 \item[\biptxtrefni{max(+Collection,?Max)}{max/2!gfd}{../bips/lib/gfd/max-2.html}]
-Constrains Max to be the maximum of the values in Collection. Simularly,
+Constrains Max to be the maximum of the values in Collection. Similarly,
 \biptxtrefni{min(+Collection,?Min)}{min/2!gfd}{../bips/lib/gfd/min-2.html}
 for minimum.
 
-\item[\biptxtrefni{max(?X,?Y,?Max)}{max/3!gfd}{../bips/lib/gfd/max-3.html}]
-Constrains Max to be the maximum of X and Y. Simularly,
-\biptxtrefni{min(?X,?Y,?Min)}{min/3!gfd}{../bips/lib/gfd/min-3.html} for
- minimum.
+%%% does not exist (would clash with arithmetic builtin)
+%\item[\biptxtrefni{max(?X,?Y,?Max)}{max/3!gfd}{../bips/lib/gfd/max-3.html}]
+%Constrains Max to be the maximum of X and Y. Similarly,
+%\biptxtrefni{min(?X,?Y,?Min)}{min/3!gfd}{../bips/lib/gfd/min-3.html} for
+% minimum.
 
 \item[\biptxtrefni{mem(+Vars,?Member [,?Bool])}{mem/2!gfd}{../bips/lib/gfd/mem-2.html}]
 Constrains Member to be the a member element in Vars. The 
@@ -486,16 +479,17 @@ Constrains Member to be the a member element in Vars. The
 
 \item[\biptxtrefni{scalar_product(++Coeffs,+Collection,+Rel,?Sum [,?Bool])}{scalar_product/4!gfd}{../bips/lib/gfd/scalar_product-4.html}]
 Constrains the scalar product of the elements of Coeffs
- and Collection to satisfy the relation sum(Coeffs*Collection) Rel P. 
+ and Collection to satisfy the relation {\em sum(Coeffs*Collection) Rel P}. 
 \biptxtrefni{Reified}{scalar_product/5!gfd}{../bips/lib/gfd/scalar_product-5.html}
 with \verb'Bool' argument.
 
 \item[\biptxtrefni{sum(+Collection,?Sum)}{sum/2!gfd}{../bips/lib/gfd/sum-2.html}]
-Constrains Sum to be the sum (Collection) or scalar product (IntCollection*Collection) of
-the Collection elements.
+Constrains Sum to be the sum of the elements in Collection, or if the
+argument is of the form IntCollection*Collection, the scalar product of the
+commections.
 
 \item[\biptxtrefni{sum(+Collection,+Rel,?Sum [,?Bool]}{sum/3!gfd}{../bips/lib/gfd/sum-3.html}]
-Constrains the sum of the elements of Collection to satisfy the relation sum(Collection) Rel Sum.
+Constrains the sum of the elements of Collection to satisfy the relation {\em sum(Collection) Rel Sum}.
 \biptxtrefni{Reified}{sum/4!gfd}{../bips/lib/gfd/sum-4.html}
 with \verb'Bool' argument.
 
@@ -504,19 +498,19 @@ with \verb'Bool' argument.
 
 \subsubsection{Ordering constraints}
 
-These constraints imposes some form of ordering relation on its arguments.
+These constraints impose some form of ordering relation on their arguments.
 
 \begin{description}
-\item[\biptxtrefni{lex_eq(+Collection1+Collection2)}{lex_eq/2!gfd}{../bips/lib/gfd/lex_eq-2.html}]
+\item[\biptxtrefni{lex_eq(+Collection1,+Collection2)}{lex_eq/2!gfd}{../bips/lib/gfd/lex_eq-2.html}]
 Constrains Collection1 to be lexicographically equal to Collection2. 
 Constraints for the other lexicographic relations:
-\biptxtrefni{lex_ge(+Collection1+Collection2)}{lex_ge/2!gfd}{../bips/lib/gfd/lex_ge-2.html} (exicographically greater or equal to),
-\biptxtrefni{lex_gt(+Collection1+Collection2)}{lex_gt/2!gfd}{../bips/lib/gfd/lex_gt-2.html} (lexicographically greater than),
-\biptxtrefni{lex_le(+Collection1+Collection2)}{lex_le/2!gfd}{../bips/lib/gfd/lex_le-2.html}
+\biptxtrefni{lex_ge/2}{lex_ge/2!gfd}{../bips/lib/gfd/lex_ge-2.html} (lexicographically greater or equal to),
+\biptxtrefni{lex_gt/2}{lex_gt/2!gfd}{../bips/lib/gfd/lex_gt-2.html} (lexicographically greater than),
+\biptxtrefni{lex_le/2}{lex_le/2!gfd}{../bips/lib/gfd/lex_le-2.html}
 (lexicographically less or equal to), Collection2.
-\biptxtrefni{lex_lt(+Collection1+Collection2)}{lex_lt/2!gfd}{../bips/lib/gfd/lex_lt-2.html},
+\biptxtrefni{lex_lt/2}{lex_lt/2!gfd}{../bips/lib/gfd/lex_lt-2.html},
 (lexicographically less than),
-\biptxtrefni{lex_neq(+Collection1+Collection2)}{lex_neq/2!gfd}{../bips/lib/gfd/lex_neq-2.html}
+\biptxtrefni{lex_neq/2}{lex_neq/2!gfd}{../bips/lib/gfd/lex_neq-2.html}
 (lexicographically not equal to).
 
 \item[\biptxtrefni{ordered(+Relation,+Collection)}{ordered/2!gfd}{../bips/lib/gfd/ordered-2.html}]
@@ -539,47 +533,46 @@ Sorted is a sorted permutation (described by Positions) of Unsorted.
 
 \subsubsection{Counting and data constraints}
 
-These constraints imposes some restrictions either on the number of
- values that can be taken in one or more collection of domain
+These constraints impose restrictions either on the number of
+ values that can be taken in one or more collections of domain
  variables, and/or on the positions of values in the collection.
 \begin{description}
 \item[\biptxtrefni{alldifferent(+Vars)}{alldifferent/1!gfd}{../bips/lib/gfd/alldifferent-1.html}]
 Constrains all elements of Vars are different.
 
 \item[\biptxtrefni{alldifferent_cst(+Vars,++Offsets)}{alldifferent_cst/2!gfd}{../bips/lib/gfd/alldifferent_cst-2.html}]
-Constrains the values of each element plus corresponding offset to be pair-wised different.
+Constrains the values of each element plus corresponding offset to be pairwise different.
 
 \item[\biptxtrefni{among(+Values, ?Vars, +Rel, ?N)}{among/4!gfd}{../bips/lib/gfd/among-4.html}]
-The number of occurrence (Occ) in Vars of values taken from the set of
-values specified in Values satisfy  the relation Occ Rel N,
+The number of occurrences ({\em Occ}) in Vars of values taken from the set of
+values specified in Values satisfies the relation {\em Occ Rel N}.
 
 \item[\biptxtrefni{atleast(?N, +Vars, +V)}{atleast/3!gfd}{../bips/lib/gfd/atleast-3.html}]
-At least N elements of Vars have the value V. Simularly constraint for 
-at most:
+At least N elements of Vars have the value V. Similarly 
 \biptxtrefni{atmost(?N, +Vars, +V)}{atmost/3!gfd}{../bips/lib/gfd/atmost-3.html}.
 
 \item[\biptxtrefni{count(+Value, ?Vars, +Rel, ?N)}{count/4!gfd}{../bips/lib/gfd/count-4.html}]
-Constrain the number of occurrence of Value in Vars (Occ) to satisfy
-the relation Occ Rel N.
+Constrains the number of occurrences of Value in Vars ({\em Occ}) to satisfy
+the relation {\em Occ Rel N}.
 
 \item[\biptxtrefni{count_matches(+Values, ?Vars, +Rel, ?N)}{count_matches/4!gfd}{../bips/lib/gfd/count_matches-4.html}]
 The number of the elements in Vars that
- match its corresponding value in Values, Matches, satisfies the
- relation Matches Rel N.
+ match their corresponding value in Values, {\em Matches}, satisfies the
+ relation {\em Matches Rel N}.
 
 \item[\biptxtrefni{element(?Index, +Collection, ?Value)}{element/3!gfd}{../bips/lib/gfd/element-3.html}]
 Constrains Value to be the Index$^{th}$ element of the integer collection Collection.
  
 \item[\biptxtrefni{gcc(+Bounds,+Vars)}{gcc/2!gfd}{../bips/lib/gfd/gcc-2.html}]
-Constrain the cardinality of each Value according to the specification
-in Bounds.
+Constrains the number of occurrences of each Value in Vars according to the specification
+in Bounds (global cardinality constraint).
 
 \item[\biptxtrefni{nvalues(+Collection, +Rel, ?Limit)}{nvalues/3!gfd}{../bips/lib/gfd/nvalues-3.html}]
-Constrains N, the number of distinct values assigned to 
-Collection to satisfy the relation N Rel Limit.
+Constrains {\em N}, the number of distinct values occurring in 
+Collection to satisfy the relation {\em N Rel Limit}.
 
-\item[\biptxtrefni{occurrences(+Value,+Vars.?N)}{occurrences/3!gfd}{../bips/lib/gfd/occurrences-3.html}]
-Constrain the value Value to occur N times in Vars.
+\item[\biptxtrefni{occurrences(+Value,+Vars,?N)}{occurrences/3!gfd}{../bips/lib/gfd/occurrences-3.html}]
+Constrains the value Value to occur N times in Vars.
 
 \item[\biptxtrefni{sequence(+Low,+High,+K,+Vars,++Values)}{sequence/5!gfd}{../bips/lib/gfd/sequence-5.html}]
 The number of values taken from Values is between Low and
@@ -600,24 +593,26 @@ M items into N bins, each bin having a load specified in BinLoads.
 The one-dimensional bin packing constraint: packing M items
 into N bins of size BinSize.
 
-\item[\biptxtrefni{cumulatives(+StartTimes, +Durations, +Hights, +Assigned, +MachineCapacities)}{cumulatives/5!gfd}{../bips/lib/gfd/cumulatives-5.html}]
-Multi-resource cumulatives constraint on specified tasks. A version with
+\item[\biptxtrefni{cumulative(+Starts,+Durations,+Usages,+ResourceLimit)}{cumulative/4!gfd}{../bips/lib/gfd/cumulative-4.html}]
+Single-resource cumulative task scheduling constraint. A version with
 optional tasks is also available:
 \biptxtrefni{cumulative_optional(+StartTimes, +Durations, +Usages, +ResourceLimit, +Scheduled)}{cumulative_optional/5!gfd}{../bips/lib/gfd/cumulative_optional-5.html}.
 
-\item[\biptxtrefni{cumulatives_min(+StartTimes, +Durations, +Hights, +Assigned, +MachineConsumptions)}{cumulatives_min/5!gfd}{../bips/lib/gfd/cumulatives_min-5.html}]
+\item[\biptxtrefni{cumulatives(+Starts,+Durations,+Heights,+Assigned,+Capacities)}{cumulatives/5!gfd}{../bips/lib/gfd/cumulatives-5.html}]
+Multi-resource cumulatives constraint on specified tasks.
 
+\item[\biptxtrefni{cumulatives_min(+Starts,+Durs,+Heights,+Assgn,+Mins)}{cumulatives_min/5!gfd}{../bips/lib/gfd/cumulatives_min-5.html}]
 Multi-resource cumulatives constraint on specified tasks with
 required minimum resource consumptions.
 
 \item[\biptxtrefni{disjoint2(+Rectangles)}{disjoint2/1!gfd}{../bips/lib/gfd/disjoint2-1.html}]
 Constrains the position (and possibly size) of the rectangles in
-Rectangles so that none overlaps. A version where placement of rectangles is 
-optional is also available:
+Rectangles so that none overlap. A version where placement of rectangles is 
+optional is
 \biptxtrefni{disjoint2_optional(+Rectangles)}{disjoint2_optional/1!gfd}{../bips/lib/gfd/disjoint2_optional-1.html}.
 
 \item[\biptxtrefni{disjunctive(+StartTimes, +Durations)}{disjunctive/2!gfd}{../bips/lib/gfd/disjunctive-2.html}]
-Constrain the tasks with specified start times and durations to not overlap in time. A version with optional tasks is also available:
+Constrains the tasks with specified start times and durations to not overlap in time. A version with optional tasks is also available:
 \biptxtrefni{disjunctive_optional(+StartTimes, +Durations, +Scheduled)}{disjunctive_optional/3!gfd}{../bips/lib/gfd/disjunctive_optional-3.html}.
 
 \end{description}
@@ -630,31 +625,39 @@ In these constraints, the arguments represent a graph, and the
 \begin{description}
 \item[\biptxtrefni{circuit(+Succ)}{circuit/1!gfd}{../bips/lib/gfd/circuit-1.html}]
 Constrains elements in Succ to form a Hamiltonian circuit.
-Versions with cost are also available:
-\biptxtrefni{circuit(+Succ,++CostMatrix,?Cost)}{circuit/3!gfd}{../bips/lib/gfd/circuit-3.html},
-\biptxtrefni{circuit(+Succ,++CostMatrix,+ArcCosts,?Cost)}{circuit/4!gfd}{../bips/lib/gfd/circuit-4.html}.
+A version allowing constant offsets is
+\biptxtrefni{circuit_offset(+Succ,+Offset)}{circuit_offset/2!gfd}{../bips/lib/gfd/circuit_offset-2.html}.
 
-\item[\biptxtrefni{circuit_offset(+Succ,+Offset)}{circuit_offset/2!gfd}{../bips/lib/gfd/circuit_offset-2.html}]
-Constrains elements (offset by Offset) in Succ to form a Hamiltonian
-circuit. Versions with cost are also available:
-\biptxtrefni{circuit_offset(+Succ,+Offset,++CostMatrix,?Cost)}{circuit_offset/4!gfd}{../bips/lib/gfd/circuit_offset-4.html},
+\item[\biptxtrefni{circuit(+Succ,++CostMatrix,?Cost)}{circuit/3!gfd}{../bips/lib/gfd/circuit-3.html}]
+Constrains elements in Succ to form a Hamiltonian circuit, with Cost
+being the cost of the circuit, based on the edge cost matrix CostMatrix.
+A version allowing constant offsets is
+\biptxtrefni{circuit_offset(+Succ,+Offset,++CostMatrix,?Cost)}{circuit_offset/4!gfd}{../bips/lib/gfd/circuit_offset-4.html}.
+
+\item[\biptxtrefni{circuit(+Succ,++CostMatrix,+ArcCosts,?Cost)}{circuit/4!gfd}{../bips/lib/gfd/circuit-4.html}]
+Constrains elements in Succ to form a Hamiltonian circuit. ArcCosts
+are the costs of the individual hops, and Cost their sum,
+based on the edge cost matrix CostMatrix.
+A version with constant offsets is available as
 \biptxtrefni{circuit_offset(+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)}{circuit_offset/5!gfd}{../bips/lib/gfd/circuit_offset-5.html},
-\biptxtrefni{circuit_offset_g(+Succ,+Offset)}{circuit_offset_g/2!gfd}{../bips/lib/gfd/circuit_offset_g-2.html}.
 
 \item[\biptxtrefni{ham_path(?Start,?End,+Succ)}{ham_path/3!gfd}{../bips/lib/gfd/ham_path-3.html}]
-Constrains elements in Succ to form a Hamiltonian path from Start to
-End. Verions with cost are also available:
-\biptxtrefni{ham_path(?Start,?End,+Succ,++CostMatrix,?Cost)}{ham_path/5!gfd}{../bips/lib/gfd/ham_path-5.html},
-\biptxtrefni{ham_path(?Start,?End,+Succ,++CostMatrix,+ArcCosts,?Cost)}{ham_path/6!gfd}{../bips/lib/gfd/ham_path-6.html}.
+Constrains elements in Succ to form a Hamiltonian path from Start to End.
+A version with constant offsets is available as
+\biptxtrefni{ham_path_offset(?Start,?End,+Succ,+Offset)}{ham_path_offset/4!gfd}{../bips/lib/gfd/ham_path_offset-4.html}.
 
-\item[\biptxtrefni{ham_path_offset(?Start,?End,+Succ,+Offset)}{ham_path_offset/4!gfd}{../bips/lib/gfd/ham_path_offset-4.html}]
-Constrains elements (offset by Offset) in Succ to form a Hamiltonian
-path from Start to End. Versions with cost is also available:
-\biptxtrefni{ham_path_offset(?Start,?End,+Succ,+Offset,++CostMatrix,?Cost)}{ham_path_offset/6!gfd}{../bips/lib/gfd/ham_path_offset-6.html},
-\biptxtrefni{ham_path_offset(?Start,?End,+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)}{ham_path_offset/7!gfd}{../bips/lib/gfd/ham_path_offset-7.html}.
+\item[\biptxtrefni{ham_path(?Start,?End,+Succ,++CostMatrix,?Cost)}{ham_path/5!gfd}{../bips/lib/gfd/ham_path-5.html}]
+Constrains elements in Succ to form a Hamiltonian path from Start to End,
+with Cost being the cost of the path, based on the edge cost matrix CostMatrix.
+A version with constant offsets is available as
+\biptxtrefni{ham_path_offset(?Start, ?End, +Succ, +Offset, ++CostMatrix, ?Cost)}{ham_path_offset/6!gfd}{../bips/lib/gfd/ham_path_offset-6.html}.
 
-\item[\biptxtrefni{ham_path_offset(?Start,?End,+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)}{ham_path_offset_g/7!gfd}{../bips/lib/gfd/ham_path_offset_g-7.html}]
-Native Gecode indexing version of {\tt ham_path_offset/7}.
+\item[\biptxtrefni{ham_path(?Start,?End,+Succ,++CostMatrix,+ArcCosts,?Cost)}{ham_path/6!gfd}{../bips/lib/gfd/ham_path-6.html}]
+Constrains elements in Succ to form a Hamiltonian path from Start to End.
+ArcCosts are the costs of the individual hops, and Cost their sum,
+based on the edge cost matrix CostMatrix.
+A version with constant offsets is available as
+\biptxtrefni{ham_path_offset(?Start, ?End, +Succ, +Offset, ++CostMatrix, +ArcCosts, ?Cost)}{ham_path_offset/7!gfd}{../bips/lib/gfd/ham_path_offset-7.html}.
 
 \item[\biptxtrefni{inverse(+Succ,+Pred)}{inverse/2!gfd}{../bips/lib/gfd/inverse-2.html}]
 Constrains elements of Succ to be the successors and
@@ -666,19 +669,19 @@ is also available:
  
 \subsubsection{Extensional constraints}
 These are ``user defined constraints'' (also known as ad-hoc
- constraints), i.e. the allowable sequence of values for a
+ constraints), i.e. the allowable tuples of values for a
 collection of domain variables is defined as part of the constraint. These
 predicate differs in the way the allowable values are specified.
 
 \begin{description}
 \item[\biptxtrefni{regular(+Vars, ++RegExp)}{regular/2!gfd}{../bips/lib/gfd/regular-2.html}]
-Constrain Vars' solutions to conform to that defined in the regular expression RegExp.
+Constrains Vars' solutions to conform to that defined in the regular expression RegExp.
 
 \item[\biptxtrefni{table(+Vars, ++Table)}{table/2!gfd}{../bips/lib/gfd/table-2.html}]
 Constrain Vars' solutions to be those defined by the tuples in Table.
-
-\item[\biptxtrefni{table(+Vars, ++Table,+Option)}{table/3!gfd}{../bips/lib/gfd/table-3.html}]
-Constrain Vars' solutions to be those defined by the tuples in Table.
+The variant
+\biptxtrefni{table(+Vars, ++Table, +Option)}{table/3!gfd}{../bips/lib/gfd/table-3.html}
+allows the specification of the algorithm used.
 
 \item[\biptxtrefni{extensional(+Vars, ++Transitions, +Start, +Finals)}{extensional/4!gfd}{../bips/lib/gfd/extensional-4.html}]
 Constrain Vars' solutions to conform to the finite-state 
@@ -693,10 +696,11 @@ Constraints that don't fit into the other categories.
 \begin{description}
 
 \item[\biptxtrefni{bool_channeling(?Var, +DomainBools, +Min)}{bool_channeling/3!gfd}{../bips/lib/gfd/bool_channeling-3.html}]
-Channel the domain values of Vars to the 0/1 boolean variables in DomainBools
+Channel the domain values of Vars to the 0/1 boolean variables in DomainBools.
 
 \item[\biptxtrefni{integers(+Vars)}{integers/1!gfd}{../bips/lib/gfd/integers-1.html}]
-Pseudo constraint (i.e. no constraint will be posted in Gecode): Vars' domain is the integer numbers (within default bounds).
+Pseudo constraint (i.e. no constraint will be posted in Gecode):
+Vars' domain is the integer numbers (within default bounds).
 
 \end{description}
 
@@ -707,9 +711,9 @@ GFD allows search to be performed in three ways:
 
 \begin{enumerate}
 \item in Gecode. 
-\item in \eclipse supported by GFD's variable selection 
+\item in {\eclipse} supported by GFD's variable selection 
 and value choice predicates. 
-\item in \eclipse using \eclipse's ``generic search'' 
+\item in {\eclipse} using \eclipse's ``generic search'' 
 facilities (search/6 and related predicates used by IC and FD). 
 \end{enumerate}
 
@@ -718,7 +722,7 @@ facilities (search/6 and related predicates used by IC and FD).
 Search can be performed in Gecode using one of its search engines. 
 In this 
 case, the search to produce a solution appears as an atomic step at
-the \eclipse level, and backtracking into the search will produce the next 
+the {\eclipse} level, and backtracking into the search will produce the next 
 solution (or fail if there are none), again as an atomic step.
 
 GFD uses \biptxtrefni{search/6}{search/6!gfd}{../bips/lib/gfd/search-6.html}
@@ -727,11 +731,11 @@ designed to provide a similar syntax to the search/6 of the generic search
 interface (in {\tt lib(ic)} and {\tt lib(fd_search)}). 
 
 As the search is performed in Gecode, it should be more efficient than doing
-the search in \eclipse, where the system have to repeatedly switch between
-Gecode and \eclipse when doing the search. As the search is a single atomic
-step from the \eclipse level, it is not suitable if your code needs to
+the search in \eclipse, where the system has to repeatedly switch between
+Gecode and {\eclipse} when doing the search. As the search is a single atomic
+step from the {\eclipse} level, it is not suitable if your code needs to
 interact with the search, e.g. if you are using constraints defined at the
-\eclipse level, and/or if you are using other solvers during the search.
+{\eclipse} level, and/or if you are using other solvers during the search.
 
 Another difference between GFD's search/6 and the generic search is that 
 GFD's is  less flexible -- you can only use the predefined variable 
@@ -742,48 +746,46 @@ The search engine to use is specified by the Method argument in search/6.
 One method provided by Gecode is bb_min -- finding a minimal solution using
 branch-and-bound, which is not provided by the generic search. 
 
-Instead, branch-and-bound in \eclipse is provided by {\tt lib(branch_and_bound)}, which can
+Instead, branch-and-bound in {\eclipse} is provided by {\tt lib(branch_and_bound)}, which can
 be used with generic search's {\tt search/6} to provide a similar functionality as
-the {\tt bb_min} method of GFD's {\tt search/6}. The \eclipse branch-and-bound is more 
+the {\tt bb_min} method of GFD's {\tt search/6}. The {\eclipse} branch-and-bound is more 
 flexible, but is likely to be slower. Note that {\tt lib(branch_and_bound)} can
 be used in combination with GFD's search/6, but this is probably not useful
-unless you are doing some additional search in your own code to that done by 
+unless you are doing some search in your own code in addition to that done by 
 search/6, or if you want to see the non-optimal solutions generated by the
 search.
 
-There is some differences in how search is performed by Gecode and generic
+There are some differences in how search is performed by Gecode and generic
 search;
-the most significant is that variable selection and value choice is performed
-together for the labelling of every value, instead of what is normally
-done in \eclipse,
-where the variable choice is performed first, and then value choice to chose
-a value is performed for the {\it same} variable. 
+the most significant is that all the built-in choice-operators of the generic
+search library make repeated choices on one variable until it becomes ground,
+before proceeding and selecting the next variable.  Gecode's built-in
+strategies on the other hand always interleave value choices with variable
+selection.
 
 Here is the N-Queens example using gfd's \texttt{search/6}:
 \begin{quote}
 \begin{verbatim}
-
 :- lib(gfd).
 
 queens_list(N, Board) :-
-        length(Board, N),
-        Board :: 1..N,
-        (fromto(Board, [Q1|Cols], Cols, []) do
-            ( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
-                Q2 #\= Q1,
-                Q2 - Q1 #\= Dist,
-                Q1 - Q2 #\= Dist
-            )
-        ),
-        search(Board, 0, input_order, indomain_min, complete, []).
-
+    length(Board, N),
+    Board :: 1..N,
+    (fromto(Board, [Q1|Cols], Cols, []) do
+	( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
+	    Q2 #\= Q1,
+	    Q2 - Q1 #\= Dist,
+	    Q1 - Q2 #\= Dist
+	)
+    ),
+    search(Board, 0, input_order, indomain_min, complete, []).
 \end{verbatim}
 \end{quote}
 
 \subsubsection{Search using GFD primitives}
 \label{searchgfd}
 GFD provides various predicates to perform variable choice
-and value selection at the \eclipse level, so that the user can write their
+and value selection at the {\eclipse} level, so that the user can write their
 own search routine in \eclipse. 
 
 In addition, various properties associated
@@ -791,20 +793,20 @@ with a variable and its domain, which can be used in choosing the variable
 and the value, can be obtained using predicates described
 in section~\ref{gfdvarquery}. Note that these include properties that are not
 available in
- \eclipse's solvers, such as weighted degree (aka accumulated failure count).
+ \eclipse's solvers, such as weighted degree (a.k.a. accumulated failure count).
 
 Using these facilities, the search will be performed
-at the \eclipse level, thus allowing more flexibility than using Gecode's 
-search engines. On the other hand, it is likely to be less efficient, both
-because the search is performed in \eclipse, and also because there is
-repeated transition between \eclipse and GFD at every step of the search.
+at the {\eclipse} level, thus allowing more flexibility than using Gecode's 
+search engines. On the other hand, it is likely to be less efficient,
+because the search is performed in \eclipse and because there is
+repeated transition between {\eclipse} and Gecode at every step of the search.
 
 However, these primitives are coded specifically for Gecode, and many are
 likely to be code more efficiently than the equivalent available via 
 generic search. 
 
 \begin{description}
-\item[\biptxtrefni{select_var(-X, +Collection, ++Arg, ++Select, ?Handle)}{select_var/5!gfd}{../bips/lib/gfd/select-5.html}]
+\item[\biptxtrefni{select_var(-X, +Collection, ++Arg, ++Select, ?Handle)}{select_var/5!gfd}{../bips/lib/gfd/select_var-5.html}]
 Choose a domain variable from Collection according to pre-defined selection criteria.
 
 \item[\biptxtrefni{delete(-X, +List, -R, ++Arg, ++Select)}{delete/5!gfd}{../bips/lib/gfd/delete-5.html}]
@@ -829,7 +831,7 @@ Note that the GFD specific {\tt select_var/5} as well as IC compatible
 {\tt delete/5} is provided for variable selection. {\tt delete/5} is provided 
 mainly for compatibility, as {\tt select_var/5} should be more efficient in
 most cases, as the variable selection is done in a single low-level call,
-rather than at the \eclipse level.
+rather than at the {\eclipse} level.
 
 Also note that {\tt delete/5} 
 is also available from generic search, except that
@@ -881,7 +883,7 @@ my_labeling1(Vs, VsH) :-
          ( V = Min,
            my_labeling1(Vs, VsH)
          ;
-           exclude(V, Min), wake,
+           V #\= Min,
            my_labeling1(Vs, VsH)
          )
     ;
@@ -893,24 +895,24 @@ my_labeling1(Vs, VsH) :-
 Here, variable selection and value choice is done for each labelling,
 and the choice is a binary one -- setting a variable to the value choice
 on one branch (\texttt{V=Min}), and excluded on the other branch 
-(\texttt{exclude(V,Min)}.
+(\texttt{V\#\bsl=Min}.
 
 \subsubsection{Generic search}
-Generic search provide predicates that supports searching in \eclipse's 
+Generic search provides predicates that support searching with \eclipse's 
 finite domain solvers. In GFD, these predicates are available through the
-{\tt gfd_search} library. To use these predicates, gfd_search library must
+{\tt gfd_search} library. To use these predicates, the gfd_search library must
 be loaded, and the calls to these predicates have to be module-qualified
-with {\tt gfd_search:} as predicates with the same name and arity are defined
+with {\tt gfd_search:} because predicates with the same name and arity are defined
 in GFD itself.
 
 The main predicates is
 \biptxtrefni{search/6}{search/6!gfd_search}{../bips/lib/gfd_search/search-6.html}, which performs the search. It is 
 ``generic'' in the sense that the implementation is shared
-by all \eclipse's finite domain solvers (IC, FD and GFD), so they should be
+by all \eclipse's finite domain solvers (IC, FD and GFD), so it should be
 highly compatible with the versions of these predicates in these solvers.
 
-GFD also have ``native'' (i.e. GFD-specific) versions of these predicates
-in {\tt lib(gfd)}. These native versions interfaces more directly to Gecode,
+GFD also has ``native'' (i.e. GFD-specific) versions of these predicates
+in {\tt lib(gfd)}. These native versions interface more directly to Gecode,
 and should be more efficient than the ``generic'' versions, but are less 
 compatible with the generic versions in other solvers -- there are differences
 in the available variable selection and value choice options, and for 
@@ -931,24 +933,24 @@ versions of the search-related primitives such as {\tt indomain/2} and {\tt var_
 \section{User defined constraints and solver co-operation}
 Like IC and FD solvers, GFD has facilities to allow the extension of the 
 solver library so that GFD can co-operate with other solvers in solving a
-problem, and also for the user to define their own constraints at the \eclipse
+problem, and also to allow the user to define their own constraints at the {\eclipse}
 level. This is achieved by providing a suspension list with the gfd attribute,
 which allows for the data-driven programming needed by solver co-operation and
 constraint propagation, and a set of low-level predicates to process,
  query and  modify the domain of problem variables.
 
 These facilities allow solver co-operation and user-defined 
-constraints propagation at the \eclipse level, and not within Gecode directly,
-so the search must be done at the \eclipse level, i.e. not through Gecode's
-search engines. In addition, the performance of such constraints will very
+constraints propagation at the {\eclipse} level, and not within Gecode directly.
+So, search then must be done at the {\eclipse} level, i.e. not through Gecode's
+search engines. The performance of constraints defined in this way will very
 likely be less efficient than implementing the constraints directly in Gecode.
 
 \subsection{The {\it gfd\/} attribute}
 
 The GFD attribute is a meta-term which is attached to all GFD problem variables.
-Many of the fields of the attribute is used for implementing the interface to
-Gecode, and is of no interest to the user. The only field of interest is the
-any field, which is for the {\it any\/} suspension list, which is woken on 
+Many of the fields of the attribute are used for implementing the interface to
+Gecode, and are of no interest to the user. The only field of interest is the
+{\tt any} field, which is for the {\it any\/} suspension list, which is woken on 
 any change in the domain of the variable:
 
 \begin{verbatim}
@@ -962,8 +964,8 @@ gfd{
 The {\it any\/} suspension list has the same waking behaviour as the 
 {\it any\/} suspension
 list of FD, and is sufficient for implementing constraints -- the other 
-suspension lists found in IC and FD are optimisations on the {\it any\/} 
-suspension list, i.e. to provide for more precise waking conditions. 
+suspension lists found in IC and FD are specialisations of the {\it any\/} 
+suspension list, in that they provide more precise waking conditions. 
 The reason that
 only one suspension list is provided by GFD is to minimise the overhead in
 normal use of the solver. 
@@ -974,23 +976,23 @@ In addition to waking the attribute's {\it any\/} suspension list, the
 suspension list will also be woken when a GFD variable's domain is changed,
 and the {\it inst\/} suspension list will be woken if the variable is bound.
 
-The suspension list allow constraint propagation to be implemented at the
-\eclipse level, which is distinct from the propagation of ``native'' Gecode
+The suspension lists allow constraint propagation to be implemented at the
+{\eclipse} level, which is distinct from the propagation of ``native'' Gecode
 constraints, where each propagation phase (and in the case of using the 
-search engine, the whole search) is an atomic step at the \eclipse level. 
-This has a similar effect to if all the ``native'' propagations are scheduled 
+search engine, the whole search) is an atomic step at the {\eclipse} level. 
+This has a similar effect to running all ``native'' propagations
 at a higher (more urgent) priority.
  
 As only the {\it any\/} suspension list is provided, some rewriting of existing
-user-defined constraints for IC and FD will be needed when such code is ported
+user-defined constraints for IC and FD may be needed when such code is ported
 for GFD.
 
 \subsection{Modifying variable domains}
 
-Like IC, GFD provide a set of predicates to modify the domain of GFD 
+Like IC, GFD provides a set of predicates to modify the domain of GFD 
 variables to support the writing of new constraints. Unlike normal constraints,
 no Gecode level propagation or waking of other suspended goals (such as 
-scheduled by other \eclipse level constraints) occurs with these predicates.
+scheduled by other {\eclipse} level constraints) occurs with these predicates.
 
 With the exception of
 \bipref{impose_bounds/3}{../bips/lib/gfd/impose_bounds-3.html} none of
@@ -1003,8 +1005,8 @@ predicates have the same name and similar semantics to their IC counter-parts
 However, due to the difference in the way domains are represented in IC and
 Gecode, these predicates may be inefficient for use with Gecode, particularly
 if you need to modify multiple variables and/or multiple domain values. 
-The predicates with names that begins with {\tt gfd_vars}, which are specific
-to GFD, are designed to be more efficient than their IC compatible 
+The predicates with names that begin with {\tt gfd_vars} are specific
+to GFD and are designed to be more efficient than their IC compatible 
 counter-parts.
 
 The ``native'' primitives are:
@@ -1069,7 +1071,7 @@ examples:
 
 \begin{description}
 \item[\biptxtrefni{get_bounds(?Var, -Lo, -Hi)}{get_bounds/3!gfd}{../bips/lib/gfd/get_bounds-3.html}]
-Retrieve the current bounds of Var.
+Retrieves the current bounds of Var.
 
 \item[\biptxtrefni{get_constraints_number(?Var, -Number)}{get_constraints_number/2!gfd}{../bips/lib/gfd/get_constraints_number-2.html}]
 Returns the number of propagators attached to the Gecode variable representing Var.
@@ -1084,14 +1086,14 @@ Returns a ground representation of the current GFD domain of a variable.
 Returns the number of elements in the GFD domain of Var.
 
 \item[\biptxtrefni{get_max(?Var,-Hi)}{get_max/2!gfd}{../bips/lib/gfd/get_max-2.html}]
-Retrieve the current upper bound of Var. Similarly, \biptxtrefni{get_min/2)}{get_min/2!gfd}{../bips/lib/gfd/get_min-2.html} returns the lower bound.
+Retrieves the current upper bound of Var. Similarly, \biptxtrefni{get_min/2)}{get_min/2!gfd}{../bips/lib/gfd/get_min-2.html} returns the lower bound.
 
 
 \item[\biptxtrefni{get_median(?Var,-Median)}{get_median/2!gfd}{../bips/lib/gfd/get_median-2.html}]
-Returns the median domain value of the GFD domain variable Var
-.
+Returns the median domain value of the GFD domain variable Var.
+
 \item[\biptxtrefni{get_regret_lwb(?Var, -Regret)}{get_regret_lwb/2!gfd}{../bips/lib/gfd/get_regret_lwb-2.html}]
-Returns the regret value for the lower bound of Var. Simularly, \biptxtrefni{get_regret_upb/2}{get_regret_upb/2!gfd}{../bips/lib/gfd/get_regret_upb-2.html}
+Returns the regret value for the lower bound of Var. Similarly, \biptxtrefni{get_regret_upb/2}{get_regret_upb/2!gfd}{../bips/lib/gfd/get_regret_upb-2.html}
 for the upper bound.
 
 \item[\biptxtrefni{get_weighted_degree(?Var,-WD)}{get_weighted_degree/2!gfd}{../bips/lib/gfd/get_weighted_degree-2.html}]
@@ -1100,14 +1102,15 @@ variable Var.
 
 \item[\biptxtrefni{is_in_domain(+Val,?Var,[-Result])}{is_in_domain/2!gfd}{../bips/lib/gfd/is_in_domain-2.html}]
 Succeeds iff Val is in the domain of Var. The \biptxtrefni{version}{is_in_domain/3!gfd}{../bips/lib/gfd/is_in_domain-3.html} with the \verb'+Result' argument
-binds Result instead,
+binds Result instead.
 
 
 \item[\biptxtrefni{is_solver_var(?Term)}{is_solver_var/1!gfd}{../bips/lib/gfd/is_solver_var-1.html}]
 Succeeds iff Term is an GFD domain variable.
+\end{description}
 
 \section{Low-level control of Gecode computation}
-This section give some information on the low-level workings of GFD and how
+This section gives some information on the low-level workings of GFD and how
 to adjust it. This information is not needed for most users, and can be 
 skipped and consulted only when GFD is not behaving well with the user's
 program.
@@ -1133,11 +1136,11 @@ such cloned state rather than from the start.
 With GFD, when the search is done in Gecode (via GFD's 
 \biptxtrefni{search/6}{seach/6!gfd}{../bips/lib/gfd/search-6.html}), the
 recomputation and cloning is handled by Gecode. When the search is done
-at the \eclipse level, GFD handles the recomputation and cloning automatically,
+at the {\eclipse} level, GFD handles the recomputation and cloning automatically,
 so that the user does not need to be aware of it.
 
 GFD will create clones of the Gecode state periodically, and when the
-current Gecode computation state becomes invalid through \eclipse backtracking,
+current Gecode computation state becomes invalid through {\eclipse} backtracking,
 GFD will recomputing the new state from the closest cloned state. 
 The frequency at which GFD create clones can be adjusted by the user --
 the more frequently clones are created, the more memory will be used, but
@@ -1159,12 +1162,12 @@ The \texttt{cloning_distance} specifies a threshold for the number of
 changes GFD makes to the Gecode state before a clone is created.
 Note that GFD does not create a clone simply when cloning_distance is
 exceeded, as it only creates a new clone when the cloned state would
-be the state just before a choice-point, so clones will normslly only
-be crested during search phase of the user program.
+be the state just before a choice-point, so clones will normally only
+be created during search phase of the user program.
 
-While it is not necessary for the user to specify the crestion of a clone,
-under very unusual circumstance -- when the \texttt{cloning_distance} is
-set very high, GFD may not produce a clone at the right place, so 
+While it is not necessary for the user to specify the creation of a clone,
+under very unusual circumstances -- when the \texttt{cloning_distance} is
+set very high -- GFD may not produce a clone at the right place. So
 \bip{gfd_update/0} is provided to force the creation of a clone.
 The expected usage is to call this predicate just before search starts.
 For example, \texttt{labeling/3} can be written as:
@@ -1185,12 +1188,12 @@ labeling1(Vs, Select, Choice, VsH) :-
 
 \end{verbatim}
 \end{quote}
-Calling the \texttt{gfd_update} before calling \texttt{labeling1} ensure that
+Calling \texttt{gfd_update} before calling \texttt{labeling1} ensures that
 GFD will only recompute inside the search.
 
 \section{Main differences between GFD and IC}
 
-Although GFD was designed to be highly code compatible with IC in terms of
+Although GFD was designed to be code compatible with IC in terms of
 syntax, there are still some unavoidable differences, because of differences 
 between Gecode and IC. In addition, Gecode is 
 implemented using very different implementation techniques from IC, and 
@@ -1201,40 +1204,40 @@ The main visible differences between GFD and IC are:
 \begin{itemize}
        \item Real interval arithmetic and variables are not supported in GFD.
 
-       \item Domain variables have finite integer bounds, and the maximum 
+       \item Domain variables always have finite integer bounds, and the maximum 
        bounds are
        determined by Gecode. Like FD, default finite bounds are given to 
-       domain variables that are not explicitly given bounds, and the default
-       settings for these bounds are much smaller than what Gecode allows.
+       domain variables that do not have explicit bounds, and the default
+       settings for these bounds are below the maxima that Gecode allows.
 
-       \item Constraint propagation is performed in Gecode, and each propagation
-       phase is atomic at the \eclipse level. Posting of constraints and 
-       propagation of their consequences are separate in Gecode. GFD use a
+       \item Constraint propagation is performed within Gecode, and each propagation
+       phase is atomic at the {\eclipse} level. Posting of constraints and 
+       propagation of their consequences are separate in Gecode. GFD uses a
        demon suspended goal to perform the propagation: after the posting
-       of any constraint (and other changes to the problem that needs 
-       propagation), the suspended goal is scheduled and woken. When the
-       woken goal is executed, propagation is perform. 
+       of any constraint (and other changes to the problem that need
+       propagation), this suspended goal is scheduled and woken. When the
+       woken goal is executed, propagation is performed. 
 
        \item All constraints can be called from the gfd module, and in
        addition, some constraints can be called from modules that specify
-       the consistency level: gfd_gac (generalised arc consistency, aka
-       domain consistency), gfd_bc (bounds consistency), gfd_vc (value
-       consistency (naive)). The calls to gfd module uses the 
+       the consistency level: gfd_gac (generalised arc consistency, also
+       known as domain consistency), gfd_bc (bounds consistency), gfd_vc (value
+       consistency (naive)). The gfd module versions use the 
        default consistency 
-       defined for the constraint by Gecode. These consistency levels maps 
+       defined for the constraint by Gecode. These consistency levels map
        directly to those defined in Gecode for the constraints.
 
        \item gfd:search/6 interfaces to Gecode's search-engines, where the
        entire search is performed in Gecode, and the whole search appears
-       atomic at the \eclipse level. 
+       atomic at the {\eclipse} level. 
 
        \item The suspension lists supported by GFD are different from IC.
-       Currently, only the 'any' suspension list (for any changes to the
+       Currently, only the 'any' suspension list (for {\em any} changes to the
        variable's domain) found in FD but not IC, is supported. Note that
        the GFD constraints are implemented in Gecode directly, and therefore
        do not use GFD's suspension lists. 
 
-      \item Constraint expressions are designed to be highly compatible with 
+      \item Constraint expressions are designed to be compatible with 
       IC's, and the arithmetic operators and logical connectives supported 
       by Gecode are supported, and these largely overlaps those of IC's.
       In addition, ``functional'' (where the last argument is a domain 
@@ -1249,6 +1252,7 @@ The main visible differences between GFD and IC are:
         Gecode, so most of the IC operators for real arithmetic are not 
         supported.
 
+	%%% Is this correct?
         \item Only linear arithmetic (sub-)expressions are allowed between 
         logical connectives.
 
@@ -1256,20 +1260,17 @@ The main visible differences between GFD and IC are:
        constraints that are supported natively by Gecode, where the additional
        sub-expressions are replaced by a domain variable in the original 
        expression. These domain variables are given the default bounds. 
-      IC does something similar, but what constitute additional sub-expressions
-      will differ between GFD and IC, and the substitute variables 
+      IC does something similar, but what constitutes additional sub-expressions
+      will differ between GFD and IC, and the variables substituted
       for the sub-expressions would be given infinite bounds in IC.
  
       \end{itemize}
 
-\item GFD variables cannot be copied for non-logical storage, and an error is 
+\item GFD variables cannot be copied to non-logical storage, and an error is 
 raised if a GFD variable occurs in a term that is being copied for such purpose
 (assert, non-logical variables, shelves, etc.). Note that this means that 
-GFD is incompatible with Propia, as this library make use of non-logical 
+GFD is incompatible with Propia, as this library makes use of non-logical 
 storage.
 \end{itemize}
-
-
-\end{description}
 
 %HEVEA\cutend
