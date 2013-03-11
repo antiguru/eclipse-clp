@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.18 2013/02/26 22:54:22 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.19 2013/03/11 01:32:03 jschimpf Exp $
  */
 
 /*
@@ -2077,7 +2077,7 @@ _string_seek(stream_id nst, long int pos, int whence)
 }
 
 static int
-_buffer_seek(stream_id nst, long int pos, int whence)
+_file_seek(stream_id nst, long int pos, int whence)
 {
     int		res;
     struct_stat	buf;
@@ -2116,7 +2116,7 @@ _buffer_seek(stream_id nst, long int pos, int whence)
     }
     else
     {
-	if(IsTty(nst) || IsPipeStream(nst) || IsSocket(nst) || !IsOpened(nst))
+	if (!IsOpened(nst))
 	{
 	    Bip_Error(STREAM_MODE);
 	}
@@ -2134,6 +2134,35 @@ _buffer_seek(stream_id nst, long int pos, int whence)
 	    Bip_Error(SYS_ERROR);
 	}
     }
+    StreamMode(nst) &= ~MEOF;
+    Succeed_;
+}
+
+
+/* 
+ * Allow seeking back to the beginning of current buffer.  We use this
+ * to get left error context for error messages on non-seekable devices.
+ */
+
+static int
+_buffer_seek(stream_id nst, long int pos, int whence)
+{
+    int		res;
+    struct_stat	buf;
+    long	max = -1;
+    long	buf_offset;
+
+    if (IsSocket(nst))
+	nst = SocketInputStream(nst);
+
+    buf_offset = StreamOffset(nst);
+    if (whence == LSEEK_END ||
+	pos < buf_offset ||
+	pos > buf_offset + (StreamPtr(nst)-StreamBuf(nst)))
+    {
+	Bip_Error(RANGE_ERROR)
+    }
+    StreamPtr(nst) = StreamBuf(nst) + pos - buf_offset;
     StreamMode(nst) &= ~MEOF;
     Succeed_;
 }
@@ -3049,7 +3078,7 @@ io_channel_t	ec_file = {
     _buffer_at_eof,	/*at_eof*/
     _buffer_nonempty,	/*buffer_nonempty*/
     _file_truncate,	/*truncate*/
-    _buffer_seek,	/*seek*/
+    _file_seek,		/*seek*/
     _buffer_flush,	/*flush*/
     _dummy_size,	/*size*/
     _dummy_content,	/*content*/
