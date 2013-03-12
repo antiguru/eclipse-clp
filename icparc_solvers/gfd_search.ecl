@@ -43,21 +43,30 @@
 %
 
 :- comment(categories, ["Constraints"]).
-:- comment(summary, "This library provides the IC/FD cp,[atible search-related components for the GFD-library").
+:- comment(summary, "This library provides the IC/FD compatible search-related components for the GFD-library").
 
-:-comment(desc,html("\
-  This library provides the IC/FD search-related components for GFD,
-  essentially those adapted from fd_search.  Provided is a generic
-  search routine (for integer domain) which implements a number of partial
-  search methods (complete, credit, lds, bbs, dbs) and some of their
-  combinations. 
+:-comment(desc,html("<P>
+  This library provides the generic search facilities search/6, delete/5
+  and indomain/2 for the GFD solver, compatible with the corresponding
+  versions in library(fd_search) and library(ic).
+</P><P>
+  This GFD version allows the following additional variable selection
+  criteria (in addition to the generic ones) in delete/5 and search/6:
+<UL>
+  <LI>max_regret_lwb</LI>
+  <LI>max_regret_upb</LI>
+  <LI>max_weighted_degree</LI>
+  <LI>most_constrained_per_value</LI>
+  <LI>max_weighted_degree_per_value</LI>
+</UL>
+</P>
 ")).
 
 
 %---------------------------------------------------------------------
 % generalised search/6 and friends originally from fd_search
 %
-:- use_module(gfd_for_search).
+:- lib(gfd).
 :- lib(gfd_generic_interface).
 
 :- include(generic_search).

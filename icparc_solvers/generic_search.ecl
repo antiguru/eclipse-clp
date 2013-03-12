@@ -27,13 +27,16 @@
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 %               Joachim Schimpf, IC-Parc
 %               Kish Shen, IC-Parc
-% Version:	$Id: generic_search.ecl,v 1.5 2013/01/28 21:32:18 jschimpf Exp $
+% Version:	$Id: generic_search.ecl,v 1.6 2013/03/12 23:15:11 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
 % TO-DO: generise to floats for IC, other solvers (e.g. fd_sets)
 
-:-export search/6.
+:-export
+	search/6,
+	delete/5,
+	indomain/2.
 
 
 % Declare the daVinci predicates that are called from fd_search.
@@ -814,7 +817,6 @@ search_delete(H, List, T, Arg, SelectMethod, Module) :- atom(SelectMethod),
 	delete(H,List,T,Arg,SelectMethod,Module).
 
 
-:-export(delete/5).
 :-tool(delete/5, delete/6).
 
 % delete(-X,+List:non_empty_list,-R:list,++Arg:integer,++Select:atom,
@@ -956,8 +958,6 @@ copy_until_elem([X|Xs], K, Ys, Ys0) :-
 some indomain variants
 
 ****************************************************/
-
-:-export(indomain/2).
 
 % indomain(?X:dvarint,++Type:atomic)
 % Type is either one of min, max, middle or an integer

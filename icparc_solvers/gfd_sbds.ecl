@@ -27,8 +27,7 @@
 
 :- module(gfd_sbds).
 
-:- use_module(gfd_for_search).
-
+:- lib(gfd).
 :- lib(gfd_generic_interface).
 
 :- include(generic_sbds).

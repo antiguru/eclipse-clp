@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.33 2013/02/09 20:27:58 jschimpf Exp $
+# $Id: Makefile.in,v 1.34 2013/03/12 23:15:11 jschimpf Exp $
 #
 
 # The location of third party software releases
@@ -442,7 +442,7 @@ $(PRETTY_DIR)/%.html:	ech/%.pl $(PRETTY_DIR)/.stamp
 
 $(PREFIX)/lib/fd_search.eco: generic_search.ecl 
 $(PREFIX)/lib/ic_search.eco: generic_search.ecl
-$(PREFIX)/lib/gfd_search.eco: generic_search.ecl gfd_for_search.ecl 
+$(PREFIX)/lib/gfd_search.eco: generic_search.ecl
 
 $(PREFIX)/lib/fd_search.eci: generic_search_comments.ecl 
 $(PREFIX)/lib/ic.eci: generic_search_comments.ecl
