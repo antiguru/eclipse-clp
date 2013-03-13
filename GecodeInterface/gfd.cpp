@@ -140,10 +140,10 @@ static dident d_max_wdeg, d_min_wdeg,
     d_default, d_gac, d_bc, d_vc,
     d_eq, d_neq, d_gt, d_lt, d_geq, d_leq,
     d_iv2, d_sum2, d_element2, d_plus2, d_minus2, 
-    d_mult2, d_div2, d_mod2, d_min2, d_max2, 
-    d_minus1, d_abs1, d_sqr1, d_sqrt1, d_sum1, d_max1, d_min1,
+    d_mult2, d_div2, d_rem2, d_min2, d_max2, 
+    d_minus1, d_abs1, d_sqr1, d_isqrt1, d_sum1, d_max1, d_min1,
     d_eq2, d_gt2, d_geq2, d_lt2, d_leq2, d_neq2,
-    d_and2, d_or2, d_xor2, d_imp2, d_revimp2, d_equ2, d_neg1;
+    d_and2, d_or2, d_xor2, d_imp2, d_equ2, d_neg1;
 
 using namespace Gecode;
 
@@ -427,15 +427,15 @@ int p_g_init()
     d_element2 = ec_did("element", 2);
     d_max2 = ec_did("max", 2);
     d_min2 = ec_did("min", 2);
-    d_mod2 = ec_did("mod", 2);
+    d_rem2 = ec_did("rem", 2);
     d_plus2 = ec_did("+", 2);
     d_minus2 = ec_did("-", 2);
     d_mult2 = ec_did("*", 2);
-    d_div2 = ec_did("/", 2);
+    d_div2 = ec_did("//", 2);
     d_minus1 = ec_did("-", 1);
     d_abs1 = ec_did("abs", 1);
     d_sqr1 = ec_did("sqr", 1);
-    d_sqrt1 = ec_did("sqrt", 1);
+    d_isqrt1 = ec_did("isqrt", 1);
     d_sum1 = ec_did("sum", 1);
     d_max1 = ec_did("max", 1);
     d_min1 = ec_did("min", 1);
@@ -443,7 +443,6 @@ int p_g_init()
     d_or2 = ec_did("or", 2);
     d_xor2 = ec_did("xor", 2);
     d_imp2 = ec_did("=>", 2);
-    d_revimp2 = ec_did("<=", 2);
     d_equ2 = ec_did("<=>", 2);
     d_neg1 = ec_did("neg", 1);
 
@@ -1151,7 +1150,7 @@ ec2intexpr(EC_word e, GecodeSpace* solver)
 		    if (f.d == d_minus1) return -arg2;
 		    else if (f.d == d_abs1) return abs(arg2);
 		    else if (f.d == d_sqr1) return sqr(arg2);
-		    else if (f.d == d_sqrt1) return sqrt(arg2);
+		    else if (f.d == d_isqrt1) return sqrt(arg2);
 		}
 		break;
 	    }
@@ -1178,7 +1177,7 @@ ec2intexpr(EC_word e, GecodeSpace* solver)
 			else if (f.d == d_mult2)  return (arg1 * arg2); 
 			else if (f.d == d_min2)   return  min(arg1, arg2); 
 			else if (f.d == d_max2)   return max(arg1, arg2); 
-			else if (f.d == d_mod2)   return (arg1 % arg2); 
+			else if (f.d == d_rem2)   return (arg1 % arg2); 
 			else if (f.d == d_div2)   return (arg1 / arg2); 
 
 		    } else {
@@ -1253,10 +1252,6 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
 		    );
 	} else if (f.d == d_imp2) {
 	    return (ec2boolexpr(EC_argument(c,1), solver) >> 
-		    ec2boolexpr(EC_argument(c,2), solver)
-		    );
-	} else if (f.d == d_revimp2) {
-	    return (ec2boolexpr(EC_argument(c,1), solver) <<
 		    ec2boolexpr(EC_argument(c,2), solver)
 		    );
 	} else if (f.d == d_equ2) {

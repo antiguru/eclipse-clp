@@ -44,7 +44,6 @@
 :- export op(770, yfx, [or,xor]).
 :- export op(790, yfx, [<=>]).
 :- export op(780, yfx, [=>]).
-:- export op(780, yfx, [<=]).
 
 :- export (#::)/2, (::)/2.
 :- export (#::)/3, (::)/3.
@@ -52,7 +51,7 @@
 :- export (#\=)/3, (#=)/3, (#<)/3, (#>)/3, (#>=)/3, (#=<)/3.
 
 :- export sumlist/2, sum/2, sum/3, sum/4, min/2, max/2, 
-          scalar_product/4, scalar_product/5.
+          scalar_product/4, scalar_product/5, divmod/4.
 :- export all_le/2, all_lt/2, all_ge/2, all_gt/2, all_eq/2, all_ne/2.
 :- export bool_channeling/3, inverse/2, inverse/4, inverse_g/2, inverse_g/4.
 :- export ordered/2, lex_le/2, lex_lt/2, lex_ge/2, lex_gt/2, 
@@ -81,8 +80,8 @@
 :- export search/6.
 :- export gfd_update/0.
 
-:- export (and)/2, (or)/2, (xor)/2, (<=>)/2, (=>)/2, (<=)/2, neg/1.
-:- export (and)/3, (or)/3, (xor)/3, (<=>)/3, (=>)/3, (<=)/2, neg/2.
+:- export (and)/2, (or)/2, (xor)/2, (<=>)/2, (=>)/2, neg/1.
+:- export (and)/3, (or)/3, (xor)/3, (<=>)/3, (=>)/3, neg/2.
 
 :- export get_min/2, get_max/2, get_median/2.
 :- export get_bounds/3, get_integer_bounds/3, get_finite_integer_bounds/3.
@@ -486,9 +485,6 @@ connective(X <=> Y, ConOp, Args) ?- !,
 connective(X => Y, ConOp, Args) ?- !,
         ConOp = (=>),
         Args = [X,Y].
-connective(X <= Y, ConOp, Args) ?- !,
-        ConOp = (<=),
-        Args = [X,Y].
 connective(neg(X), ConOp, Args) ?- 
         ConOp = neg,
         Args = [X].
@@ -518,11 +514,10 @@ inline_op(X+Y, Out) ?- !, Out = X+Y.
 inline_op(X-Y, Out) ?- !, Out = X-Y.
 inline_op(X*Y, Out) ?- !, Out = X * Y.
 inline_op(-X, Out) ?- !, Out = -X.
-inline_op(sqrt(X), Out) ?- !, Out = sqrt(X).
+inline_op(isqrt(X), Out) ?- !, Out = isqrt(X).
 inline_op(X^2, Out) ?- !, Out = sqr(X).
 inline_op(sqr(X), Out) ?- !, Out = sqr(X).
 inline_op(abs(X), Out) ?- !, Out = abs(X).
-inline_op(X/Y, Out) ?- !, Out = X/Y.
 inline_op(X//Y, Out) ?- !, Out = X/Y.
 inline_op(X rem Y, Out) ?- !, Out = X rem Y.
 inline_op(max(X,Y), Out) ?- !, Out = max(X,Y).
@@ -897,7 +892,6 @@ post_connectives(Conn, _ConLev, _Module) :-
 :- tool(neg/1, neg_body/2).
 :- tool('<=>'/2, '<=>_body'/3).
 :- tool('=>'/2, '=>_body'/3).
-:- tool('<='/2, '<=_body'/3).
 
 :- tool((and)/3, and_reif_body/4).
 :- tool((or)/3, or_reif_body/4).
@@ -905,7 +899,6 @@ post_connectives(Conn, _ConLev, _Module) :-
 :- tool(neg/2, neg_reif_body/3).
 :- tool('<=>'/3, '<=>_reif_body'/4).
 :- tool('=>'/3, '=>_reif_body'/4).
-:- tool('<='/3, '<=_reif_body'/4).
 
 :- tool(and_c/3, and_c/4).
 :- tool(or_c/3, or_c/4).
@@ -913,7 +906,6 @@ post_connectives(Conn, _ConLev, _Module) :-
 :- tool(neg_c/2, neg_c/3).
 :- tool('<=>_c'/3, '<=>_c'/4).
 :- tool('=>_c'/3, '=>_c'/4).
-:- tool('<=_c'/3, '<=_c'/4).
 
 :- tool(and_reif_c/4, and_reif_c/5).
 :- tool(or_reif_c/4, or_reif_c/5).
@@ -921,7 +913,6 @@ post_connectives(Conn, _ConLev, _Module) :-
 :- tool(neg_reif_c/3, neg_reif_c/4).
 :- tool('<=>_reif_c'/4, '<=>_reif_c'/5).
 :- tool('=>_reif_c'/4, '=>_reif_c'/5).
-:- tool('<=_reif_c'/4, '<=_reif_c'/5).
 
 :- tool(among/4, among_body/5).
 :- tool(among_c/5, among_c/6).
@@ -957,11 +948,6 @@ xor_c(EX, EY, ConLev, Module) :-
 '=>_c'(EX, EY, ConLev, Module) :-
         post_connectives((EX => EY), ConLev, Module).
 
-'<=_body'(EX, EY, Module) :-
-        '<=_c'(EX, EY, default, Module).
-
-'<=_c'(EX, EY, ConLev, Module) :-
-        post_connectives((EX <= EY), ConLev, Module).
 
 neg_body(EX, Module) :-
         neg_c(EX, default, Module).
@@ -999,12 +985,6 @@ xor_reif_c(EX, EY, Bool, ConLev, Module) :-
 
 '=>_reif_c'(EX, EY, Bool, ConLev, Module) :-
         post_connectives((Bool <=> (EX => EY)), ConLev, Module).
-
-'<=_reif_body'(EX, EY, Bool, Module) :-
-        '<=_reif_c'(EX, EY, Bool, default, Module).
-
-'<=_reif_c'(EX, EY, Bool, ConLev, Module) :-
-        post_connectives((Bool <=> (EX <= EY)), ConLev, Module).
 
 neg_reif_body(EX, Bool, Module) :-
         neg_reif_c(EX, Bool, default, Module).
@@ -1688,6 +1668,19 @@ ec_to_gecode_arith_expr1(max(L0), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GSum, ConLev
         ec_to_gecode_arith_exprlist1(L, H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GL, ConLev, Module),
         GArr =.. [[]|GL],
         GSum = max(GArr).
+ec_to_gecode_arith_expr1(E0/E1, H, 0, N0,N, Bs0,Bs, Auxs,AuxsT, GV, ConLev, Module) ?- !,
+        % IC compatible /
+        new_gfdvar(_V, H, N0,N1, GV),
+        ec_to_gecode_arith_expr1(E0, H, 0, N1,N2, Bs0,Bs1, Auxs1,Auxs2,
+                                 GE0, ConLev, Module),
+        ec_to_gecode_arith_expr1(E1, H, 0, N2,N, Bs1,Bs, Auxs2,AuxsT,
+                                 GE1, ConLev, Module),
+        Auxs = [post_rc(ConLev, (GE0 #= GE1*GV))|Auxs1]. 
+ec_to_gecode_arith_expr1(sqrt(E0), H, 0, N0,N, Bs0,Bs, Auxs,AuxsT, GV, ConLev, Module) ?- !,
+        % IC compatible sqrt
+        new_gfdvar(_V, H, N0,N1, GV),
+        ec_to_gecode_arith_expr1(E0, H, 0, N1,N, Bs0,Bs, Auxs1,AuxsT, GE0, ConLev, Module),
+        Auxs = [post_rel(gfd_bc, GV, (#>=), 0), post_rc(ConLev, (GE0 #= GV*GV))|Auxs1]. 
 ec_to_gecode_arith_expr1(element_g(Idx,Vs), H, Lin, N0,N, Bs0,Bs, Auxs,AuxsT, GElm, ConLev, Module) ?- !,
         ec_to_gecode_arith_expr1(Idx, H, Lin, N0,N1, Bs0,Bs, Auxs,AuxsT, GIdx, ConLev, Module),
 	check_collection_to_list(flatten(Vs), List),
@@ -3352,15 +3345,15 @@ ac_eq(X, Y, C) :-
 
 
 
-sqrt_c(X, Y, ConLev) :-
+isqrt_c(X, Y, ConLev) :-
         get_prob_handle_nvars(H, NV0),
         ec_to_gecode_varlist1([X,Y], H, NV0,NV, [GX,GY], _),
         !,
         update_gecode_with_default_newvars(H, NV0, NV),
         post_new_event(post_sqrt(ConLev, GY,GX), H).
-sqrt_c(X, Y, _ConLev) :-
+isqrt_c(X, Y, _ConLev) :-
         get_bip_error(E),
-        error(E, sqrt(X, Y)).
+        error(E, isqrt(X, Y)).
 
 sqr(X, Y) :-
         sqr_c(X, Y, default).
@@ -4525,9 +4518,9 @@ most_constrained_per_value(X, Number) :-
 	( nonvar(X) ->
 	    true	% pick constants first and commit
 	;
-            get_weighted_degree(X, AFC),
+            get_constraints_number(X, NC),
             get_domain_size(X, Size),
-            Number is fix(round(Size/AFC))
+            Number is fix(round(Size/NC))
         ).
 
 max_weighted_degree_per_value(X, Number) :-
@@ -5416,7 +5409,6 @@ gfd_minint(X) :-
       neg/1 -> neg_c/2,
       '<=>'/2 -> '<=>_c'/3,
       '=>'/2 -> '=>_c'/3,
-      '<='/2 -> '<=_c'/3,
 /* currently gecode does not support gac for reified expressions    
       (#\=)/3 -> '#\\=_reif_c'/4,
       (#=)/3 -> '#=_reif_c'/4,
@@ -5514,7 +5506,6 @@ gfd_minint(X) :-
       neg/1 -> neg_c/2,
       '<=>'/2 -> '<=>_c'/3,
       '=>'/2 -> '=>_c'/3,
-      '<='/2 -> '<=_c'/3,
       (#\=)/3 -> '#\\=_reif_c'/4,
       (#=)/3 -> '#=_reif_c'/4,
       (#<)/3 -> '#<_reif_c'/4,
@@ -5527,7 +5518,6 @@ gfd_minint(X) :-
       neg/2 -> neg_c/3,
       '<=>'/3 -> '<=>_reif_c'/4,
       '=>'/3 -> '=>_reif_c'/4,
-      '<='/3 -> '<=_reif_c'/4,
       divmod/4 -> divmod_c/5,
       all_le/2 -> all_le_c/3,
       all_lt/2 -> all_lt_c/3,

@@ -108,10 +108,10 @@
 	    Integer division. Truncate towards zero.
 
    <DT><STRONG>E1/E2</STRONG><DD>
-	    Integer division (alias for compatibility).
+	    Division (fail if E1/E2 is not an integer) (ic compatible)
 
-   <DT><STRONG>E1 mod E2</STRONG><DD>
-	    Integer modulus.
+   <DT><STRONG>E1 rem E2</STRONG><DD>
+	    Integer remainder (modulus).
 
    <DT><STRONG>Expr^2</STRONG><DD>
 	    Square. Equivalent to sqr(Expr).
@@ -125,8 +125,12 @@
    <DT><STRONG>sqr(Expr)</STRONG><DD>
 	    Square.  Logically equivalent to Expr*Expr.
 
-   <DT><STRONG>sqrt(Expr)</STRONG><DD>
+   <DT><STRONG>isqrt(Expr)</STRONG><DD>
 	    Square root (always positive). Truncated to nearest smaller integer.
+
+   <DT><STRONG>sqrt(Expr)</STRONG><DD>
+	    Integer square root (always positive) - fail if the square
+            root is not an integer (ic compatible). 
 
    <DT><STRONG>sum(ExprCol)</STRONG><DD>
 	    Sum of a collection of expressions.
@@ -2143,7 +2147,7 @@ Bool = 0
     ],
     summary: "Constraints ConX and ConY must both be true.",
     see_also: [(and)/3, (neg)/1, (neg)/2, (or)/2, (xor)/2, (=>)/2,
-               (<=)/2, (<=>)/2,_:(and)/2],
+               (<=>)/2,_:(and)/2],
     kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX + BY #= 2</P>
@@ -2175,7 +2179,7 @@ Bool = 0
     ],
     summary: "Bool is the reified truth of both constraints ConX and ConY being true.",
     see_also: [(and)/2, (neg)/2, (or)/3, (xor)/3, (=>)/3,
-               (<=>)/3, (<=)/3,_:(and)/3],
+               (<=>)/3, _:(and)/3],
     kind: [constraint:[extra:[gccat:(and)]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX + BY #= 2)</P>
@@ -2212,7 +2216,7 @@ Bool = 0
     ],
     summary: "At least one of the constraints ConX or ConY must be true.",
     see_also: [(or)/3, (neg)/1, (xor)/2, (and)/2, (=>)/2,
-               (<=>)/2, (<=)/2,_:(or)/2],
+               (<=>)/2, _:(or)/2],
     kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX + BY #&gt;= 1</P>
@@ -2244,7 +2248,7 @@ Bool = 0
     ],
     summary: "Bool is the reified truth of at least one of the constraints ConX or ConY being true.",
     see_also: [(or)/2, (neg)/2, (xor)/3, (and)/3, (=>)/3,
-               (<=)/3, (<=>)/3, _:(or)/3],
+               (<=>)/3, _:(or)/3],
     kind: [constraint:[extra:[gccat:(or)]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX + BY #&gt;= 1)</P>
@@ -2280,7 +2284,7 @@ Bool = 0
     ],
     summary: "One of the constraints ConX or ConY must be true.",
     see_also: [(xor)/3, (neg)/1, (or)/2, (and)/2, (=>)/2,
-               (<=>)/2, (<=)/2,_:(#\=)/2],
+               (<=>)/2, _:(#\=)/2],
     kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX + BY #= 1</P>
@@ -2312,7 +2316,7 @@ Bool = 0
     ],
     summary: "Bool is the reified truth of one of the constraints ConX or ConY being true.",
     see_also: [(or)/2, (neg)/2, (and)/3, (xor)/3, (=>)/3,
-               (<=)/3, (<=>)/3, (=<)/3, _: (#\=)/3],
+               (<=>)/3, (=<)/3, _: (#\=)/3],
     kind: [constraint:[extra:[gccat:(xor)]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX + BY #= 1)</P>
@@ -2349,7 +2353,7 @@ Bool = 0
     ],
     summary: "Constraint ConX  implies ConY.",
     see_also: [(=>)/3, (neg)/1, (and)/2, (or)/2, (xor)/2, (<=>)/2,
-               (<=)/2, _:(=>)/2],
+               _:(=>)/2],
     kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX #=&lt; BY</P>
@@ -2380,7 +2384,7 @@ Bool = 0
         "Bool": "Reified truth value of the constraint"
     ],
     summary: "Bool is the reified truth of constraint ConX implying the truth of ConY.",
-    see_also: [(=>)/2, (neg)/2, (or)/3, (xor)/3, (and)/3, (<=>)/3, (<=)/3,
+    see_also: [(=>)/2, (neg)/2, (or)/3, (xor)/3, (and)/3, (<=>)/3, 
                _:(=>)/3],
     kind: [constraint:[extra:[gccat:imply]]],
     desc: html("<P>
@@ -2408,64 +2412,7 @@ Bool = 0
 ]).
 
 %---------------------------------------------------------------------
-:- comment((<=)/2, [
-    amode: <=(+, +),
-    template: "<ConsistencyModule:> +ConX <= +ConY",
-    args: [
-	"ConX": "Constraint",
-	"ConY": "Constraint"
-    ],
-    summary: "Constraint ConX  implies ConY.",
-    see_also: [(<=)/3, (=>)/2, (neg)/1, (or)/2, (xor)/2, (<=>)/2,
-               (and)/2],
-    kind: [constraint],
-    desc: html("<P>
-   The two constraints are reified in such a way that ConY being true
-   implies that ConX must also be true.  ConX and ConY must be constraints
-   that have a corresponding reified form.<P></P>
 
-   ConsistencyModule is the optional module specification to give the 
-   consistency level for the propagation for this constraint: 
-   gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
-   consistency. 
-</P><P>
-   This constraint is implemented using Gecode's MiniModel's rel() for
-   both integer and boolean expressions, with sub-expressions/constraints
-   not supported by MiniModel factored out and posted as auxiliary 
-   constraints.
-")
-]).
-
-:- comment((<=)/3, [
-    amode: <=(+, +, ?),
-    template: "<ConsistencyModule:> <=(+ConX,+ConY,Bool)",
-    args: [
-	"ConX": "Constraint",
-	"ConY": "Constraint",
-        "Bool": "Reified truth value of the constraint"
-    ],
-    summary: "Bool is the reified truth of constraint ConX is implied by the truth of ConY.",
-    see_also: [(<=)/2, (neg)/2, (=>)/3, (or)/3, (xor)/3, (and)/3,
-               (<=>)/3], 
-    kind: [constraint],
-    desc: html("<P>
-   The two constraints are reified in such a way that Bool is true if ConY
-   being true implies that ConX must also be true.  ConX and ConY must be
-   constraints that have a corresponding reified form.<P></P>
-
-   ConsistencyModule is the optional module specification to give the 
-   consistency level for the propagation for this constraint: 
-   gfd_bc for bounds consistency, and gfd_gac for domain (generalised arc) 
-   consistency. 
-</P><P>
-   This constraint is implemented using Gecode's MiniModel's rel() for
-   both integer and boolean expressions, with sub-expressions/constraints
-   not supported by MiniModel factored out and posted as auxiliary 
-   constraints.
-")
-]).
-
-%---------------------------------------------------------------------
 :- comment((<=>)/2, [
     amode: <=>(+, +),
     template: "<ConsistencyModule:> +ConX <=> +ConY",
@@ -2475,7 +2422,7 @@ Bool = 0
     ],
     summary: "Constraint ConX has the equivalent truth value as ConY.",
     see_also: [(<=>)/3, (neg)/1, (or)/2, (xor)/2, (and)/2,
-               (=>)/2, (<=)/2, _:(#=)/2],
+               (=>)/2, _:(#=)/2],
     kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX #= BY</P>
@@ -2511,7 +2458,7 @@ Bool = 0
     ],
     summary: "Bool is the reified truth of constraint ConX is equivalent to the truth of ConY.",
     see_also: [(<=>)/2, (neg)/3, (=>)/3, (or)/3, (xor)/3, (and)/3,
-               (<=)/3, _:(#\=)/3],
+               _:(#\=)/3],
     kind: [constraint:[extra:[gccat:equivalent]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX #= BY)</P>
@@ -2551,7 +2498,7 @@ Bool = 0
     ],
     summary: "Constraints Con is negated.",
     see_also: [(neg)/2, (or)/2, (xor)/2, (=>)/2,
-               (<=)/2, (<=>)/2, (and)/2, _:(neg)/1],
+               (<=>)/2, (and)/2, _:(neg)/1],
     kind: [constraint],
     desc: html("<P>
    Equivalent to 0 #= (Con)</P>
@@ -2581,7 +2528,7 @@ Bool = 0
     ],
     summary: "Bool is the logical negation of the reified truth constraints Con.",
     see_also: [(and)/3, (neg)/1, (xor)/3, (or)/3, (=>)/3,
-               (<=)/3, (<=>)/3, _:(neg)/2],
+               (<=>)/3, _:(neg)/2],
     kind: [constraint],
     desc: html("<P>
    Equivalent to B #= (Con), Bool #= 1-B</P>
