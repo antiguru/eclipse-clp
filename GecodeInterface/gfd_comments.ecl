@@ -25,11 +25,11 @@
 
        <LI>Constraint propagation is performed in gecode, and each propagation
        phase is atomic at the ECLiPSe level. Posting of constraints and 
-       propagation of their consequences are separate in gecode. GFD use a
+       propagation of their consequences are separate in gecode. GFD uses a
        demon suspended goal to perform the propagation: after the posting
        of any constraint (and other changes to the problem that needs 
        propagation), the suspended goal is scheduled and woken. When the
-       woken goal is executed, propagation is perform. The goal is suspended
+       woken goal is executed, propagation is performed. The goal is suspended
        at priority 9, so if the posting of the constraint is executed at
        normal priority (12), the propagation will happen immediately. However,
        if the posting is done at a priority 10 or higher, then the propagation
@@ -1278,7 +1278,7 @@ B = B{[0, 2, 4, 6]}
 		    indomain(Var,min)
 		).
 </PRE></P>
-   Note that labeling perform the search in ECLiPSe, but it uses
+   Note that labeling performs the search in ECLiPSe, but it uses
    indomain/2 with min, which is optimised for use with Gecode, and a 
    gfd_update before the labeling starts to ensure that no recomputation
    will not be done for events before the labeling starts.
@@ -1298,7 +1298,7 @@ B = B{[0, 2, 4, 6]}
     resat: "Yes.",
     summary: "Instantiates all variables in a collection to elements"
              " of their domains according to Select and Choice.",
-    see_also: [indomain/2, delete/5,labeling/1, collection_to_list/2],
+    see_also: [indomain/2, select_var/5,labeling/1, collection_to_list/2],
     kind: [search],
     desc: html("<P>
    Simple predicate for instantiating a collection of GFD domain variables
@@ -1307,12 +1307,12 @@ B = B{[0, 2, 4, 6]}
    instantiated is according to Select, and the value a variable is 
    instantiated to is according to Choice.
 </P><P>
-   This predicate is a combination of delete/5 and indomain/2, along with
+   This predicate is a combination of select_var/5 and indomain/2, along with
    a gfd_update before the start of labeling to ensure that only
    changes during the labeling will be recomputed. 
 </P><P>
    This predicate is provided to allow a more flexible GFD-specific 
-   labeling procedure where the search is performed in ECLiPS -- 
+   labeling procedure where the search is performed in ECLiPSe -- 
    GFD's search/6 performs the search in Gecode, and search/6 in
    lib(gfd_search) uses the generic search code and does not use
    GFD-specific features (and will thus be less efficient). 
@@ -1806,7 +1806,7 @@ A = A{[9, 10]}
     amode:sum(+,?),
     args:[
 	"Collection or Coeffs*Collection":
-        "Collection: collection of N integers or domain variables. Coeffs: collection of N integers."
+        "Collection: collection of N integers or domain variables. Coeffs: collection of N integers.",
 	"Sum":"Variable or integer"
     ],
     see_also: [sumlist/2, _:sum/2],
@@ -1846,7 +1846,7 @@ A = A{[9, 10]}
     amode:sumlist(+,?),
     args:[
 	"Collection or Coeffs*Collection":
-        "Collection: collection of N integers or domain variables. Coeffs: collection of N integers."
+        "Collection: collection of N integers or domain variables. Coeffs: collection of N integers.",
 	"Sum":"Variable or integer"
     ],
     see_also: [_:sumlist/2],
@@ -4713,10 +4713,10 @@ S4 = S4{[4 .. 9]}
 
 :- comment(cumulatives/5, [
   amode: cumulatives(+,+,+,+,++),
-  template:"<ConsistencyModule:> cumulatives(+StartTimes, +Durations, +Hights, +Assigned, +MachineCapacities)",
+  template:"<ConsistencyModule:> cumulatives(+StartTimes, +Durations, +Heights, +Assigned, +MachineCapacities)",
   args:  ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
           "Durations":   "Collection of N duration for tasks (domain variables or integers)",
-          "Hights":   "Collection of N resource usages (positive) or productions"
+          "Heights":   "Collection of N resource usages (positive) or productions"
 " (negative) by tasks (domain variables or integers) with the assigned machine",
           "Assigned": "Collection of N ID of machine assigned to tasks"
 " (domain variables or integers)",
@@ -4777,10 +4777,10 @@ S4 = S4{[4 .. 9]}
 
 :- comment(cumulatives_g/5, [
   amode: cumulatives_g(+,+,+,+,++),
-  template:"<ConsistencyModule:> cumulatives_g(+StartTimes, +Durations, +Hights, +Assigned, +MachineCapacities)",
+  template:"<ConsistencyModule:> cumulatives_g(+StartTimes, +Durations, +Heights, +Assigned, +MachineCapacities)",
   args:  ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
           "Durations":   "Collection of N duration for tasks (domain variables or integers)",
-          "Hights":   "Collection of N resource usages (positive) or productions"
+          "Heights":   "Collection of N resource usages (positive) or productions"
 " (negative) by tasks (domain variables or integers) with the assigned machine",
           "Assigned": "Collection of N ID of machine assigned to tasks"
 " (domain variables or integers)",
@@ -4804,10 +4804,10 @@ S4 = S4{[4 .. 9]}
 
 :- comment(cumulatives_min/5, [
   amode: cumulatives_min(+,+,+,+,++),
-  template:"<ConsistencyModule:> cumulatives_min(+StartTimes, +Durations, +Hights, +Assigned, +MachineConsumptions)",
+  template:"<ConsistencyModule:> cumulatives_min(+StartTimes, +Durations, +Heights, +Assigned, +MachineConsumptions)",
   args:  ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
           "Durations":   "Collection of N duration for tasks (domain variables or integers)",
-          "Hights":   "Collection of N resource usages (positive) or productions"
+          "Heights":   "Collection of N resource usages (positive) or productions"
 " (negative) by tasks (domain variables or integers) with the assigned machine",
           "Assigned": "Collection of N ID of machine assigned to tasks"
 " (domains variables or integers)",
@@ -4872,10 +4872,10 @@ S4 = S4{[4 .. 9]}
 
 :- comment(cumulatives_min_g/5, [
   amode: cumulatives_min_g(+,+,+,+,++),
-  template:"<ConsistencyModule:> cumulatives_min_g(+StartTimes, +Durations, +Hights, +Assigned, +MachineConsumptions)",
+  template:"<ConsistencyModule:> cumulatives_min_g(+StartTimes, +Durations, +Heights, +Assigned, +MachineConsumptions)",
   args:  ["StartTimes":  "Collection of N start times for tasks (domain variables or integers)",
           "Durations":   "Collection of N duration for tasks (domain variables or integers)",
-          "Hights":   "Collection of N resource usages (positive) or productions"
+          "Heights":   "Collection of N resource usages (positive) or productions"
 " (negative) by tasks (domain variables or integers) with the assigned machine",
           "Assigned": "Collection of N ID of machine assigned to tasks"
 " (domains variables or integers)",
@@ -6172,60 +6172,7 @@ top:-
         search(L,0,input_order,indomain_max,bb_min(Cost),[]).
 ",
 
-see_also:[indomain/1,indomain/2,labeling/1,delete/5,_:search/6] 
-
-]).
-
-
-:-comment(delete/5,[
-summary:"Choose a domain variable from a list according to selection criteria.",
-amode:delete(-,+,-,++,++),
-
-args:[
-      "X" : " a free variable",
-      "List" : " a list of variables or terms ",
-      "R" : " a free variable ",
-      "Arg" : " an integer",
-      "Select" : "is a predefined selection method or the name of a"
-	         " predicate of arity 2."
-],
-kind: [search],
-desc:html("
-This predicate chooses one entry in a list of variables or terms based
-on some selection criteria. The selected entry is returned in X, with
-the rest of the list without X returned in R. Note that this predicate
-is provided mainly for compatibility with IC, as variable selection
-can be done more efficiently using the GFD-specific select_var/5.<p></p>
-
-Select can be one of the predefined selection method or the name of a user
-defined selection method. Predefined methods are:
- input_order, first_fail, anti_first_fail, smallest, largest,
- occurrence, max_regret, max_regret_upb,max_weighted_degree,
- most_constrained, most_constrained_per_value,
- max_weighted_degree_per_value. These are a subset of the variable selection
-methods available for search/6, where they are described in more detail.
-Any other name is taken as the name of a user-defined predicate of arity 2
-which is expected to compute a selection criterion (typically a number), e.g.
-my_select for
-<pre>
-my_select(X,Criterion) :-
-	...	% compute Criterion from variable X
-</pre>
-The variable-selection will then select the variable with the lowest
-value of Criterion.  If several variables have the same value, the first
-one is selected.
-<p>
-Unlike the variable selection in search/6, this predicate does the selection
-in ECLiPSe, and the coding is based on delete/5 from generic search
- (gfd_search), except for how the property for selection is obtained. This
-allowed selection methods not supported by generic search, such as 
-weighted degree, to be used. 
-</p>
-"),
-fail_if:"fails if the list is empty",
-resat:no,
-
-see_also:[indomain/2,search/6, gfd_search:search/6,_:delete/5]
+see_also:[indomain/1,indomain/2,labeling/1,gfd_search:delete/5,gfd_search:search/6] 
 
 ]).
 
@@ -7014,7 +6961,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
             "DefaultValue": "Default value for Parameter."
            ],
      summary: "Set the default value for GFD Parameter.",
-     see_also: [gfd_set_default/2],
+     see_also: [gfd_get_default/2,gfd_minint/1,gfd_maxint/1],
      desc: html("<P>\
    Set the default value for parameters:
  <UL>
@@ -7023,9 +6970,10 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
           variable is created implicitly in a constraint, it is given a
           default interval, and this interval should be as small as possible.
           as the efficiency of various propagator depends on the domain
-          size. (integer).</li>
+          size. (integer no smaller than gfd_minint).</li>
     <li><b>interval_max</b>
-          Maximum for the default interval for domain variables. (integer).</li>
+          Maximum for the default interval for domain variables.
+	  (integer no larger than gfd_maxint).</li>
     <li><b>array_size</b>
           Initial size for the variable array for storing domain variables
           When more variables than can be accommodated in the array is required,

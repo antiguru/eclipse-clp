@@ -12,9 +12,8 @@
 % the License for the specific language governing rights and limitations
 % under the License. 
 % 
-% The Original Code is  The Zinc Modelling interface for ECLiPSe
-% The Initial Developer of the Original Code is  Joachim Schimpf
-% with support from Cisco Systems and NICTA Victoria.
+% The Original Code is  The Gecode interface for ECLiPSe
+% The Initial Developer of the Original Code is  Kish Shen
 % Portions created by the Initial Developer are
 % Copyright (C) 2009 Cisco Systems, Inc.  All Rights Reserved.
 % 
@@ -77,7 +76,7 @@
 :- export sequence/5, sequence/4, bin_packing/3, bin_packing_g/3, bin_packing/4.
 :- export table/2, table/3, extensional/4, regular/2.
 
-:- export labeling/3, labeling/1, indomain/1, indomain/2, delete/5, select_var/5.
+:- export labeling/3, labeling/1, indomain/1, indomain/2, select_var/5.
 :- export is_in_domain/2, is_in_domain/3.
 :- export search/6.
 :- export gfd_update/0.
@@ -150,8 +149,6 @@
 
 :- tool('::'/2, '::_body'/3).
 :- tool('#::'/2, '::_body'/3).
-
-:- tool(delete/5, delete/6).
 
 :- local reference(prob_handle,0).
 :- local store(stats).
@@ -527,7 +524,7 @@ inline_op(sqr(X), Out) ?- !, Out = sqr(X).
 inline_op(abs(X), Out) ?- !, Out = abs(X).
 inline_op(X/Y, Out) ?- !, Out = X/Y.
 inline_op(X//Y, Out) ?- !, Out = X/Y.
-inline_op(X mod Y, Out) ?- !, Out = X mod Y.
+inline_op(X rem Y, Out) ?- !, Out = X rem Y.
 inline_op(max(X,Y), Out) ?- !, Out = max(X,Y).
 inline_op(min(X,Y), Out) ?- !, Out = min(X,Y).
 /* inline_op(element(Index, Collection, Out) -- not supported due to
@@ -714,11 +711,11 @@ gfd_get_var_bounds(_{gfd:Attr}, Lo, Hi) ?-
 
 get_prob_handle(H) :-
         getval(prob_handle, H0),
-        (H0 \= gfd_prob{} ->
+        ( H0 = gfd_prob{} ->
+            H0 = H
+        ;
             new_prob_handle(H),
             setval(prob_handle, H)
-        ;
-            H0 = H
         ).
 
 /* returns prob_handle with current nvars, a common pattern, so optimise
@@ -3434,7 +3431,7 @@ mod_c(X, Y, Z, ConLev) :-
         post_new_event(post_mod(ConLev, GZ, GX,GY), H).
 mod_c(X, Y, Z, _ConLev) :-
         get_bip_error(E),
-        error(E, mod(X, Y, Z)).
+        error(E, rem(X, Y, Z)).
 
 
 
@@ -4505,136 +4502,26 @@ select_var1(X, H, Select, IdxsH) :-
         H = gfd_prob{vars:PVs},
         arg(XIdx, PVs, X).
 
-% Based on delete/5 in generic_search.ecl
-% delete(-X,+List:non_empty_list,-R:list,++Arg:integer,++Select:atom,++Module:atom)
-% choose one entry in the list based on a heuristic
-% this is a deterministic selection
-% a special case for input order to speed up the selection in that case
-%
-:-mode delete(-,+,-,++,++,++).
-delete(H,List,T,_Arg,input_order, _Module):-
-	!, List = [H|T].
-delete(X,List,R,Arg,Select, Module):-
-	List = [H|T],
-	find_criteria(H,Arg,Select,Crit, Module),
-	( var(Crit) ->
-	    X=H, R=T	% we can't do any better!
-	;
-	    find_best_and_rest(T,List,Crit,X,R,Arg,Select, Module)
-	).
 
+% Selection criteria evaluators for gfd_search's delete/5 and search/6
 
-% find_best_and_rest(
-%	+List:list,		the unscanned tail
-%	+BestSoFar:list,	the tail starting with the current best
-%	?Crit: variable, number or crit(Crit,Crit),
-%	-Best, -Rest_best:list,	the result
-%	++Arg:integer,++Select:atom,++Module:atom)
-%
-:- mode find_best_and_rest(+,+,?,-,-,++,++,++).
-find_best_and_rest([], BestSoFar, _OldCrit, BestVar, Rest, _Arg, _Select, _Module) :- !,
-	BestSoFar = [BestVar|Rest].
-find_best_and_rest(List, BestSoFar, CritOld, BestVar, Rest, Arg, Select, Module) :-
-	List = [Var|Vars],
-	find_criteria(Var, Arg, Select, CritNew, Module),
-	( CritNew @>= CritOld ->	% no better than the old one, continue
-	    find_best_and_rest(Vars, BestSoFar, CritOld, BestVar, Rest, Arg, Select, Module)
-	; nonvar(CritNew) ->		% found a better one, continue
-	    % copy the chunk between old and new best
-	    copy_until_elem(BestSoFar, Var, Rest, Rest0),
-	    find_best_and_rest(Vars, List, CritNew, BestVar, Rest0, Arg, Select, Module)
-	;
-	    % we can't do any better, stop
-	    BestVar = Var,
-	    % copy the chunk between old and new best, and append the unscanned rest
-	    copy_until_elem(BestSoFar, Var, Rest, Vars)
-	).
+:- export
+	max_regret_lwb/2,
+	max_regret_upb/2,
+	max_weighted_degree/2,
+	most_constrained_per_value/2,
+	max_weighted_degree_per_value/2.
 
+max_regret_lwb(X, Number) :-
+	( nonvar(X) -> true ; Number is -get_regret_lwb(X) ).
 
-% find_criteria(?Term,++Arg:integer,++Select:atom,
-%		-Crit:integer or crit(integer,integer),
-%               ++Module:atom)
-%
-% find a heuristic value from a term
-:-mode find_criteria(?,++,++,-,++).
-find_criteria(Term,0,Select,Crit, Module):-
-	!,
-	find_value(Term,Select,Crit, Module).
-find_criteria(Term,Arg,Select,Crit, Module):-
-	arg(Arg,Term,X),
-	find_value(X,Select,Crit, Module).
+max_regret_upb(X, Number) :-
+	( nonvar(X) -> true ; Number is -get_regret_upb(X) ).
 
-% find_value(?X:dvarint,++Select:atom,
-%	     -Crit:integer or crit(integer,integer),
-%            ++Module:atom)
-%
-% Find a heuristic value from a domain variable: the smaller, the better.
-% Values will be compared using @<, so be aware of standard term ordering!
-% If the Criterion remains uninstantiated, this indicates an optimal value,
-% which will be picked without looking any further down the list.
-:-mode find_value(?,++,-,++).
-find_value(X,first_fail,Size, _Module):-
-	!,
-	( nonvar(X) ->
-	    true	% pick constants first and commit
-	;
-	    get_domain_size(X,Size0),
-	    ( integer(Size0) -> Size=Size0 ; Size=inf )	% 99 @< 'inf'
-	).
-find_value(X,anti_first_fail,Number, _Module):-
-	!,
-	get_domain_size(X,Size),				% can be 1.0Inf
-	Number is -Size.				% -1.0Inf @< -99
-find_value(X,smallest,Min, _Module):-
-	!,
-	get_min(X,Min).
-find_value(X,largest,Number, _Module):-
-	!,
-	get_max(X,Max),
-	Number is -Max.
-find_value(X,occurrence,Number, _Module):-
-	!,
-	( nonvar(X) ->
-	    true	% pick constants first and commit
-	;
-	    get_constraints_number(X,Nr), 
-	    Number is -Nr
-	).
-find_value(X,max_regret,Number, _Module):-
-	!,
-	( nonvar(X) ->
-	    true	% pick constants first and commit
-	;
-	    get_regret_lwb(X, Regret),
-	    Number is -Regret
-	).
-find_value(X,max_regret_upb,Number, _Module):-
-	!,
-	( nonvar(X) ->
-	    true	% pick constants first and commit
-	;
-	    get_regret_upb(X, Regret),
-	    Number is -Regret
-	).
-find_value(X,max_weighted_degree, Number, _Module):-
-        !,
-	( nonvar(X) ->
-	    true	% pick constants first and commit
-	;
-	    get_weighted_degree(X, AFC),
-	    Number is -AFC
-	).
-find_value(X,most_constrained,Crit, Module):-
-	!,
-	( nonvar(X) ->
-	    true	% pick constants first and commit
-	;
-	    Crit = crit(Size,Number),
-	    find_value(X,first_fail,Size, Module),
-	    find_value(X,occurrence,Number, Module)
-	).
-find_value(X,most_constrained_per_value,Number, _Module):-
-        !,
+max_weighted_degree(X, Number) :-
+	( nonvar(X) -> true ; Number is -get_weighted_degree(X) ).
+
+most_constrained_per_value(X, Number) :-
 	( nonvar(X) ->
 	    true	% pick constants first and commit
 	;
@@ -4642,8 +4529,8 @@ find_value(X,most_constrained_per_value,Number, _Module):-
             get_domain_size(X, Size),
             Number is fix(round(Size/AFC))
         ).
-find_value(X,max_weighted_degree_per_value,Number, _Module) :-
-        !,
+
+max_weighted_degree_per_value(X, Number) :-
 	( nonvar(X) ->
 	    true	% pick constants first and commit
 	;
@@ -4651,22 +4538,7 @@ find_value(X,max_weighted_degree_per_value,Number, _Module) :-
             get_domain_size(X, Size),
             Number is fix(round(Size/AFC))
         ).
-find_value(X,User_method,Value,Module):-
-	Call =..[User_method,X,Value],
-	once(Call)@Module.	% do not allow backtracking in user routine
 
-
-% Copy list until first occurrence of K and return as difference list
-:- mode copy_until_elem(+,?,?,?).
-copy_until_elem([X|Xs], K, Ys, Ys0) :-
-	( X==K ->
-	    Ys = Ys0
-	;
-	    Ys = [X|Ys1],
-	    copy_until_elem(Xs, K, Ys1, Ys0)
-	).
-
-                                  
                                   
 /* search/6 maps to Gecode's branching and search engines. 
    As cloning is done before and after the use of the search engine,
