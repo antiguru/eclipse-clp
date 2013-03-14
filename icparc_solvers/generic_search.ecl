@@ -27,7 +27,7 @@
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 %               Joachim Schimpf, IC-Parc
 %               Kish Shen, IC-Parc
-% Version:	$Id: generic_search.ecl,v 1.7 2013/03/14 01:02:18 jschimpf Exp $
+% Version:	$Id: generic_search.ecl,v 1.8 2013/03/14 14:12:05 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -420,8 +420,7 @@ lds1(Xs,Arg,Select,Choice,Disc,In,Out,Node_option, Node,Module):-
 		choose(X,Arg,Choice,In,In1,Module),
 		inc_backtrack_count,
 		tree_node(X,Node_option, Node,Node1,Module),
-		inc_discrepancy(Shelf),
-		(test_discrepancy(Shelf,Disc1) ->
+		(dec_discrepancy(Shelf,Disc1) ->
 		    true
 		;
 		    !,  % cut away remaining choices in choose
@@ -430,6 +429,7 @@ lds1(Xs,Arg,Select,Choice,Disc,In,Out,Node_option, Node,Module):-
 		lds1(R,Arg,Select,Choice,Disc1,In1,Out,Node_option, Node1,Module)
 	    )
 	;
+	    Disc = 0, % do not allow to use less than given discrepancies
 	    Out=In
 	).
 
@@ -437,17 +437,11 @@ lds1(Xs,Arg,Select,Choice,Disc,In,Out,Node_option, Node,Module):-
 set_discrepancy(Shelf,Disc):-
 	shelf_create(disc(Disc),Shelf).
 
-
-:-mode test_discrepancy(++,++).
-test_discrepancy(Shelf,Disc):-
+:-mode dec_discrepancy(++,++).
+dec_discrepancy(Shelf,Disc):-
 	shelf_get(Shelf,1,Disc),
-	Disc > 0.
+	shelf_dec(Shelf,1).	% fail if already 0
 
-:-mode inc_discrepancy(++).
-inc_discrepancy(_Shelf).
-inc_discrepancy(Shelf):-
-	shelf_dec(Shelf,1),
-	fail.
 
 % dbs(+List:list,++Arg:integer,++Select:atom,+Choice:atom,
 %	 ++Level:integer,
