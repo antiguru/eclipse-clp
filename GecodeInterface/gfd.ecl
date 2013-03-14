@@ -4691,7 +4691,7 @@ var_selection(min_weighted_degree_per_value).
 
 :- mode val_choice(+).
 val_choice(indomain).
-val_choice(indomain_from_max).
+val_choice(indomain_reverse_enum).
 val_choice(indomain_min).
 val_choice(indomain_max).
 val_choice(indomain_median).

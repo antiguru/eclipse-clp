@@ -4546,7 +4546,7 @@ int p_g_setup_search()
 	else if (strcmp(atm.name(), "indomain_split") == 0) valchoice = INT_VAL_SPLIT_MIN;
 	else if (strcmp(atm.name(), "indomain_reverse_split") == 0) valchoice = INT_VAL_SPLIT_MAX;
 	else if (strcmp(atm.name(), "indomain") == 0) valchoice = INT_VALUES_MIN;
-	else if (strcmp(atm.name(), "indomain_from_max") == 0) valchoice = INT_VALUES_MAX;
+	else if (strcmp(atm.name(), "indomain_reverse_enum") == 0) valchoice = INT_VALUES_MAX;
 	else if (strcmp(atm.name(), "indomain_interval") == 0) valchoice = INT_VAL_RANGE_MIN;
 	else if (strcmp(atm.name(), "indomain_interval_min") == 0) valchoice = INT_VAL_RANGE_MIN;
 	else if (strcmp(atm.name(), "indomain_interval_max") == 0) valchoice = INT_VAL_RANGE_MAX;

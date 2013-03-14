@@ -5832,7 +5832,7 @@ args:[
 
       "Choice" :  "is the name of a predefine value choice method for choosing
             the value to try for a variable; Predefined choice methods are:
-            indomain, indomain_from_max, indomain_min, indomain_max, 
+            indomain, indomain_reverse_enum, indomain_min, indomain_max, 
             indomain_middle, indomain_median, indomain_split, 
             indomain_reverse_split, indomain_random, indomain_interval,
             indomain_interval_min, indomain_interval_max",
@@ -5962,7 +5962,7 @@ The pre-defined <b>choice methods</b> (with gecode name in brackets) have the fo
 Values are tried in increasing order. 
 On failure, the previously tested value is not removed.</li>
 
-<li><b>indomain_from_max</b> (INT_VALUES_MAX)
+<li><b>indomain_reverse_enum</b> (INT_VALUES_MAX)
 Values are tried in decreasing order. 
 On failure, the previously tested value is not removed.</li>
 
@@ -6108,7 +6108,7 @@ see_also:[indomain/1,gfd_search:indomain/2,labeling/1,gfd_search:delete/5,gfd_se
 
 
 :-comment(select_var/5,[
-summary:"Pick a domain variable from a collection according to selection criteria.",
+summary:"Pick a domain variable from a collection according to selection criterion.",
 amode:(select_var(-,+,+,+,?) is semidet),
 
 args:[
@@ -6121,7 +6121,7 @@ args:[
 kind: [search],
 desc:html("<p>
 This predicate picks one domain variable in Vars based
-on some selection criteria. The selected entry is returned in X.
+on some selection criterion. The selected entry is returned in X.
 Vars is either a collection of domain variables (Arg is 0), or terms
 containing domain variables (in which case the domain variable is in the
  Arg'th argument of each term). 
@@ -6151,7 +6151,7 @@ max_regret, max_regret_lwb, min_regret_lwb, max_regret_upb.
 </p><p>
 These are essentially the same selection methods as those for search/6.
  The selection works by calculating the selection
- criteria for each variable in Vars, in the order they are in
+ criterion for each variable in Vars, in the order they are in
  Vars, and chosing the first variable with the best value. Note
  that only non-instantiated variables (i.e. variable with more than 1
  value in its domain) are considered. If all variables are
