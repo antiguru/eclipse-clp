@@ -45,11 +45,11 @@ queens_list(N, Board) :-
     length(Board, N),
     Board :: 1..N,
     (fromto(Board, [Q1|Cols], Cols, []) do
-	( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
-	    Q2 #\= Q1,
-	    Q2 - Q1 #\= Dist,
-	    Q1 - Q2 #\= Dist
-	)
+        ( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
+            Q2 #\= Q1,
+            Q2 - Q1 #\= Dist,
+            Q1 - Q2 #\= Dist
+        )
     ),
     labeling(Board).  
 \end{verbatim}
@@ -168,11 +168,11 @@ queens_list(N, Board) :-
     length(Board, N),
     Board :: 1..N,
     (fromto(Board, [Q1|Cols], Cols, []) do
-	( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
-	    gfd_gac: (Q2 #\= Q1),
-	    gfd_gac: (Q2 - Q1 #\= Dist),
-	    gfd_gac: (Q1 - Q2 #\= Dist)
-	)
+        ( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
+            gfd_gac: (Q2 #\= Q1),
+            gfd_gac: (Q2 - Q1 #\= Dist),
+            gfd_gac: (Q1 - Q2 #\= Dist)
+        )
     ),
     label(Board).
 \end{verbatim}
@@ -270,17 +270,17 @@ following can be used inside expressions:
 
 \begin{description}
 \item[\texttt{X}]
-	    \emph{Variables}.  If \verb'X' is not yet a domain variable, it is turned 
-	    into one.
+            \emph{Variables}.  If \verb'X' is not yet a domain variable, it is turned 
+            into one.
 
 \item[\texttt{123}]
-	    Integer constants.
+            Integer constants.
 
 \item[\texttt{+Expr}]
-	    Identity.
+            Identity.
 
 \item[\texttt{-Expr}]
-	    Sign change.
+            Sign change.
 
 \item[\texttt{abs(Expr)}]
     The absolute value of Expr.
@@ -301,10 +301,10 @@ following can be used inside expressions:
     Integer division, defined only if E2 evenly divides E1.
 
 \item[\texttt{E1 rem E2}]
-	    Integer remainder, same sign as E1.
+            Integer remainder, same sign as E1.
 
 \item[\texttt{Expr}\textasciicircum{}{\texttt 2}]
-	    Square. Equivalent to {\texttt sqr(Expr)} (alias for compatibility).
+            Square. Equivalent to {\texttt sqr(Expr)} (alias for compatibility).
 
 
 \item[\texttt{min(E1,E2)}]
@@ -317,51 +317,51 @@ following can be used inside expressions:
     Square. Logically equivalent to \verb|Expr*Expr|.
 
 \item[\texttt{isqrt(Expr)}]
-	    Square root (always positive). Truncated towards zero.
+            Square root (always positive). Truncated towards zero.
 
 \item[\texttt{sqrt(Expr)}]
-	    Square root, defined only if Expr is the square of an integer.
+            Square root, defined only if Expr is the square of an integer.
 
 \item[\texttt{sum(ExprCol)}]
-	    Sum of a collection of expressions.
+            Sum of a collection of expressions.
 
 \item[\texttt{sum(IntCol*ExprCol)}]
-	    Scalar product of a collection of integers and expressions.
+            Scalar product of a collection of integers and expressions.
             \verb'IntCol' and \verb'ExprCol' must be the same size.
 
 \item[\texttt{min(ExprCol)}]
-	    Minimum of a collection of expressions.
+            Minimum of a collection of expressions.
 
 \item[\texttt{max(ExprCol)}]
-	    Maximum of a collection of expressions.
+            Maximum of a collection of expressions.
 
 \item[\texttt{and}]
-	    Reified constraint conjunction.  e.g. \verb'X #> 3 and Y #< 8'.
+            Reified constraint conjunction.  e.g. \verb'X #> 3 and Y #< 8'.
             These are restricted to the top-level of an expression,
             and for reifiable expressions only,
 
 \item[\texttt{or}]
-	    Reified constraint disjunction.  e.g. \verb'X #> 3 or Y #< 8'.
+            Reified constraint disjunction.  e.g. \verb'X #> 3 or Y #< 8'.
             These are restricted to the top-level of an expression,
             and for reifiable expressions only,
 
 \item[\texttt{xor}]
-	    Reified constraint exclusive disjunction.  e.g. \verb'X #> 3 xor Y #< 8'.
+            Reified constraint exclusive disjunction.  e.g. \verb'X #> 3 xor Y #< 8'.
             These are restricted to the top-level of an expression,
             and for reifiable expressions only,
 
 \item[\texttt{=>}]
-	    Reified constraint implication.  e.g. \verb'X #> 3 => Y #< 8'.
+            Reified constraint implication.  e.g. \verb'X #> 3 => Y #< 8'.
             These are restricted to the top-level of an expression,
             and for reifiable expressions only,
 
 \item[\texttt{neg}]
-	    Reified constraint negation.  e.g. \verb'neg X #> 3'
+            Reified constraint negation.  e.g. \verb'neg X #> 3'
             These are restricted to the top-level of an expression,
             and for reifiable expressions only,
 
 \item[\texttt{<=>}]
-	    Reified constraint equivalence.  e.g. \verb'X #> 3 <=> Y #< 8'.
+            Reified constraint equivalence.  e.g. \verb'X #> 3 <=> Y #< 8'.
             This is similar to {\texttt \#=} used in an expression context.
             These are restricted to the top-level of an expression,
             and for reifiable expressions only,
@@ -388,16 +388,16 @@ following can be used inside expressions:
 
 \item[\texttt{eval(Expr)}]
             Logically equivalent to \verb'Expr'.
-	    Should be used when \verb'Expr' is a compile-time variable
-	    which may get instantiated to an expression (rather than an
-	    integer) at runtime.
+            Should be used when \verb'Expr' is a compile-time variable
+            which may get instantiated to an expression (rather than an
+            integer) at runtime.
 
 \item[\texttt{Functional/reified constraints}]
-	    Reified constraints (whose last argument is a 0/1 variable)
-	    and functional constraints (whose last argument is an integer
-	    variable) can be written without their last argument within
-	    an expression context.  The expression then effectively
-	    evaluates to the value of the missing (unwritten) argument.
+            Reified constraints (whose last argument is a 0/1 variable)
+            and functional constraints (whose last argument is an integer
+            variable) can be written without their last argument within
+            an expression context.  The expression then effectively
+            evaluates to the value of the missing (unwritten) argument.
 
 \end{description}
  
@@ -704,20 +704,16 @@ Vars' domain is the integer numbers (within default bounds).
 
 \end{description}
 
-
+%----------------------------------------------------------------------
 \subsection{Search Support}
+%----------------------------------------------------------------------
 
-GFD allows search to be performed in three ways:
-
-\begin{enumerate}
-\item in Gecode. 
-\item in {\eclipse} supported by GFD's variable selection 
+GFD allows search to be performed in two ways: 
+completely encapsulated in the external Gecode solver, or
+in {\eclipse}, supported by GFD's variable selection 
 and value choice predicates. 
-\item in {\eclipse} using \eclipse's ``generic search'' 
-facilities (search/6 and related predicates used by IC and FD). 
-\end{enumerate}
 
-\subsubsection{Performing search using Gecode}
+\subsubsection{Performing search completely inside Gecode}
 \label{searcheng}
 Search can be performed in Gecode using one of its search engines. 
 In this 
@@ -725,10 +721,10 @@ case, the search to produce a solution appears as an atomic step at
 the {\eclipse} level, and backtracking into the search will produce the next 
 solution (or fail if there are none), again as an atomic step.
 
-GFD uses \biptxtrefni{search/6}{search/6!gfd}{../bips/lib/gfd/search-6.html}
-to interface to Gecode's search engines. This predicate is
-designed to provide a similar syntax to the search/6 of the generic search 
-interface (in {\tt lib(ic)} and {\tt lib(fd_search)}). 
+This direct interface to Gecode's search engines is provided by
+\biptxtrefni{gfd:search/6}{search/6!gfd}{../bips/lib/gfd/search-6.html},
+and uses a syntax similar to that of the generic search/6 predicates
+(in {\tt lib(gfd_search)} (see below), {\tt lib(ic)} and {\tt lib(fd_search)}). 
 
 As the search is performed in Gecode, it should be more efficient than doing
 the search in \eclipse, where the system has to repeatedly switch between
@@ -737,8 +733,8 @@ step from the {\eclipse} level, it is not suitable if your code needs to
 interact with the search, e.g. if you are using constraints defined at the
 {\eclipse} level, and/or if you are using other solvers during the search.
 
-Another difference between GFD's search/6 and the generic search is that 
-GFD's is  less flexible -- you can only use the predefined variable 
+On the other hand, GFD's search/6 is less flexible than the generic search
+-- you can only use the predefined variable 
 selection and value choice methods, i.e. you cannot provide user-defined
 predicates for the Select and Choice arguments. 
 
@@ -772,162 +768,103 @@ queens_list(N, Board) :-
     length(Board, N),
     Board :: 1..N,
     (fromto(Board, [Q1|Cols], Cols, []) do
-	( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
-	    Q2 #\= Q1,
-	    Q2 - Q1 #\= Dist,
-	    Q1 - Q2 #\= Dist
-	)
+        ( foreach(Q2, Cols), param(Q1), count(Dist,1,_) do
+            Q2 #\= Q1,
+            Q2 - Q1 #\= Dist,
+            Q1 - Q2 #\= Dist
+        )
     ),
     search(Board, 0, input_order, indomain_min, complete, []).
 \end{verbatim}
 \end{quote}
 
-\subsubsection{Search using GFD primitives}
+
+\subsubsection{Search in {\eclipse} using GFD primitives}
 \label{searchgfd}
-GFD provides various predicates to perform variable choice
-and value selection at the {\eclipse} level, so that the user can write their
-own search routine in \eclipse. 
+The built-in Gecode search is appropriate when the problem consists
+exclusively of GFD-variables and GFD-library-constraints, and when the
+built-in search methods and search heuristics are sufficient to solve
+the problem.
 
-In addition, various properties associated
-with a variable and its domain, which can be used in choosing the variable
-and the value, can be obtained using predicates described
-in section~\ref{gfdvarquery}. Note that these include properties that are not
-available in
- \eclipse's solvers, such as weighted degree (a.k.a. accumulated failure count).
-
-Using these facilities, the search will be performed
-at the {\eclipse} level, thus allowing more flexibility than using Gecode's 
-search engines. On the other hand, it is likely to be less efficient,
-because the search is performed in \eclipse and because there is
-repeated transition between {\eclipse} and Gecode at every step of the search.
-
-However, these primitives are coded specifically for Gecode, and many are
-likely to be code more efficiently than the equivalent available via 
-generic search. 
+As soon as any user-defined constraints or any other {\eclipse}
+solvers are involved, then the top-level search control should be
+written in \eclipse, in order to allow non-gfd propagators to execute
+between the labelling steps.  Also the implementation of problem-specific
+search heuristics will usually make it necessary to lift the top-level
+search control to the {\eclipse} level.
+To make this possible, GFD provides primitives to support variable 
+selection and value choice heuristics.
 
 \begin{description}
-\item[\biptxtrefni{select_var(-X, +Collection, ++Arg, ++Select, ?Handle)}{select_var/5!gfd}{../bips/lib/gfd/select_var-5.html}]
-Choose a domain variable from Collection according to pre-defined selection criteria.
+\item[\biptxtrefni{gfd:select_var(-X, +Collection, -Rest, ++Arg, ++Select)}{select_var/5!gfd}{../bips/lib/gfd/select_var-5.html}]
+Select a domain variable from Collection according to one of Gecode's
+pre-defined selection criteria.  These include criteria not available in
+other {\eclipse} solvers, like accumulated failure count.
 
-\item[\biptxtrefni{delete(-X, +List, -R, ++Arg, ++Select)}{delete/5!gfd}{../bips/lib/gfd/delete-5.html}]
-This is mainly provided for compatibility. Choose a domain variable from List according to selection criteria.
+\item[\biptxtrefni{gfd_search:delete(-X, +Collection, -Rest, ++Arg, ++Select)}{delete/5!gfd}{../bips/lib/gfd_search/delete-5.html}]
+Select (and remove) a domain variable from Collection.  This is the
+generic implementation, (compatible with IC and FD solvers), providing
+a different choice of selection options, but likely to be less
+efficient than select_var/5.
 
-\item[\biptxtrefni{indomain(?Var)}{indomain/1!gfd}{../bips/lib/gfd/indomain-1.html}]
-Instantiate Var to an element in its domain.
+\item[\biptxtrefni{gfd:try_value(?Var, ++Method)}{try_value/2!gfd}{../bips/lib/gfd/try_value-2.html}]
+This value choice predicate makes a binary choice on the domain of a variable,
+according to Method.
+It creates two search alternatives, which reduce the variable domain
+in complementary ways.  Because the variable is not necessarily instantiated,
+this must be combined with a variable selection method that does not delete
+the selected variable, such as select_var/5.
 
-\item[\biptxtrefni{indomain(?Var, ++Method)}{indomain/2!gfd}{../bips/lib/gfd/indomain-2.html}]
-A flexible way to assign values to finite domain variables specified
- by Method.
+\item[\biptxtrefni{gfd:indomain(?Var)}{indomain/1!gfd}{../bips/lib/gfd/indomain-1.html}]
+Instantiate Var to elements in its domain, using a default method.
 
-\item[\biptxtrefni{labeling(+Vars)}{labeling/1!gfd}{../bips/lib/gfd/labeling-1.html}]
-Instantiates all variables in a collection to elements of their domains.
-
-\item[\biptxtrefni{labeling(+Vars,+Select,+Choice)}{labeling/3!gfd}{../bips/lib/gfd/labeling-3.html}]
-Instantiates all variables in a collection to elements of their domains, using 
-Select variation selection method and Choice for value.
+\item[\biptxtrefni{gfd_search:indomain(?Var, ++Method)}{indomain/2!gfd}{../bips/lib/gfd_search/indomain-2.html}]
+A flexible way to nondeterministically assign values to finite domain
+variables according to Method.  On success, Var is always instantiated.
+This is the generic implementation,
+(compatible with IC and FD solvers), providing a different choice of methods,
+and likely to be less efficient than try_value/5.
 \end{description}
 
-Note that the GFD specific {\tt select_var/5} as well as IC compatible 
-{\tt delete/5} is provided for variable selection. {\tt delete/5} is provided 
-mainly for compatibility, as {\tt select_var/5} should be more efficient in
-most cases, as the variable selection is done in a single low-level call,
-rather than at the {\eclipse} level.
-
-Also note that {\tt delete/5} 
-is also available from generic search, except that
-some 'native' Gecode selection methods, which are either not found in the 
-generic search version,  or are implemented less efficiently, are available 
-in this 'native' version. 
-
-The folowing uses  \texttt{select_var/5} and \texttt{indomain/2} to code
-the same search strategy as used in \texttt{labeling/1}:
-
+To mimic Gecode's built-in search (where a variable selection step is usually
+interleaved with a binary choice on the variable domain), select_var/5 and
+try_value/2 can be used in the following way:
 \begin{quote}
 \begin{verbatim}
-my_labeling(Vs) :-
-    my_labeling1(Vs, _).
-
-my_labeling1(Vs, VsH) :-
-    ( select_var(V, Vs, 0, input_order, VsH) ->
-         indomain(V, min),
-	 my_labeling1(Vs, VsH)
-    ;
-         true % Vs all labelled - solution found
-    ).
-
+labeling(Vars, Select, Choice) :-
+        ( select_var(V, Vars, Rest, 0, Select) ->
+            try_value(V, Choice),
+            labeling(Rest, Select, Choice)
+        ;
+            true
+        ).
 \end{verbatim}
 \end{quote}
-
-Unlike using \texttt{delete/5} to select the variable, \texttt{select_var/5}
-does not remove the selected variable (\texttt{V}) from the variables to be
-labelled (\texttt{Vs}). In fact, \texttt{Vs} is used to create the low-level
-handle (\texttt{VsH}) the first time \texttt{select_var/5} is called, and
-the selection is done using the handle. In subsequent calls to
- \texttt{select_var/5}, the handle already exists, and \texttt{Vs} is not 
-accessed again. 
-
-The above example performs the search in the traditional way, a variable is
-seleted, and then different values are tried for the same variable on 
-backtracking. This is different from what Gecode does in search, which is to 
-perform variable and value selection for each labelling. This is not normally
-done in the traditional way because variable selection is relatively expensive,
-and the selected variable is removed from further selection. However, as
-\texttt{select_var/5} does not remove the variable, and the selection is
-much quicker, it can be used to perform Gecode style search:
-
+The same effect can be achieved by using select_var/5 and try_value/2
+together with the generic
+\biptxtrefni{gfd_search:search/6}{search/6!gfd_search}{../bips/lib/gfd_search/search-6.html}
+predicate:
 \begin{quote}
 \begin{verbatim}
-my_labeling1(Vs, VsH) :-
-    ( select_var(V, Vs, 0, input_order, VsH) ->
-         get_min(V, Min), % get the minimum value for V
-         ( V = Min,
-           my_labeling1(Vs, VsH)
-         ;
-           V #\= Min,
-           my_labeling1(Vs, VsH)
-         )
-    ;
-         true % Vs all labelled
-    ).
+gfd_search:search(Vars, 0,
+        select_var(Select), try_value(Choice), complete, [])
 \end{verbatim}
 \end{quote}
+Combining select_var/5 with indomain/2 results in a scheme where
+(possibly several) value choices on a variable are made until the
+variable is ground, before proceeding to select the next variable:
+\begin{quote}
+\begin{verbatim}
+gfd_search:search(Vars, 0,
+        select_var(Select), indomain(Choice), complete, [])
+\end{verbatim}
+\end{quote}
+For even more complex user-defined heuristics, various properties associated
+with a variable and its domain can be obtained using predicates described
+in section~\ref{gfdvarquery}. Note that these include properties that are not
+available in
+\eclipse's solvers, such as weighted degree (a.k.a. accumulated failure count).
 
-Here, variable selection and value choice is done for each labelling,
-and the choice is a binary one -- setting a variable to the value choice
-on one branch (\texttt{V=Min}), and excluded on the other branch 
-(\texttt{V\#\bsl=Min}.
-
-\subsubsection{Generic search}
-Generic search provides predicates that support searching with \eclipse's 
-finite domain solvers. In GFD, these predicates are available through the
-{\tt gfd_search} library. To use these predicates, the gfd_search library must
-be loaded, and the calls to these predicates have to be module-qualified
-with {\tt gfd_search:} because predicates with the same name and arity are defined
-in GFD itself.
-
-The main predicates is
-\biptxtrefni{search/6}{search/6!gfd_search}{../bips/lib/gfd_search/search-6.html}, which performs the search. It is 
-``generic'' in the sense that the implementation is shared
-by all \eclipse's finite domain solvers (IC, FD and GFD), so it should be
-highly compatible with the versions of these predicates in these solvers.
-
-GFD also has ``native'' (i.e. GFD-specific) versions of these predicates
-in {\tt lib(gfd)}. These native versions interface more directly to Gecode,
-and should be more efficient than the ``generic'' versions, but are less 
-compatible with the generic versions in other solvers -- there are differences
-in the available variable selection and value choice options, and for 
-{\tt search/6}, the native version performs the search entirely within
-Gecode (see section~\ref{searcheng}) instead of \eclipse.
-
-These generic search predicates are provided mainly for compatibility with
-the other solvers, and we recommend the use of the native versions of these
-predicates. If the search performed is simple (i.e. no user-defined search)
-and is entirely done by the 
-built-in constraints of the finite domain solver (i.e. with no user-defined 
-constraints or other solvers involved), then using the native 
-\biptxtrefni{search/6}{seach/6!gfd}{../bips/lib/gfd/search-6.html} should give the best results. If the search
-has to be done in \eclipse, then consider changing the code to use the native 
-versions of the search-related primitives such as {\tt indomain/2} and {\tt var_selection/5}.
 
 
 \section{User defined constraints and solver co-operation}
@@ -1252,7 +1189,7 @@ The main visible differences between GFD and IC are:
         Gecode, so most of the IC operators for real arithmetic are not 
         supported.
 
-	%%% Is this correct?
+        %%% Is this correct?
         \item Only linear arithmetic (sub-)expressions are allowed between 
         logical connectives.
 

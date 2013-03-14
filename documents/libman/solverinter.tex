@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 
-% $Id: solverinter.tex,v 1.1 2006/09/23 01:49:34 snovello Exp $
+% $Id: solverinter.tex,v 1.2 2013/03/14 21:25:22 jschimpf Exp $
 % Author:		Kish Shen
 
 
@@ -47,14 +47,13 @@ The constraints can be divided into the following groups:
 \item the numeric type constraints reals/1 and integers/1.
     Note that in this context, integers are considered a subset of the reals.
 
-\item the range constraints ::/2, \verb'#::' and \$::/2, which give upper
-    and lower bounds to their variables. In addition, ::/2 and \verb'#::'
-    can also imply integrality.
+\item the range cnstraints ::/2, \verb'#::' and \$::/2, which give upper
+    and lower bounds to their variables.
+    In addition, \verb'#::' also implies integrality.
 
 \item arithmetic equality, inequality and disequality over the mathematical
     real numbers, e.g.
-    \verb'$=', \verb'$>=', \verb'>', \verb'$\=' (and their symnonyms
-    \verb'=:=', \verb'>=', \verb'>', \verb'=\=').
+    \verb'$=', \verb'$>=', \verb'>', \verb'$\='.
     Note that in this context,
     integers are considered a subset of the reals and can therefore
     occur in these constraints.
@@ -72,24 +71,27 @@ The constraints can be divided into the following groups:
 \begin{toimage}
 \begin{tabular}{|l||c|c|c|c|c|c|c|c|}
 \hline
-       &              &              &              &              &             & \verb'#::/2' &                   & \\
-       &              &              &              &              &             & \verb'#=/2'  &                   & \\
-       &              &              &              &              &             & \verb'#>=/2' &                   & \\
-       &              & \verb'$::2'  &              &              &             & \verb'#=</2' &                   & \\
-       & \verb'=:=/2' & \verb'$=/2'  & \verb'>/2'   & \verb'$>/2'  &             & \verb'#>/2'  &                   & \\
-       & \verb'>=/2'  & \verb'$>=/2' & \verb'</2'   & \verb'$</2'  &             & \verb'#</2'  &                   & \\
-       & \verb'=</2'  & \verb'$=</2' & \verb'=\=/2' & \verb'$\=/2' & \verb'::/2' & \verb'#\=/2' & \verb'integers/1' & \verb'reals/1' \\
+       &              &              &             & \verb'#::/2' &                   & \\
+       &              &              &             & \verb'#=/2'  &                   & \\
+       &              &              &             & \verb'#>=/2' &                   & \\
+       & \verb'$::2'  &              &             & \verb'#=</2' &                   & \\
+       & \verb'$=/2'  & \verb'$>/2'  &             & \verb'#>/2'  &                   & \\
+       & \verb'$>=/2' & \verb'$</2'  &             & \verb'#</2'  &                   & \\
+       & \verb'$=</2' & \verb'$\=/2' & \verb'::/2' & \verb'#\=/2' & \verb'integers/1' & \verb'reals/1' \\
 \hline
 \hline
-suspend	& yes & yes & yes & yes & yes & yes & yes & yes \\
+suspend	& yes & yes & yes & yes & yes & yes \\
 \hline                          
-ic	& yes & yes & yes & yes & yes & yes & yes & yes \\
+ic	& yes & yes & yes & yes & yes & yes \\
 \hline                          
-eplex	& yes & yes & --- & --- & yes & --- & yes & yes \\
+fd	& --- & yes & yes & yes & yes & --- \\
 \hline                          
-colgen	& yes & yes & --- & --- & yes & --- & --- & yes \\
+gfd	& --- & yes & yes & yes & yes & --- \\
 \hline                          
-(arith)	&(yes)& --- &(yes)& --- & --- & --- & --- & --- \\
+eplex	& yes & --- & yes & --- & yes & yes \\
+\hline                          
+colgen	& yes & --- & yes & --- & --- & yes \\
+\hline                          
 \hline
 \end{tabular}
 \end{toimage}\imageflush
@@ -118,30 +120,13 @@ example, the eplex solver can only handle linear expressions. Refer
 to the documentation for each individual solver to see what restrictions
 might apply.
 
-Note that the last line, labelled `arith', is not really a constraint
-solver but represents just the standard arithmetic tests which require
-all variables to be instantiated. This behaviour is provided by the
-(automatically imported) module {\tt eclipse_language}.
-
-It can be somewhat confusing that these standard arithmetic tests have the same
-names as the corresponding constraints. One one hand, they have the same declarative
-meaning. On the other hand, they are not really interchangeable because they
-can only be used as tests, not as active constraints. 
-The following synonyms are therefore provided to make the distinction visible
-where needed, and to reduce the need for module-qualification:
-
-\begin{center}
-\begin{tabular}{|c|c|}
-\hline
-\verb'$=/2'  & \verb'=:=/2' \\
-\verb'$\=/2' & \verb'=\=/2' \\
-\verb'$>=/2' & \verb'>=/2'  \\
-\verb'$=</2' & \verb'=</2'  \\
-\verb'$>/2'  & \verb'>/2'  \\
-\verb'$</2'  & \verb'</2'  \\
-\hline
-\end{tabular}
-\end{center}
+Note that the `standard arithmetic' operators
+\verb'=:=/2', \verb'=\=/2', \verb'>=/2', \verb'=</2', \verb'>/2' and \verb'</2'
+which are automatically imported from the {\tt eclipse_language} module
+are declaratively the same as the corresponding '\$' constraints.
+On the other hand, they are not interchangeable because they
+can only be used as tests (when all variables are instantiated),
+not as active constraints. 
 
 
 \section{Using the constraints}
@@ -228,10 +213,17 @@ preprocessing on the constraint.
     and fails if this is not the case.
 
 \item[\biptxtref{ic}{lib(ic)}{../bips/lib/ic/index.html}]
-    A new hybrid solver, combining integer and real interval constraint
-    solving.  This solver is intended to replace the FD (and the already
-    discontinued RIA) solver.
+    A hybrid solver, combining integer and real interval constraint
+    solving.  This solver replaces the older FD solver.
     For more information, please see chapter \ref{chapic}.
+
+\item[\biptxtref{gfd}{lib(gfd)}{../bips/lib/gfd/index.html}]
+    An integer finite domain solver, implemented via interfacing
+    to the third party Gecode software.
+    For more information, please see chapter \ref{chapgfd}.
+
+\item[\biptxtref{fd}{lib(fd)}{../bips/lib/fd/index.html}]
+    Obsolescent integer finite domain solver.
 
 \item[\biptxtref{eplex}{lib(eplex)}{../bips/lib/eplex/index.html}]
     An interface to an LP or MIP solver, i.e.\ it implements linear
@@ -240,13 +232,12 @@ preprocessing on the constraint.
 %\item[\biptxtref{fdplex}{lib(fdplex)}{../bips/lib/fdplex/index.html}]
 %    An example of a hybrid solver that combines the fd and eplex solvers.
 
-\item[arith]
+\item[standard arithmetic]
     This is not really a solver, but just the implementation of simple
     arithmetic tests in module {\tt eclipse_language}. These require
     that all variables are instantiated when the test is invoked.
-    The reason to list it here is that the proper solvers use the
-    same syntax and can be considered generalisations of the
-    traditional tests.
+    The reason to list it here is that the arithmetic constraints
+    can be considered generalisations of these traditional tests.
 \end{description}
 \index{common solver interface|)}
 
