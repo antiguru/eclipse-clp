@@ -75,7 +75,8 @@
 :- export sequence/5, sequence/4, bin_packing/3, bin_packing_g/3, bin_packing/4.
 :- export table/2, table/3, extensional/4, regular/2.
 
-:- export labeling/3, labeling/1, indomain/1, indomain/2, select_var/5.
+:- export labeling/1, indomain/1, select_var/5, try_value/2.
+%:- export labeling/3, indomain/2.
 :- export is_in_domain/2, is_in_domain/3.
 :- export search/6.
 :- export gfd_update/0.
@@ -4381,6 +4382,49 @@ indomain_and_prop(Idx, V, H, Which, Val) :-
         indomain_and_prop(Idx, V, H, Which, Lo).
 
 
+% Gecode-style value choice, not necessarily grounding the variable
+
+try_value(X, _Method) :- integer(X).
+try_value(X, _Method) :- var(X), 
+	try_value1(X, _Method).
+
+try_value1(X, min) :-
+	get_min(X, Val),
+	( X=Val ; X #> Val ).
+try_value1(X, max) :-
+	get_max(X, Val),
+	( X=Val ; X #< Val ).
+try_value1(X, median) :-
+	get_median(X, Val),
+	( X=Val ; X #\= Val ).
+try_value1(X, split) :-
+	gfd_get_var_bounds(X, Lo, Hi),
+	Split is (Lo+Hi) div 2,
+	( X #=< Split ; X #> Split ).
+try_value1(X, reverse_split) :-
+	gfd_get_var_bounds(X, Lo, Hi),
+	Split is (Lo+Hi) div 2,
+	( X #> Split ; X #=< Split ).
+
+% Possible extensions
+%try_value1(X, middle) :-
+%try_value1(X, random) :-
+%try_value1(X, indomain_interval) :-
+%try_value1(X, indomain_interval_min) :-
+%try_value1(X, indomain_interval_max) :-
+
+% We could add these here, instead of having indomain/2
+%try_value1(X, enum) :-
+%	indomain(X, enum).
+%try_value1(X, reverse_enum) :-
+%try_value1(X, indomain_min) ?- !,
+%        do_indomain_min(X).
+%try_value1(X, indomain_max) ?- !,
+%        do_indomain_max(X).
+%try_value1(X, indomain_median) ?- !,
+%        do_indomain_median(X).
+
+
 do_indomain_median(I) :- integer(I), !.
 do_indomain_median(V{gfd:Attr}) ?-
         nonvar(Attr), !,
@@ -4463,13 +4507,15 @@ indomain_from1(Which, V, H, Sp, Idx, OldHi, OldLo) :-
         NewWhich is Which * -1,
         indomain_from1(NewWhich, V, H, Sp, Idx, OldHi, OldLo).
 
-select_var(X, Xs, Arg, Select, IdxsH) :-
-        ( type_of(IdxsH, handle) ->
-            get_prob_handle(H)
+
+select_var(X, XsH, Arg, Select, IdxsH) :-
+        ( is_handle(XsH) ->
+            get_prob_handle(H),
+	    select_var1(X, H, Select, XsH)
         ;
-            select_var_setup(Xs, Arg, H, IdxsH)
-        ),
-        select_var1(X, H, Select, IdxsH).
+            select_var_setup(XsH, Arg, H, IdxsH),
+	    select_var1(X, H, Select, IdxsH)
+        ).
 
 
 select_var_setup(Xs, Arg, H, IdxsH) :-

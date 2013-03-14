@@ -108,10 +108,10 @@
 	    Integer division. Truncate towards zero.
 
    <DT><STRONG>E1/E2</STRONG><DD>
-	    Division (fail if E1/E2 is not an integer) (ic compatible)
+	    Division, defined only where E2 evenly divides E1,
 
    <DT><STRONG>E1 rem E2</STRONG><DD>
-	    Integer remainder (modulus).
+	    Integer remainder (modulus), same sign as E1.
 
    <DT><STRONG>Expr^2</STRONG><DD>
 	    Square. Equivalent to sqr(Expr).
@@ -126,11 +126,10 @@
 	    Square.  Logically equivalent to Expr*Expr.
 
    <DT><STRONG>isqrt(Expr)</STRONG><DD>
-	    Square root (always positive). Truncated to nearest smaller integer.
+	    Integer square root. Truncated to nearest smaller integer.
 
    <DT><STRONG>sqrt(Expr)</STRONG><DD>
-	    Integer square root (always positive) - fail if the square
-            root is not an integer (ic compatible). 
+	    Square root, defined only where Expr is the square of an integer.
 
    <DT><STRONG>sum(ExprCol)</STRONG><DD>
 	    Sum of a collection of expressions.
@@ -532,7 +531,7 @@ M = 3
 %---------------------------------------------------------------------
 
 :- comment(get_weighted_degree/2, [
-    amode: (get_weighted_degree(?, -) is semidet),
+    amode: (get_weighted_degree(?, -) is det),
     args: [
 	"Var":   "A domain variable",
 	"WD": "Current wighted degree for variable"
@@ -553,7 +552,7 @@ M = 3
 %---------------------------------------------------------------------
 
 :- comment(get_regret_lwb/2, [
-    amode: (get_regret_lwb(?, -) is semidet),
+    amode: (get_regret_lwb(?, -) is det),
     args: [
 	"Var":   "A domain variable",
 	"Regret": "Regret value"
@@ -572,7 +571,7 @@ M = 3
 %---------------------------------------------------------------------
 
 :- comment(get_regret_upb/2, [
-    amode: (get_regret_upb(?, -) is semidet),
+    amode: (get_regret_upb(?, -) is det),
     args: [
 	"Var":   "A domain variable",
 	"Regret": "Regret value"
@@ -1233,14 +1232,13 @@ B = B{[0, 2, 4, 6]}
 %---------------------------------------------------------------------
 
 :- comment(indomain/1, [
-    amode: indomain(?),
+    amode: (indomain(?) is nondet),
     args: [
     	"Var": "An GFD domain variable or an integer"
     ],
     kind: [search],
-    resat: "Yes.",
     summary: "Instantiates a domain GFD variable to an element of its domain.",
-    see_also: [indomain/2, labeling/1, (::)/2, _:indomain/1],
+    see_also: [gfd_search:indomain/2, labeling/1, (::)/2, _:indomain/1],
     desc: html("<P>
    Simple predicate for instantiating a GFD domain variable to an element
    of its domain.  It starts with the smallest element, and upon
@@ -1251,8 +1249,8 @@ B = B{[0, 2, 4, 6]}
    exactly once without leaving a choicepoint.</P><P>
 
    Note that this predicate is not very efficient, because the whole domain 
-   for Var is obtained from gecode at the start. Use indomain/2 for more
-   efficient ways to set Var's value. 
+   for Var is obtained from gecode at the start. Use indomain/2 or
+   try_value/2 for more efficient ways to set Var's value. 
 </P>
 ")
 ]).
@@ -1260,13 +1258,12 @@ B = B{[0, 2, 4, 6]}
 %---------------------------------------------------------------------
 
 :- comment(labeling/1, [
-    amode: labeling(+),
+    amode: (labeling(+) is nondet),
     args: [
     	"Vars": "A collection (a la collection_to_list/2) of integer IC variables or integers"
     ],
-    resat: "Yes.",
     summary: "Instantiates all variables in a collection to elements of their domains.",
-    see_also: [indomain/2, _:labeling/1, collection_to_list/2],
+    see_also: [gfd_search:indomain/2, _:labeling/1, collection_to_list/2],
     kind: [search],
     desc: html("<P>
    Simple predicate for instantiating a collection of GFD domain variables
@@ -1291,15 +1288,14 @@ B = B{[0, 2, 4, 6]}
 ]).
 
 %---------------------------------------------------------------------
-
+/*
 :- comment(labeling/3, [
-    amode: labeling(+,+,+),
+    amode: (labeling(+,+,+) is nondet),
     args: [
     	"Vars": "A collection (a la collection_to_list/2) of integer IC variables or integers",
       "Select" :  "a predefined variable selection method.",
       "Choice" :  "a predefine value choice method "
           ],
-    resat: "Yes.",
     summary: "Instantiates all variables in a collection to elements"
              " of their domains according to Select and Choice.",
     see_also: [indomain/2, select_var/5,labeling/1, collection_to_list/2],
@@ -1323,13 +1319,12 @@ B = B{[0, 2, 4, 6]}
 </P>
 ")
 ]).
-
+*/
 %---------------------------------------------------------------------
 
 :- comment(gfd_update/0, [
         summary: "Update the parent Gecode space to the current"
                  " state.",
-        resat: "No.",
         desc: html("<P>
    This is a low-level primitive that updates (if needed) the parent cloned
    Gecode space to the current state. The parent clone is from where
@@ -1480,7 +1475,6 @@ N = N{[1 .. 4]}
     summary:"Constrains all in Collection to be less than or equal to Y.",
     template: "<ConsistencyModule:> le(?Collection,?Y)",
     amode:all_le(+,?),
-    kind: [constraint],
     args:[
         "Collection":"Collection of integers
  or domain variables",
@@ -1589,10 +1583,6 @@ A = A{[-1000000 .. 10]}
 [eclipse 37]: all_ge([2,3,4,5],3).          % fail
 
 ",
-    args:[
-        "Collection":"Collection of integers or domain variables",
-        "Y":"An integer or domain variable"
-    ],
     desc:html("\
    Constrains every element in Collection to be greater than or equal
    to Y.
@@ -2352,8 +2342,7 @@ Bool = 0
 	"ConY": "Constraint"
     ],
     summary: "Constraint ConX  implies ConY.",
-    see_also: [(=>)/3, (neg)/1, (and)/2, (or)/2, (xor)/2, (<=>)/2,
-               _:(=>)/2],
+    see_also: [(=>)/3, (neg)/1, (and)/2, (or)/2, (xor)/2, (<=>)/2, _:(=>)/2],
     kind: [constraint],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), BX #=&lt; BY</P>
@@ -2384,7 +2373,7 @@ Bool = 0
         "Bool": "Reified truth value of the constraint"
     ],
     summary: "Bool is the reified truth of constraint ConX implying the truth of ConY.",
-    see_also: [(=>)/2, (neg)/2, (or)/3, (xor)/3, (and)/3, (<=>)/3, 
+    see_also: [(=>)/2, (neg)/2, (or)/3, (xor)/3, (and)/3, (<=>)/3,
                _:(=>)/3],
     kind: [constraint:[extra:[gccat:imply]]],
     desc: html("<P>
@@ -2457,8 +2446,7 @@ Bool = 0
         "Bool": "Reified truth value of the constraint"
     ],
     summary: "Bool is the reified truth of constraint ConX is equivalent to the truth of ConY.",
-    see_also: [(<=>)/2, (neg)/3, (=>)/3, (or)/3, (xor)/3, (and)/3,
-               _:(#\=)/3],
+    see_also: [(<=>)/2, (neg)/2, (=>)/3, (or)/3, (xor)/3, (and)/3, _:(#\=)/3],
     kind: [constraint:[extra:[gccat:equivalent]]],
     desc: html("<P>
    Equivalent to BX #= (ConX), BY #= (ConY), Bool #= (BX #= BY)</P>
@@ -2559,7 +2547,6 @@ Bool = 0
 	    "+Collection" : "A non-empty collection of integers or domain variable.",
 	    "?Value" : "A domain variable or an integer."
 	],
-	resat:"No.",
 	fail_if:"Fails if Value is not the Index'th element of Collection.",
         kind: [constraint:[extra:[gccat:element]]],
         see_also: [element_g/3, _:element/3],
@@ -2612,8 +2599,7 @@ I = I{[1 .. 3]}
 V = V{[1, 2, 4 .. 10]}
 
 
-",
-	see_also:[/(::, 2), element_g/3]
+"
     ]).
 
 
@@ -2625,7 +2611,6 @@ V = V{[1, 2, 4 .. 10]}
 	    "+Collection" : "A non-empty collection of integers or domain variable.",
 	    "?Value" : "A domain variable or an integer."
 	],
-	resat:"No.",
 	fail_if:"Fails if Value is not the Index'th element of Collection.",
 	see_also: [element/3],
         kind: [constraint:[extra:[gccat:element]]],
@@ -2766,7 +2751,6 @@ N = N{[2, 3]}
 	args:["N" : "An integer or domain variable",
 	      "+Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
 	      "V" : "An integer"],
-	resat:"   No.",
 	fail_if:"   Fails if more than N elements of Vars can be instantiated to V.",
 	see_also:[_:atmost/3, count/4, atleast/3, element/3, occurrences/3, collection_to_list/2]]).
 
@@ -2812,7 +2796,6 @@ A = A{[-1000000 .. 1000000]}
 	args:["N" : "An integer or domain variable",
 	      "Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
 	      "V" : "An integer"],
-	resat:"   No.",
 	fail_if:"   Fails if less than N elements of Vars can be instantiated to V.",
 	see_also:[count/4, atmost/3, element/3, occurrences/3, collection_to_list/2]]).
 
@@ -4346,7 +4329,7 @@ C = 5
             "Durations":   "Collection of N durations for tasks (non-negative domain variables or integers)"
            ],
   summary: "Constrain the tasks with specified start times and durations to not overlap in time.",
-  see_also: [_:disjunctive2, disjunctive_optional/3, cumulative/4, cumulatives/5,collection_to_list/2],
+  see_also: [_:disjunctive/2, disjunctive_optional/3, cumulative/4, cumulatives/5,collection_to_list/2],
   kind: [constraint:[extra:[gccat:disjunctive]]],
   eg: "
 [eclipse 2]: disjunctive([1,7,4],[3,2,1]).    % succeed
@@ -4558,7 +4541,7 @@ S4 = S4{[4 .. 9]}
           "ResourceLimit": "Maximum amount of resource available (integer variable)"
          ],
   summary: "Single resource cumulative constraint on scheduling tasks.",
-  see_also: [disjunctive/2, cumulative_optional/5, cumulatives/5, ollection_to_list/2, _:cumulative/4],
+  see_also: [disjunctive/2, cumulative_optional/5, cumulatives/5, collection_to_list/2, _:cumulative/4],
   kind: [constraint:[extra:[gccat:cummulative]]],
   eg: "
 
@@ -5211,7 +5194,7 @@ Yes (0.00s cpu)
 
 No (0.00s cpu)
 ",
-    see_also: [lex_lt/2, lex_ge/2, lex_eq/2, lex_neq/2],
+    see_also: [lex_lt/2, lex_ge/2, lex_eq/2, lex_ne/2],
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
 	I.e.  either is the first element of Collection1 strictly greater
@@ -5252,7 +5235,7 @@ No (0.00s cpu)
 
 No (0.00s cpu)
 ",
-    see_also: [lex_lt/2, lex_gt/2, lex_ge/2, lex_neq/2],
+    see_also: [lex_lt/2, lex_gt/2, lex_ge/2, lex_ne/2],
     desc:html("\
     	Constrains the two collections to be lexicographically equal, i.e.
 	the two collections are the same length, and each
@@ -5827,7 +5810,7 @@ No (0.00s cpu)
 
 :-comment(search/6,[
 summary:"Interface to gecode search-engines to perform search in gecode.",
-amode:search(+,++,++,+,++,+),
+amode:(search(+,++,++,+,++,+) is nondet),
 
 args:[
       "L" : "is a collection (a la collection_to_list/2) of domain
@@ -6119,45 +6102,43 @@ top:-
         search(L,0,input_order,indomain_max,bb_min(Cost),[]).
 ",
 
-see_also:[indomain/1,indomain/2,labeling/1,gfd_search:delete/5,gfd_search:search/6] 
+see_also:[indomain/1,gfd_search:indomain/2,labeling/1,gfd_search:delete/5,gfd_search:search/6] 
 
 ]).
 
 
 :-comment(select_var/5,[
-summary:"Choose a domain variable from a collection according to selection criteria.",
-amode:select_var(-,+,+,+,?),
+summary:"Pick a domain variable from a collection according to selection criteria.",
+amode:(select_var(-,+,+,+,?) is semidet),
 
 args:[
       "X" : " a free variable",
-      "Collection" : " a collection of GFD domain variables or terms ",
+      "Vars" : " a collection of GFD domain variables or terms, or a handle ",
+      "Rest" : "variable, will be bound to handle for remaining collection",
       "Arg" : " an integer",
-      "Select" : "is a predefined selection method.",
-      "Handle" : "A free variable (first call) or Handle from previous call."
+      "Select" : "a predefined selection method."
 ],
 kind: [search],
-desc:html("
-This predicate chooses one domain variable in Collection based
+desc:html("<p>
+This predicate picks one domain variable in Vars based
 on some selection criteria. The selected entry is returned in X.
-Collection is either a collection of domain variables (Arg is 0), or terms
+Vars is either a collection of domain variables (Arg is 0), or terms
 containing domain variables (in which case the domain variable is in the
  Arg'th argument of each term). 
 </p><p>
-This predicate provides the same functionality as delete/5, but is
+This predicate provides similar functionality as delete/5, but is
 more efficient and specific to GFD, and Select cannot be a user-
 defined method. This predicate is more efficient than delete/5
 because the variable selection is done by a single low-level
  procedure. Unlike delete/5, which does the selection at the ECLiPSe 
-level, and deletes the selected element from Collection, select_var/5 
-selects the variable using Handle, which is a low-level representation
-of the variables extracted from Collection -- the handle is created
- from Collection if Handle is a free variable.
- The first time the
- predicate is called to select from Collection, Handle must be a free
-variable, and select_var/5 will extract the domain variables from Collection
-and create the low-level handle to these variables in Handle, and this
- Handle can then be used in subsequent calls to select_var/5, avoiding
- the overhead of re-creating the handle. 
+level, and deletes the selected element from Vars, select_var/5 can
+select the variable using a handle, which is a low-level representation
+of the variables extracted from Vars.
+The first time the
+ predicate is called, select_var/5 will extract the domain variables from Vars
+and create the low-level handle to these variables, which is returned in Rest.
+The handle can then be used (in place of Vars) in subsequent calls to
+select_var/5, avoiding the overhead of re-analysing the variable collection.
 </p><p>
 Select is one of the following predefined selection methods:
 input_order, occurrence, anti_occurrence, 
@@ -6168,41 +6149,112 @@ first_fail, anti_first_fail,
 most_constrained,  most_constrained_per_value, least_constrained_per_value, 
 max_regret, max_regret_lwb, min_regret_lwb, max_regret_upb.
 </p><p>
-This is essentially the same selection methods as those for search/6,
- except the calculation for the method is done by GFD (in C++) rather
- than Gecode. The selection works by calculating the selection
- criteria for each variable in Collection, in the order they are in
- Collection, and chosing the first variable with the best value. Note
+These are essentially the same selection methods as those for search/6.
+ The selection works by calculating the selection
+ criteria for each variable in Vars, in the order they are in
+ Vars, and chosing the first variable with the best value. Note
  that only non-instantiated variables (i.e. variable with more than 1
  value in its domain) are considered. If all variables are
  instantiated, the predicate fails, i.e. the predicate will fail when
-all variables in Collection have been labelled. 
+all variables in Vars have been labelled. 
  </p>
 "),
 eg: "
 % Simple labelling implemented using select_var/5 and indomain/2
-labelling(Vars, Select, Choice) :-
-        labelling1(Vars, Select, Choice, Handle).
-
-labelling1(Vars, Select, Choice, Handle) :-
-        (select_var(V, Vars, 0, Select, Handle) ->
+labelling1(Vars, Select, Choice) :-
+        (select_var(V, Vars, Rest, 0, Select) ->
             indomain(V, Choice),
-            labelling1(Vars, Select, Choice, Handle)
+            labelling1(Rest, Select, Choice)
+        ;
+            true
+        ).
+
+% Variant using select_var/5 and try_value/2
+labelling2(Vars, Select, Choice) :-
+        (select_var(V, Vars, Rest, 0, Select) ->
+            try_value(V, Choice),
+            labelling2(Rest, Select, Choice)
         ;
             true
         ).
 ",
 fail_if:"fails if no variable can be selected",
-resat:no,
 
-see_also:[indomain/2,search/6, gfd_search:search/6]
+see_also:[try_value/2,gfd_search:indomain/2,search/6, gfd_search:search/6]
 
 ]).
 
 
+:-comment(try_value/2,[
+summary:"Two-way choice predicate",
+amode:(try_value(?,++) is nondet),
+amode:(try_value(+,++) is det),
+args:[
+    "Var":"a domain variable or an integer",
+    "Method":"an atom denoting the value choice method"
+],
+kind: [search],
+desc:html("<P>
+    This search predicate makes a binary choice on the domain of a variable.
+    It creates two search alternatives, which reduce the variable domain
+    in complementary ways.  The details are determined by the Method.
+</P><P>
+    The first group of methods tries to set the variable to a particular
+    value, and in the alternative excludes this value from the domain:
+<PRE>
+	( Var = Value ; Var #\\= Value )
+</PRE>
+<DL>
+    <DT>min</DT>
+	<DD>try the minimum value in the domain</DD>
+    <DT>max</DT>
+	<DD>try the maximum value in the domain</DD>
+    <DT>median</DT>
+	<DD>try the median value in the domain</DD>
+</DL>
+    The next group only halves the domain in each alternative (where the
+    split value is the arithmetic mean of the lower and upper domain
+    bound, rounded down):
+<PRE>
+	( Var #=< Split ; Var #> Split )
+</PRE>
+<DL>
+    <DT>split</DT>
+	<DD>try first the lower domain half, then the upper</DD>
+    <DT>reverse_split</DT>
+	<DD>try first the upper domain half, then the lower</DD>
+</DL>
+</P><P>
+    As opposed to the value choice predicates indomain/1 and indomain/2,
+    try_value/2 does not necessarily instantiate the variable.  If used in
+    a tree search, this means that the variable must remain available
+    to the variable selection, as it may be selected repeatedly at different
+    depth of the search tree.
+</P><P>
+    try_value/2 is best used in combination with select_var/5.  Both can
+    be used to parameterise the generic gfd_search:search/6 procedure.
+</P>"),
+eg:"
+    % Used with generic search/6
+    gfd_search:search(Xs,0,select_var(first_fail),try_value(min),complete,[]).
+
+
+    % Simple labelling implemented using select_var/5 and try_value/2
+    labelling(Vars, Select, Choice) :-
+        (select_var(V, Vars, Rest, 0, Select) ->
+            try_value(V, Choice),
+            labelling(Rest, Select, Choice)
+        ;
+            true
+        ).
+"
+]).
+
+
+/*
 :-comment(indomain/2,[
 summary:"a flexible way to assign values to finite domain variables",
-amode:indomain(?,++),
+amode:(indomain(?,++) is nondet),
 
 args:[
 "Var":"a domain variable or an integer",
@@ -6245,8 +6297,6 @@ optimised for gfd compared to generic search's indomain/2, and should
 be more efficient. Only a subset of the available methods available to
 gfd_search's indomain/2 are implemented.
 "),
-fail_if:"No",
-resat:yes,
 eg:"
 top:-
 	X :: 1..10,
@@ -6297,7 +6347,7 @@ top.
 see_also:[search/6,indomain/1,gfd_search:indomain/2]
 
 ]).
-
+*/
 
 %---------------------------------------------------------------------
 
