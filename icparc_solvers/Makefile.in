@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.34 2013/03/12 23:15:11 jschimpf Exp $
+# $Id: Makefile.in,v 1.35 2013/03/14 00:57:54 jschimpf Exp $
 #
 
 # The location of third party software releases
@@ -254,8 +254,8 @@ EXAMPLE_FILES =	cbs.ecl lds.ecl wcs.ecl knapsack_ls.ecl
 ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl \
 		fd_sets.ecl ic_sets.ecl \
 		ic.ecl ic_kernel.ecl ic_constraints.ecl ic_symbolic.ecl \
-		fd_search.ecl ic_search.ecl \
-		fd_sbds.ecl ic_sbds.ecl \
+		fd_search.ecl ic_search.ecl gfd_search.ecl \
+		fd_sbds.ecl ic_sbds.ecl gfd_sbds.ecl \
 		fd_generic_interface.ecl ic_generic_interface.ecl \
 		fd_global.ecl ic_global.ecl \
 	        fd_sequence.ecl ic_sequence.ecl flow_constraints_support.ecl \
@@ -295,8 +295,8 @@ PL_ECI_FILES =	repair.pl ech.pl \
 		shadow_cons.pl 
 ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		ic.ecl ic_kernel.ecl ic_sets.ecl ic_hybrid_sets.ecl \
-		fd_search.ecl ic_symbolic.ecl \
-		fd_sbds.ecl ic_sbds.ecl \
+		fd_search.ecl gfd_search.ecl ic_symbolic.ecl \
+		fd_sbds.ecl ic_sbds.ecl gfd_sbds.ecl \
 		fd_global.ecl ic_global.ecl \
 		cumulative.ecl ic_cumulative.ecl \
 		edge_finder.ecl ic_edge_finder.ecl \
