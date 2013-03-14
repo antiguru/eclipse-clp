@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.35 2013/03/14 00:57:54 jschimpf Exp $
+# $Id: Makefile.in,v 1.36 2013/03/14 02:03:55 jschimpf Exp $
 #
 
 # The location of third party software releases
@@ -254,8 +254,8 @@ EXAMPLE_FILES =	cbs.ecl lds.ecl wcs.ecl knapsack_ls.ecl
 ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl \
 		fd_sets.ecl ic_sets.ecl \
 		ic.ecl ic_kernel.ecl ic_constraints.ecl ic_symbolic.ecl \
-		fd_search.ecl ic_search.ecl gfd_search.ecl \
-		fd_sbds.ecl ic_sbds.ecl gfd_sbds.ecl \
+		fd_search.ecl ic_search.ecl \
+		fd_sbds.ecl ic_sbds.ecl \
 		fd_generic_interface.ecl ic_generic_interface.ecl \
 		fd_global.ecl ic_global.ecl \
 	        fd_sequence.ecl ic_sequence.ecl flow_constraints_support.ecl \
@@ -268,6 +268,7 @@ ECL_ECO_FILES =	graph_algorithms.ecl heap_array.ecl \
 		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		conjunto_fd_sets.ecl ic_hybrid_sets.ecl lex_set.ecl \
 		tentative.ecl tentative_constraints.ecl max_flow.ecl
+GFD_ECL_ECO_FILES = gfd_search.ecl gfd_sbds.ecl 
 PL_ECO_FILES =	changeset.pl shadow_cons.pl ech.pl \
 		repair.pl eplex_relax.pl \
 		repairfd.pl \
@@ -295,8 +296,8 @@ PL_ECI_FILES =	repair.pl ech.pl \
 		shadow_cons.pl 
 ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		ic.ecl ic_kernel.ecl ic_sets.ecl ic_hybrid_sets.ecl \
-		fd_search.ecl gfd_search.ecl ic_symbolic.ecl \
-		fd_sbds.ecl ic_sbds.ecl gfd_sbds.ecl \
+		fd_search.ecl ic_symbolic.ecl \
+		fd_sbds.ecl ic_sbds.ecl \
 		fd_global.ecl ic_global.ecl \
 		cumulative.ecl ic_cumulative.ecl \
 		edge_finder.ecl ic_edge_finder.ecl \
@@ -305,17 +306,20 @@ ECL_ECI_FILES =	fd_sets.ecl conjunto_fd_sets.ecl graph_algorithms.ecl \
 		config_opts.ecl gap.ecl sym_expr.ecl \
 		ic_gap_sbdd.ecl ic_gap_sbds.ecl regex.ecl sd.ecl \
 		tentative.ecl tentative_constraints.ecl max_flow.ecl
+GFD_ECL_ECI_FILES = gfd_search.ecl  gfd_sbds.ecl
 NON_ECLIPSE_FILES = RuntimesList.g SBDDa.g
 
 EXAMPLE_DEST =	$(EXAMPLE_FILES:%=$(PREFIX)/doc/examples/tutorial/%) 
 ECO_DEST =	$(ECL_ECO_FILES:%.ecl=$(PREFIX)/lib/%.eco) \
 		$(PL_ECO_FILES:%.pl=$(PREFIX)/lib/%.eco)
+GFD_ECO_DEST =  $(GFD_ECL_ECO_FILES:%.ecl=$(PREFIX)/lib/%.eco)
 SOURCE_DEST =	$(ECL_ECO_FILES:%.ecl=$(PREFIX)/lib/%.ecl) \
 		$(PL_ECO_FILES:%.pl=$(PREFIX)/lib/%.pl) \
 		$(ECL_ONLY_FILES:%=$(PREFIX)/lib/%) \
 		$(INCLUDE_ONLY_FILES:%=$(PREFIX)/lib/%)
 ECI_DEST =      $(PL_ECI_FILES:%.pl=$(PREFIX)/lib/%.eci) \
 		$(ECL_ECI_FILES:%.ecl=$(PREFIX)/lib/%.eci) 
+GFD_ECI_DEST =  $(GFD_ECL_ECI_FILES:%.ecl=$(PREFIX)/lib/%.eci)
 OBJ_DEST =	$(OBJ_FILES:%=$(PREFIX)/lib/%)
 NON_ECLIPSE_DEST = $(NON_ECLIPSE_FILES:%=$(PREFIX)/lib/%)
 
@@ -329,11 +333,17 @@ archclean:
 ecoclean:
 	rm -rf *.eco $(ECO_DEST)
 
-install_all:	install_cross $(ECO_DEST) $(ECI_DEST) \
+install_all:	install_cross install_gfd $(ECO_DEST) $(ECI_DEST) \
 		$(NON_ECLIPSE_DEST)
 
-install_cross:	$(XPRESS_DEST_DIRS) $(OBJ_DEST) $(SOURCE_DEST) \
+install_cross:	install_gfd_cross $(XPRESS_DEST_DIRS) $(OBJ_DEST) $(SOURCE_DEST) \
 	        $(EXAMPLE_DEST) $(ECH_EXAMPLE_DEST) 
+
+install_gfd_cross: @ALL_CROSS_WITH_GECODE@
+install_gfd: @ALL_WITH_GECODE@
+
+all_with_gecode:  $(GFD_ECO_DEST)
+all_cross_with_gecode: $(GFD_ECI_DEST)
 
 
 %/.stamp:
@@ -551,66 +561,4 @@ $(MAKEFILE):	Makefile.in
 	  else \
 	    echo === Please re-run configure on this host ; \
 	  fi )
-
-
-#----------------------------------------------------------------------
-# Some helpful rules to build COIN-OR Cbc/SYMPHONY in $(THIRDPARTY)
-# We only build static libraries!
-#----------------------------------------------------------------------
-
-COIN_CBC_VERSION=2.6
-THIRDPARTY_CBC_DEST=$(THIRDPARTY)/coinclpcbc$(COIN_CBC_VERSION)/$(ARCH)
-
-install_cbc:    all_cbc
-	mkdir -p $(THIRDPARTY_CBC_DEST)/include
-	mkdir -p $(THIRDPARTY_CBC_DEST)/lib
-	/bin/cp -pr Cbc/$(ARCH)/include/coin/* $(THIRDPARTY_CBC_DEST)/include
-	/bin/cp -pr Cbc/$(ARCH)/lib/coin/* $(THIRDPARTY_CBC_DEST)/lib
-
-all_cbc:	basic_cbc \
-	Cbc/$(ARCH)/include/coin/CbcBranchUser.hpp \
-	Cbc/$(ARCH)/include/coin/CbcCompareUser.hpp \
-	Cbc/$(ARCH)/lib/coin/CbcBranchUser.o \
-	Cbc/$(ARCH)/lib/coin/CbcCompareUser.o
-
-basic_cbc:	Cbc/$(ARCH)/Makefile
-	( cd Cbc/$(ARCH) ; make install )
-
-Cbc/$(ARCH)/Makefile:	Cbc/configure
-	mkdir -p Cbc/$(ARCH)
-	( cd Cbc/$(ARCH) ; ../configure --host=@host@ --enable-static --disable-shared ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
-
-Cbc/configure:
-	svn co https://projects.coin-or.org/svn/Cbc/stable/$(COIN_CBC_VERSION) Cbc
-
-Cbc/$(ARCH)/include/coin/%.hpp:  Cbc/Cbc/examples/%.hpp basic_cbc
-	/bin/cp $< $@
-
-Cbc/$(ARCH)/lib/coin/%.o:  Cbc/$(ARCH)/Cbc/examples/%.o
-	/bin/cp $< $@
-
-Cbc/$(ARCH)/Cbc/examples/%.o:  Cbc/Cbc/examples/%.cpp basic_cbc
-	( cd $(@D) ; make $(@F) )
-
-
-
-COIN_SYM_VERSION=5.3
-THIRDPARTY_SYM_DEST=$(THIRDPARTY)/coinsymclp$(COIN_SYM_VERSION)/$(ARCH)
-
-install_sym:    all_sym
-	mkdir -p $(THIRDPARTY_SYM_DEST)/include
-	mkdir -p $(THIRDPARTY_SYM_DEST)/lib
-	/bin/cp -pr SYMPHONY/$(ARCH)/include/coin/* $(THIRDPARTY_SYM_DEST)/include
-	/bin/cp -pr SYMPHONY/$(ARCH)/lib/coin/* $(THIRDPARTY_SYM_DEST)/lib
-
-all_sym:	SYMPHONY/$(ARCH)/Makefile
-	( cd SYMPHONY/$(ARCH) ; make install )
-
-SYMPHONY/$(ARCH)/Makefile:	SYMPHONY/configure
-	mkdir -p SYMPHONY/$(ARCH)
-	( cd SYMPHONY/$(ARCH) ; ../configure --host=@host@ --enable-static --disable-shared ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
-
-SYMPHONY/configure:
-	svn co https://projects.coin-or.org/svn/SYMPHONY/stable/$(COIN_SYM_VERSION) SYMPHONY
-
 
