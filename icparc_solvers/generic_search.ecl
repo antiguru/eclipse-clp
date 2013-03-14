@@ -27,7 +27,7 @@
 % Author/s:	Helmut Simonis, Parc Technologies Ltd
 %               Joachim Schimpf, IC-Parc
 %               Kish Shen, IC-Parc
-% Version:	$Id: generic_search.ecl,v 1.6 2013/03/12 23:15:11 jschimpf Exp $
+% Version:	$Id: generic_search.ecl,v 1.7 2013/03/14 01:02:18 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -158,19 +158,16 @@ different search methods
 %	   ++Module:atom)
 %
 :-mode labeling(+,++,++,+,?,?,?,++,++).
-labeling(L,Arg,Select,Choice,In,Out,Node_option, Node,Module):-
-	labeling1(L,Arg,Select,Choice,In,Out,Node_option, Node,Module).
-
-
-:-mode labeling1(+,++,++,+,?,?,?,++,++).
-labeling1([],_,_,_,In,In,_Tree,_Node,_Module).
-labeling1([H|T],Arg,Select,Choice,In,Out,Node_option, Node,Module):-
-	search_delete(X,[H|T],R,Arg,Select,Module),
-	tree_fixed(X,Node_option,Arg,Choice,Node,complete),
-	choose(X,Arg,Choice,In,In1,Module),
-	inc_backtrack_count,
-	tree_node(X,Node_option, Node,Node1,Module),
-	labeling1(R,Arg,Select,Choice,In1,Out,Node_option, Node1,Module).
+labeling(Xs,Arg,Select,Choice,In,Out,Node_option, Node,Module):-
+	( search_delete(X,Xs,R,Arg,Select,Module) ->
+	    tree_fixed(X,Node_option,Arg,Choice,Node,complete),
+	    choose(X,Arg,Choice,In,In1,Module),
+	    inc_backtrack_count,
+	    tree_node(X,Node_option, Node,Node1,Module),
+	    labeling(R,Arg,Select,Choice,In1,Out,Node_option, Node1,Module)
+	;
+	    Out=In
+	).
 
 % sbds(+List:list,
 %           ++Arg:integer,
@@ -313,14 +310,16 @@ bbs(L,Arg,Select,Choice,Steps,In,Out,Node_option, Node,Module):-
 	block(bbs1(L,Arg,Select,Choice,In,Out,Node_option, Node,Module),bbs,fail).
 
 :-mode bbs1(+,++,++,+,?,?,?,++,++).
-bbs1([],_,_,_,In,In,_Tree,_Node,_Module).
-bbs1([H|T],Arg,Select,Choice,In,Out,Node_option, Node,Module):-
-	search_delete(X,[H|T],R,Arg,Select,Module),
-	tree_fixed(X,Node_option,Arg,Choice,Node,bbs),
-	choose(X,Arg,Choice,In,In1,Module),
-	inc_backtrack_count_check,
-	tree_node(X,Node_option, Node,Node1,Module),
-	bbs1(R,Arg,Select,Choice,In1,Out,Node_option, Node1,Module).
+bbs1(Xs,Arg,Select,Choice,In,Out,Node_option, Node,Module):-
+	( search_delete(X,Xs,R,Arg,Select,Module) ->
+	    tree_fixed(X,Node_option,Arg,Choice,Node,bbs),
+	    choose(X,Arg,Choice,In,In1,Module),
+	    inc_backtrack_count_check,
+	    tree_node(X,Node_option, Node,Node1,Module),
+	    bbs1(R,Arg,Select,Choice,In1,Out,Node_option, Node1,Module)
+	;
+	    Out=In
+	).
 
 
 % credit(+List:list,++Arg:integer,++Select:atom,+Choice:atom or p/2,
@@ -339,42 +338,41 @@ bbs1([H|T],Arg,Select,Choice,In,Out,Node_option, Node,Module):-
 credit([],_Arg,_Select,_Choice,_Credit,_Extra,In,In,_Node_option, _Node,_Module).
 credit(L,Arg,Select,Choice,Credit,Extra,In,Out,Node_option, Node,Module):-
 	L = [_|_],
-	length(L,N),
-	shelf_create(credit/N,0,Shelf),
-	credit1(L,Arg,Select,Choice,Credit,Extra,1,Shelf,In,Out,Node_option, Node,Module).
+	credit1(L,Arg,Select,Choice,Credit,Extra,In,Out,Node_option, Node,Module).
 
-:-mode credit1(+,++,++,+,++,++,++,++,?,?,?,++,++).
-credit1([],_,_,_,_,_,_,_,In,In,_Tree,_Node,_Module).
-credit1([H|T],Arg,Select,Choice,1,Extra,_Level,_Shelf,In,Out,Node_option, Node,Module):-
+:-mode credit1(+,++,++,+,++,++,?,?,?,++,++).
+credit1(Xs,Arg,Select,Choice,1,Extra,In,Out,Node_option, Node,Module):-
 	integer(Extra),
 	!,
-	bbs([H|T],Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
-credit1([H|T],Arg,Select,Choice,1,bbs(Extra),_Level,_Shelf,In,Out,Node_option, Node,Module):-
+	bbs(Xs,Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
+credit1(Xs,Arg,Select,Choice,1,bbs(Extra),In,Out,Node_option, Node,Module):-
 	!,
-	bbs([H|T],Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
-credit1([H|T],Arg,Select,Choice,1,lds(Extra),_Level,_Shelf,In,Out,Node_option, Node,Module):-
+	bbs(Xs,Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
+credit1(Xs,Arg,Select,Choice,1,lds(Extra),In,Out,Node_option, Node,Module):-
 	!,
-	lds([H|T],Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
-credit1([H|T],Arg,Select,Choice,Credit,Extra,Level,Shelf,In,Out,Node_option, Node,Module):-
+	lds(Xs,Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
+credit1(Xs,Arg,Select,Choice,Credit,Extra,In,Out,Node_option, Node,Module):-
 	Credit > 1,
-	search_delete(X,[H|T],R,Arg,Select,Module),
-	set_credit(Shelf,Level,Credit),
-	tree_fixed(X,Node_option,Arg,Choice,Node,credit),
-	choose(X,Arg,Choice,In,In1,Module),
-	inc_backtrack_count,
-	tree_node(X,Node_option, Node,Node1,Module),
-	distribute_credit(Shelf,Level,Credit_child,Rest),
-	(Rest = 0 ->
-	    !  % cut away remaining choices in choose
+	( search_delete(X,Xs,R,Arg,Select,Module) ->
+	    set_credit(Shelf,Credit),
+	    tree_fixed(X,Node_option,Arg,Choice,Node,credit),
+	    choose(X,Arg,Choice,In,In1,Module),
+	    inc_backtrack_count,
+	    tree_node(X,Node_option, Node,Node1,Module),
+	    distribute_credit(Shelf,Credit_child,Rest),
+	    (Rest = 0 ->
+		!  % cut away remaining choices in choose
+	    ;
+		true
+	    ),
+	    credit1(R,Arg,Select,Choice,Credit_child,Extra,In1,Out,Node_option, Node1,Module)
 	;
-            true
-	),
-	Level1 is Level+1,
-	credit1(R,Arg,Select,Choice,Credit_child,Extra,Level1,Shelf,In1,Out,Node_option, Node1,Module).
+	    Out=In
+	).
 
-:-mode set_credit(++,++,++).
-set_credit(Shelf,Level,Credit):-
-	shelf_set(Shelf,Level,Credit).
+:-mode set_credit(++,++).
+set_credit(Shelf,Credit):-
+	shelf_create(credit(Credit),Shelf).
 
 % the credit distribution
 % always give (a bit more than) half the credit to the next child
@@ -382,12 +380,12 @@ set_credit(Shelf,Level,Credit):-
 % do not use up credit yourself
 % if credit remains, and there are no more children, the credit is lost
 % if children do not use their credit, it is lost
-:-mode distribute_credit(++,++,++,-).
-distribute_credit(Shelf,Level,Credit,Rest):-
-	shelf_get(Shelf,Level,Old),
+:-mode distribute_credit(++,-,-).
+distribute_credit(Shelf,Credit,Rest):-
+	shelf_get(Shelf,1,Old),
 	Credit is (Old+1)//2,
 	Rest is Old-Credit,
-	shelf_set(Shelf,Level,Rest).
+	shelf_set(Shelf,1,Rest).
 
 
 % lds(+List:list,++Arg:integer,++Select:atom,++Choice:atom,
@@ -403,59 +401,52 @@ distribute_credit(Shelf,Level,Credit,Rest):-
 %
 
 :-mode lds(+,++,++,+,++,?,?,?,++,++).
-lds([],_Arg,_Select,_Choice,_Lds,In,In,_Node_option, _Node,_Module).
 lds(L,Arg,Select,Choice,Lds,In,Out,Node_option, Node,Module):-
-	L = [_|_],
-	length(L,N),
-	shelf_create(lds/N,0,Shelf),
-	Disc :: 0..Lds,
-	indomain(Disc),
-	lds1(L,Arg,Select,Choice,Disc,1,Shelf,In,Out,Node_option, Node,Module).
+	between(0,Lds,1,Disc),
+	lds1(L,Arg,Select,Choice,Disc,In,Out,Node_option, Node,Module).
 
-:-mode lds1(+,++,++,+,++,++,++,?,?,?,++,++).
-lds1([],_,_,_,0,_,_,In,In,_Tree,_Node,_Module). % do not allow to use less than given discrepancies
-lds1([H|T],Arg,Select,Choice,0,Level,Shelf,In,Out,Node_option, Node,Module):-
-	!,
-	search_delete(X,[H|T],R,Arg,Select,Module),
-	tree_fixed(X,Node_option,Arg,Choice,Node,lds_0),
-	once(choose(X,Arg,Choice,In,In1,Module)), % allows only shallow backtracking
-	update_nodes_counter, % create new node name
-	tree_node(X,Node_option, Node,Node1,Module),
-	Level1 is Level+1,
-	lds1(R,Arg,Select,Choice,0,Level1,Shelf,In1,Out,Node_option, Node1,Module).
-lds1([H|T],Arg,Select,Choice,Disc,Level,Shelf,In,Out,Node_option, Node,Module):-
-	search_delete(X,[H|T],R,Arg,Select,Module),
-	set_discrepancy(Shelf,Level,Disc),
-	tree_fixed(X,Node_option,Arg,Choice,Node,lds),
-	choose(X,Arg,Choice,In,In1,Module),
-	inc_backtrack_count,
-	tree_node(X,Node_option, Node,Node1,Module),
-	inc_discrepancy(Shelf,Level),
-	(test_discrepancy(Shelf,Level,Disc1) ->
-	    true
+:-mode lds1(+,++,++,+,++,?,?,?,++,++).
+lds1(Xs,Arg,Select,Choice,Disc,In,Out,Node_option, Node,Module):-
+	( search_delete(X,Xs,R,Arg,Select,Module) ->
+	    ( Disc=0 ->
+		tree_fixed(X,Node_option,Arg,Choice,Node,lds_0),
+		once(choose(X,Arg,Choice,In,In1,Module)), % allows only shallow backtracking
+		update_nodes_counter, % create new node name
+		tree_node(X,Node_option, Node,Node1,Module),
+		lds1(R,Arg,Select,Choice,0,In1,Out,Node_option, Node1,Module)
+	    ;
+		set_discrepancy(Shelf,Disc),	% Disc >= 1
+		tree_fixed(X,Node_option,Arg,Choice,Node,lds),
+		choose(X,Arg,Choice,In,In1,Module),
+		inc_backtrack_count,
+		tree_node(X,Node_option, Node,Node1,Module),
+		inc_discrepancy(Shelf),
+		(test_discrepancy(Shelf,Disc1) ->
+		    true
+		;
+		    !,  % cut away remaining choices in choose
+		    Disc1 = 0
+		),
+		lds1(R,Arg,Select,Choice,Disc1,In1,Out,Node_option, Node1,Module)
+	    )
 	;
-	    !,  % cut away remaining choices in choose
-	    Disc1 = 0
-	),
-	Level1 is Level+1,
-	lds1(R,Arg,Select,Choice,Disc1,Level1,Shelf,In1,Out,Node_option, Node1,Module).
+	    Out=In
+	).
 
-:-mode set_discrepancy(++,++,++).
-set_discrepancy(Shelf,Level,Disc):-
-	shelf_set(Shelf,Level,Disc).
+:-mode set_discrepancy(++,++).
+set_discrepancy(Shelf,Disc):-
+	shelf_create(disc(Disc),Shelf).
 
 
-:-mode test_discrepancy(++,++,++).
-test_discrepancy(Shelf,Level,Disc):-
-	shelf_get(Shelf,Level,Disc),
+:-mode test_discrepancy(++,++).
+test_discrepancy(Shelf,Disc):-
+	shelf_get(Shelf,1,Disc),
 	Disc > 0.
 
-:-mode inc_discrepancy(++,++).
-inc_discrepancy(_Shelf,_Level).
-inc_discrepancy(Shelf,Level):-
-	shelf_get(Shelf,Level,Old),
-	New is Old -1,
-	shelf_set(Shelf,Level,New),
+:-mode inc_discrepancy(++).
+inc_discrepancy(_Shelf).
+inc_discrepancy(Shelf):-
+	shelf_dec(Shelf,1),
 	fail.
 
 % dbs(+List:list,++Arg:integer,++Select:atom,+Choice:atom,
@@ -470,30 +461,28 @@ inc_discrepancy(Shelf,Level):-
 % explore all choice points in the first Level variables
 
 :-mode dbs(+,++,++,+,++,++,?,?,?,++,++).
-dbs(L,Arg,Select,Choice,Level,Extra,In,Out,Node_option, Node,Module):-
-	dbs1(L,Arg,Select,Choice,Level,Extra,In,Out,Node_option, Node,Module).
-
-:-mode dbs1(+,++,++,+,++,++,?,?,?,++,++).
-dbs1([],_,_,_,_,_,In,In,_Tree,_Node,_Module) :- !.
-dbs1([H|T],Arg,Select,Choice,0,Extra,In,Out,Node_option, Node,Module):-
+dbs(Xs,Arg,Select,Choice,0,Extra,In,Out,Node_option, Node,Module):-
 	integer(Extra),
 	!,
-	bbs([H|T],Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
-dbs1([H|T],Arg,Select,Choice,0,bbs(Extra),In,Out,Node_option, Node,Module):-
+	bbs(Xs,Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
+dbs(Xs,Arg,Select,Choice,0,bbs(Extra),In,Out,Node_option, Node,Module):-
 	!,
-	bbs([H|T],Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
-dbs1([H|T],Arg,Select,Choice,0,lds(Extra),In,Out,Node_option, Node,Module):-
+	bbs(Xs,Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
+dbs(Xs,Arg,Select,Choice,0,lds(Extra),In,Out,Node_option, Node,Module):-
 	!,
-	lds([H|T],Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
-dbs1([H|T],Arg,Select,Choice,Level,Extra,In,Out,Node_option, Node,Module):-
+	lds(Xs,Arg,Select,Choice,Extra,In,Out,Node_option, Node,Module).
+dbs(Xs,Arg,Select,Choice,Level,Extra,In,Out,Node_option, Node,Module):-
 	Level >= 1,
-	search_delete(X,[H|T],R,Arg,Select,Module),
-	tree_fixed(X,Node_option,Arg,Choice,Node,dbs),
-	choose(X,Arg,Choice,In,In1,Module),
-	inc_backtrack_count,
-	tree_node(X,Node_option, Node,Node1,Module),
-	Level1 is Level-1,
-	dbs1(R,Arg,Select,Choice,Level1,Extra,In1,Out,Node_option, Node1,Module).
+	( search_delete(X,Xs,R,Arg,Select,Module) ->
+	    tree_fixed(X,Node_option,Arg,Choice,Node,dbs),
+	    choose(X,Arg,Choice,In,In1,Module),
+	    inc_backtrack_count,
+	    tree_node(X,Node_option, Node,Node1,Module),
+	    Level1 is Level-1,
+	    dbs(R,Arg,Select,Choice,Level1,Extra,In1,Out,Node_option, Node1,Module)
+	;
+	    Out=In
+	).
 
 /***********************************************************************
 
@@ -508,6 +497,9 @@ value choice
 % the user-predicate can assign more than one argument inside
 %
 :-mode choose(?,++,++,?,?,++).
+choose(X,N,LM:Method,In,Out,_Module) ?-
+	!,
+	choose(X,N,Method,In,Out,LM).
 choose(X,N,indomain,_In, _Out, _Module):-
 	!,
 	access(X,N,Var),
@@ -808,12 +800,15 @@ variable selection
 
 ***********************************************************************/
 
-
-search_delete(H, List, T, Arg, select(MyDelete), Module) ?-
-	once call(MyDelete,H,List,T,Arg)@Module.
-search_delete(H, List, T, Arg, criterion(SelectMethod), Module) ?-
-	delete(H,List,T,Arg,SelectMethod,Module).
-search_delete(H, List, T, Arg, SelectMethod, Module) :- atom(SelectMethod),
+search_delete(H, List, T, Arg, LM:Select, _Module) ?- !,
+	search_delete(H, List, T, Arg, Select, LM).
+search_delete(H, List, T, Arg, Select, Module) :- 
+	compound(Select),
+	functor(Select, Name, 1),
+	arg(1, Select, Method),
+	once call(Name,H,List,T,Arg,Method)@Module.
+search_delete(H, List, T, Arg, SelectMethod, Module) :-
+	atom(SelectMethod),
 	delete(H,List,T,Arg,SelectMethod,Module).
 
 
