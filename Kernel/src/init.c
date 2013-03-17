@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.6 2012/02/12 21:29:47 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.7 2013/03/17 12:09:59 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -190,7 +190,8 @@ t_eclipse_options ec_options =
 
 	/* localsize globalsize */
 #if defined(HAVE_MMAP) || defined(_WIN32)
-	VIRTUAL_STACK_DEFAULT,VIRTUAL_STACK_DEFAULT,
+	VIRTUAL_LOCAL_STACK_DEFAULT*MB*2*SIZEOF_WORD,
+	VIRTUAL_GLOBAL_STACK_DEFAULT*MB*2*SIZEOF_WORD,
 #else
 #define KB 1024
 #define DEFAULT_LOCAL		200*KB
@@ -198,7 +199,8 @@ t_eclipse_options ec_options =
 	DEFAULT_LOCAL,DEFAULT_GLOBAL,
 #endif
 	/* privatesize,sharedsize */
-	VIRTUAL_HEAP_DEFAULT,VIRTUAL_SHARED_DEFAULT,
+	VIRTUAL_HEAP_DEFAULT*MB*2*SIZEOF_WORD,
+	VIRTUAL_SHARED_DEFAULT*MB*2*SIZEOF_WORD,
 
 	/* user_panic */
 	default_panic,

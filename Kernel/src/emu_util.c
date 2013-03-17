@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.5 2013/02/09 20:27:57 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.6 2013/03/17 12:09:59 jschimpf Exp $
  */
 
 /*
@@ -65,7 +65,7 @@ pword	*spmax_; /* not for overflow checks, just to know if an address
 #endif /* AS_EMU */
 
 /* fraction of global_trail size to take as default gc-interval */
-#define GC_INTERVAL_FRACTION	32
+#define GC_INTERVAL_FRACTION	64
 
 /* minimal default gc-interval */
 #define MIN_GC_INTERVAL	(64*1024)

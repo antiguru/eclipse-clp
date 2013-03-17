@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.5 2012/02/11 17:09:31 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.6 2013/03/17 12:09:59 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -2337,7 +2337,8 @@ trim_global_trail(uword margin)
     int res = 1;
 
     /* compute the current global/trail ratio (careful with boundary conditions) */
-    ratio = ((uword*)TG - (uword*)TG_ORIG + 1) / ((uword*)TT_ORIG - (uword*)TT + 1);
+    /* for small stacks this approaches ratio 32 = 32000/1000 */
+    ratio = ((uword*)TG - (uword*)TG_ORIG + 32000) / ((uword*)TT_ORIG - (uword*)TT + 1000);
     if (ratio == 0) ratio = 1;
 
     Safe_Add_To_Pointer(TG, margin + GLOBAL_TRAIL_GAP, (pword *) TT, tg_new);
