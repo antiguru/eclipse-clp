@@ -32,9 +32,12 @@ parameters are available.
 The parameters are as follows:
 
 \begin{description}
-\item[$-$b bootfile]\cmdlineoptionidx{b}
-Compile the file \notation{bootfile} before starting the session.
-Multiple \notation{-b} options are allowed.
+\item[$-$b file]\cmdlineoptionidx{b}
+The same as $-$f file.
+
+\item[$-$f file]\cmdlineoptionidx{f}
+Compile the file \notation{file} before starting the session.
+Multiple \notation{-f} options are allowed.
 The file name is expected to be in the operating system's syntax.
 The file is processed by
 \bipref{ensure_loaded/1}{../bips/kernel/compiler/ensure_loaded-1.html},
@@ -47,7 +50,7 @@ Instead of starting an interactive toplevel, the system will execute the
 goal \notation{goal}. \notation{goal} is given in normal Prolog syntax, and has
 to be
 quoted if it contains any characters that would normally be interpreted by the
-shell. The \notation{-e} option can be used together with the \notation{-b}
+shell. The \notation{-e} option can be used together with the \notation{-f}
 option and is executed
 afterwards. Only one \notation{-e} option is allowed.
 %If the -e option is used together with the saved state option -s, then the
@@ -68,7 +71,7 @@ This option specifies the limit to which the memory consumption of the
 The size is specified in kilobytes (followed by an optional \notation{K}), in
 megabytes
 (followed by \notation{M}) or in gigabytes (followed by \notation{G}).
-The default is \notation{128M}, i.e., 128 megabytes.
+The default is \notation{512M} on 64-bit, or \notation{256M} on 32-bit machines.
 The amount required for this stack depends on the program's data
 structures and may have to be increased for very large applications.
 
@@ -78,7 +81,7 @@ This option specifies the limit to which the memory consumption of the
 The size is specified in kilobytes (followed by an optional \notation{K}), in
 megabytes
 (followed by \notation{M}) or in gigabytes (followed by \notation{G}).
-The default is \notation{128M}, i.e., 128 megabytes.
+The default is \notation{128M} on 64-bit, or \notation{64M} on 32-bit machines.
 The local/control stack is unlikely to require more than this default.
 If it does, it is probably caused by a programming error.
 
@@ -89,6 +92,20 @@ the {\eclipse} runtime system and libraries.  This option overrides
 (and renders unnecessary) any setting of the ECLIPSEDIR environment
 variable (Unix) or, respectively, an ECLIPSEDIR registry entry
 (Windows) that may be in effect.
+
+\item[$-$L language]\cmdlineoptionidx{L}
+The name of the language dialect used in the ``top level module''.
+The default is \notation{eclipse_language}, other possible values
+include \notation{iso}, \notation{iso_strict}, \notation{quintus} etc.
+This property can also be set via an \notationidx{ECLIPSEDEFAULTLANGUAGE}
+environment variable.
+
+\item[$-$t module]\cmdlineoptionidx{t}
+The name of the ``top level module''.  This is an initially empty module,
+created by the system, which serves as the context for \notation{-f} and
+\notation{-e} options, and in which interactive toplevel queries are executed.
+This can be an arbitrary name, as long as it does not conflict with
+important library names.  The default is \notation{eclipse}.
 
 \item[$-$ $-$]\cmdlineoptionidx{-}
 The {\eclipse} system will ignore this argument and everything that follows on
