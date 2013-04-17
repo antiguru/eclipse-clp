@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.10 2013/02/08 15:00:52 jschimpf Exp $
+ * $Id: embed.h,v 1.11 2013/04/17 01:34:21 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -54,7 +54,8 @@ enum {
 	EC_OPTION_IO			=12,
 	EC_OPTION_INIT			=13,
 	EC_OPTION_DEBUG_LEVEL		=14,
-	EC_OPTION_CWD_SEPARATE		=15
+	EC_OPTION_CWD_SEPARATE		=15,
+	EC_OPTION_DEFAULT_LANGUAGE	=16
 };
 
 /*

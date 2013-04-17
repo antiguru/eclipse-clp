@@ -23,7 +23,7 @@
 /*
  *      System: Eclipse
  *
- *	$Id: tkeclipse.c,v 1.3 2012/01/09 21:43:41 jschimpf Exp $
+ *	$Id: tkeclipse.c,v 1.4 2013/04/17 01:34:20 jschimpf Exp $
  *
  *	Code for embedding eclipse into a tcl program
  */
@@ -111,18 +111,17 @@ EcSetOption(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *const 
     {
 	char *option_name = Tcl_GetStringFromObj(objv[1], NULL);
 	Tcl_ResetResult(interp);
-	if (!strcmp(option_name, "argc")) option_id = EC_OPTION_ARGC;
-	else if (!strcmp(option_name, "argv")) option_id = EC_OPTION_ARGV;
-	else if (!strcmp(option_name, "localsize")) option_id = EC_OPTION_LOCALSIZE;
+	if (!strcmp(option_name, "localsize")) option_id = EC_OPTION_LOCALSIZE;
 	else if (!strcmp(option_name, "globalsize")) option_id = EC_OPTION_GLOBALSIZE;
 	else if (!strcmp(option_name, "privatesize")) option_id = EC_OPTION_PRIVATESIZE;
 	else if (!strcmp(option_name, "sharedsize")) option_id = EC_OPTION_SHAREDSIZE;
 	else if (!strcmp(option_name, "default_module")) option_id = EC_OPTION_DEFAULT_MODULE;
+	else if (!strcmp(option_name, "default_language")) option_id = EC_OPTION_DEFAULT_LANGUAGE;
 	else if (!strcmp(option_name, "eclipsedir")) option_id = EC_OPTION_ECLIPSEDIR;
 	else if (!strcmp(option_name, "io")) option_id = EC_OPTION_IO;
 	else if (!strcmp(option_name, "cwd_separate")) option_id = EC_OPTION_CWD_SEPARATE;
 	else {
-	    Tcl_SetResult(interp, "integer expected", TCL_STATIC);
+	    Tcl_SetResult(interp, "invalid option name", TCL_STATIC);
 	    return TCL_ERROR;
 	}
     }

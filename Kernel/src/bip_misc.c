@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.9 2013/02/01 00:02:15 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.10 2013/04/17 01:34:21 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -985,6 +985,11 @@ p_get_sys_flag(value vf, type tf, value vv, type tv)
 
     case 11:	/* current version */
 	Make_Atom(&pw, d_version);
+	break;
+
+    case 12:	/* default_language option */
+	Make_Atom(&pw, in_dict(
+	    ec_options.default_language ? ec_options.default_language : "", 0));
 	break;
 
     default:

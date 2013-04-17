@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.14 2013/02/08 15:00:52 jschimpf Exp $
+ * $Id: types.h,v 1.15 2013/04/17 01:34:20 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -733,6 +733,9 @@ typedef struct
 
     /* flag to enable internal debugging facilities (0=none, or >0) */
     int		debug_level;
+
+    /* the initial default_language */
+    char	*default_language;
 
 } t_eclipse_options;
 

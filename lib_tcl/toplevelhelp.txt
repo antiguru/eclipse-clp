@@ -119,7 +119,11 @@ initquery         string                 An ECLiPSe query that TkECLiPSe
                                          startup. It can be used to perform
                                          user defined initialisations.
 
-default_module    string                 The default toplevel module name.
+default_module    string                 The default toplevel module name
+                                         (default: eclipse).
+
+default_language  string                 The default language name
+                                         (default: eclipse_language).
 
 
 See the manual for more detailed description of the memory areas of ECLiPSe.

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.49 2013/02/18 00:42:58 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.50 2013/04/17 01:36:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -301,13 +301,18 @@
    local_record(compiled_modules/0).
 
 
+% Default language determined by: option, envvar, command line
 ?- make_array_(default_language, prolog, local, sepia_kernel),
-    ( getenv("ECLIPSEDEFAULTLANGUAGE", LangString) ->
-	atom_string(Language, LangString),
-	setval(default_language, Language)
+    get_sys_flag(12, LanguageOption),
+    ( LanguageOption \== '' ->
+	Language = LanguageOption
+    ; getenv("ECLIPSEDEFAULTLANGUAGE", LangString) ->
+	atom_string(Language, LangString)
     ;
-	setval(default_language, eclipse_language)
-    ).
+	Language = eclipse_language
+    ),
+    setval(default_language, Language).
+
 ?- make_array_(toplevel_trace_mode, prolog, local, sepia_kernel),
     setval(toplevel_trace_mode, nodebug).
 ?- make_array_(compiled_stream, prolog, local, sepia_kernel),

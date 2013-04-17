@@ -16,7 +16,7 @@
 ?-(','(getval(sepiadir,A),','(concat_strings(A,"/lib",B),','(make_array_(library,prolog,local,sepia_kernel),','(setval(library,B),','(make_array_(library_path,prolog,local,sepia_kernel),setval(library_path,[B]))))))).
 ?-(','(argv(0,A),','(setval(whoami,A),','(setval(binary,A),','(make_array_(break_level,prolog,local,sepia_kernel),','(setval(break_level,0),','(make_array_(prolog_suffix,prolog,local,sepia_kernel),','(setval(prolog_suffix,["",".ecl",".pl"]),','(make_array_(eclipse_object_suffix,prolog,local,sepia_kernel),','(setval(eclipse_object_suffix,".eco"),','(make_array_(eclipse_info_suffix,prolog,local,sepia_kernel),','(setval(eclipse_info_suffix,".eci"),make_array_(version_cache,prolog,local,sepia_kernel))))))))))))).
 :-(','(local_record(/(libraries,0)),local_record(/(compiled_modules,0)))).
-?-(','(make_array_(default_language,prolog,local,sepia_kernel),;(->(getenv("ECLIPSEDEFAULTLANGUAGE",A),','(atom_string(B,A),setval(default_language,B))),setval(default_language,eclipse_language)))).
+?-(','(make_array_(default_language,prolog,local,sepia_kernel),','(get_sys_flag(12,A),','(;(->(\==(A,''),=(B,A)),;(->(getenv("ECLIPSEDEFAULTLANGUAGE",C),atom_string(B,C)),=(B,eclipse_language))),setval(default_language,B))))).
 ?-(','(make_array_(toplevel_trace_mode,prolog,local,sepia_kernel),setval(toplevel_trace_mode,nodebug))).
 ?-(','(make_array_(compiled_stream,prolog,local,sepia_kernel),setval(compiled_stream,A))).
 ?-(make_array_(compile_stack,reference([]),local,sepia_kernel)).

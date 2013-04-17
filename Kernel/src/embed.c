@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.6 2013/01/17 23:41:09 jschimpf Exp $
+ * $Id: embed.c,v 1.7 2013/04/17 01:34:21 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -119,6 +119,7 @@ ec_set_option_ptr(int opt, void *val)
     case EC_OPTION_ARGV:	ec_options.Argv = (char **) val; break;
     case EC_OPTION_PANIC:	ec_options.user_panic = (void(*)(const char*,const char *)) val; break;
     case EC_OPTION_DEFAULT_MODULE:	ec_options.default_module = (char *) val; break;
+    case EC_OPTION_DEFAULT_LANGUAGE:	ec_options.default_language = (char *) val; break;
     case EC_OPTION_ECLIPSEDIR:	ec_options.eclipse_home = (char *) val; break;
     default:			return RANGE_ERROR;
     }

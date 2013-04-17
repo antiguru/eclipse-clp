@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.7 2013/03/17 12:09:59 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.8 2013/04/17 01:34:21 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -216,7 +216,7 @@ t_eclipse_options ec_options =
 	ALLOC_PRE,
 #endif
 	
-	/* default module */
+	/* default_module */
 	"eclipse",
 
 	/* eclipse_home, input, non-canonical */
@@ -226,7 +226,10 @@ t_eclipse_options ec_options =
 	(INIT_SHARED|INIT_PRIVATE|INIT_ENGINE|INIT_PROCESS),
 
 	/* debug_level */
-	0
+	0,
+
+	/* default_language */
+	(char *) 0
 };
 
 

@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.14 2013/02/11 21:02:45 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.15 2013/04/17 01:37:10 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -770,6 +770,7 @@ proc tkecl:set_toplevel_defaults {} {
 	    {globalsize "" +integer tkeclipserc "Global/trail stack size (in megabytes)"} \
             {localsize  "" +integer tkeclipserc "Local/Control stack size (in megabytes)"} \
 	    {default_module "" string tkeclipserc "Default module name"} \
+	    {default_language "" string tkeclipserc "Default language"} \
 	    {initquery "" string tkeclipserc "Initial query called by TkECLiPSe on start-up"} \
 	    {raise_when_done 1 boolean tkeclipserc "Raise toplevel window when query finishes"}
 
@@ -777,6 +778,7 @@ proc tkecl:set_toplevel_defaults {} {
     set tkecl(pref,localsize) ""
     set tkecl(pref,initquery) ""
     set tkecl(pref,default_module) ""
+    set tkecl(pref,default_language) ""
     set tkecl(pref,raise_when_done) 1
 
     set toplevdefaults [tkecl:get_user_defaults tkeclipserc]
@@ -799,6 +801,7 @@ proc tkecl:set_toplevel_defaults {} {
 			tk_messageBox -icon warning -message "$dname parameter: $dvalue should be a number" -type ok
 		    }
 		}
+		default_language -
 		default_module {
 		    set tkecl(pref,$dname) $dvalue
 		    ec_set_option $dname $dvalue
