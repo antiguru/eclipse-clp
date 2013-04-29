@@ -436,3 +436,4 @@ op_addr[i++] = (vmcode) &&I_CutAMN;
 op_addr[i++] = (vmcode) &&I_Put_moduleAM;
 op_addr[i++] = (vmcode) &&I_BI_Compare;
 op_addr[i++] = (vmcode) &&I_BI_ListEnd;
+op_addr[i++] = (vmcode) &&I_BI_Qualify;

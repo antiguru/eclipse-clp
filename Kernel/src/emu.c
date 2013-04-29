@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.30 2013/02/10 01:53:53 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.31 2013/04/29 01:02:10 jschimpf Exp $
  */
 
 /*
@@ -5491,7 +5491,7 @@ _anycall_:				/* (pw1,DBG_PORT,err_code,i) */
 	    }
 	    if (!IsTag(tmp1,TDICT)) {
 		if (IsTag(tmp1,TNIL))
-		    pw1->val.did = d_.nil;
+		    pw1->val.did = d_.nil;	/***/
 		else {
 		    err_code = TYPE_ERROR;
 		    goto _metacall_err_in_goal_;
@@ -5500,10 +5500,25 @@ _anycall_:				/* (pw1,DBG_PORT,err_code,i) */
 	    pw2 = pw1;				/* dereferenced lookup module */
 
 	    pw1 = &A[1];			/* check goal	*/
+_metacall_check_goal_:
 	    Dereference_Pw_Tag(pw1,tmp1)
 	    if (IsTag(tmp1,TCOMP)) {
 		pw1 = pw1->val.ptr;
 		val_did = pw1->val.did;
+		if (i && val_did == d_.colon) {
+		    pw2 = ++pw1;
+		    Dereference_Pw_Tag(pw2,tmp1)
+		    if (ISRef(tmp1)) {
+			err_code = INSTANTIATION_FAULT;
+			goto _metacall_err_in_goal_;
+		    } else if (!IsTag(tmp1,TDICT)) {
+			err_code = TYPE_ERROR;
+			goto _metacall_err_in_goal_;
+		    }
+		    err_code = PRI_EXPORTEDONLY;
+		    ++pw1;
+		    goto _metacall_check_goal_;
+		}
 	    } else if (IsTag(tmp1,TDICT)) {
 		val_did = pw1->val.did;
 		if (DidArity(val_did) > 0) {
@@ -7985,6 +8000,24 @@ _narg_:
             Import_None
             PP[0].arg->val.did = err_code<0 ? d_.inf0 : err_code>0 ? d_.sup0 : d_.unify0;
             PP[0].arg->tag.kernel = TDICT;
+            PP += 3;
+	    Next_Pp;
+
+
+         Case(BI_Qualify, I_BI_Qualify) /* qualify_(?Term,-QualTerm,+Module) */
+            pw1 = PP[0].arg;
+	    Dereference_Pw_Tag(pw1, tmp1);
+	    if (IsTag(tmp1, TCOMP) && pw1->val.ptr->val.did == d_.colon) {
+		*PP[1].arg = *pw1;
+	    } else {
+		TG[0].val.did = d_.colon;
+		TG[0].tag.kernel = TDICT;
+		TG[1] = *PP[2].arg;
+		TG[2] = *pw1;
+		Make_Struct(PP[1].arg, TG);
+		TG += 3;
+		Check_Gc
+	    }
             PP += 3;
             Next_Pp;
 

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.17 2013/02/02 01:02:37 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.18 2013/04/29 01:02:10 jschimpf Exp $
  */
 
 /********************************************************************
@@ -1261,6 +1261,7 @@ code_init(int flags)
 
     make_function_bip(in_dict("compare",3), BI_Compare, U_UNIFY, BoundArg(1, CONSTANT), 1, 0);
     make_function_bip(in_dict("list_end",2), BI_ListEnd, U_UNIFY, 0, 4, 0);
+    make_function_bip(in_dict("qualify_",3), BI_Qualify, U_UNIFY, 0, 4, 0);
 
     make_test_bip(in_dict("make_suspension",4), BI_MakeSuspension, U_UNIFY|DEBUG_INVISIBLE, BoundArg(3, NONVAR), 0, EXPORT);
 

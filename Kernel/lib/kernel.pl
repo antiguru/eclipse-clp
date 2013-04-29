@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.50 2013/04/17 01:36:17 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.51 2013/04/29 01:05:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -2176,17 +2176,13 @@ record_interface(Goal, Module) :-
 
 record_interface_directive((export _/_), _Module) :- -?-> !.
 record_interface_directive((export macro(F,TransPred,Options)), Module) :- -?-> !,
-	qualify(TransPred, Module, QualTransPred),
+	qualify_(TransPred, QualTransPred, Module),
 	init_module_record(1, (export macro(F,QualTransPred,Options)), Module).
 record_interface_directive((export portray(F,TransPred,Options)), Module) :- -?-> !,
-	qualify(TransPred, Module, QualTransPred),
+	qualify_(TransPred, QualTransPred, Module),
 	init_module_record(1, (export portray(F,QualTransPred,Options)), Module).
 record_interface_directive(Directive, Module) :-
 	init_module_record(1, Directive, Module).
-
-    qualify(Thing, _, QualThing) :- var(Thing), !, QualThing=Thing.
-    qualify(Thing, _, QualThing) :- Thing = _:_, !, QualThing=Thing.
-    qualify(Thing, CM, CM:Thing).
 
     unqualify(Thing, CM, CM, Thing) :- var(Thing), !.
     unqualify(LM:Thing, _, LM, Thing) :- !.
