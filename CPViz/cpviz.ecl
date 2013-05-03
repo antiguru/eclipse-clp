@@ -24,7 +24,7 @@
 :-comment(author,"Joachim Schimpf").
 :-comment(status,"experimental").
 :-comment(copyright,"2013, Joachim Schimpf").
-:-comment(categories,["Development Tools","Visualization"]).
+:-comment(categories,["Development Tools","Visualisation"]).
 :-comment(summary, "Wrapper library, subsuming all of CP-Viz").
 :-comment(desc, html("<P>
     This library loads and reexports library(visualization) and
