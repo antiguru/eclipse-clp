@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.10 2013/03/22 18:30:55 kish_shen Exp $
+% Version:	$Id: document.ecl,v 1.11 2013/05/29 23:34:07 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2013/03/22 18:30:55 $").
+:- comment(date, "$Date: 2013/05/29 23:34:07 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -268,9 +268,6 @@ bip(_Name, _Arity, _Group, _Library, _File).
     desc:html("Generate the HTML documentation tree for all ECLiPSe libraries.
     It takes into account all .eci files in the library path and generates
     an HTML documentation tree in <ECLiPSe installation directory>/doc/bips.
-    The kind information for predicates (taken from the kind field of
-    comment directives) are placed into:
-      <ECLiPSe installation directory>/doc/bips/bip_kinds.ecl 
     "),
     see_also:[ecis_to_htmls/4]
     ]).
@@ -283,7 +280,10 @@ ecis_to_htmls :-
 	AllDirs = [KernelDocs|LibDirs],
 	ecis_to_htmls(AllDirs, HtmlTopDir,
 	    "<A HREF=\"../index.html\">All ECLiPSe Documentation</A>",
-	    "ECLiPSe").
+	    "ECLiPSe"),
+
+	% generate constraint table from the bip_kinds.pl file just created
+        gen_cons_table(HtmlTopDir, [ic,fd,gfd], "finite-domain").
 
 
 % ecis_to_htmls(+LibDir, +HtmlDir, +Header, +SystemName)
@@ -1407,7 +1407,7 @@ gen_prolog_index(HtmlTopDir, SortedIndexList) :-
 	close(S).
 
 gen_bip_kind_file(HtmlTopDir, Kinds) :-
-	concat_string([HtmlTopDir,"/bip_kinds.ecl"], KindsFile),
+	concat_string([HtmlTopDir,"/bip_kinds.pl"], KindsFile),
 	open(KindsFile, write, S, [end_of_line(lf)]),
 	chmod644(KindsFile),
 	printf(S, "%%%n%% This file is generated - do not edit%n", []),
@@ -1581,12 +1581,18 @@ date(String) :-
 % generate html table for common constraints
 %----------------------------------------------------------------------
 
-:- export gen_fd_cons_table/0.
+:- export gen_cons_table/3.
 
-:- comment(gen_fd_cons_table/0, [
-        summary: "Generate an HTML table of the constraints supported by the finite domain solvers",
+:- comment(gen_cons_table/3, [
+	amode:gen_cons_table(+,++,+),
+	args:[
+	    "HtmlTopDir":"A directory path name",
+	    "Roots":"List of atoms (solver root names)",
+	    "Title":"Descriptive title for the solver group"
+	],
+        summary: "Generate an HTML table of the constraints of the given types",
         desc: html("This predicate generates an HTML page with a table
- of the constraints available for the finite domain solvers (ic, fd,
+ of the constraints available for the solvers listed as Roots (e.g. ic, fd,
  gfd). The information is generated from the kind fields of the
  comment/2 documentation.
 </p><p>
@@ -1598,20 +1604,16 @@ date(String) :-
  libraries are listed). 
 </p><p>
  In addition, the name(s) of the constraint(s) in the Gobal Constraint
- Catalog (GCCAT -- www.emn.fr/z-info/sdemasse/gcat/) is also listed,
+ Catalog (GCCAT -- www.emn.fr/z-info/sdemasse/gccat/) is also listed,
  if described in the catalog. Note that each ECLiPSe constraint may
  map to multiple GCCAT constraint and vice versa.
 ")
 ]).
 
-gen_fd_cons_table :-
-	get_flag(installation_directory, EclipseDir),
-	concat_string([EclipseDir,/,doc,/,bips], HtmlTopDir),
-        gen_cons_table(HtmlTopDir, [ic,fd,gfd], "finite-domain").
-
+catalog_url("http://www.emn.fr/z-info/sdemasse/gccat").
 
 gen_cons_table(HtmlTopDir, Roots, ConsType) :-
-        concat_string([HtmlTopDir, "/bip_kinds.ecl"], KindsFile),
+        concat_string([HtmlTopDir, "/bip_kinds.pl"], KindsFile),
         concat_string([HtmlTopDir, "/index.pl"], IndexFile),
         (current_module(kinds) -> erase_module(kinds) ; true),
         create_module(kinds, [kind/6], []),
@@ -1622,73 +1624,73 @@ gen_cons_table(HtmlTopDir, Roots, ConsType) :-
         concat_string([HtmlTopDir, /, ConsType, "_constraints.html"], TableFile), 
         open(TableFile, write, S),
         printf(S, "<h1>Constraints available for the %w solvers</h1>%n", [ConsType]),
-        writeln(S, "<table border=\"1\" 	width=80% >"),
+        writeln(S, "<table border=\"1\">"),
         writeln(S, "<tr>"),
-        printf(S, "	<td> constraint </td>%n", []),
+        printf(S, "	<th align=\"left\"> Constraint </th>%n", []),
         (foreach(R, Roots), param(S) do
-            printf(S, "	<td> %w </td>%n", [R])
+	    ( call(bip(_,_,LibDir,R,_))@kinds ->
+		concat_string([LibDir,/,R,"/index.html"], LibFile), 
+		printf(S, "	<th align=\"left\"> <a href=\"%w\"</a> %w </th>%n", [LibFile,R])
+	    ;
+		printf(S, "	<th align=\"left\"> %w </th>%n", [R])
+	    )
         ),
-        writeln(S, "<td> GCCat Name </td>"),
+	catalog_url(GCAT),
+	printf(S, "<th align=\"left\"><a href=\"%w\">Global Constraint Catalog</a></th>", [GCAT]),
         writeln(S, "</tr>"),
         
-        (foreach(N/A, Sorted), param(Roots,S,HtmlTopDir) do
+        (foreach(N/A, Sorted), param(Roots,S) do
             writeln(S, "<tr>"),
             printf(S, "	<td> %w </td>%n", [N/A]),
-            (foreach(R, Roots),param(GCATName,N,A,S,HtmlTopDir) do
+            (foreach(R, Roots),param(GCATName,N,A,S) do
                 write(S, "	<td> "),
                 Kinds = kinds, % get round compiler warning
                 findall(Lib0-Ex0,Kinds:kind(constraint,N,A, R, Lib0, Ex0), Infos),
                 (Infos \== [] ->
-                    (Infos = [Lib-Ex] -> 
-                        (Lib == R -> 
-                            Out = "  &bull;  "
-                        ;
-                            atom_string(Lib, Out)
-                        ),
-                        (gen_kind_pred_ref(N, A, HtmlTopDir, Lib, URL) ->
-                            print_ref(S, Lib, link(URL, Out))
-                        ;
-                            % should only be here if index.pl is
-                            % out of sync 
-                            write(S, Out)
-                        ),
+		    printf(S, "%w ", [R]),
+		    (
+			foreach(Lib-Ex, Infos),
+			count(I,1,_),
+			param(GCATName, S, N, A)
+		    do
+			(gen_kind_pred_ref(N, A, Lib, URL) ->
+			    printf(S, "<a href=\"%w\">%w</a>", [URL, I])
+			;
+                            % should only be here if index.pl is out of sync 
+			    printf(S, "%w", [I])
+			), 
+			write(S, " "),
                         % this ignores any inconsistent GCATName
-                        (memberchk(gccat:GCATName,Ex) -> true ; true)
+			(memberchk(gccat:GCATName,Ex) -> true ; true)
 
-                    ;
-                        (
-                            foreach(Lib-Ex, Infos),
-                            param(GCATName, HtmlTopDir, S, N, A)
-                        do
-                            (gen_kind_pred_ref(N, A, HtmlTopDir, Lib, URL) ->
-                                print_ref(S, Lib, link(URL, Lib)) 
-                            ;
-                                write(S, Lib) 
-                            ), 
-                            write(S, " "),
-                            (memberchk(gccat:GCATName,Ex) -> true ; true)
-
-                        )
                     )
                 ;
-                    write(S, "     ")
+                    write(S, "&nbsp;")
                 ),
                 writeln(S, "</td>")
             ),
+	    write(S, "<td>"),
             (var(GCATName) ->
-                writeln(S, "<td>     </td>")
+                write(S, "&nbsp;")
+            ;is_list(GCATName) ->
+		catalog_url(GCAT),
+		( foreach(Name,GCATName), param(GCAT,S) do
+		    printf(S, "<a href=\"%w/C%w.html\">%w</a> ", [GCAT,Name,Name])
+		)
             ;
-                printf(S, "<td> %w </td>%n", [GCATName])
+		catalog_url(GCAT),
+                printf(S, "<a href=\"%w/C%w.html\">%w</a>", [GCAT,GCATName,GCATName])
             ),
+	    writeln(S, "</td>"),
             writeln(S, "</tr>")
         ),
         writeln(S, "</table>"),
         close(S).
 
 
-gen_kind_pred_ref(N, A, HtmlTopDir, Lib, URL) :-
+gen_kind_pred_ref(N, A, Lib, URL) :-
         call(bip(N, A, Gr, Lib, F))@kinds, % bip/5 not exported
-        concat_string([HtmlTopDir, /, Gr, /, Lib, /, F, '.html'], URL).
+        concat_string([Gr, /, Lib, /, F, '.html'], URL).
 
 
 %----------------------------------------------------------------------
