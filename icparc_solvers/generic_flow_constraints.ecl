@@ -68,14 +68,16 @@ alldifferent_matrix_internal(Matrix,Lib):-
             ColVars is Matrix[1..N,J],
             Lib: alldifferent(ColVars)
         ),
-        check_alldifferent_matrix(Matrix),
-        term_variables(Matrix,List),
-        (ground(List) ->
-            true
-        ;
-            suspend(update_alldifferent_matrix(List,Matrix,Susp),
-                    0,[List->any],Susp)
-        ).
+        call_priority((
+            check_alldifferent_matrix(Matrix),
+            term_variables(Matrix,List),
+            (ground(List) ->
+                true
+            ;
+                suspend(update_alldifferent_matrix(List,Matrix,Susp),
+                        0,[List->any],Susp)
+            )
+        ), 2).
 
 
 :-demon(update_alldifferent_matrix/3).
@@ -128,8 +130,8 @@ check_alldifferent_matrix(Matrix):-
                 subscript(Matrix,[Row,Col1],X),
                 excl(X,Value)
             )
-        ),
-        wake.
+        ).
+
 
 
 /*
@@ -196,14 +198,16 @@ gcc_matrix_internal(Row,Col,Matrix,GccLib):-
             ColVars is Matrix[1..MaxRows,J],
             GccLib:gcc(ColLimits,ColVars)
         ),
-        check_gcc_matrix(Matrix,Limits,MaxRows,MaxCols),
-        term_variables(Matrix,List),
-        (ground(List) ->
-            true
-        ;
-            suspend(update_gcc_matrix(List,Matrix,Limits,Susp),
-                    0,[List->any],Susp)
-        ).
+        call_priority((
+            check_gcc_matrix(Matrix,Limits,MaxRows,MaxCols),
+            term_variables(Matrix,List),
+            (ground(List) ->
+                true
+            ;
+                suspend(update_gcc_matrix(List,Matrix,Limits,Susp),
+                        0,[List->any],Susp)
+            )
+        ), 2).
 
 
 :-demon(update_gcc_matrix/4).
@@ -269,9 +273,7 @@ check_gcc_matrix(Matrix,Limits,N,M):-
                     true
                 )
             )
-        ),
-%        writeln(wake),
-        wake.
+        ).
 
 gcc_matrix_create_edges(EdgeGroup,V,Limits,Matrix,
                         N,M,SourceNode,SinkNode,Edges,MidEdges):-
@@ -357,13 +359,15 @@ inverse(XL,YL):-
         length(Vars1,N),
         length(Vars2,N),
         append(Vars1,Vars2,Variables),
-        check_inverse(Vars1,Vars2,N),
-        (ground(Variables) ->
-            true
-        ;
-            suspend(update_inverse(Variables,Vars1,Vars2,N,Susp),
-                    10,[Variables->any],Susp)
-        ).
+        call_priority((
+            check_inverse(Vars1,Vars2,N),
+            (ground(Variables) ->
+                true
+            ;
+                suspend(update_inverse(Variables,Vars1,Vars2,N,Susp),
+                        10,[Variables->any],Susp)
+            )
+        ), 2).
 
 
 :-demon(update_inverse/5).
@@ -376,10 +380,6 @@ update_inverse(Variables,Vars1,Vars2,N,Susp):-
         ).
 
 check_inverse(Vars1,Vars2,N):-
-        call_priority(check_inverse_propagate(Vars1,Vars2,N),2),
-        wake.
-
-check_inverse_propagate(Vars1,Vars2,N):-        
         dim(Matrix,[N,N]),
         (for(I,1,N),
          foreach(X,Vars1),

@@ -94,14 +94,16 @@ total_sequence(Min,Max,L,U,K,Vars):-
         collection_to_list(Vars,Variables),
         length(Variables,N),
 %        writeln(check_total_sequence(Min,Max,L,U,K,N,Variables)),
-        check_total_sequence(Min,Max,L,U,K,N,Variables),
-        (ground(Variables) ->
-            true
-        ;
-            suspend(update_total_sequence(Min,Max,L,U,K,N,Variables,
-                                          Susp),
-                    9,[Variables->any],Susp)
-        ).
+        call_priority((
+            check_total_sequence(Min,Max,L,U,K,N,Variables),
+            (ground(Variables) ->
+                true
+            ;
+                suspend(update_total_sequence(Min,Max,L,U,K,N,Variables,
+                                              Susp),
+                        9,[Variables->any],Susp)
+            )
+        ), 2).
 
 :-demon(update_total_sequence/8).
 update_total_sequence(Min,Max,L,U,K,N,Variables,Susp):-
@@ -144,8 +146,7 @@ check_total_sequence(Min,Max,L,U,K,N,Variables):-
 %        writeln(strong(StrongComponents)),
         mark_components(StrongComponents,NrNodes,XEdges,NotMarked),
 %        writeln(unmarked(NotMarked,FlowSolution)),
-        remove_sequence_inconsistent(NotMarked,Mapping,FlowSolution),
-        wake.
+        remove_sequence_inconsistent(NotMarked,Mapping,FlowSolution).
 
 hash_expand_edges(CombinedMaxFlowEdges,Combination,MaxFlowEdges):-
         (foreach(Edge,CombinedMaxFlowEdges),
@@ -243,14 +244,16 @@ sequence(L,U,K,Vars):-
         collection_to_list(Vars,Variables),
         length(Variables,N),
 %        writeln(check_sequence(L,U,K,N,Variables)),
-        check_sequence(L,U,K,N,Variables),
-        (ground(Variables) ->
-            true
-        ;
-            suspend(update_sequence(L,U,K,N,Variables,Susp),
-                    9,[Variables->[min,max]/*,
-                       Variables->ic:hole*/],Susp)
-        ).
+        call_priority((
+            check_sequence(L,U,K,N,Variables),
+            (ground(Variables) ->
+                true
+            ;
+                suspend(update_sequence(L,U,K,N,Variables,Susp),
+                        9,[Variables->[min,max]/*,
+                           Variables->ic:hole*/],Susp)
+            )
+        ), 2).
 
 :-demon(update_sequence/6).
 update_sequence(L,U,K,N,Variables,Susp):-
@@ -284,8 +287,7 @@ check_sequence(L,U,K,N,Variables):-
 %        writeln(strong(StrongComponents)),
         mark_components(StrongComponents,NrNodes,XEdges,NotMarked),
 %        writeln(unmarked(NotMarked)),
-        remove_sequence_inconsistent(NotMarked,Mapping,FlowSolution),
-        wake.
+        remove_sequence_inconsistent(NotMarked,Mapping,FlowSolution).
 
 /*
 

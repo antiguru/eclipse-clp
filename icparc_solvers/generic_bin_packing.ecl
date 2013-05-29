@@ -138,17 +138,19 @@ bin_packing01(L,S,B,NrVars,NrBins):-
 
 bin_packing(L,_S,B,_Total,_NrVars,NrBins,Items):-
         hash_create(Hash),
-        check_bin_packing(B,NrBins,Items,Hash),
-        append(L,B,AllVars),
-        (ground(AllVars) ->
-            true
-        ;
-            suspend(update_bin_packing(AllVars,B,
-                                       NrBins,Items,Hash,Susp),
-                    5,[AllVars->inst,
-                       L->any,
-                       B->[min,max]],Susp)
-        ).
+        call_priority((
+            check_bin_packing(B,NrBins,Items,Hash),
+            append(L,B,AllVars),
+            (ground(AllVars) ->
+                true
+            ;
+                suspend(update_bin_packing(AllVars,B,
+                                           NrBins,Items,Hash,Susp),
+                        5,[AllVars->inst,
+                           L->any,
+                           B->[min,max]],Susp)
+            )
+        ), 2).
 
 :-demon(update_bin_packing/6).
 update_bin_packing(AllVars,B,NrBins,Items,Hash,Susp):-

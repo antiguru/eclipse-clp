@@ -123,15 +123,18 @@ alldifferent
 alldifferent(Vars):-
         collection_to_list(Vars,L),
         init_remember(Remember),
-        check_alldifferent(L,Remember),
-        shrink(L,L1),
-        (L1 = [] ->
-            true
-        ; L1 = [_] ->
-            true
-        ;
-            suspend(update_alldifferent(L1,Remember,L,Susp),4,[L1->any],Susp)
-        ).
+        call_priority((
+            check_alldifferent(L,Remember),
+            shrink(L,L1),
+            (L1 = [] ->
+                true
+            ; L1 = [_] ->
+                true
+            ;
+                suspend(update_alldifferent(L1,Remember,L,Susp),4,[L1->any],Susp)
+            )
+        ), 2).
+
 
 shrink(L,L1):-
         (foreach(X,L),
@@ -216,12 +219,7 @@ check_alldifferent(L,Remember):-
         alternate_paths(MFree,Graph1,NotMarked,FinalNotMarked),
         % remove the values which correspond to unmarked edges in the
         % graph; note that values are the sources of edges
-        call_priority(remove_unmarked_edges(FinalNotMarked,Mapping),2)
-
-        ),
-
-        % start the propagation after all value removals have been done
-        wake.
+        remove_unmarked_edges(FinalNotMarked,Mapping).
 
 
 
@@ -509,13 +507,16 @@ gcc(Bounds,Vars):-
         collection_to_list(Vars,Variables),
         length(Variables,N),
         length(Bounds,M),
-        check_gcc(Bounds,Variables,N,M),
-        (ground(Variables) ->
-            true
-        ;
-            suspend(update_gcc(Bounds,Variables,N,M,Susp),9,
-                    [Variables->[inst,any]],Susp)
-        ).
+        call_priority((
+            check_gcc(Bounds,Variables,N,M),
+            (ground(Variables) ->
+                true
+            ;
+                suspend(update_gcc(Bounds,Variables,N,M,Susp),9,
+                        [Variables->[inst,any]],Susp)
+
+            )
+         ), 2).
 
 :-demon(update_gcc/5).
 update_gcc(Bounds,Variables,N,M,Susp):-
@@ -544,8 +545,7 @@ check_gcc(Bounds,Variables,N,M):-
 %        writeln(strong(StrongComponents)),
         mark_components(StrongComponents,SinkNode,MidEdges,NotMarked),
 %        writeln(unmarked(NotMarked)),
-        call_priority(gcc_remove_unmarked_edges(NotMarked,Mapping),2),
-        wake.
+        gcc_remove_unmarked_edges(NotMarked,Mapping).
 
 create_gcc_edges(Variables,Bounds,N,M,Mapping,
                   SourceNode,SinkNode,Edges):-
@@ -655,13 +655,15 @@ same(L1,L2):-
         length(Vars1,N),
         length(Vars2,N),
         append(Vars1,Vars2,Variables),
-        check_same(Vars1,Vars2,N),
-        (ground(Variables) ->
-            true
-        ;
-            suspend(update_same(Variables,Vars1,Vars2,N,Susp),
-                    0,[Variables->any],Susp)
-        ).
+        call_priority((
+            check_same(Vars1,Vars2,N),
+            (ground(Variables) ->
+                true
+            ;
+                suspend(update_same(Variables,Vars1,Vars2,N,Susp),
+                        0,[Variables->any],Susp)
+            )
+        ), 2).
 
 :-demon(update_same/5).
 update_same(Variables,Vars1,Vars2,N,Susp):-
@@ -685,8 +687,7 @@ check_same(Vars1,Vars2,N):-
         make_graph(NrNodes,ResidualEdges,ResidualGraph),
         strong_components(ResidualGraph,StrongComponents),
         mark_components(StrongComponents,NrNodes,CenterEdges,NotMarked),
-        remove_same_inconsistent(NotMarked,Mapping,ValueHash),
-        wake.
+        remove_same_inconsistent(NotMarked,Mapping,ValueHash).
 
 same_create_edges(Vars1,Vars2,N,NrNodes,
                   CenterEdges,
@@ -804,13 +805,15 @@ inverse(XL,YL):-
         length(Vars2,N),
         append(Vars1,Vars2,Variables),
         Variables :: 1..N,
-        check_inverse(Vars1,Vars2,N),
-        (ground(Variables) ->
-            true
-        ;
-            suspend(update_inverse(Variables,Vars1,Vars2,N,Susp),
-                    10,[Variables->any],Susp)
-        ).
+        call_priority((
+            check_inverse(Vars1,Vars2,N),
+            (ground(Variables) ->
+                true
+            ;
+                suspend(update_inverse(Variables,Vars1,Vars2,N,Susp),
+                        10,[Variables->any],Susp)
+            )
+        ), 2).
 
 
 :-demon(update_inverse/5).
@@ -823,10 +826,6 @@ update_inverse(Variables,Vars1,Vars2,N,Susp):-
         ).
 
 check_inverse(Vars1,Vars2,N):-
-        call_priority(check_inverse_propagate(Vars1,Vars2,N),2),
-        wake.
-
-check_inverse_propagate(Vars1,Vars2,N):-        
         dim(Matrix,[N,N]),
         (for(I,1,N),
          foreach(X,Vars1),
@@ -938,7 +937,7 @@ lex_le(XVector,YVector):-
 lex_lt(XVector,YVector):-
         collection_to_list(XVector,XList),
         collection_to_list(YVector,YList),
-        setup_lex_gac(XList,YList,'<').
+        call_priority(setup_lex_gac(XList,YList,'<'), 2).
 
 setup_lex_gac(XList,YList,Variant):-
         length(XList,N),
@@ -998,8 +997,7 @@ update_lex_gac(Var,XArray,YArray,Store,J,Variant,Susp):-
             kill_suspension(Susp)
         ;
             true
-        ),
-        wake.
+        ).
 
 lex_gac(XArray,YArray,Store,I,Variant):-
         Store = store{alpha:A,beta:B},
