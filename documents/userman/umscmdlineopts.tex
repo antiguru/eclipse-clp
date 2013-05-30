@@ -20,13 +20,14 @@
 %
 % END LICENSE BLOCK
 %------------------------------------------------------------------------
-\chapter{{\eclipse} Command Line Options}
+\chapter{Command Line and Startup Options}
 %------------------------------------------------------------------------
+\section{Command Line Options}
 \index{command line options}
 
 The {\eclipse} system has several parameters which may be specified on the
 command line at invocation time. All the parameters are available with
-the tty \notation{eclipse}; with \notation{tkeclipse}, only the \notation{-g}
+the command line version of \notation{eclipse}; with \notation{tkeclipse}, only the \notation{-g}
 and \notation{-l}
 parameters are available.
 The parameters are as follows:
@@ -113,4 +114,53 @@ the commmand line. The Prolog program will only see the part of the
 command line that follows this argument.
 \end{description}
 
+
+\section{{\tkeclipse} Startup Settings}
+
+\notation{tkeclipse} accepts the same $-$g and $-$l options as
+notation{eclipse} for setting stack sizes.
+
+In addition, \notation{tkeclipse} on UNIX reads settings from 
+the files \notationidx{.tkeclipserc} (for toplevel parameters) and
+\notationidx{.tkeclipsetoolsrc} (for development tools parameters).
+The system will first search for these files in the current directory,
+and then in the user's home directory.
+Each parameter is specified on a separate line in the appropriate
+file, in the format
+\begin{verbatim}
+    parameter value
+\end{verbatim}
+On Windows, the settings are instead from the registry keys
+\begin{verbatim}
+    HKEY_CURRENT_USER\\Software\\IC-Parc\\ECLiPSe\\tkeclipserc
+    HKEY_CURRENT_USER\\Software\\IC-Parc\\ECLiPSe\\tkeclipsetoolsrc
+\end{verbatim}
+where each parameter is specified as a string value under the appropriate
+parameter key.
+In either case, the parameters can be modified and saved using the
+{\tkeclipse} Preference Editor.
+
+The parameters corresponding to the {\eclipse} command line settings are
+\begin{description}
+\item[\notationidx{globalsize} (positive integer)]
+    The maximum size to which the
+    global/trail stack area can grow
+    to. The unit is megabytes. 
+    Overridden by the -g option.
+\item[\notationidx{localsize} (positive integer)]
+    The maximum size to which the
+    local/control stack area can grow
+    to. The unit is megabytes.
+    Overridden by the -l option.
+\item[\notationidx{initquery} (string)]
+    An {\eclipse} query that {\tkeclipse}
+    will execute immediately after
+    startup. It can be used to perform
+    user defined initialisations.
+\item[\notationidx{default_language} (string)]
+    The default language name (default: eclipse_language).
+    Can be overridden by ECLIPSEDEFAULTLANGUAGE environment variable.
+\item[\notationidx{default_module} (string)]
+    The default toplevel module name (default: eclipse).
+\end{description}
 
