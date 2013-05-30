@@ -1,4 +1,4 @@
-.\"	$Id: eclipse.l,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+.\"	$Id: eclipse.l,v 1.3 2013/05/30 17:44:46 jschimpf Exp $
 .\" BEGIN LICENSE BLOCK
 .\" Version: CMPL 1.1
 .\"
@@ -67,9 +67,14 @@ The following options are currently recognized by
 .B eclipse:
 .TP 13
 .B \-b bootfile
+the same as -f bootfile.
+.TP
+.B \-f bootfile
 compile the file
 .I bootfile
 before starting the session.
+Multiple -f options are allowed.  The file is processed by
+ensure_loaded/1 and can be a precompiled file or a source file.
 .TP
 .B \-e goal
 Instead of starting an interactive toplevel, the system will
@@ -90,8 +95,8 @@ toplevel.
 This option specifies to which limit the memory consumption of the
 ECLiPSe global/trail stack can grow.  The size is specified in
 kilobytes (followed by an optional K), in megabytes (followed by M) or
-in gigabytes (followed by G).  The default is 128M, ie. 128
-Megabytes.
+in gigabytes (followed by G).
+The default is 512M on 64-bit, or 256M on 32-bit machines.
 The amount required for this stack depends on the program's data
 structures and may need to be increased for very large applications.
 .TP
@@ -99,8 +104,8 @@ structures and may need to be increased for very large applications.
 This option specifies to which limit the memory consumption of the
 ECLiPSe local/control stack can grow.  The size is specified in
 kilobytes (followed by an optional K), in megabytes (followed by M) or
-in gigabytes (followed by G).  The default is 128M, ie. 128
-Megabytes.
+in gigabytes (followed by G).
+The default is 128M on 64-bit, or 64M on 32-bit machines.
 The local/control stack is unlikely to require more than this default.
 If it does, it is probably caused by a programming error.
 .TP
@@ -111,6 +116,20 @@ ECLiPSe runtime system and libraries.  This option overrides (and
 renders unnecessary) any setting of the ECLIPSEDIR environment
 variable (Unix) or, respectively, an ECLIPSEDIR registry entry
 (Windows) that may be in effect. 
+.TP
+.B \-L language
+The name of the language dialect used in the top level module.
+The default is eclipse_language, other possible values include
+iso, iso_strict, quintus etc.
+This property can also be set via an ECLIPSEDEFAULTLANGUAGE
+environment variable.
+.TP
+.B \-t module
+The name of the top level module.  This is an initially empty module,
+created by the system, which serves as the context for -f and
+-e options, and in which interactive toplevel queries are executed.
+This can be an arbitrary name, as long as it does not conflict with
+important library names.  The default is eclipse.
 .TP
 .B \-\-
 The ECLiPSe system will ignore this argument and everything that
@@ -138,6 +157,11 @@ If ECLIPSEINIT is set to the empty string, no initialization is made.
 .B ECLIPSELIBRARYPATH
 a colon-separated sequence of directory names, which get prepended to
 ECLiPSe's list of library directories.
+.TP
+.B ECLIPSEDEFAULTLANGUAGE
+The name of the language dialect used in the top level module.
+The default is eclipse_language, other possible values include
+iso, iso_strict, quintus etc.
 
 
 .SH FILES
