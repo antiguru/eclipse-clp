@@ -23,37 +23,56 @@
 % @(#)umsporting.tex	1.1 94/10/07
 %
 
-\chapter{Porting Applications to {\eclipse}}
+\chapter{Language Dialects and Porting Prolog Applications}
 %HEVEA\cutdef[1]{section}
 \label{chapporting}
 
-The {\eclipse} system is to a large extent compatible with Prolog systems
-of the Edinburgh family, and one of the requirements during the development
-of {\eclipse} was to minimise the effort required to port
-programs written in other dialects to {\eclipse}.
-However, there are some differences.
-When you want to run an existing Prolog application on the {\eclipse} system,
-you have basically two choices:
-Using a compatibility language dialect, or modifying your program.
+The {\eclipse} system has evolved from the Edinburgh family of
+Prolog systems, and thus shares many properties with other systems
+in the same tradition.  In addition, the ISO Prolog Standard from 1995
+has also influenced {\eclipse}.
+By design, and due to conceptual, practical and historical
+reasons, the default programming language dialect used with {\eclipse}
+(known as \notationidx{eclipse_language}) differs from all of those,
+and represents a separate, unique dialect.
 
-\section{Using the compatibility language dialect}
+To run an application from another Prolog system to {\eclipse},
+one has basically two choices:
+Using a compatibility package, or modifying the program.
+
+
+\section{Using compatibility language dialects}
 The {\eclipse} compatibility language dialects are the fastest way to get a
 program running that was originally written for a different system.
-To use a particular language dialect, a module
-should be created with that language dialect using
-\bipref{module/3}{../bips/kernel/modules/module-3.html}.
-The packages contain the necessary code to make {\eclipse} emulate
-the behaviour of the other system to a large extent within the module.
-Compatibility dialects exist for:
+The dialects are implemented as libraries.
+The module system makes it possible for different application
+modules to use different language dialects.
+
+To use a particular language dialect, start the program with a
+\bipref{module/3}{../bips/kernel/modules/module-3.html}
+directive that specifies the desired language dialect, for example
+\begin{verbatim}
+    :- module(mymodule, [], iso).
+\end{verbatim}
+Here, the last argument of the module/3 directive indicates the language
+(the default being eclipse_language).
+It is not advisable to use \verb.:-lib(iso). or \verb.:-ensure_loaded(library(iso)).
+within an eclipse_language module, because this would lead to import
+conflicts between the different versions of built-in predicates.
+
+Examples of language dialects are
 \begin{itemize}
-\item ISO Standard Prolog (\notation{module(mymodulename,~[],~iso)});
-\item C-Prolog (\notation{module(mymodulename,~[],~cprolog)});
-\item Quintus Prolog (\notation{module(mymodulename,~[],~quintus)});
-\item SICStus Prolog, (\notation{module(mymodulename,~[],~sicstus)}).
+\item ISO Standard Prolog
+    (\bipref{iso}{../bips/libs/iso/index.html},
+    \bipref{iso_strict}{../bips/libs/iso_strict/index.html})
+\item C-Prolog (\bipref{cprolog}{../bips/libs/cprolog/index.html})
+\item Quintus Prolog (\bipref{quintus}{../bips/libs/quintus/index.html})
+\item SICStus Prolog (\bipref{sicstus}{../bips/libs/sicstus/index.html})
+\item SWI Prolog (\bipref{swi}{../bips/libs/swi/index.html})
 \end{itemize}
 See the Reference Manual for details on the compatibility provided by the
 language dialects.
-The language dialects are just modules which provides the necessary code
+The language dialects are just modules which provide the necessary code
 and exports  to emulate a particular Prolog dialect. This module is imported
 instead of the default \notation{eclipse_language} dialect which provides the
 {\eclipse} language.
@@ -63,9 +82,13 @@ Using this as a guideline, it should be easy to write similar packages for
 other systems, as long as their syntax does not deviate too much
 from the Edinburgh tradition.
 
-The following problems can occur despite the use of compatibility packages:
+For quick experiments with a language dialect, {\eclipse} can be started
+with a different \notationidx{default_language} option,
+see section \ref{cmdlineopts}.
+
 
 \subsection{Compiler versus interpreter}
+The following problem can occur despite the use of compatibility packages:
 If your program was written for an interpreter, e.g., C-Prolog,
 you have to be aware that {\eclipse} is a compiling system.
 There is a distinction between \emph{static} and \emph{dynamic} predicates.
@@ -154,8 +177,9 @@ my_type_error(E, Goal) :- error(default(E), Goal).
 \end{verbatim}
 
 \item As the {\eclipse} compiler does not accept procedures whose clauses
-are not consecutive in a file, you have to load the library \libspec{scattered}
-if you want to compile such procedures.
+are not consecutive in a file, it may be necessary to add
+\bipref{discontiguous/1}{../bips/kernel/compiler/discontiguous-1.html}
+directives if you want to compile such procedures.
 
 \end{itemize}
 
@@ -165,15 +189,13 @@ When rewriting existing applications as well as when writing new programs,
 it is useful to bear in mind important {\eclipse} features which can make
 programs easier to write and/or faster:
 \begin{itemize}
-\item The maximum performance is obtained when calling
-  \bipref{nodbgcomp/0}{../bips/kernel/obsolete/nodbgcomp-0.html}
-at the beginning of the session, before compiling any program and loading
-any libraries.
+\item Compiler features relevant for performance can be found in section
+\ref{secefficientcode}.
 
-\item {\eclipse} arrays and global variables
-(\bipref{setval/2}{../bips/kernel/storage/setval-2.html},\bipref{getval/2}{../bips/kernel/storage/getval-2.html})
-are usually
-more suitable to store permanent data than
+\item Use {\eclipse}'s nonlogical
+\bipref{storage}{../bips/kernel/storage/index.html} facilities
+(section \ref{secarrays}),
+which are usually more suitable to store permanent data than
 \bipref{assert/1}{../bips/kernel/dynamic/assert-1.html} is, and are usually
 faster.
 
