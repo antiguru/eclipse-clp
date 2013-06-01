@@ -174,17 +174,17 @@ check_alldifferent(L,Remember):-
             true
         ;
             N1 is N+1,
-        % build a list of the value nodes in the graph
-        value_nodes(N1,LastNode,ValueNodes),
-        % test if there are at least as many values as variables
-        % if not the constraint must fail here
-        LastNode - N >= N,
-        % create graph data structure
-        make_graph(LastNode,Edges,Graph),
+            % build a list of the value nodes in the graph
+            value_nodes(N1,LastNode,ValueNodes),
+            % test if there are at least as many values as variables
+            % if not the constraint must fail here
+            LastNode - N >= N,
+            % create graph data structure
+            make_graph(LastNode,Edges,Graph),
             remembered_matching(Mapping,L,Remember,OldMatching,
                                 SizeOld),
 %            writeln(old(SizeOld,OldMatching)),
-        % call the matching algorithm, if old matching does not work
+            % call the matching algorithm, if old matching does not work
             (SizeOld = N ->
                 MaximalM = OldMatching
             ;
@@ -194,32 +194,33 @@ check_alldifferent(L,Remember):-
            
                 length(MaximalM,SizeM),
 %                writeln(matching(SizeM,MaximalM)),
-        % check that every variable is matched, otherwise fail
+                % check that every variable is matched, otherwise fail
                 SizeM = N,
                 remember_matching(N,MaximalM,Remember,Mapping)
             ),
-        % invert the edges not in the matching
-        invert_edges(Edges,MaximalM,InvertedEdges,Edges1),
-        % build a new graph with matching and inverted edges
-        make_graph(LastNode,Edges1,Graph1),
-        % search for strongly connected components in new graph
-        strong_components(Graph1, StrongComponents),
-%        writeln(strong(StrongComponents)),
-        % extract edges between nodes in different components
-        mark_components(StrongComponents,LastNode,InvertedEdges,
+            % invert the edges not in the matching
+            invert_edges(Edges,MaximalM,InvertedEdges,Edges1),
+            % build a new graph with matching and inverted edges
+            make_graph(LastNode,Edges1,Graph1),
+            % search for strongly connected components in new graph
+            strong_components(Graph1, StrongComponents),
+%            writeln(strong(StrongComponents)),
+            % extract edges between nodes in different components
+            mark_components(StrongComponents,LastNode,InvertedEdges,
                         NotMarked),
-%        writeln(not_marked(NotMarked)),
-        % find value nodes not in matching, they are possible starts
-        % of alternating paths; for permutations there should be none
-        unmatched_value_nodes(N1,LastNode,MaximalM,MFree),
-        % MFree is a list of unmatched value nodes
-        % find edges on alternate paths starting in unmatched values
-        % and mark them
-%        writeln(mfree(MFree)),
-        alternate_paths(MFree,Graph1,NotMarked,FinalNotMarked),
-        % remove the values which correspond to unmarked edges in the
-        % graph; note that values are the sources of edges
-        remove_unmarked_edges(FinalNotMarked,Mapping).
+%            writeln(not_marked(NotMarked)),
+            % find value nodes not in matching, they are possible starts
+            % of alternating paths; for permutations there should be none
+            unmatched_value_nodes(N1,LastNode,MaximalM,MFree),
+            % MFree is a list of unmatched value nodes
+            % find edges on alternate paths starting in unmatched values
+            % and mark them
+%            writeln(mfree(MFree)),
+            alternate_paths(MFree,Graph1,NotMarked,FinalNotMarked),
+            % remove the values which correspond to unmarked edges in the
+            % graph; note that values are the sources of edges
+            remove_unmarked_edges(FinalNotMarked,Mapping)
+        ).
 
 
 
