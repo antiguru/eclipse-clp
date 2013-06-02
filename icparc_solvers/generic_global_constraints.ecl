@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.12 2013/05/29 14:13:29 kish_shen Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.13 2013/06/02 18:13:16 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -57,14 +57,13 @@
 	sorted/3,
 	sum_ge_zero/1,
 	sumlist/2,
+	atleast/3,
 	atmost/3.
 % additional constraints exported from 
 % generic_flow_constraints, generic_bin_packing
 
 :- import
-	setarg/3,
-	get_priority/1,
-	set_priority/1
+	setarg/3
     from sepia_kernel.
 
 
@@ -74,9 +73,8 @@
 
 :- export tr_global_out/2.
 
-:- export portray(atmost1/3, tr_global_out/2, [goal]).
-
-tr_global_out(atmost1(N, List, Val), atmost(N, List, Val)).
+tr_global_out(atmost(N, List, Val, _, _), atmost(N, List, Val)).
+tr_global_out(atleast(N, List, Val, _, _), atleast(N, List, Val)).
 tr_global_out(occurrences(Val, Vars, N, _, _), occurrences(Val, Vars, N)).
 tr_global_out(lex_demon(Xs,Ys,0,_), lex_le(Xs, Ys)).
 tr_global_out(lex_demon(Xs,Ys,1,_), lex_lt(Xs, Ys)).
@@ -270,7 +268,9 @@ maxlist(Xs, Max) :-
 
 
 %----------------------------------------------------------------------
-% occurrences(++Value, +List, ?N) -- Value occurs in List N times
+% occurrences(+Value, +List, ?N) -- Value occurs in List N times
+% atmost(+N, +List, +Value) -- Value occurs in List at most N times
+% atleast(+N, +List, +Value) -- Value occurs in List at least N times
 %----------------------------------------------------------------------
 
 :- comment(occurrences/3, [
@@ -287,7 +287,7 @@ maxlist(Xs, Max) :-
 	  gets updated to reflect the number of possible occurrences in the
 	  collection.  Collection elements may get instantiated to Value, or
 	  Value may be removed from their domain if required by N."),
-    see_also:[element/3, atmost/3, collection_to_list/2]
+    see_also:[atleast/3, atmost/3, collection_to_list/2]
     ]).
 
 occurrences(Value, Vars, N) :-
@@ -303,8 +303,7 @@ occurrences1(Value, List, N) :-
 	suspend(occurrences1(Value, List, N), 3, Value->inst).
 occurrences1(Value, List, N) :-
 	nonvar(Value),
-        occurrences(Value, List, N, state(0,List), _Susp),
-	wake.
+	call_priority(occurrences(Value, List, N, state(0,List), _Susp), 2).
 
 
 :- demon occurrences/5.
@@ -314,31 +313,25 @@ occurrences(Value, List, N, State, Susp) :-
         arg(1, State, Occ),
         arg(2, State, RestList),
 	count_vars(Value, RestList, Occ, Lower, Occ, Upper, VarsWithValue),
-	get_priority(P),			% make updates atomic
-	set_priority(2),
 	lwb(N, Lower),
 	upb(N, Upper),
 	( N == Lower ->
 	    ( foreach(X, VarsWithValue), param(Value) do
 		excl(X, Value)
 	    ),
-            kill_suspension(Susp),
-	    set_priority(P)
+            kill_suspension(Susp)
 	; N == Upper ->
 	    ( foreach(X, VarsWithValue), param(Value) do
 	    	X = Value
 	    ),
-            kill_suspension(Susp),
-	    set_priority(P)
+            kill_suspension(Susp)
 	; var(Susp) ->
 	    suspend(
 		    occurrences(Value, List, N, state(Lower,VarsWithValue), Susp),
-		    4, [VarsWithValue->any, N->[min,max]], Susp),
-	    set_priority(P)
+		    4, [VarsWithValue->any, N->[min,max]], Susp)
 	;
             setarg(1, State, Lower),
-            setarg(2, State, VarsWithValue),
-	    set_priority(P)
+            setarg(2, State, VarsWithValue)
 	).
 
 
@@ -353,9 +346,6 @@ occurrences(Value, List, N, State, Susp) :-
 % which can still take this value.
 % The VarsWithValue are the uninstantiated variables...
 
-%count_vars(Value,Vars,Lower,Upper,VarsWithValue):-
-%	count_vars(Value,Vars,0,Lower,0,Upper,VarsWithValue).
-
 count_vars(_,[],Lower,Lower,Upper,Upper,[]).
 count_vars(Value,[H|T],Lower1,Lower,Upper1,Upper,VarsWithValue) :-
 	( H == Value ->
@@ -369,6 +359,140 @@ count_vars(Value,[H|T],Lower1,Lower,Upper1,Upper,VarsWithValue) :-
 	    count_vars(Value,T,Lower1,Lower,Upper2,Upper,MoreWithValue)
 	;
 	    count_vars(Value,T,Lower1,Lower,Upper1,Upper,VarsWithValue)
+	).
+
+
+:- comment(atmost/3, [
+	summary:"At most N elements of Vars have the value V.",
+	template:"atmost(+N, ?Vars, +V)",
+        kind:[constraint:[root:[ic,fd]]],
+	desc:html("\
+   This constraint ensures that at most N element of Vars have the value V.
+   As soon as some domain variable from the collection is updated, this
+   constraint is woken and it checks if the constraint is still satisfiable
+   and if so, if it is already satisfied or not.
+"),
+	args:["+N" : "An integer",
+	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
+	      "+V" : "An integer"],
+	fail_if:"   Fails if more than N elements of Vars are instantiated to V.",
+	see_also:[atleast/3, occurrences/3, collection_to_list/2]]).
+
+atmost(N, Vars, Value) :- var(N), !,
+	suspend(atmost(N, Vars, Value), 3, N->inst).
+atmost(N, Vars, Value) :- var(Value), !,
+	suspend(atmost(N, Vars, Value), 3, Value->inst).
+atmost(N, Vars, Value) :-
+	integer(N),
+	collection_to_list(Vars, List),
+	!,
+	call_priority(atmost(N, List, Value, state(0,List), _Susp), 2).
+atmost(N, Vars, Value) :-
+	error(5, atmost(N, Vars, Value)).
+
+:- demon atmost/5.
+:- export portray(atmost/5, tr_global_out/2, [goal]).
+atmost(N, List, Value, State, Susp) :-
+        arg(1, State, Occ),
+        arg(2, State, RestList),
+	count_vars(Value, N, RestList, Occ, Lower, Occ, Upper, VarsWithValue),
+	( Lower > N ->
+	    fail
+	; Lower == N ->
+	    ( foreach(X, VarsWithValue), param(Value) do
+		X #\= Value
+	    ),
+            kill_suspension(Susp)
+	; Upper =< N ->
+            kill_suspension(Susp)
+	; var(Susp) ->
+	    suspend(
+		    atmost(N, List, Value, state(Lower,VarsWithValue), Susp),
+		    4, [VarsWithValue->inst], Susp)
+	;
+            setarg(1, State, Lower),
+            setarg(2, State, VarsWithValue)
+	).
+
+
+:- comment(atleast/3, [
+	summary:"At least N elements of Vars have the value V.",
+	template:"atleast(+N, ?Vars, +V)",
+        kind:[constraint:[root:[ic,fd]]],
+	desc:html("\
+   This constraint ensures that at least N element of Vars have the value V.
+   As soon as some domain variable from the collection is updated, this
+   constraint is woken and it checks if the constraint is still satisfiable
+   and if so, if it is already satisfied or not.
+"),
+	args:["+N" : "An integer",
+	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
+	      "+V" : "An integer"],
+	fail_if:"   Fails if less than N elements of Vars can take value V.",
+	see_also:[atmost/3, occurrences/3, collection_to_list/2]]).
+
+atleast(N, Vars, Value) :- var(N), !,
+	suspend(atleast(N, Vars, Value), 3, N->inst).
+atleast(N, Vars, Value) :- var(Value), !,
+	suspend(atleast(N, Vars, Value), 3, Value->inst).
+atleast(N, Vars, Value) :-
+	integer(N),
+	collection_to_list(Vars, List),
+	!,
+	call_priority(atleast(N, List, Value, state(0,List), _Susp), 2).
+atleast(N, Vars, Value) :-
+	error(5, atleast(N, Vars, Value)).
+
+:- demon atleast/5.
+:- export portray(atleast/5, tr_global_out/2, [goal]).
+atleast(N, List, Value, State, Susp) :-
+        arg(1, State, Occ),
+        arg(2, State, RestList),
+	count_vars(Value, N, RestList, Occ, Lower, Occ, Upper, VarsWithValue),
+	Upper >= N,
+	( Lower >= N ->
+            kill_suspension(Susp)	% entailed
+	; Upper == N ->
+	    ( foreach(X, VarsWithValue), param(Value) do
+	    	X = Value
+	    ),
+            kill_suspension(Susp)
+	; var(Susp) ->
+	    suspend(
+		    atleast(N, List, Value, state(Lower,VarsWithValue), Susp),
+		    4, [VarsWithValue->any], Susp)
+	;
+            setarg(1, State, Lower),
+            setarg(2, State, VarsWithValue)
+	).
+
+
+count_vars(_,_,[],Lower,Lower,Upper,Upper,[]).
+count_vars(Value,Max,[H|T],Lower1,Lower,Upper1,Upper,VarsWithValue) :-
+	( H == Value ->
+	    % H is instantiated to Value!
+	    Lower2 is Lower1 + 1,
+	    ( Lower2 > Max ->
+		Lower = Lower2,			% stop early
+		Upper = Lower, VarsWithValue = []	% don't care values
+	    ;
+		Upper2 is Upper1 + 1,
+		count_vars(Value,Max,T,Lower2,Lower,Upper2,Upper,VarsWithValue)
+	    )
+
+	; check_in(Value,H) ->
+	    Upper2 is Upper1 + 1,		% Value in domain
+	    VarsWithValue = [H|MoreWithValue],
+	    count_vars(Value,Max,T,Lower1,Lower,Upper2,Upper,MoreWithValue)
+	; nonvar(H) ->
+	    count_vars(Value,Max,T,Lower1,Lower,Upper1,Upper,VarsWithValue)
+	; is_solver_var(H) ->
+	    count_vars(Value,Max,T,Lower1,Lower,Upper1,Upper,VarsWithValue)
+	;
+	    % free variable 
+	    Upper2 is Upper1 + 1,
+	    VarsWithValue = [H|MoreWithValue],
+	    count_vars(Value,Max,T,Lower1,Lower,Upper2,Upper,MoreWithValue)
 	).
 
 
@@ -399,7 +523,6 @@ sumlist(List, Sum) :-
 	% get_finite_bounds/3 modify the variable, which triggers some
 	% propagation which modifies another variable, triggering a
 	% sumlist_update too early and throwing out our sum calculations.
-	% :(
 	call_priority((
 		(
 		    foreach(X, List),
@@ -422,10 +545,9 @@ sumlist(List, Sum) :-
 			Vars1 = Vars0
 		    )
 		),
-		[Sum,ListSum] :: Min..Max),
-	    2),
-	sumlist_prop(ListSum, Sum, v(Vars), _Susp),
-	wake.
+		[Sum,ListSum] :: Min..Max,
+		sumlist_prop(ListSum, Sum, v(Vars), _Susp)
+	    ), 2).
 
 
 :- demon(sumlist_update/4).
@@ -449,7 +571,6 @@ sumlist_update(X, XLXH, ListSum, Susp) :-
 :- demon(sumlist_prop/4).
 sumlist_prop(ListSum, Sum, VList, Susp) :-
 	VList = v(List),
-	get_priority(P), set_priority(2),	% make updates atomic
 	get_bounds(ListSum, ListSumL, ListSumH),
 	get_finite_bounds(Sum, SumL, SumH),
 	( ListSumL > SumL ->			% List constrains Sum
@@ -481,8 +602,7 @@ sumlist_prop(ListSum, Sum, VList, Susp) :-
 	;
 	    suspend(sumlist_prop(ListSum, Sum, VList, Susp), 3,
 			[ListSum-Sum->[min,max]], Susp)
-	),
-	set_priority(P).
+	).
 
 
 %----------------------------------------------------------------------
@@ -1405,75 +1525,6 @@ process_prefix_ge_min(Min,TTs,RestTs,CutOffSize,Cap,Dom0,Dom,NVars0,NVars,Prop) 
 		).
 
 
-
-:- comment(atmost/3, [
-	summary:"At most N elements of Vars have the value V.",
-	template:"atmost(+N, ?Vars, +V)",
-        kind:[constraint:[root:[ic,fd]]],
-	desc:html("\
-   This constraint ensures that at most N element of Vars have the value V.
-   As soon as some domain variable from the collection is updated, this
-   constraint is woken and it checks if the constraint is still satisfiable
-   and if so, if it is already satisfied or not.
-"),
-	args:["+N" : "An integer",
-	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
-	      "+V" : "An integer"],
-	resat:"   No.",
-	fail_if:"   Fails if more than N elements of Vars are instantiated to V.",
-	see_also:[element/3, occurrences/3, collection_to_list/2]]).
-
-%
-% atmost(Number, List, Value)
-%
-
-atmost(N, Vars, Val) :-
-    collection_to_list(Vars, List),
-    !,
-    atmost1(N, List, Val).
-atmost(N, Vars, Val) :-
-    error(5, atmost(N, Vars, Val)).
-
-atmost1(_, [], _).
-atmost1(N, List, Val) :-
-    filter_vars(N, List, Val, NewList, NewN, 0, VarNo),
-    (NewN >= VarNo ->
-	    true
-    ; NewN == 0 ->
-	    (foreach(X,NewList), param(Val) do
-		     X #\= Val
-	    )
-    ;
-	    make_suspension(atmost1(NewN, NewList, Val), 3, Susp),
-	    insert_suspension(NewList, Susp, inst of suspend, suspend)
-    ).
-
-filter_vars(N, [], _, [], N, V, V).
-filter_vars(N, [H|T], Val, NewList, NewN, V, VarNo) :-
-    var(H), !,
-    ( is_integer_type(H) ->
-	( check_in(Val, H) ->
-	    V1 is V + 1,
-	    NewList = [H | R]
-	; 
-	    V1 = V,
-	    NewList = R
-	)
-    ; 
-	V1 is V + 1,
-	NewList = [H | R]
-    ),
-    filter_vars(N, T, Val, R, NewN, V1, VarNo).
-filter_vars(N, [Val|T], Val, R, NewN, V, VarNo) :-
-    !,
-    N > 0,
-    N1 is N - 1,
-    filter_vars(N1, T, Val, R, NewN, V, VarNo).
-filter_vars(N, [_|T], Val, R, NewN, V, VarNo) :-
-    filter_vars(N, T, Val, R, NewN, V, VarNo).
-
-
-
 %
 % element(Index, List, Value)
 %
@@ -1571,43 +1622,41 @@ bool_channeling(X,Coll,F):-
         length(B,N),
         X #>= F,
         X #< F+N,
-%        sumlist(B,1),
-        call_priority((
-            check_bool_channeling(X,B,F),
-            (  var(X) ->
-                suspend(update_bool_channeling(X,B,F,Susp),3,
-                        [B->inst, X->any],Susp)
-            ;
-                true
-            )
-        ), 2).
+        call_priority(check_bool_channeling(X,B,F), 2).
 
 :-demon(update_bool_channeling/4).
 update_bool_channeling(X,B,F,Susp):-
         check_bool_channeling(X,B,F),
-        ( var(X) ->
-            true
-        ;
+        ( nonvar(X) ->
             kill_suspension(Susp)
+        ; nonvar(Susp) ->
+            unschedule_suspension(Susp)	% update is idempotent
+	;
+	    suspend(update_bool_channeling(X,B,F,Susp),3,
+		    [B->inst, X->any],Susp)
         ).
 
 check_bool_channeling(X,B,F):-
-        (foreach(V,B),
-         count(J,F,_),
-         param(X) do
-            (V == 0 ->
-                excl(X,J)
-            ; V == 1 ->
-                X = J
-            ; X == J ->
-                V = 1
-            ; check_in(J,X) ->
-                true
-            ;
-                V = 0
-            )
-        ),
-        (integer(X) ->
+	( var(X) ->
+	    (foreach(V,B),
+	     count(J,F,_),
+	     param(X) do
+		(V == 0 ->
+		    excl(X,J)
+		; V == 1 ->
+		    X = J
+		; X == J ->
+		    V = 1
+		; check_in(J,X) ->
+		    true
+		;
+		    V = 0
+		)
+	    )
+	;
+	    true
+	),
+        ( nonvar(X) ->
             (foreach(V,B),
              count(J,F,_),
              param(X) do
