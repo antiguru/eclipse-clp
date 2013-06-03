@@ -759,6 +759,8 @@ value Value.
 
     priority           1..12            waking priority
 
+    run_priority       1..12            execution priority when woken
+
     skip               on, off          procedure will be traced,
                                         but its children will not
 
@@ -806,24 +808,28 @@ Success:
             printf(\"%-20s%w\\n\", [F, V]), fail.
 
     mode                member(?, ?)
-    call_type           prolog
-    debugged            off
+    visibility          imported
+    definition_module   sepia_kernel
     declared            on
+    defined             on
     autoload            off
     auxiliary           off
-    defined             on
+    call_type           prolog
+    demon               off
+    deprecated          off
+    parallel            off
+    priority            2
+    run_priority        2
+    stability           static
+    tool                off
+    type                built_in
+    debugged            off
     leash               stop
     skip                off
     spy                 off
     start_tracing       off
-    stability           static
-    tool                off
-    type                built_in
-    visibility          imported
-    priority            2
-    demon               off
-    parallel            off
-    definition_module   sepia_kernel
+    source_file         Kernel/lib/kernel.pl
+    code_size           14
 
 Fail:
     get_flag(true/0, defined, off).
@@ -1032,7 +1038,7 @@ Error:
 Value.
 
 ",
-	index:[deprecated,priority,leash,skip,start_tracing,spy],
+	index:[deprecated,priority,run_priority,leash,skip,start_tracing,spy],
 	amode:(set_flag(++,+,+) is det),
 	desc:html("   Used to set the value Value of the flag Flag of the procedure(s)
    specified by PredSpec.  The value of a flag may be returned using
@@ -1061,6 +1067,8 @@ Value.
    | start_tracing  on, off    procedure starts the tracer             |
    |                                                                   |
    | priority       1..12      default waking priority                 |
+   |                                                                   |
+   | run_priority   1..12      execution priority when woken           |
    ---------------------------------------------------------------------
 </PRE>
 "),

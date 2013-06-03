@@ -246,6 +246,12 @@ trigger Trigger.
    goal present.
 
 <P>
+   Note that woken goals automatically execute under their associated
+   run_priority (which is a property of the predicate that is being invoked).
+   This is equivalent to a call_priority/2, therefore call_priority/2 is
+   usually not needed inside woken predicates.
+
+<P>
    Warning: Although it is possible to write programs that only work
    correctly under a particular priority ordering, such practice is
    strongly discouraged. Priorities should only affect efficiency,
@@ -888,7 +894,10 @@ conditions in CondList occurs.",
    The Prio argument determines the priority with which the Goal will be
    scheduled when woken. It can be a positive number between 1 and 12,
    or zero, in which case the priority defaults to the priority setting
-   of the predicate which is called in Goal.
+   of the predicate which is called in Goal. (Note that this is the scheduling
+   priority which determines the order of execution; the priority under which
+   the woken goal is executed may be higher, and is determined by the
+   run_priority predicate property, see set_flag/3).
 <P>
    CondList is a list of terms (or a single term) of the form Vars-&gt;Cond
    or trigger(Atom).  It specifies the conditions that will lead to the goal
@@ -958,7 +967,7 @@ world
 yes.
 ",
 	see_also:[suspend / 4, make_suspension / 3, insert_suspension / 3,
-		attach_suspensions / 2, schedule_suspensions / 1, meta_attribute/2]]).
+		attach_suspensions / 2, schedule_suspensions / 1, meta_attribute/2, set_flag/3]]).
 
 :- comment(suspend / 4, [
 	summary:"Suspend the Goal and wake it with priority Prio as soon as one of the
@@ -1074,7 +1083,10 @@ one.
    When a suspension is scheduled for execution, it gets inserted
    into a global priority list where it is waiting for execution.
    This global priority list is then processed explicitly by the
-   wake/0 predicate.
+   wake/0 predicate.  It will execute, in order of priority, all scheduled
+   suspensions that have priority higher than the current execution priority.
+   The woken goals themselves will be executed under their specific
+   run_priority, which may be higher than their scheduling priority.
    
    This separation of scheduling and execution enables the proper
    handling of priorities:  Low priority suspensions are not
