@@ -20,7 +20,7 @@
 %
 % END LICENSE BLOCK
 %
-% $Id: exthsusp.tex,v 1.6 2011/09/12 20:23:45 kish_shen Exp $
+% $Id: exthsusp.tex,v 1.7 2013/06/03 16:40:44 jschimpf Exp $
 %
 
 \chapter{Advanced Control Features}
@@ -932,9 +932,11 @@ The components of a suspension are:
         A term representing the goal itself, e.g., \notation{X > Y}.
 \item[The goal module]
         The module from which the goal was called.
-\item[The goal priority]
+\item[The scheduling priority]
         The priority with which the goal will be scheduled when
         it becomes woken.
+\item[The run priority]
+        The priority under which the goal will eventually be executed.
 \item[The state]
         This indicates the current position of the suspension within
         the resolvent. It is either suspended (sleeping), scheduled
@@ -1192,7 +1194,7 @@ A symbolic trigger can have an arbitrary name (an atom).
 Suspended goals are woken by submitting at least one of the suspension lists
 in which they occur to the waking scheduler.
 The waking scheduler which maintains a global priority queue inserts
-them into this queue according to their priority (see figure \ref{figresolv}).
+them into this queue according to their scheduling priority (see figure \ref{figresolv}).
 A suspension list can be passed to the scheduler by either of the predicates
 \bipref{schedule_suspensions/1}{../bips/kernel/suspensions/schedule_suspensions-1.html}
 (for triggers)
@@ -1297,20 +1299,30 @@ will be always executed before any goal with lower priority.
 Priority is a small integer number ranging from 1 to 12,
 1 being the highest priority and 12 the lowest
 (cf.\ figure~\ref{figresolv}).
-All goals started from the \eclipse\ top-level loop
-or from the command line with the \notation{-e} option have priority 12.
-Each suspension and each goal which is being
-executed therefore has an associated priority.
+Each goal which is being executed is executed under a current priority.
 The priority of the currently executing goal can be determined
 with \bipref{get_priority/1}{../bips/kernel/suspensions/get_priority-1.html}.
+This priority is
+\begin{itemize}
+\item normally inherited from the caller
+\item implicitly set to the goal's run_priority during waking
+\item explicitly set using \biptxtref{call_priority(\pattern{Goal},~\pattern{Prio})}{call_priority/2}{../bips/kernel/suspensions/call_priority-2.html}
+\end{itemize}
+All goals started from the \eclipse\ top-level loop
+or from the command line with the \notation{-e} option have priority 12.
 
 Priority-based execution is driven by a scheduler:
-it picks up the scheduled suspension with the highest priority.
-If its priority is higher than the priority of the currently
+it picks up the scheduled suspension with the highest scheduling priority.
+If its scheduling priority is higher than the priority of the currently
 executing goal, then the execution of the current goal
-is interrupted and the new suspension is executed.
+is interrupted and the new suspension is executed under its run_priority
+(which may be higher than the scheduling priority).
 This is repeated until there are no suspensions
 with priority higher than that of the current goal.
+
+Note that suspensions have two distinct priorities attached: the scheduling
+priority determining the order of execution, and the run_priority determining
+the atomicity of execution.
 
 
 \subsection{Changing Priority Explicitly}
@@ -1354,6 +1366,11 @@ term = f(X, Y, Z)
 term = f(1, 1, 1)
 \end{verbatim}
 \end{quote}
+
+Note that woken goals are automatically executed under their run_priority
+(default 2), which usually make the use of
+\biptxtref{call_priority(\pattern{Goal},~\pattern{Prio})}{call_priority/2}{../bips/kernel/suspensions/call_priority-2.html}
+unnecessary.
 
 
 \subsection{Choice of Priorities}
