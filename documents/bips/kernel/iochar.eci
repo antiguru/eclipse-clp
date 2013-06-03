@@ -84,7 +84,7 @@ read and unified with Token and its token class with Class.
    | \"abc\"          \"abc\"    string       |
    | |              \"|\"      solo         |
    | )              \")\"      solo         |
-   | (              \")\"      solo         |
+   | (              \"(\"      solo         |
    | &lt;SPACE&gt;(       \"(\"      open_par     |
    | ,              ','      comma        |
    | .&lt;NL&gt;          '.'      fullstop     |

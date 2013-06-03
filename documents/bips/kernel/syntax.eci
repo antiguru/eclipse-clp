@@ -754,6 +754,7 @@ Error:
  atom_quote     '
  string_quote   \"
  list_quote
+ chars_quote
  radix
  ascii
  solo           ! ;
@@ -828,6 +829,7 @@ Note
  atom_quote     '
  string_quote   \"
  list_quote
+ chars_quote
  radix
  ascii
  solo           ! ;
