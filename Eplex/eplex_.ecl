@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.14 2013/03/08 11:00:55 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.15 2013/06/06 17:22:04 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -307,20 +307,20 @@ load_external_solver(Arch, Solver, Version, Suffix) :-
         ( concat_string([Arch,/,SolverLibName], SolverLib)
         ; concat_string([Arch,"/e",Solver,Version,/,SolverLibName], SolverLib) ),
 	exists(SolverLib),
-        block(load(SolverLib), abort, fail).
+        catch(load(SolverLib), abort, fail).
 load_external_solver(Arch, xpress, Version, "dll") ?- !,
 	atom_string(Version, VersionString),
 	( substring(VersionString, "13", 1) ->
 	    concat_string([Arch,"/express",Version,"/xprs.dll"], SolverLib),
 	    exists(SolverLib),
-	    block(load(SolverLib), abort, fail)
+	    catch(load(SolverLib), abort, fail)
 	;
 	    concat_string([Arch,"/express",Version,"/xprl.dll"], SolverLib1),
 	    exists(SolverLib1),
-	    block(load(SolverLib1), abort, fail),
+	    catch(load(SolverLib1), abort, fail),
 	    concat_string([Arch,"/express",Version,"/xprs.dll"], SolverLib2),
 	    exists(SolverLib2),
-	    block(load(SolverLib2), abort, fail)
+	    catch(load(SolverLib2), abort, fail)
 	).
 load_external_solver(Arch, xpress, Version, "so") ?-
 	atom_string(Version, VersionString),
@@ -366,7 +366,7 @@ load_external_solver(_, _, _, _).
 	    ),
             % loading might abort because of stupid library
             % incompatibilities, etc., so fail to try other alternatives
-	    block(load(Load), abort, fail),
+	    catch(load(Load), abort, fail),
 	    writeln(log_output, done)
 	)
     ->
@@ -856,7 +856,7 @@ lp_var_get_bounds(Handle, V, Lo, Hi) :-
         error(5, lp_var_get_bounds(Handle, V, Lo, Hi)).
 
 
-% may exit_block(abort) indicating error
+% may throw(abort) indicating error
 lp_impose_col_bounds(Handle, Attr, [I|_], Lo, Hi) :-
         cplex_impose_col_bounds(Handle, Attr, I, 1, Lo, Hi, Changed),
         schedule_demon_if_bounds_changed(Handle, I, Changed).
@@ -1381,7 +1381,7 @@ lp_var_print(_{eplex:Attr}, Printed) ?-
         Attr = eplex{next:NextAttr, idx:[I|_],
                            solver:prob{cplex_handle:CPH}},
         nonvar(CPH),  % we do have the low-level information
-        block(cplex_get_col_bounds(CPH, I, L, H),_,
+        catch(cplex_get_col_bounds(CPH, I, L, H),_,
               (L='?', H='?') ), /* catch case when var not yet in solver */
 	(lp_attr_solution(Attr, Sol) ->
 	     SolsIn0 = [L..H@Sol|SolsIn1] 
@@ -1480,7 +1480,7 @@ lp_attr_get_bounds(_{eplex:Attr}, Lo, Hi) ?-
 
 lp_impose_interval(Vs, Interval, Pool) :-
 	(range(Interval, Lo, Hi) -> Hi >= Lo 
-        ;  exit_block(abort)
+        ;  throw(abort)
         ),
         extract_vars(Vs, Lo, Hi, no, [], VList), % may abort
         get_pool_item(Pool, Handle), 
@@ -1503,19 +1503,21 @@ lp_impose_interval(Vs, Interval, Pool) :-
 
 
 lp_interval(Vs, Interval, Pool) :-
-        block(lp_impose_interval(Vs, Interval, Pool), Tag,
+        catch(lp_impose_interval(Vs, Interval, Pool), Tag,
 		colon_interval_warning((::), Vs, Interval, Tag)).
 
     % warn about: poolname:X::1..N
-    colon_interval_warning(Functor, Vs, Interval, Tag) :-
+    colon_interval_warning(Functor, Vs, Interval, abort) :- !,
 	Goal =.. [Functor,Vs,Interval],
 	( nonvar(Vs), Vs = (_:_) ->
 	    printf(error, "Eplex error: invalid syntax detected in %w; missing"
 		     " brackets perhaps?%n", [Goal]),
-	    exit_block(Tag)
+	    throw(abort)
 	;
             error(5, Goal)
         ).
+    colon_interval_warning(_Functor, _Vs, _Interval, Tag) :-
+	throw(Tag).
 
     :- mode range(?,-,-).
     range(L..H, Lo, Hi) ?- 
@@ -1533,10 +1535,10 @@ lp_interval(Vs, Interval, Pool) :-
     bound(inf, Hi) :- !, Hi = 1.0Inf.
     bound(+inf, Hi) :- !, Hi = 1.0Inf.
     bound(E, Bnd) :-
-        block((Bnd0 is E), _, fail),
+        catch((Bnd0 is E), _, fail),
 	Bnd is float(Bnd0).
 
-% may exit_block(abort) indicating error
+% may throw(abort) indicating error
 extract_vars(V, _, _, _, VList0, VList) :-
         var(V), !,
         VList = [V|VList0].
@@ -1552,7 +1554,7 @@ extract_vars([X|Xs], Lo, Hi, CheckInt, VList0, VList) :- !,
 extract_vars(subscript(Array,Index), Lo, Hi, CheckInt, VList0, VList) :- 
         subscript(Array, Index, E), !,
         extract_vars(E, Lo, Hi, CheckInt, VList0, VList).
-extract_vars(_,_,_,_,_,_) :- exit_block(abort). 
+extract_vars(_,_,_,_,_,_) :- throw(abort). 
 
 
 % Add constraint of any type (linear,sos,idc) to Pool
@@ -1744,12 +1746,12 @@ lp_add_constraints(Handle, Cstr, Ints) :-
 
 
 integers(Xs, Pool) :-
-        block(extract_vars(Xs, -1.0Inf, 1.0Inf, yes, VarsTail, Vars), _,
+        catch(extract_vars(Xs, -1.0Inf, 1.0Inf, yes, VarsTail, Vars), abort,
               error(5, integers(Xs, Pool))),
 	store_integers(Vars, VarsTail, Pool).
 
 reals(Xs, Pool) :-
-        block(extract_vars(Xs, -1.0Inf, 1.0Inf, no, VsTail, Vs), _,
+        catch(extract_vars(Xs, -1.0Inf, 1.0Inf, no, VsTail, Vs), abort,
               error(5, reals(Xs, Pool))),
         get_pool_item(Pool, Handle),
         add_pool_vars(Handle, Pool, Vs, VsTail).
@@ -2355,7 +2357,7 @@ lp_setup_body(Cstr, OptExpr, Options, Handle, CallerModule) :-
 	new_solver_id(SId), 
 	init_suspension_list(aux_susps of prob, Handle),
 
-	block(process_options(Options, Handle, TempData), % read options
+	catch(process_options(Options, Handle, TempData), % read options
                abort, error(6, lp_setup(Cstr, OptExpr, Options, Handle)) 
         ),
         fill_in_defaults(Handle),
@@ -2919,7 +2921,7 @@ eplex_result_handler(eplex_unknown, lp_solve(prob{status:Stat}, _)) :-
 
 eplex_result_handler(eplex_abort, lp_solve(prob{status:Stat}, _)) :-
 	printf(error, "event(eplex_abort): Optimization aborted (optimizer status = %d)%n", [Stat]),
-	exit_block(abort).
+	throw(abort).
 
 eplex_result_handler(eplex_infeasible, lp_solve(_,_)) :-
         fail.
@@ -3029,9 +3031,9 @@ set_probes(Handle, Probes, Extracted, SetProbes) :-
             
 
 block_with_probes(Goal, Handle, SetProbes) :-
-        ( block(Goal, Tag,
+        ( catch(Goal, Tag,
                    ( unset_probes(Handle, SetProbes),
-                     exit_block(Tag)
+                     throw(Tag)
                    )
                )
              ->
@@ -4782,7 +4784,7 @@ get_changeable_value(Var, Val, Pool):-
         get_pool_handle(Handle, Pool),!,
         get_changeable_value_handle(Handle, Var, Val).
 get_changeable_value_handle(Handle, Var, Val):-
-        (block(lp_var_get(Handle, Var, typed_solution, Val),abort,true)->
+        (catch(lp_var_get(Handle, Var, typed_solution, Val),abort,true)->
              true
         ;
              true
