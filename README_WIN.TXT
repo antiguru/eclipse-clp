@@ -2,30 +2,6 @@
 ECLiPSe - Constraint Logic Programming System
 ----------------------------------------------
 
-# BEGIN LICENSE BLOCK
-# Version: CMPL 1.1
-#
-# The contents of this file are subject to the Cisco-style Mozilla Public
-# License Version 1.1 (the "License"); you may not use this file except
-# in compliance with the License.  You may obtain a copy of the License
-# at www.eclipseclp.org/license.
-# 
-# Software distributed under the License is distributed on an "AS IS"
-# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
-# the License for the specific language governing rights and limitations
-# under the License. 
-# 
-# The Original Code is  The ECLiPSe Constraint Logic Programming System. 
-# The Initial Developer of the Original Code is  Cisco Systems, Inc. 
-# Portions created by the Initial Developer are
-# Copyright (C) 1992-2006 Cisco Systems, Inc.  All Rights Reserved.
-# 
-# Contributor(s): ECRC GmbH
-# Contributor(s): IC-Parc, Imperial College London
-# 
-# END LICENSE BLOCK
-
-
 -----------------------------------------------------------------------------
 ECLiPSe on Windows (see README_UNIX for UNIX/Linux, README_MACOSX for MacOSX)
 -----------------------------------------------------------------------------
@@ -34,8 +10,11 @@ ECLiPSe on Windows (see README_UNIX for UNIX/Linux, README_MACOSX for MacOSX)
 *** If you want to compile from source, see the file INSTALL,
 *** and document/internal/SetupGuide.pdf for more detailed help. 
 
-ECLiPSe for Windows is primarily intended and supported only for
-Windows-NT/2000/XP,...
+ECLiPSe for Windows should be run on Windows XP/Vista/7 or newer;
+earlier versions may have restricted functionality.
+
+For 32-bit Windows use the "i386_nt" distribution of ECLiPSe.
+For 64-bit Windows use the "x86_64_nt" distribution of ECLiPSe.
 
 
 --------------------------------------
@@ -68,13 +47,15 @@ Then try to launch tkeclipse via the Start menu, or look at the
 documentation, e.g. the tutorial.
 
 
---------------------------------------
-Manual Installation from .tgz Packages
---------------------------------------
+---------------------------------------------------
+Alternative: Manual Installation from .tgz Packages
+---------------------------------------------------
 
-You should have gotten the following files for the "i386_nt" architecture:
-There are different versions of these files for different machine
-architectures. These are tar-files compressed with gzip.  Note that
+You may want to use this method if you want to install ECLiPSe in a
+non-standard location.
+
+You need to get the following files for the "i386_nt" or the "x86_64_nt"
+architecture. These are tar-files compressed with gzip.  Note that
 these .tgz Packages for Windows may not be available for download via
 SourceForge, but they are available from the www.eclipseclp.org site.
 
