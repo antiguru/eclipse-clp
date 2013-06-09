@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.38 2013/03/07 15:54:56 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.39 2013/06/09 02:03:20 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -1054,9 +1054,9 @@ proc tkecl:apply_output_mode {which newmode} {
 # Files window
 #----------------------------------------------------------------------
 
-proc tkecl:compile_popup {} {
+proc tkecl:compile_popup {dir} {
 
-    set file [tkecl:getEcFile [pwd] "Compile File"]
+    set file [tkecl:getEcFile $dir "Compile File"]
 
     if {$file != ""} {
 	tkecl:compile_file $file
@@ -1209,7 +1209,7 @@ proc tkecl:popup_file_window {} {
 		if {$sel != ""} {
 		    tkecl:compile_file [.ec_tools.ec_files.names get $sel]
 		} else {
-		    tkecl:compile_popup
+		    tkecl:compile_popup [pwd]
 		}}
 	    pack $ec_files.buttons.compile -side left -fill x -expand 1
 	button $ec_files.buttons.refresh -text Redisplay -command tkecl:refresh_file_window

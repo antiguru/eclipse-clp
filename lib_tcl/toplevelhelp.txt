@@ -77,7 +77,7 @@ specified directly:
      first search for these files in the current directory, and then in the
      user's home directory.
 
-     Each parameter is specified on a seperate line in the appropriate
+     Each parameter is specified on a separate line in the appropriate
      file, in the format   <parameter> <value>
 
 
@@ -141,6 +141,9 @@ Menu Bar
 
    File Menu 
 
+       Change directory - allows to change ECLiPSe's current working
+           directory.
+
        Compile - allows the user to select an ECLiPSe source file. This
            file will be compiled and loaded.
 
@@ -161,11 +164,8 @@ Menu Bar
 	   the lint source checker over it (see library(lint)), possibly
 	   displaying warnings in the Output window.
 
-       Change directory - allows to change ECLiPSe's current working
-           directory.
-
-       Change to example directory - change current working directory to
-	   the example directory which is distributed with ECLiPSe.
+       Compile example - like 'Compile', but shows files from the example
+	   directory which is distributed with ECLiPSe.
 
        New module - allows the user to specify a new module that will
 	   be created.  The new module becomes the current toplevel
@@ -270,10 +270,10 @@ clicking on the run button when more alternatives are available will
 re-execute the query. 
 
 A history of previous queries can be obtained from either the popdown list
-on the arrow at the right of the box, or by right-clicking the mouse button
-within the entry. The popdown list contains the previous queries with
-duplicates removed, in chronological order (oldest first), while
-right-clicking would produce a history window with all the previous queries
+on the arrow at the right of the box, or by selecting 'History' from the
+Query menu or the query entry context menu.  The popdown list contains
+the previous queries with duplicates removed in chronological order
+(oldest first), while the history window shows all the previous queries
 in reverse chronological order. A previous query can then be selected and
 re-executed from either of these lists. The user can also step through the
 previous queries via the up and down arrow keys. Typing the tab key will

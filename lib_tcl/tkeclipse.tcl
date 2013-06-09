@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.15 2013/04/17 01:37:10 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.16 2013/06/09 02:03:20 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -610,6 +610,20 @@ proc tkecl:copy_selection {t} {
     }
 }
 
+proc tkecl:entry_copy {t} {
+    if {[$t selection present]} {
+	clipboard clear
+	clipboard append [selection get]
+    }
+}
+
+proc tkecl:entry_paste {t} {
+    if {[$t selection present]} {
+	$t delete sel.first sel.last
+    }
+    $t insert insert [clipboard get]
+}
+
 #----------------------------------------------------------------------
 # Make the existing outputs in stdio and answer windows non-current 
 #----------------------------------------------------------------------
@@ -699,10 +713,10 @@ proc tkecl:new_module_popup {} {
 	grid rowconfigure $w 1 -weight 1
 	grid rowconfigure $w 2 -weight 1
 	focus $w.me
-	balloonhelp $w.ml "Name of module to be created. Type <Ret> or click on OK to create module."
-	balloonhelp $w.ll "Name of language to be loaded with module. Type <Ret> or click on OK to create module."
-	balloonhelp $w.ok "Click to create specified module"
-	balloonhelp $w.cancel "Click to cancel without creating module"
+#	balloonhelp $w.ml "Name of module to be created. Type <Ret> or click on OK to create module."
+#	balloonhelp $w.ll "Name of language to be loaded with module. Type <Ret> or click on OK to create module."
+#	balloonhelp $w.ok "Click to create specified module"
+#	balloonhelp $w.cancel "Click to cancel without creating module"
 
 	tkecl:center_over $w .
 
@@ -842,18 +856,20 @@ menu .tkecl.mbar
 . config -menu .tkecl.mbar
 .tkecl.mbar add cascade -label "File" -menu .tkecl.mbar.file -underline 0
 menu .tkecl.mbar.file
-.tkecl.mbar.file add command -label "Compile ..." -command {tkecl:exec_toplevel_command {tkecl:remove_current_highlights; tkecl:compile_popup}}
+.tkecl.mbar.file add command -label "Change directory ..." -command {tkecl:remove_current_highlights; tkecl:get_newcwd}
+.tkecl.mbar.file add command -label "Compile ..." -command {tkecl:exec_toplevel_command {tkecl:remove_current_highlights; tkecl:compile_popup [pwd]}}
 .tkecl.mbar.file add command -label "Use module ..." -command {tkecl:exec_toplevel_command {tkecl:remove_current_highlights; tkecl:use_module_popup}}
 .tkecl.mbar.file add command -label "Edit ..." -command tkecl:edit_popup
 .tkecl.mbar.file add command -label "Edit new ..." -command tkecl:edit_new_popup
 .tkecl.mbar.file add command -label "Cross referencer ..." -command {tkecl:exec_toplevel_command tkecl:xref_popup}
 .tkecl.mbar.file add command -label "Source checker (lint) ..." -command {tkecl:exec_toplevel_command tkecl:lint_popup}
 .tkecl.mbar.file add separator
-.tkecl.mbar.file add command -label "Change directory ..." -command {tkecl:remove_current_highlights; tkecl:get_newcwd}
-.tkecl.mbar.file add command -label "Change to example directory" -command {
-	tkecl:newcwd [file join $tkecl(ECLIPSEDIR) doc examples]
-	tk_messageBox -type ok -message "Changed directory to $tkecl(cwd)"
-    }
+#.tkecl.mbar.file add command -label "Change to example directory" -command {
+#	tkecl:newcwd [file join $tkecl(ECLIPSEDIR) doc examples]
+#	tk_messageBox -type ok -message "Changed directory to $tkecl(cwd)"
+#    }
+.tkecl.mbar.file add command -label "Compile example ..." -command {tkecl:exec_toplevel_command {tkecl:remove_current_highlights; tkecl:compile_popup\
+	[file join $tkecl(ECLIPSEDIR) doc examples]}}
 .tkecl.mbar.file add separator
 .tkecl.mbar.file add command -label "New module ..." -command {tkecl:exec_toplevel_command tkecl:new_module_popup}
 .tkecl.mbar.file add command -label "Clear toplevel module" -command {tkecl:exec_toplevel_command tkecl:init_toplev_module}
@@ -910,9 +926,17 @@ frame .tkecl.query.buttons.abort
 option add *tkecl.query.goal_entry*Listbox.font tkeclmono
 combobox .tkecl.query.goal_entry -click single -listheight 6 -bg white -width 65 \
 	-textvariable tkecl(goal) -takefocus 1
+
+set entry .tkecl.query.goal_entry
+menu $entry.popup -tearoff 0
+$entry.popup add command -label "Copy" -command "tkecl:entry_copy $entry"
+$entry.popup add command -label "Paste" -command "tkecl:entry_paste $entry"
+$entry.popup add separator
+$entry.popup add command -label "History" -command "tkecl:popup_history"
+
 bind .tkecl.query.goal_entry <Return> {tkecl:run_goal call}
-bind .tkecl.query.goal_entry <Button-3> {tkecl:popup_history}
-bind .tkecl.query.goal_entry <Control-Button-1> {tkecl:popup_history}
+bind .tkecl.query.goal_entry <Button-3> {tk_popup $entry.popup %X %Y}
+bind .tkecl.query.goal_entry <Control-Button-1> {tk_popup $entry.popup %X %Y}
 bind .tkecl.query.goal_entry <Key-Up> {tkecl:select_history up}
 bind .tkecl.query.goal_entry <Key-Down> {tkecl:select_history down}
 
@@ -1168,16 +1192,16 @@ proc tkecl:stop_request_handler {stream} {
 # Balloon Help
 #----------------------------------------------------------------------
 
-balloonhelp .tkecl.query.goal_entry "Query entry - type query in here (terminating `.' optional). <Ret> or run to execute \n Up and down arrows moves through previous queries, <Tab> for query completion\n Left-click arrow on right-hand side for selecting previous queries (non-duplicated)\n Right-click (or control-left) popups history window (duplicated, most recent first)"
-balloonhelp .tkecl.query.buttons.status "Status after executing last query (Yes/More/No/Abort)"
-balloonhelp .tkecl.query.buttons.more "Click to try find more solutions"
-balloonhelp .tkecl.query.buttons.run "Click to start execution of query in query entry.\n Note: Execution will restart even if there are pending solutions to an executing query."
-balloonhelp .tkecl.query.buttons.make "Click to recompile modified files"
-balloonhelp .tkecl.query.buttons.abort "Click to interrupt executing query"
-balloonhelp .tkecl.query.module "Module in which the query will be executed\nClick arrow on right to select a different module"
-balloonhelp .tkecl.pane.answer.label "Results window - results (top-level bindings and status after execution) are displayed here.\n Results for the most recent query are in blue.\n\
+balloonhelp .tkecl.query.label "Query entry - type query in here (terminating `.' optional). <Ret> or run to execute.\n Up and down arrows moves through previous queries, <Tab> for query completion.\n Left-click arrow on right-hand side for selecting previous queries (non-duplicated).\n Right-click (or control-left) for copy, paste and history."
+balloonhelp .tkecl.query.buttons.status "Status of last query"
+balloonhelp .tkecl.query.buttons.more "Try to find more solutions"
+balloonhelp .tkecl.query.buttons.run "Start query execution"
+balloonhelp .tkecl.query.buttons.make "Recompile files that have been modified"
+balloonhelp .tkecl.query.buttons.abort "Interrupt executing query"
+balloonhelp .tkecl.query.module "Module in which the query will be executed"
+balloonhelp .tkecl.pane.answer.label "Results display - top-level bindings and status after execution.\n Results for the most recent query are in blue.\n\
 Right (or control-left) to popup a menu to copy selection to clipboard, match a query's outputs, or clear the window."
-balloonhelp .tkecl.pane.stdio.label "Output and Error Messages from Eclipse are displayed here.\n Most recent outputs are in blue, error messages are in red, warnings in orange.\n\
+balloonhelp .tkecl.pane.stdio.label "Output and Error Message display.\n Most recent outputs are in blue, error messages are in red, warnings in orange.\n\
 Scrolling is disabled by warning and error messages. Left-click on scrollbar to re-enable scrolling.\n\
 Right (or control-left) click to popup a menu to copy selection to clipboard, match a query's outputs, or clear the window."
 balloonhelp .tkecl.pane.__h1 "Press and drag left mouse to adjust Results and Output window sizes"
