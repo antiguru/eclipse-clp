@@ -115,18 +115,20 @@ problem([]([](4, _, 8, _, _, _, _, _, _),
 </DD>
     <DT>type</DT><DD>
         layout (default), distribution, treemap, graph, values
-</DL>
+</DD>
     <DT>display</DT><DD>
-        compact (default), expanded
-</DL>
+        compact (default) or expanded.  This controls whether failed
+	subtrees are displayed in compact form.
+</DD>
     <DT>repeat</DT><DD>
         all, final, or a positive or negative integer
-</DL>
+</DD>
     <DT>width</DT><DD>
         positive integer (width of SVG canvas in pixels, default 700)
-</DL>
+</DD>
     <DT>height</DT><DD>
         positive integer (height of SVG canvas in pixels, default 700)
+</DD>
 </DL>
     Alternatively, ToolSpecs can remain completely uninstantiated,
     in which case it defaults to the following two-element list:
@@ -149,8 +151,8 @@ problem([]([](4, _, 8, _, _, _, _, _, _),
     ...
     close_visualization(Handle),
     viz(Handle, [
-            tool{show:tree,repeat:all},
-            tool{show:viz,display:expanded,width:1000,height:1000}
+            tool{show:tree,display:expanded},
+            tool{show:viz,width:1000,height:1000}
         ]).
 ",
 	see_also:[create_visualization/2,close_visualisation/1,viztool/0]
