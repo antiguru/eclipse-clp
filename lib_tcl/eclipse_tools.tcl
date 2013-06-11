@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.39 2013/06/09 02:03:20 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.40 2013/06/11 15:31:35 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -2724,24 +2724,15 @@ proc tkecl:getDirectory {initdir title} {
 proc tkecl:getEcFile {initdir title} {
     global tkecl
 
-    if {[ec_tk_platform] == "unix_aqua"} {
-	# workaround for a Aqua Tk bug (reported in b418): no -initialfile
-	set tkecl(last_source_file) \
-	    [tkecl:get_path_popup $initdir "file" [list tk_getOpenFile \
-                   -defaultextension $tkecl(pref,defaultextension) \
-	           -filetypes $tkecl(filetypes) -title $title \
-	           -initialdir $initdir \
-	           ] \
-	    ]
-    } else {
-	set tkecl(last_source_file) \
-	    [tkecl:get_path_popup $initdir "file" [list tk_getOpenFile \
-                   -defaultextension $tkecl(pref,defaultextension) \
-	           -filetypes $tkecl(filetypes) -title $title \
-	           -initialdir $initdir -initialfile $tkecl(last_source_file) \
-	           ] \
-	    ]
-    }
+    # we used to have -initialfile $tkecl(last_source_file), but that
+    # overrides -initialdir, and is not available on Aqua Tk (b418)
+    set tkecl(last_source_file) \
+	[tkecl:get_path_popup $initdir "file" [list tk_getOpenFile \
+	       -defaultextension $tkecl(pref,defaultextension) \
+	       -filetypes $tkecl(filetypes) -title $title \
+	       -initialdir $initdir \
+	       ] \
+	]
     return $tkecl(last_source_file)
 }
 
