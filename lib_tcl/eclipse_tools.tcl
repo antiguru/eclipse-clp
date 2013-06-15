@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.40 2013/06/11 15:31:35 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.41 2013/06/15 16:15:18 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -722,14 +722,17 @@ proc tkecl:display_source {} {
 	    return
 	}
 	default {
-	    set file [lindex $res 3]
+	    set file [lindex [lindex $res 3] 0]	;# atom type (singleton list)
 	    set offset [lindex $res 4]
 	}
     }
 
     tkecl:popup_tracer
     if {$tkecl(source_debug,file) != $file} {
-	if {[tkecl:load_source_debug_file $file] == 0} return
+	if {[tkecl:load_source_debug_file $file] == 0} {
+	    tk_messageBox -type ok -parent .ec_tools.ec_tracer -icon info -message "Can't load source file $file"
+	    return
+	}
     }
 
     set ec_tracer .ec_tools.ec_tracer.tab
@@ -3787,7 +3790,7 @@ proc tkecl:update_source_debug {style from to fpath_info} {
 	return
     } else {
 	# get the pathname
-	set fpath [lindex [lindex $fpath_info 1] 0] ;# atom type!
+	set fpath [lindex [lindex $fpath_info 1] 0] ;# atom type (singleton list)
     }
 
      if {$tkecl(source_debug,file) != $fpath} {
