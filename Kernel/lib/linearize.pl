@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: linearize.pl,v 1.1 2012/10/25 13:25:18 jschimpf Exp $
+% Version:	$Id: linearize.pl,v 1.2 2013/06/15 14:44:38 jschimpf Exp $
 %
 % Description:		Expression simplifier
 %
@@ -64,7 +64,7 @@
 :- comment(categories, ["Data Structures"]).
 :- comment(summary, "Normalizers for arithmetic expressions").
 :- comment(author, "Joachim Schimpf, IC-Parc").
-:- comment(date, "$Date: 2012/10/25 13:25:18 $").
+:- comment(date, "$Date: 2013/06/15 14:44:38 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- export
@@ -327,11 +327,11 @@ linearize(E, C0, C, L, L0, R, R0, Mod) :-
 	linearize(E, C0, C1, L1, L0, R1, R0, Mod),
 	linearize_sum(Es, C1, C, L, L1, R, R1, Mod).
     linearize_sum(List, C0, C, L, L0, R, R0, Mod) :- List = subscript(Array,Index), !,
-	( nonground(Index) ->
-	    C = C0, L = [1*Aux|L0], R = [Aux=sum(List)|R0]
-	;
+	( nonvar(Array), ground(Index) ->
 	    subscript(Array,Index,Elems),
 	    linearize_sum(Elems, C0, C, L, L0, R, R0, Mod)
+	;
+	    C = C0, L = [1*Aux|L0], R = [Aux=sum(List)|R0]
 	).
     linearize_sum(X, C, C, L, L, R, R, _Mod) :-
 	error(5, _ is sum(X)).
