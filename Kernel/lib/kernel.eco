@@ -1498,7 +1498,6 @@
 :-(deprecated(/(event_create,2),"Use event_create/3")).
 :-(deprecated(/(event_retrieve,2),"Use event_retrieve/3")).
 :-(deprecated(/(fail_if,1),"Use \\+ /1")).
-:-(deprecated(/(flatten_array,2),"Use array_flat/3")).
 :-(deprecated(/(get_char,1),"Use iso:get_char/1 which returns an atom")).
 :-(deprecated(/(get_char,2),"Use iso:get_char/2 which returns an atom")).
 :-(deprecated(/(get_error_handler,3),"Use get_event_handler/3")).

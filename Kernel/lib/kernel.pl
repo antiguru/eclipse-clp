@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.51 2013/04/29 01:05:17 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.52 2013/06/15 14:41:20 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -7455,7 +7455,7 @@ select(Streams, Timeout, Ready) :- stream_select(Streams, Timeout, Ready).
 :- deprecated(event_create/2,		"Use event_create/3").
 :- deprecated(event_retrieve/2,		"Use event_retrieve/3").
 :- deprecated(fail_if/1,		"Use \\+ /1").
-:- deprecated(flatten_array/2,		"Use array_flat/3").
+%:- deprecated(flatten_array/2,		"Use array_flat/3").
 :- deprecated(get_char/1,		"Use iso:get_char/1 which returns an atom").
 :- deprecated(get_char/2,		"Use iso:get_char/2 which returns an atom").
 :- deprecated(get_error_handler/3,	"Use get_event_handler/3").
