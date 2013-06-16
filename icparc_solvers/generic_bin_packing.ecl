@@ -161,41 +161,66 @@ update_bin_packing(AllVars,B,NrBins,Items,Hash,Susp):-
             true
         ).
 
+
+% this is the routine that checks if the bin packing is currently
+%  feasible and if some domains can be reduced
+% it applies two types of reasoning: the L2 bounds and no_sum
+% Items are sorted by increasing size
+
 check_bin_packing(Bins,NrBins,Items,Hash):-
         l2_limit(Bins,NrBins,Items),
         no_sum_reasoning(Bins,1,Items,Hash),
         true.
 
+% this iterates over all bins and checks the space in the bins compared
+%  to things that might be placed there 
+
 no_sum_reasoning([],_J,_Items,_).
 no_sum_reasoning([Bin|Bins],J,Items,Hash):-
         get_bounds(Bin,BMin,BMax),
+        % find items (Vars, Candidates) that might be in the bin, but
+        % are not fixed; Fixed is the size of items already in bin
         candidates(Items,J,Variables,Candidates,0,_Possible,0,Fixed),
         %writeln(cand(J,BMin,BMax,Candidates,Fixed)),
         (Candidates = [] ->
             true
         ;
+            % Alpha, Beta is min/max capacity of bin after deducing the fixed items
             Alpha is BMin - Fixed,
             Beta is BMax-Fixed,
+            % compute the total size (Sum) and number (N) of
+            % candidates that might be in bin
             sum_cand(Candidates,0,Sum,0,N),
+            % perform NOSUM algorithm of Shaw (Section 3.2)
             no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,_Alpha1,_Beta1),
             (Result = infeasible ->
                 fail
             ;
                 true
             ),
+            % update bin load bounds (Section 3.3)
             update_lower_bound(Candidates,Sum,N,Fixed,BMin,Bin,Hash),
             update_upper_bound(Candidates,Sum,N,Fixed,BMax,Bin,Hash),
             N1 is N-1,
+            % perform shaving on items (Section 3.4)
             internal_shave(Variables,Candidates,[],Sum,N1,Alpha,Beta,J,Hash)
         ),
         J1 is J+1,
         no_sum_reasoning(Bins,J1,Items,Hash).
+
+
+% check what happens if a potential item would or wouldn't be in the bin, i.e.
+%  remove it from candidates, adjust alpha and beta and perform no_sum
+%  reasoning considering item inside or outside bin; if the no_sum is
+%  infeasible, then fix assignment to opposite
+% N1 is number of potential items without the shaved one
 
 internal_shave([],[],_Previous,_Sum,_N1,_Alpha,_Beta,_J,_Hash).
 internal_shave([Var|Variables],[C|Candidates],Previous,Sum,N1,
                Alpha,Beta,J,Hash):-
         (check_in(J,Var) ->
             append(Previous,Candidates,Current),
+            % Current is still sorted by increasing size
             Sum1 is Sum-C,
             %        writeln(current(Sum1,Current)),
             Alpha1 is Alpha-C,
@@ -243,25 +268,40 @@ update_upper_bound(Candidates,Sum,N,Fixed,BMax,Bin,Hash):-
             true
         ).
 
+
+% compare size of items that might be placed in bin to adjusted min/max bound
+
+% candidate size is always between lower and upper limits, feasible
 no_sum(_Hash,_Candidates,Sum,_N,Alpha,Beta,feasible,nan,nan):-
         Alpha =< 0,
         Beta >= Sum,
         !.
+% there is no way to reach the lower bound with candidates left, this
+% is infeasible
+% possible problem in update_upper_bound, as no Alpha1,Beta1 is returned
 no_sum(_Hash,_Candidates,Sum,_N,Alpha,Beta,infeasible,nan,nan):- % new
         Sum < Alpha,
         !.
+% beta is negative, no way to satisfy bound
+% this does not return updated Alpha1,Beta1: may cause problem inside update_lower_bound
 no_sum(_Hash,_Candidates,_Sum,_N,_Alpha,Beta,infeasible,nan,nan):- 
         Beta < 0,
 	!.
+% we've seen this problem before, use hashed result
 no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,Alpha1,Beta1):-
         hash_find(Hash,key(Alpha,Beta,N,Sum,Candidates),
                   result(Result,Alpha1,Beta1)),
         !.
+% compute Alpha1,Beta1, decide feasible/infeasible and store result
 no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,Alpha1,Beta1):-
         Array =.. [[]|Candidates],
 %        writeln(no_sum(Candidates,Sum,N,Alpha,Beta)),
+        % setting up SumB and SumC
+        % we need atleast K1 items 
+        % their size without the smallest one is SumC 
         set_c(Array,N,Alpha,0,K1,0,SumC),
 %        writeln(c(K1,SumC)),
+        % the size of the smallest item required is SumB
         subscript(Array,[N-K1],SumB),
         lp(0,SumA,SumB,SumC,0,K1,Array,N,Alpha,Beta,Alpha1,Beta1),
         (SumA < Alpha ->
@@ -269,9 +309,27 @@ no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,Alpha1,Beta1):-
         ;
             Result = feasible
         ),
+        % remember result
         hash_add(Hash,key(Alpha,Beta,N,Sum,Candidates),
                   result(Result,Alpha1,Beta1)).
 
+
+% find how many items (Kend) are atleast required to reach alpha
+% and their total size (SumEnd) without the smallest one
+
+set_c(Array,N,Alpha,K1,Kend,SumC,SumEnd):-
+        I is N-K1,
+        arg(I,Array,Size),
+        SumC1 is SumC+Size,
+        SumC1 < Alpha,
+        !,
+        K1a is K1+1,
+        set_c(Array,N,Alpha,K1a,Kend,SumC1,SumEnd).
+set_c(_Array,_N,_Alpha,K1,K1,SumC,SumC).
+
+
+% Implement the NOSUM routine of Shaw. Result either feasible or
+%  infeasible, for infeasible updated Alpha1 and Beta1 are provided
 
 lp(SumA,SumAEnd,SumB,SumC,K,K1,Array,N,Alpha,Beta,Alpha1,Beta1):-
         SumA < Alpha,
@@ -305,24 +363,20 @@ lp1(SumA,SumB,SumBEnd,SumC,SumCEnd,K1,K1End,Array,N,Alpha,K):-
         lp1(SumA,SumB1,SumBEnd,SumC1,SumCEnd,K1a,K1End,Array,N,Alpha,K).
 lp1(_SumA,SumB,SumB,SumC,SumC,K1,K1,_Array,_N,_Alpha,_K).
 
-set_c(Array,N,Alpha,K1,Kend,SumC,SumEnd):-
-        I is N-K1,
-        arg(I,Array,Size),
-        SumC1 is SumC+Size,
-        SumC1 < Alpha,
-        !,
-        K1a is K1+1,
-        set_c(Array,N,Alpha,K1a,Kend,SumC1,SumEnd).
-set_c(_Array,_N,_Alpha,K1,K1,SumC,SumC).
-
         
-
+% compute total size and number of candidates
 sum_cand([],S,S,N,N).
 sum_cand([Size|C1],S,Send,N,Nend):-
         S1 is S+Size,
         N1 is N+1,
         sum_cand(C1,S1,Send,N1,Nend).
 
+% find candidates that are or can be placed in bin J
+% the fixed size computes the size of all items that are already in
+% the bin
+% the potential size computes the items that either are or might be in
+% the bin
+% Vars and Cand are only items that might be in the bin, not already fixed
 candidates([],_,[],[],P,P,F,F).
 candidates([item(X,Size)|Items],J,Vars,Cand,P,PEnd,F,FEnd):-
         integer(X),
