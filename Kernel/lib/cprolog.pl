@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: cprolog.pl,v 1.9 2013/02/09 20:27:57 jschimpf Exp $
+% Version:	$Id: cprolog.pl,v 1.10 2013/06/16 02:21:27 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -47,7 +47,7 @@
 :- comment(summary, 'C-Prolog compatibility package').
 :- comment(author, 'Various, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2013/02/09 20:27:57 $').
+:- comment(date, '$Date: 2013/06/16 02:21:27 $').
 :- comment(desc, html('
     One of the requirements during the development of ECLiPSe has been the
     aim of minimising the work required to port traditional Prolog
@@ -180,6 +180,7 @@
 	put/1,
 	instance/2,
 	(abolish)/1,
+	arg/3,
 
 %	op(_,   xfx, (of)),		% don't provide these
 %	op(_,   xfx, (with)),
@@ -230,6 +231,7 @@
 :- export
 	(.)/3,		% to evaluate lists in arithmetic expressions
 	(abolish)/2,
+	arg/3,
 	consult/1,
 	current_functor/2,
 	current_predicate/2,
@@ -294,16 +296,6 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-cp_inst_fault(_, arg(N, _, _)) :- integer(N), !, fail.
-cp_inst_fault(_, functor(_, _, _)) :- !, fail.
-cp_inst_fault(X, Y):- error_handler(X,Y).
-
-cp_range_error(_, arg(_, _, _)) :- !, fail.
-cp_range_error(X, Y) :- error_handler(X, Y).
-
-cp_type_error(_, arg(_, _, _)) :- !, fail.
-cp_type_error(X, Y) :- error_handler(X, Y).
-
 % This simulates Quintus' behaviour
 cp_undef_dynamic_handler(_, retract_all(_), _) :- !.
 cp_undef_dynamic_handler(_, retractall(_), _) :- !.
@@ -337,12 +329,6 @@ nofileerrors :-
 
 :-
 	% we may change the default handlers, because we can't switch back
-	set_default_error_handler(4, cp_inst_fault/2),
-	reset_event_handler(4),
-	set_default_error_handler(5, cp_type_error/2),
-	reset_event_handler(5),
-	set_default_error_handler(6, cp_range_error/2),
-	reset_event_handler(6),
 	set_default_error_handler(60, cp_access_undefined/2),
 	reset_event_handler(60),
 	set_default_error_handler(70, cp_undef_dynamic_handler/3),
@@ -417,9 +403,9 @@ eval_expr(N, ArithGoal) :-
         functor(Expr, Op, NewA),
 	( sepia_kernel:arith_builtin(Expr) ->
 	    ( foreacharg(X,Expr,I), param(ArithGoal) do
-		arg(I, ArithGoal, X)
+		eclipse_language:arg(I, ArithGoal, X)
 	    ),
-	    arg(A, ArithGoal, Res),
+	    eclipse_language:arg(A, ArithGoal, Res),
 	    Res is Expr
 	;
 	    error(default(N), ArithGoal)
@@ -443,4 +429,10 @@ current_predicate_body(F, T, M) :-
 	current_predicate_body(F/A, M),
 	functor(T, F, A),
 	get_flag_body(F/A, definition_module, M, M).
+
+arg(N, S, X) :-
+	nonvar(S),
+	integer(N),
+	1 =< N, N =< arity(S),
+	eclipse_language:arg(N, S, X).
 
