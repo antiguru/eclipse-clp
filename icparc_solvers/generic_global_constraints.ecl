@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.13 2013/06/02 18:13:16 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.14 2013/06/16 00:15:05 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -1622,7 +1622,7 @@ bool_channeling(X,Coll,F):-
         length(B,N),
         X #>= F,
         X #< F+N,
-        call_priority(check_bool_channeling(X,B,F), 2).
+        call_priority(update_bool_channeling(X,B,F,_), 2).
 
 :-demon(update_bool_channeling/4).
 update_bool_channeling(X,B,F,Susp):-
