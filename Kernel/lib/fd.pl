@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd.pl,v 1.6 2013/02/18 00:42:58 jschimpf Exp $
+% Version:	$Id: fd.pl,v 1.7 2013/06/17 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -2937,6 +2937,7 @@ Dom.
 	fail_if:"   Fails if Var is not a variable.\n\n",
 	see_also:[/(::, 2), /(#::, 2), /(dvar_domain, 2)]]).
 
+/***
 :- comment(/(contigs, 5), [
 	summary:"MaxLength is the longest sequence of Item occurring in List, Occurrences is
 the total number of occurrences of Item in List and Contigs is the number
@@ -2956,6 +2957,7 @@ of sequences of Item in List.
 	resat:"   No.",
 	fail_if:"   None.\n\n",
 	see_also:[/(sequence, 4)]]).
+***/
 
 :- comment(/(deletemin, 3), [
 	summary:"Select from List the variable Var which has the smallest lower domain bound,
@@ -3141,6 +3143,7 @@ represented in the list Flags.
 ",
 	see_also:[/(disjunction_choose, 5)]]).
 
+/***
 :- comment(/(sequence, 4), [
 	summary:"MaxLength is the longest sequence of Item occurring in List and Occurrences
 is the total number of occurrences of Item in List.
@@ -3157,6 +3160,7 @@ is the total number of occurrences of Item in List.
 	resat:"   No.",
 	fail_if:"   None.\n\n",
 	see_also:[/(contigs, 5)]]).
+***/
 
 :- comment(/(deleteff, 3), [
 	summary:"Select from List the variable Var which has the smallest domain and return

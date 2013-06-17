@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_elipsys.pl,v 1.1 2008/06/30 17:43:45 jschimpf Exp $
+% Version:	$Id: fd_elipsys.pl,v 1.2 2013/06/17 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -58,9 +58,10 @@
 :- export
     disjunctive/3,
     disjunction/5,
-    disjunction_choose/5,
-    contigs/5,
-    sequence/4.
+    disjunction_choose/5.
+% These seem broken, and also conflict with the global_gac versions
+%    contigs/5,
+%    sequence/4.
 
 :- import
 	contigs_interface/6,
