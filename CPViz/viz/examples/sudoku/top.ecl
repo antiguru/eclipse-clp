@@ -31,9 +31,9 @@
 :-lib(cpviz).
 
 top:-
-        top(ic,'FC'),
-        top(ic_global,'BC'),
-        top(ic_global_gac,'DC').
+        top(ic,'Viz_sudoku_FC'),
+        top(ic_global,'Viz_sudoku_BC'),
+        top(ic_global_gac,'Viz_sudoku_DC').
 
 top(Method,Output):-
         problem(Matrix),
@@ -65,7 +65,7 @@ model(Matrix,Method,Output):-
                complete,[]),
         solution(Handle),
         close_visualization(Handle),
-	viz(Handle, _).
+	viz(Handle, [tool{show:tree,display:expanded},tool{show:viz}]).
         
 problem([]([](4, _, 8, _, _, _, _, _, _), 
            [](_, _, _, 1, 7, _, _, _, _), 

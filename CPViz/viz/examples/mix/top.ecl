@@ -33,7 +33,7 @@
 :-lib(cpviz).
 
 top:-
-        mix(8,"RESULT").
+        mix(8,"Viz_mix_RESULT").
     
 mix(N,Output):-
         N1 is N+2,

@@ -34,9 +34,9 @@
 
 top:-
         ic:(T21 :: 0..21),
-        top("T21",T21),
-%        top("T22",22),
-%        top("T23",23),
+        top("Viz_sonet_T21",T21),
+%        top("Viz_sonet_T22",22),
+%        top("Viz_sonet_T23",23),
         true.
 
 

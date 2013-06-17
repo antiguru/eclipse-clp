@@ -111,7 +111,7 @@ bibd(V,B,R,K,L):-
         concat_atom(['tree_',Root],TreeRoot),
 %       make_configuration(sbno,"TREE",Root),
         create_visualization([tree_root:TreeRoot,
-                              output:"TREE"],Handle),
+                              output:"Viz_sbno_TREE"],Handle),
         model(V,B,R,K,L,_Matrix,List),
         number_variables(Handle,List,NumberedList),
         root(Handle),

@@ -119,7 +119,7 @@ top :-
         writeln(prec),
 	% Search and optimisation -------------------
 
-        create_visualization([output:"RESULT"],Handle),
+        create_visualization([output:"Viz_bridge_RESULT"],Handle),
         root(Handle),
 	bb_min((no_overlaps(Handle,Tasks),	% disjunctions
                 labeling(Starts),        

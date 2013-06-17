@@ -33,11 +33,11 @@
 :-lib(cpviz).
 
 top:-
-        all_bibd(6,10,5,3,2,col,sym,indomain_max,"COLUMN"),
-        all_bibd(6,10,5,3,2,row,sym,indomain_max,"MAX"),
-        all_bibd(6,10,5,3,2,row,sym,indomain,"RESULT"),
-        bibd(6,10,5,3,2,row,naive,indomain,"FIRST"),
-%        all_bibd(6,10,5,3,2,row,naive,indomain,"NAIVE"),
+        all_bibd(6,10,5,3,2,col,sym,indomain_max,"Viz_bibd_COLMAX"),
+        all_bibd(6,10,5,3,2,row,sym,indomain_max,"Viz_bibd_ROWMAX"),
+        all_bibd(6,10,5,3,2,row,sym,indomain,"Viz_bibd_ROWMIN"),
+        bibd(6,10,5,3,2,row,naive,indomain,"Viz_bibd_NAIVE"),
+%        all_bibd(6,10,5,3,2,row,naive,indomain,"Viz_bibd_NAIVEALL"),
         true.
 
 all_bibd(V,B,R,K,L,RowColumn,Method,Assign,Output):-

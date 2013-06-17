@@ -28,14 +28,11 @@
 :-lib(cpviz).
 
 top:-
-        sendmory(L1,"TREE",yes),
-        writeln(L1),
-        sendmory_complete(L2,"FULL",no),
-        writeln(L2),
-        sendmory_wrong("WRONG",no),
-        writeln(L2),
-        sendmory_split(K,"SPLIT",no),
-        writeln(K).
+        sendmory_complete("Viz_sendmore_ALL",no),
+        sendmory_wrong("Viz_sendmore_WRONG",no),
+        sendmory_split("Viz_sendmore_CARRY",no),
+	true.
+
 
 sendmory(L,Output,IgnoreFixed):-
 	L=[S,E,N,D,M,O,R,Y],
@@ -65,7 +62,7 @@ sendmory(L,Output,IgnoreFixed):-
         close_visualization(Handle),
         viz(Handle, _).
 
-sendmory_complete(L,Output,IgnoreFixed):-
+sendmory_complete(Output,IgnoreFixed):-
 	L=[S,E,N,D,M,O,R,Y],
 	L :: 0..9,
         create_visualization([output:Output,
@@ -119,7 +116,7 @@ sendmory_wrong(Output,IgnoreFixed):-
         close_visualization(Handle),
         viz(Handle, _).
 
-sendmory_split(L,Output,IgnoreFixed):-
+sendmory_split(Output,IgnoreFixed):-
 	L=[S,E,N,D,M,O,R,Y],
 	L :: 0..9,
         create_visualization([output:Output,

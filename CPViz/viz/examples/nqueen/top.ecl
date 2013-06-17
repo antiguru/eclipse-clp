@@ -30,19 +30,16 @@
 :-lib(cpviz).
 
 top:-
-        nqueen(naive,4,"QUEEN4",no),
-        nqueen(naive,4,"COMPACT4",yes),
-        nqueen(naive,8,"FULL",no),
-        nqueen(naive,8,"COMPACT",yes),
-        nqueen(first_fail,8,"FF",yes),
-%        nqueen(naive,16,"NAIVE",yes),
-        nqueen(first_fail,16,"FIRST_FAIL",yes),
-        nqueen(middle,16,"MIDDLE",yes),
-        nqueen(credit,94,"CREDIT",yes),
+        nqueen(naive,4,"Viz_queen4_NAIVE",no,expanded),
+        nqueen(naive,8,"Viz_queen8_NAIVE",no,expanded),
+%        nqueen(naive,16,"Viz_queen16_NAIVE",no,compact),
+        nqueen(first_fail,16,"Viz_queen16_FF",yes,expanded),
+        nqueen(middle,16,"Viz_queen16_MIDDLE",yes,expanded),
+        nqueen(credit,94,"Viz_queen94_CREDIT",yes,expanded),
         true.
 
-    
-nqueen(Type,N,Output,IgnoreFixed):-
+
+nqueen(Type,N,Output,IgnoreFixed,Display):-
         length(L,N),
         L :: 1..N,
         alldifferent(L),
@@ -74,7 +71,7 @@ nqueen(Type,N,Output,IgnoreFixed):-
         ),
         solution(Handle),
         close_visualization(Handle),
-	viz(Handle,_),
+	viz(Handle, [tool{show:tree,display:Display},tool{show:viz}]),
         true.
 
 

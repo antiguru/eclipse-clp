@@ -30,7 +30,7 @@
 :-lib(cpviz).
 
 top:-
-        nqueen(credit,32,"CREDIT"),
+        nqueen(credit,32,"Viz_path_CREDIT"),
         true.
 
     

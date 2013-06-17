@@ -31,10 +31,10 @@
 :-lib(cpviz).
 
 top:-
-        top(1,no,no,input_order,"NAIVE"),
-        top(1,no,no,first_fail,"FF"),
-        top(1,yes,no,input_order,"CHANNEL"),
-        top(1,no,yes,input_order,"IMPROVED"),
+        top(1,no,no,input_order,"Viz_rooms_NAIVE"),
+        top(1,no,no,first_fail,"Viz_rooms_FF"),
+        top(1,yes,no,input_order,"Viz_rooms_CHANNEL"),
+        top(1,no,yes,input_order,"Viz_rooms_IMPROVED"),
         true.
 
 top(Problem,ValueSetChanneling,ImprovedHint,VariableChoice,Output):-

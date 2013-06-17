@@ -38,15 +38,18 @@
 :-lib(cpviz).
 
 top:-
-%        problem("data","test0.dat",Problem),
-%        writeq(Problem),nl,
-%        model(Problem,Solution0b,naive,"NAIVE0"),
-%        writeln(Solution0b),
-%        problem("data","test1.dat",Problem1),
-%        model(Problem1,Solution1,naive,"NAIVE"),
+	get_flag(top/0, source_file, ThisFile),
+	pathname(ThisFile, ThisDir, _),
+	concat_strings(ThisDir, "data", DataDir),
+        problem(DataDir,"test0.dat",Problem),
+        writeq(Problem),nl,
+        model(Problem,Solution0b,naive,"Viz_car_NAIVE0"),
+        writeln(Solution0b),
+%        problem(DataDir,"test1.dat",Problem1),
+%        model(Problem1,Solution1,naive,"Viz_car_NAIVE"),
 %        writeln(Solution1),
-        problem("data","test1.dat",Problem2),
-        model(Problem2,Solution2,regin,"RESULT"),
+        problem(DataDir,"test1.dat",Problem2),
+        model(Problem2,Solution2,regin,"Viz_car_RESULT"),
         writeln(Solution2),
         true.
 
@@ -88,20 +91,20 @@ model(problem{cars:Cars,
                 element(X,IndexSet,B)
             ),
             sequence_total(Total,Total,0,K,N,Binary),
-/*
             add_visualizer(Handle,
                            binary_vector(Binary),
                            [display:colored,
                             group:Group,
                             y:Pos]),
-            Pos2 is Pos+3,
-*/
+            Pos1 is Pos+3
+/*
             add_visualizer(Handle,
                            sequence_total(Total,Total,0,K,N,Binary),
                            [display:colored,
                             group:Group,
                             y:Pos]),
             Pos1 is Pos+5+N
+*/
 
         ),
         preference_order(L,Ordered,Pref),

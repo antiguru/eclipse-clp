@@ -35,7 +35,7 @@
 
 top:-
         problem(10,Hosts,Guests),
-        once(model(Hosts,Guests,6,credit,"CREDIT")),
+        once(model(Hosts,Guests,6,credit,"Viz_bin_CREDIT")),
 
         true.
 

@@ -33,17 +33,17 @@
 :-lib(cpviz).
 
 top:-
-        costas(naive,12,ic,"NAIVE"),
+        costas(naive,12,ic,"Viz_constas_NAIVE"),
 %        costas_tree(naive,13,ic,"NAIVE"),
 %        costas_tree(naive,14,ic,"NAIVE"),
 %        costas_tree(naive,15,ic,"NAIVE"),
 %        costas_tree(naive,16,ic,"NAIVE"),
-        costas(model,12,ic,"MODEL"),
+        costas(model,12,ic,"Viz_constas_MODEL"),
 %        costas_tree(model,13,ic,"MODEL"),
 %        costas_tree(model,14,ic,"MODEL"),
 %        costas_tree(model,15,ic,"MODEL"),
 %        costas_tree(model,16,ic,"MODEL"),
-        costas(middle,12,ic,"MIDDLE"),
+        costas(middle,12,ic,"Viz_constas_MIDDLE"),
 %        costas_tree(middle,13,ic,"MIDDLE"),
 %        costas_tree(middle,14,ic,"MIDDLE"),
 %        costas_tree(middle,15,ic,"MIDDLE"),

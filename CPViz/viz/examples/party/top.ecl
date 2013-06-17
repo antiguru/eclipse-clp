@@ -36,11 +36,11 @@
 
 top:-
         problem(10,Hosts,Guests),
-%        once(model(Hosts,Guests,6,naive,"NAIVE")),
-%        once(model(Hosts,Guests,6,first_fail,"FF")),
-%        once(model(Hosts,Guests,6,layered,"LAYERED")),
-        once(model(Hosts,Guests,6,credit,"CREDIT")),
-        once(model(Hosts,Guests,6,layered_random,"RANDOM")),
+%        once(model(Hosts,Guests,6,naive,"Viz_party_NAIVE")),
+%        once(model(Hosts,Guests,6,first_fail,"Viz_party_FF")),
+%        once(model(Hosts,Guests,6,layered,"Viz_party_LAYERED")),
+        once(model(Hosts,Guests,6,credit,"Viz_party_CREDIT")),
+        once(model(Hosts,Guests,6,layered_random,"Viz_party_RANDOM")),
 
         true.
 

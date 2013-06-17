@@ -37,8 +37,8 @@
 % still weak
 
 top:-
-%        top(1,"NAIVE",naive),
-        top(1,"RESULT",improved).
+%        top(1,"Viz_schedule_NAIVE",naive),
+        top(1,"Viz_schedule_RESULT",improved).
 
 top(Seed,Dir,Quality):-
         data(L),

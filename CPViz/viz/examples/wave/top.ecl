@@ -56,7 +56,7 @@ route(Network,Demands,Routes):-
         ).
 
 wave(NrDemands,Routes,LowerBound,Var,Max):-
-        Output = "RESULT",
+	concat_string(["Viz_wave_",NrDemands],Output),
         UpperBound = 20,
         dim(Var,[NrDemands]),
         Var[1..NrDemands] :: 1..UpperBound,
