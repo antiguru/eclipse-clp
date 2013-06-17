@@ -4542,7 +4542,7 @@ S4 = S4{[4 .. 9]}
          ],
   summary: "Single resource cumulative constraint on scheduling tasks.",
   see_also: [disjunctive/2, cumulative_optional/5, cumulatives/5, collection_to_list/2, _:cumulative/4],
-  kind: [constraint:[extra:[gccat:cummulative]]],
+  kind: [constraint:[extra:[gccat:cumulative]]],
   eg: "
 
 % success (peak consumption is 7) 
@@ -5410,7 +5410,7 @@ D = 4
 	"T": "Integer",
 	"Collection":"Collection of integers or domain variables"
     ],
-    kind: [constraint:[extra:[gccat:int_value]]],
+    kind: [constraint:[extra:[gccat:int_value_precede]]],
     eg: "\
 [eclipse 14]: precede(0,1, [4,0,6,1,0]).  % succeed (0 appears before 1)
 
@@ -5437,7 +5437,7 @@ E = E{[-1000000 .. 1000000]}
       succeed.
 </P><P>
       This constraint is known as int_value_precede in the Global
-      Constrain Catalog, and is implemented using Gecode's precede()
+      Constraint Catalog, and is implemented using Gecode's precede()
       constraint (variant with int arguments for s and t).
 </P>
     "),
@@ -5479,7 +5479,7 @@ E = E{[-1000000 .. 1000000]}
       for every adjacent integers in Values.
 </P><P>
       This constraint is known as int_value_precede_chain in the Global
-      Constrain Catalog, and is implemented using Gecode's precede()
+      Constraint Catalog, and is implemented using Gecode's precede()
       constraint (variant with IntArg argument for Values).
 </P>
     "),
