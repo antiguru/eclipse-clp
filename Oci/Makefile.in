@@ -23,7 +23,7 @@
 # 
 # END LICENSE BLOCK
 #
-# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.5 2011/03/04 17:18:25 kish_shen Exp $
+# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.6 2013/06/20 20:59:09 kish_shen Exp $
 #
 
 #ORACLE_HOME=/home/mac/oracle
@@ -72,16 +72,21 @@ ELIBS	= -L$(PREFIX)/lib/$(ARCH) -L$(MYSQLDIR)/lib -leclipse @GMP_LD@ $(LIBS)
 # We've tried lots of other tricks, but this is the one that worked.
 
 MLIBS_i386_nt      = $(MYSQLDIR)/lib/libmysql.dll.a
+MLIBS_x86_64_nt      = $(MYSQLDIR)/lib/libmysql.dll
 MLIBS_unix	   = -lmysqlclient -lz -lpthread
 ifeq "$(ARCH)" "i386_nt"
    MLIBS = $(MLIBS_i386_nt)
 else 
- ifeq "$(ARCH)" "i386_macosx"
-   # -lgcc needed for linking against static mysql library
-   # ppc_macosx already have -lgcc, so no need to add it here
-   MLIBS = $(MLIBS_unix) -lgcc
+ ifeq "$(ARCH)" "x86_64_nt"
+   MLIBS = $(MLIBS_x86_64_nt)
  else
-   MLIBS = $(MLIBS_unix)
+  ifeq "$(ARCH)" "i386_macosx"
+    # -lgcc needed for linking against static mysql library
+    # ppc_macosx already have -lgcc, so no need to add it here
+    MLIBS = $(MLIBS_unix) -lgcc
+  else
+    MLIBS = $(MLIBS_unix)
+  endif
  endif
 endif
 

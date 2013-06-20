@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.8 2013/06/20 20:59:09 kish_shen Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -51,7 +51,7 @@
 :- comment(categories, ["Interfacing"]).
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2013/06/20 20:59:09 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
@@ -106,11 +106,31 @@
 :- pragma(expand).
 :- import symbol_address/2,get_cut/1,cut_to/1 from sepia_kernel.
 
+% load the dynamic MySQL library for Windows explicitly
+% to avoid path problems
+load_dynamic_mysql("i386_nt", SUF) :- !,
+        concat_string(["i386_nt/libmysql.", SUF], F),
+        load(F).
+load_dynamic_mysql("x86_64_nt", SUF) :- !,
+        concat_string(["x86_64_nt/libmysql.", SUF], F),
+        load(F).
+load_dynamic_mysql(_, _).
+
 :- symbol_address(p_dbi_init, _ ) -> true ;
 	get_flag(object_suffix,SUF),
         get_flag(hostarch, Arch),
+        catch(load_dynamic_mysql(Arch, SUF), abort,
+              (printf(error, "Cannot find/load the dyanmic libmysql.%s"
+                             " library.%n", [SUF]),
+               writeln(error, "You can obtain this file as part of MySQL."),
+               printf(error, "Place the file into lib/%s directory of ECLiPSe"
+                            " to use Dbi.%n", [Arch]),
+               fail
+              )
+        ),     
         concat_string([Arch,/,"dbi_mysql.",SUF],F),
 	load(F).
+
 
 :- external(	s_init/1,	p_session_init),
    external(	s_start/5,	p_session_start),
