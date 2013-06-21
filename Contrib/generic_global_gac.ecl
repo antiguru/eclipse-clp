@@ -155,7 +155,7 @@ update_alldifferent(L,Remember,_OrigArg,Susp):-
         (is_solved(Remember) ->
             kill_suspension(Susp)
         ;
-            true
+            unschedule_suspension(Susp) 
         ).
 
 % this is the actual constraint check code
@@ -525,7 +525,7 @@ update_gcc(Bounds,Variables,N,M,Susp):-
         (ground(Variables) ->
             kill_suspension(Susp)
         ;
-            true
+            unschedule_suspension(Susp)
         ).
 
 check_gcc(Bounds,Variables,N,M):-
@@ -672,7 +672,7 @@ update_same(Variables,Vars1,Vars2,N,Susp):-
         (ground(Variables) ->
             kill_suspension(Susp)
         ;
-            true
+            unschedule_suspension(Susp)
         ).
 
 check_same(Vars1,Vars2,N):-
@@ -823,7 +823,7 @@ update_inverse(Variables,Vars1,Vars2,N,Susp):-
         (ground(Variables) ->
             kill_suspension(Susp)
         ;
-            true
+            unschedule_suspension(Susp)
         ).
 
 check_inverse(Vars1,Vars2,N):-
@@ -997,7 +997,7 @@ update_lex_gac(Var,XArray,YArray,Store,J,Variant,Susp):-
         (ground(Var) ->
             kill_suspension(Susp)
         ;
-            true
+            unschedule_suspension(Susp)
         ).
 
 lex_gac(XArray,YArray,Store,I,Variant):-
