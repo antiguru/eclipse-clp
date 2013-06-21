@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.9 2013/04/29 01:05:17 jschimpf Exp $
+% Version:	$Id: asm.pl,v 1.10 2013/06/21 19:27:26 kish_shen Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1302,7 +1302,7 @@ portable_object_code([W|Ws], Result) :-
 	    portable_object_code(Ws, Result)
 	).
 
-    unsafe_integer(I) :- integer(I), ( I < -2^31 -> true ; I >= 2^31 ).
+    unsafe_integer(I) :- integer(I), ( I < -2147483647 -> true ; I > 2147483647 ).
 
     unsafe_bignum(I)  :- integer(I), -2^63 =< I, I < 2^63.
 
