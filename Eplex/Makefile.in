@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.8 2013/02/27 00:29:54 jschimpf Exp $
+# $Id: Makefile.in,v 1.9 2013/06/22 03:06:58 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -760,7 +760,7 @@ $(MAKEFILE):	Makefile.in
 # We only build static libraries!
 #----------------------------------------------------------------------
 
-COIN_CBC_VERSION=2.7
+COIN_CBC_VERSION=2.8
 THIRDPARTY_CBC_DEST=$(THIRDPARTY)/coinclpcbc$(COIN_CBC_VERSION)/$(ARCH)
 
 install_cbc:    all_cbc
@@ -780,7 +780,7 @@ basic_cbc:	Cbc/$(ARCH)/Makefile
 
 Cbc/$(ARCH)/Makefile:	Cbc/configure
 	mkdir -p Cbc/$(ARCH)
-	( cd Cbc/$(ARCH) ; ../configure --host=@host@ --enable-static --disable-shared --enable-doscompile=mingw ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
+	( cd Cbc/$(ARCH) ; ../configure --host=@host@ --enable-static --disable-shared --disable-zlib --disable-bzlib ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
 
 Cbc/configure:
 	svn co https://projects.coin-or.org/svn/Cbc/stable/$(COIN_CBC_VERSION) Cbc
