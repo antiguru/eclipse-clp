@@ -149,8 +149,8 @@ $(DOC_DEST):	viz/documentation/$(DOC_FILE)
 
 $(EXAMPLE_DEST):
 	@mkdir -p $@
-	( cd viz/examples; /bin/tar cf - --exclude=CVS $(EXAMPLES)) \
-	    | (cd $@ ; /bin/tar xf - )
+	( cd viz/examples; tar cf - --exclude=CVS $(EXAMPLES)) \
+	    | (cd $@ ; tar xf - )
 	-@/bin/chmod -R $(PERM) $@
 
 
