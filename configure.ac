@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.1])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.56 2013/03/17 12:11:38 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.57 2013/06/22 03:01:38 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -261,6 +261,10 @@ case "$ARCH" in
     if test $? -ne 0; then
 	GCCLIBDIR="."
     fi
+    # this is needed to catch the case of empty GCCLIBDIR (David Dreisgmeyer)
+    if [ -z $GCCLIBDIR ]; then
+        GCCLIBDIR="."
+    fi
     CFLAGS="-m32  -mmacosx-version-min=10.4 $CFLAGS"
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
     OBJECT_SUFFIX=dylib
@@ -287,7 +291,7 @@ case "$ARCH" in
     LDD="otool"
     LDDFLAG="-L"
     STRIPFLAGS="-u -i -S"
-    AC_DEFINE(HAVE_CEIL_NEGZERO_BUG) # bug fixed sometime in 10.5
+    # AC_DEFINE(HAVE_CEIL_NEGZERO_BUG) # bug fixed sometime in 10.5
     LOCK=
     ;;
  x86_64_macosx)
@@ -299,6 +303,10 @@ case "$ARCH" in
     CFLAGS="-m64  -mmacosx-version-min=10.4 $CFLAGS"
     if test $? -ne 0; then
 	GCCLIBDIR="."
+    fi
+    # this is needed to catch the case of empty GCCLIBDIR (David Dreisgmeyer)
+    if [ -z $GCCLIBDIR ]; then
+        GCCLIBDIR="."
     fi
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic"
     OBJECT_SUFFIX=dylib
@@ -324,7 +332,8 @@ case "$ARCH" in
     LDD="otool"
     LDDFLAG="-L"
     STRIPFLAGS="-u -i -S"
-    AC_DEFINE(HAVE_CEIL_NEGZERO_BUG) # bug fixed sometime in 10.5
+    #    AC_DEFINE(HAVE_CEIL_NEGZERO_BUG) # bug fixed sometime in 10.5
+    # 2013-06-22: this fix is now broken in 10.6
     AC_DEFINE(HAVE_RINT_BUG)
     LOCK=
     ;;
@@ -333,6 +342,10 @@ case "$ARCH" in
     GCCLIBDIR=$(ls -d /usr/lib/gcc/powerpc*/$GCC_VERSION 2>/dev/null)
     if test $? -ne 0; then
 	GCCLIBDIR="."
+    fi
+    # this is needed to catch the case of empty GCCLIBDIR (David Dreisgmeyer)
+    if [ -z $GCCLIBDIR ]; then
+        GCCLIBDIR="."
     fi
     CFLAGS="-m32  -mmacosx-version-min=10.3 $CFLAGS"
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic -m32"
@@ -378,6 +391,10 @@ case "$ARCH" in
     GCCLIBDIR=$(ls -d /usr/lib/gcc/powerpc*/$GCC_VERSION/ppc64 2>/dev/null)
     if test $? -ne 0; then
 	GCCLIBDIR="."
+    fi
+    # this is needed to catch the case of empty GCCLIBDIR (David Dreisgmeyer)
+    if [ -z $GCCLIBDIR ]; then
+        GCCLIBDIR="."
     fi
     CFLAGS="-m64  -mmacosx-version-min=10.4 $CFLAGS"
     LOCAL_FLAGS="-DD_LOAD -no-cpp-precomp -dynamic -m64"
@@ -1669,7 +1686,7 @@ ALL_WITH_GECODE=
 ALL_CROSS_WITH_GECODE=
 GECODE_BASEDIR="$ECLIPSETHIRDPARTY/gecode-"
 GECODE_REQUIRED="3.7"
-GECODE_VERSION="3.7.1"
+GECODE_VERSION="3.7.3"
 
 if test "$gfd_requested" = "yes"; then
    GECODEDIR=$(ls -d $GECODE_BASEDIR$GECODE_REQUIRED*/$ARCH  2>/dev/null)
