@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.15 2013/02/22 18:45:58 jschimpf Exp $
+# $Id: Makefile.in,v 1.16 2013/06/28 22:33:09 kish_shen Exp $
 #
 
 ARCH = @ARCH@
@@ -17,10 +17,10 @@ install:	@MAKE_TARGET@
 install_cross:	make_kernel \
 		make_flexlm \
 		make_eplex \
+		make_gecodeinterface \
 		make_icparc_solvers \
 		make_javainterface \
 		make_oci \
-		make_gecodeinterface \
 		make_cpviz 
 
 # include subsystems that can only be made if we are building on target
