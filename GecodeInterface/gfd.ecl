@@ -4508,12 +4508,13 @@ indomain_from1(Which, V, H, Sp, Idx, OldHi, OldLo) :-
         indomain_from1(NewWhich, V, H, Sp, Idx, OldHi, OldLo).
 
 
-select_var(X, XsH, Arg, Select, IdxsH) :-
-        ( is_handle(XsH) ->
+select_var(X, Xs, IdxsH, Arg, Select) :-
+        ( is_handle(Xs) ->
+            Xs = IdxsH,
             get_prob_handle(H),
-	    select_var1(X, H, Select, XsH)
+	    select_var1(X, H, Select, IdxsH)
         ;
-            select_var_setup(XsH, Arg, H, IdxsH),
+            select_var_setup(Xs, Arg, H, IdxsH),
 	    select_var1(X, H, Select, IdxsH)
         ).
 
