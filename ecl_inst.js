@@ -7,7 +7,7 @@
 if (WScript.Arguments.length > 0) {
     ecl_version = WScript.Arguments(0);
 } else {
-    ecl_version = "6.1";
+    ecl_version = "6.2";
 }
 
 

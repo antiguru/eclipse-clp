@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 
 #
-# $Id: tktools.tcl,v 1.4 2008/11/18 05:44:16 jschimpf Exp $
+# $Id: tktools.tcl,v 1.5 2013/07/05 01:34:47 jschimpf Exp $
 # 
 # This file is the front end for the remote development tools
 #
@@ -34,7 +34,7 @@
 #----------------------------------------------------------------------
 # Find and load the eclipse package
 #----------------------------------------------------------------------
-set tkecl(version) 6.1	 ;# update also in eclipse_tools and examples!
+set tkecl(version) 6.2	 ;# update also in eclipse_tools and examples!
 
 lappend tkecl(helpfiles) tktools "Remote TkTools" tktoolshelp.txt
 
