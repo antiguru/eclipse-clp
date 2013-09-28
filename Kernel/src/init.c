@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.8 2013/04/17 01:34:21 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.9 2013/09/28 00:25:39 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -82,7 +82,8 @@ extern void	bip_arith_init(int flags),
 		bip_module_init(int flags),
 		bip_op_init(int flags),
 		bip_parallel_init(),
-		bip_prop_init(int flags),
+		bip_copy_init(int flags),
+		bip_serialize_init(int flags),
 		bip_record_init(int flags),
 		bip_store_init(int flags),
 		bip_shelf_init(int flags),
@@ -322,7 +323,8 @@ eclipse_global_init(int init_flags)
     bip_gc_init(init_flags);
     bip_io_init(init_flags);
     bip_op_init(init_flags);
-    bip_prop_init(init_flags);
+    bip_copy_init(init_flags);
+    bip_serialize_init(init_flags);
     compiler_init(init_flags);
     error_init(init_flags);
     lex_init(init_flags);

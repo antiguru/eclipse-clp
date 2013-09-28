@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.17 2013/02/08 22:29:49 jschimpf Exp $
+# $Id: Makefile.in,v 1.18 2013/09/28 00:25:39 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -157,8 +157,8 @@ COMMON_OBJECTS =	dict.o read.o lex.o \
 		emu.o proc_desc.o bip_tconv.o io.o write.o bip_comp.o \
 		mem.o operator.o bip_record.o \
 		bip_bag.o bip_heapevents.o bip_shelf.o bip_store.o \
-		bip_array.o bip_strings.o \
-		bip_db.o property.o bip_io.o \
+		bip_array.o bip_strings.o bip_serialize.o \
+		bip_db.o property.o term_copy.o bip_io.o \
 		procedure.o \
 		handle.o intervals.o \
 		bip_arith.o bigrat.o bip_module.o bip_control.o bip_delay.o \
@@ -1000,6 +1000,8 @@ bip_parallel.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
 bip_parallel.o: ec_io.h dict.h emu_export.h property.h module.h opcode.h
 bip_record.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
 bip_record.o: dict.h property.h module.h
+bip_serialize.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
+bip_serialize.o: ec_io.h emu_export.h module.h
 bip_shelf.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
 bip_shelf.o: dict.h property.h
 bip_store.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
@@ -1074,7 +1076,7 @@ procedure.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h
 procedure.o: dict.h emu_export.h property.h opcode.h gencode.h
 procedure.o: ec_io.h database.h module.h read.h os_support.h
 property.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-property.o: ec_io.h module.h property.h emu_export.h
+property.o: module.h property.h
 read.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
 read.o: lex.h emu_export.h ec_io.h read.h module.h property.h
 sch_util.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
@@ -1082,6 +1084,8 @@ sch_util.o: sch_types.h sch_macros.h
 scheduler.o: config.h trace.h error.h sch_types.h sch_eng_interface.h
 scheduler.o: sch_macros.h
 st2.o: config.h
+term_copy.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
+term_copy.o: emu_export.h
 test.o: sepia.h ec_public.h types.h
 tkeclipse.o: eclipse.h config.h ec_public.h types.h embed.h tkcommon.h
 tkexdr.o: config.h tkcommon.h
