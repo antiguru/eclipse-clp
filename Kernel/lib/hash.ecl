@@ -26,7 +26,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Stefano Novello, IC-Parc
-% Version:	$Id: hash.ecl,v 1.3 2010/07/21 04:55:42 jschimpf Exp $
+% Version:	$Id: hash.ecl,v 1.4 2013/12/26 18:43:16 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -36,7 +36,7 @@
 :- comment(summary, "Hash table library").
 :- comment(author, "Stefano Novello, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2010/07/21 04:55:42 $").
+:- comment(date, "$Date: 2013/12/26 18:43:16 $").
 
 :- export(hash_create/1).
 :- export(hash_add/3).
@@ -52,6 +52,7 @@
 :- export(hash_next/4).
 :- export(hash_last/1).
 :- export(hash_keys/2).
+:- export(hash_list/2).
 :- export(hash_list/3).
 :- export(hash_stat/1).
 :- export(hash_update/4).
@@ -67,8 +68,7 @@
     	size,		% size of table array
 	nb_elems,	% current number of entries
 	table,		% array[size] of bucket lists
-	keys,		% cached list of keys (for hash_list/2)
-	elems,		% cached list of values (for hash_list/2)
+	keys,		% cached list of keys (for hash_keys/2)
 	change,		% suspension list, woken on change (or var if unused)
 	changed		% notification send port for changes (or var if unused)
     )).
@@ -97,7 +97,6 @@ hash_create(hash_table{
 	    nb_elems:0,
 	    table:'[]'([],[],[],[]),
 	    keys:[],
-	    elems:[],
 	    change:_,
 	    changed:_
 	}).
@@ -130,12 +129,11 @@ hash_erase(H) :-
     % Retain only the change/changed fields.
     hash_erase_simple(H) :-
 	hash_create(New),
-	New = hash_table{size:S,nb_elems:N,table:T,keys:K,elems:E},
+	New = hash_table{size:S,nb_elems:N,table:T,keys:K},
 	setarg(size of hash_table,	H, S),
 	setarg(nb_elems of hash_table,	H, N),
 	setarg(table of hash_table,	H, T),
-	setarg(keys of hash_table,	H, K),
-	setarg(elems of hash_table,	H, E).
+	setarg(keys of hash_table,	H, K).
 
 
 :- comment(hash_insert_suspension/3, [
@@ -276,8 +274,6 @@ hash_set(H,Key,Elem) :-
 
 hash_add(H,Key,Elem) :-
 	H = hash_table{size:Size,nb_elems:Nb,table:T,change:Susps},
-	setarg(keys of hash_table,H,0),
-	setarg(elems of hash_table,H,0),
 	hash(Key,Size,Index),
 	arg(Index, T, Bucket),
 	( member(E,Bucket), E = hash_elem{key:Key,elem:OldElem} ->
@@ -289,6 +285,7 @@ hash_add(H,Key,Elem) :-
 	    (Nb1 =< MaxNb ->
 		Match = hash_elem{key:Key,elem:Elem},
 		setarg(nb_elems of hash_table,H,Nb1),
+		setarg(keys of hash_table,H,0),
 		setarg(Index,T,[Match|Bucket]),
 		( var(Susps) -> true ; notify(H, add(Key,Elem)))	% should be last
 	    ;
@@ -306,8 +303,6 @@ hash_add(H,Key,Elem) :-
 
 hash_remove(H,Key,Elem) :-
 	H = hash_table{size:Size,nb_elems:Nb,table:T,change:Susps},
-	setarg(keys of hash_table,H,0),
-	setarg(elems of hash_table,H,0),
 	hash(Key,Size,Index),
 	arg(Index, T, Bucket),
 	Match = hash_elem{key:Key,elem:Elem0},
@@ -316,6 +311,7 @@ hash_remove(H,Key,Elem) :-
 	% Maybe add code to shrink table if 4*elems < array size
 	% to save memory - no speed advantage.
 	setarg(nb_elems of hash_table,H,Nb1),
+	setarg(keys of hash_table,H,0),
 	setarg(Index,T,NewBucket),
 	( var(Susps) -> true ; notify(H, rem(Key,Elem0))), % after removal, before unification
 	Elem = Elem0.
@@ -406,7 +402,6 @@ hash_update(H,Key,OldElem,Elem) :-
 	Entry = hash_elem{key:Key,elem:E},
 	!,
 	E=OldElem,
-	setarg(elems of hash_table,H,0),
 	setarg(elem of hash_elem,Entry,Elem),
 	( var(Susps) -> true ; notify(H, chg(Key,OldElem, Elem))).	% should be last
 
@@ -435,7 +430,7 @@ hash_update(H,Key,OldElem,Elem) :-
 :- comment(hash_count/2, [
     amode:(hash_count(+,-) is det),
     args:["Table":"A hash table", "Count":"A variable or number"],
-    summary:"Returns the number of entries in the table",
+    summary:"Returns the number of entries in the table (in constant time)",
     see_also:[hash_create/1,hash_list/3] ]).
 
 hash_count(hash_table{nb_elems:N}, N).
@@ -510,39 +505,54 @@ hash_next(hash_iter{next_index:S1,bucket:Bucket,table:T,eleft:N},Key,Elem,Iter) 
 	Iter = hash_iter{next_index:S,bucket:Bucket,table:T,eleft:N1}.
 
 
+:- comment(hash_list/2, [
+    amode:(hash_list(+,-) is det),
+    args:["Table":"A hash table", "KeyVals":"a variable or list"],
+    summary:"Retrieve the hash table contents as a list of pairs",
+    desc:html("
+	Retrieve the hash table contents in the form of a list of Key-Value
+	pairs.  This list can then be sorted, e.g. using keysort/2."),
+    see_also:[hash_list/3,hash_keys/2,keysort/2]
+    ]).
+
+hash_list(hash_table{table:T},KVs) :-
+	(
+	    foreacharg(Bucket,T),
+	    fromto(KVs, KVs3, KVs1, [])
+	do
+	    (
+		foreach(hash_elem{key:Key,elem:Elem}, Bucket),
+		fromto(KVs3,[Key-Elem|KVs2],KVs2,KVs1)
+	    do
+		true
+	    )
+	).
+
+
 :- comment(hash_list/3, [
     amode:(hash_list(+,-,-) is det),
     args:["Table":"A hash table", "Keys":"a variable or list", "Values":"variable or list"],
     summary:"Retrieve the hash table contents",
     desc:html("
 	Retrieve the hash table contents in the form of a list of Keys
-	and a list of Values. These lists are cached by the hash table
-	and only recomputed when the table has changed.")
+	and a list of corresponding Values."),
+    see_also:[hash_list/2,hash_keys/2]
     ]).
 
 hash_list(H,Keys,List) :-
-	H = hash_table{table:T,keys:K,elems:E},
-	( E == 0 ->
-	    % keys may be cached, but we recompute them anyway
+	H = hash_table{table:T},
+	(
+	    foreacharg(Bucket,T),
+	    fromto(Keys, Keys0, Keys1, []),
+	    fromto(List, List0, List1, [])
+	do
 	    (
-		foreacharg(Bucket,T),
-		fromto(Keys, Keys0, Keys1, []),
-		fromto(List, List0, List1, [])
+		foreach(hash_elem{key:Key,elem:Elem}, Bucket),
+		fromto(Keys0,[Key|KT],KT,Keys1),
+		fromto(List0,[Elem|ET],ET,List1)
 	    do
-	    	(
-		    foreach(hash_elem{key:Key,elem:Elem}, Bucket),
-		    fromto(Keys0,[Key|KT],KT,Keys1),
-		    fromto(List0,[Elem|ET],ET,List1)
-		do
-		    true
-		)
-	    ),
-	    setarg(keys of hash_table ,H,Keys),
-	    setarg(elems of hash_table ,H,List)
-	;
-	    % if elems are cached, keys are cached as well
-	    Keys = K,
-	    List = E
+		true
+	    )
 	).
 
 
@@ -553,7 +563,8 @@ hash_list(H,Keys,List) :-
     desc:html("
 	Retrieve the hash table keys in the form of a list of Keys.
 	This list is cached by the hash table and only recomputed when
-	the table has changed.")
+	the keys have changed."),
+    see_also:[hash_list/2,hash_list/3]
     ]).
 
 hash_keys(H,Keys) :-
