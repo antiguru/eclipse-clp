@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: calendar.pl,v 1.3 2010/07/25 13:29:04 jschimpf Exp $
+% Version:	$Id: calendar.pl,v 1.4 2014/01/07 00:53:18 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(calendar).
@@ -32,7 +32,7 @@
 :- comment(summary,
     "Routines for calendar computations, based on modified julian dates (MJD).").
 
-:- comment(date, "$Date: 2010/07/25 13:29:04 $").
+:- comment(date, "$Date: 2014/01/07 00:53:18 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(index, ["date and time","julian date","ISO 8601"]).
@@ -93,6 +93,7 @@
 	unix_to_mjd/2,		% unix_to_mjd(+UnixSec, -MJD)
 	mjd_to_unix/2,		% mjd_to_unix(+MJD, -UnixSec)
 	mjd_now/1,		% mjd_now(-MJD)
+	easter_mjd/2,		% easter_mjd(+Y, -MJD)
 
 	jd_to_mjd/2,		% jd_to_mjd(+JD, -MJD)
 	mjd_to_jd/2.		% mjd_to_jd(+MJD, -JD)
@@ -241,7 +242,17 @@
 	"JD":"Variable or float"],
     amode:mjd_to_jd(++,?)
     ]).
-
+:- comment(easter_mjd/2, [
+    summary:"Calculate Easter Sunday date for a given year",
+    args:["Year":"Integer",
+	"MJD":"Variable or integer"],
+    amode:easter_mjd(+,?),
+    eg:"
+    ?- easter_mjd(2020, MJD), mjd_to_ymd(MJD, YMD).
+    MJD = 58951
+    YMD = 2020 - 4 - 12
+    Yes (0.00s cpu)
+    "]).
 
 
 
@@ -435,6 +446,40 @@ mjd_to_weekday(MJD, WD) :-
 	arg(I, wd(wednesday, thursday, friday,
 			saturday, sunday, monday, tuesday), WD).
 
+
+%---------------------------------------------------------------------
+% Easter
+%---------------------------------------------------------------------
+
+easter_mjd(Y, MJD) :-
+	( Y =< 1582 ->
+	    % Julian
+	    A is Y mod 4,
+	    B is Y mod 7,
+	    C is Y mod 19,
+	    D is (19*C + 15) mod 30,
+	    E is (2*A + 4*B - D + 34) mod 7,
+	    MJD is D + E + ymd_to_mjd(Y-3-22)
+	;
+	    % Gregorian
+	    A is Y mod 19,
+	    B is integer(floor(Y / 100)),
+	    C is Y mod 100,
+	    D is integer(floor(B / 4)),
+	    E is B mod 4,
+	    F is integer(floor((B + 8) / 25)),
+	    G is integer(floor((B - F + 1) / 3)),
+	    H is (19*A + B - D - G + 15) mod 30,
+	    I is integer(floor(C / 4)),
+	    K is C mod 4,
+	    L is (32 + 2*E + 2*I - H - K) mod 7,
+	    M is integer(floor((A + 11*H + 22*L) / 451)),
+	    MJD is H + L -7*M + ymd_to_mjd(Y-3-22)
+	).
+
+
+%---------------------------------------------------------------------
+
 /***
 
 % Table of leap seconds
@@ -463,6 +508,7 @@ leap(50629).		% 1997-06-30
 leap(51178).		% 1998-12-31
 leap(53735).		% 2005-12-31
 leap(54831).		% 2008-12-31
+leap(56108).		% 2012-06-30
 
 
 %-----------------------------------------------------------------------
