@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.20 2013/02/26 22:54:22 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.21 2014/02/05 03:27:47 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -281,6 +281,7 @@ static int     		p_nl(value vs, type ts),
 			p_check_stream_spec(value v, type t),
 			p_set_stream(value ov, type ot, value nv, type nt),
 			p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value val, type tag),
+			p_read_string5(value vs, type ts, value vdel, type tdel, value vpad, type tpad, value vsep, type tsep, value val, type tag),
 			p_at(value vs, type ts, value vp, type tp),
 			p_get_char(value vs, type ts, value val, type tag),
 			p_get(value vs, type ts, value val, type tag),
@@ -417,6 +418,8 @@ bip_io_init(int flags)
 	    -> mode = BoundArg(3, CONSTANT) | BoundArg(4, CONSTANT);
 	built_in(in_dict("read_string", 4),	p_read_string,	B_UNSAFE|U_GROUND)
 	    -> mode = BoundArg(3, CONSTANT) | BoundArg(4, CONSTANT);
+	built_in(in_dict("read_string", 5),	p_read_string5,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(4, CONSTANT) | BoundArg(5, CONSTANT);
 	built_in(in_dict("read_directory", 4),	p_read_dir,	B_UNSAFE|U_GROUND)
 	    -> mode = BoundArg(3, GROUND) | BoundArg(4, GROUND);
 	(void) built_in(in_dict("socket", 3),	p_socket,	B_UNSAFE|U_SIMPLE);
@@ -501,7 +504,7 @@ static int
 _tostr_stream(stream_id nst, char *buf, int quoted)	/* nst != NULL */
 {
 #define STRSZ_STREAM 30
-    sprintf(buf, "$&(stream(%d))", StreamNr(nst));
+    sprintf(buf, "$&(stream(%d))", (int) StreamNr(nst));
     return strlen(buf);
 }
 
@@ -2528,6 +2531,163 @@ p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value
 	Request_Unify_Integer(vl, tl, length);
     }
     Return_Unify;
+}
+
+
+/*
+ * read_string(+Stream, +SepChars, +PadChars, -ActualSep, -String)
+ *
+ * SepChars and PadChars are strings.
+ * SepChars can also be atom 'end_of_line' (meaning "\n or \r\n"),
+ * or 'end_of_file' (equivalent to "").
+ * ActualSep is the delimiter that actually occurred, or -1 for EOF.
+ * String is the read string with padding removed.
+ * Once ActualSep=-1 has been returned, the next call gives READ_PAST_EOF.
+ * The "multi-separator" functionality of split_string/4 is not supported,
+ * as this could require blocking reads.
+ */
+
+#define CheckSetMember(ch,nset,pset,match) \
+    for(match=nset;match;--match) { \
+	if ((ch) == pset[match-1]) \
+	    break; \
+    }
+
+static int
+p_read_string5(value vs, type ts, value vdel, type tdel,
+	value vpad, type tpad, value vsep, type tsep, value val, type tag)
+{
+    stream_id		nst;
+    int			res;
+    char		*c, *start, *ipad;
+    char		*delim, *pad;
+    long		ndelim, npad, match;
+    pword		*pw;
+    static char *	nl = "\n";
+    Prepare_Requests
+
+    if (IsString(tdel)) {
+	ndelim = StringLength(vdel);
+	delim = StringStart(vdel);
+    } else {
+	Check_Atom_Or_Nil(vdel, tdel);
+	if (vdel.did == d_end_of_line) {
+	    ndelim = 1; delim = nl;
+	} else if (vdel.did == d_.eof) {
+	    ndelim = 0; delim = "";
+	} else {
+	    Bip_Error(RANGE_ERROR);
+	}
+    }
+    if (IsString(tpad)) {
+	npad = StringLength(vpad);
+	pad = StringStart(vpad);
+    } else {
+	Check_Atom_Or_Nil(vpad, tpad);
+	/* no padding symbols yet */ 
+	Bip_Error(RANGE_ERROR);
+    }
+    /* Check_Output_Integer(tl); */
+    /* Check_Output_String(tag); */
+
+    nst = get_stream_id(vs, ts, SREAD, &res);
+    if (nst == NO_STREAM) {
+	Bip_Error(res)
+    }
+    Lock_Stream(nst);
+    if (StreamMode(nst) & REPROMPT_ONLY)
+	StreamMode(nst) |= DONT_PROMPT;
+    pw = TG;
+    Push_Buffer(1);			/* first make a minimal buffer */
+    start = c = (char *) BufferStart(pw);
+
+_before_:
+    res = ec_getch(nst);
+    if (res < 0) goto _eof_err_;
+    CheckSetMember(res,npad,pad,match);
+    if (match) goto _before_;
+    CheckSetMember(res,ndelim,delim,match);
+    if (match) goto _end_;
+
+_within_:
+    *c++ = res;
+    if (c == (char *) TG) {	/* get a new memory word, if needed */
+	TG += 1;
+	Check_Gc;
+    }
+    res = ec_getch(nst);
+    if (res < 0) goto _eof_err_;
+    CheckSetMember(res,ndelim,delim,match);
+    if (match) {
+	if (delim==nl && *(c-1)=='\r')
+	    --c;		/* forget CR (delimiter was end_of_line) */
+	goto _end_;
+    }
+    CheckSetMember(res,npad,pad,match);
+    if (!match) goto _within_;
+    ipad = c;
+
+_after_:
+    *c++ = res;
+    if (c == (char *) TG) {	/* get a new memory word, if needed */
+	TG += 1;
+	Check_Gc;
+    }
+    res = ec_getch(nst);
+    if (res < 0) {
+	c = ipad;		/* forget trailing padding */
+	goto _eof_err_;
+    }
+    CheckSetMember(res,npad,pad,match);
+    if (match) {
+	if (delim==nl && *(c-1)=='\r')
+	    ipad = c;
+	goto _after_;
+    }
+    CheckSetMember(res,ndelim,delim,match);
+    if (match) {
+	c = ipad;
+	goto _end_;
+    }
+    if (res != '\r')
+	goto _within_;
+
+_after_cr_:
+    *c++ = res;
+    if (c == (char *) TG) {	/* get a new memory word, if needed */
+	TG += 1;
+	Check_Gc;
+    }
+    res = ec_getch(nst);
+    if (res < 0) {
+	goto _eof_err_;		/* end after lone CR */
+    }
+    CheckSetMember(res,npad,pad,match);
+    if (match) {
+	ipad = c;		/* restart padding */
+	goto _after_;
+    }
+    CheckSetMember(res,ndelim,delim,match);
+    if (!match) goto _within_;
+    if (delim==nl)
+	c = ipad;		/* Pad+CR+LF forget all */
+
+_end_:	/* here: res == delimiter char */
+    Unlock_Stream(nst);
+    *c++ = 0;
+    Trim_Buffer(pw, c-start);
+    Request_Unify_String(val, tag, pw);
+    Request_Unify_Integer(vsep, tsep, res);
+    Return_Unify;
+
+_eof_err_:
+    if (res == PEOF) {
+	res = -1;
+	goto _end_;
+    }
+    Unlock_Stream(nst);
+    TG = pw;			/* pop the unfinished string	*/
+    Bip_Error(res)
 }
 
 

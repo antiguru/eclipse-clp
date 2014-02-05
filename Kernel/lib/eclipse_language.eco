@@ -410,6 +410,7 @@
 :-(reexport(from(/(read_exdr,2),sepia_kernel))).
 :-(reexport(from(/(read_string,3),sepia_kernel))).
 :-(reexport(from(/(read_string,4),sepia_kernel))).
+:-(reexport(from(/(read_string,5),sepia_kernel))).
 :-(reexport(from(/(read_token,2),sepia_kernel))).
 :-(reexport(from(/(read_token,3),sepia_kernel))).
 :-(reexport(from(/(readvar,3),sepia_kernel))).

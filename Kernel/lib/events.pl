@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.29 2013/03/06 21:46:04 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.30 2014/02/05 03:29:16 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -590,6 +590,7 @@ extract_stream(readvar(S, _, _, _), S).
 extract_stream(read_annotated_raw(S, _, _, _), S).
 extract_stream(read_string(_, _, _), input).
 extract_stream(read_string(S, _, _, _), S).
+extract_stream(read_string(S, _, _, _, _), S).
 extract_stream(read(S, _), S).
 extract_stream(read_(S, _, _), S).
 extract_stream(read_token(S, _, _), S).
