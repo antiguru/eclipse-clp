@@ -203,7 +203,7 @@ connect_machines :-
 % be sent and the handler reads the message.
 io_handler :-
     set_flag(enable_interrupts, off),
-    read_string(s, "\n", _, Message),
+    read_string(s, end_of_line, "", _, Message),
     writeln(Message),
     set_flag(enable_interrupts, on).
 

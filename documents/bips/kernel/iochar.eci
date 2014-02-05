@@ -621,13 +621,13 @@ Success:
 
     get_lines(File, Lines) :-
         open(File, read, S),
-        get_lines(S, Lines),
+        stream_get_lines(S, Lines),
         close(S).
 
-    get_lines(S, Lines) :-
+    stream_get_lines(S, Lines) :-
         ( read_string(S, end_of_line, _, Line) ->
             Lines = [Line|Ls],
-            get_lines(S, Ls)
+            stream_get_lines(S, Ls)
         ;
             Lines = []
         ).
@@ -652,7 +652,115 @@ Error:
 
 
 ",
-        see_also:[read_string / 3, read_token / 2, read_token / 3, open / 3]]).
+        see_also:[read_string / 5, read_token / 2, read_token / 3, open / 3]]).
+
+
+:- comment(read_string / 5, [
+    summary:"Reads a string from the stream Stream up to a delimiter.",
+    amode:(read_string(+,+,+,-,-) is det),
+    args:[
+            "Stream" : "Stream handle or alias (atom)",
+            "SepChars" : "String (set of characters) or atom",
+            "PadChars" : "String (set of characters)",
+	    "Separator" : "Variable or integer character code",
+	    "String" : "Variable or string"],
+    exceptions:[
+	4 : "Stream, SepChars or PadChars is not instantiated.",
+    	5 : "SepChars is not a string or atom.",
+    	5 : "PadChars is not a string.",
+	6 : "SepChars is an atom but not a valid symbolic delimiter.",
+    	5 : "Stream is not an atom or handle.",
+	192 : "Stream is not an input stream.",
+	193 : "Stream is an illegal stream specification.",
+	198 : "Trying to read past the end of the stream."],
+    desc:html("<P>\
+    A string of characters is read from the input stream Stream,
+    up to a delimiter, ignoring any padding around the data.
+    More precisely, the predicate performs the following steps:
+<PRE>
+     * Skip all characters that match one of the PadChars.
+     * Read up to a character that matches one of SepChars or end of file.
+     * Discard trailing characters that match one of the PadChars
+       from the collected input.
+     * Unify String with a string created from the input, and Separator
+       with the code of the actual separator character consumed (or -1
+       if the input was terminated by the end of the stream).
+</PRE>
+    Both SepChars and PadChars are strings which are interpreted as sets of
+    characters.  I.e. any character that occurs in SepChars is a separator,
+    and any character that occurs in PadChars is a padding character.
+    In addition, two symbolic SepChars can be specified (as atoms):
+<PRE>
+    end_of_line   a LF or CR/LF sequence (returned Separator is LF (10))
+    end_of_file   the end of the file/input (returned Separator is -1)
+</PRE>
+    End of file always acts like a delimiter, therefore end_of_file means
+    the same as the empty Separator string.
+</P><P>
+    Once the predicate has returned a Separator of -1, the stream's end of
+    file has been consumed and subsequent reading attempts raise the error
+    'Trying to read past the end of the stream' (198).  This can be
+    changed by setting the stream's eof_action property to 'reset' (e.g.
+    during open/4), in which case the predicate will return empty strings
+    and a Separator of -1 indefinitely.
+</P><P>
+    Note: This predicate provides functionality similar to split_string/4,
+    except that SepChars and PadChars must not be partially overlapping (as
+    this would require lookahead and could cause unexpected blocking read).
+<P>
+"),
+        eg:"
+    % read one line from the input stream
+    ?- read_string(input, end_of_line, \"\", End, String).
+     hello world!
+
+    End = 10
+    String = \"hello world!\"
+    Yes (0.00s cpu)
+
+
+    % read input until end of file
+    ?- read_string(input, end_of_file, \"\", End, String).
+     abc
+     def
+    ^D	 
+    End = -1
+    String = \"abc\\ndef\\n\"
+    Yes (0.00s cpu)
+
+
+    % Separators and padding
+    ?- read_string(input, \",;\", \".\", Sep1, String1),
+       read_string(input, \",;\", \".\", Sep2, String2),
+       read_string(input, \",;\", \".\", Sep3, String3).
+     ...abc...def...;,...ghi...
+    ^D
+    Sep1 = 59
+    String1 = \"abc...def\"
+    Sep2 = 44
+    String2 = \"\"
+    Sep3 = -1
+    String3 = \"ghi...\\n\"
+    Yes (0.00s cpu)
+
+
+
+% Code example: read lines from a file and return
+% a list of strings, each string containing a line
+
+    get_lines(File, AllLines) :-
+        open(File, read, S),
+	(
+	    fromto(0,_,Sep,-1),
+	    fromto(AllLines,[Line|Lines],Lines,[]),
+	    param(S)
+	do
+	    read_string(S, end_of_line, \"\", Sep, Line)
+	),
+	close(S).
+",
+        see_also:[read_string / 4, read_token / 2, read_token / 3, open / 3, open/4]]).
+
 
 :- comment(tyi / 1, [
         summary:"Succeeds if the code of the next character read in raw mode from the

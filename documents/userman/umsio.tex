@@ -511,28 +511,28 @@ The exact definition of character classes and tokens can be found in
 appendices \ref{charclass} and \ref{tokendef}, respectively.
 
 A further, very flexible possibility to read a sequence of
-characters is provided by the built-ins
-\bipref{read_string/3}{../bips/kernel/iochar/read_string-3.html} and
-\bipref{read_string/4}{../bips/kernel/iochar/read_string-4.html}
+characters is provided by the built-in
+\bipref{read_string/5}{../bips/kernel/iochar/read_string-5.html}
 \begin{quote}
 \preddef{read_string(%
-\pattern{Delimiters},~\pattern{Length},~\pattern{String})}\\
-\preddef{read_string(%
-\pattern{Stream},~\pattern{Delimiters},~\pattern{Length},~\pattern{String})}
+\pattern{Stream},~\pattern{SepChars},~\pattern{PadChars},~\pattern{Separator},~\pattern{String})}
 \end{quote}
-Here, the input is read up to a specified delimiter or up to a specified
-length, and returned as an {\eclipse} string.
+Here, the input is read up to a specified delimiter,
+and returned as an {\eclipse} string.
 
 In particular, one line of input can be read as follows:
 \begin{quote}
 \begin{verbatim}
 read_line(Stream, String) :-
-    read_string(Stream, end_of_line, _Length, String).
+    read_string(Stream, end_of_line, "", _Separator, String).
 \end{verbatim}
 \end{quote}
+The \about{SepChar} argument allows the specification of padding
+characters, which will be ignored before and after separators.
 Once a string has been read, string manipulation predicates like
 \bipref{split_string/4}{../bips/kernel/stratom/split_string-4.html}
-can be used to break it up into smaller components.
+can be used to break it up into even smaller components.
+
 
 
 %- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -863,7 +863,7 @@ and consumed at its beginning on reading.
 \begin{verbatim}
 [eclipse 11]: open(queue(""), update, q), write(q, hello), write(q," wo").
 yes.
-[eclipse 12]: read_string(q, " ", _, X).
+[eclipse 12]: read_string(q, " ", "", _, X).
 S = "hello"
 yes.
 [eclipse 13]: write(q, "rld"), read(q, X).
@@ -889,7 +889,7 @@ is going to be used for different queues:
 \begin{verbatim}
 [eclipse 1]: [user].
  handle_queue_event(Q) :-
-        read_string(Q, "", _, Data),
+        read_string(Q, "", "", _, Data),
         printf("Queue %s received data: %s\n", [Q,Data]).
 yes.
 [eclipse 2]: set_event_handler(eventq, handle_queue_event/1).
