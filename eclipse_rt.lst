@@ -88,6 +88,7 @@ lib/joop_boot.eco
 lib/kernel.eco
 lib/linearize.eco
 lib/lists.eco
+lib/lists_of_structures.eco
 lib/make_overlap_bivs.eco
 lib/matrix_util.eco
 lib/max_flow.eco

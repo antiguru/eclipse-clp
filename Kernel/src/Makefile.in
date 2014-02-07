@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.18 2013/09/28 00:25:39 jschimpf Exp $
+# $Id: Makefile.in,v 1.19 2014/02/07 15:04:40 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -547,7 +547,8 @@ ECL_ECO_LIBRARIES =	constraint_pools.ecl document.ecl fcompile.ecl \
 		format.ecl lazy_io.ecl csv.ecl \
 		multifile.ecl notify_ports.ecl port_profiler.ecl \
 		swi.ecl time_log.ecl timeout.ecl timeout_simple.ecl var_name.ecl \
-		iso.ecl iso_light.ecl iso_error.ecl iso_strict.ecl iso_aux.ecl
+		iso.ecl iso_light.ecl iso_error.ecl iso_strict.ecl iso_aux.ecl \
+		lists_of_structures.ecl
 
 PL_ECO_LIBRARIES =	anti_unify.pl apply.pl \
 		apply_macros.pl atts.pl branch_and_bound.pl \
@@ -587,7 +588,7 @@ ECI_ECL_LIBRARIES =	hash.ecl document.ecl format.ecl lazy_io.ecl csv.ecl \
 		var_name.ecl time_log.ecl module_options.ecl \
 		notify_ports.ecl constraint_pools.ecl port_profiler.ecl \
 		swi.ecl timeout.ecl timeout_simple.ecl fcompile.ecl multifile.ecl \
-		iso.ecl iso_light.ecl iso_strict.ecl
+		iso.ecl iso_light.ecl iso_strict.ecl lists_of_structures.ecl
 
 
 ECI_PL_LIBRARIES =	anti_unify.pl apply.pl apply_macros.pl \
