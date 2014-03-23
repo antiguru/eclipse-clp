@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.2])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.58 2013/07/05 01:34:47 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.59 2014/03/23 21:21:41 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -241,7 +241,9 @@ origostype=$OSTYPE
 # other supported class is win
 OSCLASS="unix"
 
-CFLAGS="-fPIC $CFLAGS"
+# -D_REENTRANT is e.g. for making use of errno thread-safe
+#	(we could use -pthread but that isn't supported everywhere)
+CFLAGS="-fPIC -D_REENTRANT $CFLAGS"
 
 # needed for strip on Mac OS X 
 STRIPFLAGS=
@@ -944,7 +946,7 @@ AC_CHECK_FUNC(vsprintf, AC_DEFINE(HAVE_VARARGS), echo "...Vsprintf not found")
 AC_CHECK_FUNCS(vsprintf vsnprintf)
 AC_CHECK_FUNCS(fpsetround ieee_flags)
 
-dnl The following require xsock32 on Windows, and the check doesn't work:
+dnl The following require wsock32 on Windows, and the check doesn't work:
 dnl this doesn't work: AC_SEARCH_LIBS(select, wsock32)
 dnl this doesn't work: AC_SEARCH_LIBS(gethostname, wsock32)
 AC_CHECK_FUNCS(select gethostname)
@@ -1548,8 +1550,8 @@ case $ARCH in
     i386_linux)		CPLEX_ARCH_PREFIX=x86_debian ;;
     x86_64_linux)	CPLEX_ARCH_PREFIX=x86-64_debian ;;
     sparc_sunos5)	CPLEX_ARCH_PREFIX=ultrasparc32 ;;
-    i386_nt)		CPLEX_ARCH_PREFIX=x86_windows ;;
-    x86_64_nt)		CPLEX_ARCH_PREFIX=x64_windows ;;
+    i386_nt)		CPLEX_ARCH_PREFIX=x86_win32 ;;
+    x86_64_nt)		CPLEX_ARCH_PREFIX=x64_win64 ;;
     i386_macosx)	CPLEX_ARCH_PREFIX=x86_darwin ;;
     x86_64_macosx)	CPLEX_ARCH_PREFIX=x86-64_darwin ;;
     *)			CPLEX_ARCH_PREFIX=unsupported ;;
@@ -1564,12 +1566,13 @@ AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
 
 if test "$cplex_versions_requested" != "no"; then
     if test "$cplex_versions_requested" = "yes"; then
-    	cplex_versions_requested="75 81 90 102 110 121 122" 
+    	cplex_versions_requested="75 81 90 102 110 121 122 1251" 
     fi
     for version in $cplex_versions_requested; do
 	CPLEXDIR="$ECLIPSETHIRDPARTY/cplex$version"
-	ls -d $CPLEXDIR/lib/$ARCH >/dev/null 2>/dev/null
-	if test $? -eq 0; then
+	if test -d $CPLEXDIR/lib/$ARCH -o \
+		-d $CPLEXDIR/lib/$CPLEX_ARCH_PREFIX -o \
+		-d $CPLEXDIR/bin/$CPLEX_ARCH_PREFIX >/dev/null 2>&1 ; then
 	    CPLEX_VERSIONS="$CPLEX_VERSIONS $version"
 	    AC_MSG_NOTICE([Using Cplex in $CPLEXDIR])
 	else
@@ -1823,10 +1826,6 @@ fi
 ALL_VISUALISATION=
 if test -n "$JAVA_HOME"; then
 
-    # Kish 2011-06-29: it seems that grappa version 1.2 covers changes
-    # that are incompatible - recent grappa 1.2 are incompatible with
-    # our Java Visualisation code, but there doesn't seem to be a way to
-    # test for this  
     GRAPPA_REQUIRED="1.2"
     for version in $GRAPPA_REQUIRED; do
 	GRAPPA_DIR=$ECLIPSETHIRDPARTY/grappa$version
