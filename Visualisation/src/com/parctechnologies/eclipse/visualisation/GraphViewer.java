@@ -24,6 +24,7 @@ package com.parctechnologies.eclipse.visualisation;
 
 
 import java.util.*;
+import java.util.List;
 import java.io.*;
 import java.awt.*;
 import java.awt.geom.*;
@@ -290,8 +291,8 @@ public class GraphViewer
   }
   
   void removeContractedElements(java.util.List newSize) {
-    for(GraphEnumeration enumer = graph.elements();
-        enumer.hasMoreElements(); ) {
+    for(GraphIterator enumer = graph.elements();
+        enumer.hasNext(); ) {
       // scan through all elements
       Element elem = enumer.nextGraphElement();
       java.util.List index;
@@ -1893,8 +1894,8 @@ public class GraphViewer
     GrappaPoint newPos = new GrappaPoint(oldPos.x + dx, oldPos.y + dy);
     node.setAttribute("pos", newPos);
     // loop through all incoming edges
-    for(Enumeration en = node.inEdgeElements(); en.hasMoreElements(); ) {
-      Edge edge = (Edge)en.nextElement();
+    for(Iterator<Edge> en = node.inEdgeElements(); en.hasNext(); ) {
+      Edge edge = en.next();
       GrappaLine line = (GrappaLine)edge.getAttributeValue("pos");
       String lineStr = line.toAttributeString();
       if (DebuggingSupport.logMessages) {
@@ -1918,8 +1919,8 @@ public class GraphViewer
       edge.setAttribute("pos", newLineStr);
     }
     // loop through all outgoing edges
-    for(Enumeration en = node.outEdgeElements(); en.hasMoreElements(); ) {
-      Edge edge = (Edge)en.nextElement();
+    for(Iterator<Edge> en = node.outEdgeElements(); en.hasNext(); ) {
+      Edge edge = en.next();
       GrappaLine line = (GrappaLine)edge.getAttributeValue("pos");
       String lineStr = line.toAttributeString();
       StringTokenizer st = new StringTokenizer(lineStr,", ");
@@ -2166,7 +2167,7 @@ public class GraphViewer
             }
             subg.currentSelection = null;
           }
-          Vector elems = GrappaSupport.findContainedElements(subg, outline);
+          List elems = GrappaSupport.findContainedElements(subg, outline);
           if(elems != null) {
             drillDown(subg, elems, Grappa.SELECTION_MASK, Grappa.HIGHLIGHT_ON);
             xorOutline = false;
@@ -2186,7 +2187,7 @@ public class GraphViewer
         }
       } else if(modifiers == (InputEvent.BUTTON1_MASK|InputEvent.CTRL_MASK) && subg.getGraph().isSelectable()) {
         if(outline != null) {
-          Vector elems = GrappaSupport.findContainedElements(subg, outline);
+          List elems = GrappaSupport.findContainedElements(subg, outline);
           if(elems != null) {
             drillDown(subg, elems, Grappa.SELECTION_MASK, Grappa.HIGHLIGHT_TOGGLE);
             subg.getGraph().repaint();
@@ -2356,10 +2357,8 @@ public class GraphViewer
     }
 
 
-    protected void drillDown(Subgraph subg, Vector elems, int mode, int setting) {
-      Object obj = null;
-      for(int i = 0; i < elems.size(); i++) {
-        obj = elems.elementAt(i);
+    protected void drillDown(Subgraph subg, List elems, int mode, int setting) {
+      for(Object obj: elems) {
         if(obj instanceof Vector) {
           drillDown(subg, (Vector)obj, mode, setting);
         } else {
