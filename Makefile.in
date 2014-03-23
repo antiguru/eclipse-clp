@@ -1,6 +1,6 @@
 #
 # ECLiPSe toplevel makefile
-# $Id: Makefile.in,v 1.16 2013/06/28 22:33:09 kish_shen Exp $
+# $Id: Makefile.in,v 1.17 2014/03/23 21:24:48 jschimpf Exp $
 #
 
 ARCH = @ARCH@
@@ -20,6 +20,7 @@ install_cross:	make_kernel \
 		make_gecodeinterface \
 		make_icparc_solvers \
 		make_javainterface \
+		make_visualisation \
 		make_oci \
 		make_cpviz 
 
@@ -31,7 +32,6 @@ install_all:	install_cross \
 		make_pt_libraries \
 		make_zincinterface \
 		make_compiler \
-		make_visualisation \
 		make_contrib \
 		make_mercury
 
