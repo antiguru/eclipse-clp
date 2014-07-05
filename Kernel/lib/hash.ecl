@@ -26,7 +26,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Stefano Novello, IC-Parc
-% Version:	$Id: hash.ecl,v 1.4 2013/12/26 18:43:16 jschimpf Exp $
+% Version:	$Id: hash.ecl,v 1.5 2014/07/05 15:51:27 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -36,7 +36,7 @@
 :- comment(summary, "Hash table library").
 :- comment(author, "Stefano Novello, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2013/12/26 18:43:16 $").
+:- comment(date, "$Date: 2014/07/05 15:51:27 $").
 
 :- export(hash_create/1).
 :- export(hash_add/3).
@@ -48,6 +48,7 @@
 :- export(hash_erase/1).
 :- export(hash_get/3).
 :- export(hash_set/3).
+:- export(hash_insert/3).
 :- export(hash_iter/2).
 :- export(hash_next/4).
 :- export(hash_last/1).
@@ -256,14 +257,26 @@ hash_clone(Old, New) :-
 	).
 
 
+:- comment(hash_insert/3, [
+    amode:(hash_insert(+,++,+) is semidet),
+    args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
+    see_also:[hash_get/3,hash_set/3,hash_update/4],
+    fail_if:"Table already has an entry for Key",
+    summary:"Add an entry with key Key and value Value to the hash table."
+    	" Fail if an entry for Key already exists."]).
+
+hash_insert(H,Key,Elem) :-
+	hash_add(H,Key,Elem,false).
+
+
 :- comment(hash_set/3, [
     amode:(hash_set(+,++,+) is det),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
-    see_also:[hash_get/3,hash_update/4],
+    see_also:[hash_get/3,hash_insert/3,hash_update/4],
     summary:"Add an (or modify the existing) entry with key Key and value Value to the hash table"]).
 
 hash_set(H,Key,Elem) :-
-	hash_add(H,Key,Elem).
+	hash_add(H,Key,Elem,true).
 
 
 :- comment(hash_add/3, [
@@ -273,10 +286,14 @@ hash_set(H,Key,Elem) :-
     summary:"A synonym for hash_set/3"]).
 
 hash_add(H,Key,Elem) :-
+	hash_add(H,Key,Elem,true).
+
+hash_add(H,Key,Elem,Replace) :-
 	H = hash_table{size:Size,nb_elems:Nb,table:T,change:Susps},
 	hash(Key,Size,Index),
 	arg(Index, T, Bucket),
 	( member(E,Bucket), E = hash_elem{key:Key,elem:OldElem} ->
+	    Replace = true,	% may fail
 	    setarg(elem of hash_elem,E,Elem),
 	    ( var(Susps) -> true ; notify(H, chg(Key,OldElem, Elem)))	% should be last
 	;
