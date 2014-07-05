@@ -26,7 +26,7 @@
 :- comment(summary, "Operations on lists of Structures").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Joachim Schimpf, 2013").
-:- comment(date, "$Date: 2014/02/07 15:03:56 $").
+:- comment(date, "$Date: 2014/07/05 15:52:16 $").
 :- comment(see_also, [
     	hash:list_to_hash/4,
 	sort/4,
@@ -109,15 +109,16 @@ args(Key, [S|Ss], [A|As]) :-
 	
 
 :- comment(terms_functor/3, [
-    summary:"All list elements have the given functor",
+    summary:"All list elements have the given functor or atomic value",
     amode:(terms_functor(+,-,-) is semidet),
     amode:(terms_functor(-,+,+) is multi),
-    args:["Structs":"List of structures, or variable",
-        "Name":"Atom or variable",
+    fail_if:"Not all list elements have the same functor",
+    args:["Structs":"List of terms, or variable",
+        "Name":"Atomic or variable",
         "Arity":"Integer or variable"],
     see_also:[functor/3],
     desc:html("<p>
-    Structs is a list of structures which all have the same functor Name/Arity.
+    Structs is a list of terms which all have the same functor Name/Arity.
     Operationally, this can be used to either check the functors of existing
     structures in the list, or to bind uninstantiated list elements to
     new structures.
@@ -126,21 +127,30 @@ args(Key, [S|Ss], [A|As]) :-
 <pre>
     ( foreach(S,Structs), param(Name,Arity) do functor(S,Name,Arity) )
 </pre>
+    </p><p>
+    Note that, like in the underlying functor/3 predicate, Name can be
+    any atomic term (including number and string) if Arity is zero.
     </p>"),
     exceptions:[4:"Arguments are insufficiently instantiated",
+	5:"Name is not atomic",
+	5:"Arity is not an integer",
+	5:"Arity is greater than 0 and Name is not an atom",
 	6:"Some structure in Structs does not have a Key'th argument"],
     eg:"
+    % fill a list with structure skeletons
     ?- length(Ss,3), terms_functor(Ss,f,2).
     Ss = [f(_275,_276), f(_278,_279), f(_281,_282)]
     Yes (0.00s cpu)
 
+    % check whether all elements have same toplevel functor
     ?- terms_functor([f(a),f(b)], F, A).
     F = f
     A = 1
     Yes (0.00s cpu)
 
-    ?- length(Ss,3), terms_functor(Ss,0,0).
-    Ss = [0, 0, 0]
+    % fill a list with an atomic term (arity 0)
+    ?- length(Ss,3), terms_functor(Ss,99,0).
+    Ss = [99, 99, 99]
     Yes (0.00s cpu)
 
 "]).
@@ -414,6 +424,7 @@ group_by_key(Pos, [KV|List], [[KV|KVs]|GroupedList]) :-
     Groups = [1 - [f(a,1)], 2 - [f(a,2),f(b,2),f(c,2)], 5 - [f(c,5)]]
     Yes (0.00s cpu)
 "]).
+
 
 :- export group_with_key/3.
 group_with_key(_Pos, [], []).
