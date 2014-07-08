@@ -156,28 +156,34 @@ It is more efficient to use number_string/2 wherever possible.
 
 
 :- comment(string_list / 3, [
-	index:["utf8","unicode"],
+	index:["utf8","unicode","chars","codes","octet","bytes"],
 	summary:"Conversion between string in different encodings and a character list",
 	amode:(string_list(+,-,+) is det),
 	amode:(string_list(-,+,+) is det),
 	desc:html("\
    This predicate performs conversion between a string encoded in Format
-   and a list of the corresponding character codes.
+   and a list of the corresponding character representations.
 <P>
    If String is instantiated, it is must be a valid string in the encoding
    format specified by Format.  It is then decoded and List is unified with
-   a list of the corresponding character codes.
+   a list of the corresponding character representations.
 <P>
-   If List is instantiated, it is must contain character codes that are
-   valid for the encoding format specified by Format.  These characters
-   are then encoded into a string which is unified with String.
+   If List is instantiated, it is must contain character representations
+   that are valid for the encoding format specified by Format.  These
+   characters are then encoded into a string which is unified with String.
 <P>
    Currently supported formats are:
 <DL>
-<DT><STRONG>bytes</STRONG><DD>
-    every byte in the string corresponds to a list integer in the range 0..255.
+<DT><STRONG>bytes</STRONG> or <STRONG>octet</STRONG><DD>
+    Every byte in the string corresponds to a list integer in the range 0..255.
+<DT><STRONG>chars</STRONG><DD>
+    Every character in the string corresponds to a single-character atom
+    in the list.  This format assumes a default character encoding.
+<DT><STRONG>codes</STRONG><DD>
+    Every character in the string corresponds to an integer character code
+    in the list.  This format assumes a default character encoding.
 <DT><STRONG>utf8</STRONG><DD>
-    the string is encoded in UTF-8 format and the list can contain integers
+    The string is encoded in UTF-8 format and the list can contain integers
     in the range 0..2^31-1.
 </DL>
 <P>
@@ -190,13 +196,17 @@ It is more efficient to use number_string/2 wherever possible.
 	    "List" : "A variable or a list of integers and/or variables.",
 	    "Format":"An atom."],
 	exceptions:[
-	    4 : "Format in not instantiated.",
+	    4 : "Format is not instantiated.",
 	    4 : "Neither String nor List are ground.",
 	    5 : "String is neither a string nor a variable.",
 	    5 : "List is neither a list nor a variable.",
-	    5 : "Format in not an atom.",
-	    6 : "Format in not a valid format specification.",
-	    6 : "One (or more) elements of List are not integers in a valid range for Format."],
+	    5 : "Format is not an atom.",
+	    6 : "One (or more) elements of List are not of the type"
+	    	" corresponding to Format.",
+	    6 : "Format is not a valid format specification.",
+	    6 : "One (or more) elements of List are not integers or atoms"
+	    	" in the valid range for Format."],
+
 	eg:"
     [eclipse 1]: string_list(S,[65,66,67],bytes).
     S = \"ABC\"
@@ -833,12 +843,12 @@ Error:
 
 :- comment(join_string / 3, [
 	summary:"String is the string formed by concatenating the elements of List with
-an instance of Glue beween each of them.
+an instance of Glue between each of them.
 
 ",
 	amode:(join_string(++,+,-) is det),
 	desc:html("   String is the string formed by concatenating the elements of List
-   with an instance of Glue beween each of them.  List may contain
+   with an instance of Glue between each of them.  List may contain
    numbers, atoms and strings.  The result of the concatenation is
    always a string.
 
@@ -874,8 +884,8 @@ Error:
 	summary:"Succeeds if Code is the value of the Index'th byte in String",
 	amode:(string_code(+,+,-) is det),
 	args:[
-		"String":"String",
 		"Index":"Integer between 1 and the length of String",
+		"String":"String",
 		"Code":"Variable or Integer"
 	],
 	desc:html("\
@@ -886,6 +896,9 @@ Error:
 	Note that (like all predicates that return a number as their last
 	argument), this predicate can be used as a function inside arithmetic
 	expressions.
+    <P>
+        For backward compatibility with earlier versions of ECLiPSe, the 
+	argument order string_code(String,Index,Code) is also allowed.
 "),
 	exceptions:[
 	    5 : "Index is not an integer",
@@ -894,17 +907,17 @@ Error:
 	    6 : "Index is an integer less than 1 or greater than String's length",
 	    4 : "Either Index or String are uninstantated"],
 	eg:"
-   string_code(\"abc\", 1, 97).		% succeeds
-   string_code(\"abc\", 3, C).		% gives C = 99
+   string_code(1, \"abc\", 97).		% succeeds
+   string_code(3, \"abc\", C).		% gives C = 99
 
-   string_code(\"abc\", 2, 100).		% fails
+   string_code(2, \"abc\", 100).		% fails
 
-   string_code(\"abc\", _, C).		% Error 4
-   string_code(_, 1, C).		% Error 4
-   string_code(\"abc\", 1.5, C).		% Error 5
-   string_code(abc, 1, C).		% Error 5
-   string_code(\"abc\", 0, C).		% Error 6
-   string_code(\"abc\", 4, C).		% Error 6
+   string_code(_, \"abc\", C).		% Error 4
+   string_code(1, _, C).		% Error 4
+   string_code(1.5, \"abc\", C).		% Error 5
+   string_code(1, abc, C).		% Error 5
+   string_code(0, \"abc\", C).		% Error 6
+   string_code(4, \"abc\", C).		% Error 6
 ",
 	see_also:[string_list/2, char_code/2]]).
 
