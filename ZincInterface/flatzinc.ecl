@@ -25,7 +25,7 @@
 
 :- module(flatzinc).
 
-:- comment(date, "$Date: 2012/10/23 00:38:15 $").
+:- comment(date, "$Date: 2014/07/11 02:21:26 $").
 :- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Interpreter for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
@@ -548,9 +548,9 @@ fzn_init(SolverOrOptions,
 	% init dictionary, make entries for false and true
 	hash_create(Dict),
 	Solver:bool_fzn_to_solver(false, False),
-	hash_insert(Dict, false, zn_var{id:false,ann:[],type:bool,group:par,eclvar:False,num:0}),
+	hash_insert_id(Dict, false, zn_var{id:false,ann:[],type:bool,group:par,eclvar:False,num:0}),
 	Solver:bool_fzn_to_solver(true, True),
-	hash_insert(Dict, true, zn_var{id:true,ann:[],type:bool,group:par,eclvar:True,num:0}),
+	hash_insert_id(Dict, true, zn_var{id:true,ann:[],type:bool,group:par,eclvar:True,num:0}),
 
 	cputime(T0).
 
@@ -673,7 +673,7 @@ interpret(Type:IdentAnns, State) :- !,
 	; Type = var(VarType) ->
 	    State = state{dict:Dict},
 	    new_varnum(State, N),
-	    hash_insert(Dict, Ident,
+	    hash_insert_id(Dict, Ident,
 		zn_var{id:Ident,ann:Anns,type:Type,group:Group,eclvar:EclVar,num:N}),
 	    declare_var(VarType, EclVar, Ident, Anns, State, Group)
 	;
@@ -690,14 +690,14 @@ interpret(Type:IdentAnns=Init, State) :- !,
 	    eval_expr(Init, State, EclVar),
 	    State = state{dict:Dict},
 	    new_varnum(State, N),
-	    hash_insert(Dict, Ident,
+	    hash_insert_id(Dict, Ident,
 		zn_var{id:Ident,ann:Anns,type:Type,group:Group,eclvar:EclVar,num:N}),
 	    declare_var(VarType, EclVar, Ident, Anns, State, Group)
 	;
 	    % a simple parameter
 	    eval_expr(Init, State, EclVar),
 	    State = state{dict:Dict},
-	    hash_insert(Dict, Ident,
+	    hash_insert_id(Dict, Ident,
 		zn_var{id:Ident,ann:Anns,type:Type,group:par,eclvar:EclVar,num:0})
 	).
 
@@ -755,7 +755,7 @@ declare_array(Type, Max, ElemInstType, Ident, Anns, Init, State) :-
 		fzn_error("Array initialization failed: %w", [Ident])
 	    )
 	),
-	hash_insert(Dict, Ident,
+	hash_insert_id(Dict, Ident,
 		zn_var{id:Ident,ann:Anns,type:Type,group:Group,eclvar:EclVar,num:N}).
 
 
@@ -1308,12 +1308,12 @@ mzn_to_eclipse_name(Id, Name) :-
 
 % Auxiliary ---------------------------------------
 
-hash_insert(Hash, Key, Value) :-
-	(atom(Key) -> true ; fzn_error("Illegal Identifier %w",[Key])),
-	( hash_contains(Hash, Key) ->
+hash_insert_id(Hash, Key, Value) :-
+	(atom(Key) -> true ;
+	    fzn_error("Illegal Identifier %w",[Key])
+	),
+	( hash_insert(Hash, Key, Value) -> true ;
 	    fzn_error("Variable defined twice: %w", [Key])
-	;
-	    hash_set(Hash, Key, Value)
 	).
 
 
