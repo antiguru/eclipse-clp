@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_strings.c,v 1.4 2010/07/30 10:36:28 jschimpf Exp $
+ * VERSION	$Id: bip_strings.c,v 1.5 2014/07/11 02:29:20 jschimpf Exp $
  */
 
 /*
@@ -49,6 +49,9 @@
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
+#ifdef HAVE_CTYPE_H
+#include <ctype.h>
+#endif
  
 pword     	*empty_string;
 
@@ -68,9 +71,13 @@ static int	p_string_list(value vs, type ts, value vl, type tl),
 		p_string_length(value sval, type stag, value nval, type ntag),
 		p_atom_length(value aval, type atag, value nval, type ntag),
 		p_split_string(value vstr, type tstr, value vsep, type tsep, value vpad, type tpad, value v, type t),
-		p_string_code(value vs, type ts, value vi, type ti, value vc, type tc),
+		p_get_string_code(value vs, type ts, value vi, type ti, value vc, type tc),
+		p_string_code(value vs, type ts, value vi, type ti, value vc, type tc, value vfi, type tfi),
+		p_string_lower(value vs, type ts, value v, type t),
+		p_string_upper(value vs, type ts, value v, type t),
 		p_substring(value val1, type tag1, value val2, type tag2, value valp, type tagp),
 		p_string_print_length(value v1, type t1, value vs, type ts, value ve, type te, value vl, type tl),
+		p_text_to_string(value v, type t, value vs, type ts),
 		p_char_int(value chval, type chtag, value ival, type itag);
 
 
@@ -100,14 +107,20 @@ bip_strings_init(int flags)
 	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
 	(void) built_in(in_dict("hash_secure", 3), 	p_hash_secure,	B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("string_length", 2), 	p_string_length,B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("string_code", 3), 	p_string_code,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("get_string_code", 3), 	p_get_string_code,	B_UNSAFE|U_SIMPLE);
+	(void) b_built_in(in_dict("string_code", 4), 	p_string_code, d_.kernel_sepia);
 	(void) built_in(in_dict("substring", 3), 	p_substring,	B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("atom_length", 2), 	p_atom_length,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("string_upper", 2),	p_string_upper,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("string_lower", 2),	p_string_lower,	B_UNSAFE|U_SIMPLE);
 	(void) built_in(in_dict("concat_atoms", 3), 	p_concat_atoms,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
 	(void) built_in(in_dict("concat_atom", 2), 	p_concat_atom,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
 	(void) built_in(in_dict("concat_strings", 3), 	p_concat_strings,B_UNSAFE|U_SIMPLE|PROC_DEMON);
 	(void) built_in(in_dict("concat_string", 2), 	p_concat_string,B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("atomics_to_string", 2),p_concat_string,B_UNSAFE|U_SIMPLE|PROC_DEMON);
 	(void) built_in(in_dict("join_string", 3), 	p_join_string,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("atomics_to_string", 3),p_join_string,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("text_to_string", 2),	p_text_to_string,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
 	built_in(in_dict("split_string", 4), 		p_split_string,	B_UNSAFE|U_GROUND)
 	    -> mode = BoundArg(4, GROUND);
 	built_in(in_dict("char_int", 2), 	p_char_int,	B_UNSAFE|U_SIMPLE)
@@ -250,6 +263,125 @@ p_string_list(value vs, type ts, value vl, type tl)
     {
 	Bip_Error(TYPE_ERROR);
     }
+}
+
+
+/*
+ * text_to_string(+Text, -String)
+ * Convert atom, string, codes or chars to string.
+ * Delay if not sufficiently instantiated.
+ */
+
+static int
+p_text_to_string(value v, type t, value vs, type ts)
+{
+    pword	*pw, *list;
+    char	*s;
+    int		len;
+    pword	*old_tg = Gbl_Tg;
+
+    if (IsRef(t))
+    {
+	Bip_Error(PDELAY_1);
+    }
+
+    if (IsString(t))
+    {
+	Kill_DE;
+	Return_Unify_Pw(v, t, vs, ts);
+    }
+
+    if (IsAtom(t))	/* not including [] ! */
+    {
+	Kill_DE;
+	Return_Unify_String(vs, ts, DidString(v.did));
+    }
+
+    if (IsNil(t))
+    {
+	Kill_DE;
+	Return_Unify_String(vs, ts, empty_string);
+    }
+
+    if (IsList(t))		/* make a string from a list	*/
+    {
+	int element_type = 0;
+	list = v.ptr;		/* space for the string header	*/
+	Push_Buffer(1);		/* make minimum buffer		*/
+	s = (char *) BufferStart(old_tg);	/* start of the new string */
+	for(;;)			/* loop through the list	*/
+	{
+	    int c;
+	    pw = list++;
+	    Dereference_(pw);		/* get the list element	*/
+	    if (IsRef(pw->tag))		/* check it		*/
+	    {
+		Gbl_Tg = old_tg;
+		Push_var_delay(vs.ptr, ts.all);
+		Push_var_delay(pw, pw->tag.all);
+		Bip_Error(PDELAY);
+	    }
+	    else if (IsInteger(pw->tag))	/* char code */
+	    {
+		element_type |= 1;
+		c = pw->val.nint;
+		if (c < 0 || 255 < c)
+		{
+		    Gbl_Tg = old_tg;
+		    Bip_Error(RANGE_ERROR);
+		}
+	    }
+	    else if (IsAtom(pw->tag))		/* char atom */
+	    {
+		element_type |= 2;
+		if (DidLength(pw->val.did) != 1)
+		{
+		    Gbl_Tg = old_tg;
+		    Bip_Error(RANGE_ERROR);
+		}
+		c = DidName(pw->val.did)[0];
+	    }
+	    else
+	    {
+		Gbl_Tg = old_tg;
+		Bip_Error(TYPE_ERROR);
+	    }
+	    *s++ = c;
+	    if (s == (char *) Gbl_Tg)	/* we need another pword */
+	    {
+		Gbl_Tg += 1;
+		Check_Gc;
+	    }
+	    Dereference_(list);		/* get the list tail	*/
+	    if (IsRef(list->tag))
+	    {
+		Gbl_Tg = old_tg;
+		Push_var_delay(vs.ptr, ts.all);
+		Push_var_delay(list, list->tag.all);
+		Bip_Error(PDELAY);
+	    }
+	    else if (IsList(list->tag))
+		list = list->val.ptr;
+	    else if (IsNil(list->tag))
+		break;			/* end of the list	*/
+	    else
+	    {
+		Gbl_Tg = old_tg;
+		Bip_Error(TYPE_ERROR);
+	    }
+	}
+	if (element_type != 1 && element_type != 2)	/* mixed type list? */
+	{
+	    Gbl_Tg = old_tg;
+	    Bip_Error(TYPE_ERROR);
+	}
+	*s = '\0';			/* terminate the string		*/
+	Set_Buffer_Size(old_tg, s - (char *)(old_tg + 1) + 1);
+	Kill_DE;
+	Return_Unify_String(vs, ts, old_tg);
+    }
+
+    Bip_Error(TYPE_ERROR);
 }
 
 
@@ -1142,13 +1274,18 @@ p_utf8_list(value vs, type ts, value vl, type tl)
 }
 
 
+/*
+ * get_string_code(+Index,+String,-Code) is det
+ * - type and strict range check on +Index
+ * - no checks on -Code
+ */
+
 static int
-p_string_code(value vs, type ts, value vi, type ti, value vc, type tc)
+p_get_string_code(value vi, type ti, value vs, type ts, value vc, type tc)
 {
     word i = vi.nint;
     Check_Integer(ti);
     Check_String(ts);
-    Check_Output_Integer(tc);
     if (i > 0)
     {
 	i -= 1;
@@ -1165,6 +1302,153 @@ p_string_code(value vs, type ts, value vi, type ti, value vc, type tc)
     Return_Unify_Integer(vc, tc, ((unsigned char *)StringStart(vs))[i]);
 }
 
+
+/*
+ * string_code(+Index, +String, -Code, 0) is det
+ * string_code(-Index, +String, +Code, +RememberedStartIndex) is semidet
+ * string_code(-Index, +String, -Code, +RememberedStartIndex) is semidet
+ * - type and >=0 check on +Index
+ * - type and >=0 check on +Code
+ * string_code(+String, +Index, -Code, 0) is det	BACKWARD COMPATIBILITY
+ * - same type checks as get_string_code/3
+ */
+
+static int
+p_string_code(value vi, type ti, value vs, type ts, value vc, type tc, value vfi, type tfi)
+{
+    if (IsInteger(ti))
+    {
+	word i = vi.nint;
+	Cut_External;
+	Check_String(ts);
+	if (i < 1 || i > StringLength(vs))
+	{
+	    if (i < 0) { Bip_Error(RANGE_ERROR); }
+	    Fail_;
+	}
+	if (IsRef(tc))
+	{
+	    Return_Bind_Var(vc, tc, ((unsigned char *)StringStart(vs))[i-1], TINT); 
+	}
+	else if (!IsInteger(tc))
+	{
+	    Bip_Error(TYPE_ERROR);
+	}
+	else if (vc.nint < 0)
+	{
+	    Bip_Error(RANGE_ERROR);
+	}
+	Succeed_If(((unsigned char *)StringStart(vs))[i-1] == vc.nint);
+    }
+    if (IsRef(ti))
+    {
+	word i;
+	Check_String(ts);
+	Check_Integer(tfi);
+	i = vfi.nint;		/* i==1, or the position of the next match */
+	if (IsRef(tc))
+	{
+	    /* string_code(-, +, -) is semidet */
+	    Prepare_Requests;
+	    if (i >= StringLength(vs)) {
+		Cut_External;
+		if (i > StringLength(vs)) { Fail_; }
+	    }
+	    Request_Unify_Integer(vi, ti, i);
+	    Request_Unify_Integer(vc, tc, ((unsigned char *)StringStart(vs))[i-1]);
+	    vfi.nint = i+1;
+	    Remember(4, vfi, tfi);
+	    Return_Unify;
+	}
+	else if (!IsInteger(tc))
+	{
+	    Bip_Error(TYPE_ERROR);
+	}
+	else if (vc.nint < 0)
+	{
+	    Bip_Error(RANGE_ERROR);
+	}
+	else 
+	{
+	    /* string_code(-, +, +) is semidet */
+	    for(; i <= StringLength(vs); ++i)
+	    {
+		word c = ((unsigned char *)StringStart(vs))[i-1];
+		if (c == vc.nint)
+		{
+		    int j;
+		    for(j=i+1; ; ++j)
+		    {
+			if (j > StringLength(vs))
+			{
+			    Cut_External;
+			    break;
+			}
+			if (((unsigned char *)StringStart(vs))[j-1] == vc.nint)
+			{
+			    vfi.nint = j;
+			    Remember(4, vfi, tfi);
+			    break;
+			}
+		    }
+		    Return_Unify_Integer(vi, ti, i);
+		}
+	    }
+	    Cut_External;
+	    Fail_;
+	}
+    }
+    if (IsString(ti))
+    {
+	/* string_code(+String, +Index, -Code, 0) is det	BACKWARD COMPATIBILITY */
+	word i = vs.nint-1;
+	Cut_External;
+	Check_Integer(ts);
+	if (i < 0 || StringLength(vi) <= i) { Bip_Error(RANGE_ERROR); }
+	Return_Unify_Integer(vc, tc, ((unsigned char *)StringStart(vi))[i]);
+    }
+    Check_Integer(ti);	/* RANGE_ERROR/TYPE_ERROR/ARITH_TYPE_ERROR */
+}
+
+
+static int
+p_string_lower(value vs, type ts, value v, type t)
+{
+    uword i;
+    char *d;
+    unsigned char *s;
+    pword *res = TG;
+
+    Check_String(ts);
+    i = StringLength(vs);
+    s = StringStart(vs);
+    Push_Buffer(i+1);
+    d = (char*) BufferStart(res);
+    do
+        *d++ = tolower(*s++);
+    while(i-- > 0);
+    Return_Unify_String(v, t, res);
+}
+
+
+static int
+p_string_upper(value vs, type ts, value v, type t)
+{
+    uword i;
+    char *d;
+    unsigned char *s;
+    pword *res = TG;
+
+    Check_String(ts);
+    i = StringLength(vs);
+    s = StringStart(vs);
+    Push_Buffer(i+1);
+    d = (char*) BufferStart(res);
+    do
+        *d++ = toupper(*s++);
+    while(i-- > 0);
+    Return_Unify_String(v, t, res);
+}
 
 
 /*

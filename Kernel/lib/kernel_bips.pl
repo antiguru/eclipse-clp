@@ -26,7 +26,7 @@
 % ECLiPSe kernel built-ins
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel_bips.pl,v 1.5 2013/02/08 22:25:33 jschimpf Exp $
+% Version:	$Id: kernel_bips.pl,v 1.6 2014/07/11 02:30:18 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -37,6 +37,8 @@
 :- export
 	substring/4,
 	substring/5,
+	sub_string/5,
+	string_concat/3,
 	append_strings/3,
 	keysort/2,
 	sort/2,
@@ -52,10 +54,26 @@
 % String builtins
 %----------------------------------------------------------------------
 
-:- skipped
-	append_strings/3,
-	substring/4,
-	substring/5.
+
+:- export string_code/3.
+string_code(Index, String, Code) :-
+	string_code(Index, String, Code, 1).	% nondet
+
+
+:- export string_char/3.
+string_char(Index, String, Char) :-
+	( var(Index) ->
+	    string_length(String, Length),
+	    between(1, Length, 1, Index), 
+	    get_string_code(Index, String, Code),
+	    char_code(Char, Code)
+	; integer(Index) ->
+	    get_string_code(Index, String, Code),
+	    char_code(Char, Code)
+	;
+	    error(5, string_code(Index, String, Char))
+	).
+
 
 
 /* append_strings(S1, S2, S3) iff String3 is the concatenation of
@@ -66,6 +84,10 @@
 * if var(S3) and [var(S1) or var(S2)] : instantiation fault.
 * i.e. the normal prolog relation without infinite backtracking.
 */
+
+% alias for compatibility with SWI
+string_concat(X,Y,Z) :-
+	append_strings(X,Y,Z).
 
 append_strings(X,Y,Z) :-
 	( var(Z) ->
@@ -169,6 +191,10 @@ substring(String, Pos, Len, SubStr) :-
 % We implement it using the deterministic builtin
 % first_substring(+String, +Pos, +Len, ?SubStr).
 
+% alias for compatibility with SWI
+sub_string(String, Before, Length, After, SubString) :-
+	substring(String, Before, Length, After, SubString).
+
 substring(String, Before, Length, After, SubString) :-
 	check_string(String),
 	check_var_or_arity(Before),
@@ -245,6 +271,11 @@ string_list(String, List, Format) :-
 	error(6, string_list(String, List, Format)).
 
 
+:- export string_codes/2.	% SWI compatibility
+string_codes(String, Codes) :-
+	string_list(String, Codes).
+
+:- export string_chars/2.	% SWI compatibility
 string_chars(String, List) :-
 	( var(String) ->
 	    check_chars_list(List),

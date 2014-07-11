@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.52 2013/06/15 14:41:20 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.53 2014/07/11 02:30:18 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1280,7 +1280,7 @@ canonical_path_name(Path, CanPath) :-
 	!,
 	expand_filename(Path, CanPathString0, 3),	% EXPAND_NORMALISE
 	string_length(CanPathString0, L),
-	( string_code(CanPathString0, L, 0'/) ->
+	( get_string_code(L, CanPathString0, 0'/) ->
 	    CanPathString = CanPathString0
 	; sys_file_flag(CanPathString0, 0) /\ 8'170000 =:= 8'40000 ->
 	    % it's a directory
@@ -2653,8 +2653,16 @@ sprintf_(String, Format, List, Module) :-
 read_token_(Token, Class, Module) :-
 	read_token_(input, Token, Class, Module).
 
-read_string(DelString, Length, String) :-
-	read_string(input, DelString, Length, String).
+read_string(StreamOrDelString, Length, String) :-
+	( string(StreamOrDelString) ->
+	    read_string(input, StreamOrDelString, Length, String)	% compatibility
+	; StreamOrDelString == end_of_line ->
+	    read_string(input, StreamOrDelString, Length, String)	% compatibility
+	; StreamOrDelString == end_of_file ->
+	    read_string(input, StreamOrDelString, Length, String)	% compatibility
+	;
+	    read_string(StreamOrDelString, "", Length, String)	% new
+	).
 
 pathname(Name, Path) :-
 	pathname(Name, Path, _).

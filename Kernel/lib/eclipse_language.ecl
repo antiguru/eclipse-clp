@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.12 2014/02/05 03:29:16 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.13 2014/07/11 02:30:18 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -104,6 +104,8 @@
 :- reexport atom_length / 2 from sepia_kernel.
 :- reexport atom_string / 2 from sepia_kernel.
 :- reexport atomic / 1 from sepia_kernel.
+:- reexport atomics_to_string / 2 from sepia_kernel.
+:- reexport atomics_to_string / 3 from sepia_kernel.
 :- reexport attach_suspensions / 2 from sepia_kernel.
 :- reexport attached_suspensions / 2 from sepia_kernel.
 :- reexport b_external / 1 from sepia_kernel.
@@ -290,6 +292,7 @@
 :- reexport get_prompt / 3 from sepia_kernel.
 :- reexport get_stream / 2 from sepia_kernel.
 :- reexport get_stream_info / 3 from sepia_kernel.
+:- reexport get_string_code / 3 from sepia_kernel.
 :- reexport get_suspension_data / 3 from sepia_kernel.
 :- reexport get_timer / 2 from sepia_kernel.
 :- reexport get_var_info / 3 from sepia_kernel.
@@ -537,15 +540,22 @@
 :- reexport stream_select / 3 from sepia_kernel.
 :- reexport stream_truncate / 1 from sepia_kernel.
 :- reexport string / 1 from sepia_kernel.
+:- reexport string_char / 3 from sepia_kernel.
+:- reexport string_chars / 2 from sepia_kernel.
 :- reexport string_code / 3 from sepia_kernel.
+:- reexport string_codes / 2 from sepia_kernel.
+:- reexport string_concat / 3 from sepia_kernel.
 :- reexport string_length / 2 from sepia_kernel.
 :- reexport string_list / 2 from sepia_kernel.
 :- reexport string_list / 3 from sepia_kernel.
+:- reexport string_lower / 2 from sepia_kernel.
+:- reexport string_upper / 2 from sepia_kernel.
 :- reexport subcall / 2 from sepia_kernel.
 :- reexport subscript / 3 from sepia_kernel.
 :- reexport substring / 3 from sepia_kernel.
 :- reexport substring / 4 from sepia_kernel.
 :- reexport substring / 5 from sepia_kernel.
+:- reexport sub_string / 5 from sepia_kernel.
 :- reexport succ / 2 from sepia_kernel.
 :- reexport suffix / 2 from sepia_kernel.
 :- reexport sum / 2 from sepia_kernel.
@@ -559,9 +569,11 @@
 :- reexport tan / 2 from sepia_kernel.
 :- reexport term_hash / 4 from sepia_kernel.
 :- reexport term_string / 2 from sepia_kernel.
+:- reexport term_string / 3 from sepia_kernel.
 :- reexport term_to_bytes / 2 from sepia_kernel.
 :- reexport term_variables / 2 from sepia_kernel.
 :- reexport test_and_setval / 3 from sepia_kernel.
+:- reexport text_to_string / 2 from sepia_kernel.
 :- reexport throw / 1 from sepia_kernel.
 :- reexport times / 3 from sepia_kernel.
 :- reexport tool / 1 from sepia_kernel.

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.16 2013/02/12 00:41:44 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.17 2014/07/11 02:30:18 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -210,7 +210,7 @@ set_stream_property(Stream, Info, Value) :-
     set_stream_property1(_Stream, Info, _Value) :- var(Info), !,
 	set_bip_error(4).
     set_stream_property1(Stream, output_options, Options) :- !,
-	options_to_format(Options, 0, _Off, 0, On, Depth, _Prec),
+	options_to_format(Options, 0, _Off, 0, On, 0, Depth, 1200, _Prec),
 	stream_info_nr(output_options, I1),
 	set_stream_prop_(Stream, I1, On),
 	stream_info_nr_hidden(print_depth, I2),
@@ -261,7 +261,7 @@ set_stream_options(_, _) :-
     	( stream_info_nr(reposition, Nr), stream_info_(Stream, Nr, true) -> true
 	; set_bip_error(192) ).				% ISO
     set_stream_option(output_options(Options), Stream) ?-
-	options_to_format(Options, 0, _Off, 0, On, Depth, _Prec),
+	options_to_format(Options, 0, _Off, 0, On, 0, Depth, 1200, _Prec),
 	stream_info_nr(output_options, I1),
 	set_stream_prop_(Stream, I1, On),
 	stream_info_nr_hidden(print_depth, I2),
@@ -318,7 +318,7 @@ op_body1(_, _, _, _, _) :- set_bip_error(5).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % read_term/3 and write_term/3 (ISO compatible)
-%
+% In case of conflict, use the rightmost option
 
 :- export
 	read_term/2,
@@ -423,7 +423,7 @@ write_term_(Term, Options, Module) :-
 	write_term_(output, Term, Options, Module).
 
 write_term_(Stream, Term, Options, Module) :-		% 8.14.2
-	options_to_format(Options, 0, Off, 0, On, Depth, Prec),
+	options_to_format(Options, 0, Off, 0, On, 0, Depth, 1200, Prec),
 	write_term(Stream, Term, Off, On, Depth, Prec, Module),
 	!.
 write_term_(Stream, Term, Options, Module) :-
@@ -433,20 +433,22 @@ write_term_(Stream, Term, Options, Module) :-
 % The following auxiliary predicates map symbolic write-options to
 % bitmask+depth used on the C level (in write.c) and vice versa
 
-:- mode options_to_format(?,+,-,+,-,-,-).	% may fail with bip_error
-options_to_format(List, _, _, _, _, _, _) :- var(List), !,
+:- mode options_to_format(?,+,-,+,-,+,-,+,-).	% may fail with bip_error
+options_to_format(List, _, _, _, _, _, _, _, _) :- var(List), !,
 	set_bip_error(4).
-options_to_format([], Off, Off, On, On, Depth, Prec) :- !,
-	( var(Depth) -> Depth = 0 ; true ),
-	( var(Prec) -> Prec = 1200 ; true ).
-options_to_format([O|Os], Off0, Off, On0, On, Depth, Prec) :- !,
-	option_to_format(O, ThisOff, ThisOn, Depth, Prec),
-	Off1 is Off0 \/ ThisOff,
-	On1 is On0 \/ ThisOn,
-	options_to_format(Os, Off1, Off, On1, On, Depth, Prec).
-options_to_format(_, _, _, _, _, _, _) :-
+options_to_format([], Off, Off, On, On, Depth, Depth, Prec, Prec) :- !.
+options_to_format([O|Os], Off0, Off, On0, On, Depth0, Depth, Prec0, Prec) :- !,
+	option_to_format(O, ThisOff, ThisOn, ThisDepth, ThisPrec),
+	Off1 is Off0 /\ \ThisOn \/ ThisOff,
+	On1 is On0 /\ \ThisOff \/ ThisOn,
+	( var(ThisDepth) -> Depth1 = Depth0 ; Depth1 = ThisDepth ),
+	( var(ThisPrec) -> Prec1 = Prec0 ; Prec1 = ThisPrec ),
+	options_to_format(Os, Off1, Off, On1, On, Depth1, Depth, Prec1, Prec).
+options_to_format(_, _, _, _, _, _, _, _, _) :-
 	set_bip_error(5).
 
+    option_to_format(Junk, _, _, _, _) :- var(Junk), !,
+	set_bip_error(4).
     option_to_format(Option, C, S, D, _P) :-
 	option_format(Option, C, S, D), !.
     option_to_format(Option, C, S, D, _P) :-
@@ -455,12 +457,20 @@ options_to_format(_, _, _, _, _, _, _) :-
     	P = P0.
     option_to_format(priority(P0), 0, 0, _D, P) :- !,	% SICStus/SWI compat
     	P = P0.
-    option_to_format(Junk, _, _, _, _) :- var(Junk), !,
-	set_bip_error(4).
     option_to_format(Junk, _, _, _, _) :- compound(Junk), !,
 	set_bip_error(6).
     option_to_format(_, _, _, _, _) :-
 	set_bip_error(5).
+
+    % same as before, but just check
+    valid_write_option(Junk) :- var(Junk), !,
+    	fail.
+    valid_write_option(Option) :-
+	option_format(Option, _, _, _), !.
+    valid_write_option(Option) :-
+	option_format_compat(Option, _, _, _), !.
+    valid_write_option(precedence(_)).
+    valid_write_option(priority(_)).
 
 
 options_from_format(On, Depth, Options) :-
@@ -521,6 +531,57 @@ option_format_compat(ignore_ops(true),	16'0000, 16'0805, _).	% ISO compat
 option_format_compat(ignore_ops(false),	16'0805, 16'0000, _).
 option_format_compat(max_depth(0),	16'0000, 16'0002, 0).	% SICS compat
 option_format_compat(max_depth(N),	16'0002, 16'0000, N).
+
+
+%
+% term_string(?Term, ?String, +Options)
+% This is currently strict wrt Options: they must fit with the direction.  % SWI is permissive and ignores all unknown options in either direction.
+%
+
+:- export term_string/3.
+:- tool(term_string/3, term_string_/4).
+
+term_string_(T, S, Options, Module) :- var(S), !,
+	open(string(""), write, Stream),
+	filter_options(Options, write, WOptions),
+	write_term_(Stream, T, [
+	    attributes(full),quoted(true),numbervars(true),
+	    variables(raw),depth(full),transform(false)|WOptions], Module),
+	stream_info_(Stream, 0, S),  % = get_stream_info(Stream,name,S)
+	close(Stream).
+term_string_(T, S, Options, Module) :- string(S), !,
+	( S \== "" ->
+	    open(string(S), read, Stream),
+	    (
+		filter_options(Options, read, ROptions),
+		read_term_(Stream, T0, ROptions, Module),
+		read_token_(Stream, end_of_file, _, Module)
+	    ->
+		close(Stream),
+		T = T0
+	    ;
+		close(Stream),
+		error(7, term_string(T, S), Module)
+	    )
+	;
+	    error(7, term_string(T, S), Module)
+	).
+term_string_(T, S, Options, Module) :-
+	error(5, term_string(T, S, Options), Module).
+
+    filter_options([Option|Options], RW, FOptions) ?- !,
+	( ignore_option(Option, RW) ->
+	    FOptions = FOptions0
+	;
+	    FOptions = [Option|FOptions0],
+	    get_bip_error(_)	% clear the error code
+	),
+	filter_options(Options, RW, FOptions0).
+    filter_options(Options, _RW, Options).	% [] and non-lists (for error later)
+
+    % fails with bip_error
+    ignore_option(Option, read) ?- option_to_format(Option, _, _, _, _).
+    ignore_option(Option, write) ?- check_read_option(Option).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
