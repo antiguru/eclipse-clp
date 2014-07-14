@@ -193,15 +193,13 @@ $(VIZ_JDOC)/stamp:	$(VIZ_JAVAS)
 # ---------------
 
 # Batik (for viztool)
-BATIK_DIR = @BATIK_DIR@
-BATIK_LIBDIR = $(BATIK_DIR)/lib/
+BATIK_LIBDIR = @BATIK_LIBDIR@
 BATIK_JARS = batik-util.jar batik-script.jar batik-gvt.jar batik-bridge.jar\
 		batik-gui-util.jar batik-swing.jar xml-apis-ext.jar
 BATIK_COPY = $(BATIK_JARS:%=jars/batik/%)
 
 # Javahelp (for viztool)
-JHELP_DIR = @JHELP_DIR@
-JHELP_LIBDIR = $(JHELP_DIR)/javahelp/lib/
+JHELP_LIBDIR = @JHELP_LIBDIR@
 JHELP_JAR = jhall.jar
 JHELP_COPY = $(JHELP_JAR:%=jars/jhelp/%)
 

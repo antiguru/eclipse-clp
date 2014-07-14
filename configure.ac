@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.2])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.59 2014/03/23 21:21:41 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.60 2014/07/14 01:47:22 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1937,18 +1937,20 @@ AC_ARG_WITH([cpviz], [[  --without-cpviz
 
 ALL_CPVIZ=
 if test "$cpviz_requested" != "no"; then
-    for f in "$ECLIPSETHIRDPARTY/batik-"* ; do
-	if test -d "$f"; then BATIK_DIR="$f"; fi
+    for f in "$ECLIPSETHIRDPARTY/batik-"*/lib /usr/share/java ; do
+	if test -r "$f/batik-util.jar"; then BATIK_LIBDIR="$f"; break; fi
     done
-    for f in "$ECLIPSETHIRDPARTY/jh"[[0-9]]* ; do
-	if test -d "$f"; then JHELP_DIR="$f"; fi
+    for f in "$ECLIPSETHIRDPARTY/jh"*/javahelp/lib /usr/share/java ; do
+	if test -r "$f/jh.jar"; then JHELP_LIBDIR="$f"; break; fi
     done
-    if test -n "$BATIK_DIR" -a -n "$JHELP_DIR" -a -n "$JAVA_HOME"; then
+    if test -n "$BATIK_LIBDIR" -a -n "$JHELP_LIBDIR" -a -n "$JAVA_HOME"; then
 	ALL_CPVIZ=all_cpviz
     fi
 fi
 if test -n "$ALL_CPVIZ"; then
     AC_MSG_NOTICE([Will build CP-Viz tool])
+    AC_MSG_NOTICE([Using Batik $BATIK_LIBDIR])
+    AC_MSG_NOTICE([Using Javahelp $JHELP_LIBDIR])
 else
     AC_MSG_NOTICE([Not building CP-Viz tool])
 fi
@@ -2107,8 +2109,8 @@ AC_SUBST(GRAPHVIZ_TARGET)
 AC_SUBST(GRAPHVIZ_DIR)
 AC_SUBST(STDCXXLIB)
 AC_SUBST(ALL_CPVIZ)
-AC_SUBST(BATIK_DIR)
-AC_SUBST(JHELP_DIR)
+AC_SUBST(BATIK_LIBDIR)
+AC_SUBST(JHELP_LIBDIR)
 AC_SUBST(JAVA_PATH_SEP)
 
 AC_OUTPUT
