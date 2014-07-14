@@ -22,15 +22,15 @@
 # END LICENSE BLOCK
 
 
-if test -z "$ARCH"; then
-        echo Please set environment variable ARCH and try again
+if test -z "$ECLIPSEARCH"; then
+        echo Please set environment variable ECLIPSEARCH and try again
         exit -1
 fi
 
 make_directory ()       # <perm> <name>
 {
     # explicit checking for symlink is for linux, where test is broken
-    if test ! -d $2 && (test "$ARCH" != "i386_linux" || test ! -h $2); then
+    if test ! -d $2 && (test "$ECLIPSEARCH" != "i386_linux" || test ! -h $2); then
         mkdir $2
         chmod $1 $2
     fi

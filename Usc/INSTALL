@@ -7,8 +7,8 @@ if test ! -z "$PROJECTDIR"; then
     unset PROJECTDIR; export PROJECTDIR
 fi
 
-if test -z "$ARCH"; then
-        echo Please set environment variable ARCH and try again
+if test -z "$ECLIPSEARCH"; then
+        echo Please set environment variable ECLIPSEARCH and try again
         exit -1
 fi
 
@@ -16,27 +16,27 @@ if test -z "$SYS_DIR"; then
     SYS_DIR="`pwd`/.."
 fi
 
-if test ! -d "$ARCH"; then
-    mkdir $ARCH
-    ( cd $ARCH; ln -s ../src/*.[ch] ../src/*.in ../src/configure . )
+if test ! -d "$ECLIPSEARCH"; then
+    mkdir $ECLIPSEARCH
+    ( cd $ECLIPSEARCH; ln -s ../src/*.[ch] ../src/*.in ../src/configure . )
 fi
 
 if test ! -d "lib"; then mkdir lib; fi
-if test ! -d "lib/$ARCH"; then mkdir lib/$ARCH; fi
+if test ! -d "lib/$ECLIPSEARCH"; then mkdir lib/$ECLIPSEARCH; fi
 if test ! -d "include"; then mkdir include; fi
 
 if test ! -d "$SYS_DIR/sys_lib"; then mkdir $SYS_DIR/sys_lib; fi
-if test ! -d "$SYS_DIR/sys_lib/$ARCH"; then mkdir $SYS_DIR/sys_lib/$ARCH; fi
+if test ! -d "$SYS_DIR/sys_lib/$ECLIPSEARCH"; then mkdir $SYS_DIR/sys_lib/$ECLIPSEARCH; fi
 if test ! -d "$SYS_DIR/sys_include"; then mkdir $SYS_DIR/sys_include; fi
 
-if test "$ARCH" = sun3; then
+if test "$ECLIPSEARCH" = sun3; then
         MAKE=/bin/make
 else
-    if test "$ARCH" = sparc_svr4; then
+    if test "$ECLIPSEARCH" = sparc_svr4; then
             # for the drs 6000 use gnu make
             MAKE=/user2/sepia/bin/make
     else
-        if test "$ARCH" = rs6000; then
+        if test "$ECLIPSEARCH" = rs6000; then
                 MAKE=/usr/local/gnu/bin/make
         else
                 MAKE=make

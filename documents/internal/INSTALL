@@ -23,7 +23,7 @@
 
 DEST=../../doc_internal
 
-if [ "$ARCH" != "i386_linux" ] ; then
+if [ "$ECLIPSEARCH" != "i386_linux" ] ; then
     echo "Can build docs only on i386_linux"
     exit 1
 fi
