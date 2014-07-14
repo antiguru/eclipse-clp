@@ -28,6 +28,7 @@
 :- tool(add_attribute / 2).
 :- tool(subscript / 3).
 :- tool(term_string / 2).
+:- tool(term_string / 3).
 :- tool(term_to_bytes / 2).
 :- tool(update_struct / 4).
 :- tool(meta_attribute / 2).
@@ -1214,24 +1215,15 @@ Error:
 ",
 	amode:(term_string(?,-) is det),
 	amode:(term_string(-,+) is det),
-	desc:html("   If String is instantiated, its contents are parsed, and if the whole
+	desc:html("
+   If String is instantiated, its contents are parsed, and if the whole
    string can be parsed as one Prolog term it is unified with Term.  If
    String is not instantiated, Term is written into a string (using
    writeq/2) and String is bound to it.
-
 <P>
-   To change the way the term is converted into a string, e.g.  to include
-   attributed variable print handlers, it is possible to define it as follows:
-
-<P>
-<PRE>
-term_to_string(T, S) :-
-    open(string(\"\"), write, Stream),
-    % use the flags which you want
-    printf(Stream, \"%mw\", [T]),
-    get_stream_info(Stream, name, S),
-    close(Stream).
-</PRE>
+   To customize the way the term is converted into a string, e.g. to include
+   attributed variable print handlers, use term_string/3 with appropriate
+   Options, or use sprintf/3.
 "),
 	args:["Term" : "Prolog term.", "String" : "String or a variable."],
 	exceptions:[5 : "String is instantiated, but not to a string.", 7 : "String cannot be converted to a Prolog term."],
@@ -1258,11 +1250,48 @@ Error:
        ^ (here?)
       syntax error: unexpected token
       string contains unexpected characters in term_string(T, \"F(1,2)\")
+",
+	see_also:[term_string/3, number_string/2, read/2, writeq/2, sprintf/3]]).
 
+:- comment(term_string / 3, [
+	summary:"Configurable conversion between a Prolog term and a string.",
+	amode:(term_string(?,-,+) is det),
+	amode:(term_string(-,+,+) is det),
+	desc:html("
+   If String is instantiated, its contents are parsed (using read_term/3
+   and the given Options).
+<P>
+   If String is not instantiated, Term is written into a string (using
+   write_term/3 with options corresponding to writeq/2, followed and
+   possibly overridden by the given Options).
+<P>
+   Inapplicable options are silently ignored.
+<P>
+</PRE>
+"),
+	args:["Term" : "Prolog term.",
+	    "String" : "String or a variable.",
+	    "Options" : "List of read or write options"],
+	exceptions:[
+	    4 : "Options is insufficiently instantiated.",
+	    5 : "String is instantiated, but not to a string.",
+	    5 : "Options is not a list or does not only contain compound terms.",
+	    6 : "Options is a list containing compound terms that are not valid options.",
+	    7 : "String cannot be converted to a Prolog term."],
+	eg:"
+    ?- term_string([1,a], S, [dotlists(true)])
+    S = \".(1,.(a,[]))\"
 
+    ?- term_string(['A',3+4], S, [quoted(false),operators(false)])
+    S = \"['A',+(3,4)]\"
+
+    ?- term_string(T, \"[1,Y,_]\", [variable_names(V)]).
+    T = [1, Y, _208]
+    V = ['Y' = Y]
 
 ",
-	see_also:[integer_atom / 2, number_string / 2, string_list / 2, split_string / 4]]).
+    see_also:[term_string/2, number_string/2, read_term/3, write_term/3, sprintf/3]]).
+
 
 :- comment(subscript / 3, [
 	summary:"Accesses the subterm Elem of Term, as specified by Subscript",
