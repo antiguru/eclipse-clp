@@ -46,7 +46,6 @@
 #define IsMIPProb(t) ((t) == PROBLEM_MIP || (t) == PROBLEM_MIQP)
 #define IsQPProb(t)  ((t) == PROBLEM_QP || (t) == PROBLEM_MIQP)
 
-#define STRBUFFERSIZE  64  /* size of string parameter buffer size */
  
 #ifdef SOLVE_MIP_COPY
 # define XP_COPYOFF     0    /* do not make copy of problem */

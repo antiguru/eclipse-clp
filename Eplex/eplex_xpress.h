@@ -44,6 +44,7 @@ typedef char sostype_t;
 # define HAS_QUADRATIC
 # define HAS_MIQP
 # define SOLVER_HAS_STR_PARAMS /* has string parameters */
+# define STRBUFFERSIZE  256  /* string parameter buffer size (256 used in example)*/
 /* copying a problem with zeroed quad. coeff. can lead to core dumps */
 # define HAS_MIQP_FIXEDCOPYBUG 
 # define HAS_INTLB_BUG /* LB lost when converting col to int type */

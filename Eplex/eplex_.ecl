@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.15 2013/06/06 17:22:04 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.16 2014/07/14 01:02:27 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -3419,11 +3419,38 @@ process_option(mip_use_copy(yes), _Handle, Temp) ?- !,
         setarg(use_copy of temp_prob, Temp, 1).
 process_option(mip_use_copy(no), _Handle, Temp) ?- !,
         setarg(use_copy of temp_prob, Temp, 0).
-process_option(integers(Ints), Handle, _) ?-
-	is_list_or_nil(Ints), !,
-	Handle = prob{ints:Ints}.
+process_option(integers(Ints0), Handle, _) ?- 
+        is_list_or_nil(Ints0), !, 
+	Handle = prob{cplex_handle:CPH,ints:Ints},
+        (foreach(X, Ints0), param(CPH) do % loop may fail, so need to cut first
+            ( var(X) -> true
+            ; number(X) ->
+                % number: make sure it's sufficiently integral
+	      ( abs(round(X) - X) =< cplex_get_param(CPH, integrality) ->
+                  true
+              ;
+                  printf(warning_output, "Eplex warning: integer variable instantiated to a"
+                                         " non-integral number: %w. Failing.%n", [X]),
+                  fail
+              )
+            ;
+              printf(error, "Eplex error: integer variable unified to"
+                            " a non-number: %w%n", [X]),
+              throw(abort)
+
+            )
+        ), 
+        term_variables(Ints0, Ints). % eliminate duplicates and numbers
 process_option(reals(Vars), _Handle, Temp) ?-
-	is_list_or_nil(Vars), !,
+        (foreach(V, Vars) do 
+            ( number(V) -> true
+            ; var(V)    -> true
+            ;
+                printf(error, "Eplex error: problem variable unified to"
+                            " a non-number: %w%n", [V]),
+                throw(abort)
+            )
+        ), !,
         setarg(extra_vars of temp_prob, Temp, Vars).
 process_option(method(M), Handle, _) ?- !,
 	lp_set(Handle, method, M).
@@ -4466,10 +4493,20 @@ set_type_integer(CPH, SId, [X|Xs]) :-
               cplex_init_type(CPH, J, TypeCode)
 	; var(X) ->
               printf(warning_output, "Eplex warning: integer variable not a problem variable (ignored): %mVw%n", [X])
-	;
+	; number(X) ->
 	      % nonvar: make sure it's sufficiently integral
-	      abs(round(X) - X) =< cplex_get_param(CPH, integrality)
-	),
+	      ( abs(round(X) - X) =< cplex_get_param(CPH, integrality) ->
+                  true
+              ;
+                  printf(warning_output, "Eplex warning: integer variable instantiated to a"
+                                         " non-integral number: %w. Failing.%n", [X]),
+                  fail
+              )
+              ;
+              printf(error, "Eplex error: integer variable unified to"
+                            " a non-number:.%w%n", [X]),
+              throw(abort)
+        ),
 	set_type_integer(CPH, SId, Xs).
 
 % Set initial bounds for new variables from one-variable constraints
@@ -4544,7 +4581,8 @@ set_sos(prob{cplex_handle:CPH,solver_id:SId}, SosList) :-
 	    vars_to_cols(PureVars, SId, Cols, 0, N),
 	    cplex_add_new_sos(CPH, 2, N, Cols)
 	;
-	    printf(error, "Eplex error: error in SOS setup: %w%n", [Sos])
+	    printf(error, "Eplex error: error in SOS setup: %w%n", [Sos]),
+            abort
 	),
 	set_sos_list(CPH, SId, SosList).
 

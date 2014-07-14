@@ -68,6 +68,9 @@ typedef char sostype_t;
 #define SOLVER_SHORT_NAME CPX
 #define SOLVER_ATOMIC_NAME "cplex"
 #define SOLVER_VERSION_INT	(10*CPLEX+CPLEXMINOR)
+#define SOLVER_HAS_STR_PARAMS
+#define STRBUFFERSIZE  CPX_STR_PARAM_MAX  /* size of string parameter buffer size */
+
 
 #define SOLVER_SENSE_LE	'L'
 #define SOLVER_SENSE_GE	'G'
@@ -355,8 +358,10 @@ typedef char sostype_t;
 
 #define Get_Int_Param(E,L,A1,A2) 	CPXgetintparam(E,A1,A2)
 #define Get_Dbl_Param(E,L,A1,A2)	CPXgetdblparam(E,A1,A2)
+#define Get_Str_Param(E,L,A1,A2)        CPXgetstrparam(E,A1,A2)
 #define Set_Int_Param(E,L,A1,A2) 	CPXsetintparam(E,A1,A2)
 #define Set_Dbl_Param(E,L,A1,A2)	CPXsetdblparam(E,A1,A2)
+#define Set_Str_Param(E,L,A1,A2)        CPXsetstrparam(E,A1,A2)
 
 # define Get_LP_Objval(A1,A2)		CPXgetobjval(cpx_env,(A1)->lp,A2)
 # define Get_Best_Objbound(A1, A2)      CPXgetbestobjval(cpx_env,A1,A2)

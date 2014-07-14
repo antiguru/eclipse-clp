@@ -163,6 +163,7 @@ typedef char sostype_t;
 
 # define SOLVER_HAS_STR_PARAMS /* has string parameters */
 # define SOLVER_HAS_LOCAL_PARAMETERS
+# define STRBUFFERSIZE 256 /* actual string param uses C++ string */
 
 # ifdef COIN_USE_CLP
 

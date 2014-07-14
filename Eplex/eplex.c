@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.15 2013/02/09 20:27:57 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.16 2014/07/14 01:02:27 jschimpf Exp $
  *
  */
 
@@ -1306,6 +1306,7 @@ p_cpx_set_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
     {
 	char *s = IsAtom(tval)? DidName(vval.did): StringStart(vval);
 
+	if (strlen(s) >= STRBUFFERSIZE) Bip_Error(RANGE_ERROR);/*too large*/
 	Call(err, Set_Str_Param(cpx_env, lpd, params[i].num, s));
     }
 #endif

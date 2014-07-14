@@ -43,7 +43,7 @@ typedef int sostype_t;
 #undef HAS_MIQP
 #define HAS_LIMITED_MIP_RESULTS
 #define SOLVER_HAS_LOCAL_PARAMETERS
-
+#define SOLVER_HAS_STR_PARAMS
 
 /*
  * Constants
@@ -71,6 +71,7 @@ typedef int sostype_t;
 #define CPX_COL_BASIC		GBB_BASIC
 #define CPX_COL_FREE_SUPER	GRB_SUPERBASIC
 
+#define STRBUFFERSIZE		GRB_MAX_STRLEN
 
 /*
  * Mappings for CPLEX-style functions

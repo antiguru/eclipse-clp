@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.9 2013/06/22 03:06:58 kish_shen Exp $
+# $Id: Makefile.in,v 1.10 2014/07/14 01:02:27 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -136,6 +136,7 @@ CPLEX121_SUPPORT_i386_nt = $(THIRDPARTY)/cplex121/bin/x86_win32/cplex121.dll
 CPLEX121_SUPPORT_x86_64_nt = $(THIRDPARTY)/cplex121/bin/x64_win64/cplex121.dll
 CPLEX122_SUPPORT_x86_64_nt = $(THIRDPARTY)/cplex122/bin/x64_win64/cplex122.dll
 CPLEX124_SUPPORT_x86_64_nt = $(THIRDPARTY)/cplex124/bin/x64_win64/cplex124.dll
+CPLEX1251_SUPPORT_x86_64_nt = $(THIRDPARTY)/cplex1251/bin/x64_win64/cplex1251.dll
 
 
 sparc_sunos5/secplex65.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
@@ -299,6 +300,14 @@ x86_64_nt/secplex124.dll: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	cp $(CPLEX124_SUPPORT_x86_64_nt) x86_64_nt/
 	cp $(CPLEX124_SUPPORT_x86_64_nt) ../lib/x86_64_nt/
 
+x86_64_nt/secplex1251.dll: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
+	$(CC) -DCPLEX=12 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex1251/include/ilcplex -c eplex.c
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex1251/bin/x64_win64/cplex1251.dll $(ECLIBS) -o secplex.dll
+	[ -d x86_64_nt ] || mkdir x86_64_nt
+	mv secplex.dll x86_64_nt/secplex1251.dll
+	cp $(CPLEX1251_SUPPORT_x86_64_nt) x86_64_nt/
+	cp $(CPLEX1251_SUPPORT_x86_64_nt) ../lib/x86_64_nt/
+
 x86_64_linux/secplex90.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c eplex.c
 	$(CC) -shared eplex.o $(THIRDPARTY)/cplex90/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
@@ -328,6 +337,18 @@ x86_64_linux/secplex122.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -shared eplex.o $(THIRDPARTY)/cplex122/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d x86_64_linux ] || mkdir x86_64_linux
 	mv secplex.so x86_64_linux/secplex122.so
+
+x86_64_linux/secplex124.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
+	$(CC) -DCPLEX=12 -DCPLEXMINOR=4 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex124/include/ilcplex -c eplex.c
+	$(CC) -shared eplex.o $(THIRDPARTY)/cplex124/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	mv secplex.so x86_64_linux/secplex124.so
+
+x86_64_linux/secplex126.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
+	$(CC) -DCPLEX=12 -DCPLEXMINOR=6 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex126/include/ilcplex -c eplex.c
+	$(CC) -shared eplex.o $(THIRDPARTY)/cplex126/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	[ -d x86_64_linux ] || mkdir x86_64_linux
+	mv secplex.so x86_64_linux/secplex126.so
 
 i386_macosx/secplex110.dylib: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c eplex.c
@@ -760,6 +781,18 @@ $(MAKEFILE):	Makefile.in
 # We only build static libraries!
 #----------------------------------------------------------------------
 
+ifeq ($(OSCLASS),win)
+
+# must use absolute path as there are configures for each COIN component
+CONFIG_PREFIX=CONFIG_SITE=$(shell pwd)/../config.$(ARCH)
+
+else
+
+CONFIG_PREFIX=
+
+endif
+
+
 COIN_CBC_VERSION=2.8
 THIRDPARTY_CBC_DEST=$(THIRDPARTY)/coinclpcbc$(COIN_CBC_VERSION)/$(ARCH)
 
@@ -769,18 +802,18 @@ install_cbc:    all_cbc
 	/bin/cp -pr Cbc/$(ARCH)/include/coin/* $(THIRDPARTY_CBC_DEST)/include
 	/bin/cp -pr Cbc/$(ARCH)/lib/* $(THIRDPARTY_CBC_DEST)/lib
 
-all_cbc:	basic_cbc \
-	Cbc/$(ARCH)/include/coin/CbcBranchUser.hpp \
-	Cbc/$(ARCH)/include/coin/CbcCompareUser.hpp \
-	Cbc/$(ARCH)/lib/CbcBranchUser.o \
-	Cbc/$(ARCH)/lib/CbcCompareUser.o
+all_cbc:	basic_cbc 
+	make -f Makefile.$(ARCH) Cbc/$(ARCH)/include/coin/CbcBranchUser.hpp 
+	make -f Makefile.$(ARCH) Cbc/$(ARCH)/include/coin/CbcCompareUser.hpp
+	make -f Makefile.$(ARCH) Cbc/$(ARCH)/lib/CbcBranchUser.o 
+	make -f Makefile.$(ARCH) Cbc/$(ARCH)/lib/CbcCompareUser.o
 
 basic_cbc:	Cbc/$(ARCH)/Makefile
 	( cd Cbc/$(ARCH) ; make install )
 
 Cbc/$(ARCH)/Makefile:	Cbc/configure
 	mkdir -p Cbc/$(ARCH)
-	( cd Cbc/$(ARCH) ; ../configure --host=@host@ --enable-static --disable-shared --disable-zlib --disable-bzlib ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
+	( cd Cbc/$(ARCH) ; $(CONFIG_PREFIX) ../configure --host=@host@ --enable-static --disable-shared --disable-zlib --disable-bzlib ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
 
 Cbc/configure:
 	svn co https://projects.coin-or.org/svn/Cbc/stable/$(COIN_CBC_VERSION) Cbc
@@ -812,7 +845,7 @@ all_sym:	SYMPHONY/$(ARCH)/Makefile
 
 SYMPHONY/$(ARCH)/Makefile:	SYMPHONY/configure
 	mkdir -p SYMPHONY/$(ARCH)
-	( cd SYMPHONY/$(ARCH) ; ../configure --host=@host@ --enable-static --disable-shared ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
+	( cd SYMPHONY/$(ARCH) ; $(CONFIG_PREFIX) ../configure --host=@host@ --enable-static --disable-shared ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
 
 SYMPHONY/configure:
 	svn co https://projects.coin-or.org/svn/SYMPHONY/stable/$(COIN_SYM_VERSION) SYMPHONY
