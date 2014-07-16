@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.2])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.60 2014/07/14 01:47:22 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.61 2014/07/16 16:29:09 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1941,7 +1941,7 @@ if test "$cpviz_requested" != "no"; then
 	if test -r "$f/batik-util.jar"; then BATIK_LIBDIR="$f"; break; fi
     done
     for f in "$ECLIPSETHIRDPARTY/jh"*/javahelp/lib /usr/share/java ; do
-	if test -r "$f/jh.jar"; then JHELP_LIBDIR="$f"; break; fi
+	if test -r "$f/jhall.jar"; then JHELP_LIBDIR="$f"; break; fi
     done
     if test -n "$BATIK_LIBDIR" -a -n "$JHELP_LIBDIR" -a -n "$JAVA_HOME"; then
 	ALL_CPVIZ=all_cpviz
