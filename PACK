@@ -316,7 +316,7 @@ packarch ()	# $1=arch $2=name $3=subdir $4=files $5=excludedfiles $6=excludepatt
 	fi
     fi
 
-    if [ "$pack_rpm" = yes -a ! winarch $1 ] ; then
+    if [ "$pack_rpm" = yes ] && ! winarch $1 ; then
 
         # write DEST_DIR into the ".mymacros" file
         echo "%_topdir $DEST_DIR/$3" > .mymacros
@@ -428,7 +428,7 @@ $POST_SPEC
 
 nsispack ()	# $1=name $2=selectedfiles $3=arch
 {
-    if [ "$pack_nsis_installer" = no -o ! winarch $3 ] ; then
+    if [ "$pack_nsis_installer" = no ] || ! winarch $3 ; then
     	return 0
     fi
 
@@ -527,7 +527,7 @@ nsispack ()	# $1=name $2=selectedfiles $3=arch
 
 nsisheader()	# $1=arch
 {
-    if [ "$pack_nsis_installer" = no -o ! winarch $1 ] ; then
+    if [ "$pack_nsis_installer" = no ] || ! winarch $1 ; then
     	return 0
     fi
 
@@ -646,7 +646,7 @@ LicenseData \"legal\\cmpl.txt\"
 
 nsisfinish()	# $1=arch
 {
-    if [ "$pack_nsis_installer" = no -o ! winarch $1 ] ; then
+    if [ "$pack_nsis_installer" = no ] || ! winarch $1 ; then
     	return 0
     fi
 
