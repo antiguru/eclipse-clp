@@ -248,6 +248,9 @@
 /* Define if you have random.  */
 #undef HAVE_RANDOM
 
+/* Define if you have realpath.  */
+#undef HAVE_REALPATH
+
 /* Define if you have rint.  */
 #undef HAVE_RINT
 

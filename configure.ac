@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.2])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.61 2014/07/16 16:29:09 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.62 2014/09/30 21:44:11 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -945,6 +945,7 @@ AC_CHECK_FUNC(sleep, AC_DEFINE(HAVE_SLEEP), echo "...Sleep not found")
 AC_CHECK_FUNC(vsprintf, AC_DEFINE(HAVE_VARARGS), echo "...Vsprintf not found")
 AC_CHECK_FUNCS(vsprintf vsnprintf)
 AC_CHECK_FUNCS(fpsetround ieee_flags)
+AC_CHECK_FUNCS(realpath)
 
 dnl The following require wsock32 on Windows, and the check doesn't work:
 dnl this doesn't work: AC_SEARCH_LIBS(select, wsock32)
