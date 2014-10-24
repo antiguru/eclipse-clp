@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.2])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.62 2014/09/30 21:44:11 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.63 2014/10/24 16:48:16 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -521,6 +521,9 @@ case "$ARCH" in
     LOCAL_FLAGS="-DD_LOAD"
     OBJECT_SUFFIX=so
     OBJECTS_SUFFIX=so
+    CFLAGS="-m32 $CFLAGS"
+    LDFLAGS="$LDFLAGS -m32"
+    DYNLDFLAGS="$DYNLDFLAGS -m32"
     LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared \$< -o \$@"
     PL_C_SO=".c.so:"
     PD_C_SO="$LD_C_SO"
