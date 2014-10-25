@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for icparc_solvers
-# $Id: Makefile.in,v 1.10 2014/07/14 01:02:27 jschimpf Exp $
+# $Id: Makefile.in,v 1.11 2014/10/25 04:11:53 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -189,50 +189,50 @@ sparc_sunos5/secplex122.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 
 i386_linux/secplex65.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=6 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I/usr/local/cplex -c eplex.c
-	$(CC) -shared eplex.o /usr/local/cplex/libcplex.a $(ECLIBS) -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o /usr/local/cplex/libcplex.a $(ECLIBS) -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex65.so
 
 i386_linux/secplex75.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=7 -DCPLEXMINOR=5 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex75/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex75/lib/i386_linux/static_pic_mt/libcplex.a -lpthread $(ECLIBS) -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex75/lib/i386_linux/static_pic_mt/libcplex.a -lpthread $(ECLIBS) -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex75.so
 
 i386_linux/secplex81.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=8 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex811/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex811/lib/i386_linux/static_pic_mt/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex811/lib/i386_linux/static_pic_mt/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex81.so
 
 i386_linux/secplex90.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex90/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex90/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex90.so
 
 
 i386_linux/secplex102.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=10 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex102/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex102/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex102/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex102.so
 
 i386_linux/secplex110.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex110/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex110/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex110.so
 
 i386_linux/secplex121.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=12 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex121/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex121/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex121/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex121.so
 
 i386_linux/secplex122.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=12 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex122/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex122/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex122/lib/i386_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv secplex.so i386_linux/secplex122.so
 
@@ -310,31 +310,31 @@ x86_64_nt/secplex1251.dll: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 
 x86_64_linux/secplex90.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=9 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex90/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex90/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex90/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d x86_64_linux ] || mkdir x86_64_linux
 	mv secplex.so x86_64_linux/secplex90.so
 
 x86_64_linux/secplex102.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=10 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex102/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex102/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex102/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d x86_64_linux ] || mkdir x86_64_linux
 	mv secplex.so x86_64_linux/secplex102.so
 
 x86_64_linux/secplex110.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=11 -DCPLEXMINOR=0 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex110/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex110/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS)  eplex.o $(THIRDPARTY)/cplex110/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d x86_64_linux ] || mkdir x86_64_linux
 	mv secplex.so x86_64_linux/secplex110.so
 
 x86_64_linux/secplex121.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=12 -DCPLEXMINOR=1 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex121/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex121/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex121/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d x86_64_linux ] || mkdir x86_64_linux
 	mv secplex.so x86_64_linux/secplex121.so
 
 x86_64_linux/secplex122.so: eplex.c eplex_cplex.h eplex_cplex.c eplex.h
 	$(CC) -DCPLEX=12 -DCPLEXMINOR=2 $(CPPFLAGS) $(CFLAGS) -I$(THIRDPARTY)/cplex122/include/ilcplex -c eplex.c
-	$(CC) -shared eplex.o $(THIRDPARTY)/cplex122/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(THIRDPARTY)/cplex122/lib/x86_64_linux/static_pic/libcplex.a $(ECLIBS) -lpthread -o secplex.so
 	[ -d x86_64_linux ] || mkdir x86_64_linux
 	mv secplex.so x86_64_linux/secplex122.so
 
@@ -545,37 +545,37 @@ sparc_sunos5/sexpress1326icp.so: eplex.c
 
 i386_linux/sexpress1326icp.so: eplex.c
 	$(CC) -DXPRESS=13  -DXPRESS_OEM_ICPARC_2002 $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1326icp)/$(ARCH)/include -c eplex.c
-	$(CC) -shared eplex.o $(XPRESS1326icp)/$(ARCH)/lib/libxprs.a $(ECLIBS) -o sexpress.so
+	$(DYLD) $(DYNLDFLAGS)  eplex.o $(XPRESS1326icp)/$(ARCH)/lib/libxprs.a $(ECLIBS) -o sexpress.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv sexpress.so i386_linux/sexpress1326icp.so
 
 i386_linux/sexpress1427.so: eplex.c $(ARCH)/express1427
 	$(CC) -DXPRESS=14  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1427)/$(ARCH)/include -c eplex.c
-	$(CC) -shared eplex.o $(ARCH)/express1427/libxprs.so.14.27  $(ECLIBS) -o sexpress.so
+	$(DYLD) $(DYNLDFLAGS)  eplex.o $(ARCH)/express1427/libxprs.so.14.27  $(ECLIBS) -o sexpress.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv sexpress.so i386_linux/sexpress1427.so
 
 i386_linux/sexpress1427icp.so: eplex.c $(ARCH)/express1427icp
 	$(CC) -DXPRESS=14  -DXPRESS_OEM_ICPARC_2002 $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1427)/$(ARCH)/include -c eplex.c
-	$(CC) -shared eplex.o $(ARCH)/express1427icp/libxprs.so.14.27  $(ECLIBS) -o sexpress.so
+	$(DYLD) $(DYNLDFLAGS) eplex.o $(ARCH)/express1427icp/libxprs.so.14.27  $(ECLIBS) -o sexpress.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv sexpress.so i386_linux/sexpress1427icp.so
 
 i386_linux/sexpress1525.so: eplex.c $(ARCH)/express1525
 	$(CC) -DXPRESS=15  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1525)/$(ARCH)/include -c eplex.c
-	$(CC) -shared eplex.o $(ARCH)/express1525/libxprs.so.15.25  $(ECLIBS) -o sexpress.so
+	$(DYLD) $(DYNLDFLAGS)  eplex.o $(ARCH)/express1525/libxprs.so.15.25  $(ECLIBS) -o sexpress.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv sexpress.so i386_linux/sexpress1525.so
 
 i386_linux/sexpress1601.so: eplex.c $(ARCH)/express1601
 	$(CC) -DXPRESS=16  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS1601)/$(ARCH)/include -c eplex.c
-	$(CC) -shared eplex.o $(ARCH)/express1601/libxprs.so.16.01  $(ECLIBS) -o sexpress.so
+	$(DYLD) $(DYNLDFLAGS)  eplex.o $(ARCH)/express1601/libxprs.so.16.01  $(ECLIBS) -o sexpress.so
 	[ -d i386_linux ] || mkdir i386_linux
 	mv sexpress.so i386_linux/sexpress1601.so
 
 x86_64_linux/sexpress2000.so: eplex.c $(ARCH)/express2000
 	$(CC) -DXPRESS=20  $(CPPFLAGS) $(CFLAGS) -I$(XPRESS2000)/$(ARCH)/include -c eplex.c
-	$(CC) -shared eplex.o $(ARCH)/express2000/libxprs.so  $(ECLIBS) -o sexpress.so
+	$(DYLD) $(DYNLDFLAGS)  eplex.o $(ARCH)/express2000/libxprs.so  $(ECLIBS) -o sexpress.so
 	[ -d x86_64_linux ] || mkdir x86_64_linux
 	mv sexpress.so x86_64_linux/sexpress2000.so
 
@@ -813,7 +813,7 @@ basic_cbc:	Cbc/$(ARCH)/Makefile
 
 Cbc/$(ARCH)/Makefile:	Cbc/configure
 	mkdir -p Cbc/$(ARCH)
-	( cd Cbc/$(ARCH) ; $(CONFIG_PREFIX) ../configure --host=@host@ --enable-static --disable-shared --disable-zlib --disable-bzlib ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
+	( cd Cbc/$(ARCH) ; $(CONFIG_PREFIX) ../configure --host=@host@ --enable-static --disable-shared --disable-zlib --disable-bzlib ADD_CXXFLAGS="$(CFLAGS) -DGENERAL_HANDLER_PRINTING" ADD_CFLAGS="$(CFLAGS) -DGENRAL_HANDLER_PRINTING" F77=unavailable )
 
 Cbc/configure:
 	svn co https://projects.coin-or.org/svn/Cbc/stable/$(COIN_CBC_VERSION) Cbc
@@ -845,7 +845,7 @@ all_sym:	SYMPHONY/$(ARCH)/Makefile
 
 SYMPHONY/$(ARCH)/Makefile:	SYMPHONY/configure
 	mkdir -p SYMPHONY/$(ARCH)
-	( cd SYMPHONY/$(ARCH) ; $(CONFIG_PREFIX) ../configure --host=@host@ --enable-static --disable-shared ADD_CXXFLAGS="-fPIC" ADD_CFLAGS="-fPIC" F77=unavailable )
+	( cd SYMPHONY/$(ARCH) ; $(CONFIG_PREFIX) ../configure --host=@host@ --enable-static --disable-shared ADD_CXXFLAGS="$(CFLAGS)" ADD_CFLAGS="$(CFLAGS)" F77=unavailable )
 
 SYMPHONY/configure:
 	svn co https://projects.coin-or.org/svn/SYMPHONY/stable/$(COIN_SYM_VERSION) SYMPHONY
