@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.21 2014/02/05 03:27:47 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.22 2015/01/14 01:31:09 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -3594,6 +3594,8 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
 	nst = get_stream_id(pw->val, pw->tag, 0, &res);
 	if (nst == NO_STREAM)
 	    { Bip_Error(res); }
+	if (!IsOpened(nst))
+	    { Bip_Error(STREAM_SPEC); }
 	if (IsSocket(nst))	/* We don't wait for writes in sockets... */
 	    nst = SocketInputStream(nst);
 

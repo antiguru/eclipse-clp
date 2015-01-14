@@ -50,6 +50,7 @@
 	    see_also : [stop_vc/1, find_java/1],
             resat: no]).
 start_vc(VisClientName):-
+	Host = localhost,	% avoid firewall problems
 	remote_connect_setup(Host/Port, Peer, Socket), 
 	start_RemoteVisClient(Host, Port, StdOut), 
         (remote_connect_accept(Peer, Socket, 60, _, "", _) ->

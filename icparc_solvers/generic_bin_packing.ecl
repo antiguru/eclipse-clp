@@ -16,8 +16,9 @@
 % Portions created by the Initial Developer are
 % Copyright (C) 1995 - 2009 Cisco Systems, Inc.  All Rights Reserved.
 % 
-% Contributor(s): 	Helmut Simonis, 4C, Univerity College Cork, Cork
-%			Kish Shen
+% Contributor(s):       Helmut Simonis, 4C, Univerity College Cork, Cork
+%                       Kish Shen
+%                       Joachim Schimpf, Coninfer Ltd, 2014
 % 
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
@@ -27,64 +28,60 @@
 
 :- comment(bin_packing/4, [
        amode: bin_packing(+,++,+,+),
-       args: ["Items": "A collection of M variables or integers (domain/value"
-                       " between 1 and N)",
-              "ItemSizes": "A collection of M non-negative integers",
-              "N": "A positive Integer",
+       args: ["ItemBins": "A collection of N variables or integers (domain/value"
+                       " between 1 and M)",
+              "ItemSizes": "A collection of N non-negative integers",
+              "M": "A non-negative Integer, the number of bins",
               "BinSize": "A non-negative integer"
              ],
        see_also:[bin_packing/3, cumulative/4],
-       summary:"The one-dimensional bin packing constraint: packing M items"
-               " into N bins",
+       summary:"The one-dimensional bin packing constraint: packing N items"
+               " into M bins",
        kind:[constraint:[root:[ic,fd]]],
        desc: html("\
-   This constraint is for one-dimensional bin-packing, that is, to pack M
-   items with individual sizes into N bins, such that the sum of sizes of 
-   items in each bin does not exceed BinSize. Each element of Items and its 
+   This constraint is for one-dimensional bin-packing, that is, to pack N
+   items with individual sizes into M bins, such that the sum of sizes of 
+   items in each bin does not exceed BinSize. Each element of ItemBins and its 
    corresponding element in ItemSizes represents an item, such that the i'th 
    element of ItemSizes is the size of the i'th item, and the i'th element in
-   Items is the bin this item is packed into. 
+   ItemBins is the bin this item is packed into. 
 </P><P>
    This constraint can be seen as a special case of the cumulative/4
    constraint, where all task durations are equal to 1, each bin
    represents a time point, and BinSize corresponds to the Resource.
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
-</P><P>
    This constraint and the algorithm used to implement it is described in
    P. Shaw, 'A Constraint for Bin Packing', CP'2004, with a fixed size for 
    the bins. It is also described in the global constraint catalog as 
-   bin_packing, but with slightly different arguments: in the catalog, N
+   bin_packing, but with slightly different arguments: in the catalog, M
    (the number of bins) is implicitly defined by the domain of the variables 
-   in Items, and the representation of item is grouped into a single argument
-   of collection of pairs, each pair representing an item: the bin to pack 
-   the item, and its size.
+   in ItemBins, and the representation of item is grouped into a single
+   argument of collection of pairs, each pair representing an item:
+   the bin to pack the item, and its size.
 ")
           ]).
 
-bin_packing(Items,Sizes,N,BinSize):-
-        length(Bins,N),
+bin_packing(ItemBins,Sizes,M,BinSize):-
+        length(Bins,M),
         Bins :: 0..BinSize,
-        bin_packing(Items,Sizes,Bins).
+        bin_packing(ItemBins,Sizes,Bins).
 
 :- comment(bin_packing/3, [
        amode: bin_packing(+,++,+),
-       args: ["Items": "A collection of M variables or integers (domain/value"
-                       " between 1 and N)",
-              "ItemSizes": "A collection of M non-negative integers",
-              "BinLoads": "A collection of N variables or non-negative integers"
+       args: ["ItemBins": "A collection of N variables or integers (domain/value"
+                       " between 1 and M)",
+              "ItemSizes": "A collection of N non-negative integers",
+              "BinLoads": "A collection of M variables or non-negative integers"
              ],
        see_also:[bin_packing/4],
        summary:"The one-dimensional bin packing constraint with loads: packing "
-               "M items into N bins, each bin having a load",
+               "N items into M bins, each bin having a load",
        kind:[constraint:[root:[ic,fd]]],
        desc: html("\
-   This constraint is for one-dimensional bin-packing, that is, to pack M
-   items with individual sizes into N bins, such that the sum of sizes of
+   This constraint is for one-dimensional bin-packing, that is, to pack N
+   items with individual sizes into M bins, such that the sum of sizes of
    items in each bin equals the load of that bin, as specified in BinLoads.
-   Each element of Items and its corresponding element in ItemSizes
+   Each element of ItemBins and its corresponding element in ItemSizes
    represents an item, such that the i'th element of ItemSizes is the size
    of the i'th item, and the i'th element of Item is the bin this item is
    packed into. BinLoads represent the load of each bin, i.e. the sum
@@ -95,58 +92,69 @@ bin_packing(Items,Sizes,N,BinSize):-
 </P><P>
    This constraint and the algorithm used to implement it is described in
    P. Shaw, 'A Constraint for Bin Packing', CP'2004, and is described in
-   the global constraint catalog as bin_packing, in the variation where
-   the CAPACITY parameter is replaced by a collection of domain variables
-   (BinLoads).
+   the global constraint catalog as bin_packing_capa, where the CAPACITY
+   parameter is replaced by a collection of domain variables
+   
 ")
           ]).
 
 bin_packing(Items,Sizes,Bins):-
-        collection_to_list(Items,L),
+        collection_to_list(Items,L),    %%% ItemBins
         collection_to_list(Sizes,S),
-        collection_to_list(Bins,B),
-        sum(S,Total),
-        sumlist(B,Total),
-        length(L,NrVars),
-        length(B,NrBins),
-        combine(L,S,ItemTerms),
-        sort(2,>=,ItemTerms,Sorted),
-%        writeln(Sorted),
-        bin_packing01(L,S,B,NrVars,NrBins),
-        bin_packing(L,S,B,Total,NrVars,NrBins,Sorted).
+        collection_to_list(Bins,B),     %%% Loads
+        ( B==[] ->
+            L=[], S=[]  % can't pack anything if no bins
+        ; L==[] ->
+            S=[], ( foreach(0,B) do true )      % bins all empty
+        ;
+            (
+                foreach(InBin,L),
+                foreach(Size,S),
+                foreach(item(InBin,Size),ItemTerms),
+                fromto(0,Sum1,Sum2,Total),
+                count(_,1,NrItems)
+            do
+                Size >= 0,
+                Sum2 is Sum1+Size
+            ),
+            sort(2,>=,ItemTerms,Sorted),
+            length(B,NrBins),
+            sumlist(B,Total),   % this is the constant-time sumlist constraint
 
-bin_packing01(L,S,B,NrVars,NrBins):-
-        dim(Boolean,[NrVars,NrBins]),
-        Boolean[1..NrVars,1..NrBins] :: 0..1,
+            bin_packing01(L,S,B,NrItems,NrBins),
+            bin_packing(L,S,B,Total,NrItems,NrBins,Sorted)
+        ).
+
+bin_packing01(L,S,B,NrItems,NrBins):-
+        dim(Boolean,[NrItems,NrBins]),
+        Boolean[1..NrItems,1..NrBins] :: 0..1,
         (foreach(X,L),
-         count(I,1,NrVars),
+         count(I,1,NrItems),
          param(Boolean,NrBins) do
             bool_channeling(X,Boolean[I,1..NrBins],1)
         ),
         (foreach(Y,B),
          count(J,1,NrBins),
-         param(Boolean,NrVars,S) do
-            (for(I,1,NrVars),
+         param(Boolean,NrItems,S) do
+            (for(I,1,NrItems),
              foreach(Size,S),
-             fromto(0,A,A+Size*X,Term),
+             foreach(Size*X,Sum),
              param(Boolean,J) do
                 subscript(Boolean,[I,J],X)
             ),
-            evaluate(Term) #= Y
+            sum(Sum) #= Y       % load maintenance
         ).
 
 
-bin_packing(L,_S,B,_Total,_NrVars,NrBins,Items):-
+bin_packing(L,_S,B,_Total,_NrItems,NrBins,Items):-
         hash_create(Hash),
         call_priority((
             check_bin_packing(B,NrBins,Items,Hash),
-            append(L,B,AllVars),
-            (ground(AllVars) ->
-                true
-            ;
+            term_variables(L-B,AllVars),
+            ( AllVars==[] -> true ;
                 suspend(update_bin_packing(AllVars,B,
                                            NrBins,Items,Hash,Susp),
-                        5,[AllVars->inst,
+                        5,[%AllVars->inst, % implicit
                            L->any,
                            B->[min,max]],Susp)
             )
@@ -193,11 +201,7 @@ no_sum_reasoning([Bin|Bins],J,Items,Hash):-
             sum_cand(Candidates,0,Sum,0,N),
             % perform NOSUM algorithm of Shaw (Section 3.2)
             no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,_Alpha1,_Beta1),
-            (Result = infeasible ->
-                fail
-            ;
-                true
-            ),
+            Result == feasible,
             % update bin load bounds (Section 3.3)
             update_lower_bound(Candidates,Sum,N,Fixed,BMin,Bin,Hash),
             update_upper_bound(Candidates,Sum,N,Fixed,BMax,Bin,Hash),
@@ -226,14 +230,14 @@ internal_shave([Var|Variables],[C|Candidates],Previous,Sum,N1,
             Alpha1 is Alpha-C,
             Beta1 is Beta-C,
             no_sum(Hash,Current,Sum1,N1,Alpha1,Beta1,Result,_,_),
-            (Result = infeasible ->
+            (Result == infeasible ->
                 %            writeln(removed(Var,J)),
                 Var #\= J
             ;
                 true
             ),
             no_sum(Hash,Current,Sum1,N1,Alpha,Beta,Result2,_,_),
-            (Result2 = infeasible ->
+            (Result2 == infeasible ->
                 %            writeln(fix(Var,J)),
                 Var = J
             ;
@@ -250,9 +254,9 @@ update_lower_bound(Candidates,Sum,N,Fixed,BMin,Bin,Hash):-
         Alpha is BMin - Fixed,
         Beta is BMin-Fixed,
         no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,_Alpha1,Beta1),
-        (Result = infeasible ->
+        (Result == infeasible ->
 %            writeln(update_lower(Bin,Fixed,Beta1)),
-            Bin #>=Fixed+Beta1
+            Bin #>= Fixed+Beta1
         ;
             true
         ).
@@ -261,7 +265,7 @@ update_upper_bound(Candidates,Sum,N,Fixed,BMax,Bin,Hash):-
         Alpha is BMax - Fixed,
         Beta is BMax-Fixed,
         no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,Alpha1,_Beta1),
-        (Result = infeasible ->
+        (Result == infeasible ->
 %            writeln(update_upper(Bin,Fixed,Alpha1)),
             Bin #=< Fixed+Alpha1
         ;
@@ -272,21 +276,18 @@ update_upper_bound(Candidates,Sum,N,Fixed,BMax,Bin,Hash):-
 % compare size of items that might be placed in bin to adjusted min/max bound
 
 % candidate size is always between lower and upper limits, feasible
+:- mode no_sum(+,+,+,+,+,+,-,-,-). % is det
 no_sum(_Hash,_Candidates,Sum,_N,Alpha,Beta,feasible,nan,nan):-
-        Alpha =< 0,
-        Beta >= Sum,
+        Alpha =< 0, Sum =< Beta,        % Bug in Shaw's paper!
         !.
-% there is no way to reach the lower bound with candidates left, this
-% is infeasible
-% possible problem in update_upper_bound, as no Alpha1,Beta1 is returned
-no_sum(_Hash,_Candidates,Sum,_N,Alpha,Beta,infeasible,nan,nan):- % new
+% there is no way to reach the lower bound with candidates left
+no_sum(_Hash,_Candidates,Sum,_N,Alpha,_Beta,infeasible,Sum,Sum):-
         Sum < Alpha,
         !.
 % beta is negative, no way to satisfy bound
-% this does not return updated Alpha1,Beta1: may cause problem inside update_lower_bound
-no_sum(_Hash,_Candidates,_Sum,_N,_Alpha,Beta,infeasible,nan,nan):- 
+no_sum(_Hash,_Candidates,_Sum,_N,_Alpha,Beta,infeasible,0,0):- 
         Beta < 0,
-	!.
+        !.
 % we've seen this problem before, use hashed result
 no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,Alpha1,Beta1):-
         hash_find(Hash,key(Alpha,Beta,N,Sum,Candidates),
@@ -294,7 +295,7 @@ no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,Alpha1,Beta1):-
         !.
 % compute Alpha1,Beta1, decide feasible/infeasible and store result
 no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,Alpha1,Beta1):-
-        Array =.. [[]|Candidates],
+        array_list(Array, Candidates),
 %        writeln(no_sum(Candidates,Sum,N,Alpha,Beta)),
         % setting up SumB and SumC
         % we need atleast K1 items 
@@ -302,7 +303,7 @@ no_sum(Hash,Candidates,Sum,N,Alpha,Beta,Result,Alpha1,Beta1):-
         set_c(Array,N,Alpha,0,K1,0,SumC),
 %        writeln(c(K1,SumC)),
         % the size of the smallest item required is SumB
-        subscript(Array,[N-K1],SumB),
+        I is N-K1, arg(I, Array, SumB),
         lp(0,SumA,SumB,SumC,0,K1,Array,N,Alpha,Beta,Alpha1,Beta1),
         (SumA < Alpha ->
             Result = infeasible
@@ -336,12 +337,13 @@ lp(SumA,SumAEnd,SumB,SumC,K,K1,Array,N,Alpha,Beta,Alpha1,Beta1):-
         SumB =< Beta,
         !,
         Ka is K+1,
-        subscript(Array,[Ka],Size),
+        arg(Ka, Array, Size),
         SumA1 is SumA+Size,
         (SumA1 < Alpha ->
             K1a is K1-1,
-            SumB1 is SumB+Array[N-K1a],
-            SumC1 is SumC-Array[N-K1a],
+            I is N-K1a, arg(I, Array, SizeI),
+            SumB1 is SumB+SizeI,
+            SumC1 is SumC-SizeI,
             lp1(SumA1,SumB1,SumB2,SumC1,SumC2,K1a,K1b,Array,N,Alpha,Ka)
 
         ;
@@ -377,119 +379,144 @@ sum_cand([Size|C1],S,Send,N,Nend):-
 % the potential size computes the items that either are or might be in
 % the bin
 % Vars and Cand are only items that might be in the bin, not already fixed
+:- mode candidates(+,+,-,-,+,-,+,-).
 candidates([],_,[],[],P,P,F,F).
 candidates([item(X,Size)|Items],J,Vars,Cand,P,PEnd,F,FEnd):-
-        integer(X),
-        !,
-        (X == J ->
+        ( integer(X), X == J ->
             F1 is F+Size,
-            P1 is P+Size
+            P1 is P+Size,
+            candidates(Items,J,Vars,Cand,P1,PEnd,F1,FEnd)
+        ; var(X), check_in(J,X) ->
+            Vars = [X|Vars1],
+            Cand = [Size|Cand1],
+            P1 is P+Size,
+            candidates(Items,J,Vars1,Cand1,P1,PEnd,F,FEnd)
         ;
-            F1 = F,
-            P1 = P
-        ),
-        candidates(Items,J,Vars,Cand,P1,PEnd,F1,FEnd).
-candidates([item(X,Size)|Items],J,[X|Vars],[Size|Cand],
-           P,PEnd,F,FEnd):-
-        check_in(J,X),
-        !,
-        P1 is P+Size,
-        candidates(Items,J,Vars,Cand,P1,PEnd,F,FEnd).
-candidates([_|Items],J,Vars,Cand,P,PEnd,F,FEnd):-
-        candidates(Items,J,Vars,Cand,P,PEnd,F,FEnd).
+            candidates(Items,J,Vars,Cand,P,PEnd,F,FEnd)
+        ).
 
-l2_limit(Bins,NrBins,Items):-
-        max_capacity(Bins,C),
-        local(array(fixed_value(NrBins))),        
-%        writeln(c(C)),
-        (foreach(X,Bins),
-         count(J,0,_),
-         param(C) do
-            get_upb(X,Max),
-            C1 is C-Max, 
-            setval(fixed_value(J),C1)
+
+% Compute and apply L2 bound from Shaw section 4.1:
+% First, we translate the current situation into an equivalent problem with
+% bins of uniform capacity C, each having an artificial item per bin, that
+% brings the remaining capacity down to the actual remaining bin capacity.
+% We can then compute Martello&Toth's L2 bound for the problem of packing
+% these artificial items plus the remaining unfixed items into fixed size
+% bins of uniform capacity C.
+l2_limit(Loads,NrBins,Items):-
+        % find the maximum bin size C
+        ( foreach(Load,Loads), fromto(-1,Max1,Max2,C) do
+            get_upb(Load,Max),
+            Max2 is max(Max1,Max)
         ),
-        fixed_non_fixed(Items,Fixed,NonFixed),
-%        writeln(fixed(Fixed)),
-%        writeln(nonfixed(NonFixed)),
-        (foreach(item(Fix,Size),Fixed) do
-            Fix1 is Fix-1,
-            getval(fixed_value(Fix1),Old),
-            New is Old+Size,
-            setval(fixed_value(Fix1),New)
+        % initialize FixedLoads with differences between bin capacity and C
+        dim(FixedLoads, [NrBins]),
+        ( foreach(Load,Loads), foreacharg(F1,FixedLoads), param(C) do
+            get_upb(Load,Max),
+            F1 is C-Max
         ),
-        (for(J,0,NrBins-1),
-         fromto([],A,A1,FixedItems) do
-            getval(fixed_value(J),Size),
-            (Size > 0 ->
-                A1 = [Size|A]
+        % add fixed item's sizes to FixedLoad of the bin they are in
+        % also collect sizes of remaining unfixed items
+        (
+            foreach(Item,Items),        % item/2
+            fromto(NonFixed,N1,N2,[]),  % sizes of unfixed items
+            param(FixedLoads)           % destructively updated
+        do
+            Item = item(Bin,Size),
+            ( var(Bin) ->
+                N1=[Size|N2]
             ;
-                A1 = A
+                % item fixed to Bin
+                N1=N2,
+                arg(Bin, FixedLoads, Old),
+                New is Old+Size,
+                setarg(Bin, FixedLoads, New)
             )
         ),
-%        writeln(fixed(FixedItems)),
-        sort(0,>=,FixedItems,FixedSorted),
-        merge(0,>=,FixedSorted,NonFixed,SortedSizes),
-%        writeln(decr(SortedSizes)),
-        erase_array(fixed_value/1),
-        l2_bound(SortedSizes,C,L2),
-        L2 =< NrBins. % may fail
+        % collect nonzero artificial fixed items in list, then sort
+        ( foreacharg(BinFixed,FixedLoads), fromto(NewItems,F1,F2,NonFixed) do
+            ( BinFixed > 0 -> F1=[BinFixed|F2] ; F1=F2 )
+        ),
+	% Note: instead of sorting the fixed items and then merging the result
+	% with the (already sorted) NonFixed items, we simply concatenate them
+	% and sort all at once.  Since sort/4 uses natural merge sort
+	% (exploiting any presorted sublists), this should be more efficient.
+	sort(0,>=,NewItems,SortedSizes),
+	% Finally compute L2 bound for the transformed problem
+        l2_bound(SortedSizes, C, L2),
+        NrBins >= L2.  % may fail
 
-l2_bound(SortedSizes,C,L2):-
-        CHalf is C/2,
-        CC is integer(floor(CHalf)),
-        (for(K,0,CC),
-         fromto(0,A,A1,L2),
-         param(SortedSizes,C,CHalf) do
-            CK is C-K,
-%            writeln(step(K,CK,CHalf)),
-            get_bigger(SortedSizes,CK,0,N1,0,_,Rest),
-            get_bigger(Rest,CHalf,0,N2,0,Size2,Rest2),
-            atleast_size_k(Rest2,K,0,Size3),
-%            writeln(big(N1,N2,Size2,Size3)),
-            Bound is N1+N2+integer(ceiling(max(0,(Size3-(N2*C-Size2))/C))),
-%            writeln(bound(Bound)),
-            A1 is max(A,Bound)
+
+% Given non-increasingly sorted item sizes, and assuming uniform capacity C
+% per bin, compute the lower bound L2 on the number of bins needed.
+
+l2_bound(SortedSizes, C, L2) :-
+        CHalf is C//2,
+        prefix_gt_count_sum_rest(SortedSizes, CHalf, 0, N2Ct0, 0 , N2Sum0, Smalls),
+        reverse_sum(Smalls, [], N3s0, 0, N3Sum0),
+        l2_loop(0, C, SortedSizes, N2Ct0, N2Sum0, N3s0, N3Sum0, 0, Bound),
+        L2 is N2Ct0 + Bound.
+
+    l2_loop(K, C, N2s, N2Ct, N2Sum, N3s, N3Sum, Bound0, Bound) :-
+        Bound1 is max(Bound0,integer(ceiling((N3Sum-(N2Ct*C-N2Sum))/C))),
+        ( N2Ct>0, N3s=[_|_] ->
+            [N2Largest|_] = N2s,
+            K1Hi is C-N2Largest+1,
+            prefix_le_rest(N3s, K, N3s2),
+            ( [K1Lo|_] = N3s2 ->        % first in N3 > K
+                K1 is min(K1Hi,K1Lo)
+            ;
+                K1 = K1Hi
+            ),
+            CK1 is C-K1,
+            prefix_gt_count_sum_rest(N2s, N2Ct, CK1, 0, N2to1Ct, 0, N2to1Sum, N2s1),
+            N2Ct1 is N2Ct-N2to1Ct,
+            N2Sum1 is N2Sum-N2to1Sum,
+            prefix_lt_sum_rest(N3s, K1, 0, N3delSum, N3s1),
+            N3Sum1 is N3Sum-N3delSum,
+            l2_loop(K1, C, N2s1, N2Ct1, N2Sum1, N3s1, N3Sum1, Bound1, Bound)
+        ;
+            Bound = Bound1
         ).
+        
 
-get_bigger([V|V1],Limit,N,Nend,Size,SizeEnd,Rest):-
-        V > Limit,
+reverse_sum([], Rs, Rs, Sum, Sum).
+reverse_sum([X|Xs], Rs0, Rs, Sum0, Sum) :-
+        Sum1 is Sum0+X,
+        reverse_sum(Xs, [X|Rs0], Rs, Sum1, Sum).
+        
+% count and sum up the leading list elements greater than Limit
+prefix_gt_count_sum_rest([X|Xs],Limit,N0,N,Size0,Size,Rest):-
+        X > Limit,
         !,
-        N1 is N+1,
-        Size1 is Size+V,
-        get_bigger(V1,Limit,N1,Nend,Size1,SizeEnd,Rest).
-get_bigger(Rest,_,N,N,Size,Size,Rest).
+        N1 is N0+1,
+        Size1 is Size0+X,
+        prefix_gt_count_sum_rest(Xs,Limit,N1,N,Size1,Size,Rest).
+prefix_gt_count_sum_rest(Rest,_,N,N,Size,Size,Rest).
 
-atleast_size_k([V|V1],K,Size,SizeEnd):-
-        V >= K,
+% same, but looks only at the first Len elements of the list
+prefix_gt_count_sum_rest([X|Xs],Len,Limit,N0,N,Size0,Size,Rest):-
+        Len > 0,
+        X > Limit,
         !,
-        Size1 is Size+V,
-        atleast_size_k(V1,K,Size1,SizeEnd).
-atleast_size_k(_,_,Size,Size).
+        Len1 is Len-1,
+        N1 is N0+1,
+        Size1 is Size0+X,
+        prefix_gt_count_sum_rest(Xs,Len1,Limit,N1,N,Size1,Size,Rest).
+prefix_gt_count_sum_rest(Rest,_,_,N,N,Size,Size,Rest).
 
-fixed_non_fixed([],[],[]).
-fixed_non_fixed([item(X,S)|R],F,[S|S1]):-
-        var(X),
+% sum up the leading list elements less than Limit
+prefix_lt_sum_rest([X|Xs], Limit, Size0, Size, Rest):-
+        X < Limit,
         !,
-        fixed_non_fixed(R,F,S1).
-fixed_non_fixed([A|A1],[A|F1],S1):-
-        fixed_non_fixed(A1,F1,S1).
+        Size1 is Size0+X,
+        prefix_lt_sum_rest(Xs, Limit, Size1, Size, Rest).
+prefix_lt_sum_rest(Xs, _, Size, Size, Xs).
 
-/*
-
-utility
-
-*/
-
-combine([],[],[]).
-combine([B|B1],[S|S1],[item(B,S)|I1]):-
-        combine(B1,S1,I1).
-
-max_capacity([B|B1],C):-
-        get_upb(B,Bmax),
-        (foreach(X,B1),
-         fromto(Bmax,A,A1,C) do
-            get_upb(X,Max),
-            A1 is max(A,Max)
-        ).
+% drop the leading list elements less or equal to Limit
+prefix_le_rest([X|Xs], Limit, Rest):-
+        X =< Limit,
+        !,
+        prefix_le_rest(Xs, Limit, Rest).
+prefix_le_rest(Xs, _, Xs).
 

@@ -223,10 +223,20 @@ t_ext_type gfdsearch_method = {
     NULL, /* set */
 };
 
-static void _g_delete_space(pword* phandle, word * dummy, int size, int flags)
+/* Delete current space on backtracking as the space becomes invalid.
+   It is unsafe to obtain the space from phandle during GC as data
+   on the Prolog stacks can be marked. The space will instead be deleted
+   by _free_space_handle().
+   An alternative solution we looked at is to pass *solverp as the first
+   arg. As this is allocated by C++ and is not on the Prolog stack, this
+   undo function will not be called during GC, but this is also unafe as
+   *solverp might be deleted early by garbage collecting of the phandle.
+*/
+static void _g_delete_space(pword* phandle, word * dummy, int size, int context)
 {
     GecodeSpace** solverp;
 
+    if (context == UNDO_GC) return; // Cannot safely get solverp during GC
     ec_get_handle(phandle[SPACE_HANDLE_POS], &gfd_method, (void**)&solverp);
     if (*solverp != NULL) {
 	delete *solverp;
@@ -378,6 +388,7 @@ void cache_domain_sizes(GecodeSpace* solver) {
 
 }
 
+// Initial initialisation, called when library is loaded
 extern "C" VisAtt 
 int p_g_init()
 {
@@ -448,6 +459,14 @@ int p_g_init()
 
     d_iv2 = ec_did("_ivar", 2);
 
+    return EC_succeed;
+
+}
+
+// C++ level initialisation of space handle
+extern "C" VisAtt 
+int p_g_init_space_handle_c()
+{
     GecodeSpace** solverp = new GecodeSpace*;
 
     *solverp = NULL;
@@ -1105,10 +1124,10 @@ int p_g_add_newvars_dom_handle()
     return EC_succeed;
 }
 
-#define Return_ExprListArg(e, solver, EXPR) {	\
+#define Return_ExprListArg(e, minsize, solver, EXPR) {	\
      EC_word varr = EC_argument(e,1); \
      int size = varr.arity(); \
-     if (size > 0) { \
+     if (size >= minsize) { \
 	 IntVarArgs vars(size); \
 	 if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) \
 	     != EC_succeed) \
@@ -1135,13 +1154,13 @@ ec2intexpr(EC_word e, GecodeSpace* solver)
 	    switch (f.arity()) {
 	    case 1: {
 		if (f.d == d_sum1) {
-		    Return_ExprListArg(e, solver, sum(vars));
+		    Return_ExprListArg(e, 0, solver, sum(vars));
 
 		} else if (f.d == d_max1) {
-		    Return_ExprListArg(e, solver, max(vars));
+		    Return_ExprListArg(e, 1, solver, max(vars));
 
 		} else if (f.d == d_min1) {
-		    Return_ExprListArg(e, solver, min(vars));
+		    Return_ExprListArg(e, 1, solver, min(vars));
 
 
 		} else {
@@ -1159,14 +1178,13 @@ ec2intexpr(EC_word e, GecodeSpace* solver)
 		  EC_word carr = EC_argument(e,1);
 		  EC_word varr = EC_argument(e,2);
 		  int size = varr.arity();
-		  if (size > 0) {
-		    IntVarArgs vars(size);
-		    if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) != EC_succeed)
+
+		  IntVarArgs vars(size);
+		  if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) != EC_succeed)
 		      throw Ec2gcException();
-		    IntArgs cs(size);
-		    if (assign_IntArgs_from_ec_array(size, carr, cs) == EC_succeed)
+		  IntArgs cs(size);
+		  if (assign_IntArgs_from_ec_array(size, carr, cs) == EC_succeed)
 		      return sum(cs, vars);
-		  }
 		} else {
 		    arg2 = ec2intexpr(EC_argument(e, 2), solver);
 		    if (f.d != d_element2) {
@@ -1184,11 +1202,9 @@ ec2intexpr(EC_word e, GecodeSpace* solver)
 			// element(<Vars>, <Expr>)
 			EC_word varr = EC_argument(e,2);
 			int size = varr.arity();
-			if (size > 0) {
-			    IntVarArgs vars(size);
-			    if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) == EC_succeed)
-				return element(vars, arg2);
-			}
+			IntVarArgs vars(size);
+			if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) == EC_succeed)
+			    return element(vars, arg2);
 		    }
 		}
 		break;
@@ -4446,9 +4462,14 @@ int p_g_setup_search()
 {
     GecodeSpace** solverp;
     GecodeSpace* solver;
+    EC_functor f;
+    EC_word w;
 
 
-    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+    if (EC_arg(1).functor(&f) != EC_succeed) return TYPE_ERROR;
+    if (strcmp(f.name(), "gfd_space") != 0) return TYPE_ERROR;
+    EC_arg(1).arg(SPACE_HANDLE_POS, w);
+    if (w.is_handle(&gfd_method, (void**)&solverp) != EC_succeed) 
 	return TYPE_ERROR;
     solver = *solverp;
     if (solver == NULL) return TYPE_ERROR;
@@ -4634,6 +4655,9 @@ int p_g_setup_search()
 	    branch(*solver, vars, tiebreak(varselect, tiebreakselect), valchoice,
 		   VarBranchOptions::time(), ValBranchOptions::time());
 	}
+	// trail undo here for space because the branch() have modified the
+	// space, which thus becomes invalid on backtracking
+	ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, ec_arg(1).val.ptr+SPACE_STAMP_POS, NULL, 0, TRAILED_WORD32);
 
 	Search::Options o;
 
@@ -4672,7 +4696,10 @@ int p_g_do_search()
     if (w.is_handle(&gfd_method, (void**)&solverp) != EC_succeed) 
 	return TYPE_ERROR;
     solver = *solverp;
-    if (solver != NULL) delete solver;  
+    if (solver != NULL) {
+	delete solver; // previous solution  
+	solver = NULL;
+    }
 
     GecodeSpace** presearchp;
     GecodeSpace* presearch;
@@ -4750,9 +4777,10 @@ int p_g_do_search()
 
 	if (*solverp != NULL) {// there is a solution
 	    solver = *solverp;
-	    // unlike normal creation of a cloned space, here it is not done immediately
-	    // before an event, so just trail the undo function unconditionally
-	    ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, NULL, NULL, 0, TRAILED_WORD32);
+	    // no need to trail the undo function here, as solverp would be
+	    // deleted either in a new call to this procedure for the next
+	    // solution, or by _free_space_handle() for the last solution
+	    //ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, NULL, NULL, 0, TRAILED_WORD32);
 
 	    int snapshotsize = presearch->dom_snapshot.size();
 	    int dsize;

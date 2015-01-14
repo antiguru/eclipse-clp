@@ -319,6 +319,9 @@ else
 	    elif test $ARCH = ppc_macosx -a $guess=ppc64_macosx; then
 		# assume we are building 32 bit on 64 bit Mac OS X
 		ARCH=$ARCH
+	    elif test $ARCH = i386_linux -a $guess=x86_64_linux; then
+		# assume we are building 32 bit on 64 bit (x86) Linux
+		ARCH=$ARCH
 	    else
 	        # An end user's $ARCH may have an unrelated setting - ignore it
 		echo WARNING: Ignoring your ARCH environment variable

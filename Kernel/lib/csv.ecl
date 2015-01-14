@@ -54,7 +54,7 @@
 
 :- comment(summary, "Utilities to manipulate comma-separated (csv) format").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2011/04/09 23:49:07 $").
+:- comment(date, "$Date: 2015/01/14 01:31:08 $").
 :- comment(copyright, "2010 by author").
 :- comment(categories, ["Interfacing"]).
 
@@ -229,7 +229,6 @@ comma_to_list(A, [AN]) :-
 :- module(csv_syntax).
 
 :- local initialization((
-        local(chtab(16'A, terminator)),
         (
             % make dummy underline and atom_quote characters, because
             % ECLiPSe doesn't allow them to be undefined.
@@ -245,8 +244,9 @@ comma_to_list(A, [AN]) :-
         local(syntax_option(doubled_quote_is_quote))
     )).
 
-char_table(16'A, terminator) :- !.
+char_table(0'\n, terminator) :- !.
+char_table(0'\r, blank_space) :- !.	% ignored
 char_table(0',, special) :- !.
 char_table(0'", string_quote) :- !.
-char_table(_Other, lower_case).
+char_table(_Other, lower_case).		% treat everything else like a letter
 

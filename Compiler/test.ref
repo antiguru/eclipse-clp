@@ -7117,18 +7117,20 @@ p(20000000000000000000) :-
 	p_big2.
 
 INDEXES for (nondet) disjunction [2]
-1. Quality 1.5
+1. Quality 1.0
     [] - []
-    [bignum] - [3, 4, 5, 6]
+    [bignum] - [5, 6]
     [integer] - []
+    [integer, 20000000000] - [4]
+    [integer, 10000000000] - [3]
     [integer, 1] - [1]
     [integer, 2] - [2]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
-    Branch 3: try
-    Branch 4: retry
-    Branch 5: retry
+    Branch 3: det
+    Branch 4: det
+    Branch 5: try
     Branch 6: trust
 p / 1:
 label(L0):
@@ -7163,13 +7165,13 @@ label(L4):
 label(L5):
 	retry_me_else            0     ref(L7) 
 label(L6):
-	in_get_constant          a(1)     10000000000 
+	in_get_integer           a(1)     10000000000 
 	jmp                      p_medium1 / 0 
 	branch                   ref(L13) 
 label(L7):
 	retry_me_else            0     ref(L9) 
 label(L8):
-	in_get_constant          a(1)     20000000000 
+	in_get_integer           a(1)     20000000000 
 	jmp                      p_medium2 / 0 
 	branch                   ref(L13) 
 label(L9):
@@ -7186,12 +7188,12 @@ label(L12):
 label(L13):
 	ret                  
 label(L14):
-	try                      0     1     ref(L6) 
-	retry                    0     ref(L8) 
-	retry                    0     ref(L10) 
+	try                      0     1     ref(L10) 
 	trust                    0     ref(L12) 
 label(L15):
 	integer_switch           a(1) 
+		20000000000: 	ref(L8)
+		10000000000: 	ref(L6)
 		1: 	ref(L2)
 		2: 	ref(L4)
 		default: 	ref(fail)
@@ -13811,6 +13813,54 @@ label(L7):
 	chain                    (else) / 0 
 label(L8):
 	ret                  
+
+------ Test bugzilla(727) -------
+p1 :-
+	A = f(B),
+	t,
+	writeln(B).
+p2 :-
+	A = f(B),
+	writeln(B).
+
+p1 / 0:
+label(L0):
+	allocate                 1 
+	put_global_variable      y(1) 
+	callf                    t / 0     Y[1] 
+	put_module               a(2)     eclipse 
+	move_chain               y(1)     a(1)     sepia_kernel : writeln_body / 2 
+p2 / 0:
+label(L0):
+	put_variable             a(1) 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : writeln_body / 2 
+
+------ Test bugzilla(774) -------
+p1 :-
+	(
+	    A = A
+	;
+	    true
+	),
+	writeln(A).
+
+p1 / 0:
+label(L0):
+	try_me_else              0     0     ref(L2) 
+label(L1):
+	allocate                 1 
+	put_global_variable      y(1) 
+	branch                   ref(L4) 
+label(L2):
+	trust_me                 0 
+label(L3):
+	allocate                 1 
+	gc_test                  1 
+	put_global_variable      y(1) 
+label(L4):
+	put_module               a(2)     eclipse 
+	move_chain               y(1)     a(1)     sepia_kernel : writeln_body / 2 
 
 ------ Test at1 -------
 at1 :-

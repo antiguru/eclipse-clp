@@ -808,12 +808,16 @@ a different choice of selection options, but likely to be less
 efficient than select_var/5.
 
 \item[\biptxtrefni{gfd:try_value(?Var, ++Method)}{try_value/2!gfd}{../bips/lib/gfd/try_value-2.html}]
-This value choice predicate makes a binary choice on the domain of a variable,
+This value choice predicate supports both Gecode-style binary choice and 
+generic search's multi-way choice on the domain of a variable,
 according to Method.
-It creates two search alternatives, which reduce the variable domain
+The binary-choice methods create two search alternatives, which reduce the variable domain
 in complementary ways.  Because the variable is not necessarily instantiated,
 this must be combined with a variable selection method that does not delete
 the selected variable, such as select_var/5.
+
+The multi-way choice methods make repeated choices on one variable as 
+gfd_search's indomain/2.
 
 \item[\biptxtrefni{gfd:indomain(?Var)}{indomain/1!gfd}{../bips/lib/gfd/indomain-1.html}]
 Instantiate Var to elements in its domain, using a default method.
@@ -826,9 +830,7 @@ This is the generic implementation,
 and likely to be less efficient than try_value/5.
 \end{description}
 
-To mimic Gecode's built-in search (where a variable selection step is usually
-interleaved with a binary choice on the variable domain), select_var/5 and
-try_value/2 can be used in the following way:
+A simple search using GFD's primitives can be defined in the following way: 
 \begin{quote}
 \begin{verbatim}
 labeling(Vars, Select, Choice) :-
@@ -840,6 +842,18 @@ labeling(Vars, Select, Choice) :-
         ).
 \end{verbatim}
 \end{quote}
+For binary choice methods of try_value/2, the search will 
+mimic Gecode's built-in search (where a variable selection step is usually
+interleaved with a binary choice on the variable domain).
+
+For multi-way choice methods of try_value/2,  
+(possibly several) value choices on a variable are made until the
+variable is ground, before proceeding to select the next variable: On
+backtracking to the try_value/2, alternative values for the variable
+will be tried. This mimics the behaviour of gfd_search's indomain/2,
+but try_value/2 is likely to be more efficient as it is specifically
+tailored for GFD.
+
 The same effect can be achieved by using select_var/5 and try_value/2
 together with the generic
 \biptxtrefni{gfd_search:search/6}{search/6!gfd_search}{../bips/lib/gfd_search/search-6.html}
@@ -848,15 +862,6 @@ predicate:
 \begin{verbatim}
 gfd_search:search(Vars, 0,
         select_var(Select), try_value(Choice), complete, [])
-\end{verbatim}
-\end{quote}
-Combining select_var/5 with indomain/2 results in a scheme where
-(possibly several) value choices on a variable are made until the
-variable is ground, before proceeding to select the next variable:
-\begin{quote}
-\begin{verbatim}
-gfd_search:search(Vars, 0,
-        select_var(Select), indomain(Choice), complete, [])
 \end{verbatim}
 \end{quote}
 For even more complex user-defined heuristics, various properties associated
@@ -1078,7 +1083,7 @@ so that the user does not need to be aware of it.
 
 GFD will create clones of the Gecode state periodically, and when the
 current Gecode computation state becomes invalid through {\eclipse} backtracking,
-GFD will recomputing the new state from the closest cloned state. 
+GFD will recompute the new state from the closest cloned state. 
 The frequency at which GFD create clones can be adjusted by the user --
 the more frequently clones are created, the more memory will be used, but
 the cost of recomputation will be less. Cloning itself will take time,

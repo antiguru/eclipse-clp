@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.53 2014/07/11 02:30:18 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.54 2015/01/14 01:31:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -748,8 +748,11 @@ halt :-
 	exit(0).
 
 exit(N) :-
+	check_integer_ge(N, 0), !,
 	cleanup_before_exit(N),			% may abort
 	exit0(N).
+exit(N) :-
+	bip_error(exit(N)).
 
 % This one is called when ec_cleanup() is used from C
 cleanup_before_exit :-
@@ -823,6 +826,10 @@ process_command_line_startup(["-L",Arg|Args], I) :- !,
 	process_command_line_startup(Args, I).
 process_command_line_startup(["-t",Arg|Args], I) :- !,
         atom_string(TM, Arg),
+	( is_a_module(TM) -> true ;
+	    getval(default_language, Language),
+	    create_module(TM, [], Language)
+	),
 	default_module(TM),	% set
 	MI is -I, argv(MI,2),	% delete the 2 arguments
 	process_command_line_startup(Args, I).
@@ -1752,12 +1759,13 @@ use_module_body([H|T], Module) :-
 	use_module_body(T, Module).
 use_module_body([], _) :- -?-> !.
 use_module_body(File, Module) :-
-	get_module_name(File, FileMod),
+	get_module_name(File, FileMod, IsModuleName),
 	( load_module_if_needed(File, FileMod, Module) ->
 	    true
 	;
-	    % backward compatibility: if such a module exists,
-	    % use it even though there is no such file
+	    % backward compatibility: if only a module name was specified,
+	    % and such a module exists, use it even if there is no such file
+	    IsModuleName == true,
 	    is_a_module(FileMod),
 	    (ignore_bip_error(171) -> true ; ignore_bip_error(173))
 	),
@@ -1795,20 +1803,21 @@ load_module_if_needed(_, _, _) :-
 
 % Extract the module name from a File/Library specification
 
-get_module_name(File, _) :-
+get_module_name(File, _, _) :-
 	var(File),
 	!,
 	set_bip_error(4).
-get_module_name(File, Module) :-
+get_module_name(File, Module, IsModName) :-
 	(string(File); atom(File)),
 	!,
-	pathname(File, _Path, ModuleS, _Suffix),
-	atom_string(Module, ModuleS).
-get_module_name(library(File), Module) :-
+	pathname(File, Path, ModuleS, Suffix),
+	atom_string(Module, ModuleS),
+	( Path="", Suffix="", atom(File) -> IsModName=true ; IsModName=false ).
+get_module_name(library(File), Module, IsModName) :-
 	-?->
 	!,
-	get_module_name(File, Module).
-get_module_name(_, _) :-
+	get_module_name(File, Module, IsModName).
+get_module_name(_, _, _) :-
 	set_bip_error(5).
 
 
@@ -2527,6 +2536,7 @@ stack_overflow_message(error(IsoError,ImpDefTerm)) :-
 	    print_syntax_error(Description, ImpDefTerm)
 	;
 	    iso_print_error(IsoError, String, Params),
+	    %%%TODO use output mode settings
 	    printf(error, String, Params),
 	    printf(error, " in %w%n%b", [ImpDefTerm])
 	).
@@ -2534,7 +2544,6 @@ stack_overflow_message(error(IsoError,ImpDefTerm)) :-
 iso_print_error(instantiation_error, "instantiation fault", []).
 iso_print_error(uninstantiation_error(Actual), "variable expected, found %w", [Actual]).
 iso_print_error(type_error(Expected,Actual), "type error: expected %w, found %w", [Expected,Actual]).
-iso_print_error(domain_error(Expected,Actual), "domain error: expected %w, found %w", [Expected,Actual]).
 iso_print_error(domain_error(Expected,Actual), "domain error: expected %w, found %w", [Expected,Actual]).
 iso_print_error(existence_error(ObjectType, Culprit), "%w does not exist: %w", [ObjectType, Culprit]).
 iso_print_error(permission_error(Operation, PermissionType, Culprit), "permission error during %w of %w: %w", [Operation,PermissionType,Culprit]).
@@ -3900,7 +3909,6 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	define_macro/3,
 	(delay)/1,
 	(demon)/1,
-	dim/2,
 	discontiguous/1,
 	display/1,
 	e/1,
@@ -6132,50 +6140,6 @@ t_subscript(subscript(Mat, IndexList, Res), Code) :-
 	trans_expr(E, R, Code0, Code).
 
 
-%
-% dim(+Matrix, -Dimensions)
-% dim(-Matrix, +Dimensions)
-%
-
-dim(M, D) :-
-	var(M),
-	make_dim(M, D).
-dim(M, D) :-
-	nonvar(M),
-	get_dim(M, D).
-
-    make_dim(M, D) :- var(D), !,
-	error(4, dim(M,D)).
-    make_dim(M, [D|Ds]) :- !,
-	functor(M, [], D),
-	make_rows(M, Ds, D).
-    make_dim(M, D) :-
-	error(5, dim(M,D)).
-
-    make_rows(M, Ds, D) :- var(Ds), !,
-	error(4, dim(M,[D|Ds])).
-    make_rows(_, [], _) :- !.
-    make_rows(M, Ds, D) :-
-	make_rows1(M, Ds, D).
-
-    make_rows1(_M, _Ds, 0) :- !.
-    make_rows1(M, Ds, D) :-
-	arg(D, M, Row),
-	make_dim(Row, Ds),
-	-(D, 1, D1),
-	make_rows1(M, Ds, D1).
-
-    get_dim(M, []) :- var(M) ; atomic(M).
-    get_dim(M, Ds) :- compound(M),
-	( functor(M, [], D) ->
-	    Ds=[D|Ds0],
-	    arg(1, M, Row),
-	    get_dim(Row, Ds0)
-	;
-	    Ds = []
-	).
-
-
 flatten_array(Array, List) :-
 	var(Array),
 	!,
@@ -6281,8 +6245,8 @@ t_bips(setarg(Path,T,X), Goal, _) :- -?->		% setarg/3
 :- export (do)/2.
 :- export (do)/3.
 :- export t_do/5.
-:- export extract_next_array_element/4.
-:- export extract_next_array_element/8.
+:- export foreachelem_next/7.
+:- export foreachelem_next/8.
 :- export multifor_next/7.
 :- export multifor_init/8.
 :- tool((do)/2, (do)/3).
@@ -6487,33 +6451,36 @@ get_spec(foreacharg(A,Struct,I),
 	[A,I|Locals], Locals,
 	_Name, _Module
     ) :- !.
-get_spec(foreachelem(A,Array),
-	[[Array]|Firsts], Firsts,
-	[[]|Lasts], Lasts,
-	Pregoals, Pregoals,
-	[[A0|Rest0]|RecHeads], RecHeads,
-	(sepia_kernel:extract_next_array_element(A0,Rest0,A,Rest1),Goals), Goals,
-	[Rest1|RecCalls], RecCalls,
-	[A|Locals], Locals,
+get_spec(foreachelem(Elem,Array),
+	[1,Array,[]|Firsts], Firsts,
+	[_,[],_|Lasts], Lasts,
+	(is_array(Array),Pregoals), Pregoals,
+	[I,Arr,Stack|RecHeads], RecHeads,
+	(sepia_kernel:foreachelem_next(I,Arr,Stack,I1,Arr1,Stack1,Elem),Goals), Goals,
+	[I1,Arr1,Stack1|RecCalls], RecCalls,
+	[Elem|Locals], Locals,
 	_Name, _Module
     ) :- !.
-get_spec(foreachelem(A,Array,I),
-	[[Array],[[]]|Firsts], Firsts,
-	[[],[]|Lasts], Lasts,
-	Pregoals, Pregoals,
-	[[A0|ARest0],[RI0|RIRest0]|RecHeads], RecHeads,
-	(sepia_kernel:extract_next_array_element(A0,RI0,ARest0,RIRest0,A,I,ARest1,RIRest1),Goals), Goals,
-	[ARest1,RIRest1|RecCalls], RecCalls,
-	[A,I|Locals], Locals,
+get_spec(foreachelem(Elem,Array,Idx),
+	[1,Array,[]|Firsts], Firsts,
+	[_,[],_|Lasts], Lasts,
+	(is_array(Array),Pregoals), Pregoals,
+	[I,Arr,Stack|RecHeads], RecHeads,
+	(sepia_kernel:foreachelem_next(I,Arr,Stack,I1,Arr1,Stack1,Elem,Idx),Goals), Goals,
+	[I1,Arr1,Stack1|RecCalls], RecCalls,
+	[Elem,Idx|Locals], Locals,
 	_Name, _Module
     ) :- !.
-get_spec(foreachindex(I,Array),
-	Firsts, Firsts0, Lasts, Lasts0, Pregoals, Pregoals0,
-	RecHead, RecHead0, AuxGoals, AuxGoals0, RecCall, RecCall0, Locals, Locals0, Name, Module
-    ) :- !,
-	Pregoals = (dim(Array,Dims), Pregoals1),
-	get_spec(multifor(I,1,Dims), Firsts, Firsts0, Lasts, Lasts0, Pregoals1, Pregoals0,
-	    RecHead, RecHead0, AuxGoals, AuxGoals0, RecCall, RecCall0, Locals, Locals0, Name, Module).
+get_spec(foreachindex(Idx,Array),
+	[1,Array,[]|Firsts], Firsts,
+	[_,[],_|Lasts], Lasts,
+	(is_array(Array),Pregoals), Pregoals,
+	[I,Arr,Stack|RecHeads], RecHeads,
+	(sepia_kernel:foreachelem_next(I,Arr,Stack,I1,Arr1,Stack1,_,Idx),Goals), Goals,
+	[I1,Arr1,Stack1|RecCalls], RecCalls,
+	[Idx|Locals], Locals,
+	_Name, _Module
+    ) :- !.
 get_spec(fromto(From,I0,I1,To),		% accumulator pair needed
 	[From,To|Firsts], Firsts,
 	[L0,L0|Lasts], Lasts,
@@ -6897,82 +6864,82 @@ compute_stop(From, To, Step, Stop) :-
 
 
 %
-% For the foreachelem specifiers, the iteration is controlled by having a
-% stack of the pieces of the array that are yet to be processed.  The stack
-% starts with a single entry consisting of the entire array, and iteration
-% is done when the stack becomes empty.	 Each time the next element is
-% required, the top item on the stack is popped and examined.  If it looks
-% like a (sub)array (i.e. it's a structure with functor []) then the
-% structure is expanded into a list of its arguments, these are pushed on
-% the stack, and the process is repeated.  When the popped item is not a
-% (sub)array, then it is the element to be used in the current iteration of
-% the loop.
+% For the foreachelem specifiers, the iteration is controlled by three
+% arguments:  The currently considered sub-array and its current index,
+% and a stack of the pieces of the surrounding arrays (that are yet to
+% be processed) in reverse order (i.e. outermost at the bottom).
 %
 % This scheme returns the elements in the correct order and gracefully
 % handles "arrays" with "unorthodox" shape (e.g. different rows containing
 % different numbers of columns, different parts of the "array" having
 % different numbers of dimensions, etc.).
 %
-% If the user wants access to the index of the element as well as the
-% element itself then this is handled by having a second stack of identical
-% structure to the first, containing the indices of the corresponding
-% elements/(sub)arrays.	 Note that we store each index in reverse so that
-% extending it to the next dimension is easy.
+% The term [] is treated as an ordinary array element when encountered
+% inside the arrays (consistent with dim/2), since empty dimensions are 
+% pretty useless in multi-dimensional arrays.  Only a top-level [] is
+% treated as the empty array.
 %
 
-    % extract_next_array_element(Array, Tail, Elem, Stack)
-    %	Extracts the next element (Elem) from Array, pushing the appropriate
-    %	array fragments on to the stack Tail, to form the new stack Stack.
-extract_next_array_element(Array, Tail, Elem, Stack) :-
-	( nonvar(Array), functor(Array, [], N), N > 0 ->
-	    Array =.. [_, Arg | Args],
-	    append(Args, Tail, NewTail),
-	    extract_next_array_element(Arg, NewTail, Elem, Stack)
+% foreachelem_next(+I,+SubArr,+Stack, -I1,-SubArr,-Stack1, -Elem[,-Index])
+% I and Arr refer to the current sub-array being traversed.
+% ArrsIs is a stack of "continuations", i.e. array+index to go to
+% once the current sub-array is exhausted.
+
+foreachelem_next(I, Arr, Stack, I1, Arr1, Stack1, Elem) :-
+	arg(I, Arr, ArrOrElem),
+	( compound(ArrOrElem), functor(ArrOrElem, [], _) ->
+	    % nested array
+	    ( arity(Arr, I) ->
+		foreachelem_next(1, ArrOrElem, Stack, I1, Arr1, Stack1, Elem)
+	    ;
+		I2 is I+1,
+		foreachelem_next(1, ArrOrElem, [[I2|Arr]|Stack], I1, Arr1, Stack1, Elem)
+	    )
 	;
-	    Elem = Array,
-	    Stack = Tail
+	    ( arity(Arr, I) ->
+		( Stack = [[I1|Arr1]|Stack1]	% pop, one level up
+		; Stack == [], Arr1 = []	% very last element
+		)
+	    ;
+		I1 is I+1, Arr1 = Arr, Stack1 = Stack
+	    ),
+	    Elem = ArrOrElem
 	).
 
-    % extract_next_array_element(Array, RevIdx, ArrayTail, RevIdxTail, Elem, Idx, ArrayStack, RevIdxStack)
-    %	Extracts the next element (Elem) from Array, pushing the appropriate
-    %	array fragments on to the stack ArrayTail, to form the new stack
-    %	ArrayStack.  Also returns the index (Idx) of this element in the
-    %	original array, given that RevIdx is the (reversed) index of Array,
-    %	and pushes onto the stack RevIdxTail the (reversed) indices of the
-    %	pushed array fragments, to form the new stack RevIdxStack.
-extract_next_array_element(Array, RevIdx, ArrayTail, RevIdxTail, Elem, Idx,
-		    ArrayStack, RevIdxStack) :-
-	( nonvar(Array), functor(Array, [], N), N > 0 ->
-	    Array =.. [_ | Args],
-	    % Damn, no do loops available.  :)
-	    prepend_args_with_idx(Args, 1, RevIdx,
-		    [Arg | NewArrayTail], [NewRevIdx | NewRevIdxTail],
-		    ArrayTail, RevIdxTail),
-	    extract_next_array_element(Arg, NewRevIdx, NewArrayTail,
-		    NewRevIdxTail, Elem, Idx, ArrayStack, RevIdxStack)
+% This variant returns the element index as well
+% It doesn't do TRO on the stack in order to be able to construct the index.
+foreachelem_next(I, Arr, Stack, I1, Arr1, Stack1, Elem, Index) :-
+	arg(I, Arr, ArrOrElem),
+	( compound(ArrOrElem), functor(ArrOrElem, [], _) ->	% nested array
+	    I2 is I+1,
+	    foreachelem_next(1, ArrOrElem, [[I2|Arr]|Stack], I1, Arr1, Stack1, Elem, Index)
 	;
-	    Elem = Array,
-	    reverse(RevIdx, Idx),
-	    ArrayStack = ArrayTail,
-	    RevIdxStack = RevIdxTail
+	    ( arity(Arr, I) ->			% last in this leaf array
+		pop(Stack, Stack1, I1, Arr1)
+	    ;
+		I1 is I+1, Arr1 = Arr, Stack1 = Stack
+	    ),
+	    Elem = ArrOrElem,
+	    this_index(Stack, Index, [I])
 	).
 
-    % prepend_args_with_idx(Args, I, RevIdx, ArrayTail, RevIdxTail, ArrayStack, RevIdxStack)
-    %	Prepends the list Args to the stack ArrayTail to give the new stack
-    %	ArrayStack, and prepends a corresponding list of (reversed) indices
-    %	to RevIdxTail to give RevIdxStack.  RevIdx is the common prefix of
-    %	the indices of the items in Args, with I being the integer that
-    %	needs to be appended to this to give the index of the first element
-    %	of Args.
-prepend_args_with_idx([], _, _, ArrayStack, RevIdxStack,
-		ArrayStack, RevIdxStack).
-prepend_args_with_idx([Arg | Args], I, RevIdx,
-		[Arg | ArrayTail], [[I | RevIdx] | RevIdxTail],
-		ArrayStack, RevIdxStack) :-
-	I1 is I + 1,
-	prepend_args_with_idx(Args, I1, RevIdx, ArrayTail, RevIdxTail,
-		ArrayStack, RevIdxStack).
+    pop([], [], _, []).
+    pop([[I0|Arr0]|Stack1], Stack, I, Arr) :-
+    	( I0 > arity(Arr0) ->
+	    pop(Stack1, Stack, I, Arr)
+	;
+	    I=I0, Arr=Arr0, Stack=Stack1
+	).
 
+    this_index([], Index, Index).
+    this_index([[NextI|_]|Stack], Is, Is0) :-
+	I is NextI-1,
+	this_index(Stack, Is, [I|Is0]).
+
+
+% 
+% Auxiliaries for the multifor-specifier
+% 
 
 multifor_init(N, From, To, Step, RevFrom, RevTo, RevStep, RevStop) :-
 	( validate_multifor_args(N, From, To, Step, From1, To1, Step1) ->

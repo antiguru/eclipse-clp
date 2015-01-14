@@ -27,8 +27,8 @@ This document outlines the steps which should be followed when merging
 changes from the current patch branch of the ECLiPSe repository to the main
 branch.  It can be adapted appropriately for other scenarios.
 
-In the examples below, we assume the current patch branch is "patches_5_2".
-If this is not the case, substitute all such occurrences appropriately.
+In the examples below, we assume the current patch branch is "patches_X_Y",
+where X.Y is the ECLiPSe version number of your branch.  Substitute as needed.
 
 
 Before you begin
@@ -42,7 +42,7 @@ Before you begin
 - Find a checked-out copy of the repository which you're not using (if you
   have one).  Check that there aren't any stray changes which haven't been
   committed (e.g. with a "cvs diff").  If you don't have a "spare" one,
-  check out a new one, e.g. "cvs co -d EclipseMerge -r patches_5_2 Eclipse".
+  check out a new one, e.g. "cvs co -d EclipseMerge -r patches_X_Y Eclipse".
 
 - Find a checked-out copy of the tests which you're not using (if you have
   one).  Check that there aren't any stray changes which haven't been
@@ -61,7 +61,7 @@ This is done by making sure an appropriate tag is attached to the relevant
 versions of all files.
 
 - Update the checked-out copy of the repository to the head of the patch
-  branch, e.g. "cvs update -d -r patches_5_2".  Note that the "-d" is
+  branch, e.g. "cvs update -d -r patches_X_Y".  Note that the "-d" is
   important to make sure you pick up any new directories.
 
 - Update the checked-out copy of the tests in the same way.
@@ -97,16 +97,22 @@ Doing the merge
 
 - Do the merge.  Note that the merge can produce a lot of output, and you're
   likely to want to refer to it, so make sure you redirect it to a file.
+
   The options to use depend upon whether this is the first merge from the
-  branch or not.  If it is, use this form:
+  branch or not.   If it is, use this form (this will merge from the
+  common ancestor of main and patch branch upto the just created merge tag):
 
   	cvs update -kk -j merge_2001_07_24 > merge.log 2>&1
 
-  If not, use this form:
+  If this is not the first merge from the branch, then there should be a
+  tag named 'last_merge_patches_X_Y' (for version X.Y), from which we want
+  to start merging.  Use this form:
 
-  	cvs update -kk -j merge_2001_05_29 -j merge_2001_07_24 > merge.log 2>&1
+  	cvs update -kk -j last_merge_patches_X_Y -j merge_2001_07_24 > merge.log 2>&1
 
-  where "merge_2001_05_29" is the tag from the previous merge.
+  where "last_merge_patches_X_Y" is the tag from the previous merge.  If
+  there is no last_merge_xxx tag, there is hopefully a merge_<date> one
+  that you can find and use instead.
 
   The "-kk" option prevents CVS from expanding its "Id", "Date", etc.
   strings (dollar signs omitted in this file to stop them being substituted
@@ -225,4 +231,20 @@ should be tested on.  :)
 
 - Commit the changes to the repository, mentioning in the log message the
   tag(s) used in the merge.
+
+- Finally, move the 'last_merge_patches_X_Y' tag, so the person doing the
+  next merge knows where to start from.  To move the tag, first delete it:
+
+  	cvs rtag -a -d last_merge_patches_X_Y Eclipse
+
+  [ CAUTION: if you are only merging a part of the system, then only
+    remove the last_merge_patches_X_Y tags on the files you are changing:
+  	cvs rtag -a -r merge_2001_07_24 -d last_merge_patches_X_Y Eclipse
+  ]
+
+  Now re-add it to all those revisions that you have already tagged with
+  today's merge tag:
+
+  	cvs rtag -r merge_2001_07_24 last_merge_patches_X_Y Eclipse
+
 

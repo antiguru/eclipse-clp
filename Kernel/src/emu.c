@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.31 2013/04/29 01:02:10 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.32 2015/01/14 01:31:09 jschimpf Exp $
  */
 
 /*
@@ -1540,19 +1540,19 @@ _nbip_err_goal_:	/* (err_code, proc,scratch_pw) */
 	    Exception(pw1)->ld = LD;
 	    Exception(pw1)->eb = EB;
 	    Exception(pw1)->gb = GB;
+#define STRICT_EXCEPTION
+#ifdef STRICT_EXCEPTION
+	    Exception(pw1)->mu = MU;
+	    MU = (pword *) 0;
+	    Exception(pw1)->wp = WP;
+	    Set_WP(1);		/* depends on old value of GB! */
+#endif
 	    EB = SP;
 	    GB = TG;
 	    Push_Witness
 	    Check_Gc;
 	    Exception(pw1)->flags = emu_flags;
 	    Exception(pw1)->de = DE;
-#define STRICT_EXCEPTION
-#ifdef STRICT_EXCEPTION
-	    Exception(pw1)->mu = MU;
-	    MU = (pword *) 0;
-	    Exception(pw1)->wp = WP;
-	    Set_WP(1);
-#endif
 	    Save_Tg_Soft_Lim(Exception(pw1)->tg_soft_lim);
 	    pw1 = (pword *) (Exception(pw1) + 1);
 	    pw2 = &A[1];	/* save arguments	*/

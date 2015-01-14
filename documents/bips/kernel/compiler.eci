@@ -1541,7 +1541,7 @@ Error:
     summary:"Compile specified file, or list of files, with given options",
     index: [debug,expand_goals,opt_level,warnings],
     args:["Source":"Source file name (atom or string) or structure stream(Stream)",
-    	"Options":"List of compiler options"],
+    	"Options":"List of compiler options (name:value pairs)"],
     amode:compile(++,++),
     desc:html("
    Compiles the specified ECLiPSE source file or list of source files,
@@ -1581,6 +1581,9 @@ Error:
    side effect that all calls to cd/1 in queries in the compiled file are
    ignored.
 <P>
+
+<h3>Option Syntax</h3>
+    Options is a possibly empty list of OptionName:OptionValue pairs.
 
 <h3>Code Generation Options</h3>
 <DL>
@@ -1672,6 +1675,7 @@ Error:
 <DT>warnings:</DT><DD>
     Controls (on/off) whether warnings are printed during compilation.
     Default: on.
+    The setting can be changed via a pragma (warnings/nowarnings) in the code.
 </DD>
 </DL>
 <h3>Expert Options</h3>
@@ -1700,6 +1704,7 @@ Error:
     predicates have their 'skip' flag set by default.  This means that
     subgoals of these predicates will be hidden in the debugger trace,
     unless the flag is reset at runtime.
+    The setting can be changed via a pragma (skip/noskip) in the code.
 </DD>
 <DT>srcroot:</DT><DD>
     This is used to make the compilation result (e.g. .eco files) independent
@@ -1711,7 +1716,7 @@ Error:
 <DT>system:</DT><DD>
     This option (off/on, default:off) causes all compiled predicates to
     have their type-flag set to 'built_in'.  This is used for compiling
-    system files.
+    system files.  Same effect as a system-pragma in the code.
 </DD>
 </DL>
 
@@ -1760,6 +1765,11 @@ Error:
 	    ],
 
 	eg:"
+    ?- compile(myfile, [debug:off]).
+
+    ?- compile(\"MyFile.ecl\", [output:eco]).
+
+    ?- compile(\"MyFile\", [verbose:1,opt_level:0]).
 ",
     see_also:[compile/1,compile_stream/1,compile_term/1,compile_term/2,
     	ensure_loaded/1,lib/1,use_module/1,pragma/1,

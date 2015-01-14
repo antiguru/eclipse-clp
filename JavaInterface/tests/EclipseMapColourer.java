@@ -174,7 +174,7 @@ public class EclipseMapColourer extends JFrame
     aboutMenuItem.addActionListener(new ActionListener() {
         public void actionPerformed(ActionEvent evt) {
           JOptionPane.showMessageDialog(null, "JAVA ECLiPSe Map Colouring " +
-                                        "Demo\nCopyright: Cisco Systems Inc, 2002,\n" +
+                                        "Demo\nCopyright: Cisco Systems Inc, 2002\n",
                                         "About ECLiPSe Map Colourer...", 
                                         JOptionPane.PLAIN_MESSAGE, 
                                         new ImageIcon("ic-parc.gif")); 
@@ -491,7 +491,7 @@ public class EclipseMapColourer extends JFrame
     // and waits for completion of the 'colouring' predicate. This must 
     // be done in a new thread otherwise the Java AWT event handling thread
     // will be used and whilst ECLiPSe has control. As a result the user won't 
-    // be able to perform any interraction and the map will not be updated with 
+    // be able to perform any interaction and the map will not be updated with 
     // colours in real-time.
     (colouringThread = new Thread() {
         public void run() {

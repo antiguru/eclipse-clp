@@ -322,11 +322,11 @@
                                       " search routine, numbering the variables",
                   args:["Handle":"a handle to an opaque data structure"
                                  " for the viualization",
-                        "Group":"an integer, the group identifier",
                         "L":"a list of variables to be assigned",
+                        "Group":"an integer, the group identifier",
                         "Terms":"a variable, will be unified to a list"
                                 " of terms"],
-                  amode:number_variables(+,++,+,-),
+                  amode:number_variables(+,+,+,-),
                   desc:html("This predicate is used to number the"
                             " variables before the search, so that the"
                             " visualizer knows at each step which variable is"

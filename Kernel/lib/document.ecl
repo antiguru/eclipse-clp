@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.11 2013/05/29 23:34:07 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.12 2015/01/14 01:31:08 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2013/05/29 23:34:07 $").
+:- comment(date, "$Date: 2015/01/14 01:31:08 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -467,7 +467,8 @@ eci_to_index(EciFile, Group, IndexList, IndexList0, Kinds, Kinds0) :-
 	;
 	    IndexList=IndexList0,
             Kinds=Kinds0,
-	    printf(error, "Error while processing %w for index%n", [EciFile])
+	    printf(error, "Error while processing %w for index%n", [EciFile]),
+	    abort
 	),
 	close(EciStream).
 
@@ -522,7 +523,7 @@ eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0,
                             true
                         ; 
                             printf(error, "Invalid kind entry: %w for %w/%d in lib(%w).%n", [Kind,N,A,LibName]),
-                            Kinds1 = Kinds2
+			    fail
                         )
                     ;
                         Kinds1 = Kinds2
@@ -571,7 +572,7 @@ eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0,
 	    IL = [bip(N,A,G,M,P)|IL1]
 	;
 	    printf(error, "Invalid index entry: %w%n", [Word]),
-	    IL = IL1
+	    fail
 	),
 	add_index_entries(Words,G,L,P,IL1,IL0).
 
@@ -587,10 +588,10 @@ eci_stream_to_index(EciStream, Group, LibName, IndexList, IndexList0,
         ),
         KindFact = kind{kind:Kind, lib:L,n:N,a:A},
         (fill_kind_fields(Info, Kind, L, KindFact)  ->
-            Ks = [KindFact|Ks0]
+            Ks = [KindFact|Ks1]
         ;
             printf(error, "Invalid kind entry: %w for %w/%d in lib(%w):%n", [Kind,N,A,L]),
-            Ks = Ks1
+	    fail
         ),
 	add_kind_entries(KIs, N, A, L, Ks1, Ks0).
 
@@ -671,17 +672,19 @@ eci_to_html(EciFile0, HtmlTopDir, Header, lib(LibName,LibSumm,LibTitle,Categorie
 	( eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherComments, OtherExports, ReExports, Header) ->
 	    close(EciStream),
 	    ( gen_library_page_html(HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherComments, OtherExports, ReExports, Header, EciFile) -> true
-	    ; printf(error, "Error in generating toplevel html page for %w%n", [LibTitle]) ),
+	    ; printf(error, "Error in generating toplevel html page for %w%n", [LibTitle]), abort ),
 	    ( memberchk(comment(categories,Categories), OtherComments) -> true
 	    ; Categories=[] ),
 	    ( memberchk(comment(summary,LibSumm), OtherComments) -> true
 	    ; LibSumm="No description available" )
 	;
 	    close(EciStream),
-	    printf(error, "Error while processing %w%n", [FullEciFile])
+	    printf(error, "Error while processing %w%n", [FullEciFile]),
+	    abort
 	).
 eci_to_html(EciFile0, _, _, _) :-
-	printf(error, "File not found: %w%n", [EciFile0]).
+	printf(error, "File not found: %w%n", [EciFile0]),
+	abort.
 
 gen_library_page_html(HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherComments, OtherExports, ReExports, Header, EciFile) :-
 	concat_string([HtmlDir,/,"index.html"], IndexFile),
@@ -888,8 +891,8 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 			gen_html_file(Header, HtmlDir, LibTitle2, LibName, Page, HtmlFile),
 			gen_ascii_file(HtmlDir, LibTitle2, LibName, Page)
 		    ;
-			LibPreds1 = LibPreds0,
-			printf(error, "Error in analysing predicate comment for %w%n", [N/A])
+			printf(error, "Error in analysing predicate comment for %w%n", [N/A]),
+			fail
 		    )
 		)
 
@@ -907,8 +910,8 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 		    gen_html_file(Header, HtmlDir, LibTitle2, LibName, Page, HtmlFile),
 		    gen_ascii_file(HtmlDir, LibTitle2, LibName, Page)
 		;
-		    LibStructs1 = LibStructs0,
-		    printf(error, "Error in analysing structure comment %w%n", [struct(Name)])
+		    printf(error, "Error in analysing structure comment %w%n", [struct(Name)]),
+		    fail
 		)
 
 	    ;  Directive = (:- comment(What,Comm)) ->
@@ -923,7 +926,7 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 		    Other1 = [comment(What,Comm)|Other0]
 		;
 		    printf(error, "Error in comment syntax, ignoring: %w%n", [comment(What,Comm)]),
-		    Other1 = Other0
+		    fail
 		)
 
 	    ;  Directive = (:- export Something) ->
@@ -955,6 +958,7 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 		Hidden1 = Hidden0,
 		Tools1 = Tools0,
 		Other1 = Other0
+
 	    ;  (Directive = (:- tool(Tool)) ; Directive = (:- tool(Tool,_))) ->
 		Exports1 = Exports0,
 		ReExports1 = ReExports0,
@@ -964,6 +968,10 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 		Hidden1 = Hidden0,
 		Tools1 = [Tool|Tools0],
 		Other1 = Other0
+
+	    ;  Directive = (:- Comment), functor(Comment, comment, Arity) ->
+		printf(error, "Ill-formed comment directive (%d arguments):%n%w%n", [Arity,Comment]),
+		fail
 	    ;
 		Exports1 = Exports0,
 		ReExports1 = ReExports0,
@@ -1714,7 +1722,8 @@ gen_html_file(Header, HtmlDir, LibTitle, LibName, Page, HtmlFile) :-
 	( gen_html_body(S, LibName, Page) ->
 	    true
 	;
-	    printf(error, "Error in generating html page for %w%n", [LibName:Spec])
+	    printf(error, "Error in generating html page for %w%n", [LibName:Spec]),
+	    fail
 	),
 	printf(S, "</BODY></HTML>%n", []),
 	close(S).
@@ -2053,7 +2062,8 @@ gen_ascii_file(HtmlDir, LibTitle, LibName, Page) :-
 	( gen_ascii(TxtStream, LibTitle, LibName, Page) ->
 	    true
 	;
-	    printf(error, "Error in generating txt page for %w%n", [Spec])
+	    printf(error, "Error in generating txt page for %w%n", [Spec]),
+	    fail
 	),
 	close(TxtStream).
 

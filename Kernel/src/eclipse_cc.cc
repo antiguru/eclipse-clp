@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eclipse_cc.cc,v 1.3 2010/09/24 20:08:53 kish_shen Exp $
+ * $Id: eclipse_cc.cc,v 1.4 2015/01/14 01:31:09 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	eclipse_cc.cc
@@ -164,6 +164,11 @@ class EC_word
 	    w = ec_long(l);
 	}
 
+    	EC_word(const long long l)
+	{
+	    w = ec_long_long(l);
+	}
+
     	EC_word(const int i)
 	{
 	    w = ec_long((long)i);
@@ -233,6 +238,12 @@ class EC_word
 	is_long(long * l)
 	{
 		return ec_get_long(w,l);
+	}
+	
+	int
+	is_long_long(long long * l)
+	{
+		return ec_get_long_long(w,l);
 	}
 	
 	int

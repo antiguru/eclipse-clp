@@ -23,20 +23,22 @@
 % @(#)umsporting.tex	1.1 94/10/07
 %
 
-\chapter{Language Dialects and Porting Prolog Applications}
+\chapter{Language Dialects, ISO Prolog and Porting Prolog Applications}
 %HEVEA\cutdef[1]{section}
 \label{chapporting}
 
 The {\eclipse} system has evolved from the Edinburgh family of
 Prolog systems, and thus shares many properties with other systems
-in the same tradition.  In addition, the ISO Prolog Standard from 1995
-has also influenced {\eclipse}.
-By design, and due to conceptual, practical and historical
-reasons, the default programming language dialect used with {\eclipse}
-(known as \notationidx{eclipse_language}) differs from all of those,
-and represents a separate, unique dialect.
+in the same tradition.  It also supports the
+\index{ISO Prolog}
+ISO Prolog Standard from 1995 and its 2005 and 2012 corrigenda.
 
-To run an application from another Prolog system to {\eclipse},
+However, the default programming language dialect used with {\eclipse}
+(known as \notationidx{eclipse_language}) is a separate and unique dialect,
+which is the result of design decisions taken for conceptual, practical
+and occasionally historical reasons.
+
+To run an application written in another Prolog dialect on {\eclipse},
 one has basically two choices:
 Using a compatibility package, or modifying the program.
 
@@ -48,7 +50,7 @@ The dialects are implemented as libraries.
 The module system makes it possible for different application
 modules to use different language dialects.
 
-To use a particular language dialect, start the program with a
+To use a particular language dialect, prefix your program with a
 \bipref{module/3}{../bips/kernel/modules/module-3.html}
 directive that specifies the desired language dialect, for example
 \begin{verbatim}
@@ -60,15 +62,20 @@ It is not advisable to use \verb.:-lib(iso). or \verb.:-ensure_loaded(library(is
 within an eclipse_language module, because this would lead to import
 conflicts between the different versions of built-in predicates.
 
-Examples of language dialects are
+Examples of supported language dialects are
 \begin{itemize}
 \item ISO Standard Prolog
-    (\bipref{iso}{../bips/libs/iso/index.html},
-    \bipref{iso_strict}{../bips/libs/iso_strict/index.html})
-\item C-Prolog (\bipref{cprolog}{../bips/libs/cprolog/index.html})
-\item Quintus Prolog (\bipref{quintus}{../bips/libs/quintus/index.html})
-\item SICStus Prolog (\bipref{sicstus}{../bips/libs/sicstus/index.html})
-\item SWI Prolog (\bipref{swi}{../bips/libs/swi/index.html})
+    (\bipref{iso_strict}{../bips/lib/iso_strict/index.html},
+    \bipref{iso}{../bips/lib/iso/index.html} and
+    \bipref{iso_light}{../bips/lib/iso_light/index.html}).
+\item C-Prolog (\bipref{cprolog}{../bips/lib/cprolog/index.html}), one
+    of the oldest and most influential Prolog implementations.
+\item Quintus Prolog (\bipref{quintus}{../bips/lib/quintus/index.html}),
+    an early influential commercial system.
+\item SICStus Prolog (\bipref{sicstus}{../bips/lib/sicstus/index.html}),
+    an academic and commercial system based on Quintus.
+\item SWI Prolog (\bipref{swi}{../bips/lib/swi/index.html}),
+    a popular Prolog with large user base. 
 \end{itemize}
 See the Reference Manual for details on the compatibility provided by the
 language dialects.
@@ -83,8 +90,40 @@ other systems, as long as their syntax does not deviate too much
 from the Edinburgh tradition.
 
 For quick experiments with a language dialect, {\eclipse} can be started
-with a different \notationidx{default_language} option,
-see section \ref{cmdlineopts}.
+with a different \notationidx{default_language} option
+(see section \ref{cmdlineopts}), e.g.
+\begin{verbatim}
+    % eclipse -L <dialect>
+\end{verbatim}
+This will give you a toplevel prompt in the given language dialect.
+The same effect can be achieved by setting the ECLIPSEDEFAULTLANGUAGE
+\index{ECLIPSEDEFAULTLANGUAGE}
+environment variable to the name of the chosen dialect.
+
+
+\subsection{ISO Prolog}
+\index{ISO Prolog}
+The ISO Prolog standard \cite{isoprolog95} is supported in three variants:
+\begin{itemize}
+\item The \bipref{iso_strict}{../bips/lib/iso_strict/index.html} dialect
+    provides an implementation of ISO Standard Prolog and complies
+    strictly with ISO/IEC 13211-1 (Information Technology, Programming
+    Languages, Prolog, Part 1, General Core, 1995) and the technical
+    corrigenda ISO/IEC 13211-1 TC1 (2007) and TC2 (2012).
+\item The \bipref{iso}{../bips/lib/iso/index.html} dialect provides
+    a blend of ISO and ECLiPSe functionality.  All ISO features
+    are available, plus such ECLiPSe features that do not significantly
+    conflict with ISO.  As some of these extensions go beyond what the
+    letter of the standard allows, and because error checking may be
+    less strict than required by ISO, this is not a fully compliant mode.
+\item The \bipref{iso_light}{../bips/lib/iso_light/index.html} dialect
+    is the same as 'iso', with the exception of error handling.
+    This is sufficient for code that does not rely on a particular
+    form of error terms being thrown by built-in predicates.
+\end{itemize}
+The specification of implementation-defined features stipulated
+by the standard can be found in the reference manual for
+\bipref{iso_strict}{../bips/lib/iso_strict/index.html}.
 
 
 \subsection{Compiler versus interpreter}

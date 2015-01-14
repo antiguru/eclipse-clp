@@ -6,7 +6,7 @@
 # The contents of this file are subject to the Cisco-style Mozilla Public
 # License Version 1.1 (the "License"); you may not use this file except
 # in compliance with the License.  You may obtain a copy of the License
-# at www.eclipse-clp.org/license.
+# at www.eclipseclp.org/license.
 # 
 # Software distributed under the License is distributed on an "AS IS"
 # basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.  See
@@ -392,7 +392,7 @@ Version: $ECLIPSE_VERSION
 Release: $BUILD_NUMBER
 License: Cisco Systems, Inc 
 Group: Development/Languages
-Source: http://www.eclipse-clp.org
+Source: http://eclipseclp.org
 BuildRoot: $BUILD_ROOT
 Prefix: /usr/lib
 
@@ -614,7 +614,7 @@ SetDateSave on
 !insertmacro MUI_PAGE_INSTFILES
 
 !define MUI_FINISHPAGE_LINK \"Visit the ECLiPSe site for the latest news, FAQs and support\"
-!define MUI_FINISHPAGE_LINK_LOCATION \"http://www.eclipse-clp.org\"
+!define MUI_FINISHPAGE_LINK_LOCATION \"http://eclipseclp.org\"
 !define MUI_FINISHPAGE_SHOWREADME \"\$8\\README_WIN.TXT\"
 !define MUI_FINISHPAGE_NOREBOOTSUPPORT
 !insertmacro MUI_PAGE_FINISH
@@ -673,7 +673,7 @@ Section \"Desktop Shortcut\" SecShortcuts
   CreateDirectory \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\"
   CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\Readme.lnk\" \"\$8\\README_WIN.TXT\"
 
-  WriteINIStr \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\ECLiPSe Homepage.url\" \"InternetShortcut\" \"URL\" \"http://www.eclipse-clp.org\"
+  WriteINIStr \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\ECLiPSe Homepage.url\" \"InternetShortcut\" \"URL\" \"http://eclipseclp.org\"
   CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\Uninstall ECLiPSe \${VER_MAJOR}.lnk\" \"\$8\\uninst-eclipse.exe\"
 
   SectionGetFlags \${SecDoc} \$R0

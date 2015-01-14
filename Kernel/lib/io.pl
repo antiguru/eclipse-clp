@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.17 2014/07/11 02:30:18 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.18 2015/01/14 01:31:08 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1032,7 +1032,7 @@ non_interruptable(Goal) :-
 
 remote_connect(Address, Control, Init, Mod) :-
 	remote_connect_setup(Address, Control, Soc), !,
-	printf(log_output, "Socket created at address %w%n", [Address]),
+	printf(log_output, "Socket created at address %w%n%b", [Address]),
         remote_connect_accept(Control, Soc, block, Init, "", _, Mod). 
 remote_connect(Address, Control, Init, _Mod) :-
 	error(5, remote_connect(Address, Control, Init)).
@@ -1066,6 +1066,7 @@ not_existing_peer_name(Name) :-
 
 
 remote_connect_accept(Control, Soc, TimeOut, Init, Pass, Res, Mod) :-
+	check_nonvar(Pass),
 	erase(remote_control_host, Control-Host), 
 	get_rpcstream_names(Control, Rpc),
 	timed_accept(Soc, TimeOut, RemoteHost, Control),

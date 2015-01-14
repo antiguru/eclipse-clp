@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: embsumc.tex,v 1.2 2007/02/23 15:28:31 jschimpf Exp $
+% $Id: embsumc.tex,v 1.3 2015/01/14 01:31:09 jschimpf Exp $
 %
 
 \chapter{Summary of C Interface Functions}
@@ -50,6 +50,9 @@ ec_refs.
 
 \item[pword		ec_long(const long)]\ \\
 	converts a C long to an {\eclipse} integer.
+
+\item[pword		ec_long_long(const long long)]\ \\
+	converts a C long long to an {\eclipse} integer.
 
 \item[pword		ec_double(const double)]\ \\
 	converts a C double to an {\eclipse} float.
@@ -133,8 +136,14 @@ Other unexpected types yield a TYPE_ERROR. Special cases are explained below.
 	return its dictionary identifier.
 
 \item[int		ec_get_long(const pword,long*)]\ \\
-	checks whether the {\eclipse} pword is a word-sized integer,
-	and if so, returns it as a C long.
+	checks whether the {\eclipse} pword is an integer that fits into
+	a C long, and if so, stores it via the pointer provided.
+	Otherwise, the return code is RANGE_ERROR.
+
+\item[int		ec_get_long_long(const pword,long long*)]\ \\
+	checks whether the {\eclipse} pword is an integer that fits into
+	a C long long, and if so, stores it via the pointer provided.
+	Otherwise, the return code is RANGE_ERROR.
 
 \item[int		ec_get_double(const pword,double*)]\ \\
 	checks whether the {\eclipse} pword is a floating point number,

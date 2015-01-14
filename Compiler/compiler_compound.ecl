@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_compound.ecl,v 1.12 2008/09/11 01:17:29 jschimpf Exp $
+% Version:	$Id: compiler_compound.ecl,v 1.13 2015/01/14 01:31:08 jschimpf Exp $
 %
 % This code is based on the paper
 %
@@ -197,26 +197,45 @@ in_head1(I, Term, ChunkData, ChunkData, Code, Code0) :-
     % -RCode+	read mode sequence
     % +Dir	'inout' or 'in' (for matching)
 
-unify_args(Compound, ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode5, RCode, RCode5, Dir) :-
-	( Compound = [H|T] ->
-	    unify_next_arg(H, simple, Prev4, Tmp, ChunkData0, ChunkData1, Reg1, Reg4, WCode, WCode4, RCode1, RCode4, Dir),
-	    unify_last_arg(T, Prev4, Tmp, ChunkData1, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, [], Dir)
-	; Compound = structure{args:Args} ->
-	    (
-		fromto(Args, [Arg|Args1], Args1, [ArgN]),
-		fromto(simple, Prev2, Prev3, Prev4),
-		fromto(ChunkData0,ChunkData1,ChunkData2,ChunkData3),
-		fromto(WCode, WCode2, WCode3, WCode4),
-		fromto(RCode1, RCode2, RCode3, RCode4),
-		fromto(Reg1, Reg2, Reg3, Reg4),
-		param(Tmp,Dir)
-	    do
-		unify_next_arg(Arg, Prev2, Prev3, Tmp, ChunkData1, ChunkData2, Reg2, Reg3, WCode2, WCode3, RCode2, RCode3, Dir)
-	    ),
-	    unify_last_arg(ArgN, Prev4, Tmp, ChunkData3, ChunkData, Reg4, Reg5, WCode4, WCode5, RCode4, [], Dir)
+unify_args(Compound, ChunkData0, ChunkData, Reg1, Reg5, WCode, WCode5, RCode, RCode6, Dir) :-
+	( Compound = structure{args:Args} -> true
+	; Compound = [H|T] -> Args = [H,T]
+	; verify false
 	),
-	remove_trailing_read_voids(RCode1, RCode, RCode5, Empty, Empty).
+	(
+	    fromto(Args, [Arg|Args1], Args1, [ArgN]),
+	    fromto(simple, Prev2, Prev3, Prev4),
+	    fromto(ChunkData0,ChunkData1,ChunkData2,ChunkData3),
+	    fromto(WCode, WCode2, WCode3, WCode4),
+	    fromto(RCode, RCode2, RCode3, RCode4),
+	    fromto(RV0, RVH2, RVH3, RVH4),	% Difflist of trailing read_var* instructions
+	    fromto(RV0, RVT2, RVT3, RVT4),	%   (appended/cleaned up lazily)
+	    fromto(Reg1, Reg2, Reg3, Reg4),
+	    param(Tmp,Dir)
+	do
+	    connect_readvar_code(Arg, RCode2, RCode3, RVH2, RVH3, RVT2, RVT3, NewH, NewT),
+	    unify_next_arg(Arg, Prev2, Prev3, Tmp, ChunkData1, ChunkData2, Reg2, Reg3, WCode2, WCode3, NewH, NewT, Dir)
+	),
+	connect_readvar_code(ArgN, RCode4, RCode5, RVH4, RVH5, RVT4, [], LastH, LastT),
+	unify_last_arg(ArgN, Prev4, Tmp, ChunkData3, ChunkData, Reg4, Reg5, WCode4, WCode5, LastH, LastT, Dir),
+	remove_trailing_read_voids(RVH5, RCode5, RCode6, Empty, Empty).
 
+
+    % We initially put read_var-style instructions into a separate RVH-RVT list.
+    % Gets appended unchanged to RCode when a non-read_var follows.
+    % Gets cleaned up (trailing read_void removed) and appened at the very end.
+    % This optimization would be fragile with peephole.
+    connect_readvar_code(variable{}, RCode2, RCode3, RVH2, RVH3, RVT2, RVT3, NewH, NewT) ?- !,
+	RCode2 = RCode3,	% new code not committed yet
+	RVH2 = RVH3,		% start of read_var sequence stays the same
+	NewH = RVT2,		% new code goes into read_var sequence first
+	NewT = RVT3.
+    connect_readvar_code(_, RCode2, RCode3, RVH2, RVH3, RVT2, RVT3, NewH, NewT) :-
+	RCode2 = RVH2,		% delayed append of read_var sequence
+	NewH = RVT2,		% new code will be directly appended
+	NewT = RCode3,
+	RVH3 = RVT3.		% new empty read_var sequence
+    	
     remove_trailing_read_voids([], Out, Out, _RVs, _RVs0).
     remove_trailing_read_voids([H|T], Out, Out0, RVs, RVs0) :-
     	( H = code{instr:read_void} ->

@@ -1237,6 +1237,12 @@ bind Hierarchy <B1-Leave> {
 }
 bind Hierarchy <B1-Enter>	{ tkCancelRepeat }
 
+# Mouse wheel scrolling on X11
+bind Hierarchy <Button-4>	{ %W yview scroll -1 units }
+bind Hierarchy <Button-5>	{ %W yview scroll  1 units }
+# Mouse wheel scrolling on Windows (doesn't work...)
+bind Hierarchy <MouseWheel>	{ %W yview scroll [expr {-%D/120}] units }
+
 ## Should reserve L/R U/D for traversing nodes
 bind Hierarchy <Up>		{ %W yview scroll -1 units }
 bind Hierarchy <Down>		{ %W yview scroll  1 units }

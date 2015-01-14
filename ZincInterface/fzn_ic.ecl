@@ -33,7 +33,7 @@
 :- comment(summary, "Mapping from FlatZinc to lib(ic) and lib(ic_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2012/10/24 16:54:56 $").
+:- comment(date, "$Date: 2015/01/14 01:31:09 $").
 :- comment(see_also, [library(flatzinc),
 	library(ic),library(ic_sets),library(ic_global),
 	library(propia),library(branch_and_bound)]).
@@ -131,7 +131,7 @@ float_declare_array(Xs, Min, Max) :- Xs $:: Min..Max.
 set_declare_array(Xs, Min, Max) :-
 	( foreacharg(X,Xs), param(Min,Max) do intset(X, Min, Max) ).
 set_declare_array(Xs, Elems) :-
-	( foreach(X,Xs), param(Elems) do X :: Elems ).
+	( foreacharg(X,Xs), param(Elems) do X :: Elems ).
 
 
 % Comparisons -----------------------------------------------

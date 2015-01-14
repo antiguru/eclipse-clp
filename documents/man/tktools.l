@@ -1,4 +1,4 @@
-.\"	$Id: tktools.l,v 1.1 2006/09/23 01:49:35 snovello Exp $
+.\"	$Id: tktools.l,v 1.2 2015/01/14 01:31:10 jschimpf Exp $
 .\" BEGIN LICENSE BLOCK
 .\" Version: CMPL 1.1
 .\"
@@ -54,7 +54,15 @@ domain name of the machine where the eclipse process is running.
 
 
 .SH OPTIONS
-None.
+Instead of entering the host/port information through the graphical user
+interface, it can be supplied via the following command line options:
+.TP 13
+.B \-h host
+The name of the host on which the target ECLiPSe instance is running.
+.TP
+.B \-p port
+The port number to use to connect to the target ECLiPSe instance.
+
 
 .SH SEE ALSO
 .sp

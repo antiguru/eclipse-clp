@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_error.ecl,v 1.5 2013/02/26 02:17:45 jschimpf Exp $
+% Version:	$Id: iso_error.ecl,v 1.6 2015/01/14 01:31:08 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_error.ecl
 %
@@ -174,8 +174,12 @@ is_of_type(X, callable) :- !, callable(X).
 is_of_type(X, byte) :- !, 0=<X, X=<255.
 is_of_type(X, character) :- !, char(X).
 is_of_type(X, character_code) :- !,
-	( char_code(X) -> true
-	; throw(error(representation_error(character_code),_))
+	( integer(X) ->
+	    ( char_code(X) -> true
+	    ; throw(error(representation_error(character_code),_))
+	    )
+	;
+	    throw(error(type_error(integer,X),_))
 	).
 is_of_type(X, in_byte) :- !, -1=<X, X=<255.
 is_of_type(X, in_character) :- !, once (char(X);X==end_of_file).
@@ -185,6 +189,16 @@ is_of_type(Xs, character_list) :- !,
 	    ( foreach(X,Xs) do
 	    	( char(X) -> true
 		; throw(error(type_error(character,X),_)))
+	    )
+	;
+	    throw(error(type_error(list,Xs),_))
+	).
+is_of_type(Xs, character_code_list) ?- !,
+	( is_list(Xs) ->
+	    ( foreach(X,Xs) do
+		( char_code(X) -> true
+		; throw(error(representation_error(character_code),_))
+		)
 	    )
 	;
 	    throw(error(type_error(list,Xs),_))
@@ -199,7 +213,6 @@ is_of_type(C, clause) :- !,
 	;
 	    true
 	).
-is_of_type(X, close_options) :- !, close_options(X).
 %is_of_type(_DUBIOUS, flag) :- !.
 is_of_type(X, head) :- !, callable(X).
 is_of_type(Xs, atom_or_atom_list) :- !,
@@ -270,14 +283,7 @@ domain_check(Culprit, Exception) :-
 
 
 % domains -- can assume the type is checked already
-:- mode is_of_type(+,++).
-
-is_of_domain(X, character_code_list) ?- char_code_list(X), !.
-
-is_of_domain(X, character_code) :- !,
-	( char_code(X) -> true
-	; throw(error(representation_error(character_code),_))
-	).
+:- mode is_of_domain(+,++).
 
 is_of_domain(Xs, close_options) ?-
 	( foreach(X,Xs) do
@@ -314,13 +320,20 @@ is_of_domain(_/N, predicate_indicator) ?- !,
 
 %is_of_domain(X, prolog_flag) ?- !. % done in domain_check/2
 
+is_of_domain(Xs, read_options_list) ?- !,
+	( foreach(X,Xs) do 
+	    ( is_of_domain(X, read_option) -> true
+	    ; throw(error(domain_error(read_option,X),_))
+	    )
+	).
+
 is_of_domain(variables(_), read_option) ?- !.
 is_of_domain(variable_names(_), read_option) ?- !.
 is_of_domain(singletons(_), read_option) ?- !.
 
 is_of_domain(X, source_sink) ?- source_sink(X), !.
 
-is_of_domain(X, stream) ?- is_handle(X), !, current_stream(X).
+is_of_domain(X, stream) ?- is_handle(X), !.
 
 is_of_domain(type(text), stream_option) ?- !.
 is_of_domain(type(binary), stream_option) ?- !.
@@ -331,7 +344,7 @@ is_of_domain(eof_action(eof_code), stream_option) ?- !.
 is_of_domain(eof_action(reset), stream_option) ?- !.
 is_of_domain(eof_action(reset), stream_option) ?- !.
 
-is_of_domain(X, stream_or_alias) ?- atom(X), !, current_stream(X).
+is_of_domain(X, stream_or_alias) ?- atom(X), !.
 is_of_domain(X, stream_or_alias) ?- integer(X), !.
 is_of_domain(X, stream_or_alias) ?-
 	is_handle(X).	% should test for stream-handle
@@ -346,6 +359,13 @@ is_of_domain(input, stream_property) ?- !.
 is_of_domain(output, stream_property) ?- !.
 is_of_domain(position(P), stream_property) ?- is_of_domain(P, stream_position), !.
 
+is_of_domain(Xs, write_options_list) ?- !,
+	( foreach(X,Xs) do 
+	    ( is_of_domain(X, write_option) -> true
+	    ; throw(error(domain_error(write_option,X),_))
+	    )
+	).
+
 is_of_domain(quoted(B), write_option) ?- bool(B), !.
 is_of_domain(ignore_ops(B), write_option) ?- bool(B), !.
 is_of_domain(numbervars(B), write_option) ?- bool(B), !.
@@ -356,23 +376,11 @@ is_of_domain(_, any).
 bool(true) ?- true.
 bool(false) ?- true.
 
-atom_list([]) ?- true.
-atom_list([X|Xs]) ?- atom(X), atom_list(Xs).
-
 char(X) :- atom(X), atom_length(X, 1).
-
-char_list([]) ?- true.
-char_list([X|Xs]) ?- char(X), char_list(Xs).
 
 char_code(X) :- integer(X), 0=<X, X=<255.	% 2147483647.
 
-char_code_list([]) ?- true.
-char_code_list([X|Xs]) ?- char_code(X), char_code_list(Xs).
-
 close_option(force(B)) ?- bool(B).
-
-close_options([]) ?- true.
-close_options([X|Xs]) ?- close_option(X), close_options(Xs).
 
 source_sink(X) ?- atom(X).
 source_sink(X) ?- string(X).
@@ -682,7 +690,8 @@ type(write_canonical(nonvar,term)).
 type(write_canonical(term)).
 type(op(integer,atom,atom_or_atom_list)).
 %type(current_op(term,term,atom)).	% literally required by 8.14.4.3
-type(current_op(term,atom,atom)).	% according to Szeredi test
+type(current_op(term,atom,atom)).	% according to Szeredi test (and sensible)
+type(char_code(character,character_code)).
 type(char_conversion(character,character)).
 type(current_char_conversion(character,character)).
 type(\+(callable)).
@@ -690,7 +699,7 @@ type(once(callable)).
 type(atom_length(atom,integer)).
 type(atom_concat(atom,atom,atom)).
 type(sub_atom(atom,integer,integer,integer,atom)).
-type(atom_chars(atom,character_code_list)).
+type(atom_chars(atom,character_list)).
 type(atom_codes(atom,character_code_list)).
 type(char_code(character,integer)).
 type(number_chars(number,character_list)).
@@ -734,7 +743,6 @@ domain(functor(any,any,not_less_than_zero)).
 domain(arg(not_less_than_zero,any,any)).
 domain(current_op(operator_priority,operator_specifier,any)).
 domain(op(operator_priority,operator_specifier,any)).
-domain(char_code(character,character_code)).
 domain(current_prolog_flag(prolog_flag,any)).
 domain(set_prolog_flag(prolog_flag,any)).
 domain(current_input(stream)).
@@ -770,11 +778,11 @@ domain(write_canonical(stream_or_alias,any)).
 domain(write_canonical(any)).
 
 % cases where the error is raised in a different ECLiPSe builtin
-domain(readvar(stream_or_alias,any,any,atom)).
+domain(readvar(stream_or_alias,any,any,any)).
 domain(substring(any,not_less_than_zero,not_less_than_zero,not_less_than_zero,any)).	% for sub_atom/5
 domain(flush(stream_or_alias)).
 domain(at_eof(stream_or_alias)).
-domain(get_stream_info(stream_or_alias,atom,any)).
+domain(get_stream_info(stream_or_alias,any,any)).
 
 
 %----------------------------------------------------------------------

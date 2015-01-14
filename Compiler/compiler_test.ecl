@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.24 2013/02/09 20:27:57 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.25 2015/01/14 01:31:08 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1448,6 +1448,11 @@ testclause(bugzilla(727), [
     	(p1 :- _=f(X), t, writeln(X)),
     	(p2 :- _=f(X), writeln(X))
      ]).
+
+testclause(bugzilla(774), [
+	(p1 :- ( X=X ; true), writeln(X))
+     ]).
+
 
 
 %----------------------------------------------------------------------

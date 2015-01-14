@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.7 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.8 2015/01/14 01:31:09 jschimpf Exp $
  */
 
 /*
@@ -61,6 +61,7 @@
 static int	p_atom_string(value va, type ta, value vs, type ts),  
 		p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type tflat),
 		p_is_array(value varr, type tarr),
+		p_dim(value va, type ta, value vdim, type tdim),
 		p_array_list(value varr, type tarr, value vl, type tl),
 		p_array_concat(value v1, type t1, value v2, type t2, value v, type t),
 		p_char_code(value v1, type t1, value v2, type t2), 
@@ -109,6 +110,7 @@ bip_tconv_init(int flags)
 	(void) built_in(in_dict("array_list", 2), p_array_list, B_UNSAFE|U_UNIFY|PROC_DEMON);
 	(void) built_in(in_dict("array_concat", 3), p_array_concat, B_UNSAFE|U_UNIFY|PROC_DEMON);
 	(void) built_in(in_dict("is_array", 1), p_is_array, B_SAFE);
+	(void) built_in(in_dict("dim", 2), p_dim, B_UNSAFE|U_UNIFY);
 	built_in(in_dict("number_string_",3), p_number_string, B_UNSAFE|U_GROUND)
 		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
 
@@ -637,7 +639,7 @@ p_char_code(value v1, type t1, value v2, type t2)
  * of List from either Term or List.
  *
  * NOTE: The structure arguments are simply copied to the list elements
- * and vice versa. We assume that this it is always possible to copy
+ * and vice versa. We assume that it is always possible to copy
  * a pword from the global stack to the global stack if it occurs inside
  * a compound term (ie no nonstandard variables/mutable objects inside)
  */
@@ -646,9 +648,9 @@ p_char_code(value v1, type t1, value v2, type t2)
 static int
 p_univ(value tv, type tt, value lv, type lt)
 {
-word     arity, i;
-pword   *tail, *head, *newel, *tvptr, *elem;
-dident  fd;
+	word     arity, i;
+	pword   *tail, *head, *newel, *tvptr, *elem;
+	dident  fd;
 
         tvptr = tv.ptr;
 
@@ -1046,10 +1048,11 @@ p_setarg(value vn, type tn, value vt, type tt, value va, type ta)
 }
 #endif
 
-uword
-ec_term_hash(value vterm,
+static uword
+_term_hash(value vterm,
 	type tterm,
 	uword maxdepth,			/* > 0 */
+	uword hash,
 	int *pres)
 {
     uword h;
@@ -1057,66 +1060,84 @@ ec_term_hash(value vterm,
     dident d;
     pword *arg_i;
 
-    switch(TagType(tterm))
+    for(;;)	/* tail recursion loop */
     {
-    case TVAR_TAG:
-    case TNAME:
-    case TMETA:
-    case TUNIV:
-	*pres = INSTANTIATION_FAULT;
-	return 0;
-
-    case TINT:
-	return vterm.nint;
-
-    case TDBL:
-#ifdef UNBOXED_DOUBLES
-	Hashl((char*) &vterm.all, h, SIZEOF_DOUBLE);
-#else
-	Hashl(StringStart(vterm), h, SIZEOF_DOUBLE);
-#endif
-	return h;
-
-    case TSTRG:
-	Hashl(StringStart(vterm), h, StringLength(vterm));
-	return h;
-
-    case TDICT:
-	Hashl(DidName(vterm.did), h, DidLength(vterm.did));
-	return h;
-
-    case TCOMP:
-	d = (vterm.ptr++)->val.did;
-	Hashl(DidName(d), h, DidLength(d));
-	arity = DidArity(d);
-	break;
-
-    case TLIST:
-	h = 0;
-	arity = 2;
-	break;
-
-    default:
-	if (ISPointer(tterm.kernel) && IsTag(vterm.ptr->tag.kernel, TBUFFER))
+	switch(TagType(tterm))
 	{
-	    Hashl(StringStart(vterm), h, StringLength(vterm)+1);
-	    return h;
+	case TVAR_TAG:
+	case TNAME:
+	case TMETA:
+	case TUNIV:
+	    *pres = INSTANTIATION_FAULT;
+	    return hash;
+
+	case TINT:
+	    return hash+vterm.nint;
+
+	case TDBL:
+#ifdef UNBOXED_DOUBLES
+	    Hashl((char*) &vterm.all, h, SIZEOF_DOUBLE);
+#else
+	    Hashl(StringStart(vterm), h, SIZEOF_DOUBLE);
+#endif
+	    return hash+h;
+
+	case TSTRG:
+	    Hashl(StringStart(vterm), h, StringLength(vterm));
+	    return hash+h;
+
+	case TDICT:
+	    Hashl(DidName(vterm.did), h, DidLength(vterm.did));
+	    return hash+h;
+
+	case TCOMP:
+	    d = (vterm.ptr++)->val.did;
+	    Hashl(DidName(d), h, DidLength(d));
+	    arity = DidArity(d);
+	    break;
+
+	case TLIST:
+	    h = 0;
+	    arity = 2;
+	    break;
+
+	default:
+	    if (ISPointer(tterm.kernel) && IsTag(vterm.ptr->tag.kernel, TBUFFER))
+	    {
+		Hashl(StringStart(vterm), h, StringLength(vterm)+1);
+		return hash+h;
+	    }
+	    return hash;
 	}
-	return 0;
-    }
 
-    if (--maxdepth == 0)
-    	return h;
+	if (--maxdepth == 0)
+	    return hash+h;
 
-    for(;arity > 0; arity--)
-    {
-	pword *pvar;
-	arg_i = vterm.ptr++;
+	for(;arity > 1; arity--)
+	{
+	    pword *pvar;
+	    arg_i = vterm.ptr++;
+	    Dereference_(arg_i);
+	    h = _term_hash(arg_i->val, arg_i->tag, maxdepth, h+(h<<3), pres);
+	}
+	/* last argument */
+	arg_i = vterm.ptr;
 	Dereference_(arg_i);
-	h += (h<<3) + ec_term_hash(arg_i->val, arg_i->tag, maxdepth, pres);
+	vterm = arg_i->val;		/* tail recursion optimised */
+	tterm = arg_i->tag;
+	hash += h + (h<<3);
     }
-    return h;
 }
+
+uword
+ec_term_hash(value vterm,
+	type tterm,
+	uword maxdepth,			/* > 0 */
+	int *pres)
+{
+    return _term_hash(vterm, tterm, maxdepth, 0, pres);
+}
+
 
 static int
 p_term_hash(value vterm, type tterm, value vdepth, type tdepth, value vrange, type trange, value vhash, type thash)
@@ -1171,6 +1192,117 @@ p_is_array(value v, type t)
 }
 
 
+/*
+ * Auxiliary for dim(-Array, +Dimensions)
+ * returns PFAIL if the dimensions contain a zero
+ * dims is a TLIST.ptr
+ */
+
+static int
+_make_dim(pword *dims, pword *result)
+{
+    int res;
+    word arity, i;
+    pword *pw = TG;
+
+    pword *elem = dims++;
+    Dereference_(elem);
+    Check_Integer(elem->tag);
+    arity = elem->val.nint;
+    if (arity <= 0) {
+	if (arity == 0) return PFAIL;
+	Bip_Error(RANGE_ERROR);
+    }
+    Make_Struct(result, pw);
+    /* Additional a-priori overflow check because adding arity to TG
+     * may may wrap around the address space and break Check_Gc below
+     */
+    Check_Available_Pwords(arity+1);
+    TG += arity+1;
+    Check_Gc;
+    pw->val.did = add_dict(d_.nil, (int) arity);
+    pw++->tag.kernel = TDICT;
+
+    Dereference_(dims);
+    if (IsNil(dims->tag)) {
+	for (i = 0; i < arity; i++,pw++) {
+	    Make_Var(pw)
+	}
+    } else if (IsList(dims->tag)) {
+	for (i = 0; i < arity; i++) {
+	    res = _make_dim(dims->val.ptr, pw++);
+	    Return_If_Not_Success(res);
+	}
+    } else {
+	Error_If_Ref(dims->tag);
+	Bip_Error(TYPE_ERROR);
+    }
+    Succeed_;
+}
+
+static int
+p_dim(value va, type ta, value vdim, type tdim)
+{
+    int res;
+    pword result;
+    pword *pw;
+
+    /*
+     * dim(-Array, +Dimensions)
+     */
+    if (IsRef(ta)) {
+	if (IsList(tdim))
+	{
+	    pword *old_tg = TG;
+	    res = _make_dim(vdim.ptr, &result);
+	    if (res == PSUCCEED) {
+		Return_Unify_Pw(va, ta, result.val, result.tag);
+	    }
+	    TG = old_tg;	/* pop any partially constructed array */
+	    if (res == PFAIL) {
+		Return_Unify_Nil(va, ta);
+	    }
+	    return res;
+	}
+	if (IsNil(tdim)) {
+	    Bip_Error(RANGE_ERROR);
+	}
+	Error_If_Ref(tdim);
+	Bip_Error(TYPE_ERROR);
+    }
+
+    /*
+     * dim(+Array, -Dimensions)
+     */
+    pw = &result;
+    if (IsArray(va, ta)) {
+	do {
+	    pword *paux = va.ptr;
+	    Make_List(pw, TG);
+	    Make_Integer(TG, DidArity(paux->val.did));
+	    pw = TG+1;
+	    Push_List_Frame();
+	    ++paux;	/* examine first array element (only) */
+	    Dereference_(paux);
+	    ta.all = paux->tag.all;
+	    va.all = paux->val.all;
+	} while(IsArray(va, ta));
+
+    } else if (IsNil(ta)) {
+	Make_List(pw, TG);
+	Make_Integer(TG, 0);
+	pw = TG+1;
+	Push_List_Frame();
+
+    } else {
+	Error_If_Ref(ta);
+	Bip_Error(TYPE_ERROR);
+    }
+    Make_Nil(pw);
+    Return_Unify_Pw(vdim, tdim, result.val, result.tag);
+}
+
+
 static int
 _flatten_array(uword d, word n, pword *from)
 {
@@ -1202,6 +1334,7 @@ static int
 p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type tflat)
 {
     int res;
+    uword arity;
     pword result;
 
     Check_Integer(tdepth);
@@ -1218,7 +1351,13 @@ p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type
     ++TG;	/* leave space for functor */
     res = _flatten_array((uword)vdepth.nint, DidArity(varr.ptr->val.did), varr.ptr+1);
     Return_If_Not_Success(res);
-    Make_Atom(result.val.ptr, add_dict(d_.nil, TG-result.val.ptr-1));
+    arity = TG-result.val.ptr-1;
+    if (arity > 0) {
+	Make_Atom(result.val.ptr, add_dict(d_.nil, arity));
+    } else {
+	TG = result.val.ptr;
+	Make_Nil(&result);
+    }
     Return_Unify_Pw(vflat, tflat, result.val, result.tag);
 }
 

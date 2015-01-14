@@ -85,10 +85,6 @@ the collection (treated as a list) is equal to the original list with the
 selected entry removed, the order of the non-selected entries does not
 change.
 <p>
-Integer values are not treated differently from the domain variables,
-they are selected only if their heuristic value is better than those of the 
-other entries.
-<p>
 The pre-defined <b>selection methods</b> are the following:
 <ul>
 <li><b>input_order</b>

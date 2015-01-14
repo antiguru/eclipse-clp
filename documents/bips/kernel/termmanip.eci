@@ -333,37 +333,59 @@ of variables in Vars are replaced by fresh variables.
 	see_also:[copy_term / 2, copy_term / 3, variant / 2, functor / 3, term_variables / 2]]).
 
 :- comment(dim / 2, [
-	summary:"Creates a multi-dimensional array in the form of nested structures,
-or computes the dimensions of an existing matrix.
-
-",
+	summary:"Creates a multi-dimensional array or or computes the dimensions of an existing one",
 	amode:(dim(+,-) is det),
 	amode:(dim(-,++) is det),
-	desc:html("    Creates a multi-dimensional array in the form of nested structures,
-    or computes the dimensions of an existing matrix.
-
+	args:["Array" : "Variable or array.",
+	    "Dimensions" : "Variable or list of integers."],
+	desc:html("\
+    Creates an array of arbitrary dimensions, or determines the dimensions
+    of an existing one.  Multi-dimensional arrays are represented in the
+    form of nested structures.
 <P>
     When creating an array of dimensions [D1,..,Dn], a nested structure
     is created with the top-level term having the functor []/D1, its
     arguments being structures with functor []/D2, and so on.
-    The functor [] is chosen to remind of arrays, but is otherwise
-    not significant.
-
+    The functor [] is chosen to remind of arrays.
+<P>
+    Empty arrays: the atom [] represents the empty array of any dimension.
+    This means that dimensions like [0], [3,0] and [3,0,4] all lead to
+    the creation of the empty array [].
+<P>
+    When determining the dimensions of an existing array, this predicate
+    only considers the sub-arrays on index position 1.  It is therefore
+    not reliable for ragged arrays.
 <P>
     To get the size of one-dimensional arrays, it is more efficient to
     use arity/2.
 "),
-	args:["Term" : "Variable or structure.", "Dimensions" : "Variable or list of integers."],
-	exceptions:[4 : "Both Term and Dimensions are not sufficiently instantiated.", 5 : "Dimensions is not a list of integers."],
+	exceptions:[
+	    4 : "Both Array and Dimensions are not sufficiently instantiated.",
+	    5 : "Array is not an array (term with functor []/N).",
+	    5 : "Dimensions is not a list of integers.",
+	    6 : "An integer in Dimensions is negative.",
+	    6 : "Dimensions is the empty list."
+	    ],
 	eg:"
-[eclipse]: dim(M,[3,4]), dim(M,L).
+?- dim(M, [3,4]).
+M = []([](_131, _132, _133, _134),
+       [](_126, _127, _128, _129),
+       [](_121, _122, _123, _124))
+yes.
+
+?- dim(M, [3,4]), dim(M, L).
 M = []([](_131, _132, _133, _134),
        [](_126, _127, _128, _129),
        [](_121, _122, _123, _124))
 L = [3, 4]
 yes.
 
+?- dim(M, [0]).
+M = []
+yes.
 
+?- dim(A, []).
+out of range in dim(A, [])
 
 ",
 	see_also:[arg / 3, arity/2, subscript / 3, array_flat/3, functor / 3]]).

@@ -134,7 +134,8 @@ prop_ic_con(Con) :-
 :- export ('=>')/3, ('=>')/2.
 :- export ('or')/3, ('or')/2.
 :- export ('and')/3, ('and')/2.
-:- export indomain/1, labeling/1, alldifferent/1, element/3.
+:- export indomain/1, labeling/1.
+:- export alldifferent/1, alldifferent_cst/2, element/3.
 :- export iis/2, biis/5.
 :- export ac_eq/3.
 
@@ -1819,7 +1820,6 @@ bound(+inf, _, B, _Module) :-
 	B = 1.0Inf.
 bound(A, T, B, Module) :-
 	% Allow expressions.
-	ground(A),
         % perform safe evaluation of the domain bounds
         convert_term_constants(A,A1),
         (A == A1 ->
@@ -1827,6 +1827,7 @@ bound(A, T, B, Module) :-
              % is/2.  This call is necessary for when user defined
              % functions appear in the bound as convert_term_constants
              % will not call them.
+	     % Note: A may be nonground, e.g. X::1..arity([](_,_,_)).
              (A2 is A)@Module
         ;
              A2 = A1
@@ -2069,6 +2070,39 @@ outof(X, Left, Right) :-
 outof(X, Left, Right) :-
 	exclude_value(Left, X),
 	exclude_value(Right, X).
+
+
+alldifferent_cst(Xc, Cc) :-
+	collection_to_list(Xc, Xs),
+	collection_to_list(Cc, Cs),
+	(foreach(C,Cs),foreach(X,Xs),foreach(X+C,XCs) do integer(C)),
+	!,
+	set_vars_type(Xs, integer),
+	alldifferent_cst1(XCs, []),
+	wake.
+alldifferent_cst(Xc, Cc) :-
+	error(5, alldifferent_cst(Xc, Cc)).
+
+    alldifferent_cst1([], _Left).
+    alldifferent_cst1([XC|Right], Left) :-
+	outof_cst(XC, Left, Right),
+	alldifferent_cst1(Right, [XC|Left]).
+
+outof_cst(XC, Left, Right) :-
+	XC = (X+C),
+	( var(X) ->
+	    suspend(outof_cst(XC, Left, Right), 3, [X->inst])
+	;
+	    K is X+C,
+	    exclude_value_cst(Left, K),
+	    exclude_value_cst(Right, K)
+	).
+
+    exclude_value_cst([], _N).
+    exclude_value_cst([X+C|Xs], N) :-
+	NC is N-C,
+	exclude(X, NC),
+        exclude_value_cst(Xs, N).
 
 
 %---------------------------------------------------------------------

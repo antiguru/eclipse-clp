@@ -20,7 +20,7 @@
 % 
 % END LICENSE BLOCK
 %
-% $Id: embsumcxx.tex,v 1.1 2006/09/23 01:49:03 snovello Exp $
+% $Id: embsumcxx.tex,v 1.2 2015/01/14 01:31:09 jschimpf Exp $
 %
 
 \chapter{Summary of C++ Interface Functions}
@@ -74,6 +74,9 @@ the fundamental C++ types:
 
 \item[EC_word(const long)]\ \\
 	converts a C++ long to an {\eclipse} integer.
+
+\item[EC_word(const long long)]\ \\
+	converts a C++ long long to an {\eclipse} integer.
 
 \item[EC_word(const double)]\ \\
 	converts a C++ double to an {\eclipse} double float.
@@ -139,8 +142,12 @@ an error code otherwise.
 	The string's length is returned in the second argument.
 
 \item[int EC_word::is_long(long *)]\ \\
-	checks whether the EC_word is a word-sized integer,
-	and if so, returns it as a C++ long.
+	checks whether the EC_word is an integer that fits into
+	a C++ long, and if so, stores it via the pointer provided.
+
+\item[int EC_word::is_long_long(long long *)]\ \\
+	checks whether the EC_word is an integer that fits into
+	a C++ long long, and if so, stores it via the pointer provided.
 
 \item[int EC_word::is_double(double *)]\ \\
 	checks whether the EC_word is a floating point number,

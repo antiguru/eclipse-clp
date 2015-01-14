@@ -25,7 +25,7 @@
 % ECLiPSe II remote development tools ECLiPSe side interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: remote_tools.pl,v 1.3 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: remote_tools.pl,v 1.4 2015/01/14 01:31:09 jschimpf Exp $
 % Authors:	Kish Shen, IC-Parc
 %
 %----------------------------------------------------------------------
@@ -76,15 +76,35 @@ attached(ControlStream) :-
 
 tools :- 
 	(attached(ControlStream) ->
-	    catch(remote_yield(ControlStream), abort, 
-	       (writeln(log_output, "Disconnected from remote tools"),
-	        throw(abort)
-	       )
+	    true
+	;
+	    % not yet attached, try to launch
+	    printf(log_output, "Launching Tktools...%n%b", []),
+	    attach_tools(HostPort, 10, launch_tools(HostPort)),
+	    attached(ControlStream),
+	    printf(log_output, "TkTools started on %w%n%b", [HostPort])
+	),
+	catch(remote_yield(ControlStream), abort, 
+	   (writeln(log_output, "Disconnected from remote tools"),
+	    throw(abort)
 	   )
-	;   % not yet attached
-	    writeln(error, "Tktools have not yet been attached."),
-	    error(6, tools)
 	).
+
+launch_tools(Host/Port) :-
+	get_flag(installation_directory, EclipseDir),
+	get_flag(hostarch, Arch),
+	( substring(Arch, _, 3, 0, "_nt") ->
+
+	    join_string([EclipseDir,tcltk,Arch,bin,"wish85.exe"], /, Wish),
+	    join_string([EclipseDir,lib_tcl,"tktools.tcl"], /, TkTools),
+	    os_file_name(TkTools, TkToolsOS),
+	    Command = [Wish,TkToolsOS,--,'-h',Host,'-p',Port]
+
+	;
+	    join_string([EclipseDir,bin,Arch,tktools], /, TkTools),
+	    Command = [TkTools,'-h',Host,'-p',Port]
+	),
+	exec_group(Command, [], _Pid).
 
 disconnect_handler :-
 	uninstall_guitools,
@@ -116,9 +136,12 @@ desc: html("\
         without interacting directly with the GUI. For example, placing a
         spy-point on a predicate will cause the tracer tool to pop-up when
         the predicate is called.
+<P>
+        If the development tools have not been attached beforehand,
+	the predicate tries to start them on the local machine,
+	and attaches them.
 "),
 see_also: [attach_tools/0,attach_tools/3],
-exceptions: [6 : "tools/0 called before development tools have been attached."],
 resat: no
 ]).
 

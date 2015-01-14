@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_builtins.ecl,v 1.4 2013/04/29 01:05:55 jschimpf Exp $
+% Version:	$Id: compiler_builtins.ecl,v 1.5 2015/01/14 01:31:08 jschimpf Exp $
 %
 % Part of module(compiler_codegen)
 % ----------------------------------------------------------------------
@@ -422,13 +422,14 @@ generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code, _Module) :-
 	Arg2 = variable{varid:VarId2},
 	!,
 	( VarId1 = VarId2 ->
-	    ChunkData = ChunkData0, Code0 = Code
+	    % pretend X=X was X=_
+	    ChunkData0 = ChunkData1, Code0 = Code1, VarOccDesc1 = void
 	;
-	    variable_occurrence(Arg1, ChunkData0, ChunkData1, Code0, Code1, VarOccDesc1),
-	    variable_occurrence(Arg2, ChunkData1, ChunkData2, Code1, Code2, VarOccDesc2),
-	    unify_variables(VarOccDesc1, VarId1, VarOccDesc2, VarId2, Code2, Code3, GAlloc),
-	    alloc_check_after(GAlloc, ChunkData2, ChunkData, Code3, Code)
-	).
+	    variable_occurrence(Arg1, ChunkData0, ChunkData1, Code0, Code1, VarOccDesc1)
+	),
+	variable_occurrence(Arg2, ChunkData1, ChunkData2, Code1, Code2, VarOccDesc2),
+	unify_variables(VarOccDesc1, VarId1, VarOccDesc2, VarId2, Code2, Code3, GAlloc),
+	alloc_check_after(GAlloc, ChunkData2, ChunkData, Code3, Code).
 generate_unify(Arg1, Arg2, ChunkData0, ChunkData, Code0, Code, Module) :-
 	Arg1 = variable{varid:VarId},
 	!,

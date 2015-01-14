@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.14 2013/06/16 00:15:05 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.15 2015/01/14 01:31:10 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -1271,6 +1271,10 @@ sorted_demon(Us, SsArr, Ps, Susp) :-
     standard alldifferent/1 constraint, but with stronger propagation
     behaviour.  It checks for exhaustion of all sub-ranges of possible
     values.
+    </P><P>
+    The algorithm is based roughly on: Jean Francois Puget, A fast algorithm
+    for the bound consistency of the alldiff constraint, AAAI 1998, but
+    makes some additional inferences based on domain size.
     </P><P>
     Any input variables which do not already have finite bounds will
     be given default bounds of -10000000 to 10000000.</P>"),

@@ -172,7 +172,8 @@ load_gfd_solver(Arch) :-
 :- 
         get_flag(hostarch, Arch),
         load_gfd_solver(Arch),
-        external(g_init/1, p_g_init),
+        external(g_init/0, p_g_init),
+        external(g_init_space_handle_c/1, p_g_init_space_handle_c),
         external(g_state_is_stable/1, p_g_state_is_stable),
         external(g_check_handle/3, p_g_check_handle),
         external(g_trail_undo_for_event/1, p_g_trail_undo_for_event),
@@ -283,6 +284,8 @@ load_gfd_solver(Arch) :-
         external(g_select/4, p_g_select),
 
 	external(g_gecode_version/1, p_g_gecode_version),
+
+        g_init,
 	g_gecode_version(Version),
         printf(log_output, "Loaded Gecode solver %s%n", [Version]).
 
@@ -387,7 +390,7 @@ gfd_set_default(Option, Value) :-
             gfd_get_default(interval_max, Max),
             compile_term(gfd_default_interval(Value,Max))
 
-        ; Option == interval_min ->
+        ; Option == interval_max ->
             gfd_get_default(interval_min, Min),
             compile_term(gfd_default_interval(Min,Value))
         ; Option == events_max ->
@@ -825,7 +828,7 @@ new_prob_handle(H) :-
 new_space_handle(Sp) :-
         Sp = gfd_space{handle:SH},
         timestamp_init(Sp, stamp of gfd_space),
-        g_init(SH).
+        g_init_space_handle_c(SH).
 
 
 % create a new gfd variable at the ECLiPSe level. Note: variable need to
@@ -3837,18 +3840,12 @@ check_regexp(_, _) :-
 
 gfd_update :-
         get_prob_handle(H),
-        timestamp_age(H, cp_stamp of gfd_prob, Age),
-        (Age == old ->
-            % do nothing if new clone will be created at next anyway
-            true  
+        restore_space_if_needed(H, _SpH),
+        H = gfd_prob{nevents:NE, space:Current, last_anc: Anc},
+        ( NE == 0 ->
+            true % don't update if there are no changes
         ;
-            restore_space_if_needed(H, _SpH),
-            H = gfd_prob{nevents:NE, space:Current, last_anc: Anc},
-            ( NE == 0 ->
-                true % don't update if there are no changes
-            ;
-                replace_last_ancestor(H, Current, Anc)
-            )
+            replace_last_ancestor(H, Current, Anc)
         ).
 
 update_space_with_events(H) :-
@@ -3989,12 +3986,23 @@ check_and_update_ancestors(H) :-
         ;
             H = gfd_prob{nevents:NE, space:Current, last_anc: Anc},
             ( NE > events_max ->
-                replace_last_ancestor(H, Current, Anc)
+                replace_last_ancestor_if_det(H, Current, Anc)
             ;
                 true
             )
         ).
 
+replace_last_ancestor_if_det(H, Current, []) :- !,
+        replace_last_ancestor(H, Current, []).
+replace_last_ancestor_if_det(H, Current, Anc) :-
+         (timestamp_older(Anc, stamp of gfd_space, 
+                          Current, stamp of gfd_space) ->
+             true
+         ;
+             replace_last_ancestor(H, Current, Anc)
+             % replace ancestor only if computation is deterministic
+             % since the ancestor
+        ).
 
 % create new ancestor, replacing last ancestor if possible
 % this is to reduce amount of subsequent recomputation 
@@ -4284,27 +4292,7 @@ do_event1(post_extensional(ConLev,GVs,DfaH), SpH, DoProp) ?-
 %------------------------------------------------------------------------
 % labelling and search
 
-indomain(I) :- integer(I), !.
-indomain(V{gfd:Attr}) ?- 
-        nonvar(Attr), !,
-        Attr = gfd{prob:H,idx:Idx},
-        restore_space_if_needed(H, SpH),
-        g_get_var_domain(SpH, Idx, Domain),
-        set_domain_value(Domain, V).
-indomain(V) :- error(5, indomain(V)).
-
-
-set_domain_value([D|_Ds], V) ?-
-        set_a_domain_value(D, V).
-set_domain_value([_|Ds], V) ?-
-        set_domain_value(Ds, V).
-
-set_a_domain_value(Lo..Hi, V) ?- !,
-        between(Lo, Hi, 1, Val),
-%        set_a_domain_value(Val, V).
-        Val = V.
-set_a_domain_value(I, V) :-
-        V = I.
+indomain(V) :- do_indomain_min(V).
 
 
 indomain(V, min) ?- !,
@@ -4340,8 +4328,10 @@ labeling(Vars, Select, Choice) :-
 
 
 labeling1(VsH, H, Select, Choice) :-
-        (select_var1(V, H, Select, VsH) ->
-            indomain(V, Choice),
+        H = gfd_prob{vars:Vars,space:gfd_space{handle:SpH}},
+        (g_select(SpH, VsH, Select, Idx) ->
+            arg(Idx, Vars, V),
+            try_value1(V, SpH, H, Idx, Choice),
             labeling1(VsH, H, Select, Choice)
         ;
             true
@@ -4372,39 +4362,105 @@ do_indomain_max(V) :-
         error(5, indomain(V, max)).
 
 
-indomain_and_prop(_Idx, V, _H, _W, Val) :-
-        V = Val.
-indomain_and_prop(Idx, V, H, Which, Val) :-
-        restore_space_if_needed(H, _SpH), 
-        % -1 for lower bound
-        arg(space of gfd_prob, H, Sp),
-        g_update_and_get_var_bound(Sp, Idx, Val, Which, Lo),
-        indomain_and_prop(Idx, V, H, Which, Lo).
+% this does not create a useless choice-point for the last element
+% in the domain. This avoids the wasteful recreation of a valid space
+% for the backtrack beyond the last element, only to fail immediately.
+indomain_and_prop(_Idx, V, _H, _W, V) ?-
+        integer(V). % last element of domain
+indomain_and_prop(Idx, V, H, Which, Val) :- 
+        meta(V),
+        ( V = Val
+        ;
+          restore_space_if_needed(H, _SpH), 
+          % -1 for lower bound
+          arg(space of gfd_prob, H, Sp),
+          g_update_and_get_var_bound(Sp, Idx, Val, Which, Bound),
+          indomain_and_prop(Idx, V, H, Which, Bound)
+        ).
 
 
-% Gecode-style value choice, not necessarily grounding the variable
-
+% The Gecode-style value choice, not necessarily grounding the variable
+% The indomain style value choice remove old values directly (i.e. not
+% via events), and so is not performed during recomputation. This
+% means that there is one event per variable in the search, so the
+% total number of events are bounded by the number of variables. 
 try_value(X, _Method) :- integer(X).
-try_value(X, _Method) :- var(X), 
-	try_value1(X, _Method).
+try_value(X{gfd:Attr}, Method) ?- 
+        nonvar(Attr),
+        Attr = gfd{idx:Idx,prob:H},
+        restore_space_if_needed(H, SpH),
+	try_value1(X, SpH, H, Idx, Method).
 
-try_value1(X, min) :-
-	get_min(X, Val),
-	( X=Val ; X #> Val ).
-try_value1(X, max) :-
-	get_max(X, Val),
-	( X=Val ; X #< Val ).
-try_value1(X, median) :-
-	get_median(X, Val),
-	( X=Val ; X #\= Val ).
-try_value1(X, split) :-
-	gfd_get_var_bounds(X, Lo, Hi),
+try_value1(X, SpH, H, Idx, min) :-
+        g_get_var_lwb(SpH, Idx, Val),
+        ( X=Val 
+        ;                 
+          post_new_event(post_exclude_var_val(Idx, Val), H)
+        ).
+try_value1(X, SpH, H, Idx, max) :-
+        g_get_var_upb(SpH, Idx, Val),
+        ( X=Val 
+        ;                 
+          post_new_event(post_exclude_var_val(Idx, Val), H)
+        ).
+try_value1(X, SpH, H, Idx, median) :-
+        g_get_var_median(SpH, Idx, Val),
+        ( X=Val 
+        ;                 
+          post_new_event(post_exclude_var_val(Idx, Val), H)
+        ).
+try_value1(_X, SpH, H, Idx, split) :-
+	g_get_var_bounds(SpH, Idx, Lo, Hi),
 	Split is (Lo+Hi) div 2,
-	( X #=< Split ; X #> Split ).
-try_value1(X, reverse_split) :-
-	gfd_get_var_bounds(X, Lo, Hi),
+        gfdvar(Idx, _, GX),
+        ( post_new_event(post_rel(gfd_bc, GX, (#=<), Split), H)
+        ;
+          post_new_event(post_rel(gfd_bc, GX, (#>), Split), H)
+        ).
+try_value1(_X, SpH, H, Idx, reverse_split) :-
+	g_get_var_bounds(SpH, Idx, Lo, Hi),
 	Split is (Lo+Hi) div 2,
-	( X #> Split ; X #=< Split ).
+        gfdvar(Idx, _, GX),
+        ( post_new_event(post_rel(gfd_bc, GX, (#>), Split), H)
+        ;
+          post_new_event(post_rel(gfd_bc, GX, (#=<), Split), H)
+        ).
+% indomain style value-choice
+/* version that does remove last value on backtracking
+try_value1(X, SpH, H, Idx,indomain_min) :-
+        g_get_var_lwb(SpH, Idx, Lo),
+        ( X = Lo
+        ;
+          post_new_event(post_exclude_var_val(Idx, Lo), H),
+          H = gfd_prob{space:gfd_space{handle:SpH1}},
+          (integer(X) -> 
+              true
+          ;
+              try_value1(X, SpH1, H, Idx,indomain_enum)
+          )
+        ).
+*/
+try_value1(X, SpH, H, Idx, indomain_min) :-
+        g_get_var_lwb(SpH, Idx, Lo),
+        % -1 for lower bound
+        indomain_and_prop(Idx, X, H, -1, Lo).
+try_value1(X, SpH, H, Idx, indomain_max) :-
+        g_get_var_upb(SpH, Idx, Hi),
+        % -1 for lower bound
+        indomain_and_prop(Idx, X, H, 1, Hi).
+try_value1(X, SpH, H, Idx, indomain_median) :-
+        g_get_var_median(SpH, Idx, Med),
+        arg(space of gfd_prob, H, Sp),
+        indomain_from(X, Med, H, Sp, Idx).
+try_value1(X, SpH, H, Idx, indomain_middle) :-
+        g_get_var_bounds(SpH, Idx, Lo, Hi),
+        Mid is (Hi+Lo) // 2,
+        arg(space of gfd_prob, H, Sp),
+        indomain_from(X, Mid, H, Sp, Idx).
+try_value1(X, _SpH, H, Idx, indomain_from(I)) :-
+        integer(I),
+        arg(space of gfd_prob, H, Sp),
+        indomain_from(X, I, H, Sp, Idx).
 
 % Possible extensions
 %try_value1(X, middle) :-
@@ -4412,17 +4468,6 @@ try_value1(X, reverse_split) :-
 %try_value1(X, indomain_interval) :-
 %try_value1(X, indomain_interval_min) :-
 %try_value1(X, indomain_interval_max) :-
-
-% We could add these here, instead of having indomain/2
-%try_value1(X, enum) :-
-%	indomain(X, enum).
-%try_value1(X, reverse_enum) :-
-%try_value1(X, indomain_min) ?- !,
-%        do_indomain_min(X).
-%try_value1(X, indomain_max) ?- !,
-%        do_indomain_max(X).
-%try_value1(X, indomain_median) ?- !,
-%        do_indomain_median(X).
 
 
 do_indomain_median(I) :- integer(I), !.
@@ -4612,8 +4657,9 @@ search(Vars, Pos, Select, Choice, Method, Option) :-
         process_options(Option, TieBreak, Stats, Stop, Timeout, Control),
         !,
         update_gecode_with_default_newvars(H, NV0, NV),
-        H = gfd_prob{space:gfd_space{handle:SpH}},
-        g_setup_search(SpH, GArray, Select, Choice, TMethod, TieBreak, 
+        restore_space_if_needed(H, SpH),
+        H = gfd_prob{space:SP0},
+        g_setup_search(SP0, GArray, Select, Choice, TMethod, TieBreak, 
                        Timeout, Stop, Control, EngH),
         new_space_handle(SP),
         setarg(space of gfd_prob, H, SP),

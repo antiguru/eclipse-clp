@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_global.ecl,v 1.5 2011/09/04 02:38:10 kish_shen Exp $
+% Version:	$Id: fd_global.ecl,v 1.6 2015/01/14 01:31:10 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	fd_global.ecl
@@ -43,7 +43,7 @@
 :- comment(summary, "Various global constraints over lists of FD variables").
 :- comment(author, "J.Schimpf, V.Liatsos, S.Novello, M.Wallace, A.Sadler, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2011/09/04 02:38:10 $").
+:- comment(date, "$Date: 2015/01/14 01:31:10 $").
 
 :- lib(fd).
 :- use_module(fd_generic_interface).
@@ -66,15 +66,15 @@ alldifferent_matrix(Matrix) :-
     dimensional square (NxN) matrix, and the constraint ensures that the 
     elements in each row and column of the matrix are different. The same
     value can occur in different rows and columns. It is logically 
-    equivalent to imposing 2N alldifferent constraints on each row and column,
-    but it allows more reasoning because it consider the rows and columns 
+    equivalent to imposing 2N alldifferent constraints, on each row and column,
+    but it allows more reasoning because it considers the rows and columns 
     together. The alldifferent constraint used is the lib(fd_global) version.
     The maximum propagation occurs when the variables' domains also
     have N values
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
     This constraint is described in J.-C. Regin and C. Gomes,
     'The Cardinality Matrix Constraint', CP 2004.
@@ -107,9 +107,9 @@ alldifferent_matrix(Matrix) :-
     of K consecutive variables/values in Vars, and at least Min and at most
     Max in total for all Vars.
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P>
 ") 
          ]
@@ -145,9 +145,9 @@ alldifferent_matrix(Matrix) :-
     corresponding original value takes one of the specified values. The
     ZeroOnes can then be used in further constraint reasoning.
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 ") 
          ]
 ).

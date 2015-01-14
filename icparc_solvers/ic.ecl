@@ -2048,6 +2048,27 @@ Yes (0.00s cpu)
 ")
 ]).
 
+:- comment(alldifferent_cst/2, [
+    amode: alldifferent_cst(+,++),
+    args: [
+    	"Vars": "A collection (a la collection_to_list/2) of variables or integers",
+        "Offsets": "A collection (a la collection_to_list/2) of integers, with"
+                   " the same cardinality as Vars."
+    ],
+    summary: "The values of each element plus corresponding offset are pair-wise different.",
+    see_also: [alldifferent/1, collection_to_list/2],
+    kind: [constraint:[extra:[gccat:alldifferent_cst]]],
+    desc: html("<P>
+   Constrains all elements of Vars plus their corresponding offset value in
+   Offset to be different. That is,
+<PRE>
+        Vari + Offseti #\\= Varj + Offsetj  % if i \\= j
+</PRE>
+   where Vari, Offseti are the i'th element of Vars and Offsets, and
+   Varj, Offsetj are the j'th element.</P>
+")
+]).
+
 %---------------------------------------------------------------------
 %
 % Documentation for constraints reexported from ic_constraints.

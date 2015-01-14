@@ -345,9 +345,9 @@ inverse
      that if node y is the successor of node x, then node x is the
      predecessor of node y.
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensive and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensive and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
      This constraint is known as inverse in the global constraint catalog,
      but with implicit node index based on the position in the list.  

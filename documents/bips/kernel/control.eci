@@ -776,8 +776,13 @@ Fail:
 	of arbitrary dimension.  The order is the natural order, i.e.
 	if Array = []([](a, b, c), [](d, e, f)), then for successive
 	iterations X is bound in turn to a, b, c, d, e and f.
+	Ragged arrays (where sub-arrays are of non-uniform length)
+	are allowed and handled correctly.  Array may be the empty
+	array [] which leads to zero iterations.  Opposed to that,
+	occurrences of [] within the multidimensional array
+	are treated as ordinary array elements.
 	X is a local loop variable.
-	Cannot be used for constructing a term.
+	Cannot be used for constructing an array!
 
     <DT><STRONG>foreachelem(X,Array,Idx)</STRONG><DD>
 	same as before, but Idx is set to the index position of X in
@@ -785,8 +790,8 @@ Fail:
 	X and Idx are local loop variables.
 
     <DT><STRONG>foreachindex(Idx,Array)</STRONG><DD>
-	like foreachelem/3, but returns just the index position and not the
-	element.  Idx is a local loop variable.
+	like foreachelem/3, but returns just the index position and
+	not the element.  Idx is a local loop variable.
 
     <DT><STRONG>for(I,MinExpr,MaxExpr)</STRONG><DD>
 	iterate Goals with I ranging over integers from MinExpr to

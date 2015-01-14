@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.16 2013/02/25 22:47:23 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.17 2015/01/14 01:31:09 jschimpf Exp $
  */
 
 /*
@@ -446,7 +446,8 @@ _quote_:
 		    }
 		    Backup_(cc, 1);
 		}
-		if (ctype != AQ)	/* check for consecutive strings */
+		/* check for consecutive strings */
+		if ((ctype != AQ) && !(sd->options & ISO_RESTRICTIONS))
 		{
 		    Get_Ch_Class(cc,ctype);
 		    if (LexError(_skip_blanks(nst, sd, &pligne, &cc, &ctype))) {
@@ -1595,7 +1596,6 @@ _start_:
                         if (syntax & ISO_ESCAPES) goto return_int3;
                         c = ' '; goto _return_c_;
 		    case 'x':                   /* ISO hex constant */
-			if (!(syntax & ISO_ESCAPES)) goto _unknown_escape_;
 			base = 16; max_no = '9'; max_lc = 'f'; max_uc = 'F';
 			Get_Ch(c)
 			if (sd->char_class[c] != ES)

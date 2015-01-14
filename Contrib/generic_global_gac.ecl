@@ -493,9 +493,9 @@ GCC with fixed bounds
     Low =< |Value| =< High, where Low and High are non-negative integers.
     Note that all values that Vars can take must be specified in Bounds.
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
     This constraint is known as global_cardinality_low_up in the global
     constraint catalog. The algorithm implemented is described in 
@@ -638,12 +638,12 @@ SAME
         desc: html("\
 <P>
     This constraint ensures that the values taken by the variables in Vars1
-    and Vars2 are permutationw of each other. Vars1 and Vars must be the same
+    and Vars2 are permutations of each other. Vars1 and Vars must be the same
     length.
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
     This constraint is also known as same in the global constraint catalog. 
     The implementation is the generalised arc-consistent version described
@@ -791,9 +791,9 @@ inverse
      that if node y is the successor of node x, then node x is the
      predecessor of node y.
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
      This constraint is known as inverse in the global constraint catalog,
      but with implicit node index based on the position in the list.  
@@ -884,18 +884,18 @@ lex_le/2, lex_lt/2
     kind:[constraint:[root:[ic,fd]]],
     desc:html("\
     	Imposes a lexicographic ordering between the two lists. 
-	I.e.  either is the first element of List1 strictly smaller
+	I.e. either is the first element of List1 strictly smaller
 	than the first element of List2, or the first elements are
 	equal and the lexicographic order holds between the two list
 	tails. A non-existing element (i.e. when the end of list is 
         reached)is strictly smaller than any existing element.
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
         This constraint is known as lex_lesseq in the global constraint
-        catalog. The implementation here maintains generised arc
+        catalog. The implementation here maintains generalised arc
         consistency and uses the algorithm described in:
         Z. Kiziltan, 'Symmetry Breaking Ordering Constraints, Ph.D thesis,
         Uppsala University, 2004.
@@ -923,12 +923,12 @@ lex_le(XVector,YVector):-
 	tails. A non-existing element (i.e. when the end of list is 
         reached)is strictly smaller than any existing element.
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
         This constraint is known as lex_less in the global constraint
-        catalog. The implementation here maintains generised arc
+        catalog. The implementation here maintains generalised arc
         consistency and uses the algorithm described in:
         Z. Kiziltan, 'Symmetry Breaking Ordering Constraints, Ph.D thesis,
         Uppsala University, 2004.

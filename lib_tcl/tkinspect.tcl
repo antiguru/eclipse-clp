@@ -1040,9 +1040,7 @@ proc tkinspect:helpinfo {iw topic filename key} {
 	    -side bottom -fill x
     pack $t -expand true -fill both
     bind $t <Any-Key> {break} ;# read only
-    bind $t <Any-Button> {break} ;# really read only!
-    bind $t <Any-Motion> {break}
-    bind $t <Any-ButtonRelease> {break} 
+    bind $t <ButtonRelease-2> {break}   ;# disable paste
     bind $t <Leave> {break}
     set file [file join $tkecl(ECLIPSEDIR) lib_tcl $filename]
     if {![file exists $file]} {

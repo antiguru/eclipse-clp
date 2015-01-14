@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.11 2013/03/08 17:21:48 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.12 2015/01/14 01:31:09 jschimpf Exp $
  */
 
 /*
@@ -308,7 +308,7 @@ p_default_module(value v, type t)
 	pw.tag.kernel = ModuleTag(d_.default_module);
         Return_Unify_Pw(v, t, pw.val, pw.tag);
     }
-    Check_Atom(t);
+    Check_Module_And_Access(v, t);
     d_.default_module = v.did;
     Succeed_;
 }

@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 %
 % @(#)umsintro.tex	1.11 95/03/17
-% $Id: umsintro.tex,v 1.5 2013/02/09 20:27:58 jschimpf Exp $
+% $Id: umsintro.tex,v 1.6 2015/01/14 01:31:10 jschimpf Exp $
 %
 % REL	DATE	AUTHOR		DESCRIPTION
 % 2.10	090589	David Miller	Convert to Latex and update for 2.10
@@ -35,14 +35,33 @@
 %HEVEA\cutdef[1]{section}
 
 \section{What is {\eclipse} ?}
-{\eclipse}{} ({\eclipse} Common Logic Programming System)
-is a Prolog based system whose aim is to serve as a platform
-for integrating various Logic Programming extensions, in particular
-Constraint Logic Programming (CLP).
-The kernel of {\eclipse} is an efficient implementation of standard
-(Edinburgh-like) Prolog as described in basic Prolog texts \cite{clocksin81}.
-It is built around an incremental compiler which compiles the {\eclipse}
-source into WAM-like code \cite{warren83}, and an emulator of this abstract code.
+{\eclipse}{} ({\eclipse} Constraint Logic Programming System)
+is an open-source software system whose aim is to serve as a platform
+for integrating various Logic Programming extensions.
+It is used in particular for the cost-effective
+development and deployment of constraint programming applications,
+e.g. in the areas of planning, scheduling, resource allocation,
+timetabling, transport etc.  It is also ideal for teaching most
+aspects of combinatorial problem solving, e.g. problem modelling,
+constraint programming, mathematical programming, and search
+techniques.  It contains several constraint solver libraries, a
+high-level modelling and control language, interfaces to third-party
+solvers, an integrated development environment and interfaces for
+embedding into host environments. 
+
+The {\eclipse} programming language has been developed from the Prolog
+language (\cite{clocksin81}), more specifically the Edinburgh family
+of Prologs and more recently the ISO Prolog standard (\cite{isoprolog95}).
+{\eclipse} retains backward compatibility by supporting several language
+dialects.
+
+In terms of implementation technology, {\eclipse} is built around an
+incremental compiler which compiles {\eclipse} source into WAM-like
+code \cite{warren83}, and a runtime system comprising an emulator of
+this abstract code, automatic memory management, I/O system and
+built-in predicates.
+
+
 
 \section{Overview}
 \index{ECLiPSe@\eclipse}

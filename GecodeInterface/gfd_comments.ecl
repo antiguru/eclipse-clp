@@ -1238,7 +1238,7 @@ B = B{[0, 2, 4, 6]}
     ],
     kind: [search],
     summary: "Instantiates a domain GFD variable to an element of its domain.",
-    see_also: [gfd_search:indomain/2, labeling/1, (::)/2, _:indomain/1],
+    see_also: [try_value/2,gfd_search:indomain/2, labeling/1, (::)/2, _:indomain/1],
     desc: html("<P>
    Simple predicate for instantiating a GFD domain variable to an element
    of its domain.  It starts with the smallest element, and upon
@@ -1248,9 +1248,8 @@ B = B{[0, 2, 4, 6]}
    If Var is already a ground integer, then this predicate simply succeeds
    exactly once without leaving a choicepoint.</P><P>
 
-   Note that this predicate is not very efficient, because the whole domain 
-   for Var is obtained from gecode at the start. Use indomain/2 or
-   try_value/2 for more efficient ways to set Var's value. 
+   Note that this predicate is an alias for using the indomain_min method
+   of try_value/2.
 </P>
 ")
 ]).
@@ -1330,7 +1329,8 @@ B = B{[0, 2, 4, 6]}
    Gecode space to the current state. The parent clone is from where
    recomputation is performed, so updating the parent will reduce the
    amount of recomputation done during subsequent backtracking. Note 
-   that the old parent is discarded and replaced by the updated parent.
+   that the old parent is discarded and replaced by the updated parent
+   if possible.
 </P><P>
    GFD handles the cloning of Gecode spaces automatically, and the user
    does not normally have to deal with cloning explicitly. However, if
@@ -1344,10 +1344,10 @@ B = B{[0, 2, 4, 6]}
    cannot automatically ensure that the space is cloned before the
    start of search (if the search is performed in ECLiPSe). 
 </P><P>
-   The update is only done if the changes to Gecode state since the parent
-   is deterministic, as otherwise the parent cannot be replaced as the 
-   backtracking might alter some of the changes. Also, the update is
-   not done if the parent have not changed.
+   The update is only done if the current state is different from the 
+   parent's, and the current Gecode state is stable (i.e. fully propagated).
+   If the computation since the parent is deterministic, the old
+   parent will be discarded and replaced by the new parent.
 </P><P>
    The intented use for this predicate is just before the search
    starts in the user's program, if the search is performed in ECLiPSe. 
@@ -6186,7 +6186,7 @@ see_also:[try_value/2,gfd_search:indomain/2,search/6, gfd_search:search/6]
 
 
 :-comment(try_value/2,[
-summary:"Two-way choice predicate",
+summary:"Two-way and multi-way choice predicate",
 amode:(try_value(?,++) is nondet),
 amode:(try_value(+,++) is det),
 args:[
@@ -6195,12 +6195,17 @@ args:[
 ],
 kind: [search],
 desc:html("<P>
-    This search predicate makes a binary choice on the domain of a variable.
-    It creates two search alternatives, which reduce the variable domain
-    in complementary ways.  The details are determined by the Method.
+    This search predicate makes a choice on the domain of the variable.
+    This choice can be a binary choice, or an indomain style multi-way
+    choice which branches on different values in the domain of the variable.
 </P><P>
-    The first group of methods tries to set the variable to a particular
-    value, and in the alternative excludes this value from the domain:
+    The binary choice methods create two search alternatives, which 
+    reduce the variable domain  in complementary ways.  The details
+    are determined by the Method.
+</P><P>
+    The first group of binary methods tries to set the variable to a 
+    particular value, and in the alternative excludes this value from 
+    the domain, logically:
 <PRE>
 	( Var = Value ; Var #\\= Value )
 </PRE>
@@ -6212,11 +6217,11 @@ desc:html("<P>
     <DT>median</DT>
 	<DD>try the median value in the domain</DD>
 </DL>
-    The next group only halves the domain in each alternative (where the
-    split value is the arithmetic mean of the lower and upper domain
+    The next binary group only halves the domain in each alternative (where
+    the split value is the arithmetic mean of the lower and upper domain
     bound, rounded down):
 <PRE>
-	( Var #=< Split ; Var #> Split )
+	( Var #=&lt; Split ; Var #&gt; Split )
 </PRE>
 <DL>
     <DT>split</DT>
@@ -6224,14 +6229,55 @@ desc:html("<P>
     <DT>reverse_split</DT>
 	<DD>try first the upper domain half, then the lower</DD>
 </DL>
+    The indomain style group choses an initial value from the variable's
+    domain of according to the given method, and on backtracking 
+    select other values in the domain. 
+<DL>
+    <DT>indomain_min</DT>
+	<DD>Values are tried in increasing order.</DD>
+    <DT>indomain_max</DT>
+	<DD>Values are tried in decreasing order.</DD>
+    <DT>indomain_median</DT>
+	<DD>Values are tried starting from the median value of the 
+        domain, then alternately the next larger and smaller values 
+        in the domain.</DD>
+    <DT>indomain_middle</DT>
+	<DD>Values are tried starting from  the middle of the range
+        (which does not need to be in domain), then alternately the
+         next larger and smaller values in the domain.</DD>
+    <DT>indomain_from(+Val)</DT>
+	<DD>Values are tried starting from  Val (which does not need
+        to be in domain), then alternately the next larger and smaller 
+        values in the domain.</DD>
+</DL> 
 </P><P>
     As opposed to the value choice predicates indomain/1 and indomain/2,
-    try_value/2 does not necessarily instantiate the variable.  If used in
-    a tree search, this means that the variable must remain available
-    to the variable selection, as it may be selected repeatedly at different
-    depth of the search tree.
+    the binary choice methods of try_value/2 does not necessarily 
+    instantiate the variable.  If used in a tree search, this means
+    that the variable must remain available to the variable selection,
+    as it may be selected repeatedly at different depth of the search
+    tree.
 </P><P>
-    try_value/2 is best used in combination with select_var/5.  Both can
+    The indomain style methods do instantiate the variable. If used in
+    a tree search, try_value represents a n-ary choice for all the
+    values of a variable. In this case, the maximum depth of the
+    search-tree is the number of probem variables. 
+</P><P>
+    This predicate should be more efficient than using generic value
+    choice predicates or explicitly writing code to do the choice. The
+    exclusion of values before a new choice is done by specialised
+    low-level primitves that are more efficient than user-level
+    constraints. This efficiency is particularly important because
+    they make recomputation more efficient. For the binary choice
+    methods, the exclusion of values are performed in every
+    recomputation of the choice; and for the indomain style methods,
+    the old values are excluded from the variable's domain to allow
+    the next value to be chosen. On recomputation, the variable is
+    directly set to the chosem value.  This reduces the amount of
+    recomputation, but any reduction in the search space resulting
+    from propagating rhe exclusion of old values may also be lost.
+</P><P>
+    try_value/2 is best used in combination with select_var/5. Both can
     be used to parameterise the generic gfd_search:search/6 procedure.
 </P>"),
 eg:"
@@ -6988,7 +7034,9 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
           the minimal distance where a clone may be needed. (positive 
           integer).</li>
     <li><b>events_max</b>
-          Maximum number of events before a new parent clone is created. (integer).</li>
+          Maximum number of events during non-search (deterministic) 
+          computation before a new clone is created to replace the
+          parent (positive integer).</li>
 </ul>")]
 ).
 

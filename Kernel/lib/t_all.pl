@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: t_all.pl,v 1.5 2013/02/08 14:58:16 jschimpf Exp $
+% Version:	$Id: t_all.pl,v 1.6 2015/01/14 01:31:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %-----------------------------------------------------------------------
@@ -114,8 +114,8 @@ ab_query_fail :-
 	nl(test_log_output),
 	my_halt.
 
-end_test :-
-	writeln(test_log_output, '***** PROBLEM IN THE RECOVERY PROCEDURE'),
+end_test(Ball) :-
+	writeln(test_log_output, '***** PROBLEM IN THE RECOVERY PROCEDURE':Ball),
 	nl(test_log_output),
 	my_halt.
 
@@ -148,7 +148,7 @@ write_error.
 
 
 test1(File, Header, M) :-
-	catch(test2(File, Header, consult, top, M),_,end_test).
+	catch(test2(File, Header, consult, top, M),Ball,end_test(Ball)).
 
 test2(File, Header, CompileGoal, RunGoal, M) :-
 

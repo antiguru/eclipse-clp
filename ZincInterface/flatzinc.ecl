@@ -25,7 +25,7 @@
 
 :- module(flatzinc).
 
-:- comment(date, "$Date: 2014/07/11 02:21:26 $").
+:- comment(date, "$Date: 2015/01/14 01:31:09 $").
 :- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Interpreter for FlatZinc").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
@@ -820,10 +820,12 @@ declare_vars(no_macro_expansion(of(set,Elems)), EclVars, _, _Anns, state{solver:
 % Convert FlatZinc term to ECLiPSe term --------------------------
 % Arrays are represented as ECLiPSe arrays
 % Bools, Floats and Sets are represented depending on solver
+% CAUTION: Empty arrays are mapped to [], which may be the same
+% as the representation of the empty set for some set solvers.
 
 :- mode eval_expr(+,+,-).
-eval_expr([], _State, _) :- !,
-	fzn_error("Illegal empty array: %w", [[]]).
+eval_expr([], _State, EmptyArray) :- !,
+	EmptyArray = [].
 eval_expr({}, State, Set) :- !,
 	State = state{solver:Solver},
 	Solver:set_fzn_to_solver([], Set).
@@ -949,8 +951,8 @@ check_annotations([A|As]) :-
 % and Zinc->ECLiPSe type conversions.
 
 :- mode eval_ann(+,+,-).
-eval_ann([], _State, _) :- !,
-	fzn_error("Illegal empty array: %w", [[]]).
+eval_ann([], _State, EmptyArray) :- !,
+	EmptyArray = [].
 eval_ann({}, State, Set) :- !,
 	State = state{solver:Solver},
 	Solver:set_fzn_to_solver([], Set).
@@ -1188,15 +1190,17 @@ fzn_write(Stream, X, Type, Solver) :-
     fzn_write1(Stream, X, float, Solver) :- !,
 	Solver:float_solver_to_fzn(X, Z), writeq(Stream, Z).
     fzn_write1(Stream, Array, no_macro_expansion(array([_]) of EType), Solver) :- !,
-	compound(Array), functor(Array, [], N),
+	functor(Array, [], N),
 	write(Stream, '['),
-	( for(I,1,N-1), param(Array,Stream,EType,Solver) do
-	    arg(I, Array, X),
-	    fzn_write1(Stream, X, EType, Solver),
-	    write(Stream, ',')
+	( N==0 -> true ;
+	    ( for(I,1,N-1), param(Array,Stream,EType,Solver) do
+		arg(I, Array, X),
+		fzn_write1(Stream, X, EType, Solver),
+		write(Stream, ',')
+	    ),
+	    arg(N, Array, Xn),
+	    fzn_write1(Stream, Xn, EType,Solver)
 	),
-	arg(N, Array, Xn),
-	fzn_write1(Stream, Xn, EType,Solver),
 	write(Stream, ']').
     fzn_write1(Stream, Set, no_macro_expansion(set of EType), Solver) ?-
 	Solver:set_solver_to_fzn(Set, Xs),	% may fail
@@ -1216,9 +1220,8 @@ fzn_write(Stream, X, Type, Solver) :-
 % Write ECLiPSe data in MiniZinc format, making a guess at the type
 :- export fzn_write/2.
 fzn_write(Stream, X) :- string(X), !, write(Stream, X).
-fzn_write(Stream, X) :- atom(X), !, write(Stream, X).
 fzn_write(Stream, X) :- number(X), !, writeq(Stream, X).
-fzn_write(Stream, Xs) :- is_list(Xs), !,	% lists are Zinc sets
+fzn_write(Stream, Xs) :- is_list(Xs), !,	% lists (incl []) are Zinc sets
 	write(Stream, '{'),
         ( Xs = [X1|Xs1] ->
             fzn_write(Stream, X1),
@@ -1230,6 +1233,7 @@ fzn_write(Stream, Xs) :- is_list(Xs), !,	% lists are Zinc sets
             true
         ),
 	write(Stream, '}').
+fzn_write(Stream, X) :- atom(X), !, write(Stream, X).	% excluding []
 fzn_write(Stream, L..H) ?- integer(L), integer(H), !, write(Stream, L..H).
 fzn_write(Stream, Array) :- functor(Array, [], N), !,
         % For 2D arrays, write Minizinc 2D syntax, e.g. [|1,2|3,4|].

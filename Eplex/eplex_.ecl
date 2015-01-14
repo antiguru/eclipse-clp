@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.16 2014/07/14 01:02:27 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.17 2015/01/14 01:31:08 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -3424,22 +3424,17 @@ process_option(integers(Ints0), Handle, _) ?-
 	Handle = prob{cplex_handle:CPH,ints:Ints},
         (foreach(X, Ints0), param(CPH) do % loop may fail, so need to cut first
             ( var(X) -> true
+            ; integer(X) -> true
             ; number(X) ->
                 % number: make sure it's sufficiently integral
-	      ( abs(round(X) - X) =< cplex_get_param(CPH, integrality) ->
-                  true
-              ;
-                  printf(warning_output, "Eplex warning: integer variable instantiated to a"
-                                         " non-integral number: %w. Failing.%n", [X]),
-                  fail
-              )
+	        abs(round(X) - X) =< cplex_get_param(CPH, integrality)
             ;
-              printf(error, "Eplex error: integer variable unified to"
+                printf(error, "Eplex error: integer variable unified to"
                             " a non-number: %w%n", [X]),
-              throw(abort)
+                throw(abort)
 
             )
-        ), 
+        ),
         term_variables(Ints0, Ints). % eliminate duplicates and numbers
 process_option(reals(Vars), _Handle, Temp) ?-
         (foreach(V, Vars) do 
@@ -4493,16 +4488,12 @@ set_type_integer(CPH, SId, [X|Xs]) :-
               cplex_init_type(CPH, J, TypeCode)
 	; var(X) ->
               printf(warning_output, "Eplex warning: integer variable not a problem variable (ignored): %mVw%n", [X])
+	; integer(X) ->
+	      true
 	; number(X) ->
 	      % nonvar: make sure it's sufficiently integral
-	      ( abs(round(X) - X) =< cplex_get_param(CPH, integrality) ->
-                  true
-              ;
-                  printf(warning_output, "Eplex warning: integer variable instantiated to a"
-                                         " non-integral number: %w. Failing.%n", [X]),
-                  fail
-              )
-              ;
+	      abs(round(X) - X) =< cplex_get_param(CPH, integrality)
+	;
               printf(error, "Eplex error: integer variable unified to"
                             " a non-number:.%w%n", [X]),
               throw(abort)

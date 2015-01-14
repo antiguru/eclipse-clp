@@ -6516,18 +6516,20 @@ p(20000000000000000000) :-
 	p_big2.
 
 INDEXES for (nondet) disjunction [2]
-1. Quality 1.5
+1. Quality 1.0
     [] - []
-    [bignum] - [3, 4, 5, 6]
+    [bignum] - [5, 6]
     [integer] - []
+    [integer, 20000000000] - [4]
+    [integer, 10000000000] - [3]
     [integer, 1] - [1]
     [integer, 2] - [2]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
-    Branch 3: try
-    Branch 4: retry
-    Branch 5: retry
+    Branch 3: det
+    Branch 4: det
+    Branch 5: try
     Branch 6: trust
 p / 1:
 label(1):
@@ -6549,17 +6551,19 @@ label(1):
 	branch                   ref(fail) 
 label(3):
 	in_get_integer           a(1)     1 
-label(17):
+label(19):
 	jmp                      p_small1 / 0 
 label(5):
 	in_get_integer           a(1)     2 
-label(18):
+label(20):
 	jmp                      p_small2 / 0 
 label(7):
-	in_get_constant          a(1)     10000000000 
+	in_get_integer           a(1)     10000000000 
+label(18):
 	jmp                      p_medium1 / 0 
 label(9):
-	in_get_constant          a(1)     20000000000 
+	in_get_integer           a(1)     20000000000 
+label(17):
 	jmp                      p_medium2 / 0 
 label(11):
 	in_get_constant          a(1)     10000000000000000000 
@@ -6568,14 +6572,14 @@ label(13):
 	in_get_constant          a(1)     20000000000000000000 
 	jmp                      p_big2 / 0 
 label(15):
-	try                      0     1     ref(7) 
-	retry                    0     ref(9) 
-	retry                    0     ref(11) 
+	try                      0     1     ref(11) 
 	trust                    0     ref(13) 
 label(16):
 	integer_switch           a(1) 
-		1: 	ref(17)
-		2: 	ref(18)
+		20000000000: 	ref(17)
+		10000000000: 	ref(18)
+		1: 	ref(19)
+		2: 	ref(20)
 		default: 	ref(fail)
 
 
@@ -11305,23 +11309,22 @@ q / 1:
 label(1):
 	get_variable             1     a(1)     y(1) 
 	callf                    r / 0     Y[1] 
-	move                     y(1)     a(1) 
-	integer_switch           a(1) 
-		1: 	ref(8)
-		2: 	ref(9)
+	integer_switch           y(1) 
+		1: 	ref(4)
+		2: 	ref(6)
 		default: 	ref(fail)
 
 label(3):
-	try_me_else              0     1     ref(5) 
+	try_me_else              0     0     ref(5) 
 label(4):
+	move                     y(1)     a(1) 
 	get_integer              a(1)     1 
-label(8):
 	chain                    s / 0 
 label(5):
-	trust_me_inline          0     Y[] 
+	trust_me_inline          0     Y[1] 
 label(6):
+	move                     y(1)     a(1) 
 	get_integer              a(1)     2 
-label(9):
 	chain                    s / 0 
 
 ------ Test inline(2) -------
@@ -11355,10 +11358,9 @@ label(1):
 	get_variable             2     a(1)     y(1) 
 	callf                    q / 0     Y[1] 
 	savecut                  y(2) 
-	move                     y(1)     a(1) 
-	try_me_else              0     1     ref(3) 
+	try_me_else              0     0     ref(3) 
 label(2):
-	callf                    r / 1     Y[1,2] 
+	move_callf               y(1)     a(1)     r / 1     Y[1,2] 
 	cut                      y(2)     1 
 	move_chain               y(1)     a(1)     t / 1 
 label(3):
@@ -12826,6 +12828,54 @@ label(6):
 	trust_me_inline          0     Y[] 
 label(7):
 	chain                    (else) / 0 
+
+------ Test bugzilla(727) -------
+p1 :-
+	A = f(B),
+	t,
+	writeln(B).
+p2 :-
+	A = f(B),
+	writeln(B).
+
+p1 / 0:
+label(1):
+	allocate                 1 
+	put_global_variable      y(1) 
+	callf                    t / 0     Y[1] 
+	put_module               a(2)     eclipse 
+	move_chain               y(1)     a(1)     sepia_kernel : writeln_body / 2 
+p2 / 0:
+label(1):
+	put_variable             a(1) 
+	put_module               a(2)     eclipse 
+	jmp                      sepia_kernel : writeln_body / 2 
+
+------ Test bugzilla(774) -------
+p1 :-
+	(
+	    A = A
+	;
+	    true
+	),
+	writeln(A).
+
+p1 / 0:
+label(1):
+	try_me_else              0     0     ref(3) 
+label(2):
+	allocate                 1 
+	put_global_variable      y(1) 
+label(5):
+	put_module               a(2)     eclipse 
+	move_chain               y(1)     a(1)     sepia_kernel : writeln_body / 2 
+label(3):
+	trust_me                 0 
+label(4):
+	allocate                 1 
+	gc_test                  1 
+	put_global_variable      y(1) 
+	branch                   ref(5) 
 
 ------ Test at1 -------
 at1 :-

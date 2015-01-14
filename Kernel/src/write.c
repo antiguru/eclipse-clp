@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.16 2013/03/04 01:24:03 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.17 2015/01/14 01:31:09 jschimpf Exp $
  */
 
 /*
@@ -839,24 +839,23 @@ _write_structure_:			/* (d, arg) */
 	{
 	    pword *narg = arg;
 	    Dereference_(narg);
-	    switch (TagType(narg->tag))
-	    {
-	    case TINT:
-		if (narg->val.nint < 0)
-		    break;
+	    if (IsInteger(narg->tag) && narg->val.nint >= 0) {
 		if ((status = ec_outfc(out, 'A' + (char)(narg->val.nint % 26))) < 0)
 		    return (status);
 		if (narg->val.nint / 26)
 		    return p_fprintf(out, "%" W_MOD "d", narg->val.nint / 26);
 		return PSUCCEED;
-	    case TSTRG:
-		return ec_outf(out, StringStart(narg->val),
-				    (int) StringLength(narg->val));
-	    case TDICT:
-		return ec_outf(out, DidName(narg->val.did),
-				    (int) DidLength(narg->val.did));
-	    case TNIL:
-		return ec_outf(out, "[]", 2);
+	    } else if (!(sd->options & ISO_RESTRICTIONS)) {
+		switch (TagType(narg->tag)) {
+		case TSTRG:
+		    return ec_outf(out, StringStart(narg->val),
+					(int) StringLength(narg->val));
+		case TDICT:
+		    return ec_outf(out, DidName(narg->val.did),
+					(int) DidLength(narg->val.did));
+		case TNIL:
+		    return ec_outf(out, "[]", 2);
+		}
 	    }
 	    /* else print the structure normally */
 	}
@@ -1664,7 +1663,8 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
     }
     else
     {
-	if (!(idwrite & VAR_NUMBERS))
+	/* ISO requires _xxx names */
+	if (!(idwrite & VAR_NUMBERS) && !(sd->options & ISO_RESTRICTIONS))
 	{
 	    switch (TagType(t))
 	    {

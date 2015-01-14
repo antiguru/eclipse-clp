@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION    $Id: bip_arith.c,v 1.22 2013/02/10 01:09:44 jschimpf Exp $
+ * VERSION    $Id: bip_arith.c,v 1.23 2015/01/14 01:31:09 jschimpf Exp $
  */
 
 /*
@@ -1636,7 +1636,7 @@ _int_mul(value v1, value v2, pword *pres)	/* int x int -> int/big */
 static int
 _int_neg(value v1, pword *pres)	/* needed in the parser to evaluate signs */
 {
-    if (-v1.nint == MIN_S_WORD)
+    if (v1.nint == MIN_S_WORD)
 	{ Bip_Error(INTEGER_OVERFLOW); }
     Make_Integer(pres, -v1.nint);
     Succeed_;

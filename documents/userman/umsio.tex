@@ -110,7 +110,7 @@ In an embedded {\eclipse}, the meaning of stdin, stdout and
 stderr is determined by the {\eclipse} initialization options.
 
 \begin{center}
-\begin{tabular}{|r|l|l|}
+\begin{tabular}{|l|l|l|}
 \hline
 Current Stream  & Default Stream & Standard Stream\\
 \hline
@@ -148,9 +148,9 @@ have a stream argument at the first position,
 e.g., \notation{write(Stream, Term)}. This argument can be either a
 stream handle or a symbolic stream name.
 
-Streams that are opened by programs should only use stream handles,
+Streams that are opened by programs should preferably use stream handles,
 as this allows the system to better keep track of their lifetime.
-Alias names can however be given either immediately when a stream is
+Nevertheless, alias names can be given, either immediately when a stream is
 newly opened (e.g. with \bipref{open/4}{../bips/kernel/iostream/open-4.html}),
 or later via redirection
 (\bipref{set_stream/2}{../bips/kernel/iostream/set_stream-2.html}).
@@ -347,7 +347,7 @@ The predicates
 \bipref{close/1}{../bips/kernel/iostream/close-1.html},
 \biptxtref{2}{close/2}{../bips/kernel/iostream/close-2.html}
 \begin{quote}
-\preddef{close(\pattern{Stream})}
+\preddef{close(\pattern{Stream})}\\
 \preddef{close(\pattern{Stream},\pattern{Options})}
 \end{quote}
 are used to explicitly close an open stream.

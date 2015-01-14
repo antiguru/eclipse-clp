@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.42 2013/07/05 01:34:47 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.43 2015/01/14 01:31:10 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -362,6 +362,7 @@ proc tkecl:library_browser {} {
 	set htmlinfo [text $lb.ref -relief groove  -borderwidth 3 -height 3 ] 
 
 	bind $htmlinfo <Any-Key> "tkecl:readonly_keypress %A"
+	bind $htmlinfo <ButtonRelease-2> {break} ;# disable paste
 	$htmlinfo tag configure highlight  -justify center -font tkecllabel
 	$htmlinfo insert end "To obtain more information on ECLiPSe, point your browser at:\n$htmldoc" highlight
 
@@ -393,6 +394,7 @@ proc tkecl:library_browser {} {
 	    bind $tinput <Return> "tkecl:display_help $tinput $t"
 
 	    bind $t <Any-Key> "tkecl:readonly_keypress %A"   ;# read only
+	    bind $t <ButtonRelease-2> {break} ;# disable paste
 	    bind $t <Button-1> "tkecl:lb_insert_input $tinput $t"
 	    bind $t <Double-Button-1> "tkecl:display_help $tinput $t; break"
 
@@ -517,7 +519,7 @@ proc tkecl:display_help {input text} {
     $text tag remove highlight 1.0 end
     $text configure -cursor watch ; update idletasks
     $text insert end [lindex [ec_rpcq\
-	 [list gui_help_string $tkecl(help_input) _] (()(S_)) tracer_tcl] 2]\
+	 [list gui_help_string $tkecl(help_input) _] (S_) tracer_tcl] 2]\
 	highlight
     $text see end
     $text configure -cursor left_ptr

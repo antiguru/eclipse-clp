@@ -91,17 +91,17 @@ gcc_matrix(Row,Col,Matrix) :-
     a value that Vars is to be assigned to, and must occur only once as a
     Value in the row/column, and whose cardinality |Value| is specified by 
     Low =< |Value| =< High, where Low and High are non-negative integers. 
-    Vars cannot take values not specified in a gcc triplets.
+    Vars cannot take values not specified in a gcc triplet.
     This constraint is logically equivalent to imposing M+N individual gcc
-    constraints on each row and column of Matrix, but allows more reasoning
+    constraints, on each row and column of Matrix, but allows more reasoning
     because of the interaction of the values between the rows and columns.
     The gcc used is from lib(fd_global_gac), but the extra inferences 
-    performed between the rows and columns itself may be not fully 
+    performed between the rows and columns themselves may be not fully 
     domain consistent. 
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
     This constraint is described in J.-C. Regin and C. Gomes,
     'The Cardinality Matrix Constraint', CP 2004.
@@ -122,14 +122,13 @@ gcc_matrix(Row,Col,Matrix) :-
     equivalent to imposing 2N alldifferent constraints on each row and column,
     but it allows more reasoning because it consider the rows and columns 
     together. The version uses alldifferent from lib(fd_global_gac), but the 
-    extra inferences performed between the rows and columns itself not be
+    extra inferences performed between the rows and columns themselves not be
     fully domain consistent. The maximum propagation occurs when the 
     variables' domains also have N values. 
-    have N values
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
     This constraint is described in J.-C. Regin and C. Gomes,
     'The Cardinality Matrix Constraint', CP 2004.
@@ -153,9 +152,9 @@ gcc_matrix(Row,Col,Matrix) :-
     specified in Values is at least Low and at most High for all sequences 
     of K consecutive variables/values in Vars. 
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 </P><P>
     This constraint is known as among_seq in the global constraint catalog.
     The algorithm implemented is described in M. Maher et al.'s paper 
@@ -193,9 +192,9 @@ gcc_matrix(Row,Col,Matrix) :-
 </P><P>
     Note: this constraint is different from sequence/4 in lib(fd).
 </P><P>
-    This is currently a prototype -- the constraint have not been tested
-    very extensively and little effort have been spent to optimise performance.
-    We welcome any feedbacks on using this constraint.
+    This is currently a prototype -- the constraint has not been tested
+    very extensively and little effort has been spent to optimise performance.
+    We welcome any feedback on using this constraint.
 ") 
          ]
 ).

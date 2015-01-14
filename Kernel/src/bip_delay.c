@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.7 2009/03/15 09:12:10 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.8 2015/01/14 01:31:09 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -898,17 +898,9 @@ _setuniv(value v, type t)
 	    Succeed_;
 
 	case TMETA:
+	    /* this depends on whether the attribute implies a constraint */
 	    Succeed_;	/* ? */
 
-	case TNIL:
-	case TINT:
-	case TDICT:
-	case TSTRG:
-	case TPTR:
-	case TPROC:
-	case TSUSP:
-	case THANDLE:
-	    Succeed_;
 	case TLIST:
 	    arity = 2;
 	    break;
@@ -916,8 +908,9 @@ _setuniv(value v, type t)
 	    arity = DidArity(v.ptr->val.did);
 	    v.ptr++;
 	    break;
+
 	default:
-	    Bip_Error(UNIFY_OVNI);
+	    Succeed_;
 	}
 
 	for (; arity > 1; arity--)

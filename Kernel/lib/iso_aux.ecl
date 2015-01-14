@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_aux.ecl,v 1.2 2013/02/04 19:11:39 jschimpf Exp $
+% Version:	$Id: iso_aux.ecl,v 1.3 2015/01/14 01:31:08 jschimpf Exp $
 %
 % IDENTIFICATION:	iso_aux.ecl
 %
@@ -61,12 +61,18 @@
 	).
 
 ^(X,Y,Z) :-
+	% error cases a,b,c,f,g handled by kernel's ^/2
 	eclipse_language:(R is X^Y),
 	( float(R), integer(X), integer(Y) ->
-	    ( R == 1.0 ->
-		Z = 1
-	    ;
+	    RAbs is abs(R),
+	    ( RAbs > 1.0 ->
+		% case (d) (R=inf, which should really be zero_divisor)
+		throw(error(evaluation_error(undefined), ^(X,Y,Z)))
+	    ; RAbs < 1.0 ->
+		% case (e) extended to Y= -1
 		throw(error(type_error(float,X), ^(X,Y,Z)))
+	    ;
+		Z is integer(R)
 	    )
 	;
 	    Z=R
@@ -147,10 +153,11 @@ is_(R, truncate(X), M, V) :-	!, is_(X1,X,M,V), sepia_kernel:fix(X1,R).
 is_(R, float_integer_part(X), M, V) :- !, is_(X1,X,M,V), iso_aux:float_integer_part(X1,R).
 is_(R, float_fractional_part(X), M, V) :- !, is_(X1,X,M,V), iso_aux:float_fractional_part(X1,R).
 is_(R, X, M, V) :-
-	( V==iso_strict ->
-	    functor(X, F, A), throw(error(type_error(evaluable,F/A),(is)/2))
-	;
+	functor(X, F, A), A1 is A+1,
+	( V\==iso_strict, is_predicate(F/A1)@M ->
 	    eclipse_language:(R is X)@M
+	;
+	    throw(error(type_error(evaluable, F/A), (is)/2))
 	).
 
 
@@ -250,7 +257,13 @@ trans_compare(In, Code, Version) :-
 	    % allow calling generalised functions if not iso_strict
 	    Version \== iso_strict,
 	    Code0 = Code,
-	    expand_goal(Res is Expr, Call)
+	    expand_goal(Res is Expr, CallSub),	% eclipse_language expansion!
+	    % make the expected error at least for the top level expression
+	    functor(Expr, F, A), A1 is A+1,
+	    Call = catch(CallSub,
+	    	error(existence_error(procedure, F/A1), _Module),
+		throw(error(type_error(evaluable, F/A), (is)/2))
+	    )
 	).
 
 

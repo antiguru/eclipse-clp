@@ -31,7 +31,7 @@ variables inside Term.
 ",
 	amode:(nonground(?,-) is semidet),
 	desc:html("   Used to test whether Term is not ground i.e. whether it contains at
-   least one free variable.  The argument Variable is unified with one of
+   least one uninstantiated variable.  The argument Variable is unified with one of
    the variables inside Term, i.e. with one of the responsibles for its
    non-groundness.  When Term contains several variables, it is not
    specified which one will be returned as Variable.  As usual, attributed
@@ -225,9 +225,9 @@ Fail:
 
 ",
 	amode:(atomic(?) is semidet),
-	desc:html("   Used to test whether Term is an atomic term.
-
-<P>
+	desc:html("
+	Used to test whether Term is an atomic term.
+	This is the negation of compound/1.
 "),
 	args:["Term" : "Prolog term."],
 	fail_if:"Fails if Term is not an atom, a number or a string",
@@ -290,8 +290,9 @@ Fail:
 
 ",
 	amode:(compound(?) is semidet),
-	desc:html("   Used to test whether Term is a compound term.
-
+	desc:html("Used to test whether Term is a compound term.
+	Compound terms have an arity greater than zero.
+	This test is the negation of atomic/1.
 <P>
 "),
 	args:["Term" : "Prolog term."],
@@ -299,14 +300,16 @@ Fail:
 	eg:"
    Success:
    compound(f(1,2)).
+   compound(f(_,_)).
    compound([1,2,3]).
    compound(.(1,2)).
+   compound(f/1).
+   compound(1+2).
+   compound(1+2).
    Fail:
    compound(\"f(1,2)\").
    compound(Term).
    compound(atom).
-
-
 
 ",
 	see_also:[atom / 1, atomic / 1, callable/1, is_list/1, is_array/1, var / 1]]).
@@ -327,11 +330,9 @@ Fail:
    integer(10).
    integer(-40).
    Fail:
+   integer(3.14).
    integer('4').
    integer(Integer).
-
-
-
 ",
 	see_also:[integer_atom / 2, number / 1, float/1, real / 1, rational/1, breal/1]]).
 
@@ -340,9 +341,10 @@ Fail:
 
 ",
 	amode:(nonground(?) is semidet),
-	desc:html("   Used to test whether VarTerm is not ground i.e.  contains at least one
-   free variable.
-
+	desc:html("
+    Used to test whether VarTerm is not ground i.e. whether it is itself a
+    variable, or it has at least one subterm that is a uninstantiated variable.
+    This is the negation of ground/1.
 <P>
 "),
 	args:["VarTerm" : "Prolog term."],
@@ -355,9 +357,6 @@ Fail:
    Fail:
    nonground(atom).
    nonground(likes(man,woman)).
-
-
-
 ",
 	see_also:[nonvar / 1, ground/1, nonground/2, nonground/3, type_of / 2, var / 1]]).
 
@@ -367,6 +366,7 @@ Fail:
 	amode:(ground(?) is semidet),
 	desc:html("
 	Used to test whether Term is ground, i.e. contains no variables.
+	This is the negation of nonground/1.
 "),
 	args:["Term" : "Prolog term."],
 	fail_if:"Fails if Term is not ground",
@@ -386,8 +386,11 @@ Fail:
 
 ",
 	amode:(nonvar(?) is semidet),
-	desc:html("   Used to test whether Term is instantiated.
-
+	desc:html("
+    Used to test whether Term is instantiated.  This is the negation of var/1,
+    i.e. it succeeds if Term is not an uninstantiated variable.
+    Note that it also succeeds if Term is a partially instantiated term,
+    i.e. a compound term with at least one uninstantiated subterm.
 <P>
 "),
 	args:["Term" : "Any Prolog term."],
@@ -395,6 +398,10 @@ Fail:
 	eg:"
    Success:
    nonvar(atom).
+   nonvar(33).
+   nonvar(foo(3)).
+   nonvar(foo(_)).
+   nonvar([_|_]).
    Fail:
    nonvar(Var).
 

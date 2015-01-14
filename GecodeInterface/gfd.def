@@ -116,5 +116,6 @@ EXPORTS
 	p_g_create_idxs_handle          @111
 	p_g_select			@112
         p_g_delete			@113
-	
-	p_g_gecode_version		@114
+	p_g_init_space_handle_c		@114
+
+	p_g_gecode_version		@115

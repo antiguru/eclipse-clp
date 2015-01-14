@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: matrix_util.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: matrix_util.pl,v 1.3 2015/01/14 01:31:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(matrix_util).
@@ -31,33 +31,69 @@
 :- comment(summary, "Predicates to build matrices from lists").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2015/01/14 01:31:09 $").
+:- comment(desc, html(
+	"<p>This library contains predicates for representing and manipulating "
+	"matrices as nested lists.  Both list of rows and list of columns "
+	"can be created and mapped into each other."
+	"</p><p>"
+	"Note that newer versions of ECLiPSe have good support for representing "
+	"matrices as multi-dimensional arrays, which is often preferrable to "
+	"the list representation used here.</p>"
+    )).
 
 :- comment(matrix/3, [
     summary:"Create a matrix as a list of rows",
-    template:"matrix(+NRow, +NCols, -Rows)"
-    ]).
+    template:"matrix(+NRow, +NCols, -Rows)",
+    eg:"
+    ?- matrix(2,3,M).
+    M = [[_175, _177, _179], [_183, _185, _187]]
+    Yes (0.00s cpu)
+    "]).
 :- comment(matrix/4, [
     summary:"Create a matrix as both a list of rows and a list of columns",
-    template:"matrix(+NRows, +NCols, -Rows, -Cols)"
-    ]).
+    template:"matrix(+NRows, +NCols, -Rows, -Cols)",
+    eg:"
+    ?- matrix(2,3,Rows,Cols).
+    Rows = [[_183, _185, _187], [_191, _193, _195]]
+    Cols = [[_183, _191], [_185, _193], [_187, _195]]
+    Yes (0.00s cpu)
+    "]).
 :- comment(list2rows/4, [
     summary:"Create a matrix from a flat list of row-wise listed elements",
-    template:"list2rows(+List, +NRows, +NCols, -Rows)"
-    ]).
+    template:"list2rows(+List, +NRows, +NCols, -Rows)",
+    eg:"
+    ?- list2rows([1,2,3,4,5,6],2,3,Rows).
+    Rows = [[1, 2, 3], [4, 5, 6]]
+    Yes (0.00s cpu)
+    "]).
 :- comment(list2cols/4, [
     summary:"Create a matrix from a flat list of row-wise listed elements",
-    template:"list2rows(+List, +NRows, +NCols, -Cols)"
-    ]).
+    template:"list2cols(+List, +NRows, +NCols, -Cols)",
+    eg:"
+    ?- list2cols([1,2,3,4,5,6],2,3,Cols).
+    Cols = [[1, 4], [2, 5], [3, 6]]
+    Yes (0.00s cpu)
+    "]).
 :- comment(transpose/2, [
     summary:"Transpose a matrix (list of rows or list of columns)",
-    template:"transpose(+Matrix, -Transposed)"
-    ]).
+    template:"transpose(+Matrix, -Transposed)",
+    eg:"
+    ?- list2rows([1,2,3,4,5,6],2,3,Rows), transpose(Rows,Cols).
+    Rows = [[1, 2, 3], [4, 5, 6]]
+    Cols = [[1, 4], [2, 5], [3, 6]]
+    Yes (0.00s cpu)
+    "]).
 :- comment(concat/2, [
     summary:"Concatenate all the rows (or columns) into a flat list",
     template:"concat(+RowsOrCols, -List)",
-    see_also:[list2rows/4,list2cols/4,transpose/2]
-    ]).
+    see_also:[list2rows/4,list2cols/4,transpose/2],
+    eg:"
+    ?- list2rows([1,2,3,4,5,6],2,3,Rows), concat(Rows,Xs).
+    Rows = [[1, 2, 3], [4, 5, 6]]
+    Xs = [1, 2, 3, 4, 5, 6]
+    Yes (0.00s cpu)
+    "]).
 :- comment(read_data/3, [
     summary:"Read numbers from a file into List",
     desc:html("Read numbers from a file into List until either the list is full or
@@ -84,7 +120,7 @@ matrix(NRow, NCol, Rows, Cols) :-
 	matrix(NRow, NCol, Rows),
 	transpose(Rows, Cols).
 
-matrix(0, _NCol, []).
+matrix(0, _NCol, LoL) :- !, LoL=[].
 matrix(NRow, NCol, [L|LoL1]) :-
 	integer(NRow), NRow > 0, 
 	NRow1 is NRow-1,
