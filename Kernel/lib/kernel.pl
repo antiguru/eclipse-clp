@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.54 2015/01/14 01:31:09 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.55 2015/03/29 16:24:21 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1769,8 +1769,8 @@ use_module_body(File, Module) :-
 	    is_a_module(FileMod),
 	    (ignore_bip_error(171) -> true ; ignore_bip_error(173))
 	),
-	import_interface(FileMod, Module),
 	import_(FileMod, Module),
+	import_interface(FileMod, Module),
 	!.
 use_module_body(File, Module) :-
 	bip_error(use_module(File), Module).
