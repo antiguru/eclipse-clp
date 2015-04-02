@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.6 2015/04/02 03:35:08 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.7 2015/04/02 14:35:45 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -989,6 +989,9 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
     pword		list1, list2;
     int         	comp, sequence;
 
+    if (number_sort)
+    	number_sort = keep_duplicates ? BILeGe : BINe;
+
     old_tg = Gbl_Tg;		/* to reset TG on errors	*/
 
     /*
@@ -1038,7 +1041,7 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 		*err = IsRef(key_ptr2->tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
 		return 0;
 	    }
-	    comp = BIEq;	/* input for breal comparison */
+	    comp = number_sort;	/* input for breal comparison */
 	    int res = arith_compare(key_ptr1->val, key_ptr1->tag,
 				 key_ptr2->val, key_ptr2->tag, &comp);
 	    if (res != PSUCCEED)
@@ -1175,7 +1178,7 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 		key_ptr2 = _get_key(h2, vk, tk, err);
 		if (number_sort)
 		{
-		    comp = BIEq;
+		    comp = number_sort;
 		    int res = arith_compare(key_ptr1->val, key_ptr1->tag,
 					 key_ptr2->val, key_ptr2->tag, &comp);
 		    if (res != PSUCCEED)
@@ -1373,6 +1376,9 @@ _merge(value vk, type tk,
 	goto _merge_error_;
     }
 
+    if (number_sort)
+    	number_sort = keep_duplicates ? BILeGe : BINe;
+
     for(;;)	/* (h1, key_ptr1, h2, key_ptr2) */
     {
 	if (number_sort)
@@ -1383,7 +1389,7 @@ _merge(value vk, type tk,
 		err = IsRef(key_ptr1->tag) ? INSTANTIATION_FAULT : IsRef(key_ptr2->tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
 		goto _merge_error_;
 	    }
-	    comp = BIEq;
+	    comp = number_sort;
 	    err = arith_compare(key_ptr1->val, key_ptr1->tag,
 				key_ptr2->val, key_ptr2->tag, &comp);
 	    if(err != PSUCCEED)

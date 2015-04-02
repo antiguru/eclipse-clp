@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.12 2012/12/09 22:53:12 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.13 2015/04/02 14:35:46 jschimpf Exp $
  */
 
 /*
@@ -1519,6 +1519,7 @@ extern dident transf_did ARGS((word));
 #define BIGe	4
 #define BIEq	5
 #define BINe	6
+#define BILeGe	7	/* =< or >=, needed for sorting */
 
 /*---------------------------------------------------------------------------
  * Prototypes

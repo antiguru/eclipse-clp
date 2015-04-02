@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.12 2015/04/02 03:35:08 jschimpf Exp $
+* Version:	$Id: intervals.c,v 1.13 2015/04/02 14:35:46 jschimpf Exp $
 *
 
 Supported operations:
@@ -2066,7 +2066,14 @@ _compare_ivl(value v1, value v2)
 
 /*
  * This is arithmetic comparison, which may delay if it is not decidable.
- * returns PSUCCEED or PDELAY
+ * Needs the kind of comparison in *relation (BILe, etc) as input!
+ * Returns PDELAY if undecidable, otherwise PSUCCEED and -1,0,1 in *relation.
+ * The exact meaning of the result depends on the kind of comparison:
+ *
+ *	Lt,Ge	Le,Gt	Eq,Ne	LeGe
+ * -1	<	=<	<	=<
+ *  0	=	=	=	=
+ *  1	>=	>	>	>=
  */
 
 static int
@@ -2084,7 +2091,8 @@ _arith_compare_ivl(value v1, value v2, int *relation)
      * the test in the calling code will give the right answer.
      */
     switch(*relation) {
-    	case BILe:
+    	case BILe:		/* -1 (=<), 1 (>) or undecidable */
+    	case BIGt:
 	    if (IvlUpb(v1.ptr) <= IvlLwb(v2.ptr)) {
 		*relation = -1;	/* Means -1 or 0 */
 	    	return PSUCCEED;
@@ -2096,19 +2104,9 @@ _arith_compare_ivl(value v1, value v2, int *relation)
 		return PDELAY;
 	    }
 	    break;
+
+    	case BIGe:		/* -1 (<), 1 (>=) or undecidable */
     	case BILt:
-	    if (IvlUpb(v1.ptr) < IvlLwb(v2.ptr)) {
-		*relation = -1;
-	    	return PSUCCEED;
-	    } else if (IvlLwb(v1.ptr) >= IvlUpb(v2.ptr)) {
-	    	*relation = 1;	/* Means 1 or 0 */
-		return PSUCCEED;
-	    } else {
-	    	*relation = 0;
-		return PDELAY;
-	    }
-	    break;
-    	case BIGe:
 	    if (IvlLwb(v1.ptr) >= IvlUpb(v2.ptr)) {
 		*relation = 1;	/* Means 1 or 0 */
 	    	return PSUCCEED;
@@ -2120,19 +2118,8 @@ _arith_compare_ivl(value v1, value v2, int *relation)
 		return PDELAY;
 	    }
 	    break;
-    	case BIGt:
-	    if (IvlLwb(v1.ptr) > IvlUpb(v2.ptr)) {
-		*relation = 1;
-	    	return PSUCCEED;
-	    } else if (IvlUpb(v1.ptr) <= IvlLwb(v2.ptr)) {
-	    	*relation = -1;	/* Means -1 or 0 */
-		return PSUCCEED;
-	    } else {
-	    	*relation = 0;
-		return PDELAY;
-	    }
-	    break;
-	case BIEq:
+
+	case BIEq:		/* -1 (<), 0 (=), 1 (>) or undecidable */
 	case BINe:
 	    if (IvlUpb(v1.ptr) < IvlLwb(v2.ptr)) {
 	    	*relation = -1;
@@ -2143,6 +2130,25 @@ _arith_compare_ivl(value v1, value v2, int *relation)
 	    } else if (IvlLwb(v1.ptr) == IvlUpb(v2.ptr) &&
 	    		IvlUpb(v1.ptr) == IvlLwb(v2.ptr)) {
 	    	*relation = 0;
+		return PSUCCEED;
+	    } else {
+	    	*relation = 0;
+		return PDELAY;
+	    }
+	    break;
+
+	case BILeGe:		/* -1 (=<), 0 (=), 1 (>=) or undecidable */
+	    if (IvlUpb(v1.ptr) <= IvlLwb(v2.ptr)) {
+		if (IvlLwb(v1.ptr) >= IvlUpb(v2.ptr))
+		    *relation = 0;
+		else
+		    *relation = -1;	/* Means -1 or 0 */
+	    	return PSUCCEED;
+	    } else if (IvlLwb(v1.ptr) >= IvlUpb(v2.ptr)) {
+		if (IvlUpb(v1.ptr) <= IvlLwb(v2.ptr))
+		    *relation = 0;
+		else
+		    *relation = 1;	/* Means 1 or 0 */
 		return PSUCCEED;
 	    } else {
 	    	*relation = 0;
