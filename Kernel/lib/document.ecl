@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.12 2015/01/14 01:31:08 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.13 2015/04/02 03:38:00 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2015/01/14 01:31:08 $").
+:- comment(date, "$Date: 2015/04/02 03:38:00 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -716,7 +716,9 @@ gen_library_page_html(HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherCom
 	    writeln(Stream, "<H2>Other Exports</H2>"),
 	    writeln(Stream, "<BLOCKQUOTE><DL>"),
 	    ( foreach(ExportItem,OtherExports), param(Stream) do
-		printf(Stream, "<DT><STRONG>%w</STRONG></DT><DD></DD>%n", [ExportItem])
+		( ExportItem = export(initialization(_)) -> true ;
+		    printf(Stream, "<DT><STRONG>%w</STRONG></DT><DD></DD>%n", [ExportItem])
+		)
 	    ),
 	    writeln(Stream, "</DL></BLOCKQUOTE>")
 	),
