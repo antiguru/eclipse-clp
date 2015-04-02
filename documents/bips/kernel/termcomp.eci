@@ -216,10 +216,10 @@ Term1 and Term2.
     in ascending order.
 
 <DT><STRONG>strings</STRONG><DD>
-    lexicographical (ASCII) order
+    lexicographical order, according to character encoding
 
 <DT><STRONG>atoms</STRONG><DD>
-    lexicographical (ASCII) order
+    lexicographical order, according to character encoding
 
 <DT><STRONG>compound terms</STRONG><DD>
     first by arity, then by functor name, then by the
@@ -691,7 +691,7 @@ Error:
 
 
 ",
-	see_also:[compare / 3, merge / 3, merge / 5, msort / 2, sort / 4, number_sort/4]]).
+	see_also:[compare / 3, merge / 3, merge / 5, msort / 2, sort / 4]]).
 
 :- comment(merge / 3, [
 	summary:"Succeeds if List3 is a merged list of List1 and List2.  If both lists are
@@ -751,47 +751,80 @@ Order specifications.
 
 ",
 	amode:(merge(+,+,+,+,-) is det),
-	desc:html("   Used to merge the sorted lists List1 and List2 to give the sorted list
-   List3.
+	desc:html("<P>\
+   Generic list merge primitive: merges two sorted lists according to the Key
+   and Order specifications, and unifies List3 with the result.  The sort
+   is stable, i.e. the order of elements with equal keys is preserved.
+</P><P>
+   The Key argument determines which part of the list elements is considered
+   the sorting key.  If Key is 0, then the entire term is taken as the
+   sorting key (in this case, the list can contain anything, including
+   numbers, atoms, strings, compound terms, and even variables).  If Key
+   is a positive integer (or a list of those), then the list elements will
+   get ordered by their Keyth subterm (in this case, the list must contain
+   compound terms with appropriate subterms).
+</P><P>
+   The Order argument specifies whether to use standard term order (@) or
+   numeric order ($), whether the list is sorted into ascending (&lt;, =&lt;)
+   or descending (&gt;, &gt;=) order, and whether duplicates are to be
+   retained (=&lt;, &gt;=) or removed (&lt;, &gt;).  The way to remember the Order
+   argument is that it is the relation which holds between adjacent
+   elements in the result.
+<PRE>
+        Order           ordering        direction       duplicates
+    ---------------------------------------------------------------
+        @&lt;  (or &lt;)      standard        ascending       removed
+        @=&lt; (or =&lt;)     standard        ascending       retained
+        @&gt;  (or &gt;)      standard        descending      removed
+        @&gt;= (or &gt;=)     standard        descending      retained
 
-<P>
-   If List1 and List2 are not lists of compound terms, use Key = 0.
-
-<P>
-   If List1 and List2 are lists of compound terms, then the sort will be
-   according to the Keyth argument of the lists' elements.  If Key = 0,
-   then the sort is on the entire terms.
-
-<P>
-   For two lists [e1,e2,e3] and [f1,f2,f3], e1 is compared to f1.  The
-   resulting element (dictated by Key, Order and the standard ordering
+        $&lt;              numeric         ascending       removed
+        $=&lt;             numeric         ascending       retained
+        $&gt;              numeric         descending      removed
+        $&gt;=             numeric         descending      retained
+</PRE>
+   The alternative ordering criteria are:
+   <DL>
+   <DT>@ standard term order</DT><DD>
+       The sort is done according to the standard ordering of terms.
+       This can be applied to any term, see compare/3 for the definition.
+       Note in particular that numbers are first ordered by their type
+       (integer, float, etc) and only then by their magnitude, i.e.
+       sorting numbers of different types may not give the expected result.
+   </DD>
+   <DT>$ numeric order</DT><DD>
+       The sort is done according to numeric order.  The sorting keys must
+       all be numbers, but can be a mix of numeric types.  They are compared
+       in the way they are compared by the arithmetic comparisons (&lt;/2, &lt;=/2, etc).
+       Unlike standard order, this will consider numbers such as 3 and 3.0
+       as equal, and -0.0 as equal to 0.0.
+   </DD>
+   </DL>
+   See sort/4 for further details on ordering.
+</P><P>
+   Algorithm: For two lists [e1,e2,e3] and [f1,f2,f3], e1 is compared to f1.
+   The resulting element (dictated by Key, Order and the standard ordering
    below, with ties being resolved in favour of the element from List1)
    is put into List3, and the process continued with the remaining input
    lists.  This process continues until both lists are exhausted.
-
-<P>
-   In particular, this will merge two sorted lists into a sorted list.  The
-   merge is stable, i.e. the order of elements with the same key is preserved.
-   If List1 and List2 contain elements with identical keys, List1's elements
-   will occur first in List3.
-
-<P>
-   In all cases where List1 and List2 are sorted, Order specifies whether
-   the lists are sorted into ascending (&lt;, =&lt;) or descending (&gt;, &gt;=) order
-   and whether duplicates are to be retained (=&lt;, &gt;=) or eliminated (&lt;, &gt;).
-   The way to remember the Order argument is that it is the relation which
-   holds between adjacent elements in the result.
-
-<P>
-   The sort is done according to the standard ordering of terms.
-   See compare/3 for the definition of this standard ordering.
-   Note in particular that numbers are first ordered by their type (integer,
-   float, etc) and only then by their magnitude, i.e. sorting numbers of
-   different types may not give the expected result.
-
-<P>
+</P><P>
+   In particular, this will merge two sorted lists into a new sorted list,
+   provided that the given ordering of the input lists is the same as the
+   ordering parameters (Key,Order) of the merge.  The merge is stable, i.e.
+   the order of elements with equal keys is preserved.  If List1 and List2
+   contain elements with identical keys, List1's elements will occur first
+   in List3.
+</P><P>
+   The other merging primitives may be defined in terms of merge/4 as follows:
+<PRE>
+       merge(L1, L2, L3)           :- merge(0, @=<, L1, L2, L3).
+       number_merge(L1, L2, L3)    :- merge(0, $=<, L1, L2, L3).
+</PRE>
+</P>
 "),
-	args:["Key" : "A non-negative integer or a list of positive integers.", "Order" : "One of the atoms =<, >=, < or >.", "List1" : "List.", "List2" : "List.", "List3" : "List or variable."],
+	args:["Key" : "A non-negative integer, or a list of positive integers.",
+	"Order" : "One of the atoms =<, >=, < or >, possibly prefixed with @ or $.",
+	"List1" : "List.", "List2" : "List.", "List3" : "List or variable."],
 	exceptions:[5 : "Key is greater than 0, and one of List1 and List2 does not    have all elements compound terms.", 5 : "Key is not an integer or a list of integers.", 6 : "One of the compound terms in List1 or List2 has not got as    many as Key arguments."],
 	eg:"
 Success:
@@ -827,7 +860,7 @@ Error:
 
 
 ",
-	see_also:[merge / 3, compare / 3, number_merge/5]]).
+	see_also:[merge / 3, number_merge/3, compare / 3, sort/4]]).
 
 :- comment(msort / 2, [
 	summary:"Succeeds if List2 has the same elements as List1 and is sorted.
@@ -877,7 +910,7 @@ sorted, List3 will be sorted.
 ",
 	amode:(number_merge(+,+,-) is det),
 	desc:html("   Used to merge the sorted lists List1 and List2 to give the sorted list
-   List3.  number_merge(L1,L2,L3) is equivalent to number_merge(0,=&lt;,L1,L2,L3).
+   List3.
 
 <P>
    For two lists [e1,e2,e3] and [f1,f2,f3], e1 is compared to f1.  The
@@ -892,11 +925,11 @@ sorted, List3 will be sorted.
 <P>
    The sort is done according to numerical ordering of terms as opposed to
    merge/3 which uses the standard ordering of terms. Duplicates are
-   not removed. See number_sort/4 for a discussion of the differences
+   not removed. See sort/4 for a discussion of the differences
    between numerical and standard ordering of numeric types.
 
 <P>
-   number_merge(A, B, M) is equivalent to number_merge(0, =&lt;, A, B, M).
+   number_merge(A, B, M) is equivalent to merge(0, $=&lt;, A, B, M).
 <P>
 "),
 	args:["List1" : "List of numeric terms.", "List2" : "List of numeric terms.", "List3" : "List of numeric terms or variable."],
@@ -919,84 +952,8 @@ Fail:
 
 
 ",
-	see_also:[merge / 3, merge / 5, number_merge / 5]]).
+	see_also:[merge/3, merge/5]]).
 
-:- comment(number_merge / 5, [
-	summary:"Succeeds if List3 is a merged list of List1 and List2.  If both lists are
-sorted, List3 will be sorted.  The sort is done according to the Key and
-Order specifications.
-
-",
-	amode:(number_merge(+,+,+,+,-) is det),
-	desc:html("   Used to merge the sorted lists List1 and List2 to give the sorted list
-   List3.
-
-<P>
-   If List1 and List2 are not lists of compound terms, use Key = 0.
-
-<P>
-   If List1 and List2 are lists of compound terms, then the sort will be
-   according to the Keyth argument of the lists' elements. The Keyth
-   argument of the list elements must be a numeric term.
-
-<P>
-   For two lists [e1,e2,e3] and [f1,f2,f3], e1 is compared to f1.  The
-   resulting element (dictated by Key, Order and numerical ordering,
-   with ties being resolved in favour of the element from List1)
-   is put into List3, and the process continued with the remaining input
-   lists.  This process continues until both lists are exhausted.
-
-<P>
-   In particular, this will merge two sorted lists into a sorted list.  The
-   merge is stable, i.e. the order of elements with the same key is preserved.
-   If List1 and List2 contains elements with identical keys, List1's elements
-   will occur first in List3.
-
-<P>
-   In all cases where List1 and List2 are sorted, Order specifies whether
-   the lists are sorted into ascending (&lt;, =&lt;) or descending (&gt;, &gt;=) order
-   and whether duplicates are to be retained (=&lt;, &gt;=) or eliminated (&lt;, &gt;).
-   The way to remember the Order argument is that it is the relation which
-   holds between adjacent elements in the result.
-
-<P>
-   The sort is done according to numerical ordering of terms as opposed to
-   merge/5 which uses the standard ordering of terms. See
-   number_sort/4 for a discussion of the differences between numerical
-   and standard ordering of numeric types.
-
-<P>
-"),
-	args:["Key" : "A non-negative integer or a list of positive integers.", "Order" : "One of the atoms =<, >=, < or >.", "List1" : "List.", "List2" : "List.", "List3" : "List or variable."],
-	exceptions:[5 : "Key is greater than 0, and one of List1 and List2 does not    have all elements compound terms.", 5 : "Key is not an integer or a list of integers.", 6 : "One of the compound terms in List1 or List2 has not got as    many as Key arguments."],
-	eg:"
-Success:
-      number_merge(0,<,[2,4,6],[1,3,5],L).
-                      (gives L=[1,2,3,4,5,6]).
-      number_merge(1,>,[f(8),f(6)],[f(4),f(1)],L).
-                      (gives L=[f(8),f(6),f(4),f(1)]).
-      number_merge(2,<,[f(2,1),f(6,4)],[f(6,3),f(8,6)],L).
-                      (gives L=[f(2,1),f(6,3),f(6,4),f(8,6)]).
-      number_merge(2,<,[q(2,1),f(6,4)],[a(6,3),i(8,6)],L).
-                      (gives L=[q(2,1),a(6,3),f(6,4),i(8,6)]).
-      number_merge(0,=<,[1,2],[3,4,4,5],L).
-                      (gives L=[1,2,3,4,4,5]).
-      number_merge([2,1], =<, [f(1,a(1)), f(0,a(3))], [f(3,a(2)), f(1,a(4))], L).
-                      (gives L=[f(1,a(1)), f(3,a(2)), f(0,a(3)), f(1,a(4))]).
-Fail:
-      number_merge(0,<,[2,4,6],[1,3,5],[1,2,3,4,5]).
-Error:
-      number_merge(0,>,[1],[Q,2],L).                  (Error 4).
-      number_merge(1,<,[f(1,2),f],[f(3,4),h(1,2)],L). (Error 5).
-      number_merge(0.0,<,[f(1)],[f(2)],L).            (Error 5).
-      number_merge(0,<,[f(1),f(7)],[f(8),f(10)],L).   (Error 5).
-      number_merge(0,>,[1,e,q],[2],L).                (Error 5).
-      number_merge(2,<,[f(1,2)],[f(8)],L).            (Error 6).
-
-
-
-",
-	see_also:[merge / 3, merge / 5, number_merge / 3]]).
 
 :- comment(number_sort / 2, [
 	summary:"Succeeds if List2 is the numerically ordered version of List1.
@@ -1008,11 +965,11 @@ Error:
 <P>
    The sort is done according to numerical ordering and duplicates are
    retained as opposed to sort/2 which uses the standard ordering of
-   terms and removes duplicates. See number_sort/4 for a discussion of
-   the differences between numerical and standard ordering of numeric types.
+   terms and removes duplicates. See sort/4 for a discussion of the
+   differences between numerical and standard ordering of numeric types.
 <P>
 Note
-   number_sort(L1,L2) is equivalent to number_sort(0,=&lt;,L1,L2).
+   number_sort(L1,L2) is equivalent to sort(0,$=&lt;,L1,L2).
 "),
 	args:["List1" : "List of numeric terms.", "List2" : "List of numeric terms or variable."],
 	eg:"
@@ -1025,85 +982,7 @@ Fail:
 
 
 ",
-	see_also:[number_sort / 4, sort / 2, sort / 4]]).
-
-:- comment(number_sort / 4, [
-	summary:"Succeeds if Sorted is the numerically sorted list
-	version of Random.  The sort is done according to the Key and
-	Order specifications.
-
-",
-	amode:(number_sort(+,+,+,-) is det),
-	desc:html("\
-   Sorts the list Random according to the Key and Order specifications,
-   and unifies Sorted with the result.  The sort is stable, i.e. the
-   order of elements with the same key is preserved.
-
-<P>
-   If Random is not a list of compound terms, use Key = 0. The list
-   elements must be numerical terms.
-
-<P>
-   If Random is a list of compound terms, then the sort will be according
-   to the Keyth argument of the list elements. The Keyth argument of each
-   list element must be a numeric term.
-
-<P>
-   In all cases, Order specifies whether the list is sorted into ascending
-   (&lt;, =&lt;) or descending (&gt;, &gt;=) order and whether duplicates are to be
-   retained (=&lt;, &gt;=) or eliminated (&lt;, &gt;).  The way to remember the Order
-   argument is that it is the relation which holds between adjacent
-   elements in the result.
-
-<P>
-   The sort is done according to numerical ordering as opposed to
-   sort/4 which uses the standard ordering of terms. See compare/3 for 
-   this standard ordering. In particular for numeric terms of
-   different type, e.g. integers and floats, the numerical and
-   standard orderings differ: 1 &lt; 2.0 but 2.0 @&lt; 1. Additionally
-   the ordering of bounded reals differs. While the standard ordering
-   treats a bounded real as a compound term and orders them by lower
-   bound and then upper bound, numerical ordering treats them as true
-   intervals. As a consequence the order of overlapping intervals is
-   undefined: 1.0__1.1 @&lt; 1.0__1.2 while no numerical order is
-   defined. In such cases an arithmetic exception is thrown. This can
-   have unexpected consequences: care must be taken when  sorting a
-   list containing both rationals and bounded reals. While integers
-   and floats are converted to zero-width intervals for the purposes
-   of comparison, rationals are converted to small intervals
-   guaranteed to contain the rational, e.g X is breal(1_1) gives
-   X=0.99999999999999989__1.0000000000000002 and thus no order is
-   defined between 1_1 and 1.0__1.0.
-
-<P>
-"),
-	args:["Key" : "A non-negative integer or a list of positive integers.", "Order" : "One of the atoms <, =<, > or >=.", "Random" : "List.", "Sorted" : "List or variable."],
-	exceptions:[4: "One of List1 and List2 has an element whose Keyth argument is a variable", 5: "Key is greater than 0, and one of List1 and List2 has an element whose Keyth argument is a non-numeric term", 5 : "Key is greater than 0, and one of List1 and List2 does not    have all elements compound terms.", 5 : "Key is not an integer or a list of integers.", 6 : "One of the compound terms in List1 or List2 has not got as    many as Key arguments.", 20: "One of List1 and List2 has elements whose numerical order is undefined."],
-	eg:"
-Success:
-      number_sort(0,<,[3,1,6,7,2],S).             (gives S=[1,2,3,6,7]).
-      number_sort(0,=<,[1,1.0,1_1,3,2,3,4,1],S).
-			   (gives S=[1,1.0,1_1,1,2,3,3,4]).
-      number_sort(0,=<,[1,1.0,1.0__1.0,3,2,3,4,1],S).
-			   (gives S=[1,1.0,1.0__1.0,1,2,3,3,4]).
-      number_sort(2,<,[f(a,3),h(b,1)],S).         (gives S=[h(2,1),f(1,3)]).
-      number_sort([2,1],=<,[f(3,a(2)),f(1,a(1)),f(0,a(3)),f(1,a(4))],S).
-                           (gives S=[f(1,a(1)),f(3,a(2)),f(0,a(3)),f(1,a(4))]).
-
-Fail:
-      number_sort(0,<,[2,1,3,4],[2,1,3,4]).
-
-Error:
-      number_sort(0,>,[1,3,N],S).              (Error 4).
-      number_sort(0,>,[q,1,3,a,e],S).          (Error 5).
-      number_sort(1,<,[f(1),f(3),5],S).        (Error 5).
-      number_sort(1.0,<,[f(1),f(3),f(5)],S).   (Error 5).
-      number_sort(1,<,[f(a,3),h(b,1)],S).      (Error 5).
-      number_sort(2,<,[f(1,2),g(3,1),f(5)],S). (Error 6).
-      number_sort(0,<,[1,0.9__1.1],S).         (Error 20).
-      number_sort(0,=<,[1_1,1.0__1.0],S).      (Error 20).
-",
-	see_also:[compare / 3, number_sort / 2, sort / 2, sort / 4]]).
+	see_also:[sort/2, msort/2, sort/4]]).
 
 
 :- comment(prune_instances / 2, [
@@ -1130,14 +1009,22 @@ Error:
 Success:
       prune_instances([5,2,3,5,4,2],L).
           (gives L=[5,2,3,4]).
+
       prune_instances([f(1,2),f(1,M),1],L).    % instance
-          (gives M=_g74,L=[f(1,_g74),1]).
+          (gives L=[f(1,M),1]).
+
       prune_instances([f(1,2,3),f(1,M,3),f(1,2,N)],L).
-          (gives M=_g80,N=_g70, L=[f(1,_g80,3),f(1,2,_g70)]).
-      prune_instances([f(1,N),f(1,M),1],L).    % variants
-          (gives N=_g72,M=_g76, L=[f(1,_g72),1]).
+          (gives L=[f(1,M,3),f(1,2,N)]).
+
+      prune_instances([f(1,N),f(1,M),1],L).    % variants (first one retained)
+          (gives L=[f(1,N),1]).
+
       prune_instances([f(1,X),f(1,2),g(1)],L).
-          (gives X=_g80; L=[f(1,_g80),g(1)]).
+          (gives L=[f(1,X),g(1)]).
+
+      :- lib(ic).
+      X::2..5, prune_instances([1,3,X,5,8], L).
+          (gives L=[X,1,8]).
 Fail:
       prune_instances([1,2,3,1,4,2],[2,3,4]).
 
@@ -1187,46 +1074,149 @@ according to the Key and Order specifications.
 
 ",
 	amode:(sort(+,+,+,-) is det),
-	desc:html("   Sorts the list Random according to the Key and Order specifications, and
-   unifies Sorted with the result.  The sort is stable, i.e. the order of
-   elements with the same key is preserved.
-
-<P>
-   If Random is not a list of compound terms, use Key = 0.
-
-<P>
-   If Random is a list of compound terms, then the sort will be according
-   to the Keyth argument of the list elements.  If Key = 0, then the sort
-   is on the entire terms.
-
-<P>
-   In all cases, Order specifies whether the list is sorted into ascending
-   (&lt;, =&lt;) or descending (&gt;, &gt;=) order and whether duplicates are to be
-   retained (=&lt;, &gt;=) or eliminated (&lt;, &gt;).  The way to remember the Order
+	desc:html("<P>\
+   Generic sorting primitive: sorts the list Random according to the Key
+   and Order specifications, and unifies Sorted with the result.  The sort
+   is stable, i.e. the order of elements with equal keys is preserved.
+</P><P>
+   The Key argument determines which part of the list elements is considered
+   the sorting key.  If Key is 0, then the entire term is taken as the
+   sorting key (in this case, the list can contain anything, including
+   numbers, atoms, strings, compound terms, and even variables).  If Key
+   is a positive integer (or a list of those), then the list elements will
+   get ordered by their Keyth subterm (in this case, the list must contain
+   compound terms with appropriate subterms).
+</P><P>
+   The Order argument specifies whether to use standard term order (@) or
+   numeric order ($), whether the list is sorted into ascending (&lt;, =&lt;)
+   or descending (&gt;, &gt;=) order, and whether duplicates are to be
+   retained (=&lt;, &gt;=) or removed (&lt;, &gt;).  The way to remember the Order
    argument is that it is the relation which holds between adjacent
    elements in the result.
+<PRE>
+        Order           ordering        direction       duplicates
+    ---------------------------------------------------------------
+        @&lt;  (or &lt;)      standard        ascending       removed
+        @=&lt; (or =&lt;)     standard        ascending       retained
+        @&gt;  (or &gt;)      standard        descending      removed
+        @&gt;= (or &gt;=)     standard        descending      retained
 
-<P>
-   The sort is done according to the standard ordering of terms.
-   See compare/3 for the definition of this standard ordering.
-   Note in particular that numbers are first ordered by their type (integer,
-   float, etc) and only then by their magnitude, i.e. sorting numbers of
-   different types may not give the expected result.
-
-<P>
+        $&lt;              numeric         ascending       removed
+        $=&lt;             numeric         ascending       retained
+        $&gt;              numeric         descending      removed
+        $&gt;=             numeric         descending      retained
+</PRE>
+   The alternative ordering criteria are:
+   <DL>
+   <DT>@ standard term order</DT><DD>
+       The sort is done according to the standard ordering of terms.
+       This can be applied to any term, see compare/3 for the definition.
+       Note in particular that numbers are first ordered by their type
+       (integer, float, etc) and only then by their magnitude, i.e.
+       sorting numbers of different types may not give the expected result.
+   </DD>
+   <DT>$ numeric order</DT><DD>
+       The sort is done according to numeric order.  The sorting keys must
+       all be numbers, but can be a mix of numeric types.  They are compared
+       in the way they are compared by the arithmetic comparisons (&lt;/2, &lt;=/2, etc).
+       Unlike standard order, this will consider numbers such as 3 and 3.0
+       as equal, and -0.0 as equal to 0.0.
+   </DD>
+   </DL>
+</P><P>
+   The other sorting primitives may be defined in terms of sort/4 as follows:
+<PRE>
+       sort(Random, Sorted)        :- sort(0, @<,  Random, Sorted).
+       msort(Random, Sorted)       :- sort(0, @=<, Random, Sorted).
+       keysort(Random, Sorted)     :- sort(1, @=<, Random, Sorted).
+       number_sort(Random, Sorted) :- sort(0, $=<, Random, Sorted).
+</PRE>
+   Sorting with _multiple_ keys can be done in one of two ways (see examples):
+   <OL>
+   <LI>First, sort according to the least important key.  Sort the result
+   by the next more important key, and so on.  Thanks to the stability of
+   sort/4, the ordering of the less important keys is preserved as required.
+   </LI>
+   <LI>For each list element, construct a compound key from the individual
+   keys, and pair each new key with its list element.  Sort the keyed list,
+   then strip the auxiliary keys.
+   </LI>
+   </OL>
+</P><P>
+   The _algorithm_ used is natural merge sort.  This implies a worst case
+   complexity of N*ld(N), but many special cases will be sorted
+   significantly faster.  For instance, pre-sorted, reverse-sorted, and
+   the concatenation of two sorted lists will all be sorted in linear time.
+</P><P>
+   NOTE regarding sorting bounded reals: While the standard ordering
+   treats a bounded real as a compound term and orders them by lower
+   bound and then upper bound, numerical ordering treats them as true
+   intervals. As a consequence the order of overlapping intervals is
+   undefined: 1.0__1.1 @&lt; 1.0__1.2 while no numerical order is
+   defined. In such cases an arithmetic exception is thrown. This can
+   have unexpected consequences: care must be taken when  sorting a
+   list containing both rationals and bounded reals. While integers
+   and floats are converted to zero-width intervals for the purposes
+   of comparison, rationals are converted to small intervals
+   guaranteed to contain the rational, e.g X is breal(1_1) gives
+   X=0.99999999999999989__1.0000000000000002 and thus no order is
+   defined between 1_1 and 1.0__1.0.
+</P>
 "),
-	args:["Key" : "A non-negative integer or a list of positive integers.", "Order" : "One of the atoms <, =<, > or >=.", "Random" : "List.", "Sorted" : "List or variable."],
-	exceptions:[5 : "Key is greater than 0, and one of List1 and List2 does not    have all elements compound terms.", 5 : "Key is not an integer or a list of integers.", 6 : "One of the compound terms in List1 or List2 has not got as    many as Key arguments."],
+	args:["Key" : "A non-negative integer, or a list of positive integers.",
+	"Order" : "One of the atoms =<, >=, < or >, possibly prefixed with @ or $.",
+	"Random" : "List.", "Sorted" : "List or variable."],
+	exceptions:[
+	5 : "Key is greater than 0, and one of List1 and List2 does not    have all elements compound terms.",
+	5 : "Key is not an integer or a list of integers.",
+	6 : "One of the compound terms in Random has not got as many as Key arguments.",
+	20: "Random has elements whose numerical order is undefined."],
 	eg:"
 Success:
-      sort(0,<,[3,1,6,7,2],S).     (gives S=[1,2,3,6,7]).
-      sort(0,>,[q,1,3,a,e,N],S).
-                           (gives N=_g78,S=[q,e,a,3,1,_g78]).
-      sort(0,=<,[1,3,2,3,4,1],S).  (gives S=[1,1,2,3,3,4]).
-      sort(2,<,[f(1,3),h(2,1)],S). (gives S=[h(2,1),f(1,3)]).
-      sort(1,<,[f(1,3),h(2,1)],S). (gives S=[f(1,3),h(2,1)]).
+      sort(0, <,[3,1,6,7,2],S).     (gives S=[1,2,3,6,7]).
+      sort(0, >,[q,1,3,a,e,N],S).   (gives N=_g78,S=[q,e,a,3,1,_g78]).
+      sort(0,=<,[1,3,2,3,4,1],S).   (gives S=[1,1,2,3,3,4]).
+      sort(2, <,[f(1,3),h(2,1)],S). (gives S=[h(2,1),f(1,3)]).
+      sort(1, <,[f(1,3),h(2,1)],S). (gives S=[f(1,3),h(2,1)]).
+
       sort([2,1],=<,[f(3,a(2)),f(1,a(1)),f(0,a(3)),f(1,a(4))],S).
                            (gives S=[f(1,a(1)),f(3,a(2)),f(0,a(3)),f(1,a(4))]).
+
+   % standard vs numeric order
+      sort(0, @<, [1,2,3,2.0,3], S).  (gives S = [2.0, 1, 2, 3])
+      sort(0, $<, [1,2,3,2.0,3], S).  (gives S = [1, 2, 3])
+
+      sort(0,@=<, [1,2,3,2.0,3], S).  (gives S = [2.0, 1, 2, 3, 3])
+      sort(0,$=<, [1,2,3,2.0,3], S).  (gives S = [1, 2, 2.0, 3, 3])
+
+      sort(0,@=<, [1,1.0,1_1], S).  (gives S = [1.0, 1_1, 1])
+      sort(0,$=<, [1,1.0,1_1], S).  (gives S = [1, 1.0, 1_1])
+
+      sort(0, @<, [1,1.0,1_1], S).  (gives S = [1.0, 1_1, 1])
+      sort(0, $<, [1,1.0,1_1], S).  (gives S = [1])
+      sort(0, $<, [1.0,1,1_1], S).  (gives S = [1.0])
+      sort(0, $<, [1_1,1.0,1], S).  (gives S = [1_1])
+
+   % Sort according to argument 3 (major) and 2 (minor) - method 1
+      ?- S = [t(ok,a,2), t(good,b,1), t(best,a,1)],
+ 	sort(2, =<, S, S2),           % sort less important key first
+  	sort(3, =<, S2, S32).         % sort more important key last
+ 
+      S2 = [t(ok,a,2), t(best,a,1), t(good,b,1)]
+      S32 = [t(best,a,1), t(good,b,1), t(ok,a,2)]
+      Yes (0.00s cpu)
+
+   % Sort according to argument 3 (major) and 2 (minor) - method 2
+     ?-  S = [t(ok,a,2), t(good,b,1), t(best,a,1)],
+	( foreach(T,S),foreach(K-T,KTs) do T=t(_,B,C), K=key(C,B) ),
+	sort(1, =<, KTs, SKTs),       % same as keysort(KTs, SKTs)
+	( foreach(_-T,SKTs), foreach(T,S32) do true ).
+
+     KTs = [key(2,a)-t(ok,a,2), key(1,b)-t(good,b,1), key(1,a)-t(best,a,1)]
+     SKTs = [key(1,a)-t(best,a,1), key(1,b)-t(good,b,1), key(2,a)-t(ok,a,2)]
+     S32 = [t(best,a,1), t(good,b,1), t(ok,a,2)]
+     Yes (0.00s cpu)
+
 
 Fail:
       sort(0,<,[2,1,3,4],[2,1,3,4]).
@@ -1235,8 +1225,10 @@ Error:
       sort(1,<,[f(1),f(3),5],S).        (Error 5).
       sort(1.0,<,[f(1),f(3),f(5)],S).   (Error 5).
       sort(2,<,[f(1,2),g(3,a),f(5)],S). (Error 6).
+      sort(0,$<,[1,two,3],S).           (Error 5).
+      sort(0,$<,[1.0__1.1,1.0__1.1],S). (Error 20).
 ",
-	see_also:[compare / 3, msort / 2, sort / 2, number_sort/4]]).
+	see_also:[compare / 3, msort / 2, sort / 2, number_sort/2, keysort/2]]).
 
 
 :- comment(term_hash / 4, [

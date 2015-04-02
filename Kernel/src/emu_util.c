@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.6 2013/03/17 12:09:59 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.7 2015/04/02 03:35:08 jschimpf Exp $
  */
 
 /*
@@ -325,14 +325,6 @@ _compare_pointers(value v1, value v2)
 
 /*ARGSUSED*/
 static int
-_arith_compare_pointers(value v1, value v2, int *res)
-{
-    *res = v1.ptr - v2.ptr;
-    Succeed_;
-}
-
-/*ARGSUSED*/
-static int
 _lex_error(char* s, pword* result, int base)
 {
     return BAD_NUMERIC_CONSTANT;
@@ -369,7 +361,6 @@ bip_emu_init(int flags)
 
     tag_desc[THANDLE].equal = _equal_handle;
     tag_desc[TSUSP].compare = _compare_pointers;
-    tag_desc[TSUSP].arith_compare = _arith_compare_pointers;
 
     tag_desc[TIVL].order = o++;	/* this determines the type order in @> etc */
     tag_desc[TDBL].order = o++;

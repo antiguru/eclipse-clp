@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION    $Id: bip_arith.c,v 1.23 2015/01/14 01:31:09 jschimpf Exp $
+ * VERSION    $Id: bip_arith.c,v 1.24 2015/04/02 03:35:08 jschimpf Exp $
  */
 
 /*
@@ -1517,6 +1517,19 @@ binary_arith_op(value v1, type t1, value v2, type t2, value v, type t, int op)
     Return_Numeric(v, t, result)
 }
 
+
+/*
+ * Arithmetically compare two numbers
+ *
+ * PRE: IsNumber(t1) && IsNumber(t2)
+ * PRE: *res must be one of BIEq,BINe,BILt,BIGt,BILe,BIGe
+ *      (needed to adjust the comparison in the breal case)
+ *
+ * Returns:
+ *	PSUCCEED	and result [-1,0,1] in *res
+ *	PDELAY		not decidable
+ *	UNIMPLEMENTED	from coercion
+ */
 int
 arith_compare(value v1, type t1, value v2, type t2, int *res)
 {
@@ -1526,15 +1539,11 @@ arith_compare(value v1, type t1, value v2, type t2, int *res)
     {
 	if (tag_desc[TagType(t1)].numeric > tag_desc[TagType(t2)].numeric)
 	{
-	    if (!IsNumber(t2))
-		{ Bip_Error(ARITH_TYPE_ERROR); }
 	    err = tag_desc[TagType(t2)].coerce_to[TagType(t1)](v2, &v2);
 	    t2.kernel = Tag(t1.kernel);
 	}
 	else
 	{
-	    if (!IsNumber(t1))
-		{ Bip_Error(ARITH_TYPE_ERROR); }
 	    err = tag_desc[TagType(t1)].coerce_to[TagType(t2)](v1, &v1);
 	    t1.kernel = Tag(t2.kernel);
 	}

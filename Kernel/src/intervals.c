@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.11 2013/02/09 20:27:57 jschimpf Exp $
+* Version:	$Id: intervals.c,v 1.12 2015/04/02 03:35:08 jschimpf Exp $
 *
 
 Supported operations:
@@ -2066,6 +2066,7 @@ _compare_ivl(value v1, value v2)
 
 /*
  * This is arithmetic comparison, which may delay if it is not decidable.
+ * returns PSUCCEED or PDELAY
  */
 
 static int
@@ -2149,8 +2150,7 @@ _arith_compare_ivl(value v1, value v2, int *relation)
 	    }
 	    break;
     }
-
-    return PERROR;
+    assert(0);
 }
 
 

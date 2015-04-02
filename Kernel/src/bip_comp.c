@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.5 2010/04/04 08:10:14 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.6 2015/04/02 03:35:08 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -841,12 +841,36 @@ p_acyclic_term(value v, type t)
 #define ASCENDING	1
 #define DESCENDING	(-1)
 
+#define Set_Ordering_Options(d) {\
+	char *os = DidName(d);\
+	if (os[0] == '@') {\
+	    ++os; number_sort = FALSE;\
+	} else if (os[0] == '$') {\
+	    ++os; number_sort = TRUE;\
+	} else {\
+	    number_sort = FALSE;\
+	}\
+	if (os[0]=='=' && os[1]=='<' && os[2]==0) {\
+	    reverse = FALSE; keep_duplicates = TRUE;\
+	} else if (os[0]=='<' && os[1]==0) {\
+	    reverse = FALSE; keep_duplicates = FALSE;\
+	} else if (os[0]=='>') {\
+	    reverse = TRUE;\
+	    if (os[1]=='=' && os[2]==0)\
+		keep_duplicates = TRUE;\
+	    else if (os[1]==0)\
+		keep_duplicates = FALSE;\
+	    else { Bip_Error(RANGE_ERROR) }\
+	} else {\
+	    Bip_Error(RANGE_ERROR)\
+	}\
+    }
+
 static int
 p_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2)
 {
-    register pword 	*list;
-    register int	reverse, keep_duplicates;
-    int			err;
+    pword 	*list;
+    int		err, reverse, keep_duplicates, number_sort;
 
     Check_Output_List(t2);	/* type checks	*/
     Check_List(t1);
@@ -856,28 +880,13 @@ p_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type 
     {
 	Bip_Error(RANGE_ERROR)
     }
-
-    if(vo.did == d_.inf0) {
-	reverse = FALSE;
-	keep_duplicates = FALSE;
-    } else if(vo.did == d_.infq0) {
-	reverse = FALSE;
-	keep_duplicates = TRUE;
-    } else if(vo.did == d_.sup0) {
-	reverse = TRUE;
-	keep_duplicates = FALSE;
-    } else if(vo.did == d_.supq0) {
-	reverse = TRUE;
-	keep_duplicates = TRUE;
-    } else {
-	Bip_Error(RANGE_ERROR)
-    }
-
+    Set_Ordering_Options(vo.did);
+	
     if(IsNil(t1))		/* empty list -> return []	*/
     {
 	Return_Unify_Nil(v2, t2)
     }
-    list = ec_keysort(v1, vk, tk, reverse, keep_duplicates, FALSE, &err);
+    list = ec_keysort(v1, vk, tk, reverse, keep_duplicates, number_sort, &err);
     if (!list) {
 	Bip_Error(err)
     } else {
@@ -1029,10 +1038,10 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 		*err = IsRef(key_ptr2->tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
 		return 0;
 	    }
-	    comp = BIEq;
-	    *err = arith_compare(key_ptr1->val, key_ptr1->tag,
+	    comp = BIEq;	/* input for breal comparison */
+	    int res = arith_compare(key_ptr1->val, key_ptr1->tag,
 				 key_ptr2->val, key_ptr2->tag, &comp);
-	    if (*err == PDELAY)
+	    if (res != PSUCCEED)
 	    {
 		Gbl_Tg = old_tg;
 		*err = ARITH_EXCEPTION;
@@ -1167,9 +1176,9 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 		if (number_sort)
 		{
 		    comp = BIEq;
-		    *err = arith_compare(key_ptr1->val, key_ptr1->tag,
+		    int res = arith_compare(key_ptr1->val, key_ptr1->tag,
 					 key_ptr2->val, key_ptr2->tag, &comp);
-		    if (*err == PDELAY)
+		    if (res != PSUCCEED)
 		    {
 			Gbl_Tg = old_tg;
 			*err = ARITH_EXCEPTION;
@@ -1328,38 +1337,21 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
  */
 
 static int
-_merge(value vk, type tk, value vo, type to,
+_merge(value vk, type tk,
 	value v1, type t1, value v2, type t2, value v, type t,
-	int number_sort)
+	int reverse, int keep_duplicates, int number_sort)
 {
     pword 	*old_tg = TG;
     pword 	*h1, *h2, *key_ptr1, *key_ptr2, *append;
     pword 	result;
-    int		reverse, keep_duplicates, comp, err;
+    int		comp, err;
 
     Check_Output_List(t);	/* type checks	*/
     Check_List(t1);
     Check_List(t2);
-    Check_Atom(to);
 
     if(IsInteger(tk) && vk.nint < 0)	/* range checks	*/
     {
-	Bip_Error(RANGE_ERROR)
-    }
-
-    if(vo.did == d_.inf0) {	/* ordering options */
-	reverse = FALSE;
-	keep_duplicates = FALSE;
-    } else if(vo.did == d_.infq0) {
-	reverse = FALSE;
-	keep_duplicates = TRUE;
-    } else if(vo.did == d_.sup0) {
-	reverse = TRUE;
-	keep_duplicates = FALSE;
-    } else if(vo.did == d_.supq0) {
-	reverse = TRUE;
-	keep_duplicates = TRUE;
-    } else {
 	Bip_Error(RANGE_ERROR)
     }
 
@@ -1394,7 +1386,7 @@ _merge(value vk, type tk, value vo, type to,
 	    comp = BIEq;
 	    err = arith_compare(key_ptr1->val, key_ptr1->tag,
 				key_ptr2->val, key_ptr2->tag, &comp);
-	    if(err == PDELAY)
+	    if(err != PSUCCEED)
 	    {
 	        err = ARITH_EXCEPTION;
 		goto _merge_error_;
@@ -1500,13 +1492,32 @@ _merge_error_:		/* (err,old_tg) */
 static int
 p_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t)
 {
-    return _merge(vk, tk, vo, to, v1, t1, v2, t2, v, t, 0);
+    int	reverse, keep_duplicates, number_sort;
+    Set_Ordering_Options(vo.did);
+    return _merge(vk, tk, v1, t1, v2, t2, v, t, reverse, keep_duplicates, number_sort);
 }
 
 
 static int
 p_number_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t)
 {
-    return _merge(vk, tk, vo, to, v1, t1, v2, t2, v, t, 1);
+    int	reverse, keep_duplicates;
+    Check_Atom(to);
+    if(vo.did == d_.inf0) {
+	reverse = FALSE;
+	keep_duplicates = FALSE;
+    } else if(vo.did == d_.infq0) {
+	reverse = FALSE;
+	keep_duplicates = TRUE;
+    } else if(vo.did == d_.sup0) {
+	reverse = TRUE;
+	keep_duplicates = FALSE;
+    } else if(vo.did == d_.supq0) {
+	reverse = TRUE;
+	keep_duplicates = TRUE;
+    } else {
+	Bip_Error(RANGE_ERROR)
+    }
+    return _merge(vk, tk, v1, t1, v2, t2, v, t, reverse, keep_duplicates, TRUE);
 }
 
