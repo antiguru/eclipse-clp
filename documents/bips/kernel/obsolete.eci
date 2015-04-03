@@ -3014,7 +3014,6 @@ Error:
 
 ",
 	amode:(number_sort(+,+,+,-) is det),
-	desc:html("\
 	desc:html("Deprecated, use sort/4!
 <P>
    Sorts the list Random according to the Key and Order specifications,
