@@ -22,48 +22,134 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: branch_and_bound.pl,v 1.6 2013/02/18 00:42:58 jschimpf Exp $
+% Version:	$Id: branch_and_bound.pl,v 1.7 2015/04/04 22:05:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(branch_and_bound).
 
 :- comment(categories, ["Algorithms"]).
-:- comment(summary, "Generic branch-and-bound primitives").
+:- comment(summary, "Generic branch-and-bound optimization").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, Vassilis Liatsos, IC-Parc, Imperial College, London").
-:- comment(date, "$Date: 2013/02/18 00:42:58 $").
-:- comment(index, ["branch-and-bound","dichotomic search"]).
-:- comment(desc, html("
-	This is a solver-independent library implementing branch-and-bound
-	primitives. It can be used with any nondeterministic search routine
-	that instantiates a cost variable when a solution is found. The cost
-	variable can be an arbitrary numerical domain variable or even a
-	simple domain-less variable.
-	<P>
-	The main predicates are bb_min/3, bb_min/6 and, as a shorthand,
-	minimize/2.
-	<P>
-	Note on the treatment of bounded reals: The library allows the cost
-	to be instantiated to a number of type breal. This is useful e.g.
-	when using lib(ic) to solve problems with continuous variables.
-	When the variable domains have been narrowed sufficiently, the
-	problem variables (in particular the cost variable) should be
-	instantiated to a bounded real, e.g. using the following idiom:
-	<PRE>
-		X is breal_from_bounds(get_min(X),get_max(X))
-	</PRE>
-	Bounded reals contain some uncertainty about their true value. If
-	this uncertainty is too large, the branch-and-bound procedure may
-	not be able to compare the quality of two solutions. In this case,
-	a warning is issued and the search terminated prematurely.  The
-	problem can be solved by increasing the delta-parameter, or by
-	locating the cost value more precisely.
-	")).
+:- comment(date, "$Date: 2015/04/04 22:05:50 $").
+:- comment(index, ["branch-and-bound","dichotomic search","optimization"]).
+:- comment(desc, html("<P>
+    This is a solver-independent library implementing branch-and-bound
+    optimization. It can be used with any nondeterministic search routine
+    that instantiates a cost variable when a solution is found. The cost
+    variable can be an arbitrary numerical domain variable or even a
+    simple domain-less Prolog variable.
+</P><P>
+    The main primitive is bb_min/3.  Assume we have the following
+    collection of facts:
+<PRE>
+        % item(Food, Calories, Price)
+        item(bread,  500, 1.50).
+        item(eggs,   600, 1.99).
+        item(milk,   400, 0.99).
+        item(apples, 200, 1.39).
+        item(butter, 800, 1.89).
+</PRE>
+   Then we can find a minimum-calorie solution as follows:
+<PRE>
+        ?- bb_min(item(Food,Cal,Price), Cal, _).
+        Found a solution with cost 500
+        Found a solution with cost 400
+        Found a solution with cost 200
+        Found no solution with cost -1.0Inf .. 199
+
+        Food = apples
+        Cal = 200
+        Price = 1.39
+        Yes (0.00s cpu)
+</PRE>
+    In this example, the item/3 predicate serves as a nondeterministic
+    generator of solutions with different values for the variable Cal,
+    which we have chosen as our cost variable.  As can be seen from the
+    progress messages, the optimization procedure registers increasingly
+    good solutions (i.e. solutions with smaller cost), and finally delivers
+    the minimum-cost solution with Cal=200.
+</P><P>
+    Alternatively, we can minimize the item price:
+<PRE>
+        ?- bb_min(item(Food,Cal,Price), Price, bb_options{delta:0.05}).
+        Found a solution with cost 1.5
+        Found a solution with cost 0.99
+        Found no solution with cost -1.0Inf .. 0.94
+
+        Food = milk
+        Cal = 400
+        Price = 0.99
+        Yes (0.00s cpu)
+</PRE>
+    Because the price is non-integral, we had to adjust the step-width
+    of the optimization procedure using the delta-option.
+</P>
+<H3>Optimization with Constraints</H3>
+<P>
+    This library is designed to work together with arbitrary constraint
+    solvers, for instance library(ic).  The principle there is to wrap
+    the solver's nondeterministic search procedure into a bb_min/3 call.
+    This turns a program that finds all solutions into one that finds
+    the best solution.  For example:
+<PRE>
+        ?- [X,Y,Z] #:: 1..5,                   % constraints (model)
+           X+Z #>= Y,
+
+           C #= 3*X - 5*Y + 7*Z,               % objective function
+
+           bb_min(labeling([X,Y,Z]), C, _).    % nondet search + b&b
+
+        Found a solution with cost 5
+        Found a solution with cost 0
+        Found a solution with cost -2
+        Found a solution with cost -4
+        Found a solution with cost -6
+        Found no solution with cost -15.0 .. -7.0
+        X = 4
+        Y = 5
+        Z = 1
+        C = -6
+        Yes (0.00s cpu)
+</PRE>
+    The code shows the general template for such an optimization solver:
+    All constraints should be set up BEFORE the call to bb_min/3,
+    while the nondeterministic search procedure (here labeling/1)
+    must be invoked WITHIN bb_min/3.  The branch-and-bound procedure
+    only works if it envelops all nondeterminism.
+</P><P>
+    The cost variable (here C) must be defined in such a way that it is
+    instantiated (possibly by propagation) whenever the search procedure
+    succeeds with a solution.  Moreover, good, early bounds on the cost
+    variable are important for efficiency, as they help the branch-and-bound
+    procedure to prune the search.  Redundant constraints on the cost
+    variable can sometimes help.
+</P>
+
+<H3>Note on the treatment of bounded reals</H3>
+<P>
+    The library allows the cost to be instantiated to a number of type
+    breal.  This is useful e.g. when using lib(ic) to solve problems
+    with continuous variables.  When the variable domains have been
+    narrowed sufficiently, the problem variables (in particular the
+    cost variable) should be instantiated to a bounded real, e.g.
+    using the following idiom:
+    <PRE>
+	    X is breal_from_bounds(get_min(X),get_max(X))
+    </PRE>
+    Bounded reals contain some uncertainty about their true value. If
+    this uncertainty is too large, the branch-and-bound procedure may
+    not be able to compare the quality of two solutions. In this case,
+    a warning is issued and the search terminated prematurely.  The
+    problem can be solved by increasing the delta-parameter, or by
+    locating the cost value more precisely.
+</P>")).
 
 :- export
-	bb_min/3, bb_min/4,	% main predicate
-	bb_min/6, bb_min/7,
-	minimize/2, minimize/3,
+	bb_min/3,		% main predicate
+	bb_min_cost/4,
+	bb_min/6,
+	minimize/2,
 
 	bb_init/2,		% underlying primitives
 	bb_cost/2,
@@ -86,9 +172,10 @@
 	    factor,		% number
 	    timeout,		% number
 	    probe_timeout,	% number
-	    report_success,	% N/A or GoalPrefix
-	    report_failure,	% N/A or GoalPrefix
-	    report_timeout	% N/A or GoalPrefix
+	    solutions,		% atom
+	    report_success,	% GoalPrefix/A
+	    report_failure,	% GoalPrefix/A
+	    report_timeout	% GoalPrefix/A
 	)).
 
 :- lib(timeout).
@@ -115,12 +202,27 @@ bb_min(Goal, Cost, Options, Module) :-
 	% cause problems when Goal contains strange stuff, like handles
 	term_variables(Goal, Template),
 	bb_min(Goal, Cost, Template, Solution, Opt, Options, Module),
-	% instantiate to the optimum solution (atomically)
-	Template-Cost = Solution-Opt.
+	( Options = bb_options{solutions:one} ->
+	    % instantiate to the optimum solution (atomically)
+	    Template-Cost = Solution-Opt
+	;
+	    % impose Opt as a lower bound, because there could be
+	    % better solutions within the delta-range
+	    set_var_bounds(Cost, -1.0Inf, Opt),
+	    get_var_bounds(Cost, _, Max),
+	    % only if bound can't be imposed, instantiate instead
+	    ( Max =< Opt -> true ; Cost = Opt ),
+	    call(Goal)@Module
+	).
+
+:- tool(bb_min_cost/4, bb_min_cost_/5).
+bb_min_cost_(Goal, Cost, Opt, Options, Module) :-
+	bb_min(Goal, Cost, [], [], Opt, Options, Module).
 
 :- tool(bb_min/6, bb_min/7).
 bb_min(Goal, Cost, Template, Solution, Opt, Options, Module) :-
 	( var(Cost) ; number(Cost) ),
+	callable(Goal),
 	default_options(Options),
 	check_options(Options),
 	!,
@@ -161,9 +263,10 @@ bb_min(Goal, Cost, _Template, _Solution, _Opt, Options, Module) :-
 
 
 default_options(bb_options{
-	    from:From,to:To,factor:Factor,strategy:Strategy,
+	    from:From,to:To,factor:Factor,strategy:Strategy,solutions:Solutions,
 	    delta:Delta,timeout:Timeout,probe_timeout:ProbeTimeout}) :-
 	set_default(Strategy, continue),
+	set_default(Solutions, one),
 	set_default(From, -1.0Inf),
 	set_default(To, 1.0Inf),
 	( Strategy==dichotomic -> set_default(Factor, 0.5)
@@ -175,12 +278,13 @@ default_options(bb_options{
     set_default(X, X) :- !.
     set_default(_, _).
 
-check_options(bb_options{from:From,to:To,factor:Factor,
+check_options(bb_options{from:From,to:To,factor:Factor,solutions:Solutions,
 	     delta:Delta,timeout:Timeout,probe_timeout:ProbeTimeout}) :-
 	precise_number(From),
 	precise_number(To),
 	precise_number(Delta),
 	precise_number(Factor),
+	(Solutions==one;Solutions==all),
 	From =< To,
 	0 < Factor, Factor =< 1, 
 	0 < Delta,
@@ -465,8 +569,7 @@ bb_probe(From, To, Goal, Template, Cost, Handle, Module, Options) :-
 		    set_var_bounds(Cost, From, To),
 		    Goal,
 		    % in case there was no set_bounds handler:
-		    eclipse_language:(From =< Cost),
-		    eclipse_language:(Cost =< To)
+		    set_var_bounds(Cost, From, To)
 		))@Module
 	->
 	    ( var(Cost) ->
@@ -510,11 +613,15 @@ report_timeout(bb_options{report_timeout:Spec}, _InitialRange, Handle, Module) :
 	bb_cost(Handle, Cost),
 	report_result(Spec, "Branch-and-bound timeout while searching for solution better than %q%n%b", Cost, Handle, Module).
 
-    report_result(N/A, _Msg, Range, Handle, Module) ?- !,
-	functor(Goal, N, A),
-	Goal =.. [_|Args],
-	append(Args, _Optional, [Range, Handle, Module]),
-	call(Goal)@Module.
+    report_result(Prefix/A, Msg, Cost, Handle, Module) ?-
+    	callable(Prefix),
+	!,
+	( A==0 -> call(Prefix)@Module
+	; A==1 -> call(Prefix,Cost)@Module
+	; A==2 -> call(Prefix,Cost,Handle)@Module
+	; A==3 -> call(Prefix,Cost,Handle,Module)@Module
+	; printf(log_output, Msg, Cost)
+	).
     report_result(Prefix, _Msg, Range, Handle, Module) :-
 	callable(Prefix),
 	!,
@@ -537,22 +644,9 @@ report_timeout(bb_options{report_timeout:Spec}, _InitialRange, Handle, Module) :
     template:"minimize(+Goal, ?Cost)",
     see_also:[bb_min/3]]).
 
-/*
-:- comment(minimize/3, [
-    summary:"Find a minimal solution using the branch-and-bound method",
-    desc:html("See bb_min/3 for details."),
-    template:"minimize(+Goal, ?Cost, +Module)",
-    see_also:[bb_min/3,minimize/2]]).
-
-:- comment(bb_min/4, [
-    summary:"Find a minimal solution using the branch-and-bound method",
-    desc:html("See bb_min/3 for details."),
-    template:"bb_min(+Goal, ?Cost, ?Options, +Module)",
-    see_also:[bb_min/3]]).
-*/
 
 :- comment(bb_min/3, [
-    summary:"Find a minimal solution using the branch-and-bound method",
+    summary:"Find one or all minimal solutions using the branch-and-bound method",
     see_also:[bb_min/6],
     desc:html("\
 	A solution of the goal <EM>Goal</EM> is found that minimizes
@@ -565,8 +659,8 @@ report_timeout(bb_options{report_timeout:Spec}, _InitialRange, Handle, Module) :
 	remembered and the search is continued or restarted with an
 	additional constraint on the <EM>Cost</EM> variable which
 	requires the next solution to be better than the previous one. 
-	Iterating this process yields an optimal solution in the end.
-	<P>
+	Iterating this process finally yields an optimal solution.
+</P><P>
 	The possible options are
 	<DL>
 	<DT><STRONG>strategy:</STRONG></DT><DD>
@@ -585,118 +679,231 @@ report_timeout(bb_options{report_timeout:Spec}, _InitialRange, Handle, Module) :
 		If that fails, assume the upper sub-range as the remaining
 		cost range and split again.</DD>
 	    </DL>
-	    The new bound or the split point, respectively, are computed
-	    from the current best solution, while taking into account the
+	    The new bound (or the split point, respectively), is computed
+	    from the current best solution, taking into account the
 	    parameters delta and factor.
 	    </DD>
 	<DT><STRONG>from:</STRONG></DT>
-	    <DD>number - an initial lower bound for the cost (default -1.0Inf)</DD>
+	    <DD>number - an initial lower bound for the cost (default -1.0Inf).
+	    Only useful if Cost is not a domain variable.</DD>
 
 	<DT><STRONG>to:</STRONG></DT>
-	    <DD>number - an initial upper bound for the cost (default +1.0Inf)</DD>
+	    <DD>number - an initial upper bound for the cost (default +1.0Inf).
+	    Only useful if Cost is not a domain variable.</DD>
 
 	<DT><STRONG>delta:</STRONG></DT>	
 	    <DD>number - minimal absolute improvement required for each step
-	    (default 1.0), applies to all strategies</DD>
+	    (applies to all strategies). The default value of 1.0 is
+	    appropriate for integral costs.  Any solution that improves on
+	    the best solution by less than this value will be missed.</DD>
 
 	<DT><STRONG>factor:</STRONG></DT>
 	    <DD>number - minimal improvement ratio (with respect to the lower
 	    cost bound) for strategies 'continue' and 'restart' (default 1.0),
 	    or split factor for strategy 'dichotomic' (default 0.5)</DD>
 
+	<DT><STRONG>solutions:</STRONG></DT><DD>
+	    <DL>
+	    <DT>one (default)</DT><DD>
+		Compute one (of possibly multiple) optimal solutions.</DD>
+	    <DT>all</DT><DD>
+		Nondeterministically compute all optimal solutions.
+		This has a performance penalty, as the search is restarted
+		one more time after the optimum has been determined.</DD>
+	    </DL>
+	    Note the dependence on the delta-parameter: the costs of these
+	    solutions may deviate by less than delta from the true optimum.</DD>
+
 	<DT><STRONG>timeout:</STRONG></DT>
 	    <DD>number - maximum seconds of cpu time to spend (default: no limit)</DD>
 
 	<DT><STRONG>report_success:</STRONG></DT>
-	    <DD>GoalPrefix - an atom (predicate name) or structure (goal prefix),
-	    specifying a goal to be invoked whenever the branch-and-bound
-	    process finds a better solution.  The invoked goal is constructed
-	    by adding three arguments (Cost, Handle, Module) to GoalPrefix.
-	    Cost is a float number representing the cost of the solution found,
+	    <DD>GoalPrefix/N - this specifies a goal to be invoked whenever
+	    the branch-and-bound process finds a better solution.  GoalPrefix
+	    is a callable term (atom or compound) and N is an integer between
+	    0 and 3.  The invoked goal is constructed by adding N optional
+	    arguments to GoalPrefix: Cost, Handle and Module.  Cost is
+	    a float number representing the cost of the solution found,
 	    Handle is a handle as accepted by bb_cost/2 or bb_solution/2,
-	    and Module is the context module of the minimisation.
-	    The default handler prints a message.</DD>
+	    and Module is the context module of the minimisation.  
+	    To disable any reporting, choose report_success:true/0.
+	    The default handler prints a message to log_output.</DD>
 
 	<DT><STRONG>report_failure:</STRONG></STRONG></DT>
-	    <DD>GoalPrefix - an atom (predicate name) or structure (goal prefix),
-	    specifying a goal to be invoked whenever the branch-and-bound
-	    process cannot find a solution in a cost range.  The invoked goal
-	    is constructed by adding three arguments (Cost, Handle, Module) to
-	    GoalPrefix.  Cost is a From..To structure representing the range
-	    of cost in which no solution could be found, Handle is a handle
-	    as accepted by bb_cost/2 or bb_solution/2, and Module is the
-	    context module of the minimisation.
-	    The default handler prints a message.</DD>
+	    <DD>GoalPrefix/N - this specifies a goal to be invoked whenever
+	    the branch-and-bound process cannot find a solution in a cost
+	    range.  GoalPrefix is a callable term (atom or compound) and
+	    N is an integer between 0 and 3.  The invoked goal is
+	    constructed by adding N optional arguments to GoalPrefix:
+	    Cost, Handle and Module.   Cost is a From..To structure
+	    representing the range of cost in which no solution could be found,
+	    Handle is a handle as accepted by bb_cost/2 or bb_solution/2,
+	    and Module is the context module of the minimisation.
+	    To disable any reporting, choose report_failure:true/0.
+	    The default handler prints a message to log_output.</DD>
 
 	<DT><STRONG>report_timeout:</STRONG></DT>
-	    <DD>GoalPrefix - an atom (predicate name) or structure (goal prefix),
-	    specifying a goal to be invoked when the branch-and-bound
-	    process times out.  The invoked goal is constructed
-	    by adding three arguments (Cost, Handle, Module) to GoalPrefix.
-	    Cost is a float number representing the cost of the best solution
-	    found, Handle is a handle as accepted by bb_cost/2 or bb_solution/2,
+	    <DD>GoalPrefix/N - this specifies a goal to be invoked when the
+	    branch-and-bound process times out.  GoalPrefix is a callable
+	    term (atom or compound) and N is an integer between 0 and 3.
+	    The invoked goal is constructed by adding N optional arguments
+	    to GoalPrefix: Cost, Handle and Module.  Cost is a float number
+	    representing the cost of the best solution found, Handle
+	    is a handle as accepted by bb_cost/2 or bb_solution/2,
 	    and Module is the context module of the minimisation.
-	    The default handler prints a message.</DD>
+	    To disable any reporting, choose report_timeout:true/0.
+	    The default handler prints a message to log_output.</DD>
 	</DL>
 	The default options can be selected by passing a free variable as
 	the Options-argument. To specify other options, pass a bb_options-
 	structure in struct-syntax, e.g.
 	<PRE>
-	bb_options{strategy:dichotomic, timeout:60}
+	    bb_min(..., ..., bb_options{strategy:dichotomic, timeout:60})
 	</PRE>
+</P><P>
 	In order to maximize instead of minimizing, introduce a negated
-	cost variable in your model and minimize that instead.
-	<P>
-	Note: the report_success, report_failure and report_timeout options
-	also accept Name/Arity specifications with maximum arity 3 for the
-	handler goals (the three optional arguments being Cost, Handle,
-	and Module).  Therefore, the simplest way to disable a handler
-	completely is to set it to true/0.
-	"),
+	cost variable in your model and minimize that instead, e.g.
+	<PRE>
+	    % maximize Profit
+	    Cost #= -Profit,
+	    bb_min(search(...), Cost, bb_options{}),
+	</PRE>
+</P>"),
     args:["Goal":"The (nondeterministic) search goal",
 	"Cost":"A (usually numeric domain) variable representing the cost",
 	"Options":"A bb_options structure or variable"],
-    amode:bb_min(+,?,?),
+    fail_if:"Goal has no solutions",
+    amode:(bb_min(+,?,+) is nondet),
     eg:"
-?- bb_min(member(X,[9,6,8,4,7,2,4,7]), X, O).
-Found a solution with cost 9
-Found a solution with cost 6
-Found a solution with cost 4
-Found a solution with cost 2
-Found no solution with cost -1.0Inf .. 1
-X = 2
-O = bb_options(continue, -1.0Inf, 1.0Inf, 1, 1, 0, 0, _, _)
-yes.
+% simple minimization with default options
+    ?- bb_min(member(X,[9,6,8,4,7,2,4,7]), X, Options).
+    Found a solution with cost 9
+    Found a solution with cost 6
+    Found a solution with cost 4
+    Found a solution with cost 2
+    Found no solution with cost -1.0Inf .. 1
+    X = 2
+    Options = bb_options(continue, -1.0Inf, 1.0Inf, 1, 1, 0, 0, _, _)
+    yes.
 
-[eclipse 6]: bb_min(member(X,[9,6,8,4,7,2,4,7]), X, bb_options{delta:4}).
-Found a solution with cost 9
-Found a solution with cost 4
-Found no solution with cost -1.0Inf .. 0
-X = 4
-yes.
+% coarser granularity: faster, but missing the optimum
+    ?- bb_min(member(X,[9,6,8,4,7,2,4,7]), X, bb_options{delta:4}).
+    Found a solution with cost 9
+    Found a solution with cost 4
+    Found no solution with cost -1.0Inf .. 0
+    X = 4
+    yes.
 
-[eclipse 10]: bb_min(member(X,[99,60,80,40,70,30,70]), X,
-	bb_options{strategy:dichotomic, from:0}).
-Found a solution with cost 99
-Found a solution with cost 40
-Found no solution with cost 0.0 .. 20.0
-Found a solution with cost 30
-Found no solution with cost 20.0 .. 25.0
-Found no solution with cost 25.0 .. 27.5
-Found no solution with cost 27.5 .. 28.75
-Found no solution with cost 28.75 .. 29.0
+% alternative strategy based on bisecting the cost space
+    ?- bb_min(member(X,[99,60,80,40,70,30,70]), X,
+	    bb_options{strategy:dichotomic, from:0}).
+    Found a solution with cost 99
+    Found a solution with cost 40
+    Found no solution with cost 0.0 .. 20.0
+    Found a solution with cost 30
+    Found no solution with cost 20.0 .. 25.0
+    Found no solution with cost 25.0 .. 27.5
+    Found no solution with cost 27.5 .. 28.75
+    Found no solution with cost 28.75 .. 29.0
+    X = 30
+    yes.
 
-X = 30
-yes.
+% examples with library(ic) constraints
+    ?- [X,Y,Z] :: 1..5,                    % constraints (model)
+       X+Z #>=Y,
+       C #= 3*X - 5*Y + 7*Z,               % objective function
+       bb_min(labeling([X,Y,Z]), C, _).    % nondet search + b&b
+
+    Found a solution with cost 5
+    Found a solution with cost 0
+    Found a solution with cost -2
+    Found a solution with cost -4
+    Found a solution with cost -6
+    Found no solution with cost -15.0 .. -7.0
+    X = 4
+    Y = 5
+    Z = 1
+    C = -6
+    Yes (0.00s cpu)
+
+
+    ?- [X,Y,Z] :: 1..5,
+       X+Z #>=Y,
+       C #= 3*X - 5*Y + 7*Z,
+       bb_min(search([X,Y,Z],0,input_order,indomain_middle,complete,[]), C, _).
+
+    Found a solution with cost 15
+    Found a solution with cost 8
+    Found a solution with cost 1
+    Found a solution with cost -4
+    Found a solution with cost -6
+    Found no solution with cost -15.0 .. -7.0
+    X = 4
+    Y = 5
+    Z = 1
+    C = -6
+    Yes (0.00s cpu)
+
+
 "]).
 
-/*
-:- comment(bb_min/7, [
-    summary:"Find a minimal solution using the branch-and-bound method",
-    desc:html("See bb_min/6 for details."),
-    template:"bb_min(+Goal, ?Cost, +Template, ?Solution, ?Optimum, ?Options, +Module)",
-    see_also:[bb_min/6, bb_min/3]]).
-*/
+
+:- comment(bb_min_cost/4, [
+    summary:"Find the minimal cost using the branch-and-bound method",
+    args:["Goal":"The (nondeterministic) search goal",
+	"Cost":"A (usually numeric domain) variable representing the cost",
+	"Optimum":"A variable which will be set to the optimum value of Cost",
+	"Options":"A bb_options structure or variable"],
+    see_also:[bb_min/3,bb_min/6],
+    desc:html("<P>\
+    Determines the minimum possible value that the variable Cost can
+    attain in any solution of Goal.  This value is returned as Optimum.
+    Neither Cost nor any variable in Goal is instantiated.  The predicate
+    is useful when one is interested in sub-optimal solutions, see example.
+</P><P>
+    This predicate can be defined as
+<PRE>
+	bb_min_cost(Goal, Cost, Optimum, Options) :-
+		bb_min(Goal, Cost, [], _, Optimum, Options).
+</PRE>
+    Options are interpreted in the same way as for bb_min/6
+    (the solutions-parameter is ignored).
+</P>"),
+    fail_if:"Goal has no solutions",
+    amode:(bb_min_cost(+,?,-,+) is semidet),
+    eg:"
+    % A predicate to enumerate solutions in increasing cost order
+    :- lib(ic).
+    :- lib(branch_and_bound).
+
+    ic_increasing_cost(Goal, Cost) :-
+    	bb_min_cost(Goal, Cost, Opt,
+		    bb_options{report_success:true/0,report_failure:true/0}),
+	(
+	    Cost = Opt,
+	    call(Goal)
+	;
+	    Cost #> Opt,
+	    ic_increasing_cost(Goal, Cost)
+	).
+
+    % sample run:
+    ?- ic_increasing_cost(member(C-X,[9-a,4-b,2-c,4-d]), C).
+    C = 2
+    X = c
+    Yes (0.00s cpu, solution 1, maybe more) ? ;
+    C = 4
+    X = b
+    Yes (0.00s cpu, solution 2, maybe more) ? ;
+    C = 4
+    X = d
+    Yes (0.00s cpu, solution 3, maybe more) ? ;
+    C = 9
+    X = a
+    Yes (0.00s cpu, solution 4, maybe more) ? ;
+    No (0.00s cpu)
+    "
+    ]).
 
 :- comment(bb_min/6, [
     summary:"Find a minimal solution using the branch-and-bound method",
@@ -732,8 +939,8 @@ yes.
 		If that fails, assume the upper sub-range as the remaining
 		cost range and split again.</DD>
 	    </DL>
-	    The new bound or the split point, respectively, are computed
-	    from the current best solution, while taking into account the
+	    The new bound (or the split point, respectively), are computed
+	    from the current best solution, taking into account the
 	    parameters delta and factor.
 	    </DD>
 	<DT><STRONG>from:</STRONG></DT>
@@ -755,25 +962,41 @@ yes.
 	    <DD>number - maximum seconds of cpu time to spend (default: no limit)</DD>
 
 	<DT><STRONG>report_success:</STRONG></DT>
-	    <DD>GoalPrefix - an atom (predicate name) or structure (goal prefix),
-	    specifying a goal to be invoked whenever the branch-and-bound
-	    process finds a better solution.  The invoked goal is constructed
-	    by adding three arguments (Cost, Handle, Module) to GoalPrefix.
-	    Cost is a float number representing the cost of the solution found,
+	    <DD>GoalPrefix/N - this specifies a goal to be invoked whenever
+	    the branch-and-bound process finds a better solution.  GoalPrefix
+	    is a callable term (atom or compound) and N is an integer between
+	    0 and 3.  The invoked goal is constructed by adding N optional
+	    arguments to GoalPrefix: Cost, Handle and Module.  Cost is
+	    a float number representing the cost of the solution found,
 	    Handle is a handle as accepted by bb_cost/2 or bb_solution/2,
-	    and Module is the context module of the minimisation.
-	    The default handler prints a message.</DD>
+	    and Module is the context module of the minimisation.  
+	    To disable any reporting, choose report_success:true/0.
+	    The default handler prints a message to log_output.</DD>
 
 	<DT><STRONG>report_failure:</STRONG></STRONG></DT>
-	    <DD>GoalPrefix - an atom (predicate name) or structure (goal prefix),
-	    specifying a goal to be invoked whenever the branch-and-bound
-	    process cannot find a solution in a cost range.  The invoked goal
-	    is constructed by adding three arguments (Cost, Handle, Module) to
-	    GoalPrefix.  Cost is a From..To structure representing the range
-	    of cost in which no solution could be found, Handle is a handle
-	    as accepted by bb_cost/2 or bb_solution/2, and Module is the
-	    context module of the minimisation.
-	    The default handler prints a message.</DD>
+	    <DD>GoalPrefix/N - this specifies a goal to be invoked whenever
+	    the branch-and-bound process cannot find a solution in a cost
+	    range.  GoalPrefix is a callable term (atom or compound) and
+	    N is an integer between 0 and 3.  The invoked goal is
+	    constructed by adding N optional arguments to GoalPrefix:
+	    Cost, Handle and Module.   Cost is a From..To structure
+	    representing the range of cost in which no solution could be found,
+	    Handle is a handle as accepted by bb_cost/2 or bb_solution/2,
+	    and Module is the context module of the minimisation.
+	    To disable any reporting, choose report_failure:true/0.
+	    The default handler prints a message to log_output.</DD>
+
+	<DT><STRONG>report_timeout:</STRONG></DT>
+	    <DD>GoalPrefix/N - this specifies a goal to be invoked when the
+	    branch-and-bound process times out.  GoalPrefix is a callable
+	    term (atom or compound) and N is an integer between 0 and 3.
+	    The invoked goal is constructed by adding N optional arguments
+	    to GoalPrefix: Cost, Handle and Module.  Cost is a float number
+	    representing the cost of the best solution found, Handle
+	    is a handle as accepted by bb_cost/2 or bb_solution/2,
+	    and Module is the context module of the minimisation.
+	    To disable any reporting, choose report_timeout:true/0.
+	    The default handler prints a message to log_output.</DD>
 	</DL>
 	The default options can be selected by passing a free variable as
 	the Options-argument. To specify other options, pass a bb_options-
@@ -789,16 +1012,11 @@ yes.
 	in Optimum, and the Solution argument gets unified with an instance of
 	Template where the variables have the values that correspond to the
 	optimal solution. Note that bb_min/3 is actually based on bb_min/6
-	and can be defined as:
+	and can (for the one-solution case) be defined as:
 	<PRE>
 	bb_min(Goal, Cost, Options) :-
 	    bb_min(Goal, Cost, Goal, Goal, Cost, Options).
 	</PRE>
-	<P>
-	Compatibility note: For backward compatibility, the report_success and
-	report_failure options also accept Name/Arity specifications with
-	maximum arity 3 for the handler goals. The three optional arguments
-	are then Cost, Handle, and Module.
 	"),
     args:["Goal":"The (nondeterministic) search goal",
 	"Cost":"A (usually numeric domain) variable representing the cost",
@@ -806,7 +1024,8 @@ yes.
 	"Solution":"A term which will be unified with the optimized Template",
 	"Optimum":"A variable which will be set to the optimum value of Cost",
 	"Options":"A bb_options structure or variable"],
-    amode:bb_min(+,?,?,?,?,?)
+    fail_if:"Goal has no solutions",
+    amode:(bb_min(+,?,?,?,?,?) is semidet)
     ]).
 
 :- comment(bb_init/2, [
