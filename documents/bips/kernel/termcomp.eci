@@ -224,6 +224,12 @@ Term1 and Term2.
 <DT><STRONG>compound terms</STRONG><DD>
     first by arity, then by functor name, then by the
     arguments in left to right order.
+
+<DT><STRONG>suspensions</STRONG><DD>
+    in order of creation.
+
+<DT><STRONG>handles</STRONG><DD>
+    according to their class and physical address.
 </DL>
 
    Note in particular that numbers are first ordered by their type (integer,
