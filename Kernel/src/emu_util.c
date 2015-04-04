@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.7 2015/04/02 03:35:08 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.8 2015/04/04 23:09:42 jschimpf Exp $
  */
 
 /*
@@ -304,6 +304,18 @@ _equal_handle(pword *pw1, pword *pw2)
 }
 
 static int
+_compare_handle(value v1, value v2)
+{
+    /* TODO: comparing the addresses of class descriptors is not ideal,
+     * as they may differ between executables.  Better compare some ID.
+     */
+    int diff = (int)(ExternalClass(v1.ptr) - ExternalClass(v2.ptr));
+    if (!diff)
+	diff = (int)(ExternalData(v1.ptr) - ExternalData(v2.ptr));
+    return diff;
+}
+
+static int
 _compare_dummy(value v1, value v2)
 {
     return -1;
@@ -360,6 +372,7 @@ bip_emu_init(int flags)
     }
 
     tag_desc[THANDLE].equal = _equal_handle;
+    tag_desc[THANDLE].compare = _compare_handle;
     tag_desc[TSUSP].compare = _compare_pointers;
 
     tag_desc[TIVL].order = o++;	/* this determines the type order in @> etc */
