@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.13 2015/04/02 03:38:00 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.14 2015/04/04 22:07:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2015/04/02 03:38:00 $").
+:- comment(date, "$Date: 2015/04/04 22:07:15 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -696,6 +696,9 @@ gen_library_page_html(HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherCom
 	printf(Stream, "<H1>%w</H1>%n", [LibTitle]),
 	( memberchk(comment(summary,LibSumm), OtherComments) ->
 	    writeln(Stream, LibSumm),
+	    ( memberchk(comment(desc,_), OtherComments) ->
+		writeln(Stream, "&nbsp; [<A HREF=\"#desc\">more</A>]")
+	    ; true ),
             gen_library_ascii_file(summary, HtmlDir, LibName, LibSumm)
 	;
 	    true
@@ -723,7 +726,7 @@ gen_library_page_html(HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherCom
 	    writeln(Stream, "</DL></BLOCKQUOTE>")
 	),
 	( memberchk(comment(desc,Desc), OtherComments) ->
-	    writeln(Stream, "<H2>Description</H2>"),
+	    writeln(Stream, "<A NAME=\"desc\"/><H2>Description</H2>"),
 	    html_write_par(Stream, Desc),
             gen_library_ascii_file(desc, HtmlDir, LibName, Desc)
 
