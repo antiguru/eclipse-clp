@@ -23,16 +23,14 @@
 :- module(lists_of_structures).
 
 :- comment(categories, ["Data Structures"]).
-:- comment(summary, "Operations on lists of Structures").
+:- comment(summary, "Operations on lists of structures").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Joachim Schimpf, 2013").
-:- comment(date, "$Date: 2014/07/05 15:52:16 $").
+:- comment(date, "$Date: 2015/04/08 17:48:57 $").
 :- comment(see_also, [
     	hash:list_to_hash/4,
 	sort/4,
-	number_sort/4,
 	merge/5,
-	number_merge/5,
 	struct/1
     ]).
 :- comment(desc, html("<p>
@@ -42,7 +40,7 @@
     </p><p>
     The ECLiPSe kernel and other libraries support such lists as well, e.g.
 <UL>
-    <LI>the sorting built-ins (sort/4, merge/5, number_sort/4, number_merge/5)
+    <LI>the sorting built-ins (sort/4, merge/5)
     <LI>hash:list_to_hash/4 for turning such lists into hash tables
 </UL>
     </p><p>
@@ -51,9 +49,11 @@
     identify the key arguments in all these predicates, e.g.
 <PRE>
     :- local struct(emp(name,age,salary)).
+
     ?- Emps = [emp{name:joe,salary:100}, emp{name:bob,salary:200}],
        sort(salary of emp, >=, Emps, Descending),
        args(name of emp, Descending, Names).
+
     Emps = [emp(joe, _, 100), emp(bob, _, 200)]
     Descending = [emp(bob, _, 200), emp(joe, _, 100)]
     Names = [bob, joe]
@@ -108,59 +108,90 @@ args(Key, [S|Ss], [A|As]) :-
 	args(Key, Ss, As).
 	
 
-:- comment(terms_functor/3, [
+:- comment(terms_functor/4, [
     summary:"All list elements have the given functor or atomic value",
-    amode:(terms_functor(+,-,-) is semidet),
-    amode:(terms_functor(-,+,+) is multi),
-    fail_if:"Not all list elements have the same functor",
+    amode:(terms_functor(-,+,+,+) is det),
+    amode:(terms_functor(-,-,+,+) is multi),
+    amode:(terms_functor(+,-,-,-) is semidet),
+    amode:(terms_functor(-,+,-,-) is erroneous),
+    fail_if:"Not all list elements have the same functor, or the list is not of the given length",
     args:["Structs":"List of terms, or variable",
+        "Length":"Integer or variable",
         "Name":"Atomic or variable",
         "Arity":"Integer or variable"],
-    see_also:[functor/3],
+    see_also:[functor/3,length/2],
     desc:html("<p>
-    Structs is a list of terms which all have the same functor Name/Arity.
-    Operationally, this can be used to either check the functors of existing
-    structures in the list, or to bind uninstantiated list elements to
-    new structures.
-    </p><p>
-    This is equivalent (modulo nondeterminism) to
+    Succeeds if Structs is a list of length Length, whose elements all
+    have the same functor Name/Arity.  Operationally, this can be used
+    to either generate a list with of this form, or to check whether an
+    existing list corresponds to it.
+</p><p>
+    This is (modulo nondeterminism) similar to
 <pre>
-    ( foreach(S,Structs), param(Name,Arity) do functor(S,Name,Arity) )
+    ( foreach(S,Structs), count(_,1,Length), param(Name,Arity) do
+        functor(S,Name,Arity)
+    )
 </pre>
-    </p><p>
-    Note that, like in the underlying functor/3 predicate, Name can be
-    any atomic term (including number and string) if Arity is zero.
+</p><p>
+    Note that (like in the underlying functor/3 predicate), if Arity is
+    zero, Name can be any atomic term (including number or string).
     </p>"),
     exceptions:[4:"Arguments are insufficiently instantiated",
 	5:"Name is not atomic",
 	5:"Arity is not an integer",
 	5:"Arity is greater than 0 and Name is not an atom",
-	6:"Some structure in Structs does not have a Key'th argument"],
+	6:"Arity is negative"],
     eg:"
     % fill a list with structure skeletons
-    ?- length(Ss,3), terms_functor(Ss,f,2).
+    ?- terms_functor(Ss, 3, f, 2).
     Ss = [f(_275,_276), f(_278,_279), f(_281,_282)]
     Yes (0.00s cpu)
 
     % check whether all elements have same toplevel functor
-    ?- terms_functor([f(a),f(b)], F, A).
+    ?- terms_functor([f(a),f(b)], L, F, A).
+    L = 2
     F = f
     A = 1
     Yes (0.00s cpu)
 
+    % complete a list acccording to a prototype
+    ?- terms_functor([f(a)|Ss], 4, _, _).
+    Ss = [f(_190), f(_194), f(_198)]
+    Yes (0.00s cpu)
+
     % fill a list with an atomic term (arity 0)
-    ?- length(Ss,3), terms_functor(Ss,99,0).
+    ?- terms_functor(Ss, 3, 99, 0).
     Ss = [99, 99, 99]
     Yes (0.00s cpu)
 
 "]).
 
-:- export terms_functor/3.
-terms_functor([], _, _).
-terms_functor([S|Ss], F, N) :-
+:- export terms_functor/4.
+terms_functor(Ss, Length, F, N) :-
+	var(Length),
+	terms_functor1(Ss, Length, F, N, 0).
+terms_functor(Ss, Length, F, N) :-
+	integer(Length),
+	terms_functor2(Ss, Length, F, N).
+
+    % Length not given
+    terms_functor1([], L, _, _, L).
+    terms_functor1([S|Ss], L, F, N, L0) :-
+	L1 is L0+1,
 	functor(S, F, N),
-	terms_functor(Ss, F, N).
-	
+	terms_functor1(Ss, L, F, N, L1).
+
+    % Length given
+    terms_functor2(Ss, L, F, N) :-
+	( L > 0 ->
+	    L1 is L-1,
+	    Ss = [S|Ss1],
+	    functor(S, F, N),
+	    terms_functor2(Ss1, L1, F, N)
+	; L == 0,
+	    Ss = []
+	).
+
 
 :- comment(inserta/4, [
     summary:"Insert Struct into a sorted list",
@@ -262,84 +293,90 @@ update(Key, Term, Structs0, Structs) :-
 	merge(Key, <, [Term], Structs0, Structs).
 
 
-:- comment(partition_by_key/5, [
+:- comment(separate_by_key/5, [
     summary:"Partition the elements of a list according to a key value",
-    amode:(partition_by_key(+,+,+,-,-) is det),
+    amode:(separate_by_key(+,+,+,-,-) is det),
     args:[
 	"Key":"Key argument position (non-negative integer, or list of those)",
 	"Value":"A term",
 	"All":"List of structures",
 	"Matches":"Variable, or list of structures",
 	"Others":"Variable, or list of structures"],
-    see_also:[prefix_by_key/5],
+    see_also:[same_key_prefix/5,group_by_key/3],
     desc:html("<p>
-    The list All is split into two sublists Matches and Others, such that
+    The list All is separated into two lists Matches and Others, such that
     Matches contains the elements whose Key argument is identical (in the
-    sense of ==/2) to Value, and Others contains the remaining elements.  The
-    element order in the sublists corresponds to the order in the original list.
+    sense of ==/2) to Value, and Others is a list with those matching elements
+    deleted.  The original list does not have to be ordered.  The element
+    order in the result lists corresponds to the order in the original list.
     </p>"),
     exceptions:[4:"Arguments are insufficiently instantiated",
 	5:"Some argument or its components are of the wrong type",
 	6:"Some structure does not have a Key'th argument"],
     eg:"
-    ?- partition_by_key(1, b, [f(a,1),f(b,2),f(c,3),f(b,4)], Bs, Ns).
+    ?- separate_by_key(1, b, [f(a,1),f(b,2),f(c,3),f(b,4)], Bs, Ns).
     Bs = [f(b,2), f(b,4)]
     Ns = [f(a,1), f(c,3)]
     Yes (0.00s cpu)
 "]).
 
-:- export partition_by_key/5.
-partition_by_key(_Key, _, [], [], []).
-partition_by_key(Key, Val, [S|Ss], YYs, NNs) :-
+:- export separate_by_key/5.
+separate_by_key(_Key, _, [], [], []).
+separate_by_key(Key, Val, [S|Ss], YYs, NNs) :-
 	arg(Key, S, Arg),
 	( Arg==Val ->
 	    YYs = [S|Ys], NNs = Ns
 	;
 	    YYs = Ys, NNs = [S|Ns]
 	),
-	partition_by_key(Key, Val, Ss, Ys, Ns).
+	separate_by_key(Key, Val, Ss, Ys, Ns).
 
 
-:- comment(prefix_by_key/5, [
-    summary:"Get the maximum prefix of a list whose elements match a key value",
-    amode:(prefix_by_key(+,+,+,-,-) is det),
+:- comment(same_key_prefix/5, [
+    summary:"Get the maximum prefix of a list with identical key values",
+    amode:(same_key_prefix(+,+,-,-,-) is semidet),
     args:[
 	"Key":"Key argument position (non-negative integer, or list of those)",
-	"Value":"A term",
 	"All":"List of structures",
+	"KeyVal":"Variable, or common key",
 	"Prefix":"Variable, or list of structures",
 	"Rest":"Variable, or list of structures"],
-    see_also:[partition_by_key/5],
+    see_also:[group_by_key/3,group_with_key/3,separate_by_key/5],
     desc:html("<p>
     The list All is split into two sublists Prefix and Rest, such that
-    Prefix contains all the leading elements of All whose Key argument is
-    identical to Value, and Rest contains the remainder of the list.
-    Concatenating the Prefix and Rest will yield the original list All.
+    Prefix contains all the leading elements of All whose Key arguments
+    are identical (in the sense of ==/2), and Rest contains the remainder
+    of the list.  Concatenating the Prefix and Rest will yield the original
+    list All.  The key value of the Prefix is returned as KeyVal.
     </p>"),
+    fail_if:"List All is empty",
     exceptions:[4:"Arguments are insufficiently instantiated",
 	5:"Some argument or its components are of the wrong type",
 	6:"Some structure does not have a Key'th argument"],
     eg:"
-    ?- prefix_by_key(1, a, [f(a,1),f(a,2),f(c,3),f(b,4),f(a,5)], Prefix, Rest).
+    ?- same_key_prefix(1, [f(a,1),f(a,2),f(c,3),f(b,4),f(a,5)],
+                       KeyVal, Prefix, Rest).
+    KeyVal = a
     Prefix = [f(a,1), f(a,2)]
     Rest = [f(c,3), f(b,4), f(a,5)]
     Yes (0.00s cpu)
 
-    ?- prefix_by_key(1, b, [f(a,1),f(a,2),f(c,3),f(b,4),f(a,5)], Prefix, Rest).
-    Prefix = []
-    Rest = [f(a,1), f(a,2), f(c,3), f(b,4), f(a,5)]
-    Yes (0.00s cpu)
-
+    ?- same_key_prefix(1, [], KeyVal, Prefix, Rest).
+    No (0.00s cpu)
 "]).
 
-:- export prefix_by_key/5.
-prefix_by_key(_Key, _Val, [], [], []).
-prefix_by_key(Key, Val, SSs, YYs, Ns) :-
-	SSs= [S|Ss],
+:- export same_key_prefix/5.
+same_key_prefix(Key, [S|Ss], Common, [S|Ys], Ns) :-
+	arg(Key, S, Common),
+	same_key_prefix1(Key, Ss, Common, Ys, Ns).
+
+    same_key_prefix1(_Key, [], _Common, [], []).
+    same_key_prefix1(Key, SSs, Common, YYs, Ns) :-
+	SSs = [S|Ss],
 	arg(Key, S, Arg),
-	( Arg==Val ->
+	( Arg==Common ->
 	    YYs = [S|Ys],
-	    prefix_by_key(Key, Val, Ss, Ys, Ns)
+	    same_key_prefix1(Key, Ss, Common, Ys, Ns)
 	;
 	    Ns = SSs, YYs = []
 	).
@@ -352,9 +389,9 @@ prefix_by_key(Key, Val, SSs, YYs, Ns) :-
 	"Key":"Key argument position (non-negative integer, or list of those)",
 	"Structs":"List of structures",
 	"Grouped":"Variable, or list of list of structures"],
-    see_also:[group_with_key/3,sort/4,merge/5],
+    see_also:[group_with_key/3,same_key_prefix/5,sort/4,merge/5],
     desc:html("<p>
-    The list Structs is grouped into maximal sublists of consecutive
+    The list Structs is partitioned into maximal sublists of consecutive
     elements with identical keys.  Concatenating all these sublists will
     yield the original list.  If the original list was ordered according
     to the Key'th argument, then the sublists represent a partitioning of
@@ -379,18 +416,13 @@ prefix_by_key(Key, Val, SSs, YYs, Ns) :-
 "]).
 
 :- export group_by_key/3.
-group_by_key(_Pos, [], []).
-group_by_key(Pos, [KV|List], [[KV|KVs]|GroupedList]) :-
-	arg(Pos, KV, K),
-        group_by_key(Pos, List, K, KVs, GroupedList).
-
-    group_by_key(_Pos, [], _, [], []).
-    group_by_key(Pos, [KV|List], K, [KV|KVs], GroupedList) :-
-	arg(Pos, KV, K1), K == K1, !,
-        group_by_key(Pos, List, K, KVs, GroupedList).
-    group_by_key(Pos, [KV|List], _K, [], [[KV|KVs]|GroupedList]) :-
-	arg(Pos, KV, K),
-        group_by_key(Pos, List, K, KVs, GroupedList).
+group_by_key(Pos, Ss, Gs) :-
+	( same_key_prefix(Pos, Ss, _KV, G, Ss1) ->
+	    Gs = [G|Gs1],
+	    group_by_key(Pos, Ss1, Gs1)
+	;
+	    Gs = []
+	).
 
 
 :- comment(group_with_key/3, [
@@ -400,11 +432,11 @@ group_by_key(Pos, [KV|List], [[KV|KVs]|GroupedList]) :-
 	"Key":"Key argument position (non-negative integer, or list of those)",
 	"Structs":"List of structures",
 	"Grouped":"Variable, or list of KeyVal-SubList structures"],
-    see_also:[group_by_key/3,sort/4,merge/5],
+    see_also:[group_by_key/3,same_key_prefix/5,sort/4,merge/5],
     desc:html("<p>
-    The list Structs is grouped into maximal sublists of consecutive elements
-    with identical keys, such that concatenating all these sublists would
-    yield the original list.  If the original list was ordered according
+    The list Structs is partitioned into maximal sublists of consecutive
+    elements with identical keys, such that concatenating all these sublists
+    would yield the original list.  If the original list was ordered according
     to the Key'th argument, then the sublists represent a partitioning of
     the original elements according to their different key values.
     </p><p>
@@ -425,20 +457,14 @@ group_by_key(Pos, [KV|List], [[KV|KVs]|GroupedList]) :-
     Yes (0.00s cpu)
 "]).
 
-
 :- export group_with_key/3.
-group_with_key(_Pos, [], []).
-group_with_key(Pos, [KV|List], [K-[KV|KVs]|GroupedList]) :-
-	arg(Pos, KV, K),
-        group_with_key(Pos, List, K, KVs, GroupedList).
-
-    group_with_key(_Pos, [], _, [], []).
-    group_with_key(Pos, [KV|List], K, [KV|KVs], GroupedList) :-
-	arg(Pos, KV, K1), K == K1, !,
-        group_with_key(Pos, List, K, KVs, GroupedList).
-    group_with_key(Pos, [KV|List], _K, [], [K-[KV|KVs]|GroupedList]) :-
-	arg(Pos, KV, K),
-        group_with_key(Pos, List, K, KVs, GroupedList).
+group_with_key(Pos, Ss, Gs) :-
+	( same_key_prefix(Pos, Ss, KV, G, Ss1) ->
+	    Gs = [KV-G|Gs1],
+	    group_with_key(Pos, Ss1, Gs1)
+	;
+	    Gs = []
+	).
 
 
 :- comment(lists_structs/2, [
@@ -448,7 +474,7 @@ group_with_key(Pos, [KV|List], [K-[KV|KVs]|GroupedList]) :-
     args:[
 	"Lists":"Structure with list arguments, or variable",
 	"Structs":"List of structures, or variable"],
-    see_also:[terms_functor/3,args/3],
+    see_also:[terms_functor/4,args/3],
     desc:html("<p>
     Maps a single structure with functor F/N whose arguments are all lists
     of length M into a single list of length M of F/N structures, and vice
@@ -523,95 +549,3 @@ lists_structs(SoL, Structs) :-
 	    )
 	).
 
-
-%----------------------------------------------------------------------
-end_of_file.
-%----------------------------------------------------------------------
-
-% Specific to Key-Val pairs
-% 
-% structs_keyed(Key,Ss,Ps) :-
-% 	args(Key, Ss, Ks),
-% 	lists_structs(Ks-Ss,Ps).
-% 
-:- export structs_keyed/3.
-structs_keyed(_Key, [], []).
-structs_keyed(Key, [S|Ss], [A-S|ASs]) :-
-	arg(Key, S, A),
-	structs_keyed(Key, Ss, ASs).
-	
-
-/*
-
-O'Keefe suggestions:
-
-pairs_keys_values(Pairs, Keys, Values) both ways
-pairs_keys(Pairs, Keys) both ways
-pairs_values(Pairs, Values) both ways
-
-join_by_key/2 = group_same_key_values/2.  SWI: group_by_key/2
-
-
-Quintus Prolog, library(clumps) -- 1989 -- has several related predicates.
-
-% clumps(+Items, ?Clumps)
-% is true when Clumps is a list of lists such that
-% (a) append(Clumps, Items)
-% (b) for each Clump in Clumps, all the elements of Clump are identical
-% (==). Items must be a proper list of terms for which sorting would
-% have been sound. In fact, it usually is the result of sorting.
-
-For example,
-
-clumps([m, i, s,s, i, s,s, i, p,p, i],
-[[m],[i],[s,s],[i],[s,s],[i],[p,p], [i]])
-
-% keyclumps(+Pairs, ?Clumps)
-% is true when Pairs is a list of pairs and Clumps a list of lists
-% such that
-% (a) append(Clumps, Pairs)
-% (b) for each Clump in Clumps, all of the Key-Value pairs in Clump
-% have identical (==) Keys.
-% Pairs must be a proper list of pairs for which keysorting would have
-% been sound. In fact, it usually is the result of keysorting.
-
-This isn't quite what you want.
-
-% clumped(+Items, ?Counts)
-% is true when Counts is a list of Item-Count pairs such that
-% if clumps(Items, Clumps), then each Item-Count pair in Counts
-% corresponds to an element [Item/*1*/,...,Item/*Count*/] of Clumps.
-% Items must be a proper list of terms for which sorting would have
-% been sound. In fact, it usually is the result of sorting.
-
-For example,
-clumped([m, i, s,s,i, s,s,i, p,p,i],
-[m-1,i-1,s-2,i-1,s-2,i-1,p-2,i-1])
-
-% keyclumped(+Pairs, ?Groups)
-% is true when Pairs is a list of Key-Item pairs and
-% Groups is a list of Key-Items pairs such that
-% if keyclumps(Pairs, Clumps), then for each K-[I1,...,In] pair in
-% Groups there is a [K-I1,...,K-In] clump in Clumps.
-% Pairs must be a proper list of pairs for which keysorting would have
-% been sound. In fact, it usually is the result of keysorting.
-
-This, I think, is the one you want.
-
-I dislike the name join_by_key/2 (because it is NOT a join) about as
-much as I dislike the name keyclumped (because it really isn't obvious
-what it means; back in 1989 I still had a lot to learn about naming).
-
-The obvious other such predicate is
-
-transpose(Pairs, Transposed) :-
-'flip for transpose'(Pairs, Flipped),
-keysort(Flipped, Transposed).
-
-'flip for transpose'([], []).
-'flip for transpose'([Key-Val|Pairs], [Val-Key|Flipped]) :-
-'flip for transpose'(Pairs, Flipped).
-
-
-
-*/
