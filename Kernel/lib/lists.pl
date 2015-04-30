@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.8 2013/02/22 02:43:53 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.9 2015/04/30 23:40:47 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -55,7 +55,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2013/02/22 02:43:53 $").
+:- comment(date, "$Date: 2015/04/30 23:40:47 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -207,10 +207,87 @@ flatten_aux(Depth, [Head|Tail], Res, Cont) :-
 flatten_aux(_, Term, [Term|Cont], Cont).
 
 
+% TEMPORARY: local subscript/3
+
+:- local subscript/3.
+:- tool(subscript/3, subscript/4).
+
+%
+% subscript(+Matrix, +IndexList, ?Element)
+%
+subscript(Mat, Index, X, M) :-
+	var(Index), !,
+	( get_flag(coroutine,on) ->
+	    suspend(subscript(Mat, Index, X, M), 2, Index->inst)
+	;
+	    error(4, subscript(Mat,Index,X), M)
+	).
+subscript(Mat, [], X, _M) :- !, X = Mat.
+subscript(Mat, [IExpr|IExprs], X, M) :- !,
+	subscript3(Mat, IExpr, X, M, IExprs).
+subscript(Mat, Index, X, M) :-
+	error(5, subscript(Mat,Index,X), M).
+
+    subscript3(Mat, IExpr, X, M, IExprs) :-
+	var(Mat), !,
+	( get_flag(coroutine,on) ->
+	    suspend(subscript(Mat,[IExpr|IExprs],X,M), 2, Mat->inst)
+	;
+	    error(4, subscript(Mat,[IExpr|IExprs],X), M)
+	).
+    subscript3(Mat, IExpr, X, M, IExprs) :-
+	compound(Mat), !,
+	subscript1(Mat, IExpr, X, M, IExprs).
+    subscript3(Mat, IExpr, X, M, IExprs) :-
+	is_handle(Mat), !,
+	( IExprs = [] ->
+	    eval(IExpr, I)@M,
+	    xget(Mat, I, X)
+	;
+	    error(6, subscript(Mat,[IExpr|IExprs],X), M)
+	).
+    subscript3(Mat, IExpr, X, M, IExprs) :-
+	string(Mat), !,
+	( IExprs = [] ->
+	    eval(IExpr, I)@M,
+	    string_code(Mat, I, X)
+	;
+	    error(6, subscript(Mat,[IExpr|IExprs],X), M)
+	).
+    subscript3(Mat, IExpr, X, M, IExprs) :-
+	error(5, subscript(Mat,[IExpr|IExprs],X), M).
+
+    subscript1(Mat, IExpr, X, M, IExprs) :- integer(IExpr), !,
+	arg(IExpr, Mat, Row),
+	subscript(Row, IExprs, X, M).
+    subscript1(Mat, Min..Max, Xs, M, IExprs) :- -?-> !,
+	eval(Min, Imin)@M,
+	eval(Max, Imax)@M,
+	% code for returning sub-arrays
+	Offset is Imin-1,
+	N is Imax-Offset,
+	( N >= 0 ->
+	    functor(Xs, [], N),
+	    ( foreacharg(X,Xs,J), param(Offset,Mat,IExprs,M) do
+		I is J+Offset,
+		arg(I, Mat, Row),
+		subscript(Row, IExprs, X, M)
+	    )
+	;
+	    error(6, subscript(Mat,[Min..Max|IExprs],Xs), M)
+	).
+    subscript1(Mat, IExpr, X, M, IExprs) :-
+	eval(IExpr, I)@M,
+	arg(I, Mat, Row),
+	subscript(Row, IExprs, X, M).
+
+
 :- comment(collection_to_list/2, [
     summary:"Convert a \"collection\" into a list",
-    amode:(collection_to_list(+,-) is det),
-    template:"collection_to_list(+Collection, ?List)",
+    amode:(collection_to_list(+,-) is semidet),
+    args:["Collection":"A term to be interpreted as a collection",
+    	"List":"Output list"],
+    fail_if:"Collection is not a collection",
     desc:html("\
    Converts various \"collection\" data structures into a list.  Fails if it
    does not know how to do this.  The supported collection types are:
@@ -218,19 +295,20 @@ flatten_aux(_, Term, [Term|Cont], Cont).
    <DT>List<DD>
 	The list is returned unchanged.
    <DT>Array<DD>
-	The array is flattened into a list using flatten_array/2.
-   <DT>Subscript reference (Array[...])<DD>
-	subscript/3 is called to evaluate the subscript reference.  Note
-	that the result is not flattened, so if subscript/3 results in a
-	nested list, the result is a nested list.  However if the result is
-	a single element of the array that is not a list, this is converted
-	into a list containing that element.
+	The array is converted into a list using array_list/2.
+   <DT>Subscript reference Array[...]<DD>
+	subscript/3 is called to evaluate the subscript reference.  If this
+	results in a single array element, a one-element list is returned.
+	If subscript/3 results in a sub-array, this is converted into a list.
+	For multi-dimensional sub-arrays, only the top level is converted
+	into a list (no implicit flattening).
+   <DT>flatten(N, Collection)<DD>
+	If the collection is nested (multi-dimensional), the top N nesting
+	levels of the structure are converted into a flat list.
    <DT>flatten(Collection)<DD>
-	Calls collection_to_list/2 on Collection and then flattens the
-	result using flatten/2.
-   <DT>flatten(MaxDepth, Collection)<DD>
-	Calls collection_to_list/2 on Collection and then flattens the
-	result up to MaxDepth levels of nesting using flatten/3.
+	If the collection is nested (multi-dimensional), all nesting
+	structure is removed and a flat list is returned.  All subterms that
+	look like list or array will be interpreted as such (including []).
 </DL>
 "),
     eg:"\
@@ -241,7 +319,7 @@ flatten_aux(_, Term, [Term|Cont], Cont).
    List = [a, b, [c, d]]
    Yes
    ?- collection_to_list([]([](a,b),[](c,d)), List).
-   List = [a, b, c, d]
+   List = [[](a, b), [](c, d)]
    Yes
    ?- A = []([](a,b),[](c,d)),
       collection_to_list(A[1..2,1], List).
@@ -249,7 +327,7 @@ flatten_aux(_, Term, [Term|Cont], Cont).
    Yes
    ?- A = []([](a,b,c),[](d,e,f)),
       collection_to_list(A[1..2,2..3], List).
-   List = [[b, c], [e, f]]
+   List = [[](b, c), [](e, f)]
    Yes
    ?- collection_to_list(flatten([a,b,[c,d]]), List).
    List = [a, b, c, d]
@@ -266,55 +344,161 @@ flatten_aux(_, Term, [Term|Cont], Cont).
    List = [a, b, [c, d], [e, f], g]
    Yes
 ",
-    see_also:[subscript/3, flatten/2, flatten/3, flatten_array/2]]).
+    see_also:[collection_to_array/2, subscript/3, flatten/2, flatten/3]]).
 
-    % TODO: extend acceptable "Collection"s to include
-    % - hash tables
-    % - better support for nested structures (lists of arrays, arrays of
-    %   lists, etc.)
-collection_to_list(Collection, _List) :-
-	var(Collection),
-	!,
-	% Instantiation fault.
-	fail.
-collection_to_list([], List) :-
-	!,
-	List = [].
-collection_to_list(Collection, List) :-
-	Collection = [_|_],
-	!,
-	% It's already a list (or at least, looks that way...)
-	List = Collection.
-collection_to_list(subscript(Array, Indices), List) :-
-	!,
-	subscript(Array, Indices, List0),
-	( nonvar(List0), List0 =[_|_] ->
-	    List = List0
-	;
-	    % The subscript only returned a single item that wasn't a list.
-	    % We need to return a list, and we need to support this case, so
-	    % we make it a singleton list, despite this making the behaviour
-	    % somewhat inconsistent (we're adjusting the depth of the result
-	    % for this particular case only) - this is hard to avoid without
-	    % writing an alternate implementation of subscript/3.
-	    List = [List0]
+
+:- export collection_to_list/2.
+collection_to_list(flatten(Xs), Ys) ?- !,
+	collection_to_list0(Xs, Ys1, []),
+	flatten_list_elements(-1, Ys1, Ys, []).
+collection_to_list(flatten(D,Xs), Ys) ?- !,
+	collection_to_list0(Xs, Ys1, []),
+	( D>0 -> flatten_list_elements(D, Ys1, Ys, []) ; Ys=Ys1 ).
+collection_to_list(Xs, Ys) :-
+	collection_to_list0(Xs, Ys, []).
+
+    % Xs is a list, D>0 or D<0
+    flatten_list_elements(D, Xs, Ys, Ys0) :-
+	(
+	    foreach(X,Xs),
+	    fromto(Ys,Ys1,Ys2,Ys0),
+	    param(D)
+	do
+	    % X is either sub-collection or element
+	    ( collection_to_list0(X, Zs, Zs0) ->
+	        D1 is D-1,
+		( D1==0 ->
+		    Ys1 = Zs, Ys2 = Zs0
+		;
+		    Zs0 = [],
+		    flatten_list_elements(D1, Zs, Ys1, Ys2)
+		)
+	    ;
+		Ys1 = [X|Ys2]
+	    )
 	).
-collection_to_list(flatten(Collection), List) :-
-	!,
-	collection_to_list(Collection, Lists),
-	flatten(Lists, List).
-collection_to_list(flatten(N, Collection), List) :-
-	!,
-	collection_to_list(Collection, Lists),
-	flatten(N, Lists, List).
-collection_to_list(Collection, List) :-
-	functor(Collection, [], _Arity),
-%	!,
-	% It's an array
-	flatten_array(Collection, List).
-%collection_to_list(Collection, List) :-
-%	% Type error.
-%	fail.
+
+    collection_to_list0(X, _Ys, _Ys0) :- var(X), !,
+	fail.		%throw(instantiation_error).
+    collection_to_list0([], Ys, Ys0) :- !,
+	Ys=Ys0.		% interpret as empty collection
+    collection_to_list0(Xs, Ys, Ys0) :- Xs = [_|_], !,
+	% assume proper list
+	( Ys0==[] -> Ys=Xs % avoid copying
+	; append(Xs, Ys0, Ys)
+	).
+    collection_to_list0(Xz, Ys, Ys0) :- is_array(Xz), !,
+	sepia_kernel:array_list(Xz, Ys, Ys0).
+    collection_to_list0(subscript(Array, Indices), Ys, Ys0) :- !,
+	( ( foreach(I,Indices) do integer(I) ) ->
+	    arg(Indices, Array, Element),
+	    Ys = [Element|Ys0]
+	;
+	    subscript(Array, Indices, SubArray),
+	    sepia_kernel:array_list(SubArray, Ys, Ys0)
+	).
+    collection_to_list0(_X, _Ys, _Ys0) :-
+	fail.		%throw(type_error).
+
+
+:- comment(collection_to_array/2, [
+    summary:"Convert a \"collection\" into a list",
+    amode:(collection_to_array(+,-) is semidet),
+    fail_if:"Collection is not a collection",
+    args:["Collection":"A term to be interpreted as a collection",
+    	"List":"Output array"],
+    desc:html("\
+   Converts various \"collection\" data structures into an array.  Fails if it
+   does not know how to do this.  The supported collection types are:
+<DL>
+   <DT>List<DD>
+	The list is converted into an array using array_list/2.
+   <DT>Array<DD>
+	The array is returned unchanged.
+   <DT>Subscript reference Array[...]<DD>
+	subscript/3 is called to evaluate the subscript reference.  If this
+	results in a single array element, a one-element array is returned.
+	If subscript/3 results in a sub-array, this is returned.
+   <DT>flatten(N, Collection)<DD>
+	If the collection is nested (multi-dimensional), the top N nesting
+	levels of the structure are converted into a flat array.
+   <DT>flatten(Collection)<DD>
+	If the collection is nested (multi-dimensional), all nesting
+	structure is removed and a flat array is returned.  All subterms that
+	look like list or array will be interpreted as such (including []).
+</DL>
+"),
+    eg:"\
+   ?- collection_to_array([a,b,[c,d]], Array).
+   Array = [](a, b, [c, d])
+   Yes
+   ?- collection_to_array(flatten([a,b,[c,d]]), Array).
+   Array = [](a, b, c, d)
+   Yes
+   ?- collection_to_array(flatten([](a,b,[c,d])), Array).
+   Array = [](a, b, c, d)
+   Yes
+   ?- A = []([](a,b,c),[](d,e,f)),
+      collection_to_array(flatten(A[1..2,2..3]), Array).
+   Array = [](b, c, e, f)
+   Yes
+   ?- L = [[a,b],[[c,d],[e,f]],g],
+      collection_to_array(flatten(1, L), Array).
+   Array = [](a, b, [c, d], [e, f], g)
+   Yes
+",
+    see_also:[collection_to_list/2, subscript/3, array_flat/3]]).
+
+
+:- export collection_to_array/2.
+collection_to_array(flatten(Xs), Yz) ?- !,
+	collection_to_array0(Xs, Yz1),
+	flatten_array_elements(-1, Yz1, Yz).
+collection_to_array(flatten(D,Xs), Yz) ?- !,
+	collection_to_array0(Xs, Yz1),
+	( D>0 -> flatten_array_elements(D, Yz1, Yz) ; Yz=Yz1 ).
+collection_to_array(Xs, Yz) :-
+	collection_to_array0(Xs, Yz).
+
+    % Xz is an array, D>0 or D<0
+    flatten_array_elements(D, Xz, Yz) :-
+	(
+	    foreacharg(X,Xz),
+	    fromto(Ys,Ys1,Ys2,[]),
+	    param(D)
+	do
+	    % X is either sub-collection or element
+	    ( collection_to_list0(X, Zs, Zs0) ->
+	        D1 is D-1,
+		( D1==0 ->
+		    Ys1 = Zs, Ys2 = Zs0
+		;
+		    Zs0 = [],
+		    flatten_list_elements(D1, Zs, Ys1, Ys2)
+		)
+	    ;
+		Ys1 = [X|Ys2]
+	    )
+	),
+	array_list(Yz, Ys).
+
+    collection_to_array0(X, _Yz) :- var(X), !,
+	fail.		%throw(instantiation_error).
+    collection_to_array0([], Yz) :- !,
+	Yz = [].	% interpret as empty collection
+    collection_to_array0(Xs, Yz) :- Xs = [_|_], !,
+	array_list(Yz, Xs).
+    collection_to_array0(Xz, Yz) :- is_array(Xz), !,
+    	Yz = Xz.
+    collection_to_array0(subscript(Array, Indices), Yz) :- !,
+	( ( foreach(I,Indices) do integer(I) ) ->
+	    arg(Indices, Array, Element),
+	    Yz = [](Element)
+	;
+	    subscript(Array, Indices, Yz)
+	).
+    collection_to_array0(_X, _Yz) :-
+	fail.		%throw(type_error).
 
 
 :- comment(halve/3, [
