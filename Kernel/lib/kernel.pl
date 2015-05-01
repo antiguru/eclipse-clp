@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.55 2015/03/29 16:24:21 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.56 2015/05/01 00:11:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -2535,10 +2535,19 @@ stack_overflow_message(error(IsoError,ImpDefTerm)) :-
 	( IsoError = syntax_error(Description) ->
 	    print_syntax_error(Description, ImpDefTerm)
 	;
-	    iso_print_error(IsoError, String, Params),
-	    %%%TODO use output mode settings
-	    printf(error, String, Params),
-	    printf(error, " in %w%n%b", [ImpDefTerm])
+	    ( iso_print_error(IsoError, String, Params) ->
+		printf(error, String, Params)
+	    ;
+		printf(error, "Error \"%w\"", [IsoError])
+	    ),
+	    ( var(ImpDefTerm) ->
+		nl(error)
+	    ;
+		output_mode(Mode),
+		concat_string([" in %", Mode, "w%n"], Format),
+		printf(error, Format, [ImpDefTerm])
+	    ),
+	    flush(error)
 	).
 
 iso_print_error(instantiation_error, "instantiation fault", []).
@@ -3891,7 +3900,6 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	cancel_after_event/2,
 	canonical_path_name/2,
 	close_embed_queue_eclipseside/2,
-	collection_to_array/2,
 	comment/2,
 	compiled_stream/1,
 	coroutine/0,
@@ -6167,35 +6175,6 @@ flatten_array(Array, List) :-
 	flatten_array(Array, N, List, List0).
     flatten_array(X, [X|List0], List0).
 
-
-collection_to_array(Collection, Arr) :- var(Collection), !,
-	error(4, collection_to_array(Collection, Arr)).
-collection_to_array([], Arr) :- !,
-	Arr = [].
-collection_to_array(Collection, Arr) :- Collection = [_|_], !,
-	% It's a list (or at least, looks that way...)
-	Arr =.. [[]|Collection].
-collection_to_array(subscript(Array, Indices), Arr) :- !,
-	subscript(Array, Indices, Sub),
-	( compound(Sub), is_array(Sub) ->
-	    Arr = Sub
-	;
-	    % The subscript only returned a single item that wasn't a list.
-	    % We need to return an array, and we need to support this case, so
-	    % we make it a singleton array.
-	    Arr = [](Sub)
-	).
-collection_to_array(flatten(Collection), Arr) :- !,
-	collection_to_array(Collection, NestedArr),
-	array_flat(-1, NestedArr, Arr).
-collection_to_array(flatten(N, Collection), Arr) :- !,
-	collection_to_array(Collection, NestedArr),
-	array_flat(N, NestedArr, Arr).
-collection_to_array(Collection, Arr) :- is_array(Collection), !,
-	% It's an array already
-	Arr = Collection.
-collection_to_array(Collection, Arr) :-
-	error(5, collection_to_array(Collection, Arr)).
 
 
 %----------------------------------------------------------------
