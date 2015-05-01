@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.8 2015/01/14 01:31:09 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.9 2015/05/01 00:07:37 jschimpf Exp $
  */
 
 /*
@@ -63,6 +63,7 @@ static int	p_atom_string(value va, type ta, value vs, type ts),
 		p_is_array(value varr, type tarr),
 		p_dim(value va, type ta, value vdim, type tdim),
 		p_array_list(value varr, type tarr, value vl, type tl),
+		p_array_list3(value varr, type tarr, value vl, type tl, value ev, type et),
 		p_array_concat(value v1, type t1, value v2, type t2, value v, type t),
 		p_char_code(value v1, type t1, value v2, type t2), 
 		p_functor(value vt, type t, value vf, type tf, value va, type ta), 
@@ -108,6 +109,7 @@ bip_tconv_init(int flags)
 	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
 	(void) built_in(in_dict("array_flat", 3), p_array_flat, B_UNSAFE|U_UNIFY|PROC_DEMON);
 	(void) built_in(in_dict("array_list", 2), p_array_list, B_UNSAFE|U_UNIFY|PROC_DEMON);
+	(void) built_in(in_dict("array_list", 3), p_array_list3, B_UNSAFE|U_UNIFY|PROC_DEMON);
 	(void) built_in(in_dict("array_concat", 3), p_array_concat, B_UNSAFE|U_UNIFY|PROC_DEMON);
 	(void) built_in(in_dict("is_array", 1), p_is_array, B_SAFE);
 	(void) built_in(in_dict("dim", 2), p_dim, B_UNSAFE|U_UNIFY);
@@ -1408,57 +1410,87 @@ p_array_concat(value v1, type t1, value v2, type t2, value v, type t)
 
 
 static int
-p_array_list(value tv, type tt, value lv, type lt)
+p_array_list3(value varr, type tarr, value vl, type tl, value vt, type tt)
 {
-    if (IsRef(tt))	/* case of: converting List to Array */
+    Check_Output_List(tt);
+    if (IsRef(tarr))
     {
-	if (IsList(lt))
+	if (IsList(tl))
 	{
 	    pword *head = TG++;		/* leave space for functor */
-	    pword *elem = lv.ptr;
-	    for (;;)
+	    pword *elem = vl.ptr;
+	    pword *stop = IsNil(tt) ? NULL : vt.ptr;	/* list or var address */
+
+	    for(;;)
 	    {
 		pword *arg = TG++;
 		Check_Gc;
 		*arg = *elem++;
 		Dereference_(elem);
-		if (!IsList(elem->tag)) break;
-		elem = elem->val.ptr;
+		if (IsList(elem->tag))
+		{
+		    if (IsList(tt) && 0==ec_compare_terms(elem->val, elem->tag, vt, tt))
+			break;
+		    elem = elem->val.ptr;
+		}
+		else if (IsRef(elem->tag))
+		{
+		    elem = elem->val.ptr;
+		    if (elem == stop)
+			break;
+
+		    /* ideally: suspend [Arr]->inst, [End,Tail]->bound */
+		    TG = head;
+		    Push_var_delay(varr.ptr, tarr.all);
+		    if (IsRef(tt)) {
+			Push_var_delay_unif(elem, elem->tag.all);
+			Push_var_delay_unif(vt.ptr, tt.all);
+		    } else {
+			Push_var_delay(elem, elem->tag.all);
+		    }
+		    Bip_Error(PDELAY)	/* |PDELAY_BOUND in some cases... */
+		}
+		else if (IsNil(elem->tag))
+		{
+		    if (!IsNil(tt)) { Fail_; }	/* tail must be == */
+		    break;
+		}
+		else
+		{
+		    Bip_Error(TYPE_ERROR)
+		}
 	    }
-	    if (IsNil(elem->tag))
-	    {
-		/* go back to write functor with now known arity */
-		Kill_DE;
-		Make_Atom(head, add_dict(d_.nil, TG-head-1));
-		Return_Unify_Structure(tv, tt, head);
-	    }
-	    else if (IsRef(elem->tag))	/* partial list -> error 4. */
-	    {
-		TG = head;
-		Push_var_delay(tv.ptr, tt.all);
-		Push_var_delay(elem, elem->tag.all);
-		Bip_Error(PDELAY)
+	    /* go back to write functor with now known arity */
+	    Kill_DE;
+	    word arity = TG-head-1;
+	    if (arity == 0) {
+		Return_Unify_Nil(varr, tarr);
+	    } else {
+		Make_Atom(head, add_dict(d_.nil, arity));
+		Return_Unify_Structure(varr, tarr, head);
 	    }
 	}
-	else if (IsNil(lt))
+	else if (IsNil(tl))
 	{
 	    Kill_DE;
-	    Return_Unify_Nil(tv, tt);
+	    if (!IsNil(tt)) { Fail_; }	/* tail must be == */
+	    Return_Unify_Nil(varr, tarr);
 	}
-	else if (IsRef(lt))
+	else if (IsRef(tl))
 	{
-	    Bip_Error(PDELAY_1_2);
+	    Bip_Error(PDELAY_1_2)
 	}
+	Bip_Error(TYPE_ERROR)
     }
-    else if (IsArray(tv, tt))	/* converting Array to List */
+    else if (IsArray(varr, tarr))	/* converting Array to List */
     {
 	word arity;
 	pword result;
 	pword   *elem, *arg;
 
-	Check_Output_List(lt);
+	Check_Output_List(tl);
 	Kill_DE;
-	arg = tv.ptr;
+	arg = varr.ptr;
 	arity = DidArity(arg->val.did);
 	elem = TG;
 	Make_List(&result, elem);
@@ -1475,19 +1507,25 @@ p_array_list(value tv, type tt, value lv, type lt)
 	    elem += 2;
 	}
 	*elem = *++arg;
-	Make_Nil(elem+1);
-	Return_Unify_Pw(lv, lt, result.val, result.tag);
+	elem[1].val = vt;
+	elem[1].tag = tt;
+	Return_Unify_Pw(vl, tl, result.val, result.tag);
     }
-    else if (IsNil(tt))
+    else if (IsNil(tarr))
     {
-	Check_Output_List(lt);
+	Check_Output_List(tl);
 	Kill_DE;
-	Return_Unify_Nil(lv, lt);
+	Return_Unify_Pw(vl, tl, vt, tt);
     }
-
     Bip_Error(TYPE_ERROR)
 }
 
+
+static int
+p_array_list(value tv, type tt, value lv, type lt)
+{
+    return p_array_list3(tv, tt, lv, lt, lv, tag_desc[TNIL].tag);
+}
 
 
 /* The following builtins use the global error variable ! */
