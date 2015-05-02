@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.11 2013/02/10 01:09:44 jschimpf Exp $
+** $Id: rounding_control.h,v 1.12 2015/05/02 17:22:34 jschimpf Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -139,7 +139,7 @@
 		_controlfp(ec_fpu_control_orig_, _MCW_RC); \
 	    }
 
-#elif defined(_FPU_SETCW)
+#elif defined(_FPU_SETCW) && defined(_FPU_RC_DOWN)
 
 # if defined(__x86_64) && defined(__SSE_MATH__)
 
@@ -325,10 +325,9 @@
 		); \
 	    }
 
-#elif defined(__APPLE__) && defined(__MACH__)
-/* MacOS X */
+#elif defined(HAVE_FENV_H)
+
 # ifndef __POWERPC__
-/* assume this is Intel Mac */
 /* This version uses standard C99 functions. Unfortunately we have reports
    that these functions are not defined for MacOS X 10.1, even though Apple's on-line 
    documentation claim that they are available from 10.0 onwards. There may also be issues

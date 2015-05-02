@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.2])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.63 2014/10/24 16:48:16 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.64 2015/05/02 17:22:34 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -90,6 +90,9 @@ case $host in
 	;;
     alpha*-*-linux*)
 	arch=alpha_linux
+	;;
+    armv7*-*-linux*)
+	arch=armv7_linux
 	;;
     *)
 	AC_MSG_ERROR([Unknown architecture: $host])
@@ -554,6 +557,24 @@ case "$ARCH" in
     # some bash shell set OSTYPE to gnu-linux
     OSTYPE="linux"  
     ;;
+ armv7_linux)
+    LOCAL_FLAGS="-DD_LOAD"
+    OBJECT_SUFFIX=so
+    OBJECTS_SUFFIX=so
+    # char is unsigned in ARM
+    CFLAGS="-fsigned-char $CFLAGS"
+    LDFLAGS="$LDFLAGS"
+    DYNLDFLAGS="$DYNLDFLAGS"
+    LD_C_SO="\$(CC) \$(OPT_FLAGS) \$(CFLAGS) \$(CPPFLAGS) -shared \$< -o \$@"
+    PL_C_SO=".c.so:"
+    PD_C_SO="$LD_C_SO"
+    PL_O_SO=".o.so:"
+    PD_O_SO="$LD_C_SO"
+    RUNPATH_LDFLAG="-Wl,-rpath "
+    RUNPATH_DYLDFLAG="-Wl,-rpath "
+    # some bash shell set OSTYPE to gnu-linux
+    OSTYPE="linux"  
+    ;;
  i386_nt)
     ac_cv_func_select=yes
     ac_cv_func_gethostname=yes
@@ -912,7 +933,7 @@ AC_EGREP_HEADER(memcpy, [string.h], AC_DEFINE(MEMCPY_STRING),
 AC_EGREP_HEADER(PATH_MAX, limits.h, AC_DEFINE(PATH_IN_LIMITS))
 
 AC_CHECK_HEADERS(ctype.h memory.h string.h unistd.h sys/mman.h sys/param.h \
-		sys/systeminfo.h sys/utsname.h netdb.h fpu_control.h \
+		sys/systeminfo.h sys/utsname.h netdb.h fenv.h fpu_control.h \
 		fcntl.h limits.h windows.h)
 
 

@@ -166,6 +166,7 @@
 #undef HAVE_VSNPRINTF
 
 /* Check for ways to control floating point rounding */
+#undef HAVE_FENV_H
 #undef HAVE_FPU_CONTROL_H
 #undef HAVE_FPSETROUND
 #undef HAVE_IEEE_FLAGS

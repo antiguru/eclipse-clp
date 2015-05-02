@@ -20,7 +20,7 @@
 # 
 # END LICENSE BLOCK
 #
-# $Id: eclipse_arch.tcl,v 1.5 2014/10/24 17:45:09 kish_shen Exp $
+# $Id: eclipse_arch.tcl,v 1.6 2015/05/02 17:22:34 jschimpf Exp $
 #
 # compute the ECLiPSe architecture name using Tcl primitives
 #
@@ -56,6 +56,7 @@ proc ec_arch {} {
 	Linux {
 	    switch -glob $tcl_platform(machine) {
 		alpha	{ return alpha_linux }
+		armv7*	{ return armv7_linux }
 		x86_64	{ 
 		    switch -glob $tcl_platform(wordSize) {
 			4 { return i386_linux }
