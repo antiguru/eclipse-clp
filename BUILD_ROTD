@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.17 2011/03/11 00:50:39 kish_shen Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.18 2015/05/05 14:47:13 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -487,7 +487,7 @@ duplicate_directory2() { # source directory, list of destination directories
 
 # Locking facilities for managing parallel processes.
 
-LOCK_DIR=lock_dir
+LOCK_DIR=`pwd`/lock_dir
 HAVE_LOCK=no
 
 get_lock() {
@@ -495,13 +495,14 @@ get_lock() {
 	while ! mkdir $LOCK_DIR ; do
 	    sleep 1
 	done
+	touch $LOCK_DIR/owned_by_pid_$$
 	HAVE_LOCK=yes
     fi
 }
 
 release_lock() {
     if [ "$HAVE_LOCK" = "yes" ] ; then
-	rmdir $LOCK_DIR
+	rm -rf $LOCK_DIR
 	HAVE_LOCK=no
     fi
 }
@@ -518,9 +519,9 @@ trap 'release_lock ; exit 1' 1 2 3 13 15
 
 SSH_OPTIONS="-A"
 #SSH_OPTIONS="-x"
-#SSH_OPTIONS="-x -o 'BATCHMODE yes'"
-#SSH_OPTIONS="-x -o \"BATCHMODE yes\""
-#SSH_OPTIONS="-x -o \'BATCHMODE yes\'"
+#SSH_OPTIONS="-x -o 'BatchMode yes'"
+#SSH_OPTIONS="-x -o \"BatchMode yes\""
+#SSH_OPTIONS="-x -o \'BatchMode yes\'"
 # Don't yet know why I can't get the quoting right on the extra args above.
 # Should specify batch mode since otherwise it can hang indefinitely,
 # waiting for you to confirm logging in to a machine it hasn't seen before.
@@ -556,7 +557,7 @@ remote_commands() {
 	done
 	cat > input.$suffix <<END
 	# to be executed on $machine_name
-	echo \$SHELL | grep bash >/dev/null && . ~/.bashrc
+	echo \$SHELL | grep bash >/dev/null && source ~/.bashrc
 	umask $UMASK
 
 	timeout=6
@@ -722,6 +723,8 @@ build_architecture() {	# architecture
 	    CONFIG_HOST="--host=i386-mingw32msvc" ;;
 	x86_64_nt)
 	    CONFIG_HOST="--host=x86_64-pc-mingw32" ;;
+	i386_linux)
+	    CONFIG_HOST="--build=i586-pc-linux-gnu" ;;
 	*)
 	    CONFIG_HOST= ;;
     esac
@@ -733,12 +736,12 @@ build_architecture() {	# architecture
 	    echo \"Building $arch version on $machine.\" \
 		| tee -a $BUILD_LOGFILE
 	    echo \"See $BUILD_LOGFILE for details.\"
-
 	    # In case we're cross-compiling
 	    ARCH=\"$arch\"
 	    export ARCH
 
 	    (
+                uname -a
 		CONFIG_SITE=config.$arch ./configure $CONFIG_HOST
 		make -f Makefile.$arch
 	    ) >> $BUILD_LOGFILE 2>&1 &&
@@ -781,6 +784,7 @@ build_archives() {	# list of achitectures
 	    | tee $PACK_LOGFILE
 	echo \"See $PACK_LOGFILE for details.\"
 
+        echo \"Packing ECLiPSe v=$ECLIPSE_VERSION bn=$BUILD_NUMER. \"
 	./PACK --version-num \"$ECLIPSE_VERSION\" --build-num \"$BUILD_NUMBER\" \
 	       --dest-dir \"$PREFIX/$TMP_ARCHIVE_DIR\" $* < /dev/null \
 	       >> $PACK_LOGFILE 2>&1 &&
@@ -1002,7 +1006,16 @@ install_archives() {	# installation number
 		[ "$arch" = i386_nt -o "$arch" = x86_64_nt ] && continue	# Skip i386_nt.
 
 		eval machine=\"'$MACHINE_'$arch\"
+
+		echo "Installing for machine $machine and arch $arch " | tee -a $LOCAL_INSTALL_LOGFILE
+
+		eval jre=\"'$JRE_HOME_'$arch\"
 		remote_commands "$machine" "$PREFIX/$install_dir" "
+                     # In case we are cross-building (e.g. 32 on 64 bit)
+	             ARCH=\"$arch\"
+	             export ARCH
+                     eval JRE_HOME=\"$jre\"
+                     export JRE_HOME
 		    ./RUNME < /dev/null >> $INSTALL_LOGFILE 2>&1
 		" || install_result=1
 	    done
@@ -1249,7 +1262,7 @@ rsync_out() {		# ($machine, $arch -> $is_remote_machine, $remote_prefix)
 	(
 	    cd "$PREFIX"
 	    remote_commands "$DISK_MACHINE" "$PREFIX" "
-		rsync -aRu --rsh=ssh --timeout=240 \
+		rsync -aRu --rsh=ssh --timeout=600 \
 			--exclude 'aux.*' --exclude '*::*' \
 			--include 'test.*.$machine/' \
 			--exclude 'test.*/' \
@@ -1283,7 +1296,7 @@ rsync_in() {	# ($machine)
 	eval remote_prefix=\"'$ROTD_DIR_'$machine\"
 	rsync_prefix=`rsync_path $remote_prefix`
 	remote_commands "$DISK_MACHINE" "$PREFIX" "
-	    rsync -rl --rsh=ssh --timeout=60 --ignore-existing $rsync_machine_name:$rsync_prefix/$ROTD_SUBDIR $PREFIX
+	    rsync -rl --rsh=ssh --timeout=300 --ignore-existing $rsync_machine_name:$rsync_prefix/$ROTD_SUBDIR $PREFIX
 	" &&
 	echo `date '+%Y-%m-%d %T'` "Completed rsync from $rsync_machine_name" >> $SSH_LOG_FILE ||
 	{
@@ -1359,14 +1372,25 @@ run_test_win_nt() {
 # Run the tests on a remote Unix machine.
 run_test_unix() {
     rsync_out   # ($machine, $arch -> $is_remote_machine, $remote_prefix)
+    eval jre=\"'$JRE_HOME_'$arch\"
     if [ -n "$is_remote_machine" ] ; then
 	remote_commands "$machine" "$remote_prefix" "
 	    cd $install_dir &&
 	    rm -f lib/$arch/SITE_PARAMS &&
+            ARCH=$arch &&
+            export ARCH &&
+            eval JRE_HOME=\"$jre\" &&
+            export JRE_HOME &&
 	    ./RUNME < /dev/null >> \"$remote_prefix/$test_logfile\" 2>&1
 	"
     fi
     remote_commands "$machine" "$remote_prefix" "
+	timeout=6
+	while [ ! -d "$test_dir" -a \$timeout -gt 0 ] ; do
+	    echo \"\$machine: $test_dir not present, waiting ...\"
+	    sleep 5
+	    timeout=\`expr \$timeout - 1\`
+	done
         cd $test_dir &&
         \"$remote_prefix/$test_dir/test_eclipse\" \
                 --test-dir \"$remote_prefix/$test_dir\" \
@@ -1833,30 +1857,23 @@ copy_to_ftp() {
 		    if [ ! -d \"$ARCHIVE_DIR/\$d\" ]; then echo \$d; fi
 		done
 	    "
-	echo command "$command" && {
-	    MISSING_ARCHS=`remote_commands "$FTP_MACHINE" "$BASE_ARCHIVE_DIR" "$command"` ||
-		{ echo $MISSING_ARCHS; false; }
-	} &&
+	MISSING_ARCHS=`remote_commands "$FTP_MACHINE" "$BASE_ARCHIVE_DIR" "$command"` &&
 	echo missing $MISSING_ARCHS &&
 	# normalise (strip blank space) for the comparisons below
 	MISSING_ARCHS=`echo $MISSING_ARCHS` &&
 	ARCHITECTURES=`echo $ARCHITECTURES` &&
 
 	if [ "$MISSING_ARCHS" = "" ] ; then
-	    MSG="Nothing copied to FTP site $FTP_MACHINE!" &&
+	    MSG="Nothing to add to FTP site $FTP_MACHINE!" &&
 	    echo "$MSG" >> $MASTER_LOG_FILE &&
 	    SUMMARY="${SUMMARY}
 $MSG"
 	else
-	    if [ "$MISSING_ARCHS" != "$ARCHITECTURES" ] ; then
-		MSG="Not all architectures copied to FTP site $FTP_MACHINE!
-Have: $ARCHITECTURES
-Used: $MISSING_ARCHS" &&
-		echo "$MSG" >> $MASTER_LOG_FILE &&
-		SUMMARY="${SUMMARY}
-$MSG"
-	    fi &&
-	    echo copy_files_to_ftp "$MISSING_ARCHS" "$ARCHIVE_DIR" &&
+	    MSG="Adding these architectures to FTP site $FTP_MACHINE:
+$MISSING_ARCHS" &&
+	    echo "$MSG" >> $MASTER_LOG_FILE &&
+	    SUMMARY="${SUMMARY}
+$MSG" &&
 	    copy_files_to_ftp "$MISSING_ARCHS" "$ARCHIVE_DIR"
 	fi &&
 
@@ -2001,12 +2018,18 @@ everything_ok=0
 # Increment the build number in the checked out version.pl file
 # (only if anything has changed since the last successful build)
 
+if anything_changed >> $MASTER_LOG_FILE 2>&1 ; then
+    something_changed=yes
+else
+    something_changed=no
+fi
+
 if [ "$increment_buildnum" = no ] ; then
     echo "Increment of build number was not requested." >> $MASTER_LOG_FILE 2>&1
     SUMMARY="${SUMMARY}
 Increment of build number was not requested.
 "
-elif anything_changed >> $MASTER_LOG_FILE 2>&1 ; then
+elif [ "$something_changed" = yes ] ; then
     if increment_build_number >> $MASTER_LOG_FILE 2>&1 ; then
         commit_buildnum=yes
     else
@@ -2179,13 +2202,18 @@ remote_commands "$DISK_MACHINE" "$PREFIX/$TMP_ARCHIVE_DIR" "
 " &&
 
 if [ "$commit_buildnum" = no ] ; then
-    if [ "$last_successful" = no ] ; then
+    # either no increment requested, or no change
+    if [ "$last_successful" = yes ] ; then
 	SUMMARY="${SUMMARY}
-This would have been ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
+This is a slave build of ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
+"
+    elif [ "$something_changed" = yes ] ; then
+	SUMMARY="${SUMMARY}
+This would have been ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}+1
 "
     else
 	SUMMARY="${SUMMARY}
-This is a slave build of ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
+This is a redundant build of ECLiPSe version ${ECLIPSE_VERSION}#${BUILD_NUMBER}
 "
     fi
 elif commit_build_number >> $MASTER_LOG_FILE 2>&1 ; then
