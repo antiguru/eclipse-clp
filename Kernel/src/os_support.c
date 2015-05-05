@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.16 2012/12/06 13:15:18 jschimpf Exp $
+ * $Id: os_support.c,v 1.17 2015/05/05 15:11:30 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -596,12 +596,7 @@ expand_filename(char *in, char *out, int option)
 	    char *home, *drv;
 	    auxp = aux;
 	    aux1p = aux1;
-#ifndef _WIN32
-	    if ((home = getenv("HOME")) && strlen(home) < MAX_PATH_LEN)
-	    {
-		aux1p = canonical_filename(home, aux1);  
-	    }
-#else
+#ifdef _WIN32
 	    if ((drv = getenv("HOMEDRIVE")) && (home = getenv("HOMEPATH")))
 	    {
 		auxp = aux;
@@ -610,7 +605,12 @@ expand_filename(char *in, char *out, int option)
 		*auxp = 0;
 		aux1p = canonical_filename(aux, aux1);  
 	    }
+	    else
 #endif
+	    if ((home = getenv("HOME")) && strlen(home) < MAX_PATH_LEN)
+	    {
+		aux1p = canonical_filename(home, aux1);  
+	    }
 	    else
 	    {
 	        aux1p = 0;
