@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.18 2015/01/14 01:31:08 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.19 2015/05/19 22:16:32 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -363,8 +363,7 @@ read_term_(Stream, Term, Options, Module) :-
     % If you make a change here, change also check_read_option/1!
     :- mode handle_read_option(+,?,+).
     handle_read_option(variables(Vs), Term, _Vars) :-
-	term_variables(Term, RVars),	% returns reverse order
-	reverse(RVars, Vs).		% ISO requires left-to-right
+	term_variables_lr(Term, Vs).
     handle_read_option(variable_names(VNs), _Term, Vars) :-
     	name_eq_var(Vars, VNs).
     handle_read_option(singletons(NamesSingletons), Term, NsVs) :-

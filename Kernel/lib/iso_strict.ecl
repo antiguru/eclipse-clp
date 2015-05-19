@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_strict.ecl,v 1.9 2015/03/29 16:24:21 jschimpf Exp $
+% Version:	$Id: iso_strict.ecl,v 1.10 2015/05/19 22:16:32 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -55,7 +55,7 @@
 :- comment(summary, `Strict ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, 'Joachim Schimpf, Coninfer Ltd').
-:- comment(date, `$Date: 2015/03/29 16:24:21 $`).
+:- comment(date, `$Date: 2015/05/19 22:16:32 $`).
 :- comment(see_also, [library(multifile),library(iso),library(iso_light)]).
 :- comment(desc, html(`
 <h3>Overview</h3>
@@ -518,8 +518,7 @@ keysort(Xs, Ss) :-
 term_variables(Term, Vs) :-
 	( is_output_list(Vs) -> true
 	; throw(error(type_error(list,Vs),term_variables/2)) ),
-	eclipse_language:term_variables(Term, Rs),
-	lists:reverse(Rs, Vs).
+	sepia_kernel:term_variables_lr(Term, Vs).
 	
 
 %-----------------------------------------------------------------------

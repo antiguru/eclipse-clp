@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.8 2015/01/14 01:31:09 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.9 2015/05/19 22:12:45 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -60,7 +60,9 @@ static int	p_delayed_goals(value vres, type tres),
 		p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst),
 		p_meta_bind(value vmeta, type tmeta, value vterm, type tterm),
 		p_nonground2(value val, type tag, value vvar, type tvar),
-		p_term_variables(value vterm, type tterm, value vlist, type tlst),
+		p_term_variables_lr(value vterm, type tterm, value vlist, type tlst),
+		p_term_variables_rl(value vterm, type tterm, value vlist, type tlst),
+		p_term_variables_array(value vterm, type tterm, value varr, type tarr),
 		p_replace_attribute(value vmeta, type tmeta, value vterm, type tterm, value vm, type tm),
 		p_kill_suspension(value vsusp, type tsusp, value vt, type tt),
 		p_unschedule_suspension(value vsusp, type tsusp),
@@ -143,7 +145,13 @@ bip_delay_init(int flags)
 		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(1, NONVAR);
 	built_in(in_dict("nonground", 3), p_nonground3,	B_UNSAFE|U_GLOBAL)
 	    -> mode = BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
-	built_in(in_dict("term_variables", 2), p_term_variables,
+	built_in(in_dict("term_variables", 2), p_term_variables_rl,
+	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	built_in(in_dict("term_variables_rl", 2), p_term_variables_rl,
+	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	built_in(in_dict("term_variables_lr", 2), p_term_variables_lr,
+	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	built_in(in_dict("term_variables_array", 2), p_term_variables_array,
 	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
 	local_built_in(in_dict("meta_bind", 2), p_meta_bind, B_UNSAFE|U_UNIFY)
 	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
@@ -768,29 +776,39 @@ p_nonground2(value val, type tag, value vvar, type tvar)
  * The return value is <vars_needed> minus the number of variables found.
  * Already encountered variables are marked by a trailed binding to [],
  * Therefore untrailing is needed after a call to _collect_vars().
+ *
+ * Handling of cyclic terms:
+ * Direct cycles (like X=f(X)) are directly tested for.
+ * Indirect cycles: these contain at least 2 compound terms.  One of the
+ * compound terms in a cycle is the one with the lowest address.  It must
+ * therefore be reached by a downward pointer from the previous, and it
+ * must contain an upward pointer to the next compound term in the cycle.
+ * We detect this situation and mark the upward pointer (by overwriting
+ * it with []).  This will stop traversal on the next encounter.
  */
+
+#define InGlobalStack(p) (TG_ORIG <= (p) && (p) < TG)
 
 static int
 _collect_vars(
-    	value val, type tag,
-	word vars_needed,		/* > 0 */
-	pword *list)
+    	value val, type tag,	/* current term */
+	word vars_needed,	/* >0, number of variables to collect */
+	pword *last_comp,	/* previously encountered compound term (or NULL) */
+	pword *curr_comp,	/* compound term being processed now (or NULL) */
+	pword *from,		/* address of val:tag */
+	int elem_sz)		/* array (1) or list (2) result */
 {
-    register int arity;
-    register pword *arg_i;
+    word arity;
+    pword *next_comp;
 
     for (;;)
     {
         if (IsRef(tag))
         {
-	    register pword *el = TG;
-	    TG += 2;
+	    pword *el = TG;
+	    TG += elem_sz;
 	    Check_Gc;
-	    el[0].val.ptr = val.ptr;
-	    el[0].tag.kernel = TREF;
-	    el[1] = *list;
-	    list->val.ptr = el;
-	    list->tag.kernel = TLIST;
+	    Make_Ref(el, val.ptr);
 	    if (IsVar(tag))		/* mark the variable */
 		{ Trail_(val.ptr) }
 	    else
@@ -799,27 +817,52 @@ _collect_vars(
 	    return vars_needed-1;
         }
         else if (IsList(tag))
+	{
             arity = 2;
+	    next_comp = val.ptr;
+	}
         else if (IsStructure(tag))
         {
             arity = DidArity(val.ptr->val.did);
-            val.ptr++;
+	    next_comp = val.ptr++;
         }
         else
             return vars_needed;
 
+	/* Assume non-stack terms are ground. This also stops us from
+	 * modifying immutable shared heap terms by marking. */
+	if (!InGlobalStack(val.ptr))
+            return vars_needed;
+
+	/* direct recursion? */
+	if (next_comp == curr_comp)
+            return vars_needed;
+
+	/* Are we changing direction (from going down to going up)? */
+	if (next_comp > curr_comp  &&  curr_comp < last_comp)
+	{
+	    Trail_Word(from, 1, TRAILED_WORD32);
+	    from->tag.kernel = TNIL;	/* mark to prevent looping */
+	}
+		
         for(;arity > 1; arity--)
         {
-            arg_i = val.ptr++;
+            pword *arg_i = val.ptr++;
             Dereference_(arg_i);
-	    vars_needed = _collect_vars(arg_i->val, arg_i->tag, vars_needed, list);
-	    if (vars_needed == 0)
-		return vars_needed;
+	    if (!ISAtomic(arg_i->tag.kernel))
+	    {
+		vars_needed = _collect_vars(arg_i->val, arg_i->tag, vars_needed,
+				curr_comp, next_comp, arg_i, elem_sz);
+		if (vars_needed == 0)
+		    return vars_needed;
+	    }
         }      
-        arg_i = val.ptr;                /* tail recursion */
-        Dereference_(arg_i);
-        val.all = arg_i->val.all;
-        tag.all = arg_i->tag.all;
+        from = val.ptr;                /* tail recursion */
+        Dereference_(from);
+	last_comp = curr_comp;
+	curr_comp = next_comp;
+        val.all = from->val.all;
+        tag.all = from->tag.all;
     }
 }
 
@@ -835,30 +878,96 @@ p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst)
     if (vn.nint <= 0)
 	{ Bip_Error(RANGE_ERROR); }
 
-    list.tag.kernel = TNIL;
-    if (_collect_vars(vterm, tterm, vn.nint, &list) == 0)
-    {
-	Untrail_Variables(old_tt);
-	Return_Unify_List(vlist, tlst, list.val.ptr)
+    Make_List(&list, TG);
+    if (_collect_vars(vterm, tterm, vn.nint, 0, 0, 0, 2) != 0) {
+	Fail_;			/* not enough variables found */
     }
-    else	/* not enough variables found */
     {
-	Fail_;
+	pword *pw;
+#define TERM_VARIABLES_BACKWARD
+#ifdef TERM_VARIABLES_BACKWARD
+	for(pw = TG-1; pw>list.val.ptr+2; pw-=2) {
+	    Make_List(pw, pw-3);
+	}
+	list.val.ptr = TG-2;
+#else
+	for(pw = list.val.ptr+1; pw<TG-2; pw+=2) {
+	    Make_List(pw, pw+1);
+	}
+#endif
+	Make_Nil(pw);
     }
+    Untrail_Variables(old_tt);
+    Return_Unify_List(vlist, tlst, list.val.ptr)
 }
 
+
 static int
-p_term_variables(value vterm, type tterm, value vlist, type tlst)
+p_term_variables_rl(value vterm, type tterm, value vlist, type tlst)
 {
     pword list;
     pword **old_tt = TT;
 
     Check_Output_List(tlst)
 
-    list.tag.kernel = TNIL;
-    (void) _collect_vars(vterm, tterm, MAX_S_WORD, &list);
+    Make_List(&list, TG);
+    (void) _collect_vars(vterm, tterm, MAX_S_WORD, 0, 0, 0, 2);
+    if (TG == list.val.ptr) {
+	Make_Nil(&list);
+    } else {
+	pword *pw;
+	for(pw = TG-1; pw>list.val.ptr+2; pw-=2) {
+	    Make_List(pw, pw-3);
+	}
+	list.val.ptr = TG-2;
+	Make_Nil(pw);
+    }
     Untrail_Variables(old_tt);
     Return_Unify_Pw(vlist, tlst, list.val, list.tag)
+}
+
+
+static int
+p_term_variables_lr(value vterm, type tterm, value vlist, type tlst)
+{
+    pword list;
+    pword **old_tt = TT;
+
+    Check_Output_List(tlst)
+
+    Make_List(&list, TG);
+    (void) _collect_vars(vterm, tterm, MAX_S_WORD, 0, 0, 0, 2);
+    if (TG == list.val.ptr) {
+	Make_Nil(&list);
+    } else {
+	pword *pw;
+	for(pw = list.val.ptr+1; pw<TG-2; pw+=2) {
+	    Make_List(pw, pw+1);
+	}
+	Make_Nil(pw);
+    }
+    Untrail_Variables(old_tt);
+    Return_Unify_Pw(vlist, tlst, list.val, list.tag)
+}
+
+
+static int
+p_term_variables_array(value vterm, type tterm, value varr, type tarr)
+{
+    pword *old_tg = TG++;	/* leave space for array functor */
+    pword **old_tt = TT;
+    pword result;
+
+    (void) _collect_vars(vterm, tterm, MAX_S_WORD, 0, 0, 0, 1);
+    if (TG > old_tg+1) {
+	Make_Atom(old_tg, add_dict(d_.nil, TG-old_tg-1));
+	Make_Struct(&result, old_tg);
+    } else {
+	TG = old_tg;		/* no array needed */
+	Make_Atom(&result, d_.nil);
+    }
+    Untrail_Variables(old_tt);
+    Return_Unify_Pw(varr, tarr, result.val, result.tag)
 }
 
 
