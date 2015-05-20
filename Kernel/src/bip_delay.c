@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.9 2015/05/19 22:12:45 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.10 2015/05/20 23:52:26 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -964,7 +964,7 @@ p_term_variables_array(value vterm, type tterm, value varr, type tarr)
 	Make_Struct(&result, old_tg);
     } else {
 	TG = old_tg;		/* no array needed */
-	Make_Atom(&result, d_.nil);
+	Make_Nil(&result);
     }
     Untrail_Variables(old_tt);
     Return_Unify_Pw(varr, tarr, result.val, result.tag)
