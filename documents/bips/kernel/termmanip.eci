@@ -968,35 +968,65 @@ yes.
 	see_also:[bytes_to_term / 2, copy_term / 2, copy_term / 3, writeq / 1, writeq / 2, write_canonical / 1, write_canonical / 2]]).
 
 :- comment(term_variables / 2, [
-	summary:"Succeeds if VarList is the list of all variables in Term.
-
-",
+	summary:"Succeeds if VarList is the list of all variables in Term.",
 	amode:(term_variables(?,-) is det),
-	desc:html("   This predicate collects all the variables inside Term into the list
+	desc:html("<P>
+   This predicate collects all the variables inside Term into the list
    VarList.  Every variable occurs only once in VarList, even if it occurs
    several times in Term.  The order of the variables in the list is not
-   specified.  As usual, attributed variables are also considered variables.
-
-<P>
+   specified.
+</P><P>
+   As usual, attributed variables are also considered variables.
+</P><P>
+   This predicate terminates even with cyclic terms.
+</P>
 "),
 	args:["Term" : "Prolog term.", "VarList" : "List or variable."],
 	exceptions:[5 : "VarList instantiated but not to a list."],
 	eg:"
 Success:
     term_variables(atom, []).
-    term_variables(Term, L).       % gives L = [Term]
-    term_variables(f(a,B,c), L).   % gives L = [B]
-    term_variables([X,Y,Z], L).    % gives L = [Z,Y,X]
-    term_variables([X,Y,X], L).    % gives L = [Y,X]
-    term_variables(s(X{a}), L).    % gives L = [X{a}]
+    term_variables(Term, Vs).       % gives Vs = [Term]
+    term_variables(f(a,B,c), Vs).   % gives Vs = [B]
+    term_variables([X,Y,Z], Vs).    % gives Vs = [Z,Y,X]
+    term_variables([X,Y,X], Vs).    % gives Vs = [Y,X]
+    term_variables(s(X{a}), Vs).    % gives Vs = [X{a}]
 
 Fail:
     term_variables(f(a,B,c), []).
-
-
-
 ",
-	see_also:[nonground / 1, nonground / 2, nonground / 3, nonvar / 1, var / 1]]).
+	see_also:[term_variables_array/2, nonground / 1, nonground / 2, nonground / 3, nonvar / 1, var / 1]]).
+
+
+:- comment(term_variables_array / 2, [
+	summary:"Succeeds if VarArr is an array containing all variables in Term.",
+	amode:(term_variables_array(?,-) is det),
+	desc:html("<P>
+   This predicate collects all the variables inside Term into an array
+   VarArr.  Every variable occurs only once in VarArr, even if it occurs
+   several times in Term.  The order of the variables in the array corresponds
+   to the order in which they are first encountered during a left-to-right,
+   depth-first traversal of Term.
+</P><P>
+   As usual, attributed variables are also considered variables.
+</P><P>
+   This predicate terminates even with cyclic terms.
+</P>
+"),
+	args:["Term" : "Prolog term.", "VarArr" : "Array or variable."],
+	eg:"
+Success:
+    term_variables_array(atom, []).
+    term_variables_array(Term, Vz).       % gives Vz = [](Term)
+    term_variables_array(f(a,B,c), Vz).   % gives Vz = [](B)
+    term_variables_array([X,Y,Z], Vz).    % gives Vz = [](X,Y,Z)
+    term_variables_array([X,Y,X], Vz).    % gives Vz = [](X,Y)
+    term_variables_array(s(X{a}), Vz).    % gives Vz = [](X{a})
+
+Fail:
+    term_variables_array(f(a,B,c), []).
+",
+	see_also:[term_variables/2, nonvar / 1, var / 1]]).
 
 :- comment(copy_term / 2, [
 	summary:"A copy of OldTerm with new variables is created and unified with NewTerm.
