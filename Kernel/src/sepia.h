@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.13 2013/02/10 01:09:44 jschimpf Exp $
+ * $Id: sepia.h,v 1.14 2015/05/20 23:55:36 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -282,6 +282,9 @@ This file must not be included with the embedding interface!
 #define IsAtom(item)		SameTypeC(item, TDICT)
 #define IsProc(item)		SameTypeC(item, TPROC)
 #define IsHandle(item)		SameTypeC(item, THANDLE)
+
+#define IsArray(v, t) \
+	(IsStructure(t) && DidString((v).ptr->val.did) == DidString(d_.nil))
 
 
 /*
@@ -832,6 +835,23 @@ This file must not be included with the embedding interface!
 	    register word ctr = len;\
 	    while (ctr-- > 0) *dp++ = *sp++;\
 	}
+
+/*
+ * Arrays
+ */
+
+#define Check_Array_Or_Nil(v, t, psize)		\
+	if (IsArray(v, t)) {			\
+	    *(psize) = DidArity((v).ptr->val.did);	\
+	} else if (IsNil(t)) {			\
+	    *(psize) = 0;			\
+	} else {				\
+	    Error_If_Ref(t)			\
+	    Bip_Error(TYPE_ERROR)		\
+	}
+
+#define ArraySize(v) DidArity((v).ptr->val.did)
+
 
 /*
  *	D O U B L E S

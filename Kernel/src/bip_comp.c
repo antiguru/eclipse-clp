@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.7 2015/04/02 14:35:45 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.8 2015/05/20 23:55:36 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -83,6 +83,7 @@ static int	p_termless(value v1, type t1, value v2, type t2),
 		p_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t),
 		p_number_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t),
 		p_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2),
+		p_array_sort(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2),
 		p_number_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2);
 
 static int	_instance(int rel, value v1, type t1, value v2, type t2, pword *meta);
@@ -115,6 +116,8 @@ bip_comp_init(int flags)
 	built_in(in_dict("sort", 4), 	p_sort4, 	B_UNSAFE|U_UNIFY)
 	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR);
 	built_in(in_dict("number_sort", 4), 	p_number_sort4, 	B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR);
+	built_in(in_dict("array_sort", 4), 	p_array_sort, 	B_UNSAFE|U_UNIFY)
 	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR);
     }
 }
@@ -957,6 +960,76 @@ p_number_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2
     } else {
 	Return_Unify_List(v2, t2, list);
     }
+}
+
+
+/*
+ * array_sort(+Key, +Order, +RandomArray, -SortedArray)
+ *
+ * This is equivalent to
+ * 	array_list(RandomArray, RandomList),
+ *	sort(Key, Order, RandomList, SortedList),
+ * 	array_list(SortedArray, SortedList).
+ * but doesn't not leave any garbage behind.
+ */
+
+static int
+p_array_sort(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2)
+{
+    pword 	*arr;
+    pword 	*list;
+    pword 	*start_tg;
+    value	vlist;
+    int		err, reverse, keep_duplicates, number_sort;
+    word	arity, i;
+
+    Check_Array_Or_Nil(v1, t1, &arity);
+    Check_Atom(to);
+
+    if(IsInteger(tk) && vk.nint < 0)	/* range checks	*/
+    {
+	Bip_Error(RANGE_ERROR)
+    }
+    Set_Ordering_Options(vo.did);
+	
+    if(IsNil(t1) || ArraySize(v1) < 2)
+    {
+    	Return_Unify_Pw(v2, t2, v1, t1);	/* nothing to sort */
+    }
+
+    /* convert array to auxiliary list */
+    vlist.ptr = list = start_tg = TG;
+    TG += 2*arity;
+    Check_Gc;
+    for(i=1; i<arity; ++i,list+=2)
+    {
+	*list = v1.ptr[i];
+	Make_List(list+1, list+2);
+    }
+    *list = v1.ptr[i];
+    Make_Nil(list+1);
+    list = ec_keysort(vlist, vk, tk, reverse, keep_duplicates, number_sort, &err);
+    if (!list) {
+	TG = start_tg;
+	Bip_Error(err)
+    }
+
+    /* Convert sorted list back to an array.
+     * CAUTION: we assume that ec_keysort has copied the input list and not
+     * created anything on the global stack except the result list!  We
+     * overwrite the input list with the sorted array and pop everything else.
+     */
+    arr = vlist.ptr;	/* overwrite */
+    for(i=1;;i++)
+    {
+	arr[i] = *list++;
+	if (IsNil(list->tag))
+	    break;
+	list = list->val.ptr;
+    }
+    TG = arr + i+1;		/* adjust for actual result size */
+    Make_Atom(arr, add_dict(d_.nil, i));
+    Return_Unify_Structure(v2, t2, arr);
 }
 
 

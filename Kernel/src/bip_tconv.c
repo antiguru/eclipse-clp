@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.9 2015/05/01 00:07:37 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.10 2015/05/20 23:55:36 jschimpf Exp $
  */
 
 /*
@@ -1177,16 +1177,6 @@ p_canonical_copy(value v, type t, value vi, type ti)
  * Arrays
  *----------------------------------------------------------------------*/
 
-#define IsArray(v, t) \
-	(IsStructure(t) && DidString((v).ptr->val.did) == DidString(d_.nil))
-
-#define Check_Array_Or_Nil(v, t) {		\
-	if (!(IsArray(v, t) || IsNil(t))) {	\
-	    Error_If_Ref(t)			\
-	    Bip_Error(TYPE_ERROR)		\
-	}}
-
-
 static int
 p_is_array(value v, type t)
 {
@@ -1341,7 +1331,7 @@ p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type
 
     Check_Integer(tdepth);
     if (vdepth.nint < -1) { Bip_Error(RANGE_ERROR); }
-    Check_Array_Or_Nil(varr, tarr);
+    Check_Array_Or_Nil(varr, tarr, &arity);
 
     if (IsNil(tarr)) {
 	Return_Unify_Nil(vflat, tflat);
@@ -1351,7 +1341,7 @@ p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type
     }
     Make_Struct(&result, TG);
     ++TG;	/* leave space for functor */
-    res = _flatten_array((uword)vdepth.nint, DidArity(varr.ptr->val.did), varr.ptr+1);
+    res = _flatten_array((uword)vdepth.nint, arity, varr.ptr+1);
     Return_If_Not_Success(res);
     arity = TG-result.val.ptr-1;
     if (arity > 0) {

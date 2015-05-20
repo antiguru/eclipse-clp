@@ -61,6 +61,7 @@
 :-(reexport(from(/(array_concat,3),sepia_kernel))).
 :-(reexport(from(/(array_flat,3),sepia_kernel))).
 :-(reexport(from(/(array_list,2),sepia_kernel))).
+:-(reexport(from(/(array_sort,4),sepia_kernel))).
 :-(reexport(from(/(is_array,1),sepia_kernel))).
 :-(reexport(from(/(asin,2),sepia_kernel))).
 :-(reexport(from(/(assert,1),sepia_kernel))).
