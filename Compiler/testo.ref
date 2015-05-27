@@ -10649,7 +10649,7 @@ p(A) :-
 p(A) :-
 	atomic(A).
 p(A) :-
-	sepia_kernel : callable(A).
+	callable(A).
 p(A) :-
 	compound(A).
 p(A) :-
@@ -10859,6 +10859,239 @@ label(58):
 	retry                    0     ref(15) 
 	trust                    0     ref(43) 
 
+------ Test bip(type_tests_det1) -------
+p(A) :-
+	var(A).
+p(A) :-
+	atomic(A).
+p(A) :-
+	compound(A).
+
+INDEXES for (semidet) disjunction [2]
+1. Quality 1.0
+    [] - []
+    [[]] - [2]
+    [var] - [1]
+    [atom] - [2]
+    [bignum] - [2]
+    [goal] - [2]
+    [double] - [2]
+    [list] - [3]
+    [structure] - [3]
+    [rational] - [2]
+    [handle] - [2]
+    [breal] - [2]
+    [integer] - [2]
+    [string] - [2]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
+p / 1:
+label(1):
+	switch_on_type           a(1) 
+		meta: 	ref(9)
+		[]: 	ref(10)
+		atom: 	ref(10)
+		bignum: 	ref(10)
+		breal: 	ref(10)
+		double: 	ref(10)
+		goal: 	ref(10)
+		handle: 	ref(10)
+		integer: 	ref(10)
+		list: 	ref(11)
+		rational: 	ref(10)
+		string: 	ref(10)
+		structure: 	ref(11)
+
+	branch                   ref(9) 
+label(3):
+	bi_var                   a(1) 
+label(9):
+	ret                  
+label(5):
+	bi_atomic                a(1) 
+label(10):
+	ret                  
+label(7):
+	bi_compound              a(1) 
+label(11):
+	ret                  
+
+------ Test bip(type_tests_det2) -------
+p(A) :-
+	var(A).
+p(A) :-
+	atom(A).
+p(A) :-
+	number(A).
+p(A) :-
+	string(A).
+p(A) :-
+	compound(A).
+p(A) :-
+	is_handle(A).
+p(A) :-
+	is_suspension(A).
+
+INDEXES for (semidet) disjunction [2]
+1. Quality 1.0
+    [] - []
+    [[]] - [2]
+    [var] - [1]
+    [atom] - [2]
+    [bignum] - [3]
+    [goal] - [7]
+    [double] - [3]
+    [list] - [5]
+    [structure] - [5]
+    [rational] - [3]
+    [handle] - [6]
+    [breal] - [3]
+    [integer] - [3]
+    [string] - [4]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
+    Branch 4: det
+    Branch 5: det
+    Branch 6: det
+    Branch 7: det
+p / 1:
+label(1):
+	switch_on_type           a(1) 
+		meta: 	ref(17)
+		[]: 	ref(18)
+		atom: 	ref(18)
+		bignum: 	ref(19)
+		breal: 	ref(19)
+		double: 	ref(19)
+		goal: 	ref(15)
+		handle: 	ref(20)
+		integer: 	ref(19)
+		list: 	ref(21)
+		rational: 	ref(19)
+		string: 	ref(22)
+		structure: 	ref(21)
+
+	branch                   ref(17) 
+label(3):
+	bi_var                   a(1) 
+label(17):
+	ret                  
+label(5):
+	bi_atom                  a(1) 
+label(18):
+	ret                  
+label(7):
+	bi_number                a(1) 
+label(19):
+	ret                  
+label(9):
+	bi_string                a(1) 
+label(22):
+	ret                  
+label(11):
+	bi_compound              a(1) 
+label(21):
+	ret                  
+label(13):
+	bi_is_handle             a(1) 
+label(20):
+	ret                  
+label(15):
+	bi_is_suspension         a(1) 
+	ret                  
+
+------ Test bip(type_tests_det3) -------
+p(A) :-
+	free(A).
+p(A) :-
+	meta(A).
+p(A) :-
+	callable(A).
+p(A) :-
+	number(A).
+p(A) :-
+	string(A).
+p(A) :-
+	is_handle(A).
+p(A) :-
+	is_suspension(A).
+
+INDEXES for (semidet) disjunction [2]
+1. Quality 1.0
+    [] - []
+    [[]] - [3]
+    [var] - []
+    [var, free] - [1]
+    [var, meta] - [2]
+    [atom] - [3]
+    [bignum] - [4]
+    [goal] - [7]
+    [double] - [4]
+    [list] - [3]
+    [structure] - [3]
+    [rational] - [4]
+    [handle] - [6]
+    [breal] - [4]
+    [integer] - [4]
+    [string] - [5]
+Branch determinisms for disjunction [2]
+    Branch 1: det
+    Branch 2: det
+    Branch 3: det
+    Branch 4: det
+    Branch 5: det
+    Branch 6: det
+    Branch 7: det
+p / 1:
+label(1):
+	switch_on_type           a(1) 
+		meta: 	ref(18)
+		[]: 	ref(19)
+		atom: 	ref(19)
+		bignum: 	ref(20)
+		breal: 	ref(20)
+		double: 	ref(20)
+		goal: 	ref(15)
+		handle: 	ref(21)
+		integer: 	ref(20)
+		list: 	ref(19)
+		rational: 	ref(20)
+		string: 	ref(22)
+		structure: 	ref(19)
+
+	branch                   ref(17) 
+label(3):
+	bi_free                  a(1) 
+label(17):
+	ret                  
+label(5):
+	bi_meta                  a(1) 
+label(18):
+	ret                  
+label(7):
+	bi_callable              a(1) 
+label(19):
+	ret                  
+label(9):
+	bi_number                a(1) 
+label(20):
+	ret                  
+label(11):
+	bi_string                a(1) 
+label(22):
+	ret                  
+label(13):
+	bi_is_handle             a(1) 
+label(21):
+	ret                  
+label(15):
+	bi_is_suspension         a(1) 
+	ret                  
+
 ------ Test bip(other) -------
 p(A) :-
 	sepia_kernel : set_bip_error(A).
@@ -11040,7 +11273,7 @@ p(A) :-
 	\/(L, 2, M),
 	xor(M, 2, N),
 	\(N, O),
-	sepia_kernel : arity(foo(a, b, c), 3),
+	arity(foo(a, b, c), 3),
 	arg(O, foo(a, b, c), A).
 
 p / 1:

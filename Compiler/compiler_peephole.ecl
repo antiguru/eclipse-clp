@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.27 2009/07/16 09:11:23 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.28 2015/05/27 16:48:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2009/07/16 09:11:23 $").
+:- comment(date, "$Date: 2015/05/27 16:48:51 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -200,7 +200,7 @@ compute_chunk_connections(BasicBlockArray, ReachedArray, Targets, ContArray,
 % the instructions at the splitting of the chunks should be contiguous in
 % the final code if possible. These chunks will be rejoined as soon as 
 % possible, unless the earlier chunk is unreachable. The first chunk numbers 
-% for each of these contigueous chunks are collected in Rejoins
+% for each of these contiguous chunks are collected in Rejoins
 %
 % 
 % We already do some opportunistic simplification here:
@@ -701,14 +701,15 @@ subsumed_type_instr(bignum, A, [(bi_number(a(A)),next),(bi_integer(a(A)),next),
 subsumed_type_instr(integer, A, [(bi_number(a(A)),next),(bi_integer(a(A)),next),
                                 (bi_atomic(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(breal, A, [(bi_number(a(A)),next),(bi_real(a(A)),next),
-                               (bi_breal(a(A)),next),(bi_nonvar(a(A)),next)]).
+                               (bi_breal(a(A)),next),(bi_nonvar(a(A)),next),(bi_atomic(a(A)),next)]).
 subsumed_type_instr(double, A, [(bi_number(a(A)),next),(bi_real(a(A)),next),
-                               (bi_float(a(A)),next),(bi_nonvar(a(A)),next)]).
+                               (bi_float(a(A)),next),(bi_nonvar(a(A)),next),(bi_atomic(a(A)),next)]).
 subsumed_type_instr(goal, A, [(bi_atomic(a(A)),next),(bi_nonvar(a(A)),next)]).
-subsumed_type_instr(handle, A, [(bi_is_handle(a(A)),next),(bi_nonvar(a(A)),next)]).
+subsumed_type_instr(handle, A, [(bi_is_handle(a(A)),next),(bi_nonvar(a(A)),next),(bi_atomic(a(A)),next)]).
 subsumed_type_instr(list, A, [(bi_compound(a(A)),next),
                                 (bi_callable(a(A)),next),(bi_nonvar(a(A)),next)]).
-subsumed_type_instr(rational, A, [(bi_number(a(A)),next),(bi_rational(a(A)),next),(bi_nonvar(a(A)),next)]).
+subsumed_type_instr(rational, A, [(bi_number(a(A)),next),(bi_rational(a(A)),next),(bi_nonvar(a(A)),next),
+				(bi_atomic(a(A)),next)]).
 subsumed_type_instr(string, A, [(bi_atomic(a(A)),next),(bi_string(a(A)),next),(bi_nonvar(a(A)),next)]).
 subsumed_type_instr(structure, A, [(bi_compound(a(A)),next),
 				(bi_callable(a(A)),next),(bi_nonvar(a(A)),next)]).

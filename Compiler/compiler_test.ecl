@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.25 2015/01/14 01:31:08 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.26 2015/05/27 16:48:51 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1124,10 +1124,33 @@ testclause(bip(type_tests), [
 	(p(X) :- string(X)),
 	(p(X) :- number(X)),
 	(p(X) :- atomic(X)),
-	(p(X) :- sepia_kernel:callable(X)),
+	(p(X) :- callable(X)),
 	(p(X) :- compound(X)),
 	(p(X) :- is_list(X)),
 	(p(X) :- fail)
+]).
+testclause(bip(type_tests_det1), [
+    	(p(X) :- var(X)),
+    	(p(X) :- atomic(X)),
+    	(p(X) :- compound(X))
+]).
+testclause(bip(type_tests_det2), [
+    	(p(X) :- var(X)),
+    	(p(X) :- atom(X)),
+    	(p(X) :- number(X)),
+    	(p(X) :- string(X)),
+    	(p(X) :- compound(X)),
+	(p(X) :- is_handle(X)),
+	(p(X) :- is_suspension(X))
+]).
+testclause(bip(type_tests_det3), [
+    	(p(X) :- free(X)),
+    	(p(X) :- meta(X)),
+    	(p(X) :- callable(X)),
+    	(p(X) :- number(X)),
+    	(p(X) :- string(X)),
+	(p(X) :- is_handle(X)),
+	(p(X) :- is_suspension(X))
 ]).
 testclause(bip(other), [
     	(p(X) :- sepia_kernel:set_bip_error(X)),
@@ -1177,7 +1200,7 @@ testclause(bip(functions), [(
 		\/(K,2,L),
 		xor(L,2,M),
 		\(M,N),
-		sepia_kernel:arity(foo(a,b,c),3),
+		arity(foo(a,b,c),3),
 		arg(N,foo(a,b,c),Z)
 )]).
 
