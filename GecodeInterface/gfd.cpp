@@ -1275,7 +1275,7 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
 		    ec2boolexpr(EC_argument(c,2), solver)
 		    );
 
-	} else if (f.d == d_neg1) return ec2boolexpr(EC_argument(c,1), solver);
+	} else if (f.d == d_neg1) return !ec2boolexpr(EC_argument(c,1), solver);
 
 	// otherwise, treat as linear relation
 	return ec2intrel(c, solver);
