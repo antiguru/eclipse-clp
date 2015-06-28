@@ -965,6 +965,9 @@ int p_g_add_newvars_as_bool()
     // ++newsize as we don't use 0 for index
     if (varrsize != ++newsize - oldsize) return RANGE_ERROR;
  
+    // 2015-06-28 fix for bug#789  boolean may be linked to an existing
+    // IntVar whose bounds could change (or even become singleton)
+    if (solver->is_first()) cache_domain_sizes(solver);
 
     try {
 	for (int i=oldsize,argi=1; i < (int)newsize; i++,argi++) {
@@ -1002,6 +1005,10 @@ int p_g_add_newbool()
     solver = *solverp;
     if (solver == NULL) return TYPE_ERROR;
 
+    // 2015-06-28 fix for bug#789  boolean may be linked to an existing
+    // IntVar whose bounds could change (or even become singleton)
+    if (solver->is_first()) cache_domain_sizes(solver);
+
     try {
         solver->vBool << BoolVar(*solver,0,1);
 	int bidx = solver->vBool.size()-1;
@@ -1030,6 +1037,10 @@ int p_g_link_newbools()
     int varrsize = varr.arity();
     if (varrsize == 0) return TYPE_ERROR;
  
+
+    // 2015-06-28 fix for bug#789  booleans are  linked to existing
+    // IntVars whose bounds could change (or even become singleton)
+    if (solver->is_first()) cache_domain_sizes(solver);
 
     try {
 	for (int i=1; i <= varrsize; i++) {
