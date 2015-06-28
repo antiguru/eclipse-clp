@@ -768,7 +768,8 @@ link_var_to_boolvar(V, H) :-
         ( (var(V), is_not_boolvar(V)) ->
 	    get_gecode_attr(V, Attr),
             Attr = gfd{idx:Idx,bool:BIdx},
-            post_new_event(newbool(Idx,BIdx), H)
+            % never done on its own, so no need to wake
+            post_new_event_no_wake(newbool(Idx,BIdx), H)
         ;
             true
         ).
