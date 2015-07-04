@@ -89,7 +89,7 @@ $(ROOTFILE).ps.Z:	$(ROOTFILE).ps
 $(ROOTFILE)/$(ROOTFILE).html:	$(CHAPTERS)
 	mkdir -p $(ROOTFILE)
 	cp -r embjava-diagrams $(ROOTFILE)
-	hevea -fix underscore.hva hyperref.hva url.hva $(ROOTFILE)
+	hevea -fix underscore.hva url.hva $(ROOTFILE)
 	# replace the hard link index.html -> $(ROOTFILE).html by a soft link
 	# because of problems with tar on Windows
 	hacha -tocbis $(ROOTFILE).html
