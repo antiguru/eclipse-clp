@@ -24,11 +24,14 @@
 #define SIZEOF_INT 4
 #define SIZEOF_LONG 4
 
+#include <queue>
 #include "gfd.hpp"
 #include <eclipseclass.h>
 #include <sepia.h>
 
 #define EC_EXTERNAL_ERROR  -213  // from error.h
+
+// these must correspond to the gfd_space struct in gfd.ecl
 #define SPACE_HANDLE_POS   1
 #define SPACE_STAMP_POS    2
 
@@ -60,16 +63,22 @@ EC_argument(EC_word t, int i)
 	return EC_EXTERNAL_ERROR; \
     }
 
-// get the interger consistency level cl from argument N 
-#define Get_Consistency_Level(N, cl) {		\
-    EC_atom atm;   \
-    if (EC_arg(N).is_atom(&atm) != EC_succeed) return TYPE_ERROR; \
+#define THROW_ECEXCEPT throw Ec2gcException()
+#define RETURN_ECERR(Err) return Err
+ 
+#define Assign_Consistency_Level(atm, cl, Exception)		  \
     dident ldid = atm.d;					  \
     if (ldid == d_default) cl = ICL_DEF;                          \
     else if (ldid == d_gac) cl = ICL_DOM;			  \
     else if (ldid == d_bc) cl = ICL_BND;			  \
     else if (ldid == d_vc) cl = ICL_VAL;			  \
-    else return RANGE_ERROR;				  \
+    else Exception					  	  \
+
+// get the interger consistency level cl from argument N 
+#define Get_Consistency_Level(N, cl) {		\
+    EC_atom atm;   \
+    if (EC_arg(N).is_atom(&atm) != EC_succeed) return TYPE_ERROR; \
+    Assign_Consistency_Level(atm, cl, RETURN_ECERR(RANGE_ERROR)); \
 }
 
 // get IntRelType r from argument N
@@ -84,6 +93,16 @@ EC_argument(EC_word t, int i)
     else if (rdid == d_lt) r = IRT_LE;				    \
     else if (rdid == d_neq) r = IRT_NQ;				    \
     else return TYPE_ERROR;				    \
+}
+
+#define Get_ReifType(N, r) { \
+   EC_atom rtype; \
+   if (EC_arg(N).is_atom(&rtype) != EC_succeed) return TYPE_ERROR; \
+   dident rtdid = rtype.d;                                         \
+   if (rtdid == d_equ) r = RM_EQV;                                  \
+   else if (rtdid == d_imp) r = RM_IMP;                             \
+   else if (rtdid == d_impby) r = RM_PMI;                           \
+   else return TYPE_ERROR;                                         \
 }
 
 // Assign IntVar var from argument N, var is assigned to either an existing 
@@ -128,7 +147,11 @@ extern "C" VisAtt stream_id Winapi ec_stream_id(int);
 
 #endif
 
-static dident d_max_wdeg, d_min_wdeg, 
+static dident d_max_wdeg2, d_min_wdeg2, 
+    d_max_wdeg_per_val2, d_min_wdeg_per_val2,
+    d_max_wdeg1, d_min_wdeg1, 
+    d_max_wdeg_per_val1, d_min_wdeg_per_val1,
+    d_max_wdeg, d_min_wdeg, 
     d_max_wdeg_per_val, d_min_wdeg_per_val,
     d_ff, d_antiff, 
     d_occ, d_antiocc, 
@@ -136,14 +159,19 @@ static dident d_max_wdeg, d_min_wdeg,
     d_max_regret, d_max_regret_lwb, 
     d_min_regret_lwb, d_max_regret_upb, d_min_regret_upb,
     d_most_constrained_per_val, d_least_constrained_per_val, 
-    d_most_constrained, d_input_order, d_random,
+    d_most_constrained, d_input_order, d_random, d_random1,
+    d_max_act2, d_max_act_per_val2, d_min_act2, d_min_act_per_val2,
+    d_max_act1, d_max_act_per_val1, d_min_act1, d_min_act_per_val1,
+    d_max_act, d_max_act_per_val, d_min_act, d_min_act_per_val,
+    d_fr_lg1, d_fr_sm1, d_fr_up1, d_fr_down1,
     d_default, d_gac, d_bc, d_vc,
-    d_eq, d_neq, d_gt, d_lt, d_geq, d_leq,
-    d_iv2, d_sum2, d_element2, d_plus2, d_minus2, 
-    d_mult2, d_div2, d_rem2, d_min2, d_max2, 
+    d_eq, d_neq, d_gt, d_lt, d_geq, d_leq, d_equ, d_imp, d_impby,
+    d_colon2, d_iv2, d_sum2, d_element2, d_plus2, d_minus2, 
+    d_mult2, d_div2, d_rem2, d_min2, d_max2, d_pow2, d_inroot2,
     d_minus1, d_abs1, d_sqr1, d_isqrt1, d_sum1, d_max1, d_min1,
     d_eq2, d_gt2, d_geq2, d_lt2, d_leq2, d_neq2,
-    d_and2, d_or2, d_xor2, d_imp2, d_equ2, d_neg1;
+    d_and2, d_or2, d_xor2, d_imp2, d_equ2, d_neg1,
+    d_geo2, d_luby1, d_rand4, d_con1, d_lin1;
 
 using namespace Gecode;
 
@@ -196,6 +224,24 @@ static void _free_space_handle(GecodeSpace** solverp)
 
 t_ext_type gfd_method = {
     (void (*)(t_ext_ptr)) _free_space_handle, /* free */
+    NULL, /* copy */ 
+    NULL, /* mark_dids */
+    NULL, /* string_size */
+    NULL, /* to_string */
+    NULL, /* equal */
+    NULL, /* remote_copy */
+    NULL, /* get */
+    NULL, /* set */
+};
+
+static void _free_ldsbsyms_handle(LDSBSymsStore* sym_storep)
+{
+    if (sym_storep != NULL) delete sym_storep;
+    sym_storep = NULL;
+}
+
+t_ext_type ldsbsyms_method = {
+    (void (*)(t_ext_ptr)) _free_ldsbsyms_handle, /* free */
     NULL, /* copy */ 
     NULL, /* mark_dids */
     NULL, /* string_size */
@@ -261,13 +307,14 @@ t_ext_type domain_method = {
     NULL, /* set */
 };
 
-static void _free_intptr_handle(int* intarrp)
+static void _free_varselect_handle(VarSelectH* varselecthp)
 {
-    if (intarrp != NULL) delete intarrp;
+    delete varselecthp; 
+    varselecthp = NULL;
 }
 
-t_ext_type intptr_method = {
-    (void (*)(t_ext_ptr)) _free_intptr_handle, /* free */
+t_ext_type varselecth_method = {
+    (void (*)(t_ext_ptr)) _free_varselect_handle, /* free */
     NULL, /* copy */ 
     NULL, /* mark_dids */
     NULL, /* string_size */
@@ -297,8 +344,36 @@ int get_domain_intervals_from_ec_array(int size, EC_word ecarr, int r[][2])
     return EC_succeed;
 }
 
+int assign_IntVarArgs_and_collect_ints(GecodeSpace* solver, int size, 
+				       EC_word ecarr, IntVarArgs& vargs, 
+				       std::queue<IntVar*>* intsp)
+{
+    EC_functor f;
+    EC_word arg;
+    long l;
+
+    try {
+	for(int i=0; i<size; i++) {
+	    arg = EC_argument(ecarr, i+1);
+	    if (arg.functor(&f) == EC_succeed) {
+		if  (strcmp(f.name(), "_ivar") == 0
+		     && EC_argument(arg, 1).is_long(&l) == EC_succeed) {
+		    vargs[i] = solver->vInt[(int)l];
+		} else
+		    return RANGE_ERROR;
+	    } else if (arg.is_long(&l) == EC_succeed) {
+		vargs[i] = IntVar(*solver,(int)l,(int)l);
+		intsp->push(&vargs[i]);
+	    } else
+		return TYPE_ERROR;
+	}
+	return EC_succeed;
+    }
+    CatchAndReportGecodeExceptions
+}
+
 int assign_IntVarArgs_from_ec_array(GecodeSpace* solver, int size, 
-				    EC_word ecarr, IntVarArgs& vargs)
+				    EC_word ecarr, IntVarArgs& vargs) 
 {
     EC_functor f;
     EC_word arg;
@@ -392,6 +467,14 @@ void cache_domain_sizes(GecodeSpace* solver) {
 extern "C" VisAtt 
 int p_g_init()
 {
+    d_max_wdeg2 = ec_did("max_weighted_degree", 2);
+    d_min_wdeg2 = ec_did("min_weighted_degree", 2);
+    d_max_wdeg_per_val2 = ec_did("max_weighted_degree_per_value", 2);
+    d_min_wdeg_per_val2 = ec_did("min_weighted_degree_per_value", 2);
+    d_max_wdeg1 = ec_did("max_weighted_degree", 1);
+    d_min_wdeg1 = ec_did("min_weighted_degree", 1);
+    d_max_wdeg_per_val1 = ec_did("max_weighted_degree_per_value", 1);
+    d_min_wdeg_per_val1 = ec_did("min_weighted_degree_per_value", 1);
     d_max_wdeg = ec_did("max_weighted_degree", 0);
     d_min_wdeg = ec_did("min_weighted_degree", 0);
     d_max_wdeg_per_val = ec_did("max_weighted_degree_per_value", 0);
@@ -414,11 +497,29 @@ int p_g_init()
     d_least_constrained_per_val = ec_did("least_constrained_per_value", 0);
     d_input_order = ec_did("input_order", 0);
     d_random = ec_did("random", 0);
+    d_random1 = ec_did("random", 1);
+    d_max_act2 = ec_did("max_activity", 2);
+    d_max_act_per_val2 = ec_did("max_activity_per_value", 2);
+    d_min_act2 = ec_did("min_activity", 2);
+    d_min_act_per_val2 = ec_did("min_activity_per_value", 2);
+    d_max_act1 = ec_did("max_activity", 1);
+    d_max_act_per_val1 = ec_did("max_activity_per_value", 1);
+    d_min_act1 = ec_did("min_activity", 1);
+    d_min_act_per_val1 = ec_did("min_activity_per_value", 1);
+    d_max_act = ec_did("max_activity", 0);
+    d_max_act_per_val = ec_did("max_activity_per_value", 0);
+    d_min_act = ec_did("min_activity", 0);
+    d_min_act_per_val = ec_did("min_activity_per_value", 0);
+    d_fr_sm1 = ec_did("from_smaller", 1);
+    d_fr_lg1 = ec_did("from_larger", 1);
+    d_fr_up1 = ec_did("from_up", 1);
+    d_fr_down1 = ec_did("from_down", 1);
 
     d_default = ec_did("default", 0);
     d_gac = ec_did("gfd_gac", 0);
     d_bc = ec_did("gfd_bc", 0);
     d_vc = ec_did("gfd_vc", 0);
+    d_colon2 = ec_did(":", 2);
 
     d_eq = ec_did("#=", 0);
     d_neq = ec_did("#\\=", 0);
@@ -447,6 +548,8 @@ int p_g_init()
     d_abs1 = ec_did("abs", 1);
     d_sqr1 = ec_did("sqr", 1);
     d_isqrt1 = ec_did("isqrt", 1);
+    d_pow2 = ec_did("pow", 2);
+    d_inroot2 = ec_did("inroot", 2);
     d_sum1 = ec_did("sum", 1);
     d_max1 = ec_did("max", 1);
     d_min1 = ec_did("min", 1);
@@ -456,8 +559,17 @@ int p_g_init()
     d_imp2 = ec_did("=>", 2);
     d_equ2 = ec_did("<=>", 2);
     d_neg1 = ec_did("neg", 1);
+    d_equ = ec_did("<=>", 0);
+    d_imp = ec_did("=>", 0);
+    d_impby = ec_did("<==", 0);
 
     d_iv2 = ec_did("_ivar", 2);
+
+    d_geo2 = ec_did("geo", 2);
+    d_luby1 = ec_did("luby", 1);
+    d_rand4 = ec_did("rand", 4);
+    d_con1 = ec_did("con", 1);
+    d_lin1 = ec_did("lin", 1);
 
     return EC_succeed;
 
@@ -489,6 +601,7 @@ int p_g_trail_undo_for_event()
     if (*solverp == NULL) return TYPE_ERROR; // should not happen!
 
     ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, ec_arg(1).val.ptr+SPACE_STAMP_POS, NULL, 0, TRAILED_WORD32);
+
     return EC_succeed;
 }
 
@@ -523,6 +636,7 @@ int p_g_check_handle()
     if (*solverp == NULL) { // no valid current solver space, clone ancestor
 	if (EC_succeed == EC_arg(2).is_nil()) { // no ancestor, make new space
 	    *solverp = new GecodeSpace();
+	    (*solverp)->afc_decay(1.0);
 	} else { // clone ancestor
 	    GecodeSpace** ancestorp;
 	    EC_functor f;
@@ -820,7 +934,7 @@ int p_g_get_var_afc()
     if (solver == NULL || idx >= solver->vInt.size()) return RANGE_ERROR;
 
     try {
-	return unify(EC_arg(3), EC_word((long)solver->vInt[(int)idx].afc()));
+	return unify(EC_arg(3), EC_word(solver->vInt[(int)idx].afc(*solver)));
     }
     CatchAndReportGecodeExceptions
 }
@@ -965,9 +1079,6 @@ int p_g_add_newvars_as_bool()
     // ++newsize as we don't use 0 for index
     if (varrsize != ++newsize - oldsize) return RANGE_ERROR;
  
-    // 2015-06-28 fix for bug#789  boolean may be linked to an existing
-    // IntVar whose bounds could change (or even become singleton)
-    if (solver->is_first()) cache_domain_sizes(solver);
 
     try {
 	for (int i=oldsize,argi=1; i < (int)newsize; i++,argi++) {
@@ -1037,7 +1148,6 @@ int p_g_link_newbools()
     int varrsize = varr.arity();
     if (varrsize == 0) return TYPE_ERROR;
  
-
     // 2015-06-28 fix for bug#789  booleans are  linked to existing
     // IntVars whose bounds could change (or even become singleton)
     if (solver->is_first()) cache_domain_sizes(solver);
@@ -1147,13 +1257,13 @@ int p_g_add_newvars_dom_handle()
      } \
 }
 
-LinExpr
+LinIntExpr
 ec2intexpr(EC_word e, GecodeSpace* solver)
 {
     long l;
     int i;
     EC_functor f;
-    LinExpr arg1(BoolVar(*solver,1,1)), arg2(BoolVar(*solver,1,1));
+    LinIntExpr arg1(BoolVar(*solver,1,1)), arg2(BoolVar(*solver,1,1));
 
     if (e.functor(&f) == EC_succeed) {
 	if (f.d == d_iv2 && 
@@ -1196,27 +1306,48 @@ ec2intexpr(EC_word e, GecodeSpace* solver)
 		  IntArgs cs(size);
 		  if (assign_IntArgs_from_ec_array(size, carr, cs) == EC_succeed)
 		      return sum(cs, vars);
-		} else {
-		    arg2 = ec2intexpr(EC_argument(e, 2), solver);
-		    if (f.d != d_element2) {
-			arg1 = ec2intexpr(EC_argument(e, 1), solver);
-	
-			if (f.d == d_plus2)       return (arg1 + arg2); 
-			else if (f.d == d_minus2) return (arg1 - arg2); 
-			else if (f.d == d_mult2)  return (arg1 * arg2); 
-			else if (f.d == d_min2)   return  min(arg1, arg2); 
-			else if (f.d == d_max2)   return max(arg1, arg2); 
-			else if (f.d == d_rem2)   return (arg1 % arg2); 
-			else if (f.d == d_div2)   return (arg1 / arg2); 
 
-		    } else {
-			// element(<Vars>, <Expr>)
-			EC_word varr = EC_argument(e,2);
-			int size = varr.arity();
-			IntVarArgs vars(size);
-			if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) == EC_succeed)
-			    return element(vars, arg2);
-		    }
+		} else if (f.d == d_pow2) {
+		    arg1 = ec2intexpr(EC_argument(e, 1), solver);
+		    if (EC_argument(e,2).is_long(&l) != EC_succeed) 
+			throw Ec2gcException();
+		    return pow(arg1, (int)l);
+
+		} else if (f.d == d_inroot2) {
+		    arg1 = ec2intexpr(EC_argument(e, 1), solver);
+		    if (EC_argument(e,2).is_long(&l) != EC_succeed)
+			throw Ec2gcException();
+		    return nroot(arg1, (int)l);
+
+		} else if (f.d == d_colon2) {
+		    EC_atom atm;
+		    if (EC_argument(e,1).is_atom(&atm) != EC_succeed)
+			throw Ec2gcException();
+		    IntConLevel cl;
+		    Assign_Consistency_Level(atm, cl, THROW_ECEXCEPT);
+
+		    return expr(*solver, ec2intexpr(EC_argument(e, 2), solver), cl);
+
+		} else if (f.d == d_element2) {
+		    // element(<IdxExpr>, <Vars>)
+		    EC_word varr = EC_argument(e,2);
+		    int size = varr.arity();
+		    IntVarArgs vars(size);
+		    if (assign_IntVarArgs_from_ec_array(solver, size, varr, vars) == EC_succeed)
+			return element(vars, ec2intexpr(EC_argument(e, 1), solver));
+		} else {
+
+		    arg2 = ec2intexpr(EC_argument(e, 2), solver);
+		    arg1 = ec2intexpr(EC_argument(e, 1), solver);
+	
+		    if (f.d == d_plus2)       return (arg1 + arg2); 
+		    else if (f.d == d_minus2) return (arg1 - arg2); 
+		    else if (f.d == d_mult2)  return (arg1 * arg2); 
+		    else if (f.d == d_min2)   return  min(arg1, arg2); 
+		    else if (f.d == d_max2)   return max(arg1, arg2); 
+		    else if (f.d == d_rem2)   return (arg1 % arg2); 
+		    else if (f.d == d_div2)   return (arg1 / arg2); 
+
 		}
 		break;
 	    }} /* switch */
@@ -1231,14 +1362,14 @@ ec2intexpr(EC_word e, GecodeSpace* solver)
     throw Ec2gcException();
 }
 
-LinRel
+LinIntRel
 ec2intrel(EC_word c, GecodeSpace* solver)
 {
     EC_functor f;
 
     if (c.functor(&f) == EC_succeed && f.arity() == 2) {
-	LinExpr arg1 = ec2intexpr(EC_argument(c,1), solver);
-	LinExpr arg2 = ec2intexpr(EC_argument(c,2), solver);
+	LinIntExpr arg1 = ec2intexpr(EC_argument(c,1), solver);
+	LinIntExpr arg2 = ec2intexpr(EC_argument(c,2), solver);
 
 	if (f.d == d_eq2) return (arg1 == arg2);
 	else if (f.d == d_gt2) return (arg1 > arg2);
@@ -1286,8 +1417,29 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
 		    ec2boolexpr(EC_argument(c,2), solver)
 		    );
 
-	} else if (f.d == d_neg1) return !ec2boolexpr(EC_argument(c,1), solver);
+	} else if (f.d == d_neg1) {
+	    return !ec2boolexpr(EC_argument(c,1), solver);
 
+	} else if (f.d == d_element2) {
+	    EC_word barr = EC_argument(c,2);
+	    int size = barr.arity();
+
+	    BoolVarArgs bools(size);
+	    if (assign_BoolVarArgs_from_ec_array(solver, size, barr, bools) !=
+		EC_succeed) throw Ec2gcException();
+ 
+	    return element(bools, ec2intexpr(EC_argument(c,1), solver) );
+
+	} else if (f.d == d_colon2) {
+	    EC_atom atm;
+	    if (EC_argument(c,1).is_atom(&atm) != EC_succeed)
+		throw Ec2gcException();
+	    IntConLevel cl;
+	    Assign_Consistency_Level(atm, cl, THROW_ECEXCEPT);
+
+	    return expr(*solver, ec2boolexpr(EC_argument(c, 2), solver), cl);
+
+	} 
 	// otherwise, treat as linear relation
 	return ec2intrel(c, solver);
     } else if (c.is_long(&l) == EC_succeed) {
@@ -1306,7 +1458,7 @@ ec2boolexpr(EC_word c, GecodeSpace*solver)
 
     // Unknown boolean expression
     throw Ec2gcException();
-    }
+}
 
 REG
 ec2reg(EC_word e)
@@ -1435,7 +1587,7 @@ int p_g_post_intrel_cstr()
     Get_Consistency_Level(3, cl);
 
     try {
-	LinRel c = ec2intrel(EC_arg(2), solver);
+	LinIntRel c = ec2intrel(EC_arg(2), solver);
 
 	if (solver->is_first()) cache_domain_sizes(solver);
 	rel(*solver, c, cl);
@@ -1635,7 +1787,6 @@ int p_g_post_interval()
 
     if (EC_succeed != EC_arg(3).is_long(&min)) return(TYPE_ERROR);
     if (EC_succeed != EC_arg(4).is_long(&max)) return(TYPE_ERROR);
-    if (min > max) return RANGE_ERROR;
 
     if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
 	return TYPE_ERROR;
@@ -1683,32 +1834,22 @@ int p_g_post_var_interval_reif()
         Assign_IntVar(2, xidx, x);
 
 	long b;
-	BoolVar reif;
-	bool bool_is_set;
+	BoolVar reifb;
 
 	if (ArgIsVarBoolIdx(5, b)) {
-	    reif = solver->vBool[(int)b];
-	    bool_is_set = false;
+	    reifb = solver->vBool[(int)b];
 	} else if (EC_arg(5).is_long(&b) == EC_succeed) {
 	    if (b < 0 || b > 1) return RANGE_ERROR;
-	    bool_is_set = true;
+	    reifb = BoolVar(*solver, b, b);
 	} else
 	    return TYPE_ERROR;
 
+	ReifyMode rm;
+	Get_ReifType(6, rm);
+
 	if (solver->is_first()) cache_domain_sizes(solver);
 
-	// Gecode does not seem to have the following:
-	// dom(*solver, vars, min, max, reif);
-	if (bool_is_set) {
-	    if (b == 1) {
-		dom(*solver, x, (int)min, (int)max);
-		return (solver->failed() ? EC_fail : EC_succeed);
-	    } else if (b == 0) 
-		reif = BoolVar(*solver, 0, 0);
-	    else
-		return RANGE_ERROR;
-	}
-
+	Reify reif(reifb, rm);
 	dom(*solver, x, min, max, reif);
 	return (solver->failed() ? EC_fail : EC_succeed);
     }
@@ -1994,30 +2135,22 @@ int p_g_post_var_dom_reif()
 	IntSet domset(ranges, dsize);
 
 	long b;
-	BoolVar reif;
-	bool bool_is_set;
+	BoolVar reifb;
 
 	if (ArgIsVarBoolIdx(4, b)) {
-	    reif = solver->vBool[(int)b];
-	    bool_is_set = false;
+	    reifb = solver->vBool[(int)b];
 	} else if (EC_arg(4).is_long(&b) == EC_succeed) {
 	    if (b < 0 || b > 1) return RANGE_ERROR;
-	    bool_is_set = true;
+	    reifb = BoolVar(*solver, b, b);
 	} else
 	    return TYPE_ERROR;
 
+	ReifyMode rm;
+	Get_ReifType(5, rm);
+
 	if (solver->is_first()) cache_domain_sizes(solver);
 
-	if (bool_is_set) {
-	    if (b == 1) {
-		dom(*solver, x, domset);
-		return (solver->failed() ? EC_fail : EC_succeed);
-	    } else if (b == 0) 
-		reif = BoolVar(*solver, 0, 0);
-	    else 
-		return RANGE_ERROR;
-	}
-
+	Reify reif(reifb, rm);
 	dom(*solver, x, domset, reif);
 	return (solver->failed() ? EC_fail : EC_succeed);
     }
@@ -2047,34 +2180,54 @@ int p_g_post_var_val_reif()
 	if (EC_succeed != EC_arg(3).is_long(&val)) return(TYPE_ERROR);
 
 	long b;
-	BoolVar reif;
-	bool bool_is_set;
+	BoolVar reifb;
 
 	if (ArgIsVarBoolIdx(4, b)) {
-	    reif = solver->vBool[(int)b];
-	    bool_is_set = false;
+	    reifb = solver->vBool[(int)b];
 	} else if (EC_arg(4).is_long(&b) == EC_succeed) {
 	    if (b < 0 || b > 1) return RANGE_ERROR;
-	    bool_is_set = true;
+		reifb = BoolVar(*solver, b, b);
 	} else
 	    return TYPE_ERROR;
 
+	ReifyMode rm;
+	Get_ReifType(5, rm);
+
 	if (solver->is_first()) cache_domain_sizes(solver);
 
-	if (bool_is_set) {
-	    if (b == 1) {
-		dom(*solver, x, (int)val);
-		return (solver->failed() ? EC_fail : EC_succeed);
-	    } else if (b == 0) 
-		reif = BoolVar(*solver, 0, 0);
-	    else 
-		return RANGE_ERROR;
-	}
-
+	Reify reif(reifb, rm);
 	dom(*solver, x, (int)val, reif);
 	return (solver->failed() ? EC_fail : EC_succeed);
     }
     CatchAndReportGecodeExceptions
+}
+
+extern "C" VisAtt
+int p_g_post_dom_var()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+    
+    long i;
+
+    EC_functor f;
+    IntVar x;
+    Assign_IntVar(2, i, x);
+
+    IntVar y;
+    Assign_IntVar(3, i, y);
+
+    try {
+	dom(*solver, x,y);
+	return (solver->failed() ? EC_fail : EC_succeed);
+    }
+    CatchAndReportGecodeExceptions
+
 }
 
 extern "C" VisAtt
@@ -2147,22 +2300,26 @@ int p_g_post_sum_reif()
     Assign_IntVar_or_Int(4, c, cvar, c_is_int);
 
     IntConLevel cl;
-    Get_Consistency_Level(6, cl);
+    Get_Consistency_Level(7, cl);
 
     long b;
-    BoolVar reif;
+    BoolVar reifb;
 
     if (ArgIsVarBoolIdx(5, b)) {
-        reif = solver->vBool[(int)b];
-	    } else if (EC_arg(5).is_long(&b) == EC_succeed) {
+        reifb = solver->vBool[(int)b];
+    } else if (EC_arg(5).is_long(&b) == EC_succeed) {
         if (b < 0 || b > 1) return RANGE_ERROR;
-	reif = BoolVar(*solver, (int)b, (int)b);
+	reifb = BoolVar(*solver, (int)b, (int)b);
     } else
         return TYPE_ERROR;
+
+    ReifyMode rm;
+    Get_ReifType(6, rm);
 
     if (solver->is_first()) cache_domain_sizes(solver);
 
     try {
+      Reify reif(reifb, rm);
       if (c_is_int) 
 	linear(*solver, vars, rel, (int)c, reif, cl);
       else
@@ -2256,31 +2413,85 @@ int p_g_post_lin_reif()
     Assign_IntVar_or_Int(5, c, cvar, c_is_int);
 
     IntConLevel cl;
-    Get_Consistency_Level(7, cl);
+    Get_Consistency_Level(8, cl);
 
     long b;
-    BoolVar reif;
+    BoolVar reifb;
 
     if (ArgIsVarBoolIdx(6, b)) {
-        reif = solver->vBool[(int)b];
+        reifb = solver->vBool[(int)b];
     } else if (EC_arg(6).is_long(&b) == EC_succeed) {
         if (b < 0 || b > 1) return RANGE_ERROR;
-	reif = BoolVar(*solver, (int)b, (int)b);
+	reifb = BoolVar(*solver, (int)b, (int)b);
     } else
         return TYPE_ERROR;
+
+    ReifyMode rm;
+    Get_ReifType(7, rm);
 
     if (solver->is_first()) cache_domain_sizes(solver);
 
     try {
-      if (c_is_int) 
-	linear(*solver, cs, vars, rel, (int)c, reif, cl);
-      else
-	linear(*solver, cs, vars, rel, cvar, reif, cl);
-      return EC_succeed;
+	Reify reif(reifb, rm);
+	if (c_is_int) 
+	    linear(*solver, cs, vars, rel, (int)c, reif, cl);
+	else
+	    linear(*solver, cs, vars, rel, cvar, reif, cl);
+	return EC_succeed;
     }
     CatchAndReportGecodeExceptions
 }
  
+extern "C" VisAtt
+int p_g_post_simple_reif_rc()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+    
+    long i;
+
+    EC_functor f;
+    IntVar x;
+    Assign_IntVar(2, i, x);
+
+    IntVar y;
+    Assign_IntVar(4, i, y);
+
+    IntRelType relop;
+    Get_IntRelType(3, relop);
+
+    long b;
+    BoolVar reifb;
+
+    if (ArgIsVarBoolIdx(5, b)) {
+	reifb = solver->vBool[(int)b];
+    } else if (EC_arg(5).is_long(&b) == EC_succeed) {
+	if (b < 0 || b > 1) return RANGE_ERROR;
+	reifb = BoolVar(*solver, (int)b, (int)b);
+    } else
+	return TYPE_ERROR;
+
+    ReifyMode rm;
+    Get_ReifType(6, rm);
+
+    IntConLevel cl;
+    Get_Consistency_Level(7, cl);
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    try {
+	Reify reif(reifb, rm);
+	rel(*solver, x, relop, y, reif, cl);
+    }
+    CatchAndReportGecodeExceptions
+    return EC_succeed;
+}
+
 extern "C" VisAtt
 int p_g_post_alldiff()
 {
@@ -2405,20 +2616,24 @@ int p_g_post_mem_reif()
     EC_functor f;
     Assign_IntVar(3, m, mvar);
 
+    ReifyMode rm;
+    Get_ReifType(5, rm);
+
     long b;
-    BoolVar reif;
+    BoolVar reifb;
 
     if (ArgIsVarBoolIdx(4, b)) {
-        reif = solver->vBool[(int)b];
+        reifb = solver->vBool[(int)b];
 	    } else if (EC_arg(4).is_long(&b) == EC_succeed) {
         if (b < 0 || b > 1) return RANGE_ERROR;
-	reif = BoolVar(*solver, (int)b, (int)b);
+	reifb = BoolVar(*solver, (int)b, (int)b);
     } else
         return TYPE_ERROR;
 
     if (solver->is_first()) cache_domain_sizes(solver);
 
     try {
+	Reify reif(reifb, rm);
 	member(*solver, vs, mvar, reif);
     }
     CatchAndReportGecodeExceptions
@@ -3897,6 +4112,86 @@ int p_g_post_minlist()
 }
 
 extern "C" VisAtt
+int p_g_post_minidx()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    try {
+	EC_functor f;
+	long xidx;
+	IntVar x;
+	Assign_IntVar(2, xidx, x);
+
+	long tb;
+	if (EC_arg(4).is_long(&tb) != EC_succeed) return TYPE_ERROR;
+	bool tiebreak = (tb ? true : false);
+
+	EC_word varr = EC_arg(3);
+	int size = varr.arity();
+
+	IntVarArgs vars(size);
+	int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+	if (res != EC_succeed) return res;
+
+	IntConLevel cl;
+	Get_Consistency_Level(5, cl);
+
+	if (solver->is_first()) cache_domain_sizes(solver);
+
+	argmin(*solver, vars, x, tiebreak, cl);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_post_maxidx()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    try {
+	EC_functor f;
+	long xidx;
+	IntVar x;
+	Assign_IntVar(2, xidx, x);
+
+	long tb;
+	if (EC_arg(4).is_long(&tb) != EC_succeed) return TYPE_ERROR;
+	bool tiebreak = (tb ? true : false);
+
+	EC_word varr = EC_arg(3);
+	int size = varr.arity();
+
+	IntVarArgs vars(size);
+	int res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
+	if (res != EC_succeed) return res;
+
+	IntConLevel cl;
+	Get_Consistency_Level(5, cl);
+
+	if (solver->is_first()) cache_domain_sizes(solver);
+
+	argmax(*solver, vars, x, tiebreak, cl);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
 int p_g_post_rel()
 {
     GecodeSpace** solverp;
@@ -3948,7 +4243,7 @@ int p_g_post_collection_rel()
     try {
 	EC_word xarr = EC_arg(2);
 	long i = xarr.arity();
-	if (i == 0) return TYPE_ERROR;
+	//if (i == 0) return TYPE_ERROR;
 
 	IntVarArgs xs(i);
 	int res = assign_IntVarArgs_from_ec_array(solver, i, xarr, xs);
@@ -4274,6 +4569,61 @@ int p_g_post_bin_packing()
 }
 
 extern "C" VisAtt
+int p_g_post_bin_packing_md()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word iarr = EC_arg(2);
+    int size = iarr.arity();
+
+    IntVarArgs ivars(size);
+    int res = assign_IntVarArgs_from_ec_array(solver, size, iarr, ivars);
+    if (res != EC_succeed) return res;
+
+    // ec_ivars exclude the dummy item 0
+    IntVarArgs ec_ivars(size-1);
+    for (int i = 1; i < size; i++) ec_ivars[i-1] = ivars[i];
+
+    EC_word sarr = EC_arg(3);
+    size = sarr.arity();
+
+    IntArgs sizes(size);
+    res = assign_IntArgs_from_ec_array(size, sarr, sizes);
+    if (res != EC_succeed) return res;
+
+    EC_word larr = EC_arg(4);
+    size = larr.arity();
+
+    IntVarArgs lvars(size);
+    res = assign_IntVarArgs_from_ec_array(solver, size, larr, lvars);
+    if (res != EC_succeed) return res;
+
+    if (solver->is_first()) cache_domain_sizes(solver);
+
+    EC_word carr = EC_arg(5);
+    int dim = carr.arity();
+
+    IntArgs caps(dim);
+    res = assign_IntArgs_from_ec_array(dim, carr, caps);
+    if (res != EC_succeed) return res;
+
+    try {
+	// exclude allocating to item 0 for 0 sized items
+	rel(*solver, ec_ivars, IRT_GQ, 1);  // always, no gecode indexing
+	binpacking(*solver, dim, lvars, ivars, sizes, caps);
+    }
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
 int p_g_create_tupleset_handle()
 {
     long size;
@@ -4466,6 +4816,181 @@ int p_g_post_extensional()
 }
 
 
+double set_actmerit_to_degree(const Space& solver, IntVar x, int idx)
+{
+    return (double)x.degree()*
+	static_cast<const GecodeSpace&>(solver).get_d_args(0);
+}
+
+double set_user_actmerit(const Space& solver, IntVar x, int idx)
+{
+
+    return static_cast<const GecodeSpace&>(solver).get_d_args(idx);
+}
+
+#define SetRestartCutoff(RestartMethodArg,CutoffArg) {	\
+    long l; \
+    EC_word cutoffspec = EC_argument(RestartMethodArg,CutoffArg); \
+    if (cutoffspec.functor(&f) != EC_succeed) \
+	return TYPE_ERROR; \
+    dident cdid = f.d; \
+    Search::Cutoff* cutoff; \
+    if (cdid == d_geo2) { \
+	if (EC_argument(cutoffspec,1).is_long(&l) != EC_succeed) \
+	    return TYPE_ERROR; \
+	double b; \
+	if (EC_argument(cutoffspec,2).is_double(&b) != EC_succeed) \
+	    return TYPE_ERROR; \
+	cutoff = Search::Cutoff::geometric((unsigned long)l,b); \
+    } else if (cdid == d_luby1) { \
+	if (EC_argument(cutoffspec,1).is_long(&l) != EC_succeed) \
+	    return TYPE_ERROR; \
+	cutoff = Search::Cutoff::luby((unsigned long)l); \
+    } else if (cdid == d_rand4) { \
+	long min, max, seed; \
+	if (EC_argument(cutoffspec,1).is_long(&min) != EC_succeed) \
+	    return TYPE_ERROR; \
+	if (EC_argument(cutoffspec,2).is_long(&max) != EC_succeed) \
+	    return TYPE_ERROR; \
+	if (EC_argument(cutoffspec,3).is_long(&l) != EC_succeed) \
+	    return TYPE_ERROR; \
+	if (EC_argument(cutoffspec,4).is_long(&seed) != EC_succeed) \
+	    return TYPE_ERROR; \
+	cutoff = Search::Cutoff::rnd(seed,min,max,l); \
+    } else if (cdid == d_con1) { \
+	if (EC_argument(cutoffspec,1).is_long(&l) != EC_succeed) \
+	    return TYPE_ERROR; \
+	cutoff = Search::Cutoff::constant((unsigned int)l);	\
+    } else if (cdid == d_lin1) { \
+	if (EC_argument(cutoffspec,1).is_long(&l) != EC_succeed) \
+	    return TYPE_ERROR; \
+	cutoff = Search::Cutoff::linear((unsigned int)l);	\
+    } else return RANGE_ERROR; \
+    o.cutoff = cutoff; \
+}
+
+
+#define Set_S2_VarSelect(Arg, Select) { \
+	    EC_functor f; \
+	    Arg.functor(&f); \
+	    dident selectdid = f.d; \
+	    if (selectdid == d_max_wdeg2 || \
+		selectdid == d_min_wdeg2 || \
+		selectdid == d_max_wdeg_per_val2 ||  \
+		selectdid == d_min_wdeg_per_val2 ) { \
+\
+		double d; \
+		if (EC_argument(Arg,1).is_double(&d) == EC_succeed) { \
+		    if (d > 1) return RANGE_ERROR; \
+		    /* -1.0 if not specified in params, get existing decay */ \
+		    else if (d < 0) d = solver->afc_decay(); \
+		} else \
+		    return TYPE_ERROR; \
+\
+		IntAFC wdeg(*solver, vars, d);	 \
+		if (selectdid == d_max_wdeg2 ) { \
+		    Select = INT_VAR_AFC_MAX(wdeg); \
+		} else if (selectdid == d_min_wdeg2 ) \
+		    Select = INT_VAR_AFC_MIN(wdeg); \
+		else if (selectdid == d_max_wdeg_per_val2 ) { \
+		    Select = INT_VAR_AFC_SIZE_MAX(wdeg); \
+		} else if (selectdid == d_min_wdeg_per_val2 ) { \
+		    Select = INT_VAR_AFC_SIZE_MIN(wdeg); \
+		} \
+\
+		if (EC_argument(Arg,2).is_double(&d) == EC_succeed) { \
+		    /* -1.0 if not specified in params, do not change */ \
+		    if (d >= 0)  solver->afc_set(d); \
+		} else \
+		    return TYPE_ERROR; \
+\
+	    } else if (selectdid == d_max_act2  ||  \
+		       selectdid == d_max_act_per_val2 || \
+		       selectdid == d_min_act2 || \
+		       selectdid == d_min_act_per_val2 ) { \
+\
+		double actdecay; \
+		IntBranchMerit actinitf = NULL; \
+\
+		GetActivityOptions(Arg, vsize, actdecay, actinitf); \
+		IntActivity act(*solver, vars, actdecay, actinitf); \
+\
+		if (selectdid == d_max_act2)  \
+		    Select = INT_VAR_ACTIVITY_MAX(act); \
+		else if (selectdid == d_max_act_per_val2)\
+		    Select = INT_VAR_ACTIVITY_SIZE_MAX(act); \
+		else if (selectdid == d_min_act2) \
+		    Select = INT_VAR_ACTIVITY_MIN(act);  \
+		else if (selectdid == d_min_act_per_val2) \
+		    Select = INT_VAR_ACTIVITY_SIZE_MIN(act); \
+		else return RANGE_ERROR; /* should not happen */	\
+	    } else \
+		return RANGE_ERROR; \
+}
+
+#define Set_Atm_VarSelect(varselect) { \
+	    if (selectdid == d_input_order) varselect = INT_VAR_NONE(); \
+	    else if (selectdid == d_ff) varselect = INT_VAR_SIZE_MIN(); \
+	    else if (selectdid == d_antiff) varselect = INT_VAR_SIZE_MAX(); \
+	    else if (selectdid == d_occ) varselect = INT_VAR_DEGREE_MAX(); \
+	    else if (selectdid == d_antiocc) varselect = INT_VAR_DEGREE_MIN();\
+	    else if (selectdid == d_largest) varselect = INT_VAR_MAX_MAX(); \
+	    else if (selectdid == d_smallest) varselect = INT_VAR_MIN_MIN(); \
+	    else if (selectdid == d_largest_lwb) varselect = INT_VAR_MAX_MIN();\
+	    else if (selectdid == d_smallest_upb) varselect = INT_VAR_MIN_MAX();\
+	    else if (selectdid == d_most_constrained_per_val) varselect = INT_VAR_DEGREE_SIZE_MAX();\
+	    else if (selectdid == d_least_constrained_per_val) varselect = INT_VAR_DEGREE_SIZE_MIN();\
+	    else if (selectdid == d_max_regret) varselect = INT_VAR_REGRET_MIN_MAX();\
+	    else if (selectdid == d_max_regret_lwb) varselect = INT_VAR_REGRET_MIN_MAX();\
+	    else if (selectdid == d_min_regret_lwb) varselect = INT_VAR_REGRET_MIN_MIN();\
+	    else if (selectdid == d_max_regret_upb) varselect = INT_VAR_REGRET_MAX_MAX();\
+	    else if (selectdid == d_min_regret_upb) varselect = INT_VAR_REGRET_MAX_MIN();\
+	    else if (selectdid == d_random) { \
+		Rnd r(0U);\
+		r.time(); \
+		varselect = INT_VAR_RND(r); \
+	    } else return RANGE_ERROR; \
+}
+
+#define GetActivityOptions(ActArg, vsize, actdecay, actinitf) {	    \
+	EC_word w;						    \
+	if (ActArg.arg(1, w) == EC_fail) return TYPE_ERROR;	    \
+	if (w.is_double(&actdecay) == EC_succeed) {		    \
+	    if (actdecay < 0) actdecay = 1.0;			    \
+	    if (actdecay > 1) return RANGE_ERROR;		    \
+	} else							    \
+	    return TYPE_ERROR;					    \
+	if (ActArg.arg(2, w) == EC_fail) return TYPE_ERROR;	    \
+	EC_atom atm;						    \
+	if (w.is_nil() == EC_succeed) {actinitf = NULL; }	    \
+	else if (w.arity() == 1) {					\
+	    EC_functor f;						\
+	    w.functor(&f);						\
+	    if (strcmp(f.name(), "vals") == 0) {			\
+		actinitf = set_user_actmerit;				\
+		/* set user merit array */				\
+		w = EC_argument(w, 1);					\
+		long size = w.arity();					\
+		if (size != vsize) return RANGE_ERROR;                  \
+		double* inits = new double[size], d;			\
+		EC_word arg;						\
+		for(int i=0; i<size; i++) {				\
+		    arg = EC_argument(w, i+1);				\
+		    if (arg.is_double(&d) == EC_succeed) {		\
+			inits[i] = d;					\
+		    } else return TYPE_ERROR;				\
+		}							\
+		solver->set_d_args(inits);				\
+	    } else if (strcmp(f.name(),"degree") == 0) {		\
+		double* f = new double[1];				\
+		actinitf = set_actmerit_to_degree;			\
+		if (EC_argument(w, 1).is_double(&f[0]) == EC_succeed) {	\
+		    solver->set_d_args(f);			\
+		} else return TYPE_ERROR;				\
+	    } else return RANGE_ERROR;					\
+	} else return RANGE_ERROR;					\
+}
+
 #define GFDSTATSIZE    5
 
 extern "C" VisAtt
@@ -4473,9 +4998,9 @@ int p_g_setup_search()
 {
     GecodeSpace** solverp;
     GecodeSpace* solver;
+
     EC_functor f;
     EC_word w;
-
 
     if (EC_arg(1).functor(&f) != EC_succeed) return TYPE_ERROR;
     if (strcmp(f.name(), "gfd_space") != 0) return TYPE_ERROR;
@@ -4483,145 +5008,207 @@ int p_g_setup_search()
     if (w.is_handle(&gfd_method, (void**)&solverp) != EC_succeed) 
 	return TYPE_ERROR;
     solver = *solverp;
-    if (solver == NULL) return TYPE_ERROR;
 
     try {
-	EC_atom atm;
+	EC_word varr = EC_arg(2);
+	int res, vsize = varr.arity();
 
+	IntVarArgs vars(vsize);
+	res = assign_IntVarArgs_from_ec_array(solver, vsize, varr, vars);
+	if (res != EC_succeed) return res;
+
+	EC_atom atm;
 	bool do_tiebreak = false;
 	IntVarBranch varselect, tiebreakselect;
 
-	if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
-	if (strcmp(atm.name(), "none") != 0) {
+	switch (EC_arg(6).arity()) {
+	case 2: 
 	    do_tiebreak = true;
-	    dident selectdid = atm.d;
-	    if (selectdid == d_input_order)
-		tiebreakselect = INT_VAR_NONE;
-	    else if (selectdid == d_ff )
-		tiebreakselect = INT_VAR_SIZE_MIN;
-	    else if (selectdid == d_antiff )
-		tiebreakselect = INT_VAR_SIZE_MAX;
-	    else if (selectdid == d_occ )
-		tiebreakselect = INT_VAR_DEGREE_MAX;
-	    else if (selectdid == d_antiocc )
-		tiebreakselect = INT_VAR_DEGREE_MIN;
-	    else if (selectdid == d_largest )
-		tiebreakselect = INT_VAR_MAX_MAX;
-	    else if (selectdid == d_smallest )
-		tiebreakselect = INT_VAR_MIN_MIN;
-	    else if (selectdid == d_largest_lwb )
-		tiebreakselect = INT_VAR_MAX_MIN;
-	    else if (selectdid == d_smallest_upb )
-		tiebreakselect = INT_VAR_MIN_MAX;
-	    else if (selectdid == d_most_constrained_per_val )
-		tiebreakselect = INT_VAR_SIZE_DEGREE_MAX;
-	    else if (selectdid == d_least_constrained_per_val )
-		tiebreakselect = INT_VAR_SIZE_DEGREE_MIN;
-	    else if (selectdid == d_max_regret )
-		tiebreakselect = INT_VAR_REGRET_MIN_MAX;
-	    else if (selectdid == d_max_regret_lwb )
-		tiebreakselect = INT_VAR_REGRET_MIN_MAX;
-	    else if (selectdid == d_min_regret_lwb )
-		tiebreakselect = INT_VAR_REGRET_MIN_MIN;
-	    else if (selectdid == d_max_regret_upb )
-		tiebreakselect = INT_VAR_REGRET_MAX_MAX;
-	    else if (selectdid == d_min_regret_upb )
-		tiebreakselect = INT_VAR_REGRET_MAX_MIN;
-	    else if (selectdid == d_random )
-		tiebreakselect = INT_VAR_RND;
-	    else if (selectdid == d_max_wdeg )
-		tiebreakselect = INT_VAR_AFC_MAX;
-	    else if (selectdid == d_min_wdeg )
-		tiebreakselect = INT_VAR_AFC_MIN;
-	    else if (selectdid == d_max_wdeg_per_val )
-		tiebreakselect = INT_VAR_SIZE_AFC_MAX;
-	    else if (selectdid == d_min_wdeg_per_val )
-		tiebreakselect = INT_VAR_SIZE_AFC_MIN;
-	    else return RANGE_ERROR;
+
+	    Set_S2_VarSelect(EC_arg(6), tiebreakselect)
+	    break;
+
+	case 1: {
+	    do_tiebreak = true;
+
+	    EC_functor f;
+	    EC_arg(6).functor(&f);
+	    dident selectdid = f.d;
+	    if (selectdid == d_random1) {
+		long seed;
+		if (EC_succeed == EC_argument(EC_arg(6), 1).is_long(&seed)) {
+		    Rnd r((unsigned int)seed);
+		    tiebreakselect = INT_VAR_RND(r);
+		} else
+		    return TYPE_ERROR;
+	    } else
+		return TYPE_ERROR;
+	    break;
+	}
+	case 0: 
+	    if (EC_arg(6).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
+	    if (strcmp(atm.name(), "none") != 0) {
+		do_tiebreak = true;
+		dident selectdid = atm.d;
+
+		Set_Atm_VarSelect(tiebreakselect)
+	    }
+	    break;
+
+	default:
+	    return TYPE_ERROR;
 	}
 
-	if (EC_arg(3).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
-	dident selectdid = atm.d;
-	if (selectdid == d_input_order) varselect = INT_VAR_NONE;
-	else if (selectdid == d_ff) varselect = INT_VAR_SIZE_MIN;
-	else if (selectdid == d_antiff) varselect = INT_VAR_SIZE_MAX;
-	else if (selectdid == d_occ) varselect = INT_VAR_DEGREE_MAX;
-	else if (selectdid == d_antiocc) varselect = INT_VAR_DEGREE_MIN;
-	else if (selectdid == d_largest) varselect = INT_VAR_MAX_MAX;
-	else if (selectdid == d_smallest) varselect = INT_VAR_MIN_MIN;
-	else if (selectdid == d_largest_lwb) varselect = INT_VAR_MAX_MIN;
-	else if (selectdid == d_smallest_upb) varselect = INT_VAR_MIN_MAX;
-	else if (selectdid == d_most_constrained) {
-	    varselect = INT_VAR_SIZE_MIN;
-	    do_tiebreak = true;
-	    tiebreakselect = INT_VAR_DEGREE_MAX;
-	} else if (selectdid == d_most_constrained_per_val) varselect = INT_VAR_SIZE_DEGREE_MAX;
-	else if (selectdid == d_least_constrained_per_val) varselect = INT_VAR_SIZE_DEGREE_MIN;
-	else if (selectdid == d_max_regret) varselect = INT_VAR_REGRET_MIN_MAX;
-	else if (selectdid == d_max_regret_lwb) varselect = INT_VAR_REGRET_MIN_MAX;
-	else if (selectdid == d_min_regret_lwb) varselect = INT_VAR_REGRET_MIN_MIN;
-	else if (selectdid == d_max_regret_upb) varselect = INT_VAR_REGRET_MAX_MAX;
-	else if (selectdid == d_min_regret_upb) varselect = INT_VAR_REGRET_MAX_MIN;
-	else if (selectdid == d_random) varselect = INT_VAR_RND;
-	else if (selectdid == d_max_wdeg) varselect = INT_VAR_AFC_MAX; 
-	else if (selectdid == d_min_wdeg) varselect = INT_VAR_AFC_MIN; 
-	else if (selectdid == d_max_wdeg_per_val) varselect = INT_VAR_SIZE_AFC_MAX; 
-	else if (selectdid == d_min_wdeg_per_val) varselect = INT_VAR_SIZE_AFC_MIN; 
-	else return RANGE_ERROR;
+	switch (EC_arg(3).arity()) {
+	case 2: 
+	    Set_S2_VarSelect(EC_arg(3), varselect)
+	    break;
+
+	case 1: {
+	    EC_functor f;
+	    EC_arg(3).functor(&f);
+	    dident selectdid = f.d;
+	    if (selectdid == d_random1) {
+		long seed;
+		if (EC_succeed == EC_argument(EC_arg(3), 1).is_long(&seed)) {
+		    Rnd r((unsigned int)seed);
+		    varselect = INT_VAR_RND(r);
+		} else
+		    return TYPE_ERROR;
+	    } else
+		return TYPE_ERROR;
+	    break;
+	}
+	case 0: {
+	    if (EC_arg(3).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
+	    dident selectdid = atm.d;
+	    if (selectdid == d_most_constrained) {
+		varselect = INT_VAR_SIZE_MIN();
+		do_tiebreak = true;
+		tiebreakselect = INT_VAR_DEGREE_MAX();
+	    } else 
+		Set_Atm_VarSelect(varselect)
+	    break;
+	}
+	default:
+	    return TYPE_ERROR;
+	}
 
 	IntValBranch valchoice;
-	if (EC_arg(4).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
-	if (strcmp(atm.name(), "indomain_min") == 0) valchoice = INT_VAL_MIN;
-	else if (strcmp(atm.name(), "indomain_max") == 0) valchoice = INT_VAL_MAX;
-	else if (strcmp(atm.name(), "indomain_median") == 0) valchoice = INT_VAL_MED;
-	else if (strcmp(atm.name(), "indomain_random") == 0) valchoice = INT_VAL_RND;
-	else if (strcmp(atm.name(), "indomain_split") == 0) valchoice = INT_VAL_SPLIT_MIN;
-	else if (strcmp(atm.name(), "indomain_reverse_split") == 0) valchoice = INT_VAL_SPLIT_MAX;
-	else if (strcmp(atm.name(), "indomain") == 0) valchoice = INT_VALUES_MIN;
-	else if (strcmp(atm.name(), "indomain_reverse_enum") == 0) valchoice = INT_VALUES_MAX;
-	else if (strcmp(atm.name(), "indomain_interval") == 0) valchoice = INT_VAL_RANGE_MIN;
-	else if (strcmp(atm.name(), "indomain_interval_min") == 0) valchoice = INT_VAL_RANGE_MIN;
-	else if (strcmp(atm.name(), "indomain_interval_max") == 0) valchoice = INT_VAL_RANGE_MAX;
-	else return RANGE_ERROR;
+	switch (EC_arg(4).arity()) {
+	case 1: {
+	    EC_functor f;
+	    EC_arg(4).functor(&f);
+	    dident choicedid = f.d;
+	    if (choicedid == d_random1) {
+		long seed;
+		if (EC_succeed == EC_argument(EC_arg(4),1).is_long(&seed)) {
+		    Rnd r((unsigned int)seed);
+		    valchoice = INT_VAL_RND(r);
+		} else
+		    return TYPE_ERROR;
+	    } else if (choicedid == d_fr_sm1 || 
+		       choicedid == d_fr_lg1 ||
+		       choicedid == d_fr_up1 || choicedid == d_fr_down1) {
+		EC_word valarr = EC_argument(EC_arg(4),1);
+		int res, size = valarr.arity();
 
-	EC_functor f;
-	long l = 0;
-	SearchMethod method;
+		IntArgs vals(size);
+		assign_IntArgs_from_ec_array(size, valarr, vals);
+		if (choicedid == d_fr_sm1) valchoice = INT_VAL_NEAR_MIN(vals);
+		else if (choicedid == d_fr_lg1) valchoice = INT_VAL_NEAR_MAX(vals);
+		else if (choicedid == d_fr_down1) valchoice = INT_VAL_NEAR_DEC(vals);
+		else if (choicedid == d_fr_up1) valchoice = INT_VAL_NEAR_INC(vals);
+		else return TYPE_ERROR; // should not happen
+	    } else
+		return TYPE_ERROR;
+	    break;
+	}
+	case 0: 
+	    if (EC_arg(4).is_atom(&atm) != EC_succeed) return TYPE_ERROR;
+	    if (strcmp(atm.name(), "min") == 0) valchoice = INT_VAL_MIN();
+	    else if (strcmp(atm.name(), "max") == 0) valchoice = INT_VAL_MAX();
+	    else if (strcmp(atm.name(), "median") == 0) valchoice = INT_VAL_MED();
+	    else if (strcmp(atm.name(), "random") == 0) {
+		Rnd r(0U);
+		r.time();
+		valchoice = INT_VAL_RND(r);
+	    } else if (strcmp(atm.name(), "split") == 0) valchoice = INT_VAL_SPLIT_MIN();
+	    else if (strcmp(atm.name(), "reverse_split") == 0) valchoice = INT_VAL_SPLIT_MAX();
+	    else if (strcmp(atm.name(), "indomain") == 0) valchoice = INT_VALUES_MIN();
+	    else if (strcmp(atm.name(), "indomain_reverse_enum") == 0) valchoice = INT_VALUES_MAX();
+	    else if (strcmp(atm.name(), "interval_min") == 0) valchoice = INT_VAL_RANGE_MIN();
+	    else if (strcmp(atm.name(), "interval_max") == 0) valchoice = INT_VAL_RANGE_MAX();
+	    else return RANGE_ERROR;
+	    break;
 
-	switch (EC_arg(5).arity()) {
-	    case 0:
-		if (EC_arg(5).is_atom(&atm) == EC_succeed) {
-		    if (strcmp(atm.name(), "complete") == 0) {
-			method = METHOD_COMPLETE;
-		    } else return RANGE_ERROR;
-		} else return RANGE_ERROR;
-		break;
-	    case 1:
-		EC_arg(5).functor(&f); // must be compound -- arity 1
-		if (strcmp(f.name(),"lds") == 0) {
-		    if (EC_argument(EC_arg(5),1).is_long(&l) != EC_succeed)
-			return TYPE_ERROR;
-		    method = METHOD_LDS;
-		} else if (strcmp(f.name(),"bb_min") == 0) {
-		    if (EC_argument(EC_arg(5),1).is_long(&l) != EC_succeed)
-			return TYPE_ERROR;
-		    method = METHOD_BAB;
-		} else if (strcmp(f.name(),"restart_min") == 0) {
-		    if (EC_argument(EC_arg(5),1).is_long(&l) != EC_succeed)
-			return TYPE_ERROR;
-		    method = METHOD_RESTART;
-		} else return RANGE_ERROR;
-		break;
-	    default:
-		return RANGE_ERROR; 
+	default:
+	    return TYPE_ERROR;
 	}
 
-	EC_word varr = EC_arg(2);
-	int res, size = varr.arity();
+	EC_functor f;
+	long oidx;
+	SearchMethod method;
+	Search::Options o;
 
-	IntVarArgs vars(size);
-	res = assign_IntVarArgs_from_ec_array(solver, size, varr, vars);
-	if (res != EC_succeed) return res;
+	switch (EC_arg(5).arity()) {
+	case 0:
+	    if (EC_arg(5).is_atom(&atm) == EC_succeed) {
+		if (strcmp(atm.name(), "complete") == 0) {
+		    method = METHOD_COMPLETE;
+		} else return RANGE_ERROR;
+	    } else return RANGE_ERROR;
+	    break;
+	case 1:
+	    EC_arg(5).functor(&f); // must be compound -- arity 1
+	    if (strcmp(f.name(),"bb_min") == 0) {
+		if (EC_argument(EC_arg(5),1).is_long(&oidx) != EC_succeed)
+		    return TYPE_ERROR;
+		method = METHOD_CONTINUE_BAB;
+	    } else if (strcmp(f.name(),"restart_min") == 0) {
+		if (EC_argument(EC_arg(5),1).is_long(&oidx) != EC_succeed)
+		    return TYPE_ERROR;
+		o.cutoff = Search::Cutoff::constant(ULONG_MAX);
+		o.nogoods_limit = 0;
+		method = METHOD_RESTART_BAB;
+	    } else if (strcmp(f.name(),"restart") == 0) {
+		SetRestartCutoff(EC_arg(5),1);
+		o.nogoods_limit = 0;
+		method = METHOD_RESTART;
+	    } else return RANGE_ERROR;
+	    break;
+	case 2:
+	    EC_arg(5).functor(&f);
+	    if (strcmp(f.name(), "restart_min") == 0) {
+		if (EC_argument(EC_arg(5),1).is_long(&oidx) != EC_succeed)
+		    return TYPE_ERROR;
+		SetRestartCutoff(EC_arg(5),2);
+		o.nogoods_limit = 0;
+		method = METHOD_RESTART_RBAB;
+	    } else if (strcmp(f.name(), "restart") == 0) {
+		SetRestartCutoff(EC_arg(5),1);
+		long ng_lim;
+		if (EC_argument(EC_arg(5),2).is_long(&ng_lim) != EC_succeed)
+		    return TYPE_ERROR;
+		o.nogoods_limit = (unsigned int) ng_lim;
+		method = METHOD_RESTART;
+	    } else return RANGE_ERROR;
+	    break;
+	case 3:
+	    EC_arg(5).functor(&f);
+	    if (strcmp(f.name(), "restart_min") == 0) {
+		if (EC_argument(EC_arg(5),1).is_long(&oidx) != EC_succeed)
+		    return TYPE_ERROR;
+		SetRestartCutoff(EC_arg(5),2);
+		long ng_lim;
+		if (EC_argument(EC_arg(5),3).is_long(&ng_lim) != EC_succeed)
+		    return TYPE_ERROR;
+		o.nogoods_limit = (unsigned int) ng_lim;
+		method = METHOD_RESTART_RBAB;
+	    } else return RANGE_ERROR;
+	default:
+	    return RANGE_ERROR; 
+	}
 
 	long timeout;
 	if (EC_succeed != EC_arg(7).is_long(&timeout)) return TYPE_ERROR;
@@ -4655,27 +5242,51 @@ int p_g_setup_search()
 	        threads = 1.0;
 	}
 
+	LDSBSymsStore* sym_storep = NULL;
+	Symmetries syms;
+	if (EC_arg(10).is_nil() != EC_succeed) {
+	    if (EC_succeed != get_handle_from_arg(10, &ldsbsyms_method, (void**)&sym_storep))
+		return TYPE_ERROR;
+	    std::queue<SymmetryHandle>* symsp = sym_storep->symsp;
+	    while (!symsp->empty()) {
+		syms << symsp->front();
+		symsp->pop();
+	    }
+	    std::queue<IntVar*>* intsp = sym_storep->intsp;
+	    while (!intsp->empty()) {
+		// work-around LDSB 'Variable in Symmetry not branched' 
+		// exception on dummy IntVars representing integers.
+		// Add these to the search variables 
+		vars << *(intsp->front());
+		intsp->pop();
+	    }
+	}
+
 	solver->clear_snapshot(); // make sure we do cache the current values!
 	cache_domain_sizes(solver);
 	if (!do_tiebreak) {
 	    // time() sets the seeds for the random var/val methods
 	    // setting user defined seed to be added later
-	    branch(*solver, vars, varselect, valchoice, 
-		   VarBranchOptions::time(), ValBranchOptions::time());
+	    if (sym_storep == NULL)
+		branch(*solver, vars, varselect, valchoice); 
+	    else 
+		branch(*solver, vars, varselect, valchoice, syms); 
+	    //VarBranchOptions::time(), ValBranchOptions::time());
 	} else {
-	    branch(*solver, vars, tiebreak(varselect, tiebreakselect), valchoice,
-		   VarBranchOptions::time(), ValBranchOptions::time());
-	}
-	// trail undo here for space because the branch() have modified the
-	// space, which thus becomes invalid on backtracking
-	ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, ec_arg(1).val.ptr+SPACE_STAMP_POS, NULL, 0, TRAILED_WORD32);
+	    if (sym_storep == NULL)
+		branch(*solver, vars, tiebreak(varselect, tiebreakselect), valchoice);
+	    else
+		branch(*solver, vars, tiebreak(varselect, tiebreakselect), valchoice, syms);
 
-	Search::Options o;
+	    //		   VarBranchOptions::time(), ValBranchOptions::time());
+	}
+
+	ec_trail_undo(_g_delete_space, ec_arg(1).val.ptr, ec_arg(1).val.ptr+SPACE_STAMP_POS, NULL, 0, TRAILED_WORD32);
 
 	Cutoff* cutoffp;
 	if (timeout > 0 || fail_lim > 0 || node_lim > 0 || mem_lim > 0) {
 	    cutoffp = new Cutoff((unsigned)node_lim,(unsigned)fail_lim,
-				 (unsigned)timeout,(size_t)mem_lim);
+				 (unsigned)timeout/*,(size_t)mem_lim*/);
 	    o.stop = cutoffp;
 	} else
 	    cutoffp = NULL;
@@ -4684,9 +5295,9 @@ int p_g_setup_search()
 	if (commitd > 0) o.c_d = commitd;
 	if (threads != 1.0) o.threads = threads;
 
-	GecodeSearch* searchp = new GecodeSearch(solver, o, (unsigned) l, cutoffp, method);
+	GecodeSearch* searchp = new GecodeSearch(solver, o, (unsigned) oidx, cutoffp, method);
 
-	return unify(EC_arg(10), handle(&gfdsearch_method, searchp));
+	return unify(EC_arg(11), handle(&gfdsearch_method, searchp));
     }
     CatchAndReportGecodeExceptions
 }
@@ -4731,39 +5342,39 @@ int p_g_do_search()
 
 	if (searchp->stopp != NULL) searchp->stopp->reset();
 	switch (searchp->method) {
-	    case METHOD_COMPLETE: 
-	    case METHOD_LDS: 
+	case METHOD_COMPLETE:
+	case METHOD_RESTART:
+	    *solverp = searchp->next();
+	    status = (*solverp == NULL ? 0 : 1); 
+	    break;
 
-		*solverp = searchp->next();
-		status = (*solverp == NULL ? 0 : 1); 
-		break;
+	case METHOD_RESTART_RBAB:
+	case METHOD_CONTINUE_BAB:
+	case METHOD_RESTART_BAB: {
+	    GecodeSpace* last_sol = NULL;
+	    bool has_aborted = false;
+	    do {
+		solver = searchp->next();
+		if (solver != NULL) {
+		    if (solver->vCost.assigned()) {
+			p_fprintf(log_output_,"Found a solution with cost %d\n", solver->vCost.val());
+		    } else {
+			p_fprintf(log_output_, "Cost variable not instantiated.\n");
+			has_aborted = true;
+			break;
+		    }
+		    ec_flush(log_output_);
+		    last_sol = solver;
+		} else
+		    *solverp = last_sol;
+	    } while (solver != NULL);
+	    status =  (has_aborted ? 2/*1<<2*/ : (last_sol == NULL ? 0 : 1)); 
+	    break;
+	}
 
-	    case METHOD_BAB:
-	    case METHOD_RESTART: {
-		GecodeSpace* last_sol = NULL;
-		bool has_aborted = false;
-		do {
-		    solver = searchp->next();
-		    if (solver != NULL) {
-			if (solver->vCost.assigned()) {
-			    p_fprintf(log_output_,"Found a solution with cost %d\n", solver->vCost.val());
-			} else {
-			    p_fprintf(log_output_, "Cost variable not instantiated.\n");
-			    has_aborted = true;
-			    break;
-			}
-			ec_flush(log_output_);
-			last_sol = solver;
-		    } else
-			*solverp = last_sol;
-		} while (solver != NULL);
-		status =  (has_aborted ? 2/*1<<2*/ : (last_sol == NULL ? 0 : 1)); 
-		break;
-	    }
-
-	    default: 
-		return RANGE_ERROR;
-		break;
+	default: 
+	    return RANGE_ERROR;
+	    break;
 
 	}
 
@@ -4772,12 +5383,12 @@ int p_g_do_search()
 	nfail = stat.fail;
 	nnode = stat.node;
 	depth = stat.depth;
-	mem = stat.memory;
+	//	mem = stat.memory;
 
 	// these must correspond to gfd_stats struct in gfd.ecl
 	EC_functor sf("gfd_stats", GFDSTATSIZE);
 	EC_word stats = term(sf, (long)nprop, (long)nfail, (long)nnode,
-			     (long)depth, (long)mem);
+			     (long)depth, 0L);
 	if (unify(EC_arg(6), stats) != EC_succeed) return EC_fail;
 
 	if (searchp->stopped()) {
@@ -4812,6 +5423,180 @@ int p_g_do_search()
 }
     
 extern "C" VisAtt
+int p_g_create_ldsbsyms_handle()
+{
+
+    LDSBSymsStore* sym_storep = new LDSBSymsStore(); 
+    return unify(EC_arg(1), handle(&ldsbsyms_method, sym_storep));
+
+}
+
+extern "C" VisAtt
+int p_g_add_ldsbsym_valueinter()
+{
+    LDSBSymsStore* sym_storep;
+
+    if (EC_succeed != get_handle_from_arg(1, &ldsbsyms_method, (void**)&sym_storep))
+	return TYPE_ERROR;
+
+    EC_word varr = EC_arg(2);
+    int res, size = varr.arity();
+    IntArgs vals(size);
+    res = assign_IntArgs_from_ec_array(size, varr, vals);
+    if (res != EC_succeed) return res;
+
+    sym_storep->symsp->push(ValueSymmetry(vals));
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_add_ldsbsym_variableinter()
+{
+    LDSBSymsStore* sym_storep;
+
+    if (EC_succeed != get_handle_from_arg(1, &ldsbsyms_method, (void**)&sym_storep))
+	return TYPE_ERROR;
+
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(3, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word varr = EC_arg(2);
+    int res, size = varr.arity();
+    IntVarArgs vars(size);
+    res = assign_IntVarArgs_and_collect_ints(solver, size, varr, vars, sym_storep->intsp);
+    if (res != EC_succeed) return res;
+
+    sym_storep->symsp->push(VariableSymmetry(vars));
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_add_ldsbsym_parvalueinter()
+{
+    LDSBSymsStore* sym_storep;
+
+    if (EC_succeed != get_handle_from_arg(1, &ldsbsyms_method, (void**)&sym_storep))
+	return TYPE_ERROR;
+
+    EC_word varr = EC_arg(2);
+    int res, size = varr.arity();
+    IntArgs vals(size);
+    res = assign_IntArgs_from_ec_array(size, varr, vals);
+    if (res != EC_succeed) return res;
+
+    long length;
+    if (EC_arg(3).is_long(&length) == EC_succeed) 
+	sym_storep->symsp->push(ValueSequenceSymmetry(vals, length));
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_add_ldsbsym_parvariableinter()
+{
+    LDSBSymsStore* sym_storep;
+
+    if (EC_succeed != get_handle_from_arg(1, &ldsbsyms_method, (void**)&sym_storep))
+	return TYPE_ERROR;
+
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(4, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word varr = EC_arg(2);
+    int res, size = varr.arity();
+    IntVarArgs vars(size);
+    res = assign_IntVarArgs_and_collect_ints(solver, size, varr, vars, sym_storep->intsp);
+    if (res != EC_succeed) return res;
+
+    long length;
+    if (EC_arg(3).is_long(&length) != EC_succeed) return TYPE_ERROR;
+ 
+    sym_storep->symsp->push(VariableSequenceSymmetry(vars, (int)length));
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_add_ldsbsym_valuesreflect()
+{
+    LDSBSymsStore* sym_storep;
+
+    if (EC_succeed != get_handle_from_arg(1, &ldsbsyms_method, (void**)&sym_storep))
+	return TYPE_ERROR;
+
+    long lower, upper;
+
+    if (EC_arg(2).is_long(&lower) != EC_succeed) return TYPE_ERROR; 
+    if (EC_arg(3).is_long(&upper) != EC_succeed) return TYPE_ERROR;
+ 
+    sym_storep->symsp->push(values_reflect((int)lower, (int)upper));
+
+    return EC_succeed;
+}
+
+
+extern "C" VisAtt
+int p_g_add_matrix_ldsbsym()
+{
+    LDSBSymsStore* sym_storep;
+
+    if (EC_succeed != get_handle_from_arg(1, &ldsbsyms_method, (void**)&sym_storep))
+	return TYPE_ERROR;
+
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(6, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    EC_word varr = EC_arg(2);
+    int res, size = varr.arity();
+    IntVarArgs vars(size);
+    res = assign_IntVarArgs_and_collect_ints(solver, size, varr, vars, sym_storep->intsp);
+    if (res != EC_succeed) return res;
+
+    long ncols, nrows;
+    if (EC_arg(3).is_long(&nrows) != EC_succeed) return TYPE_ERROR;
+    if (EC_arg(4).is_long(&ncols) != EC_succeed) return TYPE_ERROR;
+ 
+    // Gecode's Matrix rows/cols order are reverse of ECLiPSe/C++
+    // but the matrix still uses row-major ordering
+    Matrix<IntVarArgs>m(vars, ncols, nrows);
+
+    EC_atom f;
+    if (EC_arg(5).is_atom(&f) != EC_succeed) return TYPE_ERROR;
+    if (strcmp(f.name(), "r_int") == 0)
+	sym_storep->symsp->push(rows_interchange(m));
+    else if (strcmp(f.name(), "c_int") == 0)
+	sym_storep->symsp->push(columns_interchange(m));
+    else if (strcmp(f.name(), "c_ref") == 0)
+	sym_storep->symsp->push(columns_reflect(m));
+    else if (strcmp(f.name(), "r_ref") == 0)
+	sym_storep->symsp->push(rows_reflect(m));
+    else if (strcmp(f.name(), "d_ref") == 0)
+	sym_storep->symsp->push(diagonal_reflect(m));
+    else
+	return TYPE_ERROR;
+
+    return EC_succeed;
+}
+
+
+extern "C" VisAtt
 int p_g_get_gfd_maxint()
 {
     return unify(EC_arg(1), EC_word(Int::Limits::max));
@@ -4824,13 +5609,65 @@ int p_g_get_gfd_minint()
 }
 
 extern "C" VisAtt
-int p_g_create_idxs_handle()
+int p_g_get_afc_decay()
 {
-    EC_word idxs = EC_arg(1);
+    GecodeSpace** solverp;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+
+    double d;
+    try {
+	d = (*solverp)->afc_decay();
+    } 
+    CatchAndReportGecodeExceptions
+
+    return unify(EC_arg(2), EC_word(d));
+}
+
+extern "C" VisAtt
+int p_g_set_afc_decay()
+{
+    GecodeSpace** solverp;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+
+    double d;
+    if (EC_succeed != EC_arg(2).is_double(&d)) return TYPE_ERROR;
+    try {
+	(*solverp)->afc_decay(d);
+    } 
+    CatchAndReportGecodeExceptions
+
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_reset_afc()
+{
+    GecodeSpace** solverp;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+
+    double d;
+    if (EC_succeed != EC_arg(2).is_double(&d)) return TYPE_ERROR;
+    try {
+	(*solverp)->afc_set(d);
+    }
+    CatchAndReportGecodeExceptions
+    return EC_succeed;
+}
+
+extern "C" VisAtt
+int p_g_create_select_handle()
+{
+    EC_word idxs = EC_arg(2);
     long size = idxs.arity();
 
-    int* idxarr = (int *)malloc(sizeof(int)*(size+1));
-    idxarr[0] = size;
+    int* idxarr = new int[size+1];
+    idxarr[0] = (int) size;
 
     EC_word w;
     idxs.arg(1, w);
@@ -4845,7 +5682,67 @@ int p_g_create_idxs_handle()
 	} else return TYPE_ERROR;
     }
 
-    return unify(EC_arg(2), handle(&intptr_method, idxarr));
+
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+    solver = *solverp;
+    if (solver == NULL) return TYPE_ERROR;
+
+    VarSelectH* selecth = new VarSelectH();
+    selecth->idxs = idxarr;
+    selecth->act_inited = false; 
+
+    if (EC_arg(3).arity() == 2) {
+	EC_functor f;
+	EC_arg(3).functor(&f);
+	dident selectdid = f.d;
+
+	if (selectdid == d_max_wdeg2 ||
+	    selectdid == d_min_wdeg2 ||
+	    selectdid == d_max_wdeg_per_val2 || 
+	    selectdid == d_min_wdeg_per_val2 ) {
+
+	    double d;
+	    if (EC_argument(EC_arg(3),1).is_double(&d) == EC_succeed) {
+		if (d > 1) return RANGE_ERROR;
+		/* -1.0 if not specified in params, do not change */
+		else if (d >= 0) solver->afc_decay(d);
+	    } else
+		return TYPE_ERROR;
+
+	    if (EC_argument(EC_arg(3),2).is_double(&d) == EC_succeed) {
+		/* -1.0 if not specified in params, do not change */
+		if (d >= 0)  solver->afc_set(d);
+	    } else
+		return TYPE_ERROR;
+
+
+	} else if (selectdid == d_max_act2  ||
+		   selectdid == d_max_act_per_val2 ||
+		   selectdid == d_min_act2 ||
+		   selectdid == d_min_act_per_val2 ) {
+
+	    double actdecay;
+	    IntBranchMerit actinitf = NULL;
+
+	    GetActivityOptions(EC_arg(3), size, actdecay, actinitf);
+
+	    IntVarArgs vars(size);
+	    for(int i=1; i <= size; i++) vars[i-1] = solver->vInt[idxarr[i]];
+
+	    if (!solver->init_select_activity(vars, actdecay, actinitf)) return RANGE_ERROR; 
+	    selecth->act_inited = true;
+
+	} else
+	    return RANGE_ERROR;
+
+
+    }
+
+    return unify(EC_arg(4), handle(&varselecth_method, selecth));
 
 }
 
@@ -4862,6 +5759,9 @@ int p_g_create_idxs_handle()
     }\
 }
 
+// check that an IntAct was initialised for this selecth 
+#define Check_Act_Inited(selecth) if (!selecth->act_inited) return RANGE_ERROR
+
 extern "C" VisAtt
 int p_g_select()
 {
@@ -4873,97 +5773,163 @@ int p_g_select()
     solver = *solverp;
     if (solver == NULL) return TYPE_ERROR;
 
-    int* idxarr;
-    if (EC_succeed != get_handle_from_arg(2, &intptr_method, (void **)&idxarr))
+    VarSelectH* selecth;
+    if (EC_succeed != get_handle_from_arg(2, &varselecth_method, (void **)&selecth))
 	return TYPE_ERROR;
+    int* idxarr = selecth->idxs;
 
-    EC_atom select;
-    if (EC_arg(3).is_atom(&select) != EC_succeed) return TYPE_ERROR;
-    dident selectdid = select.d;
+
     int size =  idxarr[0], bestidx = -1, best;   
     unsigned int it, dsize;
     double ft, fbest;
-
+    
     try {
-	if (selectdid == d_ff) {
-	    Find_Best_IntVar_For(Int::Limits::max, best, dsize,
-				 ((int)dsize < best));
-	} else if (selectdid == d_max_wdeg) {
-	    Find_Best_IntVar_For(Int::Limits::min, best, it,
-				 ((int)(it=solver->vInt[idx].afc()) > best));
-	} else if (selectdid == d_min_wdeg) {
-	    Find_Best_IntVar_For(Int::Limits::max, best, it,
-				 ((int)(it=solver->vInt[idx].afc()) < best));
-	} else if (selectdid == d_occ) {
-	    Find_Best_IntVar_For(Int::Limits::min, best, it,
-				 ((int)(it=solver->vInt[idx].degree()) > best));
-	} else if (selectdid == d_antiocc) {
-	    Find_Best_IntVar_For(Int::Limits::max, best, it,
-				 ((int)(it=solver->vInt[idx].degree()) < best));
-	} else if (selectdid == d_input_order) {
-	    for (int j=1; j <= size; j++) {	
-		int idx =  idxarr[j];
-		if (solver->vInt[idx].size() > 1) {
-		    bestidx = idx;
-		    break;
-		}
-	    }
-	} else if (selectdid == d_smallest) {
-	    Find_Best_IntVar_For(Int::Limits::max, best, it,
-				 ((int)(it=solver->vInt[idx].min()) < best));
-	} else if (selectdid == d_largest) {
-	    Find_Best_IntVar_For(Int::Limits::min, best, it,
-				 ((int)(it=solver->vInt[idx].max()) > best));
-	} else if (selectdid == d_smallest_upb) {
-	    Find_Best_IntVar_For(Int::Limits::max, best, it,
-				 ((int)(it=solver->vInt[idx].max()) < best));
-	} else if (selectdid == d_largest_lwb) {
-	    Find_Best_IntVar_For(Int::Limits::min, best, it,
-				 ((int)(it=solver->vInt[idx].min()) > best));
-	} else if (selectdid == d_max_wdeg_per_val) {
-	    Find_Best_IntVar_For(Int::Limits::min, fbest, ft,
-				 ((ft=dsize/(double)solver->vInt[idx].afc()) > fbest));
-	} else if (selectdid == d_most_constrained) {
-	    int best2 = Int::Limits::min;
-	    best = Int::Limits::max;
-	    for (int j=1; j <= size; j++) {	
-		int idx =  idxarr[j];
-		if ((dsize = (int)solver->vInt[idx].size()) > 1) {	
-		    if ((int)dsize <= best && 
-			((it=(int)solver->vInt[idx].degree()),(int)dsize < best || it > best2)) {
-			best = dsize;
-			best2 = it;
+	switch (EC_arg(3).arity()) {
+	case 0: {
+	    EC_atom selectatm;
+	    if (EC_arg(3).is_atom(&selectatm) != EC_succeed) return TYPE_ERROR;
+	    dident selectdid = selectatm.d;
+
+	    if (selectdid == d_ff) {
+		Find_Best_IntVar_For(Int::Limits::max, best, dsize,
+				     ((int)dsize < best));
+	    } else if (selectdid == d_max_wdeg) {
+		Find_Best_IntVar_For(std::numeric_limits<double>::min(), fbest, ft,
+				     ((ft=solver->vInt[idx].afc(*solver)) > fbest));
+	    } else if (selectdid == d_min_wdeg) {
+		Find_Best_IntVar_For(std::numeric_limits<double>::max(), fbest, ft,
+				     ((ft=solver->vInt[idx].afc(*solver)) < fbest));
+	    } else if (selectdid == d_occ) {
+		Find_Best_IntVar_For(Int::Limits::min, best, it,
+				     ((int)(it=solver->vInt[idx].degree()) > best));
+	    } else if (selectdid == d_antiocc) {
+		Find_Best_IntVar_For(Int::Limits::max, best, it,
+				     ((int)(it=solver->vInt[idx].degree()) < best));
+	    } else if (selectdid == d_input_order) {
+		for (int j=1; j <= size; j++) {	
+		    int idx =  idxarr[j];
+		    if (solver->vInt[idx].size() > 1) {
 			bestidx = idx;
+			break;
 		    }
 		}
-	    }
+	    } else if (selectdid == d_smallest) {
+		Find_Best_IntVar_For(Int::Limits::max, best, it,
+				     ((int)(it=solver->vInt[idx].min()) < best));
+	    } else if (selectdid == d_largest) {
+		Find_Best_IntVar_For(Int::Limits::min, best, it,
+				     ((int)(it=solver->vInt[idx].max()) > best));
+	    } else if (selectdid == d_smallest_upb) {
+		Find_Best_IntVar_For(Int::Limits::max, best, it,
+				     ((int)(it=solver->vInt[idx].max()) < best));
+	    } else if (selectdid == d_largest) {
+		Find_Best_IntVar_For(Int::Limits::min, best, it,
+				     ((int)(it=solver->vInt[idx].min()) > best));
+	    } else if (selectdid == d_max_wdeg_per_val) {
+		Find_Best_IntVar_For(std::numeric_limits<double>::min(), fbest, ft,
+				     ((ft=solver->vInt[idx].afc(*solver)/(double)dsize) > fbest));
+	    } else if (selectdid == d_most_constrained) {
+		int best2 = Int::Limits::min;
+		best = Int::Limits::max;
+		for (int j=1; j <= size; j++) {	
+		    int idx =  idxarr[j];
+		    if ((dsize = (int)solver->vInt[idx].size()) > 1) {	
+			if ((int)dsize <= best && 
+			    ((it=(int)solver->vInt[idx].degree()),(int)dsize < best || it > best2)) {
+			    best = dsize;
+			    best2 = it;
+			    bestidx = idx;
+			}
+		    }
+		}
+	    } else if (selectdid == d_max_regret_lwb) {
+		Find_Best_IntVar_For(Int::Limits::min, best, it,
+				     ((int)(it=solver->vInt[idx].regret_min()) > best));
+	    } else if (selectdid == d_max_regret_upb) {
+		Find_Best_IntVar_For(Int::Limits::min, best, it,
+				     ((int)(it=solver->vInt[idx].regret_max()) > best));
+	    } else if (selectdid == d_min_regret_lwb) {
+		Find_Best_IntVar_For(Int::Limits::max, best, it,
+				     ((int)(it=solver->vInt[idx].regret_min()) < best));
+	    } else if (selectdid == d_min_regret_upb) {
+		Find_Best_IntVar_For(Int::Limits::max, best, it,
+				     ((int)(it=solver->vInt[idx].regret_max()) < best));
+	    } else if (selectdid == d_min_wdeg_per_val) {
+		Find_Best_IntVar_For(std::numeric_limits<double>::max(), fbest, ft,
+				     ((ft=solver->vInt[idx].afc(*solver)/(double)dsize) < fbest));
+	    } else if (selectdid == d_most_constrained_per_val) {
+		Find_Best_IntVar_For(Int::Limits::min, fbest, ft,
+				     ((ft=solver->vInt[idx].degree()/(double)dsize) > fbest));
+	    } else if (selectdid == d_least_constrained_per_val) {
+		Find_Best_IntVar_For(Int::Limits::max, fbest, ft,
+				     ((ft=solver->vInt[idx].degree()/(double)dsize) < fbest));
 
-	} else if (selectdid == d_max_regret_lwb) {
-	    Find_Best_IntVar_For(Int::Limits::min, best, it,
-				 ((int)(it=solver->vInt[idx].regret_min()) > best));
-	} else if (selectdid == d_max_regret_upb) {
-	    Find_Best_IntVar_For(Int::Limits::min, best, it,
-				 ((int)(it=solver->vInt[idx].regret_max()) > best));
-	} else if (selectdid == d_min_regret_lwb) {
-	    Find_Best_IntVar_For(Int::Limits::max, best, it,
-				 ((int)(it=solver->vInt[idx].regret_min()) < best));
-	} else if (selectdid == d_min_regret_upb) {
-	    Find_Best_IntVar_For(Int::Limits::max, best, it,
-				 ((int)(it=solver->vInt[idx].regret_max()) < best));
-	} else if (selectdid == d_min_wdeg_per_val) {
-	    Find_Best_IntVar_For(Int::Limits::max, fbest, ft,
-				 ((ft=dsize/(double)solver->vInt[idx].afc()) < fbest));
-	} else if (selectdid == d_most_constrained_per_val) {
-	    Find_Best_IntVar_For(Int::Limits::min, fbest, ft,
-				 ((ft=dsize/(double)solver->vInt[idx].degree()) > fbest));
-	} else if (selectdid == d_least_constrained_per_val) {
-	    Find_Best_IntVar_For(Int::Limits::max, fbest, ft,
-	    ((ft=dsize/(double)solver->vInt[idx].degree()) < fbest));
-	} else if (selectdid == d_antiff) {
-	    Find_Best_IntVar_For(Int::Limits::min, best, dsize,
-				 ((int)dsize > best));
-	} else
+	    } else if (selectdid == d_antiff) {
+		Find_Best_IntVar_For(Int::Limits::min, best, dsize,
+				     ((int)dsize > best));
+	    } else if (selectdid == d_max_act) {
+		Check_Act_Inited(selecth);
+		Find_Best_IntVar_For(std::numeric_limits<double>::min(), fbest, ft,
+				     ((ft=solver->get_select_activity(j-1)) > fbest));
+	    } else if (selectdid == d_min_act) {
+		Check_Act_Inited(selecth);
+		Find_Best_IntVar_For(std::numeric_limits<double>::max(), fbest, ft,
+				     ((ft=solver->get_select_activity(j-1)) < fbest));
+	    } else if (selectdid == d_max_act_per_val) {
+		Check_Act_Inited(selecth);
+		Find_Best_IntVar_For(std::numeric_limits<double>::min(), fbest, ft,
+				     ((ft=solver->get_select_activity(j-1))/dsize > fbest));
+	    } else if (selectdid == d_min_act_per_val) {
+		Check_Act_Inited(selecth);
+		Find_Best_IntVar_For(std::numeric_limits<double>::max(), fbest, ft,
+				     ((ft=solver->get_select_activity(j-1))/dsize < fbest));
+	    } else
+		return RANGE_ERROR;
+
+	    break;
+	}
+	case 1: {
+	    EC_functor f;
+	    EC_arg(3).functor(&f);
+	    dident selectdid = f.d;
+
+	    /* parameters ignored */
+	    if (selectdid == d_max_wdeg1) {
+		Find_Best_IntVar_For(std::numeric_limits<double>::min(), fbest, ft,
+				     ((ft=solver->vInt[idx].afc(*solver)) > fbest));
+	    } else if (selectdid == d_min_wdeg1) {
+		Find_Best_IntVar_For(std::numeric_limits<double>::max(), fbest, ft,
+				     ((ft=solver->vInt[idx].afc(*solver)) < fbest));
+	    } else if (selectdid == d_max_wdeg_per_val1) {
+		Find_Best_IntVar_For(std::numeric_limits<double>::max(), fbest, ft,
+				     ((ft=solver->vInt[idx].afc(*solver)/(double)dsize) < fbest));
+	    } else if (selectdid == d_min_wdeg_per_val1) {
+		Find_Best_IntVar_For(std::numeric_limits<double>::max(), fbest, ft,
+				     ((ft=solver->vInt[idx].afc(*solver)/(double)dsize) < fbest));
+	    } else if (selectdid == d_max_act1) {
+		Check_Act_Inited(selecth);
+		Find_Best_IntVar_For(std::numeric_limits<double>::min(), fbest, ft,
+ 				     ((ft=solver->get_select_activity(j-1)) > fbest));
+ 	    } else if (selectdid == d_min_act1) {
+		Check_Act_Inited(selecth);
+		Find_Best_IntVar_For(std::numeric_limits<double>::max(), fbest, ft,
+				     ((ft=solver->get_select_activity(j-1)) < fbest));
+	    } else if (selectdid == d_max_act_per_val1) {
+		Check_Act_Inited(selecth);
+		Find_Best_IntVar_For(std::numeric_limits<double>::min(), fbest, ft,
+				     ((ft=solver->get_select_activity(j-1))/dsize > fbest));
+	    } else if (selectdid == d_min_act_per_val1) {
+		Check_Act_Inited(selecth);
+		Find_Best_IntVar_For(std::numeric_limits<double>::max(), fbest, ft,
+				     ((ft=solver->get_select_activity(j-1))/dsize < fbest));
+	    } else
+		return RANGE_ERROR;
+
+	    break;
+	}
+	default:
 	    return RANGE_ERROR;
+	}
     }
     CatchAndReportGecodeExceptions
 
@@ -4971,7 +5937,6 @@ int p_g_select()
     else return EC_fail; // No var selected
 
 }
-
 
 extern "C" VisAtt
 int p_g_get_var_domain_handle()
@@ -5067,6 +6032,23 @@ int p_g_add_newvar_copy()
 	return EC_succeed;
     }
     CatchAndReportGecodeExceptions
+}
+
+extern "C" VisAtt
+int p_g_get_propagator_num()
+{
+    GecodeSpace** solverp;
+    GecodeSpace* solver;
+
+    if (EC_succeed != get_handle_from_arg(1, &gfd_method, (void**)&solverp))
+	return TYPE_ERROR;
+
+    try {
+	long nprop = (*solverp)->propagators();
+	return unify(EC_arg(2), EC_word(nprop));
+    }
+    CatchAndReportGecodeExceptions
+
 }
 
 extern "C" VisAtt
